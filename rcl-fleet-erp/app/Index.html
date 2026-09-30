@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #F4F6F8; }
+  #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+</style>
+</head>
+<body>
+<!-- RCL Fleet ERP – shell page.
+     The app itself (App.html) runs in the frame below. When a new version is deployed, the shell loads it
+     into the frame by itself – nobody has to refresh the browser. This file rarely needs to change. -->
+<iframe id="app" title="Rachana Construction Limited – Fleet ERP" allow="clipboard-read; clipboard-write"></iframe>
+<script>
+  window.RCL_APP = /*APP_JSON*/null;      // { html, build } – put in by the server (WebApp.gs) when the page opens
+  var current = null, swapping = false;
+  function showApp(a) { current = a.build; document.getElementById('app').srcdoc = a.html; }
+  function note(t) { var p = document.getElementById('note'); if (!p) { p = document.createElement('p'); p.id = 'note'; p.style.cssText = 'font:15px sans-serif;padding:24px;margin:0;position:relative;z-index:2'; document.body.appendChild(p); } p.textContent = t; }
+  if (window.RCL_APP) { showApp(window.RCL_APP); window.RCL_APP = null; }
+  else if (window.google && google.script && google.script.run) {
+    // the app was not put into this page – ask the server for it (and show why if that fails)
+    note('Loading the app…');
+    google.script.run
+      .withSuccessHandler(function (a) { if (a && a.html) { var p = document.getElementById('note'); if (p) p.remove(); showApp(a); } else note('The app could not be loaded (empty answer from the server).'); })
+      .withFailureHandler(function (e) { note('The app could not be loaded: ' + (e && e.message ? e.message : e) + '  –  check that the file "App" exists and WebApp.gs is the latest, then deploy a New version.'); })
+      .getAppHtml();
+  }
+  else note('This is the app\'s shell page. Open the app from its web-app link (Deploy → Manage deployments).');
+  // the app asks for this when a new version is live and nothing is unsaved
+  window.rclSwap = function () {
+    if (swapping) return; swapping = true;
+    google.script.run
+      .withSuccessHandler(function (a) { swapping = false; if (a && a.html && a.build && a.build !== current) showApp(a); })
+      .withFailureHandler(function () { swapping = false; })
+      .getAppHtml();
+  };
+  // every minute the shell also asks the server which version is live (in case the app could not)
+  setInterval(function () {
+    google.script.run.withSuccessHandler(function (b) {
+      if (!b || b === current) return;
+      var w = document.getElementById('app').contentWindow, busy = false;
+      try { busy = w.rclBusy ? w.rclBusy() : false; } catch (e) {}
+      if (busy) return;                     // an entry is half typed – try again next minute
+      try { if (w.rclSaveState) w.rclSaveState(); } catch (e) {}
+      window.rclSwap();
+    }).withFailureHandler(function () {}).getAppBuild();
+  }, 60000);
+</script>
+</body>
+</html>
