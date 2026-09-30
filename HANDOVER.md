@@ -92,6 +92,20 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (VercelBridge.gs doPost checks it). Tested only against a local stand-in, not against Google.
 - Local test rig used here (not in the repo): PostgreSQL 16 + PostgREST + a /rest/v1 proxy, `node dev.js` ×2, jsdom and headless Chromium
   (@sparticuz/chromium + puppeteer-core) for the page.
+- Supabase region is ap-south-1 (Mumbai) = Vercel `bom1` (checked 01-10-2026). Speed update is pushed (commit "faster server").
+- LOOK 2026-10 (asked 01-10-2026; one CSS block at the very end of the `<style>` in App.html, headed "LOOK 2026-10", plus 6 lines in `autoSide`):
+  he chose Rachana red for the menu and "same page, but the form bigger and wider" for entry screens.
+  * Menu: red gradient (#C0171F → #8C0F15), white lettering, active item = white tab with the module colour on its icon, amber counts.
+  * Menu stayed open after a click inside it (focus stayed on the clicked heading) → `close()` now blurs a mouse-focused element.
+  * Menu opening: children get a fixed width (272 / 74 px) so text does not re-flow per frame; shorter transition; top bar no backdrop blur.
+  * Motion: `.rv` reveal and `section.enter` are short fades (no bounce, no stagger); menu items do not move / rotate on hover.
+  * Entry panels (`.panel[data-perm]`, `#v_form`, `#b_form`) on ≥761 px: bigger fields (46 px, 15.5 px), `.grid` = auto-fit so fields use the
+    full width, bigger buttons. Tabs (`.subtabs`, `.switch`) active = brand red.
+  * Log Book entry (`.lg-wrap table.lgt`) on ≥761 px: each `tr.lrow` is a 24-column CSS grid of two lines with labels from
+    `td:nth-of-type(n)::before` (nth-of-type, NOT nth-child: lgFill inserts a `<small class="lg-fmt">` between the cells). Before this the
+    grid scrolled sideways at 1366–1536 px windows. If a column is ever added to lgRowHtml, update these nth-of-type rules.
+  * Phones (≤760 px) keep the old table layout for the Log Book entry (only colours changed) – not asked yet.
+  * Not measurable here: how smooth the menu animation is on his laptop (headless Chromium frame timing is unreliable).
 - Known limits: sync every 1 s = many Vercel invocations; ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

@@ -1586,6 +1586,148 @@
   /* the KM reading box in the Log Book grid must not take the dashboard's ".km" card look */
   table.lgt .rd.km { background: none; border: 0; box-shadow: none; padding: 0; border-radius: 0; gap: 6px; transition: none; }
   td.lb-ch { font-size: 0.92em; }
+
+  /* =====================================================================
+     LOOK 2026-10 – Rachana red menu, larger entry forms, calm motion.
+     Only the looks: no rule of the app is touched. Last in the file, so it wins over the older blocks above.
+     ===================================================================== */
+  :root { --brand: #B8141C; --brand-deep: #8C0F15; --brand-soft: #FCEBEC; --quick: .16s cubic-bezier(.2,.7,.3,1); }
+
+  /* ---------- menu (sidebar): the red of the Rachana logo, white lettering, amber for counts ---------- */
+  .side { background: linear-gradient(180deg, #C0171F 0%, #A7131B 48%, #8C0F15 100%); border-right: 0; }
+  .brandbox { border-bottom: 1px solid rgba(255,255,255,.18); }
+  .brandtile { box-shadow: 0 6px 16px rgba(70,0,6,.32); }
+  .brandsub { color: rgba(255,255,255,.82); }
+  .navgroup + .navgroup { border-top-color: rgba(255,255,255,.18); }
+  .grphead { color: rgba(255,255,255,.78); }
+  .grphead:hover { background: rgba(255,255,255,.12); color: #fff; }
+  .grpitems { border-left-color: rgba(255,255,255,.2); }
+  .sghead { color: rgba(255,255,255,.9); }
+  .sghead:hover { background: rgba(255,255,255,.12); color: #fff; }
+  .subgrp.open > .sghead { color: #FFD66B; }
+  .sgitems { border-left-color: rgba(255,255,255,.26); }
+  .navbtn { color: rgba(255,255,255,.93); transition: background var(--quick), color var(--quick), box-shadow var(--quick); }
+  .navbtn svg, #tab-dash svg, #tab-master svg, #tab-inward svg, #tab-transfer svg, #tab-diesel svg, #tab-log svg, #tab-logedit svg, #tab-tankcheck svg, #tab-activity svg, #grp_rep_items .navbtn svg {
+    color: #fff; background: rgba(255,255,255,.16); box-shadow: none; transition: background var(--quick), color var(--quick); }
+  .navbtn:hover { background: rgba(255,255,255,.14); color: #fff; transform: none; }
+  .navbtn:hover svg { transform: none; background: rgba(255,255,255,.24); }
+  .navbtn:active { transform: none; }
+  /* the page you are on: a white tab with its own colour on the icon */
+  .navbtn[aria-selected="true"] { background: #fff; color: var(--brand-deep); font-weight: 700; box-shadow: 0 6px 16px rgba(70,0,6,.26); }
+  .navbtn[aria-selected="true"]:hover { background: #fff; color: var(--brand-deep); }
+  #side .navbtn[aria-selected="true"] svg, #side .navbtn[aria-selected="true"]:hover svg { background: var(--mod); color: #fff !important; box-shadow: none; }
+  .navbtn .badge, .sghead .sg-badge { background: #FFC928; color: #4A1204; font-weight: 700; }
+  .sghead .sg-badge { min-width: 22px; height: 20px; padding: 0 7px; border-radius: 10px; display: inline-grid; place-content: center; font-size: 11.5px; }
+  .subcap { color: #FFD66B; } .subcap::after { background: rgba(255,214,107,.4); }
+  .side.mini .subcap { background: rgba(255,214,107,.45); }
+  .side.mini .subgrp + .subgrp, .side.mini .navbtn + .subgrp { border-top-color: rgba(255,255,255,.2); }
+  .side-toggle { border-color: rgba(255,255,255,.26); color: rgba(255,255,255,.85); }
+  .side-toggle:hover { background: rgba(255,255,255,.12); color: #fff; }
+  .side nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.34); }
+  .side :is(.navbtn, .grphead, .sghead, .side-toggle):focus-visible { outline: 2px solid #FFD66B; outline-offset: 1px; }
+
+  /* the menu on a computer: opens without the letters re-flowing on every frame (that made it stutter) */
+  @media (min-width: 761px) {
+    .app.side-auto .side { transition: width .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s ease; contain: layout paint; }
+    .app.side-auto .side:not(.mini) { box-shadow: 10px 0 28px rgba(40,0,4,.22); }
+    .app.side-auto .side > * { width: 272px; flex-shrink: 0; }
+    .app.side-auto .side.mini > * { width: 74px; }
+    .app.side-auto .side .label, .app.side-auto .side .brandsub { transition: opacity .14s ease .06s; }
+  }
+
+  /* ---------- top bar: solid (the frosted glass cost speed while scrolling) ---------- */
+  .topbar { background: rgba(255,255,255,.97); backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+  /* ---------- tabs: the chosen one in the brand red ---------- */
+  .subtabs { background: #E9EDF1; border-radius: 10px; padding: 4px; }
+  .subtabs button { border-radius: 8px; transition: background var(--quick), color var(--quick), box-shadow var(--quick); }
+  .subtabs button:hover:not([aria-selected="true"]) { background: rgba(184,20,28,.08); color: var(--brand-deep); }
+  .subtabs button[aria-selected="true"] { background: var(--brand); color: #fff; box-shadow: 0 3px 10px rgba(184,20,28,.28); }
+  .switch { border-color: var(--brand); border-radius: 9px; }
+  .switch button { color: var(--brand-deep); transition: background var(--quick), color var(--quick); }
+  .switch button:hover:not([aria-pressed="true"]) { background: var(--brand-soft); }
+  .switch button[aria-pressed="true"] { background: var(--brand); color: #fff; }
+
+  /* ---------- motion: short and even – nothing bounces, nothing turns ---------- */
+  .rv { opacity: 0; transform: translateY(6px); }
+  .rv.in { opacity: 1; transform: none; transition: opacity .18s ease, transform .18s ease; transition-delay: 0s; }
+  section.enter > .panel, section.enter > .ledger, section.enter > .dash-row, section.enter > div > .panel, section.enter > .viewonly { animation: rise .18s ease both; animation-delay: 0s !important; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .panel { transition: box-shadow var(--quick); }
+  .btn { transition: background var(--quick), border-color var(--quick), color var(--quick), box-shadow var(--quick); }
+  .btn.primary:hover:not(:disabled) { transform: none; }
+  @media (prefers-reduced-motion: reduce) { .rv, .rv.in, section.enter > * { transition: none !important; animation: none !important; opacity: 1; transform: none; } }
+
+  /* ---------- entry forms (Diesel Issue, Inward, Transfer, Log Book, Asset, Payment, Vendor, BOQ): larger and full width ---------- */
+  @media (min-width: 761px) {
+    :is(.panel[data-perm], #v_form, #b_form) { padding: 22px 26px 24px; }
+    :is(.panel[data-perm], #v_form, #b_form) > .panel-head h2, :is(#v_form, #b_form) > h2, :is(#v_form, #b_form) .panel-head h2 { font-size: 26px; }
+    :is(.panel[data-perm], #v_form, #b_form) .grid { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px 20px; }
+    :is(.panel[data-perm], #v_form, #b_form) .field > label { font-size: 13.5px; font-weight: 600; color: #334155; }
+    :is(.panel[data-perm], #v_form, #b_form) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea) {
+      min-height: 46px; font-size: 15.5px; padding: 9px 13px; border-radius: 10px; }
+    /* the entry tables inside them (many rows): a little smaller than the single fields, still bigger than before */
+    :is(.panel[data-perm], #v_form, #b_form) table :is(input:not([type=checkbox]):not([type=radio]), select) { min-height: 40px; font-size: 14px; padding: 6px 9px; border-radius: 8px; }
+    :is(.panel[data-perm], #v_form, #b_form) table :is(th, td) { font-size: 14px; }
+    /* room for what is written in them */
+    .panel[data-perm] table [data-f=shift] { min-width: 112px; }
+    .panel[data-perm] table .c-m input, .panel[data-perm] table input[data-f=no] { min-width: 210px; }
+    #b_form table.b-lines td:nth-child(2) select { min-width: 225px; } #b_form table.b-lines [data-bl=basis] { min-width: 190px; } #b_form table.b-lines [data-bl=diesel] { min-width: 230px; max-width: 260px; }
+    #b_form table.b-lines [data-bl=remark] { min-width: 110px; } #b_form table.b-lines [data-bl=rate] { width: 118px; }
+    :is(.panel[data-perm], #v_form, #b_form) .btn { min-height: 44px; font-size: 14.5px; padding: 9px 20px; }
+    :is(.panel[data-perm], #v_form, #b_form) .btn.small, :is(.panel[data-perm], #v_form, #b_form) table .btn { min-height: 36px; font-size: 13.5px; padding: 6px 14px; }
+  }
+  :is(.panel[data-perm], #v_form, #b_form) :is(input, select, textarea):focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: var(--brand); box-shadow: 0 0 0 4px rgba(184,20,28,.12); }
+
+  /* ---------- Log Book entry on a computer: every entry is one wide block of two lines – nothing to scroll sideways.
+     Line 1: what worked and its reading.  Line 2: diesel (worked out by the app), chainage and work.
+     The table and its cells are the same ones (the page's code is untouched); only how they are laid out changes. ---------- */
+  @media (min-width: 761px) {
+    .lg-wrap { overflow: visible; border: 0; background: transparent; box-shadow: none; border-radius: 0; }
+    .lg-wrap table.lgt, .lg-wrap table.lgt tbody { display: block; width: 100%; }
+    .lg-wrap table.lgt thead { display: none; }
+    .lg-wrap tr.lrow { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: 14px; row-gap: 12px; align-items: start;
+      background: #fff; border: 1px solid #DDE3EA; border-radius: 14px; padding: 16px 16px 14px; margin: 0 0 12px; box-shadow: 0 1px 2px rgba(20,30,38,.04); }
+    .lg-wrap tr.lrow:focus-within { border-color: rgba(184,20,28,.5); box-shadow: 0 0 0 3px rgba(184,20,28,.08); }
+    .lg-wrap tr.lrow.err { border-color: #E5A29D; background: #FFF7F6; }
+    .lg-wrap tr.lrow > td { display: block; min-width: 0; padding: 0; border: 0; background: transparent !important; font-size: 14.5px; text-align: left; white-space: normal; }
+    .lg-wrap tr.lrow > td::before { display: block; font: 600 12px/1.2 var(--ui); color: #64748B; margin: 0 0 6px; white-space: nowrap; }
+    /* line 1 */
+    .lg-wrap tr.lrow > td:nth-of-type(1) { grid-column: span 1; align-self: center; font: 700 15px var(--ui); color: var(--brand-deep); text-align: center; width: auto; }
+    .lg-wrap tr.lrow > td:nth-of-type(2) { grid-column: span 3; }  .lg-wrap tr.lrow > td:nth-of-type(2)::before { content: "Date"; }
+    .lg-wrap tr.lrow > td:nth-of-type(3) { grid-column: span 3; }  .lg-wrap tr.lrow > td:nth-of-type(3)::before { content: "Shift"; }
+    .lg-wrap tr.lrow > td:nth-of-type(4) { grid-column: span 4; }  .lg-wrap tr.lrow > td:nth-of-type(4)::before { content: "Machinery"; }
+    .lg-wrap tr.lrow > td:nth-of-type(5) { grid-column: span 7; max-width: none; min-width: 0; }  .lg-wrap tr.lrow > td:nth-of-type(5)::before { content: "Measured by"; }
+    .lg-wrap table.lgt.m-mach tr.lrow > td:nth-of-type(5) { grid-column: span 8; }
+    .lg-wrap tr.lrow > td:nth-of-type(6) { grid-column: span 4; }  .lg-wrap tr.lrow > td:nth-of-type(6)::before { content: "Start"; }
+    .lg-wrap tr.lrow > td:nth-of-type(7) { grid-column: span 4; }  .lg-wrap tr.lrow > td:nth-of-type(7)::before { content: "Close *"; }
+    .lg-wrap tr.lrow > td:nth-of-type(8) { grid-column: 1 / span 2; font-weight: 700; font-size: 16px; color: var(--brand-deep); }  .lg-wrap tr.lrow > td:nth-of-type(8)::before { content: "Total"; }
+    .lg-wrap tr.lrow > td:nth-of-type(18) { grid-column: 24; grid-row: 1; justify-self: end; }
+    /* line 2 */
+    .lg-wrap tr.lrow > td:nth-of-type(9)  { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(9)::before  { content: "Opening diesel"; }
+    .lg-wrap tr.lrow > td:nth-of-type(10) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(10)::before { content: "Issued"; }
+    .lg-wrap tr.lrow > td:nth-of-type(11) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(11)::before { content: "Consumed"; }
+    .lg-wrap tr.lrow > td:nth-of-type(12) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(12)::before { content: "Closing"; }
+    .lg-wrap tr.lrow > td:nth-of-type(13) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(13)::before { content: "Standard"; }
+    .lg-wrap tr.lrow > td:nth-of-type(14) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(14)::before { content: "Average"; }
+    .lg-wrap tr.lrow > td:nth-of-type(15) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(15)::before { content: "Chainage from"; }
+    .lg-wrap tr.lrow > td:nth-of-type(16) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(16)::before { content: "Chainage to"; }
+    .lg-wrap tr.lrow > td:nth-of-type(17) { grid-column: span 6; }     .lg-wrap tr.lrow > td:nth-of-type(17)::before { content: "Work description"; }
+    .lg-wrap tr.lrow > td:nth-of-type(n+8):nth-of-type(-n+14) { font-variant-numeric: tabular-nums; } .lg-wrap tr.lrow > td:nth-of-type(n+9):nth-of-type(-n+14) { font-weight: 600; }
+    .lg-wrap tr.lrow > td.o span { display: inline; margin: 0 8px 0 0; }
+    /* the fields inside */
+    .lg-wrap tr.lrow :is(input:not([type=checkbox]), select) { min-height: 42px; font-size: 15px; padding: 7px 11px; border-radius: 9px; width: 100%; min-width: 0; }
+    .lg-wrap tr.lrow .rd { min-width: 0; gap: 8px; }
+    .lg-wrap tr.lrow .rd input[type=number], .lg-wrap tr.lrow .rd input { flex: 1 1 auto; width: auto; min-width: 0; font-size: 15.5px; }
+    .lg-wrap tr.lrow .rd + .rd { margin-top: 6px; }
+    .lg-wrap tr.lrow input[data-f=openingDiesel], .lg-wrap tr.lrow input[data-f=chFrom], .lg-wrap tr.lrow input[data-f=chTo], .lg-wrap tr.lrow input[data-f=work], .lg-wrap tr.lrow [data-f=shift], .lg-wrap tr.lrow [data-f=date] { width: 100%; min-width: 0; }
+    .lg-wrap tr.lrow .way { display: flex; flex-wrap: wrap; gap: 6px; }
+    .lg-wrap tr.lrow .way .wy { min-height: 34px; padding: 5px 12px; font-size: 13.5px; border-radius: 8px; }
+    .lg-wrap tr.lrow .del { width: 34px; height: 34px; font-size: 18px; border-radius: 9px; }
+    .lg-wrap tr.lrow td .lnote { max-width: none; }
+    .lg-wrap tr.lrow > small.lg-fmt { grid-column: 1 / -1; margin: -4px 0 0; }
+    .lg-wrap tr.lrow .way { max-width: none; width: 100%; }
+  }
 </style>
 </head>
 <body class="locked">
@@ -3758,7 +3900,12 @@
     side.classList.add('mini');
     let t = 0;
     const open = () => { clearTimeout(t); t = setTimeout(() => side.classList.remove('mini'), 70); };
-    const close = () => { clearTimeout(t); t = setTimeout(() => { if (!side.matches(':hover') && !side.contains(document.activeElement)) side.classList.add('mini'); }, 220); };
+    const close = () => { clearTimeout(t); t = setTimeout(() => {
+      // a mouse click inside the menu leaves the focus on what was clicked – that is not a reason to stay open
+      // (someone moving through the menu with the keyboard keeps it open)
+      const a = document.activeElement;
+      if (a && a !== document.body && side.contains(a) && !side.matches(':hover')) { let kb = false; try { kb = a.matches(':focus-visible'); } catch (e) { kb = false; } if (!kb) a.blur(); }
+      if (!side.matches(':hover') && !side.contains(document.activeElement)) side.classList.add('mini'); }, 220); };
     side.addEventListener('mouseenter', open);
     side.addEventListener('mouseleave', close);
     side.addEventListener('focusin', open);
