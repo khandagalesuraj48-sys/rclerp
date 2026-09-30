@@ -34,19 +34,41 @@ alter table web.props enable row level security;
 alter table web.cache enable row level security;
 alter table web.locks enable row level security;
 
--- start of every request, in ONE call: all settings, the asked cache keys (with the seconds each still lives),
--- and "stamp" = the newest change in the main tables (so a copy of them kept in memory is used only while nothing changed,
--- whoever changed it: this app, the Apps Script app, or the SQL editor)
+-- "stamp": the newest change in the app's tables, and which tables it covers. The server keeps a copy of these tables in
+-- its memory and uses it only while the stamp is the same – whoever changed the data (this app, the Apps Script app,
+-- the SQL editor). A table is covered only if it has updated_at and the two triggers (touch + delete note) that every
+-- app table gets; the Activity Log is left out on purpose (it changes with every action and is read rarely).
+create or replace function public.web_stamp()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare
+  t text; m timestamptz; parts text := ''; names text[] := '{}';
+begin
+  for t in
+    select c.relname::text from pg_class c
+    where c.relnamespace = 'public'::regnamespace and c.relkind = 'r'
+      and c.relname = any (array['master','diesel_inward','diesel_transfer','diesel_issue','log_book','tank_check','vendors','boq','bills','payments',
+                                 'compliance_history','breakdowns','breakdown_reports','app_users','app_settings'])
+      and exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'updated_at' and not a.attisdropped)
+      and exists (select 1 from pg_trigger g where g.tgrelid = c.oid and g.tgname = c.relname || '_touch' and not g.tgisinternal)
+      and exists (select 1 from pg_trigger g where g.tgrelid = c.oid and g.tgname = c.relname || '_deleted' and not g.tgisinternal)
+    order by c.relname
+  loop
+    execute format('select max(updated_at) from public.%I', t) into m;
+    parts := parts || coalesce(extract(epoch from m)::text, '0') || '|';
+    names := names || t;
+  end loop;
+  parts := parts || coalesce((select max(seq) from public.deleted_rows)::text, '0');
+  return jsonb_build_object('stamp', parts, 'tables', to_jsonb(names));
+end $$;
+
+-- start of every request, in ONE call: all settings, the asked cache keys (with the seconds each still lives), and the stamp
 create or replace function public.web_boot(p_keys text[])
 returns jsonb language sql security definer set search_path = web, public as $$
   select jsonb_build_object(
     'props', coalesce((select jsonb_object_agg(key, value) from web.props), '{}'::jsonb),
     'cache', coalesce((select jsonb_object_agg(key, value) from web.cache where key = any(p_keys) and expires_at > now()), '{}'::jsonb),
-    'left',  coalesce((select jsonb_object_agg(key, floor(extract(epoch from (expires_at - now())))) from web.cache where key = any(p_keys) and expires_at > now()), '{}'::jsonb),
-    'stamp', concat_ws('|',
-      (select max(updated_at) from public.master), (select max(updated_at) from public.diesel_inward), (select max(updated_at) from public.diesel_transfer),
-      (select max(updated_at) from public.diesel_issue), (select max(updated_at) from public.log_book), (select max(updated_at) from public.tank_check),
-      (select max(seq) from public.deleted_rows)));
+    'left',  coalesce((select jsonb_object_agg(key, floor(extract(epoch from (expires_at - now())))) from web.cache where key = any(p_keys) and expires_at > now()), '{}'::jsonb))
+    || public.web_stamp();
 $$;
 
 -- settings: { "key": "value", … } are saved; a key with null is removed
@@ -97,7 +119,8 @@ begin
     where l.expires_at < now() or l.holder = p_holder
   returning l.holder into got;
   if got is null then return jsonb_build_object('ok', false); end if;
-  return jsonb_build_object('ok', true, 'props', coalesce((select jsonb_object_agg(key, value) from web.props), '{}'::jsonb));
+  -- with the lock: the settings and the stamp as they are NOW (nobody else can save until the lock is given back)
+  return jsonb_build_object('ok', true, 'props', coalesce((select jsonb_object_agg(key, value) from web.props), '{}'::jsonb)) || public.web_stamp();
 end $$;
 create or replace function public.web_unlock(p_name text, p_holder text)
 returns void language sql security definer set search_path = web, public as $$
@@ -107,6 +130,8 @@ $$;
 -- only the secret key (service_role) may call these
 revoke all on schema web from public, anon, authenticated;
 revoke all on all tables in schema web from public, anon, authenticated;
+revoke all on function public.web_stamp() from public, anon, authenticated;
+grant execute on function public.web_stamp() to service_role;
 revoke all on function public.web_boot(text[]) from public, anon, authenticated;
 revoke all on function public.web_props_set(jsonb) from public, anon, authenticated;
 revoke all on function public.web_cache_get(text[]) from public, anon, authenticated;

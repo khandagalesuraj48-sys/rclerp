@@ -9,8 +9,9 @@
  *                            last numbers, tank settings …) into Supabase, where the new app reads them.
  *                            Keys of Supabase and of the backup are NOT copied.
  *   webMirror_()           – the backup tells its status (time of the last backup) to the new app.
- *   doPost()               – "Backup now" pressed in the new app runs the backup here (optional; needs the script
- *                            property GAS_BACKUP_KEY = a long secret text, the same text in Vercel).
+ *   doPost()               – "Backup now" pressed in the new app runs the backup here. The call is accepted only with
+ *                            a fingerprint of the Supabase secret key (both sides have that key already; the key
+ *                            itself is never sent). In Vercel only GAS_BACKUP_URL = this project's /exec link is needed.
  *
  * To close the OLD app for everyone at the move: script property APP_MOVED_TO = the new link (see Code.gs movedTo_).
  * ===================================================================== */
@@ -32,8 +33,11 @@ function doPost(e) {
   const out = o => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
   try {
     const b = JSON.parse((e && e.postData && e.postData.contents) || '{}');
-    const key = PropertiesService.getScriptProperties().getProperty('GAS_BACKUP_KEY');
-    if (!key || String(key).length < 16 || b.key !== key) return out({ error: 'Not allowed.' });
+    const P = PropertiesService.getScriptProperties();
+    const key = P.getProperty('GAS_BACKUP_KEY'), secret = P.getProperty('SUPABASE_SECRET_KEY') || '';
+    const want = secret ? Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, secret + '|rcl-backup', Utilities.Charset.UTF_8).map(x => ((x + 256) % 256).toString(16).padStart(2, '0')).join('') : '';
+    const okSig = !!want && String(b.sig || '') === want, okKey = !!key && String(key).length >= 16 && b.key === key;
+    if (!okSig && !okKey) return out({ error: 'Not allowed.' });
     if (b.action === 'backupNow') {
       const r = sbBackupNow_() || {};
       if (!r.info) r.info = sbBackupInfo_();

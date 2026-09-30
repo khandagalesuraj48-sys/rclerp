@@ -42,18 +42,25 @@ const isLocalKey = k => /^SBG_/.test(k) || k === 'APP_BUILD';
 const isVersionKey = k => /^V_/.test(k);                    // data versions: kept with the settings (one place, not two)
 
 function newState(meta) {
-  return { props: {}, cache: {}, left: {}, puts: new Map(), dels: new Set(), propQueue: {}, lockDepth: 0,
+  return { props: {}, cache: {}, left: {}, puts: new Map(), dels: new Set(), propQueue: {}, lockDepth: 0, fresh: false, tables: [],
     holder: crypto.randomUUID(), stamp: '', meta: meta || {}, calls: 0 };
 }
 // start of a request: settings + the cache keys this request will surely ask for, in one call
 function boot(st, keys) {
   const b = rpc('web_boot', { p_keys: keys || [] }) || {};
-  st.props = b.props || {}; st.left = b.left || {}; st.stamp = String(b.stamp || '');
+  st.props = b.props || {}; st.left = b.left || {};
   st.cache = {}; (keys || []).forEach(k => { st.cache[k] = null; });
   Object.keys(b.cache || {}).forEach(k => { st.cache[k] = b.cache[k]; });
+  useStamp(st, b);
+}
+// the stamp of the data as the database has it now, and the tables it covers; a different stamp empties the memory copy
+function useStamp(st, b) {
+  st.stamp = String((b && b.stamp) || '');
+  st.tables = b && Array.isArray(b.tables) ? b.tables : OLD_TABLES;     // an older step-2 SQL covers the six main tables
   // no stamp (nothing could be read about the last change) → the copy in memory is not trusted at all
   if (!st.stamp || LOCAL.stamp !== st.stamp) { LOCAL.map.clear(); LOCAL.stamp = st.stamp; }
 }
+const OLD_TABLES = ['master', 'diesel_inward', 'diesel_transfer', 'diesel_issue', 'log_book', 'tank_check'];
 // end of a request: what is still waiting (cache entries, data versions) is written in one call
 function flush(st) {
   const put = [...st.puts.entries()].map(([k, x]) => ({ key: k, value: x.value, ttl: x.ttl })), del = [...st.dels];
@@ -126,7 +133,13 @@ function makeLock(st) {
       const end = Date.now() + Math.max(1000, Math.min(Number(ms) || 30000, 40000));
       for (;;) {
         const r = rpc('web_lock', { p_name: 'script', p_holder: st.holder, p_ttl: LOCK_TTL });
-        if (r && r.ok) { st.lockDepth = 1; st.props = Object.assign({}, r.props || {}, st.propQueue); return; } // settings as they are NOW
+        if (r && r.ok) {
+          st.lockDepth = 1; st.props = Object.assign({}, r.props || {}, st.propQueue);      // settings as they are NOW
+          // the stamp as it is NOW, with the lock held: the memory copy is used only if nothing changed; an older SQL
+          // (no stamp with the lock) → a save reads everything fresh, as before
+          if (r.stamp !== undefined) useStamp(st, r); else st.fresh = true;
+          return;
+        }
         if (Date.now() >= end) throw new Error('Another save is still running. Please try again in a moment.');
         sleepSync(120 + Math.floor(Math.random() * 160));
       }
@@ -140,15 +153,29 @@ function makeLock(st) {
 
 /* ---------- Utilities ---------- */
 const isDate = d => d && typeof d.getTime === 'function';
+// India has one fixed time (+5:30, no summer time), so its dates are worked out by plain arithmetic – this is called
+// for every date cell of every row, so it has to be quick. Any other time zone: one formatter per zone, kept.
+const FIXED_OFFSET = { 'Asia/Kolkata': 330, 'Asia/Calcutta': 330, 'IST': 330, 'UTC': 0, 'GMT': 0, 'Etc/UTC': 0, 'Etc/GMT': 0 };
+const ZONE_FMT = new Map();
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const p2 = n => (n < 10 ? '0' : '') + n;
+function dateParts(ms, tz) {
+  const off = FIXED_OFFSET[tz];
+  if (off !== undefined) { const t = new Date(ms + off * 60000); return [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes(), t.getUTCSeconds(), t.getUTCDay()]; }
+  let f = ZONE_FMT.get(tz);
+  if (!f) { f = new Intl.DateTimeFormat('en-GB', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', weekday: 'short' }); ZONE_FMT.set(tz, f); }
+  const o = {}; f.formatToParts(new Date(ms)).forEach(x => { o[x.type] = x.value; });
+  return [Number(o.year), Number(o.month), Number(o.day), Number(o.hour) % 24, Number(o.minute), Number(o.second), DAY.indexOf(o.weekday)];
+}
 function formatDate(date, tz, fmt) {
-  if (!isDate(date) || isNaN(date.getTime())) throw new Error('formatDate: not a date');
-  const parts = {};
-  new Intl.DateTimeFormat('en-GB', { timeZone: tz || TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', weekday: 'short' })
-    .formatToParts(new Date(date.getTime())).forEach(x => { parts[x.type] = x.value; });
-  const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(parts.month) - 1];
-  const h = Number(parts.hour) % 24, h12 = h % 12 === 0 ? 12 : h % 12;
-  const map = { yyyy: parts.year, yy: parts.year.slice(2), MMM: mon, MM: parts.month, M: String(Number(parts.month)), dd: parts.day, d: String(Number(parts.day)),
-    HH: String(h).padStart(2, '0'), H: String(h), hh: String(h12).padStart(2, '0'), h: String(h12), mm: parts.minute, ss: parts.second, a: h < 12 ? 'AM' : 'PM', EEE: parts.weekday };
+  if (!isDate(date)) throw new Error('formatDate: not a date');
+  const ms = date.getTime(); if (isNaN(ms)) throw new Error('formatDate: not a date');
+  const [Y, M, D, h, mi, s, wd] = dateParts(ms, tz || TZ);
+  if (fmt === 'yyyy-MM-dd') return Y + '-' + p2(M) + '-' + p2(D);                 // by far the most used
+  if (fmt === 'HH:mm') return p2(h) + ':' + p2(mi);
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const map = { yyyy: String(Y), yy: String(Y).slice(2), MMM: MON[M - 1], MM: p2(M), M: String(M), dd: p2(D), d: String(D),
+    HH: p2(h), H: String(h), hh: p2(h12), h: String(h12), mm: p2(mi), ss: p2(s), a: h < 12 ? 'AM' : 'PM', EEE: DAY[wd] };
   return String(fmt).replace(/'([^']*)'|yyyy|yy|MMM|MM|M|dd|d|HH|H|hh|h|mm|ss|a|EEE/g, (m, quoted) => quoted !== undefined ? quoted : map[m]);
 }
 const signed = buf => [...buf].map(b => b > 127 ? b - 256 : b);
@@ -184,10 +211,32 @@ function toRes(q, r) {
   if (!q.mute && r.code >= 400) throw new Error('Request failed for ' + q.url.split('?')[0] + ' returned code ' + r.code + '. ' + String(r.text || '').slice(0, 200));
   return { getResponseCode: () => r.code, getContentText: () => r.text || '', getHeaders: () => r.headers || {}, getAllHeaders: () => r.headers || {} };
 }
-const UrlFetchApp = {
-  fetch: (url, o) => { const q = toReq(url, o); return toRes(q, fetchAllSync([q])[0]); },
-  fetchAll: reqs => { const qs = [...reqs].map(x => toReq(x.url, x)); const rs = fetchAllSync(qs); return qs.map((q, i) => toRes(q, rs[i])); },
-};
+/* The app's tables are read whole by nearly every request. Their answers from the database are kept in this server's
+ * memory and used again ONLY while the "stamp" (newest change in exactly the tables it covers – see web_stamp in the
+ * step-2 SQL) is the same as when they were kept. The stamp is read from the database at the start of every request,
+ * and again with the lock when a request saves – so a save never works on old data. */
+const TABLE_GET = /\/rest\/v1\/([a-z_]+)\?select=\*&order=id\.asc$/;
+function makeFetch(st) {
+  const keyOf = q => { if (q.method !== 'GET') return ''; const m = TABLE_GET.exec(q.url); return m && st.tables.indexOf(m[1]) > -1 ? 'GET|' + q.url + '|' + String((q.headers || {}).Range || '') : ''; };
+  const all = qs => {
+    const out = new Array(qs.length), ask = [], at = [];
+    qs.forEach((q, i) => {
+      const k = st.stamp && !st.fresh ? keyOf(q) : '';
+      const hit = k ? LOCAL.map.get(k) : null;
+      if (hit) out[i] = hit.value; else { ask.push(q); at.push(i); }
+    });
+    if (ask.length) fetchAllSync(ask).forEach((r, n) => {
+      out[at[n]] = r;
+      const k = st.stamp && !st.fresh ? keyOf(ask[n]) : '';
+      if (k && !r.error && r.code >= 200 && r.code < 300) LOCAL.map.set(k, { value: r, exp: Date.now() + 6 * 3600 * 1000 });
+    });
+    return out;
+  };
+  return {
+    fetch: (url, o) => { const q = toReq(url, o); return toRes(q, all([q])[0]); },
+    fetchAll: reqs => { const qs = [...reqs].map(x => toReq(x.url, x)); const rs = all(qs); return qs.map((q, i) => toRes(q, rs[i])); },
+  };
+}
 
 const notHere = what => new Proxy(function () {}, { get: (t, p) => p === 'then' ? undefined : notHere(what), apply: () => { throw new Error(what + ' works only in Apps Script (the Google Sheet backup runs there).'); } });
 
@@ -198,7 +247,7 @@ function makeGlobals(st, page) {
     PropertiesService: { getScriptProperties: () => props, getUserProperties: () => props, getDocumentProperties: () => props },
     CacheService: { getScriptCache: () => cache, getUserCache: () => cache, getDocumentCache: () => cache },
     LockService: { getScriptLock: () => lock, getDocumentLock: () => lock, getUserLock: () => lock },
-    Utilities: Utilities, UrlFetchApp: UrlFetchApp,
+    Utilities: Utilities, UrlFetchApp: makeFetch(st),
     Session: { getScriptTimeZone: () => TZ, getActiveUser: () => ({ getEmail: () => '' }), getEffectiveUser: () => ({ getEmail: () => '' }) },
     ScriptApp: { getService: () => ({ getUrl: () => st.meta.url || '' }), getProjectTriggers: () => [], AuthMode: {}, WeekDay: {},
       newTrigger: notHere('A trigger'), deleteTrigger: notHere('A trigger') },

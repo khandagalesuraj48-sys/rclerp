@@ -91,15 +91,14 @@ Script Property `APP_MOVED_TO` delete करा. एका मिनिटात
 
 ---
 
-## F. "Backup now" बटण (ऐच्छिक)
+## F. "Backup now" बटण
 
-Backup आपोआप चालूच राहतो आणि app मध्ये शेवटच्या backup ची वेळ दिसते. वरचे "Backup" बटण दाबून लगेच backup करायचा असेल तर:
+Backup आपोआप चालूच राहतो (Apps Script मधून) आणि app मध्ये शेवटच्या backup ची वेळ दिसते. वरचे "Backup" बटण दाबून लगेच backup करण्यासाठी:
 
-1. एक लांब गुप्त शब्द ठरवा (किमान 16 अक्षरे).
-2. Apps Script → Script Properties: `GAS_BACKUP_KEY` = तो शब्द. मग Deploy → Manage deployments → New version.
-3. Vercel → Environment Variables: `GAS_BACKUP_KEY` = तोच शब्द, `GAS_BACKUP_URL` = Apps Script web app ची `/exec` link. मग Redeploy.
+1. Apps Script project मध्ये `VercelBridge` file चा मजकूर `apps-script/VercelBridge.gs` ने बदला → Save → Deploy → Manage deployments → ✏️ → **New version** → Deploy. (Who has access: **Anyone** असले पाहिजे.)
+2. Vercel → Settings → Environment Variables: `GAS_BACKUP_URL` = Apps Script web app ची `/exec` link (जुन्या app ची link) → Save → Deployments → Redeploy.
 
-हे न केल्यास बटण दाबल्यावर "backup आपोआप चालतो" असा संदेश येतो; बाकी काहीही अडत नाही.
+वेगळी गुप्त key लागत नाही: दोन्ही बाजूंकडे आधीच असलेल्या Supabase secret key चा ठसा वापरला जातो (key स्वतः पाठवली जात नाही).
 हा भाग Google शी जोडून तपासलेला नाही.
 
 ---

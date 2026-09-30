@@ -26,14 +26,16 @@ function compiled() {
   if (!script) script = new vm.Script(FILES.map(read).join('\n;\n') + TAIL, { filename: 'app-server.gs' });
   return script;
 }
-// "Backup now": asks the Apps Script project (which holds the Google Sheet) to run its backup now
+// "Backup now": asks the Apps Script project (which holds the Google Sheet) to run its backup now.
+// Both sides already have the Supabase secret key; a fingerprint of it (never the key itself) proves the call is ours.
 function backupNow() {
-  const url = process.env.GAS_BACKUP_URL, key = process.env.GAS_BACKUP_KEY;
-  if (!url || !key) throw new Error('The Google Sheet backup runs by itself every few minutes. "Backup now" from here is not set up (GAS_BACKUP_URL / GAS_BACKUP_KEY in Vercel – see README).');
-  const r = fetchAllSync([{ url: url, method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'backupNow', key: key }) }], 50000)[0];
+  const url = String(process.env.GAS_BACKUP_URL || '').trim();
+  if (!url) throw new Error('The Google Sheet backup runs by itself every few minutes. For "Backup now" from here, add GAS_BACKUP_URL (the old app\'s /exec link) in Vercel → Environment Variables and redeploy.');
+  const sig = require('crypto').createHash('sha256').update(gas.conf().key + '|rcl-backup', 'utf8').digest('hex');
+  const r = fetchAllSync([{ url: url, method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'backupNow', sig: sig, key: process.env.GAS_BACKUP_KEY || '' }) }], 50000)[0];
   if (r.error) throw new Error('Could not reach the backup: ' + r.error);
   let j = null; try { j = JSON.parse(r.text); } catch (e) { j = null; }
-  if (!j) throw new Error('The backup did not answer properly (' + r.code + '). Check GAS_BACKUP_URL and that the Apps Script web app is deployed.');
+  if (!j) throw new Error('The backup did not answer properly (' + r.code + '). Check GAS_BACKUP_URL (the /exec link), that the file VercelBridge is in the Apps Script project, and that a New version is deployed with access "Anyone".');
   if (j.error) throw new Error('Backup: ' + j.error);
   return JSON.stringify(j.result === undefined ? j : j.result);
 }
@@ -59,4 +61,4 @@ function run(fn, args, meta) {
   if (err) throw err;
   return out;          // JSON text
 }
-module.exports = { run, page };
+module.exports = { run, page, warm: compiled };
