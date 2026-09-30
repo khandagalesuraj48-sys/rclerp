@@ -51,7 +51,8 @@ function boot(st, keys) {
   st.props = b.props || {}; st.left = b.left || {}; st.stamp = String(b.stamp || '');
   st.cache = {}; (keys || []).forEach(k => { st.cache[k] = null; });
   Object.keys(b.cache || {}).forEach(k => { st.cache[k] = b.cache[k]; });
-  if (LOCAL.stamp !== st.stamp) { LOCAL.map.clear(); LOCAL.stamp = st.stamp; }
+  // no stamp (nothing could be read about the last change) → the copy in memory is not trusted at all
+  if (!st.stamp || LOCAL.stamp !== st.stamp) { LOCAL.map.clear(); LOCAL.stamp = st.stamp; }
 }
 // end of a request: what is still waiting (cache entries, data versions) is written in one call
 function flush(st) {
@@ -104,7 +105,7 @@ function makeCache(st) {
     k = String(k); v = String(v); ttl = Math.max(1, Math.min(21600, Number(ttl) || 600));
     if (isVersionKey(k)) { st.props[k] = v; st.propQueue[k] = v; return; }
     if (k === 'SB_INFO') return;
-    if (isLocalKey(k)) { LOCAL.map.set(k, { value: v, exp: Date.now() + ttl * 1000 }); return; }
+    if (isLocalKey(k)) { if (st.stamp || k === 'APP_BUILD') LOCAL.map.set(k, { value: v, exp: Date.now() + ttl * 1000 }); return; }
     // a session is renewed on every action: it is written again only when a good part of its time has gone
     if (st.cache[k] === v && !st.puts.has(k) && Number(st.left[k]) > ttl * 0.9) return;
     st.cache[k] = v; st.dels.delete(k); st.puts.set(k, { value: v, ttl: ttl });

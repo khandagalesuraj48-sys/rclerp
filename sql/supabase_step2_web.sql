@@ -29,6 +29,11 @@ create table if not exists web.locks (
   expires_at timestamptz not null
 );
 
+-- Row Level Security ON, no access given: only the functions below (run by the owner) reach these tables
+alter table web.props enable row level security;
+alter table web.cache enable row level security;
+alter table web.locks enable row level security;
+
 -- start of every request, in ONE call: all settings, the asked cache keys (with the seconds each still lives),
 -- and "stamp" = the newest change in the main tables (so a copy of them kept in memory is used only while nothing changed,
 -- whoever changed it: this app, the Apps Script app, or the SQL editor)
