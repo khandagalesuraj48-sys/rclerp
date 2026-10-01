@@ -479,6 +479,7 @@ const API_ = {
   rptDebit:          { m: 'Reports', f: rptDebit_ },
   saveDebitRates:    { m: 'Diesel Issue', edit: true, f: saveDebitRates_, log: 'debitRates' },
   rptCost:           { m: 'Reports', f: rptCost_ },
+  rptMachineCost:    { m: 'Reports', f: rptMachineCost_ },
   rptPurchase:       { m: 'Reports', f: rptPurchase_ },
   rptLedger:         { m: 'Reports', f: rptLedger_ },
   rptOwner:          { m: 'Reports', f: rptOwner_ },
@@ -1642,7 +1643,7 @@ function logDashboard_(f) {
   const n = daysBetween_(from, to) + 1, pTo = addDays_(from, -1), pFrom = addDays_(pTo, -(n - 1));
   const owns = (f.ownerships || []).map(String), vendor = vKey_(f.vendor || ''), type = clean_(f.type).toUpperCase();
   const own5 = o => APP.OWNERSHIP.indexOf(o) > -1 ? o : 'Other';
-  const machines = getMaster_().filter(m => m.supply !== 'Debit Basis' && (!owns.length || owns.indexOf(own5(m.ownership)) > -1) &&
+  const machines = getMaster_().filter(m => (f.withDebit || m.supply !== 'Debit Basis') && (!owns.length || owns.indexOf(own5(m.ownership)) > -1) &&
     (!vendor || vKey_(m.owner) === vendor) && (!type || String(m.type || '').toUpperCase() === type));
   const want = {}; machines.forEach(m => { want[noKey_(m.id)] = m; });
   // diesel rate for ₹ values: the higher of the period average and the last bought rate (same as the bills)
@@ -1711,10 +1712,10 @@ function logDashboard_(f) {
       const lastAny = m.lastLog || '';
       const idleFor = m.avail ? (lastAny ? daysBetween_(lastAny, end) : Math.min(m.avail, daysBetween_(a, end) + 1)) : 0;
       // rent of the period = what the bill works out to (BOQ day by day, same rules as Machinery Billing)
-      let rent = 0, idleRent = 0, basis = '';
+      let rent = 0, idleRent = 0, basis = '', recover = 0;
       if ((m.ownership === 'Rental' || m.ownership === 'Hired') && m.rows.length) {
         const mm = machines.find(z => noKey_(z.id) === k);
-        try { rent = billMachineCalc_(mm, m.rows, extraOf(a, b), a, b).amount; } catch (e) { rent = 0; }
+        try { const bc = billMachineCalc_(mm, m.rows, extraOf(a, b), a, b); rent = bc.amount; recover = bc.excessAmt; } catch (e) { rent = 0; recover = 0; }
         const l = rateOn(mm, m.lastLog || end); basis = l ? l.basis : '';
       }
       tot.worked += wd ? 1 : 0; tot.avail += m.avail; tot.workDays += wd; tot.hrs += m.hrs; tot.km += m.km; tot.trips += m.trips; tot.nightHrs += m.nightHrs;
@@ -1726,7 +1727,7 @@ function logDashboard_(f) {
         issued: r2_(m.issued), std: std, extra: extra, extraPct: std > 0 && m.issued > 0 ? r2_(extra / std * 100) : '', extraAmt: r2_(Math.max(0, extra) * dRate),
         actualAvg: hasKm_(m.unit) && !hasHr_(m.unit) ? (m.issued ? r2_(m.km / m.issued) : '') : (m.hrs ? r2_(m.issued / m.hrs) : ''), stdAvg: hasKm_(m.unit) && !hasHr_(m.unit) ? m.kmStd : m.hrStd,
         avgUnit: hasKm_(m.unit) && !hasHr_(m.unit) ? 'km/L' : 'L/hr', lastLog: lastAny, idleFor: idleFor, pending: pending,
-        basis: basis, rent: r2_(rent), idleRent: r2_(idleRent), perHr: m.hrs && rent ? r2_(rent / m.hrs) : '', perKm: m.km && rent ? r2_(rent / m.km) : '', perTrip: m.trips && rent ? r2_(rent / m.trips) : '' };
+        basis: basis, rent: r2_(rent), recover: r2_(recover), idleRent: r2_(idleRent), perHr: m.hrs && rent ? r2_(rent / m.hrs) : '', perKm: m.km && rent ? r2_(rent / m.km) : '', perTrip: m.trips && rent ? r2_(rent / m.trips) : '' };
       if (full) {
         o.cal = days.map(d => !m.availSet[d] ? '-' : m.day[d] && m.night[d] ? 'B' : m.day[d] ? 'D' : m.night[d] ? 'N' : m.dieselDays[d] ? 'P' : '.').join('');
         o.drivers = Object.keys(m.drivers).map(n2 => ({ name: n2, hrs: r2_(m.drivers[n2].hrs), km: r2_(m.drivers[n2].km), trips: r2_(m.drivers[n2].trips), days: Object.keys(m.drivers[n2].days).length }));
@@ -4187,6 +4188,36 @@ function saveDebitRates_Inner_(rows) {
     if (String(t.rows[i][t.c[H.DRATE]]) !== String(v)) { t.sh.getRange(i + 2, col).setValue(v); n++; }
   });
   return { ok: true, count: n };
+}
+
+/* Machinery Cost Sheet – what every machinery cost in the period, with the working shown.
+ *   Rent          = what the bill of the period works out to for this machinery (BOQ, day by day – the same calculation as
+ *                   Machinery Billing, Idle days counted as paid). Own machinery has no rent in the app.
+ *   Diesel cost   = diesel issued to it × the diesel rate of the period (the higher of the period average and the last
+ *                   bought rate – the rate the bills use).
+ *   Recovered     = the diesel the bill takes back from the party for this machinery (debit basis / over the standard).
+ *   Net cost      = Rent + Diesel cost − Recovered.   Per hour / per KM = Net cost ÷ the hours / KM of the Log Book.
+ * Nothing is saved; it is worked out from the Log Book, the diesel issues and the BOQ each time. */
+function rptMachineCost_(f) {
+  f = f || {};
+  const rg = rptRange_(f);
+  const d = logDashboard_({ from: rg.from, to: rg.to, ownerships: f.ownerships || [], withDebit: true });
+  const rate = num0_(d.dieselRate), groups = {};
+  (d.machines || []).forEach(m => {
+    if (!(m.workDays || m.issued || m.rent)) return;          // nothing happened with it in the period
+    const rent = r2_(num0_(m.rent)), diesel = r2_(num0_(m.issued) * rate), rec = r2_(num0_(m.recover)), net = r2_(rent + diesel - rec);
+    const row = { no: m.no, type: m.type, owner: m.owner, ownership: m.ownership, unit: m.unit, basis: m.basis || '', workDays: m.workDays, avail: m.avail,
+      hrs: m.hrs, km: m.km, trips: m.trips, rent: rent, issued: m.issued, dieselCost: diesel, recover: rec, net: net,
+      perHr: m.hrs ? r2_(net / m.hrs) : '', perKm: m.km ? r2_(net / m.km) : '', perDay: m.workDays ? r2_(net / m.workDays) : '',
+      actualAvg: m.actualAvg, stdAvg: m.stdAvg, avgUnit: m.avgUnit };
+    (groups[m.ownership] = groups[m.ownership] || []).push(row);
+  });
+  const sum = (list, k) => r2_(list.reduce((s, r) => s + num0_(r[k]), 0));
+  const out = Object.keys(groups).sort(byGroupOrder_).map(g => { const list = groups[g].sort((a, b) => natCmp_(a.no, b.no));
+    return { ownership: g, rows: list, rent: sum(list, 'rent'), issued: sum(list, 'issued'), dieselCost: sum(list, 'dieselCost'), recover: sum(list, 'recover'), net: sum(list, 'net'), hrs: sum(list, 'hrs'), km: sum(list, 'km') }; });
+  const all = [].concat(...out.map(g => g.rows));
+  return Object.assign(rptBase_('Machinery Cost Sheet', rg), { rate: rate, groups: out,
+    total: { machines: all.length, rent: sum(all, 'rent'), issued: sum(all, 'issued'), dieselCost: sum(all, 'dieselCost'), recover: sum(all, 'recover'), net: sum(all, 'net'), hrs: sum(all, 'hrs'), km: sum(all, 'km') } });
 }
 
 /* 2. Diesel Cost Report – machinery-wise ₹, grouped Own → … → Debit */

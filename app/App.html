@@ -1728,6 +1728,9 @@
     .lg-wrap tr.lrow > td:nth-of-type(n+8):nth-of-type(-n+14) { font-weight: 600; }
   }
 
+  /* ---------- Machinery Cost Sheet: the line under each machinery that shows how its cost was worked out ---------- */
+  tr.mc-how td { font-size: 12px; color: #475569; background: #FAFBFC; padding-top: 2px; padding-bottom: 7px; white-space: normal; border-top: 0; }
+
   /* ---------- the Tax Invoice and Debit Note shown under every Abstract on the billing page ---------- */
   .mb-doc-h { margin: 18px 0 6px; font: 700 13px var(--ui); color: #475569; letter-spacing: .02em; text-transform: uppercase; }
   .mb-paper.mb-doc { background: #fff; padding: 10px; border: 1px solid #DDE3EA; border-radius: 10px; overflow-x: auto; }
@@ -3690,6 +3693,27 @@
             meta: 'Rate: ' + d.rateText,
             kpis: [['Vendors', d.vendors.length], ['Entries', d.total.entries], ['Diesel', fmt(d.total.qty) + ' Ltr'], ['Amount to recover', rs(d.total.amount)]],
             html: summary + details,
+          };
+        } },
+      { key: 'mcost', label: 'Machinery Cost Sheet', fn: 'rptMachineCost', portrait: false, filters: ['range', 'owns'],
+        note: 'What every machinery cost in the period, with the working: Rent (as the bill works it out) + Diesel issued × diesel rate − Diesel recovered from the party = Net cost; and the cost per hour / per KM. Own machinery has no rent in the app (salary, repairs and EMI are not recorded here).',
+        render: d => {
+          const n = v => v ? money(v) : '–', q = v => v ? fmt(v) : '–';
+          const how = r => { const parts = []; if (r.rent) parts.push('Rent ' + money(r.rent) + (r.basis ? ' (' + r.basis + ')' : '')); if (r.issued) parts.push('Diesel ' + fmt(r.issued) + ' L × ₹' + fmt(d.rate) + ' = ' + money(r.dieselCost));
+            if (!r.rent && r.workDays && (r.ownership === 'Rental' || r.ownership === 'Hired')) parts.unshift('Rent 0.00 – NO BOQ RATE for this machinery in the period');
+            let t = parts.join(' + ') || 'no rent, no diesel'; if (r.recover) t += ' − recovered ' + money(r.recover); t += ' = ' + money(r.net);
+            if (r.perHr !== '') t += ' ; ÷ ' + fmt(r.hrs) + ' hr = ₹' + money(r.perHr) + ' per hr'; if (r.perKm !== '') t += ' ; ÷ ' + fmt(r.km) + ' km = ₹' + money(r.perKm) + ' per km'; return t; };
+          let sr = 0;
+          return {
+            meta: 'Diesel rate ₹' + fmt(d.rate) + ' per Ltr (the rate the bills use)',
+            kpis: [['Machinery', d.total.machines], ['Rent', rs(d.total.rent)], ['Diesel cost', rs(d.total.dieselCost)], ['Recovered from parties', rs(d.total.recover)], ['Net cost', rs(d.total.net)]].concat(d.groups.map(g => [g.ownership, rs(g.net)])),
+            html: '<table class="rtable gtable" data-sheet="Machinery cost"><thead><tr><th>Sr</th><th>Machinery</th><th>Type</th><th>Owner</th><th class="n">Days worked</th><th class="n">Hrs</th><th class="n">KM</th><th class="n">Rent (₹)</th><th class="n">Diesel (Ltr)</th><th class="n">Diesel cost (₹)</th><th class="n">Recovered (₹)</th><th class="n">Net cost (₹)</th><th class="n">₹ / Hr</th><th class="n">₹ / KM</th><th class="n">Average (actual / standard)</th></tr></thead><tbody>' +
+              d.groups.map(g => grpRow(g.ownership + ' machinery – ' + g.rows.length, 15) + g.rows.map(r => '<tr><td>' + (++sr) + '</td><td><b>' + esc(r.no) + '</b></td><td>' + esc(r.type) + '</td><td>' + esc(r.owner) + '</td><td class="n">' + (r.workDays || '–') + '</td><td class="n">' + q(r.hrs) + '</td><td class="n">' + q(r.km) +
+                '</td><td class="n">' + n(r.rent) + '</td><td class="n">' + q(r.issued) + '</td><td class="n">' + n(r.dieselCost) + '</td><td class="n">' + (r.recover ? '− ' + money(r.recover) : '–') + '</td><td class="n"><b>' + money(r.net) + '</b></td><td class="n">' + (r.perHr === '' ? '–' : money(r.perHr)) + '</td><td class="n">' + (r.perKm === '' ? '–' : money(r.perKm)) +
+                '</td><td class="n">' + (r.actualAvg === '' || r.actualAvg === undefined ? '–' : fmt(r.actualAvg)) + ' / ' + (r.stdAvg ? fmt(r.stdAvg) : '–') + ' ' + esc(r.avgUnit || '') + '</td></tr>' +
+                '<tr class="mc-how"><td></td><td colspan="14">' + esc(how(r)) + '</td></tr>').join('') +
+                '<tr class="sub"><td colspan="5">' + esc(g.ownership) + ' total</td><td class="n">' + q(g.hrs) + '</td><td class="n">' + q(g.km) + '</td><td class="n">' + n(g.rent) + '</td><td class="n">' + q(g.issued) + '</td><td class="n">' + n(g.dieselCost) + '</td><td class="n">' + (g.recover ? '− ' + money(g.recover) : '–') + '</td><td class="n">' + money(g.net) + '</td><td></td><td></td><td></td></tr>').join('') +
+              '</tbody><tfoot><tr class="grand"><td colspan="5">Grand total</td><td class="n">' + q(d.total.hrs) + '</td><td class="n">' + q(d.total.km) + '</td><td class="n">' + n(d.total.rent) + '</td><td class="n">' + q(d.total.issued) + '</td><td class="n">' + n(d.total.dieselCost) + '</td><td class="n">' + (d.total.recover ? '− ' + money(d.total.recover) : '–') + '</td><td class="n">' + money(d.total.net) + '</td><td></td><td></td><td></td></tr></tfoot></table>',
           };
         } },
       { key: 'cost', label: 'Diesel Cost Report', fn: 'rptCost', portrait: true, filters: ['range', 'owns', 'rate'],
@@ -7256,7 +7280,8 @@
   /* ================= THE THREE PAPERS OF A BILL =================
    * 1. Abstract of Bill (billHtml, above) – the company's own working.
    * 2. Tax Invoice – the party's invoice to the company, in the fixed format, made from the SAME figures as the Abstract
-   *    (work done A, deductions B and C, value D, GST E + F, total G, TDS H, cheque amount I). Nothing is worked out again.
+   *    (work done A, deductions B and C, value D, GST E + F, total G). TDS is NOT on it: the party bills value + GST and the
+   *    company deducts TDS when it pays (lines H and I are on the Abstract only). Nothing is worked out again.
    * 3. Debit Note – only when diesel is deducted (B): what the company debits the party for diesel, machinery by machinery.
    * All three are made from the bill as it is saved, so an old bill always shows the papers it had. */
   const DOC_CSS = '<style>' +
@@ -7298,8 +7323,7 @@
       .concat(b.B ? [['Less: Diesel deduction' + (b.dnNo ? ' (Debit Note ' + esc(b.dnNo) + ')' : ''), '− ' + mbN2(b.B)]] : [])
       .concat(b.C ? [['Less: Other deduction' + (b.cReason ? ' (' + esc(b.cReason) + ')' : ''), '− ' + mbN2(b.C)]] : [])
       .concat([['Basic Value', mbN2(b.D)], ['SGST ' + pct, docDash(b.F)], ['CGST ' + pct, docDash(b.E)], ['Total Billing Amt', mbN2(b.G)]])
-      .concat(b.H ? [['Less: TDS ' + (b.tdsPct ? fmt(b.tdsPct) + '%' : ''), '− ' + mbN2(b.H)]] : [])
-      .concat([['Net Cheque Amount', mbN2(b.I)]]);
+      .concat([['Net Cheque Amount', mbN2(b.G)]]);      // the party bills value + GST; TDS is the company's deduction when it pays (line H of the Abstract), never on the party's invoice
     const party = '<b>' + esc(co.toUpperCase()) + '</b>';
     return DOC_CSS + '<div class="tx"><div class="tx-name">' + esc(v.name || '') + '</div><div class="tx-title">TAX INVOICE</div>' +
       '<table><colgroup><col style="width:23%"><col style="width:27%"><col style="width:50%"></colgroup><tbody>' +
@@ -7313,7 +7337,7 @@
       '<table><colgroup><col style="width:7%"><col style="width:43%"><col style="width:14%"><col style="width:11%"><col style="width:11%"><col style="width:14%"></colgroup><thead><tr><th class="c">Sr.No</th><th class="c">Description of Work</th><th class="c">Amount</th><th class="c">Add CGST ' + pct + '</th><th class="c">Add SGST ' + pct + '</th><th class="c">Total Amount</th></tr></thead><tbody>' +
       rows.join('') + '<tr class="sum"><td colspan="2" class="c">Total Billing Amount</td><td class="n">' + mbN2(b.A) + '</td><td class="n">-</td><td class="n">-</td><td class="n">' + mbN2(b.A) + '</td></tr></tbody></table>' +
       '<table class="foot"><colgroup><col style="width:50%"><col style="width:36%"><col style="width:14%"></colgroup><tbody>' +
-      sum.map((x, i) => '<tr>' + (i === 0 ? '<td rowspan="' + sum.length + '"><b>In Word : ' + esc(rupeesWords(b.I)) + ' /-</b></td>' : '') + '<td class="k">' + x[0] + '</td><td class="n"><b>' + x[1] + '</b></td></tr>').join('') +
+      sum.map((x, i) => '<tr>' + (i === 0 ? '<td rowspan="' + sum.length + '"><b>In Word : ' + esc(rupeesWords(b.G)) + ' /-</b></td>' : '') + '<td class="k">' + x[0] + '</td><td class="n"><b>' + x[1] + '</b></td></tr>').join('') +
       '<tr><td>' + esc(v.name || '') + (v.address ? '<br>' + esc(v.address) : '') + (v.account ? '<br>AC.NO : - ' + esc(v.account) : '') + (v.ifsc ? '<br>IFSC CODE :' + esc(v.ifsc) : '') + (v.bank ? '<br>BANK : ' + esc(v.bank) + (v.branch ? ', ' + esc(v.branch) : '') : '') +
         (v.pan ? '<br>PAN NO :- ' + esc(v.pan) : '') + (v.gst ? '<br>GSTIN :- ' + esc(v.gst) : '') + '</td><td colspan="2" class="tx-sign"><b>' + esc(v.name || '') + '</b><br>Authorised Signature</td></tr>' +
       '</tbody></table><div class="tx-decl"><b>Declaration:</b><br>We declare that all particulars shown in the above Tax Invoice are true and correct.<br>All disputes subject to Jurisdiction of Pune</div></div>';

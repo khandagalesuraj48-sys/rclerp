@@ -195,6 +195,17 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     (lines Sr / particular / qty / rate / amount, GST, TDS, own number run per company), choosing which notes to deduct in a bill, ledger.
     His answers for step 2: rate typed by hand; separate numbering for RCL and Sketchline; a note is deducted once, by tick, when the
     party's bill is made; a party without a bill keeps the note as receivable in the ledger; nothing is stored as PDF.
+- 01-10-2026 (night): update-11 (bill papers, RCL Drive) is live. He dropped the speed ideas (per-page live, browser cache, server result
+  cache – all explained with their risks, all declined: "leave it as it is"). Then asked for three things:
+  * Machinery Cost Sheet – BUILT: report `mcost` (`rptMachineCost_` in Code.gs, entry in `reportDefs()`), from `logDashboard_` (now also
+    returns `recover` per machinery and takes `withDebit`). Net cost = Rent (bill calculation, Idle paid) + diesel issued × period diesel rate
+    − diesel recovered in the bill; per hr / per km; a line under each machinery shows the working; rented machinery without a BOQ rate is
+    flagged. Own machinery has no rent (salary / repairs / EMI are not in the app). Unit test with hand-worked figures.
+  * RULE he gave: the party's Tax Invoice never carries TDS – the party bills value + GST; the company deducts TDS when paying (Abstract
+    only). `taxInvoiceHtml`: "Less: TDS" removed, Net Cheque Amount and the words = G.
+  * Sending reports by WhatsApp / e-mail from inside the app (auto to set numbers, or on "Send") – only IDEAS given, nothing built:
+    e-mail needs a mail service key in Vercel; WhatsApp needs the WhatsApp Business Platform (own number, Meta business verification,
+    approved templates, per-message charge ~₹0.115 utility in India per public rate cards, plus a provider fee) – waiting for his choice.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
