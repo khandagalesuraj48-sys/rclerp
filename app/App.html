@@ -1588,48 +1588,55 @@
   td.lb-ch { font-size: 0.92em; }
 
   /* =====================================================================
-     LOOK 2026-10 – Rachana red menu, larger entry forms, calm motion.
+     LOOK 2026-10 – new menu colours, larger entry forms, calm motion.
      Only the looks: no rule of the app is touched. Last in the file, so it wins over the older blocks above.
      ===================================================================== */
-  :root { --brand: #B8141C; --brand-deep: #8C0F15; --brand-soft: #FCEBEC; --quick: .16s cubic-bezier(.2,.7,.3,1); }
+  /* the colours of this look in one place: the menu (sb-…) and the accent used for the chosen tab and the focus ring */
+  :root { --quick: .16s cubic-bezier(.2,.7,.3,1);
+    --sb-1: #12305A; --sb-2: #0E2748; --sb-3: #0A1D37;            /* menu background, top → bottom */
+    --sb-ink: rgba(255,255,255,.93); --sb-dim: rgba(255,255,255,.72); --sb-line: rgba(255,255,255,.16); --sb-hover: rgba(255,255,255,.11);
+    --sb-tile: rgba(255,255,255,.13); --sb-icon: #fff; --sb-cap: #FFD66B;
+    --sb-on-bg: #fff; --sb-on-ink: #0B2340; --sb-on-shadow: 0 6px 16px rgba(3,12,28,.35);
+    --sb-count-bg: #FFC928; --sb-count-ink: #3A2500;
+    --brand: #14427C; --brand-deep: #0E2F5C; --brand-soft: #E9F0FA; --brand-ring: rgba(20,66,124,.14); }
 
-  /* ---------- menu (sidebar): the red of the Rachana logo, white lettering, amber for counts ---------- */
-  .side { background: linear-gradient(180deg, #C0171F 0%, #A7131B 48%, #8C0F15 100%); border-right: 0; }
-  .brandbox { border-bottom: 1px solid rgba(255,255,255,.18); }
-  .brandtile { box-shadow: 0 6px 16px rgba(70,0,6,.32); }
-  .brandsub { color: rgba(255,255,255,.82); }
-  .navgroup + .navgroup { border-top-color: rgba(255,255,255,.18); }
-  .grphead { color: rgba(255,255,255,.78); }
-  .grphead:hover { background: rgba(255,255,255,.12); color: #fff; }
-  .grpitems { border-left-color: rgba(255,255,255,.2); }
-  .sghead { color: rgba(255,255,255,.9); }
-  .sghead:hover { background: rgba(255,255,255,.12); color: #fff; }
-  .subgrp.open > .sghead { color: #FFD66B; }
-  .sgitems { border-left-color: rgba(255,255,255,.26); }
-  .navbtn { color: rgba(255,255,255,.93); transition: background var(--quick), color var(--quick), box-shadow var(--quick); }
+  /* ---------- menu (sidebar) ---------- */
+  .side { background: linear-gradient(180deg, var(--sb-1) 0%, var(--sb-2) 48%, var(--sb-3) 100%); border-right: 0; }
+  .brandbox { border-bottom: 1px solid var(--sb-line); }
+  .brandtile { box-shadow: 0 6px 16px rgba(0,0,0,.22); }
+  .brandsub { color: var(--sb-dim); }
+  .navgroup + .navgroup { border-top-color: var(--sb-line); }
+  .grphead { color: var(--sb-dim); }
+  .grphead:hover { background: var(--sb-hover); color: var(--sb-ink); }
+  .grpitems { border-left-color: var(--sb-line); }
+  .sghead { color: var(--sb-ink); }
+  .sghead:hover { background: var(--sb-hover); color: var(--sb-ink); }
+  .subgrp.open > .sghead { color: var(--sb-cap); }
+  .sgitems { border-left-color: var(--sb-line); }
+  .navbtn { color: var(--sb-ink); transition: background var(--quick), color var(--quick), box-shadow var(--quick); }
   .navbtn svg, #tab-dash svg, #tab-master svg, #tab-inward svg, #tab-transfer svg, #tab-diesel svg, #tab-log svg, #tab-logedit svg, #tab-tankcheck svg, #tab-activity svg, #grp_rep_items .navbtn svg {
-    color: #fff; background: rgba(255,255,255,.16); box-shadow: none; transition: background var(--quick), color var(--quick); }
-  .navbtn:hover { background: rgba(255,255,255,.14); color: #fff; transform: none; }
-  .navbtn:hover svg { transform: none; background: rgba(255,255,255,.24); }
+    color: var(--sb-icon); background: var(--sb-tile); box-shadow: none; transition: background var(--quick), color var(--quick); }
+  .navbtn:hover { background: var(--sb-hover); color: var(--sb-ink); transform: none; }
+  .navbtn:hover svg { transform: none; }
   .navbtn:active { transform: none; }
-  /* the page you are on: a white tab with its own colour on the icon */
-  .navbtn[aria-selected="true"] { background: #fff; color: var(--brand-deep); font-weight: 700; box-shadow: 0 6px 16px rgba(70,0,6,.26); }
-  .navbtn[aria-selected="true"]:hover { background: #fff; color: var(--brand-deep); }
+  /* the page you are on: a light tab with its own colour on the icon */
+  .navbtn[aria-selected="true"] { background: var(--sb-on-bg); color: var(--sb-on-ink); font-weight: 700; box-shadow: var(--sb-on-shadow); }
+  .navbtn[aria-selected="true"]:hover { background: var(--sb-on-bg); color: var(--sb-on-ink); }
   #side .navbtn[aria-selected="true"] svg, #side .navbtn[aria-selected="true"]:hover svg { background: var(--mod); color: #fff !important; box-shadow: none; }
-  .navbtn .badge, .sghead .sg-badge { background: #FFC928; color: #4A1204; font-weight: 700; }
+  .navbtn .badge, .sghead .sg-badge { background: var(--sb-count-bg); color: var(--sb-count-ink); font-weight: 700; }
   .sghead .sg-badge { min-width: 22px; height: 20px; padding: 0 7px; border-radius: 10px; display: inline-grid; place-content: center; font-size: 11.5px; }
-  .subcap { color: #FFD66B; } .subcap::after { background: rgba(255,214,107,.4); }
-  .side.mini .subcap { background: rgba(255,214,107,.45); }
-  .side.mini .subgrp + .subgrp, .side.mini .navbtn + .subgrp { border-top-color: rgba(255,255,255,.2); }
-  .side-toggle { border-color: rgba(255,255,255,.26); color: rgba(255,255,255,.85); }
-  .side-toggle:hover { background: rgba(255,255,255,.12); color: #fff; }
-  .side nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.34); }
-  .side :is(.navbtn, .grphead, .sghead, .side-toggle):focus-visible { outline: 2px solid #FFD66B; outline-offset: 1px; }
+  .subcap { color: var(--sb-cap); } .subcap::after { background: var(--sb-line); }
+  .side.mini .subcap { background: var(--sb-line); }
+  .side.mini .subgrp + .subgrp, .side.mini .navbtn + .subgrp { border-top-color: var(--sb-line); }
+  .side-toggle { border-color: var(--sb-line); color: var(--sb-dim); }
+  .side-toggle:hover { background: var(--sb-hover); color: var(--sb-ink); }
+  .side nav::-webkit-scrollbar-thumb { background: var(--sb-line); }
+  .side :is(.navbtn, .grphead, .sghead, .side-toggle):focus-visible { outline: 2px solid var(--sb-cap); outline-offset: 1px; }
 
   /* the menu on a computer: opens without the letters re-flowing on every frame (that made it stutter) */
   @media (min-width: 761px) {
     .app.side-auto .side { transition: width .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s ease; contain: layout paint; }
-    .app.side-auto .side:not(.mini) { box-shadow: 10px 0 28px rgba(40,0,4,.22); }
+    .app.side-auto .side:not(.mini) { box-shadow: 10px 0 28px rgba(3,12,28,.24); }
     .app.side-auto .side > * { width: 272px; flex-shrink: 0; }
     .app.side-auto .side.mini > * { width: 74px; }
     .app.side-auto .side .label, .app.side-auto .side .brandsub { transition: opacity .14s ease .06s; }
@@ -1641,8 +1648,8 @@
   /* ---------- tabs: the chosen one in the brand red ---------- */
   .subtabs { background: #E9EDF1; border-radius: 10px; padding: 4px; }
   .subtabs button { border-radius: 8px; transition: background var(--quick), color var(--quick), box-shadow var(--quick); }
-  .subtabs button:hover:not([aria-selected="true"]) { background: rgba(184,20,28,.08); color: var(--brand-deep); }
-  .subtabs button[aria-selected="true"] { background: var(--brand); color: #fff; box-shadow: 0 3px 10px rgba(184,20,28,.28); }
+  .subtabs button:hover:not([aria-selected="true"]) { background: var(--brand-soft); color: var(--brand-deep); }
+  .subtabs button[aria-selected="true"] { background: var(--brand); color: #fff; box-shadow: 0 3px 10px var(--brand-ring); }
   .switch { border-color: var(--brand); border-radius: 9px; }
   .switch button { color: var(--brand-deep); transition: background var(--quick), color var(--quick); }
   .switch button:hover:not([aria-pressed="true"]) { background: var(--brand-soft); }
@@ -1677,7 +1684,7 @@
     :is(.panel[data-perm], #v_form, #b_form) .btn { min-height: 44px; font-size: 14.5px; padding: 9px 20px; }
     :is(.panel[data-perm], #v_form, #b_form) .btn.small, :is(.panel[data-perm], #v_form, #b_form) table .btn { min-height: 36px; font-size: 13.5px; padding: 6px 14px; }
   }
-  :is(.panel[data-perm], #v_form, #b_form) :is(input, select, textarea):focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: var(--brand); box-shadow: 0 0 0 4px rgba(184,20,28,.12); }
+  :is(.panel[data-perm], #v_form, #b_form) :is(input, select, textarea):focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: var(--brand); box-shadow: 0 0 0 4px var(--brand-ring); }
 
   /* ---------- Log Book entry on a computer: every entry is one wide block of two lines – nothing to scroll sideways.
      Line 1: what worked and its reading.  Line 2: diesel (worked out by the app), chainage and work.
@@ -1688,7 +1695,7 @@
     .lg-wrap table.lgt thead { display: none; }
     .lg-wrap tr.lrow { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: 14px; row-gap: 12px; align-items: start;
       background: #fff; border: 1px solid #DDE3EA; border-radius: 14px; padding: 16px 16px 14px; margin: 0 0 12px; box-shadow: 0 1px 2px rgba(20,30,38,.04); }
-    .lg-wrap tr.lrow:focus-within { border-color: rgba(184,20,28,.5); box-shadow: 0 0 0 3px rgba(184,20,28,.08); }
+    .lg-wrap tr.lrow:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
     .lg-wrap tr.lrow.err { border-color: #E5A29D; background: #FFF7F6; }
     .lg-wrap tr.lrow > td { display: block; min-width: 0; padding: 0; border: 0; background: transparent !important; font-size: 14.5px; text-align: left; white-space: normal; }
     .lg-wrap tr.lrow > td::before { display: block; font: 600 12px/1.2 var(--ui); color: #64748B; margin: 0 0 6px; white-space: nowrap; }

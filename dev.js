@@ -9,6 +9,7 @@ const rpc = require('./api/rpc');
 const port = Number(process.env.PORT) || 3000;
 http.createServer((req, res) => {
   if (req.url.split('?')[0] === '/api/rpc') return rpc(req, res);
+  if (req.url.split('?')[0] === '/api/backup') return require('./api/backup')(req, res);
   if (req.url.split('?')[0] === '/' || req.url.split('?')[0] === '/index.html') { res.setHeader('Content-Type', 'text/html; charset=utf-8'); return res.end(shell()); }
   res.statusCode = 404; res.end('Not found');
 }).listen(port, () => console.log('RCL Fleet ERP – http://localhost:' + port));

@@ -106,6 +106,24 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     grid scrolled sideways at 1366–1536 px windows. If a column is ever added to lgRowHtml, update these nth-of-type rules.
   * Phones (≤760 px) keep the old table layout for the Log Book entry (only colours changed) – not asked yet.
   * Not measurable here: how smooth the menu animation is on his laptop (headless Chromium frame timing is unreliable).
+- 01-10-2026: he REJECTED the red menu ("looks very bad"). Menu colours are now CSS variables at the top of the LOOK 2026-10 block
+  (`--sb-1/2/3`, `--sb-ink`, `--sb-on-bg`, `--brand` …); default = deep navy. Options shown to him as pictures: navy, charcoal, light, teal – waiting for his pick.
+- 01-10-2026: he decided NO Apps Script at all (never open it again). So:
+  * Google Sheet backup now runs from Vercel: `server/google.js` (service-account JWT → Sheets API v4, no libraries), `server/backup.vm.js`
+    (`webBackup_` – runs inside the app's vm, reuses sbCatalog_/sbHeader_/sbTabName_/sbAllRows_; a table whose row count or newest updated_at
+    changed gets its whole tab rewritten with the grid resized to fit; all tabs once a day; state in web.props `BK_STATE`, status in `SB_INFO`;
+    lock name "backup"), `api/backup.js` (no sign-in, returns only ok; the bridge in page.js calls it every 5 min while the app is open;
+    Vercel cron nightly `?full=1`), `sbBackupNow_` = `webBackup_({manual:true})`.
+  * Env on Vercel: `GOOGLE_SERVICE_ACCOUNT_JSON` (whole key file), `BACKUP_SHEET_ID` (id or link). He wants the backup to CONTINUE in the
+    existing backup Sheet (id 14B_uvMm…Clro – never put it in the repo: the old script made it "anyone with the link can view").
+    So the layout is kept identical: same tab names / headings, values via `sbCell_` with valueInputOption USER_ENTERED (as setValues did).
+    The old script protected every tab for its owner and removes other editors → he must (once) stop the old triggers, share the Sheet with the
+    service account as Editor and remove the tab protections; `webBackup_` checks `protectedRanges.requestingUserCanEdit` first and says which
+    tabs are still protected, without writing anything. Google calls per run: 1 get + 1–2 batchUpdate + a few values:batchUpdate (quota-safe).
+    No weekly dated copy (needs Drive; not built – Sheets has version history).
+  * `apps-script/VercelBridge.gs`, GAS_BACKUP_URL and the doPost path are removed. `movedTo_()` in Code.gs is harmless leftover.
+  * Tested only against a local stand-in for Google (token signature verified, grid limits enforced) – NOT against real Google.
+  * Old Apps Script app: to be archived + triggers deleted by him once staff have the new link (README).
 - Known limits: sync every 1 s = many Vercel invocations; ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

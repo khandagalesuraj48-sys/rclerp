@@ -29,6 +29,12 @@ const BRIDGE = `
     } });
   }
   window.google = { script: { run: runner(null, null), host: { close: function () {} } } };
+  // the Google Sheet backup: while the app is open it asks the server now and then to copy what changed
+  // (the server does nothing when nothing changed or when a backup ran a moment ago)
+  if (window.parent !== window) {
+    var tick = function () { try { fetch(base + '/api/backup', { method: 'POST', cache: 'no-store' }).catch(function () {}); } catch (e) {} };
+    setTimeout(tick, 40000); setInterval(tick, 300000);
+  }
 })();`;
 
 let memo = null;
