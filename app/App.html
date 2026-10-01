@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --steel: #22303A;
@@ -1742,7 +1742,7 @@
     .lg-wrap tr.lrow > td.c-debit input { min-height: 30px; font-size: 12.5px; padding: 3px 7px; }
     .lg-wrap tr.lrow { grid-template-rows: auto auto auto; }
   }
-  @container (max-width: 1290px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 3 / span 4; grid-row: 4; } }
+  @container (max-width: 1149px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 3 / span 4; grid-row: 4; } }
   @media (max-width: 760px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 1 / -1; } .lg-wrap tr.lrow > td.c-debit::before { content: "Debit to"; flex: 0 0 100%; } .lg-wrap tr.lrow > td.c-debit { flex-wrap: wrap; } }
   .mb-dns { margin-top: 6px; font-size: 12px; color: #9A3412; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
   .mb-dns span { font-weight: 700; } .mb-dns label { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; cursor: pointer; } .mb-dns input { width: auto; min-height: 0; }
@@ -1880,14 +1880,134 @@
     .lg-wrap tr.lrow td .lnote { max-width: none; font-size: 11px; line-height: 1.25; margin-top: 2px; }
     .lg-wrap tr.lrow .itm { margin-top: 3px; }
     /* a narrow page (small window): chainage and work go to a second line */
-    @container (max-width: 1290px) {
-      .lg-wrap tr.lrow { grid-template-columns: 20px 104px minmax(160px, 1.3fr) minmax(150px, 1.2fr) minmax(104px, .9fr) minmax(104px, .9fr) 44px 74px 74px 76px 44px; grid-template-rows: auto auto auto; row-gap: 4px; }
+    @container (max-width: 1149px) {
+      .lg-wrap tr.lrow { grid-template-columns: 20px 100px minmax(138px, 1.3fr) minmax(138px, 1.2fr) minmax(90px, .9fr) minmax(90px, .9fr) 40px 70px 70px 72px 44px; grid-template-rows: auto auto auto; row-gap: 4px; }
+      .lg-wrap tr.lrow > td :is(input, select) { font-size: 13.5px !important; padding-left: 7px !important; padding-right: 7px !important; }
+      .lg-wrap tr.lrow > td select { padding-right: 20px !important; }
       .lg-wrap tr.lrow > td:nth-of-type(18) { grid-column: 11; }
       .lg-wrap tr.lrow > td:nth-of-type(15) { grid-column: 3; grid-row: 3; } .lg-wrap tr.lrow > td:nth-of-type(16) { grid-column: 4; grid-row: 3; max-width: 190px; } .lg-wrap tr.lrow > td:nth-of-type(17) { grid-column: 5 / span 6; grid-row: 3; }
       .lg-wrap tr.lrow > small.lg-fmt { grid-row: 4; }
       .lg-wrap tr.lrow:first-child > td:nth-of-type(n+15):nth-of-type(-n+17)::after { content: none; }
     }
   }
+
+  /* =====================================================================
+     LOOK 2026-10 B – "clean sheet". Asked for with a reference collage and chosen from mock-up pictures.
+     Everything except the CONTENT of the Dashboard page (#sec-dash is left exactly as it was).
+     Looks only: no rule of the app is touched. Last in the file, so it wins over the older blocks.
+     On a computer the menu is pinned open with the names (deskSide is switched off); it can be slimmed with its button.
+     ===================================================================== */
+  :root { --c-ink: #0C1A2E; --c-paper: #F3F5F8; --c-hair: #E3E8EF; --c-hair2: #EEF1F5; --c-text: #0F1B2D; --c-muted: #5B6B80; --c-faint: #8A97A8;
+    --c-blue: #1D55E2; --c-blue-d: #1543B8; --c-blue-s: #EAF0FE; --c-amber: #F2A900; --c-amber-s: #FFF4D6; --c-amber-ink: #7A5200;
+    --c-green: #12805A; --c-green-s: #E3F5EC; --c-red: #C8102E; --c-red-s: #FDE8EC;
+    --disp2: "Archivo", "IBM Plex Sans", system-ui, sans-serif;
+    --brand: #1D55E2; --brand-deep: #1543B8; --brand-soft: #EAF0FE; --brand-ring: rgba(29,85,226,.14);
+    --sb-1: #0C1A2E; --sb-2: #0C1A2E; --sb-3: #0C1A2E; --sb-ink: #C4D0E0; --sb-dim: #7F92AB; --sb-line: rgba(255,255,255,.09); --sb-hover: rgba(255,255,255,.07);
+    --sb-cap: #fff; --sb-count-bg: #F2A900; --sb-count-ink: #3A2800; }
+  body, .app, .mainwrap { background: var(--c-paper); }
+
+  /* ---------- menu: pinned, names always there ---------- */
+  @media (min-width: 761px) {
+    .app .side { flex: 0 0 238px; width: 238px; background: var(--c-ink); box-shadow: inset -1px 0 0 rgba(255,255,255,.07); }
+    .app .side.mini { flex-basis: 68px; width: 68px; }
+  }
+  .app .side .brandbox { border-bottom: 0; padding-bottom: 8px; }
+  .app .side .brandsub { color: #8FA1B8; letter-spacing: .02em; text-transform: none; font-size: 11.5px; }
+  .app .side .navgroup + .navgroup { border-top-color: var(--sb-line); }
+  .app .side .grphead { height: 32px; font: 600 12px var(--ui); letter-spacing: 0; text-transform: none; color: #8FA1B8; }
+  .app .side .grphead svg { width: 16px; height: 16px; }
+  .app .side .sghead { font: 600 12.5px var(--ui); letter-spacing: 0; text-transform: none; color: #A9B8CC; min-height: 30px; }
+  .app .side .subgrp.open > .sghead { color: #fff; }
+  .app .side .grpitems, .app .side .sgitems { border-left-color: transparent; }
+  .app .side .subcap { font: 600 11px var(--ui); letter-spacing: 0; text-transform: none; color: #7F92AB; padding: 9px 10px 3px; }
+  .app .side .subcap::after { display: none; }
+  .app .side .navbtn { min-height: 34px; padding: 4px 10px; gap: 10px; border-radius: 8px; font: 500 13.5px/1.2 var(--ui); color: #C4D0E0; background: transparent; box-shadow: none; transform: none; }
+  .app .side .navbtn svg { width: 17px !important; height: 17px !important; min-width: 17px; padding: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; color: #8FA3BF !important; }
+  .app .side .navbtn:hover { background: var(--sb-hover); color: #fff; }
+  .app .side .navbtn[aria-selected="true"] { background: linear-gradient(90deg, rgba(29,85,226,.38), rgba(29,85,226,.16)); color: #fff; font-weight: 600; box-shadow: inset 3px 0 0 var(--c-amber); }
+  .app .side .navbtn[aria-selected="true"] svg { color: #fff !important; }
+  .app .side .navbtn .badge, .app .side .sg-badge { background: var(--c-amber); color: #3A2800; font: 700 11px var(--disp2); }
+  .app .side .side-toggle { color: #8FA1B8; border-color: var(--sb-line); }
+  .app .side.mini .navbtn { justify-content: center; padding: 4px 0; }
+
+  /* ---------- top bar ---------- */
+  .app .topbar { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; border-bottom: 1px solid var(--c-hair); }
+  .app #page_title { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--c-text); -webkit-text-fill-color: var(--c-text); font: 700 20px/1.2 var(--disp2); letter-spacing: -.01em; text-transform: none; }
+  .app .crumb { font-size: 11.5px; color: var(--c-faint); letter-spacing: 0; text-transform: none; font-weight: 500; }
+
+  @media (min-width: 761px) {      /* one line, also with the menu pinned: nothing in the bar wraps */
+    .app .topbar .tb-left { flex-wrap: nowrap; align-items: center; gap: 16px; min-width: 0; }
+    .app .topbar .tb-right { gap: 10px; flex: none; }
+    .app .topbar .today b, .app .topbar .today span { white-space: nowrap; }
+    .app .topbar .gs-btn { min-width: 0; width: clamp(150px, 15vw, 230px); box-shadow: none; border-color: var(--c-hair); background: #FAFBFC; border-radius: 9px; }
+  }
+  @media (min-width: 761px) and (max-width: 1450px) { .app .topbar .today, .app .topbar #ds_pill { display: none !important; } }   /* the company name is in the menu already; "Supabase" is in Read Me */
+  .app .topbar .subtabs { flex: none; } .app .subtabs button { white-space: nowrap; }
+
+  /* ---------- segmented tabs ---------- */
+  .app .subtabs { background: #EEF1F5; border-radius: 9px; padding: 3px; }
+  .app .subtabs button { font: 600 12.5px var(--ui); color: var(--c-muted); padding: 6px 13px; border-radius: 7px; }
+  .app .subtabs button[aria-selected="true"] { background: #fff; color: var(--c-text); box-shadow: 0 1px 2px rgba(12,26,46,.14); }
+
+  /* ---------- sheets (panels) – not on the Dashboard ---------- */
+  section:not(#sec-dash) .panel { background: #fff; border: 1px solid var(--c-hair); border-radius: 14px; box-shadow: 0 1px 2px rgba(12,26,46,.04); }
+  section:not(#sec-dash) .panel::before { display: none; }
+  section:not(#sec-dash) .panel:hover { box-shadow: 0 1px 2px rgba(12,26,46,.04); transform: none; }
+  section:not(#sec-dash) .panel-head h2 { font: 700 16.5px/1.25 var(--disp2); letter-spacing: -.005em; text-transform: none; color: var(--c-text); }
+  section:not(#sec-dash) .chart-note { color: var(--c-muted); font-size: 12.5px; }
+  section:not(#sec-dash) .field > label, #le_back .field > label { font: 600 12px var(--ui); color: var(--c-muted); letter-spacing: 0; text-transform: none; }
+
+  /* ---------- buttons ---------- */
+  :is(section:not(#sec-dash), #cf_back, #le_back) .btn { border-radius: 9px; border: 1px solid #D5DCE6; background: #fff; color: var(--c-text); font-weight: 600; box-shadow: none; transform: none; }
+  :is(section:not(#sec-dash), #cf_back, #le_back) .btn:hover { background: #F7F9FC; border-color: #C3CCD9; transform: none; box-shadow: none; }
+  :is(section:not(#sec-dash), #cf_back, #le_back) .btn.primary { background: var(--c-amber); border-color: #D99700; color: #2B1E00; box-shadow: 0 4px 12px rgba(242,169,0,.22); }
+  :is(section:not(#sec-dash), #cf_back, #le_back) .btn.primary:hover { background: #F7B41A; border-color: #D99700; }
+  :is(section:not(#sec-dash), #cf_back, #le_back) .btn.danger { background: #fff; border-color: #F3C0CA; color: var(--c-red); }
+  section:not(#sec-dash) :is(#mb_build, #dn_open, #dn_fetch) { background: var(--c-blue); border-color: var(--c-blue); color: #fff; box-shadow: 0 4px 12px rgba(29,85,226,.2); }
+  section:not(#sec-dash) :is(#mb_build, #dn_open, #dn_fetch):hover { background: var(--c-blue-d); border-color: var(--c-blue-d); }
+  section:not(#sec-dash) button.link { color: var(--c-blue); font-weight: 600; } section:not(#sec-dash) button.link.danger { color: var(--c-red); }
+
+  /* ---------- fields ---------- */
+  :is(section:not(#sec-dash), #cf_back, #le_back) :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) { border: 1px solid #D5DCE6; border-radius: 9px; background-color: #fff; color: var(--c-text); }
+  :is(section:not(#sec-dash), #cf_back, #le_back) :is(input:not([type=checkbox]):not([type=radio]), select, textarea):focus { border-color: var(--c-blue); box-shadow: 0 0 0 3px rgba(29,85,226,.14); outline: 0; }
+  :is(section:not(#sec-dash), #cf_back, #le_back) :is(input, select, textarea)[readonly], :is(section:not(#sec-dash), #cf_back, #le_back) :is(input, select, textarea):disabled { background-color: #F6F8FA; color: var(--c-muted); }
+
+  /* ---------- lists and tables (not the bill papers, not the Log Book entry grid) ---------- */
+  section:not(#sec-dash) .table-wrap { border: 1px solid var(--c-hair); border-radius: 12px; background: #fff; }
+  section:not(#sec-dash) table:not(.mb-paper table):not(.lg-wrap table) thead th { background: #F8FAFC; color: var(--c-muted); font: 600 12px/1.3 var(--ui); letter-spacing: 0; text-transform: none; border-bottom: 1px solid var(--c-hair); }
+  section:not(#sec-dash) table:not(.mb-paper table):not(.lg-wrap table) tbody td { border-bottom: 1px solid var(--c-hair2); font-size: 13.5px; color: var(--c-text); }
+  section:not(#sec-dash) table:not(.mb-paper table):not(.lg-wrap table) tbody tr:hover > td { background: #F7F9FC; }
+  section:not(#sec-dash) table:not(.mb-paper table):not(.lg-wrap table) :is(td.n, th.n) { font-family: var(--disp2); font-variant-numeric: tabular-nums; }
+  section:not(#sec-dash) table:not(.mb-paper table) tbody tr.grp > td { background: var(--c-ink); color: #fff; font: 600 12px var(--ui); letter-spacing: 0; text-transform: none; }
+  section:not(#sec-dash) table:not(.mb-paper table) :is(tr.sub, tr.grand) > td { background: #F3F6FA; font-weight: 700; }
+  section:not(#sec-dash) .more-bar { border-color: var(--c-hair); background: #FAFBFC; border-radius: 12px; }
+  section:not(#sec-dash) .st { border-radius: 11px; font-weight: 600; padding: 3px 9px; }
+  section:not(#sec-dash) .st.ok { background: var(--c-green-s); color: var(--c-green); }
+  section:not(#sec-dash) .st.low { background: var(--c-amber-s); color: var(--c-amber-ink); }
+  section:not(#sec-dash) .st.bad { background: var(--c-red-s); color: var(--c-red); }
+  section:not(#sec-dash) .sum b, section:not(#sec-dash) .kpi b { font-family: var(--disp2); font-variant-numeric: tabular-nums; }
+
+  section:not(#sec-dash) .rfilters .rquick { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+  /* ---------- dialogs ---------- */
+  #cf_back h3, #le_back h3, #cf_title { font-family: var(--disp2); letter-spacing: -.005em; }
+
+  /* ---------- Log Book entry: one line per machinery also with the menu pinned (room of about 1,180 px or more) ---------- */
+  @media (min-width: 761px) {
+    @container (max-width: 1290px) and (min-width: 1150px) {
+      .lg-wrap tr.lrow { grid-template-columns: 18px 100px minmax(150px, 1.2fr) 140px minmax(92px, .8fr) minmax(92px, .8fr) 40px 76px 76px 68px 56px 56px minmax(84px, 1.2fr) 44px; grid-template-rows: auto auto; row-gap: 0; column-gap: 6px; }
+      .lg-wrap tr.lrow > td:nth-of-type(15) { grid-column: 11; grid-row: 1; } .lg-wrap tr.lrow > td:nth-of-type(16) { grid-column: 12; grid-row: 1; max-width: none; }
+      .lg-wrap tr.lrow > td:nth-of-type(17) { grid-column: 13; grid-row: 1; } .lg-wrap tr.lrow > td:nth-of-type(18) { grid-column: 14; grid-row: 1; }
+      .lg-wrap tr.lrow > small.lg-fmt { grid-row: 2; }
+      .lg-wrap tr.lrow > td.c-debit { grid-column: 3 / span 8; grid-row: 2; margin-top: 4px; }
+      .lg-wrap tr.lrow:first-child > td:nth-of-type(n+15):nth-of-type(-n+17)::after { content: attr(data-th); }
+      .lg-wrap tr.lrow > td :is(input, select) { font-size: 13.5px !important; padding-left: 7px !important; padding-right: 7px !important; min-height: 38px !important; height: 38px; }
+      .lg-wrap tr.lrow > td select { padding-right: 20px !important; }
+      .lg-wrap tr.lrow > td:nth-of-type(n+11):nth-of-type(-n+14) b, .lg-wrap tr.lrow > td:nth-of-type(n+11):nth-of-type(-n+14) { font-size: 13.5px; }
+      .lg-wrap tr.lrow > td .way .wy { padding-left: 7px; padding-right: 7px; font-size: 11.5px; }
+    }
+  }
+
 </style>
 </head>
 <body class="locked">
@@ -4108,7 +4228,9 @@
    * The full menu with the names opens with a CLICK – on the arrow button, on the logo or on a group icon – and closes
    * when a page is chosen, on a click outside it, with the arrow button or with Esc.
    * Nothing depends on where the mouse is (hovering made it hang open, or not open at all), and nothing slides. */
+  const PINNED_MENU = true;   // look 2026-10 B: the menu is pinned open with the names; its button slims it to icons and that choice is remembered
   (function deskSide() {
+    if (PINNED_MENU) return;
     if (!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches)) return;
     const side = $('side'), tg = $('side_toggle');
     document.querySelector('.app').classList.add('side-auto');

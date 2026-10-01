@@ -248,6 +248,23 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     now carries a save counter (`saveNo` in server/page.js).
   * Tests: unit "Debit to and Debit Notes" (hand-worked 19,256), `test/dn.js` (6 checks without the SQL, 14 with it, two servers),
     `test/browser/dnui.js` (8 checks through the page).
+- 02-10-2026: he sent a collage of a "clean UI" as a reference and asked for something more premium, pictures first. I made six mock-up
+  pictures (HTML rendered to PNG, not in the repo). He answered: "keep ONLY the Dashboard as it is, change the UI of everything else".
+  BUILT = block "LOOK 2026-10 B" at the end of the stylesheet in App.html (tokens `--c-*`, font Archivo for titles and figures, added to the
+  Google Fonts link):
+  * Menu pinned open with the names on a computer (238 px; `PINNED_MENU = true` switches `deskSide` off – the old click-open strip code
+    is still there). Its button slims it to icons; the choice is remembered. Navy #0C1A2E, plain icons, active item blue with an amber bar.
+  * Top bar white, one line (company name and the Supabase pill hide below 1450 px), title in Archivo.
+  * Panels, buttons (amber = save / primary, blue for Build bills / New debit note / Get entries), fields, segmented tabs, tables, pills:
+    all restyled with `section:not(#sec-dash) …` so the DASHBOARD CONTENT IS UNTOUCHED. Bill papers (.mb-paper) and the Log Book entry
+    grid are excluded from the table rules.
+  * Log Book entry with the pinned menu: one line per machinery from 1,150 px of room (tight columns, 1150–1290), comfortable columns
+    above 1290, the two-line layout below 1150 (fits a 1366 px laptop). Measured: 1536 px screen → room 1206, one line; 1366 → two lines,
+    no sideways scroll; 1920 → one line.
+  * NOT done from the mock-ups (would change behaviour, not asked): the "Working / Idle" picker instead of the status buttons, the KPI
+    band, the road-style tank bar, new page layouts. Only the look of what exists was changed.
+  * Checked: 36 pages on a computer and at phone width without error or sideways spill; all flows' tests pass. Not checked: real fonts
+    (Google Fonts cannot load in the test rig – fallback fonts were seen), real phones.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
