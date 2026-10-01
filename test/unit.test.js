@@ -29,6 +29,14 @@ test('the page that is sent to the browser holds no secret and has the bridge', 
   assert.strictEqual(page().build, page().build);
 });
 
+test('every script in the page that is sent to the browser parses (a typo there would stop the whole app)', () => {
+  const vm = require('vm'); const { page } = require('../server/page.js');
+  const html = page().html, scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  assert.ok(scripts.length >= 3, 'scripts found: ' + scripts.length);
+  scripts.forEach((js, i) => { assert.doesNotThrow(() => new vm.Script(js, { filename: 'page-script-' + i + '.js' }), 'script ' + i + ' does not parse'); });
+  assert.ok(scripts.some(js => js.indexOf('/api/rpc') > -1 && js.indexOf('rcl_trace') > -1), 'the bridge with the recorder is in the page');
+});
+
 test('no secret is written anywhere in the project files', () => {
   const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.name === 'node_modules' || e.name === '.git' || e.name === 'public' ? [] : e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
   const hits = [];

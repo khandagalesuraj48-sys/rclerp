@@ -169,6 +169,15 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Report: `PHASE3_READINESS_REPORT.md` (Go for preview, No-Go for production until backup looked at, step-2 + step-3 SQL and
   check_security run on live, CRON_SECRET set, preview looked at). Browser tests are in `test/browser/` (need puppeteer-core + Chromium).
   IMPORTANT STATE: GitHub / the live site were still at update-6 ("click menu…") when this was written – none of Phase 1–3 was live.
+- 01-10-2026 15:34: Phase 1–3 (update-9) IS LIVE (GitHub main = "phase 1-3: audit fixes…"). Right after saving 11 diesel issues from the
+  multiple-entries grid (toast "11 diesel issues saved (DI-000355 to DI-000365)") Chrome showed "Page Unresponsive" on the live site.
+  NOT reproduced here (4 rows; 11 rows; 11 rows with 40 Log Book rows typed and Dashboard / Log Book loaded: longest freeze 0.6 s) and no
+  endless loop found by reading (no MutationObserver, no DOM-dependent while loops, polling cannot spin). CAUSE UNKNOWN.
+  Added a recorder in the bridge (`recorder()` in server/page.js): crumbs of server calls / clicks / long tasks + a 1 s heartbeat in
+  localStorage `rcl_trace`; if a run ends without `pagehide`, the next start shows a box with the last lines – ask him for a photo of it.
+  `npm test` now also checks that every script of the generated page parses (a typo in the bridge would stop the whole app).
+  What happens after a save on the page (for the next investigation): `onDataChanged` → getLookups + setMaster, refreshStock, loadDiesel,
+  loadInward / loadTransfers / loadLog if loaded, lgRefreshAll (one call per typed Log Book row), loadDash.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

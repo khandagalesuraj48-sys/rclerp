@@ -26,6 +26,7 @@ const BRIDGE = `
   function isQuestion(name, args) { if (name !== 'api') return false; var f = String(args[1]);
     return /^(get|rpt)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1; }
   function send(name, args, ok, fail) {
+    try { if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('→ ' + (name === 'api' ? args[1] : name)); } catch (e) {}
     if (isQuestion(name, args)) {
       var key = JSON.stringify(args);
       if (flying[key]) { flying[key].push({ ok: ok, fail: fail }); return; }
@@ -42,7 +43,7 @@ const BRIDGE = `
       .then(function (r) { return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; }
         if (!j) throw new Error(r.status === 413 ? 'Too much data in one go – pick a shorter period.' : 'The server did not answer properly (' + r.status + '). Try again.');
         return j; }); })
-      .then(function (j) { try { took(name, args, Date.now() - t0); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(j.result); },
+      .then(function (j) { try { took(name, args, Date.now() - t0); if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('← ' + (name === 'api' ? args[1] : name) + ' ' + (Date.now() - t0) + ' ms' + (j && j.error ? ' ERROR' : '')); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(j.result); },
             function (e) { if (fail) fail(new Error(e && /did not answer|Too much data/.test(e.message) ? e.message : 'No connection to the server – check the internet and try again.')); });
   }
   function runner(ok, fail) {
@@ -54,6 +55,39 @@ const BRIDGE = `
     } });
   }
   window.google = { script: { run: runner(null, null), host: { close: function () {} } } };
+  /* A small recorder for "the page stopped answering" (asked for after a freeze nobody could explain).
+   * Only inside the app's own page, only in this browser: it keeps the last things that happened (which question went to
+   * the server, how long the answer took, clicks, and every time the page could not answer for more than a second),
+   * and a heartbeat once a second. If the page ends without saying goodbye – it froze and was closed or reloaded –
+   * the next start shows a short note with those lines, so they can be sent on. Nothing is sent anywhere by itself. */
+  if (window.parent !== window) (function recorder() {
+    var KEY = 'rcl_trace', crumbs = [], t = function () { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2); };
+    var add = function (what) { crumbs.push(t() + ' ' + String(what).slice(0, 90)); if (crumbs.length > 22) crumbs.shift(); };
+    window.__rclCrumb = add;
+    var prev = null; try { prev = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { prev = null; }
+    var save = function (clean) { try { localStorage.setItem(KEY, JSON.stringify({ beat: Date.now(), clean: !!clean, crumbs: crumbs })); } catch (e) {} };
+    var last = Date.now();
+    setInterval(function () { var now = Date.now(), gap = now - last; last = now; if (gap > 2500 && !document.hidden) add('PAGE DID NOT ANSWER for ' + (gap / 1000).toFixed(1) + ' s'); save(false); }, 1000);
+    try { new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { if (e.duration >= 1000) add('long task ' + Math.round(e.duration) + ' ms'); }); }).observe({ entryTypes: ['longtask'] }); } catch (e) {}
+    document.addEventListener('click', function (e) { var b = e.target && e.target.closest ? e.target.closest('button, a, [role=tab], .navbtn') : null; if (b) add('click: ' + (b.id || '') + ' "' + String(b.textContent || '').trim().slice(0, 30) + '"'); }, true);
+    window.addEventListener('pagehide', function () { save(true); });
+    window.addEventListener('error', function (e) { add('script error: ' + String(e.message).slice(0, 70)); });
+    // the last run ended without a goodbye and its heartbeat had stopped: show what it was doing
+    var showLast = function () {
+      if (!prev || prev.clean || !prev.crumbs || !prev.crumbs.length) return;
+      var when = new Date(prev.beat), box = document.createElement('div');
+      box.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;max-width:760px;margin:auto;background:#fff;border:2px solid #B45309;border-radius:12px;padding:12px 14px;box-shadow:0 12px 30px rgba(0,0,0,.25);font:13px/1.45 system-ui,Arial,sans-serif;color:#1F2937';
+      var esc = function (x) { return String(x).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+      box.innerHTML = '<b>Last time this page stopped at ' + esc(when.toLocaleTimeString()) + ' without closing properly.</b> If it had frozen, please send a photo of this box:' +
+        '<pre style="margin:8px 0;max-height:190px;overflow:auto;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px;font:12px/1.4 Consolas,monospace;white-space:pre-wrap">' + esc(prev.crumbs.join(String.fromCharCode(10))) + '</pre>' +
+        '<button type="button" style="padding:6px 14px;border:1px solid #334155;border-radius:8px;background:#fff;cursor:pointer;font:600 13px system-ui">Close</button>';
+      box.querySelector('button').onclick = function () { box.remove(); };
+      (document.body || document.documentElement).appendChild(box);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLast); else showLast();
+    save(false);
+  })();
+
   // the Google Sheet backup: while the app is open it asks the server now and then to copy what changed
   // (the server does nothing when nothing changed or when a backup ran a moment ago)
   if (window.parent !== window) {
