@@ -1728,6 +1728,32 @@
     .lg-wrap tr.lrow > td:nth-of-type(n+8):nth-of-type(-n+14) { font-weight: 600; }
   }
 
+  /* ---------- "Debit to" in the Log Book entry, and the New Debit Note form ---------- */
+  .lg-dto { display: block; color: #9A3412; font-weight: 600; }
+  .lg-wrap tr.lrow > td.c-debit { display: flex; flex-direction: row; gap: 8px; align-items: center; }
+  .lg-wrap tr.lrow:not(.dbt-open) > td.c-debit { display: none; }
+  .dbt-btn { border: 1px solid #E7C9A9; background: #FFF7ED; color: #9A3412; border-radius: 7px; font: 600 11px/1 var(--ui); padding: 4px 5px; cursor: pointer; margin-bottom: 4px; }
+  .lrow.dbt-open .dbt-btn { background: #9A3412; color: #fff; border-color: #9A3412; }
+  .lg-wrap tr.lrow > td.c-debit input[data-f=debitRate] { max-width: 110px; }
+  .lg-wrap tr.lrow > td.c-debit::before { content: "Debit to"; font: 600 11.5px/1 var(--ui); color: #9A3412; white-space: nowrap; }
+  .lg-wrap tr.lrow > td.c-debit:not(:focus-within) input:placeholder-shown { background: #FAFBFC; }
+  @media (min-width: 761px) {
+    .lg-wrap tr.lrow > td.c-debit { grid-column: 10 / span 4; grid-row: 3; margin-top: 4px; }
+    .lg-wrap tr.lrow > td.c-debit input { min-height: 30px; font-size: 12.5px; padding: 3px 7px; }
+    .lg-wrap tr.lrow { grid-template-rows: auto auto auto; }
+  }
+  @container (max-width: 1290px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 3 / span 4; grid-row: 4; } }
+  @media (max-width: 760px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 1 / -1; } .lg-wrap tr.lrow > td.c-debit::before { content: "Debit to"; flex: 0 0 100%; } .lg-wrap tr.lrow > td.c-debit { flex-wrap: wrap; } }
+  .mb-dns { margin-top: 6px; font-size: 12px; color: #9A3412; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+  .mb-dns span { font-weight: 700; } .mb-dns label { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; cursor: pointer; } .mb-dns input { width: auto; min-height: 0; }
+  .dn-new { border: 1px solid #DDE3EA; border-radius: 12px; padding: 14px 16px; margin: 0 0 14px; background: #FAFBFC; }
+  .dn-new table input { width: 100%; min-width: 60px; }
+  .dn-new table { table-layout: fixed; } .dn-new th:nth-child(1) { width: 44px; } .dn-new th:nth-child(2) { width: 19%; } .dn-new th:nth-child(3) { width: 34%; } .dn-new th:nth-child(5) { width: 9%; } .dn-new th:nth-child(8) { width: 44px; }
+  #drv_dnbar { margin-top: 12px !important; }
+  .dn-foot { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-top: 10px; }
+  .dn-foot label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #334155; } .dn-foot label input { width: 84px; } .dn-foot .dn-rem input { width: 240px; }
+  .dn-foot .sum { margin-left: auto; }
+
   /* ---------- Machinery Cost Sheet: the line under each machinery that shows how its cost was worked out ---------- */
   tr.mc-how td { font-size: 12px; color: #475569; background: #FAFBFC; padding-top: 2px; padding-bottom: 7px; white-space: normal; border-top: 0; }
 
@@ -1779,7 +1805,7 @@
     .lg-wrap table.lgt, .lg-wrap table.lgt tbody { display: block; width: 100%; }
     .lg-wrap table.lgt thead { display: none; }
     .lg-wrap tr.lrow { display: grid; align-items: stretch; column-gap: 8px; row-gap: 0; padding: 7px 10px; border-bottom: 1px solid #E8EDF2; position: relative;
-      grid-template-columns: 20px 104px minmax(170px, 1.2fr) 150px minmax(112px, .8fr) minmax(112px, .8fr) 44px 74px 74px 76px 74px 74px minmax(120px, 1.4fr) 20px;
+      grid-template-columns: 20px 104px minmax(170px, 1.2fr) 150px minmax(112px, .8fr) minmax(112px, .8fr) 44px 74px 74px 76px 74px 74px minmax(96px, 1.4fr) 44px;
       grid-template-rows: auto auto; }
     .lg-wrap tr.lrow:last-child { border-bottom: 0; }
     .lg-wrap tr.lrow:first-child { margin-top: 30px; border-top: 1px solid #E8EDF2; }
@@ -1805,7 +1831,7 @@
     .lg-wrap tr.lrow > td:nth-of-type(15) { grid-column: 11; }                      /* Chainage from */
     .lg-wrap tr.lrow > td:nth-of-type(16) { grid-column: 12; }                      /* Chainage to */
     .lg-wrap tr.lrow > td:nth-of-type(17) { grid-column: 13; }                      /* Work */
-    .lg-wrap tr.lrow > td:nth-of-type(18) { grid-column: 14; text-align: right; }   /* remove the row */
+    .lg-wrap tr.lrow > td:nth-of-type(18) { grid-column: 14; align-items: flex-end; }   /* Debit / remove the row */
     .lg-wrap tr.lrow > small.lg-fmt { grid-column: 4; grid-row: 3; margin: 2px 0 0; }
     /* the small diesel block: every figure with its own word */
     .lg-wrap tr.lrow > td:nth-of-type(n+9):nth-of-type(-n+14) { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.5; text-align: left; }
@@ -1855,7 +1881,7 @@
     .lg-wrap tr.lrow .itm { margin-top: 3px; }
     /* a narrow page (small window): chainage and work go to a second line */
     @container (max-width: 1290px) {
-      .lg-wrap tr.lrow { grid-template-columns: 20px 104px minmax(160px, 1.3fr) minmax(150px, 1.2fr) minmax(104px, .9fr) minmax(104px, .9fr) 44px 74px 74px 76px 20px; grid-template-rows: auto auto auto; row-gap: 4px; }
+      .lg-wrap tr.lrow { grid-template-columns: 20px 104px minmax(160px, 1.3fr) minmax(150px, 1.2fr) minmax(104px, .9fr) minmax(104px, .9fr) 44px 74px 74px 76px 44px; grid-template-rows: auto auto auto; row-gap: 4px; }
       .lg-wrap tr.lrow > td:nth-of-type(18) { grid-column: 11; }
       .lg-wrap tr.lrow > td:nth-of-type(15) { grid-column: 3; grid-row: 3; } .lg-wrap tr.lrow > td:nth-of-type(16) { grid-column: 4; grid-row: 3; max-width: 190px; } .lg-wrap tr.lrow > td:nth-of-type(17) { grid-column: 5 / span 6; grid-row: 3; }
       .lg-wrap tr.lrow > small.lg-fmt { grid-row: 4; }
@@ -2668,6 +2694,29 @@
         <thead><tr><th>RA Bill No</th><th>Vendor</th><th>Name on bill</th><th>Period</th><th>Bill Date</th><th class="n">Net Payable</th><th>Status</th><th>Submitted by</th><th></th></tr></thead>
         <tbody id="sb_rows"></tbody>
       </table></div>
+      <div id="drv_dnbar" hidden style="margin:0 0 10px"><button class="btn primary small" id="dn_open" type="button">+ New Debit Note</button> <span class="chart-note">For work charged to a party: pick the party in "Debit to" of the Log Book entry (with the rate), then make the note here.</span></div>
+      <div id="dn_new" class="dn-new" hidden>
+        <div class="rfilters">
+          <div class="field"><label for="dn_co">Name on the note</label><select id="dn_co"><option>Rachana Construction Limited</option><option>Sketchline Industries</option></select></div>
+          <div class="field"><label for="dn_vendor">Party (debit to)</label><input id="dn_vendor" list="dl_dnparty" autocomplete="off"></div>
+          <div class="field"><label for="dn_from">Work from</label><input id="dn_from" type="date"></div>
+          <div class="field"><label for="dn_to">Work to</label><input id="dn_to" type="date"></div>
+          <div class="field"><label for="dn_date">Date of the note</label><input id="dn_date" type="date"></div>
+          <div class="rquick" style="align-self:end;margin:0"><button class="btn" id="dn_fetch" type="button">Get Log Book entries</button></div>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Sr</th><th>Machinery</th><th>Particular</th><th class="n">Qty</th><th>Unit</th><th class="n">Rate</th><th class="n">Amount</th><th></th></tr></thead>
+          <tbody id="dn_lines"></tbody>
+        </table></div>
+        <div class="dn-foot">
+          <button class="btn ghost small" id="dn_add" type="button">+ Add a line</button>
+          <label>GST % <input id="dn_gst" type="number" step="0.01" min="0" max="100"></label>
+          <label>TDS % <input id="dn_tds" type="number" step="0.01" min="0" max="100"></label>
+          <label class="dn-rem">Remark <input id="dn_remark" autocomplete="off"></label>
+          <span class="sum" id="dn_sum"></span>
+          <button class="btn primary" id="dn_save" type="button">Save Debit Note</button> <button class="btn ghost" id="dn_close" type="button">Close</button>
+        </div>
+      </div>
       <div class="table-wrap" id="drv_dn" hidden><table>
         <thead><tr><th>Debit Note No</th><th>Date</th><th>Vendor</th><th>Name on note</th><th>For</th><th>Against RA Bill</th><th>Period</th><th class="n">Amount</th><th>Status</th><th></th></tr></thead>
         <tbody id="dn_rows"></tbody>
@@ -3299,6 +3348,8 @@
       <div class="field"><label for="le_chf">Chainage From</label><input id="le_chf" autocomplete="off"></div>
       <div class="field"><label for="le_cht">Chainage To</label><input id="le_cht" autocomplete="off"></div>
       <div class="field le-wide"><label for="le_work">Work description</label><input id="le_work" autocomplete="off"></div>
+      <div class="field"><label for="le_dto">Debit to (party)</label><input id="le_dto" list="dl_dnparty" autocomplete="off" placeholder="empty = not charged to anyone"></div>
+      <div class="field"><label for="le_drate">Debit rate</label><input id="le_drate" type="number" step="0.01" min="0"></div>
       <div class="field le-wide" id="le_itm_w" hidden><label>Items of the BOQ (work of this entry)</label><div class="itm" id="le_itm"></div></div>
     </div>
     <p class="le-note" id="le_note"></p>
@@ -4135,7 +4186,7 @@
   async function refreshLookups(force) {
     if (!force && Date.now() - lookupsAt < 10000) return;
     lookupsAt = Date.now();
-    try { const L = await rawCall('getLookups'); setMaster(L.master); setDrivers(L.drivers); setPumps(L.pumps); } catch (e) { /* keep the lists we have */ }
+    try { const L = await rawCall('getLookups'); setMaster(L.master); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors); } catch (e) { /* keep the lists we have */ }
   }
   async function refreshStock() { try { setStock(await call('getStock')); } catch (e) { /* keep last value */ } }
   // Fill every location dropdown (class loc-select); data-default = the option picked first
@@ -4581,7 +4632,7 @@
     /* The lists every form needs (machinery, drivers, pumps): at once when the Asset Master changed; after other people's
      * diesel / Log Book entries at most once in 15 seconds (they only add a new driver name or a last reading) –
      * and without asking for the vehicle-papers badge again, which those entries cannot change. */
-    const lookups = async quiet => { try { const L = await rawCall('getLookups'); S.quietMaster = !!quiet; setMaster(L.master); setTimeout(() => { S.quietMaster = false; }, 50); setDrivers(L.drivers); setPumps(L.pumps); } catch (e) {} };
+    const lookups = async quiet => { try { const L = await rawCall('getLookups'); S.quietMaster = !!quiet; setMaster(L.master); setTimeout(() => { S.quietMaster = false; }, 50); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors); } catch (e) {} };
     if (has('master')) await lookups(false);
     else if (has('stock') || has('log')) { const wait = Math.max(0, 15000 - (Date.now() - (S.lookAt || 0))); clearTimeout(S.lookT); S.lookT = setTimeout(() => { S.lookAt = Date.now(); lookups(true); }, wait); }
     /* Only the page that is ON SCREEN is refreshed now (and only when the person is not in the middle of a click).
@@ -7142,6 +7193,8 @@
     const plus = b.D > 0; // a full-debit or diesel-heavy bill comes to a minus: no GST / TDS on it (the vendor owes)
     b.E = plus ? r2(b.D * b.gstPct / 200) : 0; b.F = b.E;
     b.G = r2(b.D + b.E + b.F); b.H = plus ? r2(b.D * b.tdsPct / 100) : 0; b.I = r2(b.G - b.H);
+    // debit notes ticked for this bill: taken off AFTER the net payable (lines A–I and the tax are not touched)
+    b.J = r2((b.dns || []).reduce((a, n) => a + (Number(n.total) || 0), 0)); b.K = r2(b.I - b.J);
     return b;
   }
   $('mb_build').addEventListener('click', e => busy(e.target, 'Building…', async () => {
@@ -7170,7 +7223,9 @@
       const b = { company: co, companyInfo: st.companies[co] || {}, project: st.project, siteAddress: st.siteAddress || '', from: from, to: to, billDate: billDate,
         vendor: { name: v.name, address: v.address || '', account: v.account || '', ifsc: v.ifsc || '', pan: v.pan || '', phone: v.phone || '', gst: v.gst || '', bank: v.bank || '', branch: v.branch || '' },
         billNo: lastNo ? String(lastNo + 1) : '', firstBill: !lastNo, woNo: wo.woNo || '', woDate: wo.woDate || '', machines: machines, C: 0, cReason: '', edited: false,
-        picked: pick.map(m => m.id), partial: pick.length < v.machines.length };
+        picked: pick.map(m => m.id), partial: pick.length < v.machines.length,
+        // debit notes of this party under this name that are not deducted in a bill yet: ticked ones come off after the net payable
+        dnOpen: (S.mb.init.pendingDn || []).filter(n => String(n.vendor).trim().toUpperCase() === String(v.name).trim().toUpperCase() && n.company === co), dns: [] };
       return mbFill(b);
     });
     mbRender();
@@ -7180,9 +7235,11 @@
     const L = S.mb.bills;
     $('mb_title').textContent = 'Bills – ' + L.length + ' vendor' + (L.length === 1 ? '' : 's');
     $('mb_note').textContent = showDate($('mb_from').value) + ' to ' + showDate($('mb_to').value) + ' · ' + $('mb_co').value;
-    $('mb_rows').innerHTML = L.map((b, i) => '<tr data-i="' + i + '"><td><b>' + esc(b.vendor.name) + '</b>' + (b.partial ? '<small class="mb-part">' + esc(b.picked.join(', ')) + '</small>' : '') + '</td><td class="n">' + b.machines.length + '</td><td>' + (b.idleDays ? '<b>' + b.idleDays + '</b> <select class="mb-idle" title="Idle days of the Log Book: pay them in this bill or not"><option value=""' + (b.idlePaid === undefined ? ' selected' : '') + '>choose…</option><option value="paid"' + (b.idlePaid === true ? ' selected' : '') + '>Paid</option><option value="no"' + (b.idlePaid === false ? ' selected' : '') + '>Not paid</option></select>' : '–') + '</td><td class="n">' + mbN2(b.A) + '</td><td class="n">' + mbN2(b.B) +
+    $('mb_rows').innerHTML = L.map((b, i) => '<tr data-i="' + i + '"><td><b>' + esc(b.vendor.name) + '</b>' + (b.partial ? '<small class="mb-part">' + esc(b.picked.join(', ')) + '</small>' : '') +
+      ((b.dnOpen || []).length ? '<div class="mb-dns"><span>Debit notes to deduct:</span>' + b.dnOpen.map(n => '<label><input type="checkbox" class="mb-dnck" data-id="' + esc(n.id) + '"' + ((b.dns || []).some(z => z.id === n.id) ? ' checked' : '') + '> ' + esc(n.no) + ' · ₹' + mbN2(n.total) + '</label>').join('') + '</div>' : '') +
+      '</td><td class="n">' + b.machines.length + '</td><td>' + (b.idleDays ? '<b>' + b.idleDays + '</b> <select class="mb-idle" title="Idle days of the Log Book: pay them in this bill or not"><option value=""' + (b.idlePaid === undefined ? ' selected' : '') + '>choose…</option><option value="paid"' + (b.idlePaid === true ? ' selected' : '') + '>Paid</option><option value="no"' + (b.idlePaid === false ? ' selected' : '') + '>Not paid</option></select>' : '–') + '</td><td class="n">' + mbN2(b.A) + '</td><td class="n">' + mbN2(b.B) +
       '</td><td class="n"><input class="mb-c" type="number" step="0.01" min="0" value="' + (b.C || '') + '" placeholder="0"></td><td><input class="mb-cr" value="' + esc(b.cReason) + '" placeholder="reason"></td>' +
-      '<td class="n">' + (b.gstPct ? mbN2(b.E + b.F) : '–') + '</td><td class="n">' + mbN2(b.H) + '</td><td class="n"><b>' + mbN2(b.I) + '</b></td>' +
+      '<td class="n">' + (b.gstPct ? mbN2(b.E + b.F) : '–') + '</td><td class="n">' + mbN2(b.H) + '</td><td class="n"><b>' + mbN2(b.I) + '</b>' + (b.J ? '<small class="mb-part">less debit notes ' + mbN2(b.J) + '<br>balance <b>' + mbN2(b.K) + '</b></small>' : '') + '</td>' +
       '<td><input class="mb-no" value="' + esc(b.billNo) + '" placeholder="' + (b.firstBill ? 'first bill – type no.' : '') + '"' + (b.firstBill ? ' title="First bill of this vendor under this name – type its RA bill number; after this the next number comes by itself"' : '') + '></td>' +
       '<td>' + (b.edited ? '<span class="st bad">Changed by hand</span> ' : '') + (b.warnings.length ? '<span class="st low" title="' + esc(b.warnings.join(' · ')) + '">' + b.warnings.length + ' to check</span>' : '<span class="st ok">OK</span>') +
       ' <button class="link" data-mblog="' + i + '" title="Log Book of this vendor\'s machinery for these dates">Log Book</button></td></tr>').join('');
@@ -7199,6 +7256,12 @@
   });
   // Idle days: paid or not paid is chosen here, bill by bill – the bill is worked out again
   $('mb_rows').addEventListener('change', e => {
+    if (e.target.classList.contains('mb-dnck')) {       // a debit note ticked / unticked for this bill
+      const tr0 = e.target.closest('tr'), b0 = S.mb.bills[Number(tr0.dataset.i)]; if (!b0) return;
+      const n = (b0.dnOpen || []).find(z => z.id === e.target.dataset.id); b0.dns = (b0.dns || []).filter(z => z.id !== e.target.dataset.id);
+      if (n && e.target.checked) b0.dns.push({ id: n.id, no: n.no, date: n.date, total: n.total });
+      mbTotals(b0); mbRender(); return;
+    }
     if (!e.target.classList.contains('mb-idle')) return;
     const tr = e.target.closest('tr'), b = S.mb.bills[Number(tr.dataset.i)]; if (!b) return;
     b.idlePaid = e.target.value === 'paid' ? true : e.target.value === 'no' ? false : undefined;
@@ -7259,7 +7322,7 @@
     mbRender(); mbLoadInit();
     // open the submitted bills exactly as saved – with Print
     const got = await Promise.all(res.saved.map(x => call('getBills', { id: x.id }).then(r => r.bills[0]).catch(() => null)));
-    const pages = got.filter(Boolean).map(b => '<section class="billsheet">' + billHtml(Object.assign({}, b.data, { billNo: b.billNo, rev: b.rev }), true) + '</section>').join('');
+    const pages = got.filter(Boolean).map(b => billSheets(Object.assign({ dnNo: b.dnNo }, b.data, { billNo: b.billNo, rev: b.rev }), '')).join('');   // every bill with its papers: Abstract, Tax Invoice, diesel Debit Note
     if (pages) printDoc('Submitted bill' + (got.length === 1 ? '' : 's') + ' – ' + showDate($('mb_from').value) + ' to ' + showDate($('mb_to').value), pages, 'rep rep-bill', true, $('mb_co').value);
   }));
   // the bill page (Abstract of Bill) – used for the preview, the print and the saved bills
@@ -7276,7 +7339,8 @@
     const sum = [['A', 'Workdone amount >>>', b.A], ['B', 'Less- Diesel Deduction >>>' + (b.B ? '<small>' + bNote + (b.machines && b.machines[0] && b.machines[0].dieselRate ? ' @ ₹' + fmt(b.machines[0].dieselRate) + '/L' : '') + '</small>' : ''), b.B ? -b.B : ''],
       ['C', 'Other Deduction >>>' + (b.C && b.cReason ? '<small>' + esc(b.cReason) + '</small>' : ''), b.C ? -b.C : ''], ['D', 'Net Work Done Amount D=(A-B-C) >>>', b.D],
       ['E', 'Add CGST >>>', b.gstPct ? b.E : '', b.gstPct ? fmt(b.gstPct / 2) + '%' : ''], ['F', 'Add SGST >>>', b.gstPct ? b.F : '', b.gstPct ? fmt(b.gstPct / 2) + '%' : ''],
-      ['G', 'Total Amount (G=D+E+F)', b.G], ['H', 'Less TDS >>>', b.H ? -b.H : '', b.tdsPct ? fmt(b.tdsPct) + '%' : ''], ['I', 'Net Payable Amt I = (G-H) >>>>', b.I]];
+      ['G', 'Total Amount (G=D+E+F)', b.G], ['H', 'Less TDS >>>', b.H ? -b.H : '', b.tdsPct ? fmt(b.tdsPct) + '%' : ''], ['I', 'Net Payable Amt I = (G-H) >>>>', b.I]]
+      .concat(b.J ? [['J', 'Less – Debit Note(s) >>>' + '<small>' + esc((b.dns || []).map(n => n.no).join(', ')) + '</small>', -b.J], ['K', 'Balance Payable K = (I-J) >>>>', b.K]] : []);
     return '<div class="bl"><div class="bl-frame">' +
       '<div class="bl-top">' + logo + '<div class="bl-co">' + esc(co.toUpperCase()) + '</div></div>' +
       '<div class="bl-proj"><b>Project Name :-</b> ' + esc(b.project || '') + '</div>' +
@@ -7295,7 +7359,7 @@
       '<div class="bl-wc"><span>Work Contract: Rent On Vehicle</span>' + (monthly.length === 1 ? '<span class="rpm">Rent Per Month : ₹ ' + mbN2(monthly[0]) + '</span>' : monthly.length > 1 ? '<span class="rpm">Rent Per Month : as per vehicle</span>' : '') + '</div>' +
       '<table class="bl-t"><thead>' +
       '<tr><th>Machine type</th><th>Vehicle No</th><th>Vehicle Type</th>' + (pmCol ? '<th class="n">Rent / Month</th>' : '') + '<th>Shift</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>' +
-      '<table class="bl-sum"><tbody>' + sum.map(x => '<tr class="r' + x[0] + '"><td class="c l">' + x[0] + '</td><td class="t">' + x[1] + '</td><td class="p">' + (x[3] || '') + '</td><td class="n' + (x[0] === 'I' ? ' net' : '') + '">' + (x[2] === '' ? '–' : (x[2] < 0 ? '− ' : '') + mbN2(Math.abs(x[2]))) + '</td></tr>').join('') + '</tbody></table></div>' +
+      '<table class="bl-sum"><tbody>' + sum.map(x => '<tr class="r' + x[0] + '"><td class="c l">' + x[0] + '</td><td class="t">' + x[1] + '</td><td class="p">' + (x[3] || '') + '</td><td class="n' + (x[0] === (b.J ? 'K' : 'I') ? ' net' : '') + '">' + (x[2] === '' ? '–' : (x[2] < 0 ? '− ' : '') + mbN2(Math.abs(x[2]))) + '</td></tr>').join('') + '</tbody></table></div>' +
       '<div class="bl-sign">' + [['Accepted By', 'Sub Contractor'], ['Prepared & Checked By', 'Mechanical Dept'], ['Checked By', 'Site Incharge'], ['Checked By', 'Billing Dept'], ['Checked & Verified By', 'Acc. Dept'], ['Verified By', 'Project Manager'], ['Approved By', 'General Manager']]
         .map(x => '<div><span></span><b>' + x[0] + '</b><small>' + x[1] + '</small></div>').join('') + '</div>' +
       '</div>';
@@ -7403,21 +7467,92 @@
         '</td><td class="nowrap"><button class="link" data-sbv="' + esc(b.id) + '">View / Print</button> <button class="link" data-sbl="' + esc(b.id) + '" title="Log Book of this vendor\'s machinery for the bill period (as the Log Book is now)">Log Book</button>' + (admin ? ' <button class="link danger" data-sbd="' + esc(b.id) + '">Delete</button>' : '') + '</td></tr>').join('')
         : '<tr><td colspan="9" class="none">No submitted bills for these filters.</td></tr>';
       const dn = d.bills.filter(b => Number(b.dnAmt) > 0);
-      $('dn_rows').innerHTML = dn.length ? dn.map(b => '<tr' + (b.status === 'Superseded' ? ' class="old"' : '') + '><td><b>' + (b.dnNo ? esc(b.dnNo) : '<span class="muted" title="Saved before debit notes were numbered">–</span>') + '</b></td><td>' + esc(showDate(b.billDate)) + '</td><td>' + esc(b.vendor) + '</td><td>' + esc(b.company) +
+      // the notes made from the Log Book (an empty list until their table is there)
+      let notes = []; try { notes = (await call('getDebitNotes', { from: $('sb_from').value, to: $('sb_to').value, vendor: $('sb_vendor').value, company: $('sb_co').value })).notes || []; } catch (e) { notes = []; }
+      const noteRows = notes.map(n => '<tr' + (n.status === 'Cancelled' ? ' class="old"' : '') + '><td><b>' + esc(n.no) + '</b></td><td>' + esc(showDate(n.date)) + '</td><td>' + esc(n.vendor) + '</td><td>' + esc(n.company) + '</td><td>' + esc(n.kind) + '</td><td>' + (n.billNo ? esc(n.billNo) : '–') + '</td><td>' + (n.from ? esc(showDate(n.from)) + ' – ' + esc(showDate(n.to || n.from)) : '–') +
+        '</td><td class="n"><b>' + mbN2(n.total) + '</b></td><td>' + (n.status === 'Cancelled' ? '<span class="st low">Cancelled</span>' : n.billNo ? '<span class="st ok">Deducted in RA Bill ' + esc(n.billNo) + '</span>' : '<span class="st ok">In the Vendor Ledger</span>') + '</td><td class="nowrap"><button class="link" data-dnn="' + esc(n.id) + '">View / Print</button>' +
+        (admin && n.status !== 'Cancelled' && !n.billNo ? ' <button class="link danger" data-dnc="' + esc(n.id) + '">Cancel</button>' : '') + '</td></tr>').join('');
+      $('dn_rows').innerHTML = noteRows + (dn.length ? dn.map(b => '<tr' + (b.status === 'Superseded' ? ' class="old"' : '') + '><td><b>' + (b.dnNo ? esc(b.dnNo) : '<span class="muted" title="Saved before debit notes were numbered">–</span>') + '</b></td><td>' + esc(showDate(b.billDate)) + '</td><td>' + esc(b.vendor) + '</td><td>' + esc(b.company) +
         '</td><td>Diesel</td><td>' + esc(b.billNo) + (b.rev ? ' <small>rev ' + b.rev + '</small>' : '') + '</td><td>' + esc(showDate(b.from)) + ' – ' + esc(showDate(b.to)) + '</td><td class="n"><b>' + mbN2(b.dnAmt) + '</b></td><td>' + (b.status === 'Superseded' ? '<span class="st low">Superseded</span>' : '<span class="st ok">Deducted in the bill</span>') +
         '</td><td class="nowrap"><button class="link" data-dnv="' + esc(b.id) + '">View / Print</button> <button class="link" data-sbv="' + esc(b.id) + '" title="The whole bill: Abstract, Tax Invoice and this Debit Note">Bill</button></td></tr>').join('')
-        : '<tr><td colspan="10" class="none">No debit notes for these filters.</td></tr>';
+        : (noteRows ? '' : '<tr><td colspan="10" class="none">No debit notes for these filters.</td></tr>'));
     } catch (e) { toast(errMsg(e), true); }
   }
   $('drv_tabs').addEventListener('click', e => { const b = e.target.closest('[data-drv]'); if (!b) return; const dn = b.dataset.drv === 'dn';
     $('drv_tabs').querySelectorAll('button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
-    $('drv_dn').hidden = !dn; $('sb_rows').closest('.table-wrap').hidden = dn; const bar = $('sb_rows').closest('.table-wrap').nextElementSibling; if (bar && bar.classList.contains('more-bar')) bar.style.display = dn ? 'none' : ''; });
+    $('drv_dn').hidden = !dn; $('drv_dnbar').hidden = !dn; if (!dn) $('dn_new').hidden = true; $('sb_rows').closest('.table-wrap').hidden = dn; const bar = $('sb_rows').closest('.table-wrap').nextElementSibling; if (bar && bar.classList.contains('more-bar')) bar.style.display = dn ? 'none' : ''; });
   $('dn_rows').addEventListener('click', async e => {
+    const nn = e.target.closest('[data-dnn]'), nc = e.target.closest('[data-dnc]');
+    if (nn) { try { const n = (await call('getDebitNotes', { id: nn.dataset.dnn })).notes[0]; if (n) printDoc('Debit Note – ' + n.vendor + ' – ' + n.no, '<section class="billsheet' + (n.status === 'Cancelled' ? ' superseded' : '') + '">' + debitNoteDocHtml(n) + '</section>', 'rep rep-bill', true, n.company); } catch (err) { toast(errMsg(err), true); } return; }
+    if (nc) { if (!(await askConfirm({ title: 'Cancel this debit note?', ok: 'Cancel the note', danger: true, html: '<p>The note stays in the list as Cancelled, leaves the Vendor Ledger, and its Log Book entries can be put in a new note. Its number is not used again.</p>' }))) return;
+      try { const r = await call('cancelDebitNote', nc.dataset.dnc); toast('Debit note ' + r.no + ' cancelled.'); sbLoad(); } catch (err) { toast(errMsg(err), true); } return; }
     const v = e.target.closest('[data-dnv]'), all = e.target.closest('[data-sbv]'); const id = v ? v.dataset.dnv : all ? all.dataset.sbv : ''; if (!id) return;
     try { const r = await call('getBills', { id: id }); const b = r.bills[0]; if (!b) return; const data = Object.assign({ dnNo: b.dnNo }, b.data, { billNo: b.billNo, rev: b.rev });
       if (v) printDoc('Debit Note – ' + b.vendor + ' – ' + (b.dnNo || 'RA Bill ' + b.billNo), '<section class="billsheet' + (b.status === 'Superseded' ? ' superseded' : '') + '">' + debitNoteHtml(data) + '</section>', 'rep rep-bill', true, b.company);
       else printDoc('Bill papers – ' + b.vendor + ' – RA Bill ' + b.billNo, billSheets(data, b.status === 'Superseded' ? ' superseded' : ''), 'rep rep-bill', true, b.company);
     } catch (err) { toast(errMsg(err), true); } });
+  /* ================= DEBIT NOTES (work charged to a party – "Debit to" in the Log Book) =================
+   * RCL Drive → Saved Debit Notes lists them with the diesel debit notes of the bills; "+ New Debit Note" makes one:
+   * the Log Book entries charged to the party in the period come as lines (qty and rate can be corrected, lines can be
+   * added by hand), GST % and TDS % are typed, the number is given on saving. The server works the amounts out again. */
+  S.dn = { lines: [] };
+  function setParties(list) { S.parties = list || []; let dl = $('dl_dnparty'); if (!dl) { dl = document.createElement('datalist'); dl.id = 'dl_dnparty'; document.body.appendChild(dl); } dl.innerHTML = S.parties.map(v => '<option value="' + esc(v) + '">').join(''); }
+  function dnTotals() {
+    const amount = r2(S.dn.lines.reduce((a, l) => a + r2((Number(l.qty) || 0) * (Number(l.rate) || 0)), 0)), g = Number($('dn_gst').value) || 0, t = Number($('dn_tds').value) || 0;
+    const gst = r2(amount * g / 100), tds = r2(amount * t / 100);
+    return { amount: amount, gst: gst, tds: tds, total: r2(amount + gst - tds) };
+  }
+  function dnRender() {
+    $('dn_lines').innerHTML = S.dn.lines.length ? S.dn.lines.map((l, i) => '<tr data-i="' + i + '"><td>' + (i + 1) + '</td><td><input data-k="machinery" value="' + esc(l.machinery || '') + '"' + (l.logId ? ' readonly' : '') + '></td><td><input data-k="particular" value="' + esc(l.particular || '') + '"></td>' +
+      '<td class="n"><input data-k="qty" type="number" step="0.01" min="0" value="' + esc(l.qty === '' ? '' : l.qty) + '"></td><td><input data-k="unit" value="' + esc(l.unit || '') + '"></td><td class="n"><input data-k="rate" type="number" step="0.01" min="0" value="' + esc(l.rate === '' ? '' : l.rate) + '"></td>' +
+      '<td class="n dn-amt">' + mbN2(r2((Number(l.qty) || 0) * (Number(l.rate) || 0))) + '</td><td><button class="del" type="button" title="Remove this line" aria-label="Remove line">×</button></td></tr>').join('')
+      : '<tr><td colspan="8" class="none">No lines yet – pick the party and the dates and press "Get Log Book entries", or add a line by hand.</td></tr>';
+    dnSum();
+  }
+  function dnSum() { const t = dnTotals(); $('dn_sum').innerHTML = 'Amount <b>' + mbN2(t.amount) + '</b> + GST <b>' + mbN2(t.gst) + '</b> − TDS <b>' + mbN2(t.tds) + '</b> = Total <b>₹ ' + mbN2(t.total) + '</b>'; }
+  $('dn_lines').addEventListener('input', e => { const tr = e.target.closest('tr[data-i]'); if (!tr || !e.target.dataset.k) return; const l = S.dn.lines[Number(tr.dataset.i)]; l[e.target.dataset.k] = e.target.value;
+    tr.querySelector('.dn-amt').textContent = mbN2(r2((Number(l.qty) || 0) * (Number(l.rate) || 0))); dnSum(); });
+  $('dn_lines').addEventListener('click', e => { const b = e.target.closest('.del'); if (!b) return; S.dn.lines.splice(Number(b.closest('tr').dataset.i), 1); dnRender(); });
+  ['dn_gst', 'dn_tds'].forEach(id => $(id).addEventListener('input', dnSum));
+  $('dn_add').addEventListener('click', () => { S.dn.lines.push({ logId: '', machinery: '', particular: '', qty: '', unit: '', rate: '' }); dnRender(); const last = $('dn_lines').querySelector('tr:last-child [data-k=machinery]'); if (last) last.focus(); });
+  $('dn_open').addEventListener('click', () => { $('dn_new').hidden = false; if (!(S.parties || []).length) refreshLookups(true); if (!$('dn_date').value) $('dn_date').value = S.today; if (!$('dn_from').value) { const t = new Date(S.today + 'T00:00:00'); $('dn_from').value = isoDate(new Date(t.getFullYear(), t.getMonth(), 1)); $('dn_to').value = S.today; } dnRender(); $('dn_vendor').focus(); });
+  $('dn_close').addEventListener('click', () => { $('dn_new').hidden = true; });
+  $('dn_fetch').addEventListener('click', e => busy(e.target, 'Getting…', async () => {
+    const vendor = $('dn_vendor').value.trim(); if (!vendor) throw new Error('Pick the party (Debit to).');
+    if (!$('dn_from').value || !$('dn_to').value) throw new Error('Pick the dates of the work (From – To).');
+    const d = await call('getDebitPending', { vendor: vendor, from: $('dn_from').value, to: $('dn_to').value });
+    const kept = S.dn.lines.filter(l => !l.logId);       // lines typed by hand stay
+    S.dn.lines = d.rows.map(r => ({ logId: r.logId, machinery: r.no + (r.type ? ' ' + r.type : ''), particular: showDate(r.date) + (r.shift && r.shift !== 'Full Day' ? ' ' + r.shift : '') + (r.work ? ' – ' + r.work : ''), qty: r.qty, unit: r.unit, rate: r.rate })).concat(kept);
+    dnRender();
+    toast(d.rows.length ? d.rows.length + ' Log Book ' + (d.rows.length === 1 ? 'entry' : 'entries') + ' charged to ' + d.vendor + (d.already ? ' (' + d.already + ' more are already in a debit note)' : '') + '.'
+      : 'No Log Book entry is charged to ' + d.vendor + ' in these dates' + (d.already ? ' that is not already in a debit note (' + d.already + ' are).' : '. Pick the party in "Debit to" of the Log Book entry first.'), !d.rows.length);
+  }));
+  $('dn_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
+    if (!S.dn.lines.length) throw new Error('Add at least one line.');
+    const t = dnTotals();
+    if (!(await askConfirm({ title: 'Save this debit note?', ok: 'Save debit note', html: '<p>' + esc($('dn_co').value) + ' → <b>' + esc($('dn_vendor').value.trim()) + '</b>: ' + S.dn.lines.length + ' line(s), total <b>₹ ' + mbN2(t.total) + '</b>.</p><p>It gets the next debit note number and lowers what is payable to this party in the Vendor Ledger. A saved note cannot be changed – only cancelled by Admin.</p>' }))) return;
+    const r = await call('saveDebitNote', { company: $('dn_co').value, vendor: $('dn_vendor').value.trim(), date: $('dn_date').value, from: $('dn_from').value, to: $('dn_to').value,
+      gstPct: $('dn_gst').value, tdsPct: $('dn_tds').value, remark: $('dn_remark').value.trim(), lines: S.dn.lines.map(l => ({ logId: l.logId || '', machinery: l.machinery, particular: l.particular, qty: l.qty, unit: l.unit, rate: l.rate })) });
+    toast('Debit note ' + r.no + ' saved – ' + r.vendor + ', ₹ ' + mbN2(r.total) + '.');
+    S.dn.lines = []; $('dn_remark').value = ''; dnRender(); $('dn_new').hidden = true; sbLoad();
+  }));
+  // the printed note: same paper as the diesel debit note, with the lines of the work and GST / TDS
+  function debitNoteDocHtml(n) {
+    const ci = n.companyInfo || {}, v = n.vendorInfo || { name: n.vendor }, pct = x => x ? fmt(x) + '%' : '';
+    const rows = (n.lines || []).map((l, i) => '<tr><td class="c">' + (i + 1) + '</td><td><b>' + esc(l.machinery || '') + '</b></td><td>' + esc(l.particular || '') + '</td><td class="n">' + fmt(l.qty) + ' ' + esc(l.unit || '') + '</td><td class="n">' + mbN2(l.rate) + '</td><td class="n">' + mbN2(l.amount) + '</td></tr>');
+    const sum = [['Amount', mbN2(n.amount)]].concat(n.gst ? [['Add: GST ' + pct(n.gstPct), mbN2(n.gst)]] : []).concat(n.tds ? [['Less: TDS ' + pct(n.tdsPct), '− ' + mbN2(n.tds)]] : []).concat([['Total debit', mbN2(n.total)]]);
+    return DOC_CSS + '<div class="dnp"><div class="dnp-co">' + esc(String(n.company || '').toUpperCase()) + '</div><div class="dnp-title">DEBIT NOTE' + (n.status === 'Cancelled' ? ' – CANCELLED' : '') + '</div>' +
+      '<table><colgroup><col style="width:50%"><col style="width:20%"><col style="width:30%"></colgroup><tbody>' +
+      '<tr><td rowspan="3">To,<br><b>' + esc(String(v.name || n.vendor || '').toUpperCase()) + '</b>' + (v.address ? '<br>' + esc(v.address) : '') + (v.pan ? '<br>PAN NO :- ' + esc(v.pan) : '') + (v.gst ? '<br>GSTIN :- ' + esc(v.gst) : '') + '</td>' +
+        '<td><b>Debit Note No</b></td><td><b>' + esc(n.no) + '</b></td></tr><tr><td><b>Date</b></td><td>' + mbDot(n.date) + '</td></tr>' +
+      '<tr><td><b>Work Period</b></td><td>' + (n.from ? mbDot(n.from) + ' To ' + mbDot(n.to || n.from) : '–') + '</td></tr>' +
+      '<tr><td colspan="3"><b>' + esc(String(n.company || '').toUpperCase()) + '</b>' + (ci.address ? ', ' + esc(ci.address) : '') + ' &nbsp; <b>GSTIN :</b> ' + esc(ci.gstin || '–') + '</td></tr></tbody></table>' +
+      '<table><colgroup><col style="width:7%"><col style="width:22%"><col style="width:33%"><col style="width:13%"><col style="width:11%"><col style="width:14%"></colgroup><thead><tr><th class="c">Sr.No</th><th>Machinery</th><th>Particular</th><th class="c">Qty</th><th class="c">Rate</th><th class="c">Amount</th></tr></thead><tbody>' +
+      rows.join('') + sum.map((x, i) => '<tr><td colspan="5" class="n">' + (i === sum.length - 1 ? '<b>' + x[0] + '</b>' : x[0]) + '</td><td class="n">' + (i === sum.length - 1 ? '<b>' + x[1] + '</b>' : x[1]) + '</td></tr>').join('') +
+      '<tr><td colspan="6"><b>In Word : ' + esc(rupeesWords(n.total)) + ' /-</b></td></tr></tbody></table>' +
+      (n.remark ? '<div class="dnp-note">' + esc(n.remark) + '</div>' : '') +
+      '<div class="dnp-sign"><span>Accepted by – ' + esc(v.name || n.vendor || '') + '</span><span>For ' + esc(n.company || '') + '</span></div></div>';
+  }
   ['sb_from', 'sb_to', 'sb_vendor', 'sb_co'].forEach(id => $(id).addEventListener('change', sbLoad));
   document.querySelectorAll('[data-sbr]').forEach(b => b.addEventListener('click', () => {
     const t = new Date(S.today + 'T00:00:00');
@@ -7737,6 +7872,7 @@
   }
   function vlPart(r) {
     if (r.kind === 'opening') return '<b>Opening balance</b> – ' + (r.side === 'Advance' ? 'advance paid' : 'payable') + (r.remark ? '<small>' + esc(r.remark) + '</small>' : '');
+    if (r.kind === 'dn') return '<b>Debit Note ' + esc(r.dnNo) + '</b>' + (r.company ? ' – ' + esc(r.company) : '') + (r.remark ? '<small>' + esc(r.remark) + '</small>' : '');
     if (r.kind === 'payment') return '<b>Payment</b> – ' + esc(r.mode) + (r.ref ? ' · ' + esc(r.ref) : '') + (r.against ? ' · against ' + esc(r.against) : '') + (r.remark ? '<small>' + esc(r.remark) + '</small>' : '');
     return '<b>RA Bill ' + esc(r.billNo) + (r.rev ? ' (Rev ' + r.rev + ')' : '') + '</b> – work ' + esc(showDate(r.from)) + ' to ' + esc(showDate(r.to)) + ' <button class="link noprint" data-sbv="' + esc(r.id) + '">View bill</button>' +
       '<small>Basic ' + mbN2(r.basic) + (r.diesel ? ' · Diesel ded. − ' + mbN2(r.diesel) : '') + (r.other ? ' · Other ded. − ' + mbN2(r.other) : '') + (r.gst ? ' · GST + ' + mbN2(r.gst) : '') + (r.tds ? ' · TDS − ' + mbN2(r.tds) : '') + ' · Net ' + mbN2(r.bill) + '</small>';
@@ -7773,7 +7909,7 @@
     const d = S.vl, wb = XLSX.utils.book_new();
     const aoa = [[SITE_NAME], ['Vendor Ledger – ' + d.vendor], [(d.from ? showDate(d.from) : 'from the start') + ' to ' + (d.to ? showDate(d.to) : showDate(S.today))], [],
       ['Date', 'Particulars', 'Name on bill', 'Basic', 'Diesel ded.', 'Other ded.', 'GST', 'TDS', 'Bill Amount', 'Paid', 'Balance'], ['', 'Opening balance' + (d.openEntry ? ' (old balance as on ' + showDate(d.openEntry.date) + ')' : ''), '', '', '', '', '', '', '', '', d.opening]]
-      .concat(d.rows.map(r => [showDate(r.date), r.kind === 'bill' ? 'RA Bill ' + r.billNo + (r.rev ? ' (Rev ' + r.rev + ')' : '') + ' – work ' + showDate(r.from) + ' to ' + showDate(r.to) : r.kind === 'payment' ? 'Payment – ' + r.mode + (r.ref ? ' ' + r.ref : '') + (r.against ? ' – against ' + r.against : '') + (r.remark ? ' – ' + r.remark : '') : 'Opening balance – ' + r.side,
+      .concat(d.rows.map(r => [showDate(r.date), r.kind === 'bill' ? 'RA Bill ' + r.billNo + (r.rev ? ' (Rev ' + r.rev + ')' : '') + ' – work ' + showDate(r.from) + ' to ' + showDate(r.to) : r.kind === 'dn' ? 'Debit Note ' + r.dnNo + (r.remark ? ' – ' + r.remark : '') : r.kind === 'payment' ? 'Payment – ' + r.mode + (r.ref ? ' ' + r.ref : '') + (r.against ? ' – against ' + r.against : '') + (r.remark ? ' – ' + r.remark : '') : 'Opening balance – ' + r.side,
         r.company || '', r.kind === 'bill' ? r.basic : '', r.kind === 'bill' ? r.diesel || '' : '', r.kind === 'bill' ? r.other || '' : '', r.kind === 'bill' ? r.gst || '' : '', r.kind === 'bill' ? r.tds || '' : '', r.bill || '', r.paid || '', r.balance]))
       .concat([['', 'Total', '', '', '', '', '', '', d.totalBill, d.totalPaid, d.closing]]);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Ledger');
@@ -9579,7 +9715,8 @@
       '<td class="t help" data-o="avgCell"><span class="dot" data-o="avg"></span></td>' +
       '<td><input data-f="chFrom" autocomplete="off" placeholder="From"></td><td><input data-f="chTo" autocomplete="off" placeholder="To"></td>' +
       '<td><input data-f="remark" class="lg-part" autocomplete="off" placeholder="Particular" hidden><input data-f="work" autocomplete="off" placeholder="Work done"></td>' +
-      '<td><button class="del" title="Delete row" aria-label="Delete row">×</button></td></tr>';
+      '<td><button type="button" class="dbt-btn" title="Debit to – charge the work of this entry to a party (opens two fields: party and rate)">Debit</button><button class="del" title="Delete row" aria-label="Delete row">×</button></td>' +
+      '<td class="c-debit"><input data-f="debitTo" list="dl_dnparty" autocomplete="off" placeholder="Debit to (party) – leave empty if none" title="The party this work is charged to. Leave empty when the work is not charged to anyone."><input data-f="debitRate" type="number" step="0.01" min="0" placeholder="Rate" title="Rate for the debit note (per hour / KM / trip / day, as this entry is measured)"></td></tr>';
   }
   const lgRows = () => [...$('lg_in').querySelectorAll('.lrow')];
   const lgf = (tr, f) => tr.querySelector('[data-f=' + f + ']');
@@ -9746,6 +9883,9 @@
   }
   // keep every filled row up to date with the sheet (new diesel etc.)
   function lgRefreshAll() { lgRows().forEach(tr => { if (tr._p) lgFill(tr); }); }
+  // "Debit" in a row opens / closes its two fields; a row that has a party typed stays open
+  $('lg_in').addEventListener('click', e => { const b = e.target.closest('.dbt-btn'); if (!b) return; const tr = b.closest('.lrow'), to = tr.querySelector('[data-f=debitTo]');
+    if (tr.classList.contains('dbt-open') && !to.value.trim() && !tr.querySelector('[data-f=debitRate]').value) tr.classList.remove('dbt-open'); else { tr.classList.add('dbt-open'); to.focus(); } });
   $('lg_in').addEventListener('change', e => {
     const tr = e.target.closest('.lrow'); if (!tr) return;
     const f = e.target.dataset.f;
@@ -9793,7 +9933,7 @@
     const v = (tr, f) => lgf(tr, f) ? lgf(tr, f).value : '';
     const rows = trs.map(tr => ({ date: v(tr, 'date'), shift: v(tr, 'shift'), no: v(tr, 'no'), mode: lgWay(tr), openingKm: hasKm(lgWay(tr)) ? v(tr, 'openingKm') : '', closingKm: hasKm(lgWay(tr)) ? v(tr, 'closingKm') : '',
       openingHr: hasHr(lgWay(tr)) ? v(tr, 'openingHr') : '', closingHr: hasHr(lgWay(tr)) ? v(tr, 'closingHr') : '', tStart: v(tr, 'tStart'), tEnd: v(tr, 'tEnd'), tBreak: v(tr, 'tBreak'), trip: lgWay(tr) === 'Trip' || (tr._p && tr._p.machine && tr._p.machine.lbFormat === 'B' && DAY_STATUS.indexOf(lgWay(tr)) === -1) ? v(tr, 'trip') : '', challan: lgWay(tr) && DAY_STATUS.indexOf(lgWay(tr)) === -1 ? v(tr, 'challan').trim() : '', remark: v(tr, 'remark').trim(),
-      openingDiesel: v(tr, 'openingDiesel'), chFrom: v(tr, 'chFrom'), chTo: v(tr, 'chTo'), work: v(tr, 'work'),
+      openingDiesel: v(tr, 'openingDiesel'), chFrom: v(tr, 'chFrom'), chTo: v(tr, 'chTo'), work: v(tr, 'work'), debitTo: v(tr, 'debitTo').trim(), debitRate: v(tr, 'debitRate'),
       items: tr._p && tr._p.boqItems && tr._p.boqItems.length ? itemBoxRead(tr.querySelector('.lg-itm')) : undefined }))
       .map(r => { ['openingKm', 'closingKm', 'openingHr', 'closingHr', 'openingDiesel', 'trip', 'tBreak'].forEach(k => { r[k] = r[k] === '' ? '' : Number(r[k]); }); return r; });
     const res = await call('saveLogRows', { rows: rows });
@@ -9844,7 +9984,7 @@
     $('le_okm').readOnly = $('le_ohr').readOnly = false; // any Start can be changed; the entry before follows
 
     $('le_odsl_w').hidden = !e.first; $('le_odsl').value = e.odsl;
-    $('le_chf').value = e.chFrom; $('le_cht').value = e.chTo; $('le_work').value = e.work || e.remark;
+    $('le_chf').value = e.chFrom; $('le_cht').value = e.chTo; $('le_work').value = e.work || e.remark; $('le_dto').value = e.debitTo || ''; $('le_drate').value = e.debitRate === undefined || e.debitRate === null ? '' : e.debitRate;
     $('le_itm').innerHTML = itemBoxHtml(e.boqItems || [], e.itemWork || {}, e.unit); $('le_itm_w').hidden = !$('le_itm').innerHTML;
     leNote();
     $('le_back').hidden = false;
@@ -9864,17 +10004,17 @@
     if (e.unit === 'Time' && (!$('le_ts').value || !$('le_te').value)) throw new Error('Enter the From and To time.');
     if (e.unit === 'Trip' && !(Number($('le_trip').value) > 0)) throw new Error('Enter the number of trips.');
     const x = { openingKm: km ? $('le_okm').value : '', closingKm: km ? $('le_ckm').value : '', openingHr: hr ? $('le_ohr').value : '', closingHr: hr ? $('le_chr').value : '',
-      openingDiesel: e.first ? $('le_odsl').value : '', chFrom: $('le_chf').value.trim(), chTo: $('le_cht').value.trim(), work: $('le_work').value.trim(),
+      openingDiesel: e.first ? $('le_odsl').value : '', chFrom: $('le_chf').value.trim(), chTo: $('le_cht').value.trim(), work: $('le_work').value.trim(), debitTo: $('le_dto').value.trim(), debitRate: $('le_drate').value,
       tStart: e.unit === 'Time' ? $('le_ts').value : '', tEnd: e.unit === 'Time' ? $('le_te').value : '', tBreak: e.unit === 'Time' ? $('le_tb').value : '', trip: e.unit === 'Trip' ? $('le_trip').value : '', challan: DAY_STATUS.indexOf(e.unit) === -1 ? $('le_chl').value.trim() : '' };
     ['openingKm', 'closingKm', 'openingHr', 'closingHr', 'openingDiesel'].forEach(k => { x[k] = x[k] === '' ? '' : Number(x[k]); });
     // Item-wise BOQ: the typed items (compared as text for "what changed")
     const hasItems = (e.boqItems || []).length > 0, itemsNow = hasItems ? itemBoxRead($('le_itm')) : {};
     if (hasItems && e._itemBad) throw new Error(e._itemBad);
     if (hasItems) { x.items = itemsNow; x.itemText = itemSig(e.boqItems, itemsNow); }
-    const before = { openingKm: km ? e.okm : '', closingKm: km ? e.ckm : '', openingHr: hr ? e.ohr : '', closingHr: hr ? e.chr : '', openingDiesel: e.first ? e.odsl : '', chFrom: e.chFrom, chTo: e.chTo, work: e.work || e.remark,
+    const before = { openingKm: km ? e.okm : '', closingKm: km ? e.ckm : '', openingHr: hr ? e.ohr : '', closingHr: hr ? e.chr : '', openingDiesel: e.first ? e.odsl : '', chFrom: e.chFrom, chTo: e.chTo, work: e.work || e.remark, debitTo: e.debitTo || '', debitRate: e.debitRate === undefined || e.debitRate === null ? '' : e.debitRate,
       tStart: e.unit === 'Time' ? e.tStart : '', tEnd: e.unit === 'Time' ? e.tEnd : '', tBreak: e.unit === 'Time' ? (e.tBrk === '' ? '' : String(e.tBrk)) : '', trip: e.unit === 'Trip' ? String(e.trip) : '', challan: DAY_STATUS.indexOf(e.unit) === -1 ? (e.challan || '') : '' };
     if (hasItems) before.itemText = itemSig(e.boqItems, e.itemWork || {});
-    const changes = diff([['itemText', 'Items'], ['openingKm', 'Start KM'], ['closingKm', 'Close KM'], ['openingHr', 'Start Hrs'], ['closingHr', 'Close Hrs'], ['tStart', 'From time'], ['tEnd', 'To time'], ['tBreak', 'Break (min)'], ['trip', 'Trips'], ['challan', 'Challan No'], ['openingDiesel', 'Opening diesel'],
+    const changes = diff([['itemText', 'Items'], ['openingKm', 'Start KM'], ['closingKm', 'Close KM'], ['openingHr', 'Start Hrs'], ['closingHr', 'Close Hrs'], ['tStart', 'From time'], ['tEnd', 'To time'], ['tBreak', 'Break (min)'], ['trip', 'Trips'], ['challan', 'Challan No'], ['openingDiesel', 'Opening diesel'], ['debitTo', 'Debit to'], ['debitRate', 'Debit rate'],
       ['chFrom', 'Chainage From'], ['chTo', 'Chainage To'], ['work', 'Work description']], before, x);
     if (!changes.length) { toast('Nothing changed.'); leClose(); return; }
     if (!(await askConfirm({ title: 'Update ' + e.no + ' – ' + showDate(e.date) + '?', ok: 'Update',
@@ -10187,7 +10327,7 @@
         '<td class="n" title="' + esc(r.dread) + '">' + fmt(r.qty) + '</td><td class="n">' + fmt(r.stdUse) + '</td>' + (() => { const cap = capOf(r.no), over = cap > 0 && r.stock > cap;
           return '<td class="n' + (over ? ' overcap' : '') + '"' + (over ? ' title="More than the ' + fmt(cap) + ' L tank capacity – check Log Book / diesel entries"' : '') + '><b class="' + (r.stock < 0 ? 'neg' : '') + '">' + fmt(r.stock) + '</b>' + (over ? '<small class="over-cap">tank ' + fmt(cap) + ' L</small>' : '') + '</td>'; })() +
         '<td>' + esc(stdTxt(r)) + '</td><td title="' + esc(r.cycle) + '">' + esc(r.avg) + (r.cycle ? '<br><small>' + esc(r.cycle) + '</small>' : '') + '</td>' +
-        '<td>' + esc(r.chFrom || r.chTo ? (r.chFrom || '') + ' to ' + (r.chTo || '') : r.chainage) + '</td><td>' + (itemQtyText(r) ? '<small class="muted">' + esc(itemQtyText(r)) + '</small><br>' : '') + esc(r.work || r.remark) + '</td>' +
+        '<td>' + esc(r.chFrom || r.chTo ? (r.chFrom || '') + ' to ' + (r.chTo || '') : r.chainage) + '</td><td>' + (itemQtyText(r) ? '<small class="muted">' + esc(itemQtyText(r)) + '</small><br>' : '') + esc(r.work || r.remark) + (r.debitTo ? '<small class="lg-dto">Debit to ' + esc(r.debitTo) + ' @ ' + fmt(r.debitRate) + '</small>' : '') + '</td>' +
         byCell(r) + '<td>' + rowActions('Log Book', 'data-ledit', 'data-ldel', r.key) + '</td></tr>').join('')
         : '<tr><td colspan="16" class="none">No Log Book entries match this filter.</td></tr>';
     } catch (e) { toast(errMsg(e), true); }

@@ -48,7 +48,7 @@ const SB_TABLES_ = [
     ['KM Reading', 'km_reading', 'numeric'], ['Hrs Reading', 'hrs_reading', 'numeric'], ['Diesel Readings', 'diesel_readings', 'text'],
     ['Chainage From', 'chainage_from', 'text'], ['Chainage To', 'chainage_to', 'text'], ['Chainage No.', 'chainage_no', 'text'], ['Work Done', 'work_done', 'text'],
     ['Trip', 'trip', 'text'], ['Driver Name', 'driver_name', 'text'], ['Remark', 'remark', 'text'],
-    ['Start Time', 'start_time', 'text'], ['End Time', 'end_time', 'text'], ['Break (min)', 'break_min', 'numeric'], ['Time Hrs', 'time_hrs', 'numeric'], ['Challan No', 'challan_no', 'text'], ['Item Work', 'item_work', 'text'],
+    ['Start Time', 'start_time', 'text'], ['End Time', 'end_time', 'text'], ['Break (min)', 'break_min', 'numeric'], ['Time Hrs', 'time_hrs', 'numeric'], ['Challan No', 'challan_no', 'text'], ['Item Work', 'item_work', 'text'], ['Debit To', 'debit_to', 'text'], ['Debit Rate', 'debit_rate', 'numeric'],
     ['Actual Average', 'actual_average', 'text'], ['Extra / Short Diesel', 'extra_short', 'numeric'], ['Fill Cycle', 'fill_cycle', 'text'],
     ['Opening Diesel Set', 'opening_diesel_set', 'numeric'],
     ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
@@ -76,6 +76,11 @@ const SB_TABLES_ = [
     ['Type', 'entry_type', 'text'], ['Date', 'entry_date', 'date'], ['Vendor Name', 'vendor_name', 'text'], ['Amount', 'amount', 'numeric'], ['Side', 'side', 'text'],
     ['Mode', 'mode', 'text'], ['Reference', 'reference', 'text'], ['Against Bill', 'against_bill', 'text'], ['Remark', 'remark', 'text'], ['Created At', 'entered_at', 'timestamptz'],
     ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
+  { table: 'debit_notes', tab: 'Debit Notes', title: 'Debit Notes', pk: 'id', key: r => sbStr_(r['Note ID']), cols: [
+    ['DN No', 'dn_no', 'text'], ['Company', 'company', 'text'], ['Date', 'dn_date', 'date'], ['Vendor Name', 'vendor_name', 'text'], ['Kind', 'kind', 'text'],
+    ['Period From', 'period_from', 'date'], ['Period To', 'period_to', 'date'], ['Lines', 'lines', 'text'], ['Log IDs', 'log_ids', 'text'], ['Amount', 'amount', 'numeric'],
+    ['GST %', 'gst_pct', 'numeric'], ['GST Amount', 'gst_amt', 'numeric'], ['TDS %', 'tds_pct', 'numeric'], ['TDS Amount', 'tds_amt', 'numeric'], ['Total', 'total', 'numeric'],
+    ['Status', 'status', 'text'], ['Bill ID', 'bill_id', 'text'], ['Remark', 'remark', 'text'], ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
   { table: 'breakdowns', tab: 'Breakdowns', title: 'Breakdowns', pk: 'id', key: r => sbStr_(r['Breakdown ID']), cols: [
     ['Machinery No', 'machinery_no', 'text'], ['From Date', 'from_date', 'date'], ['Reason', 'reason', 'text'], ['Remark', 'remark', 'text'], ['Status', 'status', 'text'],
     ['Back On', 'back_on', 'date'], ['Closing Remark', 'closing_remark', 'text'], ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },

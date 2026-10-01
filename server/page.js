@@ -22,13 +22,15 @@ const BRIDGE = `
       el.title = String(el.title || '').split(' · server')[0] + ' · server answered in ' + ms + ' ms' + (worst ? ' · slowest recent: ' + worst.fn + ' ' + worst.ms + ' ms' : ''); }, 80);
   }
   // a question (never a save) that is already on its way is not sent a second time: both askers get the one answer
-  var flying = {};
+  var flying = {}, saveNo = 0;      // saveNo goes up whenever anything that is not a question is sent or answered
   function isQuestion(name, args) { if (name !== 'api') return false; var f = String(args[1]);
     return /^(get|rpt)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1; }
   function send(name, args, ok, fail) {
     try { if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('→ ' + (name === 'api' ? args[1] : name)); } catch (e) {}
     if (isQuestion(name, args)) {
-      var key = JSON.stringify(args);
+      // a question asked BEFORE a save must never answer one asked AFTER it (the list would miss what was just saved):
+      // the save number is part of the key, so after any save the same question goes to the server again
+      var key = saveNo + '|' + JSON.stringify(args);
       if (flying[key]) { flying[key].push({ ok: ok, fail: fail }); return; }
       flying[key] = [];
       var ok0 = ok, fail0 = fail;
@@ -38,12 +40,14 @@ const BRIDGE = `
       fail = function (e) { var others = flying[key] || []; delete flying[key];
         try { if (fail0) fail0(e); } finally { others.forEach(function (w) { try { if (w.fail) w.fail(e); } catch (x) {} }); } };
     }
+    var isQ = isQuestion(name, args) || (name === 'api' && args[1] === 'sync') || name === 'getAppBuild' || name === 'getAppHtml';
+    if (!isQ) saveNo++;
     var t0 = Date.now();
     fetch(base + '/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fn: name, args: args }), cache: 'no-store' })
       .then(function (r) { return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; }
         if (!j) throw new Error(r.status === 413 ? 'Too much data in one go – pick a shorter period.' : 'The server did not answer properly (' + r.status + '). Try again.');
         return j; }); })
-      .then(function (j) { try { took(name, args, Date.now() - t0); if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('← ' + (name === 'api' ? args[1] : name) + ' ' + (Date.now() - t0) + ' ms' + (j && j.error ? ' ERROR' : '')); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(j.result); },
+      .then(function (j) { if (!isQ) saveNo++; try { took(name, args, Date.now() - t0); if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('← ' + (name === 'api' ? args[1] : name) + ' ' + (Date.now() - t0) + ' ms' + (j && j.error ? ' ERROR' : '')); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(j.result); },
             function (e) { if (fail) fail(new Error(e && /did not answer|Too much data/.test(e.message) ? e.message : 'No connection to the server – check the internet and try again.')); });
   }
   function runner(ok, fail) {

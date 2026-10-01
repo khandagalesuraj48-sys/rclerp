@@ -13,7 +13,7 @@ App तेच आहे: तेच screens, तेच नियम, तेच pr
 
 ## SQL चालवण्याचा क्रम
 
-`sql/` मधल्या files क्रमाने: step1 … step1s, मग `supabase_step2_web.sql`, मग `supabase_step3_safety.sql`.
+`sql/` मधल्या files क्रमाने: step1 … step1s, `supabase_step1t_debit_notes.sql`, मग `supabase_step2_web.sql`, मग `supabase_step3_safety.sql`.
 `check_security.sql` काहीही बदलत नाही; database ची सुरक्षा पाहण्यासाठी आहे (प्रत्येक ओळ "ok" ने सुरू झाली पाहिजे).
 
 ## तपासणी (tests)

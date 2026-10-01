@@ -31,7 +31,7 @@ const APP = {
 
 const H = {
   NO: 'Machinery Number', NAME: 'Machinery Name', TYPE: 'Type of Machinery', MAKE: 'Make',
-  UNIT: 'Unit', WORKS: 'Works On', LBFMT: 'Log Book Format', TSTART: 'Start Time', TEND: 'End Time', TBRK: 'Break (min)', THRS: 'Time Hrs', CHALLAN: 'Challan No', ITEMS: 'Item Work', OWNTYPE: 'Ownership', KMSTD: 'Standard Average (KM/Ltr)', HRSTD: 'Standard Average (Ltr/Hr)', OWNER: 'Owner Name',
+  UNIT: 'Unit', WORKS: 'Works On', LBFMT: 'Log Book Format', TSTART: 'Start Time', TEND: 'End Time', TBRK: 'Break (min)', THRS: 'Time Hrs', CHALLAN: 'Challan No', ITEMS: 'Item Work', DEBITTO: 'Debit To', DEBITRATE: 'Debit Rate', OWNTYPE: 'Ownership', KMSTD: 'Standard Average (KM/Ltr)', HRSTD: 'Standard Average (Ltr/Hr)', OWNER: 'Owner Name',
   ID: 'Issue ID', IDATE: 'Issue Date', SHIFT: 'Shift', QTY: 'Diesel Qty (Ltr)',
   KMR: 'KM Reading', HRR: 'Hrs Reading', REMARK: 'Remark', CREATED: 'Created At',
   DATE: 'Date', OKM: 'Opening KM', CKM: 'Closing KM', WKM: 'Working KM',
@@ -424,6 +424,10 @@ const API_ = {
   verifyBills:       { m: 'Machinery Billing', edit: true, f: verifyBills_ },
   submitBills:       { m: 'Machinery Billing', edit: true, f: submitBills_, log: 'billSubmit' },
   deleteBill:        { m: 'Saved Bills', admin: true, f: deleteBill_, log: 'billDelete' },
+  getDebitPending:   { m: 'Machinery Billing', f: debitPending_ },
+  saveDebitNote:     { m: 'Machinery Billing', edit: true, f: saveDebitNote_, log: 'debitNote' },
+  getDebitNotes:     { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Vendor Ledger'], f: getDebitNotes_ },
+  cancelDebitNote:   { m: 'Saved Bills', admin: true, f: cancelDebitNote_, log: 'debitNoteCancel' },
   vendorsFromOwners: { m: 'Vendor Master', edit: true, f: vendorsFromOwners_, log: 'vendorsNew' },
   assignVendors:     { m: 'Master', edit: true, f: assignVendors_, log: 'assignVendors' },
   editMasterMany:    { m: 'Master', edit: true, f: editMasterMany_, log: 'masterMany' },
@@ -514,7 +518,7 @@ function api(token, fn, args) {
   try { return apiRun_(u, spec, fn, args); }
   catch (err) { if (onceKey) { try { __uncount(onceKey); } catch (e2) { /* it frees itself in a few seconds */ } } throw err; }
 }
-const ONCE_FNS_ = ['saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'saveInward', 'importInward', 'saveTransfer', 'saveTransferBulk', 'savePayment', 'saveTankCheck', 'submitBdReport'];
+const ONCE_FNS_ = ['saveDebitNote', 'saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'saveInward', 'importInward', 'saveTransfer', 'saveTransferBulk', 'savePayment', 'saveTankCheck', 'submitBdReport'];
 function apiRun_(u, spec, fn, args) {
   const vBefore = spec.edit ? getVersions_() : null;
   TABLE_MEMO_ = {}; // each tab read once per request (dropped automatically when written)
@@ -574,7 +578,7 @@ function getVersions_() {
   SYNC_KEYS_.forEach(k => { v[k.slice(2)] = got[k] || '0'; });
   return v;
 }
-function getLookups_() { return { master: getMaster_(), drivers: getDrivers_(), pumps: getPumps_() }; }
+function getLookups_() { return { master: getMaster_(), drivers: getDrivers_(), pumps: getPumps_(), vendors: vendorNames_() }; }
 
 // Simple trigger: runs by itself whenever someone types in the Google Sheet
 function onEdit(e) {
@@ -722,6 +726,12 @@ function logAfter_(u, spec, args, res, before) {
       break;
     case 'renew':
       if (res.ok) writeLog_(u, 'Edit', 'Vehicle Compliance', res.no, res.doc + ' renewed: ' + res.no + ' – valid upto ' + docShow_(res.to), res.doc + ' Valid Upto: ' + docShow_(res.from) + ' → ' + docShow_(res.to));
+      break;
+    case 'debitNote':
+      if (res.ok) writeLog_(u, 'Add', 'Debit Notes', res.id, 'Debit note ' + res.no + ' made: ' + res.vendor + ' – ' + r2_(res.total) + ' (' + res.company + ')', res.lines + ' line(s)');
+      break;
+    case 'debitNoteCancel':
+      if (res.ok && !res.already) writeLog_(u, 'Delete', 'Debit Notes', res.id, 'Debit note ' + res.no + ' cancelled: ' + res.vendor + ' – ' + r2_(res.total), '');
       break;
     case 'payment':
       if (res.ok) writeLog_(u, res.added ? 'Add' : 'Edit', m, res.id, (res.type === 'Opening' ? 'Opening balance ' : 'Payment ') + (res.added ? 'entered: ' : 'changed: ') + res.vendor + ' – ' + r2_(res.amount), res.changes || '');
@@ -1338,7 +1348,9 @@ function billInit_(f) {
     const n = Number(String(b.billNo).replace(/[^0-9]/g, '')) || 0;
     next[k] = Math.max(next[k] || 0, n);
   });
-  return { vendors: vendors, lastNo: next, settings: billSettings_() };
+  // debit notes that can be deducted in a bill: open, not cancelled, not already in a bill
+  const pendingDn = dnList_().filter(d => d.status !== 'Cancelled' && !d.billId).map(d => ({ id: d.id, no: d.no, vendor: d.vendor, company: d.company, date: d.date, total: d.total }));
+  return { vendors: vendors, lastNo: next, settings: billSettings_(), pendingDn: pendingDn };
 }
 function getBills_(f) {
   f = f || {};
@@ -1854,6 +1866,148 @@ function deletePayment_(id) {
   });
 }
 // every ledger line of every vendor: opening, bills in force (on the Bill Date), payments
+/* ================= "DEBIT TO" and DEBIT NOTES =================
+ * A Log Book entry can carry "Debit to" (a party of the Vendor Master) and a rate typed by hand: that work is charged to
+ * the party – whoever owns the machinery (own or a vendor's).
+ * A Debit Note collects such entries of one party and period (and lines typed by hand): Sr, machinery, particular, qty,
+ * rate, amount; GST % and TDS % typed on the note; Total = amount + GST − TDS. Its number is the next of the name's own
+ * run (Rachana / Sketchline) – the same run the diesel debit notes of the bills use, so no number is given twice.
+ * A Log Book entry can be in ONE note only (until that note is cancelled).
+ * Money: a note that is not cancelled lowers what is payable to the party in the Vendor Ledger from its date. */
+const DN_SHEET_ = 'Debit Notes';
+const DN_COLS_ = ['Note ID', 'DN No', 'Company', 'Date', 'Vendor Name', 'Kind', 'Period From', 'Period To', 'Lines', 'Log IDs', 'Amount', 'GST %', 'GST Amount', 'TDS %', 'TDS Amount', 'Total', 'Status', 'Bill ID', 'Remark', 'Created At'];
+const dnParse_ = v => { try { const o = JSON.parse(str_(v) || '[]'); return Array.isArray(o) ? o : []; } catch (e) { return []; } };
+const dnNum_ = no => Number((/(\d+)\s*$/.exec(str_(no)) || [])[1]) || 0;
+function dnOut_(t, r, i) {
+  const g = h => h in t.c ? r[t.c[h]] : '';
+  return { i: i, id: str_(g('Note ID')), no: str_(g('DN No')), company: str_(g('Company')), date: dkey_(g('Date')), vendor: clean_(g('Vendor Name')), kind: str_(g('Kind')) || 'Manual',
+    from: dkey_(g('Period From')), to: dkey_(g('Period To')), lines: dnParse_(g('Lines')), logIds: dnParse_(g('Log IDs')).map(String), amount: r2_(num0_(g('Amount'))),
+    gstPct: num0_(g('GST %')), gst: r2_(num0_(g('GST Amount'))), tdsPct: num0_(g('TDS %')), tds: r2_(num0_(g('TDS Amount'))), total: r2_(num0_(g('Total'))),
+    status: str_(g('Status')) || 'Open', billId: str_(g('Bill ID')), remark: str_(g('Remark')), enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '' };
+}
+// every debit note; an empty list when the table is not there yet (step-1t SQL not run) – nothing else may break because of it
+function dnList_() {
+  try { const t = vbTable_(DN_SHEET_, DN_COLS_); return t ? t.rows.map((r, i) => dnOut_(t, r, i)).filter(x => x.id) : []; } catch (e) { return []; }
+}
+const logIdOf_ = r => str_(r.no) + '|' + str_(r.date) + '|' + str_(r.shift);
+// the quantity an entry is charged for: hours, KM, trips or one day – as the entry was measured
+function debitQty_(r) {
+  const mode = r.mode || r.unit;
+  if (mode === 'KM') return { qty: r2_(num0_(r.wkm)), unit: 'KM' };
+  if (mode === 'Trip') return { qty: r2_(num0_(r.trip)), unit: 'Trips' };
+  if (mode === 'Hrs' || mode === 'KM + Hrs') return { qty: r2_(num0_(r.whr)), unit: 'Hrs' };
+  if (mode === 'Time') return { qty: r2_(num0_(r.tHrs) || num0_(r.whr)), unit: 'Hrs' };
+  if (mode === 'Holiday' || mode === 'Breakdown') return { qty: 0, unit: 'Day' };
+  return { qty: 1, unit: 'Day' };
+}
+// "Debit to" of an entry as typed: both the party and the rate, or neither.  undefined = not sent (leave what is saved)
+function logDebit_(l, when) {
+  if (!l || (l.debitTo === undefined && l.debitRate === undefined)) return null;
+  const to = clean_(l.debitTo), rate = blank_(l.debitRate) ? '' : num0_(l.debitRate);
+  if (!to && (rate === '' || rate === 0)) return { to: '', rate: '' };
+  if (!to) throw new Error((when || '') + 'Debit to: pick the party for the rate ' + rate + '.');
+  const vt = vendorTable_(), names = vt ? vt.rows.map(r => clean_(r[vt.c['Vendor Name']])).filter(Boolean) : [];
+  const hit = names.find(n => vKey_(n) === vKey_(to));
+  if (!hit) throw new Error((when || '') + 'Debit to: "' + to + '" is not in the Vendor Master.');
+  if (!(rate > 0)) throw new Error((when || '') + 'Debit to ' + hit + ': type the rate.');
+  return { to: hit, rate: r2_(rate) };
+}
+// the database must have the two "Debit to" columns (step-1t SQL); if not, say so instead of dropping what was typed
+const DN_SQL_MSG_ = 'This needs one database step first: run sql/supabase_step1t_debit_notes.sql in Supabase → SQL Editor (it only adds; nothing is changed).';
+function debitReady_() { let cols = null; try { cols = SS_().getSheetByName(APP.SHEET_LOG).dbCols; } catch (e) { cols = null; } if (cols && cols.indexOf('debit_to') === -1) throw new Error('"Debit to" cannot be saved yet. ' + DN_SQL_MSG_); }
+function vendorNames_() { const vt = vendorTable_(); return vt ? [...new Set(vt.rows.map(r => clean_(r[vt.c['Vendor Name']])).filter(Boolean))].sort((a, b) => a.localeCompare(b)) : []; }
+// Log Book entries charged to a party in a period that are not in a debit note yet
+function debitPending_(f) {
+  f = f || {};
+  const v = vKey_(f.vendor || ''); if (!v) throw new Error('Pick the party (Debit to).');
+  const from = checkDate_(f.from), to = checkDate_(f.to); if (from > to) throw new Error('From date is after To date.');
+  const used = {}; dnList_().filter(d => d.status !== 'Cancelled').forEach(d => d.logIds.forEach(k => { used[k] = d.no; }));
+  const rows = getLogBookList_({ from: from, to: to, all: true }).rows.filter(r => r.debitTo && vKey_(r.debitTo) === v)
+    .sort((a, b) => natCmp_(a.no, b.no) || (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    .map(r => { const q = debitQty_(r), rate = r2_(num0_(r.debitRate));
+      return { logId: logIdOf_(r), date: r.date, shift: r.shift, no: r.no, type: r.type || '', mode: r.mode || r.unit, qty: q.qty, unit: q.unit, rate: rate, amount: r2_(q.qty * rate), work: r.work || r.remark || '', inNote: used[logIdOf_(r)] || '' }; });
+  return { vendor: clean_(f.vendor), from: from, to: to, rows: rows.filter(r => !r.inNote), already: rows.filter(r => r.inNote).length };
+}
+function nextDnNo_(company) {
+  let last = 0;
+  const t = billTable_(); if (t) t.rows.forEach(r => { const b = billOut_(t, r, false); if (b.company === company) last = Math.max(last, dnNum_(b.dnNo)); });
+  dnList_().forEach(d => { if (d.company === company) last = Math.max(last, dnNum_(d.no)); });
+  return str_(((billSettings_().companies || {})[company] || {}).dnPrefix) + String(last + 1).padStart(3, '0');
+}
+function saveDebitNote_(x) {
+  return withLock_(() => {
+    x = x || {};
+    const company = str_(x.company); if (BILL_COMPANIES_.indexOf(company) === -1) throw new Error('Pick the name on the note (Rachana / Sketchline).');
+    const names = vendorNames_(), vendor = names.find(n => vKey_(n) === vKey_(x.vendor || '')); if (!vendor) throw new Error('Pick the party from the Vendor Master.');
+    const date = entryDate_(x.date);
+    const from = x.from ? checkDate_(x.from) : '', to = x.to ? checkDate_(x.to) : ''; if (from && to && from > to) throw new Error('From date is after To date.');
+    let sh, t;
+    try { sh = vbSheet_(DN_SHEET_, DN_COLS_); addColIfMissing_(DN_SHEET_, DN_COLS_, H.EBY); addColIfMissing_(DN_SHEET_, DN_COLS_, H.UBY); TABLE_MEMO_ = {}; t = table_(DN_SHEET_, DN_COLS_); }
+    catch (e) { if (/debit_notes|42P01|does not exist/.test(String(e && e.message))) throw new Error('Debit notes cannot be saved yet. ' + DN_SQL_MSG_); throw e; }
+    const all = t.rows.map((r, i) => dnOut_(t, r, i)).filter(d => d.id);
+    const used = {}; all.filter(d => d.status !== 'Cancelled').forEach(d => d.logIds.forEach(k => { used[k] = d.no; }));
+    const inL = Array.isArray(x.lines) ? x.lines : []; if (!inL.length) throw new Error('Add at least one line.');
+    if (inL.length > 300) throw new Error('A note can have up to 300 lines.');
+    // the Log Book entries named in the lines: they must exist, be charged to this party, and not be in another note
+    const ids = [...new Set(inL.map(l => str_(l.logId)).filter(Boolean))];
+    let logs = {};
+    if (ids.length) {
+      const dates = ids.map(k => k.split('|')[1]).sort();
+      getLogBookList_({ from: dates[0], to: dates[dates.length - 1], all: true }).rows.forEach(r => { logs[logIdOf_(r)] = r; });
+    }
+    const lines = inL.map((l, i) => {
+      const at = 'Line ' + (i + 1) + ': ', logId = str_(l.logId);
+      if (logId) {
+        const r = logs[logId]; if (!r) throw new Error(at + 'its Log Book entry is not there any more – get the entries again.');
+        if (vKey_(r.debitTo) !== vKey_(vendor)) throw new Error(at + 'that Log Book entry is not charged to ' + vendor + '.');
+        if (used[logId]) throw new Error(at + 'that Log Book entry is already in debit note ' + used[logId] + '.');
+      }
+      const qty = num0_(l.qty), rate = num0_(l.rate), part = clean_(l.particular);
+      if (!part) throw new Error(at + 'type the particular.');
+      if (!(qty > 0)) throw new Error(at + 'the quantity must be more than 0.');
+      if (!(rate > 0)) throw new Error(at + 'type the rate.');
+      if (qty > 100000 || rate > 100000000) throw new Error(at + 'the quantity or the rate looks wrong.');
+      return { sr: i + 1, logId: logId, machinery: clean_(l.machinery), particular: part, qty: r2_(qty), unit: clean_(l.unit), rate: r2_(rate), amount: r2_(qty * rate) };
+    });
+    const pct = (v, name) => { const n = blank_(v) ? 0 : num0_(v); if (n < 0 || n > 100) throw new Error(name + ' % must be between 0 and 100.'); return n; };
+    const gstPct = pct(x.gstPct, 'GST'), tdsPct = pct(x.tdsPct, 'TDS');
+    const amount = r2_(lines.reduce((a, l) => a + l.amount, 0)), gst = r2_(amount * gstPct / 100), tds = r2_(amount * tdsPct / 100), total = r2_(amount + gst - tds);
+    const id = 'DN-' + String(all.reduce((mx, d) => Math.max(mx, Number(d.id.replace(/\D/g, '')) || 0), 0) + 1).padStart(5, '0'), no = nextDnNo_(company);
+    const row = newRow_(t);
+    set_(row, t, 'Note ID', id); set_(row, t, 'DN No', no); set_(row, t, 'Company', company); set_(row, t, 'Date', toDate_(date)); set_(row, t, 'Vendor Name', vendor);
+    set_(row, t, 'Kind', ids.length ? 'Log Book' : 'Manual'); if (from) set_(row, t, 'Period From', toDate_(from)); if (to) set_(row, t, 'Period To', toDate_(to));
+    set_(row, t, 'Lines', JSON.stringify(lines)); set_(row, t, 'Log IDs', JSON.stringify(ids)); set_(row, t, 'Amount', amount);
+    set_(row, t, 'GST %', gstPct); set_(row, t, 'GST Amount', gst); set_(row, t, 'TDS %', tdsPct); set_(row, t, 'TDS Amount', tds); set_(row, t, 'Total', total);
+    set_(row, t, 'Status', 'Open'); set_(row, t, 'Remark', clean_(x.remark)); set_(row, t, 'Created At', new Date());
+    sh.appendRow(row); TABLE_MEMO_ = {};
+    return { ok: true, id: id, no: no, vendor: vendor, company: company, total: total, lines: lines.length };
+  });
+}
+function getDebitNotes_(f) {
+  f = f || {};
+  const v = vKey_(f.vendor || ''), co = str_(f.company), st = billSettings_();
+  const list = dnList_().filter(d => (!f.id || d.id === f.id) && (!v || vKey_(d.vendor) === v) && (!co || d.company === co) && (!f.from || d.date >= f.from) && (!f.to || d.date <= f.to));
+  list.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0) || (a.id < b.id ? 1 : -1));
+  // the party's and the company's details for the print, as they are now
+  const vend = {}; if (f.id) getVendors_().forEach(x => { vend[vKey_(x.name)] = x; });
+  // the RA bill number of the bill a note is deducted in
+  const billNoOf = {}; if (list.some(d => d.billId)) { const bt = billTable_(); if (bt) bt.rows.forEach(r => { const b = billOut_(bt, r, false); billNoOf[b.id] = b.billNo + (b.rev ? ' (Rev ' + b.rev + ')' : ''); }); }
+  list.forEach(d => { d.billNo = d.billId ? (billNoOf[d.billId] || d.billId) : ''; });
+  return { notes: list.map(d => Object.assign({}, d, f.id ? { vendorInfo: vend[vKey_(d.vendor)] || { name: d.vendor }, companyInfo: (st.companies || {})[d.company] || {} } : { lines: undefined, lineCount: d.lines.length })) };
+}
+function cancelDebitNote_(id) {
+  return withLock_(() => {
+    const t = vbTable_(DN_SHEET_, DN_COLS_); if (!t) throw new Error('No debit notes yet.');
+    const d = t.rows.map((r, i) => dnOut_(t, r, i)).find(x => x.id === str_(id)); if (!d) throw new Error('Debit note not found.');
+    if (d.status === 'Cancelled') return { ok: true, id: d.id, no: d.no, vendor: d.vendor, total: d.total, already: true };
+    if (d.billId) { let bn = d.billId; try { const bt = billTable_(), br = bt && bt.rows.find(r => str_(r[bt.c['Bill ID']]) === d.billId); if (br) bn = 'RA Bill ' + billOut_(bt, br, false).billNo; } catch (e) { /* keep the id */ }
+      throw new Error('Debit note ' + d.no + ' is deducted in a bill (' + bn + '). Delete that bill, or save it again without this note, then cancel the note.'); }
+    const row = t.rows[d.i].slice(); set_(row, t, 'Status', 'Cancelled'); stampEdit_(row, t);
+    t.sh.getRange(d.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
+    return { ok: true, id: d.id, no: d.no, vendor: d.vendor, total: d.total };
+  });
+}
+
 function ledgerLines_() {
   const lines = [];
   payList_().forEach(p => lines.push({ vendor: p.vendor, date: p.date, kind: p.type === 'Opening' ? 'opening' : 'payment', ord: p.type === 'Opening' ? 0 : 2, id: p.id,
@@ -1865,6 +2019,8 @@ function ledgerLines_() {
     lines.push({ vendor: b.vendor, date: b.billDate || b.to, kind: 'bill', ord: 1, id: b.id, bill: net, paid: 0, company: b.company, billNo: b.billNo, rev: b.rev, from: b.from, to: b.to,
       basic: n(d.A), diesel: n(d.B), other: n(d.C), gst: r2_(n(d.E) + n(d.F)), tds: n(d.H) });
   });
+  dnList_().filter(d => d.status !== 'Cancelled').forEach(d => lines.push({ vendor: d.vendor, date: d.date, kind: 'dn', ord: 2, id: d.id, bill: 0, paid: d.total, company: d.company, dnNo: d.no, remark: d.remark,
+    basic: d.amount, gst: d.gst, tds: d.tds }));
   lines.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || a.ord - b.ord || (a.id < b.id ? -1 : 1));
   return lines;
 }
@@ -2156,6 +2312,22 @@ function submitBills_(b) {
       bills.some(z => z !== x && vKey_(z.vendor) === vKey_(x.vendor) && z.company === x.company && clean_(z.billNo) === clean_(x.billNo));
     const clash = bills.filter(takenNo).map(x => clean_(x.vendor) + ': bill no ' + clean_(x.billNo) + ' is already used by another bill of this vendor.');
     if (clash.length) return { ok: false, errors: clash };
+    /* Debit notes ticked in a bill ("less debit notes" after the net payable): each must be a note of the same party and
+     * the same name, not cancelled, and in ONE bill only (a bill saved again for the same period may keep the notes of the
+     * bill it replaces). The amounts are taken from the saved notes, not from what the page sent. */
+    let dnT = null; try { dnT = vbTable_(DN_SHEET_, DN_COLS_); } catch (e) { dnT = null; }
+    const dnAll = dnT ? dnT.rows.map((r, i) => dnOut_(dnT, r, i)).filter(d => d.id) : [], dnTaken = {}, dnErr = [];
+    bills.forEach(x => {
+      const ids = [...new Set((Array.isArray((x.data || {}).dns) ? x.data.dns : []).map(n => str_(n && n.id)).filter(Boolean))], olderIds = sameKey(x).map(y => y.id);
+      x._dn = ids.map(id => { const n = dnAll.find(z => z.id === id), who = clean_(x.vendor) + ': debit note ' + ((n && n.no) || id) + ' ';
+        if (!n) { dnErr.push(who + 'was not found.'); return null; }
+        if (n.status === 'Cancelled') { dnErr.push(who + 'is cancelled.'); return null; }
+        if (vKey_(n.vendor) !== vKey_(x.vendor) || n.company !== x.company) { dnErr.push(who + 'is of ' + n.vendor + ' / ' + n.company + ' – it cannot be deducted in this bill.'); return null; }
+        if (n.billId && olderIds.indexOf(n.billId) === -1) { dnErr.push(who + 'is already deducted in another bill.'); return null; }
+        if (dnTaken[id]) { dnErr.push(who + 'is ticked in two bills.'); return null; }
+        dnTaken[id] = true; return n; }).filter(Boolean);
+    });
+    if (dnErr.length) return { ok: false, errors: dnErr };
     if (dup.length && !b.confirm) return { ok: false, duplicates: dup };
     let n = all.reduce((mx, r) => Math.max(mx, Number(String(r.id).replace(/\D/g, '')) || 0), 0);
     const saved = [];
@@ -2164,6 +2336,7 @@ function submitBills_(b) {
     const st = billSettings_(), dnLast = {};
     const dnNum = no => Number((/(\d+)\s*$/.exec(str_(no)) || [])[1]) || 0;
     all.forEach(y => { const k = y.company; dnLast[k] = Math.max(dnLast[k] || 0, dnNum((y.data || {}).dnNo)); });
+    dnList_().forEach(y => { dnLast[y.company] = Math.max(dnLast[y.company] || 0, dnNum(y.no)); });   // the notes made from the Log Book use the same run
     bills.forEach(x => {
       const older = sameKey(x);
       // the older bill(s) of the same vendor and period are kept, marked Superseded
@@ -2177,6 +2350,21 @@ function submitBills_(b) {
         if (kept) x.data.dnNo = kept;
         else { dnLast[x.company] = (dnLast[x.company] || 0) + 1; x.data.dnNo = str_(((st.companies || {})[x.company] || {}).dnPrefix) + String(dnLast[x.company]).padStart(3, '0'); }
       } else delete x.data.dnNo;
+      const J = r2_(x._dn.reduce((a, n2) => a + n2.total, 0));
+      if (x._dn.length) { x.data.dns = x._dn.map(n2 => ({ id: n2.id, no: n2.no, date: n2.date, total: n2.total })); x.data.J = J; x.data.K = r2_(num0_(x.data.I) - J); }
+      else { delete x.data.dns; delete x.data.J; delete x.data.K; }
+      delete x.data.dnOpen;
+      // the notes of this bill are marked as deducted in it; notes of the bill(s) it replaces that are no longer ticked are free again
+      if (dnT) {
+        const mine = {}; x._dn.forEach(n2 => { mine[n2.id] = true; });
+        const olderIds = older.map(y => y.id);
+        dnAll.forEach(n2 => {
+          const link = mine[n2.id] ? id : (n2.billId && olderIds.indexOf(n2.billId) > -1 ? '' : null);
+          if (link === null) return;
+          const dr = dnT.rows[n2.i].slice(); set_(dr, dnT, 'Bill ID', link); set_(dr, dnT, 'Status', link ? 'Deducted' : 'Open'); stampEdit_(dr, dnT);
+          dnT.sh.getRange(n2.i + 2, 1, 1, dr.length).setValues([dr]); dnT.rows[n2.i] = dr; n2.billId = link; n2.status = link ? 'Deducted' : 'Open';
+        });
+      }
       const row = newRow_(t);
       set_(row, t, 'Bill ID', id); set_(row, t, 'Vendor Name', clean_(x.vendor)); set_(row, t, 'Company', x.company); set_(row, t, 'Bill No', clean_(x.billNo)); set_(row, t, 'Rev', rev);
       set_(row, t, 'Period From', toDate_(dkey_(x.from))); set_(row, t, 'Period To', toDate_(dkey_(x.to))); set_(row, t, 'Bill Date', toDate_(dkey_(x.billDate) || today_()));
@@ -2195,6 +2383,10 @@ function deleteBill_(id, reason) {
     if (i === -1) throw new Error('Bill ' + id + ' was not found.');
     const b = billOut_(t, t.rows[i], false);
     t.sh.deleteRow(i + 2);
+    // debit notes that were deducted in this bill are open again
+    try { const dt = vbTable_(DN_SHEET_, DN_COLS_);
+      if (dt) dt.rows.map((r, k) => dnOut_(dt, r, k)).filter(d => d.billId === b.id).forEach(d => { const dr = dt.rows[d.i].slice(); set_(dr, dt, 'Bill ID', ''); set_(dr, dt, 'Status', 'Open'); stampEdit_(dr, dt); dt.sh.getRange(d.i + 2, 1, 1, dr.length).setValues([dr]); });
+      TABLE_MEMO_ = {}; } catch (e) { /* no debit notes table */ }
     return { ok: true, bill: b };
   });
 }
@@ -2445,6 +2637,8 @@ function logItemWork_(m, dk, mode, l, tot) {
   return Object.keys(out).length ? JSON.stringify(out) : '';
 }
 function logItemCol_() { addColIfMissing_(APP.SHEET_LOG, logHeaders_(), H.ITEMS); TABLE_MEMO_ = {}; }
+function logDebitCol_() { [H.DEBITTO, H.DEBITRATE].forEach(h => addColIfMissing_(APP.SHEET_LOG, logHeaders_(), h)); TABLE_MEMO_ = {}; }
+const hasDebitIn_ = l => l && !blank_(l.debitTo);
 const hasItemsIn_ = l => !!(l && l.items && typeof l.items === 'object' && Object.keys(l.items).some(k => !blank_(l.items[k])));
 // Diesel Supply of a machinery on a date: from its BOQ in force (company paid / debit basis), else what Asset Master says
 function supplyOn_(m, dk) {
@@ -4610,6 +4804,7 @@ function logRowOut_(t, r) {
     mode: str_(r[t.c[H.UNIT]]), tStart: H.TSTART in t.c ? tStr_(r[t.c[H.TSTART]]) : '', tEnd: H.TEND in t.c ? tStr_(r[t.c[H.TEND]]) : '',
     tBrk: H.TBRK in t.c ? numOrBlank_(r[t.c[H.TBRK]]) : '', tHrs: H.THRS in t.c ? numOrBlank_(r[t.c[H.THRS]]) : '', challan: H.CHALLAN in t.c ? str_(r[t.c[H.CHALLAN]]) : '',
     itemWork: H.ITEMS in t.c ? itemWorkParse_(r[t.c[H.ITEMS]]) : {}, // Item-wise BOQ: the typed items of this entry
+    debitTo: H.DEBITTO in t.c ? str_(r[t.c[H.DEBITTO]]) : '', debitRate: H.DEBITRATE in t.c ? numOrBlank_(r[t.c[H.DEBITRATE]]) : '', // work charged to a party
   };
 }
 // a time cell back to "HH:MM" (the sheet may hand back a Date for a time)
@@ -4986,6 +5181,7 @@ function getLogRowPrefill_(no, dateStr, shiftIn) {
 function importLogBook_(b) {
   const run = () => {
     if (!b.check && (b.rows || []).some(hasItemsIn_)) logItemCol_();
+    if (!b.check && (b.rows || []).some(hasDebitIn_)) logDebitCol_();
     const lt = table_(APP.SHEET_LOG, logHeaders_());
     const c = lt.c;
     const byKey = {}; lt.rows.forEach((r, i) => { if (dkey_(r[c[H.DATE]])) byKey[logKeyOf_(lt, r).toUpperCase()] = i; });
@@ -5080,6 +5276,7 @@ function saveLogRowsInner_(b) {
   {
     if ((b.rows || []).some(l => str_(l.mode) || str_(l.challan))) logTimeCols_();
     if ((b.rows || []).some(hasItemsIn_)) logItemCol_();
+    if ((b.rows || []).some(hasDebitIn_)) logDebitCol_();
     const lt = table_(APP.SHEET_LOG, logHeaders_());
     const errors = [], out = [];
     const items = (b.rows || []).map((l, i) => ({ l: l, i: i })).filter(x => str_(x.l.no));
@@ -5126,6 +5323,8 @@ function saveLogRowsInner_(b) {
         const itemWork = logItemWork_(m, dk, mode, l, { hr: cal.whr, km: cal.wkm, trip: ex.trip });
         const row = newRow_(lt);
         if (itemWork) set_(row, lt, H.ITEMS, itemWork);
+        const dbt = logDebit_(l, m.id + ' (' + dmy_(dk) + '): ');
+        if (dbt && dbt.to) { debitReady_(lt); set_(row, lt, H.DEBITTO, dbt.to); set_(row, lt, H.DEBITRATE, dbt.rate); }
         set_(row, lt, H.DATE, toDate_(dk)); set_(row, lt, H.NO, m.id); set_(row, lt, H.SHIFT, shift);
         set_(row, lt, H.OWNER, m.owner); set_(row, lt, H.TYPE, m.type); set_(row, lt, H.UNIT, mode);
         set_(row, lt, H.TSTART, ex.tStart); set_(row, lt, H.TEND, ex.tEnd); set_(row, lt, H.TBRK, ex.tBrk); set_(row, lt, H.THRS, ex.tHrs);
@@ -5211,6 +5410,7 @@ function getLogEntry_(key) {
 function updateLogRow_(key, l) {
   return withLock_(() => {
     if (hasItemsIn_(l)) logItemCol_();
+    if (hasDebitIn_(l)) logDebitCol_();
     const lt = table_(APP.SHEET_LOG, logHeaders_());
     const c = lt.c;
     const i = findLogIdx_(lt, key);
@@ -5233,6 +5433,15 @@ function updateLogRow_(key, l) {
       if (next && close !== num0_(r[c[k.cl]]) && (k.name === 'KM' ? hasKm_(str_(next[c[H.UNIT]])) : hasHr_(str_(next[c[H.UNIT]])))) { next[c[k.o]] = close; nextChanged = true; }
     });
     if (H.CHALLAN in c && l.challan !== undefined && ['Idle', 'Holiday', 'Breakdown'].indexOf(unit) === -1) me[c[H.CHALLAN]] = clean_(l.challan);
+    // "Debit to": cannot be changed once the entry is in a debit note (cancel the note first)
+    const dbt = logDebit_(l, '');
+    if (dbt && H.DEBITTO in c && (str_(me[c[H.DEBITTO]]) !== dbt.to || String(numOrBlank_(me[c[H.DEBITRATE]])) !== String(dbt.rate))) {
+      const lk = str_(me[c[H.NO]]) + '|' + dkey_(me[c[H.DATE]]) + '|' + str_(me[c[H.SHIFT]]);
+      const inNote = dnList_().find(d => d.status !== 'Cancelled' && d.logIds.indexOf(lk) > -1);
+      if (inNote) throw new Error('This entry is in debit note ' + inNote.no + ' – its "Debit to" cannot be changed. Cancel that note first.');
+      if (dbt.to) debitReady_(lt);
+      me[c[H.DEBITTO]] = dbt.to; me[c[H.DEBITRATE]] = dbt.rate;
+    }
     if (unit === 'Time' || unit === 'Trip') {
       const ex = logExtra_(mm, unit, { tStart: l.tStart, tEnd: l.tEnd, tBreak: l.tBreak, trip: l.trip, challan: l.challan }, dmy_(dkey_(r[c[H.DATE]])));
       if (unit === 'Time') { ['TSTART', 'TEND', 'TBRK', 'THRS'].forEach((h, n) => { if (H[h] in c) me[c[H[h]]] = [ex.tStart, ex.tEnd, ex.tBrk, ex.tHrs][n]; }); }
@@ -5316,6 +5525,7 @@ function saveLogBulk_(b) {
     if (!(m.modes || []).length) throw new Error('Tick what ' + m.id + ' works on in Asset Master first.');
     if ((b.rows || []).some(l => str_(l.mode) === 'Time' || str_(l.challan))) logTimeCols_();
     if ((b.rows || []).some(hasItemsIn_)) logItemCol_();
+    if ((b.rows || []).some(hasDebitIn_)) logDebitCol_();
     // a month opening diesel (typed on the 1st) needs its column
     if ((b.rows || []).some(l => !blank_(l.odSet) && /-01$/.test(str_(l.date)))) addColIfMissing_(APP.SHEET_LOG, logHeaders_(), H.ODSET);
     const lt = table_(APP.SHEET_LOG, logHeaders_());

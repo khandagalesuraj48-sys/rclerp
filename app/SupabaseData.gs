@@ -9,7 +9,7 @@
  * The backup Google Sheet (SupabaseSync.gs) keeps a copy of Supabase automatically.
  * ===================================================================== */
 // switch, SS_(), sbFlush_(), sbDiscard_() live in WebApp.gs (they work without this file when the app runs on the Sheet)
-const SB_ID_HEADER_ = { diesel_inward: 'Inward ID', diesel_transfer: 'Transfer ID', diesel_issue: 'Issue ID', tank_check: 'Check ID', activity_log: 'Log ID', boq: 'BOQ ID', bills: 'Bill ID', payments: 'Payment ID', compliance_history: 'History ID', breakdowns: 'Breakdown ID', breakdown_reports: 'Report ID' };
+const SB_ID_HEADER_ = { diesel_inward: 'Inward ID', diesel_transfer: 'Transfer ID', diesel_issue: 'Issue ID', tank_check: 'Check ID', activity_log: 'Log ID', boq: 'BOQ ID', bills: 'Bill ID', payments: 'Payment ID', debit_notes: 'Note ID', compliance_history: 'History ID', breakdowns: 'Breakdown ID', breakdown_reports: 'Report ID' };
 // tables read together in one go (they are nearly always needed together)
 const SB_GROUP_ = ['master', 'diesel_inward', 'diesel_transfer', 'diesel_issue', 'log_book', 'tank_check'];
 
@@ -132,6 +132,9 @@ SbSheet_.prototype.fill = function (rows) {
   };
   this.data = rows.map(r => this.hdr.map(h => h === this.idh ? r.id : toCell(r[(this.def.cols.find(x => x[0] === h) || [])[1]], this.type[h])));
   this.ids = rows.map(r => r.id);
+  // the columns the database really has (from the rows it sent). A column the app knows but the database does not have yet –
+  // its SQL step was not run – is left out of every save, so nothing breaks; it starts to be saved once the SQL is run.
+  if (rows.length) this.dbCols = Object.keys(rows[0]);
   // rows added before the table was read (e.g. an Activity Log line) stay
   this.appended.forEach(row => { this.data.push(row); this.ids.push(null); });
   this.appended = [];
@@ -144,7 +147,7 @@ SbSheet_.prototype.rowId_ = function (row) {
 };
 SbSheet_.prototype.toRecord_ = function (row) {
   const o = { id: this.rowId_(row) };
-  this.def.cols.forEach(x => { const i = this.hdr.indexOf(x[0]); o[x[1]] = sbVal_(row[i], x[2]); });
+  this.def.cols.forEach(x => { if (this.dbCols && this.dbCols.indexOf(x[1]) === -1) return; const i = this.hdr.indexOf(x[0]); o[x[1]] = sbVal_(row[i], x[2]); });
   return o;
 };
 SbSheet_.prototype.pending = function () {

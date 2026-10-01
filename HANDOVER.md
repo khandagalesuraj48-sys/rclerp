@@ -221,6 +221,33 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   other user's diesel, own saves show at once. DO NOT bring back background reloading of hidden pages.
   (This is the per-page "live" idea he had proposed and then dropped – done in the safe form: no browser copy of old data is shown.)
   The earlier "Page Unresponsive" after saving 11 diesel issues was very likely the same storm; not proven.
+- 02-10-2026: update-13 (refresh only the page on screen) is live. He then said "build the Debit to function" (step 2 of the bill papers).
+  BUILT (needs `sql/supabase_step1t_debit_notes.sql` – he must run it; without it the app works, "Debit to" and saving a note are refused
+  with a message that names the SQL file):
+  * Log Book entry: a "Debit" button in each row opens two fields – party (Vendor Master names, datalist `dl_dnparty` from getLookups.vendors)
+    and rate typed by hand. Columns `log_book.debit_to`, `debit_rate` (H.DEBITTO / H.DEBITRATE; `logDebit_`, `debitReady_`). Also in the
+    edit window. Shown in the list ("Debit to X @ rate"). NOT yet in: Edit Log Book grid, Excel import / export, Log Book print.
+  * Debit Notes: table `debit_notes` (sheet 'Debit Notes', DN_COLS_). `debitPending_` (entries of a party + period not in a note; qty =
+    hours / KM / trips / 1 day as the entry is measured), `saveDebitNote_` (lines from entries + lines by hand; GST % and TDS % typed;
+    total = amount + GST − TDS; amounts worked out again on the server), `getDebitNotes_`, `cancelDebitNote_` (Admin). One entry in one note
+    only; an entry in a note has its "Debit to" locked. Number = next of the company's run (`nextDnNo_`, shared with the diesel notes of
+    the bills). Page: RCL Drive → Saved Debit Notes → "+ New Debit Note"; print = `debitNoteDocHtml`.
+  * Money: `ledgerLines_` adds every note that is not cancelled as kind 'dn' (paid = total) → Vendor Ledger and Vendor Outstanding go down.
+  * Step 2b BUILT (02-10-2026, he said "Continue"): debit notes are ticked in the party's bill. `billInit_` returns `pendingDn`; each
+    built bill gets `dnOpen` (same party + same name) and `dns` (ticked); `mbTotals` adds J = sum of ticked notes and K = I − J (A–I and the
+    tax untouched); the Abstract prints lines J and K; the Tax Invoice is not affected. `submitBills_` validates the notes on the server
+    (found, not cancelled, same party and name, in one bill only – a bill saved again may keep the notes of the bill it replaces), takes
+    the amounts from the saved notes, stores `dns`, `J`, `K` in `bills.data`, and sets the notes to Status 'Deducted' + Bill ID; notes of a
+    replaced bill that are no longer ticked, and notes of a deleted bill (`deleteBill_`), go back to 'Open'. A deducted note cannot be
+    cancelled. MONEY: the bill stays I in `bills.net` and in the ledger; the note is its own ledger line – so it is counted exactly once
+    whether it is ticked in a bill or not (ticking only shows it on the Abstract and locks the note). Test: jsdom `d6.js` in the audit
+    rig, 18 checks (K = 14,112 − 2,360 = 11,752; ledger 10,752).
+  * Data layer: `SbSheet_.toRecord_` leaves out columns the database does not have (`dbCols` from the loaded rows) – so code can go live
+    before its SQL. `web_stamp()` has a fixed table list without debit_notes → that table is simply read fresh each time.
+  * Bridge fix found on the way: the "same question sent once" merge could hand a list asked BEFORE a save to an asker AFTER it; the key
+    now carries a save counter (`saveNo` in server/page.js).
+  * Tests: unit "Debit to and Debit Notes" (hand-worked 19,256), `test/dn.js` (6 checks without the SQL, 14 with it, two servers),
+    `test/browser/dnui.js` (8 checks through the page).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
