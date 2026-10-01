@@ -44,5 +44,5 @@ if (!isMainThread && workerData && workerData.rclWorker) {
     call: (fn, args, meta) => new Promise((resolve, reject) => { queue.push({ id: ++seq, fn: fn, args: args, meta: meta, resolve: resolve, reject: reject }); next(); }),
     size: () => workers.length,
   };
-  spawn();      // one thread is made ready while the server starts
+  spawn(); spawn();      // two threads are made ready while the server starts (a click while the every-second check runs does not wait)
 }

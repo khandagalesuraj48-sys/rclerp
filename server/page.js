@@ -12,12 +12,22 @@ const BRIDGE = `
   try { base = window.parent.location.origin; } catch (e) { base = ''; }
   if (!base || base === 'null') { try { base = window.location.origin; } catch (e) { base = ''; } }
   if (!base || base === 'null') base = '';
+  // how long the server took: shown when the mouse rests on "Live" (the last check, and the slowest of the recent calls)
+  var recent = [];
+  function took(name, args, ms) {
+    var fn = name === 'api' ? String(args[1]) : name;
+    if (fn !== 'sync') { recent.push({ fn: fn, ms: ms }); if (recent.length > 25) recent.shift(); }
+    else setTimeout(function () { var el = document.getElementById('live_dot'); if (!el) return;
+      var worst = recent.slice().sort(function (a, b) { return b.ms - a.ms; })[0];
+      el.title = String(el.title || '').split(' · server')[0] + ' · server answered in ' + ms + ' ms' + (worst ? ' · slowest recent: ' + worst.fn + ' ' + worst.ms + ' ms' : ''); }, 80);
+  }
   function send(name, args, ok, fail) {
+    var t0 = Date.now();
     fetch(base + '/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fn: name, args: args }), cache: 'no-store' })
       .then(function (r) { return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; }
         if (!j) throw new Error(r.status === 413 ? 'Too much data in one go – pick a shorter period.' : 'The server did not answer properly (' + r.status + '). Try again.');
         return j; }); })
-      .then(function (j) { if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(j.result); },
+      .then(function (j) { try { took(name, args, Date.now() - t0); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(j.result); },
             function (e) { if (fail) fail(new Error(e && /did not answer|Too much data/.test(e.message) ? e.message : 'No connection to the server – check the internet and try again.')); });
   }
   function runner(ok, fail) {

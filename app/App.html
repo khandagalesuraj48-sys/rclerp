@@ -1633,19 +1633,27 @@
   .side nav::-webkit-scrollbar-thumb { background: var(--sb-line); }
   .side :is(.navbtn, .grphead, .sghead, .side-toggle):focus-visible { outline: 2px solid var(--sb-cap); outline-offset: 1px; }
 
-  /* the menu on a computer: opens and closes at once; only the lettering fades in (a fade cannot freeze half-way) */
+  /* the menu on a computer: a slim strip; the full menu opens over the page with a click (see deskSide) – at once, only the lettering fades in */
   @media (min-width: 761px) {
-    .app.side-auto .side { transition: none; contain: layout paint; }              /* opens / closes at once – see autoSide */
+    .app.side-auto .side { transition: none; contain: layout paint; }
     .app.side-auto .side:not(.mini) { box-shadow: 10px 0 28px rgba(3,12,28,.24); }
     .app.side-auto .side > * { width: 272px; flex-shrink: 0; }
     .app.side-auto .side.mini > * { width: 74px; }
     .app.side-auto .side .label, .app.side-auto .side .brandsub { transition: none; }
     .app.side-auto .side:not(.mini) :is(.label, .brandsub, .sgchev, .chev, .badge, .sg-badge) { animation: sideIn .16s ease both; }
     @keyframes sideIn { from { opacity: 0; } to { opacity: 1; } }
+    /* the arrow button that opens / closes it sits right under the logo */
+    .app.side-auto .brandbox { order: 0; } .app.side-auto .side nav { order: 2; }
+    .app.side-auto .side-toggle { display: flex; order: 1; align-items: center; justify-content: center; gap: 10px; height: 38px; margin: 10px 12px 2px; padding: 0 12px; width: auto;
+      border: 1px solid var(--sb-line); border-radius: 10px; background: var(--sb-tile); color: var(--sb-ink); cursor: pointer; font: 600 13px var(--ui); }
+    .app.side-auto .side.mini .side-toggle { width: 46px; margin: 10px auto 2px; padding: 0; }
+    .app.side-auto .side-toggle:hover { background: var(--sb-hover); }
+    .app.side-auto .side-toggle svg { width: 18px; height: 18px; transition: none; transform: none; }
+    .app.side-auto .side.mini .side-toggle svg { transform: rotate(180deg); }
   }
 
   /* ---------- top bar: solid (the frosted glass cost speed while scrolling) ---------- */
-  .topbar { background: rgba(255,255,255,.97); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .topbar { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
 
   /* ---------- tabs: the chosen one in the brand red ---------- */
   .subtabs { background: #E9EDF1; border-radius: 10px; padding: 4px; }
@@ -1665,7 +1673,19 @@
   .panel { transition: box-shadow var(--quick); }
   .btn { transition: background var(--quick), border-color var(--quick), color var(--quick), box-shadow var(--quick); }
   .btn.primary:hover:not(:disabled) { transform: none; }
+  /* a press is felt at once */
+  .btn:active:not(:disabled), .subtabs button:active, .switch button:active, .way .wy:active { transform: translateY(1px); filter: brightness(.94); }
+  .navbtn:active { background: var(--sb-hover); }
   @media (prefers-reduced-motion: reduce) { .rv, .rv.in, section.enter > * { transition: none !important; animation: none !important; opacity: 1; transform: none; } }
+
+  /* ---------- Read Me: long lines (the SQL) wrap instead of making the page scroll sideways ---------- */
+  #sec-readme .panel { overflow-x: auto; } #sec-readme pre, #sec-readme code { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+  /* ---------- Diesel Issue: only the last issue of the machinery is shown (one line) – not the table of earlier fills ---------- */
+  .dhist table.dh-t, .dhist > p { display: none; }
+  /* entry grids: only the ways a machinery may use are shown (the crossed-out ones took a second line) */
+  .panel[data-perm] table .way .wy.dis { display: none; }
+  .dhist { padding: 8px 12px; } .dhist .dh-head { margin-bottom: 0; }
 
   /* ---------- entry forms (Diesel Issue, Inward, Transfer, Log Book, Asset, Payment, Vendor, BOQ): larger and full width ---------- */
   @media (min-width: 761px) {
@@ -1688,54 +1708,97 @@
   }
   :is(.panel[data-perm], #v_form, #b_form) :is(input, select, textarea):focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: var(--brand); box-shadow: 0 0 0 4px var(--brand-ring); }
 
-  /* ---------- Log Book entry on a computer: every entry is one wide block of two lines – nothing to scroll sideways.
-     Line 1: what worked and its reading.  Line 2: diesel (worked out by the app), chainage and work.
-     The table and its cells are the same ones (the page's code is untouched); only how they are laid out changes. ---------- */
+  /* ---------- Log Book entry on a computer: ONE line for one machinery – like a table, but it always fits the page
+     (nothing to scroll sideways). The cells are the same ones as before (the page's code is untouched); only their
+     places are set here. Diesel (worked out by the app) is the small 2 × 2 block; headings are shown once, above the first line.
+     When the page is too narrow for one line (small window), chainage and work drop to a second line. ---------- */
   @media (min-width: 761px) {
-    .lg-wrap { overflow: visible; border: 0; background: transparent; box-shadow: none; border-radius: 0; }
+    .lg-wrap { overflow: visible; border: 1px solid #DDE3EA; border-radius: 12px; background: #fff; box-shadow: none; container-type: inline-size; }
     .lg-wrap table.lgt, .lg-wrap table.lgt tbody { display: block; width: 100%; }
     .lg-wrap table.lgt thead { display: none; }
-    .lg-wrap tr.lrow { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); column-gap: 14px; row-gap: 12px; align-items: start;
-      background: #fff; border: 1px solid #DDE3EA; border-radius: 14px; padding: 16px 16px 14px; margin: 0 0 12px; box-shadow: 0 1px 2px rgba(20,30,38,.04); }
-    .lg-wrap tr.lrow:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
-    .lg-wrap tr.lrow.err { border-color: #E5A29D; background: #FFF7F6; }
-    .lg-wrap tr.lrow > td { display: block; min-width: 0; padding: 0; border: 0; background: transparent !important; font-size: 14.5px; text-align: left; white-space: normal; }
-    .lg-wrap tr.lrow > td::before { display: block; font: 600 12px/1.2 var(--ui); color: #64748B; margin: 0 0 6px; white-space: nowrap; }
-    /* line 1 */
-    .lg-wrap tr.lrow > td:nth-of-type(1) { grid-column: span 1; align-self: center; font: 700 15px var(--ui); color: var(--brand-deep); text-align: center; width: auto; }
-    .lg-wrap tr.lrow > td:nth-of-type(2) { grid-column: span 3; }  .lg-wrap tr.lrow > td:nth-of-type(2)::before { content: "Date"; }
-    .lg-wrap tr.lrow > td:nth-of-type(3) { grid-column: span 3; }  .lg-wrap tr.lrow > td:nth-of-type(3)::before { content: "Shift"; }
-    .lg-wrap tr.lrow > td:nth-of-type(4) { grid-column: span 4; }  .lg-wrap tr.lrow > td:nth-of-type(4)::before { content: "Machinery"; }
-    .lg-wrap tr.lrow > td:nth-of-type(5) { grid-column: span 7; max-width: none; min-width: 0; }  .lg-wrap tr.lrow > td:nth-of-type(5)::before { content: "Measured by"; }
-    .lg-wrap table.lgt.m-mach tr.lrow > td:nth-of-type(5) { grid-column: span 8; }
-    .lg-wrap tr.lrow > td:nth-of-type(6) { grid-column: span 4; }  .lg-wrap tr.lrow > td:nth-of-type(6)::before { content: "Start"; }
-    .lg-wrap tr.lrow > td:nth-of-type(7) { grid-column: span 4; }  .lg-wrap tr.lrow > td:nth-of-type(7)::before { content: "Close *"; }
-    .lg-wrap tr.lrow > td:nth-of-type(8) { grid-column: 1 / span 2; font-weight: 700; font-size: 16px; color: var(--brand-deep); }  .lg-wrap tr.lrow > td:nth-of-type(8)::before { content: "Total"; }
-    .lg-wrap tr.lrow > td:nth-of-type(18) { grid-column: 24; grid-row: 1; justify-self: end; }
-    /* line 2 */
-    .lg-wrap tr.lrow > td:nth-of-type(9)  { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(9)::before  { content: "Opening diesel"; }
-    .lg-wrap tr.lrow > td:nth-of-type(10) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(10)::before { content: "Issued"; }
-    .lg-wrap tr.lrow > td:nth-of-type(11) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(11)::before { content: "Consumed"; }
-    .lg-wrap tr.lrow > td:nth-of-type(12) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(12)::before { content: "Closing"; }
-    .lg-wrap tr.lrow > td:nth-of-type(13) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(13)::before { content: "Standard"; }
-    .lg-wrap tr.lrow > td:nth-of-type(14) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(14)::before { content: "Average"; }
-    .lg-wrap tr.lrow > td:nth-of-type(15) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(15)::before { content: "Chainage from"; }
-    .lg-wrap tr.lrow > td:nth-of-type(16) { grid-column: span 2; }     .lg-wrap tr.lrow > td:nth-of-type(16)::before { content: "Chainage to"; }
-    .lg-wrap tr.lrow > td:nth-of-type(17) { grid-column: span 6; }     .lg-wrap tr.lrow > td:nth-of-type(17)::before { content: "Work description"; }
-    .lg-wrap tr.lrow > td:nth-of-type(n+8):nth-of-type(-n+14) { font-variant-numeric: tabular-nums; } .lg-wrap tr.lrow > td:nth-of-type(n+9):nth-of-type(-n+14) { font-weight: 600; }
-    .lg-wrap tr.lrow > td.o span { display: inline; margin: 0 8px 0 0; }
+    .lg-wrap tr.lrow { display: grid; align-items: stretch; column-gap: 8px; row-gap: 0; padding: 7px 10px; border-bottom: 1px solid #E8EDF2; position: relative;
+      grid-template-columns: 20px 104px minmax(170px, 1.2fr) 150px minmax(112px, .8fr) minmax(112px, .8fr) 44px 74px 74px 76px 74px 74px minmax(120px, 1.4fr) 20px;
+      grid-template-rows: auto auto; }
+    .lg-wrap tr.lrow:last-child { border-bottom: 0; }
+    .lg-wrap tr.lrow:first-child { margin-top: 30px; border-top: 1px solid #E8EDF2; }
+    .lg-wrap tr.lrow:focus-within { background: #F8FAFD; }
+    .lg-wrap tr.lrow.err { background: #FFF7F6; }
+    .lg-wrap tr.lrow > td { display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 0; border: 0; background: transparent !important; font-size: 13.5px; text-align: left; white-space: normal; grid-row: 1 / span 2; position: relative; }
+    .lg-wrap tr.lrow > td[hidden], .lg-wrap table.lgt.m-date tr.lrow > td.c-date, .lg-wrap table.lgt.m-mach tr.lrow > td.c-m { display: none; }
+    .lg-wrap tr.lrow > td:nth-of-type(n+9):nth-of-type(-n+14) { display: block; align-self: center; }
+    .lg-wrap tr.lrow > td:nth-of-type(1)  { grid-column: 1; color: #64748B; font-weight: 700; align-items: center; width: auto; }
+    .lg-wrap tr.lrow > td:nth-of-type(2)  { grid-column: 3; }                       /* Date (one machinery – many dates) */
+    .lg-wrap tr.lrow > td:nth-of-type(3)  { grid-column: 2; }                       /* Shift */
+    .lg-wrap tr.lrow > td:nth-of-type(4)  { grid-column: 3; }                       /* Machinery (one date – many machinery) */
+    .lg-wrap tr.lrow > td:nth-of-type(5)  { grid-column: 4; max-width: none; }      /* Measured by */
+    .lg-wrap tr.lrow > td:nth-of-type(6)  { grid-column: 5; }                       /* Start */
+    .lg-wrap tr.lrow > td:nth-of-type(7)  { grid-column: 6; }                       /* Close */
+    .lg-wrap tr.lrow > td:nth-of-type(8)  { grid-column: 7; font-weight: 700; align-items: flex-end; text-align: right; font-variant-numeric: tabular-nums; }   /* Total */
+    .lg-wrap tr.lrow > td:nth-of-type(9)  { grid-column: 8; grid-row: 1; }          /* Opening diesel */
+    .lg-wrap tr.lrow > td:nth-of-type(10) { grid-column: 9; grid-row: 1; }          /* Issued */
+    .lg-wrap tr.lrow > td:nth-of-type(11) { grid-column: 8; grid-row: 2; }          /* Consumed */
+    .lg-wrap tr.lrow > td:nth-of-type(12) { grid-column: 9; grid-row: 2; }          /* Closing */
+    .lg-wrap tr.lrow > td:nth-of-type(13) { grid-column: 10; grid-row: 1; }         /* Standard */
+    .lg-wrap tr.lrow > td:nth-of-type(14) { grid-column: 10; grid-row: 2; }         /* Average */
+    .lg-wrap tr.lrow > td:nth-of-type(15) { grid-column: 11; }                      /* Chainage from */
+    .lg-wrap tr.lrow > td:nth-of-type(16) { grid-column: 12; }                      /* Chainage to */
+    .lg-wrap tr.lrow > td:nth-of-type(17) { grid-column: 13; }                      /* Work */
+    .lg-wrap tr.lrow > td:nth-of-type(18) { grid-column: 14; text-align: right; }   /* remove the row */
+    .lg-wrap tr.lrow > small.lg-fmt { grid-column: 4; grid-row: 3; margin: 2px 0 0; }
+    /* the small diesel block: every figure with its own word */
+    .lg-wrap tr.lrow > td:nth-of-type(n+9):nth-of-type(-n+14) { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.5; text-align: left; }
+    .lg-wrap tr.lrow > td:nth-of-type(n+9):nth-of-type(-n+12)::before { font: 500 10.5px var(--ui); color: #7A8794; margin-right: 4px; }
+    .lg-wrap tr.lrow > td:nth-of-type(9)::before { content: "Open"; }  .lg-wrap tr.lrow > td:nth-of-type(10)::before { content: "Issued"; }
+    .lg-wrap tr.lrow > td:nth-of-type(11)::before { content: "Used"; } .lg-wrap tr.lrow > td:nth-of-type(12)::before { content: "Close"; }
+    .lg-wrap tr.lrow > td.o span { display: inline; margin: 0; } .lg-wrap tr.lrow > td.o span + span { margin-left: 4px; }
+    .lg-wrap tr.lrow > td.o small { display: none; }
+    /* headings: once, above the first line */
+    .lg-wrap tr.lrow:first-child > td::after { position: absolute; left: 0; bottom: calc(100% + 16px); font: 700 11.5px/1 var(--ui); letter-spacing: .02em; color: #475569; white-space: nowrap; pointer-events: none; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(n+9):nth-of-type(-n+14) { align-self: start; margin-top: 6px; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(n+9):nth-of-type(-n+14)::after { bottom: calc(100% + 22px); }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(11), .lg-wrap tr.lrow:first-child > td:nth-of-type(12), .lg-wrap tr.lrow:first-child > td:nth-of-type(14) { margin-top: 0; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(1)::after { content: "#"; left: 5px; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(2)::after { content: "Date"; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(3)::after { content: "Shift"; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(4)::after { content: "Machinery"; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(5)::after { content: "Measured by"; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(6)::after { content: "Start"; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(7)::after { content: "Close *"; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(8)::after { content: "Total"; left: auto; right: 0; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(9)::after { content: "Diesel (Ltr)"; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(13)::after { content: "Standard"; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(15)::after { content: "Chainage"; }
+    .lg-wrap tr.lrow:first-child > td:nth-of-type(17)::after { content: "Work description"; }
     /* the fields inside */
-    .lg-wrap tr.lrow :is(input:not([type=checkbox]), select) { min-height: 42px; font-size: 15px; padding: 7px 11px; border-radius: 9px; width: 100%; min-width: 0; }
-    .lg-wrap tr.lrow .rd { min-width: 0; gap: 8px; }
-    .lg-wrap tr.lrow .rd input[type=number], .lg-wrap tr.lrow .rd input { flex: 1 1 auto; width: auto; min-width: 0; font-size: 15.5px; }
-    .lg-wrap tr.lrow .rd + .rd { margin-top: 6px; }
-    .lg-wrap tr.lrow input[data-f=openingDiesel], .lg-wrap tr.lrow input[data-f=chFrom], .lg-wrap tr.lrow input[data-f=chTo], .lg-wrap tr.lrow input[data-f=work], .lg-wrap tr.lrow [data-f=shift], .lg-wrap tr.lrow [data-f=date] { width: 100%; min-width: 0; }
-    .lg-wrap tr.lrow .way { display: flex; flex-wrap: wrap; gap: 6px; }
-    .lg-wrap tr.lrow .way .wy { min-height: 34px; padding: 5px 12px; font-size: 13.5px; border-radius: 8px; }
-    .lg-wrap tr.lrow .del { width: 34px; height: 34px; font-size: 18px; border-radius: 9px; }
-    .lg-wrap tr.lrow td .lnote { max-width: none; }
-    .lg-wrap tr.lrow > small.lg-fmt { grid-column: 1 / -1; margin: -4px 0 0; }
-    .lg-wrap tr.lrow .way { max-width: none; width: 100%; }
+    .lg-wrap tr.lrow :is(input:not([type=checkbox]), select) { min-height: 38px; font-size: 13.5px; padding: 5px 8px; border-radius: 8px; width: 100%; min-width: 0; }
+    .lg-wrap tr.lrow td:nth-of-type(9) input { min-height: 28px; width: 46px; display: inline-block; padding: 2px 5px; font-size: 12.5px; text-align: right; }
+    .lg-wrap tr.lrow .rd { min-width: 0; gap: 5px; }
+    .lg-wrap tr.lrow .rd small { width: 18px; flex: 0 0 18px; }
+    .lg-wrap tr.lrow .rd input[type=number], .lg-wrap tr.lrow .rd input { flex: 1 1 auto; width: auto; min-width: 0; font-size: 14.5px; }
+    .lg-wrap tr.lrow .rd + .rd { margin-top: 4px; }
+    .lg-wrap tr.lrow input[data-f=openingDiesel], .lg-wrap tr.lrow input[data-f=chFrom], .lg-wrap tr.lrow input[data-f=chTo], .lg-wrap tr.lrow input[data-f=work], .lg-wrap tr.lrow [data-f=shift], .lg-wrap tr.lrow [data-f=date] { min-width: 0; }
+    .lg-wrap tr.lrow input[data-f=chFrom], .lg-wrap tr.lrow input[data-f=chTo], .lg-wrap tr.lrow input[data-f=work], .lg-wrap tr.lrow [data-f=shift], .lg-wrap tr.lrow [data-f=date] { width: 100%; }
+    .lg-wrap tr.lrow input[data-f=chFrom], .lg-wrap tr.lrow input[data-f=chTo] { padding: 5px 5px; font-size: 12.5px; }
+    .lg-wrap tr.lrow select[data-f=shift] { padding: 5px 2px 5px 6px; }
+    /* Idle / Holiday / Breakdown: the note uses the room of Start and Close */
+    .lg-wrap tr.lrow > td:nth-of-type(7):has(.lg-hol:not([hidden])) { grid-column: 5 / span 2; }
+    .lg-wrap tr.lrow .lg-hol { font-size: 12px; }
+    /* "Measured by": only the ways this machinery may use (+ Idle / Holiday / Breakdown) – the others are left out of the line */
+    .lg-wrap tr.lrow .way { display: flex; flex-wrap: wrap; gap: 4px; max-width: none; width: 100%; }
+    .lg-wrap tr.lrow .way { gap: 3px; }
+    .lg-wrap tr.lrow .way .wy { min-height: 28px; padding: 3px 6px; font-size: 11.5px; border-radius: 7px; }
+    .lg-wrap tr.lrow .way .wy.dis { display: none; }
+    .lg-wrap tr.lrow .del { width: 22px; height: 28px; font-size: 16px; }
+    .lg-wrap tr.lrow td .lnote { max-width: none; font-size: 11px; line-height: 1.25; margin-top: 2px; }
+    .lg-wrap tr.lrow .itm { margin-top: 3px; }
+    /* a narrow page (small window): chainage and work go to a second line */
+    @container (max-width: 1290px) {
+      .lg-wrap tr.lrow { grid-template-columns: 20px 104px minmax(160px, 1.3fr) minmax(150px, 1.2fr) minmax(104px, .9fr) minmax(104px, .9fr) 44px 74px 74px 76px 20px; grid-template-rows: auto auto auto; row-gap: 4px; }
+      .lg-wrap tr.lrow > td:nth-of-type(18) { grid-column: 11; }
+      .lg-wrap tr.lrow > td:nth-of-type(15) { grid-column: 3; grid-row: 3; } .lg-wrap tr.lrow > td:nth-of-type(16) { grid-column: 4; grid-row: 3; max-width: 190px; } .lg-wrap tr.lrow > td:nth-of-type(17) { grid-column: 5 / span 6; grid-row: 3; }
+      .lg-wrap tr.lrow > small.lg-fmt { grid-row: 4; }
+      .lg-wrap tr.lrow:first-child > td:nth-of-type(n+15):nth-of-type(-n+17)::after { content: none; }
+    }
   }
 </style>
 </head>
@@ -1880,7 +1943,7 @@
       </div>
     </div>
   </nav>
-  <button class="side-toggle" id="side_toggle" aria-label="Collapse menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg><span class="label">Collapse</span></button>
+  <button class="side-toggle" id="side_toggle" aria-label="Collapse menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg><span class="label">Close menu</span></button>
 </aside>
 <div class="mainwrap">
 <header class="topbar">
@@ -3899,35 +3962,26 @@
     $('side_toggle').setAttribute('aria-label', mini ? 'Expand menu' : 'Collapse menu');
     try { localStorage.setItem('rcl_side_mini', mini ? '1' : '0'); } catch (e) {}
   }
-  $('side_toggle').addEventListener('click', () => setSide(!$('side').classList.contains('mini')));
+  $('side_toggle').addEventListener('click', () => { if (document.querySelector('.app.side-auto')) return; setSide(!$('side').classList.contains('mini')); }); // on a computer: see deskSide
   /* Computer: the menu stays slim (icons only) so the page always gets the full width.
      Put the mouse on it and it opens over the page; move the mouse away and it slims down again. */
-  /* The menu on a computer: slim (icons) until the mouse is on it.
-   * It opens and closes AT ONCE (no sliding width) – a slide could freeze half-way while a page was being drawn, which is
-   * what "the menu hangs open" was once the pages started to arrive quickly. Only the lettering fades in.
-   * It can never stay open with the mouse elsewhere: besides "mouse left the menu" it also closes when the mouse moves on
-   * the page, leaves the window, or the window loses focus. A click on a page closes it straight away.
-   * Someone using the keyboard (Tab key) keeps it open while the focus is inside. */
-  (function autoSide() {
+  /* The menu on a computer: a slim strip of icons that is always there (a click on an icon goes to that page).
+   * The full menu with the names opens with a CLICK – on the arrow button, on the logo or on a group icon – and closes
+   * when a page is chosen, on a click outside it, with the arrow button or with Esc.
+   * Nothing depends on where the mouse is (hovering made it hang open, or not open at all), and nothing slides. */
+  (function deskSide() {
     if (!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches)) return;
-    const side = $('side');
+    const side = $('side'), tg = $('side_toggle');
     document.querySelector('.app').classList.add('side-auto');
-    side.classList.add('mini');
-    let t = 0;
-    const kbInside = () => { const a = document.activeElement; if (!a || a === document.body || !side.contains(a)) return false; try { return a.matches(':focus-visible'); } catch (e) { return false; } };
-    const shut = () => { clearTimeout(t); const a = document.activeElement; if (a && a !== document.body && side.contains(a)) a.blur(); side.classList.add('mini'); };
-    const open = () => { clearTimeout(t); t = setTimeout(() => side.classList.remove('mini'), 70); };
-    const close = () => { clearTimeout(t); t = setTimeout(() => { if (!kbInside()) shut(); }, 140); };
-    side.addEventListener('mouseenter', open);
-    side.addEventListener('mouseleave', close);
-    side.addEventListener('focusin', e => { let kb = false; try { kb = e.target.matches(':focus-visible'); } catch (x) { kb = false; } if (kb) open(); });
-    side.addEventListener('focusout', () => { clearTimeout(t); t = setTimeout(() => { if (!side.matches(':hover') && !kbInside()) shut(); }, 140); });
-    // after choosing a page the menu slims down at once
-    side.querySelectorAll('.navbtn').forEach(b => b.addEventListener('click', shut));
-    // safety nets: the mouse is on the page, has left the window, or the window is no longer the active one
-    document.addEventListener('mousemove', e => { if (!side.classList.contains('mini') && e.clientX > side.getBoundingClientRect().right + 16 && !kbInside()) shut(); }, { passive: true });
-    document.documentElement.addEventListener('mouseleave', () => { if (!kbInside()) shut(); });
-    window.addEventListener('blur', () => { if (!side.classList.contains('mini')) shut(); });
+    const isOpen = () => !side.classList.contains('mini');
+    const set = open => { side.classList.toggle('mini', !open); tg.setAttribute('aria-label', open ? 'Close menu' : 'Open menu'); tg.title = open ? 'Close menu' : 'Open menu – all pages with their names'; tg.setAttribute('aria-expanded', String(open)); };
+    set(false);
+    tg.addEventListener('click', () => set(!isOpen()));
+    const logo = side.querySelector('.brandtile'); if (logo) { logo.style.cursor = 'pointer'; logo.title = 'Open / close the menu'; logo.addEventListener('click', () => set(!isOpen())); }
+    side.querySelectorAll('.grphead').forEach(h => h.addEventListener('click', () => { if (!isOpen()) set(true); }));
+    side.querySelectorAll('.navbtn').forEach(b => b.addEventListener('click', () => set(false)));
+    document.addEventListener('mousedown', e => { if (isOpen() && !side.contains(e.target)) set(false); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && isOpen()) set(false); });
   })();
   document.querySelectorAll('.grphead:not([aria-disabled="true"])').forEach(h => h.addEventListener('click', () => {
     if ($('side').classList.contains('mini')) { if (!document.querySelector('.app.side-auto')) setSide(false); return; }

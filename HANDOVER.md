@@ -132,6 +132,20 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (on Apps Script the data came seconds later, so it never collided). `autoSide` is rewritten: the menu opens / closes AT ONCE (no width
   transition; only the lettering fades in), a click on a page shuts it in the same task, and it also shuts on mousemove over the page,
   mouse leaving the window and window blur; keyboard users (`:focus-visible` inside) keep it open. Do not bring back a width transition.
+- 01-10-2026 (later): even the instant hover menu was not good enough for him ("still hangs sometimes / sometimes does not open") and he asked
+  for a different way. Now `deskSide` (replaces autoSide): on a computer the slim icon strip is always there; the full menu opens ONLY by a
+  click (arrow button under the logo, the logo, or a group icon) and closes on choosing a page, a click outside, the button or Esc. No hover,
+  no timers, no focus logic. Do not bring hover-opening back.
+- He rejected the two-line "box per entry" Log Book layout: wants ONE line per machinery. `.lg-wrap tr.lrow` is now a 14-column CSS grid with
+  explicit `grid-column` per `td:nth-of-type(n)` (diesel = 2×2 block with inline words Open / Issued / Used / Close; Standard over Average;
+  headings once via `tr:first-child > td::after`; disabled "Measured by" ways hidden). `.lg-wrap` is a size container: under 1290 px of room
+  chainage + work drop to a second line. Fits without sideways scroll at his 1536 px window (slim menu).
+- Diesel Issue: he wants only the last issue of a machinery, not the history table → `.dhist table.dh-t` and its note are hidden (the head
+  line with last fill / last reading stays; the "Last: …" line under the machinery was already there).
+- Other: top bar fully opaque; buttons get a pressed state; Read Me page no longer scrolls sideways; `$schema` removed from vercel.json
+  (VS Code warned "untrusted"); two worker threads are started at boot; resting the mouse on "Live" shows the last server time and the
+  slowest recent call (bridge, `took()` in server/page.js) – ask him for these numbers if he says the app is slow.
+- A sweep of all 35 pages in headless Chromium (local data) shows no JS errors, no failed calls, no sideways spill.
 - Known limits: sync every 1 s = many Vercel invocations; ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
