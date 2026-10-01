@@ -11,6 +11,17 @@ App तेच आहे: तेच screens, तेच नियम, तेच pr
 
 `app/` मधल्या `.gs` files हा app चा server code आहे (नियम, हिशोब). नाव `.gs` असले तरी त्या आता Vercel वरच चालतात, Google वर नाही.
 
+## SQL चालवण्याचा क्रम
+
+`sql/` मधल्या files क्रमाने: step1 … step1s, मग `supabase_step2_web.sql`, मग `supabase_step3_safety.sql`.
+`check_security.sql` काहीही बदलत नाही; database ची सुरक्षा पाहण्यासाठी आहे (प्रत्येक ओळ "ok" ने सुरू झाली पाहिजे).
+
+## तपासणी (tests)
+
+- `npm test` – database शिवाय चालणाऱ्या चाचण्या (तारखा, password hash, page मध्ये key नाही, bill चा हिशोब, ledger).
+- `node test/audit.js`, `node test/reg.js`, `node test/bkg.js` – स्वतःच्या computer वरच्या PostgreSQL + PostgREST वर चालतात; live database वर कधीही चालवू नका.
+- तपासणीचे अहवाल: `AUDIT.md` (सुरक्षा आणि data), `UI_PERFORMANCE_AUDIT.md` (screens आणि वेग).
+
 ## Folder
 
 - `app/` – app च्या files. पुढचे सगळे बदल इथेच होतील.
@@ -25,6 +36,7 @@ App तेच आहे: तेच screens, तेच नियम, तेच pr
 | `SUPABASE_SECRET_KEY` | `sb_secret_…` |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Google ने दिलेल्या key file चा पूर्ण मजकूर (खाली पहा) |
 | `BACKUP_SHEET_ID` | Backup Google Sheet ची link |
+| `CRON_SECRET` | कोणताही लांब, गुप्त शब्द (उदा. 30 अक्षरे). रात्रीच्या backup साठी Vercel हा शब्द स्वतः पाठवते; त्याशिवाय रात्रीचा backup नाकारला जातो. |
 
 Keys कधीही code मध्ये किंवा git मध्ये टाकू नका.
 
@@ -105,6 +117,6 @@ Backup लिहिण्यासाठी Google चे एक "service accoun
 
 ## माहितीसाठी
 
-- App दर सेकंदाला server ला "काही बदलले का" विचारते. Vercel वर हे calls मोजले जातात; users वाढले की Usage page वर लक्ष ठेवा.
+- App server ला "काही बदलले का" असे काम चालू असताना दर 2 सेकंदांनी, page नुसते उघडे असताना दर 5–15 सेकंदांनी विचारते. Vercel वर हे calls मोजले जातात; users वाढले की Usage page वर लक्ष ठेवा.
 - एका उत्तरात साधारण 4.5 MB पेक्षा जास्त data Vercel पाठवत नाही; खूप मोठ्या कालावधीची यादी मागितली तर "pick a shorter period" असा संदेश येतो.
 - Sidebar चे रंग `app/App.html` मध्ये "LOOK 2026-10" या भागाच्या सुरुवातीला एका ठिकाणी आहेत (`--sb-…`).

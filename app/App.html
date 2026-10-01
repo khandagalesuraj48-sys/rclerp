@@ -1678,6 +1678,61 @@
   .navbtn:active { background: var(--sb-hover); }
   @media (prefers-reduced-motion: reduce) { .rv, .rv.in, section.enter > * { transition: none !important; animation: none !important; opacity: 1; transform: none; } }
 
+  /* ---------- one look for every table, field and button (they had grown apart page by page) ---------- */
+  .table-wrap { border: 1px solid #DDE3EA; border-radius: 12px; }
+  table thead th { background: #F3F6FA; color: #334155; font-weight: 700; font-size: 12.5px; letter-spacing: .01em; border-bottom: 1px solid #DDE3EA; }
+  tbody tr:hover > td { background: #F7FAFD; }
+  td.n, th.n, td.o { font-variant-numeric: tabular-nums; }
+  input, select, textarea { border-color: #CFD8E1; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: var(--brand); box-shadow: 0 0 0 4px var(--brand-ring); }
+  .btn:focus-visible, .subtabs button:focus-visible, .switch button:focus-visible, .link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .btn:disabled { opacity: .6; cursor: progress; }
+  .panel > h2, .panel-head h2 { color: #0F172A; }
+
+  /* ---------- phones: nothing pushes the page sideways; dialogs fit the screen ---------- */
+  @media (max-width: 760px) {
+    .docs-grid { grid-template-columns: 1fr !important; }
+    .docs-grid .field.doc, .doc-row { min-width: 0; } .doc-row { flex-wrap: wrap; } .doc-row input { min-width: 0; flex: 1 1 140px; }
+    .bk-bar { flex-wrap: wrap; } .bk-bar label { flex-wrap: wrap; max-width: 100%; } .bk-bar select { max-width: 100%; min-width: 0; }
+    .rfilters, .rfilters.mb-filters { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important; }
+    .rfilters .field, .grid .field { min-width: 0; }
+    #cf_back, #le_back, #dlg_back, #pw_back { padding: 10px; }
+    #cf_box, #le_box, #dlg_box, #pw_box { max-height: 88dvh; overflow: auto; width: 100%; }
+    /* Log Book entry on a phone: one entry = one block that fits the screen (the table had to be pushed sideways) */
+    .lg-wrap { overflow: visible; border: 0; background: transparent; border-radius: 0; }
+    .lg-wrap table.lgt, .lg-wrap table.lgt tbody { display: block; width: 100%; }
+    .lg-wrap table.lgt thead { display: none; }
+    .lg-wrap tr.lrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; padding: 12px; margin: 0 0 10px; background: #fff; border: 1px solid #DDE3EA; border-radius: 12px; }
+    .lg-wrap tr.lrow.err { border-color: #E5A29D; background: #FFF7F6; }
+    .lg-wrap tr.lrow > td { display: block; min-width: 0; padding: 0; border: 0; background: transparent !important; white-space: normal; text-align: left; font-size: 14px; }
+    .lg-wrap table.lgt.m-date tr.lrow > td.c-date, .lg-wrap table.lgt.m-mach tr.lrow > td.c-m, .lg-wrap tr.lrow > td[hidden] { display: none; }
+    .lg-wrap tr.lrow > td::before { display: block; font: 600 11.5px/1.2 var(--ui); color: #64748B; margin: 0 0 4px; }
+    .lg-wrap tr.lrow > td:nth-of-type(1) { grid-column: 1; grid-row: 1; font-weight: 700; color: var(--brand-deep); width: auto; text-align: left; }
+    .lg-wrap tr.lrow > td:nth-of-type(1)::before { content: "Entry"; }
+    .lg-wrap tr.lrow > td:nth-of-type(18) { grid-column: 2; grid-row: 1; justify-self: end; }
+    .lg-wrap tr.lrow > td:nth-of-type(2), .lg-wrap tr.lrow > td:nth-of-type(4), .lg-wrap tr.lrow > td:nth-of-type(5), .lg-wrap tr.lrow > td:nth-of-type(17), .lg-wrap tr.lrow > small.lg-fmt { grid-column: 1 / -1; }
+    .lg-wrap tr.lrow > td:nth-of-type(2)::before { content: "Date"; }     .lg-wrap tr.lrow > td:nth-of-type(3)::before { content: "Shift"; }
+    .lg-wrap tr.lrow > td:nth-of-type(4)::before { content: "Machinery"; } .lg-wrap tr.lrow > td:nth-of-type(5)::before { content: "Measured by"; }
+    .lg-wrap tr.lrow > td:nth-of-type(6)::before { content: "Start"; }     .lg-wrap tr.lrow > td:nth-of-type(7)::before { content: "Close *"; }
+    .lg-wrap tr.lrow > td:nth-of-type(8)::before { content: "Total"; }     .lg-wrap tr.lrow > td:nth-of-type(9)::before { content: "Opening diesel"; }
+    .lg-wrap tr.lrow > td:nth-of-type(10)::before { content: "Issued"; }   .lg-wrap tr.lrow > td:nth-of-type(11)::before { content: "Consumed"; }
+    .lg-wrap tr.lrow > td:nth-of-type(12)::before { content: "Closing"; }  .lg-wrap tr.lrow > td:nth-of-type(13)::before { content: "Standard"; }
+    .lg-wrap tr.lrow > td:nth-of-type(14)::before { content: "Average"; }  .lg-wrap tr.lrow > td:nth-of-type(15)::before { content: "Chainage from"; }
+    .lg-wrap tr.lrow > td:nth-of-type(16)::before { content: "Chainage to"; } .lg-wrap tr.lrow > td:nth-of-type(17)::before { content: "Work description"; }
+    .lg-wrap tr.lrow :is(input:not([type=checkbox]), select) { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
+    .lg-wrap tr.lrow .rd { min-width: 0; } .lg-wrap tr.lrow .rd input { flex: 1 1 auto; width: auto; min-width: 0; }
+    .lg-wrap tr.lrow .way { display: flex; flex-wrap: wrap; gap: 6px; max-width: none; } .lg-wrap tr.lrow .way .wy { min-height: 38px; padding: 6px 12px; font-size: 13.5px; }
+    .lg-wrap tr.lrow .way .wy.dis { display: none; }
+    .lg-wrap tr.lrow > td.unitcell { max-width: none; }
+    .lg-wrap tr.lrow > td.o span { display: inline; margin-right: 8px; }
+    .lg-wrap tr.lrow > td:nth-of-type(n+8):nth-of-type(-n+14) { font-weight: 600; }
+  }
+
+  /* ---------- "the first 100 of N rows are shown" under a long list ---------- */
+  .more-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 10px 0 2px; padding: 10px 14px; border: 1px solid #DDE3EA; border-radius: 12px; background: #F7FAFD; font-size: 13.5px; color: #334155; }
+  .more-bar[hidden] { display: none; }
+  .more-bar .btn { margin-left: auto; }
+
   /* ---------- Read Me: long lines (the SQL) wrap instead of making the page scroll sideways ---------- */
   #sec-readme .panel { overflow-x: auto; } #sec-readme pre, #sec-readme code { white-space: pre-wrap; overflow-wrap: anywhere; }
 
@@ -4052,6 +4107,7 @@
   function setDataSource(src) {
     const el = $('ds_pill'); if (!el) return;
     const sb = src === 'supabase';
+    if (el.dataset.src === src && !el.hidden) return; el.dataset.src = src;
     el.hidden = false;
     el.className = 'ds-pill ' + (sb ? 'sb' : 'gs');
     el.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>' + (sb ? 'Supabase' : 'Google Sheet');
@@ -4066,6 +4122,7 @@
     if (!S.user || !info) { b.hidden = true; return; } // every signed-in user
     b.hidden = false;
     if (b.dataset.busy) return;
+    const sig = JSON.stringify(info); if (b.dataset.sig === sig) return; b.dataset.sig = sig;   // nothing new: leave the page alone
     const bad = info.ok === false, t = info.lastCheck || info.lastRun;
     b.className = 'bk-pill ' + (bad ? 'bad' : 'ok');
     b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 12 3.5 3.5 0 0 0 6 19z"/>' + (bad ? '<path d="M12 11v3"/><path d="M12 17h.01"/>' : '<path d="m9 14 2 2 4-4"/>') + '</svg><span>Backup ' + (bad ? '!' : (t ? hhmm(t) : '')) + '</span>';
@@ -4364,15 +4421,28 @@
      Only the changed parts reload, and the user's access (View / Edit / Active) is applied at once. */
   // about every second while the app is on screen (the next check starts when the previous one finishes),
   // every 8 seconds while the tab is in the background, so the data is already current when you come back
-  const SYNC_MS = 1000, SYNC_BG_MS = 8000;
+  /* How often the page asks the server "has anything changed?" (one small call each time).
+   * Before: once a second, always. Now it follows what the person is doing:
+   *   working (mouse / keyboard used in the last 30 seconds)  → every 2 seconds
+   *   page open but nobody touching it                        → every 5 seconds, after 5 minutes every 15 seconds
+   *   tab in the background                                   → every 30 seconds
+   * The first touch after a quiet spell asks at once, and so does coming back to the tab and every save –
+   * so what is on screen is fresh before anyone acts on it. */
+  const SYNC_ACTIVE_MS = 2000, SYNC_IDLE_MS = 5000, SYNC_LONG_IDLE_MS = 15000, SYNC_BG_MS = 30000, SYNC_QUIET_AFTER = 30000;
+  let lastInput = Date.now();
+  const syncGap = () => { if (document.hidden) return SYNC_BG_MS; const idle = Date.now() - lastInput; return idle < SYNC_QUIET_AFTER ? SYNC_ACTIVE_MS : idle < 300000 ? SYNC_IDLE_MS : SYNC_LONG_IDLE_MS; };
   let syncTimer = null, syncBusy = false, syncOn = false;
   function startSync() {
     if (syncOn) return;
     syncOn = true;
-    const loop = async () => { await syncNow(); syncTimer = setTimeout(loop, document.hidden ? SYNC_BG_MS : SYNC_MS); };
+    const schedule = () => { clearTimeout(syncTimer); syncTimer = setTimeout(loop, syncGap()); };
+    const loop = async () => { await syncNow(); schedule(); };
     loop();
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(); });
-    window.addEventListener('focus', syncNow);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { lastInput = Date.now(); loop(); } else schedule(); });
+    window.addEventListener('focus', () => { lastInput = Date.now(); loop(); });
+    // someone is at the page: keep the quick rhythm; the first touch after a quiet spell asks at once
+    ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'].forEach(ev => document.addEventListener(ev, () => {
+      const quiet = Date.now() - lastInput; lastInput = Date.now(); if (quiet > SYNC_QUIET_AFTER) loop(); }, { passive: true, capture: true }));
   }
   async function syncNow() {
     if (syncBusy || !S.token || !S.user) return;
@@ -4407,10 +4477,44 @@
   }
   function setLive(ok) {
     const el = $('live_dot'); if (!el) return;
-    el.className = 'live' + (ok ? '' : ' off');
-    el.lastChild.textContent = ok ? ' Live' : ' Reconnecting…';
+    if (el.dataset.ok !== String(ok)) { el.dataset.ok = String(ok); el.className = 'live' + (ok ? '' : ' off'); el.lastChild.textContent = ok ? ' Live' : ' Reconnecting…'; }
     el.title = ok ? 'Synced with all users at ' + new Date().toLocaleTimeString('en-IN') : 'Could not reach the server – trying again';
   }
+  /* Long lists show their first 100 rows (in the order the list already has) with a clear "Show all".
+   * Only what is DRAWN changes: the list's own code still hands over every row, and the totals under / above the list,
+   * the Excel exports, the prints and the reports are worked out from the data – they always count every record.
+   * The choice "Show all" is kept for that list until the page is loaded again. */
+  const LIST_FIRST = 100;
+  (function listsFirst100() {
+    const d = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML'); if (!d || !d.set) return;
+    ['l_rows', 'd_rows', 'i_rows', 't_rows', 'm_rows', 'a_rows', 'v_rows', 'sb_rows', 'py_rows', 'tc_rows', 'boq_rows'].forEach(id => {
+      const tb = $(id); if (!tb) return;
+      const wrap = tb.closest('.table-wrap') || tb.closest('table');
+      const bar = document.createElement('div'); bar.className = 'more-bar'; bar.hidden = true; wrap.insertAdjacentElement('afterend', bar);
+      let rest = '', total = 0, all = false;
+      const paint = () => {
+        if (total <= LIST_FIRST) { bar.hidden = true; bar.innerHTML = ''; return; }
+        bar.hidden = false;
+        bar.innerHTML = all ? '<span>All <b>' + total + '</b> rows of this list are shown.</span> <button class="btn ghost small" type="button" data-more="less">Show the first ' + LIST_FIRST + ' only</button>'
+          : '<span>The first <b>' + LIST_FIRST + '</b> of <b>' + total + '</b> rows are shown (same order). Totals, exports and reports count every record.</span> <button class="btn primary small" type="button" data-more="all">Show all ' + total + '</button>';
+      };
+      Object.defineProperty(tb, 'innerHTML', { configurable: true, get() { return d.get.call(tb); }, set(html) {
+        html = String(html);
+        const cut = html.split('</tr>'), parts = cut.map((x, k) => k < cut.length - 1 ? x + '</tr>' : x).filter(x => x.trim());
+        total = /<table/i.test(html) ? 0 : parts.length; rest = '';
+        if (total <= LIST_FIRST || all) d.set.call(tb, html);
+        else { d.set.call(tb, parts.slice(0, LIST_FIRST).join('')); rest = parts.slice(LIST_FIRST).join(''); }
+        paint();
+      } });
+      bar.addEventListener('click', e => {
+        const b = e.target.closest('[data-more]'); if (!b) return;
+        if (b.dataset.more === 'all') { all = true; if (rest) tb.insertAdjacentHTML('beforeend', rest); rest = ''; }
+        else { all = false; const rows = [...tb.rows]; rest = rows.slice(LIST_FIRST).map(r => r.outerHTML).join(''); rows.slice(LIST_FIRST).forEach(r => r.remove()); bar.scrollIntoView({ block: 'nearest' }); }
+        paint();
+        if (id === 'm_rows' && typeof masterSelBar === 'function') masterSelBar();
+      });
+    });
+  })();
   const visible = t => !$('sec-' + t).hidden;
   const loaded = t => S.loaded && S.loaded[t];
   function cancelEditsWithoutAccess() {

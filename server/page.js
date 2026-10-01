@@ -21,7 +21,22 @@ const BRIDGE = `
       var worst = recent.slice().sort(function (a, b) { return b.ms - a.ms; })[0];
       el.title = String(el.title || '').split(' · server')[0] + ' · server answered in ' + ms + ' ms' + (worst ? ' · slowest recent: ' + worst.fn + ' ' + worst.ms + ' ms' : ''); }, 80);
   }
+  // a question (never a save) that is already on its way is not sent a second time: both askers get the one answer
+  var flying = {};
+  function isQuestion(name, args) { if (name !== 'api') return false; var f = String(args[1]);
+    return /^(get|rpt)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1; }
   function send(name, args, ok, fail) {
+    if (isQuestion(name, args)) {
+      var key = JSON.stringify(args);
+      if (flying[key]) { flying[key].push({ ok: ok, fail: fail }); return; }
+      flying[key] = [];
+      var ok0 = ok, fail0 = fail;
+      ok = function (v) { var others = flying[key] || []; delete flying[key];
+        var txt = others.length ? JSON.stringify(v === undefined ? null : v) : '';        // every asker gets its own copy
+        try { if (ok0) ok0(v); } finally { others.forEach(function (w) { try { if (w.ok) w.ok(JSON.parse(txt)); } catch (e) {} }); } };
+      fail = function (e) { var others = flying[key] || []; delete flying[key];
+        try { if (fail0) fail0(e); } finally { others.forEach(function (w) { try { if (w.fail) w.fail(e); } catch (x) {} }); } };
+    }
     var t0 = Date.now();
     fetch(base + '/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fn: name, args: args }), cache: 'no-store' })
       .then(function (r) { return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; }
@@ -42,7 +57,9 @@ const BRIDGE = `
   // the Google Sheet backup: while the app is open it asks the server now and then to copy what changed
   // (the server does nothing when nothing changed or when a backup ran a moment ago)
   if (window.parent !== window) {
-    var tick = function () { try { fetch(base + '/api/backup', { method: 'POST', cache: 'no-store' }).catch(function () {}); } catch (e) {} };
+    var tick = function () { try { var tk = ''; try { tk = sessionStorage.getItem('rcl_token') || localStorage.getItem('rcl_token') || ''; } catch (e) { tk = ''; }
+      if (!tk) return;      // nobody signed in: nothing to ask
+      fetch(base + '/api/backup', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tk }) }).catch(function () {}); } catch (e) {} };
     setTimeout(tick, 40000); setInterval(tick, 300000);
   }
 })();`;

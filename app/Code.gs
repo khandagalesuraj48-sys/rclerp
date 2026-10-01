@@ -282,22 +282,32 @@ function login(email, password) {
   const cache = CacheService.getScriptCache();
   // all sign-ins together: at most 60 a minute (stops floods)
   const mk = 'LG_' + Math.floor(Date.now() / 60000);
-  const all = Number(cache.get(mk) || 0);
-  if (all >= 60) throw new Error('Too many sign-in attempts. Please wait a minute and try again.');
-  cache.put(mk, String(all + 1), 120);
   const failKey = 'F_' + e;
-  const fails = Number(cache.get(failKey) || 0);
+  /* Counting: where the server has an exact counter (countUp_), every attempt first TAKES a place and is looked at only
+   * if it is among the first 5 – so many guesses fired at the same moment cannot slip past the limit.
+   * Without it (the old way): read the count, then write it back. */
+  const exact = typeof __count === 'function' && __count('', 0) !== -1;
+  let fails;
+  if (exact) {
+    if (__count(mk, 120) > 60) throw new Error('Too many sign-in attempts. Please wait a minute and try again.');
+    fails = __count(failKey, 900) - 1;
+  } else {
+    const all = Number(cache.get(mk) || 0);
+    if (all >= 60) throw new Error('Too many sign-in attempts. Please wait a minute and try again.');
+    cache.put(mk, String(all + 1), 120);
+    fails = Number(cache.get(failKey) || 0);
+  }
   if (fails >= 5) throw new Error('Too many wrong attempts. Try again after 15 minutes.');
   const u = e ? readUsers_().find(x => x.email === e) : null;
   if (!u || !u.active || !checkPw_(password, u.password)) {
-    cache.put(failKey, String(fails + 1), 900);
+    if (!exact) cache.put(failKey, String(fails + 1), 900);
     // log only the first failure and the lock, so failures cannot flood the Activity Log
     const hk = 'LGL_' + Math.floor(Date.now() / 3600000), logged = Number(cache.get(hk) || 0); // at most 100 failure lines an hour
     if ((fails === 0 || fails === 4) && logged < 100 && (cache.put(hk, String(logged + 1), 3700), true)) writeLog_({ email: e, name: u ? u.name : '' }, 'Login failed', '', '', (u && !u.active ? 'User is not active' : 'Wrong email or password') + (fails === 4 ? ' – locked for 15 minutes' : ''), '');
     sbFlush_();
     throw new Error('Wrong email or password.'); // same message for every case: nobody can tell which emails exist
   }
-  cache.remove(failKey);
+  cache.remove(failKey); if (exact) __uncount(failKey);
   const token = Utilities.getUuid() + Utilities.getUuid().slice(0, 8);
   cache.put('S_' + token, u.email + '|' + pwStamp_(u.password), SESSION_SECONDS);
   writeLog_(u, 'Login', '', '', 'Logged in', '');
@@ -490,6 +500,21 @@ function api(token, fn, args) {
   else if (spec.m && u.perms[spec.m] === 'None') throw new Error('You do not have access to ' + label(spec.m) + '. Ask Admin.');
   if (spec.edit && !canEdit_(u, spec.m)) throw new Error('You have View access only for ' + label(spec.m) + '. Ask Admin for Edit access.');
   args = args || [];
+  /* The same NEW entry sent twice within a few seconds (double click, a retry on a weak connection, two tabs) is saved
+   * once: the second copy is refused. Only for actions that ADD rows; a different entry, or the same one again later,
+   * is not affected. If the first one fails, its place is given back so it can be tried again at once. */
+  let onceKey = '';
+  if (ONCE_FNS_.indexOf(fn) > -1 && typeof __count === 'function') {
+    const k = 'DUP_' + hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, u.email + '|' + fn + '|' + JSON.stringify(args), Utilities.Charset.UTF_8)).slice(0, 40);
+    const n = __count(k, 8);
+    if (n > 1) throw new Error('This entry was just sent twice – it is saved once. Check the list before entering it again.');
+    if (n === 1) onceKey = k;
+  }
+  try { return apiRun_(u, spec, fn, args); }
+  catch (err) { if (onceKey) { try { __uncount(onceKey); } catch (e2) { /* it frees itself in a few seconds */ } } throw err; }
+}
+const ONCE_FNS_ = ['saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'saveInward', 'importInward', 'saveTransfer', 'saveTransferBulk', 'savePayment', 'saveTankCheck', 'submitBdReport'];
+function apiRun_(u, spec, fn, args) {
   const vBefore = spec.edit ? getVersions_() : null;
   TABLE_MEMO_ = {}; // each tab read once per request (dropped automatically when written)
   if (sbDataOn_()) sbDiscard_(); // Supabase: every request starts with fresh data

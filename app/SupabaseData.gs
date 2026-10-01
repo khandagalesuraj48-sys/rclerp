@@ -85,9 +85,24 @@ SbBook_.prototype.flush = function () {
     after.push(s);
   });
   if (!calls.length) return;
-  const res = UrlFetchApp.fetchAll(calls);
-  const bad = res.map((r, i) => ({ r: r, i: i })).filter(x => x.r.getResponseCode() >= 300);
-  if (bad.length) { SB_BOOK_ = null; throw new Error('Could not save to Supabase: ' + bad[0].r.getResponseCode() + ' ' + bad[0].r.getContentText().slice(0, 200)); }
+  /* One save = ONE database transaction (function web_write, step-3 SQL): everything of this save is written, or nothing.
+   * Where that function is not installed, the save is written the old way – one call per table (if one of them fails,
+   * the others stay written). */
+  let done = false;
+  if (!(typeof __writeMode === 'function' && __writeMode() === 'old')) {
+    const p = [];
+    Object.keys(this.sheets).forEach(t => { const w = this.sheets[t].pending(); if (w.upserts.length || w.deletes.length) p.push({ table: t, upserts: w.upserts, deletes: w.deletes.map(String) }); });
+    const r = UrlFetchApp.fetch(c.url + '/rest/v1/rpc/web_write', { method: 'post', muteHttpExceptions: true, headers: { apikey: c.key, 'Content-Type': 'application/json' }, payload: JSON.stringify({ p: p }) });
+    const code = r.getResponseCode();
+    if (code >= 200 && code < 300) done = true;
+    else if (code === 404 && /web_write|PGRST202/.test(r.getContentText())) { if (typeof __writeMode === 'function') __writeMode('old'); }   // not installed: the old way
+    else { SB_BOOK_ = null; throw new Error('Could not save to Supabase: ' + code + ' ' + r.getContentText().slice(0, 200)); }
+  }
+  if (!done) {
+    const res = UrlFetchApp.fetchAll(calls);
+    const bad = res.map((r, i) => ({ r: r, i: i })).filter(x => x.r.getResponseCode() >= 300);
+    if (bad.length) { SB_BOOK_ = null; throw new Error('Could not save to Supabase: ' + bad[0].r.getResponseCode() + ' ' + bad[0].r.getContentText().slice(0, 200)); }
+  }
   after.forEach(s => s.saved());
   // anything written makes the fast cache out of date at once (also for writes that do not come through the app screens)
   const g = { master: 'master', diesel_inward: 'stock', diesel_transfer: 'stock', diesel_issue: 'stock', log_book: 'log', tank_check: 'log' };

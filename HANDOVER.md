@@ -146,7 +146,30 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (VS Code warned "untrusted"); two worker threads are started at boot; resting the mouse on "Live" shows the last server time and the
   slowest recent call (bridge, `took()` in server/page.js) – ask him for these numbers if he says the app is slow.
 - A sweep of all 35 pages in headless Chromium (local data) shows no JS errors, no failed calls, no sideways spill.
-- Known limits: sync every 1 s = many Vercel invocations; ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
+- 01-10-2026: he pasted a long English "complete audit" brief. Done on the local rig; report in `AUDIT.md` (read it before any security /
+  integrity work). Fixed: public `/api/backup` (now session token for POST, `CRON_SECRET` bearer for the nightly GET), non-atomic saves
+  (`web_write` – one transaction per save, `SbBook_.flush` falls back to per-table calls when the function is missing), double submission
+  (`ONCE_FNS_` + `web_count`, 8 s window, released on failure), exact sign-in attempt counter, Backup button verifies tabs, headers.
+  New SQL `sql/supabase_step3_safety.sql` (he must run it; the app works without it) and read-only `sql/check_security.sql`.
+  Tests now live in the repo: `npm test` (offline, 7 tests) and `test/audit.js`, `reg.js`, `bkg.js` (need the local rig).
+  Open, waiting for him: repo still PUBLIC, backup Sheet link-readable, add `CRON_SECRET` in Vercel, blank access = View (decision),
+  weak password hash (decision), 1-second polling (cost), no restore tool.
+- 01-10-2026: second English brief ("Phase 2 – complete UI/UX redesign + performance"). Done and written up in `UI_PERFORMANCE_AUDIT.md`:
+  polling is now adaptive (`syncGap()` in App.html: 2 s working / 5 s untouched / 15 s after 5 min / 30 s hidden; first touch after a quiet
+  spell syncs at once) – measured 19→11 calls per 20 s working, 29→6 per 30 s idle; the bridge merges identical in-flight QUESTIONS only
+  (`isQuestion` in server/page.js – never saves); top-bar pills redrawn only on change; phone: three pages no longer spill sideways and
+  the Log Book entry is a block per entry (≤760 px); one consistency block for tables / fields / focus rings.
+  Tried and REMOVED: drawing long lists in pieces – no measurable gain (the cost is the browser's layout of a 500-row table, 18,000 boxes;
+  script is only ~20 ms). The real cure is fewer rows at first – waiting for his decision. Not a ground-up redesign (two were rejected).
+- 01-10-2026: third English brief ("Phase 3 – final readiness"). His decisions: long lists show the first 100 rows + "Show all";
+  polling 2 s while active; Log Book blocks on phone / table on desktop; production only after checks and a verified backup.
+  Built: `listsFirst100` in App.html – an `innerHTML` setter on eleven list tbodies (l_rows, d_rows, i_rows, t_rows, m_rows, a_rows, v_rows,
+  sb_rows, py_rows, tc_rows, boq_rows) that draws 100 rows and keeps the rest for a `.more-bar` button; list code, totals, exports untouched.
+  Note for him: the lists already held only the latest 500 (server limit) – "Show all" shows those, not beyond.
+  Report: `PHASE3_READINESS_REPORT.md` (Go for preview, No-Go for production until backup looked at, step-2 + step-3 SQL and
+  check_security run on live, CRON_SECRET set, preview looked at). Browser tests are in `test/browser/` (need puppeteer-core + Chromium).
+  IMPORTANT STATE: GitHub / the live site were still at update-6 ("click menu…") when this was written – none of Phase 1–3 was live.
+- Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
 - Intermediate reading between two items on one day (e.g. Bucket 100–105, Breaker 105–108) is not recorded – only the hours per item. Ask if he needs it.

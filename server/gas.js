@@ -30,6 +30,7 @@ function rpc(name, body) {
     if (r.code >= 200 && r.code < 300) return r.text ? JSON.parse(r.text) : null;
     last = r.code + ' ' + String(r.text || '').slice(0, 300);
     if (r.code >= 500 || r.code === 429) { sleepSync(400 * (attempt + 1)); continue; }
+    if (r.code === 404 && /^web_(count|uncount|write)$/.test(name)) throw new Error('404 ' + name + ' is not installed (sql/supabase_step3_safety.sql)');
     if (r.code === 404 && /web_/.test(name)) throw new Error('The database is not ready for this app: run sql/supabase_step2_web.sql in Supabase → SQL Editor (' + name + ' is missing).');
     throw new Error('Database (' + name + '): ' + last);
   }

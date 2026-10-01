@@ -36,23 +36,33 @@ function webBackup_(opt) {
       sig[t] = (cr.split('/')[1] || '?') + '|' + top; if (top > newest) newest = top; });
     const day = 24 * 3600000, full = !!opt.full || !state.lastFull || nowMs - new Date(state.lastFull).getTime() > day;
     const old = state.sig || {};
-    const changed = tables.filter(t => full || old[t] !== sig[t] || /\?\|/.test(sig[t]));
+    let changed = tables.filter(t => full || old[t] !== sig[t] || /\?\|/.test(sig[t]));
+    // the "Backup" button also LOOKS at the Sheet: a tab that is missing, or does not have exactly the rows of its table
+    // (someone deleted or cleared it), is written again even though the table itself did not change
+    let meta0 = null;
+    if (opt.manual && !full) {
+      meta0 = G('GET', '/v4/spreadsheets/' + cfg.sheetId + '?fields=sheets(properties,protectedRanges(range,warningOnly,requestingUserCanEdit))');
+      const have = {}; (meta0.sheets || []).forEach(s => { have[s.properties.title] = (s.properties.gridProperties || {}).rowCount; });
+      const rowsOf = t => Number(String(sig[t]).split('|')[0]);
+      changed = tables.filter(t => changed.indexOf(t) > -1 || have[sbTabName_(t)] === undefined || (isFinite(rowsOf(t)) && have[sbTabName_(t)] !== Math.max(rowsOf(t) + 1, 2)));
+    }
     const nowIso = new Date(nowMs).toISOString();
     const info = { ok: true, lastCheck: nowIso, lastRun: state.lastRun || '', lastChangeCopied: newest || state.lastChangeCopied || '', url: url };
     const lines = [];
     if (changed.length) {
       const sid = '/v4/spreadsheets/' + cfg.sheetId;
-      const meta = G('GET', sid + '?fields=sheets(properties,protectedRanges(range,warningOnly,requestingUserCanEdit))');
+      const meta = meta0 || G('GET', sid + '?fields=sheets(properties,protectedRanges(range,warningOnly,requestingUserCanEdit))');
       const byTitle = {}, locked = {};
       (meta.sheets || []).forEach(s => { byTitle[s.properties.title] = s.properties;
         if ((s.protectedRanges || []).some(p => !p.warningOnly && p.requestingUserCanEdit === false)) locked[s.properties.title] = true; });
       // what goes into every changed tab – written the way the backup always wrote it (same tab names, headings and cell values)
-      const cell = (t, col, v) => { v = sbCell_(sbSafe_(t, col, v)); return typeof v === 'string' && v.length > 49000 ? v.slice(0, 49000) + ' …(cut: longer than a Sheet cell can hold)' : v; };
+      let cut = 0;      // a Sheet cell holds 50,000 letters at most: longer values are cut, and the status page says how many
+      const cell = (t, col, v) => { v = sbCell_(sbSafe_(t, col, v)); if (typeof v === 'string' && v.length > 49000) { cut++; return v.slice(0, 49000) + ' …(cut: longer than a Sheet cell can hold)'; } return v; };
       const jobs = changed.map(t => { const cols = cat[t], rows = sbAllRows_(t), hdr = cols.map(x => sbHeader_(t, x.name));
         const data = [hdr].concat(rows.map(r => cols.map(x => cell(t, x.name, r[x.name])))); if (data.length < 2) data.push(hdr.map(() => ''));
         lines.push([sbTabName_(t), rows.length + ' rows']); return { title: sbTabName_(t), data: data, cols: hdr.length }; });
       const when = Utilities.formatDate(new Date(nowMs), 'Asia/Kolkata', 'dd-MM-yyyy HH:mm:ss');
-      const st = [['RCL Fleet ERP – copy of the Supabase database (made by the app, do not edit)', ''], ['Last backup (India time)', when], ['Kind', full ? 'Full – every table' : 'Changed tables only'], ['', ''], ['Table', 'Rows copied now']].concat(lines);
+      const st = [['RCL Fleet ERP – copy of the Supabase database (made by the app, do not edit)', ''], ['Last backup (India time)', when], ['Kind', full ? 'Full – every table' : 'Changed tables only'], ['Cells too long for a Sheet (cut)', cut ? cut + ' – the database has them whole' : 'none'], ['', ''], ['Table', 'Rows copied now']].concat(lines);
       jobs.push({ title: 'Backup Status', data: st, cols: 2 });
       // tabs the old Apps Script backup protected for its owner only: this app cannot write them until the protection is removed
       const stuck = jobs.map(x => x.title).filter(x => locked[x]);
