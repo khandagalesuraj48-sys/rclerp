@@ -4099,7 +4099,7 @@
     stockSoon();
   }
   let stockTimer;
-  function stockSoon() { clearTimeout(stockTimer); stockTimer = setTimeout(() => { if (S.loaded && S.loaded.diesel) refreshIssueBal(); if (S.loaded && S.loaded.transfer) refreshTransferBal(); }, 150); }
+  function stockSoon() { clearTimeout(stockTimer); stockTimer = setTimeout(() => { if (visible('diesel')) refreshIssueBal(); if (visible('transfer')) refreshTransferBal(); }, 150); }   // only for the page on screen; the other one asks when it is opened
   // Load a page's lists the first time it is opened; later visits only refresh what can change from elsewhere
   function openTabData(name) {
     S.loaded = S.loaded || {};
@@ -4124,6 +4124,9 @@
     else if (name === 'inward') { if (first) loadInward(); refreshStock(); }
     else if (name === 'transfer') { if (first) loadTransfers(); refreshStock(); }
     else if (name === 'log') { if (first) loadLog(); else lgRefreshAll();  refreshLookups(); }
+    // somebody saved something while this page was not on screen: bring its list up to date now
+    if (!first && S.stale && S.stale[name]) { const again = { diesel: loadDiesel, inward: loadInward, transfer: loadTransfers, log: loadLog }[name]; if (again) again(); }
+    if (S.stale) S.stale[name] = false;
     else if (name === 'tankcheck') { if (first) tcClear(); loadTankChecks().catch(e => toast(errMsg(e), true));  refreshLookups(); }
     else if (name.indexOf('rp-') === 0) rpDefaults(name.slice(3));
   }
@@ -4524,7 +4527,7 @@
       const tb = $(id); if (!tb) return;
       const wrap = tb.closest('.table-wrap') || tb.closest('table');
       const bar = document.createElement('div'); bar.className = 'more-bar'; bar.hidden = true; wrap.insertAdjacentElement('afterend', bar);
-      let rest = '', total = 0, all = false;
+      let rest = '', total = 0, all = false, lastHtml = null;
       const paint = () => {
         if (total <= LIST_FIRST) { bar.hidden = true; bar.innerHTML = ''; return; }
         bar.hidden = false;
@@ -4533,6 +4536,8 @@
       };
       Object.defineProperty(tb, 'innerHTML', { configurable: true, get() { return d.get.call(tb); }, set(html) {
         html = String(html);
+        if (html === lastHtml) return;                 // exactly what is on screen already: leave the page alone
+        lastHtml = html;
         const cut = html.split('</tr>'), parts = cut.map((x, k) => k < cut.length - 1 ? x + '</tr>' : x).filter(x => x.trim());
         total = /<table/i.test(html) ? 0 : parts.length; rest = '';
         if (total <= LIST_FIRST || all) d.set.call(tb, html);
@@ -4564,20 +4569,38 @@
     if (loaded('transfer')) loadTransfers();
     if (visible('dash')) loadDash();
   }
+  // run something that redraws the screen only when the person is not pressing or has just pressed something (a redraw
+  // between "mouse down" and "mouse up" swallows the click); never waits longer than 5 seconds
+  let calmPressed = false, calmLast = 0;
+  document.addEventListener('pointerdown', () => { calmPressed = true; calmLast = Date.now(); }, true);
+  ['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, () => { calmPressed = false; calmLast = Date.now(); }, true));
+  ['keydown', 'wheel', 'touchmove'].forEach(ev => document.addEventListener(ev, () => { calmLast = Date.now(); }, { capture: true, passive: true }));
+  function whenCalm(fn) { const t0 = Date.now(); const go = () => { if ((calmPressed || Date.now() - calmLast < 400) && Date.now() - t0 < 5000) { setTimeout(go, 150); return; } try { fn(); } catch (e) { /* the next change tries again */ } }; go(); }
   async function onDataChanged(groups) {
     const has = g => groups.indexOf(g) > -1;
-    if (has('master') || has('stock') || has('log')) {
-      try { const L = await rawCall('getLookups'); setMaster(L.master); setDrivers(L.drivers); setPumps(L.pumps); } catch (e) {}
-    }
+    /* The lists every form needs (machinery, drivers, pumps): at once when the Asset Master changed; after other people's
+     * diesel / Log Book entries at most once in 15 seconds (they only add a new driver name or a last reading) –
+     * and without asking for the vehicle-papers badge again, which those entries cannot change. */
+    const lookups = async quiet => { try { const L = await rawCall('getLookups'); S.quietMaster = !!quiet; setMaster(L.master); setTimeout(() => { S.quietMaster = false; }, 50); setDrivers(L.drivers); setPumps(L.pumps); } catch (e) {} };
+    if (has('master')) await lookups(false);
+    else if (has('stock') || has('log')) { const wait = Math.max(0, 15000 - (Date.now() - (S.lookAt || 0))); clearTimeout(S.lookT); S.lookT = setTimeout(() => { S.lookAt = Date.now(); lookups(true); }, wait); }
+    /* Only the page that is ON SCREEN is refreshed now (and only when the person is not in the middle of a click).
+     * A page that was opened earlier but is not on screen is just marked "old": it is refreshed the moment it is opened.
+     * Before, every page ever opened was reloaded and redrawn in the background after every save of every user –
+     * with several people entering, the screen kept freezing (clicks and scrolling were lost while it redrew). */
+    S.stale = S.stale || {};
+    // the page on screen is redrawn at most once in 5 seconds, however many entries other people save in that time
+    S.freshAt = S.freshAt || {}; S.freshT = S.freshT || {};
+    const fresh = (tab, fn) => { if (!visible(tab)) { if (loaded(tab)) S.stale[tab] = true; return; }
+      const wait = Math.max(0, 5000 - (Date.now() - (S.freshAt[tab] || 0))); clearTimeout(S.freshT[tab]);
+      S.freshT[tab] = setTimeout(() => { if (!visible(tab)) { S.stale[tab] = true; return; } S.freshAt[tab] = Date.now(); whenCalm(fn); }, wait); };
     if (has('stock')) {
       refreshStock();
-      if (loaded('diesel')) loadDiesel();
-      if (loaded('inward')) loadInward();
-      if (loaded('transfer')) loadTransfers();
+      fresh('diesel', loadDiesel); fresh('inward', loadInward); fresh('transfer', loadTransfers);
     }
-    if (has('log') && loaded('log')) loadLog();
-    if ((has('stock') || has('log') || has('master')) && loaded('log')) lgRefreshAll(); // new diesel shows in the open Log Book at once
-    if ((has('stock') || has('log') || has('master')) && loaded('dash')) loadDash(); // refreshed in the background, shown or not
+    if (has('log')) fresh('log', loadLog);
+    if (has('stock') || has('log') || has('master')) { if (visible('log')) whenCalm(lgRefreshAll); else if (loaded('log')) S.stale.log = true; } // new diesel shows in the open Log Book at once
+    if ((has('stock') || has('log') || has('master')) && visible('dash')) whenCalm(loadDash);   // the Dashboard loads itself every time it is opened
     if (has('activity') && visible('activity')) loadActivity();
   }
 
@@ -8767,7 +8790,8 @@
   /* ================= MASTER ================= */
   function setMaster(list) {
     S.master = list.slice().sort((a, b) => a.id.localeCompare(b.id));
-    setTimeout(() => { try { cpBadgeLoad(); } catch (e) { /* badge only */ } try { if (!S.bkBadged) { S.bkBadged = true; bkBadgeLoad(); } } catch (e) { /* badge only */ } }, 0);
+    const quietMaster = !!S.quietMaster;
+    setTimeout(() => { if (quietMaster) return; try { cpBadgeLoad(); } catch (e) { /* badge only */ } try { if (!S.bkBadged) { S.bkBadged = true; bkBadgeLoad(); } } catch (e) { /* badge only */ } }, 0);
     // value = number, or the name when there is no number
     $('dl_machines').innerHTML = S.master.map(m => '<option value="' + esc(m.id) + '">' +
       esc((m.no ? [m.name, m.type].filter(Boolean).join(' – ') : [m.type, 'No number'].filter(Boolean).join(' – ')) + (m.status === 'Inactive' ? ' (Inactive' + (m.inactiveFrom ? ' from ' + showDate(m.inactiveFrom) : '') + ')' : '')) + '</option>').join('');

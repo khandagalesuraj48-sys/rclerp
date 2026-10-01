@@ -206,6 +206,21 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * Sending reports by WhatsApp / e-mail from inside the app (auto to set numbers, or on "Send") – only IDEAS given, nothing built:
     e-mail needs a mail service key in Vercel; WhatsApp needs the WhatsApp Business Platform (own number, Meta business verification,
     approved templates, per-message charge ~₹0.115 utility in India per public rate cards, plus a provider fee) – waiting for his choice.
+- 02-10-2026: he reported the live app hangs a lot (clicks on tabs not taken, scrolling stuck). CAUSE FOUND AND REPRODUCED
+  (`test/browser/storm.js`): after EVERY save by ANY user, `onDataChanged` on every open page reloaded and redrew every page ever opened
+  in that tab (lookups + vehicle-papers badge, stock, diesel, inward, transfer, Log Book list, one call per typed Log Book row, Dashboard).
+  On Apps Script the answers trickled in over seconds; on Vercel they arrive together, and with several people entering it never stops.
+  Measured (12 saves by another user in 30 s, the page just open): 93 calls, page blocked 5.0 s, longest freeze 793 ms
+  → after the fix 28 calls, 1.4 s, 185 ms.
+  THE FIX (App.html, `onDataChanged`, `whenCalm`, `openTabData`, `stockSoon`, `setMaster`, list setter):
+  * only the page ON SCREEN is refreshed, at most once in 5 s, and never between mouse-down and mouse-up (`whenCalm`);
+  * pages not on screen are marked `S.stale[tab]` and refreshed when opened (`openTabData`); the Dashboard loads itself on open;
+  * form lists (getLookups) at once only when the Asset Master changed, else at most once in 15 s and without the papers badge;
+  * balances only for the page on screen; a list that comes back identical is not redrawn (`lastHtml` in `listsFirst100`).
+  `test/browser/stale.js` (10 checks) proves nothing stays old: hidden pages refresh on open, typed Log Book rows survive and get the
+  other user's diesel, own saves show at once. DO NOT bring back background reloading of hidden pages.
+  (This is the per-page "live" idea he had proposed and then dropped – done in the safe form: no browser copy of old data is shown.)
+  The earlier "Page Unresponsive" after saving 11 diesel issues was very likely the same storm; not proven.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
