@@ -1728,6 +1728,10 @@
     .lg-wrap tr.lrow > td:nth-of-type(n+8):nth-of-type(-n+14) { font-weight: 600; }
   }
 
+  /* ---------- the Tax Invoice and Debit Note shown under every Abstract on the billing page ---------- */
+  .mb-doc-h { margin: 18px 0 6px; font: 700 13px var(--ui); color: #475569; letter-spacing: .02em; text-transform: uppercase; }
+  .mb-paper.mb-doc { background: #fff; padding: 10px; border: 1px solid #DDE3EA; border-radius: 10px; overflow-x: auto; }
+
   /* ---------- "the first 100 of N rows are shown" under a long list ---------- */
   .more-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 10px 0 2px; padding: 10px 14px; border: 1px solid #DDE3EA; border-radius: 12px; background: #F7FAFD; font-size: 13.5px; color: #334155; }
   .more-bar[hidden] { display: none; }
@@ -1971,7 +1975,7 @@
           <button class="sghead" type="button" aria-expanded="false"><svg class="sgchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg><span class="label">Billing</span></button>
           <div class="sgitems">
             <button class="navbtn" role="tab" id="tab-bill" aria-controls="sec-bill" aria-selected="false" title="Machinery Billing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 1 .7V2l-1 .7-3-2-3 2-3-2-3 2-3-2z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg><span class="label">Machinery Billing</span></button>
-            <button class="navbtn" role="tab" id="tab-bills" aria-controls="sec-bills" aria-selected="false" title="Saved Bills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg><span class="label">Saved Bills</span></button>
+            <button class="navbtn" role="tab" id="tab-bills" aria-controls="sec-bills" aria-selected="false" title="RCL Drive – saved bills and debit notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg><span class="label">RCL Drive</span></button>
             <button class="navbtn" role="tab" id="tab-breg" aria-controls="sec-breg" aria-selected="false" title="Bill Summary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/><path d="M15 21V9"/></svg><span class="label">Bill Summary</span></button>
             <button class="navbtn" role="tab" id="tab-pay" aria-controls="sec-pay" aria-selected="false" title="Machinery Payments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg><span class="label">Machinery Payments</span></button>
             <button class="navbtn" role="tab" id="tab-vled" aria-controls="sec-vled" aria-selected="false" title="Vendor Ledger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z"/><path d="M4 9h16"/><path d="M10 9v11"/><path d="M13 13h4M13 16h4"/></svg><span class="label">Vendor Ledger</span></button>
@@ -2648,7 +2652,8 @@
   <!-- ================= SAVED BILLS ================= -->
   <section id="sec-bills" role="tabpanel" aria-labelledby="tab-bills" hidden>
     <div class="panel">
-      <div class="panel-head"><h2>Saved Bills</h2><span class="chart-note">Bills that were submitted – shown exactly as they were saved. They cannot be changed.</span></div>
+      <div class="panel-head"><h2>RCL Drive</h2><span class="chart-note">Everything that was submitted – shown exactly as it was saved: the Abstract, the Tax Invoice and the Debit Note of every bill.</span></div>
+      <div class="subtabs" id="drv_tabs" role="tablist" style="margin:0 0 12px"><button type="button" data-drv="bills" aria-selected="true">Saved Bills</button><button type="button" data-drv="dn" aria-selected="false">Saved Debit Notes</button></div>
       <div class="rfilters">
         <div class="field"><label for="sb_from">Period from</label><input id="sb_from" type="date"></div>
         <div class="field"><label for="sb_to">Period to</label><input id="sb_to" type="date"></div>
@@ -2659,6 +2664,10 @@
       <div class="table-wrap"><table>
         <thead><tr><th>RA Bill No</th><th>Vendor</th><th>Name on bill</th><th>Period</th><th>Bill Date</th><th class="n">Net Payable</th><th>Status</th><th>Submitted by</th><th></th></tr></thead>
         <tbody id="sb_rows"></tbody>
+      </table></div>
+      <div class="table-wrap" id="drv_dn" hidden><table>
+        <thead><tr><th>Debit Note No</th><th>Date</th><th>Vendor</th><th>Name on note</th><th>For</th><th>Against RA Bill</th><th>Period</th><th class="n">Amount</th><th>Status</th><th></th></tr></thead>
+        <tbody id="dn_rows"></tbody>
       </table></div>
     </div>
   </section>
@@ -6905,7 +6914,8 @@
     $('mbs_project').value = st.project || ''; $('mbs_site').value = st.siteAddress || '';
     $('mbs_cos').innerHTML = Object.keys(st.companies).map(c => { const x = st.companies[c], k = c.split(' ')[0].toLowerCase();
       return '<div class="mbs-co"><b>' + esc(c) + '</b><div class="field"><label>Address (as per GST)</label><input data-co="' + esc(c) + '" data-k="address" value="' + esc(x.address) + '"></div>' +
-        '<div class="field"><label>GSTIN</label><input data-co="' + esc(c) + '" data-k="gstin" value="' + esc(x.gstin) + '" style="text-transform:uppercase"></div><div class="field"><label>PAN</label><input data-co="' + esc(c) + '" data-k="pan" value="' + esc(x.pan) + '" style="text-transform:uppercase"></div></div>'; }).join('');
+        '<div class="field"><label>GSTIN</label><input data-co="' + esc(c) + '" data-k="gstin" value="' + esc(x.gstin) + '" style="text-transform:uppercase"></div><div class="field"><label>PAN</label><input data-co="' + esc(c) + '" data-k="pan" value="' + esc(x.pan) + '" style="text-transform:uppercase"></div>' +
+        '<div class="field"><label>Tax Invoice no. starts with</label><input data-co="' + esc(c) + '" data-k="invPrefix" value="' + esc(x.invPrefix || '') + '" placeholder="e.g. SLI/VTR/RA-"></div><div class="field"><label>Debit Note no. starts with</label><input data-co="' + esc(c) + '" data-k="dnPrefix" value="' + esc(x.dnPrefix || '') + '" placeholder="e.g. SLI/VTR/DN-"></div></div>'; }).join('');
   }
   $('mb_settings_btn').addEventListener('click', () => { $('mb_settings').hidden = !$('mb_settings').hidden; });
   $('mbs_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
@@ -7129,7 +7139,9 @@
       '<td><input class="mb-no" value="' + esc(b.billNo) + '" placeholder="' + (b.firstBill ? 'first bill – type no.' : '') + '"' + (b.firstBill ? ' title="First bill of this vendor under this name – type its RA bill number; after this the next number comes by itself"' : '') + '></td>' +
       '<td>' + (b.edited ? '<span class="st bad">Changed by hand</span> ' : '') + (b.warnings.length ? '<span class="st low" title="' + esc(b.warnings.join(' · ')) + '">' + b.warnings.length + ' to check</span>' : '<span class="st ok">OK</span>') +
       ' <button class="link" data-mblog="' + i + '" title="Log Book of this vendor\'s machinery for these dates">Log Book</button></td></tr>').join('');
-    $('mb_pages').innerHTML = L.map((b, i) => '<div class="mb-page" data-i="' + i + '"><div class="mb-paper" contenteditable="true" spellcheck="false">' + billHtml(b, false) + '</div></div>').join('');
+    $('mb_pages').innerHTML = L.map((b, i) => '<div class="mb-page" data-i="' + i + '"><div class="mb-paper" contenteditable="true" spellcheck="false">' + billHtml(b, false) + '</div>' +
+      '<div class="mb-doc-h">Tax Invoice – ' + esc(b.vendor.name) + '</div><div class="mb-paper mb-doc">' + taxInvoiceHtml(b) + '</div>' +
+      (b.B > 0 ? '<div class="mb-doc-h">Debit Note (diesel) – ' + esc(b.vendor.name) + '</div><div class="mb-paper mb-doc">' + debitNoteHtml(b) + '</div>' : '') + '</div>').join('');
   }
   $('mb_rows').addEventListener('input', e => {
     const tr = e.target.closest('tr'); if (!tr) return; const b = S.mb.bills[Number(tr.dataset.i)];
@@ -7241,6 +7253,99 @@
         .map(x => '<div><span></span><b>' + x[0] + '</b><small>' + x[1] + '</small></div>').join('') + '</div>' +
       '</div>';
   }
+  /* ================= THE THREE PAPERS OF A BILL =================
+   * 1. Abstract of Bill (billHtml, above) – the company's own working.
+   * 2. Tax Invoice – the party's invoice to the company, in the fixed format, made from the SAME figures as the Abstract
+   *    (work done A, deductions B and C, value D, GST E + F, total G, TDS H, cheque amount I). Nothing is worked out again.
+   * 3. Debit Note – only when diesel is deducted (B): what the company debits the party for diesel, machinery by machinery.
+   * All three are made from the bill as it is saved, so an old bill always shows the papers it had. */
+  const DOC_CSS = '<style>' +
+    '.tx, .dnp { font-family: Arial, sans-serif; color: #000; border: 1.6px solid #111; font-size: 10.5pt; line-height: 1.35; }' +
+    '.tx table, .dnp table { width: 100%; border-collapse: collapse; table-layout: fixed; } .tx td, .tx th, .dnp td, .dnp th { border: 1px solid #111; padding: 4px 7px; vertical-align: top; text-align: left; background: #fff; color: #000; font-size: inherit; font-weight: 400; white-space: normal; overflow-wrap: anywhere; letter-spacing: 0; text-transform: none; position: static; }' +
+    '.tx th, .dnp th, .tx td.k { font-weight: 700; }' +
+    '.tx .n, .dnp .n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; } .tx .c, .dnp .c { text-align: center; }' +
+    '.tx-name, .dnp-co { text-align: center; font-weight: 700; font-size: 17pt; padding: 7px 6px 5px; border-bottom: 1px solid #111; }' +
+    '.tx-title, .dnp-title { text-align: center; font-weight: 700; letter-spacing: .06em; padding: 3px; border-bottom: 1px solid #111; background: #EEF1F4; }' +
+    '.tx th, .dnp th { background: #EEF1F4; font-weight: 700; } .tx .k { font-weight: 700; white-space: nowrap; } .tx small, .dnp small { font-size: 8.5pt; color: #333; display: block; }' +
+    '.tx .foot .k { white-space: normal; } .tx .sum td { font-weight: 700; } .tx .foot td { border-top: 1.6px solid #111; } .tx-sign { height: 30mm; text-align: center; vertical-align: bottom !important; }' +
+    '.tx-decl { text-align: center; font-size: 9pt; padding: 5px; border-top: 1px solid #111; } .dnp-sign { display: flex; justify-content: space-between; padding: 22mm 10mm 6px; font-weight: 700; }' +
+    '.dnp-note { padding: 6px 8px; font-size: 9.5pt; border-top: 1px solid #111; }' +
+    '</style>';
+  // 40000 → "Rupees Forty Thousand Only" (Indian counting: thousand, lakh, crore)
+  function rupeesWords(n) {
+    n = Math.round((Number(n) || 0) * 100) / 100; const neg = n < 0; n = Math.abs(n);
+    let r = Math.floor(n + 1e-9), p = Math.round((n - r) * 100); if (p >= 100) { r += 1; p = 0; }
+    const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const t = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const two = x => x < 20 ? a[x] : t[Math.floor(x / 10)] + (x % 10 ? ' ' + a[x % 10] : '');
+    const three = x => (x >= 100 ? a[Math.floor(x / 100)] + ' Hundred' + (x % 100 ? ' ' : '') : '') + (x % 100 ? two(x % 100) : '');
+    const words = x => { if (x === 0) return ''; const out = []; const cr = Math.floor(x / 10000000); x %= 10000000; const lk = Math.floor(x / 100000); x %= 100000; const th = Math.floor(x / 1000); x %= 1000;
+      if (cr) out.push(words(cr) + ' Crore'); if (lk) out.push(two(lk) + ' Lakh'); if (th) out.push(two(th) + ' Thousand'); if (x) out.push(three(x)); return out.join(' '); };
+    return (neg ? 'Minus ' : '') + 'Rupees ' + (words(r) || 'Zero') + (p ? ' and ' + two(p) + ' Paise' : '') + ' Only';
+  }
+  const docDash = v => (v === '' || v === null || v === undefined || Number(v) === 0) ? '-' : mbN2(v);
+  function taxInvoiceHtml(b) {
+    const co = b.company || '', ci = b.companyInfo || {}, v = b.vendor || {}, gst = Number(b.gstPct) || 0, half = gst / 2;
+    const less = (Number(b.B) || 0) + (Number(b.C) || 0), rowTax = gst > 0 && !less && b.D > 0;      // tax per row only when the value taxed is the work done itself
+    const rows = (b.machines || []).map((m, i) => {
+      const lines = (m.lines || []).filter(l => !(l.monthly && m.lines.length === 1));
+      const detail = lines.map(l => (l.item ? String(l.item).toUpperCase() + (l.note ? ' – ' + l.note : '') + ': ' : (l.note ? l.note + ': ' : '')) + fmt(l.qty) + ' ' + (l.unit || '') + ' × ' + mbN2(l.rate) + ' = ' + mbN2(l.amount));
+      const tax = rowTax ? r2(m.amount * half / 100) : 0;
+      return '<tr><td class="c">' + (i + 1) + '</td><td><b>RENT ON VEHICLE ' + esc(String(m.no).replace(/-/g, '').toUpperCase()) + '</b>' + (m.type ? ' <span>(' + esc(String(m.type).toUpperCase()) + ')</span>' : '') +
+        (detail.length ? '<small>' + detail.map(esc).join('<br>') + '</small>' : '') + '</td><td class="n">' + mbN2(m.amount) + '</td><td class="n">' + (rowTax ? mbN2(tax) : '-') + '</td><td class="n">' + (rowTax ? mbN2(tax) : '-') + '</td><td class="n">' + mbN2(r2(m.amount + 2 * tax)) + '</td></tr>'; });
+    const pct = gst ? fmt(half) + '%' : '';
+    const sum = [['Total Amount Before Tax', mbN2(b.A)]]
+      .concat(b.B ? [['Less: Diesel deduction' + (b.dnNo ? ' (Debit Note ' + esc(b.dnNo) + ')' : ''), '− ' + mbN2(b.B)]] : [])
+      .concat(b.C ? [['Less: Other deduction' + (b.cReason ? ' (' + esc(b.cReason) + ')' : ''), '− ' + mbN2(b.C)]] : [])
+      .concat([['Basic Value', mbN2(b.D)], ['SGST ' + pct, docDash(b.F)], ['CGST ' + pct, docDash(b.E)], ['Total Billing Amt', mbN2(b.G)]])
+      .concat(b.H ? [['Less: TDS ' + (b.tdsPct ? fmt(b.tdsPct) + '%' : ''), '− ' + mbN2(b.H)]] : [])
+      .concat([['Net Cheque Amount', mbN2(b.I)]]);
+    const party = '<b>' + esc(co.toUpperCase()) + '</b>';
+    return DOC_CSS + '<div class="tx"><div class="tx-name">' + esc(v.name || '') + '</div><div class="tx-title">TAX INVOICE</div>' +
+      '<table><colgroup><col style="width:23%"><col style="width:27%"><col style="width:50%"></colgroup><tbody>' +
+      '<tr><td class="k">INVOICE NO:</td><td><b>' + esc((ci.invPrefix || '') + (b.billNo || '')) + (b.rev ? ' (Rev ' + b.rev + ')' : '') + '</b></td><td>' + esc(b.woNo || '') + (b.woDate ? ' &nbsp; Dated :- ' + mbDot(b.woDate) : '') + '</td></tr>' +
+      '<tr><td class="k">INVOICE DATE:</td><td><b>' + mbDot(b.billDate) + '</b></td><td><b>Period of Service:</b> ' + mbDot(b.from) + ' To ' + mbDot(b.to) + '</td></tr>' +
+      '<tr><td class="k">Reverse Charge (Y/N):</td><td>N</td><td rowspan="2"><b>Place of Service :</b> Rent On Vehicle</td></tr>' +
+      '<tr><td class="k">State :</td><td>MAHARASHTRA</td></tr></tbody></table>' +
+      '<table><colgroup><col style="width:50%"><col style="width:50%"></colgroup><tbody><tr><th class="c">Bill to Party</th><th class="c">Ship to Party</th></tr>' +
+      '<tr><td>To,<br>' + party + (ci.address ? '<br>Address : ' + esc(ci.address) : '') + '<br><b>GST : ' + esc(ci.gstin || '–') + '</b></td>' +
+      '<td>To,<br>' + party + (b.siteAddress ? '<br>Address : ' + esc(b.siteAddress) : '') + '<br><b>GST : ' + esc(ci.gstin || '–') + '</b></td></tr></tbody></table>' +
+      '<table><colgroup><col style="width:7%"><col style="width:43%"><col style="width:14%"><col style="width:11%"><col style="width:11%"><col style="width:14%"></colgroup><thead><tr><th class="c">Sr.No</th><th class="c">Description of Work</th><th class="c">Amount</th><th class="c">Add CGST ' + pct + '</th><th class="c">Add SGST ' + pct + '</th><th class="c">Total Amount</th></tr></thead><tbody>' +
+      rows.join('') + '<tr class="sum"><td colspan="2" class="c">Total Billing Amount</td><td class="n">' + mbN2(b.A) + '</td><td class="n">-</td><td class="n">-</td><td class="n">' + mbN2(b.A) + '</td></tr></tbody></table>' +
+      '<table class="foot"><colgroup><col style="width:50%"><col style="width:36%"><col style="width:14%"></colgroup><tbody>' +
+      sum.map((x, i) => '<tr>' + (i === 0 ? '<td rowspan="' + sum.length + '"><b>In Word : ' + esc(rupeesWords(b.I)) + ' /-</b></td>' : '') + '<td class="k">' + x[0] + '</td><td class="n"><b>' + x[1] + '</b></td></tr>').join('') +
+      '<tr><td>' + esc(v.name || '') + (v.address ? '<br>' + esc(v.address) : '') + (v.account ? '<br>AC.NO : - ' + esc(v.account) : '') + (v.ifsc ? '<br>IFSC CODE :' + esc(v.ifsc) : '') + (v.bank ? '<br>BANK : ' + esc(v.bank) + (v.branch ? ', ' + esc(v.branch) : '') : '') +
+        (v.pan ? '<br>PAN NO :- ' + esc(v.pan) : '') + (v.gst ? '<br>GSTIN :- ' + esc(v.gst) : '') + '</td><td colspan="2" class="tx-sign"><b>' + esc(v.name || '') + '</b><br>Authorised Signature</td></tr>' +
+      '</tbody></table><div class="tx-decl"><b>Declaration:</b><br>We declare that all particulars shown in the above Tax Invoice are true and correct.<br>All disputes subject to Jurisdiction of Pune</div></div>';
+  }
+  function debitNoteHtml(b) {
+    if (!(Number(b.B) > 0)) return '';
+    const co = b.company || '', ci = b.companyInfo || {}, v = b.vendor || {}; let sr = 0; const rows = [];
+    (b.machines || []).forEach(m => { const amt = Number(m.excessAmt) || 0; if (!(amt > 0)) return;
+      const rate = Number(m.dieselRate) || 0, dq = Number(m.debitQty) || 0, eq = Number(m.excessQty) || 0, first = dq && eq ? r2(dq * rate) : amt;
+      const add = (what, q, a) => rows.push('<tr><td class="c">' + (++sr) + '</td><td><b>' + esc(String(m.no).replace(/-/g, '').toUpperCase()) + '</b>' + (m.type ? ' ' + esc(String(m.type).toUpperCase()) : '') + '</td><td>' + what + '</td><td class="n">' + fmt(r2(q)) + '</td><td class="n">' + (rate ? mbN2(rate) : '-') + '</td><td class="n">' + mbN2(a) + '</td></tr>');
+      if (dq) add('Diesel issued – debit basis', dq, first);
+      if (eq) add('Diesel used over the standard average', eq, dq ? r2(amt - first) : amt);
+      if (!dq && !eq) add('Diesel deduction', 0, amt); });
+    return DOC_CSS + '<div class="dnp"><div class="dnp-co">' + esc(co.toUpperCase()) + '</div><div class="dnp-title">DEBIT NOTE – DIESEL</div>' +
+      '<table><colgroup><col style="width:50%"><col style="width:20%"><col style="width:30%"></colgroup><tbody>' +
+      '<tr><td rowspan="4">To,<br><b>' + esc((v.name || '').toUpperCase()) + '</b>' + (v.address ? '<br>' + esc(v.address) : '') + (v.pan ? '<br>PAN NO :- ' + esc(v.pan) : '') + (v.gst ? '<br>GSTIN :- ' + esc(v.gst) : '') + '</td>' +
+        '<td><b>Debit Note No</b></td><td><b>' + (b.dnNo ? esc(b.dnNo) : '(given when the bill is submitted)') + '</b></td></tr>' +
+      '<tr><td><b>Date</b></td><td>' + mbDot(b.billDate) + '</td></tr><tr><td><b>Against RA Bill</b></td><td>' + esc(b.billNo || '') + (b.rev ? ' (Rev ' + b.rev + ')' : '') + '</td></tr>' +
+      '<tr><td><b>Work Period</b></td><td>' + mbDot(b.from) + ' To ' + mbDot(b.to) + '</td></tr>' +
+      '<tr><td colspan="3"><b>' + esc(co.toUpperCase()) + '</b>' + (ci.address ? ', ' + esc(ci.address) : '') + ' &nbsp; <b>GSTIN :</b> ' + esc(ci.gstin || '–') + (b.woNo ? ' &nbsp; <b>Work Order :</b> ' + esc(b.woNo) : '') + '</td></tr></tbody></table>' +
+      '<table><colgroup><col style="width:7%"><col style="width:25%"><col style="width:32%"><col style="width:11%"><col style="width:11%"><col style="width:14%"></colgroup><thead><tr><th class="c">Sr.No</th><th>Machinery</th><th>Particular</th><th class="c">Qty (Ltr)</th><th class="c">Rate (₹/Ltr)</th><th class="c">Amount</th></tr></thead><tbody>' +
+      rows.join('') + '<tr><td colspan="5" class="n"><b>Total debit</b></td><td class="n"><b>' + mbN2(b.B) + '</b></td></tr>' +
+      '<tr><td colspan="6"><b>In Word : ' + esc(rupeesWords(b.B)) + ' /-</b></td></tr></tbody></table>' +
+      '<div class="dnp-note">This amount is deducted in RA Bill No <b>' + esc(b.billNo || '') + '</b> (line B of the Abstract of Bill, "Less – Diesel Deduction").</div>' +
+      '<div class="dnp-sign"><span>Accepted by – ' + esc(v.name || '') + '</span><span>For ' + esc(co) + '</span></div></div>';
+  }
+  // the papers of one bill as print pages: Abstract, Tax Invoice, Debit Note (when there is one)
+  function billSheets(b, cls) {
+    const dn = debitNoteHtml(b);
+    return ['<section class="billsheet' + (cls || '') + '">' + billHtml(b, true) + '</section>', '<section class="billsheet' + (cls || '') + '">' + taxInvoiceHtml(b) + '</section>']
+      .concat(dn ? ['<section class="billsheet' + (cls || '') + '">' + dn + '</section>'] : []).join('');
+  }
   /* ---------- saved bills ---------- */
   async function sbLoad() {
     try {
@@ -7250,8 +7355,22 @@
         '</td><td>' + esc(showDate(b.billDate)) + '</td><td class="n"><b>' + mbN2(b.net) + '</b></td><td>' + (b.status === 'Superseded' ? '<span class="st low">Superseded</span>' : '<span class="st ok">Active</span>') + '</td><td>' + esc(b.enteredBy || '–') +
         '</td><td class="nowrap"><button class="link" data-sbv="' + esc(b.id) + '">View / Print</button> <button class="link" data-sbl="' + esc(b.id) + '" title="Log Book of this vendor\'s machinery for the bill period (as the Log Book is now)">Log Book</button>' + (admin ? ' <button class="link danger" data-sbd="' + esc(b.id) + '">Delete</button>' : '') + '</td></tr>').join('')
         : '<tr><td colspan="9" class="none">No submitted bills for these filters.</td></tr>';
+      const dn = d.bills.filter(b => Number(b.dnAmt) > 0);
+      $('dn_rows').innerHTML = dn.length ? dn.map(b => '<tr' + (b.status === 'Superseded' ? ' class="old"' : '') + '><td><b>' + (b.dnNo ? esc(b.dnNo) : '<span class="muted" title="Saved before debit notes were numbered">–</span>') + '</b></td><td>' + esc(showDate(b.billDate)) + '</td><td>' + esc(b.vendor) + '</td><td>' + esc(b.company) +
+        '</td><td>Diesel</td><td>' + esc(b.billNo) + (b.rev ? ' <small>rev ' + b.rev + '</small>' : '') + '</td><td>' + esc(showDate(b.from)) + ' – ' + esc(showDate(b.to)) + '</td><td class="n"><b>' + mbN2(b.dnAmt) + '</b></td><td>' + (b.status === 'Superseded' ? '<span class="st low">Superseded</span>' : '<span class="st ok">Deducted in the bill</span>') +
+        '</td><td class="nowrap"><button class="link" data-dnv="' + esc(b.id) + '">View / Print</button> <button class="link" data-sbv="' + esc(b.id) + '" title="The whole bill: Abstract, Tax Invoice and this Debit Note">Bill</button></td></tr>').join('')
+        : '<tr><td colspan="10" class="none">No debit notes for these filters.</td></tr>';
     } catch (e) { toast(errMsg(e), true); }
   }
+  $('drv_tabs').addEventListener('click', e => { const b = e.target.closest('[data-drv]'); if (!b) return; const dn = b.dataset.drv === 'dn';
+    $('drv_tabs').querySelectorAll('button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    $('drv_dn').hidden = !dn; $('sb_rows').closest('.table-wrap').hidden = dn; const bar = $('sb_rows').closest('.table-wrap').nextElementSibling; if (bar && bar.classList.contains('more-bar')) bar.style.display = dn ? 'none' : ''; });
+  $('dn_rows').addEventListener('click', async e => {
+    const v = e.target.closest('[data-dnv]'), all = e.target.closest('[data-sbv]'); const id = v ? v.dataset.dnv : all ? all.dataset.sbv : ''; if (!id) return;
+    try { const r = await call('getBills', { id: id }); const b = r.bills[0]; if (!b) return; const data = Object.assign({ dnNo: b.dnNo }, b.data, { billNo: b.billNo, rev: b.rev });
+      if (v) printDoc('Debit Note – ' + b.vendor + ' – ' + (b.dnNo || 'RA Bill ' + b.billNo), '<section class="billsheet' + (b.status === 'Superseded' ? ' superseded' : '') + '">' + debitNoteHtml(data) + '</section>', 'rep rep-bill', true, b.company);
+      else printDoc('Bill papers – ' + b.vendor + ' – RA Bill ' + b.billNo, billSheets(data, b.status === 'Superseded' ? ' superseded' : ''), 'rep rep-bill', true, b.company);
+    } catch (err) { toast(errMsg(err), true); } });
   ['sb_from', 'sb_to', 'sb_vendor', 'sb_co'].forEach(id => $(id).addEventListener('change', sbLoad));
   document.querySelectorAll('[data-sbr]').forEach(b => b.addEventListener('click', () => {
     const t = new Date(S.today + 'T00:00:00');
@@ -7275,7 +7394,7 @@
       return;
     }
     if (v) { try { const r = await call('getBills', { id: v.dataset.sbv }); const b = r.bills[0]; if (!b) return; const data = Object.assign({}, b.data, { billNo: b.billNo, rev: b.rev });
-        printDoc('Abstract of Bill – ' + b.vendor + ' – RA Bill ' + b.billNo, '<section class="billsheet' + (b.status === 'Superseded' ? ' superseded' : '') + '">' + billHtml(data, true) + '</section>', 'rep rep-bill', true, b.company); } catch (err) { toast(errMsg(err), true); } }
+        printDoc('Abstract of Bill – ' + b.vendor + ' – RA Bill ' + b.billNo, billSheets(Object.assign({ dnNo: b.dnNo }, data), b.status === 'Superseded' ? ' superseded' : ''), 'rep rep-bill', true, b.company); } catch (err) { toast(errMsg(err), true); } }
     if (d) {
       const reason = await askConfirm({ title: 'Delete this bill?', ok: 'Delete', danger: true, html: '<p>Only Admin can delete a submitted bill. Write the reason:</p><input id="sb_reason" style="width:100%" placeholder="Reason">' });
       if (!reason) return; const why = ($('sb_reason') || {}).value || '';
@@ -7457,7 +7576,7 @@
     if (vb) { $('br_vendor').value = vb.dataset.brvend; S.br.view = 'detail'; brRender(); return; }
     const v = e.target.closest('[data-sbv]');
     if (v) { try { const r = await call('getBills', { id: v.dataset.sbv }); const b = r.bills[0]; if (!b) return; const data = Object.assign({}, b.data, { billNo: b.billNo, rev: b.rev });
-      printDoc('Abstract of Bill – ' + b.vendor + ' – RA Bill ' + b.billNo, '<section class="billsheet">' + billHtml(data, true) + '</section>', 'rep rep-bill', true, b.company); } catch (err) { toast(errMsg(err), true); } }
+      printDoc('Abstract of Bill – ' + b.vendor + ' – RA Bill ' + b.billNo, billSheets(Object.assign({ dnNo: b.dnNo }, data), ''), 'rep rep-bill', true, b.company); } catch (err) { toast(errMsg(err), true); } }
   });
   function brTitle() { return 'Bill Summary – ' + (S.br.view === 'net' ? 'Net Payable (month-wise)' : 'Detail'); }
   function brSub() { const m = brMonths($('br_from').value, $('br_to').value); return brMonthName(m[0]) + (m.length > 1 ? ' to ' + brMonthName(m[m.length - 1]) : '') + ($('br_co').value ? ' · ' + $('br_co').value : '') + ($('br_vendor').value ? ' · ' + $('br_vendor').value : ''); }
@@ -7592,7 +7711,7 @@
   $('vl_out').addEventListener('click', async e => {
     const v = e.target.closest('[data-sbv]'); if (!v) return;
     try { const r = await call('getBills', { id: v.dataset.sbv }); const b = r.bills[0]; if (!b) return; const data = Object.assign({}, b.data, { billNo: b.billNo, rev: b.rev });
-      printDoc('Abstract of Bill – ' + b.vendor + ' – RA Bill ' + b.billNo, '<section class="billsheet">' + billHtml(data, true) + '</section>', 'rep rep-bill', true, b.company); } catch (err) { toast(errMsg(err), true); }
+      printDoc('Abstract of Bill – ' + b.vendor + ' – RA Bill ' + b.billNo, billSheets(Object.assign({ dnNo: b.dnNo }, data), ''), 'rep rep-bill', true, b.company); } catch (err) { toast(errMsg(err), true); }
   });
   $('vl_print').addEventListener('click', async () => {
     if (!S.vl) { toast('Pick a vendor.', true); return; }

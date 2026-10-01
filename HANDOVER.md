@@ -178,6 +178,23 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `npm test` now also checks that every script of the generated page parses (a typo in the bridge would stop the whole app).
   What happens after a save on the page (for the next investigation): `onDataChanged` → getLookups + setMaster, refreshStock, loadDiesel,
   loadInward / loadTransfers / loadLog if loaded, lgRefreshAll (one call per typed Log Book row), loadDash.
+- 01-10-2026 (evening): the freeze did not come back; a user saw the recorder's box once (content not captured – ask for a photo next time).
+- BILL PAPERS, step 1 of 2 (asked with a sample "Tax Invoice" PDF of Mr. Suresh Sarjerav Patil, RA-27, Sketchline):
+  * Every bill now has three papers made from the SAME saved figures: Abstract (`billHtml`), Tax Invoice (`taxInvoiceHtml` – the party's
+    invoice to the company in the fixed format; number = `companyInfo.invPrefix` + RA bill no), Debit Note – diesel (`debitNoteHtml`, only when
+    B > 0). `billSheets(b, cls)` = the print pages; used on the billing page (under each Abstract) and in every "View / Print" of a saved bill.
+  * Tax Invoice figures = the Abstract's: Total before tax A, less diesel B / other C (lines shown only when not zero), Basic Value D,
+    SGST F, CGST E, Total Billing G, less TDS H (only when not zero), Net Cheque I, words of I. MY ASSUMPTION, told to him: deductions and TDS
+    are shown on the invoice so that it ties to the Abstract – he must confirm.
+  * Debit Note numbers: assigned in `submitBills_` (kept in `bills.data.dnNo`, no schema change), one run per company, prefix from
+    Bill Settings (`dnPrefix`, default RCL/VTR/DN- and SLI/VTR/DN-), a bill saved again for the same vendor + period keeps its number.
+    `billOut_` now returns `dnNo` and `dnAmt` in lists. Bills saved before this have no number (shown as "–").
+  * "Saved Bills" page is now "RCL Drive" (module / permission name is still 'Saved Bills'): tabs Saved Bills | Saved Debit Notes.
+  * Tests: unit test "bill papers" (words, figures, hostile text) and `d5.js` in the audit rig (11 checks: numbers per company, revision,
+    three papers, Drive). NOT built yet = step 2: Log Book "Debit to" (vendor + rate typed by hand), a Debit Note page for those
+    (lines Sr / particular / qty / rate / amount, GST, TDS, own number run per company), choosing which notes to deduct in a bill, ledger.
+    His answers for step 2: rate typed by hand; separate numbering for RCL and Sketchline; a note is deducted once, by tick, when the
+    party's bill is made; a party without a bill keeps the note as receivable in the ledger; nothing is stored as PDF.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

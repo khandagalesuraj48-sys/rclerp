@@ -1283,7 +1283,10 @@ function billOut_(t, r, withData) {
     from: dkey_(g('Period From')), to: dkey_(g('Period To')), billDate: dkey_(g('Bill Date')), net: num0_(g('Net Payable')), status: str_(g('Status')) || 'Active',
     remark: str_(g('Remark')), created: g('Created At') instanceof Date ? g('Created At').toISOString() : str_(g('Created At')),
     enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '' };
-  if (withData) { try { o.data = JSON.parse(str_(g('Data')) || '{}'); } catch (e) { o.data = {}; } }
+  // the diesel Debit Note of the bill (its number is kept inside the saved bill): number and amount, for the lists
+  let d = null; try { d = JSON.parse(str_(g('Data')) || '{}'); } catch (e) { d = {}; }
+  o.dnNo = str_(d && d.dnNo); o.dnAmt = r2_(num0_(d && d.B));
+  if (withData) o.data = d || {};
   return o;
 }
 // company details printed on the bills (both names), and the project name – kept with the app settings
@@ -1299,7 +1302,10 @@ function billSettings_() {
   s.siteAddress = s.siteAddress || 'SITE OFFICE AT VALSHIND VILLAGE ON MUMBAI NASHIK EXPRESS WAY, BACK SIDE OF PICHAD WAREHOUSE, BHIWANDI, MAHARASHTRA - 432302';
   BILL_COMPANIES_.forEach(c => {
     const cur = Object.assign({ address: '', gstin: '', pan: '' }, s.companies[c] || {}), k = known[c] || {};
-    s.companies[c] = { address: cur.address || k.address || '', gstin: cur.gstin || k.gstin || '', pan: cur.pan || k.pan || '' };
+    // what the numbers of the Tax Invoice and of the Debit Note start with – each name has its own run of numbers
+    const code = /sketchline/i.test(c) ? 'SLI' : 'RCL';
+    s.companies[c] = { address: cur.address || k.address || '', gstin: cur.gstin || k.gstin || '', pan: cur.pan || k.pan || '',
+      invPrefix: cur.invPrefix === undefined ? code + '/VTR/RA-' : str_(cur.invPrefix), dnPrefix: cur.dnPrefix === undefined ? code + '/VTR/DN-' : str_(cur.dnPrefix) };
   });
   return s;
 }
@@ -1313,7 +1319,9 @@ function saveBillSettings_(x) {
     const gstin = clean_(y.gstin).toUpperCase().replace(/\s/g, ''), pan = clean_(y.pan).toUpperCase().replace(/\s/g, '');
     if (gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstin)) throw new Error(c + ': GSTIN "' + gstin + '" is not in the right format.');
     if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) throw new Error(c + ': PAN "' + pan + '" is not in the right format.');
-    s.companies[c] = { address: clean_(y.address), gstin: gstin, pan: pan || (gstin ? gstin.slice(2, 12) : '') };
+    const old = s.companies[c] || {};
+    s.companies[c] = { address: clean_(y.address), gstin: gstin, pan: pan || (gstin ? gstin.slice(2, 12) : ''),
+      invPrefix: y.invPrefix === undefined ? old.invPrefix : clean_(y.invPrefix), dnPrefix: y.dnPrefix === undefined ? old.dnPrefix : clean_(y.dnPrefix) };
   });
   PropertiesService.getScriptProperties().setProperty('BILL_SETTINGS', JSON.stringify(s));
   return s;
@@ -2150,6 +2158,11 @@ function submitBills_(b) {
     if (dup.length && !b.confirm) return { ok: false, duplicates: dup };
     let n = all.reduce((mx, r) => Math.max(mx, Number(String(r.id).replace(/\D/g, '')) || 0), 0);
     const saved = [];
+    /* Debit Note numbers (diesel deducted in the bill): one run of numbers for each name (Rachana / Sketchline).
+     * The next number is one more than the highest ever given under that name; a bill saved again keeps its number. */
+    const st = billSettings_(), dnLast = {};
+    const dnNum = no => Number((/(\d+)\s*$/.exec(str_(no)) || [])[1]) || 0;
+    all.forEach(y => { const k = y.company; dnLast[k] = Math.max(dnLast[k] || 0, dnNum((y.data || {}).dnNo)); });
     bills.forEach(x => {
       const older = sameKey(x);
       // the older bill(s) of the same vendor and period are kept, marked Superseded
@@ -2157,6 +2170,12 @@ function submitBills_(b) {
       const sameNo = older.filter(y => y.billNo === clean_(x.billNo));
       const rev = sameNo.length ? Math.max(...sameNo.map(y => y.rev)) + 1 : 0;
       const id = 'BILL-' + String(++n).padStart(5, '0');
+      x.data = x.data || {};
+      if (num0_(x.data.B) > 0) {
+        const kept = older.map(y => str_((y.data || {}).dnNo)).filter(Boolean)[0];
+        if (kept) x.data.dnNo = kept;
+        else { dnLast[x.company] = (dnLast[x.company] || 0) + 1; x.data.dnNo = str_(((st.companies || {})[x.company] || {}).dnPrefix) + String(dnLast[x.company]).padStart(3, '0'); }
+      } else delete x.data.dnNo;
       const row = newRow_(t);
       set_(row, t, 'Bill ID', id); set_(row, t, 'Vendor Name', clean_(x.vendor)); set_(row, t, 'Company', x.company); set_(row, t, 'Bill No', clean_(x.billNo)); set_(row, t, 'Rev', rev);
       set_(row, t, 'Period From', toDate_(dkey_(x.from))); set_(row, t, 'Period To', toDate_(dkey_(x.to))); set_(row, t, 'Bill Date', toDate_(dkey_(x.billDate) || today_()));
