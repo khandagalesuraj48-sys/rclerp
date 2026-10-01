@@ -1633,13 +1633,15 @@
   .side nav::-webkit-scrollbar-thumb { background: var(--sb-line); }
   .side :is(.navbtn, .grphead, .sghead, .side-toggle):focus-visible { outline: 2px solid var(--sb-cap); outline-offset: 1px; }
 
-  /* the menu on a computer: opens without the letters re-flowing on every frame (that made it stutter) */
+  /* the menu on a computer: opens and closes at once; only the lettering fades in (a fade cannot freeze half-way) */
   @media (min-width: 761px) {
-    .app.side-auto .side { transition: width .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s ease; contain: layout paint; }
+    .app.side-auto .side { transition: none; contain: layout paint; }              /* opens / closes at once – see autoSide */
     .app.side-auto .side:not(.mini) { box-shadow: 10px 0 28px rgba(3,12,28,.24); }
     .app.side-auto .side > * { width: 272px; flex-shrink: 0; }
     .app.side-auto .side.mini > * { width: 74px; }
-    .app.side-auto .side .label, .app.side-auto .side .brandsub { transition: opacity .14s ease .06s; }
+    .app.side-auto .side .label, .app.side-auto .side .brandsub { transition: none; }
+    .app.side-auto .side:not(.mini) :is(.label, .brandsub, .sgchev, .chev, .badge, .sg-badge) { animation: sideIn .16s ease both; }
+    @keyframes sideIn { from { opacity: 0; } to { opacity: 1; } }
   }
 
   /* ---------- top bar: solid (the frosted glass cost speed while scrolling) ---------- */
@@ -3900,25 +3902,32 @@
   $('side_toggle').addEventListener('click', () => setSide(!$('side').classList.contains('mini')));
   /* Computer: the menu stays slim (icons only) so the page always gets the full width.
      Put the mouse on it and it opens over the page; move the mouse away and it slims down again. */
+  /* The menu on a computer: slim (icons) until the mouse is on it.
+   * It opens and closes AT ONCE (no sliding width) – a slide could freeze half-way while a page was being drawn, which is
+   * what "the menu hangs open" was once the pages started to arrive quickly. Only the lettering fades in.
+   * It can never stay open with the mouse elsewhere: besides "mouse left the menu" it also closes when the mouse moves on
+   * the page, leaves the window, or the window loses focus. A click on a page closes it straight away.
+   * Someone using the keyboard (Tab key) keeps it open while the focus is inside. */
   (function autoSide() {
     if (!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches)) return;
     const side = $('side');
     document.querySelector('.app').classList.add('side-auto');
     side.classList.add('mini');
     let t = 0;
+    const kbInside = () => { const a = document.activeElement; if (!a || a === document.body || !side.contains(a)) return false; try { return a.matches(':focus-visible'); } catch (e) { return false; } };
+    const shut = () => { clearTimeout(t); const a = document.activeElement; if (a && a !== document.body && side.contains(a)) a.blur(); side.classList.add('mini'); };
     const open = () => { clearTimeout(t); t = setTimeout(() => side.classList.remove('mini'), 70); };
-    const close = () => { clearTimeout(t); t = setTimeout(() => {
-      // a mouse click inside the menu leaves the focus on what was clicked – that is not a reason to stay open
-      // (someone moving through the menu with the keyboard keeps it open)
-      const a = document.activeElement;
-      if (a && a !== document.body && side.contains(a) && !side.matches(':hover')) { let kb = false; try { kb = a.matches(':focus-visible'); } catch (e) { kb = false; } if (!kb) a.blur(); }
-      if (!side.matches(':hover') && !side.contains(document.activeElement)) side.classList.add('mini'); }, 220); };
+    const close = () => { clearTimeout(t); t = setTimeout(() => { if (!kbInside()) shut(); }, 140); };
     side.addEventListener('mouseenter', open);
     side.addEventListener('mouseleave', close);
-    side.addEventListener('focusin', open);
-    side.addEventListener('focusout', close);
-    // after choosing a page the menu slims down again
-    side.querySelectorAll('.navbtn').forEach(b => b.addEventListener('click', () => { b.blur(); clearTimeout(t); t = setTimeout(() => side.classList.add('mini'), 350); }));
+    side.addEventListener('focusin', e => { let kb = false; try { kb = e.target.matches(':focus-visible'); } catch (x) { kb = false; } if (kb) open(); });
+    side.addEventListener('focusout', () => { clearTimeout(t); t = setTimeout(() => { if (!side.matches(':hover') && !kbInside()) shut(); }, 140); });
+    // after choosing a page the menu slims down at once
+    side.querySelectorAll('.navbtn').forEach(b => b.addEventListener('click', shut));
+    // safety nets: the mouse is on the page, has left the window, or the window is no longer the active one
+    document.addEventListener('mousemove', e => { if (!side.classList.contains('mini') && e.clientX > side.getBoundingClientRect().right + 16 && !kbInside()) shut(); }, { passive: true });
+    document.documentElement.addEventListener('mouseleave', () => { if (!kbInside()) shut(); });
+    window.addEventListener('blur', () => { if (!side.classList.contains('mini')) shut(); });
   })();
   document.querySelectorAll('.grphead:not([aria-disabled="true"])').forEach(h => h.addEventListener('click', () => {
     if ($('side').classList.contains('mini')) { if (!document.querySelector('.app.side-auto')) setSide(false); return; }

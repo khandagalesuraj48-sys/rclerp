@@ -124,6 +124,14 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * `apps-script/VercelBridge.gs`, GAS_BACKUP_URL and the doPost path are removed. `movedTo_()` in Code.gs is harmless leftover.
   * Tested only against a local stand-in for Google (token signature verified, grid limits enforced) – NOT against real Google.
   * Old Apps Script app: to be archived + triggers deleted by him once staff have the new link (README).
+- 01-10-2026: backup to his EXISTING Sheet works on the real setup (he pressed Backup: full backup written, 16 tables; Log Book 203 rows,
+  Diesel Issue 309, Master 57 – the real data is small). Service account: rcl-backup@rcl-erp-510303.iam.gserviceaccount.com.
+  Old Apps Script triggers are deleted; archiving the old deployment + giving staff the new link was the last step given to him.
+- Menu "hangs open" on Vercel (reproduced): after a click the old code closed the menu 350 ms later with a width transition; on Vercel the
+  page data arrives within that time and drawing it blocks the main thread, so the menu stayed open / half-way until the drawing ended
+  (on Apps Script the data came seconds later, so it never collided). `autoSide` is rewritten: the menu opens / closes AT ONCE (no width
+  transition; only the lettering fades in), a click on a page shuts it in the same task, and it also shuts on mousemove over the page,
+  mouse leaving the window and window blur; keyboard users (`:focus-visible` inside) keep it open. Do not bring back a width transition.
 - Known limits: sync every 1 s = many Vercel invocations; ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
