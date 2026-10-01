@@ -25,6 +25,10 @@ const BRIDGE = `
   var flying = {}, saveNo = 0;      // saveNo goes up whenever anything that is not a question is sent or answered
   function isQuestion(name, args) { if (name !== 'api') return false; var f = String(args[1]);
     return /^(get|rpt)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1; }
+  // calls on their way (for the freeze note: which answer the page was waiting for, and for how long) and the last answer
+  var inFlight = {}, flightNo = 0, lastAnswer = '';
+  window.__rclNet = function () { var now = Date.now(), w = Object.keys(inFlight).map(function (k) { return inFlight[k].fn + ' ' + ((now - inFlight[k].t0) / 1000).toFixed(1) + ' s'; });
+    return { waiting: w.slice(0, 4).join(', '), last: lastAnswer }; };
   function send(name, args, ok, fail) {
     try { if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('→ ' + (name === 'api' ? args[1] : name)); } catch (e) {}
     if (isQuestion(name, args)) {
@@ -42,13 +46,15 @@ const BRIDGE = `
     }
     var isQ = isQuestion(name, args) || (name === 'api' && args[1] === 'sync') || name === 'getAppBuild' || name === 'getAppHtml';
     if (!isQ) saveNo++;
-    var t0 = Date.now();
+    var t0 = Date.now(), fid = ++flightNo, fnName = name === 'api' ? String(args[1]) : name;
+    inFlight[fid] = { fn: fnName, t0: t0 };
+    var landed = function (err) { delete inFlight[fid]; lastAnswer = fnName + ' ' + (Date.now() - t0) + ' ms' + (err ? ' (failed)' : ''); };
     fetch(base + '/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fn: name, args: args }), cache: 'no-store' })
       .then(function (r) { return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; }
         if (!j) throw new Error(r.status === 413 ? 'Too much data in one go – pick a shorter period.' : 'The server did not answer properly (' + r.status + '). Try again.');
         return j; }); })
-      .then(function (j) { if (!isQ) saveNo++; try { took(name, args, Date.now() - t0); if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('← ' + (name === 'api' ? args[1] : name) + ' ' + (Date.now() - t0) + ' ms' + (j && j.error ? ' ERROR' : '')); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(j.result); },
-            function (e) { if (fail) fail(new Error(e && /did not answer|Too much data/.test(e.message) ? e.message : 'No connection to the server – check the internet and try again.')); });
+      .then(function (j) { landed(false); if (!isQ) saveNo++; try { took(name, args, Date.now() - t0); if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('← ' + (name === 'api' ? args[1] : name) + ' ' + (Date.now() - t0) + ' ms' + (j && j.error ? ' ERROR' : '')); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(j.result); },
+            function (e) { landed(true); if (fail) fail(new Error(e && /did not answer|Too much data/.test(e.message) ? e.message : 'No connection to the server – check the internet and try again.')); });
   }
   function runner(ok, fail) {
     return new Proxy({}, { get: function (t, name) {
@@ -66,14 +72,39 @@ const BRIDGE = `
    * the next start shows a short note with those lines, so they can be sent on. Nothing is sent anywhere by itself. */
   if (window.parent !== window) (function recorder() {
     var KEY = 'rcl_trace', crumbs = [], t = function () { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2); };
-    var add = function (what) { crumbs.push(t() + ' ' + String(what).slice(0, 90)); if (crumbs.length > 22) crumbs.shift(); };
+    var add = function (what, long) { crumbs.push(t() + ' ' + String(what).slice(0, long ? 400 : 90)); if (crumbs.length > 30) crumbs.shift(); };
+    /* what the page was doing when it stopped answering: page on screen, the person's last action, the answer it was
+     * waiting for (and how long), the last answer, the longest recent blocking task and the memory in use (Chrome) */
+    var lastAct = '', lastLong = '';
+    var context = function () { var out = [], pt = document.getElementById('page_title');
+      out.push('page: ' + (pt ? String(pt.textContent || '').trim() : '?'));
+      if (lastAct) out.push('last action: ' + lastAct);
+      try { var n = window.__rclNet ? window.__rclNet() : null; if (n && n.waiting) out.push('waiting for: ' + n.waiting); if (n && n.last) out.push('last answer: ' + n.last); } catch (e) {}
+      if (lastLong) out.push('blocking task: ' + lastLong);
+      try { var m = performance.memory; if (m) out.push('memory: ' + Math.round(m.usedJSHeapSize / 1048576) + ' of ' + Math.round(m.jsHeapSizeLimit / 1048576) + ' MB'); } catch (e) {}
+      try { out.push('page size: ' + document.getElementsByTagName('*').length + ' elements'); } catch (e) {}
+      return out.join(' · '); };
+    window.rclDiag = function () { return crumbs.concat([t() + ' now: ' + context()]).join(String.fromCharCode(10)); };
     window.__rclCrumb = add;
     var prev = null; try { prev = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { prev = null; }
     var save = function (clean) { try { localStorage.setItem(KEY, JSON.stringify({ beat: Date.now(), clean: !!clean, crumbs: crumbs })); } catch (e) {} };
     var last = Date.now();
-    setInterval(function () { var now = Date.now(), gap = now - last; last = now; if (gap > 2500 && !document.hidden) add('PAGE DID NOT ANSWER for ' + (gap / 1000).toFixed(1) + ' s'); save(false); }, 1000);
-    try { new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { if (e.duration >= 1000) add('long task ' + Math.round(e.duration) + ' ms'); }); }).observe({ entryTypes: ['longtask'] }); } catch (e) {}
-    document.addEventListener('click', function (e) { var b = e.target && e.target.closest ? e.target.closest('button, a, [role=tab], .navbtn') : null; if (b) add('click: ' + (b.id || '') + ' "' + String(b.textContent || '').trim().slice(0, 30) + '"'); }, true);
+    var wasHidden = document.hidden;
+    document.addEventListener('visibilitychange', function () { if (document.hidden) wasHidden = true; });
+    setInterval(function () { var now = Date.now(), gap = now - last; last = now;
+      // more than about 2 seconds without a heartbeat while the page was on screen = the page did not answer
+      if (gap > 300000) add('page paused for ' + Math.round(gap / 60000) + ' min (computer asleep?)');
+      else if (gap > 2100 && !document.hidden && !wasHidden) add('PAGE DID NOT ANSWER for ' + (gap / 1000).toFixed(1) + ' s – ' + context(), true);
+      wasHidden = document.hidden; save(false); }, 1000);
+    try { new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { if (e.duration >= 200) lastLong = Math.round(e.duration) + ' ms at ' + t(); if (e.duration >= 1000) add('long task ' + Math.round(e.duration) + ' ms'); }); }).observe({ entryTypes: ['longtask'] }); } catch (e) {}
+    // Chrome 123+: a slow screen frame says WHICH code held it (function name and what started it)
+    try { new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { if (e.duration < 1000) return;
+      var sc = (e.scripts || []).slice().sort(function (a, b) { return b.duration - a.duration; }).slice(0, 2).map(function (x) { return (x.sourceFunctionName || x.invoker || '?') + ' (' + (x.invokerType || '') + ') ' + Math.round(x.duration) + ' ms'; }).join('; ');
+      lastLong = Math.round(e.duration) + ' ms at ' + t() + (sc ? ' – ' + sc : '');
+      add('slow frame ' + Math.round(e.duration) + ' ms' + (sc ? ': ' + sc : '') + (e.blockingDuration ? ' (blocked ' + Math.round(e.blockingDuration) + ' ms)' : ''), true); }); })
+      .observe({ type: 'long-animation-frame', buffered: false }); } catch (e) {}
+    document.addEventListener('click', function (e) { var b = e.target && e.target.closest ? e.target.closest('button, a, [role=tab], .navbtn') : null; if (b) { lastAct = 'click ' + (b.id || '') + ' "' + String(b.textContent || '').trim().slice(0, 30) + '" at ' + t(); add('click: ' + (b.id || '') + ' "' + String(b.textContent || '').trim().slice(0, 30) + '"'); } }, true);
+    document.addEventListener('change', function (e) { var x = e.target; if (x && (x.id || (x.dataset && x.dataset.f))) lastAct = 'changed ' + (x.id || x.dataset.f) + ' at ' + t(); }, true);
     window.addEventListener('pagehide', function () { save(true); });
     window.addEventListener('error', function (e) { add('script error: ' + String(e.message).slice(0, 70)); });
     // the last run ended without a goodbye and its heartbeat had stopped: show what it was doing

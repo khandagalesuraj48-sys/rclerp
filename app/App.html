@@ -9,7 +9,19 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+  /* The Excel tool (about 900 KB) is only needed for exports / imports. It used to load BEFORE the page could show anything.
+   * Now it loads in the background once the page is idle (at most 3 s after opening), or at once on the first click / key –
+   * long before anyone reaches an Export button. Same file, same version. (speed, 02-10-2026) */
+  (function () {
+    var started = false;
+    function go() { if (started || window.XLSX) return; started = true; var sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.async = true; sc.onerror = function () { started = false; }; document.head.appendChild(sc); }
+    window.rclLoadXlsx = go;
+    ['pointerdown', 'keydown'].forEach(function (ev) { document.addEventListener(ev, go, { capture: true, once: true, passive: true }); });
+    window.addEventListener('load', function () { if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 3000 }); else setTimeout(go, 1500); });
+  })();
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -2008,6 +2020,15 @@
     }
   }
 
+  /* ---------- menu on a computer: part of the page (not pinned to the screen) ----------
+     Asked for 02-10-2026: the menu is NOT fixed / sticky any more; it is an ordinary column of the page and scrolls away with it.
+     Its look is unchanged. No inner scroll bar: the whole list is shown and the page's own scroll bar moves it.
+     (The phone drawer below 761 px is unchanged – it is hidden until the menu button is pressed.) */
+  @media (min-width: 761px) {
+    .app .side, .app.side-auto .side { position: relative; top: auto; bottom: auto; left: auto; height: auto; align-self: stretch; }
+    .app .side nav { flex: 0 0 auto; min-height: auto; overflow: visible; }
+    .app.side-auto .mainwrap { margin-left: 0; }
+  }
 </style>
 </head>
 <body class="locked">
@@ -4297,11 +4318,13 @@
     else if (name === 'inward') { if (first) loadInward(); refreshStock(); }
     else if (name === 'transfer') { if (first) loadTransfers(); refreshStock(); }
     else if (name === 'log') { if (first) loadLog(); else lgRefreshAll();  refreshLookups(); }
-    // somebody saved something while this page was not on screen: bring its list up to date now
-    if (!first && S.stale && S.stale[name]) { const again = { diesel: loadDiesel, inward: loadInward, transfer: loadTransfers, log: loadLog }[name]; if (again) again(); }
-    if (S.stale) S.stale[name] = false;
     else if (name === 'tankcheck') { if (first) tcClear(); loadTankChecks().catch(e => toast(errMsg(e), true));  refreshLookups(); }
     else if (name.indexOf('rp-') === 0) rpDefaults(name.slice(3));
+    // somebody saved something while this page was not on screen: bring its list up to date now
+    // (fix 02-10-2026: these two lines used to sit in the middle of the chain above, so after the first change by anyone
+    //  Tank Check and the report pages stopped loading when opened)
+    if (!first && S.stale && S.stale[name]) { const again = { diesel: loadDiesel, inward: loadInward, transfer: loadTransfers, log: loadLog }[name]; if (again) again(); }
+    if (S.stale) S.stale[name] = false;
   }
   // machine / driver / pump lists: fetched again in the background when an entry page opens (added elsewhere → shows here)
   let lookupsAt = 0;
@@ -4700,7 +4723,7 @@
       const tb = $(id); if (!tb) return;
       const wrap = tb.closest('.table-wrap') || tb.closest('table');
       const bar = document.createElement('div'); bar.className = 'more-bar'; bar.hidden = true; wrap.insertAdjacentElement('afterend', bar);
-      let rest = '', total = 0, all = false, lastHtml = null;
+      let rest = [], total = 0, all = false, lastHtml = null, job = 0;
       const paint = () => {
         if (total <= LIST_FIRST) { bar.hidden = true; bar.innerHTML = ''; return; }
         bar.hidden = false;
@@ -4712,15 +4735,22 @@
         if (html === lastHtml) return;                 // exactly what is on screen already: leave the page alone
         lastHtml = html;
         const cut = html.split('</tr>'), parts = cut.map((x, k) => k < cut.length - 1 ? x + '</tr>' : x).filter(x => x.trim());
-        total = /<table/i.test(html) ? 0 : parts.length; rest = '';
+        total = /<table/i.test(html) ? 0 : parts.length; rest = []; job++;
         if (total <= LIST_FIRST || all) d.set.call(tb, html);
-        else { d.set.call(tb, parts.slice(0, LIST_FIRST).join('')); rest = parts.slice(LIST_FIRST).join(''); }
+        else { d.set.call(tb, parts.slice(0, LIST_FIRST).join('')); rest = parts.slice(LIST_FIRST); }
         paint();
       } });
       bar.addEventListener('click', e => {
         const b = e.target.closest('[data-more]'); if (!b) return;
-        if (b.dataset.more === 'all') { all = true; if (rest) tb.insertAdjacentHTML('beforeend', rest); rest = ''; }
-        else { all = false; const rows = [...tb.rows]; rest = rows.slice(LIST_FIRST).map(r => r.outerHTML).join(''); rows.slice(LIST_FIRST).forEach(r => r.remove()); bar.scrollIntoView({ block: 'nearest' }); }
+        /* Speed (02-10-2026): "Show all" adds the rows 100 at a time, one batch per screen frame (was: up to 400 rows in one go,
+         * which held the page for the whole layout of the long table). Same rows, same order; a new list cancels the rest. */
+        if (b.dataset.more === 'all') {
+          all = true; const left = rest, me = ++job; rest = [];
+          const step = () => { if (me !== job) return; const part = left.splice(0, 100); if (part.length) tb.insertAdjacentHTML('beforeend', part.join(''));
+            if (left.length) requestAnimationFrame(step); else if (id === 'm_rows' && typeof masterSelBar === 'function') masterSelBar(); };
+          step();
+        }
+        else { all = false; job++; const rows = [...tb.rows]; rest = rows.slice(LIST_FIRST).map(r => r.outerHTML); rows.slice(LIST_FIRST).forEach(r => r.remove()); bar.scrollIntoView({ block: 'nearest' }); }
         paint();
         if (id === 'm_rows' && typeof masterSelBar === 'function') masterSelBar();
       });
@@ -4773,7 +4803,8 @@
     }
     if (has('log')) fresh('log', loadLog);
     if (has('stock') || has('log') || has('master')) { if (visible('log')) whenCalm(lgRefreshAll); else if (loaded('log')) S.stale.log = true; } // new diesel shows in the open Log Book at once
-    if ((has('stock') || has('log') || has('master')) && visible('dash')) whenCalm(loadDash);   // the Dashboard loads itself every time it is opened
+    // the Dashboard on screen: at most once in 5 seconds (was: after every change of every user); not on screen: loaded when opened
+    if (has('stock') || has('log') || has('master')) { if (visible('dash')) fresh('dash', loadDash); else if (loaded('dash')) S.dashStale = true; }
     if (has('activity') && visible('activity')) loadActivity();
   }
 
@@ -5599,10 +5630,11 @@
   function armReveal(sec) {
     if (!rvObs || !sec) return;
     let k = 0;
-    sec.querySelectorAll('.panel, .ledger, .loccard').forEach(p => {
+    // positions are read first, all together, then the classes are set (reading after each write forced a layout per panel)
+    const ps = [...sec.querySelectorAll('.panel, .ledger, .loccard')], h = window.innerHeight, tops = ps.map(p => p.getBoundingClientRect().top);
+    ps.forEach((p, i) => {
       p.classList.remove('in'); p.classList.add('rv');
-      const r = p.getBoundingClientRect();
-      p.style.setProperty('--rvd', (r.top < window.innerHeight ? Math.min(k++, 5) * 0.06 : 0) + 's');
+      p.style.setProperty('--rvd', (tops[i] < h ? Math.min(k++, 5) * 0.06 : 0) + 's');
       rvObs.observe(p);
     });
   }
@@ -8651,7 +8683,8 @@
   const OWN_TONE = { Own: '#F59E0B', Rental: '#3B82F6', Hired: '#A855F7', Debit: '#EF4444', Other: '#94A3B8', 'Not in Master': '#64748B' };
   let dashSeq = 0, dashTimer;
   // keep the dashboard up to date even while another page is open, so it is ready the moment it is opened
-  function dashSoon() { if (!S.loaded || !S.loaded.dash) return; clearTimeout(dashTimer); dashTimer = setTimeout(loadDash, 250); }
+  // (speed 02-10-2026: only when the Dashboard is on screen; otherwise it is marked and loaded once when it is opened)
+  function dashSoon() { if (!S.loaded || !S.loaded.dash) return; if (!visible('dash')) { S.dashStale = true; return; } clearTimeout(dashTimer); dashTimer = setTimeout(loadDash, 250); }
   function dashFilter() { return { from: $('k_from').value, to: $('k_to').value }; }
   function rangeText(from, to) {
     if (!from && !to) return 'All dates';
@@ -8660,10 +8693,15 @@
   }
   async function loadDash() {
     const seq = ++dashSeq;
+    S.dashStale = false;
     try {
       const f = dashFilter();
       const d = await call('getDashboard', f);
       if (seq !== dashSeq) return;
+      // exactly the same answer as the one on screen (a background refresh): leave the page alone
+      const sig = JSON.stringify([f, d]);
+      if (sig === S.dashSig) return;
+      S.dashSig = sig;
       markQuick(f);
       $('k_range').textContent = rangeText(f.from, f.to);
       const L = d.locations || [];
@@ -8884,6 +8922,7 @@
       const loc = $('lg_loc').value;
       const L = await rawCall('getStockLedger', { from: $('k_from').value, to: $('k_to').value, location: loc });
       if (seq !== lgSeq) return;
+      const sig = JSON.stringify([loc, L]); if (sig === S.ledgerSig) return; S.ledgerSig = sig;   // unchanged: nothing to redraw
       $('lg_note').textContent = showDate(L.from) + ' to ' + showDate(L.to);
       const other = loc ? (S.locations.filter(x => x !== loc).join(' / ') || 'other location') : '';
       // Combined view: movements between Dispenser and VTR Store stay inside the company, so they are not columns here
@@ -8906,7 +8945,7 @@
     if (!S.today) return;
     const changed = $('k_from').value !== S.today || $('k_to').value !== S.today;
     $('k_from').value = S.today; $('k_to').value = S.today;
-    if (changed || !S.loaded.dash) loadDash();
+    if (changed || !S.loaded.dash || S.dashStale) loadDash();
   }
   function markQuick(f) {
     const t = S.today, dt = new Date(t + 'T00:00:00');
@@ -9030,7 +9069,7 @@
       ['d_date', 'bd_date', 'i_date', 't_date', 'lg_top_date'].forEach(id => { if ($(id)) $(id).max = d.today; });
       meterBoxes();
       lgRows().forEach(tr => { if (!lgf(tr, 'date').value) lgf(tr, 'date').value = d.today; }); // Diesel list From / To stay blank = all entries
-      setLocations(d.locations); setMaster(d.master); setDrivers(d.drivers); setPumps(d.pumps); setStock(d.stock);
+      setLocations(d.locations); S.masterSig = null; setMaster(d.master); setDrivers(d.drivers); setPumps(d.pumps); setStock(d.stock);
       S.loaded = {};
       $('rm_from').value = d.today.slice(0, 8) + '01'; $('rm_to').value = d.today;
       $('ra_from').value = d.today.slice(0, 8) + '01'; $('ra_to').value = d.today;
@@ -9049,6 +9088,16 @@
   function setMaster(list) {
     S.master = list.slice().sort((a, b) => a.id.localeCompare(b.id));
     const quietMaster = !!S.quietMaster;
+    /* Speed (02-10-2026): the lists are fetched again every time an entry page opens and after other people's entries.
+     * When the machinery list is exactly the same as the one already on the page, the pick-lists and the Asset Master
+     * table are not rebuilt, and the vehicle-papers badge is asked again at most every 5 minutes (it was asked every time). */
+    const sig = JSON.stringify(S.master);
+    if (sig === S.masterSig) {
+      if (!quietMaster && Date.now() - (S.cpBadgeAt || 0) > 300000) { S.cpBadgeAt = Date.now(); setTimeout(() => { try { cpBadgeLoad(); } catch (e) { /* badge only */ } }, 0); }
+      return;
+    }
+    S.masterSig = sig;
+    if (!quietMaster) S.cpBadgeAt = Date.now();
     setTimeout(() => { if (quietMaster) return; try { cpBadgeLoad(); } catch (e) { /* badge only */ } try { if (!S.bkBadged) { S.bkBadged = true; bkBadgeLoad(); } } catch (e) { /* badge only */ } }, 0);
     // value = number, or the name when there is no number
     $('dl_machines').innerHTML = S.master.map(m => '<option value="' + esc(m.id) + '">' +
@@ -9327,7 +9376,7 @@
     taxvalidupto: 'taxUpto', pucvalidupto: 'pucUpto', permitvalidupto: 'permitUpto', fitnessvalidupto: 'fitnessUpto', insurancevalidupto: 'insuranceUpto',
   };
   const hdrKey = h => String(h || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  function needXlsx() { if (typeof XLSX === 'undefined') throw new Error('Excel tool did not load. Check the internet connection and reload the page.'); }
+  function needXlsx() { if (typeof XLSX === 'undefined') { try { window.rclLoadXlsx(); } catch (e) {} throw new Error('Excel tool is still loading (or the internet is off) – try again in a moment.'); } }
 
   $('m_export').addEventListener('click', e => busy(e.target, 'Exporting…', async () => {
     needXlsx();
@@ -9905,7 +9954,7 @@
     lgShowUnit(tr, '');
     ['wkm', 'whr', 'diesel', 'reads', 'need', 'closing', 'std', 'avg'].forEach(o => { lgo(tr, o).textContent = ''; });
     const ib = tr.querySelector('.lg-itm'); if (ib) { ib.innerHTML = ''; ib.hidden = true; ib.dataset.sig = ''; ib.dataset.key = ''; }
-    lgo(tr, 'odslCell').innerHTML = ''; lgo(tr, 'dieselCell').title = ''; lgo(tr, 'avgCell').title = '';
+    lgo(tr, 'odslCell').innerHTML = ''; lgo(tr, 'odslCell')._h = ''; lgo(tr, 'dieselCell').title = ''; lgo(tr, 'avgCell').title = '';
     tr.querySelector('.unitcell').textContent = '';
   }
   // server figures for one row (date, shift and machinery picked)
@@ -9915,7 +9964,7 @@
       lgBlank(tr);
       if (inp.value.trim() && !m) { tr.querySelector('.unitcell').textContent = 'Not in Master'; lgRowNote(tr, 'Pick a machinery from the list.'); tr.classList.add('err'); }
       else lgRowNote(tr, '');
-      lgCalcAll(); return;
+      lgCalcSoon(); return;
     }
     inp.value = m.id;
     const modes = modesOf(m);
@@ -9925,6 +9974,10 @@
       const p = await call('getLogRowPrefill', m.id, date, shift);
       if (seq !== tr._seq) return;
       const key = m.id + '|' + date + '|' + shift;
+      // the same answer as the one already in this row (a background refresh after someone else saved): nothing to redraw
+      const pSig = JSON.stringify(p);
+      if (tr._p && tr._key === key && tr._pSig === pSig) { lgCalcSoon(); return; }
+      tr._pSig = pSig;
       if (tr._key !== key) { ['openingKm', 'openingHr'].forEach(f => { lgf(tr, f).value = ''; }); tr._odsl = null; }
       tr._key = key; tr._p = p;
       // the way is picked by the user (compulsory); a machinery with only one way has it picked already
@@ -9938,23 +9991,38 @@
       lgo(tr, 'diesel').textContent = fmt(p.diesel) || '0';
       lgo(tr, 'reads').textContent = p.reads.length ? '@ ' + p.reads.map(x => [x.km !== '' ? x.km + ' km' : '', x.hr !== '' ? x.hr + ' hr' : ''].filter(Boolean).join(' ') || '–').join(', ') : '';
       lgo(tr, 'dieselCell').title = p.dieselText ? 'Diesel issued: ' + p.dieselText : 'No diesel issued on this date' + (shift !== 'Full Day' ? ' / shift' : '');
-      lgCalcAll();
+      lgCalcSoon();
     } catch (e) { lgRowNote(tr, errMsg(e)); tr.classList.add('err'); }
   }
   // Everything that depends on other rows: Start / Opening diesel chained from a row above, duplicates, totals
+  /* Speed (02-10-2026): typing, and every answer of the server for a row, used to work out ALL rows at once, each row
+   * looking through all the others (rows × rows look-ups and screen writes per key press / per answer). Now:
+   *  – the work is done once per screen frame however many keys / answers came in that frame (lgCalcSoon);
+   *    Save first finishes any pending work (lgCalcFlush), so it always checks up-to-date rows;
+   *  – each row's date / shift / way is read once, and a row only looks at the rows of the SAME machinery;
+   *  – a figure on screen is only written when it changed.  The figures themselves are worked out exactly as before. */
+  let lgCalcRaf = 0;
+  function lgCalcSoon() { if (!lgCalcRaf) lgCalcRaf = requestAnimationFrame(() => { lgCalcRaf = 0; lgCalcAll(); }); }
+  function lgCalcFlush() { if (lgCalcRaf) lgCalcAll(); }
+  const lgTxt = (el, v) => { v = String(v); if (el.textContent !== v) el.textContent = v; };
   function lgCalcAll() {
+    if (lgCalcRaf) { cancelAnimationFrame(lgCalcRaf); lgCalcRaf = 0; }
     const rows = lgRows();
     const order = { 'Day': 0, 'Full Day': 0, 'Night': 1 };
-    const keyOf = tr => lgf(tr, 'date').value + '|' + order[lgf(tr, 'shift').value];
+    // read once per row: date, shift, the order key and the way
+    const info = new Map(), byMach = {};
+    rows.forEach(tr => { if (!tr._p) return; const date = lgf(tr, 'date').value, shift = lgf(tr, 'shift').value;
+      const x = { date: date, shift: shift, k: date + '|' + order[shift], u: lgWay(tr) }; info.set(tr, x);
+      (byMach[tr._p.machine.id] = byMach[tr._p.machine.id] || []).push(tr); });
+    const keyOf = tr => info.get(tr).k;
     rows.forEach(tr => {
       const p = tr._p; if (!p) return;
-      const m = p.machine, u = lgWay(tr), km = hasKm(u), hr = hasHr(u), tm = u === 'Time', tp = u === 'Trip';
-      const date = lgf(tr, 'date').value, shift = lgf(tr, 'shift').value, k = keyOf(tr);
+      const m = p.machine, me = info.get(tr), u = me.u, km = hasKm(u), hr = hasHr(u), tm = u === 'Time', tp = u === 'Trip';
+      const date = me.date, shift = me.shift, k = me.k, same = byMach[m.id];
       // earlier rows of the same machinery in this list (latest before this date/shift); each meter follows the last row that read it
-      const earlier = rows.filter(o => o !== tr && o._p && o._p.machine.id === m.id && keyOf(o) < k).sort((a, b) => keyOf(a) < keyOf(b) ? -1 : 1);
-      const before = earlier[earlier.length - 1], beforeK = earlier.filter(o => hasKm(lgWay(o))).pop(), beforeH = earlier.filter(o => hasHr(lgWay(o))).pop();
-      const clash = rows.some(o => o !== tr && o._p && o._p.machine.id === m.id && lgf(o, 'date').value === date &&
-        (lgf(o, 'shift').value === shift || lgf(o, 'shift').value === 'Full Day' || shift === 'Full Day'));
+      const earlier = same.filter(o => o !== tr && keyOf(o) < k).sort((a, b) => keyOf(a) < keyOf(b) ? -1 : 1);
+      const before = earlier[earlier.length - 1], beforeK = earlier.filter(o => hasKm(info.get(o).u)).pop(), beforeH = earlier.filter(o => hasHr(info.get(o).u)).pop();
+      const clash = same.some(o => { if (o === tr) return false; const x = info.get(o); return x.date === date && (x.shift === shift || x.shift === 'Full Day' || shift === 'Full Day'); });
       const num = f => { const v = lgf(tr, f).value; return v === '' ? '' : Number(v); };
       let openKm, openHr, odsl, locked;
       if (before) { odsl = before._closing === undefined ? 0 : before._closing; locked = true; }
@@ -9967,18 +10035,19 @@
       const cell = lgo(tr, 'odslCell');
       if (!locked) {
         if (!lgf(tr, 'openingDiesel')) cell.innerHTML = '<input data-f="openingDiesel" type="number" step="0.01" min="0" title="Diesel already in the machinery" value="' + esc(odsl) + '">';
+        cell._h = '';
         odsl = Number(lgf(tr, 'openingDiesel').value) || 0; tr._odsl = odsl;
-      } else cell.innerHTML = '<span>' + fmt(odsl) + '</span>';
+      } else { const h = '<span>' + fmt(odsl) + '</span>'; if (cell._h !== h) { cell.innerHTML = h; cell._h = h; } }
       const wkm = km && num('openingKm') !== '' && num('closingKm') !== '' ? r2(num('closingKm') - num('openingKm')) : '';
       const whr = hr && num('openingHr') !== '' && num('closingHr') !== '' ? r2(num('closingHr') - num('openingHr')) : tm ? lgTimeHrs(lgf(tr, 'tStart').value, lgf(tr, 'tEnd').value, lgf(tr, 'tBreak').value) : '';
       const need = r2((km && wkm > 0 && m.kmStd > 0 ? wkm / m.kmStd : 0) + ((hr || tm) && whr > 0 && m.hrStd > 0 ? whr * m.hrStd : 0));
       const closing = r2(Number(odsl) + (Number(p.diesel) || 0) - need);
       tr._closing = closing;
-      lgo(tr, 'wkm').textContent = wkm === '' ? '–' : fmt(wkm) + (hr ? ' km' : ''); lgo(tr, 'wkm').classList.toggle('neg', wkm !== '' && wkm < 0);
-      lgo(tr, 'whr').textContent = whr === '' ? '–' : fmt(whr) + (km || tm ? ' hr' : ''); lgo(tr, 'whr').classList.toggle('neg', whr !== '' && whr < 0);
-      if (tp) { lgo(tr, 'wkm').hidden = false; lgo(tr, 'wkm').textContent = (lgf(tr, 'trip').value || '0') + ' trips'; }
-      lgo(tr, 'need').textContent = wkm !== '' || whr !== '' ? fmt(need) : '–';
-      lgo(tr, 'closing').textContent = fmt(closing); lgo(tr, 'closing').classList.toggle('neg', closing < 0);
+      lgTxt(lgo(tr, 'wkm'), tp ? (lgf(tr, 'trip').value || '0') + ' trips' : wkm === '' ? '–' : fmt(wkm) + (hr ? ' km' : '')); lgo(tr, 'wkm').classList.toggle('neg', wkm !== '' && wkm < 0);
+      lgTxt(lgo(tr, 'whr'), whr === '' ? '–' : fmt(whr) + (km || tm ? ' hr' : '')); lgo(tr, 'whr').classList.toggle('neg', whr !== '' && whr < 0);
+      if (tp) lgo(tr, 'wkm').hidden = false;
+      lgTxt(lgo(tr, 'need'), wkm !== '' || whr !== '' ? fmt(need) : '–');
+      lgTxt(lgo(tr, 'closing'), fmt(closing)); lgo(tr, 'closing').classList.toggle('neg', closing < 0);
       // fill-to-fill average (details on the ⓘ)
       let avg = '–', tip = '';
       const fillToday = Number(p.diesel) || 0, cy = p.cycle, pc = p.prevClosed;
@@ -9988,7 +10057,7 @@
       else if (cy) { avg = 'Running'; const kk = r2(cy.km + (Number(wkm) || 0)), hh = r2(cy.hr + (Number(whr) || 0)), st = r2(cy.std + need);
         tip = 'Running on fill of ' + showDate(cy.start) + ' (' + fmt(cy.qty) + ' L). Work so far: ' + work(kk, hh) + ', standard needs ' + fmt(st) + ' L.'; }
       else tip = 'No diesel filled yet for this machinery.';
-      lgo(tr, 'avg').textContent = avg; lgo(tr, 'avgCell').title = tip;
+      lgTxt(lgo(tr, 'avg'), avg); lgo(tr, 'avgCell').title = tip;
       // Item-wise BOQ: what the rest item gets, and items typed above the entry's total
       const itemBad = itemBoxCalc(tr.querySelector('.lg-itm'), { hr: whr, km: wkm, trip: Number(lgf(tr, 'trip').value) || 0 });
       // note under the machinery: only real problems and the first-entry hint
@@ -10001,10 +10070,27 @@
   function lgSum() {
     const rows = lgRows().filter(tr => tr._p);
     const d = rows.reduce((s, tr) => s + (Number(tr._p.diesel) || 0), 0);
-    $('l_gsum').innerHTML = 'Rows: <b>' + rows.length + '</b> &nbsp; Diesel issued: <b>' + fmt(r2(d)) + ' Ltr</b>';
+    const h = 'Rows: <b>' + rows.length + '</b> &nbsp; Diesel issued: <b>' + fmt(r2(d)) + ' Ltr</b>';
+    if ($('l_gsum')._h !== h) { $('l_gsum').innerHTML = h; $('l_gsum')._h = h; }
   }
   // keep every filled row up to date with the sheet (new diesel etc.)
-  function lgRefreshAll() { lgRows().forEach(tr => { if (tr._p) lgFill(tr); }); }
+  /* Speed (02-10-2026): this ran after EVERY change by anyone while the Log Book was on screen, and asked the server for
+   * every filled row at the same moment (20 rows = 20 calls at once, each answer redrawing the whole grid).
+   * Now: at most once in 5 seconds, at most 3 rows asked at a time, and a row whose answer did not change is not redrawn. */
+  let lgRefT = null, lgRefAt = 0, lgRefBusy = false;
+  function lgRefreshAll() {
+    clearTimeout(lgRefT);
+    const wait = lgRefBusy ? 5000 : Math.max(0, 5000 - (Date.now() - lgRefAt));
+    lgRefT = setTimeout(async () => {
+      if (lgRefBusy) { lgRefreshAll(); return; }
+      lgRefBusy = true; lgRefAt = Date.now();
+      try {
+        const todo = lgRows().filter(tr => tr._p);
+        const worker = async () => { while (todo.length) { const tr = todo.shift(); if (tr.isConnected && tr._p) await lgFill(tr); } };
+        await Promise.all([worker(), worker(), worker()]);
+      } finally { lgRefBusy = false; lgRefAt = Date.now(); }
+    }, wait);
+  }
   // "Debit" in a row opens / closes its two fields; a row that has a party typed stays open
   $('lg_in').addEventListener('click', e => { const b = e.target.closest('.dbt-btn'); if (!b) return; const tr = b.closest('.lrow'), to = tr.querySelector('[data-f=debitTo]');
     if (tr.classList.contains('dbt-open') && !to.value.trim() && !tr.querySelector('[data-f=debitRate]').value) tr.classList.remove('dbt-open'); else { tr.classList.add('dbt-open'); to.focus(); } });
@@ -10022,14 +10108,14 @@
       }
     }
     if (f === 'no' || f === 'date' || f === 'shift') lgFill(tr);
-    else lgCalcAll();
+    else lgCalcSoon();
   });
-  $('lg_in').addEventListener('input', e => { if (/^(opening|closing|tStart|tEnd|tBreak|trip)/.test(e.target.dataset.f || '') || e.target.dataset.item) lgCalcAll(); });
+  $('lg_in').addEventListener('input', e => { if (/^(opening|closing|tStart|tEnd|tBreak|trip)/.test(e.target.dataset.f || '') || e.target.dataset.item) lgCalcSoon(); });
   $('lg_in').addEventListener('waychange', e => {
     const tr = e.target.closest('.lrow'); if (!tr) return;
     tr._mode = e.detail; lgShowUnit(tr, tr._mode);
     const p = tr._p; if (p) { if (hasKm(tr._mode) && !lgf(tr, 'openingKm').value) lgf(tr, 'openingKm').value = p.openingKm; if (hasHr(tr._mode) && !lgf(tr, 'openingHr').value) lgf(tr, 'openingHr').value = p.openingHr; }
-    lgCalcAll();
+    lgCalcSoon();
   });
   $('lg_in').addEventListener('click', e => {
     const b = e.target.closest('.del'); if (!b) return;
@@ -10040,6 +10126,7 @@
   function clearLogGrid() { $('lg_in').innerHTML = ''; lgAddRow(); }
   $('l_clear').addEventListener('click', () => { clearLogGrid(); if (lgMode === 'mach') $('lg_top_no').dispatchEvent(new Event('change')); });
   $('l_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
+    lgCalcFlush();                      // figures typed in this very moment are checked too
     const trs = lgRows().filter(tr => lgf(tr, 'no').value.trim());
     if (!trs.length) throw new Error('Enter at least one machinery.');
     const bad = trs.filter(tr => !tr._p || tr.classList.contains('err'));
