@@ -270,3 +270,9 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 ## Open after this
 - Intermediate reading between two items on one day (e.g. Bucket 100–105, Breaker 105–108) is not recorded – only the hours per item. Ask if he needs it.
 - Log Book "Breakdown" status is still not linked to the Breakdown page. Party-wise work rules page, full-debit party ledger note: later.
+- 02-10-2026 (performance pass 2, see PERFORMANCE_PASS2.md): menu on a computer is no longer fixed / sticky (normal page flow,
+  CSS block "menu on a computer: part of the page" at the end of the stylesheet). Speed: Log Book entry refresh (`lgRefreshAll`,
+  ≤ 1 per 15 s, 3 at a time) and calculation (`lgCalcSoon` / `lgCalcFlush`), Dashboard refresh (≤ 1 per 5 s, only on screen,
+  `S.dashStale`), `setMaster` skips an unchanged list (`S.masterSig`), "Show all" 50 rows per frame, Excel tool loads in the
+  background (`rclLoadXlsx`). Bug fixed: `openTabData` – Tank Check / report pages did not load after the first data change.
+  Freeze recorder (server/page.js): page, last action, waited call, memory; `rclDiag()` in the console.
