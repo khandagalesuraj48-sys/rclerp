@@ -1776,6 +1776,7 @@
   .oc-brand .oc-name { display: flex; flex-direction: column; line-height: 1.1; } .oc-brand .oc-name b { font: 800 22px var(--disp2, var(--ui)); letter-spacing: -.01em; color: #0C1A2E; } .oc-brand .oc-name i { font: 600 12px var(--ui); font-style: normal; letter-spacing: .14em; text-transform: uppercase; color: #5B6B80; margin-top: 3px; }
   .lp-brand { opacity: .95; } .lp-brand .rlogo img { max-height: 34px; }
   .brandsub .by-oc { display: block; font-size: 9.5px; letter-spacing: .08em; opacity: .7; margin-top: 2px; text-transform: none; }
+  .vhint { display: block; margin-top: 4px; font-size: 12px; line-height: 1.3; color: #0B6B3A; } .vhint.bad { color: #C8102E; font-weight: 600; } .vhint[hidden] { display: none; }
   .ua-site { margin-left: 12px; font-size: 12.5px; font-weight: 600; color: #1543B8; }
   #org_panel[hidden] { display: none; } #org_panel textarea { width: 100%; min-height: 54px; }
   #oc_intro { position: fixed; inset: 0; z-index: 20000; background: radial-gradient(120% 90% at 50% 40%, #13294B 0%, #0A1526 55%, #04080F 100%); display: grid; place-items: center; overflow: hidden; cursor: pointer; opacity: 1; transition: opacity .5s ease; }
@@ -2156,6 +2157,22 @@
     .app .side nav { flex: 0 0 auto; min-height: auto; overflow: visible; }
     .app.side-auto .mainwrap { margin-left: 0; }
   }
+
+  /* ===== LAST: the top bar when it is full (must come after every other top-bar rule) ===== */
+  /* the top bar has more pills now (closed month, database check): the page title keeps its own width and the search box gives way */
+  @media (min-width: 1081px) {
+    .app .topbar .tb-left { flex: 0 0 auto; }                                           /* crumb, title (and the Dashboard's tabs) keep their width */
+    .app .topbar .tb-right { flex: 0 1 auto; min-width: 0; justify-content: flex-end; flex-wrap: nowrap; margin-left: auto; }
+    .app .topbar .tb-right > * { flex-shrink: 0; }
+    /* what gives way when the bar is full, in this order: the search box (down to its icon), the company / date, the data-source pill, then the texts of the pills */
+    .app .topbar .tb-right > .gs-btn { flex: 0 1000 230px; min-width: 42px !important; overflow: hidden; white-space: nowrap; }
+    .app .topbar .tb-right > .today { flex: 0 200 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
+    .app .topbar .tb-right > #ds_pill { flex: 0 60 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
+    .app .topbar .tb-right > #lock_pill, .app .topbar .tb-right > #bk_btn, .app .topbar .tb-right > #db_pill { flex: 0 8 auto; min-width: 46px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: inline-block; line-height: 28px; }
+    .app .topbar .tb-right > #lock_pill[hidden], .app .topbar .tb-right > #bk_btn[hidden], .app .topbar .tb-right > #db_pill[hidden] { display: none; }
+  }
+  /* a narrow computer screen: when it still does not fit, the right group goes to a second line (right-aligned) instead of over the title */
+  @media (min-width: 1081px) and (max-width: 1300px) { .app .topbar { flex-wrap: wrap; row-gap: 6px; } }
 </style>
 </head>
 <body class="locked">
@@ -2846,14 +2863,14 @@
         <div class="field"><label for="v_email">Email</label><input id="v_email" type="email"></div>
         <div class="field"><label for="v_aadhaar">Aadhaar Number</label><input id="v_aadhaar" inputmode="numeric" maxlength="14" placeholder="12 digits"></div>
         <div class="field"><label for="v_gstreg">GST registered?</label><select id="v_gstreg"><option>No</option><option>Yes</option></select></div>
-        <div class="field v-gst"><label for="v_gst">GST Number</label><input id="v_gst" maxlength="15" placeholder="27ABCDE1234F1Z5" style="text-transform:uppercase"></div>
+        <div class="field v-gst"><label for="v_gst">GST Number</label><input id="v_gst" maxlength="15" placeholder="27ABCDE1234F1Z5" style="text-transform:uppercase"><small class="vhint" id="v_gst_hint" hidden></small></div>
         <input id="v_gstpct" type="hidden">
         <div class="field"><label for="v_pan">PAN Number</label><input id="v_pan" maxlength="10" placeholder="ABCDE1234F" style="text-transform:uppercase"></div>
         <input id="v_tds" type="hidden">
         <div class="field"><label for="v_bank">Bank Name</label><input id="v_bank"></div>
         <div class="field"><label for="v_branch">Branch</label><input id="v_branch"></div>
         <div class="field"><label for="v_acc">Account Number</label><input id="v_acc" inputmode="numeric"></div>
-        <div class="field"><label for="v_ifsc">IFSC Code</label><input id="v_ifsc" maxlength="11" placeholder="SBIN0001234" style="text-transform:uppercase"></div>
+        <div class="field"><label for="v_ifsc">IFSC Code</label><input id="v_ifsc" maxlength="11" placeholder="SBIN0001234" style="text-transform:uppercase"><small class="vhint" id="v_ifsc_hint" hidden></small></div>
         <div class="field wide"><label for="v_addr">Address</label><input id="v_addr"></div>
         <div class="field wide"><label for="v_remark">Remark</label><input id="v_remark"></div>
       </div>
@@ -3837,7 +3854,7 @@
     const names = (o.billNames || []).slice(); if (names.length) PRINT_NAMES = names.filter(n => n === o.customer).concat(names.filter(n => n !== o.customer));
     if ($('company')) $('company').textContent = o.customer;
     document.querySelectorAll('.rlogo img, .rmark img').forEach(im => { im.alt = o.customer; if (o.logo && im.getAttribute('src') !== o.logo) { im.parentNode.classList.remove('noimg'); im.src = o.logo; } else if (!o.logo) im.parentNode.classList.add('noimg'); });
-    document.querySelectorAll('.rlogo .fb').forEach(x => { x.textContent = o.customer; });
+    if (o.customer !== 'Rachana Construction Limited') document.querySelectorAll('.rlogo .fb').forEach(x => { x.textContent = o.customer; });      // the text shown when the logo cannot be loaded
     if ($('lp_site')) $('lp_site').textContent = o.site || (o.product || 'Fleet ERP');
     if ($('oc_for')) $('oc_for').textContent = o.customer + (o.site ? '  ·  ' + o.site : '');
     try { (window.top || window).document.title = o.customer + ' – ' + (o.product || 'Fleet ERP') + ' · ' + (o.brand || 'One Click Solution'); } catch (e) { /* another origin: leave the title */ }
@@ -7591,10 +7608,11 @@
   function vGstBoxes() { document.querySelectorAll('#v_form .v-gst').forEach(el => { el.hidden = $('v_gstreg').value !== 'Yes'; }); }
   $('v_gstreg').addEventListener('change', vGstBoxes);
   // PAN is the 3rd to 12th character of the GST number
-  $('v_gst').addEventListener('input', () => { const g = $('v_gst').value.toUpperCase().replace(/\s/g, ''); if (g.length >= 12 && !$('v_pan').value) $('v_pan').value = g.slice(2, 12); });
+  // (the PAN inside a GST number is filled in by vGstAuto below, once the whole number is typed and its check letter fits)
   function vOpen(name) {
     const v = name === null ? { name: '', gstReg: 'No', isNew: true, machines: [] } : S.vendors.find(x => x.name === name) || { name: name, gstReg: 'No' };
     S.vEdit = v;
+    vHint('v_gst_hint', ''); vHint('v_ifsc_hint', ''); ifscAsked = ''; ['v_pan', 'v_bank', 'v_branch'].forEach(id => { delete $(id).dataset.auto; });
     $('v_title').textContent = v.isNew ? 'New vendor' : (v.saved ? 'Vendor details – ' : 'Fill vendor details – ') + v.name;
     // the name links the vendor to its assets, BOQs, bills, payments …: it CAN be changed – everything follows to the new name (asked 02-10-2026)
     $('v_name').readOnly = false; $('v_name').title = v.isNew ? '' : 'Changing the name renames this vendor everywhere: its assets, BOQs, bills, payments, debit notes and Log Book entries follow to the new name.';
@@ -7607,6 +7625,66 @@
     if ($('v_form').scrollIntoView) $('v_form').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   $('v_cancel').addEventListener('click', () => { $('v_form').hidden = true; S.formDirty = false; });
+  /* ---------- Vendor form: what a GST number and an IFSC already say (asked 03-10-2026) ----------
+   * GST number (typed in full): its last letter is a check letter – a mistyped number is caught at once; the PAN is inside it
+   * (characters 3–12) and is filled in; the first two digits are the State; the 4th letter of the PAN tells the kind of party.
+   * All of that is in the number itself – no service is asked. (The legal name and address of a GST number are NOT in the
+   * number: they need a paid GST look-up service with a key – not connected.)
+   * IFSC (typed in full): the bank and branch are looked up in the public IFSC list of Razorpay (ifsc.razorpay.com – free,
+   * no key; only the IFSC code is sent) and filled in. No answer (no internet) → a note, and the fields stay to be typed. */
+  const GST_STATES = { '01': 'Jammu & Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh', '05': 'Uttarakhand', '06': 'Haryana', '07': 'Delhi', '08': 'Rajasthan', '09': 'Uttar Pradesh', '10': 'Bihar',
+    '11': 'Sikkim', '12': 'Arunachal Pradesh', '13': 'Nagaland', '14': 'Manipur', '15': 'Mizoram', '16': 'Tripura', '17': 'Meghalaya', '18': 'Assam', '19': 'West Bengal', '20': 'Jharkhand', '21': 'Odisha', '22': 'Chhattisgarh',
+    '23': 'Madhya Pradesh', '24': 'Gujarat', '25': 'Daman & Diu', '26': 'Dadra & Nagar Haveli and Daman & Diu', '27': 'Maharashtra', '28': 'Andhra Pradesh (old)', '29': 'Karnataka', '30': 'Goa', '31': 'Lakshadweep', '32': 'Kerala',
+    '33': 'Tamil Nadu', '34': 'Puducherry', '35': 'Andaman & Nicobar Islands', '36': 'Telangana', '37': 'Andhra Pradesh', '38': 'Ladakh', '97': 'Other Territory', '99': 'Centre Jurisdiction' };
+  const PAN_KINDS = { P: 'Individual / Proprietor', C: 'Company', H: 'HUF', F: 'Firm / LLP', A: 'Association of Persons', T: 'Trust', B: 'Body of Individuals', L: 'Local Authority', J: 'Artificial Juridical Person', G: 'Government' };
+  // the 15th character of a GST number, worked out from the first 14
+  function gstCheckLetter(g) { const C = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'; let t = 0; for (let i = 0; i < 14; i++) { const p = C.indexOf(g[i]) * (i % 2 ? 2 : 1); if (p < 0) return ''; t += Math.floor(p / 36) + p % 36; } return C[(36 - t % 36) % 36]; }
+  function gstRead(v) {
+    const g = String(v || '').toUpperCase().replace(/\s/g, '');
+    if (g.length !== 15) return null;
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(g)) return { bad: 'GST number "' + g + '" is not in the right format (2 digits of the State, the PAN, entity number, Z, check letter).' };
+    if (!GST_STATES[g.slice(0, 2)]) return { bad: 'GST number: "' + g.slice(0, 2) + '" is not a State code.' };
+    const want = gstCheckLetter(g);
+    if (want !== g[14]) return { bad: 'GST number: the last letter does not fit the rest – one character is mistyped (for these 14 characters it would be "' + want + '"). Check it against the certificate.' };
+    return { gst: g, pan: g.slice(2, 12), state: GST_STATES[g.slice(0, 2)], code: g.slice(0, 2), kind: PAN_KINDS[g[5]] || '' };
+  }
+  function vHint(id, text, bad) { const h = $(id); if (!h) return; h.hidden = !text; h.textContent = text || ''; h.classList.toggle('bad', !!bad); }
+  function vGstAuto() {
+    const el = $('v_gst'), r = gstRead(el.value);
+    if (!r) { vHint('v_gst_hint', el.value.trim() ? 'Type all 15 characters' : ''); return; }
+    if (r.bad) { vHint('v_gst_hint', r.bad, true); return; }
+    el.value = r.gst;
+    const pan = $('v_pan'); let filled = false;
+    if (!pan.value.trim() || pan.dataset.auto) { pan.value = r.pan; pan.dataset.auto = '1'; filled = true; }
+    const differs = pan.value.trim().toUpperCase() !== r.pan;
+    vHint('v_gst_hint', '✔ ' + r.state + ' (' + r.code + ')' + (r.kind ? ' · ' + r.kind : '') + (filled ? ' · PAN ' + r.pan + ' filled in' : differs ? ' · the PAN typed (' + pan.value.trim().toUpperCase() + ') is not the PAN of this GST number (' + r.pan + ')' : ''), differs);
+  }
+  let ifscSeq = 0, ifscAsked = '';
+  async function vIfscAuto() {
+    const el = $('v_ifsc'), code = el.value.toUpperCase().replace(/\s/g, '');
+    if (code && code === ifscAsked) return;            // this code is being looked up / was looked up just now (typing and leaving the box both come here)
+    const seq = ++ifscSeq; ifscAsked = '';
+    if (!code) { vHint('v_ifsc_hint', ''); return; }
+    if (code.length !== 11) { vHint('v_ifsc_hint', 'Type all 11 characters'); return; }
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(code)) { vHint('v_ifsc_hint', 'IFSC "' + code + '" is not in the right format (4 letters, 0, 6 characters).', true); return; }
+    el.value = code; ifscAsked = code; vHint('v_ifsc_hint', 'Looking up the bank…');
+    let d = null, status = 0;
+    try { const ac = new AbortController(), t = setTimeout(() => ac.abort(), 7000); const res = await fetch('https://ifsc.razorpay.com/' + encodeURIComponent(code), { signal: ac.signal, cache: 'force-cache' }); clearTimeout(t); status = res.status; if (res.ok) d = await res.json(); } catch (e) { status = -1; }
+    if (seq !== ifscSeq) return;                      // another IFSC was typed meanwhile
+    if (d && d.BANK) {
+      const bank = $('v_bank'), br = $('v_branch');
+      bank.value = String(d.BANK).trim(); bank.dataset.auto = '1'; br.value = String(d.BRANCH || '').trim(); br.dataset.auto = '1'; S.formDirty = true;
+      vHint('v_ifsc_hint', '✔ ' + bank.value + ' – ' + br.value + [d.CITY, d.STATE].filter(Boolean).map(x => ', ' + x).join('') + ' · bank and branch filled in');
+    } else if (status === 404) vHint('v_ifsc_hint', 'This IFSC is not in the list of bank branches – check it against the cheque / passbook.', true);
+    else vHint('v_ifsc_hint', 'The bank could not be looked up now (no connection to the IFSC list) – type the bank and branch.');
+  }
+  $('v_gst').addEventListener('input', () => { if ($('v_gst').value.replace(/\s/g, '').length >= 15) vGstAuto(); else vHint('v_gst_hint', ''); });
+  $('v_gst').addEventListener('change', vGstAuto);
+  $('v_pan').addEventListener('input', () => { delete $('v_pan').dataset.auto; });
+  $('v_ifsc').addEventListener('input', () => { if ($('v_ifsc').value.replace(/\s/g, '').length >= 11) vIfscAuto(); else vHint('v_ifsc_hint', ''); });
+  $('v_ifsc').addEventListener('change', vIfscAuto);
+  ['v_bank', 'v_branch'].forEach(id => $(id).addEventListener('input', () => { delete $(id).dataset.auto; }));
+
   $('v_new').addEventListener('click', () => { vOpen(null); $('v_name').focus(); });
   $('v_mkall').addEventListener('click', async e => {
     const names = S.vendors.filter(v => !v.saved).map(v => v.name); if (!names.length) return;

@@ -520,6 +520,21 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * NOT DONE: licence / monthly fee control, a One Click super-admin, a central sign-in that sends a user to his site, the print footer
     and a few help texts that still say Rachana / Sketchline, diesel locations still in the code (APP.LOCATIONS). Repo is still PUBLIC.
   * Test: `test/browser/brand.js` (13, with the database).
+- 03-10-2026: VENDOR FORM – GST NUMBER AND IFSC FILL IN WHAT THEY CAN. He asked: type the GST number → the vendor's data comes; type
+  the IFSC → bank and branch come. Checked on the web first (03-10-2026):
+  * IFSC: Razorpay's public IFSC list `https://ifsc.razorpay.com/<IFSC>` – free, no key, CORS, 404 for an unknown code, fields BANK /
+    BRANCH / CITY / STATE. BUILT in the page (`vIfscAuto`): bank and branch filled, note under the box; 404 and "no connection" said;
+    only the IFSC code is sent; one request per code.
+  * GST: the legal name and address of a GSTIN are NOT available free – every service found needs an account and a key (paid, small free
+    trial). NOT connected; TOLD HIM. BUILT without any service (`gstRead`, `vGstAuto`): the 15th character is a check letter (rule verified
+    on 7 real numbers) → a mistyped number is caught; PAN (characters 3–12) filled in; State (first two digits) and kind of party (4th
+    letter of the PAN) shown; a PAN typed by hand that differs is pointed out. The old half-fill of the PAN at 12 characters is removed.
+  * If he takes a GST look-up service: add a server function (key in a Vercel environment variable, never in the page) and call it from
+    `vGstAuto` to fill name and address.
+  * ALSO FIXED: the top bar had become too full (pills "Closed up to", "Database") and covered the page title on a 1366–1536 px screen.
+    Rules at the END of the style sheet: one line; the search box gives way to its icon first, then company / date, then the pills'
+    texts; below 1300 px the right group may go to a second line. `test/browser/topbar.js` measures all 36 pages at 1536 / 1366 / 1280.
+  * Tests: `test/browser/vauto.js` (12; the bank list is played by the test because the rig cannot reach it).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
