@@ -1756,6 +1756,14 @@
   }
   @container (max-width: 1149px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 3 / span 4; grid-row: 4; } }
   @media (max-width: 760px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 1 / -1; } .lg-wrap tr.lrow > td.c-debit::before { content: "Debit to"; flex: 0 0 100%; } .lg-wrap tr.lrow > td.c-debit { flex-wrap: wrap; } }
+  /* ---------- meter not working: the "No reading" button, the estimate, the reason, "new meter" ---------- */
+  .way .wy.nrd { border-color: #F0C36D; color: #8A5A00; } .way .wy.nrd.on { background: #B45309; border-color: #B45309; color: #fff; }
+  .lrow .rd.nr small { color: #8A5A00; font-weight: 700; } .lrow .rd.nr input { border-color: #F0C36D !important; background: #FFFBEC !important; }
+  .lrow .rd.nrn input { width: 100%; font-size: 12.5px !important; }
+  .lrow label.nm { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #5B6B80; margin-top: 3px; white-space: nowrap; cursor: pointer; } .lrow label.nm[hidden] { display: none; }
+  .lrow label.nm input { width: auto !important; min-height: 0 !important; height: auto !important; margin: 0; }
+  .lg-mtr { display: block; color: #8A5A00; font-weight: 600; }
+
   /* ---------- help for errors (what is wrong / what to do, 3 languages) ---------- */
   #fixbox { position: fixed; right: 18px; bottom: 76px; z-index: 60; width: min(440px, calc(100vw - 28px)); max-height: 62vh; overflow: auto; background: #fff; border: 1px solid #F3C0CA; border-left: 4px solid var(--c-red, #C8102E); border-radius: 12px; box-shadow: 0 16px 40px rgba(12,26,46,.22); padding: 12px 14px 12px; }
   #fixbox[hidden], #guidebox[hidden] { display: none; }
@@ -3516,6 +3524,9 @@
       <div class="field" id="le_odsl_w"><label for="le_odsl">Opening diesel (first entry)</label><input id="le_odsl" type="number" step="0.01" min="0"></div>
       <div class="field"><label for="le_chf">Chainage From</label><input id="le_chf" autocomplete="off"></div>
       <div class="field"><label for="le_cht">Chainage To</label><input id="le_cht" autocomplete="off"></div>
+      <div class="field le-nr le-nrk"><label for="le_estkm">Estimated KM (no reading)</label><input id="le_estkm" type="number" step="0.01" min="0"></div>
+      <div class="field le-nr le-nrh"><label for="le_esthr">Estimated Hrs (no reading)</label><input id="le_esthr" type="number" step="0.01" min="0"></div>
+      <div class="field le-nr le-wide"><label for="le_mnote">Why there is no reading</label><input id="le_mnote" autocomplete="off"></div>
       <div class="field le-wide"><label for="le_work">Work description</label><input id="le_work" autocomplete="off"></div>
       <div class="field"><label for="le_dto">Debit to (party)</label><input id="le_dto" list="dl_dnparty" autocomplete="off" placeholder="empty = not charged to anyone"></div>
       <div class="field"><label for="le_drate">Debit rate</label><input id="le_drate" type="number" step="0.01" min="0"></div>
@@ -3559,14 +3570,17 @@
   const meterHr = m => LB_FMT_MODES[(m || {}).lbFormat] ? LB_FMT_MODES[m.lbFormat].some(x => hasHr(x)) : (worksOf(m).indexOf('Hrs') > -1 || worksOf(m).indexOf('KM + Hrs') > -1);
   /* "Measured by": every way is shown, only the ones ticked in Asset Master can be picked; the pick is compulsory */
   const WAYS_ALL = ['KM', 'Hrs', 'KM + Hrs', 'Time', 'Trip', 'Day'];
+  const METER_OFF = 'No reading';   // meter not working: an entry / a diesel fill without a reading (see the server: METER_OFF_)
   const wayAuto = m => { const ok = modesOf(m); return ok.length === 1 ? ok[0] : ''; };
   const DAY_STATUS = ['Idle', 'Holiday', 'Breakdown']; // any machinery: Idle = no work (paid or not is chosen in the bill); Holiday / Breakdown = not paid
   function wayHtml(m, sel, withHoliday) {
     if (!m) return '';
     // a machinery with its own Log Book format shows only that format's ways
-    const ok = modesOf(m).concat(withHoliday ? DAY_STATUS : []), all = (LB_FMT_MODES[m.lbFormat] || WAYS_ALL).concat(withHoliday ? DAY_STATUS : []);
-    return '<div class="way" data-no="' + esc(m.id) + '" data-sel="' + esc(sel || '') + '" role="radiogroup" aria-label="Measured by">' + all.map(w => '<button type="button" class="wy' + (w === 'Holiday' ? ' hol' : w === 'Idle' ? ' idl' : w === 'Breakdown' ? ' brk' : '') + (ok.indexOf(w) > -1 ? '' : ' dis') + (w === sel ? ' on' : '') +
-      '" data-way="' + w + '" aria-pressed="' + (w === sel) + '" title="' + (ok.indexOf(w) > -1 ? 'Measured by ' + w : esc(m.id) + ' is not set to work on ' + w + ' – see Asset Master') + '">' + w + '</button>').join('') + '</div>';
+    // "No reading": the meter is not working – the entry (or the diesel fill) is made without a reading
+    const meter = modesOf(m).some(w => hasKm(w) || hasHr(w)) ? [METER_OFF] : [];
+    const ok = modesOf(m).concat(withHoliday ? DAY_STATUS : []).concat(meter), all = (LB_FMT_MODES[m.lbFormat] || WAYS_ALL).concat(withHoliday ? DAY_STATUS : []).concat(meter);
+    return '<div class="way" data-no="' + esc(m.id) + '" data-sel="' + esc(sel || '') + '" role="radiogroup" aria-label="Measured by">' + all.map(w => '<button type="button" class="wy' + (w === 'Holiday' ? ' hol' : w === 'Idle' ? ' idl' : w === 'Breakdown' ? ' brk' : w === METER_OFF ? ' nrd' : '') + (ok.indexOf(w) > -1 ? '' : ' dis') + (w === sel ? ' on' : '') +
+      '" data-way="' + w + '" aria-pressed="' + (w === sel) + '" title="' + (w === METER_OFF ? 'Meter not working: no reading for this entry – the work of the day is estimated' : ok.indexOf(w) > -1 ? 'Measured by ' + w : esc(m.id) + ' is not set to work on ' + w + ' – see Asset Master') + '">' + w + '</button>').join('') + '</div>';
   }
   const wayOf = el => { const w = el && (el.classList && el.classList.contains('way') ? el : el.querySelector('.way')); return w ? w.dataset.sel || '' : ''; };
   // put the buttons in a box (keeps the pick when it is still allowed)
@@ -3574,7 +3588,7 @@
     if (!box) return '';
     if (!m) { box.innerHTML = ''; return ''; }
     const cur = box.querySelector('.way'), keep = cur && cur.dataset.no === m.id ? cur.dataset.sel : '';
-    const sel = modesOf(m).indexOf(keep) > -1 || (withHoliday && DAY_STATUS.indexOf(keep) > -1) ? keep : wayAuto(m);
+    const sel = modesOf(m).indexOf(keep) > -1 || (withHoliday && DAY_STATUS.indexOf(keep) > -1) || keep === METER_OFF ? keep : wayAuto(m);
     box.innerHTML = wayHtml(m, sel, withHoliday); return sel;
   }
   document.addEventListener('click', async e => {
@@ -3859,6 +3873,20 @@
         '1) त्या दिवशी गाडीने काम केले असेल: त्या तारखेची Log Book entry भरा आणि bill पुन्हा Build करा. 2) Diesel Issue ची तारीख चुकली असेल: Diesel Issue मध्ये ती दुरुस्त करा. 3) ते diesel खरोखर वसूल करायचे असेल: काही करू नका; bill बरोबर आहे.'],
       hi: ['इस machinery को ऐसे दिन diesel दिया गया है जिस दिन काम की Log Book entry नहीं है। Bill वह diesel गिनता है पर उस दिन के KM / घंटे नहीं हैं, इसलिए bill की diesel कटौती Log Book की पंक्तियों से ज़्यादा आती है।',
         '1) उस दिन गाड़ी ने काम किया हो: उस तारीख की Log Book entry भरें और bill फिर Build करें। 2) Diesel Issue की तारीख गलत हो: Diesel Issue में उसे ठीक करें। 3) वह diesel सच में वसूलना हो: कुछ न करें; bill सही है।'] },
+    { re: /without a reading \(meter not working\)|work estimated/i,
+      en: ['On these days the meter of the machinery was not working, so there is no reading: the work of those days is an ESTIMATE typed in the Log Book. The bill pays those days and counts the estimated work for the diesel standard.',
+        'Check that the estimated KM / hours are reasonable for this machinery (open those Log Book entries; the reason is written there). Correct an estimate in the entry\'s Edit window if needed, then build the bill again. Get the meter repaired – each day without a reading is an estimate.'],
+      mr: ['या दिवशी machinery चा meter बंद होता, म्हणून reading नाही: त्या दिवसांचे काम Log Book मध्ये भरलेला अंदाज आहे. Bill ते दिवस भरते आणि अंदाजे काम diesel च्या standard साठी मोजते.',
+        'अंदाजे KM / तास या machinery साठी योग्य आहेत का ते तपासा (त्या Log Book entries उघडा; कारण तिथे लिहिलेले आहे). गरज असेल तर entry च्या Edit मध्ये अंदाज दुरुस्त करा आणि bill पुन्हा Build करा. Meter दुरुस्त करून घ्या; reading नसलेला प्रत्येक दिवस अंदाज आहे.'],
+      hi: ['इन दिनों machinery का meter बंद था, इसलिए reading नहीं है: उन दिनों का काम Log Book में भरा गया अनुमान है। Bill वे दिन भरता है और अनुमानित काम diesel के standard के लिए गिनता है।',
+        'जाँचें कि अनुमानित KM / घंटे इस machinery के लिए ठीक हैं (वे Log Book entries खोलें; कारण वहाँ लिखा है)। ज़रूरत हो तो entry के Edit में अनुमान ठीक करें और bill फिर Build करें। Meter ठीक करवाएँ; बिना reading का हर दिन अनुमान है।'] },
+    { re: /No reading: (write why|type the estimated)|New meter: write what|estimated work|has no meter reading|not measured by (KM|hours)|is much more than this machinery|a day without a reading is entered/i,
+      en: ['"No reading" is for a day when the meter is not working: it needs the estimated KM / hours of the day and the reason. "New meter" needs the reason and the Start reading of the new meter.',
+        'Type the estimate – the app proposes this machinery\'s own average; change it only if the day really was different – and write the reason (e.g. "odometer not working, sent for repair"). When the meter works again enter readings as usual: Start continues from the last reading. If a new meter was fitted, tick "new meter" on its first entry and type its Start.'],
+      mr: ['"No reading" हे meter बंद असलेल्या दिवसासाठी आहे: त्यासाठी दिवसाचे अंदाजे KM / तास आणि कारण लागते. "New meter" साठी कारण आणि नवीन meter चे Start reading लागते.',
+        'अंदाज भरा: app या machinery ची स्वतःची सरासरी सुचवते; दिवस खरोखर वेगळा असेल तरच बदला; आणि कारण लिहा (उदा. "odometer बंद, दुरुस्तीला दिले"). Meter पुन्हा चालू झाल्यावर नेहमीसारखे reading भरा: Start मागच्या reading पासून पुढे चालते. नवीन meter बसवला असेल तर त्याच्या पहिल्या entry ला "new meter" tick करून त्याचे Start भरा.'],
+      hi: ['"No reading" उस दिन के लिए है जब meter बंद हो: इसके लिए दिन के अनुमानित KM / घंटे और कारण चाहिए। "New meter" के लिए कारण और नए meter की Start reading चाहिए।',
+        'अनुमान भरें: app इस machinery का अपना औसत सुझाता है; दिन सच में अलग रहा हो तभी बदलें; और कारण लिखें (जैसे "odometer बंद, मरम्मत को दिया")। Meter फिर चालू होने पर हमेशा की तरह reading भरें: Start पिछली reading से आगे चलता है। नया meter लगा हो तो उसकी पहली entry पर "new meter" tick करके उसका Start भरें।'] },
     { re: /no BOQ in these dates/i,
       en: ['This machinery has no BOQ (rate) for these dates, so its work is billed at 0.', 'Open Vendor BOQ and add this machinery with its rate from the right start date (or amend the BOQ), then build the bill again.'],
       mr: ['या machinery साठी या तारखांना BOQ (दर) नाही, म्हणून तिचे काम 0 ने bill होते.', 'Vendor BOQ मध्ये ही machinery योग्य सुरुवातीच्या तारखेपासून दरासह जोडा (किंवा BOQ Amend करा), मग bill पुन्हा Build करा.'],
@@ -4066,9 +4094,9 @@
       mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते.'],
       hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है।'] },
     log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook'],
-      en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. The list below opens with the last 2 days. Bills are made from these entries.'],
-      mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात.'],
-      hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं।'] },
+      en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries.'],
+      mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात.'],
+      hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। Meter बंद हो तो "No reading" चुनें: दिन भरा जाता है और उसका काम अनुमान से लिया जाता है (app machinery का औसत सुझाता है), कारण के साथ; नए meter की पहली entry पर "new meter" tick करें। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं।'] },
     tankcheck: { saves: ['saveTankCheck', 'deleteTankCheck'],
       en: ['A physical check of the diesel in a machinery\'s tank against what the app calculates.', 'One check per machinery and date. When the difference is not zero a reason must be written. "Filled to full" needs the tank capacity in Asset Master.'],
       mr: ['Machinery च्या tank मधल्या diesel ची प्रत्यक्ष तपासणी, app च्या हिशोबाशी तुलना करून.', 'एका machinery चा एका तारखेला एकच check. फरक शून्य नसेल तर कारण लिहावे लागते. "Filled to full" साठी Asset Master मध्ये tank ची क्षमता लागते.'],
@@ -7702,7 +7730,10 @@
     // counts it (as before) and now says so, so that whoever reads the bill knows why it differs from the Log Book rows
     const worked = {}; list.forEach(r => { if (DAY_STATUS.indexOf(r.mode || r.unit) === -1) worked[r.date] = true; });
     const noEntry = Object.keys(iss0).sort().filter(d => !worked[d] && Number(iss0[d].qty) > 0).map(d => ({ d: d, q: r2(Number(iss0[d].qty) || 0) }));
-    return { noEntry: noEntry, no: m.id || no, type: m.type || '', name: m.name || '', unit: u, supply: m.supply || '', workDays: workDays, nights: nights, holidays: holidays, idleDays: idleDays, itemNotes: itemNotes, lines: lines, amount: amount, zeroWork: zeroWork,
+    // days entered WITHOUT a reading (meter not working): their work is an estimate – paid and counted for the diesel standard, and said on the bill
+    const offRows = list.filter(r => (r.mode || r.unit) === METER_OFF);
+    const est = { days: [...new Set(offRows.map(r => r.date))].length, km: r2(offRows.reduce((s2, r) => s2 + (Number(r.wkm) || 0), 0)), hr: r2(offRows.reduce((s2, r) => s2 + (Number(r.whr) || 0), 0)) };
+    return { est: est, noEntry: noEntry, no: m.id || no, type: m.type || '', name: m.name || '', unit: u, supply: m.supply || '', workDays: workDays, nights: nights, holidays: holidays, idleDays: idleDays, itemNotes: itemNotes, lines: lines, amount: amount, zeroWork: zeroWork,
       issued: issued, stdQty: stdQty, excessQty: excessQty, debitQty: debitQty, dieselRate: dRate, excessAmt: excessAmt, days: Object.keys(units).length,
       gstPct: last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0,
       tdsPct: last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0),
@@ -7720,6 +7751,7 @@
     machines.filter(x => !x.hasBoq && x.supply !== 'Debit Basis').forEach(x => b.warnings.push(x.no + ': no BOQ in these dates'));
     machines.forEach(x => (x.zeroWork || []).forEach(z => b.warnings.push(x.no + ': BOQ ' + z.basis + ' but no ' + ({ 'Per Hour': 'hours', 'Per KM': 'KM', 'Per Trip': 'trips', 'Item-wise': 'work for its items' }[z.basis]) + ' on ' + z.days.length + ' day(s) – ' + z.days.slice(0, 4).join(', ') + (z.days.length > 4 ? ' …' : '') + ' (not billed)')));
     machines.forEach(x => (x.itemNotes || []).slice(0, 6).forEach(t => b.warnings.push(x.no + ' – ' + t)));
+    machines.forEach(x => { if (x.est && x.est.days) b.warnings.push(x.no + ': ' + x.est.days + ' day(s) without a reading (meter not working) – work estimated: ' + [x.est.km ? fmt(x.est.km) + ' km' : '', x.est.hr ? fmt(x.est.hr) + ' hr' : ''].filter(Boolean).join(' + ')); });
     if (b.idleDays && b.idlePaid === undefined) b.warnings.push(b.idleDays + ' Idle day(s) – choose Paid / Not paid (shown as paid until you choose)');
     if (!b.vendor.pan) b.warnings.push('PAN missing in Vendor Master');
     if (!b.vendor.account || !b.vendor.ifsc) b.warnings.push('bank details missing');
@@ -7870,6 +7902,8 @@
   }));
   // the bill page (Abstract of Bill) – used for the preview, the print and the saved bills
   // "MH04GE9396 30-09-2026 42 L, …" – the diesel of the bill that was issued on days without a working Log Book entry
+  // "JCB1 2 day(s) 160 km" – the work of the bill that is an estimate (meter not working)
+  function billEst(b) { return ((b && b.machines) || []).filter(m => m.est && m.est.days).map(m => String(m.no).replace(/-/g, '') + ' ' + m.est.days + ' day(s) ' + [m.est.km ? fmt(m.est.km) + ' km' : '', m.est.hr ? fmt(m.est.hr) + ' hr' : ''].filter(Boolean).join(' + ')).join(', '); }
   function billNoEntry(b) { return [].concat(...((b && b.machines) || []).map(m => (m.noEntry || []).map(x => String(m.no).replace(/-/g, '') + ' ' + showDate(x.d) + ' ' + fmt(x.q) + ' L'))).join(', '); }
   function billHtml(b, saved) {
     const co = b.company, ci = b.companyInfo || {}, v = b.vendor || {};
@@ -7882,7 +7916,7 @@
     const dq = (b.machines || []).reduce((a, x) => a + (Number(x.debitQty) || 0), 0), eq = (b.machines || []).reduce((a, x) => a + (Number(x.excessQty) || 0), 0);
     const bNote = [dq ? 'diesel debit ' + fmt(r2(dq)) + ' L' : '', eq ? 'excess diesel over standard ' + fmt(r2(eq)) + ' L' : ''].filter(Boolean).join(' + ');
     const bNoEntry = billNoEntry(b);
-    const sum = [['A', 'Workdone amount >>>', b.A], ['B', 'Less- Diesel Deduction >>>' + (b.B ? '<small>' + bNote + (b.machines && b.machines[0] && b.machines[0].dieselRate ? ' @ ₹' + fmt(b.machines[0].dieselRate) + '/L' : '') + '</small>' + (bNoEntry ? '<small>incl. diesel issued on days with no Log Book entry: ' + esc(bNoEntry) + '</small>' : '') : ''), b.B ? -b.B : ''],
+    const sum = [['A', 'Workdone amount >>>' + (billEst(b) ? '<small>incl. days without a reading (meter not working), work estimated: ' + esc(billEst(b)) + '</small>' : ''), b.A], ['B', 'Less- Diesel Deduction >>>' + (b.B ? '<small>' + bNote + (b.machines && b.machines[0] && b.machines[0].dieselRate ? ' @ ₹' + fmt(b.machines[0].dieselRate) + '/L' : '') + '</small>' + (bNoEntry ? '<small>incl. diesel issued on days with no Log Book entry: ' + esc(bNoEntry) + '</small>' : '') : ''), b.B ? -b.B : ''],
       ['C', 'Other Deduction >>>' + (b.C && b.cReason ? '<small>' + esc(b.cReason) + '</small>' : ''), b.C ? -b.C : ''], ['D', 'Net Work Done Amount D=(A-B-C) >>>', b.D],
       ['E', 'Add CGST >>>', b.gstPct ? b.E : '', b.gstPct ? fmt(b.gstPct / 2) + '%' : ''], ['F', 'Add SGST >>>', b.gstPct ? b.F : '', b.gstPct ? fmt(b.gstPct / 2) + '%' : ''],
       ['G', 'Total Amount (G=D+E+F)', b.G], ['H', 'Less TDS >>>', b.H ? -b.H : '', b.tdsPct ? fmt(b.tdsPct) + '%' : ''], ['I', 'Net Payable Amt I = (G-H) >>>>', b.I]]
@@ -8112,6 +8146,8 @@
     const tr = el.closest('#lg_in .lrow');
     if (tr && /^(closing|opening)(Km|Hr)$/.test(f)) { const k = /Km$/.test(f) ? 'Km' : 'Hr', o = tr.querySelector('[data-f=opening' + k + ']'), c = tr.querySelector('[data-f=closing' + k + ']'), w = k === 'Km' ? 'KM' : 'Hrs';
       if (o && c && o.value !== '' && c.value !== '' && Number(c.value) < Number(o.value)) return 'Close ' + w + ' ' + c.value + ' is less than Start ' + w + ' ' + o.value + '.'; }
+    if (tr && (f === 'estKm' || f === 'estHr') && v !== '' && tr._p && tr._p.avgWork) { const a = Number(tr._p.avgWork[f === 'estKm' ? 'km' : 'hr']) || 0;
+      if (a > 0 && Number(v) > a * 1.5) return 'Estimated ' + (f === 'estKm' ? 'KM ' : 'hours ') + v + ' is much more than this machinery\'s usual ' + fmt(a) + ' per entry. No reading: type the estimated work only as high as the day really was.'; }
     if (f === 'debitTo' && v && (S.parties || []).length && !S.parties.some(p => String(p).trim().toUpperCase() === v.toUpperCase())) return 'Debit to: "' + v + '" is not in the Vendor Master.';
     if (f === 'debitRate' && tr) { const to = tr.querySelector('[data-f=debitTo]').value.trim(); if (to && !(Number(v) > 0)) return 'Debit to ' + to + ': type the rate.'; }
     return '';
@@ -10296,9 +10332,11 @@
       '<td><select data-f="shift">' + LOG_SHIFTS.map(x => '<option' + (x === (shift || 'Full Day') ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></td>' +
       '<td class="c-m"><input data-f="no" list="dl_machines" autocomplete="off" placeholder="Type or pick"><small class="lnote"></small></td>' +
       '<td class="unitcell c-unit"></td>' +
-      '<td>' + rd('openingKm', 'km') + rd('openingHr', 'hr') + '<div class="rd tm"><small>from</small><input data-f="tStart" type="time"></div><span class="lg-day">—</span></td>' +
+      '<td>' + rd('openingKm', 'km') + rd('openingHr', 'hr') + '<div class="rd tm"><small>from</small><input data-f="tStart" type="time"></div><span class="lg-day">—</span>' +
+        '<div class="rd nr nrk" hidden><small title="Estimated KM of the day (the app proposes this machinery\'s own average)">est km</small><input data-f="estKm" type="number" step="0.01" min="0"></div><div class="rd nr nrh" hidden><small title="Estimated hours of the day">est hr</small><input data-f="estHr" type="number" step="0.01" min="0"></div>' +
+        '<label class="nm" hidden title="Tick when a NEW meter was fitted: its Start is typed here and is not taken from the old meter"><input type="checkbox" data-f="newMeter"> new meter</label></td>' +
       '<td>' + rd('closingKm', 'km') + rd('closingHr', 'hr') + '<div class="rd tm"><small>to</small><input data-f="tEnd" type="time"></div><div class="rd tm brk"><small>break</small><input data-f="tBreak" type="number" min="0" step="5" placeholder="min"></div>' +
-        '<div class="rd tp"><small>trips</small><input data-f="trip" type="number" min="0" step="1"></div><div class="rd tp ch"><small>challan</small><input data-f="challan" autocomplete="off" placeholder="Challan No"></div><span class="lg-day">worked</span><span class="lg-hol"></span><div class="itm lg-itm" hidden></div></td>' +
+        '<div class="rd tp"><small>trips</small><input data-f="trip" type="number" min="0" step="1"></div><div class="rd tp ch"><small>challan</small><input data-f="challan" autocomplete="off" placeholder="Challan No"></div><span class="lg-day">worked</span><span class="lg-hol"></span><div class="rd nr nrn" hidden><input data-f="meterNote" autocomplete="off" placeholder="Why? e.g. meter not working" title="The reason is printed with the entry"></div><div class="itm lg-itm" hidden></div></td>' +
       '<td class="o"><span data-o="wkm"></span><span data-o="whr"></span></td>' +
       '<td class="o" data-o="odslCell"></td>' +
       '<td class="o help" data-o="dieselCell"><b data-o="diesel"></b><small data-o="reads"></small></td>' +
@@ -10343,7 +10381,16 @@
     lgFormatFields(tr, u);
     tr.querySelectorAll('.lg-day').forEach(d => { d.hidden = !dy; }); tr.querySelectorAll('.lg-hol').forEach(d => { d.hidden = DAY_STATUS.indexOf(u) === -1; d.textContent = u === 'Idle' ? 'Idle – no work (paid or not: chosen in the bill)' : u + ' – not paid'; });
     lgItems(tr, u);
-    lgo(tr, 'wkm').hidden = !km; lgo(tr, 'whr').hidden = !(hr || tm);
+    // meter not working: estimated work + the reason instead of the readings; "new meter": the Start can be typed (+ the reason)
+    const off = u === METER_OFF, mm = tr._p && tr._p.machine, canK = !!mm && (hasKm(mm.unit) || modesOf(mm).some(hasKm)), canH = !!mm && (hasHr(mm.unit) || modesOf(mm).some(hasHr));
+    tr.querySelectorAll('.rd.nrk').forEach(d => { d.hidden = !(off && canK); }); tr.querySelectorAll('.rd.nrh').forEach(d => { d.hidden = !(off && canH); });
+    const nmBox = tr.querySelector('.nm'), nmCk = lgf(tr, 'newMeter');
+    if (nmBox) { nmBox.hidden = off || !(km || hr) || !tr._p || (km && tr._p.firstKm) || (hr && !km && tr._p.firstHr); if (nmBox.hidden && nmCk) nmCk.checked = false; }
+    tr.querySelectorAll('.rd.nrn').forEach(d => { d.hidden = !(off || (nmCk && nmCk.checked)); });
+    if (off && tr._p && tr._p.avgWork) { const a = tr._p.avgWork, ek = lgf(tr, 'estKm'), eh = lgf(tr, 'estHr');      // proposed: the machinery's own average
+      if (canK && ek.value === '' && a.km !== '') { ek.value = a.km; ek.title = 'Proposed: the average of the last entries with readings (' + fmt(a.km) + ' km). Correct it if the day was different.'; }
+      if (canH && eh.value === '' && a.hr !== '') { eh.value = a.hr; eh.title = 'Proposed: the average of the last entries with readings (' + fmt(a.hr) + ' hr). Correct it if the day was different.'; } }
+    lgo(tr, 'wkm').hidden = !(km || (off && canK)); lgo(tr, 'whr').hidden = !(hr || tm || (off && canH));
     tr.querySelectorAll('.rd.km small, .rd.hr small').forEach(x => { x.style.visibility = 'visible'; x.style.width = '22px'; });
   }
   // Item-wise BOQ: the item boxes of a row (kept when the row is filled again for the same machinery + date + shift)
@@ -10449,7 +10496,8 @@
       if (before) { odsl = before._closing === undefined ? 0 : before._closing; locked = true; }
       else { odsl = p.first ? (tr._odsl === null || tr._odsl === undefined ? 0 : tr._odsl) : p.openingDiesel; locked = !p.first; }
       openKm = beforeK ? lgf(beforeK, 'closingKm').value : p.openingKm; openHr = beforeH ? lgf(beforeH, 'closingHr').value : p.openingHr;
-      const lockK = !!beforeK || !p.firstKm, lockH = !!beforeH || !p.firstHr;
+      const fresh = !!(lgf(tr, 'newMeter') && lgf(tr, 'newMeter').checked), off = u === METER_OFF;      // new meter: its Start is typed
+      const lockK = (!!beforeK || !p.firstKm) && !fresh, lockH = (!!beforeH || !p.firstHr) && !fresh;
       if (km && lockK) lgf(tr, 'openingKm').value = openKm; if (hr && lockH) lgf(tr, 'openingHr').value = openHr;
       lgf(tr, 'openingKm').readOnly = km && lockK; lgf(tr, 'openingHr').readOnly = hr && lockH;
       // Opening diesel: typed only for the machinery's very first entry
@@ -10459,13 +10507,13 @@
         cell._h = '';
         odsl = Number(lgf(tr, 'openingDiesel').value) || 0; tr._odsl = odsl;
       } else { const h = '<span>' + fmt(odsl) + '</span>'; if (cell._h !== h) { cell.innerHTML = h; cell._h = h; } }
-      const wkm = km && num('openingKm') !== '' && num('closingKm') !== '' ? r2(num('closingKm') - num('openingKm')) : '';
-      const whr = hr && num('openingHr') !== '' && num('closingHr') !== '' ? r2(num('closingHr') - num('openingHr')) : tm ? lgTimeHrs(lgf(tr, 'tStart').value, lgf(tr, 'tEnd').value, lgf(tr, 'tBreak').value) : '';
-      const need = r2((km && wkm > 0 && m.kmStd > 0 ? wkm / m.kmStd : 0) + ((hr || tm) && whr > 0 && m.hrStd > 0 ? whr * m.hrStd : 0));
+      const wkm = off ? num('estKm') : km && num('openingKm') !== '' && num('closingKm') !== '' ? r2(num('closingKm') - num('openingKm')) : '';
+      const whr = off ? num('estHr') : hr && num('openingHr') !== '' && num('closingHr') !== '' ? r2(num('closingHr') - num('openingHr')) : tm ? lgTimeHrs(lgf(tr, 'tStart').value, lgf(tr, 'tEnd').value, lgf(tr, 'tBreak').value) : '';
+      const need = r2(((km || off) && wkm > 0 && m.kmStd > 0 ? wkm / m.kmStd : 0) + ((hr || tm || off) && whr > 0 && m.hrStd > 0 ? whr * m.hrStd : 0));
       const closing = r2(Number(odsl) + (Number(p.diesel) || 0) - need);
       tr._closing = closing;
-      lgTxt(lgo(tr, 'wkm'), tp ? (lgf(tr, 'trip').value || '0') + ' trips' : wkm === '' ? '–' : fmt(wkm) + (hr ? ' km' : '')); lgo(tr, 'wkm').classList.toggle('neg', wkm !== '' && wkm < 0);
-      lgTxt(lgo(tr, 'whr'), whr === '' ? '–' : fmt(whr) + (km || tm ? ' hr' : '')); lgo(tr, 'whr').classList.toggle('neg', whr !== '' && whr < 0);
+      lgTxt(lgo(tr, 'wkm'), tp ? (lgf(tr, 'trip').value || '0') + ' trips' : wkm === '' ? '–' : fmt(wkm) + (off ? ' km est.' : hr ? ' km' : '')); lgo(tr, 'wkm').classList.toggle('neg', wkm !== '' && wkm < 0);
+      lgTxt(lgo(tr, 'whr'), whr === '' ? '–' : fmt(whr) + (off ? ' hr est.' : km || tm ? ' hr' : '')); lgo(tr, 'whr').classList.toggle('neg', whr !== '' && whr < 0);
       if (tp) lgo(tr, 'wkm').hidden = false;
       lgTxt(lgo(tr, 'need'), wkm !== '' || whr !== '' ? fmt(need) : '–');
       lgTxt(lgo(tr, 'closing'), fmt(closing)); lgo(tr, 'closing').classList.toggle('neg', closing < 0);
@@ -10529,6 +10577,7 @@
   // "Debit" in a row opens / closes its two fields; a row that has a party typed stays open
   $('lg_in').addEventListener('click', e => { const b = e.target.closest('.dbt-btn'); if (!b) return; const tr = b.closest('.lrow'), to = tr.querySelector('[data-f=debitTo]');
     if (tr.classList.contains('dbt-open') && !to.value.trim() && !tr.querySelector('[data-f=debitRate]').value) tr.classList.remove('dbt-open'); else { tr.classList.add('dbt-open'); to.focus(); } });
+  $('lg_in').addEventListener('change', e => { if (e.target.dataset && e.target.dataset.f === 'newMeter') { const tr0 = e.target.closest('.lrow'); lgShowUnit(tr0, lgWay(tr0)); lgCalcSoon(); if (e.target.checked) { const o = [lgf(tr0, 'openingKm'), lgf(tr0, 'openingHr')].find(x => x && x.offsetParent !== null); if (o) { o.readOnly = false; o.value = ''; o.focus(); } } } }, true);
   $('lg_in').addEventListener('change', e => {
     const tr = e.target.closest('.lrow'); if (!tr) return;
     const f = e.target.dataset.f;
@@ -10578,6 +10627,7 @@
     const rows = trs.map(tr => ({ date: v(tr, 'date'), shift: v(tr, 'shift'), no: v(tr, 'no'), mode: lgWay(tr), openingKm: hasKm(lgWay(tr)) ? v(tr, 'openingKm') : '', closingKm: hasKm(lgWay(tr)) ? v(tr, 'closingKm') : '',
       openingHr: hasHr(lgWay(tr)) ? v(tr, 'openingHr') : '', closingHr: hasHr(lgWay(tr)) ? v(tr, 'closingHr') : '', tStart: v(tr, 'tStart'), tEnd: v(tr, 'tEnd'), tBreak: v(tr, 'tBreak'), trip: lgWay(tr) === 'Trip' || (tr._p && tr._p.machine && tr._p.machine.lbFormat === 'B' && DAY_STATUS.indexOf(lgWay(tr)) === -1) ? v(tr, 'trip') : '', challan: lgWay(tr) && DAY_STATUS.indexOf(lgWay(tr)) === -1 ? v(tr, 'challan').trim() : '', remark: v(tr, 'remark').trim(),
       openingDiesel: v(tr, 'openingDiesel'), chFrom: v(tr, 'chFrom'), chTo: v(tr, 'chTo'), work: v(tr, 'work'), debitTo: v(tr, 'debitTo').trim(), debitRate: v(tr, 'debitRate'),
+      estKm: v(tr, 'estKm'), estHr: v(tr, 'estHr'), meterNote: v(tr, 'meterNote').trim(), meter: lgf(tr, 'newMeter') && lgf(tr, 'newMeter').checked ? 'new' : '',
       items: tr._p && tr._p.boqItems && tr._p.boqItems.length ? itemBoxRead(tr.querySelector('.lg-itm')) : undefined }))
       .map(r => { ['openingKm', 'closingKm', 'openingHr', 'closingHr', 'openingDiesel', 'trip', 'tBreak'].forEach(k => { r[k] = r[k] === '' ? '' : Number(r[k]); }); return r; });
     const res = await call('saveLogRows', { rows: rows });
@@ -10626,6 +10676,9 @@
     document.querySelectorAll('#le_box .le-tm').forEach(d => { d.hidden = e.unit !== 'Time'; }); document.querySelectorAll('#le_box .le-tp').forEach(d => { d.hidden = e.unit !== 'Trip'; }); document.querySelectorAll('#le_box .le-chw').forEach(d => { d.hidden = DAY_STATUS.indexOf(e.unit) > -1 || e.unit === 'Day'; });
     $('le_ts').value = e.tStart || ''; $('le_te').value = e.tEnd || ''; $('le_tb').value = e.tBrk === '' || e.tBrk === undefined ? '' : e.tBrk; $('le_trip').value = e.trip === '' || e.trip === undefined ? '' : e.trip; $('le_chl').value = e.challan || '';
     $('le_okm').value = e.okm; $('le_ckm').value = e.ckm; $('le_ohr').value = e.ohr; $('le_chr').value = e.chr;
+    { const offE = e.unit === METER_OFF, me = findMachine(e.no), cK = !!me && (hasKm(me.unit) || modesOf(me).some(hasKm)), cH = !!me && (hasHr(me.unit) || modesOf(me).some(hasHr));
+      document.querySelectorAll('#le_box .le-nr').forEach(d => { d.hidden = !offE; }); if (offE) { document.querySelector('#le_box .le-nrk').hidden = !cK; document.querySelector('#le_box .le-nrh').hidden = !cH; }
+      $('le_estkm').value = offE && e.wkm !== '' ? e.wkm : ''; $('le_esthr').value = offE && e.whr !== '' ? e.whr : ''; $('le_mnote').value = offE ? String(e.meter || '').replace(/^No reading – /, '') : ''; }
     $('le_okm').readOnly = $('le_ohr').readOnly = false; // any Start can be changed; the entry before follows
 
     $('le_odsl_w').hidden = !e.first; $('le_odsl').value = e.odsl;
@@ -10650,6 +10703,7 @@
     if (e.unit === 'Trip' && !(Number($('le_trip').value) > 0)) throw new Error('Enter the number of trips.');
     const x = { openingKm: km ? $('le_okm').value : '', closingKm: km ? $('le_ckm').value : '', openingHr: hr ? $('le_ohr').value : '', closingHr: hr ? $('le_chr').value : '',
       openingDiesel: e.first ? $('le_odsl').value : '', chFrom: $('le_chf').value.trim(), chTo: $('le_cht').value.trim(), work: $('le_work').value.trim(), debitTo: $('le_dto').value.trim(), debitRate: $('le_drate').value,
+      estKm: leCur && leCur.unit === METER_OFF ? $('le_estkm').value : undefined, estHr: leCur && leCur.unit === METER_OFF ? $('le_esthr').value : undefined, meterNote: leCur && leCur.unit === METER_OFF ? $('le_mnote').value.trim() : undefined,
       tStart: e.unit === 'Time' ? $('le_ts').value : '', tEnd: e.unit === 'Time' ? $('le_te').value : '', tBreak: e.unit === 'Time' ? $('le_tb').value : '', trip: e.unit === 'Trip' ? $('le_trip').value : '', challan: DAY_STATUS.indexOf(e.unit) === -1 ? $('le_chl').value.trim() : '' };
     ['openingKm', 'closingKm', 'openingHr', 'closingHr', 'openingDiesel'].forEach(k => { x[k] = x[k] === '' ? '' : Number(x[k]); });
     // Item-wise BOQ: the typed items (compared as text for "what changed")
@@ -10657,9 +10711,10 @@
     if (hasItems && e._itemBad) throw new Error(e._itemBad);
     if (hasItems) { x.items = itemsNow; x.itemText = itemSig(e.boqItems, itemsNow); }
     const before = { openingKm: km ? e.okm : '', closingKm: km ? e.ckm : '', openingHr: hr ? e.ohr : '', closingHr: hr ? e.chr : '', openingDiesel: e.first ? e.odsl : '', chFrom: e.chFrom, chTo: e.chTo, work: e.work || e.remark, debitTo: e.debitTo || '', debitRate: e.debitRate === undefined || e.debitRate === null ? '' : e.debitRate,
+      estKm: e.unit === METER_OFF ? e.wkm : undefined, estHr: e.unit === METER_OFF ? e.whr : undefined, meterNote: e.unit === METER_OFF ? String(e.meter || '').replace(/^No reading – /, '') : undefined,
       tStart: e.unit === 'Time' ? e.tStart : '', tEnd: e.unit === 'Time' ? e.tEnd : '', tBreak: e.unit === 'Time' ? (e.tBrk === '' ? '' : String(e.tBrk)) : '', trip: e.unit === 'Trip' ? String(e.trip) : '', challan: DAY_STATUS.indexOf(e.unit) === -1 ? (e.challan || '') : '' };
     if (hasItems) before.itemText = itemSig(e.boqItems, e.itemWork || {});
-    const changes = diff([['itemText', 'Items'], ['openingKm', 'Start KM'], ['closingKm', 'Close KM'], ['openingHr', 'Start Hrs'], ['closingHr', 'Close Hrs'], ['tStart', 'From time'], ['tEnd', 'To time'], ['tBreak', 'Break (min)'], ['trip', 'Trips'], ['challan', 'Challan No'], ['openingDiesel', 'Opening diesel'], ['debitTo', 'Debit to'], ['debitRate', 'Debit rate'],
+    const changes = diff([['itemText', 'Items'], ['openingKm', 'Start KM'], ['closingKm', 'Close KM'], ['openingHr', 'Start Hrs'], ['closingHr', 'Close Hrs'], ['tStart', 'From time'], ['tEnd', 'To time'], ['tBreak', 'Break (min)'], ['trip', 'Trips'], ['challan', 'Challan No'], ['openingDiesel', 'Opening diesel'], ['debitTo', 'Debit to'], ['debitRate', 'Debit rate'], ['estKm', 'Estimated KM'], ['estHr', 'Estimated Hrs'], ['meterNote', 'Why no reading'],
       ['chFrom', 'Chainage From'], ['chTo', 'Chainage To'], ['work', 'Work description']], before, x);
     if (!changes.length) { toast('Nothing changed.'); leClose(); return; }
     if (!(await askConfirm({ title: 'Update ' + e.no + ' – ' + showDate(e.date) + '?', ok: 'Update',
@@ -10830,10 +10885,10 @@
         '<tr><th>START</th><th>CLOSED</th><th>TOTAL</th><th>OPENING<br>BALANCE</th><th>ISSUED<br>QTY</th><th>CURRENT DIESEL<br>REFILLING READING</th><th>TOTAL<br>DIESEL</th><th>CONSUMED<br>DIESEL</th><th>CLOSING<br>BALANCE</th></tr></thead><tbody>' +
         lines.map(x => { const r = x.r, w = r.mode || r.unit || u, st = DAY_STATUS.indexOf(w) > -1; // Idle / Holiday / Breakdown: written only in Work description
           return '<tr' + (st ? ' class="lb-st"' : '') + '><td class="c">' + (x.i + 1) + '</td><td class="c">' + esc(showDate(r.date)) + '</td><td class="c">' + esc(shiftText(r)) + '</td><td class="c">' + (st ? '–' : esc(up(w))) + '</td>' +
-          (st ? '<td class="n">–</td><td class="n">–</td><td class="n">–</td>' : lbPrintWork(r, w, plain)) +
+          (st ? '<td class="n">–</td><td class="n">–</td><td class="n">–</td>' : w === METER_OFF ? '<td class="n">–</td><td class="n">–</td><td class="n"><b>' + [r.wkm !== '' && r.wkm !== undefined ? fmt(r.wkm) + ' KM' : '', r.whr !== '' && r.whr !== undefined ? fmt(r.whr) + ' HR' : ''].filter(Boolean).join(' / ') + '</b> <small>EST.</small></td>' : lbPrintWork(r, w, plain)) +
           '<td class="n">' + n2(x.open) + '</td><td class="n">' + (x.iss ? '<b>' + fmt(x.iss) + '</b>' : '') + '</td><td class="n">' + (x.refill !== '' && x.refill !== undefined ? (typeof x.refill === 'string' ? x.refill : plain(x.refill)) : '') + '</td>' +
           '<td class="n">' + n2(x.total) + '</td><td class="n">' + n2(x.used) + '</td><td class="n">' + n2(x.close) + '</td>' +
-          '<td class="n">' + (x.avg || '') + '</td><td class="lb-ch" style="white-space:normal;word-break:break-word;font-size:0.9em;line-height:1.15">' + esc(up([r.chFrom, r.chTo].filter(Boolean).join(' – '))) + '</td><td>' + (st ? '<b>' + esc(up(w)) + '</b>' + (r.work || r.remark ? ' – ' : '') : '') + (!st && itemQtyText(r) ? '<b>' + esc(up(itemQtyText(r))) + '</b>' + (r.work || r.remark ? ' – ' : '') : '') + esc(up(r.work || r.remark)) + '</td></tr>'; }).join('') +
+          '<td class="n">' + (x.avg || '') + '</td><td class="lb-ch" style="white-space:normal;word-break:break-word;font-size:0.9em;line-height:1.15">' + esc(up([r.chFrom, r.chTo].filter(Boolean).join(' – '))) + '</td><td>' + (st ? '<b>' + esc(up(w)) + '</b>' + (r.work || r.remark ? ' – ' : '') : '') + (r.meter ? '<b>' + esc(up(r.meter)) + '</b>' + (r.work || r.remark ? ' – ' : '') : '') + (!st && itemQtyText(r) ? '<b>' + esc(up(itemQtyText(r))) + '</b>' + (r.work || r.remark ? ' – ' : '') : '') + esc(up(r.work || r.remark)) + '</td></tr>'; }).join('') +
         '</tbody><tfoot><tr><td colspan="6" class="c">TOTAL</td><td class="n">' + ([tKm ? fmt(tKm) + ' KM' : '', tHr ? fmt(tHr) + ' HR' : '', tTrips ? fmt(tTrips) + ' TRIPS' : ''].filter(Boolean).join('<br>') || '0') + '</td><td></td><td class="n">' + fmt(issued) + '</td><td></td><td class="n">' + fmt(sum('total')) + '</td><td class="n">' + fmt(used) + '</td><td></td><td></td><td></td><td></td></tr></tfoot></table>';
       const money = v => v ? '₹ ' + n2(v) : '–';
       const allDebit = issued > 0 ? debitQty >= issued : (m.supply === 'Debit Basis');
@@ -10980,7 +11035,7 @@
         '<td class="n" title="' + esc(r.dread) + '">' + fmt(r.qty) + '</td><td class="n">' + fmt(r.stdUse) + '</td>' + (() => { const cap = capOf(r.no), over = cap > 0 && r.stock > cap;
           return '<td class="n' + (over ? ' overcap' : '') + '"' + (over ? ' title="More than the ' + fmt(cap) + ' L tank capacity – check Log Book / diesel entries"' : '') + '><b class="' + (r.stock < 0 ? 'neg' : '') + '">' + fmt(r.stock) + '</b>' + (over ? '<small class="over-cap">tank ' + fmt(cap) + ' L</small>' : '') + '</td>'; })() +
         '<td>' + esc(stdTxt(r)) + '</td><td title="' + esc(r.cycle) + '">' + esc(r.avg) + (r.cycle ? '<br><small>' + esc(r.cycle) + '</small>' : '') + '</td>' +
-        '<td>' + esc(r.chFrom || r.chTo ? (r.chFrom || '') + ' to ' + (r.chTo || '') : r.chainage) + '</td><td>' + (itemQtyText(r) ? '<small class="muted">' + esc(itemQtyText(r)) + '</small><br>' : '') + esc(r.work || r.remark) + (r.debitTo ? '<small class="lg-dto">Debit to ' + esc(r.debitTo) + ' @ ' + fmt(r.debitRate) + '</small>' : '') + '</td>' +
+        '<td>' + esc(r.chFrom || r.chTo ? (r.chFrom || '') + ' to ' + (r.chTo || '') : r.chainage) + '</td><td>' + (itemQtyText(r) ? '<small class="muted">' + esc(itemQtyText(r)) + '</small><br>' : '') + esc(r.work || r.remark) + (r.meter ? '<small class="lg-mtr">' + esc(r.meter) + (r.unit === METER_OFF ? ' (work estimated)' : '') + '</small>' : '') + (r.debitTo ? '<small class="lg-dto">Debit to ' + esc(r.debitTo) + ' @ ' + fmt(r.debitRate) + '</small>' : '') + '</td>' +
         byCell(r) + '<td>' + rowActions('Log Book', 'data-ledit', 'data-ldel', r.key) + '</td></tr>').join('')
         : '<tr><td colspan="16" class="none">No Log Book entries match this filter.</td></tr>';
     } catch (e) { toast(errMsg(e), true); }

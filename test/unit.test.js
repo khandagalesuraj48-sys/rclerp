@@ -78,7 +78,7 @@ test('billing: item-wise BOQ with an hour slab, Idle paid / not paid, and page =
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   const grab = m => { const i = app.indexOf(m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
   const env = { r2: n => Math.round(n * 100) / 100, hasKm: u => u === 'KM' || u === 'KM + Hrs', hasHr: u => u === 'Hrs' || u === 'KM + Hrs', isHol: r => ['Holiday', 'Breakdown'].indexOf(r.mode || r.unit) > -1,
-    showDate: d => d.split('-').reverse().join('/'), fmt: String, DAY_STATUS: ['Idle', 'Holiday', 'Breakdown'], ITEM_WORD: { hr: 'hr', km: 'km', trip: 'trips' }, dieselDebitDay: (vt, bd, m) => bd ? bd.diesel === 'Debit Basis' : !!(m && m.supply === 'Debit Basis'), findMachine: no => T.getMaster_().find(m => m.id === no) };
+    showDate: d => d.split('-').reverse().join('/'), fmt: String, DAY_STATUS: ['Idle', 'Holiday', 'Breakdown'], METER_OFF: 'No reading', ITEM_WORD: { hr: 'hr', km: 'km', trip: 'trips' }, dieselDebitDay: (vt, bd, m) => bd ? bd.diesel === 'Debit Basis' : !!(m && m.supply === 'Debit Basis'), findMachine: no => T.getMaster_().find(m => m.id === no) };
   const C = new Function(...Object.keys(env), grab('function itemDaySegs(') + '\n' + grab('function mbMachine(') + '; return { mbMachine };')(...Object.values(env));
   for (const no of ['JCB-1', 'BOLERO-1']) for (const idle of [true, false]) assert.strictEqual(C.mbMachine(no, byNo[no], extra, from, to, undefined, idle).amount, srv(no, idle), no + ' idle=' + idle);
 });
@@ -271,4 +271,60 @@ test('the app knows itself: every page and report is explained in 3 languages, a
   const names = new Set(api.map(x => x.name));
   const ghost = [...listed].filter(n => !names.has(n));
   assert.deepStrictEqual(ghost, [], 'the guide lists actions the server does not have: ' + ghost.join(', '));
+});
+
+test('meter not working: "No reading" days are paid and counted for the diesel standard; a stuck meter resumes; a new meter starts fresh (hand-worked)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const save = l => { try { return run('x => saveLogRowsInner_(x)', { rows: [Object.assign({ shift: 'Full Day', no: 'NR-1' }, l)] }); } catch (e) { return { ok: false, thrown: String(e.message) }; } };
+  const errOf = r => JSON.stringify(r.errors || r.thrown || '');
+  run('(x, m) => saveMaster_(x, m)', { no: 'NR-1', name: 'Innova', type: 'Innova', unit: 'KM', worksOn: ['KM'], kmStd: 10, owner: 'NR Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: 'NR-TRIP', name: 'Tipper', type: 'Tipper', unit: 'Trip', worksOn: ['Trip'], owner: 'NR Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'NR Vendor', gstReg: 'No', pan: 'ABCDE1234N', bank: 'SBI', account: '12345673', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'NR Vendor', from: '2026-06-01', tdsPct: 0, woNo: 'WO-N', lines: [{ no: 'NR-1', basis: 'Monthly', rate: 30000, diesel: 'Company' }] }, 'add');
+  run('x => saveInward_(x)', { date: '2026-05-31', location: 'Dispenser', pump: 'Pump', qty: 1000, rate: 100, billNo: 'NR1', billDate: '2026-05-31' });
+  assert.strictEqual(save({ date: '2026-06-01', mode: 'KM', openingKm: 1000, closingKm: 1100 }).ok, true);
+  assert.strictEqual(save({ date: '2026-06-02', mode: 'KM', closingKm: 1160 }).ok, true);
+  // the app proposes the machinery's own average of its entries with readings: (100 + 60) / 2 = 80 km
+  assert.strictEqual(run('(n, d, s) => getLogRowPrefill_(n, d, s)', 'NR-1', '2026-06-03', 'Full Day').avgWork.km, 80);
+  // a day without a reading needs the estimate and the reason; a machinery without a meter cannot use it
+  assert.match(errOf(save({ date: '2026-06-03', mode: 'No reading', estKm: 80 })), /write why there is no reading/);
+  assert.match(errOf(save({ date: '2026-06-03', mode: 'No reading', meterNote: 'odometer stuck' })), /type the estimated KM/);
+  assert.match(errOf(save({ date: '2026-06-03', mode: 'No reading', estHr: 5, meterNote: 'x' })), /not measured by hours/);
+  assert.match(errOf(save({ no: 'NR-TRIP', date: '2026-06-03', mode: 'No reading', estKm: 5, meterNote: 'x' })), /does not work on|has no meter/);
+  assert.strictEqual(save({ date: '2026-06-03', mode: 'No reading', estKm: 80, meterNote: 'odometer stuck' }).ok, true);
+  assert.strictEqual(save({ date: '2026-06-04', mode: 'No reading', estKm: 80, meterNote: 'odometer stuck' }).ok, true);
+  // the meter works again: Start is the last reading BEFORE the gap (1160), whatever is typed
+  assert.strictEqual(run('(n, d, s) => getLogRowPrefill_(n, d, s)', 'NR-1', '2026-06-05', 'Full Day').openingKm, 1160);
+  assert.strictEqual(save({ date: '2026-06-05', mode: 'KM', openingKm: 5, closingKm: 1200 }).ok, true);
+  // a NEW meter: a lower reading is refused as usual, and accepted when the entry is marked "new meter" with a reason
+  assert.match(errOf(save({ date: '2026-06-06', mode: 'KM', closingKm: 120 })), /less than Start KM 1200/);
+  assert.match(errOf(save({ date: '2026-06-06', mode: 'KM', meter: 'new', openingKm: 50, closingKm: 120 })), /New meter: write what was done/);
+  assert.strictEqual(save({ date: '2026-06-06', mode: 'KM', meter: 'new', openingKm: 50, closingKm: 120, meterNote: 'new speedometer fitted' }).ok, true);
+  assert.strictEqual(save({ date: '2026-06-07', mode: 'KM', closingKm: 180 }).ok, true);
+  const rows = () => run('f => getLogBookList_(f)', { from: '2026-06-01', to: '2026-06-30', no: 'NR-1', all: true }).rows.sort((a, b) => a.date < b.date ? -1 : 1).map(r => [r.date.slice(8), r.mode || r.unit, r.okm, r.ckm, r.wkm, r.meter || '']);
+  assert.deepStrictEqual(rows(), [
+    ['01', 'KM', 1000, 1100, 100, ''], ['02', 'KM', 1100, 1160, 60, ''],
+    ['03', 'No reading', '', '', 80, 'No reading – odometer stuck'], ['04', 'No reading', '', '', 80, 'No reading – odometer stuck'],
+    ['05', 'KM', 1160, 1200, 40, ''], ['06', 'KM', 50, 120, 70, 'New meter – new speedometer fitted'], ['07', 'KM', 120, 180, 60, '']]);
+  // the bill: 7 days of a 30-day month at 30,000 = 7,000; work 100+60+80+80+40+70+60 = 490 km → 49 L allowed; 55 L issued → 6 L over × 100 = 600
+  run('x => saveDieselIssue_(x)', { date: '2026-06-01', shift: 'Day', source: 'Dispenser', no: 'NR-1', qty: 55, kmReading: 1000, force: true });
+  const bill = () => { const from = '2026-06-01', to = '2026-06-30', list = run('f => getLogBookList_(f)', { from: from, to: to, no: 'NR-1', all: true }).rows, extra = run('f => logPrintExtra_(f)', { from: from, to: to, nos: ['NR-1'] });
+    return run('(l, e, f, t) => billMachineCalc_(findMachine_("NR-1"), l, e, f, t, undefined, true)', list, extra, from, to); };
+  let b = bill();
+  assert.deepStrictEqual([b.workDays, b.amount, b.issued, b.excessQty, b.excessAmt], [7, 7000, 55, 6, 600]);
+  // a correction of an earlier reading re-links only what must follow it: 02-06 closes at 1170 → 05-06 starts at 1170 (30 km);
+  // the estimates and the new meter's Start are untouched
+  const key02 = run('f => getLogBookList_(f)', { from: '2026-06-02', to: '2026-06-02', no: 'NR-1', all: true }).rows[0];
+  run('(k, l) => updateLogRow_(k, l)', key02.key || ('NR-1|2026-06-02|Full Day'), { closingKm: 1170, work: '' });
+  assert.deepStrictEqual(rows().map(r => [r[0], r[2], r[3], r[4]]), [['01', 1000, 1100, 100], ['02', 1100, 1170, 70], ['03', '', '', 80], ['04', '', '', 80], ['05', 1170, 1200, 30], ['06', 50, 120, 70], ['07', 120, 180, 60]]);
+  b = bill(); assert.deepStrictEqual([b.workDays, b.excessQty], [7, 6]);   // 70+30 instead of 60+40: the same 490 km
+  // the estimate of a "No reading" day can be corrected in the edit window; deleting such a day leaves the chain intact
+  run('(k, l) => updateLogRow_(k, l)', 'NR-1|2026-06-03|Full Day', { estKm: 90, meterNote: 'odometer stuck', work: '' });
+  assert.strictEqual(rows()[2][4], 90);
+  run('k => deleteLogRow_(k)', 'NR-1|2026-06-04|Full Day');
+  assert.deepStrictEqual(rows().map(r => [r[0], r[2], r[3], r[4]]), [['01', 1000, 1100, 100], ['02', 1100, 1170, 70], ['03', '', '', 90], ['05', 1170, 1200, 30], ['06', 50, 120, 70], ['07', 120, 180, 60]]);
+  // diesel can be issued without a reading while the meter is not working
+  const di = run('x => saveDieselIssue_(x)', { date: '2026-06-03', shift: 'Day', source: 'Dispenser', no: 'NR-1', qty: 20, mode: 'No reading' });
+  assert.ok(di && di.ok !== false && di.id, JSON.stringify(di));
 });

@@ -314,6 +314,28 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * The red line: in Marathi / Hindi the rule's "what is wrong" comes first, then the app's own English line with names and numbers.
   * NOT done: translating the app's labels, buttons and the original messages themselves; live checks on every single field of every
     form (only the common ones above); explanations per column of each report (one explanation per report).
+- 02-10-2026 (update-19 is live). METER NOT WORKING. His problem: when a vehicle's meter stops, no reading can be entered, the month's KM
+  come out low and the bill debits "excess diesel" wrongly. He left the decisions to me ("most correct logic, do not disturb the flow").
+  DECIDED AND BUILT (needs `sql/supabase_step1u_meter.sql` – one column `log_book.meter_note`; without it "No reading" / "New meter"
+  are refused with a message naming the file, everything else works):
+  * A way of measuring "No reading" (`METER_OFF_` / `METER_OFF`), offered for every machinery that has a KM / Hrs way – in the Log Book
+    entry row and in Diesel Issue (a fill without a reading). Such an entry has NO readings; its work (WKM / WHR) is an ESTIMATE and a
+    reason is compulsory (Meter Note = "No reading – reason"). The app proposes the machinery's own average of its last 7 entries with
+    readings (`meterAvg_`, sent as `avgWork` by getLogRowPrefill_); the person may change it; more than 1.5 × the average gives an
+    on-the-spot warning (not a block). Anyone with Log Book Edit can use it (site staff enter daily).
+  * Money: nothing special-cased. The entry is a working day with work = the estimate, so the BOQ pays it (monthly / per day: the day;
+    per KM / hour: the estimated quantity) and the diesel standard counts it → no false "excess diesel". The bill SAYS it: a "to check"
+    line per machinery, a note on line A of the Abstract (`billEst`), help rule in 3 languages. List and print (format A) mark the entry.
+  * Readings chain: untouched design – a meter follows its own last reading, so the first entry with a reading after the gap starts at the
+    last reading before it (stuck meter resumes). NEW METER: tick "new meter" on its first entry (payload `meter: 'new'` + reason) → the
+    typed Start is kept (Meter Note "New meter – reason"); `meterNew_` guards every place that links a Start to the previous Close
+    (recalcChain_, linkAfterInsert_, saveLogBulk_, deleteLogRow_, importLogBook_).
+  * recalcChain_ keeps the saved estimate of a "No reading" row; the edit window can correct the estimate and the reason
+    (`updateLogRow_` with estKm / estHr / meterNote). The Edit Log Book grid cannot CREATE a no-reading day (message → use the Log Book page).
+  * Known limits: one flag for both meters of a KM + Hrs machinery; formats B–H of the printed Log Book show such a row without the
+    "EST." mark (format A has it); a new day does not default to "No reading" – it is chosen each day on purpose.
+  * Tests: unit test "meter not working" (hand-worked: 490 km → 49 L allowed, 55 issued → 6 L × 100 = 600; re-link after an edit; delete),
+    `test/browser/meter.js` (8 checks through the page and the database), checked without the SQL as well.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

@@ -31,7 +31,7 @@ const APP = {
 
 const H = {
   NO: 'Machinery Number', NAME: 'Machinery Name', TYPE: 'Type of Machinery', MAKE: 'Make',
-  UNIT: 'Unit', WORKS: 'Works On', LBFMT: 'Log Book Format', TSTART: 'Start Time', TEND: 'End Time', TBRK: 'Break (min)', THRS: 'Time Hrs', CHALLAN: 'Challan No', ITEMS: 'Item Work', DEBITTO: 'Debit To', DEBITRATE: 'Debit Rate', OWNTYPE: 'Ownership', KMSTD: 'Standard Average (KM/Ltr)', HRSTD: 'Standard Average (Ltr/Hr)', OWNER: 'Owner Name',
+  UNIT: 'Unit', WORKS: 'Works On', LBFMT: 'Log Book Format', TSTART: 'Start Time', TEND: 'End Time', TBRK: 'Break (min)', THRS: 'Time Hrs', CHALLAN: 'Challan No', ITEMS: 'Item Work', DEBITTO: 'Debit To', DEBITRATE: 'Debit Rate', METER: 'Meter Note', OWNTYPE: 'Ownership', KMSTD: 'Standard Average (KM/Ltr)', HRSTD: 'Standard Average (Ltr/Hr)', OWNER: 'Owner Name',
   ID: 'Issue ID', IDATE: 'Issue Date', SHIFT: 'Shift', QTY: 'Diesel Qty (Ltr)',
   KMR: 'KM Reading', HRR: 'Hrs Reading', REMARK: 'Remark', CREATED: 'Created At',
   DATE: 'Date', OKM: 'Opening KM', CKM: 'Closing KM', WKM: 'Working KM',
@@ -4805,6 +4805,7 @@ function logRowOut_(t, r) {
     mode: str_(r[t.c[H.UNIT]]), tStart: H.TSTART in t.c ? tStr_(r[t.c[H.TSTART]]) : '', tEnd: H.TEND in t.c ? tStr_(r[t.c[H.TEND]]) : '',
     tBrk: H.TBRK in t.c ? numOrBlank_(r[t.c[H.TBRK]]) : '', tHrs: H.THRS in t.c ? numOrBlank_(r[t.c[H.THRS]]) : '', challan: H.CHALLAN in t.c ? str_(r[t.c[H.CHALLAN]]) : '',
     itemWork: H.ITEMS in t.c ? itemWorkParse_(r[t.c[H.ITEMS]]) : {}, // Item-wise BOQ: the typed items of this entry
+    meter: H.METER in t.c ? str_(r[t.c[H.METER]]) : '',   // "No reading – reason" (work is estimated) / "New meter – reason"
     debitTo: H.DEBITTO in t.c ? str_(r[t.c[H.DEBITTO]]) : '', debitRate: H.DEBITRATE in t.c ? numOrBlank_(r[t.c[H.DEBITRATE]]) : '', // work charged to a party
   };
 }
@@ -5025,12 +5026,50 @@ function prevLogOf_(lt, no, dk) {
 }
 // Working, standard consumption, actual average and extra/short for one day
 // one entry: work and diesel as per the Standard Average. mode = how the entry is measured (KM / Hrs / KM + Hrs / Time / Trip / Day)
-function logCalc_(m, diesel, okm, ckm, ohr, chr, mode, tHrs) {
-  const md = mode || m.unit, km = hasKm_(md), hr = hasHr_(md), tm = md === 'Time';
-  const wkm = km && okm !== '' && ckm !== '' ? r2_(ckm - okm) : '';
-  const whr = hr && ohr !== '' && chr !== '' ? r2_(chr - ohr) : tm && tHrs !== '' && tHrs !== null && tHrs !== undefined ? r2_(tHrs) : '';
-  const ckmc = km && wkm !== '' && m.kmStd > 0 ? r2_(wkm / m.kmStd) : '';
-  const chrc = (hr || tm) && whr !== '' && m.hrStd > 0 ? r2_(whr * m.hrStd) : '';
+/* ---------- METER NOT WORKING ("No reading") and NEW METER ----------
+ * The meter of a machinery can stop (odometer / hour meter not working). The machinery still works and is paid, but there is
+ * no Start / Close reading. Such an entry is saved with the way of measuring "No reading": no readings, and its work
+ * (KM and / or hours) is an ESTIMATE – the app proposes the machinery's own average of its last entries with readings, the
+ * person may correct it, and a reason must be written. Everything downstream uses the entry's work as usual, so the day is
+ * paid by the BOQ and the diesel standard (excess diesel) is worked out on measured + estimated work. The bill, the Log Book
+ * list and print say which days are estimated.
+ * The next entry WITH a reading starts at the last reading before the gap (a stuck meter goes on from where it stopped).
+ * When a NEW meter is fitted, its first entry is marked "New meter": its Start is typed, and no later recalculation links
+ * that Start back to the old meter.
+ * Kept in one column (Meter Note): "No reading – reason" / "New meter – reason". */
+const METER_OFF_ = 'No reading';
+const meterOff_ = unit => str_(unit) === METER_OFF_;
+const meterNew_ = (row, c) => H.METER in c && /^New meter/i.test(str_(row[c[H.METER]]));
+function logMeterCol_() { addColIfMissing_(APP.SHEET_LOG, logHeaders_(), H.METER); TABLE_MEMO_ = {}; }
+const hasMeterIn_ = l => l && (meterOff_(l.mode) || str_(l.meter) === 'new');
+const METER_SQL_MSG_ = 'This needs one database step first: run sql/supabase_step1u_meter.sql in Supabase → SQL Editor (it only adds one column; nothing is changed).';
+function meterReady_() { let cols = null; try { cols = SS_().getSheetByName(APP.SHEET_LOG).dbCols; } catch (e) { cols = null; } if (cols && cols.indexOf('meter_note') === -1) throw new Error('"No reading" / "New meter" cannot be saved yet. ' + METER_SQL_MSG_); }
+// the estimate of a "No reading" entry as typed: at least one of KM / hours, only for a meter the machinery has
+function meterEst_(m, l, when) {
+  const canKm = hasKm_(m.unit) || (m.modes || []).some(hasKm_), canHr = hasHr_(m.unit) || (m.modes || []).some(hasHr_);
+  if (!canKm && !canHr) throw new Error(when + '"No reading" is for machinery measured by KM or hours – ' + m.id + ' has no meter reading.');
+  const km = blank_(l.estKm) ? '' : num0_(l.estKm), hr = blank_(l.estHr) ? '' : num0_(l.estHr);
+  if ((km !== '' && km < 0) || (hr !== '' && hr < 0)) throw new Error(when + 'the estimated work cannot be below 0.');
+  if (km !== '' && !canKm) throw new Error(when + m.id + ' is not measured by KM – leave the estimated KM empty.');
+  if (hr !== '' && !canHr) throw new Error(when + m.id + ' is not measured by hours – leave the estimated hours empty.');
+  if (!(km > 0) && !(hr > 0)) throw new Error(when + 'No reading: type the estimated ' + (canKm && canHr ? 'KM or hours' : canKm ? 'KM' : 'hours') + ' of the day.');
+  if (km > 2000 || hr > 24) throw new Error(when + 'the estimated work looks wrong (' + (km > 2000 ? km + ' KM' : hr + ' hours') + ' in one entry).');
+  return { km: km > 0 ? r2_(km) : '', hr: hr > 0 ? r2_(hr) : '' };
+}
+function meterNote_(l, kind, when) { const n = clean_(l.meterNote); if (!n) throw new Error(when + (kind === METER_OFF_ ? 'No reading: write why there is no reading (e.g. meter not working).' : 'New meter: write what was done (e.g. new speedometer fitted).')); return kind + ' – ' + n.slice(0, 120); }
+// the machinery's own average work per entry, from its last entries WITH readings before a date (what the app proposes as the estimate)
+function meterAvg_(lt, m, dk, shift) {
+  const c = lt.c, rows = lt.rows.filter(r => same_(r[c[H.NO]], m.id) && dkey_(r[c[H.DATE]]) && logKeyCmp_({ dk: dkey_(r[c[H.DATE]]), shift: str_(r[c[H.SHIFT]]) || 'Full Day' }, { dk: dk, shift: shift }) < 0)
+    .sort((a, b) => logKeyCmp_({ dk: dkey_(a[c[H.DATE]]), shift: str_(a[c[H.SHIFT]]) || 'Full Day' }, { dk: dkey_(b[c[H.DATE]]), shift: str_(b[c[H.SHIFT]]) || 'Full Day' }));
+  const avg = (h, col) => { const v = rows.filter(r => h(str_(r[c[H.UNIT]])) && num0_(r[c[col]]) > 0).slice(-7).map(r => num0_(r[c[col]])); return v.length ? r2_(v.reduce((a, x) => a + x, 0) / v.length) : ''; };
+  return { km: avg(hasKm_, H.WKM), hr: avg(hasHr_, H.WHR) };
+}
+function logCalc_(m, diesel, okm, ckm, ohr, chr, mode, tHrs, est) {
+  const md = mode || m.unit, off = meterOff_(md), km = hasKm_(md), hr = hasHr_(md), tm = md === 'Time';
+  const wkm = off ? (est && est.km !== '' && est.km !== undefined ? r2_(est.km) : '') : km && okm !== '' && ckm !== '' ? r2_(ckm - okm) : '';
+  const whr = off ? (est && est.hr !== '' && est.hr !== undefined ? r2_(est.hr) : '') : hr && ohr !== '' && chr !== '' ? r2_(chr - ohr) : tm && tHrs !== '' && tHrs !== null && tHrs !== undefined ? r2_(tHrs) : '';
+  const ckmc = (km || off) && wkm !== '' && m.kmStd > 0 ? r2_(wkm / m.kmStd) : '';
+  const chrc = (hr || tm || off) && whr !== '' && m.hrStd > 0 ? r2_(whr * m.hrStd) : '';
   const tot = r2_(num0_(ckmc) + num0_(chrc));
   let avg = '';
   if (md === 'KM' && wkm !== '' && diesel > 0) avg = r2_(wkm / diesel) + ' km/L';
@@ -5175,6 +5214,7 @@ function getLogRowPrefill_(no, dateStr, shiftIn) {
     lastDate: list.length ? list[list.length - 1].dk : '', lastShift: list.length ? list[list.length - 1].shift : '',
     diesel: ds.qty, dieselText: ds.text, reads: ds.reads, driver: ds.driver, cycle: cy.cycle, prevClosed: cy.prevClosed,
     boqItems: itemBrief_(boqItemsOn_(m, dk)), // Item-wise BOQ on this date ([] = none)
+    avgWork: meterAvg_(lt, m, dk, shift),      // the machinery's own average per entry – proposed when the meter is not working
   };
 }
 /* rows: [{ date, shift, no, openingKm, closingKm, openingHr, closingHr, openingDiesel, chFrom, chTo, work }]
@@ -5237,8 +5277,8 @@ function importLogBook_(b) {
       let lastK = '', lastH = '';
       machineLogIdx_(t, no).forEach(i => {
         const r = t.rows[i], row = r.slice(), unit = str_(r[cc[H.UNIT]]);
-        if (hasKm_(unit) && lastK !== '') row[cc[H.OKM]] = lastK;
-        if (hasHr_(unit) && lastH !== '') row[cc[H.OHR]] = lastH;
+        if (hasKm_(unit) && lastK !== '' && !meterNew_(r, cc)) row[cc[H.OKM]] = lastK;
+        if (hasHr_(unit) && lastH !== '' && !meterNew_(r, cc)) row[cc[H.OHR]] = lastH;
         if (hasKm_(unit) && numOrBlank_(row[cc[H.CKM]]) !== '' && num0_(row[cc[H.CKM]]) < num0_(row[cc[H.OKM]]))
           throw new Error(no + ' (' + dmy_(dkey_(r[cc[H.DATE]])) + '): Close KM ' + row[cc[H.CKM]] + ' would be less than its Start KM ' + row[cc[H.OKM]] + ' (the Close before it). Nothing imported.');
         if (hasHr_(unit) && numOrBlank_(row[cc[H.CHR]]) !== '' && num0_(row[cc[H.CHR]]) < num0_(row[cc[H.OHR]]))
@@ -5256,7 +5296,8 @@ function importLogBook_(b) {
 // the way an entry is measured: the one picked (must be one of the machinery's ticks), else the usual one
 function logModeFor_(m, want) {
   // day status for any machinery: Holiday / Breakdown (not paid), Idle (standing by, no work – paid or not is chosen in the bill)
-  const modes = (m.modes && m.modes.length ? m.modes : logModes_(worksFromUnit_(m.unit))).concat(['Idle', 'Holiday', 'Breakdown']);
+  let modes = (m.modes && m.modes.length ? m.modes : logModes_(worksFromUnit_(m.unit))).concat(['Idle', 'Holiday', 'Breakdown']);
+  if (modes.some(x => hasKm_(x) || hasHr_(x))) modes = modes.concat([METER_OFF_]);   // meter not working: the day without a reading
   const w = str_(want).toUpperCase().replace(/\s+/g, '');
   if (w) { const hit = modes.find(x => x.toUpperCase().replace(/\s+/g, '') === w); if (!hit) throw new Error(m.id + ' does not work on "' + str_(want) + '" – it works on ' + (m.worksOn || []).join(', ') + ' (Asset Master).'); return hit; }
   return modes.indexOf(m.unit) > -1 ? m.unit : ['Idle', 'Holiday', 'Breakdown'].indexOf(modes[0]) > -1 ? '' : modes[0] || '';
@@ -5284,6 +5325,7 @@ function saveLogRowsInner_(b) {
     if ((b.rows || []).some(l => str_(l.mode) || str_(l.challan))) logTimeCols_();
     if ((b.rows || []).some(hasItemsIn_)) logItemCol_();
     if ((b.rows || []).some(hasDebitIn_)) logDebitCol_();
+    if ((b.rows || []).some(hasMeterIn_)) logMeterCol_();
     const lt = table_(APP.SHEET_LOG, logHeaders_());
     const errors = [], out = [];
     const items = (b.rows || []).map((l, i) => ({ l: l, i: i })).filter(x => str_(x.l.no));
@@ -5312,24 +5354,30 @@ function saveLogRowsInner_(b) {
         // each meter follows its own last reading (an entry on Time / Trip / Day has no reading and does not break it)
         const prevKm = before.filter(e => e.ckm !== '').pop() || null, prevHr = before.filter(e => e.chr !== '').pop() || null;
         const ex = logExtra_(m, mode, l, dmy_(dk));
+        // meter not working (no reading, estimated work) / a new meter (its Start is typed, not taken from the old meter)
+        const at = m.id + ' (' + dmy_(dk) + '): ', off = meterOff_(mode), fresh = !off && str_(l.meter) === 'new' && (hasKm_(mode) || hasHr_(mode));
+        let est = null, meterNote = '';
+        if (off || fresh) { meterReady_(); meterNote = meterNote_(l, off ? METER_OFF_ : 'New meter', at); }
+        if (off) est = meterEst_(m, l, at);
         let okm = '', ckm = '', ohr = '', chr = '';
         if (hasKm_(mode)) {
-          okm = prevKm ? num0_(prevKm.ckm) : reqReading_(blank_(l.openingKm) ? 0 : l.openingKm, 'Start KM');
+          okm = prevKm && !fresh ? num0_(prevKm.ckm) : reqReading_(blank_(l.openingKm) ? (fresh ? '' : 0) : l.openingKm, 'Start KM');
           ckm = reqReading_(l.closingKm, 'Close KM');
           if (ckm < okm) throw new Error(m.id + ' (' + dmy_(dk) + '): Close KM ' + ckm + ' is less than Start KM ' + okm + '.');
         }
         if (hasHr_(mode)) {
-          ohr = prevHr ? num0_(prevHr.chr) : reqReading_(blank_(l.openingHr) ? 0 : l.openingHr, 'Start Hrs');
+          ohr = prevHr && !fresh ? num0_(prevHr.chr) : reqReading_(blank_(l.openingHr) ? (fresh ? '' : 0) : l.openingHr, 'Start Hrs');
           chr = reqReading_(l.closingHr, 'Close Hrs');
           if (chr < ohr) throw new Error(m.id + ' (' + dmy_(dk) + '): Close Hrs ' + chr + ' is less than Start Hrs ' + ohr + '.');
         }
         const odsl = prev ? prev.stock : (blank_(l.openingDiesel) ? 0 : Math.max(0, num0_(l.openingDiesel)));
         const ds = dieselFor_(m.id, dk, shift);
-        const cal = logCalc_(m, ds.qty, okm, ckm, ohr, chr, mode, ex.tHrs);
+        const cal = logCalc_(m, ds.qty, okm, ckm, ohr, chr, mode, ex.tHrs, est);
         const closing = r2_(odsl + ds.qty - cal.tot);
         const itemWork = logItemWork_(m, dk, mode, l, { hr: cal.whr, km: cal.wkm, trip: ex.trip });
         const row = newRow_(lt);
         if (itemWork) set_(row, lt, H.ITEMS, itemWork);
+        if (meterNote) set_(row, lt, H.METER, meterNote);
         const dbt = logDebit_(l, m.id + ' (' + dmy_(dk) + '): ');
         if (dbt && dbt.to) { debitReady_(lt); set_(row, lt, H.DEBITTO, dbt.to); set_(row, lt, H.DEBITRATE, dbt.rate); }
         set_(row, lt, H.DATE, toDate_(dk)); set_(row, lt, H.NO, m.id); set_(row, lt, H.SHIFT, shift);
@@ -5380,17 +5428,19 @@ function recalcChain_(no) {
   const c = lt.c;
   let lastK, lastH, prevUsedK = true, prevUsedH = true;
   machineLogIdx_(lt, no).forEach(i => {
-    const r = lt.rows[i], row = r.slice(), unit = str_(r[c[H.UNIT]]), km = hasKm_(unit), hr = hasHr_(unit), tm = unit === 'Time';
-    // an entry on Time / Trip / Day in between: the next KM / Hrs entry starts at the last reading of that meter
-    if (km && !prevUsedK && lastK !== undefined && lastK !== '') row[c[H.OKM]] = lastK;
-    if (hr && !prevUsedH && lastH !== undefined && lastH !== '') row[c[H.OHR]] = lastH;
+    const r = lt.rows[i], row = r.slice(), unit = str_(r[c[H.UNIT]]), km = hasKm_(unit), hr = hasHr_(unit), tm = unit === 'Time', off = meterOff_(unit), fresh = meterNew_(r, c);
+    // an entry on Time / Trip / Day / "No reading" in between: the next KM / Hrs entry starts at the last reading of that meter
+    // (not the first entry of a NEW meter – its Start was typed)
+    if (km && !fresh && !prevUsedK && lastK !== undefined && lastK !== '') row[c[H.OKM]] = lastK;
+    if (hr && !fresh && !prevUsedH && lastH !== undefined && lastH !== '') row[c[H.OHR]] = lastH;
     const okm = numOrBlank_(row[c[H.OKM]]), ckm = numOrBlank_(row[c[H.CKM]]), ohr = numOrBlank_(row[c[H.OHR]]), chr = numOrBlank_(row[c[H.CHR]]);
     if (km && ckm !== '') lastK = ckm; if (hr && chr !== '') lastH = chr; prevUsedK = km; prevUsedH = hr;
-    const wkm = km && okm !== '' && ckm !== '' ? r2_(ckm - okm) : '';
-    const whr = hr && ohr !== '' && chr !== '' ? r2_(chr - ohr) : tm && H.THRS in c && numOrBlank_(row[c[H.THRS]]) !== '' ? num0_(row[c[H.THRS]]) : '';
+    // "No reading": the estimated work that was saved stays as it is
+    const wkm = off ? numOrBlank_(r[c[H.WKM]]) : km && okm !== '' && ckm !== '' ? r2_(ckm - okm) : '';
+    const whr = off ? numOrBlank_(r[c[H.WHR]]) : hr && ohr !== '' && chr !== '' ? r2_(chr - ohr) : tm && H.THRS in c && numOrBlank_(row[c[H.THRS]]) !== '' ? num0_(row[c[H.THRS]]) : '';
     const ks = num0_(row[c[H.KMSTD]]), hs = num0_(row[c[H.HRSTD]]);
     // a negative total (Start above Close, waiting to be corrected) uses no diesel
-    const ckmc = km && wkm !== '' && ks > 0 ? r2_(Math.max(0, wkm) / ks) : '', chrc = (hr || tm) && whr !== '' && hs > 0 ? r2_(Math.max(0, whr) * hs) : '';
+    const ckmc = (km || off) && wkm !== '' && ks > 0 ? r2_(Math.max(0, wkm) / ks) : '', chrc = (hr || tm || off) && whr !== '' && hs > 0 ? r2_(Math.max(0, whr) * hs) : '';
     row[c[H.WKM]] = wkm; row[c[H.WHR]] = whr; row[c[H.CKMC]] = ckmc; row[c[H.CHRC]] = chrc; row[c[H.TOT]] = r2_(num0_(ckmc) + num0_(chrc));
     if (row.some((v, k) => String(v) !== String(r[k]))) lt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
   });
@@ -5449,6 +5499,10 @@ function updateLogRow_(key, l) {
       if (dbt.to) debitReady_(lt);
       me[c[H.DEBITTO]] = dbt.to; me[c[H.DEBITRATE]] = dbt.rate;
     }
+    if (meterOff_(unit) && (l.estKm !== undefined || l.estHr !== undefined)) {
+      const est = meterEst_(mm, l, ''); me[c[H.WKM]] = est.km; me[c[H.WHR]] = est.hr;
+      if (l.meterNote !== undefined && H.METER in c) me[c[H.METER]] = meterNote_(l, METER_OFF_, '');
+    }
     if (unit === 'Time' || unit === 'Trip') {
       const ex = logExtra_(mm, unit, { tStart: l.tStart, tEnd: l.tEnd, tBreak: l.tBreak, trip: l.trip, challan: l.challan }, dmy_(dkey_(r[c[H.DATE]])));
       if (unit === 'Time') { ['TSTART', 'TEND', 'TBRK', 'THRS'].forEach((h, n) => { if (H[h] in c) me[c[H[h]]] = [ex.tStart, ex.tEnd, ex.tBrk, ex.tHrs][n]; }); }
@@ -5486,8 +5540,9 @@ function linkAfterInsert_(no, newRows) {
     const j = idx[n + 1]; if (j === undefined || isNew[keyOf(lt.rows[j])]) return; // next one is new too: already linked
     const r = lt.rows[i], nx = lt.rows[j].slice(), unit = str_(nx[c[H.UNIT]]);
     let changed = false;
-    if (hasKm_(unit) && r[c[H.CKM]] !== '' && String(nx[c[H.OKM]]) !== String(r[c[H.CKM]])) { nx[c[H.OKM]] = num0_(r[c[H.CKM]]); changed = true; }
-    if (hasHr_(unit) && r[c[H.CHR]] !== '' && String(nx[c[H.OHR]]) !== String(r[c[H.CHR]])) { nx[c[H.OHR]] = num0_(r[c[H.CHR]]); changed = true; }
+    const nxNew = meterNew_(nx, c);     // the first entry of a new meter keeps the Start that was typed
+    if (hasKm_(unit) && !nxNew && r[c[H.CKM]] !== '' && String(nx[c[H.OKM]]) !== String(r[c[H.CKM]])) { nx[c[H.OKM]] = num0_(r[c[H.CKM]]); changed = true; }
+    if (hasHr_(unit) && !nxNew && r[c[H.CHR]] !== '' && String(nx[c[H.OHR]]) !== String(r[c[H.CHR]])) { nx[c[H.OHR]] = num0_(r[c[H.CHR]]); changed = true; }
     if (changed) lt.sh.getRange(j + 2, 1, 1, nx.length).setValues([nx]);
   });
   recalcChain_(no);
@@ -5558,6 +5613,7 @@ function saveLogBulk_(b) {
         taken[dk] = (taken[dk] || []).concat(sh);
         const cur = l.key && l.key in byKey ? str_(lt.rows[byKey[l.key]][c[H.UNIT]]) : '';
         const mode = logModeFor_(m, str_(l.mode) || cur), km = hasKm_(mode), hr = hasHr_(mode);
+        if (meterOff_(mode) && !(l.key && byKey[l.key] !== undefined && meterOff_(lt.rows[byKey[l.key]][c[H.UNIT]]))) throw new Error(m.id + ' (' + dmy_(dk) + '): a day without a reading is entered on the Log Book page (it needs the estimated work and the reason).');
         const v = { mode: mode, km: km, hr: hr, ex: logExtra_(m, mode, l, dmy_(dk)) };
         if (km) { v.okm = reqReading_(blank_(l.openingKm) ? 0 : l.openingKm, 'Start KM'); v.ckm = reqReading_(l.closingKm, 'Close KM'); if (v.ckm < v.okm) throw new Error(dmy_(dk) + ': Close KM ' + v.ckm + ' is less than Start KM ' + v.okm + '.'); }
         if (hr) { v.ohr = reqReading_(blank_(l.openingHr) ? 0 : l.openingHr, 'Start Hrs'); v.chr = reqReading_(l.closingHr, 'Close Hrs'); if (v.chr < v.ohr) throw new Error(dmy_(dk) + ': Close Hrs ' + v.chr + ' is less than Start Hrs ' + v.ohr + '.'); }
@@ -5608,8 +5664,8 @@ function saveLogBulk_(b) {
     if (last && nextOut !== undefined && b.linkNext !== false) {
       const r = lt.rows[nextOut], row = r.slice(), nu = str_(r[c[H.UNIT]]);
       const lk = sorted.filter(p => p.v.km).pop(), lh = sorted.filter(p => p.v.hr).pop();
-      if (hasKm_(nu) && lk) row[c[H.OKM]] = lk.v.ckm;
-      if (hasHr_(nu) && lh) row[c[H.OHR]] = lh.v.chr;
+      if (hasKm_(nu) && lk && !meterNew_(r, c)) row[c[H.OKM]] = lk.v.ckm;
+      if (hasHr_(nu) && lh && !meterNew_(r, c)) row[c[H.OHR]] = lh.v.chr;
       if (row.some((v, k) => String(v) !== String(r[k]))) lt.sh.getRange(nextOut + 2, 1, 1, row.length).setValues([row]);
     }
     // opening diesel of the machinery's very first entry
@@ -5774,8 +5830,9 @@ function deleteLogRow_(key) {
     // the next entry now starts where the entry before the deleted one closed
     if (prevI > -1 && nextI > -1) {
       const p = lt.rows[prevI], n = lt.rows[nextI].slice(), unit = str_(n[c[H.UNIT]]);
-      if (hasKm_(unit)) n[c[H.OKM]] = num0_(p[c[H.CKM]]);
-      if (hasHr_(unit)) n[c[H.OHR]] = num0_(p[c[H.CHR]]);
+      // (a previous entry without a reading, or a next entry that starts a new meter: nothing to link here – recalcChain_ follows the last reading)
+      if (hasKm_(unit) && !meterNew_(n, c) && p[c[H.CKM]] !== '') n[c[H.OKM]] = num0_(p[c[H.CKM]]);
+      if (hasHr_(unit) && !meterNew_(n, c) && p[c[H.CHR]] !== '') n[c[H.OHR]] = num0_(p[c[H.CHR]]);
       lt.sh.getRange(nextI + 2, 1, 1, n.length).setValues([n]);
     }
     lt.sh.deleteRow(i + 2);

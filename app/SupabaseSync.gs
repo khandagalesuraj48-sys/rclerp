@@ -48,7 +48,7 @@ const SB_TABLES_ = [
     ['KM Reading', 'km_reading', 'numeric'], ['Hrs Reading', 'hrs_reading', 'numeric'], ['Diesel Readings', 'diesel_readings', 'text'],
     ['Chainage From', 'chainage_from', 'text'], ['Chainage To', 'chainage_to', 'text'], ['Chainage No.', 'chainage_no', 'text'], ['Work Done', 'work_done', 'text'],
     ['Trip', 'trip', 'text'], ['Driver Name', 'driver_name', 'text'], ['Remark', 'remark', 'text'],
-    ['Start Time', 'start_time', 'text'], ['End Time', 'end_time', 'text'], ['Break (min)', 'break_min', 'numeric'], ['Time Hrs', 'time_hrs', 'numeric'], ['Challan No', 'challan_no', 'text'], ['Item Work', 'item_work', 'text'], ['Debit To', 'debit_to', 'text'], ['Debit Rate', 'debit_rate', 'numeric'],
+    ['Start Time', 'start_time', 'text'], ['End Time', 'end_time', 'text'], ['Break (min)', 'break_min', 'numeric'], ['Time Hrs', 'time_hrs', 'numeric'], ['Challan No', 'challan_no', 'text'], ['Item Work', 'item_work', 'text'], ['Debit To', 'debit_to', 'text'], ['Debit Rate', 'debit_rate', 'numeric'], ['Meter Note', 'meter_note', 'text'],
     ['Actual Average', 'actual_average', 'text'], ['Extra / Short Diesel', 'extra_short', 'numeric'], ['Fill Cycle', 'fill_cycle', 'text'],
     ['Opening Diesel Set', 'opening_diesel_set', 'numeric'],
     ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
