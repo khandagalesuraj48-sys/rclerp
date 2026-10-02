@@ -4,7 +4,7 @@
 'use strict';
 const pool = require('../server/pool');            // each request in its own helper thread
 const { page } = require('../server/page');
-const ALLOWED = ['api', 'login', 'changePassword', 'logout'];
+const ALLOWED = ['api', 'login', 'changePassword', 'logout', 'orgInfo'];   // orgInfo: what the sign-in screen shows (brand, customer, site) – nothing else is given without a sign-in
 
 function readBody(req) {
   if (req.body !== undefined && req.body !== null) return Promise.resolve(typeof req.body === 'string' ? JSON.parse(req.body || '{}') : Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8') || '{}') : req.body);

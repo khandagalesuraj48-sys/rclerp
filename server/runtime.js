@@ -13,6 +13,8 @@ const FILES = ['SupabaseSync.gs', 'SupabaseData.gs', 'Code.gs', 'ReadMe.gs'];
 const TAIL = `
 ;this.__call = function (fn, argsJson) {
   const f = { api: api, login: login, changePassword: changePassword, logout: logout,
+    // the sign-in screen: the product name, whose copy this is, its site, logo and opening film (nothing else is given without a sign-in)
+    orgInfo: () => orgPublic_(),
     // backup check: only for someone signed in (the open app), or the nightly job (which proved itself to api/backup.js)
     backup: o => { o = o || {}; if (!o.cron && !sessionUser_(o.token)) throw new Error('SESSION_EXPIRED');
       const r = webBackup_({ auto: true, full: !!o.cron && !!o.full }); return { ok: r.ok !== false, skipped: !!r.skipped, busy: !!r.busy, off: !!r.off }; } }[fn];

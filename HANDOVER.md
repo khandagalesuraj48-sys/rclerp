@@ -502,6 +502,24 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     "Database ✓" / "Database: N to do" (`#db_pill`), once a day per Admin (localStorage `rcl_dbcheck`), box with the file to run,
     "Check again now". Until step 4 is run the check says so (one item "to do").
   * Tests: unit "month close …" and the final bill inside the tank test; `test/browser/batch.js` (14, with the database).
+- 03-10-2026: THE APP BECOMES A PRODUCT OF "ONE CLICK SOLUTION". He: One Click Solution is the platform; Rachana is its first customer
+  (VTR NH 848, monthly fee); Rachana's other sites and other companies will get the same app with no data of another. AGREED MODEL
+  (explained to him, he went ahead): one COPY per customer site – same repository, own Vercel project, own Supabase database, own users.
+  So a user of one site cannot open another (the other copy does not know the user) and no customer's data is ever in another copy.
+  NEW_SITE_SETUP.md = the steps for a new copy. BUILT in this copy (Rachana stays exactly as it was – the defaults are its values):
+  * `BRAND_` (One Click Solution / Fleet ERP) and ONE setting `ORG_SETTINGS` (`orgSettings_`, `orgPublic_`, `saveOrgSettings_` – API
+    `saveOrgSettings`, admin, Activity Log): customer, site, logo link, the names bills are made in (`billCompanies_()` replaces the
+    constant BILL_COMPANIES_; a name carried by saved bills / notes cannot be removed), opening on / off, film link.
+  * `orgInfo` – the only call besides login that works without a sign-in (api/rpc.js ALLOWED, runtime.js): brand, customer, site, logo.
+  * Page: `applyOrg` fills what was written in the code (company in the top bar, SITE_NAME on reports / Excel, PRINT_NAMES, logos, the
+    bill-name drop-downs, the browser title); panel "Company & site" on the Users page; note "All users of this page belong to …".
+  * Sign-in screen: One Click Solution brand on top, the customer's logo and site under it. THE OPENING (`#oc_intro`, `ocIntro`): a
+    4-second film built into the page (letterbox bars, mark, word, light sweep), once per browser session, skippable, off by the tick
+    or for reduced motion; a film link (.mp4) plays instead when set. While it fades it lets presses through.
+  * `memoGet_` / `memoDrop_`: per-request memory that tolerates TABLE_MEMO_ being null (outside api()).
+  * NOT DONE: licence / monthly fee control, a One Click super-admin, a central sign-in that sends a user to his site, the print footer
+    and a few help texts that still say Rachana / Sketchline, diesel locations still in the code (APP.LOCATIONS). Repo is still PUBLIC.
+  * Test: `test/browser/brand.js` (13, with the database).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

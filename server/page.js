@@ -163,7 +163,7 @@ function page() {
 function shell() {
   const a = page();
   const json = JSON.stringify({ build: a.build, html: a.html }).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
-  const head = '<title>Rachana Construction Limited – Fleet ERP</title>\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<link rel="icon" href="https://i.ibb.co/CpSfBqXX/RCL-LOGO-PDF.png">\n';
+  const head = '<title>Fleet ERP – One Click Solution</title>\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<link rel="icon" href="https://i.ibb.co/CpSfBqXX/RCL-LOGO-PDF.png">\n';
   let s = read('Index.html');
   if (s.indexOf('/*APP_JSON*/null') === -1 || s.indexOf('<script>') === -1) throw new Error('Index.html is not the shell page this build expects.');
   s = s.replace('<meta charset="utf-8">', () => '<meta charset="utf-8">\n' + head);

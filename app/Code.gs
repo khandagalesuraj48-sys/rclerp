@@ -127,7 +127,7 @@ function doGet(e) {
 }
 
 function getInit_() {
-  return { company: APP.COMPANY, today: today_(), master: getMaster_(), drivers: getDrivers_(), stock: getStock_(), pumps: getPumps_(), locations: APP.LOCATIONS, closedUpto: booksClosed_() };
+  return { company: orgSettings_().customer, org: orgPublic_(), today: today_(), master: getMaster_(), drivers: getDrivers_(), stock: getStock_(), pumps: getPumps_(), locations: APP.LOCATIONS, closedUpto: booksClosed_() };
 }
 
 /* ================= LOGIN, ACCESS AND ACTIVITY LOG ================= *
@@ -405,6 +405,7 @@ const API_ = {
   billInit:          { m: 'Machinery Billing', any: ['Machinery Billing', 'Saved Bills'], f: billInit_ },
   saveBooksLock:     { m: 'Machinery Billing', f: saveBooksLock_, admin: true, log: 'booksLock' },
   dbHealth:          { m: '', admin: true, f: dbHealth_ },
+  saveOrgSettings:   { m: '', admin: true, f: saveOrgSettings_, log: 'org' },
   saveBillSettings:  { m: 'Machinery Billing', edit: true, f: saveBillSettings_, log: 'billSettings' },
   getBills:          { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Bill Summary', 'Vendor Ledger'], f: getBills_ },
   billSummary:       { m: 'Bill Summary', f: billSummary_ },
@@ -702,6 +703,9 @@ function logAfter_(u, spec, args, res, before) {
     case 'vendor':
       if (res.ok && res.renamed) writeLog_(u, 'Edit', m, res.name, 'Vendor renamed: ' + res.renamed.from + ' → ' + res.renamed.to + (res.renamed.text ? ' (moved with it: ' + res.renamed.text + ')' : ''), '');
       if (res.ok) writeLog_(u, args[1] === 'add' ? 'Add' : 'Edit', m, res.name, (args[1] === 'add' ? 'Vendor details saved: ' : 'Vendor details changed: ') + res.name, '');
+      break;
+    case 'org':
+      writeLog_(u, 'Edit', 'Users & Access', 'Organisation & site', 'Company / site settings changed: ' + res.org.customer + (res.org.site ? ' – ' + res.org.site : ''), '');
       break;
     case 'booksLock':
       writeLog_(u, 'Edit', m, 'Month close', res.upto ? 'Entries closed up to ' + dmy_(res.upto) + (res.was ? ' (was ' + dmy_(res.was) + ')' : '') : 'Month reopened – nothing is closed now' + (res.was ? ' (was closed up to ' + dmy_(res.was) + ')' : ''), '');
@@ -1338,7 +1342,47 @@ function assignVendors_(items) {
  * A saved bill is never edited. If the data behind it was wrong, the data is corrected and the bill built and
  * submitted again: the older one stays and is marked "Superseded". Only Admin can delete a saved bill (with a reason). */
 const BILL_COLS_ = ['Bill ID', 'Vendor Name', 'Company', 'Bill No', 'Rev', 'Period From', 'Period To', 'Bill Date', 'Net Payable', 'Status', 'Data', 'Remark', 'Created At'];
-const BILL_COMPANIES_ = ['Sketchline Industries', 'Rachana Construction Limited'];
+/* ---------- ONE CLICK SOLUTION – the product, and the customer / site this copy is installed for (03-10-2026) ----------
+ * The app is the product "Fleet ERP" of One Click Solution. Each customer site runs its OWN copy: its own link, its own
+ * database, its own users – so a user of one site cannot open another site, and no data of one customer is ever in the
+ * copy of another. What is specific to the copy is kept in ONE setting (ORG_SETTINGS) instead of being written in the code:
+ * the customer's name, the site / project name, the logo, the names bills are made in, and the opening film of the sign-in.
+ * Defaults = what this first copy (Rachana Construction Limited, VTR NH 848) always had, so nothing changes for it. */
+const BRAND_ = { name: 'One Click Solution', product: 'Fleet ERP' };
+const ORG_DEFAULT_ = { customer: 'Rachana Construction Limited', site: 'VTR Site – NH 848', logo: 'https://i.ibb.co/CpSfBqXX/RCL-LOGO-PDF.png',
+  billNames: ['Sketchline Industries', 'Rachana Construction Limited'], intro: true, video: '' };
+function orgSettings_() { return memoGet_('__org', orgRead_); }
+function orgRead_() {
+  let s = {}; try { s = JSON.parse(PropertiesService.getScriptProperties().getProperty('ORG_SETTINGS') || '{}') || {}; } catch (e) { s = {}; }
+  const o = { customer: clean_(s.customer) || ORG_DEFAULT_.customer, site: s.site === undefined ? ORG_DEFAULT_.site : clean_(s.site), logo: s.logo === undefined ? ORG_DEFAULT_.logo : str_(s.logo),
+    billNames: Array.isArray(s.billNames) && s.billNames.length ? s.billNames.map(clean_).filter(Boolean) : ORG_DEFAULT_.billNames.slice(), intro: s.intro === undefined ? true : !!s.intro, video: str_(s.video) };
+  return o;
+}
+const billCompanies_ = () => orgSettings_().billNames;
+// what the sign-in screen may know before anybody is signed in: the product, whose copy this is, its site, its logo, its opening film
+function orgPublic_() { const o = orgSettings_(); return { brand: BRAND_.name, product: BRAND_.product, customer: o.customer, site: o.site, logo: o.logo, intro: o.intro, video: o.video, billNames: o.billNames }; }
+function saveOrgSettings_(x) {
+  x = x || {}; const cur = orgSettings_();
+  const customer = clean_(x.customer); if (customer.length < 2 || customer.length > 80) throw new Error('Enter the name of the company (2 to 80 letters).');
+  const site = clean_(x.site); if (site.length > 80) throw new Error('Keep the name under 80 letters.');
+  const url = (v, what) => { v = str_(v).trim(); if (v && !/^https:\/\/[^\s"'<>]{4,300}$/.test(v)) throw new Error(what + ' must be a link that starts with https:// (or be left empty).'); return v; };
+  const logo = url(x.logo, 'The logo'), video = url(x.video, 'The opening film');
+  let names = (Array.isArray(x.billNames) ? x.billNames : String(x.billNames || '').split(/\n/)).map(clean_).filter(Boolean);
+  names = names.filter((n, i) => names.findIndex(y => y.toUpperCase() === n.toUpperCase()) === i);
+  if (!names.length || names.length > 4) throw new Error('Enter 1 to 4 names that bills are made in (one per line).');
+  if (names.some(n => n.length > 80)) throw new Error('Keep the name under 80 letters.');
+  // a name that saved bills or debit notes carry cannot be taken away (their papers and numbers belong to it)
+  const gone = cur.billNames.filter(n => !names.some(y => y.toUpperCase() === n.toUpperCase()));
+  if (gone.length) {
+    let used = []; try { const t = table_(APP.SHEET_BILLS, BILL_COLS_); used = t.rows.map(r => str_(r[t.c['Company']])); } catch (e) { used = []; }
+    try { const t2 = table_(DN_SHEET_, DN_COLS_); used = used.concat(t2.rows.map(r => str_(r[t2.c['Company']]))); } catch (e) { /* no debit notes yet */ }
+    const hit = gone.filter(n => used.some(u => u.toUpperCase() === n.toUpperCase()));
+    if (hit.length) throw new Error('"' + hit[0] + '" is the name on saved bills / debit notes – it cannot be taken away. Add the new name and keep this one.');
+  }
+  const o = { customer: customer, site: site, logo: logo, billNames: names, intro: x.intro !== false, video: video };
+  PropertiesService.getScriptProperties().setProperty('ORG_SETTINGS', JSON.stringify(o)); memoDrop_('__org');
+  return { ok: true, org: orgPublic_() };
+}
 const billTable_ = () => vbTable_(APP.SHEET_BILLS, BILL_COLS_);
 function billOut_(t, r, withData) {
   const g = h => h in t.c ? r[t.c[h]] : '';
@@ -1363,7 +1407,7 @@ function billSettings_() {
     'Rachana Construction Limited': { address: '', gstin: '27AAKCR9897B1ZQ', pan: 'AAKCR9897B' } };
   // site office – printed on the bills of both names
   s.siteAddress = s.siteAddress || 'SITE OFFICE AT VALSHIND VILLAGE ON MUMBAI NASHIK EXPRESS WAY, BACK SIDE OF PICHAD WAREHOUSE, BHIWANDI, MAHARASHTRA - 432302';
-  BILL_COMPANIES_.forEach(c => {
+  billCompanies_().forEach(c => {
     const cur = Object.assign({ address: '', gstin: '', pan: '' }, s.companies[c] || {}), k = known[c] || {};
     // what the numbers of the Tax Invoice and of the Debit Note start with – each name has its own run of numbers
     const code = /sketchline/i.test(c) ? 'SLI' : 'RCL';
@@ -1377,7 +1421,7 @@ function saveBillSettings_(x) {
   const s = billSettings_();
   if (!blank_(x.project)) s.project = clean_(x.project);
   if (x.siteAddress !== undefined) s.siteAddress = clean_(x.siteAddress);
-  BILL_COMPANIES_.forEach(c => {
+  billCompanies_().forEach(c => {
     const y = (x.companies || {})[c]; if (!y) return;
     const gstin = clean_(y.gstin).toUpperCase().replace(/\s/g, ''), pan = clean_(y.pan).toUpperCase().replace(/\s/g, '');
     if (gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstin)) throw new Error(c + ': GSTIN "' + gstin + '" is not in the right format.');
@@ -1991,7 +2035,7 @@ function nextDnNo_(company) {
 function saveDebitNote_(x) {
   return withLock_(() => {
     x = x || {};
-    const company = str_(x.company); if (BILL_COMPANIES_.indexOf(company) === -1) throw new Error('Pick the name on the note (Rachana / Sketchline).');
+    const company = str_(x.company); if (billCompanies_().indexOf(company) === -1) throw new Error('Pick the name on the note (' + billCompanies_().join(' / ') + ').');
     const names = vendorNames_(), vendor = names.find(n => vKey_(n) === vKey_(x.vendor || '')); if (!vendor) throw new Error('Pick the party from the Vendor Master.');
     const date = entryDate_(x.date);
     const from = x.from ? checkDate_(x.from) : '', to = x.to ? checkDate_(x.to) : ''; if (from && to && from > to) throw new Error('From date is after To date.');
@@ -2388,7 +2432,7 @@ function submitBills_(b) {
     const notVerified = bills.filter(x => !CacheService.getScriptCache().get(billVerifyKey_(x.data || {}, x)));
     if (notVerified.length) return { ok: false, errors: notVerified.map(x => clean_(x.vendor) + ': verify the bill first (Verify & Submit) – the data or the amounts changed after it was checked.') };
     bills.forEach(x => {
-      if (BILL_COMPANIES_.indexOf(str_(x.company)) === -1) throw new Error('Pick the company name for ' + x.vendor + '.');
+      if (billCompanies_().indexOf(str_(x.company)) === -1) throw new Error('Pick the company name for ' + x.vendor + '.');
       if (!clean_(x.billNo)) throw new Error('Enter the bill number for ' + x.vendor + '.');
       if (!dkey_(x.from) || !dkey_(x.to)) throw new Error('Pick the bill period.');
     });
@@ -4035,7 +4079,7 @@ function getOwnershipDetail_(ownership, f) {
   const rows = Object.keys(m).map(k => { m[k].qty = r2_(m[k].qty); return m[k]; })
     .sort((a, b) => b.qty - a.qty || a.no.localeCompare(b.no));
   return {
-    company: APP.COMPANY, ownership: ownership, from: from, to: to, today: today_(), rows: rows,
+    company: orgSettings_().customer, ownership: ownership, from: from, to: to, today: today_(), rows: rows,
     total: { qty: r2_(rows.reduce((s, x) => s + x.qty, 0)), entries: rows.reduce((s, x) => s + x.entries, 0) },
   };
 }
@@ -4209,7 +4253,7 @@ function getMonthlyDieselReport_(f) {
   const wholeMonth = from.slice(8) === '01' && to === from.slice(0, 8) + String(lastDay).padStart(2, '0');
   const period = (wholeMonth ? FULL[fm - 1] + ' ' + fy + ' (' : '') + dmy(from) + ' to ' + dmy(to) + (wholeMonth ? ')' : '');
   return {
-    company: APP.COMPANY, month: from.slice(0, 7), monthName: period, from: from, to: to, nDays: nDays,
+    company: orgSettings_().customer, month: from.slice(0, 7), monthName: period, from: from, to: to, nDays: nDays,
     days: dayKeys.map((k, i) => {
       const p = k.split('-').map(Number);
       const dd = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
@@ -4314,7 +4358,7 @@ function getDailyInwardIssueReport_(f) {
   tot.opening = rows.length ? rows[0].opening : 0;
   tot.closing = rows.length ? rows[rows.length - 1].closing : 0;
   return {
-    company: APP.COMPANY, from: from, to: to, location: loc || 'All locations', byLocation: !!loc,
+    company: orgSettings_().customer, from: from, to: to, location: loc || 'All locations', byLocation: !!loc,
     otherLocations: loc ? APP.LOCATIONS.filter(l => l !== loc) : [],
     groups: groups, rows: rows, totals: tot,
     generated: Utilities.formatDate(new Date(), tz_(), 'dd-MM-yyyy HH:mm'),
@@ -4330,7 +4374,7 @@ function rptRange_(f, maxDays) {
 }
 const dmy_ = k => k ? k.split('-').reverse().join('-') : '';
 function rptBase_(title, range) {
-  return { company: APP.COMPANY, title: title, from: range ? range.from : '', to: range ? range.to : '', generated: Utilities.formatDate(new Date(), tz_(), 'dd-MM-yyyy HH:mm') };
+  return { company: orgSettings_().customer, title: title, from: range ? range.from : '', to: range ? range.to : '', generated: Utilities.formatDate(new Date(), tz_(), 'dd-MM-yyyy HH:mm') };
 }
 // All diesel issues with their machine details (supply as on the day of issue)
 function issueList_(T) {
@@ -6272,7 +6316,10 @@ function dbHealth_() {
  * Not closed: bills, debit notes and payments – they are made AFTER the month for the month.
  * Kept with the app settings (BOOKS_CLOSED_UPTO = yyyy-mm-dd, empty = nothing closed). */
 // (read once per table-memo lifetime: the memo is emptied for every request and after every write, so the date is never stale)
-function booksClosed_() { if (!('__closed' in TABLE_MEMO_)) { let v = ''; try { v = str_(PropertiesService.getScriptProperties().getProperty('BOOKS_CLOSED_UPTO')); } catch (e) { v = ''; } TABLE_MEMO_.__closed = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; } return TABLE_MEMO_.__closed; }
+// a value kept for as long as the table memory of the request lives (outside a request – sign-in, the sign-in screen – there is no memory: read every time)
+const memoGet_ = (k, make) => { if (TABLE_MEMO_ && k in TABLE_MEMO_) return TABLE_MEMO_[k]; const v = make(); if (TABLE_MEMO_) TABLE_MEMO_[k] = v; return v; };
+const memoDrop_ = k => { if (TABLE_MEMO_) delete TABLE_MEMO_[k]; };
+function booksClosed_() { return memoGet_('__closed', () => { let v = ''; try { v = str_(PropertiesService.getScriptProperties().getProperty('BOOKS_CLOSED_UPTO')); } catch (e) { v = ''; } return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; }); }
 function booksOpen_(dk, what) {
   const upto = booksClosed_();
   if (upto && dk && dk <= upto) throw new Error((what || 'Entry') + ' of ' + dmy_(dk) + ': entries up to ' + dmy_(upto) + ' are closed (month closed by the Admin) – nothing of that period can be added, changed or deleted. Ask the Admin to reopen it.');
@@ -6284,7 +6331,7 @@ function saveBooksLock_(x) {
   if (upto && !/^\d{4}-\d{2}-\d{2}$/.test(upto)) throw new Error('Select a Date.');
   if (upto && upto > today_()) throw new Error('Date ' + dmy_(upto) + ' is after today (' + dmy_(today_()) + '). Entries can be made only up to today.');
   const was = booksClosed_();
-  PropertiesService.getScriptProperties().setProperty('BOOKS_CLOSED_UPTO', upto); delete TABLE_MEMO_.__closed;
+  PropertiesService.getScriptProperties().setProperty('BOOKS_CLOSED_UPTO', upto); memoDrop_('__closed');
   return { ok: true, upto: upto, was: was };
 }
 function entryDate_(s) {
