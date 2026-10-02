@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node build.js",
     "dev": "node dev.js",
-    "test": "node --test test/unit.test.js",
+    "test": "node --test test/unit.test.js test/net.test.js",
     "test:audit": "node test/audit.js"
   },
   "engines": {

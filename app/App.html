@@ -6126,6 +6126,10 @@
       p.style.setProperty('--rvd', (tops[i] < h ? Math.min(k++, 5) * 0.06 : 0) + 's');
       rvObs.observe(p);
     });
+    /* A page must NEVER stay invisible. The panels wait (opacity 0) for the browser to report that they are on screen; on
+     * 02-10-2026 a page stayed blank on the live site (the report never came). So: whatever the browser reports, every panel
+     * of the page is shown after 0.6 s at the latest. The soft appearing is only decoration – the content is what matters. */
+    clearTimeout(sec._rvT); sec._rvT = setTimeout(() => { ps.forEach(p => { if (!p.classList.contains('in')) { p.classList.add('in'); try { rvObs.unobserve(p); } catch (e) {} } }); }, 600);
   }
   // phone drawer
   function setDrawer(open) { document.querySelector('.app').classList.toggle('nav-open', open); }

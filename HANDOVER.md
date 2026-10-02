@@ -412,6 +412,19 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     card; typed higher → blue note "N km ran elsewhere – not counted". The grid shows the same note instead of "Start should be …".
   * Tests: unit "Start reading …" (hand-worked chain: gap, correction that passes the gap, linked follow, edit window, delete),
     `test/browser/start.js` (8, with the database).
+- 02-10-2026 (16:02, live): his screenshot – Log Book Format page BLANK and the bar "Waiting for the server… 22 s". Two separate faults,
+  neither reproduced in the rig; both now guarded:
+  * A CALL THAT WAITS TENS OF SECONDS. Most likely cause (not proven on the live site): a dead database connection. `server/syncfetch.js`
+    keeps connections open between calls; Vercel freezes the process between requests, and `server/pool.js` gives a request to the FIRST
+    free thread, so threads 2–6 are used only when requests overlap and their helper can sit unused for minutes; the other side closes
+    the connection, the frozen process never notices, the next call on it waits up to the 55-second limit. Guards in syncfetch.js:
+    (1) a helper unused for 5 s is replaced (fresh connections), (2) each call has its own limit (reads 15 s, writes 30 s),
+    (3) a failed / timed-out READ is asked once more; a WRITE is never repeated. `test/net.test.js` plays a dead connection (now part of
+    `npm test`). This also fits his earlier "after 5–10 minutes it freezes, then works".
+  * A PAGE THAT STAYS INVISIBLE. Panels wait at opacity 0 (`.rv`) until an IntersectionObserver reports them (`armReveal`); if the report
+    never comes the page is blank although it is there (his scrollbar showed a tall page). Now every panel of the page is shown after
+    0.6 s at the latest (timer per section). `test/browser/blank.js`: with an observer that never reports, 56 panels on 36 pages visible.
+  * The waiting bar now names the call after 6 s ("… 22 s (getLookups)") – ASK HIM FOR THAT NAME if it happens again.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
