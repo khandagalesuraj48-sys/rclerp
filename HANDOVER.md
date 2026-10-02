@@ -397,6 +397,21 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     is how a made BOQ takes more machinery. `bReadLine(tr)` = one line of the form as data (Save uses it too).
   * Test `test/browser/boq.js` (8, with the database): tick 1 → terms → same terms to 2 more → saved with 3; a second BOQ shows them
     locked; Edit → same terms to the 4th → saved with 4.
+- 02-10-2026: THE START READING CAN BE TYPED HIGHER. His case: machinery on diesel-debit basis take diesel, work a while, then work
+  elsewhere, so the meter has moved on when they come back. Rule he gave: Start comes from the last Close automatically, the person may
+  change it, but never below the last Close of the same machinery. BUILT (no SQL):
+  * Server, one rule everywhere – Start >= the Close before it: `startFrom_` (entry page; `lenientStart` for imports = a lower Start in a
+    file is ignored as before, a higher one is kept), `updateLogRow_` (now also REFUSES a Start below the Close before it – it did not
+    check this), `saveLogBulk_` (grid: "must be equal" became "not less"), `recalcChain_` / `linkAfterInsert_` / import re-link (only LIFT
+    a Start that is below the Close before it; never lower one, never touch a "New meter" row).
+  * "Linked" = a Start equal to the Close before it. When that Close is corrected, a linked Start follows; a Start typed higher stays,
+    unless the Close passes it (then it is lifted to the Close). On delete, a next Start that was linked to the deleted entry takes that
+    entry's own Start (so a gap typed before the deleted entry is not absorbed).
+  * The distance between the last Close and a higher Start is in no entry: not paid, not counted for the diesel standard.
+  * Page: the Start box of an entry row is open (was read-only); untouched it keeps following the last Close; typed lower → row red + help
+    card; typed higher → blue note "N km ran elsewhere – not counted". The grid shows the same note instead of "Start should be …".
+  * Tests: unit "Start reading …" (hand-worked chain: gap, correction that passes the gap, linked follow, edit window, delete),
+    `test/browser/start.js` (8, with the database).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

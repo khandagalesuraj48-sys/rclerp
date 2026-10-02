@@ -42,7 +42,7 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   const start = Number(await f.evaluate(() => document.querySelector('#lg_in .lrow [data-f=openingKm]').value)); await typeIn(String(start + 77)); await p.keyboard.press('Enter'); await wait(300);
   ok('…Save recalculates the row (Total 77)', await f.evaluate(() => { lgCalcAll(); return /77/.test(document.querySelector('#lg_in .lrow [data-o=wkm]').textContent); }), await f.evaluate(() => document.querySelector('#lg_in .lrow [data-o=wkm]').textContent));
   await dbl('#lg_in .lrow [data-f=no]'); bx = await box(); ok('a box with a pick-list keeps its list in the large box', bx && bx.tag === 'INPUT' && bx.list === 'dl_machines', bx); await press('bb_cancel');
-  await dbl('#lg_top_date'); const d1 = await box(); await dbl('#lg_in .lrow [data-f=shift]'); const d2 = await box(); await dbl('#lg_in .lrow [data-f=openingKm]'); const d3 = await box();
+  await dbl('#lg_top_date'); const d1 = await box(); await dbl('#lg_in .lrow [data-f=shift]'); const d2 = await box(); await f.evaluate(() => { showTab('diesel'); }); await wait(1500); await dbl('#d_balance'); const d3 = await box(); await f.evaluate(() => { showTab('log'); }); await wait(800);
   ok('dates, drop-downs and locked boxes do not open large', d1 === null && d2 === null && d3 === null, [d1, d2, d3]);
   // inside a dialog: Esc closes the large box only
   await f.evaluate(() => { askConfirm({ title: 'Test dialog', html: '<input id="tdlg" value="abc">', ok: 'OK' }); }); await wait(200); await dbl('#tdlg'); bx = await box(); await p.keyboard.press('Escape'); await wait(150);

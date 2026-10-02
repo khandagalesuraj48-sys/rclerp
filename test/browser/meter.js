@@ -33,7 +33,7 @@ const NO = 'MH-15-AB-0001';
   // day 2: the meter works again → Start = the last reading before the gap
   await row('2026-10-02', new Function(set + ""));
   const st2 = await f.evaluate(() => { lgCalcAll(); const tr = document.querySelector('#lg_in .lrow'); return { way: tr.querySelector('.way').dataset.sel, start: tr.querySelector('[data-f=openingKm]').value, ro: tr.querySelector('[data-f=openingKm]').readOnly, nm: tr.querySelector('.nm') && !tr.querySelector('.nm').hidden }; });
-  ok('next day with a reading: Start is the last reading before the gap (' + lastClose + '), and "new meter" is offered', Number(st2.start) === lastClose && st2.ro && st2.nm, st2);
+  ok('next day with a reading: Start is the last reading before the gap (' + lastClose + '), and "new meter" is offered', Number(st2.start) === lastClose && st2.nm, st2);
   // a new meter instead: tick, type Start 100 and Close 160
   await f.evaluate(new Function(set + "const ck = tr.querySelector('[data-f=newMeter]'); ck.checked = true; ck.dispatchEvent(new Event('change', { bubbles: true }));")); await wait(400);
   await f.evaluate(new Function(set + "set('openingKm', '100'); set('closingKm', '160'); set('meterNote', 'new speedometer fitted');")); await wait(400);

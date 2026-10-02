@@ -5074,6 +5074,21 @@ function meterAvg_(lt, m, dk, shift) {
   const t = { km: canKm ? avgT(hasKm_, H.WKM) : '', hr: canHr ? avgT(hasHr_, H.WHR) : '' };
   return Object.assign(t, { src: t.km !== '' || t.hr !== '' ? 'type' : '', type: m.type || '' });
 }
+/* ---------- THE START READING: AUTOMATIC, BUT IT CAN BE TYPED HIGHER (asked 02-10-2026) ----------
+ * The Start of an entry is the last Close of that meter. Some machinery (mostly on diesel-debit basis) work for others in
+ * between, so the meter has moved on: the person may then type a Start that is HIGHER than the last Close. The difference
+ * is not work of this site – it is in no entry, it is not paid and not counted for diesel. A Start LOWER than the last
+ * Close is never accepted (the only exception is the first entry of a new meter, "new meter").
+ * One rule for every path (entry, edit window, Edit Log Book grid, import, recalculation): Start >= the Close before it.
+ * "Linked" = a Start that equals the Close before it: when that Close is corrected, a linked Start follows it; a Start
+ * that was typed higher stays where it is (unless the Close now passes it – then it is raised to the Close). */
+function startFrom_(typed, last, name, lastDk, at, lenient) {
+  if (blank_(typed)) return last;
+  const v = reqReading_(typed, 'Start ' + name);
+  if (v < last) { if (lenient) return last;
+    throw new Error(at + 'Start ' + name + ' ' + v + ' is less than the last Close ' + name + ' ' + last + (lastDk ? ' (' + dmy_(lastDk) + ')' : '') + '. Start can be the same or more, never less (new meter fitted: tick "new meter").'); }
+  return v;
+}
 function logCalc_(m, diesel, okm, ckm, ohr, chr, mode, tHrs, est) {
   const md = mode || m.unit, off = meterOff_(md), km = hasKm_(md), hr = hasHr_(md), tm = md === 'Time';
   const wkm = off ? (est && est.km !== '' && est.km !== undefined ? r2_(est.km) : '') : km && okm !== '' && ckm !== '' ? r2_(ckm - okm) : '';
@@ -5277,7 +5292,7 @@ function importLogBook_(b) {
     // 2) add the new entries (Start from the Close before them, diesel from Diesel Issue)
     let added = 0;
     if (fresh.length) {
-      const res = saveLogRowsInner_({ rows: fresh.map(x => x.l) }); // already inside the lock
+      const res = saveLogRowsInner_({ rows: fresh.map(x => x.l), lenientStart: true }); // already inside the lock
       if (!res.ok) throw new Error((res.errors || []).map(e => 'Line ' + (fresh[e.row - 1] ? fresh[e.row - 1].line : e.row) + ': ' + e.msg).join(' | '));
       added = res.count; (res.ids || []).forEach(id => { touched[id] = true; });
     }
@@ -5287,8 +5302,9 @@ function importLogBook_(b) {
       let lastK = '', lastH = '';
       machineLogIdx_(t, no).forEach(i => {
         const r = t.rows[i], row = r.slice(), unit = str_(r[cc[H.UNIT]]);
-        if (hasKm_(unit) && lastK !== '' && !meterNew_(r, cc)) row[cc[H.OKM]] = lastK;
-        if (hasHr_(unit) && lastH !== '' && !meterNew_(r, cc)) row[cc[H.OHR]] = lastH;
+        // Start >= the Close before it (a Start typed higher – the machinery ran elsewhere – is kept)
+        if (hasKm_(unit) && lastK !== '' && !meterNew_(r, cc) && (numOrBlank_(row[cc[H.OKM]]) === '' || num0_(row[cc[H.OKM]]) < lastK)) row[cc[H.OKM]] = lastK;
+        if (hasHr_(unit) && lastH !== '' && !meterNew_(r, cc) && (numOrBlank_(row[cc[H.OHR]]) === '' || num0_(row[cc[H.OHR]]) < lastH)) row[cc[H.OHR]] = lastH;
         if (hasKm_(unit) && numOrBlank_(row[cc[H.CKM]]) !== '' && num0_(row[cc[H.CKM]]) < num0_(row[cc[H.OKM]]))
           throw new Error(no + ' (' + dmy_(dkey_(r[cc[H.DATE]])) + '): Close KM ' + row[cc[H.CKM]] + ' would be less than its Start KM ' + row[cc[H.OKM]] + ' (the Close before it). Nothing imported.');
         if (hasHr_(unit) && numOrBlank_(row[cc[H.CHR]]) !== '' && num0_(row[cc[H.CHR]]) < num0_(row[cc[H.OHR]]))
@@ -5371,12 +5387,12 @@ function saveLogRowsInner_(b) {
         if (off) est = meterEst_(m, l, at);
         let okm = '', ckm = '', ohr = '', chr = '';
         if (hasKm_(mode)) {
-          okm = prevKm && !fresh ? num0_(prevKm.ckm) : reqReading_(blank_(l.openingKm) ? (fresh ? '' : 0) : l.openingKm, 'Start KM');
+          okm = prevKm && !fresh ? startFrom_(l.openingKm, num0_(prevKm.ckm), 'KM', prevKm.dk, at, b.lenientStart) : reqReading_(blank_(l.openingKm) ? (fresh ? '' : 0) : l.openingKm, 'Start KM');
           ckm = reqReading_(l.closingKm, 'Close KM');
           if (ckm < okm) throw new Error(m.id + ' (' + dmy_(dk) + '): Close KM ' + ckm + ' is less than Start KM ' + okm + '.');
         }
         if (hasHr_(mode)) {
-          ohr = prevHr && !fresh ? num0_(prevHr.chr) : reqReading_(blank_(l.openingHr) ? (fresh ? '' : 0) : l.openingHr, 'Start Hrs');
+          ohr = prevHr && !fresh ? startFrom_(l.openingHr, num0_(prevHr.chr), 'Hrs', prevHr.dk, at, b.lenientStart) : reqReading_(blank_(l.openingHr) ? (fresh ? '' : 0) : l.openingHr, 'Start Hrs');
           chr = reqReading_(l.closingHr, 'Close Hrs');
           if (chr < ohr) throw new Error(m.id + ' (' + dmy_(dk) + '): Close Hrs ' + chr + ' is less than Start Hrs ' + ohr + '.');
         }
@@ -5441,8 +5457,9 @@ function recalcChain_(no) {
     const r = lt.rows[i], row = r.slice(), unit = str_(r[c[H.UNIT]]), km = hasKm_(unit), hr = hasHr_(unit), tm = unit === 'Time', off = meterOff_(unit), fresh = meterNew_(r, c);
     // an entry on Time / Trip / Day / "No reading" in between: the next KM / Hrs entry starts at the last reading of that meter
     // (not the first entry of a NEW meter – its Start was typed)
-    if (km && !fresh && !prevUsedK && lastK !== undefined && lastK !== '') row[c[H.OKM]] = lastK;
-    if (hr && !fresh && !prevUsedH && lastH !== undefined && lastH !== '') row[c[H.OHR]] = lastH;
+    // … and never below the Close before it; a Start typed higher (the machinery ran elsewhere in between) is left alone
+    if (km && !fresh && lastK !== undefined && lastK !== '' && (numOrBlank_(row[c[H.OKM]]) === '' || num0_(row[c[H.OKM]]) < num0_(lastK))) row[c[H.OKM]] = lastK;
+    if (hr && !fresh && lastH !== undefined && lastH !== '' && (numOrBlank_(row[c[H.OHR]]) === '' || num0_(row[c[H.OHR]]) < num0_(lastH))) row[c[H.OHR]] = lastH;
     const okm = numOrBlank_(row[c[H.OKM]]), ckm = numOrBlank_(row[c[H.CKM]]), ohr = numOrBlank_(row[c[H.OHR]]), chr = numOrBlank_(row[c[H.CHR]]);
     if (km && ckm !== '') lastK = ckm; if (hr && chr !== '') lastH = chr; prevUsedK = km; prevUsedH = hr;
     // "No reading": the estimated work that was saved stays as it is
@@ -5491,13 +5508,24 @@ function updateLogRow_(key, l) {
     const kinds = [];
     if (hasKm_(unit)) kinds.push({ o: H.OKM, cl: H.CKM, open: l.openingKm, close: l.closingKm, name: 'KM' });
     if (hasHr_(unit)) kinds.push({ o: H.OHR, cl: H.CHR, open: l.openingHr, close: l.closingHr, name: 'Hrs' });
+    const reads = (row, k) => k.name === 'KM' ? hasKm_(str_(row[c[H.UNIT]])) : hasHr_(str_(row[c[H.UNIT]]));
+    const moved = {};      // later entries whose Start has to follow: { row index: row }
     kinds.forEach(k => {
       const start = blank_(k.open) ? num0_(r[c[k.o]]) : reqReading_(k.open, 'Start ' + k.name);
       const close = reqReading_(k.close, 'Close ' + k.name);
+      // Start: the Close of the entry before it that reads this meter, or more – never less (the first entry of a new meter is free)
+      if (!meterNew_(r, c)) for (let q = pos - 1; q >= 0; q--) { const pr = lt.rows[idx[q]], pv = numOrBlank_(pr[c[k.cl]]);
+        if (pv !== '') { if (start < pv) throw new Error('Start ' + k.name + ' ' + start + ' is less than the last Close ' + k.name + ' ' + pv + ' (' + dmy_(dkey_(pr[c[H.DATE]])) + '). Start can be the same or more, never less.'); break; } }
       if (close < start) throw new Error('Close ' + k.name + ' ' + close + ' cannot be less than Start ' + k.name + ' ' + start + '.');
       me[c[k.o]] = start; me[c[k.cl]] = close;
-      // the next entry that reads this meter starts where this one closed (entries on Time / Trip / Day in between are skipped)
-      if (next && close !== num0_(r[c[k.cl]]) && (k.name === 'KM' ? hasKm_(str_(next[c[H.UNIT]])) : hasHr_(str_(next[c[H.UNIT]])))) { next[c[k.o]] = close; nextChanged = true; }
+      // the next entry that reads this meter (entries on Time / Trip / Day / No reading in between are skipped): its Start follows
+      // when it was linked to the old Close, or when the new Close passes it; a Start typed higher stays
+      const oldClose = numOrBlank_(r[c[k.cl]]);
+      for (let q = pos + 1; q < idx.length; q++) { const j = idx[q], nr = moved[j] || (j === nextI && next ? next : lt.rows[j]);
+        if (!reads(nr, k)) continue;
+        if (!meterNew_(nr, c)) { const no0 = numOrBlank_(nr[c[k.o]]);
+          if (no0 !== '' && no0 !== close && (no0 === oldClose || no0 < close)) { const cp = j === nextI && next ? next : (moved[j] = moved[j] || nr.slice()); cp[c[k.o]] = close; if (j === nextI) nextChanged = true; } }
+        break; }
     });
     if (H.CHALLAN in c && l.challan !== undefined && ['Idle', 'Holiday', 'Breakdown'].indexOf(unit) === -1) me[c[H.CHALLAN]] = clean_(l.challan);
     // "Debit to": cannot be changed once the entry is in a debit note (cancel the note first)
@@ -5533,8 +5561,9 @@ function updateLogRow_(key, l) {
     stampEdit_(me, lt);
     lt.sh.getRange(i + 2, 1, 1, me.length).setValues([me]);
     if (nextChanged) lt.sh.getRange(nextI + 2, 1, 1, next.length).setValues([next]);
+    Object.keys(moved).forEach(j => { lt.sh.getRange(Number(j) + 2, 1, 1, moved[j].length).setValues([moved[j]]); });
     recalcChain_(no);
-    return { ok: true, key: str_(key), date: dk, nextChanged: nextChanged };
+    return { ok: true, key: str_(key), date: dk, nextChanged: nextChanged || Object.keys(moved).length > 0 };
   });
 }
 /* A Log Book entry was added (maybe between older ones): the entry right after it (by date and shift)
@@ -5551,8 +5580,8 @@ function linkAfterInsert_(no, newRows) {
     const r = lt.rows[i], nx = lt.rows[j].slice(), unit = str_(nx[c[H.UNIT]]);
     let changed = false;
     const nxNew = meterNew_(nx, c);     // the first entry of a new meter keeps the Start that was typed
-    if (hasKm_(unit) && !nxNew && r[c[H.CKM]] !== '' && String(nx[c[H.OKM]]) !== String(r[c[H.CKM]])) { nx[c[H.OKM]] = num0_(r[c[H.CKM]]); changed = true; }
-    if (hasHr_(unit) && !nxNew && r[c[H.CHR]] !== '' && String(nx[c[H.OHR]]) !== String(r[c[H.CHR]])) { nx[c[H.OHR]] = num0_(r[c[H.CHR]]); changed = true; }
+    if (hasKm_(unit) && !nxNew && r[c[H.CKM]] !== '' && num0_(nx[c[H.OKM]]) < num0_(r[c[H.CKM]])) { nx[c[H.OKM]] = num0_(r[c[H.CKM]]); changed = true; }
+    if (hasHr_(unit) && !nxNew && r[c[H.CHR]] !== '' && num0_(nx[c[H.OHR]]) < num0_(r[c[H.CHR]])) { nx[c[H.OHR]] = num0_(r[c[H.CHR]]); changed = true; }
     if (changed) lt.sh.getRange(j + 2, 1, 1, nx.length).setValues([nx]);
   });
   recalcChain_(no);
@@ -5643,8 +5672,9 @@ function saveLogBulk_(b) {
       const lastOf = h => { for (let k = beforeAll.length - 1; k >= 0; k--) { const v = numOrBlank_(lt.rows[beforeAll[k]][c[h]]); if (v !== '') return v; } return ''; };
       let pk = lastOf(H.CKM), ph = lastOf(H.CHR);
       sortedC.forEach(p => {
-        if (p.v.km && pk !== '' && p.v.okm !== pk) errors.push({ row: p.x.n + 1, msg: dmy_(p.dk) + ': Start KM ' + p.v.okm + ' must be ' + pk + ' (the last Close KM before it).' });
-        if (p.v.hr && ph !== '' && p.v.ohr !== ph) errors.push({ row: p.x.n + 1, msg: dmy_(p.dk) + ': Start Hrs ' + p.v.ohr + ' must be ' + ph + ' (the last Close Hrs before it).' });
+        const fresh = p.x.l.key && byKey[p.x.l.key] !== undefined && meterNew_(lt.rows[byKey[p.x.l.key]], c);      // the first entry of a new meter starts where it starts
+        if (p.v.km && pk !== '' && !fresh && p.v.okm < pk) errors.push({ row: p.x.n + 1, msg: dmy_(p.dk) + ': Start KM ' + p.v.okm + ' is less than the last Close KM ' + pk + ' before it. Start can be the same or more, never less.' });
+        if (p.v.hr && ph !== '' && !fresh && p.v.ohr < ph) errors.push({ row: p.x.n + 1, msg: dmy_(p.dk) + ': Start Hrs ' + p.v.ohr + ' is less than the last Close Hrs ' + ph + ' before it. Start can be the same or more, never less.' });
         pk = p.v.km ? p.v.ckm : pk; ph = p.v.hr ? p.v.chr : ph;
       });
       if (errors.length) return { ok: false, errors: errors };
@@ -5674,8 +5704,10 @@ function saveLogBulk_(b) {
     if (last && nextOut !== undefined && b.linkNext !== false) {
       const r = lt.rows[nextOut], row = r.slice(), nu = str_(r[c[H.UNIT]]);
       const lk = sorted.filter(p => p.v.km).pop(), lh = sorted.filter(p => p.v.hr).pop();
-      if (hasKm_(nu) && lk && !meterNew_(r, c)) row[c[H.OKM]] = lk.v.ckm;
-      if (hasHr_(nu) && lh && !meterNew_(r, c)) row[c[H.OHR]] = lh.v.chr;
+      // the entry after the grid: a Start linked to the old last Close follows the new one; a Start typed higher stays, unless the Close now passes it
+      const oldOf = (p, h) => p && p.x.l.key && byKey[p.x.l.key] !== undefined ? numOrBlank_(lt.rows[byKey[p.x.l.key]][c[h]]) : '';
+      if (hasKm_(nu) && lk && !meterNew_(r, c) && (num0_(row[c[H.OKM]]) === oldOf(lk, H.CKM) || num0_(row[c[H.OKM]]) < lk.v.ckm)) row[c[H.OKM]] = lk.v.ckm;
+      if (hasHr_(nu) && lh && !meterNew_(r, c) && (num0_(row[c[H.OHR]]) === oldOf(lh, H.CHR) || num0_(row[c[H.OHR]]) < lh.v.chr)) row[c[H.OHR]] = lh.v.chr;
       if (row.some((v, k) => String(v) !== String(r[k]))) lt.sh.getRange(nextOut + 2, 1, 1, row.length).setValues([row]);
     }
     // opening diesel of the machinery's very first entry
@@ -5841,8 +5873,11 @@ function deleteLogRow_(key) {
     if (prevI > -1 && nextI > -1) {
       const p = lt.rows[prevI], n = lt.rows[nextI].slice(), unit = str_(n[c[H.UNIT]]);
       // (a previous entry without a reading, or a next entry that starts a new meter: nothing to link here – recalcChain_ follows the last reading)
-      if (hasKm_(unit) && !meterNew_(n, c) && p[c[H.CKM]] !== '') n[c[H.OKM]] = num0_(p[c[H.CKM]]);
-      if (hasHr_(unit) && !meterNew_(n, c) && p[c[H.CHR]] !== '') n[c[H.OHR]] = num0_(p[c[H.CHR]]);
+      // only a Start that was LINKED to the deleted entry (= its Close) moves, and it moves to the deleted entry's own Start:
+      // the next entry takes over that entry's work, not a gap that was typed before it
+      const gone = lt.rows[i];
+      if (hasKm_(unit) && !meterNew_(n, c) && numOrBlank_(gone[c[H.CKM]]) !== '' && numOrBlank_(gone[c[H.OKM]]) !== '' && num0_(n[c[H.OKM]]) === num0_(gone[c[H.CKM]])) n[c[H.OKM]] = num0_(gone[c[H.OKM]]);
+      if (hasHr_(unit) && !meterNew_(n, c) && numOrBlank_(gone[c[H.CHR]]) !== '' && numOrBlank_(gone[c[H.OHR]]) !== '' && num0_(n[c[H.OHR]]) === num0_(gone[c[H.CHR]])) n[c[H.OHR]] = num0_(gone[c[H.OHR]]);
       lt.sh.getRange(nextI + 2, 1, 1, n.length).setValues([n]);
     }
     lt.sh.deleteRow(i + 2);

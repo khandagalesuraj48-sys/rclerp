@@ -294,9 +294,10 @@ test('meter not working: "No reading" days are paid and counted for the diesel s
   assert.match(errOf(save({ no: 'NR-TRIP', date: '2026-06-03', mode: 'No reading', estKm: 5, meterNote: 'x' })), /does not work on|has no meter/);
   assert.strictEqual(save({ date: '2026-06-03', mode: 'No reading', estKm: 80, meterNote: 'odometer stuck' }).ok, true);
   assert.strictEqual(save({ date: '2026-06-04', mode: 'No reading', estKm: 80, meterNote: 'odometer stuck' }).ok, true);
-  // the meter works again: Start is the last reading BEFORE the gap (1160), whatever is typed
+  // the meter works again: Start is the last reading BEFORE the gap (1160); a lower Start is refused, an empty one takes 1160
   assert.strictEqual(run('(n, d, s) => getLogRowPrefill_(n, d, s)', 'NR-1', '2026-06-05', 'Full Day').openingKm, 1160);
-  assert.strictEqual(save({ date: '2026-06-05', mode: 'KM', openingKm: 5, closingKm: 1200 }).ok, true);
+  assert.match(errOf(save({ date: '2026-06-05', mode: 'KM', openingKm: 5, closingKm: 1200 })), /Start KM 5 is less than the last Close KM 1160/);
+  assert.strictEqual(save({ date: '2026-06-05', mode: 'KM', closingKm: 1200 }).ok, true);
   // a NEW meter: a lower reading is refused as usual, and accepted when the entry is marked "new meter" with a reason
   assert.match(errOf(save({ date: '2026-06-06', mode: 'KM', closingKm: 120 })), /less than Start KM 1200/);
   assert.match(errOf(save({ date: '2026-06-06', mode: 'KM', meter: 'new', openingKm: 50, closingKm: 120 })), /New meter: write what was done/);
@@ -339,4 +340,40 @@ test('meter not working: "No reading" days are paid and counted for the diesel s
   // diesel can be issued without a reading while the meter is not working
   const di = run('x => saveDieselIssue_(x)', { date: '2026-06-03', shift: 'Day', source: 'Dispenser', no: 'NR-1', qty: 20, mode: 'No reading' });
   assert.ok(di && di.ok !== false && di.id, JSON.stringify(di));
+});
+
+
+test('Start reading: automatic, may be typed HIGHER (the machinery ran elsewhere), never lower; corrections follow only what was linked (hand-worked)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryIt = f => { try { return f(); } catch (e) { return { ok: false, thrown: String(e.message) }; } };
+  const save = l => tryIt(() => run('x => saveLogRowsInner_(x)', { rows: [Object.assign({ shift: 'Full Day', no: 'GAP-1', mode: 'KM' }, l)] }));
+  const edit = (d, l) => tryIt(() => run('(k, l) => updateLogRow_(k, l)', 'GAP-1|' + d + '|Full Day', Object.assign({ work: '' }, l)));
+  const errOf = r => JSON.stringify(r.errors || r.thrown || '');
+  const rows = () => run('f => getLogBookList_(f)', { from: '2026-07-01', to: '2026-07-31', no: 'GAP-1', all: true }).rows.sort((a, b) => a.date < b.date ? -1 : 1).map(r => [r.date.slice(8), r.okm, r.ckm, r.wkm]);
+  run('(x, m) => saveMaster_(x, m)', { no: 'GAP-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Gap Vendor', ownership: 'Rental', supply: 'Debit Basis', status: 'Active', activeFrom: '2026-07-01' }, 'add');
+  assert.strictEqual(save({ date: '2026-07-01', openingKm: 1000, closingKm: 1100 }).ok, true);
+  // the next day the meter shows 1150: it ran 50 km for someone else – typed, accepted, and those 50 km are in no entry
+  assert.match(errOf(save({ date: '2026-07-02', openingKm: 1090, closingKm: 1200 })), /Start KM 1090 is less than the last Close KM 1100 \(01-07-2026\)/);
+  assert.strictEqual(save({ date: '2026-07-02', openingKm: 1150, closingKm: 1200 }).ok, true);
+  assert.strictEqual(save({ date: '2026-07-03', closingKm: 1260 }).ok, true);                 // nothing typed: Start = the last Close
+  assert.deepStrictEqual(rows(), [['01', 1000, 1100, 100], ['02', 1150, 1200, 50], ['03', 1200, 1260, 60]]);   // work 210 km, the gap of 50 is not counted
+  // a correction of the 1st: Close 1120 – the 2nd was typed higher (1150), it stays
+  assert.strictEqual(edit('2026-07-01', { closingKm: 1120 }).ok, true);
+  assert.deepStrictEqual(rows(), [['01', 1000, 1120, 120], ['02', 1150, 1200, 50], ['03', 1200, 1260, 60]]);
+  // Close 1170 passes the Start of the 2nd: that Start is lifted to 1170 (never below the Close before it)
+  assert.strictEqual(edit('2026-07-01', { closingKm: 1170 }).ok, true);
+  assert.deepStrictEqual(rows(), [['01', 1000, 1170, 170], ['02', 1170, 1200, 30], ['03', 1200, 1260, 60]]);
+  // the 3rd was LINKED to the Close of the 2nd (1200): when that Close is corrected to 1190, it follows
+  assert.strictEqual(edit('2026-07-02', { closingKm: 1190 }).ok, true);
+  assert.deepStrictEqual(rows(), [['01', 1000, 1170, 170], ['02', 1170, 1190, 20], ['03', 1190, 1260, 70]]);
+  // in the edit window too: a Start below the Close before it is refused, a higher one is taken
+  assert.match(errOf(edit('2026-07-03', { openingKm: 1180, closingKm: 1260 })), /Start KM 1180 is less than the last Close KM 1190/);
+  assert.strictEqual(edit('2026-07-03', { openingKm: 1195, closingKm: 1260 }).ok, true);
+  assert.deepStrictEqual(rows()[2], ['03', 1195, 1260, 65]);
+  // deleting the 2nd: the 3rd was not linked to it (1195 ≠ 1190) and keeps its Start
+  run('k => deleteLogRow_(k)', 'GAP-1|2026-07-02|Full Day');
+  assert.deepStrictEqual(rows(), [['01', 1000, 1170, 170], ['03', 1195, 1260, 65]]);
+  // the app proposes the last Close for the next entry, as before
+  assert.strictEqual(run('(n, d, s) => getLogRowPrefill_(n, d, s)', 'GAP-1', '2026-07-04', 'Full Day').openingKm, 1260);
 });

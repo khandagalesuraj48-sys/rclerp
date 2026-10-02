@@ -1793,6 +1793,7 @@
   .lrow label.nm { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #5B6B80; margin-top: 3px; white-space: nowrap; cursor: pointer; } .lrow label.nm[hidden] { display: none; }
   .lrow label.nm input { width: auto !important; min-height: 0 !important; height: auto !important; margin: 0; }
   .lg-mtr { display: block; color: #8A5A00; font-weight: 600; }
+  .lrow small.gaphint { display: block; font-size: 11px; line-height: 1.25; color: #1543B8; margin-top: 3px; white-space: normal; } .lrow small.gaphint[hidden] { display: none; }
 
   /* ---------- help for errors (what is wrong / what to do, 3 languages) ---------- */
   #fixbox { position: fixed; right: 18px; bottom: 76px; z-index: 60; width: min(440px, calc(100vw - 28px)); max-height: 62vh; overflow: auto; background: #fff; border: 1px solid #F3C0CA; border-left: 4px solid var(--c-red, #C8102E); border-radius: 12px; box-shadow: 0 16px 40px rgba(12,26,46,.22); padding: 12px 14px 12px; }
@@ -3981,6 +3982,13 @@
       en: ['The way of measuring chosen here (KM / Hrs / Trip / Day / Time) is not ticked for this machinery.', 'Choose a way this machinery works on. To allow another way, tick it under "Works on" in Asset Master.'],
       mr: ['इथे निवडलेली मोजण्याची पद्धत (KM / Hrs / Trip / Day / Time) या machinery साठी tick केलेली नाही.', 'ही machinery ज्या पद्धतीवर चालते ती निवडा. दुसरी पद्धत हवी असेल तर Asset Master मध्ये "Works on" खाली ती tick करा.'],
       hi: ['यहाँ चुना गया नापने का तरीका (KM / Hrs / Trip / Day / Time) इस machinery के लिए tick नहीं है।', 'वह तरीका चुनें जिस पर यह machinery चलती है। दूसरा तरीका चाहिए तो Asset Master में "Works on" के नीचे उसे tick करें।'] },
+    { re: /Start (KM|Hrs) .*(is less than the last Close|cannot be less than)/i,
+      en: ['The Start reading typed is lower than the last Close of this machinery. A meter does not go back, so this is not accepted.',
+        'Leave the Start as the app proposes it (the last Close). If the machinery ran elsewhere in between, type the reading the meter shows now – the same or MORE than the last Close; that distance is not counted here. Only if a new meter was fitted: tick "new meter" and type its reading.'],
+      mr: ['टाइप केलेले Start reading या machinery च्या मागच्या Close पेक्षा कमी आहे. Meter मागे जात नाही, म्हणून हे स्वीकारले जात नाही.',
+        'App सुचवते ते Start (मागचे Close) तसेच ठेवा. मधल्या काळात गाडी दुसरीकडे चालली असेल तर meter आत्ता जे दाखवतो ते भरा; ते मागच्या Close एवढे किंवा त्यापेक्षा जास्त असावे; ते अंतर इथे मोजले जात नाही. फक्त नवीन meter बसवला असेल तर "new meter" tick करून त्याचे reading भरा.'],
+      hi: ['Type की गई Start reading इस machinery के पिछले Close से कम है। Meter पीछे नहीं जाता, इसलिए यह स्वीकार नहीं होता।',
+        'App जो Start सुझाता है (पिछला Close) वही रखें। बीच में गाड़ी कहीं और चली हो तो meter अभी जो दिखाता है वह भरें; वह पिछले Close के बराबर या उससे ज़्यादा हो; वह दूरी यहाँ नहीं गिनी जाती। केवल नया meter लगा हो तो "new meter" tick करके उसकी reading भरें।'] },
     { re: /would be less than|would (go|be) below/i,
       en: ['Changing this reading would make a later entry of the same machinery start below its previous closing reading.', 'Correct the later entry first (or enter a reading that fits between the entry before and the entry after), then save this one.'],
       mr: ['हे reading बदलल्यास त्याच machinery ची पुढची entry आधीच्या closing reading पेक्षा कमी reading ने सुरू होईल.', 'आधी पुढची entry दुरुस्त करा (किंवा आधीच्या आणि पुढच्या entry च्या मधे बसणारे reading भरा), मग ही save करा.'],
@@ -6180,7 +6188,7 @@
     $('lx_info').textContent = 'Works on ' + worksOf(m).join(', ') + '  |  Standard ' + [km && m.kmStd ? m.kmStd + ' km/L' : '', hr && m.hrStd ? m.hrStd + ' L/hr' : ''].filter(Boolean).join(' + ') + '  |  ' + showDate(d.from) + ' to ' + showDate(d.to);
     const two = (a, b) => [km && a !== '' ? fmt(a) + (hr ? ' km' : '') : '', hr && b !== '' ? fmt(b) + (km ? ' hr' : '') : ''].filter(Boolean).join(' / ');
     $('lx_prev').innerHTML = d.prev ? 'Entry before: <b>' + esc(showDate(d.prev.date)) + ' (' + esc(d.prev.shift) + ')</b> closed at <b>' + two(d.prev.ckm, d.prev.chr) + '</b>, diesel left <b>' + fmt(d.prev.stock) + ' L</b>.' : 'No entry before ' + esc(showDate(d.from)) + ' – the first row is the first entry of this machinery.';
-    $('lx_next').innerHTML = d.next ? 'Entry after: <b>' + esc(showDate(d.next.date)) + ' (' + esc(d.next.shift) + ')</b> starts at <b>' + two(d.next.okm, d.next.ohr) + '</b> – it will start at the last Close here when saved.' : '';
+    $('lx_next').innerHTML = d.next ? 'Entry after: <b>' + esc(showDate(d.next.date)) + ' (' + esc(d.next.shift) + ')</b> starts at <b>' + two(d.next.okm, d.next.ohr) + '</b> – it follows the last Close here when it was joined to it, or when that Close passes it.' : '';
     const rd = (f, u, v) => '<input type="number" step="0.01" min="0" data-f="' + f + '" value="' + (v === '' || v === undefined || v === null ? '' : v) + '" title="' + (u || '') + '">';
     $('lx_head').innerHTML = '<tr><th class="sel"><input type="checkbox" id="lx_selall" title="Select all rows" aria-label="Select all rows"></th><th>#</th><th>Date</th><th>Shift</th>' + (wayCol ? '<th>Measured by</th>' : '') + (km ? '<th class="n">Start KM</th><th class="n">Close KM</th>' : '') + (hr ? '<th class="n">Start Hrs</th><th class="n">Close Hrs</th>' : '') + (tmCol ? '<th>Time / Trips</th>' : '') +
       '<th class="n">Total</th>' + (itemCol ? '<th>Items (BOQ)</th>' : '') + '<th class="n lx-dx">Opening diesel</th><th class="n lx-di">Issued</th><th class="n lx-dx">Consumed</th><th class="n lx-dx" title="Diesel left in the machinery, worked out with the Standard Average (not measured)">Closing diesel (est.)</th><th class="lx-chn">Challan No</th><th class="lx-prt">Particular</th><th class="lx-chc">Chainage From</th><th class="lx-chc">To</th><th>Work description</th><th></th></tr>';
@@ -6217,7 +6225,8 @@
       const iss = lxIssued(r), close = r2(open + iss - need);
       // Start must be the Close just before it (row above, or the entry before these dates)
       const expK = km ? lxPrevRead(i, 'ckm') : null, expH = hr ? lxPrevRead(i, 'chr') : null;
-      const misK = expK !== null && lxN(r.okm) !== expK, misH = expH !== null && lxN(r.ohr) !== expH;
+      const misK = expK !== null && (lxN(r.okm) === '' || lxN(r.okm) < expK), misH = expH !== null && (lxN(r.ohr) === '' || lxN(r.ohr) < expH);      // lower than the Close before it
+      const gapK = expK !== null && !misK && lxN(r.okm) > expK ? r2(lxN(r.okm) - expK) : 0, gapH = expH !== null && !misH && lxN(r.ohr) > expH ? r2(lxN(r.ohr) - expH) : 0;
       r._fix = { k: misK ? expK : null, h: misH ? expH : null };
       const okmI = tr.querySelector('[data-f=okm]'), ohrI = tr.querySelector('[data-f=ohr]');
       if (okmI) okmI.classList.toggle('mismatch', misK); if (ohrI) ohrI.classList.toggle('mismatch', misH);
@@ -6225,7 +6234,10 @@
       if (misK || misH) {
         if (!note) { tr.children[2].insertAdjacentHTML('beforeend', '<div class="lx-note"></div>'); note = tr.querySelector('.lx-note'); }
         const when = 'the last reading before it';
-        note.innerHTML = 'Start should be <b>' + [misK ? fmt(expK) + (hr ? ' km' : '') : '', misH ? fmt(expH) + (km ? ' hr' : '') : ''].filter(Boolean).join(' / ') + '</b> (Close of ' + esc(when) + ') <button class="lx-fix" data-fix="' + i + '">Use it</button>';
+        note.innerHTML = 'Start cannot be less than <b>' + [misK ? fmt(expK) + (hr ? ' km' : '') : '', misH ? fmt(expH) + (km ? ' hr' : '') : ''].filter(Boolean).join(' / ') + '</b> (Close of ' + esc(when) + ') <button class="lx-fix" data-fix="' + i + '">Use it</button>';
+      } else if (gapK || gapH) {
+        if (!note) { tr.children[2].insertAdjacentHTML('beforeend', '<div class="lx-note"></div>'); note = tr.querySelector('.lx-note'); }
+        note.innerHTML = '<span class="muted">' + [gapK ? fmt(gapK) + ' km' : '', gapH ? fmt(gapH) + ' hr' : ''].filter(Boolean).join(' + ') + ' ran elsewhere before this entry – not counted</span>';
       } else if (note) note.remove();
       const itemBad = itemBoxCalc(tr.querySelector('.lx-itm'), { hr: wh, km: wk, trip: Number(r.trip) || 0 });
       // a picked item follows the entry's total: keep the row's items in step with what the box now holds
@@ -8439,6 +8451,8 @@
     if (el.id === 'd_no' && v && !findMachine(v)) return '"' + v + '" is not in Master.';
     if (el.type === 'number' && v !== '' && Number(v) < 0) return 'Amount cannot be below 0.';
     const tr = el.closest('#lg_in .lrow');
+    if (tr && /^opening(Km|Hr)$/.test(f) && v !== '' && el.dataset.auto !== undefined && Number(v) < Number(el.dataset.auto) && !(lgf(tr, 'newMeter') && lgf(tr, 'newMeter').checked))
+      return 'Start ' + (f === 'openingKm' ? 'KM ' : 'Hrs ') + v + ' is less than the last Close ' + (f === 'openingKm' ? 'KM ' : 'Hrs ') + el.dataset.auto + '. Start can be the same or more, never less (new meter fitted: tick "new meter").';
     if (tr && /^(closing|opening)(Km|Hr)$/.test(f)) { const k = /Km$/.test(f) ? 'Km' : 'Hr', o = tr.querySelector('[data-f=opening' + k + ']'), c = tr.querySelector('[data-f=closing' + k + ']'), w = k === 'Km' ? 'KM' : 'Hrs';
       if (o && c && o.value !== '' && c.value !== '' && Number(c.value) < Number(o.value)) return 'Close ' + w + ' ' + c.value + ' is less than Start ' + w + ' ' + o.value + '.'; }
     if (tr && (f === 'estKm' || f === 'estHr') && v !== '' && tr._p && tr._p.avgWork) { const a = Number(tr._p.avgWork[f === 'estKm' ? 'km' : 'hr']) || 0;
@@ -10627,7 +10641,7 @@
       '<td><select data-f="shift">' + LOG_SHIFTS.map(x => '<option' + (x === (shift || 'Full Day') ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></td>' +
       '<td class="c-m"><input data-f="no" list="dl_machines" autocomplete="off" placeholder="Type or pick"><small class="lnote"></small></td>' +
       '<td class="unitcell c-unit"></td>' +
-      '<td>' + rd('openingKm', 'km') + rd('openingHr', 'hr') + '<div class="rd tm"><small>from</small><input data-f="tStart" type="time"></div><span class="lg-day">—</span>' +
+      '<td>' + rd('openingKm', 'km') + rd('openingHr', 'hr') + '<small class="gaphint" hidden></small><div class="rd tm"><small>from</small><input data-f="tStart" type="time"></div><span class="lg-day">—</span>' +
         '<div class="rd nr nrk" hidden><small title="Estimated KM of the day (the app proposes this machinery\'s own average)">est km</small><input data-f="estKm" type="number" step="0.01" min="0"></div><div class="rd nr nrh" hidden><small title="Estimated hours of the day">est hr</small><input data-f="estHr" type="number" step="0.01" min="0"></div><small class="nrhint" hidden></small>' +
         '<label class="nm" hidden title="Tick when a NEW meter was fitted: its Start is typed here and is not taken from the old meter"><input type="checkbox" data-f="newMeter"> new meter</label></td>' +
       '<td>' + rd('closingKm', 'km') + rd('closingHr', 'hr') + '<div class="rd tm"><small>to</small><input data-f="tEnd" type="time"></div><div class="rd tm brk"><small>break</small><input data-f="tBreak" type="number" min="0" step="5" placeholder="min"></div>' +
@@ -10752,7 +10766,7 @@
       const pSig = JSON.stringify(p);
       if (tr._p && tr._key === key && tr._pSig === pSig) { lgCalcSoon(); return; }
       tr._pSig = pSig;
-      if (tr._key !== key) { ['openingKm', 'openingHr'].forEach(f => { lgf(tr, f).value = ''; }); tr._odsl = null; }
+      if (tr._key !== key) { ['openingKm', 'openingHr'].forEach(f => { lgf(tr, f).value = ''; delete lgf(tr, f).dataset.manual; }); tr._odsl = null; }
       tr._key = key; tr._p = p;
       // the way is picked by the user (compulsory); a machinery with only one way has it picked already
       const mode = wayMount(tr.querySelector('.unitcell'), m, true);
@@ -10804,8 +10818,21 @@
       openKm = beforeK ? lgf(beforeK, 'closingKm').value : p.openingKm; openHr = beforeH ? lgf(beforeH, 'closingHr').value : p.openingHr;
       const fresh = !!(lgf(tr, 'newMeter') && lgf(tr, 'newMeter').checked), off = u === METER_OFF;      // new meter: its Start is typed
       const lockK = (!!beforeK || !p.firstKm) && !fresh, lockH = (!!beforeH || !p.firstHr) && !fresh;
-      if (km && lockK) lgf(tr, 'openingKm').value = openKm; if (hr && lockH) lgf(tr, 'openingHr').value = openHr;
-      lgf(tr, 'openingKm').readOnly = km && lockK; lgf(tr, 'openingHr').readOnly = hr && lockH;
+      /* START: proposed = the last Close of that meter. The box is open: a HIGHER reading may be typed when the machinery ran
+       * elsewhere in between (that distance is in no entry – not paid, not counted). A LOWER one is refused, here and on the
+       * server. A Start that was not touched keeps following the last Close; "new meter" frees it completely. */
+      let startBad = '', gapSay = '';
+      [['Km', km, lockK, openKm, 'KM', 'km'], ['Hr', hr, lockH, openHr, 'Hrs', 'hr']].forEach(a => {
+        const el = lgf(tr, 'opening' + a[0]); el.readOnly = false;
+        if (!(a[1] && a[2])) { delete el.dataset.auto; return; }
+        el.dataset.auto = a[3];
+        if (el.dataset.manual && (el.value === '' || Number(el.value) === Number(a[3]))) delete el.dataset.manual;      // back on the proposed value: it follows again
+        if (!el.dataset.manual) { if (String(el.value) !== String(a[3])) el.value = a[3]; }
+        else if (Number(el.value) < Number(a[3])) startBad = 'Start ' + a[4] + ' ' + el.value + ' is less than the last Close ' + a[4] + ' ' + a[3] + '. Start can be the same or more, never less (new meter fitted: tick "new meter").';
+        else gapSay += (gapSay ? ' + ' : '') + fmt(r2(Number(el.value) - Number(a[3]))) + ' ' + a[5];
+        el.title = 'Proposed: the last Close (' + a[3] + '). Type a higher reading only when the machinery ran elsewhere in between – that distance is not counted here.';
+      });
+      const gh = tr.querySelector('.gaphint'); if (gh) { gh.hidden = !gapSay; if (gapSay) gh.textContent = gapSay + ' ran elsewhere – not counted'; }
       // Opening diesel: typed only for the machinery's very first entry
       const cell = lgo(tr, 'odslCell');
       if (!locked) {
@@ -10836,7 +10863,7 @@
       // Item-wise BOQ: what the rest item gets, and items typed above the entry's total
       const itemBad = itemBoxCalc(tr.querySelector('.lg-itm'), { hr: whr, km: wkm, trip: Number(lgf(tr, 'trip').value) || 0 });
       // note under the machinery: only real problems and the first-entry hint
-      const problem = p.problem || (clash ? m.id + ' is already in another row for this date / shift.' : '') || itemBad;
+      const problem = p.problem || (clash ? m.id + ' is already in another row for this date / shift.' : '') || startBad || itemBad;
       tr.classList.toggle('err', !!problem);
       lgRowNote(tr, problem || (!locked ? 'First entry – type Start and Opening diesel' : ''));
     });
@@ -10883,6 +10910,7 @@
   // "Debit" in a row opens / closes its two fields; a row that has a party typed stays open
   $('lg_in').addEventListener('click', e => { const b = e.target.closest('.dbt-btn'); if (!b) return; const tr = b.closest('.lrow'), to = tr.querySelector('[data-f=debitTo]');
     if (tr.classList.contains('dbt-open') && !to.value.trim() && !tr.querySelector('[data-f=debitRate]').value) tr.classList.remove('dbt-open'); else { tr.classList.add('dbt-open'); to.focus(); } });
+  $('lg_in').addEventListener('input', e => { const f = e.target.dataset ? e.target.dataset.f : ''; if (f === 'openingKm' || f === 'openingHr') { if (e.target.value === '') delete e.target.dataset.manual; else e.target.dataset.manual = '1'; } }, true);
   $('lg_in').addEventListener('change', e => { if (e.target.dataset && e.target.dataset.f === 'newMeter') { const tr0 = e.target.closest('.lrow'); lgShowUnit(tr0, lgWay(tr0)); lgCalcSoon(); if (e.target.checked) { const o = [lgf(tr0, 'openingKm'), lgf(tr0, 'openingHr')].find(x => x && x.offsetParent !== null); if (o) { o.readOnly = false; o.value = ''; o.focus(); } } } }, true);
   $('lg_in').addEventListener('change', e => {
     const tr = e.target.closest('.lrow'); if (!tr) return;
