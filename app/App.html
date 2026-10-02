@@ -1761,6 +1761,15 @@
   }
   @container (max-width: 1149px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 3 / span 4; grid-row: 4; } }
   @media (max-width: 760px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 1 / -1; } .lg-wrap tr.lrow > td.c-debit::before { content: "Debit to"; flex: 0 0 100%; } .lg-wrap tr.lrow > td.c-debit { flex-wrap: wrap; } }
+  /* ---------- Vendor BOQ: which machinery the BOQ is for ---------- */
+  .b-pick { border: 1px solid #E3E8EF; border-radius: 12px; background: #F8FAFC; padding: 10px 12px; margin: 4px 0 12px; }
+  .b-pick .bp-head { font-size: 13.5px; margin-bottom: 8px; } .b-pick .bp-btns { float: right; font-size: 13px; }
+  .bp-list { display: flex; flex-wrap: wrap; gap: 6px 8px; max-height: 190px; overflow: auto; }
+  .bp-list .bp { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #D5DCE6; background: #fff; border-radius: 9px; padding: 5px 10px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .bp-list .bp input { width: auto; min-height: 0; margin: 0; } .bp-list .bp small { font-weight: 400; color: #5B6B80; }
+  .bp-list .bp.on { border-color: #1D55E2; background: #EAF0FE; } .bp-list .bp.dis { opacity: .6; cursor: not-allowed; background: #F1F4F8; }
+  .b-lines .bl-same { font-size: 11.5px; line-height: 1.2; text-align: left; margin-right: 8px; }
+
   /* ---------- the big box: any typing box opened large (double-click, F2 or ⤢) ---------- */
   #bigbox { position: fixed; inset: 0; z-index: 10000; background: rgba(12,26,46,.5); display: flex; align-items: center; justify-content: center; padding: 16px; }
   #bigbox[hidden] { display: none; }
@@ -2814,6 +2823,7 @@
         <div class="field"><label for="b_tds">TDS %</label><input id="b_tds" type="number" step="0.01" min="0" max="100" placeholder="e.g. 2"></div>
         <div class="field wide"><label for="b_remark">Remark</label><input id="b_remark"></div>
       </div>
+      <div class="b-pick" id="b_pick" hidden></div>
       <div class="table-wrap"><table class="b-lines">
         <thead><tr><th>#</th><th>Machinery</th><th>Rent type</th><th class="n">Rate (₹)</th><th>Different rate after some hours? <small>(hourly only)</small></th><th>Diesel</th><th>Remark</th><th></th></tr></thead>
         <tbody id="b_lines"></tbody>
@@ -7499,7 +7509,62 @@
       '<button class="link bl-addslab" type="button">+ add hour slab (e.g. 1st hr ₹1,000, after that ₹2,000)</button> <select data-bl="slabOn" title="Slab hours counted on"' + (slabs.length ? '' : ' hidden') + '><option value="Day"' + (l.slabOn !== 'Period' ? ' selected' : '') + '>on each day\'s hours</option><option value="Period"' + (l.slabOn === 'Period' ? ' selected' : '') + '>on the period\'s total hours</option></select>' +
       '<div class="bl-items"' + (l.basis === 'Item-wise' ? '' : ' hidden') + '><div class="bl-itemlist">' + (l.items || []).map(bItemHtml).join('') + '</div><button class="link bl-additem" type="button">+ add item</button></div></td>' +
       '<td><select data-bl="diesel"><option value="Company"' + (l.diesel !== 'Debit Basis' ? ' selected' : '') + '>Company diesel – only extra over standard debited</option><option value="Debit Basis"' + (l.diesel === 'Debit Basis' ? ' selected' : '') + '>Debit – ALL diesel given is debited</option></select></td>' +
-      '<td><input data-bl="remark" value="' + esc(l.remark || '') + '"></td><td><button class="del" type="button" title="Remove line">×</button></td></tr>';
+      '<td><input data-bl="remark" value="' + esc(l.remark || '') + '"></td><td><button class="link bl-same" type="button" title="Give other machinery of this vendor the same rent type, rate, slabs / items and diesel as this line">same terms →<br>other machinery</button><button class="del" type="button" title="Remove line">×</button></td></tr>';
+  }
+  // one line of the form as data (the same shape as a saved BOQ line)
+  function bReadLine(tr) {
+    const g = k => { const el = tr.querySelector('[data-bl=' + k + ']'); return el ? el.value.trim() : ''; };
+    const slabs = [...tr.querySelectorAll('.slab')].map(s => ({ upTo: s.querySelector('[data-sl=upTo]').value.trim(), rate: s.querySelector('[data-sl=rate]').value.trim() }));
+    const items = g('basis') !== 'Item-wise' ? [] : [...tr.querySelectorAll('.bl-item')].map(d => { const gi = k => d.querySelector('[data-it=' + k + ']').value.trim();
+      return { name: gi('name'), basis: gi('basis'), rate: gi('rate'), qty: gi('qty'), slabOn: gi('slabOn'), slabs: [...d.querySelectorAll('.islab')].map(x => ({ upTo: x.querySelector('[data-sl=upTo]').value.trim(), rate: x.querySelector('[data-sl=rate]').value.trim() })) }; });
+    return { no: g('no'), basis: g('basis'), rate: g('rate'), slabs: slabs, slabOn: g('slabOn'), items: items, diesel: g('diesel'), remark: g('remark') };
+  }
+  /* WHICH MACHINERY IS THIS BOQ FOR (asked 02-10-2026). A party can have many assets: the form lists them all with a tick –
+   * tick the ones this BOQ is for (each tick = one line, untick = the line goes). A machinery already in another BOQ of the
+   * vendor for these dates cannot be ticked and says which BOQ. A new BOQ starts with nothing ticked.
+   * "same terms → other machinery" on a line gives its rent type, rate, slabs / items and diesel to other machinery of the
+   * vendor in one go – one rule, many machines – also when a saved BOQ is opened with Edit and more machinery join it. */
+  function bPickDraw() {
+    const box = $('b_pick'); if (!box) return;
+    const ms = $('b_vendor').value ? bVendorMachines() : [];
+    if (!ms.length) { box.hidden = true; box.innerHTML = ''; return; }
+    const taken = bTaken(), have = {}; [...$('b_lines').querySelectorAll('[data-bl=no]')].forEach(x => { if (x.value) have[x.value] = true; });
+    const free = ms.filter(m => !taken[m.id]), n = ms.filter(m => have[m.id]).length;
+    box.hidden = false;
+    box.innerHTML = '<div class="bp-head"><b>Machinery of ' + esc($('b_vendor').value) + '</b> – tick the ones this BOQ is for <span class="muted">(' + n + ' of ' + ms.length + ' ticked)</span>' +
+      '<span class="bp-btns"><button type="button" class="link" data-bpall="1">Tick all</button> · <button type="button" class="link" data-bpall="0">None</button></span></div><div class="bp-list">' +
+      ms.map(m => { const t = taken[m.id]; return '<label class="bp' + (t ? ' dis' : '') + (have[m.id] ? ' on' : '') + '"' + (t ? ' title="Already in BOQ ' + esc(t.no || t.id) + ' for these dates – use Amend on that BOQ to change it"' : '') + '><input type="checkbox" data-bp="' + esc(m.id) + '"' + (have[m.id] ? ' checked' : '') + (t ? ' disabled' : '') + '> ' + esc(m.id) + ' <small>' + esc(m.type || '') + (t ? ' · in BOQ ' + esc(t.no || t.id) : '') + '</small></label>'; }).join('') + '</div>' +
+      (free.length ? '' : '<div class="muted">Every machinery of this vendor is already in a BOQ for these dates.</div>');
+  }
+  $('b_pick').addEventListener('change', e => {
+    const id = e.target.dataset.bp; if (!id) return;
+    if (e.target.checked) $('b_lines').insertAdjacentHTML('beforeend', bLineRow({ no: id }));
+    else [...$('b_lines').children].forEach(tr => { if (tr.querySelector('[data-bl=no]').value === id) tr.remove(); });
+    bNumber();
+  });
+  $('b_pick').addEventListener('click', e => {
+    const b = e.target.closest('[data-bpall]'); if (!b) return;
+    if (b.dataset.bpall === '1') $('b_addall').click();
+    else { $('b_lines').innerHTML = ''; bNumber(); }
+  });
+  const bTermsText = l => (l.basis === 'Item-wise' ? 'Item-wise: ' + ((l.items || []).map(it => it.name + ' ₹' + (it.slabs && it.slabs.length ? 'slabs' : it.rate) + ' ' + String(it.basis).replace('Per ', '/ ').toLowerCase()).join(', ') || 'no items yet')
+    : l.basis + (l.slabs && l.slabs.length ? ' – ' + l.slabs.map(x => (x.upTo === '' ? 'after that' : 'up to ' + x.upTo + ' hr') + ' ₹' + x.rate).join(', ') : l.rate ? ' ₹' + l.rate : '')) + ' · ' + (l.diesel === 'Debit Basis' ? 'all diesel debited' : 'company diesel');
+  async function bSameTerms(tr) {
+    const src = bReadLine(tr);
+    if (!src.no) { toast('Pick the machinery of this line first.', true); return; }
+    const taken = bTaken(), have = {}; [...$('b_lines').querySelectorAll('[data-bl=no]')].forEach(x => { if (x.value) have[x.value] = true; });
+    const others = bVendorMachines().filter(m => m.id !== src.no && !taken[m.id]);
+    if (!others.length) { toast('There is no other machinery of ' + $('b_vendor').value + ' free for these dates.', true); return; }
+    const yes = await askConfirm({ title: 'Same terms as ' + src.no, ok: 'Apply', wide: true,
+      html: '<p>Terms of ' + esc(src.no) + ': <b>' + esc(bTermsText(src)) + '</b></p><p>Tick the machinery that run on the same terms:</p><div class="bp-list" id="b_samelist">' +
+        others.map(m => '<label class="bp"><input type="checkbox" data-same="' + esc(m.id) + '"> ' + esc(m.id) + ' <small>' + esc(m.type || '') + (have[m.id] ? ' · already a line – its terms will be replaced' : '') + '</small></label>').join('') +
+        '</div><p><button type="button" class="btn ghost small" onclick="document.querySelectorAll(\'#b_samelist input\').forEach(function (x) { x.checked = true; })">Tick all</button></p>' });
+    if (!yes) return;
+    const ids = [...document.querySelectorAll('#b_samelist input:checked')].map(x => x.dataset.same);
+    if (!ids.length) { toast('Nothing was ticked.', true); return; }
+    ids.forEach(id => { const html = bLineRow(Object.assign({}, src, { no: id, remark: '' })), old = [...$('b_lines').children].find(r => r.querySelector('[data-bl=no]').value === id);
+      if (old) old.outerHTML = html; else $('b_lines').insertAdjacentHTML('beforeend', html); });
+    bNumber(); S.formDirty = true; toast(ids.length + ' machinery now have the terms of ' + src.no + ' – check and Save BOQ.');
   }
   const slabHtml = s => '<div class="slab"><span>up to</span><input data-sl="upTo" type="number" step="0.5" min="0" value="' + (s && s.upTo !== undefined ? s.upTo : '') + '" placeholder="after" title="Hours this rate goes up to – leave blank on the last slab (= after that)"><span>hr @ ₹</span><input data-sl="rate" type="number" step="0.01" min="0" value="' + (s && s.rate ? s.rate : '') + '"><button class="link danger sl-del" type="button">×</button></div>';
   function bGstBox() {
@@ -7508,7 +7573,7 @@
     $('b_gst_wrap').hidden = !reg; $('b_gst_note').textContent = reg ? '(' + (v.gst || '') + ')' : '';
     if (!reg) $('b_gst').value = '';
   }
-  function bNumber() { [...$('b_lines').children].forEach((tr, i) => { tr.querySelector('.bl-n').textContent = i + 1; });
+  function bNumber() { [...$('b_lines').children].forEach((tr, i) => { tr.querySelector('.bl-n').textContent = i + 1; }); try { bPickDraw(); } catch (e) { /* the ticks are a convenience */ }
     [...$('b_lines').children].forEach(tr => { const basis = tr.querySelector('[data-bl=basis]').value, n = tr.querySelectorAll('.slab').length;
       tr.querySelector('.bl-addslab').hidden = basis !== 'Per Hour'; tr.querySelector('[data-bl=slabOn]').hidden = !n; tr.querySelector('[data-bl=rate]').disabled = n > 0;
       tr.querySelector('[data-bl=rate]').placeholder = n ? 'see slabs' : '';
@@ -7529,8 +7594,8 @@
     if (mode === 'new') {
       $('b_title').textContent = 'New BOQ'; $('b_note').textContent = saved.length ? '' : 'Fill a vendor\'s details first (Vendors, above).';
       $('b_vendor').value = $('bf_vendor').value || ''; $('b_no').value = $('b_vendor').value ? bNextNo($('b_vendor').value) : ''; $('b_from').value = S.today.slice(0, 8) + '01'; $('b_to').value = ''; $('b_remark').value = '';
-      S.bMode = mode; const tk0 = $('b_vendor').value ? bTaken() : {};
-      $('b_lines').innerHTML = $('b_vendor').value ? bVendorMachines().filter(m => !tk0[m.id]).map(m => bLineRow({ no: m.id })).join('') : '';
+      S.bMode = mode;
+      $('b_lines').innerHTML = '';      // nothing ticked: the person picks the machinery of this BOQ
     } else {
       $('b_vendor').value = b.vendor; $('b_no').value = mode === 'amend' ? bNextNo(b.vendor) : b.no; $('b_remark').value = mode === 'amend' ? '' : (b.remark || '');
       if (mode === 'amend') {
@@ -7553,7 +7618,7 @@
   }
   $('b_new').addEventListener('click', () => bOpen('new'));
   $('b_cancel').addEventListener('click', () => { $('b_form').hidden = true; S.formDirty = false; });
-  $('b_vendor').addEventListener('change', () => { if (S.bMode === 'new') { $('b_no').value = $('b_vendor').value ? bNextNo($('b_vendor').value) : ''; const v = S.vendors.find(x => x.name === $('b_vendor').value) || {}; $('b_gst').value = v.gstReg === 'Yes' ? 18 : ''; $('b_tds').value = v.tds !== undefined ? v.tds : ''; bGstBox(); } const tk = bTaken(); $('b_lines').innerHTML = bVendorMachines().filter(m => !tk[m.id]).map(m => bLineRow({ no: m.id })).join('') || ''; bNumber(); });
+  $('b_vendor').addEventListener('change', () => { if (S.bMode === 'new') { $('b_no').value = $('b_vendor').value ? bNextNo($('b_vendor').value) : ''; const v = S.vendors.find(x => x.name === $('b_vendor').value) || {}; $('b_gst').value = v.gstReg === 'Yes' ? 18 : ''; $('b_tds').value = v.tds !== undefined ? v.tds : ''; bGstBox(); } $('b_lines').innerHTML = ''; bNumber(); });
   $('b_addline').addEventListener('click', () => { if (!$('b_vendor').value) { toast('Pick the vendor first.', true); return; } $('b_lines').insertAdjacentHTML('beforeend', bLineRow()); bNumber(); });
   // machinery of this vendor already in another BOQ (not an amendment) for these dates → { no: boq }
   function bTaken() {
@@ -7578,6 +7643,7 @@
   $('b_lines').addEventListener('click', e => {
     const tr = e.target.closest('tr'); if (!tr) return;
     if (e.target.closest('.del')) { tr.remove(); bNumber(); }
+    else if (e.target.closest('.bl-same')) bSameTerms(tr).catch(er => toast(errMsg(er), true));
     else if (e.target.closest('.bl-addslab')) {
       const box = tr.querySelector('.slabs'), rate = tr.querySelector('[data-bl=rate]').value;
       if (!box.children.length) box.insertAdjacentHTML('beforeend', slabHtml({ upTo: 1, rate: rate }) + slabHtml({ upTo: '', rate: '' }));
@@ -7595,16 +7661,11 @@
       bNumber();
     } else if (e.target.closest('.isl-del')) { const d = e.target.closest('.bl-item'); e.target.closest('.islab').remove(); if (d.querySelectorAll('.islab').length === 1) d.querySelector('.islab').remove(); bNumber(); }
   });
-  $('b_lines').addEventListener('change', e => { if (e.target.dataset.bl === 'basis') { if (e.target.value !== 'Per Hour') e.target.closest('tr').querySelector('.slabs').innerHTML = ''; bNumber(); }
+  $('b_lines').addEventListener('change', e => { if (e.target.dataset.bl === 'no') { try { bPickDraw(); } catch (er) {} }
+    if (e.target.dataset.bl === 'basis') { if (e.target.value !== 'Per Hour') e.target.closest('tr').querySelector('.slabs').innerHTML = ''; bNumber(); }
     if (e.target.dataset.it === 'basis') { if (e.target.value !== 'Per Hour') e.target.closest('.bl-item').querySelector('.it-slabs').innerHTML = ''; bNumber(); } });
   $('boq_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
-    const lines = [...$('b_lines').children].map(tr => {
-      const g = k => { const el = tr.querySelector('[data-bl=' + k + ']'); return el ? el.value.trim() : ''; };
-      const slabs = [...tr.querySelectorAll('.slab')].map(s => ({ upTo: s.querySelector('[data-sl=upTo]').value.trim(), rate: s.querySelector('[data-sl=rate]').value.trim() }));
-      const items = g('basis') !== 'Item-wise' ? [] : [...tr.querySelectorAll('.bl-item')].map(d => { const gi = k => d.querySelector('[data-it=' + k + ']').value.trim();
-        return { name: gi('name'), basis: gi('basis'), rate: gi('rate'), qty: gi('qty'), slabOn: gi('slabOn'), slabs: [...d.querySelectorAll('.islab')].map(x => ({ upTo: x.querySelector('[data-sl=upTo]').value.trim(), rate: x.querySelector('[data-sl=rate]').value.trim() })) }; });
-      return { no: g('no'), basis: g('basis'), rate: g('rate'), slabs: slabs, slabOn: g('slabOn'), items: items, diesel: g('diesel'), remark: g('remark') };
-    }).filter(l => l.no || l.rate || l.slabs.length || l.items.length);
+    const lines = [...$('b_lines').children].map(bReadLine).filter(l => l.no || l.rate || l.slabs.length || l.items.length);
     const noMach = [...$('b_lines').children].map((tr, k) => ({ k: k + 1, v: tr.querySelector('[data-bl=no]').value })).filter(x => !x.v && lines.length);
     if (noMach.length && noMach.length < [...$('b_lines').children].length) throw new Error('Pick the machinery in line ' + noMach.map(x => x.k).join(', ') + ' (or remove that line).');
     // a machinery already in another BOQ of this vendor for these dates: say which, and offer to leave it out
@@ -8343,7 +8404,7 @@
     add('v_save', 'v_clear', 'Clear', 'Empty the form – a blank, new vendor (saved vendors are not touched)', async () => { if (!(await sure('the vendor form'))) return; vOpen(null); S.formDirty = false; $('v_name').focus(); });
     // Vendor BOQ: a blank, new BOQ
     add('boq_save', 'boq_clear', 'Clear', 'Empty the form – a blank, new BOQ (saved BOQs are not touched)', async () => { if (!(await sure('the BOQ form'))) return;
-      const keep = $('bf_vendor').value; $('bf_vendor').value = ''; bOpen('new'); $('bf_vendor').value = keep; blank(['b_wono', 'b_wodate', 'b_gst', 'b_tds', 'b_remark', 'b_to']); $('b_lines').innerHTML = ''; S.formDirty = false; });
+      const keep = $('bf_vendor').value; $('bf_vendor').value = ''; bOpen('new'); $('bf_vendor').value = keep; blank(['b_wono', 'b_wodate', 'b_gst', 'b_tds', 'b_remark', 'b_to']); $('b_lines').innerHTML = ''; bNumber(); S.formDirty = false; });
     // RCL Drive → New Debit Note
     add('dn_save', 'dn_clear', 'Clear', 'Empty the form – a blank debit note (saved notes are not touched)', async () => { if ((S.dn.lines.length || $('dn_vendor').value) && !(await sure('the debit note form'))) return;
       S.dn.lines = []; blank(['dn_vendor', 'dn_gst', 'dn_tds', 'dn_remark']); $('dn_date').value = S.today; $('dn_from').value = S.today.slice(0, 8) + '01'; $('dn_to').value = S.today; dnRender(); });

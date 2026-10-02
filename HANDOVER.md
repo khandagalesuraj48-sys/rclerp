@@ -386,6 +386,17 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   pick there). The pick lives on the box (`data-pickhr` …). WHAT IS SAVED AND BILLED IS UNCHANGED ({ item: qty }; server untouched).
   Test `test/browser/item2.js` (13, with the database): Breaker 8 hr, Bucket 8 hr, split 5 + 3 → bill Bucket 13 × 1,200 = 15,600 and
   Breaker 11 × 1,500 = 16,500, A = 32,100.
+- 02-10-2026: VENDOR BOQ – which machinery, and one rule for many. He asked: a party has many assets → choose which vehicles a BOQ is
+  for; and a BOQ that is made should be applied to others on the same criteria instead of making a new one. BUILT (page only, server and
+  data model unchanged – still one line per machinery):
+  * `#b_pick` / `bPickDraw()`: every machinery of the vendor with a tick; tick = a line, untick = the line goes; "Tick all" / "None";
+    machinery already in another BOQ for the dates is locked and says which. A NEW BOQ (and a change of vendor) now starts with NOTHING
+    ticked (it used to add every free machinery).
+  * "same terms → other machinery" on each line (`bSameTerms`): a box with the other free machinery of the vendor; the ticked ones get a
+    line with the same rent type, rate, slabs / items and diesel (an existing line is replaced). Works in Edit of a saved BOQ too – that
+    is how a made BOQ takes more machinery. `bReadLine(tr)` = one line of the form as data (Save uses it too).
+  * Test `test/browser/boq.js` (8, with the database): tick 1 → terms → same terms to 2 more → saved with 3; a second BOQ shows them
+    locked; Edit → same terms to the 4th → saved with 4.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
