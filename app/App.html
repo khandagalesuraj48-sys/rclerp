@@ -3942,6 +3942,13 @@
         'ओळीत त्या कामाचे बटण दाबा (उदा. Bucket किंवा Breaker), जर पूर्ण entry तेच काम असेल. दोन्ही कामे झाली असतील तर "Split" दाबून प्रत्येकाचे तास भरा. मग save करा.'],
       hi: ['इस machinery का BOQ हर तरह के काम को अलग दर देता है (जैसे Bucket और Breaker), इसलिए entry में बताना होता है कि कौन सा काम हुआ।',
         'पंक्ति में उस काम का बटन दबाएँ (जैसे Bucket या Breaker), अगर पूरी entry वही काम थी। दोनों काम हुए हों तो "Split" दबाकर हर एक के घंटे भरें। फिर save करें।'] },
+    { re: /cannot be joined by renaming/i,
+      en: ['The new name is already used by another vendor / owner. Renaming would mix the assets, bills and payments of two different parties.',
+        'Type a name that no other vendor has (add something that tells them apart, for example the place or "Pvt Ltd"). If the two really are the same party, tell the Admin – joining two vendors is a separate job.'],
+      mr: ['नवीन नाव आधीच दुसऱ्या vendor / मालकाचे आहे. नाव बदलल्यास दोन वेगळ्या parties च्या assets, bills आणि payments एकत्र मिसळतील.',
+        'असे नाव भरा जे दुसऱ्या कोणत्याही vendor चे नाही (वेगळे ओळखू येईल असे काही जोडा, उदा. गावाचे नाव किंवा "Pvt Ltd"). दोन्ही खरोखर एकच party असतील तर Admin ला सांगा; दोन vendors एकत्र करणे हे वेगळे काम आहे.'],
+      hi: ['नया नाम पहले से किसी दूसरे vendor / मालिक का है। नाम बदलने से दो अलग parties के assets, bills और payments मिल जाएँगे।',
+        'ऐसा नाम भरें जो किसी और vendor का न हो (पहचान के लिए कुछ जोड़ें, जैसे जगह का नाम या "Pvt Ltd")। दोनों सच में एक ही party हों तो Admin को बताएँ; दो vendors को मिलाना अलग काम है।'] },
     { re: /no BOQ in these dates/i,
       en: ['This machinery has no BOQ (rate) for these dates, so its work is billed at 0.', 'Open Vendor BOQ and add this machinery with its rate from the right start date (or amend the BOQ), then build the bill again.'],
       mr: ['या machinery साठी या तारखांना BOQ (दर) नाही, म्हणून तिचे काम 0 ने bill होते.', 'Vendor BOQ मध्ये ही machinery योग्य सुरुवातीच्या तारखेपासून दरासह जोडा (किंवा BOQ Amend करा), मग bill पुन्हा Build करा.'],
@@ -4125,9 +4132,9 @@
       mr: ['एका नजरेत दिवस: diesel stock, आलेले आणि दिलेले diesel, tanks, आणि दिवसाची Log Book.', 'इथे काहीही भरले जात नाही. प्रत्येक आकडा वर निवडलेल्या तारखांसाठी इतर pages च्या entries वरून येतो; "Stock now" नेहमी सध्याचा stock असतो. इथे फक्त tank चा आकार सेट करता येतो.'],
       hi: ['एक नज़र में दिन: diesel stock, आया और दिया गया diesel, tanks, और दिन की Log Book।', 'यहाँ कुछ भरा नहीं जाता। हर आँकड़ा ऊपर चुनी तारीखों के लिए दूसरे pages की entries से आता है; "Stock now" हमेशा अभी का stock है। यहाँ केवल tank का आकार सेट होता है।'] },
     vendors: { saves: ['saveVendor', 'deleteVendor', 'vendorsFromOwners'],
-      en: ['The parties: vendors and owners of machinery, with address, PAN, GST and bank details.', 'The app checks the format of PAN, GST, IFSC and mobile, and does not allow the same name twice. A vendor with assets or BOQs cannot be deleted. These details print on bills, tax invoices and debit notes.'],
-      mr: ['Parties: machinery चे vendors आणि मालक, पत्ता, PAN, GST आणि bank तपशीलासह.', 'App PAN, GST, IFSC आणि mobile चे स्वरूप तपासते, आणि तेच नाव दोनदा घेत नाही. ज्या vendor कडे assets किंवा BOQ आहेत तो delete होत नाही. हा तपशील bills, tax invoice आणि debit notes वर छापला जातो.'],
-      hi: ['Parties: machinery के vendors और मालिक, पता, PAN, GST और bank विवरण के साथ।', 'App PAN, GST, IFSC और mobile का रूप जाँचता है, और वही नाम दो बार नहीं लेता। जिस vendor के assets या BOQ हैं वह delete नहीं होता। यह विवरण bills, tax invoice और debit notes पर छपता है।'] },
+      en: ['The parties: vendors and owners of machinery, with address, PAN, GST and bank details.', 'The app checks the format of PAN, GST, IFSC and mobile, and does not allow the same name twice. The name can be changed: the vendor\'s assets, BOQs, bills, payments, debit notes and Log Book entries follow to the new name. A vendor with assets or BOQs cannot be deleted. These details print on bills, tax invoices and debit notes.'],
+      mr: ['Parties: machinery चे vendors आणि मालक, पत्ता, PAN, GST आणि bank तपशीलासह.', 'App PAN, GST, IFSC आणि mobile चे स्वरूप तपासते, आणि तेच नाव दोनदा घेत नाही. नाव बदलता येते: vendor चे assets, BOQ, bills, payments, debit notes आणि Log Book entries नवीन नावाकडे जातात. ज्या vendor कडे assets किंवा BOQ आहेत तो delete होत नाही. हा तपशील bills, tax invoice आणि debit notes वर छापला जातो.'],
+      hi: ['Parties: machinery के vendors और मालिक, पता, PAN, GST और bank विवरण के साथ।', 'App PAN, GST, IFSC और mobile का रूप जाँचता है, और वही नाम दो बार नहीं लेता। नाम बदला जा सकता है: vendor के assets, BOQ, bills, भुगतान, debit notes और Log Book entries नए नाम पर चले जाते हैं। जिस vendor के assets या BOQ हैं वह delete नहीं होता। यह विवरण bills, tax invoice और debit notes पर छपता है।'] },
     master: { saves: ['saveMaster', 'saveMasterBulk', 'deleteMaster', 'editMasterMany', 'deleteMasterMany', 'importMaster', 'assignVendors'],
       en: ['Every machinery and vehicle: number, type, owner, ownership, what it works on (KM / Hrs / Trip / Day / Time), standard average and tank capacity.', 'Every other page reads this list. The number of a machinery cannot be changed once it has entries; "Active From / Inactive From" decide on which dates entries are allowed; the standard average decides the excess diesel in bills.'],
       mr: ['प्रत्येक machinery आणि गाडी: नंबर, प्रकार, मालक, ownership, कशावर चालते (KM / Hrs / Trip / Day / Time), standard average आणि tank ची क्षमता.', 'बाकी सगळी pages ही यादी वाचतात. Entries झाल्यावर machinery चा नंबर बदलता येत नाही; "Active From / Inactive From" वरून कोणत्या तारखांना entry करता येते ते ठरते; standard average वरून bill मधले जास्तीचे diesel ठरते.'],
@@ -7333,8 +7340,8 @@
     const v = name === null ? { name: '', gstReg: 'No', isNew: true, machines: [] } : S.vendors.find(x => x.name === name) || { name: name, gstReg: 'No' };
     S.vEdit = v;
     $('v_title').textContent = v.isNew ? 'New vendor' : (v.saved ? 'Vendor details – ' : 'Fill vendor details – ') + v.name;
-    // the name links the vendor to its assets: it is typed only for a new vendor
-    $('v_name').readOnly = !v.isNew; $('v_name').title = v.isNew ? '' : 'The name links this vendor to its assets in Asset Master, so it cannot be changed here.';
+    // the name links the vendor to its assets, BOQs, bills, payments …: it CAN be changed – everything follows to the new name (asked 02-10-2026)
+    $('v_name').readOnly = false; $('v_name').title = v.isNew ? '' : 'Changing the name renames this vendor everywhere: its assets, BOQs, bills, payments, debit notes and Log Book entries follow to the new name.';
     $('v_mach').textContent = (v.machines || []).length ? (v.machines || []).length + ' asset(s): ' + (v.machines || []).map(m => m.id + ' (' + m.ownership + ')').join(', ') : 'No assets yet – in Asset Master pick this vendor for its machinery.';
     const set = (id, x) => { $(id).value = x === undefined || x === null ? '' : x; };
     set('v_name', v.name); set('v_gstreg', v.gstReg === 'Yes' ? 'Yes' : 'No'); set('v_gst', v.gst); set('v_gstpct', v.gstPct); set('v_pan', v.pan); set('v_tds', v.tds);
@@ -7352,9 +7359,19 @@
   });
   $('v_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
     const g = id => $(id).value.trim();
-    const res = await call('saveVendor', { name: g('v_name'), gstReg: g('v_gstreg'), gst: g('v_gst'), gstPct: g('v_gstpct'), pan: g('v_pan'), tds: g('v_tds'), bank: g('v_bank'),
+    // the name of an existing vendor was changed: say what follows, and ask
+    const was = S.vEdit && !S.vEdit.isNew ? String(S.vEdit.name || '') : '', renaming = !!was && g('v_name') !== was;
+    if (renaming) {
+      if (!g('v_name')) throw new Error('Enter the Vendor Name.');
+      const nA = (S.vEdit.machines || []).length;
+      if (!(await askConfirm({ title: 'Rename this vendor?', ok: 'Rename', html: '<p><b>' + esc(was) + '</b> → <b>' + esc(g('v_name')) + '</b></p><p>Everything of this vendor follows to the new name: ' + (nA ? '<b>' + nA + ' asset(s)</b> in Asset Master, ' : '') +
+        'its BOQs, bills, payments, debit notes, and the owner / "Debit to" on Log Book entries and diesel issues.</p><p class="muted">Bills and debit notes already submitted keep the name printed on their papers; they stay in this vendor\'s ledger.</p>' }))) return;
+    }
+    const res = await call('saveVendor', { oldName: renaming ? was : '', name: g('v_name'), gstReg: g('v_gstreg'), gst: g('v_gst'), gstPct: g('v_gstpct'), pan: g('v_pan'), tds: g('v_tds'), bank: g('v_bank'),
       branch: g('v_branch'), account: g('v_acc'), ifsc: g('v_ifsc'), phone: g('v_phone'), address: g('v_addr'), remark: g('v_remark'), aadhaar: g('v_aadhaar'), email: g('v_email')}, S.vEdit && S.vEdit.saved ? 'edit' : 'add');
-    S.vendors = res.vendors; renderVendors(); $('v_form').hidden = true; toast('Vendor saved: ' + res.name); loadVendors();
+    S.vendors = res.vendors; renderVendors(); $('v_form').hidden = true;
+    toast(res.renamed ? 'Vendor renamed: ' + res.renamed.from + ' → ' + res.renamed.to + (res.renamed.text ? ' (' + res.renamed.text + ' moved with it)' : '') : 'Vendor saved: ' + res.name);
+    loadVendors(); if (res.renamed) { S.stale = S.stale || {}; ['master', 'boq', 'log', 'diesel', 'bills', 'pay', 'vled', 'vout'].forEach(t => { S.stale[t] = true; }); refreshLookups(true); }
   }));
   $('v_del').addEventListener('click', async () => {
     if (!S.vEdit || !(await askConfirm({ title: 'Delete vendor ' + S.vEdit.name + '?', ok: 'Delete', danger: true, html: '<p>A vendor that still has assets in Asset Master, or BOQs, cannot be deleted – give the assets another vendor / delete the BOQs first.</p>' }))) return;

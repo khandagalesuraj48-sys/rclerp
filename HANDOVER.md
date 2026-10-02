@@ -425,6 +425,14 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     never comes the page is blank although it is there (his scrollbar showed a tall page). Now every panel of the page is shown after
     0.6 s at the latest (timer per section). `test/browser/blank.js`: with an observer that never reports, 56 panels on 36 pages visible.
   * The waiting bar now names the call after 6 s ("… 22 s (getLookups)") – ASK HIM FOR THAT NAME if it happens again.
+- 02-10-2026: RENAMING A VENDOR. The name of a saved vendor was read-only ("it links the vendor to its assets"). He wants to change it and
+  keep the assets with the vendor. BUILT (no SQL, no new API): the name box is open; `saveVendor` takes `oldName`; when it differs,
+  `renameVendor_` moves the name everywhere in the same save (one web_write transaction): Asset Master owner, BOQ, bills, payments,
+  debit notes (their Vendor Name column), Log Book owner and "Debit to", Diesel Issue owner, and the vendor's own row (its key is the
+  name: old row deleted, new one added with the same details). NOT changed: the saved papers (data JSON) of submitted bills / notes –
+  they keep the name they were issued with. REFUSED: a new name that another vendor or owner already has (that would join two parties).
+  The page asks before renaming and says what follows; the Activity Log gets "Vendor renamed: A → B (moved with it: …)".
+  Tests: unit "renaming a vendor" and `test/browser/rename.js` (11, with the database, renames back at the end).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

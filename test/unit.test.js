@@ -377,3 +377,43 @@ test('Start reading: automatic, may be typed HIGHER (the machinery ran elsewhere
   // the app proposes the last Close for the next entry, as before
   assert.strictEqual(run('(n, d, s) => getLogRowPrefill_(n, d, s)', 'GAP-1', '2026-07-04', 'Full Day').openingKm, 1260);
 });
+
+test('renaming a vendor: its assets, BOQ, payments, Log Book and diesel entries follow the new name; joining two parties is refused', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryIt = f => { try { return f(); } catch (e) { return { ok: false, thrown: String(e.message) }; } };
+  const det = { gstReg: 'No', pan: 'ABCDE1234P', bank: 'SBI', account: '12345676', ifsc: 'SBIN0000001' };
+  for (const n of ['RN-1', 'RN-2']) run('(x, m) => saveMaster_(x, m)', { no: n, name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Old Name Co', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-08-01' }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: 'RN-9', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Someone Else', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-08-01' }, 'add');
+  run('(x, m) => saveVendor_(x, m)', Object.assign({ name: 'Old Name Co' }, det), 'add');
+  run('(x, m) => saveVendor_(x, m)', Object.assign({ name: 'Someone Else' }, det, { pan: 'ABCDE1234Q', account: '12345677' }), 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'Old Name Co', from: '2026-08-01', tdsPct: 2, woNo: 'WO-RN', lines: [{ no: 'RN-1', basis: 'Monthly', rate: 30000, diesel: 'Company' }] }, 'add');
+  run('x => saveInward_(x)', { date: '2026-07-31', location: 'Dispenser', pump: 'Pump', qty: 500, rate: 100, billNo: 'RN1', billDate: '2026-07-31' });
+  run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-08-01', shift: 'Full Day', no: 'RN-1', mode: 'KM', openingKm: 100, closingKm: 180 }] });
+  run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-08-01', shift: 'Full Day', no: 'RN-9', mode: 'KM', openingKm: 10, closingKm: 60, debitTo: 'Old Name Co', debitRate: 50 }] });
+  run('x => saveDieselIssue_(x)', { date: '2026-08-01', shift: 'Day', source: 'Dispenser', no: 'RN-1', qty: 20, kmReading: 100, force: true });
+  run('(x, m) => savePayment_(x, m)', { type: 'Payment', vendor: 'Old Name Co', date: '2026-08-05', amount: 5000, mode: 'NEFT' }, 'add');
+  // joining two parties by a rename is refused, and nothing changes
+  const no = tryIt(() => run('(x, m) => saveVendor_(x, m)', Object.assign({ name: 'Someone Else', oldName: 'Old Name Co' }, det), 'edit'));
+  assert.match(String(no.thrown), /already a vendor/);
+  assert.deepStrictEqual(run('() => getMaster_().filter(m => /^RN-[12]$/.test(m.id)).map(m => m.owner)'), ['Old Name Co', 'Old Name Co']);
+  // the rename
+  const res = run('(x, m) => saveVendor_(x, m)', Object.assign({ name: 'New Name Pvt Ltd', oldName: 'Old Name Co' }, det), 'edit');
+  assert.strictEqual(res.ok, true); assert.deepStrictEqual([res.renamed.from, res.renamed.to], ['Old Name Co', 'New Name Pvt Ltd']);
+  assert.deepStrictEqual(res.renamed.moved, { assets: 2, BOQs: 1, payments: 1, 'Log Book entries': 2, 'diesel issues': 1 });
+  // the assets stay with the vendor under its new name; the old name is gone; the other vendor is untouched
+  assert.deepStrictEqual(run('() => getMaster_().filter(m => /^RN-/.test(m.id)).map(m => m.id + ":" + m.owner)'), ['RN-1:New Name Pvt Ltd', 'RN-2:New Name Pvt Ltd', 'RN-9:Someone Else']);
+  const vs = res.vendors.filter(v => /Name|Someone/.test(v.name)).map(v => [v.name, v.saved, v.machines.length, v.pan]);
+  assert.deepStrictEqual(vs.sort(), [['New Name Pvt Ltd', true, 2, 'ABCDE1234P'], ['Someone Else', true, 1, 'ABCDE1234Q']]);
+  // BOQ, Log Book (owner and "Debit to"), diesel issue and the ledger are under the new name
+  assert.deepStrictEqual(run('f => getBoqs_(f).boqs.map(b => b.vendor)', { vendor: 'New Name Pvt Ltd' }), ['New Name Pvt Ltd']);
+  const lg = run('f => getLogBookList_(f)', { from: '2026-08-01', to: '2026-08-01', all: true }).rows.filter(r => /^RN-/.test(r.no)).map(r => [r.no, r.owner, r.debitTo || '']).sort();
+  assert.deepStrictEqual(lg, [['RN-1', 'New Name Pvt Ltd', ''], ['RN-9', 'Someone Else', 'New Name Pvt Ltd']]);
+  assert.deepStrictEqual(run('() => { const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_); return t.rows.filter(r => /^RN-/.test(r[t.c[H.NO]])).map(r => r[t.c[H.OWNER]]); }'), ['New Name Pvt Ltd']);
+  const led = run('f => vendorLedger_(f)', { vendor: 'New Name Pvt Ltd' });
+  assert.ok(JSON.stringify(led).indexOf('5000') > -1, 'the payment is in the ledger of the new name');
+  assert.strictEqual(JSON.stringify(run('f => vendorLedger_(f)', { vendor: 'Old Name Co' })).indexOf('5000'), -1, 'nothing is left under the old name');
+  // a new entry for its machinery takes the new owner name by itself
+  run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-08-02', shift: 'Full Day', no: 'RN-1', mode: 'KM', closingKm: 250 }] });
+  assert.strictEqual(run('f => getLogBookList_(f)', { from: '2026-08-02', to: '2026-08-02', no: 'RN-1', all: true }).rows[0].owner, 'New Name Pvt Ltd');
+});

@@ -698,6 +698,7 @@ function logAfter_(u, spec, args, res, before) {
       if (res.ok) writeLog_(u, 'Delete (multiple)', m, res.count + ' machinery', 'Deleted ' + res.count + ' machinery', (res.ids || []).join(', '));
       break;
     case 'vendor':
+      if (res.ok && res.renamed) writeLog_(u, 'Edit', m, res.name, 'Vendor renamed: ' + res.renamed.from + ' → ' + res.renamed.to + (res.renamed.text ? ' (moved with it: ' + res.renamed.text + ')' : ''), '');
       if (res.ok) writeLog_(u, args[1] === 'add' ? 'Add' : 'Edit', m, res.name, (args[1] === 'add' ? 'Vendor details saved: ' : 'Vendor details changed: ') + res.name, '');
       break;
     case 'billSettings':
@@ -1213,9 +1214,53 @@ function validateVendor_(v) {
   return { name: name, gstReg: gstReg, gst: gst, gstPct: gstReg === 'Yes' ? pct(v.gstPct, 'GST %', 28) : '', pan: pan, tds: pct(v.tds, 'TDS %', 100),
     bank: clean_(v.bank), branch: clean_(v.branch), account: account, ifsc: ifsc, address: clean_(v.address), phone: mobile, remark: clean_(v.remark), aadhaar: aadhaar, email: email };
 }
+/* ---------- RENAMING A VENDOR (asked 02-10-2026) ----------
+ * The NAME is what ties a vendor to everything: its assets (Asset Master → Owner Name), its BOQs, bills, payments and
+ * debit notes, and the owner / "Debit to" kept on Log Book entries and diesel issues. So a rename is the SAME change in
+ * all of them. It is part of one save – written in one database transaction (web_write), all of it or nothing.
+ * Not changed: the papers of bills and debit notes that were already submitted (they keep the name they were issued with);
+ * only their link to the vendor moves, so the Vendor Ledger and Outstanding stay in one piece.
+ * Refused: a new name that another vendor / owner already has (that would join two parties). */
+function renameVendor_(oldName, newName) {
+  const from = clean_(oldName), to = clean_(newName), kf = vKey_(from), kt = vKey_(to);
+  if (!from || !to) throw new Error('Enter the Vendor Name.');
+  if (to.length > 80) throw new Error('Keep the name under 80 letters.');
+  const vt = vendorTable_();
+  if (kf !== kt) {
+    if (vt && vt.rows.some(r => vKey_(r[vt.c['Vendor Name']]) === kt)) throw new Error(to + ' is already a vendor – two vendors cannot be joined by renaming. Choose another name.');
+    if (getMaster_().some(m => vKey_(m.owner) === kt)) throw new Error(to + ' is already the Owner Name of machinery in Asset Master – two parties cannot be joined by renaming. Choose another name.');
+  }
+  const n = {};
+  const move = (sheet, cols, heads, label) => {
+    let t = null; try { t = table_(sheet, cols); } catch (e) { t = null; }
+    if (!t) return;
+    const hs = heads.filter(h => h in t.c); if (!hs.length) return;
+    t.rows.forEach((r, i) => {
+      if (!hs.some(h => vKey_(r[t.c[h]]) === kf && str_(r[t.c[h]]) !== to)) return;
+      const row = r.slice(); hs.forEach(h => { if (vKey_(row[t.c[h]]) === kf) row[t.c[h]] = to; });
+      t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); n[label] = (n[label] || 0) + 1;
+    });
+  };
+  move(APP.SHEET_MASTER, MASTER_COLS_, [H.OWNER], 'assets');
+  move(APP.SHEET_BOQ, BOQ_COLS_, ['Vendor Name'], 'BOQs');
+  move(APP.SHEET_BILLS, BILL_COLS_, ['Vendor Name'], 'bills');
+  move(APP.SHEET_PAYMENTS, PAY_COLS_, ['Vendor Name'], 'payments');
+  move(DN_SHEET_, DN_COLS_, ['Vendor Name'], 'debit notes');
+  move(APP.SHEET_LOG, logHeaders_(), [H.OWNER, H.DEBITTO], 'Log Book entries');
+  move(APP.SHEET_DIESEL, DIESEL_COLS_, [H.OWNER], 'diesel issues');
+  // the vendor's own row: its key is the name, so the row moves to the new key
+  if (vt) { const i = vt.rows.findIndex(r => vKey_(r[vt.c['Vendor Name']]) === kf);
+    if (i > -1) { const row = vt.rows[i].slice(); row[vt.c['Vendor Name']] = to;
+      if (kf !== kt) { vt.sh.deleteRow(i + 2); vt.sh.appendRow(row); } else vt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); } }
+  TABLE_MEMO_ = {};
+  ITEM_NOS_ = null; ITEM_ON_ = {};
+  return { from: from, to: to, moved: n, text: Object.keys(n).map(k => n[k] + ' ' + k).join(', ') };
+}
 function saveVendor_(v, mode) {
   return withLock_(() => {
     const x = validateVendor_(v || {});
+    // the name was changed in the form: everything of the vendor follows to the new name first
+    const was = clean_((v || {}).oldName), renamed = was && was !== x.name ? renameVendor_(was, x.name) : null;
     const mach = vendorMachines_()[vKey_(x.name)];
     vbSheet_(APP.SHEET_VENDORS, VENDOR_COLS_);
     addColIfMissing_(APP.SHEET_VENDORS, VENDOR_COLS_, H.EBY); addColIfMissing_(APP.SHEET_VENDORS, VENDOR_COLS_, H.UBY);
@@ -1229,7 +1274,8 @@ function saveVendor_(v, mode) {
     put('GST %', x.gstPct); put('PAN Number', x.pan); put('TDS %', x.tds); put('Bank Name', x.bank); put('Branch', x.branch); put('Account Number', x.account);
     put('IFSC Code', x.ifsc); put('Address', x.address); put('Phone', x.phone); put('Remark', x.remark); put('Aadhaar Number', x.aadhaar); put('Email', x.email);
     if (i === -1) { put('Created At', new Date()); t.sh.appendRow(row); } else t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
-    return { ok: true, name: x.name, vendors: getVendors_() };
+    TABLE_MEMO_ = {};
+    return { ok: true, name: x.name, renamed: renamed, vendors: getVendors_() };
   });
 }
 // vendor names that are not yet saved in Vendor Master are saved (name only – details can be filled later)
