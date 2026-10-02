@@ -265,6 +265,24 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     band, the road-style tank bar, new page layouts. Only the look of what exists was changed.
   * Checked: 36 pages on a computer and at phone width without error or sideways spill; all flows' tests pass. Not checked: real fonts
     (Google Fonts cannot load in the test rig – fallback fonts were seen), real phones.
+- 02-10-2026 (after the merge of the Claude Code branch "performance pass 2", which is now main): he asked five things.
+  * Log Book LIST opens with yesterday + today only (`lfTwoDays`; quick button "Last 2 days"; "Clear filters" returns to it; an emptied
+    From date still means "from the start").
+  * "Not 15 seconds – other people's entries within 2 seconds": the check stays at 2 s while the tab is on screen for 5 minutes after the
+    last touch (`SYNC_IDLE_MS = 2000`), lists on screen refresh within 2 s (`fresh`: 2000, Dashboard 5000), and the open entry rows are
+    refreshed by ONE call for all rows – new API `getLogRowPrefills` (`getLogRowPrefills_`, loops `getLogRowPrefill_`), `lgFill(tr, pre)`,
+    `lgRefreshAll` at most once in 2 s (falls back to row-by-row if the server does not know the call). Measured cost of the 2-second
+    rhythm with another user saving every 2.5 s: 40 calls / 30 s from one open Diesel page (28–31 at the 5-second rhythm).
+  * Readings fully visible: Start / Close columns widened (tight layout now 1150–1379 px of room, fields show 10 characters at 1536 and
+    1366 px screens); slim padding on those inputs.
+  * WHY THE BILL AND THE LOG BOOK PRINT DISAGREED (his PDFs: print 150 L / 1.7 L extra, Abstract 43.7 L extra): the bill counts every
+    Diesel Issue of the period (192 L = 148.3 allowed + 43.7); the print added up only the "Issued" of its rows (150 L), so an issue on a
+    date / shift with no Log Book entry (or on a Breakdown / Holiday row) was missing from the print. 192 − 150 = 42 L: one issue.
+    FIX: the print now uses the bill's total and names the issues that are in no entry (`issAll`, `noEntry` in the print code). The bill's
+    logic was not changed. Test: jsdom `d7.js` (bill 15 L extra = print 15 L extra, note "04-09-2026 25 L").
+  * "Debit to": explained to him where it is kept (log_book.debit_to / debit_rate, shown in the list, in the backup Sheet) and where to see
+    it (RCL Drive → Saved Debit Notes → New Debit Note → Get Log Book entries; then the note, the Vendor Ledger). A plain register of all
+    "Debit to" entries does not exist yet – offered.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

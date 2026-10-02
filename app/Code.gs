@@ -470,6 +470,7 @@ const API_ = {
   getLogDayPrefill:  { m: 'Log Book', f: getLogDayPrefill_ },
   saveLogDay:        { m: 'Log Book', edit: true, f: saveLogDay_, log: 'logday' },
   getLogRowPrefill:  { m: 'Log Book', f: getLogRowPrefill_ },
+  getLogRowPrefills: { m: 'Log Book', f: getLogRowPrefills_ },
   saveLogRows:       { m: 'Log Book', edit: true, f: saveLogRows_, log: 'logrows' },
   checkLogImport:    { m: 'Log Book', f: b => importLogBook_(Object.assign({}, b, { check: true })) },
   importLogBook:     { m: 'Log Book', edit: true, f: importLogBook_, log: 'logImport' },
@@ -5147,6 +5148,12 @@ function logSlotProblem_(list, dk, shift) {
   if (shift === 'Full Day' && same.length) return 'has ' + same.map(x => x.shift).join(' / ') + ' entry on ' + dmy_(dk) + ' – use Day / Night';
   if (shift !== 'Full Day' && same.some(x => x.shift === 'Full Day')) return 'has a Full Day entry on ' + dmy_(dk);
   return ''; // any date can be entered – the entries are linked again in date order when saved
+}
+/* The same answer as getLogRowPrefill_ for many rows in ONE call (the open rows of the entry grid after a change by anyone).
+ * The tables are read once for all of them. A row that cannot be answered gets { error } and does not stop the others. */
+function getLogRowPrefills_(list) {
+  list = Array.isArray(list) ? list.slice(0, 80) : [];
+  return list.map(x => { try { return getLogRowPrefill_(str_(x && x.no), str_(x && x.date), str_(x && x.shift)); } catch (e) { return { error: String(e && e.message || e) }; } });
 }
 function getLogRowPrefill_(no, dateStr, shiftIn) {
   const dk = checkDate_(dateStr), shift = logShift_(shiftIn || 'Full Day');

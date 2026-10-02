@@ -193,3 +193,14 @@ test('"Debit to" and Debit Notes: entry → pending → note (numbers, GST, TDS)
   assert.strictEqual(run('f => debitPending_(f)', { vendor: 'Joy Kumar', from: '2026-07-01', to: '2026-07-31' }).rows.length, 2);
   assert.strictEqual(run('x => saveDebitNote_(x)', { company: 'Rachana Construction Limited', vendor: 'Joy Kumar', date: '2026-07-31', lines: [{ particular: 'Again', qty: 1, unit: 'Job', rate: 10 }] }).no, 'RCL/VTR/DN-003');
 });
+
+test('open Log Book rows are answered in one call: same answers as one by one, a bad row does not stop the others', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const one = run('(n, d, s) => getLogRowPrefill_(n, d, s)', 'DT-OWN', '2026-07-04', 'Full Day');
+  const many = run('l => getLogRowPrefills_(l)', [{ no: 'DT-OWN', date: '2026-07-04', shift: 'Full Day' }, { no: 'NO-SUCH-MACHINE', date: '2026-07-04', shift: 'Full Day' }, { no: 'DT-OWN', date: '2026-07-04', shift: 'Full Day' }]);
+  assert.strictEqual(many.length, 3);
+  assert.deepStrictEqual(many[0], one); assert.deepStrictEqual(many[2], one);
+  assert.ok(many[1] && typeof many[1].error === 'string' && many[1].error.length > 0);
+  assert.deepStrictEqual(run('l => getLogRowPrefills_(l)', null), []);
+});

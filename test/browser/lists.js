@@ -20,7 +20,7 @@ let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : fail++; console.l
     console.log('\n' + tab + ': ' + s0.rows + ' rows drawn; bar: "' + s0.bar.slice(0, 120) + '"');
     if (N <= 100) { ok(tab + ': list has ' + N + ' rows – all drawn, no bar', s0.rows === N && !s0.bar); continue; }
     ok(tab + ': first 100 of ' + N + ' drawn, with a clear note and button', s0.rows === 100 && /first 100 of/.test(s0.bar) && /Show all/.test(s0.bar));
-    await press(id, 'all'); await wait(400); const s1 = await state(id);
+    await press(id, 'all'); let s1 = await state(id); for (let k = 0; k < 40 && s1.rows < N; k++) { await wait(150); s1 = await state(id); }   // the rows come 50 per frame
     ok(tab + ': "Show all" draws every row of the list', s1.rows === N && /All \d+ rows/.test(s1.bar), s1.rows + ' rows');
     ok(tab + ': same order (the first row did not change)', s1.first === s0.first, s0.first);
     ok(tab + ': totals on the page are the same before and after', s1.sums === s0.sums, s0.sums.slice(0, 150));
