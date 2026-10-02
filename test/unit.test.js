@@ -243,3 +243,32 @@ test('help for errors: every rule has English, Marathi and Hindi; real messages 
   assert.ok(msgs.length > 200, 'messages read: ' + msgs.length);
   assert.ok(general.length <= msgs.length * 0.03, general.length + ' of ' + msgs.length + ' server messages have only the general advice:\n' + general.slice(0, 40).join('\n'));
 });
+
+test('the app knows itself: every page and report is explained in 3 languages, and every saving action belongs to a described page', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  const a = app.indexOf('const PAGE_GUIDE = {'), b = app.indexOf('const GUIDE_W = ');
+  assert.ok(a > -1 && b > a, 'the guide is in the page');
+  const G = new Function(app.slice(a, b) + '; return { PAGE_GUIDE, REPORT_GUIDE };')();
+  const deva = /[\u0900-\u097F]/;
+  const full = (g, what) => { assert.ok(g, what + ' has no entry in the guide – describe it in PAGE_GUIDE / REPORT_GUIDE (App.html)');
+    for (const l of ['en', 'mr', 'hi']) assert.ok(Array.isArray(g[l]) && g[l].length === 2 && g[l][0].length > 15 && g[l][1].length > 10, what + ': ' + l + ' text is missing');
+    assert.ok(deva.test(g.mr[0]) && deva.test(g.mr[1]) && deva.test(g.hi[0]) && deva.test(g.hi[1]), what + ': Marathi / Hindi must be written in Devanagari'); };
+  // every page of the menu
+  const tabs = (app.match(/const TABS = \[([^\]]*)\]/) || [])[1].match(/'([a-z0-9-]+)'/g).map(x => x.slice(1, -1));
+  assert.ok(tabs.length >= 25, 'pages found: ' + tabs.length);
+  tabs.forEach(t => full(G.PAGE_GUIDE[t], 'page "' + t + '"'));
+  // every report
+  const i0 = app.indexOf('function reportDefs()'), reports = [...app.slice(i0, i0 + 60000).matchAll(/\{ key: '([a-z0-9]+)', label: '/g)].map(m => m[1]);
+  assert.ok(reports.length >= 11, 'reports found: ' + reports.length);
+  reports.forEach(r => full(G.REPORT_GUIDE[r], 'report "' + r + '"'));
+  // every action of the server that writes data (or is Admin-only) is listed under a page; nothing is listed that does not exist
+  const api = [...code.matchAll(/^  ([a-zA-Z]+):\s*\{[^}\n]*\}/gm)].map(m => ({ name: m[1], text: m[0] }));
+  assert.ok(api.length > 80, 'server actions found: ' + api.length);
+  const listed = new Set([].concat(...Object.values(G.PAGE_GUIDE).map(g => g.saves || [])));
+  const writers = api.filter(x => /edit: true|admin: true/.test(x.text)).map(x => x.name);
+  const orphan = writers.filter(n => !listed.has(n));
+  assert.deepStrictEqual(orphan, [], 'saving actions that belong to no described page (add them to "saves" of their page in PAGE_GUIDE): ' + orphan.join(', '));
+  const names = new Set(api.map(x => x.name));
+  const ghost = [...listed].filter(n => !names.has(n));
+  assert.deepStrictEqual(ghost, [], 'the guide lists actions the server does not have: ' + ghost.join(', '));
+});

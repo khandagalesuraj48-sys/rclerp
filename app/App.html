@@ -1758,7 +1758,14 @@
   @media (max-width: 760px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 1 / -1; } .lg-wrap tr.lrow > td.c-debit::before { content: "Debit to"; flex: 0 0 100%; } .lg-wrap tr.lrow > td.c-debit { flex-wrap: wrap; } }
   /* ---------- help for errors (what is wrong / what to do, 3 languages) ---------- */
   #fixbox { position: fixed; right: 18px; bottom: 76px; z-index: 60; width: min(440px, calc(100vw - 28px)); max-height: 62vh; overflow: auto; background: #fff; border: 1px solid #F3C0CA; border-left: 4px solid var(--c-red, #C8102E); border-radius: 12px; box-shadow: 0 16px 40px rgba(12,26,46,.22); padding: 12px 14px 12px; }
-  #fixbox[hidden] { display: none; }
+  #fixbox[hidden], #guidebox[hidden] { display: none; }
+  #guidebox { position: fixed; right: 18px; top: 72px; z-index: 60; width: min(460px, calc(100vw - 28px)); max-height: 70vh; overflow: auto; background: #fff; border: 1px solid #C9D8FB; border-left: 4px solid var(--c-blue, #1D55E2); border-radius: 12px; box-shadow: 0 16px 40px rgba(12,26,46,.22); padding: 12px 14px; }
+  #guidebox .fx-x { position: absolute; right: 8px; top: 6px; border: 0; background: transparent; font-size: 20px; line-height: 1; cursor: pointer; color: #5B6B80; padding: 4px 8px; }
+  #guidebox .fx-msg { font: 700 15px/1.3 var(--disp2, var(--ui)); color: #0F1B2D; padding-right: 26px; margin-bottom: 8px; }
+  .app #page_title { white-space: nowrap; }
+  #pg_help { min-width: 34px; padding: 0 10px; font-weight: 700; border-radius: 9px; }
+  .live-bad { border-color: #C8102E !important; box-shadow: 0 0 0 3px rgba(200,16,46,.14) !important; }
+  .mb-warn ul { margin: 4px 0 0 18px; padding: 0; } .mb-warn li { margin: 1px 0; }
   #fixbox .fx-x { position: absolute; right: 8px; top: 6px; border: 0; background: transparent; font-size: 20px; line-height: 1; cursor: pointer; color: #5B6B80; padding: 4px 8px; }
   #fixbox .fx-msg { font: 600 13px/1.4 var(--ui); color: #8E1325; padding-right: 26px; margin-bottom: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .fixhelp { font: 13.5px/1.5 var(--ui), "Nirmala UI", "Noto Sans Devanagari", sans-serif; color: #0F1B2D; white-space: normal; text-align: left; }
@@ -2208,6 +2215,7 @@
     </div>
   </div>
   <div class="tb-right">
+    <button class="btn ghost small" id="pg_help" type="button" title="About this page: what it is and what the app checks – English / मराठी / हिंदी" aria-label="About this page">?</button>
     <button class="gs-btn" id="gs_open" title="Search the whole app (Ctrl + K)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span>Search</span><kbd>Ctrl K</kbd></button>
     <span class="ds-pill" id="ds_pill" hidden title="Where the app's data is saved"></span>
     <button class="bk-pill" id="bk_btn" hidden type="button" title="Backup to Google Sheet">Backup</button>
@@ -3851,6 +3859,30 @@
         '1) त्या दिवशी गाडीने काम केले असेल: त्या तारखेची Log Book entry भरा आणि bill पुन्हा Build करा. 2) Diesel Issue ची तारीख चुकली असेल: Diesel Issue मध्ये ती दुरुस्त करा. 3) ते diesel खरोखर वसूल करायचे असेल: काही करू नका; bill बरोबर आहे.'],
       hi: ['इस machinery को ऐसे दिन diesel दिया गया है जिस दिन काम की Log Book entry नहीं है। Bill वह diesel गिनता है पर उस दिन के KM / घंटे नहीं हैं, इसलिए bill की diesel कटौती Log Book की पंक्तियों से ज़्यादा आती है।',
         '1) उस दिन गाड़ी ने काम किया हो: उस तारीख की Log Book entry भरें और bill फिर Build करें। 2) Diesel Issue की तारीख गलत हो: Diesel Issue में उसे ठीक करें। 3) वह diesel सच में वसूलना हो: कुछ न करें; bill सही है।'] },
+    { re: /no BOQ in these dates/i,
+      en: ['This machinery has no BOQ (rate) for these dates, so its work is billed at 0.', 'Open Vendor BOQ and add this machinery with its rate from the right start date (or amend the BOQ), then build the bill again.'],
+      mr: ['या machinery साठी या तारखांना BOQ (दर) नाही, म्हणून तिचे काम 0 ने bill होते.', 'Vendor BOQ मध्ये ही machinery योग्य सुरुवातीच्या तारखेपासून दरासह जोडा (किंवा BOQ Amend करा), मग bill पुन्हा Build करा.'],
+      hi: ['इस machinery के लिए इन तारीखों में BOQ (दर) नहीं है, इसलिए उसका काम 0 पर bill होता है।', 'Vendor BOQ में यह machinery सही शुरू की तारीख से दर के साथ जोड़ें (या BOQ Amend करें), फिर bill दोबारा Build करें।'] },
+    { re: /but no (hours|KM|trips|work for its items) on/i,
+      en: ['The BOQ pays by hours / KM / trips / items, but on some days the Log Book entry has none of them, so those days earn nothing.', 'Open those Log Book entries and fill the hours, KM, trips or item work. If the machinery did not work, mark the day Idle, Holiday or Breakdown.'],
+      mr: ['BOQ तास / KM / trips / items प्रमाणे पैसे देतो, पण काही दिवशी Log Book entry मध्ये ते भरलेले नाहीत, म्हणून त्या दिवसांचे काहीही मिळत नाही.', 'त्या Log Book entries उघडून तास, KM, trips किंवा item चे काम भरा. Machinery ने काम केले नसेल तर तो दिवस Idle, Holiday किंवा Breakdown करा.'],
+      hi: ['BOQ घंटे / KM / trips / items के हिसाब से भुगतान करता है, पर कुछ दिनों की Log Book entry में ये भरे नहीं हैं, इसलिए उन दिनों का कुछ नहीं बनता।', 'वे Log Book entries खोलकर घंटे, KM, trips या item का काम भरें। Machinery ने काम न किया हो तो उस दिन को Idle, Holiday या Breakdown करें।'] },
+    { re: /Idle day\(s\) – choose/i,
+      en: ['This vendor has Idle days in the period; it is not yet chosen whether they are paid.', 'In the "Idle days" column of this bill choose Paid or Not paid. Until you choose, the bill counts them as paid.'],
+      mr: ['या vendor चे या कालावधीत Idle दिवस आहेत; ते paid की नाही हे अजून निवडलेले नाही.', 'या bill च्या "Idle days" रकान्यात Paid किंवा Not paid निवडा. निवडेपर्यंत bill ते paid धरते.'],
+      hi: ['इस vendor के इस अवधि में Idle दिन हैं; वे paid हैं या नहीं यह अभी चुना नहीं गया।', 'इस bill के "Idle days" कॉलम में Paid या Not paid चुनें। चुनने तक bill उन्हें paid मानता है।'] },
+    { re: /PAN missing|bank details missing/i,
+      en: ['The vendor\'s PAN or bank details are not in the Vendor Master; they print on the bill and the tax invoice.', 'Open Vendor Master, fill PAN, bank, account number and IFSC of this vendor, then build the bill again.'],
+      mr: ['Vendor चा PAN किंवा bank तपशील Vendor Master मध्ये नाही; तो bill आणि tax invoice वर छापला जातो.', 'Vendor Master मध्ये या vendor चा PAN, bank, account number आणि IFSC भरा, मग bill पुन्हा Build करा.'],
+      hi: ['Vendor का PAN या bank विवरण Vendor Master में नहीं है; यह bill और tax invoice पर छपता है।', 'Vendor Master में इस vendor का PAN, bank, account number और IFSC भरें, फिर bill दोबारा Build करें।'] },
+    { re: /no Log Book \/ diesel in these dates/i,
+      en: ['There is no Log Book entry and no diesel for this vendor\'s machinery in the period, so there is nothing to bill.', 'Check the period and that the machinery belongs to this vendor in Asset Master. If work was done, make the Log Book entries first.'],
+      mr: ['या vendor च्या machinery साठी या कालावधीत Log Book entry नाही आणि diesel ही नाही, म्हणून bill करायला काही नाही.', 'कालावधी तपासा, आणि Asset Master मध्ये machinery याच vendor ची आहे का ते पाहा. काम झाले असेल तर आधी Log Book entries भरा.'],
+      hi: ['इस vendor की machinery के लिए इस अवधि में न Log Book entry है न diesel, इसलिए bill करने को कुछ नहीं।', 'अवधि जाँचें, और Asset Master में देखें कि machinery इसी vendor की है। काम हुआ हो तो पहले Log Book entries भरें।'] },
+    { re: /has \d+ Diesel Issue|This machinery has entries|Delete anyway/i,
+      en: ['This machinery already has diesel or Log Book entries. Deleting it leaves those entries without a machinery in the Master.', 'Do not delete. Open it in Asset Master and set "Inactive From" instead – it disappears from the entry lists and its history stays.'],
+      mr: ['या machinery च्या diesel किंवा Log Book entries आधीच आहेत. ती delete केल्यास त्या entries ना Master मध्ये machinery राहणार नाही.', 'Delete करू नका. Asset Master मध्ये ती उघडून "Inactive From" तारीख भरा; ती entry च्या याद्यांतून जाते आणि तिचा इतिहास राहतो.'],
+      hi: ['इस machinery की diesel या Log Book entries पहले से हैं। Delete करने पर उन entries की Master में machinery नहीं रहेगी।', 'Delete न करें। Asset Master में उसे खोलकर "Inactive From" तारीख भरें; वह entry की सूचियों से हट जाती है और उसका इतिहास रहता है।'] },
     { re: /is after today|only up to today/i,
       en: ['The date is in the future. Entries can be made only up to today.', 'Pick today or an earlier date. If today itself is refused, check the date and time of the computer.'],
       mr: ['तारीख पुढची (भविष्यातील) आहे. Entry फक्त आजपर्यंतच करता येते.', 'आजची किंवा आधीची तारीख निवडा. आजचीच तारीख नाकारली जात असेल तर computer ची तारीख आणि वेळ तपासा.'],
@@ -3982,14 +4014,152 @@
   }
   document.addEventListener('click', e => {
     const l = e.target.closest('[data-fixlang]');
-    if (l) { fixLang = l.dataset.fixlang; try { localStorage.setItem('rcl_lang', fixLang); } catch (er) {} document.querySelectorAll('.fixhelp').forEach(h => { h.innerHTML = fixInner(h.dataset.msg); }); return; }
+    if (l) { fixLang = l.dataset.fixlang; try { localStorage.setItem('rcl_lang', fixLang); } catch (er) {} document.querySelectorAll('.fixhelp').forEach(h => { h.innerHTML = h.classList.contains('guide') ? guideInner(($('guidebox') || { dataset: {} }).dataset.tab) : fixInner(h.dataset.msg); }); return; }
     if (e.target.closest('#fixbox .fx-x')) $('fixbox').hidden = true;
+    if (e.target.closest('#guidebox .fx-x')) $('guidebox').hidden = true;
+    if (e.target.closest('#pg_help')) guideShow();
   });
+  /* ================= THE APP KNOWS ITSELF: what every page is, what it checks, which saves belong to it =================
+   * Asked 02-10-2026: the app must explain everything itself – every entry page, bill and report – in English, मराठी and हिंदी,
+   * and nothing may be added later without such an explanation.
+   * PAGE_GUIDE: one entry for EVERY page of the app (key = the page's tab name): [what this page is for, what the app checks
+   * or how its figures come] in three languages, and `saves` = the server actions that write data from this page.
+   * The "?" button in the top bar shows the entry of the page on screen.
+   * THE GUARANTEE is in test/unit.test.js ("the app knows itself"): the build's tests fail when a page or a report has no
+   * entry here, when a language is missing, or when a saving action of the server is not listed under any page.
+   * So: adding a page, a report or a save action without describing it here cannot go live unnoticed. */
+  const PAGE_GUIDE = {
+    dash: { saves: ['saveTankSettings'],
+      en: ['The day at a glance: diesel stock, diesel received and issued, the tanks, and the Log Book of the day.', 'Nothing is entered here. Every figure comes from the entries of the other pages for the dates chosen at the top; "Stock now" is always the live stock. Only the tank size can be set here.'],
+      mr: ['एका नजरेत दिवस: diesel stock, आलेले आणि दिलेले diesel, tanks, आणि दिवसाची Log Book.', 'इथे काहीही भरले जात नाही. प्रत्येक आकडा वर निवडलेल्या तारखांसाठी इतर pages च्या entries वरून येतो; "Stock now" नेहमी सध्याचा stock असतो. इथे फक्त tank चा आकार सेट करता येतो.'],
+      hi: ['एक नज़र में दिन: diesel stock, आया और दिया गया diesel, tanks, और दिन की Log Book।', 'यहाँ कुछ भरा नहीं जाता। हर आँकड़ा ऊपर चुनी तारीखों के लिए दूसरे pages की entries से आता है; "Stock now" हमेशा अभी का stock है। यहाँ केवल tank का आकार सेट होता है।'] },
+    vendors: { saves: ['saveVendor', 'deleteVendor', 'vendorsFromOwners'],
+      en: ['The parties: vendors and owners of machinery, with address, PAN, GST and bank details.', 'The app checks the format of PAN, GST, IFSC and mobile, and does not allow the same name twice. A vendor with assets or BOQs cannot be deleted. These details print on bills, tax invoices and debit notes.'],
+      mr: ['Parties: machinery चे vendors आणि मालक, पत्ता, PAN, GST आणि bank तपशीलासह.', 'App PAN, GST, IFSC आणि mobile चे स्वरूप तपासते, आणि तेच नाव दोनदा घेत नाही. ज्या vendor कडे assets किंवा BOQ आहेत तो delete होत नाही. हा तपशील bills, tax invoice आणि debit notes वर छापला जातो.'],
+      hi: ['Parties: machinery के vendors और मालिक, पता, PAN, GST और bank विवरण के साथ।', 'App PAN, GST, IFSC और mobile का रूप जाँचता है, और वही नाम दो बार नहीं लेता। जिस vendor के assets या BOQ हैं वह delete नहीं होता। यह विवरण bills, tax invoice और debit notes पर छपता है।'] },
+    master: { saves: ['saveMaster', 'saveMasterBulk', 'deleteMaster', 'editMasterMany', 'deleteMasterMany', 'importMaster', 'assignVendors'],
+      en: ['Every machinery and vehicle: number, type, owner, ownership, what it works on (KM / Hrs / Trip / Day / Time), standard average and tank capacity.', 'Every other page reads this list. The number of a machinery cannot be changed once it has entries; "Active From / Inactive From" decide on which dates entries are allowed; the standard average decides the excess diesel in bills.'],
+      mr: ['प्रत्येक machinery आणि गाडी: नंबर, प्रकार, मालक, ownership, कशावर चालते (KM / Hrs / Trip / Day / Time), standard average आणि tank ची क्षमता.', 'बाकी सगळी pages ही यादी वाचतात. Entries झाल्यावर machinery चा नंबर बदलता येत नाही; "Active From / Inactive From" वरून कोणत्या तारखांना entry करता येते ते ठरते; standard average वरून bill मधले जास्तीचे diesel ठरते.'],
+      hi: ['हर machinery और गाड़ी: नंबर, प्रकार, मालिक, ownership, किस पर चलती है (KM / Hrs / Trip / Day / Time), standard average और tank की क्षमता।', 'बाकी सभी pages यह सूची पढ़ते हैं। Entries होने के बाद machinery का नंबर नहीं बदलता; "Active From / Inactive From" से तय होता है किन तारीखों को entry हो सकती है; standard average से bill का अतिरिक्त diesel तय होता है।'] },
+    boq: { saves: ['saveBoq', 'deleteBoq'],
+      en: ['The rate agreement with each vendor: which machinery, on what basis (monthly, per day, per hour, per KM, per trip, slabs or item-wise), at what rate, and who pays the diesel.', 'A machinery can be in one BOQ for a date; a change of rate is an "Amend" with its own start date. Bills take the rate of the BOQ that is valid on each day. GST % is needed when the vendor is GST registered.'],
+      mr: ['प्रत्येक vendor सोबतचा दराचा करार: कोणती machinery, कोणत्या basis वर (monthly, per day, per hour, per KM, per trip, slabs किंवा item-wise), कोणत्या दराने, आणि diesel कोण देणार.', 'एका तारखेला एक machinery एकाच BOQ मध्ये असते; दर बदलायचा असेल तर स्वतःच्या सुरुवातीच्या तारखेसह "Amend". Bill प्रत्येक दिवशी लागू असलेल्या BOQ चा दर घेते. Vendor GST registered असेल तर GST % लागतो.'],
+      hi: ['हर vendor के साथ दर का करार: कौन सी machinery, किस basis पर (monthly, per day, per hour, per KM, per trip, slabs या item-wise), किस दर पर, और diesel कौन देगा।', 'एक तारीख को एक machinery एक ही BOQ में होती है; दर बदलनी हो तो अपनी शुरू की तारीख के साथ "Amend"। Bill हर दिन लागू BOQ की दर लेता है। Vendor GST registered हो तो GST % ज़रूरी है।'] },
+    comp: { saves: ['renewDoc', 'saveCmpRules', 'importCompliance'],
+      en: ['The papers of every vehicle: insurance, fitness, PUC, permit, tax – with their validity dates.', 'The app shows what has expired and what is due in 30 days. "Valid upto" must be a date, NA or Lifetime (only for tax); a renewal must be later than the old date.'],
+      mr: ['प्रत्येक गाडीचे कागद: insurance, fitness, PUC, permit, tax, त्यांच्या वैधतेच्या तारखांसह.', 'काय संपले आणि काय 30 दिवसांत संपणार ते app दाखवते. "Valid upto" ही तारीख, NA किंवा Lifetime (फक्त tax साठी) असावी; नूतनीकरणाची तारीख जुन्यापेक्षा नंतरची असावी.'],
+      hi: ['हर गाड़ी के काग़ज़: insurance, fitness, PUC, permit, tax, उनकी वैधता की तारीखों के साथ।', 'क्या खत्म हुआ और क्या 30 दिन में खत्म होगा यह app दिखाता है। "Valid upto" तारीख, NA या Lifetime (केवल tax के लिए) हो; नवीकरण की तारीख पुरानी से बाद की हो।'] },
+    lbf: { saves: ['saveLbFormats', 'saveLbFormatName'],
+      en: ['Which Log Book format (A to H) each machinery uses: it decides the fields asked in the entry and the layout of the printed Log Book.', 'The format does not change the bill – the bill follows the BOQ. A format can be renamed; "View format" shows a sample print.'],
+      mr: ['प्रत्येक machinery कोणता Log Book format (A ते H) वापरते: त्यावरून entry मध्ये कोणते fields विचारले जातात आणि छापलेल्या Log Book ची मांडणी ठरते.', 'Format मुळे bill बदलत नाही; bill BOQ प्रमाणे चालते. Format चे नाव बदलता येते; "View format" नमुना print दाखवते.'],
+      hi: ['हर machinery कौन सा Log Book format (A से H) इस्तेमाल करती है: उससे entry में कौन से fields पूछे जाते हैं और छपी Log Book का रूप तय होता है।', 'Format से bill नहीं बदलता; bill BOQ के अनुसार चलता है। Format का नाम बदला जा सकता है; "View format" नमूना print दिखाता है।'] },
+    inward: { saves: ['saveInward', 'importInward', 'updateInward', 'deleteInward'],
+      en: ['Diesel received: from which pump, how many litres, at what rate, bill number and date – it adds to the stock of the location.', 'The same pump bill cannot be entered twice. Opening stock is entered once, before the other entries of a location. An inward whose diesel is already issued cannot be deleted or reduced below that.'],
+      mr: ['आलेले diesel: कोणत्या pump कडून, किती लिटर, कोणत्या दराने, bill नंबर आणि तारीख; ते त्या location च्या stock मध्ये जमा होते.', 'तेच pump bill दोनदा भरता येत नाही. Opening stock एकदाच, त्या location च्या इतर entries च्या आधी भरतात. ज्या inward चे diesel आधीच दिले गेले आहे तो delete करता येत नाही किंवा त्यापेक्षा कमी करता येत नाही.'],
+      hi: ['आया हुआ diesel: किस pump से, कितने लीटर, किस दर पर, bill नंबर और तारीख; यह उस location के stock में जुड़ता है।', 'वही pump bill दो बार नहीं भरा जा सकता। Opening stock एक ही बार, उस location की बाकी entries से पहले भरते हैं। जिस inward का diesel पहले ही दिया जा चुका है वह delete या उससे कम नहीं हो सकता।'] },
+    transfer: { saves: ['saveTransfer', 'saveTransferBulk', 'updateTransfer', 'deleteTransfer'],
+      en: ['Diesel moved from one location to another (for example Dispenser to VTR Store).', 'The source must have that much diesel on that date; From and To cannot be the same. Stock goes down at the source and up at the destination.'],
+      mr: ['एका location वरून दुसऱ्या location ला हलवलेले diesel (उदा. Dispenser वरून VTR Store).', 'त्या तारखेला source मध्ये तेवढे diesel असले पाहिजे; From आणि To सारखे असू शकत नाहीत. Source चा stock कमी होतो आणि destination चा वाढतो.'],
+      hi: ['एक location से दूसरे location को भेजा गया diesel (जैसे Dispenser से VTR Store)।', 'उस तारीख को source में उतना diesel होना चाहिए; From और To एक जैसे नहीं हो सकते। Source का stock घटता है और destination का बढ़ता है।'] },
+    diesel: { saves: ['saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'updateDieselIssue', 'deleteDieselIssue', 'saveDebitRates'],
+      en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period.'],
+      mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते.'],
+      hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है।'] },
+    log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook'],
+      en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. The list below opens with the last 2 days. Bills are made from these entries.'],
+      mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात.'],
+      hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं।'] },
+    tankcheck: { saves: ['saveTankCheck', 'deleteTankCheck'],
+      en: ['A physical check of the diesel in a machinery\'s tank against what the app calculates.', 'One check per machinery and date. When the difference is not zero a reason must be written. "Filled to full" needs the tank capacity in Asset Master.'],
+      mr: ['Machinery च्या tank मधल्या diesel ची प्रत्यक्ष तपासणी, app च्या हिशोबाशी तुलना करून.', 'एका machinery चा एका तारखेला एकच check. फरक शून्य नसेल तर कारण लिहावे लागते. "Filled to full" साठी Asset Master मध्ये tank ची क्षमता लागते.'],
+      hi: ['Machinery की tank के diesel की असली जाँच, app के हिसाब से तुलना करके।', 'एक machinery का एक तारीख को एक ही check। फर्क शून्य न हो तो कारण लिखना पड़ता है। "Filled to full" के लिए Asset Master में tank की क्षमता चाहिए।'] },
+    logedit: { saves: ['saveLogBulk'],
+      en: ['Correct many saved Log Book entries of one machinery at once, date by date.', 'Each reading must fit between the entry before and the entry after. Entries that are already in a submitted bill should be changed only when the bill will be made again.'],
+      mr: ['एका machinery च्या अनेक save झालेल्या Log Book entries एकदम, तारखेनुसार दुरुस्त करणे.', 'प्रत्येक reading मागच्या आणि पुढच्या entry च्या मधे बसले पाहिजे. Submit झालेल्या bill मधल्या entries फक्त तेव्हाच बदला जेव्हा ते bill पुन्हा बनवणार असाल.'],
+      hi: ['एक machinery की कई save हुई Log Book entries एक साथ, तारीख के अनुसार ठीक करना।', 'हर reading पिछली और अगली entry के बीच बैठनी चाहिए। Submit हो चुके bill की entries तभी बदलें जब वह bill दोबारा बनाना हो।'] },
+    brk: { saves: ['submitBdReport', 'deleteBdReport'],
+      en: ['The daily breakdown report: which machinery is working and which is under breakdown, with the reason.', 'Each machinery needs Working or Breakdown; a breakdown needs its reason. One report per date.'],
+      mr: ['रोजचा breakdown अहवाल: कोणती machinery चालू आहे आणि कोणती breakdown मध्ये आहे, कारणासह.', 'प्रत्येक machinery साठी Working किंवा Breakdown निवडावे लागते; breakdown ला कारण लागते. एका तारखेला एकच अहवाल.'],
+      hi: ['रोज़ की breakdown रिपोर्ट: कौन सी machinery चालू है और कौन सी breakdown में है, कारण के साथ।', 'हर machinery के लिए Working या Breakdown चुनना होता है; breakdown का कारण ज़रूरी है। एक तारीख को एक ही रिपोर्ट।'] },
+    bill: { saves: ['saveBillSettings', 'verifyBills', 'submitBills'],
+      en: ['Makes the vendor bills of a period from the Log Book, the diesel issues and the BOQ: the Abstract, the party\'s Tax Invoice and the diesel Debit Note.', 'A = work done at BOQ rates; B = diesel deducted (debit basis in full, otherwise only above the standard average, at the higher of the average and last diesel rate); D = A − B − C; GST and TDS on D; I = net payable; ticked debit notes come off after I. Before submit the server builds every bill again and compares it. Diesel issued on a day without a Log Book entry is counted and pointed out.'],
+      mr: ['Log Book, diesel issues आणि BOQ वरून एका कालावधीची vendor bills बनवते: Abstract, party चा Tax Invoice आणि diesel ची Debit Note.', 'A = BOQ दराने झालेले काम; B = कापलेले diesel (debit basis असेल तर पूर्ण, नाहीतर फक्त standard average पेक्षा जास्तीचे; दर = सरासरी आणि शेवटच्या diesel दरातला मोठा); D = A − B − C; GST आणि TDS D वर; I = निव्वळ देय; tick केलेल्या debit notes I नंतर वजा होतात. Submit आधी server प्रत्येक bill पुन्हा बनवून तुलना करतो. Log Book entry नसलेल्या दिवशी दिलेले diesel मोजले जाते आणि दाखवले जाते.'],
+      hi: ['Log Book, diesel issues और BOQ से एक अवधि के vendor bills बनाता है: Abstract, party का Tax Invoice और diesel की Debit Note।', 'A = BOQ दर से हुआ काम; B = काटा गया diesel (debit basis हो तो पूरा, वरना केवल standard average से ऊपर का; दर = औसत और आख़िरी diesel दर में से बड़ी); D = A − B − C; GST और TDS D पर; I = शुद्ध देय; tick की गई debit notes I के बाद घटती हैं। Submit से पहले server हर bill फिर बनाकर मिलाता है। बिना Log Book entry वाले दिन दिया गया diesel गिना और दिखाया जाता है।'] },
+    bills: { saves: ['deleteBill', 'saveDebitNote', 'cancelDebitNote'],
+      en: ['RCL Drive: every submitted bill with its three papers, and every debit note – exactly as saved.', 'A saved bill cannot be changed; building the same vendor and period again replaces it (the old one stays as "Superseded"). A debit note is made from the Log Book entries marked "Debit to"; one entry goes into one note only; a note lowers the party\'s balance in the Vendor Ledger. Only Admin can delete a bill or cancel a note.'],
+      mr: ['RCL Drive: submit झालेले प्रत्येक bill त्याच्या तीन कागदांसह, आणि प्रत्येक debit note; जसे save झाले तसेच.', 'Save झालेले bill बदलता येत नाही; तोच vendor आणि कालावधी पुन्हा Build केल्यास ते बदलले जाते (जुने "Superseded" म्हणून राहते). Debit note "Debit to" लावलेल्या Log Book entries वरून बनते; एक entry एकाच note मध्ये जाते; note मुळे Vendor Ledger मधली party ची बाकी कमी होते. Bill delete करणे किंवा note रद्द करणे फक्त Admin करू शकतो.'],
+      hi: ['RCL Drive: submit हुआ हर bill उसके तीन काग़ज़ों के साथ, और हर debit note; जैसा save हुआ वैसा ही।', 'Save हुआ bill बदला नहीं जा सकता; वही vendor और अवधि फिर Build करने से वह बदल जाता है (पुराना "Superseded" रहता है)। Debit note "Debit to" लगी Log Book entries से बनती है; एक entry एक ही note में जाती है; note से Vendor Ledger में party की बाकी घटती है। Bill delete या note रद्द केवल Admin कर सकता है।'] },
+    breg: { saves: [],
+      en: ['Bill Summary: all submitted bills month by month and vendor by vendor – basic, diesel, GST, TDS and net.', 'Nothing is entered here; the figures are those of the saved bills. A superseded or deleted bill is not counted.'],
+      mr: ['Bill Summary: submit झालेली सगळी bills महिन्यानुसार आणि vendor नुसार: basic, diesel, GST, TDS आणि निव्वळ.', 'इथे काहीही भरले जात नाही; आकडे save झालेल्या bills चे आहेत. Superseded किंवा delete झालेले bill मोजले जात नाही.'],
+      hi: ['Bill Summary: submit हुए सभी bills महीने और vendor के अनुसार: basic, diesel, GST, TDS और शुद्ध।', 'यहाँ कुछ भरा नहीं जाता; आँकड़े save हुए bills के हैं। Superseded या delete हुआ bill नहीं गिना जाता।'] },
+    pay: { saves: ['savePayment', 'deletePayment'],
+      en: ['Payments made to vendors, and the opening balance of each vendor.', 'A payment needs the vendor, date, amount and how it was paid. The opening balance of a vendor is entered once. Payments lower the balance in the Vendor Ledger.'],
+      mr: ['Vendors ना दिलेली payments, आणि प्रत्येक vendor ची opening balance.', 'Payment साठी vendor, तारीख, रक्कम आणि कसे दिले ते लागते. Vendor ची opening balance एकदाच भरतात. Payments मुळे Vendor Ledger मधली बाकी कमी होते.'],
+      hi: ['Vendors को किए गए भुगतान, और हर vendor का opening balance।', 'भुगतान के लिए vendor, तारीख, रकम और भुगतान का तरीका चाहिए। Vendor का opening balance एक ही बार भरते हैं। भुगतान से Vendor Ledger की बाकी घटती है।'] },
+    vled: { saves: [],
+      en: ['The account of one vendor, line by line: opening balance, bills, payments and debit notes, with the running balance.', 'Balance = opening + bills (net payable) − payments − debit notes. Nothing is entered here.'],
+      mr: ['एका vendor चे खाते, ओळीनुसार: opening balance, bills, payments आणि debit notes, चालू बाकीसह.', 'बाकी = opening + bills (निव्वळ देय) − payments − debit notes. इथे काहीही भरले जात नाही.'],
+      hi: ['एक vendor का खाता, पंक्ति दर पंक्ति: opening balance, bills, भुगतान और debit notes, चलती बाकी के साथ।', 'बाकी = opening + bills (शुद्ध देय) − भुगतान − debit notes। यहाँ कुछ भरा नहीं जाता।'] },
+    vout: { saves: [],
+      en: ['What is payable to every vendor today, and how old it is.', 'The same calculation as the Vendor Ledger, for all vendors at once. Nothing is entered here.'],
+      mr: ['आज प्रत्येक vendor ला किती देणे आहे, आणि ते किती जुने आहे.', 'Vendor Ledger सारखाच हिशोब, सगळ्या vendors साठी एकदम. इथे काहीही भरले जात नाही.'],
+      hi: ['आज हर vendor को कितना देना है, और वह कितना पुराना है।', 'Vendor Ledger जैसा ही हिसाब, सभी vendors के लिए एक साथ। यहाँ कुछ भरा नहीं जाता।'] },
+    rdaily: { saves: [], en: ['Report: diesel received and issued day by day, with the opening and closing stock of each day.', 'Closing = opening + received − issued ± transfers. The figures come from Diesel Inward, Transfer and Issue.'],
+      mr: ['Report: दिवसानुसार आलेले आणि दिलेले diesel, प्रत्येक दिवसाच्या opening आणि closing stock सह.', 'Closing = opening + आलेले − दिलेले ± transfers. आकडे Diesel Inward, Transfer आणि Issue वरून येतात.'],
+      hi: ['Report: दिन के अनुसार आया और दिया गया diesel, हर दिन के opening और closing stock के साथ।', 'Closing = opening + आया − दिया ± transfers। आँकड़े Diesel Inward, Transfer और Issue से आते हैं।'] },
+    rmonthly: { saves: [], en: ['Report: diesel issued to every machinery in a month, day by day.', 'Each cell is the diesel issued to that machinery on that day; the totals are per machinery and per day.'],
+      mr: ['Report: एका महिन्यात प्रत्येक machinery ला दिलेले diesel, दिवसानुसार.', 'प्रत्येक खान्यात त्या machinery ला त्या दिवशी दिलेले diesel; बेरीज machinery नुसार आणि दिवसानुसार.'],
+      hi: ['Report: एक महीने में हर machinery को दिया गया diesel, दिन के अनुसार।', 'हर खाने में उस machinery को उस दिन दिया गया diesel; जोड़ machinery और दिन के अनुसार।'] },
+    ravg: { saves: [], en: ['Report: diesel and average of every machinery for the months chosen.', 'Average = work done (KM or hours from the Log Book) against diesel; it is compared with the standard average of the Asset Master.'],
+      mr: ['Report: निवडलेल्या महिन्यांसाठी प्रत्येक machinery चे diesel आणि average.', 'Average = झालेले काम (Log Book मधले KM किंवा तास) आणि diesel यांचे प्रमाण; त्याची Asset Master मधल्या standard average शी तुलना होते.'],
+      hi: ['Report: चुने गए महीनों के लिए हर machinery का diesel और average।', 'Average = हुआ काम (Log Book के KM या घंटे) और diesel का अनुपात; उसकी Asset Master के standard average से तुलना होती है।'] },
+    users: { saves: ['saveUserAdmin', 'usersAdmin'],
+      en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters.'],
+      mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा.'],
+      hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो।'] },
+    activity: { saves: ['getActivity'],
+      en: ['The record of who added, changed or deleted what, and when.', 'It is written by the app itself on every save and cannot be edited. Only Admin sees it.'],
+      mr: ['कोणी, काय, कधी जोडले, बदलले किंवा delete केले याची नोंद.', 'प्रत्येक save वर app स्वतः ही नोंद लिहिते; ती बदलता येत नाही. ती फक्त Admin ला दिसते.'],
+      hi: ['किसने, क्या, कब जोड़ा, बदला या delete किया इसका रिकॉर्ड।', 'हर save पर app खुद यह रिकॉर्ड लिखता है; इसे बदला नहीं जा सकता। यह केवल Admin को दिखता है।'] },
+    readme: { saves: ['readme'],
+      en: ['The set-up notes of the app for the Admin: where the data is kept, the SQL steps and the backup.', 'Nothing is entered here.'],
+      mr: ['Admin साठी app च्या set-up ची माहिती: data कुठे आहे, SQL चे टप्पे आणि backup.', 'इथे काहीही भरले जात नाही.'],
+      hi: ['Admin के लिए app के set-up की जानकारी: data कहाँ है, SQL के चरण और backup।', 'यहाँ कुछ भरा नहीं जाता।'] },
+  };
+  /* The report pages (rp-…): one line each on what the report shows and how its main figure comes. */
+  const REPORT_GUIDE = {
+    debit: { en: ['Diesel to be recovered from vendors: debit-basis diesel in full and diesel above the standard average.', 'Litres × diesel rate of the period; it is the same diesel deduction the bill makes (line B).'], mr: ['Vendors कडून वसूल करायचे diesel: debit basis चे पूर्ण diesel आणि standard average पेक्षा जास्तीचे diesel.', 'लिटर × कालावधीचा diesel दर; bill मधली diesel कपात (ओळ B) हीच आहे.'], hi: ['Vendors से वसूलने वाला diesel: debit basis का पूरा diesel और standard average से ऊपर का diesel।', 'लीटर × अवधि की diesel दर; bill की diesel कटौती (पंक्ति B) यही है।'] },
+    mcost: { en: ['What every machinery cost in the period.', 'Net cost = rent (as the bill works it out) + diesel issued × diesel rate − diesel recovered from the party; also per hour and per KM. Own machinery has no rent in the app.'], mr: ['कालावधीत प्रत्येक machinery चा खर्च.', 'निव्वळ खर्च = भाडे (bill च्या हिशोबाने) + दिलेले diesel × diesel दर − party कडून वसूल झालेले diesel; तसेच तासाला आणि KM ला. Own machinery ला app मध्ये भाडे नाही.'], hi: ['अवधि में हर machinery का खर्च।', 'शुद्ध खर्च = किराया (bill के हिसाब से) + दिया गया diesel × diesel दर − party से वसूला diesel; साथ में प्रति घंटा और प्रति KM। Own machinery का app में किराया नहीं है।'] },
+    cost: { en: ['The cost of the diesel issued to every machinery.', 'Litres issued × diesel rate (average of the period, last bought, or a fixed rate you type).'], mr: ['प्रत्येक machinery ला दिलेल्या diesel चा खर्च.', 'दिलेले लिटर × diesel दर (कालावधीची सरासरी, शेवटचा खरेदी दर, किंवा तुम्ही टाइप केलेला ठराविक दर).'], hi: ['हर machinery को दिए गए diesel का खर्च।', 'दिए गए लीटर × diesel दर (अवधि का औसत, आख़िरी ख़रीद दर, या आपकी type की हुई तय दर)।'] },
+    purchase: { en: ['Every diesel purchase: pump, bill, litres, rate and amount.', 'The rows are the Diesel Inward entries; amount = litres × rate.'], mr: ['Diesel ची प्रत्येक खरेदी: pump, bill, लिटर, दर आणि रक्कम.', 'ओळी म्हणजे Diesel Inward च्या entries; रक्कम = लिटर × दर.'], hi: ['Diesel की हर ख़रीद: pump, bill, लीटर, दर और रकम।', 'पंक्तियाँ Diesel Inward की entries हैं; रकम = लीटर × दर।'] },
+    ledger: { en: ['The diesel account of one machinery, fill by fill.', 'Each fill with its reading; the KM or hours run between two fills give the average of that fill.'], mr: ['एका machinery चे diesel चे खाते, प्रत्येक भरण्यानुसार.', 'प्रत्येक भरणे त्याच्या reading सह; दोन भरण्यांच्या मधले KM किंवा तास यावरून त्या भरण्याचा average येतो.'], hi: ['एक machinery का diesel खाता, हर भराई के अनुसार।', 'हर भराई उसकी reading के साथ; दो भराइयों के बीच के KM या घंटों से उस भराई का average आता है।'] },
+    owner: { en: ['Diesel and work, added up owner / vendor by owner.', 'Totals of the machinery of each owner for the period.'], mr: ['Diesel आणि काम, मालक / vendor नुसार बेरीज.', 'कालावधीसाठी प्रत्येक मालकाच्या machinery ची बेरीज.'], hi: ['Diesel और काम, मालिक / vendor के अनुसार जोड़।', 'अवधि के लिए हर मालिक की machinery का जोड़।'] },
+    type: { en: ['Diesel and work, added up by type of machinery.', 'Totals of all machinery of each type for the period.'], mr: ['Diesel आणि काम, machinery च्या प्रकारानुसार बेरीज.', 'कालावधीसाठी प्रत्येक प्रकारच्या सगळ्या machinery ची बेरीज.'], hi: ['Diesel और काम, machinery के प्रकार के अनुसार जोड़।', 'अवधि के लिए हर प्रकार की सभी machinery का जोड़।'] },
+    stock: { en: ['The diesel stock register of each location, day by day.', 'Closing = opening + received + transferred in − issued − transferred out.'], mr: ['प्रत्येक location चे diesel stock register, दिवसानुसार.', 'Closing = opening + आलेले + transfer ने आलेले − दिलेले − transfer ने गेलेले.'], hi: ['हर location का diesel stock register, दिन के अनुसार।', 'Closing = opening + आया + transfer से आया − दिया − transfer से गया।'] },
+    compare: { en: ['Two months side by side for every machinery.', 'Diesel, work and average of the two months, and the difference.'], mr: ['प्रत्येक machinery साठी दोन महिने शेजारी शेजारी.', 'दोन्ही महिन्यांचे diesel, काम आणि average, आणि फरक.'], hi: ['हर machinery के लिए दो महीने साथ-साथ।', 'दोनों महीनों का diesel, काम और average, और फर्क।'] },
+    tank: { en: ['The tank checks: diesel by the app against diesel found in the tank.', 'Difference = physical − system; each row is a saved Tank Check.'], mr: ['Tank checks: app प्रमाणे diesel आणि tank मध्ये सापडलेले diesel.', 'फरक = प्रत्यक्ष − system; प्रत्येक ओळ म्हणजे save झालेला Tank Check.'], hi: ['Tank checks: app के अनुसार diesel और tank में मिला diesel।', 'फर्क = असली − system; हर पंक्ति एक save हुआ Tank Check है।'] },
+    average: { en: ['The actual average of every machinery against its standard average.', 'Actual = KM ÷ litres (or litres ÷ hours) from the Log Book and diesel issues; worse than standard means extra diesel.'], mr: ['प्रत्येक machinery चा प्रत्यक्ष average आणि तिचा standard average.', 'प्रत्यक्ष = KM ÷ लिटर (किंवा लिटर ÷ तास), Log Book आणि diesel issues वरून; standard पेक्षा वाईट म्हणजे जास्तीचे diesel.'], hi: ['हर machinery का असली average और उसका standard average।', 'असली = KM ÷ लीटर (या लीटर ÷ घंटे), Log Book और diesel issues से; standard से खराब यानी अतिरिक्त diesel।'] },
+  };
+  const GUIDE_W = { head: { en: 'About this page', mr: 'या page बद्दल', hi: 'इस page के बारे में' }, what: { en: 'What it is', mr: 'हे काय आहे', hi: 'यह क्या है' }, how: { en: 'What the app checks / how the figures come', mr: 'App काय तपासते / आकडे कसे येतात', hi: 'App क्या जाँचता है / आँकड़े कैसे आते हैं' } };
+  function guideOf(tab) { return String(tab || '').indexOf('rp-') === 0 ? REPORT_GUIDE[String(tab).slice(3)] : PAGE_GUIDE[tab]; }
+  function guideInner(tab) {
+    const g = guideOf(tab);
+    return '<div class="fx-top"><b>' + GUIDE_W.head[fixLang] + '</b><span class="fx-lang">' + [['en', 'English'], ['mr', 'मराठी'], ['hi', 'हिंदी']].map(l => '<button type="button" data-fixlang="' + l[0] + '"' + (l[0] === fixLang ? ' class="on"' : '') + '>' + l[1] + '</button>').join('') + '</span></div>' +
+      (g ? '<div class="fx-rule"><p><b>' + GUIDE_W.what[fixLang] + ':</b> ' + esc(g[fixLang][0]) + '</p><p><b>' + GUIDE_W.how[fixLang] + ':</b> ' + esc(g[fixLang][1]) + '</p></div>' : '<div class="fx-rule"><p>–</p></div>');
+  }
+  function guideShow() {
+    let box = $('guidebox'); if (!box) { box = document.createElement('div'); box.id = 'guidebox'; document.body.appendChild(box); }
+    box.dataset.tab = S.curTab || 'dash';
+    box.innerHTML = '<button type="button" class="fx-x" aria-label="Close" title="Close">×</button><div class="fx-msg">' + esc($('page_title').textContent) + '</div><div class="fixhelp guide">' + guideInner(box.dataset.tab) + '</div>'; box.hidden = false;
+  }
   function toast(msg, bad) {
     if (bad) { try { fixCard(msg); } catch (e) { /* the message itself is still shown */ } } else if ($('fixbox')) $('fixbox').hidden = true;
+    // the red line itself: in Marathi / Hindi first what is wrong in that language, then the app's own line with the names and numbers
+    if (bad && fixLang !== 'en') { try { const r0 = fixRules(msg)[0]; if (r0 !== FIX_ANY) msg = r0[fixLang][0] + '\n' + msg; } catch (e) { /* keep the message */ } }
     if (!bad) { S.formDirty = false; S.dhCache = {}; if (S.newBuild) setTimeout(() => { if (!window.rclBusy()) swapNow(); }, 2500); } // saved → now take the new version
     const t = $('toast');
-    t.textContent = msg; t.className = bad ? 'bad' : ''; t.hidden = false;
+    t.textContent = msg; t.className = bad ? 'bad' : ''; t.style.whiteSpace = 'pre-line'; t.hidden = false;
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, bad ? 6000 : 3500);
   }
   /* ---------- confirmation box: used for every edit and delete in the app ---------- */
@@ -3998,7 +4168,7 @@
     $('cf_title').textContent = o.title;
     $('cf_msg').innerHTML = o.html || esc(o.message || '');
     // a box that reports something refused ("Nothing saved", "Not submitted", a stock or machinery alert): add what is wrong / what to do
-    if (o.alertOnly && (o.danger || /^(Nothing|Not |Fix )/i.test(o.title || ''))) { try { $('cf_msg').insertAdjacentHTML('beforeend', fixHtml($('cf_msg').textContent)); } catch (e) { /* help only */ } }
+    if ((o.alertOnly && (o.danger || /^(Nothing|Not |Fix )/i.test(o.title || ''))) || (!o.alertOnly && /anyway|has entries|Check the/i.test((o.title || '') + ' ' + (o.ok || '') + ' ' + (o.message || '')))) { try { $('cf_msg').insertAdjacentHTML('beforeend', fixHtml($('cf_msg').textContent)); } catch (e) { /* help only */ } }
     $('cf_ok').textContent = o.ok || 'Yes';
     $('cf_box').className = (o.danger ? 'danger' : '') + (o.alertOnly ? ' alert' : '') + (o.wide ? ' wide' : '');
     $('cf_back').hidden = false;
@@ -4421,6 +4591,7 @@
     ['tab-rp-owner', 'tab-ravg'].forEach(id => { after.insertAdjacentElement('afterend', $(id)); after = $(id); });
   })();
   function showTab(name, fromBack) {
+    if ($('guidebox')) $('guidebox').hidden = true;
     // page history for the Back button (Alt + B / Backspace)
     if (!fromBack && S.curTab && S.curTab !== name) { S.hist = S.hist || []; S.hist.push(S.curTab); if (S.hist.length > 50) S.hist.shift(); }
     S.curTab = name;
@@ -7607,6 +7778,7 @@
     $('mb_note').textContent = showDate($('mb_from').value) + ' to ' + showDate($('mb_to').value) + ' · ' + $('mb_co').value;
     $('mb_rows').innerHTML = L.map((b, i) => '<tr data-i="' + i + '"><td><b>' + esc(b.vendor.name) + '</b>' + (b.partial ? '<small class="mb-part">' + esc(b.picked.join(', ')) + '</small>' : '') +
       (billNoEntry(b) ? '<div class="mb-warn"><b>⚠ Diesel issued on a day with no Log Book entry:</b> ' + esc(billNoEntry(b)) + '. It is counted in this bill.' + fixHtml('Diesel issued on a day with no Log Book entry') + '</div>' : '') +
+      ((b.warnings || []).length ? '<div class="mb-warn"><b>⚠ To check before submitting:</b><ul>' + b.warnings.map(w => '<li>' + esc(w) + '</li>').join('') + '</ul>' + fixHtml(b.warnings.join(' | ')) + '</div>' : '') +
       ((b.dnOpen || []).length ? '<div class="mb-dns"><span>Debit notes to deduct:</span>' + b.dnOpen.map(n => '<label><input type="checkbox" class="mb-dnck" data-id="' + esc(n.id) + '"' + ((b.dns || []).some(z => z.id === n.id) ? ' checked' : '') + '> ' + esc(n.no) + ' · ₹' + mbN2(n.total) + '</label>').join('') + '</div>' : '') +
       '</td><td class="n">' + b.machines.length + '</td><td>' + (b.idleDays ? '<b>' + b.idleDays + '</b> <select class="mb-idle" title="Idle days of the Log Book: pay them in this bill or not"><option value=""' + (b.idlePaid === undefined ? ' selected' : '') + '>choose…</option><option value="paid"' + (b.idlePaid === true ? ' selected' : '') + '>Paid</option><option value="no"' + (b.idlePaid === false ? ' selected' : '') + '>Not paid</option></select>' : '–') + '</td><td class="n">' + mbN2(b.A) + '</td><td class="n">' + mbN2(b.B) +
       '</td><td class="n"><input class="mb-c" type="number" step="0.01" min="0" value="' + (b.C || '') + '" placeholder="0"></td><td><input class="mb-cr" value="' + esc(b.cReason) + '" placeholder="reason"></td>' +
@@ -7927,6 +8099,34 @@
       (n.remark ? '<div class="dnp-note">' + esc(n.remark) + '</div>' : '') +
       '<div class="dnp-sign"><span>Accepted by – ' + esc(v.name || n.vendor || '') + '</span><span>For ' + esc(n.company || '') + '</span></div></div>';
   }
+  /* ================= ON-THE-SPOT CHECKS: a wrong value is pointed out the moment the field is left =================
+   * (before Save – the server checks everything again on Save, these only tell the person earlier.)
+   * The message is the same English line the server would give, so the help card explains it in the chosen language.
+   * Only in entry forms (not in the filters of lists). To add a check: one more line in liveMsg. */
+  function liveMsg(el) {
+    const v = String(el.value || '').trim(), f = el.dataset ? (el.dataset.f || '') : '';
+    if (!el.closest('.panel[data-perm], #lg_in, #le_box, #dn_new, #v_form, #b_form')) return '';
+    if (el.type === 'date' && v && S.today && v > S.today) return 'Date ' + showDate(v) + ' is after today (' + showDate(S.today) + '). Entries can be made only up to today.';
+    if (el.id === 'd_no' && v && !findMachine(v)) return '"' + v + '" is not in Master.';
+    if (el.type === 'number' && v !== '' && Number(v) < 0) return 'Amount cannot be below 0.';
+    const tr = el.closest('#lg_in .lrow');
+    if (tr && /^(closing|opening)(Km|Hr)$/.test(f)) { const k = /Km$/.test(f) ? 'Km' : 'Hr', o = tr.querySelector('[data-f=opening' + k + ']'), c = tr.querySelector('[data-f=closing' + k + ']'), w = k === 'Km' ? 'KM' : 'Hrs';
+      if (o && c && o.value !== '' && c.value !== '' && Number(c.value) < Number(o.value)) return 'Close ' + w + ' ' + c.value + ' is less than Start ' + w + ' ' + o.value + '.'; }
+    if (f === 'debitTo' && v && (S.parties || []).length && !S.parties.some(p => String(p).trim().toUpperCase() === v.toUpperCase())) return 'Debit to: "' + v + '" is not in the Vendor Master.';
+    if (f === 'debitRate' && tr) { const to = tr.querySelector('[data-f=debitTo]').value.trim(); if (to && !(Number(v) > 0)) return 'Debit to ' + to + ': type the rate.'; }
+    return '';
+  }
+  document.addEventListener('change', e => {
+    const el = e.target; if (!el || !el.closest || !/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return;
+    let msg = ''; try { msg = liveMsg(el); } catch (er) { msg = ''; }
+    if (msg) { el.classList.add('live-bad'); el._live = msg; fixCard(msg); }
+    else if (el._live) { el.classList.remove('live-bad'); el._live = ''; if ($('fixbox')) $('fixbox').hidden = true; }
+    // Diesel Issue: after the quantity or the source changes, the balance box is worked out again – below zero means not enough diesel
+    if (/^d_(qty|src|date|shift)$/.test(el.id || '')) setTimeout(() => { try { const bal = Number(String($('d_balance').value || '').replace(/,/g, '')), q = $('d_qty');
+      if ($('d_qty').value !== '' && isFinite(bal) && bal < 0) { q.classList.add('live-bad'); q._live = 'x'; fixCard('Not enough diesel at ' + $('d_src').value + ': after this issue the stock would be ' + fmt(bal) + ' L.'); }
+      else if (q._live === 'x') { q.classList.remove('live-bad'); q._live = ''; if ($('fixbox')) $('fixbox').hidden = true; } } catch (er) { /* check only */ } }, 900);
+  }, true);
+
   ['sb_from', 'sb_to', 'sb_vendor', 'sb_co'].forEach(id => $(id).addEventListener('change', sbLoad));
   document.querySelectorAll('[data-sbr]').forEach(b => b.addEventListener('click', () => {
     const t = new Date(S.today + 'T00:00:00');

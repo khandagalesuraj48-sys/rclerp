@@ -297,6 +297,23 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     carries the rows' own errors so the right rule is found. TO COVER A NEW MESSAGE: add a rule; the unit test "help for errors" checks
     that every rule has the three languages (Devanagari for mr / hi) and that at most 3 % of the server's messages get only the general
     advice. The app's own messages are still English – only the explanation is translated.
+- 02-10-2026 (update-18 is live). He confirmed what he wants: the app polices itself, explains everything on the spot in three
+  languages, the user corrects; NO AI in the app; and "self-training" = the app knows what is in it. Agreed way: a build check that
+  refuses anything undescribed. BUILT:
+  * `PAGE_GUIDE` (25 pages) and `REPORT_GUIDE` (11 reports) in App.html: what the page is + what the app checks / how the figures come,
+    en / mr / hi, and `saves` = the server actions that write from that page. "?" button in the top bar (`#pg_help`, `guideShow`).
+  * THE GUARANTEE = unit test "the app knows itself": fails when a page of TABS or a report of reportDefs has no guide entry or lacks a
+    language, when a server action with `edit: true` / `admin: true` is not in any page's `saves`, or when `saves` names an action that
+    does not exist. With the earlier test "help for errors" this is what keeps new features from going live unexplained.
+    WHEN ADDING A PAGE / REPORT / SAVE ACTION: add its guide entry, its FIX_RULES for new messages, and (if useful) a line in `liveMsg`.
+  * On-the-spot checks (`liveMsg`, a `change` listener): future date, machinery not in Master, negative number, Close below Start in a
+    Log Book row, "Debit to" party not in the Vendor Master / rate missing, Diesel Issue larger than the stock (balance box below 0).
+    They show the help card at once and mark the field (`.live-bad`); the server still checks everything on Save.
+  * The bill's "to check" notes are written out under the vendor with what to do (rules for: no BOQ, no hours / KM on some days, Idle
+    not chosen, PAN / bank missing, nothing to bill). Confirm boxes for "… anyway" warnings also carry the help.
+  * The red line: in Marathi / Hindi the rule's "what is wrong" comes first, then the app's own English line with names and numbers.
+  * NOT done: translating the app's labels, buttons and the original messages themselves; live checks on every single field of every
+    form (only the common ones above); explanations per column of each report (one explanation per report).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
