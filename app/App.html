@@ -8273,6 +8273,41 @@
     window.rclBigBox = open;
   })();
 
+  /* ================= "CLEAR" ON EVERY FORM =================
+   * Asked 02-10-2026: every form of the app must have a Clear. These forms already had one: Diesel Inward, Diesel Transfer (one /
+   * many), Diesel Issue (one / many), Log Book entry, Tank Check, Asset Master (one / many), Machinery Payments, the reports, and
+   * the lists ("Clear filters"). The forms below did not; their button is added here, next to Save, in one place.
+   * Clear = an empty, NEW form (it leaves "editing" – the same as the existing Clear buttons), after asking when something
+   * typed would be lost. It never deletes anything that is saved. For lists and reports it empties the filters.
+   * Small windows (edit an entry, password, renew a paper, a user) have Cancel instead: there Clear would empty a saved record. */
+  (function clearEverywhere() {
+    const add = (afterId, id, text, title, fn) => { const a = $(afterId); if (!a || $(id)) return; const b = document.createElement('button'); b.type = 'button'; b.id = id; b.textContent = text; b.title = title;
+      b.className = 'btn ghost' + (a.classList.contains('small') ? ' small' : ''); a.insertAdjacentElement('afterend', b); b.addEventListener('click', () => { Promise.resolve(fn()).catch(e => toast(errMsg(e), true)); }); };
+    const sure = what => askConfirm({ title: 'Clear ' + what + '?', message: 'What is typed here and not saved will be removed. Saved entries are not touched.', ok: 'Clear' });
+    const blank = ids => ids.forEach(id => { if ($(id)) $(id).value = ''; });
+    // Vendor Master: a blank, new vendor
+    add('v_save', 'v_clear', 'Clear', 'Empty the form – a blank, new vendor (saved vendors are not touched)', async () => { if (!(await sure('the vendor form'))) return; vOpen(null); S.formDirty = false; $('v_name').focus(); });
+    // Vendor BOQ: a blank, new BOQ
+    add('boq_save', 'boq_clear', 'Clear', 'Empty the form – a blank, new BOQ (saved BOQs are not touched)', async () => { if (!(await sure('the BOQ form'))) return;
+      const keep = $('bf_vendor').value; $('bf_vendor').value = ''; bOpen('new'); $('bf_vendor').value = keep; blank(['b_wono', 'b_wodate', 'b_gst', 'b_tds', 'b_remark', 'b_to']); $('b_lines').innerHTML = ''; S.formDirty = false; });
+    // RCL Drive → New Debit Note
+    add('dn_save', 'dn_clear', 'Clear', 'Empty the form – a blank debit note (saved notes are not touched)', async () => { if ((S.dn.lines.length || $('dn_vendor').value) && !(await sure('the debit note form'))) return;
+      S.dn.lines = []; blank(['dn_vendor', 'dn_gst', 'dn_tds', 'dn_remark']); $('dn_date').value = S.today; $('dn_from').value = S.today.slice(0, 8) + '01'; $('dn_to').value = S.today; dnRender(); });
+    // Edit Log Book: close the opened entries (what was changed and not saved is dropped)
+    add('lx_reload', 'lx_clear', 'Clear', 'Close the opened entries and empty the selection (changes that were not saved are dropped)', async () => { if (LX.d && !$('lx_save').disabled && !(await sure('the opened entries'))) return;
+      LX.d = null; LX.rows = []; LX.deleted = []; $('lx_panel').hidden = true; $('lx_no').value = ''; S.formDirty = false; });
+    // Machinery Billing: untick the vendors and drop the bills that were built (nothing submitted is touched)
+    add('mb_build', 'mb_clear', 'Clear', 'Untick the vendors and remove the bills built on this page (submitted bills stay in RCL Drive)', async () => { if ((S.mb.bills || []).length && !(await sure('the bills built on this page'))) return;
+      document.querySelectorAll('#mb_vlist input').forEach(x => { x.checked = false; }); mbVText(); S.mb.bills = []; mbRender(); S.formDirty = false; });
+    // Breakdown report of the day: back to what is saved for that date
+    add('bk_submit', 'bk_clear', 'Clear', 'Drop what was ticked / typed and not submitted – the day is shown again as it is saved', async () => { if (!(await sure('the breakdown sheet'))) return; await bkLoad(); });
+    // lists that had no "Clear filters"
+    add('br_excel', 'br_clear', 'Clear filters', 'Back to the last 3 months, all vendors, both names', () => { blank(['br_vendor', 'br_co']); const r = brRange('3'); $('br_from').value = r[0]; $('br_to').value = r[1]; return brLoad(); });
+    add('vl_excel', 'vl_clear', 'Clear', 'Empty the vendor and the dates', () => { blank(['vl_vendor', 'vl_from', 'vl_to']); S.vl = null; $('vl_out').innerHTML = ''; });
+    add('vo_excel', 'vo_clear', 'Clear filters', 'Back to the last 3 months', () => { blank(['vo_from', 'vo_to']); return voLoad(); });
+    add('bp_xls', 'bp_clear', 'Clear filters', 'Empty the dates and the filters of this list', () => { blank(['bp_from', 'bp_to', 'bp_no', 'bp_owner', 'bp_own']); if ($('bp_only')) $('bp_only').checked = false; $('bp_from').dispatchEvent(new Event('change', { bubbles: true })); });
+  })();
+
   /* ================= ON-THE-SPOT CHECKS: a wrong value is pointed out the moment the field is left =================
    * (before Save – the server checks everything again on Save, these only tell the person earlier.)
    * The message is the same English line the server would give, so the help card explains it in the chosen language.

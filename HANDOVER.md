@@ -369,6 +369,13 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     the `resume` event asks the server at once.
   ASKED HIM to add the site to Chrome's "always keep active" list and to tell me what the bar shows (seconds) the next time it happens.
   If the seconds are high after pauses, the cause is the server side (Vercel plan / cold start) and needs a keep-warm or a paid plan.
+- 02-10-2026: "every form must have a Clear". Most entry forms already had one. `clearEverywhere()` in App.html adds the missing ones in
+  one place (button inserted after the form's Save): Vendor Master (`v_clear` → a blank new vendor), Vendor BOQ (`boq_clear`), New Debit
+  Note (`dn_clear`), Edit Log Book (`lx_clear`), Machinery Billing (`mb_clear` – unticks vendors, drops the bills built on the page),
+  Breakdown sheet (`bk_clear` – back to the saved day), and "Clear filters" on Bill Summary, Vendor Ledger, Vendor Outstanding and the
+  breakdown list. Meaning everywhere: an empty NEW form (leaves edit mode), asks first when typed data would be lost, never touches saved
+  data. NOT given a Clear on purpose: small windows that edit one saved record (they have Cancel), "Save company details" and Log Book
+  Format (settings). `test/browser/clear.js` walks every page and fails if a Save / Submit / Build / Generate button has no Clear beside it.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
