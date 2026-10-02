@@ -336,6 +336,13 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     "EST." mark (format A has it); a new day does not default to "No reading" – it is chosen each day on purpose.
   * Tests: unit test "meter not working" (hand-worked: 490 km → 49 L allowed, 55 issued → 6 L × 100 = 600; re-link after an edit; delete),
     `test/browser/meter.js` (8 checks through the page and the database), checked without the SQL as well.
+- 02-10-2026 (update-20 live): he asked what to do when the meter is not working on the machinery's FIRST day (no history, the estimate
+  field stayed empty). `meterAvg_` now falls back to the average of OTHER machinery of the same type (entries with readings in the 30 days
+  before, at least 3) and returns `src` ('own' | 'type' | ''); a visible line under the estimate (`.nrhint`) says where the figure comes
+  from, or – with no history at all – what to type. The first entry WITH a reading of such a machinery types its Start (firstKm).
+  Also that day: Chrome "Page Unresponsive" on the loading screen one minute after his push; not reproduced (reload here: 1–5 s). His
+  console showed only an error of the BetterBugs extension (content.bundle.js, Sentry) – a page-recording extension is my main suspect for
+  the freezes on his machine; asked him to try an Incognito window. NOT PROVEN.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

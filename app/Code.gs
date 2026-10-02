@@ -5062,7 +5062,17 @@ function meterAvg_(lt, m, dk, shift) {
   const c = lt.c, rows = lt.rows.filter(r => same_(r[c[H.NO]], m.id) && dkey_(r[c[H.DATE]]) && logKeyCmp_({ dk: dkey_(r[c[H.DATE]]), shift: str_(r[c[H.SHIFT]]) || 'Full Day' }, { dk: dk, shift: shift }) < 0)
     .sort((a, b) => logKeyCmp_({ dk: dkey_(a[c[H.DATE]]), shift: str_(a[c[H.SHIFT]]) || 'Full Day' }, { dk: dkey_(b[c[H.DATE]]), shift: str_(b[c[H.SHIFT]]) || 'Full Day' }));
   const avg = (h, col) => { const v = rows.filter(r => h(str_(r[c[H.UNIT]])) && num0_(r[c[col]]) > 0).slice(-7).map(r => num0_(r[c[col]])); return v.length ? r2_(v.reduce((a, x) => a + x, 0) / v.length) : ''; };
-  return { km: avg(hasKm_, H.WKM), hr: avg(hasHr_, H.WHR) };
+  const own = { km: avg(hasKm_, H.WKM), hr: avg(hasHr_, H.WHR) };
+  if (own.km !== '' || own.hr !== '') return Object.assign(own, { src: 'own' });
+  /* A machinery with NO entry with a reading yet (its meter is not working from the first day): the nearest fair figure is the
+   * average of the OTHER machinery of the same type over the 30 days before the date (entries with readings only).
+   * No such machinery either → nothing is proposed and the person types the day's work (route × trips, hours at site). */
+  const type = str_(m.type).toUpperCase(), from = addDays_(dk, -30);
+  const others = !type ? [] : lt.rows.filter(r => !same_(r[c[H.NO]], m.id) && str_(r[c[H.TYPE]]).toUpperCase() === type && dkey_(r[c[H.DATE]]) >= from && dkey_(r[c[H.DATE]]) < dk);
+  const avgT = (h, col) => { const v = others.filter(r => h(str_(r[c[H.UNIT]])) && num0_(r[c[col]]) > 0).map(r => num0_(r[c[col]])); return v.length >= 3 ? r2_(v.reduce((a, x) => a + x, 0) / v.length) : ''; };
+  const canKm = hasKm_(m.unit) || (m.modes || []).some(hasKm_), canHr = hasHr_(m.unit) || (m.modes || []).some(hasHr_);
+  const t = { km: canKm ? avgT(hasKm_, H.WKM) : '', hr: canHr ? avgT(hasHr_, H.WHR) : '' };
+  return Object.assign(t, { src: t.km !== '' || t.hr !== '' ? 'type' : '', type: m.type || '' });
 }
 function logCalc_(m, diesel, okm, ckm, ohr, chr, mode, tHrs, est) {
   const md = mode || m.unit, off = meterOff_(md), km = hasKm_(md), hr = hasHr_(md), tm = md === 'Time';

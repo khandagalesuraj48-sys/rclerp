@@ -324,6 +324,18 @@ test('meter not working: "No reading" days are paid and counted for the diesel s
   assert.strictEqual(rows()[2][4], 90);
   run('k => deleteLogRow_(k)', 'NR-1|2026-06-04|Full Day');
   assert.deepStrictEqual(rows().map(r => [r[0], r[2], r[3], r[4]]), [['01', 1000, 1100, 100], ['02', 1100, 1170, 70], ['03', '', '', 90], ['05', 1170, 1200, 30], ['06', 50, 120, 70], ['07', 120, 180, 60]]);
+  // a machinery whose meter does not work from its FIRST day: nothing of its own to average → the average of the other machinery of
+  // its type (entries with readings: 100, 70, 30, 70, 60 → 66); the day is saved; its first entry WITH a reading types its Start
+  run('(x, m) => saveMaster_(x, m)', { no: 'NR-2', name: 'Innova', type: 'Innova', unit: 'KM', worksOn: ['KM'], kmStd: 10, owner: 'NR Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  const a2 = run('(n, d, s) => getLogRowPrefill_(n, d, s)', 'NR-2', '2026-06-08', 'Full Day').avgWork;
+  assert.deepStrictEqual([a2.km, a2.src, a2.type], [66, 'type', 'Innova']);
+  assert.strictEqual(save({ no: 'NR-2', date: '2026-06-08', mode: 'No reading', estKm: 66, meterNote: 'meter not working since it came' }).ok, true);
+  assert.strictEqual(run('(n, d, s) => getLogRowPrefill_(n, d, s)', 'NR-2', '2026-06-09', 'Full Day').firstKm, true);
+  assert.strictEqual(save({ no: 'NR-2', date: '2026-06-09', mode: 'KM', openingKm: 500, closingKm: 560 }).ok, true);
+  assert.deepStrictEqual(run('f => getLogBookList_(f)', { from: '2026-06-01', to: '2026-06-30', no: 'NR-2', all: true }).rows.sort((x, y) => x.date < y.date ? -1 : 1).map(r => [r.date.slice(8), r.okm, r.ckm, r.wkm]), [['08', '', '', 66], ['09', 500, 560, 60]]);
+  // a type with no other machinery: nothing is proposed (the person types the day's work)
+  run('(x, m) => saveMaster_(x, m)', { no: 'NR-3', name: 'Crane', type: 'Crane', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 6, owner: 'NR Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  assert.deepStrictEqual((a => [a.km, a.hr, a.src])(run('(n, d, s) => getLogRowPrefill_(n, d, s)', 'NR-3', '2026-06-08', 'Full Day').avgWork), ['', '', '']);
   // diesel can be issued without a reading while the meter is not working
   const di = run('x => saveDieselIssue_(x)', { date: '2026-06-03', shift: 'Day', source: 'Dispenser', no: 'NR-1', qty: 20, mode: 'No reading' });
   assert.ok(di && di.ok !== false && di.id, JSON.stringify(di));

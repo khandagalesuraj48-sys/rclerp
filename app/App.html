@@ -1760,6 +1760,7 @@
   .way .wy.nrd { border-color: #F0C36D; color: #8A5A00; } .way .wy.nrd.on { background: #B45309; border-color: #B45309; color: #fff; }
   .lrow .rd.nr small { color: #8A5A00; font-weight: 700; } .lrow .rd.nr input { border-color: #F0C36D !important; background: #FFFBEC !important; }
   .lrow .rd.nrn input { width: 100%; font-size: 12.5px !important; }
+  .lrow small.nrhint { display: block; font-size: 11px; line-height: 1.25; color: #8A5A00; margin-top: 3px; white-space: normal; max-width: 260px; } .lrow small.nrhint[hidden] { display: none; }
   .lrow label.nm { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #5B6B80; margin-top: 3px; white-space: nowrap; cursor: pointer; } .lrow label.nm[hidden] { display: none; }
   .lrow label.nm input { width: auto !important; min-height: 0 !important; height: auto !important; margin: 0; }
   .lg-mtr { display: block; color: #8A5A00; font-weight: 600; }
@@ -10333,7 +10334,7 @@
       '<td class="c-m"><input data-f="no" list="dl_machines" autocomplete="off" placeholder="Type or pick"><small class="lnote"></small></td>' +
       '<td class="unitcell c-unit"></td>' +
       '<td>' + rd('openingKm', 'km') + rd('openingHr', 'hr') + '<div class="rd tm"><small>from</small><input data-f="tStart" type="time"></div><span class="lg-day">—</span>' +
-        '<div class="rd nr nrk" hidden><small title="Estimated KM of the day (the app proposes this machinery\'s own average)">est km</small><input data-f="estKm" type="number" step="0.01" min="0"></div><div class="rd nr nrh" hidden><small title="Estimated hours of the day">est hr</small><input data-f="estHr" type="number" step="0.01" min="0"></div>' +
+        '<div class="rd nr nrk" hidden><small title="Estimated KM of the day (the app proposes this machinery\'s own average)">est km</small><input data-f="estKm" type="number" step="0.01" min="0"></div><div class="rd nr nrh" hidden><small title="Estimated hours of the day">est hr</small><input data-f="estHr" type="number" step="0.01" min="0"></div><small class="nrhint" hidden></small>' +
         '<label class="nm" hidden title="Tick when a NEW meter was fitted: its Start is typed here and is not taken from the old meter"><input type="checkbox" data-f="newMeter"> new meter</label></td>' +
       '<td>' + rd('closingKm', 'km') + rd('closingHr', 'hr') + '<div class="rd tm"><small>to</small><input data-f="tEnd" type="time"></div><div class="rd tm brk"><small>break</small><input data-f="tBreak" type="number" min="0" step="5" placeholder="min"></div>' +
         '<div class="rd tp"><small>trips</small><input data-f="trip" type="number" min="0" step="1"></div><div class="rd tp ch"><small>challan</small><input data-f="challan" autocomplete="off" placeholder="Challan No"></div><span class="lg-day">worked</span><span class="lg-hol"></span><div class="rd nr nrn" hidden><input data-f="meterNote" autocomplete="off" placeholder="Why? e.g. meter not working" title="The reason is printed with the entry"></div><div class="itm lg-itm" hidden></div></td>' +
@@ -10387,9 +10388,19 @@
     const nmBox = tr.querySelector('.nm'), nmCk = lgf(tr, 'newMeter');
     if (nmBox) { nmBox.hidden = off || !(km || hr) || !tr._p || (km && tr._p.firstKm) || (hr && !km && tr._p.firstHr); if (nmBox.hidden && nmCk) nmCk.checked = false; }
     tr.querySelectorAll('.rd.nrn').forEach(d => { d.hidden = !(off || (nmCk && nmCk.checked)); });
-    if (off && tr._p && tr._p.avgWork) { const a = tr._p.avgWork, ek = lgf(tr, 'estKm'), eh = lgf(tr, 'estHr');      // proposed: the machinery's own average
-      if (canK && ek.value === '' && a.km !== '') { ek.value = a.km; ek.title = 'Proposed: the average of the last entries with readings (' + fmt(a.km) + ' km). Correct it if the day was different.'; }
-      if (canH && eh.value === '' && a.hr !== '') { eh.value = a.hr; eh.title = 'Proposed: the average of the last entries with readings (' + fmt(a.hr) + ' hr). Correct it if the day was different.'; } }
+    const hint = tr.querySelector('.nrhint');
+    if (off && tr._p && tr._p.avgWork) { const a = tr._p.avgWork, ek = lgf(tr, 'estKm'), eh = lgf(tr, 'estHr');      // proposed: the machinery's own average, else its type's
+      const what = [canK && a.km !== '' ? fmt(a.km) + ' km' : '', canH && a.hr !== '' ? fmt(a.hr) + ' hr' : ''].filter(Boolean).join(' + ');
+      if (canK && ek.value === '' && a.km !== '') ek.value = Math.round(a.km);                    // whole KM, half hours: it is an estimate
+      if (canH && eh.value === '' && a.hr !== '') eh.value = Math.round(a.hr * 2) / 2;
+      // said under the field: where the figure comes from – or, with no history at all, what to type
+      if (hint) { hint.hidden = false; hint.textContent = a.src === 'own' ? 'proposed: its own average'
+        : a.src === 'type' ? 'no entry yet – proposed: average of other ' + (a.type || 'machinery of its type')
+        : 'no history – type the ' + (canK ? 'KM of the day (route × trips)' : 'hours worked');
+        hint.title = a.src === 'own' ? 'The average of this machinery\'s last entries with readings (' + what + '). Change it if the day was different.'
+          : a.src === 'type' ? 'This machinery has no entry with a reading yet, so the average of the other machinery of the same type in the last 30 days is proposed (' + what + '). Change it if you know the day\'s work better.'
+          : 'Neither this machinery nor others of its type have entries with readings. Type the work of the day yourself.'; } }
+    else if (hint) hint.hidden = true;
     lgo(tr, 'wkm').hidden = !(km || (off && canK)); lgo(tr, 'whr').hidden = !(hr || tm || (off && canH));
     tr.querySelectorAll('.rd.km small, .rd.hr small').forEach(x => { x.style.visibility = 'visible'; x.style.width = '22px'; });
   }
