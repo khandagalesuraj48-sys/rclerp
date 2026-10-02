@@ -79,7 +79,7 @@ test('billing: item-wise BOQ with an hour slab, Idle paid / not paid, and page =
   const grab = m => { const i = app.indexOf(m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
   const env = { r2: n => Math.round(n * 100) / 100, hasKm: u => u === 'KM' || u === 'KM + Hrs', hasHr: u => u === 'Hrs' || u === 'KM + Hrs', isHol: r => ['Holiday', 'Breakdown'].indexOf(r.mode || r.unit) > -1,
     showDate: d => d.split('-').reverse().join('/'), fmt: String, DAY_STATUS: ['Idle', 'Holiday', 'Breakdown'], METER_OFF: 'No reading', ITEM_WORD: { hr: 'hr', km: 'km', trip: 'trips' }, dieselDebitDay: (vt, bd, m) => bd ? bd.diesel === 'Debit Basis' : !!(m && m.supply === 'Debit Basis'), findMachine: no => T.getMaster_().find(m => m.id === no) };
-  const C = new Function(...Object.keys(env), grab('function itemDaySegs(') + '\n' + grab('function mbMachine(') + '; return { mbMachine };')(...Object.values(env));
+  const C = new Function(...Object.keys(env), grab('function itemDaySegs(') + '\n' + grab('function tankLeft(') + '\n' + grab('function mbMachine(') + '; return { mbMachine };')(...Object.values(env));
   for (const no of ['JCB-1', 'BOLERO-1']) for (const idle of [true, false]) assert.strictEqual(C.mbMachine(no, byNo[no], extra, from, to, undefined, idle).amount, srv(no, idle), no + ' idle=' + idle);
 });
 
@@ -103,6 +103,7 @@ test('bill papers: amount in words, Tax Invoice = the Abstract\'s figures, Debit
   const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const env = { r2: n => Math.round(n * 100) / 100, esc, fmt: n => String(n), mbN2: n => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), mbDot: d => String(d || '').split('-').reverse().join('.'),
     DOC_CSS: '', billHtml: () => '<div class="bl">ABSTRACT</div>', showDate: d => String(d || '').split('-').reverse().join('-'),
+    billTank: () => '', billEst: () => '',
     billNoEntry: b => [].concat(...((b && b.machines) || []).map(m => (m.noEntry || []).map(x => String(m.no) + ' ' + x.d + ' ' + x.q + ' L'))).join(', ') };
   const C = new Function(...Object.keys(env), grab('function rupeesWords(') + '\nconst docDash = v => (v === \'\' || v === null || v === undefined || Number(v) === 0) ? \'-\' : mbN2(v);\n' + grab('function taxInvoiceHtml(') + '\n' + grab('function debitNoteHtml(') + '\n' + grab('function billSheets(') + '; return { rupeesWords, taxInvoiceHtml, debitNoteHtml, billSheets };')(...Object.values(env));
   for (const [n, w] of [[40000, 'Rupees Forty Thousand Only'], [0, 'Rupees Zero Only'], [15600, 'Rupees Fifteen Thousand Six Hundred Only'], [123456789.5, 'Rupees Twelve Crore Thirty Four Lakh Fifty Six Thousand Seven Hundred Eighty Nine and Fifty Paise Only'],
@@ -142,12 +143,14 @@ test('Machinery Cost Sheet: rent + diesel − recovered = net cost, per hour / K
     { date: '2026-08-01', shift: 'Full Day', no: 'CS-JCB', mode: 'Hrs', openingHr: 100, closingHr: 108 }, { date: '2026-08-02', shift: 'Full Day', no: 'CS-JCB', mode: 'Hrs', closingHr: 116 },
     { date: '2026-08-01', shift: 'Full Day', no: 'CS-OWN', mode: 'KM', openingKm: 500, closingKm: 700 }] });
   run('x => saveDieselIssue_(x)', { date: '2026-08-01', shift: 'Day', source: 'Dispenser', no: 'CS-JCB', qty: 200, hrReading: 100, force: true });
+  run('x => saveDieselIssue_(x)', { date: '2026-08-02', shift: 'Day', source: 'Dispenser', no: 'CS-JCB', qty: 40, hrReading: 108, force: true });
   run('x => saveDieselIssue_(x)', { date: '2026-08-01', shift: 'Day', source: 'Dispenser', no: 'CS-OWN', qty: 50, kmReading: 500, force: true });
   const d = JSON.parse(JSON.stringify(run('f => rptMachineCost_(f)', { from: '2026-08-01', to: '2026-08-02' })));
   const rows = [].concat(...d.groups.map(g => g.rows)), jcb = rows.find(r => r.no === 'CS-JCB'), own = rows.find(r => r.no === 'CS-OWN');
   assert.strictEqual(d.rate, 92);
-  // by hand – JCB: 16 hr × 900 = 14,400 rent; 200 L × 92 = 18,400 diesel; standard 16 × 5 = 80 L, so 120 L × 92 = 11,040 taken back
-  assert.deepStrictEqual([jcb.rent, jcb.dieselCost, jcb.recover, jcb.net, jcb.perHr], [14400, 18400, 11040, 21760, 1360]);
+  // by hand – JCB: 16 hr × 900 = 14,400 rent; 240 L × 92 = 22,080 diesel; standard 16 × 5 = 80 L → 160 L over. The last fill (40 L at
+  // 108 hr) ran 8 hr = 40 L, nothing of it is left in the tank → 160 L × 92 = 14,720 taken back; net 14,400 + 22,080 − 14,720 = 21,760
+  assert.deepStrictEqual([jcb.rent, jcb.dieselCost, jcb.recover, jcb.net, jcb.perHr], [14400, 22080, 14720, 21760, 1360]);
   // own tipper: no rent; 50 L × 92 = 4,600; 200 km → 23 per km
   assert.deepStrictEqual([own.rent, own.dieselCost, own.recover, own.net, own.perKm], [0, 4600, 0, 4600, 23]);
   assert.strictEqual(d.total.net, 26360); assert.strictEqual(d.total.rent + d.total.dieselCost - d.total.recover, d.total.net);
@@ -313,13 +316,14 @@ test('meter not working: "No reading" days are paid and counted for the diesel s
   const bill = () => { const from = '2026-06-01', to = '2026-06-30', list = run('f => getLogBookList_(f)', { from: from, to: to, no: 'NR-1', all: true }).rows, extra = run('f => logPrintExtra_(f)', { from: from, to: to, nos: ['NR-1'] });
     return run('(l, e, f, t) => billMachineCalc_(findMachine_("NR-1"), l, e, f, t, undefined, true)', list, extra, from, to); };
   let b = bill();
-  assert.deepStrictEqual([b.workDays, b.amount, b.issued, b.excessQty, b.excessAmt], [7, 7000, 55, 6, 600]);
+  // (that single fill of the 1st is also the LAST fill: after it 390 km = 39 L, so 16 L of it count as still in the tank → the 6 L are not debited)
+  assert.deepStrictEqual([b.workDays, b.amount, b.issued, b.rawExcess, b.excessQty, b.excessAmt], [7, 7000, 55, 6, 0, 0]);
   // a correction of an earlier reading re-links only what must follow it: 02-06 closes at 1170 → 05-06 starts at 1170 (30 km);
   // the estimates and the new meter's Start are untouched
   const key02 = run('f => getLogBookList_(f)', { from: '2026-06-02', to: '2026-06-02', no: 'NR-1', all: true }).rows[0];
   run('(k, l) => updateLogRow_(k, l)', key02.key || ('NR-1|2026-06-02|Full Day'), { closingKm: 1170, work: '' });
   assert.deepStrictEqual(rows().map(r => [r[0], r[2], r[3], r[4]]), [['01', 1000, 1100, 100], ['02', 1100, 1170, 70], ['03', '', '', 80], ['04', '', '', 80], ['05', 1170, 1200, 30], ['06', 50, 120, 70], ['07', 120, 180, 60]]);
-  b = bill(); assert.deepStrictEqual([b.workDays, b.excessQty], [7, 6]);   // 70+30 instead of 60+40: the same 490 km
+  b = bill(); assert.deepStrictEqual([b.workDays, b.rawExcess], [7, 6]);   // 70+30 instead of 60+40: the same 490 km
   // the estimate of a "No reading" day can be corrected in the edit window; deleting such a day leaves the chain intact
   run('(k, l) => updateLogRow_(k, l)', 'NR-1|2026-06-03|Full Day', { estKm: 90, meterNote: 'odometer stuck', work: '' });
   assert.strictEqual(rows()[2][4], 90);
@@ -416,4 +420,40 @@ test('renaming a vendor: its assets, BOQ, payments, Log Book and diesel entries 
   // a new entry for its machinery takes the new owner name by itself
   run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-08-02', shift: 'Full Day', no: 'RN-1', mode: 'KM', closingKm: 250 }] });
   assert.strictEqual(run('f => getLogBookList_(f)', { from: '2026-08-02', to: '2026-08-02', no: 'RN-1', all: true }).rows[0].owner, 'New Name Pvt Ltd');
+});
+
+
+test('the last fill of the period is partly still in the tank: not debited, this period only (the MD\'s example, hand-worked); page = server', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  run('(x, m) => saveMaster_(x, m)', { no: 'TK-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4.6, owner: 'Tank Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-05-01' }, 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'Tank Vendor', gstReg: 'No', pan: 'ABCDE1234T', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'Tank Vendor', from: '2026-05-01', tdsPct: 0, woNo: 'WO-T', lines: [{ no: 'TK-1', basis: 'Monthly', rate: 31000, diesel: 'Company' }] }, 'add');
+  run('x => saveInward_(x)', { date: '2026-04-30', location: 'Dispenser', pump: 'Pump', qty: 1000, rate: 100, billNo: 'TK1', billDate: '2026-04-30' });
+  run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-05-28', shift: 'Full Day', no: 'TK-1', mode: 'KM', openingKm: 1000, closingKm: 1134 }, { date: '2026-05-29', shift: 'Full Day', no: 'TK-1', mode: 'KM', closingKm: 1234 }, { date: '2026-05-30', shift: 'Full Day', no: 'TK-1', mode: 'KM', closingKm: 1280 }] });
+  run('x => saveDieselIssue_(x)', { date: '2026-05-28', shift: 'Day', source: 'Dispenser', no: 'TK-1', qty: 60, kmReading: 1000, force: true });
+  const last = run('x => saveDieselIssue_(x)', { date: '2026-05-30', shift: 'Day', source: 'Dispenser', no: 'TK-1', qty: 30, kmReading: 1234, force: true });
+  const calc = () => { const from = '2026-05-01', to = '2026-05-31', list = run('f => getLogBookList_(f)', { from: from, to: to, no: 'TK-1', all: true }).rows, extra = run('f => logPrintExtra_(f)', { from: from, to: to, nos: ['TK-1'] });
+    return { list: list, extra: extra, b: run('(l, e, f, t) => billMachineCalc_(findMachine_("TK-1"), l, e, f, t, undefined, true)', list, extra, from, to) }; };
+  // work 134 + 100 + 46 = 280 km ÷ 4.6 = 60.87 L; issued 90 L → 29.13 L over. Last fill: 30 L at 1234; closed at 1280 → 46 km = 10 L;
+  // 20 L are still in the tank → debited: 29.13 − 20 = 9.13 L × 100 = 913
+  let x = calc();
+  assert.deepStrictEqual([x.b.issued, x.b.rawExcess, x.b.excessQty, x.b.excessAmt], [90, 29.13, 9.13, 913]);
+  assert.deepStrictEqual([x.b.tank.date, x.b.tank.qty, x.b.tank.km, x.b.tank.kmAfter, x.b.tank.used, x.b.tank.left, x.b.tank.applied, x.b.tank.by], ['2026-05-30', 30, 1234, 46, 10, 20, 20, 'reading']);
+  // the page works out the same
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const grab = m => { const i = app.indexOf(m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
+  const P = new Function('r2', 'hasKm', 'hasHr', grab('function tankLeft(') + '; return tankLeft;')(n => Math.round(n * 100) / 100, u => u === 'KM' || u === 'KM + Hrs', u => u === 'Hrs' || u === 'KM + Hrs');
+  assert.deepStrictEqual(P({ kmStd: 4.6 }, 'KM', x.list, x.extra.issues.TK1, () => false, 29.13), x.b.tank);
+  // Tank Capacity 15 L in Asset Master: never more than the tank holds → 15 L left out, 14.13 L debited
+  run('(x, m, o) => saveMaster_(x, m, o)', { no: 'TK-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4.6, tankCap: 15, owner: 'Tank Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-05-01' }, 'edit', 'TK-1');
+  x = calc(); assert.deepStrictEqual([x.b.tank.left, x.b.excessQty], [15, 14.13]);
+  run('(x, m, o) => saveMaster_(x, m, o)', { no: 'TK-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4.6, tankCap: '', owner: 'Tank Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-05-01' }, 'edit', 'TK-1');
+  // the last fill has NO reading: the work of the days after the fill date is used – none here → the whole 30 L are in the tank → nothing debited
+  run('(id, x) => updateDieselIssue_(id, x)', last.id, { date: '2026-05-30', shift: 'Day', source: 'Dispenser', no: 'TK-1', qty: 30, mode: 'No reading', force: true });
+  x = calc(); assert.deepStrictEqual([x.b.tank.by, x.b.tank.used, x.b.tank.left, x.b.tank.applied, x.b.excessQty], ['days', 0, 30, 29.13, 0]);
+  // no Log Book entry on / after the fill (the 30th is deleted): work 234 km = 50.87 L, 39.13 L over; the whole fill of 30 L is in the tank → 9.13 L
+  run('(id, x) => updateDieselIssue_(id, x)', last.id, { date: '2026-05-30', shift: 'Day', source: 'Dispenser', no: 'TK-1', qty: 30, kmReading: 1234, force: true });
+  run('k => deleteLogRow_(k)', 'TK-1|2026-05-30|Full Day');
+  x = calc(); assert.deepStrictEqual([x.b.rawExcess, x.b.tank.kmAfter, x.b.tank.left, x.b.excessQty], [39.13, 0, 30, 9.13]);
 });

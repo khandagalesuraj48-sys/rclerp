@@ -463,6 +463,24 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     passes them for such rows).
   * Tests: `test/browser/xls.js` (14, with the database: columns, drop-downs, formula, import of a KM day, Breaker / Split / Bucket days,
     refusal without Work type) and `xls2.js` (reads back the real ExcelJS file: formulas, drop-downs, yellow empty Work type).
+- 02-10-2026: EXCESS DIESEL – THE LAST FILL IS PARTLY STILL IN THE TANK. His problem: diesel filled on the last day is in the tank at
+  month end but was debited as excess. I proposed a carry-forward to the next bill; HE DECIDED OTHERWISE, in his words: take the last
+  fill and its reading, the run from that reading to the period's last Close, the diesel that run needs by the standard; what is left of
+  the fill is "in the tank" and must not be debited – FOR THAT MONTH ONLY, the balance is NOT given to the next month as an opening; it
+  is an assumption so that the debit does not apply. He confirmed four details: last fill = the last company-diesel issue of the period
+  (any date); a fill without a reading → the work of the Log Book days AFTER the fill date; no entry on / after the fill → the whole fill
+  is in the tank; hour machinery the same with hours and L/hr.
+  * `tankLeft_` (Code.gs) and its twin `tankLeft` (App.html) – same code; `billMachineCalc_`, the page's `mbMachine` and the Log Book
+    print all use it: excess = raw excess − min(left, raw). `left` is also capped by Asset Master → Tank Capacity when set. A Close below
+    the fill reading (new meter) falls back to the days after the fill.
+  * `logPrintExtra_` issues now carry `lastQty / lastKm / lastHr` (the last fill of a day by itself). The dashboard rows given to
+    `billMachineCalc_` (cost sheet) now carry `ckm / chr`.
+  * Shown: Abstract line B and the diesel Debit Note ("last fill 30 L on … at 1,234 km; run after it 46 km = 10 L by standard; 20 L taken
+    as still in the tank – not debited"), the Log Book print, and a "to check" line when Tank Capacity is not set. Help rule in 3 languages.
+  * CONSEQUENCE I TOLD HIM: the diesel of the last fill is judged only for the run after it, so a machinery with ONE fill in the period
+    never shows excess, and the left-over is never judged in any month. Tank Capacity in Asset Master is the only limit.
+  * Tests: unit "the last fill …" (his figures: 29.13 L over, 20 L left, 9.13 L = ₹913; page = server; tank cap; no reading; no entry),
+    the cost-sheet and meter tests re-worked by hand, `test/browser/tank.js` (7, with the database, incl. Verify & Submit).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

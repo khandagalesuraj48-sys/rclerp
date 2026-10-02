@@ -3949,6 +3949,13 @@
         'असे नाव भरा जे दुसऱ्या कोणत्याही vendor चे नाही (वेगळे ओळखू येईल असे काही जोडा, उदा. गावाचे नाव किंवा "Pvt Ltd"). दोन्ही खरोखर एकच party असतील तर Admin ला सांगा; दोन vendors एकत्र करणे हे वेगळे काम आहे.'],
       hi: ['नया नाम पहले से किसी दूसरे vendor / मालिक का है। नाम बदलने से दो अलग parties के assets, bills और payments मिल जाएँगे।',
         'ऐसा नाम भरें जो किसी और vendor का न हो (पहचान के लिए कुछ जोड़ें, जैसे जगह का नाम या "Pvt Ltd")। दोनों सच में एक ही party हों तो Admin को बताएँ; दो vendors को मिलाना अलग काम है।'] },
+    { re: /taken as still in the tank/i,
+      en: ['Diesel filled at the end of the period is not burnt yet. The bill takes what is left of the LAST fill (its litres less the standard need of the run after it) as still in the tank and does not debit it. This is an assumption for this period only; nothing is carried to the next bill.',
+        'Check that the last fill and its reading are right. Set "Tank Capacity" of this machinery in Asset Master – then never more than one tank is left out. If the diesel really was used, correct the Log Book readings after the fill.'],
+      mr: ['कालावधीच्या शेवटी भरलेले diesel अजून जळलेले नसते. Bill शेवटच्या भरण्यातले उरलेले diesel (त्याचे लिटर वजा त्यानंतरच्या चालण्याला standard प्रमाणे लागणारे) tank मध्ये आहे असे धरते आणि ते debit करत नाही. हे फक्त या कालावधीसाठीचे गृहीतक आहे; पुढच्या bill मध्ये काही नेले जात नाही.',
+        'शेवटचे भरणे आणि त्याचे reading बरोबर आहे का ते तपासा. Asset Master मध्ये या machinery ची "Tank Capacity" भरा; मग एका tank पेक्षा जास्त कधीच वगळले जाणार नाही. Diesel खरोखर वापरले असेल तर भरण्यानंतरची Log Book readings दुरुस्त करा.'],
+      hi: ['अवधि के अंत में भरा गया diesel अभी जला नहीं होता। Bill आख़िरी भराई का बचा हुआ diesel (उसके लीटर घटा उसके बाद की चाल को standard से लगने वाला) tank में मानता है और उसे debit नहीं करता। यह केवल इस अवधि की मान्यता है; अगले bill में कुछ नहीं ले जाया जाता।',
+        'जाँचें कि आख़िरी भराई और उसकी reading सही है। Asset Master में इस machinery की "Tank Capacity" भरें; फिर एक tank से ज़्यादा कभी नहीं छोड़ा जाएगा। Diesel सच में इस्तेमाल हुआ हो तो भराई के बाद की Log Book readings ठीक करें।'] },
     { re: /no BOQ in these dates/i,
       en: ['This machinery has no BOQ (rate) for these dates, so its work is billed at 0.', 'Open Vendor BOQ and add this machinery with its rate from the right start date (or amend the BOQ), then build the bill again.'],
       mr: ['या machinery साठी या तारखांना BOQ (दर) नाही, म्हणून तिचे काम 0 ने bill होते.', 'Vendor BOQ मध्ये ही machinery योग्य सुरुवातीच्या तारखेपासून दरासह जोडा (किंवा BOQ Amend करा), मग bill पुन्हा Build करा.'],
@@ -4180,9 +4187,9 @@
       mr: ['रोजचा breakdown अहवाल: कोणती machinery चालू आहे आणि कोणती breakdown मध्ये आहे, कारणासह.', 'प्रत्येक machinery साठी Working किंवा Breakdown निवडावे लागते; breakdown ला कारण लागते. एका तारखेला एकच अहवाल.'],
       hi: ['रोज़ की breakdown रिपोर्ट: कौन सी machinery चालू है और कौन सी breakdown में है, कारण के साथ।', 'हर machinery के लिए Working या Breakdown चुनना होता है; breakdown का कारण ज़रूरी है। एक तारीख को एक ही रिपोर्ट।'] },
     bill: { saves: ['saveBillSettings', 'verifyBills', 'submitBills'],
-      en: ['Makes the vendor bills of a period from the Log Book, the diesel issues and the BOQ: the Abstract, the party\'s Tax Invoice and the diesel Debit Note.', 'A = work done at BOQ rates; B = diesel deducted (debit basis in full, otherwise only above the standard average, at the higher of the average and last diesel rate); D = A − B − C; GST and TDS on D; I = net payable; ticked debit notes come off after I. Before submit the server builds every bill again and compares it. Diesel issued on a day without a Log Book entry is counted and pointed out.'],
-      mr: ['Log Book, diesel issues आणि BOQ वरून एका कालावधीची vendor bills बनवते: Abstract, party चा Tax Invoice आणि diesel ची Debit Note.', 'A = BOQ दराने झालेले काम; B = कापलेले diesel (debit basis असेल तर पूर्ण, नाहीतर फक्त standard average पेक्षा जास्तीचे; दर = सरासरी आणि शेवटच्या diesel दरातला मोठा); D = A − B − C; GST आणि TDS D वर; I = निव्वळ देय; tick केलेल्या debit notes I नंतर वजा होतात. Submit आधी server प्रत्येक bill पुन्हा बनवून तुलना करतो. Log Book entry नसलेल्या दिवशी दिलेले diesel मोजले जाते आणि दाखवले जाते.'],
-      hi: ['Log Book, diesel issues और BOQ से एक अवधि के vendor bills बनाता है: Abstract, party का Tax Invoice और diesel की Debit Note।', 'A = BOQ दर से हुआ काम; B = काटा गया diesel (debit basis हो तो पूरा, वरना केवल standard average से ऊपर का; दर = औसत और आख़िरी diesel दर में से बड़ी); D = A − B − C; GST और TDS D पर; I = शुद्ध देय; tick की गई debit notes I के बाद घटती हैं। Submit से पहले server हर bill फिर बनाकर मिलाता है। बिना Log Book entry वाले दिन दिया गया diesel गिना और दिखाया जाता है।'] },
+      en: ['Makes the vendor bills of a period from the Log Book, the diesel issues and the BOQ: the Abstract, the party\'s Tax Invoice and the diesel Debit Note.', 'A = work done at BOQ rates; B = diesel deducted (debit basis in full, otherwise only above the standard average, at the higher of the average and last diesel rate; what is left of the LAST fill of the period – its litres less the standard need of the run after it – is taken as still in the tank and not debited); D = A − B − C; GST and TDS on D; I = net payable; ticked debit notes come off after I. Before submit the server builds every bill again and compares it. Diesel issued on a day without a Log Book entry is counted and pointed out.'],
+      mr: ['Log Book, diesel issues आणि BOQ वरून एका कालावधीची vendor bills बनवते: Abstract, party चा Tax Invoice आणि diesel ची Debit Note.', 'A = BOQ दराने झालेले काम; B = कापलेले diesel (debit basis असेल तर पूर्ण, नाहीतर फक्त standard average पेक्षा जास्तीचे; दर = सरासरी आणि शेवटच्या diesel दरातला मोठा; कालावधीतल्या शेवटच्या भरण्यातले उरलेले diesel, म्हणजे त्याचे लिटर वजा त्यानंतरच्या चालण्याला standard प्रमाणे लागणारे, tank मध्ये धरले जाते आणि debit होत नाही); D = A − B − C; GST आणि TDS D वर; I = निव्वळ देय; tick केलेल्या debit notes I नंतर वजा होतात. Submit आधी server प्रत्येक bill पुन्हा बनवून तुलना करतो. Log Book entry नसलेल्या दिवशी दिलेले diesel मोजले जाते आणि दाखवले जाते.'],
+      hi: ['Log Book, diesel issues और BOQ से एक अवधि के vendor bills बनाता है: Abstract, party का Tax Invoice और diesel की Debit Note।', 'A = BOQ दर से हुआ काम; B = काटा गया diesel (debit basis हो तो पूरा, वरना केवल standard average से ऊपर का; दर = औसत और आख़िरी diesel दर में से बड़ी; अवधि की आख़िरी भराई का बचा हुआ diesel, यानी उसके लीटर घटा उसके बाद की चाल को standard से लगने वाला, tank में माना जाता है और debit नहीं होता); D = A − B − C; GST और TDS D पर; I = शुद्ध देय; tick की गई debit notes I के बाद घटती हैं। Submit से पहले server हर bill फिर बनाकर मिलाता है। बिना Log Book entry वाले दिन दिया गया diesel गिना और दिखाया जाता है।'] },
     bills: { saves: ['deleteBill', 'saveDebitNote', 'cancelDebitNote'],
       en: ['RCL Drive: every submitted bill with its three papers, and every debit note – exactly as saved.', 'A saved bill cannot be changed; building the same vendor and period again replaces it (the old one stays as "Superseded"). A debit note is made from the Log Book entries marked "Debit to"; one entry goes into one note only; a note lowers the party\'s balance in the Vendor Ledger. Only Admin can delete a bill or cancel a note.'],
       mr: ['RCL Drive: submit झालेले प्रत्येक bill त्याच्या तीन कागदांसह, आणि प्रत्येक debit note; जसे save झाले तसेच.', 'Save झालेले bill बदलता येत नाही; तोच vendor आणि कालावधी पुन्हा Build केल्यास ते बदलले जाते (जुने "Superseded" म्हणून राहते). Debit note "Debit to" लावलेल्या Log Book entries वरून बनते; एक entry एकाच note मध्ये जाते; note मुळे Vendor Ledger मधली party ची बाकी कमी होते. Bill delete करणे किंवा note रद्द करणे फक्त Admin करू शकतो.'],
@@ -7997,7 +8004,9 @@
     const tKm = own.reduce((s2, r) => s2 + (Number(r.wkm) || 0), 0), tHr = own.reduce((s2, r) => s2 + (Number(r.whr) || 0), 0);
     const kmStd = Number(m.kmStd) || 0, hrStd = Number(m.hrStd) || 0;
     const stdQty = r2((hasKm(u) && kmStd ? tKm / kmStd : 0) + (hasHr(u) && hrStd ? tHr * hrStd : 0));
-    const excessQty = stdQty > 0 ? Math.max(0, r2(companyQty - stdQty)) : 0;
+    const rawExcess = stdQty > 0 ? Math.max(0, r2(companyQty - stdQty)) : 0;
+    const tank = tankLeft(m, u, own, iss0, isDebit, rawExcess);                    // what is left of the last fill is not excess of this period
+    const excessQty = r2(rawExcess - (tank ? tank.applied : 0));
     const dRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), excessAmt = r2((debitQty + excessQty) * dRate);
     // diesel issued on a day that has no WORKING Log Book entry (no entry at all, or only Idle / Holiday / Breakdown): the bill
     // counts it (as before) and now says so, so that whoever reads the bill knows why it differs from the Log Book rows
@@ -8006,7 +8015,7 @@
     // days entered WITHOUT a reading (meter not working): their work is an estimate – paid and counted for the diesel standard, and said on the bill
     const offRows = list.filter(r => (r.mode || r.unit) === METER_OFF);
     const est = { days: [...new Set(offRows.map(r => r.date))].length, km: r2(offRows.reduce((s2, r) => s2 + (Number(r.wkm) || 0), 0)), hr: r2(offRows.reduce((s2, r) => s2 + (Number(r.whr) || 0), 0)) };
-    return { est: est, noEntry: noEntry, no: m.id || no, type: m.type || '', name: m.name || '', unit: u, supply: m.supply || '', workDays: workDays, nights: nights, holidays: holidays, idleDays: idleDays, itemNotes: itemNotes, lines: lines, amount: amount, zeroWork: zeroWork,
+    return { tank: tank && tank.applied > 0 ? tank : null, rawExcess: rawExcess, est: est, noEntry: noEntry, no: m.id || no, type: m.type || '', name: m.name || '', unit: u, supply: m.supply || '', workDays: workDays, nights: nights, holidays: holidays, idleDays: idleDays, itemNotes: itemNotes, lines: lines, amount: amount, zeroWork: zeroWork,
       issued: issued, stdQty: stdQty, excessQty: excessQty, debitQty: debitQty, dieselRate: dRate, excessAmt: excessAmt, days: Object.keys(units).length,
       gstPct: last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0,
       tdsPct: last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0),
@@ -8024,6 +8033,7 @@
     machines.filter(x => !x.hasBoq && x.supply !== 'Debit Basis').forEach(x => b.warnings.push(x.no + ': no BOQ in these dates'));
     machines.forEach(x => (x.zeroWork || []).forEach(z => b.warnings.push(x.no + ': BOQ ' + z.basis + ' but no ' + ({ 'Per Hour': 'hours', 'Per KM': 'KM', 'Per Trip': 'trips', 'Item-wise': 'work for its items' }[z.basis]) + ' on ' + z.days.length + ' day(s) – ' + z.days.slice(0, 4).join(', ') + (z.days.length > 4 ? ' …' : '') + ' (not billed)')));
     machines.forEach(x => (x.itemNotes || []).slice(0, 6).forEach(t => b.warnings.push(x.no + ' – ' + t)));
+    machines.forEach(x => { if (x.tank && x.tank.applied > 0 && !((findMachine(x.no) || {}).tankCap > 0)) b.warnings.push(x.no + ': ' + fmt(x.tank.applied) + ' L of the last fill taken as still in the tank – Tank Capacity is not set in Asset Master, so this is not limited by the tank'); });
     machines.forEach(x => { if (x.est && x.est.days) b.warnings.push(x.no + ': ' + x.est.days + ' day(s) without a reading (meter not working) – work estimated: ' + [x.est.km ? fmt(x.est.km) + ' km' : '', x.est.hr ? fmt(x.est.hr) + ' hr' : ''].filter(Boolean).join(' + ')); });
     if (b.idleDays && b.idlePaid === undefined) b.warnings.push(b.idleDays + ' Idle day(s) – choose Paid / Not paid (shown as paid until you choose)');
     if (!b.vendor.pan) b.warnings.push('PAN missing in Vendor Master');
@@ -8174,6 +8184,37 @@
     if (pages) printDoc('Submitted bill' + (got.length === 1 ? '' : 's') + ' – ' + showDate($('mb_from').value) + ' to ' + showDate($('mb_to').value), pages, 'rep rep-bill', true, $('mb_co').value);
   }));
   // the bill page (Abstract of Bill) – used for the preview, the print and the saved bills
+  /* The last fill of the period is partly still in the tank – the same rule as the server's tankLeft_ (see there). */
+  function tankLeft(m, u, own, iss0, isDebit, raw) {
+    const kmStd = Number(m.kmStd) || 0, hrStd = Number(m.hrStd) || 0;
+    const days = Object.keys(iss0 || {}).filter(d => !isDebit(d) && Number(iss0[d].qty) > 0).sort();
+    if (!days.length || !(raw > 0)) return null;
+    const d = days[days.length - 1], x = iss0[d], num = v => v !== '' && v !== undefined && v !== null && isFinite(Number(v));
+    const qty = r2(Number(x.lastQty !== undefined ? x.lastQty : x.qty) || 0), fk = x.lastKm !== undefined ? x.lastKm : x.km, fh = x.lastHr !== undefined ? x.lastHr : x.hr;
+    const ord = r => r.date + '|' + (r.shift === 'Night' ? 1 : 0);
+    const onAfter = own.filter(r => r.date >= d).sort((a, b) => ord(a) < ord(b) ? -1 : ord(a) > ord(b) ? 1 : 0), after = own.filter(r => r.date > d);
+    const part = (has, std, fill, cl, w) => {
+      if (!has || !std) return { q: 0, by: '' };
+      if (num(fill)) { const ends = onAfter.filter(r => num(r[cl])).map(r => Number(r[cl])), last = ends.length ? ends[ends.length - 1] : null;
+      if (last === null) return { q: 0, by: 'reading' };                     // no entry on / after the fill: nothing run
+      if (last >= Number(fill)) return { q: r2(last - Number(fill)), by: 'reading' }; }      // (a Close below the fill reading = a new meter: fall through to the days)
+      return { q: r2(after.reduce((a, r) => a + (Number(r[w]) || 0), 0)), by: 'days' };
+    };
+    const K = part(hasKm(u), kmStd, fk, 'ckm', 'wkm'), Hh = part(hasHr(u), hrStd, fh, 'chr', 'whr');
+    const used = r2((K.by ? K.q / kmStd : 0) + (Hh.by ? Hh.q * hrStd : 0));
+    let left = Math.max(0, r2(qty - used));
+    const cap = Number(m.tankCap) || 0; if (cap > 0 && left > cap) left = cap;
+    return { date: d, qty: qty, km: K.by === 'reading' ? Number(fk) : '', hr: Hh.by === 'reading' ? Number(fh) : '', kmAfter: K.q, hrAfter: Hh.q, by: K.by === 'reading' || Hh.by === 'reading' ? 'reading' : 'days',
+      used: used, left: left, applied: r2(Math.max(0, Math.min(left, raw))) };
+  }
+  // "last fill 30 L on 30-09-2026 at 1234; run after it 46 km = 10 L by standard; 20 L taken as still in the tank"
+  function tankText(t) {
+    if (!t || !(t.applied > 0)) return '';
+    const run = [t.kmAfter ? fmt(t.kmAfter) + ' km' : '', t.hrAfter ? fmt(t.hrAfter) + ' hr' : ''].filter(Boolean).join(' + ');
+    return 'last fill ' + fmt(t.qty) + ' L on ' + showDate(t.date) + (t.km !== '' ? ' at ' + fmt(t.km) + ' km' : '') + (t.hr !== '' ? ' at ' + fmt(t.hr) + ' hr' : '') + '; ' +
+      (run ? 'run after it ' + run + ' = ' + fmt(t.used) + ' L by standard' : 'no work after it') + '; ' + fmt(t.applied) + ' L taken as still in the tank – not debited';
+  }
+  const billTank = b => ((b && b.machines) || []).filter(m => m.tank && m.tank.applied > 0).map(m => String(m.no).replace(/-/g, '') + ': ' + tankText(m.tank)).join(' | ');
   // "MH04GE9396 30-09-2026 42 L, …" – the diesel of the bill that was issued on days without a working Log Book entry
   // "JCB1 2 day(s) 160 km" – the work of the bill that is an estimate (meter not working)
   function billEst(b) { return ((b && b.machines) || []).filter(m => m.est && m.est.days).map(m => String(m.no).replace(/-/g, '') + ' ' + m.est.days + ' day(s) ' + [m.est.km ? fmt(m.est.km) + ' km' : '', m.est.hr ? fmt(m.est.hr) + ' hr' : ''].filter(Boolean).join(' + ')).join(', '); }
@@ -8189,7 +8230,7 @@
     const dq = (b.machines || []).reduce((a, x) => a + (Number(x.debitQty) || 0), 0), eq = (b.machines || []).reduce((a, x) => a + (Number(x.excessQty) || 0), 0);
     const bNote = [dq ? 'diesel debit ' + fmt(r2(dq)) + ' L' : '', eq ? 'excess diesel over standard ' + fmt(r2(eq)) + ' L' : ''].filter(Boolean).join(' + ');
     const bNoEntry = billNoEntry(b);
-    const sum = [['A', 'Workdone amount >>>' + (billEst(b) ? '<small>incl. days without a reading (meter not working), work estimated: ' + esc(billEst(b)) + '</small>' : ''), b.A], ['B', 'Less- Diesel Deduction >>>' + (b.B ? '<small>' + bNote + (b.machines && b.machines[0] && b.machines[0].dieselRate ? ' @ ₹' + fmt(b.machines[0].dieselRate) + '/L' : '') + '</small>' + (bNoEntry ? '<small>incl. diesel issued on days with no Log Book entry: ' + esc(bNoEntry) + '</small>' : '') : ''), b.B ? -b.B : ''],
+    const sum = [['A', 'Workdone amount >>>' + (billEst(b) ? '<small>incl. days without a reading (meter not working), work estimated: ' + esc(billEst(b)) + '</small>' : ''), b.A], ['B', 'Less- Diesel Deduction >>>' + (billTank(b) ? '<small>' + esc(billTank(b)) + '</small>' : '') + (b.B ? '<small>' + bNote + (b.machines && b.machines[0] && b.machines[0].dieselRate ? ' @ ₹' + fmt(b.machines[0].dieselRate) + '/L' : '') + '</small>' + (bNoEntry ? '<small>incl. diesel issued on days with no Log Book entry: ' + esc(bNoEntry) + '</small>' : '') : ''), b.B ? -b.B : ''],
       ['C', 'Other Deduction >>>' + (b.C && b.cReason ? '<small>' + esc(b.cReason) + '</small>' : ''), b.C ? -b.C : ''], ['D', 'Net Work Done Amount D=(A-B-C) >>>', b.D],
       ['E', 'Add CGST >>>', b.gstPct ? b.E : '', b.gstPct ? fmt(b.gstPct / 2) + '%' : ''], ['F', 'Add SGST >>>', b.gstPct ? b.F : '', b.gstPct ? fmt(b.gstPct / 2) + '%' : ''],
       ['G', 'Total Amount (G=D+E+F)', b.G], ['H', 'Less TDS >>>', b.H ? -b.H : '', b.tdsPct ? fmt(b.tdsPct) + '%' : ''], ['I', 'Net Payable Amt I = (G-H) >>>>', b.I]]
@@ -8301,7 +8342,7 @@
       '<table><colgroup><col style="width:7%"><col style="width:25%"><col style="width:32%"><col style="width:11%"><col style="width:11%"><col style="width:14%"></colgroup><thead><tr><th class="c">Sr.No</th><th>Machinery</th><th>Particular</th><th class="c">Qty (Ltr)</th><th class="c">Rate (₹/Ltr)</th><th class="c">Amount</th></tr></thead><tbody>' +
       rows.join('') + '<tr><td colspan="5" class="n"><b>Total debit</b></td><td class="n"><b>' + mbN2(b.B) + '</b></td></tr>' +
       '<tr><td colspan="6"><b>In Word : ' + esc(rupeesWords(b.B)) + ' /-</b></td></tr></tbody></table>' +
-      '<div class="dnp-note">This amount is deducted in RA Bill No <b>' + esc(b.billNo || '') + '</b> (line B of the Abstract of Bill, "Less – Diesel Deduction").' + (billNoEntry(b) ? '<br>It includes diesel issued on days with no Log Book entry: ' + esc(billNoEntry(b)) + '.' : '') + '</div>' +
+      '<div class="dnp-note">This amount is deducted in RA Bill No <b>' + esc(b.billNo || '') + '</b> (line B of the Abstract of Bill, "Less – Diesel Deduction").' + (billNoEntry(b) ? '<br>It includes diesel issued on days with no Log Book entry: ' + esc(billNoEntry(b)) + '.' : '') + (billTank(b) ? '<br>Left out: ' + esc(billTank(b)) + '.' : '') + '</div>' +
       '<div class="dnp-sign"><span>Accepted by – ' + esc(v.name || '') + '</span><span>For ' + esc(co) + '</span></div></div>';
   }
   // the papers of one bill as print pages: Abstract, Tax Invoice, Debit Note (when there is one)
@@ -11294,7 +11335,9 @@
       const ownRows = list.filter(r => !isDebitD(r.date));
       const tKmC = r2(ownRows.reduce((s2, r) => s2 + (Number(r.wkm) || 0), 0)), tHrC = r2(ownRows.reduce((s2, r) => s2 + (Number(r.whr) || 0), 0));
       const stdQty = r2((hasKm(u) && kmStd ? tKmC / kmStd : 0) + (hasHr(u) && hrStd ? tHrC * hrStd : 0));
-      const excessQty = stdQty > 0 ? Math.max(0, r2(issued - debitQty - stdQty)) : 0;
+      const rawExcess = stdQty > 0 ? Math.max(0, r2(issued - debitQty - stdQty)) : 0;
+      const tank = tankLeft(m, u, ownRows, iss0, isDebitD, rawExcess);              // the bill's rule: what is left of the last fill is not excess
+      const excessQty = r2(rawExcess - (tank ? tank.applied : 0));
       // debit rate = the HIGHER of the average diesel rate of the dates and the last diesel purchase rate
       const avgR = Number(extra.avgRate) || 0, lastR = Number(extra.lastRate) || 0, avgRate = Math.max(avgR, lastR), excessAmt = r2((debitQty + excessQty) * avgRate);
       const basic = r2(payable - excessAmt);
@@ -11333,7 +11376,7 @@
       const L = [['TOTAL WORKING DAYS', workDays], ['TOTAL WORKING NIGHT', nights]].concat([['NET WORKING DAYS' + ([holDays ? 'HOLIDAY ' + holDays : '', bdDaysP ? 'BREAKDOWN ' + bdDaysP : ''].filter(Boolean).length ? '<small>NOT PAID – ' + [holDays ? 'HOLIDAY ' + holDays : '', bdDaysP ? 'BREAKDOWN ' + bdDaysP : ''].filter(Boolean).join(', ') + '</small>' : '') + (idleDays ? '<small>IDLE ' + idleDays + (idlePaid ? ' – PAID' + (idleSet ? '' : ' HERE (FINAL IN THE BILL)') : ' – NOT PAID') + '</small>' : ''), net]]).concat([ ['TOTAL DIESEL ISSUE' + noEntryNote, n2(issued) + ' LTR'], ['DIESEL MONTHLY AVERAGE', avgWord],
         ['STANDARD AVERAGE<small>' + verdict + '</small>', allDebit ? 'NOT CHECKED' : (stdWord || '–') + (stdQty ? '<br><small>' + fmt(stdQty) + ' L allowed for the work</small>' : '')]]);
       const Rr = [[monthly.length ? 'MONTHLY RATE' : 'RATE', rateCell], ['DAILY RATE', dailyCell], ['PAYABLE AMOUNT', money(payable)],
-        [(debitQty ? 'DIESEL DEBIT' : 'EXCESS DIESEL – DEBIT AMT') + '<small>rate = higher of avg ₹' + n2(avgR) + ' / last ₹' + n2(lastR) + '</small>', excessAmt ? '<small>' + [debitQty ? fmt(debitQty) + ' L debit' : '', excessQty ? fmt(excessQty) + ' L extra' : ''].filter(Boolean).join(' + ') + ' × ₹' + n2(avgRate) + '</small> − ₹ ' + n2(excessAmt) : '<small>' + (stdQty ? 'no extra diesel' : 'no standard') + '</small> –'],
+        [(debitQty ? 'DIESEL DEBIT' : 'EXCESS DIESEL – DEBIT AMT') + '<small>rate = higher of avg ₹' + n2(avgR) + ' / last ₹' + n2(lastR) + '</small>', excessAmt ? '<small>' + [debitQty ? fmt(debitQty) + ' L debit' : '', excessQty ? fmt(excessQty) + ' L extra' : ''].filter(Boolean).join(' + ') + ' × ₹' + n2(avgRate) + '</small> − ₹ ' + n2(excessAmt) + (tank && tank.applied > 0 ? '<br><small>' + esc(tankText(tank).toUpperCase()) + '</small>' : '') : '<small>' + (tank && tank.applied > 0 ? esc(tankText(tank).toUpperCase()) : stdQty ? 'no extra diesel' : 'no standard') + '</small> –'],
         ['TDS ' + (tdsP ? fmt(tdsP) + '% (on basic)' : ''), tds ? '− ₹ ' + n2(tds) : '–'],
         ['GST ' + (gstP ? fmt(gstP) + '% (on basic)' : '– not applicable'), gst ? '+ ₹ ' + n2(gst) : '–']];
       /* ---------- the format set for this machinery (Master → Log Book Format). A = the table above. ---------- */

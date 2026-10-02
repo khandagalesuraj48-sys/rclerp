@@ -1738,7 +1738,8 @@ function logDashboard_(f) {
       const r = x.r, m = M[x.k], night = str_(r[lc[H.SHIFT]]) === 'Night';
       const wkm = num0_(r[lc[H.WKM]]), whr = num0_(r[lc[H.WHR]]), trip = g(H.TRIP) ? num0_(r[lc[H.TRIP]]) : 0;
       m.entries++; (night ? m.night : m.day)[x.dk] = true; m.lastLog = x.dk;
-      m.rows.push(logItemsOut_({ no: m.no, date: x.dk, shift: night ? 'Night' : 'Day', whr: whr, wkm: wkm, trip: trip, mode: str_(r[lc[H.UNIT]]), itemWork: H.ITEMS in lc ? itemWorkParse_(r[lc[H.ITEMS]]) : {} }));
+      m.rows.push(logItemsOut_({ no: m.no, date: x.dk, shift: night ? 'Night' : 'Day', whr: whr, wkm: wkm, trip: trip, mode: str_(r[lc[H.UNIT]]), itemWork: H.ITEMS in lc ? itemWorkParse_(r[lc[H.ITEMS]]) : {},
+        ckm: numOrBlank_(r[lc[H.CKM]]), chr: numOrBlank_(r[lc[H.CHR]]) }));      // the Close readings: the bill's "last fill still in the tank" rule needs them
       m.hrs += Math.max(0, whr); m.km += Math.max(0, wkm); m.trips += trip; if (night) m.nightHrs += Math.max(0, whr);
       const dd = daily[x.dk]; if (night) dd.hrsNight += Math.max(0, whr); else dd.hrsDay += Math.max(0, whr); dd.km += Math.max(0, wkm); dd.trips += trip; dd.machines[x.k] = true;
       if (!full) return;
@@ -2131,6 +2132,38 @@ function billVerifyKey_(d, x) {
   const k = [vKey_((d.vendor || {}).name || x.vendor || ''), str_(x.company || d.company), dkey_(x.from || d.from), dkey_(x.to || d.to), r2_(num0_(d.A)), r2_(num0_(d.B)), r2_(num0_(d.C)), r2_(num0_(d.I))].join('|');
   return 'VB_' + hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, k, Utilities.Charset.UTF_8)).slice(0, 40);
 }
+/* ---------- THE LAST FILL OF THE PERIOD IS PARTLY STILL IN THE TANK (rule set by the MD, 02-10-2026) ----------
+ * Diesel filled at the end of the period is not burnt yet, so it must not be debited as "excess" of that period.
+ * The last diesel issue of the period (company diesel) is taken: its litres and the reading at the fill. From that reading to
+ * the last Close of the period the machinery ran so many KM / hours; by the standard average that needed so many litres.
+ * What is left of that fill is taken as "in the tank" and left out of the excess. Only for THIS period – it is an assumption
+ * to keep the debit away, it is NOT carried to the next period as an opening.
+ *   - a fill without a reading: the work of the Log Book entries on the days AFTER the fill date is used instead;
+ *   - no Log Book entry on / after the fill: the whole fill is in the tank;
+ *   - never more than the tank holds (Asset Master → Tank Capacity, when set), never more than the excess itself.
+ * own = the entries of the company-diesel days, raw = the excess before this rule. The page has the same function (tankLeft). */
+function tankLeft_(m, u, own, iss0, isDebit, raw) {
+  const kmStd = Number(m.kmStd) || 0, hrStd = Number(m.hrStd) || 0;
+  const days = Object.keys(iss0 || {}).filter(d => !isDebit(d) && Number(iss0[d].qty) > 0).sort();
+  if (!days.length || !(raw > 0)) return null;
+  const d = days[days.length - 1], x = iss0[d], num = v => v !== '' && v !== undefined && v !== null && isFinite(Number(v));
+  const qty = r2_(Number(x.lastQty !== undefined ? x.lastQty : x.qty) || 0), fk = x.lastKm !== undefined ? x.lastKm : x.km, fh = x.lastHr !== undefined ? x.lastHr : x.hr;
+  const ord = r => r.date + '|' + (r.shift === 'Night' ? 1 : 0);
+  const onAfter = own.filter(r => r.date >= d).sort((a, b) => ord(a) < ord(b) ? -1 : ord(a) > ord(b) ? 1 : 0), after = own.filter(r => r.date > d);
+  const part = (has, std, fill, cl, w) => {
+    if (!has || !std) return { q: 0, by: '' };
+    if (num(fill)) { const ends = onAfter.filter(r => num(r[cl])).map(r => Number(r[cl])), last = ends.length ? ends[ends.length - 1] : null;
+      if (last === null) return { q: 0, by: 'reading' };                     // no entry on / after the fill: nothing run
+      if (last >= Number(fill)) return { q: r2_(last - Number(fill)), by: 'reading' }; }      // (a Close below the fill reading = a new meter: fall through to the days)
+    return { q: r2_(after.reduce((a, r) => a + (Number(r[w]) || 0), 0)), by: 'days' };
+  };
+  const K = part(hasKm_(u), kmStd, fk, 'ckm', 'wkm'), Hh = part(hasHr_(u), hrStd, fh, 'chr', 'whr');
+  const used = r2_((K.by ? K.q / kmStd : 0) + (Hh.by ? Hh.q * hrStd : 0));
+  let left = Math.max(0, r2_(qty - used));
+  const cap = Number(m.tankCap) || 0; if (cap > 0 && left > cap) left = cap;
+  return { date: d, qty: qty, km: K.by === 'reading' ? Number(fk) : '', hr: Hh.by === 'reading' ? Number(fh) : '', kmAfter: K.q, hrAfter: Hh.q, by: K.by === 'reading' || Hh.by === 'reading' ? 'reading' : 'days',
+    used: used, left: left, applied: r2_(Math.max(0, Math.min(left, raw))) };
+}
 // one machinery's part of a bill – the same rules as the Machinery Billing page (BOQ day by day, excess diesel)
 function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid) {
   const u = m.unit || (list[0] || {}).unit || 'KM', key = noKey_(m.id);
@@ -2205,9 +2238,11 @@ function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid) {
   const tKm = own.reduce((a, r) => a + (Number(r.wkm) || 0), 0), tHr = own.reduce((a, r) => a + (Number(r.whr) || 0), 0);
   const kmStd = Number(m.kmStd) || 0, hrStd = Number(m.hrStd) || 0;
   const stdQty = r2_((hasKm_(u) && kmStd ? tKm / kmStd : 0) + (hasHr_(u) && hrStd ? tHr * hrStd : 0));
-  const excessQty = stdQty > 0 ? Math.max(0, r2_(companyQty - stdQty)) : 0;
+  const rawExcess = stdQty > 0 ? Math.max(0, r2_(companyQty - stdQty)) : 0;
+  const tank = tankLeft_(m, u, own, iss0, isDebit, rawExcess);                     // what is left of the last fill is not excess of this period
+  const excessQty = r2_(rawExcess - (tank ? tank.applied : 0));
   const dRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), excessAmt = r2_((debitQty + excessQty) * dRate);
-  return { no: m.id, workDays: workDays, nights: nights, holidays: holidays, breakdowns: breakdowns, idleDays: idleDays, itemOver: itemOver, itemUnknown: itemUnknown, itemLeft: itemLeft, amount: amount, issued: issued, excessAmt: excessAmt, debitQty: debitQty, excessQty: excessQty, noBoq: noBoq, legacy: legacy, zero: zero, days: Object.keys(units).length,
+  return { tank: tank && tank.applied > 0 ? tank : null, rawExcess: rawExcess, no: m.id, workDays: workDays, nights: nights, holidays: holidays, breakdowns: breakdowns, idleDays: idleDays, itemOver: itemOver, itemUnknown: itemUnknown, itemLeft: itemLeft, amount: amount, issued: issued, excessAmt: excessAmt, debitQty: debitQty, excessQty: excessQty, noBoq: noBoq, legacy: legacy, zero: zero, days: Object.keys(units).length,
     gstPct: last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0,
     tdsPct: last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0), woNo: last ? last.woNo || '' : '' };
 }
@@ -4365,6 +4400,8 @@ function logPrintExtra_(f) {
       x.qty = r2_(x.qty + num0_(r[c[H.QTY]]));
       if (numOrBlank_(r[c[H.KMR]]) !== '') x.km = numOrBlank_(r[c[H.KMR]]);
       if (numOrBlank_(r[c[H.HRR]]) !== '') x.hr = numOrBlank_(r[c[H.HRR]]);
+      // the LAST fill of the day by itself (litres and its own readings) – for "how much of the last fill is still in the tank"
+      x.lastQty = r2_(num0_(r[c[H.QTY]])); x.lastKm = numOrBlank_(r[c[H.KMR]]); x.lastHr = numOrBlank_(r[c[H.HRR]]);
     });
   } catch (e) { /* no diesel issues */ }
   // average diesel rate of the dates (bought diesel, weighted by litres); none bought → the last rate before
