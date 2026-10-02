@@ -1756,6 +1756,22 @@
   }
   @container (max-width: 1149px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 3 / span 4; grid-row: 4; } }
   @media (max-width: 760px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 1 / -1; } .lg-wrap tr.lrow > td.c-debit::before { content: "Debit to"; flex: 0 0 100%; } .lg-wrap tr.lrow > td.c-debit { flex-wrap: wrap; } }
+  /* ---------- help for errors (what is wrong / what to do, 3 languages) ---------- */
+  #fixbox { position: fixed; right: 18px; bottom: 76px; z-index: 60; width: min(440px, calc(100vw - 28px)); max-height: 62vh; overflow: auto; background: #fff; border: 1px solid #F3C0CA; border-left: 4px solid var(--c-red, #C8102E); border-radius: 12px; box-shadow: 0 16px 40px rgba(12,26,46,.22); padding: 12px 14px 12px; }
+  #fixbox[hidden] { display: none; }
+  #fixbox .fx-x { position: absolute; right: 8px; top: 6px; border: 0; background: transparent; font-size: 20px; line-height: 1; cursor: pointer; color: #5B6B80; padding: 4px 8px; }
+  #fixbox .fx-msg { font: 600 13px/1.4 var(--ui); color: #8E1325; padding-right: 26px; margin-bottom: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .fixhelp { font: 13.5px/1.5 var(--ui), "Nirmala UI", "Noto Sans Devanagari", sans-serif; color: #0F1B2D; white-space: normal; text-align: left; }
+  .fixhelp .fx-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; } .fixhelp .fx-top > b { font-size: 12px; color: #5B6B80; }
+  .fixhelp .fx-lang { margin-left: auto; display: inline-flex; background: #EEF1F5; border-radius: 8px; padding: 2px; gap: 2px; }
+  .fixhelp .fx-lang button { border: 0; background: transparent; font: 600 12px var(--ui), "Nirmala UI", sans-serif; color: #5B6B80; padding: 4px 9px; border-radius: 6px; cursor: pointer; min-height: 0; }
+  .fixhelp .fx-lang button.on { background: #fff; color: #0F1B2D; box-shadow: 0 1px 2px rgba(12,26,46,.14); }
+  .fixhelp .fx-rule { border-top: 1px solid #EEF1F5; padding: 7px 0 2px; } .fixhelp .fx-rule:first-of-type { border-top: 0; padding-top: 0; }
+  .fixhelp p { margin: 0 0 5px; } .fixhelp p b { color: #1543B8; }
+  #cf_msg .fixhelp { margin-top: 12px; padding: 10px 12px; background: #F7F9FC; border: 1px solid #E3E8EF; border-radius: 10px; }
+  .mb-warn { margin-top: 7px; padding: 8px 10px; border: 1px solid #F0D58A; background: #FFFBEC; border-radius: 9px; font-size: 12.5px; color: #5C3D00; white-space: normal; max-width: 520px; }
+  .mb-warn .fixhelp { margin-top: 7px; font-size: 12.5px; }
+  @media (max-width: 760px) { #fixbox { right: 8px; bottom: 70px; } }
   .mb-dns { margin-top: 6px; font-size: 12px; color: #9A3412; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
   .mb-dns span { font-weight: 700; } .mb-dns label { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; cursor: pointer; } .mb-dns input { width: auto; min-height: 0; }
   .dn-new { border: 1px solid #DDE3EA; border-radius: 12px; padding: 14px 16px; margin: 0 0 14px; background: #FAFBFC; }
@@ -3682,7 +3698,7 @@
       }
       $('lg_err').textContent = 'Loading…';
       await init();
-    } catch (e) { $('lg_err').textContent = errMsg(e); }
+    } catch (e) { $('lg_err').textContent = errMsg(e); try { $('lg_err').insertAdjacentHTML('beforeend', fixHtml(errMsg(e))); } catch (er) { /* help only */ } }
     finally { btn.disabled = false; btn.textContent = 'Sign In'; }
   });
   $('lg_eye').addEventListener('click', () => {
@@ -3780,7 +3796,197 @@
     return '<button class="link" ' + editAttr + '="' + esc(id) + '">Edit</button><button class="link danger" ' + delAttr + '="' + esc(id) + '">Delete</button>';
   }
   let toastTimer;
+  /* ================= HELP FOR EVERY ERROR: what is wrong and what to do – English, मराठी, हिंदी =================
+   * Asked 02-10-2026: whenever the app refuses something, the person must be told in their language what went wrong and
+   * how to put it right (the person corrects it – the app never changes data by itself).
+   * FIX_RULES: each rule = a pattern that recognises the app's own (English) message + two sentences per language:
+   * [what is wrong, what to do]. The first rules that match are shown (at most 3); when none matches, the last, general one.
+   * Shown: under every red message (a card at the bottom right), inside every "Nothing saved / Not submitted" box, and next
+   * to warnings on the billing page. The language is remembered on this device (rcl_lang). To cover a new message: add a rule. */
+  const FIX_RULES = [
+    { re: /SESSION_EXPIRED|session (has )?(expired|ended)/i,
+      en: ['You were signed out because the session ended.', 'Sign in again. Anything typed but not saved has to be typed again.'],
+      mr: ['Session संपल्यामुळे तुम्ही sign out झाला आहात.', 'पुन्हा sign in करा. Save न केलेली माहिती पुन्हा भरावी लागेल.'],
+      hi: ['Session खत्म होने से आप sign out हो गए हैं।', 'फिर से sign in करें। जो जानकारी save नहीं हुई थी, उसे दोबारा भरना होगा।'] },
+    { re: /Wrong email or password|Current password is wrong/i,
+      en: ['The email or the password does not match.', 'Check the spelling and Caps Lock and try again. If the password is forgotten, ask the Admin to set a new one in Users & Access.'],
+      mr: ['Email किंवा password जुळत नाही.', 'Spelling आणि Caps Lock तपासून पुन्हा प्रयत्न करा. Password विसरला असेल तर Admin ला Users & Access मधून नवीन password द्यायला सांगा.'],
+      hi: ['Email या password मेल नहीं खा रहा।', 'Spelling और Caps Lock जाँचकर फिर कोशिश करें। Password भूल गए हों तो Admin से Users & Access में नया password बनवाएँ।'] },
+    { re: /Too many (wrong|sign-in) attempts/i,
+      en: ['Sign-in is locked for a while after several wrong attempts.', 'Wait for the time shown (up to 15 minutes), then sign in with the right password. Do not keep trying – that extends the wait.'],
+      mr: ['अनेक चुकीच्या प्रयत्नांमुळे sign in काही वेळासाठी बंद आहे.', 'दाखवलेला वेळ (जास्तीत जास्त 15 मिनिटे) थांबा आणि मग बरोबर password ने sign in करा. पुन्हा पुन्हा प्रयत्न करू नका; वेळ वाढतो.'],
+      hi: ['कई गलत कोशिशों के कारण sign in कुछ देर के लिए बंद है।', 'बताया गया समय (अधिकतम 15 मिनट) रुकें, फिर सही password से sign in करें। बार-बार कोशिश न करें; समय बढ़ जाता है।'] },
+    { re: /password different|one-time password|at least 6 characters/i,
+      en: ['The new password is not acceptable (too short, or the same as the old one).', 'Choose a new password of at least 6 characters that is different from the current one.'],
+      mr: ['नवीन password चालत नाही (खूप लहान आहे, किंवा जुन्यासारखाच आहे).', 'किमान 6 अक्षरांचा आणि सध्याच्यापेक्षा वेगळा नवीन password निवडा.'],
+      hi: ['नया password मान्य नहीं है (बहुत छोटा है, या पुराने जैसा ही है)।', 'कम से कम 6 अक्षरों का और मौजूदा से अलग नया password चुनें।'] },
+    { re: /moved to a new link/i,
+      en: ['This is the old address of the app; the app now runs at a new link.', 'Open the link shown in the message and sign in there with the same email and password. Save that link as a bookmark.'],
+      mr: ['हा app चा जुना पत्ता आहे; app आता नवीन link वर चालते.', 'संदेशात दिलेली link उघडा आणि त्याच email व password ने तिथे sign in करा. ती link bookmark करून ठेवा.'],
+      hi: ['यह app का पुराना पता है; app अब नई link पर चलता है।', 'संदेश में दी गई link खोलें और उसी email व password से वहाँ sign in करें। उस link को bookmark कर लें।'] },
+    { re: /your own Admin access|deactivate yourself/i,
+      en: ['An Admin cannot remove their own Admin access or make themselves inactive (the app would be left without an Admin).', 'Ask another Admin to change your access; or first make another user Admin.'],
+      mr: ['Admin स्वतःची Admin परवानगी काढू शकत नाही किंवा स्वतःला inactive करू शकत नाही (नाहीतर app ला Admin उरणार नाही).', 'दुसऱ्या Admin ला तुमची परवानगी बदलायला सांगा; किंवा आधी दुसऱ्या user ला Admin करा.'],
+      hi: ['Admin अपनी ही Admin अनुमति नहीं हटा सकता या खुद को inactive नहीं कर सकता (वरना app बिना Admin के रह जाएगा)।', 'किसी दूसरे Admin से अपनी अनुमति बदलवाएँ; या पहले किसी और user को Admin बनाएँ।'] },
+    { re: /DATA_SOURCE|Apps Script editor|Unknown action|Run setup|Tab ".*" not found|Column ".*" not found|setupLogin|setupDieselStock/i,
+      en: ['This is a set-up problem of the app itself, not a mistake in your entry.', 'Do not enter the data again. Take a photo of this message and send it to the Admin / developer.'],
+      mr: ['ही app च्या स्वतःच्या set-up ची अडचण आहे, तुमच्या entry ची चूक नाही.', 'Data पुन्हा भरू नका. या संदेशाचा फोटो काढून Admin / developer ला पाठवा.'],
+      hi: ['यह app के अपने set-up की समस्या है, आपकी entry की गलती नहीं।', 'Data दोबारा न भरें। इस संदेश की फोटो लेकर Admin / developer को भेजें।'] },
+    { re: /identifies .*cannot be changed|Machinery Number \/ Name that identifies/i,
+      en: ['The number / name of a machinery cannot be changed, because all its diesel and Log Book entries are saved under it.', 'Leave the number as it is and change the other fields. If the number itself was entered wrong, ask the Admin: a new machinery has to be added and the old one made inactive.'],
+      mr: ['Machinery चा नंबर / नाव बदलता येत नाही, कारण तिच्या सगळ्या diesel आणि Log Book entries त्या नंबरखाली save आहेत.', 'नंबर आहे तसा ठेवा आणि बाकी fields बदला. नंबरच चुकीचा भरला असेल तर Admin ला सांगा: नवीन machinery जोडून जुनी inactive करावी लागेल.'],
+      hi: ['Machinery का नंबर / नाम बदला नहीं जा सकता, क्योंकि उसकी सारी diesel और Log Book entries उसी नंबर के नीचे save हैं।', 'नंबर जैसा है वैसा रखें और बाकी fields बदलें। नंबर ही गलत भरा हो तो Admin को बताएँ: नई machinery जोड़कर पुरानी inactive करनी होगी।'] },
+    { re: /View access only|do not have access|Only Admin|Ask Admin/i,
+      en: ['Your user does not have the permission for this page or action.', 'Ask the Admin to give Edit (or View) access for this module in Users & Access, then sign in again.'],
+      mr: ['तुमच्या user ला या page किंवा कामाची परवानगी नाही.', 'Admin ला Users & Access मध्ये या module साठी Edit (किंवा View) परवानगी द्यायला सांगा आणि मग पुन्हा sign in करा.'],
+      hi: ['आपके user को इस page या काम की अनुमति नहीं है।', 'Admin से Users & Access में इस module के लिए Edit (या View) अनुमति दिलवाएँ, फिर दोबारा sign in करें।'] },
+    { re: /cannot be saved yet|database step|step1t/i,
+      en: ['The database does not have the columns / table this feature needs yet.', 'The Admin has to run the SQL file named in the message once in Supabase → SQL Editor. Nothing else needs to be changed.'],
+      mr: ['या सुविधेसाठी लागणारे columns / table अजून database मध्ये नाहीत.', 'संदेशात दिलेली SQL file Admin ने Supabase → SQL Editor मध्ये एकदा चालवावी. बाकी काही बदलायची गरज नाही.'],
+      hi: ['इस सुविधा के लिए ज़रूरी columns / table अभी database में नहीं हैं।', 'संदेश में लिखी SQL file Admin को Supabase → SQL Editor में एक बार चलानी है। और कुछ बदलना नहीं है।'] },
+    { re: /Diesel issued on a day with no Log Book entry|NOT IN AN ENTRY/i,
+      en: ['Diesel was issued to this machinery on a day that has no working Log Book entry. The bill counts that diesel but no KM / hours for that day, so the diesel deduction in the bill is higher than the Log Book rows show.',
+        '1) If the machinery worked that day: make its Log Book entry for that date and build the bill again. 2) If the date of the Diesel Issue is wrong: correct it in Diesel Issue. 3) If the diesel really has to be recovered: leave it – the bill is right.'],
+      mr: ['या machinery ला अशा दिवशी diesel दिले आहे ज्या दिवशी कामाची Log Book entry नाही. Bill ते diesel मोजते पण त्या दिवसाचे KM / तास नाहीत, म्हणून bill मधली diesel कपात Log Book च्या ओळींपेक्षा जास्त येते.',
+        '1) त्या दिवशी गाडीने काम केले असेल: त्या तारखेची Log Book entry भरा आणि bill पुन्हा Build करा. 2) Diesel Issue ची तारीख चुकली असेल: Diesel Issue मध्ये ती दुरुस्त करा. 3) ते diesel खरोखर वसूल करायचे असेल: काही करू नका; bill बरोबर आहे.'],
+      hi: ['इस machinery को ऐसे दिन diesel दिया गया है जिस दिन काम की Log Book entry नहीं है। Bill वह diesel गिनता है पर उस दिन के KM / घंटे नहीं हैं, इसलिए bill की diesel कटौती Log Book की पंक्तियों से ज़्यादा आती है।',
+        '1) उस दिन गाड़ी ने काम किया हो: उस तारीख की Log Book entry भरें और bill फिर Build करें। 2) Diesel Issue की तारीख गलत हो: Diesel Issue में उसे ठीक करें। 3) वह diesel सच में वसूलना हो: कुछ न करें; bill सही है।'] },
+    { re: /is after today|only up to today/i,
+      en: ['The date is in the future. Entries can be made only up to today.', 'Pick today or an earlier date. If today itself is refused, check the date and time of the computer.'],
+      mr: ['तारीख पुढची (भविष्यातील) आहे. Entry फक्त आजपर्यंतच करता येते.', 'आजची किंवा आधीची तारीख निवडा. आजचीच तारीख नाकारली जात असेल तर computer ची तारीख आणि वेळ तपासा.'],
+      hi: ['तारीख आगे की (भविष्य की) है। Entry केवल आज तक की हो सकती है।', 'आज की या पहले की तारीख चुनें। अगर आज की तारीख ही मना हो रही हो तो computer की तारीख और समय जाँचें।'] },
+    { re: /is (inactive|active only from)/i,
+      en: ['This machinery is not active on the date of the entry (it was added later, or made inactive).', 'Check the date of the entry. If the date is right, open Asset Master and correct "Active From" / "Inactive From" of this machinery, then save the entry again.'],
+      mr: ['Entry च्या तारखेला ही machinery active नाही (ती नंतर जोडली आहे, किंवा inactive केली आहे).', 'Entry ची तारीख तपासा. तारीख बरोबर असेल तर Asset Master मध्ये या machinery ची "Active From" / "Inactive From" तारीख दुरुस्त करा आणि entry पुन्हा save करा.'],
+      hi: ['Entry की तारीख को यह machinery active नहीं है (बाद में जोड़ी गई है, या inactive की गई है)।', 'Entry की तारीख जाँचें। तारीख सही हो तो Asset Master में इस machinery की "Active From" / "Inactive From" तारीख ठीक करें और entry फिर save करें।'] },
+    { re: /not in (the )?(Asset )?Master|not found in (Asset )?Master|Not in Master|Pick a machinery from the list|from Master/i,
+      en: ['This machinery number / name is not in the Asset Master (or it is typed differently).', 'Pick the machinery from the list that opens while typing. If it is new, add it in Asset Master first, then make the entry.'],
+      mr: ['हा machinery नंबर / नाव Asset Master मध्ये नाही (किंवा वेगळ्या प्रकारे टाइप केले आहे).', 'टाइप करताना उघडणाऱ्या यादीतून machinery निवडा. नवीन असेल तर आधी Asset Master मध्ये जोडा, मग entry करा.'],
+      hi: ['यह machinery नंबर / नाम Asset Master में नहीं है (या अलग तरह से type हुआ है)।', 'Type करते समय खुलने वाली सूची से machinery चुनें। नई हो तो पहले Asset Master में जोड़ें, फिर entry करें।'] },
+    { re: /does not work on|works on|Set the Unit/i,
+      en: ['The way of measuring chosen here (KM / Hrs / Trip / Day / Time) is not ticked for this machinery.', 'Choose a way this machinery works on. To allow another way, tick it under "Works on" in Asset Master.'],
+      mr: ['इथे निवडलेली मोजण्याची पद्धत (KM / Hrs / Trip / Day / Time) या machinery साठी tick केलेली नाही.', 'ही machinery ज्या पद्धतीवर चालते ती निवडा. दुसरी पद्धत हवी असेल तर Asset Master मध्ये "Works on" खाली ती tick करा.'],
+      hi: ['यहाँ चुना गया नापने का तरीका (KM / Hrs / Trip / Day / Time) इस machinery के लिए tick नहीं है।', 'वह तरीका चुनें जिस पर यह machinery चलती है। दूसरा तरीका चाहिए तो Asset Master में "Works on" के नीचे उसे tick करें।'] },
+    { re: /would be less than|would (go|be) below/i,
+      en: ['Changing this reading would make a later entry of the same machinery start below its previous closing reading.', 'Correct the later entry first (or enter a reading that fits between the entry before and the entry after), then save this one.'],
+      mr: ['हे reading बदलल्यास त्याच machinery ची पुढची entry आधीच्या closing reading पेक्षा कमी reading ने सुरू होईल.', 'आधी पुढची entry दुरुस्त करा (किंवा आधीच्या आणि पुढच्या entry च्या मधे बसणारे reading भरा), मग ही save करा.'],
+      hi: ['यह reading बदलने से उसी machinery की अगली entry पिछली closing reading से कम पर शुरू होगी।', 'पहले अगली entry ठीक करें (या ऐसी reading भरें जो पिछली और अगली entry के बीच बैठे), फिर इसे save करें।'] },
+    { re: /(Clos(e|ing) (KM|Hrs)|Close ).*(less than|cannot be less)/i,
+      en: ['The closing reading is smaller than the starting reading.', 'Read the meter again and type the closing reading in full (all digits). If the Start shown is wrong, correct the earlier entry of this machinery first.'],
+      mr: ['Closing reading हे Start reading पेक्षा कमी आहे.', 'Meter पुन्हा पाहून closing reading पूर्ण (सगळे अंक) टाइप करा. दाखवलेले Start चुकीचे असेल तर आधी या machinery ची मागची entry दुरुस्त करा.'],
+      hi: ['Closing reading, Start reading से कम है।', 'Meter दोबारा देखकर closing reading पूरी (सभी अंक) type करें। दिखाया गया Start गलत हो तो पहले इस machinery की पिछली entry ठीक करें।'] },
+    { re: /just sent twice/i,
+      en: ['The Save button was pressed twice; the entry is saved ONCE.', 'Do not enter it again. Look at the list – the entry is there.'],
+      mr: ['Save बटण दोनदा दाबले गेले; entry एकदाच save झाली आहे.', 'ती पुन्हा भरू नका. यादी पाहा; entry तिथे आहे.'],
+      hi: ['Save बटन दो बार दब गया; entry एक ही बार save हुई है।', 'उसे दोबारा न भरें। सूची देखें; entry वहाँ है।'] },
+    { re: /already (saved|exists|entered|in Master|a user|has)|more than once|is repeated|is twice|use Edit/i,
+      en: ['The same entry (same machinery, date and shift – or the same name / number) is already there.', 'Do not add it again. Find it in the list and use Edit to change it; or correct the date, shift or number if this is really a different entry.'],
+      mr: ['तीच entry (तीच machinery, तारीख आणि shift, किंवा तेच नाव / नंबर) आधीच आहे.', 'ती पुन्हा जोडू नका. यादीत शोधून Edit ने बदला; किंवा ही खरोखर वेगळी entry असेल तर तारीख, shift किंवा नंबर दुरुस्त करा.'],
+      hi: ['वही entry (वही machinery, तारीख और shift, या वही नाम / नंबर) पहले से है।', 'उसे दोबारा न जोड़ें। सूची में ढूँढकर Edit से बदलें; या यह सच में अलग entry हो तो तारीख, shift या नंबर ठीक करें।'] },
+    { re: /Not enough diesel/i,
+      en: ['The diesel source does not have this much diesel on that date (stock would go below zero).', '1) Check the quantity and the date. 2) If diesel was received but not entered: enter the Diesel Inward (or Transfer) of that date first. 3) Then save this issue again.'],
+      mr: ['त्या तारखेला त्या diesel source मध्ये एवढे diesel नाही (stock शून्याखाली जाईल).', '1) Quantity आणि तारीख तपासा. 2) Diesel आले आहे पण नोंदवले नसेल: आधी त्या तारखेचा Diesel Inward (किंवा Transfer) भरा. 3) मग हा issue पुन्हा save करा.'],
+      hi: ['उस तारीख को उस diesel source में इतना diesel नहीं है (stock शून्य से नीचे चला जाएगा)।', '1) Quantity और तारीख जाँचें। 2) Diesel आया है पर दर्ज नहीं हुआ: पहले उस तारीख का Diesel Inward (या Transfer) भरें। 3) फिर यह issue दोबारा save करें।'] },
+    { re: /Cannot (delete|reduce) this inward|already issued from this inward/i,
+      en: ['Diesel of this inward has already been issued, so it cannot be deleted or reduced below what was issued.', 'First correct or delete the Diesel Issues / Transfers that used it, then change the inward.'],
+      mr: ['या inward मधले diesel आधीच दिले गेले आहे, म्हणून ते delete करता येत नाही किंवा दिलेल्यापेक्षा कमी करता येत नाही.', 'आधी ते diesel वापरणारे Diesel Issue / Transfer दुरुस्त किंवा delete करा, मग inward बदला.'],
+      hi: ['इस inward का diesel पहले ही दिया जा चुका है, इसलिए इसे delete या दिए गए से कम नहीं किया जा सकता।', 'पहले उस diesel वाले Diesel Issue / Transfer ठीक या delete करें, फिर inward बदलें।'] },
+    { re: /tank capacity|Tank Capacity/i,
+      en: ['The litres are more than the tank of this machinery can hold, or the tank size is not set.', 'Check the litres typed. If they are right, correct "Tank Capacity" of this machinery in Asset Master.'],
+      mr: ['भरलेले लिटर या machinery च्या tank च्या क्षमतेपेक्षा जास्त आहेत, किंवा tank चा आकार सेट नाही.', 'टाइप केलेले लिटर तपासा. ते बरोबर असतील तर Asset Master मध्ये या machinery ची "Tank Capacity" दुरुस्त करा.'],
+      hi: ['भरे गए लीटर इस machinery की tank की क्षमता से ज़्यादा हैं, या tank का आकार सेट नहीं है।', 'Type किए गए लीटर जाँचें। सही हों तो Asset Master में इस machinery की "Tank Capacity" ठीक करें।'] },
+    { re: /reading/i,
+      en: ['The meter reading is missing or does not fit with the last reading of this machinery.', 'Type the full reading from the meter (KM or hours, as this machinery is measured). Compare it with the last reading shown; if the last one is wrong, correct that entry first.'],
+      mr: ['Meter reading भरलेले नाही किंवा या machinery च्या मागच्या reading शी जुळत नाही.', 'Meter वरचे पूर्ण reading टाइप करा (KM किंवा तास, ही machinery जशी मोजली जाते तसे). दाखवलेल्या मागच्या reading शी तुलना करा; मागचे चुकीचे असेल तर आधी ती entry दुरुस्त करा.'],
+      hi: ['Meter reading भरी नहीं है या इस machinery की पिछली reading से मेल नहीं खाती।', 'Meter की पूरी reading type करें (KM या घंटे, जैसे यह machinery नापी जाती है)। दिखाई गई पिछली reading से मिलाएँ; पिछली गलत हो तो पहले वह entry ठीक करें।'] },
+    { re: /From and To time|working time is 0|number of trips/i,
+      en: ['The time or the trips of this entry are missing or come to zero.', 'For a time sheet: type From and To (e.g. 08:00 and 17:00) and the break. For trips: type the number of trips.'],
+      mr: ['या entry ची वेळ किंवा trips भरलेल्या नाहीत किंवा शून्य येतात.', 'Time sheet साठी: From आणि To (उदा. 08:00 आणि 17:00) आणि break भरा. Trips साठी: trips ची संख्या भरा.'],
+      hi: ['इस entry का समय या trips भरे नहीं हैं या शून्य आ रहे हैं।', 'Time sheet के लिए: From और To (जैसे 08:00 और 17:00) और break भरें। Trips के लिए: trips की संख्या भरें।'] },
+    { re: /not an item of its BOQ|takes the rest of the entry|quantity of .* must be|is not a Per Day|ITEM-WISE|items? /i,
+      en: ['The item work typed (e.g. Bucket / Breaker) does not fit the items of this machinery\'s BOQ.', 'Type hours only for the items named in the BOQ, and not more than the total of the entry. To add or rename an item, change the Vendor BOQ.'],
+      mr: ['भरलेले item चे काम (उदा. Bucket / Breaker) या machinery च्या BOQ मधल्या items शी जुळत नाही.', 'फक्त BOQ मध्ये असलेल्या items चे तास भरा, आणि entry च्या एकूण कामापेक्षा जास्त नको. Item जोडायचा किंवा नाव बदलायचे असेल तर Vendor BOQ बदला.'],
+      hi: ['भरा गया item का काम (जैसे Bucket / Breaker) इस machinery के BOQ के items से मेल नहीं खाता।', 'केवल BOQ में दिए items के घंटे भरें, और entry के कुल काम से ज़्यादा नहीं। Item जोड़ना या नाम बदलना हो तो Vendor BOQ बदलें।'] },
+    { re: /in debit note .*cannot be changed|already in debit note|deducted in a bill|already deducted in another bill|ticked in two bills|cannot be deducted in this bill|is cancelled/i,
+      en: ['This Log Book entry or debit note is already used (it is inside a debit note, or the note is deducted in a bill), so it is locked.', 'To change it: first free it – delete that bill or save it again without the note, or ask the Admin to cancel the debit note – then make the change and create the note again.'],
+      mr: ['ही Log Book entry किंवा Debit Note आधीच वापरली गेली आहे (entry एका Debit Note मध्ये आहे, किंवा note bill मध्ये वजा झाली आहे), म्हणून ती बंद (lock) आहे.', 'बदलायचे असेल तर आधी ती मोकळी करा: ते bill delete करा किंवा note न निवडता पुन्हा save करा, किंवा Admin ला Debit Note रद्द करायला सांगा; मग बदल करून note पुन्हा बनवा.'],
+      hi: ['यह Log Book entry या Debit Note पहले ही इस्तेमाल हो चुकी है (entry किसी Debit Note में है, या note bill में कट चुकी है), इसलिए lock है।', 'बदलना हो तो पहले उसे मुक्त करें: वह bill delete करें या note चुने बिना फिर save करें, या Admin से Debit Note रद्द करवाएँ; फिर बदलाव करके note दोबारा बनाएँ।'] },
+    { re: /Debit to|Pick the party|Vendor Master|type the particular|Add at least one line|not charged to|up to 300 lines/i,
+      en: ['"Debit to" needs both the party and the rate, and the party must be in the Vendor Master.', 'Pick the party from the list and type the rate. If the party is new, add it in Vendor Master first. For no debit, leave both fields empty.'],
+      mr: ['"Debit to" साठी party आणि दर दोन्ही लागतात, आणि party Vendor Master मध्ये असली पाहिजे.', 'यादीतून party निवडा आणि दर टाइप करा. Party नवीन असेल तर आधी Vendor Master मध्ये जोडा. Debit नको असेल तर दोन्ही fields रिकामे ठेवा.'],
+      hi: ['"Debit to" के लिए party और दर दोनों चाहिए, और party Vendor Master में होनी चाहिए।', 'सूची से party चुनें और दर type करें। Party नई हो तो पहले Vendor Master में जोड़ें। Debit नहीं चाहिए तो दोनों fields खाली रखें।'] },
+    { re: /GST Number|GSTIN|\bPAN\b|IFSC|Aadhaar|Mobile Number|Account Number|does not look right|proper email|not in the right format/,
+      en: ['A number or address is not in the right format (GST 15 characters, PAN 10, IFSC 11, mobile 10 digits, Aadhaar 12 digits).', 'Type it again exactly as on the document, without spaces. If the vendor has no GST, set "GST registered" to No and leave the GST Number empty.'],
+      mr: ['एखादा नंबर किंवा पत्ता योग्य स्वरूपात नाही (GST 15 अक्षरे, PAN 10, IFSC 11, mobile 10 अंक, Aadhaar 12 अंक).', 'कागदावर जसा आहे तसाच, space न देता पुन्हा टाइप करा. Vendor कडे GST नसेल तर "GST registered" No करा आणि GST Number रिकामा ठेवा.'],
+      hi: ['कोई नंबर या पता सही रूप में नहीं है (GST 15 अक्षर, PAN 10, IFSC 11, mobile 10 अंक, Aadhaar 12 अंक)।', 'काग़ज़ पर जैसा है वैसा ही, बिना space के दोबारा type करें। Vendor के पास GST न हो तो "GST registered" No करें और GST Number खाली रखें।'] },
+    { re: /is not an asset of|Vendor \/ Ow/i,
+      en: ['This machinery does not belong to this vendor in the Asset Master.', 'Open Asset Master and check "Vendor / Owner Name" of the machinery – it must be exactly this vendor. Correct it there, or pick the right vendor here.'],
+      mr: ['Asset Master प्रमाणे ही machinery या vendor ची नाही.', 'Asset Master मध्ये या machinery चे "Vendor / Owner Name" तपासा; ते अगदी हाच vendor असले पाहिजे. तिथे दुरुस्त करा, किंवा इथे योग्य vendor निवडा.'],
+      hi: ['Asset Master के अनुसार यह machinery इस vendor की नहीं है।', 'Asset Master में इस machinery का "Vendor / Owner Name" जाँचें; वह ठीक यही vendor होना चाहिए। वहाँ ठीक करें, या यहाँ सही vendor चुनें।'] },
+    { re: /BOQ|slab|rate basis|amendment|"Amend"/i,
+      en: ['The Vendor BOQ is incomplete or clashes with another BOQ (rate, basis, slabs, items, dates or number).', 'Fill every line: rate basis and rate (and for slabs / items each rate). One machinery only once in a BOQ. For a change of rate use "Amend" with a start date inside the BOQ period.'],
+      mr: ['Vendor BOQ अपूर्ण आहे किंवा दुसऱ्या BOQ शी टक्कर होते (दर, basis, slabs, items, तारखा किंवा नंबर).', 'प्रत्येक ओळ पूर्ण भरा: rate basis आणि दर (slabs / items असतील तर प्रत्येकाचा दर). एका BOQ मध्ये एक machinery एकदाच. दर बदलायचा असेल तर "Amend" वापरा आणि सुरुवातीची तारीख BOQ च्या कालावधीत ठेवा.'],
+      hi: ['Vendor BOQ अधूरा है या किसी दूसरे BOQ से टकरा रहा है (दर, basis, slabs, items, तारीखें या नंबर)।', 'हर पंक्ति पूरी भरें: rate basis और दर (slabs / items हों तो हर एक की दर)। एक BOQ में एक machinery एक ही बार। दर बदलनी हो तो "Amend" का उपयोग करें और शुरू की तारीख BOQ की अवधि के अंदर रखें।'] },
+    { re: /bill number|company name for|bill period|No bill to|is already in .* for |reason for deleting this bill/i,
+      en: ['The bill cannot be made or submitted as it is (bill number, name on the bill, period, or the same machinery is already billed for these dates).', 'Type the RA bill number, pick the name (Rachana / Sketchline) and the period. If the machinery is already in a saved bill for these dates, open RCL Drive and check that bill; to replace it, build the same vendor and period again.'],
+      mr: ['Bill आहे तसे बनवता किंवा submit करता येत नाही (bill नंबर, bill वरचे नाव, कालावधी, किंवा तीच machinery या तारखांसाठी आधीच bill झाली आहे).', 'RA bill नंबर टाइप करा, नाव (Rachana / Sketchline) आणि कालावधी निवडा. Machinery या तारखांसाठी आधीच्या bill मध्ये असेल तर RCL Drive मध्ये ते bill पाहा; ते बदलायचे असेल तर तोच vendor आणि कालावधी पुन्हा Build करा.'],
+      hi: ['Bill जैसा है वैसा बन या submit नहीं हो सकता (bill नंबर, bill पर नाम, अवधि, या वही machinery इन तारीखों के लिए पहले ही bill हो चुकी है)।', 'RA bill नंबर type करें, नाम (Rachana / Sketchline) और अवधि चुनें। Machinery इन तारीखों के लिए पहले के bill में हो तो RCL Drive में वह bill देखें; उसे बदलना हो तो वही vendor और अवधि फिर Build करें।'] },
+    { re: /Opening stock|already has entries before|cannot be imported|Extra diesel/i,
+      en: ['Opening stock or extra diesel is entered in its own way, once, and before the other entries of that location.', 'Use the "Opening stock" / "Extra diesel" option on the Diesel Inward page. If opening stock is already there, edit that entry instead of adding another.'],
+      mr: ['Opening stock किंवा extra diesel त्याच्या स्वतःच्या पद्धतीने, एकदाच, आणि त्या location च्या इतर entries च्या आधी भरले जाते.', 'Diesel Inward page वरचा "Opening stock" / "Extra diesel" पर्याय वापरा. Opening stock आधीच असेल तर नवीन न जोडता तीच entry Edit करा.'],
+      hi: ['Opening stock या extra diesel अपने अलग तरीके से, एक ही बार, और उस location की बाकी entries से पहले भरा जाता है।', 'Diesel Inward page का "Opening stock" / "Extra diesel" विकल्प इस्तेमाल करें। Opening stock पहले से हो तो नई न जोड़कर वही entry Edit करें।'] },
+    { re: /Difference is|write the reason|tank check|Working or Breakdown|reason of the breakdown/i,
+      en: ['A reason or a choice is missing (tank check with a difference, or a breakdown without its reason).', 'Write the reason in the Remark / Reason field, or pick Working / Breakdown, then save. A machinery can have one tank check per date – delete the old one to check again.'],
+      mr: ['कारण किंवा निवड भरलेली नाही (फरक असलेला tank check, किंवा कारण नसलेला breakdown).', 'Remark / Reason मध्ये कारण लिहा, किंवा Working / Breakdown निवडा, मग save करा. एका machinery चा एका तारखेला एकच tank check असतो; पुन्हा तपासायचे असेल तर जुना delete करा.'],
+      hi: ['कारण या चुनाव भरा नहीं है (फर्क वाला tank check, या बिना कारण का breakdown)।', 'Remark / Reason में कारण लिखें, या Working / Breakdown चुनें, फिर save करें। एक machinery का एक तारीख को एक ही tank check होता है; दोबारा जाँचना हो तो पुराना delete करें।'] },
+    { re: /was not found|not found|changed by someone else|reload the list|not there any more|is not there|There is no report|has no saved details|No debit notes yet/i,
+      en: ['The entry on your screen is no longer the same in the database – someone changed or deleted it meanwhile.', 'Reload the list (open the page again or change a filter) and look for the entry. Then make your change on the fresh entry.'],
+      mr: ['तुमच्या screen वरची entry आता database मध्ये तशी नाही; मधल्या काळात कोणीतरी ती बदलली किंवा delete केली.', 'यादी पुन्हा load करा (page पुन्हा उघडा किंवा filter बदला) आणि entry शोधा. मग ताज्या entry वर तुमचा बदल करा.'],
+      hi: ['आपकी screen की entry अब database में वैसी नहीं है; इस बीच किसी ने उसे बदल या delete कर दिया।', 'सूची फिर load करें (page दोबारा खोलें या filter बदलें) और entry ढूँढें। फिर ताज़ा entry पर अपना बदलाव करें।'] },
+    { re: /From date is after To|From and To cannot be the same|Select up to|Pick up to|both months|Pick the months|Valid To must|valid upto|Lifetime|Inactive From/i,
+      en: ['The dates do not fit: From is after To, the range is too long, or a validity date is in the wrong order.', 'Correct the dates so that From is on or before To, and keep the range within the limit named in the message.'],
+      mr: ['तारखा जुळत नाहीत: From ही To च्या नंतर आहे, कालावधी खूप मोठा आहे, किंवा वैधतेच्या तारखांचा क्रम चुकला आहे.', 'तारखा दुरुस्त करा: From ही To च्या आधी किंवा त्याच दिवशी असावी, आणि कालावधी संदेशात दिलेल्या मर्यादेत ठेवा.'],
+      hi: ['तारीखें मेल नहीं खातीं: From, To के बाद है, अवधि बहुत लंबी है, या वैधता की तारीखों का क्रम गलत है।', 'तारीखें ठीक करें: From, To से पहले या उसी दिन हो, और अवधि संदेश में दी गई सीमा के अंदर रखें।'] },
+    { re: /Import up to|Save up to|no rows to import|of the file|in this file|Excel tool|Fix the file|Nothing imported/i,
+      en: ['The Excel file has rows the app cannot take, or it is too long, or the Excel tool has not loaded yet.', 'Correct the lines named above in the Excel file (use the app\'s own template), keep it to 1,000 rows, and import again. If the tool was still loading, wait a few seconds and press again.'],
+      mr: ['Excel file मध्ये app ला न घेता येणाऱ्या ओळी आहेत, किंवा file खूप लांब आहे, किंवा Excel चे साधन अजून load झालेले नाही.', 'वर दिलेल्या ओळी Excel file मध्ये दुरुस्त करा (app चाच template वापरा), 1,000 ओळींपर्यंत ठेवा आणि पुन्हा import करा. साधन load होत असेल तर काही सेकंद थांबून पुन्हा दाबा.'],
+      hi: ['Excel file में ऐसी पंक्तियाँ हैं जो app नहीं ले सकता, या file बहुत लंबी है, या Excel का tool अभी load नहीं हुआ।', 'ऊपर बताई पंक्तियाँ Excel file में ठीक करें (app का ही template लें), 1,000 पंक्तियों तक रखें और फिर import करें। Tool load हो रहा हो तो कुछ सेकंड रुककर फिर दबाएँ।'] },
+    { re: /Failed to fetch|NetworkError|network|Could not reach|not reachable|timed? ?out|Supabase .* → \d|server is not set up|Load failed/i,
+      en: ['The app could not reach the server (internet or server problem). Your entry was NOT saved.', 'Check the internet (the dot at the top must say "Live"). Wait a few seconds and press Save again. Do not reload the page before that, or what you typed is lost.'],
+      mr: ['App server पर्यंत पोहोचू शकले नाही (internet किंवा server ची अडचण). तुमची entry save झालेली नाही.', 'Internet तपासा (वरचा ठिपका "Live" दाखवला पाहिजे). काही सेकंद थांबून पुन्हा Save दाबा. त्याआधी page reload करू नका, नाहीतर टाइप केलेले जाईल.'],
+      hi: ['App server तक नहीं पहुँच सका (internet या server की समस्या)। आपकी entry save नहीं हुई है।', 'Internet जाँचें (ऊपर का बिंदु "Live" दिखाना चाहिए)। कुछ सेकंड रुककर फिर Save दबाएँ। उससे पहले page reload न करें, वरना type किया हुआ चला जाएगा।'] },
+    { re: /Standard Average|Ownership|Monthly Rate must|TDS Rate|must be between 0 and|% must be/i,
+      en: ['A value in the master or on the form is missing or out of range (standard average, ownership, rate, %).', 'Fill the field named in the message with a proper number: a % between 0 and 100, an amount in ₹, an average more than 0.'],
+      mr: ['Master किंवा form मधली एखादी किंमत भरलेली नाही किंवा मर्यादेबाहेर आहे (standard average, ownership, दर, %).', 'संदेशात दिलेला field योग्य आकड्याने भरा: % 0 ते 100 मध्ये, रक्कम ₹ मध्ये, average 0 पेक्षा जास्त.'],
+      hi: ['Master या form की कोई value भरी नहीं है या सीमा से बाहर है (standard average, ownership, दर, %)।', 'संदेश में बताया field सही संख्या से भरें: % 0 से 100 के बीच, रकम ₹ में, average 0 से ज़्यादा।'] },
+    { re: /^(Row \d+: |Line \d+: )?(Enter|Select|Pick|Give|Type|Add|Set|Write|Tick)\b|enter the|enter Diesel|type the|pick the|select |must be more than 0|cannot be below|is required|must be (a number|0 or more)|looks wrong|No rows to save|No machinery in the list|Keep the name|cannot start with/i,
+      en: ['A field that must be filled is empty or has a value that is not allowed.', 'Fill the field named in the message (fields with * are compulsory) and save again.'],
+      mr: ['भरणे आवश्यक असलेला field रिकामा आहे किंवा त्यात चालत नसलेली किंमत आहे.', 'संदेशात दिलेला field भरा (* असलेले fields आवश्यक आहेत) आणि पुन्हा save करा.'],
+      hi: ['जो field भरना ज़रूरी है वह खाली है या उसमें ऐसी value है जो मान्य नहीं।', 'संदेश में बताया field भरें (* वाले fields ज़रूरी हैं) और फिर save करें।'] },
+  ];
+  const FIX_ANY = { en: ['The app could not accept this. The line above says which field or value is the problem.', 'Correct that field and try again. If it is not clear, take a photo of this box and send it to the Admin.'],
+    mr: ['App ला हे स्वीकारता आले नाही. वरच्या ओळीत कोणता field किंवा किंमत अडचणीची आहे ते दिले आहे.', 'तो field दुरुस्त करून पुन्हा प्रयत्न करा. समजले नाही तर या चौकटीचा फोटो काढून Admin ला पाठवा.'],
+    hi: ['App इसे स्वीकार नहीं कर सका। ऊपर की पंक्ति में लिखा है कि कौन सा field या value समस्या है।', 'वह field ठीक करके फिर कोशिश करें। समझ न आए तो इस box की फोटो लेकर Admin को भेजें।'] };
+  const FIX_W = { what: { en: 'What is wrong', mr: 'काय चुकले', hi: 'क्या गलत है' }, todo: { en: 'What to do', mr: 'काय करायचे', hi: 'क्या करना है' }, head: { en: 'Help', mr: 'मदत', hi: 'मदद' } };
+  let fixLang = 'mr'; try { const l = localStorage.getItem('rcl_lang'); if (l === 'en' || l === 'mr' || l === 'hi') fixLang = l; } catch (e) {}
+  function fixRules(text) { const t = String(text || ''); const hit = FIX_RULES.filter(r => r.re.test(t)).slice(0, 3); return hit.length ? hit : [FIX_ANY]; }
+  function fixInner(text) {
+    return '<div class="fx-top"><b>' + FIX_W.head[fixLang] + '</b><span class="fx-lang">' + [['en', 'English'], ['mr', 'मराठी'], ['hi', 'हिंदी']].map(l => '<button type="button" data-fixlang="' + l[0] + '"' + (l[0] === fixLang ? ' class="on"' : '') + '>' + l[1] + '</button>').join('') + '</span></div>' +
+      fixRules(text).map(r => '<div class="fx-rule"><p><b>' + FIX_W.what[fixLang] + ':</b> ' + esc(r[fixLang][0]) + '</p><p><b>' + FIX_W.todo[fixLang] + ':</b> ' + esc(r[fixLang][1]) + '</p></div>').join('');
+  }
+  function fixHtml(text) { return '<div class="fixhelp" data-msg="' + esc(String(text || '').slice(0, 1500)) + '">' + fixInner(text) + '</div>'; }
+  // the card under a red message: stays until it is closed or something is saved
+  function fixCard(text) {
+    let box = $('fixbox'); if (!box) { box = document.createElement('div'); box.id = 'fixbox'; document.body.appendChild(box); }
+    box.innerHTML = '<button type="button" class="fx-x" aria-label="Close" title="Close">×</button><div class="fx-msg">' + esc(String(text || '').slice(0, 600)) + '</div>' + fixHtml(text); box.hidden = false;
+  }
+  document.addEventListener('click', e => {
+    const l = e.target.closest('[data-fixlang]');
+    if (l) { fixLang = l.dataset.fixlang; try { localStorage.setItem('rcl_lang', fixLang); } catch (er) {} document.querySelectorAll('.fixhelp').forEach(h => { h.innerHTML = fixInner(h.dataset.msg); }); return; }
+    if (e.target.closest('#fixbox .fx-x')) $('fixbox').hidden = true;
+  });
   function toast(msg, bad) {
+    if (bad) { try { fixCard(msg); } catch (e) { /* the message itself is still shown */ } } else if ($('fixbox')) $('fixbox').hidden = true;
     if (!bad) { S.formDirty = false; S.dhCache = {}; if (S.newBuild) setTimeout(() => { if (!window.rclBusy()) swapNow(); }, 2500); } // saved → now take the new version
     const t = $('toast');
     t.textContent = msg; t.className = bad ? 'bad' : ''; t.hidden = false;
@@ -3791,6 +3997,8 @@
   function askConfirm(o) {
     $('cf_title').textContent = o.title;
     $('cf_msg').innerHTML = o.html || esc(o.message || '');
+    // a box that reports something refused ("Nothing saved", "Not submitted", a stock or machinery alert): add what is wrong / what to do
+    if (o.alertOnly && (o.danger || /^(Nothing|Not |Fix )/i.test(o.title || ''))) { try { $('cf_msg').insertAdjacentHTML('beforeend', fixHtml($('cf_msg').textContent)); } catch (e) { /* help only */ } }
     $('cf_ok').textContent = o.ok || 'Yes';
     $('cf_box').className = (o.danger ? 'danger' : '') + (o.alertOnly ? ' alert' : '') + (o.wide ? ' wide' : '');
     $('cf_back').hidden = false;
@@ -6417,7 +6625,7 @@
       html: '<p>Total <b>' + fmt(r2(rows.reduce((a, r) => a + r.qty, 0))) + ' Ltr</b> from ' + esc(showDate(rows[0].date)) + (rows.length > 1 ? ' to ' + esc(showDate(rows[rows.length - 1].date)) : '') + '. All rows are saved together, or none.</p>' }))) return;
     $('bm_errors').hidden = true;
     const res = await call('importDiesel', rows.map(r => ({ line: r.line, date: r.date, shift: r.shift, source: r.source, no: m.id, qty: r.qty, kmReading: r.kmReading, hrReading: r.hrReading, driver: r.driver, remark: r.remark })));
-    if (!res.ok) { $('bm_errors').innerHTML = res.errors.map(x => '<li>' + (x.row ? 'Row ' + x.row + ': ' : '') + esc(x.msg) + '</li>').join(''); $('bm_errors').hidden = false; return; }
+    if (!res.ok) { $('bm_errors').innerHTML = res.errors.map(x => '<li>' + (x.row ? 'Row ' + x.row + ': ' : '') + esc(x.msg) + '</li>').join(''); $('bm_errors').hidden = false; fixCard($('bm_errors').textContent); return; }
     toast(res.count + ' diesel issues saved for ' + m.id + ' (' + fmt(res.qty) + ' Ltr).');
     if (res.stock) setStock(res.stock);
     S.bmPts = {}; bmReset(); loadDiesel();
@@ -7319,7 +7527,11 @@
     const stdQty = r2((hasKm(u) && kmStd ? tKm / kmStd : 0) + (hasHr(u) && hrStd ? tHr * hrStd : 0));
     const excessQty = stdQty > 0 ? Math.max(0, r2(companyQty - stdQty)) : 0;
     const dRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), excessAmt = r2((debitQty + excessQty) * dRate);
-    return { no: m.id || no, type: m.type || '', name: m.name || '', unit: u, supply: m.supply || '', workDays: workDays, nights: nights, holidays: holidays, idleDays: idleDays, itemNotes: itemNotes, lines: lines, amount: amount, zeroWork: zeroWork,
+    // diesel issued on a day that has no WORKING Log Book entry (no entry at all, or only Idle / Holiday / Breakdown): the bill
+    // counts it (as before) and now says so, so that whoever reads the bill knows why it differs from the Log Book rows
+    const worked = {}; list.forEach(r => { if (DAY_STATUS.indexOf(r.mode || r.unit) === -1) worked[r.date] = true; });
+    const noEntry = Object.keys(iss0).sort().filter(d => !worked[d] && Number(iss0[d].qty) > 0).map(d => ({ d: d, q: r2(Number(iss0[d].qty) || 0) }));
+    return { noEntry: noEntry, no: m.id || no, type: m.type || '', name: m.name || '', unit: u, supply: m.supply || '', workDays: workDays, nights: nights, holidays: holidays, idleDays: idleDays, itemNotes: itemNotes, lines: lines, amount: amount, zeroWork: zeroWork,
       issued: issued, stdQty: stdQty, excessQty: excessQty, debitQty: debitQty, dieselRate: dRate, excessAmt: excessAmt, days: Object.keys(units).length,
       gstPct: last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0,
       tdsPct: last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0),
@@ -7394,6 +7606,7 @@
     $('mb_title').textContent = 'Bills – ' + L.length + ' vendor' + (L.length === 1 ? '' : 's');
     $('mb_note').textContent = showDate($('mb_from').value) + ' to ' + showDate($('mb_to').value) + ' · ' + $('mb_co').value;
     $('mb_rows').innerHTML = L.map((b, i) => '<tr data-i="' + i + '"><td><b>' + esc(b.vendor.name) + '</b>' + (b.partial ? '<small class="mb-part">' + esc(b.picked.join(', ')) + '</small>' : '') +
+      (billNoEntry(b) ? '<div class="mb-warn"><b>⚠ Diesel issued on a day with no Log Book entry:</b> ' + esc(billNoEntry(b)) + '. It is counted in this bill.' + fixHtml('Diesel issued on a day with no Log Book entry') + '</div>' : '') +
       ((b.dnOpen || []).length ? '<div class="mb-dns"><span>Debit notes to deduct:</span>' + b.dnOpen.map(n => '<label><input type="checkbox" class="mb-dnck" data-id="' + esc(n.id) + '"' + ((b.dns || []).some(z => z.id === n.id) ? ' checked' : '') + '> ' + esc(n.no) + ' · ₹' + mbN2(n.total) + '</label>').join('') + '</div>' : '') +
       '</td><td class="n">' + b.machines.length + '</td><td>' + (b.idleDays ? '<b>' + b.idleDays + '</b> <select class="mb-idle" title="Idle days of the Log Book: pay them in this bill or not"><option value=""' + (b.idlePaid === undefined ? ' selected' : '') + '>choose…</option><option value="paid"' + (b.idlePaid === true ? ' selected' : '') + '>Paid</option><option value="no"' + (b.idlePaid === false ? ' selected' : '') + '>Not paid</option></select>' : '–') + '</td><td class="n">' + mbN2(b.A) + '</td><td class="n">' + mbN2(b.B) +
       '</td><td class="n"><input class="mb-c" type="number" step="0.01" min="0" value="' + (b.C || '') + '" placeholder="0"></td><td><input class="mb-cr" value="' + esc(b.cReason) + '" placeholder="reason"></td>' +
@@ -7484,6 +7697,8 @@
     if (pages) printDoc('Submitted bill' + (got.length === 1 ? '' : 's') + ' – ' + showDate($('mb_from').value) + ' to ' + showDate($('mb_to').value), pages, 'rep rep-bill', true, $('mb_co').value);
   }));
   // the bill page (Abstract of Bill) – used for the preview, the print and the saved bills
+  // "MH04GE9396 30-09-2026 42 L, …" – the diesel of the bill that was issued on days without a working Log Book entry
+  function billNoEntry(b) { return [].concat(...((b && b.machines) || []).map(m => (m.noEntry || []).map(x => String(m.no).replace(/-/g, '') + ' ' + showDate(x.d) + ' ' + fmt(x.q) + ' L'))).join(', '); }
   function billHtml(b, saved) {
     const co = b.company, ci = b.companyInfo || {}, v = b.vendor || {};
     const logo = /rachana/i.test(co) ? '<span class="rlogo bl-logo-r"><img src="' + LOGO_URL + '" alt="" onerror="this.parentNode.remove()"></span>' : '<span class="bl-logo-s"><img src="' + SKETCHLINE_LOGO + '" alt="" onerror="this.parentNode.remove()"></span>';
@@ -7494,7 +7709,8 @@
       : ['<tr><td>' + esc((m.type || '').toUpperCase()) + '</td><td><b>' + esc(String(m.no).replace(/-/g, '')) + '</b></td><td>' + esc((m.name || m.type || '').toUpperCase()) + '</td>' + (pmCol ? '<td class="n">–</td>' : '') + '<td class="c">–</td><td class="c">0</td><td class="n">–</td><td class="n">0.00</td></tr>']));
     const dq = (b.machines || []).reduce((a, x) => a + (Number(x.debitQty) || 0), 0), eq = (b.machines || []).reduce((a, x) => a + (Number(x.excessQty) || 0), 0);
     const bNote = [dq ? 'diesel debit ' + fmt(r2(dq)) + ' L' : '', eq ? 'excess diesel over standard ' + fmt(r2(eq)) + ' L' : ''].filter(Boolean).join(' + ');
-    const sum = [['A', 'Workdone amount >>>', b.A], ['B', 'Less- Diesel Deduction >>>' + (b.B ? '<small>' + bNote + (b.machines && b.machines[0] && b.machines[0].dieselRate ? ' @ ₹' + fmt(b.machines[0].dieselRate) + '/L' : '') + '</small>' : ''), b.B ? -b.B : ''],
+    const bNoEntry = billNoEntry(b);
+    const sum = [['A', 'Workdone amount >>>', b.A], ['B', 'Less- Diesel Deduction >>>' + (b.B ? '<small>' + bNote + (b.machines && b.machines[0] && b.machines[0].dieselRate ? ' @ ₹' + fmt(b.machines[0].dieselRate) + '/L' : '') + '</small>' + (bNoEntry ? '<small>incl. diesel issued on days with no Log Book entry: ' + esc(bNoEntry) + '</small>' : '') : ''), b.B ? -b.B : ''],
       ['C', 'Other Deduction >>>' + (b.C && b.cReason ? '<small>' + esc(b.cReason) + '</small>' : ''), b.C ? -b.C : ''], ['D', 'Net Work Done Amount D=(A-B-C) >>>', b.D],
       ['E', 'Add CGST >>>', b.gstPct ? b.E : '', b.gstPct ? fmt(b.gstPct / 2) + '%' : ''], ['F', 'Add SGST >>>', b.gstPct ? b.F : '', b.gstPct ? fmt(b.gstPct / 2) + '%' : ''],
       ['G', 'Total Amount (G=D+E+F)', b.G], ['H', 'Less TDS >>>', b.H ? -b.H : '', b.tdsPct ? fmt(b.tdsPct) + '%' : ''], ['I', 'Net Payable Amt I = (G-H) >>>>', b.I]]
@@ -7606,7 +7822,7 @@
       '<table><colgroup><col style="width:7%"><col style="width:25%"><col style="width:32%"><col style="width:11%"><col style="width:11%"><col style="width:14%"></colgroup><thead><tr><th class="c">Sr.No</th><th>Machinery</th><th>Particular</th><th class="c">Qty (Ltr)</th><th class="c">Rate (₹/Ltr)</th><th class="c">Amount</th></tr></thead><tbody>' +
       rows.join('') + '<tr><td colspan="5" class="n"><b>Total debit</b></td><td class="n"><b>' + mbN2(b.B) + '</b></td></tr>' +
       '<tr><td colspan="6"><b>In Word : ' + esc(rupeesWords(b.B)) + ' /-</b></td></tr></tbody></table>' +
-      '<div class="dnp-note">This amount is deducted in RA Bill No <b>' + esc(b.billNo || '') + '</b> (line B of the Abstract of Bill, "Less – Diesel Deduction").</div>' +
+      '<div class="dnp-note">This amount is deducted in RA Bill No <b>' + esc(b.billNo || '') + '</b> (line B of the Abstract of Bill, "Less – Diesel Deduction").' + (billNoEntry(b) ? '<br>It includes diesel issued on days with no Log Book entry: ' + esc(billNoEntry(b)) + '.' : '') + '</div>' +
       '<div class="dnp-sign"><span>Accepted by – ' + esc(v.name || '') + '</span><span>For ' + esc(co) + '</span></div></div>';
   }
   // the papers of one bill as print pages: Abstract, Tax Invoice, Debit Note (when there is one)
@@ -9334,6 +9550,7 @@
     const res = await call('saveMasterBulk', list);
     if (!res.ok) {
       $('b_errors').innerHTML = res.errors.map(er => '<li>Row ' + er.row + ': ' + esc(er.msg.replace(/^Error:\s*/, '')) + '</li>').join('');
+      fixCard(res.errors.map(er => 'Row ' + er.row + ': ' + er.msg).join(' | '));
       $('b_errors').hidden = false;
       res.errors.forEach(er => { if (trs[er.row - 1]) trs[er.row - 1].classList.add('err'); });
       toast('Nothing saved. Fix the rows marked in red.', true);
@@ -10166,7 +10383,8 @@
     const res = await call('saveLogRows', { rows: rows });
     if (res.ok === false) {
       res.errors.forEach(x => { const tr = trs[x.row - 1]; if (tr) { tr.classList.add('err'); lgRowNote(tr, x.msg); } });
-      throw new Error('Nothing saved – ' + res.errors.length + ' row(s) need attention (marked in red).');
+      // the message carries the rows' own errors too, so the help can say what to do about each kind
+      throw new Error('Nothing saved – ' + res.errors.length + ' row(s) need attention (marked in red).\n' + res.errors.slice(0, 6).map(er => (er.row ? 'Row ' + er.row + ': ' : '') + String(er.msg || '').replace(/^Error:\s*/, '')).join('\n'));
     }
     toast(res.count + ' Log Book ' + (res.count === 1 ? 'entry' : 'entries') + ' saved.');
     const dates = rows.map(r => r.date);

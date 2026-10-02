@@ -78,7 +78,7 @@ test('billing: item-wise BOQ with an hour slab, Idle paid / not paid, and page =
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   const grab = m => { const i = app.indexOf(m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
   const env = { r2: n => Math.round(n * 100) / 100, hasKm: u => u === 'KM' || u === 'KM + Hrs', hasHr: u => u === 'Hrs' || u === 'KM + Hrs', isHol: r => ['Holiday', 'Breakdown'].indexOf(r.mode || r.unit) > -1,
-    showDate: d => d.split('-').reverse().join('/'), fmt: String, ITEM_WORD: { hr: 'hr', km: 'km', trip: 'trips' }, dieselDebitDay: (vt, bd, m) => bd ? bd.diesel === 'Debit Basis' : !!(m && m.supply === 'Debit Basis'), findMachine: no => T.getMaster_().find(m => m.id === no) };
+    showDate: d => d.split('-').reverse().join('/'), fmt: String, DAY_STATUS: ['Idle', 'Holiday', 'Breakdown'], ITEM_WORD: { hr: 'hr', km: 'km', trip: 'trips' }, dieselDebitDay: (vt, bd, m) => bd ? bd.diesel === 'Debit Basis' : !!(m && m.supply === 'Debit Basis'), findMachine: no => T.getMaster_().find(m => m.id === no) };
   const C = new Function(...Object.keys(env), grab('function itemDaySegs(') + '\n' + grab('function mbMachine(') + '; return { mbMachine };')(...Object.values(env));
   for (const no of ['JCB-1', 'BOLERO-1']) for (const idle of [true, false]) assert.strictEqual(C.mbMachine(no, byNo[no], extra, from, to, undefined, idle).amount, srv(no, idle), no + ' idle=' + idle);
 });
@@ -102,7 +102,8 @@ test('bill papers: amount in words, Tax Invoice = the Abstract\'s figures, Debit
   const grab = m => { const i = app.indexOf(m); assert.ok(i > -1, m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
   const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const env = { r2: n => Math.round(n * 100) / 100, esc, fmt: n => String(n), mbN2: n => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), mbDot: d => String(d || '').split('-').reverse().join('.'),
-    DOC_CSS: '', billHtml: () => '<div class="bl">ABSTRACT</div>' };
+    DOC_CSS: '', billHtml: () => '<div class="bl">ABSTRACT</div>', showDate: d => String(d || '').split('-').reverse().join('-'),
+    billNoEntry: b => [].concat(...((b && b.machines) || []).map(m => (m.noEntry || []).map(x => String(m.no) + ' ' + x.d + ' ' + x.q + ' L'))).join(', ') };
   const C = new Function(...Object.keys(env), grab('function rupeesWords(') + '\nconst docDash = v => (v === \'\' || v === null || v === undefined || Number(v) === 0) ? \'-\' : mbN2(v);\n' + grab('function taxInvoiceHtml(') + '\n' + grab('function debitNoteHtml(') + '\n' + grab('function billSheets(') + '; return { rupeesWords, taxInvoiceHtml, debitNoteHtml, billSheets };')(...Object.values(env));
   for (const [n, w] of [[40000, 'Rupees Forty Thousand Only'], [0, 'Rupees Zero Only'], [15600, 'Rupees Fifteen Thousand Six Hundred Only'], [123456789.5, 'Rupees Twelve Crore Thirty Four Lakh Fifty Six Thousand Seven Hundred Eighty Nine and Fifty Paise Only'],
     [100000, 'Rupees One Lakh Only'], [1000019.99, 'Rupees Ten Lakh Nineteen and Ninety Nine Paise Only'], [99.995, 'Rupees One Hundred Only'], [-250, 'Minus Rupees Two Hundred Fifty Only']]) assert.strictEqual(C.rupeesWords(n), w);
@@ -203,4 +204,42 @@ test('open Log Book rows are answered in one call: same answers as one by one, a
   assert.deepStrictEqual(many[0], one); assert.deepStrictEqual(many[2], one);
   assert.ok(many[1] && typeof many[1].error === 'string' && many[1].error.length > 0);
   assert.deepStrictEqual(run('l => getLogRowPrefills_(l)', null), []);
+});
+
+test('help for errors: every rule has English, Marathi and Hindi; real messages get the right advice; the server\'s messages are covered', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const a = app.indexOf('const FIX_RULES = ['), b = app.indexOf('function fixInner(');
+  assert.ok(a > -1 && b > a, 'catalogue found');
+  const F = new Function(app.slice(a, b) + '; return { FIX_RULES, FIX_ANY, fixRules };')();
+  const deva = /[\u0900-\u097F]/;
+  F.FIX_RULES.concat([F.FIX_ANY]).forEach((r, i) => { for (const l of ['en', 'mr', 'hi']) { assert.ok(Array.isArray(r[l]) && r[l].length === 2 && r[l][0].length > 15 && r[l][1].length > 15, 'rule ' + i + ' ' + l); }
+    assert.ok(deva.test(r.mr[0]) && deva.test(r.mr[1]) && deva.test(r.hi[0]) && deva.test(r.hi[1]), 'rule ' + i + ' is written in Devanagari'); assert.ok(!deva.test(r.en[0] + r.en[1]), 'rule ' + i + ' English'); });
+  const first = m => F.fixRules(m)[0].en.join(' ');
+  for (const [msg, want] of [
+    ['Date 05-10-2026 is after today (02-10-2026). Entries can be made only up to today.', /future/],
+    ['MH-15-AB-0001 (01-09-2026): Close KM 100 is less than Start KM 200.', /closing reading is smaller/],
+    ['Not enough diesel at Dispenser for 02-10-2026: stock 20 L, issue 50 L.', /does not have this much diesel/],
+    ['"MH-99-ZZ-0000" is not in Master.', /not in the Asset Master/],
+    ['JCB-1 is inactive from 01-09-2026. Entry date 02-09-2026.', /not active on the date/],
+    ['You have View access only for Diesel Issue. Ask Admin for Edit access.', /permission/],
+    ['SESSION_EXPIRED', /signed out/], ['Wrong email or password.', /does not match/],
+    ['This entry was just sent twice – it is saved once. Check the list before entering it again.', /saved ONCE/],
+    ['Log Book for JCB-1 on 01-09-2026 is already saved.', /already there/],
+    ['JCB-1 does not work on "KM" – it works on Hrs.', /way of measuring/],
+    ['"Debit to" cannot be saved yet. This needs one database step first: run sql/supabase_step1t_debit_notes.sql', /SQL file/],
+    ['Debit to Joy Kumar: type the rate.', /party and the rate/],
+    ['This entry is in debit note RCL/VTR/DN-001 – its "Debit to" cannot be changed. Cancel that note first.', /locked/],
+    ['GST Number "27ABC" is not in the right format (15 characters, e.g. 27ABCDE1234F1Z5).', /right format/],
+    ['Line 1: JCB-1 is not an asset of ABC Earthmovers in Asset Master (its Vendor / Owner Name is XYZ).', /does not belong to this vendor/],
+    ['Enter the bill number for ABC Earthmovers.', /bill number/],
+    ['Failed to fetch', /NOT saved/], ['Diesel issued on a day with no Log Book entry', /no working Log Book entry/],
+    ['Enter Qty (Ltr).', /must be filled/], ['Something nobody has seen before', /could not accept/]])
+    assert.match(first(msg), want, msg);
+  // every error text the server can throw: how many fall through to the general advice only
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  // the written parts of each message (pieces of code between the quotes, like ' + name + ', are left out)
+  const msgs = [...code.matchAll(/throw new Error\(([^;]*)/g)].map(m => (m[1].match(/'([^']{6,})'/g) || []).map(s => s.slice(1, -1)).filter(s => !/ \+ |=>|\(.*\)\./.test(s) && /[a-z]{3,} [a-z]{2,}/i.test(s)).join(' … ')).filter(Boolean);
+  const general = msgs.filter(m => F.fixRules(m)[0] === F.FIX_ANY);
+  assert.ok(msgs.length > 200, 'messages read: ' + msgs.length);
+  assert.ok(general.length <= msgs.length * 0.03, general.length + ' of ' + msgs.length + ' server messages have only the general advice:\n' + general.slice(0, 40).join('\n'));
 });

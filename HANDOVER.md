@@ -283,6 +283,20 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * "Debit to": explained to him where it is kept (log_book.debit_to / debit_rate, shown in the list, in the backup Sheet) and where to see
     it (RCL Drive → Saved Debit Notes → New Debit Note → Get Log Book entries; then the note, the Vendor Ledger). A plain register of all
     "Debit to" entries does not exist yet – offered.
+- 02-10-2026 (update-17 is live). He asked: (1) diesel given on a day without a Log Book entry must stay in the bill BUT the bill must
+  say so, with what to do; (2) the whole app must explain every error – what is wrong and what to do, in Marathi, Hindi and English;
+  the user corrects, the app never changes data by itself.
+  * (1) `mbMachine` returns `noEntry` (issue dates with no WORKING Log Book row – none, or only Idle / Holiday / Breakdown);
+    `billNoEntry(b)`; shown as a ⚠ block under the vendor in the bill list (with the help), on line B of the Abstract and on the diesel
+    Debit Note. The bill's figures are unchanged. Saved in the bill's data, so old bills show it too once saved with this version.
+  * (2) HELP FOR ERRORS = `FIX_RULES` in App.html (just above `toast`): about 37 rules, each a pattern on the app's own English message +
+    [what is wrong, what to do] in en / mr / hi; `FIX_ANY` = general advice when nothing matches. Shown by `fixCard` (a card at the
+    bottom right under every red message; closes with × or on the next successful save), inside alert boxes ("Nothing saved", "Not
+    submitted", stock / machinery alerts – `askConfirm` with `alertOnly`), under the sign-in error, and next to bill warnings (`fixHtml`).
+    Language buttons English / मराठी / हिंदी, remembered in localStorage `rcl_lang` (default mr). The Log Book "Nothing saved" message now
+    carries the rows' own errors so the right rule is found. TO COVER A NEW MESSAGE: add a rule; the unit test "help for errors" checks
+    that every rule has the three languages (Devanagari for mr / hi) and that at most 3 % of the server's messages get only the general
+    advice. The app's own messages are still English – only the explanation is translated.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
