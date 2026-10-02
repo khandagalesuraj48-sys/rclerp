@@ -446,6 +446,23 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * Import was already heading-based (`readExcelRows` + `LB_COLS`, all tabs, missing columns = untouched), so the cut file imports as is.
   * Test `test/browser/xls.js` (11): KM machinery, hour machinery with items, date-wise, machinery from the entry form, template, unknown
     number, and the round trip – exported file → one empty date filled → the page's own Import → "1 added, 7 skipped" in the database.
+- 02-10-2026 (17:44, his screenshots of the exported sheet of MH-43-4090, a JCB with Bucket / Breaker): three remarks – no diesel in the
+  sheet (the app takes it by itself), look at the "Measured by" drop-down, and look at the last column ("Fill Measured by with one of:
+  Hrs / Idle / … | Item work: Breaker=hr (Bucket takes the rest)" repeated on every row). REBUILT the machinery sheet:
+  * `lbColsFor(machinery, rows)` = column descriptors { h, w, v, list, f, sum }; `lbSheet(...)` builds the sheet from them. (This replaces
+    the "cut the 28-column row" approach of the morning; `lbLine` / `lbSum` / `lbLists` / `LB_HEAD` are no longer used by the export.)
+  * GONE: the four diesel columns, "Status" (Idle / Holiday / Breakdown are in the "Measured by" drop-down), the hint column, the free-text
+    "Item work" on a single machinery's sheet. Summary tab: no diesel, + "Empty dates".
+  * "Measured by" comes filled on the empty dates of a machinery with one way of working; the import no longer treats the way alone as an
+    entry (`filled`), so untouched dates are skipped.
+  * Total KM / Hrs are formulas (ExcelJS `{ formula, result }`; the plain-Excel fallback converts them).
+  * Item-wise machinery: "Work type" drop-down (item names + Split) and a column per typed item ("Breaker (hr)"). Import: LB_COLS knows
+    "Work type"; `readExcelRows` also returns `_has` (which known columns exist) and `_more` (other columns by heading); `lbItemsOf` makes
+    `{ _all: 'Breaker' }` or the split quantities; a working row of such a sheet without a Work type is a problem ("Work type").
+    SERVER: `logItemWork_` understands `_all` (the picked item takes the entry's total; needs totals – the import's compare step now
+    passes them for such rows).
+  * Tests: `test/browser/xls.js` (14, with the database: columns, drop-downs, formula, import of a KM day, Breaker / Split / Bucket days,
+    refusal without Work type) and `xls2.js` (reads back the real ExcelJS file: formulas, drop-downs, yellow empty Work type).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

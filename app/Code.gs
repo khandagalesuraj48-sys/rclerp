@@ -2656,6 +2656,16 @@ function logItemWork_(m, dk, mode, l, tot) {
   if (!items.length || mode === 'Holiday' || mode === 'Breakdown') return '';
   const inp = l && l.items && typeof l.items === 'object' ? Object.assign({}, l.items) : {}, out = {}, when = m.id + ' (' + dmy_(dk) + '): ';
   const find = n => items.find(it => it.name.toUpperCase() === clean_(n).toUpperCase());
+  /* "_all": the whole entry was ONE item (picked as "Work type" in the Excel sheet). That item takes the entry's total of its
+   * kind: a typed item gets the total as its quantity; the "rest" item gets it by nothing being typed. Needs the totals. */
+  if (!blank_(inp._all)) {
+    const it = find(inp._all);
+    if (!it) throw new Error(when + '"' + clean_(inp._all) + '" is not an item of its BOQ (items: ' + items.map(x => x.name).join(', ') + ').');
+    const k = itemKind_(it.basis);
+    if (k === 'day') inp._day = it.name;
+    else items.filter(x => itemKind_(x.basis) === k && x.qty !== 'rest').forEach(x => { inp[x.name] = x.name === it.name && tot ? Math.max(0, num0_(tot[k])) : ''; });
+  }
+  delete inp._all;
   const given = {}; // by the item's own name
   Object.keys(inp).forEach(n => {
     if (n === '_day' || blank_(inp[n])) return;
@@ -5317,7 +5327,9 @@ function importLogBook_(b) {
         if (km) numDiff(H.CKM, l.closingKm, 'Close KM');
         if (hr) numDiff(H.CHR, l.closingHr, 'Close Hrs');
         txtDiff(H.CHFROM, l.chFrom, 'Chainage From'); txtDiff(H.CHTO, l.chTo, 'Chainage To'); txtDiff(H.WORK, l.work, 'Work'); txtDiff(H.DRIVER, l.driver, 'Driver'); txtDiff(H.REMARK, l.remark, 'Remark');
-        if (hasItemsIn_(l)) { const want = logItemWork_(m, dk, str_(r[c[H.UNIT]]), l, null), have = H.ITEMS in c ? str_(r[c[H.ITEMS]]) : '';
+        // (a "Work type" of one item needs the entry's totals as they will be: the file's Close against the saved Start)
+        const totOf = () => { const q = (cl, o, w) => blank_(cl) ? num0_(r[c[w]]) : r2_(Number(cl) - num0_(r[c[o]])); return { km: km ? q(l.closingKm, H.OKM, H.WKM) : 0, hr: hr ? q(l.closingHr, H.OHR, H.WHR) : (H.THRS in c ? num0_(r[c[H.THRS]]) : 0), trip: H.TRIP in c ? num0_(blank_(l.trip) ? r[c[H.TRIP]] : l.trip) : 0 }; };
+        if (hasItemsIn_(l)) { const want = logItemWork_(m, dk, str_(r[c[H.UNIT]]), l, l.items && !blank_(l.items._all) ? totOf() : null), have = H.ITEMS in c ? str_(r[c[H.ITEMS]]) : '';
           if (JSON.stringify(itemWorkParse_(want)) !== JSON.stringify(itemWorkParse_(have))) diffs.push({ f: 'Item work', from: have, to: want, h: H.ITEMS, v: want }); }
         if (!diffs.length) same.push({ line: line, no: m.id, date: dk, shift: sh });
         else changed.push({ line: line, no: m.id, date: dk, shift: sh, i: i, diffs: diffs });

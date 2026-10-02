@@ -6598,6 +6598,8 @@
               if (/^total/i.test(String(r[0]).trim())) return;  // total line of an export
               const o = { line: (allSheets && wb.SheetNames.length > 1 ? name + ' – ' : '') + (hi + k + 2) };
               spec.forEach(c => { o[c[0]] = idx[c[0]] === undefined ? '' : r[idx[c[0]]]; });
+              // which known columns the sheet has, and its other columns by their own heading (e.g. "Breaker (hr)" of an item-wise machinery)
+              o._has = idx; o._more = {}; const known = Object.values(idx); all[hi].forEach((h, q) => { const hn = String(h).trim(); if (hn && known.indexOf(q) === -1) o._more[hn] = r[q]; });
               rows.push(o);
             });
           });
@@ -6932,7 +6934,7 @@
     ['odsl', /^(opening diesel|opening diesel \(l\)|opening diesel \(ltr\))$/], ['chFrom', /^(chainage from)$/], ['chTo', /^(chainage to)$/],
     ['work', /^(work done|work description|work)$/], ['driver', /^(driver|driver name|operator)$/], ['remark', /^(remark|remarks)$/],
     ['mode', /^(measured by|measured|unit)$/], ['tStart', /^(from time|start time|time from|from)$/], ['tEnd', /^(to time|end time|time to|to)$/],
-    ['tBreak', /^(break|break \(min\)|break min|break \(minutes\))$/], ['trip', /^(trip|trips|no of trips|number of trips)$/], ['challan', /^(challan|challan no|challan number|challan nos)$/], ['status', /^(status|day status)$/], ['items', /^(item work|items|item)$/]];
+    ['tBreak', /^(break|break \(min\)|break min|break \(minutes\))$/], ['trip', /^(trip|trips|no of trips|number of trips)$/], ['challan', /^(challan|challan no|challan number|challan nos)$/], ['status', /^(status|day status)$/], ['items', /^(item work|items|item)$/], ['workType', /^(work type)$/]];
   const LB_HEAD = ['Date', 'Shift', 'Machinery', 'Type', 'Measured by', 'Start KM', 'Close KM', 'Total KM', 'Start Hrs', 'Close Hrs', 'Total Hrs', 'From time', 'To time', 'Break (min)', 'Trips', 'Challan No',
     'Opening diesel (L)', 'Diesel issued (L)', 'Consumed as per std (L)', 'Closing diesel est. (L)', 'Chainage From', 'Chainage To', 'Work Done', 'Driver Name', 'Remark', 'Item work', 'Status', 'Fill "Measured by" with one of'];
   /* "Item work" (Item-wise BOQ): only the typed items, as  Breaker=3; Rock=1  – the rest item takes what is left of the entry.
@@ -6966,7 +6968,7 @@
     let EJ = null; try { EJ = await needExcelJS(); } catch (e) { EJ = null; }
     if (!EJ) { // no drop-downs: the same sheets as plain Excel
       needXlsx(); const wb = XLSX.utils.book_new();
-      sheets.forEach(sh => { const ws = XLSX.utils.aoa_to_sheet(sh.aoa); ws['!cols'] = (sh.widths || []).map(w => ({ wch: w })); XLSX.utils.book_append_sheet(wb, ws, sh.name); });
+      sheets.forEach(sh => { const ws = XLSX.utils.aoa_to_sheet(sh.aoa.map(r => (r || []).map(v => v && typeof v === 'object' && v.formula ? (v.result === undefined ? { t: 'n', f: v.formula } : { t: 'n', f: v.formula, v: v.result }) : v))); ws['!cols'] = (sh.widths || []).map(w => ({ wch: w })); XLSX.utils.book_append_sheet(wb, ws, sh.name); });
       XLSX.writeFile(wb, fileName); toast('Saved without drop-down lists (the list tool did not load – check the internet).', true); return false;
     }
     const wb = new EJ.Workbook();
@@ -7010,18 +7012,59 @@
    * The file comes back with "Import from Excel" as it is: the import reads the columns by their headings, in any order,
    * and a column that is not in the file is simply not touched. */
   function lbPicked() { const a = findMachine(val('lf_no')); if (a) return a; const top = $('lg_top_no'); return top && top.offsetParent !== null ? findMachine(top.value) : null; }
-  function lbHeadFor(ms, rows) {
+  /* The columns of a Log Book sheet, each with its heading, width, value and (where there is one) its drop-down.
+   * Not in the sheet (02-10-2026): diesel – the app takes it by itself from Diesel Issue for the date of the entry; "Status" –
+   * Idle / Holiday / Breakdown are in the "Measured by" drop-down; the long hint column – the drop-downs say it.
+   * Total KM / Hrs are a formula (Close − Start), so they show while the sheet is being filled.
+   * A machinery whose BOQ has several items (Bucket / Breaker): "Work type" with a drop-down – one item (the whole entry) or
+   * Split – and a column for the quantity of each typed item, used with Split. */
+  function lbColsFor(ms, rows) {
     const ways = new Set(), needs = ms.map(m => LB_FMT_NEEDS[m.lbFormat] || {}); ms.forEach(m => modesOf(m).forEach(w => ways.add(w)));
     const used = k => rows.some(r => !r.blank && r[k] !== '' && r[k] !== undefined && r[k] !== null);
     const km = [...ways].some(hasKm) || used('ckm'), hr = [...ways].some(hasHr) || used('chr');
     const tp = ways.has('Trip') || needs.some(n => n.tripAll || n.tripTime) || rows.some(r => Number(r.trip) > 0);
     const tm = ways.has('Time') || needs.some(n => n.tripTime) || used('tStart');
     const ch = tp || needs.some(n => n.challan) || used('challan');
-    const items = ms.some(m => ((S.itemBoq || {})[m.id] || []).length) || rows.some(r => r.itemWork && Object.keys(r.itemWork).length);
     const noCh = ms.length > 0 && needs.every(n => n.noCh) && !used('chFrom') && !used('chTo');
-    const drop = new Set([].concat(km ? [] : ['Start KM', 'Close KM', 'Total KM'], hr ? [] : ['Start Hrs', 'Close Hrs', 'Total Hrs'], tm ? [] : ['From time', 'To time', 'Break (min)'], tp ? [] : ['Trips'], ch ? [] : ['Challan No'],
-      items ? [] : ['Item work'], noCh ? ['Chainage From', 'Chainage To'] : []));
-    return LB_HEAD.filter(h => !drop.has(h));
+    const one = ms.length === 1 ? ms[0] : null, its = one ? ((S.itemBoq || {})[one.id] || []) : [], way1 = one ? modesOf(one) : [];
+    const typed = its.filter(it => it.qty !== 'rest' && itemKind(it.basis) !== 'day');
+    const pick = ['hr', 'km', 'trip'].some(k => its.filter(it => itemKind(it.basis) === k).length > 1) ? its.filter(it => itemKind(it.basis) !== 'day').map(it => it.name) : [];
+    const anyItems = ms.some(m => ((S.itemBoq || {})[m.id] || []).length) || rows.some(r => r.itemWork && Object.keys(r.itemWork).length);
+    const qtys = r => (r.itemQty || []).filter(x => x.k !== 'day' && Number(x.q) > 0);
+    const c = [];
+    c.push({ h: 'Date', w: 12, v: r => showDate(r.date) });
+    c.push({ h: 'Shift', w: 9, v: r => r.shift, list: ['Full Day', 'Day', 'Night'], title: 'Shift', prompt: 'Full Day, Day or Night' });
+    c.push({ h: 'Machinery', w: 18, v: r => r.no });
+    c.push({ h: 'Type', w: 13, v: r => r.type });
+    // an empty date of a machinery with ONE way of working comes with that way filled in – only the readings are typed
+    c.push({ h: 'Measured by', w: 13, v: r => r.blank ? (one && way1.length === 1 && way1[0] !== 'Day' ? way1[0] : '') : (r.mode || r.unit),
+      list: row => { const m = findMachine(String(row[2] || '')); return m ? modesOf(m).concat(DAY_STATUS) : DAY_STATUS; }, title: 'Measured by', prompt: 'How it worked that day – or Idle / Holiday / Breakdown (then nothing else is filled).' });
+    const tot = (a, b2) => ({ h: 'Total ' + a, w: 10, sum: b2, f: (L, n) => 'IF(AND(ISNUMBER(' + L('Close ' + a) + n + '),ISNUMBER(' + L('Start ' + a) + n + ')),' + L('Close ' + a) + n + '-' + L('Start ' + a) + n + ',"")', v: r => r[b2] });
+    if (km) c.push({ h: 'Start KM', w: 11, v: r => r.okm }, { h: 'Close KM', w: 11, v: r => r.ckm }, tot('KM', 'wkm'));
+    if (hr) c.push({ h: 'Start Hrs', w: 11, v: r => r.ohr }, { h: 'Close Hrs', w: 11, v: r => r.chr }, tot('Hrs', 'whr'));
+    if (tm) c.push({ h: 'From time', w: 10, v: r => r.tStart || '' }, { h: 'To time', w: 10, v: r => r.tEnd || '' }, { h: 'Break (min)', w: 10, v: r => r.tBrk === undefined ? '' : r.tBrk });
+    if (tp) c.push({ h: 'Trips', w: 8, sum: 'trip', v: r => r.trip === undefined ? '' : r.trip });
+    if (ch) c.push({ h: 'Challan No', w: 14, v: r => r.challan || '' });
+    if (pick.length) c.push({ h: 'Work type', w: 13, v: r => { const q = qtys(r); return r.blank || DAY_STATUS.indexOf(r.mode || r.unit) > -1 ? '' : q.length > 1 ? 'Split' : q.length === 1 ? q[0].n : ''; },
+      list: pick.concat(['Split']), title: 'Work type', prompt: 'Pick the work of the day: ' + pick.join(' / ') + ' (the whole entry) – or Split, then type the quantity of ' + (typed.map(it => it.name).join(', ') || 'each') + ' in its column.' });
+    if (one) typed.forEach(it => c.push({ h: it.name + ' (' + ITEM_WORD[itemKind(it.basis)] + ')', w: 12, v: r => { const q = qtys(r); return q.length > 1 || !pick.length ? ((r.itemWork || {})[it.name] === undefined ? '' : r.itemWork[it.name]) : ''; } }));
+    else if (anyItems) c.push({ h: 'Item work', w: 22, v: r => itemWorkText(r.itemWork) });
+    if (!noCh) c.push({ h: 'Chainage From', w: 13, v: r => r.chFrom }, { h: 'Chainage To', w: 13, v: r => r.chTo });
+    c.push({ h: 'Work Done', w: 26, v: r => r.work }, { h: 'Driver Name', w: 16, v: r => r.driver }, { h: 'Remark', w: 20, v: r => r.remark });
+    return c;
+  }
+  // a sheet from its columns: title lines, headings, a row per entry (formulas where a column has one), an empty line, the totals
+  function lbSheet(name, title, cols, rows, gap) {
+    const xl = n => { let t = ''; n++; while (n > 0) { t = String.fromCharCode(65 + (n - 1) % 26) + t; n = Math.floor((n - 1) / 26); } return t; };
+    const L = h => xl(cols.findIndex(x => x.h === h));
+    const aoa = lbHeadRows(title).concat([cols.map(x => x.h)]), HEADS = aoa.length;
+    let cur = '';
+    rows.forEach(r => { if (gap && cur && r.date !== cur) aoa.push([]); cur = r.date; const n = aoa.length + 1;
+      aoa.push(cols.map(x => { const v = x.v(r); if (!x.f || DAY_STATUS.indexOf(r.mode || r.unit) > -1 || (r.mode || r.unit) === METER_OFF) return v === undefined || v === null ? '' : v;
+        return v === '' || v === undefined || v === null ? { formula: x.f(L, n) } : { formula: x.f(L, n), result: Number(v) }; })); });
+    aoa.push([]);
+    aoa.push(cols.map((x, k) => k === 0 ? 'Total – ' + rows.filter(r => !r.blank).length + ' entries' : x.sum ? r2(rows.reduce((a, r) => a + (Number(r[x.sum]) || 0), 0)) : ''));
+    return { name: name, aoa: aoa, widths: cols.map(x => x.w), head: HEADS, lists: cols.map((x, k) => x.list ? { col: k, values: x.list, title: x.title, prompt: x.prompt, skip: row => !String(row[2] || '').trim() || /^total/i.test(String(row[0] || '')) } : null).filter(Boolean) };
   }
   async function lbExport(kind, btn) {
     await busy(btn, 'Exporting…', async () => {
@@ -7048,33 +7091,24 @@
       if (!d.rows.length) throw new Error('No machinery for this filter.');
       const period = showDate(from) + ' to ' + showDate(to);
       const ord = r => r.date + '|' + (r.shift === 'Night' ? 1 : 0);
-      const sheets = [], W = lbCols().map(x => x.wch), HEADS = lbHeadRows('x').length + 1;
-      // only the columns the machinery of a sheet use: the full row is made as always, then the wanted columns are taken from it
-      const cut = (head, full) => head.map(h => full[LB_HEAD.indexOf(h)]);
+      const sheets = [], HEADS = lbHeadRows('x').length + 1;
       const machOf = rs => [...new Set(rs.map(r => r.no))].map(n => findMachine(n)).filter(Boolean);
       if (kind === 'date') {
         // One date – many machinery: date by date, every machinery of that date under it
         const rows = d.rows.slice().sort((a, b) => ord(a) < ord(b) ? -1 : ord(a) > ord(b) ? 1 : a.no.localeCompare(b.no));
-        const head = lbHeadFor(machOf(rows), rows);
-        const aoa = lbHeadRows('Log Book – date-wise – ' + (picked ? picked.id + ' – ' : '') + period).concat([head]);
-        let cur = '';
-        rows.forEach(r => { if (cur && r.date !== cur) aoa.push([]); cur = r.date; aoa.push(cut(head, lbLine(r))); });
-        aoa.push([]); aoa.push(cut(head, lbSum(rows, 'Total – ' + rows.filter(r => !r.blank).length + ' entries')));
-        sheets.push({ name: 'Date-wise', aoa: aoa, widths: cut(head, W), head: HEADS, lists: lbLists(head, 2) });
+        sheets.push(lbSheet('Date-wise', 'Log Book – date-wise – ' + (picked ? picked.id + ' – ' : '') + period, lbColsFor(machOf(rows), rows), rows, !picked));
       } else {
         // One machinery – many dates: a tab for every machinery, dates in order, with its total
         const by = {}; d.rows.forEach(r => { (by[r.no] = by[r.no] || []).push(r); });
         const names = Object.keys(by).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-        const sum = [['Machinery', 'Type', 'Unit', 'Entries', 'Total KM', 'Total Hrs', 'Diesel issued (L)', 'Consumed as per std (L)']];
-        names.forEach(n => { const rs = by[n], t = k => r2(rs.reduce((a, r) => a + (Number(r[k]) || 0), 0)); sum.push([n, rs[0].type, worksOf(findMachine(n)).join(', ') || rs[0].unit, rs.filter(r => !r.blank).length, t('wkm'), t('whr'), t('qty'), t('stdUse')]); });
-        sheets.push({ name: 'Summary', aoa: lbHeadRows('Log Book – machinery-wise – ' + period).concat(sum), widths: [18, 14, 8, 8, 10, 10, 14, 16], head: HEADS });
+        const sum = [['Machinery', 'Type', 'Works on', 'Entries', 'Empty dates', 'Total KM', 'Total Hrs', 'Trips']];
+        names.forEach(n => { const rs = by[n], t = k => r2(rs.reduce((a, r) => a + (Number(r[k]) || 0), 0)); sum.push([n, rs[0].type, worksOf(findMachine(n)).join(', ') || rs[0].unit, rs.filter(r => !r.blank).length, rs.filter(r => r.blank).length, t('wkm') || '', t('whr') || '', t('trip') || '']); });
+        sheets.push({ name: 'Summary', aoa: lbHeadRows('Log Book – machinery-wise – ' + period).concat(sum), widths: [18, 14, 12, 9, 12, 10, 10, 8], head: HEADS });
         const used = {};
         names.forEach(n => {
           const rows = by[n].slice().sort((a, b) => ord(a) < ord(b) ? -1 : ord(a) > ord(b) ? 1 : 0);
-          const head = lbHeadFor(machOf(rows), rows);       // this machinery's own columns
-          const aoaM = lbHeadRows('Log Book – ' + n + ' – ' + period).concat([head], rows.map(r => cut(head, lbLine(r))), [[], cut(head, lbSum(rows, 'Total – ' + rows.filter(r => !r.blank).length + ' entries'))]);
           let tab = n.replace(/[\[\]:*?\/\\]/g, '-').slice(0, 28), k = 2; while (used[tab.toLowerCase()]) tab = n.slice(0, 25) + ' (' + (k++) + ')'; used[tab.toLowerCase()] = 1;
-          sheets.push({ name: tab, aoa: aoaM, widths: cut(head, W), head: HEADS, lists: lbLists(head, 2) });
+          sheets.push(lbSheet(tab, 'Log Book – ' + n + ' – ' + period, lbColsFor(machOf(rows), rows), rows, false));      // this machinery's own columns
         });
       }
       await saveXlsxLists('Log Book ' + (picked ? picked.id + ' ' : kind === 'date' ? 'date-wise ' : 'machinery-wise ') + period.replace(/\//g, '-') + '.xlsx', sheets);
@@ -7111,6 +7145,14 @@
   $('lg_tpl_date').addEventListener('click', e => lbPicked() ? lbExport('date', e.target) : lbTemplate('date'));
   $('lg_tpl_mach').addEventListener('click', e => lbPicked() ? lbExport('mach', e.target) : lbTemplate('mach'));
   // import: either layout, one or many tabs; Start is needed only for a machinery's very first entry
+  /* the item work of a sheet row: "Work type" = one item → the whole entry is that item ({ _all: name });
+   * "Split" (or no Work type column) → the quantities typed in the item columns "Name (hr)" / "(km)" / "(trips)" */
+  function lbItemsOf(x) {
+    const o = {}, wt = String(x.workType || '').trim();
+    if (wt && !/^split$/i.test(wt)) return { _all: wt };
+    Object.keys(x._more || {}).forEach(h => { const q = h.match(/^(.+?)\s*\((hr|hrs|km|trip|trips)\)$/i), v = x._more[h]; if (q && v !== '' && v !== null && v !== undefined && isFinite(Number(String(v).replace(/,/g, '')))) o[q[1].trim()] = Number(String(v).replace(/,/g, '')); });
+    return Object.keys(o).length ? o : undefined;
+  }
   function lbProblems(r) {
     const p = [];
     if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date)) p.push('date'); else if (r.date > S.today) p.push('date after today');
@@ -7124,6 +7166,8 @@
     if (hasHr(w) && r.closingHr === '') p.push('Close Hrs');
     if (w === 'Time' && (!r.tStart || !r.tEnd)) p.push('From / To time');
     if (w === 'Trip' && !(Number(r.trip) > 0)) p.push('Trips');
+    // a machinery with several work items: the sheet has "Work type" – a working row must say which (Bucket / Breaker / Split with the quantities)
+    if (r.needWork && DAY_STATUS.indexOf(w) === -1 && !r.items) p.push('Work type');
     return p;
   }
   $('lg_import').addEventListener('click', () => $('lg_file').click());
@@ -7142,8 +7186,10 @@
           mode: stHit || wantSt || (want ? (hit || want) : ''), tStart: hhmm(x.tStart), tEnd: hhmm(x.tEnd), tBreak: num(x.tBreak), trip: num(x.trip), challan: String(x.challan || '').trim(),
           openingKm: num(x.okm), closingKm: num(x.ckm), openingHr: num(x.ohr), closingHr: num(x.chr), openingDiesel: num(x.odsl),
           chFrom: String(x.chFrom || '').trim(), chTo: String(x.chTo || '').trim(), work: String(x.work || '').trim(), driver: String(x.driver || '').trim(), remark: String(x.remark || '').trim(),
-          items: String(x.items || '').trim() ? itemWorkRead(x.items) : undefined }; });
-      const filled = r => r.mode || ['openingKm', 'closingKm', 'openingHr', 'closingHr', 'openingDiesel', 'tBreak', 'trip'].some(k => r[k] !== '' && r[k] !== undefined && !(typeof r[k] === 'number' && isNaN(r[k]))) || ['tStart', 'tEnd', 'challan', 'chFrom', 'chTo', 'work', 'driver', 'remark'].some(k => String(r[k] || '').trim());
+          items: String(x.items || '').trim() ? itemWorkRead(x.items) : lbItemsOf(x), needWork: !!(x._has && x._has.workType !== undefined) }; });
+      // a row is "filled" when it has a day status, a reading, a time, trips or a text – the way of working alone (it comes filled in the
+      // sheet of a one-way machinery) does not make an entry
+      const filled = r => DAY_STATUS.indexOf(r.mode) > -1 || r.mode === 'Day' || ['openingKm', 'closingKm', 'openingHr', 'closingHr', 'openingDiesel', 'tBreak', 'trip'].some(k => r[k] !== '' && r[k] !== undefined && !(typeof r[k] === 'number' && isNaN(r[k]))) || ['tStart', 'tEnd', 'challan', 'chFrom', 'chTo', 'work', 'driver', 'remark'].some(k => String(r[k] || '').trim());
       const skipped = rows.filter(r => !filled(r)).length;
       rows.splice(0, rows.length, ...rows.filter(filled));
       if (!rows.length) throw new Error('Every row of the file is blank – fill Measured by and the readings, then import.');
