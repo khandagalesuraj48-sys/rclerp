@@ -975,6 +975,11 @@
   .bl-item [data-it=name] { width: 140px; min-height: 32px; } .bl-item [data-it=basis] { width: auto; min-width: 110px; } .bl-item [data-it=rate] { width: 100px; min-height: 32px; } .bl-item [data-it=qty] { width: auto; min-width: 0; } .bl-item [data-it=slabOn] { width: auto; min-width: 0; }
   .bl-item .it-slabs { flex-basis: 100%; } .it-slabs .islab { display: flex; align-items: center; gap: 6px; margin: 2px 0 2px 12px; font-size: 12.5px; color: var(--muted); } .it-slabs .islab input { width: 90px; min-height: 30px; }
   .itm { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin-top: 4px; font-size: 12px; } .itm label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; } .itm input { width: 64px; min-height: 28px; } .itm select { width: auto; min-width: 0; min-height: 28px; }
+  .itm .itm-pick { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; } .itm .itm-pick i { font-style: normal; font-weight: 700; color: #5B6B80; font-size: 11px; }
+  .itm .itm-chip { border: 1px solid #C9D8FB; background: #fff; color: #1543B8; border-radius: 7px; padding: 3px 9px; font: 700 11.5px var(--ui); cursor: pointer; min-height: 0; }
+  .itm .itm-chip.on { background: #1D55E2; border-color: #1D55E2; color: #fff; } .itm .itm-chip.itm-split-b { border-style: dashed; color: #475569; border-color: #CBD5E1; } .itm .itm-chip.itm-split-b.on { background: #475569; border-color: #475569; color: #fff; border-style: solid; }
+  .itm .itm-pick.need .itm-chip:not(.on) { border-color: #F2A900; } .itm .itm-say { font-weight: 700; color: #0F1B2D; } .itm .itm-pick.need .itm-say { color: #B45309; }
+  .itm .itm-split { display: inline-flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; } .itm .itm-split[hidden] { display: none; }
   .itm .itm-rest { color: var(--muted); white-space: nowrap; } .itm .itm-rest b { color: inherit; } .itm.bad .itm-rest { color: var(--bad); font-weight: 700; }
   #boq_rows tr.amend td { background: #FFFBEB; } #boq_rows .link + .link { margin-left: 12px; } .b-lines-cell div { font-size: 12.5px; white-space: nowrap; } td.nowrap { white-space: nowrap; }
   table.b-lines [data-bl=diesel] { min-width: 150px; } table.b-lines [data-bl=remark] { min-width: 110px; } .b-lines-cell .small { font-size: 11.5px; margin-top: 2px; }
@@ -3919,6 +3924,13 @@
         'या app साठी ते बंद करायचे असेल तर: Chrome → ⋮ → Settings → Performance → "Always keep these sites active" → Add → rclerp.vercel.app. त्यानंतर tab जागा राहतो. (तुम्ही ज्या page वर होता तेच app ने उघडले आहे.)'],
       hi: ['आपके data में कुछ गड़बड़ नहीं है। Tab कुछ मिनट इस्तेमाल न हो तो Chrome memory बचाने के लिए उसे सुला देता है ("Memory Saver") और tab पर click करने पर फिर load करता है; आपको दिखा छोटा load वही है।',
         'इस app के लिए इसे बंद करना हो तो: Chrome → ⋮ → Settings → Performance → "Always keep these sites active" → Add → rclerp.vercel.app। उसके बाद tab जागा रहता है। (आप जिस page पर थे वही app ने खोल दिया है।)'] },
+    { re: /Pick the work of this entry/i,
+      en: ['The BOQ of this machinery pays each kind of work at its own rate (for example Bucket and Breaker), so the entry must say which work was done.',
+        'In the row press the button of the work (e.g. Bucket or Breaker) when the whole entry was that work. If both were done, press "Split" and type the hours of each. Then save.'],
+      mr: ['या machinery चा BOQ प्रत्येक प्रकारच्या कामाला वेगळा दर देतो (उदा. Bucket आणि Breaker), म्हणून entry मध्ये कोणते काम झाले ते सांगावे लागते.',
+        'ओळीत त्या कामाचे बटण दाबा (उदा. Bucket किंवा Breaker), जर पूर्ण entry तेच काम असेल. दोन्ही कामे झाली असतील तर "Split" दाबून प्रत्येकाचे तास भरा. मग save करा.'],
+      hi: ['इस machinery का BOQ हर तरह के काम को अलग दर देता है (जैसे Bucket और Breaker), इसलिए entry में बताना होता है कि कौन सा काम हुआ।',
+        'पंक्ति में उस काम का बटन दबाएँ (जैसे Bucket या Breaker), अगर पूरी entry वही काम थी। दोनों काम हुए हों तो "Split" दबाकर हर एक के घंटे भरें। फिर save करें।'] },
     { re: /no BOQ in these dates/i,
       en: ['This machinery has no BOQ (rate) for these dates, so its work is billed at 0.', 'Open Vendor BOQ and add this machinery with its rate from the right start date (or amend the BOQ), then build the bill again.'],
       mr: ['या machinery साठी या तारखांना BOQ (दर) नाही, म्हणून तिचे काम 0 ने bill होते.', 'Vendor BOQ मध्ये ही machinery योग्य सुरुवातीच्या तारखेपासून दरासह जोडा (किंवा BOQ Amend करा), मग bill पुन्हा Build करा.'],
@@ -6206,6 +6218,8 @@
         note.innerHTML = 'Start should be <b>' + [misK ? fmt(expK) + (hr ? ' km' : '') : '', misH ? fmt(expH) + (km ? ' hr' : '') : ''].filter(Boolean).join(' / ') + '</b> (Close of ' + esc(when) + ') <button class="lx-fix" data-fix="' + i + '">Use it</button>';
       } else if (note) note.remove();
       const itemBad = itemBoxCalc(tr.querySelector('.lx-itm'), { hr: wh, km: wk, trip: Number(r.trip) || 0 });
+      // a picked item follows the entry's total: keep the row's items in step with what the box now holds
+      if (tr.querySelector('.lx-itm .itm-pick')) { const now = itemBoxRead(tr.querySelector('.lx-itm')); if (JSON.stringify(now) !== JSON.stringify(r.items || {})) { r.items = now; r.itemSig = itemSig((LX.d.boqItems || {})[r.date], r.items); } }
       const isBad = misK || misH || (wk !== '' && wk < 0) || (wh !== '' && wh < 0) || (km && lxN(r.ckm) === '') || (hr && lxN(r.chr) === '') || (tm && (!r.tStart || !r.tEnd || !(wh > 0))) || (tp && !(Number(r.trip) > 0)) || !!itemBad;
       tr.querySelector('.tot').innerHTML = [wk !== '' ? fmt(wk) + ' <small>km</small>' : '', wh !== '' ? fmt(wh) + ' <small>hr</small>' : '', tp ? fmt(Number(r.trip) || 0) + ' <small>trips</small>' : '', way === 'Day' ? '<small>day</small>' : ''].filter(Boolean).join('<br>') || '–';
       const odIn = tr.querySelector('.od input');
@@ -7392,14 +7406,26 @@
    * items = [{ name, basis, qty }] of the BOQ in force on the entry's date. One entry per date + shift as always;
    * its work is shared between the items: "typed" items get a box, the "rest" item takes what is left (shown, not typed).
    * Several Per Day / Monthly items: the one that worked is picked. vals = { item: qty, _day: item } */
-  function itemBoxHtml(items, vals, way) {
+  /* ITEM-WISE WORK (an excavator with Bucket and Breaker, each at its own BOQ rate).
+   * When the BOQ of the date has two or more items of the same kind (hours / KM / trips), the entry shows the items as
+   * buttons: press ONE item when the whole entry was that work, or "Split" to type how much went to each item.
+   * In a NEW entry nothing is picked beforehand – the work must be chosen (asked 02-10-2026), so that breaker work is never
+   * billed at the bucket rate by default. A saved entry opens with what it was saved with.
+   * What is saved and billed is unchanged: the quantity of each item ({ item: qty }); the bill takes each item at its own rate.
+   * The pick is remembered on the box itself (data-pick<kind>), so a redraw of the row keeps it. */
+  function itemBoxHtml(items, vals, way, must) {
     if (!items || !items.length || way === 'Holiday' || way === 'Breakdown') return '';
     vals = vals || {}; const parts = [];
     if (way !== 'Idle') ['hr', 'km', 'trip'].forEach(k => {
       const its = items.filter(it => itemKind(it.basis) === k); if (!its.length) return;
+      const restIt = its.find(it => it.qty === 'rest');
+      if (its.length > 1) parts.push('<span class="itm-pick" data-k="' + k + '" data-rest-name="' + esc(restIt ? restIt.name : '') + '"' + (must ? ' data-must="1"' : '') + '><i>Work:</i>' +
+        its.map(it => '<button type="button" class="itm-chip" data-pick="' + esc(it.name) + '" title="The whole entry was ' + esc(it.name) + '">' + esc(it.name) + '</button>').join('') +
+        '<button type="button" class="itm-chip itm-split-b" data-pick="_split" title="The entry had more than one work – type how much each">Split</button><b class="itm-say"></b></span><span class="itm-split" data-k="' + k + '">');
       its.filter(it => it.qty !== 'rest').forEach(it => parts.push('<label>' + esc(it.name) + ' <input type="number" min="0" step="0.01" data-item="' + esc(it.name) + '" data-k="' + k + '" value="' + (vals[it.name] === undefined || vals[it.name] === '' ? '' : esc(vals[it.name])) + '" placeholder="' + ITEM_WORD[k] + '" title="' + esc(it.name) + ' – ' + ITEM_WORD[k] + ' of this entry"></label>'));
       const rest = its.find(it => it.qty === 'rest');
       parts.push('<span class="itm-rest" data-rest="' + k + '" data-name="' + esc(rest ? rest.name : '') + '"></span>');
+      if (its.length > 1) parts.push('</span>');
     });
     const days = items.filter(it => itemKind(it.basis) === 'day');
     if (days.length > 1) parts.push('<label>Day item <select data-item="_day">' + days.map(it => '<option' + (it.name === vals._day ? ' selected' : '') + '>' + esc(it.name) + '</option>').join('') + '</select></label>');
@@ -7414,6 +7440,23 @@
   // shows what the "rest" item gets; returns the problem ('' = fine). tot = { hr, km, trip } of the entry
   function itemBoxCalc(box, tot) {
     if (!box) return ''; let bad = '';
+    // the pick of each kind: one item gets the whole entry, or the typed split
+    box.querySelectorAll('.itm-pick').forEach(pk => {
+      const k = pk.dataset.k, key = 'pick' + k, total = Math.max(0, Number(tot[k]) || 0), restName = pk.dataset.restName || '', must = pk.dataset.must === '1';
+      const inputs = [...box.querySelectorAll('input[data-k="' + k + '"]')], typed = inputs.filter(i => Number(i.value) > 0);
+      let pick = box.dataset[key];
+      if (pick === undefined) {            // not chosen on this box yet: read it from what the entry holds
+        pick = !typed.length ? (must ? '' : (restName || '_split')) : typed.length === 1 && total > 0 && Math.abs(Number(typed[0].value) - total) < 0.005 ? typed[0].dataset.item : '_split';
+        box.dataset[key] = pick;
+      }
+      if (pick === '' && typed.length) { pick = '_split'; box.dataset[key] = pick; }      // quantities are there without a pick (an import, an older row): that is a split
+      if (pick && pick !== '_split') inputs.forEach(i => { const v = i.dataset.item === pick && total > 0 ? String(total) : ''; if (i.value !== v) i.value = v; });
+      pk.querySelectorAll('.itm-chip').forEach(c => c.classList.toggle('on', c.dataset.pick === pick));
+      const sp = box.querySelector('.itm-split[data-k="' + k + '"]'); if (sp) sp.hidden = pick !== '_split';
+      const say = pk.querySelector('.itm-say'); if (say) say.textContent = pick && pick !== '_split' ? (total > 0 ? fmt(total) + ' ' + ITEM_WORD[k] : '') : !pick ? '← pick' : '';
+      pk.classList.toggle('need', !pick);
+      if (!pick && total > 0) bad = 'Pick the work of this entry: ' + [...pk.querySelectorAll('.itm-chip')].map(c => c.textContent).join(' / ') + '.';
+    });
     box.querySelectorAll('[data-rest]').forEach(sp => {
       const k = sp.dataset.rest, total = Math.max(0, Number(tot[k]) || 0);
       const sum = [...box.querySelectorAll('input[data-k="' + k + '"]')].reduce((a, i) => a + (Number(i.value) || 0), 0), left = r2(total - sum);
@@ -7424,6 +7467,17 @@
     box.classList.toggle('bad', !!bad);
     return bad;
   }
+  // a work button was pressed: remember the pick on its box and let the page work the entry out again (twice: the first pass
+  // writes the quantities into the item boxes, the second lets the page read them)
+  document.addEventListener('click', e => {
+    const c = e.target.closest('.itm-chip'); if (!c) return; e.preventDefault();
+    const pk = c.closest('.itm-pick'), box = c.closest('.itm'); if (!pk || !box) return;
+    const was = box.dataset['pick' + pk.dataset.k];
+    box.dataset['pick' + pk.dataset.k] = c.dataset.pick;
+    if (c.dataset.pick === '_split' && was && was !== '_split') box.querySelectorAll('input[data-k="' + pk.dataset.k + '"]').forEach(i => { i.value = ''; });   // start the split from empty boxes
+    const tell = () => (box.querySelector('input[data-item]') || box).dispatchEvent(new Event('input', { bubbles: true }));
+    tell(); setTimeout(() => { tell(); if (c.dataset.pick === '_split') { const i = box.querySelector('.itm-split:not([hidden]) input'); if (i) i.focus(); } }, 80);
+  });
   // the typed items as one comparable text (blank / 0 left out, the first Day item is the default)
   function itemSig(items, vals) {
     const days = (items || []).filter(it => itemKind(it.basis) === 'day'), first = days.length ? days[0].name : '', o = vals || {};
@@ -10589,7 +10643,8 @@
     const items = tr._p && tr._p.boqItems ? tr._p.boqItems : [], sig = tr._key + '|' + u + '|' + JSON.stringify(items);
     if (box.dataset.sig === sig) return;
     const keep = box.dataset.key === tr._key ? itemBoxRead(box) : {};
-    box.innerHTML = u ? itemBoxHtml(items, keep, u) : ''; box.hidden = !box.innerHTML; box.dataset.sig = sig; box.dataset.key = tr._key || '';
+    if (box.dataset.key !== tr._key) ['pickhr', 'pickkm', 'picktrip'].forEach(a => { delete box.dataset[a]; });      // another machinery / date / shift: nothing is picked yet
+    box.innerHTML = u ? itemBoxHtml(items, keep, u, true) : ''; box.hidden = !box.innerHTML; box.dataset.sig = sig; box.dataset.key = tr._key || '';
   }
   // what the machinery's Log Book format asks for, besides the readings: Challan, Particular, Chainage, In / Out time with trips
   const LB_FMT_NEEDS = { A: {}, B: { tripAll: 1 }, C: { noCh: 1 }, D: {}, E: { challan: 1, part: 1 }, F: { challan: 1, part: 1 }, G: { challan: 1, part: 1 }, H: { challan: 1, tripTime: 1 } };
@@ -10804,7 +10859,8 @@
     const trs = lgRows().filter(tr => lgf(tr, 'no').value.trim());
     if (!trs.length) throw new Error('Enter at least one machinery.');
     const bad = trs.filter(tr => !tr._p || tr.classList.contains('err'));
-    if (bad.length) throw new Error('Fix the rows marked in red first (' + bad.map(tr => 'row ' + tr.querySelector('.idx').textContent).join(', ') + ').');
+    if (bad.length) throw new Error('Fix the rows marked in red first (' + bad.map(tr => 'row ' + tr.querySelector('.idx').textContent).join(', ') + ').' +
+      bad.slice(0, 5).map(tr => { const n = tr.querySelector('.c-m .lnote'); return n && n.textContent.trim() ? '\nRow ' + tr.querySelector('.idx').textContent + ': ' + n.textContent.trim() : ''; }).join(''));
     const noWay = trs.filter(tr => !lgWay(tr));
     if (noWay.length) throw new Error('Pick "Measured by" (KM / Hrs / Time / Trip / Day / Idle / Holiday / Breakdown) in ' + noWay.map(tr => 'row ' + tr.querySelector('.idx').textContent).join(', ') + '.');
     const miss = trs.filter(tr => { const u = lgWay(tr); return (hasKm(u) && lgf(tr, 'closingKm').value === '') || (hasHr(u) && lgf(tr, 'closingHr').value === ''); });
@@ -10873,6 +10929,7 @@
 
     $('le_odsl_w').hidden = !e.first; $('le_odsl').value = e.odsl;
     $('le_chf').value = e.chFrom; $('le_cht').value = e.chTo; $('le_work').value = e.work || e.remark; $('le_dto').value = e.debitTo || ''; $('le_drate').value = e.debitRate === undefined || e.debitRate === null ? '' : e.debitRate;
+    ['pickhr', 'pickkm', 'picktrip'].forEach(a => { delete $('le_itm').dataset[a]; });
     $('le_itm').innerHTML = itemBoxHtml(e.boqItems || [], e.itemWork || {}, e.unit); $('le_itm_w').hidden = !$('le_itm').innerHTML;
     leNote();
     $('le_back').hidden = false;

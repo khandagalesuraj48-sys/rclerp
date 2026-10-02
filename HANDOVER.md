@@ -376,6 +376,16 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   breakdown list. Meaning everywhere: an empty NEW form (leaves edit mode), asks first when typed data would be lost, never touches saved
   data. NOT given a Clear on purpose: small windows that edit one saved record (they have Cancel), "Save company details" and Log Book
   Format (settings). `test/browser/clear.js` walks every page and fails if a Save / Submit / Build / Generate button has no Clear beside it.
+- 02-10-2026: ITEM-WISE WORK IS PICKED. He has a rental excavator used with Bucket and Breaker (BOQ "Item-wise", each item its own rate)
+  and asked that the Log Book entry makes him SELECT the work, and that the bill follows. The item-wise chain already existed (BOQ items →
+  item quantities in the entry → `itemDaySegs` in the bill); what changed is the entry: `itemBoxHtml` now draws, for a kind (hours / KM /
+  trips) with two or more items, a button per item + "Split" (`.itm-pick`, `.itm-chip`); `itemBoxCalc` applies the pick (one item gets
+  the whole entry and follows the reading; Split shows the quantity boxes, the "rest" item takes what is left). In a NEW entry nothing is
+  picked and the row is red until it is ("Pick the work of this entry: …", help rule in 3 languages) – before, an untouched entry went
+  silently to the "rest" item (Bucket). Saved entries, the edit window and the Edit Log Book grid open with what was saved (no forced
+  pick there). The pick lives on the box (`data-pickhr` …). WHAT IS SAVED AND BILLED IS UNCHANGED ({ item: qty }; server untouched).
+  Test `test/browser/item2.js` (13, with the database): Breaker 8 hr, Bucket 8 hr, split 5 + 3 → bill Bucket 13 × 1,200 = 15,600 and
+  Breaker 11 × 1,500 = 16,500, A = 32,100.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
