@@ -433,6 +433,19 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   they keep the name they were issued with. REFUSED: a new name that another vendor or owner already has (that would join two parties).
   The page asks before renaming and says what follows; the Activity Log gets "Vendor renamed: A → B (moved with it: …)".
   Tests: unit "renaming a vendor" and `test/browser/rename.js` (11, with the database, renames back at the end).
+- 02-10-2026: THE LOG BOOK EXCEL OF A MACHINERY. He typed a vehicle number, exported, and got a general sheet (the template even used an
+  example Bolero). Wanted: the Excel of exactly that machinery, for the period chosen, with only the columns / tab that machinery needs,
+  and the same file must go back through Import at once. BUILT (page only):
+  * `lbPicked()` = the machinery of the list's filter, else the one typed in the entry form (`lg_top_no`). `lbExport` reads the filter
+    from the screen at that moment (it used the filter of the list loaded last), and refuses a number that is not in the Master.
+  * `lbHeadFor(machinery, rows)` = the columns of LB_HEAD that those machinery use: KM / hour readings by their ways of working, time,
+    trips, challan by way or Log Book format (`LB_FMT_NEEDS`), "Item work" by an item-wise BOQ, chainage unless the format has none.
+    Each machinery tab has its own columns; the date-wise sheet has the union of its machinery. Full rows are built as before (`lbLine`,
+    `lbSum`) and cut to those columns, so figures cannot differ.
+  * With a machinery picked, the two Template buttons give that machinery's own sheet (its dates of the period, empty dates to fill).
+  * Import was already heading-based (`readExcelRows` + `LB_COLS`, all tabs, missing columns = untouched), so the cut file imports as is.
+  * Test `test/browser/xls.js` (11): KM machinery, hour machinery with items, date-wise, machinery from the entry form, template, unknown
+    number, and the round trip – exported file → one empty date filled → the page's own Import → "1 added, 7 skipped" in the database.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

@@ -7002,9 +7002,34 @@
       { col: ix('Measured by'), values: row => { const m = findMachine(String(row[noCol] || '')); return m ? modesOf(m).concat(DAY_STATUS) : DAY_STATUS; }, skip: noRow, title: 'Measured by', prompt: 'How it worked (ways ticked in Asset Master) – or Idle (paid or not: chosen in the bill) / Holiday / Breakdown (not paid).' },
       { col: ix('Status'), values: LB_STATUS, skip: noRow, title: 'Status', prompt: 'Working = fill Measured by and readings. Idle (paid or not: chosen in the bill), Holiday / Breakdown (not paid) = nothing else to fill.' }].filter(L => L.col > -1);
   }
+  /* THE EXCEL OF A MACHINERY IS MADE FOR THAT MACHINERY (asked 02-10-2026).
+   * Which machinery: the one in the list's Machinery filter; if that is empty, the one typed in the entry form above.
+   * Which dates: the From / To of the list as they are on screen now.
+   * Which columns: only what that machinery uses – KM columns for a KM machinery, hour columns for an hour machinery, time /
+   * trips / challan / item work / chainage only when its way of working, its Log Book format or its BOQ asks for them.
+   * The file comes back with "Import from Excel" as it is: the import reads the columns by their headings, in any order,
+   * and a column that is not in the file is simply not touched. */
+  function lbPicked() { const a = findMachine(val('lf_no')); if (a) return a; const top = $('lg_top_no'); return top && top.offsetParent !== null ? findMachine(top.value) : null; }
+  function lbHeadFor(ms, rows) {
+    const ways = new Set(), needs = ms.map(m => LB_FMT_NEEDS[m.lbFormat] || {}); ms.forEach(m => modesOf(m).forEach(w => ways.add(w)));
+    const used = k => rows.some(r => !r.blank && r[k] !== '' && r[k] !== undefined && r[k] !== null);
+    const km = [...ways].some(hasKm) || used('ckm'), hr = [...ways].some(hasHr) || used('chr');
+    const tp = ways.has('Trip') || needs.some(n => n.tripAll || n.tripTime) || rows.some(r => Number(r.trip) > 0);
+    const tm = ways.has('Time') || needs.some(n => n.tripTime) || used('tStart');
+    const ch = tp || needs.some(n => n.challan) || used('challan');
+    const items = ms.some(m => ((S.itemBoq || {})[m.id] || []).length) || rows.some(r => r.itemWork && Object.keys(r.itemWork).length);
+    const noCh = ms.length > 0 && needs.every(n => n.noCh) && !used('chFrom') && !used('chTo');
+    const drop = new Set([].concat(km ? [] : ['Start KM', 'Close KM', 'Total KM'], hr ? [] : ['Start Hrs', 'Close Hrs', 'Total Hrs'], tm ? [] : ['From time', 'To time', 'Break (min)'], tp ? [] : ['Trips'], ch ? [] : ['Challan No'],
+      items ? [] : ['Item work'], noCh ? ['Chainage From', 'Chainage To'] : []));
+    return LB_HEAD.filter(h => !drop.has(h));
+  }
   async function lbExport(kind, btn) {
     await busy(btn, 'Exporting…', async () => {
-      const f = Object.assign({}, S.logList && S.logList.f ? S.logList.f : {}, { all: true });
+      // the filter as it is on screen NOW (not the one of the list that was loaded last), and the machinery that is picked
+      const picked = lbPicked();
+      const f = { from: $('lf_from').value, to: $('lf_to').value, no: picked ? picked.id : val('lf_no'), shift: $('lf_shift').value, ownership: $('lf_own').value, own: $('lf_own').value,
+        type: picked ? '' : val('lf_type'), owner: picked ? '' : val('lf_owner'), q: picked ? '' : val('lf_q'), all: true };
+      if (val('lf_no') && !picked) throw new Error('"' + val('lf_no') + '" is not in Master. Pick a machinery from the list.');
       const d = await call('getLogBookList', f);
       S.itemBoq = d.itemBoq || {}; // Item-wise BOQ: the items of each machinery (hint for the "Item work" column)
       // every date of the period for every machinery of the filter: the saved entries filled in, the missing dates as blank rows
@@ -7024,14 +7049,18 @@
       const period = showDate(from) + ' to ' + showDate(to);
       const ord = r => r.date + '|' + (r.shift === 'Night' ? 1 : 0);
       const sheets = [], W = lbCols().map(x => x.wch), HEADS = lbHeadRows('x').length + 1;
+      // only the columns the machinery of a sheet use: the full row is made as always, then the wanted columns are taken from it
+      const cut = (head, full) => head.map(h => full[LB_HEAD.indexOf(h)]);
+      const machOf = rs => [...new Set(rs.map(r => r.no))].map(n => findMachine(n)).filter(Boolean);
       if (kind === 'date') {
         // One date – many machinery: date by date, every machinery of that date under it
         const rows = d.rows.slice().sort((a, b) => ord(a) < ord(b) ? -1 : ord(a) > ord(b) ? 1 : a.no.localeCompare(b.no));
-        const aoa = lbHeadRows('Log Book – date-wise – ' + period).concat([LB_HEAD]);
+        const head = lbHeadFor(machOf(rows), rows);
+        const aoa = lbHeadRows('Log Book – date-wise – ' + (picked ? picked.id + ' – ' : '') + period).concat([head]);
         let cur = '';
-        rows.forEach(r => { if (cur && r.date !== cur) aoa.push([]); cur = r.date; aoa.push(lbLine(r)); });
-        aoa.push([]); aoa.push(lbSum(rows, 'Total – ' + rows.filter(r => !r.blank).length + ' entries'));
-        sheets.push({ name: 'Date-wise', aoa: aoa, widths: W, head: HEADS, lists: lbLists(LB_HEAD, 2) });
+        rows.forEach(r => { if (cur && r.date !== cur) aoa.push([]); cur = r.date; aoa.push(cut(head, lbLine(r))); });
+        aoa.push([]); aoa.push(cut(head, lbSum(rows, 'Total – ' + rows.filter(r => !r.blank).length + ' entries')));
+        sheets.push({ name: 'Date-wise', aoa: aoa, widths: cut(head, W), head: HEADS, lists: lbLists(head, 2) });
       } else {
         // One machinery – many dates: a tab for every machinery, dates in order, with its total
         const by = {}; d.rows.forEach(r => { (by[r.no] = by[r.no] || []).push(r); });
@@ -7042,13 +7071,14 @@
         const used = {};
         names.forEach(n => {
           const rows = by[n].slice().sort((a, b) => ord(a) < ord(b) ? -1 : ord(a) > ord(b) ? 1 : 0);
-          const aoaM = lbHeadRows('Log Book – ' + n + ' – ' + period).concat([LB_HEAD], rows.map(lbLine), [[], lbSum(rows, 'Total – ' + rows.filter(r => !r.blank).length + ' entries')]);
+          const head = lbHeadFor(machOf(rows), rows);       // this machinery's own columns
+          const aoaM = lbHeadRows('Log Book – ' + n + ' – ' + period).concat([head], rows.map(r => cut(head, lbLine(r))), [[], cut(head, lbSum(rows, 'Total – ' + rows.filter(r => !r.blank).length + ' entries'))]);
           let tab = n.replace(/[\[\]:*?\/\\]/g, '-').slice(0, 28), k = 2; while (used[tab.toLowerCase()]) tab = n.slice(0, 25) + ' (' + (k++) + ')'; used[tab.toLowerCase()] = 1;
-          sheets.push({ name: tab, aoa: aoaM, widths: W, head: HEADS, lists: lbLists(LB_HEAD, 2) });
+          sheets.push({ name: tab, aoa: aoaM, widths: cut(head, W), head: HEADS, lists: lbLists(head, 2) });
         });
       }
-      await saveXlsxLists('Log Book ' + (kind === 'date' ? 'date-wise ' : 'machinery-wise ') + period.replace(/\//g, '-') + '.xlsx', sheets);
-      toast(d.rows.length + ' Log Book entries exported.');
+      await saveXlsxLists('Log Book ' + (picked ? picked.id + ' ' : kind === 'date' ? 'date-wise ' : 'machinery-wise ') + period.replace(/\//g, '-') + '.xlsx', sheets);
+      toast(picked ? picked.id + ': ' + real + ' saved entr' + (real === 1 ? 'y' : 'ies') + ' and ' + (d.rows.length - real) + ' empty date(s) to fill, ' + period + '. Fill the sheet and bring it back with "Import from Excel".' : d.rows.length + ' Log Book rows exported.');
     });
   }
   $('lf_exp_date').addEventListener('click', e => lbExport('date', e.target));
@@ -7077,8 +7107,9 @@
       [{ name: 'Log Book', aoa: body, widths: [12, 9, 20, 12, 9, 9, 9, 9, 9, 9, 9, 7, 16, 14, 12, 12, 22, 16, 18, 12, 22], head: 1, lists: lists },
        { name: 'Lists', aoa: names.map(n => [n]), hidden: true }]);
   }
-  $('lg_tpl_date').addEventListener('click', () => lbTemplate('date'));
-  $('lg_tpl_mach').addEventListener('click', () => lbTemplate('mach'));
+  // a machinery is picked (filter or entry form): its template is its own sheet – its dates, its columns – not a general example
+  $('lg_tpl_date').addEventListener('click', e => lbPicked() ? lbExport('date', e.target) : lbTemplate('date'));
+  $('lg_tpl_mach').addEventListener('click', e => lbPicked() ? lbExport('mach', e.target) : lbTemplate('mach'));
   // import: either layout, one or many tabs; Start is needed only for a machinery's very first entry
   function lbProblems(r) {
     const p = [];
