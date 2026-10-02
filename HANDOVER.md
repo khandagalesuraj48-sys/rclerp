@@ -481,6 +481,27 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     never shows excess, and the left-over is never judged in any month. Tank Capacity in Asset Master is the only limit.
   * Tests: unit "the last fill …" (his figures: 29.13 L over, 20 L left, 9.13 L = ₹913; page = server; tank cap; no reading; no entry),
     the cost-sheet and meter tests re-worked by hand, `test/browser/tank.js` (7, with the database, incl. Verify & Submit).
+- 02-10-2026 (evening): after my review of the whole app he chose six things. (Vendor rename: "old stays old" – saved papers keep the old
+  name; nothing to build.) BUILT:
+  * MONTH CLOSE. Property `BOOKS_CLOSED_UPTO` (yyyy-mm-dd, '' = nothing closed; kept in web.props). `booksClosed_()`, `booksOpen_(dk, what)`,
+    `entryOpen_` (= entryDate_ + the lock), `saveBooksLock_` (API `saveBooksLock`, admin, Activity Log "Month close"). Guarded: Diesel
+    Issue (add / bulk / import / change – old AND new date – / delete), Inward (entry date only, not the pump bill date; change, delete),
+    Transfer, Log Book (entry, old paths, grid incl. deleted rows, import, edit window, delete), Tank Check, Breakdown report. NOT
+    closed: bills, debit notes, payments, vehicle papers. Page: `setClosed` → pill "Closed up to …" for everyone, Admin panel "Month
+    close" on the Billing page (`#lk_panel`), on-the-spot check on entry dates, help rule in 3 languages. `getInit` / `getLookups` carry
+    `closedUpto`.
+  * FINAL BILL. A machinery that is Inactive with "Inactive From" on or before the day after the bill's period has left the site: its bill
+    gives no "still in the tank" allowance (`final` in billMachineCalc_ / mbMachine / the Log Book print), says so on line B and in
+    "to check" (deduct every open debit note). Automatic – nothing to tick.
+  * "DEBIT TO" in the Log Book print (every format – `lbMarks`, which also puts the meter note into formats B–H) and in the Excel sheet
+    ("Debit to", "Debit rate" when the sheet has any; they come back through the import for new dates).
+  * DAILY REPORT: Dashboard → "Daily report" (`dailyReport`): the Dashboard's day (From = To) or today; five parts – diesel stock per
+    location, received, issued, Log Book, to look at (diesel without entry, active machinery without entry, breakdowns). Print / PDF.
+  * THE APP CHECKS ITS DATABASE (Admin only): `dbHealth_` (API `dbHealth`, admin) – columns of every step via `backup_catalog`, functions
+    of step 2 / 3 via the API's own list, security findings via `web_health()` = NEW `sql/supabase_step4_health.sql`. Page: pill
+    "Database ✓" / "Database: N to do" (`#db_pill`), once a day per Admin (localStorage `rcl_dbcheck`), box with the file to run,
+    "Check again now". Until step 4 is run the check says so (one item "to do").
+  * Tests: unit "month close …" and the final bill inside the tank test; `test/browser/batch.js` (14, with the database).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

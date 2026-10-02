@@ -1798,6 +1798,13 @@
   /* ---------- help for errors (what is wrong / what to do, 3 languages) ---------- */
   #fixbox { position: fixed; right: 18px; bottom: 76px; z-index: 60; width: min(440px, calc(100vw - 28px)); max-height: 62vh; overflow: auto; background: #fff; border: 1px solid #F3C0CA; border-left: 4px solid var(--c-red, #C8102E); border-radius: 12px; box-shadow: 0 16px 40px rgba(12,26,46,.22); padding: 12px 14px 12px; }
   #fixbox[hidden], #guidebox[hidden] { display: none; }
+  .lock-pill { display: inline-flex; align-items: center; height: 30px; padding: 0 11px; border-radius: 16px; background: #FFF4D6; border: 1px solid #F0C36D; color: #8A5A00; font: 700 12px var(--ui); white-space: nowrap; }
+  .lock-pill[hidden] { display: none; }
+  .db-pill { display: inline-flex; align-items: center; height: 30px; padding: 0 11px; border-radius: 16px; background: #E8F7EF; border: 1px solid #A7DFC0; color: #0B6B3A; font: 700 12px var(--ui); white-space: nowrap; cursor: pointer; }
+  .db-pill.bad { background: #FDECEC; border-color: #F3B4B4; color: #A11A1A; } .db-pill[hidden] { display: none; }
+  table.dbh { width: 100%; border-collapse: collapse; font-size: 13.5px; } table.dbh td { padding: 7px 8px; border-bottom: 1px solid #EEF1F5; vertical-align: top; }
+  table.dbh td:first-child { width: 22px; font-weight: 700; } table.dbh tr.ok td:first-child { color: #0B6B3A; } table.dbh tr.no td:first-child { color: #C8102E; } table.dbh tr.no { background: #FFF7F7; }
+  table.dbh small { display: block; color: #5B6B80; }
   #fixbox.info { border-color: #C9D8FB; border-left-color: var(--c-blue, #1D55E2); } #fixbox.info .fx-msg { color: #1543B8; }
   /* waiting for the server: a thin moving bar at the very top, and the seconds when it takes long */
   #rcl_wait { position: fixed; left: 0; right: 0; top: 0; z-index: 9500; height: 3px; background: rgba(29,85,226,.15); pointer-events: none; }
@@ -2267,6 +2274,8 @@
     <button class="gs-btn" id="gs_open" title="Search the whole app (Ctrl + K)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span>Search</span><kbd>Ctrl K</kbd></button>
     <span class="ds-pill" id="ds_pill" hidden title="Where the app's data is saved"></span>
     <button class="bk-pill" id="bk_btn" hidden type="button" title="Backup to Google Sheet">Backup</button>
+    <span class="lock-pill" id="lock_pill" hidden></span>
+    <button class="db-pill" id="db_pill" hidden type="button" title="Admin: the app checks every SQL step of the database once a day – press to see the result"></button>
     <span class="live off" id="live_dot" title="Connecting…"><i></i> Connecting…</span>
     <div class="today"><b id="company">Rachana Construction Limited</b><span id="todayLabel"></span></div>
     <div class="userchip"><div><b id="u_name"></b><span id="u_role"></span></div>
@@ -2362,6 +2371,7 @@
             <button class="qchip" data-krange="month">This month</button>
             <button class="qchip" data-krange="lastmonth">Last month</button>
             <button class="qchip" data-krange="all">All dates</button>
+            <button class="btn primary small" id="dash_daily" type="button" title="One page for one day: diesel stock, diesel received and issued, the Log Book of the day, machinery without an entry, breakdowns – to print or save as PDF and send">Daily report</button>
           </div>
         </div>
       </div>
@@ -2849,6 +2859,12 @@
 
   <!-- ================= MACHINERY BILLING ================= -->
   <section id="sec-bill" role="tabpanel" aria-labelledby="tab-bill" hidden>
+    <div class="panel" id="lk_panel" hidden>
+      <div class="panel-head"><h2>Month close</h2><span class="chart-note">Admin only. After the bills of a month are submitted, close the month: no diesel, Log Book, tank-check or breakdown entry dated on or before the date can then be added, changed or deleted – by anyone. Bills, debit notes and payments are not closed.</span></div>
+      <div class="rfilters"><div class="field"><label for="lk_date">Entries are closed up to</label><input id="lk_date" type="date"></div>
+        <div class="field" style="align-self:end"><button class="btn primary" id="lk_save" type="button">Close up to this date</button> <button class="btn ghost" id="lk_open" type="button">Reopen (close nothing)</button></div></div>
+      <div class="muted" id="lk_now"></div>
+    </div>
     <div class="panel">
       <div class="panel-head"><h2>Machinery Billing</h2><span class="chart-note">Pick the period and the vendors – one bill (one page) per vendor, all its machinery in it. Preview to check; Verify &amp; Submit – the system checks each bill against the Log Book, diesel and BOQ, then submits and opens it to print.</span></div>
       <div class="rfilters mb-filters">
@@ -3956,6 +3972,27 @@
         'शेवटचे भरणे आणि त्याचे reading बरोबर आहे का ते तपासा. Asset Master मध्ये या machinery ची "Tank Capacity" भरा; मग एका tank पेक्षा जास्त कधीच वगळले जाणार नाही. Diesel खरोखर वापरले असेल तर भरण्यानंतरची Log Book readings दुरुस्त करा.'],
       hi: ['अवधि के अंत में भरा गया diesel अभी जला नहीं होता। Bill आख़िरी भराई का बचा हुआ diesel (उसके लीटर घटा उसके बाद की चाल को standard से लगने वाला) tank में मानता है और उसे debit नहीं करता। यह केवल इस अवधि की मान्यता है; अगले bill में कुछ नहीं ले जाया जाता।',
         'जाँचें कि आख़िरी भराई और उसकी reading सही है। Asset Master में इस machinery की "Tank Capacity" भरें; फिर एक tank से ज़्यादा कभी नहीं छोड़ा जाएगा। Diesel सच में इस्तेमाल हुआ हो तो भराई के बाद की Log Book readings ठीक करें।'] },
+    { re: /Database check:/i,
+      en: ['The app looked at its database and found that an SQL step is missing. The app works, but the feature of that step does not, or a safety setting is not in place.',
+        'Only the Admin can do this: press "Database" at the top – the box names the file. In Supabase → SQL Editor paste that file (its text is in Admin → Read Me) and Run. Then press "Check again now".'],
+      mr: ['App ने आपला database तपासला आणि एक SQL टप्पा राहिलेला आढळला. App चालते, पण त्या टप्प्याची सुविधा चालत नाही, किंवा एखादे सुरक्षा setting लागलेले नाही.',
+        'हे फक्त Admin करू शकतो: वरचे "Database" दाबा; चौकटीत file चे नाव आहे. Supabase → SQL Editor मध्ये ती file paste करा (तिचा मजकूर Admin → Read Me मध्ये आहे) आणि Run करा. मग "Check again now" दाबा.'],
+      hi: ['App ने अपना database जाँचा और एक SQL चरण बाकी पाया। App चलता है, पर उस चरण की सुविधा नहीं चलती, या कोई सुरक्षा setting नहीं लगी।',
+        'यह केवल Admin कर सकता है: ऊपर "Database" दबाएँ; box में file का नाम है। Supabase → SQL Editor में वह file paste करें (उसका text Admin → Read Me में है) और Run करें। फिर "Check again now" दबाएँ।'] },
+    { re: /are closed \(month closed/i,
+      en: ['The month of this date has been closed by the Admin. After the bills of a month are submitted its entries are locked, so that the saved bills and the entries stay the same.',
+        'Check the date – if the entry belongs to an open date, correct the date. If an entry of the closed month really has to be added or corrected, ask the Admin: Machinery Billing → Month close → Reopen; make the correction; build the affected bill again; close the month again.'],
+      mr: ['या तारखेचा महिना Admin ने बंद केला आहे. महिन्याची bills submit झाल्यावर त्याच्या entries lock होतात, म्हणजे save झालेली bills आणि entries तशाच राहतात.',
+        'तारीख तपासा; entry उघड्या तारखेची असेल तर तारीख दुरुस्त करा. बंद महिन्याची entry खरोखर जोडायची किंवा दुरुस्त करायची असेल तर Admin ला सांगा: Machinery Billing → Month close → Reopen; दुरुस्ती करा; संबंधित bill पुन्हा Build करा; महिना पुन्हा बंद करा.'],
+      hi: ['इस तारीख का महीना Admin ने बंद कर दिया है। महीने के bills submit होने के बाद उसकी entries lock हो जाती हैं, ताकि save हुए bills और entries वैसी ही रहें।',
+        'तारीख जाँचें; entry खुली तारीख की हो तो तारीख ठीक करें। बंद महीने की entry सच में जोड़नी या ठीक करनी हो तो Admin को बताएँ: Machinery Billing → Month close → Reopen; सुधार करें; संबंधित bill दोबारा Build करें; महीना फिर बंद करें।'] },
+    { re: /FINAL BILL|left the site/i,
+      en: ['This machinery is Inactive in Asset Master from a date in (or right after) this period – it has left the site. In its final bill nothing of the last fill is taken as "still in the tank": the diesel in the tank left with it, so the whole excess over the standard is debited.',
+        'Check "Inactive From" of the machinery in Asset Master. If it has not left, make it Active again and build the bill again. For a final bill also deduct every open debit note of the vendor.'],
+      mr: ['ही machinery Asset Master मध्ये या कालावधीतल्या (किंवा लगेच नंतरच्या) तारखेपासून Inactive आहे; म्हणजे ती site सोडून गेली आहे. तिच्या शेवटच्या bill मध्ये शेवटच्या भरण्यातले काहीही "tank मध्ये" धरले जात नाही: tank मधले diesel तिच्यासोबत गेले, म्हणून standard पेक्षा जास्तीचे पूर्ण debit होते.',
+        'Asset Master मध्ये या machinery ची "Inactive From" तारीख तपासा. ती गेली नसेल तर तिला पुन्हा Active करा आणि bill पुन्हा Build करा. शेवटच्या bill मध्ये vendor ची प्रत्येक उघडी debit note सुद्धा वजा करा.'],
+      hi: ['यह machinery Asset Master में इस अवधि की (या ठीक बाद की) तारीख से Inactive है; यानी site छोड़ चुकी है। उसके आख़िरी bill में आख़िरी भराई का कुछ भी "tank में" नहीं माना जाता: tank का diesel उसके साथ गया, इसलिए standard से ऊपर का पूरा debit होता है।',
+        'Asset Master में इस machinery की "Inactive From" तारीख जाँचें। वह गई न हो तो उसे फिर Active करें और bill दोबारा Build करें। आख़िरी bill में vendor की हर खुली debit note भी घटाएँ।'] },
     { re: /no BOQ in these dates/i,
       en: ['This machinery has no BOQ (rate) for these dates, so its work is billed at 0.', 'Open Vendor BOQ and add this machinery with its rate from the right start date (or amend the BOQ), then build the bill again.'],
       mr: ['या machinery साठी या तारखांना BOQ (दर) नाही, म्हणून तिचे काम 0 ने bill होते.', 'Vendor BOQ मध्ये ही machinery योग्य सुरुवातीच्या तारखेपासून दरासह जोडा (किंवा BOQ Amend करा), मग bill पुन्हा Build करा.'],
@@ -4186,7 +4223,7 @@
       en: ['The daily breakdown report: which machinery is working and which is under breakdown, with the reason.', 'Each machinery needs Working or Breakdown; a breakdown needs its reason. One report per date.'],
       mr: ['रोजचा breakdown अहवाल: कोणती machinery चालू आहे आणि कोणती breakdown मध्ये आहे, कारणासह.', 'प्रत्येक machinery साठी Working किंवा Breakdown निवडावे लागते; breakdown ला कारण लागते. एका तारखेला एकच अहवाल.'],
       hi: ['रोज़ की breakdown रिपोर्ट: कौन सी machinery चालू है और कौन सी breakdown में है, कारण के साथ।', 'हर machinery के लिए Working या Breakdown चुनना होता है; breakdown का कारण ज़रूरी है। एक तारीख को एक ही रिपोर्ट।'] },
-    bill: { saves: ['saveBillSettings', 'verifyBills', 'submitBills'],
+    bill: { saves: ['saveBillSettings', 'verifyBills', 'submitBills', 'saveBooksLock'],
       en: ['Makes the vendor bills of a period from the Log Book, the diesel issues and the BOQ: the Abstract, the party\'s Tax Invoice and the diesel Debit Note.', 'A = work done at BOQ rates; B = diesel deducted (debit basis in full, otherwise only above the standard average, at the higher of the average and last diesel rate; what is left of the LAST fill of the period – its litres less the standard need of the run after it – is taken as still in the tank and not debited); D = A − B − C; GST and TDS on D; I = net payable; ticked debit notes come off after I. Before submit the server builds every bill again and compares it. Diesel issued on a day without a Log Book entry is counted and pointed out.'],
       mr: ['Log Book, diesel issues आणि BOQ वरून एका कालावधीची vendor bills बनवते: Abstract, party चा Tax Invoice आणि diesel ची Debit Note.', 'A = BOQ दराने झालेले काम; B = कापलेले diesel (debit basis असेल तर पूर्ण, नाहीतर फक्त standard average पेक्षा जास्तीचे; दर = सरासरी आणि शेवटच्या diesel दरातला मोठा; कालावधीतल्या शेवटच्या भरण्यातले उरलेले diesel, म्हणजे त्याचे लिटर वजा त्यानंतरच्या चालण्याला standard प्रमाणे लागणारे, tank मध्ये धरले जाते आणि debit होत नाही); D = A − B − C; GST आणि TDS D वर; I = निव्वळ देय; tick केलेल्या debit notes I नंतर वजा होतात. Submit आधी server प्रत्येक bill पुन्हा बनवून तुलना करतो. Log Book entry नसलेल्या दिवशी दिलेले diesel मोजले जाते आणि दाखवले जाते.'],
       hi: ['Log Book, diesel issues और BOQ से एक अवधि के vendor bills बनाता है: Abstract, party का Tax Invoice और diesel की Debit Note।', 'A = BOQ दर से हुआ काम; B = काटा गया diesel (debit basis हो तो पूरा, वरना केवल standard average से ऊपर का; दर = औसत और आख़िरी diesel दर में से बड़ी; अवधि की आख़िरी भराई का बचा हुआ diesel, यानी उसके लीटर घटा उसके बाद की चाल को standard से लगने वाला, tank में माना जाता है और debit नहीं होता); D = A − B − C; GST और TDS D पर; I = शुद्ध देय; tick की गई debit notes I के बाद घटती हैं। Submit से पहले server हर bill फिर बनाकर मिलाता है। बिना Log Book entry वाले दिन दिया गया diesel गिना और दिखाया जाता है।'] },
@@ -4227,7 +4264,7 @@
       en: ['The record of who added, changed or deleted what, and when.', 'It is written by the app itself on every save and cannot be edited. Only Admin sees it.'],
       mr: ['कोणी, काय, कधी जोडले, बदलले किंवा delete केले याची नोंद.', 'प्रत्येक save वर app स्वतः ही नोंद लिहिते; ती बदलता येत नाही. ती फक्त Admin ला दिसते.'],
       hi: ['किसने, क्या, कब जोड़ा, बदला या delete किया इसका रिकॉर्ड।', 'हर save पर app खुद यह रिकॉर्ड लिखता है; इसे बदला नहीं जा सकता। यह केवल Admin को दिखता है।'] },
-    readme: { saves: ['readme'],
+    readme: { saves: ['readme', 'dbHealth'],
       en: ['The set-up notes of the app for the Admin: where the data is kept, the SQL steps and the backup.', 'Nothing is entered here.'],
       mr: ['Admin साठी app च्या set-up ची माहिती: data कुठे आहे, SQL चे टप्पे आणि backup.', 'इथे काहीही भरले जात नाही.'],
       hi: ['Admin के लिए app के set-up की जानकारी: data कहाँ है, SQL के चरण और backup।', 'यहाँ कुछ भरा नहीं जाता।'] },
@@ -4820,7 +4857,7 @@
   async function refreshLookups(force) {
     if (!force && Date.now() - lookupsAt < 10000) return;
     lookupsAt = Date.now();
-    try { const L = await rawCall('getLookups'); setMaster(L.master); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors); } catch (e) { /* keep the lists we have */ }
+    try { const L = await rawCall('getLookups'); setMaster(L.master); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors); if ('closedUpto' in L) setClosed(L.closedUpto); } catch (e) { /* keep the lists we have */ }
   }
   async function refreshStock() { try { setStock(await call('getStock')); } catch (e) { /* keep last value */ } }
   // Fill every location dropdown (class loc-select); data-default = the option picked first
@@ -4837,6 +4874,14 @@
   /* ---------- Backup to Google Sheet (Admin) ---------- */
   const hhmm = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }); };
   const dtFull = iso => { const d = new Date(iso); return isNaN(d) ? '–' : d.toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
+  /* MONTH CLOSE: the date up to which entries are closed (set by the Admin on the Billing page; the server enforces it).
+   * Everybody sees it in the top bar; an entry date inside the closed period is pointed out while typing. */
+  function setClosed(v) {
+    S.closedUpto = /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : '';
+    const p = $('lock_pill'); if (p) { p.hidden = !S.closedUpto || !S.user; p.textContent = S.closedUpto ? 'Closed up to ' + showDate(S.closedUpto) : ''; p.title = S.closedUpto ? 'Month close: no diesel, Log Book, tank-check or breakdown entry dated on or before ' + showDate(S.closedUpto) + ' can be added, changed or deleted. Only the Admin can reopen it (Machinery Billing → Month close).' : ''; }
+    const pn = $('lk_panel'); if (pn) { pn.hidden = !(S.user && S.user.admin); if ($('lk_date') && document.activeElement !== $('lk_date')) $('lk_date').value = S.closedUpto || '';
+      $('lk_now').textContent = S.closedUpto ? 'Now: entries up to ' + showDate(S.closedUpto) + ' are closed.' : 'Now: nothing is closed.'; $('lk_open').disabled = !S.closedUpto; }
+  }
   function setBackupInfo(info) {
     const b = $('bk_btn'); if (!b) return;
     S.backup = info;
@@ -5186,7 +5231,7 @@
       setLive(true);
       if (accessKey(r.user) !== accessKey(S.user)) { // only when something really changed
         const wasAdmin = S.user.admin;
-        S.user = r.user; applyPerms(); refreshAccessViews();
+        S.user = r.user; applyPerms(); refreshAccessViews(); setClosed(S.closedUpto);
         if (!r.user.admin && wasAdmin && !$('sec-activity').hidden) showTab('dash');
         cancelEditsWithoutAccess();
         toast('Your access was updated by Admin.');
@@ -6941,7 +6986,7 @@
     ['odsl', /^(opening diesel|opening diesel \(l\)|opening diesel \(ltr\))$/], ['chFrom', /^(chainage from)$/], ['chTo', /^(chainage to)$/],
     ['work', /^(work done|work description|work)$/], ['driver', /^(driver|driver name|operator)$/], ['remark', /^(remark|remarks)$/],
     ['mode', /^(measured by|measured|unit)$/], ['tStart', /^(from time|start time|time from|from)$/], ['tEnd', /^(to time|end time|time to|to)$/],
-    ['tBreak', /^(break|break \(min\)|break min|break \(minutes\))$/], ['trip', /^(trip|trips|no of trips|number of trips)$/], ['challan', /^(challan|challan no|challan number|challan nos)$/], ['status', /^(status|day status)$/], ['items', /^(item work|items|item)$/], ['workType', /^(work type)$/]];
+    ['tBreak', /^(break|break \(min\)|break min|break \(minutes\))$/], ['trip', /^(trip|trips|no of trips|number of trips)$/], ['challan', /^(challan|challan no|challan number|challan nos)$/], ['status', /^(status|day status)$/], ['items', /^(item work|items|item)$/], ['workType', /^(work type)$/], ['debitTo', /^(debit to|debit party)$/], ['debitRate', /^(debit rate)$/]];
   const LB_HEAD = ['Date', 'Shift', 'Machinery', 'Type', 'Measured by', 'Start KM', 'Close KM', 'Total KM', 'Start Hrs', 'Close Hrs', 'Total Hrs', 'From time', 'To time', 'Break (min)', 'Trips', 'Challan No',
     'Opening diesel (L)', 'Diesel issued (L)', 'Consumed as per std (L)', 'Closing diesel est. (L)', 'Chainage From', 'Chainage To', 'Work Done', 'Driver Name', 'Remark', 'Item work', 'Status', 'Fill "Measured by" with one of'];
   /* "Item work" (Item-wise BOQ): only the typed items, as  Breaker=3; Rock=1  – the rest item takes what is left of the entry.
@@ -7058,6 +7103,9 @@
     else if (anyItems) c.push({ h: 'Item work', w: 22, v: r => itemWorkText(r.itemWork) });
     if (!noCh) c.push({ h: 'Chainage From', w: 13, v: r => r.chFrom }, { h: 'Chainage To', w: 13, v: r => r.chTo });
     c.push({ h: 'Work Done', w: 26, v: r => r.work }, { h: 'Driver Name', w: 16, v: r => r.driver }, { h: 'Remark', w: 20, v: r => r.remark });
+    // whom the work of the entry is charged to (only when the sheet has such an entry); it comes back through the import for new dates
+    if (rows.some(r => r.debitTo)) c.push({ h: 'Debit to', w: 24, v: r => r.debitTo || '' },      // (no drop-down: Excel takes a list of 255 characters at most – the names are checked on import)
+      { h: 'Debit rate', w: 11, v: r => r.debitTo ? (r.debitRate === undefined || r.debitRate === null ? '' : r.debitRate) : '' });
     return c;
   }
   // a sheet from its columns: title lines, headings, a row per entry (formulas where a column has one), an empty line, the totals
@@ -7193,6 +7241,7 @@
           mode: stHit || wantSt || (want ? (hit || want) : ''), tStart: hhmm(x.tStart), tEnd: hhmm(x.tEnd), tBreak: num(x.tBreak), trip: num(x.trip), challan: String(x.challan || '').trim(),
           openingKm: num(x.okm), closingKm: num(x.ckm), openingHr: num(x.ohr), closingHr: num(x.chr), openingDiesel: num(x.odsl),
           chFrom: String(x.chFrom || '').trim(), chTo: String(x.chTo || '').trim(), work: String(x.work || '').trim(), driver: String(x.driver || '').trim(), remark: String(x.remark || '').trim(),
+          debitTo: String(x.debitTo || '').trim(), debitRate: num(x.debitRate),
           items: String(x.items || '').trim() ? itemWorkRead(x.items) : lbItemsOf(x), needWork: !!(x._has && x._has.workType !== undefined) }; });
       // a row is "filled" when it has a day status, a reading, a time, trips or a text – the way of working alone (it comes filled in the
       // sheet of a one-way machinery) does not make an entry
@@ -8005,7 +8054,10 @@
     const kmStd = Number(m.kmStd) || 0, hrStd = Number(m.hrStd) || 0;
     const stdQty = r2((hasKm(u) && kmStd ? tKm / kmStd : 0) + (hasHr(u) && hrStd ? tHr * hrStd : 0));
     const rawExcess = stdQty > 0 ? Math.max(0, r2(companyQty - stdQty)) : 0;
-    const tank = tankLeft(m, u, own, iss0, isDebit, rawExcess);                    // what is left of the last fill is not excess of this period
+    // final bill: the machinery left the site (Inactive from a date up to the day after the period) → no "still in the tank" allowance
+    const dayAfter = (() => { const t0 = new Date(to + 'T00:00:00'); t0.setDate(t0.getDate() + 1); return isoDate(t0); })();
+    const leftOn = m.status === 'Inactive' && m.inactiveFrom ? String(m.inactiveFrom).slice(0, 10) : '', final = !!leftOn && leftOn <= dayAfter;
+    const tank = final ? null : tankLeft(m, u, own, iss0, isDebit, rawExcess);     // what is left of the last fill is not excess of this period
     const excessQty = r2(rawExcess - (tank ? tank.applied : 0));
     const dRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), excessAmt = r2((debitQty + excessQty) * dRate);
     // diesel issued on a day that has no WORKING Log Book entry (no entry at all, or only Idle / Holiday / Breakdown): the bill
@@ -8015,7 +8067,7 @@
     // days entered WITHOUT a reading (meter not working): their work is an estimate – paid and counted for the diesel standard, and said on the bill
     const offRows = list.filter(r => (r.mode || r.unit) === METER_OFF);
     const est = { days: [...new Set(offRows.map(r => r.date))].length, km: r2(offRows.reduce((s2, r) => s2 + (Number(r.wkm) || 0), 0)), hr: r2(offRows.reduce((s2, r) => s2 + (Number(r.whr) || 0), 0)) };
-    return { tank: tank && tank.applied > 0 ? tank : null, rawExcess: rawExcess, est: est, noEntry: noEntry, no: m.id || no, type: m.type || '', name: m.name || '', unit: u, supply: m.supply || '', workDays: workDays, nights: nights, holidays: holidays, idleDays: idleDays, itemNotes: itemNotes, lines: lines, amount: amount, zeroWork: zeroWork,
+    return { final: final ? leftOn : '', tank: tank && tank.applied > 0 ? tank : null, rawExcess: rawExcess, est: est, noEntry: noEntry, no: m.id || no, type: m.type || '', name: m.name || '', unit: u, supply: m.supply || '', workDays: workDays, nights: nights, holidays: holidays, idleDays: idleDays, itemNotes: itemNotes, lines: lines, amount: amount, zeroWork: zeroWork,
       issued: issued, stdQty: stdQty, excessQty: excessQty, debitQty: debitQty, dieselRate: dRate, excessAmt: excessAmt, days: Object.keys(units).length,
       gstPct: last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0,
       tdsPct: last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0),
@@ -8033,6 +8085,7 @@
     machines.filter(x => !x.hasBoq && x.supply !== 'Debit Basis').forEach(x => b.warnings.push(x.no + ': no BOQ in these dates'));
     machines.forEach(x => (x.zeroWork || []).forEach(z => b.warnings.push(x.no + ': BOQ ' + z.basis + ' but no ' + ({ 'Per Hour': 'hours', 'Per KM': 'KM', 'Per Trip': 'trips', 'Item-wise': 'work for its items' }[z.basis]) + ' on ' + z.days.length + ' day(s) – ' + z.days.slice(0, 4).join(', ') + (z.days.length > 4 ? ' …' : '') + ' (not billed)')));
     machines.forEach(x => (x.itemNotes || []).slice(0, 6).forEach(t => b.warnings.push(x.no + ' – ' + t)));
+    machines.forEach(x => { if (x.final) b.warnings.push(x.no + ': FINAL BILL – the machinery left the site on ' + showDate(x.final) + '; the diesel in its tank is debited, and every open debit note of the vendor should be deducted'); });
     machines.forEach(x => { if (x.tank && x.tank.applied > 0 && !((findMachine(x.no) || {}).tankCap > 0)) b.warnings.push(x.no + ': ' + fmt(x.tank.applied) + ' L of the last fill taken as still in the tank – Tank Capacity is not set in Asset Master, so this is not limited by the tank'); });
     machines.forEach(x => { if (x.est && x.est.days) b.warnings.push(x.no + ': ' + x.est.days + ' day(s) without a reading (meter not working) – work estimated: ' + [x.est.km ? fmt(x.est.km) + ' km' : '', x.est.hr ? fmt(x.est.hr) + ' hr' : ''].filter(Boolean).join(' + ')); });
     if (b.idleDays && b.idlePaid === undefined) b.warnings.push(b.idleDays + ' Idle day(s) – choose Paid / Not paid (shown as paid until you choose)');
@@ -8215,6 +8268,8 @@
       (run ? 'run after it ' + run + ' = ' + fmt(t.used) + ' L by standard' : 'no work after it') + '; ' + fmt(t.applied) + ' L taken as still in the tank – not debited';
   }
   const billTank = b => ((b && b.machines) || []).filter(m => m.tank && m.tank.applied > 0).map(m => String(m.no).replace(/-/g, '') + ': ' + tankText(m.tank)).join(' | ');
+  // "MH04GE9396: FINAL BILL – left the site on 30-09-2026: the diesel in its tank is debited"
+  const billFinal = b => ((b && b.machines) || []).filter(m => m.final).map(m => String(m.no).replace(/-/g, '') + ': FINAL BILL – left the site on ' + showDate(m.final) + ', the diesel in its tank is debited (nothing left out)').join(' | ');
   // "MH04GE9396 30-09-2026 42 L, …" – the diesel of the bill that was issued on days without a working Log Book entry
   // "JCB1 2 day(s) 160 km" – the work of the bill that is an estimate (meter not working)
   function billEst(b) { return ((b && b.machines) || []).filter(m => m.est && m.est.days).map(m => String(m.no).replace(/-/g, '') + ' ' + m.est.days + ' day(s) ' + [m.est.km ? fmt(m.est.km) + ' km' : '', m.est.hr ? fmt(m.est.hr) + ' hr' : ''].filter(Boolean).join(' + ')).join(', '); }
@@ -8230,7 +8285,7 @@
     const dq = (b.machines || []).reduce((a, x) => a + (Number(x.debitQty) || 0), 0), eq = (b.machines || []).reduce((a, x) => a + (Number(x.excessQty) || 0), 0);
     const bNote = [dq ? 'diesel debit ' + fmt(r2(dq)) + ' L' : '', eq ? 'excess diesel over standard ' + fmt(r2(eq)) + ' L' : ''].filter(Boolean).join(' + ');
     const bNoEntry = billNoEntry(b);
-    const sum = [['A', 'Workdone amount >>>' + (billEst(b) ? '<small>incl. days without a reading (meter not working), work estimated: ' + esc(billEst(b)) + '</small>' : ''), b.A], ['B', 'Less- Diesel Deduction >>>' + (billTank(b) ? '<small>' + esc(billTank(b)) + '</small>' : '') + (b.B ? '<small>' + bNote + (b.machines && b.machines[0] && b.machines[0].dieselRate ? ' @ ₹' + fmt(b.machines[0].dieselRate) + '/L' : '') + '</small>' + (bNoEntry ? '<small>incl. diesel issued on days with no Log Book entry: ' + esc(bNoEntry) + '</small>' : '') : ''), b.B ? -b.B : ''],
+    const sum = [['A', 'Workdone amount >>>' + (billEst(b) ? '<small>incl. days without a reading (meter not working), work estimated: ' + esc(billEst(b)) + '</small>' : ''), b.A], ['B', 'Less- Diesel Deduction >>>' + (billFinal(b) ? '<small>' + esc(billFinal(b)) + '</small>' : '') + (billTank(b) ? '<small>' + esc(billTank(b)) + '</small>' : '') + (b.B ? '<small>' + bNote + (b.machines && b.machines[0] && b.machines[0].dieselRate ? ' @ ₹' + fmt(b.machines[0].dieselRate) + '/L' : '') + '</small>' + (bNoEntry ? '<small>incl. diesel issued on days with no Log Book entry: ' + esc(bNoEntry) + '</small>' : '') : ''), b.B ? -b.B : ''],
       ['C', 'Other Deduction >>>' + (b.C && b.cReason ? '<small>' + esc(b.cReason) + '</small>' : ''), b.C ? -b.C : ''], ['D', 'Net Work Done Amount D=(A-B-C) >>>', b.D],
       ['E', 'Add CGST >>>', b.gstPct ? b.E : '', b.gstPct ? fmt(b.gstPct / 2) + '%' : ''], ['F', 'Add SGST >>>', b.gstPct ? b.F : '', b.gstPct ? fmt(b.gstPct / 2) + '%' : ''],
       ['G', 'Total Amount (G=D+E+F)', b.G], ['H', 'Less TDS >>>', b.H ? -b.H : '', b.tdsPct ? fmt(b.tdsPct) + '%' : ''], ['I', 'Net Payable Amt I = (G-H) >>>>', b.I]]
@@ -8574,6 +8629,105 @@
     add('bp_xls', 'bp_clear', 'Clear filters', 'Empty the dates and the filters of this list', () => { blank(['bp_from', 'bp_to', 'bp_no', 'bp_owner', 'bp_own']); if ($('bp_only')) $('bp_only').checked = false; $('bp_from').dispatchEvent(new Event('change', { bubbles: true })); });
   })();
 
+  /* THE DATABASE CHECK (Admin only): every SQL step against the live database – once a day when the Admin opens the app, and on a press
+   * of the pill. Green "Database ✓" = every step is in place; red = something is missing, the box says which file to run. */
+  function dbPill(r) {
+    const p = $('db_pill'); if (!p) return; S.dbHealth = r || S.dbHealth || null; const h = S.dbHealth;
+    p.hidden = !(S.user && S.user.admin) || !h || h.skipped;
+    if (p.hidden) return;
+    const bad = (h.checks || []).filter(x => !x.ok).length;
+    p.className = 'db-pill' + (bad ? ' bad' : ''); p.textContent = bad ? 'Database: ' + bad + ' to do' : 'Database ✓';
+  }
+  async function dbCheck(show) {
+    const r = await rawCall('dbHealth'); try { localStorage.setItem('rcl_dbcheck', JSON.stringify({ day: S.today, r: r })); } catch (e) {}
+    dbPill(r); if (show) dbShow(); return r;
+  }
+  function dbShow() {
+    const h = S.dbHealth; if (!h) return;
+    const bad = (h.checks || []).filter(x => !x.ok);
+    askConfirm({ title: bad.length ? 'Database: ' + bad.length + ' thing(s) to do' : 'Database: every SQL step is in place', alertOnly: true, ok: 'Close', wide: true,
+      html: '<table class="dbh"><tbody>' + (h.checks || []).map(x => '<tr class="' + (x.ok ? 'ok' : 'no') + '"><td>' + (x.ok ? '✔' : '✗') + '</td><td>' + esc(x.name) + (x.note ? '<small>' + esc(x.note) + '</small>' : '') + '</td><td>' + (x.ok ? 'in place' : x.fix ? 'Run: <b>' + esc(x.fix) + '</b>' : 'check again') + '</td></tr>').join('') + '</tbody></table>' +
+        (bad.length ? '<p class="muted">Where: Supabase → SQL Editor → New query → paste the file → Run. The text of every file is in Admin → Read Me. Every file only adds what is missing and can be run again.</p>' : '') +
+        '<p class="muted">Checked ' + esc(new Date(h.at).toLocaleString('en-GB')) + '. The app checks by itself once a day when an Admin opens it. <button type="button" class="btn ghost small" id="dbh_again">Check again now</button></p>' });
+    const again = $('dbh_again'); if (again) again.onclick = () => { again.disabled = true; again.textContent = 'Checking…'; dbCheck(false).then(() => { closeConfirm(false); dbShow(); }).catch(e => { closeConfirm(false); toast(errMsg(e), true); }); };
+  }
+  $('db_pill').addEventListener('click', () => { if (S.dbHealth) dbShow(); else dbCheck(true).catch(e => toast(errMsg(e), true)); });
+  // once a day for an Admin; the result of today is kept on this computer so the pill shows at once
+  function dbCheckDaily() {
+    if (!(S.user && S.user.admin)) { dbPill(null); return; }
+    let kept = null; try { kept = JSON.parse(localStorage.getItem('rcl_dbcheck') || 'null'); } catch (e) { kept = null; }
+    if (kept && kept.day === S.today && kept.r) { dbPill(kept.r); return; }
+    setTimeout(() => { dbCheck(false).then(r => { if (r && !r.skipped && !r.ok) toast('Database check: ' + r.checks.filter(x => !x.ok).length + ' thing(s) to do – press "Database" at the top.', true); }).catch(() => { /* tried again tomorrow / on a press */ }); }, 4000);
+  }
+
+  /* ================= DAILY REPORT – one day on one page, in one click (asked 02-10-2026) =================
+   * Dashboard → "Daily report". The day = the Dashboard's "To" date when From and To are the same day, otherwise today.
+   * Everything comes from the entries of that day (nothing is typed): diesel stock of each location, diesel received, diesel
+   * issued, the Log Book of the day, machinery with diesel but no Log Book entry, active machinery with no entry, breakdowns.
+   * It opens as a print page: Print, or "Save as PDF" and send it. */
+  async function dailyReport(btn) {
+    await busy(btn, 'Making…', async () => {
+      const f0 = dashFilter(), day = f0.from && f0.to && f0.from === f0.to ? f0.to : S.today;
+      const [ds, di, inw, lg, bk] = await Promise.all([call('getDashboard', { from: day, to: day }), call('getDieselIssues', { from: day, to: day, all: true }), call('getInwards', { from: day, to: day }),
+        call('getLogBookList', { from: day, to: day, all: true }), call('getBreakdowns', { date: day }).catch(() => ({}))]);
+      const n = v => v === '' || v === undefined || v === null ? '' : fmt(v), sum = (a, k) => r2(a.reduce((t, x) => t + (Number(x[k]) || 0), 0));
+      const issues = (di.rows || []).slice().sort((a, b) => String(a.no).localeCompare(String(b.no))), inwards = inw.rows || [], logs = (lg.rows || []).slice().sort((a, b) => String(a.no).localeCompare(String(b.no)));
+      const th = a => '<tr>' + a.map(x => '<th' + (x[1] ? ' class="n"' : '') + '>' + x[0] + '</th>').join('') + '</tr>', td = (v, num) => '<td' + (num ? ' class="n"' : '') + '>' + v + '</td>';
+      const sec = (title, body, note) => '<div class="dr-sec"><h3>' + title + (note ? ' <small>' + note + '</small>' : '') + '</h3>' + body + '</div>';
+      const none = t => '<p class="dr-none">' + t + '</p>';
+      // 1. diesel stock
+      const locs = (ds.locations || []).filter(x => x.opening || x.inward || x.tin || x.tout || x.issued || x.closing);
+      const stock = locs.length ? '<table>' + th([['Location'], ['Opening', 1], ['Received', 1], ['Transfer in', 1], ['Transfer out', 1], ['Issued', 1], ['Closing', 1]]) +
+        locs.map(x => '<tr>' + td(esc(x.loc)) + td(n(x.opening), 1) + td(n(x.inward) || '–', 1) + td(n(x.tin) || '–', 1) + td(n(x.tout) || '–', 1) + td(n(x.issued) || '–', 1) + td('<b>' + n(x.closing) + '</b>', 1) + '</tr>').join('') +
+        '<tr class="tot">' + td('Total') + td(n(sum(locs, 'opening')), 1) + td(n(sum(locs, 'inward')), 1) + td(n(sum(locs, 'tin')), 1) + td(n(sum(locs, 'tout')), 1) + td(n(sum(locs, 'issued')), 1) + td(n(sum(locs, 'closing')), 1) + '</tr></table>' : none('No diesel stock.');
+      // 2. received
+      const rec = inwards.length ? '<table>' + th([['Received at'], ['Pump'], ['Bill No'], ['Qty (L)', 1], ['Rate', 1], ['Amount (₹)', 1]]) + inwards.map(x => '<tr>' + td(esc(x.location)) + td(esc(x.pump || (x.open ? 'Opening stock' : ''))) + td(esc(x.billNo || '')) + td(n(x.qty), 1) + td(n(x.rate), 1) + td(n(x.amount), 1) + '</tr>').join('') +
+        '<tr class="tot">' + td('Total') + td('') + td('') + td(n(sum(inwards, 'qty')), 1) + td('') + td(n(sum(inwards, 'amount')), 1) + '</tr></table>' : none('No diesel received.');
+      // 3. issued
+      const iss = issues.length ? '<table>' + th([['#'], ['Machinery'], ['Type'], ['Owner'], ['Shift'], ['From'], ['Qty (L)', 1], ['Reading', 1], ['Driver']]) + issues.map((x, i) => '<tr>' + td(i + 1) + td('<b>' + esc(x.no) + '</b>') + td(esc(x.type || '')) + td(esc(x.owner || '')) + td(esc(x.shift || '')) + td(esc(x.source || '')) + td(n(x.qty), 1) +
+          td([x.kmReading !== '' && x.kmReading !== undefined ? n(x.kmReading) + ' km' : '', x.hrReading !== '' && x.hrReading !== undefined ? n(x.hrReading) + ' hr' : ''].filter(Boolean).join(' / ') || (x.meter ? esc(x.meter) : '–'), 1) + td(esc(x.driver || '')) + '</tr>').join('') +
+        '<tr class="tot">' + td('') + td('Total – ' + issues.length + ' issue(s), ' + new Set(issues.map(x => x.no)).size + ' machinery') + td('') + td('') + td('') + td('') + td(n(sum(issues, 'qty')), 1) + td('') + td('') + '</tr></table>' : none('No diesel issued.');
+      // 4. Log Book
+      const st = r => r.mode || r.unit, isSt = r => DAY_STATUS.indexOf(st(r)) > -1;
+      const work = r => isSt(r) ? '<b>' + esc(st(r)) + '</b>' : [r.wkm !== '' && r.wkm !== undefined ? n(r.wkm) + ' km' : '', r.whr !== '' && r.whr !== undefined ? n(r.whr) + ' hr' : '', Number(r.trip) > 0 ? n(r.trip) + ' trips' : '', st(r) === 'Day' ? 'day' : ''].filter(Boolean).join(' / ') + (st(r) === METER_OFF ? ' <small>(est.)</small>' : '');
+      const rd = r => isSt(r) || st(r) === METER_OFF ? '–' : [r.okm !== '' && r.okm !== undefined ? n(r.okm) + ' → ' + n(r.ckm) : '', r.ohr !== '' && r.ohr !== undefined ? n(r.ohr) + ' → ' + n(r.chr) : '', r.tStart ? esc(r.tStart) + ' – ' + esc(r.tEnd || '') : ''].filter(Boolean).join('<br>') || '–';
+      const lb = logs.length ? '<table>' + th([['#'], ['Machinery'], ['Type'], ['Owner'], ['Shift'], ['Reading (Start → Close)', 1], ['Work', 1], ['Diesel (L)', 1], ['Chainage'], ['Work done']]) + logs.map((r, i) => '<tr>' + td(i + 1) + td('<b>' + esc(r.no) + '</b>') + td(esc(r.type || '')) + td(esc(r.owner || '')) + td(esc(r.shift || '')) + td(rd(r), 1) + td(work(r), 1) + td(n(r.qty) || '–', 1) +
+          td(esc([r.chFrom, r.chTo].filter(Boolean).join(' – '))) + td(lbMarks(r) + (itemQtyText(r) ? '<b>' + esc(itemQtyText(r)) + '</b> ' : '') + esc(r.work || r.remark || '')) + '</tr>').join('') + '</table>' : none('No Log Book entry for this day.');
+      const cnt = k => logs.filter(r => st(r) === k).length, worked = logs.filter(r => !isSt(r)).length;
+      const lbNote = logs.length ? 'worked ' + worked + ' · idle ' + cnt('Idle') + ' · holiday ' + cnt('Holiday') + ' · breakdown ' + cnt('Breakdown') : '';
+      // 5. to look at
+      const logged = new Set(logs.map(r => r.no)), fuelled = [...new Set(issues.map(x => x.no))];
+      const noLog = fuelled.filter(x => !logged.has(x));
+      const active = (S.master || []).filter(m => m.status !== 'Inactive' && (!m.activeFrom || String(m.activeFrom).slice(0, 10) <= day) && m.ownership !== 'Debit Basis');
+      const noEntry = active.filter(m => !logged.has(m.id)).map(m => m.id);
+      const brk = (bk.onDate || bk.rows || []).map(x => '<b>' + esc(x.no || x.machinery || '') + '</b>' + (x.reason || x.remark ? ' – ' + esc(x.reason || x.remark) : '') + (x.since || x.from ? ' <small>(since ' + esc(showDate(String(x.since || x.from).slice(0, 10))) + ')</small>' : ''));
+      const look = '<ul class="dr-look">' +
+        '<li><b>Diesel issued but no Log Book entry (' + noLog.length + '):</b> ' + (noLog.length ? esc(noLog.join(', ')) : 'none') + '</li>' +
+        '<li><b>Active machinery without a Log Book entry (' + noEntry.length + ' of ' + active.length + '):</b> ' + (noEntry.length ? esc(noEntry.slice(0, 80).join(', ')) + (noEntry.length > 80 ? ' … +' + (noEntry.length - 80) : '') : 'none') + '</li>' +
+        '<li><b>Under breakdown (' + brk.length + '):</b> ' + (brk.length ? brk.join('; ') : 'none') + '</li></ul>';
+      const css = '<style>.dr h2{margin:0 0 2px;font-size:17px}.dr .dr-sub{color:#555;font-size:11.5px;margin-bottom:8px}.dr-kpi{display:flex;gap:8px;margin:8px 0 4px}.dr-kpi div{flex:1;border:1px solid #bbb;border-radius:6px;padding:6px 8px}.dr-kpi b{display:block;font-size:15px}.dr-kpi span{font-size:10.5px;color:#555}' +
+        '.dr-sec{margin-top:10px;break-inside:auto}.dr-sec h3{font-size:12.5px;margin:0 0 4px;border-bottom:1.5px solid #222;padding-bottom:2px}.dr-sec h3 small{font-weight:400;color:#555}.dr table{width:100%;border-collapse:collapse;font-size:10.5px}.dr th,.dr td{border:1px solid #999;padding:2.5px 5px;text-align:left;vertical-align:top}' +
+        '.dr th{background:#eee}.dr .n{text-align:right;white-space:nowrap}.dr td:nth-child(2),.dr td:nth-child(5){white-space:nowrap}.dr tr.tot td{font-weight:700;background:#f4f4f4}.dr-none{color:#666;font-size:11px;margin:2px 0}.dr-look{margin:2px 0 0 16px;padding:0;font-size:11px}.dr-look li{margin:2px 0}.dr-sign{display:flex;justify-content:space-between;margin-top:34px;font-size:11px}.dr-sign span{border-top:1px solid #333;padding-top:3px;min-width:150px;text-align:center}</style>';
+      const kp = (v, l) => '<div><b>' + v + '</b><span>' + l + '</span></div>';
+      const html = css + '<div class="dr"><h2>' + esc(S.company || 'Rachana Construction Limited') + ' – Daily Report</h2><div class="dr-sub">' + esc(showDate(day)) + ' · VTR Site – NH 848 · made ' + esc(new Date().toLocaleString('en-GB')) + ' by ' + esc((S.user && S.user.name) || '') + '</div>' +
+        '<div class="dr-kpi">' + kp(n(sum(locs, 'closing')) + ' L', 'Diesel stock at close') + kp(n(sum(inwards, 'qty')) + ' L', 'Diesel received') + kp(n(sum(issues, 'qty')) + ' L', 'Diesel issued (' + issues.length + ')') + kp(worked + ' / ' + logs.length, 'Machinery worked / entries') + kp(noLog.length + noEntry.length, 'To look at') + '</div>' +
+        sec('1. Diesel stock', stock) + sec('2. Diesel received', rec) + sec('3. Diesel issued', iss) + sec('4. Log Book', lb, lbNote) + sec('5. To look at', look) +
+        '<div class="dr-sign"><span>Prepared by</span><span>Site In-charge</span><span>Project Manager</span></div></div>';
+      printDoc('Daily Report ' + showDate(day), html, 'rep-daily', true, S.company || '');
+    }).catch(e => toast(errMsg(e), true));
+  }
+  $('dash_daily').addEventListener('click', e => dailyReport(e.target));
+
+  $('lk_save').addEventListener('click', e => busy(e.target, 'Closing…', async () => {
+    const d = $('lk_date').value; if (!d) throw new Error('Select a Date.');
+    if (!(await askConfirm({ title: 'Close entries up to ' + showDate(d) + '?', ok: 'Close', danger: false, message: 'No diesel, Log Book, tank-check or breakdown entry dated on or before ' + showDate(d) + ' can then be added, changed or deleted by anyone – until you reopen it here. Submit the bills of that period first.' }))) return;
+    const r = await call('saveBooksLock', { upto: d }); setClosed(r.upto); toast('Entries up to ' + showDate(r.upto) + ' are closed.');
+  }).catch(er => toast(errMsg(er), true)));
+  $('lk_open').addEventListener('click', e => busy(e.target, 'Reopening…', async () => {
+    if (!(await askConfirm({ title: 'Reopen the closed period?', ok: 'Reopen', message: 'Entries of every date can be changed again' + (S.closedUpto ? ' (now closed up to ' + showDate(S.closedUpto) + ')' : '') + '. A bill that was submitted may then no longer match its entries – build it again after the correction.' }))) return;
+    const r = await call('saveBooksLock', { upto: '' }); setClosed(r.upto); toast('Reopened – nothing is closed now.');
+  }).catch(er => toast(errMsg(er), true)));
+
   /* ================= ON-THE-SPOT CHECKS: a wrong value is pointed out the moment the field is left =================
    * (before Save – the server checks everything again on Save, these only tell the person earlier.)
    * The message is the same English line the server would give, so the help card explains it in the chosen language.
@@ -8587,6 +8741,9 @@
     const ENTRY_DATES = ['d_date', 'bd_date', 'i_date', 'i_billdate', 't_date', 'tc_date', 'bk_date', 'py_date', 'dn_date', 'lg_top_date'];
     if (el.type === 'date' && v && S.today && v > S.today && (ENTRY_DATES.indexOf(el.id) > -1 || (f === 'date' && el.closest('#lg_in'))))
       return 'Date ' + showDate(v) + ' is after today (' + showDate(S.today) + '). Entries can be made only up to today.';
+    // … and not inside a closed month (bill date, payment and debit note are not closed)
+    if (el.type === 'date' && v && S.closedUpto && v <= S.closedUpto && ((ENTRY_DATES.indexOf(el.id) > -1 && ['i_billdate', 'py_date', 'dn_date'].indexOf(el.id) === -1) || (f === 'date' && el.closest('#lg_in'))))
+      return 'Entry of ' + showDate(v) + ': entries up to ' + showDate(S.closedUpto) + ' are closed (month closed by the Admin) – nothing of that period can be added, changed or deleted. Ask the Admin to reopen it.';
     if (el.id === 'd_no' && v && !findMachine(v)) return '"' + v + '" is not in Master.';
     if (el.type === 'number' && v !== '' && Number(v) < 0) return 'Amount cannot be below 0.';
     const tr = el.closest('#lg_in .lrow');
@@ -9962,10 +10119,11 @@
     try {
       const d = await call('getInit');
       if (d.source) setDataSource(d.source);
+      S.closedUpto = d.closedUpto || '';      // shown once the user is known (setClosed below)
       if ('backup' in d) setBackupInfo(d.backup);
       showBoot(false);
       $('login_screen').hidden = true; document.body.classList.remove('locked');
-      S.user = d.user; S.ver = d.versions || null; applyPerms(); startSync();
+      S.user = d.user; S.ver = d.versions || null; applyPerms(); startSync(); setClosed(S.closedUpto); dbCheckDaily();
       setBackupInfo(S.backup);
       S.today = d.today; $('company').textContent = d.company;
       $('todayLabel').textContent = new Date(d.today + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
@@ -11230,6 +11388,12 @@
   /* ================= LOG BOOK PRINT – monthly log book + bill (the site's own format) =================
    * One page per machinery: centred capital heading with the period, the reading and diesel columns,
    * and the bill part (working days, nights, monthly / daily rate, TDS, diesel debit, net payable). */
+  // what is printed in front of the work description of an entry, in every Log Book format: the meter note ("NO READING – …",
+  // "NEW METER – …") and who the work is debited to ("DEBIT TO <party> @ <rate>")
+  function lbMarks(r) {
+    const t = [r.meter ? String(r.meter).toUpperCase() : '', r.debitTo ? 'DEBIT TO ' + String(r.debitTo).toUpperCase() + (r.debitRate !== '' && r.debitRate !== undefined && r.debitRate !== null ? ' @ ' + fmt(r.debitRate) : '') : ''].filter(Boolean);
+    return t.length ? '<b>' + esc(t.join(' · ')) + '</b>' + (r.work || r.remark ? ' – ' : '') : '';
+  }
   async function printLogRows(L) {
     const LBOPT = { fmt: L && L.fmt, sample: L && L.sample }; // "View format": a format to show, and a SAMPLE mark
     const IDLE_BY = (L && L.idle) || null; // from a bill: { machinery: Idle days paid? } – as chosen in that bill
@@ -11336,7 +11500,8 @@
       const tKmC = r2(ownRows.reduce((s2, r) => s2 + (Number(r.wkm) || 0), 0)), tHrC = r2(ownRows.reduce((s2, r) => s2 + (Number(r.whr) || 0), 0));
       const stdQty = r2((hasKm(u) && kmStd ? tKmC / kmStd : 0) + (hasHr(u) && hrStd ? tHrC * hrStd : 0));
       const rawExcess = stdQty > 0 ? Math.max(0, r2(issued - debitQty - stdQty)) : 0;
-      const tank = tankLeft(m, u, ownRows, iss0, isDebitD, rawExcess);              // the bill's rule: what is left of the last fill is not excess
+      const leftOnP = m.status === 'Inactive' && m.inactiveFrom ? String(m.inactiveFrom).slice(0, 10) : '', dayAfterP = (() => { const t0 = new Date(to + 'T00:00:00'); t0.setDate(t0.getDate() + 1); return isoDate(t0); })();
+      const tank = leftOnP && leftOnP <= dayAfterP ? null : tankLeft(m, u, ownRows, iss0, isDebitD, rawExcess);      // the bill's rule (a machinery that left the site: nothing left out)
       const excessQty = r2(rawExcess - (tank ? tank.applied : 0));
       // debit rate = the HIGHER of the average diesel rate of the dates and the last diesel purchase rate
       const avgR = Number(extra.avgRate) || 0, lastR = Number(extra.lastRate) || 0, avgRate = Math.max(avgR, lastR), excessAmt = r2((debitQty + excessQty) * avgRate);
@@ -11365,7 +11530,7 @@
           (st ? '<td class="n">–</td><td class="n">–</td><td class="n">–</td>' : w === METER_OFF ? '<td class="n">–</td><td class="n">–</td><td class="n"><b>' + [r.wkm !== '' && r.wkm !== undefined ? fmt(r.wkm) + ' KM' : '', r.whr !== '' && r.whr !== undefined ? fmt(r.whr) + ' HR' : ''].filter(Boolean).join(' / ') + '</b> <small>EST.</small></td>' : lbPrintWork(r, w, plain)) +
           '<td class="n">' + n2(x.open) + '</td><td class="n">' + (x.iss ? '<b>' + fmt(x.iss) + '</b>' : '') + '</td><td class="n">' + (x.refill !== '' && x.refill !== undefined ? (typeof x.refill === 'string' ? x.refill : plain(x.refill)) : '') + '</td>' +
           '<td class="n">' + n2(x.total) + '</td><td class="n">' + n2(x.used) + '</td><td class="n">' + n2(x.close) + '</td>' +
-          '<td class="n">' + (x.avg || '') + '</td><td class="lb-ch" style="white-space:normal;word-break:break-word;font-size:0.9em;line-height:1.15">' + esc(up([r.chFrom, r.chTo].filter(Boolean).join(' – '))) + '</td><td>' + (st ? '<b>' + esc(up(w)) + '</b>' + (r.work || r.remark ? ' – ' : '') : '') + (r.meter ? '<b>' + esc(up(r.meter)) + '</b>' + (r.work || r.remark ? ' – ' : '') : '') + (!st && itemQtyText(r) ? '<b>' + esc(up(itemQtyText(r))) + '</b>' + (r.work || r.remark ? ' – ' : '') : '') + esc(up(r.work || r.remark)) + '</td></tr>'; }).join('') +
+          '<td class="n">' + (x.avg || '') + '</td><td class="lb-ch" style="white-space:normal;word-break:break-word;font-size:0.9em;line-height:1.15">' + esc(up([r.chFrom, r.chTo].filter(Boolean).join(' – '))) + '</td><td>' + (st ? '<b>' + esc(up(w)) + '</b>' + (r.work || r.remark ? ' – ' : '') : '') + lbMarks(r) + (!st && itemQtyText(r) ? '<b>' + esc(up(itemQtyText(r))) + '</b>' + (r.work || r.remark ? ' – ' : '') : '') + esc(up(r.work || r.remark)) + '</td></tr>'; }).join('') +
         '</tbody><tfoot><tr><td colspan="6" class="c">TOTAL</td><td class="n">' + ([tKm ? fmt(tKm) + ' KM' : '', tHr ? fmt(tHr) + ' HR' : '', tTrips ? fmt(tTrips) + ' TRIPS' : ''].filter(Boolean).join('<br>') || '0') + '</td><td></td><td class="n">' + fmt(issued) + '</td><td></td><td class="n">' + fmt(sum('total')) + '</td><td class="n">' + fmt(used) + '</td><td></td><td></td><td></td><td></td></tr></tfoot></table>';
       const money = v => v ? '₹ ' + n2(v) : '–';
       const allDebit = issued > 0 ? debitQty >= issued : (m.supply === 'Debit Basis');
@@ -11425,7 +11590,7 @@
           avg: { h: 'AVG', w: 4.5, c: 'n', v: x => x.avg || '' },
           trip: { h: 'TRIP', w: 4.5, c: 'n', v: x => !stOf(x.r) && Number(x.r.trip) > 0 ? '<b>' + num(x.r.trip) + '</b>' : '', t: () => fmt(tTrips) },
           ch: { h: 'CHAINAGE', w: 11, wrap: 1, c: 'lb-sm', v: x => esc(up([x.r.chFrom, x.r.chTo].filter(Boolean).join(' – '))) },
-          work: { h: 'WORK DESCRIPTION', w: 0, wrap: 1, v: x => (stOf(x.r) ? '<b>' + esc(up(wOf(x.r))) + '</b>' + (x.r.work || x.r.remark ? ' – ' : '') : '') + (!stOf(x.r) && itemQtyText(x.r) ? '<b>' + esc(up(itemQtyText(x.r))) + '</b> ' : '') + esc(up(x.r.work || (FM === 'E' || FM === 'F' || FM === 'G' ? '' : x.r.remark))) }
+          work: { h: 'WORK DESCRIPTION', w: 0, wrap: 1, v: x => (stOf(x.r) ? '<b>' + esc(up(wOf(x.r))) + '</b>' + (x.r.work || x.r.remark ? ' – ' : '') : '') + lbMarks(x.r) + (!stOf(x.r) && itemQtyText(x.r) ? '<b>' + esc(up(itemQtyText(x.r))) + '</b> ' : '') + esc(up(x.r.work || (FM === 'E' || FM === 'F' || FM === 'G' ? '' : x.r.remark))) }
         };
         const cols = LB_FMT_COLS[FM].map(k => (FM === 'C' || FM === 'D') && /^(km|hr)[SCT]$/.test(k) ? Object.assign({}, C[k], { g: 'READING' }) : C[k]);
         // two heading rows: a group (e.g. DIESEL) over its columns, a single column spans both rows

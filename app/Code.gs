@@ -127,7 +127,7 @@ function doGet(e) {
 }
 
 function getInit_() {
-  return { company: APP.COMPANY, today: today_(), master: getMaster_(), drivers: getDrivers_(), stock: getStock_(), pumps: getPumps_(), locations: APP.LOCATIONS };
+  return { company: APP.COMPANY, today: today_(), master: getMaster_(), drivers: getDrivers_(), stock: getStock_(), pumps: getPumps_(), locations: APP.LOCATIONS, closedUpto: booksClosed_() };
 }
 
 /* ================= LOGIN, ACCESS AND ACTIVITY LOG ================= *
@@ -403,6 +403,8 @@ const API_ = {
   boqRateCheck:      { m: 'Vendor BOQ', f: boqRateCheck_ },
   boqMissing:        { m: 'Vendor BOQ', f: boqMissing_ },
   billInit:          { m: 'Machinery Billing', any: ['Machinery Billing', 'Saved Bills'], f: billInit_ },
+  saveBooksLock:     { m: 'Machinery Billing', f: saveBooksLock_, admin: true, log: 'booksLock' },
+  dbHealth:          { m: '', admin: true, f: dbHealth_ },
   saveBillSettings:  { m: 'Machinery Billing', edit: true, f: saveBillSettings_, log: 'billSettings' },
   getBills:          { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Bill Summary', 'Vendor Ledger'], f: getBills_ },
   billSummary:       { m: 'Bill Summary', f: billSummary_ },
@@ -579,7 +581,7 @@ function getVersions_() {
   SYNC_KEYS_.forEach(k => { v[k.slice(2)] = got[k] || '0'; });
   return v;
 }
-function getLookups_() { return { master: getMaster_(), drivers: getDrivers_(), pumps: getPumps_(), vendors: vendorNames_() }; }
+function getLookups_() { return { master: getMaster_(), drivers: getDrivers_(), pumps: getPumps_(), vendors: vendorNames_(), closedUpto: booksClosed_() }; }
 
 // Simple trigger: runs by itself whenever someone types in the Google Sheet
 function onEdit(e) {
@@ -700,6 +702,9 @@ function logAfter_(u, spec, args, res, before) {
     case 'vendor':
       if (res.ok && res.renamed) writeLog_(u, 'Edit', m, res.name, 'Vendor renamed: ' + res.renamed.from + ' → ' + res.renamed.to + (res.renamed.text ? ' (moved with it: ' + res.renamed.text + ')' : ''), '');
       if (res.ok) writeLog_(u, args[1] === 'add' ? 'Add' : 'Edit', m, res.name, (args[1] === 'add' ? 'Vendor details saved: ' : 'Vendor details changed: ') + res.name, '');
+      break;
+    case 'booksLock':
+      writeLog_(u, 'Edit', m, 'Month close', res.upto ? 'Entries closed up to ' + dmy_(res.upto) + (res.was ? ' (was ' + dmy_(res.was) + ')' : '') : 'Month reopened – nothing is closed now' + (res.was ? ' (was closed up to ' + dmy_(res.was) + ')' : ''), '');
       break;
     case 'billSettings':
       writeLog_(u, 'Edit', m, 'Company details', 'Company details / project name for bills changed', '');
@@ -1512,7 +1517,7 @@ function getBreakdowns_(f) {
 function submitBdReport_(x) {
   return withLock_(() => {
     x = x || {};
-    const date = entryDate_(x.date || today_());
+    const date = entryOpen_(x.date || today_(), 'Breakdown report');
     const rows = (x.rows || []).map((y, n) => {
       const m = findMachine_(y.no), st = str_(y.status) === 'Breakdown' ? 'Breakdown' : str_(y.status) === 'Working' ? 'Working' : '';
       if (!st) throw new Error(m.id + ': pick Working or Breakdown.');
@@ -1538,6 +1543,7 @@ function submitBdReport_(x) {
 function deleteBdReport_(dateStr) {
   return withLock_(() => {
     const date = checkDate_(dateStr);
+    booksOpen_(date, 'Breakdown report');
     const t = SS_().getSheetByName(APP.SHEET_BDREPORT) ? table_(APP.SHEET_BDREPORT, BDR_COLS_) : null;
     const i = t ? t.rows.findIndex(r => str_(r[t.c['Report ID']]) === date || dkey_(r[t.c['Report Date']]) === date) : -1;
     if (i === -1) throw new Error('There is no report of ' + dmy_(date) + '.');
@@ -2239,10 +2245,13 @@ function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid) {
   const kmStd = Number(m.kmStd) || 0, hrStd = Number(m.hrStd) || 0;
   const stdQty = r2_((hasKm_(u) && kmStd ? tKm / kmStd : 0) + (hasHr_(u) && hrStd ? tHr * hrStd : 0));
   const rawExcess = stdQty > 0 ? Math.max(0, r2_(companyQty - stdQty)) : 0;
-  const tank = tankLeft_(m, u, own, iss0, isDebit, rawExcess);                     // what is left of the last fill is not excess of this period
+  /* FINAL BILL: the machinery left the site (Asset Master: Inactive, "Inactive From" on or before the day after the period).
+   * The diesel in its tank left with it, so nothing is taken as "still in the tank": the whole excess is debited. */
+  const leftOn = str_(m.status) === 'Inactive' && m.inactiveFrom ? dkey_(m.inactiveFrom) : '', final = !!leftOn && leftOn <= addDays_(to, 1);
+  const tank = final ? null : tankLeft_(m, u, own, iss0, isDebit, rawExcess);      // what is left of the last fill is not excess of this period
   const excessQty = r2_(rawExcess - (tank ? tank.applied : 0));
   const dRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), excessAmt = r2_((debitQty + excessQty) * dRate);
-  return { tank: tank && tank.applied > 0 ? tank : null, rawExcess: rawExcess, no: m.id, workDays: workDays, nights: nights, holidays: holidays, breakdowns: breakdowns, idleDays: idleDays, itemOver: itemOver, itemUnknown: itemUnknown, itemLeft: itemLeft, amount: amount, issued: issued, excessAmt: excessAmt, debitQty: debitQty, excessQty: excessQty, noBoq: noBoq, legacy: legacy, zero: zero, days: Object.keys(units).length,
+  return { final: final ? leftOn : '', tank: tank && tank.applied > 0 ? tank : null, rawExcess: rawExcess, no: m.id, workDays: workDays, nights: nights, holidays: holidays, breakdowns: breakdowns, idleDays: idleDays, itemOver: itemOver, itemUnknown: itemUnknown, itemLeft: itemLeft, amount: amount, issued: issued, excessAmt: excessAmt, debitQty: debitQty, excessQty: excessQty, noBoq: noBoq, legacy: legacy, zero: zero, days: Object.keys(units).length,
     gstPct: last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0,
     tdsPct: last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0), woNo: last ? last.woNo || '' : '' };
 }
@@ -3043,7 +3052,7 @@ function dieselHistory_(f) {
 function saveDieselIssue_(d) {
   return withLock_(() => {
     if (!blank_(d.meter)) ensureMeterCol_();
-    const dk = entryDate_(d.date);
+    const dk = entryOpen_(d.date, 'Diesel issue');
     const shift = checkShift_(d.shift);
     const m = findMachine_(d.no);
     assertActive_(m, dk);
@@ -3083,7 +3092,7 @@ function importDiesel_(rows) {
     rows.forEach((d, i) => {
       const line = Number((d && d.line) || i + 1);
       try {
-        const dk = entryDate_(d.date), shift = checkShift_(d.shift || 'Day');
+        const dk = entryOpen_(d.date, 'Diesel issue'), shift = checkShift_(d.shift || 'Day');
         const m = byKey[noKey_(d.no)];
         if (!m) throw new Error('"' + clean_(d.no) + '" is not in Master.');
         if (m.ownership !== 'Debit' && APP.UNITS.indexOf(m.unit) === -1) throw new Error('Set the Unit for ' + m.id + ' in Master first.');
@@ -3124,7 +3133,7 @@ function importDiesel_(rows) {
 function saveDieselBulk_(b) {
   return withLock_(() => {
     if ((b.rows || []).some(r => !blank_(r.meter))) ensureMeterCol_();
-    const dk = entryDate_(b.date);
+    const dk = entryOpen_(b.date, 'Diesel issue');
     const shift = checkShift_(b.shift);
     const byKey = {};
     getMaster_().forEach(m => { byKey[noKey_(m.id)] = m; });
@@ -3200,9 +3209,10 @@ function updateDieselIssue_(id, d) {
     if (i === -1) throw new Error('Diesel issue ' + id + ' was not found.');
     const old = t.rows[i];
     const oldNo = str_(old[t.c[H.NO]]), oldDk = dkey_(old[t.c[H.IDATE]]), oldShift = str_(old[t.c[H.SHIFT]]);
+    booksOpen_(oldDk, 'Diesel issue');
     const created = old[t.c[H.CREATED]] instanceof Date ? old[t.c[H.CREATED]] : new Date();
 
-    const dk = entryDate_(d.date);
+    const dk = entryOpen_(d.date, 'Diesel issue');
     const shift = checkShift_(d.shift);
     const m = findMachine_(d.no);
     assertActive_(m, dk);
@@ -3232,6 +3242,7 @@ function deleteDieselIssue_(id) {
     const i = t.rows.findIndex(r => str_(r[t.c[H.ID]]) === str_(id));
     if (i === -1) throw new Error('Diesel issue ' + id + ' was not found.');
     const old = t.rows[i];
+    booksOpen_(dkey_(old[t.c[H.IDATE]]), 'Diesel issue');
     t.sh.deleteRow(i + 2);
     syncLogFromDiesel_(str_(old[t.c[H.NO]]), dkey_(old[t.c[H.IDATE]]), str_(old[t.c[H.SHIFT]]));
     recalcBalances_();
@@ -3509,7 +3520,7 @@ function markNo_(prop, n) { PropertiesService.getScriptProperties().setProperty(
 
 /* ---------- Inward (from pump) ---------- */
 function validateInward_(x) {
-  const dk = entryDate_(x.date);
+  const dk = entryOpen_(x.date, 'Diesel inward');
   const qty = numOrBlank_(x.qty);
   if (!(qty > 0)) throw new Error('Enter Qty (Ltr).');
   if (x.type === 'extra' || isExtraPump_(x.pump)) {
@@ -3614,6 +3625,7 @@ function updateInward_(id, x) {
     const i = T.it.rows.findIndex(r => str_(r[T.it.c[H.IN_ID]]) === str_(id));
     if (i === -1) throw new Error('Inward ' + id + ' was not found.');
     const old = T.it.rows[i];
+    booksOpen_(dkey_(old[T.it.c[H.DATE]]), 'Diesel inward');
     const row = buildInwardRow_(T.it, str_(id), v, old[T.it.c[H.CREATED]] instanceof Date ? old[T.it.c[H.CREATED]] : new Date(), old);
     const rows = T.it.rows.slice(); rows[i] = row;
     try { assertNoNegative_(T, withRows_(T, 'it', rows)); }
@@ -3633,6 +3645,7 @@ function deleteInward_(id) {
     const T = stockTables_();
     const i = T.it.rows.findIndex(r => str_(r[T.it.c[H.IN_ID]]) === str_(id));
     if (i === -1) throw new Error('Inward ' + id + ' was not found.');
+    booksOpen_(dkey_(T.it.rows[i][T.it.c[H.DATE]]), 'Diesel inward');
     assertNoNegative_(T, withRows_(T, 'it', T.it.rows.filter((r, k) => k !== i)));
     T.it.sh.deleteRow(i + 2);
     recalcBalances_();
@@ -3683,7 +3696,7 @@ function getPumps_() {
 
 /* ---------- Transfer between stock points (e.g. Dispenser -> VTR Store) ---------- */
 function validateTransfer_(x) {
-  const dk = entryDate_(x.date);
+  const dk = entryOpen_(x.date, 'Diesel transfer');
   const shift = checkShift_(x.shift);
   const from = checkLoc_(x.from, 'From');
   const to = checkLoc_(x.to, 'To');
@@ -3770,6 +3783,7 @@ function updateTransfer_(id, x) {
     const T = stockTables_();
     const i = T.tt.rows.findIndex(r => str_(r[T.tt.c[H.TR_ID]]) === str_(id));
     if (i === -1) throw new Error('Transfer ' + id + ' was not found.');
+    booksOpen_(dkey_(T.tt.rows[i][T.tt.c[H.DATE]]), 'Diesel transfer');
     transferMessage_(T, v, i);
     const old = T.tt.rows[i];
     const row = buildTransferRow_(T.tt, str_(id), v, old[T.tt.c[H.CREATED]] instanceof Date ? old[T.tt.c[H.CREATED]] : new Date(), old);
@@ -3785,6 +3799,7 @@ function deleteTransfer_(id) {
     const T = stockTables_();
     const i = T.tt.rows.findIndex(r => str_(r[T.tt.c[H.TR_ID]]) === str_(id));
     if (i === -1) throw new Error('Transfer ' + id + ' was not found.');
+    booksOpen_(dkey_(T.tt.rows[i][T.tt.c[H.DATE]]), 'Diesel transfer');
     assertNoNegative_(T, withRows_(T, 'tt', T.tt.rows.filter((r, k) => k !== i)));
     T.tt.sh.deleteRow(i + 2);
     recalcBalances_();
@@ -4825,7 +4840,7 @@ function getLogPrefill_(no, dateStr, shiftIn) {
 
 function saveLogBook_(l) {
   return withLock_(() => {
-    const dk = entryDate_(l.date);
+    const dk = entryOpen_(l.date, 'Log Book entry');
     const shift = checkShift_(l.shift);
     const m = findMachine_(l.no);
     assertActive_(m, dk);
@@ -5222,7 +5237,7 @@ function getLogDayPrefill_(dateStr, nos) {
  * b: { date, rows: [{ no, openingKm, closingKm, openingHr, closingHr, chFrom, chTo, trip, driver, remark }] } */
 function saveLogDay_(b) {
   return withLock_(() => {
-    const dk = entryDate_(b.date);
+    const dk = entryOpen_(b.date, 'Log Book entry');
     const lt = table_(APP.SHEET_LOG, logHeaders_());
     const errors = [], out = [], seen = {};
     (b.rows || []).forEach((l, i) => {
@@ -5354,7 +5369,7 @@ function importLogBook_(b) {
     (b.rows || []).forEach((l, n) => {
       const line = l.line || n + 1;
       try {
-        const m = findMachine_(l.no), dk = entryDate_(l.date), sh = logShift_(l.shift || 'Full Day');
+        const m = findMachine_(l.no), dk = entryOpen_(l.date, 'Log Book entry'), sh = logShift_(l.shift || 'Full Day');
         const key = (m.id + '|' + dk + '|' + sh).toUpperCase();
         const i = byKey[key];
         if (i === undefined) { fresh.push({ l: l, line: line, n: n }); return; }
@@ -5455,7 +5470,7 @@ function saveLogRowsInner_(b) {
     items.forEach(x => {
       try {
         const m = findMachine_(x.l.no);
-        prepared.push({ x: x, m: m, dk: entryDate_(x.l.date), shift: logShift_(x.l.shift || 'Full Day') });
+        prepared.push({ x: x, m: m, dk: entryOpen_(x.l.date, 'Log Book entry'), shift: logShift_(x.l.shift || 'Full Day') });
       } catch (e) { errors.push({ row: x.i + 1, msg: e.message }); }
     });
     prepared.sort((a, b) => natCmp_(a.m.id, b.m.id) || logKeyCmp_(a, b) || a.x.i - b.x.i);
@@ -5594,6 +5609,7 @@ function updateLogRow_(key, l) {
     const c = lt.c;
     const i = findLogIdx_(lt, key);
     const r = lt.rows[i], no = str_(r[c[H.NO]]), unit = str_(r[c[H.UNIT]]);
+    booksOpen_(dkey_(r[c[H.DATE]]), 'Log Book entry');
     const idx = machineLogIdx_(lt, no), pos = idx.indexOf(i);
     const mm = findMachine_(no);
     const nextI = pos < idx.length - 1 ? idx[pos + 1] : -1;
@@ -5729,6 +5745,7 @@ function saveLogBulk_(b) {
     const idx = machineLogIdx_(lt, m.id);
     const byKey = {}; idx.forEach(i => { byKey[logKeyOf_(lt, lt.rows[i])] = i; });
     const deleted = (b.deleted || []).map(str_).filter(k => k in byKey);
+    deleted.forEach(k => booksOpen_(dkey_(lt.rows[byKey[k]][c[H.DATE]]), 'Log Book entry'));
     const odOf = l => blank_(l.odSet) ? '' : (() => { const v = Number(l.odSet); if (!isFinite(v) || v < 0) throw new Error('Opening diesel must be 0 or more.'); return r2_(v); })();
     const errors = [];
     const rows = (b.rows || []).map((l, n) => ({ l: l, n: n }));
@@ -5740,7 +5757,7 @@ function saveLogBulk_(b) {
     rows.forEach(x => {
       const l = x.l;
       try {
-        const dk = entryDate_(l.date), sh = logShift_(l.shift || 'Full Day');
+        const dk = entryOpen_(l.date, 'Log Book entry'), sh = logShift_(l.shift || 'Full Day');
         if (l.key && !(l.key in byKey)) throw new Error('This entry was changed by someone else – reload the list.');
         if (!l.key) assertActive_(m, dk);
         if (clash(dk, sh)) throw new Error(dmy_(dk) + ' (' + sh + ') is entered more than once.');
@@ -5902,7 +5919,7 @@ function getTankChecks_(f) {
 function saveTankCheck_(d) {
   return withLock_(() => {
     d = d || {};
-    const dk = entryDate_(d.date), m = findMachine_(d.no);
+    const dk = entryOpen_(d.date, 'Tank check'), m = findMachine_(d.no);
     const method = d.method === 'full' ? 'Filled to full' : 'Measured in tank';
     let physical, toFill = '';
     if (method === 'Filled to full') {
@@ -5933,6 +5950,7 @@ function deleteTankCheck_(id) {
     const i = t.rows.findIndex(r => str_(r[t.c['Check ID']]) === str_(id));
     if (i === -1) throw new Error('Tank check not found.');
     const x = tankRowOut_(t, t.rows[i]);
+    booksOpen_(x.date, 'Tank check');
     t.sh.deleteRow(i + 2);
     TABLE_MEMO_ = {};
     recalcStock_(x.no);
@@ -5962,6 +5980,7 @@ function deleteLogRow_(key) {
     const lt = table_(APP.SHEET_LOG, logHeaders_());
     const i = findLogIdx_(lt, key);
     const c = lt.c, no = str_(lt.rows[i][c[H.NO]]);
+    booksOpen_(dkey_(lt.rows[i][c[H.DATE]]), 'Log Book entry');
     const idx = machineLogIdx_(lt, no), pos = idx.indexOf(i);
     const prevI = pos > 0 ? idx[pos - 1] : -1, nextI = pos < idx.length - 1 ? idx[pos + 1] : -1;
     // the next entry now starts where the entry before the deleted one closed
@@ -6210,6 +6229,64 @@ function checkShift_(s) {
 }
 /* Date of an entry (Diesel Issue, Inward, Transfer, Log Book): never after today,
  * so a mistyped future date cannot make the live stock differ from today's closing. */
+/* ---------- THE APP CHECKS ITS DATABASE BY ITSELF (asked 02-10-2026; shown to the Admin only) ----------
+ * Every SQL step that the app needs is checked against the live database: the columns each step adds (read through
+ * backup_catalog), the functions of step 2 / 3 (read from the API's own list), and – once sql/supabase_step4_health.sql is
+ * run – the security findings of check_security.sql. Each check says whether it is in place and, if not, which file to run.
+ * The page asks once a day when the Admin opens the app, and on the Admin's click. Nothing is changed by the check. */
+function dbHealth_() {
+  const checks = [], add = (name, ok, fix, note) => checks.push({ name: name, ok: !!ok, fix: ok ? '' : (fix || ''), note: note || '' });
+  let on = false; try { on = typeof sbFetch_ === 'function' && String(PropertiesService.getScriptProperties().getProperty('DATA_SOURCE') || '').toLowerCase() === 'supabase'; } catch (e) { on = false; }
+  if (!on) return { ok: true, skipped: true, at: new Date().toISOString(), checks: [] };
+  let cat = null; try { cat = sbFetch_('POST', '/rest/v1/rpc/backup_catalog', {}); } catch (e) { cat = null; }
+  const has = (t, col) => !!cat && cat.some(x => x.table_name === t && (!col || x.column_name === col));
+  add('Database answers', !!cat, 'supabase_step1.sql', cat ? '' : 'the list of tables could not be read');
+  if (cat) {
+    // every column the app writes (the table definitions of the app against the database)
+    const miss = [];
+    (typeof SB_TABLES_ !== 'undefined' ? SB_TABLES_ : []).forEach(d => { if (!has(d.table)) miss.push(d.table + ' (whole table)'); else d.cols.forEach(x => { if (!has(d.table, x[1])) miss.push(d.table + '.' + x[1]); }); });
+    const t1 = has('log_book', 'debit_to') && has('log_book', 'debit_rate') && has('debit_notes'), u1 = has('log_book', 'meter_note');
+    add('"Debit to" and Debit Notes (step 1t)', t1, 'supabase_step1t_debit_notes.sql');
+    add('"No reading" / "New meter" (step 1u)', u1, 'supabase_step1u_meter.sql');
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note)|debit_notes)/.test(x));
+    add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
+  }
+  let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }
+  const fn = n => !!(api && api.paths && api.paths['/rpc/' + n]);
+  if (api) {
+    add('Faster server (step 2)', ['web_boot', 'web_flush', 'web_lock', 'web_unlock', 'web_stamp'].every(fn), 'supabase_step2_web.sql', ['web_boot', 'web_flush', 'web_lock', 'web_unlock', 'web_stamp'].filter(n => !fn(n)).join(', '));
+    add('Safe saving – all or nothing (step 3)', fn('web_write'), 'supabase_step3_safety.sql');
+    if (fn('web_health')) {
+      let h = null; try { h = sbFetch_('POST', '/rest/v1/rpc/web_health', {}); } catch (e) { h = null; }
+      const look = h && Array.isArray(h.findings) ? h.findings.filter(x => !/^ok/.test(String(x))) : null;
+      add('Security: row level security on every table, nothing open to the public', !!look && !look.length, 'supabase_step2_web.sql and supabase_step3_safety.sql again, then check again', look ? look.slice(0, 6).join(' | ') : 'the security check did not answer');
+    } else add('Security check (step 4)', false, 'supabase_step4_health.sql', 'until this file is run the app cannot look at the security settings by itself');
+  } else add('List of database functions', false, '', 'the API did not give its list – check again later');
+  return { ok: checks.every(x => x.ok), skipped: false, at: new Date().toISOString(), checks: checks };
+}
+
+/* ---------- MONTH CLOSE (asked 02-10-2026) ----------
+ * The Admin closes the books up to a date (normally a month end, after its bills are submitted). From then on nobody can add,
+ * change or delete an entry dated on or before that date: Diesel Inward, Transfer, Issue, Log Book (entry, edit, grid, import),
+ * Tank Check, Breakdown report. A saved bill and its data then stay the same. Only the Admin can move the date back (reopen).
+ * Not closed: bills, debit notes and payments – they are made AFTER the month for the month.
+ * Kept with the app settings (BOOKS_CLOSED_UPTO = yyyy-mm-dd, empty = nothing closed). */
+// (read once per table-memo lifetime: the memo is emptied for every request and after every write, so the date is never stale)
+function booksClosed_() { if (!('__closed' in TABLE_MEMO_)) { let v = ''; try { v = str_(PropertiesService.getScriptProperties().getProperty('BOOKS_CLOSED_UPTO')); } catch (e) { v = ''; } TABLE_MEMO_.__closed = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; } return TABLE_MEMO_.__closed; }
+function booksOpen_(dk, what) {
+  const upto = booksClosed_();
+  if (upto && dk && dk <= upto) throw new Error((what || 'Entry') + ' of ' + dmy_(dk) + ': entries up to ' + dmy_(upto) + ' are closed (month closed by the Admin) – nothing of that period can be added, changed or deleted. Ask the Admin to reopen it.');
+  return dk;
+}
+const entryOpen_ = (s, what) => booksOpen_(entryDate_(s), what);
+function saveBooksLock_(x) {
+  const upto = str_(x && x.upto);
+  if (upto && !/^\d{4}-\d{2}-\d{2}$/.test(upto)) throw new Error('Select a Date.');
+  if (upto && upto > today_()) throw new Error('Date ' + dmy_(upto) + ' is after today (' + dmy_(today_()) + '). Entries can be made only up to today.');
+  const was = booksClosed_();
+  PropertiesService.getScriptProperties().setProperty('BOOKS_CLOSED_UPTO', upto); delete TABLE_MEMO_.__closed;
+  return { ok: true, upto: upto, was: was };
+}
 function entryDate_(s) {
   const dk = checkDate_(s);
   if (dk > today_()) throw new Error('Date ' + dmy_(dk) + ' is after today (' + dmy_(today_()) + '). Entries can be made only up to today.');

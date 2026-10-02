@@ -78,7 +78,7 @@ test('billing: item-wise BOQ with an hour slab, Idle paid / not paid, and page =
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   const grab = m => { const i = app.indexOf(m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
   const env = { r2: n => Math.round(n * 100) / 100, hasKm: u => u === 'KM' || u === 'KM + Hrs', hasHr: u => u === 'Hrs' || u === 'KM + Hrs', isHol: r => ['Holiday', 'Breakdown'].indexOf(r.mode || r.unit) > -1,
-    showDate: d => d.split('-').reverse().join('/'), fmt: String, DAY_STATUS: ['Idle', 'Holiday', 'Breakdown'], METER_OFF: 'No reading', ITEM_WORD: { hr: 'hr', km: 'km', trip: 'trips' }, dieselDebitDay: (vt, bd, m) => bd ? bd.diesel === 'Debit Basis' : !!(m && m.supply === 'Debit Basis'), findMachine: no => T.getMaster_().find(m => m.id === no) };
+    showDate: d => d.split('-').reverse().join('/'), fmt: String, DAY_STATUS: ['Idle', 'Holiday', 'Breakdown'], METER_OFF: 'No reading', isoDate: d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'), ITEM_WORD: { hr: 'hr', km: 'km', trip: 'trips' }, dieselDebitDay: (vt, bd, m) => bd ? bd.diesel === 'Debit Basis' : !!(m && m.supply === 'Debit Basis'), findMachine: no => T.getMaster_().find(m => m.id === no) };
   const C = new Function(...Object.keys(env), grab('function itemDaySegs(') + '\n' + grab('function tankLeft(') + '\n' + grab('function mbMachine(') + '; return { mbMachine };')(...Object.values(env));
   for (const no of ['JCB-1', 'BOLERO-1']) for (const idle of [true, false]) assert.strictEqual(C.mbMachine(no, byNo[no], extra, from, to, undefined, idle).amount, srv(no, idle), no + ' idle=' + idle);
 });
@@ -103,7 +103,7 @@ test('bill papers: amount in words, Tax Invoice = the Abstract\'s figures, Debit
   const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const env = { r2: n => Math.round(n * 100) / 100, esc, fmt: n => String(n), mbN2: n => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), mbDot: d => String(d || '').split('-').reverse().join('.'),
     DOC_CSS: '', billHtml: () => '<div class="bl">ABSTRACT</div>', showDate: d => String(d || '').split('-').reverse().join('-'),
-    billTank: () => '', billEst: () => '',
+    billTank: () => '', billEst: () => '', billFinal: () => '',
     billNoEntry: b => [].concat(...((b && b.machines) || []).map(m => (m.noEntry || []).map(x => String(m.no) + ' ' + x.d + ' ' + x.q + ' L'))).join(', ') };
   const C = new Function(...Object.keys(env), grab('function rupeesWords(') + '\nconst docDash = v => (v === \'\' || v === null || v === undefined || Number(v) === 0) ? \'-\' : mbN2(v);\n' + grab('function taxInvoiceHtml(') + '\n' + grab('function debitNoteHtml(') + '\n' + grab('function billSheets(') + '; return { rupeesWords, taxInvoiceHtml, debitNoteHtml, billSheets };')(...Object.values(env));
   for (const [n, w] of [[40000, 'Rupees Forty Thousand Only'], [0, 'Rupees Zero Only'], [15600, 'Rupees Fifteen Thousand Six Hundred Only'], [123456789.5, 'Rupees Twelve Crore Thirty Four Lakh Fifty Six Thousand Seven Hundred Eighty Nine and Fifty Paise Only'],
@@ -445,6 +445,10 @@ test('the last fill of the period is partly still in the tank: not debited, this
   const grab = m => { const i = app.indexOf(m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
   const P = new Function('r2', 'hasKm', 'hasHr', grab('function tankLeft(') + '; return tankLeft;')(n => Math.round(n * 100) / 100, u => u === 'KM' || u === 'KM + Hrs', u => u === 'Hrs' || u === 'KM + Hrs');
   assert.deepStrictEqual(P({ kmStd: 4.6 }, 'KM', x.list, x.extra.issues.TK1, () => false, 29.13), x.b.tank);
+  // FINAL BILL: the machinery is Inactive from 31-05-2026 (it left the site) → nothing is taken as "in the tank": the whole 29.13 L are debited
+  run('(x, m, o) => saveMaster_(x, m, o)', { no: 'TK-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4.6, owner: 'Tank Vendor', ownership: 'Rental', supply: 'Company', status: 'Inactive', activeFrom: '2026-05-01', inactiveFrom: '2026-05-31' }, 'edit', 'TK-1');
+  x = calc(); assert.deepStrictEqual([x.b.final, x.b.tank, x.b.excessQty, x.b.excessAmt], ['2026-05-31', null, 29.13, 2913]);
+  run('(x, m, o) => saveMaster_(x, m, o)', { no: 'TK-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4.6, owner: 'Tank Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-05-01' }, 'edit', 'TK-1');
   // Tank Capacity 15 L in Asset Master: never more than the tank holds → 15 L left out, 14.13 L debited
   run('(x, m, o) => saveMaster_(x, m, o)', { no: 'TK-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4.6, tankCap: 15, owner: 'Tank Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-05-01' }, 'edit', 'TK-1');
   x = calc(); assert.deepStrictEqual([x.b.tank.left, x.b.excessQty], [15, 14.13]);
@@ -456,4 +460,38 @@ test('the last fill of the period is partly still in the tank: not debited, this
   run('(id, x) => updateDieselIssue_(id, x)', last.id, { date: '2026-05-30', shift: 'Day', source: 'Dispenser', no: 'TK-1', qty: 30, kmReading: 1234, force: true });
   run('k => deleteLogRow_(k)', 'TK-1|2026-05-30|Full Day');
   x = calc(); assert.deepStrictEqual([x.b.rawExcess, x.b.tank.kmAfter, x.b.tank.left, x.b.excessQty], [39.13, 0, 30, 9.13]);
+});
+
+test('month close: nothing dated in a closed period can be added, changed or deleted – diesel, Log Book, inward; the Admin reopens', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryIt = f => { try { const r = f(); return r && r.ok === false ? { err: JSON.stringify(r.errors || r) } : { ok: true, r: r }; } catch (e) { return { err: String(e.message) }; } };
+  const closed = /entries up to 30-04-2026 are closed \(month closed by the Admin\)/;
+  run('(x, m) => saveMaster_(x, m)', { no: 'LK-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Lock Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-04-01' }, 'add');
+  const inw = run('x => saveInward_(x)', { date: '2026-04-01', location: 'Dispenser', pump: 'Pump', qty: 800, rate: 100, billNo: 'LK1', billDate: '2026-04-01' });
+  run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-04-10', shift: 'Full Day', no: 'LK-1', mode: 'KM', openingKm: 100, closingKm: 200 }] });
+  const di = run('x => saveDieselIssue_(x)', { date: '2026-04-10', shift: 'Day', source: 'Dispenser', no: 'LK-1', qty: 25, kmReading: 100, force: true });
+  // a date after today cannot be closed; then April is closed
+  assert.match(tryIt(() => run('x => saveBooksLock_(x)', { upto: '2099-01-01' })).err, /after today/);
+  assert.deepStrictEqual(run('x => saveBooksLock_(x)', { upto: '2026-04-30' }), { ok: true, upto: '2026-04-30', was: '' });
+  assert.strictEqual(run('() => getInit_().closedUpto'), '2026-04-30');
+  // Log Book: add, edit, delete in April – refused; May – allowed
+  assert.match(tryIt(() => run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-04-15', shift: 'Full Day', no: 'LK-1', mode: 'KM', closingKm: 260 }] })).err, closed);
+  assert.match(tryIt(() => run('(k, l) => updateLogRow_(k, l)', 'LK-1|2026-04-10|Full Day', { closingKm: 210, work: '' })).err, closed);
+  assert.match(tryIt(() => run('k => deleteLogRow_(k)', 'LK-1|2026-04-10|Full Day')).err, closed);
+  assert.strictEqual(tryIt(() => run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-05-01', shift: 'Full Day', no: 'LK-1', mode: 'KM', closingKm: 260 }] })).ok, true);
+  // Diesel Issue: add, change (also when only the NEW date is open), delete – refused
+  assert.match(tryIt(() => run('x => saveDieselIssue_(x)', { date: '2026-04-20', shift: 'Day', source: 'Dispenser', no: 'LK-1', qty: 10, kmReading: 200, force: true })).err, closed);
+  assert.match(tryIt(() => run('(id, x) => updateDieselIssue_(id, x)', di.id, { date: '2026-05-01', shift: 'Day', source: 'Dispenser', no: 'LK-1', qty: 30, kmReading: 100, force: true })).err, closed);
+  assert.match(tryIt(() => run('id => deleteDieselIssue_(id)', di.id)).err, closed);
+  // Diesel Inward: add in April and delete the April one – refused
+  assert.match(tryIt(() => run('x => saveInward_(x)', { date: '2026-04-28', location: 'Dispenser', pump: 'Pump', qty: 100, rate: 100, billNo: 'LK2', billDate: '2026-04-28' })).err, closed);
+  assert.match(tryIt(() => run('id => deleteInward_(id)', inw.id)).err, closed);
+  // … an inward of May whose pump bill is dated in April is fine (only the entry date is closed)
+  assert.strictEqual(tryIt(() => run('x => saveInward_(x)', { date: '2026-05-02', location: 'Dispenser', pump: 'Pump', qty: 100, rate: 100, billNo: 'LK3', billDate: '2026-04-29' })).ok, true);
+  // nothing was changed by the refused attempts
+  assert.deepStrictEqual(run('f => getLogBookList_(f)', { from: '2026-04-01', to: '2026-04-30', no: 'LK-1', all: true }).rows.map(r => [r.date, r.okm, r.ckm]), [['2026-04-10', 100, 200]]);
+  // the Admin reopens: the April entry can be corrected again
+  assert.deepStrictEqual(run('x => saveBooksLock_(x)', { upto: '' }), { ok: true, upto: '', was: '2026-04-30' });
+  assert.strictEqual(tryIt(() => run('(k, l) => updateLogRow_(k, l)', 'LK-1|2026-04-10|Full Day', { closingKm: 210, work: '' })).ok, true);
 });
