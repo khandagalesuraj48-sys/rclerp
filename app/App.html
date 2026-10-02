@@ -8141,7 +8141,12 @@
   function liveMsg(el) {
     const v = String(el.value || '').trim(), f = el.dataset ? (el.dataset.f || '') : '';
     if (!el.closest('.panel[data-perm], #lg_in, #le_box, #dn_new, #v_form, #b_form')) return '';
-    if (el.type === 'date' && v && S.today && v > S.today) return 'Date ' + showDate(v) + ' is after today (' + showDate(S.today) + '). Entries can be made only up to today.';
+    /* "after today" is wrong ONLY for the date of an entry (diesel, inward, transfer, Log Book, tank check, breakdown report,
+     * payment, debit note) – the same dates the server limits. Validity dates (BOQ Valid From / To, Work Order Date, vehicle
+     * papers "valid upto", Active / Inactive From) may lie in the future and are NOT checked here. */
+    const ENTRY_DATES = ['d_date', 'bd_date', 'i_date', 'i_billdate', 't_date', 'tc_date', 'bk_date', 'py_date', 'dn_date', 'lg_top_date'];
+    if (el.type === 'date' && v && S.today && v > S.today && (ENTRY_DATES.indexOf(el.id) > -1 || (f === 'date' && el.closest('#lg_in'))))
+      return 'Date ' + showDate(v) + ' is after today (' + showDate(S.today) + '). Entries can be made only up to today.';
     if (el.id === 'd_no' && v && !findMachine(v)) return '"' + v + '" is not in Master.';
     if (el.type === 'number' && v !== '' && Number(v) < 0) return 'Amount cannot be below 0.';
     const tr = el.closest('#lg_in .lrow');

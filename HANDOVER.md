@@ -343,6 +343,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Also that day: Chrome "Page Unresponsive" on the loading screen one minute after his push; not reproduced (reload here: 1–5 s). His
   console showed only an error of the BetterBugs extension (content.bundle.js, Sentry) – a page-recording extension is my main suspect for
   the freezes on his machine; asked him to try an Incognito window. NOT PROVEN.
+- 02-10-2026: MY MISTAKE in the on-the-spot checks: `liveMsg` called every future date in an entry form wrong, so BOQ "Valid To"
+  01-01-2027 was flagged. Fixed: the check applies only to real entry dates (`ENTRY_DATES` in liveMsg + the Log Book row date) – the
+  same dates the server limits with `entryDate_`. `test/browser/dates.js` sets every date field of every page to a future date and lists
+  which complain (only payment, inward date + bill date, transfer, diesel issue). Validity dates must never be checked for "after today".
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
