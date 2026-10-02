@@ -355,6 +355,20 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   times, drop-downs, tick boxes, passwords, the sign-in screen and locked boxes are left out. While it is open the keyboard belongs to it
   (focus is pulled back, Esc does not close a dialog underneath). A box whose text is cut shows the whole text on hover (title).
   Names of grid boxes come from `GRID_NAMES` (data-f → name) – add a line there for a new grid field. Test: `test/browser/big.js` (18).
+- 02-10-2026: he reported: "the tab is left open 5–10 minutes without a touch → the app looks frozen → when I press the tab it loads a bit
+  and then works; I want it smooth always". NOT REPRODUCED here (a page left alone answers at once in the rig). Two things can produce
+  exactly this and neither is in the app's own code: (a) Chrome's Memory Saver puts an unused tab to sleep and LOADS IT AGAIN when the tab
+  is clicked; (b) the first call after a pause waits for a server that has gone cold / a connection that was dropped. Built for both:
+  * `#rcl_wait` (bridge, server/page.js `waitBar`): a thin moving bar at the top when a call (not the 2-second check) takes longer than
+    0.5 s, and "Waiting for the server… N s" after 2.5 s – a slow answer no longer looks like a frozen app; the page stays usable.
+  * A tab that was discarded (`document.wasDiscarded`) opens the page the person was on (`rcl_last`, written by showTab) instead of the
+    Dashboard, and once a day shows a blue information card (FIX rule "put this tab to sleep", 3 languages) with the Chrome setting:
+    Settings → Performance → "Always keep these sites active" → rclerp.vercel.app. `fixCard(text, 'info')` = blue card that a success
+    toast does not close.
+  * The tab holds a shared Web Lock (`rcl-fleet-erp-open`) – Chrome does not FREEZE a tab that holds a lock (it may still discard it);
+    the `resume` event asks the server at once.
+  ASKED HIM to add the site to Chrome's "always keep active" list and to tell me what the bar shows (seconds) the next time it happens.
+  If the seconds are high after pauses, the cause is the server side (Vercel plan / cold start) and needs a keep-warm or a paid plan.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

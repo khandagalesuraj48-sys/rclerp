@@ -56,6 +56,21 @@ const BRIDGE = `
       .then(function (j) { landed(false); if (!isQ) saveNo++; try { took(name, args, Date.now() - t0); if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('← ' + (name === 'api' ? args[1] : name) + ' ' + (Date.now() - t0) + ' ms' + (j && j.error ? ' ERROR' : '')); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(j.result); },
             function (e) { landed(true); if (fail) fail(new Error(e && /did not answer|Too much data/.test(e.message) ? e.message : 'No connection to the server – check the internet and try again.')); });
   }
+  /* A thin bar at the top of the app while it waits for the server longer than half a second, and the seconds once it is
+   * more than 2.5 s. A slow answer (a server that had gone to sleep, a weak connection) must never look like a frozen app:
+   * the page itself stays usable, and the person sees that it is waiting and for how long. The 2-second check is not shown. */
+  if (window.parent !== window) (function waitBar() {
+    var bar = null;
+    setInterval(function () {
+      var now = Date.now(), oldest = 0;
+      for (var k in inFlight) { var x = inFlight[k]; if (x.fn === 'sync' || x.fn === 'getAppBuild') continue; if (now - x.t0 > oldest) oldest = now - x.t0; }
+      if (oldest > 500) {
+        if (!bar) { if (!document.body) return; bar = document.createElement('div'); bar.id = 'rcl_wait'; bar.innerHTML = '<i></i><span></span>'; document.body.appendChild(bar); }
+        bar.hidden = false; var s = bar.lastChild, txt = oldest > 2500 ? 'Waiting for the server… ' + Math.round(oldest / 1000) + ' s' : '';
+        if (s.textContent !== txt) s.textContent = txt; s.hidden = !txt;
+      } else if (bar && !bar.hidden) bar.hidden = true;
+    }, 250);
+  })();
   function runner(ok, fail) {
     return new Proxy({}, { get: function (t, name) {
       if (name === 'withSuccessHandler') return function (f) { return runner(f, fail); };
