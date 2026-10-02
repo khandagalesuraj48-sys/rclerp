@@ -1756,6 +1756,21 @@
   }
   @container (max-width: 1149px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 3 / span 4; grid-row: 4; } }
   @media (max-width: 760px) { .lg-wrap tr.lrow > td.c-debit { grid-column: 1 / -1; } .lg-wrap tr.lrow > td.c-debit::before { content: "Debit to"; flex: 0 0 100%; } .lg-wrap tr.lrow > td.c-debit { flex-wrap: wrap; } }
+  /* ---------- the big box: any typing box opened large (double-click, F2 or ⤢) ---------- */
+  #bigbox { position: fixed; inset: 0; z-index: 10000; background: rgba(12,26,46,.5); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  #bigbox[hidden] { display: none; }
+  #bigbox .bb-card { width: min(720px, 100%); background: #fff; border-radius: 16px; box-shadow: 0 24px 60px rgba(12,26,46,.35); padding: 18px 20px 16px; }
+  #bigbox .bb-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; } #bigbox .bb-head b { font: 700 17px/1.25 var(--disp2, var(--ui)); color: #0F1B2D; }
+  #bigbox #bb_count { margin-left: auto; font-size: 12px; color: #5B6B80; white-space: nowrap; }
+  #bigbox .bb-ed { display: block; width: 100%; box-sizing: border-box; font: 400 18px/1.5 var(--ui), "Nirmala UI", sans-serif; color: #0F1B2D; border: 1.5px solid #1D55E2; border-radius: 12px; padding: 12px 14px; outline: 0; box-shadow: 0 0 0 4px rgba(29,85,226,.12); background: #fff; }
+  #bigbox textarea.bb-ed { min-height: 150px; resize: vertical; } #bigbox input.bb-ed { height: 56px; } #bigbox input.bb-num { font: 700 26px var(--disp2, var(--ui)); font-variant-numeric: tabular-nums; }
+  #bigbox .bb-foot { display: flex; align-items: center; gap: 10px; margin-top: 14px; } #bigbox .bb-keys { margin-left: auto; margin-right: 6px; font-size: 12px; color: #8A97A8; }
+  #bigbox .btn { min-height: 40px; padding: 0 18px; border-radius: 10px; font: 600 14px var(--ui); border: 1px solid #D5DCE6; background: #fff; color: #0F1B2D; cursor: pointer; }
+  #bigbox .btn.primary { background: #F2A900; border-color: #D99700; color: #2B1E00; }
+  #bb_tip { position: fixed; z-index: 9000; width: 19px; height: 19px; padding: 0; border: 1px solid #1D55E2; border-radius: 50%; background: #1D55E2; color: #fff; font: 700 11px/1 var(--ui); cursor: pointer; display: grid; place-items: center; box-shadow: 0 2px 6px rgba(12,26,46,.25); }
+  #bb_tip[hidden] { display: none; } #bb_tip:hover { background: #1543B8; border-color: #1543B8; }
+  @media (max-width: 760px) { #bigbox { align-items: flex-end; padding: 0; } #bigbox .bb-card { border-radius: 16px 16px 0 0; } #bigbox .bb-keys { display: none; } }
+
   /* ---------- meter not working: the "No reading" button, the estimate, the reason, "new meter" ---------- */
   .way .wy.nrd { border-color: #F0C36D; color: #8A5A00; } .way .wy.nrd.on { background: #B45309; border-color: #B45309; color: #fff; }
   .lrow .rd.nr small { color: #8A5A00; font-weight: 700; } .lrow .rd.nr input { border-color: #F0C36D !important; background: #FFFBEC !important; }
@@ -4209,7 +4224,7 @@
   $('cf_ok').addEventListener('click', () => closeConfirm(true));
   $('cf_cancel').addEventListener('click', () => closeConfirm(false));
   $('cf_back').addEventListener('click', e => { if (e.target === $('cf_back')) closeConfirm(false); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('cf_back').hidden) closeConfirm(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('cf_back').hidden && !($('bigbox') && !$('bigbox').hidden)) closeConfirm(false); });
   // Table of what will change: [[label, old, new], ...] (only changed fields)
   function changeTable(rows) {
     return '<table><thead><tr><th>Field</th><th>Now</th><th>New</th></tr></thead><tbody>' +
@@ -8134,6 +8149,98 @@
       (n.remark ? '<div class="dnp-note">' + esc(n.remark) + '</div>' : '') +
       '<div class="dnp-sign"><span>Accepted by – ' + esc(v.name || n.vendor || '') + '</span><span>For ' + esc(n.company || '') + '</span></div></div>';
   }
+  /* ================= THE BIG BOX: any typing box of the app can be opened large =================
+   * Asked 02-10-2026: the boxes are small – a long text cannot be read or corrected in them.
+   * Everywhere in the app (entry forms, grids, edit windows, filters), without any code per field:
+   *   – double-click in a box, or press F2 in it, or press the small ⤢ that appears at its right edge when the box has the
+   *     keyboard or its text is longer than the box;
+   *   – a large box opens with the same text: edit it, then Save (Ctrl + Enter), Cancel (Esc) or Clear.
+   * Save puts the text back into the small box and tells the page exactly as if it had been typed there (input + change),
+   * so every rule, calculation and on-the-spot check runs as usual. Nothing is saved to the server by the box itself.
+   * A box with a pick-list keeps its list in the large box; a number box stays a number box.
+   * Not for: dates, times, drop-downs, tick boxes, passwords, the sign-in screen, boxes that cannot be changed.
+   * Hovering a box whose text is cut shows the whole text. */
+  (function bigBox() {
+    const okEl = el => !!el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && ['text', 'search', 'number', 'tel', 'email', 'url', ''].indexOf((el.getAttribute('type') || '').toLowerCase()) > -1)) &&
+      !el.readOnly && !el.disabled && !el.closest('#login_screen, #bigbox') && el.offsetParent !== null;
+    // what the box is called: its label, the heading of its column, or what is written inside it when empty
+    // names of the boxes inside grids (their column headings are shared by several boxes)
+    const GRID_NAMES = { openingKm: 'Start KM', closingKm: 'Close KM', openingHr: 'Start Hrs', closingHr: 'Close Hrs', estKm: 'Estimated KM (no reading)', estHr: 'Estimated hours (no reading)', meterNote: 'Why there is no reading',
+      trip: 'Trips', challan: 'Challan No', chFrom: 'Chainage from', chTo: 'Chainage to', work: 'Work description', remark: 'Particular', debitTo: 'Debit to (party)', debitRate: 'Debit rate', openingDiesel: 'Opening diesel (Ltr)', tBreak: 'Break (minutes)' };
+    const nameOf = el => { let t = '';
+      if (el.dataset && GRID_NAMES[el.dataset.f]) t = GRID_NAMES[el.dataset.f];
+      if (!t && el.id) { const l = document.querySelector('label[for="' + el.id + '"]'); if (l) t = l.textContent; }
+      if (!t) { const f = el.closest('.field'); const l = f && f.querySelector('label'); if (l) t = l.textContent; }
+      if (!t && el.getAttribute('aria-label')) t = el.getAttribute('aria-label');
+      if (!t) { const td = el.closest('td'); if (td && td.dataset.th) t = td.dataset.th;
+        if (!t && td) { const tb = td.closest('table'), hr = tb && tb.tHead && tb.tHead.rows[0];        // the heading above this cell (merged headings counted)
+          if (hr) { let col = 0; for (const c of td.parentNode.cells) { if (c === td) break; col += c.colSpan || 1; } let at = 0; for (const h of hr.cells) { const w = h.colSpan || 1; if (col < at + w) { t = h.textContent; break; } at += w; } } } }
+      if (!t) t = el.placeholder || el.title || 'Text';
+      return String(t).replace(/\*/g, '').replace(/\s+/g, ' ').trim().slice(0, 70); };
+    let target = null;
+    const back = document.createElement('div'); back.id = 'bigbox'; back.hidden = true;
+    back.innerHTML = '<div class="bb-card" role="dialog" aria-modal="true" aria-labelledby="bb_title"><div class="bb-head"><b id="bb_title"></b><span id="bb_count"></span></div><div id="bb_field"></div>' +
+      '<div class="bb-foot"><button type="button" class="btn ghost" id="bb_clear" title="Empty the box (then Save)">Clear</button><span class="bb-keys">Ctrl + Enter = Save · Esc = Cancel</span><button type="button" class="btn ghost" id="bb_cancel">Cancel</button><button type="button" class="btn primary" id="bb_save">Save</button></div></div>';
+    document.body.appendChild(back);
+    const fieldBox = back.querySelector('#bb_field'), count = back.querySelector('#bb_count');
+    const editor = () => fieldBox.querySelector('textarea, input');
+    const showCount = () => { const ed = editor(); if (!ed) return; const max = Number(ed.getAttribute('maxlength')) || 0; count.textContent = ed.value.length + (max > 0 ? ' / ' + max : '') + ' characters'; };
+    function open(el) {
+      if (!okEl(el)) return; target = el;
+      back.querySelector('#bb_title').textContent = nameOf(el);
+      const num = (el.getAttribute('type') || '').toLowerCase() === 'number', list = el.getAttribute('list');
+      let ed;
+      if (num || list) { ed = document.createElement('input'); ed.type = num ? 'number' : 'text'; ['step', 'min', 'max', 'list', 'maxlength', 'placeholder'].forEach(a => { if (el.hasAttribute(a)) ed.setAttribute(a, el.getAttribute(a)); }); ed.autocomplete = 'off'; }
+      else { ed = document.createElement('textarea'); ed.rows = 5; ['maxlength', 'placeholder'].forEach(a => { if (el.hasAttribute(a)) ed.setAttribute(a, el.getAttribute(a)); }); if (el.style.textTransform) ed.style.textTransform = el.style.textTransform; }
+      ed.value = el.value; ed.className = 'bb-ed' + (num ? ' bb-num' : ''); fieldBox.innerHTML = ''; fieldBox.appendChild(ed);
+      ed.addEventListener('input', showCount); showCount(); hideTip();
+      back.hidden = false; ed.focus(); try { if (!num) ed.setSelectionRange(ed.value.length, ed.value.length); } catch (e) {}
+      setTimeout(() => { if (!back.hidden && document.activeElement !== ed) ed.focus(); }, 30);
+    }
+    function close(save) {
+      const el = target, ed = editor(); target = null; back.hidden = true;
+      if (save && el && ed) {
+        // a one-line box stays one line: line breaks typed in the large box become spaces
+        const v = el.tagName === 'TEXTAREA' ? ed.value : ed.value.replace(/\s*\n\s*/g, ' ').trim();
+        if (v !== el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }
+      }
+      if (el && el.isConnected) { try { el.focus(); } catch (e) {} }
+    }
+    back.querySelector('#bb_save').addEventListener('click', () => close(true));
+    back.querySelector('#bb_cancel').addEventListener('click', () => close(false));
+    back.querySelector('#bb_clear').addEventListener('click', () => { const ed = editor(); if (ed) { ed.value = ''; showCount(); ed.focus(); } });
+    back.addEventListener('mousedown', e => { if (e.target === back) close(false); });
+    // while the large box is open the keyboard belongs to it, wherever the cursor happens to be
+    document.addEventListener('keydown', e => { if (back.hidden) return; const ed = editor(); if (!ed) return;
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(false); return; }
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || ed.tagName === 'INPUT')) { e.preventDefault(); e.stopPropagation(); close(true); return; }
+      if (!back.contains(document.activeElement)) ed.focus(); }, true);
+    document.addEventListener('focusin', e => { if (!back.hidden && !back.contains(e.target) && editor()) editor().focus(); });
+    // how it is opened: double-click, F2, or the small button
+    document.addEventListener('dblclick', e => { const el = e.target; if (back.hidden && okEl(el)) { e.preventDefault(); open(el); } });
+    document.addEventListener('keydown', e => { if (e.key === 'F2' && back.hidden && okEl(document.activeElement)) { e.preventDefault(); open(document.activeElement); } });
+    // the small ⤢ at the right edge of the box that has the keyboard (or whose text is cut); one button for the whole app
+    const tip = document.createElement('button'); tip.type = 'button'; tip.id = 'bb_tip'; tip.hidden = true; tip.textContent = '⤢'; tip.title = 'Open this box large (also: double-click, or F2)'; tip.setAttribute('aria-label', 'Open this box large'); tip.tabIndex = -1;
+    document.body.appendChild(tip);
+    let tipFor = null;
+    function hideTip() { tip.hidden = true; tipFor = null; }
+    function placeTip(el) { if (!okEl(el) || !back.hidden || (el.getAttribute('type') || '').toLowerCase() === 'number') { hideTip(); return; }
+      const r = el.getBoundingClientRect(); if (r.width < 30) { hideTip(); return; }
+      // on the top right corner of the box, half outside it, so that it never covers what is typed
+      tipFor = el; tip.hidden = false; tip.style.top = Math.round(r.top - 9) + 'px'; tip.style.left = Math.round(r.right - 13) + 'px'; }
+    document.addEventListener('focusin', e => { if (!tip.contains(e.target)) placeTip(e.target); });
+    document.addEventListener('focusout', () => { setTimeout(() => { if (document.activeElement !== tip && !okEl(document.activeElement)) hideTip(); }, 120); });
+    tip.addEventListener('mousedown', e => { e.preventDefault(); const el = tipFor; hideTip(); if (el) open(el); });
+    // the page scrolled or changed size: the button follows its box (or goes when the box no longer has the keyboard)
+    const follow = () => { if (tip.hidden) return; if (tipFor && document.activeElement === tipFor) placeTip(tipFor); else hideTip(); };
+    window.addEventListener('scroll', follow, true); window.addEventListener('resize', follow);
+    // a box whose text is cut shows the whole text when the mouse rests on it
+    document.addEventListener('mouseover', e => { const el = e.target; if (!el || el.tagName !== 'INPUT' || !el.value) return;
+      if (el.scrollWidth > el.clientWidth + 2) { if (!el.dataset.bbT) el.dataset.bbT = el.title || ' '; el.title = el.value; }
+      else if (el.dataset.bbT) { el.title = el.dataset.bbT.trim(); delete el.dataset.bbT; } });
+    window.rclBigBox = open;
+  })();
+
   /* ================= ON-THE-SPOT CHECKS: a wrong value is pointed out the moment the field is left =================
    * (before Save – the server checks everything again on Save, these only tell the person earlier.)
    * The message is the same English line the server would give, so the help card explains it in the chosen language.

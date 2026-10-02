@@ -347,6 +347,14 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   01-01-2027 was flagged. Fixed: the check applies only to real entry dates (`ENTRY_DATES` in liveMsg + the Log Book row date) – the
   same dates the server limits with `entryDate_`. `test/browser/dates.js` sets every date field of every page to a future date and lists
   which complain (only payment, inward date + bill date, transfer, diesel issue). Validity dates must never be checked for "after today".
+- 02-10-2026: he asked that every typing box can be opened large (boxes are small, long text cannot be read): "a button next to the
+  box, or double-click – your call". BUILT = `bigBox()` in App.html (one generic piece, no code per field): double-click in a box, F2, or
+  the small round ⤢ that sits on the top-right corner of the box that has the keyboard → a large box (`#bigbox`) with the field's name,
+  the text, a character count, and Save (Ctrl + Enter) / Cancel (Esc) / Clear. Save writes the value back and fires `input` + `change`
+  on the small box, so all page logic runs as if typed there. A pick-list box keeps its list, a number box stays a number box; dates,
+  times, drop-downs, tick boxes, passwords, the sign-in screen and locked boxes are left out. While it is open the keyboard belongs to it
+  (focus is pulled back, Esc does not close a dialog underneath). A box whose text is cut shows the whole text on hover (title).
+  Names of grid boxes come from `GRID_NAMES` (data-f → name) – add a line there for a new grid field. Test: `test/browser/big.js` (18).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
