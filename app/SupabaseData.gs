@@ -26,8 +26,19 @@ SbBook_.prototype.getId = function () { return 'supabase'; };
 SbBook_.prototype.toast = function () {};
 // read several tables at once (parallel calls)
 SbBook_.prototype.loadMany = function (tables) {
-  const need = tables.map(t => this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t)))).filter(s => !s.loaded);
+  let need = tables.map(t => this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t)))).filter(s => !s.loaded);
   if (!need.length) return;
+  /* On the web server the tables live in the server's memory and are only brought up to date with what changed
+   * (server/gas.js → makeWarm): no whole table is read or parsed for a request. The rows handed over are SHARED with
+   * later requests – fill() copies what it needs and never changes them. A table the memory does not keep
+   * (the Activity Log) goes the old way below. */
+  if (typeof __warm === 'object' && __warm) {
+    const names = need.map(s => s.def.table);
+    const got = __warm.load(names, names.some(t => SB_GROUP_.indexOf(t) > -1) ? SB_GROUP_ : []) || {};
+    need.forEach(s => { if (got[s.def.table]) s.fill(got[s.def.table]); });
+    need = need.filter(s => !s.loaded);
+    if (!need.length) return;
+  }
   // fast path: the same tables were read a moment ago and nothing has changed since (same data version) –
   // take them from the script cache instead of asking Supabase. Saves never use this: they always read fresh.
   const useCache = SB_DEPTH_ === 0 && tables === SB_GROUP_;
@@ -119,19 +130,37 @@ function SbSheet_(book, def) {
 }
 SbSheet_.prototype.load_ = function () {
   if (this.loaded) return;
+  // with the tables in the server's memory there is nothing to gain from reading the six main ones together: only the one that is asked for
+  if (typeof __warm === 'object' && __warm) { this.book.loadMany([this.def.table]); if (this.loaded) return; }
   if (SB_GROUP_.indexOf(this.def.table) > -1) this.book.loadMany(SB_GROUP_); else this.fill(sbAllRows_(this.def.table));
 };
 // Supabase rows → sheet rows (dates as Date, numbers as numbers, empty as '')
 SbSheet_.prototype.fill = function (rows) {
-  const toCell = (v, t) => {
-    if (v === null || v === undefined) return '';
-    if (t === 'date') return new Date(String(v).slice(0, 10) + 'T00:00:00+05:30');
-    if (t === 'timestamptz') { const d = new Date(v); return isNaN(d) ? '' : d; }
-    if (t === 'numeric') return Number(v);
-    return v;
-  };
-  this.data = rows.map(r => this.hdr.map(h => h === this.idh ? r.id : toCell(r[(this.def.cols.find(x => x[0] === h) || [])[1]], this.type[h])));
-  this.ids = rows.map(r => r.id);
+  /* Every request turns the rows it needs into the app's table form, so this loop is the busiest piece of the server
+   * (measured 04-10-2026). It is written plainly for speed: the column of every heading and its kind are looked up once for
+   * the table, then one pass over the rows. What a cell becomes is unchanged: empty → '', a date → Date (00:00 India time),
+   * a time stamp → Date, a number → Number, text as it is; a cell that holds an object (a JSON column) is COPIED, because
+   * the rows may be the server's shared copy and must never be changed from here. */
+  const n = this.hdr.length, keys = new Array(n), kinds = new Array(n);
+  for (let i = 0; i < n; i++) { const h = this.hdr[i];
+    if (h === this.idh) { keys[i] = null; kinds[i] = 0; continue; }
+    keys[i] = (this.def.cols.find(x => x[0] === h) || [])[1]; const t = this.type[h];
+    kinds[i] = t === 'date' ? 1 : t === 'timestamptz' ? 2 : t === 'numeric' ? 3 : 4; }
+  const len = rows.length, data = new Array(len), ids = new Array(len);
+  for (let k = 0; k < len; k++) {
+    const r = rows[k], row = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const kind = kinds[i]; if (kind === 0) { row[i] = r.id; continue; }
+      const v = r[keys[i]];
+      if (v === null || v === undefined) row[i] = '';
+      else if (kind === 4) row[i] = typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v;
+      else if (kind === 3) row[i] = Number(v);
+      else if (kind === 1) row[i] = new Date(String(v).slice(0, 10) + 'T00:00:00+05:30');
+      else { const dt = new Date(v); row[i] = isNaN(dt) ? '' : dt; }
+    }
+    data[k] = row; ids[k] = r.id;
+  }
+  this.data = data; this.ids = ids;
   // the columns the database really has (from the rows it sent). A column the app knows but the database does not have yet –
   // its SQL step was not run – is left out of every save, so nothing breaks; it starts to be saved once the SQL is run.
   if (rows.length) this.dbCols = Object.keys(rows[0]);

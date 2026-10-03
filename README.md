@@ -120,3 +120,10 @@ Backup लिहिण्यासाठी Google चे एक "service accoun
 - App server ला "काही बदलले का" असे काम चालू असताना दर 2 सेकंदांनी, page नुसते उघडे असताना दर 5–15 सेकंदांनी विचारते. Vercel वर हे calls मोजले जातात; users वाढले की Usage page वर लक्ष ठेवा.
 - एका उत्तरात साधारण 4.5 MB पेक्षा जास्त data Vercel पाठवत नाही; खूप मोठ्या कालावधीची यादी मागितली तर "pick a shorter period" असा संदेश येतो.
 - Sidebar चे रंग `app/App.html` मध्ये "LOOK 2026-10" या भागाच्या सुरुवातीला एका ठिकाणी आहेत (`--sb-…`).
+
+
+## वेग (04-10-2026)
+
+Server आता tables memory मध्ये ठेवतो आणि फक्त बदललेल्या ओळी आणतो; दर 2 सेकंदांचा "काही नवीन?" प्रश्न memory मधून उत्तरतो. अडचण आल्यास Vercel → Settings → Environment Variables मध्ये `RCL_WARM` = `off` ठेवून Redeploy करा: जुनी पद्धत परत येते.
+
+एका site वर किती लोक सुरळीत चालतात ते TEST प्रतीवर मोजण्यासाठी: `node test/load-site.js <link> <e-mail> <password> 100 120` (live site वर चालवू नका).

@@ -88,7 +88,7 @@ function run(fn, args, meta) {
 }
 function runPlain(fn, args, meta) {
   const st = gas.newState(meta);
-  gas.boot(st, bootKeys(fn, args));
+  gas.boot(st, bootKeys(fn, args), fn === 'api' && String(args[1]) === 'sync');      // the heartbeat may be answered from memory (see gas.boot)
   const g = gas.makeGlobals(st, page());
   g.__BUILD = page().build;
   // an exact counter (step-3 SQL). -1 = not installed → the app's code falls back to its old way of counting

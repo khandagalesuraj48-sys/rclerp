@@ -611,6 +611,34 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     ANY script error, also for a signed-in user at work. It now acts only until somebody is signed in; after that `reportErr` reports
     the fault and the user stays where he is.
   * Tests: unit "faults …" (24 unit tests), `test/browser/new3.js` (16, with the database).
+- 04-10-2026: SPEED FOR MANY USERS. He: "even with 3,000 users everything must run smoothly" → clarified: 3,000 over ALL sites, each
+  site (its own copy) at least 100 users, "no load, no hang". WHAT WAS WRONG: a table was read whole (and parsed) whenever ANYTHING had
+  changed anywhere (one stamp for all tables); every save read all main tables again; every heartbeat asked the database.
+  * TABLES IN MEMORY, UPDATED BY CHANGES (server/gas.js `makeWarm`, exposed to the app code as `__warm`; used in SupabaseData.gs
+    `loadMany` / `load_`): per server instance each table is kept as rows in id order (JS string order – the same on every instance);
+    stamp unchanged → nothing asked; else rows with `updated_at` > (time of the last answer on the database's clock – its HTTP Date
+    header – less 15 s, less the duration of a first read) + ids from `deleted_rows` (paged to the end); a table not yet held is
+    read whole by id (keyset pages); ≥ 1,000 changed rows → whole; whole again every 15 minutes; > 250,000 rows not kept;
+    activity_log not kept. Only the table that is asked for is filled; the main tables are brought up to date in one round trip.
+    The rows are SHARED between requests – `fill` copies (JSON cells too) and never changes them. `fill` rewritten as plain loops.
+    Kill switch: environment variable RCL_WARM=off (old way: whole tables, heartbeat from the database).
+  * HEARTBEAT FROM MEMORY (`gas.boot(st, keys, light)`, `BEAT`): `sync` is answered from this server's memory when the shared part
+    (settings / versions / users list / stamp) is ≤ 1 s old and the session ≤ 20 s (its remaining time counted down); a save on this
+    server resets it; an ended session is forgotten at once. 40 heartbeats: 0 database calls (was 40).
+  * A bug found by profiling the first version: a long list of deletions (≥ 1,000 in the overlap window) forced a whole-table read on
+    EVERY request – fixed (the deletion list is paged; the window is time-based).
+  * MEASURED on the rig (ONE processor core for app servers, database, gateway and the load generator – absolute times are
+    pessimistic): single calls at 25,221 Log Book rows, old → new: list 618 → 89 ms, start-up 661 → 113 ms, diesel save 1,395 → 247 ms.
+    20 people hammering (25k rows): 2 → 11 calls/s, read 10.6 s → 1.2 s. Realistic use (heartbeat 2 s, list 15 s, save 90 s per
+    person): 30 people – list half under 0.2 s, save 0.5 s; 50 people – 0.2 s / 0.5 s (95% of saves under 2.6 s); 100 people – the
+    one core is saturated (heartbeats ~3 s), nothing fails. NOT measured on Vercel + Supabase.
+  * STILL TRUE: saves go one at a time over the whole site (web_lock 'script', ~0.25 s each here → 3–4 a second); per request ~70–90 ms
+    of the server's own work at 3,600–25,000 Log Book rows (turning rows into the app's tables + the logic); memory per instance
+    grows with the data (6 pool workers each hold the tables).
+  * `test/load-site.js <link> <e-mail> <password> [people] [seconds]` – the realistic test against any TEST copy (never the live
+    site); makes LD-00…39, a diesel receipt and diesel issues, deletes the issues and the receipt at the end.
+  * Tests: `test/browser/warm.js` (12: two servers with separate memories agree with the database after changes through either, edits
+    straight in the database, delete + re-enter, 2,500 rows at once); all earlier suites pass on the new path (audit 40, reg 11, …).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
