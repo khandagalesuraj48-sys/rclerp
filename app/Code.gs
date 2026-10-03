@@ -5066,20 +5066,28 @@ function fillDays_(no) {
   Object.keys(f).forEach(k => { if (!(f[k] > 0)) delete f[k]; });
   return f;
 }
-/* KM + Hrs machinery (vehicle engine + working engine) get one diesel figure for both.
- * The diesel is split between the KM part and the Hrs part in the ratio the Standard Average says each part needs
- *   (KM ÷ km/L  :  Hrs × L/hr), and each part gets its own actual average:  km/L = KM ÷ its diesel,  L/hr = its diesel ÷ Hrs.
- * Only KM worked → all diesel is the KM part; only Hrs worked → all diesel is the Hrs part. */
+/* KM + Hrs machinery – TWO ENGINES, ONE TANK (a transit mixer: the vehicle engine runs by KM, the drum engine by hours).
+ * Rule set by the MD on 03-10-2026, for transit mixers and every such machinery that comes later:
+ *   the working (hour) engine is taken AT ITS STANDARD:   its diesel = Hrs × L/hr
+ *   what is left of the diesel is the vehicle engine's:   km/L = KM ÷ (diesel − Hrs × L/hr)
+ * So the hour figure that is shown is the standard itself (marked "std") and the whole difference shows in km/L.
+ * (Before, the diesel was shared between the two in the ratio of their standard needs, so both figures moved together.)
+ * What does NOT change: "High / Low consumption" and the excess diesel of a bill compare the diesel with the total need
+ * (KM ÷ km/L + Hrs × L/hr) – they are the same under both ways.
+ *   - no hours worked, or no hour standard in the Master → all the diesel is the vehicle engine's: km/L = KM ÷ diesel
+ *   - only hours worked (no KM)                           → L/hr = diesel ÷ Hrs (the real figure, nothing to take away)
+ *   - the hours alone need as much as / more than the diesel given → nothing is left for the vehicle engine; no average
+ *     is made up – the text says it, so that the readings are checked. */
 function dualAvg_(diesel, km, hr, kmStd, hrStd) {
   km = num0_(km); hr = num0_(hr); kmStd = num0_(kmStd); hrStd = num0_(hrStd); diesel = num0_(diesel);
-  if (!(diesel > 0) || !(km > 0 || hr > 0)) return { text: '', kmpl: '', lph: '' };
-  let dKm, dHr;
-  const needKm = km > 0 && kmStd > 0 ? km / kmStd : 0, needHr = hr > 0 && hrStd > 0 ? hr * hrStd : 0;
-  if (needKm + needHr > 0) { dKm = diesel * needKm / (needKm + needHr); dHr = diesel * needHr / (needKm + needHr); }
-  else if (km > 0 && hr > 0) return { text: '', kmpl: '', lph: '' }; // no standard to split by
-  else { dKm = km > 0 ? diesel : 0; dHr = hr > 0 ? diesel : 0; }
-  const kmpl = km > 0 && dKm > 0 ? r2_(km / dKm) : '', lph = hr > 0 && dHr > 0 ? r2_(dHr / hr) : '';
-  return { kmpl: kmpl, lph: lph, text: [kmpl !== '' ? kmpl + ' km/L' : '', lph !== '' ? lph + ' L/hr' : ''].filter(Boolean).join(' + ') };
+  const none = { text: '', kmpl: '', lph: '', hrDiesel: '', kmDiesel: '' };
+  if (!(diesel > 0) || !(km > 0 || hr > 0)) return none;
+  if (!(km > 0)) { const lph = r2_(diesel / hr); return { kmpl: '', lph: lph, hrDiesel: diesel, kmDiesel: 0, text: lph + ' L/hr' }; }
+  if (!(hr > 0) || !(hrStd > 0)) { const kmpl = r2_(km / diesel); return { kmpl: kmpl, lph: '', hrDiesel: 0, kmDiesel: diesel, text: kmpl + ' km/L' }; }
+  const dHr = r2_(hr * hrStd), dKm = r2_(diesel - dHr);
+  if (!(dKm > 0)) return { kmpl: '', lph: '', hrDiesel: dHr, kmDiesel: dKm, text: 'hours need ' + dHr + ' L, ' + r2_(diesel) + ' L given – check readings' };
+  const kmpl = r2_(km / dKm);
+  return { kmpl: kmpl, lph: hrStd, hrDiesel: dHr, kmDiesel: dKm, text: kmpl + ' km/L + ' + hrStd + ' L/hr (std)' };
 }
 function avgText_(unit, diesel, km, hr, kmStd, hrStd) {
   if (unit === 'KM') return km > 0 && diesel > 0 ? r2_(km / diesel) + ' km/L' : '';

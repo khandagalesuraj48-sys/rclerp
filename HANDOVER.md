@@ -573,6 +573,16 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Rental – he sets them. Asset report: Debit in its ownership filter and summary. Daily report: debit parties are not "without an
   entry" (the filter compared ownership with "Debit Basis" – wrong value, fixed). A Rental machinery whose BOQ says diesel on debit is
   unchanged. Tests: unit "ownership Debit …", `test/browser/debit.js` (5).
+- 03-10-2026: TRANSIT MIXER AVERAGE – TWO ENGINES, ONE TANK. His September "Monthly Diesel & Average" showed "–" for six TMs and
+  0.11 km/L + 42.07 L/hr for MH-04-KU-3332. EXPLAINED (no code fault): the TMs had no Log Book readings in September (one had a single
+  day against a month of diesel); with readings (his October example, MH-25-AJ-2169: 60 L, 102.4 km, 1.8 hr) the figure came.
+  He then SET THE RULE for transit mixers and every later two-engine / one-tank machinery (unit "KM + Hrs"): the hour engine is taken
+  at its standard (diesel = Hrs × L/hr), the rest of the diesel is the vehicle engine's (km/L = KM ÷ the rest). Before, the diesel
+  was shared in the ratio of the two standard needs. CHANGED in the ONE function `dualAvg_` (Code.gs) – every report and the Log Book
+  use it; text now "1.88 km/L + 3 L/hr (std)". Hours alone need ≥ the diesel given → no average, "hours need X L, Y L given – check
+  readings". No hours / no hour standard → km ÷ diesel; only hours → diesel ÷ hours. UNCHANGED: High / Low consumption and a bill's
+  excess diesel (they compare the diesel with the total need). Tests: unit "two engines, one tank …" (his figures: 5.4 L, 54.6 L,
+  1.88 km/L), `test/browser/tm.js` (4, the real reports with the database).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

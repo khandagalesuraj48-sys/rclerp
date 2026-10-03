@@ -553,3 +553,28 @@ test('ownership "Debit": a party that takes diesel on debit basis – its own gr
   run('(x, m, o) => saveMaster_(x, m, o)', { no: '', name: 'Debit Party X', owner: 'Debit Party X', ownership: 'debit', worksOn: ['Hrs'], hrStd: 3, status: 'Active' }, 'edit', 'Debit Party X');
   assert.deepStrictEqual(one(), ['Debit', 'Debit Basis', 'Debit Party X']);
 });
+
+test('two engines, one tank (transit mixer, KM + Hrs): the hour engine at its standard, the rest of the diesel is the vehicle engine\'s (the MD\'s rule, his figures)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const avg = (d, km, hr, ks, hs) => run('(d, km, hr, ks, hs) => dualAvg_(d, km, hr, ks, hs)', d, km, hr, ks, hs);
+  // his example (MH-25-AJ-2169, 01 to 03-10-2026): 60 L, 102.4 km, 1.8 hr, standard 1.5 km/L + 3 L/hr
+  //   drum: 1.8 × 3 = 5.4 L;  vehicle: 60 − 5.4 = 54.6 L;  102.4 ÷ 54.6 = 1.8755 → 1.88 km/L
+  let a = avg(60, 102.4, 1.8, 1.5, 3);
+  assert.deepStrictEqual([a.hrDiesel, a.kmDiesel, a.kmpl, a.lph, a.text], [5.4, 54.6, 1.88, 3, '1.88 km/L + 3 L/hr (std)']);
+  // September, MH-04-KU-3332: 1,140 L against 86.4 km and 7.9 hr → drum 23.7 L, vehicle 1,116.3 L → 0.08 km/L (the Log Book is missing most of the month)
+  a = avg(1140, 86.4, 7.9, 1.5, 3);
+  assert.deepStrictEqual([a.hrDiesel, a.kmDiesel, a.kmpl], [23.7, 1116.3, 0.08]);
+  // the hours alone need more than the diesel given: no average is made up
+  a = avg(60, 100, 25, 1.5, 3);
+  assert.deepStrictEqual([a.kmpl, a.lph, a.text], ['', '', 'hours need 75 L, 60 L given – check readings']);
+  // only KM worked / no hour standard → km ÷ diesel; only hours worked → diesel ÷ hours
+  assert.strictEqual(avg(60, 102.4, 0, 1.5, 3).text, '1.71 km/L');
+  assert.strictEqual(avg(60, 100, 5, 1.5, 0).text, '1.67 km/L');        // no hour standard in the Master: 100 ÷ 60
+  assert.strictEqual(avg(60, 0, 10, 1.5, 3).text, '6 L/hr');
+  assert.strictEqual(avg(0, 100, 5, 1.5, 3).text, '');
+  // the one-meter machinery are untouched
+  assert.strictEqual(run('() => avgText_("KM", 60, 600, 0, 10, 0)'), '10 km/L');
+  assert.strictEqual(run('() => avgText_("Hrs", 60, 0, 20, 0, 3)'), '3 L/hr');
+  assert.strictEqual(run('() => avgText_("KM + Hrs", 60, 102.4, 1.8, 1.5, 3)'), '1.88 km/L + 3 L/hr (std)');
+});
