@@ -583,6 +583,34 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   readings". No hours / no hour standard → km ÷ diesel; only hours → diesel ÷ hours. UNCHANGED: High / Low consumption and a bill's
   excess diesel (they compare the diesel with the total need). Tests: unit "two engines, one tank …" (his figures: 5.4 L, 54.6 L,
   1.88 km/L), `test/browser/tm.js` (4, the real reports with the database).
+- 03-10-2026 (evening): he asked for five things at once – faults known by themselves (Admin AND user, live), speed for a growing
+  database, entries without a network (and what when two people do the same work, one online, one not), diesel theft shown in special
+  reports, a QR code for every machinery. BUILT NOW: three. NOT BUILT: two (told him why; they need his decision / a design).
+  * FAULTS. Server: `faultKind_` (an error whose name is not "Error" = fault of the code; DB_FAULT_ = database) – caught in `api()`,
+    half-done writes dropped, written by `errLog_` (list APP_ERRORS in app_settings, last 200; the same fault once in 10 minutes;
+    stamp ERR_STAMP = today's count + last line), the user gets "The app hit a fault … not your entry … reported to the Admin".
+    `reportError` (any user) for faults of the page; `getErrors` / `clearErrors` (admin). getInit / sync give `faults` to Admins.
+    Page: `reportErr` (window error + unhandledrejection whose reason is not a plain Error), info card for the user in 3 languages,
+    pill `#err_pill` "Faults: N" for the Admin within seconds + a note, list on a press ("seen" kept per device in rcl_errseen).
+  * DIESEL WATCH (report key `watch`, `rptWatch_`): per machinery that keeps a Log Book – closed fill-to-fill cycles over the standard by
+    more than 15% and 5 L; fills with no work until the next fill; a fill over the tank capacity; a fill reading that went back or did
+    not move; tank checks that found 5 L or more less. Apart: machinery with diesel but no Log Book work in the period ("cannot be
+    checked"). A fill with two signs counts once in the totals. Debit-basis parties left out. Words: "signs", "to look at, not proof".
+  * QR LABELS: library qrcode-generator 1.4.4 (MIT, Kazuhiko Arase) minified in its own script block; Asset Master → "QR labels" (all
+    active or one; 12 per A4); the code = `<site>/?m=<id>`; `qrArrive` after getInit shows its own sheet `#qr_sheet` (Diesel Issue /
+    Log Book entry / ledger) and cleans the link. A label holds only the number; a sign-in is still needed.
+  * NOT BUILT – SPEED FOR GROWTH: measured only the present size on the rig (about 0.2 s a call at 3,600 Log Book rows). A growth test
+    by rows inserted straight into the database is NOT valid (the app serves cached table snapshots keyed by its versions) – it has to
+    be done through the app. Then: read by date window instead of whole tables. (My test's "server crashed" was my own stale socket.)
+  * NOT BUILT – ENTRIES WITHOUT A NETWORK: needs the page to open offline (service worker), start-up data kept on the device, an outbox
+    kept on the device (the rid of update-37 makes re-sending safe), and a rule for two people entering the same thing. PROPOSED RULE
+    (awaiting his yes): first to reach the server wins; the later one is kept on the device as "not accepted" with the reason and who
+    entered it, to change or discard – never overwritten silently. Diesel issues have no natural key: same machinery + date + shift +
+    litres from another user asks "already entered by X – save anyway?".
+  * FOUND WHILE TESTING: the very first error handler of the page (start of the main script) put the SIGN-IN SCREEN over the page on
+    ANY script error, also for a signed-in user at work. It now acts only until somebody is signed in; after that `reportErr` reports
+    the fault and the user stays where he is.
+  * Tests: unit "faults …" (24 unit tests), `test/browser/new3.js` (16, with the database).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

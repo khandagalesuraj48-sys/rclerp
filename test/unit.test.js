@@ -578,3 +578,24 @@ test('two engines, one tank (transit mixer, KM + Hrs): the hour engine at its st
   assert.strictEqual(run('() => avgText_("Hrs", 60, 0, 20, 0, 3)'), '3 L/hr');
   assert.strictEqual(run('() => avgText_("KM + Hrs", 60, 102.4, 1.8, 1.5, 3)'), '1.88 km/L + 3 L/hr (std)');
 });
+
+test('faults: a fault of the app or of the database is told apart from a refusal; each is written once with who / where / what, and counted for the Admin', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // what is a fault and what is not
+  assert.strictEqual(run('() => { try { null.x; } catch (e) { return faultKind_(e); } }'), 'server');                       // a TypeError of the code
+  assert.strictEqual(run('() => faultKind_(new Error("Close KM 5 cannot be less than Start KM 9."))'), '');                   // a refusal of a wrong entry: not a fault
+  assert.strictEqual(run('() => faultKind_(new Error("The database did not answer in time."))'), 'database');
+  assert.strictEqual(run('() => faultKind_(new Error("Database (web_write): 503 upstream"))'), 'database');
+  assert.strictEqual(run('() => faultKind_("Enter the Vendor Name.")'), '');
+  // written down, newest first, with the count of today for the Admin's page
+  run('() => clearErrors_()');
+  assert.strictEqual(run('x => errLog_(x)', { kind: 'server', by: 'Ramesh', email: 'r@x.test', where: 'saveLogRows', msg: 'x is not a function', detail: 'at line 1' }), true);
+  assert.strictEqual(run('(u, x) => reportError_(u, x).noted', { name: 'Sita', email: 's@x.test' }, { where: 'log', msg: 'Uncaught TypeError: y is undefined' }), true);
+  const d = run('() => getErrors_()');
+  assert.deepStrictEqual(d.errors.map(e => [e.kind, e.by, e.where, e.msg]), [['page', 'Sita', 'log', 'Uncaught TypeError: y is undefined'], ['server', 'Ramesh', 'saveLogRows', 'x is not a function']]);
+  assert.deepStrictEqual([d.stamp.n, d.stamp.last], [2, 'log: Uncaught TypeError: y is undefined']);
+  assert.strictEqual(run('x => errLog_(x)', { kind: 'page', msg: '' }), false);                                              // nothing to write
+  run('() => clearErrors_()');
+  assert.deepStrictEqual([run('() => getErrors_().errors.length'), run('() => errStamp_().n')], [0, 0]);
+});

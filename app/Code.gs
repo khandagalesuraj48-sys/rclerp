@@ -406,6 +406,9 @@ const API_ = {
   saveBooksLock:     { m: 'Machinery Billing', f: saveBooksLock_, admin: true, log: 'booksLock' },
   dbHealth:          { m: '', admin: true, f: dbHealth_ },
   saveOrgSettings:   { m: '', admin: true, f: saveOrgSettings_, log: 'org' },
+  reportError:       { m: '', withUser: true, f: (u, x) => reportError_(u, x) },
+  getErrors:         { m: '', admin: true, f: getErrors_ },
+  clearErrors:       { m: '', admin: true, f: clearErrors_ },
   getMyPrefs:        { m: '', withUser: true, f: u => getMyPrefs_(u) },
   saveMyPrefs:       { m: '', withUser: true, f: (u, x) => saveMyPrefs_(u, x) },
   saveSiteRules:     { m: '', admin: true, f: saveSiteRules_, log: 'siteRules' },
@@ -498,6 +501,7 @@ const API_ = {
   rptStock:          { m: 'Reports', f: rptStock_ },
   rptCompare:        { m: 'Reports', f: rptCompare_ },
   rptAverage:        { m: 'Reports', f: rptAverage_ },
+  rptWatch:          { m: 'Reports', f: rptWatch_ },
 };
 
 function api(token, fn, args) {
@@ -523,7 +527,17 @@ function api(token, fn, args) {
     if (n === 1) onceKey = k;
   }
   try { return apiRun_(u, spec, fn, args); }
-  catch (err) { if (onceKey) { try { __uncount(onceKey); } catch (e2) { /* it frees itself in a few seconds */ } } throw err; }
+  catch (err) {
+    if (onceKey) { try { __uncount(onceKey); } catch (e2) { /* it frees itself in a few seconds */ } }
+    // a fault of the app or of the database (not a refusal): written down for the Admin; the user is told it is not the entry
+    const kind = faultKind_(err);
+    if (kind && fn !== 'reportError') {
+      if (sbDataOn_()) { try { sbDiscard_(); } catch (e3) { /* nothing half-done is written */ } }
+      errLog_({ kind: kind, by: u.name || u.email, email: u.email, where: fn, msg: String((err && err.message) || err), detail: String((err && err.stack) || '') });
+      if (kind === 'server') throw new Error('The app hit a fault while doing this (' + fn + ') – it is not your entry. It has been reported to the Admin. Technical: ' + String((err && err.message) || err).slice(0, 160));
+    }
+    throw err;
+  }
 }
 const ONCE_FNS_ = ['saveDebitNote', 'saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'saveInward', 'importInward', 'saveTransfer', 'saveTransferBulk', 'savePayment', 'saveTankCheck', 'submitBdReport'];
 function apiRun_(u, spec, fn, args) {
@@ -534,7 +548,8 @@ function apiRun_(u, spec, fn, args) {
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin;
   const res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args);
   if (fn === 'getInit' || fn === 'sync') { res.user = publicUser_(u); res.versions = getVersions_(); res.today = today_(); res.source = sbDataOn_() ? 'supabase' : 'sheet'; res.build = appBuild_();
-    if (typeof sbBackupInfo_ === 'function') res.backup = sbBackupInfo_(); }
+    if (typeof sbBackupInfo_ === 'function') res.backup = sbBackupInfo_();
+    if (u.admin) res.faults = errStamp_(); }      // the Admin's page shows faults of today within seconds
   if (spec.log) {
     try { logAfter_(u, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ }
   }
@@ -4685,6 +4700,78 @@ function rptLedger_(f) {
   });
 }
 
+/* DIESEL WATCH – signs of diesel loss, machinery by machinery (asked 03-10-2026: "show when diesel is stolen").
+ * The app cannot see a theft; it can see where the figures do not fit. For every machinery that fills the Log Book
+ * (debit-basis parties are left out – their diesel is charged anyway), from its fills and its Log Book in the period:
+ *   MORE THAN THE WORK NEEDS – a fill-to-fill cycle that is closed (the next fill has come): diesel filled against what the
+ *                    standard says the work until the next fill needs; shown when it is over by more than f.pct % (15) and 5 L
+ *   NO WORK        – diesel filled and not one KM / hour in the Log Book until the next fill
+ *   OVER THE TANK  – one fill bigger than the tank holds (Asset Master → Tank Capacity)
+ *   READING        – the meter reading at a fill is lower than at the fill before, or has not moved between two fills
+ *   TANK CHECK     – a tank check found less diesel in the tank than the app's figure (5 L or more)
+ * and, apart: machinery that took diesel but has NO Log Book reading in the period – their diesel cannot be checked at all.
+ * Litres are the litres that do not fit; ₹ = litres × the diesel rate of that fill. These are things to LOOK AT, not proof. */
+function rptWatch_(f) {
+  f = f || {};
+  const rg = rptRange_(f), pct = Math.max(1, Math.min(200, num0_(f.pct) || 15)), minL = 5;
+  const T = stockTables_(), rates = issueRates_(T), lt = table_(APP.SHEET_LOG, logHeaders_());
+  const all = issueList_(T).filter(Boolean).filter(x => x.qty > 0), byKey = {};
+  all.forEach(x => { (byKey[x.key] = byKey[x.key] || []).push(x); });
+  const rateOf = x => num0_(rateFor_(rates, x.idx, { rateMode: 'avg' })) || num0_(rateFor_(rates, x.idx, {}));
+  const findings = [], unchecked = [], seenM = {};
+  let checkedQty = 0;
+  const add = (m, kind, date, litres, rate, text) => { litres = r2_(litres); findings.push({ no: m.id, type: m.type || '', owner: m.owner || '', ownership: m.ownership, kind: kind, date: date, litres: litres, amount: r2_(litres * rate), text: text }); seenM[m.id] = true; };
+  getMaster_().forEach(m => {
+    if (m.supply === 'Debit Basis' || m.ownership === 'Debit') return;
+    const mine = (byKey[noKey_(m.id)] || []).slice().sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : shiftOrder_(a.shift) - shiftOrder_(b.shift) || a.idx - b.idx);
+    const inP = mine.filter(x => x.date >= rg.from && x.date <= rg.to);
+    if (!inP.length) return;
+    const qtyP = r2_(inP.reduce((s, x) => s + x.qty, 0));
+    const rows = logRowsOf_(lt, m.id), work = rows.filter(r => r.dk >= rg.from && r.dk <= rg.to && (num0_(r.wkm) > 0 || num0_(r.whr) > 0));
+    // no Log Book work in the period: nothing of this machinery's diesel can be compared
+    if (!work.length) { unchecked.push({ no: m.id, type: m.type || '', owner: m.owner || '', ownership: m.ownership, fills: inP.length, qty: qtyP, amount: r2_(inP.reduce((s, x) => s + x.qty * rateOf(x), 0)) }); return; }
+    checkedQty = r2_(checkedQty + qtyP);
+    const fills = {}; mine.forEach(x => { fills[x.date] = r2_((fills[x.date] || 0) + x.qty); });
+    const firstOf = {}; mine.forEach(x => { if (!firstOf[x.date]) firstOf[x.date] = x; });
+    buildCycles_(m.unit, fills, rows, rows.length ? rows[rows.length - 1].dk : '', m).forEach(cy => {
+      if (cy.start < rg.from || cy.start > rg.to || !cy.closed) return;
+      const rate = rateOf(firstOf[cy.start]), next = addDays_(cy.end, 1), did = [cy.km ? cy.km + ' km' : '', cy.hr ? cy.hr + ' hr' : ''].filter(Boolean).join(' + ');
+      if (!(cy.km > 0) && !(cy.hr > 0)) add(m, 'No work', cy.start, cy.qty, rate, cy.qty + ' L filled; no KM / hours in the Log Book until the next fill on ' + dmy_(next));
+      else if (cy.std > 0 && cy.qty - cy.std >= minL && (cy.qty - cy.std) / cy.std * 100 > pct)
+        add(m, 'More than the work needs', cy.start, cy.qty - cy.std, rate, cy.qty + ' L filled; the work until the next fill on ' + dmy_(next) + ' (' + did + ') needs ' + cy.std + ' L by the standard – ' + r2_((cy.qty - cy.std) / cy.std * 100) + '% more');
+    });
+    const cap = num0_(m.tankCap);
+    inP.forEach(x => { if (cap > 0 && x.qty > cap) add(m, 'Over the tank', x.date, x.qty - cap, rateOf(x), x.qty + ' L in one fill; the tank holds ' + cap + ' L'); });
+    // readings at the fills, meter by meter
+    [['km', 'KM', hasKm_(m.unit)], ['hr', 'Hrs', hasHr_(m.unit)]].forEach(a => {
+      if (!a[2]) return; let prev = null;
+      mine.forEach(x => { const v = x[a[0]]; if (v === '' || v === null || v === undefined) return;
+        if (prev && x.date >= rg.from && x.date <= rg.to && x.date !== prev.date) {
+          if (Number(v) < Number(prev[a[0]])) add(m, 'Reading', x.date, 0, 0, 'reading at the fill ' + v + ' ' + a[1] + ' is LOWER than at the fill of ' + dmy_(prev.date) + ' (' + prev[a[0]] + ') – new meter, or a wrong reading');
+          else if (Number(v) === Number(prev[a[0]])) add(m, 'Reading', x.date, 0, 0, 'the ' + a[1] + ' reading did not move since the fill of ' + dmy_(prev.date) + ' (' + v + '), yet ' + prev.qty + ' L were filled then and ' + x.qty + ' L now'); }
+        prev = x; });
+    });
+  });
+  // tank checks that found less than the app's figure
+  try { const t = table_(APP.SHEET_TANK, TANK_COLS_);
+    t.rows.forEach(r => { const x = tankRowOut_(t, r); if (!x.date || x.date < rg.from || x.date > rg.to) return; const short = r2_(x.system - x.physical);
+      if (short >= minL) { let m = null; try { m = findMachine_(x.no); } catch (e) { m = null; }
+        if (m) add(m, 'Tank check', x.date, short, 0, 'tank check: ' + x.physical + ' L found, the app\'s figure was ' + x.system + ' L' + (x.reason ? ' (' + x.reason + ')' : '')); } });
+  } catch (e) { /* no tank checks yet */ }
+  const rank = { 'No work': 0, 'More than the work needs': 1, 'Over the tank': 2, 'Tank check': 3, 'Reading': 4 };
+  findings.sort((a, b) => b.litres - a.litres || (rank[a.kind] - rank[b.kind]) || natCmp_(a.no, b.no));
+  // one fill can show two signs (over the tank AND no work): in the totals its litres count once – the larger figure
+  const perFill = {}; findings.forEach(x => { const k = x.no + '|' + x.date; if (!perFill[k] || x.litres > perFill[k].litres) perFill[k] = x; });
+  const once = Object.keys(perFill).map(k => perFill[k]);
+  const perM = {}; findings.forEach(x => { const o = perM[x.no] = perM[x.no] || { no: x.no, type: x.type, owner: x.owner, signs: 0, litres: 0, amount: 0 }; o.signs++; });
+  once.forEach(x => { const o = perM[x.no]; o.litres = r2_(o.litres + x.litres); o.amount = r2_(o.amount + x.amount); });
+  unchecked.sort((a, b) => b.qty - a.qty);
+  return Object.assign(rptBase_('Diesel Watch – signs of diesel loss', rg), { pct: pct,
+    findings: findings, machines: Object.keys(perM).map(k => perM[k]).sort((a, b) => b.litres - a.litres || b.signs - a.signs), unchecked: unchecked,
+    total: { signs: findings.length, machines: Object.keys(perM).length, litres: r2_(once.reduce((s, x) => s + x.litres, 0)), amount: r2_(once.reduce((s, x) => s + x.amount, 0)),
+      checkedQty: checkedQty, uncheckedQty: r2_(unchecked.reduce((s, x) => s + x.qty, 0)), uncheckedAmount: r2_(unchecked.reduce((s, x) => s + x.amount, 0)), uncheckedMachines: unchecked.length } });
+}
+
 /* 5. Owner / Vendor-wise Summary – with each owner's machinery */
 function rptOwner_(f) {
   f = f || {};
@@ -6291,6 +6378,58 @@ function checkShift_(s) {
 }
 /* Date of an entry (Diesel Issue, Inward, Transfer, Log Book): never after today,
  * so a mistyped future date cannot make the live stock differ from today's closing. */
+/* ---------- A FAULT OF THE APP IS REPORTED BY ITSELF (asked 03-10-2026) ----------
+ * Until now a fault was known only when a user told somebody. Now three kinds are written down the moment they happen:
+ *   server   – the server's own code failed while doing something (a TypeError …, not a refusal of a wrong entry)
+ *   database – the database could not be reached / did not answer
+ *   page     – the code of the page failed in a user's browser (sent by the page: reportError)
+ * Each is kept in a list (the last 200: when, who, where, what) and a small stamp (how many today, the last one) that every
+ * Admin's page gets with the live sync – so the Admin sees "Faults: 2" within seconds, while working. The USER who met the
+ * fault is told at once in plain words that it is the app, not the entry, and that the Admin knows.
+ * The same fault from the same place is written once in 10 minutes (a failing heartbeat must not fill the list).
+ * Kept like the users' settings: one row in app_settings (APP_ERRORS); the stamp with the app settings (ERR_STAMP). */
+function kvRead_(id) {
+  if (prefsInDb_()) { const r = sbFetch_('GET', '/rest/v1/app_settings?id=eq.' + encodeURIComponent(id) + '&select=value'); return r && r[0] ? str_(r[0].value) : ''; }
+  return str_(PropertiesService.getScriptProperties().getProperty(id));
+}
+function kvWrite_(id, v) {
+  if (prefsInDb_()) sbFetch_('POST', '/rest/v1/app_settings?on_conflict=id', [{ id: id, value: v }], { Prefer: 'resolution=merge-duplicates,return=minimal' });
+  else PropertiesService.getScriptProperties().setProperty(id, v);
+}
+function errList_() { let j = []; try { j = JSON.parse(kvRead_('APP_ERRORS') || '[]'); } catch (e) { j = []; } return Array.isArray(j) ? j : []; }
+function errStamp_() { let s = null; try { s = JSON.parse(PropertiesService.getScriptProperties().getProperty('ERR_STAMP') || 'null'); } catch (e) { s = null; } return s && s.day === today_() ? s : { day: today_(), n: 0, at: '', last: '' }; }
+// writes one fault down; never throws (a fault while noting a fault must not hide the first one)
+function errLog_(x) {
+  try {
+    const kind = ['server', 'database', 'page'].indexOf(str_(x.kind)) > -1 ? str_(x.kind) : 'page';
+    const e = { at: new Date().toISOString(), kind: kind, by: clean_(x.by).slice(0, 60), email: str_(x.email).slice(0, 120), where: clean_(x.where).slice(0, 60),
+      msg: clean_(x.msg).slice(0, 300), detail: str_(x.detail).slice(0, 1500), build: str_(x.build).slice(0, 20) };
+    if (!e.msg) return false;
+    // the same fault from the same place: once in 10 minutes
+    const key = 'ERRSEEN_' + hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, kind + '|' + e.where + '|' + e.msg, Utilities.Charset.UTF_8)).slice(0, 32);
+    try { const ch = CacheService.getScriptCache(); if (ch.get(key)) return false; ch.put(key, '1', 600); } catch (e2) { /* no cache: it is written */ }
+    const list = errList_(); list.unshift(e);
+    kvWrite_('APP_ERRORS', JSON.stringify(list.slice(0, 200)));
+    const st = errStamp_();
+    PropertiesService.getScriptProperties().setProperty('ERR_STAMP', JSON.stringify({ day: today_(), n: st.n + 1, at: e.at, last: (e.where ? e.where + ': ' : '') + e.msg.slice(0, 120) }));
+    return true;
+  } catch (e3) { return false; }
+}
+// from the page: a fault in a user's browser
+function reportError_(u, x) {
+  x = x || {};
+  return { ok: true, noted: errLog_({ kind: 'page', by: u.name || u.email, email: u.email, where: x.where, msg: x.msg, detail: x.detail, build: x.build }) };
+}
+function getErrors_() { return { stamp: errStamp_(), errors: errList_().slice(0, 100) }; }
+function clearErrors_() { kvWrite_('APP_ERRORS', '[]'); PropertiesService.getScriptProperties().setProperty('ERR_STAMP', JSON.stringify({ day: today_(), n: 0, at: '', last: '' })); return { ok: true }; }
+// what kind of failure a thrown error is: a fault of the app's code, the database, or '' = a refusal / a message for the user
+const DB_FAULT_ = /Could not reach the database|did not answer in time|^Database \([a-z_]+\): 5\d\d/;
+function faultKind_(err) {
+  const msg = String((err && err.message) || err || '');
+  if (err && typeof err === 'object' && err.name && err.name !== 'Error') return 'server';      // TypeError, ReferenceError, RangeError …
+  return DB_FAULT_.test(msg) ? 'database' : '';
+}
+
 /* ---------- SETTINGS: EVERY USER'S OWN, AND THE RULES OF THE SITE (asked 03-10-2026) ----------
  * OWN settings (the Settings page, every signed-in user): how the app looks and behaves for THAT user – theme, text size,
  * language of the help, the page to open first, the usual Log Book entry type / shift / diesel location, favourite pages,
