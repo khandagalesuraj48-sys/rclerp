@@ -535,6 +535,44 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     Rules at the END of the style sheet: one line; the search box gives way to its icon first, then company / date, then the pills'
     texts; below 1300 px the right group may go to a second line. `test/browser/topbar.js` measures all 36 pages at 1536 / 1366 / 1280.
   * Tests: `test/browser/vauto.js` (12; the bank list is played by the test because the rig cannot reach it).
+- 03-10-2026: (1) A SAVE THAT DOES NOT GET THROUGH IS SENT AGAIN BY ITSELF; (2) SETTINGS – every user's own app. He: "do not show me
+  a box that it was not saved – the system must retry by itself; what the user saved must be saved", "a user can put his own photo",
+  "settings are user-wise, everybody customises his own app", no OTP.
+  * RE-SENDING (bridge in server/page.js): every save (`api`, not a question) gets a number `rid`; on a network failure, a non-JSON
+    answer (504 …) or a "not now" answer (TRANSIENT: lock busy, database slow, RETRY_LATER) the SAME body is sent again – 1.2 s, ×1.6,
+    at most 10 s – for as long as the page is open. Line `#rcl_retry` ("kept, being sent again", 3 languages by `rcl_lang`), then
+    "Saved ✔". `beforeunload` asks while a save is waiting. Questions: 3 tries. login / changePassword / sync: not re-sent.
+  * SAVED ONCE (server/runtime.js `run`): for a save with a rid – first copy claims the number (`web_count OPC_<rid>`, exact with the
+    step-3 SQL; a plain cache look without it), notes its start (`OPT_`), runs, keeps its answer for an hour (`OPR_`). A later copy
+    returns the kept answer, or waits up to ~24 s for it, or – when the first copy cannot be alive any more (75 s) and left nothing –
+    runs. A REFUSAL is kept too (`__refused`); a "not now" error frees the number. api/rpc.js passes `rid` in meta.
+    Residual risk: a first copy that dies after the data was written but before its answer was kept (milliseconds) → a later copy
+    would save again (Log Book rows cannot double – same key; a diesel issue could).
+  * NOT BUILT: sending again after the page was closed (an outbox kept in the browser). Entries the server refuses are still shown.
+  * SETTINGS. Server: `prefsClean_` (only known keys / values), `prefsRead_` / `prefsWrite_` (one row per user in `app_settings`,
+    id `USER_PREFS|<email>`, by REST – no SQL needed; script properties when not on Supabase), API `getMyPrefs`, `saveMyPrefs` (every
+    signed-in user), `saveSiteRules` (admin; property SITE_RULES = { backDays, announce }), `siteRules_()` in getInit / getLookups.
+    `booksOpen_` now also enforces "days back" for users who are not Admin (`ACTOR_ADMIN_`, set in apiRun_).
+  * Page: menu group "My account → Settings" (tab `settings`, section `sec-settings`, guide in 3 languages); photo in the top bar
+    (`#u_ava`, opens Settings; hidden on a phone). `applyPrefs` → html[data-theme|text|density|motion], help language, favourites
+    (`#grp_fav`), usual shift / diesel location; `prefSet` applies at once, keeps a copy per e-mail on the device (`oc_prefs_<email>`)
+    and saves 0.45 s later; `prefsBoot` after getInit (first page, usual Log Book entry type). Photo: cut square, 128 px JPEG.
+  * DARK THEME = the whole page turned (`filter: invert(1) hue-rotate(180deg)` on html) with pictures, the menu and the opening film
+    turned back; never on paper (`@media print`). Not a second colour scheme – some coloured drawings look darker.
+  * Top bar: with the photo it was full again – the short pills are never cut; a second line only below 1340 px.
+  * NOT BUILT from the list he saw: rows per page, choice of Dashboard cards, keeping a half-typed entry, required fields,
+    defaults for new users, sign out of all devices. "Menu open / closed" dropped (on a computer the menu is slim by itself).
+  * Tests: unit "settings …" (21 unit tests now), `test/browser/retry.js` (10), `settings.js` (10), `set2.js` (4, photo file and Enter).
+- 03-10-2026 (his screenshot: Asset Master → Edit "Pradeep Engineers", Ownership list = Own / Rental / Hired / Other): "bring the Debit
+  option here, I will set the ones I want in debit – those I gave diesel on debit basis are not visible any more, the debit ones show
+  in Rental." CAUSE: an earlier change had removed Debit as an ownership (`normOwnership_` read "Debit" as Rental, the form's list had
+  no Debit – "diesel debit is decided in the BOQ"), so reports that group by the machinery's CURRENT ownership (`issueList_`,
+  `rptOwner_` …) put those parties under Rental. RESTORED: `normOwnership_` keeps Debit; the form offers Debit (with a line saying what
+  it means); `validateMaster_` forces Diesel Supply = Debit Basis for ownership Debit (the hidden supply box used to send "Company");
+  taken out of Debit → Company. Rows that still say "Debit" in the database read as Debit by themselves; rows re-saved meanwhile say
+  Rental – he sets them. Asset report: Debit in its ownership filter and summary. Daily report: debit parties are not "without an
+  entry" (the filter compared ownership with "Debit Basis" – wrong value, fixed). A Rental machinery whose BOQ says diesel on debit is
+  unchanged. Tests: unit "ownership Debit …", `test/browser/debit.js` (5).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

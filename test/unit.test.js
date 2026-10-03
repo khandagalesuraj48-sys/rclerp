@@ -495,3 +495,61 @@ test('month close: nothing dated in a closed period can be added, changed or del
   assert.deepStrictEqual(run('x => saveBooksLock_(x)', { upto: '' }), { ok: true, upto: '', was: '2026-04-30' });
   assert.strictEqual(tryIt(() => run('(k, l) => updateLogRow_(k, l)', 'LK-1|2026-04-10|Full Day', { closingKm: 210, work: '' })).ok, true);
 });
+
+test('settings: every user has own settings (checked, kept apart); the site rule "days back" stops a user who is not Admin, not the Admin', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryIt = f => { try { const r = f(); return r && r.ok === false ? { err: JSON.stringify(r.errors || r) } : { ok: true, r: r }; } catch (e) { return { err: String(e.message) }; } };
+  const A = { email: 'a@x.test', name: 'A' }, B = { email: 'b@x.test', name: 'B' };
+  // as the app comes: light theme, Marathi help, nothing chosen
+  let p = run('u => getMyPrefs_(u)', A).prefs;
+  assert.deepStrictEqual([p.theme, p.text, p.lang, p.lbDays, p.start, p.fav, p.photo, p.intro, p.sound], ['light', 'normal', 'mr', '2', '', [], '', true, false]);
+  // A chooses; only what the app knows is kept, a wrong value falls back, B is not touched
+  p = run('(u, x) => saveMyPrefs_(u, x)', A, { theme: 'dark', text: 'huge', lang: 'en', lbDays: '7', start: 'log', fav: ['log', 'diesel', 'log', 'BAD TAB'], sound: true, admin: true, somethingElse: 'x' }).prefs;
+  assert.deepStrictEqual([p.theme, p.text, p.lang, p.lbDays, p.start, p.fav, p.sound, p.admin, p.somethingElse], ['dark', 'normal', 'en', '7', 'log', ['log', 'diesel'], true, undefined, undefined]);
+  p = run('(u, x) => saveMyPrefs_(u, x)', A, { density: 'compact' }).prefs;              // one change keeps the others
+  assert.deepStrictEqual([p.theme, p.density, p.lang], ['dark', 'compact', 'en']);
+  assert.strictEqual(run('u => getMyPrefs_(u)', B).prefs.theme, 'light');
+  // a photo must be a small picture; a mobile number 10 digits
+  assert.match(tryIt(() => run('(u, x) => saveMyPrefs_(u, x)', A, { photo: 'javascript:alert(1)' })).err, /must be a picture/);
+  assert.match(tryIt(() => run('(u, x) => saveMyPrefs_(u, x)', A, { photo: 'data:image/jpeg;base64,' + 'A'.repeat(80000) })).err, /too big/);
+  assert.match(tryIt(() => run('(u, x) => saveMyPrefs_(u, x)', A, { mobile: '12345' })).err, /10 digits/);
+  assert.strictEqual(run('(u, x) => saveMyPrefs_(u, x)', A, { photo: 'data:image/jpeg;base64,AAAA', mobile: '98220 12345' }).prefs.mobile, '9822012345');
+  // ---- rule of the site: a user who is not Admin enters / changes only the last 3 days ----
+  const today = run('() => today_()'), day = n => run('(d, n) => addDays_(d, n)', today, n), closed = /older than 3 days can be made or changed only by the Admin/;
+  run('(x, m) => saveMaster_(x, m)', { no: 'RL-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Rule Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: day(-40) }, 'add');
+  assert.match(tryIt(() => run('x => saveSiteRules_(x)', { backDays: 'many' })).err, /whole number/);
+  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '3', announce: '  Fill every entry by the 30th  ' }).rules, { backDays: 3, announce: 'Fill every entry by the 30th' });
+  assert.deepStrictEqual(run('() => getInit_().rules'), { backDays: 3, announce: 'Fill every entry by the 30th' });
+  const asUser = (admin, f) => { run('a => { ACTOR_ADMIN_ = a; }', admin); try { return f(); } finally { run('() => { ACTOR_ADMIN_ = true; }'); } };
+  const entry = d => ({ rows: [{ date: d, shift: 'Full Day', no: 'RL-1', mode: 'KM', openingKm: 100, closingKm: 150 }] });
+  assert.match(asUser(false, () => tryIt(() => run('x => saveLogRowsInner_(x)', entry(day(-10))))).err, closed);          // 10 days back: refused for a user
+  assert.strictEqual(asUser(true, () => tryIt(() => run('x => saveLogRowsInner_(x)', entry(day(-10))))).ok, true);        // the Admin may
+  assert.match(asUser(false, () => tryIt(() => run('k => deleteLogRow_(k)', 'RL-1|' + day(-10) + '|Full Day'))).err, closed);   // … and the user cannot delete it either
+  assert.strictEqual(asUser(false, () => tryIt(() => run('x => saveLogRowsInner_(x)', { rows: [{ date: day(-3), shift: 'Full Day', no: 'RL-1', mode: 'KM', closingKm: 200 }] }))).ok, true);   // 3 days back: inside the rule
+  // no limit again
+  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '', announce: '' }).rules, { backDays: '', announce: '' });
+  assert.strictEqual(asUser(false, () => tryIt(() => run('k => deleteLogRow_(k)', 'RL-1|' + day(-10) + '|Full Day'))).ok, true);
+});
+
+test('ownership "Debit": a party that takes diesel on debit basis – its own group in the reports, diesel supply always Debit Basis; back to Rental when changed', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const one = () => run('() => getMaster_().filter(m => m.id === "Debit Party X").map(m => [m.ownership, m.supply, m.owner])[0]');
+  // only a name is needed for a Debit party (no "works on", no standard average)
+  run('(x, m) => saveMaster_(x, m)', { no: '', name: 'Debit Party X', type: 'Outside party', owner: 'Debit Party X', ownership: 'Debit', supply: 'Company', status: 'Active' }, 'add');
+  assert.deepStrictEqual(one(), ['Debit', 'Debit Basis', 'Debit Party X']);          // "Company" sent by the form is overruled: Debit = Debit Basis
+  run('x => saveInward_(x)', { date: '2026-03-01', location: 'Dispenser', pump: 'Pump', qty: 500, rate: 90, billNo: 'DBX1', billDate: '2026-03-01' });
+  run('x => saveDieselIssue_(x)', { date: '2026-03-05', shift: 'Day', source: 'Dispenser', no: 'Debit Party X', qty: 40, force: true });
+  const groups = () => run('f => rptOwner_(f).owners.filter(o => o.owner === "Debit Party X").map(o => [o.ownership, o.qty])', { from: '2026-03-01', to: '2026-03-31' });
+  assert.deepStrictEqual(groups(), [['Debit', 40]]);                                  // shown under Debit, not under Rental
+  assert.deepStrictEqual(run('f => rptOwner_(f).owners.filter(o => o.owner === "Debit Party X").length', { from: '2026-03-01', to: '2026-03-31', ownerships: ['Rental'] }), 0);
+  // taken out of Debit: a Rental machinery needs what it works on; its diesel supply is Company again and its issues move with it
+  assert.throws(() => run('(x, m, o) => saveMaster_(x, m, o)', { no: '', name: 'Debit Party X', owner: 'Debit Party X', ownership: 'Rental', status: 'Active' }, 'edit', 'Debit Party X'), /tick what it works on/);
+  run('(x, m, o) => saveMaster_(x, m, o)', { no: '', name: 'Debit Party X', owner: 'Debit Party X', ownership: 'Rental', worksOn: ['Hrs'], hrStd: 3, supply: 'Company', status: 'Active' }, 'edit', 'Debit Party X');
+  assert.deepStrictEqual(one(), ['Rental', 'Company', 'Debit Party X']);
+  assert.deepStrictEqual(groups(), [['Rental', 40]]);
+  // and back
+  run('(x, m, o) => saveMaster_(x, m, o)', { no: '', name: 'Debit Party X', owner: 'Debit Party X', ownership: 'debit', worksOn: ['Hrs'], hrStd: 3, status: 'Active' }, 'edit', 'Debit Party X');
+  assert.deepStrictEqual(one(), ['Debit', 'Debit Basis', 'Debit Party X']);
+});

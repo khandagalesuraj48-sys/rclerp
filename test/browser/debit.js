@@ -1,0 +1,31 @@
+// Asset Master: "Debit" is an ownership again – through the form and the database
+const chromium = require('@sparticuz/chromium').default || require('@sparticuz/chromium'); const puppeteer = require('puppeteer-core');
+const fs = require('fs'); const { execSync } = require('child_process');
+const wait = ms => new Promise(r => setTimeout(r, ms)); const sql = q => execSync('su postgres -c "psql -d rcl -tA"', { input: q }).toString().trim();
+const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : fail++; out.push((c ? 'PASS ' : 'FAIL ') + n + (x !== undefined ? '  → ' + String(typeof x === 'string' ? x : JSON.stringify(x)).slice(0, 320) : '')); };
+const row = () => sql("select ownership || '|' || coalesce(diesel_supply, '') from master where id = 'Pradeep Test Engineers'");
+(async () => {
+  sql("delete from master where id = 'Pradeep Test Engineers'");
+  const col = sql("select string_agg(column_name, ',') from information_schema.columns where table_name = 'master' and column_name in ('ownership','diesel_supply','supply')");
+  const b = await puppeteer.launch({ executablePath: await chromium.executablePath(), args: [...chromium.args, '--no-sandbox'], headless: 'shell', protocolTimeout: 120000 });
+  const p = await b.newPage(); await p.setViewport({ width: 1536, height: 900 });
+  const errs = []; p.on('pageerror', e => errs.push(String(e.message).slice(0, 200)));
+  await p.goto('http://127.0.0.1:3000/', { waitUntil: 'load' }); await wait(800);
+  const f = p.frames().find(x => x !== p.mainFrame());
+  await f.type('#lg_email', 'sujit@rcl.test'); await f.type('#lg_pass', 'Nashik#Road848!'); await f.click('#lg_btn'); await wait(6000);
+  await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} showTab('master'); }); await wait(2500);
+  const opts = await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} return [...document.getElementById('m_ownership').options].map(o => o.textContent).join(','); });
+  ok('the Ownership box of Asset Master offers Debit again', opts === 'Select,Own,Rental,Hired,Debit,Other', opts);
+  const set = (id, v) => f.evaluate((i, x) => { const el = document.getElementById(i); el.value = x; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }, id, v);
+  const press = async () => { await f.evaluate(() => document.getElementById('m_save').click()); let t = ''; for (let i = 0; i < 24; i++) { await wait(500); t = await f.evaluate(() => { const c = document.getElementById('cf_back'); if (c && !c.hidden) { document.getElementById('cf_ok').click(); return ''; } const x = document.getElementById('toast'); return x && !x.hidden ? x.textContent : ''; }); if (t) break; } return t; };
+  await set('m_name', 'Pradeep Test Engineers'); await set('m_owner', 'Pradeep Test Engineers'); await set('m_ownership', 'Debit');
+  const st = await f.evaluate(() => ({ hint: document.getElementById('m_own_hint').hidden ? '' : document.getElementById('m_own_hint').textContent.slice(0, 60), star: !document.getElementById('m_unit_req').hidden, supply: document.getElementById('m_supply').value }));
+  ok('picking Debit: the form says what it means, "Works on" is no longer required, the diesel supply becomes Debit Basis', /takes diesel on debit basis/.test(st.hint) && !st.star && st.supply === 'Debit Basis', st);
+  let t = await press();
+  ok('saved with only its name', /saved|added/i.test(t) && /^Debit\|/.test(row()), t.slice(0, 80) + ' | row: ' + row() + ' | columns: ' + col);
+  const inList = await f.evaluate(() => { const m = (S.master || []).find(x => x.id === 'Pradeep Test Engineers'); return m ? m.ownership + ' / ' + m.supply : 'not in the list'; });
+  ok('the page lists it as Debit with diesel on Debit Basis', inList === 'Debit / Debit Basis', inList);
+  ok('no script error', errs.length === 0, errs.join(' | '));
+  sql("delete from master where id = 'Pradeep Test Engineers'");
+  out.push(pass + ' passed, ' + fail + ' failed'); fs.writeFileSync('/tmp/debit.out', out.join('\n')); await b.close();
+})().catch(e => { fs.writeFileSync('/tmp/debit.out', out.join('\n') + '\nCRASH ' + String(e.stack || e).slice(0, 600)); try { sql("delete from master where id = 'Pradeep Test Engineers'"); } catch (e2) {} process.exit(1); });

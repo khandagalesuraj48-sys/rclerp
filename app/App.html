@@ -2168,11 +2168,47 @@
     .app .topbar .tb-right > .gs-btn { flex: 0 1000 230px; min-width: 42px !important; overflow: hidden; white-space: nowrap; }
     .app .topbar .tb-right > .today { flex: 0 200 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
     .app .topbar .tb-right > #ds_pill { flex: 0 60 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
-    .app .topbar .tb-right > #lock_pill, .app .topbar .tb-right > #bk_btn, .app .topbar .tb-right > #db_pill { flex: 0 8 auto; min-width: 46px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: inline-block; line-height: 28px; }
-    .app .topbar .tb-right > #lock_pill[hidden], .app .topbar .tb-right > #bk_btn[hidden], .app .topbar .tb-right > #db_pill[hidden] { display: none; }
+    /* (the short pills – database check, closed month – are never cut: a pill that loses one pixel shows "…" instead of its last letters) */
+    .app .topbar .tb-right > #bk_btn { flex: 0 8 auto; min-width: 46px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: inline-block; line-height: 28px; }
+    .app .topbar .tb-right > #bk_btn[hidden] { display: none; }
   }
   /* a narrow computer screen: when it still does not fit, the right group goes to a second line (right-aligned) instead of over the title */
-  @media (min-width: 1081px) and (max-width: 1300px) { .app .topbar { flex-wrap: wrap; row-gap: 6px; } }
+  @media (min-width: 1081px) and (max-width: 1340px) { .app .topbar { flex-wrap: wrap; row-gap: 6px; } }
+
+  /* ===== SETTINGS: the page, the user's photo, favourites, the notice line ===== */
+  .u-ava { width: 34px; height: 34px; border-radius: 50%; border: 1px solid #D5DCE6; background: #EAF0FE; color: #1543B8; display: inline-grid; place-items: center; overflow: hidden; padding: 0; cursor: pointer; flex: none; font: 700 12.5px var(--ui); }
+  .u-ava img { width: 100%; height: 100%; object-fit: cover; display: block; } .u-ava i { font-style: normal; }
+  .u-ava.big { width: 96px; height: 96px; font-size: 30px; cursor: default; }
+  .userchip .u-ava { margin-right: 8px; }
+  @media (max-width: 1080px) { .userchip .u-ava { display: none; } }      /* a phone: no room in the top bar – Settings is in the menu */
+  #announce { background: #FFF4D6; color: #6B4500; border-bottom: 1px solid #F0C36D; padding: 7px 18px; font: 600 13px var(--ui); text-align: center; } #announce[hidden] { display: none; }
+  .favcap { padding: 10px 16px 4px; font: 700 10.5px var(--ui); letter-spacing: .12em; text-transform: uppercase; opacity: .6; }
+  #side.mini .favcap .label { display: none; }
+  .set-p .panel-head { align-items: baseline; } .set-saved { margin-left: auto; color: #0B6B3A; font: 700 12.5px var(--ui); } .set-saved[hidden] { display: none; }
+  .set-prof { display: grid; grid-template-columns: minmax(240px, 1.1fr) minmax(220px, 1fr) minmax(200px, 1fr); gap: 22px; align-items: start; }
+  .set-photo { display: flex; gap: 16px; align-items: center; } .set-photo small { display: block; margin-top: 8px; max-width: 230px; }
+  .set-who { display: flex; flex-direction: column; gap: 4px; } .set-who b { font-size: 17px; } .set-who .field { margin-top: 8px; max-width: 220px; } .set-who .btn { align-self: flex-start; margin-top: 6px; }
+  .set-logins div div { font-size: 13px; padding: 1px 0; } .set-logins small { display: block; margin-top: 6px; }
+  .set-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 26px; }
+  .set-item { display: flex; flex-direction: column; gap: 7px; } .set-item > b { font-size: 13.5px; } .set-item .ck { display: flex; gap: 8px; align-items: center; font-size: 13.5px; } .set-item .ck input { width: auto; min-height: 0; }
+  .set-seg { display: inline-flex; border: 1px solid #D5DCE6; border-radius: 10px; overflow: hidden; align-self: flex-start; background: #fff; }
+  .set-seg button { border: 0; background: transparent; padding: 8px 15px; font: 600 13px var(--ui); color: #334155; cursor: pointer; border-right: 1px solid #E3E8EF; } .set-seg button:last-child { border-right: 0; }
+  .set-seg button.on { background: #1D55E2; color: #fff; }
+  .set-links { margin-top: 14px; font-size: 13.5px; }
+  @media (max-width: 900px) { .set-prof { grid-template-columns: 1fr; } }
+  /* text size and row height of the user's choice (only the pages, not the menu and the top bar) */
+  html[data-text=large] main { zoom: 1.1; } html[data-text=xlarge] main { zoom: 1.2; }
+  html[data-density=compact] main table td, html[data-density=compact] main table th { padding-top: 3px !important; padding-bottom: 3px !important; }
+  html[data-density=compact] main .panel { padding-top: 12px; padding-bottom: 12px; }
+  html[data-motion=less] *, html[data-motion=less] *::before, html[data-motion=less] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  /* DARK THEME. The app's colours are written for a light page in very many places; the dark theme turns the whole page
+   * (light ↔ dark, the colour tones kept) and turns back what must stay as it is: pictures, photos, the menu (already dark)
+   * and the opening film. Prints and PDFs are separate pages and stay on white. */
+  html[data-theme=dark] { filter: invert(1) hue-rotate(180deg); background: #fff; }
+  html[data-theme=dark] img, html[data-theme=dark] video, html[data-theme=dark] #side, html[data-theme=dark] #oc_intro, html[data-theme=dark] .lp-left { filter: invert(1) hue-rotate(180deg); }
+  html[data-theme=dark] #side img, html[data-theme=dark] #oc_intro video, html[data-theme=dark] #oc_intro img, html[data-theme=dark] .lp-left img { filter: none; }
+  html[data-theme=dark] main .panel, html[data-theme=dark] .topbar { box-shadow: none; }
+  @media print { html[data-theme=dark], html[data-theme=dark] img, html[data-theme=dark] video, html[data-theme=dark] #side { filter: none !important; } }      /* paper is always white */
 </style>
 </head>
 <body class="locked">
@@ -2330,6 +2366,12 @@
         <button class="navbtn" role="tab" id="tab-readme" aria-controls="sec-readme" aria-selected="false" title="Read Me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7"/><path d="M9 11h5"/></svg><span class="label">Read Me</span></button>
       </div>
     </div>
+    <div class="navgroup open" id="grp_me">
+      <button class="grphead" aria-expanded="true" aria-controls="grp_me_items" title="My account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span class="label">My account</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="grpitems" id="grp_me_items" role="tablist" aria-orientation="vertical">
+        <button class="navbtn" role="tab" id="tab-settings" aria-controls="sec-settings" aria-selected="false" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="label">Settings</span></button>
+      </div>
+    </div>
   </nav>
   <button class="side-toggle" id="side_toggle" aria-label="Collapse menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg><span class="label">Close menu</span></button>
 </aside>
@@ -2356,11 +2398,12 @@
     <button class="db-pill" id="db_pill" hidden type="button" title="Admin: the app checks every SQL step of the database once a day – press to see the result"></button>
     <span class="live off" id="live_dot" title="Connecting…"><i></i> Connecting…</span>
     <div class="today"><b id="company">Rachana Construction Limited</b><span id="todayLabel"></span></div>
-    <div class="userchip"><div><b id="u_name"></b><span id="u_role"></span></div>
+    <div class="userchip"><button type="button" class="u-ava" id="u_ava" title="My settings" aria-label="My settings"></button><div><b id="u_name"></b><span id="u_role"></span></div>
       <button class="btn ghost small" id="u_pw" title="Change my password" aria-label="Change my password"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></button>
       <button class="btn ghost small" id="u_logout" title="Sign out">Logout</button></div>
   </div>
 </header>
+<div id="announce" hidden role="status"></div>
 <main>
   <!-- ================= TANK CHECK (system vs physical) ================= -->
   <section id="sec-tankcheck" role="tabpanel" aria-labelledby="tab-tankcheck" hidden>
@@ -2762,7 +2805,7 @@
         <div class="field"><label for="m_tcap">Tank Capacity (Ltr)</label><input id="m_tcap" type="number" step="1" min="0" placeholder="Optional – for reference"></div>
         <div class="field"><label for="m_owner">Vendor (Owner Name)</label><input id="m_owner" list="dl_vendornames" autocomplete="off" placeholder="Pick from Vendor Master"></div>
         <div class="field"><label for="m_ownership">Ownership <span class="req">*</span></label>
-          <select id="m_ownership"><option value="">Select</option><option>Own</option><option>Rental</option><option>Hired</option><option>Other</option></select></div>
+          <select id="m_ownership" title="Debit = a party / machinery that only takes the company's diesel on debit basis: all its diesel is debited, no readings, not in the Log Book"><option value="">Select</option><option>Own</option><option>Rental</option><option>Hired</option><option>Debit</option><option>Other</option></select><small class="vhint" id="m_own_hint" hidden></small></div>
         <input id="m_mrate" type="hidden"><input id="m_tds" type="hidden">
         <div class="field" hidden><label for="m_supply">Diesel Supply</label>
           <select id="m_supply"><option>Company</option><option>Debit Basis</option><option>Other</option></select></div>
@@ -3145,6 +3188,54 @@
   </section>
 
   <!-- ================= READ ME (Admin) ================= -->
+  <section id="sec-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+    <div class="panel set-p">
+      <div class="panel-head"><h2>My profile</h2><span class="chart-note">Your own settings – they belong to your sign-in and are the same on every computer. Nobody else's app changes. Every change is saved by itself.</span><span class="set-saved" id="set_saved" hidden>Saved ✔</span></div>
+      <div class="set-prof">
+        <div class="set-photo"><span class="u-ava big" id="set_ava"></span>
+          <div><button class="btn ghost small" type="button" id="set_photo_pick">Choose a photo</button> <button class="btn ghost small" type="button" id="set_photo_del">Remove</button><input type="file" id="set_photo_file" accept="image/*" hidden><small class="muted">A square picture works best. It is made small (128 px) before it is saved.</small></div></div>
+        <div class="set-who"><b id="set_name"></b><span id="set_email" class="muted"></span><span id="set_role" class="muted"></span>
+          <div class="field"><label for="set_mobile">My mobile number</label><input id="set_mobile" inputmode="numeric" maxlength="10" placeholder="10 digits" autocomplete="off"></div>
+          <button class="btn ghost small" type="button" id="set_pw">Change my password</button></div>
+        <div class="set-logins"><b>My last sign-ins</b><div id="set_logins" class="muted">–</div><small class="muted">A sign-in that was not yours? Change your password at once – that signs every other device out.</small></div>
+      </div>
+    </div>
+    <div class="panel set-p">
+      <div class="panel-head"><h2>Look</h2></div>
+      <div class="set-grid">
+        <div class="set-item"><b>Theme</b><div class="set-seg" data-pref="theme"><button type="button" data-v="light">Light</button><button type="button" data-v="dark">Dark</button><button type="button" data-v="auto">As the device</button></div><small class="muted">Prints and PDFs are always on white.</small></div>
+        <div class="set-item"><b>Size of the text</b><div class="set-seg" data-pref="text"><button type="button" data-v="normal">Normal</button><button type="button" data-v="large">Large</button><button type="button" data-v="xlarge">Larger</button></div></div>
+        <div class="set-item"><b>Rows in lists</b><div class="set-seg" data-pref="density"><button type="button" data-v="normal">Roomy</button><button type="button" data-v="compact">Tight (more rows)</button></div></div>
+        <div class="set-item"><b>Language of the help</b><div class="set-seg" data-pref="lang"><button type="button" data-v="mr">मराठी</button><button type="button" data-v="hi">हिंदी</button><button type="button" data-v="en">English</button></div><small class="muted">Error explanations, page guides and the "being sent again" line.</small></div>
+        <div class="set-item"><label class="ck"><input type="checkbox" data-pref="lessMotion"> Less movement (no gliding, no opening film)</label><label class="ck"><input type="checkbox" data-pref="intro"> Play the opening when I open the app</label></div>
+        <div class="set-item"><label class="ck"><input type="checkbox" data-pref="sound"> A short sound when something is saved or goes wrong</label><label class="ck"><input type="checkbox" data-pref="enterNext"> Enter moves to the next box (like Tab)</label></div>
+      </div>
+    </div>
+    <div class="panel set-p">
+      <div class="panel-head"><h2>When I work</h2></div>
+      <div class="rfilters">
+        <div class="field"><label for="set_start">Page to open after sign-in</label><select id="set_start" data-pref="start"></select></div>
+        <div class="field"><label for="set_lbmode">Log Book entry – usual way</label><select id="set_lbmode" data-pref="lbMode"><option value="">Ask me each time</option><option value="date">One date – many machinery</option><option value="mach">One machinery – many dates</option></select></div>
+        <div class="field"><label for="set_lbdays">Log Book list shows</label><select id="set_lbdays" data-pref="lbDays"><option value="2">Last 2 days</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select></div>
+        <div class="field"><label for="set_shift">My usual shift</label><select id="set_shift" data-pref="shift"><option value="">No usual shift</option><option>Full Day</option><option>Day</option><option>Night</option></select></div>
+        <div class="field"><label for="set_loc">My usual diesel location</label><select id="set_loc" data-pref="loc"></select></div>
+      </div>
+    </div>
+    <div class="panel set-p">
+      <div class="panel-head"><h2>Favourite pages</h2><span class="chart-note">Tick up to 8 – they are shown at the top of the menu.</span></div>
+      <div class="bp-list" id="set_fav"></div>
+      <div class="actions" style="margin-top:14px"><button class="btn ghost" type="button" id="set_reset">Back to the usual settings</button></div>
+    </div>
+    <div class="panel set-p" id="set_admin" hidden>
+      <div class="panel-head"><h2>Rules of this site</h2><span class="chart-note">Admin only – these apply to every user of this site.</span></div>
+      <div class="rfilters">
+        <div class="field"><label for="rule_back">Users who are not Admin may enter / change entries of the last … days</label><input id="rule_back" inputmode="numeric" maxlength="3" placeholder="empty = no limit" autocomplete="off"></div>
+        <div class="field wide"><label for="rule_note">Notice shown to everybody at the top (empty = none)</label><input id="rule_note" maxlength="200" autocomplete="off"></div>
+        <div class="field" style="align-self:end"><button class="btn primary" type="button" id="rule_save">Save the rules</button></div>
+      </div>
+      <div class="set-links"><b>More settings of the site:</b> <button class="link" type="button" data-go="users">Company &amp; site, users</button> · <button class="link" type="button" data-go="bill">Month close, company details for bills</button> · <button class="link" type="button" id="set_db">Database check</button> · <button class="link" type="button" data-go="readme">Read Me</button></div>
+    </div>
+  </section>
   <section id="sec-readme" role="tabpanel" aria-labelledby="tab-readme" hidden>
     <div class="panel rm">
       <div class="panel-head"><h2>Read Me – नवीन site साठी app कसं बनवायचं</h2><span class="chart-note">फक्त Admin ला दिसतं. Pages, database tables आणि Auto SQL app मधूनच बनतात – नवीन module आलं की इथे आपोआप येतं.</span>
@@ -3882,7 +3973,8 @@
   function ocIntro(force) {
     const box = $('oc_intro'); if (!box) return;
     const o = S.org || {};
-    if (!force) { if (o.intro === false) return; try { if (sessionStorage.getItem('oc_intro')) return; sessionStorage.setItem('oc_intro', '1'); } catch (e) { /* plays */ }
+    if (!force) { if (o.intro === false) return; try { if (localStorage.getItem('oc_intro_off') === '1') return; } catch (e) { /* plays */ }
+      try { if (sessionStorage.getItem('oc_intro')) return; sessionStorage.setItem('oc_intro', '1'); } catch (e) { /* plays */ }
       if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; }
     const vid = $('oc_video'), stage = $('oc_stage'); let done = false, t = null;
     const end = () => { if (done) return; done = true; clearTimeout(t); box.classList.add('out'); try { vid.pause(); } catch (e) {} setTimeout(() => { box.hidden = true; box.classList.remove('out', 'play'); vid.hidden = true; stage.hidden = false; }, 520);
@@ -3896,6 +3988,7 @@
   ocIntro(false);
   function showLogin(msg) {
     S.token = ''; try { localStorage.removeItem('rcl_token'); sessionStorage.removeItem('rcl_token'); } catch (e) {}
+    try { const de = document.documentElement; de.dataset.theme = 'light'; de.dataset.text = 'normal'; de.dataset.density = 'normal'; if ($('grp_fav')) $('grp_fav').hidden = true; if ($('announce')) $('announce').hidden = true; } catch (e) { /* the sign-in screen is always the plain one */ }
     document.body.classList.add('locked');
     $('login_screen').hidden = false; $('lg_err').textContent = msg || ''; $('lg_pass').value = '';
     setTimeout(() => $('lg_email').focus(), 50);
@@ -4119,6 +4212,13 @@
         'हे फक्त Admin करू शकतो: वरचे "Database" दाबा; चौकटीत file चे नाव आहे. Supabase → SQL Editor मध्ये ती file paste करा (तिचा मजकूर Admin → Read Me मध्ये आहे) आणि Run करा. मग "Check again now" दाबा.'],
       hi: ['App ने अपना database जाँचा और एक SQL चरण बाकी पाया। App चलता है, पर उस चरण की सुविधा नहीं चलती, या कोई सुरक्षा setting नहीं लगी।',
         'यह केवल Admin कर सकता है: ऊपर "Database" दबाएँ; box में file का नाम है। Supabase → SQL Editor में वह file paste करें (उसका text Admin → Read Me में है) और Run करें। फिर "Check again now" दबाएँ।'] },
+    { re: /can be made or changed only by the Admin/i,
+      en: ['The Admin has set how many days back a user may enter or change entries. This date is older than that.',
+        'Check the date. If the entry really belongs to that day, ask the Admin to enter it, or to raise the number of days for a while (Settings → Rules of this site).'],
+      mr: ['User किती दिवस मागच्या entries भरू किंवा बदलू शकतो हे Admin ने ठरवले आहे. ही तारीख त्यापेक्षा जुनी आहे.',
+        'तारीख तपासा. Entry खरोखर त्याच दिवसाची असेल तर Admin ला ती भरायला सांगा, किंवा काही काळासाठी दिवसांची संख्या वाढवायला सांगा (Settings → Rules of this site).'],
+      hi: ['User कितने दिन पीछे की entries भर या बदल सकता है यह Admin ने तय किया है। यह तारीख उससे पुरानी है।',
+        'तारीख जाँचें। Entry सच में उसी दिन की हो तो Admin से भरने को कहें, या कुछ समय के लिए दिनों की संख्या बढ़ाने को कहें (Settings → Rules of this site)।'] },
     { re: /are closed \(month closed/i,
       en: ['The month of this date has been closed by the Admin. After the bills of a month are submitted its entries are locked, so that the saved bills and the entries stay the same.',
         'Check the date – if the entry belongs to an open date, correct the date. If an entry of the closed month really has to be added or corrected, ask the Admin: Machinery Billing → Month close → Reopen; make the correction; build the affected bill again; close the month again.'],
@@ -4404,6 +4504,10 @@
       en: ['The record of who added, changed or deleted what, and when.', 'It is written by the app itself on every save and cannot be edited. Only Admin sees it.'],
       mr: ['कोणी, काय, कधी जोडले, बदलले किंवा delete केले याची नोंद.', 'प्रत्येक save वर app स्वतः ही नोंद लिहिते; ती बदलता येत नाही. ती फक्त Admin ला दिसते.'],
       hi: ['किसने, क्या, कब जोड़ा, बदला या delete किया इसका रिकॉर्ड।', 'हर save पर app खुद यह रिकॉर्ड लिखता है; इसे बदला नहीं जा सकता। यह केवल Admin को दिखता है।'] },
+    settings: { saves: ['saveMyPrefs', 'saveSiteRules'],
+      en: ['Your own settings: photo, theme (light / dark), text size, language of the help, the page that opens first, your usual Log Book entry type, shift and diesel location, and favourite pages. For the Admin also the rules of the site.', 'Your settings belong to your sign-in: they are the same on every computer and change nobody else\'s app. Each change is saved by itself. Rules of the site (Admin): how many days back a user who is not Admin may enter or change entries, and a notice for everybody.'],
+      mr: ['तुमचे स्वतःचे settings: फोटो, theme (light / dark), अक्षरांचा आकार, मदतीची भाषा, आधी उघडणारे page, Log Book entry चा नेहमीचा प्रकार, shift आणि diesel चे ठिकाण, आणि आवडती pages. Admin साठी site चे नियमही.', 'तुमचे settings तुमच्या sign-in शी जोडलेले आहेत: प्रत्येक computer वर तेच राहतात आणि दुसऱ्या कोणाचे app बदलत नाही. प्रत्येक बदल आपोआप save होतो. Site चे नियम (Admin): Admin नसलेला user किती दिवस मागच्या entries भरू किंवा बदलू शकतो, आणि सगळ्यांसाठी सूचना.'],
+      hi: ['आपके अपने settings: फोटो, theme (light / dark), अक्षरों का आकार, मदद की भाषा, पहले खुलने वाला page, Log Book entry का सामान्य प्रकार, shift और diesel की जगह, और पसंदीदा pages। Admin के लिए site के नियम भी।', 'आपके settings आपके sign-in से जुड़े हैं: हर computer पर वही रहते हैं और किसी और का app नहीं बदलता। हर बदलाव अपने-आप save होता है। Site के नियम (Admin): Admin न होने वाला user कितने दिन पीछे की entries भर या बदल सकता है, और सबके लिए सूचना।'] },
     readme: { saves: ['readme', 'dbHealth'],
       en: ['The set-up notes of the app for the Admin: where the data is kept, the SQL steps and the backup.', 'Nothing is entered here.'],
       mr: ['Admin साठी app च्या set-up ची माहिती: data कुठे आहे, SQL चे टप्पे आणि backup.', 'इथे काहीही भरले जात नाही.'],
@@ -4441,6 +4545,7 @@
     if (bad && fixLang !== 'en') { try { const r0 = fixRules(msg)[0]; if (r0 !== FIX_ANY) msg = r0[fixLang][0] + '\n' + msg; } catch (e) { /* keep the message */ } }
     if (!bad) { S.formDirty = false; S.dhCache = {}; if (S.newBuild) setTimeout(() => { if (!window.rclBusy()) swapNow(); }, 2500); } // saved → now take the new version
     const t = $('toast');
+    try { prefSound(!!bad); } catch (e) { /* the message matters, not the sound */ }
     t.textContent = msg; t.className = bad ? 'bad' : ''; t.style.whiteSpace = 'pre-line'; t.hidden = false;
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, bad ? 6000 : 3500);
   }
@@ -4861,7 +4966,7 @@
     XLSX.writeFile(wb, 'RCL_' + d.title.replace(/[^A-Za-z0-9]+/g, '_') + (d.from ? '_' + d.from + '_to_' + d.to : '') + '.xlsx');
   }
 
-  const TABS = ['dash', 'vendors', 'master', 'boq', 'comp', 'lbf', 'brk', 'bill', 'bills', 'breg', 'pay', 'vled', 'vout', 'users', 'readme', 'inward', 'transfer', 'diesel', 'log', 'activity', 'rmonthly', 'ravg', 'rdaily', 'logedit', 'tankcheck'].concat(buildReports());
+  const TABS = ['dash', 'vendors', 'master', 'boq', 'comp', 'lbf', 'brk', 'bill', 'bills', 'breg', 'pay', 'vled', 'vout', 'users', 'readme', 'settings', 'inward', 'transfer', 'diesel', 'log', 'activity', 'rmonthly', 'ravg', 'rdaily', 'logedit', 'tankcheck'].concat(buildReports());
   document.querySelectorAll('.navbtn').forEach(b => { const l = b.querySelector('.label'); if (l) b.title = l.textContent.trim(); });
   document.querySelectorAll('.rhead h2').forEach(h => { h.dataset.site = SITE_NAME; });
   // Reports menu: a second section "Head Office Reports" with the Owner / Vendor-wise Summary and Monthly Diesel & Average
@@ -4997,7 +5102,7 @@
   async function refreshLookups(force) {
     if (!force && Date.now() - lookupsAt < 10000) return;
     lookupsAt = Date.now();
-    try { const L = await rawCall('getLookups'); setMaster(L.master); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors); if ('closedUpto' in L) setClosed(L.closedUpto); } catch (e) { /* keep the lists we have */ }
+    try { const L = await rawCall('getLookups'); setMaster(L.master); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors); if ('closedUpto' in L) setClosed(L.closedUpto); if (L.rules) setRules(L.rules); } catch (e) { /* keep the lists we have */ }
   }
   async function refreshStock() { try { setStock(await call('getStock')); } catch (e) { /* keep last value */ } }
   // Fill every location dropdown (class loc-select); data-default = the option picked first
@@ -8899,7 +9004,7 @@
       // 5. to look at
       const logged = new Set(logs.map(r => r.no)), fuelled = [...new Set(issues.map(x => x.no))];
       const noLog = fuelled.filter(x => !logged.has(x));
-      const active = (S.master || []).filter(m => m.status !== 'Inactive' && (!m.activeFrom || String(m.activeFrom).slice(0, 10) <= day) && m.ownership !== 'Debit Basis');
+      const active = (S.master || []).filter(m => m.status !== 'Inactive' && (!m.activeFrom || String(m.activeFrom).slice(0, 10) <= day) && m.supply !== 'Debit Basis' && m.ownership !== 'Debit');
       const noEntry = active.filter(m => !logged.has(m.id)).map(m => m.id);
       const brk = (bk.onDate || bk.rows || []).map(x => '<b>' + esc(x.no || x.machinery || '') + '</b>' + (x.reason || x.remark ? ' – ' + esc(x.reason || x.remark) : '') + (x.since || x.from ? ' <small>(since ' + esc(showDate(String(x.since || x.from).slice(0, 10))) + ')</small>' : ''));
       const look = '<ul class="dr-look">' +
@@ -8918,6 +9023,133 @@
     }).catch(e => toast(errMsg(e), true));
   }
   $('dash_daily').addEventListener('click', e => dailyReport(e.target));
+
+  /* ================= SETTINGS: every user's own app (asked 03-10-2026) =================
+   * S.prefs = the signed-in user's own settings (server: getMyPrefs / saveMyPrefs, kept with the account). A copy is kept on
+   * this device per e-mail (oc_prefs_<email>) so the look is right at once after sign-in; the server's copy then replaces it.
+   * applyPrefs puts them to work; every change on the Settings page is applied at once and saved by itself. */
+  const PREF_DEFAULT = { theme: 'light', text: 'normal', density: 'normal', lang: 'mr', lbMode: '', lbDays: '2', shift: '', menu: 'open', enterNext: false, sound: false, lessMotion: false, intro: true, start: '', loc: '', fav: [], mobile: '', photo: '' };
+  S.prefs = Object.assign({}, PREF_DEFAULT); S.rules = { backDays: '', announce: '' };
+  const prefKey = () => 'oc_prefs_' + String((S.user && S.user.email) || '').toLowerCase();
+  const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
+  function avaDraw() { ['u_ava', 'set_ava'].forEach(id => { const el = $(id); if (!el) return; const p = S.prefs.photo;
+    el.innerHTML = p ? '<img alt="" src="' + esc(p) + '">' : '<i>' + esc(initials(S.user && S.user.name)) + '</i>'; }); }
+  function applyPrefs(p) {
+    S.prefs = Object.assign({}, PREF_DEFAULT, p || {}); if (!Array.isArray(S.prefs.fav)) S.prefs.fav = [];
+    const root = document.documentElement, q = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    root.dataset.theme = S.prefs.theme === 'dark' || (S.prefs.theme === 'auto' && q && q.matches) ? 'dark' : 'light';
+    root.dataset.density = S.prefs.density; root.dataset.motion = S.prefs.lessMotion ? 'less' : ''; root.dataset.text = S.prefs.text;
+    if (S.prefs.lang !== fixLang) { fixLang = S.prefs.lang; try { localStorage.setItem('rcl_lang', fixLang); } catch (e) {} }
+    try { localStorage.setItem('oc_intro_off', S.prefs.intro === false || S.prefs.lessMotion ? '1' : ''); } catch (e) {}
+    avaDraw(); favDraw(); setDraw();
+    // the usual diesel location and shift of this user, where a form is still untouched
+    const src = $('d_src'); if (src && S.prefs.loc && [...src.options].some(o => o.value === S.prefs.loc) && !S.formDirty) src.value = S.prefs.loc;
+    const dsh = $('d_shift'); if (dsh && (S.prefs.shift === 'Day' || S.prefs.shift === 'Night') && !S.formDirty) dsh.value = S.prefs.shift;
+  }
+  if (window.matchMedia) { try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (S.prefs.theme === 'auto') applyPrefs(S.prefs); }); } catch (e) { /* older browser */ } }
+  // favourites: the ticked pages again at the top of the menu (the same button, by its icon and name)
+  function favDraw() {
+    let g = $('grp_fav');
+    if (!g) { $('grp_me').parentNode.insertAdjacentHTML('afterbegin', '<div class="navgroup open" id="grp_fav" hidden><div class="favcap"><span class="label">Favourites</span></div><div class="grpitems" id="grp_fav_items"></div></div>'); g = $('grp_fav');
+      g.addEventListener('click', e => { const b = e.target.closest('[data-fav]'); if (b && $('tab-' + b.dataset.fav)) $('tab-' + b.dataset.fav).click(); }); }
+    const ok = (S.prefs.fav || []).filter(t => TABS.indexOf(t) > -1 && $('tab-' + t) && !$('tab-' + t).hidden && !($('tab-' + t).closest('.navgroup') || {}).hidden);
+    g.hidden = !ok.length || !S.user;
+    $('grp_fav_items').innerHTML = ok.map(t => '<button type="button" class="navbtn favbtn" data-fav="' + t + '" title="' + esc($('tab-' + t).querySelector('.label').textContent) + '">' + $('tab-' + t).innerHTML + '</button>').join('');
+  }
+  // the Settings page shows what is set
+  function setDraw() {
+    if (!$('sec-settings')) return; const p = S.prefs, u = S.user || {};
+    document.querySelectorAll('#sec-settings .set-seg').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === String(p[g.dataset.pref]))));
+    document.querySelectorAll('#sec-settings input[type=checkbox][data-pref]').forEach(c => { c.checked = !!p[c.dataset.pref]; });
+    $('set_name').textContent = u.name || ''; $('set_email').textContent = u.email || ''; $('set_role').textContent = u.admin ? 'Admin' : 'User';
+    if (document.activeElement !== $('set_mobile')) $('set_mobile').value = p.mobile || '';
+    // pages this user can open (for "first page" and the favourites)
+    const pages = TABS.filter(t => t !== 'settings' && $('tab-' + t) && !$('tab-' + t).hidden && !(($('tab-' + t).closest('.navgroup') || {}).hidden)).map(t => ({ t: t, n: $('tab-' + t).querySelector('.label').textContent.trim() }));
+    $('set_start').innerHTML = '<option value="">Dashboard (as usual)</option>' + pages.filter(x => x.t !== 'dash').map(x => '<option value="' + x.t + '">' + esc(x.n) + '</option>').join(''); $('set_start').value = pages.some(x => x.t === p.start) ? p.start : '';
+    $('set_lbmode').value = p.lbMode || ''; $('set_lbdays').value = p.lbDays || '2'; $('set_shift').value = p.shift || '';
+    $('set_loc').innerHTML = '<option value="">No usual location</option>' + (S.locations || []).map(l => '<option>' + esc(l) + '</option>').join(''); $('set_loc').value = (S.locations || []).indexOf(p.loc) > -1 ? p.loc : '';
+    $('set_fav').innerHTML = pages.map(x => '<label class="bp' + (p.fav.indexOf(x.t) > -1 ? ' on' : '') + '"><input type="checkbox" data-favpick="' + x.t + '"' + (p.fav.indexOf(x.t) > -1 ? ' checked' : '') + '> ' + esc(x.n) + '</label>').join('');
+    $('set_admin').hidden = !u.admin;
+    if (u.admin && document.activeElement !== $('rule_back') && document.activeElement !== $('rule_note')) { $('rule_back').value = S.rules.backDays === '' ? '' : S.rules.backDays; $('rule_note').value = S.rules.announce || ''; }
+  }
+  // one change: applied at once, kept on this device, and saved with the account a moment later (several quick changes = one save)
+  let prefTimer = null, prefDirty = {}, prefBusy = 0;      // prefBusy: saves on their way – an older copy from the server must not come over a change that is being saved
+  function prefSet(patch) {
+    Object.assign(prefDirty, patch); applyPrefs(Object.assign({}, S.prefs, patch));
+    try { localStorage.setItem(prefKey(), JSON.stringify(S.prefs)); } catch (e) { /* a photo may not fit: the account copy is the one that counts */ }
+    clearTimeout(prefTimer); prefTimer = setTimeout(() => { const send = prefDirty; prefDirty = {}; prefBusy++;
+      call('saveMyPrefs', send).finally(() => { prefBusy--; }).then(r => { if (!Object.keys(prefDirty).length && !prefBusy) { S.prefs = Object.assign({}, PREF_DEFAULT, r.prefs); try { localStorage.setItem(prefKey(), JSON.stringify(S.prefs)); } catch (e) {} }
+        const t = $('set_saved'); t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => { t.hidden = true; }, 1800); })
+        .catch(e => { toast(errMsg(e), true); setLoad(); }); }, 450);
+  }
+  async function setLoad() {
+    try { const r = await rawCall('getMyPrefs'); if (!Object.keys(prefDirty).length && !prefBusy) { applyPrefs(r.prefs); try { localStorage.setItem(prefKey(), JSON.stringify(S.prefs)); } catch (e) {} }
+      if (r.rules) setRules(r.rules);
+      $('set_logins').innerHTML = (r.logins || []).length ? r.logins.map(x => { const d = new Date(x); return isNaN(d) ? '' : '<div>' + esc(d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })) + '</div>'; }).join('') : '–';
+      return r; } catch (e) { return null; }
+  }
+  // after sign-in: this device's copy at once, then the account's copy; the first page of the user's choice
+  function prefsBoot(stayed) {
+    let kept = null; try { kept = JSON.parse(localStorage.getItem(prefKey()) || 'null'); } catch (e) { kept = null; }
+    applyPrefs(kept);
+    const first = () => { const t = S.prefs.start; if (stayed && t && TABS.indexOf(t) > -1 && $('tab-' + t) && !$('tab-' + t).hidden && S.curTab !== t && !(S.hist && S.hist.length)) showTab(t);
+      if (S.prefs.lbMode && typeof lgMode !== 'undefined' && !lgMode) setLgMode(S.prefs.lbMode); };
+    first(); setLoad().then(r => { if (r) first(); });
+  }
+  // the rules of the site (Admin's): the notice line, and the day limit for the on-the-spot check
+  function setRules(r) {
+    S.rules = { backDays: r && r.backDays !== '' && r.backDays !== undefined && r.backDays !== null ? Number(r.backDays) : '', announce: (r && r.announce) || '' };
+    const a = $('announce'); if (a) { a.hidden = !S.rules.announce || !S.user; a.textContent = S.rules.announce; }
+    if ($('sec-settings') && !$('sec-settings').hidden) setDraw();
+  }
+  $('sec-settings').addEventListener('click', e => {
+    const b = e.target.closest('.set-seg button'); if (b) { prefSet({ [b.parentNode.dataset.pref]: b.dataset.v }); return; }
+    const go = e.target.closest('[data-go]'); if (go) { showTab(go.dataset.go); return; }
+  });
+  $('sec-settings').addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.favpick) { let f = (S.prefs.fav || []).filter(x => x !== t.dataset.favpick); if (t.checked) f.push(t.dataset.favpick);
+      if (f.length > 8) { t.checked = false; toast('Up to 8 favourite pages.', true); return; } prefSet({ fav: f }); return; }
+    if (t.type === 'checkbox' && t.dataset.pref) { prefSet({ [t.dataset.pref]: t.checked }); return; }
+    if (t.tagName === 'SELECT' && t.dataset.pref) { prefSet({ [t.dataset.pref]: t.value }); return; }
+    if (t.id === 'set_mobile') { const v = t.value.replace(/[^0-9]/g, ''); t.value = v; if (v && !/^[6-9][0-9]{9}$/.test(v)) { toast('Mobile number must be 10 digits.', true); return; } prefSet({ mobile: v }); }
+  });
+  // the photo: cut to a square, made 128 px, kept as a small JPG with the account
+  $('set_photo_pick').addEventListener('click', () => $('set_photo_file').click());
+  $('set_photo_file').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+    if (!/^image\//.test(f.type)) { toast('The photo must be a picture (JPG, PNG or WebP).', true); return; }
+    const rd = new FileReader();
+    rd.onload = () => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'), n = 128; c.width = n; c.height = n; const k = Math.min(im.width, im.height);
+        c.getContext('2d').drawImage(im, (im.width - k) / 2, (im.height - k) / 2, k, k, 0, 0, n, n); prefSet({ photo: c.toDataURL('image/jpeg', 0.82) }); };
+      im.onerror = () => toast('This picture could not be read – choose another one.', true); im.src = rd.result; };
+    rd.readAsDataURL(f);
+  });
+  $('set_photo_del').addEventListener('click', () => prefSet({ photo: '' }));
+  $('set_pw').addEventListener('click', () => $('u_pw').click());
+  $('u_ava').addEventListener('click', () => $('tab-settings').click());
+  $('tab-settings').addEventListener('click', () => { setDraw(); setLoad(); });
+  $('set_db').addEventListener('click', () => $('db_pill').click());
+  $('set_reset').addEventListener('click', async () => { if (!(await askConfirm({ title: 'Back to the usual settings?', ok: 'Reset', message: 'Theme, text size, language, first page, usual shift / location and favourites go back to how the app comes. Your photo and mobile number stay.' }))) return;
+    const keep = { photo: S.prefs.photo, mobile: S.prefs.mobile }; prefSet(Object.assign({}, PREF_DEFAULT, keep)); });
+  $('rule_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
+    const r = await call('saveSiteRules', { backDays: $('rule_back').value.trim(), announce: $('rule_note').value.trim() }); setRules(r.rules); toast('Rules of the site saved.');
+  }).catch(er => toast(errMsg(er), true)));
+  // "Enter moves to the next box" (own setting): Enter in a box of a page goes on to the next box, as Tab does
+  document.addEventListener('keydown', e => {
+    if (!S.prefs.enterNext || e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey || e.defaultPrevented) return;
+    const t = e.target; if (!t || !t.matches || !t.matches('main input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=button]), main select')) return;
+    const all = [...document.querySelectorAll('main input, main select, main textarea')].filter(x => x.offsetParent !== null && !x.disabled && !x.readOnly && x.type !== 'hidden' && x.type !== 'file' && x.tabIndex >= 0);
+    const nx = all[all.indexOf(t) + 1]; if (!nx) return;
+    e.preventDefault(); nx.focus(); if (nx.select && nx.type !== 'date') { try { nx.select(); } catch (er) {} }
+  });
+  // a short sound for "saved" and for "something is wrong" (own setting)
+  function prefSound(bad) {
+    if (!S.prefs.sound) return;
+    try { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; const ac = prefSound.ac || (prefSound.ac = new AC()), o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = bad ? 220 : 880; g.gain.setValueAtTime(0.0001, ac.currentTime); g.gain.exponentialRampToValueAtTime(0.12, ac.currentTime + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + (bad ? 0.35 : 0.16));
+      o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + (bad ? 0.38 : 0.18)); } catch (e) { /* no sound on this device */ }
+  }
 
   $('lk_save').addEventListener('click', e => busy(e.target, 'Closing…', async () => {
     const d = $('lk_date').value; if (!d) throw new Error('Select a Date.');
@@ -8942,6 +9174,11 @@
     const ENTRY_DATES = ['d_date', 'bd_date', 'i_date', 'i_billdate', 't_date', 'tc_date', 'bk_date', 'py_date', 'dn_date', 'lg_top_date'];
     if (el.type === 'date' && v && S.today && v > S.today && (ENTRY_DATES.indexOf(el.id) > -1 || (f === 'date' && el.closest('#lg_in'))))
       return 'Date ' + showDate(v) + ' is after today (' + showDate(S.today) + '). Entries can be made only up to today.';
+    // … not older than the site allows a user who is not Admin (Settings → Rules of this site)
+    if (el.type === 'date' && v && S.today && S.rules && S.rules.backDays !== '' && S.user && !S.user.admin && ((ENTRY_DATES.indexOf(el.id) > -1 && ['i_billdate', 'py_date', 'dn_date'].indexOf(el.id) === -1) || (f === 'date' && el.closest('#lg_in')))) {
+      const lim = new Date(S.today + 'T00:00:00'); lim.setDate(lim.getDate() - Number(S.rules.backDays));
+      if (v < isoDate(lim)) return 'Entry of ' + showDate(v) + ': an entry older than ' + S.rules.backDays + ' day' + (Number(S.rules.backDays) === 1 ? '' : 's') + ' can be made or changed only by the Admin (rule of this site). Ask the Admin.';
+    }
     // … and not inside a closed month (bill date, payment and debit note are not closed)
     if (el.type === 'date' && v && S.closedUpto && v <= S.closedUpto && ((ENTRY_DATES.indexOf(el.id) > -1 && ['i_billdate', 'py_date', 'dn_date'].indexOf(el.id) === -1) || (f === 'date' && el.closest('#lg_in'))))
       return 'Entry of ' + showDate(v) + ': entries up to ' + showDate(S.closedUpto) + ' are closed (month closed by the Admin) – nothing of that period can be added, changed or deleted. Ask the Admin to reopen it.';
@@ -9809,7 +10046,7 @@
     const html = '<div class="cp-form"><label>List for<select id="al_kind"><option value="date">One date</option><option value="month">A month</option><option value="period">A period (from – to)</option></select></label>' +
       '<label id="al_dw">Date<input id="al_date" type="date" value="' + esc(S.today) + '"></label><label id="al_mw" hidden>Month<input id="al_month" type="month" value="' + esc(S.today.slice(0, 7)) + '"></label>' +
       '<label id="al_fw" hidden>From<input id="al_from" type="date" value="' + esc(S.today.slice(0, 8) + '01') + '"></label><label id="al_tw" hidden>To<input id="al_to" type="date" value="' + esc(S.today) + '"></label>' +
-      '<label>Ownership<select id="al_own"><option value="">All</option><option>Own</option><option>Rental</option><option>Hired</option><option>Other</option></select></label></div>' +
+      '<label>Ownership<select id="al_own"><option value="">All</option><option>Own</option><option>Rental</option><option>Hired</option><option>Debit</option><option>Other</option></select></label></div>' +
       '<p class="al-h">Also print (tick what you need):</p><div class="al-opts">' + opt('al_std', 'Standard Average') + opt('al_papers', 'Tax / PUC / Permit / Fitness / Insurance') + opt('al_make', 'Make') + opt('al_eng', 'Engine Number') + opt('al_chs', 'Chassis Number') + '</div>';
     setTimeout(() => { const k = $('al_kind'); if (k) k.addEventListener('change', () => { $('al_dw').hidden = k.value !== 'date'; $('al_mw').hidden = k.value !== 'month'; $('al_fw').hidden = $('al_tw').hidden = k.value !== 'period'; }); }, 0);
     if (!(await askConfirm({ title: 'Asset list', ok: 'Next', wide: true, html: html }))) return;
@@ -9843,7 +10080,7 @@
     const head = '<tr>' + cols.map(c => '<th' + (c[2] ? ' class="n"' : '') + '>' + esc(c[0]) + '</th>').join('') + '</tr>';
     const body = ms.map((m, i) => '<tr>' + cols.map((c, k) => '<td' + (c[2] ? ' class="n"' : '') + '>' + (k === 0 ? i + 1 : c[1](m)) + '</td>').join('') + '</tr>').join('');
     // summary: how many of each type, by ownership (and how many of them take diesel on Debit)
-    const owns = ['Own', 'Rental', 'Hired', 'Other'].filter(o => ms.some(m => (m.ownership || 'Other') === o));
+    const owns = ['Own', 'Rental', 'Hired', 'Debit', 'Other'].filter(o => ms.some(m => (m.ownership || 'Other') === o));
     const types = {}; ms.forEach(m => { const t = (m.type || '–').trim().toUpperCase(); const x = types[t] = types[t] || { name: m.type || '–', n: 0, deb: 0, by: {} }; x.n++; if (m.supply === 'Debit Basis') x.deb++; const o = m.ownership || 'Other'; x.by[o] = (x.by[o] || 0) + 1; });
     const TL = Object.values(types).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
     const sumTable = '<h3 class="al-sum" style="margin:18px 0 6px">Summary – machinery by type</h3><table class="gtable" style="width:auto;min-width:55%"><thead><tr><th>#</th><th>Type of machinery</th>' + owns.map(o => '<th class="n">' + o + '</th>').join('') + '<th class="n">Diesel on Debit</th><th class="n">Total</th></tr></thead><tbody>' +
@@ -10339,7 +10576,10 @@
       $('rd_from').value = d.today.slice(0, 8) + '01'; $('rd_to').value = d.today;
       const cur = TABS.find(t => !$('sec-' + t).hidden) || 'dash';
       openTabData(cur); // only the page on screen is loaded now; others load when opened
+      const tab0 = S.curTab;
       resumeTab();      // just updated to a new version: back on the page the user was going to
+      S.locations = d.locations || []; if (d.rules) setRules(d.rules);
+      prefsBoot(S.curTab === tab0);      // the user's own settings (look, first page, usual entry type …)
     } catch (e) {
       showBoot(false);
       const m = errMsg(e);
@@ -10437,7 +10677,7 @@
     const wk = worksOf(m); document.querySelectorAll('#m_works input').forEach(x => { x.checked = wk.indexOf(x.value) > -1; }); masterUnitChanged();
     $('m_engno').value = m.engineNo || ''; $('m_chassis').value = m.chassisNo || ''; $('m_engmake').value = m.engineMake || ''; docFill(m);
     $('m_kmstd').value = m.kmStd; $('m_hrstd').value = m.hrStd; $('m_tcap').value = m.tankCap === undefined ? '' : m.tankCap; $('m_mrate').value = m.monthlyRate === undefined ? '' : m.monthlyRate; $('m_tds').value = m.tdsRate === undefined ? '' : m.tdsRate; $('m_owner').value = m.owner;
-    $('m_ownership').value = ['Own', 'Rental', 'Hired', 'Debit', 'Other'].indexOf(m.ownership) > -1 ? m.ownership : '';
+    $('m_ownership').value = ['Own', 'Rental', 'Hired', 'Debit', 'Other'].indexOf(m.ownership) > -1 ? m.ownership : ''; $('m_ownership').dataset.was = $('m_ownership').value;
     masterOwnershipChanged();
     $('m_supply').value = m.supply || 'Company'; $('m_supply').dataset.touched = '1';
     $('m_status').value = m.status || 'Active'; $('m_afrom').value = m.activeFrom || ''; $('m_ifrom').value = m.inactiveFrom || ''; masterStatusChanged();
@@ -10459,8 +10699,13 @@
     // Monthly Rate and TDS Rate: only for Rental and Hired machinery
     const rent = ['Rental', 'Hired'].indexOf($('m_ownership').value) > -1;
     document.querySelectorAll('#sec-master .rent-only').forEach(el => { el.hidden = !rent; });
-    // Diesel Supply follows Ownership until the user picks it
-    if (!$('m_supply').dataset.touched) $('m_supply').value = $('m_ownership').value === 'Debit' ? 'Debit Basis' : 'Company';
+    /* Diesel Supply follows Ownership: Debit = Debit Basis, always. A machinery taken OUT of Debit goes back to Company
+     * (a Rental machinery with diesel on debit is decided in its BOQ, not here). Otherwise what it has is kept. */
+    const own = $('m_ownership').value, was = $('m_ownership').dataset.was || '';
+    if (own === 'Debit') $('m_supply').value = 'Debit Basis';
+    else if (was === 'Debit' || !$('m_supply').dataset.touched) $('m_supply').value = 'Company';
+    $('m_ownership').dataset.was = own;
+    const h = $('m_own_hint'); if (h) { h.hidden = own !== 'Debit'; h.textContent = own === 'Debit' ? 'Debit: takes diesel on debit basis – all its diesel is debited, no meter reading is asked, it is not in the Log Book. "Works on" and the standard average are not needed.' : ''; }
   }
   function masterStatusChanged() {
     const inactive = $('m_status').value === 'Inactive';
@@ -11161,7 +11406,7 @@
   function lgAddRow() {
     const last = lgRows().pop();
     let date = last ? lgf(last, 'date').value : S.today;
-    const ls = last ? lgf(last, 'shift').value : 'Full Day';
+    const ls = last ? lgf(last, 'shift').value : ((S.prefs || {}).shift || 'Full Day');      // the first row: the user's usual shift
     if (lgMode === 'date') date = $('lg_top_date').value || S.today;
     // one machinery: next row = next shift / next date
     if (lgMode === 'mach' && last && lgf(last, 'date').value) date = ls === 'Day' ? lgf(last, 'date').value : addDay(lgf(last, 'date').value, 1);
@@ -11897,7 +12142,8 @@
   /* The list under the entry shows yesterday and today when the page opens (asked 02-10-2026: a short list, fewer and lighter
    * calls). Anything older: the quick buttons, the dates, or the other filters. "Clear filters" goes back to these two days;
    * emptying the From date by hand still means "from the start". Totals, print and exports follow the filter as before. */
-  function lfTwoDays() { const t = new Date(S.today + 'T00:00:00'); $('lf_from').value = isoDate(new Date(t.getFullYear(), t.getMonth(), t.getDate() - 1)); $('lf_to').value = S.today; }
+  // the Log Book list opens on the last days: 2 as the app comes, or the user's own choice (Settings: 2 / 7 / 30)
+  function lfTwoDays() { const t = new Date(S.today + 'T00:00:00'), n = Math.max(2, Number((S.prefs || {}).lbDays) || 2); $('lf_from').value = isoDate(new Date(t.getFullYear(), t.getMonth(), t.getDate() - (n - 1))); $('lf_to').value = S.today; }
   $('lf_reset').addEventListener('click', () => { ['lf_from', 'lf_to', 'lf_no', 'lf_shift', 'lf_own', 'lf_type', 'lf_owner', 'lf_q'].forEach(id => $(id).value = ''); lfTwoDays(); loadLog(); });
 
 

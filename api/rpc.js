@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
     if (fn === 'getAppHtml') { const p = page(); return send(200, JSON.stringify({ result: { build: p.build, html: p.html } })); }
     if (ALLOWED.indexOf(fn) === -1) return send(200, JSON.stringify({ error: 'Unknown action.' }));
     const host = req.headers['x-forwarded-host'] || req.headers.host || '';
-    const out = await pool.call(fn, args, { url: host ? 'https://' + host + '/' : '' });
+    const out = await pool.call(fn, args, { url: host ? 'https://' + host + '/' : '', rid: typeof body.rid === 'string' ? body.rid.slice(0, 64) : '' });   // rid: the number of a save (a save sent again is saved once – runtime.js)
     // Vercel does not send an answer bigger than about 4.5 MB
     if (Buffer.byteLength(out, 'utf8') > 4200000) return send(200, JSON.stringify({ error: 'Too much data in one go – pick a shorter period (or fewer machinery) and try again.' }));
     return send(200, '{"result":' + out + '}');

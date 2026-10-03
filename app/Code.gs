@@ -127,7 +127,7 @@ function doGet(e) {
 }
 
 function getInit_() {
-  return { company: orgSettings_().customer, org: orgPublic_(), today: today_(), master: getMaster_(), drivers: getDrivers_(), stock: getStock_(), pumps: getPumps_(), locations: APP.LOCATIONS, closedUpto: booksClosed_() };
+  return { company: orgSettings_().customer, org: orgPublic_(), rules: siteRules_(), today: today_(), master: getMaster_(), drivers: getDrivers_(), stock: getStock_(), pumps: getPumps_(), locations: APP.LOCATIONS, closedUpto: booksClosed_() };
 }
 
 /* ================= LOGIN, ACCESS AND ACTIVITY LOG ================= *
@@ -406,6 +406,9 @@ const API_ = {
   saveBooksLock:     { m: 'Machinery Billing', f: saveBooksLock_, admin: true, log: 'booksLock' },
   dbHealth:          { m: '', admin: true, f: dbHealth_ },
   saveOrgSettings:   { m: '', admin: true, f: saveOrgSettings_, log: 'org' },
+  getMyPrefs:        { m: '', withUser: true, f: u => getMyPrefs_(u) },
+  saveMyPrefs:       { m: '', withUser: true, f: (u, x) => saveMyPrefs_(u, x) },
+  saveSiteRules:     { m: '', admin: true, f: saveSiteRules_, log: 'siteRules' },
   saveBillSettings:  { m: 'Machinery Billing', edit: true, f: saveBillSettings_, log: 'billSettings' },
   getBills:          { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Bill Summary', 'Vendor Ledger'], f: getBills_ },
   billSummary:       { m: 'Bill Summary', f: billSummary_ },
@@ -528,7 +531,7 @@ function apiRun_(u, spec, fn, args) {
   TABLE_MEMO_ = {}; // each tab read once per request (dropped automatically when written)
   if (sbDataOn_()) sbDiscard_(); // Supabase: every request starts with fresh data
   const before = spec.log ? logBefore_(spec, args) : null;
-  ACTOR_ = u.name || u.email || '';
+  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin;
   const res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args);
   if (fn === 'getInit' || fn === 'sync') { res.user = publicUser_(u); res.versions = getVersions_(); res.today = today_(); res.source = sbDataOn_() ? 'supabase' : 'sheet'; res.build = appBuild_();
     if (typeof sbBackupInfo_ === 'function') res.backup = sbBackupInfo_(); }
@@ -582,7 +585,7 @@ function getVersions_() {
   SYNC_KEYS_.forEach(k => { v[k.slice(2)] = got[k] || '0'; });
   return v;
 }
-function getLookups_() { return { master: getMaster_(), drivers: getDrivers_(), pumps: getPumps_(), vendors: vendorNames_(), closedUpto: booksClosed_() }; }
+function getLookups_() { return { master: getMaster_(), drivers: getDrivers_(), pumps: getPumps_(), vendors: vendorNames_(), closedUpto: booksClosed_(), rules: siteRules_() }; }
 
 // Simple trigger: runs by itself whenever someone types in the Google Sheet
 function onEdit(e) {
@@ -703,6 +706,9 @@ function logAfter_(u, spec, args, res, before) {
     case 'vendor':
       if (res.ok && res.renamed) writeLog_(u, 'Edit', m, res.name, 'Vendor renamed: ' + res.renamed.from + ' → ' + res.renamed.to + (res.renamed.text ? ' (moved with it: ' + res.renamed.text + ')' : ''), '');
       if (res.ok) writeLog_(u, args[1] === 'add' ? 'Add' : 'Edit', m, res.name, (args[1] === 'add' ? 'Vendor details saved: ' : 'Vendor details changed: ') + res.name, '');
+      break;
+    case 'siteRules':
+      writeLog_(u, 'Edit', 'Settings', 'Rules of this site', 'Rules of the site changed: entries back ' + (res.rules.backDays === '' ? 'no limit' : res.rules.backDays + ' day(s)') + (res.rules.announce ? '; notice: ' + res.rules.announce : '; no notice'), '');
       break;
     case 'org':
       writeLog_(u, 'Edit', 'Users & Access', 'Organisation & site', 'Company / site settings changed: ' + res.org.customer + (res.org.site ? ' – ' + res.org.site : ''), '');
@@ -939,7 +945,8 @@ function validateMaster_(m) {
   const kmStd = numOrBlank_(m.kmStd), hrStd = numOrBlank_(m.hrStd);
   if (!debit && hasKm_(unit) && !(kmStd > 0)) throw new Error(id + ': enter Standard Average (KM/Ltr).');
   if (!debit && hasHr_(unit) && !(hrStd > 0)) throw new Error(id + ': enter Standard Average (Ltr/Hr).');
-  const supply = normSupply_(m.supply, ownership);
+  // Ownership Debit = diesel on Debit Basis, always; a machinery that is no longer Debit goes back to what is sent (Company unless said)
+  const supply = debit ? 'Debit Basis' : normSupply_(m.supply, ownership);
   const status = str_(m.status).toUpperCase() === 'INACTIVE' ? 'Inactive' : 'Active';
   const activeFrom = str_(m.activeFrom) ? (m.activeFrom instanceof Date ? dkey_(m.activeFrom) : checkDate_(dkey_(m.activeFrom))) : '';
   const inactiveFrom = str_(m.inactiveFrom) ? (m.inactiveFrom instanceof Date ? dkey_(m.inactiveFrom) : checkDate_(dkey_(m.inactiveFrom))) : '';
@@ -2932,11 +2939,14 @@ function importMaster_(rows, apply) {
   });
 }
 
-// "Debit" is no longer an ownership: diesel debit is decided in the BOQ. An old "Debit" machinery reads as Rental
-// (its Diesel Supply stays Debit Basis until a BOQ decides it – "No rent – diesel only" for a machinery that only takes diesel).
+/* "Debit" IS an ownership again (asked 03-10-2026). For a while it was read as Rental ("diesel debit is decided in the BOQ"),
+ * and the parties that only take diesel on debit then showed under Rental in the lists and reports. Now: Ownership = Debit is
+ * a party / machinery that takes the company's diesel on DEBIT BASIS – its Diesel Supply is always "Debit Basis" (all its
+ * diesel is debited, no readings are asked, it is not in the Log Book lists) and it has its own group "Debit" in the reports.
+ * The MD sets it himself in Asset Master. A machinery whose row still says "Debit" in the database reads as Debit by itself.
+ * A Rental / Hired machinery whose BOQ says "diesel on debit" is NOT changed by this – that stays decided in the BOQ. */
 function normOwnership_(v) {
   const k = str_(v).toUpperCase();
-  if (k === 'DEBIT') return 'Rental';
   return APP.OWNERSHIP.find(o => o.toUpperCase() === k) || str_(v);
 }
 
@@ -6273,6 +6283,74 @@ function checkShift_(s) {
 }
 /* Date of an entry (Diesel Issue, Inward, Transfer, Log Book): never after today,
  * so a mistyped future date cannot make the live stock differ from today's closing. */
+/* ---------- SETTINGS: EVERY USER'S OWN, AND THE RULES OF THE SITE (asked 03-10-2026) ----------
+ * OWN settings (the Settings page, every signed-in user): how the app looks and behaves for THAT user – theme, text size,
+ * language of the help, the page to open first, the usual Log Book entry type / shift / diesel location, favourite pages,
+ * a photo. Kept with the user's account (one row per user in app_settings: USER_PREFS|<email>), so they are the same on
+ * every computer. Only what is in PREF_RULES_ is kept; anything else that is sent is dropped.
+ * RULES OF THE SITE (Admin): how many days back a user who is not Admin may enter or change entries, and a line of
+ * notice shown to everybody. Kept with the app settings (SITE_RULES). */
+const PREF_PICK_ = { theme: ['light', 'dark', 'auto'], text: ['normal', 'large', 'xlarge'], density: ['normal', 'compact'], lang: ['mr', 'hi', 'en'],
+  lbMode: ['', 'date', 'mach'], lbDays: ['2', '7', '30'], shift: ['', 'Full Day', 'Day', 'Night'], menu: ['open', 'closed'] };
+const PREF_YESNO_ = { enterNext: false, sound: false, lessMotion: false, intro: true };
+function prefsClean_(x) {
+  x = x && typeof x === 'object' ? x : {}; const o = {};
+  Object.keys(PREF_PICK_).forEach(k => { const v = str_(x[k]); o[k] = PREF_PICK_[k].indexOf(v) > -1 ? v : PREF_PICK_[k][0]; });
+  Object.keys(PREF_YESNO_).forEach(k => { o[k] = x[k] === undefined || x[k] === null ? PREF_YESNO_[k] : !!x[k]; });
+  o.start = /^[a-z0-9-]{2,30}$/.test(str_(x.start)) ? str_(x.start) : '';
+  o.loc = clean_(x.loc).slice(0, 40);
+  o.fav = (Array.isArray(x.fav) ? x.fav : []).map(str_).filter((t, i, a) => /^[a-z0-9-]{2,30}$/.test(t) && a.indexOf(t) === i).slice(0, 8);
+  const mob = str_(x.mobile).replace(/[^0-9]/g, '');
+  if (mob && !/^[6-9][0-9]{9}$/.test(mob)) throw new Error('Mobile number must be 10 digits.');
+  o.mobile = mob;
+  const ph = str_(x.photo);
+  if (ph && !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(ph)) throw new Error('The photo must be a picture (JPG, PNG or WebP).');
+  if (ph.length > 70000) throw new Error('The photo is too big – choose a smaller picture.');
+  o.photo = ph;
+  return o;
+}
+const prefsKey_ = email => 'USER_PREFS|' + str_(email).toLowerCase();
+// in the database (one row per user in app_settings) when the app runs on Supabase; otherwise with the script's settings
+const prefsInDb_ = () => { if (!(sbDataOn_() && typeof sbFetch_ === 'function' && typeof sbConf_ === 'function')) return false; try { sbConf_(); return true; } catch (e) { return false; } };
+function prefsRead_(email) {
+  // (a failed read is NOT turned into "nothing set": a save after it would wipe the user's settings – it is an error)
+  let raw = '';
+  if (prefsInDb_()) { const r = sbFetch_('GET', '/rest/v1/app_settings?id=eq.' + encodeURIComponent(prefsKey_(email)) + '&select=value'); raw = r && r[0] ? str_(r[0].value) : ''; }
+  else raw = str_(PropertiesService.getScriptProperties().getProperty(prefsKey_(email)));
+  let j = {}; try { j = JSON.parse(raw || '{}') || {}; } catch (e) { j = {}; }
+  try { return prefsClean_(j); } catch (e) { return prefsClean_({}); }
+}
+function prefsWrite_(email, o) {
+  const v = JSON.stringify(o);
+  if (prefsInDb_()) sbFetch_('POST', '/rest/v1/app_settings?on_conflict=id', [{ id: prefsKey_(email), value: v }], { Prefer: 'resolution=merge-duplicates,return=minimal' });
+  else PropertiesService.getScriptProperties().setProperty(prefsKey_(email), v);
+}
+// the user's last sign-ins (from the Activity Log) – shown on the Settings page so a sign-in that was not theirs is noticed
+function myLogins_(u) {
+  try { if (!prefsInDb_()) return [];
+    const r = sbFetch_('GET', '/rest/v1/activity_log?email=eq.' + encodeURIComponent(str_(u.email)) + '&action=eq.Login&order=at.desc&limit=8&select=at') || [];
+    return r.map(x => str_(x.at)).filter(Boolean); } catch (e) { return []; }
+}
+function getMyPrefs_(u) { return { prefs: prefsRead_(u.email), logins: myLogins_(u), email: u.email, rules: siteRules_() }; }
+function saveMyPrefs_(u, x) {
+  const o = prefsClean_(Object.assign({}, prefsRead_(u.email), x && typeof x === 'object' ? x : {}));
+  prefsWrite_(u.email, o);
+  return { ok: true, prefs: o };
+}
+function siteRules_() {
+  return memoGet_('__rules', () => { let s = {}; try { s = JSON.parse(PropertiesService.getScriptProperties().getProperty('SITE_RULES') || '{}') || {}; } catch (e) { s = {}; }
+    const n = s.backDays === '' || s.backDays === undefined || s.backDays === null ? '' : Number(s.backDays);
+    return { backDays: n === '' || !isFinite(n) || n < 0 ? '' : Math.min(365, Math.floor(n)), announce: clean_(s.announce).slice(0, 200) }; });
+}
+function saveSiteRules_(x) {
+  x = x || {};
+  const raw = str_(x.backDays).trim();
+  if (raw !== '' && !/^[0-9]{1,3}$/.test(raw)) throw new Error('Days back must be a whole number (0 to 365), or empty for no limit.');
+  const o = { backDays: raw === '' ? '' : Math.min(365, Number(raw)), announce: clean_(x.announce).slice(0, 200) };
+  PropertiesService.getScriptProperties().setProperty('SITE_RULES', JSON.stringify(o)); memoDrop_('__rules');
+  return { ok: true, rules: siteRules_() };
+}
+
 /* ---------- THE APP CHECKS ITS DATABASE BY ITSELF (asked 02-10-2026; shown to the Admin only) ----------
  * Every SQL step that the app needs is checked against the live database: the columns each step adds (read through
  * backup_catalog), the functions of step 2 / 3 (read from the API's own list), and – once sql/supabase_step4_health.sql is
@@ -6320,7 +6398,11 @@ function dbHealth_() {
 const memoGet_ = (k, make) => { if (TABLE_MEMO_ && k in TABLE_MEMO_) return TABLE_MEMO_[k]; const v = make(); if (TABLE_MEMO_) TABLE_MEMO_[k] = v; return v; };
 const memoDrop_ = k => { if (TABLE_MEMO_) delete TABLE_MEMO_[k]; };
 function booksClosed_() { return memoGet_('__closed', () => { let v = ''; try { v = str_(PropertiesService.getScriptProperties().getProperty('BOOKS_CLOSED_UPTO')); } catch (e) { v = ''; } return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; }); }
+let ACTOR_ADMIN_ = true;       // set for every call (apiRun_); code run without a signed-in user (tests, set-up) is not limited
 function booksOpen_(dk, what) {
+  // a rule of the site (Settings → Rules of this site): a user who is not Admin enters and changes only the last N days
+  const lim = siteRules_().backDays;
+  if (lim !== '' && !ACTOR_ADMIN_ && dk && dk < addDays_(today_(), -lim)) throw new Error((what || 'Entry') + ' of ' + dmy_(dk) + ': an entry older than ' + lim + ' day' + (lim === 1 ? '' : 's') + ' can be made or changed only by the Admin (rule of this site). Ask the Admin.');
   const upto = booksClosed_();
   if (upto && dk && dk <= upto) throw new Error((what || 'Entry') + ' of ' + dmy_(dk) + ': entries up to ' + dmy_(upto) + ' are closed (month closed by the Admin) – nothing of that period can be added, changed or deleted. Ask the Admin to reopen it.');
   return dk;

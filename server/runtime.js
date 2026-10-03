@@ -40,7 +40,53 @@ function bootKeys(fn, args) {
   if (fn === 'backup') return ['S_' + String((args[0] && args[0].token) || ''), 'USERS_LIST'];
   return [];
 }
+/* ---------- A SAVE THAT IS SENT AGAIN IS SAVED ONCE (03-10-2026) ----------
+ * The page sends every save with its own number (rid) and, when no answer comes, sends the SAME save again (see the bridge in
+ * page.js). Here: the first copy of a number runs and its answer is kept for an hour (web.cache OPR_<rid>). A later copy of
+ * the same number does not run the save again – it gets the kept answer; while the first copy is still running it waits
+ * for it. Only when the first copy cannot be running any more (a request lives 60 s at most) and left no answer – it
+ * died before it saved – the later copy runs the save.
+ * An entry the server REFUSED is kept too (the same refusal is given again). "Could not do it now" (busy, database slow)
+ * is NOT kept: the number is given back, so the next copy tries afresh.
+ * web_count (step-3 SQL) makes "who is first" exact; without it a plain look is used. */
+const NOT_NOW = /Another save is still running|Could not reach the database|did not answer in time|^Database \([a-z_]+\): 5\d\d|RETRY_LATER/;
+const IS_QUESTION = f => /^(get|rpt)[A-Z]/.test(f) || ['sync', 'logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1;
+const { sleepSync } = require('./syncfetch');
 function run(fn, args, meta) {
+  const rid = meta && typeof meta.rid === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(meta.rid) ? meta.rid : '';
+  if (!rid || fn !== 'api' || IS_QUESTION(String(args[1]))) return runPlain(fn, args, meta);
+  const kR = 'OPR_' + rid, kT = 'OPT_' + rid, kC = 'OPC_' + rid;
+  const keep = (k, v) => { try { gas.rpc('web_flush', { p_props: null, p_put: [{ key: k, value: v, ttl: 3600 }], p_del: [] }); } catch (e) { /* the save itself is done */ } };
+  const look = () => { try { return gas.rpc('web_cache_get', { p_keys: [kR, kT] }) || {}; } catch (e) { return {}; } };
+  const answer = v => { let j = null; try { j = JSON.parse(v); } catch (e) { j = null; } if (j && typeof j === 'object' && j.__refused !== undefined) throw new Error(String(j.__refused)); return v; };
+  let first = true, exact = !COUNTER.off;
+  if (exact) { try { first = !(Number(gas.rpc('web_count', { p_key: kC, p_ttl: 3600 })) > 1); } catch (e) { exact = false; if (/404|web_count/.test(String(e && e.message))) COUNTER.off = true; } }
+  if (!exact) { const g = look(); if (g[kR] !== undefined && g[kR] !== null) return answer(g[kR]); first = !(g[kT] !== undefined && g[kT] !== null); }
+  if (!first) {
+    // a later copy: wait for the first one's answer (about 24 s here; the page asks again after that)
+    for (let i = 0; i < 40; i++) {
+      const g = look();
+      if (g[kR] !== undefined && g[kR] !== null) return answer(g[kR]);
+      const t0 = Number(g[kT]) || 0;
+      if (!t0 || Date.now() - t0 > 75000) { first = true; break; }      // the first copy is not running any more and left no answer: it did not save
+      sleepSync(600);
+    }
+    if (!first) throw new Error('RETRY_LATER');
+  }
+  keep(kT, String(Date.now()));
+  let out;
+  try { out = runPlain(fn, args, meta); }
+  catch (e) {
+    const msg = String((e && e.message) || e).replace(/^Error:\s*/, '');
+    if (NOT_NOW.test(msg) || /SESSION_EXPIRED/.test(msg)) {        // not done, and not refused: the number is free again
+      try { gas.rpc('web_flush', { p_props: null, p_put: [], p_del: [kT] }); if (exact) gas.rpc('web_uncount', { p_key: kC }); } catch (e2) { /* it frees itself */ }
+    } else keep(kR, JSON.stringify({ __refused: msg }));
+    throw e;
+  }
+  keep(kR, out.length <= 400000 ? out : JSON.stringify({ ok: true, _resent: true }));
+  return out;
+}
+function runPlain(fn, args, meta) {
   const st = gas.newState(meta);
   gas.boot(st, bootKeys(fn, args));
   const g = gas.makeGlobals(st, page());

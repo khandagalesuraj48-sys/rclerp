@@ -49,13 +49,63 @@ const BRIDGE = `
     var t0 = Date.now(), fid = ++flightNo, fnName = name === 'api' ? String(args[1]) : name;
     inFlight[fid] = { fn: fnName, t0: t0 };
     var landed = function (err) { delete inFlight[fid]; lastAnswer = fnName + ' ' + (Date.now() - t0) + ' ms' + (err ? ' (failed)' : ''); };
-    fetch(base + '/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fn: name, args: args }), cache: 'no-store' })
-      .then(function (r) { return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; }
-        if (!j) throw new Error(r.status === 413 ? 'Too much data in one go – pick a shorter period.' : 'The server did not answer properly (' + r.status + '). Try again.');
-        return j; }); })
-      .then(function (j) { landed(false); if (!isQ) saveNo++; try { took(name, args, Date.now() - t0); if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('← ' + (name === 'api' ? args[1] : name) + ' ' + (Date.now() - t0) + ' ms' + (j && j.error ? ' ERROR' : '')); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(j.result); },
-            function (e) { landed(true); if (fail) fail(new Error(e && /did not answer|Too much data/.test(e.message) ? e.message : 'No connection to the server – check the internet and try again.')); });
+    /* A SAVE THAT DID NOT GET THROUGH IS SENT AGAIN BY ITSELF (asked 03-10-2026: "do not tell me it was not saved – save it").
+     * Every save carries its own number (rid). When the connection drops, the server is busy or it does not answer, the
+     * same save is sent again with the SAME number – after 1.2 s, then a little longer each time, at most every 10 s –
+     * for as long as this page is open. The server keeps the answer of every number for an hour, so a save that had
+     * arrived the first time is NOT saved twice: the second copy just gets the first answer. The person sees a small
+     * line "being sent again"; the Save button stays "Saving…"; closing the page asks first.
+     * Not sent again: an entry the server REFUSES (a wrong reading, a closed month …) – that needs the person, and is shown.
+     * A question (a list, a report) is asked again 3 times, then it says so as before. */
+    var rid = (name === 'api' && !isQ) ? ('s' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12)) : '';
+    var body = JSON.stringify(rid ? { fn: name, args: args, rid: rid } : { fn: name, args: args }), tries = 0;
+    var again = function (why) {
+      if (/Too much data/.test(why)) return false;
+      if (name !== 'api' || fnName === 'sync') return false;
+      if (isQ) { if (tries >= 3) return false; setTimeout(attempt, 600 * tries); return true; }
+      waiting[fid] = { fn: fnName, n: tries }; retryNote();
+      setTimeout(attempt, Math.min(10000, Math.round(1200 * Math.pow(1.6, tries - 1)))); return true;
+    };
+    var attempt = function () {
+      tries++;
+      fetch(base + '/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, cache: 'no-store' })
+        .then(function (r) { return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; }
+          if (!j) throw new Error(r.status === 413 ? 'Too much data in one go – pick a shorter period.' : 'The server did not answer properly (' + r.status + '). Try again.');
+          return j; }); })
+        .then(function (j) {
+          if (j.error !== undefined && j.error !== null && TRANSIENT.test(String(j.error)) && again(String(j.error))) return;       // the server could not do it NOW: again
+          var was = waiting[fid]; if (was) { delete waiting[fid]; retryNote(true); }
+          landed(false); if (!isQ) saveNo++; try { took(name, args, Date.now() - t0); if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('← ' + (name === 'api' ? args[1] : name) + ' ' + (Date.now() - t0) + ' ms' + (tries > 1 ? ' (try ' + tries + ')' : '') + (j && j.error ? ' ERROR' : '')); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(j.result); },
+              function (e) {
+                if (again(String((e && e.message) || e))) return;
+                landed(true); if (fail) fail(new Error(e && /did not answer|Too much data/.test(e.message) ? e.message : 'No connection to the server – check the internet and try again.')); });
+    };
+    attempt();
   }
+  // what the server says when it could not do it NOW (busy, database slow) – worth sending again; anything else is an answer
+  var TRANSIENT = /Another save is still running|Could not reach the database|did not answer in time|^Database [(][a-z_]+[)]: 5[0-9][0-9]|RETRY_LATER/;
+  var waiting = {};      // saves that are being sent again: { flight number: { fn, n } }
+  window.__rclSaving = function () { return Object.keys(waiting).length; };
+  var RT = { en: ['No connection – your entry is kept and is being sent again by itself', 'try', 'Do not close this page.', 'Saved ✔'],
+    mr: ['Connection नाही – तुमची entry जपली आहे आणि आपोआप पुन्हा पाठवली जात आहे', 'प्रयत्न', 'हे page बंद करू नका.', 'Save झाले ✔'],
+    hi: ['Connection नहीं – आपकी entry सुरक्षित है और अपने-आप दोबारा भेजी जा रही है', 'प्रयास', 'यह page बंद न करें।', 'Save हो गया ✔'] };
+  var rtBox = null, rtHide = null;
+  function retryNote(done) {
+    var ks = Object.keys(waiting), lang = 'mr'; try { lang = localStorage.getItem('rcl_lang') || 'mr'; } catch (e) {}
+    var T = RT[lang] || RT.mr;
+    if (!rtBox) { if (!document.body) return; rtBox = document.createElement('div'); rtBox.id = 'rcl_retry'; rtBox.setAttribute('role', 'status');
+      rtBox.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99998;max-width:min(680px,92vw);padding:10px 16px;border-radius:12px;font:600 13.5px/1.4 system-ui,Arial,sans-serif;box-shadow:0 10px 28px rgba(0,0,0,.28);text-align:center';
+      document.body.appendChild(rtBox); }
+    clearTimeout(rtHide);
+    if (ks.length) { var n = 0; ks.forEach(function (k) { if (waiting[k].n > n) n = waiting[k].n; });
+      rtBox.hidden = false; rtBox.style.background = '#FFF4D6'; rtBox.style.color = '#6B4500'; rtBox.style.border = '1px solid #F0C36D';
+      rtBox.textContent = T[0] + (ks.length > 1 ? ' (' + ks.length + ')' : '') + ' · ' + T[1] + ' ' + n + ' · ' + T[2]; }
+    else if (done) { rtBox.hidden = false; rtBox.style.background = '#E8F7EF'; rtBox.style.color = '#0B6B3A'; rtBox.style.border = '1px solid #A7DFC0'; rtBox.textContent = T[3]; rtHide = setTimeout(function () { rtBox.hidden = true; }, 2600); }
+    else rtBox.hidden = true;
+  }
+  // closing the page while an entry is still being sent: the browser asks first
+  window.addEventListener('beforeunload', function (e) { if (Object.keys(waiting).length) { e.preventDefault(); e.returnValue = ''; return ''; } });
+
   /* A thin bar at the top of the app while it waits for the server longer than half a second, and the seconds once it is
    * more than 2.5 s. A slow answer (a server that had gone to sleep, a weak connection) must never look like a frozen app:
    * the page itself stays usable, and the person sees that it is waiting and for how long. The 2-second check is not shown. */
