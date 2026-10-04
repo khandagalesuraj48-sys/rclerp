@@ -7,7 +7,11 @@ if (fs.existsSync(envFile)) fs.readFileSync(envFile, 'utf8').split(/\r?\n/).forE
 const { shell } = require('./server/page');
 const rpc = require('./api/rpc');
 const port = Number(process.env.PORT) || 3000;
+// the same security headers as the live site (vercel.json, the rule for every address). Without them a header that forbids
+// something on the live site – the microphone, 04-10-2026 – cannot be seen here.
+const siteHeaders = (() => { try { const j = JSON.parse(fs.readFileSync(path.join(__dirname, 'vercel.json'), 'utf8')); return ((j.headers || []).find(h => h.source === '/(.*)') || { headers: [] }).headers; } catch (e) { return []; } })();
 http.createServer((req, res) => {
+  siteHeaders.forEach(h => res.setHeader(h.key, h.value));
   if (req.url.split('?')[0] === '/api/rpc') return rpc(req, res);
   if (req.url.split('?')[0] === '/api/backup') return require('./api/backup')(req, res);
   if (req.url.split('?')[0] === '/' || req.url.split('?')[0] === '/index.html') { res.setHeader('Content-Type', 'text/html; charset=utf-8'); return res.end(shell()); }

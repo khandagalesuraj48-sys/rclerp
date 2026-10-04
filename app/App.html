@@ -9578,6 +9578,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * the Hindi voice reads the Devanagari). The microphone needs the person's permission; without it a line says so. */
   const aiTopWin = () => { try { if (window.top && (window.top.SpeechRecognition || window.top.webkitSpeechRecognition)) return window.top; } catch (e) {} return window; };
   const aiRecCtor = () => { const W = aiTopWin(); return W.SpeechRecognition || W.webkitSpeechRecognition || null; };
+  // does the site itself allow the microphone (its Permissions-Policy header)? – unknown is taken as yes
+  const aiMicBySite = () => { try { const d = aiTopWin().document, fp = d.permissionsPolicy || d.featurePolicy; return fp && fp.allowsFeature ? fp.allowsFeature('microphone') : true; } catch (e) { return true; } };
   const aiCanSay = () => { try { return typeof speechSynthesis === 'object' && typeof SpeechSynthesisUtterance === 'function'; } catch (e) { return false; } };
   const AI_SPEECH = { mr: 'mr-IN', hi: 'hi-IN', en: 'en-IN' };
   const AI_MONTHS = { en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'], mr: ['जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून', 'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'], hi: ['जनवरी', 'फरवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'] };
@@ -9612,7 +9614,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const rec = new R(); AI.rec = rec; rec.lang = AI_SPEECH[fixLang] || 'en-IN'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
     let final = '';
     rec.onresult = e => { let t = ''; for (let i = 0; i < e.results.length; i++) { t += e.results[i][0].transcript; if (e.results[i].isFinal) final = t; } $('ai_in').value = t; };
-    rec.onerror = e => { const c = e && e.error; if (c === 'not-allowed' || c === 'service-not-allowed') aiLiveStop(aiL({ en: 'The microphone is not allowed for this site. Press the lock / tune icon left of the address, allow the microphone, and press the microphone button again.', mr: 'या site ला microphone ची परवानगी नाही. Address च्या डावीकडचे चिन्ह दाबून microphone ला परवानगी द्या आणि mic बटण पुन्हा दाबा.', hi: 'इस site को microphone की अनुमति नहीं है। Address के बाईं ओर के चिह्न से microphone की अनुमति दें और mic बटन फिर दबाएँ।' }));
+    rec.onerror = e => { const c = e && e.error;
+      // "not allowed" has two causes, and they need different words: the PERSON has not allowed the microphone – or the SITE's own
+      // security header forbids it to everybody (the first live try, 04-10-2026: Chrome showed "Microphone: allowed" and it still failed)
+      if ((c === 'not-allowed' || c === 'service-not-allowed') && !aiMicBySite()) { aiLiveStop(aiL({ en: 'The microphone is switched off by this site\'s own security setting – it is not your browser. Admin: the app needs the update that allows it (Permissions-Policy: microphone=(self)).', mr: 'Microphone या site च्या स्वतःच्या सुरक्षा setting मुळे बंद आहे; तुमच्या browser मुळे नाही. Admin: microphone ला परवानगी देणारे app चे update लावा.', hi: 'Microphone इस site की अपनी सुरक्षा setting से बंद है; आपके browser से नहीं। Admin: microphone की अनुमति देने वाला app का update लगाएँ।' })); return; }
+      if (c === 'not-allowed' || c === 'service-not-allowed') aiLiveStop(aiL({ en: 'The microphone is not allowed for this site. Press the lock / tune icon left of the address, allow the microphone, and press the microphone button again.', mr: 'या site ला microphone ची परवानगी नाही. Address च्या डावीकडचे चिन्ह दाबून microphone ला परवानगी द्या आणि mic बटण पुन्हा दाबा.', hi: 'इस site को microphone की अनुमति नहीं है। Address के बाईं ओर के चिह्न से microphone की अनुमति दें और mic बटन फिर दबाएँ।' }));
       else if (c === 'audio-capture') aiLiveStop(aiL({ en: 'No microphone was found on this device.', mr: 'या device वर microphone सापडला नाही.', hi: 'इस device पर microphone नहीं मिला।' })); };
     rec.onend = async () => { if (AI.rec !== rec) return; AI.rec = null; if (!AI.live) return;
       const said = final.trim(); $('ai_in').value = '';

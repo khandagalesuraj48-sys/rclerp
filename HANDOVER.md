@@ -790,6 +790,16 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * NOT HEARD BY ME: real listening and a real voice – the test plays both (headless browsers have neither). How well Chrome hears
     Marathi and whether his device has a Marathi voice is to be tried on live. Speech recognition in Chrome sends the audio to Google.
   * Tests: unit "the daily summary …" (28 unit tests), `test/browser/voice.js` (13); ai / ai2 / ai3 / aibusy unchanged in result.
+- 04-10-2026 (his screenshot, the first try of the voice on live): Chrome's site box says "Microphone: allowed", the assistant says
+  three times "the microphone is not allowed for this site". CAUSE – MY OWN: vercel.json sends `Permissions-Policy: camera=(),
+  microphone=(), geolocation=()` (the hardening of an earlier step): the site forbade the microphone to everybody, itself included, and
+  that overrules the person's permission. The rig did not send vercel.json's headers, so no test could see it. FIXED: the header is now
+  `microphone=(self)` (camera and geolocation stay forbidden); the app's frame in Index.html has `allow="… microphone"`; dev.js sends
+  the headers of vercel.json like the live site; on "not-allowed" the app first asks the page's own policy (`aiMicBySite`) and says
+  "switched off by this site's own security setting … Admin: update" instead of blaming the person's browser. Proved in a real
+  browser: with the old header `allowsFeature('microphone')` is false for the page and its frame, with the new one true for both.
+  Guard: unit test "talking with the assistant needs the microphone …" (29 unit tests). NOTE: a header change needs the push /
+  redeploy to take effect. Still not heard by me: Chrome's real listening.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

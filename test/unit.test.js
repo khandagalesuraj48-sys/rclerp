@@ -664,3 +664,12 @@ test('the daily summary: every part only if the user may see that page; the Admi
   const pr = run('x => prefsClean_(x)', { brief: 'maybe', voiceOut: false });
   assert.deepStrictEqual([pr.brief, pr.voiceOut], [true, false]);
 });
+
+test('talking with the assistant needs the microphone: the site\'s own security header and the app\'s frame must allow it', () => {
+  const fs = require('fs'), path = require('path');
+  const j = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
+  const pp = (((j.headers || []).find(h => h.source === '/(.*)') || { headers: [] }).headers.find(h => h.key === 'Permissions-Policy') || {}).value || '';
+  assert.match(pp, /microphone=\(self\)/, 'Permissions-Policy must say microphone=(self) – with microphone=() Chrome refuses the microphone even when the person allowed it');
+  assert.match(pp, /camera=\(\)/); assert.match(pp, /geolocation=\(\)/);                                     // what the app does not use stays forbidden
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'app', 'Index.html'), 'utf8'), /<iframe id="app"[^>]*allow="[^"]*microphone/);
+});
