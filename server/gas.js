@@ -354,6 +354,23 @@ function makeWarm(st) {
   };
 }
 
+/* ---------- THE ASSISTANT'S LINE TO THE AI SERVICE (Gemini) – 04-10-2026 ----------
+ * The key never leaves the server: it is read here from the server's settings (GEMINI_API_KEY in Vercel) and put on the
+ * request; the app's code only says what to ask. GEMINI_API_BASE is for tests (a stand-in service); GEMINI_MODEL fixes the
+ * model, otherwise the app picks one from the service's own list. One call may take a while: 50 seconds are allowed. */
+const AI_BASE = () => String(process.env.GEMINI_API_BASE || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+function makeAi() {
+  return {
+    on: () => !!process.env.GEMINI_API_KEY,
+    model: () => String(process.env.GEMINI_MODEL || ''),
+    call: (method, path, body) => {
+      const key = String(process.env.GEMINI_API_KEY || ''); if (!key) return { code: 0, text: '', error: 'no key' };
+      const r = fetchAllSync([{ url: AI_BASE() + path, method: method, headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: body === undefined || body === null ? undefined : JSON.stringify(body) }], 50000)[0] || {};
+      return { code: r.code || 0, text: String(r.text || ''), error: r.error ? String(r.error) : '' };
+    },
+  };
+}
+
 const notHere = what => new Proxy(function () {}, { get: (t, p) => p === 'then' ? undefined : notHere(what), apply: () => { throw new Error(what + ' works only in Apps Script (the Google Sheet backup runs there).'); } });
 
 // everything the server code sees as "global" for one request
@@ -372,6 +389,7 @@ function makeGlobals(st, page) {
     Logger: { log: () => {} },
     console: console,
     __warm: makeWarm(st),       // the tables kept in this server's memory (see makeWarm)
+    __ai: makeAi(),             // the assistant's line to the AI service (see makeAi)
   };
 }
 module.exports = { newState, boot, flush, forceUnlock, makeGlobals, rpc, conf, Utilities, TZ };

@@ -634,3 +634,17 @@ test('Log Book is not asked of Ownership "Other" (nor of Debit): they are in no 
   run('(x, m, o) => saveMaster_(x, m, o)', { no: 'PN-RENT', name: 'Bolero', type: 'Bolero', unit: 'KM', worksOn: ['KM'], kmStd: 10, owner: 'Somebody', ownership: 'Other', status: 'Active', activeFrom: yest }, 'edit', 'PN-RENT');
   assert.deepStrictEqual(pendingOf(), { 'PN-OWN': 2 });
 });
+
+test('the assistant: without a key it says so; the rules and the look-ups are the server\'s own (read-only, this app only, the user\'s language)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  assert.deepStrictEqual(run('() => aiInfo_()'), { on: false });
+  assert.throws(() => run('(u, x) => getAiReply_(u, x)', { name: 'A', email: 'a@x.test' }, { contents: [{ role: 'user', parts: [{ text: 'hello' }] }] }), /assistant is not set up yet/);
+  const rules = run('u => aiRules_(u)', { name: 'Ramesh', email: 'r@x.test', role: 'User' });
+  assert.match(rules, /The person asking is Ramesh \(User\)\./);
+  assert.match(rules, /Answer ONLY from this app/); assert.match(rules, /You only read/); assert.match(rules, /Devanagari/); assert.match(rules, /Today is \d{4}-\d{2}-\d{2}/);
+  const tools = run('() => AI_TOOLS_.map(t => t.name)');
+  assert.deepStrictEqual(tools, ['diesel_issues', 'log_book', 'pending_log_book', 'diesel_stock', 'machinery', 'diesel_average', 'diesel_watch', 'activity', 'app_guide']);
+  // no look-up can write: none of them names a saving action
+  assert.ok(!/save|delete|update|add /i.test(tools.join(' ')));
+});

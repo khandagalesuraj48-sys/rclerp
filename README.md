@@ -127,3 +127,13 @@ Backup लिहिण्यासाठी Google चे एक "service accoun
 Server आता tables memory मध्ये ठेवतो आणि फक्त बदललेल्या ओळी आणतो; दर 2 सेकंदांचा "काही नवीन?" प्रश्न memory मधून उत्तरतो. अडचण आल्यास Vercel → Settings → Environment Variables मध्ये `RCL_WARM` = `off` ठेवून Redeploy करा: जुनी पद्धत परत येते.
 
 एका site वर किती लोक सुरळीत चालतात ते TEST प्रतीवर मोजण्यासाठी: `node test/load-site.js <link> <e-mail> <password> 100 120` (live site वर चालवू नका).
+
+
+## Assistant (chat) सुरू करणे (04-10-2026)
+
+1. Google AI Studio मध्ये Gemini ची API key बनवा.
+2. Vercel → project → Settings → Environment Variables → नवीन: नाव `GEMINI_API_KEY`, किंमत = ती key → Save.
+3. Vercel → Deployments → शेवटच्या deployment वर Redeploy.
+4. App उघडा (Ctrl + R): खाली उजवीकडे **Ask** बटण दिसेल.
+
+Key नसेल तर Ask बटण फक्त Admin ला दिसते आणि "अजून सुरू केलेले नाही" असे सांगते. Model आपोआप निवडला जातो; ठराविक model हवा असेल तर `GEMINI_MODEL` ठेवा. Assistant फक्त वाचतो; काहीही बदलत नाही.

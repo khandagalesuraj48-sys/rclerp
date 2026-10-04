@@ -127,7 +127,7 @@ function doGet(e) {
 }
 
 function getInit_() {
-  return { company: orgSettings_().customer, org: orgPublic_(), rules: siteRules_(), today: today_(), master: getMaster_(), drivers: getDrivers_(), stock: getStock_(), pumps: getPumps_(), locations: APP.LOCATIONS, closedUpto: booksClosed_() };
+  return { company: orgSettings_().customer, org: orgPublic_(), rules: siteRules_(), ai: aiInfo_(), today: today_(), master: getMaster_(), drivers: getDrivers_(), stock: getStock_(), pumps: getPumps_(), locations: APP.LOCATIONS, closedUpto: booksClosed_() };
 }
 
 /* ================= LOGIN, ACCESS AND ACTIVITY LOG ================= *
@@ -407,6 +407,7 @@ const API_ = {
   saveBooksLock:     { m: 'Machinery Billing', f: saveBooksLock_, admin: true, log: 'booksLock' },
   dbHealth:          { m: '', admin: true, f: dbHealth_ },
   saveOrgSettings:   { m: '', admin: true, f: saveOrgSettings_, log: 'org' },
+  getAiReply:        { m: '', withUser: true, f: (u, x) => getAiReply_(u, x) },
   reportError:       { m: '', withUser: true, f: (u, x) => reportError_(u, x) },
   getErrors:         { m: '', admin: true, f: getErrors_ },
   clearErrors:       { m: '', admin: true, f: clearErrors_ },
@@ -6409,6 +6410,105 @@ function checkShift_(s) {
 }
 /* Date of an entry (Diesel Issue, Inward, Transfer, Log Book): never after today,
  * so a mistyped future date cannot make the live stock differ from today's closing. */
+/* ---------- THE ASSISTANT: ASK THE APP IN YOUR OWN WORDS (asked 04-10-2026) ----------
+ * "A chat in the app that answers anything about the app: how to do something, where, why something happened, who did what,
+ * how much diesel, who took it …" – in Marathi, Hindi or English.
+ * HOW IT WORKS. The understanding is done by an AI model (Gemini, the customer's own key). The FIGURES never come from the
+ * model: when it needs something it asks for one of the LOOK-UPS below (AI_TOOLS_); the PAGE runs that look-up through the
+ * app's normal calls with the user's own sign-in – so a user gets exactly what his permissions allow, nothing more – and
+ * sends the result back; the model then writes the answer from it. Every look-up only READS. Nothing is changed by the
+ * assistant (stage 1).
+ * THIS CALL (getAiReply) is one step of that conversation: the page sends the conversation so far, the server adds the rules
+ * (AI_RULES_) and the list of look-ups – both fixed here, a page cannot change them – and passes it to the AI service.
+ * Guards: a signed-in user only; 150 steps an hour per user and 5,000 a day for the site (a question takes 2–4 steps);
+ * the conversation is cut to 40 turns / 250 kB. What leaves the app: the question, the look-up results it needed, and these
+ * rules – to the AI service of the key's owner. */
+const AI_TOOLS_ = [
+  { name: 'diesel_issues', description: 'Diesel issued to machinery / vehicles / parties between two dates: totals, the split by machinery and by owner, and the entries (date, shift, machinery, owner, litres, meter reading, source, who entered). Use for "how much diesel", "who took diesel", "when was diesel given".',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'first date, yyyy-mm-dd' }, to: { type: 'STRING', description: 'last date, yyyy-mm-dd' }, machinery: { type: 'STRING', description: 'machinery number or name; leave out for all' } }, required: ['from', 'to'] } },
+  { name: 'log_book', description: 'Log Book entries (the daily work of a machinery: start / close readings, KM, hours, trips, status, work done, diesel in the tank, average) between two dates, with totals.',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, machinery: { type: 'STRING', description: 'machinery number or name; leave out for all' } }, required: ['from', 'to'] } },
+  { name: 'pending_log_book', description: 'Which machinery have no Log Book entry: for one date (give date) or the missing dates of one machinery (give machinery). Machinery on debit basis and ownership "Other" need no Log Book.',
+    parameters: { type: 'OBJECT', properties: { date: { type: 'STRING', description: 'yyyy-mm-dd' }, machinery: { type: 'STRING' } } } },
+  // (a look-up that takes nothing has NO "parameters": the service refuses an object with no properties)
+  { name: 'diesel_stock', description: 'Diesel in stock now at each location (Dispenser, store …). Takes nothing.' },
+  { name: 'machinery', description: 'The Asset Master: find machinery / vehicles by number, name, type or owner – type, owner, ownership, how it is measured (KM / Hrs), standard average, tank, status.',
+    parameters: { type: 'OBJECT', properties: { query: { type: 'STRING', description: 'part of a number, name, type or owner; leave out for a count by ownership and type' } } } },
+  { name: 'diesel_average', description: 'For each machinery between two dates: work done, diesel taken, actual average against the standard average, and the verdict (Good / Very good / More diesel / Bad / Check reading). Use for "which machinery uses too much diesel", "why is this machinery Bad".',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, machinery: { type: 'STRING' } }, required: ['from', 'to'] } },
+  { name: 'diesel_watch', description: 'Signs of diesel loss between two dates: fills with no work, more diesel than the work needs, a fill bigger than the tank, a meter that did not move, tank checks that found less; and the machinery whose diesel cannot be checked (no Log Book).',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' } }, required: ['from', 'to'] } },
+  { name: 'activity', description: 'Who did what in the app (the Activity Log: user, time, action, page, record, what changed). Admin only. Use for "who changed / deleted / added …".',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, text: { type: 'STRING', description: 'a word to look for: a machinery number, a user name, a bill number …' } }, required: ['from', 'to'] } },
+  { name: 'app_guide', description: 'How the app works: the pages and reports, what each is for and how to use it, and what to do about an error message. Use for every "how do I", "where do I", "what is this page", "what does this message mean".',
+    parameters: { type: 'OBJECT', properties: { topic: { type: 'STRING', description: 'what the person wants to do or the message he saw, in a few words' } }, required: ['topic'] } },
+];
+function aiRules_(u) {
+  const org = orgSettings_();
+  return [
+    'You are the assistant inside "' + (org.product || 'Fleet ERP') + '", the diesel and machinery app of ' + (org.customer || 'this company') + (org.site ? ' at ' + org.site : '') + '.',
+    'Today is ' + today_() + ' (dates are yyyy-mm-dd in look-ups; write them dd-mm-yyyy in answers). The person asking is ' + (u.name || u.email) + (u.admin ? ' (Admin).' : ' (' + (u.role || 'User') + ').'),
+    'RULES:',
+    '1. Answer ONLY from this app: its data (through the look-ups) and its own guide (look-up app_guide). Never use outside knowledge, never guess a figure. If the look-ups do not hold the answer, say so plainly and say what in the app could show it.',
+    '2. For any figure, name, date or "who / how much / when / which": call a look-up first. For "how do I / where / what does this mean": call app_guide first. You may call several look-ups, one after another.',
+    '3. If a look-up answers with an error (for example the person may not see that page), tell the person that in one sentence; do not try to get the data another way.',
+    '4. You only read. You cannot add, change or delete anything; if asked to, say which page does it (ask app_guide) and offer the link.',
+    '5. Answer in the language and script the person wrote in; Marathi or Hindi typed in English letters is answered in Marathi / Hindi in Devanagari. Keep names, numbers and the app\'s own words (Log Book, Diesel Issue, Asset Master …) as they are.',
+    '6. Be short and exact: the answer first, then the figures it rests on (with the dates you looked at). Litres with "L", money with "₹". No preamble, no closing offers.',
+    '7. To send the person to a page write [[open:TAB|Label]] with a TAB given by app_guide – it becomes a button.',
+    '8. "Why" questions: explain from the figures of the look-ups (work done, diesel taken, the standard, the dates of the readings). If readings are missing or too few, say that this is the reason.',
+  ].join('\n');
+}
+function aiInfo_() { return { on: typeof __ai === 'object' && !!__ai && __ai.on() }; }
+// the model: the one fixed in the server's settings, else picked from the service's own list (kept a day) – names change often
+function aiModel_() {
+  const fixed = __ai.model(); if (fixed) return fixed.replace(/^models\//, '');
+  const pr = PropertiesService.getScriptProperties();
+  let kept = null; try { kept = JSON.parse(pr.getProperty('AI_MODEL') || 'null'); } catch (e) { kept = null; }
+  if (kept && kept.name && Date.now() - Number(kept.at) < 86400000) return kept.name;
+  const r = __ai.call('GET', '/v1beta/models?pageSize=1000');
+  if (r.error || r.code >= 300) throw new Error('The AI service did not give its list of models (' + (r.error || r.code) + '). Check GEMINI_API_KEY in the server\'s settings.' + (r.text ? ' It said: ' + r.text.slice(0, 200) : ''));
+  let list = []; try { list = (JSON.parse(r.text).models || []); } catch (e) { list = []; }
+  const ok = list.filter(m => (m.supportedGenerationMethods || []).indexOf('generateContent') > -1).map(m => String(m.name || '').replace(/^models\//, ''))
+    .filter(n => /^gemini-/.test(n) && /flash/.test(n) && !/lite|image|tts|audio|live|embedding|preview|exp|thinking|8b/.test(n));
+  // "gemini-flash-latest" if the service has it, else the highest version number
+  const ver = n => { const m = /gemini-(\d+(?:\.\d+)?)/.exec(n); return m ? Number(m[1]) : 0; };
+  const pick = ok.indexOf('gemini-flash-latest') > -1 ? 'gemini-flash-latest' : ok.sort((a, b) => ver(b) - ver(a) || a.length - b.length)[0];
+  if (!pick) throw new Error('The AI service offers no "flash" model to this key. Put the model\'s name in GEMINI_MODEL in the server\'s settings.');
+  pr.setProperty('AI_MODEL', JSON.stringify({ name: pick, at: Date.now() }));
+  return pick;
+}
+function getAiReply_(u, x) {
+  x = x || {};
+  if (!aiInfo_().on) throw new Error('The assistant is not set up yet: the Admin has to put the AI key (GEMINI_API_KEY) in the server\'s settings.');
+  // how much one user and the whole site may ask
+  const ch = CacheService.getScriptCache(), hour = Math.floor(Date.now() / 3600000), day = today_();
+  const kU = 'AIU_' + hour + '_' + hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, str_(u.email).toLowerCase(), Utilities.Charset.UTF_8)).slice(0, 16), kS = 'AIS_' + day;
+  const nU = Number(ch.get(kU) || 0), nS = Number(ch.get(kS) || 0);
+  if (nU >= 150) throw new Error('You have asked the assistant a lot in this hour. Please try again a little later.');
+  if (nS >= 5000) throw new Error('The assistant has reached its limit for today for this site. It works again tomorrow.');
+  ch.put(kU, String(nU + 1), 3700); ch.put(kS, String(nS + 1), 90000);
+  // the conversation from the page: only its turns are taken – the rules and the look-ups are the server's
+  let turns = Array.isArray(x.contents) ? x.contents.slice(-40) : [];
+  turns = turns.filter(t => t && (t.role === 'user' || t.role === 'model') && Array.isArray(t.parts) && t.parts.length).map(t => ({ role: t.role, parts: t.parts }));
+  if (!turns.length || turns[0].role !== 'user') throw new Error('Type a question for the assistant.');
+  if (JSON.stringify(turns).length > 250000) throw new Error('This conversation has become too long. Press "New chat" and ask again.');
+  const model = aiModel_();
+  const r = __ai.call('POST', '/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
+    system_instruction: { parts: [{ text: aiRules_(u) }] }, contents: turns, tools: [{ functionDeclarations: AI_TOOLS_ }],
+    // no temperature (the newer models are meant to run at their own default); room for the model's thinking AND the answer –
+    // with a small limit a thinking model can use it all up and send an empty answer
+    generationConfig: { maxOutputTokens: 8192 } });
+  if (r.error) throw new Error('The AI service could not be reached (' + r.error + '). Try again.');
+  if (r.code === 404) { PropertiesService.getScriptProperties().deleteProperty('AI_MODEL'); throw new Error('The AI service does not know the model "' + model + '" (any more). Ask again – the app picks another; or set GEMINI_MODEL.'); }
+  if (r.code === 429) throw new Error('The AI service is busy or its free limit is used up (429). Try again in a minute.' + (u.admin ? ' Admin: ' + r.text.slice(0, 200) : ''));
+  if (r.code >= 300) throw new Error('The AI service refused the question (' + r.code + ').' + (u.admin ? ' It said: ' + r.text.slice(0, 300) : ' Tell the Admin.'));
+  let j = {}; try { j = JSON.parse(r.text); } catch (e) { throw new Error('The AI service sent an answer that cannot be read. Try again.'); }
+  const cand = (j.candidates || [])[0] || {}, parts = (cand.content && cand.content.parts) || [];
+  if (!parts.length) throw new Error('The AI service gave no answer' + (cand.finishReason ? ' (' + cand.finishReason + ')' : (j.promptFeedback && j.promptFeedback.blockReason ? ' (' + j.promptFeedback.blockReason + ')' : '')) + '. Ask in other words.');
+  return { parts: parts, model: model, used: (j.usageMetadata && j.usageMetadata.totalTokenCount) || 0 };
+}
+
 /* ---------- A FAULT OF THE APP IS REPORTED BY ITSELF (asked 03-10-2026) ----------
  * Until now a fault was known only when a user told somebody. Now three kinds are written down the moment they happen:
  *   server   – the server's own code failed while doing something (a TypeError …, not a refusal of a wrong entry)

@@ -696,6 +696,27 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   setting "Offer to save passwords", incognito). Firefox / Safari: nothing changes. The 6-hour session and "Remember me" are as before.
   Test: `test/browser/cred.js` (8; the browser's store is played by the test – headless Chromium has no password manager, the real
   call answers NotSupportedError and the sign-in still works). NOT seen by me: the real Chrome bubble – to be checked on the live site.
+- 04-10-2026: THE ASSISTANT (chat), STAGE 1. He: "a chat bot in the app – ask it anything about the app: how, where, why, who did what,
+  how much diesel, who took it …". Agreed: Gemini (his own API key), the app's data may go to it, read-only, each user within his
+  own permissions, only from this app's data.
+  * SERVER: `server/gas.js makeAi` → `__ai` for the app code (key GEMINI_API_KEY from the server's settings, never sent to a page;
+    GEMINI_MODEL fixes the model, GEMINI_API_BASE is for tests). Code.gs: `AI_TOOLS_` (9 look-ups, declarations only), `aiRules_`
+    (the fixed instruction: only this app, look up before any figure, read-only, answer in the person's language, [[open:TAB|Label]]),
+    `aiModel_` (from the service's own list: "gemini-flash-latest" if offered, else the highest gemini-N flash that is not lite /
+    preview …; kept a day in AI_MODEL; a 404 forgets it), `getAiReply_` (one step: signed-in user, 150 steps / hour / user and
+    5,000 / day / site, at most 40 turns / 250 kB, only user / model turns are taken from the page; errors in plain words, the
+    service's own text for the Admin). getInit gives `ai: { on }`.
+  * PAGE: `#ai_fab` / `#ai_panel`; `AI_RUN` runs the look-ups through the app's normal calls with the user's sign-in (getDieselIssues,
+    getLogBookList, logPending, getStock, S.master, rptAverage, rptWatch, getActivity, the guides PAGE_GUIDE / REPORT_GUIDE /
+    FIX_RULES) and hands back totals + the split + the first rows; `aiAsk` loops up to 7 steps, sends the model's parts back
+    untouched (thought signatures), shows "Looked up: …" under an answer and turns [[open:…]] into a button. Nothing is stored.
+  * NOT DONE / NOT PROVEN: no call to the REAL Gemini was possible from the build machine (no network to it) – the request and answer
+    shapes follow Google's documented REST form (v1beta generateContent, x-goog-api-key, system_instruction, tools.functionDeclarations,
+    functionCall / functionResponse parts) and are tested against `test/gemini-standin.js`; the first real conversation is his.
+    Stage 2 ("why" for bills and rejected entries, vendor ledger look-ups) and stage 3 (actions with a yes) are not built.
+  * SET-UP for a site: Vercel → Settings → Environment Variables → GEMINI_API_KEY = the key from Google AI Studio → Redeploy.
+  * Tests: unit "the assistant …" (27 unit tests), `test/browser/ai.js` (13; needs `node test/gemini-standin.js` and
+    GEMINI_API_KEY=test-key, GEMINI_API_BASE=http://127.0.0.1:3998 in .env.local).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

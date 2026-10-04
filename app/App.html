@@ -2242,6 +2242,32 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* DARK THEME. The app's colours are written for a light page in very many places; the dark theme turns the whole page
    * (light ↔ dark, the colour tones kept) and turns back what must stay as it is: pictures, photos, the menu (already dark)
    * and the opening film. Prints and PDFs are separate pages and stay on white. */
+  /* the assistant */
+  .ai-fab { position: fixed; right: 18px; bottom: 84px; z-index: 40; display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 999px; padding: 11px 16px 11px 13px; background: #0F1F3D; color: #fff; font: 700 14px var(--ui); cursor: pointer; box-shadow: 0 10px 24px rgba(15, 31, 61, .35); }
+  .ai-fab[hidden] { display: none; }
+  .ai-fab svg { width: 19px; height: 19px; color: #F2A900; } .ai-fab:hover { background: #17305C; }
+  .ai-panel { position: fixed; right: 14px; bottom: 14px; top: 76px; width: min(430px, calc(100vw - 28px)); z-index: 60; display: flex; flex-direction: column; background: #fff; border: 1px solid #D5DCE6; border-radius: 16px; box-shadow: 0 24px 60px rgba(15, 23, 42, .28); overflow: hidden; }
+  .ai-panel[hidden] { display: none; }
+  .ai-panel header { display: flex; align-items: center; gap: 8px; padding: 11px 12px 11px 16px; background: #0F1F3D; color: #fff; }
+  .ai-panel header b { font: 800 15px var(--ui); } .ai-panel header small { flex: 1; color: #B8C4DA; font-size: 11.5px; }
+  .ai-panel header .btn { min-height: 28px; padding: 2px 10px; font-size: 12px; background: transparent; color: #fff; border-color: #5B6E93; }
+  .ai-x { border: 0; background: transparent; color: #fff; font-size: 24px; line-height: 1; cursor: pointer; padding: 2px 8px; }
+  .ai-msgs { flex: 1; overflow: auto; padding: 14px 14px 6px; display: flex; flex-direction: column; gap: 10px; background: #F6F8FB; }
+  .ai-m { max-width: 92%; padding: 9px 12px; border-radius: 12px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .ai-m.me { align-self: flex-end; background: #1D4ED8; color: #fff; border-bottom-right-radius: 4px; }
+  .ai-m.bot { align-self: flex-start; background: #fff; border: 1px solid #E2E8F0; color: #0F172A; border-bottom-left-radius: 4px; }
+  .ai-m.err { align-self: flex-start; background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; }
+  .ai-m.bot button.ai-go { display: inline-block; margin: 4px 4px 0 0; border: 1px solid #1D4ED8; background: #EFF6FF; color: #1D4ED8; border-radius: 8px; padding: 3px 10px; font: 700 12.5px var(--ui); cursor: pointer; }
+  .ai-src { align-self: flex-start; font-size: 11.5px; color: #475569; display: flex; gap: 5px; flex-wrap: wrap; max-width: 92%; }
+  .ai-src span { background: #E8EEF7; border-radius: 999px; padding: 2px 9px; }
+  .ai-wait { align-self: flex-start; font-size: 12.5px; color: #475569; font-style: italic; }
+  .ai-sugg { display: flex; gap: 6px; flex-wrap: wrap; padding: 6px 14px 0; background: #F6F8FB; }
+  .ai-sugg button { border: 1px solid #CBD5E1; background: #fff; border-radius: 999px; padding: 5px 11px; font: 600 12.5px var(--ui); color: #334155; cursor: pointer; text-align: left; }
+  .ai-form { display: flex; gap: 8px; padding: 10px 12px 8px; background: #F6F8FB; align-items: flex-end; }
+  .ai-form textarea { flex: 1; resize: none; max-height: 110px; border: 1px solid #CBD5E1; border-radius: 12px; padding: 9px 12px; font: 14px/1.4 var(--ui); background: #fff; }
+  .ai-foot { margin: 0; padding: 0 14px 9px; background: #F6F8FB; font-size: 10.5px; color: #64748B; line-height: 1.35; }
+  @media (max-width: 760px) { .ai-panel { inset: 0; width: auto; border-radius: 0; top: 0; } .ai-fab span { display: none; } .ai-fab { padding: 13px; right: 12px; bottom: 78px; } }
+  @media print { .ai-fab, .ai-panel { display: none !important; } }
   /* a scanned QR label: what to do for that machinery (big buttons – it is opened on a phone) */
   #qr_sheet { position: fixed; inset: 0; z-index: 9500; background: rgba(12, 26, 46, .55); display: grid; place-items: center; padding: 16px; }
   #qr_sheet .qr-card { position: relative; width: min(420px, 100%); background: #fff; border-radius: 18px; padding: 22px 20px 18px; box-shadow: 0 24px 60px rgba(0,0,0,.35); border-top: 4px solid #F2A900; }
@@ -3752,6 +3778,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 <datalist id="dl_drivers"></datalist>
 <datalist id="dl_pumps"></datalist><datalist id="dl_vendors"></datalist><datalist id="dl_types"></datalist><datalist id="dl_owners"></datalist>
 <div id="toast" role="status" aria-live="polite" hidden></div>
+<!-- the assistant: ask the app in your own words -->
+<button type="button" id="ai_fab" class="ai-fab" hidden title="Ask the assistant – how to do something, how much diesel, who did what …"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Ask</span></button>
+<aside id="ai_panel" class="ai-panel" hidden role="dialog" aria-label="Assistant">
+  <header><b>Assistant</b><small id="ai_sub">answers from this app's data only</small><button type="button" id="ai_new" class="btn ghost small" title="Forget this conversation and start a new one">New chat</button><button type="button" id="ai_close" class="ai-x" aria-label="Close">×</button></header>
+  <div id="ai_msgs" class="ai-msgs" aria-live="polite"></div>
+  <div id="ai_sugg" class="ai-sugg"></div>
+  <form id="ai_form" class="ai-form" autocomplete="off"><textarea id="ai_in" rows="1" placeholder="Ask anything about this app…" maxlength="1500"></textarea><button type="submit" class="btn primary" id="ai_send">Ask</button></form>
+  <p class="ai-foot">The question and the figures it needs are sent to the AI service. It only reads – it changes nothing. Check important figures in the report it names.</p>
+</aside>
 <div id="dlg_back" hidden>
   <div id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg_title">
     <header>
@@ -4075,6 +4110,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try { const de = document.documentElement; de.dataset.theme = 'light'; de.dataset.text = 'normal'; de.dataset.density = 'normal'; if ($('grp_fav')) $('grp_fav').hidden = true; if ($('announce')) $('announce').hidden = true; } catch (e) { /* the sign-in screen is always the plain one */ }
     document.body.classList.add('locked');
     $('login_screen').hidden = false; $('lg_err').textContent = msg || ''; $('lg_pass').value = '';
+    try { $('ai_panel').hidden = true; $('ai_fab').hidden = true; AI.turns = []; $('ai_msgs').innerHTML = ''; } catch (e) { /* the assistant is not built yet at the first start */ }
     if ($('lg_cred')) $('lg_cred').hidden = true;
     setTimeout(() => $('lg_email').focus(), 50);
     setTimeout(() => credFill(), 150);            // the sign-in saved in the browser, if there is one
@@ -4301,6 +4337,27 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         'हे फक्त Admin करू शकतो: वरचे "Database" दाबा; चौकटीत file चे नाव आहे. Supabase → SQL Editor मध्ये ती file paste करा (तिचा मजकूर Admin → Read Me मध्ये आहे) आणि Run करा. मग "Check again now" दाबा.'],
       hi: ['App ने अपना database जाँचा और एक SQL चरण बाकी पाया। App चलता है, पर उस चरण की सुविधा नहीं चलती, या कोई सुरक्षा setting नहीं लगी।',
         'यह केवल Admin कर सकता है: ऊपर "Database" दबाएँ; box में file का नाम है। Supabase → SQL Editor में वह file paste करें (उसका text Admin → Read Me में है) और Run करें। फिर "Check again now" दबाएँ।'] },
+    { re: /assistant is not set up/i,
+      en: ['The assistant needs an AI service, and this site has no key for it yet.',
+        'Admin: make an API key for Gemini in Google AI Studio, put it in Vercel → Settings → Environment Variables as GEMINI_API_KEY, and Redeploy. Until then the rest of the app works as always.'],
+      mr: ['Assistant ला AI सेवा लागते, आणि या site ला त्यासाठीची key अजून दिलेली नाही.',
+        'Admin: Google AI Studio मध्ये Gemini ची API key बनवा, ती Vercel → Settings → Environment Variables मध्ये GEMINI_API_KEY या नावाने ठेवा आणि Redeploy करा. तोपर्यंत बाकी app नेहमीसारखे चालते.'],
+      hi: ['Assistant को AI सेवा चाहिए, और इस site को उसकी key अभी नहीं दी गई है।',
+        'Admin: Google AI Studio में Gemini की API key बनाएँ, उसे Vercel → Settings → Environment Variables में GEMINI_API_KEY नाम से रखें और Redeploy करें। तब तक बाकी app हमेशा की तरह चलता है।'] },
+    { re: /asked the assistant a lot|assistant has reached its limit|conversation has become too long|Type a question for the assistant/i,
+      en: ['The assistant has limits so that it stays fast and its cost stays small: so many questions an hour for one person, so many a day for the site, and a conversation that is not endless.',
+        'A long conversation: press "New chat" and ask again. The hourly limit: wait a little. The daily limit: it works again tomorrow – the reports of the app answer the same questions meanwhile.'],
+      mr: ['Assistant ला मर्यादा आहेत, म्हणजे तो वेगात राहतो आणि खर्च कमी राहतो: एका व्यक्तीला तासाला ठराविक प्रश्न, site ला दिवसाला ठराविक, आणि संभाषण अमर्याद नाही.',
+        'संभाषण लांब झाले: "New chat" दाबून पुन्हा विचारा. तासाची मर्यादा: थोडे थांबा. दिवसाची मर्यादा: उद्या पुन्हा चालेल; तोपर्यंत app चे reports तीच उत्तरे देतात.'],
+      hi: ['Assistant की सीमाएँ हैं ताकि वह तेज़ रहे और खर्च कम रहे: एक व्यक्ति के लिए घंटे में तय सवाल, site के लिए दिन में तय, और बातचीत अंतहीन नहीं।',
+        'बातचीत लंबी हो गई: "New chat" दबाकर फिर पूछें। घंटे की सीमा: थोड़ा रुकें। दिन की सीमा: कल फिर चलेगा; तब तक app की reports वही जवाब देती हैं।'] },
+    { re: /AI service/i,
+      en: ['The assistant could not get an answer from the AI service (Gemini): it was busy, its free limit was used up, it did not know the model, or it could not be reached. The app\'s own data is not affected.',
+        'Ask again in a minute. If it keeps coming: Admin – check in Google AI Studio that the key is active and has billing or free quota left, and that GEMINI_API_KEY in Vercel is that key.'],
+      mr: ['Assistant ला AI सेवेकडून (Gemini) उत्तर मिळाले नाही: ती व्यस्त होती, तिची मोफत मर्यादा संपली, model सापडला नाही, किंवा ती पोहोचली नाही. App च्या स्वतःच्या data ला काही झालेले नाही.',
+        'एका मिनिटाने पुन्हा विचारा. पुन्हा पुन्हा येत असेल तर Admin ने Google AI Studio मध्ये key चालू आहे आणि billing किंवा मोफत मर्यादा शिल्लक आहे ते पाहावे, आणि Vercel मधली GEMINI_API_KEY तीच key आहे ते तपासावे.'],
+      hi: ['Assistant को AI सेवा (Gemini) से जवाब नहीं मिला: वह व्यस्त थी, उसकी मुफ़्त सीमा खत्म हो गई, model नहीं मिला, या वह पहुँच में नहीं थी। App के अपने data पर कोई असर नहीं।',
+        'एक मिनट बाद फिर पूछें। बार-बार आए तो Admin Google AI Studio में देखे कि key चालू है और billing या मुफ़्त सीमा बची है, और Vercel की GEMINI_API_KEY वही key है।'] },
     { re: /fault of the app was just reported/i,
       en: ['Just now the app failed somewhere – on a user\'s page, on the server, or the database did not answer. The app has written it down by itself.',
         'Press "Faults" at the top: it lists who was working, where, when and what failed. One fault once is usually nothing; if the same line keeps coming, send that line to the developer.'],
@@ -9186,6 +9243,98 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     } finally { ctrlSaveBusy = false; }
   }
 
+  /* ================= THE ASSISTANT: ASK THE APP IN YOUR OWN WORDS (asked 04-10-2026) =================
+   * The window, the conversation and the LOOK-UPS. The AI model (on the server's side: getAiReply) only decides which look-up
+   * it needs and writes the answer; the look-ups themselves run HERE, through the app's normal calls with this user's sign-in –
+   * so the assistant can show a user only what the user may see anyway, and it can only read. What each look-up hands back
+   * is cut to what an answer needs (totals, the split, the first rows), never a whole table.
+   * Under every answer: which look-ups were used ("Looked up: …") – so the person knows where the figures are from. */
+  const AI = { turns: [], busy: false, on: false };
+  const aiNum = v => Math.round((Number(v) || 0) * 100) / 100;
+  const aiCut = (rows, keys, max) => (rows || []).slice(0, max).map(r => { const o = {}; keys.forEach(k => { if (r[k] !== '' && r[k] !== null && r[k] !== undefined) o[k] = r[k]; }); return o; });
+  const aiSplit = (rows, key, val, top) => { const m = {}; (rows || []).forEach(r => { const k = r[key] || '(none)'; m[k] = aiNum((m[k] || 0) + (Number(r[val]) || 0)); }); return Object.keys(m).map(k => ({ name: k, litres: m[k] })).sort((a, b) => b.litres - a.litres).slice(0, top); };
+  const aiMach = q => { q = String(q || '').trim(); if (!q) return ''; const m = findMachine(q); return m ? m.id : q; };
+  const aiTabs = () => [...document.querySelectorAll('[id^="tab-"]')].filter(b => !b.hidden).map(b => ({ tab: b.id.slice(4), title: (b.getAttribute('title') || b.textContent || '').replace(/\s+/g, ' ').trim() }));
+  const AI_RUN = {
+    diesel_issues: async a => { const no = aiMach(a.machinery), d = await rawCall('getDieselIssues', { from: a.from, to: a.to, no: no, all: true }), rows = d.rows || [];
+      return { from: a.from, to: a.to, machinery: no || 'all', entries: rows.length, totalLitres: aiNum(rows.reduce((t, r) => t + (Number(r.qty) || 0), 0)), byMachinery: aiSplit(rows, 'no', 'qty', 25), byOwner: aiSplit(rows, 'owner', 'qty', 15),
+        rows: aiCut(rows, ['date', 'shift', 'no', 'type', 'owner', 'qty', 'kmReading', 'hrReading', 'source', 'driver', 'enteredBy', 'remark'], 60), note: rows.length > 60 ? 'only the first 60 entries are listed; the totals cover all ' + rows.length : '', page: 'diesel' }; },
+    log_book: async a => { const no = aiMach(a.machinery), d = await rawCall('getLogBookList', { from: a.from, to: a.to, no: no, all: true }), rows = d.rows || [];
+      return { from: a.from, to: a.to, machinery: no || 'all', entries: rows.length, totalKm: aiNum(rows.reduce((t, r) => t + (Number(r.wkm) || 0), 0)), totalHours: aiNum(rows.reduce((t, r) => t + (Number(r.whr) || 0), 0)), dieselIssuedLitres: aiNum(rows.reduce((t, r) => t + (Number(r.qty) || 0), 0)),
+        rows: aiCut(rows, ['date', 'shift', 'no', 'type', 'owner', 'unit', 'okm', 'ckm', 'wkm', 'ohr', 'chr', 'whr', 'trip', 'qty', 'stdUse', 'stock', 'avg', 'work', 'chainage', 'driver', 'remark', 'enteredBy'], 50), note: rows.length > 50 ? 'only the first 50 entries are listed; the totals cover all ' + rows.length : '', page: 'log' }; },
+    pending_log_book: async a => { const d = await rawCall('logPending'), items = d.items || [], no = aiMach(a.machinery);
+      if (a.date) { const l = items.filter(x => x[1] === a.date).map(x => x[0]); return { date: a.date, machineryWithoutLogBook: l.length, machinery: l.slice(0, 120), page: 'log' }; }
+      if (no) { const l = items.filter(x => noKey(x[0]) === noKey(no)).map(x => x[1]).sort(); return { machinery: no, datesWithoutLogBook: l.length, dates: l.slice(0, 120), page: 'log' }; }
+      const by = {}; items.forEach(x => { by[x[1]] = (by[x[1]] || 0) + 1; }); const days = Object.keys(by).sort().slice(-10);
+      return { from: d.from, upTo: d.asOf, pendingDaysInAll: d.total, lastTenDays: days.map(k => ({ date: k, machinery: by[k] })), page: 'log' }; },
+    diesel_stock: async () => { const d = await rawCall('getStock'); return { litresInStockNow: d.stock, byLocation: d.byLoc, receivedInAll: d.inward, issuedInAll: d.issued, page: 'dash' }; },
+    machinery: async a => { const q = String(a.query || '').trim().toUpperCase(), all = S.master || [];
+      if (!q) { const c = {}, t = {}; all.forEach(m => { c[m.ownership || 'Other'] = (c[m.ownership || 'Other'] || 0) + 1; t[m.type || '(no type)'] = (t[m.type || '(no type)'] || 0) + 1; }); return { machineryInAll: all.length, active: all.filter(m => m.status !== 'Inactive').length, byOwnership: c, byType: t, page: 'master' }; }
+      const hit = all.filter(m => [m.id, m.name, m.type, m.owner].some(v => String(v || '').toUpperCase().indexOf(q) > -1));
+      return { found: hit.length, machinery: aiCut(hit, ['id', 'name', 'type', 'owner', 'ownership', 'unit', 'kmStd', 'hrStd', 'tankCap', 'status', 'supply', 'activeFrom'], 25), page: 'master' }; },
+    diesel_average: async a => { const d = await rawCall('rptAverage', { from: a.from, to: a.to }); let rows = [].concat(...(d.groups || []).map(g => g.rows || [])); const no = aiMach(a.machinery);
+      const keys = ['no', 'type', 'owner', 'ownership', 'unit', 'km', 'hr', 'used', 'expected', 'excess', 'pct', 'actual', 'std', 'status'];
+      if (no) { rows = rows.filter(r => noKey(r.no) === noKey(no)); return { from: a.from, to: a.to, machinery: aiCut(rows, keys, 5), meaning: 'used = diesel taken (L); expected = diesel the standard says the work needed (L); pct = % more (+) or less (−) than expected', page: 'rp-avg' }; }
+      const n = {}; rows.forEach(r => { n[r.statusCode || 'no status'] = (n[r.statusCode || 'no status'] || 0) + 1; });
+      return { from: a.from, to: a.to, machineryInAll: rows.length, counts: n, mostDieselOverTheStandard: aiCut(rows.filter(r => r.statusCode === 'bad' || r.statusCode === 'more').sort((x, y) => (Number(y.excess) || 0) - (Number(x.excess) || 0)), keys, 15), toCheck: aiCut(rows.filter(r => r.statusCode === 'check'), keys, 10), meaning: 'used = diesel taken (L); expected = diesel the standard says the work needed (L); excess = used − expected', page: 'rp-avg' }; },
+    diesel_watch: async a => { const d = await rawCall('rptWatch', { from: a.from, to: a.to });
+      return { from: a.from, to: a.to, total: d.total, signs: aiCut(d.findings, ['no', 'type', 'owner', 'date', 'kind', 'litres', 'amount', 'text'], 20), dieselThatCannotBeChecked: aiCut(d.unchecked, ['no', 'type', 'owner', 'ownership', 'fills', 'qty'], 15), note: 'signs are things to look at, not proof', page: 'rp-watch' }; },
+    activity: async a => { const d = await rawCall('getActivity', { from: a.from, to: a.to, q: a.text || '' });
+      return { from: a.from, to: a.to, lookedFor: a.text || '', entries: d.count, rows: aiCut(d.rows, ['when', 'name', 'action', 'module', 'record', 'summary', 'changes'], 60).map(r => { if (r.changes) r.changes = String(r.changes).slice(0, 240); return r; }), page: 'activity' }; },
+    app_guide: async a => { const words = String(a.topic || '').toLowerCase().split(/[^a-z0-9\u0900-\u097F]+/).filter(w => w.length > 2), tabs = aiTabs();
+      const scored = tabs.map(t => { const g = guideOf(t.tab), text = (t.title + ' ' + (g ? g.en.join(' ') + ' ' + g.mr.join(' ') + ' ' + g.hi.join(' ') : '')).toLowerCase(); return { t: t, g: g, n: words.reduce((k, w) => k + (text.indexOf(w) > -1 ? (t.title.toLowerCase().indexOf(w) > -1 ? 3 : 1) : 0), 0) }; }).filter(x => x.n > 0).sort((x, y) => y.n - x.n).slice(0, 5);
+      const errs = FIX_RULES.filter(r => r.re.test(String(a.topic || ''))).slice(0, 3).map(r => ({ whatWentWrong: r.en[0], whatToDo: r.en[1] }));
+      return { pagesThatFit: scored.map(x => ({ tab: x.t.tab, title: x.t.title, whatItIsFor: x.g ? x.g.en[0] : '', howToUseIt: x.g ? x.g.en[1] : '' })), helpForThisMessage: errs, allPagesThisUserCanOpen: tabs, keys: 'Ctrl + K = search, Ctrl + S = save the page, Alt + B = back, the ? button on every page = its guide' }; },
+  };
+  const AI_NAMES = { diesel_issues: 'Diesel issues', log_book: 'Log Book', pending_log_book: 'Pending Log Book', diesel_stock: 'Diesel stock', machinery: 'Asset Master', diesel_average: 'Actual vs standard average', diesel_watch: 'Diesel Watch', activity: 'Activity Log', app_guide: 'The app\'s guide' };
+  const aiWhat = (name, a) => (AI_NAMES[name] || name) + (a && a.from ? ' ' + showDate(a.from) + (a.to && a.to !== a.from ? ' to ' + showDate(a.to) : '') : a && a.date ? ' ' + showDate(a.date) : '') + (a && (a.machinery || a.query || a.text) ? ' · ' + (a.machinery || a.query || a.text) : '');
+  // the answer as it is shown: plain text, **bold**, and [[open:tab|Label]] as a button to that page
+  function aiHtml(text) {
+    return esc(String(text || '').trim()).replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/\[\[open:([a-z0-9-]+)\|([^\]\n]{1,60})\]\]/gi, (m, tab, label) => $('tab-' + tab) && !$('tab-' + tab).hidden ? '<button type="button" class="ai-go" data-aigo="' + tab + '">' + label + ' →</button>' : label);
+  }
+  function aiAdd(cls, html) { const box = $('ai_msgs'); box.insertAdjacentHTML('beforeend', '<div class="' + cls + '">' + html + '</div>'); box.scrollTop = box.scrollHeight; return box.lastElementChild; }
+  function aiSuggest() {
+    const L = { en: ['How much diesel was issued yesterday, and to whom?', 'Which machinery have no Log Book entry for today?', 'How do I make a vendor\'s bill?'],
+      mr: ['काल किती diesel दिले आणि कोणाला?', 'आज कोणत्या गाड्यांची Log Book entry बाकी आहे?', 'Vendor चे bill कसे बनवायचे?'],
+      hi: ['कल कितना diesel दिया और किसे?', 'आज किन गाड़ियों की Log Book entry बाकी है?', 'Vendor का bill कैसे बनाएँ?'] };
+    $('ai_sugg').innerHTML = AI.turns.length ? '' : (L[fixLang] || L.en).map(q => '<button type="button">' + esc(q) + '</button>').join('');
+  }
+  function aiReset() { AI.turns = []; $('ai_msgs').innerHTML = ''; aiAdd('ai-m bot', esc(AI.on ? ({ en: 'Ask me anything about this app – how to do something, how much diesel, which machinery, who did what. I answer only from the app\'s own data.', mr: 'या app बद्दल काहीही विचारा – काम कसे करायचे, किती diesel, कोणती गाडी, कोणी काय केले. मी फक्त app च्या स्वतःच्या data मधून उत्तर देतो.', hi: 'इस app के बारे में कुछ भी पूछें – काम कैसे करें, कितना diesel, कौन सी गाड़ी, किसने क्या किया। मैं सिर्फ app के अपने data से जवाब देता हूँ।' }[fixLang] || '') : 'The assistant is not set up yet. Admin: put the AI key (GEMINI_API_KEY) in the server\'s settings (Vercel → Settings → Environment Variables) and redeploy.')); aiSuggest(); }
+  function aiOpen(show) { $('ai_panel').hidden = !show; $('ai_fab').hidden = show || !(AI.on || (S.user && S.user.admin)); if (show) { if (!$('ai_msgs').children.length) aiReset(); setTimeout(() => $('ai_in').focus(), 50); } }
+  function aiBoot(info) { AI.on = !!(info && info.on); $('ai_fab').hidden = !$('ai_panel').hidden || !(AI.on || (S.user && S.user.admin)); }
+  async function aiAsk(text) {
+    text = String(text || '').trim(); if (!text || AI.busy) return;
+    if (!AI.on) { aiAdd('ai-m err', 'The assistant is not set up yet (no AI key on the server).'); return; }
+    AI.busy = true; $('ai_send').disabled = true; $('ai_sugg').innerHTML = '';
+    aiAdd('ai-m me', esc(text)); AI.turns.push({ role: 'user', parts: [{ text: text }] });
+    const wait = aiAdd('ai-wait', 'Thinking…'), used = [];
+    try {
+      for (let step = 0; step < 7; step++) {
+        const r = await rawCall('getAiReply', { contents: AI.turns });
+        AI.turns.push({ role: 'model', parts: r.parts });                               // exactly as it came (the service wants its own parts back)
+        const calls = (r.parts || []).filter(p => p.functionCall);
+        if (!calls.length) { const t = (r.parts || []).map(p => p.text || '').join('').trim(); wait.remove();
+          if (used.length) aiAdd('ai-src', '<span>Looked up:</span>' + used.map(u => '<span>' + esc(u) + '</span>').join(''));
+          aiAdd('ai-m bot', aiHtml(t || '–')); return; }
+        const outs = [];
+        for (const c of calls) { const name = c.functionCall.name, args = c.functionCall.args || {}; wait.textContent = 'Looking up: ' + aiWhat(name, args) + '…'; used.push(aiWhat(name, args));
+          let res; try { res = AI_RUN[name] ? await AI_RUN[name](args) : { error: 'There is no such look-up.' }; } catch (e) { res = { error: errMsg(e) }; }
+          outs.push({ functionResponse: { name: name, response: res } }); }
+        AI.turns.push({ role: 'user', parts: outs }); wait.textContent = 'Writing the answer…';
+      }
+      wait.remove(); aiAdd('ai-m err', 'This question needed too many look-ups. Ask it in smaller parts.');
+    } catch (e) { wait.remove(); aiAdd('ai-m err', esc(errMsg(e))); if (AI.turns.length && AI.turns[AI.turns.length - 1].role === 'user' && AI.turns[AI.turns.length - 1].parts[0].text === text) AI.turns.pop(); }
+    finally { AI.busy = false; $('ai_send').disabled = false; $('ai_in').focus(); }
+  }
+  $('ai_fab').addEventListener('click', () => aiOpen(true));
+  $('ai_close').addEventListener('click', () => aiOpen(false));
+  $('ai_new').addEventListener('click', () => { if (!AI.busy) aiReset(); });
+  $('ai_form').addEventListener('submit', e => { e.preventDefault(); const t = $('ai_in').value; $('ai_in').value = ''; $('ai_in').style.height = ''; aiAsk(t); });
+  $('ai_in').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('ai_form').dispatchEvent(new Event('submit', { cancelable: true })); } else if (e.key === 'Escape') aiOpen(false); });
+  $('ai_in').addEventListener('input', () => { const t = $('ai_in'); t.style.height = 'auto'; t.style.height = Math.min(110, t.scrollHeight) + 'px'; });
+  $('ai_sugg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) aiAsk(b.textContent); });
+  $('ai_msgs').addEventListener('click', e => { const b = e.target.closest('[data-aigo]'); if (b) { showTab(b.dataset.aigo); if (window.innerWidth < 900) aiOpen(false); } });
+
   /* ================= FAULTS: reported by themselves, shown to the user and to the Admin (asked 03-10-2026) =================
    * A fault of the page's own code (an exception, a broken promise of the code) is sent to the server (reportError) and the
    * person is told at once, in plain words, that it is the app and not the entry. The server writes its own faults and the
@@ -10834,6 +10983,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       S.locations = d.locations || []; if (d.rules) setRules(d.rules);
       prefsBoot(S.curTab === tab0);      // the user's own settings (look, first page, usual entry type …)
       if (d.faults) setFaults(d.faults);
+      aiBoot(d.ai);
       qrArrive().catch(() => { /* a label that cannot be opened must not stop the app */ });
     } catch (e) {
       showBoot(false);
