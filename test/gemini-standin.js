@@ -30,6 +30,7 @@ http.createServer((req, res) => {
     const fr = last.parts.find(p => p.functionResponse);
     if (fr) { const r = fr.functionResponse.response || {}, n = fr.functionResponse.name;
       if (r.error) return text('You cannot see this: ' + r.error);
+      if (/^prepare_/.test(n)) return text(r.shownToThePersonForSaveOrCancel ? 'The entry is on the screen – check it and press Save.' : r.askedThePersonFor ? 'I asked for what is missing.' : 'Not prepared.');
       if (n === 'diesel_issues') return text('**' + r.totalLitres + ' L** of diesel in ' + r.entries + ' entries (' + r.from + ' to ' + r.to + '). Most: ' + ((r.byMachinery[0] || {}).name || '-') + '.\n[[open:diesel|Open Diesel Issue]]');
       if (n === 'pending_log_book') return text(r.machineryWithoutLogBook + ' machinery have no Log Book for ' + r.date + '. [[open:log|Open Log Book]]');
       if (n === 'app_guide') return text('Use "' + ((r.pagesThatFit[0] || {}).title || '?') + '". [[open:' + ((r.pagesThatFit[0] || {}).tab || 'x') + '|Open it]]');
@@ -44,6 +45,8 @@ http.createServer((req, res) => {
     if (/why|का /i.test(q) && ab) return text('About ' + ab.machinery.id + ' (from the attached figures): ' + ((ab.thisMonth.average || {}).status || 'no status this month') + '; diesel this month ' + (ab.thisMonth.diesel || {}).totalLitres + ' L.');
     if (/stock/i.test(q) && snap && snap.dieselStockNow) return text('As of now (' + snap.asOf + ') the stock is **' + snap.dieselStockNow.litres + ' L**.');
     if (/this message|हा संदेश/i.test(q)) return callFn('app_guide', { topic: q });
+    // a loosely worded command: the AI may only PREPARE the entry (the page shows it for Save)
+    const pm = /please put (\d+) for (\S+)/i.exec(q); if (pm) return callFn('prepare_diesel_issue', { machinery: pm[2], litres: Number(pm[1]) });
     if (/diesel/i.test(q)) return callFn('diesel_issues', { from: d[0] || '2026-09-29', to: d[1] || d[0] || '2026-09-30' });
     if (/pending|बाकी/i.test(q)) return callFn('pending_log_book', { date: d[0] || '2026-10-03' });
     if (/who|कोणी/i.test(q)) return callFn('activity', { from: d[0] || '2026-10-01', to: d[1] || '2026-10-04', text: '' });

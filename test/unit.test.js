@@ -642,11 +642,12 @@ test('the assistant: without a key it says so; the rules and the look-ups are th
   assert.throws(() => run('(u, x) => getAiReply_(u, x)', { name: 'A', email: 'a@x.test' }, { contents: [{ role: 'user', parts: [{ text: 'hello' }] }] }), /assistant is not set up yet/);
   const rules = run('u => aiRules_(u)', { name: 'Ramesh', email: 'r@x.test', role: 'User' });
   assert.match(rules, /The person asking is Ramesh \(User\)\./);
-  assert.match(rules, /Answer ONLY from this app/); assert.match(rules, /You only read/); assert.match(rules, /Devanagari/); assert.match(rules, /Today is \d{4}-\d{2}-\d{2}/);
+  assert.match(rules, /Answer ONLY from this app/); assert.match(rules, /You never save, change or delete anything yourself/); assert.match(rules, /never say that it is saved/); assert.match(rules, /Devanagari/); assert.match(rules, /Today is \d{4}-\d{2}-\d{2}/);
   const tools = run('() => AI_TOOLS_.map(t => t.name)');
-  assert.deepStrictEqual(tools, ['diesel_issues', 'log_book', 'pending_log_book', 'diesel_stock', 'machinery', 'diesel_average', 'diesel_watch', 'activity', 'app_guide']);
-  // no look-up can write: none of them names a saving action
+  assert.deepStrictEqual(tools, ['diesel_issues', 'log_book', 'pending_log_book', 'diesel_stock', 'machinery', 'diesel_average', 'diesel_watch', 'activity', 'prepare_diesel_issue', 'prepare_log_entry', 'app_guide']);
+  // nothing the AI can call saves, changes or deletes: nine only read, two only PREPARE an entry for the person's own Save
   assert.ok(!/save|delete|update|add /i.test(tools.join(' ')));
+  assert.ok(run('() => AI_TOOLS_.filter(t => /^prepare_/.test(t.name)).every(t => /It is NOT saved by this/.test(t.description))'));
 });
 
 test('the daily summary: every part only if the user may see that page; the Admin gets all; a wrong setting value is not kept', () => {
@@ -672,4 +673,28 @@ test('talking with the assistant needs the microphone: the site\'s own security 
   assert.match(pp, /microphone=\(self\)/, 'Permissions-Policy must say microphone=(self) – with microphone=() Chrome refuses the microphone even when the person allowed it');
   assert.match(pp, /camera=\(\)/); assert.match(pp, /geolocation=\(\)/);                                     // what the app does not use stays forbidden
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'app', 'Index.html'), 'utf8'), /<iframe id="app"[^>]*allow="[^"]*microphone/);
+});
+
+test('two engines, one tank – ONE rule everywhere: the page\'s dualAvg = the server\'s dualAvg_; his Log Book sheet of MH-04-KU-3332; the cost sheet no longer divides all the diesel by the hours', () => {
+  const { T, ctx } = require('./harness.js');
+  const fs = require('fs'), path = require('path');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'app', 'App.html'), 'utf8');
+  const grab = start => { const i = html.indexOf(start); assert.ok(i > -1, 'not found in the page: ' + start); let d = 0, j = html.indexOf('{', i); for (; j < html.length; j++) { if (html[j] === '{') d++; else if (html[j] === '}') { d--; if (!d) break; } } return html.slice(i, j + 1); };
+  const page = new Function('r2', grab('function dualAvg(') + '; return dualAvg;')(n => Math.round(n * 100) / 100);
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const server = (d, km, hr, ks, hs) => run('(d, km, hr, ks, hs) => dualAvg_(d, km, hr, ks, hs)', d, km, hr, ks, hs);
+  // his sheet (01 to 05-10-2026): 180 L, 209.9 km, 21.1 hr, standard 2.5 km/L + 3 L/hr
+  //   drum 21.1 × 3 = 63.3 L · vehicle 180 − 63.3 = 116.7 L · 209.9 ÷ 116.7 = 1.7986 → 1.8 km/L   (the sheet said 1.17 km/L and 8.53 L/hr)
+  const p = page(180, 209.9, 21.1, 2.5, 3);
+  assert.deepStrictEqual([p.how, p.hrDiesel, p.kmDiesel, p.kmpl, p.lph], ['split', 63.3, 116.7, 1.8, 3]);
+  // the money of the bill is the same under the rule: vehicle 116.7 L against its need 209.9 ÷ 2.5 = 83.96 L → 32.74 L over = 180 − (83.96 + 63.3)
+  assert.strictEqual(Math.round((p.kmDiesel - 209.9 / 2.5) * 100) / 100, Math.round((180 - (209.9 / 2.5 + 21.1 * 3)) * 100) / 100);
+  // page = server, in every case
+  [[180, 209.9, 21.1, 2.5, 3], [60, 102.4, 1.8, 1.5, 3], [1140, 86.4, 7.9, 1.5, 3], [60, 100, 25, 1.5, 3], [60, 102.4, 0, 1.5, 3], [60, 100, 5, 1.5, 0], [60, 0, 10, 1.5, 3], [0, 100, 5, 1.5, 3], [50, 0, 0, 1.5, 3]].forEach(a => {
+    const x = page.apply(null, a), y = server.apply(null, a);
+    assert.deepStrictEqual([x.kmpl, x.lph, x.hrDiesel, x.kmDiesel], [y.kmpl, y.lph, y.hrDiesel, y.kmDiesel], 'page and server differ for ' + JSON.stringify(a));
+  });
+  assert.strictEqual(page(60, 100, 25, 1.5, 3).how, 'short');                    // the hours alone need 75 L, 60 L given: no average is made up
+  // no place on the page divides all the diesel of a two-meter machinery by each meter any more
+  assert.ok(!/dual \? \[tKm \? \(tKm \/ (issued|used)\)/.test(html), 'the Log Book print still works out its own two-meter average');
 });

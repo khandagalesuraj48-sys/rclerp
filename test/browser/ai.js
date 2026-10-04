@@ -43,7 +43,7 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   await p.screenshot({ path: 'shots/assistant.png' });
   // what went to the AI service, and what never did
   const log = await (await fetch('http://127.0.0.1:3998/__log')).json();
-  ok('every step carried the server\'s rules, the 9 look-ups and who is asking; the model was picked from the service\'s list', log.length === 8 && log.every(x => x.sysHasRules && x.tools.length === 9 && x.sysWho === 'Sujit (Admin)' && x.model === 'gemini-9.5-flash'), { steps: log.length, model: log[0] && log[0].model });
+  ok('every step carried the server\'s rules, the 11 tools (9 look-ups, 2 that only prepare) and who is asking; the model was picked from the service\'s list', log.length === 8 && log.every(x => x.sysHasRules && x.tools.length === 11 && x.sysWho === 'Sujit (Admin)' && x.model === 'gemini-9.5-flash'), { steps: log.length, model: log[0] && log[0].model });
   ok('the service\'s own parts are sent back untouched (it refuses a conversation otherwise)', log.filter(x => /model/.test(x.roles)).length >= 4 && !/refused|400/.test(JSON.stringify(a)), log.map(x => x.roles).slice(0, 4));
   // a look-up the user may not use: the refusal is passed on, nothing is read another way
   const refused = await f.evaluate(async () => { const real = rawCall; rawCall = async (fn, ...x) => { if (fn === 'getActivity') throw new Error('Only Admin can open the Activity Log.'); return real(fn, ...x); }; return true; });

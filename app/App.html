@@ -2259,6 +2259,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .ai-m.err { align-self: flex-start; background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; }
   .ai-m.err button.ai-go { display: inline-block; margin-top: 7px; border: 1px solid #991B1B; background: #fff; color: #991B1B; border-radius: 8px; padding: 3px 12px; font: 700 12.5px var(--ui); cursor: pointer; }
   .ai-m.bot button.ai-go { display: inline-block; margin: 4px 4px 0 0; border: 1px solid #1D4ED8; background: #EFF6FF; color: #1D4ED8; border-radius: 8px; padding: 3px 10px; font: 700 12.5px var(--ui); cursor: pointer; }
+  .ai-card { border-collapse: collapse; margin: 8px 0 4px; width: 100%; font-size: 13.5px; } .ai-card td { padding: 3px 8px 3px 0; vertical-align: top; white-space: normal; } .ai-card td:first-child { color: #64748B; white-space: nowrap; width: 1%; } .ai-card td:last-child { font-weight: 600; }
+  .ai-note { margin: 4px 0 0; font-size: 12.5px; color: #92400E; white-space: normal; }
+  .ai-acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; } .ai-acts .btn { min-height: 32px; padding: 4px 14px; font-size: 13px; }
   .ai-src { align-self: flex-start; font-size: 11.5px; color: #475569; display: flex; gap: 5px; flex-wrap: wrap; max-width: 92%; }
   .ai-src span { background: #E8EEF7; border-radius: 999px; padding: 2px 9px; }
   .ai-wait { align-self: flex-start; font-size: 12.5px; color: #475569; font-style: italic; }
@@ -3801,7 +3804,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   <div id="ai_sugg" class="ai-sugg"></div>
   <div id="ai_live" class="ai-live" hidden><span class="ai-dot"></span><b id="ai_live_t">Listening…</b><button type="button" id="ai_live_stop" class="btn ghost small">Stop</button></div>
   <form id="ai_form" class="ai-form" autocomplete="off"><button type="button" id="ai_mic" class="ai-mic" hidden title="Talk with the assistant: you speak, it answers aloud" aria-label="Talk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><textarea id="ai_in" rows="1" placeholder="Ask anything about this app…" maxlength="1500"></textarea><button type="submit" class="btn primary" id="ai_send">Ask</button></form>
-  <p class="ai-foot">⚡ questions are answered by the app itself. A typed question and the figures it needs go to the AI service. The assistant only reads – it changes nothing. <button type="button" id="ai_test" class="ai-testlink" hidden>Test the AI service</button></p>
+  <p class="ai-foot">⚡ questions are answered by the app itself. A typed question and the figures it needs go to the AI service. The assistant saves nothing by itself – an entry it prepares is saved only when you press Save. <button type="button" id="ai_test" class="ai-testlink" hidden>Test the AI service</button></p>
 </aside>
 <div id="dlg_back" hidden>
   <div id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg_title">
@@ -4776,6 +4779,24 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     finally { btn.disabled = false; if (btn.textContent === label) btn.textContent = old; }
   }
   const noKey = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  /* THE AVERAGE OF A TWO-ENGINE, ONE-TANK MACHINERY (unit "KM + Hrs", a transit mixer) – the MD's rule of 03-10-2026, the same
+   * as the server's dualAvg_:   the hour engine (the drum) is taken AT ITS STANDARD – its diesel = Hrs × L/hr –
+   *                             and what is left of the diesel is the vehicle engine's:  km/L = KM ÷ (diesel − Hrs × L/hr).
+   * Until 05-10-2026 the Log Book print (the sheet that goes with the bill) still divided ALL the diesel by the KM and ALL the
+   * diesel by the hours ("1.17 KM/L, 8.53 L/HR" for 180 L, 209.9 km, 21.1 hr) – two figures that each count the same diesel.
+   * Returns { kmpl, lph, hrDiesel, kmDiesel, how }: `how` says which case it is –
+   *   'split'  both worked and there is an hour standard      'km' no hours / no hour standard: KM ÷ diesel
+   *   'hr'     only hours: diesel ÷ Hrs                       'short' the hours alone need the diesel given: no average
+   *   ''       no diesel or no work */
+  function dualAvg(diesel, km, hr, kmStd, hrStd) {
+    diesel = Number(diesel) || 0; km = Number(km) || 0; hr = Number(hr) || 0; hrStd = Number(hrStd) || 0;
+    if (!(diesel > 0) || !(km > 0 || hr > 0)) return { how: '', kmpl: '', lph: '', hrDiesel: '', kmDiesel: '' };
+    if (!(km > 0)) return { how: 'hr', kmpl: '', lph: r2(diesel / hr), hrDiesel: diesel, kmDiesel: 0 };
+    if (!(hr > 0) || !(hrStd > 0)) return { how: 'km', kmpl: r2(km / diesel), lph: '', hrDiesel: 0, kmDiesel: diesel };
+    const dHr = r2(hr * hrStd), dKm = r2(diesel - dHr);
+    if (!(dKm > 0)) return { how: 'short', kmpl: '', lph: '', hrDiesel: dHr, kmDiesel: dKm };
+    return { how: 'split', kmpl: r2(km / dKm), lph: hrStd, hrDiesel: dHr, kmDiesel: dKm };
+  }
   // which machinery must keep a Log Book (the same rule as the server's needsLogBook_): not Debit Basis, not Ownership "Other"
   const needsLogBook = m => !!m && m.supply !== 'Debit Basis' && m.ownership !== 'Debit' && m.ownership !== 'Other';
   // MH25AJ5974 / mh 25 aj 5974 -> MH-25-AJ-5974 (names without a reg. number stay as typed)
@@ -9279,6 +9300,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const aiMach = q => { q = String(q || '').trim(); if (!q) return ''; const m = findMachine(q); return m ? m.id : q; };
   const aiTabs = () => [...document.querySelectorAll('[id^="tab-"]')].filter(b => !b.hidden).map(b => ({ tab: b.id.slice(4), title: (b.getAttribute('title') || b.textContent || '').replace(/\s+/g, ' ').trim() }));
   const AI_RUN = {
+    prepare_diesel_issue: async a => { const r = await aiPrepare('diesel', a || {}); delete r.text; return r; },
+    prepare_log_entry: async a => { const r = await aiPrepare('log', a || {}); delete r.text; return r; },
     diesel_issues: async a => { const no = aiMach(a.machinery), d = await rawCall('getDieselIssues', { from: a.from, to: a.to, no: no, all: true }), rows = d.rows || [];
       return { from: a.from, to: a.to, machinery: no || 'all', entries: rows.length, totalLitres: aiNum(rows.reduce((t, r) => t + (Number(r.qty) || 0), 0)), byMachinery: aiSplit(rows, 'no', 'qty', 25), byOwner: aiSplit(rows, 'owner', 'qty', 15),
         rows: aiCut(rows, ['date', 'shift', 'no', 'type', 'owner', 'qty', 'kmReading', 'hrReading', 'source', 'driver', 'enteredBy', 'remark'], 60), note: rows.length > 60 ? 'only the first 60 entries are listed; the totals cover all ' + rows.length : '', page: 'diesel' }; },
@@ -9309,7 +9332,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const errs = FIX_RULES.filter(r => r.re.test(String(a.topic || ''))).slice(0, 3).map(r => ({ whatWentWrong: r.en[0], whatToDo: r.en[1] }));
       return { pagesThatFit: scored.map(x => ({ tab: x.t.tab, title: x.t.title, whatItIsFor: x.g ? x.g.en[0] : '', howToUseIt: x.g ? x.g.en[1] : '' })), helpForThisMessage: errs, allPagesThisUserCanOpen: tabs, keys: 'Ctrl + K = search, Ctrl + S = save the page, Alt + B = back, the ? button on every page = its guide' }; },
   };
-  const AI_NAMES = { diesel_issues: 'Diesel issues', log_book: 'Log Book', pending_log_book: 'Pending Log Book', diesel_stock: 'Diesel stock', machinery: 'Asset Master', diesel_average: 'Actual vs standard average', diesel_watch: 'Diesel Watch', activity: 'Activity Log', app_guide: 'The app\'s guide' };
+  const AI_NAMES = { prepare_diesel_issue: 'Diesel Issue – prepared', prepare_log_entry: 'Log Book entry – prepared', diesel_issues: 'Diesel issues', log_book: 'Log Book', pending_log_book: 'Pending Log Book', diesel_stock: 'Diesel stock', machinery: 'Asset Master', diesel_average: 'Actual vs standard average', diesel_watch: 'Diesel Watch', activity: 'Activity Log', app_guide: 'The app\'s guide' };
   const aiWhat = (name, a) => (AI_NAMES[name] || name) + (a && a.from ? ' ' + showDate(a.from) + (a.to && a.to !== a.from ? ' to ' + showDate(a.to) : '') : a && a.date ? ' ' + showDate(a.date) : '') + (a && (a.machinery || a.query || a.text) ? ' · ' + (a.machinery || a.query || a.text) : '');
   // the answer as it is shown: plain text, **bold**, and [[open:tab|Label]] as a button to that page
   function aiHtml(text) {
@@ -9406,7 +9429,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    *      guide of the page that fits) and says so. An error is shown only when nothing at all can be said. */
   const aiHas = (t, re) => re.test(t);
   // the language of the answer: Devanagari → Marathi (Hindi if the help language is Hindi); Marathi / Hindi words in English letters → the same; else English
-  function aiLangOf(text) { const dev = /[\u0900-\u097F]/.test(text), rom = /\b(kiti|kay|ahe|aahe|ghetle|ghetla|dile|dila|baki|kon|koni|konti|konta|chi|cha|che|sang|kitna|kitni|kya|hai|kaun|diya|liya|mahina|mahinyat|aaj|kal|kiti)\b/i.test(text);
+  function aiLangOf(text) { const dev = /[\u0900-\u097F]/.test(text), rom = /\b(kiti|kay|ahe|aahe|ghetle|ghetla|dile|dila|baki|kon|koni|konti|konta|chi|cha|che|sang|kitna|kitni|kya|hai|kaun|diya|liya|mahina|mahinyat|aaj|aajchi|aajcha|kal|la|de|dya|ne|madhe|sathi|kar|kara|taka|bhara|nond|ghal|karo|dalo)\b/i.test(text);      // (not "do", "ko": they are English words too)
     return dev || rom ? (fixLang === 'hi' ? 'hi' : 'mr') : 'en'; }
   // the machinery named in the question: its whole number (with or without dashes), its name, or four digits that only one machinery ends with
   function aiFindMach(text) {
@@ -9479,6 +9502,114 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         return x ? T({ en: '**' + no + '** – last reading on ' + showDate(x.date) + ': ', mr: '**' + no + '** – शेवटची reading ' + showDate(x.date) + ' ची: ', hi: '**' + no + '** – आखिरी reading ' + showDate(x.date) + ' की: ' }) + '**' + [x.ckm ? fmt(x.ckm) + ' km' : '', x.chr ? fmt(x.chr) + ' hr' : ''].filter(Boolean).join(' / ') + '**\n[[open:log|Log Book]]'
           : T({ en: no + ' has no Log Book reading in the last 60 days.', mr: no + ' ची गेल्या 60 दिवसांत Log Book reading नाही.', hi: no + ' की पिछले 60 दिनों में Log Book reading नहीं।' }); } };
   }
+  /* ---------- THE ASSISTANT MAKES AN ENTRY – AFTER THE PERSON'S YES (asked 05-10-2026: "the most powerful") ----------
+   * "8511 ला 60 लिटर diesel दे, reading 148200"  ·  "8511 ची आजची Log Book entry, close 148260"  ·  "EX-200 आज idle" – typed or spoken.
+   * THE RULE: the assistant never saves by itself. It builds the entry, SHOWS it (every field, the Start it will follow on from,
+   * the stock, anything that looks wrong) with Save / Open in the form / Cancel; only the person's Save – or "हो / yes" – sends
+   * it, through the app's normal save: his own permission and every check of the form apply (stock, readings, closed month, an
+   * entry that already exists). What the server answers ("check the reading – save anyway?") is asked in the chat.
+   * Understood by the app itself when it is plainly a command (a machinery + litres for diesel; a machinery + a closing reading or
+   * idle / holiday / breakdown for the Log Book); anything looser goes to the AI, which can only PREPARE (prepare_diesel_issue /
+   * prepare_log_entry) – the same card, the same Save. Something missing → it asks, and the next words complete it.
+   * Only NEW Diesel Issues and NEW Log Book entries by reading or status. Edits, deletes, trips / time / item work: the form. */
+  // a number that was really given – nothing given stays '' (never 0: a reading of 0 must not be made up)
+  const aiN = v => { const t = v === undefined || v === null ? '' : String(v).replace(/,/g, '').trim(); if (t === '') return ''; const n = Number(t); return isFinite(n) ? n : ''; };
+  // "give / enter" said plainly – enough to take words about diesel as a command even when the litres are still missing
+  const AI_GIVE = /\b(de|dya|issue|add|enter|bhar|bhara|tak|taka|nond)\b|(^|\s)(दे|द्या|भर|भरा|टाक|टाका|नोंद|नोंदव)(\s|$|[.!,])/i;
+  const AI_ASKQ = /\bkiti\b|किती|कितना|कितनी|how much|how many|\bkon\b|koni|कोण|कौन|किसने|\?|बाकी|pending|सारांश|summary|average|सरासरी/i;
+  const AI_DO = /\b(de|dya|deun|dile|dila|issue|bhar|bhara|bharle|tak|taka|add|enter|save|nond|kar|kara|ghal|ghala|ghe)\b|दे|द्या|दिले|दिला|भर|टाक|नोंद|जोड|कर|घाल|घे/i;
+  // numbers said with their meter: "km 148200", "148200 km", "reading 148200", "hr 5095", "5095 तास"
+  function aiReadings(text) { const t = String(text).replace(/(\d),(?=\d)/g, '$1'), out = {};
+    const km = /(?:\bkm|किमी|किलोमीटर)\s*(?:reading|रीडिंग|रिडिंग)?\s*[:=]?\s*(\d+(?:\.\d+)?)/i.exec(t) || /(\d+(?:\.\d+)?)\s*(?:km\b|किमी|किलोमीटर)(?!\s*\/)/i.exec(t);
+    const hr = /(?:\bhrs?\b|\bhours?\b|तास|घंटे|घंटा)\s*(?:reading|रीडिंग|रिडिंग)?\s*[:=]?\s*(\d+(?:\.\d+)?)/i.exec(t) || /(\d+(?:\.\d+)?)\s*(?:hrs?\b|hours?\b|तास|घंटे)/i.exec(t);
+    const any = /(?:reading|रीडिंग|रिडिंग|close|closing|क्लोज|क्लोजिंग)\s*(?:reading|रीडिंग|रिडिंग)?\s*[:=]?\s*(\d+(?:\.\d+)?)/i.exec(t);
+    if (km) out.km = Number(km[1]); if (hr) out.hr = Number(hr[1]); if (any && !km && !hr) out.any = Number(any[1]); return out; }
+  function aiCommand(text) {
+    const t = String(text), m = aiFindMach(t), qty = /(\d+(?:\.\d+)?)\s*(?:l\b|ltr|litres?|liters?|लिटर|लीटर|लि\b)/i.exec(t.replace(/(\d),(?=\d)/g, '$1'));
+    const dieselWord = AI_KIND.diesel.test(t), status = /\bidle\b|आयडल|आयडॉल|उभी|उभा|khadi|खड़ी/i.test(t) ? 'Idle' : /holiday|सुट्टी|सुटी|छुट्टी/i.test(t) ? 'Holiday' : /breakdown|ब्रेकडाउन|ब्रेक डाउन|बंद पडल|खराब/i.test(t) ? 'Breakdown' : '';
+    const logWord = /log ?book|लॉग ?बुक|\bentry\b|एंट्री|एन्ट्री|नोंद/i.test(t), rd = aiReadings(t), d = aiPeriod(t, 'today');
+    if (AI_ASKQ.test(t) && !/^.*(कर|करा|दे|द्या|टाक|\bkar\b|\bde\b)\s*[.!]?$/i.test(t.trim())) return null;                  // a question, not a command
+    const date = d.said && d.from === d.to ? d.from : '';
+    const shift = /night|रात्र|ratri|\braat\b|रात/i.test(t) ? 'Night' : /full ?day|पूर्ण दिवस/i.test(t) ? 'Full Day' : /\bday\b|दिवस पाळी|दिन की/i.test(t) ? 'Day' : '';
+    if (dieselWord && ((qty && (AI_DO.test(t) || m)) || (m && AI_GIVE.test(t)))) { const loc = (S.locations || []).find(l => t.toLowerCase().indexOf(String(l).toLowerCase()) > -1) || '';
+      return { kind: 'diesel', a: { machinery: m ? m.id : '', litres: qty ? Number(qty[1]) : '', date: date, shift: shift === 'Full Day' ? '' : shift, source: loc, km_reading: rd.km !== undefined ? rd.km : (m && rd.any !== undefined && /KM/.test(m.unit) && !/Hrs/.test(m.unit) ? rd.any : ''), hr_reading: rd.hr !== undefined ? rd.hr : (m && rd.any !== undefined && /Hrs/.test(m.unit) && !/KM/.test(m.unit) ? rd.any : '') } }; }
+    if (!dieselWord && m && (status || ((logWord || /close|closing|क्लोज/i.test(t)) && (rd.km !== undefined || rd.hr !== undefined || rd.any !== undefined))))
+      return { kind: 'log', a: { machinery: m.id, date: date, shift: shift, status: status, close_km: rd.km !== undefined ? rd.km : (rd.any !== undefined && /KM/.test(m.unit) && !/Hrs/.test(m.unit) ? rd.any : ''), close_hr: rd.hr !== undefined ? rd.hr : (rd.any !== undefined && /Hrs/.test(m.unit) && !/KM/.test(m.unit) ? rd.any : '') } };
+    return null;
+  }
+  // the entry as it would be saved, or what is still missing
+  async function aiDraft(kind, a) {
+    const L = AI.lang || fixLang, T = o => o[L] || o.en, mod = kind === 'diesel' ? 'Diesel Issue' : 'Log Book';
+    if (!canEdit(mod)) return { error: T({ en: 'You have no permission to make a ' + mod + ' entry.', mr: mod + ' entry करण्याची परवानगी तुम्हाला नाही.', hi: mod + ' entry करने की अनुमति आपको नहीं है।' }) };
+    const m = a.machinery ? findMachine(a.machinery) : null;
+    if (!m) return { need: T({ en: a.machinery ? '"' + a.machinery + '" is not in the Master. Which machinery?' : 'For which machinery?', mr: a.machinery ? '"' + a.machinery + '" Master मध्ये नाही. कोणती गाडी?' : 'कोणत्या गाडीसाठी?', hi: a.machinery ? '"' + a.machinery + '" Master में नहीं है। कौन सी गाड़ी?' : 'किस गाड़ी के लिए?' }), partial: { kind: kind, a: a } };
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') ? a.date : S.today;
+    if (date > S.today) return { error: T({ en: 'An entry cannot be made for a date after today.', mr: 'आजच्या नंतरच्या तारखेची entry करता येत नाही.', hi: 'आज के बाद की तारीख की entry नहीं हो सकती।' }) };
+    if (kind === 'diesel') {
+      const qty = aiN(a.litres); if (!(qty > 0)) return { need: T({ en: 'How many litres for ' + m.id + '?', mr: m.id + ' ला किती लिटर?', hi: m.id + ' को कितने लीटर?' }), partial: { kind: kind, a: Object.assign({}, a, { machinery: m.id }) } };
+      const shift = /night/i.test(a.shift || '') ? 'Night' : 'Day', source = (S.locations || []).find(l => String(l).toLowerCase() === String(a.source || '').toLowerCase()) || (S.prefs || {}).loc || (S.locations || [])[0] || 'Dispenser';
+      const km = aiN(a.km_reading), hr = aiN(a.hr_reading), debit = m.supply === 'Debit Basis', notes = [];
+      let stock = ''; try { stock = ((await rawCall('getStock')).byLoc || {})[source]; } catch (e) { stock = ''; }
+      if (stock !== '' && stock !== undefined && qty > stock) notes.push(T({ en: '⚠ Only ' + fmt(stock) + ' L in stock at ' + source + '.', mr: '⚠ ' + source + ' मध्ये फक्त ' + fmt(stock) + ' L stock आहे.', hi: '⚠ ' + source + ' में सिर्फ ' + fmt(stock) + ' L stock है।' }));
+      if (m.tankCap && qty > Number(m.tankCap)) notes.push(T({ en: '⚠ The tank of ' + m.id + ' holds ' + fmt(m.tankCap) + ' L.', mr: '⚠ ' + m.id + ' ची tank ' + fmt(m.tankCap) + ' L ची आहे.', hi: '⚠ ' + m.id + ' की tank ' + fmt(m.tankCap) + ' L की है।' }));
+      if (!debit && km === '' && hr === '') notes.push(T({ en: 'No meter reading given – it is saved without one.', mr: 'Meter reading दिलेली नाही; तिच्याशिवाय save होईल.', hi: 'Meter reading नहीं दी; उसके बिना save होगा।' }));
+      const data = { date: date, shift: shift, source: source, no: m.id, qty: qty, kmReading: debit ? '' : km, hrReading: debit ? '' : hr, driver: String(a.driver || '').trim(), remark: '' };
+      return { kind: kind, tab: 'diesel', title: 'Diesel Issue', data: data, notes: notes, lines: [['Machinery', m.id + (m.type ? ' · ' + m.type : '') + (m.owner ? ' · ' + m.owner : '')], ['Date', showDate(date) + ' · ' + shift], ['Diesel', fmt(qty) + ' L  ←  ' + source], ['Reading', [km !== '' ? fmt(km) + ' km' : '', hr !== '' ? fmt(hr) + ' hr' : ''].filter(Boolean).join(' / ') || '–']].concat(data.driver ? [['Driver', data.driver]] : []),
+        say: T({ en: m.id + ': ' + qty + ' litres of diesel from ' + source + ', ' + showDate(date) + ' ' + shift + '. Shall I save?', mr: m.id + ' ला ' + qty + ' लिटर diesel, ' + source + ' मधून, ' + showDate(date) + ' ' + shift + '. Save करू का?', hi: m.id + ' को ' + qty + ' लीटर diesel, ' + source + ' से, ' + showDate(date) + ' ' + shift + '. Save करूँ?' }),
+        save: force => call('saveDieselIssue', Object.assign({}, data, force ? { force: true } : {})) };
+    }
+    const shift = /night/i.test(a.shift || '') ? 'Night' : /^day$/i.test(String(a.shift || '').trim()) ? 'Day' : ((S.prefs || {}).shift || 'Full Day'), status = ['Idle', 'Holiday', 'Breakdown'].find(x => x.toLowerCase() === String(a.status || '').toLowerCase()) || '';
+    if (m.supply === 'Debit Basis') return { error: T({ en: m.id + ' is on debit basis – it keeps no Log Book.', mr: m.id + ' debit basis वर आहे; तिची Log Book नसते.', hi: m.id + ' debit basis पर है; उसकी Log Book नहीं होती।' }) };
+    let pf = null; try { pf = await rawCall('getLogRowPrefill', m.id, date, shift); } catch (e) { return { error: errMsg(e) }; }
+    if (pf.problem) return { error: pf.problem };
+    const ckm = aiN(a.close_km), chr = aiN(a.close_hr), notes = [];
+    if (status) return { kind: kind, tab: 'log', title: 'Log Book entry', data: { date: date, shift: shift, no: m.id, mode: status }, notes: notes, lines: [['Machinery', m.id + (m.type ? ' · ' + m.type : '')], ['Date', showDate(date) + ' · ' + shift], ['Status', status]],
+      say: T({ en: m.id + ', ' + showDate(date) + ': ' + status + '. Shall I save?', mr: m.id + ', ' + showDate(date) + ': ' + status + '. Save करू का?', hi: m.id + ', ' + showDate(date) + ': ' + status + '. Save करूँ?' }), save: () => call('saveLogRows', { rows: [{ date: date, shift: shift, no: m.id, mode: status }] }) };
+    const modes = (m.modes || []).filter(x => x === 'KM' || x === 'Hrs' || x === 'KM + Hrs'); let mode = modes.length === 1 ? modes[0] : (ckm !== '' && chr !== '' ? 'KM + Hrs' : ckm !== '' ? 'KM' : chr !== '' ? 'Hrs' : (pf.lastMode || modes[0] || ''));
+    if (modes.length && modes.indexOf(mode) < 0) mode = modes[0];
+    if (!mode) return { error: T({ en: m.id + ' is not measured by a meter reading – make its entry in the Log Book form.', mr: m.id + ' meter reading ने मोजली जात नाही; तिची entry Log Book form मध्ये करा.', hi: m.id + ' meter reading से नहीं नापी जाती; उसकी entry Log Book form में करें।' }) + ' [[open:log|Log Book]]' };
+    const needKm = /KM/.test(mode), needHr = /Hrs/.test(mode);
+    if ((needKm && ckm === '') || (needHr && chr === '')) return { need: T({ en: m.id + ' is measured by ' + mode + '. Tell me the closing ' + [needKm && ckm === '' ? 'KM reading' : '', needHr && chr === '' ? 'hour reading' : ''].filter(Boolean).join(' and ') + ' (Start ' + [needKm ? fmt(pf.openingKm) + ' km' : '', needHr ? fmt(pf.openingHr) + ' hr' : ''].filter(Boolean).join(' / ') + ').', mr: m.id + ' ' + mode + ' ने मोजली जाते. Closing ' + [needKm && ckm === '' ? 'KM reading' : '', needHr && chr === '' ? 'तासांची reading' : ''].filter(Boolean).join(' आणि ') + ' सांगा (Start ' + [needKm ? fmt(pf.openingKm) + ' km' : '', needHr ? fmt(pf.openingHr) + ' hr' : ''].filter(Boolean).join(' / ') + ').', hi: m.id + ' ' + mode + ' से नापी जाती है। Closing ' + [needKm && ckm === '' ? 'KM reading' : '', needHr && chr === '' ? 'घंटों की reading' : ''].filter(Boolean).join(' और ') + ' बताएँ (Start ' + [needKm ? fmt(pf.openingKm) + ' km' : '', needHr ? fmt(pf.openingHr) + ' hr' : ''].filter(Boolean).join(' / ') + ').' }), partial: { kind: kind, a: Object.assign({}, a, { machinery: m.id, date: date, shift: shift }) } };
+    if (needKm && ckm < Number(pf.openingKm || 0)) return { error: T({ en: 'Close ' + fmt(ckm) + ' km is less than the Start ' + fmt(pf.openingKm) + ' km of ' + m.id + '. Say the right reading.', mr: 'Close ' + fmt(ckm) + ' km हे ' + m.id + ' च्या Start ' + fmt(pf.openingKm) + ' km पेक्षा कमी आहे. बरोबर reading सांगा.', hi: 'Close ' + fmt(ckm) + ' km, ' + m.id + ' के Start ' + fmt(pf.openingKm) + ' km से कम है। सही reading बताएँ।' }) };
+    if (needHr && chr < Number(pf.openingHr || 0)) return { error: T({ en: 'Close ' + fmt(chr) + ' hr is less than the Start ' + fmt(pf.openingHr) + ' hr of ' + m.id + '.', mr: 'Close ' + fmt(chr) + ' hr हे ' + m.id + ' च्या Start ' + fmt(pf.openingHr) + ' hr पेक्षा कमी आहे.', hi: 'Close ' + fmt(chr) + ' hr, ' + m.id + ' के Start ' + fmt(pf.openingHr) + ' hr से कम है।' }) };
+    if ((needKm && pf.firstKm) || (needHr && pf.firstHr)) notes.push(T({ en: 'First entry of this meter: the Start is taken as ' + [needKm ? fmt(pf.openingKm) : '', needHr ? fmt(pf.openingHr) : ''].filter(Boolean).join(' / ') + ' – if that is not right, use the form.', mr: 'या meter ची पहिली entry: Start ' + [needKm ? fmt(pf.openingKm) : '', needHr ? fmt(pf.openingHr) : ''].filter(Boolean).join(' / ') + ' धरले आहे; ते बरोबर नसेल तर form वापरा.', hi: 'इस meter की पहली entry: Start ' + [needKm ? fmt(pf.openingKm) : '', needHr ? fmt(pf.openingHr) : ''].filter(Boolean).join(' / ') + ' माना है; सही न हो तो form इस्तेमाल करें।' }));
+    const wk = needKm ? aiNum(ckm - Number(pf.openingKm || 0)) : '', wh = needHr ? aiNum(chr - Number(pf.openingHr || 0)) : '';
+    if (needKm && wk > 600) notes.push(T({ en: '⚠ ' + fmt(wk) + ' km in one entry – check the reading.', mr: '⚠ एका entry मध्ये ' + fmt(wk) + ' km; reading तपासा.', hi: '⚠ एक entry में ' + fmt(wk) + ' km; reading जाँचें।' }));
+    if (needHr && wh > 24) notes.push(T({ en: '⚠ ' + fmt(wh) + ' hours in one entry – check the reading.', mr: '⚠ एका entry मध्ये ' + fmt(wh) + ' तास; reading तपासा.', hi: '⚠ एक entry में ' + fmt(wh) + ' घंटे; reading जाँचें।' }));
+    const row = Object.assign({ date: date, shift: shift, no: m.id, mode: mode }, needKm ? { openingKm: pf.openingKm, closingKm: ckm } : {}, needHr ? { openingHr: pf.openingHr, closingHr: chr } : {}, a.work ? { work: String(a.work).slice(0, 200) } : {});
+    return { kind: kind, tab: 'log', title: 'Log Book entry', data: row, notes: notes, lines: [['Machinery', m.id + (m.type ? ' · ' + m.type : '')], ['Date', showDate(date) + ' · ' + shift + ' · ' + mode]].concat(needKm ? [['KM', fmt(pf.openingKm) + ' → ' + fmt(ckm) + '  =  ' + fmt(wk) + ' km']] : []).concat(needHr ? [['Hrs', fmt(pf.openingHr) + ' → ' + fmt(chr) + '  =  ' + fmt(wh) + ' hr']] : []).concat(a.work ? [['Work', row.work]] : []),
+      say: T({ en: m.id + ', ' + showDate(date) + ': ' + [needKm ? wk + ' kilometres' : '', needHr ? wh + ' hours' : ''].filter(Boolean).join(' and ') + '. Shall I save?', mr: m.id + ', ' + showDate(date) + ': ' + [needKm ? wk + ' किलोमीटर' : '', needHr ? wh + ' तास' : ''].filter(Boolean).join(' आणि ') + '. Save करू का?', hi: m.id + ', ' + showDate(date) + ': ' + [needKm ? wk + ' किलोमीटर' : '', needHr ? wh + ' घंटे' : ''].filter(Boolean).join(' और ') + '. Save करूँ?' }),
+      save: () => call('saveLogRows', { rows: [row] }) };
+  }
+  // shows what was prepared (or asks for what is missing); returns the words for the conversation
+  async function aiPrepare(kind, a) {
+    const d = await aiDraft(kind, a), L = AI.lang || fixLang, T = o => o[L] || o.en;
+    if (d.error) { AI.pending = null; aiAdd('ai-m bot', aiHtml(d.error)); return { error: d.error, text: d.error }; }
+    if (d.need) { AI.partial = d.partial; aiAdd('ai-m bot', aiHtml(d.need)); return { askedThePersonFor: d.need, text: d.need }; }
+    AI.partial = null; AI.pending = d;
+    const el = aiAdd('ai-m bot', '<b>' + esc(d.title) + '</b> – ' + esc(T({ en: 'check, then Save', mr: 'तपासा, मग Save', hi: 'जाँचें, फिर Save' })) + '<table class="ai-card">' + d.lines.map(l => '<tr><td>' + esc(l[0]) + '</td><td>' + esc(l[1]) + '</td></tr>').join('') + '</table>' + d.notes.map(n => '<div class="ai-note">' + esc(n) + '</div>').join('') +
+      '<div class="ai-acts"><button type="button" class="btn primary small" data-aido="save">Save</button><button type="button" class="btn ghost small" data-aido="form">' + esc(T({ en: 'Open in the form', mr: 'Form मध्ये उघडा', hi: 'Form में खोलें' })) + '</button><button type="button" class="btn ghost small" data-aido="cancel">' + esc(T({ en: 'Cancel', mr: 'रद्द', hi: 'रद्द' })) + '</button></div>');
+    el.dataset.say = d.say; el.dataset.card = '1';
+    return { shownToThePersonForSaveOrCancel: true, notSavedYet: true, entry: d.lines.map(l => l.join(': ')), text: d.say };
+  }
+  async function aiDo(what, force) {
+    const d = AI.pending, L = fixLang, T = o => o[AI.lang || L] || o.en; if (!d || AI.busy) return;
+    const card = [...document.querySelectorAll('#ai_msgs .ai-m[data-card="1"]')].pop(); const off = () => { if (card) { card.dataset.card = '0'; card.querySelectorAll('.ai-acts button').forEach(b => { b.disabled = true; }); } };
+    if (what === 'cancel') { AI.pending = null; off(); const t = T({ en: 'Cancelled – nothing was saved.', mr: 'रद्द केले; काही save झाले नाही.', hi: 'रद्द किया; कुछ save नहीं हुआ।' }); aiAdd('ai-m bot', esc(t)); AI.lastAnswer = t; return; }
+    if (what === 'form') { AI.pending = null; off(); showTab(d.tab); const fire = (el, v) => { if (!el || v === '' || v === undefined) return; el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); };
+      setTimeout(() => { try { if (d.kind === 'diesel') { fire($('d_date'), d.data.date); fire($('d_shift'), d.data.shift); fire($('d_no'), d.data.no); fire($('d_qty'), d.data.qty); } else { setLgMode('mach'); fire($('lg_top_no'), d.data.no); } } catch (e) {} }, 500); if (window.innerWidth < 900) aiOpen(false); return; }
+    AI.busy = true; $('ai_send').disabled = true; const wait = aiAdd('ai-wait', 'Saving…');
+    try { const r = await d.save(force); wait.remove();
+      if (r && r.warning) { aiAdd('ai-m bot', esc(r.warning) + '<div class="ai-acts"><button type="button" class="btn primary small" data-aido="force">' + esc(T({ en: 'Save anyway', mr: 'तरीही Save', hi: 'फिर भी Save' })) + '</button><button type="button" class="btn ghost small" data-aido="cancel">' + esc(T({ en: 'Cancel', mr: 'रद्द', hi: 'रद्द' })) + '</button></div>').dataset.say = r.warning; AI.lastAnswer = r.warning; return; }
+      AI.pending = null; off(); AI.snapAt = 0;
+      const t = T({ en: 'Saved ✔ ', mr: 'Save झाले ✔ ', hi: 'Save हो गया ✔ ' }) + d.title + (r && r.id ? ' ' + r.id : '') + ' – ' + d.lines[0][1].split(' · ')[0] + '\n[[open:' + d.tab + '|' + (d.kind === 'diesel' ? 'Diesel Issue' : 'Log Book') + ']]';
+      aiAdd('ai-src', '<span>' + esc(T({ en: 'saved by you, through the app\'s own save', mr: 'तुम्ही save केले; app च्या नेहमीच्या save मधून', hi: 'आपने save किया; app के अपने save से' })) + '</span>'); aiAdd('ai-m bot', aiHtml(t)); AI.lastAnswer = t.split('\n')[0];
+      AI.turns.push({ role: 'user', parts: [{ text: 'I pressed Save.' }] }, { role: 'model', parts: [{ text: t }] });
+    } catch (e) { wait.remove(); const why = errMsg(e); aiAdd('ai-m err', esc(why) + '<br><small>' + esc(T({ en: 'Nothing was saved. Say the corrected entry, or open it in the form.', mr: 'काही save झाले नाही. दुरुस्त entry सांगा, किंवा form मध्ये उघडा.', hi: 'कुछ save नहीं हुआ। सही entry बताएँ, या form में खोलें।' })) + '</small>'); AI.lastAnswer = why; }
+    finally { AI.busy = false; $('ai_send').disabled = false; aiSuggest(); }
+  }
+  const AI_YES = /^(हो|होय|हा|हां|हाँ|जी|ho|hoy|haan|han|yes|ok|okay|save|sev|कर|करा|kar|kara|ठीक|ठीक आहे|thik|सेव्ह|सेव|सेव्ह कर|save कर)[\s.!।]*$/i, AI_NO = /^(नाही|नको|नहीं|मत|no|nahi|nako|cancel|रद्द|रद्द कर|कॅन्सल|कैंसल)[\s.!।]*$/i;
+
   // figures about the machinery named in a question, attached for the AI (so that it need not ask for them)
   async function aiAbout(text) { const m = aiFindMach(text); if (!m) return null; const from = S.today.slice(0, 8) + '01', pick = async f => { try { return await f(); } catch (e) { return { notAllowed: errMsg(e) }; } };
     const [d, a] = await Promise.all([pick(() => AI_RUN.diesel_issues({ from: from, to: S.today, machinery: m.id })), pick(() => AI_RUN.diesel_average({ from: from, to: S.today, machinery: m.id }))]);
@@ -9494,6 +9625,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const wait = aiAdd('ai-wait', '…'), used = [];
     const said = t => { AI.turns.push({ role: 'model', parts: [{ text: t }] }); };
     try {
+      // 0. an entry is waiting for its yes / no; or these words are a command (or complete one that was half said)
+      if (AI.pending && AI_YES.test(text)) { wait.remove(); AI.turns.pop(); AI.busy = false; await aiDo('save'); return; }
+      if (AI.pending && AI_NO.test(text)) { wait.remove(); AI.turns.pop(); AI.busy = false; await aiDo('cancel'); return; }
+      let cmd = onlyAi ? null : aiCommand(text);
+      if (!cmd && AI.partial && !onlyAi && !aiLocal(text, false)) { const m2 = aiFindMach(text), q2 = /(\d+(?:\.\d+)?)\s*(?:l\b|ltr|litres?|liters?|लिटर|लीटर)?/i.exec(text.replace(/(\d),(?=\d)/g, '$1')), rd = aiReadings(text), pa = Object.assign({}, AI.partial.a);
+        if (m2) pa.machinery = m2.id;
+        if (AI.partial.kind === 'diesel') { if (!(Number(pa.litres) > 0) && q2 && !m2) pa.litres = Number(q2[1]); }
+        else { if (rd.km !== undefined) pa.close_km = rd.km; if (rd.hr !== undefined) pa.close_hr = rd.hr; if (rd.km === undefined && rd.hr === undefined && q2 && !m2) { const mm = findMachine(pa.machinery); if (mm && /KM/.test(mm.unit) && !/Hrs/.test(mm.unit)) pa.close_km = Number(q2[1]); else if (mm && /Hrs/.test(mm.unit) && !/KM/.test(mm.unit)) pa.close_hr = Number(q2[1]); } }
+        if (JSON.stringify(pa) !== JSON.stringify(AI.partial.a)) cmd = { kind: AI.partial.kind, a: pa }; }
+      if (cmd) { wait.remove(); const r = await aiPrepare(cmd.kind, cmd.a); said(r.text || ''); return; }
       // 1. the app understands it for sure
       const sure = onlyAi ? null : aiLocal(text, false);            // (a question about an error message is always for the AI)
       if (sure) { const t = await sure.run(); wait.remove(); aiAdd('ai-src', '<span>⚡ ' + esc(byApp) + '</span>'); aiAdd('ai-m bot', aiHtml(t)); said(t); return; }
@@ -9653,7 +9794,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('ai_test').addEventListener('click', () => aiTest());
   $('ai_mic').addEventListener('click', () => aiLiveStart());
   $('ai_live_stop').addEventListener('click', () => aiLiveStop());
-  $('ai_msgs').addEventListener('click', e => { const sp = e.target.closest('[data-aisay]'); if (sp) { const m = sp.closest('.ai-m'), t = m.textContent; if (AI.saying) { speechSynthesis.cancel(); AI.saying = false; } else aiSay(t, /[\u0900-\u097F]/.test(t) ? (fixLang === 'hi' ? 'hi' : 'mr') : 'en'); return; }
+  $('ai_msgs').addEventListener('click', e => { const doit = e.target.closest('[data-aido]'); if (doit) { const w = doit.dataset.aido; aiDo(w === 'force' ? 'save' : w, w === 'force'); return; }
+    const sp = e.target.closest('[data-aisay]'); if (sp) { const m = sp.closest('.ai-m'), t = m.textContent; if (AI.saying) { speechSynthesis.cancel(); AI.saying = false; } else aiSay(t, /[\u0900-\u097F]/.test(t) ? (fixLang === 'hi' ? 'hi' : 'mr') : 'en'); return; }
     const again = e.target.closest('[data-airetry]'); if (again) { if (!AI.busy) { const q = again.dataset.airetry; again.closest('.ai-m').remove(); aiAsk(q); } return; }
     const b = e.target.closest('[data-aigo]'); if (b) { showTab(b.dataset.aigo); if (window.innerWidth < 900) aiOpen(false); } });
 
@@ -12709,7 +12851,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const inRows = {}; lines.forEach(x => { const d0 = x.r && x.r.date; if (d0) inRows[d0] = r2((inRows[d0] || 0) + (Number(x.iss) || 0)); });
       const noEntry = Object.keys(iss0).sort().map(d0 => ({ d: d0, q: r2((Number(iss0[d0].qty) || 0) - (inRows[d0] || 0)) })).filter(x => x.q > 0.005);
       const noEntryNote = noEntry.length ? '<small>' + n2(issuedRows) + ' IN THE ENTRIES ABOVE + NOT IN AN ENTRY: ' + noEntry.map(x => showDate(x.d) + ' ' + fmt(x.q) + ' L').join(', ') + '</small>' : '';
-      const monthlyAvg = !used ? '–' : isHr ? (tHr ? (used / tHr).toFixed(2) + ' L/HR' : '–') : dual ? [tKm ? (tKm / used).toFixed(2) + ' KM/L' : '', tHr ? (used / tHr).toFixed(2) + ' L/HR' : ''].filter(Boolean).join(' / ') : (tKm ? (tKm / used).toFixed(2) + ' KM/L' : '–');
       // days: a date with a Day / Full Day entry is a working day; a Night entry is a working night; net = both
       const holDays = [...new Set(list.filter(r => (r.mode || r.unit) === 'Holiday').map(r => r.date))].length, bdDaysP = [...new Set(list.filter(r => (r.mode || r.unit) === 'Breakdown').map(r => r.date))].length,
         idleDays = [...new Set(list.filter(r => (r.mode || r.unit) === 'Idle').map(r => r.date))].length;
@@ -12796,7 +12937,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         '</tbody><tfoot><tr><td colspan="6" class="c">TOTAL</td><td class="n">' + ([tKm ? fmt(tKm) + ' KM' : '', tHr ? fmt(tHr) + ' HR' : '', tTrips ? fmt(tTrips) + ' TRIPS' : ''].filter(Boolean).join('<br>') || '0') + '</td><td></td><td class="n">' + fmt(issued) + '</td><td></td><td class="n">' + fmt(sum('total')) + '</td><td class="n">' + fmt(used) + '</td><td></td><td></td><td></td><td></td></tr></tfoot></table>';
       const money = v => v ? '₹ ' + n2(v) : '–';
       const allDebit = issued > 0 ? debitQty >= issued : (m.supply === 'Debit Basis');
-      const avgWord = allDebit ? '–' : !issued ? '–' : isHr ? (tHr ? (issued / tHr).toFixed(2) + ' LTR / HR' : '–') : dual ? [tKm ? (tKm / issued).toFixed(2) + ' KM / LTR' : '', tHr ? (issued / tHr).toFixed(2) + ' LTR / HR' : ''].filter(Boolean).join('<br>') : (tKm ? (tKm / issued).toFixed(2) + ' KM / LTR' : '–');
+      // KM + Hrs (two engines, one tank): the drum at its standard, the rest of the diesel is the vehicle engine's – and the sheet shows the working
+      const dA = dual ? dualAvg(issued, tKm, tHr, kmStd, hrStd) : null;
+      const dualWord = !dA ? '' : dA.how === 'split' ? dA.kmpl.toFixed(2) + ' KM / LTR<br>' + fmt(dA.lph) + ' LTR / HR (STD)<br><small>DRUM ' + fmt(tHr) + ' HR × ' + fmt(hrStd) + ' = ' + fmt(dA.hrDiesel) + ' L AT STANDARD · VEHICLE ' + fmt(issued) + ' − ' + fmt(dA.hrDiesel) + ' = ' + fmt(dA.kmDiesel) + ' L → ' + fmt(tKm) + ' KM ÷ ' + fmt(dA.kmDiesel) + ' L</small>'
+        : dA.how === 'short' ? '–<br><small>THE HOURS ALONE NEED ' + fmt(dA.hrDiesel) + ' L (' + fmt(tHr) + ' HR × ' + fmt(hrStd) + '), ' + fmt(issued) + ' L GIVEN – CHECK THE READINGS</small>'
+        : dA.how === 'km' ? dA.kmpl.toFixed(2) + ' KM / LTR' + (tHr ? '' : '<br><small>NO HOURS IN THE LOG BOOK</small>') : dA.how === 'hr' ? dA.lph.toFixed(2) + ' LTR / HR<br><small>NO KM IN THE LOG BOOK</small>' : '–';
+      const avgWord = allDebit ? '–' : !issued ? '–' : isHr ? (tHr ? (issued / tHr).toFixed(2) + ' LTR / HR' : '–') : dual ? dualWord : (tKm ? (tKm / issued).toFixed(2) + ' KM / LTR' : '–');
       // standard vs actual: KM machinery – a LOWER km/ltr than standard is worse; Hrs machinery – a HIGHER ltr/hr than standard is worse
       const stdWord = [hasKm(u) && kmStd ? 'STD ' + fmt(kmStd) + ' KM/L' : '', hasHr(u) && hrStd ? 'STD ' + fmt(hrStd) + ' L/HR' : ''].filter(Boolean).join(' · ');
       const verdict = allDebit ? 'DIESEL ON DEBIT – ALL DIESEL IS DEBITED' : !stdQty ? 'NO STANDARD IN ASSET MASTER' : excessQty > 0 ? 'WORSE THAN STANDARD → DEBIT' : 'WITHIN STANDARD → NO DEBIT';

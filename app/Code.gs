@@ -1857,12 +1857,17 @@ function logDashboard_(f) {
       tot.worked += wd ? 1 : 0; tot.avail += m.avail; tot.workDays += wd; tot.hrs += m.hrs; tot.km += m.km; tot.trips += m.trips; tot.nightHrs += m.nightHrs;
       tot.issued += m.issued; tot.std += m.issued > 0 ? std : 0; tot.extra += Math.max(0, extra); tot.dDays += dd.length; tot.dDaysLogged += ddLogged; tot.rent += rent; tot.idleRent += idleRent;
       if (m.avail && idleFor >= 3) tot.idle3++;
+      const dual = hasKm_(m.unit) && hasHr_(m.unit), da = dual ? dualAvg_(m.issued, m.km, m.hrs, m.kmStd, m.hrStd) : null;
       const o = { no: m.no, type: m.type, owner: m.owner, ownership: m.ownership, unit: m.unit, avail: m.avail, workDays: wd, nights: Object.keys(m.night).length,
         util: m.avail ? r2_(wd / m.avail * 100) : 0, hrs: r2_(m.hrs), km: r2_(m.km), trips: r2_(m.trips), nightHrs: r2_(m.nightHrs), entries: m.entries,
         hrsPerDay: wd ? r2_(m.hrs / wd) : 0, kmPerDay: wd ? r2_(m.km / wd) : 0, tripsPerDay: wd ? r2_(m.trips / wd) : 0,
         issued: r2_(m.issued), std: std, extra: extra, extraPct: std > 0 && m.issued > 0 ? r2_(extra / std * 100) : '', extraAmt: r2_(Math.max(0, extra) * dRate),
-        actualAvg: hasKm_(m.unit) && !hasHr_(m.unit) ? (m.issued ? r2_(m.km / m.issued) : '') : (m.hrs ? r2_(m.issued / m.hrs) : ''), stdAvg: hasKm_(m.unit) && !hasHr_(m.unit) ? m.kmStd : m.hrStd,
-        avgUnit: hasKm_(m.unit) && !hasHr_(m.unit) ? 'km/L' : 'L/hr', lastLog: lastAny, idleFor: idleFor, pending: pending,
+        /* the average of the period. A two-engine machinery (KM + Hrs, a transit mixer) follows the one rule (dualAvg_): the drum at
+         * its standard, the rest of the diesel for the vehicle engine – shown in km/L against the km/L standard. (Until 05-10-2026 this
+         * divided ALL its diesel by the hours and compared that with the hour standard: 8.53 L/hr against 3 – wrong.) */
+        actualAvg: dual ? (da.kmpl !== '' ? da.kmpl : da.lph) : hasKm_(m.unit) ? (m.issued ? r2_(m.km / m.issued) : '') : (m.hrs ? r2_(m.issued / m.hrs) : ''),
+        stdAvg: dual ? (da.kmpl === '' && da.lph !== '' ? m.hrStd : m.kmStd) : hasKm_(m.unit) ? m.kmStd : m.hrStd,
+        avgUnit: dual ? (da.kmpl !== '' && da.lph !== '' ? 'km/L (drum at ' + m.hrStd + ' L/hr std)' : da.kmpl === '' && da.lph !== '' ? 'L/hr' : 'km/L') : hasKm_(m.unit) ? 'km/L' : 'L/hr', lastLog: lastAny, idleFor: idleFor, pending: pending,
         basis: basis, rent: r2_(rent), recover: r2_(recover), idleRent: r2_(idleRent), perHr: m.hrs && rent ? r2_(rent / m.hrs) : '', perKm: m.km && rent ? r2_(rent / m.km) : '', perTrip: m.trips && rent ? r2_(rent / m.trips) : '' };
       if (full) {
         o.cal = days.map(d => !m.availSet[d] ? '-' : m.day[d] && m.night[d] ? 'B' : m.day[d] ? 'D' : m.night[d] ? 'N' : m.dieselDays[d] ? 'P' : '.').join('');
@@ -6442,6 +6447,16 @@ const AI_TOOLS_ = [
     parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' } }, required: ['from', 'to'] } },
   { name: 'activity', description: 'Who did what in the app (the Activity Log: user, time, action, page, record, what changed). Admin only. Use for "who changed / deleted / added …".',
     parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, text: { type: 'STRING', description: 'a word to look for: a machinery number, a user name, a bill number …' } }, required: ['from', 'to'] } },
+  /* THE ASSISTANT PREPARES AN ENTRY – IT NEVER SAVES ONE (asked 05-10-2026: "make it the most powerful" → entry by speaking / typing).
+   * These two do not write anything: the page builds the entry, SHOWS it to the person with Save / Cancel, and only the person's
+   * Save sends it – through the app's normal save, with his own permission and every check of the form (stock, readings, closed
+   * month, an entry that already exists). */
+  { name: 'prepare_diesel_issue', description: 'Prepare a Diesel Issue entry (diesel given to a machinery) and SHOW it to the person for Save / Cancel. It is NOT saved by this. Use when the person asks to enter / add / give / issue diesel.',
+    parameters: { type: 'OBJECT', properties: { machinery: { type: 'STRING', description: 'machinery number or name' }, litres: { type: 'NUMBER' }, date: { type: 'STRING', description: 'yyyy-mm-dd; leave out for today' }, shift: { type: 'STRING', description: 'Day or Night; leave out for Day' },
+      source: { type: 'STRING', description: 'diesel location, e.g. Dispenser; leave out for the usual one' }, km_reading: { type: 'NUMBER', description: 'KM meter reading at the fill, if said' }, hr_reading: { type: 'NUMBER', description: 'hour meter reading at the fill, if said' }, driver: { type: 'STRING' } }, required: ['machinery', 'litres'] } },
+  { name: 'prepare_log_entry', description: 'Prepare a Log Book entry of one machinery for one day (its closing reading(s), or that it was Idle / on Holiday / under Breakdown) and SHOW it to the person for Save / Cancel. It is NOT saved by this. Use when the person asks to make / enter a Log Book entry.',
+    parameters: { type: 'OBJECT', properties: { machinery: { type: 'STRING' }, date: { type: 'STRING', description: 'yyyy-mm-dd; leave out for today' }, shift: { type: 'STRING', description: 'Full Day, Day or Night; leave out for Full Day' }, status: { type: 'STRING', description: 'Idle, Holiday or Breakdown – only if the machinery did not work' },
+      close_km: { type: 'NUMBER', description: 'closing KM reading' }, close_hr: { type: 'NUMBER', description: 'closing hour-meter reading' }, work: { type: 'STRING', description: 'work done, if said' } }, required: ['machinery'] } },
   { name: 'app_guide', description: 'How the app works: the pages and reports, what each is for and how to use it, and what to do about an error message. Use for every "how do I", "where do I", "what is this page", "what does this message mean".',
     parameters: { type: 'OBJECT', properties: { topic: { type: 'STRING', description: 'what the person wants to do or the message he saw, in a few words' } }, required: ['topic'] } },
 ];
@@ -6454,7 +6469,7 @@ function aiRules_(u) {
     '1. Answer ONLY from this app: its data (through the look-ups) and its own guide (look-up app_guide). Never use outside knowledge, never guess a figure. If the look-ups do not hold the answer, say so plainly and say what in the app could show it.',
     '2. For any figure, name, date or "who / how much / when / which": call a look-up first. For "how do I / where / what does this mean": call app_guide first. You may call several look-ups, one after another.',
     '3. If a look-up answers with an error (for example the person may not see that page), tell the person that in one sentence; do not try to get the data another way.',
-    '4. You only read. You cannot add, change or delete anything; if asked to, say which page does it (ask app_guide) and offer the link.',
+    '4. You never save, change or delete anything yourself. For a NEW Diesel Issue or a NEW Log Book entry call prepare_diesel_issue / prepare_log_entry: the app then shows the entry to the person, who saves it with the Save button. After such a call say in one short sentence that the entry is on the screen waiting for Save – never say that it is saved. If something needed is missing (which machinery, how many litres, which reading), ask for it instead of guessing. Anything else that changes data (edit, delete, bills, masters): say which page does it (ask app_guide) and offer the link.',
     '5. Answer in the language and script the person wrote in; Marathi or Hindi typed in English letters is answered in Marathi / Hindi in Devanagari. Keep names, numbers and the app\'s own words (Log Book, Diesel Issue, Asset Master …) as they are.',
     '6. Be short and exact: the answer first, then the figures it rests on (with the dates you looked at). Litres with "L", money with "₹". No preamble, no closing offers.',
     '7. To send the person to a page write [[open:TAB|Label]] with a TAB given by app_guide – it becomes a button.',

@@ -800,6 +800,37 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   browser: with the old header `allowsFeature('microphone')` is false for the page and its frame, with the new one true for both.
   Guard: unit test "talking with the assistant needs the microphone …" (29 unit tests). NOTE: a header change needs the push /
   redeploy to take effect. Still not heard by me: Chrome's real listening.
+- 05-10-2026: he confirmed on live that the voice and the typed AI answers work ("I saw it, it works properly") and asked to make
+  Ask "the most powerful". BUILT: THE ASSISTANT MAKES AN ENTRY – AFTER THE PERSON'S YES (stage 3, first part).
+  * WHAT: a NEW Diesel Issue ("8511 la 60 litre diesel de, km 148200") and a NEW Log Book entry by closing reading(s) or by status
+    ("8511 chi aajchi log book entry, close 148260", "EX-200 aaj idle") – typed or spoken, Marathi / Hindi / English.
+  * THE RULE: nothing is saved by the assistant. `aiCommand` (the app's own reading of a plain command) or the AI (tools
+    prepare_diesel_issue / prepare_log_entry, declared in AI_TOOLS_, run by the page) → `aiDraft` builds the entry (machinery from
+    the Master, date ≤ today, shift, location; for the Log Book the Start from `getLogRowPrefill`, the work = Close − Start,
+    refusals for a day that already has its entry / a Close under the Start; notes: more than the stock, more than the tank, no
+    reading, first entry, an unlikely amount of work) → `aiPrepare` SHOWS a card with Save / Open in the form / Cancel →
+    `aiDo('save')` calls the app's normal save (`saveDieselIssue` / `saveLogRows` through `call`), so the user's permission and
+    every server check apply; the server's "… Save anyway?" is asked in the chat ("Save anyway" → force). "हो / yes / save" and
+    "नाही / cancel" typed or said answer a waiting card. Something missing → it asks and the next words complete it (`AI.partial`).
+  * Server rule 4 rewritten ("you never save … call prepare_… … never say that it is saved"). A value that was not given is never
+    turned into 0 (`aiN`; found by the test: a missing reading had become 0).
+  * NOT in this step: edits, deletes, diesel receipts, trips / time / item-work entries, bills – the form (the card's "Open in the
+    form" fills what it can). Tests: `test/browser/aido.js` (15, with the database), unit test updated (11 tools: 9 read, 2 prepare).
+- 05-10-2026 (his screenshot: the Log Book print of MH-04-KU-3332, a transit mixer, 01 to 05-10: 209.9 km, 21.1 hr, 180 L,
+  standard 2.5 km/L + 3 L/hr – "DIESEL MONTHLY AVERAGE 1.17 KM/LTR, 8.53 LTR/HR"): "the rule I gave for the TM average is not applied
+  when billing and in the Log Book – maybe only in the Monthly report; think it through yourself, tell me how you solved it".
+  * FOUND, by reading every place that states an average: the rule (`dualAvg_`, 03-10) was in all the SERVER's reports; THREE places
+    still worked the average out on their own, each dividing ALL the diesel by each meter: (1) the Log Book print – the sheet that
+    goes with the bill (`avgWord`, App.html); (2) an unused twin of it (`monthlyAvg`, removed); (3) the server's `logDashboard_`
+    (Log Book dashboard + Machinery Cost Sheet): for a two-meter machinery `issued ÷ hours` against the HOUR standard (8.53 against 3).
+  * FIXED: the page has the rule too – `dualAvg(diesel, km, hr, kmStd, hrStd)` = the server's `dualAvg_` (unit test: equal in nine
+    cases). The print now says "1.80 KM / LTR · 3 LTR / HR (STD)" AND the working ("DRUM 21.1 HR × 3 = 63.3 L AT STANDARD · VEHICLE
+    180 − 63.3 = 116.7 L → 209.9 KM ÷ 116.7 L"); hours alone needing the diesel given → no average, "check the readings".
+    `logDashboard_`: actualAvg = the vehicle engine's km/L, stdAvg = the km/L standard, avgUnit "km/L (drum at 3 L/hr std)".
+  * THE MONEY WAS ALREADY BY THE RULE and is unchanged: excess = diesel − (KM ÷ km/L + Hrs × L/hr) = vehicle diesel − its need
+    (116.7 − 83.96 = 32.74 L = 180 − 147.26); the last fill's tank allowance uses the same need. His sheet: 22.66 L debited – the same.
+  * Tests: unit "two engines, one tank – ONE rule everywhere …" (30 unit tests), `test/browser/tmbill.js` (6: his sheet rebuilt –
+    monthly report, dashboard / cost sheet and the print all say 1.8 km/L; 147.26 L allowed, 22.66 L extra, 10.08 L in the tank).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
