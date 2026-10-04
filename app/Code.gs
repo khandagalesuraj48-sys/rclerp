@@ -409,6 +409,7 @@ const API_ = {
   saveOrgSettings:   { m: '', admin: true, f: saveOrgSettings_, log: 'org' },
   getAiReply:        { m: '', withUser: true, f: (u, x) => getAiReply_(u, x) },
   getAiCheck:        { m: '', admin: true, f: getAiCheck_ },
+  getBrief:          { m: '', withUser: true, f: u => getBrief_(u) },
   reportError:       { m: '', withUser: true, f: (u, x) => reportError_(u, x) },
   getErrors:         { m: '', admin: true, f: getErrors_ },
   clearErrors:       { m: '', admin: true, f: clearErrors_ },
@@ -6585,6 +6586,41 @@ function getAiCheck_() {
   return out;
 }
 
+/* ---------- THE DAILY SUMMARY (asked 04-10-2026: "a morning summary by itself – with the logic exactly right") ----------
+ * What a person who opens the app in the morning needs to know, in one answer, made by the APP (no AI – every figure is the
+ * app's own): for YESTERDAY the diesel issued and received and who took the most, how many Log Book entries were made and
+ * which machinery still have none; the stock now; and what needs a look: signs of diesel loss of the last 7 days, the
+ * machinery over the standard this month, vehicle papers expired or due, machinery under breakdown, and – for the Admin –
+ * faults of the app and how old the backup is.
+ * One request, one reading of the tables. EVERY PART FOLLOWS THE USER'S OWN PERMISSIONS: a part whose page he may not see is
+ * simply not in his summary. A part that cannot be worked out is left out; the rest still comes. */
+function getBrief_(u) {
+  const can = m => !!u.admin || !!(u.perms && u.perms[m] && u.perms[m] !== 'None');
+  const today = today_(), y = addDays_(today, -1), out = { today: today, day: y, name: u.name || '', sections: {} }, S = out.sections;
+  const part = (name, f) => { try { const v = f(); if (v) S[name] = v; } catch (e) { /* left out */ } };
+  const top = (rows, key, val, n) => { const m = {}; rows.forEach(r => { const k = r[key] || '(none)'; m[k] = r2_((m[k] || 0) + num0_(r[val])); }); return Object.keys(m).map(k => ({ name: k, litres: m[k] })).sort((a, b) => b.litres - a.litres).slice(0, n); };
+  if (can('Diesel Issue')) part('diesel', () => { const d = getDieselIssues_({ from: y, to: y, all: true }).rows || [], t = getDieselIssues_({ from: today, to: today, all: true }).rows || [];
+    return { litres: r2_(d.reduce((s, r) => s + num0_(r.qty), 0)), entries: d.length, top: top(d, 'no', 'qty', 3), todayLitres: r2_(t.reduce((s, r) => s + num0_(r.qty), 0)), todayEntries: t.length }; });
+  if (can('Diesel Inward')) part('received', () => { const d = getInwards_({ from: y, to: y }); return { litres: num0_(d.qty), bills: num0_(d.count) }; });
+  part('stock', () => { const s = getStock_(); return { litres: s.stock, byLoc: s.byLoc }; });
+  if (can('Log Book')) part('logbook', () => { const p = pendingLogs_(), mine = p.items.filter(x => x.date === y).map(x => x.no);
+    return { entries: num0_(getLogBookList_({ from: y, to: y, all: true }).count), pending: mine.length, names: mine.slice(0, 8), pendingToday: p.items.filter(x => x.date === today).length, pendingDaysInAll: p.total }; });
+  if (can('Reports')) {
+    part('watch', () => { const w = rptWatch_({ from: addDays_(today, -7), to: y }); return w.total.signs ? { from: w.from, to: w.to, signs: w.total.signs, litres: w.total.litres, amount: w.total.amount, top: w.findings.slice(0, 3).map(x => ({ no: x.no, kind: x.kind, litres: x.litres, date: x.date })) } : { from: w.from, to: w.to, signs: 0 }; });
+    part('average', () => { const a = rptAverage_({ from: today.slice(0, 8) + '01', to: today }), rows = [].concat.apply([], a.groups.map(g => g.rows)), n = k => rows.filter(r => r.statusCode === k).length;
+      return { from: a.from, to: a.to, bad: n('bad'), more: n('more'), check: n('check'), good: n('ok') + n('less'),
+        worst: rows.filter(r => r.statusCode === 'bad').sort((p, q) => num0_(q.excess) - num0_(p.excess)).slice(0, 3).map(r => ({ no: r.no, status: r.status, excess: r.excess })) }; });
+  }
+  if (can('Vehicle Compliance')) part('papers', () => { const c = getCompliance_(); let exp = 0, due = 0; const first = [];
+    c.machines.forEach(m => Object.keys(m.docs).forEach(k => { const s = m.docs[k].s; if (s === 'expired') { exp++; if (first.length < 4) first.push(m.no + ' ' + k); } else if (s === 'due') due++; }));
+    return { expired: exp, due: due, soonDays: c.soonDays, first: first }; });
+  if (can('Breakdown')) part('breakdown', () => { const b = getBreakdowns_({ date: today }), nos = Object.keys(b.status || {}).filter(k => b.status[k].status === 'Breakdown'); return { down: nos.length }; });
+  if (u.admin) part('admin', () => { const e = errList_(), yy = e.filter(x => str_(x.at).slice(0, 10) === y || str_(x.at).slice(0, 10) === today).length;
+    let hrs = ''; try { const b = typeof sbBackupInfo_ === 'function' ? sbBackupInfo_() : null, at = b && (b.at || b.time || b.when); if (at) hrs = Math.round((Date.now() - new Date(at).getTime()) / 3600000); } catch (e2) { hrs = ''; }
+    return { faults: yy, backupHours: hrs, closedUpto: booksClosed_() || '' }; });
+  return out;
+}
+
 /* ---------- A FAULT OF THE APP IS REPORTED BY ITSELF (asked 03-10-2026) ----------
  * Until now a fault was known only when a user told somebody. Now three kinds are written down the moment they happen:
  *   server   – the server's own code failed while doing something (a TypeError …, not a refusal of a wrong entry)
@@ -6646,7 +6682,7 @@ function faultKind_(err) {
  * notice shown to everybody. Kept with the app settings (SITE_RULES). */
 const PREF_PICK_ = { theme: ['light', 'dark', 'auto'], text: ['normal', 'large', 'xlarge'], density: ['normal', 'compact'], lang: ['mr', 'hi', 'en'],
   lbMode: ['', 'date', 'mach'], lbDays: ['2', '7', '30'], shift: ['', 'Full Day', 'Day', 'Night'], menu: ['open', 'closed'] };
-const PREF_YESNO_ = { enterNext: false, sound: false, lessMotion: false, intro: true };
+const PREF_YESNO_ = { enterNext: false, sound: false, lessMotion: false, intro: true, brief: true, voiceOut: true };      // brief: the daily summary opens by itself; voiceOut: spoken answers when asked by voice
 function prefsClean_(x) {
   x = x && typeof x === 'object' ? x : {}; const o = {};
   Object.keys(PREF_PICK_).forEach(k => { const v = str_(x[k]); o[k] = PREF_PICK_[k].indexOf(v) > -1 ? v : PREF_PICK_[k][0]; });

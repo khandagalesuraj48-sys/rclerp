@@ -12,6 +12,7 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   const errs = []; p.on('pageerror', e => errs.push(String(e.message).slice(0, 200)));
   await p.goto('http://127.0.0.1:3000/', { waitUntil: 'load' }); await wait(800);
   const f = p.frames().find(x => x !== p.mainFrame());
+  await f.evaluate(() => { try { localStorage.setItem('oc_brief_sujit@rcl.test', new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })); } catch (e) {} });      // (the daily summary is not part of this test)
   await f.type('#lg_email', 'sujit@rcl.test'); await f.type('#lg_pass', 'Nashik#Road848!'); await f.click('#lg_btn'); await wait(6000);
   await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} showTab('log'); }); await wait(2000);
   await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} setLgMode('date'); document.getElementById('ai_fab').click(); }); await wait(1500);

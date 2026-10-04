@@ -648,3 +648,19 @@ test('the assistant: without a key it says so; the rules and the look-ups are th
   // no look-up can write: none of them names a saving action
   assert.ok(!/save|delete|update|add /i.test(tools.join(' ')));
 });
+
+test('the daily summary: every part only if the user may see that page; the Admin gets all; a wrong setting value is not kept', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const admin = run('u => getBrief_(u)', { name: 'MD', email: 'md@x.test', admin: true, perms: {} });
+  assert.deepStrictEqual(Object.keys(admin.sections).sort(), ['admin', 'average', 'breakdown', 'diesel', 'logbook', 'papers', 'received', 'stock', 'watch']);
+  assert.strictEqual(admin.day, run('() => addDays_(today_(), -1)'));
+  // a user who may see only Diesel Issue: its part and the stock – nothing of the Log Book, the reports, the papers, or the Admin's part
+  const one = run('u => getBrief_(u)', { name: 'Pump', email: 'p@x.test', admin: false, perms: { 'Diesel Issue': 'Edit', 'Log Book': 'None', 'Reports': 'None', 'Vehicle Compliance': 'None', 'Breakdown': 'None', 'Diesel Inward': 'None' } });
+  assert.deepStrictEqual(Object.keys(one.sections).sort(), ['diesel', 'stock']);
+  const view = run('u => getBrief_(u)', { name: 'Site', email: 's@x.test', admin: false, perms: { 'Log Book': 'View', 'Reports': 'View' } });
+  assert.deepStrictEqual(Object.keys(view.sections).sort(), ['average', 'logbook', 'stock', 'watch']);
+  // the two new settings: yes / no only, on by default
+  const pr = run('x => prefsClean_(x)', { brief: 'maybe', voiceOut: false });
+  assert.deepStrictEqual([pr.brief, pr.voiceOut], [true, false]);
+});

@@ -770,6 +770,26 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     asked again at once without it and remembered in AI_PLAIN. The Admin's test puts the FASTEST answering model first.
   * NOT PROVEN ON LIVE: whether his Gemini models accept "thinkingLevel" (if not, the first question to each costs one refused call),
     and a full typed AI answer. Tests: `test/browser/ai3.js` (13), ai.js (13), ai2.js (9), aibusy.js (6) – stand-in service.
+- 04-10-2026 (late night): two things for Ask – "talk with it: I speak, it answers aloud, like two people" and "the morning
+  summary by itself, the logic exactly right".
+  * DAILY SUMMARY. Server `getBrief_(u)` (API getBrief, one request): yesterday's diesel (litres, entries, top 3, today so far),
+    receipts, stock, Log Book (entries of yesterday, machinery pending for yesterday – first 8 names –, pending today / in all),
+    Diesel Watch of the last 7 days, this month against the standard (bad / more / check + worst 3), vehicle papers (expired / due),
+    breakdowns, and for the Admin the app's faults – EACH PART ONLY IF THE USER MAY SEE THAT PAGE (`u.perms[m] !== 'None'`), a part
+    that fails is left out. Page `aiBriefText` writes it in 3 languages (a "to look at" line only when there is something);
+    `aiBriefAuto` opens the assistant with it the first time the app is opened on a day (per user and device: localStorage
+    oc_brief_<email>; it waits up to a minute for a start-up notice to be closed; on a phone a red dot on the Ask button instead);
+    setting `brief` (Settings → Look) switches it off; it is always a ⚡ question and the word "summary / सारांश" is understood.
+  * TALKING (`aiLiveStart / aiListen / aiSay / aiSpeakable / aiLiveStop`): the browser's own speech – SpeechRecognition (from the top
+    window; Chrome / Edge) in the help language (mr-IN / hi-IN / en-IN), interim words shown in the box; the final words are asked
+    with `aiAsk`; the answer's START is spoken (≤ 4 lines / 420 characters; dates and units as words; "the rest is on the screen")
+    with speechSynthesis in a voice of that language (no Marathi voice → the Hindi one); then it listens again; ends on Stop, on the
+    said words stop / थांब / बस / रुको, on three silences, or when the window is closed. Setting `voiceOut` (speak or not). A 🔊
+    (drawn by CSS, not text) on every answer. Words the browser writes in Devanagari (स्टॉक, पेंडिंग, ॲव्हरेज, लॉग बुक, ८५११) are
+    understood. Microphone refused → a line says how to allow it.
+  * NOT HEARD BY ME: real listening and a real voice – the test plays both (headless browsers have neither). How well Chrome hears
+    Marathi and whether his device has a Marathi voice is to be tried on live. Speech recognition in Chrome sends the audio to Google.
+  * Tests: unit "the daily summary …" (28 unit tests), `test/browser/voice.js` (13); ai / ai2 / ai3 / aibusy unchanged in result.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

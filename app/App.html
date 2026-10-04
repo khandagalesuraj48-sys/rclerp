@@ -2268,6 +2268,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .ai-form textarea { flex: 1; resize: none; max-height: 110px; border: 1px solid #CBD5E1; border-radius: 12px; padding: 9px 12px; font: 14px/1.4 var(--ui); background: #fff; }
   .ai-foot { margin: 0; padding: 0 14px 9px; background: #F6F8FB; font-size: 10.5px; color: #64748B; line-height: 1.35; }
   .ai-testlink { border: 0; background: transparent; color: #1D4ED8; font: 700 10.5px var(--ui); text-decoration: underline; cursor: pointer; padding: 0; }
+  .ai-mic { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; border: 1px solid #CBD5E1; background: #fff; color: #0F1F3D; cursor: pointer; display: grid; place-items: center; }
+  .ai-mic[hidden] { display: none; } .ai-mic svg { width: 20px; height: 20px; } .ai-mic.on { background: #C8102E; border-color: #C8102E; color: #fff; }
+  .ai-live { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: #0F1F3D; color: #fff; font-size: 13px; }
+  .ai-live[hidden] { display: none; } .ai-live b { flex: 1; font-weight: 600; } .ai-live .btn { min-height: 28px; padding: 2px 12px; background: transparent; color: #fff; border-color: #7C8DB0; }
+  .ai-dot { width: 10px; height: 10px; border-radius: 50%; background: #F2A900; animation: aipulse 1s ease-in-out infinite; } .ai-live.say .ai-dot { background: #34D399; }
+  @keyframes aipulse { 50% { transform: scale(1.7); opacity: .45; } }
+  .ai-m.bot .ai-say { float: right; margin: -2px -4px 0 8px; border: 0; background: transparent; cursor: pointer; font-size: 15px; opacity: .55; padding: 0 2px; } .ai-m.bot .ai-say:hover { opacity: 1; }
+  .ai-m.bot .ai-say::before { content: "🔊"; }      /* (drawn by the style, so that it is not part of the answer's text) */
+  .ai-fab.new::after { content: ""; position: absolute; top: 3px; right: 3px; width: 11px; height: 11px; border-radius: 50%; background: #C8102E; border: 2px solid #fff; }
   .ai-testlink[hidden] { display: none; }
   .ai-sugg { max-height: 132px; overflow: auto; }
   #fixbox .fx-ai { margin: 8px 0 0; border: 1px solid #0F1F3D; background: #0F1F3D; color: #fff; border-radius: 8px; padding: 6px 12px; font: 700 12.5px var(--ui); cursor: pointer; }
@@ -3285,6 +3294,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="set-item"><b>Rows in lists</b><div class="set-seg" data-pref="density"><button type="button" data-v="normal">Roomy</button><button type="button" data-v="compact">Tight (more rows)</button></div></div>
         <div class="set-item"><b>Language of the help</b><div class="set-seg" data-pref="lang"><button type="button" data-v="mr">मराठी</button><button type="button" data-v="hi">हिंदी</button><button type="button" data-v="en">English</button></div><small class="muted">Error explanations, page guides and the "being sent again" line.</small></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="lessMotion"> Less movement (no gliding, no opening film)</label><label class="ck"><input type="checkbox" data-pref="intro"> Play the opening when I open the app</label></div>
+        <div class="set-item"><label class="ck"><input type="checkbox" data-pref="brief"> Show me the daily summary when I open the app (once a day)</label><label class="ck"><input type="checkbox" data-pref="voiceOut"> Speak the answer aloud when I ask by voice</label></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="sound"> A short sound when something is saved or goes wrong</label><label class="ck"><input type="checkbox" data-pref="enterNext"> Enter moves to the next box (like Tab)</label></div>
       </div>
     </div>
@@ -3789,7 +3799,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   <header><b>Assistant</b><small id="ai_sub">answers from this app's data only</small><button type="button" id="ai_new" class="btn ghost small" title="Forget this conversation and start a new one">New chat</button><button type="button" id="ai_close" class="ai-x" aria-label="Close">×</button></header>
   <div id="ai_msgs" class="ai-msgs" aria-live="polite"></div>
   <div id="ai_sugg" class="ai-sugg"></div>
-  <form id="ai_form" class="ai-form" autocomplete="off"><textarea id="ai_in" rows="1" placeholder="Ask anything about this app…" maxlength="1500"></textarea><button type="submit" class="btn primary" id="ai_send">Ask</button></form>
+  <div id="ai_live" class="ai-live" hidden><span class="ai-dot"></span><b id="ai_live_t">Listening…</b><button type="button" id="ai_live_stop" class="btn ghost small">Stop</button></div>
+  <form id="ai_form" class="ai-form" autocomplete="off"><button type="button" id="ai_mic" class="ai-mic" hidden title="Talk with the assistant: you speak, it answers aloud" aria-label="Talk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><textarea id="ai_in" rows="1" placeholder="Ask anything about this app…" maxlength="1500"></textarea><button type="submit" class="btn primary" id="ai_send">Ask</button></form>
   <p class="ai-foot">⚡ questions are answered by the app itself. A typed question and the figures it needs go to the AI service. The assistant only reads – it changes nothing. <button type="button" id="ai_test" class="ai-testlink" hidden>Test the AI service</button></p>
 </aside>
 <div id="dlg_back" hidden>
@@ -9304,7 +9315,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function aiHtml(text) {
     return esc(String(text || '').trim()).replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/\[\[open:([a-z0-9-]+)\|([^\]\n]{1,60})\]\]/gi, (m, tab, label) => $('tab-' + tab) && !$('tab-' + tab).hidden ? '<button type="button" class="ai-go" data-aigo="' + tab + '">' + label + ' →</button>' : label);
   }
-  function aiAdd(cls, html) { const box = $('ai_msgs'); box.insertAdjacentHTML('beforeend', '<div class="' + cls + '">' + html + '</div>'); box.scrollTop = box.scrollHeight; return box.lastElementChild; }
+  function aiAdd(cls, html) { const box = $('ai_msgs'); box.insertAdjacentHTML('beforeend', '<div class="' + cls + '">' + (cls === 'ai-m bot' && aiCanSay() ? '<button type="button" class="ai-say" data-aisay="1" title="Listen" aria-label="Listen"></button>' : '') + html + '</div>'); box.scrollTop = box.scrollHeight; return box.lastElementChild; }
   /* ---------- FAST, AND NOT DEPENDENT ON THE AI SERVICE (asked 04-10-2026, after the service was busy again and again) ----------
    * 1. READY QUESTIONS – answered by the APP ITSELF, at once, without the AI service: the everyday questions (what is pending
    *    today, yesterday's diesel and who took it, the stock, which machinery take too much diesel, what this page is for …).
@@ -9321,6 +9332,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const aiPicked = () => { try { if (S.curTab === 'log' && lgMode === 'mach') { const m = findMachine(val('lg_top_no')); return m ? m.id : ''; } if (S.curTab === 'diesel') { const m = findMachine(val('d_no')); return m ? m.id : ''; } } catch (e) {} return ''; };
   const aiDay = () => { try { if (S.curTab === 'log' && lgMode === 'date' && $('lg_top_date').value) return $('lg_top_date').value; } catch (e) {} return S.today; };
   const AI_READY = [
+    { id: 'brief', pages: ['dash'], always: true, q: () => aiL({ en: 'Summary: yesterday, and what needs a look today', mr: 'सारांश: काल काय झाले आणि आज कशाकडे लक्ष द्यायचे', hi: 'सारांश: कल क्या हुआ और आज किस पर ध्यान देना है' }), run: () => aiBriefText() },
     { id: 'pending', pages: ['log', 'dash', 'editlog', 'rp-pending'], q: () => aiL({ en: 'Which machinery have no Log Book entry for ' + showDate(aiDay()) + '?', mr: showDate(aiDay()) + ' ला कोणत्या गाड्यांची Log Book entry बाकी आहे?', hi: showDate(aiDay()) + ' को किन गाड़ियों की Log Book entry बाकी है?' }),
       run: async () => { const d = aiDay(), r = await AI_RUN.pending_log_book({ date: d }), n = r.machineryWithoutLogBook;
         return (n ? aiL({ en: '**' + n + ' machinery** have no Log Book entry for ' + showDate(d) + ':', mr: showDate(d) + ' साठी **' + n + ' गाड्यांची** Log Book entry बाकी आहे:', hi: showDate(d) + ' के लिए **' + n + ' गाड़ियों की** Log Book entry बाकी है:' }) + '\n' + aiList(r.machinery, 40)
@@ -9348,7 +9360,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       : aiL({ en: 'No diesel was issued on ' + showDate(d) + '.', mr: showDate(d) + ' ला diesel दिलेले नाही.', hi: showDate(d) + ' को diesel नहीं दिया गया।' })) + '\n[[open:diesel|Diesel Issue]]'; }
   const aiReadyFor = () => { const tab = S.curTab || 'dash', ok = r => (!r.when || r.when()) && (!r.pages || r.pages.indexOf('*') > -1 || r.pages.indexOf(tab) > -1);
     const here = AI_READY.filter(r => r.pages.indexOf(tab) > -1 && ok(r)), rest = AI_READY.filter(r => here.indexOf(r) < 0 && r.pages.indexOf('*') < 0 && (!r.when || r.when()));
-    return here.concat(AI_READY.filter(r => r.pages.indexOf('*') > -1)).concat(rest).slice(0, 5); };
+    const list = here.concat(AI_READY.filter(r => r.pages.indexOf('*') > -1)).concat(rest).slice(0, 5);
+    AI_READY.filter(r => r.always && list.indexOf(r) < 0).forEach(r => list.push(r));      // the summary is offered on every page
+    return list; };
   function aiSuggest() { $('ai_sugg').innerHTML = AI.busy ? '' : aiReadyFor().map(r => '<button type="button" data-aiready="' + r.id + '" title="Answered by the app itself, at once">⚡ ' + esc(r.q()) + '</button>').join(''); }
   async function aiReady(id) {
     const r = AI_READY.find(x => x.id === id); if (!r || AI.busy) return;
@@ -9372,7 +9386,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const aiPage = () => ({ tab: S.curTab || 'dash', title: $('page_title') ? $('page_title').textContent : '', machineryPicked: aiPicked(), datePicked: S.curTab === 'log' ? aiDay() : '' });
   function aiReset() { AI.turns = []; $('ai_msgs').innerHTML = ''; aiAdd('ai-m bot', esc(aiL({ en: 'Ask me anything about this app. The questions with ⚡ are answered by the app itself, at once.', mr: 'या app बद्दल काहीही विचारा. ⚡ असलेल्या प्रश्नांची उत्तरे app स्वतः लगेच देते.', hi: 'इस app के बारे में कुछ भी पूछें। ⚡ वाले सवालों के जवाब app खुद तुरंत देता है।' }) + (AI.on ? '' : ' ' + aiL({ en: '(Typed questions need the AI key – not set up yet.)', mr: '(टाइप केलेल्या प्रश्नांसाठी AI key लागते; ती अजून दिलेली नाही.)', hi: '(टाइप किए सवालों के लिए AI key चाहिए; वह अभी नहीं दी गई।)' }))));
     aiSuggest(); $('ai_test').hidden = !(S.user && S.user.admin && AI.on); }
-  function aiOpen(show) { $('ai_panel').hidden = !show; $('ai_fab').hidden = show || !S.token; if (show) { if (!$('ai_msgs').children.length) aiReset(); else aiSuggest(); if (AI.on) aiSnap(); setTimeout(() => $('ai_in').focus(), 50); } }
+  function aiOpen(show) { $('ai_panel').hidden = !show; $('ai_fab').hidden = show || !S.token;
+    if (!show) { if (AI.live) aiLiveStop(); try { if (aiCanSay()) speechSynthesis.cancel(); } catch (e) {} AI.saying = false; return; }
+    $('ai_mic').hidden = !aiRecCtor(); $('ai_fab').classList.remove('new');
+    if (!$('ai_msgs').children.length) aiReset(); else aiSuggest(); if (AI.on) aiSnap(); setTimeout(() => $('ai_in').focus(), 50);
+    if (AI.briefDue) { AI.briefDue = false; setTimeout(() => aiReady('brief'), 200); } }
   function aiBoot(info) { AI.on = !!(info && info.on); $('ai_fab').hidden = !$('ai_panel').hidden || !S.token; }
   /* ---------- A TYPED QUESTION UNDERSTOOD BY THE APP ITSELF (asked 04-10-2026: "ultra fast, without errors, correct, any language") ----------
    * Most questions people type are the same few kinds: how much diesel (a machinery / everybody, a day / a month), what is
@@ -9419,14 +9437,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const aiSpan = (p, L) => p.from === p.to ? showDate(p.from) : showDate(p.from) + ({ en: ' to ', mr: ' ते ', hi: ' से ' }[L]) + showDate(p.to);
   // the kinds of question the app answers itself
   const AI_KIND = {
-    diesel: /diesel|dizel|डिझेल|डीजल|डीज़ल|fuel|इंधन|ईंधन/i, pending: /pending|baki|baaki|बाकी|rahil|राहिल|remaining|not entered|entry nahi|entry नाही/i,
-    stock: /stock|साठा|shillak|शिल्लक|balance|बचा/i, average: /average|avg\b|सरासरी|mileage|अॅव्हरेज|ॲव्हरेज|एवरेज|consumption/i,
-    work: /\bkm\b|kilomet|किमी|hours|\bhrs?\b|तास|घंटे|chalali|chalala|चालली|चालला|चालले|worked|work done|kam kel|काम केल|काम किती/i, reading: /reading|रीडिंग|रिडिंग|meter|मीटर/i };
+    // (the browser's Marathi / Hindi listening writes English words in Devanagari: स्टॉक, पेंडिंग, ॲव्हरेज, लॉग बुक …)
+    brief: /summary|saransh|सारांश|aadhava|आढावा|brief|overview|समरी/i, diesel: /diesel|dizel|डिझेल|डीझेल|डीजल|डीज़ल|fuel|इंधन|ईंधन/i, pending: /pending|पेंडिंग|पेन्डिंग|baki|baaki|बाकी|rahil|राहिल|remaining|not entered|entry nahi|entry नाही|एंट्री नाही/i,
+    stock: /stock|स्टॉक|स्टाक|स्टोक|साठा|shillak|शिल्लक|balance|बॅलन्स|बचा/i, average: /average|avg\b|सरासरी|mileage|मायलेज|अॅव्हरेज|ॲव्हरेज|अ‍ॅव्हरेज|एव्हरेज|अवरेज|एवरेज|औसत|consumption/i,
+    work: /\bkm\b|kilomet|किमी|किलोमीटर|hours|\bhrs?\b|तास|घंटे|chalali|chalala|चालली|चालला|चालले|worked|work done|kam kel|काम केल|काम किती/i, reading: /reading|रीडिंग|रिडिंग|meter|मीटर/i };
   // words that make a question one for the AI ("how much / how many" are plain questions; "का" only as a word of its own)
   const AI_HARD = /\bwhy\b|\bhow\b(?!\s+(much|many))|explain|compare|versus|\bvs\b|difference|reason|kashamule|\bka\s+(ahe|aahe|zale|zala)|(^|\s)का(\s|\?|$)|कशामुळे|कसे|कसा|कशी|क्यों|कैसे|तुलना|फरक|कारण|solution|उपाय|who (changed|deleted|added|edited)|कोणी (बदल|काढ|delete)|किसने/i;
   function aiLocal(text, loose) {
     const kinds = Object.keys(AI_KIND).filter(k => AI_KIND[k].test(text)); let kind = '';
-    if (kinds.indexOf('stock') > -1 && kinds.indexOf('pending') < 0 && !/log ?book/i.test(text)) kind = 'stock';      // "diesel stock" is a stock question
+    if (kinds.indexOf('brief') > -1) return { run: () => aiBriefText() };                                              // "the summary" – whatever else is said with it
+    if (kinds.indexOf('stock') > -1 && kinds.indexOf('pending') < 0 && !/log ?book|लॉग ?बुक/i.test(text)) kind = 'stock';      // "diesel stock" is a stock question
     else if (kinds.indexOf('pending') > -1) kind = 'pending';
     else if (kinds.length === 1) kind = kinds[0];
     else if (loose && kinds.length) kind = ['average', 'diesel', 'work', 'reading'].find(k => kinds.indexOf(k) > -1) || kinds[0];
@@ -9466,7 +9486,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // the app's own answer, shown the same way wherever it comes from
   async function aiByApp(loc, note) { const t = await loc.run(); aiAdd('ai-src', '<span>⚡ ' + esc(note) + '</span>'); aiAdd('ai-m bot', aiHtml(t)); return t; }
   async function aiAsk(text, onlyAi) {
-    text = String(text || '').trim(); if (!text || AI.busy) return;
+    text = String(text || '').replace(/[०-९]/g, d => '०१२३४५६७८९'.indexOf(d)).trim(); if (!text || AI.busy) return;      // (speech and Marathi keyboards write ८५११)
+    AI.lastAnswer = ''; AI.lastLang = aiLangOf(text);
     AI.busy = true; $('ai_send').disabled = true; $('ai_sugg').innerHTML = ''; AI.lang = aiLangOf(text);
     const keep = AI.turns.length, t0 = Date.now(), byApp = aiL({ en: 'from the app itself, now', mr: 'app कडून थेट, आत्ता', hi: 'app से सीधे, अभी' });
     aiAdd('ai-m me', esc(text)); AI.turns.push({ role: 'user', parts: [{ text: text }] });
@@ -9510,8 +9531,101 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (!done) { AI.turns.pop(); aiAdd('ai-m err', esc(why) + '<br><button type="button" class="ai-go" data-airetry="' + esc(text) + '">Ask again</button><br><small>' + esc(aiL({ en: 'The ⚡ questions below are answered by the app itself and work now.', mr: 'खालचे ⚡ प्रश्न app स्वतः उत्तरते; ते आत्ताही चालतात.', hi: 'नीचे के ⚡ सवाल app खुद जवाब देता है; वे अभी भी चलते हैं।' })) + '</small>'); }
       else if (S.user && S.user.admin && !/not set up/i.test(why)) aiAdd('ai-src', '<span title="' + esc(why) + '">Admin: ' + esc(why.slice(0, 110)) + '</span>');
     }
-    finally { AI.lang = ''; AI.busy = false; $('ai_send').disabled = false; $('ai_in').focus(); aiSuggest(); }
+    finally { AI.lang = ''; AI.busy = false; $('ai_send').disabled = false; if (!AI.live) $('ai_in').focus(); aiSuggest();
+      const b = [...document.querySelectorAll('#ai_msgs .ai-m.bot, #ai_msgs .ai-m.err')].pop(); AI.lastAnswer = b ? b.dataset.say || b.textContent : ''; }
   }
+  /* ---------- THE DAILY SUMMARY (asked 04-10-2026) ----------
+   * One answer made by the app itself (server: getBrief – every part within the user's own permissions): yesterday's diesel and
+   * Log Book, the stock now, and "to look at": signs of diesel loss, machinery over the standard, vehicle papers, breakdowns,
+   * and for the Admin the app's faults and the month close. A line appears only when there is something to say.
+   * BY ITSELF: the first time the app is opened on a day (per user, per device) the assistant opens with the summary – on a
+   * phone a red dot on the Ask button instead. Settings → "Show me the daily summary" switches that off; the summary is
+   * always there as a ⚡ question, and "summary / सारांश" can be typed or said. */
+  async function aiBriefText() {
+    const d = await rawCall('getBrief'), S2 = d.sections || {}, L = (typeof AI === 'object' && AI.lang) || fixLang, T = o => o[L] || o.en, hr = new Date().getHours();
+    const hello = hr < 12 ? T({ en: 'Good morning', mr: 'सुप्रभात', hi: 'सुप्रभात' }) : hr < 17 ? T({ en: 'Good afternoon', mr: 'नमस्कार', hi: 'नमस्कार' }) : T({ en: 'Good evening', mr: 'नमस्कार', hi: 'नमस्कार' });
+    const a = [], w = [], go = [];
+    a.push('**' + hello + (d.name ? ', ' + d.name : '') + '.** ' + T({ en: 'Yesterday (' + showDate(d.day) + '):', mr: 'काल (' + showDate(d.day) + '):', hi: 'कल (' + showDate(d.day) + '):' }));
+    if (S2.diesel) { const x = S2.diesel; a.push('• Diesel: ' + (x.entries ? T({ en: '**' + fmt(x.litres) + ' L** issued in ' + x.entries + ' entries', mr: '**' + fmt(x.litres) + ' L** दिले, ' + x.entries + ' entries', hi: '**' + fmt(x.litres) + ' L** दिया, ' + x.entries + ' entries' }) + (x.top.length ? ' – ' + aiTop(x.top, 3) : '') : T({ en: 'none issued', mr: 'दिलेले नाही', hi: 'नहीं दिया' })) +
+      (S2.received && S2.received.litres ? T({ en: '; received ' + fmt(S2.received.litres) + ' L', mr: '; आले ' + fmt(S2.received.litres) + ' L', hi: '; आया ' + fmt(S2.received.litres) + ' L' }) : '') + '.'); go.push('[[open:diesel|Diesel Issue]]'); }
+    if (S2.stock) a.push('• ' + T({ en: 'Stock now: ', mr: 'आत्ता stock: ', hi: 'अभी stock: ' }) + '**' + fmt(S2.stock.litres) + ' L**' + (Object.keys(S2.stock.byLoc || {}).length > 1 ? ' (' + Object.keys(S2.stock.byLoc).map(k => k + ' ' + fmt(S2.stock.byLoc[k])).join(', ') + ')' : '') + '.');
+    if (S2.logbook) { const x = S2.logbook; a.push('• Log Book: ' + T({ en: x.entries + ' entries made', mr: x.entries + ' entries झाल्या', hi: x.entries + ' entries हुईं' }) + (x.pending ? T({ en: '; **' + x.pending + ' machinery still have none**: ', mr: '; **' + x.pending + ' गाड्यांची बाकी**: ', hi: '; **' + x.pending + ' गाड़ियों की बाकी**: ' }) + aiList(x.names, 8) : T({ en: '; nothing pending ✓', mr: '; काही बाकी नाही ✓', hi: '; कुछ बाकी नहीं ✓' })) + '.'); go.push('[[open:log|Log Book]]'); }
+    if (S2.watch && S2.watch.signs) { const x = S2.watch; w.push('• ' + T({ en: 'Diesel Watch, last 7 days: **' + x.signs + ' signs**, ' + fmt(x.litres) + ' L do not fit', mr: 'Diesel Watch, गेले 7 दिवस: **' + x.signs + ' चिन्हे**, ' + fmt(x.litres) + ' L जुळत नाहीत', hi: 'Diesel Watch, पिछले 7 दिन: **' + x.signs + ' संकेत**, ' + fmt(x.litres) + ' L मेल नहीं खाते' }) + (x.top.length ? ' – ' + x.top.map(t => t.no + ' ' + fmt(t.litres) + ' L').join(', ') : '') + '.'); go.push('[[open:rp-watch|Diesel Watch]]'); }
+    if (S2.average && (S2.average.bad || S2.average.more || S2.average.check)) { const x = S2.average; w.push('• ' + T({ en: 'This month against the standard: ', mr: 'या महिन्यात standard च्या तुलनेत: ', hi: 'इस महीने standard की तुलना में: ' }) + [x.bad ? '**' + x.bad + ' Bad**' : '', x.more ? x.more + ' More diesel' : '', x.check ? x.check + ' Check reading' : ''].filter(Boolean).join(', ') + (x.worst.length ? ' – ' + x.worst.map(t => t.no + ' +' + fmt(t.excess) + ' L').join(', ') : '') + '.'); go.push('[[open:rp-avg|Actual vs Standard Average]]'); }
+    if (S2.papers && (S2.papers.expired || S2.papers.due)) { const x = S2.papers; w.push('• ' + T({ en: 'Vehicle papers: ', mr: 'गाड्यांचे कागद: ', hi: 'गाड़ियों के कागज़: ' }) + [x.expired ? T({ en: '**' + x.expired + ' expired**', mr: '**' + x.expired + ' संपलेले**', hi: '**' + x.expired + ' खत्म**' }) : '', x.due ? T({ en: x.due + ' due within ' + x.soonDays + ' days', mr: x.due + ' ' + x.soonDays + ' दिवसांत संपणारे', hi: x.due + ' ' + x.soonDays + ' दिन में खत्म होने वाले' }) : ''].filter(Boolean).join(', ') + (x.first.length ? ' – ' + x.first.join(', ') : '') + '.'); go.push('[[open:compliance|Vehicle Compliance]]'); }
+    if (S2.breakdown && S2.breakdown.down) w.push('• ' + T({ en: '**' + S2.breakdown.down + ' machinery** under breakdown.', mr: '**' + S2.breakdown.down + ' गाड्या** breakdown मध्ये.', hi: '**' + S2.breakdown.down + ' गाड़ियाँ** breakdown में।' }));
+    if (S2.admin && S2.admin.faults) w.push('• ' + T({ en: 'Admin: ' + S2.admin.faults + ' fault(s) of the app since yesterday – see "Faults" at the top.', mr: 'Admin: कालपासून app चे ' + S2.admin.faults + ' बिघाड – वर "Faults" पाहा.', hi: 'Admin: कल से app की ' + S2.admin.faults + ' खराबी – ऊपर "Faults" देखें।' }));
+    a.push(''); a.push(w.length ? T({ en: '**To look at:**', mr: '**लक्ष द्या:**', hi: '**ध्यान दें:**' }) : T({ en: 'Nothing else needs a look. ✓', mr: 'आणखी लक्ष देण्यासारखे काही नाही. ✓', hi: 'और कुछ ध्यान देने लायक नहीं। ✓' }));
+    return a.concat(w).join('\n') + (go.length ? '\n' + go.join(' ') : '');
+  }
+  function aiBriefAuto(tries) {
+    let k = ''; try { if (!S.token || !S.user || (S.prefs && S.prefs.brief === false)) return; k = 'oc_brief_' + String(S.user.email || '').toLowerCase(); if (localStorage.getItem(k) === S.today) return; } catch (e) { return; }
+    // a notice of the start-up is open (vehicle papers, a new version): the summary waits for it to be closed – up to a minute
+    if ((!$('cf_back').hidden || document.body.classList.contains('locked')) && (tries || 0) < 40) { setTimeout(() => aiBriefAuto((tries || 0) + 1), 1500); return; }
+    try { localStorage.setItem(k, S.today); } catch (e) { /* it will come again at the next opening – no harm */ }
+    if (window.innerWidth < 760 || !$('ai_panel').hidden || !$('cf_back').hidden) { $('ai_fab').classList.add('new'); AI.briefDue = true; return; }      // a phone (or something else is open): a dot on the Ask button; the summary comes when it is opened
+    aiOpen(true); aiReady('brief');
+  }
+
+  /* ---------- TALKING WITH THE ASSISTANT (asked 04-10-2026: "I speak, it answers aloud – like two people talking") ----------
+   * The browser's own speech (Chrome, Edge, Android Chrome): the microphone button starts a conversation –
+   *   listening (the words appear in the box as they are heard) → the question is asked → the answer is shown AND spoken →
+   *   listening again … until "Stop" (button, or said: stop / थांब / बस / रुको), or silence three times in a row.
+   * The language heard and spoken is the help language (Settings): मराठी mr-IN, हिंदी hi-IN, English en-IN. Spoken is the START
+   * of an answer (two or three lines, units and dates said as words); a long list stays on the screen. While the assistant
+   * speaks it does not listen (it would hear itself). Every answer also has a 🔊 to hear it without the microphone.
+   * What cannot be promised from here: how well the browser hears Marathi, and whether the device has a Marathi voice (if not,
+   * the Hindi voice reads the Devanagari). The microphone needs the person's permission; without it a line says so. */
+  const aiTopWin = () => { try { if (window.top && (window.top.SpeechRecognition || window.top.webkitSpeechRecognition)) return window.top; } catch (e) {} return window; };
+  const aiRecCtor = () => { const W = aiTopWin(); return W.SpeechRecognition || W.webkitSpeechRecognition || null; };
+  const aiCanSay = () => { try { return typeof speechSynthesis === 'object' && typeof SpeechSynthesisUtterance === 'function'; } catch (e) { return false; } };
+  const AI_SPEECH = { mr: 'mr-IN', hi: 'hi-IN', en: 'en-IN' };
+  const AI_MONTHS = { en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'], mr: ['जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून', 'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'], hi: ['जनवरी', 'फरवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'] };
+  // what is said aloud: the start of the answer, without marks; dates and units as words
+  function aiSpeakable(text, L) {
+    let t = String(text || '').replace(/🔊/g, '').replace(/\[\[open:[^\]]*\]\]/g, '').replace(/[A-Za-z ]+ →/g, '').replace(/\*\*/g, '').replace(/[•⚡✓]/g, ' ');
+    const lines = t.split('\n').map(x => x.trim()).filter(Boolean); let out = '', n = 0;
+    for (const l of lines) { if (n >= 4 || out.length + l.length > 420) break; out += (out ? '. ' : '') + l; n++; }
+    const more = lines.length > n;
+    out = out.replace(/\b(\d{1,2})-(\d{2})-(\d{4})\b/g, (m, d, mo) => Number(d) + ' ' + (AI_MONTHS[L] || AI_MONTHS.en)[Number(mo) - 1])
+      .replace(/(\d)\s*L\b/g, '$1 ' + ({ en: 'litres', mr: 'लिटर', hi: 'लीटर' }[L])).replace(/\bkm\/L\b/g, { en: 'kilometres per litre', mr: 'किलोमीटर प्रति लिटर', hi: 'किलोमीटर प्रति लीटर' }[L]).replace(/\bL\/hr\b/g, { en: 'litres per hour', mr: 'लिटर प्रति तास', hi: 'लीटर प्रति घंटा' }[L])
+      .replace(/\bkm\b/g, { en: 'kilometres', mr: 'किलोमीटर', hi: 'किलोमीटर' }[L]).replace(/\bhr\b/g, { en: 'hours', mr: 'तास', hi: 'घंटे' }[L]).replace(/₹\s?/g, { en: 'rupees ', mr: 'रुपये ', hi: 'रुपये ' }[L]).replace(/\s+/g, ' ').trim();
+    return out + (more ? ' ' + ({ en: 'The rest is on the screen.', mr: 'बाकी screen वर आहे.', hi: 'बाकी screen पर है।' }[L]) : '');
+  }
+  function aiSay(text, L, done) {
+    if (!aiCanSay()) { if (done) done(); return; }
+    try { speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(aiSpeakable(text, L)), code = AI_SPEECH[L] || 'en-IN', vs = speechSynthesis.getVoices() || [];
+      const v = vs.find(x => x.lang === code) || vs.find(x => String(x.lang).slice(0, 2) === code.slice(0, 2)) || (L === 'mr' ? vs.find(x => String(x.lang).slice(0, 2) === 'hi') : null);
+      if (v) u.voice = v; u.lang = v ? v.lang : (L === 'mr' && !v ? 'hi-IN' : code); u.rate = 1.05;
+      let ended = false; const end = () => { if (ended) return; ended = true; AI.saying = false; if (done) done(); };
+      u.onend = end; u.onerror = end; AI.saying = true; speechSynthesis.speak(u);
+      setTimeout(() => { if (!ended && !speechSynthesis.speaking) end(); }, 1500);            // a device that says nothing must not leave the talk hanging
+    } catch (e) { AI.saying = false; if (done) done(); }
+  }
+  function aiLiveShow(state) { const b = $('ai_live'); b.hidden = !state; b.classList.toggle('say', state === 'say'); $('ai_mic').classList.toggle('on', !!state);
+    $('ai_live_t').textContent = state === 'say' ? aiL({ en: 'Speaking… (press Stop to end)', mr: 'बोलतो आहे… (थांबवायला Stop दाबा)', hi: 'बोल रहा हूँ… (रोकने के लिए Stop दबाएँ)' }) : state === 'think' ? aiL({ en: 'Finding the answer…', mr: 'उत्तर शोधतो आहे…', hi: 'जवाब ढूँढ रहा हूँ…' }) : aiL({ en: 'Listening… speak now', mr: 'ऐकतो आहे… बोला', hi: 'सुन रहा हूँ… बोलिए' }); }
+  function aiLiveStop(msg) { AI.live = false; try { if (AI.rec) AI.rec.abort(); } catch (e) {} AI.rec = null; try { if (aiCanSay()) speechSynthesis.cancel(); } catch (e) {} AI.saying = false; aiLiveShow(''); $('ai_in').placeholder = 'Ask anything about this app…'; if (msg) aiAdd('ai-m err', esc(msg)); }
+  function aiListen() {
+    if (!AI.live || AI.busy || AI.saying) return;
+    const R = aiRecCtor(); if (!R) { aiLiveStop('This browser cannot listen. Use Chrome or Edge.'); return; }
+    const rec = new R(); AI.rec = rec; rec.lang = AI_SPEECH[fixLang] || 'en-IN'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    let final = '';
+    rec.onresult = e => { let t = ''; for (let i = 0; i < e.results.length; i++) { t += e.results[i][0].transcript; if (e.results[i].isFinal) final = t; } $('ai_in').value = t; };
+    rec.onerror = e => { const c = e && e.error; if (c === 'not-allowed' || c === 'service-not-allowed') aiLiveStop(aiL({ en: 'The microphone is not allowed for this site. Press the lock / tune icon left of the address, allow the microphone, and press the microphone button again.', mr: 'या site ला microphone ची परवानगी नाही. Address च्या डावीकडचे चिन्ह दाबून microphone ला परवानगी द्या आणि mic बटण पुन्हा दाबा.', hi: 'इस site को microphone की अनुमति नहीं है। Address के बाईं ओर के चिह्न से microphone की अनुमति दें और mic बटन फिर दबाएँ।' }));
+      else if (c === 'audio-capture') aiLiveStop(aiL({ en: 'No microphone was found on this device.', mr: 'या device वर microphone सापडला नाही.', hi: 'इस device पर microphone नहीं मिला।' })); };
+    rec.onend = async () => { if (AI.rec !== rec) return; AI.rec = null; if (!AI.live) return;
+      const said = final.trim(); $('ai_in').value = '';
+      if (!said) { AI.silent = (AI.silent || 0) + 1; if (AI.silent >= 3) { aiLiveStop(); return; } setTimeout(aiListen, 250); return; }
+      AI.silent = 0;
+      if (/^(stop|थांब|थांबा|बस|बंद कर|बंद करा|रुको|रुक जाओ|thamb|bas)[.!।\s]*$/i.test(said)) { aiLiveStop(); return; }
+      aiLiveShow('think'); await aiAsk(said);
+      if (!AI.live) return;
+      if (S.prefs && S.prefs.voiceOut === false) { aiLiveShow('hear'); setTimeout(aiListen, 300); return; }
+      aiLiveShow('say'); aiSay(AI.lastAnswer, AI.lastLang || fixLang, () => { if (AI.live) { aiLiveShow('hear'); setTimeout(aiListen, 300); } }); };
+    try { rec.start(); aiLiveShow('hear'); } catch (e) { aiLiveStop(); }
+  }
+  function aiLiveStart() { if (AI.live) { aiLiveStop(); return; } if (AI.busy) return; AI.live = true; AI.silent = 0; $('ai_in').placeholder = '🎙 …'; aiListen(); }
   // Admin: which model answers, how fast, and what the service says (to see why the assistant does not answer)
   async function aiTest() {
     if (AI.busy) return; AI.busy = true; const wait = aiAdd('ai-wait', 'Testing the AI service – a tiny question to each model…');
@@ -9531,7 +9645,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('ai_in').addEventListener('input', () => { const t = $('ai_in'); t.style.height = 'auto'; t.style.height = Math.min(110, t.scrollHeight) + 'px'; });
   $('ai_sugg').addEventListener('click', e => { const b = e.target.closest('button'); if (b && b.dataset.aiready) aiReady(b.dataset.aiready); });
   $('ai_test').addEventListener('click', () => aiTest());
-  $('ai_msgs').addEventListener('click', e => { const again = e.target.closest('[data-airetry]'); if (again) { if (!AI.busy) { const q = again.dataset.airetry; again.closest('.ai-m').remove(); aiAsk(q); } return; }
+  $('ai_mic').addEventListener('click', () => aiLiveStart());
+  $('ai_live_stop').addEventListener('click', () => aiLiveStop());
+  $('ai_msgs').addEventListener('click', e => { const sp = e.target.closest('[data-aisay]'); if (sp) { const m = sp.closest('.ai-m'), t = m.textContent; if (AI.saying) { speechSynthesis.cancel(); AI.saying = false; } else aiSay(t, /[\u0900-\u097F]/.test(t) ? (fixLang === 'hi' ? 'hi' : 'mr') : 'en'); return; }
+    const again = e.target.closest('[data-airetry]'); if (again) { if (!AI.busy) { const q = again.dataset.airetry; again.closest('.ai-m').remove(); aiAsk(q); } return; }
     const b = e.target.closest('[data-aigo]'); if (b) { showTab(b.dataset.aigo); if (window.innerWidth < 900) aiOpen(false); } });
 
   /* ================= FAULTS: reported by themselves, shown to the user and to the Admin (asked 03-10-2026) =================
@@ -9628,7 +9745,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * S.prefs = the signed-in user's own settings (server: getMyPrefs / saveMyPrefs, kept with the account). A copy is kept on
    * this device per e-mail (oc_prefs_<email>) so the look is right at once after sign-in; the server's copy then replaces it.
    * applyPrefs puts them to work; every change on the Settings page is applied at once and saved by itself. */
-  const PREF_DEFAULT = { theme: 'light', text: 'normal', density: 'normal', lang: 'mr', lbMode: '', lbDays: '2', shift: '', menu: 'open', enterNext: false, sound: false, lessMotion: false, intro: true, start: '', loc: '', fav: [], mobile: '', photo: '' };
+  const PREF_DEFAULT = { theme: 'light', text: 'normal', density: 'normal', lang: 'mr', lbMode: '', lbDays: '2', shift: '', menu: 'open', enterNext: false, sound: false, lessMotion: false, intro: true, brief: true, voiceOut: true, start: '', loc: '', fav: [], mobile: '', photo: '' };
   S.prefs = Object.assign({}, PREF_DEFAULT); S.rules = { backDays: '', announce: '' };
   const prefKey = () => 'oc_prefs_' + String((S.user && S.user.email) || '').toLowerCase();
   const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
@@ -11183,6 +11300,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       prefsBoot(S.curTab === tab0);      // the user's own settings (look, first page, usual entry type …)
       if (d.faults) setFaults(d.faults);
       aiBoot(d.ai);
+      setTimeout(aiBriefAuto, 3500);      // the daily summary, once a day (after the start-up notices have had their turn)
       qrArrive().catch(() => { /* a label that cannot be opened must not stop the app */ });
     } catch (e) {
       showBoot(false);
