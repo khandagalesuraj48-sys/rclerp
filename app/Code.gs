@@ -6460,24 +6460,29 @@ function aiRules_(u) {
   ].join('\n');
 }
 function aiInfo_() { return { on: typeof __ai === 'object' && !!__ai && __ai.on() }; }
-// the model: the one fixed in the server's settings, else picked from the service's own list (kept a day) – names change often
-function aiModel_() {
-  const fixed = __ai.model(); if (fixed) return fixed.replace(/^models\//, '');
+/* THE MODELS, in the order they are tried. The one fixed in the server's settings (GEMINI_MODEL) if there is one; else from the
+ * service's own list (names change often), kept for a day: the "flash" models first – "gemini-flash-latest" if offered, then
+ * the highest version –, then the previews, then the "flash-lite" ones. A model that is BUSY is not the end: the next one is
+ * tried (first real use, 04-10-2026: "This model is currently experiencing high demand", 503). */
+function aiModels_() {
+  const fixed = __ai.model(); if (fixed) return [fixed.replace(/^models\//, '')];
   const pr = PropertiesService.getScriptProperties();
   let kept = null; try { kept = JSON.parse(pr.getProperty('AI_MODEL') || 'null'); } catch (e) { kept = null; }
-  if (kept && kept.name && Date.now() - Number(kept.at) < 86400000) return kept.name;
+  if (kept && Array.isArray(kept.list) && kept.list.length && Date.now() - Number(kept.at) < 86400000) return kept.list;
   const r = __ai.call('GET', '/v1beta/models?pageSize=1000');
-  if (r.error || r.code >= 300) throw new Error('The AI service did not give its list of models (' + (r.error || r.code) + '). Check GEMINI_API_KEY in the server\'s settings.' + (r.text ? ' It said: ' + r.text.slice(0, 200) : ''));
+  if (r.error || r.code >= 300) throw new Error('The AI service did not give its list of models (' + (r.error || r.code) + '). Check GEMINI_API_KEY in the server\'s settings.' + (r.text ? ' It said: ' + aiSaid_(r.text) : ''));
   let list = []; try { list = (JSON.parse(r.text).models || []); } catch (e) { list = []; }
   const ok = list.filter(m => (m.supportedGenerationMethods || []).indexOf('generateContent') > -1).map(m => String(m.name || '').replace(/^models\//, ''))
-    .filter(n => /^gemini-/.test(n) && /flash/.test(n) && !/lite|image|tts|audio|live|embedding|preview|exp|thinking|8b/.test(n));
-  // "gemini-flash-latest" if the service has it, else the highest version number
+    .filter(n => /^gemini-/.test(n) && /flash/.test(n) && !/image|tts|audio|live|embedding|exp|thinking|8b|robotics|computer|native|custom/.test(n));
   const ver = n => { const m = /gemini-(\d+(?:\.\d+)?)/.exec(n); return m ? Number(m[1]) : 0; };
-  const pick = ok.indexOf('gemini-flash-latest') > -1 ? 'gemini-flash-latest' : ok.sort((a, b) => ver(b) - ver(a) || a.length - b.length)[0];
-  if (!pick) throw new Error('The AI service offers no "flash" model to this key. Put the model\'s name in GEMINI_MODEL in the server\'s settings.');
-  pr.setProperty('AI_MODEL', JSON.stringify({ name: pick, at: Date.now() }));
-  return pick;
+  const tier = n => n === 'gemini-flash-latest' ? 0 : /lite/.test(n) ? 3 : /preview/.test(n) ? 2 : 1;
+  const order = ok.sort((a, b) => tier(a) - tier(b) || ver(b) - ver(a) || a.length - b.length).slice(0, 6);
+  if (!order.length) throw new Error('The AI service offers no "flash" model to this key. Put the model\'s name in GEMINI_MODEL in the server\'s settings.');
+  pr.setProperty('AI_MODEL', JSON.stringify({ list: order, at: Date.now() }));
+  return order;
 }
+// what the service said, in its own words (its answers to a refusal are JSON with error.message)
+function aiSaid_(text) { try { const j = JSON.parse(text); return str_((j.error && j.error.message) || text).slice(0, 300); } catch (e) { return str_(text).slice(0, 300); } }
 function getAiReply_(u, x) {
   x = x || {};
   if (!aiInfo_().on) throw new Error('The assistant is not set up yet: the Admin has to put the AI key (GEMINI_API_KEY) in the server\'s settings.');
@@ -6493,20 +6498,37 @@ function getAiReply_(u, x) {
   turns = turns.filter(t => t && (t.role === 'user' || t.role === 'model') && Array.isArray(t.parts) && t.parts.length).map(t => ({ role: t.role, parts: t.parts }));
   if (!turns.length || turns[0].role !== 'user') throw new Error('Type a question for the assistant.');
   if (JSON.stringify(turns).length > 250000) throw new Error('This conversation has become too long. Press "New chat" and ask again.');
-  const model = aiModel_();
-  const r = __ai.call('POST', '/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
-    system_instruction: { parts: [{ text: aiRules_(u) }] }, contents: turns, tools: [{ functionDeclarations: AI_TOOLS_ }],
+  const body = { system_instruction: { parts: [{ text: aiRules_(u) }] }, contents: turns, tools: [{ functionDeclarations: AI_TOOLS_ }],
     // no temperature (the newer models are meant to run at their own default); room for the model's thinking AND the answer –
     // with a small limit a thinking model can use it all up and send an empty answer
-    generationConfig: { maxOutputTokens: 8192 } });
-  if (r.error) throw new Error('The AI service could not be reached (' + r.error + '). Try again.');
-  if (r.code === 404) { PropertiesService.getScriptProperties().deleteProperty('AI_MODEL'); throw new Error('The AI service does not know the model "' + model + '" (any more). Ask again – the app picks another; or set GEMINI_MODEL.'); }
-  if (r.code === 429) throw new Error('The AI service is busy or its free limit is used up (429). Try again in a minute.' + (u.admin ? ' Admin: ' + r.text.slice(0, 200) : ''));
-  if (r.code >= 300) throw new Error('The AI service refused the question (' + r.code + ').' + (u.admin ? ' It said: ' + r.text.slice(0, 300) : ' Tell the Admin.'));
-  let j = {}; try { j = JSON.parse(r.text); } catch (e) { throw new Error('The AI service sent an answer that cannot be read. Try again.'); }
-  const cand = (j.candidates || [])[0] || {}, parts = (cand.content && cand.content.parts) || [];
-  if (!parts.length) throw new Error('The AI service gave no answer' + (cand.finishReason ? ' (' + cand.finishReason + ')' : (j.promptFeedback && j.promptFeedback.blockReason ? ' (' + j.promptFeedback.blockReason + ')' : '')) + '. Ask in other words.');
-  return { parts: parts, model: model, used: (j.usageMetadata && j.usageMetadata.totalTokenCount) || 0 };
+    generationConfig: { maxOutputTokens: 8192 } };
+  /* A BUSY SERVICE IS ASKED AGAIN, BY THE APP. "Busy" = 503 (overloaded), 500, 429 (too many / quota of that model) or no
+   * connection. The first model is asked up to three times (after 1.5 s and 3 s), then the next two models once each; all
+   * within about 35 seconds. A model that answered while the first was busy is put first for the next questions.
+   * Anything else (400 a request the service does not accept, 401 / 403 the key) is not repeated – it would fail the same way. */
+  const models = aiModels_(), t0 = Date.now(), pr = PropertiesService.getScriptProperties();
+  let last = null, tried = 0;
+  for (let m = 0; m < Math.min(models.length, 3); m++) {
+    for (let attempt = 0; attempt < (m === 0 ? 3 : 1); attempt++) {
+      if (Date.now() - t0 > 35000) break;
+      const model = models[m], r = __ai.call('POST', '/v1beta/models/' + encodeURIComponent(model) + ':generateContent', body); tried++;
+      if (!r.error && r.code < 300) {
+        let j = {}; try { j = JSON.parse(r.text); } catch (e) { throw new Error('The AI service sent an answer that cannot be read. Try again.'); }
+        const cand = (j.candidates || [])[0] || {}, parts = (cand.content && cand.content.parts) || [];
+        if (!parts.length) throw new Error('The AI service gave no answer' + (cand.finishReason ? ' (' + cand.finishReason + ')' : (j.promptFeedback && j.promptFeedback.blockReason ? ' (' + j.promptFeedback.blockReason + ')' : '')) + '. Ask in other words.');
+        if (m > 0 && !__ai.model()) pr.setProperty('AI_MODEL', JSON.stringify({ list: [model].concat(models.filter(n => n !== model)), at: Date.now() }));
+        return { parts: parts, model: model, used: (j.usageMetadata && j.usageMetadata.totalTokenCount) || 0, tries: tried };
+      }
+      last = { code: r.code, error: r.error, said: aiSaid_(r.text), model: model };
+      if (r.code === 404) { pr.deleteProperty('AI_MODEL'); break; }                    // the service no longer has this model: the next one
+      const busy = !!r.error || r.code === 503 || r.code === 500 || r.code === 429;
+      if (!busy) throw new Error('The AI service refused the question (' + r.code + ').' + (u.admin ? ' Model ' + model + '. It said: ' + last.said : ' Tell the Admin.'));
+      if (r.code === 429) break;                                                         // this model's limit is used up: no use asking it again now
+      if (attempt < 2 && m === 0) __ai.wait(1500 * (attempt + 1));
+    }
+  }
+  throw new Error('The AI service is busy right now' + (last && last.code ? ' (' + last.code + ')' : '') + ' – that is on its side, not in the app. It was asked ' + tried + ' time(s). Please ask again in a minute.' +
+    (u.admin && last ? ' Admin: model ' + last.model + (last.said ? ' said: ' + last.said : last.error ? ': ' + last.error : '') : ''));
 }
 
 /* ---------- A FAULT OF THE APP IS REPORTED BY ITSELF (asked 03-10-2026) ----------

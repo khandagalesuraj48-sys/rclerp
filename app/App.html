@@ -2257,6 +2257,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .ai-m.me { align-self: flex-end; background: #1D4ED8; color: #fff; border-bottom-right-radius: 4px; }
   .ai-m.bot { align-self: flex-start; background: #fff; border: 1px solid #E2E8F0; color: #0F172A; border-bottom-left-radius: 4px; }
   .ai-m.err { align-self: flex-start; background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; }
+  .ai-m.err button.ai-go { display: inline-block; margin-top: 7px; border: 1px solid #991B1B; background: #fff; color: #991B1B; border-radius: 8px; padding: 3px 12px; font: 700 12.5px var(--ui); cursor: pointer; }
   .ai-m.bot button.ai-go { display: inline-block; margin: 4px 4px 0 0; border: 1px solid #1D4ED8; background: #EFF6FF; color: #1D4ED8; border-radius: 8px; padding: 3px 10px; font: 700 12.5px var(--ui); cursor: pointer; }
   .ai-src { align-self: flex-start; font-size: 11.5px; color: #475569; display: flex; gap: 5px; flex-wrap: wrap; max-width: 92%; }
   .ai-src span { background: #E8EEF7; border-radius: 999px; padding: 2px 9px; }
@@ -9306,6 +9307,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     text = String(text || '').trim(); if (!text || AI.busy) return;
     if (!AI.on) { aiAdd('ai-m err', 'The assistant is not set up yet (no AI key on the server).'); return; }
     AI.busy = true; $('ai_send').disabled = true; $('ai_sugg').innerHTML = '';
+    const keep = AI.turns.length;
     aiAdd('ai-m me', esc(text)); AI.turns.push({ role: 'user', parts: [{ text: text }] });
     const wait = aiAdd('ai-wait', 'Thinking…'), used = [];
     try {
@@ -9323,7 +9325,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         AI.turns.push({ role: 'user', parts: outs }); wait.textContent = 'Writing the answer…';
       }
       wait.remove(); aiAdd('ai-m err', 'This question needed too many look-ups. Ask it in smaller parts.');
-    } catch (e) { wait.remove(); aiAdd('ai-m err', esc(errMsg(e))); if (AI.turns.length && AI.turns[AI.turns.length - 1].role === 'user' && AI.turns[AI.turns.length - 1].parts[0].text === text) AI.turns.pop(); }
+    } catch (e) {
+      // the question did not get its answer: the conversation goes back to where it was before it, and "Ask again" sends it once more
+      wait.remove(); while (AI.turns.length > keep) AI.turns.pop();
+      aiAdd('ai-m err', esc(errMsg(e)) + '<br><button type="button" class="ai-go" data-airetry="' + esc(text) + '">Ask again</button>'); }
     finally { AI.busy = false; $('ai_send').disabled = false; $('ai_in').focus(); }
   }
   $('ai_fab').addEventListener('click', () => aiOpen(true));
@@ -9333,7 +9338,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('ai_in').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('ai_form').dispatchEvent(new Event('submit', { cancelable: true })); } else if (e.key === 'Escape') aiOpen(false); });
   $('ai_in').addEventListener('input', () => { const t = $('ai_in'); t.style.height = 'auto'; t.style.height = Math.min(110, t.scrollHeight) + 'px'; });
   $('ai_sugg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) aiAsk(b.textContent); });
-  $('ai_msgs').addEventListener('click', e => { const b = e.target.closest('[data-aigo]'); if (b) { showTab(b.dataset.aigo); if (window.innerWidth < 900) aiOpen(false); } });
+  $('ai_msgs').addEventListener('click', e => { const again = e.target.closest('[data-airetry]'); if (again) { if (!AI.busy) { const q = again.dataset.airetry; again.closest('.ai-m').remove(); aiAsk(q); } return; }
+    const b = e.target.closest('[data-aigo]'); if (b) { showTab(b.dataset.aigo); if (window.innerWidth < 900) aiOpen(false); } });
 
   /* ================= FAULTS: reported by themselves, shown to the user and to the Admin (asked 03-10-2026) =================
    * A fault of the page's own code (an exception, a broken promise of the code) is sent to the server (reportError) and the

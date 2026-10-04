@@ -363,6 +363,7 @@ function makeAi() {
   return {
     on: () => !!process.env.GEMINI_API_KEY,
     model: () => String(process.env.GEMINI_MODEL || ''),
+    wait: ms => sleepSync(Math.max(0, Math.min(5000, Number(ms) || 0))),      // a short pause before asking a busy service again
     call: (method, path, body) => {
       const key = String(process.env.GEMINI_API_KEY || ''); if (!key) return { code: 0, text: '', error: 'no key' };
       const r = fetchAllSync([{ url: AI_BASE() + path, method: method, headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: body === undefined || body === null ? undefined : JSON.stringify(body) }], 50000)[0] || {};

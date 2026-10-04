@@ -717,6 +717,16 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * SET-UP for a site: Vercel → Settings → Environment Variables → GEMINI_API_KEY = the key from Google AI Studio → Redeploy.
   * Tests: unit "the assistant …" (27 unit tests), `test/browser/ai.js` (13; needs `node test/gemini-standin.js` and
     GEMINI_API_KEY=test-key, GEMINI_API_BASE=http://127.0.0.1:3998 in .env.local).
+- 04-10-2026 (night): THE FIRST REAL QUESTION TO GEMINI on the live site (his screenshot): the key works, the request was accepted –
+  the service answered 503 "This model is currently experiencing high demand … UNAVAILABLE", and the app showed that raw JSON.
+  NOW `getAiReply_` deals with a busy service itself: busy = 503 / 500 / 429 / no connection; the first model is asked up to 3 times
+  (waits 1.5 s, 3 s; `__ai.wait`), then the next two models of `aiModels_()` once each (the order: gemini-flash-latest, flash by
+  version, previews, flash-lite – kept a day as AI_MODEL { list }), all within ~35 s; a 429 moves on to the next model at once; the
+  model that answered is put first. 400 / 401 / 403 are not repeated. All busy → "The AI service is busy right now (503) – that is
+  on its side, not in the app … ask again in a minute" (+ for the Admin the model and the service's own sentence, read out of its
+  JSON by `aiSaid_`), and the chat shows an "Ask again" button; the failed question is taken out of the conversation.
+  Tests: `test/browser/aibusy.js` (6; the stand-in can be told to be busy: /__busy?model=…&n=…). Still to be seen on live: a full
+  answer from the real Gemini (a function call, the look-up, the final text).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

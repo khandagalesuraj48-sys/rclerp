@@ -1,16 +1,20 @@
 // a stand-in for the Gemini service (tests only): it checks what the app sends and answers the way the real service does –
 // first a functionCall (with a thoughtSignature the app must send back untouched), then a text made from the look-up's result
-const http = require('http'); const log = [];
+const http = require('http'); const log = [], busy = {};
 const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
 http.createServer((req, res) => {
   let body = ''; req.on('data', c => { body += c; }); req.on('end', () => {
     if (req.url === '/__log') return send(res, 200, log);
-    if (req.url === '/__clear') { log.length = 0; return send(res, 200, {}); }
+    if (req.url === '/__clear') { log.length = 0; Object.keys(busy).forEach(k => delete busy[k]); return send(res, 200, {}); }
+    // tests: /__busy?model=NAME&n=3 → the next 3 questions to that model (or to "*" = every model) are answered "busy" (503), as the real service does
+    const bz = /^\/__busy\?model=([^&]+)&n=(\d+)/.exec(req.url); if (bz) { busy[decodeURIComponent(bz[1])] = Number(bz[2]); return send(res, 200, busy); }
     if (req.headers['x-goog-api-key'] !== 'test-key') return send(res, 403, { error: { message: 'API key not valid' } });
     if (req.method === 'GET' && /^\/v1beta\/models(\?|$)/.test(req.url)) return send(res, 200, { models: [
       { name: 'models/gemini-9.5-pro', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-9.0-flash', supportedGenerationMethods: ['generateContent'] },
       { name: 'models/gemini-9.5-flash', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-9.5-flash-lite', supportedGenerationMethods: ['generateContent'] }, { name: 'models/text-embedding-9', supportedGenerationMethods: ['embedContent'] }] });
     const m = /^\/v1beta\/models\/([^:]+):generateContent/.exec(req.url); if (!m || req.method !== 'POST') return send(res, 404, { error: { message: 'not found' } });
+    const bk = busy[m[1]] > 0 ? m[1] : busy['*'] > 0 ? '*' : '';
+    if (bk) { busy[bk]--; log.push({ model: m[1], busy: true }); return send(res, 503, { error: { code: 503, message: 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', status: 'UNAVAILABLE' } }); }
     let j = {}; try { j = JSON.parse(body); } catch (e) { return send(res, 400, { error: { message: 'bad JSON' } }); }
     const turns = j.contents || [], last = turns[turns.length - 1] || { parts: [] }, sys = ((j.system_instruction || {}).parts || [{}])[0].text || '';
     log.push({ model: m[1], roles: turns.map(t => t.role).join(','), tools: ((j.tools || [])[0] || { functionDeclarations: [] }).functionDeclarations.map(f => f.name), sysHasRules: /Answer ONLY from this app/.test(sys), sysWho: (/The person asking is ([^.]+)\./.exec(sys) || [])[1] || '', temperature: (j.generationConfig || {}).temperature });
