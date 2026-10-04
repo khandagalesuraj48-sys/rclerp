@@ -408,6 +408,7 @@ const API_ = {
   dbHealth:          { m: '', admin: true, f: dbHealth_ },
   saveOrgSettings:   { m: '', admin: true, f: saveOrgSettings_, log: 'org' },
   getAiReply:        { m: '', withUser: true, f: (u, x) => getAiReply_(u, x) },
+  getAiCheck:        { m: '', admin: true, f: getAiCheck_ },
   reportError:       { m: '', withUser: true, f: (u, x) => reportError_(u, x) },
   getErrors:         { m: '', admin: true, f: getErrors_ },
   clearErrors:       { m: '', admin: true, f: clearErrors_ },
@@ -6498,37 +6499,66 @@ function getAiReply_(u, x) {
   turns = turns.filter(t => t && (t.role === 'user' || t.role === 'model') && Array.isArray(t.parts) && t.parts.length).map(t => ({ role: t.role, parts: t.parts }));
   if (!turns.length || turns[0].role !== 'user') throw new Error('Type a question for the assistant.');
   if (JSON.stringify(turns).length > 250000) throw new Error('This conversation has become too long. Press "New chat" and ask again.');
-  const body = { system_instruction: { parts: [{ text: aiRules_(u) }] }, contents: turns, tools: [{ functionDeclarations: AI_TOOLS_ }],
+  /* THE SNAPSHOT (asked 04-10-2026: "the answer must come fast – keep the data ready for the AI, fresh within a second").
+   * A model cannot keep the app's data with it: it starts every question empty. What CAN be done, and is: the page keeps a
+   * small, fresh set of the figures most questions are about (today / yesterday's diesel, the stock, what is pending, the page
+   * the person is on and what is picked there), refreshed whenever the data changes, and sends it WITH the question. Then the
+   * model can answer the everyday questions in ONE step, without asking for a look-up first. It is the user's own view of the
+   * data (read with his sign-in). Cut to 7,000 characters. */
+  let snap = ''; try { snap = x.context ? JSON.stringify(x.context).slice(0, 7000) : ''; } catch (e) { snap = ''; }
+  const rules = aiRules_(u) + (snap ? '\n9. SNAPSHOT – figures the app read for this person a moment ago. When the snapshot answers the question exactly (same dates, same machinery), answer from it at once, WITHOUT a look-up, and say "as of now". For anything else use a look-up. "page" is where the person is working – a question like "this page", "this machinery", "why this error" is about that.\nSNAPSHOT = ' + snap : '');
+  const body = { system_instruction: { parts: [{ text: rules }] }, contents: turns, tools: [{ functionDeclarations: AI_TOOLS_ }],
     // no temperature (the newer models are meant to run at their own default); room for the model's thinking AND the answer –
     // with a small limit a thinking model can use it all up and send an empty answer
     generationConfig: { maxOutputTokens: 8192 } };
   /* A BUSY SERVICE IS ASKED AGAIN, BY THE APP. "Busy" = 503 (overloaded), 500, 429 (too many / quota of that model) or no
-   * connection. The first model is asked up to three times (after 1.5 s and 3 s), then the next two models once each; all
-   * within about 35 seconds. A model that answered while the first was busy is put first for the next questions.
+   * connection. The order of asking (aiTries_): the first model, the first model again after 1.5 s, the second model, the
+   * first "lite" model (lighter models are busy far less often), then two more – all within about 35 seconds. A model that
+   * answered while the first was busy is put first for the next questions.
    * Anything else (400 a request the service does not accept, 401 / 403 the key) is not repeated – it would fail the same way. */
-  const models = aiModels_(), t0 = Date.now(), pr = PropertiesService.getScriptProperties();
-  let last = null, tried = 0;
-  for (let m = 0; m < Math.min(models.length, 3); m++) {
-    for (let attempt = 0; attempt < (m === 0 ? 3 : 1); attempt++) {
-      if (Date.now() - t0 > 35000) break;
-      const model = models[m], r = __ai.call('POST', '/v1beta/models/' + encodeURIComponent(model) + ':generateContent', body); tried++;
-      if (!r.error && r.code < 300) {
-        let j = {}; try { j = JSON.parse(r.text); } catch (e) { throw new Error('The AI service sent an answer that cannot be read. Try again.'); }
-        const cand = (j.candidates || [])[0] || {}, parts = (cand.content && cand.content.parts) || [];
-        if (!parts.length) throw new Error('The AI service gave no answer' + (cand.finishReason ? ' (' + cand.finishReason + ')' : (j.promptFeedback && j.promptFeedback.blockReason ? ' (' + j.promptFeedback.blockReason + ')' : '')) + '. Ask in other words.');
-        if (m > 0 && !__ai.model()) pr.setProperty('AI_MODEL', JSON.stringify({ list: [model].concat(models.filter(n => n !== model)), at: Date.now() }));
-        return { parts: parts, model: model, used: (j.usageMetadata && j.usageMetadata.totalTokenCount) || 0, tries: tried };
-      }
-      last = { code: r.code, error: r.error, said: aiSaid_(r.text), model: model };
-      if (r.code === 404) { pr.deleteProperty('AI_MODEL'); break; }                    // the service no longer has this model: the next one
-      const busy = !!r.error || r.code === 503 || r.code === 500 || r.code === 429;
-      if (!busy) throw new Error('The AI service refused the question (' + r.code + ').' + (u.admin ? ' Model ' + model + '. It said: ' + last.said : ' Tell the Admin.'));
-      if (r.code === 429) break;                                                         // this model's limit is used up: no use asking it again now
-      if (attempt < 2 && m === 0) __ai.wait(1500 * (attempt + 1));
+  const models = aiModels_(), seq = aiTries_(models), t0 = Date.now(), pr = PropertiesService.getScriptProperties();
+  let last = null, tried = 0; const gone = {};
+  for (let i = 0; i < seq.length; i++) {
+    const model = seq[i]; if (gone[model] || Date.now() - t0 > 35000) continue;
+    if (i === 1) __ai.wait(1500);
+    const r = __ai.call('POST', '/v1beta/models/' + encodeURIComponent(model) + ':generateContent', body, 40000); tried++;
+    if (!r.error && r.code < 300) {
+      let j = {}; try { j = JSON.parse(r.text); } catch (e) { throw new Error('The AI service sent an answer that cannot be read. Try again.'); }
+      const cand = (j.candidates || [])[0] || {}, parts = (cand.content && cand.content.parts) || [];
+      if (!parts.length) throw new Error('The AI service gave no answer' + (cand.finishReason ? ' (' + cand.finishReason + ')' : (j.promptFeedback && j.promptFeedback.blockReason ? ' (' + j.promptFeedback.blockReason + ')' : '')) + '. Ask in other words.');
+      if (model !== models[0] && !__ai.model()) pr.setProperty('AI_MODEL', JSON.stringify({ list: [model].concat(models.filter(n => n !== model)), at: Date.now() }));
+      return { parts: parts, model: model, used: (j.usageMetadata && j.usageMetadata.totalTokenCount) || 0, tries: tried, ms: Date.now() - t0 };
     }
+    last = { code: r.code, error: r.error, said: aiSaid_(r.text), model: model };
+    if (r.code === 404) { pr.deleteProperty('AI_MODEL'); gone[model] = true; continue; }      // the service no longer has this model
+    const busy = !!r.error || r.code === 503 || r.code === 500 || r.code === 429;
+    if (!busy) throw new Error('The AI service refused the question (' + r.code + ').' + (u.admin ? ' Model ' + model + '. It said: ' + last.said : ' Tell the Admin.'));
+    if (r.code === 429) gone[model] = true;                                                    // this model's limit is used up: not asked again now
   }
   throw new Error('The AI service is busy right now' + (last && last.code ? ' (' + last.code + ')' : '') + ' – that is on its side, not in the app. It was asked ' + tried + ' time(s). Please ask again in a minute.' +
     (u.admin && last ? ' Admin: model ' + last.model + (last.said ? ' said: ' + last.said : last.error ? ': ' + last.error : '') : ''));
+}
+// the order in which the models are asked for one question (see above)
+function aiTries_(models) {
+  const lite = models.filter(n => /lite/.test(n)), full = models.filter(n => !/lite/.test(n));
+  const seq = [full[0] || lite[0], full[0] || lite[0], full[1], lite[0], full[2], lite[1]].filter(Boolean);
+  return seq.filter((n, i) => i < 2 || seq.indexOf(n) === i);        // the first model twice, every other one once
+}
+/* ADMIN: "TEST THE AI SERVICE". Until now a failing assistant gave one sentence; nobody could see WHICH part failed. This asks the
+ * service for its list of models and puts one tiny question ("Reply with the word OK") to each of the first five, and reports
+ * for each: answered or not, the time, and what the service said. Nothing of the app's data is sent. */
+function getAiCheck_() {
+  const out = { key: aiInfo_().on, fixedModel: '', models: [], tests: [], listError: '' };
+  if (!out.key) return out;
+  out.fixedModel = __ai.model();
+  try { PropertiesService.getScriptProperties().deleteProperty('AI_MODEL'); out.models = aiModels_(); } catch (e) { out.listError = String(e.message || e); return out; }
+  out.order = aiTries_(out.models);
+  out.models.slice(0, 5).forEach(m => {
+    const t0 = Date.now(), r = __ai.call('POST', '/v1beta/models/' + encodeURIComponent(m) + ':generateContent', { contents: [{ role: 'user', parts: [{ text: 'Reply with the word OK.' }] }], generationConfig: { maxOutputTokens: 512 } }, 15000);
+    let text = ''; try { text = ((((JSON.parse(r.text).candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || '').join('').trim().slice(0, 40); } catch (e) { text = ''; }
+    out.tests.push({ model: m, ok: !r.error && r.code < 300, code: r.code || 0, ms: Date.now() - t0, said: !r.error && r.code < 300 ? text : (r.error || aiSaid_(r.text)) });
+  });
+  return out;
 }
 
 /* ---------- A FAULT OF THE APP IS REPORTED BY ITSELF (asked 03-10-2026) ----------

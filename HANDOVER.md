@@ -727,6 +727,25 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   JSON by `aiSaid_`), and the chat shows an "Ask again" button; the failed question is taken out of the conversation.
   Tests: `test/browser/aibusy.js` (6; the stand-in can be told to be busy: /__busy?model=…&n=…). Still to be seen on live: a full
   answer from the real Gemini (a function call, the look-up, the final text).
+- 04-10-2026 (late): "IT STILL DOES NOT ANSWER – make it very fast; Gemini should not have to go to the server every time, keep the
+  database cache with the AI, updated within a second; on the Log Book the related questions must show first; on an error 'ask AI'
+  must give the solution; the AI is the main brain of the app." Update-48 was live; what the service answered he did not send.
+  Told him: a model cannot keep the app's data (it starts every question empty), and figures must come from the app's own
+  calculation – so the cache is kept by the APP and sent with the question. BUILT:
+  * READY QUESTIONS (`AI_READY`, `aiReady`, `aiReadyFor`) – answered by the app itself, at once, WITHOUT the AI service, in three
+    languages, chosen for the page (Log Book: pending for the date picked / the dates of the machinery picked; Diesel Issue:
+    yesterday, today, stock; Dashboard / reports: machinery over the standard; every page: "what is this page for"). Marked ⚡;
+    they work when the service is busy or there is no key (the Ask button is now shown to everyone signed in).
+  * SNAPSHOT (`aiSnapBuild`, `aiSnap`, `aiPage`; server: rule 9 + "SNAPSHOT = …", ≤ 7,000 characters): today / yesterday's diesel
+    (totals, split), pending today, stock, the page and what is picked on it – rebuilt on `onDataChanged` (own and others' saves,
+    as the page learns of them) and at most 30 s old; sent with every typed question so the model can answer in ONE step.
+  * AN ERROR → the help card has "Ask the assistant about this" (`data-fixai`): opens the window and asks about that message on
+    that page (the model uses app_guide → FIX_RULES, and may look up data).
+  * ORDER OF ASKING (`aiTries_`): first model, first model again after 1.5 s, second model, first LITE model, third, second lite.
+  * ADMIN "Test the AI service" (`getAiCheck_`, link in the window's foot): the models offered to the key, and for the first five a
+    tiny question – answered or not, seconds, the service's own words. Under an AI answer the Admin sees the model and the seconds.
+  * Tests: `test/browser/ai2.js` (9), `ai.js` (13), `aibusy.js` (6) – all with the stand-in; the real Gemini has still not been
+    seen answering. NEXT: his screenshot of "Test the AI service".
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

@@ -2267,6 +2267,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .ai-form { display: flex; gap: 8px; padding: 10px 12px 8px; background: #F6F8FB; align-items: flex-end; }
   .ai-form textarea { flex: 1; resize: none; max-height: 110px; border: 1px solid #CBD5E1; border-radius: 12px; padding: 9px 12px; font: 14px/1.4 var(--ui); background: #fff; }
   .ai-foot { margin: 0; padding: 0 14px 9px; background: #F6F8FB; font-size: 10.5px; color: #64748B; line-height: 1.35; }
+  .ai-testlink { border: 0; background: transparent; color: #1D4ED8; font: 700 10.5px var(--ui); text-decoration: underline; cursor: pointer; padding: 0; }
+  .ai-testlink[hidden] { display: none; }
+  .ai-sugg { max-height: 132px; overflow: auto; }
+  #fixbox .fx-ai { margin: 8px 0 0; border: 1px solid #0F1F3D; background: #0F1F3D; color: #fff; border-radius: 8px; padding: 6px 12px; font: 700 12.5px var(--ui); cursor: pointer; }
   @media (max-width: 760px) { .ai-panel { inset: 0; width: auto; border-radius: 0; top: 0; } .ai-fab span { display: none; } .ai-fab { padding: 13px; right: 12px; bottom: 78px; } }
   @media print { .ai-fab, .ai-panel { display: none !important; } }
   /* a scanned QR label: what to do for that machinery (big buttons – it is opened on a phone) */
@@ -3786,7 +3790,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   <div id="ai_msgs" class="ai-msgs" aria-live="polite"></div>
   <div id="ai_sugg" class="ai-sugg"></div>
   <form id="ai_form" class="ai-form" autocomplete="off"><textarea id="ai_in" rows="1" placeholder="Ask anything about this app…" maxlength="1500"></textarea><button type="submit" class="btn primary" id="ai_send">Ask</button></form>
-  <p class="ai-foot">The question and the figures it needs are sent to the AI service. It only reads – it changes nothing. Check important figures in the report it names.</p>
+  <p class="ai-foot">⚡ questions are answered by the app itself. A typed question and the figures it needs go to the AI service. The assistant only reads – it changes nothing. <button type="button" id="ai_test" class="ai-testlink" hidden>Test the AI service</button></p>
 </aside>
 <div id="dlg_back" hidden>
   <div id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg_title">
@@ -4553,12 +4557,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function fixCard(text, kind) {
     let box = $('fixbox'); if (!box) { box = document.createElement('div'); box.id = 'fixbox'; document.body.appendChild(box); }
     box.className = kind === 'info' ? 'info' : '';
-    box.innerHTML = '<button type="button" class="fx-x" aria-label="Close" title="Close">×</button><div class="fx-msg">' + esc(String(text || '').slice(0, 600)) + '</div>' + fixHtml(text); box.hidden = false;
+    box.innerHTML = '<button type="button" class="fx-x" aria-label="Close" title="Close">×</button><div class="fx-msg">' + esc(String(text || '').slice(0, 600)) + '</div>' + fixHtml(text) +
+      (kind !== 'info' && typeof AI === 'object' && AI.on && S.token ? '<button type="button" class="fx-ai" data-fixai="1">' + ({ en: 'Ask the assistant about this', mr: 'याबद्दल Assistant ला विचारा', hi: 'इस बारे में Assistant से पूछें' }[fixLang] || 'Ask the assistant about this') + '</button>' : '');
+    box.dataset.msg = String(text || '').slice(0, 600); box.hidden = false;
   }
   document.addEventListener('click', e => {
     const l = e.target.closest('[data-fixlang]');
     if (l) { fixLang = l.dataset.fixlang; try { localStorage.setItem('rcl_lang', fixLang); } catch (er) {} document.querySelectorAll('.fixhelp').forEach(h => { h.innerHTML = h.classList.contains('guide') ? guideInner(($('guidebox') || { dataset: {} }).dataset.tab) : fixInner(h.dataset.msg); }); return; }
     if (e.target.closest('#fixbox .fx-x')) $('fixbox').hidden = true;
+    if (e.target.closest('#fixbox [data-fixai]')) { const msg = $('fixbox').dataset.msg || '', title = $('page_title') ? $('page_title').textContent : ''; $('fixbox').hidden = true; aiOpen(true);
+      aiAsk({ en: 'On the page "' + title + '" I got this message: "' + msg + '". What went wrong, and what should I do?', mr: '"' + title + '" या page वर हा संदेश आला: "' + msg + '". काय चुकले आणि मी काय करू?', hi: '"' + title + '" page पर यह संदेश आया: "' + msg + '". क्या गलत हुआ और मैं क्या करूँ?' }[fixLang]); }
     if (e.target.closest('#guidebox .fx-x')) $('guidebox').hidden = true;
     if (e.target.closest('#pg_help')) guideShow();
   });
@@ -4665,7 +4673,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The record of who added, changed or deleted what, and when.', 'It is written by the app itself on every save and cannot be edited. Only Admin sees it.'],
       mr: ['कोणी, काय, कधी जोडले, बदलले किंवा delete केले याची नोंद.', 'प्रत्येक save वर app स्वतः ही नोंद लिहिते; ती बदलता येत नाही. ती फक्त Admin ला दिसते.'],
       hi: ['किसने, क्या, कब जोड़ा, बदला या delete किया इसका रिकॉर्ड।', 'हर save पर app खुद यह रिकॉर्ड लिखता है; इसे बदला नहीं जा सकता। यह केवल Admin को दिखता है।'] },
-    settings: { saves: ['saveMyPrefs', 'saveSiteRules', 'getErrors', 'clearErrors'],
+    settings: { saves: ['saveMyPrefs', 'saveSiteRules', 'getErrors', 'clearErrors', 'getAiCheck'],
       en: ['Your own settings: photo, theme (light / dark), text size, language of the help, the page that opens first, your usual Log Book entry type, shift and diesel location, and favourite pages. For the Admin also the rules of the site.', 'Your settings belong to your sign-in: they are the same on every computer and change nobody else\'s app. Each change is saved by itself. Rules of the site (Admin): how many days back a user who is not Admin may enter or change entries, and a notice for everybody.'],
       mr: ['तुमचे स्वतःचे settings: फोटो, theme (light / dark), अक्षरांचा आकार, मदतीची भाषा, आधी उघडणारे page, Log Book entry चा नेहमीचा प्रकार, shift आणि diesel चे ठिकाण, आणि आवडती pages. Admin साठी site चे नियमही.', 'तुमचे settings तुमच्या sign-in शी जोडलेले आहेत: प्रत्येक computer वर तेच राहतात आणि दुसऱ्या कोणाचे app बदलत नाही. प्रत्येक बदल आपोआप save होतो. Site चे नियम (Admin): Admin नसलेला user किती दिवस मागच्या entries भरू किंवा बदलू शकतो, आणि सगळ्यांसाठी सूचना.'],
       hi: ['आपके अपने settings: फोटो, theme (light / dark), अक्षरों का आकार, मदद की भाषा, पहले खुलने वाला page, Log Book entry का सामान्य प्रकार, shift और diesel की जगह, और पसंदीदा pages। Admin के लिए site के नियम भी।', 'आपके settings आपके sign-in से जुड़े हैं: हर computer पर वही रहते हैं और किसी और का app नहीं बदलता। हर बदलाव अपने-आप save होता है। Site के नियम (Admin): Admin न होने वाला user कितने दिन पीछे की entries भर या बदल सकता है, और सबके लिए सूचना।'] },
@@ -5164,6 +5172,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     ['tab-rp-owner', 'tab-ravg'].forEach(id => { after.insertAdjacentElement('afterend', $(id)); after = $(id); });
   })();
   function showTab(name, fromBack) {
+    setTimeout(() => { try { if (!$('ai_panel').hidden) aiSuggest(); } catch (e) { /* not built yet */ } }, 0);      // the assistant's ready questions follow the page
     if ($('guidebox')) $('guidebox').hidden = true;
     try { localStorage.setItem('rcl_last', JSON.stringify({ tab: name, at: Date.now() })); } catch (e) { /* only a convenience */ }
     // page history for the Back button (Alt + B / Backspace)
@@ -5749,6 +5758,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   ['keydown', 'wheel', 'touchmove'].forEach(ev => document.addEventListener(ev, () => { calmLast = Date.now(); }, { capture: true, passive: true }));
   function whenCalm(fn) { const t0 = Date.now(); const go = () => { if ((calmPressed || Date.now() - calmLast < 400) && Date.now() - t0 < 5000) { setTimeout(go, 150); return; } try { fn(); } catch (e) { /* the next change tries again */ } }; go(); }
   async function onDataChanged(groups) {
+    // the assistant's snapshot is of before this change: it is rebuilt (at once if its window is open, else with the next question)
+    try { AI.snapAt = 0; if (AI.on && !$('ai_panel').hidden) aiSnap(); } catch (e) { /* the assistant is not built yet */ }
     const has = g => groups.indexOf(g) > -1;
     /* The lists every form needs (machinery, drivers, pumps): at once when the Asset Master changed; after other people's
      * diesel / Log Book entries at most once in 15 seconds (they only add a new driver name or a last reading) –
@@ -9294,29 +9305,91 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return esc(String(text || '').trim()).replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/\[\[open:([a-z0-9-]+)\|([^\]\n]{1,60})\]\]/gi, (m, tab, label) => $('tab-' + tab) && !$('tab-' + tab).hidden ? '<button type="button" class="ai-go" data-aigo="' + tab + '">' + label + ' →</button>' : label);
   }
   function aiAdd(cls, html) { const box = $('ai_msgs'); box.insertAdjacentHTML('beforeend', '<div class="' + cls + '">' + html + '</div>'); box.scrollTop = box.scrollHeight; return box.lastElementChild; }
-  function aiSuggest() {
-    const L = { en: ['How much diesel was issued yesterday, and to whom?', 'Which machinery have no Log Book entry for today?', 'How do I make a vendor\'s bill?'],
-      mr: ['काल किती diesel दिले आणि कोणाला?', 'आज कोणत्या गाड्यांची Log Book entry बाकी आहे?', 'Vendor चे bill कसे बनवायचे?'],
-      hi: ['कल कितना diesel दिया और किसे?', 'आज किन गाड़ियों की Log Book entry बाकी है?', 'Vendor का bill कैसे बनाएँ?'] };
-    $('ai_sugg').innerHTML = AI.turns.length ? '' : (L[fixLang] || L.en).map(q => '<button type="button">' + esc(q) + '</button>').join('');
+  /* ---------- FAST, AND NOT DEPENDENT ON THE AI SERVICE (asked 04-10-2026, after the service was busy again and again) ----------
+   * 1. READY QUESTIONS – answered by the APP ITSELF, at once, without the AI service: the everyday questions (what is pending
+   *    today, yesterday's diesel and who took it, the stock, which machinery take too much diesel, what this page is for …).
+   *    They are offered first, and FOR THE PAGE THE PERSON IS ON (on the Log Book: what is pending; on Diesel Issue: the diesel
+   *    of today / yesterday …). They work even when the AI service is busy or not set up. Marked with ⚡.
+   * 2. THE SNAPSHOT – for typed questions: a small, fresh set of figures (today / yesterday's diesel, pending, stock, the page
+   *    and what is picked on it) goes WITH the question, so the AI can answer in one step instead of asking for a look-up
+   *    first. It is rebuilt when the data changes (the page learns of a change within a second or two) and at most 30 s old.
+   * 3. AN ERROR → "Ask the assistant": the help card of any message has a button that hands the message and the page to the
+   *    assistant, which explains what went wrong and what to do. */
+  const aiL = o => o[fixLang] || o.en;
+  const aiList = (a, n) => a.slice(0, n).join(', ') + (a.length > n ? ' … (+' + (a.length - n) + ')' : '');
+  const aiTop = (a, n) => (a || []).slice(0, n).map(x => x.name + ' ' + fmt(x.litres) + ' L').join(', ');
+  const aiPicked = () => { try { if (S.curTab === 'log' && lgMode === 'mach') { const m = findMachine(val('lg_top_no')); return m ? m.id : ''; } if (S.curTab === 'diesel') { const m = findMachine(val('d_no')); return m ? m.id : ''; } } catch (e) {} return ''; };
+  const aiDay = () => { try { if (S.curTab === 'log' && lgMode === 'date' && $('lg_top_date').value) return $('lg_top_date').value; } catch (e) {} return S.today; };
+  const AI_READY = [
+    { id: 'pending', pages: ['log', 'dash', 'editlog', 'rp-pending'], q: () => aiL({ en: 'Which machinery have no Log Book entry for ' + showDate(aiDay()) + '?', mr: showDate(aiDay()) + ' ला कोणत्या गाड्यांची Log Book entry बाकी आहे?', hi: showDate(aiDay()) + ' को किन गाड़ियों की Log Book entry बाकी है?' }),
+      run: async () => { const d = aiDay(), r = await AI_RUN.pending_log_book({ date: d }), n = r.machineryWithoutLogBook;
+        return (n ? aiL({ en: '**' + n + ' machinery** have no Log Book entry for ' + showDate(d) + ':', mr: showDate(d) + ' साठी **' + n + ' गाड्यांची** Log Book entry बाकी आहे:', hi: showDate(d) + ' के लिए **' + n + ' गाड़ियों की** Log Book entry बाकी है:' }) + '\n' + aiList(r.machinery, 40)
+          : aiL({ en: 'Every machinery that needs a Log Book has its entry for ' + showDate(d) + '. ✓', mr: showDate(d) + ' साठी Log Book लागणाऱ्या सगळ्या गाड्यांची entry झाली आहे. ✓', hi: showDate(d) + ' के लिए सभी गाड़ियों की Log Book entry हो चुकी है। ✓' })) + '\n[[open:log|Log Book]]'; } },
+    { id: 'machPending', pages: ['log'], when: () => !!aiPicked(), q: () => aiL({ en: 'Which dates of ' + aiPicked() + ' have no Log Book entry?', mr: aiPicked() + ' च्या कोणत्या तारखांची Log Book entry बाकी आहे?', hi: aiPicked() + ' की किन तारीखों की Log Book entry बाकी है?' }),
+      run: async () => { const no = aiPicked(), r = await AI_RUN.pending_log_book({ machinery: no }), n = r.datesWithoutLogBook;
+        return n ? aiL({ en: '**' + no + '**: ' + n + ' dates without a Log Book entry:', mr: '**' + no + '**: ' + n + ' तारखांची entry बाकी आहे:', hi: '**' + no + '**: ' + n + ' तारीखों की entry बाकी है:' }) + '\n' + aiList(r.dates.map(showDate), 40)
+          : aiL({ en: no + ' has its Log Book for every day. ✓', mr: no + ' ची प्रत्येक दिवसाची Log Book entry झाली आहे. ✓', hi: no + ' की हर दिन की Log Book entry हो चुकी है। ✓' }); } },
+    { id: 'dieselY', pages: ['diesel', 'dash', 'inward', 'rp-daily'], q: () => aiL({ en: 'How much diesel was issued yesterday, and to whom?', mr: 'काल किती diesel दिले आणि कोणाला?', hi: 'कल कितना diesel दिया और किसे?' }),
+      run: () => aiDieselDay(addDay(S.today, -1)) },
+    { id: 'dieselT', pages: ['diesel', 'dash'], q: () => aiL({ en: 'How much diesel was issued today, and to whom?', mr: 'आज किती diesel दिले आणि कोणाला?', hi: 'आज कितना diesel दिया और किसे?' }),
+      run: () => aiDieselDay(S.today) },
+    { id: 'stock', pages: ['dash', 'diesel', 'inward', 'transfer'], q: () => aiL({ en: 'How much diesel is in stock now?', mr: 'आत्ता diesel stock किती आहे?', hi: 'अभी diesel stock कितना है?' }),
+      run: async () => { const r = await AI_RUN.diesel_stock(), by = Object.keys(r.byLocation || {}).map(k => k + ' ' + fmt(r.byLocation[k]) + ' L').join(', ');
+        return aiL({ en: 'Diesel in stock now: **' + fmt(r.litresInStockNow) + ' L**', mr: 'आत्ता diesel stock: **' + fmt(r.litresInStockNow) + ' L**', hi: 'अभी diesel stock: **' + fmt(r.litresInStockNow) + ' L**' }) + (by ? '\n' + by : '') + '\n[[open:dash|Dashboard]]'; } },
+    { id: 'bad', pages: ['dash', 'rp-avg', 'ravg', 'rp-watch'], q: () => aiL({ en: 'Which machinery took more diesel than the standard this month?', mr: 'या महिन्यात कोणत्या गाड्यांनी standard पेक्षा जास्त diesel घेतले?', hi: 'इस महीने किन गाड़ियों ने standard से ज़्यादा diesel लिया?' }),
+      run: async () => { const from = S.today.slice(0, 8) + '01', r = await AI_RUN.diesel_average({ from: from, to: S.today }), l = r.mostDieselOverTheStandard || [];
+        return (l.length ? aiL({ en: showDate(from) + ' to ' + showDate(S.today) + ' – **' + l.length + ' machinery** over the standard (most litres first):', mr: showDate(from) + ' ते ' + showDate(S.today) + ' – **' + l.length + ' गाड्या** standard पेक्षा जास्त (जास्त लिटर आधी):', hi: showDate(from) + ' से ' + showDate(S.today) + ' – **' + l.length + ' गाड़ियाँ** standard से ज़्यादा (ज़्यादा लीटर पहले):' }) + '\n' + l.slice(0, 10).map(x => '• ' + x.no + ': ' + x.actual + ' (std ' + x.std + ') – ' + x.status + ', +' + fmt(x.excess) + ' L').join('\n')
+          : aiL({ en: 'No machinery is over the standard in ' + showDate(from) + ' to ' + showDate(S.today) + ' (where the Log Book has readings).', mr: showDate(from) + ' ते ' + showDate(S.today) + ' मध्ये कोणतीही गाडी standard पेक्षा जास्त नाही (जिथे Log Book readings आहेत).', hi: showDate(from) + ' से ' + showDate(S.today) + ' में कोई गाड़ी standard से ज़्यादा नहीं (जहाँ Log Book readings हैं)।' })) + '\n[[open:rp-avg|Actual vs Standard Average]]'; } },
+    { id: 'page', pages: ['*'], q: () => aiL({ en: 'What is this page for, and how do I use it?', mr: 'हे page कशासाठी आहे आणि कसे वापरायचे?', hi: 'यह page किसलिए है और कैसे इस्तेमाल करें?' }),
+      run: async () => { const g = guideOf(S.curTab || 'dash'), t = $('page_title') ? $('page_title').textContent : ''; return g ? '**' + t + '**\n' + g[fixLang][0] + '\n\n' + g[fixLang][1] : aiL({ en: 'This page has no guide.', mr: 'या page चे मार्गदर्शन नाही.', hi: 'इस page की guide नहीं है।' }); } },
+  ];
+  async function aiDieselDay(d) { const r = await AI_RUN.diesel_issues({ from: d, to: d });
+    return (r.entries ? aiL({ en: showDate(d) + ': **' + fmt(r.totalLitres) + ' L** in ' + r.entries + ' entries.', mr: showDate(d) + ': **' + fmt(r.totalLitres) + ' L**, ' + r.entries + ' entries.', hi: showDate(d) + ': **' + fmt(r.totalLitres) + ' L**, ' + r.entries + ' entries।' }) + '\n' + aiL({ en: 'By machinery: ', mr: 'गाडीनुसार: ', hi: 'गाड़ी के अनुसार: ' }) + aiTop(r.byMachinery, 12) + '\n' + aiL({ en: 'By owner: ', mr: 'मालकानुसार: ', hi: 'मालिक के अनुसार: ' }) + aiTop(r.byOwner, 8)
+      : aiL({ en: 'No diesel was issued on ' + showDate(d) + '.', mr: showDate(d) + ' ला diesel दिलेले नाही.', hi: showDate(d) + ' को diesel नहीं दिया गया।' })) + '\n[[open:diesel|Diesel Issue]]'; }
+  const aiReadyFor = () => { const tab = S.curTab || 'dash', ok = r => (!r.when || r.when()) && (!r.pages || r.pages.indexOf('*') > -1 || r.pages.indexOf(tab) > -1);
+    const here = AI_READY.filter(r => r.pages.indexOf(tab) > -1 && ok(r)), rest = AI_READY.filter(r => here.indexOf(r) < 0 && r.pages.indexOf('*') < 0 && (!r.when || r.when()));
+    return here.concat(AI_READY.filter(r => r.pages.indexOf('*') > -1)).concat(rest).slice(0, 5); };
+  function aiSuggest() { $('ai_sugg').innerHTML = AI.busy ? '' : aiReadyFor().map(r => '<button type="button" data-aiready="' + r.id + '" title="Answered by the app itself, at once">⚡ ' + esc(r.q()) + '</button>').join(''); }
+  async function aiReady(id) {
+    const r = AI_READY.find(x => x.id === id); if (!r || AI.busy) return;
+    const q = r.q(); AI.busy = true; $('ai_send').disabled = true; $('ai_sugg').innerHTML = '';
+    aiAdd('ai-m me', esc(q)); const wait = aiAdd('ai-wait', '…');
+    try { const t = await r.run(); wait.remove(); aiAdd('ai-src', '<span>⚡ ' + esc(aiL({ en: 'from the app itself, now', mr: 'app कडून थेट, आत्ता', hi: 'app से सीधे, अभी' })) + '</span>'); aiAdd('ai-m bot', aiHtml(t));
+      AI.turns.push({ role: 'user', parts: [{ text: q }] }, { role: 'model', parts: [{ text: t }] }); }            // (so that a typed follow-up knows what was just said)
+    catch (e) { wait.remove(); aiAdd('ai-m err', esc(errMsg(e))); }
+    finally { AI.busy = false; $('ai_send').disabled = false; aiSuggest(); }
   }
-  function aiReset() { AI.turns = []; $('ai_msgs').innerHTML = ''; aiAdd('ai-m bot', esc(AI.on ? ({ en: 'Ask me anything about this app – how to do something, how much diesel, which machinery, who did what. I answer only from the app\'s own data.', mr: 'या app बद्दल काहीही विचारा – काम कसे करायचे, किती diesel, कोणती गाडी, कोणी काय केले. मी फक्त app च्या स्वतःच्या data मधून उत्तर देतो.', hi: 'इस app के बारे में कुछ भी पूछें – काम कैसे करें, कितना diesel, कौन सी गाड़ी, किसने क्या किया। मैं सिर्फ app के अपने data से जवाब देता हूँ।' }[fixLang] || '') : 'The assistant is not set up yet. Admin: put the AI key (GEMINI_API_KEY) in the server\'s settings (Vercel → Settings → Environment Variables) and redeploy.')); aiSuggest(); }
-  function aiOpen(show) { $('ai_panel').hidden = !show; $('ai_fab').hidden = show || !(AI.on || (S.user && S.user.admin)); if (show) { if (!$('ai_msgs').children.length) aiReset(); setTimeout(() => $('ai_in').focus(), 50); } }
-  function aiBoot(info) { AI.on = !!(info && info.on); $('ai_fab').hidden = !$('ai_panel').hidden || !(AI.on || (S.user && S.user.admin)); }
+  // the snapshot that goes with a typed question
+  async function aiSnapBuild() {
+    const today = S.today, yest = addDay(today, -1), pick = async f => { try { return await f(); } catch (e) { return { notAllowed: errMsg(e) }; } };
+    const slim = d => d && !d.notAllowed ? { entries: d.entries, totalLitres: d.totalLitres, byMachinery: (d.byMachinery || []).slice(0, 15), byOwner: (d.byOwner || []).slice(0, 10) } : d;
+    const [dT, dY, pn, st] = await Promise.all([pick(() => AI_RUN.diesel_issues({ from: today, to: today })), pick(() => AI_RUN.diesel_issues({ from: yest, to: yest })), pick(() => AI_RUN.pending_log_book({ date: today })), pick(() => AI_RUN.diesel_stock())]);
+    AI.snap = { asOf: new Date().toLocaleTimeString('en-GB'), today: today, yesterday: yest, dieselIssuedToday: slim(dT), dieselIssuedYesterday: slim(dY),
+      pendingLogBookToday: pn && !pn.notAllowed ? { machinery: pn.machineryWithoutLogBook, names: (pn.machinery || []).slice(0, 40) } : pn, dieselStockNow: st && !st.notAllowed ? { litres: st.litresInStockNow, byLocation: st.byLocation } : st };
+    AI.snapAt = Date.now();
+  }
+  function aiSnap() { if (AI.snap && Date.now() - AI.snapAt < 30000) return Promise.resolve(AI.snap); AI.snapJob = AI.snapJob || aiSnapBuild().catch(() => {}).then(() => { AI.snapJob = null; }); return AI.snapJob.then(() => AI.snap); }
+  const aiPage = () => ({ tab: S.curTab || 'dash', title: $('page_title') ? $('page_title').textContent : '', machineryPicked: aiPicked(), datePicked: S.curTab === 'log' ? aiDay() : '' });
+  function aiReset() { AI.turns = []; $('ai_msgs').innerHTML = ''; aiAdd('ai-m bot', esc(aiL({ en: 'Ask me anything about this app. The questions with ⚡ are answered by the app itself, at once.', mr: 'या app बद्दल काहीही विचारा. ⚡ असलेल्या प्रश्नांची उत्तरे app स्वतः लगेच देते.', hi: 'इस app के बारे में कुछ भी पूछें। ⚡ वाले सवालों के जवाब app खुद तुरंत देता है।' }) + (AI.on ? '' : ' ' + aiL({ en: '(Typed questions need the AI key – not set up yet.)', mr: '(टाइप केलेल्या प्रश्नांसाठी AI key लागते; ती अजून दिलेली नाही.)', hi: '(टाइप किए सवालों के लिए AI key चाहिए; वह अभी नहीं दी गई।)' }))));
+    aiSuggest(); $('ai_test').hidden = !(S.user && S.user.admin && AI.on); }
+  function aiOpen(show) { $('ai_panel').hidden = !show; $('ai_fab').hidden = show || !S.token; if (show) { if (!$('ai_msgs').children.length) aiReset(); else aiSuggest(); if (AI.on) aiSnap(); setTimeout(() => $('ai_in').focus(), 50); } }
+  function aiBoot(info) { AI.on = !!(info && info.on); $('ai_fab').hidden = !$('ai_panel').hidden || !S.token; }
   async function aiAsk(text) {
     text = String(text || '').trim(); if (!text || AI.busy) return;
-    if (!AI.on) { aiAdd('ai-m err', 'The assistant is not set up yet (no AI key on the server).'); return; }
+    if (!AI.on) { aiAdd('ai-m me', esc(text)); aiAdd('ai-m err', esc(aiL({ en: 'Typed questions need the AI service, which is not set up yet. The ⚡ questions below work without it.', mr: 'टाइप केलेल्या प्रश्नांसाठी AI सेवा लागते; ती अजून सुरू केलेली नाही. खालचे ⚡ प्रश्न तिच्याशिवाय चालतात.', hi: 'टाइप किए सवालों के लिए AI सेवा चाहिए; वह अभी शुरू नहीं है। नीचे के ⚡ सवाल उसके बिना चलते हैं।' }))); return; }
     AI.busy = true; $('ai_send').disabled = true; $('ai_sugg').innerHTML = '';
-    const keep = AI.turns.length;
+    const keep = AI.turns.length, t0 = Date.now();
     aiAdd('ai-m me', esc(text)); AI.turns.push({ role: 'user', parts: [{ text: text }] });
     const wait = aiAdd('ai-wait', 'Thinking…'), used = [];
     try {
+      const snap = await aiSnap(), ctx = Object.assign({ page: aiPage() }, snap || {});
       for (let step = 0; step < 7; step++) {
-        const r = await rawCall('getAiReply', { contents: AI.turns });
+        const r = await rawCall('getAiReply', { contents: AI.turns, context: ctx });
         AI.turns.push({ role: 'model', parts: r.parts });                               // exactly as it came (the service wants its own parts back)
         const calls = (r.parts || []).filter(p => p.functionCall);
         if (!calls.length) { const t = (r.parts || []).map(p => p.text || '').join('').trim(); wait.remove();
-          if (used.length) aiAdd('ai-src', '<span>Looked up:</span>' + used.map(u => '<span>' + esc(u) + '</span>').join(''));
+          aiAdd('ai-src', '<span>' + (used.length ? 'Looked up:' : esc(aiL({ en: 'From the figures of ' + ((snap || {}).asOf || 'now'), mr: ((snap || {}).asOf || 'आत्ता') + ' च्या आकड्यांवरून', hi: ((snap || {}).asOf || 'अभी') + ' के आँकड़ों से' }))) + '</span>' + used.map(u => '<span>' + esc(u) + '</span>').join('') +
+            (S.user && S.user.admin ? '<span title="the AI model that answered, and how long it took">' + esc(r.model || '') + ' · ' + (Math.round((Date.now() - t0) / 100) / 10) + ' s</span>' : ''));
           aiAdd('ai-m bot', aiHtml(t || '–')); return; }
         const outs = [];
         for (const c of calls) { const name = c.functionCall.name, args = c.functionCall.args || {}; wait.textContent = 'Looking up: ' + aiWhat(name, args) + '…'; used.push(aiWhat(name, args));
@@ -9328,8 +9401,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     } catch (e) {
       // the question did not get its answer: the conversation goes back to where it was before it, and "Ask again" sends it once more
       wait.remove(); while (AI.turns.length > keep) AI.turns.pop();
-      aiAdd('ai-m err', esc(errMsg(e)) + '<br><button type="button" class="ai-go" data-airetry="' + esc(text) + '">Ask again</button>'); }
-    finally { AI.busy = false; $('ai_send').disabled = false; $('ai_in').focus(); }
+      aiAdd('ai-m err', esc(errMsg(e)) + '<br><button type="button" class="ai-go" data-airetry="' + esc(text) + '">Ask again</button>' + (/busy|reached|service/i.test(errMsg(e)) ? '<br><small>' + esc(aiL({ en: 'The ⚡ questions below are answered by the app itself and work now.', mr: 'खालचे ⚡ प्रश्न app स्वतः उत्तरते; ते आत्ताही चालतात.', hi: 'नीचे के ⚡ सवाल app खुद जवाब देता है; वे अभी भी चलते हैं।' })) + '</small>' : '')); }
+    finally { AI.busy = false; $('ai_send').disabled = false; $('ai_in').focus(); aiSuggest(); }
+  }
+  // Admin: which model answers, how fast, and what the service says (to see why the assistant does not answer)
+  async function aiTest() {
+    if (AI.busy) return; AI.busy = true; const wait = aiAdd('ai-wait', 'Testing the AI service – a tiny question to each model…');
+    try { const d = await rawCall('getAiCheck'); wait.remove();
+      aiAdd('ai-m bot', '<b>AI service test</b>\n' + esc(!d.key ? 'No key on the server (GEMINI_API_KEY).' : d.listError ? d.listError
+        : (d.fixedModel ? 'Model fixed in the settings: ' + d.fixedModel + '\n' : 'Models offered to this key, in the order they are asked:\n') +
+          d.tests.map(t => (t.ok ? '✓ ' : '✗ ') + t.model + ' – ' + (t.ok ? 'answered in ' + (Math.round(t.ms / 100) / 10) + ' s' : (t.code || 'no connection') + ': ' + t.said)).join('\n') +
+          '\n' + (d.tests.some(t => t.ok) ? 'At least one model answers: typed questions can work now.' : 'No model answered. If they all say "high demand" / 503 or 429, the free limit of this key is the cause: turn on billing in Google AI Studio.'))); }
+    catch (e) { wait.remove(); aiAdd('ai-m err', esc(errMsg(e))); }
+    finally { AI.busy = false; }
   }
   $('ai_fab').addEventListener('click', () => aiOpen(true));
   $('ai_close').addEventListener('click', () => aiOpen(false));
@@ -9337,7 +9421,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('ai_form').addEventListener('submit', e => { e.preventDefault(); const t = $('ai_in').value; $('ai_in').value = ''; $('ai_in').style.height = ''; aiAsk(t); });
   $('ai_in').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('ai_form').dispatchEvent(new Event('submit', { cancelable: true })); } else if (e.key === 'Escape') aiOpen(false); });
   $('ai_in').addEventListener('input', () => { const t = $('ai_in'); t.style.height = 'auto'; t.style.height = Math.min(110, t.scrollHeight) + 'px'; });
-  $('ai_sugg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) aiAsk(b.textContent); });
+  $('ai_sugg').addEventListener('click', e => { const b = e.target.closest('button'); if (b && b.dataset.aiready) aiReady(b.dataset.aiready); });
+  $('ai_test').addEventListener('click', () => aiTest());
   $('ai_msgs').addEventListener('click', e => { const again = e.target.closest('[data-airetry]'); if (again) { if (!AI.busy) { const q = again.dataset.airetry; again.closest('.ai-m').remove(); aiAsk(q); } return; }
     const b = e.target.closest('[data-aigo]'); if (b) { showTab(b.dataset.aigo); if (window.innerWidth < 900) aiOpen(false); } });
 

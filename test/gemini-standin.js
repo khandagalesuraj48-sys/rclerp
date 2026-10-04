@@ -33,6 +33,11 @@ http.createServer((req, res) => {
       return text('Result of ' + n + ': ' + JSON.stringify(r).slice(0, 200));
     }
     const q = String((last.parts.find(p => p.text) || {}).text || ''), d = q.match(/\d{4}-\d{2}-\d{2}/g) || [];
+    // the snapshot that came with the question: a question it answers is answered in ONE step (no function call)
+    let snap = null; try { snap = JSON.parse(sys.split('SNAPSHOT = ')[1] || 'null'); } catch (e) { snap = null; }
+    log[log.length - 1].snapshot = snap ? Object.keys(snap).join(',') : ''; log[log.length - 1].page = snap && snap.page ? snap.page.tab : '';
+    if (/stock/i.test(q) && snap && snap.dieselStockNow) return text('As of now (' + snap.asOf + ') the stock is **' + snap.dieselStockNow.litres + ' L**.');
+    if (/this message|हा संदेश/i.test(q)) return callFn('app_guide', { topic: q });
     if (/diesel/i.test(q)) return callFn('diesel_issues', { from: d[0] || '2026-09-29', to: d[1] || d[0] || '2026-09-30' });
     if (/pending|बाकी/i.test(q)) return callFn('pending_log_book', { date: d[0] || '2026-10-03' });
     if (/who|कोणी/i.test(q)) return callFn('activity', { from: d[0] || '2026-10-01', to: d[1] || '2026-10-04', text: '' });

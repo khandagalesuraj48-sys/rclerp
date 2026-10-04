@@ -17,7 +17,7 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   ok('the "Ask" button is not on the sign-in screen and is there after sign-in', fabBefore && fab, { hiddenBefore: fabBefore, shownAfter: fab });
   await f.evaluate(() => document.getElementById('ai_fab').click()); await wait(400);
   const hello = await f.evaluate(() => ({ open: !document.getElementById('ai_panel').hidden, first: document.querySelector('#ai_msgs .ai-m.bot').textContent.slice(0, 60), sugg: [...document.querySelectorAll('#ai_sugg button')].map(x => x.textContent) }));
-  ok('the window opens with a greeting and three ready questions in the help language (Marathi)', hello.open && /या app बद्दल काहीही विचारा/.test(hello.first) && hello.sugg.length === 3 && /काल किती diesel/.test(hello.sugg[0]), hello);
+  ok('the window opens with a greeting and ready questions in the help language (Marathi)', hello.open && /या app बद्दल काहीही विचारा/.test(hello.first) && hello.sugg.length >= 3 && hello.sugg.every(x => /^⚡ /.test(x)) && hello.sugg.some(x => /काल किती diesel/.test(x)), hello);
   const ask = async q => { const n0 = await f.evaluate(() => document.querySelectorAll('#ai_msgs .ai-m.bot, #ai_msgs .ai-m.err').length);
     await f.evaluate(t => { const i = document.getElementById('ai_in'); i.value = t; document.getElementById('ai_form').dispatchEvent(new Event('submit', { cancelable: true })); }, q);
     for (let i = 0; i < 60; i++) { await wait(400); if (await f.evaluate(n => document.querySelectorAll('#ai_msgs .ai-m.bot, #ai_msgs .ai-m.err').length > n && !AI.busy, n0)) break; }
@@ -50,7 +50,7 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   ok('a look-up the user is not allowed: the answer says so – the assistant has no other way to the data', /You cannot see this: Only Admin can open the Activity Log\./.test(a.answer), a.answer.slice(0, 120));
   // New chat
   await f.evaluate(() => document.getElementById('ai_new').click()); await wait(300);
-  ok('"New chat" forgets the conversation', await f.evaluate(() => AI.turns.length === 0 && document.querySelectorAll('#ai_msgs > div').length === 1 && document.querySelectorAll('#ai_sugg button').length === 3));
+  ok('"New chat" forgets the conversation', await f.evaluate(() => AI.turns.length === 0 && document.querySelectorAll('#ai_msgs > div').length === 1 && document.querySelectorAll('#ai_sugg button').length >= 3));
   ok('no script error', errs.length === 0, errs.join(' | '));
   out.push(pass + ' passed, ' + fail + ' failed'); fs.writeFileSync('/tmp/ai.out', out.join('\n')); await b.close();
 })().catch(e => { fs.writeFileSync('/tmp/ai.out', out.join('\n') + '\nCRASH ' + String(e.stack || e).slice(0, 600)); process.exit(1); });
