@@ -468,6 +468,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .lg-opt:focus-visible { outline: 2px solid var(--steel); outline-offset: 2px; }
   .lg-opt b { font: 600 15px var(--ui); color: var(--ink); } .lg-opt span { font-size: 12.5px; color: var(--muted); }
   .lg-top { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 4px; }
+  /* pending Log Book, on the entry page itself: what is still to be entered for this date / this machinery */
+  .lg-pend { margin: 8px 0 10px; padding: 9px 12px; border: 1px solid #F3D9A4; background: #FFFBEB; border-radius: 10px; font-size: 13px; }
+  .lg-pend.done { border-color: #B7E4CB; background: #F0FDF4; color: #166534; font-weight: 600; }
+  .lg-pend .lp-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .lg-pend .lp-head b { color: #92400E; } .lg-pend .lp-head .btn { min-height: 30px; padding: 3px 12px; font-size: 12.5px; }
+  .lg-pend .lp-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; max-height: 96px; overflow: auto; }
+  .lg-pend.open .lp-chips { max-height: 260px; }
+  .lg-pend .lp-chips button { border: 1px solid #E9C877; background: #fff; color: #7C2D12; border-radius: 999px; padding: 4px 11px; font: 600 12.5px var(--ui); cursor: pointer; white-space: nowrap; }
+  .lg-pend .lp-chips button:hover { background: #FEF3C7; }
+  .lg-pend .lp-chips button.in { border-color: #86D0A6; background: #ECFDF5; color: #166534; cursor: default; }
+  .lg-pend .lp-chips button.in::before { content: "✓ "; }
+  .lg-pend small { color: #6B7280; }
   .lg-top .field { min-width: 200px; } #lg_top_no_w { min-width: 260px; }
   .lg-top-info { font-size: 12.5px; color: var(--muted); padding-bottom: 8px; }
   table.lgt.m-date .c-date, table.lgt.m-mach .c-m { display: none; }
@@ -697,8 +709,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .mtr-ok { color: #047857; font-weight: 700; } .mtr-bad { color: #B91C1C; font-weight: 700; font-size: 11.5px; } .mtr-none { color: #CBD5E1; }
   .rtable td.stc small { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
   .mst { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  small.rdd { display: block; margin-top: 1px; font-size: 10px; font-weight: 600; color: #64748B; white-space: nowrap; }
   .mst.more { background: #FDECEA; color: var(--bad); } .mst.ok { background: #E3F4EE; color: #1F6B52; }
   .mst.less { background: #E8EEFA; color: #2F4F8F; } .mst.na { background: #EEF1F3; color: var(--muted); font-weight: 600; }
+  .mst { white-space: normal; text-align: left; line-height: 1.25; }      /* "Very good – 18% less diesel" may take two lines in a narrow column */
   .rkpis .k-more b { color: var(--bad); } .rkpis .k-ok b { color: #1F6B52; } .rkpis .k-less b { color: #2F4F8F; }
   @media (max-width: 760px) { .rfilters { grid-template-columns: 1fr 1fr; } .rfilters .rf-own { grid-column: 1 / -1; } }
 
@@ -968,7 +982,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   /* status chips and badges a touch brighter */
   .sbad.on { background: #D1FAE5; color: #047857; } .sbad.off { background: #FEE2E2; color: #B91C1C; }
-  .mst.more { background: #FEE2E2; color: #B91C1C; } .mst.ok { background: #D1FAE5; color: #047857; } .mst.less { background: #DBEAFE; color: #1D4ED8; }
+  .mst.more { background: #FEF3C7; color: #92400E; } .mst.ok { background: #D1FAE5; color: #047857; } .mst.less { background: #D1FAE5; color: #065F46; }
+  .mst.bad { background: #FEE2E2; color: #B91C1C; } .mst.check { background: #FFEDD5; color: #C2410C; }
+  .st.warn { background: #FEF3C7; color: #92400E; } .st.chk { background: #FFEDD5; color: #C2410C; }
+  .rkpis .k-bad b { color: #B91C1C; } .rkpis .k-check b { color: #C2410C; }
   .live { box-shadow: 0 0 0 1px rgba(16,185,129,.25); }
   table.own-heads { width: auto !important; min-width: 520px; table-layout: auto !important; margin-bottom: 6px; }
   table.own-heads th:first-child, table.own-heads td:first-child { width: 170px; min-width: 170px; white-space: nowrap; }
@@ -3648,6 +3665,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field" id="lg_top_no_w"><label for="lg_top_no">Machinery *</label><input id="lg_top_no" list="dl_machines" autocomplete="off" placeholder="Type or pick"></div>
         <div class="lg-top-info" id="lg_top_info"></div>
       </div>
+      <div class="lg-pend" id="lg_pend" hidden></div>
       <div class="lg-help">
         <span><b>Start</b> = last Close (first entry: type it)</span>
         <span><b>Issued</b> = Diesel Issue of that date and shift added up</span>
@@ -4868,15 +4886,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             '</tbody></table>',
         }) },
       { key: 'average', label: 'Actual vs Standard Average', fn: 'rptAverage', portrait: false, filters: ['range', 'owns'],
-        note: 'For the chosen dates: all diesel issued, and all KM / Hrs from the Log Book, added up per machinery – the actual average compared with the Standard Average in Master. More than 10% over the standard is High consumption.',
+        note: 'For the chosen dates: all diesel issued, and all KM / Hrs from the Log Book, added up per machinery – the actual average compared with the Standard Average in Master. Within 10% of the standard = Good; 10–30% less diesel = Very good; 10–30% more = More diesel; over 30% more = Bad; over 30% less = Check reading (too good to be true – usually a reading).',
         render: d => ({
-          meta: d.total.machines + ' machinery  |  ' + d.total.excessCount + ' high consumption',
-          kpis: [['Diesel issued', fmt(d.total.issuedAll) + ' Ltr'], ['As per standard', fmt(d.total.expected) + ' Ltr'], ['More / (Less)', (d.total.excess > 0 ? '+' : '') + fmt(d.total.excess) + ' Ltr'], ['High consumption', d.total.excessCount]],
+          meta: d.total.machines + ' machinery  |  ' + d.total.excessCount + ' with more diesel than the standard  |  ' + (d.total.checkCount || 0) + ' to check',
+          kpis: [['Diesel issued', fmt(d.total.issuedAll) + ' Ltr'], ['As per standard', fmt(d.total.expected) + ' Ltr'], ['More / (Less)', (d.total.excess > 0 ? '+' : '') + fmt(d.total.excess) + ' Ltr'], ['More diesel / Bad', d.total.excessCount], ['Check reading', d.total.checkCount || 0]],
           html: '<table class="rtable gtable" data-sheet="Average"><thead><tr><th>Sr</th><th>Machinery</th><th>Type</th><th>Unit</th><th class="n">Diesel entries</th><th class="n">Log Book days</th><th class="n">KM run</th><th class="n">Hrs run</th><th class="n">Diesel issued (L)</th><th>Actual average</th><th>Standard</th><th class="n">Diesel as per std (L)</th><th class="n">More / (Less) L</th><th class="n">%</th><th>Status</th></tr></thead><tbody>' +
             (() => { let sr = 0; return d.groups.map(g => grpRow(g.ownership + ' machinery – ' + g.rows.length, 15) + g.rows.map(r => '<tr><td>' + (++sr) + '</td><td><b>' + esc(r.no) + '</b></td><td>' + esc(r.type) + '</td><td>' + esc(r.unit) + '</td><td class="n">' + r.fills + '</td><td class="n">' + r.runs +
               '</td><td class="n">' + (r.km === '' ? '–' : fmt(r.km)) + '</td><td class="n">' + (r.hr === '' ? '–' : fmt(r.hr)) + '</td><td class="n"><b>' + fmt(r.used) + '</b></td><td><b>' + esc(r.actual || '–') + '</b></td><td>' + esc(r.std || '–') + '</td><td class="n">' + (r.expected === '' ? '–' : fmt(r.expected)) +
               '</td><td class="n ' + (r.excess > 0 ? 'up' : r.excess < 0 ? 'down' : '') + '">' + (r.excess === '' ? '–' : (r.excess > 0 ? '+' : '') + fmt(r.excess)) + '</td><td class="n">' + (r.pct === '' ? '–' : pct(r.pct)) +
-              '</td><td><span class="st ' + (r.status === 'High consumption' ? 'bad' : r.status === 'Balanced' ? 'ok' : r.status === 'Low consumption' ? 'low' : 'na') + '">' + esc(r.status) + '</span></td></tr>').join('')).join(''); })() +
+              '</td><td><span class="st ' + ({ bad: 'bad', more: 'warn', ok: 'ok', less: 'ok', check: 'chk' }[r.statusCode] || 'na') + '">' + esc(r.status) + '</span></td></tr>').join('')).join(''); })() +
             '</tbody><tfoot><tr class="grand"><td colspan="8">Total</td><td class="n">' + fmt(d.total.issuedAll) + '</td><td></td><td></td><td class="n">' + fmt(d.total.expected) + '</td><td class="n">' + (d.total.excess > 0 ? '+' : '') + fmt(d.total.excess) + '</td><td></td><td></td></tr></tfoot></table>',
         }) },
     ];
@@ -5813,7 +5831,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     body.mavg td.rd, body.mavg td.av { white-space: normal; line-height: 1.15; }
     body.mavg td.rd { text-align: right; } body.mavg td.av { text-align: left; }
     body.mavg td.stc { white-space: normal; line-height: 1.1; }
-    body.mavg .mst { font-weight: 700; } body.mavg .mst.more { color: #B3261E; } body.mavg .mst.ok { color: #1F6B52; } body.mavg .mst.less { color: #2F4F8F; } body.mavg .mst.na { color: #666; font-weight: 400; }
+    body.mavg small.rdd { display: block; font-size: 6.2pt; font-weight: 400; color: #444; } body.mavg .mst { font-weight: 700; white-space: normal; } body.mavg .mst.more { color: #92400E; } body.mavg .mst.bad { color: #B3261E; } body.mavg .mst.check { color: #C2410C; } body.mavg .mst.ok { color: #1F6B52; } body.mavg .mst.less { color: #1F6B52; } body.mavg .mst.na { color: #666; font-weight: 400; }
     /* diesel reports */
     body.rep th, body.rep td { font-size: 8.3pt; padding: 2.5px 4px; }
     body.rep th { text-align: left; } body.rep th.n, body.rep td.n { text-align: right; }
@@ -6057,6 +6075,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         d.days.map(x => '<th class="' + sun(x).trim() + '">' + x.d + '<small>' + (x.mon ? x.mon + ' ' : '') + x.dow + '</small></th>').join('') + '<th class="tot">Total diesel (Ltr)</th>' +
         (withAvg ? '<th class="av">Actual average</th><th class="av">Standard average</th><th class="stat">Status</th>' : '') + '</tr></thead><tbody>';
       const tail = withAvg ? 3 : 0;
+      // under each reading: the date of the Log Book entry it comes from (the period says 01 to 30 – the reading may be of the 27th)
+      const rdDate = (dk, a, b) => dk && (a !== '' || b !== '') ? '<small class="rdd">' + esc(String(dk).slice(8, 10) + '-' + String(dk).slice(5, 7)) + '</small>' : '';
       // status cell: badge + how many litres / % against the standard
       const stCell = r => {
         const tip = r.statusCode === 'na' ? (r.statusNote || '') : (r.diff > 0 ? '+' : '') + fmt(r.diff) + ' L (' + (r.pct > 0 ? '+' : '') + fmt(r.pct) + '%) against ' + fmt(r.need) + ' L as per standard';
@@ -6070,7 +6090,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           const dc = v => forPrint ? (v ? String(r2(v)) : '') : dcell(v);
           h += '<tr><td class="stick">' + sr + '</td><td class="stick mc" style="left:34px"><b>' + esc(r.id) + '</b><small>' + esc([r.name && r.name !== r.id ? r.name : '', r.type, r.supply && r.supply !== 'Company' ? r.supply : '', r.status === 'Inactive' ? 'Inactive' + (r.inactiveFrom ? ' from ' + showDate(r.inactiveFrom) : '') : ''].filter(Boolean).join('  |  ')) + '</small></td>' +
             '<td class="ow">' + esc(r.owner) + '</td>' +
-            (withAvg ? '<td class="un">' + esc(r.unit) + '</td><td class="rd">' + two(r.oKm, r.oHr, r.unit) + '</td><td class="rd">' + two(r.cKm, r.cHr, r.unit) + '</td><td class="rd"><b>' + two(r.tKm, r.tHr, r.unit) + '</b></td>' : '') +
+            (withAvg ? '<td class="un">' + esc(r.unit) + '</td><td class="rd">' + two(r.oKm, r.oHr, r.unit) + rdDate(r.oDate, r.oKm, r.oHr) + '</td><td class="rd">' + two(r.cKm, r.cHr, r.unit) + rdDate(r.cDate, r.cKm, r.cHr) + '</td><td class="rd"><b>' + two(r.tKm, r.tHr, r.unit) + '</b></td>' : '') +
             r.days.map((v, i) => '<td class="d' + sun(d.days[i]) + '">' + dc(v) + '</td>').join('') + '<td class="tot">' + fmt(r.total) + '</td>' +
             (withAvg ? '<td class="av"><b>' + esc(r.actual || '–') + '</b></td><td class="av">' + esc(r.standard || '–') + '</td>' + stCell(r) : '') + '</tr>';
         });
@@ -6104,8 +6124,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const allRows = [].concat.apply([], d.groups.map(g => g.rows));
       const cnt = c => allRows.filter(r => r.statusCode === c).length;
       $p('kpis').innerHTML = '<div><span>Total diesel</span><b>' + fmt(d.total) + ' Ltr</b></div><div><span>Machinery</span><b>' + d.machines + '</b></div>' +
-        (withAvg ? '<div class="k-more"><span>High consumption</span><b>' + cnt('more') + '</b></div><div class="k-ok"><span>Balanced</span><b>' + cnt('ok') + '</b></div>' +
-          '<div class="k-less"><span>Low consumption</span><b>' + cnt('less') + '</b></div><div><span>No status (no readings)</span><b>' + cnt('na') + '</b></div>'
+        (withAvg ? '<div class="k-bad"><span>Bad (over 30% more diesel)</span><b>' + cnt('bad') + '</b></div><div class="k-more"><span>More diesel (10–30%)</span><b>' + cnt('more') + '</b></div><div class="k-ok"><span>Good / Very good</span><b>' + (cnt('ok') + cnt('less')) + '</b></div>' +
+          '<div class="k-check"><span>Check reading</span><b>' + cnt('check') + '</b></div><div><span>No status (no readings)</span><b>' + cnt('na') + '</b></div>'
           : '<div><span>Entries</span><b>' + d.entries + '</b></div>' + d.groups.map(g => '<div><span>' + esc(g.ownership) + '</span><b>' + fmt(g.total) + '</b></div>').join(''));
       $p('table').innerHTML = tableHtml(d, false);
       $p('print').disabled = false; $p('xlsx').disabled = false;
@@ -6127,15 +6147,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       needXlsx();
       const d = data; if (!d) return;
       const plain = (a, b, unit) => two(a, b, unit).replace(/<br>/g, ' / ');
-      const head = ['Sr', 'Machinery', 'Name / Type', 'Owner', 'Ownership'].concat(withAvg ? ['Unit', 'Opening reading', 'Closing reading', 'Total KM / Hrs'] : [])
+      const head = ['Sr', 'Machinery', 'Name / Type', 'Owner', 'Ownership'].concat(withAvg ? ['Unit', 'Opening reading', 'Opening reading of (date)', 'Closing reading', 'Closing reading of (date)', 'Total KM / Hrs'] : [])
         .concat(d.days.map(x => x.d)).concat(['Total diesel (Ltr)']).concat(withAvg ? ['Actual average', 'Standard average', 'Status', 'Diesel as per std (L)', 'More / (Less) L', '%'] : []);
       const aoa = [[d.company], [SITE_NAME], [TITLE + ' – ' + d.monthName], [filterText(d)], [], head];
-      const blankR = withAvg ? ['', '', '', ''] : [], blankA = withAvg ? ['', '', '', '', '', ''] : [];
+      const blankR = withAvg ? ['', '', '', '', '', ''] : [], blankA = withAvg ? ['', '', '', '', '', ''] : [];
       let sr = 0;
       d.groups.forEach(g => {
         aoa.push([g.ownership.toUpperCase() + ' MACHINERY']);
         g.rows.forEach(r => aoa.push([++sr, r.id, [r.name !== r.id ? r.name : '', r.type].filter(Boolean).join(', '), r.owner, r.ownership]
-          .concat(withAvg ? [r.unit, plain(r.oKm, r.oHr, r.unit), plain(r.cKm, r.cHr, r.unit), plain(r.tKm, r.tHr, r.unit)] : [])
+          .concat(withAvg ? [r.unit, plain(r.oKm, r.oHr, r.unit), r.oDate ? showDate(r.oDate) : '', plain(r.cKm, r.cHr, r.unit), r.cDate ? showDate(r.cDate) : '', plain(r.tKm, r.tHr, r.unit)] : [])
           .concat(r.days.map(v => v || '')).concat([r.total]).concat(withAvg ? [r.actual, r.standard, r.status, r.need, r.diff, r.pct] : [])));
         aoa.push(['', g.ownership + ' total', '', '', ''].concat(blankR).concat(g.dayTotals.map(v => v || '')).concat([g.total]).concat(blankA));
       });
@@ -11544,12 +11564,87 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('lg_top_info').textContent = '';
     clearLogGrid();
     setTimeout(() => (mode === 'date' ? lgf(lgRows()[0], 'no') : $('lg_top_no')).focus(), 50);
+    lgPendLoad();
   }
+
+  /* ---------- PENDING LOG BOOK ON THE ENTRY PAGE (asked 04-10-2026) ----------
+   * "While entering I must see which machinery are pending – without going to the pending page every time."
+   * The same list as the Dashboard's Pending Log Book (active machinery, a day with no Log Book entry in any shift, debit-basis
+   * parties left out), shown where the entry is made:
+   *   one date – many machinery:  the machinery that have no entry for the date picked on top
+   *   one machinery – many dates: the dates that this machinery has no entry for
+   * A press on a name / date puts it into the entry rows (an empty row is used first); "Add all" puts all of them (30 at a time).
+   * What is already in the rows shows a tick. The list is read when the page / way of entry is opened, after every save, and
+   * at most once a minute otherwise. */
+  let lgPend = null, lgPendAt = 0, lgPendBusy = false;
+  async function lgPendLoad(force) {
+    if (lgPendBusy) return;
+    if (!force && lgPend && Date.now() - lgPendAt < 60000) { lgPendDraw(); return; }
+    lgPendBusy = true;
+    try { lgPend = await rawCall('logPending'); lgPendAt = Date.now(); } catch (e) { /* the entry page works without the list */ }
+    lgPendBusy = false; lgPendDraw();
+  }
+  function lgPendList() {
+    if (!lgPend || !lgMode) return null;
+    if (lgMode === 'date') { const d = $('lg_top_date').value; if (!d) return null;
+      const have = new Set(lgRows().map(tr => { const m = findMachine(lgf(tr, 'no').value); return m ? m.id : ''; }).filter(Boolean));
+      return { head: 'No Log Book yet for ' + showDate(d), unit: 'machinery', none: 'Every active machinery has its Log Book for ' + showDate(d) + ' ✓',
+        items: lgPend.items.filter(x => x[1] === d).map(x => { const m = findMachine(x[0]); return { key: x[0], label: x[0], title: m ? [m.name && m.name !== m.id ? m.name : '', m.type, m.owner].filter(Boolean).join(' · ') : '', inn: have.has(m ? m.id : x[0]) }; })
+          .sort((a, b) => String(a.label).localeCompare(String(b.label), 'en', { numeric: true })) }; }
+    const m = findMachine(val('lg_top_no')); if (!m) return null;
+    const have = new Set(lgRows().map(tr => lgf(tr, 'date').value).filter(Boolean)), k = noKey(m.id);
+    return { head: m.id + ' – dates without a Log Book entry', unit: 'dates', none: m.id + ' has its Log Book for every day up to today ✓',
+      items: lgPend.items.filter(x => noKey(x[0]) === k).map(x => ({ key: x[1], label: showDate(x[1]), title: '', inn: have.has(x[1]) })).sort((a, b) => a.key < b.key ? -1 : 1) };
+  }
+  function lgPendDraw() {
+    const box = $('lg_pend'); if (!box) return;
+    const L = lgPendList();
+    if (!L) { box.hidden = true; return; }
+    box.hidden = false; box.classList.toggle('done', !L.items.length);
+    if (!L.items.length) { box.innerHTML = esc(L.none); return; }
+    const left = L.items.filter(x => !x.inn).length;
+    box.innerHTML = '<div class="lp-head"><span>' + esc(L.head) + ': <b>' + L.items.length + ' ' + L.unit + '</b>' + (left < L.items.length ? ' <small>(' + (L.items.length - left) + ' already in the rows below)</small>' : '') + '</span>' +
+      (left && canEdit('Log Book') ? '<button type="button" class="btn ghost small" data-lpall="1">Add ' + (left > 30 ? 'the next 30' : 'all ' + left) + ' to the rows</button>' : '') +
+      (L.items.length > 12 ? '<button type="button" class="btn ghost small" data-lpopen="1">' + (box.classList.contains('open') ? 'Show less' : 'Show all') + '</button>' : '') +
+      '<small>Press a name to put it in the rows.</small></div>' +
+      '<div class="lp-chips">' + L.items.map(x => '<button type="button" class="' + (x.inn ? 'in' : '') + '" data-lp="' + esc(x.key) + '" title="' + esc(x.title) + '">' + esc(x.label) + '</button>').join('') + '</div>';
+  }
+  // one pending machinery / date into the rows: an empty row first, else a new row
+  function lgPendAdd(key) {
+    const shift = (S.prefs || {}).shift || 'Full Day', fire = el => el.dispatchEvent(new Event('change', { bubbles: true }));
+    if (lgMode === 'date') {
+      let tr = lgRows().find(r => !lgf(r, 'no').value.trim());
+      if (!tr) { $('lg_in').insertAdjacentHTML('beforeend', lgRowHtml($('lg_top_date').value || S.today, shift)); tr = $('lg_in').lastElementChild; lgBlank(tr); }
+      lgf(tr, 'no').value = key; fire(lgf(tr, 'no'));
+    } else {
+      const m = findMachine(val('lg_top_no')); if (!m) return;
+      // a row without a date is used; else a new row goes in at its place BY DATE (the rows of one machinery are read top to bottom:
+      // each Start comes from the Close above it), not at the end
+      const rows = lgRows(); let tr = rows.find(r => !lgf(r, 'date').value);
+      if (!tr) { const after = rows.find(r => lgf(r, 'date').value > key);
+        if (after) { after.insertAdjacentHTML('beforebegin', lgRowHtml(key, shift)); tr = after.previousElementSibling; } else { $('lg_in').insertAdjacentHTML('beforeend', lgRowHtml(key, shift)); tr = $('lg_in').lastElementChild; }
+        lgBlank(tr); }
+      // (no "date changed" signal here: that rule makes every row below follow on day by day – right when a date is typed,
+      //  wrong for pending dates, which have gaps; the row is filled directly instead)
+      lgf(tr, 'no').value = m.id; lgf(tr, 'date').value = key; lgFill(tr);
+    }
+  }
+  $('lg_pend').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.lpopen) { $('lg_pend').classList.toggle('open'); lgPendDraw(); return; }
+    if (!canEdit('Log Book')) return;
+    const L = lgPendList(); if (!L) return;
+    if (b.dataset.lpall) L.items.filter(x => !x.inn).slice(0, 30).forEach(x => lgPendAdd(x.key));      // 30 at a time: each row asks the server for its Start reading
+    else if (b.dataset.lp && !b.classList.contains('in')) lgPendAdd(b.dataset.lp);
+    lgNumber();
+  });
+  $('lg_in').addEventListener('change', () => setTimeout(lgPendDraw, 0));
+  $('lg_top_no').addEventListener('change', () => setTimeout(lgPendDraw, 0));
   document.querySelectorAll('[data-lgmode]').forEach(b => b.addEventListener('click', () => setLgMode(b.dataset.lgmode)));
   $('lg_change').addEventListener('click', () => setLgMode(''));
   const addDay = (d, n) => { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n); return isoDate(t); };
   // one date: every row takes the date above
-  $('lg_top_date').addEventListener('change', () => lgRows().forEach(tr => { lgf(tr, 'date').value = $('lg_top_date').value; if (lgf(tr, 'no').value.trim()) lgFill(tr); }));
+  $('lg_top_date').addEventListener('change', () => { lgRows().forEach(tr => { lgf(tr, 'date').value = $('lg_top_date').value; if (lgf(tr, 'no').value.trim()) lgFill(tr); }); lgPendDraw(); });
   // one machinery: every row takes the machinery above; the first date is the day after its last Log Book entry
   $('lg_top_no').addEventListener('change', async () => {
     const m = findMachine(val('lg_top_no'));
@@ -11603,7 +11698,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (lgMode === 'mach') { const m = findMachine(val('lg_top_no')); if (m) { lgf(tr, 'no').value = m.id; lgFill(tr); } lgf(tr, 'date').focus(); }
     else lgf(tr, 'no').focus();
   }
-  function lgNumber() { lgRows().forEach((tr, i) => { tr.querySelector('.idx').textContent = i + 1; }); lgSum(); }
+  function lgNumber() { lgRows().forEach((tr, i) => { tr.querySelector('.idx').textContent = i + 1; }); lgSum(); lgPendDraw(); }
   function lgRowNote(tr, text) {
     tr.querySelectorAll('.lnote').forEach(n => { n.textContent = ''; });
     const target = lgMode === 'mach' ? tr.querySelector('.dnote') : tr.querySelector('.c-m .lnote');
@@ -11895,6 +11990,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       items: tr._p && tr._p.boqItems && tr._p.boqItems.length ? itemBoxRead(tr.querySelector('.lg-itm')) : undefined }))
       .map(r => { ['openingKm', 'closingKm', 'openingHr', 'closingHr', 'openingDiesel', 'trip', 'tBreak'].forEach(k => { r[k] = r[k] === '' ? '' : Number(r[k]); }); return r; });
     const res = await call('saveLogRows', { rows: rows });
+    lgPendAt = 0; setTimeout(() => lgPendLoad(true), 300);      // what was pending has changed
     if (res.ok === false) {
       res.errors.forEach(x => { const tr = trs[x.row - 1]; if (tr) { tr.classList.add('err'); lgRowNote(tr, x.msg); } });
       // the message carries the rows' own errors too, so the help can say what to do about each kind

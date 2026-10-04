@@ -599,3 +599,19 @@ test('faults: a fault of the app or of the database is told apart from a refusal
   run('() => clearErrors_()');
   assert.deepStrictEqual([run('() => getErrors_().errors.length'), run('() => errStamp_().n')], [0, 0]);
 });
+
+test('the words for a machinery\'s diesel: Good within 10%, Very good / More diesel up to 30%, Bad beyond, "Check reading" when it is too good to be true', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const v = p => { const x = run('p => dieselVerdict_(p)', p); return x.code + ': ' + x.text; };
+  // the figures of his report of 01 to 04-10-2026 (diesel against what the standard needs)
+  assert.strictEqual(v(-6.3), 'ok: Good');                                              // 11.24 L/hr against 12 – was "Balanced"
+  assert.strictEqual(v(-24.2), 'less: Very good – 24% less diesel');                    // 1.32 km/L against 1
+  assert.strictEqual(v(102.7), 'bad: Bad – 103% more diesel');                          // 0.74 km/L against 1.5
+  assert.strictEqual(v(-98.8), 'check: Check reading – too good (99% less diesel)');    // 684.67 km/L against 8: a Start reading is missing
+  // the edges
+  assert.strictEqual(v(10), 'ok: Good'); assert.strictEqual(v(-10), 'ok: Good'); assert.strictEqual(v(0), 'ok: Good');
+  assert.strictEqual(v(10.01), 'more: More diesel – 10% over'); assert.strictEqual(v(30), 'more: More diesel – 30% over');
+  assert.strictEqual(v(30.01), 'bad: Bad – 30% more diesel');
+  assert.strictEqual(v(-30), 'less: Very good – 30% less diesel'); assert.strictEqual(v(-30.01), 'check: Check reading – too good (30% less diesel)');
+});

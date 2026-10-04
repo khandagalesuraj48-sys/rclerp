@@ -654,6 +654,22 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     Esc = no) and presses that button. Nothing to save → a line says so; a box already open → nothing. `askConfirm` got `cancel`
     (label) and `focusOk`.
   * Test: `test/browser/lgrows.js` (12: 10 and 30 rows at 1280 × 640, Ctrl + S on Log Book, Asset Master, Dashboard).
+- 04-10-2026 (later): three things, agreed first in words, then built.
+  * THE WORDS FOR A MACHINERY'S DIESEL. "High consumption / Low consumption / Balanced" were not understood by a new person (km/L is
+    better when higher, L/hr when lower). Now ONE function `dieselVerdict_(pct)` (Code.gs), pct = % more / less diesel than the
+    standard says the work needed (the same comparison as before, for KM, Hrs and KM + Hrs): within 10% "Good"; 10–30% less
+    "Very good – N% less diesel"; over 30% less "Check reading – too good (N% less diesel)"; 10–30% more "More diesel – N% over";
+    over 30% more "Bad – N% more diesel". Codes ok / less / check / more / bad (colours `.mst.*`, `.st.*`; counts on the report).
+    Used by Monthly Diesel & Average (`addReadings_`) and Actual vs Standard Average (`rptAverage_`, order: bad, more, check, ok, less).
+  * MONTHLY DIESEL & AVERAGE: each reading shows the date of the Log Book entry it comes from (`row.oDate`, `row.cDate`; a small
+    dd-mm under the reading on the page and in print; two date columns in the Excel) – "the period says 01 to 30, which date is the
+    closing reading of?".
+  * PENDING LOG BOOK ON THE ENTRY PAGE (`#lg_pend`, `lgPendLoad / lgPendList / lgPendDraw / lgPendAdd`; API `logPending`, module
+    Log Book, = `pendingLogs_()` as [machinery, date] pairs): by date → the machinery without an entry for the date on top; by
+    machinery → its dates without an entry. A press puts it into the rows (an empty row first; for one machinery at its place by
+    date, WITHOUT the "date changed" signal, which would re-date every row below day by day); "Add all / the next 30"; ticks for
+    what is in the rows; read on opening, after every save, at most once a minute otherwise. The Dashboard's list is unchanged.
+  * Tests: unit "the words for a machinery's diesel …" (25 unit tests), `test/browser/pend.js` (11, with the database).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

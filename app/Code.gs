@@ -388,6 +388,7 @@ const API_ = {
   getDashboard:      { m: 'Dashboard', f: getDashboard_ },
   logDashboard:      { m: 'Dashboard', f: logDashboard_ },
   pendingLog:        { m: 'Dashboard', f: pendingLogs_ },
+  logPending:        { m: 'Log Book', f: logPending_ },
   getOwnershipDetail:{ m: 'Dashboard', f: getOwnershipDetail_ },
   getStockLedger:    { m: 'Dashboard', f: getStockLedger_ },
   exportMaster:      { m: 'Master', f: exportMaster_ },
@@ -4143,6 +4144,14 @@ function pendingLogs_(f) {
   return { today: todayRows, older: olderRows, age: age, items: items, asOf: today, from: from, to: to, total: items.length };
 }
 
+/* The same pending list for the Log Book ENTRY page (asked 04-10-2026: "while entering I must see which machinery are pending –
+ * without going to the pending page every time"). Open to everyone who can see the Log Book (the Dashboard's list needs the
+ * Dashboard). Small on purpose: [machinery, date] pairs – the page knows the rest from the Master. */
+function logPending_() {
+  const p = pendingLogs_();
+  return { asOf: p.asOf, from: p.from, total: p.total, items: p.items.map(x => [x.no, x.date]) };
+}
+
 function ownershipIndex_() {
   const o = {};
   getMaster_().forEach(m => { o[noKey_(m.id)] = APP.OWNERSHIP.indexOf(m.ownership) > -1 ? m.ownership : 'Other'; });
@@ -4295,6 +4304,23 @@ function getMonthlyDieselReport_(f) {
  *   Total = Closing − Opening (KM and / or Hrs as per its Unit in Master)
  *   Actual average from Total and the diesel issued in the period; Standard average from Master
  *   KM: km/L = KM ÷ diesel · Hrs: L/hr = diesel ÷ Hrs · KM + Hrs: diesel used vs diesel needed as per standard */
+/* HOW A MACHINERY'S DIESEL IS JUDGED – the words (set with the MD, 04-10-2026: "High / Low consumption / Balanced" were not
+ * understood by a new person; km/L is better when higher, L/hr when lower). The comparison is the same for every machinery,
+ * whatever it is measured by: the diesel it took against the diesel the standard says its work needed (pct = % more / less).
+ *     within 10 %                → Good
+ *     10 – 30 % less diesel      → Very good – N% less diesel
+ *     more than 30 % less        → Check reading – too good (N% less diesel)     (a missing Start, a wrong meter, diesel not entered)
+ *     10 – 30 % more diesel      → More diesel – N% over
+ *     more than 30 % more        → Bad – N% more diesel
+ * code: ok / less / check / more / bad  (the colour on the page and the order in the lists). */
+function dieselVerdict_(pct) {
+  const p = num0_(pct), n = Math.round(Math.abs(p));
+  if (p > 30) return { code: 'bad', word: 'Bad', text: 'Bad – ' + n + '% more diesel' };
+  if (p > 10) return { code: 'more', word: 'More diesel', text: 'More diesel – ' + n + '% over' };
+  if (p >= -10) return { code: 'ok', word: 'Good', text: 'Good' };
+  if (p >= -30) return { code: 'less', word: 'Very good', text: 'Very good – ' + n + '% less diesel' };
+  return { code: 'check', word: 'Check reading', text: 'Check reading – too good (' + n + '% less diesel)' };
+}
 function addReadings_(groups, from, to) {
   const lt = table_(APP.SHEET_LOG, logHeaders_());
   const c = lt.c;
@@ -4309,11 +4335,13 @@ function addReadings_(groups, from, to) {
     const unit = m ? m.unit : '', km = hasKm_(unit), hr = hasHr_(unit);
     row.unit = unit || '–';
     const list = (byNo[noKey_(row.id)] || []).sort((a, b) => cmpKey_(a, b, c));
-    Object.assign(row, { oKm: '', cKm: '', tKm: '', oHr: '', cHr: '', tHr: '', actual: '', standard: '', need: '', diff: '', pct: '', status: '', statusCode: '' });
+    Object.assign(row, { oKm: '', cKm: '', tKm: '', oHr: '', cHr: '', tHr: '', oDate: '', cDate: '', actual: '', standard: '', need: '', diff: '', pct: '', status: '', statusCode: '' });
     if (m) row.standard = [km && m.kmStd ? m.kmStd + ' km/L' : '', hr && m.hrStd ? m.hrStd + ' L/hr' : ''].filter(Boolean).join(' + ');
     if (!m) { row.statusNote = 'Not in Master'; row.statusCode = 'na'; return; }
     if (!list.length) { row.statusNote = 'No Log Book readings'; row.statusCode = 'na'; return; }
     const first = list[0], last = list[list.length - 1];
+    // the dates the two readings belong to (asked 04-10-2026: "the period says 01 to 30, but which date is the closing reading of?")
+    row.oDate = dkey_(first[c[H.DATE]]); row.cDate = dkey_(last[c[H.DATE]]);
     // Opening = first Start, Closing = last Close; Total = all the work of the entries in the period added up
     // (same as the Log Book period total and the Actual vs Standard Average report)
     const sumW = h => r2_(list.reduce((a, r) => a + Math.max(0, num0_(r[c[h]])), 0));
@@ -4329,9 +4357,7 @@ function addReadings_(groups, from, to) {
     if (!stdSet) { row.statusNote = 'Standard not set in Master'; row.statusCode = 'na'; return; }
     if (!(need > 0)) { row.statusNote = 'No work in Log Book'; row.statusCode = 'na'; return; }
     row.need = need; row.diff = r2_(d - need); row.pct = r2_((d - need) / need * 100);
-    if (row.pct > 10) { row.status = 'High consumption'; row.statusCode = 'more'; }
-    else if (row.pct < -10) { row.status = 'Low consumption'; row.statusCode = 'less'; }
-    else { row.status = 'Balanced'; row.statusCode = 'ok'; }
+    const v = dieselVerdict_(row.pct); row.status = v.text; row.statusCode = v.code;
   }));
 }
 
@@ -4946,18 +4972,18 @@ function rptAverage_(f) {
       if (!stdSet || !(need > 0)) r.status = 'Standard not set in Master';
       else {
         r.expected = need; r.excess = r2_(r.used - need); r.pct = r2_((r.used - need) / need * 100);
-        r.status = r.pct > 10 ? 'High consumption' : r.pct < -10 ? 'Low consumption' : 'Balanced';
+        const v = dieselVerdict_(r.pct); r.status = v.text; r.statusCode = v.code;
       }
     }
     (groups[ow] = groups[ow] || []).push(r);
   });
-  const rank = r => r.status === 'High consumption' ? 0 : r.status === 'Balanced' ? 1 : r.status === 'Low consumption' ? 2 : 3;
+  const rank = r => { const i = ['bad', 'more', 'check', 'ok', 'less'].indexOf(r.statusCode); return i < 0 ? 9 : i; };      // what needs a look comes first
   const out = Object.keys(groups).sort(byGroupOrder_).map(g => ({ ownership: g, rows: groups[g].sort((a, b) => rank(a) - rank(b) || (b.pct === '' ? -1e9 : b.pct) - (a.pct === '' ? -1e9 : a.pct) || natCmp_(a.no, b.no)) }));
   const flat = [].concat.apply([], out.map(g => g.rows));
   const withStd = flat.filter(r => r.expected !== '');
   const used = r2_(withStd.reduce((s, r) => s + r.used, 0)), exp = r2_(withStd.reduce((s, r) => s + r.expected, 0));
   return Object.assign(rptBase_('Actual vs Standard Average', rg), { groups: out,
-    total: { used: used, expected: exp, excess: r2_(used - exp), machines: flat.length, excessCount: flat.filter(r => r.status === 'High consumption').length,
+    total: { used: used, expected: exp, excess: r2_(used - exp), machines: flat.length, excessCount: flat.filter(r => r.statusCode === 'bad' || r.statusCode === 'more').length, checkCount: flat.filter(r => r.statusCode === 'check').length,
       issuedAll: r2_(flat.reduce((s, r) => s + r.used, 0)) } });
 }
 

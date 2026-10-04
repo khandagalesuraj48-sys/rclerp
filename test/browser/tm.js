@@ -18,12 +18,12 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   const mon = await api('getMonthlyAvgReport', f);
   const rowsM = [].concat(...(mon.groups || []).map(g => g.rows || g.machines || [])).filter(r => /^TMX-/.test(r.no || r.id || ''));
   const m1 = rowsM.find(r => (r.no || r.id) === 'TMX-1') || {}, m2 = rowsM.find(r => (r.no || r.id) === 'TMX-2') || {};
-  ok('Monthly Diesel & Average: his example shows 1.88 km/L with the drum at its standard; consumption is still judged on the total (60 L against 73.67 L needed → Low)', m1.actual === '1.88 km/L + 3 L/hr (std)' && m1.status === 'Low consumption' && m1.tKm === 102.4 && m1.tHr === 1.8, { actual: m1.actual, status: m1.status, km: m1.tKm, hr: m1.tHr, need: m1.need });
+  ok('Monthly Diesel & Average: his example shows 1.88 km/L with the drum at its standard; the diesel is still judged on the total (60 L against 73.67 L needed → Very good, 19% less)', m1.actual === '1.88 km/L + 3 L/hr (std)' && m1.status === 'Very good – 19% less diesel' && m1.tKm === 102.4 && m1.tHr === 1.8, { actual: m1.actual, status: m1.status, km: m1.tKm, hr: m1.tHr, need: m1.need });
   ok('…when the hours alone need more than the diesel given, no average is made up – it says so', m2.actual === 'hours need 60 L, 40 L given – check readings', { actual: m2.actual, status: m2.status });
   const av = await api('rptAverage', f);
   const rowsA = [].concat(...(av.groups || []).map(g => g.rows || g.machines || [])).filter(r => /^TMX-/.test(r.no || r.id || ''));
   const a1 = rowsA.find(r => (r.no || r.id) === 'TMX-1') || {};
-  ok('Actual vs Standard Average: the same figure', a1.actual === '1.88 km/L + 3 L/hr (std)' && a1.status === 'Low consumption', { actual: a1.actual, status: a1.status, expected: a1.expected });
+  ok('Actual vs Standard Average: the same figure', a1.actual === '1.88 km/L + 3 L/hr (std)' && a1.status === 'Very good – 19% less diesel', { actual: a1.actual, status: a1.status, expected: a1.expected });
   const lg = await api('getLogBookList', { from: '2026-10-01', to: '2026-10-01', no: 'TMX-1', all: true });
   const l1 = (lg.rows || [])[0] || {};
   ok('Log Book list: the fill is still running (its average is made when the next fill closes it); work and standard need are as in the reports', /Running on fill/.test(String(l1.avg)) && /60 L filled \| 102\.4 km \+ 1\.8 hr \| std 73\.67 L/.test(String(l1.cycle).replace(/\s+/g, ' ')), { avg: l1.avg, cycle: l1.cycle });
