@@ -555,6 +555,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .lp-submit { width: 100%; border: 0; border-radius: 12px; padding: 13px 16px; background: #000; color: #fff; font: 500 15px var(--ui); cursor: pointer; transition: background .2s; }
   .lp-submit:hover { background: #1f2937; }
   .lp-submit:disabled { opacity: .7; cursor: default; }
+  .lp-saved { margin: 2px 0 8px; padding: 7px 10px; border-radius: 8px; background: #ECFDF5; border: 1px solid #B7E4CB; color: #166534; font: 600 12.5px var(--ui); }
   .login-err { margin: 0 0 10px; min-height: 18px; color: var(--bad); font-size: 13px; font-weight: 600; }
   .lp-note { margin: 14px 0 0; min-height: 18px; font-size: 13px; color: #4b5563; text-align: center; }
   .lp-submit:focus-visible, .lp-link:focus-visible, .lp-eye:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
@@ -2330,6 +2331,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <button type="button" class="lp-link" id="lg_forgot">Forgot password?</button>
       </div>
 
+      <p class="lp-saved" id="lg_cred" role="status" hidden></p>
       <p class="login-err" id="lg_err" role="alert"></p>
       <button class="lp-submit" id="lg_btn" type="submit">Sign In</button>
 
@@ -4035,19 +4037,55 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   $('org_play').addEventListener('click', () => ocIntro(true));
   ocIntro(false);
+  /* ---------- THE BROWSER'S OWN "SAVE PASSWORD?" AND AUTO-FILL (asked 04-10-2026) ----------
+   * "After a sign-in the browser must ask 'save the password?' – every time until the user saves it; once saved, the sign-in
+   * fills itself." The browser never offered it, because the app's page lives inside a frame without an address of its own,
+   * and browsers do not run their password manager in such frames. So the app now hands the sign-in to the browser itself,
+   * through the page on top (Credential Management – Chrome, Edge and other Chromium browsers):
+   *   after a correct sign-in  → credSave: the browser shows its own "Save password?" (not if it is already saved; if the
+   *                               user said "Never", the browser stays silent – that is the browser's rule, not the app's)
+   *   sign-in screen shown     → credFill: the saved sign-in is put into the two boxes; the user presses Sign In
+   *   sign-out                 → credForget: the browser must not hand the password over by itself again – it asks first
+   *   password changed         → credSave with the new one (the browser offers "Update password?")
+   * The password is kept by the BROWSER (its password manager), never by the app or in the app's storage.
+   * A browser without this (Firefox, Safari): nothing happens, the sign-in works as before. */
+  const credWin = () => { try { if (window.top && window.top.PasswordCredential && window.top.navigator.credentials) return window.top; } catch (e) { /* not reachable */ } return window.PasswordCredential && navigator.credentials ? window : null; };
+  function credSave(email, password) {
+    try { const W = credWin(); if (!W || !email || !password) return;
+      const c = new W.PasswordCredential({ id: String(email).trim(), password: String(password), name: String(email).trim() });
+      Promise.resolve(W.navigator.credentials.store(c)).catch(() => { /* the browser declined: nothing to do */ });
+    } catch (e) { /* no password store in this browser */ }
+  }
+  let credAsked = 0;
+  async function credFill() {
+    const W = credWin(); if (!W || Date.now() - credAsked < 3000) return false; credAsked = Date.now();
+    try {
+      const c = await W.navigator.credentials.get({ password: true, mediation: 'optional' });
+      if (!c || c.type !== 'password' || !c.id || !c.password) return false;
+      if ($('login_screen').hidden || $('lg_pass').value) return false;            // already signed in, or the person has started typing
+      $('lg_email').value = c.id; $('lg_pass').value = c.password;
+      const n = $('lg_cred'); if (n) { n.hidden = false; n.textContent = 'Filled from the password saved in this browser – press Sign In.'; }
+      $('lg_btn').focus();
+      return true;
+    } catch (e) { return false; }
+  }
+  function credForget() { try { const W = credWin(); if (W && W.navigator.credentials.preventSilentAccess) W.navigator.credentials.preventSilentAccess(); } catch (e) { /* nothing */ } }
   function showLogin(msg) {
     S.token = ''; try { localStorage.removeItem('rcl_token'); sessionStorage.removeItem('rcl_token'); } catch (e) {}
     try { const de = document.documentElement; de.dataset.theme = 'light'; de.dataset.text = 'normal'; de.dataset.density = 'normal'; if ($('grp_fav')) $('grp_fav').hidden = true; if ($('announce')) $('announce').hidden = true; } catch (e) { /* the sign-in screen is always the plain one */ }
     document.body.classList.add('locked');
     $('login_screen').hidden = false; $('lg_err').textContent = msg || ''; $('lg_pass').value = '';
+    if ($('lg_cred')) $('lg_cred').hidden = true;
     setTimeout(() => $('lg_email').focus(), 50);
+    setTimeout(() => credFill(), 150);            // the sign-in saved in the browser, if there is one
   }
   $('login_form').addEventListener('submit', async () => {
     const btn = $('lg_btn'); btn.disabled = true; btn.textContent = 'Signing in…'; $('lg_err').textContent = '';
     try {
-      const typed = $('lg_pass').value;
-      const r = await gsRun('login', $('lg_email').value.trim(), typed);
+      const typed = $('lg_pass').value, mail = $('lg_email').value.trim();
+      const r = await gsRun('login', mail, typed);
       S.token = r.token;
+      if (!r.mustChange) credSave(mail, typed);      // the browser asks "Save password?" (a password that must be changed first is not offered)
       // Remember me: stay signed in on this device; otherwise only until the browser tab is closed
       let store = null; // browser storage can be blocked (private mode): the app still works without it
       try { store = $('lg_remember').checked ? localStorage : sessionStorage; store.setItem('rcl_token', r.token); } catch (e) { store = null; }
@@ -4097,8 +4135,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!pwRules()) { $('pw_err').textContent = 'The new password does not meet the rules above.'; return; }
     const b = $('pw_save'); b.disabled = true; b.textContent = 'Saving…';
     try {
-      const r = await gsRun('changePassword', S.token, $('pw_old').value, $('pw_new').value);
+      const newPw = $('pw_new').value;
+      const r = await gsRun('changePassword', S.token, $('pw_old').value, newPw);
       S.token = r.token;
+      credSave((S.user && S.user.email) || $('lg_email').value.trim(), newPw);      // the browser offers to save / update the new one
       try { if (localStorage.getItem('rcl_token')) localStorage.setItem('rcl_token', r.token); else sessionStorage.setItem('rcl_token', r.token); } catch (e) {}
       pwClose(r.token);
       toast('Password changed. Other devices are signed out.');
@@ -4112,7 +4152,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('lg_forgot').addEventListener('click', () => lgNote('Please ask your Admin to reset your password.'));
   $('u_logout').addEventListener('click', async () => {
     if (!(await askConfirm({ title: 'Sign out?', message: 'You will need your email and password to sign in again.', ok: 'Sign out' }))) return;
-    const t = S.token; showLogin(''); try { await gsRun('logout', t); } catch (e) {}
+    const t = S.token; credForget(); showLogin(''); try { await gsRun('logout', t); } catch (e) {}
     location.reload();
   });
   /* ---------- access: show edit parts only where the user has Edit ---------- */

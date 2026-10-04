@@ -684,6 +684,18 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   lists the diesel of "Other" vehicles under "cannot be checked" (it is a fact about the diesel, not a reminder), the meter reading
   asked at a diesel issue, the monthly report (their status stays "–"). Test: unit 'Log Book is not asked of Ownership "Other" …'
   (26 unit tests); through the server: an Other vehicle adds 0 to the pending count, the same vehicle as Rental adds its 34 days.
+- 04-10-2026: "SAVE PASSWORD?" AND AUTO-FILL AT SIGN-IN. He: "the app asks the password at every sign-in; after a sign-in it should
+  ask 'save the password?' – every time until the user saves; once saved the sign-in fills itself." The sign-in form already was a
+  real form with the right autocomplete names; the browser still never offered to save because the app's page is an iframe made
+  from text (srcdoc, no address of its own) and browsers do not run their password manager there. NOW the app hands the sign-in to
+  the browser through the top page (Credential Management API, `window.top.PasswordCredential` – Chromium browsers):
+  `credSave(email, password)` after a correct sign-in (not when the password must be changed first) and after a password change;
+  `credFill()` when the sign-in screen is shown (`credentials.get({ password: true, mediation: 'optional' })` → fills the two boxes,
+  note `#lg_cred`, cursor on Sign In – it does NOT sign in by itself); `credForget()` on sign-out (`preventSilentAccess`).
+  The app stores the password nowhere. Whether / how often the bubble shows is the browser's rule ("Never for this site", the
+  setting "Offer to save passwords", incognito). Firefox / Safari: nothing changes. The 6-hour session and "Remember me" are as before.
+  Test: `test/browser/cred.js` (8; the browser's store is played by the test – headless Chromium has no password manager, the real
+  call answers NotSupportedError and the sign-in still works). NOT seen by me: the real Chrome bubble – to be checked on the live site.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
