@@ -480,6 +480,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .lg-pend .lp-chips button.in { border-color: #86D0A6; background: #ECFDF5; color: #166534; cursor: default; }
   .lg-pend .lp-chips button.in::before { content: "✓ "; }
   .lg-pend small { color: #6B7280; }
+  .lg-pend .lp-months { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #EBD9A8; }
+  .lg-pend .lp-months button { border: 1px solid #D6C28A; background: #fff; color: #5B4A1E; border-radius: 8px; padding: 4px 11px; font: 600 12.5px var(--ui); cursor: pointer; }
+  .lg-pend .lp-months button.on { background: #92400E; border-color: #92400E; color: #fff; }
+  .lg-pend .lp-months button b { font-weight: 800; margin-left: 3px; }
   .lg-top .field { min-width: 200px; } #lg_top_no_w { min-width: 260px; }
   .lg-top-info { font-size: 12.5px; color: var(--muted); padding-bottom: 8px; }
   table.lgt.m-date .c-date, table.lgt.m-mach .c-m { display: none; }
@@ -2002,6 +2006,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     .lg-wrap tr.lrow > small.lg-fmt { grid-column: 4; grid-row: 3; margin: 2px 0 0; }
     /* the small diesel block: every figure with its own word */
     .lg-wrap tr.lrow > td:nth-of-type(n+9):nth-of-type(-n+14) { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.5; text-align: left; }
+    /* Standard and Average: "2.5 km/L + 3 L/hr" (a transit mixer) is wider than the column – it takes two lines instead of running
+       under the From / To boxes (seen 04-10-2026). After the rule above on purpose: that one keeps the diesel figures on one line. */
+    .lg-wrap tr.lrow > td:nth-of-type(n+13):nth-of-type(-n+14) { white-space: normal; overflow-wrap: anywhere; line-height: 1.2; }
     .lg-wrap tr.lrow > td:nth-of-type(n+9):nth-of-type(-n+12)::before { font: 500 10.5px var(--ui); color: #7A8794; margin-right: 4px; }
     .lg-wrap tr.lrow > td:nth-of-type(9)::before { content: "Open"; }  .lg-wrap tr.lrow > td:nth-of-type(10)::before { content: "Issued"; }
     .lg-wrap tr.lrow > td:nth-of-type(11)::before { content: "Used"; } .lg-wrap tr.lrow > td:nth-of-type(12)::before { content: "Close"; }
@@ -11593,9 +11600,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           .sort((a, b) => String(a.label).localeCompare(String(b.label), 'en', { numeric: true })) }; }
     const m = findMachine(val('lg_top_no')); if (!m) return null;
     const have = new Set(lgRows().map(tr => lgf(tr, 'date').value).filter(Boolean)), k = noKey(m.id);
-    return { head: m.id + ' – dates without a Log Book entry', unit: 'dates', none: m.id + ' has its Log Book for every day up to today ✓',
-      items: lgPend.items.filter(x => noKey(x[0]) === k).map(x => ({ key: x[1], label: showDate(x[1]), title: '', inn: have.has(x[1]) })).sort((a, b) => a.key < b.key ? -1 : 1) };
+    const all = lgPend.items.filter(x => noKey(x[0]) === k).map(x => ({ key: x[1], label: showDate(x[1]), title: '', inn: have.has(x[1]) })).sort((a, b) => a.key < b.key ? -1 : 1);
+    // months of the pending dates (asked 04-10-2026: "when I look at October I do not want the other months – all at first, then what I pick")
+    const months = {}; all.forEach(x => { const mo = x.key.slice(0, 7); months[mo] = (months[mo] || 0) + 1; });
+    if (lgPendFor !== k) { lgPendFor = k; lgPendMonth = ''; }                 // another machinery: all months again
+    if (lgPendMonth && !months[lgPendMonth]) lgPendMonth = '';                // that month has nothing pending any more
+    return { head: m.id + ' – dates without a Log Book entry' + (lgPendMonth ? ' in ' + monthName(lgPendMonth) : ''), unit: 'dates', none: m.id + ' has its Log Book for every day up to today ✓',
+      items: lgPendMonth ? all.filter(x => x.key.slice(0, 7) === lgPendMonth) : all, months: months, total: all.length };
   }
+  let lgPendMonth = '', lgPendFor = '';
+  const monthName = ym => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(ym.slice(5, 7)) - 1] + ' ' + ym.slice(0, 4);
   function lgPendDraw() {
     const box = $('lg_pend'); if (!box) return;
     const L = lgPendList();
@@ -11603,10 +11617,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     box.hidden = false; box.classList.toggle('done', !L.items.length);
     if (!L.items.length) { box.innerHTML = esc(L.none); return; }
     const left = L.items.filter(x => !x.inn).length;
-    box.innerHTML = '<div class="lp-head"><span>' + esc(L.head) + ': <b>' + L.items.length + ' ' + L.unit + '</b>' + (left < L.items.length ? ' <small>(' + (L.items.length - left) + ' already in the rows below)</small>' : '') + '</span>' +
+    // the month filter: shown when the pending dates are in more than one month; "All" at first
+    const mk = L.months ? Object.keys(L.months).sort() : [];
+    const filt = mk.length > 1 ? '<div class="lp-months"><small>Month:</small><button type="button" class="' + (lgPendMonth ? '' : 'on') + '" data-lpm="">All <b>' + L.total + '</b></button>' +
+      mk.map(ym => '<button type="button" class="' + (lgPendMonth === ym ? 'on' : '') + '" data-lpm="' + ym + '">' + esc(monthName(ym)) + ' <b>' + L.months[ym] + '</b></button>').join('') + '</div>' : '';
+    box.innerHTML = filt + '<div class="lp-head"><span>' + esc(L.head) + ': <b>' + L.items.length + ' ' + L.unit + '</b>' + (left < L.items.length ? ' <small>(' + (L.items.length - left) + ' already in the rows below)</small>' : '') + '</span>' +
       (left && canEdit('Log Book') ? '<button type="button" class="btn ghost small" data-lpall="1">Add ' + (left > 30 ? 'the next 30' : 'all ' + left) + ' to the rows</button>' : '') +
       (L.items.length > 12 ? '<button type="button" class="btn ghost small" data-lpopen="1">' + (box.classList.contains('open') ? 'Show less' : 'Show all') + '</button>' : '') +
-      '<small>Press a name to put it in the rows.</small></div>' +
+      '<small>Press a ' + (L.unit === 'dates' ? 'date' : 'name') + ' to put it in the rows.</small></div>' +
       '<div class="lp-chips">' + L.items.map(x => '<button type="button" class="' + (x.inn ? 'in' : '') + '" data-lp="' + esc(x.key) + '" title="' + esc(x.title) + '">' + esc(x.label) + '</button>').join('') + '</div>';
   }
   // one pending machinery / date into the rows: an empty row first, else a new row
@@ -11632,6 +11650,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('lg_pend').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.lpopen) { $('lg_pend').classList.toggle('open'); lgPendDraw(); return; }
+    if ('lpm' in b.dataset) { lgPendMonth = b.dataset.lpm; lgPendDraw(); return; }
     if (!canEdit('Log Book')) return;
     const L = lgPendList(); if (!L) return;
     if (b.dataset.lpall) L.items.filter(x => !x.inn).slice(0, 30).forEach(x => lgPendAdd(x.key));      // 30 at a time: each row asks the server for its Start reading

@@ -670,6 +670,13 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     date, WITHOUT the "date changed" signal, which would re-date every row below day by day); "Add all / the next 30"; ticks for
     what is in the rows; read on opening, after every save, at most once a minute otherwise. The Dashboard's list is unchanged.
   * Tests: unit "the words for a machinery's diesel …" (25 unit tests), `test/browser/pend.js` (11, with the database).
+- 04-10-2026 (screenshot: pending dates of MH-25-AJ-8511, 34 dates of September and October in one list): "I want a filter – when I
+  look at October I do not want the other months; all at first, then what I pick." MONTH FILTER on the pending strip of the
+  one-machinery entry (`lgPendMonth`, `.lp-months`, buttons All / Sep 2026 / Oct 2026 with counts; shown when the dates are in more
+  than one month; back to All for another machinery; "Add all" follows the filter). Seen in the same screenshot and fixed: the
+  Standard of a two-meter machinery ("2.5 km/L + 3 L/hr") ran under the From / To boxes – the Standard and Average cells now wrap
+  (rule placed AFTER `td:nth-of-type(n+9):nth-of-type(-n+14)`, which keeps the diesel figures on one line and used to win).
+  Test: `test/browser/pendm.js` (6).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
