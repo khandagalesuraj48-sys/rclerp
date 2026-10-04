@@ -1,11 +1,13 @@
 // a stand-in for the Gemini service (tests only): it checks what the app sends and answers the way the real service does –
 // first a functionCall (with a thoughtSignature the app must send back untouched), then a text made from the look-up's result
-const http = require('http'); const log = [], busy = {};
+const http = require('http'); const log = [], busy = {}, nothink = {};
 const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
 http.createServer((req, res) => {
   let body = ''; req.on('data', c => { body += c; }); req.on('end', () => {
     if (req.url === '/__log') return send(res, 200, log);
-    if (req.url === '/__clear') { log.length = 0; Object.keys(busy).forEach(k => delete busy[k]); return send(res, 200, {}); }
+    if (req.url === '/__clear') { log.length = 0; Object.keys(busy).forEach(k => delete busy[k]); Object.keys(nothink).forEach(k => delete nothink[k]); return send(res, 200, {}); }
+    // tests: /__nothink?model=NAME → that model refuses the "thinking" setting (400), as an older model of the real service would
+    const nt = /^\/__nothink\?model=([^&]+)/.exec(req.url); if (nt) { nothink[decodeURIComponent(nt[1])] = 1; return send(res, 200, nothink); }
     // tests: /__busy?model=NAME&n=3 → the next 3 questions to that model (or to "*" = every model) are answered "busy" (503), as the real service does
     const bz = /^\/__busy\?model=([^&]+)&n=(\d+)/.exec(req.url); if (bz) { busy[decodeURIComponent(bz[1])] = Number(bz[2]); return send(res, 200, busy); }
     if (req.headers['x-goog-api-key'] !== 'test-key') return send(res, 403, { error: { message: 'API key not valid' } });
@@ -16,6 +18,8 @@ http.createServer((req, res) => {
     const bk = busy[m[1]] > 0 ? m[1] : busy['*'] > 0 ? '*' : '';
     if (bk) { busy[bk]--; log.push({ model: m[1], busy: true }); return send(res, 503, { error: { code: 503, message: 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', status: 'UNAVAILABLE' } }); }
     let j = {}; try { j = JSON.parse(body); } catch (e) { return send(res, 400, { error: { message: 'bad JSON' } }); }
+    const thinks = !!((j.generationConfig || {}).thinkingConfig);
+    if (thinks && nothink[m[1]]) { log.push({ model: m[1], refusedThinking: true }); return send(res, 400, { error: { code: 400, message: 'Invalid JSON payload received. Unknown name "thinkingLevel" at \'generation_config.thinking_config\': Cannot find field.', status: 'INVALID_ARGUMENT' } }); }
     const turns = j.contents || [], last = turns[turns.length - 1] || { parts: [] }, sys = ((j.system_instruction || {}).parts || [{}])[0].text || '';
     log.push({ model: m[1], roles: turns.map(t => t.role).join(','), tools: ((j.tools || [])[0] || { functionDeclarations: [] }).functionDeclarations.map(f => f.name), sysHasRules: /Answer ONLY from this app/.test(sys), sysWho: (/The person asking is ([^.]+)\./.exec(sys) || [])[1] || '', temperature: (j.generationConfig || {}).temperature });
     // a model turn that carried a signature must come back with it
@@ -35,7 +39,9 @@ http.createServer((req, res) => {
     const q = String((last.parts.find(p => p.text) || {}).text || ''), d = q.match(/\d{4}-\d{2}-\d{2}/g) || [];
     // the snapshot that came with the question: a question it answers is answered in ONE step (no function call)
     let snap = null; try { snap = JSON.parse(sys.split('SNAPSHOT = ')[1] || 'null'); } catch (e) { snap = null; }
-    log[log.length - 1].snapshot = snap ? Object.keys(snap).join(',') : ''; log[log.length - 1].page = snap && snap.page ? snap.page.tab : '';
+    log[log.length - 1].snapshot = snap ? Object.keys(snap).join(',') : ''; log[log.length - 1].page = snap && snap.page ? snap.page.tab : ''; log[log.length - 1].thinking = thinks ? j.generationConfig.thinkingConfig.thinkingLevel : '';
+    const ab = snap && snap.aboutTheMachineryInTheQuestion;
+    if (/why|का /i.test(q) && ab) return text('About ' + ab.machinery.id + ' (from the attached figures): ' + ((ab.thisMonth.average || {}).status || 'no status this month') + '; diesel this month ' + (ab.thisMonth.diesel || {}).totalLitres + ' L.');
     if (/stock/i.test(q) && snap && snap.dieselStockNow) return text('As of now (' + snap.asOf + ') the stock is **' + snap.dieselStockNow.litres + ' L**.');
     if (/this message|हा संदेश/i.test(q)) return callFn('app_guide', { topic: q });
     if (/diesel/i.test(q)) return callFn('diesel_issues', { from: d[0] || '2026-09-29', to: d[1] || d[0] || '2026-09-30' });

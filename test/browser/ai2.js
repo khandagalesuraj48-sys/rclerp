@@ -34,9 +34,9 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   ok('"what is this page for" gives the page\'s own guide in Marathi', /^Diesel Issue/.test(a.text) && /[\u0900-\u097F]{3,}/.test(a.text), a.text.slice(0, 120));
   // 3. a typed question with the snapshot: one step, no look-up
   await gem('/__clear'); n0 = await count();
-  await f.evaluate(() => { const i = document.getElementById('ai_in'); i.value = 'what is the stock now?'; document.getElementById('ai_form').dispatchEvent(new Event('submit', { cancelable: true })); }); await settle(n0);
+  await f.evaluate(() => { const i = document.getElementById('ai_in'); i.value = 'why is the stock what it is now?'; document.getElementById('ai_form').dispatchEvent(new Event('submit', { cancelable: true })); }); await settle(n0);
   a = await last(); let log = await gem('/__log'); const stock = await f.evaluate(async () => (await rawCall('getStock')).stock);
-  ok('a typed question the snapshot answers needs ONE step to the AI service (no look-up), with the app\'s own figure', a.cls === 'ai-m bot' && a.text.indexOf('the stock is ' + stock + ' L') > -1 && log.length === 1 && /dieselStockNow/.test(log[0].snapshot) && log[0].page === 'diesel' && /च्या आकड्यांवरून/.test(a.src), { answer: a.text.slice(0, 80), steps: log.length, snapshotHas: log[0] && log[0].snapshot, page: log[0] && log[0].page, src: a.src });
+  ok('a typed question the snapshot answers needs ONE step to the AI service (no look-up), with the app\'s own figure', a.cls === 'ai-m bot' && a.text.indexOf('the stock is ' + stock + ' L') > -1 && log.length === 1 && /dieselStockNow/.test(log[0].snapshot) && log[0].page === 'diesel' && /From the figures of \d\d:\d\d/.test(a.src), { answer: a.text.slice(0, 80), steps: log.length, snapshotHas: log[0] && log[0].snapshot, page: log[0] && log[0].page, src: a.src });
   // 4. the snapshot is rebuilt when the data changes
   const at0 = await f.evaluate(() => AI.snapAt);
   await f.evaluate(async t => { await call('saveLogRows', { rows: [{ date: t, shift: 'Night', no: 'MH-15-AB-0001', mode: 'Idle' }] }); }, today); await wait(2500);

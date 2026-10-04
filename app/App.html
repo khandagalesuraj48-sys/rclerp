@@ -4566,7 +4566,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (l) { fixLang = l.dataset.fixlang; try { localStorage.setItem('rcl_lang', fixLang); } catch (er) {} document.querySelectorAll('.fixhelp').forEach(h => { h.innerHTML = h.classList.contains('guide') ? guideInner(($('guidebox') || { dataset: {} }).dataset.tab) : fixInner(h.dataset.msg); }); return; }
     if (e.target.closest('#fixbox .fx-x')) $('fixbox').hidden = true;
     if (e.target.closest('#fixbox [data-fixai]')) { const msg = $('fixbox').dataset.msg || '', title = $('page_title') ? $('page_title').textContent : ''; $('fixbox').hidden = true; aiOpen(true);
-      aiAsk({ en: 'On the page "' + title + '" I got this message: "' + msg + '". What went wrong, and what should I do?', mr: '"' + title + '" या page वर हा संदेश आला: "' + msg + '". काय चुकले आणि मी काय करू?', hi: '"' + title + '" page पर यह संदेश आया: "' + msg + '". क्या गलत हुआ और मैं क्या करूँ?' }[fixLang]); }
+      aiAsk({ en: 'On the page "' + title + '" I got this message: "' + msg + '". What went wrong, and what should I do?', mr: '"' + title + '" या page वर हा संदेश आला: "' + msg + '". काय चुकले आणि मी काय करू?', hi: '"' + title + '" page पर यह संदेश आया: "' + msg + '". क्या गलत हुआ और मैं क्या करूँ?' }[fixLang], true); }
     if (e.target.closest('#guidebox .fx-x')) $('guidebox').hidden = true;
     if (e.target.closest('#pg_help')) guideShow();
   });
@@ -9315,7 +9315,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    *    first. It is rebuilt when the data changes (the page learns of a change within a second or two) and at most 30 s old.
    * 3. AN ERROR → "Ask the assistant": the help card of any message has a button that hands the message and the page to the
    *    assistant, which explains what went wrong and what to do. */
-  const aiL = o => o[fixLang] || o.en;
+  const aiL = o => o[(typeof AI === 'object' && AI.lang) || fixLang] || o.en;      // AI.lang = the language of the typed question being answered
   const aiList = (a, n) => a.slice(0, n).join(', ') + (a.length > n ? ' … (+' + (a.length - n) + ')' : '');
   const aiTop = (a, n) => (a || []).slice(0, n).map(x => x.name + ' ' + fmt(x.litres) + ' L').join(', ');
   const aiPicked = () => { try { if (S.curTab === 'log' && lgMode === 'mach') { const m = findMachine(val('lg_top_no')); return m ? m.id : ''; } if (S.curTab === 'diesel') { const m = findMachine(val('d_no')); return m ? m.id : ''; } } catch (e) {} return ''; };
@@ -9374,15 +9374,112 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     aiSuggest(); $('ai_test').hidden = !(S.user && S.user.admin && AI.on); }
   function aiOpen(show) { $('ai_panel').hidden = !show; $('ai_fab').hidden = show || !S.token; if (show) { if (!$('ai_msgs').children.length) aiReset(); else aiSuggest(); if (AI.on) aiSnap(); setTimeout(() => $('ai_in').focus(), 50); } }
   function aiBoot(info) { AI.on = !!(info && info.on); $('ai_fab').hidden = !$('ai_panel').hidden || !S.token; }
-  async function aiAsk(text) {
+  /* ---------- A TYPED QUESTION UNDERSTOOD BY THE APP ITSELF (asked 04-10-2026: "ultra fast, without errors, correct, any language") ----------
+   * Most questions people type are the same few kinds: how much diesel (a machinery / everybody, a day / a month), what is
+   * pending, the stock, the average of a machinery, how much it worked, its last reading. The app can understand these
+   * WITHOUT the AI service – from the words (English, Marathi and Hindi, also Marathi / Hindi typed in English letters), the
+   * machinery number or name it finds in the question, and the dates or words like "today / काल / या महिन्यात / September".
+   * Then it runs the look-up and writes the answer itself: at once, the same figures as the reports, no service that can be
+   * busy. ORDER FOR A TYPED QUESTION:
+   *   1. the app understands it for sure (one clear kind, no "why / how / compare")  → answered by the app (⚡)
+   *   2. otherwise the AI service – with the snapshot, and with the figures of the machinery named in the question already
+   *      attached, so that it can answer in one step; its look-ups run side by side
+   *   3. the AI service fails or is not set up → the app answers as well as it can (its best reading of the question, or the
+   *      guide of the page that fits) and says so. An error is shown only when nothing at all can be said. */
+  const aiHas = (t, re) => re.test(t);
+  // the language of the answer: Devanagari → Marathi (Hindi if the help language is Hindi); Marathi / Hindi words in English letters → the same; else English
+  function aiLangOf(text) { const dev = /[\u0900-\u097F]/.test(text), rom = /\b(kiti|kay|ahe|aahe|ghetle|ghetla|dile|dila|baki|kon|koni|konti|konta|chi|cha|che|sang|kitna|kitni|kya|hai|kaun|diya|liya|mahina|mahinyat|aaj|kal|kiti)\b/i.test(text);
+    return dev || rom ? (fixLang === 'hi' ? 'hi' : 'mr') : 'en'; }
+  // the machinery named in the question: its whole number (with or without dashes), its name, or four digits that only one machinery ends with
+  function aiFindMach(text) {
+    const k = noKey(text), all = S.master || []; if (!k) return null;
+    let hit = all.filter(m => noKey(m.id).length >= 5 && k.indexOf(noKey(m.id)) > -1).sort((a, b) => noKey(b.id).length - noKey(a.id).length)[0];
+    if (!hit) hit = all.filter(m => m.name && m.name !== m.id && noKey(m.name).length >= 6 && k.indexOf(noKey(m.name)) > -1)[0];
+    if (!hit) { const d = (String(text).match(/\b\d{4}\b/g) || []).filter(x => !/^20\d\d$/.test(x)); for (const x of d) { const c = all.filter(m => new RegExp(x + '$').test(noKey(m.id))); if (c.length === 1) { hit = c[0]; break; } } }
+    return hit || null;
+  }
+  // the dates the question is about: written dates, today / yesterday, this / last week, this / last month, a month's name; else the default of the kind of question
+  const AI_MON = [['jan', 'जानेवारी', 'जनवरी'], ['feb', 'फेब्रुवारी', 'फरवरी'], ['mar', 'मार्च'], ['apr', 'एप्रिल', 'अप्रैल'], ['may', 'मे '], ['jun', 'जून'], ['jul', 'जुलै', 'जुलाई'], ['aug', 'ऑगस्ट', 'अगस्त'], ['sep', 'सप्टेंबर', 'सितंबर'], ['oct', 'ऑक्टोबर', 'अक्टूबर'], ['nov', 'नोव्हेंबर', 'नवंबर'], ['dec', 'डिसेंबर', 'दिसंबर']];
+  function aiPeriod(text, def) {
+    const t = ' ' + String(text).toLowerCase() + ' ', today = S.today, iso = (y, m, d) => y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    const ds = []; t.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (m, y, mo, d) => { ds.push(iso(y, mo, d)); return m; }); t.replace(/\b(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})\b/g, (m, d, mo, y) => { ds.push(iso(y, mo, d)); return m; });
+    if (ds.length) { const a = ds.slice().sort(); return { from: a[0], to: a[a.length - 1], said: true }; }
+    const monthOf = (y, m) => ({ from: iso(y, m, 1), to: iso(y, m, new Date(y, m, 0).getDate()), said: true });
+    const Y = Number(today.slice(0, 4)), M = Number(today.slice(5, 7));
+    if (/last month|previous month|magchya mahin|maghil mahin|gelya mahin|मागच्या महिन|मागील महिन|गेल्या महिन|pichhle mahine|पिछले मह/.test(t)) { const d = new Date(Y, M - 2, 1); return monthOf(d.getFullYear(), d.getMonth() + 1); }
+    if (/this month|ya mahin|hya mahin|या महिन|ह्या महिन|चालू महिन|is mahine|इस मह/.test(t)) return { from: today.slice(0, 8) + '01', to: today, said: true };
+    if (/last week|magchya aathavd|gelya aathavd|मागच्या आठवड|गेल्या आठवड|pichhle hafte|पिछले हफ्ते/.test(t)) return { from: addDay(today, -13), to: addDay(today, -7), said: true };
+    if (/this week|ya aathavd|या आठवड|is hafte|इस हफ्ते|last 7 days|7 days|7 दिवस|7 दिन/.test(t)) return { from: addDay(today, -6), to: today, said: true };
+    if (/day before yesterday|parva|परवा|parso|परसों/.test(t)) return { from: addDay(today, -2), to: addDay(today, -2), said: true };
+    if (/yesterday|\bkal\b|\bkaal\b|काल|कल /.test(t)) return { from: addDay(today, -1), to: addDay(today, -1), said: true };
+    if (/today|\baaj\b|\baj\b|आज|\bnow\b|आत्ता|अभी/.test(t)) return { from: today, to: today, said: true };
+    for (let m = 0; m < 12; m++) if (AI_MON[m].some(w => t.indexOf(w) > -1 && (w.length > 3 || new RegExp('\\b' + w).test(t)))) return monthOf(m + 1 > M ? Y - 1 : Y, m + 1);
+    return def === 'today' ? { from: today, to: today } : def === 'month' ? { from: today.slice(0, 8) + '01', to: today } : { from: addDay(today, -29), to: today };
+  }
+  const aiSpan = (p, L) => p.from === p.to ? showDate(p.from) : showDate(p.from) + ({ en: ' to ', mr: ' ते ', hi: ' से ' }[L]) + showDate(p.to);
+  // the kinds of question the app answers itself
+  const AI_KIND = {
+    diesel: /diesel|dizel|डिझेल|डीजल|डीज़ल|fuel|इंधन|ईंधन/i, pending: /pending|baki|baaki|बाकी|rahil|राहिल|remaining|not entered|entry nahi|entry नाही/i,
+    stock: /stock|साठा|shillak|शिल्लक|balance|बचा/i, average: /average|avg\b|सरासरी|mileage|अॅव्हरेज|ॲव्हरेज|एवरेज|consumption/i,
+    work: /\bkm\b|kilomet|किमी|hours|\bhrs?\b|तास|घंटे|chalali|chalala|चालली|चालला|चालले|worked|work done|kam kel|काम केल|काम किती/i, reading: /reading|रीडिंग|रिडिंग|meter|मीटर/i };
+  // words that make a question one for the AI ("how much / how many" are plain questions; "का" only as a word of its own)
+  const AI_HARD = /\bwhy\b|\bhow\b(?!\s+(much|many))|explain|compare|versus|\bvs\b|difference|reason|kashamule|\bka\s+(ahe|aahe|zale|zala)|(^|\s)का(\s|\?|$)|कशामुळे|कसे|कसा|कशी|क्यों|कैसे|तुलना|फरक|कारण|solution|उपाय|who (changed|deleted|added|edited)|कोणी (बदल|काढ|delete)|किसने/i;
+  function aiLocal(text, loose) {
+    const kinds = Object.keys(AI_KIND).filter(k => AI_KIND[k].test(text)); let kind = '';
+    if (kinds.indexOf('stock') > -1 && kinds.indexOf('pending') < 0 && !/log ?book/i.test(text)) kind = 'stock';      // "diesel stock" is a stock question
+    else if (kinds.indexOf('pending') > -1) kind = 'pending';
+    else if (kinds.length === 1) kind = kinds[0];
+    else if (loose && kinds.length) kind = ['average', 'diesel', 'work', 'reading'].find(k => kinds.indexOf(k) > -1) || kinds[0];
+    if (!kind || (!loose && AI_HARD.test(text))) return null;
+    const m = aiFindMach(text), L = aiLangOf(text), no = m ? m.id : '';
+    if (!loose && !m && /\b[A-Z]{2}[- ]?\d{1,2}[- ]?[A-Z]{1,3}[- ]?\d{3,4}\b/i.test(text)) return null;                // a number is named that is not in the Master: not for a guess
+    if ((kind === 'average' || kind === 'work' || kind === 'reading') && !m && !loose) return null;                   // these are about one machinery
+    const T = o => o[L] || o.en;
+    if (kind === 'stock') return { run: () => AI_READY.find(r => r.id === 'stock').run() };
+    if (kind === 'pending') return { run: async () => { if (m) { const r = await AI_RUN.pending_log_book({ machinery: no }), n = r.datesWithoutLogBook;
+          return (n ? T({ en: '**' + no + '**: ' + n + ' dates without a Log Book entry:', mr: '**' + no + '**: ' + n + ' तारखांची Log Book entry बाकी आहे:', hi: '**' + no + '**: ' + n + ' तारीखों की Log Book entry बाकी है:' }) + '\n' + aiList(r.dates.map(showDate), 40) : T({ en: no + ' has its Log Book for every day. ✓', mr: no + ' ची प्रत्येक दिवसाची Log Book entry झाली आहे. ✓', hi: no + ' की हर दिन की Log Book entry हो चुकी है। ✓' })) + '\n[[open:log|Log Book]]'; }
+        const d = aiPeriod(text, 'today').to, r = await AI_RUN.pending_log_book({ date: d }), n = r.machineryWithoutLogBook;
+        return (n ? T({ en: '**' + n + ' machinery** have no Log Book entry for ' + showDate(d) + ':', mr: showDate(d) + ' साठी **' + n + ' गाड्यांची** Log Book entry बाकी आहे:', hi: showDate(d) + ' के लिए **' + n + ' गाड़ियों की** Log Book entry बाकी है:' }) + '\n' + aiList(r.machinery, 40)
+          : T({ en: 'Every machinery that needs a Log Book has its entry for ' + showDate(d) + '. ✓', mr: showDate(d) + ' साठी सगळ्या गाड्यांची Log Book entry झाली आहे. ✓', hi: showDate(d) + ' के लिए सभी गाड़ियों की Log Book entry हो चुकी है। ✓' })) + '\n[[open:log|Log Book]]'; } };
+    if (kind === 'diesel') return { run: async () => { const p = aiPeriod(text, m ? 'month' : 'today'), r = await AI_RUN.diesel_issues({ from: p.from, to: p.to, machinery: no }), span = aiSpan(p, L);
+        if (!r.entries) return T({ en: 'No diesel was issued' + (no ? ' to ' + no : '') + ' in ' + span + '.', mr: span + ' मध्ये ' + (no ? no + ' ला ' : '') + 'diesel दिलेले नाही.', hi: span + ' में ' + (no ? no + ' को ' : '') + 'diesel नहीं दिया गया।' }) + '\n[[open:diesel|Diesel Issue]]';
+        const head = T({ en: (no ? '**' + no + '** – ' : '') + span + ': **' + fmt(r.totalLitres) + ' L** in ' + r.entries + ' entries.', mr: (no ? '**' + no + '** – ' : '') + span + ': **' + fmt(r.totalLitres) + ' L**, ' + r.entries + ' entries.', hi: (no ? '**' + no + '** – ' : '') + span + ': **' + fmt(r.totalLitres) + ' L**, ' + r.entries + ' entries।' });
+        const body = no ? r.rows.slice(0, 15).map(x => '• ' + showDate(x.date) + (x.shift ? ' ' + x.shift : '') + ': ' + fmt(x.qty) + ' L' + (x.kmReading ? ' @ ' + x.kmReading + ' km' : x.hrReading ? ' @ ' + x.hrReading + ' hr' : '')).join('\n') + (r.entries > 15 ? '\n… (+' + (r.entries - 15) + ')' : '')
+          : T({ en: 'By machinery: ', mr: 'गाडीनुसार: ', hi: 'गाड़ी के अनुसार: ' }) + aiTop(r.byMachinery, 12) + '\n' + T({ en: 'By owner: ', mr: 'मालकानुसार: ', hi: 'मालिक के अनुसार: ' }) + aiTop(r.byOwner, 8);
+        return head + '\n' + body + '\n[[open:' + (no ? 'rp-ledger' : 'diesel') + '|' + (no ? 'Machinery Diesel Ledger' : 'Diesel Issue') + ']]'; } };
+    if (!m) return { run: () => AI_READY.find(r => r.id === 'bad').run() };                                             // (loose only) "average" with no machinery: the list of those over the standard
+    if (kind === 'average') return { run: async () => { const p = aiPeriod(text, 'month'), r = await AI_RUN.diesel_average({ from: p.from, to: p.to, machinery: no }), x = (r.machinery || [])[0], span = aiSpan(p, L);
+        if (!x || !x.actual) return T({ en: '**' + no + '** – ' + span + ': no average can be worked out' + (x && x.used ? ' (' + fmt(x.used) + ' L of diesel, but no Log Book readings).' : ' (no diesel or no Log Book readings).'), mr: '**' + no + '** – ' + span + ': average काढता येत नाही' + (x && x.used ? ' (' + fmt(x.used) + ' L diesel आहे, पण Log Book readings नाहीत).' : ' (diesel किंवा Log Book readings नाहीत).'), hi: '**' + no + '** – ' + span + ': average नहीं निकल सकता' + (x && x.used ? ' (' + fmt(x.used) + ' L diesel है, पर Log Book readings नहीं).' : ' (diesel या Log Book readings नहीं).') }) + '\n[[open:rp-avg|Actual vs Standard Average]]';
+        return '**' + no + '** – ' + span + '\n' + T({ en: 'Average: **' + x.actual + '** (standard ' + x.std + ') → ' + x.status, mr: 'Average: **' + x.actual + '** (standard ' + x.std + ') → ' + x.status, hi: 'Average: **' + x.actual + '** (standard ' + x.std + ') → ' + x.status }) + '\n' +
+          T({ en: 'Work: ', mr: 'काम: ', hi: 'काम: ' }) + [x.km ? fmt(x.km) + ' km' : '', x.hr ? fmt(x.hr) + ' hr' : ''].filter(Boolean).join(' + ') + ' · ' + T({ en: 'diesel taken ', mr: 'घेतलेले diesel ', hi: 'लिया diesel ' }) + fmt(x.used) + ' L · ' + T({ en: 'the standard needs ', mr: 'standard प्रमाणे लागणारे ', hi: 'standard से लगने वाला ' }) + fmt(x.expected) + ' L' + '\n[[open:rp-avg|Actual vs Standard Average]]'; } };
+    if (kind === 'work') return { run: async () => { const p = aiPeriod(text, 'month'), r = await AI_RUN.log_book({ from: p.from, to: p.to, machinery: no }), span = aiSpan(p, L);
+        return '**' + no + '** – ' + span + ': ' + (r.entries ? T({ en: r.entries + ' Log Book entries', mr: r.entries + ' Log Book entries', hi: r.entries + ' Log Book entries' }) + ' · ' + [r.totalKm ? '**' + fmt(r.totalKm) + ' km**' : '', r.totalHours ? '**' + fmt(r.totalHours) + ' hr**' : ''].filter(Boolean).join(' + ') + ' · diesel ' + fmt(r.dieselIssuedLitres) + ' L'
+          : T({ en: 'no Log Book entry.', mr: 'Log Book entry नाही.', hi: 'Log Book entry नहीं।' })) + '\n[[open:log|Log Book]]'; } };
+    return { run: async () => { const r = await AI_RUN.log_book({ from: addDay(S.today, -60), to: S.today, machinery: no }), x = (r.rows || []).filter(z => z.ckm || z.chr).sort((a, b) => a.date < b.date ? 1 : -1)[0];
+        return x ? T({ en: '**' + no + '** – last reading on ' + showDate(x.date) + ': ', mr: '**' + no + '** – शेवटची reading ' + showDate(x.date) + ' ची: ', hi: '**' + no + '** – आखिरी reading ' + showDate(x.date) + ' की: ' }) + '**' + [x.ckm ? fmt(x.ckm) + ' km' : '', x.chr ? fmt(x.chr) + ' hr' : ''].filter(Boolean).join(' / ') + '**\n[[open:log|Log Book]]'
+          : T({ en: no + ' has no Log Book reading in the last 60 days.', mr: no + ' ची गेल्या 60 दिवसांत Log Book reading नाही.', hi: no + ' की पिछले 60 दिनों में Log Book reading नहीं।' }); } };
+  }
+  // figures about the machinery named in a question, attached for the AI (so that it need not ask for them)
+  async function aiAbout(text) { const m = aiFindMach(text); if (!m) return null; const from = S.today.slice(0, 8) + '01', pick = async f => { try { return await f(); } catch (e) { return { notAllowed: errMsg(e) }; } };
+    const [d, a] = await Promise.all([pick(() => AI_RUN.diesel_issues({ from: from, to: S.today, machinery: m.id })), pick(() => AI_RUN.diesel_average({ from: from, to: S.today, machinery: m.id }))]);
+    return { machinery: { id: m.id, name: m.name, type: m.type, owner: m.owner, ownership: m.ownership, unit: m.unit, kmStd: m.kmStd, hrStd: m.hrStd, tankCap: m.tankCap, status: m.status }, thisMonth: { from: from, to: S.today, diesel: d && !d.notAllowed ? { entries: d.entries, totalLitres: d.totalLitres, rows: (d.rows || []).slice(0, 20) } : d, average: a && !a.notAllowed ? (a.machinery || [])[0] || null : a } }; }
+  // the app's own answer, shown the same way wherever it comes from
+  async function aiByApp(loc, note) { const t = await loc.run(); aiAdd('ai-src', '<span>⚡ ' + esc(note) + '</span>'); aiAdd('ai-m bot', aiHtml(t)); return t; }
+  async function aiAsk(text, onlyAi) {
     text = String(text || '').trim(); if (!text || AI.busy) return;
-    if (!AI.on) { aiAdd('ai-m me', esc(text)); aiAdd('ai-m err', esc(aiL({ en: 'Typed questions need the AI service, which is not set up yet. The ⚡ questions below work without it.', mr: 'टाइप केलेल्या प्रश्नांसाठी AI सेवा लागते; ती अजून सुरू केलेली नाही. खालचे ⚡ प्रश्न तिच्याशिवाय चालतात.', hi: 'टाइप किए सवालों के लिए AI सेवा चाहिए; वह अभी शुरू नहीं है। नीचे के ⚡ सवाल उसके बिना चलते हैं।' }))); return; }
-    AI.busy = true; $('ai_send').disabled = true; $('ai_sugg').innerHTML = '';
-    const keep = AI.turns.length, t0 = Date.now();
+    AI.busy = true; $('ai_send').disabled = true; $('ai_sugg').innerHTML = ''; AI.lang = aiLangOf(text);
+    const keep = AI.turns.length, t0 = Date.now(), byApp = aiL({ en: 'from the app itself, now', mr: 'app कडून थेट, आत्ता', hi: 'app से सीधे, अभी' });
     aiAdd('ai-m me', esc(text)); AI.turns.push({ role: 'user', parts: [{ text: text }] });
-    const wait = aiAdd('ai-wait', 'Thinking…'), used = [];
+    const wait = aiAdd('ai-wait', '…'), used = [];
+    const said = t => { AI.turns.push({ role: 'model', parts: [{ text: t }] }); };
     try {
-      const snap = await aiSnap(), ctx = Object.assign({ page: aiPage() }, snap || {});
+      // 1. the app understands it for sure
+      const sure = onlyAi ? null : aiLocal(text, false);            // (a question about an error message is always for the AI)
+      if (sure) { const t = await sure.run(); wait.remove(); aiAdd('ai-src', '<span>⚡ ' + esc(byApp) + '</span>'); aiAdd('ai-m bot', aiHtml(t)); said(t); return; }
+      // 2. the AI service
+      if (!AI.on) throw new Error('The assistant is not set up yet: the Admin has to put the AI key (GEMINI_API_KEY) in the server\'s settings.');
+      wait.textContent = 'Thinking…';
+      const [snap, about] = await Promise.all([aiSnap(), aiAbout(text)]), ctx = Object.assign({ page: aiPage() }, snap || {}, about ? { aboutTheMachineryInTheQuestion: about } : {});
       for (let step = 0; step < 7; step++) {
         const r = await rawCall('getAiReply', { contents: AI.turns, context: ctx });
         AI.turns.push({ role: 'model', parts: r.parts });                               // exactly as it came (the service wants its own parts back)
@@ -9391,18 +9488,29 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           aiAdd('ai-src', '<span>' + (used.length ? 'Looked up:' : esc(aiL({ en: 'From the figures of ' + ((snap || {}).asOf || 'now'), mr: ((snap || {}).asOf || 'आत्ता') + ' च्या आकड्यांवरून', hi: ((snap || {}).asOf || 'अभी') + ' के आँकड़ों से' }))) + '</span>' + used.map(u => '<span>' + esc(u) + '</span>').join('') +
             (S.user && S.user.admin ? '<span title="the AI model that answered, and how long it took">' + esc(r.model || '') + ' · ' + (Math.round((Date.now() - t0) / 100) / 10) + ' s</span>' : ''));
           aiAdd('ai-m bot', aiHtml(t || '–')); return; }
-        const outs = [];
-        for (const c of calls) { const name = c.functionCall.name, args = c.functionCall.args || {}; wait.textContent = 'Looking up: ' + aiWhat(name, args) + '…'; used.push(aiWhat(name, args));
+        // the look-ups it asks for run side by side
+        wait.textContent = 'Looking up: ' + calls.map(c => aiWhat(c.functionCall.name, c.functionCall.args || {})).join(', ') + '…';
+        const outs = await Promise.all(calls.map(async c => { const name = c.functionCall.name, args = c.functionCall.args || {}; used.push(aiWhat(name, args));
           let res; try { res = AI_RUN[name] ? await AI_RUN[name](args) : { error: 'There is no such look-up.' }; } catch (e) { res = { error: errMsg(e) }; }
-          outs.push({ functionResponse: { name: name, response: res } }); }
+          return { functionResponse: { name: name, response: res } }; }));
         AI.turns.push({ role: 'user', parts: outs }); wait.textContent = 'Writing the answer…';
       }
-      wait.remove(); aiAdd('ai-m err', 'This question needed too many look-ups. Ask it in smaller parts.');
+      throw new Error('This question needed too many look-ups. Ask it in smaller parts.');
     } catch (e) {
-      // the question did not get its answer: the conversation goes back to where it was before it, and "Ask again" sends it once more
-      wait.remove(); while (AI.turns.length > keep) AI.turns.pop();
-      aiAdd('ai-m err', esc(errMsg(e)) + '<br><button type="button" class="ai-go" data-airetry="' + esc(text) + '">Ask again</button>' + (/busy|reached|service/i.test(errMsg(e)) ? '<br><small>' + esc(aiL({ en: 'The ⚡ questions below are answered by the app itself and work now.', mr: 'खालचे ⚡ प्रश्न app स्वतः उत्तरते; ते आत्ताही चालतात.', hi: 'नीचे के ⚡ सवाल app खुद जवाब देता है; वे अभी भी चलते हैं।' })) + '</small>' : '')); }
-    finally { AI.busy = false; $('ai_send').disabled = false; $('ai_in').focus(); aiSuggest(); }
+      // 3. no answer from the AI service: the app answers as well as it can – an error is the last thing shown
+      wait.remove(); while (AI.turns.length > keep + 1) AI.turns.pop();
+      const why = errMsg(e), short = /not set up/i.test(why) ? aiL({ en: 'The AI service is not set up', mr: 'AI सेवा अजून सुरू केलेली नाही', hi: 'AI सेवा अभी शुरू नहीं है' }) : aiL({ en: 'The AI service did not answer', mr: 'AI सेवेने उत्तर दिले नाही', hi: 'AI सेवा ने जवाब नहीं दिया' });
+      let done = false;
+      try { const loose = aiLocal(text, true);
+        if (loose) { const t = await aiByApp(loose, short + ' – ' + byApp); said(t); done = true; }
+        else { const g = (await AI_RUN.app_guide({ topic: text })).pagesThatFit[0];
+          if (g) { const gd = guideOf(g.tab), t = '**' + g.title + '**\n' + (gd ? gd[AI.lang || fixLang][0] + '\n\n' + gd[AI.lang || fixLang][1] : g.whatItIsFor) + '\n[[open:' + g.tab + '|' + g.title + ']]';
+            aiAdd('ai-src', '<span>⚡ ' + esc(short + ' – ' + aiL({ en: 'the app\'s guide that fits best', mr: 'app च्या मार्गदर्शनातले सर्वात जवळचे', hi: 'app की guide में सबसे नज़दीकी' })) + '</span>'); aiAdd('ai-m bot', aiHtml(t)); said(t); done = true; } }
+      } catch (e2) { done = false; }
+      if (!done) { AI.turns.pop(); aiAdd('ai-m err', esc(why) + '<br><button type="button" class="ai-go" data-airetry="' + esc(text) + '">Ask again</button><br><small>' + esc(aiL({ en: 'The ⚡ questions below are answered by the app itself and work now.', mr: 'खालचे ⚡ प्रश्न app स्वतः उत्तरते; ते आत्ताही चालतात.', hi: 'नीचे के ⚡ सवाल app खुद जवाब देता है; वे अभी भी चलते हैं।' })) + '</small>'); }
+      else if (S.user && S.user.admin && !/not set up/i.test(why)) aiAdd('ai-src', '<span title="' + esc(why) + '">Admin: ' + esc(why.slice(0, 110)) + '</span>');
+    }
+    finally { AI.lang = ''; AI.busy = false; $('ai_send').disabled = false; $('ai_in').focus(); aiSuggest(); }
   }
   // Admin: which model answers, how fast, and what the service says (to see why the assistant does not answer)
   async function aiTest() {

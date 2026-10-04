@@ -24,14 +24,14 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
     return f.evaluate(() => { const m = [...document.querySelectorAll('#ai_msgs > div')]; const last = m[m.length - 1], src = m[m.length - 2]; return { answer: last.textContent, cls: last.className, bold: (last.querySelector('b') || {}).textContent || '', go: [...last.querySelectorAll('.ai-go')].map(x => x.dataset.aigo + ':' + x.textContent), looked: src && src.classList.contains('ai-src') ? src.textContent : '' }; }); };
   // 1. a figure from the data
   const tot = sql("select coalesce(sum(qty), 0)::float || '|' || count(*) from diesel_issue where issue_date between '2026-09-29' and '2026-09-30'").split('|');
-  let a = await ask('How much diesel was issued from 2026-09-29 to 2026-09-30?');
+  let a = await ask('Compare the diesel issued from 2026-09-29 to 2026-09-30');
   ok('a diesel question: the figure in the answer is the database\'s own (' + tot[0] + ' L in ' + tot[1] + ' entries), and the answer says what was looked up', a.cls === 'ai-m bot' && a.bold === tot[0] + ' L' && new RegExp('in ' + tot[1] + ' entries').test(a.answer) && /Looked up:Diesel issues 29-09-2026 to 30-09-2026/.test(a.looked), a);
   ok('the answer carries a button to the page', a.go.join() === 'diesel:Open Diesel Issue →', a.go);
   await f.evaluate(() => document.querySelector('#ai_msgs .ai-go').click()); await wait(800);
   ok('…and the button opens that page', await f.evaluate(() => S.curTab) === 'diesel', await f.evaluate(() => S.curTab));
   // 2. pending Log Book – in Marathi
   const today = await f.evaluate(() => S.today), pend = await f.evaluate(async d => (await rawCall('logPending')).items.filter(x => x[1] === d).length, '2026-10-03');
-  a = await ask('2026-10-03 ला कोणत्या गाड्यांची Log Book बाकी आहे?');
+  a = await ask('2026-10-03 ला कोणत्या गाड्यांची Log Book बाकी आहे, आणि असे का?');
   ok('a pending question typed in Marathi: the count is the app\'s own pending count for that date', new RegExp('^' + pend + ' machinery have no Log Book for 2026-10-03').test(a.answer) && /Pending Log Book 03-10-2026/.test(a.looked), { answer: a.answer.slice(0, 90), app: pend });
   // 3. how do I
   a = await ask('How do I make the bill of a vendor?');

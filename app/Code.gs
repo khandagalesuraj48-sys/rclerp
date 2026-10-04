@@ -6518,12 +6518,26 @@ function getAiReply_(u, x) {
    * first "lite" model (lighter models are busy far less often), then two more – all within about 35 seconds. A model that
    * answered while the first was busy is put first for the next questions.
    * Anything else (400 a request the service does not accept, 401 / 403 the key) is not repeated – it would fail the same way. */
+  /* SPEED (asked 04-10-2026: "ultra fast"): the newer models "think" before they answer, which costs seconds. This app's
+   * questions need little of it – the figures come from the look-ups – so the model is asked for the LOW thinking level.
+   * Not every model knows that setting: one that refuses it (400 naming "thinking") is asked again at once without it, and
+   * that is remembered for the model (AI_PLAIN) so the refusal costs time only once. */
   const models = aiModels_(), seq = aiTries_(models), t0 = Date.now(), pr = PropertiesService.getScriptProperties();
+  let plain = {}; try { plain = JSON.parse(pr.getProperty('AI_PLAIN') || '{}') || {}; } catch (e) { plain = {}; }
+  const ask = model => {
+    if (!plain[model]) {
+      const quick = Object.assign({}, body, { generationConfig: Object.assign({}, body.generationConfig, { thinkingConfig: { thinkingLevel: 'low' } }) });
+      const r1 = __ai.call('POST', '/v1beta/models/' + encodeURIComponent(model) + ':generateContent', quick, 40000);
+      if (!(r1.code === 400 && /thinking/i.test(r1.text))) return r1;
+      plain[model] = 1; try { pr.setProperty('AI_PLAIN', JSON.stringify(plain)); } catch (e) { /* asked plainly this time anyway */ }
+    }
+    return __ai.call('POST', '/v1beta/models/' + encodeURIComponent(model) + ':generateContent', body, 40000);
+  };
   let last = null, tried = 0; const gone = {};
   for (let i = 0; i < seq.length; i++) {
     const model = seq[i]; if (gone[model] || Date.now() - t0 > 35000) continue;
     if (i === 1) __ai.wait(1500);
-    const r = __ai.call('POST', '/v1beta/models/' + encodeURIComponent(model) + ':generateContent', body, 40000); tried++;
+    const r = ask(model); tried++;
     if (!r.error && r.code < 300) {
       let j = {}; try { j = JSON.parse(r.text); } catch (e) { throw new Error('The AI service sent an answer that cannot be read. Try again.'); }
       const cand = (j.candidates || [])[0] || {}, parts = (cand.content && cand.content.parts) || [];
@@ -6560,9 +6574,11 @@ function getAiCheck_() {
     let text = ''; try { text = ((((JSON.parse(r.text).candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || '').join('').trim().slice(0, 40); } catch (e) { text = ''; }
     out.tests.push({ model: m, ok: !r.error && r.code < 300, code: r.code || 0, ms: Date.now() - t0, said: !r.error && r.code < 300 ? text : (r.error || aiSaid_(r.text)) });
   });
-  // what the test found is used: the models that answered just now are asked first, those that did not go to the end
+  // what the test found is used: the models that answered just now are asked first – the FASTEST of them first ("ultra fast";
+  // the figures are the app's own, so a quicker model costs no correctness) –, those that did not answer go to the end
   if (!out.fixedModel && out.tests.some(t => t.ok)) {
-    const bad = out.tests.filter(t => !t.ok).map(t => t.model), list = out.models.filter(n => bad.indexOf(n) < 0).concat(bad);
+    const bad = out.tests.filter(t => !t.ok).map(t => t.model), fast = out.tests.filter(t => t.ok).sort((a, b) => a.ms - b.ms).map(t => t.model);
+    const list = fast.concat(out.models.filter(n => bad.indexOf(n) < 0 && fast.indexOf(n) < 0)).concat(bad);
     PropertiesService.getScriptProperties().setProperty('AI_MODEL', JSON.stringify({ v: 2, list: list, at: Date.now() }));
     out.models = list; out.order = aiTries_(list);
   }

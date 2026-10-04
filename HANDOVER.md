@@ -753,6 +753,23 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   the old rule is dropped); `getAiCheck_` stores the models that answered first, those that did not last. Checked against the
   stand-in in his situation: a question goes straight to the newest numbered model, one call. If he wants the fastest instead of
   the newest: GEMINI_MODEL = gemini-3.5-flash in Vercel (1.2 s in his test). Still to be seen: a full typed answer on live.
+- 04-10-2026 (night): "MAKE ASK MORE POWERFUL – an answer every time, no errors, ultra fast, correct, whatever the language."
+  * THE APP UNDERSTANDS THE COMMON TYPED QUESTIONS ITSELF (`aiLocal`, `aiFindMach`, `aiPeriod`, `aiLangOf`, `AI_KIND`, `AI_HARD`):
+    kinds diesel / pending / stock / average / work / last reading; the machinery from its number (with or without dashes), its name,
+    or four digits only one machinery ends with; the dates from written dates, today / yesterday / this-last week / this-last month,
+    month names – in English, Marathi, Hindi and Marathi / Hindi in English letters; the answer in the question's language
+    (`AI.lang`). Sure only when ONE kind is found and no "why / how (not how much) / compare / explain …" word; average / work /
+    reading need a machinery; a vehicle number that is not in the Master is never guessed at. Then the look-up runs and the app
+    writes the answer – no AI call (0.2–0.5 s on the rig).
+  * ORDER FOR A TYPED QUESTION (`aiAsk`): 1. the app is sure → ⚡; 2. the AI service, with the snapshot AND the figures of the
+    machinery named in the question attached (`aiAbout`: its master data, this month's diesel and average) so that one step is
+    enough; the look-ups it asks for run side by side; 3. the AI service fails / no key → the app's best reading (`aiLocal(text,
+    true)`) or the guide of the page that fits best, with a note saying so (the Admin also sees the service's reason); an error
+    with "Ask again" only when nothing can be said. A question about an error message (`aiAsk(text, true)`) always goes to the AI.
+  * SERVER: the model is asked with `thinkingConfig.thinkingLevel: 'low'` (faster); a model that answers 400 naming "thinking" is
+    asked again at once without it and remembered in AI_PLAIN. The Admin's test puts the FASTEST answering model first.
+  * NOT PROVEN ON LIVE: whether his Gemini models accept "thinkingLevel" (if not, the first question to each costs one refused call),
+    and a full typed AI answer. Tests: `test/browser/ai3.js` (13), ai.js (13), ai2.js (9), aibusy.js (6) – stand-in service.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
