@@ -746,6 +746,13 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     tiny question – answered or not, seconds, the service's own words. Under an AI answer the Admin sees the model and the seconds.
   * Tests: `test/browser/ai2.js` (9), `ai.js` (13), `aibusy.js` (6) – all with the stand-in; the real Gemini has still not been
     seen answering. NEXT: his screenshot of "Test the AI service".
+- 04-10-2026 (his screenshot of "Test the AI service" on the live site): gemini-flash-latest → 503 "high demand"; gemini-3.8-flash
+  answered in 2.1 s, 3.7 in 3.8 s, 3.6 in 1.5 s, 3.5 in 1.2 s. So the KEY AND THE REQUEST ARE RIGHT; the cause of "it does not
+  answer" was the "-latest" name, which the app asked first (twice, with a wait) for every step. NOW `aiModels_` puts the numbered
+  flash models first (highest version first), then "-latest" names, previews, lite; what is kept carries `v: 2` (an order kept by
+  the old rule is dropped); `getAiCheck_` stores the models that answered first, those that did not last. Checked against the
+  stand-in in his situation: a question goes straight to the newest numbered model, one call. If he wants the fastest instead of
+  the newest: GEMINI_MODEL = gemini-3.5-flash in Vercel (1.2 s in his test). Still to be seen: a full typed answer on live.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

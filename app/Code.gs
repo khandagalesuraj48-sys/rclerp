@@ -6462,24 +6462,26 @@ function aiRules_(u) {
 }
 function aiInfo_() { return { on: typeof __ai === 'object' && !!__ai && __ai.on() }; }
 /* THE MODELS, in the order they are tried. The one fixed in the server's settings (GEMINI_MODEL) if there is one; else from the
- * service's own list (names change often), kept for a day: the "flash" models first – "gemini-flash-latest" if offered, then
- * the highest version –, then the previews, then the "flash-lite" ones. A model that is BUSY is not the end: the next one is
- * tried (first real use, 04-10-2026: "This model is currently experiencing high demand", 503). */
+ * service's own list (names change often), kept for a day: the NUMBERED "flash" models first, the highest version first; then
+ * the "…-latest" names; then the previews; then the "flash-lite" ones. A model that is BUSY is not the end: the next is tried.
+ * WHY THE "-latest" NAME IS NOT FIRST (his test on the live site, 04-10-2026): "gemini-flash-latest" answered 503 "currently
+ * experiencing high demand" again and again, while gemini-3.8 / 3.7 / 3.6 / 3.5-flash all answered in 1–4 seconds. Everybody's
+ * traffic goes to that one name. (v: 2 in what is kept – an order kept by the earlier rule is thrown away.) */
 function aiModels_() {
   const fixed = __ai.model(); if (fixed) return [fixed.replace(/^models\//, '')];
   const pr = PropertiesService.getScriptProperties();
   let kept = null; try { kept = JSON.parse(pr.getProperty('AI_MODEL') || 'null'); } catch (e) { kept = null; }
-  if (kept && Array.isArray(kept.list) && kept.list.length && Date.now() - Number(kept.at) < 86400000) return kept.list;
+  if (kept && kept.v === 2 && Array.isArray(kept.list) && kept.list.length && Date.now() - Number(kept.at) < 86400000) return kept.list;
   const r = __ai.call('GET', '/v1beta/models?pageSize=1000');
   if (r.error || r.code >= 300) throw new Error('The AI service did not give its list of models (' + (r.error || r.code) + '). Check GEMINI_API_KEY in the server\'s settings.' + (r.text ? ' It said: ' + aiSaid_(r.text) : ''));
   let list = []; try { list = (JSON.parse(r.text).models || []); } catch (e) { list = []; }
   const ok = list.filter(m => (m.supportedGenerationMethods || []).indexOf('generateContent') > -1).map(m => String(m.name || '').replace(/^models\//, ''))
     .filter(n => /^gemini-/.test(n) && /flash/.test(n) && !/image|tts|audio|live|embedding|exp|thinking|8b|robotics|computer|native|custom/.test(n));
   const ver = n => { const m = /gemini-(\d+(?:\.\d+)?)/.exec(n); return m ? Number(m[1]) : 0; };
-  const tier = n => n === 'gemini-flash-latest' ? 0 : /lite/.test(n) ? 3 : /preview/.test(n) ? 2 : 1;
+  const tier = n => /lite/.test(n) ? 3 : /preview/.test(n) ? 2 : /latest/.test(n) ? 1 : 0;
   const order = ok.sort((a, b) => tier(a) - tier(b) || ver(b) - ver(a) || a.length - b.length).slice(0, 6);
   if (!order.length) throw new Error('The AI service offers no "flash" model to this key. Put the model\'s name in GEMINI_MODEL in the server\'s settings.');
-  pr.setProperty('AI_MODEL', JSON.stringify({ list: order, at: Date.now() }));
+  pr.setProperty('AI_MODEL', JSON.stringify({ v: 2, list: order, at: Date.now() }));
   return order;
 }
 // what the service said, in its own words (its answers to a refusal are JSON with error.message)
@@ -6526,7 +6528,7 @@ function getAiReply_(u, x) {
       let j = {}; try { j = JSON.parse(r.text); } catch (e) { throw new Error('The AI service sent an answer that cannot be read. Try again.'); }
       const cand = (j.candidates || [])[0] || {}, parts = (cand.content && cand.content.parts) || [];
       if (!parts.length) throw new Error('The AI service gave no answer' + (cand.finishReason ? ' (' + cand.finishReason + ')' : (j.promptFeedback && j.promptFeedback.blockReason ? ' (' + j.promptFeedback.blockReason + ')' : '')) + '. Ask in other words.');
-      if (model !== models[0] && !__ai.model()) pr.setProperty('AI_MODEL', JSON.stringify({ list: [model].concat(models.filter(n => n !== model)), at: Date.now() }));
+      if (model !== models[0] && !__ai.model()) pr.setProperty('AI_MODEL', JSON.stringify({ v: 2, list: [model].concat(models.filter(n => n !== model)), at: Date.now() }));
       return { parts: parts, model: model, used: (j.usageMetadata && j.usageMetadata.totalTokenCount) || 0, tries: tried, ms: Date.now() - t0 };
     }
     last = { code: r.code, error: r.error, said: aiSaid_(r.text), model: model };
@@ -6558,6 +6560,12 @@ function getAiCheck_() {
     let text = ''; try { text = ((((JSON.parse(r.text).candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || '').join('').trim().slice(0, 40); } catch (e) { text = ''; }
     out.tests.push({ model: m, ok: !r.error && r.code < 300, code: r.code || 0, ms: Date.now() - t0, said: !r.error && r.code < 300 ? text : (r.error || aiSaid_(r.text)) });
   });
+  // what the test found is used: the models that answered just now are asked first, those that did not go to the end
+  if (!out.fixedModel && out.tests.some(t => t.ok)) {
+    const bad = out.tests.filter(t => !t.ok).map(t => t.model), list = out.models.filter(n => bad.indexOf(n) < 0).concat(bad);
+    PropertiesService.getScriptProperties().setProperty('AI_MODEL', JSON.stringify({ v: 2, list: list, at: Date.now() }));
+    out.models = list; out.order = aiTries_(list);
+  }
   return out;
 }
 

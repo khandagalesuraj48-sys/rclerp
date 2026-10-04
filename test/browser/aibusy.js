@@ -32,7 +32,7 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   // 3. everything is busy: said plainly, the conversation is as before, "Ask again" works once the service is back
   await gem('/__clear'); await gem('/__busy?model=*&n=99'); const before = await f.evaluate(() => AI.turns.length);
   a = await ask('How much diesel was issued from 2026-09-29 to 2026-09-30?');
-  ok('every model busy: a plain message (not the service\'s raw text), with what the Admin needs and an "Ask again" button; the conversation is as it was', a.cls === 'ai-m err' && /The AI service is busy right now \(503\) – that is on its side, not in the app\. It was asked 4 time\(s\)\. Please ask again in a minute\. Admin: model \S+ said: This model is currently experiencing high demand/.test(a.text) && !/\{/.test(a.text) && a.again && a.turns === before, a);
+  ok('every model busy: a plain message (not the service\'s raw text), with what the Admin needs and an "Ask again" button; the conversation is as it was', a.cls === 'ai-m err' && /The AI service is busy right now \(503\) – that is on its side, not in the app\. It was asked 5 time\(s\)\. Please ask again in a minute\. Admin: model \S+ said: This model is currently experiencing high demand/.test(a.text) && !/\{/.test(a.text) && a.again && a.turns === before, a);
   await gem('/__clear'); const n0 = await f.evaluate(() => document.querySelectorAll('#ai_msgs .ai-m.bot').length);
   await f.evaluate(() => document.querySelector('#ai_msgs [data-airetry]').click());
   for (let i = 0; i < 60; i++) { await wait(400); if (await f.evaluate(n => document.querySelectorAll('#ai_msgs .ai-m.bot').length > n && !AI.busy, n0)) break; }

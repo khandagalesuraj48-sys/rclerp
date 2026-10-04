@@ -10,7 +10,7 @@ http.createServer((req, res) => {
     const bz = /^\/__busy\?model=([^&]+)&n=(\d+)/.exec(req.url); if (bz) { busy[decodeURIComponent(bz[1])] = Number(bz[2]); return send(res, 200, busy); }
     if (req.headers['x-goog-api-key'] !== 'test-key') return send(res, 403, { error: { message: 'API key not valid' } });
     if (req.method === 'GET' && /^\/v1beta\/models(\?|$)/.test(req.url)) return send(res, 200, { models: [
-      { name: 'models/gemini-9.5-pro', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-9.0-flash', supportedGenerationMethods: ['generateContent'] },
+      { name: 'models/gemini-flash-latest', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-9.5-pro', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-9.0-flash', supportedGenerationMethods: ['generateContent'] },
       { name: 'models/gemini-9.5-flash', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-9.5-flash-lite', supportedGenerationMethods: ['generateContent'] }, { name: 'models/text-embedding-9', supportedGenerationMethods: ['embedContent'] }] });
     const m = /^\/v1beta\/models\/([^:]+):generateContent/.exec(req.url); if (!m || req.method !== 'POST') return send(res, 404, { error: { message: 'not found' } });
     const bk = busy[m[1]] > 0 ? m[1] : busy['*'] > 0 ? '*' : '';
