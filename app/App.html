@@ -189,6 +189,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   /* buttons */
   .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+  /* Log Book entry: "+ Add row / Save / Clear" and the totals stay at the bottom of the window while the rows are on the screen –
+     with 30 rows nobody has to scroll to the end to find Save. Below the last row the bar sits in its normal place. */
+  .actions.lg-actions { position: sticky; bottom: 0; z-index: 6; background: #fff; margin: 0 -14px -6px; padding: 10px 14px; border-top: 1px solid #DDE3EA; box-shadow: 0 -6px 14px -10px rgba(15, 23, 42, .35); border-radius: 0 0 12px 12px; }
+  @media print { .actions.lg-actions { position: static; box-shadow: none; } }
   .btn { appearance: none; cursor: pointer; border-radius: 5px; padding: 7px 16px; min-height: 34px; font: 600 13.5px var(--ui); border: 1px solid var(--steel); display: inline-flex; align-items: center; gap: 6px; }
   .btn svg { width: 16px; height: 16px; }
   .btn.primary { background: var(--hivis); border-color: var(--hivis); color: var(--steel); }
@@ -1944,7 +1948,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
      places are set here. Diesel (worked out by the app) is the small 2 × 2 block; headings are shown once, above the first line.
      When the page is too narrow for one line (small window), chainage and work drop to a second line. ---------- */
   @media (min-width: 761px) {
-    .lg-wrap { overflow: visible; border: 1px solid #DDE3EA; border-radius: 12px; background: #fff; box-shadow: none; container-type: inline-size; }
+    /* max-height: none – every data table has "max-height: screen − 140px" and scrolls in its own box, but this box does NOT scroll
+       (overflow visible), so with more rows than fit that height the rows ran out of the box, OVER the buttons and the list below
+       (seen on a laptop with 10 rows, 04-10-2026). The box now grows with its rows – 5 or 50. */
+    .lg-wrap { overflow: visible; max-height: none; border: 1px solid #DDE3EA; border-radius: 12px; background: #fff; box-shadow: none; container-type: inline-size; }
     .lg-wrap table.lgt, .lg-wrap table.lgt tbody { display: block; width: 100%; }
     .lg-wrap table.lgt thead { display: none; }
     .lg-wrap tr.lrow { display: grid; align-items: stretch; column-gap: 8px; row-gap: 0; padding: 7px 10px; border-bottom: 1px solid #E8EDF2; position: relative;
@@ -3656,7 +3663,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         </thead>
         <tbody id="lg_in"></tbody>
       </table></div>
-      <div class="actions">
+      <div class="actions lg-actions">
         <button class="btn ghost" id="l_add1">+ Add row</button>
         <button class="btn primary" id="l_save">Save Log Book</button>
         <button class="btn ghost" id="l_clear">Clear</button>
@@ -4591,9 +4598,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // a box that reports something refused ("Nothing saved", "Not submitted", a stock or machinery alert): add what is wrong / what to do
     if ((o.alertOnly && (o.danger || /^(Nothing|Not |Fix )/i.test(o.title || ''))) || (!o.alertOnly && /anyway|has entries|Check the/i.test((o.title || '') + ' ' + (o.ok || '') + ' ' + (o.message || '')))) { try { $('cf_msg').insertAdjacentHTML('beforeend', fixHtml($('cf_msg').textContent)); } catch (e) { /* help only */ } }
     $('cf_ok').textContent = o.ok || 'Yes';
+    $('cf_cancel').textContent = o.cancel || 'Cancel';
     $('cf_box').className = (o.danger ? 'danger' : '') + (o.alertOnly ? ' alert' : '') + (o.wide ? ' wide' : '');
     $('cf_back').hidden = false;
-    setTimeout(() => (o.alertOnly ? $('cf_ok') : $('cf_cancel')).focus(), 0);
+    // the cursor waits on Cancel (Enter must not confirm an edit or a delete by accident) – except where the box says focusOk (Ctrl + S: Enter = Yes)
+    setTimeout(() => (o.alertOnly || o.focusOk ? $('cf_ok') : $('cf_cancel')).focus(), 0);
     return new Promise(res => { cfResolve = res; });
   }
   function showAlert(title, message) { return askConfirm({ title: title, message: message, ok: 'OK', danger: true, alertOnly: true }); }
@@ -6371,6 +6380,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // Ctrl + K (⌘ + K on Mac) anywhere opens / closes the search; "/" opens it when not typing
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); $('gs_back').hidden ? gsOpen() : gsClose(); return; }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 's' || e.key === 'S' || e.code === 'KeyS')) { e.preventDefault(); ctrlSave(); return; }
     if (e.key === '/' && $('gs_back').hidden && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) { e.preventDefault(); gsOpen(); }
   });
 
@@ -9076,6 +9086,36 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }).catch(e => toast(errMsg(e), true));
   }
   $('dash_daily').addEventListener('click', e => dailyReport(e.target));
+
+  /* ================= Ctrl + S = SAVE, on every page (asked 04-10-2026) =================
+   * Ctrl + S (⌘ S on a Mac) never opens the browser's "save this web page" box. It finds the Save button of what the person is
+   * working on, asks "Save?" naming that button, and on Yes presses it – so everything the button does (its checks, its own
+   * questions, the re-sending) happens exactly as with the mouse.
+   * Which button: a visible, enabled main button whose words begin with Save / Update / Add – first in the panel the cursor is
+   * in, else the first one on the page. Not: anything inside an open question box, "Verify & Submit" of a bill (that is not
+   * a plain save), buttons that only make a report. Nothing to save on the page → a line says so. A box is open → nothing. */
+  const SAVE_WORD = /^\s*(save|update|add)\b/i;
+  function saveButtons(root) {
+    return [...root.querySelectorAll('button.btn.primary, button.btn.gold, button.primary')].filter(b => !b.disabled && b.offsetParent !== null && SAVE_WORD.test(b.textContent) && !b.closest('#cf_back, #gs_back, [hidden]'));
+  }
+  let ctrlSaveBusy = false;
+  async function ctrlSave() {
+    if (ctrlSaveBusy || !S.token || document.body.classList.contains('locked')) return;
+    if (!$('cf_back').hidden || !$('gs_back').hidden || $('qr_sheet')) return;            // a box is open: it has its own buttons
+    const sec = $('sec-' + S.curTab) || document.querySelector('main section:not([hidden])'); if (!sec) return;
+    const at = document.activeElement, panel = at && at.closest ? at.closest('.panel, form, .card') : null;
+    const here = panel && sec.contains(panel) ? saveButtons(panel) : [], all = saveButtons(sec), btn = here[0] || all[0];
+    if (!btn) { toast('There is nothing to save on this page.'); return; }
+    // what was being typed must count: leaving the box makes the page take the value (its "changed" handlers run)
+    if (at && at.blur && /^(INPUT|SELECT|TEXTAREA)$/.test(at.tagName)) at.blur();
+    const name = btn.textContent.replace(/\s+/g, ' ').trim();
+    const L = { en: 'Do you want to save now?', mr: 'आत्ता save करायचे आहे का?', hi: 'अभी save करना है?' };
+    ctrlSaveBusy = true;
+    try {
+      const yes = await askConfirm({ title: 'Save?', ok: 'Yes, save', cancel: 'No', focusOk: true, message: '“' + name + '” – ' + (L[fixLang] || L.en) + (all.length > 1 && !here.length ? ' (This page has ' + all.length + ' save buttons; this is the first. Click into the part you want and press Ctrl + S there.)' : '') });
+      if (yes && !btn.disabled && btn.isConnected) btn.click(); else if (at && at.focus && at.isConnected) at.focus();
+    } finally { ctrlSaveBusy = false; }
+  }
 
   /* ================= FAULTS: reported by themselves, shown to the user and to the Admin (asked 03-10-2026) =================
    * A fault of the page's own code (an exception, a broken promise of the code) is sent to the server (reportError) and the

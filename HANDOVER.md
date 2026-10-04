@@ -639,6 +639,21 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     site); makes LD-00…39, a diesel receipt and diesel issues, deletes the issues and the receipt at the end.
   * Tests: `test/browser/warm.js` (12: two servers with separate memories agree with the database after changes through either, edits
     straight in the database, delete + re-enter, 2,500 rows at once); all earlier suites pass on the new path (audit 40, reg 11, …).
+- 04-10-2026 (photo of a laptop, user Amzad, Log Book entry with 10 rows: "+ Add row / Save Log Book / Clear" lay over row 8 and
+  the list panel over rows 8–10): "the buttons must stay properly visible even with 30 rows" + "Ctrl + S must save on every page,
+  with a pop-up 'save?' – yes → save".
+  * CAUSE of the overlap: on a computer `.lg-wrap` is `overflow: visible` (the one-line entry rows), but it is also a `.table-wrap`,
+    and every `.table-wrap` has `max-height: calc(100vh − 140px)` (tables scroll in their own box). A box with a height limit that
+    does not scroll: with more rows than fit that height (5 on a laptop) the rows ran out of the box, over what follows. FIX:
+    `max-height: none` for `.lg-wrap` on computers. All 38 pages scanned for the same combination: none other.
+  * The button row of the Log Book entry (`.actions.lg-actions`) is `position: sticky; bottom: 0` – in sight at the bottom of the
+    window while the rows are on the screen, in its normal place under the last row.
+  * Ctrl + S (`ctrlSave`, in the global keydown): never the browser's "save page"; finds the visible, enabled main button whose
+    words begin with Save / Update / Add – first in the panel that has the cursor, else the first on the page –, leaves the box
+    being typed in (so its value counts), asks "Save?" naming the button (help language; the cursor on "Yes, save", so Enter = yes,
+    Esc = no) and presses that button. Nothing to save → a line says so; a box already open → nothing. `askConfirm` got `cancel`
+    (label) and `focusOk`.
+  * Test: `test/browser/lgrows.js` (12: 10 and 30 rows at 1280 × 640, Ctrl + S on Log Book, Asset Master, Dashboard).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
