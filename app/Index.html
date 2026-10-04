@@ -6,6 +6,13 @@
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #F4F6F8; }
   #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+  /* "a new version is ready" – shown over the app; the person updates from inside the app */
+  #upd { position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 10px; width: min(560px, calc(100vw - 20px)); box-sizing: border-box;
+    background: #0F1F3D; color: #fff; border-radius: 14px; padding: 10px 12px 10px 16px; font: 600 14px/1.3 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; box-shadow: 0 16px 40px rgba(15, 23, 42, .4); }
+  #upd > span { flex: 1 1 auto; min-width: 0; }
+  #upd[hidden] { display: none; } #upd small { display: block; font-weight: 400; color: #B8C4DA; font-size: 12px; }
+  #upd button { border: 0; border-radius: 10px; padding: 9px 14px; font: 700 13.5px system-ui, sans-serif; cursor: pointer; white-space: nowrap; }
+  #upd .go { background: #F2A900; color: #1F2937; } #upd .later { background: transparent; color: #B8C4DA; padding: 9px 6px; }
 </style>
 </head>
 <body>
@@ -13,6 +20,7 @@
      The app itself (App.html) runs in the frame below. When a new version is deployed, the shell loads it
      into the frame by itself – nobody has to refresh the browser. This file rarely needs to change. -->
 <iframe id="app" title="Rachana Construction Limited – Fleet ERP" allow="clipboard-read; clipboard-write; microphone"></iframe>
+<div id="upd" hidden role="status"><span><span id="upd_t"></span><small id="upd_s"></small></span><button type="button" class="go" id="upd_go"></button><button type="button" class="later" id="upd_later"></button></div>
 <script>
   window.RCL_APP = /*APP_JSON*/null;      // { html, build } – put in by the server (WebApp.gs) when the page opens
   var current = null, swapping = false;
@@ -28,25 +36,58 @@
       .getAppHtml();
   }
   else note('This is the app\'s shell page. Open the app from its web-app link (Deploy → Manage deployments).');
-  // the app asks for this when a new version is live and nothing is unsaved
-  window.rclSwap = function () {
+  /* ---------- THE PAGE AS AN APP, AND THE UPDATE THE PERSON SEES (05-10-2026) ----------
+   * INSTALL: the browser's "install this app" offer is caught here and handed to the app (window.rclApp.install) – a button on
+   *   the sign-in screen and in Settings. The service worker (/sw.js) lets the installed app open even without a network.
+   * UPDATE: every deploy is a new version. The shell learns of it within a minute (or when the app / the person asks:
+   *   rclApp.check) and SHOWS it: "A new version is ready – Update now / Later". Update now → the new version is loaded at once
+   *   into the frame (what was half typed is kept by the app). Not pressed → it updates by itself after 3 minutes, as soon as
+   *   nothing is half typed (an old page must not go on working against a newer server for long); "Later" gives 10 minutes.
+   *   Before, the swap was silent – nobody knew the app had changed. */
+  var live = null, since = 0, later = 0, installEvt = null;
+  var LANG = function () { try { var l = localStorage.getItem('rcl_lang'); return l === 'en' || l === 'hi' ? l : 'mr'; } catch (e) { return 'mr'; } };
+  var WORDS = { t: { en: 'A new version of the app is ready', mr: 'App चे नवीन version तयार आहे', hi: 'App का नया version तैयार है' }, s: { en: 'It takes a moment. What you have typed is kept.', mr: 'एक क्षण लागेल. टाइप केलेले जपले जाते.', hi: 'एक पल लगेगा। टाइप किया हुआ सुरक्षित रहता है।' },
+    go: { en: 'Update now', mr: 'Update करा', hi: 'Update करें' }, later: { en: 'Later', mr: 'नंतर', hi: 'बाद में' } };
+  function frameWin() { try { return document.getElementById('app').contentWindow; } catch (e) { return null; } }
+  function tellApp(what) { try { var w = frameWin(); if (w && w.rclShell) w.rclShell(what); } catch (e) {} }
+  function banner(show) { var b = document.getElementById('upd'), L = LANG(); b.hidden = !show; if (!show) return;
+    document.getElementById('upd_t').textContent = WORDS.t[L]; document.getElementById('upd_s').textContent = WORDS.s[L]; document.getElementById('upd_go').textContent = WORDS.go[L]; document.getElementById('upd_later').textContent = WORDS.later[L]; }
+  // load the live version into the frame now
+  window.rclSwap = function (done) {
     if (swapping) return; swapping = true;
+    try { var w = frameWin(); if (w && w.rclSaveState) w.rclSaveState(); } catch (e) {}
     google.script.run
-      .withSuccessHandler(function (a) { swapping = false; if (a && a.html && a.build && a.build !== current) showApp(a); })
-      .withFailureHandler(function () { swapping = false; })
+      .withSuccessHandler(function (a) { swapping = false; if (a && a.html && a.build && a.build !== current) { showApp(a); live = null; banner(false); } if (done) done(true); })
+      .withFailureHandler(function () { swapping = false; if (done) done(false); })
       .getAppHtml();
   };
-  // every minute the shell also asks the server which version is live (in case the app could not)
+  function found(b) { if (!b || b === current) { live = null; banner(false); return false; } if (live !== b) { live = b; since = Date.now(); later = 0; } if (Date.now() >= later) banner(true); tellApp('update'); return true; }
+  function check(cb) { google.script.run.withSuccessHandler(function (b) { var newer = found(b); if (cb) cb({ current: current, live: b || current, newer: newer }); }).withFailureHandler(function () { if (cb) cb({ current: current, live: current, newer: false, failed: true }); }).getAppBuild(); }
+  // every minute: is a newer version live? shown at once; applied by itself after 3 minutes (10 after "Later") when nothing is half typed
   setInterval(function () {
-    google.script.run.withSuccessHandler(function (b) {
-      if (!b || b === current) return;
-      var w = document.getElementById('app').contentWindow, busy = false;
-      try { busy = w.rclBusy ? w.rclBusy() : false; } catch (e) {}
-      if (busy) return;                     // an entry is half typed – try again next minute
-      try { if (w.rclSaveState) w.rclSaveState(); } catch (e) {}
-      window.rclSwap();
-    }).withFailureHandler(function () {}).getAppBuild();
+    check(function () {
+      if (!live) return;
+      var w = frameWin(), busy = false; try { busy = w && w.rclBusy ? w.rclBusy() : false; } catch (e) {}
+      if (!busy && Date.now() - since > 180000 && Date.now() >= later) window.rclSwap();
+    });
   }, 60000);
+  document.getElementById('upd_go').onclick = function () {
+    var w = frameWin(), busy = false, L = LANG(); try { busy = w && w.rclBusy ? w.rclBusy() : false; } catch (e) {}
+    if (busy && !confirm({ en: 'An entry on this page is not saved yet. Update anyway? (It will be lost.)', mr: 'या page वरची entry अजून save झालेली नाही. तरीही update करायचे? (ती जाईल.)', hi: 'इस page की entry अभी save नहीं हुई है। फिर भी update करें? (वह चली जाएगी।)' }[L])) return;
+    window.rclSwap();
+  };
+  document.getElementById('upd_later').onclick = function () { later = Date.now() + 600000; banner(false); };
+  // what the app can ask of its shell
+  window.rclApp = {
+    build: function () { return current; }, newer: function () { return !!live; }, check: check, update: function (done) { window.rclSwap(done); },
+    canInstall: function () { return !!installEvt; },
+    standalone: function () { try { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; } catch (e) { return false; } },
+    ios: function () { return /iPhone|iPad|iPod/.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); },
+    install: function () { if (!installEvt) return Promise.resolve('unavailable'); var e = installEvt; installEvt = null; e.prompt(); return e.userChoice.then(function (c) { tellApp('install'); return c && c.outcome; }, function () { tellApp('install'); return 'dismissed'; }); }
+  };
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvt = e; tellApp('install'); });
+  window.addEventListener('appinstalled', function () { installEvt = null; tellApp('install'); });
+  if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () { /* the app works without it */ }); });
 </script>
 </body>
 </html>

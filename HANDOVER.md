@@ -831,6 +831,27 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     (116.7 − 83.96 = 32.74 L = 180 − 147.26); the last fill's tank allowance uses the same need. His sheet: 22.66 L debited – the same.
   * Tests: unit "two engines, one tank – ONE rule everywhere …" (30 unit tests), `test/browser/tmbill.js` (6: his sheet rebuilt –
     monthly report, dashboard / cost sheet and the print all say 1.8 km/L; 147.26 L allowed, 22.66 L extra, 10.08 L in the tank).
+- 05-10-2026: "MAKE IT A PROPER APP – on Supabase, with updates that come to the app and that the user applies from inside the app;
+  perfect on every phone; dashboard cards like in this reel" (an Instagram link – it could NOT be opened: Instagram refuses automated
+  access, and a reel is a video). Built what does not depend on the reel's look; the look waits for his screenshots.
+  * INSTALLABLE APP (PWA): `build.js` now also writes public/manifest.webmanifest, public/icons/* (from app/icons – a diesel drop with
+    a gauge, 192 / 512 / maskable 512 / apple 180, drawn here) and public/sw.js (from app/sw.js, the build number put in). The shell's
+    head (server/page.js) links the manifest, theme colour, apple tags. `app/sw.js`: the page (/) network-first and kept, so the app
+    OPENS without a network (what needs the server then says "no connection"); /api/ never touched; skipWaiting. vercel.json: no-cache
+    for /sw.js and the manifest. dev.js serves these files too.
+  * INSTALL: the shell catches `beforeinstallprompt` → `window.rclApp.install()`; "Install this app" on the sign-in screen and in
+    Settings → "This app" (version, installed or not, "Check for an update"; for an iPhone the two steps are written out).
+  * UPDATE SEEN AND APPLIED BY THE PERSON: the app (checkBuild) and the shell (every minute, `rclApp.check`) no longer swap a new
+    version in silently – the shell shows a bar "A new version is ready – Update now / Later" (3 languages); Update → `rclSwap`
+    (asks first if an entry is half typed); not pressed → by itself after 3 minutes when nothing is half typed (10 after "Later"),
+    so nobody stays on an old page for long.
+  * THE PHONE TOP BAR was broken at real phone widths (measured at 412 px: Back under "?", the title 4 px wide, bar 181 px high –
+    the earlier phone test only looked for sideways spill): rewritten for ≤ 760 px (row 1 ☰ ‹ title; row 2 one sideways-scrolling
+    strip). At 360 px two pages were 8–16 px too wide: rows of buttons / filters wrap, the page itself no longer scrolls sideways.
+  * NOT DONE: a Play Store / App Store package (needs his developer accounts and a signing key; a TWA can wrap this same app later),
+    the dashboard-card redesign (needs the reference), offline ENTRY (the app opens offline, but saving needs the server).
+  * Tests: `test/browser/pwa.js` (9: manifest + icons, service worker, opens offline, install, update bar → update), `hdrall.js`
+    (the top bar on all pages at 360 and 412 px: 76 views, 0 to check).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

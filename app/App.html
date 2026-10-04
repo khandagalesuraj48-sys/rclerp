@@ -555,6 +555,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .lp-submit { width: 100%; border: 0; border-radius: 12px; padding: 13px 16px; background: #000; color: #fff; font: 500 15px var(--ui); cursor: pointer; transition: background .2s; }
   .lp-submit:hover { background: #1f2937; }
   .lp-submit:disabled { opacity: .7; cursor: default; }
+  .lp-install { display: block; width: 100%; margin: 10px 0 0; padding: 11px; border: 1px dashed #94A3B8; border-radius: 12px; background: #F8FAFC; color: #0F1F3D; font: 700 14px var(--ui); cursor: pointer; }
+  .lp-install[hidden] { display: none; }
+  .set-app { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; } .set-app > div { flex: 1; min-width: 200px; } .set-app small { display: block; color: var(--muted); margin-top: 2px; }
   .lp-saved { margin: 2px 0 8px; padding: 7px 10px; border-radius: 8px; background: #ECFDF5; border: 1px solid #B7E4CB; color: #166534; font: 600 12.5px var(--ui); }
   .login-err { margin: 0 0 10px; min-height: 18px; color: var(--bad); font-size: 13px; font-weight: 600; }
   .lp-note { margin: 14px 0 0; min-height: 18px; font-size: 13px; color: #4b5563; text-align: center; }
@@ -2296,6 +2299,37 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   html[data-theme=dark] #side img, html[data-theme=dark] #oc_intro video, html[data-theme=dark] #oc_intro img, html[data-theme=dark] .lp-left img { filter: none; }
   html[data-theme=dark] main .panel, html[data-theme=dark] .topbar { box-shadow: none; }
   @media print { html[data-theme=dark], html[data-theme=dark] img, html[data-theme=dark] video, html[data-theme=dark] #side { filter: none !important; } }      /* paper is always white */
+
+  /* ---------- THE TOP BAR ON A PHONE (rewritten 05-10-2026) ----------
+   * Measured on a 412 px screen: the Back button lay under "?", the page title was 4 px wide (not readable), the bar was 181 px
+   * high. Rules added over the months for wide screens had been bending the phone layout. Now, up to 760 px:
+   *   row 1:  ☰  ‹  PAGE TITLE (as wide as there is room, … when longer)
+   *   row 2:  one strip – ? · search · the status pills · password · Logout – that scrolls sideways and never wraps
+   * (the Dashboard's Diesel / Log Book switch takes a row of its own under the title). Kept last in the stylesheet on purpose. */
+  @media (max-width: 760px) {
+    .topbar { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 6px !important; align-items: center; height: auto !important; min-height: 0 !important;
+      padding: calc(8px + env(safe-area-inset-top, 0px)) calc(10px + env(safe-area-inset-right, 0px)) 8px calc(10px + env(safe-area-inset-left, 0px)) !important; }
+    .topbar .tb-left { display: flex !important; flex-wrap: wrap !important; align-items: center; gap: 8px !important; min-width: 0; width: auto !important; flex: none !important; }
+    .topbar .tb-left > .nav-menu { order: 1; position: static !important; margin: 0 !important; }
+    .topbar .tb-left > .pg-back { order: 2; position: static !important; flex: 0 0 36px !important; width: 36px; height: 36px; min-width: 0; padding: 0 !important; margin: 0 !important; display: grid; place-items: center; }
+    .topbar .tb-left > .pg-back span { display: none !important; }
+    .topbar .tb-left > div:not(.subtabs) { order: 3; flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; margin: 0 !important; }
+    .topbar h1, .app #page_title { font-size: 19px !important; line-height: 1.25; margin: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .topbar .tb-left > .subtabs { order: 4; flex: 0 0 100% !important; margin: 0 !important; }
+    .topbar .tb-right { display: flex !important; flex-wrap: nowrap !important; align-items: center; justify-content: flex-start !important; gap: 8px !important; width: auto !important; min-width: 0; flex: none !important; margin: 0 !important; padding: 1px 0 3px !important;
+      overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .topbar .tb-right::-webkit-scrollbar { display: none; }
+    .topbar .tb-right > * { flex: 0 0 auto !important; position: static !important; margin: 0 !important; }
+  }
+
+  /* A PHONE NEVER SCROLLS THE WHOLE PAGE SIDEWAYS (05-10-2026: at 360 px two pages were 8–16 px too wide). Rows of buttons and
+     filters wrap; what is wide by nature – a table – scrolls inside its own box, as before. */
+  @media (max-width: 760px) {
+    html, body { overflow-x: clip; }
+    main .panel :is(.actions, .filters, .toolbar, .rfilters, .rp-filters, .lf-dates, .panel-head, .rkpis, .quick) { flex-wrap: wrap !important; }
+    main .panel :is(.actions, .filters, .toolbar, .rfilters, .rp-filters, .panel-head) > * { min-width: 0; max-width: 100%; }
+    main .panel :is(input, select, textarea) { max-width: 100%; }
+  }
 </style>
 </head>
 <body class="locked">
@@ -2375,6 +2409,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       </div>
 
       <p class="lp-saved" id="lg_cred" role="status" hidden></p>
+      <button type="button" class="lp-install" id="lg_install" hidden></button>
       <p class="login-err" id="lg_err" role="alert"></p>
       <button class="lp-submit" id="lg_btn" type="submit">Sign In</button>
 
@@ -3316,7 +3351,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="bp-list" id="set_fav"></div>
       <div class="actions" style="margin-top:14px"><button class="btn ghost" type="button" id="set_reset">Back to the usual settings</button></div>
     </div>
-    <div class="panel set-p" id="set_admin" hidden>
+    <div class="panel set-p" id="set_app">
+    <div class="panel-head"><h2>This app</h2><span class="chart-note">Install it on this phone or computer, and keep it up to date.</span></div>
+    <div class="set-app">
+      <div><b id="app_ver">Version –</b><small id="app_state"></small></div>
+      <button type="button" class="btn ghost" id="app_check">Check for an update</button>
+      <button type="button" class="btn primary" id="app_install" hidden>Install this app</button>
+    </div>
+    <p class="muted" id="app_how" hidden></p>
+  </div>
+  <div class="panel set-p" id="set_admin" hidden>
       <div class="panel-head"><h2>Rules of this site</h2><span class="chart-note">Admin only – these apply to every user of this site.</span></div>
       <div class="rfilters">
         <div class="field"><label for="rule_back">Users who are not Admin may enter / change entries of the last … days</label><input id="rule_back" inputmode="numeric" maxlength="3" placeholder="empty = no limit" autocomplete="off"></div>
@@ -4091,6 +4135,33 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   $('org_play').addEventListener('click', () => ocIntro(true));
   ocIntro(false);
+  /* ---------- THIS APP: INSTALL IT, KEEP IT UP TO DATE (asked 05-10-2026: "a proper app … an update comes and the user updates from inside the app") ----------
+   * The shell page (Index.html, window.top.rclApp) holds the browser's install offer and knows which version is live; here are the
+   * buttons: "Install this app" on the sign-in screen and in Settings (Android / Chrome / Edge: the browser's own install box; an
+   * iPhone has no such box – the two steps are written out), and in Settings the version, "Check for an update" and its answer.
+   * The "new version is ready – Update now" bar itself is the shell's (it must work even while the app is being replaced). */
+  const shellApp = () => { try { return window.top && window.top.rclApp ? window.top.rclApp : null; } catch (e) { return null; } };
+  function appDraw() {
+    const A = shellApp(), L3 = o => o[fixLang] || o.en;
+    const can = !!(A && A.canInstall()), inApp = !!(A && A.standalone()), ios = !!(A && A.ios());
+    const word = L3({ en: 'Install this app on this device', mr: 'हे app या device वर install करा', hi: 'यह app इस device पर install करें' });
+    const b1 = $('lg_install'); if (b1) { b1.hidden = !can; b1.textContent = '⬇ ' + word; }
+    const b2 = $('app_install'); if (b2) { b2.hidden = !can; b2.textContent = word; }
+    if ($('app_ver')) $('app_ver').textContent = 'Version ' + (A && A.build() ? String(A.build()).slice(0, 8) : '–');
+    if ($('app_state')) $('app_state').textContent = inApp ? L3({ en: 'Installed – running as an app.', mr: 'Install झाले आहे; app म्हणून चालते आहे.', hi: 'Install है; app की तरह चल रहा है।' }) : can ? L3({ en: 'Not installed yet – it can be installed.', mr: 'अजून install केलेले नाही; install करता येईल.', hi: 'अभी install नहीं; install किया जा सकता है।' }) : L3({ en: 'Running in the browser.', mr: 'Browser मध्ये चालते आहे.', hi: 'Browser में चल रहा है।' });
+    const how = $('app_how'); if (how) { how.hidden = inApp || can; how.textContent = ios ? L3({ en: 'iPhone / iPad: open this page in Safari → the Share button → "Add to Home Screen".', mr: 'iPhone / iPad: हे page Safari मध्ये उघडा → Share बटण → "Add to Home Screen".', hi: 'iPhone / iPad: यह page Safari में खोलें → Share बटन → "Add to Home Screen".' })
+      : L3({ en: 'If no Install button shows: Chrome menu (⋮) → "Install app" or "Add to Home screen".', mr: 'Install बटण दिसत नसेल तर: Chrome menu (⋮) → "Install app" किंवा "Add to Home screen".', hi: 'Install बटन न दिखे तो: Chrome menu (⋮) → "Install app" या "Add to Home screen".' }); }
+  }
+  window.rclShell = () => { try { appDraw(); } catch (e) { /* the page is still loading */ } };
+  async function appInstall() { const A = shellApp(); if (!A) return; const r = await A.install(); appDraw(); if (r === 'accepted') toast({ en: 'Installed. Open it from the home screen.', mr: 'Install झाले. Home screen वरून उघडा.', hi: 'Install हो गया। Home screen से खोलें।' }[fixLang] || 'Installed.'); }
+  function appCheck() { const A = shellApp(), b = $('app_check'); if (!A || !b) return; b.disabled = true;
+    A.check(r => { b.disabled = false; appDraw();
+      toast(r.failed ? ({ en: 'Could not ask the server – no connection?', mr: 'Server ला विचारता आले नाही; connection नाही का?', hi: 'Server से पूछ नहीं सके; connection नहीं?' }[fixLang]) : r.newer ? ({ en: 'A new version is ready – press "Update now" below.', mr: 'नवीन version तयार आहे; खाली "Update करा" दाबा.', hi: 'नया version तैयार है; नीचे "Update करें" दबाएँ।' }[fixLang]) : ({ en: 'You have the latest version.', mr: 'तुमच्याकडे सर्वात नवीन version आहे.', hi: 'आपके पास सबसे नया version है।' }[fixLang]), !!r.failed); }); }
+  $('lg_install').addEventListener('click', () => appInstall());
+  $('app_install').addEventListener('click', () => appInstall());
+  $('app_check').addEventListener('click', () => appCheck());
+  setTimeout(appDraw, 0);
+
   /* ---------- THE BROWSER'S OWN "SAVE PASSWORD?" AND AUTO-FILL (asked 04-10-2026) ----------
    * "After a sign-in the browser must ask 'save the password?' – every time until the user saves it; once saved, the sign-in
    * fills itself." The browser never offered it, because the app's page lives inside a frame without an address of its own,
@@ -6471,6 +6542,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function checkBuild(b) {
     if (!window.APP_BUILD || !b || b === window.APP_BUILD) return;
     S.newBuild = b;
+    // the shell SHOWS it ("a new version is ready – Update now / Later") and applies it by itself after a few minutes when nothing is
+    // half typed; the person updates from inside the app. (Until 05-10-2026 the new version was swapped in here silently.)
+    try { const A = window.top && window.top.rclApp; if (A && A.check) { A.check(); return; } } catch (e) { /* no shell: the old way below */ }
     if (!window.rclBusy() && swapNow()) return;          // nothing unsaved: the new version opens by itself, right here
     $('upd_msg').textContent = formDirty() ? '✨ A new version of the app is ready – save your entry, then click Update now.' : '✨ A new version of the app is ready – it opens with your next click on the menu.';
     $('upd_bar').hidden = false;
@@ -9923,6 +9997,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   // the Settings page shows what is set
   function setDraw() {
+    try { appDraw(); } catch (e) { /* the shell is not there (opened outside it) */ }
     if (!$('sec-settings')) return; const p = S.prefs, u = S.user || {};
     document.querySelectorAll('#sec-settings .set-seg').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === String(p[g.dataset.pref]))));
     document.querySelectorAll('#sec-settings input[type=checkbox][data-pref]').forEach(c => { c.checked = !!p[c.dataset.pref]; });

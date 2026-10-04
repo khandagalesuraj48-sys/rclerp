@@ -15,5 +15,8 @@ http.createServer((req, res) => {
   if (req.url.split('?')[0] === '/api/rpc') return rpc(req, res);
   if (req.url.split('?')[0] === '/api/backup') return require('./api/backup')(req, res);
   if (req.url.split('?')[0] === '/' || req.url.split('?')[0] === '/index.html') { res.setHeader('Content-Type', 'text/html; charset=utf-8'); return res.end(shell()); }
+  // the app's own static files (made by build.js – on Vercel they are served from public/)
+  const st = /^\/(sw\.js|manifest\.webmanifest|icons\/[a-z0-9-]+\.png)$/.exec(req.url.split('?')[0]);
+  if (st) { const fp = path.join(__dirname, 'public', st[1]); if (fs.existsSync(fp)) { res.setHeader('Content-Type', /\.js$/.test(fp) ? 'text/javascript; charset=utf-8' : /\.png$/.test(fp) ? 'image/png' : 'application/manifest+json'); res.setHeader('Cache-Control', 'no-cache'); return res.end(fs.readFileSync(fp)); } }
   res.statusCode = 404; res.end('Not found');
 }).listen(port, () => console.log('RCL Fleet ERP – http://localhost:' + port));
