@@ -615,3 +615,22 @@ test('the words for a machinery\'s diesel: Good within 10%, Very good / More die
   assert.strictEqual(v(30.01), 'bad: Bad – 30% more diesel');
   assert.strictEqual(v(-30), 'less: Very good – 30% less diesel'); assert.strictEqual(v(-30.01), 'check: Check reading – too good (30% less diesel)');
 });
+
+test('Log Book is not asked of Ownership "Other" (nor of Debit): they are in no pending list – an entry can still be made for them', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const today = run('() => today_()'), yest = run('() => addDays_(today_(), -1)');
+  const mk = (no, ownership) => run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Bolero', type: 'Bolero', unit: 'KM', worksOn: ['KM'], kmStd: 10, owner: ownership === 'Own' ? 'Rachana Construction Limited' : 'Somebody', ownership: ownership, status: 'Active', activeFrom: yest }, 'add');
+  mk('PN-RENT', 'Rental'); mk('PN-OWN', 'Own'); mk('PN-OTHER', 'Other');
+  run('(x, m) => saveMaster_(x, m)', { no: '', name: 'PN Debit Party', owner: 'PN Debit Party', ownership: 'Debit', status: 'Active', activeFrom: yest }, 'add');
+  const pendingOf = () => { const p = run('() => pendingLogs_()'); const o = {}; p.items.filter(x => /^PN/.test(x.no)).forEach(x => { o[x.no] = (o[x.no] || 0) + 1; }); return o; };
+  assert.deepStrictEqual(pendingOf(), { 'PN-RENT': 2, 'PN-OWN': 2 });                    // yesterday and today; nothing for Other and Debit
+  assert.deepStrictEqual(run('() => logPending_().items.filter(x => /^PN/.test(x[0])).map(x => x[0]).filter((v, i, a) => a.indexOf(v) === i).sort()'), ['PN-OWN', 'PN-RENT']);
+  assert.deepStrictEqual([run('m => needsLogBook_(m)', { supply: 'Company', ownership: 'Other' }), run('m => needsLogBook_(m)', { supply: 'Company', ownership: 'Hired' }), run('m => needsLogBook_(m)', { supply: 'Debit Basis', ownership: 'Rental' })], [false, true, false]);
+  // an entry for an "Other" vehicle is still accepted
+  run('x => saveLogRows_(x)', { rows: [{ date: today, shift: 'Full Day', no: 'PN-OTHER', mode: 'KM', openingKm: 100, closingKm: 140 }] });
+  assert.strictEqual(run('() => logRowsOf_(table_(APP.SHEET_LOG, logHeaders_()), "PN-OTHER").length'), 1);
+  // … and changing a machinery to Other takes it out of the pending list
+  run('(x, m, o) => saveMaster_(x, m, o)', { no: 'PN-RENT', name: 'Bolero', type: 'Bolero', unit: 'KM', worksOn: ['KM'], kmStd: 10, owner: 'Somebody', ownership: 'Other', status: 'Active', activeFrom: yest }, 'edit', 'PN-RENT');
+  assert.deepStrictEqual(pendingOf(), { 'PN-OWN': 2 });
+});

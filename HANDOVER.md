@@ -677,6 +677,13 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Standard of a two-meter machinery ("2.5 km/L + 3 L/hr") ran under the From / To boxes – the Standard and Average cells now wrap
   (rule placed AFTER `td:nth-of-type(n+9):nth-of-type(-n+14)`, which keeps the diesel figures on one line and used to win).
   Test: `test/browser/pendm.js` (6).
+- 04-10-2026: "vehicles and machinery under OTHER do not need a Log Book entry." ONE RULE `needsLogBook_(m)` (Code.gs) / `needsLogBook(m)`
+  (page): not Diesel Supply "Debit Basis", not Ownership "Debit", not Ownership "Other". Used by `pendingLogs_` (so: the Dashboard's
+  Pending Log Book, the strip on the entry page, the menu count), the daily report's "no entry" list and the Excel template's list of
+  machinery. An entry for an "Other" vehicle is still ACCEPTED – it is only never asked for. NOT changed (told him): Diesel Watch still
+  lists the diesel of "Other" vehicles under "cannot be checked" (it is a fact about the diesel, not a reminder), the meter reading
+  asked at a diesel issue, the monthly report (their status stays "–"). Test: unit 'Log Book is not asked of Ownership "Other" …'
+  (26 unit tests); through the server: an Other vehicle adds 0 to the pending count, the same vehicle as Rental adds its 34 days.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

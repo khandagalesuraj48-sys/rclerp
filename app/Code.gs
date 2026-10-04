@@ -4110,8 +4110,13 @@ function getOwnershipDetail_(ownership, f) {
   };
 }
 
-/* A Log Book day is pending when a machinery was ACTIVE on that day and has no Log Book entry for it (any shift),
- * from 01-09-2026 (or the From date picked) up to today. Debit Basis machinery do not fill the Log Book and are left out. */
+/* WHICH MACHINERY MUST KEEP A LOG BOOK. Not: the parties on Debit Basis (they only take diesel) and – the MD, 04-10-2026 –
+ * the vehicles and machinery whose Ownership is "Other" ("their Log Book entry is not needed"). A Log Book entry CAN still be
+ * made for them; it is only never asked for: they are not in any pending list, count or daily "no entry" list. */
+function needsLogBook_(m) { return !!m && m.supply !== 'Debit Basis' && m.ownership !== 'Debit' && m.ownership !== 'Other'; }
+
+/* A Log Book day is pending when a machinery that must keep a Log Book (needsLogBook_) was ACTIVE on that day and has no
+ * Log Book entry for it (any shift), from 01-09-2026 (or the From date picked) up to today. */
 const PENDING_FROM_ = '2026-09-01';
 function pendingLogs_(f) {
   f = f || {};
@@ -4123,7 +4128,7 @@ function pendingLogs_(f) {
   const done = {};
   lt.rows.forEach(r => { const dk = dkey_(r[lt.c[H.DATE]]); if (dk >= from && dk <= to) done[noKey_(r[lt.c[H.NO]]) + '|' + dk] = true; }); // any entry on that day counts
   const items = [], byMachine = {};
-  getMaster_().filter(m => m.supply !== 'Debit Basis').forEach(m => {
+  getMaster_().filter(needsLogBook_).forEach(m => {
     const k = noKey_(m.id), af = m.activeFrom ? dkey_(m.activeFrom) : '', inf = m.status === 'Inactive' ? (m.inactiveFrom ? dkey_(m.inactiveFrom) : '0000') : '';
     for (let d = from; d <= to; d = addDays_(d, 1)) {
       if ((af && d < af) || (inf && d >= inf)) continue;

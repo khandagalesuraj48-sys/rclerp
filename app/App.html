@@ -2637,7 +2637,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="table-wrap"><table class="lbd-t" id="lb_table"></table></div>
       </div>
       <div class="panel lbd-p" id="lb_pend">
-        <div class="panel-head"><h2>Pending Log Book</h2><span class="chart-note">Active machinery with no Log Book for the day. Tap a date to fill it.</span></div>
+        <div class="panel-head"><h2>Pending Log Book</h2><span class="chart-note">Active machinery with no Log Book for the day. Tap a date to fill it. Debit-basis parties and Ownership "Other" are not counted – they need no Log Book.</span></div>
         <div class="lbd-pf"><label>From <input id="lb_pfrom" type="date"></label><label>To <input id="lb_pto" type="date"></label><button class="btn ghost small" id="lb_preset" type="button">From 01-09-2026</button>
           <input id="lb_psearch" class="lbd-search" type="search" placeholder="Search machinery / owner…" autocomplete="off"></div>
         <div class="lbd-chips" id="lb_pchips"></div>
@@ -4659,6 +4659,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     finally { btn.disabled = false; if (btn.textContent === label) btn.textContent = old; }
   }
   const noKey = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  // which machinery must keep a Log Book (the same rule as the server's needsLogBook_): not Debit Basis, not Ownership "Other"
+  const needsLogBook = m => !!m && m.supply !== 'Debit Basis' && m.ownership !== 'Debit' && m.ownership !== 'Other';
   // MH25AJ5974 / mh 25 aj 5974 -> MH-25-AJ-5974 (names without a reg. number stay as typed)
   function formatNo(v) {
     const s = String(v || '').replace(/\s+/g, ' ').trim();
@@ -7509,7 +7511,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('lf_exp_mach').addEventListener('click', e => lbExport('mach', e.target));
   // templates: the same columns, filled the way each entry type is used
   function lbTemplate(kind) {
-    const act = (S.master || []).filter(m => m.status !== 'Inactive' && m.supply !== 'Debit Basis');
+    const act = (S.master || []).filter(m => m.status !== 'Inactive' && needsLogBook(m));
     const km = act.find(m => m.unit === 'KM'), hr = act.find(m => m.unit === 'Hrs') || km;
     const head = ['Date', 'Shift', 'Machinery', 'Measured by', 'Start KM', 'Close KM', 'Start Hrs', 'Close Hrs', 'From time', 'To time', 'Break (min)', 'Trips', 'Challan No', 'Opening diesel (L)', 'Chainage From', 'Chainage To', 'Work Done', 'Driver Name', 'Remark', 'Status', 'Item work'];
     const ins = r => r.slice(0, 3).concat([''], r.slice(3, 7), ['', '', '', '', ''], r.slice(7)); // old example rows → new columns
@@ -9094,7 +9096,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // 5. to look at
       const logged = new Set(logs.map(r => r.no)), fuelled = [...new Set(issues.map(x => x.no))];
       const noLog = fuelled.filter(x => !logged.has(x));
-      const active = (S.master || []).filter(m => m.status !== 'Inactive' && (!m.activeFrom || String(m.activeFrom).slice(0, 10) <= day) && m.supply !== 'Debit Basis' && m.ownership !== 'Debit');
+      const active = (S.master || []).filter(m => m.status !== 'Inactive' && (!m.activeFrom || String(m.activeFrom).slice(0, 10) <= day) && needsLogBook(m));
       const noEntry = active.filter(m => !logged.has(m.id)).map(m => m.id);
       const brk = (bk.onDate || bk.rows || []).map(x => '<b>' + esc(x.no || x.machinery || '') + '</b>' + (x.reason || x.remark ? ' – ' + esc(x.reason || x.remark) : '') + (x.since || x.from ? ' <small>(since ' + esc(showDate(String(x.since || x.from).slice(0, 10))) + ')</small>' : ''));
       const look = '<ul class="dr-look">' +
