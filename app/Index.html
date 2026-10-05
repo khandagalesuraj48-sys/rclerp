@@ -77,6 +77,15 @@
     window.rclSwap();
   };
   document.getElementById('upd_later').onclick = function () { later = Date.now() + 600000; banner(false); };
+  /* THE PHONE'S BACK BUTTON: one step back INSIDE the app (05-10-2026). One step of history is kept in front of the app; a Back
+   * lands here, the app does its one step (window.rclBack in the frame) and the step is put back. 'exit' from the app = leave. */
+  var armed = false;
+  window.rclArm = function () { if (armed) return; try { history.pushState({ rcl: 1 }, ''); armed = true; } catch (e) {} };
+  window.addEventListener('popstate', function () {
+    armed = false; var w = frameWin(), did = true; try { did = w && w.rclBack ? w.rclBack() : 'exit'; } catch (e) { did = 'exit'; }
+    if (did === 'exit') { try { history.back(); } catch (e) {} return; }
+    window.rclArm();
+  });
   // what the app can ask of its shell
   window.rclApp = {
     build: function () { return current; }, newer: function () { return !!live; }, check: check, update: function (done) { window.rclSwap(done); },

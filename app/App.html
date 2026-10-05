@@ -2288,6 +2288,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #fixbox .fx-ai { margin: 8px 0 0; border: 1px solid #0F1F3D; background: #0F1F3D; color: #fff; border-radius: 8px; padding: 6px 12px; font: 700 12.5px var(--ui); cursor: pointer; }
   @media (max-width: 760px) { .ai-panel { inset: 0; width: auto; border-radius: 0; top: 0; } .ai-fab span { display: none; } .ai-fab { padding: 13px; right: 12px; bottom: 78px; } }
   @media print { .ai-fab, .ai-panel { display: none !important; } }
+  /* the app's own pick-list on touch screens (see pkDraw) */
+  #pk_list { position: fixed; z-index: 9400; background: #fff; border: 1px solid #94A3B8; border-radius: 12px; box-shadow: 0 18px 44px rgba(15, 23, 42, .28); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  #pk_list[hidden] { display: none; }
+  #pk_list .pk-row { padding: 12px 14px; min-height: 46px; box-sizing: border-box; font: 600 15.5px var(--ui); color: #0F172A; border-bottom: 1px solid #EEF2F6; cursor: pointer; display: flex; flex-direction: column; justify-content: center; }
+  #pk_list .pk-row:last-child { border-bottom: 0; } #pk_list .pk-row:active { background: #E0EAFF; }
+  #pk_list .pk-row small { font: 400 12.5px var(--ui); color: #64748B; margin-top: 1px; }
+  #pk_list .pk-more { padding: 9px 14px; font-size: 12.5px; color: #64748B; }
   /* a scanned QR label: what to do for that machinery (big buttons – it is opened on a phone) */
   #qr_sheet { position: fixed; inset: 0; z-index: 9500; background: rgba(12, 26, 46, .55); display: grid; place-items: center; padding: 16px; }
   #qr_sheet .qr-card { position: relative; width: min(420px, 100%); background: #fff; border-radius: 18px; padding: 22px 20px 18px; box-shadow: 0 24px 60px rgba(0,0,0,.35); border-top: 4px solid #F2A900; }
@@ -2329,6 +2336,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     main .panel :is(.actions, .filters, .toolbar, .rfilters, .rp-filters, .lf-dates, .panel-head, .rkpis, .quick) { flex-wrap: wrap !important; }
     main .panel :is(.actions, .filters, .toolbar, .rfilters, .rp-filters, .panel-head) > * { min-width: 0; max-width: 100%; }
     main .panel :is(input, select, textarea) { max-width: 100%; }
+  }
+
+  /* FORMS ON A SMALL PHONE (05-10-2026): two boxes side by side left the right one too narrow to read ("Pick from V…").
+     Up to 480 px every box of a form takes the full width, one under the other. */
+  @media (max-width: 480px) {
+    main .panel .grid { grid-template-columns: minmax(0, 1fr) !important; }
+    main .panel .grid > .field, main .panel .grid > .field.wide, main .panel .grid > * { grid-column: auto !important; min-width: 0; }
   }
 </style>
 </head>
@@ -4135,6 +4149,89 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   $('org_play').addEventListener('click', () => ocIntro(true));
   ocIntro(false);
+  /* ---------- PICKING FROM A LIST ON A PHONE (asked 05-10-2026: "on the mobile a vehicle number that I select does not get selected") ----------
+   * The 40-odd boxes with suggestions (machinery, vendor, driver, type, pump …) used the browser's own list (<datalist>). On a
+   * computer that works. On Android phones it is unreliable – in an installed app and inside this app's frame the list often does
+   * not open, or a tap on a name puts nothing in the box, or the app is only told when the box is left – so the entry "did not
+   * take". On a touch screen the app now shows ITS OWN list under the box:
+   *   - opens when the box is touched, narrows as letters are typed (a number is found without its dashes: "8511" → MH-25-AJ-8511);
+   *   - rows big enough for a finger; a tap puts the name in the box and tells the app at once (the same "changed" signal as on
+   *     a computer), so everything that follows a pick – the machinery's details, the Start reading – happens immediately;
+   *   - above the box when the keyboard leaves no room below; goes away on a tap elsewhere, on Back, or when the box is left.
+   * It works for every such box, also the ones in rows added later, and for lists filled later. A computer keeps the browser's list. */
+  const pkTouch = () => { try { return (window.matchMedia && matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints > 0 && Math.min(window.innerWidth, screen.width || 9999) < 900); } catch (e) { return false; } };
+  const PK = { box: null, el: null, at: 0 };
+  const pkKey = v => String(v || '').toUpperCase().replace(/[^A-Z0-9\u0900-\u097F]/g, '');
+  function pkOptions(inp) { const dl = document.getElementById(inp.dataset.pk || ''); if (!dl) return [];
+    return [...dl.querySelectorAll('option')].map(o => ({ v: o.value || o.textContent || '', l: o.label && o.label !== o.value ? o.label : (o.value && o.textContent && o.textContent !== o.value ? o.textContent : '') })).filter(o => o.v); }
+  function pkClose() { if (PK.box) PK.box.hidden = true; PK.el = null; }
+  function pkPlace() { const inp = PK.el, box = PK.box; if (!inp || !box || box.hidden) return;
+    const r = inp.getBoundingClientRect(), vv = window.visualViewport, vh = vv ? vv.height : window.innerHeight, vt = vv ? vv.offsetTop : 0, below = vt + vh - r.bottom - 8, above = r.top - vt - 8;
+    const up = below < 150 && above > below, room = Math.max(120, Math.min(320, up ? above : below));
+    box.style.left = Math.max(6, Math.min(r.left, window.innerWidth - Math.max(r.width, 220) - 6)) + 'px'; box.style.width = Math.max(r.width, 220) + 'px'; box.style.maxHeight = room + 'px';
+    if (up) { box.style.top = ''; box.style.bottom = (window.innerHeight - r.top + 4) + 'px'; } else { box.style.bottom = ''; box.style.top = (r.bottom + 4) + 'px'; } }
+  function pkDraw() { const inp = PK.el; if (!inp) return;
+    if (!PK.box) { PK.box = document.createElement('div'); PK.box.id = 'pk_list'; PK.box.setAttribute('role', 'listbox'); document.body.appendChild(PK.box);
+      // pointerdown (not click): the box must not lose the cursor before the pick is taken – that was one way a tap got lost
+      PK.box.addEventListener('pointerdown', e => { const row = e.target.closest('[data-pkv]'); if (!row) return; e.preventDefault(); pkPick(row.dataset.pkv); });
+      PK.box.addEventListener('touchmove', () => { PK.at = Date.now(); }, { passive: true }); }
+    const q = pkKey(inp.value), ql = String(inp.value || '').trim().toLowerCase(), all = pkOptions(inp);
+    const hit = all.filter(o => !q || pkKey(o.v).indexOf(q) > -1 || o.v.toLowerCase().indexOf(ql) > -1 || (o.l && o.l.toLowerCase().indexOf(ql) > -1));
+    const exact = hit.length === 1 && hit[0].v === inp.value;
+    if (!all.length || !hit.length || exact) { PK.box.hidden = true; return; }
+    PK.box.innerHTML = hit.slice(0, 60).map(o => '<div class="pk-row" role="option" data-pkv="' + esc(o.v) + '">' + esc(o.v) + (o.l ? '<small>' + esc(o.l) + '</small>' : '') + '</div>').join('') + (hit.length > 60 ? '<div class="pk-more">+ ' + (hit.length - 60) + ' – type to narrow</div>' : '');
+    PK.box.hidden = false; PK.box.scrollTop = 0; pkPlace(); }
+  function pkPick(v) { const inp = PK.el; if (!inp) return; inp.value = v; pkClose();
+    inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
+    // the app has been told once. When letters were typed first, the browser sends its own "changed" as the box is left – that
+    // second one is held back, or everything that follows a pick would run twice
+    const once = ev => { if (ev.isTrusted) ev.stopImmediatePropagation(); }; inp.addEventListener('change', once, true); setTimeout(() => inp.removeEventListener('change', once, true), 600);
+    try { inp.blur(); } catch (e) { /* the keyboard stays – no harm */ } }
+  function pkTake(inp) { if (!inp || inp.tagName !== 'INPUT') return false; if (inp.hasAttribute('list')) { inp.dataset.pk = inp.getAttribute('list'); inp.removeAttribute('list'); inp.setAttribute('autocomplete', 'off'); } return !!inp.dataset.pk; }
+  if (pkTouch()) {
+    document.addEventListener('focusin', e => { const inp = e.target; if (pkTake(inp) && !inp.readOnly && !inp.disabled) { PK.el = inp; pkDraw(); setTimeout(pkPlace, 350); } }, true);
+    document.addEventListener('input', e => { const inp = e.target; if (inp === PK.el || (pkTake(inp) && document.activeElement === inp && (PK.el = inp))) pkDraw(); }, true);
+    document.addEventListener('pointerdown', e => { const inp = e.target; if (inp && inp.tagName === 'INPUT' && pkTake(inp) && document.activeElement === inp && PK.el !== inp) { PK.el = inp; pkDraw(); } else if (PK.box && !PK.box.hidden && !PK.box.contains(e.target) && e.target !== PK.el) pkClose(); }, true);
+    document.addEventListener('focusout', e => { if (e.target === PK.el) setTimeout(() => { if (document.activeElement !== PK.el && Date.now() - PK.at > 400) pkClose(); }, 200); }, true);
+    window.addEventListener('scroll', pkPlace, true); window.addEventListener('resize', pkPlace);
+    try { if (window.visualViewport) { visualViewport.addEventListener('resize', pkPlace); visualViewport.addEventListener('scroll', pkPlace); } } catch (e) { /* older phones */ }
+  }
+
+  /* ---------- THE PHONE'S BACK BUTTON = ONE STEP BACK IN THE APP (asked 05-10-2026: "back must go one step back, not out of the whole app") ----------
+   * The app is one page, so the phone's Back used to leave it. Now the shell keeps one step of browser history in front of the
+   * app (window.top.rclArm); when Back is pressed the shell asks the app to go ONE step back (window.rclBack) and puts the step
+   * in place again. One step = the first of: a list of suggestions that is open → a question / dialog box → a help or guide card →
+   * the search → the assistant's window → the menu (on a phone) → the page before this one (the app's own Back).
+   * On the first page with nothing open: "press Back again to leave the app" – a second Back within 3 seconds leaves it.
+   * On the sign-in screen Back leaves at once. */
+  let backRootAt = 0;
+  window.rclBack = () => {
+    try {
+      const up = el => !!el && !el.hidden && el.getClientRects().length > 0;          // really on the screen (some boxes are shown by a class, not by "hidden")
+      if (up(PK.box)) { pkClose(); return true; }
+      if (up($('cf_back'))) { closeConfirm(false); return true; }
+      if (up($('pw_back')) && S.token && S.user) { pwClose(null); return true; }
+      if (up($('dlg_back'))) { closeDlg(); return true; }
+      if (up($('le_back'))) { $('le_back').hidden = true; return true; }
+      if (up($('rule_back'))) { $('rule_back').hidden = true; return true; }
+      if (up($('qr_sheet'))) { $('qr_sheet').remove(); return true; }
+      if (up($('fixbox'))) { $('fixbox').hidden = true; return true; }
+      if (up($('guidebox'))) { $('guidebox').hidden = true; return true; }
+      if (up($('gs_back'))) { gsClose(); return true; }
+      if (up($('ai_panel'))) { aiOpen(false); return true; }
+      if (document.querySelector('.app').classList.contains('nav-open')) { setDrawer(false); return true; }
+      if (!S.token || document.body.classList.contains('locked')) return 'exit';
+      S.hist = (S.hist || []).filter(t => TABS.indexOf(t) > -1);
+      while (S.hist.length && S.hist[S.hist.length - 1] === S.curTab) S.hist.pop();
+      if (S.hist.length) { goBack(); return true; }
+      if (Date.now() - backRootAt < 3000) return 'exit';
+      backRootAt = Date.now(); toast({ en: 'Press Back again to leave the app.', mr: 'App मधून बाहेर जाण्यासाठी Back पुन्हा दाबा.', hi: 'App से बाहर जाने के लिए Back फिर दबाएँ।' }[fixLang] || 'Press Back again to leave the app.'); return true;
+    } catch (e) { return true; }
+  };
+  // the step of history is put in place at the person's first touch (a step added without one is skipped by the browser's Back)
+  const backArm = () => { try { if (window.top && window.top.rclArm) window.top.rclArm(); } catch (e) { /* no shell */ } };
+  document.addEventListener('pointerdown', backArm, { capture: true, passive: true }); document.addEventListener('keydown', backArm, true);
+
   /* ---------- THIS APP: INSTALL IT, KEEP IT UP TO DATE (asked 05-10-2026: "a proper app … an update comes and the user updates from inside the app") ----------
    * The shell page (Index.html, window.top.rclApp) holds the browser's install offer and knows which version is live; here are the
    * buttons: "Install this app" on the sign-in screen and in Settings (Android / Chrome / Edge: the browser's own install box; an

@@ -852,6 +852,22 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     the dashboard-card redesign (needs the reference), offline ENTRY (the app opens offline, but saving needs the server).
   * Tests: `test/browser/pwa.js` (9: manifest + icons, service worker, opens offline, install, update bar → update), `hdrall.js`
     (the top bar on all pages at 360 and 412 px: 76 views, 0 to check).
+- 05-10-2026: "ON THE MOBILE A VEHICLE NUMBER I SELECT DOES NOT GET SELECTED – fix all such; and BACK must go one step back, not out of
+  the whole app."
+  * PICK-LISTS: 42 boxes (and the ones in rows) used the browser's <datalist>; on Android – in the app's frame / installed – its list
+    does not open reliably, or a tap is only reported when the box is left. On a TOUCH screen the app now shows its own list
+    (`pkDraw / pkPick / pkTake`, #pk_list): opens on focus, narrows as typed (numbers found without dashes), rows ≥ 46 px, a tap
+    (pointerdown) sets the value and fires input + change AT ONCE; the browser's own second "change" on leaving the box is held back
+    (everything ran twice otherwise); above the box when there is no room below; closed by a tap elsewhere / Back / leaving the box.
+    Generic (focusin on any input[list] → data-pk), so rows made later and lists filled later work. A computer keeps <datalist>.
+  * BACK: the shell keeps one step of history in front of the app (`rclArm`, put in place at the person's first touch – a step added
+    without one is skipped by Chrome's Back) and on `popstate` asks the app for ONE step (`window.rclBack`): an open pick-list → a
+    dialog (confirm, password, others) → QR sheet → help / guide card → search → the assistant → the menu → the previous page
+    (`goBack`). On the first page: "press Back again to leave" – a second Back within 3 s leaves; on the sign-in screen Back leaves.
+    "Open" = really on the screen (`getClientRects`) – a box that is in the page but not shown had swallowed the first Back.
+  * Also: forms on ≤ 480 px are one column (the right-hand boxes were too narrow to read).
+  * Tests (real touches, phone-size browser): `test/browser/mob.js` (11), `mob2.js` (4: the menu, a whole Diesel Issue by touch into
+    the database, another list). NOT tried on a real Android / iPhone by me.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
