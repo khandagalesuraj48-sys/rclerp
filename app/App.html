@@ -2288,6 +2288,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #fixbox .fx-ai { margin: 8px 0 0; border: 1px solid #0F1F3D; background: #0F1F3D; color: #fff; border-radius: 8px; padding: 6px 12px; font: 700 12.5px var(--ui); cursor: pointer; }
   @media (max-width: 760px) { .ai-panel { inset: 0; width: auto; border-radius: 0; top: 0; } .ai-fab span { display: none; } .ai-fab { padding: 13px; right: 12px; bottom: 78px; } }
   @media print { .ai-fab, .ai-panel { display: none !important; } }
+  .tag.half { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; border-radius: 999px; padding: 0 7px; font: 700 11px var(--ui); white-space: nowrap; }
+  /* "½ day" under the shift of a Log Book entry */
+  .lg-half { display: flex; align-items: center; gap: 5px; margin: 5px 0 0; font: 600 12px var(--ui); color: #475569; white-space: nowrap; cursor: pointer; }
+  /* (the rows give every box its full width and height – a tick must stay a tick; on a touch screen it is a little bigger) */
+  .lg-half input[type=checkbox], main td .lg-half input[type=checkbox], main .lg-wrap .lg-half input[type=checkbox] { width: 18px !important; height: 18px !important; min-width: 0 !important; min-height: 0 !important; max-width: 18px; flex: 0 0 18px !important; margin: 0 !important; padding: 0 !important; box-shadow: none; accent-color: #B45309; }
+  .lg-half:has(input:checked) { color: #B45309; }
+  @media (pointer: coarse) { .lg-half { font-size: 14px; padding: 6px 0; } .lg-half input[type=checkbox], main td .lg-half input[type=checkbox], main .lg-wrap .lg-half input[type=checkbox] { width: 22px !important; height: 22px !important; max-width: 22px; flex-basis: 22px !important; } }
   /* the app's own pick-list on touch screens (see pkDraw) */
   #pk_list { position: fixed; z-index: 9400; background: #fff; border: 1px solid #94A3B8; border-radius: 12px; box-shadow: 0 18px 44px rgba(15, 23, 42, .28); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
   #pk_list[hidden] { display: none; }
@@ -4428,6 +4435,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Shown: under every red message (a card at the bottom right), inside every "Nothing saved / Not submitted" box, and next
    * to warnings on the billing page. The language is remembered on this device (rcl_lang). To cover a new message: add a rule. */
   const FIX_RULES = [
+    { re: /½ day/i,
+      en: ['"½ day" marks an entry that is paid as half a day in the bill.', 'If it says "cannot be saved yet": the Admin runs the file sql/supabase_step1v_half_day.sql once in Supabase → SQL Editor (Read Me has it). If it says the day is not paid: a Holiday or Breakdown day earns nothing, so there is nothing to halve – untick "½ day".'],
+      mr: ['"½ day" म्हणजे त्या entry चा bill मध्ये अर्धा दिवस धरला जातो.', '"cannot be saved yet" असेल तर: Admin ने sql/supabase_step1v_half_day.sql ही file Supabase → SQL Editor मध्ये एकदा चालवावी (Read Me मध्ये आहे). "day is not paid" असेल तर: Holiday किंवा Breakdown च्या दिवसाचे पैसे मिळतच नाहीत, म्हणून अर्धे करण्यासारखे काही नाही; "½ day" ची खूण काढा.'],
+      hi: ['"½ day" यानी उस entry का bill में आधा दिन गिना जाता है।', '"cannot be saved yet" हो तो: Admin sql/supabase_step1v_half_day.sql file को Supabase → SQL Editor में एक बार चलाए (Read Me में है)। "day is not paid" हो तो: Holiday या Breakdown के दिन का भुगतान होता ही नहीं, इसलिए आधा करने को कुछ नहीं; "½ day" का निशान हटाएँ।'] },
     { re: /SESSION_EXPIRED|session (has )?(expired|ended)/i,
       en: ['You were signed out because the session ended.', 'Sign in again. Anything typed but not saved has to be typed again.'],
       mr: ['Session संपल्यामुळे तुम्ही sign out झाला आहात.', 'पुन्हा sign in करा. Save न केलेली माहिती पुन्हा भरावी लागेल.'],
@@ -6865,7 +6876,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     else { $('lx_from').value = isoDate(new Date(t.getFullYear(), t.getMonth() - 1, 1)); $('lx_to').value = isoDate(new Date(t.getFullYear(), t.getMonth(), 0)); }
   }));
   function lxDirty() { return LX.deleted.length || LX.rows.some(r => r.isNew || lxChanged(r)); }
-  function lxChanged(r) { if (r.isNew) return true; const o = r.orig; return ['mode', 'okm', 'ckm', 'ohr', 'chr', 'tStart', 'tEnd', 'tBrk', 'trip', 'challan', 'remark', 'chFrom', 'chTo', 'work', 'odSet', 'itemSig'].some(k => String(r[k] ?? '') !== String(o[k] ?? '')); }
+  function lxChanged(r) { if (r.isNew) return true; const o = r.orig; return ['mode', 'half', 'okm', 'ckm', 'ohr', 'chr', 'tStart', 'tEnd', 'tBrk', 'trip', 'challan', 'remark', 'chFrom', 'chTo', 'work', 'odSet', 'itemSig'].some(k => String(r[k] ?? '') !== String(o[k] ?? '')); }
   // Edit Log Book: the way of a row, and the Close of the last row before it that read each meter
   const lxWay = r => r.mode || LX.d.machine.unit;
   const lxPrevRead = (i, f) => { for (let k = i - 1; k >= 0; k--) { const r = LX.rows[k]; if ((f === 'ckm' ? hasKm(lxWay(r)) : hasHr(lxWay(r))) && lxN(r[f]) !== '') return Number(r[f]); } const v = f === 'ckm' ? LX.d.prevKm : LX.d.prevHr; return v === '' || v === undefined ? null : Number(v); };
@@ -6878,7 +6889,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const d = await call('getLogEditData', m.id, $('lx_from').value, $('lx_to').value);
     LX.d = d; LX.deleted = []; LX.odsl = '';
     const md0 = modesOf(d.machine).concat(DAY_STATUS);
-    LX.rows = d.rows.map(r => { const x = { key: r.key, date: r.date, shift: r.shift || 'Full Day', mode: md0.indexOf(r.mode) > -1 ? r.mode : (md0.indexOf(r.unit) > -1 ? r.unit : md0[0] || r.unit), okm: r.okm, ckm: r.ckm, ohr: r.ohr, chr: r.chr,
+    LX.rows = d.rows.map(r => { const x = { key: r.key, half: !!r.half, date: r.date, shift: r.shift || 'Full Day', mode: md0.indexOf(r.mode) > -1 ? r.mode : (md0.indexOf(r.unit) > -1 ? r.unit : md0[0] || r.unit), okm: r.okm, ckm: r.ckm, ohr: r.ohr, chr: r.chr,
       tStart: r.tStart || '', tEnd: r.tEnd || '', tBrk: r.tBrk === undefined ? '' : r.tBrk, trip: r.trip === undefined ? '' : r.trip, challan: r.challan || '', remark: r.remark || '', chFrom: r.chFrom, chTo: r.chTo, work: r.work || r.remark, odsl0: r.odsl, odSet: r.odSet === undefined ? '' : r.odSet,
       items: Object.assign({}, r.itemWork || {}), itemSig: itemSig((d.boqItems || {})[r.date], r.itemWork || {}) }; x.orig = Object.assign({}, x); return x; });
     $('lx_no').value = d.machine.id;
@@ -6906,7 +6917,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<th class="n">Total</th>' + (itemCol ? '<th>Items (BOQ)</th>' : '') + '<th class="n lx-dx">Opening diesel</th><th class="n lx-di">Issued</th><th class="n lx-dx">Consumed</th><th class="n lx-dx" title="Diesel left in the machinery, worked out with the Standard Average (not measured)">Closing diesel (est.)</th><th class="lx-chn">Challan No</th><th class="lx-prt">Particular</th><th class="lx-chc">Chainage From</th><th class="lx-chc">To</th><th>Work description</th><th></th></tr>';
     $('lx_rows').innerHTML = LX.rows.map((r, i) => '<tr data-i="' + i + '"><td class="sel"><input type="checkbox" class="lx-sel" aria-label="Select row"' + (r._sel ? ' checked' : '') + '></td><td>' + (i + 1) + (r.isNew ? '<span class="tag n">NEW</span>' : '') + '</td>' +
       '<td>' + (r.isNew ? '<input type="date" data-f="date" value="' + r.date + '" min="' + d.from + '" max="' + (d.to < S.today ? d.to : S.today) + '">' : esc(showDate(r.date))) + '</td>' +
-      '<td>' + (r.isNew ? '<select data-f="shift">' + ['Full Day', 'Day', 'Night'].map(x => '<option' + (x === r.shift ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' : esc(r.shift)) + '</td>' +
+      '<td>' + (r.isNew ? '<select data-f="shift">' + ['Full Day', 'Day', 'Night'].map(x => '<option' + (x === r.shift ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' : esc(r.shift)) +
+        '<label class="lg-half" title="Half day: the bill pays this entry as half a day (monthly and per-day rates)."><input type="checkbox" data-f="half"' + (r.half ? ' checked' : '') + '> ½ day</label></td>' +
       (wayCol ? '<td><select data-f="mode" class="lx-way">' + modes.map(x => '<option' + (x === lxWay(r) ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></td>' : '') +
       (km ? (hasKm(lxWay(r)) ? '<td>' + rd('okm', 'Start KM', r.okm) + '</td><td>' + rd('ckm', 'Close KM', r.ckm) + '</td>' : '<td class="lx-na">–</td><td class="lx-na">–</td>') : '') +
       (hr ? (hasHr(lxWay(r)) ? '<td>' + rd('ohr', 'Start Hrs', r.ohr) + '</td><td>' + rd('chr', 'Close Hrs', r.chr) + '</td>' : '<td class="lx-na">–</td><td class="lx-na">–</td>') : '') +
@@ -6998,7 +7010,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // new row date / shift: the row moves to its place and picks the Start from the row before
   $('lx_rows').addEventListener('change', e => {
     const tr = e.target.closest('tr[data-i]'); if (!tr) return;
-    const f = e.target.dataset.f; if (f !== 'date' && f !== 'shift' && f !== 'mode') return;
+    const f = e.target.dataset.f;
+    if (f === 'half') { LX.rows[Number(tr.dataset.i)].half = !!e.target.checked; S.formDirty = true; lxCalc(); return; }      // "½ day": paid as half a day in the bill (the Save button learns of the change)
+    if (f !== 'date' && f !== 'shift' && f !== 'mode') return;
     const r = LX.rows[Number(tr.dataset.i)]; r[f] = e.target.value;
     if (f === 'mode') { if (!hasKm(r.mode)) { r.okm = ''; r.ckm = ''; } if (!hasHr(r.mode)) { r.ohr = ''; r.chr = ''; } }
     lxPlace(r); lxRender();
@@ -7099,7 +7113,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!(await askConfirm({ title: 'Save Log Book of ' + m.id + '?', ok: 'Save', html: listHtml([ch + ' entr' + (ch === 1 ? 'y' : 'ies') + ' changed', nw + ' new entr' + (nw === 1 ? 'y' : 'ies') + ' added', LX.deleted.length + ' entr' + (LX.deleted.length === 1 ? 'y' : 'ies') + ' deleted']) +
       (d.next ? '<p>The entry after (' + esc(showDate(d.next.date)) + ') will start at the last Close here.</p>' : '') + '<p>Totals, diesel Opening / Closing and averages are worked out again for this machinery.</p>' }))) return;
     const rows = LX.rows.map(r => { const w = lxWay(r), k = hasKm(w), h = hasHr(w);
-      return { key: r.key || '', date: r.date, shift: r.shift, mode: w, openingKm: k ? r.okm : '', closingKm: k ? r.ckm : '', openingHr: h ? r.ohr : '', closingHr: h ? r.chr : '',
+      return { key: r.key || '', half: !!r.half, date: r.date, shift: r.shift, mode: w, openingKm: k ? r.okm : '', closingKm: k ? r.ckm : '', openingHr: h ? r.ohr : '', closingHr: h ? r.chr : '',
         tStart: w === 'Time' || w === 'Trip' ? r.tStart || '' : '', tEnd: w === 'Time' || w === 'Trip' ? r.tEnd || '' : '', tBreak: w === 'Time' ? r.tBrk : '', remark: r.remark || '', trip: w === 'Trip' || (m.lbFormat === 'B' && DAY_STATUS.indexOf(w) === -1) ? r.trip : '', challan: w === 'Trip' || w === 'Time' ? (r.challan || '') : (r.challan || ''),
         chFrom: r.chFrom || '', chTo: r.chTo || '', work: r.work || '', odSet: /-01$/.test(r.date) ? (r.odSet ?? '') : '',
         items: ((d.boqItems || {})[r.date] || []).length ? (r.items || {}) : undefined }; });
@@ -8718,12 +8732,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const dim = d => new Date(Number(d.slice(0, 4)), Number(d.slice(5, 7)), 0).getDate();
     const isIdle = r => (r.mode || r.unit) === 'Idle', idleDays = [...new Set(list.filter(isIdle).map(r => r.date))].length;
     const holidays = list.filter(isHol).length; list = list.filter(r => !isHol(r) && (idlePaid !== false || !isIdle(r))); // a holiday is in the Log Book but not paid; Idle as chosen in the bill
-    const units = {}; list.forEach(r => { units[r.date] = units[r.date] || { day: false, night: false }; if (r.shift === 'Night') units[r.date].night = true; else units[r.date].day = true; });
-    const workDays = Object.values(units).filter(x => x.day).length, nights = Object.values(units).filter(x => x.night).length;
+    const units = {}; list.forEach(r => { const u = units[r.date] = units[r.date] || { day: 0, night: 0 }, p = dayPart(r); if (r.shift === 'Night') u.night = Math.max(u.night, p); else u.day = Math.max(u.day, p); });
+    const workDays = r2(Object.values(units).reduce((a, x) => a + x.day, 0)), nights = r2(Object.values(units).reduce((a, x) => a + x.night, 0));
     const segs = {}; let periodHrs = 0, last = null; const zero = {}, itemHrs = {}, itemNotes = [];
     const seg = (k, o) => (segs[k] = segs[k] || Object.assign({ qty: 0, amount: 0 }, o));
     Object.keys(units).sort().forEach(d => {
-      const x = units[d], n = (x.day ? 1 : 0) + (x.night ? 1 : 0), b = bday[d];
+      const x = units[d], n = x.day + x.night, b = bday[d];
       const dayRows = list.filter(r => r.date === d);
       const hrs = dayRows.reduce((s2, r) => s2 + (Number(r.whr) || 0), 0), km = dayRows.reduce((s2, r) => s2 + (Number(r.wkm) || 0), 0), trips = dayRows.reduce((s2, r) => s2 + (Number(r.trip) || 0), 0);
       // a BOQ paid per hour / KM / trip on a day whose Log Book has none of that → the day earns nothing: noted for checking
@@ -9527,7 +9541,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const aiDay = () => { try { if (S.curTab === 'log' && lgMode === 'date' && $('lg_top_date').value) return $('lg_top_date').value; } catch (e) {} return S.today; };
   const AI_READY = [
     { id: 'brief', pages: ['dash'], always: true, q: () => aiL({ en: 'Summary: yesterday, and what needs a look today', mr: 'सारांश: काल काय झाले आणि आज कशाकडे लक्ष द्यायचे', hi: 'सारांश: कल क्या हुआ और आज किस पर ध्यान देना है' }), run: () => aiBriefText() },
-    { id: 'pending', pages: ['log', 'dash', 'editlog', 'rp-pending'], q: () => aiL({ en: 'Which machinery have no Log Book entry for ' + showDate(aiDay()) + '?', mr: showDate(aiDay()) + ' ला कोणत्या गाड्यांची Log Book entry बाकी आहे?', hi: showDate(aiDay()) + ' को किन गाड़ियों की Log Book entry बाकी है?' }),
+    { id: 'pending', pages: ['log', 'dash', 'logedit', 'rp-pending'], q: () => aiL({ en: 'Which machinery have no Log Book entry for ' + showDate(aiDay()) + '?', mr: showDate(aiDay()) + ' ला कोणत्या गाड्यांची Log Book entry बाकी आहे?', hi: showDate(aiDay()) + ' को किन गाड़ियों की Log Book entry बाकी है?' }),
       run: async () => { const d = aiDay(), r = await AI_RUN.pending_log_book({ date: d }), n = r.machineryWithoutLogBook;
         return (n ? aiL({ en: '**' + n + ' machinery** have no Log Book entry for ' + showDate(d) + ':', mr: showDate(d) + ' साठी **' + n + ' गाड्यांची** Log Book entry बाकी आहे:', hi: showDate(d) + ' के लिए **' + n + ' गाड़ियों की** Log Book entry बाकी है:' }) + '\n' + aiList(r.machinery, 40)
           : aiL({ en: 'Every machinery that needs a Log Book has its entry for ' + showDate(d) + '. ✓', mr: showDate(d) + ' साठी Log Book लागणाऱ्या सगळ्या गाड्यांची entry झाली आहे. ✓', hi: showDate(d) + ' के लिए सभी गाड़ियों की Log Book entry हो चुकी है। ✓' })) + '\n[[open:log|Log Book]]'; } },
@@ -12387,6 +12401,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
      Start reading and Opening diesel come from the previous entry of that machinery – also from a row above in this list
      (so several days of one machinery can be entered together). */
   const LOG_SHIFTS = ['Full Day', 'Day', 'Night'];
+  // "½ day" on a Log Book entry: it is paid as half a day (the server's dayPart_ – see there)
+  const dayPart = r => (r && (r.half === true || Number(r.half) === 0.5)) ? 0.5 : 1;
   let lgMode = '';                       // 'date' = one date, many machinery; 'mach' = one machinery, many dates
   function setLgMode(mode) {
     lgMode = mode;
@@ -12510,7 +12526,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const rd = (f, u) => '<div class="rd ' + u + '"><small>' + u + '</small><input data-f="' + f + '" type="number" step="0.01" min="0"></div>';
     return '<tr class="lrow"><td class="c-no idx"></td>' +
       '<td class="c-date"><input data-f="date" type="date" max="' + esc(S.today || '') + '" value="' + esc(date || S.today || '') + '"><small class="lnote dnote"></small></td>' +
-      '<td><select data-f="shift">' + LOG_SHIFTS.map(x => '<option' + (x === (shift || 'Full Day') ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></td>' +
+      '<td><select data-f="shift">' + LOG_SHIFTS.map(x => '<option' + (x === (shift || 'Full Day') ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' +
+        '<label class="lg-half" title="Half day: the machinery was on the job for half of this shift. The bill pays this entry as half a day (monthly and per-day rates). Pay by hour, KM or trip is not changed."><input type="checkbox" data-f="half"> ½ day</label></td>' +
       '<td class="c-m"><input data-f="no" list="dl_machines" autocomplete="off" placeholder="Type or pick"><small class="lnote"></small></td>' +
       '<td class="unitcell c-unit"></td>' +
       '<td>' + rd('openingKm', 'km') + rd('openingHr', 'hr') + '<small class="gaphint" hidden></small><div class="rd tm"><small>from</small><input data-f="tStart" type="time"></div><span class="lg-day">—</span>' +
@@ -12831,7 +12848,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const missP = trs.filter(tr => lgWay(tr) === 'Trip' && !(Number(lgf(tr, 'trip').value) > 0));
     if (missP.length) throw new Error('Enter the number of trips in ' + missP.map(tr => 'row ' + tr.querySelector('.idx').textContent).join(', ') + '.');
     const v = (tr, f) => lgf(tr, f) ? lgf(tr, f).value : '';
-    const rows = trs.map(tr => ({ date: v(tr, 'date'), shift: v(tr, 'shift'), no: v(tr, 'no'), mode: lgWay(tr), openingKm: hasKm(lgWay(tr)) ? v(tr, 'openingKm') : '', closingKm: hasKm(lgWay(tr)) ? v(tr, 'closingKm') : '',
+    const rows = trs.map(tr => ({ date: v(tr, 'date'), shift: v(tr, 'shift'), half: !!(tr.querySelector('[data-f=half]') || {}).checked, no: v(tr, 'no'), mode: lgWay(tr), openingKm: hasKm(lgWay(tr)) ? v(tr, 'openingKm') : '', closingKm: hasKm(lgWay(tr)) ? v(tr, 'closingKm') : '',
       openingHr: hasHr(lgWay(tr)) ? v(tr, 'openingHr') : '', closingHr: hasHr(lgWay(tr)) ? v(tr, 'closingHr') : '', tStart: v(tr, 'tStart'), tEnd: v(tr, 'tEnd'), tBreak: v(tr, 'tBreak'), trip: lgWay(tr) === 'Trip' || (tr._p && tr._p.machine && tr._p.machine.lbFormat === 'B' && DAY_STATUS.indexOf(lgWay(tr)) === -1) ? v(tr, 'trip') : '', challan: lgWay(tr) && DAY_STATUS.indexOf(lgWay(tr)) === -1 ? v(tr, 'challan').trim() : '', remark: v(tr, 'remark').trim(),
       openingDiesel: v(tr, 'openingDiesel'), chFrom: v(tr, 'chFrom'), chTo: v(tr, 'chTo'), work: v(tr, 'work'), debitTo: v(tr, 'debitTo').trim(), debitRate: v(tr, 'debitRate'),
       estKm: v(tr, 'estKm'), estHr: v(tr, 'estHr'), meterNote: v(tr, 'meterNote').trim(), meter: lgf(tr, 'newMeter') && lgf(tr, 'newMeter').checked ? 'new' : '',
@@ -13029,9 +13046,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // Idle days: paid or not is chosen in the bill (a print from the bill follows it; from the Log Book page they count as paid)
       const idleKey = String(no).toUpperCase().replace(/[^A-Z0-9]/g, ''), idleSet = !!(IDLE_BY && idleKey in IDLE_BY), idlePaid = !(idleSet && IDLE_BY[idleKey] === false);
       const paidList = list.filter(r => !isHol(r) && (idlePaid || (r.mode || r.unit) !== 'Idle'));
-      const units = {}; paidList.forEach(r => { units[r.date] = units[r.date] || { day: false, night: false }; if (r.shift === 'Night') units[r.date].night = true; else units[r.date].day = true; });
-      const workDays = Object.values(units).filter(x => x.day).length, nights = Object.values(units).filter(x => x.night).length, net = workDays + nights;
-      const shiftText = r => { const x = units[r.date] || {}; return x.day && x.night && list.filter(y => y.date === r.date).length === 1 ? 'Day+Night' : r.shift === 'Full Day' ? 'Day' : r.shift; };
+      const units = {}; paidList.forEach(r => { const u = units[r.date] = units[r.date] || { day: 0, night: 0 }, p = dayPart(r); if (r.shift === 'Night') u.night = Math.max(u.night, p); else u.day = Math.max(u.day, p); });
+      const workDays = r2(Object.values(units).reduce((a, x) => a + x.day, 0)), nights = r2(Object.values(units).reduce((a, x) => a + x.night, 0)), net = r2(workDays + nights);
+      const halfDays = paidList.filter(r => dayPart(r) === 0.5).length;
+      const shiftText = r => { const x = units[r.date] || {}; return (x.day && x.night && list.filter(y => y.date === r.date).length === 1 ? 'Day+Night' : r.shift === 'Full Day' ? 'Day' : r.shift) + (dayPart(r) === 0.5 ? ' ½' : ''); };
       // rate: the BOQ in force on each date (an amendment from a date takes over from that date)
       const key = String(no).toUpperCase().replace(/[^A-Z0-9]/g, '');
       const bday = (extra.boq || {})[key] || {};
@@ -13040,7 +13058,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const itemSegs = {}, itemHrs = {}, itemSeg = (k, o) => (itemSegs[k] = itemSegs[k] || Object.assign({ qty: 0, amount: 0 }, o)); // Item-wise BOQ: a line per item
       const legacy = Number(m.monthlyRate) || 0;                 // an old Monthly Rate in Asset Master, only if there is no BOQ
       Object.keys(units).sort().forEach(d => {
-        const x = units[d], n = (x.day ? 1 : 0) + (x.night ? 1 : 0), b = bday[d];
+        const x = units[d], n = x.day + x.night, b = bday[d];
         const dayRows = paidList.filter(r => r.date === d);
         const hrs = dayRows.reduce((s2, r) => s2 + (Number(r.whr) || 0), 0), km = dayRows.reduce((s2, r) => s2 + (Number(r.wkm) || 0), 0), trips = dayRows.reduce((s2, r) => s2 + (Number(r.trip) || 0), 0);
         if (!b) { if (legacy) { payable += legacy / dim(d) * n; used2['legacy'] = { basis: 'Monthly', rate: legacy }; } return; }
@@ -13118,7 +13136,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // standard vs actual: KM machinery – a LOWER km/ltr than standard is worse; Hrs machinery – a HIGHER ltr/hr than standard is worse
       const stdWord = [hasKm(u) && kmStd ? 'STD ' + fmt(kmStd) + ' KM/L' : '', hasHr(u) && hrStd ? 'STD ' + fmt(hrStd) + ' L/HR' : ''].filter(Boolean).join(' · ');
       const verdict = allDebit ? 'DIESEL ON DEBIT – ALL DIESEL IS DEBITED' : !stdQty ? 'NO STANDARD IN ASSET MASTER' : excessQty > 0 ? 'WORSE THAN STANDARD → DEBIT' : 'WITHIN STANDARD → NO DEBIT';
-      const L = [['TOTAL WORKING DAYS', workDays], ['TOTAL WORKING NIGHT', nights]].concat([['NET WORKING DAYS' + ([holDays ? 'HOLIDAY ' + holDays : '', bdDaysP ? 'BREAKDOWN ' + bdDaysP : ''].filter(Boolean).length ? '<small>NOT PAID – ' + [holDays ? 'HOLIDAY ' + holDays : '', bdDaysP ? 'BREAKDOWN ' + bdDaysP : ''].filter(Boolean).join(', ') + '</small>' : '') + (idleDays ? '<small>IDLE ' + idleDays + (idlePaid ? ' – PAID' + (idleSet ? '' : ' HERE (FINAL IN THE BILL)') : ' – NOT PAID') + '</small>' : ''), net]]).concat([ ['TOTAL DIESEL ISSUE' + noEntryNote, n2(issued) + ' LTR'], ['DIESEL MONTHLY AVERAGE', avgWord],
+      const L = [['TOTAL WORKING DAYS' + (halfDays ? '<small>' + halfDays + ' HALF DAY' + (halfDays === 1 ? '' : 'S') + ' COUNTED AS ½</small>' : ''), workDays], ['TOTAL WORKING NIGHT', nights]].concat([['NET WORKING DAYS' + ([holDays ? 'HOLIDAY ' + holDays : '', bdDaysP ? 'BREAKDOWN ' + bdDaysP : ''].filter(Boolean).length ? '<small>NOT PAID – ' + [holDays ? 'HOLIDAY ' + holDays : '', bdDaysP ? 'BREAKDOWN ' + bdDaysP : ''].filter(Boolean).join(', ') + '</small>' : '') + (idleDays ? '<small>IDLE ' + idleDays + (idlePaid ? ' – PAID' + (idleSet ? '' : ' HERE (FINAL IN THE BILL)') : ' – NOT PAID') + '</small>' : ''), net]]).concat([ ['TOTAL DIESEL ISSUE' + noEntryNote, n2(issued) + ' LTR'], ['DIESEL MONTHLY AVERAGE', avgWord],
         ['STANDARD AVERAGE<small>' + verdict + '</small>', allDebit ? 'NOT CHECKED' : (stdWord || '–') + (stdQty ? '<br><small>' + fmt(stdQty) + ' L allowed for the work</small>' : '')]]);
       const Rr = [[monthly.length ? 'MONTHLY RATE' : 'RATE', rateCell], ['DAILY RATE', dailyCell], ['PAYABLE AMOUNT', money(payable)],
         [(debitQty ? 'DIESEL DEBIT' : 'EXCESS DIESEL – DEBIT AMT') + '<small>rate = higher of avg ₹' + n2(avgR) + ' / last ₹' + n2(lastR) + '</small>', excessAmt ? '<small>' + [debitQty ? fmt(debitQty) + ' L debit' : '', excessQty ? fmt(excessQty) + ' L extra' : ''].filter(Boolean).join(' + ') + ' × ₹' + n2(avgRate) + '</small> − ₹ ' + n2(excessAmt) + (tank && tank.applied > 0 ? '<br><small>' + esc(tankText(tank).toUpperCase()) + '</small>' : '') : '<small>' + (tank && tank.applied > 0 ? esc(tankText(tank).toUpperCase()) : stdQty ? 'no extra diesel' : 'no standard') + '</small> –'],
@@ -13248,7 +13266,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const stdTxt = r => [r.kmStd ? r.kmStd + ' km/L' : '', r.hrStd ? r.hrStd + ' L/hr' : ''].filter(Boolean).join(' + ');
       const two = (a, b, u) => [a !== '' ? fmt(a) + (u ? ' km' : '') : '', b !== '' ? fmt(b) + (u ? ' hr' : '') : ''].filter(Boolean).join('<br>');
       $('l_rows').innerHTML = rows.length ? rows.map(r =>
-        '<tr><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + '</td><td><b>' + esc(r.no) + '</b>' + (r.type ? ' <small>' + esc(r.type) + '</small>' : '') + '</td><td>' + esc(r.unit) + '</td>' +
+        '<tr><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + (r.half ? ' <span class="tag half" title="Half day – the bill pays this entry as half a day">½ day</span>' : '') + '</td><td><b>' + esc(r.no) + '</b>' + (r.type ? ' <small>' + esc(r.type) + '</small>' : '') + '</td><td>' + esc(r.unit) + '</td>' +
         (r.unit === 'Time' ? '<td class="n">' + esc(r.tStart || '') + '</td><td class="n">' + esc(r.tEnd || '') + (r.tBrk ? '<br><small>break ' + fmt(r.tBrk) + ' min</small>' : '') + '</td>'
           : DAY_STATUS.indexOf(r.unit) > -1 ? '<td class="n">–</td><td class="n"><span class="lg-hol">' + r.unit + '</span></td>'
           : r.unit === 'Trip' ? '<td class="n">–</td><td class="n">' + fmt(r.trip) + ' <small>trips</small>' + (r.challan ? '<br><small>Challan ' + esc(r.challan) + '</small>' : '') + '</td>' : r.unit === 'Day' ? '<td class="n">–</td><td class="n"><small>day</small></td>'

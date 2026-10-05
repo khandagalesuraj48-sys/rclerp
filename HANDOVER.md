@@ -868,6 +868,25 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * Also: forms on ≤ 480 px are one column (the right-hand boxes were too narrow to read).
   * Tests (real touches, phone-size browser): `test/browser/mob.js` (11), `mob2.js` (4: the menu, a whole Diesel Issue by touch into
     the database, another list). NOT tried on a real Android / iPhone by me.
+- 05-10-2026: "WHILE FILLING THE LOG BOOK LET ME MARK A HALF DAY – and it must carry through to the bill."
+  * WHAT: a tick "½ day" under the Shift of a Log Book entry (entry page and Edit Log Book; a tag in the list). It is one more fact
+    of the entry – NOT a new shift (the shift is in the entry's key, the reading chain and the diesel-per-shift logic in ~40 places;
+    a fourth shift value would have touched them all). Shift, readings, diesel, averages are unchanged.
+  * STORED: new column log_book.day_part (numeric; 0.5 = half, empty = whole) – `sql/supabase_step1v_half_day.sql` (also in Read Me;
+    health check line "(step 1v)"). SupabaseSync column 'Day Part'. Until the step is run the app works as before; a ticked entry is
+    refused with a message naming the file (`halfReady_`). H.DAYPART; `halfOf_`.
+  * ONE RULE: `dayPart_(r)` (server) = `dayPart(r)` (page): 0.5 for a half entry, else 1.
+  * THE BILL: `billMachineCalc_` (server), `mbMachine` (bill page) and the Log Book print count each date's day part and night part as
+    1 or 0.5 → working days 2.5 / nights 0.5 → Monthly (rate ÷ days of the month × n) and Per Day (rate × n). Per Hour / KM / Trip are
+    not changed. Idle half day (when idle is paid) 0.5. Holiday / Breakdown: refused (`halfCheck_`). Item-wise BOQ: the Per Day /
+    Monthly item of the entry counts `dayPart_` (itemQtyOf_). The print says "N HALF DAY(S) COUNTED AS ½" and "Day ½" in the row.
+  * SAVED BY: saveLogRowsInner_ (entry page), saveLogBulk_ (Edit grid: existing and new rows), updateLogRow_. The Edit page counts
+    the tick as a change (lxChanged, lxCalc → Save switches on).
+  * NOT IN: the Excel import of the Log Book, the assistant's "prepare an entry", the utilisation % of the dashboard (a half day is
+    still a day worked there).
+  * Tests: unit "half day …" and "half day with an Item-wise BOQ …" (32 unit tests); `test/browser/half.js` (11: refused before the
+    step, the step twice, entry page → database, Holiday refused, list, bill 2.5 d + 0.5 n = ₹3,000, Verify & Submit agrees, print,
+    Edit page takes it off).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

@@ -77,7 +77,8 @@ test('billing: item-wise BOQ with an hour slab, Idle paid / not paid, and page =
   // the page works the bill out by itself – it must give the same figure as the server
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   const grab = m => { const i = app.indexOf(m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
-  const env = { r2: n => Math.round(n * 100) / 100, hasKm: u => u === 'KM' || u === 'KM + Hrs', hasHr: u => u === 'Hrs' || u === 'KM + Hrs', isHol: r => ['Holiday', 'Breakdown'].indexOf(r.mode || r.unit) > -1,
+  const dayPartSrc = (app.match(/const dayPart = (r => [^\n]+?);\n/) || [])[1]; assert.ok(dayPartSrc, 'the page\'s dayPart was not found');
+  const env = { dayPart: new Function('return ' + dayPartSrc)(), r2: n => Math.round(n * 100) / 100, hasKm: u => u === 'KM' || u === 'KM + Hrs', hasHr: u => u === 'Hrs' || u === 'KM + Hrs', isHol: r => ['Holiday', 'Breakdown'].indexOf(r.mode || r.unit) > -1,
     showDate: d => d.split('-').reverse().join('/'), fmt: String, DAY_STATUS: ['Idle', 'Holiday', 'Breakdown'], METER_OFF: 'No reading', isoDate: d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'), ITEM_WORD: { hr: 'hr', km: 'km', trip: 'trips' }, dieselDebitDay: (vt, bd, m) => bd ? bd.diesel === 'Debit Basis' : !!(m && m.supply === 'Debit Basis'), findMachine: no => T.getMaster_().find(m => m.id === no) };
   const C = new Function(...Object.keys(env), grab('function itemDaySegs(') + '\n' + grab('function tankLeft(') + '\n' + grab('function mbMachine(') + '; return { mbMachine };')(...Object.values(env));
   for (const no of ['JCB-1', 'BOLERO-1']) for (const idle of [true, false]) assert.strictEqual(C.mbMachine(no, byNo[no], extra, from, to, undefined, idle).amount, srv(no, idle), no + ' idle=' + idle);
@@ -697,4 +698,36 @@ test('two engines, one tank – ONE rule everywhere: the page\'s dualAvg = the s
   assert.strictEqual(page(60, 100, 25, 1.5, 3).how, 'short');                    // the hours alone need 75 L, 60 L given: no average is made up
   // no place on the page divides all the diesel of a two-meter machinery by each meter any more
   assert.ok(!/dual \? \[tKm \? \(tKm \/ (issued|used)\)/.test(html), 'the Log Book print still works out its own two-meter average');
+});
+
+test('half day: a Log Book entry marked "½ day" is paid as half a day – server and page the same; hours / KM pay is not touched', () => {
+  const { T, ctx } = require('./harness.js');
+  const fs = require('fs'), path = require('path');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // the one rule, on both sides
+  const app = fs.readFileSync(path.join(__dirname, '..', 'app', 'App.html'), 'utf8');
+  const page = new Function('return ' + (app.match(/const dayPart = (r => [^\n]+?);\n/) || [])[1])();
+  [[{ half: true }, 0.5], [{ half: 0.5 }, 0.5], [{ half: false }, 1], [{}, 1], [{ half: '' }, 1], [null, 1]].forEach(x => { assert.strictEqual(page(x[0]), x[1]); assert.strictEqual(run('r => dayPart_(r)', x[0]), x[1]); });
+  // a monthly rate of 30,000 in a 30-day month = 1,000 a day. Three dates: a whole day, a HALF day, and a day + a half night
+  const calc = (basis, rate, rows) => run(`(basis, rate, rows) => { const m = { id: 'HD-1', unit: 'KM' }, boq = {}; rows.forEach(r => { boq[r.date] = { boq: 'B1', basis: basis, rate: rate }; });
+    const c = billMachineCalc_(m, rows, { boq: { [noKey_('HD-1')]: boq }, issues: {} }, '2026-09-01', '2026-09-30'); return { workDays: c.workDays, nights: c.nights, amount: c.amount, rows: c.rows || c.lines || null }; }`, basis, rate, rows);
+  const rows = [{ date: '2026-09-01', shift: 'Full Day', mode: 'KM', wkm: 40 }, { date: '2026-09-02', shift: 'Day', mode: 'KM', wkm: 20, half: true }, { date: '2026-09-03', shift: 'Day', mode: 'KM', wkm: 40 }, { date: '2026-09-03', shift: 'Night', mode: 'KM', wkm: 10, half: true }];
+  const mo = calc('Monthly', 30000, rows);
+  assert.deepStrictEqual([mo.workDays, mo.nights, mo.amount], [2.5, 0.5, 3000]);            // (1 + 0.5 + 1) days + 0.5 night = 3 × 1,000
+  const whole = calc('Monthly', 30000, rows.map(r => Object.assign({}, r, { half: false })));
+  assert.deepStrictEqual([whole.workDays, whole.nights, whole.amount], [3, 1, 4000]);       // the same entries without the mark, as before
+  const pd = calc('Per Day', 1200, rows); assert.strictEqual(pd.amount, 3600);              // 3 × 1,200
+  const km = calc('Per KM', 10, rows); assert.strictEqual(km.amount, 1100);                 // 110 km × 10 – a half day does not change pay by KM
+  // refused where the day is not paid at all
+  assert.throws(() => run(`() => halfCheck_({ half: true }, 'Holiday', '')`), /is for a day that is paid/);
+  assert.strictEqual(run(`() => { halfCheck_({ half: true }, 'Idle', ''); halfCheck_({ half: false }, 'Breakdown', ''); return 'ok'; }`), 'ok');
+});
+
+test('half day with an Item-wise BOQ: the Per Day / Monthly item of a "½ day" entry counts 0.5; the hour items are as typed', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const items = [{ name: 'Machine with operator', basis: 'Per Day', rate: 2000 }, { name: 'Breaker', basis: 'Per Hour', rate: 900, qty: '' }];
+  const q = (half) => run('(items, row) => itemQtyOf_(items, row).list', items, { mode: 'Hrs', whr: 6, wkm: 0, trip: 0, work: { Breaker: 2 }, half: half });
+  assert.deepStrictEqual(q(false), [{ n: 'Breaker', q: 2, k: 'hr' }, { n: 'Machine with operator', q: 1, k: 'day' }]);
+  assert.deepStrictEqual(q(true), [{ n: 'Breaker', q: 2, k: 'hr' }, { n: 'Machine with operator', q: 0.5, k: 'day' }]);
 });

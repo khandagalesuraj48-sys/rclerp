@@ -31,7 +31,7 @@ const APP = {
 
 const H = {
   NO: 'Machinery Number', NAME: 'Machinery Name', TYPE: 'Type of Machinery', MAKE: 'Make',
-  UNIT: 'Unit', WORKS: 'Works On', LBFMT: 'Log Book Format', TSTART: 'Start Time', TEND: 'End Time', TBRK: 'Break (min)', THRS: 'Time Hrs', CHALLAN: 'Challan No', ITEMS: 'Item Work', DEBITTO: 'Debit To', DEBITRATE: 'Debit Rate', METER: 'Meter Note', OWNTYPE: 'Ownership', KMSTD: 'Standard Average (KM/Ltr)', HRSTD: 'Standard Average (Ltr/Hr)', OWNER: 'Owner Name',
+  UNIT: 'Unit', WORKS: 'Works On', LBFMT: 'Log Book Format', TSTART: 'Start Time', TEND: 'End Time', TBRK: 'Break (min)', THRS: 'Time Hrs', CHALLAN: 'Challan No', ITEMS: 'Item Work', DAYPART: 'Day Part', DEBITTO: 'Debit To', DEBITRATE: 'Debit Rate', METER: 'Meter Note', OWNTYPE: 'Ownership', KMSTD: 'Standard Average (KM/Ltr)', HRSTD: 'Standard Average (Ltr/Hr)', OWNER: 'Owner Name',
   ID: 'Issue ID', IDATE: 'Issue Date', SHIFT: 'Shift', QTY: 'Diesel Qty (Ltr)',
   KMR: 'KM Reading', HRR: 'Hrs Reading', REMARK: 'Remark', CREATED: 'Created At',
   DATE: 'Date', OKM: 'Opening KM', CKM: 'Closing KM', WKM: 'Working KM',
@@ -1814,7 +1814,7 @@ function logDashboard_(f) {
       const r = x.r, m = M[x.k], night = str_(r[lc[H.SHIFT]]) === 'Night';
       const wkm = num0_(r[lc[H.WKM]]), whr = num0_(r[lc[H.WHR]]), trip = g(H.TRIP) ? num0_(r[lc[H.TRIP]]) : 0;
       m.entries++; (night ? m.night : m.day)[x.dk] = true; m.lastLog = x.dk;
-      m.rows.push(logItemsOut_({ no: m.no, date: x.dk, shift: night ? 'Night' : 'Day', whr: whr, wkm: wkm, trip: trip, mode: str_(r[lc[H.UNIT]]), itemWork: H.ITEMS in lc ? itemWorkParse_(r[lc[H.ITEMS]]) : {},
+      m.rows.push(logItemsOut_({ no: m.no, date: x.dk, shift: night ? 'Night' : 'Day', half: halfOf_(r, lc), whr: whr, wkm: wkm, trip: trip, mode: str_(r[lc[H.UNIT]]), itemWork: H.ITEMS in lc ? itemWorkParse_(r[lc[H.ITEMS]]) : {},
         ckm: numOrBlank_(r[lc[H.CKM]]), chr: numOrBlank_(r[lc[H.CHR]]) }));      // the Close readings: the bill's "last fill still in the tank" rule needs them
       m.hrs += Math.max(0, whr); m.km += Math.max(0, wkm); m.trips += trip; if (night) m.nightHrs += Math.max(0, whr);
       const dd = daily[x.dk]; if (night) dd.hrsNight += Math.max(0, whr); else dd.hrsDay += Math.max(0, whr); dd.km += Math.max(0, wkm); dd.trips += trip; dd.machines[x.k] = true;
@@ -2255,12 +2255,13 @@ function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid) {
   const idleDays = [...new Set(list.filter(r => (r.mode || r.unit) === 'Idle').map(r => r.date))].length;
   list = list.filter(r => ['Holiday', 'Breakdown'].concat(idlePaid === false ? ['Idle'] : []).indexOf(r.mode || r.unit) === -1);
   const itemHrs = {}, itemOver = [], itemUnknown = [], itemLeft = [];
-  const units = {}; list.forEach(r => { units[r.date] = units[r.date] || { day: false, night: false }; if (r.shift === 'Night') units[r.date].night = true; else units[r.date].day = true; });
-  const workDays = Object.values(units).filter(x => x.day).length, nights = Object.values(units).filter(x => x.night).length;
+  // a date is paid for its day part and its night part: 1 each, or 0.5 where the entry is marked "½ day" (dayPart_)
+  const units = {}; list.forEach(r => { const u = units[r.date] = units[r.date] || { day: 0, night: 0 }, p = dayPart_(r); if (r.shift === 'Night') u.night = Math.max(u.night, p); else u.day = Math.max(u.day, p); });
+  const workDays = r2_(Object.values(units).reduce((a, x) => a + x.day, 0)), nights = r2_(Object.values(units).reduce((a, x) => a + x.night, 0));
   const segs = {}; let periodHrs = 0, last = null; const noBoq = [], legacy = [], zero = {};
   const seg = (k, o) => (segs[k] = segs[k] || Object.assign({ qty: 0, amount: 0 }, o));
   Object.keys(units).sort().forEach(d => {
-    const x = units[d], n = (x.day ? 1 : 0) + (x.night ? 1 : 0), b = bday[d];
+    const x = units[d], n = x.day + x.night, b = bday[d];
     const dayRows = list.filter(r => r.date === d);
     const hrs = dayRows.reduce((a, r) => a + (Number(r.whr) || 0), 0), km = dayRows.reduce((a, r) => a + (Number(r.wkm) || 0), 0), trips = dayRows.reduce((a, r) => a + (Number(r.trip) || 0), 0);
     if (!b) {
@@ -2762,7 +2763,7 @@ function itemQtyOf_(items, row) {
   if (days.length) {
     const pick = days.length > 1 && str_(work._day) ? days.find(it => it.name === str_(work._day)) : null;
     if (days.length > 1 && str_(work._day) && !pick) out.unknown.push(str_(work._day));
-    out.list.push({ n: (pick || days[0]).name, q: 1, k: 'day' });
+    out.list.push({ n: (pick || days[0]).name, q: dayPart_(row), k: 'day' });      // 1, or 0.5 for an entry marked "½ day"
     out.left = {}; // the day is paid by the Per Day / Monthly item: hours / KM given to no item are not "left out"
   }
   Object.keys(work).forEach(n => { if (n !== '_day' && !known[n] && Number(work[n]) > 0) out.unknown.push(n); });
@@ -5093,6 +5094,7 @@ function logRowOut_(t, r) {
     mode: str_(r[t.c[H.UNIT]]), tStart: H.TSTART in t.c ? tStr_(r[t.c[H.TSTART]]) : '', tEnd: H.TEND in t.c ? tStr_(r[t.c[H.TEND]]) : '',
     tBrk: H.TBRK in t.c ? numOrBlank_(r[t.c[H.TBRK]]) : '', tHrs: H.THRS in t.c ? numOrBlank_(r[t.c[H.THRS]]) : '', challan: H.CHALLAN in t.c ? str_(r[t.c[H.CHALLAN]]) : '',
     itemWork: H.ITEMS in t.c ? itemWorkParse_(r[t.c[H.ITEMS]]) : {}, // Item-wise BOQ: the typed items of this entry
+    half: halfOf_(r, t.c),                                   // "½ day": paid as half a day in the bill (dayPart_)
     meter: H.METER in t.c ? str_(r[t.c[H.METER]]) : '',   // "No reading – reason" (work is estimated) / "New meter – reason"
     debitTo: H.DEBITTO in t.c ? str_(r[t.c[H.DEBITTO]]) : '', debitRate: H.DEBITRATE in t.c ? numOrBlank_(r[t.c[H.DEBITRATE]]) : '', // work charged to a party
   };
@@ -5166,7 +5168,7 @@ function logItemsOut_(o) {
   let m = null; try { m = findMachine_(o.no); } catch (e) { m = null; }
   const items = m ? boqItemsOn_(m, o.date) : [];
   if (!items.length) return o;
-  const q = itemQtyOf_(items, { mode: o.mode || o.unit, whr: o.whr, wkm: o.wkm, trip: o.trip, work: o.itemWork });
+  const q = itemQtyOf_(items, { mode: o.mode || o.unit, whr: o.whr, wkm: o.wkm, trip: o.trip, work: o.itemWork, half: o.half });
   o.itemQty = q.list; o.itemOver = q.over; o.itemUnknown = q.unknown; o.itemLeft = q.left; o.boqItems = itemBrief_(items);
   return o;
 }
@@ -5335,6 +5337,21 @@ function prevLogOf_(lt, no, dk) {
  * Kept in one column (Meter Note): "No reading – reason" / "New meter – reason". */
 const METER_OFF_ = 'No reading';
 const meterOff_ = unit => str_(unit) === METER_OFF_;
+/* ---------- HALF DAY (asked 05-10-2026: "while filling the Log Book let me mark a half day – and it must carry through to the bill") ----------
+ * A Log Book entry can be marked "½ day": the machinery was on the job for half of that shift. It is one more fact of the entry
+ * (column "Day Part" = 0.5; empty = a whole day, as every entry so far) – the shift (Full Day / Day / Night), the readings, the
+ * diesel and the averages are exactly as before. What it changes is the PAY BY TIME:
+ *   - a bill counts that entry as 0.5 instead of 1: Working days 2.5, Monthly rate ÷ days of the month × 2.5, Per Day rate × 2.5;
+ *     a half Night counts 0.5 night; an Idle half day (when idle days are paid) 0.5;
+ *   - pay by hour / KM / trip is NOT changed – that work is already only what was done;
+ *   - Holiday and Breakdown are not paid at all, so "½ day" is refused on them.
+ * ONE place decides the figure: dayPart_() on the server, dayPart() on the page (the same one line). */
+const dayPart_ = r => (r && (r.half === true || Number(r.half) === 0.5 || Number(r.dayPart) === 0.5)) ? 0.5 : 1;
+const HALF_SQL_MSG_ = 'This needs one database step first: run sql/supabase_step1v_half_day.sql in Supabase → SQL Editor (it only adds one column; nothing is changed).';
+function logHalfCol_() { addColIfMissing_(APP.SHEET_LOG, logHeaders_(), H.DAYPART); TABLE_MEMO_ = {}; }
+function halfReady_(c) { let cols = null; try { cols = SS_().getSheetByName(APP.SHEET_LOG).dbCols; } catch (e) { cols = null; } if ((cols && cols.indexOf('day_part') === -1) || (c && !(H.DAYPART in c))) throw new Error('"½ day" cannot be saved yet. ' + HALF_SQL_MSG_); }
+const halfOf_ = (row, c) => H.DAYPART in c && Number(row[c[H.DAYPART]]) === 0.5;
+function halfCheck_(l, mode, when) { if (l && l.half && (mode === 'Holiday' || mode === 'Breakdown')) throw new Error((when || '') + '"½ day" is for a day that is paid – a ' + mode + ' day is not paid at all. Untick it.'); }
 const meterNew_ = (row, c) => H.METER in c && /^New meter/i.test(str_(row[c[H.METER]]));
 function logMeterCol_() { addColIfMissing_(APP.SHEET_LOG, logHeaders_(), H.METER); TABLE_MEMO_ = {}; }
 const hasMeterIn_ = l => l && (meterOff_(l.mode) || str_(l.meter) === 'new');
@@ -5702,6 +5719,7 @@ function saveLogRowsInner_(b) {
         const row = newRow_(lt);
         if (itemWork) set_(row, lt, H.ITEMS, itemWork);
         if (meterNote) set_(row, lt, H.METER, meterNote);
+        if (l.half) { halfCheck_(l, mode, m.id + ' (' + dmy_(dk) + '): '); halfReady_(lt.c); set_(row, lt, H.DAYPART, 0.5); }
         const dbt = logDebit_(l, m.id + ' (' + dmy_(dk) + '): ');
         if (dbt && dbt.to) { debitReady_(lt); set_(row, lt, H.DEBITTO, dbt.to); set_(row, lt, H.DEBITRATE, dbt.rate); }
         set_(row, lt, H.DATE, toDate_(dk)); set_(row, lt, H.NO, m.id); set_(row, lt, H.SHIFT, shift);
@@ -5836,6 +5854,7 @@ function updateLogRow_(key, l) {
       if (dbt.to) debitReady_(lt);
       me[c[H.DEBITTO]] = dbt.to; me[c[H.DEBITRATE]] = dbt.rate;
     }
+    if (l.half !== undefined && (l.half || H.DAYPART in c)) { halfCheck_(l, unit, ''); if (l.half) halfReady_(c); if (H.DAYPART in c) me[c[H.DAYPART]] = l.half ? 0.5 : ''; }
     if (meterOff_(unit) && (l.estKm !== undefined || l.estHr !== undefined)) {
       const est = meterEst_(mm, l, ''); me[c[H.WKM]] = est.km; me[c[H.WHR]] = est.hr;
       if (l.meterNote !== undefined && H.METER in c) me[c[H.METER]] = meterNote_(l, METER_OFF_, '');
@@ -5994,6 +6013,7 @@ function saveLogBulk_(b) {
       row[c[H.WORK]] = clean_(l.work); if (H.REMARK in c && l.remark !== undefined) row[c[H.REMARK]] = clean_(l.remark);
       if (p.od !== undefined && H.ODSET in c) row[c[H.ODSET]] = p.od;
       if (v.itemWork !== undefined && H.ITEMS in c) row[c[H.ITEMS]] = v.itemWork;
+      if (l.half !== undefined && (l.half || H.DAYPART in c)) { halfCheck_(l, v.mode, dmy_(dkey_(r[c[H.DATE]])) + ': '); if (l.half) halfReady_(c); if (H.DAYPART in c) row[c[H.DAYPART]] = l.half ? 0.5 : ''; }      // "½ day"
       if (row.some((v, k) => String(v) !== String(r[k]))) { stampEdit_(row, lt); lt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); changed++; }
     });
     const order = { 'Day': 0, 'Full Day': 0, 'Night': 1 };
@@ -6034,6 +6054,7 @@ function saveLogBulk_(b) {
       if (p.odsl !== undefined) set_(row, lt, H.ODSL, p.odsl);
       if (p.od !== undefined && p.od !== '') set_(row, lt, H.ODSET, p.od);
       if (v.itemWork) set_(row, lt, H.ITEMS, v.itemWork);
+      if (l.half) { halfCheck_(l, v.mode, dmy_(p.dk) + ': '); halfReady_(lt.c); set_(row, lt, H.DAYPART, 0.5); }      // "½ day"
       set_(row, lt, H.CHFROM, clean_(l.chFrom)); set_(row, lt, H.CHTO, clean_(l.chTo)); set_(row, lt, H.WORK, clean_(l.work)); set_(row, lt, H.DRIVER, ds.driver); if (l.remark) set_(row, lt, H.REMARK, clean_(l.remark));
       return row;
     });
@@ -6775,7 +6796,8 @@ function dbHealth_() {
     const t1 = has('log_book', 'debit_to') && has('log_book', 'debit_rate') && has('debit_notes'), u1 = has('log_book', 'meter_note');
     add('"Debit to" and Debit Notes (step 1t)', t1, 'supabase_step1t_debit_notes.sql');
     add('"No reading" / "New meter" (step 1u)', u1, 'supabase_step1u_meter.sql');
-    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note)|debit_notes)/.test(x));
+    add('"½ day" in the Log Book (step 1v)', has('log_book', 'day_part'), 'supabase_step1v_half_day.sql');
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part)|debit_notes)/.test(x));
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }
   let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }
