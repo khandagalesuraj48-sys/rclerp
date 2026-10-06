@@ -8883,6 +8883,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     b.G = r2(b.D + b.E + b.F); b.H = plus ? r2(b.D * b.tdsPct / 100) : 0; b.I = r2(b.G - b.H);
     // debit notes ticked for this bill: taken off AFTER the net payable (lines A–I and the tax are not touched)
     b.J = r2((b.dns || []).reduce((a, n) => a + (Number(n.total) || 0), 0)); b.K = r2(b.I - b.J);
+    b.gstDecl = gstDeclNeed(b.vendor, b.gstPct);      // a party without GST registration: its declaration is one of the bill's papers
     return b;
   }
   $('mb_build').addEventListener('click', e => busy(e.target, 'Building…', async () => {
@@ -8909,7 +8910,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const lastNo = nextNo[nk]; if (lastNo) nextNo[nk]++;
       const wo = {};
       const b = { company: co, companyInfo: st.companies[co] || {}, project: st.project, siteAddress: st.siteAddress || '', from: from, to: to, billDate: billDate,
-        vendor: { name: v.name, address: v.address || '', account: v.account || '', ifsc: v.ifsc || '', pan: v.pan || '', phone: v.phone || '', gst: v.gst || '', bank: v.bank || '', branch: v.branch || '' },
+        vendor: { name: v.name, address: v.address || '', account: v.account || '', ifsc: v.ifsc || '', pan: v.pan || '', phone: v.phone || '', gst: v.gst || '', gstReg: v.gstReg === 'Yes' ? 'Yes' : 'No', bank: v.bank || '', branch: v.branch || '' },
         billNo: lastNo ? String(lastNo + 1) : '', firstBill: !lastNo, woNo: wo.woNo || '', woDate: wo.woDate || '', machines: machines, C: 0, cReason: '', edited: false,
         picked: pick.map(m => m.id), partial: pick.length < v.machines.length,
         // debit notes of this party under this name that are not deducted in a bill yet: ticked ones come off after the net payable
@@ -8935,6 +8936,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ' <button class="link" data-mblog="' + i + '" title="Log Book of this vendor\'s machinery for these dates">Log Book</button></td></tr>').join('');
     $('mb_pages').innerHTML = L.map((b, i) => '<div class="mb-page" data-i="' + i + '"><div class="mb-paper" contenteditable="true" spellcheck="false">' + billHtml(b, false) + '</div>' +
       '<div class="mb-doc-h">Tax Invoice – ' + esc(b.vendor.name) + '</div><div class="mb-paper mb-doc">' + taxInvoiceHtml(b) + '</div>' +
+      (gstDeclOn(b) ? '<div class="mb-doc-h">Declaration of GST non-enrolment – ' + esc(b.vendor.name) + ' <small>(no GST number in Vendor Master)</small></div><div class="mb-paper mb-doc">' + gstDeclHtml(b) + '</div>' : '') +
       (b.B > 0 ? '<div class="mb-doc-h">Debit Note (diesel) – ' + esc(b.vendor.name) + '</div><div class="mb-paper mb-doc">' + debitNoteHtml(b) + '</div>' : '') + '</div>').join('');
   }
   $('mb_rows').addEventListener('input', e => {
@@ -9110,6 +9112,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     '.tx .foot .k { white-space: normal; } .tx .sum td { font-weight: 700; } .tx .foot td { border-top: 1.6px solid #111; } .tx-sign { height: 30mm; text-align: center; vertical-align: bottom !important; }' +
     '.tx-decl { text-align: center; font-size: 9pt; padding: 5px; border-top: 1px solid #111; } .dnp-sign { display: flex; justify-content: space-between; padding: 22mm 10mm 6px; font-weight: 700; }' +
     '.dnp-note { padding: 6px 8px; font-size: 9.5pt; border-top: 1px solid #111; }' +
+    '.gdn { font-family: Arial, sans-serif; color: #000; font-size: 11pt; line-height: 1.5; padding: 10mm 12mm 4mm; background: #fff; } .gdn p { margin: 0 0 4.5mm; } .gdn-title { font-weight: 700; font-size: 12.5pt; letter-spacing: .02em; margin: 0 0 12mm; }' +
+    '.gdn .gdn-pt { padding-left: 4mm; } .gdn-f { font-weight: 700; border-bottom: 1px solid #111; padding: 0 1.5mm; } .gdn-sign { margin-top: 10mm; } .gdn-sign p { margin: 0 0 5mm; } .gdn-room { height: 16mm; }' +
+    '.gdn-line { display: inline-block; min-width: 70mm; border-bottom: 1px solid #111; padding: 0 1.5mm; min-height: 1.3em; vertical-align: bottom; }' +
     '</style>';
   // 40000 → "Rupees Forty Thousand Only" (Indian counting: thousand, lakh, crore)
   function rupeesWords(n) {
@@ -9179,10 +9184,45 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<div class="dnp-note">This amount is deducted in RA Bill No <b>' + esc(b.billNo || '') + '</b> (line B of the Abstract of Bill, "Less – Diesel Deduction").' + (billNoEntry(b) ? '<br>It includes diesel issued on days with no Log Book entry: ' + esc(billNoEntry(b)) + '.' : '') + (billTank(b) ? '<br>Left out: ' + esc(billTank(b)) + '.' : '') + '</div>' +
       '<div class="dnp-sign"><span>Accepted by – ' + esc(v.name || '') + '</span><span>For ' + esc(co) + '</span></div></div>';
   }
-  // the papers of one bill as print pages: Abstract, Tax Invoice, Debit Note (when there is one)
+  /* DECLARATION OF GST NON-ENROLMENT (asked 06-10-2026, his paper form: "when the party of the bill has no GST number I need this
+   * declaration with the bill, made in that party's name, saved with the bill"). RULE: the vendor is not GST registered in Vendor
+   * Master (GST Registered = No, no GST number) and the bill has no GST → the declaration is one of the bill's papers, after the Tax
+   * Invoice. The words are his form's; filled in: the party's name, "Rent on vehicle <the machinery of THIS bill>", the company the
+   * bill is made to (the one that "shall not be liable"), the bill date. The signatory's name is the party's own name – unless the
+   * PAN says the party is not a person (4th letter C / F / H / A / T / B / L / J / G = company, firm, HUF …): then the party's name is
+   * the business and the signatory's name is left to be written. A saved bill carries the mark `gstDecl` (set by the server from
+   * Vendor Master when the bill is submitted) and prints the declaration from its own saved name and machinery; a bill saved before
+   * this (no mark) gets it when its saved vendor has no GST number and the bill has no GST. */
+  function gstDeclNeed(v, gstPct) { v = v || {}; return String(v.gstReg || '') !== 'Yes' && !String(v.gst || '').trim() && !(Number(gstPct) > 0); }
+  function gstDeclOn(b) { return !!b && !!String((b.vendor || {}).name || '').trim() && (b.gstDecl !== undefined ? !!b.gstDecl : gstDeclNeed(b.vendor, b.gstPct)); }
+  function gstDeclHtml(b) {
+    if (!gstDeclOn(b)) return '';
+    const v = b.vendor || {}, name = String(v.name || '').trim(), co = String(b.company || '').trim();
+    const nos = [...new Set((b.machines || []).map(m => String(m.no || '').replace(/-/g, '').toUpperCase()).filter(Boolean))];
+    const what = 'Rent on vehicle' + (nos.length > 1 ? 's' : '') + (nos.length ? ' ' + nos.join(', ') : '');
+    const entity = /^[A-Z]{3}[CFHATBLJG][A-Z][0-9]{4}[A-Z]$/.test(String(v.pan || '').trim().toUpperCase());      // the PAN of a company / firm / HUF …, not of a person
+    const f = t => '<b class="gdn-f">' + esc(t) + '</b>', line = t => '<span class="gdn-line">' + (t ? '<b>' + esc(t) + '</b>' : '') + '</span>';
+    return DOC_CSS + '<div class="gdn"><div class="gdn-title">DECLARATION OF GST NON-ENROLMENT</div>' +
+      '<p>Dear Sir/Madam,</p>' +
+      '<p>Sub: Declaration of non-requirement of registration under the Central/State/UT/Integrated Goods and Services Tax Act, 2017</p>' +
+      '<p>I/We ' + f(name) + ', do hereby declare that I/we am/are not registered under the Goods and Services Tax Act, 2017</p>' +
+      '<p class="gdn-pt">-I/We deal in/supply the category of goods or services ' + f(what) + ' which are exempted under the Goods and Service Tax Act, 2017.</p>' +
+      '<p class="gdn-pt">-I/We have the annual aggregate turnover below the taxable limit as specified under the Goods and Services Tax Act, 2017.</p>' +
+      '<p class="gdn-pt">-I/We are yet to register ourselves under the Goods and Services Tax Act, 2017.</p>' +
+      '<p>I/We hereby also confirm that if anytime during any financial year I/we decide or require or become liable to register under the GST, I/we undertake to provide all the requisite documents and information.</p>' +
+      '<p>I/We request you to consider this communication as a declaration for not requiring to be registered under the Goods and Service Tax Act, 2017.</p>' +
+      '<p>I/We hereby also confirm ' + f(co.toUpperCase()) + ' that shall not be liable for any loss accrued to me/us, due to any registration default with the GST.</p>' +
+      '<div class="gdn-sign"><p>Signature of Authorised Signatory:</p><div class="gdn-room"></div>' +
+      '<p>Name of the Authorised Signatory: ' + line(entity ? '' : name) + '</p>' +
+      '<p>Name of Business: ' + line(entity ? name : '') + '</p>' +
+      '<p>Date: ' + line(mbDot(b.billDate)) + '</p>' +
+      '<p>Stamp/Seal of the business entity:</p><div class="gdn-room"></div></div></div>';
+  }
+  // the papers of one bill as print pages: Abstract, Tax Invoice, GST declaration (a party without GST), Debit Note (when there is one)
   function billSheets(b, cls) {
-    const dn = debitNoteHtml(b);
+    const dn = debitNoteHtml(b), gd = gstDeclHtml(b);
     return ['<section class="billsheet' + (cls || '') + '">' + billHtml(b, true) + '</section>', '<section class="billsheet' + (cls || '') + '">' + taxInvoiceHtml(b) + '</section>']
+      .concat(gd ? ['<section class="billsheet' + (cls || '') + '">' + gd + '</section>'] : [])
       .concat(dn ? ['<section class="billsheet' + (cls || '') + '">' + dn + '</section>'] : []).join('');
   }
   /* ---------- saved bills ---------- */

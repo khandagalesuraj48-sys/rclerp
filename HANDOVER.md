@@ -968,6 +968,30 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     (Asset Master list) gives the same PDF text and pages before / after. Unit test → 35.
   * NOT covered: the fall-back when pop-ups are blocked (prints from the main page, no print window) is not fitted; below 30 % a
     sheet would still break (hundreds of entries in one print). Not run on a real printer / Edge – same engine as the test browser.
+- 06-10-2026 (update-62): "DECLARATION OF GST NON-ENROLMENT – WHEN THE PARTY OF THE BILL HAS NO GST NUMBER I NEED THIS WITH THE BILL,
+  MADE IN THAT PARTY'S NAME, WITH PROPER LOGIC, SAVED WITH THE BILL" (his photo of the paper form, filled by hand for Siddhappa Bhimu
+  Basbire, "Rent on vehicle MH09BC2570").
+  * RULE (one place each side: page `gstDeclNeed` / server `gstDeclFor_`): Vendor Master says GST Registered ≠ Yes AND no GST number
+    AND the bill has no GST % → the declaration is one of the bill's papers. Order of the papers: Abstract, Tax Invoice, Declaration,
+    Debit Note.
+  * The paper (`gstDeclHtml(b)`, App.html, styles `.gdn` in DOC_CSS): the words of his form, filled in: the party's name; "Rent on
+    vehicle(s) <machinery of THIS bill, numbers without hyphens>" (the wording of the Tax Invoice); in "I/We hereby also confirm ___
+    that shall not be liable" the COMPANY the bill is made to (on his hand-filled form the party's own name stood there – taken as a
+    slip, TOLD TO HIM); Name of the Authorised Signatory = the party's name, Name of Business left to write – unless the PAN's 4th
+    letter is C/F/H/A/T/B/L/J/G (not a person): then Name of Business = the party's name and the signatory is left to write;
+    Date = the bill date; signature and stamp room.
+  * Where it shows: the bill page under the Tax Invoice (so "Preview" and the print take it – every `.mb-paper`), `billSheets()` (the
+    print after submitting, Saved Bills → View / Print, the bill prints from the ledger / summary). Each paper is one page (bill fit).
+  * SAVED WITH THE BILL: `submitBills_` writes `data.gstDecl` (true / false) from Vendor Master as it is at that moment; the paper is
+    written from the bill's own saved name / machinery / company / date, so a later rename or GST registration of the vendor does not
+    change a saved bill. A bill saved BEFORE this update (no mark) gets the declaration when its saved vendor has no GST number and
+    the bill has no GST (`gstDeclOn`). `verifyBills_` adds a ✔ line naming the declaration. No database step (the mark is inside the
+    bill's JSON).
+  * Tests: unit "bill papers" extended (text of the paper, the rule, firm PAN, hostile name) → 35; `test/browser/gstdecl.js` on the
+    rig 11 / 11 (page → Verify & Submit → database mark → PDFs of the print after submit and of Saved Bills, pages counted; vendor
+    renamed + made GST registered afterwards → saved bill unchanged; bills without the mark); half.js 11, sweep 38, audit money +
+    diesel 24.
+  * NOT built: the declaration cannot be switched off for one bill, and its words cannot be edited on the page (not asked).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

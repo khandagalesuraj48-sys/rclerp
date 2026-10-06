@@ -2509,6 +2509,7 @@ function verifyBills_(p) {
       const reg = /^y/i.test(vr.gstReg || '');
       if (gstPct > 0 && (!reg || !vr.gst)) bad('GST ' + gstPct + '% is in the BOQ but the vendor is not GST registered / has no GST number in Vendor Master.');
       if (reg && !gstPct) warn('Vendor is GST registered but the BOQ has no GST %.');
+      if (gstDeclFor_(vr, gstPct)) ok('Vendor has no GST number – the "Declaration of GST non-enrolment" in the name of ' + vname + ' is made with this bill.');
     }
     if (inBill.length && !tdsPct) warn('TDS % is 0 in the BOQ.');
     if (inBill.length && !woNo) warn('Work Order No is not in the BOQ.');
@@ -2518,6 +2519,11 @@ function verifyBills_(p) {
   });
   return { ok: out.every(x => !x.bad), bills: out };
 }
+/* DECLARATION OF GST NON-ENROLMENT with a bill (asked 06-10-2026): the party of the bill is not GST registered in Vendor Master
+ * (GST Registered = No, no GST number) and the bill has no GST → the declaration in the party's name is one of the bill's papers.
+ * The mark is saved in the bill (data.gstDecl) from Vendor Master as it is WHEN THE BILL IS SUBMITTED, so the saved bill prints the
+ * same papers later whatever the vendor becomes; the page (gstDeclHtml) writes the paper from the bill's own saved name / machinery. */
+function gstDeclFor_(vr, gstPct) { return !!vr && !/^y/i.test(str_(vr.gstReg)) && !str_(vr.gst) && !(num0_(gstPct) > 0); }
 // submit bills: [{ vendor, company, billNo, from, to, billDate, net, data }]; same vendor + company + period already there → asks first
 function submitBills_(b) {
   return withLock_(() => {
@@ -2561,6 +2567,7 @@ function submitBills_(b) {
     if (dup.length && !b.confirm) return { ok: false, duplicates: dup };
     let n = all.reduce((mx, r) => Math.max(mx, Number(String(r.id).replace(/\D/g, '')) || 0), 0);
     const saved = [];
+    const vRecs = {}; getVendors_().forEach(v => { vRecs[vKey_(v.name)] = v; });
     /* Debit Note numbers (diesel deducted in the bill): one run of numbers for each name (Rachana / Sketchline).
      * The next number is one more than the highest ever given under that name; a bill saved again keeps its number. */
     const st = billSettings_(), dnLast = {};
@@ -2575,6 +2582,7 @@ function submitBills_(b) {
       const rev = sameNo.length ? Math.max(...sameNo.map(y => y.rev)) + 1 : 0;
       const id = 'BILL-' + String(++n).padStart(5, '0');
       x.data = x.data || {};
+      x.data.gstDecl = gstDeclFor_(vRecs[vKey_(x.vendor)], x.data.gstPct);      // the party has no GST number: its declaration is saved as one of this bill's papers
       if (num0_(x.data.B) > 0) {
         const kept = older.map(y => str_((y.data || {}).dnNo)).filter(Boolean)[0];
         if (kept) x.data.dnNo = kept;

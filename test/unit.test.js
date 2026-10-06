@@ -106,7 +106,7 @@ test('bill papers: amount in words, Tax Invoice = the Abstract\'s figures, Debit
     DOC_CSS: '', billHtml: () => '<div class="bl">ABSTRACT</div>', showDate: d => String(d || '').split('-').reverse().join('-'),
     billTank: () => '', billEst: () => '', billFinal: () => '',
     billNoEntry: b => [].concat(...((b && b.machines) || []).map(m => (m.noEntry || []).map(x => String(m.no) + ' ' + x.d + ' ' + x.q + ' L'))).join(', ') };
-  const C = new Function(...Object.keys(env), grab('function rupeesWords(') + '\nconst docDash = v => (v === \'\' || v === null || v === undefined || Number(v) === 0) ? \'-\' : mbN2(v);\n' + grab('function taxInvoiceHtml(') + '\n' + grab('function debitNoteHtml(') + '\n' + grab('function billSheets(') + '; return { rupeesWords, taxInvoiceHtml, debitNoteHtml, billSheets };')(...Object.values(env));
+  const C = new Function(...Object.keys(env), grab('function rupeesWords(') + '\nconst docDash = v => (v === \'\' || v === null || v === undefined || Number(v) === 0) ? \'-\' : mbN2(v);\n' + grab('function taxInvoiceHtml(') + '\n' + grab('function debitNoteHtml(') + '\n' + grab('function gstDeclNeed(') + '\n' + grab('function gstDeclOn(') + '\n' + grab('function gstDeclHtml(') + '\n' + grab('function billSheets(') + '; return { rupeesWords, taxInvoiceHtml, debitNoteHtml, billSheets, gstDeclNeed, gstDeclOn, gstDeclHtml };')(...Object.values(env));
   for (const [n, w] of [[40000, 'Rupees Forty Thousand Only'], [0, 'Rupees Zero Only'], [15600, 'Rupees Fifteen Thousand Six Hundred Only'], [123456789.5, 'Rupees Twelve Crore Thirty Four Lakh Fifty Six Thousand Seven Hundred Eighty Nine and Fifty Paise Only'],
     [100000, 'Rupees One Lakh Only'], [1000019.99, 'Rupees Ten Lakh Nineteen and Ninety Nine Paise Only'], [99.995, 'Rupees One Hundred Only'], [-250, 'Minus Rupees Two Hundred Fifty Only']]) assert.strictEqual(C.rupeesWords(n), w);
   const text = h => h.replace(/<style>[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
@@ -117,7 +117,24 @@ test('bill papers: amount in words, Tax Invoice = the Abstract\'s figures, Debit
   const t1 = text(C.taxInvoiceHtml(plain));
   for (const want of ['TAX INVOICE', 'SLI/VTR/RA-27', '10.08.2026', '01.07.2026 To 31.07.2026', 'RENT ON VEHICLE MH06AS9417', 'Total Amount Before Tax 40,000.00', 'Basic Value 40,000.00', 'Total Billing Amt 40,000.00', 'Net Cheque Amount 40,000.00', 'Rupees Forty Thousand Only', 'PAN NO :- ATPPP4359M']) assert.ok(t1.indexOf(want) > -1, 'Tax Invoice should say: ' + want + '\n' + t1.slice(0, 900));
   assert.ok(t1.indexOf('Less:') === -1, 'no deduction lines on a bill without deductions');
-  assert.strictEqual(C.debitNoteHtml(plain), ''); assert.strictEqual((C.billSheets(plain, '').match(/<section/g) || []).length, 2);
+  // this party has no GST number and the bill has no GST: its papers are Abstract, Tax Invoice and the GST non-enrolment declaration (06-10-2026)
+  assert.strictEqual(C.debitNoteHtml(plain), ''); assert.strictEqual((C.billSheets(plain, '').match(/<section/g) || []).length, 3);
+  assert.strictEqual((C.billSheets(Object.assign({}, plain, { gstDecl: false }), '').match(/<section/g) || []).length, 2);      // a saved bill marked "no declaration" stays at two papers
+  const g1 = text(C.gstDeclHtml(plain));
+  for (const want of ['DECLARATION OF GST NON-ENROLMENT', 'Dear Sir/Madam,', 'I/We Mr. Suresh Sarjerav Patil , do hereby declare that I/we am/are not registered under the Goods and Services Tax Act, 2017',
+    'category of goods or services Rent on vehicle MH06AS9417 which are exempted', 'annual aggregate turnover below the taxable limit', 'yet to register ourselves',
+    'I/We hereby also confirm SKETCHLINE INDUSTRIES that shall not be liable for any loss accrued to me/us', 'Signature of Authorised Signatory:', 'Name of the Authorised Signatory: Mr. Suresh Sarjerav Patil', 'Date: 10.08.2026', 'Stamp/Seal of the business entity:'])
+    assert.ok(g1.indexOf(want) > -1, 'the declaration should say: ' + want + '\n' + g1);
+  assert.match(g1, /Name of Business: +Date:/, 'a person: the business name is left to be written, as on his form');
+  // the rule: GST registered (flag or number) or GST in the bill → no declaration; a firm's PAN → the name is the business, the signatory is written by hand
+  assert.strictEqual(C.gstDeclNeed({ gstReg: 'No', gst: '' }, 0), true); assert.strictEqual(C.gstDeclNeed({ gstReg: 'Yes', gst: '27ABCDE1234F1Z5' }, 0), false);
+  assert.strictEqual(C.gstDeclNeed({ gstReg: 'No', gst: '27ABCDE1234F1Z5' }, 0), false); assert.strictEqual(C.gstDeclNeed({ gstReg: 'No' }, 18), false);
+  assert.strictEqual(C.gstDeclHtml(Object.assign({}, plain, { vendor: { name: 'Reg Vendor', gst: '27ABCDE1234F1Z5', gstReg: 'Yes' } })), '');
+  assert.strictEqual(C.gstDeclHtml(Object.assign({}, plain, { gstDecl: true, vendor: { name: '' } })), '');
+  const g2 = text(C.gstDeclHtml(Object.assign({}, plain, { company: 'Rachana Construction Limited', vendor: { name: 'Shree Earthmovers', pan: 'ABCFE1234K' }, machines: [{ no: 'MH-09-BC-2570' }, { no: 'mh-12-ab-0001' }, { no: 'MH-09-BC-2570' }] })));
+  assert.ok(g2.indexOf('Rent on vehicles MH09BC2570, MH12AB0001 which') > -1 && g2.indexOf('confirm RACHANA CONSTRUCTION LIMITED that') > -1, g2);
+  assert.match(g2, /Name of the Authorised Signatory: +Name of Business: Shree Earthmovers/);
+  assert.ok(C.gstDeclHtml(Object.assign({}, plain, { vendor: { name: '<img src=x onerror=1>' } })).indexOf('<img') === -1);
   // a bill with diesel deducted, GST 18 % and TDS 2 %: every figure must be the Abstract's own
   const full = Object.assign({}, plain, { dnNo: 'SLI/VTR/DN-004', machines: [{ no: 'JCB-1', type: 'JCB', amount: 15600, dieselRate: 92, debitQty: 0, excessQty: 25, excessAmt: 2300, lines: [{ item: 'Bucket', unit: 'Hrs', qty: 13, rate: 900, amount: 11700 }, { item: 'Breaker', unit: 'Hrs', qty: 3, rate: 1300, amount: 3900 }] }],
     A: 15600, B: 2300, C: 300, cReason: 'tyre', D: 13000, gstPct: 18, tdsPct: 2, E: 1170, F: 1170, G: 15340, H: 260, I: 15080 });
