@@ -70,6 +70,9 @@ const restart = () => execSync('timeout 80 /tmp/up3.sh >/dev/null 2>&1; for i in
   const pr = await f.evaluate(() => { const box = document.createElement('div'); box.innerHTML = (window.__docs[0] || { html: '' }).html; return box.textContent.replace(/\s+/g, ' '); });
   ok('the Log Book print (the sheet with the bill): "TOTAL WORKING DAYS … 2.5", the halves named, the same ₹3,000', /TOTAL WORKING DAYS ?2 HALF DAYS COUNTED AS ½ ?2\.5/.test(pr) && /TOTAL WORKING NIGHT ?0\.5/.test(pr) && /3,000\.00/.test(pr) && /Day ½/.test(pr), (pr.match(/TOTAL WORKING DAYS.{0,90}/) || [''])[0] + ' … ' + (pr.match(/PAYABLE AMOUNT.{0,30}/) || [''])[0]);
   // ---------- taking the mark off again on the Edit page ----------
+  // (a submitted bill locks its entries since 06-10-2026: with the bill in force the server refuses the change)
+  const lockedTry = await api('updateLogRow', 'HDX-1|2026-09-02|Full Day', { closingKm: 1061 });
+  ok('with the bill submitted, the entry of 02-09 cannot be changed (the refusal names the bill and the way out)', /is in the submitted RA Bill 77 of Half Vendor/.test(JSON.stringify(lockedTry)) && /the Admin deletes that bill/.test(JSON.stringify(lockedTry)), JSON.stringify(lockedTry).slice(0, 200));
   sql("delete from bills where vendor_name = 'Half Vendor'"); await wait(1500);     // (a billed entry cannot be edited – this part is about the Edit page, so the test bill goes first)
   await f.evaluate(() => { showTab('logedit'); }); await wait(1500);
   await f.evaluate(() => { document.getElementById('lx_from').value = '2026-09-01'; document.getElementById('lx_to').value = '2026-09-30'; const n = document.getElementById('lx_no'); n.value = 'HDX-1'; n.dispatchEvent(new Event('change', { bubbles: true })); const b = document.getElementById('lx_load') || [...document.querySelectorAll('#sec-logedit button')].find(x => /Load|Show/.test(x.textContent)); if (b) b.click(); }); await wait(3000);

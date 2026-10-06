@@ -56,7 +56,7 @@ const clean = () => sql("delete from bills where vendor_name in " + NAMES + "; d
   ok('   database: the mark is SAVED IN THE BILL – true for the party without GST, false for the other', db === 'Gst Vendor Pvt = false\nSiddhappa Test Basbire = true', db.replace(/\n/g, ' | '));
   const t0 = await Promise.race([popup, wait(15000).then(() => null)]);
   if (t0) { const w = await t0.page(); await wait(2500); const r = await pdfOf(w, 'submitted');
-    ok('   the print that opens after submitting: 5 papers on 5 pages (3 + 2), the declaration once, in the party\'s name', r.pages === 5 && (r.text.match(/DECLARATION OF GST NON-ENROLMENT/g) || []).length === 1 && /I\/We Siddhappa Test Basbire ?, do hereby declare/.test(r.text), { pages: r.pages, declarations: (r.text.match(/DECLARATION OF GST NON-ENROLMENT/g) || []).length });
+    ok('   the print that opens after submitting: each bill\'s papers and its Log Book – 8 pages (3 papers + 2 Log Book, 2 papers + 1 Log Book); the declaration once, in the party\'s name', r.pages === 8 && (r.text.match(/DECLARATION OF GST NON-ENROLMENT/g) || []).length === 1 && /I\/We Siddhappa Test Basbire ?, do hereby declare/.test(r.text), { pages: r.pages, declarations: (r.text.match(/DECLARATION OF GST NON-ENROLMENT/g) || []).length });
     execSync('pdftoppm -r 80 -png "' + r.file + '" /home/claude/test/shots/gd_submitted'); await w.close(); }
   else ok('   the print that opens after submitting', false, 'no print window');
 

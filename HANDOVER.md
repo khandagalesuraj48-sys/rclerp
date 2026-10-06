@@ -1020,6 +1020,62 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     Asset Master print same before / after. Test folder: `npm i xlsx@0.18.5` there REMOVES the hand-made @sparticuz/chromium stand-in
     (it is not in package.json) – put it back after any install.
   * NOT covered: pop-ups blocked (the print falls back to the main page: no Excel button there); Excel from a phone not tried.
+- 06-10-2026 (update-64): four things asked in one message – "ONCE A BILL IS SUBMITTED THE LOG BOOK OF THAT VEHICLE CANNOT BE EDITED; WHEN
+  THE BILL IS DELETED IT CAN. LOG BOOK OR DIESEL – WHOEVER GOES TO EDIT GETS A WARNING AND THE WAY OUT. THE EXCEL MUST COME MADE UP,
+  BORDERS AND ALL, THE SAME AS THE PRINT. THE PRINT AFTER SUBMIT: TAX INVOICE, ABSTRACT, LOG BOOK, DEBIT NOTE, DECLARATION TOGETHER –
+  WHEN I BUILD THE BILL TOO, AND IN THE SAVED BILL. EVERY REPORT WE TAKE AS PDF: ITS EXCEL COPY."
+  * A SUBMITTED BILL LOCKS ITS ENTRIES (Code.gs, comment "A SUBMITTED BILL LOCKS ITS ENTRIES"): `billLocks_()` = the bills in force
+    (Active; Superseded / deleted do not lock) with their machinery keys (`billMachKeys_`, i.e. `noNow` after a renumbering; a very
+    old bill without a machinery list locks all machinery of its vendor); `billLockOf_(no, date)`; `billLock_(no, date, what)` throws
+    the refusal, which always carries the way out ("the Admin deletes that bill (RCL Drive → Saved Bills → Delete), then the
+    correction is made, and the bill is built and submitted again"). Applies to EVERYONE incl. the Admin. Called at every write of
+    Log Book and Diesel Issue, next to the existing `booksOpen_` (month close): saveLogBook_, saveLogDay_, saveLogRows (new and
+    changed rows; an identical row re-sent is not refused), the import, updateLogRow_, deleteLogRow_, saveLogBulk_ (deleted, new,
+    changed), saveDieselIssue_, saveDieselBulk_, importDiesel, updateDieselIssue_ (old and new machinery / date), deleteDieselIssue_.
+    Also refused: a change OUTSIDE the bill that would move the Start of an entry inside it (updateLogRow_'s next / moved rows,
+    deleteLogRow_'s next row, saveLogBulk_'s "entry after the grid" – that one is now worked out BEFORE anything is written).
+    Tank Check is NOT locked (not asked). No database step.
+  * saveLogBulk_ and locked rows: the grid sends every row; an existing row of a locked date is kept OUT of the save (its saved
+    readings feed the chain check). The page sends `same: true` for rows it did not change; a locked row sent WITHOUT `same` (an old
+    page) is compared on shift / way / readings / half-day and refused only when one differs (text fields are not compared: the
+    page rewrites `work` from `remark` on untouched rows – comparing them would refuse rows nobody touched).
+  * What the page is told: rows of getLogBookList / getDieselIssues carry `lk` (the bill's id) and the answer `locks` { id: { billNo,
+    rev, vendor, company, from, to } }; getLogEntry has `lock`; getLogEditData has `locks` (the bills over that machinery in the
+    range). Page: `lockText` (the server's own words, so the same FIX_RULES advice shows in 3 languages), `lockStop`, `lockTag`
+    ("RA Bill 61" tag in the Log Book list, the Diesel Issue list, the Edit Log Book grid). Edit / Delete on a locked row of a list
+    → the warning at once (no edit window, no "Delete?"). Edit Log Book: a red note above the grid, locked rows read-only (inputs
+    disabled, no ×, not selectable), no new row on a locked date (`lxMissing`, `lxAddShift`, the date box of a new row), a locked
+    next row does not follow a changed Close. The server is the judge; the page only spares the typing.
+  * COST (measured on the rig, 400 bills = 1.4 MB): the bills table is read where it was not before (Log Book / Diesel lists and
+    saves): +35–45 ms for the read when the tables' memory copy is cold, ~+12 ms per call warm. It grows with the number of bills
+    (the `data` JSON comes with it). If it ever hurts: a narrow lock index (a small table / column kept on submit and delete) –
+    that is a schema change and needs his approval.
+  * EXCEL THAT LOOKS LIKE THE PRINT: `printExcelStyled(doc, title)` (App.html) with ExcelJS 4.4.0 (loaded when a print window opens:
+    jsDelivr, then cdnjs – `rclLoadExcelJs`). Made from the print window by MEASURING: every table cell / text line / ruled line is
+    an item with its rectangle; the sheet's columns and rows are cut along all left / right and top / bottom edges (snapped 2.5 /
+    1.5 px), each item is merged over the cells it covers; column widths and row heights from the edges (× 1.12 / 1.1), a page
+    zoomed to fit its paper is taken unzoomed; each cell gets the print's own look from getComputedStyle (borders thin / medium
+    with colour, fill, bold / italic / size / colour, alignment, wrap); table figures are numbers (`xlNum`) with a number format;
+    rows grow when Excel will need more lines than the paper (`wide()` estimate); boxes / rules of containers (`frames`) go on the
+    edge cells; logos are re-read with CORS and put in when the host allows it (NOT VERIFIED against i.ibb.co – the rig has no
+    internet; without leave the Excel simply has no logo); page set-up A4, the print's turn, fit to 1 page wide (papers: 1 × 1),
+    Excel's grid lines off. One tab per `section.billsheet` / `section.lbsheet`, else one tab. The plain SheetJS export of
+    update-63 is kept as `printExcelPlain` – used (with a message) when ExcelJS cannot be loaded or the styled export throws.
+    `saveXlsxBuffer` does the download (tests replace it). The reports' own "Export to Excel" buttons are untouched.
+  * THE LOG BOOK IS ONE OF A BILL'S PAPERS everywhere: `logSheetsBuild(L, headName, extra)` (sync; `logSheetsOf` fetches `extra`
+    and calls it), `mbLogSheets(bill)` from the bill page's own period data (`S.mb.logs`). Bill page after "Build bills": under each
+    bill's papers an iframe (`mbLogFrames`, the print's own CSS in `srcdoc`, fitted) shows its Log Book sheets; "Print Preview"
+    (`mbPrint`) and the print after "Verify & Submit" carry them after each bill's papers; the saved bill already did (update-63).
+    Order: Abstract, Tax Invoice, GST Declaration, Debit Note, Log Book. The saved bill's Log Book is still read as it is now – with
+    the lock that is the Log Book the bill was made from (until the bill is deleted).
+  * Tests: unit 37 (lock: 12 ways refused + what stays open + open again after the bill is deleted; Excel names / number rule);
+    rig: `billlock.js` 17 (lists, warning + advice in Marathi, grid, 10 direct server tries with the database compared before /
+    after, bill deleted → edit saved), `viewbill.js` 21 (Log Book on the bill page, 6-page prints after submit / preview / saved,
+    the .xlsx read back with openpyxl: borders, fills, bold, merges, widths, page set-up; fall-back), gstdecl 11, half 12, lbpage
+    13, nightrow 22, machno 19, sweep 38, audit 34, Asset Master print same before / after. The Excel was also opened with
+    LibreOffice and looked at page by page next to the print.
+  * NOT verified: the ExcelJS load from the CDN on the live site (the rig injects the same file locally); the logo in the Excel;
+    Microsoft Excel itself (LibreOffice and openpyxl were used); a phone.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

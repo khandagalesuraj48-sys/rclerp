@@ -933,12 +933,17 @@ test('every print has "Excel" in its window; a saved bill opens with its Log Boo
   const pd = app.slice(app.indexOf('function printDoc('), app.indexOf('const signBlock'));
   assert.match(pd, /id="xl_btn"/, 'the Excel button is in the bar of the print window – for every kind of print');
   assert.ok(pd.indexOf('id="xl_btn"') < pd.indexOf("'<div class=\"sheet\">'"), 'in the bar, not in the sheet');
-  assert.match(pd, /printExcel\(w\.document, title\)/);
   assert.match(pd, /win && !win\.closed \? win : window\.open/, 'a window opened at the click can be used');
-  const px = app.slice(app.indexOf('function printExcel('), app.indexOf('function printDoc('));
-  for (const want of ['needXlsx()', "section.billsheet, :scope > section.lbsheet", "'GST Declaration'", "'Debit Note'", "'Tax Invoice'", "'Abstract'", "'LB '", '!merges', 'XLSX.writeFile']) assert.ok(px.indexOf(want) > -1, 'printExcel: ' + want);
-  // the rule for figures, taken out of the function and tried: amounts become numbers; dates, codes and account-like numbers stay text
-  const num = new Function('return ' + px.slice(px.indexOf('const num = ') + 12, px.indexOf('// the pieces of a page')).trim().replace(/;\s*$/, ''))();
+  const px = app.slice(app.indexOf('function printExcelPlain('), app.indexOf('function printDoc('));
+  for (const want of ['needXlsx()', "section.billsheet, :scope > section.lbsheet", "'GST Declaration'", "'Debit Note'", "'Tax Invoice'", "'Abstract'", "'LB '", '!merges', 'XLSX.writeFile']) assert.ok(px.indexOf(want) > -1, 'printExcelPlain: ' + want);
+  // the formatted Excel (asked 06-10-2026: "with borders and all, the same as the print"): made from the print window, plain only as a fall-back
+  const ps = app.slice(app.indexOf('async function printExcelStyled('), app.indexOf('/* THE PLAIN EXCEL'));
+  for (const want of ['new ExcelJS.Workbook()', 'showGridLines: false', 'style.border = it.bd', "pattern: 'solid'", 'ws.mergeCells(', 'wrapText: true', 'fitToPage: true', "paperSize: 9", 'ws.addImage(', 'saveXlsxBuffer(buf']) assert.ok(ps.indexOf(want) > -1, 'printExcelStyled: ' + want);
+  assert.match(pd, /await rclLoadExcelJs\(\); n = await printExcelStyled\(w\.document, title\)/); assert.match(pd, /n = printExcelPlain\(w\.document, title\)/, 'the plain Excel when the formatting tool cannot be had');
+  assert.match(app, /cdn\.jsdelivr\.net\/npm\/exceljs@4\.4\.0\/dist\/exceljs\.min\.js/);
+  // the rule for figures, tried: amounts become numbers; dates, codes and account-like numbers stay text
+  const grabFn = m => { const i = app.indexOf(m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
+  const num = new Function(grabFn('function xlNum(') + '; return xlNum;')();
   const n = v => { const x = num(v); return x ? x.v : null; };
   assert.deepStrictEqual(['40,000.00', '₹ 50,000.00', '− 2,300.00', '-393', '1,23,45,678.50', '55263', '0', '0.00', '2.5', '1000'].map(n), [40000, 50000, -2300, -393, 12345678.5, 55263, 0, 0, 2.5, 1000]);
   assert.deepStrictEqual(['000123456789', '05.10.2026', '01-09-2026', 'MH09BC2570', '9876543210', '2%', '160.00 LTR', '21 KM', 'RCL/VTR/RA-51', '–', '', '27AAKCR9897B1ZQ', '0012'].map(n), Array(13).fill(null));
@@ -948,4 +953,77 @@ test('every print has "Excel" in its window; a saved bill opens with its Log Boo
   const vs = app.slice(app.indexOf('async function viewSavedBill('), app.indexOf('/* ---------- saved bills ---------- */'));
   assert.match(vs, /window\.open\('', '_blank'\)/); assert.match(vs, /logSheetsOf\(\{ rows: rows, f: \{ from: b\.from, to: b\.to \}/); assert.match(vs, /billSheets\(data, [^)]*\) \+ lb, 'rep rep-bill' \+ \(lb \? ' rep-lb' : ''\)/);
   assert.match(app, /\.billsheet \+ \.lbsheet, \.lbsheet \+ \.billsheet \{ break-before: page; \}/);
+});
+
+test('a submitted bill locks the Log Book and diesel entries of its machinery for its dates – for everyone, until the bill is deleted; the refusal says the way out', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const LOCK = /this machinery is in the submitted RA Bill 9 of Lock Vendor \(.+, 01-07-2026 to 31-07-2026\) – its Log Book and diesel entries of those dates cannot be added, changed or deleted\. To correct them: the Admin deletes that bill/;
+  const refused = r => LOCK.test(String((r && r.THROWN) || '') + ' ' + ((r && r.errors) || []).map(e => e.msg).join(' '));
+  for (const no of ['BLK-1', 'BLK-2']) run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: no === 'BLK-1' ? 'Lock Vendor' : 'Other Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  for (const v of ['Lock Vendor', 'Other Vendor']) run('(x, m) => saveVendor_(x, m)', { name: v, gstReg: 'No', pan: 'ABCPE1234L', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'Lock Vendor', from: '2026-06-01', tdsPct: 2, woNo: 'WO-BLK', lines: [{ no: 'BLK-1', basis: 'Monthly', rate: 31000, diesel: 'Company' }] }, 'add');
+  run('x => saveInward_(x)', { date: '2026-06-01', location: 'Dispenser', pump: 'Pump', qty: 5000, rate: 100, billNo: 'BLK-IN', billDate: '2026-06-01' });
+  const log = (no, date, close, extra) => run('x => saveLogRowsInner_(x)', { rows: [Object.assign({ date: date, shift: 'Full Day', no: no, mode: 'KM', closingKm: close }, extra || {})] });
+  assert.ok(log('BLK-1', '2026-06-30', 1040, { openingKm: 1000 }).ok); assert.ok(log('BLK-1', '2026-07-01', 1080).ok); assert.ok(log('BLK-1', '2026-07-02', 1120).ok); assert.ok(log('BLK-1', '2026-07-03', 1160).ok);
+  assert.ok(log('BLK-1', '2026-08-01', 1200).ok); assert.ok(log('BLK-2', '2026-07-01', 540, { openingKm: 500 }).ok);
+  const d1 = run('x => saveDieselIssue_(x)', { date: '2026-07-02', shift: 'Day', source: 'Dispenser', no: 'BLK-1', qty: 10, kmReading: 1080, force: true }); assert.ok(d1 && !d1.THROWN, JSON.stringify(d1).slice(0, 200));
+  const dId = run('() => getDieselIssues_({ from: "2026-07-02", to: "2026-07-02", no: "BLK-1" }).rows[0].id');
+  // nothing is locked before the bill
+  assert.strictEqual(run('() => billLockOf_("BLK-1", "2026-07-02")'), null);
+  assert.strictEqual(run('() => getLogBookList_({ from: "2026-06-01", to: "2026-08-31", no: "BLK-1", all: true }).rows.filter(r => r.lk).length'), 0);
+  // ---------- the bill of July is built (as the page builds it), verified and submitted ----------
+  const co = run('() => billCompanies_()')[0];
+  const bill = run(`co => { const m = findMachine_('BLK-1'), from = '2026-07-01', to = '2026-07-31';
+    const c = billMachineCalc_(m, getLogBookList_({ from: from, to: to, no: 'BLK-1', all: true }).rows, logPrintExtra_({ from: from, to: to, nos: ['BLK-1'] }), from, to, undefined, true);
+    const A = r2_(c.amount), B = r2_(c.excessAmt), D = r2_(A - B), H2 = D > 0 ? r2_(D * c.tdsPct / 100) : 0;
+    return { company: co, vendor: { name: 'Lock Vendor' }, from: from, to: to, billDate: '2026-08-02', billNo: '9', picked: ['BLK-1'], partial: false, edited: false, idlePaid: true,
+      machines: [{ no: 'BLK-1', workDays: c.workDays, nights: c.nights, issued: c.issued, amount: c.amount, excessAmt: c.excessAmt, lines: [] }], A: A, B: B, C: 0, D: D, E: 0, F: 0, G: D, H: H2, I: r2_(D - H2), gstPct: c.gstPct, tdsPct: c.tdsPct }; }`, co);
+  const ver = run('b => verifyBills_({ bills: [b] })', bill);
+  assert.ok(ver && ver.ok, 'the bill verifies: ' + JSON.stringify(((ver && ver.bills) || [{}])[0].checks || ver).slice(0, 700));
+  const sub = run('(b, co) => submitBills_({ bills: [{ vendor: "Lock Vendor", company: co, billNo: "9", from: b.from, to: b.to, billDate: b.billDate, net: b.I, data: b }] })', bill, co);
+  assert.ok(sub && sub.ok, JSON.stringify(sub).slice(0, 300));
+  const state = () => run(`() => { const lt = table_(APP.SHEET_LOG), c = lt.c, t = table_(APP.SHEET_DIESEL, DIESEL_COLS_); return lt.rows.filter(r => /^BLK-/.test(str_(r[c[H.NO]]))).map(r => str_(r[c[H.NO]]) + ' ' + dkey_(r[c[H.DATE]]) + ' ' + str_(r[c[H.SHIFT]]) + ' ' + num0_(r[c[H.OKM]]) + '>' + num0_(r[c[H.CKM]]) + ' d' + num0_(r[c[H.QTY]]) + ' ' + str_(r[c[H.WORK]])).sort().join(' | ') + ' || ' + t.rows.filter(r => /^BLK-/.test(str_(r[t.c[H.NO]]))).map(r => str_(r[t.c[H.NO]]) + ' ' + dkey_(r[t.c[H.IDATE]]) + ' ' + num0_(r[t.c[H.QTY]])).sort().join(' | '); }`);
+  const before = state();
+  // the lists tell the page which rows are locked
+  const marks = run('() => { const L = getLogBookList_({ from: "2026-06-01", to: "2026-08-31", all: true }); return { rows: L.rows.filter(r => /^BLK-/.test(r.no)).map(r => r.no + " " + r.date + (r.lk ? " LOCK" : "")).sort(), locks: Object.values(L.locks).map(x => x.billNo + " " + x.vendor + " " + x.from + ".." + x.to) }; }');
+  assert.deepStrictEqual(marks.rows, ['BLK-1 2026-06-30', 'BLK-1 2026-07-01 LOCK', 'BLK-1 2026-07-02 LOCK', 'BLK-1 2026-07-03 LOCK', 'BLK-1 2026-08-01', 'BLK-2 2026-07-01']);
+  assert.deepStrictEqual(marks.locks, ['9 Lock Vendor 2026-07-01..2026-07-31']);
+  assert.strictEqual(run('id => getDieselIssues_({ from: "2026-07-01", to: "2026-07-31", no: "BLK-1" }).rows.filter(r => r.id === id && r.lk).length', dId), 1);
+  assert.deepStrictEqual(run('() => getLogEditData_("BLK-1", "2026-06-25", "2026-08-05").locks.map(x => x.billNo + " " + x.from + ".." + x.to)'), ['9 2026-07-01..2026-07-31']);
+  // ---------- every way of adding / changing / deleting inside the bill is refused ----------
+  const key = d => run('d => { const lt = table_(APP.SHEET_LOG), c = lt.c; return logKeyOf_(lt, lt.rows.find(r => str_(r[c[H.NO]]) === "BLK-1" && dkey_(r[c[H.DATE]]) === d)); }', d);
+  const grid = () => run('() => getLogEditData_("BLK-1", "2026-06-25", "2026-08-05").rows').map(r => ({ key: r.key, half: !!r.half, date: r.date, shift: r.shift, mode: r.mode || r.unit, openingKm: r.okm, closingKm: r.ckm, work: r.work || '' }));
+  const bulk = (rows, deleted) => run('b => saveLogBulk_(b)', { no: 'BLK-1', from: '2026-06-25', to: '2026-08-05', rows: rows, deleted: deleted || [] });
+  const tries = {
+    'Log Book: a new entry on a billed date (15 Jul)': () => run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-07-15', shift: 'Full Day', no: 'BLK-1', mode: 'KM', closingKm: 1170 }] }),
+    'Log Book list: an entry changed': () => run('(k, l) => updateLogRow_(k, l)', key('2026-07-02'), { closingKm: 1125, work: 'changed' }),
+    'Log Book list: an entry deleted': () => run('k => deleteLogRow_(k)', key('2026-07-03')),
+    'Edit Log Book: a reading of a billed date changed': () => { const g = grid(); g.find(x => x.date === '2026-07-02').closingKm = 1130; g.find(x => x.date === '2026-07-03').openingKm = 1130; return bulk(g); },
+    'Edit Log Book: a billed entry deleted': () => { const g = grid(); return bulk(g.filter(x => x.date !== '2026-07-03'), [g.find(x => x.date === '2026-07-03').key]); },
+    'Edit Log Book: a Night added on a billed date': () => { const g = grid(); g.find(x => x.date === '2026-07-02').shift = 'Day'; g.push({ key: '', date: '2026-07-02', shift: 'Night', mode: 'KM', openingKm: 1120, closingKm: 1120 }); return bulk(g); },
+    'Edit Log Book: an entry BEFORE the bill changed so that the first billed entry would start elsewhere': () => bulk(grid().filter(x => x.date === '2026-06-30').map(x => Object.assign(x, { closingKm: 1050 }))),
+    'Log Book list: the entry before the bill changed (its Close is the Start of the first billed entry)': () => run('(k, l) => updateLogRow_(k, l)', key('2026-06-30'), { closingKm: 1050 }),
+    'Diesel Issue: a new issue on a billed date': () => run('x => saveDieselIssue_(x)', { date: '2026-07-03', shift: 'Day', source: 'Dispenser', no: 'BLK-1', qty: 5, kmReading: 1160, force: true }),
+    'Diesel Issue: many at once (one row of the billed machinery)': () => run('x => saveDieselBulk_(x)', { date: '2026-07-03', shift: 'Day', source: 'Dispenser', force: true, rows: [{ no: 'BLK-2', qty: 5, kmReading: 540 }, { no: 'BLK-1', qty: 5, kmReading: 1160 }] }),
+    'Diesel Issue: an issue changed': () => run('(id, x) => updateDieselIssue_(id, x)', dId, { date: '2026-07-02', shift: 'Day', source: 'Dispenser', no: 'BLK-1', qty: 99, kmReading: 1080, force: true }),
+    'Diesel Issue: an issue deleted': () => run('id => deleteDieselIssue_(id)', dId),
+    'Diesel Issue: an issue of another date moved INTO the bill': null,
+  };
+  Object.keys(tries).forEach(name => { if (!tries[name]) return; const r = tries[name](); assert.ok(refused(r), name + ' must be refused with the way out, got: ' + JSON.stringify(r).slice(0, 400)); assert.strictEqual(state(), before, name + ': nothing changed'); });
+  // ---------- what is NOT locked keeps working ----------
+  let r = bulk(grid()); assert.ok(r && r.ok && r.changed === 0, 'the grid sent back as it is (billed rows in it) saves: ' + JSON.stringify(r).slice(0, 300));
+  r = bulk(grid().map(x => Object.assign(x, { same: true }))); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 200));
+  { const g = grid(); g.find(x => x.date === '2026-08-01').closingKm = 1210; r = bulk(g); assert.ok(r && r.ok && r.changed === 1, 'an entry after the bill is changed while billed rows are in the grid: ' + JSON.stringify(r).slice(0, 300)); }
+  assert.ok(log('BLK-1', '2026-08-02', 1250).ok, 'a new entry after the bill');
+  assert.ok(log('BLK-2', '2026-07-02', 580).ok, 'another machinery (not in the bill) on the same dates');
+  r = run('x => saveDieselIssue_(x)', { date: '2026-08-01', shift: 'Day', source: 'Dispenser', no: 'BLK-1', qty: 7, kmReading: 1200, force: true }); assert.ok(r && !r.THROWN, 'diesel after the bill: ' + JSON.stringify(r).slice(0, 200));
+  r = run('x => saveDieselIssue_(x)', { date: '2026-07-02', shift: 'Day', source: 'Dispenser', no: 'BLK-2', qty: 7, kmReading: 540, force: true }); assert.ok(r && !r.THROWN, 'diesel of another machinery: ' + JSON.stringify(r).slice(0, 200));
+  // ---------- the bill is deleted: everything is open again ----------
+  const billId = run('() => { const t = billTable_(); return billOut_(t, t.rows.find(r => billOut_(t, r, false).vendor === "Lock Vendor"), false).id; }');
+  r = run('(id, why) => deleteBill_(id, why)', billId, 'correction of the Log Book'); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 200));
+  assert.strictEqual(run('() => billLockOf_("BLK-1", "2026-07-02")'), null);
+  r = run('(k, l) => updateLogRow_(k, l)', key('2026-07-02'), { closingKm: 1125, work: 'corrected after the bill was deleted' }); assert.ok(r && r.ok, 'after the bill is deleted the entry can be changed: ' + JSON.stringify(r).slice(0, 300));
+  r = run('id => deleteDieselIssue_(id)', dId); assert.ok(r && !r.THROWN, 'and the diesel issue deleted: ' + JSON.stringify(r).slice(0, 200));
+  assert.strictEqual(run('() => getLogBookList_({ from: "2026-06-01", to: "2026-08-31", no: "BLK-1", all: true }).rows.filter(r => r.lk).length'), 0);
 });

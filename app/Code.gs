@@ -3205,6 +3205,7 @@ function saveDieselIssue_(d) {
     const dk = entryOpen_(d.date, 'Diesel issue');
     const shift = checkShift_(d.shift);
     const m = findMachine_(d.no);
+    billLock_(m.id, dk, 'Diesel issue');
     assertActive_(m, dk);
     const v = validateDiesel_(d, m);
     const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_);
@@ -3245,6 +3246,7 @@ function importDiesel_(rows) {
         const dk = entryOpen_(d.date, 'Diesel issue'), shift = checkShift_(d.shift || 'Day');
         const m = byKey[noKey_(d.no)];
         if (!m) throw new Error('"' + clean_(d.no) + '" is not in Master.');
+        billLock_(m.id, dk, 'Diesel issue');
         if (m.ownership !== 'Debit' && APP.UNITS.indexOf(m.unit) === -1) throw new Error('Set the Unit for ' + m.id + ' in Master first.');
         assertActive_(m, dk);
         const v = validateDiesel_(d, m);
@@ -3309,6 +3311,7 @@ function saveDieselBulk_(b) {
         if (!m) throw new Error('"' + clean_(d.no) + '" is not in Master.');
         if (m.ownership !== 'Debit' && APP.UNITS.indexOf(m.unit) === -1) throw new Error('Set the Unit for ' + m.id + ' in Master first.');
         assertActive_(m, dk);
+        billLock_(m.id, dk, 'Diesel issue');
         const v = validateDiesel_(d, m);
         const k = noKey_(m.id);
         // the same machinery more than once in a day is normal (several fills) – only its readings are checked in order
@@ -3360,11 +3363,13 @@ function updateDieselIssue_(id, d) {
     const old = t.rows[i];
     const oldNo = str_(old[t.c[H.NO]]), oldDk = dkey_(old[t.c[H.IDATE]]), oldShift = str_(old[t.c[H.SHIFT]]);
     booksOpen_(oldDk, 'Diesel issue');
+    billLock_(oldNo, oldDk, 'Diesel issue');
     const created = old[t.c[H.CREATED]] instanceof Date ? old[t.c[H.CREATED]] : new Date();
 
     const dk = entryOpen_(d.date, 'Diesel issue');
     const shift = checkShift_(d.shift);
     const m = findMachine_(d.no);
+    billLock_(m.id, dk, 'Diesel issue');
     assertActive_(m, dk);
     const v = validateDiesel_(d, m);
     requireStockAt_(v.source, dk, shift, str_(id), v.qty); // the entry being edited is left out first
@@ -3393,6 +3398,7 @@ function deleteDieselIssue_(id) {
     if (i === -1) throw new Error('Diesel issue ' + id + ' was not found.');
     const old = t.rows[i];
     booksOpen_(dkey_(old[t.c[H.IDATE]]), 'Diesel issue');
+    billLock_(str_(old[t.c[H.NO]]), dkey_(old[t.c[H.IDATE]]), 'Diesel issue');
     t.sh.deleteRow(i + 2);
     syncLogFromDiesel_(str_(old[t.c[H.NO]]), dkey_(old[t.c[H.IDATE]]), str_(old[t.c[H.SHIFT]]));
     recalcBalances_();
@@ -3473,11 +3479,14 @@ function getDieselIssues_(f) {
     const x = share[k] = share[k] || { no: str_(r[c[H.NO]]), type: str_(r[c[H.TYPE]]), owner: str_(r[c[H.OWNER]]), qty: 0, entries: 0 };
     x.qty = r2_(x.qty + num0_(r[c[H.QTY]])); x.entries++;
   });
+  const LK = lockMarker_();
   return {
     count: hits.length,
     totalQty: r2_(totalQty),
     share: Object.keys(share).map(k => share[k]).sort((a, b) => b.qty - a.qty),
+    locks: LK.locks,      // issues of a machinery and date that are in a submitted bill (row.lk)
     rows: hits.slice(0, f.all ? hits.length : LIMIT).map(r => ({
+      lk: LK.of(r[c[H.NO]], dkey_(r[c[H.IDATE]])),
       id: str_(r[c[H.ID]]), date: dkey_(r[c[H.IDATE]]), shift: str_(r[c[H.SHIFT]]), no: str_(r[c[H.NO]]),
       type: str_(r[c[H.TYPE]]), owner: str_(r[c[H.OWNER]]), qty: numOrBlank_(r[c[H.QTY]]),
       kmReading: numOrBlank_(r[c[H.KMR]]), hrReading: numOrBlank_(r[c[H.HRR]]), remark: str_(r[c[H.REMARK]]),
@@ -5095,6 +5104,7 @@ function saveLogBook_(l) {
     const dk = entryOpen_(l.date, 'Log Book entry');
     const shift = checkShift_(l.shift);
     const m = findMachine_(l.no);
+    billLock_(m.id, dk, 'Log Book entry');
     assertActive_(m, dk);
     const driver = clean_(l.driver);
     if (!driver) throw new Error('Enter the Driver Name.');
@@ -5224,12 +5234,14 @@ function getLogBookList_(f) {
     x.diff = x.consumed > 0 || x.issued > 0 ? r2_(x.issued - x.consumed) : '';
     return x;
   }).sort((a, b) => groupRank_(a.ownership) - groupRank_(b.ownership) || natCmp_(a.no, b.no));
+  const LK = lockMarker_();
   return {
     summary: summary,
     count: hits.length,
     totals: { km: r2_(tot.km), hr: r2_(tot.hr), issued: r2_(tot.issued), consumed: r2_(tot.consumed), machines: Object.keys(tot.machines).length },
-    rows: (f.all ? hits : hits.slice(0, 500)).map(r => logItemsOut_(Object.assign(logRowOut_(t, r), { key: logKeyOf_(t, r), ownership: ownIdx[noKey_(r[t.c[H.NO]])] || 'Not in Master' }))),
+    rows: (f.all ? hits : hits.slice(0, 500)).map(r => logItemsOut_(Object.assign(logRowOut_(t, r), { key: logKeyOf_(t, r), ownership: ownIdx[noKey_(r[t.c[H.NO]])] || 'Not in Master', lk: LK.of(r[t.c[H.NO]], dkey_(r[t.c[H.DATE]])) }))),
     itemBoq: itemBoqNow_(to || today_()),
+    locks: LK.locks,      // entries in a submitted bill (row.lk): they cannot be changed until that bill is deleted
   };
 }
 
@@ -5524,6 +5536,7 @@ function saveLogDay_(b) {
         if (seen[k]) throw new Error(m.id + ' is entered more than once.');
         seen[k] = true;
         assertActive_(m, dk);
+        billLock_(m.id, dk, 'Log Book entry');
         if (APP.UNITS.indexOf(m.unit) === -1) throw new Error('Set the Unit for ' + m.id + ' in Master first.');
         if (lt.rows.some(r => same_(r[lt.c[H.NO]], m.id) && dkey_(r[lt.c[H.DATE]]) === dk)) throw new Error('Log Book for ' + m.id + ' on ' + dmy_(dk) + ' is already saved.');
         const prev = prevLogOf_(lt, m.id, dk);
@@ -5648,7 +5661,7 @@ function importLogBook_(b) {
         const m = findMachine_(l.no), dk = entryOpen_(l.date, 'Log Book entry'), sh = logShift_(l.shift || 'Full Day');
         const key = (m.id + '|' + dk + '|' + sh).toUpperCase();
         const i = byKey[key];
-        if (i === undefined) { fresh.push({ l: l, line: line, n: n }); return; }
+        if (i === undefined) { billLock_(m.id, dk, 'Log Book entry'); fresh.push({ l: l, line: line, n: n }); return; }
         const r = lt.rows[i], km = hasKm_(str_(r[c[H.UNIT]]) || m.unit), hr = hasHr_(str_(r[c[H.UNIT]]) || m.unit), diffs = [];
         const numDiff = (h, v, name) => { if (blank_(v)) return; const a = numOrBlank_(r[c[h]]), nv = Number(v); if (a === '' || Math.abs(a - nv) > 0.001) diffs.push({ f: name, from: a, to: nv, h: h, v: nv }); };
         const txtDiff = (h, v, name) => { if (blank_(v) || !(h in c)) return; if (str_(r[c[h]]) !== clean_(v)) diffs.push({ f: name, from: str_(r[c[h]]), to: clean_(v), h: h, v: clean_(v) }); };
@@ -5660,7 +5673,7 @@ function importLogBook_(b) {
         if (hasItemsIn_(l)) { const want = logItemWork_(m, dk, str_(r[c[H.UNIT]]), l, l.items && !blank_(l.items._all) ? totOf() : null), have = H.ITEMS in c ? str_(r[c[H.ITEMS]]) : '';
           if (JSON.stringify(itemWorkParse_(want)) !== JSON.stringify(itemWorkParse_(have))) diffs.push({ f: 'Item work', from: have, to: want, h: H.ITEMS, v: want }); }
         if (!diffs.length) same.push({ line: line, no: m.id, date: dk, shift: sh });
-        else changed.push({ line: line, no: m.id, date: dk, shift: sh, i: i, diffs: diffs });
+        else { billLock_(m.id, dk, 'Log Book entry'); changed.push({ line: line, no: m.id, date: dk, shift: sh, i: i, diffs: diffs }); }
       } catch (e) { errors.push({ row: line, msg: e.message }); }
     });
     const report = { ok: !errors.length, errors: errors, fresh: fresh.length, same: same.length, sameList: same.slice(0, 50),
@@ -5746,7 +5759,7 @@ function saveLogRowsInner_(b) {
     items.forEach(x => {
       try {
         const m = findMachine_(x.l.no);
-        prepared.push({ x: x, m: m, dk: entryOpen_(x.l.date, 'Log Book entry'), shift: logShift_(x.l.shift || 'Full Day') });
+        prepared.push({ x: x, m: m, dk: billLock_(m.id, entryOpen_(x.l.date, 'Log Book entry'), 'Log Book entry'), shift: logShift_(x.l.shift || 'Full Day') });
       } catch (e) { errors.push({ row: x.i + 1, msg: e.message }); }
     });
     prepared.sort((a, b) => natCmp_(a.m.id, b.m.id) || logKeyCmp_(a, b) || a.x.i - b.x.i);
@@ -5871,6 +5884,7 @@ function getLogEntry_(key) {
   const out = Object.assign(logRowOut_(lt, lt.rows[i]), { key: str_(key), first: pos === 0, prev: brief(idx[pos - 1]), next: brief(idx[pos + 1]) });
   let mm = null; try { mm = findMachine_(no); } catch (e) { mm = null; }
   out.boqItems = mm ? itemBrief_(boqItemsOn_(mm, out.date)) : [];
+  out.lock = billLockTag_(billLockOf_(no, out.date));      // in a submitted bill: the page says so instead of opening the edit window
   return out;
 }
 /* Edit a Log Book entry (Start / Close reading, Chainage, Work description; Opening diesel on the first entry).
@@ -5887,6 +5901,7 @@ function updateLogRow_(key, l) {
     const i = findLogIdx_(lt, key);
     const r = lt.rows[i], no = str_(r[c[H.NO]]), unit = str_(r[c[H.UNIT]]);
     booksOpen_(dkey_(r[c[H.DATE]]), 'Log Book entry');
+    billLock_(no, dkey_(r[c[H.DATE]]), 'Log Book entry');
     const idx = machineLogIdx_(lt, no), pos = idx.indexOf(i);
     const mm = findMachine_(no);
     const nextI = pos < idx.length - 1 ? idx[pos + 1] : -1;
@@ -5947,6 +5962,8 @@ function updateLogRow_(key, l) {
         hr: hasHr_(unit) && n2(H.CHR) !== '' ? r2_(n2(H.CHR) - num0_(me[c[H.OHR]])) : unit === 'Time' && H.THRS in c ? num0_(me[c[H.THRS]]) : 0, trip: H.TRIP in c ? num0_(me[c[H.TRIP]]) : 0 };
       me[c[H.ITEMS]] = logItemWork_(mm, dk, unit, l, tot);
     }
+    // an entry after it whose Start would follow the new Close: not when that entry is in a submitted bill
+    (nextChanged ? [nextI] : []).concat(Object.keys(moved).map(Number)).forEach(j => billLock_(no, dkey_(lt.rows[j][c[H.DATE]]), 'The Log Book entry after it (its Start would follow the new Close)'));
     stampEdit_(me, lt);
     lt.sh.getRange(i + 2, 1, 1, me.length).setValues([me]);
     if (nextChanged) lt.sh.getRange(nextI + 2, 1, 1, next.length).setValues([next]);
@@ -6005,8 +6022,10 @@ function getLogEditData_(no, fromStr, toStr) {
   // Item-wise BOQ: the items in force on each date of the range ({} = this machinery has no Item-wise BOQ)
   const boqItems = {};
   if (itemNos_()[noKey_(m.id)]) { let d = from; for (let k = 0; k < 100 && d <= to; k++) { const it = boqItemsOn_(m, d); if (it.length) boqItems[d] = itemBrief_(it); d = addDays_(d, 1); } }
+  // submitted bills that hold this machinery in these dates: their dates are locked in the grid
+  const locks = billLocksOfNo_(m.id).filter(b => b.from <= to && b.to >= from).map(billLockTag_);
   return { machine: m, from: from, to: to, boqItems: boqItems, rows: rows.map(i => Object.assign(logRowOut_(lt, lt.rows[i]), { key: logKeyOf_(lt, lt.rows[i]) })),
-    prev: brief(before[before.length - 1]), next: brief(after[0]), diesel: diesel, prevKm: lastRead(H.CKM), prevHr: lastRead(H.CHR) };
+    prev: brief(before[before.length - 1]), next: brief(after[0]), diesel: diesel, prevKm: lastRead(H.CKM), prevHr: lastRead(H.CHR), locks: locks };
 }
 // the links of debit notes to Log Book entries (the entry's key "number|date|shift") follow when an entry's key changes
 function dnRelink_(map) {
@@ -6041,6 +6060,7 @@ function saveLogBulk_(b) {
     const byKey = {}; idx.forEach(i => { byKey[logKeyOf_(lt, lt.rows[i])] = i; });
     const deleted = (b.deleted || []).map(str_).filter(k => k in byKey);
     deleted.forEach(k => booksOpen_(dkey_(lt.rows[byKey[k]][c[H.DATE]]), 'Log Book entry'));
+    deleted.forEach(k => billLock_(m.id, dkey_(lt.rows[byKey[k]][c[H.DATE]]), 'Log Book entry'));
     const odOf = l => blank_(l.odSet) ? '' : (() => { const v = Number(l.odSet); if (!isFinite(v) || v < 0) throw new Error('Opening diesel must be 0 or more.'); return r2_(v); })();
     const errors = [];
     const rows = (b.rows || []).map((l, n) => ({ l: l, n: n }));
@@ -6052,9 +6072,24 @@ function saveLogBulk_(b) {
     rows.forEach(x => {
       const l = x.l;
       try {
+        /* an entry of a date that is in a submitted bill: it stays exactly as it is saved. The page sends it with the others of the
+         * grid; it is kept out of the save (its saved readings are used for the chain). If what was sent differs from what is
+         * saved – shift, way of measuring, a reading, the half-day mark – the save is refused with the way out. */
+        const lockB = l.key && l.key in byKey ? billLockOf_(m.id, dkey_(lt.rows[byKey[l.key]][c[H.DATE]])) : null;
+        if (lockB) {
+          const r0 = lt.rows[byKey[l.key]], dk0 = dkey_(r0[c[H.DATE]]), sh0 = str_(r0[c[H.SHIFT]]) || 'Full Day', cur0 = str_(r0[c[H.UNIT]]), km0 = hasKm_(cur0), hr0 = hasHr_(cur0);
+          const neq = (sent, saved) => (blank_(sent) ? '' : r2_(Number(sent))) !== numOrBlank_(saved);
+          if (!l.same && (logShift_(l.shift || 'Full Day') !== sh0 || (str_(l.mode) && str_(l.mode) !== cur0) || (km0 && (neq(l.openingKm, r0[c[H.OKM]]) || neq(l.closingKm, r0[c[H.CKM]]))) ||
+            (hr0 && (neq(l.openingHr, r0[c[H.OHR]]) || neq(l.closingHr, r0[c[H.CHR]]))) || (l.half !== undefined && !!l.half !== halfOf_(r0, c)))) billLockFail_(lockB, m.id, dk0, 'Log Book entry');
+          if (clash(dk0, sh0)) throw new Error(dmy_(dk0) + ' (' + sh0 + ') is entered more than once.');
+          taken[dk0] = (taken[dk0] || []).concat(sh0);
+          const kmV = km0 && numOrBlank_(r0[c[H.CKM]]) !== '', hrV = hr0 && numOrBlank_(r0[c[H.CHR]]) !== '';
+          prepared.push({ x: x, dk: dk0, sh: sh0, locked: true, v: { mode: cur0, km: kmV, hr: hrV, okm: num0_(r0[c[H.OKM]]), ckm: num0_(r0[c[H.CKM]]), ohr: num0_(r0[c[H.OHR]]), chr: num0_(r0[c[H.CHR]]), ex: {} } });
+          return;
+        }
         const dk = entryOpen_(l.date, 'Log Book entry'), sh = logShift_(l.shift || 'Full Day');
         if (l.key && !(l.key in byKey)) throw new Error('This entry was changed by someone else – reload the list.');
-        if (!l.key) assertActive_(m, dk);
+        if (!l.key) { assertActive_(m, dk); billLock_(m.id, dk, 'Log Book entry'); }
         if (clash(dk, sh)) throw new Error(dmy_(dk) + ' (' + sh + ') is entered more than once.');
         taken[dk] = (taken[dk] || []).concat(sh);
         const cur = l.key && l.key in byKey ? str_(lt.rows[byKey[l.key]][c[H.UNIT]]) : '';
@@ -6086,10 +6121,26 @@ function saveLogBulk_(b) {
       });
       if (errors.length) return { ok: false, errors: errors };
     }
+    // the entry just after the grid follows the last Close – worked out BEFORE anything is written (it may be an entry of a submitted bill: then nothing is saved)
+    let nextWrite = null;
+    const order = { 'Day': 0, 'Full Day': 0, 'Night': 1 };
+    const sorted = prepared.slice().sort((a, b) => a.dk < b.dk ? -1 : a.dk > b.dk ? 1 : order[a.sh] - order[b.sh]);
+    const last = sorted[sorted.length - 1];
+    const nextOut = idx.filter(i => deleted.indexOf(logKeyOf_(lt, lt.rows[i])) === -1 && !prepared.some(p => p.x.l.key === logKeyOf_(lt, lt.rows[i])))
+      .find(i => { const dk = dkey_(lt.rows[i][c[H.DATE]]); return last && (dk > last.dk || (dk === last.dk && order[str_(lt.rows[i][c[H.SHIFT]]) || 'Full Day'] > order[last.sh])); });
+    if (last && nextOut !== undefined && b.linkNext !== false) {
+      const r = lt.rows[nextOut], row = r.slice(), nu = str_(r[c[H.UNIT]]);
+      const lk = sorted.filter(p => p.v.km).pop(), lh = sorted.filter(p => p.v.hr).pop();
+      // the entry after the grid: a Start linked to the old last Close follows the new one; a Start typed higher stays, unless the Close now passes it
+      const oldOf = (p, h) => p && p.x.l.key && byKey[p.x.l.key] !== undefined ? numOrBlank_(lt.rows[byKey[p.x.l.key]][c[h]]) : '';
+      if (hasKm_(nu) && lk && !meterNew_(r, c) && (num0_(row[c[H.OKM]]) === oldOf(lk, H.CKM) || num0_(row[c[H.OKM]]) < lk.v.ckm)) row[c[H.OKM]] = lk.v.ckm;
+      if (hasHr_(nu) && lh && !meterNew_(r, c) && (num0_(row[c[H.OHR]]) === oldOf(lh, H.CHR) || num0_(row[c[H.OHR]]) < lh.v.chr)) row[c[H.OHR]] = lh.v.chr;
+      if (row.some((v, k) => String(v) !== String(r[k]))) { billLock_(m.id, dkey_(r[c[H.DATE]]), 'The Log Book entry after these dates (its Start would follow the new last Close)'); nextWrite = { i: nextOut, row: row }; }
+    }
     // 1) changed rows (and the entry just after the grid follows the last Close)
     let changed = 0;
     const moved = {};      // old key → new key of the entries whose shift was changed
-    prepared.filter(p => p.x.l.key).forEach(p => {
+    prepared.filter(p => p.x.l.key && !p.locked).forEach(p => {
       const i = byKey[p.x.l.key], r = lt.rows[i], row = r.slice(), l = p.x.l, v = p.v;
       if (p.sh !== (str_(r[c[H.SHIFT]]) || 'Full Day')) {
         const dkRow = dkey_(r[c[H.DATE]]), ds = dieselFor_(m.id, dkRow, p.sh);
@@ -6110,20 +6161,7 @@ function saveLogBulk_(b) {
       if (l.half !== undefined && (l.half || H.DAYPART in c)) { halfCheck_(l, v.mode, dmy_(dkey_(r[c[H.DATE]])) + ': '); if (l.half) halfReady_(c); if (H.DAYPART in c) row[c[H.DAYPART]] = l.half ? 0.5 : ''; }      // "½ day"
       if (row.some((v, k) => String(v) !== String(r[k]))) { stampEdit_(row, lt); lt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); changed++; }
     });
-    const order = { 'Day': 0, 'Full Day': 0, 'Night': 1 };
-    const sorted = prepared.slice().sort((a, b) => a.dk < b.dk ? -1 : a.dk > b.dk ? 1 : order[a.sh] - order[b.sh]);
-    const last = sorted[sorted.length - 1];
-    const nextOut = idx.filter(i => deleted.indexOf(logKeyOf_(lt, lt.rows[i])) === -1 && !prepared.some(p => p.x.l.key === logKeyOf_(lt, lt.rows[i])))
-      .find(i => { const dk = dkey_(lt.rows[i][c[H.DATE]]); return last && (dk > last.dk || (dk === last.dk && order[str_(lt.rows[i][c[H.SHIFT]]) || 'Full Day'] > order[last.sh])); });
-    if (last && nextOut !== undefined && b.linkNext !== false) {
-      const r = lt.rows[nextOut], row = r.slice(), nu = str_(r[c[H.UNIT]]);
-      const lk = sorted.filter(p => p.v.km).pop(), lh = sorted.filter(p => p.v.hr).pop();
-      // the entry after the grid: a Start linked to the old last Close follows the new one; a Start typed higher stays, unless the Close now passes it
-      const oldOf = (p, h) => p && p.x.l.key && byKey[p.x.l.key] !== undefined ? numOrBlank_(lt.rows[byKey[p.x.l.key]][c[h]]) : '';
-      if (hasKm_(nu) && lk && !meterNew_(r, c) && (num0_(row[c[H.OKM]]) === oldOf(lk, H.CKM) || num0_(row[c[H.OKM]]) < lk.v.ckm)) row[c[H.OKM]] = lk.v.ckm;
-      if (hasHr_(nu) && lh && !meterNew_(r, c) && (num0_(row[c[H.OHR]]) === oldOf(lh, H.CHR) || num0_(row[c[H.OHR]]) < lh.v.chr)) row[c[H.OHR]] = lh.v.chr;
-      if (row.some((v, k) => String(v) !== String(r[k]))) lt.sh.getRange(nextOut + 2, 1, 1, row.length).setValues([row]);
-    }
+    if (nextWrite) lt.sh.getRange(nextWrite.i + 2, 1, 1, nextWrite.row.length).setValues([nextWrite.row]);
     // opening diesel of the machinery's very first entry
     if (!blank_(b.openingDiesel) && H.ODSL in c && sorted.length && !idx.some(i => dkey_(lt.rows[i][c[H.DATE]]) < sorted[0].dk && deleted.indexOf(logKeyOf_(lt, lt.rows[i])) === -1)) {
       const f = sorted[0];
@@ -6285,6 +6323,7 @@ function deleteLogRow_(key) {
     const i = findLogIdx_(lt, key);
     const c = lt.c, no = str_(lt.rows[i][c[H.NO]]);
     booksOpen_(dkey_(lt.rows[i][c[H.DATE]]), 'Log Book entry');
+    billLock_(no, dkey_(lt.rows[i][c[H.DATE]]), 'Log Book entry');
     const idx = machineLogIdx_(lt, no), pos = idx.indexOf(i);
     const prevI = pos > 0 ? idx[pos - 1] : -1, nextI = pos < idx.length - 1 ? idx[pos + 1] : -1;
     // the next entry now starts where the entry before the deleted one closed
@@ -6296,6 +6335,7 @@ function deleteLogRow_(key) {
       const gone = lt.rows[i];
       if (hasKm_(unit) && !meterNew_(n, c) && numOrBlank_(gone[c[H.CKM]]) !== '' && numOrBlank_(gone[c[H.OKM]]) !== '' && num0_(n[c[H.OKM]]) === num0_(gone[c[H.CKM]])) n[c[H.OKM]] = num0_(gone[c[H.OKM]]);
       if (hasHr_(unit) && !meterNew_(n, c) && numOrBlank_(gone[c[H.CHR]]) !== '' && numOrBlank_(gone[c[H.OHR]]) !== '' && num0_(n[c[H.OHR]]) === num0_(gone[c[H.CHR]])) n[c[H.OHR]] = num0_(gone[c[H.OHR]]);
+      if (n.some((v, k) => String(v) !== String(lt.rows[nextI][k]))) billLock_(no, dkey_(n[c[H.DATE]]), 'The Log Book entry after it (its Start would move)');
       lt.sh.getRange(nextI + 2, 1, 1, n.length).setValues([n]);
     }
     lt.sh.deleteRow(i + 2);
@@ -6915,6 +6955,32 @@ function dbHealth_() {
  * Tank Check, Breakdown report. A saved bill and its data then stay the same. Only the Admin can move the date back (reopen).
  * Not closed: bills, debit notes and payments – they are made AFTER the month for the month.
  * Kept with the app settings (BOOKS_CLOSED_UPTO = yyyy-mm-dd, empty = nothing closed). */
+/* A SUBMITTED BILL LOCKS ITS ENTRIES (rule set by the MD, 06-10-2026: "once a bill is submitted, the Log Book of that vehicle cannot be
+ * edited; when the bill is deleted it can be. Log Book or diesel – whoever goes to edit gets a warning, and is told the way out").
+ * A bill that is in force (status Active – not Superseded, not deleted) locks, for each machinery in it and for its dates From–To:
+ * every Log Book entry and every Diesel Issue – adding, changing and deleting, for everyone (the Admin too: his way is to delete
+ * the bill). Also refused: a change outside the bill that would move the Start of an entry inside it. The way out, said in every
+ * refusal: the Admin deletes the bill (RCL Drive → Saved Bills → Delete), the correction is made, the bill is built and submitted
+ * again. A bill saved without its machinery list (very old) locks all machinery of its vendor. Tank Check is not locked. */
+function billLocks_() { return memoGet_('__billLocks', () => { let t = null; try { t = billTable_(); } catch (e) { t = null; } if (!t) return [];
+  const st = 'Status' in t.c ? t.c['Status'] : -1;
+  return t.rows.filter(r => st === -1 || (str_(r[st]) || 'Active') === 'Active').map(r => billOut_(t, r, true)).filter(b => b.id && b.status === 'Active' && b.from && b.to)      // (only the bills in force are opened)
+    .map(b => ({ id: b.id, billNo: b.billNo, rev: b.rev, vendor: b.vendor, company: b.company, from: b.from, to: b.to, keys: billMachKeys_(b.data) })); }); }
+// (looked up by machinery: a list of thousands of entries asks this for every row)
+function billLockIdx_() { return memoGet_('__billLockIdx', () => { const by = {}, loose = []; billLocks_().forEach(b => { if (b.keys.length) b.keys.forEach(k => { (by[k] = by[k] || []).push(b); }); else loose.push(b); });
+  let owners = null; const ownerOf = k => { if (!owners) { owners = {}; getMaster_().forEach(m => { owners[noKey_(m.id)] = vKey_(m.owner || ''); }); } return owners[k] || ''; };
+  return { by: by, loose: loose, ownerOf: ownerOf }; }); }
+function billLocksOfNo_(no) { const k = noKey_(no); if (!k) return []; const X = billLockIdx_(); return (X.by[k] || []).concat(X.loose.length ? X.loose.filter(b => X.ownerOf(k) && X.ownerOf(k) === vKey_(b.vendor)) : []); }
+function billLockOf_(no, dk) { if (!dk) return null; return billLocksOfNo_(no).find(b => b.from <= dk && dk <= b.to) || null; }
+const billLockTag_ = b => b ? { billNo: b.billNo, rev: b.rev, vendor: b.vendor, company: b.company, from: b.from, to: b.to } : null;      // what the page is told about a lock
+// for a list: rows carry "lk" (the bill's id) when they are locked, the list carries "locks" { id: what the page is told }
+function lockMarker_() { const locks = {}; return { locks: locks, of: (no, dk) => { const b = billLockOf_(no, dk); if (!b) return undefined; locks[b.id] = locks[b.id] || billLockTag_(b); return b.id; } }; }
+function billLockMsg_(b, no, dk, what) {
+  return (what || 'Entry') + ' of ' + clean_(no) + ' on ' + dmy_(dk) + ': this machinery is in the submitted RA Bill ' + b.billNo + (b.rev ? ' rev ' + b.rev : '') + ' of ' + b.vendor + ' (' + b.company + ', ' + dmy_(b.from) + ' to ' + dmy_(b.to) +
+    ') – its Log Book and diesel entries of those dates cannot be added, changed or deleted. To correct them: the Admin deletes that bill (RCL Drive → Saved Bills → Delete), then the correction is made, and the bill is built and submitted again.';
+}
+function billLockFail_(b, no, dk, what) { const msg = billLockMsg_(b, no, dk, what); throw new Error(msg); }
+function billLock_(no, dk, what) { const b = billLockOf_(no, dk); if (b) billLockFail_(b, no, dk, what); return dk; }
 // (read once per table-memo lifetime: the memo is emptied for every request and after every write, so the date is never stale)
 // a value kept for as long as the table memory of the request lives (outside a request – sign-in, the sign-in screen – there is no memory: read every time)
 const memoGet_ = (k, make) => { if (TABLE_MEMO_ && k in TABLE_MEMO_) return TABLE_MEMO_[k]; const v = make(); if (TABLE_MEMO_) TABLE_MEMO_[k] = v; return v; };

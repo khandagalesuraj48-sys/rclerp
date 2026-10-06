@@ -27,7 +27,8 @@ const idsOf = no => sql("select string_agg(id, ' , ' order by id) from log_book 
     return srv('saveLogBulk', { no: 'NRX-0', from: '2026-09-21', to: '2026-09-24', rows: rows, deleted: [k22] }); };
   await seed0(); let r = await again(old); await wait(400); const before = rowsOf('NRX-0');
   await seed0(); const r2 = await again(api); await wait(400); const after = rowsOf('NRX-0');
-  ok('BEFORE (live code): the 22nd is deleted and entered again in one save → the server says saved, the database has LOST the 22nd', (r && r.ok === true) && before === '21 Day 500>540 dsl 0', { answer: r && r.ERROR ? r.ERROR : { ok: r.ok, added: r.added, deleted: r.deleted }, database: before });
+  // (the code on :3002 – before update-60 it LOST the 22nd; from update-60 on it keeps it: both are named, neither fails the run)
+  ok('the code on :3002, the 22nd deleted and entered again in one save: ' + (before === '21 Day 500>540 dsl 0' ? 'the database has LOST the 22nd (code before update-60)' : 'the 22nd is kept (update-60 or later)'), r && r.ok === true && (before === '21 Day 500>540 dsl 0' || before === '21 Day 500>540 dsl 0 | 22 Day 540>600 dsl 0'), { answer: r && r.ERROR ? r.ERROR : { ok: r.ok, added: r.added, deleted: r.deleted }, database: before });
   ok('AFTER (this update): the same save keeps the 22nd, with the new reading', (r2 && r2.ok === true) && after === '21 Day 500>540 dsl 0 | 22 Day 540>600 dsl 0', { answer: r2 && r2.ERROR ? r2.ERROR : { ok: r2.ok, added: r2.added, deleted: r2.deleted }, database: after });
 
   // ================= B. the month as it was entered =================

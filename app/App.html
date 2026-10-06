@@ -1932,6 +1932,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ---------- the Tax Invoice and Debit Note shown under every Abstract on the billing page ---------- */
   .mb-doc-h { margin: 18px 0 6px; font: 700 13px var(--ui); color: #475569; letter-spacing: .02em; text-transform: uppercase; }
   .mb-paper.mb-doc { background: #fff; padding: 10px; border: 1px solid #DDE3EA; border-radius: 10px; overflow-x: auto; }
+  iframe.mb-lbf { display: block; width: 100%; max-width: 900px; height: 420px; margin: 0 auto; background: #fff; border: 1px solid #DDE3EA; border-radius: 10px; }
 
   /* ---------- "the first 100 of N rows are shown" under a long list ---------- */
   .more-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 10px 0 2px; padding: 10px 14px; border: 1px solid #DDE3EA; border-radius: 12px; background: #F7FAFD; font-size: 13.5px; color: #334155; }
@@ -2288,6 +2289,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #fixbox .fx-ai { margin: 8px 0 0; border: 1px solid #0F1F3D; background: #0F1F3D; color: #fff; border-radius: 8px; padding: 6px 12px; font: 700 12.5px var(--ui); cursor: pointer; }
   @media (max-width: 760px) { .ai-panel { inset: 0; width: auto; border-radius: 0; top: 0; } .ai-fab span { display: none; } .ai-fab { padding: 13px; right: 12px; bottom: 78px; } }
   @media print { .ai-fab, .ai-panel { display: none !important; } }
+  .tag.lk { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; border-radius: 999px; padding: 0 7px; font: 700 11px var(--ui); white-space: nowrap; margin-left: 4px; }
+  table.lx-t tr.lk td { background: #FFF7F7; } table.lx-t tr.lk input:disabled, table.lx-t tr.lk select:disabled { background: #F8FAFC; color: #475569; opacity: 1; }
+  .lx-lock { margin: 8px 0; padding: 9px 12px; border: 1px solid #FCA5A5; background: #FEF2F2; color: #7F1D1D; border-radius: 10px; font-size: 13.5px; line-height: 1.45; } .lx-lock b { color: #7F1D1D; }
   .tag.half { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; border-radius: 999px; padding: 0 7px; font: 700 11px var(--ui); white-space: nowrap; }
   /* "½ day" under the shift of a Log Book entry */
   .lg-half { display: flex; align-items: center; gap: 5px; margin: 5px 0 0; font: 600 12px var(--ui); color: #475569; white-space: nowrap; cursor: pointer; }
@@ -2600,6 +2604,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     </div>
     <div class="panel" id="lx_panel" hidden>
       <div class="panel-head"><h2 id="lx_title"></h2><span class="chart-note" id="lx_info"></span></div>
+      <div class="lx-lock" id="lx_lock" hidden></div>
       <div class="lx-edge" id="lx_prev"></div>
       <div class="table-wrap lx-wrap"><table class="lgt lx-t" id="lx_table">
         <thead id="lx_head"></thead>
@@ -4577,6 +4582,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         'तारीख तपासा. Entry खरोखर त्याच दिवसाची असेल तर Admin ला ती भरायला सांगा, किंवा काही काळासाठी दिवसांची संख्या वाढवायला सांगा (Settings → Rules of this site).'],
       hi: ['User कितने दिन पीछे की entries भर या बदल सकता है यह Admin ने तय किया है। यह तारीख उससे पुरानी है।',
         'तारीख जाँचें। Entry सच में उसी दिन की हो तो Admin से भरने को कहें, या कुछ समय के लिए दिनों की संख्या बढ़ाने को कहें (Settings → Rules of this site)।'] },
+    { re: /is in the submitted RA Bill/i,
+      en: ['This machinery is in a bill that is already submitted for these dates. Once a bill is submitted, the Log Book and diesel entries of its machinery for the bill\'s dates are locked – so that the saved bill and the entries always agree.',
+        'Check the machinery and the date first – if the entry belongs to another date, correct the date. If an entry of the billed dates really has to be added, changed or deleted: ask the Admin to delete that bill (RCL Drive → Saved Bills → Delete, with the reason); make the correction; then build and submit the bill again (Machinery Billing).'],
+      mr: ['ही machinery या तारखांसाठी आधीच submit झालेल्या bill मध्ये आहे. Bill submit झाले की त्यातल्या machinery च्या त्या तारखांच्या Log Book आणि diesel entries lock होतात – म्हणजे save झालेले bill आणि entries नेहमी जुळतात.',
+        'आधी machinery आणि तारीख तपासा – entry दुसऱ्या तारखेची असेल तर तारीख दुरुस्त करा. Bill च्या तारखांमधली entry खरोखर जोडायची, बदलायची किंवा delete करायची असेल तर: Admin ला ते bill delete करायला सांगा (RCL Drive → Saved Bills → Delete, कारणासह); दुरुस्ती करा; मग bill पुन्हा Build करून submit करा (Machinery Billing).'],
+      hi: ['यह machinery इन तारीखों के लिए पहले से submit हुए bill में है। Bill submit होते ही उसकी machinery की उन तारीखों की Log Book और diesel entries lock हो जाती हैं – ताकि save हुआ bill और entries हमेशा मेल खाएँ।',
+        'पहले machinery और तारीख जाँचें – entry किसी और तारीख की हो तो तारीख ठीक करें। Bill की तारीखों की entry सच में जोड़नी, बदलनी या delete करनी हो तो: Admin से वह bill delete करवाएँ (RCL Drive → Saved Bills → Delete, कारण के साथ); सुधार करें; फिर bill दोबारा Build करके submit करें (Machinery Billing)।'] },
     { re: /are closed \(month closed/i,
       en: ['The month of this date has been closed by the Admin. After the bills of a month are submitted its entries are locked, so that the saved bills and the entries stay the same.',
         'Check the date – if the entry belongs to an open date, correct the date. If an entry of the closed month really has to be added or corrected, ask the Admin: Machinery Billing → Month close → Reopen; make the correction; build the affected bill again; close the month again.'],
@@ -6264,27 +6276,159 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const ORIENT_CSS = {
     P: '@page { size: A4 portrait; margin: 10mm 9mm 12mm 9mm; } .sheet { width: 194mm; min-height: 275mm; } @media print { .sheet { width: auto; min-height: 0; } } @media screen { body.rep-lb .sheet { box-sizing: content-box; width: 192mm; padding: 10mm 9mm 12mm; } }',
     L: '@page { size: A4 landscape; margin: 9mm 8mm 12mm 8mm; } .sheet { width: 281mm; min-height: 189mm; } @media print { .sheet { width: auto; min-height: 0; } .lbsheet { min-height: 180mm; } } @media screen { body.rep-lb .sheet { box-sizing: content-box; width: 281mm; padding: 9mm 8mm 12mm; } }' };
-  /* EVERY PRINT CAN ALSO BE TAKEN AS EXCEL (asked 06-10-2026: "in View bill I must get the bill's Excel too – for every PDF the app
-   * makes, its Excel"). The button "Excel" is in the bar of the print window, next to Print, so it is there for EVERY print of the
-   * app. What is exported is exactly what that window shows, read in its order:
+  // a figure of a print as a number for Excel (null = it stays text): 1,23,456.00 / ₹ 50,000.00 / − 2,300.00 → numbers; a zero in front,
+  // more than 9 plain digits (account, phone), dates, codes → text
+  function xlNum(v) { const m = /^(₹\s*)?([−-]\s*)?((?:\d{1,3}(?:,\d{2,3})+|\d+)(?:\.\d+)?)$/.exec(String(v === null || v === undefined ? '' : v).trim()); if (!m) return null;
+    const body = m[3].replace(/,/g, ''), int = body.split('.')[0];
+    if (int.length > 1 && int[0] === '0') return null;
+    if (int.length > 11 || (!/[.,]/.test(m[3]) && int.length > 9)) return null;
+    const n = Number(body) * (m[2] ? -1 : 1); if (!isFinite(n)) return null;
+    return { v: n, z: /\.\d{2}$/.test(body) ? '#,##0.00' : (!/\./.test(body) && /,/.test(m[3]) ? '#,##0' : '') }; }
+  /* EVERY PRINT AS EXCEL, LOOKING LIKE THE PRINT (asked 06-10-2026: "the Excel must come properly made up – borders and all – the same
+   * as the print's format / view … for every report we take as PDF I want its Excel copy"). The button "Excel" is in the bar of every
+   * print window. The Excel is made FROM THE PRINT WINDOW ITSELF, so it is the same for every print the app has or will have:
+   *   – every paper / page of the print (Abstract, Tax Invoice, GST Declaration, Debit Note, each machinery's Log Book) is a TAB;
+   *     a report without pages is one tab;
+   *   – every piece of the page (each table cell, each line of text, each signature line) is measured where it stands on the paper;
+   *     the columns and rows of the sheet are cut along those edges, so widths, heights, joined cells and the empty room come out as
+   *     printed (a page that was made smaller to fit its paper is taken at its full size);
+   *   – each cell takes the print's own look: borders, shading, bold / italic, letter size and colour, left / centre / right;
+   *   – figures are NUMBERS (see xlNum) with the print's format, so they can be added; dates, numbers of machinery, accounts stay text;
+   *   – the page set-up is A4, the turn of the print, fitted to one page wide (a paper: one page) – printing the Excel gives the print;
+   *   – the logo is put in when the picture's host lets it be read (if not, the Excel comes without the logo).
+   * The formatting tool (ExcelJS) is loaded when a print window opens; if it cannot be loaded the plain Excel is given instead. */
+  let xjsWait = null;
+  function rclLoadExcelJs() {
+    if (typeof ExcelJS !== 'undefined') return Promise.resolve();
+    if (xjsWait) return xjsWait;
+    const one = u => new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = u; sc.async = true; const t = setTimeout(() => rej(new Error('The Excel formatting tool did not load in time.')), 20000);
+      sc.onload = () => { clearTimeout(t); if (typeof ExcelJS !== 'undefined') res(); else rej(new Error('The Excel formatting tool did not start.')); }; sc.onerror = () => { clearTimeout(t); rej(new Error('The Excel formatting tool could not be loaded.')); }; document.head.appendChild(sc); });
+    xjsWait = one('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js').catch(() => one('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js')).catch(e => { xjsWait = null; throw e; });
+    return xjsWait;
+  }
+  // the finished file goes to Downloads
+  function saveXlsxBuffer(buf, name) { const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 4000); }
+  async function printExcelStyled(doc, title) {
+    const win = doc.defaultView, root = doc.querySelector('.sheet'); if (!root) throw new Error('Nothing to export.');
+    const css = el => win.getComputedStyle(el);
+    const orient = doc.getElementById('orient'), land = !!orient && /landscape/.test(orient.textContent);
+    const XS = 1.12, YS = 1.1;                                   // a little more room than on paper: Excel's letters run a little wider
+    const argb = c => { const m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s\/]+([\d.]+%?))?\s*\)/.exec(c || ''); if (!m) return null;
+      const a = m[4] === undefined ? 1 : (/%$/.test(m[4]) ? parseFloat(m[4]) / 100 : Number(m[4])); if (!(a > 0)) return null;
+      return 'FF' + [m[1], m[2], m[3]].map(v => Math.round(255 - a * (255 - Number(v))).toString(16).padStart(2, '0')).join('').toUpperCase(); };      // (a see-through colour as it looks on white paper)
+    const clean = t => String(t || '').replace(/ /g, ' ').replace(/[ \t\r]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{2,}/g, '\n').trim();
+    const shown = el => { const c = css(el); return c.display !== 'none' && c.visibility !== 'hidden'; };
+    const inline = el => /^inline/.test(css(el).display) || el.tagName === 'BR';
+    // the look of a piece of text: taken from where its first letters stand (a cell whose text is all in <b> is bold)
+    const lookOf = (el, scale) => { let src = el; try { const tw = doc.createTreeWalker(el, 4, null); let n; while ((n = tw.nextNode())) { if (n.textContent.trim()) { src = n.parentElement || el; break; } } } catch (e) { src = el; }
+      const c = css(src), b = css(el), ta = b.textAlign;
+      return { size: Math.max(5, Math.round(parseFloat(c.fontSize) * 0.75 * (scale || 1) * 2) / 2), bold: (parseInt(c.fontWeight, 10) || 400) >= 600, italic: c.fontStyle === 'italic', color: argb(c.color),
+        align: /center/.test(ta) ? 'center' : /right|end/.test(ta) ? 'right' : 'left' }; };
+    const edges = el => { const c = css(el), o = {}; [['Top', 'top'], ['Right', 'right'], ['Bottom', 'bottom'], ['Left', 'left']].forEach(x => { const w = parseFloat(c['border' + x[0] + 'Width']) || 0, st = c['border' + x[0] + 'Style'];
+      if (w > 0 && st !== 'none' && st !== 'hidden') o[x[1]] = { style: w >= 1.4 ? 'medium' : 'thin', color: { argb: argb(c['border' + x[0] + 'Color']) || 'FF000000' } }; }); return o; };
+    const near = (arr, v) => { let lo = 0, hi = arr.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (arr[m] <= v) lo = m; else hi = m; } return Math.abs(arr[lo] - v) <= Math.abs(arr[hi] - v) ? lo : hi; };
+    const snap = (vals, tol) => { const out = []; vals.slice().sort((a, b) => a - b).forEach(v => { if (!out.length || v - out[out.length - 1] > tol) out.push(v); }); return out; };
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Fleet ERP'; wb.created = new Date();
+    const used = {};
+    const tabName = name => { const base = String(name || 'Sheet').replace(/[\\\/\?\*\[\]:]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 31) || 'Sheet'; let nm = base, k = 1;
+      while (used[nm.toUpperCase()]) { k++; nm = base.slice(0, 31 - String(k).length - 3) + ' (' + k + ')'; } used[nm.toUpperCase()] = true; return nm; };
+    const nameOf = el => el.classList.contains('lbsheet') ? 'LB ' + String((el.querySelector('.lb-mach') || {}).textContent || '').split('(')[0].trim()
+      : el.querySelector('.gdn') ? 'GST Declaration' : el.querySelector('.dnp') ? 'Debit Note' : el.querySelector('.tx') ? 'Tax Invoice' : el.querySelector('.bl') ? 'Abstract' : 'Page';
+    const sheetOf = async (pg, name, onePage) => {
+      const zoom = parseFloat(pg.style.zoom) || 1, R0 = pg.getBoundingClientRect();
+      const rel = r => ({ l: (r.left - R0.left) / zoom, t: (r.top - R0.top) / zoom, r: (r.right - R0.left) / zoom, b: (r.bottom - R0.top) / zoom });
+      const items = [], frames = [], imgs = [];
+      const table = t => { const tz = parseFloat(t.style.zoom) || 1;
+        [...t.rows].forEach(tr => { if (!shown(tr)) return; const trBg = argb(css(tr).backgroundColor);
+          [...tr.cells].forEach(td => { if (!shown(td)) return; const r = rel(td.getBoundingClientRect()); if (r.r - r.l < 0.6 || r.b - r.t < 0.6) return; const c = css(td), bg = argb(c.backgroundColor) || trBg;
+            td.querySelectorAll('img').forEach(im => imgs.push(im));
+            items.push({ r: r, text: clean(td.innerText), cell: true, look: lookOf(td, tz), bd: edges(td), bg: bg && bg !== 'FFFFFFFF' ? bg : null, va: /top/.test(c.verticalAlign) ? 'top' : /bottom/.test(c.verticalAlign) ? 'bottom' : 'middle' }); }); }); };
+      const walk = el => {
+        if (!shown(el)) return;
+        if (el.tagName === 'TABLE') { table(el); return; }
+        if (el.tagName === 'IMG') { imgs.push(el); return; }
+        if (/^(STYLE|SCRIPT)$/.test(el.tagName)) return;
+        const kids = [...el.children].filter(k => !/^(STYLE|SCRIPT|BR)$/.test(k.tagName) && shown(k));
+        if (!kids.some(k => !inline(k))) {                       // a line / paragraph of text (or a ruled line with nothing in it)
+          el.querySelectorAll('img').forEach(im => imgs.push(im));
+          const text = clean(el.innerText), bd = edges(el), r = rel(el.getBoundingClientRect()), bg = argb(css(el).backgroundColor);
+          if ((text || Object.keys(bd).length) && r.r - r.l > 0.6 && r.b - r.t >= 0) items.push({ r: r, text: text, look: lookOf(el), bd: bd, bg: bg && bg !== 'FFFFFFFF' ? bg : null, va: 'middle' });
+          return; }
+        if (el !== pg) { const bd = edges(el); if (Object.keys(bd).length) frames.push({ r: rel(el.getBoundingClientRect()), bd: bd }); }      // a box / a rule around other pieces
+        [...el.childNodes].forEach(n => {
+          if (n.nodeType === 3) { const t = clean(n.textContent); if (!t) return; const rg = doc.createRange(); rg.selectNodeContents(n); const rr = rg.getBoundingClientRect(); if (rr.width > 0.6) items.push({ r: rel(rr), text: t, look: lookOf(el), bd: {}, bg: null, va: 'middle' }); }
+          else if (n.nodeType === 1) walk(n); });
+      };
+      walk(pg);
+      const ws = wb.addWorksheet(tabName(name), { views: [{ showGridLines: false }] });
+      if (!items.length) return ws;
+      const X = snap([0].concat(...items.map(i => [i.r.l, i.r.r]), ...frames.map(f => [f.r.l, f.r.r])), 2.5), Y = snap([].concat(...items.map(i => [i.r.t, i.r.b]), ...frames.map(f => [f.r.t, f.r.b])), 1.5);
+      if (X.length < 2) X.push(X[0] + 50); if (Y.length < 2) Y.push(Y[0] + 15);
+      for (let c = 0; c < X.length - 1; c++) ws.getColumn(c + 1).width = Math.max(0.3, Math.round((X[c + 1] - X[c]) * XS / 7 * 100) / 100);
+      const H = []; for (let r = 0; r < Y.length - 1; r++) H[r] = Math.max(1.5, (Y[r + 1] - Y[r]) * 0.75 * YS);      // row heights in points (made taller below where Excel needs more lines than the paper did)
+      const wide = t => { let w = 0; for (const ch of t) w += ch === ' ' ? 0.3 : /[A-Z₹%@&MWmw]/.test(ch) ? 0.7 : /[0-9]/.test(ch) ? 0.58 : /[.,:;'|!\-\/()ilt]/.test(ch) ? 0.34 : 0.54; return w; };      // the width of a text in letter sizes (Arial, roughly)
+      const taken = new Set(), free = (r0, c0, r1, c1) => { for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) if (taken.has(r * 4096 + c)) return false; return true; };
+      items.forEach(it => {
+        let c0 = near(X, it.r.l), c1 = near(X, it.r.r), r0 = near(Y, it.r.t), r1 = near(Y, it.r.b);
+        if (c1 <= c0) c1 = Math.min(X.length - 1, c0 + 1); if (r1 <= r0) r1 = Math.min(Y.length - 1, r0 + 1);
+        if (c0 >= X.length - 1 || r0 >= Y.length - 1) return;
+        while (!free(r0, c0, r1, c1) && r1 > r0 + 1) r1--; while (!free(r0, c0, r1, c1) && c1 > c0 + 1) c1--;
+        if (!free(r0, c0, r1, c1)) return;                        // (something already stands there)
+        for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) taken.add(r * 4096 + c);
+        const cell = ws.getCell(r0 + 1, c0 + 1), n = it.cell ? xlNum(it.text) : null, L = it.look;
+        cell.value = n ? n.v : (it.text || null);
+        const style = { font: { name: 'Arial', size: L.size, bold: L.bold, italic: L.italic }, alignment: { horizontal: L.align, vertical: it.va || 'middle', wrapText: true } };
+        if (L.color && L.color !== 'FF000000') style.font.color = { argb: L.color };
+        if (n && n.z) style.numFmt = n.z;
+        if (Object.keys(it.bd).length) style.border = it.bd;
+        if (it.bg) style.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: it.bg } };
+        cell.style = style;
+        if (r1 - r0 > 1 || c1 - c0 > 1) ws.mergeCells(r0 + 1, c0 + 1, r1, c1);
+        // room for the text as Excel will break it: when its lines need more height than the paper gave, the last row of the piece grows
+        if (it.text) { const wPt = Math.max(4, (X[c1] - X[c0]) * 0.75 * XS - 4), per = L.size * (L.bold ? 1.06 : 1);
+          const lines = it.text.split('\n').reduce((a, t) => a + Math.max(1, Math.ceil(wide(t) * per / wPt)), 0), need = lines * L.size * 1.2 + 1.5;
+          let have = 0; for (let r = r0; r < r1; r++) have += H[r];
+          if (need > have) H[r1 - 1] += need - have; }
+      });
+      H.forEach((h, r) => { ws.getRow(r + 1).height = Math.min(409, Math.round(h * 100) / 100); });
+      // boxes and rules around several pieces (the frame of a Tax Invoice, the line under a heading): on the cells along their edges
+      frames.forEach(f => { try { const c0 = near(X, f.r.l), c1 = Math.max(c0 + 1, near(X, f.r.r)), r0 = near(Y, f.r.t), r1 = Math.max(r0 + 1, near(Y, f.r.b));
+        const put = (r, c, side) => { if (r < 0 || c < 0 || r >= Y.length - 1 || c >= X.length - 1) return; const cell = ws.getCell(r + 1, c + 1), stl = cell.style || {}, bd = Object.assign({}, stl.border || {}); if (bd[side]) return; bd[side] = f.bd[side]; cell.style = Object.assign({}, stl, { border: bd }); };
+        if (f.bd.top) for (let c = c0; c < c1; c++) put(r0, c, 'top'); if (f.bd.bottom) for (let c = c0; c < c1; c++) put(r1 - 1, c, 'bottom');
+        if (f.bd.left) for (let r = r0; r < r1; r++) put(r, c0, 'left'); if (f.bd.right) for (let r = r0; r < r1; r++) put(r, c1 - 1, 'right'); } catch (e) { /* the piece inside keeps its own lines */ } });
+      // pictures (the logo): read again with the host's leave; a host that does not give it → no picture
+      for (const im of [...new Set(imgs)]) { try { if (!im.complete || !im.naturalWidth || !shown(im)) continue;
+        const box = im.closest('.rlogo') || im, br = rel(box.getBoundingClientRect()), ir = rel(im.getBoundingClientRect()); if (br.r - br.l < 2 || br.b - br.t < 2) continue;
+        const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 5000); let blob = null; try { const resp = await fetch(im.currentSrc || im.src, { mode: 'cors', signal: ctl.signal }); if (resp.ok) blob = await resp.blob(); } finally { clearTimeout(tm); }
+        if (!blob) continue; const bmp = await createImageBitmap(blob), k = 3, cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round((br.r - br.l) * k)); cv.height = Math.max(1, Math.round((br.b - br.t) * k));
+        const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(bmp, (ir.l - br.l) * k, (ir.t - br.t) * k, (ir.r - ir.l) * k, (ir.b - ir.t) * k);
+        const pos = (arr, v) => { let i = 0; while (i < arr.length - 2 && arr[i + 1] <= v) i++; return i + Math.max(0, Math.min(0.999, (v - arr[i]) / Math.max(0.01, arr[i + 1] - arr[i]))); };
+        ws.addImage(wb.addImage({ base64: cv.toDataURL('image/png'), extension: 'png' }), { tl: { col: pos(X, br.l), row: pos(Y, br.t) }, ext: { width: (br.r - br.l) * XS, height: (br.b - br.t) * YS } });
+      } catch (e) { /* without this picture */ } }
+      ws.pageSetup = { paperSize: 9, orientation: land ? 'landscape' : 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: onePage ? 1 : 0, horizontalCentered: true,
+        margins: land ? { left: 0.31, right: 0.31, top: 0.35, bottom: 0.47, header: 0.2, footer: 0.2 } : { left: 0.35, right: 0.35, top: 0.39, bottom: 0.47, header: 0.2, footer: 0.2 } };
+      return ws;
+    };
+    const pages = [...root.querySelectorAll(':scope > section.billsheet, :scope > section.lbsheet')];
+    if (pages.length) { for (const pg of pages) await sheetOf(pg, nameOf(pg), true); } else await sheetOf(root, title, false);
+    const buf = await wb.xlsx.writeBuffer();
+    saveXlsxBuffer(buf, 'RCL_' + String(title || 'print').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 90) + '.xlsx');
+    return wb.worksheets.length;
+  }
+  /* THE PLAIN EXCEL (the first way, update-63; now the FALL-BACK when the formatting tool cannot be loaded – see printExcelStyled).
+   * What is exported is what the print window shows, read in its order, without any formatting:
    *   – every paper / page of the print (a bill's Abstract, Tax Invoice, GST Declaration, Debit Note, each machinery's Log Book) is a
    *     TAB of its own; a report without pages is one tab;
    *   – a table goes cell for cell, joined cells stay joined; lines of text above / below go one under the other; things that stand
    *     side by side on the paper (the heading with its right-hand note, the signatures) stay side by side;
    *   – figures become NUMBERS (1,23,456.00 / ₹ 50,000.00 / − 2,300.00) so that they can be added in Excel; dates, machinery numbers,
    *     bill numbers with letters, account-like numbers (a zero in front, or more than 9 digits without a decimal) stay text. */
-  function printExcel(doc, title) {
+  function printExcelPlain(doc, title) {
     needXlsx();
     const win = doc.defaultView, root = doc.querySelector('.sheet'); if (!root) throw new Error('Nothing to export.');
     const css = el => win.getComputedStyle(el), shown = el => css(el).display !== 'none';
     const inline = el => /^inline/.test(css(el).display) || el.tagName === 'BR';
     const linesOf = el => String(el.innerText || '').replace(/ /g, ' ').split('\n').map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
-    const num = v => { const m = /^(₹\s*)?([−-]\s*)?((?:\d{1,3}(?:,\d{2,3})+|\d+)(?:\.\d+)?)$/.exec(v); if (!m) return null;
-      const body = m[3].replace(/,/g, ''), int = body.split('.')[0];
-      if (int.length > 1 && int[0] === '0') return null;                                           // a zero in front: an account / a code
-      if (int.length > 11 || (!/[.,]/.test(m[3]) && int.length > 9)) return null;                   // long plain digits: account / phone
-      const n = Number(body) * (m[2] ? -1 : 1); if (!isFinite(n)) return null;
-      return { v: n, z: /\.\d{2}$/.test(body) ? '#,##0.00' : (!/\./.test(body) && /,/.test(m[3]) ? '#,##0' : '') }; };
     // the pieces of a page in reading order: text lines, side-by-side groups, tables
     const walk = (el, out) => {
       if (el.tagName === 'TABLE') { out.push({ k: 'table', el: el }); return; }
@@ -6311,7 +6455,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const grids = out.map(b => b.k === 'table' ? grid(b.el) : null);
       const W = Math.max(1, ...grids.map(g => g ? g.w : 0), ...out.map(b => b.k === 'cols' ? b.cols.length : 0));
       const ws = {}, merges = [], wide = []; let r = 0, maxR = 0, maxC = 0, prev = '';
-      const put = (R, C, v, table, one, len) => { const n = table ? num(v) : null, cell = n ? { t: 'n', v: n.v } : { t: 's', v: v }; if (n && n.z) cell.z = n.z;
+      const put = (R, C, v, table, one, len) => { const n = table ? xlNum(v) : null, cell = n ? { t: 'n', v: n.v } : { t: 's', v: v }; if (n && n.z) cell.z = n.z;
         ws[XLSX.utils.encode_cell({ r: R, c: C })] = cell; maxR = Math.max(maxR, R); maxC = Math.max(maxC, C);
         if (table && one) wide[C] = Math.max(wide[C] || 0, len || String(v).length); };
       out.forEach((b, i) => {
@@ -6351,7 +6495,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '</style><style id="orient">' + ORIENT_CSS[isBill ? 'P' : orient] + '</style>' + script + '</head>' +
       '<body class="' + (kind || '') + '"><div class="bar"><b>' + esc(title) + '</b><span style="flex:1"></span>' + turn + '<button type="button" id="xl_btn" class="xl" title="The same pages as an Excel file – every page a tab">Excel</button><button onclick="window.print()">Print</button></div>' +
       '<div class="sheet">' + inner + '</div></body></html>';
-    try { window.rclLoadXlsx(); } catch (e) { /* the Excel tool loads on the first click anyway */ }
+    try { window.rclLoadXlsx(); rclLoadExcelJs().catch(() => {}); } catch (e) { /* the Excel tools load on the first click anyway */ }
     const w = win && !win.closed ? win : window.open('', '_blank');
     if (!w) { // pop-ups blocked: print from here instead
       $('print_area').className = kind || ''; $('print_area').innerHTML = inner;
@@ -6359,7 +6503,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     w.document.open(); w.document.write(html); w.document.close();
     // "Excel" in the bar of the print window: the same pages as an .xlsx (worked out here, where the Excel tool is)
-    try { const xb = w.document.getElementById('xl_btn'); if (xb) xb.onclick = () => { try { const n = printExcel(w.document, title); xb.textContent = 'Excel ✓'; xb.title = n + ' tab(s) saved to Downloads'; } catch (e) { w.alert(errMsg(e)); } }; } catch (e) { /* print works without it */ }
+    try { const xb = w.document.getElementById('xl_btn'); if (xb) xb.onclick = async () => { if (xb.dataset.busy) return; xb.dataset.busy = '1'; xb.textContent = 'Excel…';
+      try { let n, plain = '';
+        try { await rclLoadExcelJs(); n = await printExcelStyled(w.document, title); }
+        catch (e1) { plain = errMsg(e1); n = printExcelPlain(w.document, title); }      // without the formatting tool: the plain Excel, and it says so
+        xb.textContent = 'Excel ✓'; xb.title = n + ' tab(s) saved to Downloads' + (plain ? ' – WITHOUT formatting (' + plain + ')' : '');
+        if (plain) w.alert('The Excel was saved WITHOUT formatting: ' + plain + ' Check the internet and press Excel again for the formatted one.');
+      } catch (e) { xb.textContent = 'Excel'; w.alert(errMsg(e)); } finally { delete xb.dataset.busy; } }; } catch (e) { /* print works without it */ }
     if (/rep-bill/.test(kind || '')) { try { fitBillPages(w.document); } catch (e) { /* print as it is */ } }
     if (!isBill) { try { const b1 = w.document.getElementById('or_' + orient); if (b1) b1.className = 'on'; } catch (e) { /* no buttons */ } }
     try { fitWideTables(w.document); } catch (e) { /* print as it is */ }
@@ -6987,15 +7137,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!$('lx_from').value || !$('lx_to').value) throw new Error('Select From and To dates.');
     if (lxDirty() && !(await askConfirm({ title: 'Discard unsaved changes?', ok: 'Discard', danger: true, html: '<p>Changes in the grid are not saved yet.</p>' }))) return;
     const d = await call('getLogEditData', m.id, $('lx_from').value, $('lx_to').value);
-    LX.d = d; LX.deleted = []; LX.odsl = '';
+    LX.d = d; LX.deleted = []; LX.odsl = ''; LX.locks = d.locks || [];
     const md0 = modesOf(d.machine).concat(DAY_STATUS);
     LX.rows = d.rows.map(r => { const x = { key: r.key, half: !!r.half, date: r.date, shift: r.shift || 'Full Day', mode: md0.indexOf(r.mode) > -1 ? r.mode : (md0.indexOf(r.unit) > -1 ? r.unit : md0[0] || r.unit), okm: r.okm, ckm: r.ckm, ohr: r.ohr, chr: r.chr,
       tStart: r.tStart || '', tEnd: r.tEnd || '', tBrk: r.tBrk === undefined ? '' : r.tBrk, trip: r.trip === undefined ? '' : r.trip, challan: r.challan || '', remark: r.remark || '', chFrom: r.chFrom, chTo: r.chTo, work: r.work || r.remark, odsl0: r.odsl, odSet: r.odSet === undefined ? '' : r.odSet,
-      items: Object.assign({}, r.itemWork || {}), itemSig: itemSig((d.boqItems || {})[r.date], r.itemWork || {}) }; x.orig = Object.assign({}, x); return x; });
+      items: Object.assign({}, r.itemWork || {}), itemSig: itemSig((d.boqItems || {})[r.date], r.itemWork || {}) }; x.orig = Object.assign({}, x); x.lock = lxLockOf(x.date); return x; });
     $('lx_no').value = d.machine.id;
     $('lx_panel').hidden = false;
     lxRender();
   }
+  // the submitted bill that holds a date of this machinery (null = the date is free): its entries are shown, not changed
+  const lxLockOf = dk => (LX.locks || []).find(L => L.from <= dk && dk <= L.to) || null;
   // diesel issued for a row, from the day's Diesel Issue (Full Day = both shifts)
   const lxIssued = r => { const d = (LX.d.diesel || {})[r.date] || { Day: 0, Night: 0 }; return r.shift === 'Full Day' ? r2(d.Day + d.Night) : r.shift === 'Night' ? d.Night : d.Day; };
   function lxRender() {
@@ -7013,6 +7165,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('lx_prev').innerHTML = d.prev ? 'Entry before: <b>' + esc(showDate(d.prev.date)) + ' (' + esc(d.prev.shift) + ')</b> closed at <b>' + two(d.prev.ckm, d.prev.chr) + '</b>, diesel left <b>' + fmt(d.prev.stock) + ' L</b>.' : 'No entry before ' + esc(showDate(d.from)) + ' – the first row is the first entry of this machinery.';
     $('lx_next').innerHTML = d.next ? 'Entry after: <b>' + esc(showDate(d.next.date)) + ' (' + esc(d.next.shift) + ')</b> starts at <b>' + two(d.next.okm, d.next.ohr) + '</b> – it follows the last Close here when it was joined to it, or when that Close passes it.' : '';
     const rd = (f, u, v) => '<input type="number" step="0.01" min="0" data-f="' + f + '" value="' + (v === '' || v === undefined || v === null ? '' : v) + '" title="' + (u || '') + '">';
+    $('lx_lock').hidden = !(LX.locks || []).length;
+    $('lx_lock').innerHTML = (LX.locks || []).map(L => '<b>' + esc(showDate(L.from < d.from ? d.from : L.from)) + ' to ' + esc(showDate(L.to > d.to ? d.to : L.to)) + ' are in the submitted RA Bill ' + esc(L.billNo) + (L.rev ? ' rev ' + L.rev : '') + '</b> of ' + esc(L.vendor) + ' (' + esc(L.company) + ', ' + esc(showDate(L.from)) + ' to ' + esc(showDate(L.to)) +
+      ') – the entries of those dates are shown but cannot be added, changed or deleted. <b>To correct them:</b> the Admin deletes that bill (RCL Drive → Saved Bills → Delete), then the correction is made, and the bill is built and submitted again.').join('<br>');
     $('lx_head').innerHTML = '<tr><th class="sel"><input type="checkbox" id="lx_selall" title="Select all rows" aria-label="Select all rows"></th><th>#</th><th>Date</th><th>Shift</th>' + (wayCol ? '<th>Measured by</th>' : '') + (km ? '<th class="n">Start KM</th><th class="n">Close KM</th>' : '') + (hr ? '<th class="n">Start Hrs</th><th class="n">Close Hrs</th>' : '') + (tmCol ? '<th>Time / Trips</th>' : '') +
       '<th class="n">Total</th>' + (itemCol ? '<th>Items (BOQ)</th>' : '') + '<th class="n lx-dx">Opening diesel</th><th class="n lx-di">Issued</th><th class="n lx-dx">Consumed</th><th class="n lx-dx" title="Diesel left in the machinery, worked out with the Standard Average (not measured)">Closing diesel (est.)</th><th class="lx-chn">Challan No</th><th class="lx-prt">Particular</th><th class="lx-chc">Chainage From</th><th class="lx-chc">To</th><th>Work description</th><th></th></tr>';
     $('lx_rows').innerHTML = LX.rows.map((r, i) => '<tr data-i="' + i + '"><td class="sel"><input type="checkbox" class="lx-sel" aria-label="Select row"' + (r._sel ? ' checked' : '') + '></td><td>' + (i + 1) + (r.isNew ? '<span class="tag n">NEW</span>' : '') + '</td>' +
@@ -7030,6 +7185,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<td class="lx-chc"><input class="txt" data-f="chFrom" value="' + esc(r.chFrom || '') + '"></td><td class="lx-chc"><input class="txt" data-f="chTo" value="' + esc(r.chTo || '') + '"></td>' +
       '<td><input class="wk" data-f="work" value="' + esc(need.part ? (r.work || '') : (r.work || r.remark || '')) + '"></td><td><button class="del" title="Delete this row" aria-label="Delete row">×</button></td></tr>').join('') ||
       '<tr><td colspan="20" class="none">No entries in these dates – use "+ Add row" or "Add all missing dates".</td></tr>';
+    // entries of a submitted bill: read-only (and marked)
+    $('lx_rows').querySelectorAll('tr[data-i]').forEach(tr => { const r = LX.rows[Number(tr.dataset.i)]; if (!r || !r.lock) return; tr.dataset.lk = '1';
+      tr.querySelectorAll('input, select, button').forEach(el => { el.disabled = true; }); const del = tr.querySelector('button.del'); if (del) del.style.visibility = 'hidden';
+      tr.children[2].insertAdjacentHTML('beforeend', lockTag(r.lock)); });
     lxCalc(); lxSelSum();
   }
   // live figures: total, consumed, opening / closing diesel, and which rows changed
@@ -7058,7 +7217,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (misK || misH) {
         if (!note) { tr.children[2].insertAdjacentHTML('beforeend', '<div class="lx-note"></div>'); note = tr.querySelector('.lx-note'); }
         const when = 'the last reading before it';
-        note.innerHTML = 'Start cannot be less than <b>' + [misK ? fmt(expK) + (hr ? ' km' : '') : '', misH ? fmt(expH) + (km ? ' hr' : '') : ''].filter(Boolean).join(' / ') + '</b> (Close of ' + esc(when) + ') <button class="lx-fix" data-fix="' + i + '">Use it</button>';
+        note.innerHTML = 'Start cannot be less than <b>' + [misK ? fmt(expK) + (hr ? ' km' : '') : '', misH ? fmt(expH) + (km ? ' hr' : '') : ''].filter(Boolean).join(' / ') + '</b> (Close of ' + esc(when) + ')' + (r.lock ? ' – this entry is in RA Bill ' + esc(r.lock.billNo) + ': lower the Close before it' : ' <button class="lx-fix" data-fix="' + i + '">Use it</button>');
       } else if (gapK || gapH) {
         if (!note) { tr.children[2].insertAdjacentHTML('beforeend', '<div class="lx-note"></div>'); note = tr.querySelector('.lx-note'); }
         note.innerHTML = '<span class="muted">' + [gapK ? fmt(gapK) + ' km' : '', gapH ? fmt(gapH) + ' hr' : ''].filter(Boolean).join(' + ') + ' ran elsewhere before this entry – not counted</span>';
@@ -7081,7 +7240,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       tr.querySelector('.cl').innerHTML = '<b>' + fmt(close) + '</b>' + (capX && close > capX ? '<small class="over-cap">more than the ' + fmt(capX) + ' L tank</small>' : '');
       tr.querySelector('.cl').classList.toggle('overcap', !!capX && close > capX);
       const c = lxChanged(r);
-      tr.className = isBad ? 'bad' : r.isNew ? 'new' : c ? 'chg' : '';
+      tr.className = (isBad ? 'bad' : r.isNew ? 'new' : c ? 'chg' : '') + (r.lock ? ' lk' : '');
       const td1 = tr.children[1]; if (!r.isNew) td1.innerHTML = (i + 1) + (c ? '<span class="tag c">CHANGED</span>' : '');
       if (isBad) bad++; if (c) chg++;
       tk += wk > 0 ? wk : 0; th += wh > 0 ? wh : 0; ti += iss; tc += need; open = close;
@@ -7107,7 +7266,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (f === 'date' || f === 'shift' || f === 'mode') return;
     r[f] = e.target.type === 'number' ? lxN(e.target.value) : e.target.value;
     if (f === 'ckm' || f === 'chr') {
-      const ni = lxNextReader(Number(tr.dataset.i), f), nx = ni > -1 ? LX.rows[ni] : null;
+      const ni = lxNextReader(Number(tr.dataset.i), f), nx = ni > -1 && !LX.rows[ni].lock ? LX.rows[ni] : null;      // (an entry of a submitted bill keeps its Start)
       if (nx) { const sf = f === 'ckm' ? 'okm' : 'ohr'; nx[sf] = r[f]; const inp = $('lx_rows').querySelector('tr[data-i="' + ni + '"] [data-f=' + sf + ']'); if (inp) { inp.value = r[f] === '' ? '' : r[f]; inp.classList.add('moved'); setTimeout(() => inp.classList.remove('moved'), 900); } }
     }
     lxCalc();
@@ -7118,7 +7277,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const f = e.target.dataset.f;
     if (f === 'half') { LX.rows[Number(tr.dataset.i)].half = !!e.target.checked; S.formDirty = true; lxCalc(); return; }      // "½ day": paid as half a day in the bill (the Save button learns of the change)
     if (f !== 'date' && f !== 'shift' && f !== 'mode') return;
-    const r = LX.rows[Number(tr.dataset.i)]; r[f] = e.target.value;
+    const r = LX.rows[Number(tr.dataset.i)];
+    if (f === 'date' && lxLockOf(e.target.value)) { lockStop(lxLockOf(e.target.value), LX.d.machine.id, e.target.value, 'Log Book entry'); e.target.value = r.date; return; }
+    r[f] = e.target.value;
     if (f === 'mode') { if (!hasKm(r.mode)) { r.okm = ''; r.ckm = ''; } if (!hasHr(r.mode)) { r.ohr = ''; r.chr = ''; } }
     if (f !== 'mode') lxFullToDay(r);
     S.formDirty = true; lxPlace(r); lxRender();
@@ -7129,12 +7290,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const pk = lxPrevRead(i, 'ckm'), ph = lxPrevRead(i, 'chr');
     if (hasKm(lxWay(r)) && pk !== null) r.okm = pk; if (hasHr(lxWay(r)) && ph !== null) r.ohr = ph;
     const nk = lxNextReader(i, 'ckm'), nh = lxNextReader(i, 'chr');
-    if (nk > -1 && hasKm(lxWay(r)) && r.ckm !== '') LX.rows[nk].okm = r.ckm; if (nh > -1 && hasHr(lxWay(r)) && r.chr !== '') LX.rows[nh].ohr = r.chr;
+    if (nk > -1 && !LX.rows[nk].lock && hasKm(lxWay(r)) && r.ckm !== '') LX.rows[nk].okm = r.ckm; if (nh > -1 && !LX.rows[nh].lock && hasHr(lxWay(r)) && r.chr !== '') LX.rows[nh].ohr = r.chr;
   }
   // "Use it": put the suggested Start (the Close before it)
   $('lx_rows').addEventListener('click', e => {
     const fx = e.target.closest('.lx-fix'); if (!fx) return;
-    const i = Number(fx.dataset.fix), r = LX.rows[i]; if (!r || !r._fix) return;
+    const i = Number(fx.dataset.fix), r = LX.rows[i]; if (!r || !r._fix || r.lock) return;
     if (r._fix.k !== null) r.okm = r._fix.k; if (r._fix.h !== null) r.ohr = r._fix.h;
     const tr = $('lx_rows').querySelector('tr[data-i="' + i + '"]');
     if (r._fix.k !== null) tr.querySelector('[data-f=okm]').value = r.okm; if (r._fix.h !== null) tr.querySelector('[data-f=ohr]').value = r.ohr;
@@ -7142,11 +7303,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   });
   // remove rows (one with ×, or all selected): the row after each gap starts where the row before it closed
   function lxRemove(list) {
-    const gone = new Set(list);
+    const gone = new Set(list.filter(r => !r.lock));      // (an entry of a submitted bill is not removed)
     LX.rows.forEach(r => { if (gone.has(r) && !r.isNew) LX.deleted.push(r.key); });
     LX.rows = LX.rows.filter(r => !gone.has(r));
     // every row that reads a meter starts where the last reading of that meter before it closed
-    LX.rows.forEach((r, i) => { const pk = lxPrevRead(i, 'ckm'), ph = lxPrevRead(i, 'chr'); if (hasKm(lxWay(r)) && pk !== null) r.okm = pk; if (hasHr(lxWay(r)) && ph !== null) r.ohr = ph; });
+    LX.rows.forEach((r, i) => { if (r.lock) return; const pk = lxPrevRead(i, 'ckm'), ph = lxPrevRead(i, 'chr'); if (hasKm(lxWay(r)) && pk !== null) r.okm = pk; if (hasHr(lxWay(r)) && ph !== null) r.ohr = ph; });
     lxRender(); lxSelSum();
   }
   $('lx_rows').addEventListener('click', e => {
@@ -7166,7 +7327,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   });
   document.addEventListener('change', e => {
     if (e.target.id !== 'lx_selall') return;
-    LX.rows.forEach(r => { r._sel = e.target.checked; });
+    LX.rows.forEach(r => { r._sel = e.target.checked && !r.lock; });      // (entries of a submitted bill are not picked)
     document.querySelectorAll('#lx_rows .lx-sel').forEach(x => { x.checked = e.target.checked; }); lxSelSum();
   });
   $('lx_delsel').addEventListener('click', async () => {
@@ -7181,7 +7342,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function lxMissing() {
     const have = {}; LX.rows.forEach(r => { have[r.date] = true; });
     const out = [], t = new Date(LX.d.from + 'T00:00:00'), end = LX.d.to < S.today ? LX.d.to : S.today;
-    for (let k = 0; k < 100; k++) { const dk = isoDate(t); if (dk > end) break; if (!have[dk]) out.push(dk); t.setDate(t.getDate() + 1); }
+    for (let k = 0; k < 100; k++) { const dk = isoDate(t); if (dk > end) break; if (!have[dk] && !lxLockOf(dk)) out.push(dk); t.setDate(t.getDate() + 1); }      // (dates of a submitted bill take no new entry)
     return out;
   }
   function lxAdd(dk) {
@@ -7200,7 +7361,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function lxFullToDay(r) { if (r.shift !== 'Night') return; LX.rows.forEach(x => { if (x !== r && x.date === r.date && x.shift === 'Full Day') x.shift = 'Day'; }); }
   function lxAddShift(dk) {
     const m = LX.d.machine, md = modesOf(m), same = LX.rows.filter(x => x.date === dk), has = sh => same.some(x => x.shift === sh);
-    if (!same.length || (has('Day') && has('Night'))) return null;
+    if (!same.length || (has('Day') && has('Night')) || lxLockOf(dk)) return null;
     const shift = has('Night') ? 'Day' : 'Night', like = same[0];
     const r = { key: '', isNew: true, half: false, date: dk, shift: shift, mode: md.indexOf(lxWay(like)) > -1 ? lxWay(like) : (md.indexOf(m.unit) > -1 ? m.unit : md[0] || m.unit),
       okm: '', ckm: '', ohr: '', chr: '', tStart: '', tEnd: '', tBrk: '', trip: '', challan: '', chFrom: like.chFrom || '', chTo: like.chTo || '', work: '', items: {}, itemSig: '', orig: {} };
@@ -7219,7 +7380,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       return;
     }
     const miss = lxMissing();
-    if (!miss.length) { toast('Every date in this range has an entry. To add a Night (or Day) entry to a date: tick its row, then press "+ Add row".', true); return; }
+    if (!miss.length) { toast((LX.locks || []).length ? 'No date is free in this range: every date has its entry or is in a submitted bill (see the note above the grid – a date of a submitted bill takes no new entry). To add a Night (or Day) entry to a free date: tick its row, then press "+ Add row".'
+      : 'Every date in this range has an entry. To add a Night (or Day) entry to a date: tick its row, then press "+ Add row".', true); return; }
     // first missing date after the first entry (or the very first missing date)
     const first = LX.rows.length ? LX.rows[0].date : '';
     lxAdd(miss.find(dk => dk > first) || miss[0]); lxRender();
@@ -7243,7 +7405,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!(await askConfirm({ title: 'Save Log Book of ' + m.id + '?', ok: 'Save', html: listHtml([ch + ' entr' + (ch === 1 ? 'y' : 'ies') + ' changed', nw + ' new entr' + (nw === 1 ? 'y' : 'ies') + ' added', LX.deleted.length + ' entr' + (LX.deleted.length === 1 ? 'y' : 'ies') + ' deleted']) +
       (d.next ? '<p>The entry after (' + esc(showDate(d.next.date)) + ') will start at the last Close here.</p>' : '') + '<p>Totals, diesel Opening / Closing and averages are worked out again for this machinery.</p>' }))) return;
     const rows = LX.rows.map(r => { const w = lxWay(r), k = hasKm(w), h = hasHr(w);
-      return { key: r.key || '', half: !!r.half, date: r.date, shift: r.shift, mode: w, openingKm: k ? r.okm : '', closingKm: k ? r.ckm : '', openingHr: h ? r.ohr : '', closingHr: h ? r.chr : '',
+      return { key: r.key || '', same: !r.isNew && !lxChanged(r), half: !!r.half, date: r.date, shift: r.shift, mode: w, openingKm: k ? r.okm : '', closingKm: k ? r.ckm : '', openingHr: h ? r.ohr : '', closingHr: h ? r.chr : '',
         tStart: w === 'Time' || w === 'Trip' ? r.tStart || '' : '', tEnd: w === 'Time' || w === 'Trip' ? r.tEnd || '' : '', tBreak: w === 'Time' ? r.tBrk : '', remark: r.remark || '', trip: w === 'Trip' || (m.lbFormat === 'B' && DAY_STATUS.indexOf(w) === -1) ? r.trip : '', challan: w === 'Trip' || w === 'Time' ? (r.challan || '') : (r.challan || ''),
         chFrom: r.chFrom || '', chTo: r.chTo || '', work: r.work || '', odSet: /-01$/.test(r.date) ? (r.odSet ?? '') : '',
         items: ((d.boqItems || {})[r.date] || []).length ? (r.items || {}) : undefined }; });
@@ -9009,10 +9171,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<td><input class="mb-no" value="' + esc(b.billNo) + '" placeholder="' + (b.firstBill ? 'first bill – type no.' : '') + '"' + (b.firstBill ? ' title="First bill of this vendor under this name – type its RA bill number; after this the next number comes by itself"' : '') + '></td>' +
       '<td>' + (b.edited ? '<span class="st bad">Changed by hand</span> ' : '') + (b.warnings.length ? '<span class="st low" title="' + esc(b.warnings.join(' · ')) + '">' + b.warnings.length + ' to check</span>' : '<span class="st ok">OK</span>') +
       ' <button class="link" data-mblog="' + i + '" title="Log Book of this vendor\'s machinery for these dates">Log Book</button></td></tr>').join('');
+    S.mb.lb = L.map(b => mbLogSheets(b));      // each bill's Log Book sheets (shown under its papers, printed after them)
     $('mb_pages').innerHTML = L.map((b, i) => '<div class="mb-page" data-i="' + i + '"><div class="mb-paper" contenteditable="true" spellcheck="false">' + billHtml(b, false) + '</div>' +
       '<div class="mb-doc-h">Tax Invoice – ' + esc(b.vendor.name) + '</div><div class="mb-paper mb-doc">' + taxInvoiceHtml(b) + '</div>' +
       (gstDeclOn(b) ? '<div class="mb-doc-h">Declaration of GST non-enrolment – ' + esc(b.vendor.name) + ' <small>(no GST number in Vendor Master)</small></div><div class="mb-paper mb-doc">' + gstDeclHtml(b) + '</div>' : '') +
-      (b.B > 0 ? '<div class="mb-doc-h">Debit Note (diesel) – ' + esc(b.vendor.name) + '</div><div class="mb-paper mb-doc">' + debitNoteHtml(b) + '</div>' : '') + '</div>').join('');
+      (b.B > 0 ? '<div class="mb-doc-h">Debit Note (diesel) – ' + esc(b.vendor.name) + '</div><div class="mb-paper mb-doc">' + debitNoteHtml(b) + '</div>' : '') +
+      (S.mb.lb[i] ? '<div class="mb-doc-h">Log Book – ' + esc(b.vendor.name) + ' <small>(' + b.machines.length + ' machinery, one page each)</small></div><iframe class="mb-lbf" data-i="' + i + '" title="Log Book of ' + esc(b.vendor.name) + '"></iframe>' : '') + '</div>').join('');
+    mbLogFrames();
   }
   $('mb_rows').addEventListener('input', e => {
     const tr = e.target.closest('tr'); if (!tr) return; const b = S.mb.bills[Number(tr.dataset.i)];
@@ -9036,10 +9201,30 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   });
   // a bill changed by hand on the page: it can be printed, not submitted
   $('mb_pages').addEventListener('input', e => { const p = e.target.closest('.mb-page'); if (!p) return; const b = S.mb.bills[Number(p.dataset.i)]; if (!b.edited) { b.edited = true; const tr = document.querySelector('#mb_rows tr[data-i="' + p.dataset.i + '"] td:last-child'); if (tr) tr.insertAdjacentHTML('afterbegin', '<span class="st bad">Changed by hand</span> '); } });
+  /* THE LOG BOOK IS ONE OF A BILL'S PAPERS (asked 06-10-2026: "Tax Invoice, Abstract, Log Book, Debit Note if any and the Declaration
+   * together – when I build the bill, in the print after submitting, and in the saved bill"). On the bill page the Log Book of each
+   * bill's machinery stands under its papers (the same sheets as "Print Log Book", from the entries the bill was built from, the
+   * bill's own Paid / Not paid for Idle days, under the bill's company name); "Print Preview" and the print after "Verify & Submit"
+   * carry it after each bill's papers. Order of a bill: Abstract, Tax Invoice, GST Declaration, Debit Note, Log Book. */
+  function mbLogSheets(b) {
+    const L = S.mb.logs; if (!L || !b) return '';
+    const nos = new Set((b.machines || []).map(m => String(m.noNow || m.no).toUpperCase()));
+    const rows = (L.rows || []).filter(r => nos.has(String(r.no).toUpperCase())); if (!rows.length) return '';
+    const idle = {}; nos.forEach(n => { idle[n.replace(/[^A-Z0-9]/g, '')] = b.idlePaid !== false; });
+    try { return logSheetsBuild({ rows: rows, f: { from: L.from, to: L.to }, summary: [], idle: idle }, b.company, L.extra).sheets; } catch (e) { return ''; }
+  }
+  // the Log Book sheets shown on the bill page exactly as they print (in a frame of their own, with the print's styles)
+  function mbLogFrames() {
+    document.querySelectorAll('#mb_pages iframe.mb-lbf').forEach(fr => { const lb = (S.mb.lb || [])[Number(fr.dataset.i)] || '';
+      fr.onload = () => { try { const d = fr.contentDocument; fitWideTables(d); fitLogPages(d); fr.style.height = (d.documentElement.scrollHeight + 6) + 'px'; } catch (e) { /* shown as it is */ } };
+      fr.srcdoc = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' + PRINT_CSS + ' html, body { background: #fff; } .sheet { margin: 0 auto !important; box-shadow: none !important; padding-top: 4mm !important; } .lbsheet + .lbsheet { margin-top: 10mm; border-top: 1px dashed #94A3B8; padding-top: 8mm; }</style><style id="orient">' + ORIENT_CSS.P + '</style></head><body class="rep rep-lb"><div class="sheet">' + lb + '</div></body></html>'; });
+  }
   function mbPrint(preview) {
-    const pages = [...document.querySelectorAll('#mb_pages .mb-paper')].map((el, i) => '<section class="billsheet' + (preview ? ' draft' : '') + '">' + el.innerHTML + '</section>').join('');
+    let anyLb = false;
+    const pages = [...document.querySelectorAll('#mb_pages .mb-page')].map(pg => { const lb = (S.mb.lb || [])[Number(pg.dataset.i)] || ''; if (lb) anyLb = true;
+      return [...pg.querySelectorAll('.mb-paper')].map(el => '<section class="billsheet' + (preview ? ' draft' : '') + '">' + el.innerHTML + '</section>').join('') + lb; }).join('');
     const title = (preview ? 'Bill preview' : 'Abstract of Bill') + ' – ' + showDate($('mb_from').value) + ' to ' + showDate($('mb_to').value);
-    printDoc(title, pages, 'rep rep-bill', true, $('mb_co').value);
+    printDoc(title, pages, 'rep rep-bill' + (anyLb ? ' rep-lb' : ''), true, $('mb_co').value);
   }
   $('mb_preview').addEventListener('click', () => { if (!S.mb.bills.length) return; mbPrint(true); });
   // Log Book print from here too (same print as the Log Book page): all vendors of the bills, or one vendor
@@ -9089,8 +9274,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     mbRender(); mbLoadInit();
     // open the submitted bills exactly as saved – with Print
     const got = await Promise.all(res.saved.map(x => call('getBills', { id: x.id }).then(r => r.bills[0]).catch(() => null)));
-    const pages = got.filter(Boolean).map(b => billSheets(Object.assign({ dnNo: b.dnNo }, b.data, { billNo: b.billNo, rev: b.rev }), '')).join('');   // every bill with its papers: Abstract, Tax Invoice, diesel Debit Note
-    if (pages) printDoc('Submitted bill' + (got.length === 1 ? '' : 's') + ' – ' + showDate($('mb_from').value) + ' to ' + showDate($('mb_to').value), pages, 'rep rep-bill', true, $('mb_co').value);
+    let anyLb = false;
+    const pages = got.filter(Boolean).map(b => { const lb = mbLogSheets(Object.assign({}, b.data, { company: b.company })); if (lb) anyLb = true;
+      return billSheets(Object.assign({ dnNo: b.dnNo }, b.data, { billNo: b.billNo, rev: b.rev }), '') + lb; }).join('');   // every bill with its papers: Abstract, Tax Invoice, GST Declaration, diesel Debit Note, Log Book
+    if (pages) printDoc('Submitted bill' + (got.length === 1 ? '' : 's') + ' – ' + showDate($('mb_from').value) + ' to ' + showDate($('mb_to').value), pages, 'rep rep-bill' + (anyLb ? ' rep-lb' : ''), true, $('mb_co').value);
   }));
   // the bill page (Abstract of Bill) – used for the preview, the print and the saved bills
   /* The last fill of the period is partly still in the tank – the same rule as the server's tankLeft_ (see there). */
@@ -12275,6 +12462,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     await askConfirm({ title: 'Fill these first', ok: 'OK', alertOnly: true, html: listHtml(miss) });
     return false;
   }
+  /* AN ENTRY IN A SUBMITTED BILL (rule of 06-10-2026): the lists mark it, and going to edit or delete it says at once what the server
+   * would say on saving – with the way out. (The server is the one that refuses; this only saves the person the typing.) */
+  const lockText = (L, no, dk, what) => (what || 'Entry') + ' of ' + no + ' on ' + showDate(dk) + ': this machinery is in the submitted RA Bill ' + L.billNo + (L.rev ? ' rev ' + L.rev : '') + ' of ' + L.vendor + ' (' + L.company + ', ' + showDate(L.from) + ' to ' + showDate(L.to) +
+    ') – its Log Book and diesel entries of those dates cannot be added, changed or deleted. To correct them: the Admin deletes that bill (RCL Drive → Saved Bills → Delete), then the correction is made, and the bill is built and submitted again.';
+  const lockStop = (L, no, dk, what) => { if (!L) return false; toast(lockText(L, no, dk, what), true); return true; };
+  const lockTag = L => L ? ' <span class="tag lk" title="In the submitted RA Bill ' + esc(L.billNo) + ' (' + esc(showDate(L.from)) + ' to ' + esc(showDate(L.to)) + ') – cannot be changed until that bill is deleted">RA Bill ' + esc(L.billNo) + '</span>' : '';
   function clearDiesel() {
     ['d_no', 'd_qty', 'd_km', 'd_hr', 'd_driver', 'd_remark'].forEach(id => $(id).value = '');
     S.editDieselId = null;
@@ -12283,6 +12476,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function editDiesel(id) {
     const r = (S.dieselRows || []).find(x => x.id === id); if (!r) return;
+    if (r.lk && lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
     setDieselMode('one');
     S.editDieselId = r.id;
     $('d_date').value = r.date; $('d_shift').value = r.shift; $('d_src').value = r.source || S.locations[0];
@@ -12295,6 +12489,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   async function deleteDiesel(id) {
     const r = (S.dieselRows || []).find(x => x.id === id); if (!r) return;
+    if (r.lk && lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
     if (!(await askConfirm({ title: 'Delete ' + r.id + '?', danger: true, ok: 'Delete',
       html: listHtml([r.no + ' – ' + fmt(r.qty) + ' Ltr from ' + r.source, showDate(r.date) + ', ' + r.shift + ' shift', 'Driver: ' + (r.driver || '–')]) + '<p>This cannot be undone. The Log Book for this date and shift will be recalculated.</p>' }))) return;
     await call('deleteDieselIssue', r.id);
@@ -12397,11 +12592,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       S.dTotal = Number(res.totalQty) || 0; S.dShare = res.share || [];
       if (seq !== dieselSeq) return; // a newer filter is loading
       const rows = res.rows;
-      S.dieselRows = rows;
+      S.dieselRows = rows; S.dieselLocks = res.locks || {};
       $('d_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Total diesel: <b>' + fmt(res.totalQty) + ' Ltr</b>' +
         (res.count > rows.length ? ' &nbsp; (showing latest ' + rows.length + ' – narrow the filter to see the rest)' : '');
       $('d_rows').innerHTML = rows.length ? rows.map(r =>
-        '<tr><td>' + esc(r.id) + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + '</td><td>' + esc(r.source) + '</td><td>' + esc(r.no) + '</td><td>' + esc(r.type) + '</td><td>' + esc(r.owner) + '</td><td>' + esc(r.driver) +
+        '<tr><td>' + esc(r.id) + (r.lk ? lockTag(S.dieselLocks[r.lk]) : '') + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + '</td><td>' + esc(r.source) + '</td><td>' + esc(r.no) + '</td><td>' + esc(r.type) + '</td><td>' + esc(r.owner) + '</td><td>' + esc(r.driver) +
         '</td><td class="n">' + fmt(r.qty) + '</td><td class="n">' + [r.kmReading !== '' ? fmt(r.kmReading) + ' km' : '', r.hrReading !== '' ? fmt(r.hrReading) + ' hr' : ''].filter(Boolean).join('<br>') +
         '</td><td class="n' + (r.balance !== '' && r.balance < 0 ? ' neg' : '') + '"><b>' + fmt(r.balance) + '</b></td><td>' + esc(r.remark) +
         '</td><td class="n">' + (S.dTotal > 0 ? fmt(r2((Number(r.qty) || 0) / S.dTotal * 100)) + '%' : '–') + '</td>' + byCell(r) + '<td>' + rowActions('Diesel Issue', 'data-dedit', 'data-ddel', r.id) + '</td></tr>').join('')
@@ -13092,6 +13287,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   async function openLogEdit(key) {
     const e = await call('getLogEntry', key);
+    if (lockStop(e.lock, e.no, e.date, 'Log Book entry')) return;
     leCur = e;
     const km = hasKm(e.unit), hr = hasHr(e.unit);
     $('le_title').textContent = 'Edit Log Book – ' + e.no;
@@ -13151,6 +13347,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }));
   async function deleteLogEntry(key) {
     const e = await call('getLogEntry', key);
+    if (lockStop(e.lock, e.no, e.date, 'Log Book entry')) return;
     const hint = e.next ? '<p>The next entry <b>' + esc(showDate(e.next.date)) + ' (' + esc(e.next.shift) + ')</b> will then start from ' +
       (e.prev ? 'the Close of ' + esc(showDate(e.prev.date)) + ' (<b>' + esc(lg2(hasKm(e.unit) ? e.prev.ckm : '', hasHr(e.unit) ? e.prev.chr : '')) + '</b>)' : 'its own Start (it becomes the first entry)') +
       ', and all later entries update automatically.</p>' : '';
@@ -13194,6 +13391,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   // the Log Book sheets (one per machinery) of some entries, under a company name: { title, sheets } – for the Log Book print and for a saved bill's papers
   async function logSheetsOf(L, headName) {
+    const dates = L.rows.map(r => r.date).sort(), from = L.f.from || dates[0], to = L.f.to || S.today;
+    let extra = { debit: {} };
+    try { extra = await call('logPrintExtra', { from: from, to: to, nos: [...new Set(L.rows.map(r => r.no))] }) || extra; } catch (e) { /* bill part without debit / BOQ */ }
+    return logSheetsBuild(L, headName, extra);
+  }
+  // (the same, when the diesel / BOQ data of the dates – "extra" – is already in hand: nothing is asked from the server)
+  function logSheetsBuild(L, headName, extra0) {
     const LBOPT = { fmt: L && L.fmt, sample: L && L.sample }; // "View format": a format to show, and a SAMPLE mark
     const IDLE_BY = (L && L.idle) || null; // from a bill: { machinery: Idle days paid? } – as chosen in that bill
     const ord = { 'Day': 0, 'Full Day': 0, 'Night': 1 };
@@ -13201,8 +13405,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const rows = L.rows.slice().sort((a, b) => nc(a.no, b.no) || (a.date < b.date ? -1 : a.date > b.date ? 1 : (ord[a.shift] || 0) - (ord[b.shift] || 0)));
     const dates = rows.map(r => r.date).sort();
     const from = L.f.from || dates[0], to = L.f.to || S.today;
-    let extra = { debit: {} };
-    try { extra = await call('logPrintExtra', { from: from, to: to, nos: [...new Set(rows.map(r => r.no))] }) || extra; } catch (e) { /* bill part without debit / BOQ */ }
+    const extra = extra0 || { debit: {} };
     const by = {}; rows.forEach(r => { (by[r.no] = by[r.no] || []).push(r); });
     const n2 = v => (Number(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const n0 = v => v === '' || v === null || v === undefined ? '' : fmt(v);
@@ -13463,14 +13666,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const res = await call('getLogBookList', f);
       if (seq !== logSeq) return;
       const rows = res.rows, t = res.totals;
-      S.logList = { rows: rows, f: f, count: res.count, summary: res.summary || [] };
+      S.logList = { rows: rows, f: f, count: res.count, summary: res.summary || [], locks: res.locks || {} };
       renderLogSummary(res.summary || [], f, rows);
       $('l_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Machinery: <b>' + t.machines + '</b>' + (t.km ? ' &nbsp; KM: <b>' + fmt(t.km) + '</b>' : '') + (t.hr ? ' &nbsp; Hrs: <b>' + fmt(t.hr) + '</b>' : '') +
         ' &nbsp; Issued: <b>' + fmt(t.issued) + ' L</b> &nbsp; Consumed: <b>' + fmt(t.consumed) + ' L</b>' + (res.count > rows.length ? ' &nbsp; (showing latest ' + rows.length + ')' : '');
       const stdTxt = r => [r.kmStd ? r.kmStd + ' km/L' : '', r.hrStd ? r.hrStd + ' L/hr' : ''].filter(Boolean).join(' + ');
       const two = (a, b, u) => [a !== '' ? fmt(a) + (u ? ' km' : '') : '', b !== '' ? fmt(b) + (u ? ' hr' : '') : ''].filter(Boolean).join('<br>');
       $('l_rows').innerHTML = rows.length ? rows.map(r =>
-        '<tr><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + (r.half ? ' <span class="tag half" title="Half day – the bill pays this entry as half a day">½ day</span>' : '') + '</td><td><b>' + esc(r.no) + '</b>' + (r.type ? ' <small>' + esc(r.type) + '</small>' : '') + '</td><td>' + esc(r.unit) + '</td>' +
+        '<tr><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + (r.half ? ' <span class="tag half" title="Half day – the bill pays this entry as half a day">½ day</span>' : '') + '</td><td><b>' + esc(r.no) + '</b>' + (r.type ? ' <small>' + esc(r.type) + '</small>' : '') + (r.lk ? lockTag(((S.logList || {}).locks || {})[r.lk]) : '') + '</td><td>' + esc(r.unit) + '</td>' +
         (r.unit === 'Time' ? '<td class="n">' + esc(r.tStart || '') + '</td><td class="n">' + esc(r.tEnd || '') + (r.tBrk ? '<br><small>break ' + fmt(r.tBrk) + ' min</small>' : '') + '</td>'
           : DAY_STATUS.indexOf(r.unit) > -1 ? '<td class="n">–</td><td class="n"><span class="lg-hol">' + r.unit + '</span></td>'
           : r.unit === 'Trip' ? '<td class="n">–</td><td class="n">' + fmt(r.trip) + ' <small>trips</small>' + (r.challan ? '<br><small>Challan ' + esc(r.challan) + '</small>' : '') + '</td>' : r.unit === 'Day' ? '<td class="n">–</td><td class="n"><small>day</small></td>'
