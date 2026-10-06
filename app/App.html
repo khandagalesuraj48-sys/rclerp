@@ -2596,7 +2596,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="lx-q"><button class="btn ghost small" data-yday="lx_from|lx_to|">Yesterday</button><button class="btn ghost small" data-lxr="this">This month</button><button class="btn ghost small" data-lxr="last">Last month</button></div>
         <button class="btn primary" id="lx_load">Open entries</button>
       </div>
-      <p class="lx-rule">Change any reading – everything updates live. When you change a <b>Close</b>, the next row's <b>Start</b> follows it. Add missing dates or delete rows, then press <b>Save changes</b>. Nothing is saved until then.</p>
+      <p class="lx-rule">Change any reading – everything updates live. When you change a <b>Close</b>, the next row's <b>Start</b> follows it. Add missing dates or delete rows, then press <b>Save changes</b>. Nothing is saved until then.<br>A <b>Night</b> entry for a date that already has its entry: tick that row and press <b>+ Add row</b>; tick <b>½</b> for a half night.</p>
     </div>
     <div class="panel" id="lx_panel" hidden>
       <div class="panel-head"><h2 id="lx_title"></h2><span class="chart-note" id="lx_info"></span></div>
@@ -2608,7 +2608,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       </table></div>
       <div class="lx-edge" id="lx_next"></div>
       <div class="actions">
-        <button class="btn ghost" id="lx_add">+ Add row</button>
+        <button class="btn ghost" id="lx_add" title="Adds a row for the first date without an entry. With rows ticked: adds the other shift (Night / Day) for the ticked dates.">+ Add row</button>
         <button class="btn ghost" id="lx_fill">Add all missing dates</button>
         <button class="btn primary" id="lx_save" disabled>Save changes</button>
         <button class="btn ghost" id="lx_reload">Undo all (reload)</button>
@@ -4818,9 +4818,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['Machinery च्या tank मधल्या diesel ची प्रत्यक्ष तपासणी, app च्या हिशोबाशी तुलना करून.', 'एका machinery चा एका तारखेला एकच check. फरक शून्य नसेल तर कारण लिहावे लागते. "Filled to full" साठी Asset Master मध्ये tank ची क्षमता लागते.'],
       hi: ['Machinery की tank के diesel की असली जाँच, app के हिसाब से तुलना करके।', 'एक machinery का एक तारीख को एक ही check। फर्क शून्य न हो तो कारण लिखना पड़ता है। "Filled to full" के लिए Asset Master में tank की क्षमता चाहिए।'] },
     logedit: { saves: ['saveLogBulk'],
-      en: ['Correct many saved Log Book entries of one machinery at once, date by date.', 'Each reading must fit between the entry before and the entry after. Entries that are already in a submitted bill should be changed only when the bill will be made again.'],
-      mr: ['एका machinery च्या अनेक save झालेल्या Log Book entries एकदम, तारखेनुसार दुरुस्त करणे.', 'प्रत्येक reading मागच्या आणि पुढच्या entry च्या मधे बसले पाहिजे. Submit झालेल्या bill मधल्या entries फक्त तेव्हाच बदला जेव्हा ते bill पुन्हा बनवणार असाल.'],
-      hi: ['एक machinery की कई save हुई Log Book entries एक साथ, तारीख के अनुसार ठीक करना।', 'हर reading पिछली और अगली entry के बीच बैठनी चाहिए। Submit हो चुके bill की entries तभी बदलें जब वह bill दोबारा बनाना हो।'] },
+      en: ['Correct many saved Log Book entries of one machinery at once, date by date.', 'Each reading must fit between the entry before and the entry after. Entries that are already in a submitted bill should be changed only when the bill will be made again. A forgotten Night (or Day) entry of a date: tick that date\'s row and press "+ Add row"; tick "½" for a half. The Shift of a saved entry can be changed too – one entry per shift on a date, a Full Day entry stands alone.'],
+      mr: ['एका machinery च्या अनेक save झालेल्या Log Book entries एकदम, तारखेनुसार दुरुस्त करणे.', 'प्रत्येक reading मागच्या आणि पुढच्या entry च्या मधे बसले पाहिजे. Submit झालेल्या bill मधल्या entries फक्त तेव्हाच बदला जेव्हा ते bill पुन्हा बनवणार असाल. एखाद्या तारखेची राहिलेली Night (किंवा Day) entry: त्या तारखेच्या row ला tick करा आणि "+ Add row" दाबा; अर्ध्यासाठी "½" tick करा. Save झालेल्या entry ची Shift पण बदलता येते – एका तारखेला प्रत्येक shift ची एकच entry, Full Day entry एकटीच असते.'],
+      hi: ['एक machinery की कई save हुई Log Book entries एक साथ, तारीख के अनुसार ठीक करना।', 'हर reading पिछली और अगली entry के बीच बैठनी चाहिए। Submit हो चुके bill की entries तभी बदलें जब वह bill दोबारा बनाना हो। किसी तारीख की छूटी हुई Night (या Day) entry: उस तारीख की row को tick करें और "+ Add row" दबाएँ; आधे के लिए "½" tick करें। Save हुई entry की Shift भी बदली जा सकती है – एक तारीख पर हर shift की एक ही entry, Full Day entry अकेली रहती है।'] },
     brk: { saves: ['submitBdReport', 'deleteBdReport'],
       en: ['The daily breakdown report: which machinery is working and which is under breakdown, with the reason.', 'Each machinery needs Working or Breakdown; a breakdown needs its reason. One report per date.'],
       mr: ['रोजचा breakdown अहवाल: कोणती machinery चालू आहे आणि कोणती breakdown मध्ये आहे, कारणासह.', 'प्रत्येक machinery साठी Working किंवा Breakdown निवडावे लागते; breakdown ला कारण लागते. एका तारखेला एकच अहवाल.'],
@@ -6876,7 +6876,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     else { $('lx_from').value = isoDate(new Date(t.getFullYear(), t.getMonth() - 1, 1)); $('lx_to').value = isoDate(new Date(t.getFullYear(), t.getMonth(), 0)); }
   }));
   function lxDirty() { return LX.deleted.length || LX.rows.some(r => r.isNew || lxChanged(r)); }
-  function lxChanged(r) { if (r.isNew) return true; const o = r.orig; return ['mode', 'half', 'okm', 'ckm', 'ohr', 'chr', 'tStart', 'tEnd', 'tBrk', 'trip', 'challan', 'remark', 'chFrom', 'chTo', 'work', 'odSet', 'itemSig'].some(k => String(r[k] ?? '') !== String(o[k] ?? '')); }
+  function lxChanged(r) { if (r.isNew) return true; const o = r.orig; return ['shift', 'mode', 'half', 'okm', 'ckm', 'ohr', 'chr', 'tStart', 'tEnd', 'tBrk', 'trip', 'challan', 'remark', 'chFrom', 'chTo', 'work', 'odSet', 'itemSig'].some(k => String(r[k] ?? '') !== String(o[k] ?? '')); }
   // Edit Log Book: the way of a row, and the Close of the last row before it that read each meter
   const lxWay = r => r.mode || LX.d.machine.unit;
   const lxPrevRead = (i, f) => { for (let k = i - 1; k >= 0; k--) { const r = LX.rows[k]; if ((f === 'ckm' ? hasKm(lxWay(r)) : hasHr(lxWay(r))) && lxN(r[f]) !== '') return Number(r[f]); } const v = f === 'ckm' ? LX.d.prevKm : LX.d.prevHr; return v === '' || v === undefined ? null : Number(v); };
@@ -6917,8 +6917,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<th class="n">Total</th>' + (itemCol ? '<th>Items (BOQ)</th>' : '') + '<th class="n lx-dx">Opening diesel</th><th class="n lx-di">Issued</th><th class="n lx-dx">Consumed</th><th class="n lx-dx" title="Diesel left in the machinery, worked out with the Standard Average (not measured)">Closing diesel (est.)</th><th class="lx-chn">Challan No</th><th class="lx-prt">Particular</th><th class="lx-chc">Chainage From</th><th class="lx-chc">To</th><th>Work description</th><th></th></tr>';
     $('lx_rows').innerHTML = LX.rows.map((r, i) => '<tr data-i="' + i + '"><td class="sel"><input type="checkbox" class="lx-sel" aria-label="Select row"' + (r._sel ? ' checked' : '') + '></td><td>' + (i + 1) + (r.isNew ? '<span class="tag n">NEW</span>' : '') + '</td>' +
       '<td>' + (r.isNew ? '<input type="date" data-f="date" value="' + r.date + '" min="' + d.from + '" max="' + (d.to < S.today ? d.to : S.today) + '">' : esc(showDate(r.date))) + '</td>' +
-      '<td>' + (r.isNew ? '<select data-f="shift">' + ['Full Day', 'Day', 'Night'].map(x => '<option' + (x === r.shift ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' : esc(r.shift)) +
-        '<label class="lg-half" title="Half day: the bill pays this entry as half a day (monthly and per-day rates)."><input type="checkbox" data-f="half"' + (r.half ? ' checked' : '') + '> ½ day</label></td>' +
+      '<td><select data-f="shift" title="Full Day = the only entry of the date. Day and Night = two entries of one date.">' + ['Full Day', 'Day', 'Night'].map(x => '<option' + (x === r.shift ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' +
+        '<label class="lg-half" title="Half day / half night: the bill pays this entry as half (monthly and per-day rates)."><input type="checkbox" data-f="half"' + (r.half ? ' checked' : '') + '> ½ ' + (r.shift === 'Night' ? 'night' : 'day') + '</label></td>' +
       (wayCol ? '<td><select data-f="mode" class="lx-way">' + modes.map(x => '<option' + (x === lxWay(r) ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></td>' : '') +
       (km ? (hasKm(lxWay(r)) ? '<td>' + rd('okm', 'Start KM', r.okm) + '</td><td>' + rd('ckm', 'Close KM', r.ckm) + '</td>' : '<td class="lx-na">–</td><td class="lx-na">–</td>') : '') +
       (hr ? (hasHr(lxWay(r)) ? '<td>' + rd('ohr', 'Start Hrs', r.ohr) + '</td><td>' + rd('chr', 'Close Hrs', r.chr) + '</td>' : '<td class="lx-na">–</td><td class="lx-na">–</td>') : '') +
@@ -6936,7 +6936,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function lxCalc() {
     const d = LX.d, m = d.machine, kmCol = meterKm(m) || LX.rows.some(r => hasKm(lxWay(r))), hrCol = meterHr(m) || LX.rows.some(r => hasHr(lxWay(r)));
     let open = d.prev ? d.prev.stock : (LX.odsl !== '' ? Number(LX.odsl) : (LX.rows[0] && LX.rows[0].odsl0 !== '' ? Number(LX.rows[0].odsl0) || 0 : 0));
-    let tk = 0, th = 0, ti = 0, tc = 0, bad = 0, chg = 0;
+    let tk = 0, th = 0, ti = 0, tc = 0, bad = 0, chg = 0, slots = 0;
     const trs = [...$('lx_rows').querySelectorAll('tr[data-i]')];
     LX.rows.forEach((r, i) => {
       const tr = trs[i]; if (!tr) return;
@@ -6954,7 +6954,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       r._fix = { k: misK ? expK : null, h: misH ? expH : null };
       const okmI = tr.querySelector('[data-f=okm]'), ohrI = tr.querySelector('[data-f=ohr]');
       if (okmI) okmI.classList.toggle('mismatch', misK); if (ohrI) ohrI.classList.toggle('mismatch', misH);
-      let note = tr.querySelector('.lx-note');
+      let note = tr.querySelector('.lx-note:not(.lx-slot)');
       if (misK || misH) {
         if (!note) { tr.children[2].insertAdjacentHTML('beforeend', '<div class="lx-note"></div>'); note = tr.querySelector('.lx-note'); }
         const when = 'the last reading before it';
@@ -6966,7 +6966,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const itemBad = itemBoxCalc(tr.querySelector('.lx-itm'), { hr: wh, km: wk, trip: Number(r.trip) || 0 });
       // a picked item follows the entry's total: keep the row's items in step with what the box now holds
       if (tr.querySelector('.lx-itm .itm-pick')) { const now = itemBoxRead(tr.querySelector('.lx-itm')); if (JSON.stringify(now) !== JSON.stringify(r.items || {})) { r.items = now; r.itemSig = itemSig((LX.d.boqItems || {})[r.date], r.items); } }
-      const isBad = misK || misH || (wk !== '' && wk < 0) || (wh !== '' && wh < 0) || (km && lxN(r.ckm) === '') || (hr && lxN(r.chr) === '') || (tm && (!r.tStart || !r.tEnd || !(wh > 0))) || (tp && !(Number(r.trip) > 0)) || !!itemBad;
+      // one entry per shift on a date, and a Full Day entry stands alone
+      const sib = LX.rows.filter(x => x !== r && x.date === r.date), slot = sib.some(x => x.shift === r.shift) ? 'two entries on ' + r.shift : sib.length && (r.shift === 'Full Day' || sib.some(x => x.shift === 'Full Day')) ? 'a Full Day entry stands alone' : '';
+      let sn = tr.querySelector('.lx-slot');
+      if (slot) { if (!sn) { tr.children[3].insertAdjacentHTML('beforeend', '<div class="lx-note lx-slot"></div>'); sn = tr.querySelector('.lx-slot'); } sn.textContent = showDate(r.date) + ': ' + slot + ' – make one Day and the other Night.'; slots++; }
+      else if (sn) sn.remove();
+      const isBad = !!slot || misK || misH || (wk !== '' && wk < 0) || (wh !== '' && wh < 0) || (km && lxN(r.ckm) === '') || (hr && lxN(r.chr) === '') || (tm && (!r.tStart || !r.tEnd || !(wh > 0))) || (tp && !(Number(r.trip) > 0)) || !!itemBad;
       tr.querySelector('.tot').innerHTML = [wk !== '' ? fmt(wk) + ' <small>km</small>' : '', wh !== '' ? fmt(wh) + ' <small>hr</small>' : '', tp ? fmt(Number(r.trip) || 0) + ' <small>trips</small>' : '', way === 'Day' ? '<small>day</small>' : ''].filter(Boolean).join('<br>') || '–';
       const odIn = tr.querySelector('.od input');
       if (odIn) { odIn.placeholder = fmt(open); odIn.classList.toggle('typed', typed); } else tr.querySelector('.od').textContent = fmt(open);
@@ -6989,7 +6994,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const total = chg + LX.deleted.length;
     const mis = LX.rows.filter(r => r._fix && (r._fix.k !== null || r._fix.h !== null)).length;
     $('lx_sum').innerHTML = (total ? '<b>' + chg + '</b> changed / new, <b>' + LX.deleted.length + '</b> deleted' : 'No changes yet') +
-      (bad ? '  |  <span style="color:var(--bad)"><b>' + bad + '</b> row(s) in red' + (mis ? ' – Start must be the Close before it' : ' need a correct Close') + '</span>' : '');
+      (bad ? '  |  <span style="color:var(--bad)"><b>' + bad + '</b> row(s) in red' + (slots ? ' – a date has two entries on the same shift' : mis ? ' – Start must be the Close before it' : ' need a correct Close') + '</span>' : '');
     $('lx_save').disabled = !total || !canEdit('Log Book') || bad > 0; // nothing wrong can be saved
     $('lx_save').textContent = total ? 'Save changes (' + total + ')' : 'Save changes';
   }
@@ -7015,7 +7020,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (f !== 'date' && f !== 'shift' && f !== 'mode') return;
     const r = LX.rows[Number(tr.dataset.i)]; r[f] = e.target.value;
     if (f === 'mode') { if (!hasKm(r.mode)) { r.okm = ''; r.ckm = ''; } if (!hasHr(r.mode)) { r.ohr = ''; r.chr = ''; } }
-    lxPlace(r); lxRender();
+    if (f !== 'mode') lxFullToDay(r);
+    S.formDirty = true; lxPlace(r); lxRender();
   });
   function lxPlace(r) {
     lxSort();
@@ -7086,10 +7092,34 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     LX.rows.push(r); lxPlace(r);
     return r;
   }
+  /* A SECOND ENTRY FOR A DATE (asked 06-10-2026: "the month is entered on Day, the nights were forgotten – let me add the 22nd
+   * again as a Night, full or half"). Tick the rows of those dates and press "+ Add row": every ticked date gets its other
+   * shift – a Night row under a Day entry, a Day row above a Night entry; a Full Day entry becomes Day and gets its Night.
+   * The new row starts where the entry before it closed and closes there too (0 km / 0 hr: the day's entry already holds the
+   * reading); to share the work, lower the Day's Close – the Night's Start follows. "½ night" on it = half a night in the bill. */
+  function lxFullToDay(r) { if (r.shift !== 'Night') return; LX.rows.forEach(x => { if (x !== r && x.date === r.date && x.shift === 'Full Day') x.shift = 'Day'; }); }
+  function lxAddShift(dk) {
+    const m = LX.d.machine, md = modesOf(m), same = LX.rows.filter(x => x.date === dk), has = sh => same.some(x => x.shift === sh);
+    if (!same.length || (has('Day') && has('Night'))) return null;
+    const shift = has('Night') ? 'Day' : 'Night', like = same[0];
+    const r = { key: '', isNew: true, half: false, date: dk, shift: shift, mode: md.indexOf(lxWay(like)) > -1 ? lxWay(like) : (md.indexOf(m.unit) > -1 ? m.unit : md[0] || m.unit),
+      okm: '', ckm: '', ohr: '', chr: '', tStart: '', tEnd: '', tBrk: '', trip: '', challan: '', chFrom: like.chFrom || '', chTo: like.chTo || '', work: '', items: {}, itemSig: '', orig: {} };
+    LX.rows.push(r); lxFullToDay(r); lxPlace(r);
+    if (hasKm(lxWay(r)) && lxN(r.okm) !== '') r.ckm = r.okm; if (hasHr(lxWay(r)) && lxN(r.ohr) !== '') r.chr = r.ohr;      // closes where it starts, until a reading is typed
+    return r;
+  }
   $('lx_add').addEventListener('click', () => {
     if (!LX.d) return;
+    const ticked = [...new Set(LX.rows.filter(r => r._sel).map(r => r.date))];
+    if (ticked.length) {
+      const added = ticked.map(lxAddShift).filter(Boolean); LX.rows.forEach(r => { r._sel = false; });
+      S.formDirty = S.formDirty || added.length > 0; lxRender();
+      toast(added.length ? added.length + ' row(s) added: ' + added.slice(0, 6).map(r => showDate(r.date) + ' ' + r.shift).join(', ') + (added.length > 6 ? ' …' : '') + ' – type the readings if the meter moved, tick "½" for a half, then Save.' + (added.length < ticked.length ? ' (' + (ticked.length - added.length) + ' date(s) already have Day and Night.)' : '')
+        : 'The ticked date(s) already have a Day and a Night entry.', !added.length);
+      return;
+    }
     const miss = lxMissing();
-    if (!miss.length) { toast('Every date in this range already has an entry. Change the dates or delete a row.', true); return; }
+    if (!miss.length) { toast('Every date in this range has an entry. To add a Night (or Day) entry to a date: tick its row, then press "+ Add row".', true); return; }
     // first missing date after the first entry (or the very first missing date)
     const first = LX.rows.length ? LX.rows[0].date : '';
     lxAdd(miss.find(dk => dk > first) || miss[0]); lxRender();

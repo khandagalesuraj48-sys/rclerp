@@ -825,3 +825,62 @@ test('Asset Master: the Machinery Number can be changed – everything entered f
   assert.strictEqual(nm.renamed.from + ' → ' + nm.renamed.to + ' : ' + nm.renamed.text, 'Pile Machine ZQ → DDIPL-7 : 1 diesel issues');
   assert.strictEqual(where('DDIPL-7').diesel, 1);
 });
+
+test('Edit Log Book: a Night can be added later to a date that has its entry (full or half), a saved entry can change its shift – diesel, bill and debit-note link follow; the rule of a date holds', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  run('(x, m) => saveMaster_(x, m)', { no: 'NS-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 10, owner: 'Night Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'Night Vendor', gstReg: 'No', pan: 'ABCDE1234S', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'Night Debit Party', gstReg: 'No' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'Night Vendor', from: '2026-06-01', tdsPct: 0, woNo: 'WO-NS', lines: [{ no: 'NS-1', basis: 'Monthly', rate: 30000, diesel: 'Company' }] }, 'add');
+  run('x => saveInward_(x)', { date: '2026-05-31', location: 'Dispenser', pump: 'Pump', qty: 1000, rate: 100, billNo: 'NS1', billDate: '2026-05-31' });
+  // the month as it was entered: 21 Day, 22 FULL DAY (charged to a party), 23 Day; on the 22nd diesel was given in the day (30 L) and in the night (20 L)
+  const sv = run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-06-21', shift: 'Day', no: 'NS-1', mode: 'KM', openingKm: 1000, closingKm: 1084 }, { date: '2026-06-22', shift: 'Full Day', no: 'NS-1', mode: 'KM', closingKm: 1167, debitTo: 'Night Debit Party', debitRate: 40 }, { date: '2026-06-23', shift: 'Day', no: 'NS-1', mode: 'KM', closingKm: 1229 }] });
+  assert.ok(sv.ok, JSON.stringify(sv).slice(0, 300));
+  run('x => saveDieselIssue_(x)', { date: '2026-06-22', shift: 'Day', source: 'Dispenser', no: 'NS-1', qty: 30, kmReading: 1084, force: true });
+  run('x => saveDieselIssue_(x)', { date: '2026-06-22', shift: 'Night', source: 'Dispenser', no: 'NS-1', qty: 20, kmReading: 1167, force: true });
+  const co = run('() => billCompanies_()')[0];
+  const dn = run('x => saveDebitNote_(x)', { company: co, vendor: 'Night Debit Party', date: '2026-06-24', from: '2026-06-01', to: '2026-06-30', lines: [{ logId: 'NS-1|2026-06-22|Full Day', machinery: 'NS-1', particular: 'Tipper work', qty: 83, unit: 'KM', rate: 40 }] });
+  assert.ok(dn && dn.ok !== false, JSON.stringify(dn).slice(0, 300));
+  const state = () => run(`() => { const lt = table_(APP.SHEET_LOG), c = lt.c; return lt.rows.filter(r => str_(r[c[H.NO]]) === 'NS-1').map(r => dkey_(r[c[H.DATE]]).slice(8) + ' ' + str_(r[c[H.SHIFT]]) + ' ' + num0_(r[c[H.OKM]]) + '>' + num0_(r[c[H.CKM]]) + ' diesel ' + num0_(r[c[H.QTY]]) + (halfOf_(r, c) ? ' half' : '')).sort(); }`);
+  const bill = () => run('() => { const c = billMachineCalc_(findMachine_("NS-1"), getLogBookList_({ from: "2026-06-01", to: "2026-06-30", no: "NS-1", all: true }).rows, logPrintExtra_({ from: "2026-06-01", to: "2026-06-30", nos: ["NS-1"] }), "2026-06-01", "2026-06-30", undefined, true); return [c.workDays, c.nights, c.amount, c.issued]; }');
+  const grid = () => run('() => getLogEditData_("NS-1", "2026-06-01", "2026-06-30").rows').map(r => ({ key: r.key, half: !!r.half, date: r.date, shift: r.shift, mode: r.mode || r.unit, openingKm: r.okm, closingKm: r.ckm, work: r.work || '' }));
+  const save = rows => run('b => saveLogBulk_(b)', { no: 'NS-1', from: '2026-06-01', to: '2026-06-30', rows: rows, deleted: [] });
+  assert.deepStrictEqual(state(), ['21 Day 1000>1084 diesel 0', '22 Full Day 1084>1167 diesel 50', '23 Day 1167>1229 diesel 0']);
+  assert.deepStrictEqual(bill(), [3, 0, 3000, 50]);                      // 3 days × ₹1,000
+
+  // ---------- the rule of a date is checked for the grid: refused, nothing changed ----------
+  let g = grid(); g.push({ key: '', date: '2026-06-22', shift: 'Night', mode: 'KM', openingKm: 1167, closingKm: 1167 });
+  let r = save(g); assert.strictEqual(r.ok, false); assert.match(r.errors[0].msg, /22-06-2026 \(Night\) is entered more than once/);          // next to a Full Day entry
+  g = grid(); g.push({ key: '', date: '2026-06-21', shift: 'Day', mode: 'KM', openingKm: 1084, closingKm: 1084 });
+  r = save(g); assert.strictEqual(r.ok, false); assert.match(r.errors[0].msg, /21-06-2026 \(Day\) is entered more than once/);
+  assert.deepStrictEqual(state(), ['21 Day 1000>1084 diesel 0', '22 Full Day 1084>1167 diesel 50', '23 Day 1167>1229 diesel 0']);
+
+  // ---------- the forgotten nights: 21 gets a full Night; 22 (Full Day) becomes Day and gets a HALF Night ----------
+  g = grid(); g.find(x => x.date === '2026-06-22').shift = 'Day';
+  g.push({ key: '', date: '2026-06-21', shift: 'Night', mode: 'KM', openingKm: 1084, closingKm: 1084 }, { key: '', date: '2026-06-22', shift: 'Night', mode: 'KM', openingKm: 1167, closingKm: 1167, half: true });
+  r = save(g); assert.deepStrictEqual([r.ok, r.added, r.shifted], [true, 2, 1], JSON.stringify(r).slice(0, 300));
+  // each entry holds the diesel of its own shift now (the Full Day entry held both): nothing is lost, nothing counted twice
+  assert.deepStrictEqual(state(), ['21 Day 1000>1084 diesel 0', '21 Night 1084>1084 diesel 0', '22 Day 1084>1167 diesel 30', '22 Night 1167>1167 diesel 20 half', '23 Day 1167>1229 diesel 0']);
+  assert.deepStrictEqual(bill(), [3, 1.5, 4500, 50]);                    // 3 days + 1 night + ½ night = 4.5 × ₹1,000; the diesel is the same 50 L
+  // the entry that is in the debit note moved to its new key – the note still holds it
+  assert.deepStrictEqual(run('() => dnList_().filter(d => d.vendor === "Night Debit Party").map(d => [d.logIds, d.lines.map(l => l.logId)])'), [[['NS-1|2026-06-22|Day'], ['NS-1|2026-06-22|Day']]]);
+  const pend = run('f => debitPending_(f)', { vendor: 'Night Debit Party', from: '2026-06-01', to: '2026-06-30' }); assert.deepStrictEqual([pend.rows.length, pend.already], [0, 1]);
+
+  // ---------- the work shared between day and night: the Day's Close is lowered, the Night starts there ----------
+  g = grid(); g.find(x => x.date === '2026-06-22' && x.shift === 'Day').closingKm = 1140; Object.assign(g.find(x => x.date === '2026-06-22' && x.shift === 'Night'), { openingKm: 1140, closingKm: 1167 });
+  r = save(g); assert.strictEqual(r.ok, true, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual(state().slice(2, 4), ['22 Day 1084>1140 diesel 30', '22 Night 1140>1167 diesel 20 half']);
+  // ---------- a saved entry changes its shift: the two entries of the 22nd change places; the half goes with its row ----------
+  g = grid(); g.forEach(x => { if (x.date === '2026-06-22') x.shift = x.shift === 'Day' ? 'Night' : 'Day'; });
+  r = save(g); assert.strictEqual(r.ok, false);                          // as typed, the Night (1084>1140) would now start below the Day's Close: refused, with the reason
+  assert.match(r.errors.map(e => e.msg).join(' | '), /Start KM 1084 is less than the last Close KM 1167/);
+  // a Night entry alone can become a Full Day entry only when the date has no other entry
+  g = grid(); g.find(x => x.date === '2026-06-21' && x.shift === 'Night').shift = 'Full Day';
+  r = save(g); assert.strictEqual(r.ok, false); assert.match(r.errors[0].msg, /21-06-2026 \(Full Day\) is entered more than once/);
+  // the 23rd (Day, alone on its date) is made a Night entry: allowed – it takes the night's diesel of its date (none)
+  g = grid(); g.find(x => x.date === '2026-06-23').shift = 'Night';
+  r = save(g); assert.deepStrictEqual([r.ok, r.shifted], [true, 1]);
+  assert.deepStrictEqual(state().slice(4), ['23 Night 1167>1229 diesel 0']);
+  assert.deepStrictEqual(bill(), [2, 2.5, 4500, 50]);                    // 21 D, 22 D + 21 N, 22 ½N, 23 N
+});

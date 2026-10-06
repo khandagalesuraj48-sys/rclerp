@@ -921,6 +921,34 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     headless Chromium of the workspace (a 3-line stand-in for @sparticuz/chromium). The earlier SEED DATA (MH-15-AB-…, Multi Vendor, 3,600
     Log Book rows) is gone: tests that lean on it (e.g. test/browser/rename.js = the vendor rename, 8 of 11 fail for lack of that data)
     were NOT re-run meaningfully; test/audit.js runs without its "backup" section (the Google stand-in is not in the repo): 34 / 34.
+- 06-10-2026 (update-60): "A MONTH IS ENTERED ON DAY, THE NIGHTS WERE FORGOTTEN – IN EDIT LOG BOOK LET ME ADD THE 22nd AGAIN AS A NIGHT,
+  FULL OR HALF BY THE TICK; I MUST BE ABLE TO EDIT IN EVERY WAY" (his screenshot: Edit Log Book, 21–30 Sep all "Day"). He was told what
+  was understood and three readings; he answered "ho".
+  * The server already took a later Night for a date that has its Day entry (proved on the rig first). What stopped him was the PAGE:
+    "+ Add row" only made rows for dates WITHOUT an entry, and the Shift of a saved row was plain text.
+  * Page (App.html, Edit Log Book grid `LX`): the Shift is a list on EVERY row (saved rows too; `'shift'` is in `lxChanged`). Rows
+    ticked + "+ Add row" → `lxAddShift(date)`: a Night row under a Day entry / a Day row above a Night entry; a Full Day entry becomes
+    Day (`lxFullToDay`, also when a list is changed to Night). The new row starts AND closes at the Close before it (0 km / hr) – to
+    share the work he lowers the Day's Close and the Night's Start follows (the existing Close → next Start link). "½ night" label on
+    Night rows. The rule of a date is shown live (`lxCalc`: note `.lx-slot` in the Shift cell, rows red, Save off): one entry per shift,
+    a Full Day entry stands alone. Nothing ticked and no date missing → a toast says how to add a Night. Hint line + page guide (3
+    languages, still two lines each – the unit test wants exactly two).
+  * Server (`saveLogBulk_`): a saved row whose shift changed takes the diesel of ITS shift again (`dieselFor_`: the Full Day entry
+    held day + night; after the split each holds its own – nothing lost, nothing twice), its key moves (number|date|shift) and
+    `dnRelink_(moved)` moves the entry's link in debit notes (`Log IDs`, `lines[].logId`; line text untouched). Answer has `shifted`.
+    The refusals are the old ones (`clash`: "… is entered more than once", readings below the Close before).
+  * DATA LAYER – A REAL DEFECT FOUND AND FIXED (`SbSheet_.pending`, SupabaseData.gs): the database writes the upserts and then the
+    deletes, so a key that was BOTH written and deleted in one save was lost. Reachable on the live code without this update: in Edit
+    Log Book delete a row and add the same date + shift again, Save → "saved", the row is gone. Now a key that is written is never in
+    the delete list. Proved before / after on the rig (live code on :3002 lost the 22nd; this code keeps it).
+  * No database step. Tests: unit test (nights added later full / half, Full Day → Day, diesel by shift, bill 3 → 4.5 days, debit
+    note link, shared km, refusals) → 34; `test/browser/nightrow.js` on the rig 22 / 22 (grid → database → bill, debit note, phone
+    width, the before / after above); half.js 11, machno.js 19, sweep 38 pages, audit 34 (without "backup").
+  * RIG NOTE: the app learns a table's real columns from its ROWS (`dbCols`, SupabaseData.gs). With an EMPTY log_book and step 1v
+    (or 1r / 1u) not run, an ordinary entry is refused by web_write ("column(s) day_part are not in table") – half.js needs one row in
+    log_book before it starts (`/home/claude/test/seedlog.js` style). Live has thousands of rows and the steps run; a new empty
+    database must simply have every step run. Not changed.
+  * NOT built / not asked: Excel import and Ask still know nothing of "½"; the Log Book ENTRY page is unchanged.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

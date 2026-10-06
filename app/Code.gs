@@ -6000,7 +6000,24 @@ function getLogEditData_(no, fromStr, toStr) {
   return { machine: m, from: from, to: to, boqItems: boqItems, rows: rows.map(i => Object.assign(logRowOut_(lt, lt.rows[i]), { key: logKeyOf_(lt, lt.rows[i]) })),
     prev: brief(before[before.length - 1]), next: brief(after[0]), diesel: diesel, prevKm: lastRead(H.CKM), prevHr: lastRead(H.CHR) };
 }
-/* b: { no, from, to, rows: [{ key | '', date, shift, openingKm, closingKm, openingHr, closingHr, chFrom, chTo, work }], deleted: [key], openingDiesel } */
+// the links of debit notes to Log Book entries (the entry's key "number|date|shift") follow when an entry's key changes
+function dnRelink_(map) {
+  if (!Object.keys(map || {}).length || !SS_().getSheetByName(DN_SHEET_)) return 0;
+  let t; try { t = table_(DN_SHEET_); } catch (e) { if (/debit_notes|42P01|does not exist/.test(String(e && e.message))) return 0; throw e; }      // (a site without debit notes has no links)
+  if (!('Log IDs' in t.c)) return 0;
+  let n = 0;
+  t.rows.forEach((r, i) => { const ids = dnParse_(r[t.c['Log IDs']]), lines = 'Lines' in t.c ? dnParse_(r[t.c['Lines']]) : []; let hit = false;
+    const ids2 = ids.map(id => { if (map[String(id)] !== undefined) { hit = true; return map[String(id)]; } return id; });
+    lines.forEach(l => { if (l && l.logId && map[String(l.logId)] !== undefined) { l.logId = map[String(l.logId)]; hit = true; } });
+    if (hit) { const row = r.slice(); row[t.c['Log IDs']] = JSON.stringify(ids2); if ('Lines' in t.c) row[t.c['Lines']] = JSON.stringify(lines); t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); n++; } });
+  return n;
+}
+/* b: { no, from, to, rows: [{ key | '', date, shift, openingKm, closingKm, openingHr, closingHr, chFrom, chTo, work }], deleted: [key], openingDiesel }
+ * THE SHIFT OF A SAVED ENTRY CAN BE CHANGED HERE (asked 06-10-2026: "a month is entered on Day; the nights were forgotten – in Edit
+ * Log Book I must be able to add the 22nd again as a Night, full or half, and edit in every way"). A row with a key may come with
+ * another shift (Day / Night / Full Day): the entry is moved to that shift – its key changes with it –, it takes the diesel issued
+ * for that shift (Full Day = the whole day's), and a debit note that holds the entry stays linked. The rule of a date is unchanged
+ * and checked for the grid as a whole: one entry per shift, and a Full Day entry stands alone. */
 function saveLogBulk_(b) {
   return withLock_(() => {
     const m = findMachine_(b.no);
@@ -6063,8 +6080,14 @@ function saveLogBulk_(b) {
     }
     // 1) changed rows (and the entry just after the grid follows the last Close)
     let changed = 0;
+    const moved = {};      // old key → new key of the entries whose shift was changed
     prepared.filter(p => p.x.l.key).forEach(p => {
       const i = byKey[p.x.l.key], r = lt.rows[i], row = r.slice(), l = p.x.l, v = p.v;
+      if (p.sh !== (str_(r[c[H.SHIFT]]) || 'Full Day')) {
+        const dkRow = dkey_(r[c[H.DATE]]), ds = dieselFor_(m.id, dkRow, p.sh);
+        row[c[H.SHIFT]] = p.sh; row[c[H.QTY]] = ds.qty; row[c[H.KMR]] = ds.km; row[c[H.HRR]] = ds.hr; if (H.DREAD in c) row[c[H.DREAD]] = ds.text;
+        moved[logKeyOf_(lt, r)] = str_(r[c[H.NO]]) + '|' + dkRow + '|' + p.sh;
+      }
       row[c[H.UNIT]] = v.mode;
       row[c[H.OKM]] = v.km ? v.okm : ''; row[c[H.CKM]] = v.km ? v.ckm : '';
       row[c[H.OHR]] = v.hr ? v.ohr : ''; row[c[H.CHR]] = v.hr ? v.chr : '';
@@ -6124,8 +6147,9 @@ function saveLogBulk_(b) {
     if (add.length) lt.sh.getRange(lt.sh.getLastRow() + 1, 1, add.length, lt.headers.length).setValues(add);
     // 3) deleted rows (bottom first so the row numbers above stay right)
     deleted.map(k => byKey[k]).sort((a, b) => b - a).forEach(i => lt.sh.deleteRow(i + 2));
+    dnRelink_(moved);
     recalcChain_(m.id);
-    return { ok: true, no: m.id, changed: changed, added: add.length, deleted: deleted.length };
+    return { ok: true, no: m.id, changed: changed, added: add.length, deleted: deleted.length, shifted: Object.keys(moved).length };
   });
 }
 

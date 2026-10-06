@@ -189,7 +189,12 @@ SbSheet_.prototype.pending = function () {
     if (old && old !== rec.id) del.push(old); // the row's key changed (e.g. Machinery Number in Master)
     up.push(rec);
   });
-  return { upserts: up, deletes: [...new Set(del)] };
+  /* A key that is WRITTEN in this save is never also deleted in it (06-10-2026). The database writes first and deletes after,
+   * so a key in both lists ended up deleted – the row was lost. It happens when a key is freed and taken again in one save:
+   * an entry deleted and entered again on the same date and shift (Edit Log Book: delete a row, "+ Add row" for that date),
+   * or two entries of a date changing places (Day ↔ Night). What is written is what the table holds – it stays. */
+  const written = new Set(up.map(r => r.id));
+  return { upserts: up, deletes: [...new Set(del)].filter(id => !written.has(id)) };
 };
 SbSheet_.prototype.saved = function () {
   if (this.loaded) this.data.forEach((row, i) => { if (this.dirty.has(row)) this.ids[i] = this.rowId_(row); });
