@@ -927,3 +927,25 @@ test('Log Book print: every machinery is fitted on one page – the fitting is i
   const t2 = mk(250); fit({ querySelectorAll: () => [t2.sh], getElementById: () => ({ textContent: 'size: A4 landscape' }) });
   assert.ok(Number(t2.sh.dataset.fit) < 0.76 && t2.sh.style.minHeight === (186 / Number(t2.sh.style.zoom)) + 'mm');
 });
+
+test('every print has "Excel" in its window; a saved bill opens with its Log Book from all four places', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const pd = app.slice(app.indexOf('function printDoc('), app.indexOf('const signBlock'));
+  assert.match(pd, /id="xl_btn"/, 'the Excel button is in the bar of the print window – for every kind of print');
+  assert.ok(pd.indexOf('id="xl_btn"') < pd.indexOf("'<div class=\"sheet\">'"), 'in the bar, not in the sheet');
+  assert.match(pd, /printExcel\(w\.document, title\)/);
+  assert.match(pd, /win && !win\.closed \? win : window\.open/, 'a window opened at the click can be used');
+  const px = app.slice(app.indexOf('function printExcel('), app.indexOf('function printDoc('));
+  for (const want of ['needXlsx()', "section.billsheet, :scope > section.lbsheet", "'GST Declaration'", "'Debit Note'", "'Tax Invoice'", "'Abstract'", "'LB '", '!merges', 'XLSX.writeFile']) assert.ok(px.indexOf(want) > -1, 'printExcel: ' + want);
+  // the rule for figures, taken out of the function and tried: amounts become numbers; dates, codes and account-like numbers stay text
+  const num = new Function('return ' + px.slice(px.indexOf('const num = ') + 12, px.indexOf('// the pieces of a page')).trim().replace(/;\s*$/, ''))();
+  const n = v => { const x = num(v); return x ? x.v : null; };
+  assert.deepStrictEqual(['40,000.00', '₹ 50,000.00', '− 2,300.00', '-393', '1,23,45,678.50', '55263', '0', '0.00', '2.5', '1000'].map(n), [40000, 50000, -2300, -393, 12345678.5, 55263, 0, 0, 2.5, 1000]);
+  assert.deepStrictEqual(['000123456789', '05.10.2026', '01-09-2026', 'MH09BC2570', '9876543210', '2%', '160.00 LTR', '21 KM', 'RCL/VTR/RA-51', '–', '', '27AAKCR9897B1ZQ', '0012'].map(n), Array(13).fill(null));
+  assert.strictEqual(num('40,000.00').z, '#,##0.00'); assert.strictEqual(num('1,200').z, '#,##0'); assert.strictEqual(num('55263').z, '');
+  // one way to open a saved bill
+  assert.strictEqual((app.match(/await viewSavedBill\(/g) || []).length, 4, 'RCL Drive (bills and debit notes), Bill Summary, Vendor Ledger');
+  const vs = app.slice(app.indexOf('async function viewSavedBill('), app.indexOf('/* ---------- saved bills ---------- */'));
+  assert.match(vs, /window\.open\('', '_blank'\)/); assert.match(vs, /logSheetsOf\(\{ rows: rows, f: \{ from: b\.from, to: b\.to \}/); assert.match(vs, /billSheets\(data, [^)]*\) \+ lb, 'rep rep-bill' \+ \(lb \? ' rep-lb' : ''\)/);
+  assert.match(app, /\.billsheet \+ \.lbsheet, \.lbsheet \+ \.billsheet \{ break-before: page; \}/);
+});

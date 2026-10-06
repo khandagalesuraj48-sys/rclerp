@@ -992,6 +992,34 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     renamed + made GST registered afterwards → saved bill unchanged; bills without the mark); half.js 11, sweep 38, audit money +
     diesel 24.
   * NOT built: the declaration cannot be switched off for one bill, and its words cannot be edited on the page (not asked).
+- 06-10-2026 (update-63): "WHEN I SUBMIT A BILL AND THEN OPEN IT IN THE DRIVE (VIEW BILL) THE LOG BOOK IS NOT IN IT – IT MUST SHOW; AND
+  IN VIEW BILL I MUST BE ABLE TO TAKE THE BILL'S EXCEL – FOR EVERY PDF THE APP MAKES, ITS EXCEL TOO."
+  * A SAVED BILL OPENED = `viewSavedBill(id)` (App.html), ONE function for the four places that did it each on their own (RCL Drive
+    Saved Bills "View / Print", the "Bill" button of the debit-note list, Bill Summary, Vendor Ledger): the papers as saved
+    (`billSheets`) and after them the Log Book sheets of the bill's machinery (`noNow` if renumbered) for the bill's dates, the bill's
+    own Idle Paid / Not paid, under the bill's company name (no "which name" question). The Log Book is read AS IT IS NOW (same as the
+    "Log Book" button there, which stays) – it is not a copy frozen at submit; TOLD TO HIM. No entries / cannot be read → the papers
+    alone and a toast says so. The print right after "Verify & Submit" is unchanged (papers only) – not asked.
+  * For this `printLogRows` was split: `logSheetsOf(L, headName)` builds { title, sheets }; `printLogRows` asks the name and prints.
+    Body class of the joined print: `rep rep-bill rep-lb` (bill fitting for the papers, `fitLogPages` for the Log Book sheets – every
+    page still one page); CSS: a page break between `.billsheet` and `.lbsheet`.
+  * The window is opened AT THE CLICK (`window.open` before the first await, a line "Reading the bill and its Log Book…") and handed
+    to `printDoc(…, win)` – three server calls before `window.open` could outlast the browser's 5 s allowance and be blocked.
+  * EXCEL FOR EVERY PRINT: `printDoc` puts a button "Excel" (`#xl_btn`) in the bar of every print window; its click runs
+    `printExcel(doc, title)` in the app page (where the Excel tool is; `rclLoadXlsx()` is called when a print opens). It reads the
+    print window itself: every `section.billsheet` / `section.lbsheet` = a tab (Abstract, Tax Invoice, GST Declaration, Debit Note,
+    LB <number>; same names get (2), (3)); a print without sections = one tab named by its title. Inside a tab, in reading order:
+    text lines one under the other, grid / flex-row groups side by side (heading + right note, signatures), tables cell for cell
+    with colspan / rowspan as merges. Table cells that are figures become numbers (`num`: 1,23,456.00, ₹ 50,000.00, − 2,300.00 → with
+    a number format); a zero in front, more than 9 plain digits, dates, codes stay text. No cell styles (the Excel tool in use writes
+    none: no bold, borders, colours) – TOLD TO HIM. The reports' own "Export to Excel" buttons are untouched.
+  * Tests: unit (button in the bar, the number rule tried on 23 values, one way to open a saved bill) → 36; `test/browser/viewbill.js`
+    on the rig 13 / 13 with the real .xlsx read back by openpyxl (6 tabs; amounts numeric; account 000123456789 and dates text; 30
+    date rows in the Log Book tab; merges; signatures side by side) and the PDF of the saved bill = 6 pages; before (live code on
+    :3002): papers only, no button. gstdecl.js adjusted (saved bill = papers + Log Book pages) 11, lbpage 13, half 11, sweep 38,
+    Asset Master print same before / after. Test folder: `npm i xlsx@0.18.5` there REMOVES the hand-made @sparticuz/chromium stand-in
+    (it is not in package.json) – put it back after any install.
+  * NOT covered: pop-ups blocked (the print falls back to the main page: no Excel button there); Excel from a phone not tried.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

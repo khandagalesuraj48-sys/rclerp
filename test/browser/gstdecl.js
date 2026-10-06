@@ -69,20 +69,20 @@ const clean = () => sql("delete from bills where vendor_name in " + NAMES + "; d
     if (!hit) return null; const t = await Promise.race([got, wait(15000).then(() => null)]); if (!t) return null;
     const w = await t.page(); await wait(2500); const r = await pdfOf(w, name); await w.close(); return r; };
   let r = await savedPrint('Siddhappa Test Basbire', 'saved1');
-  ok('3. Saved Bills → View / Print of that bill: Abstract, Tax Invoice and the declaration – 3 pages', r && r.pages === 3 && /DECLARATION OF GST NON-ENROLMENT/.test(r.text) && /Rent on vehicles GDX1, GDX2/.test(r.text), r && { pages: r.pages });
+  ok('3. Saved Bills → View / Print of that bill: Abstract, Tax Invoice and the declaration (3 papers), then the Log Book of its 2 machinery – 5 pages', r && r.pages === 5 && /DECLARATION OF GST NON-ENROLMENT/.test(r.text) && /Rent on vehicles GDX1, GDX2/.test(r.text), r && { pages: r.pages });
   r = await savedPrint('Gst Vendor Pvt', 'saved2');
-  ok('   the bill of the GST party: 2 pages, no declaration', r && r.pages === 2 && !/DECLARATION OF GST NON-ENROLMENT/.test(r.text), r && { pages: r.pages });
+  ok('   the bill of the GST party: 2 papers + the Log Book of its machinery = 3 pages, no declaration', r && r.pages === 3 && !/DECLARATION OF GST NON-ENROLMENT/.test(r.text), r && { pages: r.pages });
 
   // ---------- 4. it stays as it was saved ----------
   must('rename', await api('saveVendor', { oldName: 'Siddhappa Test Basbire', name: 'Siddhappa Renamed Basbire', gstReg: 'Yes', gst: '27ABCPE1234S1Z5', gstPct: 18, pan: 'ABCPE1234S', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'edit')); await wait(1500);
   const nowName = sql("select vendor_name from bills where data::json->>'gstDecl' = 'true' and vendor_name in " + NAMES);
   r = await savedPrint(nowName || 'Siddhappa', 'saved_after_rename');
-  ok('4. the party renamed AND made GST registered afterwards: the saved bill still prints its declaration, in the name the bill was made in', r && r.pages === 3 && /I\/We Siddhappa Test Basbire ?, do hereby declare/.test(r.text) && !/I\/We Siddhappa Renamed/.test(r.text), r ? { pages: r.pages, bill_listed_as: nowName } : 'no print');
+  ok('4. the party renamed AND made GST registered afterwards: the saved bill still prints its declaration, in the name the bill was made in', r && r.pages === 5 && /I\/We Siddhappa Test Basbire ?, do hereby declare/.test(r.text) && !/I\/We Siddhappa Renamed/.test(r.text), r ? { pages: r.pages, bill_listed_as: nowName } : 'no print');
 
   // ---------- 5. a bill saved before this update (no mark in it) ----------
   sql("update bills set data = (data::jsonb - 'gstDecl')::text where vendor_name in " + NAMES); await wait(2500);
   r = await savedPrint(nowName || 'Siddhappa', 'old1'); const r5 = await savedPrint('Gst Vendor Pvt', 'old2');
-  ok('5. bills saved BEFORE this update (no mark): the one whose saved vendor has no GST number gets the declaration, the GST one does not', r && r.pages === 3 && /DECLARATION OF GST NON-ENROLMENT/.test(r.text) && r5 && r5.pages === 2 && !/DECLARATION/.test(r5.text), { without_gst_pages: r && r.pages, with_gst_pages: r5 && r5.pages });
+  ok('5. bills saved BEFORE this update (no mark): the one whose saved vendor has no GST number gets the declaration, the GST one does not', r && r.pages === 5 && /DECLARATION OF GST NON-ENROLMENT/.test(r.text) && r5 && r5.pages === 3 && !/DECLARATION/.test(r5.text), { without_gst_pages: r && r.pages, with_gst_pages: r5 && r5.pages });
   ok('no script error', errs.length === 0, errs.join(' | '));
   await b.close();
   try { clean(); } catch (e) { out.push('clean after: ' + String(e.message).slice(0, 200)); }
