@@ -949,6 +949,25 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     log_book before it starts (`/home/claude/test/seedlog.js` style). Live has thousands of rows and the steps run; a new empty
     database must simply have every step run. Not changed.
   * NOT built / not asked: Excel import and Ask still know nothing of "½"; the Log Book ENTRY page is unchanged.
+- 06-10-2026 (update-61): "THE LOG BOOK PRINT COMES ON 2 PAGES – EVERY LOG BOOK PRINT ON 1 PAGE ONLY, PROPERLY FITTED, THE SIGNATURES
+  RIGHT; USE LOGIC" (his screenshot: MH-09-BC-2570, 30 entries, sheet 2 holds only the five signatures).
+  * Cause: `.lbsheet` had a fixed min-height (263 mm) and nothing measured the sheet; 30 entries with 2–3 lines of Chainage / Work text
+    are taller than the page, so the signature block (break-inside: avoid) went to page 2 – with more text the bill box was cut too.
+  * `fitLogPages(doc)` (App.html, next to `fitBillPages`): every `.lbsheet` = ONE page of the turn chosen in the print window
+    (Portrait 272 mm, Landscape 186 mm = the printed height less 3 mm). A sheet that is too tall gets CSS `zoom`, searched in 14 halving
+    steps between 30 % and 100 % and MEASURED each time (a zoomed sheet is laid out wider, so fewer lines wrap – that is why it is
+    measured, not calculated). The room to sign stays 12 mm ON PAPER (`padding-top = 12 mm ÷ zoom`); `min-height = page ÷ zoom` puts
+    the signatures at the foot. A sheet that fits is not touched (100 %). `data-fit` on the sheet = the size used.
+  * Called in `printDoc` after `fitWideTables`, again in `go()` just before `print()` (the logo may have come in), and from `setOrient`
+    inside the print window (the function is written into that window with `fitLogPages.toString()`).
+  * The screen copy of the Log Book print is now exactly as wide as the paper (`body.rep-lb .sheet` in `ORIENT_CSS`: 192 mm / 281 mm
+    content box) – before it was 178 mm on screen and 192 mm on paper, so what was measured was not what was printed.
+  * Measured with the browser's own print engine (PDF of the real print window, pages counted, `test/browser/lbpage.js`, 13 checks;
+    run it with 3002 for the code before): 30 entries long text 2 → 1 page (87 %, letters 7.2 pt); Day + Night 60 entries 2 → 1
+    (65 %, 5.4 pt; Landscape 3 → 1 at 51 %, 4.3 pt); four machinery in one print 6 → 4 pages; 8 entries stays 100 %. Another print
+    (Asset Master list) gives the same PDF text and pages before / after. Unit test → 35.
+  * NOT covered: the fall-back when pop-ups are blocked (prints from the main page, no print window) is not fitted; below 30 % a
+    sheet would still break (hundreds of entries in one print). Not run on a real printer / Edge – same engine as the test browser.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

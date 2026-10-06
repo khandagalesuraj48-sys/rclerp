@@ -884,3 +884,29 @@ test('Edit Log Book: a Night can be added later to a date that has its entry (fu
   assert.deepStrictEqual(state().slice(4), ['23 Night 1167>1229 diesel 0']);
   assert.deepStrictEqual(bill(), [2, 2.5, 4500, 50]);                    // 21 D, 22 D + 21 N, 22 ½N, 23 N
 });
+
+test('Log Book print: every machinery is fitted on one page – the fitting is in the print window, runs before printing and again when the page is turned', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const a = app.indexOf('function fitLogPages(doc)'), b = app.indexOf('const ORIENT_CSS = {');
+  assert.ok(a > -1 && b > a, 'fitLogPages is in the page');
+  const fn = app.slice(a, b);
+  assert.match(fn, /\.lbsheet/); assert.match(fn, /style\.zoom/); assert.match(fn, /paddingTop = \(12 \/ z\) \+ 'mm'/, 'the room to sign keeps its real size');
+  assert.match(fn, /land \? 186 : 272/, 'page height by the turn of the page');
+  const pd = app.slice(app.indexOf('function printDoc('), app.indexOf('const signBlock'));
+  assert.match(pd, /fitLogPages\.toString\(\)/, 'the print window has the function');
+  assert.match(pd, /try\{fitLogPages\(document\)\}catch\(e\)\{\}\}<\\\/script>/, 'run again when Portrait / Landscape is pressed');
+  assert.match(pd, /const go = \(\) => \{ try \{ fitLogPages\(w\.document\); \}/, 'run just before the print');
+  // the function itself, on a stand-in page: a sheet 1.5 × the page is made smaller until it fits, a short one is left alone; both fill the page
+  const fit = new Function('return ' + fn.slice(0, fn.lastIndexOf('}') + 1))();
+  const mk = natural => { const sg = { style: {} }; const sh = { style: {}, dataset: {}, querySelector: () => sg, getBoundingClientRect() { const z = Number(this.style.zoom || 1); return { height: natural * z * 3.7795 + (parseFloat(sg.style.paddingTop) - 12) * z * 3.7795 }; } }; return { sh, sg }; };
+  const tall = mk(408), short = mk(150);
+  fit({ querySelectorAll: () => [tall.sh, short.sh], getElementById: () => ({ textContent: 'size: A4 portrait' }) });
+  const zt = Number(tall.sh.style.zoom);
+  assert.ok(zt < 0.68 && zt > 0.6, 'tall sheet scaled: ' + zt);                                  // 408·z + 12·(1 − z) ≤ 272 → z ≈ 0.657
+  assert.ok(408 * zt + 12 * (1 - zt) <= 272.01, 'it fits the page');
+  assert.strictEqual(short.sh.dataset.fit, '1'); assert.strictEqual(short.sh.style.zoom, '');
+  assert.strictEqual(short.sh.style.minHeight, '272mm'); assert.strictEqual(tall.sg.style.paddingTop, (12 / Number(tall.sh.style.zoom)) + 'mm');
+  // landscape: the lower page
+  const t2 = mk(250); fit({ querySelectorAll: () => [t2.sh], getElementById: () => ({ textContent: 'size: A4 landscape' }) });
+  assert.ok(Number(t2.sh.dataset.fit) < 0.76 && t2.sh.style.minHeight === (186 / Number(t2.sh.style.zoom)) + 'mm');
+});

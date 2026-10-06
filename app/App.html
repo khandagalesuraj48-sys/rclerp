@@ -6023,7 +6023,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     body.rep-lb { font-family: Arial, sans-serif; }
     .lbsheet + .lbsheet { break-before: page; }
     /* each machinery fills its page; the signatures sit at the bottom with all the free space above them to sign */
-    .lbsheet { display: flex; flex-direction: column; min-height: 263mm; } @media screen { .lbsheet { min-height: 0; } }
+    .lbsheet { display: flex; flex-direction: column; min-height: 263mm; break-inside: avoid; }
     .lb-head { display: grid; grid-template-columns: 30mm 1fr 30mm; align-items: center; gap: 4mm; border-bottom: 2px solid #111; padding-bottom: 2mm; margin-bottom: 2mm; }
     .lb-logo { display: flex; align-items: center; } .lb-logo-s img { height: 19mm; width: auto; display: block; }
     .lb-logo-r { width: 30mm !important; }
@@ -6236,10 +6236,34 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     });
   }
 
+  /* THE LOG BOOK PRINT: EVERY MACHINERY ON ONE PAGE (asked 06-10-2026: "it comes on 2 pages – every Log Book print on 1 page only,
+   * properly fitted, the signatures in their place"). A sheet that is taller than the page is made smaller AS A WHOLE, only as much
+   * as needed: the size is searched step by step and the sheet is measured again each time – a smaller sheet is laid out wider, so
+   * fewer lines of Chainage / Work description wrap. The room to sign keeps its real size on paper (12 mm above the lines), and the
+   * signatures always sit at the foot of the page. Works for Portrait and Landscape (the turn chosen in the print window). */
+  function fitLogPages(doc) {
+    const sheets = doc.querySelectorAll('.lbsheet'); if (!sheets.length) return;
+    const mm = 3.7795, st = doc.getElementById('orient'), land = !!st && /landscape/.test(st.textContent);
+    const H = land ? 186 : 272;                                   // the printed height of A4 less its margins (189 / 275 mm), less 3 mm so that rounding never makes a second page
+    sheets.forEach(sh => {
+      const sg = sh.querySelector('.lb-sign');
+      const set = z => { sh.style.zoom = z < 1 ? String(z) : ''; sh.style.minHeight = '0'; if (sg) sg.style.paddingTop = (12 / z) + 'mm'; };
+      const tall = () => sh.getBoundingClientRect().height;
+      set(1); let z = 1;
+      if (tall() > H * mm) {
+        let lo = 0.3, hi = 1;
+        for (let k = 0; k < 14; k++) { const m = (lo + hi) / 2; set(m); if (tall() > H * mm) hi = m; else lo = m; }
+        z = lo; set(z);
+      }
+      sh.dataset.fit = String(Math.round(z * 1000) / 1000);
+      sh.style.minHeight = (H / z) + 'mm';                        // the sheet fills its page: the signatures at the foot
+    });
+  }
+
   // page turn of the prints: Portrait or Landscape, chosen in the print window (remembered per kind of print)
   const ORIENT_CSS = {
-    P: '@page { size: A4 portrait; margin: 10mm 9mm 12mm 9mm; } .sheet { width: 194mm; min-height: 275mm; } @media print { .sheet { width: auto; min-height: 0; } }',
-    L: '@page { size: A4 landscape; margin: 9mm 8mm 12mm 8mm; } .sheet { width: 281mm; min-height: 189mm; } @media print { .sheet { width: auto; min-height: 0; } .lbsheet { min-height: 180mm; } }' };
+    P: '@page { size: A4 portrait; margin: 10mm 9mm 12mm 9mm; } .sheet { width: 194mm; min-height: 275mm; } @media print { .sheet { width: auto; min-height: 0; } } @media screen { body.rep-lb .sheet { box-sizing: content-box; width: 192mm; padding: 10mm 9mm 12mm; } }',
+    L: '@page { size: A4 landscape; margin: 9mm 8mm 12mm 8mm; } .sheet { width: 281mm; min-height: 189mm; } @media print { .sheet { width: auto; min-height: 0; } .lbsheet { min-height: 180mm; } } @media screen { body.rep-lb .sheet { box-sizing: content-box; width: 281mm; padding: 9mm 8mm 12mm; } }' };
   function printDoc(title, inner, kind, portrait, footerName) {
     const isBill = /rep-bill/.test(kind || ''), okey = 'rcl_orient_' + String(kind || 'print').replace(/\s+/g, '_');
     let orient = portrait ? 'P' : 'L';
@@ -6247,9 +6271,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     let extra = '';
     if (footerName) extra += '@page { @bottom-left { content: "' + String(printName(footerName)).replace(/["\\]/g, '') + '  |  Fleet ERP"; } }';
     const turn = isBill ? '' : '<span class="or-pick">Page: <button type="button" id="or_P" onclick="setOrient(\'P\')">Portrait</button><button type="button" id="or_L" onclick="setOrient(\'L\')">Landscape</button></span>';
-    const script = isBill ? '' : '<script>' + fitWideTables.toString() + ';var OR_CSS=' + JSON.stringify(ORIENT_CSS) + ',OR_KEY=' + JSON.stringify(okey) + ';' +
+    const script = isBill ? '' : '<script>' + fitWideTables.toString() + ';' + fitLogPages.toString() + ';var OR_CSS=' + JSON.stringify(ORIENT_CSS) + ',OR_KEY=' + JSON.stringify(okey) + ';' +
       'function setOrient(o){document.getElementById("orient").textContent=OR_CSS[o];try{localStorage.setItem(OR_KEY,o)}catch(e){}' +
-      'document.getElementById("or_P").className=o==="P"?"on":"";document.getElementById("or_L").className=o==="L"?"on":"";try{fitWideTables(document)}catch(e){}}<\/script>';
+      'document.getElementById("or_P").className=o==="P"?"on":"";document.getElementById("or_L").className=o==="L"?"on":"";try{fitWideTables(document)}catch(e){}try{fitLogPages(document)}catch(e){}}<\/script>';
     const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(title) + '</title><style>' + PRINT_CSS + extra +
       ' .or-pick{display:inline-flex;gap:4px;align-items:center;margin-right:10px;font-size:13px} .or-pick button{background:#fff;color:#111;border:1px solid #CBD5E1} .or-pick button.on{background:#F59E0B;color:#111;border-color:#F59E0B;font-weight:700}' +
       '</style><style id="orient">' + ORIENT_CSS[isBill ? 'P' : orient] + '</style>' + script + '</head>' +
@@ -6264,7 +6288,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (/rep-bill/.test(kind || '')) { try { fitBillPages(w.document); } catch (e) { /* print as it is */ } }
     if (!isBill) { try { const b1 = w.document.getElementById('or_' + orient); if (b1) b1.className = 'on'; } catch (e) { /* no buttons */ } }
     try { fitWideTables(w.document); } catch (e) { /* print as it is */ }
-    const go = () => { w.focus(); w.print(); };
+    try { fitLogPages(w.document); } catch (e) { /* print as it is */ }
+    const go = () => { try { fitLogPages(w.document); } catch (e) { /* as it is */ } w.focus(); w.print(); };      // measured again when the logo is in
     // wait for the logo so it is on the paper, but never longer than 2.5 s
     const img = w.document.querySelector('img');
     if (img && !img.complete) { let done = false; const once = () => { if (!done) { done = true; go(); } }; img.onload = once; img.onerror = once; setTimeout(once, 2500); }
