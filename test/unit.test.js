@@ -731,3 +731,97 @@ test('half day with an Item-wise BOQ: the Per Day / Monthly item of a "½ day" e
   assert.deepStrictEqual(q(false), [{ n: 'Breaker', q: 2, k: 'hr' }, { n: 'Machine with operator', q: 1, k: 'day' }]);
   assert.deepStrictEqual(q(true), [{ n: 'Breaker', q: 2, k: 'hr' }, { n: 'Machine with operator', q: 0.5, k: 'day' }]);
 });
+
+test('Asset Master: the Machinery Number can be changed – everything entered for the machinery follows; issued bills and debit notes keep their number, only their link moves; joining two machinery is refused', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const mach = (no, more) => Object.assign({ no: no, name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, tankCap: 200, owner: 'Number Vendor ZQ', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-05-01' }, more || {});
+  run('(x, m) => saveMaster_(x, m)', mach('ZQ-1', { taxUpto: '2026-12-31' }), 'add');
+  run('(x, m) => saveMaster_(x, m)', mach('ZQ-9'), 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'Number Vendor ZQ', gstReg: 'No', pan: 'ABCDE1234Z', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'Debit Party ZQ', gstReg: 'No' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'Number Vendor ZQ', from: '2026-05-01', tdsPct: 0, woNo: 'WO-ZQ', lines: [{ no: 'ZQ-1', basis: 'Monthly', rate: 31000, diesel: 'Company' }, { no: 'ZQ-9', basis: 'Monthly', rate: 31000, diesel: 'Company' }] }, 'add');
+  run('x => saveInward_(x)', { date: '2026-04-30', location: 'Dispenser', pump: 'Pump', qty: 1000, rate: 100, billNo: 'ZQ1', billDate: '2026-04-30' });
+  const saved = run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-05-10', shift: 'Full Day', no: 'ZQ-1', mode: 'KM', openingKm: 1000, closingKm: 1100, debitTo: 'Debit Party ZQ', debitRate: 50 },
+    { date: '2026-05-11', shift: 'Day', no: 'ZQ-1', mode: 'KM', closingKm: 1180 }, { date: '2026-05-11', shift: 'Night', no: 'ZQ-1', mode: 'KM', closingKm: 1200 }, { date: '2026-05-10', shift: 'Full Day', no: 'ZQ-9', mode: 'KM', openingKm: 10, closingKm: 60 }] });
+  assert.ok(saved.ok, JSON.stringify(saved).slice(0, 300));
+  run('x => saveDieselIssue_(x)', { date: '2026-05-10', shift: 'Day', source: 'Dispenser', no: 'ZQ-1', qty: 40, kmReading: 1000, force: true });
+  run('x => saveDieselIssue_(x)', { date: '2026-05-11', shift: 'Day', source: 'Dispenser', no: 'ZQ-1', qty: 25, kmReading: 1100, force: true });
+  run('x => saveDieselIssue_(x)', { date: '2026-05-10', shift: 'Day', source: 'Dispenser', no: 'ZQ-9', qty: 10, kmReading: 10, force: true });
+  // a debit note for the entry charged to a party (a real one: it links to the Log Book entry by its key "number|date|shift")
+  const co = run('() => billCompanies_()')[0];
+  const pend = run('f => debitPending_(f)', { vendor: 'Debit Party ZQ', from: '2026-05-01', to: '2026-05-31' });
+  assert.deepStrictEqual(pend.rows.map(r => r.logId), ['ZQ-1|2026-05-10|Full Day']);
+  const dn = run('x => saveDebitNote_(x)', { company: co, vendor: 'Debit Party ZQ', date: '2026-05-12', from: '2026-05-01', to: '2026-05-31', lines: [{ logId: 'ZQ-1|2026-05-10|Full Day', machinery: 'ZQ-1', particular: 'Tipper work', qty: 100, unit: 'KM', rate: 50 }] });
+  assert.ok(dn && dn.ok !== false, JSON.stringify(dn).slice(0, 300));
+  // rows put straight into the other tables that name a machinery: a saved bill, a tank check, the two breakdown tables
+  run(`() => withLock_(() => {
+    const add = (sheet, cols, vals) => { vbSheet_(sheet, cols); const t = table_(sheet); const row = newRow_(t); Object.keys(vals).forEach(h => set_(row, t, h, vals[h])); t.sh.appendRow(row); TABLE_MEMO_ = {}; };
+    add(APP.SHEET_BILLS, BILL_COLS_, { 'Bill ID': 'BL-ZQ1', 'Vendor Name': 'Number Vendor ZQ', Company: '${'${co}'}', 'Bill No': '7', 'Period From': toDate_('2026-05-01'), 'Period To': toDate_('2026-05-31'), Status: 'Active', 'Net Payable': 1000,
+      Data: JSON.stringify({ B: 0, machines: [{ no: 'ZQ-1', workDays: 2, amount: 2000 }, { no: 'ZQ-9', workDays: 1, amount: 1000 }] }) });
+    add(APP.SHEET_TANK, TANK_COLS_, { 'Check ID': 'TC-ZQ1', Date: toDate_('2026-05-11'), 'Machinery Number': 'ZQ-1', 'System Diesel (Ltr)': 20, 'Physical Diesel (Ltr)': 18 });
+    add(APP.SHEET_BREAKDOWN, BD_COLS_, { 'Breakdown ID': 'BD-ZQ1', 'Machinery No': 'ZQ-1', 'From Date': toDate_('2026-05-12'), Reason: 'Tyre', Status: 'Open' });
+    add(APP.SHEET_BDREPORT, BDR_COLS_, { 'Report ID': '2026-05-12', 'Report Date': toDate_('2026-05-12'), 'Machinery Count': 2, Details: JSON.stringify([{ no: 'ZQ-1', status: 'Breakdown', reason: 'Tyre' }, { no: 'ZQ-9', status: 'Working' }]) });
+  })`.replace("${co}", co));
+  run('(x, m, o) => saveMaster_(x, m, o)', mach('ZQ-1', { taxUpto: '2027-12-31' }), 'edit', 'ZQ-1');           // a renewal of its papers (kept in the history under its number)
+  const where = no => run(`no => { const k = noKey_(no), col = (sheet, h) => { const t = table_(sheet); return h in t.c ? t.rows.filter(r => noKey_(r[t.c[h]]) === k).length : -1; };
+    const j = (sheet, h) => table_(sheet).rows.map(r => str_(r[table_(sheet).c[h]]));
+    return { master: getMaster_().filter(m => noKey_(m.id) === k).length, diesel: col(APP.SHEET_DIESEL, H.NO), log: col(APP.SHEET_LOG, H.NO), tank: col(APP.SHEET_TANK, 'Machinery Number'), bd: col(APP.SHEET_BREAKDOWN, 'Machinery No'), papers: col(APP.SHEET_COMPLIANCE, 'Machinery No'),
+      boq: allBoqs_().filter(b => b.lines.some(l => noKey_(l.no) === k)).length, register: bdReports_().filter(r => r.rows.some(x => noKey_(x.no) === k)).length,
+      billLink: table_(APP.SHEET_BILLS).rows.map(r => billOut_(table_(APP.SHEET_BILLS), r, true)).filter(b => billMachKeys_(b.data).indexOf(k) > -1).length,
+      billPaper: j(APP.SHEET_BILLS, 'Data').filter(t => JSON.parse(t || '{}').machines.some(x => noKey_(x.no) === k)).length,
+      dnLink: dnList_().filter(d => d.logIds.some(id => noKey_(id.split('|')[0]) === k)).length, dnPaper: dnList_().filter(d => d.lines.some(l => noKey_(l.machinery) === k)).length,
+      logIds: SS_().getSheetByName(APP.SHEET_LOG).ids.filter(id => noKey_(String(id).split('|')[0]) === k).sort() }; }`, no);
+  const b0 = where('ZQ-1'), other0 = where('ZQ-9');
+  assert.deepStrictEqual([b0.master, b0.diesel, b0.log, b0.tank, b0.bd, b0.papers, b0.boq, b0.register, b0.billLink, b0.billPaper, b0.dnLink, b0.dnPaper], [1, 2, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+  const bill0 = run('() => billMachineCalc_(findMachine_("ZQ-1"), getLogBookList_({ from: "2026-05-01", to: "2026-05-31", no: "ZQ-1", all: true }).rows, logPrintExtra_({ from: "2026-05-01", to: "2026-05-31", nos: ["ZQ-1"] }), "2026-05-01", "2026-05-31", undefined, true)');
+  const stock0 = run('() => getStock_().stock');
+
+  // ---------- refused: a number another machinery has; a number that still has records of a machinery no longer in Master ----------
+  assert.throws(() => run('(x, m, o) => saveMaster_(x, m, o)', mach('ZQ-9', { taxUpto: '2027-12-31' }), 'edit', 'ZQ-1'), /ZQ-9 is already in Master – two machinery cannot have the same Number/);
+  run('(x, m) => saveMaster_(x, m)', mach('ZQ-GONE'), 'add');
+  run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-05-10', shift: 'Full Day', no: 'ZQ-GONE', mode: 'KM', openingKm: 5, closingKm: 9 }] });
+  run('(id, f) => deleteMaster_(id, f)', 'ZQ-GONE', true);                                                          // (deleting a machinery leaves its entries)
+  assert.throws(() => run('(x, m, o) => saveMaster_(x, m, o)', mach('ZQ-GONE', { taxUpto: '2027-12-31' }), 'edit', 'ZQ-1'), /ZQ-GONE already has records in the app \(1 Log Book entries\) – they belong to a machinery that is no longer in Asset Master/);
+  assert.deepStrictEqual(where('ZQ-1'), b0, 'a refused change must leave everything as it was');
+
+  // ---------- the change: ZQ-1 → MH-12-ZQ-1234 (typed without dashes) ----------
+  const res = run('(x, m, o) => saveMaster_(x, m, o)', mach('mh12zq1234', { taxUpto: '2027-12-31' }), 'edit', 'ZQ-1');
+  assert.strictEqual(res.renamed.from + ' → ' + res.renamed.to, 'ZQ-1 → MH-12-ZQ-1234');
+  assert.strictEqual(res.renamed.text, '2 diesel issues, 3 Log Book entries, 1 tank checks, 1 breakdown records, 1 renewals of papers, 1 BOQs, 1 days of the breakdown register, 1 debit notes (link only), 1 saved bills (link only)');
+  const a = where('MH-12-ZQ-1234'), gone = where('ZQ-1');
+  // everything follows …
+  assert.deepStrictEqual([a.master, a.diesel, a.log, a.tank, a.bd, a.papers, a.boq, a.register, a.billLink, a.dnLink], [1, 2, 3, 1, 1, 1, 1, 1, 1, 1]);
+  assert.deepStrictEqual(a.logIds, ['MH-12-ZQ-1234|2026-05-10|Full Day', 'MH-12-ZQ-1234|2026-05-11|Day', 'MH-12-ZQ-1234|2026-05-11|Night']);       // the entries moved to their new keys
+  // … nothing is left under the old number, except on the papers already issued
+  assert.deepStrictEqual([gone.master, gone.diesel, gone.log, gone.tank, gone.bd, gone.papers, gone.boq, gone.register, gone.billLink, gone.dnLink, gone.logIds.length], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  assert.deepStrictEqual([gone.billPaper, gone.dnPaper, a.billPaper, a.dnPaper], [1, 1, 0, 0]);
+  // the other machinery is untouched
+  assert.deepStrictEqual(where('ZQ-9'), other0);
+  // no figure changed: the bill of the machinery and the diesel stock are what they were
+  const bill1 = run('() => billMachineCalc_(findMachine_("MH-12-ZQ-1234"), getLogBookList_({ from: "2026-05-01", to: "2026-05-31", no: "MH-12-ZQ-1234", all: true }).rows, logPrintExtra_({ from: "2026-05-01", to: "2026-05-31", nos: ["MH-12-ZQ-1234"] }), "2026-05-01", "2026-05-31", undefined, true)');
+  assert.deepStrictEqual([bill1.workDays, bill1.nights, bill1.amount, bill1.issued, bill1.excessQty, bill1.excessAmt], [bill0.workDays, bill0.nights, bill0.amount, bill0.issued, bill0.excessQty, bill0.excessAmt]);
+  assert.ok(bill0.amount > 0 && bill0.issued === 65);
+  assert.strictEqual(run('() => getStock_().stock'), stock0);
+  // the Log Book entry that is in the debit note is still known to be in it (not offered a second time)
+  const pend2 = run('f => debitPending_(f)', { vendor: 'Debit Party ZQ', from: '2026-05-01', to: '2026-05-31' });
+  assert.deepStrictEqual([pend2.rows.length, pend2.already], [0, 1]);
+  // the next entry carries on from the last Close under the new number
+  assert.strictEqual(run('() => getLogRowPrefill_("MH-12-ZQ-1234", "2026-05-12", "Full Day").openingKm'), 1200);
+  assert.throws(() => run('() => findMachine_("ZQ-1")'), /"ZQ-1" is not in Master/);
+
+  // ---------- changed back (a mistake undone): the bill's link returns to the number printed on it ----------
+  const back = run('(x, m, o) => saveMaster_(x, m, o)', mach('ZQ-1', { taxUpto: '2027-12-31' }), 'edit', 'MH-12-ZQ-1234');
+  assert.strictEqual(back.renamed.to, 'ZQ-1');
+  assert.deepStrictEqual(where('ZQ-1'), b0);
+  assert.strictEqual(run(`() => JSON.stringify(JSON.parse(str_(table_(APP.SHEET_BILLS).rows.find(r => r[table_(APP.SHEET_BILLS).c['Bill ID']] === 'BL-ZQ1')[table_(APP.SHEET_BILLS).c['Data']])).machines[0])`), '{"no":"ZQ-1","workDays":2,"amount":2000}');
+  // an edit that does not touch the number moves nothing
+  const plain = run('(x, m, o) => saveMaster_(x, m, o)', mach('ZQ-1', { taxUpto: '2027-12-31', make: 'Tata' }), 'edit', 'ZQ-1');
+  assert.strictEqual(plain.renamed, null);
+  // a machinery without a number is known by its name – the name can be changed the same way, and a number can be given to it later
+  run('(x, m) => saveMaster_(x, m)', mach('', { name: 'Pile Machine ZQ' }), 'add');
+  run('x => saveDieselIssue_(x)', { date: '2026-05-10', shift: 'Day', source: 'Dispenser', no: 'Pile Machine ZQ', qty: 5, force: true });
+  const nm = run('(x, m, o) => saveMaster_(x, m, o)', mach('DDIPL-7', { name: 'Pile Machine ZQ' }), 'edit', 'Pile Machine ZQ');
+  assert.strictEqual(nm.renamed.from + ' → ' + nm.renamed.to + ' : ' + nm.renamed.text, 'Pile Machine ZQ → DDIPL-7 : 1 diesel issues');
+  assert.strictEqual(where('DDIPL-7').diesel, 1);
+});

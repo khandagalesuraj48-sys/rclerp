@@ -709,7 +709,8 @@ function logAfter_(u, spec, args, res, before) {
     case 'master': {
       const v = validateMaster_(args[0]);
       const after = masterSnapshot_(v.id);
-      if (args[1] === 'edit') writeLog_(u, 'Edit', m, str_(args[2]), 'Changed ' + str_(args[2]), changes_(before, after) || 'No field changed');
+      if (args[1] === 'edit' && res && res.renamed) writeLog_(u, 'Edit', m, res.renamed.to, 'Machinery number changed: ' + res.renamed.from + ' → ' + res.renamed.to + (res.renamed.text ? ' (moved with it: ' + res.renamed.text + ')' : ''), '');
+      if (args[1] === 'edit') writeLog_(u, 'Edit', m, res && res.renamed ? res.renamed.to : str_(args[2]), 'Changed ' + (res && res.renamed ? res.renamed.to : str_(args[2])), changes_(before, after) || 'No field changed');
       else writeLog_(u, 'Add', m, v.id, 'New machinery ' + v.id, describe_(after));
       break;
     }
@@ -1006,6 +1007,62 @@ function buildMasterRow_(t, base, v) {
   return row;
 }
 
+/* ---------- CHANGING A MACHINERY'S NUMBER (asked 06-10-2026: "in Asset Master the Machinery Number must be editable") ----------
+ * The Number – or, for a machinery without one, its Name – is what ties a machinery to everything entered for it. Until now
+ * it could not be changed after the first save. Now an edit in Asset Master may change it, and the change is the SAME change
+ * everywhere, in the one save (one database transaction – all of it or nothing):
+ *   MOVED to the new number:  diesel issues · Log Book entries (their key holds the number, so each entry moves to its new
+ *     key) · tank checks · breakdown records and the daily breakdown register · renewals of papers · the lines of its BOQs ·
+ *     the links from debit notes to its Log Book entries.
+ *   NOT changed – as he decided for a vendor's rename (02-10-2026): the PAPERS already issued. A saved bill and a saved
+ *     debit note keep the number they were issued with; only their LINK moves (a bill's machinery gets "noNow" = the number
+ *     it has today – see billMachNo_), so the app still knows that the machinery is billed for that period.
+ *   No figure changes: readings, diesel, averages, stock, amounts are untouched. The Activity Log keeps its old lines.
+ * REFUSED: a number that another machinery has, and a number under which the app still holds records of a machinery that
+ *   is no longer in Asset Master (deleting a machinery leaves its entries) – that would join two machinery into one. */
+const billMachNo_ = x => str_((x && (x.noNow || x.no)) || '');      // the number a bill's machinery has TODAY (x.no = as printed on the bill)
+function renameMachine_(oldId, newId) {
+  const from = str_(oldId), to = str_(newId), kf = noKey_(from), kt = noKey_(to);
+  if (!kf || !kt) throw new Error('Enter the Machinery Number, or the Machinery Name if it has no number.');
+  if (to.length > 60) throw new Error('Keep the Machinery Number / Name under 60 letters.');
+  const tab = (sheet, col) => { if (!SS_().getSheetByName(sheet)) return null; const t = table_(sheet); return col in t.c ? t : null; };
+  const json = (v, dflt) => { try { const o = JSON.parse(str_(v) || dflt); return o && typeof o === 'object' ? o : JSON.parse(dflt); } catch (e) { return JSON.parse(dflt); } };
+  const logId = id => { const m = /^(.*)\|(\d{4}-\d{2}-\d{2}\|[^|]*)$/.exec(str_(id)); return m && noKey_(m[1]) === kf ? to + '|' + m[2] : null; };      // "number|date|shift"
+  const plain = [[APP.SHEET_DIESEL, H.NO, 'diesel issues'], [APP.SHEET_LOG, H.NO, 'Log Book entries'], [APP.SHEET_TANK, 'Machinery Number', 'tank checks'],
+    [APP.SHEET_BREAKDOWN, 'Machinery No', 'breakdown records'], [APP.SHEET_COMPLIANCE, 'Machinery No', 'renewals of papers']];
+  const boqT = tab(APP.SHEET_BOQ, 'Lines'), billT = tab(APP.SHEET_BILLS, 'Data'), dnT = tab(DN_SHEET_, 'Log IDs'), bdrT = tab(APP.SHEET_BDREPORT, 'Details');
+  // 1. the new number must be free everywhere – not only in Asset Master
+  if (kf !== kt) {
+    const held = [];
+    plain.forEach(x => { const t = tab(x[0], x[1]); if (!t) return; const k = t.rows.filter(r => noKey_(r[t.c[x[1]]]) === kt).length; if (k) held.push(k + ' ' + x[2]); });
+    if (boqT) { const k = boqT.rows.filter(r => { const j = json(r[boqT.c['Lines']], '[]'); return (Array.isArray(j) ? j : (j.lines || [])).some(l => noKey_(l && l.no) === kt); }).length; if (k) held.push(k + ' BOQ(s)'); }
+    if (billT) { const k = billT.rows.filter(r => (json(r[billT.c['Data']], '{}').machines || []).some(x => noKey_(billMachNo_(x)) === kt)).length; if (k) held.push(k + ' saved bill(s)'); }
+    if (held.length) throw new Error(to + ' already has records in the app (' + held.join(', ') + ') – they belong to a machinery that is no longer in Asset Master. Two machinery cannot be joined by changing a number: choose another number.');
+  }
+  // 2. everything of the machinery follows
+  const n = {}, put = (t, i, row, label) => { t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); n[label] = (n[label] || 0) + 1; };
+  plain.forEach(x => { const t = tab(x[0], x[1]); if (!t) return; const ci = t.c[x[1]];
+    t.rows.forEach((r, i) => { if (noKey_(r[ci]) !== kf || str_(r[ci]) === to) return; const row = r.slice(); row[ci] = to; put(t, i, row, x[2]); }); });
+  if (boqT) boqT.rows.forEach((r, i) => { const j = json(r[boqT.c['Lines']], '[]'), lines = Array.isArray(j) ? j : (j.lines || []); let hit = false;
+    lines.forEach(l => { if (l && noKey_(l.no) === kf && str_(l.no) !== to) { l.no = to; hit = true; } });
+    if (hit) { const row = r.slice(); row[boqT.c['Lines']] = JSON.stringify(j); put(boqT, i, row, 'BOQs'); } });
+  if (bdrT) bdrT.rows.forEach((r, i) => { const j = json(r[bdrT.c['Details']], '[]'); let hit = false;
+    (Array.isArray(j) ? j : []).forEach(x => { if (x && noKey_(x.no) === kf && str_(x.no) !== to) { x.no = to; hit = true; } });
+    if (hit) { const row = r.slice(); row[bdrT.c['Details']] = JSON.stringify(j); put(bdrT, i, row, 'days of the breakdown register'); } });
+  // papers already issued keep their number – only the link moves
+  if (dnT) dnT.rows.forEach((r, i) => { const ids = json(r[dnT.c['Log IDs']], '[]'), lines = 'Lines' in dnT.c ? json(r[dnT.c['Lines']], '[]') : []; let hit = false;
+    const ids2 = (Array.isArray(ids) ? ids : []).map(id => { const x = logId(id); if (x !== null && x !== str_(id)) { hit = true; return x; } return id; });
+    (Array.isArray(lines) ? lines : []).forEach(l => { const x = l && l.logId ? logId(l.logId) : null; if (x !== null && x !== str_(l.logId)) { l.logId = x; hit = true; } });
+    if (hit) { const row = r.slice(); row[dnT.c['Log IDs']] = JSON.stringify(ids2); if ('Lines' in dnT.c) row[dnT.c['Lines']] = JSON.stringify(lines); put(dnT, i, row, 'debit notes (link only)'); } });
+  if (billT) billT.rows.forEach((r, i) => { const d = json(r[billT.c['Data']], '{}'); let hit = false;
+    (Array.isArray(d.machines) ? d.machines : []).forEach(x => { if (!x || noKey_(billMachNo_(x)) !== kf) return;
+      if (noKey_(x.no) === kt) { if (x.noNow !== undefined) { delete x.noNow; hit = true; } }            // back to the number printed on the bill
+      else if (x.noNow !== to) { x.noNow = to; hit = true; } });
+    if (hit) { const row = r.slice(); row[billT.c['Data']] = JSON.stringify(d); put(billT, i, row, 'saved bills (link only)'); } });
+  TABLE_MEMO_ = {}; ITEM_NOS_ = null; ITEM_ON_ = {};
+  return { from: from, to: to, moved: n, text: Object.keys(n).map(k => n[k] + ' ' + k).join(', ') };
+}
+
 // mode 'add' or 'edit'. For edit, origId is the machine being edited (its number or name).
 function saveMaster_(m, mode, origId) {
   return withLock_(() => {
@@ -1017,20 +1074,26 @@ function saveMaster_(m, mode, origId) {
     ASSET_TEXT_.concat(ASSET_DOCS_).forEach(x => { if (v[x[0]] !== undefined && v[x[0]] !== '') addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H[x[1]]); });
     const t = table_(APP.SHEET_MASTER, MASTER_COLS_);
     const clash = t.rows.findIndex(r => same_(rowId_(r, t), v.id));
+    let renamed = null;
     if (mode === 'add') {
       if (clash !== -1) throw new Error(v.id + ' is already in Master.');
       t.sh.appendRow(buildMasterRow_(t, null, v));
     } else {
       const i = t.rows.findIndex(r => same_(rowId_(r, t), origId));
       if (i === -1) throw new Error(clean_(origId) + ' was not found in Master.');
-      if (!same_(v.id, origId)) throw new Error('The Machinery Number / Name that identifies ' + clean_(origId) + ' cannot be changed.');
+      // the Number (or the Name of a machinery without a number) was changed in the form: everything of the machinery follows first
+      const realId = rowId_(t.rows[i], t);
+      if (v.id !== realId) {
+        if (clash !== -1 && clash !== i) throw new Error(v.id + ' is already in Master – two machinery cannot have the same Number / Name. Choose another.');
+        renamed = renameMachine_(realId, v.id);
+      }
       const was = {}; cmpDocs_().forEach(d => { was[d.name] = d.col in t.c ? docVal_(t.rows[i][t.c[d.col]]) : ''; });
       const row = buildMasterRow_(t, t.rows[i], v);
       t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
       const chg = cmpDocs_().filter(d => d.col in t.c && docVal_(row[t.c[d.col]]) !== was[d.name]).map(d => ({ no: v.id, doc: d.name, from: was[d.name], to: docVal_(row[t.c[d.col]]), on: today_(), source: 'Asset Master' }));
       try { cmpHistAdd_(chg); } catch (e) { /* history is extra – the Master change stands */ }
     }
-    return { ok: true, master: getMaster_() };
+    return { ok: true, master: getMaster_(), renamed: renamed };
   });
 }
 
@@ -1920,7 +1983,7 @@ function logDashboard_(f) {
   try {
     const bt = billTable_();
     if (bt) bt.rows.map(r => billOut_(bt, r, true)).filter(b => b.status === 'Active').forEach(b => ((b.data || {}).machines || []).forEach(mm => {
-      const x = L.find(y => noKey_(y.no) === noKey_(mm.no)); if (x && (!x.lastBill || b.to > x.lastBill.to)) x.lastBill = { billNo: b.billNo, rev: b.rev, from: b.from, to: b.to, net: b.net, company: b.company };
+      const x = L.find(y => noKey_(y.no) === noKey_(billMachNo_(mm))); if (x && (!x.lastBill || b.to > x.lastBill.to)) x.lastBill = { billNo: b.billNo, rev: b.rev, from: b.from, to: b.to, net: b.net, company: b.company };
     }));
   } catch (e) { /* no bills yet */ }
   const types = [...new Set(getMaster_().map(m => m.type).filter(Boolean))].sort();
@@ -2203,7 +2266,7 @@ function billSummary_(f) {
   return { rows: rows };
 }
 // the machinery of a bill (keys); an old bill without the list counts as "all machinery of the vendor"
-function billMachKeys_(data) { return ((data || {}).machines || []).map(x => noKey_(x.no)).filter(Boolean); }
+function billMachKeys_(data) { return ((data || {}).machines || []).map(x => noKey_(billMachNo_(x))).filter(Boolean); }      // (billMachNo_: the number it has today, if it was changed after the bill)
 function billMachOverlap_(a, b) { return !a.length || !b.length || a.some(k => b.indexOf(k) > -1); }
 /* ---------- Verify before submit ----------
  * The server builds every bill again from the database (Log Book, Diesel Issue, BOQ, Asset / Vendor Master) the same way

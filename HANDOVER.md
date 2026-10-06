@@ -887,6 +887,40 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * Tests: unit "half day …" and "half day with an Item-wise BOQ …" (32 unit tests); `test/browser/half.js` (11: refused before the
     step, the step twice, entry page → database, Holiday refused, list, bill 2.5 d + 0.5 n = ₹3,000, Verify & Submit agrees, print,
     Edit page takes it off).
+- 06-10-2026: "IN ASSET MASTER THE MACHINERY NUMBER MUST BE EDITABLE" (his screenshot: Edit DDIPL, the number box locked).
+  * BEFORE: the Number (or the Name of a machinery without a number) is the machinery's identity – the Master row's key, part of every
+    Log Book entry's key ("number|date|shift"), and the text in every other table – so `saveMaster_` refused a change and the page
+    locked the box.
+  * NOW: `renameMachine_(old, new)` (Code.gs, called by `saveMaster_` when the id text changes) makes the SAME change everywhere in the
+    one save (one web_write transaction – all or nothing): Diesel Issue, Log Book (rows move to their new keys: the data layer deletes
+    the old key and writes the new one; the delete trigger notes the old keys for the Sheet backup), Tank Check, Breakdowns, Breakdown
+    Reports (Details JSON), Compliance History, BOQ lines (JSON). PAPERS ALREADY ISSUED KEEP THEIR NUMBER – the same decision he took
+    for a vendor's rename (02-10): in a saved bill `machines[].no` stays as printed and `noNow` carries today's number (`billMachNo_`;
+    used by `billMachKeys_`, the dashboard's last bill and the page's "Log Book of a saved bill"); in a debit note the lines' `machinery`
+    text stays and only `Log IDs` / `lines[].logId` move. Changing back removes `noNow` again. No figure is touched.
+  * REFUSED (nothing changes): a number another machinery has; a number under which records of a machinery NO LONGER IN MASTER are still
+    kept (deleteMaster_ leaves entries) – that would join two machinery, and Log Book keys could collide.
+  * Same permission as any Asset Master edit (as the vendor rename). Closed months are not a bar (no figure changes). Activity Log:
+    "Machinery number changed: A → B (moved with it: …)". Page: the Number / Name boxes are no longer read-only on Edit; the confirm box
+    says what a number change does (incl. "a QR label printed with the old number will not open this machinery – print it again";
+    old QR links answer "not in the Master"); the toast says what moved. Guide text of Asset Master corrected (3 languages); the advice
+    rule for the old "cannot be changed" message removed, one added for the two refusals.
+  * KNOWN: a moved row is a new database row, so the database's own created_at of Master / Log Book rows of that machinery becomes the
+    time of the change (the app never reads it; Entered By / Updated By are kept).
+  * FOUND, NOT FIXED (not asked): in the Edit form an edit of ONLY Tank Capacity / Engine No / Chassis No / Engine Make / papers says
+    "Nothing changed." and is not saved – the page's `diff` list in `m_save` does not include those fields (seen on the rig, same code
+    on live). Told him; fix = add the fields to that list.
+  * Tests: unit "Asset Master: the Machinery Number can be changed …" (33 unit tests); `test/browser/machno.js` (19: real database –
+    every table before / after, refusals, moved row = same content, deleted_rows, second server, debit note still linked, Activity Log,
+    the page's form / confirm / toast, changed back = database identical).
+  * THE RIG WAS REBUILT on 06-10 (the workspace had been reset; nothing of it was in the repo): PostgreSQL 16 → database rcl, roles anon /
+    authenticated / service_role (bypassrls) / authenticator; ALL sql/supabase_step*.sql in order, then check_security.sql; PostgREST
+    12.2.3 on 3101 (db-schemas public, jwt-secret); a 20-line Node gateway on 3100 that maps /rest/v1/* to it and turns the apikey into a
+    service_role JWT; .env.local with SUPABASE_URL=http://127.0.0.1:3100 and a key starting sb_secret_; `node dev.js` on 3000 and 3001;
+    first Admin: a row in app_users with a plain start password, then changePassword through the app. Browser: puppeteer-core with the
+    headless Chromium of the workspace (a 3-line stand-in for @sparticuz/chromium). The earlier SEED DATA (MH-15-AB-…, Multi Vendor, 3,600
+    Log Book rows) is gone: tests that lean on it (e.g. test/browser/rename.js = the vendor rename, 8 of 11 fail for lack of that data)
+    were NOT re-run meaningfully; test/audit.js runs without its "backup" section (the Google stand-in is not in the repo): 34 / 34.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

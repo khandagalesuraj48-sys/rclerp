@@ -4435,6 +4435,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Shown: under every red message (a card at the bottom right), inside every "Nothing saved / Not submitted" box, and next
    * to warnings on the billing page. The language is remembered on this device (rcl_lang). To cover a new message: add a rule. */
   const FIX_RULES = [
+    { re: /two machinery cannot|already has records in the app|Machinery Number \/ Name under/i,
+      en: ['The new Machinery Number cannot be used.', 'A number belongs to one machinery only. If it says "already in Master": another machinery has this number – check which of the two is right. If it says "already has records": entries of a machinery that was deleted from Asset Master are still kept under this number, and the two would be mixed – choose another number. Nothing was changed.'],
+      mr: ['हा नवीन Machinery Number वापरता येत नाही.', 'एक नंबर एकाच गाडीचा असतो. "already in Master" असेल तर: हा नंबर दुसऱ्या गाडीला आधीच आहे; दोघांपैकी कोणता बरोबर ते तपासा. "already has records" असेल तर: Asset Master मधून काढलेल्या एका गाडीच्या entries अजून या नंबरखाली आहेत, आणि दोन्ही गाड्यांचा data मिसळेल; दुसरा नंबर निवडा. काहीही बदललेले नाही.'],
+      hi: ['यह नया Machinery Number इस्तेमाल नहीं हो सकता।', 'एक नंबर एक ही गाड़ी का होता है। "already in Master" हो तो: यह नंबर दूसरी गाड़ी के पास पहले से है; दोनों में से कौन सा सही है जाँचें। "already has records" हो तो: Asset Master से हटाई गई एक गाड़ी की entries अभी इस नंबर के नीचे हैं, और दोनों गाड़ियों का data मिल जाएगा; दूसरा नंबर चुनें। कुछ भी बदला नहीं है।'] },
     { re: /½ day/i,
       en: ['"½ day" marks an entry that is paid as half a day in the bill.', 'If it says "cannot be saved yet": the Admin runs the file sql/supabase_step1v_half_day.sql once in Supabase → SQL Editor (Read Me has it). If it says the day is not paid: a Holiday or Breakdown day earns nothing, so there is nothing to halve – untick "½ day".'],
       mr: ['"½ day" म्हणजे त्या entry चा bill मध्ये अर्धा दिवस धरला जातो.', '"cannot be saved yet" असेल तर: Admin ने sql/supabase_step1v_half_day.sql ही file Supabase → SQL Editor मध्ये एकदा चालवावी (Read Me मध्ये आहे). "day is not paid" असेल तर: Holiday किंवा Breakdown च्या दिवसाचे पैसे मिळतच नाहीत, म्हणून अर्धे करण्यासारखे काही नाही; "½ day" ची खूण काढा.'],
@@ -4467,10 +4471,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['This is a set-up problem of the app itself, not a mistake in your entry.', 'Do not enter the data again. Take a photo of this message and send it to the Admin / developer.'],
       mr: ['ही app च्या स्वतःच्या set-up ची अडचण आहे, तुमच्या entry ची चूक नाही.', 'Data पुन्हा भरू नका. या संदेशाचा फोटो काढून Admin / developer ला पाठवा.'],
       hi: ['यह app के अपने set-up की समस्या है, आपकी entry की गलती नहीं।', 'Data दोबारा न भरें। इस संदेश की फोटो लेकर Admin / developer को भेजें।'] },
-    { re: /identifies .*cannot be changed|Machinery Number \/ Name that identifies/i,
-      en: ['The number / name of a machinery cannot be changed, because all its diesel and Log Book entries are saved under it.', 'Leave the number as it is and change the other fields. If the number itself was entered wrong, ask the Admin: a new machinery has to be added and the old one made inactive.'],
-      mr: ['Machinery चा नंबर / नाव बदलता येत नाही, कारण तिच्या सगळ्या diesel आणि Log Book entries त्या नंबरखाली save आहेत.', 'नंबर आहे तसा ठेवा आणि बाकी fields बदला. नंबरच चुकीचा भरला असेल तर Admin ला सांगा: नवीन machinery जोडून जुनी inactive करावी लागेल.'],
-      hi: ['Machinery का नंबर / नाम बदला नहीं जा सकता, क्योंकि उसकी सारी diesel और Log Book entries उसी नंबर के नीचे save हैं।', 'नंबर जैसा है वैसा रखें और बाकी fields बदलें। नंबर ही गलत भरा हो तो Admin को बताएँ: नई machinery जोड़कर पुरानी inactive करनी होगी।'] },
     { re: /View access only|do not have access|Only Admin|Ask Admin/i,
       en: ['Your user does not have the permission for this page or action.', 'Ask the Admin to give Edit (or View) access for this module in Users & Access, then sign in again.'],
       mr: ['तुमच्या user ला या page किंवा कामाची परवानगी नाही.', 'Admin ला Users & Access मध्ये या module साठी Edit (किंवा View) परवानगी द्यायला सांगा आणि मग पुन्हा sign in करा.'],
@@ -4782,9 +4782,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['Parties: machinery चे vendors आणि मालक, पत्ता, PAN, GST आणि bank तपशीलासह.', 'App PAN, GST, IFSC आणि mobile चे स्वरूप तपासते, आणि तेच नाव दोनदा घेत नाही. नाव बदलता येते: vendor चे assets, BOQ, bills, payments, debit notes आणि Log Book entries नवीन नावाकडे जातात. ज्या vendor कडे assets किंवा BOQ आहेत तो delete होत नाही. हा तपशील bills, tax invoice आणि debit notes वर छापला जातो.'],
       hi: ['Parties: machinery के vendors और मालिक, पता, PAN, GST और bank विवरण के साथ।', 'App PAN, GST, IFSC और mobile का रूप जाँचता है, और वही नाम दो बार नहीं लेता। नाम बदला जा सकता है: vendor के assets, BOQ, bills, भुगतान, debit notes और Log Book entries नए नाम पर चले जाते हैं। जिस vendor के assets या BOQ हैं वह delete नहीं होता। यह विवरण bills, tax invoice और debit notes पर छपता है।'] },
     master: { saves: ['saveMaster', 'saveMasterBulk', 'deleteMaster', 'editMasterMany', 'deleteMasterMany', 'importMaster', 'assignVendors'],
-      en: ['Every machinery and vehicle: number, type, owner, ownership, what it works on (KM / Hrs / Trip / Day / Time), standard average and tank capacity.', 'Every other page reads this list. The number of a machinery cannot be changed once it has entries; "Active From / Inactive From" decide on which dates entries are allowed; the standard average decides the excess diesel in bills.'],
-      mr: ['प्रत्येक machinery आणि गाडी: नंबर, प्रकार, मालक, ownership, कशावर चालते (KM / Hrs / Trip / Day / Time), standard average आणि tank ची क्षमता.', 'बाकी सगळी pages ही यादी वाचतात. Entries झाल्यावर machinery चा नंबर बदलता येत नाही; "Active From / Inactive From" वरून कोणत्या तारखांना entry करता येते ते ठरते; standard average वरून bill मधले जास्तीचे diesel ठरते.'],
-      hi: ['हर machinery और गाड़ी: नंबर, प्रकार, मालिक, ownership, किस पर चलती है (KM / Hrs / Trip / Day / Time), standard average और tank की क्षमता।', 'बाकी सभी pages यह सूची पढ़ते हैं। Entries होने के बाद machinery का नंबर नहीं बदलता; "Active From / Inactive From" से तय होता है किन तारीखों को entry हो सकती है; standard average से bill का अतिरिक्त diesel तय होता है।'] },
+      en: ['Every machinery and vehicle: number, type, owner, ownership, what it works on (KM / Hrs / Trip / Day / Time), standard average and tank capacity.', 'Every other page reads this list. The number of a machinery can be changed here (Edit): everything entered for it moves to the new number, while bills and debit notes already saved keep the number they were issued with; "Active From / Inactive From" decide on which dates entries are allowed; the standard average decides the excess diesel in bills.'],
+      mr: ['प्रत्येक machinery आणि गाडी: नंबर, प्रकार, मालक, ownership, कशावर चालते (KM / Hrs / Trip / Day / Time), standard average आणि tank ची क्षमता.', 'बाकी सगळी pages ही यादी वाचतात. Machinery चा नंबर इथे (Edit) बदलता येतो: तिच्यासाठी भरलेले सगळे नवीन नंबरखाली जाते, आणि आधी save झालेली bills व debit notes ज्या नंबरने निघाली तोच ठेवतात; "Active From / Inactive From" वरून कोणत्या तारखांना entry करता येते ते ठरते; standard average वरून bill मधले जास्तीचे diesel ठरते.'],
+      hi: ['हर machinery और गाड़ी: नंबर, प्रकार, मालिक, ownership, किस पर चलती है (KM / Hrs / Trip / Day / Time), standard average और tank की क्षमता।', 'बाकी सभी pages यह सूची पढ़ते हैं। Machinery का नंबर यहाँ (Edit) बदला जा सकता है: उसके लिए भरा हुआ सब नए नंबर के नीचे चला जाता है, और पहले save हुए bills व debit notes उसी नंबर को रखते हैं जिससे वे निकले थे; "Active From / Inactive From" से तय होता है किन तारीखों को entry हो सकती है; standard average से bill का अतिरिक्त diesel तय होता है।'] },
     boq: { saves: ['saveBoq', 'deleteBoq'],
       en: ['The rate agreement with each vendor: which machinery, on what basis (monthly, per day, per hour, per KM, per trip, slabs or item-wise), at what rate, and who pays the diesel.', 'A machinery can be in one BOQ for a date; a change of rate is an "Amend" with its own start date. Bills take the rate of the BOQ that is valid on each day. GST % is needed when the vendor is GST registered.'],
       mr: ['प्रत्येक vendor सोबतचा दराचा करार: कोणती machinery, कोणत्या basis वर (monthly, per day, per hour, per KM, per trip, slabs किंवा item-wise), कोणत्या दराने, आणि diesel कोण देणार.', 'एका तारखेला एक machinery एकाच BOQ मध्ये असते; दर बदलायचा असेल तर स्वतःच्या सुरुवातीच्या तारखेसह "Amend". Bill प्रत्येक दिवशी लागू असलेल्या BOQ चा दर घेते. Vendor GST registered असेल तर GST % लागतो.'],
@@ -10270,7 +10270,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (lb) {
       try {
         const r = await call('getBills', { id: lb.dataset.sbl }); const b = r.bills[0]; if (!b) return;
-        const nos = new Set(((b.data || {}).machines || []).map(m => String(m.no).toUpperCase()));
+        const nos = new Set(((b.data || {}).machines || []).map(m => String(m.noNow || m.no).toUpperCase()));      // (noNow: the number it has today, if it was changed after the bill)
         const logs = await call('getLogBookList', { from: b.from, to: b.to, all: true });
         const rows = (logs.rows || []).filter(x => nos.has(String(x.no).toUpperCase()));
         if (!rows.length) { toast('No Log Book entries for this bill\'s machinery in its dates.', true); return; }
@@ -11727,8 +11727,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function editMaster(no) {
     const m = findMachine(no); if (!m) return;
     S.editNo = m.id;
-    $('m_no').value = m.no; $('m_no').readOnly = true;
-    $('m_name').readOnly = !m.no; // with no number, the name identifies the machine
+    // (06-10-2026: the Number – and, for a machinery without one, the Name – can be changed; everything entered for the machinery follows, see the save below)
+    $('m_no').value = m.no; $('m_no').readOnly = false; $('m_name').readOnly = false;
     $('m_name').value = m.name; $('m_type').value = m.type; $('m_make').value = m.make;
     const wk = worksOf(m); document.querySelectorAll('#m_works input').forEach(x => { x.checked = wk.indexOf(x.value) > -1; }); masterUnitChanged();
     $('m_engno').value = m.engineNo || ''; $('m_chassis').value = m.chassisNo || ''; $('m_engmake').value = m.engineMake || ''; docFill(m);
@@ -11918,15 +11918,24 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const mode = S.editNo ? 'edit' : 'add';
     if (mode === 'edit') {
       const before = Object.assign({}, findMachine(S.editNo) || {}); before.worksOn = worksOf(before).join(', ');
-      const changes = diff([['name', 'Machinery Name'], ['type', 'Type of Machinery'], ['make', 'Make'], ['worksOn', 'Works on'],
+      const changes = diff([['no', 'Machinery Number'], ['name', 'Machinery Name'], ['type', 'Type of Machinery'], ['make', 'Make'], ['worksOn', 'Works on'],
         ['kmStd', 'Standard Average (KM/Ltr)'], ['hrStd', 'Standard Average (Ltr/Hr)'], ['owner', 'Owner Name'], ['ownership', 'Ownership'],
         ['supply', 'Diesel Supply'], ['status', 'Status'], ['activeFrom', 'Active From'], ['inactiveFrom', 'Inactive From']], before, m);
       if (!changes.length) { toast('Nothing changed.'); return; }
-      if (!(await askConfirm({ title: 'Update ' + S.editNo + '?', html: 'These details will change:' + changeTable(changes), ok: 'Update' }))) return;
+      /* THE NUMBER THAT IDENTIFIES THE MACHINERY CHANGES (its Number, or its Name when it has no number): said plainly before the
+       * save, because it reaches further than this form – everything entered for the machinery moves to the new number. */
+      const newId = formatNo(m.no) || String(m.name || '').trim().replace(/\s+/g, ' '), idChange = !!newId && newId !== S.editNo;      // (as the server will write it)
+      if (!newId) throw new Error('Enter the Machinery Number, or the Machinery Name if it has no number.');
+      const idNote = idChange ? '<p><b>The machinery is known as ' + esc(S.editNo) + ' today and will be known as ' + esc(newId) + '.</b></p>' +
+        listHtml(['Everything entered for it moves to the new number: Log Book, diesel issues, tank checks, breakdown and papers records, and its BOQ.',
+          'No reading, diesel figure or amount changes.',
+          'Bills and debit notes already saved keep the number they were issued with.',
+          'A QR label printed with the old number will not open this machinery any more – print its label again.']) : '';
+      if (!(await askConfirm({ title: 'Update ' + S.editNo + '?', html: idNote + 'These details will change:' + changeTable(changes), ok: idChange ? 'Change the number' : 'Update' }))) return;
     }
     const res = await call('saveMaster', m, mode, S.editNo);
     setMaster(res.master);
-    toast(mode === 'edit' ? 'Machinery updated.' : 'Machinery saved.');
+    toast(mode === 'edit' ? (res.renamed ? 'Machinery updated – ' + res.renamed.from + ' is now ' + res.renamed.to + (res.renamed.text ? ' (moved with it: ' + res.renamed.text + ')' : '') + '.' : 'Machinery updated.') : 'Machinery saved.');
     clearMaster();
   }));
 
