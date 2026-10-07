@@ -31,7 +31,7 @@ const APP = {
 
 const H = {
   NO: 'Machinery Number', NAME: 'Machinery Name', TYPE: 'Type of Machinery', MAKE: 'Make',
-  UNIT: 'Unit', WORKS: 'Works On', LBFMT: 'Log Book Format', TSTART: 'Start Time', TEND: 'End Time', TBRK: 'Break (min)', THRS: 'Time Hrs', CHALLAN: 'Challan No', ITEMS: 'Item Work', DAYPART: 'Day Part', DEBITTO: 'Debit To', DEBITRATE: 'Debit Rate', METER: 'Meter Note', OWNTYPE: 'Ownership', KMSTD: 'Standard Average (KM/Ltr)', HRSTD: 'Standard Average (Ltr/Hr)', OWNER: 'Owner Name',
+  UNIT: 'Unit', WORKS: 'Works On', LBFMT: 'Log Book Format', TSTART: 'Start Time', TEND: 'End Time', TBRK: 'Break (min)', THRS: 'Time Hrs', CHALLAN: 'Challan No', ITEMS: 'Item Work', DAYPART: 'Day Part', TSLOTS: 'Time Slots', DEBITTO: 'Debit To', DEBITRATE: 'Debit Rate', METER: 'Meter Note', OWNTYPE: 'Ownership', KMSTD: 'Standard Average (KM/Ltr)', HRSTD: 'Standard Average (Ltr/Hr)', OWNER: 'Owner Name',
   ID: 'Issue ID', IDATE: 'Issue Date', SHIFT: 'Shift', QTY: 'Diesel Qty (Ltr)',
   KMR: 'KM Reading', HRR: 'Hrs Reading', REMARK: 'Remark', CREATED: 'Created At',
   DATE: 'Date', OKM: 'Opening KM', CKM: 'Closing KM', WKM: 'Working KM',
@@ -3073,6 +3073,47 @@ function logModes_(w) {
 }
 // "08:00" – "13:30" less a break → hours (over midnight: 20:00 – 06:00 = 10 hrs)
 function hhmm_(v) { const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i.exec(str_(v)); if (!m) return null; let h = Number(m[1]); const mi = Number(m[2]); if (m[3]) { const pm = /PM/i.test(m[3]); if (h === 12) h = pm ? 12 : 0; else if (pm) h += 12; } if (h > 23 || mi > 59) return null; return h * 60 + mi; }
+/* SPLIT TIMING OF A TIME ENTRY (asked 07-10-2026: "some machinery work 11 to 1 and then 2 to 5 – 2 + 3 = 5 hours that day; let me
+ * enter it that way, the time as time and the hours as a number (2 pm to 3.30 pm = 1.5); a Day or a Night can have split timing").
+ * An entry measured by Time can have several From – To times. They are kept as text in the column "Time Slots"
+ * ("11:00-13:00,14:00-17:00"; empty for an entry with ONE From – To, i.e. every entry so far). The four columns every bill, report
+ * and print already reads keep their meaning and stay true for a split entry:
+ *     Start Time = the first From      End Time = the last To      Break (min) = the gaps between the times + the break typed
+ *     Time Hrs   = (End − Start) − Break  =  the hours of all the times added up, less the break typed
+ * so nothing that works with the hours changes. Hours are decimal numbers (14:00 to 15:30 = 1.5). A time may run past midnight
+ * (22:00 to 02:00 = 4); the times must be in the order they were worked and may not overlap; all together within 24 hours. */
+const hm_ = v => String(Math.floor(v / 60) % 24).padStart(2, '0') + ':' + String(v % 60).padStart(2, '0');
+function slotsParse_(v) { return str_(v).split(',').map(x => /^\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*$/.exec(x)).filter(Boolean).map(m => [m[1], m[2]]); }
+function timeSlots_(list, who) {
+  const L = (Array.isArray(list) ? list : slotsParse_(list)).filter(x => Array.isArray(x) && (str_(x[0]) || str_(x[1])));
+  if (!L.length) return null;
+  let first = null, cur = null, mins = 0; const out = [], each = [];
+  L.forEach((x, i) => {
+    const a = hhmm_(x[0]), b = hhmm_(x[1]);
+    if (a === null || b === null) throw new Error((who || '') + 'time ' + (i + 1) + ': enter both From and To (e.g. 11:00 and 13:00).');
+    let d = b - a; if (d <= 0) d += 1440;
+    let at = a, wrapped = false;
+    if (cur !== null) { while (at < cur) { at += 1440; wrapped = true; }
+      if (wrapped && at - cur >= 720) throw new Error((who || '') + 'time ' + (i + 1) + ' (' + hm_(a) + ' to ' + hm_(b) + ') starts before time ' + i + ' ends (' + hm_(cur) + ') – the times must be in the order they were worked, without overlap.'); }
+    if (first === null) first = at;
+    cur = at + d; mins += d; out.push(hm_(a) + '-' + hm_(b)); each.push(r2_(d / 60));
+  });
+  if (cur - first > 1440) throw new Error((who || '') + 'the times together cover more than 24 hours – check every From and To.');
+  return { text: out.join(','), n: out.length, start: out[0].split('-')[0], end: out[out.length - 1].split('-')[1], gaps: (cur - first) - mins, mins: mins, each: each };
+}
+const SLOT_SQL_MSG_ = 'This needs one database step first: run sql/supabase_step1w_time_slots.sql in Supabase → SQL Editor (it only adds one column; nothing is changed).';
+function slotsReady_(c) { let cols = null; try { cols = SS_().getSheetByName(APP.SHEET_LOG).dbCols; } catch (e) { cols = null; } if ((cols && cols.indexOf('time_slots') === -1) || (c && !(H.TSLOTS in c))) throw new Error('Split timing (more than one From – To in an entry) cannot be saved yet. ' + SLOT_SQL_MSG_); }
+// the "Time Slots" cell of an entry that is written: what the entry now has (ex.tSlots: text, '' = one time) – or, from a page that
+// does not send the times as a list (ex.tSlots undefined), the saved split stays only while From, To and Break are unchanged
+function slotsCell_(ex, mode, was, c, oldRow) {
+  if (mode !== 'Time') return '';
+  if (ex.tSlots !== undefined) { if (ex.tSlots) slotsReady_(c); return ex.tSlots; }
+  if (!was) return '';
+  const old = h => H[h] in c ? oldRow[c[H[h]]] : '';
+  return tStr_(old('TSTART')) === String(ex.tStart) && tStr_(old('TEND')) === String(ex.tEnd) && String(numOrBlank_(old('TBRK'))) === String(ex.tBrk) ? was : '';
+}
+const hasSlotsIn_ = l => !!l && Array.isArray(l.tSlots) && l.tSlots.filter(x => Array.isArray(x) && (str_(x[0]) || str_(x[1]))).length > 1;
+function logSlotCol_() { addColIfMissing_(APP.SHEET_LOG, logHeaders_(), H.TSLOTS); TABLE_MEMO_ = {}; }
 function timeHrs_(start, end, brk) {
   const a = hhmm_(start), b = hhmm_(end); if (a === null || b === null) return null;
   let mins = b - a; if (mins <= 0) mins += 1440; mins -= Math.max(0, num0_(brk));
@@ -5174,6 +5215,7 @@ function logRowOut_(t, r) {
     enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '',
     mode: str_(r[t.c[H.UNIT]]), tStart: H.TSTART in t.c ? tStr_(r[t.c[H.TSTART]]) : '', tEnd: H.TEND in t.c ? tStr_(r[t.c[H.TEND]]) : '',
     tBrk: H.TBRK in t.c ? numOrBlank_(r[t.c[H.TBRK]]) : '', tHrs: H.THRS in t.c ? numOrBlank_(r[t.c[H.THRS]]) : '', challan: H.CHALLAN in t.c ? str_(r[t.c[H.CHALLAN]]) : '',
+    tSlots: H.TSLOTS in t.c ? str_(r[t.c[H.TSLOTS]]) : '',      // split timing "11:00-13:00,14:00-17:00" ('' = one From – To: tStart / tEnd)
     itemWork: H.ITEMS in t.c ? itemWorkParse_(r[t.c[H.ITEMS]]) : {}, // Item-wise BOQ: the typed items of this entry
     half: halfOf_(r, t.c),                                   // "½ day": paid as half a day in the bill (dayPart_)
     meter: H.METER in t.c ? str_(r[t.c[H.METER]]) : '',   // "No reading – reason" (work is estimated) / "New meter – reason"
@@ -5730,7 +5772,16 @@ function logModeFor_(m, want) {
 // the Time / Trip part of an entry: { tStart, tEnd, tBrk, tHrs, trip }
 function logExtra_(m, mode, l, when) {
   const x = { tStart: '', tEnd: '', tBrk: '', tHrs: '', trip: numOrBlank_(l.trip), challan: clean_(l.challan) };
-  if (mode === 'Time') {
+  if (mode === 'Time' && l.tSlots !== undefined) {
+    // the times as a list (one or more From – To); the break is the break INSIDE those times (see "SPLIT TIMING")
+    const ts = timeSlots_(l.tSlots, m.id + ' (' + when + '): ');
+    if (!ts) throw new Error(m.id + ' (' + when + '): enter the From and To time (e.g. 08:00 and 13:00).');
+    const brk = blank_(l.tBreak) ? 0 : Math.max(0, num0_(l.tBreak));
+    x.tStart = ts.start; x.tEnd = ts.end; x.tSlots = ts.n > 1 ? ts.text : '';
+    x.tBrk = ts.gaps + brk > 0 || !blank_(l.tBreak) ? ts.gaps + brk : '';
+    x.tHrs = r2_(Math.max(0, ts.mins - brk) / 60);
+    if (!(x.tHrs > 0)) throw new Error(m.id + ' (' + when + '): the working time is 0 – check From, To and the break.');
+  } else if (mode === 'Time') {
     const a = hhmm_(l.tStart), b = hhmm_(l.tEnd);
     if (a === null || b === null) throw new Error(m.id + ' (' + when + '): enter the From and To time (e.g. 08:00 and 13:00).');
     x.tStart = String(Math.floor(a / 60)).padStart(2, '0') + ':' + String(a % 60).padStart(2, '0'); x.tEnd = String(Math.floor(b / 60)).padStart(2, '0') + ':' + String(b % 60).padStart(2, '0');
@@ -5751,6 +5802,7 @@ function saveLogRowsInner_(b) {
     if ((b.rows || []).some(hasItemsIn_)) logItemCol_();
     if ((b.rows || []).some(hasDebitIn_)) logDebitCol_();
     if ((b.rows || []).some(hasMeterIn_)) logMeterCol_();
+    if ((b.rows || []).some(hasSlotsIn_)) logSlotCol_();
     const lt = table_(APP.SHEET_LOG, logHeaders_());
     const errors = [], out = [];
     const items = (b.rows || []).map((l, i) => ({ l: l, i: i })).filter(x => str_(x.l.no));
@@ -5809,6 +5861,7 @@ function saveLogRowsInner_(b) {
         set_(row, lt, H.DATE, toDate_(dk)); set_(row, lt, H.NO, m.id); set_(row, lt, H.SHIFT, shift);
         set_(row, lt, H.OWNER, m.owner); set_(row, lt, H.TYPE, m.type); set_(row, lt, H.UNIT, mode);
         set_(row, lt, H.TSTART, ex.tStart); set_(row, lt, H.TEND, ex.tEnd); set_(row, lt, H.TBRK, ex.tBrk); set_(row, lt, H.THRS, ex.tHrs);
+        if (ex.tSlots) { slotsReady_(lt.c); set_(row, lt, H.TSLOTS, ex.tSlots); }      // split timing
         if (ex.trip !== '') set_(row, lt, H.TRIP, ex.trip);
         if (ex.challan) set_(row, lt, H.CHALLAN, ex.challan);
         set_(row, lt, H.QTY, ds.qty); set_(row, lt, H.KMR, ds.km); set_(row, lt, H.HRR, ds.hr); set_(row, lt, H.DREAD, ds.text);
@@ -5896,6 +5949,7 @@ function updateLogRow_(key, l) {
   return withLock_(() => {
     if (hasItemsIn_(l)) logItemCol_();
     if (hasDebitIn_(l)) logDebitCol_();
+    if (hasSlotsIn_(l)) logSlotCol_();
     const lt = table_(APP.SHEET_LOG, logHeaders_());
     const c = lt.c;
     const i = findLogIdx_(lt, key);
@@ -5946,8 +6000,9 @@ function updateLogRow_(key, l) {
       if (l.meterNote !== undefined && H.METER in c) me[c[H.METER]] = meterNote_(l, METER_OFF_, '');
     }
     if (unit === 'Time' || unit === 'Trip') {
-      const ex = logExtra_(mm, unit, { tStart: l.tStart, tEnd: l.tEnd, tBreak: l.tBreak, trip: l.trip, challan: l.challan }, dmy_(dkey_(r[c[H.DATE]])));
-      if (unit === 'Time') { ['TSTART', 'TEND', 'TBRK', 'THRS'].forEach((h, n) => { if (H[h] in c) me[c[H[h]]] = [ex.tStart, ex.tEnd, ex.tBrk, ex.tHrs][n]; }); }
+      const ex = logExtra_(mm, unit, { tStart: l.tStart, tEnd: l.tEnd, tBreak: l.tBreak, tSlots: l.tSlots, trip: l.trip, challan: l.challan }, dmy_(dkey_(r[c[H.DATE]])));
+      if (unit === 'Time') { const split = slotsCell_(ex, unit, H.TSLOTS in c ? str_(r[c[H.TSLOTS]]) : '', c, r); if (H.TSLOTS in c) me[c[H.TSLOTS]] = split;
+        ['TSTART', 'TEND', 'TBRK', 'THRS'].forEach((h, n) => { if (H[h] in c) me[c[H[h]]] = [ex.tStart, ex.tEnd, ex.tBrk, ex.tHrs][n]; }); }
       if (unit === 'Trip' && H.TRIP in c) me[c[H.TRIP]] = ex.trip;
       if (unit === 'Trip' && H.CHALLAN in c && l.challan !== undefined) me[c[H.CHALLAN]] = clean_(l.challan);
     }
@@ -6150,6 +6205,7 @@ function saveLogBulk_(b) {
       row[c[H.UNIT]] = v.mode;
       row[c[H.OKM]] = v.km ? v.okm : ''; row[c[H.CKM]] = v.km ? v.ckm : '';
       row[c[H.OHR]] = v.hr ? v.ohr : ''; row[c[H.CHR]] = v.hr ? v.chr : '';
+      if (H.TSLOTS in c) row[c[H.TSLOTS]] = slotsCell_(v.ex, v.mode, str_(r[c[H.TSLOTS]]), c, r);      // split timing: stays while From, To and Break are as saved (this grid shows them as one From – To)
       ['TSTART', 'TEND', 'TBRK', 'THRS'].forEach((h, n) => { if (H[h] in c) row[c[H[h]]] = [v.ex.tStart, v.ex.tEnd, v.ex.tBrk, v.ex.tHrs][n]; });
       if (v.mode === 'Trip' && H.TRIP in c) row[c[H.TRIP]] = v.ex.trip;
       if (H.CHALLAN in c) row[c[H.CHALLAN]] = ['Idle', 'Holiday', 'Breakdown'].indexOf(v.mode) > -1 ? '' : v.ex.challan;
@@ -6176,6 +6232,7 @@ function saveLogBulk_(b) {
       set_(row, lt, H.DATE, toDate_(p.dk)); set_(row, lt, H.NO, m.id); set_(row, lt, H.SHIFT, p.sh);
       set_(row, lt, H.OWNER, m.owner); set_(row, lt, H.TYPE, m.type); set_(row, lt, H.UNIT, v.mode);
       set_(row, lt, H.TSTART, v.ex.tStart); set_(row, lt, H.TEND, v.ex.tEnd); set_(row, lt, H.TBRK, v.ex.tBrk); set_(row, lt, H.THRS, v.ex.tHrs);
+      if (v.ex.tSlots) { slotsReady_(lt.c); set_(row, lt, H.TSLOTS, v.ex.tSlots); }
       if (v.ex.trip !== '') set_(row, lt, H.TRIP, v.ex.trip);
       if (v.ex.challan) set_(row, lt, H.CHALLAN, v.ex.challan);
       set_(row, lt, H.QTY, ds.qty); set_(row, lt, H.KMR, ds.km); set_(row, lt, H.HRR, ds.hr); set_(row, lt, H.DREAD, ds.text);
@@ -6932,7 +6989,8 @@ function dbHealth_() {
     add('"Debit to" and Debit Notes (step 1t)', t1, 'supabase_step1t_debit_notes.sql');
     add('"No reading" / "New meter" (step 1u)', u1, 'supabase_step1u_meter.sql');
     add('"½ day" in the Log Book (step 1v)', has('log_book', 'day_part'), 'supabase_step1v_half_day.sql');
-    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part)|debit_notes)/.test(x));
+    add('Split timing of a Time entry (step 1w)', has('log_book', 'time_slots'), 'supabase_step1w_time_slots.sql');
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes)/.test(x));
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }
   let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }

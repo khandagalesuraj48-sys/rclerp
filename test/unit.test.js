@@ -1027,3 +1027,58 @@ test('a submitted bill locks the Log Book and diesel entries of its machinery fo
   r = run('id => deleteDieselIssue_(id)', dId); assert.ok(r && !r.THROWN, 'and the diesel issue deleted: ' + JSON.stringify(r).slice(0, 200));
   assert.strictEqual(run('() => getLogBookList_({ from: "2026-06-01", to: "2026-08-31", no: "BLK-1", all: true }).rows.filter(r => r.lk).length'), 0);
 });
+
+test('split timing of a Time entry: several From – To in one entry, hours as decimal numbers, the hour columns stay true, the bill takes the total', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // the times themselves
+  const ts = l => run('l => timeSlots_(l, "X: ")', l);
+  assert.deepStrictEqual((({ text, n, start, end, gaps, mins, each }) => [text, n, start, end, gaps, mins, each])(ts([['11:00', '13:00'], ['14:00', '17:00']])), ['11:00-13:00,14:00-17:00', 2, '11:00', '17:00', 60, 300, [2, 3]]);
+  assert.deepStrictEqual(ts([['14:00', '15:30']]).each, [1.5]);                                   // 2 pm to 3.30 pm = 1.5
+  assert.deepStrictEqual(ts([['2:00 PM', '3:30 PM']]).text, '14:00-15:30');
+  assert.deepStrictEqual((x => [x.text, x.gaps, x.mins, x.each])(ts([['20:00', '23:00'], ['01:00', '04:30']])), ['20:00-23:00,01:00-04:30', 120, 390, [3, 3.5]]);      // a night, split around midnight
+  assert.deepStrictEqual((x => [x.mins, x.each])(ts([['22:00', '02:00']])), [240, [4]]);        // one time past midnight
+  assert.deepStrictEqual((x => [x.n, x.gaps, x.mins])(ts([['06:00', '08:00'], ['20:00', '22:00']])), [2, 720, 240]);      // a long gap in the same day is fine
+  assert.match(ts([['14:00', '17:00'], ['11:00', '13:00']]).THROWN, /time 2 \(11:00 to 13:00\) starts before time 1 ends \(17:00\) – the times must be in the order they were worked/);
+  assert.match(ts([['11:00', '13:00'], ['12:00', '14:00']]).THROWN, /starts before time 1 ends \(13:00\)/);          // overlap
+  assert.match(ts([['11:00', '13:00'], ['14:00', '']]).THROWN, /time 2: enter both From and To/);
+  assert.match(ts([['08:00', '20:00'], ['21:00', '09:00']]).THROWN, /cover more than 24 hours/);
+  assert.strictEqual(ts([['', '']]), null);
+  assert.deepStrictEqual(run('() => slotsParse_("11:00-13:00, 14:00-17:00,bad")'), [['11:00', '13:00'], ['14:00', '17:00']]);
+
+  // ---------- an entry ----------
+  run('(x, m) => saveMaster_(x, m)', { no: 'TS-1', name: 'Poclain', type: 'Poclain', unit: 'Hrs', worksOn: ['Hrs', 'Time'], hrStd: 4, owner: 'Split Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'Split Vendor', gstReg: 'No', pan: 'ABCPE1234T', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'Split Vendor', from: '2026-06-01', tdsPct: 0, woNo: 'WO-TS', lines: [{ no: 'TS-1', basis: 'Per Hour', rate: 1000, diesel: 'Company' }] }, 'add');
+  const cols = () => run(`() => { const lt = table_(APP.SHEET_LOG), c = lt.c; return lt.rows.filter(r => str_(r[c[H.NO]]) === 'TS-1').map(r => dkey_(r[c[H.DATE]]).slice(8) + ' ' + str_(r[c[H.SHIFT]]) + ': ' + tStr_(r[c[H.TSTART]]) + '>' + tStr_(r[c[H.TEND]]) + ' brk ' + numOrBlank_(r[c[H.TBRK]]) + ' hrs ' + num0_(r[c[H.THRS]]) + ' whr ' + num0_(r[c[H.WHR]]) + (H.TSLOTS in c && str_(r[c[H.TSLOTS]]) ? ' [' + str_(r[c[H.TSLOTS]]) + ']' : '')).sort(); }`);
+  const save = rows => run('x => saveLogRowsInner_(x)', { rows: rows.map(r => Object.assign({ no: 'TS-1', mode: 'Time' }, r)) });
+  let r = save([{ date: '2026-07-01', shift: 'Day', tSlots: [['11:00', '13:00'], ['14:00', '17:00']] },                       // his example: 2 + 3 = 5
+    { date: '2026-07-01', shift: 'Night', tSlots: [['20:00', '23:00'], ['01:00', '04:30']], tBreak: 30 },                         // a night in two parts, 30 min break inside: 3 + 3.5 − 0.5 = 6
+    { date: '2026-07-02', shift: 'Full Day', tSlots: [['14:00', '15:30']] },                                                     // one time: 1.5
+    { date: '2026-07-03', shift: 'Full Day', tStart: '08:00', tEnd: '13:00', tBreak: 30 }]);                                     // the old way (a page that sends From / To / Break): 4.5
+  assert.ok(r && r.ok, JSON.stringify(r).slice(0, 400));
+  assert.deepStrictEqual(cols(), ['01 Day: 11:00>17:00 brk 60 hrs 5 whr 5 [11:00-13:00,14:00-17:00]', '01 Night: 20:00>04:30 brk 150 hrs 6 whr 6 [20:00-23:00,01:00-04:30]', '02 Full Day: 14:00>15:30 brk  hrs 1.5 whr 1.5', '03 Full Day: 08:00>13:00 brk 30 hrs 4.5 whr 4.5']);
+  // the rule that keeps every old reader right: Time Hrs = (End − Start) − Break, for every entry
+  assert.deepStrictEqual(run(`() => { const lt = table_(APP.SHEET_LOG), c = lt.c; return lt.rows.filter(r => str_(r[c[H.NO]]) === 'TS-1').map(r => timeHrs_(tStr_(r[c[H.TSTART]]), tStr_(r[c[H.TEND]]), r[c[H.TBRK]]) === num0_(r[c[H.THRS]])); }`), [true, true, true, true]);
+  // the page is told the split; the bill takes the hours: 5 + 6 + 1.5 + 4.5 = 17 hours × ₹1,000
+  assert.deepStrictEqual(run('() => getLogBookList_({ from: "2026-07-01", to: "2026-07-31", no: "TS-1", all: true }).rows.map(x => x.date.slice(8) + " " + x.shift + " " + x.tSlots).sort()'), ['01 Day 11:00-13:00,14:00-17:00', '01 Night 20:00-23:00,01:00-04:30', '02 Full Day ', '03 Full Day ']);
+  assert.deepStrictEqual(run('() => { const c = billMachineCalc_(findMachine_("TS-1"), getLogBookList_({ from: "2026-07-01", to: "2026-07-31", no: "TS-1", all: true }).rows, logPrintExtra_({ from: "2026-07-01", to: "2026-07-31", nos: ["TS-1"] }), "2026-07-01", "2026-07-31", undefined, true); return c.amount; }'), 17000);
+  // refused, nothing saved
+  r = save([{ date: '2026-07-04', shift: 'Full Day', tSlots: [['14:00', '17:00'], ['11:00', '13:00']] }]); assert.match(JSON.stringify(r), /starts before time 1 ends/);
+  r = save([{ date: '2026-07-04', shift: 'Full Day', tSlots: [['11:00', '11:20']], tBreak: 30 }]); assert.match(JSON.stringify(r), /the working time is 0/);
+  assert.strictEqual(cols().length, 4);
+
+  // ---------- an entry changed ----------
+  const key = (d, sh) => 'TS-1|' + d + '|' + sh;
+  r = run('(k, l) => updateLogRow_(k, l)', key('2026-07-01', 'Day'), { tStart: '10:00', tEnd: '18:00', tSlots: [['10:00', '13:00'], ['14:00', '16:00'], ['16:30', '18:00']], tBreak: '' }); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 300));
+  assert.strictEqual(cols()[0], '01 Day: 10:00>18:00 brk 90 hrs 6.5 whr 6.5 [10:00-13:00,14:00-16:00,16:30-18:00]');                 // three parts: 3 + 2 + 1.5
+  r = run('(k, l) => updateLogRow_(k, l)', key('2026-07-01', 'Night'), { tStart: '20:00', tEnd: '04:30', tSlots: [['20:00', '04:30']], tBreak: 60 }); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 300));
+  assert.strictEqual(cols()[1], '01 Night: 20:00>04:30 brk 60 hrs 7.5 whr 7.5');                                                      // made one time again: the split is gone
+  // a page that does not send the times as a list (Edit Log Book grid, an older page): the split STAYS while From / To / Break are as saved …
+  const grid = () => run('() => getLogEditData_("TS-1", "2026-07-01", "2026-07-31").rows').map(x => ({ key: x.key, date: x.date, shift: x.shift, mode: x.mode, tStart: x.tStart, tEnd: x.tEnd, tBreak: x.tBrk, work: x.work || '' }));
+  let g = grid(); g.find(x => x.date === '2026-07-02').work = 'trench'; r = run('b => saveLogBulk_(b)', { no: 'TS-1', from: '2026-07-01', to: '2026-07-31', rows: g, deleted: [] }); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 300));
+  assert.strictEqual(cols()[0], '01 Day: 10:00>18:00 brk 90 hrs 6.5 whr 6.5 [10:00-13:00,14:00-16:00,16:30-18:00]');
+  // … and goes when one of them is changed there (the entry becomes one From – To with that break)
+  g = grid(); g.find(x => x.date === '2026-07-01' && x.shift === 'Day').tEnd = '19:00'; r = run('b => saveLogBulk_(b)', { no: 'TS-1', from: '2026-07-01', to: '2026-07-31', rows: g, deleted: [] }); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 300));
+  assert.strictEqual(cols()[0], '01 Day: 10:00>19:00 brk 90 hrs 7.5 whr 7.5');
+});

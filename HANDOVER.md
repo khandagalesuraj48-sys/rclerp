@@ -1076,6 +1076,38 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     LibreOffice and looked at page by page next to the print.
   * NOT verified: the ExcelJS load from the CDN on the live site (the rig injects the same file locally); the logo in the Excel;
     Microsoft Excel itself (LibreOffice and openpyxl were used); a phone.
+- 07-10-2026 (update-65): "SOME MACHINES WORK LIKE THIS: 11 TO 1 IN THE MORNING = 2 HOURS, THEN 2 TO 5 = 3, TOTAL OF THE DAY 5 HOURS.
+  I WILL ENTER IT MY WAY. GIVE THE TIME PROPERLY AS TIME, AND AS A NUMBER (2 PM TO 3.30 PM = 1.5). A DAY OR A NIGHT CAN BOTH HAVE
+  SPLIT TIMING." → SPLIT TIMING OF A TIME ENTRY (Code.gs, comment "SPLIT TIMING OF A TIME ENTRY").
+  * NEEDS ONE DATABASE STEP, RUN BY THE ADMIN: `sql/supabase_step1w_time_slots.sql` (adds the empty text column `log_book.time_slots`;
+    listed in Read Me and in the health check as "Split timing of a Time entry (step 1w)"). Until it is run everything works as
+    before and only an entry with MORE THAN ONE From – To is refused (`slotsReady_`, the message names the file). Why a column: the
+    hours could be kept in the existing columns, but HOW the day was split (to show, edit and print it again) has no place there.
+  * What is saved (invariant, so bills / reports / prints / old pages stay right without knowing about the split): Start Time =
+    first From, End Time = last To, Break (min) = the gaps between the times + the break typed, Time Hrs = Σ(each From – To) − break
+    typed = (End − Start) − Break. `time_slots` = "11:00-13:00,14:00-17:00", EMPTY for one From – To (every old entry).
+  * Rules (`timeSlots_`): times in the order worked; a time may run past midnight (20:00–23:00, 01:00–04:30 on a Night); a time
+    that starts before the one above ends is refused ("time 2 (…) starts before time 1 ends (…)"), so is a total span over 24 h,
+    and a line with only From or only To. Shift does not matter (Day, Night, Full Day; ½ day too).
+  * Page → server: the entry page and the edit window send `tSlots: [[from, to], …]` and `tBreak` = the break TYPED (not the
+    gaps). A caller that does not send `tSlots` (Edit Log Book grid, an old page still open) keeps the saved split only while
+    From, To and Break are as saved (`slotsCell_`), else the split is cleared and the hours follow From / To / Break as before.
+  * Page: Log Book entry row measured by Time – "+ time" adds a From – To line, "− time" removes the last one; with more than one
+    time the hours of each are written in the Total column on its own line and the total on the Break line (computer; classes
+    `w-time`, `w-split`, labels `.tm-h` / `.tm-t`, placed with the CSS variables `--tm-gap` / `--tm-tot` that every row layout
+    sets), on a phone under each To box. The time boxes of a Time row got slimmer side padding so "11:00 AM" is seen whole (it was
+    cut on a laptop). Edit window (Log Book list → Edit): "More times of this entry" with + time / ×. Log Book list, Log Book
+    print (`lbPrintWork`) and the format prints (`logSheetsBuild`: tFrom / tTo, gross = Σ) show every time. Edit Log Book grid
+    shows "split: …" under the row but does not edit the split itself (edit it in the Log Book list).
+  * Hours are decimal numbers everywhere, as before: 14:00–15:30 = 1.5 (two decimals: 20 min = 0.33).
+  * Tested (rig): `test/browser/splittime.js` 18/18 – before the database step, the step run twice, entry page (Day 11–13 + 14–17
+    = 5; Night 20–23 + 01–04:30 with 30 min break = 6; 14–15:30 = 1.5; wrong order refused; − time), look at 1920 / 1536 / 1366 /
+    1280, Log Book list, edit window (third time added), Edit Log Book (split kept when another row is saved), print, hours used
+    by the bill. Unit test "split timing of a Time entry" (38/38). Regression: lbpage 13, viewbill 21, billlock 17, half 12,
+    nightrow 22, gstdecl 11, sweep 38 pages.
+  * Known / not done: at a window 1280 px wide the entry row is 50 px wider than its box – the same in the code before this update
+    (measured, `rowwidth.js`), not touched. Excel import of the Log Book and "Ask" do not know split timing (one From – To).
+    Not run: the live site, a real phone, Microsoft Edge / Windows fonts (the time boxes were measured in Chromium on Linux).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

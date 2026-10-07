@@ -1049,6 +1049,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .dc-ok { color: #166534; font-weight: 700; padding: 12px 4px; } .dc-more { margin: 8px 0 0; }
   .m-wk { display: flex; flex-wrap: wrap; gap: 6px 14px; min-height: 40px; align-items: center; } .m-wk label { display: inline-flex; gap: 5px; align-items: center; font-weight: 600; font-size: 13.5px; }
   .m-wk input { width: 16px; height: 16px; min-height: 0; } .m-wk small { font-weight: 400; color: var(--muted); } .m-works { grid-column: span 2; }
+  table.lgt .rd.tm .tm-h { font: 700 12px var(--ui); color: #0F766E; white-space: nowrap; } table.lgt .rd.tm .tm-h:empty { display: none; } table.lgt .tm-t { display: none; } table.lgt .tm-xa:empty, table.lgt .tm-xb:empty { display: none; } table.lgt .tm-xa, table.lgt .tm-xb, table.lgt .rd.tm.addt { margin-top: 4px; }
+  table.lgt .tm-add, table.lgt .tm-rem { border: 1px dashed #94A3B8; background: #fff; color: #0F4C81; border-radius: 8px; padding: 3px 8px; font: 600 12px var(--ui); cursor: pointer; white-space: nowrap; } table.lgt .tm-add:hover { background: #EFF6FF; } table.lgt .tm-rem { color: #B3261E; } table.lgt .tm-rem:hover { background: #FEF2F2; } table.lgt .tm-rem[hidden] { display: none; }
+  table.lgt tr.lrow.w-time > td { vertical-align: top; }
+  .lg-wrap tr.lrow.w-time .rd.tm input[type=time] { padding-left: 6px !important; padding-right: 2px !important; } .lg-wrap tr.lrow.w-time .rd.tm input[type=time]::-webkit-calendar-picker-indicator { margin: 0; padding: 0 1px 0 0; }
+  /* phone: the hours of each time of a split entry are written under its To box (beside it the box became too narrow for the time) */
+  @media (max-width: 760px) { .lg-wrap tr.lrow.w-split .rd.tm:not(.brk):not(.addt) { position: relative; margin-bottom: 18px; } .lg-wrap tr.lrow.w-split .rd.tm .tm-h { position: absolute; right: 2px; top: 100%; line-height: 18px; } }
   table.lgt .rd.tp.ch input { width: 120px; } table.lgt .rd.tm input[type=time] { width: 104px; } table.lgt .rd.tm.brk input { width: 64px; } table.lgt .rd.tp input { width: 70px; } table.lgt .rd.tm small, table.lgt .rd.tp small { visibility: visible !important; width: auto !important; margin-right: 4px; }
   table.lgt .lg-day { color: var(--muted); font-size: 12.5px; } table.lgt .unitcell select { min-height: 30px; font-size: 12.5px; font-weight: 700; }
   .way { display: inline-flex; flex-wrap: wrap; gap: 3px; } .way .wy { border: 1px solid #CBD5E1; background: #fff; border-radius: 7px; padding: 3px 7px; font-size: 11.5px; font-weight: 700; cursor: pointer; color: #334155; line-height: 1.3; }
@@ -2058,8 +2064,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     .lg-wrap tr.lrow .del { width: 22px; height: 28px; font-size: 16px; }
     .lg-wrap tr.lrow td .lnote { max-width: none; font-size: 11px; line-height: 1.25; margin-top: 2px; }
     .lg-wrap tr.lrow .itm { margin-top: 3px; }
+    /* Measured by Time: the From and To boxes show the whole time ("11:00 AM"); every line of Start, Close and Total is equally high, so
+       From, To and the hours of that time stand on one line. With more than one From – To (split timing) the hours of each time are
+       written in the Total column on its own line, and the total of the entry on the last line (asked 07-10-2026). */
+    .lg-wrap tr.lrow.w-time > td:nth-of-type(6), .lg-wrap tr.lrow.w-time > td:nth-of-type(7) { justify-content: flex-start; }
+    .lg-wrap tr.lrow.w-time .rd.tm { position: relative; margin-top: 4px; }
+    .lg-wrap tr.lrow.w-time .rd.tm:not(.xs):not(.brk):not(.addt), .lg-wrap tr.lrow.w-time .tm-xa .rd.tm:first-child, .lg-wrap tr.lrow.w-time .tm-xb .rd.tm:first-child { margin-top: 0; }
+    .lg-wrap tr.lrow.w-time .tm-xa, .lg-wrap tr.lrow.w-time .tm-xb { margin-top: 4px; }
+    .lg-wrap tr.lrow.w-time .rd.tm.addt { gap: 4px; min-height: 38px; }
+    .lg-wrap tr.lrow.w-time .rd.tm small { margin-right: 0 !important; }
+    .lg-wrap tr.lrow.w-time .rd.tm input[type=time] { padding-left: 5px !important; padding-right: 1px !important; font-size: 13px !important; }
+    .lg-wrap tr.lrow.w-time .rd.tm .tm-h, .lg-wrap tr.lrow.w-split .rd.tm .tm-t { position: absolute; left: calc(100% + var(--tm-gap, 8px)); top: 0; width: var(--tm-tot, 44px); height: 100%; display: flex; align-items: center; justify-content: flex-end; white-space: nowrap; font: 600 12px var(--ui); color: #334155; }
+    .lg-wrap tr.lrow.w-time .rd.tm .tm-h:empty { display: none; }
+    .lg-wrap tr.lrow.w-split .rd.tm .tm-t { font: 700 13.5px var(--ui); color: inherit; border-top: 1.5px solid #94A3B8; }
+    .lg-wrap tr.lrow.w-split > td:nth-of-type(8) [data-o="whr"] { display: none; }
     /* a narrow page (small window): chainage and work go to a second line */
     @container (max-width: 1149px) {
+      .lg-wrap tr.lrow { --tm-tot: 40px; }
       .lg-wrap tr.lrow { grid-template-columns: 20px 96px minmax(124px, 1.2fr) minmax(128px, 1.1fr) minmax(124px, 1fr) minmax(124px, 1fr) 40px 70px 70px 72px 44px; grid-template-rows: auto auto auto; row-gap: 4px; }
       .lg-wrap tr.lrow > td :is(input, select) { font-size: 13.5px !important; padding-left: 7px !important; padding-right: 7px !important; }
       .lg-wrap tr.lrow > td select { padding-right: 20px !important; }
@@ -2177,6 +2198,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   @media (min-width: 761px) {
     /* readings must show every digit typed (asked 02-10-2026): the Start and Close cells are wide enough for 9 digits here */
     @container (max-width: 1379px) and (min-width: 1150px) {
+      .lg-wrap tr.lrow { --tm-gap: 6px; --tm-tot: 40px; }      /* where the hours of a split time are written: the Total column of this layout */
       .lg-wrap tr.lrow { grid-template-columns: 18px 98px minmax(128px, 1.1fr) 142px minmax(124px, 1fr) minmax(124px, 1fr) 40px 74px 74px 66px 50px 50px minmax(72px, 1fr) 44px; grid-template-rows: auto auto; row-gap: 0; column-gap: 6px; }
       .lg-wrap tr.lrow > td:nth-of-type(15) { grid-column: 11; grid-row: 1; } .lg-wrap tr.lrow > td:nth-of-type(16) { grid-column: 12; grid-row: 1; max-width: none; }
       .lg-wrap tr.lrow > td:nth-of-type(17) { grid-column: 13; grid-row: 1; } .lg-wrap tr.lrow > td:nth-of-type(18) { grid-column: 14; grid-row: 1; }
@@ -2289,6 +2311,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #fixbox .fx-ai { margin: 8px 0 0; border: 1px solid #0F1F3D; background: #0F1F3D; color: #fff; border-radius: 8px; padding: 6px 12px; font: 700 12.5px var(--ui); cursor: pointer; }
   @media (max-width: 760px) { .ai-panel { inset: 0; width: auto; border-radius: 0; top: 0; } .ai-fab span { display: none; } .ai-fab { padding: 13px; right: 12px; bottom: 78px; } }
   @media print { .ai-fab, .ai-panel { display: none !important; } }
+  table.lx-t .lx-split { display: block; margin-top: 3px; color: #0F766E; font: 600 11.5px var(--ui); white-space: normal; }
+  .le-xsw { grid-column: 1 / -1; } .le-x { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; } .le-x input[type=time] { width: 130px; } .le-x .tm-h { font: 700 12.5px var(--ui); color: #0F766E; min-width: 54px; } .le-x .tm-del { border: 0; background: none; color: #B3261E; font: 700 18px/1 var(--ui); cursor: pointer; }
   .tag.lk { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; border-radius: 999px; padding: 0 7px; font: 700 11px var(--ui); white-space: nowrap; margin-left: 4px; }
   table.lx-t tr.lk td { background: #FFF7F7; } table.lx-t tr.lk input:disabled, table.lx-t tr.lk select:disabled { background: #F8FAFC; color: #475569; opacity: 1; }
   .lx-lock { margin: 8px 0; padding: 9px 12px; border: 1px solid #FCA5A5; background: #FEF2F2; color: #7F1D1D; border-radius: 10px; font-size: 13.5px; line-height: 1.45; } .lx-lock b { color: #7F1D1D; }
@@ -3928,6 +3952,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="field le-tm"><label for="le_ts">From time *</label><input id="le_ts" type="time"></div>
       <div class="field le-tm"><label for="le_te">To time *</label><input id="le_te" type="time"></div>
       <div class="field le-tm"><label for="le_tb">Break (min)</label><input id="le_tb" type="number" min="0" step="5"></div>
+      <div class="field le-tm le-xsw"><label>More times of this entry (split timing)</label><div id="le_xs"></div><button type="button" class="btn ghost small" id="le_xadd" title="The machinery worked in parts (e.g. 11 to 1 and 2 to 5): add another From – To. The hours are added up.">+ time</button></div>
       <div class="field le-tp"><label for="le_trip">Trips *</label><input id="le_trip" type="number" min="0" step="1"></div>
       <div class="field le-chw"><label for="le_chl">Challan No</label><input id="le_chl" autocomplete="off"></div>
       <div class="field" id="le_odsl_w"><label for="le_odsl">Opening diesel (first entry)</label><input id="le_odsl" type="number" step="0.01" min="0"></div>
@@ -4444,6 +4469,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The new Machinery Number cannot be used.', 'A number belongs to one machinery only. If it says "already in Master": another machinery has this number – check which of the two is right. If it says "already has records": entries of a machinery that was deleted from Asset Master are still kept under this number, and the two would be mixed – choose another number. Nothing was changed.'],
       mr: ['हा नवीन Machinery Number वापरता येत नाही.', 'एक नंबर एकाच गाडीचा असतो. "already in Master" असेल तर: हा नंबर दुसऱ्या गाडीला आधीच आहे; दोघांपैकी कोणता बरोबर ते तपासा. "already has records" असेल तर: Asset Master मधून काढलेल्या एका गाडीच्या entries अजून या नंबरखाली आहेत, आणि दोन्ही गाड्यांचा data मिसळेल; दुसरा नंबर निवडा. काहीही बदललेले नाही.'],
       hi: ['यह नया Machinery Number इस्तेमाल नहीं हो सकता।', 'एक नंबर एक ही गाड़ी का होता है। "already in Master" हो तो: यह नंबर दूसरी गाड़ी के पास पहले से है; दोनों में से कौन सा सही है जाँचें। "already has records" हो तो: Asset Master से हटाई गई एक गाड़ी की entries अभी इस नंबर के नीचे हैं, और दोनों गाड़ियों का data मिल जाएगा; दूसरा नंबर चुनें। कुछ भी बदला नहीं है।'] },
+    { re: /Split timing|enter both From and To|starts before time|cover more than 24 hours/i,
+      en: ['An entry measured by Time can have several From – To times (for example 11:00 to 13:00 and 14:00 to 17:00); the app adds their hours. Something in these times is not right, or the database is not ready for split timing yet.',
+        'Every time line needs both From and To. Enter the times in the order they were worked, one after the other without overlap (a night can run past midnight: 22:00 to 02:00). All the times of one entry must fit in 24 hours. If it says "cannot be saved yet": the Admin runs the file sql/supabase_step1w_time_slots.sql once in Supabase → SQL Editor (Read Me has it) – until then save the entry with one From – To and the break.'],
+      mr: ['Time ने मोजलेल्या entry मध्ये एकापेक्षा जास्त From – To वेळा देता येतात (उदा. 11:00 ते 13:00 आणि 14:00 ते 17:00); app त्यांचे तास एकत्र करते. या वेळांमध्ये काहीतरी चुकले आहे, किंवा database अजून split timing साठी तयार नाही.',
+        'प्रत्येक ओळीत From आणि To दोन्ही भरा. वेळा ज्या क्रमाने काम झाले त्याच क्रमाने, एकामागून एक आणि एकमेकांवर न येता भरा (रात्रपाळी मध्यरात्र ओलांडू शकते: 22:00 ते 02:00). एका entry च्या सर्व वेळा 24 तासांत बसल्या पाहिजेत. "cannot be saved yet" असेल तर: Admin ने sql/supabase_step1w_time_slots.sql ही file Supabase → SQL Editor मध्ये एकदा चालवावी (Read Me मध्ये आहे) – तोपर्यंत entry एकच From – To आणि break देऊन save करा.'],
+      hi: ['Time से नापी गई entry में एक से ज़्यादा From – To समय दिए जा सकते हैं (जैसे 11:00 से 13:00 और 14:00 से 17:00); app उनके घंटे जोड़ता है। इन समयों में कुछ गलत है, या database अभी split timing के लिए तैयार नहीं है।',
+        'हर पंक्ति में From और To दोनों भरें। समय उसी क्रम में भरें जिस क्रम में काम हुआ, एक के बाद एक और बिना overlap के (रात की पाली आधी रात पार कर सकती है: 22:00 से 02:00)। एक entry के सारे समय 24 घंटे में आने चाहिए। "cannot be saved yet" हो तो: Admin sql/supabase_step1w_time_slots.sql file को Supabase → SQL Editor में एक बार चलाए (Read Me में है) – तब तक entry एक ही From – To और break देकर save करें।'] },
     { re: /½ day/i,
       en: ['"½ day" marks an entry that is paid as half a day in the bill.', 'If it says "cannot be saved yet": the Admin runs the file sql/supabase_step1v_half_day.sql once in Supabase → SQL Editor (Read Me has it). If it says the day is not paid: a Holiday or Breakdown day earns nothing, so there is nothing to halve – untick "½ day".'],
       mr: ['"½ day" म्हणजे त्या entry चा bill मध्ये अर्धा दिवस धरला जातो.', '"cannot be saved yet" असेल तर: Admin ने sql/supabase_step1v_half_day.sql ही file Supabase → SQL Editor मध्ये एकदा चालवावी (Read Me मध्ये आहे). "day is not paid" असेल तर: Holiday किंवा Breakdown च्या दिवसाचे पैसे मिळतच नाहीत, म्हणून अर्धे करण्यासारखे काही नाही; "½ day" ची खूण काढा.'],
@@ -7140,7 +7172,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     LX.d = d; LX.deleted = []; LX.odsl = ''; LX.locks = d.locks || [];
     const md0 = modesOf(d.machine).concat(DAY_STATUS);
     LX.rows = d.rows.map(r => { const x = { key: r.key, half: !!r.half, date: r.date, shift: r.shift || 'Full Day', mode: md0.indexOf(r.mode) > -1 ? r.mode : (md0.indexOf(r.unit) > -1 ? r.unit : md0[0] || r.unit), okm: r.okm, ckm: r.ckm, ohr: r.ohr, chr: r.chr,
-      tStart: r.tStart || '', tEnd: r.tEnd || '', tBrk: r.tBrk === undefined ? '' : r.tBrk, trip: r.trip === undefined ? '' : r.trip, challan: r.challan || '', remark: r.remark || '', chFrom: r.chFrom, chTo: r.chTo, work: r.work || r.remark, odsl0: r.odsl, odSet: r.odSet === undefined ? '' : r.odSet,
+      tStart: r.tStart || '', tEnd: r.tEnd || '', tBrk: r.tBrk === undefined ? '' : r.tBrk, tSlots: r.tSlots || '', trip: r.trip === undefined ? '' : r.trip, challan: r.challan || '', remark: r.remark || '', chFrom: r.chFrom, chTo: r.chTo, work: r.work || r.remark, odsl0: r.odsl, odSet: r.odSet === undefined ? '' : r.odSet,
       items: Object.assign({}, r.itemWork || {}), itemSig: itemSig((d.boqItems || {})[r.date], r.itemWork || {}) }; x.orig = Object.assign({}, x); x.lock = lxLockOf(x.date); return x; });
     $('lx_no').value = d.machine.id;
     $('lx_panel').hidden = false;
@@ -7177,7 +7209,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       (wayCol ? '<td><select data-f="mode" class="lx-way">' + modes.map(x => '<option' + (x === lxWay(r) ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></td>' : '') +
       (km ? (hasKm(lxWay(r)) ? '<td>' + rd('okm', 'Start KM', r.okm) + '</td><td>' + rd('ckm', 'Close KM', r.ckm) + '</td>' : '<td class="lx-na">–</td><td class="lx-na">–</td>') : '') +
       (hr ? (hasHr(lxWay(r)) ? '<td>' + rd('ohr', 'Start Hrs', r.ohr) + '</td><td>' + rd('chr', 'Close Hrs', r.chr) + '</td>' : '<td class="lx-na">–</td><td class="lx-na">–</td>') : '') +
-      (tmCol ? '<td class="lx-tm">' + (lxWay(r) === 'Time' ? '<input type="time" data-f="tStart" value="' + esc(r.tStart || '') + '"> – <input type="time" data-f="tEnd" value="' + esc(r.tEnd || '') + '"> <input type="number" min="0" step="5" data-f="tBrk" placeholder="break min" value="' + (r.tBrk === '' ? '' : r.tBrk) + '">' + (need.challan ? '' : ' <input class="txt" data-f="challan" placeholder="Challan No" value="' + esc(r.challan || '') + '">')
+      (tmCol ? '<td class="lx-tm">' + (lxWay(r) === 'Time' ? '<input type="time" data-f="tStart" value="' + esc(r.tStart || '') + '"> – <input type="time" data-f="tEnd" value="' + esc(r.tEnd || '') + '"> <input type="number" min="0" step="5" data-f="tBrk" placeholder="break min" value="' + (r.tBrk === '' ? '' : r.tBrk) + '">' + (need.challan ? '' : ' <input class="txt" data-f="challan" placeholder="Challan No" value="' + esc(r.challan || '') + '">') +
+          (slotsParse(r.tSlots).length > 1 && r.orig && r.tStart === r.orig.tStart && r.tEnd === r.orig.tEnd && String(r.tBrk) === String(r.orig.tBrk) ? '<small class="lx-split" title="Split timing: the Break here holds the gaps between the times. To change the split itself: Log Book list → Edit. Changing From, To or Break here makes it one From – To.">split: ' + esc(slotsText(r)) + '</small>' : '')
         : lxWay(r) === 'Trip' ? '<input type="number" min="0" step="1" data-f="trip" placeholder="trips" value="' + (r.trip === '' ? '' : r.trip) + '"> trips' + (need.tripTime ? ' <input type="time" data-f="tStart" title="In time" value="' + esc(r.tStart || '') + '"> – <input type="time" data-f="tEnd" title="Out time" value="' + esc(r.tEnd || '') + '">' : '') + (need.challan ? '' : ' <input class="txt" data-f="challan" placeholder="Challan No" value="' + esc(r.challan || '') + '">') : m.lbFormat === 'B' && DAY_STATUS.indexOf(lxWay(r)) === -1 ? '<input type="number" min="0" step="1" data-f="trip" placeholder="trips" value="' + (r.trip === '' || r.trip === undefined ? '' : r.trip) + '"> trips' : lxWay(r) === 'Day' ? '<span class="muted">worked (Day)</span>' : DAY_STATUS.indexOf(lxWay(r)) > -1 ? '<span class="lg-hol">' + lxWay(r) + (lxWay(r) === 'Idle' ? ' – no work' : ' – not paid') + '</span>' : '') + '</td>' : '') +
       '<td class="o tot"></td>' + (itemCol ? '<td><div class="itm lx-itm">' + itemBoxHtml((d.boqItems || {})[r.date] || [], r.items || {}, lxWay(r)) + '</div></td>' : '') + '<td class="o od lx-dx">' + (/-01$/.test(r.date) ? '<input type="number" step="0.01" min="0" class="odset" data-f="odSet" value="' + (r.odSet === '' || r.odSet === undefined || r.odSet === null ? '' : r.odSet) + '" title="Opening diesel of the month – type what is in the tank on the 1st (blank = worked out)">' : '') + '</td><td class="o is lx-di"></td><td class="o cn lx-dx"></td><td class="o cl lx-dx"></td>' +
       '<td class="lx-chn">' + (need.challan && DAY_STATUS.indexOf(lxWay(r)) === -1 && lxWay(r) !== 'Day' ? '<input class="txt" data-f="challan" value="' + esc(r.challan || '') + '">' : '') + '</td>' +
@@ -11211,7 +11244,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function lbPrintWork(r, w, plain) {
     const c = (a, b, t) => '<td class="n">' + a + '</td><td class="n">' + b + '</td><td class="n"><b>' + t + '</b></td>';
     if (w === 'Holiday' || w === 'Idle' || w === 'Breakdown') return c('–', '–', '<b>' + w.toUpperCase() + '</b>');
-    if (w === 'Time') return c(esc(r.tStart || ''), esc(r.tEnd || '') + (r.tBrk ? '<br><small>BREAK ' + fmt(r.tBrk) + ' MIN</small>' : ''), (r.whr === '' ? '' : fmt(r.whr)) + ' <small>HR</small>');
+    if (w === 'Time') { const sl = slotsOf(r), br = slotsBreak(r); return c(sl.map(x => esc(x[0])).join('<br>') || esc(r.tStart || ''), (sl.map(x => esc(x[1])).join('<br>') || esc(r.tEnd || '')) + (br ? '<br><small>BREAK ' + fmt(br) + ' MIN</small>' : ''), (r.whr === '' ? '' : fmt(r.whr)) + ' <small>HR</small>'); }
     if (w === 'Trip') return c('–', r.challan ? '<small style="display:block;white-space:normal;word-break:break-word;text-align:left;line-height:1.15">CH. ' + esc(r.challan) + '</small>' : '', fmt(r.trip || 0) + ' <small>TRIPS</small>');
     if (w === 'Day') return c('–', '–', '<small>DAY</small>');
     if (w === 'KM + Hrs') return c(plain(r.okm) + '<br>' + plain(r.ohr), plain(r.ckm) + '<br>' + plain(r.chr), (r.wkm === '' ? '' : fmt(r.wkm) + ' <small>KM</small>') + '<br>' + (r.whr === '' ? '' : fmt(r.whr) + ' <small>HR</small>'));
@@ -12924,10 +12957,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         '<label class="lg-half" title="Half day: the machinery was on the job for half of this shift. The bill pays this entry as half a day (monthly and per-day rates). Pay by hour, KM or trip is not changed."><input type="checkbox" data-f="half"> ½ day</label></td>' +
       '<td class="c-m"><input data-f="no" list="dl_machines" autocomplete="off" placeholder="Type or pick"><small class="lnote"></small></td>' +
       '<td class="unitcell c-unit"></td>' +
-      '<td>' + rd('openingKm', 'km') + rd('openingHr', 'hr') + '<small class="gaphint" hidden></small><div class="rd tm"><small>from</small><input data-f="tStart" type="time"></div><span class="lg-day">—</span>' +
+      '<td>' + rd('openingKm', 'km') + rd('openingHr', 'hr') + '<small class="gaphint" hidden></small><div class="rd tm"><small>from</small><input data-f="tStart" type="time"></div><div class="tm-xa"></div><div class="rd tm addt"><button type="button" class="tm-add" title="This machinery worked in parts (e.g. 11 to 1 and 2 to 5): add another From – To. The hours of all the times are added up.">+ time</button><button type="button" class="tm-rem" hidden title="Remove the last From – To of this entry" aria-label="Remove the last time">− time</button></div><span class="lg-day">—</span>' +
         '<div class="rd nr nrk" hidden><small title="Estimated KM of the day (the app proposes this machinery\'s own average)">est km</small><input data-f="estKm" type="number" step="0.01" min="0"></div><div class="rd nr nrh" hidden><small title="Estimated hours of the day">est hr</small><input data-f="estHr" type="number" step="0.01" min="0"></div><small class="nrhint" hidden></small>' +
         '<label class="nm" hidden title="Tick when a NEW meter was fitted: its Start is typed here and is not taken from the old meter"><input type="checkbox" data-f="newMeter"> new meter</label></td>' +
-      '<td>' + rd('closingKm', 'km') + rd('closingHr', 'hr') + '<div class="rd tm"><small>to</small><input data-f="tEnd" type="time"></div><div class="rd tm brk"><small>break</small><input data-f="tBreak" type="number" min="0" step="5" placeholder="min"></div>' +
+      '<td>' + rd('closingKm', 'km') + rd('closingHr', 'hr') + '<div class="rd tm"><small>to</small><input data-f="tEnd" type="time"><b class="tm-h" title="Hours of this From – To"></b></div><div class="tm-xb"></div><div class="rd tm brk"><small>break</small><input data-f="tBreak" type="number" min="0" step="5" placeholder="min"><b class="tm-t" title="Total hours of this entry"></b></div>' +
         '<div class="rd tp"><small>trips</small><input data-f="trip" type="number" min="0" step="1"></div><div class="rd tp ch"><small>challan</small><input data-f="challan" autocomplete="off" placeholder="Challan No"></div><span class="lg-day">worked</span><span class="lg-hol"></span><div class="rd nr nrn" hidden><input data-f="meterNote" autocomplete="off" placeholder="Why? e.g. meter not working" title="The reason is printed with the entry"></div><div class="itm lg-itm" hidden></div></td>' +
       '<td class="o"><span data-o="wkm"></span><span data-o="whr"></span></td>' +
       '<td class="o" data-o="odslCell"></td>' +
@@ -12968,6 +13001,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const km = hasKm(u), hr = hasHr(u), tm = u === 'Time', tp = u === 'Trip', dy = u === 'Day';
     tr.querySelectorAll('.rd.km').forEach(d => { d.hidden = !km; }); tr.querySelectorAll('.rd.hr').forEach(d => { d.hidden = !hr; });
     tr.querySelectorAll('.rd.tm').forEach(d => { d.hidden = !tm; }); tr.querySelectorAll('.rd.tp').forEach(d => { d.hidden = !tp; });
+    tr.classList.toggle('w-time', tm); if (!tm) tr.classList.remove('w-split');
     // Challan No: any working entry can have one (trips, time sheets, readings)
     tr.querySelectorAll('.rd.ch').forEach(d => { d.hidden = !u || DAY_STATUS.indexOf(u) > -1 || u === 'Day'; });
     lgFormatFields(tr, u);
@@ -13011,7 +13045,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     tr.querySelectorAll('.rd.ch').forEach(d => { d.hidden = st || !(f.challan || u === 'Trip'); });
     const part = tr.querySelector('.lg-part'); if (part) part.hidden = st || !f.part;
     ['chFrom', 'chTo'].forEach(k => { const i = lgf(tr, k); if (i) i.hidden = !!f.noCh; });
-    if (u === 'Trip' && f.tripTime) tr.querySelectorAll('.rd.tm:not(.brk)').forEach(d => { d.hidden = false; }); // Format H: in / out time with the trips
+    if (u === 'Trip' && f.tripTime) tr.querySelectorAll('.rd.tm:not(.brk):not(.xs):not(.addt)').forEach(d => { d.hidden = false; }); // Format H: in / out time with the trips
     if (f.tripAll && !st) tr.querySelectorAll('.rd.tp:not(.ch)').forEach(d => { d.hidden = false; }); // Format B: trips with the KM / Hrs readings
     const fl = tr.querySelector('.lg-fmt'), fm = m && m.lbFormat;
     if (fl) { fl.hidden = !fm || fm === 'A'; fl.textContent = fm && fm !== 'A' ? 'Format ' + fm : ''; }
@@ -13019,9 +13053,38 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // the way picked for a row (one of the machinery's ticks)
   const lgWay = tr => wayOf(tr.querySelector('.unitcell'));
   const isHol = r => ['Holiday', 'Breakdown'].indexOf(r.mode || r.unit) > -1; // not paid
+  /* SPLIT TIMING of an entry measured by Time (asked 07-10-2026: "11 to 1 and then 2 to 5 = 5 hours – let me enter it that way; the
+   * time as time and the hours as a number, 2 pm to 3.30 pm = 1.5; a Day or a Night can be split too"). An entry has one or more
+   * From – To times; each shows its hours as a decimal number; the entry's total is their sum less the break typed. A To that is not
+   * after its From runs past midnight (22:00 to 02:00 = 4). The server checks the same and keeps the split (see "SPLIT TIMING" there). */
+  const tMin = t => { const m = /^(\d{1,2}):(\d{2})/.exec(String(t || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  const slotMin = (a, b) => { const x = tMin(a), y = tMin(b); if (x === null || y === null) return null; let d = y - x; if (d <= 0) d += 1440; return d; };
+  const slotHrs = (a, b) => { const d = slotMin(a, b); return d === null ? '' : r2(d / 60); };
+  const slotsParse = v => String(v || '').split(',').map(x => /^\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*$/.exec(x)).filter(Boolean).map(m => [m[1], m[2]]);
+  // the times of a saved entry: its split, or its one From – To
+  const slotsOf = r => { const sp = slotsParse(r && r.tSlots); return sp.length ? sp : (r && (r.tStart || r.tEnd) ? [[r.tStart || '', r.tEnd || '']] : []); };
+  // minutes between the times of a split (the saved "Break (min)" of a split entry = these gaps + the break typed)
+  const slotsGap = sl => { let cur = null, first = null, mins = 0; for (const x of sl) { const a = tMin(x[0]), d = slotMin(x[0], x[1]); if (d === null) return 0; let at = a; if (cur !== null) while (at < cur) at += 1440; if (first === null) first = at; cur = at + d; mins += d; } return first === null ? 0 : (cur - first) - mins; };
+  const slotsHrs = (sl, brk) => { if (!sl.length) return ''; let mins = 0; for (const x of sl) { const d = slotMin(x[0], x[1]); if (d === null) return ''; mins += d; } mins -= Math.max(0, Number(brk) || 0); return mins > 0 ? r2(mins / 60) : 0; };
+  const slotsBreak = r => { const b = r && r.tBrk !== '' && r.tBrk !== undefined && r.tBrk !== null ? Number(r.tBrk) || 0 : ''; if (b === '') return ''; const typed = Math.max(0, b - slotsGap(slotsParse(r.tSlots))); return slotsParse(r.tSlots).length > 1 && !typed ? '' : typed; };      // the break typed (shown in the Break box)
+  // the times of an entry as text for lists and prints: "11:00 – 13:00 (2) + 14:00 – 17:00 (3)"
+  const slotsText = r => slotsOf(r).map(x => x[0] + ' – ' + x[1] + ' (' + fmt(slotHrs(x[0], x[1])) + ')').join(' + ');
   const lgTimeHrs = (a, b, brk) => { if (!a || !b) return ''; const [h1, m1] = a.split(':').map(Number), [h2, m2] = b.split(':').map(Number); let mins = (h2 * 60 + m2) - (h1 * 60 + m1); if (mins <= 0) mins += 1440; mins -= Math.max(0, Number(brk) || 0); return mins > 0 ? r2(mins / 60) : 0; };
+  // the From – To times of a row of the entry grid: the first one (the boxes that were always there) and the added ones
+  function lgSlots(tr) { const out = [[lgf(tr, 'tStart').value, lgf(tr, 'tEnd').value]];
+    tr.querySelectorAll('.tm-xa .rd.xs').forEach(d => { const b = tr.querySelector('.tm-xb .rd.xs[data-k="' + d.dataset.k + '"]'); out.push([d.querySelector('input').value, b ? b.querySelector('input').value : '']); });
+    return out; }
+  function lgSlotAdd(tr, a, b) { const k = String((tr._slotK = (tr._slotK || 0) + 1));
+    tr.querySelector('.tm-xa').insertAdjacentHTML('beforeend', '<div class="rd tm xs" data-k="' + k + '"><small>from</small><input type="time" data-s="a" value="' + esc(a || '') + '"></div>');
+    tr.querySelector('.tm-xb').insertAdjacentHTML('beforeend', '<div class="rd tm xs" data-k="' + k + '"><small>to</small><input type="time" data-s="b" value="' + esc(b || '') + '"><b class="tm-h" title="Hours of this From – To"></b></div>'); }
+  function lgSlotsClear(tr) { tr.querySelectorAll('.tm-xa, .tm-xb').forEach(d => { d.innerHTML = ''; }); }
+  // each From – To shows its own hours (a number) when the row has more than one, or always once both are filled
+  function lgSlotsShow(tr) { const sl = lgSlots(tr), labs = [tr.querySelector('.rd.tm:not(.xs) .tm-h')].concat([...tr.querySelectorAll('.tm-xb .rd.xs .tm-h')]);
+    labs.forEach((el, i) => { if (!el) return; const h = sl[i] ? slotHrs(sl[i][0], sl[i][1]) : ''; el.textContent = h === '' || sl.length < 2 ? '' : fmt(h) + ' hr'; });
+    tr.classList.toggle('w-split', sl.length > 1); const rm = tr.querySelector('.tm-rem'); if (rm) rm.hidden = sl.length < 2;
+    const tt = tr.querySelector('.tm-t'); if (tt) { const t = sl.length > 1 ? slotsHrs(sl, lgf(tr, 'tBreak').value) : ''; tt.textContent = t === '' ? '' : fmt(t) + ' hr'; } }
   function lgBlank(tr) {
-    tr._p = null; tr._key = null; tr.classList.remove('err');
+    tr._p = null; tr._key = null; tr.classList.remove('err'); lgSlotsClear(tr);
     lgShowUnit(tr, '');
     ['wkm', 'whr', 'diesel', 'reads', 'need', 'closing', 'std', 'avg'].forEach(o => { lgo(tr, o).textContent = ''; });
     const ib = tr.querySelector('.lg-itm'); if (ib) { ib.innerHTML = ''; ib.hidden = true; ib.dataset.sig = ''; ib.dataset.key = ''; }
@@ -13124,7 +13187,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         odsl = Number(lgf(tr, 'openingDiesel').value) || 0; tr._odsl = odsl;
       } else { const h = '<span>' + fmt(odsl) + '</span>'; if (cell._h !== h) { cell.innerHTML = h; cell._h = h; } }
       const wkm = off ? num('estKm') : km && num('openingKm') !== '' && num('closingKm') !== '' ? r2(num('closingKm') - num('openingKm')) : '';
-      const whr = off ? num('estHr') : hr && num('openingHr') !== '' && num('closingHr') !== '' ? r2(num('closingHr') - num('openingHr')) : tm ? lgTimeHrs(lgf(tr, 'tStart').value, lgf(tr, 'tEnd').value, lgf(tr, 'tBreak').value) : '';
+      const whr = off ? num('estHr') : hr && num('openingHr') !== '' && num('closingHr') !== '' ? r2(num('closingHr') - num('openingHr')) : tm ? slotsHrs(lgSlots(tr), lgf(tr, 'tBreak').value) : '';
+      if (tm) lgSlotsShow(tr);
       const need = r2(((km || off) && wkm > 0 && m.kmStd > 0 ? wkm / m.kmStd : 0) + ((hr || tm || off) && whr > 0 && m.hrStd > 0 ? whr * m.hrStd : 0));
       const closing = r2(Number(odsl) + (Number(p.diesel) || 0) - need);
       tr._closing = closing;
@@ -13211,7 +13275,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (f === 'no' || f === 'date' || f === 'shift') lgFill(tr);
     else lgCalcSoon();
   });
-  $('lg_in').addEventListener('input', e => { if (/^(opening|closing|tStart|tEnd|tBreak|trip)/.test(e.target.dataset.f || '') || e.target.dataset.item) lgCalcSoon(); });
+  $('lg_in').addEventListener('input', e => { if (/^(opening|closing|tStart|tEnd|tBreak|trip)/.test(e.target.dataset.f || '') || e.target.dataset.item || e.target.dataset.s) lgCalcSoon(); });
+  // split timing: "+ time" adds a From – To to the row, × takes one away
+  $('lg_in').addEventListener('click', e => { const add = e.target.closest('.tm-add'), del = e.target.closest('.tm-rem'); if (!add && !del) return; const tr = e.target.closest('tr.lrow'); if (!tr) return;
+    if (add) { const sl = lgSlots(tr), last = sl[sl.length - 1]; if (!last[0] || !last[1]) { toast('Fill the From and To above first, then add the next time.', true); return; } lgSlotAdd(tr, '', ''); const f = tr.querySelector('.tm-xa .rd.xs:last-child input'); if (f) f.focus(); }
+    else { const last = tr.querySelector('.tm-xa .rd.xs:last-child'); if (last) tr.querySelectorAll('.rd.xs[data-k="' + last.dataset.k + '"]').forEach(d => d.remove()); lgSlotsShow(tr); }
+    S.formDirty = true; lgCalcSoon(); });
   $('lg_in').addEventListener('waychange', e => {
     const tr = e.target.closest('.lrow'); if (!tr) return;
     tr._mode = e.detail; lgShowUnit(tr, tr._mode);
@@ -13237,13 +13306,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (noWay.length) throw new Error('Pick "Measured by" (KM / Hrs / Time / Trip / Day / Idle / Holiday / Breakdown) in ' + noWay.map(tr => 'row ' + tr.querySelector('.idx').textContent).join(', ') + '.');
     const miss = trs.filter(tr => { const u = lgWay(tr); return (hasKm(u) && lgf(tr, 'closingKm').value === '') || (hasHr(u) && lgf(tr, 'closingHr').value === ''); });
     if (miss.length) throw new Error('Enter the Close reading in ' + miss.map(tr => 'row ' + tr.querySelector('.idx').textContent).join(', ') + '.');
-    const missT = trs.filter(tr => lgWay(tr) === 'Time' && (!lgf(tr, 'tStart').value || !lgf(tr, 'tEnd').value));
+    const missT = trs.filter(tr => lgWay(tr) === 'Time' && lgSlots(tr).some(x => !x[0] || !x[1]));
     if (missT.length) throw new Error('Enter the From and To time in ' + missT.map(tr => 'row ' + tr.querySelector('.idx').textContent).join(', ') + '.');
     const missP = trs.filter(tr => lgWay(tr) === 'Trip' && !(Number(lgf(tr, 'trip').value) > 0));
     if (missP.length) throw new Error('Enter the number of trips in ' + missP.map(tr => 'row ' + tr.querySelector('.idx').textContent).join(', ') + '.');
     const v = (tr, f) => lgf(tr, f) ? lgf(tr, f).value : '';
     const rows = trs.map(tr => ({ date: v(tr, 'date'), shift: v(tr, 'shift'), half: !!(tr.querySelector('[data-f=half]') || {}).checked, no: v(tr, 'no'), mode: lgWay(tr), openingKm: hasKm(lgWay(tr)) ? v(tr, 'openingKm') : '', closingKm: hasKm(lgWay(tr)) ? v(tr, 'closingKm') : '',
-      openingHr: hasHr(lgWay(tr)) ? v(tr, 'openingHr') : '', closingHr: hasHr(lgWay(tr)) ? v(tr, 'closingHr') : '', tStart: v(tr, 'tStart'), tEnd: v(tr, 'tEnd'), tBreak: v(tr, 'tBreak'), trip: lgWay(tr) === 'Trip' || (tr._p && tr._p.machine && tr._p.machine.lbFormat === 'B' && DAY_STATUS.indexOf(lgWay(tr)) === -1) ? v(tr, 'trip') : '', challan: lgWay(tr) && DAY_STATUS.indexOf(lgWay(tr)) === -1 ? v(tr, 'challan').trim() : '', remark: v(tr, 'remark').trim(),
+      openingHr: hasHr(lgWay(tr)) ? v(tr, 'openingHr') : '', closingHr: hasHr(lgWay(tr)) ? v(tr, 'closingHr') : '', tStart: v(tr, 'tStart'), tEnd: lgWay(tr) === 'Time' ? lgSlots(tr).slice(-1)[0][1] : v(tr, 'tEnd'), tSlots: lgWay(tr) === 'Time' ? lgSlots(tr) : undefined, tBreak: v(tr, 'tBreak'), trip: lgWay(tr) === 'Trip' || (tr._p && tr._p.machine && tr._p.machine.lbFormat === 'B' && DAY_STATUS.indexOf(lgWay(tr)) === -1) ? v(tr, 'trip') : '', challan: lgWay(tr) && DAY_STATUS.indexOf(lgWay(tr)) === -1 ? v(tr, 'challan').trim() : '', remark: v(tr, 'remark').trim(),
       openingDiesel: v(tr, 'openingDiesel'), chFrom: v(tr, 'chFrom'), chTo: v(tr, 'chTo'), work: v(tr, 'work'), debitTo: v(tr, 'debitTo').trim(), debitRate: v(tr, 'debitRate'),
       estKm: v(tr, 'estKm'), estHr: v(tr, 'estHr'), meterNote: v(tr, 'meterNote').trim(), meter: lgf(tr, 'newMeter') && lgf(tr, 'newMeter').checked ? 'new' : '',
       items: tr._p && tr._p.boqItems && tr._p.boqItems.length ? itemBoxRead(tr.querySelector('.lg-itm')) : undefined }))
@@ -13265,13 +13334,24 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ---------- Log Book: edit / delete (later entries of the machinery update themselves) ---------- */
   let leCur = null;
   const lg2 = (a, b) => [a !== '' && a !== null && a !== undefined ? fmt(a) + ' km' : '', b !== '' && b !== null && b !== undefined ? fmt(b) + ' hr' : ''].filter(Boolean).join(' / ');
+  // the From – To times in the edit window: the first one (From time / To time) and the added ones
+  const leSlots = () => [[$('le_ts').value, $('le_te').value]].concat([...document.querySelectorAll('#le_xs .le-x')].map(d => [d.querySelector('[data-s=a]').value, d.querySelector('[data-s=b]').value]));
+  function leSlotAdd(a, b) { $('le_xs').insertAdjacentHTML('beforeend', '<div class="le-x"><input type="time" data-s="a" value="' + esc(a || '') + '" aria-label="From"> <span>to</span> <input type="time" data-s="b" value="' + esc(b || '') + '" aria-label="To"> <b class="tm-h"></b><button type="button" class="tm-del" title="Remove this From – To" aria-label="Remove this time">×</button></div>'); }
+  $('le_xadd').addEventListener('click', () => { const sl = leSlots(), last = sl[sl.length - 1]; if (!last[0] || !last[1]) { toast('Fill the From and To above first, then add the next time.', true); return; } leSlotAdd('', ''); const f = document.querySelector('#le_xs .le-x:last-child input'); if (f) f.focus(); leNote(); });
+  $('le_xs').addEventListener('click', e => { const d = e.target.closest('.tm-del'); if (d) { d.closest('.le-x').remove(); leNote(); } });
+  $('le_xs').addEventListener('input', () => leNote());
   function leNote() {
     const e = leCur; if (!e) return;
     const km = hasKm(e.unit), hr = hasHr(e.unit), n = id => $(id).value === '' ? '' : Number($(id).value);
     const tk = km && n('le_ckm') !== '' ? r2(n('le_ckm') - n('le_okm')) : '', th = hr && n('le_chr') !== '' ? r2(n('le_chr') - n('le_ohr')) : '';
     let html = 'Total for this entry: <b>' + (lg2(tk, th) || '–') + '</b>.';
+    // measured by Time: the hours of every From – To (as numbers) and their total less the break
+    const tSl = e.unit === 'Time' ? leSlots() : [], tTot = e.unit === 'Time' ? slotsHrs(tSl, $('le_tb').value) : '';
+    if (e.unit === 'Time') { document.querySelectorAll('#le_xs .le-x').forEach((d, i) => { const h = slotHrs(tSl[i + 1][0], tSl[i + 1][1]); d.querySelector('.tm-h').textContent = h === '' ? '' : fmt(h) + ' hr'; });
+      const parts = tSl.map(x => slotHrs(x[0], x[1])), brkN = Math.max(0, Number($('le_tb').value) || 0);
+      html = 'Total for this entry: <b>' + (tTot === '' ? '–' : fmt(tTot) + ' hr') + '</b>' + (tTot !== '' && (tSl.length > 1 || brkN) ? ' <small>(' + parts.map(h => fmt(h)).join(' + ') + (brkN ? ' − break ' + fmt(r2(brkN / 60)) : '') + ')</small>' : '') + '.'; }
     // Item-wise BOQ: the rest item follows the total
-    const ih = hr ? th : e.unit === 'Time' ? lgTimeHrs($('le_ts').value, $('le_te').value, $('le_tb').value) : 0;
+    const ih = hr ? th : e.unit === 'Time' ? (tTot === '' ? 0 : tTot) : 0;
     e._itemBad = itemBoxCalc($('le_itm'), { hr: ih, km: km ? tk : 0, trip: e.unit === 'Trip' ? Number($('le_trip').value) || 0 : Number(e.trip) || 0 });
     if (e._itemBad) html += ' <span class="bad">' + esc(e._itemBad) + '</span>';
     if ((tk !== '' && tk < 0) || (th !== '' && th < 0)) html += ' <span class="bad">Close is less than Start.</span>';
@@ -13294,7 +13374,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('le_sub').textContent = showDate(e.date) + '  |  ' + e.shift + '  |  ' + (e.unit || '') + (e.first ? '  |  first entry of this machinery' : '  |  Start comes from the entry of ' + showDate(e.prev.date));
     document.querySelectorAll('#le_box .le-km').forEach(d => { d.hidden = !km; }); document.querySelectorAll('#le_box .le-hr').forEach(d => { d.hidden = !hr; });
     document.querySelectorAll('#le_box .le-tm').forEach(d => { d.hidden = e.unit !== 'Time'; }); document.querySelectorAll('#le_box .le-tp').forEach(d => { d.hidden = e.unit !== 'Trip'; }); document.querySelectorAll('#le_box .le-chw').forEach(d => { d.hidden = DAY_STATUS.indexOf(e.unit) > -1 || e.unit === 'Day'; });
-    $('le_ts').value = e.tStart || ''; $('le_te').value = e.tEnd || ''; $('le_tb').value = e.tBrk === '' || e.tBrk === undefined ? '' : e.tBrk; $('le_trip').value = e.trip === '' || e.trip === undefined ? '' : e.trip; $('le_chl').value = e.challan || '';
+    { const sl0 = e.unit === 'Time' ? slotsOf(e) : [], brk0 = e.unit === 'Time' ? slotsBreak(e) : (e.tBrk === '' || e.tBrk === undefined ? '' : e.tBrk);      // a split entry: its first From – To in the two boxes, the others under them; the Break box holds the break typed (not the gaps)
+      $('le_xs').innerHTML = ''; $('le_ts').value = sl0.length ? sl0[0][0] : (e.tStart || ''); $('le_te').value = sl0.length ? sl0[0][1] : (e.tEnd || ''); sl0.slice(1).forEach(x => leSlotAdd(x[0], x[1])); $('le_tb').value = brk0; }
+    $('le_trip').value = e.trip === '' || e.trip === undefined ? '' : e.trip; $('le_chl').value = e.challan || '';
     $('le_okm').value = e.okm; $('le_ckm').value = e.ckm; $('le_ohr').value = e.ohr; $('le_chr').value = e.chr;
     { const offE = e.unit === METER_OFF, me = findMachine(e.no), cK = !!me && (hasKm(me.unit) || modesOf(me).some(hasKm)), cH = !!me && (hasHr(me.unit) || modesOf(me).some(hasHr));
       document.querySelectorAll('#le_box .le-nr').forEach(d => { d.hidden = !offE; }); if (offE) { document.querySelector('#le_box .le-nrk').hidden = !cK; document.querySelector('#le_box .le-nrh').hidden = !cH; }
@@ -13320,12 +13402,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const km = hasKm(e.unit), hr = hasHr(e.unit);
     if (km && $('le_ckm').value === '') throw new Error('Enter Close KM.');
     if (hr && $('le_chr').value === '') throw new Error('Enter Close Hrs.');
-    if (e.unit === 'Time' && (!$('le_ts').value || !$('le_te').value)) throw new Error('Enter the From and To time.');
+    if (e.unit === 'Time' && leSlots().some(x => !x[0] || !x[1])) throw new Error('Enter the From and To time' + (leSlots().length > 1 ? ' in every time line.' : '.'));
     if (e.unit === 'Trip' && !(Number($('le_trip').value) > 0)) throw new Error('Enter the number of trips.');
     const x = { openingKm: km ? $('le_okm').value : '', closingKm: km ? $('le_ckm').value : '', openingHr: hr ? $('le_ohr').value : '', closingHr: hr ? $('le_chr').value : '',
       openingDiesel: e.first ? $('le_odsl').value : '', chFrom: $('le_chf').value.trim(), chTo: $('le_cht').value.trim(), work: $('le_work').value.trim(), debitTo: $('le_dto').value.trim(), debitRate: $('le_drate').value,
       estKm: leCur && leCur.unit === METER_OFF ? $('le_estkm').value : undefined, estHr: leCur && leCur.unit === METER_OFF ? $('le_esthr').value : undefined, meterNote: leCur && leCur.unit === METER_OFF ? $('le_mnote').value.trim() : undefined,
-      tStart: e.unit === 'Time' ? $('le_ts').value : '', tEnd: e.unit === 'Time' ? $('le_te').value : '', tBreak: e.unit === 'Time' ? $('le_tb').value : '', trip: e.unit === 'Trip' ? $('le_trip').value : '', challan: DAY_STATUS.indexOf(e.unit) === -1 ? $('le_chl').value.trim() : '' };
+      tStart: e.unit === 'Time' ? $('le_ts').value : '', tEnd: e.unit === 'Time' ? leSlots().slice(-1)[0][1] : '', tSlots: e.unit === 'Time' ? leSlots() : undefined, tTimes: e.unit === 'Time' ? leSlots().map(x => x[0] + ' – ' + x[1]).join(', ') : '', tBreak: e.unit === 'Time' ? $('le_tb').value : '', trip: e.unit === 'Trip' ? $('le_trip').value : '', challan: DAY_STATUS.indexOf(e.unit) === -1 ? $('le_chl').value.trim() : '' };
     ['openingKm', 'closingKm', 'openingHr', 'closingHr', 'openingDiesel'].forEach(k => { x[k] = x[k] === '' ? '' : Number(x[k]); });
     // Item-wise BOQ: the typed items (compared as text for "what changed")
     const hasItems = (e.boqItems || []).length > 0, itemsNow = hasItems ? itemBoxRead($('le_itm')) : {};
@@ -13333,9 +13415,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (hasItems) { x.items = itemsNow; x.itemText = itemSig(e.boqItems, itemsNow); }
     const before = { openingKm: km ? e.okm : '', closingKm: km ? e.ckm : '', openingHr: hr ? e.ohr : '', closingHr: hr ? e.chr : '', openingDiesel: e.first ? e.odsl : '', chFrom: e.chFrom, chTo: e.chTo, work: e.work || e.remark, debitTo: e.debitTo || '', debitRate: e.debitRate === undefined || e.debitRate === null ? '' : e.debitRate,
       estKm: e.unit === METER_OFF ? e.wkm : undefined, estHr: e.unit === METER_OFF ? e.whr : undefined, meterNote: e.unit === METER_OFF ? String(e.meter || '').replace(/^No reading – /, '') : undefined,
-      tStart: e.unit === 'Time' ? e.tStart : '', tEnd: e.unit === 'Time' ? e.tEnd : '', tBreak: e.unit === 'Time' ? (e.tBrk === '' ? '' : String(e.tBrk)) : '', trip: e.unit === 'Trip' ? String(e.trip) : '', challan: DAY_STATUS.indexOf(e.unit) === -1 ? (e.challan || '') : '' };
+      tStart: e.unit === 'Time' ? e.tStart : '', tEnd: e.unit === 'Time' ? e.tEnd : '', tTimes: e.unit === 'Time' ? slotsOf(e).map(x => x[0] + ' – ' + x[1]).join(', ') : '', tBreak: e.unit === 'Time' ? (slotsBreak(e) === '' ? '' : String(slotsBreak(e))) : '', trip: e.unit === 'Trip' ? String(e.trip) : '', challan: DAY_STATUS.indexOf(e.unit) === -1 ? (e.challan || '') : '' };
     if (hasItems) before.itemText = itemSig(e.boqItems, e.itemWork || {});
-    const changes = diff([['itemText', 'Items'], ['openingKm', 'Start KM'], ['closingKm', 'Close KM'], ['openingHr', 'Start Hrs'], ['closingHr', 'Close Hrs'], ['tStart', 'From time'], ['tEnd', 'To time'], ['tBreak', 'Break (min)'], ['trip', 'Trips'], ['challan', 'Challan No'], ['openingDiesel', 'Opening diesel'], ['debitTo', 'Debit to'], ['debitRate', 'Debit rate'], ['estKm', 'Estimated KM'], ['estHr', 'Estimated Hrs'], ['meterNote', 'Why no reading'],
+    const changes = diff([['itemText', 'Items'], ['openingKm', 'Start KM'], ['closingKm', 'Close KM'], ['openingHr', 'Start Hrs'], ['closingHr', 'Close Hrs'], ['tTimes', 'Time (From – To)'], ['tBreak', 'Break (min)'], ['trip', 'Trips'], ['challan', 'Challan No'], ['openingDiesel', 'Opening diesel'], ['debitTo', 'Debit to'], ['debitRate', 'Debit rate'], ['estKm', 'Estimated KM'], ['estHr', 'Estimated Hrs'], ['meterNote', 'Why no reading'],
       ['chFrom', 'Chainage From'], ['chTo', 'Chainage To'], ['work', 'Work description']], before, x);
     if (!changes.length) { toast('Nothing changed.'); leClose(); return; }
     if (!(await askConfirm({ title: 'Update ' + e.no + ' – ' + showDate(e.date) + '?', ok: 'Update',
@@ -13555,7 +13637,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (FM !== 'A' && LB_FMT_COLS[FM]) {
         const stOf = r => DAY_STATUS.indexOf(r.mode || r.unit) > -1, wOf = r => r.mode || r.unit || u;
         const mins = t => { const q = /^(\d{1,2}):(\d{2})/.exec(t || ''); return q ? Number(q[1]) * 60 + Number(q[2]) : null; };
-        const gross = r => { const a = mins(r.tStart), b = mins(r.tEnd); if (a === null || b === null) return Number(r.whr) || 0; let d = b - a; if (d <= 0) d += 1440; return r2(d / 60); };
+        const gross = r => { const a = mins(r.tStart), b = mins(r.tEnd); if (a === null || b === null) return Number(r.whr) || 0; if (slotsParse(r.tSlots).length > 1) return slotsHrs(slotsParse(r.tSlots), 0) || 0;      // split timing: the hours of its times added up
+          let d = b - a; if (d <= 0) d += 1440; return r2(d / 60); };
+        const tFrom = r => slotsOf(r).map(x => esc(x[0])).join('<br>') || esc(r.tStart || ''), tTo = r => slotsOf(r).map(x => esc(x[1])).join('<br>') || esc(r.tEnd || '');
         const cap1 = r => { const b = bday[r.date]; return b && b.slabs && b.slabs.length && b.slabs[0].upTo !== '' ? Number(b.slabs[0].upTo) : 1; };
         const hrs = r => Number(r.whr) || 0, hr1 = r => stOf(r) ? 0 : r2(Math.min(hrs(r), cap1(r))), hr2 = r => stOf(r) ? 0 : r2(Math.max(0, hrs(r) - cap1(r)));
         const km = r => hasKm(wOf(r)) && !stOf(r), hrM = r => hasHr(wOf(r)) && !stOf(r), tm = r => wOf(r) === 'Time';
@@ -13571,20 +13655,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           kmS: { h: 'START<br>KM', g: 'KM READING', w: 6.2, c: 'n', v: x => km(x.r) ? plain(x.r.okm) : dash },
           kmC: { h: 'CLOSED<br>KM', g: 'KM READING', w: 6.2, c: 'n', v: x => km(x.r) ? plain(x.r.ckm) : dash },
           kmT: { h: 'TOTAL<br>KM', g: 'KM READING', w: 5, c: 'n', v: x => km(x.r) ? '<b>' + num(x.r.wkm) + '</b>' : dash, t: () => fmt(tKm) },
-          hrS: { h: 'START<br>HRS', g: 'HRS READING', w: 6, c: 'n', v: x => hrM(x.r) ? plain(x.r.ohr) : tm(x.r) ? esc(x.r.tStart || '') : dash },
-          hrC: { h: 'CLOSED<br>HRS', g: 'HRS READING', w: 6, c: 'n', v: x => hrM(x.r) ? plain(x.r.chr) : tm(x.r) ? esc(x.r.tEnd || '') : dash },
+          hrS: { h: 'START<br>HRS', g: 'HRS READING', w: 6, c: 'n', v: x => hrM(x.r) ? plain(x.r.ohr) : tm(x.r) ? tFrom(x.r) : dash },
+          hrC: { h: 'CLOSED<br>HRS', g: 'HRS READING', w: 6, c: 'n', v: x => hrM(x.r) ? plain(x.r.chr) : tm(x.r) ? tTo(x.r) : dash },
           hrT: { h: 'TOTAL<br>HRS', g: 'HRS READING', w: 5, c: 'n', v: x => hrM(x.r) || tm(x.r) ? '<b>' + num(x.r.whr) + '</b>' : dash, t: () => fmt(tHr) },
-          rS: { h: 'START<br>READING', g: 'READING', w: 6.5, c: 'n', v: x => hrM(x.r) ? plain(x.r.ohr) : tm(x.r) ? esc(x.r.tStart || '') : km(x.r) ? plain(x.r.okm) : dash },
-          rC: { h: 'CLOSED<br>READING', g: 'READING', w: 6.5, c: 'n', v: x => hrM(x.r) ? plain(x.r.chr) : tm(x.r) ? esc(x.r.tEnd || '') : km(x.r) ? plain(x.r.ckm) : dash },
+          rS: { h: 'START<br>READING', g: 'READING', w: 6.5, c: 'n', v: x => hrM(x.r) ? plain(x.r.ohr) : tm(x.r) ? tFrom(x.r) : km(x.r) ? plain(x.r.okm) : dash },
+          rC: { h: 'CLOSED<br>READING', g: 'READING', w: 6.5, c: 'n', v: x => hrM(x.r) ? plain(x.r.chr) : tm(x.r) ? tTo(x.r) : km(x.r) ? plain(x.r.ckm) : dash },
           rT: { h: 'TOTAL<br>HRS', g: 'READING', w: 5, c: 'n', v: x => stOf(x.r) ? dash : '<b>' + num(x.r.whr) + '</b>', t: () => fmt(tHr) },
-          tS: { h: 'START<br>TIME', g: 'READING', w: 6.5, c: 'c', v: x => tm(x.r) ? esc(x.r.tStart || '') : dash },
-          tE: { h: 'CLOSED<br>TIME', g: 'READING', w: 6.5, c: 'c', v: x => tm(x.r) ? esc(x.r.tEnd || '') : dash },
+          tS: { h: 'START<br>TIME', g: 'READING', w: 6.5, c: 'c', v: x => tm(x.r) ? tFrom(x.r) : dash },
+          tE: { h: 'CLOSED<br>TIME', g: 'READING', w: 6.5, c: 'c', v: x => tm(x.r) ? tTo(x.r) : dash },
           tG: { h: 'TOTAL<br>HRS', g: 'READING', w: 5.5, c: 'n', v: x => stOf(x.r) || !(tm(x.r) || hrM(x.r)) ? dash : num(gross(x.r)), t: () => fmt(r2(list.filter(r => !stOf(r)).reduce((s2, r) => s2 + gross(r), 0))) },
-          tN: { h: 'TOTAL<br>HRS', w: 5.5, c: 'n', v: x => stOf(x.r) || !hrs(x.r) ? dash : '<b>' + num(x.r.whr) + '</b>' + (x.r.tBrk ? '<br><small>break ' + fmt(x.r.tBrk) + 'm</small>' : ''), t: () => fmt(tHr) },
+          tN: { h: 'TOTAL<br>HRS', w: 5.5, c: 'n', v: x => stOf(x.r) || !hrs(x.r) ? dash : '<b>' + num(x.r.whr) + '</b>' + (slotsBreak(x.r) ? '<br><small>break ' + fmt(slotsBreak(x.r)) + 'm</small>' : ''), t: () => fmt(tHr) },
           hr1: { h: '1ST HR', w: 5, c: 'n', v: x => stOf(x.r) || !hrs(x.r) ? dash : num(hr1(x.r)), t: () => fmt(r2(list.reduce((s2, r) => s2 + hr1(r), 0))) },
           hr2: { h: '2ND HRS', w: 5, c: 'n', v: x => stOf(x.r) || !hrs(x.r) ? dash : num(hr2(x.r)), t: () => fmt(r2(list.reduce((s2, r) => s2 + hr2(r), 0))) },
-          inT: { h: 'IN TIME', w: 6, c: 'c', v: x => esc(x.r.tStart || '') },
-          outT: { h: 'OUT TIME', w: 6, c: 'c', v: x => esc(x.r.tEnd || '') },
+          inT: { h: 'IN TIME', w: 6, c: 'c', v: x => tm(x.r) ? tFrom(x.r) : esc(x.r.tStart || '') },
+          outT: { h: 'OUT TIME', w: 6, c: 'c', v: x => tm(x.r) ? tTo(x.r) : esc(x.r.tEnd || '') },
           dO: { h: 'OPENING<br>BALANCE', g: 'DIESEL (LTR)', w: 6, c: 'n', v: x => n2(x.open) },
           dI: { h: 'ISSUED<br>QTY', g: 'DIESEL (LTR)', w: 5, c: 'n', v: x => x.iss ? '<b>' + fmt(x.iss) + '</b>' : '', t: () => fmt(issued) },
           dR: { h: 'CURRENT DIESEL<br>REFILLING READING', g: 'DIESEL (LTR)', w: 7.5, c: 'n', v: x => x.refill !== '' && x.refill !== undefined ? (typeof x.refill === 'string' ? x.refill : plain(x.refill)) : '' },
@@ -13674,7 +13758,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const two = (a, b, u) => [a !== '' ? fmt(a) + (u ? ' km' : '') : '', b !== '' ? fmt(b) + (u ? ' hr' : '') : ''].filter(Boolean).join('<br>');
       $('l_rows').innerHTML = rows.length ? rows.map(r =>
         '<tr><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + (r.half ? ' <span class="tag half" title="Half day – the bill pays this entry as half a day">½ day</span>' : '') + '</td><td><b>' + esc(r.no) + '</b>' + (r.type ? ' <small>' + esc(r.type) + '</small>' : '') + (r.lk ? lockTag(((S.logList || {}).locks || {})[r.lk]) : '') + '</td><td>' + esc(r.unit) + '</td>' +
-        (r.unit === 'Time' ? '<td class="n">' + esc(r.tStart || '') + '</td><td class="n">' + esc(r.tEnd || '') + (r.tBrk ? '<br><small>break ' + fmt(r.tBrk) + ' min</small>' : '') + '</td>'
+        (r.unit === 'Time' ? (() => { const sl = slotsOf(r), br = slotsBreak(r); return '<td class="n">' + sl.map(x => esc(x[0])).join('<br>') + '</td><td class="n">' + sl.map(x => esc(x[1]) + (sl.length > 1 ? ' <small>(' + fmt(slotHrs(x[0], x[1])) + ' hr)</small>' : '')).join('<br>') + (br ? '<br><small>break ' + fmt(br) + ' min</small>' : '') + '</td>'; })()
           : DAY_STATUS.indexOf(r.unit) > -1 ? '<td class="n">–</td><td class="n"><span class="lg-hol">' + r.unit + '</span></td>'
           : r.unit === 'Trip' ? '<td class="n">–</td><td class="n">' + fmt(r.trip) + ' <small>trips</small>' + (r.challan ? '<br><small>Challan ' + esc(r.challan) + '</small>' : '') + '</td>' : r.unit === 'Day' ? '<td class="n">–</td><td class="n"><small>day</small></td>'
           : '<td class="n">' + two(r.okm, r.ohr, r.unit === 'KM + Hrs') + '</td><td class="n">' + two(r.ckm, r.chr, r.unit === 'KM + Hrs') + '</td>') + '<td class="n' + ((r.wkm !== '' && r.wkm < 0) || (r.whr !== '' && r.whr < 0) ? ' neg" title="Start is more than Close – correct this entry' : '') + '"><b>' + two(r.wkm, r.whr, r.unit === 'KM + Hrs') + '</b></td>' +
