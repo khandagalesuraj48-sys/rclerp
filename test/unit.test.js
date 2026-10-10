@@ -689,8 +689,10 @@ test('talking with the assistant needs the microphone: the site\'s own security 
   const j = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
   const pp = (((j.headers || []).find(h => h.source === '/(.*)') || { headers: [] }).headers.find(h => h.key === 'Permissions-Policy') || {}).value || '';
   assert.match(pp, /microphone=\(self\)/, 'Permissions-Policy must say microphone=(self) – with microphone=() Chrome refuses the microphone even when the person allowed it');
-  assert.match(pp, /camera=\(\)/); assert.match(pp, /geolocation=\(\)/);                                     // what the app does not use stays forbidden
-  assert.match(fs.readFileSync(path.join(__dirname, '..', 'app', 'Index.html'), 'utf8'), /<iframe id="app"[^>]*allow="[^"]*microphone/);
+  assert.match(pp, /geolocation=\(\)/);                                     // what the app does not use stays forbidden
+  // update-75: the screen share may show the CAMERA of a phone (to show a machine) – this site only, never another one in a frame
+  assert.match(pp, /camera=\(self\)/, 'Permissions-Policy must say camera=(self) for the screen share camera');
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'app', 'Index.html'), 'utf8'), /<iframe id="app"[^>]*allow="[^"]*microphone[^"]*camera/);
 });
 
 test('two engines, one tank – ONE rule everywhere: the page\'s dualAvg = the server\'s dualAvg_; his Log Book sheet of MH-04-KU-3332; the cost sheet no longer divides all the diesel by the hours', () => {
@@ -1591,4 +1593,141 @@ test('which version runs (Admin): the update number from the commit message; the
   assert.deepStrictEqual(v.relay, ['free.expressturn.com:3478']);
   assert.ok(!/name-xyz|pass-xyz-123/.test(JSON.stringify(v)), 'no name / password in what the Admin page gets');
   run('() => { __deployInfo = undefined; __rtcRelay = undefined; }');
+});
+
+// update-75 (10-10-2026): "build all of it at once, perfectly, with security in mind" – the server's part of the screen share's
+// master level: who may use it, a ring that waits for a page that opens now, missed calls, a reply, WhatsApp only for a user just
+// rung, notifications (only to push services, a device moves to the user who signed in on it, gone devices are forgotten), and
+// a dropped line made again only between a host and his guest.
+test('screen share master level (server): rights, a waiting ring, missed calls, replies, WhatsApp, notifications, reconnect', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  run(`() => { this.__keep75 = { kvRead_, kvWrite_, prefsRead_, writeLog_ }; this.KV75 = {}; this.LOG75 = []; this.PUSH75 = []; this.PUSHANS75 = null;
+    kvRead_ = id => KV75[id] || ''; kvWrite_ = (id, v) => { KV75[id] = String(v); };
+    prefsRead_ = email => ({ mobile: /^bala/.test(email) ? '9876543210' : '' });
+    writeLog_ = (u, a, m, r, s) => { LOG75.push(m + ': ' + s); };
+    __pushKey = () => 'BPUBLICKEY'; __pushOk = url => /^https:\\/\\/fcm\\.googleapis\\.com\\//.test(String(url));
+    __pushSend = (subs, text) => { const l = JSON.parse(subs); PUSH75.push({ to: l.map(s => s.e), msg: JSON.parse(text) }); return JSON.stringify(PUSHANS75 ? PUSHANS75(l) : l.map(() => ({ code: 201 }))); }; }`);
+  const U = (n, admin) => ({ email: n.toLowerCase() + '75@site.test', name: n, active: true, admin: !!admin, perms: {}, password: 'scrypt$x' });      // (own addresses: nothing left by the test before can match)
+  const A = U('Asha', true), B = U('Bala'), C = U('Chitra'), D = U('Dev');
+  run('l => { const c = CacheService.getScriptCache(); c.put("USERS_LIST", JSON.stringify(l), 600); c.remove("RTCN"); c.remove("RTC_OFF_C"); }', [A, B, C, D]);
+  const send = (u, x) => run('(u, x) => { try { return rtcSend_(u, x); } catch (e) { return { thrown: String(e.message) }; } }', u, x);
+  const api = (f, u, x) => run('(f, u, x) => { try { return this[f](u, x); } catch (e) { return { thrown: String(e.message) }; } }', f, u, x);
+  const beat = (u, a) => run('(u, a) => rtcBeat_(u, a)', u, a), id = u => run('e => rtcUid_(e)', u.email);
+  const age = (key, ms) => run('(k, ms) => { const c = CacheService.getScriptCache(), v = c.get(k); if (!v) return; const j = JSON.parse(v); if (Array.isArray(j)) j.forEach(x => { x.at -= ms; }); else j.at -= ms; c.put(k, JSON.stringify(j)); }', key, ms);
+
+  // --- WHO MAY USE IT: the Admin switches it off for Dev; an Admin can never be switched off
+  let r = run('(x, u) => rtcRightsSave_(x, u)', { off: [id(D), id(A), 'not-a-user'] }, A);
+  assert.deepStrictEqual(r.users.map(x => x.name + ':' + x.on), ['Asha:true', 'Bala:true', 'Chitra:true', 'Dev:false']);
+  assert.ok(LOGS().some(l => /Users: Screen share switched off for Dev/.test(l)), 'the change is in the Activity Log');
+  function LOGS() { return run('() => LOG75'); }
+  assert.strictEqual(api('rtcUsers_', D).off, true, 'Dev is told it is off for him');
+  assert.ok(!api('rtcUsers_', B).users.some(x => x.name === 'Dev'), 'nobody can pick Dev');
+  assert.ok(api('rtcUsers_', B).users.some(x => x.name === 'Asha' && x.admin === true), 'the list says who is Admin (for "show this to the Admin")');
+  assert.match(send(D, { t: 'ring', to: [id(B)], call: 'k0', d: {} }).thrown, /switched off for you/);
+  assert.match(send(B, { t: 'ring', to: [id(D)], call: 'k0', d: {} }).thrown, /may not use screen share/);
+  assert.ok(send(D, { t: 'here', to: [id(B)] }).ok, 'a page of Dev may still answer "here" quietly');
+
+  // --- NOTIFICATIONS: only a push service is accepted; keys are checked; a device moves to the user who signed in on it
+  const K = 'B' + 'x'.repeat(86), Au = 'y'.repeat(22);
+  assert.match(api('rtcPushSave_', B, { endpoint: 'https://evil.example.com/x', p256dh: K, auth: Au }).thrown, /not a known push service/);
+  assert.match(api('rtcPushSave_', B, { endpoint: 'https://fcm.googleapis.com/fcm/send/b1', p256dh: 'short', auth: Au }).thrown, /keys are not valid/);
+  assert.deepStrictEqual(api('rtcPushSave_', B, { endpoint: 'https://fcm.googleapis.com/fcm/send/b1', p256dh: K, auth: Au }), { ok: true, devices: 1 });
+  api('rtcPushSave_', B, { endpoint: 'https://fcm.googleapis.com/fcm/send/shared', p256dh: K, auth: Au });
+  api('rtcPushSave_', C, { endpoint: 'https://fcm.googleapis.com/fcm/send/shared', p256dh: K, auth: Au });      // Chitra signs in on Bala's second device
+  assert.deepStrictEqual(run('id => rtcSubs_(id).map(s => s.e)', id(B)), ['https://fcm.googleapis.com/fcm/send/b1'], 'the shared device is not Bala\'s any more');
+  assert.deepStrictEqual(run('id => rtcSubs_(id).map(s => s.e)', id(C)), ['https://fcm.googleapis.com/fcm/send/shared']);
+  assert.strictEqual(api('rtcPushKey_').key, 'BPUBLICKEY');
+
+  // --- A RING: on the list of calls of the one rung, a notification to his devices, and waiting for a page that opens now
+  let s = send(A, { t: 'ring', to: [id(B)], call: 'k1', d: { sdp: 'v=0', mode: 'cam', help: { title: 'Log Book', msg: 'Start reading is less than the previous Close' } } });
+  assert.ok(s.ok, JSON.stringify(s));
+  let p = run('() => PUSH75');
+  assert.deepStrictEqual([p.length, p[0].to, p[0].msg.t, p[0].msg.name, p[0].msg.call, p[0].msg.help, p[0].msg.page], [1, ['https://fcm.googleapis.com/fcm/send/b1'], 'ring', 'Asha', 'k1', 1, 'Log Book']);
+  assert.ok(!/Start reading/.test(JSON.stringify(p[0].msg)), 'the error text itself does not go through the push service – only in the app');
+  let fresh = beat(B, {});      // Bala opens the app (from the notification): the ring is there although it was sent before
+  assert.deepStrictEqual([fresh.m.length, fresh.m[0] && fresh.m[0].t, fresh.m[0] && fresh.m[0].call], [1, 'ring', 'k1']);
+  assert.deepStrictEqual(beat(C, {}).m, [], 'not for anybody else');
+  // not missed while it still rings; answered = not missed and not waiting any more
+  assert.deepStrictEqual(api('rtcMissed_', B).list, []);
+  assert.ok(send(B, { t: 'answer', to: id(A), call: 'k1', d: { sdp: 'a' } }).ok);
+  assert.deepStrictEqual(beat(B, {}).m, [], 'answered: a page that opens now does not ring again');
+  age('RTCMISS|' + id(B), 0); run('id => { const o = JSON.parse(KV75["RTCMISS|" + id]); o.list.forEach(m => { m.at -= 120000; }); KV75["RTCMISS|" + id] = JSON.stringify(o); }', id(B));
+  assert.deepStrictEqual(api('rtcMissed_', B).list, [], 'an answered call is never "missed"');
+
+  // --- NOT ANSWERED: the host gives up → "missed" notification, one line in the Activity Log, on the missed list; once
+  run('() => { PUSH75.length = 0; }');
+  send(A, { t: 'ring', to: [id(B), id(C)], call: 'k2', d: { sdp: 'v=0' } });
+  assert.ok(send(C, { t: 'decline', to: id(A), call: 'k2', d: { reply: 2 } }).ok);
+  assert.ok(LOGS().some(l => /Chitra declined the screen share of Asha \(reply: I am in a meeting – later, please\.\)/.test(l)), 'the decline and its reply are in the Activity Log');
+  send(A, { t: 'cancel', to: [id(B), id(C)], call: 'k2', d: {} });
+  send(A, { t: 'cancel', to: [id(B)], call: 'k2', d: {} });      // (said twice: still one line, one notification)
+  p = run('() => PUSH75').filter(x => x.msg.t === 'missed');
+  assert.deepStrictEqual([p.length, p[0].to, p[0].msg.name], [1, ['https://fcm.googleapis.com/fcm/send/b1'], 'Asha'], 'only Bala (Chitra declined), only once');
+  assert.strictEqual(LOGS().filter(l => /Bala did not answer the screen share of Asha/.test(l)).length, 1);
+  assert.deepStrictEqual(beat(B, {}).m, [], 'given up: a page that opens now does not ring');
+  let mi = api('rtcMissed_', B);      // (at once – the caller gave up, it does not wait for the ring's 80 s)
+  assert.deepStrictEqual([mi.list.length, mi.list[0].name, mi.list[0].call, mi.list[0].can, mi.unseen], [1, 'Asha', 'k2', true, 1]);
+  assert.strictEqual(api('rtcMissed_', B, { seen: true }).unseen, 0, 'seen: the red number goes');
+  assert.deepStrictEqual(api('rtcMissed_', B, { clear: true }).list, [], 'cleared');
+  // the busy-softly cancel (why: declined) and a cancel because another device answered (butdev) are not "missed"
+  run('() => { PUSH75.length = 0; }');
+  send(A, { t: 'ring', to: [id(C)], call: 'k3', d: {} }); send(A, { t: 'cancel', to: [id(C)], call: 'k3', d: { why: 'declined' } });
+  assert.strictEqual(run('() => PUSH75').filter(x => x.msg.t === 'missed').length, 0);
+
+  // --- WHATSAPP: only for a user this user has just rung; the number only when that user set one
+  assert.match(api('rtcWa_', B, { uid: id(C), call: 'k2' }).thrown, /a user you have just rung/, 'Bala did not ring Chitra');
+  assert.match(api('rtcWa_', A, { uid: id(B), call: 'nope' }).thrown, /a user you have just rung/);
+  assert.deepStrictEqual(api('rtcWa_', A, { uid: id(B), call: 'k2' }), { mobile: '919876543210', name: 'Bala' });
+  assert.match(api('rtcWa_', A, { uid: id(C), call: 'k2' }).thrown, /a user you have just rung/, 'Chitra declined: no WhatsApp');
+  send(A, { t: 'ring', to: [id(C)], call: 'k2b', d: {} });
+  assert.deepStrictEqual(api('rtcWa_', A, { uid: id(C), call: 'k2b' }), { none: true, name: 'Chitra' }, 'Chitra has no number');
+
+  // --- A GONE DEVICE (the push service says 410) is forgotten
+  run('() => { PUSHANS75 = l => l.map(s => ({ code: /b1$/.test(s.e) ? 410 : 201 })); }');
+  run('k => CacheService.getScriptCache().remove(k)', 'RTCPU_' + id(A) + '_' + id(B));      // (20 s later: a ring may notify again)
+  send(A, { t: 'ring', to: [id(B)], call: 'k4', d: {} });
+  assert.deepStrictEqual(run('id => rtcSubs_(id).length', id(B)), 0);
+  run('() => { PUSHANS75 = null; }');
+
+  // --- A DROPPED LINE MADE AGAIN: "re" only between the host and his guest, both ways; nobody else
+  send(A, { t: 'ring', to: [id(B)], call: 'k5', d: {} }); send(B, { t: 'answer', to: id(A), call: 'k5', d: { sdp: 'a' } });
+  assert.ok(send(A, { t: 're', to: [id(B)], call: 'k5', d: { type: 'offer', sdp: 'x' } }).ok, 'host → guest');
+  assert.ok(send(B, { t: 're', to: id(A), call: 'k5', d: { type: 'answer', sdp: 'y' } }).ok, 'guest → host');
+  assert.match(send(C, { t: 're', to: id(B), call: 'k5', d: {} }).thrown, /not there any more/, 'somebody not in the call');
+  assert.match(send(C, { t: 're', to: id(A), call: 'k5', d: {} }).thrown, /not there any more/);
+
+
+  // --- FROM THE INDEPENDENT REVIEW: abuse limits and edge cases
+  // answered on one device → his OTHER devices are told ("done"), not the one that answered
+  api('rtcPushSave_', B, { endpoint: 'https://fcm.googleapis.com/fcm/send/b2', p256dh: K, auth: Au }); api('rtcPushSave_', B, { endpoint: 'https://fcm.googleapis.com/fcm/send/b3', p256dh: K, auth: Au });
+  run('() => { PUSH75.length = 0; }');
+  send(A, { t: 'ring', to: [id(B)], call: 'k6', d: {} }); send(B, { t: 'answer', to: id(A), call: 'k6', d: { sdp: 'a', ep: 'https://fcm.googleapis.com/fcm/send/b2' } });
+  p = run('() => PUSH75').filter(x => x.msg.t === 'done');
+  assert.deepStrictEqual([p.length, p[0] && p[0].to, p[0] && p[0].msg.name], [1, ['https://fcm.googleapis.com/fcm/send/b3'], 'Asha']);
+  // a second ring to the same person within 20 s: no second notification (a loop cannot flood his phone)
+  run('() => { PUSH75.length = 0; }'); send(A, { t: 'ring', to: [id(B)], call: 'k7', d: {} });
+  assert.strictEqual(run('() => PUSH75').filter(x => x.msg.t === 'ring').length, 0);
+  // WhatsApp: not once the call was answered; not after 3 minutes
+  assert.match(api('rtcWa_', A, { uid: id(B), call: 'k6' }).thrown, /a user you have just rung/, 'answered: no number');
+  run('(k) => { const c = CacheService.getScriptCache(), v = c.get(k).split("|"); c.put(k, v[0] + "|" + (Number(v[1]) - 200000)); }', 'RTCC_k7_' + id(B));
+  assert.match(api('rtcWa_', A, { uid: id(B), call: 'k7' }).thrown, /a user you have just rung/, 'more than 3 minutes after the ring: no number');
+  // at most 8 NEW calls a minute from one user
+  const many = []; for (let i = 0; i < 12; i++) many.push(send(C, { t: 'ring', to: [id(A)], call: 'flood' + i, d: {} }));
+  assert.ok(many.slice(0, 5).every(x => x.ok) && /too many calls started/.test((many.find(x => x.thrown) || {}).thrown || ''), JSON.stringify(many.map(x => x.ok ? 'ok' : x.thrown.slice(0, 30))));
+  // the same call rung again (a second guest added) is not a new call
+  // a user switched off DURING a ring: the host can still cancel it and end his call
+  run('(x, u) => rtcRightsSave_(x, u)', { off: [id(D)] }, A); run('(x, u) => rtcRightsSave_(x, u)', { off: [] }, A);      // (back on)
+  send(B, { t: 'ring', to: [id(D)], call: 'k8', d: {} });
+  run('(x, u) => rtcRightsSave_(x, u)', { off: [id(D)] }, A);
+  assert.ok(send(B, { t: 'cancel', to: [id(D)], call: 'k8', d: {} }).ok, 'cancel to a user switched off meanwhile');
+  // a user who is not active keeps "switched off" when the Admin saves again
+  run('l => CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 600)', [A, B, C, Object.assign({}, D, { active: false })]);
+  r = run('(x, u) => rtcRightsSave_(x, u)', { off: [] }, A);
+  assert.ok(run('() => JSON.parse(KV75.RTC_OFF)').indexOf(id(D)) > -1, 'Dev (not active) is still switched off');
+  // switched off: the list gives no relay keys
+  run('l => CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 600)', [A, B, C, D]); run('() => CacheService.getScriptCache().remove("RTC_OFF_C")');
+  const offList = api('rtcUsers_', D); assert.deepStrictEqual([offList.off, offList.ice.length, offList.relay], [true, 0, false]);
+
+  run('() => { kvRead_ = __keep75.kvRead_; kvWrite_ = __keep75.kvWrite_; prefsRead_ = __keep75.prefsRead_; writeLog_ = __keep75.writeLog_; __pushKey = undefined; __pushOk = undefined; __pushSend = undefined; const c = CacheService.getScriptCache(); ["USERS_LIST", "RTC_OFF_C"].forEach(k => c.remove(k)); }');
 });

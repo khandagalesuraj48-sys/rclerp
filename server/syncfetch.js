@@ -21,7 +21,7 @@ const { parentPort, workerData } = require('worker_threads');
 async function once(q, ms) {
   const ac = new AbortController(), t = setTimeout(() => ac.abort(), ms);
   try {
-    const res = await fetch(q.url, { method: q.method || 'GET', headers: q.headers || {}, body: q.body === undefined || q.body === null ? undefined : q.body, redirect: 'follow', signal: ac.signal });
+    const res = await fetch(q.url, { method: q.method || 'GET', headers: q.headers || {}, body: q.body === undefined || q.body === null ? undefined : q.body, redirect: q.redirect === 'error' ? 'error' : 'follow', signal: ac.signal });
     const text = await res.text();
     const headers = {}; res.headers.forEach((v, k) => { headers[k] = v; });
     return { code: res.status, text: text, headers: headers };

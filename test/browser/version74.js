@@ -43,7 +43,8 @@ const raw = async (base, body) => { for (let i = 0; ; i++) { try { return await 
   v = await check(A);
   ok('"Check the relay" (right password): the browser gets an address from the relay → "Working … (over UDP)"', !!v && /^Working – the relay answered in [0-9.]+ s \(over UDP\)/.test(v.rmsg) && v.rcls === 'ok', v && v.rmsg);
   await A.pg.screenshot({ path: '/home/claude/test/shots/version74_admin.png', clip: await A.f.evaluate(() => { const r = document.getElementById('set_app').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }) }).catch(() => {});
-  await A.f.evaluate(() => { window.APP_BUILD = 'an-older-one'; }); await openSettings(A); v = await box(A);
+  await A.f.evaluate(() => { window.APP_BUILD = 'an-older-one'; }); await openSettings(A);
+  v = await until(async () => { const x = await box(A); return /This page is older/.test(x.msg) ? x : null; }, 10000) || await box(A);      // (the box is filled again a moment after Settings opens)
   ok('a page older than the live version says so ("close the app and open it again")', /This page is older than the live version/.test(v.msg), v.msg);
   ok('   no script error on the Admin page', !A.errs.length, A.errs);
 

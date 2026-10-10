@@ -61,7 +61,7 @@ function bootKeys(fn, args) {
  * web_count (step-3 SQL) makes "who is first" exact; without it a plain look is used. */
 const NOT_NOW = /Another save is still running|Could not reach the database|did not answer in time|^Database \([a-z_]+\): 5\d\d|RETRY_LATER/;
 const IS_QUESTION = f => /^(get|rpt|rtc)[A-Z]/.test(f) || ['sync', 'logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1;
-const { sleepSync } = require('./syncfetch');
+const { sleepSync, fetchAllSync } = require('./syncfetch');
 const crypto = require('crypto');
 /* ---------- SAVED ONCE, DECIDED INSIDE THE DATABASE (update-68, step-5 SQL: web.ops) ----------
  * The way above keeps "number X is done" in a note written AFTER the save. A save that reached the database while its
@@ -182,6 +182,67 @@ function run(fn, args, meta) {
   keep(kR, out.length <= 400000 ? out : JSON.stringify({ ok: true, _resent: true }));
   return out;
 }
+/* ---------- SCREEN SHARE CALLS WHEN THE APP IS CLOSED: WEB PUSH (update-75, asked 10-10-2026) ----------
+ * A ring reaches a user whose app is closed (or in a tab in the background) as a notification of the phone / computer.
+ * The browser gives the app a "subscription" (an address at the browser maker's push service + two keys); the server
+ * sends the ring there, ENCRYPTED for that browser (RFC 8291 – only that browser can read it) and SIGNED with the site's
+ * own key (VAPID, RFC 8292 – only this server can send to these subscriptions).
+ * THE SITE'S KEY is not stored anywhere and is set nowhere: it is made from the server's existing secret (SUPABASE_SECRET_KEY,
+ * or RCL_PUSH_SEED when that is set) with a one-way function, so nobody needs to handle it and it never leaves the server.
+ * If that secret is ever changed, the key changes: every page then makes a new subscription by itself at its next sign-in.
+ * Only the push services of the browser makers are written to (PUSH_HOSTS) – the server can never be made to call any other
+ * address with a "subscription". */
+const PUSH_HOSTS = /^(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|[a-z0-9-]+\.notify\.windows\.com|web\.push\.apple\.com)$/;
+const b64u = b => Buffer.from(b).toString('base64url');
+function pushOk(url) {
+  let u; try { u = new URL(String(url)); } catch (e) { return false; }
+  if (String(url).length > 800 || u.username || u.password) return false;
+  if (u.protocol === 'https:' && !u.port && PUSH_HOSTS.test(u.hostname)) return true;
+  const test = String(process.env.RCL_PUSH_TEST_HOST || '');      // the local test rig only (a stand-in push service) – refused on the live site even if set
+  return !!test && String(process.env.VERCEL_ENV || '') !== 'production' && u.protocol === 'http:' && u.host === test;
+}
+let PUSHKEY = null;
+function pushKey() {
+  const seed = String(process.env.RCL_PUSH_SEED || process.env.SUPABASE_SECRET_KEY || '');
+  if (!seed) return null;
+  if (PUSHKEY && PUSHKEY.seed === crypto.createHash('sha256').update(seed).digest('hex')) return PUSHKEY;
+  const n = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');      // the order of the P-256 curve
+  let d = null;
+  for (let i = 0; i < 50; i++) { const t = crypto.createHmac('sha256', seed).update('rcl-webpush-vapid-v1' + (i ? '/' + i : '')).digest(), v = BigInt('0x' + t.toString('hex')); if (v > 0n && v < n) { d = t; break; } }
+  const ec = crypto.createECDH('prime256v1'); ec.setPrivateKey(d); const pub = ec.getPublicKey();
+  const key = crypto.createPrivateKey({ format: 'jwk', key: { kty: 'EC', crv: 'P-256', d: b64u(d), x: b64u(pub.subarray(1, 33)), y: b64u(pub.subarray(33, 65)) } });
+  PUSHKEY = { seed: crypto.createHash('sha256').update(seed).digest('hex'), pub: b64u(pub), key: key };
+  return PUSHKEY;
+}
+// RFC 8291 (aes128gcm): the message can be read only by the browser that made the subscription
+function pushEncrypt(p256dh, auth, text) {
+  const ua = Buffer.from(String(p256dh), 'base64url'), secret = Buffer.from(String(auth), 'base64url');
+  if (ua.length !== 65 || ua[0] !== 4 || secret.length !== 16) throw new Error('bad subscription keys');
+  const ec = crypto.createECDH('prime256v1'); ec.generateKeys(); const as = ec.getPublicKey(), shared = ec.computeSecret(ua);
+  const hk = (salt, ikm, info, len) => Buffer.from(crypto.hkdfSync('sha256', ikm, salt, info, len));
+  const ikm = hk(secret, shared, Buffer.concat([Buffer.from('WebPush: info\0'), ua, as]), 32), salt = crypto.randomBytes(16);
+  const cek = hk(salt, ikm, Buffer.from('Content-Encoding: aes128gcm\0'), 16), nonce = hk(salt, ikm, Buffer.from('Content-Encoding: nonce\0'), 12);
+  const c = crypto.createCipheriv('aes-128-gcm', cek, nonce), body = Buffer.concat([c.update(Buffer.concat([Buffer.from(String(text)), Buffer.from([2])])), c.final(), c.getAuthTag()]);
+  const head = Buffer.alloc(21); salt.copy(head, 0); head.writeUInt32BE(4096, 16); head[20] = 65;
+  return Buffer.concat([head, as, body]);
+}
+// RFC 8292: "this message comes from this site" – signed with the site's key, for one push service, valid 12 hours
+function pushAuth(endpoint, k) {
+  const aud = new URL(endpoint).origin, host = String(process.env.VERCEL_PROJECT_PRODUCTION_URL || '').replace(/[^A-Za-z0-9.\-]/g, '');
+  const enc = o => b64u(JSON.stringify(o)), data = enc({ typ: 'JWT', alg: 'ES256' }) + '.' + enc({ aud: aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: host ? 'https://' + host : 'mailto:push@invalid.example' });
+  const sig = crypto.sign('sha256', Buffer.from(data), { key: k.key, dsaEncoding: 'ieee-p1363' });
+  return 'vapid t=' + data + '.' + b64u(sig) + ', k=' + k.pub;
+}
+// subs: [{ e: endpoint, k: p256dh, a: auth }] – all sent at the same time, at most 5 seconds; the answer code of each (404 / 410 = gone)
+function pushSend(subs, text, ttl) {
+  const k = pushKey(); if (!k) return subs.map(() => ({ code: 0, error: 'no key' }));
+  const reqs = [], at = [], out = subs.map(() => ({ code: 0 }));
+  subs.forEach((s, i) => { try { if (!pushOk(s.e)) { out[i] = { code: 0, error: 'not a push service' }; return; }
+    reqs.push({ url: String(s.e), method: 'POST', redirect: 'error', headers: { 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', TTL: String(ttl || 60), Urgency: 'high', Authorization: pushAuth(s.e, k) }, body: pushEncrypt(s.k, s.a, text) }); at.push(i); }
+    catch (e) { out[i] = { code: 0, error: String(e && e.message || e).slice(0, 80) }; } });
+  if (reqs.length) fetchAllSync(reqs, 5000).forEach((r, j) => { out[at[j]] = r && r.error ? { code: 0, error: String(r.error).slice(0, 80) } : { code: r.code }; });
+  return out;
+}
 function runPlain(fn, args, meta) {
   const st = gas.newState(meta);
   gas.boot(st, bootKeys(fn, args), fn === 'api' && String(args[1]) === 'sync');      // the heartbeat may be answered from memory (see gas.boot)
@@ -202,6 +263,10 @@ function runPlain(fn, args, meta) {
    * Environment Variables): RTC_TURN_URL (the relay's address, e.g. relay1.example.com:3478 – several with commas),
    * RTC_TURN_USER and RTC_TURN_PASS. Nothing set = no relay, as before. The app's code only asks "is there a relay?". */
   g.__rtcRelay = () => { const url = String(process.env.RTC_TURN_URL || '').trim(), user = String(process.env.RTC_TURN_USER || '').trim(), pass = String(process.env.RTC_TURN_PASS || '').trim(); return url && user && pass ? { url: url, user: user, pass: pass } : null; };
+  // screen share calls when the app is closed (see WEB PUSH above): the site's public key, "is this a push service?", send
+  g.__pushKey = () => { const k = pushKey(); return k ? k.pub : ''; };
+  g.__pushOk = url => pushOk(url);
+  g.__pushSend = (subsJson, text, ttl) => JSON.stringify(pushSend(JSON.parse(String(subsJson)), String(text), Number(ttl) || 60));
   g.__oldWrites = () => String(process.env.RCL_OLD_WRITES || '').toLowerCase() === 'on';      // may a save be written table by table when web_write is missing? (default: no – see SupabaseData.gs)
   g.__saved = () => { st.saved = true; };
   g.__opsCleanup = () => gas.rpc('web_ops_cleanup', {});      // old save numbers are forgotten (3 days; long answers 24 hours) – see the step-5 SQL

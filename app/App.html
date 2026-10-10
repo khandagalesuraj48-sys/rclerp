@@ -566,6 +566,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .lp-install { display: block; width: 100%; margin: 10px 0 0; padding: 11px; border: 1px dashed #94A3B8; border-radius: 12px; background: #F8FAFC; color: #0F1F3D; font: 700 14px var(--ui); cursor: pointer; }
   .lp-install[hidden] { display: none; }
   .set-ver { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); } .set-ver > div { flex: 1; min-width: 200px; } .set-ver span { display: block; font-size: 12px; color: var(--muted); } .set-ver b { display: block; overflow-wrap: anywhere; } .set-ver small { display: block; color: var(--muted); margin-top: 2px; } .set-ver small.ok { color: var(--good); font-weight: 600; } .set-ver small.bad { color: var(--bad); font-weight: 600; }
+  .rr-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; } .rr-list label { display: flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1px solid #E2E8F0; border-radius: 9px; font: 600 13px var(--ui); cursor: pointer; } .rr-list label:has(input:checked) { border-color: #16A34A; background: #F0FDF4; } .rr-list label.adm { opacity: .75; cursor: default; }
   .set-app { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; } .set-app > div { flex: 1; min-width: 200px; } .set-app small { display: block; color: var(--muted); margin-top: 2px; }
   .lp-saved { margin: 2px 0 8px; padding: 7px 10px; border-radius: 8px; background: #ECFDF5; border: 1px solid #B7E4CB; color: #166534; font: 600 12.5px var(--ui); }
   .login-err { margin: 0 0 10px; min-height: 18px; color: var(--bad); font-size: 13px; font-weight: 600; }
@@ -2404,7 +2405,29 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ---------- screen share with voice (update-72) ---------- */
   /* among the app's own layers: the picture (12) and the bar (13) lie under every dialog (15 +) and the help card (60); the app's own
      message line is lifted above the bar while a call is on; the ring (58) and the notice (57) are over the dialogs */
-  #rtc_note[hidden], #rtc_in[hidden], #rtc_bar[hidden], #rtc_view[hidden] { display: none !important; }
+  #rtc_note[hidden], #rtc_in[hidden], #rtc_bar[hidden], #rtc_view[hidden], #rtc_menu[hidden], #rtc_chat[hidden], #rtc_rep_m[hidden], #rtc_fol[hidden] { display: none !important; }
+  /* update-75: badges, reply menu, the More menu, chat, network, pen layer */
+  .rtc-badge { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; margin-left: 4px; border-radius: 9px; background: #DC2626; color: #fff; font: 800 10.5px/1 var(--ui); vertical-align: middle; } .rtc-badge[hidden] { display: none; }
+  #u_share { position: relative; } #u_share .rtc-badge { position: absolute; top: -6px; right: -6px; margin: 0; }
+  #rtc_in #rtc_rep { background: #fff; color: #0F1B3D; border-color: #CBD5E1 !important; } #rtc_rep_m { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; } #rtc_rep_m button { background: #F1F5F9; color: #0F1B3D; border-color: #CBD5E1 !important; font-weight: 600; }
+  #rtc_menu { position: absolute; bottom: calc(100% + 8px); right: 8px; display: grid; gap: 6px; min-width: 230px; background: #0F1B3D; border: 1px solid #33457D; border-radius: 12px; padding: 8px; box-shadow: 0 14px 40px rgba(15, 27, 61, .5); }
+  #rtc_menu button { text-align: left; } #rtc_menu button.on { background: #B91C1C; border-color: #DC2626; }
+  #rtc_net.good { color: #86EFAC; } #rtc_net.weak { color: #FCD34D; } #rtc_net.poor { color: #FCA5A5; font-weight: 700; }
+  #rtc_bar #rtc_fol button { min-height: 0; padding: 2px 8px; font-size: 11.5px; background: #F2A900; color: #1F2937; border-color: #F2A900; }
+  #rtc_chat { position: fixed; z-index: 13; right: 12px; bottom: 82px; width: min(92vw, 360px); max-height: min(60vh, 520px); display: flex; flex-direction: column; background: #fff; color: #0F1B3D; border: 1px solid #CBD5E1; border-radius: 12px; box-shadow: 0 18px 50px rgba(15, 27, 61, .35); overflow: hidden; }
+  #rtc_chat header { display: flex; align-items: baseline; gap: 8px; padding: 8px 10px 8px 12px; background: #0F1B3D; color: #fff; } #rtc_chat header small { color: #B8C4DA; font: 500 11px var(--ui); margin-right: auto; } #rtc_chat header button { background: transparent; color: #fff; border: 0; font-size: 20px; cursor: pointer; }
+  #rtc_msgs { flex: 1 1 auto; overflow: auto; padding: 8px 10px; display: grid; gap: 6px; align-content: start; min-height: 80px; }
+  #rtc_msgs .m { max-width: 85%; padding: 6px 9px; border-radius: 10px; background: #F1F5F9; font: 500 13.5px/1.35 var(--ui); white-space: pre-wrap; overflow-wrap: anywhere; } #rtc_msgs .m.me { justify-self: end; background: #FEF3C7; } #rtc_msgs .m small { display: block; font: 700 11px var(--ui); color: #64748B; margin-bottom: 2px; }
+  #rtc_msgs .m img { display: block; max-width: 100%; max-height: 220px; border-radius: 6px; cursor: zoom-in; }
+  #rtc_chat_f { display: flex; gap: 6px; padding: 8px; border-top: 1px solid #E2E8F0; } #rtc_chat_f input { flex: 1 1 auto; min-width: 0; border: 1px solid #CBD5E1; border-radius: 8px; padding: 8px; font: 500 14px var(--ui); }
+  #rtc_chat_f button { border: 1px solid #CBD5E1; border-radius: 8px; padding: 8px 10px; font: 700 13px var(--ui); background: #F8FAFC; color: #0F1B3D; cursor: pointer; } #rtc_chat_f #rtc_send { background: #0F1B3D; color: #fff; border-color: #0F1B3D; }
+  #rtc_view .rtc-vw { position: relative; display: flex; flex: 1 1 auto; min-height: 0; } #rtc_view .rtc-vw video { flex: 1 1 auto; }
+  #rtc_pen { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; touch-action: none; } #rtc_view.pen #rtc_pen { pointer-events: auto; cursor: crosshair; }
+  #rtc_view #rtc_penb.on { background: #DC2626; border-color: #EF4444; }
+  .rtc-mode { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; } .rtc-mode label { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid #E2E8F0; border-radius: 9px; cursor: pointer; font: 600 13px var(--ui); } .rtc-mode label:has(input:checked) { border-color: #F2A900; background: #FFFBEB; }
+  .rtc-miss { margin: 6px 0 4px; padding: 8px 10px; border: 1px solid #FECACA; background: #FEF2F2; border-radius: 10px; font: 600 13px var(--ui); color: #991B1B; } .rtc-miss div { display: flex; align-items: center; gap: 8px; margin-top: 4px; color: #0F1B3D; } .rtc-miss div span { margin-right: auto; } .rtc-miss button { font: 700 12px var(--ui); border: 1px solid #FCA5A5; background: #fff; color: #B91C1C; border-radius: 7px; padding: 4px 9px; cursor: pointer; }
+  .rtc-help { margin: 6px 0; padding: 8px 10px; border-left: 4px solid #F2A900; background: #FFFBEB; border-radius: 6px; font: 500 13px/1.4 var(--ui); white-space: pre-wrap; overflow-wrap: anywhere; }
+  #rtc_note a, #rtc_note button { margin-left: 10px; display: inline-block; background: #25D366; color: #fff; font: 700 13px var(--ui); border: 0; border-radius: 8px; padding: 5px 10px; text-decoration: none; cursor: pointer; } #rtc_note button.plain { background: #F2A900; color: #1F2937; }
   body.rtc-on #toast { z-index: 14; bottom: 92px; }
   #rtc_note { position: fixed; z-index: 57; top: 74px; left: 50%; transform: translateX(-50%); max-width: min(92vw, 660px); background: #0F1B3D; color: #fff; font: 600 14px/1.4 var(--ui); padding: 10px 16px; border-radius: 10px; box-shadow: 0 10px 30px rgba(15, 27, 61, .35); cursor: pointer; }
   #rtc_in { position: fixed; z-index: 58; top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; width: max-content; max-width: min(94vw, 640px); background: #fff; color: #0F1B3D; border: 2px solid #F2A900; border-radius: 14px; padding: 14px 16px; box-shadow: 0 18px 50px rgba(15, 27, 61, .45); }
@@ -2428,10 +2451,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #rtc_hint { display: block; padding: 5px 12px 7px; font: 500 11.5px var(--ui); color: #94A3B8; } #rtc_hint:empty { display: none; }
   .rtc-list { display: grid; gap: 6px; max-height: 46vh; overflow: auto; margin: 10px 0; }
   .rtc-u { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 10px; cursor: pointer; } .rtc-u:has(input:checked) { border-color: #F2A900; background: #FFFBEB; }
-  .rtc-u input { width: 18px; height: 18px; flex: 0 0 18px; } .rtc-u b { font: 700 14px var(--ui); margin-right: auto; }
+  .rtc-u input { width: 18px; height: 18px; flex: 0 0 18px; } .rtc-u b { font: 700 14px var(--ui); margin-right: auto; } .rtc-u .rtc-adm { font: 700 11px var(--ui); color: #1543B8; background: #EEF3FF; border-radius: 6px; padding: 2px 6px; }
   .rtc-st { font: 600 12px var(--ui); color: #94A3B8; } .rtc-st.on { color: #15803D; } .rtc-st.on::before { content: '● '; } .rtc-st.busy { color: #B45309; }
   @media (max-width: 700px) { #rtc_view, #rtc_view[data-size=m] { left: 6px; right: 6px; width: auto; } #rtc_bar { left: 6px; right: 6px; transform: none; } #rtc_bar .rtc-txt { max-width: none; flex: 1 1 100%; } }
-  @media print { #rtc_note, #rtc_in, #rtc_bar, #rtc_view { display: none !important; } }
+  @media print { #rtc_note, #rtc_in, #rtc_bar, #rtc_view, #rtc_chat { display: none !important; } }
+  @media (max-width: 700px) { #rtc_chat { left: 6px; right: 6px; width: auto; bottom: 128px; } #rtc_menu { right: 0; left: 0; } }
 </style>
 </head>
 <body class="locked">
@@ -2625,7 +2649,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     <span class="live off" id="live_dot" title="Connecting…"><i></i> Connecting…</span>
     <div class="today"><b id="company">Rachana Construction Limited</b><span id="todayLabel"></span></div>
     <div class="userchip"><button type="button" class="u-ava" id="u_ava" title="My settings" aria-label="My settings"></button><div><b id="u_name"></b><span id="u_role"></span></div>
-      <button class="btn ghost small" id="u_share" type="button" title="Share my screen with another user – with voice" aria-label="Share my screen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="m9 11 3-3 3 3M12 8v6"/></svg></button>
+      <button class="btn ghost small" id="u_share" type="button" title="Share my screen with another user – with voice" aria-label="Share my screen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="m9 11 3-3 3 3M12 8v6"/></svg><span class="rtc-badge" id="rtc_badge" hidden></span></button>
       <button class="btn ghost small" id="u_pw" title="Change my password" aria-label="Change my password"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></button>
       <button class="btn ghost small" id="u_logout" title="Sign out">Logout</button></div>
   </div>
@@ -2988,7 +3012,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="af_from">From</label><input id="af_from" type="date"></div>
         <div class="field"><label for="af_to">To</label><input id="af_to" type="date"></div>
         <div class="field"><label for="af_user">User</label><input id="af_user" autocomplete="off" placeholder="Name or email"></div>
-        <div class="field"><label for="af_module">Module</label><select id="af_module"><option value="">All</option><option>Master</option><option>Diesel Inward</option><option>Diesel Transfer</option><option>Diesel Issue</option><option>Log Book</option></select></div>
+        <div class="field"><label for="af_module">Module</label><select id="af_module"><option value="">All</option><option>Master</option><option>Diesel Inward</option><option>Diesel Transfer</option><option>Diesel Issue</option><option>Log Book</option><option>Screen Share</option></select></div>
         <div class="field"><label for="af_action">Action</label><select id="af_action"><option value="">All</option><option>Add</option><option>Edit</option><option>Delete</option><option>Import</option><option>Login</option><option>Logout</option></select></div>
         <div class="field"><label for="af_q">Record / text</label><input id="af_q" autocomplete="off" placeholder="e.g. DI-000123, MH-25-AJ-3232"></div>
       </div>
@@ -2997,6 +3021,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           <button class="btn ghost small" data-arange="today">Today</button>
           <button class="btn ghost small" data-yday="af_from|af_to|activity">Yesterday</button>
           <button class="btn ghost small" data-arange="7">Last 7 days</button>
+          <button class="btn ghost small" id="af_rtc" type="button" title="Who showed a screen to whom, how long, and the calls that were declined or not answered">Screen share calls</button>
           <button class="btn ghost small" id="af_reset">Clear filters</button>
         </div>
         <div class="sum" id="a_sum"></div>
@@ -3413,6 +3438,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       </table></div>
       <p class="empty-note">A new user, or a password reset, gets a <b>one-time password</b> that works once – at that sign-in the user must set his own. Admin users have Edit on every page.</p>
     </div>
+    <div class="panel" id="rr_panel">
+      <div class="panel-head"><h2>Screen share – who may use it</h2><span class="chart-note">Ticked = may show a screen and be called. Admin users always may. Untick a user and press Save.</span></div>
+      <div class="rr-list" id="rr_list"><p class="empty-note">Loading…</p></div>
+      <div class="actions"><button class="btn primary" id="rr_save" type="button">Save screen share access</button></div>
+    </div>
   </section>
 
   <!-- ================= READ ME (Admin) ================= -->
@@ -3463,6 +3493,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <button type="button" class="btn primary" id="app_install" hidden>Install this app</button>
     </div>
     <p class="muted" id="app_how" hidden></p>
+    <div class="set-ver" id="np_box">
+      <div><span>Screen share calls when the app is closed</span><b id="np_state">–</b><small id="np_msg"></small></div>
+      <button type="button" class="btn ghost" id="np_on">Turn on</button>
+    </div>
     <div class="set-ver" id="av_box" hidden>
       <div><span>Running now (Admin)</span><b id="av_upd">–</b><small id="av_msg"></small></div>
       <div><span>Screen share relay</span><b id="av_relay">–</b><small id="av_rmsg"></small></div>
@@ -3951,9 +3985,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <!-- screen share with voice (update-72): a notice, the incoming ring, the bar of the call, the picture of a screen shown to me -->
 <div id="rtc_note" role="status" title="Click to close" hidden></div>
-<div id="rtc_in" role="alertdialog" aria-labelledby="rtc_in_t" hidden><span class="rtc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="rtc-inx"><b id="rtc_in_t"></b><small>Screen share with voice · nothing is recorded</small></span><button type="button" id="rtc_yes">Accept</button><button type="button" id="rtc_no">Decline</button></div>
-<div id="rtc_bar" role="status" hidden><i class="rtc-dot" id="rtc_live"></i><span class="rtc-txt"><b id="rtc_who"></b><small><span id="rtc_mine"></span> <span id="rtc_clock"></span></small></span><button type="button" id="rtc_mic">Mute</button><button type="button" id="rtc_share">Show my screen</button><button type="button" id="rtc_end">End</button></div>
-<div id="rtc_view" data-size="m" hidden><header><b id="rtc_vt"></b><span id="rtc_tabs"></span><button type="button" id="rtc_open" hidden></button><button type="button" id="rtc_size" title="Smaller / larger picture">Size</button></header><video id="rtc_video" autoplay playsinline muted></video><small id="rtc_hint"></small></div>
+<div id="rtc_in" role="alertdialog" aria-labelledby="rtc_in_t" hidden><span class="rtc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="rtc-inx"><b id="rtc_in_t"></b><small id="rtc_in_s">Screen share with voice · nothing is recorded</small></span><button type="button" id="rtc_yes">Accept</button><button type="button" id="rtc_no">Decline</button><button type="button" id="rtc_rep" aria-haspopup="true">Reply…</button><span id="rtc_rep_m" hidden><button type="button" data-reply="1">I will call you back in 5 minutes</button><button type="button" data-reply="2">In a meeting – later, please</button><button type="button" data-reply="3">Please call me on the phone</button></span></div>
+<div id="rtc_bar" role="status" hidden><i class="rtc-dot" id="rtc_live"></i><span class="rtc-txt"><b id="rtc_who"></b><small><span id="rtc_mine"></span> <span id="rtc_clock"></span> <span id="rtc_net"></span></small><small id="rtc_fol" hidden><span id="rtc_fol_t"></span> <button type="button" id="rtc_unfollow">Stop following</button></small></span><button type="button" id="rtc_mic">Mute</button><button type="button" id="rtc_share">Show my screen</button><button type="button" id="rtc_chatb">Chat<span class="rtc-badge" id="rtc_chat_n" hidden></span></button><button type="button" id="rtc_more" aria-haspopup="true">More ▾</button><button type="button" id="rtc_end">End</button><div id="rtc_menu" hidden><button type="button" id="rtc_cam">Show my camera</button><button type="button" id="rtc_flip" hidden>Switch camera</button><button type="button" id="rtc_torch" hidden>Light on</button><button type="button" id="rtc_page">Show only my page (low data)</button><button type="button" id="rtc_low">Low data: off</button></div></div><div id="rtc_chat" hidden><header><b>Chat</b><small>not saved – gone when the call ends</small><button type="button" id="rtc_chat_x" aria-label="Close">×</button></header><div id="rtc_msgs" aria-live="polite"></div><form id="rtc_chat_f" autocomplete="off"><button type="button" id="rtc_photo" title="Send a photo">Photo</button><input id="rtc_txt" maxlength="500" placeholder="Type – e.g. a vehicle number"><button type="submit" id="rtc_send">Send</button></form><input type="file" id="rtc_file" accept="image/*" hidden></div>
+<div id="rtc_view" data-size="m" hidden><header><b id="rtc_vt"></b><span id="rtc_tabs"></span><button type="button" id="rtc_open" hidden></button><button type="button" id="rtc_penb" title="Draw on the picture – it shows on the sharer's screen" hidden>Pen</button><button type="button" id="rtc_clr" hidden>Clear</button><button type="button" id="rtc_snap" title="Save a picture of this screen on this device">Snapshot</button><button type="button" id="rtc_size" title="Smaller / larger picture">Size</button></header><div class="rtc-vw"><video id="rtc_video" autoplay playsinline muted></video><canvas id="rtc_pen"></canvas></div><small id="rtc_hint"></small></div>
 <!-- the assistant: ask the app in your own words -->
 <button type="button" id="ai_fab" class="ai-fab" hidden title="Ask the assistant – how to do something, how much diesel, who did what …"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Ask</span></button>
 <aside id="ai_panel" class="ai-panel" hidden role="dialog" aria-label="Assistant">
@@ -4519,6 +4553,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('lg_forgot').addEventListener('click', () => lgNote('Please ask your Admin to reset your password.'));
   $('u_logout').addEventListener('click', async () => {
     if (!(await askConfirm({ title: 'Sign out?', message: 'You will need your email and password to sign in again.', ok: 'Sign out' }))) return;
+    try { await rtcPushLeave(); } catch (e) { /* this device then simply stops getting this user's calls at the next sign-in of someone else */ }
     const t = S.token; credForget(); showLogin(''); try { await gsRun('logout', t); } catch (e) {}
     // a shared computer: the next person must not find the last one's settings (mobile number, photo) or the Admin's database check here.
     // (They are only this browser's copy – the settings themselves are kept with the account and come back at the next sign-in.)
@@ -4861,9 +4896,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['या machinery च्या एका shift मध्ये प्रत्येक कामासाठी वेगळी ओळ आहे (उदा. आधी Bucket, मग Breaker), आणि त्यातली एक ओळ बरोबर नाही.', 'Log Book entry च्या पानावर किंवा Edit Log Book मध्ये: त्या shift च्या प्रत्येक ओळीत एकच काम निवडा (Split नाही), Close हे Start पेक्षा जास्त हवे, आणि प्रत्येक ओळ वरच्या ओळीच्या Close पासूनच सुरू झाली पाहिजे. सलग दोन ओळींत तेच काम नको – त्यांची एकच ओळ करा. ½ tick, "new meter" आणि "Debit to" हे त्या shift च्या पहिल्या ओळीवर ठेवा. मग पुन्हा save करा.'],
       hi: ['इस machinery की एक shift में हर काम की अलग पंक्ति है (जैसे पहले Bucket, फिर Breaker), और उनमें से एक पंक्ति सही नहीं है।', 'Log Book entry के पन्ने पर या Edit Log Book में: उस shift की हर पंक्ति में एक ही काम चुनें (Split नहीं), Close हमेशा Start से ज़्यादा हो, और हर पंक्ति ऊपर वाली पंक्ति के Close से ही शुरू हो। लगातार दो पंक्तियों में एक ही काम न रखें – उनकी एक पंक्ति बनाएँ। ½ tick, "new meter" और "Debit to" उस shift की पहली पंक्ति पर रखें। फिर दोबारा save करें।'] },
     { re: /Screen share/i,
-      en: ['The screen share could not be started, joined or kept.', 'Screen share works from a computer in Chrome or Edge: press the screen button at the top, tick the user, and in the box of the browser choose this tab and press Allow. The other user must have the app open. A phone can receive a screen share and talk, but cannot show its own screen. If it says the two networks cannot reach each other: try with both on the same Wi-Fi, and tell the developer – a relay server has to be added for such networks. If it says the relay could not be reached: tell the Admin – the relay\'s address, name or password in the hosting settings has to be checked (Admin: Settings → This app → Check the relay).'],
-      mr: ['Screen share सुरू झाले नाही, जोडले गेले नाही किंवा तुटले.', 'Screen share computer वर Chrome किंवा Edge मध्ये चालते: वरचे screen चे बटण दाबा, user निवडा (tick), आणि browser च्या box मध्ये हा tab निवडून Allow दाबा. समोरच्या user चे app उघडे असले पाहिजे. Phone वर screen share घेता येते आणि बोलता येते, पण phone स्वतःचा screen दाखवू शकत नाही. "दोन networks एकमेकांपर्यंत पोहोचत नाहीत" असे आले तर: दोघे एकाच Wi-Fi वर असताना करून बघा, आणि developer ला सांगा – अशा networks साठी relay server जोडावा लागतो. "relay पर्यंत पोहोचता आले नाही" असे आले तर: Admin ला सांगा – hosting च्या settings मधला relay चा पत्ता, नाव किंवा password तपासावा लागेल (Admin: Settings → This app → Check the relay).'],
-      hi: ['Screen share शुरू नहीं हुआ, जुड़ नहीं पाया या टूट गया।', 'Screen share computer पर Chrome या Edge में चलता है: ऊपर का screen वाला बटन दबाएँ, user चुनें (tick), और browser के box में यही tab चुनकर Allow दबाएँ। सामने वाले user का app खुला होना चाहिए। Phone पर screen share लिया जा सकता है और बात हो सकती है, पर phone अपना screen नहीं दिखा सकता। "दोनों networks एक-दूसरे तक नहीं पहुँचते" आए तो: दोनों एक ही Wi-Fi पर हों तब करके देखें, और developer को बताएँ – ऐसे networks के लिए relay server जोड़ना पड़ता है। "relay तक नहीं पहुँचा जा सका" आए तो: Admin को बताएँ – hosting की settings में relay का पता, नाम या password जाँचना होगा (Admin: Settings → This app → Check the relay)।'] },
+      en: ['The screen share could not be started, joined or kept.', 'Screen share works from a computer in Chrome or Edge: press the screen button at the top, tick the user, and in the box of the browser choose this tab and press Allow. The other user must have the app open. A phone cannot show its own screen – it can show its camera or "Only my page". "Switched off for you": the Admin switches it on in Users & Access → Screen share. The camera must be allowed for this site (the lock sign beside the address → Camera → Allow). Calls when the app is closed: Settings → This app → Turn on (Chrome / Edge; on iPhone only from the app added to the Home Screen). If it says the two networks cannot reach each other: try with both on the same Wi-Fi, and tell the developer – a relay server has to be added for such networks. If it says the relay could not be reached: tell the Admin – the relay\'s address, name or password in the hosting settings has to be checked (Admin: Settings → This app → Check the relay).'],
+      mr: ['Screen share सुरू झाले नाही, जोडले गेले नाही किंवा तुटले.', 'Screen share computer वर Chrome किंवा Edge मध्ये चालते: वरचे screen चे बटण दाबा, user निवडा (tick), आणि browser च्या box मध्ये हा tab निवडून Allow दाबा. समोरच्या user चे app उघडे असले पाहिजे. Phone स्वतःचा screen दाखवू शकत नाही – camera किंवा "Only my page" दाखवू शकतो. "Switched off for you" आले तर: Admin ने Users & Access → Screen share मध्ये चालू करावे. Camera या site साठी Allow असला पाहिजे (address शेजारचे कुलूप → Camera → Allow). App बंद असताना call: Settings → This app → Turn on (Chrome / Edge; iPhone वर फक्त Home Screen वर जोडलेल्या app मधून). "दोन networks एकमेकांपर्यंत पोहोचत नाहीत" असे आले तर: दोघे एकाच Wi-Fi वर असताना करून बघा, आणि developer ला सांगा – अशा networks साठी relay server जोडावा लागतो. "relay पर्यंत पोहोचता आले नाही" असे आले तर: Admin ला सांगा – hosting च्या settings मधला relay चा पत्ता, नाव किंवा password तपासावा लागेल (Admin: Settings → This app → Check the relay).'],
+      hi: ['Screen share शुरू नहीं हुआ, जुड़ नहीं पाया या टूट गया।', 'Screen share computer पर Chrome या Edge में चलता है: ऊपर का screen वाला बटन दबाएँ, user चुनें (tick), और browser के box में यही tab चुनकर Allow दबाएँ। सामने वाले user का app खुला होना चाहिए। Phone अपनी screen नहीं दिखा सकता – camera या "Only my page" दिखा सकता है। "Switched off for you" आए तो: Admin Users & Access → Screen share में चालू करे। Camera इस site के लिए Allow होना चाहिए (address के पास का ताला → Camera → Allow)। App बंद होने पर call: Settings → This app → Turn on (Chrome / Edge; iPhone पर केवल Home Screen पर जोड़े गए app से)। "दोनों networks एक-दूसरे तक नहीं पहुँचते" आए तो: दोनों एक ही Wi-Fi पर हों तब करके देखें, और developer को बताएँ – ऐसे networks के लिए relay server जोड़ना पड़ता है। "relay तक नहीं पहुँचा जा सका" आए तो: Admin को बताएँ – hosting की settings में relay का पता, नाम या password जाँचना होगा (Admin: Settings → This app → Check the relay)।'] },
     { re: /Diesel rate( typed| of this bill|:)|not a proper rate/i,
       en: ['The diesel rate typed for this bill or print is not a proper rate.', 'Type the rate in ₹ per litre (for example 95.50), or leave the box empty: the app then uses the automatic rate – the higher of the average rate of the period and the last purchase rate.'],
       mr: ['या bill किंवा print साठी टाकलेला diesel चा rate बरोबर नाही.', 'Rate ₹ प्रति लिटर मध्ये टाका (उदा. 95.50), किंवा box रिकामा ठेवा: मग app आपोआप rate घेतो – त्या कालावधीचा सरासरी rate आणि शेवटच्या खरेदीचा rate यातला जास्त.'],
@@ -4945,7 +4980,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     let box = $('fixbox'); if (!box) { box = document.createElement('div'); box.id = 'fixbox'; document.body.appendChild(box); }
     box.className = kind === 'info' ? 'info' : '';
     box.innerHTML = '<button type="button" class="fx-x" aria-label="Close" title="Close">×</button><div class="fx-msg">' + esc(String(text || '').slice(0, 600)) + '</div>' + fixHtml(text) +
-      (kind !== 'info' && typeof AI === 'object' && AI.on && S.token ? '<button type="button" class="fx-ai" data-fixai="1">' + ({ en: 'Ask the assistant about this', mr: 'याबद्दल Assistant ला विचारा', hi: 'इस बारे में Assistant से पूछें' }[fixLang] || 'Ask the assistant about this') + '</button>' : '');
+      (kind !== 'info' && typeof AI === 'object' && AI.on && S.token ? '<button type="button" class="fx-ai" data-fixai="1">' + ({ en: 'Ask the assistant about this', mr: 'याबद्दल Assistant ला विचारा', hi: 'इस बारे में Assistant से पूछें' }[fixLang] || 'Ask the assistant about this') + '</button>' : '') +
+      (kind !== 'info' && S.token && S.user && !S.user.admin && rtcHelpOk() && !/^\s*Screen share/i.test(String(text || '')) ? ' <button type="button" class="fx-ai" data-fixrtc="1">' + ({ en: 'Show this to the Admin (screen share)', mr: 'हे Admin ला दाखवा (screen share)', hi: 'यह Admin को दिखाएँ (screen share)' }[fixLang] || 'Show this to the Admin (screen share)') + '</button>' : '');
     box.dataset.msg = String(text || '').slice(0, 600); box.hidden = false;
   }
   document.addEventListener('click', e => {
@@ -5052,18 +5088,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     ravg: { saves: [], en: ['Report: diesel and average of every machinery for the months chosen.', 'Average = work done (KM or hours from the Log Book) against diesel; it is compared with the standard average of the Asset Master.'],
       mr: ['Report: निवडलेल्या महिन्यांसाठी प्रत्येक machinery चे diesel आणि average.', 'Average = झालेले काम (Log Book मधले KM किंवा तास) आणि diesel यांचे प्रमाण; त्याची Asset Master मधल्या standard average शी तुलना होते.'],
       hi: ['Report: चुने गए महीनों के लिए हर machinery का diesel और average।', 'Average = हुआ काम (Log Book के KM या घंटे) और diesel का अनुपात; उसकी Asset Master के standard average से तुलना होती है।'] },
-    users: { saves: ['saveUserAdmin', 'usersAdmin', 'saveOrgSettings', 'accessReport'],
-      en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters.'],
-      mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा.'],
-      hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो।'] },
+    users: { saves: ['saveUserAdmin', 'usersAdmin', 'saveOrgSettings', 'accessReport', 'rtcRights', 'rtcRightsSave'],
+      en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters. "Screen share – who may use it": untick a user and save – he can then neither show a screen nor be called (Admin users always may).'],
+      mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा. "Screen share – who may use it": user चा tick काढून Save केले की तो screen दाखवू शकत नाही आणि त्याला call पण करता येत नाही (Admin नेहमी वापरू शकतो).'],
+      hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो। "Screen share – who may use it": user का tick हटाकर Save करने पर वह न screen दिखा सकता है, न उसे call किया जा सकता है (Admin हमेशा उपयोग कर सकता है)।'] },
     activity: { saves: ['getActivity'],
-      en: ['The record of who added, changed or deleted what, and when.', 'It is written by the app itself on every save and cannot be edited. Only Admin sees it.'],
-      mr: ['कोणी, काय, कधी जोडले, बदलले किंवा delete केले याची नोंद.', 'प्रत्येक save वर app स्वतः ही नोंद लिहिते; ती बदलता येत नाही. ती फक्त Admin ला दिसते.'],
-      hi: ['किसने, क्या, कब जोड़ा, बदला या delete किया इसका रिकॉर्ड।', 'हर save पर app खुद यह रिकॉर्ड लिखता है; इसे बदला नहीं जा सकता। यह केवल Admin को दिखता है।'] },
+      en: ['The record of who added, changed or deleted what, and when.', 'It is written by the app itself on every save and cannot be edited. Only Admin sees it. "Screen share calls" shows the screen share history: who showed a screen to whom and how long, and the calls that were declined (with the reply) or not answered.'],
+      mr: ['कोणी, काय, कधी जोडले, बदलले किंवा delete केले याची नोंद.', 'प्रत्येक save वर app स्वतः ही नोंद लिहिते; ती बदलता येत नाही. ती फक्त Admin ला दिसते. "Screen share calls" दाबले की screen share चा इतिहास दिसतो: कोणी कोणाला किती वेळ screen दाखवला, आणि कोणते call नाकारले (उत्तरासह) किंवा उचलले नाहीत.'],
+      hi: ['किसने, क्या, कब जोड़ा, बदला या delete किया इसका रिकॉर्ड।', 'हर save पर app खुद यह रिकॉर्ड लिखता है; इसे बदला नहीं जा सकता। यह केवल Admin को दिखता है। "Screen share calls" दबाने पर screen share का इतिहास दिखता है: किसने किसे कितनी देर screen दिखाई, और कौन-से call मना किए गए (जवाब के साथ) या उठाए नहीं गए।'] },
     settings: { saves: ['saveMyPrefs', 'saveSiteRules', 'getErrors', 'clearErrors', 'getAiCheck', 'rtcUsers', 'rtcSend', 'getAppVersion'],
-      en: ['Your own settings: photo, theme (light / dark), text size, language of the help, the page that opens first, your usual Log Book entry type, shift and diesel location, and favourite pages. For the Admin also the rules of the site.', 'Your settings belong to your sign-in: they are the same on every computer and change nobody else\'s app. Each change is saved by itself. Rules of the site (Admin): how many days back a user who is not Admin may enter or change entries, and a notice for everybody. Screen share (the screen button at the top of every page, from a computer in Chrome or Edge): tick up to 3 users, choose this tab in the box of the browser – they see your screen live and you can talk to each other; anybody in the call can show his own screen too. A click on the picture shows a red ring at that place on the sharer\'s screen, and "Open this page here" opens the same page in the viewer\'s own app (nobody can click or type in another person\'s screen). A phone can receive a screen share and talk but cannot show its screen. When the two networks do not let the computers reach each other directly, the call goes through the relay of the site (if one is set in the hosting) – the bar of the call then says "through the relay" (otherwise "direct connection"). For the Admin, under "This app": the update that runs now (e.g. update-74) and whether the relay is set, with "Check the relay" (it asks the relay from this computer and says whether it works). Nothing is recorded; the Activity Log notes who shared with whom and for how long.'],
-      mr: ['तुमचे स्वतःचे settings: फोटो, theme (light / dark), अक्षरांचा आकार, मदतीची भाषा, आधी उघडणारे page, Log Book entry चा नेहमीचा प्रकार, shift आणि diesel चे ठिकाण, आणि आवडती pages. Admin साठी site चे नियमही.', 'तुमचे settings तुमच्या sign-in शी जोडलेले आहेत: प्रत्येक computer वर तेच राहतात आणि दुसऱ्या कोणाचे app बदलत नाही. प्रत्येक बदल आपोआप save होतो. Site चे नियम (Admin): Admin नसलेला user किती दिवस मागच्या entries भरू किंवा बदलू शकतो, आणि सगळ्यांसाठी सूचना. Screen share (प्रत्येक page च्या वर screen चे बटण; computer वर Chrome किंवा Edge मध्ये): जास्तीत जास्त 3 users निवडा, browser च्या box मध्ये हा tab निवडा – त्यांना तुमचा screen live दिसतो आणि तुम्ही एकमेकांशी बोलू शकता; call मधला कोणीही स्वतःचा screen दाखवू शकतो. चित्रावर click केले की दाखवणाऱ्याच्या screen वर त्या जागी लाल गोल दिसतो, आणि "Open this page here" ने तेच page पाहणाऱ्याच्या स्वतःच्या app मध्ये उघडते (दुसऱ्याच्या screen मध्ये कोणी click किंवा type करू शकत नाही). Phone वर screen share घेता येते आणि बोलता येते, पण phone स्वतःचा screen दाखवू शकत नाही. दोन networks मधून computers थेट एकमेकांपर्यंत पोहोचत नसतील तर call site च्या relay मधून जातो (hosting मध्ये relay लावलेला असेल तर) – तेव्हा call च्या bar मध्ये "through the relay" दिसते (नाहीतर "direct connection"). Admin साठी "This app" खाली: आत्ता कोणते update चालू आहे (उदा. update-74) आणि relay लावलेला आहे का, सोबत "Check the relay" (हा computer relay ला विचारतो आणि तो चालतो की नाही ते सांगतो). काहीही record होत नाही; कोणी कोणाला किती वेळ दाखवले एवढेच Activity Log मध्ये नोंदले जाते.'],
-      hi: ['आपके अपने settings: फोटो, theme (light / dark), अक्षरों का आकार, मदद की भाषा, पहले खुलने वाला page, Log Book entry का सामान्य प्रकार, shift और diesel की जगह, और पसंदीदा pages। Admin के लिए site के नियम भी।', 'आपके settings आपके sign-in से जुड़े हैं: हर computer पर वही रहते हैं और किसी और का app नहीं बदलता। हर बदलाव अपने-आप save होता है। Site के नियम (Admin): Admin न होने वाला user कितने दिन पीछे की entries भर या बदल सकता है, और सबके लिए सूचना। Screen share (हर page के ऊपर screen वाला बटन; computer पर Chrome या Edge में): ज़्यादा से ज़्यादा 3 users चुनें, browser के box में यही tab चुनें – उन्हें आपका screen live दिखता है और आप आपस में बात कर सकते हैं; call में कोई भी अपना screen दिखा सकता है। तस्वीर पर click करने से दिखाने वाले के screen पर उसी जगह लाल घेरा दिखता है, और "Open this page here" से वही page देखने वाले के अपने app में खुलता है (दूसरे के screen में कोई click या type नहीं कर सकता)। Phone पर screen share लिया जा सकता है और बात हो सकती है, पर phone अपना screen नहीं दिखा सकता। दोनों networks से computers सीधे एक-दूसरे तक न पहुँच पाएँ तो call site के relay से होकर जाता है (hosting में relay लगा हो तो) – तब call के bar में "through the relay" दिखता है (वरना "direct connection")। Admin के लिए "This app" के नीचे: अभी कौन-सा update चल रहा है (जैसे update-74) और relay लगा है या नहीं, साथ में "Check the relay" (यह computer relay से पूछता है और बताता है कि वह चलता है या नहीं)। कुछ भी record नहीं होता; किसने किसे कितनी देर दिखाया, इतना ही Activity Log में लिखा जाता है।'] },
+      en: ['Your own settings: photo, theme (light / dark), text size, language of the help, the page that opens first, your usual Log Book entry type, shift and diesel location, and favourite pages. For the Admin also the rules of the site.', 'Your settings belong to your sign-in: they are the same on every computer and change nobody else\'s app. Each change is saved by itself. Rules of the site (Admin): how many days back a user who is not Admin may enter or change entries, and a notice for everybody. Screen share (the screen button at the top of every page, from a computer in Chrome or Edge): tick up to 3 users, choose this tab in the box of the browser – they see your screen live and you can talk to each other; anybody in the call can show his own screen too. A click on the picture shows a red ring at that place on the sharer\'s screen, and "Open this page here" opens the same page in the viewer\'s own app (nobody can click or type in another person\'s screen). A phone can receive a screen share and talk but cannot show its screen. When the two networks do not let the computers reach each other directly, the call goes through the relay of the site (if one is set in the hosting) – the bar of the call then says "through the relay" (otherwise "direct connection"). For the Admin, under "This app": the update that runs now (e.g. update-74) and whether the relay is set, with "Check the relay" (it asks the relay from this computer and says whether it works). What to show: my screen, my camera (a phone\'s back camera – Switch camera, Light) or only my page (no video: the others\' app opens the page you are on, with their own access). In the call: Chat (text and photos), Pen (lines on the sharer\'s screen for 10 s), Snapshot (saved on this device), More → Low data; the bar shows the network (good / weak / poor); a line that drops is made again by itself. A call reaches a user even when his app is closed – "Screen share calls when the app is closed" → Turn on (each device once); not answered after 15 s → "Ask on WhatsApp" (his My mobile number); Reply… sends a short answer instead of a plain Decline; missed calls show as a red number on the screen button, with Call back. A red message has "Show this to the Admin" (it rings the Admin with the message). Nothing is recorded; the Activity Log notes who shared with whom and for how long.'],
+      mr: ['तुमचे स्वतःचे settings: फोटो, theme (light / dark), अक्षरांचा आकार, मदतीची भाषा, आधी उघडणारे page, Log Book entry चा नेहमीचा प्रकार, shift आणि diesel चे ठिकाण, आणि आवडती pages. Admin साठी site चे नियमही.', 'तुमचे settings तुमच्या sign-in शी जोडलेले आहेत: प्रत्येक computer वर तेच राहतात आणि दुसऱ्या कोणाचे app बदलत नाही. प्रत्येक बदल आपोआप save होतो. Site चे नियम (Admin): Admin नसलेला user किती दिवस मागच्या entries भरू किंवा बदलू शकतो, आणि सगळ्यांसाठी सूचना. Screen share (प्रत्येक page च्या वर screen चे बटण; computer वर Chrome किंवा Edge मध्ये): जास्तीत जास्त 3 users निवडा, browser च्या box मध्ये हा tab निवडा – त्यांना तुमचा screen live दिसतो आणि तुम्ही एकमेकांशी बोलू शकता; call मधला कोणीही स्वतःचा screen दाखवू शकतो. चित्रावर click केले की दाखवणाऱ्याच्या screen वर त्या जागी लाल गोल दिसतो, आणि "Open this page here" ने तेच page पाहणाऱ्याच्या स्वतःच्या app मध्ये उघडते (दुसऱ्याच्या screen मध्ये कोणी click किंवा type करू शकत नाही). Phone वर screen share घेता येते आणि बोलता येते, पण phone स्वतःचा screen दाखवू शकत नाही. दोन networks मधून computers थेट एकमेकांपर्यंत पोहोचत नसतील तर call site च्या relay मधून जातो (hosting मध्ये relay लावलेला असेल तर) – तेव्हा call च्या bar मध्ये "through the relay" दिसते (नाहीतर "direct connection"). Admin साठी "This app" खाली: आत्ता कोणते update चालू आहे (उदा. update-74) आणि relay लावलेला आहे का, सोबत "Check the relay" (हा computer relay ला विचारतो आणि तो चालतो की नाही ते सांगतो). काय दाखवायचे: माझा screen, माझा camera (phone चा मागचा camera – Switch camera, Light) किंवा फक्त माझे page (video नाही: समोरच्याच्या app मध्ये तुम्ही असलेले page त्याच्या स्वतःच्या परवानगीने उघडते). Call मध्ये: Chat (मजकूर आणि photo), Pen (दाखवणाऱ्याच्या screen वर 10 सेकंद रेघा), Snapshot (या device मध्ये save), More → Low data; bar मध्ये network (good / weak / poor) दिसते; line तुटली तर आपोआप परत जोडली जाते. App बंद असले तरी call पोहोचतो – "Screen share calls when the app is closed" → Turn on (प्रत्येक device वर एकदा); 15 सेकंदात उत्तर नाही तर "Ask on WhatsApp" (त्याचा My mobile number); Reply… ने साध्या Decline ऐवजी छोटे उत्तर जाते; न उचललेले call screen बटणावर लाल आकड्याने दिसतात, Call back सोबत. लाल संदेशात "हे Admin ला दाखवा" बटण असते (संदेशासह Admin ला call जातो). काहीही record होत नाही; कोणी कोणाला किती वेळ दाखवले एवढेच Activity Log मध्ये नोंदले जाते.'],
+      hi: ['आपके अपने settings: फोटो, theme (light / dark), अक्षरों का आकार, मदद की भाषा, पहले खुलने वाला page, Log Book entry का सामान्य प्रकार, shift और diesel की जगह, और पसंदीदा pages। Admin के लिए site के नियम भी।', 'आपके settings आपके sign-in से जुड़े हैं: हर computer पर वही रहते हैं और किसी और का app नहीं बदलता। हर बदलाव अपने-आप save होता है। Site के नियम (Admin): Admin न होने वाला user कितने दिन पीछे की entries भर या बदल सकता है, और सबके लिए सूचना। Screen share (हर page के ऊपर screen वाला बटन; computer पर Chrome या Edge में): ज़्यादा से ज़्यादा 3 users चुनें, browser के box में यही tab चुनें – उन्हें आपका screen live दिखता है और आप आपस में बात कर सकते हैं; call में कोई भी अपना screen दिखा सकता है। तस्वीर पर click करने से दिखाने वाले के screen पर उसी जगह लाल घेरा दिखता है, और "Open this page here" से वही page देखने वाले के अपने app में खुलता है (दूसरे के screen में कोई click या type नहीं कर सकता)। Phone पर screen share लिया जा सकता है और बात हो सकती है, पर phone अपना screen नहीं दिखा सकता। दोनों networks से computers सीधे एक-दूसरे तक न पहुँच पाएँ तो call site के relay से होकर जाता है (hosting में relay लगा हो तो) – तब call के bar में "through the relay" दिखता है (वरना "direct connection")। Admin के लिए "This app" के नीचे: अभी कौन-सा update चल रहा है (जैसे update-74) और relay लगा है या नहीं, साथ में "Check the relay" (यह computer relay से पूछता है और बताता है कि वह चलता है या नहीं)। क्या दिखाना है: मेरी screen, मेरा camera (phone का पीछे का camera – Switch camera, Light) या केवल मेरा page (video नहीं: सामने वाले के app में आपका page उसकी अपनी अनुमति से खुलता है)। Call में: Chat (text और photo), Pen (दिखाने वाले की screen पर 10 सेकंड रेखाएँ), Snapshot (इसी device में save), More → Low data; bar में network (good / weak / poor) दिखता है; line टूटे तो अपने-आप फिर जुड़ती है। App बंद हो तब भी call पहुँचता है – "Screen share calls when the app is closed" → Turn on (हर device पर एक बार); 15 सेकंड में जवाब नहीं तो "Ask on WhatsApp" (उसका My mobile number); Reply… से सादे Decline की जगह छोटा जवाब जाता है; न उठाए call screen बटन पर लाल अंक से दिखते हैं, Call back के साथ। लाल संदेश में "यह Admin को दिखाएँ" बटन होता है (संदेश के साथ Admin को call जाता है)। कुछ भी record नहीं होता; किसने किसे कितनी देर दिखाया, इतना ही Activity Log में लिखा जाता है।'] },
     readme: { saves: ['readme', 'dbHealth', 'backupNow'],
       en: ['The set-up notes of the app for the Admin: where the data is kept, the SQL steps and the backup.', 'Nothing is entered here.'],
       mr: ['Admin साठी app च्या set-up ची माहिती: data कुठे आहे, SQL चे टप्पे आणि backup.', 'इथे काहीही भरले जात नाही.'],
@@ -12361,7 +12397,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (d.faults) setFaults(d.faults);
       showBoot(false);
       $('login_screen').hidden = true; document.body.classList.remove('locked');
-      S.user = d.user; S.ver = d.versions || null; applyPerms(); startSync(); setClosed(S.closedUpto); dbCheckDaily();
+      S.user = d.user; S.ver = d.versions || null; applyPerms(); startSync(); setClosed(S.closedUpto); dbCheckDaily(); try { rtcAfterLogin(); } catch (e) { /* the screen share's extras never stop a sign-in */ }
       setBackupInfo(S.backup);
       S.today = d.today; $('company').textContent = d.company; if (d.org) applyOrg(d.org);
       $('todayLabel').textContent = new Date(d.today + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
@@ -14201,7 +14237,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    *   "capture handle"), and "Open this page here" opens the page the sharer is on in the viewer's own app.
    *   A phone's browser cannot show its screen (no getDisplayMedia); it can be called, sees and talks.
    * Nothing is recorded. The Activity Log gets a line when a call is joined and when it ends. */
-  const RTC = { me: '', myName: '', users: [], ice: null, max: 3, since: null, stuck: { r: -1, at: 0 }, seen: new Set(), here: {}, hereTo: {}, busyTo: {}, ptrs: [], call: null, ring: null, pick: null,
+  const RTC = { me: '', myName: '', users: [], ice: null, max: 3, since: null, stuck: { r: -1, at: 0 }, seen: new Set(), here: {}, hereTo: {}, busyTo: {}, ptrs: [], pens: [], call: null, ring: null, pick: null, missN: 0, pushEp: '', off: false,
     handle: 'rcl' + Math.random().toString(36).slice(2, 12), dev: 'd' + Math.random().toString(36).slice(2, 12), tickT: null, toneT: null, noteT: null, title: null };
   /* ONE USER, SEVERAL PAGES. A user may have the app open in two tabs or on two devices: a ring reaches all of them. So every
    * page has its own name (RTC.dev) and every note says which page wrote it (d.dev). An answer names the host's page (todev) –
@@ -14221,7 +14257,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   /* ---------- the heartbeat's part ---------- */
   function rtcBeatArg() { const a = { r: RTC.since }; if (RTC.stuck.at && Date.now() - RTC.stuck.at > 5000) a.skip = true; return a; }
-  function rtcFast() { try { return !!(RTC.pick || RTC.ring || RTC.stuck.at || (RTC.call && [...RTC.call.peers.values()].some(P => !P.up))); } catch (e) { return false; } }      // a call is being set up: ask the server more often
+  function rtcFast() { try { return !!(RTC.pick || RTC.ring || RTC.stuck.at || (RTC.call && [...RTC.call.peers.values()].some(P => !P.up || P.state === 'reconnecting'))); } catch (e) { return false; } }      // a call is being set up: ask the server more often
   function rtcInbox(x) {
     if (!x || typeof x !== 'object') return;
     if (typeof x.r === 'number') { if (typeof x.top === 'number' && x.r < x.top) { if (RTC.stuck.r !== x.r) RTC.stuck = { r: x.r, at: Date.now() }; } else RTC.stuck = { r: -1, at: 0 }; RTC.since = x.r; }
@@ -14248,7 +14284,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     if (!C || C.id !== m.call) return;
     const P = C.peers.get(m.from); if (!P) return;
-    if (m.t === 'decline') { rtcNote('cancel', [m.from], m.call, { butdev: d.dev, why: 'declined' }).catch(rtcWarn); rtcPeerGone(P, 'declined'); }
+    if (m.t === 're') { rtcOnRe(P, d).catch(e => { rtcWarn(e); }); return; }
+    if (m.t === 'decline') { rtcNote('cancel', [m.from], m.call, { butdev: d.dev, why: 'declined' }).catch(rtcWarn); P.reply = RTC_REPLY[Number(d.reply)] || ''; rtcPeerGone(P, 'declined'); }
     else if (m.t === 'busy') { if (!P.dev && !P.busyT) P.busyT = setTimeout(() => { if (!P.dev && RTC.call === C && C.peers.get(P.uid) === P) { rtcNote('cancel', [P.uid], C.id, { why: 'declined' }).catch(rtcWarn); rtcPeerGone(P, d.why === 'browser' ? 'browser' : 'busy'); } }, 6000); }      // (softly: another page of that user may still answer)
     else if (m.t === 'bye' || m.t === 'cancel') rtcPeerGone(P, d.why === 'over' ? 'over' : d.why === 'elsewhere' ? 'elsewhere' : 'left');
   }
@@ -14264,11 +14301,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function rtcTitle(text) { try { const d = window.top.document; if (text) { if (RTC.title === null) RTC.title = d.title; d.title = text; } else if (RTC.title !== null) { d.title = RTC.title; RTC.title = null; } } catch (e) { /* another origin: leave the title */ } }
 
   /* ---------- the list to pick from ---------- */
-  async function rtcLoadUsers() { const x = await rawCall('rtcUsers'); RTC.me = x.me; RTC.myName = x.name; RTC.users = x.users || []; RTC.ice = x.ice || null; RTC.relay = !!x.relay; RTC.max = x.max || 3; return x; }
-  function rtcPickHtml() {
-    return '<p>Pick who should see your screen – you can talk to each other. At most ' + RTC.max + ' at a time.</p><div class="rtc-list" id="rtc_list">' +
-      RTC.users.map(u => '<label class="rtc-u"><input type="checkbox" data-uid="' + esc(u.uid) + '"><b>' + esc(u.name) + '</b><span class="rtc-st" data-st="' + esc(u.uid) + '">checking…</span></label>').join('') +
-      '</div><p class="muted">Next the browser asks what to show – choose <b>this tab</b>, so that only the app is seen. Nothing is recorded.</p>';
+  async function rtcLoadUsers() { const x = await rawCall('rtcUsers'); RTC.me = x.me; RTC.myName = x.name; RTC.users = x.users || []; RTC.ice = x.ice && x.ice.length ? x.ice : null; RTC.relay = !!x.relay; RTC.max = x.max || 3; RTC.off = !!x.off; return x; }
+  function rtcPickHtml(pick, miss) {
+    const modes = [['screen', 'My screen', rtcCanShare()], ['cam', 'My camera', rtcCan()], ['page', 'Only my page (low data, no video)', true]].filter(x => x[2]);
+    const missed = miss && (miss.list || []).length ? '<div class="rtc-miss">Missed calls' + miss.list.slice(0, 5).map(m => '<div><span>' + esc(m.name) + ' · ' + esc(new Date(m.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })) + '</span>' + (m.can ? '<button type="button" data-callback="' + esc(m.from) + '">Call back</button>' : '') + '</div>').join('') + '<div><span></span><button type="button" data-missclear="1">Clear</button></div></div>' : '';
+    const help = pick.help ? '<p><b>The Admin sees what you show and you can talk.</b> This message goes with the call:</p><div class="rtc-help">' + esc((pick.help.title ? pick.help.title + ': ' : '') + pick.help.msg) + '</div>' : '';
+    return help + missed + '<p>' + (pick.help ? 'Admins are ticked – change if needed.' : 'Pick who should see it – you can talk to each other.') + ' At most ' + RTC.max + ' at a time.</p><div class="rtc-list" id="rtc_list">' +
+      RTC.users.map(u => '<label class="rtc-u"><input type="checkbox" data-uid="' + esc(u.uid) + '"' + (pick.sel.has(u.uid) ? ' checked' : '') + '><b>' + esc(u.name) + '</b>' + (u.admin ? '<small class="rtc-adm">Admin</small>' : '') + '<span class="rtc-st" data-st="' + esc(u.uid) + '">checking…</span></label>').join('') +
+      '</div><p style="margin:10px 0 0"><b>What to show</b></p><div class="rtc-mode">' + modes.map(x => '<label><input type="radio" name="rtc_mode" value="' + x[0] + '"' + (x[0] === pick.mode ? ' checked' : '') + '> ' + x[1] + '</label>').join('') + '</div>' +
+      '<p class="muted">' + (rtcCanShare() ? 'For "My screen" the browser asks next what to show – choose <b>this tab</b>, so that only the app is seen. ' : '') + '"Only my page": the others\' app opens the page you are on, as you move – with voice, almost no data. Nothing is recorded.</p>';
   }
   function rtcPickDraw() {
     if (!RTC.pick) return;
@@ -14276,7 +14317,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       sp.textContent = fresh ? (h.d && h.d.busy ? 'in another screen share' : 'at the app now') : Date.now() - RTC.pick.at > 4500 ? 'not at the app now – the ring waits a minute' : 'checking…';
       sp.className = 'rtc-st' + (fresh ? (h.d && h.d.busy ? ' busy' : ' on') : ''); });
   }
-  document.addEventListener('change', e => { const c = e.target && e.target.closest ? e.target.closest('#rtc_list input[data-uid]') : null; if (!c || !RTC.pick) return;
+  document.addEventListener('change', e => { if (e.target && e.target.name === 'rtc_mode' && RTC.pick) { RTC.pick.mode = e.target.value; return; }
+    const c = e.target && e.target.closest ? e.target.closest('#rtc_list input[data-uid]') : null; if (!c || !RTC.pick) return;
     if (c.checked && RTC.pick.sel.size >= RTC.max) { c.checked = false; rtcSay('At most ' + RTC.max + ' users at a time.'); return; }
     if (c.checked) RTC.pick.sel.add(c.dataset.uid); else RTC.pick.sel.delete(c.dataset.uid); });
 
@@ -14289,6 +14331,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const t = s.getVideoTracks()[0]; try { t.contentHint = 'detail'; } catch (e) { /* letters stay sharp where the browser knows this */ }
     return s;
   }
+  // the camera (update-75): the back camera of a phone first – to show a machine, a meter, a paper
+  async function rtcGetCam(facing) {
+    const opt = { video: { facingMode: { ideal: facing || 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 15, max: 24 } }, audio: false };
+    try { return await navigator.mediaDevices.getUserMedia(opt); }
+    catch (e) { if (e && e.name === 'NotAllowedError' && /polic/i.test(String(e.message || ''))) return await window.top.navigator.mediaDevices.getUserMedia(opt); throw e; }      // (an older shell page does not hand the camera to the app's frame)
+  }
+  const rtcCamErr = e => 'Screen share: the camera ' + (e && e.name === 'NotAllowedError' ? 'is not allowed – allow it for this site (the lock sign beside the address → Camera → Allow). If the app was open from before the update, close it and open it again.' : e && (e.name === 'NotFoundError' || e.name === 'OverconstrainedError') ? 'was not found on this device.' : 'could not be started (' + (e && e.name || 'error') + ').');
   async function rtcGetMic() { try { return await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); } catch (e) { return null; } }
   function rtcIsThisTab(track) { try { const h = track.getCaptureHandle ? track.getCaptureHandle() : null; return !!(h && h.handle === RTC.handle); } catch (e) { return false; } }
   /* The offer / answer goes out with every way to reach this computer written in it (nothing can be added before the two are
@@ -14305,7 +14354,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ---------- one connection to another person of the call ---------- */
   function rtcPeer(uid, name, polite) {
     const pc = new RTCPeerConnection({ iceServers: RTC.ice || [{ urls: ['stun:stun.l.google.com:19302'] }], iceTransportPolicy: RTC.policy === 'relay' ? 'relay' : 'all' });      // (RTC.policy = 'relay' is for tests: everything through the relay)
-    const P = { uid: uid, name: name, pc: pc, dc: null, polite: polite, making: false, ignore: false, answering: false, dev: '', open: false, up: false, state: 'ringing', dirty: false, fwd: [], inc: [], scr: null, micS: null };
+    const P = { uid: uid, name: name, pc: pc, dc: null, polite: polite, making: false, ignore: false, answering: false, dev: '', open: false, up: false, state: 'ringing', dirty: false, fwd: [], inc: [], scr: null, micS: null, low: false, rate: {} };
     pc.ontrack = e => { try { rtcOnTrack(P, e); } catch (er) { rtcWarn(er); } };
     pc.onconnectionstatechange = () => { try { rtcOnState(P); } catch (er) { rtcWarn(er); } };
     pc.onnegotiationneeded = () => rtcNegotiate(P);
@@ -14325,6 +14374,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function rtcNegotiate(P) {
     if (!P.open) { P.dirty = true; return; }
     try { P.making = true; await P.pc.setLocalDescription(); rtcDc(P, { t: 'sdp', d: P.pc.localDescription }); } catch (e) { rtcWarn(e); } finally { P.making = false; }
+    setTimeout(rtcLowApply, 1500);      // (a picture added just now: low data applies to it too)
   }
   async function rtcOnSdp(P, d) {
     const pc = P.pc, ready = !P.making && (pc.signalingState === 'stable' || P.answering), clash = d.type === 'offer' && !ready;
@@ -14344,11 +14394,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (C.role === 'host') { rtcRoster(); Object.keys(C.shares).forEach(sid => { const s = C.shares[sid]; if (s.uid !== P.uid) rtcDc(P, { t: 'share', on: true, sid: sid, uid: s.uid, name: s.name, ptr: s.ptr }); });
       Object.keys(C.pages).forEach(uid => { if (uid !== P.uid) rtcDc(P, Object.assign({ t: 'page', uid: uid }, C.pages[uid])); });
       C.peers.forEach(Q => { if (Q !== P) Q.inc.forEach(x => rtcForward(Q, P, x.track, x.stream)); }); }
-    if (C.screen) { rtcDc(P, { t: 'share', on: true, sid: C.screen.id, uid: RTC.me, name: RTC.myName, ptr: C.selfTab }); rtcDc(P, rtcPageNow()); }
+    if (C.screen) rtcDc(P, { t: 'share', on: true, sid: C.screen.id, uid: RTC.me, name: RTC.myName, ptr: C.selfTab, kind: C.kind });
+    if (C.screen || C.pageMode) rtcDc(P, rtcPageNow());
+    if (C.low) rtcDc(P, { t: 'low', on: true });
   }
   function rtcRoster() { const C = RTC.call; if (!C || C.role !== 'host') return; rtcTellAll({ t: 'roster', host: { uid: RTC.me, name: RTC.myName }, people: [...C.peers.values()].map(P => ({ uid: P.uid, name: P.name, up: P.up })) }); }
-  const rtcPageNow = () => ({ t: 'page', uid: RTC.me, tab: S.curTab || 'dash', title: $('page_title') ? $('page_title').textContent : '' });
-  function rtcPageChanged() { try { const C = RTC.call; if (!C || !C.screen) return; rtcTellAll(rtcPageNow()); } catch (e) { /* the page is still loading */ } }
+  const rtcScrollFrac = () => { const el = document.scrollingElement || document.documentElement, h = el.scrollHeight - el.clientHeight; return h > 0 ? Math.round(el.scrollTop / h * 1000) / 1000 : 0; };
+  const rtcTabName = t => { const b = t ? $('tab-' + t) : null, l = b ? b.querySelector('.label') : null; return l ? l.textContent.trim() : ''; };      // (the page's own name in the menu – the title line changes a moment after the page)
+  const rtcPageNow = () => ({ t: 'page', uid: RTC.me, tab: S.curTab || 'dash', title: rtcTabName(S.curTab || 'dash') || ($('page_title') ? $('page_title').textContent : ''), follow: !!(RTC.call && RTC.call.pageMode), sy: rtcScrollFrac() });
+  function rtcPageChanged() { try { const C = RTC.call; if (!C || !(C.screen || C.pageMode)) return; if (C.follow && Date.now() - (C.followAt || 0) < 1500) return; rtcTellAll(rtcPageNow()); } catch (e) { /* the page is still loading */ } }
+  // "only my page": the scroll position goes too (at most twice a second; not while this page is itself following somebody)
+  window.addEventListener('scroll', () => { const C = RTC.call; if (!C || !C.pageMode || C.scrollT) return; C.scrollT = setTimeout(() => { C.scrollT = null; if (RTC.call === C && C.pageMode && !(C.follow && Date.now() - (C.followAt || 0) < 1500)) rtcTellAll(rtcPageNow()); }, 450); }, { passive: true });
   // the host passes on to the other guests what one guest sends (his voice, his screen)
   function rtcForward(from, to, track, stream) { try { if (to.fwd.some(f => f.track === track)) return; const s = to.pc.addTrack(track, stream); to.fwd.push({ from: from.uid, sender: s, track: track }); if (!to.open) to.dirty = true; } catch (e) { rtcWarn(e); } }
   function rtcOnTrack(P, e) {
@@ -14362,9 +14418,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function rtcOnState(P) {
     const C = RTC.call; if (!C || C.peers.get(P.uid) !== P) return;
     const st = P.pc.connectionState;
-    if (st === 'connected') { if (!P.up) { P.up = true; C.met.add(P.uid); if (!C.t1) C.t1 = Date.now(); clearTimeout(P.watchT); clearTimeout(P.ringT); rtcRoster(); } P.state = 'on'; rtcWay(P); }
-    else if (st === 'disconnected') P.state = 'weak';
-    else if (st === 'failed') { rtcPeerGone(P, P.up ? 'lost' : 'nc'); return; }
+    if (st === 'connected') { if (!P.up) { P.up = true; C.met.add(P.uid); if (!C.t1) C.t1 = Date.now(); clearTimeout(P.watchT); clearTimeout(P.ringT); clearTimeout(P.waT); rtcRoster(); }
+      clearTimeout(P.reT); clearTimeout(P.lostT); P.reT = P.lostT = null; if (P.restarting) { P.restarting = false; rtcSay('Connected again with ' + P.name + '.'); } P.state = 'on'; rtcWay(P); setTimeout(rtcLowApply, 800); }
+    else if (st === 'disconnected') { if (P.up) { P.state = 'weak'; if (C.role === 'host' && !P.reT && !P.restarting) P.reT = setTimeout(() => { P.reT = null; if (RTC.call === C && C.peers.get(P.uid) === P && P.pc.connectionState !== 'connected') rtcRestart(P); }, 4000); } }
+    else if (st === 'failed') { if (!P.up) { rtcPeerGone(P, 'nc'); return; } if (C.role === 'host') rtcRestart(P); else rtcAwait(P); }      // (update-75: a line that dropped is made again, up to 40 s)
     rtcBar();
   }
   // did this connection go directly or through the relay? (asked from the browser once it is connected)
@@ -14375,13 +14432,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function rtcOnDc(P, m) {
     const C = RTC.call; if (!C) return;
     const host = C.role === 'host';
-    if (host && (m.t === 'share' || m.t === 'page')) { m.uid = P.uid; if (m.t === 'share') m.name = P.name; }      // a guest speaks for himself only
+    if (host && (m.t === 'share' || m.t === 'page' || m.t === 'chat')) { m.uid = P.uid; if (m.t !== 'page') m.name = P.name; }      // a guest speaks for himself only
     if (m.t === 'sdp') { rtcOnSdp(P, m.d).catch(rtcWarn); return; }
     if (m.t === 'ice') { P.pc.addIceCandidate(m.d).catch(e => { if (!P.ignore) rtcWarn(e); }); return; }
     if (m.t === 'share') { const sid = String(m.sid || ''); if (!sid) return;
-      if (m.on) C.shares[sid] = { uid: m.uid || P.uid, name: m.name || P.name, ptr: !!m.ptr, at: Date.now() }; else { delete C.shares[sid]; }
+      if (m.on) C.shares[sid] = { uid: m.uid || P.uid, name: m.name || P.name, ptr: !!m.ptr, kind: m.kind === 'cam' ? 'cam' : 'screen', at: Date.now() }; else { delete C.shares[sid]; }
       if (host) rtcTellAll(m, P); rtcViewPick(); rtcBar(); return; }
-    if (m.t === 'page') { const uid = m.uid || P.uid; C.pages[uid] = { tab: String(m.tab || ''), title: String(m.title || '').slice(0, 80) }; if (host) rtcTellAll(m, P); rtcViewHead(); return; }
+    if (m.t === 'page') { const uid = m.uid || P.uid; C.pages[uid] = { tab: String(m.tab || ''), title: String(m.title || '').slice(0, 80), follow: !!m.follow, sy: Math.max(0, Math.min(1, Number(m.sy) || 0)), name: uid === (C.roster && C.roster.host.uid) ? C.roster.host.name : rtcNameOf(uid) || P.name };
+      if (host) rtcTellAll(m, P); rtcViewHead(); rtcFollowSeen(uid); return; }
+    if (m.t === 'pen') { if (!m.to || m.to === RTC.me) rtcPenIn(m, host ? P.name : String(m.by || '')); else if (host) { const Q = C.peers.get(m.to); if (Q) rtcDc(Q, { t: 'pen', to: m.to, pts: m.pts, clear: !!m.clear, by: P.name }); } return; }
+    if (m.t === 'chat') { if (!rtcRate(P, 'chat', 15, 10000)) return; if (rtcChatIn(m, false) && host) rtcTellAll(m, P); return; }
+    if (m.t === 'low') { P.low = !!m.on; rtcLowApply(); return; }
     if (m.t === 'ptr') { if (!m.to || m.to === RTC.me) rtcPointer(Number(m.x), Number(m.y), host ? P.name : String(m.by || '')); else if (host) { const Q = C.peers.get(m.to); if (Q) rtcDc(Q, { t: 'ptr', to: m.to, x: m.x, y: m.y, by: P.name }); } return; }
     if (m.t === 'roster' && !host) { C.roster = m; rtcBar(); return; }
     if (m.t === 'bye') { rtcPeerGone(P, m.end ? 'ended' : 'left'); return; }
@@ -14389,75 +14450,84 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // a person is out of the call (left, declined, did not answer, could not be reached)
   function rtcPeerGone(P, why) {
     const C = RTC.call; if (!C || C.peers.get(P.uid) !== P) return;
-    clearTimeout(P.ringT); clearTimeout(P.watchT); clearTimeout(P.busyT);
-    C.peers.delete(P.uid);
+    clearTimeout(P.ringT); clearTimeout(P.watchT); clearTimeout(P.busyT); clearTimeout(P.waT); clearTimeout(P.reT); clearTimeout(P.lostT);
+    C.peers.delete(P.uid); if (C.follow === P.uid) { C.follow = ''; rtcFolDraw(); }
     try { P.pc.ontrack = P.pc.onconnectionstatechange = P.pc.onnegotiationneeded = P.pc.onicecandidate = null; P.pc.close(); } catch (e) { /* already closed */ }
     // his voice and his screen go from the others too
     C.peers.forEach(Q => { Q.fwd.filter(f => f.from === P.uid).forEach(f => { try { Q.pc.removeTrack(f.sender); } catch (e) { /* that connection is gone as well */ } }); Q.fwd = Q.fwd.filter(f => f.from !== P.uid); });
     Object.keys(C.vids).forEach(sid => { if (C.vids[sid].via === P.uid && C.role === 'host') delete C.vids[sid]; });
     Object.keys(C.shares).forEach(sid => { if (C.shares[sid].uid === P.uid) { delete C.shares[sid]; if (C.role === 'host') rtcTellAll({ t: 'share', on: false, sid: sid, uid: P.uid }); } });
     delete C.pages[P.uid];
-    const say = { declined: P.name + ' declined the screen share.', busy: P.name + ' is in another screen share.', browser: P.name + '\'s browser cannot join a screen share.', left: P.name + ' left the screen share.', ended: P.name + ' ended the screen share.',
+    const say = { declined: P.name + ' declined the screen share' + (P.reply ? ': "' + P.reply + '"' : '.'), busy: P.name + ' is in another screen share.', browser: P.name + '\'s browser cannot join a screen share.', left: P.name + ' left the screen share.', ended: P.name + ' ended the screen share.',
       none: P.name + ' did not answer – the app may be closed there.', lost: 'The connection to ' + P.name + ' was lost.',
       over: 'The screen share of ' + P.name + ' was already over.', elsewhere: 'That screen share was answered in another tab or on another device of yours.' }[why];
     if (why === 'nc') toast('Screen share: could not connect to ' + P.name + '. If ' + P.name + ' has closed or reloaded the app, start again. If it happens every time: ' + (RTC.relay ? 'the relay could not be reached from one of the two networks (its address, name or password in the hosting settings may be wrong, or a firewall blocks it).' : 'the two networks do not let the computers reach each other directly.'), true);
     else if (why === 'send') toast('Screen share: the ring could not be sent to ' + P.name + ' – check the network and try again.', true);
-    if (!C.peers.size) { rtcEnd(say || '', true); return; }
-    if (say) rtcSay(say);
+    if (why === 'none' && C.role === 'host') rtcWaOffer(C.id, P, P.name + ' did not answer – the app may be closed there.');
+    if (!C.peers.size) { rtcEnd(why === 'none' && C.role === 'host' ? '' : say || '', true); return; }
+    if (say && !(why === 'none' && C.role === 'host')) rtcSay(say, why === 'declined' && !!P.reply);
     rtcRoster(); rtcViewPick(); rtcBar();
   }
 
   /* ---------- starting a call (the host) ---------- */
-  async function rtcStart() {
+  async function rtcStart(opts) {
+    opts = opts || {};
     if (RTC.starting) return;
     if (RTC.call) { rtcSay('A screen share is already on – see the bar at the bottom.'); return; }
     if (RTC.ring) { rtcSay('Answer or decline the screen share that is ringing first.'); return; }
     if (rtcElsewhere()) { rtcSay('A screen share is on in another tab of this browser – use that tab.'); return; }
     if (!rtcCan()) { toast('Screen share: this browser cannot do it – open the app in Chrome or Edge.', true); return; }
-    if (!rtcCanShare()) { toast('Screen share: the browser of a phone cannot show its screen – start the screen share from a computer. On this phone a screen share can be received, with voice.', true); return; }
     RTC.starting = true;
-    try { await rtcStart2(); } finally { RTC.starting = false; RTC.pick = null; }
+    try { await rtcStart2(opts); } finally { RTC.starting = false; RTC.pick = null; }
   }
-  async function rtcStart2() {
+  async function rtcStart2(opts) {
     try { await rtcLoadUsers(); } catch (e) { toast(errMsg(e), true); return; }
+    if (RTC.off) { toast('Screen share is switched off for you – the Admin can switch it on in Users & Access.', true); return; }
     if (!RTC.users.length) { toast('Screen share: there is no other user to share with yet – the Admin adds users in Users & Access.', true); return; }
-    const pick = RTC.pick = { sel: new Set(), at: Date.now(), asked: Date.now(), n: 1 }; RTC.here = {};
+    let miss = null; try { miss = await rawCall('rtcMissed', { seen: true }); RTC.missN = 0; rtcMissBadge(); } catch (e) { miss = null; }
+    const pick = RTC.pick = { sel: new Set(), at: Date.now(), asked: Date.now(), n: 1, help: opts.help || null, mode: rtcCanShare() ? 'screen' : 'page' }; RTC.here = {};
+    if (opts.help) RTC.users.filter(u => u.admin).slice(0, RTC.max).forEach(u => pick.sel.add(u.uid));
+    (opts.to || []).forEach(uid => { if (pick.sel.size < RTC.max && RTC.users.some(u => u.uid === uid)) pick.sel.add(uid); });
     rtcNote('who').catch(rtcWarn);
     // "who is at the app?" is asked three times (now, after 9 s, after 18 s) – a list left open does not keep asking
     const again = setInterval(() => { rtcPickDraw(); if (RTC.pick === pick && S.token && pick.n < 3 && Date.now() - pick.asked > 9000) { pick.asked = Date.now(); pick.n++; rtcNote('who').catch(rtcWarn); } }, 1000);
-    let ok = false; try { ok = await askConfirm({ title: 'Share my screen', ok: 'Share screen', html: rtcPickHtml() }); } finally { clearInterval(again); }
-    const chosen = [...pick.sel]; RTC.pick = null;
+    let ok = false; try { ok = await askConfirm({ title: opts.help ? 'Show this to the Admin' : 'Share my screen', ok: 'Start', html: rtcPickHtml(pick, miss) }); } finally { clearInterval(again); }
+    const chosen = [...pick.sel], mode = pick.mode; RTC.pick = null;
     if (!ok) return;
     if (RTC.call || RTC.ring) { rtcSay(RTC.call ? 'A screen share is already on – see the bar at the bottom.' : 'Answer or decline the screen share that is ringing first.'); return; }      // (a ring came in while the list was open)
     if (!chosen.length) { toast('Screen share: pick the user to share with (tick a name in the list).', true); return; }
     let screen = null;
-    try { screen = await rtcGetScreen(); }
-    catch (e) { toast(e && (e.name === 'NotAllowedError' || e.name === 'AbortError') ? 'Screen share: the screen was not shared – in the box of the browser choose this tab and press Allow / Share.' : 'Screen share: the browser could not show the screen (' + (e && e.name || 'error') + ').', true); return; }
-    if (RTC.call || RTC.ring) { screen.getTracks().forEach(t => t.stop()); rtcSay('Answer or decline the screen share that is ringing first.'); return; }      // (… or while the browser was asking what to show)
+    if (mode === 'screen') {
+      try { screen = await rtcGetScreen(); }
+      catch (e) { toast(e && (e.name === 'NotAllowedError' || e.name === 'AbortError') ? 'Screen share: the screen was not shared – in the box of the browser choose this tab and press Allow / Share.' : 'Screen share: the browser could not show the screen (' + (e && e.name || 'error') + ').', true); return; }
+    } else if (mode === 'cam') { try { screen = await rtcGetCam('environment'); } catch (e) { toast(rtcCamErr(e), true); return; } }
+    if (RTC.call || RTC.ring) { if (screen) screen.getTracks().forEach(t => t.stop()); rtcSay('Answer or decline the screen share that is ringing first.'); return; }      // (… or while the browser was asking what to show)
     const C = RTC.call = rtcNewCall('c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), 'host');
-    rtcUseScreen(screen);
+    if (screen) rtcUseScreen(screen, mode); else C.pageMode = true;
     rtcBar(); rtcTick(true);
     C.mic = await rtcGetMic();
     if (RTC.call !== C) { rtcDrop(C); return; }      // (ended while the browser was asking for the microphone)
     if (!C.mic) rtcSay('The microphone is not allowed in this browser – the others cannot hear you (they can still be heard).', true);
     chosen.forEach(uid => { const u = RTC.users.find(x => x.uid === uid); if (u) C.peers.set(uid, rtcPeer(uid, u.name, false)); });
     rtcBar();
-    const names = [...C.peers.values()].map(P => P.name);
+    const names = [...C.peers.values()].map(P => P.name), help = pick.help ? { title: String(pick.help.title || '').slice(0, 60), msg: String(pick.help.msg || '').slice(0, 300), tab: String(pick.help.tab || '') } : undefined;
     await Promise.all([...C.peers.values()].map(async P => {
       try {
         rtcWireDc(P, P.pc.createDataChannel('rcl')); rtcAddLocal(P);
         await P.pc.setLocalDescription(await P.pc.createOffer()); await rtcIceDone(P.pc, 3000);
         if (RTC.call !== C || C.peers.get(P.uid) !== P) return;
-        await rtcNote('ring', [P.uid], C.id, { sdp: P.pc.localDescription.sdp, people: names });
+        await rtcNote('ring', [P.uid], C.id, { sdp: P.pc.localDescription.sdp, people: names, mode: mode, help: help });
         P.ringT = setTimeout(() => { if (!P.up && P.state === 'ringing') { rtcNote('cancel', [P.uid], C.id).catch(rtcWarn); rtcPeerGone(P, 'none'); } }, 80000);      // (a page in a background tab may hear of the ring only after a minute)
+        P.waT = setTimeout(() => { if (RTC.call === C && C.peers.get(P.uid) === P && !P.up && P.state === 'ringing') rtcWaOffer(C.id, P, P.name + ' has not answered yet.'); }, 15000);      // not answered after 15 s: WhatsApp is offered
       } catch (e) { rtcWarn(e); rtcPeerGone(P, 'send'); }
     }));
   }
-  function rtcNewCall(id, role) { return { id: id, role: role, peers: new Map(), screen: null, selfTab: false, mic: null, micOn: true, t0: Date.now(), t1: 0, met: new Set(), shares: {}, vids: {}, pages: {}, audio: [], view: '', size: 'm', roster: null }; }
-  function rtcUseScreen(s) {
+  function rtcNewCall(id, role) { return { id: id, role: role, peers: new Map(), screen: null, kind: '', facing: 'environment', torch: false, selfTab: false, pageMode: false, follow: '', noFollow: {}, followAt: 0, low: false, lowSet: false, net: '', poorN: 0, pen: false, unread: 0, chat: [],
+    mic: null, micOn: true, t0: Date.now(), t1: 0, met: new Set(), shares: {}, vids: {}, pages: {}, audio: [], view: '', size: 'm', roster: null }; }
+  function rtcUseScreen(s, kind) {
     const C = RTC.call, t = s.getVideoTracks()[0];
-    C.screen = s; C.selfTab = rtcIsThisTab(t);
-    t.addEventListener('ended', () => { if (RTC.call === C && C.screen === s) rtcStopMine(true); });      // "Stop sharing" of the browser itself
+    C.screen = s; C.kind = kind === 'cam' ? 'cam' : 'screen'; C.selfTab = C.kind === 'screen' && rtcIsThisTab(t); C.torch = false;
+    t.addEventListener('ended', () => { if (RTC.call === C && C.screen === s && s.getVideoTracks()[0] === t) rtcStopMine(true); });      // "Stop sharing" of the browser itself (or the camera taken away)
   }
   // the host's answer arrived (the guest accepted)
   function rtcAnswered(P, d) {
@@ -14471,13 +14541,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function rtcIncoming(m, d) {
     if (!d.sdp) return;
     RTC.ring = { call: m.call, from: m.from, name: m.name, dev: d.dev || '', sdp: d.sdp, people: Array.isArray(d.people) ? d.people : [], at: Date.now() };
-    const others = RTC.ring.people.length > 1 ? ' (with ' + (RTC.ring.people.length - 1) + ' more)' : '';
-    $('rtc_in_t').textContent = m.name + ' wants to show you a screen' + others; $('rtc_in').hidden = false;
+    const others = RTC.ring.people.length > 1 ? ' (with ' + (RTC.ring.people.length - 1) + ' more)' : '', help = d.help && typeof d.help === 'object' ? d.help : null;
+    const what = d.mode === 'cam' ? 'a camera' : d.mode === 'page' ? 'a page of the app' : 'a screen';
+    $('rtc_in_t').textContent = help ? m.name + ' needs help – wants to show you ' + what + others : m.name + ' wants to show you ' + what + others;
+    $('rtc_in_s').textContent = help ? String((help.title ? help.title + ': ' : '') + (help.msg || '')).slice(0, 320) : 'Screen share with voice · nothing is recorded';
+    $('rtc_rep_m').hidden = true; $('rtc_in').hidden = false;
     rtcTone(true); rtcTitle('● ' + m.name + ' – screen share');
-    RTC.ring.t = setTimeout(() => { if (RTC.ring && RTC.ring.call === m.call) { rtcRingClose(); rtcSay('Missed: ' + m.name + ' wanted to show you a screen.', true); } }, Math.max(5000, 78000 - (Number(m.age) || 0)));
+    RTC.ring.t = setTimeout(() => { if (RTC.ring && RTC.ring.call === m.call) { rtcRingClose(); RTC.missN++; rtcMissBadge(); rtcSay('Missed: ' + m.name + ' wanted to show you ' + what + '. (Call back: the screen button at the top.)', true); } }, Math.max(5000, 78000 - (Number(m.age) || 0)));
   }
-  function rtcRingClose() { if (RTC.ring) clearTimeout(RTC.ring.t); RTC.ring = null; if ($('rtc_in')) $('rtc_in').hidden = true; rtcTone(false); rtcTitle(''); }
-  function rtcDecline() { const R = RTC.ring; if (!R) return; rtcRingClose(); rtcNote('decline', [R.from], R.call, { todev: R.dev }).catch(rtcWarn); }
+  function rtcRingClose() { if (RTC.ring) { clearTimeout(RTC.ring.t); rtcNotifClose(RTC.ring.call); } RTC.ring = null; if ($('rtc_in')) $('rtc_in').hidden = true; if ($('rtc_rep_m')) $('rtc_rep_m').hidden = true; rtcTone(false); rtcTitle(''); }
+  function rtcDecline(reply) { const R = RTC.ring; if (!R) return; rtcRingClose(); rtcNote('decline', [R.from], R.call, { todev: R.dev, reply: RTC_REPLY[Number(reply)] ? Number(reply) : 0, ep: RTC.pushEp || '' }).catch(rtcWarn); if (RTC_REPLY[Number(reply)]) rtcSay('Sent to ' + R.name + ': "' + RTC_REPLY[Number(reply)] + '"'); }
   async function rtcAccept() {
     const R = RTC.ring; if (!R || RTC.call) return; rtcRingClose();
     if (RTC.pick) { RTC.pick = null; try { closeConfirm(false); } catch (e) { /* the list was not open */ } }      // (the list to pick from was open: it closes – one call at a time)
@@ -14494,7 +14567,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (C.mic) P.micS = P.pc.addTrack(C.mic.getAudioTracks()[0], C.mic);
       await P.pc.setLocalDescription(await P.pc.createAnswer()); await rtcIceDone(P.pc, 3000);
       if (RTC.call !== C) return;
-      await rtcNote('answer', [R.from], R.call, { sdp: P.pc.localDescription.sdp, todev: R.dev });
+      await rtcNote('answer', [R.from], R.call, { sdp: P.pc.localDescription.sdp, todev: R.dev, ep: RTC.pushEp || '' });
       rtcWatch(P);
     } catch (e) { rtcWarn(e); if (RTC.call === C) { rtcNote('bye', [R.from], R.call, { todev: R.dev }).catch(rtcWarn); rtcEnd('', true); toast('Screen share: the screen share of ' + R.name + ' could not be joined (' + String(e && e.message || e).slice(0, 80) + ').', true); } }
   }
@@ -14502,23 +14575,59 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ---------- my own screen on / off, the microphone, the end ---------- */
   async function rtcShareMine() {
     const C = RTC.call; if (!C) return;
-    if (C.screen) { rtcStopMine(); return; }
-    if (!rtcCanShare()) { toast('Screen share: the browser of a phone cannot show its screen – start the screen share from a computer. On this phone a screen share can be received, with voice.', true); return; }
+    if (C.screen && C.kind === 'screen') { rtcStopMine(); return; }
+    if (!rtcCanShare()) { toast('Screen share: the browser of a phone cannot show its screen – show the camera or only your page instead (More).', true); return; }
     let s = null; try { s = await rtcGetScreen(); } catch (e) { if (!(e && (e.name === 'NotAllowedError' || e.name === 'AbortError'))) toast('Screen share: the browser could not show the screen (' + (e && e.name || 'error') + ').', true); return; }
+    rtcShowMine(C, s, 'screen');
+  }
+  async function rtcCamMine() {
+    const C = RTC.call; if (!C) return;
+    if (C.screen && C.kind === 'cam') { rtcStopMine(); return; }
+    let s = null; try { s = await rtcGetCam(C.facing || 'environment'); } catch (e) { toast(rtcCamErr(e), true); return; }
+    rtcShowMine(C, s, 'cam');
+  }
+  // a screen or a camera goes to everybody in the call (what was shown before stops: one picture per person)
+  function rtcShowMine(C, s, kind) {
     if (RTC.call !== C) { s.getTracks().forEach(t => t.stop()); return; }
-    rtcUseScreen(s);
+    if (C.screen) rtcStopMine(false, true);
+    if (C.pageMode) rtcPageMine(false, true);
+    rtcUseScreen(s, kind);
     C.peers.forEach(P => { try { P.scr = P.pc.addTrack(s.getVideoTracks()[0], s); if (!P.open) P.dirty = true; } catch (e) { rtcWarn(e); } });
-    rtcTellAll({ t: 'share', on: true, sid: s.id, uid: RTC.me, name: RTC.myName, ptr: C.selfTab }); rtcTellAll(rtcPageNow());
+    rtcTellAll({ t: 'share', on: true, sid: s.id, uid: RTC.me, name: RTC.myName, ptr: C.selfTab, kind: C.kind }); rtcTellAll(rtcPageNow());
     rtcBar();
   }
-  function rtcStopMine(byBrowser) {
+  function rtcStopMine(byBrowser, quiet) {
     const C = RTC.call; if (!C || !C.screen) return;
-    const s = C.screen; C.screen = null; C.selfTab = false;
+    const s = C.screen; C.screen = null; C.selfTab = false; C.kind = ''; C.torch = false;
     C.peers.forEach(P => { if (P.scr) { try { P.pc.removeTrack(P.scr); } catch (e) { /* the connection is closing */ } P.scr = null; if (!P.open) P.dirty = true; } });
     s.getTracks().forEach(t => { try { t.stop(); } catch (e) { /* already stopped */ } });
     rtcTellAll({ t: 'share', on: false, sid: s.id, uid: RTC.me });
+    rtcPenTopClear();
     if (byBrowser) rtcSay('Your screen is not shown any more. The call is still on – you can talk, or show the screen again.');
+    if (!quiet) rtcBar();
+  }
+  // "only my page": no picture – the others' app follows the page this user is on (with voice; almost no data)
+  function rtcPageMine(on, quiet) {
+    const C = RTC.call; if (!C) return;
+    if (on && C.screen) rtcStopMine(false, true);
+    C.pageMode = !!on; rtcTellAll(rtcPageNow());
+    if (!quiet) { rtcBar(); if (on) rtcSay('The others now see the page you are on (in their own app, with their own access) – as you move. No video.'); }
+  }
+  async function rtcFlip() {
+    const C = RTC.call; if (!C || !C.screen || C.kind !== 'cam') return;
+    const want = C.facing === 'user' ? 'environment' : 'user'; let s2 = null;
+    try { s2 = await rtcGetCam(want); } catch (e) { rtcSay('This device has no other camera.'); return; }
+    if (RTC.call !== C || !C.screen || C.kind !== 'cam') { s2.getTracks().forEach(t => t.stop()); return; }
+    const nt = s2.getVideoTracks()[0], old = C.screen.getVideoTracks()[0], s = C.screen;
+    for (const P of C.peers.values()) { if (P.scr) { try { await P.scr.replaceTrack(nt); } catch (e) { rtcWarn(e); } } }
+    s.removeTrack(old); try { old.stop(); } catch (e) { /* stopped */ } s.addTrack(nt); C.facing = want; C.torch = false;
+    nt.addEventListener('ended', () => { if (RTC.call === C && C.screen === s && s.getVideoTracks()[0] === nt) rtcStopMine(true); });
     rtcBar();
+  }
+  function rtcTorch() {
+    const C = RTC.call; if (!C || !C.screen || C.kind !== 'cam') return; const t = C.screen.getVideoTracks()[0];
+    const cap = t && t.getCapabilities ? t.getCapabilities() : {}; if (!cap.torch) { rtcSay('This camera has no light.'); return; }
+    C.torch = !C.torch; t.applyConstraints({ advanced: [{ torch: C.torch }] }).catch(e => { C.torch = false; rtcWarn(e); rtcBar(); }); rtcBar();
   }
   function rtcMic() { const C = RTC.call; if (!C || !C.mic) { rtcSay('The microphone is not allowed in this browser (the lock sign beside the address → Microphone → Allow, then start again).', true); return; } C.micOn = !C.micOn; C.mic.getAudioTracks().forEach(t => { t.enabled = C.micOn; }); rtcBar(); }
   function rtcDrop(C) { try { if (C.screen) C.screen.getTracks().forEach(t => t.stop()); if (C.mic) C.mic.getTracks().forEach(t => t.stop()); C.audio.forEach(a => { try { a.pause(); a.srcObject = null; } catch (e) { /* gone */ } }); C.peers.forEach(P => { clearTimeout(P.ringT); clearTimeout(P.watchT); try { P.pc.close(); } catch (e) { /* closed */ } }); } catch (e) { rtcWarn(e); } }
@@ -14532,6 +14641,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (C.role === 'guest' && !quiet) C.peers.forEach(P => { if (!P.open) rtcNote('bye', [P.uid], C.id, { todev: P.dev }).catch(rtcWarn); });
     if (C.role === 'host' && C.t1 && C.met.size) rawCall('rtcSend', { t: 'end', to: [...C.met], call: C.id, secs: Math.round((Date.now() - C.t1) / 1000) }).catch(rtcWarn);      // one line for the Activity Log
     setTimeout(() => rtcDrop(C), 250);      // (a moment for the "bye" to leave)
+    C.peers.forEach(P => { clearTimeout(P.waT); clearTimeout(P.reT); clearTimeout(P.lostT); });
+    rtcPenTopClear(); rtcPenLocal(true); $('rtc_chat').hidden = true; $('rtc_msgs').textContent = ''; $('rtc_menu').hidden = true; $('rtc_view').classList.remove('pen');
     rtcTick(false); rtcBar(); rtcViewPick();
     if (say) rtcSay(say, true); else if (!quiet) rtcSay('The screen share has ended.');
   }
@@ -14554,19 +14665,29 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function rtcTick(on) { clearInterval(RTC.tickT); RTC.tickT = null; if (!on) { try { if (RTC.busyAt) localStorage.removeItem('rcl_rtc_busy'); } catch (e) { /* nothing to clear */ } RTC.busyAt = 0; }
     if (on) RTC.tickT = setInterval(() => { if (!RTC.call) { rtcTick(false); return; } if (!S.token) { rtcEnd('', true); return; }
       try { if (Date.now() - (RTC.busyAt || 0) > 3000) { RTC.busyAt = Date.now(); localStorage.setItem('rcl_rtc_busy', String(RTC.busyAt)); } } catch (e) { /* no storage: the other tabs ring as well */ }      // (for the other tabs of this browser: a call is on here)
-      const c = $('rtc_clock'); if (c) c.textContent = RTC.call.t1 ? rtcMmSs(Date.now() - RTC.call.t1) : ''; }, 1000); }
+      const c = $('rtc_clock'); if (c) c.textContent = RTC.call.t1 ? rtcMmSs(Date.now() - RTC.call.t1) : '';
+      RTC.netTick = (RTC.netTick || 0) + 1; if (RTC.netTick % 3 === 0) rtcNetCheck().catch(rtcWarn); }, 1000); }
   function rtcBar() {
     const bar = $('rtc_bar'), C = RTC.call; if (!bar) return;
     bar.hidden = !C; document.body.classList.toggle('rtc-on', !!C); if (!C) return;
-    const ps = [...C.peers.values()], up = ps.filter(P => P.up), word = { ringing: 'ringing', connecting: 'connecting', weak: 'weak connection', on: '' };
+    const ps = [...C.peers.values()], up = ps.filter(P => P.up), word = { ringing: 'ringing', connecting: 'connecting', weak: 'weak connection', reconnecting: 'connecting again…', on: '' };
     let who = ps.map(P => P.name + (P.up && P.state === 'on' ? '' : ' (' + (word[P.state] || P.state) + ')')).join(', ');
     if (C.role === 'guest' && C.roster) who = [C.roster.host.name].concat((C.roster.people || []).filter(x => x.uid !== RTC.me && x.up).map(x => x.name)).join(', ');
     $('rtc_who').textContent = (up.length ? 'Screen share with ' : C.role === 'host' ? 'Calling ' : 'Joining ') + who;
     $('rtc_live').className = 'rtc-dot' + (C.screen ? ' on' : '');
-    $('rtc_mine').textContent = (C.screen ? 'Your screen is shown' : 'Your screen is not shown') + (up.some(P => P.via === 'relay') ? ' · through the relay' : up.some(P => P.via === 'direct') ? ' · direct connection' : '');
+    $('rtc_mine').textContent = (C.screen ? (C.kind === 'cam' ? 'Your camera is shown' : 'Your screen is shown') : C.pageMode ? 'Your page is shown (no video)' : 'Your screen is not shown') + (up.some(P => P.via === 'relay') ? ' · through the relay' : up.some(P => P.via === 'direct') ? ' · direct connection' : '');
+    const nt = $('rtc_net'); nt.textContent = (C.net ? '· Network: ' + C.net : '') + (C.low ? ' · low data' : ''); nt.className = C.net || '';
     $('rtc_mic').textContent = !C.mic ? 'No microphone' : C.micOn ? 'Mute' : 'Unmute'; $('rtc_mic').classList.toggle('off', !C.mic || !C.micOn);
-    $('rtc_share').textContent = C.screen ? 'Stop showing my screen' : 'Show my screen'; $('rtc_share').hidden = !rtcCanShare(); $('rtc_share').classList.toggle('on', !!C.screen);
+    const scr = !!C.screen && C.kind === 'screen', cam = !!C.screen && C.kind === 'cam';
+    $('rtc_share').textContent = scr ? 'Stop showing my screen' : 'Show my screen'; $('rtc_share').hidden = !rtcCanShare(); $('rtc_share').classList.toggle('on', scr);
+    $('rtc_cam').textContent = cam ? 'Stop my camera' : 'Show my camera'; $('rtc_cam').classList.toggle('on', cam);
+    $('rtc_flip').hidden = !cam; let torch = false; try { const t = cam ? C.screen.getVideoTracks()[0] : null; torch = !!(t && t.getCapabilities && t.getCapabilities().torch); } catch (e) { torch = false; }
+    $('rtc_torch').hidden = !torch; $('rtc_torch').textContent = C.torch ? 'Light off' : 'Light on';
+    $('rtc_page').textContent = C.pageMode ? 'Stop showing my page' : 'Show only my page (low data)'; $('rtc_page').classList.toggle('on', !!C.pageMode);
+    $('rtc_low').textContent = 'Low data: ' + (C.low ? 'on' : 'off'); $('rtc_low').classList.toggle('on', !!C.low);
+    const cn = $('rtc_chat_n'); cn.hidden = !C.unread; cn.textContent = C.unread > 9 ? '9+' : String(C.unread || '');
     $('rtc_end').textContent = C.role === 'host' ? 'End' : 'Leave';
+    rtcFolDraw();
   }
   // which screen is shown to me: the one that was switched on last and is still coming in
   function rtcViewPick(want) {
@@ -14588,25 +14709,49 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function rtcViewHead() {
     const C = RTC.call; if (!C || !C.view || !C.shares[C.view]) return;
     const sh = C.shares[C.view], pg = C.pages[sh.uid], btn = $('rtc_open'), tabBtn = pg && pg.tab ? $('tab-' + pg.tab) : null;
-    $('rtc_vt').textContent = 'Screen of ' + sh.name;
+    $('rtc_vt').textContent = (sh.kind === 'cam' ? 'Camera of ' : 'Screen of ') + sh.name;
+    $('rtc_penb').hidden = !sh.ptr; if (!sh.ptr && C.pen) rtcPenToggle(false);
     const can = !!(tabBtn && rtcTabOk(pg.tab) && pg.tab !== S.curTab), lab = can ? tabBtn.querySelector('.label') : null;
     btn.hidden = !can; if (can) { btn.textContent = 'Open this page here: ' + (lab ? lab.textContent : pg.tab); btn.dataset.tab = pg.tab; }
-    $('rtc_hint').textContent = sh.ptr ? 'Click on the picture: a red ring shows there on ' + sh.name + '\'s screen.' : '';
+    $('rtc_hint').textContent = sh.ptr ? (C.pen ? 'Draw on the picture: it shows on ' + sh.name + '\'s screen for 10 seconds.' : 'Click on the picture: a red ring shows there on ' + sh.name + '\'s screen. Pen: draw on it.') : '';
   }
   document.addEventListener('click', e => {
     const t = e.target && e.target.closest ? e.target : null; if (!t) return;
     if (t.closest('#u_share')) { rtcStart().catch(er => { rtcWarn(er); toast(errMsg(er), true); }); return; }
     if (t.closest('#rtc_yes')) { rtcAccept(); return; }
     if (t.closest('#rtc_no')) { rtcDecline(); return; }
+    if (t.closest('#rtc_rep')) { $('rtc_rep_m').hidden = !$('rtc_rep_m').hidden; return; }
+    const rp = t.closest('#rtc_rep_m [data-reply]'); if (rp) { rtcDecline(rp.dataset.reply); return; }
+    if (t.closest('#rtc_note a')) { setTimeout(() => { $('rtc_note').hidden = true; }, 300); return; }
+    const na = t.closest('#rtc_note [data-act]'); if (na) { const f = RTC.noteAct && RTC.noteAct[na.dataset.act]; $('rtc_note').hidden = true; if (f) f(); return; }
     if (t.closest('#rtc_note')) { $('rtc_note').hidden = true; return; }
+    if (t.closest('#fixbox [data-fixrtc]')) { const msg = $('fixbox').dataset.msg || ''; $('fixbox').hidden = true; rtcHelp(msg); return; }
+    const cb = t.closest('[data-callback]'); if (cb && RTC.pick) { const c = document.querySelector('#rtc_list input[data-uid="' + cb.dataset.callback + '"]'); if (c && !c.checked) { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); } return; }
+    if (t.closest('[data-missclear]')) { const box = t.closest('.rtc-miss'); rawCall('rtcMissed', { clear: true }).then(() => { if (box) box.remove(); }).catch(rtcWarn); return; }
+    if (t.closest('#np_on')) { npTurnOn(); return; }
     const C = RTC.call; if (!C) return;
     if (t.closest('#rtc_mic')) { rtcMic(); return; }
     if (t.closest('#rtc_share')) { rtcShareMine().catch(rtcWarn); return; }
+    if (t.closest('#rtc_more')) { $('rtc_menu').hidden = !$('rtc_menu').hidden; return; }
+    if (t.closest('#rtc_cam')) { $('rtc_menu').hidden = true; rtcCamMine().catch(rtcWarn); return; }
+    if (t.closest('#rtc_flip')) { rtcFlip().catch(rtcWarn); return; }
+    if (t.closest('#rtc_torch')) { rtcTorch(); return; }
+    if (t.closest('#rtc_page')) { $('rtc_menu').hidden = true; rtcPageMine(!C.pageMode); return; }
+    if (t.closest('#rtc_low')) { rtcLow(!C.low, false); return; }
+    if (t.closest('#rtc_chatb')) { const open = $('rtc_chat').hidden; $('rtc_chat').hidden = !open; if (open) { C.unread = 0; rtcBar(); const ms = $('rtc_msgs'); ms.scrollTop = ms.scrollHeight; setTimeout(() => $('rtc_txt').focus(), 30); } return; }
+    if (t.closest('#rtc_chat_x')) { $('rtc_chat').hidden = true; return; }
+    if (t.closest('#rtc_photo')) { $('rtc_file').click(); return; }
+    if (t.closest('#rtc_msgs img')) { t.closest('#rtc_msgs img').classList.toggle('big'); return; }
+    if (t.closest('#rtc_unfollow')) { if (C.follow) { C.noFollow[C.follow] = true; C.follow = ''; } rtcFolDraw(); return; }
+    if (t.closest('#rtc_penb')) { rtcPenToggle(!C.pen); return; }
+    if (t.closest('#rtc_clr')) { rtcPenClear(); return; }
+    if (t.closest('#rtc_snap')) { rtcSnap(); return; }
+    if (!t.closest('#rtc_menu') && !$('rtc_menu').hidden) $('rtc_menu').hidden = true;
     if (t.closest('#rtc_end')) { rtcEnd(); return; }
     if (t.closest('#rtc_size')) { C.size = C.size === 's' ? 'm' : C.size === 'm' ? 'l' : 's'; $('rtc_view').dataset.size = C.size; return; }
     if (t.closest('#rtc_open')) { const tab = $('rtc_open').dataset.tab; if (tab && rtcTabOk(tab)) { C.size = 's'; $('rtc_view').dataset.size = 's'; showTab(tab); rtcViewHead(); } return; }
     const tb = t.closest('#rtc_tabs [data-sid]'); if (tb) { rtcViewPick(tb.dataset.sid); return; }
-    if (t.closest('#rtc_video')) {
+    if (t.closest('#rtc_video') && !C.pen) {
       const sh = C.shares[C.view], v = $('rtc_video'); if (!sh || !v.videoWidth) return;
       const r = v.getBoundingClientRect(), k = Math.min(r.width / v.videoWidth, r.height / v.videoHeight), w = v.videoWidth * k, h = v.videoHeight * k, x = (e.clientX - (r.left + (r.width - w) / 2)) / w, y = (e.clientY - (r.top + (r.height - h) / 2)) / h;
       if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) return;
@@ -14614,6 +14759,274 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const P = C.peers.get(sh.uid) || [...C.peers.values()][0]; if (P) rtcDc(P, { t: 'ptr', to: sh.uid, x: Math.round(x * 10000) / 10000, y: Math.round(y * 10000) / 10000, by: RTC.myName });
     }
   });
+
+  /* ================= SCREEN SHARE – MASTER LEVEL (update-75, asked 10-10-2026: "build all of it at once, perfectly, with security in mind") =================
+   * The call reaches the user (notification when the app is closed, WhatsApp, missed calls, a reply instead of a plain "no"),
+   * help in one click from a red message, the camera of a phone, a snapshot, a line that drops is made again, the network's
+   * state and "low data", "only my page" (no video – the other app follows), a pen, a chat, who may use it, the history.
+   * SAFE BY DESIGN: what goes between the browsers is drawn as TEXT only (never as page code); a picture in the chat must be a
+   * JPEG; every message is limited in size and in number; the pen / pointer draw only on the sharer's own app tab; nothing of a
+   * call is kept (chat, photos, snapshots stay on the devices); the server gives a WhatsApp number only for a user just rung. */
+  const RTC_REPLY = { 1: 'I will call you back in 5 minutes.', 2: 'I am in a meeting – later, please.', 3: 'Please call me on the phone.' };
+  const rtcNameOf = uid => { const u = (RTC.users || []).find(x => x.uid === uid); return u ? u.name : uid === RTC.me ? RTC.myName : ''; };
+  // at most n messages of one kind from one person in ms
+  function rtcRate(P, k, n, ms) { const now = Date.now(); P.rate[k] = (P.rate[k] || []).filter(t => now - t < ms); if (P.rate[k].length >= n) return false; P.rate[k].push(now); return true; }
+  // a notice with a button or a link (WhatsApp); the text is always text
+  function rtcSayAct(text, acts, stay) {
+    const n = $('rtc_note'); if (!n) return; n.textContent = text; RTC.noteAct = {};
+    (acts || []).forEach((a, i) => { const el = document.createElement(a.href ? 'a' : 'button'); el.textContent = a.label;
+      if (a.href) { el.href = a.href; el.target = '_blank'; el.rel = 'noopener noreferrer'; } else { el.type = 'button'; el.dataset.act = String(i); if (a.plain) el.className = 'plain'; RTC.noteAct[i] = a.fn; }
+      n.appendChild(el); });
+    n.hidden = false; clearTimeout(RTC.noteT); if (!stay) RTC.noteT = setTimeout(() => { n.hidden = true; }, 12000);
+  }
+
+  /* ---------- a line that dropped is made again (the host asks, through the server, for a new way between the two) ---------- */
+  async function rtcRestart(P) {
+    const C = RTC.call; if (!C || C.peers.get(P.uid) !== P || P.restarting) return;
+    P.restarting = true; rtcAwait(P);
+    try { const o = await P.pc.createOffer({ iceRestart: true }); await P.pc.setLocalDescription(o); await rtcIceDone(P.pc, 3000);
+      if (RTC.call !== C || C.peers.get(P.uid) !== P) return;
+      await rtcNote('re', [P.uid], C.id, { type: 'offer', sdp: P.pc.localDescription.sdp, todev: P.dev }); }
+    catch (e) { rtcWarn(e); }
+  }
+  function rtcAwait(P) { const C = RTC.call; P.state = 'reconnecting'; rtcBar(); if (P.lostT) return;
+    P.lostT = setTimeout(() => { P.lostT = null; if (RTC.call === C && C.peers.get(P.uid) === P && P.pc.connectionState !== 'connected') rtcPeerGone(P, 'lost'); }, 40000); }
+  async function rtcOnRe(P, d) {
+    const C = RTC.call; if (!C || !d || typeof d.sdp !== 'string' || d.sdp.length > 60000) return;
+    if (d.type === 'offer' && C.role === 'guest') { P.restarting = true; rtcAwait(P);
+      await P.pc.setRemoteDescription({ type: 'offer', sdp: d.sdp }); await P.pc.setLocalDescription(); await rtcIceDone(P.pc, 3000);
+      if (RTC.call === C) await rtcNote('re', [P.uid], C.id, { type: 'answer', sdp: P.pc.localDescription.sdp, todev: P.dev }); rtcReCheck(P); }
+    else if (d.type === 'answer' && C.role === 'host' && P.pc.signalingState === 'have-local-offer') { await P.pc.setRemoteDescription({ type: 'answer', sdp: d.sdp }); rtcReCheck(P); }
+  }
+  // a line that had not quite dropped stays "connected" through the restart – the browser then says nothing more: look again
+  function rtcReCheck(P) { [1500, 4000, 8000].forEach(ms => setTimeout(() => { const C = RTC.call; if (C && C.peers.get(P.uid) === P && P.restarting && P.pc.connectionState === 'connected') rtcOnState(P); }, ms)); }
+
+  /* ---------- the network's state (every 3 s), and low data ---------- */
+  async function rtcNetCheck() {
+    const C = RTC.call; if (!C) return; const ups = [...C.peers.values()].filter(P => P.up && P.state !== 'reconnecting'); if (!ups.length) { if (C.net) { C.net = ''; rtcBar(); } return; }
+    let worst = 0;
+    for (const P of ups) {
+      let rtt = 0, lost = 0, got = 0;
+      try { const st = await P.pc.getStats(), by = {}; let pair = null; st.forEach(r => { by[r.id] = r; if (r.type === 'transport' && r.selectedCandidatePairId) pair = r.selectedCandidatePairId; });
+        const cp = pair ? by[pair] : null; if (cp && cp.currentRoundTripTime) rtt = cp.currentRoundTripTime;
+        st.forEach(r => { if (r.type === 'inbound-rtp' && r.kind === 'audio') { lost += r.packetsLost || 0; got += r.packetsReceived || 0; } }); } catch (e) { continue; }
+      const prev = P.netPrev || { lost: lost, got: got }; P.netPrev = { lost: lost, got: got };
+      const dl = Math.max(0, lost - prev.lost), dg = Math.max(0, got - prev.got), loss = dl + dg > 0 ? dl / (dl + dg) : 0;
+      worst = Math.max(worst, rtt > 0.8 || loss > 0.1 ? 2 : rtt > 0.35 || loss > 0.03 ? 1 : 0);
+    }
+    C.net = ['good', 'weak', 'poor'][worst]; C.poorN = worst === 2 ? C.poorN + 1 : 0;
+    if (C.poorN >= 2 && !C.low && !C.lowSet) rtcLow(true, true);      // poor for 6 s: low data by itself (once – the user decides after that)
+    rtcBar();
+  }
+  function rtcLow(on, auto) {
+    const C = RTC.call; if (!C) return; C.low = !!on; if (!auto) C.lowSet = true;
+    rtcTellAll({ t: 'low', on: C.low }); rtcLowApply(); rtcBar();
+    if (auto) rtcSay('The network is weak: low data is on – the picture is smaller and slower, the voice stays. (More → Low data switches it off.)');
+  }
+  // the pictures this page SENDS: smaller and slower to a person who asked for low data (or when this page is on low data)
+  function rtcLowApply() {
+    const C = RTC.call; if (!C) return;
+    C.peers.forEach(P => { const low = !!(C.low || P.low);
+      [P.scr].concat(P.fwd.map(f => f.sender)).filter(sn => sn && sn.track && sn.track.kind === 'video').forEach(sn => { try {
+        const prm = sn.getParameters(); if (!prm.encodings || !prm.encodings.length) return;      // (not agreed yet: done again after the agreement)
+        const e = prm.encodings[0]; if (low) { e.maxBitrate = 150000; e.maxFramerate = 5; e.scaleResolutionDownBy = 1.5; } else { delete e.maxBitrate; delete e.maxFramerate; e.scaleResolutionDownBy = 1; }
+        sn.setParameters(prm).catch(rtcWarn); } catch (er) { rtcWarn(er); } }); });
+  }
+
+  /* ---------- "only my page": this app follows the page of the one who shows it ---------- */
+  function rtcFollowSeen(uid) {
+    const C = RTC.call; if (!C || uid === RTC.me) return; const pg = C.pages[uid]; if (!pg) return;
+    if (!pg.follow) { if (C.follow === uid) { C.follow = ''; rtcFolDraw(); } return; }
+    if (C.noFollow[uid]) { rtcFolDraw(); return; }
+    C.follow = uid; rtcFollowApply();
+  }
+  function rtcFollowApply() {
+    const C = RTC.call; if (!C || !C.follow) return; const pg = C.pages[C.follow]; if (!pg) return;
+    C.followAt = Date.now();
+    if (pg.tab && pg.tab !== S.curTab && rtcTabOk(pg.tab)) showTab(pg.tab);
+    setTimeout(() => { const el = document.scrollingElement || document.documentElement, h = el.scrollHeight - el.clientHeight; if (h > 0) el.scrollTo({ top: Math.round(pg.sy * h), behavior: 'smooth' }); }, 250);
+    rtcFolDraw();
+  }
+  function rtcFolDraw() {
+    const C = RTC.call, box = $('rtc_fol'); if (!box) return; const pg = C && C.follow ? C.pages[C.follow] : null;
+    box.hidden = !pg; if (!pg) return;
+    $('rtc_fol_t').textContent = 'Following the page of ' + (pg.name || 'the sharer') + ': ' + (rtcTabName(pg.tab) || pg.title || pg.tab) + (pg.tab && !rtcTabOk(pg.tab) ? ' (a page you cannot open)' : '');      // (named from this app's own menu: the page that is really followed)
+  }
+
+  /* ---------- the pen: the viewer draws on the picture, the lines show on the sharer's own app for 10 seconds ---------- */
+  const RTC_PEN = { local: [], top: [], raf: 0, cur: null };
+  function rtcPenToggle(on) { const C = RTC.call; if (!C) return; C.pen = !!on; $('rtc_view').classList.toggle('pen', C.pen); $('rtc_penb').classList.toggle('on', C.pen); $('rtc_clr').hidden = !C.pen; rtcViewHead(); rtcPenFit(); }
+  function rtcPenRect() { const v = $('rtc_video'), r = v.getBoundingClientRect(); if (!v.videoWidth) return null; const k = Math.min(r.width / v.videoWidth, r.height / v.videoHeight), w = v.videoWidth * k, h = v.videoHeight * k; return { left: r.left + (r.width - w) / 2, top: r.top + (r.height - h) / 2, w: w, h: h, r: r }; }
+  function rtcPenFit() { const c = $('rtc_pen'), dpr = window.devicePixelRatio || 1; if (!c) return; c.width = Math.round(c.clientWidth * dpr); c.height = Math.round(c.clientHeight * dpr); rtcPenLoop(); }
+  const rtcPenPt = e => { const q = rtcPenRect(); if (!q) return null; return [Math.round(Math.max(0, Math.min(1, (e.clientX - q.left) / q.w)) * 10000) / 10000, Math.round(Math.max(0, Math.min(1, (e.clientY - q.top) / q.h)) * 10000) / 10000]; };
+  (function rtcPenWire() {
+    const c = $('rtc_pen'); if (!c) return;
+    c.addEventListener('pointerdown', e => { const C = RTC.call; if (!C || !C.pen) return; e.preventDefault(); try { c.setPointerCapture(e.pointerId); } catch (er) { /* fine */ } const p = rtcPenPt(e); if (p) { RTC_PEN.cur = { pts: [p], at: Date.now() }; RTC_PEN.local.push(RTC_PEN.cur); rtcPenLoop(); } });
+    c.addEventListener('pointermove', e => { const s = RTC_PEN.cur; if (!s) return; const p = rtcPenPt(e); if (!p) return; const l = s.pts[s.pts.length - 1]; if (Math.abs(p[0] - l[0]) + Math.abs(p[1] - l[1]) < 0.004 || s.pts.length >= 300) return; s.pts.push(p); s.at = Date.now(); rtcPenLoop(); });
+    const up = () => { const s = RTC_PEN.cur; RTC_PEN.cur = null; if (!s) return; s.at = Date.now(); const C = RTC.call, sh = C && C.shares[C.view]; if (!sh) return;
+      const P = C.peers.get(sh.uid) || [...C.peers.values()][0]; if (P) rtcDc(P, { t: 'pen', to: sh.uid, pts: s.pts.length > 1 ? s.pts : [s.pts[0], s.pts[0]], by: RTC.myName }); };
+    c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
+    window.addEventListener('resize', () => { if (RTC.call && RTC.call.pen) rtcPenFit(); });
+  })();
+  function rtcPenClear() { const C = RTC.call, sh = C && C.shares[C.view]; RTC_PEN.local = []; rtcPenLoop(); if (!sh) return; const P = C.peers.get(sh.uid) || [...C.peers.values()][0]; if (P) rtcDc(P, { t: 'pen', to: sh.uid, clear: true }); }
+  function rtcPenLocal(clear) { if (clear) RTC_PEN.local = []; rtcPenLoop(); }
+  // lines arrive at the sharer: drawn over HIS app tab (only when that is what he shows), at most 12 in 5 seconds
+  function rtcPenIn(m, by) {
+    const C = RTC.call; if (!C || !C.screen || !C.selfTab) return;
+    if (m.clear) { RTC_PEN.top = []; rtcPenLoop(); return; }
+    const pts = Array.isArray(m.pts) ? m.pts.slice(0, 300).filter(p => Array.isArray(p) && p.length === 2 && p[0] >= 0 && p[0] <= 1 && p[1] >= 0 && p[1] <= 1).map(p => [Number(p[0]), Number(p[1])]) : [];
+    if (pts.length < 2) return;
+    const now = Date.now(); RTC.pens = RTC.pens.filter(t => now - t < 5000); if (RTC.pens.length >= 12) return; RTC.pens.push(now);
+    RTC_PEN.top.push({ pts: pts, by: String(by || '').slice(0, 30), at: now }); rtcPenLoop();
+  }
+  function rtcPenTopCanvas() {
+    let doc = document; try { doc = window.top.document; } catch (e) { doc = document; }
+    let c = doc.getElementById('rtc_pen_top'); if (!c) { c = doc.createElement('canvas'); c.id = 'rtc_pen_top'; c.setAttribute('data-rtc-ptr', '1'); c.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483646;pointer-events:none;'; doc.body.appendChild(c); }
+    const w = doc.defaultView.innerWidth, h = doc.defaultView.innerHeight, dpr = doc.defaultView.devicePixelRatio || 1; if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+    return c;
+  }
+  function rtcPenTopClear() { RTC_PEN.top = []; try { const c = (window.top.document || document).getElementById('rtc_pen_top'); if (c) c.remove(); } catch (e) { /* gone */ } }
+  function rtcPenDraw(ctx, list, W, H, q, now) {
+    list.forEach(s => { const age = now - s.at, a = age < 8000 ? 1 : Math.max(0, 1 - (age - 8000) / 2000); if (a <= 0) return;
+      ctx.globalAlpha = a; ctx.lineJoin = ctx.lineCap = 'round';
+      [['rgba(255,255,255,.95)', 9], ['#DC2626', 5]].forEach(st => { ctx.strokeStyle = st[0]; ctx.lineWidth = st[1] * (W / Math.max(1, q.cw)); ctx.beginPath(); s.pts.forEach((p, i) => { const x = q.x + p[0] * q.w, y = q.y + p[1] * q.h; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); });
+      if (s.by) { const p = s.pts[0], fs = 13 * (W / Math.max(1, q.cw)); ctx.font = '700 ' + fs + 'px system-ui,sans-serif'; const tw = ctx.measureText(s.by).width; ctx.fillStyle = '#DC2626'; ctx.fillRect(q.x + p[0] * q.w + 8, q.y + p[1] * q.h - fs - 8, tw + 12, fs + 8); ctx.fillStyle = '#fff'; ctx.fillText(s.by, q.x + p[0] * q.w + 14, q.y + p[1] * q.h - 9); }
+    }); ctx.globalAlpha = 1;
+  }
+  function rtcPenLoop() {
+    if (RTC_PEN.raf) return;
+    RTC_PEN.raf = requestAnimationFrame(() => { RTC_PEN.raf = 0; const now = Date.now();
+      RTC_PEN.local = RTC_PEN.local.filter(s => s === RTC_PEN.cur || now - s.at < 10000); RTC_PEN.top = RTC_PEN.top.filter(s => now - s.at < 10000);
+      const c = $('rtc_pen'); if (c) { const ctx = c.getContext('2d'); ctx.clearRect(0, 0, c.width, c.height); const q = rtcPenRect();
+        if (q && RTC_PEN.local.length) { const cr = c.getBoundingClientRect(), k = c.width / Math.max(1, cr.width); rtcPenDraw(ctx, RTC_PEN.local, c.width, c.height, { x: (q.left - cr.left) * k, y: (q.top - cr.top) * k, w: q.w * k, h: q.h * k, cw: cr.width }, now); } }
+      if (RTC_PEN.top.length) { const t = rtcPenTopCanvas(), ctx = t.getContext('2d'), cw = t.width / (window.top.devicePixelRatio || 1); ctx.clearRect(0, 0, t.width, t.height); rtcPenDraw(ctx, RTC_PEN.top, t.width, t.height, { x: 0, y: 0, w: t.width, h: t.height, cw: cw }, now); }
+      else { try { const t = window.top.document.getElementById('rtc_pen_top'); if (t) t.remove(); } catch (e) { /* gone */ } }
+      if (RTC_PEN.local.length || RTC_PEN.top.length) rtcPenLoop(); });
+  }
+
+  /* ---------- the chat of the call (text and photos; on the devices only – gone when the call ends) ---------- */
+  const RTC_IMG = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
+  function rtcChatIn(m, mine) {
+    const C = RTC.call; if (!C || !m || typeof m !== 'object') return false;
+    const txt = typeof m.txt === 'string' ? m.txt.slice(0, 500) : '', img = typeof m.img === 'string' && m.img.length <= 220000 && RTC_IMG.test(m.img) ? m.img : '';
+    if (!txt.trim() && !img) return false;
+    const box = $('rtc_msgs'), d = document.createElement('div'), who = document.createElement('small');
+    d.className = 'm' + (mine ? ' me' : ''); who.textContent = mine ? 'You' : String(m.name || rtcNameOf(m.uid) || 'Someone').slice(0, 40); d.appendChild(who);
+    if (img) { const i = document.createElement('img'); i.alt = 'Photo from ' + who.textContent; i.src = img; d.appendChild(i); } else d.appendChild(document.createTextNode(txt));
+    box.appendChild(d); while (box.children.length > 100) box.firstChild.remove(); box.scrollTop = box.scrollHeight;
+    if (!mine && $('rtc_chat').hidden) { C.unread++; rtcBar(); rtcSay('New message from ' + who.textContent + ' – press Chat.'); }
+    return true;
+  }
+  function rtcChatSend(m) { const C = RTC.call; if (!C) return; m = Object.assign({ t: 'chat', id: Math.random().toString(36).slice(2, 10), uid: RTC.me, name: RTC.myName }, m);
+    const big = (m.img || '').length; let sent = 0; C.peers.forEach(P => { if (!P.open) return; const max = P.pc.sctp && P.pc.sctp.maxMessageSize; if (big && max && big + 200 > max) return; if (rtcDc(P, m)) sent++; });
+    if (!sent) { rtcSay(C.peers.size ? 'Not sent – nobody is connected yet' + (big ? ' (or the photo is too big for this connection)' : '') + '.' : 'Not sent – nobody is in the call.'); return; }
+    rtcChatIn(m, true); }
+  $('rtc_chat_f').addEventListener('submit', e => { e.preventDefault(); const v = $('rtc_txt').value.trim(); if (!v) return; rtcChatSend({ txt: v.slice(0, 500) }); $('rtc_txt').value = ''; });
+  $('rtc_file').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f || !/^image\//.test(f.type)) return;
+    try { const url = URL.createObjectURL(f), im = new Image(); await new Promise((ok, no) => { im.onload = ok; im.onerror = no; im.src = url; });
+      let scale = Math.min(1, 1280 / Math.max(im.naturalWidth, im.naturalHeight)), out = '';
+      for (let i = 0; i < 6; i++) { const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.naturalWidth * scale)); c.height = Math.max(1, Math.round(im.naturalHeight * scale)); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); out = c.toDataURL('image/jpeg', 0.7); if (out.length <= 200000) break; scale *= 0.75; }
+      URL.revokeObjectURL(url); if (out.length > 200000 || !RTC_IMG.test(out)) { rtcSay('The photo could not be made small enough to send.'); return; }
+      rtcChatSend({ img: out }); } catch (er) { rtcWarn(er); rtcSay('That file could not be read as a photo.'); }
+  });
+
+  /* ---------- a snapshot of the picture, saved on this device (nothing goes to the server) ---------- */
+  function rtcSnap() {
+    const C = RTC.call, v = $('rtc_video'); if (!C || !v.videoWidth) { rtcSay('There is no picture to save yet.'); return; }
+    const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
+    const sh = C.shares[C.view] || {}, name = 'screen-share-' + String(sh.name || 'picture').replace(/[^A-Za-z0-9]+/g, '-') + '-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.png';
+    c.toBlob(b => { if (!b) return; const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 3000); RTC.lastSnap = name; rtcSay('Snapshot saved on this device: ' + name); }, 'image/png');
+  }
+
+  /* ---------- WhatsApp for a user who does not answer (his own "My mobile number") ---------- */
+  function rtcWaOffer(call, P, text) {
+    rawCall('rtcWa', { uid: P.uid, call: call }).then(x => {
+      if (!x || !x.mobile) { rtcSay(text + (x && x.none ? ' (' + P.name + ' has no mobile number in his Settings, so WhatsApp cannot be offered.)' : ''), true); return; }
+      let site = ''; try { site = window.top.location.origin; } catch (e) { site = ''; }
+      const msg = RTC.myName + ' wants to show you a screen in the Fleet ERP app (screen share with voice). Please open the app' + (site ? ': ' + site : '.');
+      rtcSayAct(text, [{ label: 'Ask on WhatsApp', href: 'https://wa.me/' + String(x.mobile).replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent(msg) }], true);
+    }).catch(e => { rtcWarn(e); rtcSay(text, true); });
+  }
+
+  /* ---------- "Show this to the Admin" from a red message ---------- */
+  function rtcHelpOk() { try { return rtcCan() && !RTC.off; } catch (e) { return false; } }
+  function rtcHelp(msg) { rtcStart({ help: { msg: String(msg || '').slice(0, 300), tab: S.curTab || '', title: $('page_title') ? $('page_title').textContent : '' } }).catch(er => { rtcWarn(er); toast(errMsg(er), true); }); }
+
+  /* ---------- missed calls (the red number on the screen button) ---------- */
+  function rtcMissBadge() { const b = $('rtc_badge'); if (!b) return; b.hidden = !RTC.missN; b.textContent = RTC.missN > 9 ? '9+' : String(RTC.missN || ''); }
+
+  /* ---------- notifications when the app is closed (Web Push; the browser's own permission) ---------- */
+  const rtcSW = () => { try { return window.top.navigator.serviceWorker || null; } catch (e) { return null; } };
+  const rtcNotifApi = () => { try { return window.top.Notification || null; } catch (e) { return null; } };
+  function rtcPushCan() { let pm = false; try { pm = !!window.top.PushManager; } catch (e) { pm = false; } return !!(rtcSW() && rtcNotifApi() && pm); }
+  const rtcB64ToU8 = s => { const b = atob(String(s).replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((String(s).length + 3) % 4)); return Uint8Array.from(b, ch => ch.charCodeAt(0)); };
+  const rtcU8ToB64 = buf => btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(buf)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const rtcSwReady = () => Promise.race([rtcSW().ready, new Promise((ok, no) => setTimeout(() => no(new Error('The app\'s background part is not ready – close the app and open it again.')), 8000))]);
+  async function rtcPushOn(ask) {
+    if (!rtcPushCan()) return 'no';
+    const N = rtcNotifApi(); if (N.permission === 'denied') return 'denied';
+    if (N.permission !== 'granted') { if (!ask) return 'ask'; const r = await N.requestPermission(); if (r !== 'granted') return r === 'denied' ? 'denied' : 'ask'; }
+    const k = (await rawCall('rtcPushKey')).key; if (!k) return 'off';
+    const reg = await rtcSwReady(); let sub = await reg.pushManager.getSubscription();
+    if (sub && sub.options && sub.options.applicationServerKey && rtcU8ToB64(sub.options.applicationServerKey) !== k) { try { await sub.unsubscribe(); } catch (e) { /* a new one is made */ } sub = null; }
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: rtcB64ToU8(k) });
+    const j = sub.toJSON(); await rawCall('rtcPushSave', { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth });
+    RTC.pushEp = j.endpoint; return 'on';
+  }
+  async function rtcPushLeave() { if (!RTC.pushEp || !S.token) return; const ep = RTC.pushEp; RTC.pushEp = ''; await Promise.race([rawCall('rtcPushOff', { endpoint: ep }), new Promise(ok => setTimeout(ok, 3000))]); }
+  function rtcNotifClose(call) { try { const sw = rtcSW(); if (!sw) return; sw.ready.then(reg => reg.getNotifications({ tag: 'rtc-' + call })).then(l => l.forEach(n => n.close())).catch(() => {}); } catch (e) { /* no notifications here */ } }
+  // after every sign-in: this device's notifications are (again) this user's; missed calls; the question "turn on?" a few times
+  function rtcAfterLogin() {
+    RTC.since = null; RTC.missN = 0; rtcMissBadge();
+    setTimeout(() => { if (!S.token) return; rawCall('rtcMissed').then(x => { RTC.missN = Number(x && x.unseen) || 0; rtcMissBadge(); if (RTC.missN) rtcSay('Missed screen share: ' + x.list.slice(0, 3).map(m => m.name).join(', ') + ' – call back from the screen button at the top.', true); }).catch(rtcWarn); }, 2500);
+    setTimeout(() => { if (!S.token || !rtcPushCan()) return; const N = rtcNotifApi();
+      if (N.permission === 'granted') { rtcPushOn(false).catch(rtcWarn); return; }
+      if (N.permission !== 'default') return;
+      let n = 0; try { n = Number(localStorage.getItem('rcl_np_asked') || 0); if (localStorage.getItem('rcl_np_no') === '1') return; } catch (e) { n = 0; }
+      if (n >= 3) return; try { localStorage.setItem('rcl_np_asked', String(n + 1)); } catch (e) { /* asked again next time */ }
+      rtcSayAct('Get screen share calls even when the app is closed?', [{ label: 'Turn on', plain: true, fn: () => npTurnOn() }, { label: 'Not now', plain: true, fn: () => { try { localStorage.setItem('rcl_np_no', '1'); } catch (e) { /* fine */ } } }], true);
+    }, 20000);
+  }
+  // Settings → This app → "Screen share calls when the app is closed"
+  async function npDraw() {
+    const st = $('np_state'), msg = $('np_msg'), btn = $('np_on'); if (!st) return;
+    let ios = false; try { ios = !!(window.top.rclApp && window.top.rclApp.ios()); } catch (e) { ios = false; }
+    if (!rtcPushCan()) { st.textContent = 'Not possible in this browser'; msg.textContent = ios ? 'iPhone / iPad: first add the app to the Home Screen (Share → Add to Home Screen) and open it from there.' : 'Use Chrome or Edge.'; btn.hidden = true; return; }
+    const p = rtcNotifApi().permission;
+    if (p === 'denied') { st.textContent = 'Blocked in this browser'; msg.textContent = 'Allow notifications for this site: the lock sign beside the address → Notifications → Allow, then press Turn on.'; btn.hidden = false; return; }
+    if (p === 'granted' && RTC.pushEp) { st.textContent = 'On – on this device'; msg.textContent = 'A ring shows as a notification of this device; tap it to open the app and answer.'; btn.hidden = true; return; }
+    st.textContent = 'Off on this device'; msg.textContent = 'Turn on, so that a screen share call reaches you even when the app is closed.'; btn.hidden = false;
+  }
+  async function npTurnOn() {
+    try { const r = await rtcPushOn(true);
+      if (r === 'on') { rtcSay('Done: screen share calls now reach this device even when the app is closed.'); try { localStorage.removeItem('rcl_np_no'); } catch (e) { /* fine */ } }
+      else if (r === 'denied') toast('Notifications are blocked for this site in this browser: the lock sign beside the address → Notifications → Allow, then try again.', true);
+      else if (r === 'no') toast('This browser cannot show notifications for the app' + (/iPhone|iPad/.test(navigator.userAgent) ? ' – on iPhone add the app to the Home Screen first and open it from there.' : '.'), true);
+      else if (r === 'off') toast('Screen share: notifications are not set up on the server.', true);
+    } catch (e) { rtcWarn(e); toast('Screen share: notifications could not be turned on (' + String(e && e.message || e).slice(0, 120) + ').', true); }
+    npDraw();
+  }
+  $('tab-settings').addEventListener('click', () => { npDraw(); });
+  // a tap on a notification (the app was open): look for the ring at once
+  // (one listener on the shell for good; it calls whichever copy of the app is in the frame now – the app may be replaced by an update)
+  try { window.top.rclRtcOpen = () => { if (S.token) { RTC.stuck = { r: -1, at: 0 }; try { syncNow(); } catch (er) { /* the next heartbeat brings it */ } } };
+    const sw = rtcSW(); if (sw && !window.top.__rclRtcSw) { window.top.__rclRtcSw = true; sw.addEventListener('message', e => { try { if (e.data && e.data.rtcOpen && window.top.rclRtcOpen) window.top.rclRtcOpen(); } catch (er) { /* the app is being replaced */ } }); } } catch (e) { /* no background part here */ }
+  try { const old = window.top.document.getElementById('rtc_pen_top'); if (old) old.remove(); } catch (e) { /* (a pen layer left by the app before an update) */ }
+
+  /* ---------- Users & Access → Screen share: who may use it (Admin) ---------- */
+  async function rrLoad() {
+    const box = $('rr_list'); if (!box || !(S.user && S.user.admin)) return;
+    try { const r = await rawCall('rtcRights'); rrDraw(r); } catch (e) { box.innerHTML = '<p class="empty-note">' + esc(errMsg(e)) + '</p>'; }
+  }
+  function rrDraw(r) { $('rr_list').innerHTML = (r.users || []).map(u => '<label class="' + (u.admin ? 'adm' : '') + '"><input type="checkbox" data-rr="' + esc(u.uid) + '"' + (u.on ? ' checked' : '') + (u.admin ? ' disabled title="Admin users always may"' : '') + '> ' + esc(u.name) + (u.admin ? ' (Admin)' : '') + '</label>').join('') || '<p class="empty-note">No users.</p>'; }
+  $('tab-users').addEventListener('click', () => { rrLoad(); });
+  $('rr_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
+    const off = [...document.querySelectorAll('#rr_list input[data-rr]')].filter(c => !c.checked && !c.disabled).map(c => c.dataset.rr);
+    rrDraw(await rawCall('rtcRightsSave', { off: off })); toast('Screen share access saved.');
+  }).catch(er => toast(errMsg(er), true)));
+  // Activity Log → "Screen share calls": who showed a screen to whom, how long, declined, not answered
+  $('af_rtc').addEventListener('click', () => { $('af_module').value = 'Screen Share'; loadActivity(); });
   window.addEventListener('pagehide', () => { try { const C = RTC.call; if (C) C.peers.forEach(P => rtcDc(P, { t: 'bye', end: C.role === 'host' })); } catch (e) { /* the page is closing */ } });
 </script>
 </body>

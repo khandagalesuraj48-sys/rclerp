@@ -1406,6 +1406,43 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * His "Waiting for the server … (getInit)" after sign-in: the app's own slow-answer notice (names the call after 6 s). getInit
     is unchanged since update-71; expected once after each deploy (fresh server). Not measured live – if at EVERY sign-in, get the
     seconds from him and measure getInit.
+- 10-10-2026 (update-75, asked after update-74 went live – `45020f9`). Report: `UPDATE_75.md`. NO SQL, nothing to set in Vercel.
+  SCREEN SHARE "MASTER LEVEL" – 13 features at once ("build all of it, perfectly, think of security").
+  * DATA (no new table): app_settings rows `PUSH|<uid>` (devices, ≤ 6: {e endpoint, k p256dh, a auth, at}), `PUSHE|<hash>` (device →
+    user, so a device moves to whoever signs in on it), `RTCMISS|<uid>` ({seen, list ≤ 20, 3 days; st r ringing / a answered /
+    d declined / m missed}), `RTC_OFF` (uids switched off; cached as RTC_OFF_C 60 s). Cache: `RTCP_<uid>` rings waiting for a page that
+    opens now (rtcBeat_ with no r returns them – rtcPending_), `RTCD_`/`RTCL_` declined / logged-as-missed, `RTCG_`/`RTCRG_`/`RTCRH_`
+    ring limits (8 / min, 40 / h per caller), `RTCPU_<caller>_<callee>` one notification per 20 s, `RTCW_` WhatsApp 10 / h, `RTCS_`
+    device saves 20 / h. Notes: new kind `re` (ICE restart offer / answer, host ↔ guest only); decline carries `reply` 1-3; answer /
+    decline carry `ep` (this device's endpoint – the user's OTHER devices get a "done" push).
+  * WEB PUSH (`server/runtime.js` block "WEB PUSH"): VAPID key = HMAC-SHA256(RCL_PUSH_SEED || SUPABASE_SECRET_KEY, 'rcl-webpush-vapid-v1')
+    (P-256; NEVER stored; changing the secret changes the key – pages re-subscribe at the next sign-in: rtcPushOn compares the
+    applicationServerKey). pushEncrypt = RFC 8291 aes128gcm (checked with http_ece), pushAuth = RFC 8292 ES256 JWT (aud = endpoint
+    origin, 12 h, sub = https://VERCEL_PROJECT_PRODUCTION_URL). pushOk = https, no port, host in PUSH_HOSTS (FCM, Mozilla,
+    *.notify.windows.com, web.push.apple.com); RCL_PUSH_TEST_HOST (rig stand-in, http) is refused when VERCEL_ENV = production.
+    Requests with redirect 'error' (server/syncfetch.js q.redirect), 5 s, sent INSIDE the ring request (a slow push service makes
+    the ring answer up to 5 s late; on time-out the fetch helper is restarted). TTL ring 75 s, missed 3600, done 120.
+  * SERVICE WORKER (`app/sw.js`): push → ring (requireInteraction, vibrate) / missed / done (closes the ring, a quiet note closed
+    after 4 s); notificationclick → focus the app window + postMessage {rtcOpen} (the app: window.top.rclRtcOpen → syncNow) or
+    openWindow('/'). The page asks permission ~20 s after sign-in (max 3 times, "Not now" remembered: localStorage rcl_np_*), or
+    Settings → This app → Turn on (npTurnOn). rtcAfterLogin re-saves the device each sign-in; rtcPushLeave on Sign out.
+  * PAGE (App.html, block "SCREEN SHARE – MASTER LEVEL" + changes in the update-72 block): list = modes (screen / cam / page),
+    missed calls (Call back = tick), help box; C.kind 'screen' | 'cam' (rtcGetCam, rtcFlip replaceTrack, rtcTorch), C.pageMode +
+    follow (rtcFollowSeen / rtcFollowApply – only rtcTabOk pages; C.noFollow), rtcRestart / rtcAwait / rtcOnRe / rtcReCheck (a
+    restart on a line that stayed "connected" fires no event – rtcReCheck looks again), rtcNetCheck (every 3 s; poor twice →
+    low data by itself), rtcLow / rtcLowApply (setParameters on the video senders TO a person who asked, 150 kbit/s, 5 fps), pen
+    (viewer canvas #rtc_pen, sharer's canvas #rtc_pen_top in window.top, 10 s), chat (#rtc_chat; text = textContent, img must be
+    data:image/jpeg ≤ 220 KB; 15 / 10 s per peer), snapshot (PNG via <a download>), rtcWaOffer (15 s / no answer), rtcSayAct
+    (notice with a button or link – text only). fixCard: "Show this to the Admin" (not for Admin, not when switched off, not on
+    "Screen share…" messages) → rtcHelp → ring d.help {title, msg ≤ 300, tab}. Users & Access panel #rr_panel (rrLoad / rrDraw),
+    Activity Log button #af_rtc. Help texts EN / MR / HI in PAGE_GUIDE settings / users / activity and the "Screen share" advice.
+  * TESTS: unit 52 (new: the server rules + the review points); browser `master75.js` (13), `media75.js` (21), `push75.js <port
+    with RCL_PUSH_TEST_HOST=127.0.0.1:3555>` (9 – needs the FULL Chromium /opt/pw-browsers/chromium-1194/chrome-linux/chrome: the
+    headless shell refuses every notification). A test must not open the "Share my screen" list and look for a name inside <b>
+    with extra text (the Admin label is a separate <small class="rtc-adm">).
+  * NOT VERIFIED: real push services / phones (rig has no internet to FCM / WNS / Apple), a real camera / torch, a real line drop,
+    WhatsApp on a phone, iPhone. Known and accepted: the missed list is read-change-write without a lock (two rings to the same
+    user at the same instant can lose one line); the caller's help page name goes through the push service (≤ 40 letters).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

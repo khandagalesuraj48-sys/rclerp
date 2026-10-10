@@ -443,21 +443,25 @@ function publicUser_(u) { return { email: u.email, name: u.name, admin: u.admin,
  * No new table, no SQL. Nothing of a call is recorded; the Activity Log gets one line when a call is joined and one when
  * it ends (who, with whom, how long). */
 const RTC_COUNT_ = 'RTCN', RTC_MSG_ = 'RTCM_', RTC_STORE_ = 150;      // a note stays in the store for 150 s whatever its kind (so that a number that is gone is known to be OLD, not "not written yet")
-const RTC_KEEP_ = { who: 8, here: 8, ring: 75, answer: 45, decline: 45, cancel: 75, busy: 45, bye: 45 };      // seconds a note is of use to its receiver (a page in a background tab asks the server only about once a minute)
+const RTC_KEEP_ = { who: 8, here: 8, ring: 75, answer: 45, decline: 45, cancel: 75, busy: 45, bye: 45, re: 40 };      // re: a connection that dropped is made again (update-75)      // seconds a note is of use to its receiver (a page in a background tab asks the server only about once a minute)
 function rtcUid_(email) { return hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'rtc|' + str_(email).toLowerCase(), Utilities.Charset.UTF_8)).slice(0, 16); }
 const rtcName_ = x => str_(x.name) || str_(x.email).split('@')[0] || 'User';      // (a user without a name is shown by the first part of the address, never the whole address)
-function rtcPeople_() { return readUsers_().filter(x => x.active).map(x => ({ uid: rtcUid_(x.email), name: rtcName_(x) })); }
-// the list a user picks from (everybody who can sign in, except himself) and how the browsers find each other
+// everybody who can sign in and may use screen share (the Admin can switch it off per user – rtcRights_); email stays on the server
+function rtcPeople_(all) { const off = all ? [] : rtcOff_(); return readUsers_().filter(x => x.active).map(x => ({ uid: rtcUid_(x.email), name: rtcName_(x), admin: !!x.admin, email: x.email })).filter(p => p.admin || off.indexOf(p.uid) < 0); }
+/* WHO MAY USE SCREEN SHARE (update-75): every user, unless the Admin has switched it off for him (Users & Access → "Screen share").
+ * Kept as one list of the users it is OFF for (app_settings RTC_OFF), so nobody loses it by the update and no new column is needed.
+ * An Admin can never be switched off. */
+function rtcOff_() { return memoGet_('__rtcoff', () => {      // (kept in the cache store for a minute: every note of a call asks it)
+  const c = CacheService.getScriptCache(); let raw = c.get('RTC_OFF_C'); if (raw === null || raw === undefined) { raw = kvRead_('RTC_OFF') || '[]'; c.put('RTC_OFF_C', raw, 60); }
+  let j = []; try { j = JSON.parse(raw || '[]'); } catch (e) { j = []; } return Array.isArray(j) ? j.map(str_).filter(x => /^[0-9a-f]{16}$/.test(x)) : []; }); }
+const rtcMay_ = u => !!u.admin || rtcOff_().indexOf(rtcUid_(u.email)) < 0;
+// the list a user picks from (everybody who may use it, except himself) and how the browsers find each other
 function rtcUsers_(u) {
-  const me = rtcUid_(u.email), relay = rtcRelay_();
-  return { me: me, name: rtcName_(u), users: rtcPeople_().filter(p => p.uid !== me).sort((a, b) => a.name.localeCompare(b.name)),
-    ice: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }].concat(relay ? [relay] : []), relay: !!relay, max: 3 };
+  const me = rtcUid_(u.email), relay = rtcRelay_(), ice = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }].concat(relay ? [relay] : []);
+  if (!rtcMay_(u)) return { off: true, me: me, name: rtcName_(u), users: [], ice: [], relay: false, max: 3 };      // (switched off: not even the relay's keys)
+  return { me: me, name: rtcName_(u), users: rtcPeople_().filter(p => p.uid !== me).map(p => ({ uid: p.uid, name: p.name, admin: p.admin })).sort((a, b) => a.name.localeCompare(b.name)),
+    ice: ice, relay: !!relay, max: 3 };
 }
-/* The relay (TURN server) of the site, when one is set in the hosting's settings (server/runtime.js __rtcRelay): two computers that
- * cannot reach each other directly send the encrypted picture and sound through it. RTC_TURN_URL may be written as the relay's
- * site shows it – "relay1.example.com:3478", with or without "turn:" in front, several separated by commas; each address is
- * offered over UDP and over TCP. A browser needs the name and password to use the relay, so every signed-in user's page gets
- * them (they open the relay only, nothing of the app). */
 /* WHICH VERSION RUNS – for the Admin (update-74, asked 10-10-2026: "the Admin must be able to understand which version the app
  * runs on", and whether the screen share's relay is there). The update number is read from the message of the commit the
  * deployment was made from ("update-74: …"); the relay is given by its address only – never its name or password. */
@@ -468,6 +472,11 @@ function appVersion_() {
   if (relay) relay.urls.forEach(x => { const h = x.replace(/^turns?:/, '').replace(/\?.*$/, ''); if (hosts.indexOf(h) < 0) hosts.push(h); });
   return { update: m ? 'update-' + m[1].toLowerCase() : '', msg: msg, sha: String(d && d.sha || '').slice(0, 7), env: String(d && d.env || ''), build: appBuild_(), relay: hosts };
 }
+/* The relay (TURN server) of the site, when one is set in the hosting's settings (server/runtime.js __rtcRelay): two computers that
+ * cannot reach each other directly send the encrypted picture and sound through it. RTC_TURN_URL may be written as the relay's
+ * site shows it – "relay1.example.com:3478", with or without "turn:" in front, several separated by commas; each address is
+ * offered over UDP and over TCP. A browser needs the name and password to use the relay, so every signed-in user's page gets
+ * them (they open the relay only, nothing of the app). */
 function rtcRelay_() {
   let r = null; try { r = typeof __rtcRelay === 'function' ? __rtcRelay() : null; } catch (e) { r = null; }
   if (!r || !r.url || !r.user || !r.pass) return null;
@@ -490,7 +499,8 @@ function rtcSend_(u, x) {
   const t = str_(x.t), me = rtcUid_(u.email), people = rtcPeople_(), nameOf = id => (people.find(p => p.uid === id) || {}).name || '?', myName = rtcName_(u);
   const call = str_(x.call).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40), cache = CacheService.getScriptCache();
   if (typeof __count === 'function') { const k = __count('RTCR_' + me + '_' + Math.floor(Date.now() / 60000), 90); if (k > 150) throw new Error('Screen share: too many requests in a minute – wait a little and try again.'); }
-  if (call) cache.getAll(['RTCE_' + call, 'RTCC_' + call + '_' + me, 'RTCA_' + call + '_' + me].concat([...new Set((Array.isArray(x.to) ? x.to : [x.to]).map(str_).filter(Boolean))].slice(0, 6).reduce((k, id) => k.concat(['RTCC_' + call + '_' + id, 'RTCA_' + call + '_' + id]), [])));      // what is remembered of this call, read in one go
+  if (!rtcMay_(u) && ['here', 'busy', 'decline', 'cancel', 'bye', 'end'].indexOf(t) < 0) throw new Error('Screen share is switched off for you – the Admin can switch it on in Users & Access.');
+  if (call) cache.getAll(['RTCE_' + call, 'RTCC_' + call + '_' + me, 'RTCA_' + call + '_' + me, 'RTCD_' + call + '_' + me].concat([...new Set((Array.isArray(x.to) ? x.to : [x.to]).map(str_).filter(Boolean))].slice(0, 6).reduce((k, id) => k.concat(['RTCC_' + call + '_' + id, 'RTCA_' + call + '_' + id, 'RTCD_' + call + '_' + id, 'RTCL_' + call + '_' + id]), [])));      // what is remembered of this call, read in one go
   const rung = id => { const v = str_(cache.get('RTCC_' + call + '_' + id)).split('|'); return v[0] ? { host: v[0], at: Number(v[1]) || 0 } : null; };
   if (t === 'end') {      // the call is over (said by its host): one line for the Activity Log, once
     const ids = [...new Set((Array.isArray(x.to) ? x.to : []).map(str_))].slice(0, 6).filter(id => { const r = rung(id); return r && r.host === me && !!cache.get('RTCA_' + call + '_' + id); });
@@ -505,13 +515,19 @@ function rtcSend_(u, x) {
   if (t !== 'who') {
     if (!to.length) throw new Error('Screen share: pick the user to share with.');
     if (to.length > 3) throw new Error('Screen share: at most 3 users at a time.');
-    if (to.some(id => !people.some(p => p.uid === id))) throw new Error('Screen share: that user is not in the list any more – open the list again.');
+    const among = ['cancel', 'bye', 'busy', 'decline', 'here'].indexOf(t) > -1 ? rtcPeople_(true) : people;      // (ending a call works also with a user switched off meanwhile)
+    if (to.some(id => !among.some(p => p.uid === id))) throw new Error('Screen share: that user is not in the list any more (or may not use screen share) – open the list again.');
+  }
+  if (t === 'ring' && to.some(id => !rung(id))) {      // a NEW ring: at most 8 calls a minute and 40 an hour from one user (a loop of rings cannot flood the others' phones)
+    const mn = Math.floor(Date.now() / 60000), hr = Math.floor(Date.now() / 3600000), cnt = (k, ttl) => { if (typeof __count === 'function') { const v = __count(k, ttl); if (v !== -1) return v; } const v = (Number(cache.get(k)) || 0) + 1; cache.put(k, String(v), ttl); return v; };
+    const fresh = !cache.get('RTCG_' + call + '_' + me) && (cache.put('RTCG_' + call + '_' + me, '1', 21600), true);
+    if (fresh && (cnt('RTCRG_' + me + '_' + mn, 90) > 8 || cnt('RTCRH_' + me + '_' + hr, 3700) > 40)) throw new Error('Screen share: too many calls started in a short time – wait a few minutes and try again.');
   }
   if (t !== 'who' && t !== 'here') {
     if (!call) throw new Error('Screen share: this request is not complete – press Update in the app and try again.');
     if (t !== 'ring') {      // only inside a call that was really rung: from one of its guests to its host, or from its host to its guests
       const mine = rung(me), asGuest = !!mine && to.length === 1 && mine.host === to[0], asHost = to.every(id => { const r = rung(id); return !!r && r.host === me; });
-      if (!(asGuest || (asHost && (t === 'cancel' || t === 'bye')))) throw new Error('Screen share: that screen share is not there any more.');
+      if (!(asGuest || (asHost && (t === 'cancel' || t === 'bye' || t === 're')))) throw new Error('Screen share: that screen share is not there any more.');
     }
   }
   const d = x.d === undefined || x.d === null ? '' : (typeof x.d === 'string' ? x.d : JSON.stringify(x.d));
@@ -519,8 +535,26 @@ function rtcSend_(u, x) {
   let n = typeof __count === 'function' ? Number(__count(RTC_COUNT_, 2592000)) : -1;
   if (!(n > 0)) { n = (Number(cache.get(RTC_COUNT_)) || 0) + 1; cache.put(RTC_COUNT_, String(n), 21600); }      // (no counter in the database: the next number after the last one read)
   cache.put(RTC_MSG_ + n, JSON.stringify({ id: Utilities.getUuid(), n: n, to: to, from: me, name: myName, t: t, call: call, d: d, at: Date.now() }), RTC_STORE_);
-  if (t === 'ring') to.forEach(id => { if (!rung(id)) cache.put('RTCC_' + call + '_' + id, me + '|' + Date.now(), 21600); });
-  if (t === 'answer' && !cache.get('RTCA_' + call + '_' + me)) { cache.put('RTCA_' + call + '_' + me, '1', 21600); writeLog_(u, 'Screen share', 'Screen Share', call, myName + ' joined the screen share of ' + to.map(nameOf).join(', '), ''); }
+  let dj = {}; try { dj = d ? JSON.parse(d) : {}; } catch (e) { dj = {}; } if (!dj || typeof dj !== 'object') dj = {};
+  if (t === 'ring') {
+    const fresh = to.filter(id => !rung(id));
+    fresh.forEach(id => { cache.put('RTCC_' + call + '_' + id, me + '|' + Date.now(), 21600); rtcPendAdd_(id, n, call); });
+    // the ones rung: on their list of calls (missed until they answer), and a notification to their devices (the app may be closed)
+    const help = dj.help && typeof dj.help === 'object' ? clean_(dj.help.title || '').slice(0, 40) : '';
+    fresh.forEach(id => { try { rtcMissEdit_(id, l => { l.unshift({ call: call, from: me, name: myName, at: Date.now(), st: 'r' }); return l; }); } catch (e) { /* the list is a help, never in the way of the ring */ } });
+    rtcPush_(fresh.filter(id => !cache.get('RTCPU_' + me + '_' + id) && (cache.put('RTCPU_' + me + '_' + id, '1', 20), true)), { t: 'ring', call: call, name: myName, help: help ? 1 : 0, page: help });      // (one notification per caller and person in 20 s)
+  }
+  if ((t === 'answer' || t === 'decline') && !cache.get('RTCA_' + call + '_' + me) && !cache.get('RTCD_' + call + '_' + me)) rtcPush_([me], { t: 'done', call: call, name: nameOf(to[0]) }, str_(dj.ep));      // his other devices: "answered on another device"
+  if (t === 'answer' && !cache.get('RTCA_' + call + '_' + me)) { cache.put('RTCA_' + call + '_' + me, '1', 21600); rtcPendDrop_(me, call); try { rtcMissEdit_(me, l => rtcMissMark_(l, call, 'a')); } catch (e) { /* see above */ } writeLog_(u, 'Screen share', 'Screen Share', call, myName + ' joined the screen share of ' + to.map(nameOf).join(', '), ''); }
+  if (t === 'decline' && !cache.get('RTCD_' + call + '_' + me) && !cache.get('RTCA_' + call + '_' + me)) { cache.put('RTCD_' + call + '_' + me, '1', 21600); rtcPendDrop_(me, call); try { rtcMissEdit_(me, l => rtcMissMark_(l, call, 'd')); } catch (e) { /* see above */ }
+    writeLog_(u, 'Screen share', 'Screen Share', call, myName + ' declined the screen share of ' + to.map(nameOf).join(', ') + (RTC_REPLY_[Number(dj.reply)] ? ' (reply: ' + RTC_REPLY_[Number(dj.reply)] + ')' : ''), ''); }
+  // the host gave up ringing (no answer): the one rung gets "missed" on his devices, and the Activity Log one line – once
+  if ((t === 'cancel' || t === 'bye') && to.length && to.every(id => { const r = rung(id); return !!r && r.host === me; })) {
+    const gaveUp = !dj.why && !dj.butdev ? to.filter(id => !cache.get('RTCA_' + call + '_' + id) && !cache.get('RTCD_' + call + '_' + id) && !cache.get('RTCL_' + call + '_' + id)) : [];
+    to.forEach(id => rtcPendDrop_(id, call));
+    if (gaveUp.length) { gaveUp.forEach(id => { cache.put('RTCL_' + call + '_' + id, '1', 21600); try { rtcMissEdit_(id, l => rtcMissMark_(l, call, 'm')); } catch (e) { /* see above */ } }); rtcPush_(gaveUp, { t: 'missed', call: call, name: myName });
+      writeLog_(u, 'Screen share', 'Screen Share', call, gaveUp.map(nameOf).join(', ') + ' did not answer the screen share of ' + myName, ''); }
+  }
   return { ok: true, n: n };
 }
 /* The heartbeat's part: a = { r: the number this page has read up to, skip: true = do not wait any longer for a number that is
@@ -531,7 +565,7 @@ function rtcSend_(u, x) {
  * "skip" after waiting a few seconds. */
 function rtcBeat_(u, a) {
   const cache = CacheService.getScriptCache(), top = Math.max(0, Math.floor(Number(cache.get(RTC_COUNT_)) || 0));
-  if (!a || typeof a !== 'object' || a.r === undefined || a.r === null || !isFinite(Number(a.r))) return { r: top, top: top, m: [] };      // a page that has just opened: from now on
+  if (!a || typeof a !== 'object' || a.r === undefined || a.r === null || !isFinite(Number(a.r))) return { r: top, top: top, m: rtcPending_(u) };      // a page that has just opened: from now on – and a ring that is still waiting for this user (the app was opened from its notification)
   const since = Math.max(0, Math.floor(Number(a.r)));
   if (since > top) return { r: top, top: top, m: [] };      // the counter started again
   if (since === top) return null;
@@ -549,6 +583,82 @@ function rtcBeat_(u, a) {
     out.push({ id: m.id, n: m.n, from: m.from, name: m.name, t: m.t, call: m.call, d: m.d, age: Math.max(0, now - Number(m.at)) });
   }
   return { r: r, top: top, m: out };
+}
+/* ---------- update-75: calls that reach the user, missed calls, replies, WhatsApp, notifications, rights ---------- */
+const RTC_REPLY_ = { 1: 'I will call you back in 5 minutes.', 2: 'I am in a meeting – later, please.', 3: 'Please call me on the phone.' };
+// rings that are still waiting for a user (for a page that opens now): RTCP_<user> = [{ n, call, at }] – a few, for two minutes
+function rtcPendAdd_(id, n, call) { const c = CacheService.getScriptCache(); let l = []; try { l = JSON.parse(c.get('RTCP_' + id) || '[]'); } catch (e) { l = []; }
+  l = (Array.isArray(l) ? l : []).filter(x => x && Date.now() - Number(x.at) < 80000 && x.call !== call); l.unshift({ n: n, call: call, at: Date.now() }); c.put('RTCP_' + id, JSON.stringify(l.slice(0, 5)), 120); }
+function rtcPendDrop_(id, call) { const c = CacheService.getScriptCache(), raw = c.get('RTCP_' + id); if (!raw) return; let l = []; try { l = JSON.parse(raw); } catch (e) { l = []; }
+  const k = (Array.isArray(l) ? l : []).filter(x => x && x.call !== call); if (k.length !== l.length) { if (k.length) c.put('RTCP_' + id, JSON.stringify(k), 120); else c.remove('RTCP_' + id); } }
+function rtcPending_(u) {
+  const c = CacheService.getScriptCache(), me = rtcUid_(u.email); let l = []; try { l = JSON.parse(c.get('RTCP_' + me) || '[]'); } catch (e) { l = []; }
+  l = (Array.isArray(l) ? l : []).filter(x => x && Number(x.n) > 0 && Date.now() - Number(x.at) < 75000); if (!l.length) return [];
+  const got = c.getAll([].concat(...l.map(x => [RTC_MSG_ + x.n, 'RTCA_' + x.call + '_' + me, 'RTCD_' + x.call + '_' + me, 'RTCL_' + x.call + '_' + me]))) || {}, out = [];
+  l.forEach(x => { if (got['RTCA_' + x.call + '_' + me] || got['RTCD_' + x.call + '_' + me] || got['RTCL_' + x.call + '_' + me]) return;
+    let m = null; try { m = JSON.parse(got[RTC_MSG_ + x.n] || 'null'); } catch (e) { m = null; }
+    if (m && m.t === 'ring' && m.call === x.call && Array.isArray(m.to) && m.to.indexOf(me) > -1) out.push({ id: m.id, n: m.n, from: m.from, name: m.name, t: m.t, call: m.call, d: m.d, age: Math.max(0, Date.now() - Number(m.at)) }); });
+  return out;
+}
+// the calls a user was rung in (app_settings RTCMISS|<user>): the last 20, 3 days; st r = ringing, a = answered, d = declined, m = missed (the caller gave up)
+const rtcMissKey_ = id => 'RTCMISS|' + id;
+function rtcMissRead_(id) { let j = null; try { j = JSON.parse(kvRead_(rtcMissKey_(id)) || 'null'); } catch (e) { j = null; } j = j && typeof j === 'object' ? j : {}; return { seen: Number(j.seen) || 0, list: Array.isArray(j.list) ? j.list : [] }; }
+function rtcMissEdit_(id, f) { const o = rtcMissRead_(id); o.list = (f(o.list.slice()) || []).filter(x => x && Date.now() - Number(x.at) < 3 * 86400000).slice(0, 20); kvWrite_(rtcMissKey_(id), JSON.stringify(o)); return o; }
+const rtcMissMark_ = (l, call, st) => l.map(x => x.call === call && x.st === 'r' ? Object.assign({}, x, { st: st }) : x);
+function rtcMissed_(u, x) {
+  const me = rtcUid_(u.email); let o = rtcMissRead_(me);
+  if (x && x.seen) { o.seen = Date.now(); kvWrite_(rtcMissKey_(me), JSON.stringify(o)); }
+  if (x && x.clear) { o = { seen: Date.now(), list: o.list.filter(m => m.st !== 'r' && m.st !== 'm') }; kvWrite_(rtcMissKey_(me), JSON.stringify(o)); }
+  const people = rtcPeople_(), missed = o.list.filter(m => m.st === 'm' || (m.st === 'r' && Date.now() - Number(m.at) > 80000));      // the caller gave up, or it rang out (still ringing = not missed yet)
+  return { list: missed.map(m => ({ call: str_(m.call), from: str_(m.from), name: clean_(m.name).slice(0, 60), at: Number(m.at) || 0, can: people.some(p => p.uid === m.from) })), unseen: missed.filter(m => Number(m.at) > o.seen).length };
+}
+/* WhatsApp (update-75): "Ask on WhatsApp" for a user who does not answer – his own "My mobile number" (Settings). Given only for a
+ * user THIS user has just rung in this call (so the numbers cannot be collected), and only when he has set a number. */
+function rtcWa_(u, x) {
+  x = x || {}; const me = rtcUid_(u.email), id = str_(x.uid), call = str_(x.call).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
+  const c = CacheService.getScriptCache(), v = call ? str_(c.get('RTCC_' + call + '_' + id)).split('|') : [];
+  if (!call || v[0] !== me || !(Date.now() - Number(v[1]) < 180000) || c.get('RTCA_' + call + '_' + id) || c.get('RTCD_' + call + '_' + id)) throw new Error('Screen share: WhatsApp can be used for a user you have just rung.');
+  if (typeof __count === 'function' && __count('RTCW_' + me + '_' + Math.floor(Date.now() / 3600000), 3700) > 10) throw new Error('Screen share: WhatsApp was asked for too often – wait a while.');
+  const p = readUsers_().find(w => w.active && rtcUid_(w.email) === id); if (!p) return { none: true };
+  const mob = prefsRead_(p.email).mobile; return mob ? { mobile: '91' + mob, name: rtcName_(p) } : { none: true, name: rtcName_(p) };
+}
+/* NOTIFICATIONS (update-75): a browser that allowed them gives a subscription (server/runtime.js WEB PUSH); kept per user in
+ * app_settings PUSH|<user> (at most 6 devices). One device belongs to one user: when another user signs in on it, it moves. */
+const rtcSubKey_ = id => 'PUSH|' + id, rtcSubIdx_ = e => 'PUSHE|' + hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, str_(e), Utilities.Charset.UTF_8)).slice(0, 24);
+function rtcSubs_(id) { let j = []; try { j = JSON.parse(kvRead_(rtcSubKey_(id)) || '[]'); } catch (e) { j = []; } return (Array.isArray(j) ? j : []).filter(s => s && s.e && s.k && s.a); }
+function rtcPushKey_() { return { key: typeof __pushKey === 'function' ? __pushKey() : '' }; }
+function rtcPushSave_(u, x) {
+  x = x || {}; const e = str_(x.endpoint), k = str_(x.p256dh), a = str_(x.auth), me = rtcUid_(u.email);
+  if (typeof __count === 'function' && __count('RTCS_' + me + '_' + Math.floor(Date.now() / 3600000), 3700) > 20) throw new Error('Screen share: notifications were turned on too often in the last hour – try again later.');
+  if (!(typeof __pushOk === 'function' && __pushOk(e))) throw new Error('Screen share: this browser\'s notifications cannot be used (not a known push service).');
+  if (!/^[A-Za-z0-9_-]{86,88}$/.test(k) || !/^[A-Za-z0-9_-]{21,24}$/.test(a)) throw new Error('Screen share: this browser\'s notification keys are not valid – turn notifications off and on again.');
+  const idx = rtcSubIdx_(e), was = str_(kvRead_(idx));
+  if (was && was !== me) { const l = rtcSubs_(was).filter(s => s.e !== e); kvWrite_(rtcSubKey_(was), JSON.stringify(l)); }      // this device was another user's: not his any more
+  const l = [{ e: e, k: k, a: a, at: Date.now() }].concat(rtcSubs_(me).filter(s => s.e !== e)).slice(0, 6);
+  kvWrite_(rtcSubKey_(me), JSON.stringify(l)); if (was !== me) kvWrite_(idx, me);
+  return { ok: true, devices: l.length };
+}
+function rtcPushOff_(u, x) { const e = str_(x && x.endpoint), me = rtcUid_(u.email), l = rtcSubs_(me), k = l.filter(s => s.e !== e); if (k.length !== l.length) kvWrite_(rtcSubKey_(me), JSON.stringify(k)); return { ok: true }; }
+// a notification to every device of these users; a device the push service says is gone (404 / 410) is forgotten. Never throws.
+function rtcPush_(ids, msg, but) {
+  try {
+    if (!ids.length || typeof __pushSend !== 'function' || !(typeof __pushKey === 'function' && __pushKey())) return;
+    const all = []; ids.forEach(id => rtcSubs_(id).forEach(s => { if (s.e !== but) all.push({ id: id, s: s }); }));
+    if (!all.length) return;
+    const res = JSON.parse(__pushSend(JSON.stringify(all.map(x => x.s)), JSON.stringify(msg), msg.t === 'ring' ? 75 : msg.t === 'done' ? 120 : 3600)), dead = {};
+    res.forEach((r, i) => { if (r && (r.code === 404 || r.code === 410)) (dead[all[i].id] = dead[all[i].id] || []).push(all[i].s.e); });
+    Object.keys(dead).forEach(id => kvWrite_(rtcSubKey_(id), JSON.stringify(rtcSubs_(id).filter(s => dead[id].indexOf(s.e) < 0))));
+  } catch (e) { if (typeof console !== 'undefined') console.warn('screen share notification: ' + String(e && e.message || e).slice(0, 120)); }
+}
+// Users & Access → Screen share: who may use it (Admin)
+function rtcRights_() { const off = rtcOff_(); return { users: readUsers_().filter(x => x.active).map(x => ({ uid: rtcUid_(x.email), name: rtcName_(x), admin: !!x.admin, on: !!x.admin || off.indexOf(rtcUid_(x.email)) < 0 })).sort((a, b) => a.name.localeCompare(b.name)) }; }
+function rtcRightsSave_(x, u) {
+  const users = readUsers_(), all = users.filter(w => w.active && !w.admin).map(w => rtcUid_(w.email)), asleep = users.filter(w => !w.active && !w.admin).map(w => rtcUid_(w.email));
+  const before = rtcOff_(), want = (Array.isArray(x && x.off) ? x.off : []).map(str_).filter((id, i, l) => all.indexOf(id) > -1 && l.indexOf(id) === i).concat(before.filter(id => asleep.indexOf(id) > -1));      // (a user who is not active keeps what he had)
+  kvWrite_('RTC_OFF', JSON.stringify(want)); CacheService.getScriptCache().put('RTC_OFF_C', JSON.stringify(want), 60); if (TABLE_MEMO_) delete TABLE_MEMO_.__rtcoff;
+  const nm = id => { const w = readUsers_().find(v => rtcUid_(v.email) === id); return w ? rtcName_(w) : id; }, offNow = want.filter(id => before.indexOf(id) < 0), onNow = before.filter(id => want.indexOf(id) < 0);
+  if (offNow.length || onNow.length) writeLog_(u, 'Edit', 'Users', 'Screen share', 'Screen share ' + [offNow.length ? 'switched off for ' + offNow.map(nm).join(', ') : '', onNow.length ? 'switched on for ' + onNow.map(nm).join(', ') : ''].filter(Boolean).join('; '), '');
+  return rtcRights_();
 }
 
 function login(email, password) {
@@ -669,6 +779,13 @@ const API_ = {
   sync:              { m: '', f: () => ({}) },          // heartbeat: fresh access + what changed (filled in api)
   rtcUsers:          { m: '', withUser: true, f: u => rtcUsers_(u) },             // screen share: the users to pick from
   rtcSend:           { m: '', withUser: true, f: (u, x) => rtcSend_(u, x) },      // screen share: a note to another user (ring / answer / …)
+  rtcMissed:         { m: '', withUser: true, f: (u, x) => rtcMissed_(u, x) },    // screen share: my missed calls (update-75)
+  rtcWa:             { m: '', withUser: true, f: (u, x) => rtcWa_(u, x) },        // screen share: WhatsApp number of a user I have just rung
+  rtcPushKey:        { m: '', withUser: true, f: () => rtcPushKey_() },          // screen share: notifications – the site's public key
+  rtcPushSave:       { m: '', withUser: true, f: (u, x) => rtcPushSave_(u, x) },  // screen share: notifications – this device of mine
+  rtcPushOff:        { m: '', withUser: true, f: (u, x) => rtcPushOff_(u, x) },   // screen share: notifications – not on this device any more
+  rtcRights:         { m: '', admin: true, f: () => rtcRights_() },               // screen share: who may use it (Admin)
+  rtcRightsSave:     { m: '', admin: true, withUser: true, f: (u, x) => rtcRightsSave_(x, u) },
   getLookups:        { m: '', withUser: true, f: u => getLookups_(u) },
   // Only the Admin starts a backup by hand (update-68, owner's decision D5 – refused HERE, on the server, whatever the page shows).
   // The backup that runs by itself (the nightly job with its secret, and the check with the open app) does not come through this action.
