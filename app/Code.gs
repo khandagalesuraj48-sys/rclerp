@@ -449,9 +449,27 @@ const rtcName_ = x => str_(x.name) || str_(x.email).split('@')[0] || 'User';    
 function rtcPeople_() { return readUsers_().filter(x => x.active).map(x => ({ uid: rtcUid_(x.email), name: rtcName_(x) })); }
 // the list a user picks from (everybody who can sign in, except himself) and how the browsers find each other
 function rtcUsers_(u) {
-  const me = rtcUid_(u.email);
+  const me = rtcUid_(u.email), relay = rtcRelay_();
   return { me: me, name: rtcName_(u), users: rtcPeople_().filter(p => p.uid !== me).sort((a, b) => a.name.localeCompare(b.name)),
-    ice: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }], max: 3 };
+    ice: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }].concat(relay ? [relay] : []), relay: !!relay, max: 3 };
+}
+/* The relay (TURN server) of the site, when one is set in the hosting's settings (server/runtime.js __rtcRelay): two computers that
+ * cannot reach each other directly send the encrypted picture and sound through it. RTC_TURN_URL may be written as the relay's
+ * site shows it – "relay1.example.com:3478", with or without "turn:" in front, several separated by commas; each address is
+ * offered over UDP and over TCP. A browser needs the name and password to use the relay, so every signed-in user's page gets
+ * them (they open the relay only, nothing of the app). */
+function rtcRelay_() {
+  let r = null; try { r = typeof __rtcRelay === 'function' ? __rtcRelay() : null; } catch (e) { r = null; }
+  if (!r || !r.url || !r.user || !r.pass) return null;
+  const urls = [];
+  String(r.url).split(/[\s,;]+/).map(x => x.trim()).filter(Boolean).slice(0, 4).forEach(x => {
+    const m = /^(turns?):\/?\/?(.+)$/i.exec(x), scheme = m ? m[1].toLowerCase() : 'turn', rest = (m ? m[2] : x).replace(/^\/+/, '');
+    const host = rest.split('?')[0], q = rest.indexOf('?') > -1 ? rest.slice(rest.indexOf('?')) : '';
+    if (!/^[A-Za-z0-9.\-\[\]:]+$/.test(host)) return;      // (not an address: left out)
+    const at = /:\d+$/.test(host) ? host : host + ':3478';
+    if (q) urls.push(scheme + ':' + at + q); else if (scheme === 'turns') urls.push('turns:' + at + '?transport=tcp'); else { urls.push('turn:' + at + '?transport=udp'); urls.push('turn:' + at + '?transport=tcp'); }
+  });
+  return urls.length ? { urls: urls, username: String(r.user), credential: String(r.pass) } : null;
 }
 /* A note from one user to others: { t: kind, to: code | [codes], call: the call's id, d: details }.
  * "who" goes to everybody. A RING is remembered for a few hours (RTCC_<call>_<guest> = host): an answer, decline, busy or bye

@@ -194,6 +194,11 @@ function runPlain(fn, args, meta) {
     catch (e) { if (NOT_INSTALLED(e)) { COUNTER.off = true; return -1; } throw e; } };
   g.__uncount = key => { if (!COUNTER.off) gas.rpc('web_uncount', { p_key: String(key) }); };
   g.__writeMode = v => { if (v) WRITE.mode = v; return WRITE.mode; };
+  /* SCREEN SHARE THROUGH A RELAY (update-73). Two computers on different networks often cannot reach each other directly; a relay
+   * (TURN server) passes the encrypted picture and sound on. It is switched on by three settings of the hosting (Vercel →
+   * Environment Variables): RTC_TURN_URL (the relay's address, e.g. relay1.example.com:3478 – several with commas),
+   * RTC_TURN_USER and RTC_TURN_PASS. Nothing set = no relay, as before. The app's code only asks "is there a relay?". */
+  g.__rtcRelay = () => { const url = String(process.env.RTC_TURN_URL || '').trim(), user = String(process.env.RTC_TURN_USER || '').trim(), pass = String(process.env.RTC_TURN_PASS || '').trim(); return url && user && pass ? { url: url, user: user, pass: pass } : null; };
   g.__oldWrites = () => String(process.env.RCL_OLD_WRITES || '').toLowerCase() === 'on';      // may a save be written table by table when web_write is missing? (default: no – see SupabaseData.gs)
   g.__saved = () => { st.saved = true; };
   g.__opsCleanup = () => gas.rpc('web_ops_cleanup', {});      // old save numbers are forgotten (3 days; long answers 24 hours) – see the step-5 SQL

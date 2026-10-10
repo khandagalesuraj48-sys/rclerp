@@ -1365,6 +1365,32 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * NOT VERIFIED: real networks (if "could not connect … networks" shows: add a TURN relay – `rtcUsers_` returns `ice`; put the relay
     there, with its key from the environment). NOT BUILT: a right per user (needs a column in app_users → ask first), recording,
     chat, more than 3 guests. Tried and taken back: a memory of read notes in `server/gas.js` (stale notes after a counter restart).
+- 10-10-2026 (update-73, asked after update-72 went live – `4ab3ab7`). Report: `UPDATE_73.md`. NO SQL. NOT deployed by me.
+  SCREEN SHARE THROUGH A RELAY (TURN). His call to a friend on another network rang, was accepted and stayed at "connecting": no
+  direct way between the two networks. He wanted a relay without a card → ExpressTURN free plan (his account; address
+  `free.expressturn.com:3478`). THE NAME AND PASSWORD ARE HIS – never in a file (the repo is public), never in a chat.
+  * SETTINGS OF THE HOSTING (Vercel → Environment Variables; used from the next deployment on): `RTC_TURN_URL` (host:port, with or
+    without `turn:`, several with commas, `turns:` allowed), `RTC_TURN_USER`, `RTC_TURN_PASS`. All three = a relay; else none.
+  * `server/runtime.js` `g.__rtcRelay()` reads them → `Code.gs` `rtcRelay_()` makes `{ urls: [turn:…?transport=udp, …tcp], username,
+    credential }` → `rtcUsers_` appends it to `ice` and returns `relay: true / false`. The page of every SIGNED-IN user gets the name
+    and password (a browser cannot use a relay otherwise) – said in the report; if misused: new password at the relay + in Vercel.
+  * PAGE: `RTC.relay`; `rtcIceDone` – with a relay it waits until the browser has the relay's way (500 ms after the first
+    ` typ relay` candidate, at most 6 s; without a relay 3 s as before) because the ring carries all ways in it; `rtcWay(P)` after
+    "connected" reads the chosen pair from `getStats` → `P.via` 'relay' / 'direct' → the bar adds "· through the relay"; the 'nc'
+    words name the relay when one is set (both pages show them – each finds it out by its own 25 s watch). `RTC.policy = 'relay'`
+    exists for tests only (forces `iceTransportPolicy: 'relay'`); nothing in the app sets it.
+  * Tests: `test/browser/relay73.js <port with the relay set> [port with a wrong relay password]` (7) with `turn-standin.js`
+    (node-turn on 127.0.0.1:3478, name `rig`; start the app's server with the three variables pointing to it). node-turn is NOT in
+    package.json: `npm install node-turn` in the rig's test folder – and that install REMOVES the hand-made stand-in
+    `node_modules/@sparticuz/chromium` (3 lines: `args: []`, `executablePath` = the workspace's headless shell). PUT IT BACK after any
+    npm install there; do NOT install the real @sparticuz/chromium (its `--single-process` breaks browser contexts, and its
+    Chromium gave almost no capture frames). Unit: 50 (the note of update-72 said 50 – it was 49, miscounted).
+  * NOT VERIFIED: the real ExpressTURN (address, his name / password, UDP / TCP, the free amount), his and his friend's networks
+    (a network that blocks port 3478 still fails – the free plan has no other port), the live site. If he reports "… networks do
+    not let …" after this update: the variables are not seen (missing, misspelt, or pushed before saving → redeploy). If "… the
+    relay could not be reached …": name / password, or port 3478 blocked.
+  * ASKED ABOUT, NOT BUILT (wait for his yes): a notice when the app is closed (push) + a WhatsApp button with the users' "My
+    mobile number"; then phone camera, reconnect, missed calls, a right per user (needs a column → ask), pen marks.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

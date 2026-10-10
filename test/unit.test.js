@@ -1545,3 +1545,30 @@ test('screen share: a note reaches only the users it is for, through the heartbe
   send(B, { t: 'end', to: [la.me], call: 'call-1', secs: 5 }); assert.strictEqual(logged().length, before + 1, 'and only by its host');
   assert.strictEqual(run('() => Number(CacheService.getScriptCache().get("RTCN"))'), 13);
 });
+
+// update-73 (10-10-2026): the relay (TURN server) of the site. Its address is written in the hosting's settings the way the relay's
+// own site shows it; the pages get it as addresses a browser understands, with the name and password – or nothing when it is not set.
+test('screen share: the relay set in the hosting is given to the pages (over UDP and TCP); written wrongly or not at all = no relay', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const users = ['Asha', 'Bala'].map(n => ({ email: n.toLowerCase() + '@site.test', name: n, active: true, admin: false, perms: {}, password: 'scrypt$x' }));
+  run('l => CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 600)', users);
+  const withRelay = r => run('r => { __rtcRelay = r ? (() => r) : (() => null); return rtcRelay_(); }', r);
+  // not set: no relay, the list of servers is as before
+  assert.strictEqual(withRelay(null), null);
+  let u = run('u => rtcUsers_(u)', users[0]);
+  assert.deepStrictEqual([u.relay, u.ice.length, /^stun:/.test(u.ice[0].urls[0])], [false, 1, true]);
+  // the address as the relay's site shows it: host and port
+  assert.deepStrictEqual(withRelay({ url: 'free.expressturn.com:3478', user: 'name1', pass: 'secret1' }), { urls: ['turn:free.expressturn.com:3478?transport=udp', 'turn:free.expressturn.com:3478?transport=tcp'], username: 'name1', credential: 'secret1' });
+  u = run('u => rtcUsers_(u)', users[0]);
+  assert.deepStrictEqual([u.relay, u.ice.length, u.ice[1].username], [true, 2, 'name1'], 'the pages get it after the address servers');
+  // other ways of writing it: "turn:" in front, no port (3478), several with commas, a secure one, one with its own ?transport
+  assert.deepStrictEqual(withRelay({ url: 'turn:relay.example.com', user: 'a', pass: 'b' }).urls, ['turn:relay.example.com:3478?transport=udp', 'turn:relay.example.com:3478?transport=tcp']);
+  assert.deepStrictEqual(withRelay({ url: ' relay1.example.com:3478 , turns:relay2.example.com:443 ', user: 'a', pass: 'b' }).urls, ['turn:relay1.example.com:3478?transport=udp', 'turn:relay1.example.com:3478?transport=tcp', 'turns:relay2.example.com:443?transport=tcp']);
+  assert.deepStrictEqual(withRelay({ url: 'turn:relay.example.com:80?transport=tcp', user: 'a', pass: 'b' }).urls, ['turn:relay.example.com:80?transport=tcp']);
+  // half set, or something that is not an address: no relay (the call still works wherever a direct way exists)
+  assert.strictEqual(withRelay({ url: 'free.expressturn.com:3478', user: '', pass: 'x' }), null);
+  assert.strictEqual(withRelay({ url: 'free.expressturn.com:3478', user: 'x', pass: '' }), null);
+  assert.strictEqual(withRelay({ url: 'http://bad address/<script>', user: 'a', pass: 'b' }), null);
+  run('() => { __rtcRelay = undefined; }');
+});
