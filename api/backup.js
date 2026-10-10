@@ -26,11 +26,12 @@ module.exports = async (req, res) => {
       if (!token) return send(401, { ok: false, denied: true });
       opt = { token: token };
     } else return send(405, { ok: false });
-    const out = await pool.call('backup', [opt], {});
-    return send(200, JSON.parse(out));
+    const out = JSON.parse(await pool.call('backup', [opt], {}));
+    // the nightly job: a backup that failed is a failed job in the server's log (it used to read "200 OK"); the open pages get 200 as before
+    return send(opt.cron && out.ok === false ? 500 : 200, out);
   } catch (e) {
     const msg = String((e && e.message) || e);
     if (/SESSION_EXPIRED/.test(msg)) return send(401, { ok: false, denied: true });
-    console.error('[backup] ' + msg); return send(200, { ok: false });
+    console.error('[backup] ' + msg); return send(req.method === 'GET' ? 500 : 200, { ok: false });
   }
 };

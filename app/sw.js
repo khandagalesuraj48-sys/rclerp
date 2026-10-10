@@ -14,7 +14,10 @@ self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== self.location.origin || u.pathname.indexOf('/api/') === 0) return;      // the server's calls: untouched
   if (e.request.mode === 'navigate' || u.pathname === '/' || u.pathname === '/index.html') {
-    e.respondWith(fetch(e.request).then(r => { if (r && r.ok) { const copy = r.clone(); caches.open(KEEP).then(c => c.put('/', copy)); } return r; }).catch(() => caches.match('/').then(r => r || new Response('<meta charset="utf-8"><p style="font:16px sans-serif;padding:24px">No network, and this device has no saved copy of the app yet. Connect once and open the app again.</p>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } }))));
+    // only the page itself (/ or /index.html) is kept as the offline copy. (Any address opened in a tab – an icon, the manifest –
+    // used to be stored AS the page, so the offline copy could become a picture. 07-10-2026)
+    const isPage = u.pathname === '/' || u.pathname === '/index.html';
+    e.respondWith(fetch(e.request).then(r => { if (r && r.ok && isPage) { const copy = r.clone(); caches.open(KEEP).then(c => c.put('/', copy)); } return r; }).catch(() => caches.match('/').then(r => r || new Response('<meta charset="utf-8"><p style="font:16px sans-serif;padding:24px">No network, and this device has no saved copy of the app yet. Connect once and open the app again.</p>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } }))));
     return;
   }
   if (/^\/(icons\/|manifest\.webmanifest)/.test(u.pathname)) e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).then(x => { if (x && x.ok) { const copy = x.clone(); caches.open(KEEP).then(c => c.put(e.request, copy)); } return x; })));

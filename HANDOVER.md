@@ -1108,6 +1108,156 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * Known / not done: at a window 1280 px wide the entry row is 50 px wider than its box – the same in the code before this update
     (measured, `rowwidth.js`), not touched. Excel import of the Log Book and "Ask" do not know split timing (one From – To).
     Not run: the live site, a real phone, Microsoft Edge / Windows fonts (the time boxes were measured in Chromium on Linux).
+- 07-10-2026 (update-66): "THIS ONE IS ON HOURS AND BELOW IT SAYS DAYS – NOT LIKE THAT. CHECK THE WHOLE APP, FIX IT PROPERLY: SOME ARE
+  ON DAY, SOME ON HOURS, SOME MIXED. AND LOOK HOW THE VIEW SHOWS – FIX IT." (two screenshots: a Log Book print of an Hrs / Time
+  machinery with "TOTAL WORKING DAYS / NIGHT / NET WORKING DAYS / DAILY RATE"; Edit Log Book with a Time row whose boxes run over
+  the next columns.)
+  * THE SUMMARY UNDER A LOG BOOK FOLLOWS WHAT THE MACHINERY IS ON (`logSheetsBuild`, comment "WHAT THE MACHINERY IS ON"; one place –
+    used by Print Log Book, the Log Book under a bill / in a saved bill, the format samples, and so the Excel of each):
+    the BOQ in force on the dates decides – Monthly / Per Day = days (the three lines as before + DAILY RATE), Per Hour = one line
+    TOTAL HOURS (with "DAY x HRS · NIGHT y HRS" when there are night hours), Per KM = TOTAL KM, Per Trip = TOTAL TRIPS, an
+    item-wise BOQ = the basis of each of its items, more than one = each of them. NO BOQ in the dates: "Works on" of Asset Master –
+    Hrs / Time = hours, Trip = trips, Day / KM / KM + Hrs = days (as before), more than one = each. "DAILY RATE" is shown only
+    where there is a day basis. A machinery on days and a KM machinery print exactly as before. NO amount is touched (rate,
+    payable, diesel debit, TDS, GST, net are the same code as before – `test/browser/lbbasis.js` compares them with the version
+    before). The Holiday / Breakdown / Idle notes stand on the NET WORKING DAYS line, so a sheet without days does not carry them
+    (those days are rows of the table). Bill papers (Abstract) were already per unit (Days / Hrs / KM / Trips) – not changed.
+  * EDIT LOG BOOK, THE LOOK: (1) time boxes had no width of their own in `table.lx-t`, so the general `input { width: 100% }` made
+    From as wide as the cell and To / Break / Challan ran over Total and the next columns – there since the Time way exists
+    (measured the same on update-64 and update-65), now `table.lx-t input[type=time] { width: 112px }`, the cell does not wrap,
+    and the break box says "break … min". (2) The total line built its own list of columns ("Measured by" only for a machinery
+    with more than one way; the header always has it), so for a machinery with ONE way – most of them – every total stood one
+    column to the left (hours under "Close Hrs" / "Time / Trips", Issued under "Opening diesel", Consumed under "Issued", Closing
+    under "Consumed"). It now uses the columns the header drew (`LX.cols`). Numbers were right, only their place was wrong.
+  * Diesel Inward list: the total line had 11 cells against 12 headings (the last empty cell was missing; the totals stood right).
+  * Tests: `test/browser/lbbasis.js` 11/11 (with `compare`: before / after of 7 machinery), `test/browser/lxlook.js` 10/10 (7 of them
+    fail on the version before), `test/browser/colsweep.js` (every page: total rows with a wrong number of cells, boxes out of their
+    cell – only 4 tables have rows in the test database, so this sweep is thin). Regression: unit 38, splittime 18, lbpage 13,
+    viewbill 21, billlock 17, half 12, nightrow 22, gstdecl 11, sweep 38 pages. Not run: the live site, Edge / Windows, a phone.
+- 07-10-2026 (update-67): THE AUDIT AND HARDENING the MD asked for with a written brief (attached text, 16 phases). The report is
+  `AUDIT_2026-10-07.md` (findings with before / after evidence, what is open and why) – read it first; `AUDIT.md` of 01-10 is untouched.
+  NO database step. One zip carries update-66 too. What changed, by place:
+  * `server/runtime.js`: `NOT_INSTALLED` (only a 404 switches the exact counters off – before, any error text with "web_count" did, for
+    the life of the server); "AFTER THE SAVE": `g.__saved` / `st.saved`, a failure of the final `gas.flush` after a save is logged, not
+    thrown; an error with `rclSaved` + a NOT_NOW text keeps the rid ("Your entry is SAVED, but …") instead of freeing it;
+    `__oldWrites` (env `RCL_OLD_WRITES=on`), `__propFresh`, `__g(…, ms)`.
+  * `app/Code.gs`: `SAVED_` (set in `withLock_` after the outer flush; reset in `api`), `afterSaveFault_`, `sbPendingTables_` (the trailing
+    flush is "housekeeping" only when nothing but `activity_log` waits), `withLock_` swallows a failed `releaseLock` (gas.js puts the
+    lock count back so `forceUnlock` retries); `api`: own-property look-up of the action, a one-time password opens nothing
+    (`!isHashed_(u.password)` → SESSION_EXPIRED), the DUP key is kept when the entry is saved; `isTempHash_` / `checkPw_` /
+    `saveUserAdmin_` (one-time password = `tmp$` + hash); `login` (a locked e-mail is refused before it is counted); `writeLog_` (key
+    `LOG-0001234-ab12`); `billNoHtml_` in `submitBills_`; `deleteBill_` (only a missing debit-notes table is passed over);
+    `getAiReply_` (exact counters, the cut chat starts at a typed question); `backupInfoFor_` (link + error detail Admin only).
+  * `app/SupabaseData.gs`: `flush` refuses when `web_write` is missing (`SB_NO_WRITE_FN_`); `toRecord_` refuses a VALUE for a column the
+    database lacks (empty values are still left out – so a new column still needs no outage, only its own feature waits for the SQL).
+  * `server/pool.js`: `QUEUE_MAX` (env `RCL_QUEUE`, 120), the 58 s count from arrival, "busy … (RETRY_LATER)". `api/rpc.js`: `statusOf`
+    (the body is unchanged – the page reads only the body). `api/backup.js`: the cron answers 500 on failure.
+  * `server/backup.vm.js` REWRITTEN in the same shape: groups (smallest table first, `BK_GROUP_ROWS` 6000 rows), `keep()` writes
+    `BK_STATE` at once after every group (`sig`, `fullRun {at, done}`, `todo`, `running`, `died`, `lastTry`), stops after `BK_BUDGET_MS`
+    (36 s), `info.pending`; every text cell is sent with a leading apostrophe (stays text), ISO dates bare. `server/google.js`
+    `call(…, ms)` never runs past the caller's time.
+  * `app/SupabaseSync.gs` `sbShareViewOnly_`: PRIVATE instead of ANYONE_WITH_LINK (old Apps Script path only).
+  * Page: `mbDot` / `showDate` escape; `rclVendor()` + `app/vendor/*.js` (SheetJS 0.18.5, ExcelJS 4.4.0 – build.js copies them to
+    `public/vendor/`, dev.js serves them); the redraw limiter's `clearTimeout`; sign-out clears `oc_prefs_*`, `rcl_dbcheck`, `rcl_trace`;
+    backup pill / dialog say "n table(s) still being copied"; 4 new FIX rules. `server/page.js` recorder: writes only when dirty, per-tab
+    mark + BroadcastChannel `rcl_trace`, clean on hidden. `app/Index.html`: no version check while hidden. `app/sw.js`: only "/" is
+    kept as the page. `vercel.json`: CSP (4 safe directives enforced; `script-src` report-only), `/vendor/*` cached for a year.
+  * Tests added: `test/harden.js` (needs the fault switch of `test/gateway-standin.js`), `test/backup.js` + `test/sheets-standin.js`,
+    `test/browser/hardenpage.js`, unit test 39; `test/browser/viewbill.js` now waits for the page's OWN Excel tools and has step 2b
+    (hostile bill data). Rig note: a machinery put straight into the test database needs `machinery_number` = `id` and a fresh
+    `updated_at`, or the app does not see it (cost an hour).
+  * OPEN (section D of the audit): the backup Sheet's sharing must be "Restricted" (Google – cannot be seen from code); password hash
+    → scrypt (separate update, roll-back caveat); empty access = View; lists for no-access users; who may press Backup; maximum age of
+    a sign-in; the rid inside `web_write` (SQL change) for the "no answer in 30 s" case; database constraints; public repository; strict
+    CSP; last-writer-wins; no restore tool. NOT run: live site, real Google Sheet, real phone, Windows / Edge.
+- 07-10-2026 (update-68): THE OWNER'S DECISIONS D1 – D12 ON THE AUDIT (attached brief: "controlled security and data-integrity
+  release, not a refactor; do not touch the live database"). Full report with before / after figures: `UPDATE_68.md` (read it first).
+  * D7 SAVE ONCE, IN THE DATABASE – NEW `sql/supabase_step5_save_once.sql` (HE MUST RUN IT; until then the old way is used and nothing
+    changes): `web.ops (rid pk, hash, holder, state started|done|refused, result, started_at, done_at, closed_at)`, `web_op_begin`
+    (mine / done / refused / wait / "old" = a number that has an old-style note in web.cache; take-over of a started row after 75 s),
+    `web_op_mark` (inside the write; raises `OP_NOT_MINE`), `web_write2` = mark + `web_write` in one transaction, `web_op_end`
+    (done / refused / free / close). `server/runtime.js` `runOnce` (tried for every save with a rid – NOT remembered when missing, so
+    the change-over needs no restart; `rclNoOps` → the old OPR_/OPT_/OPC_ way), `__op()`, door `saved` → `savedAfterAll_` (Code.gs:
+    version bump + Activity Log line + Admin note for a save whose housekeeping never ran; `web_op_end('close')` lets one request do it).
+    `SupabaseData.gs` `flush`: first write of a request with an op goes through `web_write2` with `OP_RESULT_` (set in `withLock_` /
+    `apiRun_`). The database has the last word: any error path asks `web_op_end`; "done" → the kept answer is returned.
+    Health check line "A save is saved once – decided in the database (step 5)".
+  * D2 PASSWORDS: `scrypt$N$r$p$salt32$hash64$stamp12` (`SCRYPT_` N 32768, r 8, p 3; host function `__scrypt` = `gas.scryptHex`,
+    allowed N list, maxmem 160 MB), one-time = `tmp$` + that. `checkPw_` reads scrypt, old `sha256$…`, plain; `rehash_` + `storePw_`
+    at a good sign-in (stamp carried over → other sessions stay); `pwStamp_` = the embedded stamp for scrypt; `pwDummy_` for unknown
+    e-mails; `isHashed_` = scrypt OR old hash. GOING BACK below update-68: old code takes the kept text as a plain password – run the
+    SQL of UPDATE_68.md §3 D2 first. Side effect: >5 sign-ins of one e-mail in the same instant → the rest "try again".
+  * D6 SESSIONS: value `email|stamp|madeMs` (`sessionMake_`, `sessionRead_`), `SESSION_MAX_DAYS` 30 checked in `sessionUser_` and
+    `changePassword`; a value without a time gets "now".
+  * D5 `backupNow` `admin: true` (page: pill click for non-Admin asks nothing). `/api/backup` (cron secret; token = automatic check)
+    untouched. D3 `accessReport_` (Admin, reads only; page button `ua_report` → summary + CSV). D4 `leastOut_` (cuts `monthlyRate`,
+    `tdsRate` / engine, chassis, papers, entered-by from any machinery item in any answer, on copies), `seesAny_`, `FOR_*_` lists,
+    `getInit_(u)`, `getLookups_(u)`, `getStock` `any: FOR_STOCK_`, brief; page `seesStock()`.
+  * D10: CSP headers unchanged; page listener `securitypolicyviolation` → quiet `reportError` (where "policy"). D1: unit test pins
+    "Sheets scope only, no anyone-sharing". D8: `sql/proposed/preflight_readonly.sql` (SELECT only, 20 rules + grants) and
+    `sql/proposed/constraints_after_preflight.sql` (PROPOSAL – blocks A, B, C, E, F proved on the rig; D and rules 12 – 14 NOT proposed:
+    `web_write` puts before it deletes). D11: design only (content fingerprint `ver`, no schema change) + `test/stale.js` measures
+    today's overwrite. D12: `test/restore-drill.js` (pg_dump route and Sheet route into scratch databases; Sheet = 16 of 17 tables
+    byte for byte, passwords / `web.props` missing).
+  * Tests: `test/saveonce.js` (31), `test/secure68.js` (51; section rollback needs the old code on 3002), `test/backup.js manual`,
+    `test/restore-drill.js` (7), `test/browser/least68.js` (9), unit 44. `test/gateway-standin.js`: fault options `delay`, `drop`.
+    Rig notes: after any sign-in on the new code the rig Admin's hash is scrypt → the OLD code on 3002 cannot sign him in (set the old
+    hash back by SQL for "before" runs; `nightrow.js` then needs both sides on the new code). `saveonce.js compat` restarts the rig.
+  * WAITING FOR HIM: run step 5; Sheet sharing = Restricted; preflight result; Supabase plan / backups; decision on empty access
+    cells; GitHub private (Vercel Hobby + collaborator pusher may stop deployments – check first).
+- 08-10-2026 (update-68, RELEASE-SAFETY ROUND – asked: rollback safety for scrypt, update-65 + step 5, Vercel Preview, SQL review,
+  GO / NO-GO; "no unrelated ERP changes"). Report: `RELEASE_68.md` (read it before any deploy). NOTHING IS DEPLOYED: live = update-65.
+  * `update-65s` (`rcl-update-65s.zip`, 3 files on top of the exact update-65 `2e4e3cc`): `app/Code.gs` `SCRYPT_RE_`, `isOldHash_`,
+    `isHashed_` (scrypt OR old), `checkPw_` reads scrypt through `__scrypt` and NEVER compares a text that looks like a kept
+    password, `pwStamp_` (embedded stamp), `pwDummy_`; `server/gas.js` `scryptHex` + `__scrypt`; one unit test. `makeHash_` untouched
+    (a password changed there is kept as `sha256$…`). Page byte-identical to update-65 → same version mark → no "Update" prompt.
+    IT IS THE ONLY VERSION PRODUCTION MAY GO BACK TO once update-68 was live (plain update-65: real password refused, the kept
+    text accepted as the password – measured). Deploy order: backup → step-5 SQL → check update-65 → update-65s → update-68 → smoke.
+    Rollback: Vercel Instant Rollback to update-65s / `git revert HEAD` / `rcl-rollback-to-65s.zip`. Step 5 stays installed.
+  * STEP-5 SQL HARDENED (same file name; `app/ReadMe.gs` copy synced; 6 functions now): one transaction; `search_path = ''` on all,
+    schema-qualified names; rights on `web.ops` revoked from service_role too (only the functions work); constraints `ops_rid_shape`,
+    `ops_state_known`; `web_op_begin` withholds the kept answer when the fingerprint differs; `web_ops_cleanup(keep days 3, answer
+    hours 24, max rows 200000)` – called ~every 50th `web_op_begin` and by the nightly cron (`runtime.js` door `backup`, `o.cron`
+    → `__opsCleanup`); `web_op_note` (inside only, granted to nobody) writes the OLD-style notes `OPC_<rid>` / `OPR_<rid>` into
+    `web.cache` in the same transaction as the write, so a copy of a save that reaches OLDER code (65 / 65s) after a rollback is
+    answered and not saved again. Health check needs 5 names (incl. `web_ops_cleanup`); `gas.rpc` 404 text covers it.
+  * update-65 + step 5: update-65 never mentions a step-5 object; its API suites and 60 browser tests give the same results with
+    and without step 5 (`RELEASE_68.md` §2). 12 of the old browser tests have failing lines on update-65 itself (old fixtures) –
+    not investigated. `topbar.js` is racy by itself (the "Closed up to" pill it switches on is removed by the page's refresh).
+  * VERCEL PREVIEW: NOT RUN (no network to Vercel / Supabase from the workspace; needs HIS test Supabase project). Kit:
+    `test/preview-smoke.js` (guards: production host, `.env.local` database, marker row `app_settings.THIS_IS_A_TEST_DATABASE`,
+    random word through `orgInfo`; holds the `backup` lock so no real backup runs; cleans up; writes `preview-smoke-result.txt`),
+    `preview_test_database.sql` (all 27 SQL files in set-up order + the marker; `README_SQL_` in the app misses step 1p – known,
+    not changed). HE MUST FIRST set the live env vars to "Production only" in Vercel, else a Preview works on the LIVE database.
+  * New tests: `test/rollback68.js` (20; needs update-65s on 3003, exact update-65 on 3002), `test/rollback68-backup.js` (4;
+    `SAFE_DIR=<update-65s folder>`), `saveonce.js` section `sql` (11), unit 44.
+  * RIG NOTES: every command with `timeout`; never leave a wait longer than a few minutes without reporting (he stopped a run
+    after 1 h 45 m). `half.js` / `splittime.js` / `pwa.js` restart the rig through `/tmp/up3.sh` (they bring back whatever that
+    script starts – point it at the code under test) and re-apply SQL with `psql -f` as the postgres user (the folder must be
+    readable by it). The same suite twice within 8 s trips the double-click guard. `pkill -f "node dev.js"` kills any shell whose
+    command line contains that text – run rig scripts as files, alone. After a sign-in on update-68 the rig users are scrypt:
+    reset them to `sha256$…` before running the exact update-65.
+  * WAITING FOR HIM: the Preview test result; Vercel env-var scopes; then his "go" for production in the order above.
+- 10-10-2026 (update-68, FINAL RE-CHECK – he: "no tests, I want everything ready to use … check everything again deeply and tell me
+  finally what to do"). He decided to release WITHOUT the Vercel Preview test. Report: `RELEASE_68.md` §10. STILL NOTHING DEPLOYED.
+  * Two independent review agents (SQL + save-once; passwords / sessions): no blocker. Three small hardenings made, each with a test
+    and a before / after figure: (1) sign-in (`login`, update-68 AND update-65s): `known` / `good`, `pwScrypt_`; every refusal that
+    did not already cost a scrypt runs `pwDummy_` (before: wrong password for an old-hash user 34 ms vs unknown e-mail 282 ms);
+    (2) `runtime.js` `runOnce`: when the write threw and `web_op_end` could not be reached (`asked = false`) → `RETRY_LATER` (the page
+    resends the SAME rid; before: "Could not save to Supabase: 503" although the entry was in); (3) step-5 SQL: the clean-up call in
+    `web_op_begin` is inside `begin … exception when others then null; end`. Tests: `saveonce.js` B5 + "housekeeping cannot fail a
+    save" (44 lines now), `secure68.js` [review] line (52), `rollback68.js` (21), unit 44 / 39.
+  * NOT changed, known (see §10.1): scrypt throwing at a check counts as a wrong try; one-time users / Admin reset need scrypt on
+    update-68; a save in flight at the second of a rollback; hand-damaged kept passwords are compared as text (as update-65);
+    answers kept twice for a short time; Supabase editor may warn "destructive" (words delete / drop in the file).
+  * Dress rehearsal script: `dr_stage.sh 0..6` + `dr_smoke.js` (scratchpad; folders built ONLY from the live clone + the delivered
+    zips): production today → step-5 SQL under load → update-65s → update-68 → rollback → forward → rollback zip.
+    RESULT 10-10-2026: 7 stages, 65 lines passed, 0 failed (he interrupted the run once after 43 min – it was continued from
+    the last finished stage after reading the session log; keep answers short and report progress, he does not like long waits).
+  * RIG TRAP MET AGAIN: a shell command that contains the text of the server start line is killed when a test restarts the rig, and
+    its child test goes on as an orphan – a second run of the same test then collides with it (false FAILs). Start servers from
+    script files only; after such a kill wait until the orphan is gone.
+  * WAITING FOR HIM: to do the four steps of `RELEASE_68.md` §5 (backup, step-5 SQL, update-65s, update-68) and look at step 6.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

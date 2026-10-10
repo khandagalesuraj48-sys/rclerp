@@ -62,6 +62,11 @@ function SS_() {
 }
 function sbFlush_() { if (SB_BOOK_) SB_BOOK_.flush(); }
 function sbDiscard_() { SB_BOOK_ = null; }
+// the tables that still have something waiting to be written in this request
+function sbPendingTables_() {
+  if (!SB_BOOK_ || !SB_BOOK_.sheets) return [];
+  return Object.keys(SB_BOOK_.sheets).filter(t => { const w = SB_BOOK_.sheets[t].pending(); return w.upserts.length || w.deletes.length; });
+}
 
 /* ================= WEB APP ENTRY ================= */
 /* ---------- app version (a fingerprint of Index.html) ----------
@@ -126,20 +131,63 @@ function doGet(e) {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
 }
 
-function getInit_() {
-  return { company: orgSettings_().customer, org: orgPublic_(), rules: siteRules_(), ai: aiInfo_(), today: today_(), master: getMaster_(), drivers: getDrivers_(), stock: getStock_(), pumps: getPumps_(), locations: APP.LOCATIONS, closedUpto: booksClosed_() };
+/* ---------- WHAT THE START-UP CALLS GIVE: ONLY WHAT THE USER'S PAGES USE (update-68, owner's decision D4) ----------
+ * getInit / getLookups / getStock gave every signed-in user the same: every machinery with ALL its details (monthly rate,
+ * TDS %, engine and chassis number, the dates of the papers), every driver and pump name, every vendor name and the diesel
+ * stock – also to a user whose access is one page. Now each list goes only to users who have a page that uses it
+ * (the map of "which page reads what" is in UPDATE_68.md). What every page needs stays for everybody: the machinery list
+ * with number, name, type, make, unit / works on, Log Book format, owner, ownership, diesel supply, status and dates,
+ * standard averages and tank capacity – the pick-lists and searches of all pages are built from these.
+ *   monthly rate, TDS %                                     → Asset Master, Machinery Billing, Saved Bills, Log Book (its print)
+ *   engine / chassis number, engine make, paper dates, who  → Asset Master
+ *   driver names → Diesel Issue      pump names → Diesel Inward, Reports      vendor names → Log Book, Machinery Billing, Saved Bills
+ *   diesel stock → Dashboard, Diesel Inward, Diesel Transfer, Diesel Issue, Reports
+ * The machinery details are cut from EVERY answer of the server (leastOut_ – a machinery item inside any answer), so no
+ * other action gives them by the side. An Admin gets everything. Access itself (who may open which page) is unchanged. */
+const seesAny_ = (u, mods) => !!(u && (u.admin || mods.some(m => u.perms && u.perms[m] && u.perms[m] !== 'None')));
+const FOR_RATE_ = ['Master', 'Machinery Billing', 'Saved Bills', 'Log Book'], FOR_FULL_ = ['Master'];
+const FOR_DRIVERS_ = ['Diesel Issue'], FOR_PUMPS_ = ['Diesel Inward', 'Reports'], FOR_PARTIES_ = ['Log Book', 'Machinery Billing', 'Saved Bills'];
+const FOR_STOCK_ = ['Dashboard', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Reports'];
+const MACH_RATE_F_ = ['monthlyRate', 'tdsRate'];
+const MACH_FULL_F_ = ['engineNo', 'chassisNo', 'engineMake', 'taxUpto', 'pucUpto', 'permitUpto', 'fitnessUpto', 'insuranceUpto', 'enteredBy', 'updatedBy'];
+const isMachItem_ = o => 'lbFormat' in o && 'worksOn' in o && 'ownership' in o && 'activeFrom' in o && 'supply' in o;
+/* A machinery item anywhere in an answer loses the details this user has no page for. Nothing is changed in place (the
+ * machinery list is shared inside a request): only what has to change is copied. No user → as it is (the code's own calls). */
+function leastOut_(u, res) {
+  if (!u || u.admin || !res || typeof res !== 'object') return res;
+  const rate = seesAny_(u, FOR_RATE_), full = seesAny_(u, FOR_FULL_);
+  if (rate && full) return res;
+  const drop = (rate ? [] : MACH_RATE_F_).concat(full ? [] : MACH_FULL_F_);
+  const walk = (v, depth) => {
+    if (Array.isArray(v)) { let out = null; for (let i = 0; i < v.length; i++) { const x = v[i]; if (x && typeof x === 'object') { const y = walk(x, depth + 1); if (y !== x) { if (!out) out = v.slice(); out[i] = y; } } } return out || v; }
+    if (isMachItem_(v)) { const o = Object.assign({}, v); drop.forEach(k => { delete o[k]; }); return o; }
+    if (depth >= 8) return v;
+    let out = null; for (const k in v) { const x = v[k]; if (x && typeof x === 'object') { const y = walk(x, depth + 1); if (y !== x) { if (!out) out = Object.assign({}, v); out[k] = y; } } } return out || v;
+  };
+  return walk(res, 0);
+}
+function getInit_(u) {
+  const all = !u;      // (called without a user only by the code itself)
+  return { company: orgSettings_().customer, org: orgPublic_(), rules: siteRules_(), ai: aiInfo_(), today: today_(), master: getMaster_(),
+    drivers: all || seesAny_(u, FOR_DRIVERS_) ? getDrivers_() : [], stock: all || seesAny_(u, FOR_STOCK_) ? getStock_() : null,
+    pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [], locations: APP.LOCATIONS, closedUpto: booksClosed_() };
 }
 
 /* ================= LOGIN, ACCESS AND ACTIVITY LOG ================= *
- * Users sheet: Email | Password | Name | Active | Admin | one column per module (View / Edit)
- * Everybody who can log in can VIEW every module. Edit (add, change, delete, import) needs "Edit" in that module –
- * this applies to every user, Admin too. Admin = Yes only adds the Activity Log.
+ * Users sheet: Email | Password | Name | Active | Admin | one column per module (No access / View / Edit)
+ * A user sees a module where its cell says View or Edit (an EMPTY cell also counts as View – see ACCESS_; "No access" hides
+ * it); add, change, delete and import need "Edit" in that module. Admin = Yes has Edit in every module (readUsersSheet_) and
+ * alone gets the Admin-only actions (Users & Access, Activity Log, Database check, deleting a bill …).
+ * (This text said until 07-10-2026 "everybody can VIEW every module, Edit also for Admin only where the sheet says" – the
+ * code had moved on from that long ago; the comment is now what the code does.)
  * Every call from the app goes through api(); the business functions end with "_" so the browser cannot call them directly.
  */
 /* ================= SECURITY =================
- * - Passwords are kept as salted hashes ("sha256$salt$hash"); a plain password typed by Admin in the Users tab
- *   works once and must be changed at that sign-in.
+ * - Passwords are kept with scrypt ("scrypt$N$r$p$salt$hash$stamp" – see PASSWORDS below). A one-time password set by the
+ *   Admin is kept the same way with "tmp$" in front; it opens nothing but "set your own password" (enforced in api()).
+ *   A password still kept the older way ("sha256$salt$hash") is accepted and re-kept with scrypt at that sign-in.
  * - A session remembers a stamp of the password: when a password changes, every older session ends.
+ * - A session ends after 6 hours without use, and 30 days after its sign-in whatever happens (SESSION_MAX_DAYS).
  * - Sign-in: 5 wrong tries per email → 15 min lock; at most 60 tries a minute in total; one message for every failure.
  * - Nothing typed by a user can become a formula in the sheet (= + - @ at the start are stored as text).
  * - Setup and trigger functions only run from the Apps Script editor / real triggers. */
@@ -150,40 +198,78 @@ function hashPw_(pw, salt) {
   for (let i = 0; i < 300; i++) h = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, h.concat(Utilities.newBlob(salt).getBytes()));
   return hex_(h);
 }
-function makeHash_(pw) { const salt = Utilities.getUuid().replace(/-/g, '').slice(0, 16); return 'sha256$' + salt + '$' + hashPw_(pw, salt); }
-/* ---------- update-65s: THE VERSION IT IS SAFE TO GO BACK TO FROM update-68 (07-10-2026) ----------
- * This is update-65 with ONE change: it can READ a password kept the way update-68 keeps it
- *      scrypt$<N>$<r>$<p>$<salt>$<hash>$<stamp>          one-time password:  tmp$scrypt$…  (or tmp$sha256$…)
- * WHY. update-68 keeps a password afresh with scrypt at the user's next sign-in. The plain update-65 does not know that
- *   form: it took such a kept text for a password "as typed" – so (1) the user could no longer sign in with the real
- *   password and (2) whoever had a copy of the Users table could sign in by typing the kept text itself. Going back from
- *   update-68 to the plain update-65 was therefore unsafe. Going back to THIS version is safe:
- *     - a scrypt password is checked with scrypt: the user signs in with the same password as before, nobody is locked out;
- *     - a kept text (anything that looks like "scrypt$…", "sha256$…", "tmp$…") is NEVER compared as typed text;
- *     - a session made on update-68 stays good (the stamp kept inside the scrypt text is used, as update-68 does).
- * Everything else is update-65 as it was: a password that is CHANGED here is kept the old way (sha256$…), a one-time
- * password set by the Admin is kept as typed until the user changes it. update-68 reads both again when it comes back. */
+/* ---------- PASSWORDS: scrypt (update-68, owner's decision D2) ----------
+ * Until now a password was kept as SHA-256 of salt + password, 301 times over. That is far too quick to work out: whoever
+ * gets a copy of the Users table can try many millions of guesses a second on one graphics card. scrypt is made for
+ * passwords – every single guess needs 32 MB of memory and about a third of a second (N = 32768, r = 8, p = 3).
+ *   kept as:  scrypt$<N>$<r>$<p>$<salt, 32 hex>$<hash, 64 hex>$<stamp, 12 hex>        one-time password: "tmp$" in front
+ *   The cost settings are part of the kept text, so they can be raised later; a password kept with other settings (or the
+ *   older way) is accepted and kept afresh at the next good sign-in (rehash_ – the person notices nothing).
+ *   <stamp> is what the sessions carry (pwStamp_). When a password is only KEPT AFRESH, the stamp it had is carried over,
+ *   so the person's other open sessions stay signed in; a CHANGED password gets a new stamp and ends them, as before.
+ * No password is ever kept as typed. Nothing in the database changes shape: it is the same Password cell.
+ * GOING BACK TO AN OLDER VERSION OF THE APP: that code cannot read "scrypt$…" – such a user could not sign in with the
+ *   password any more (see "Going back" in UPDATE_68.md before doing that). */
+const SCRYPT_ = { N: 32768, r: 8, p: 3 };
 const SCRYPT_RE_ = /^scrypt\$(16384|32768|65536|131072)\$8\$([1-5])\$([0-9a-f]{32})\$([0-9a-f]{64})\$([0-9a-f]{12})$/;
+const hasScrypt_ = () => typeof __scrypt === 'function';      // (the server on Vercel has it; the old Apps Script copy of this code did not)
+const sameText_ = (a, b) => { a = String(a); b = String(b); let d = a.length ^ b.length; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i % (b.length || 1)); return d === 0; };      // compared in full, wherever the first difference is
+function makeHash_(pw, stamp) {
+  if (!hasScrypt_()) { const salt0 = Utilities.getUuid().replace(/-/g, '').slice(0, 16); return 'sha256$' + salt0 + '$' + hashPw_(pw, salt0); }
+  const rnd = n => { let x = ''; while (x.length < n) x += Utilities.getUuid().replace(/[^0-9a-f]/g, ''); return x.slice(0, n); };      // random hex from the system's generator
+  const salt = rnd(32);
+  const st = /^[0-9a-f]{12}$/.test(String(stamp || '')) ? String(stamp) : rnd(12);
+  return ['scrypt', SCRYPT_.N, SCRYPT_.r, SCRYPT_.p, salt, __scrypt(String(pw), salt, SCRYPT_.N, SCRYPT_.r, SCRYPT_.p), st].join('$');
+}
 const isOldHash_ = stored => /^sha256\$[0-9a-f]{16}\$[0-9a-f]{64}$/.test(String(stored));
-const isHashed_ = stored => SCRYPT_RE_.test(String(stored)) || isOldHash_(stored);      // a person's own password (not a one-time one)
-const sameText_ = (a, b) => { a = String(a); b = String(b); let d = a.length ^ b.length; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i % (b.length || 1)); return d === 0; };
+// "this is a person's own password" (not a one-time one): kept with scrypt, or still the older way
+const isHashed_ = stored => SCRYPT_RE_.test(String(stored)) || isOldHash_(stored);
+// kept the way passwords are kept NOW (scrypt with today's cost settings)? If not, it is kept afresh at the next good sign-in
+function pwCurrent_(stored) { const m = String(stored || '').replace(/^tmp\$/, '').match(SCRYPT_RE_); return !!m && Number(m[1]) === SCRYPT_.N && Number(m[2]) === SCRYPT_.p; }
+/* A ONE-TIME PASSWORD IS KEPT AS A HASH TOO (07-10-2026). Until then the password the Admin typed for a new user (or a
+ * reset) lay in the Users table as it was typed, until the user changed it. Now it is stored as "tmp$" + the same salted
+ * hash as every password. The mark "tmp$" is what says "must be changed at the sign-in" (isHashed_ stays false for it, so
+ * every rule that asked "is this a one-time password?" answers as before). A plain password written straight into the
+ * table (the very first Admin of a new site, by the SQL of the set-up) still works the old way – and must be changed. */
+const isTempHash_ = stored => /^tmp\$/.test(String(stored)) && isHashed_(String(stored).slice(4));
 function checkPw_(pw, stored) {
   stored = String(stored || '');
   if (!stored) return false;
-  const body = /^tmp\$/.test(stored) && isHashed_(stored.slice(4)) ? stored.slice(4) : stored;      // a one-time password of update-68: the same, with "tmp$" in front
+  const body = isTempHash_(stored) ? stored.slice(4) : stored;      // a one-time password is kept the same way, with "tmp$" in front (must be changed at this sign-in)
   const m = body.match(SCRYPT_RE_);
-  if (m) return typeof __scrypt === 'function' && sameText_(__scrypt(String(pw), m[3], Number(m[1]), 8, Number(m[2])), m[4]);
-  if (isOldHash_(body)) { const p = body.split('$'); return sameText_(hashPw_(String(pw), p[1]), p[2]); }
-  if (/^(tmp\$)?(scrypt|sha256)\$/.test(stored)) return false;      // looks like a kept password but cannot be read: never compared as typed text
-  return String(pw) === stored; // plain password set by Admin: accepted once, then must be changed
+  if (m) return hasScrypt_() && sameText_(__scrypt(String(pw), m[3], Number(m[1]), 8, Number(m[2])), m[4]);
+  if (isOldHash_(body)) { const p = body.split('$'); return sameText_(hashPw_(String(pw), p[1]), p[2]); }      // kept the older way: still accepted (and kept afresh – rehash_)
+  if (/^(tmp\$)?(scrypt|sha256)\$/.test(stored)) return false;      // looks like a kept password but is damaged: it is never compared as plain text
+  return sameText_(String(pw), stored); // plain password written into the table by hand: accepted, then must be changed
 }
 // is this kept password one that is checked with scrypt (also a one-time one)?
 const pwScrypt_ = stored => SCRYPT_RE_.test(String(stored || '').replace(/^tmp\$/, ''));
-// what a refused sign-in costs: the same work as checking a password kept with scrypt (the time of the answer must not tell which e-mails exist)
-function pwDummy_(pw) { try { if (typeof __scrypt === 'function') __scrypt(String(pw), '00000000000000000000000000000000', 32768, 8, 3); } catch (e) { /* only the time matters */ } return false; }
-// short fingerprint of the stored password: sessions carry it, so changing a password ends older sessions
-// (a scrypt password carries its stamp inside – the one update-68 gave the session)
+// what a wrong e-mail costs: the same work as a right one (otherwise the time of the answer tells which e-mails exist)
+function pwDummy_(pw) { try { if (hasScrypt_()) __scrypt(String(pw), '00000000000000000000000000000000', SCRYPT_.N, SCRYPT_.r, SCRYPT_.p); } catch (e) { /* only the time matters */ } return false; }
+// short fingerprint of the stored password: sessions carry it, so changing a password ends older sessions.
+// (scrypt: the stamp kept with it – see PASSWORDS; anything else: worked out from the kept text, as before)
 const pwStamp_ = stored => { const m = String(stored || '').replace(/^tmp\$/, '').match(SCRYPT_RE_); return m ? m[5] : hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'st|' + String(stored || ''))).slice(0, 12); };
+/* A password that was just proved right, but is not kept the way passwords are kept now (the older SHA-256 way, other cost
+ * settings, or typed straight into the table as plain text): the kept text for it, made afresh with scrypt. The stamp is
+ * carried over (the person's other sessions stay signed in); a one-time password stays one-time ("tmp$"), and a plain
+ * password from the table becomes a one-time one – it had to be changed at the sign-in anyway. '' = nothing to do. */
+function rehash_(pw, stored) {
+  stored = String(stored || '');
+  if (!hasScrypt_() || !stored || pwCurrent_(stored)) return '';
+  const temp = !isHashed_(stored);      // a one-time hash, or plain text
+  return (temp ? 'tmp$' : '') + makeHash_(String(pw), pwStamp_(stored));
+}
+// writes the kept password of one user (the Password cell of that row, nothing else)
+function storePw_(email, stored) {
+  const sh = SS_().getSheetByName(USERS_SHEET);
+  const hdr = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(h => String(h).trim());
+  const ce = hdr.indexOf('Email'), cp = hdr.indexOf('Password');
+  const emails = sh.getRange(2, ce + 1, Math.max(sh.getLastRow() - 1, 1), 1).getValues().map(r => str_(r[0]).toLowerCase());
+  const i = emails.indexOf(email);
+  if (i === -1 || cp === -1) throw new Error('User not found.');
+  sh.getRange(i + 2, cp + 1).setNumberFormat('@').setValue(stored);
+  CacheService.getScriptCache().remove('USERS_LIST');
+}
 function pwPolicy_(pw) {
   pw = String(pw || '');
   if (pw.length < PW_MIN_) return 'Password must have at least ' + PW_MIN_ + ' characters.';
@@ -212,6 +298,17 @@ const MODULE_LABEL_ = { 'Master': 'Asset Master' };
 const MODULE_FROM_ = { 'Vendor Master': 'Master', 'Vendor BOQ': 'Master', 'Machinery Billing': 'Master', 'Saved Bills': 'Reports' };
 const ACCESS_ = v => { const k = str_(v).toUpperCase().replace(/[^A-Z]/g, ''); return k === 'EDIT' ? 'Edit' : (k === 'NOACCESS' || k === 'NONE' || k === 'NO' || k === 'HIDE') ? 'None' : 'View'; };
 const SESSION_SECONDS = 21600; // 6 hours, renewed on every action
+/* ---------- A SIGN-IN LASTS 30 DAYS AT MOST (update-68, owner's decision D6) ----------
+ * A session ended only after 6 hours WITHOUT use; an app left open (it asks the server every few seconds) stayed signed
+ * in for ever – also on a phone that was lost, or for a person who left. Now the session also remembers when it was made
+ * ("email|stamp|time") and ends 30 days after that sign-in whatever happens; the person signs in again. Ending at once on
+ * a changed password, a deactivated user or "Sign out" is as before. A session from before this update has no time: it
+ * gets "now" at its first use, so it too ends within 30 days. */
+const SESSION_MAX_DAYS = 30;
+const SESSION_MAX_MS_ = SESSION_MAX_DAYS * 86400000;
+function sessionMake_(email, stored) { return email + '|' + pwStamp_(stored) + '|' + Date.now(); }
+// the parts of a session's value; left = milliseconds until its 30 days are over (a value without a time: the full 30 days)
+function sessionRead_(val) { const p = String(val || '').split('|'), made = Number(p[2]) || 0; return { email: p[0] || '', stamp: p[1] || '', made: made, left: made ? made + SESSION_MAX_MS_ - Date.now() : SESSION_MAX_MS_ }; }
 
 function readUsers_() {
   const cache = CacheService.getScriptCache();
@@ -289,7 +386,7 @@ function saveUserAdmin_(x, me) {
   if (adding || x.newPassword) {
     const pw = String(x.newPassword || '');
     if (pw.length < 6) throw new Error('Give a one-time password of at least 6 characters – the user must change it at the first sign-in.');
-    put('Password', pw); // plain on purpose: accepted once, then the user must set their own
+    put('Password', 'tmp$' + makeHash_(pw)); // a one-time password, kept as a hash: accepted at the sign-in, then the user must set their own
   }
   if (adding) sh.appendRow(row); else sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
   if (col('Password') > -1) sh.getRange(adding ? sh.getLastRow() : i + 2, col('Password') + 1).setNumberFormat('@');
@@ -297,6 +394,36 @@ function saveUserAdmin_(x, me) {
   bump_(['users']);
   const changes = before ? hdr.map((h, k) => h !== 'Password' && String(before[k]) !== String(row[k]) ? h + ': ' + (before[k] || '–') + ' → ' + (row[k] || '–') : '').filter(Boolean).concat(x.newPassword ? ['one-time password set'] : []).join('; ') : 'access: ' + MODULES.map(m => (MODULE_LABEL_[m] || m) + ' ' + (row[col(m)] || 'View')).join(', ');
   return { ok: true, email: email, added: adding, changes: changes };
+}
+/* ---------- ACCESS REPORT (update-68, owner's decision D3) – it only READS ----------
+ * For every user and every page: what is WRITTEN in the Users table (the raw cell) and the access the app really gives
+ * (the same list every sign-in uses – readUsersSheet_). An empty cell counts as View today; this report shows where
+ * that happens, so the owner can decide about it. It changes nothing: no cell is written, no column is added.
+ *   why:  written = the cell says Edit / View / No access      empty = the cell is empty → View
+ *         unknown = the cell holds some other text → View      admin = Admin: Edit everywhere, whatever the cell says
+ *         from <page> = this page has no column yet → the cell of the page it came out of      no column = no column → No access */
+function accessReport_() {
+  const sh = SS_().getSheetByName(USERS_SHEET);
+  if (!sh) throw new Error('Tab "Users" not found.');
+  const lastRow = sh.getLastRow(), lastCol = sh.getLastColumn();
+  const hdr = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim()), col = h => hdr.indexOf(h);
+  const data = lastRow > 1 ? sh.getRange(2, 1, lastRow - 1, lastCol).getValues() : [];
+  const real = {}; readUsersSheet_().forEach(u => { real[u.email] = u; });
+  const word = v => { const k = str_(v).toUpperCase().replace(/[^A-Z]/g, ''); return k === 'EDIT' || k === 'VIEW' || k === 'NOACCESS' || k === 'NONE' || k === 'NO' || k === 'HIDE'; };
+  const rows = [], count = { written: 0, empty: 0, unknown: 0, admin: 0, from: 0, nocolumn: 0 };
+  data.forEach(r => {
+    const email = str_(r[col('Email')]).toLowerCase(); if (!email) return;
+    const u = real[email] || { perms: {} }, admin = col('Admin') > -1 && str_(r[col('Admin')]).toUpperCase() === 'YES';
+    MODULES.forEach(m => {
+      let i = col(m), from = ''; if (i === -1 && MODULE_FROM_[m]) { i = col(MODULE_FROM_[m]); if (i > -1) from = MODULE_FROM_[m]; }
+      const raw = i > -1 ? str_(r[i]) : '';
+      const why = admin ? 'admin' : i === -1 ? 'no column' : from ? 'from ' + (MODULE_LABEL_[from] || from) : raw === '' ? 'empty' : word(raw) ? 'written' : 'unknown';
+      count[admin ? 'admin' : i === -1 ? 'nocolumn' : from ? 'from' : raw === '' ? 'empty' : word(raw) ? 'written' : 'unknown']++;
+      rows.push({ email: email, name: str_(r[col('Name')]) || email, active: str_(r[col('Active')]).toUpperCase() !== 'NO', admin: admin,
+        module: MODULE_LABEL_[m] || m, raw: raw, effective: u.perms[m] === 'None' ? 'No access' : (u.perms[m] || 'No access'), why: why });
+    });
+  });
+  return { at: new Date().toISOString(), users: data.filter(r => str_(r[col('Email')])).length, modules: MODULES.length, rows: rows, count: count };
 }
 function publicUser_(u) { return { email: u.email, name: u.name, admin: u.admin, perms: u.perms }; }
 
@@ -314,6 +441,9 @@ function login(email, password) {
   let fails;
   if (exact) {
     if (__count(mk, 120) > 60) throw new Error('Too many sign-in attempts. Please wait a minute and try again.');
+    // already locked: refused WITHOUT being counted. (Counting it started the 15 minutes afresh – a person who tried again
+    // while locked never got out of the lock, and anybody could keep an e-mail locked by one try every quarter of an hour.)
+    if (Number(cache.get(failKey) || 0) >= 5) throw new Error('Too many wrong attempts. Try again after 15 minutes.');
     fails = __count(failKey, 900) - 1;
   } else {
     const all = Number(cache.get(mk) || 0);
@@ -336,8 +466,12 @@ function login(email, password) {
     throw new Error('Wrong email or password.'); // same message for every case: nobody can tell which emails exist
   }
   cache.remove(failKey); if (exact) __uncount(failKey);
+  // the password is right; if it is not kept the way passwords are kept now, it is kept afresh (scrypt). The person
+  // notices nothing, other sessions stay signed in. If that write fails, the sign-in still works – it is tried again next time.
+  try { const fresh = rehash_(password, u.password); if (fresh) { storePw_(u.email, fresh); u.password = fresh; } }
+  catch (e) { if (sbDataOn_()) { try { sbDiscard_(); } catch (e2) { /* nothing half-done is written */ } } if (typeof console !== 'undefined') console.warn('password not kept afresh: ' + String((e && e.message) || e)); }
   const token = Utilities.getUuid() + Utilities.getUuid().slice(0, 8);
-  cache.put('S_' + token, u.email + '|' + pwStamp_(u.password), SESSION_SECONDS);
+  cache.put('S_' + token, sessionMake_(u.email, u.password), SESSION_SECONDS);
   writeLog_(u, 'Login', '', '', 'Logged in', '');
   sbFlush_();
   // a password set by Admin (not hashed yet) or a weak one must be changed now
@@ -349,7 +483,8 @@ function changePassword(token, oldPw, newPw) {
   const cache = CacheService.getScriptCache();
   const val = cache.get('S_' + str_(token));
   if (!val) throw new Error('SESSION_EXPIRED');
-  const email = val.split('|')[0];
+  const sv = sessionRead_(val), email = sv.email;
+  if (sv.left <= 0) { cache.remove('S_' + str_(token)); throw new Error('SESSION_EXPIRED'); }      // the 30 days of this sign-in are over
   const u = readUsers_().find(x => x.email === email);
   if (!u || !u.active) throw new Error('SESSION_EXPIRED');
   const fk = 'CPF_' + email, fails = Number(cache.get(fk) || 0);
@@ -367,7 +502,7 @@ function changePassword(token, oldPw, newPw) {
   sh.getRange(i + 2, cp + 1).setNumberFormat('@').setValue(stored);
   cache.remove('USERS_LIST'); cache.remove(fk); cache.remove('S_' + str_(token));
   const t2 = Utilities.getUuid() + Utilities.getUuid().slice(0, 8);
-  cache.put('S_' + t2, email + '|' + pwStamp_(stored), SESSION_SECONDS);
+  cache.put('S_' + t2, sessionMake_(email, stored), SESSION_SECONDS);      // the password was just proved: a new sign-in (its own 30 days)
   writeLog_(u, 'Password changed', '', '', 'Changed own password (other sessions signed out)', '');
   sbFlush_();
   bump_(['users']);
@@ -391,14 +526,16 @@ function sessionUser_(token) {
   const cache = CacheService.getScriptCache();
   const val = cache.get('S_' + token);
   if (!val) return null;
-  const email = val.split('|')[0], stamp = val.split('|')[1] || '';
+  const sv = sessionRead_(val), email = sv.email, stamp = sv.stamp;
   const u = readUsers_().find(x => x.email === email);
-  // not active any more, or the password was changed since this sign-in → session ends
-  if (!u || !u.active || stamp !== pwStamp_(u.password)) { cache.remove('S_' + token); return null; }
-  cache.put('S_' + token, val, SESSION_SECONDS);
+  // not active any more, the password was changed since this sign-in, or the sign-in is 30 days old → session ends
+  if (!u || !u.active || stamp !== pwStamp_(u.password) || sv.left <= 0) { cache.remove('S_' + token); return null; }
+  // renewed for 6 hours (kept no longer than its 30 days; the 30 days are checked above at EVERY use, whatever the cache
+  // still holds). A session from before update-68 has no time yet: it gets "now".
+  cache.put('S_' + token, sv.made ? val : email + '|' + stamp + '|' + Date.now(), Math.max(1, Math.min(SESSION_SECONDS, Math.ceil(sv.left / 1000))));
   return u;
 }
-// Edit only where the Users sheet says Edit – also for Admin. (Admin = Activity Log access.)
+// Edit where the user's access says Edit (an Admin's access is Edit everywhere – readUsersSheet_).
 function canEdit_(u, module) { return u.perms[module] === 'Edit'; }
 
 /* ---------- every action the app can ask for ---------- *
@@ -406,12 +543,14 @@ function canEdit_(u, module) { return u.perms[module] === 'Edit'; }
 const API_ = {
   whoami:            { m: '', f: () => true },
   sync:              { m: '', f: () => ({}) },          // heartbeat: fresh access + what changed (filled in api)
-  getLookups:        { m: '', f: getLookups_ },
-  backupNow:         { m: '', f: () => (typeof sbBackupNow_ === 'function' ? sbBackupNow_() : { off: true }) }, // every signed-in user
+  getLookups:        { m: '', withUser: true, f: u => getLookups_(u) },
+  // Only the Admin starts a backup by hand (update-68, owner's decision D5 – refused HERE, on the server, whatever the page shows).
+  // The backup that runs by itself (the nightly job with its secret, and the check with the open app) does not come through this action.
+  backupNow:         { m: '', admin: true, f: () => (typeof sbBackupNow_ === 'function' ? sbBackupNow_() : { off: true }) },
   saveTankSettings:  { m: 'Master', edit: true, f: saveTankSettings_ },
   globalSearch:      { m: '', withUser: true, f: globalSearch_ },
-  getInit:           { m: '', f: getInit_ },
-  getStock:          { m: '', f: getStock_ },
+  getInit:           { m: '', withUser: true, f: u => getInit_(u) },
+  getStock:          { m: '', any: FOR_STOCK_, f: getStock_ },      // the diesel stock: for users with a page that shows it (update-68, D4)
   dieselHistory:     { m: 'Diesel Issue', f: dieselHistory_ },
   getDashboard:      { m: 'Dashboard', f: getDashboard_ },
   logDashboard:      { m: 'Dashboard', f: logDashboard_ },
@@ -517,6 +656,7 @@ const API_ = {
   importLogBook:     { m: 'Log Book', edit: true, f: importLogBook_, log: 'logImport' },
   getActivity:       { m: '', admin: true, f: getActivity_ },
   usersAdmin:        { m: '', admin: true, f: usersAdmin_ },
+  accessReport:      { m: '', admin: true, f: accessReport_ },      // reads only: what is written in each access cell and the access it gives (update-68, D3)
   readme:            { m: '', admin: true, f: () => (typeof readmePage_ === 'function' ? readmePage_() : { missing: true }) }, // ReadMe.gs
   saveUserAdmin:     { m: '', admin: true, withUser: true, f: (u, x) => saveUserAdmin_(x, u), log: 'userSave' },
   getMonthlyDieselReport: { m: 'Reports', f: getMonthlyDieselReport_ },
@@ -537,11 +677,19 @@ const API_ = {
 };
 
 function api(token, fn, args) {
+  SAVED_ = false; OUT_FOR_ = null;      // one request = one save (see "AFTER THE SAVE")
+  if (typeof OP_SENT_ !== 'undefined') { OP_SENT_ = false; OP_RESULT_ = null; }
   { const moved = movedTo_(); if (moved) throw new Error('The app has moved to a new link: ' + moved + ' – open it and sign in with the same password.'); }
   const u = sessionUser_(token);
   if (!u) throw new Error('SESSION_EXPIRED');
-  const spec = API_[fn];
-  if (!spec) throw new Error('Unknown action: ' + fn);
+  /* A ONE-TIME PASSWORD OPENS NOTHING (07-10-2026). A password typed by the Admin (new user, reset) must be replaced at the
+   * sign-in. Until now only the PAGE asked for that: reloading the page instead of answering the box left the person fully
+   * signed in on the one-time password, for as long as they liked. The server now refuses every action until the user has
+   * set an own password (changePassword is not an action of this list, so it still works); the page then shows the sign-in
+   * again, which asks for the new password. */
+  if (!isHashed_(u.password)) throw new Error('SESSION_EXPIRED');
+  const spec = Object.prototype.hasOwnProperty.call(API_, String(fn)) ? API_[fn] : null;      // only the app's own list ("constructor", "__proto__" … are not actions)
+  if (!spec) throw new Error('Unknown action: ' + String(fn).slice(0, 60));
   if (spec.admin && !u.admin) throw new Error(fn === 'backupNow' ? 'Only Admin can start a backup.' : fn === 'getActivity' ? 'Only Admin can open the Activity Log.' : 'Only Admin can open this.');
   const label = m => MODULE_LABEL_[m] || m;
   if (spec.any) { if (!spec.any.some(m => u.perms[m] && u.perms[m] !== 'None')) throw new Error('You do not have access to ' + spec.any.map(label).join(' / ') + '. Ask Admin.'); }
@@ -560,7 +708,7 @@ function api(token, fn, args) {
   }
   try { return apiRun_(u, spec, fn, args); }
   catch (err) {
-    if (onceKey) { try { __uncount(onceKey); } catch (e2) { /* it frees itself in a few seconds */ } }
+    if (onceKey && !SAVED_) { try { __uncount(onceKey); } catch (e2) { /* it frees itself in a few seconds */ } }      // a failed entry may be sent again at once; one that IS saved keeps its place
     // a fault of the app or of the database (not a refusal): written down for the Admin; the user is told it is not the entry
     const kind = faultKind_(err);
     if (kind && fn !== 'reportError') {
@@ -572,16 +720,29 @@ function api(token, fn, args) {
   }
 }
 const ONCE_FNS_ = ['saveDebitNote', 'saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'saveInward', 'importInward', 'saveTransfer', 'saveTransferBulk', 'savePayment', 'saveTankCheck', 'submitBdReport'];
+/* THE BACKUP SHEET'S LINK IS FOR THE ADMIN (07-10-2026). The backup Google Sheet holds every table – vendors' bank account,
+ * PAN and Aadhaar numbers, the Activity Log. Its link used to be sent to EVERY signed-in user with every heartbeat (and shown
+ * as "Open the backup Google Sheet"), also to a user with access to one page only. Everybody still sees whether the backup is
+ * all right and when it last ran; only the Admin gets the link and the technical words of a failure (they name the robot
+ * account of the backup). Who can OPEN the Sheet is decided by its sharing in Google – it must be "Restricted". */
+function backupInfoFor_(u, info) {
+  if (!info || typeof info !== 'object' || (u && u.admin)) return info;
+  const o = Object.assign({}, info); delete o.url;
+  if (o.error) o.error = 'The backup to the Google Sheet has a problem – please tell the Admin.';
+  return o;
+}
 function apiRun_(u, spec, fn, args) {
   const vBefore = spec.edit ? getVersions_() : null;
   TABLE_MEMO_ = {}; // each tab read once per request (dropped automatically when written)
   if (sbDataOn_()) sbDiscard_(); // Supabase: every request starts with fresh data
   const before = spec.log ? logBefore_(spec, args) : null;
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin;
-  const res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args);
+  OUT_FOR_ = u;      // (the answer kept with a save – step 5 – is cut the same way: see withLock_)
+  const res = leastOut_(u, spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args));      // machinery details only for users with a page that uses them (D4)
   if (fn === 'getInit' || fn === 'sync') { res.user = publicUser_(u); res.versions = getVersions_(); res.today = today_(); res.source = sbDataOn_() ? 'supabase' : 'sheet'; res.build = appBuild_();
-    if (typeof sbBackupInfo_ === 'function') res.backup = sbBackupInfo_();
+    if (typeof sbBackupInfo_ === 'function') res.backup = backupInfoFor_(u, sbBackupInfo_());
     if (u.admin) res.faults = errStamp_(); }      // the Admin's page shows faults of today within seconds
+  if (fn === 'backupNow' && res && res.info) res.info = backupInfoFor_(u, res.info);
   if (spec.log) {
     try { logAfter_(u, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ }
   }
@@ -589,7 +750,12 @@ function apiRun_(u, spec, fn, args) {
     bump_(SYNC_GROUPS_[spec.m] || []); // tell every open app that this data changed
     if (res && typeof res === 'object' && !Array.isArray(res)) res._v = { before: vBefore, after: getVersions_() };
   }
-  sbFlush_(); // Supabase: Activity Log lines and anything else still waiting
+  // Supabase: Activity Log lines and anything else still waiting. After a save that is already in the database a failure
+  // here does not make the entry "not saved" (see "AFTER THE SAVE"); for everything else it is the save itself.
+  // "Housekeeping" is ONLY the Activity Log: if any other table still waits to be written, that is data and fails loudly as before.
+  if (typeof opResult_ === 'function' && !OP_SENT_) OP_RESULT_ = opResult_(res);      // a save without a lock (Users & Access …): its answer goes in with this write
+  if (SAVED_ && sbPendingTables_().every(t => t === 'activity_log')) { try { sbFlush_(); } catch (e) { try { sbDiscard_(); } catch (e2) { /* nothing more to drop */ } afterSaveFault_(u, fn, e); } }
+  else sbFlush_();
   return res;
 }
 
@@ -632,7 +798,9 @@ function getVersions_() {
   SYNC_KEYS_.forEach(k => { v[k.slice(2)] = got[k] || '0'; });
   return v;
 }
-function getLookups_() { return { master: getMaster_(), drivers: getDrivers_(), pumps: getPumps_(), vendors: vendorNames_(), closedUpto: booksClosed_(), rules: siteRules_() }; }
+function getLookups_(u) { const all = !u;      // each list only for a user who has a page that uses it (see getInit_)
+  return { master: getMaster_(), drivers: all || seesAny_(u, FOR_DRIVERS_) ? getDrivers_() : [], pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [],
+    vendors: all || seesAny_(u, FOR_PARTIES_) ? vendorNames_() : [], closedUpto: booksClosed_(), rules: siteRules_() }; }
 
 // Simple trigger: runs by itself whenever someone types in the Google Sheet
 function onEdit(e) {
@@ -669,7 +837,9 @@ function writeLog_(u, action, module, recordId, summary, changes) {
   const p = PropertiesService.getScriptProperties();
   const n = Number(p.getProperty('LOG_LAST_NO') || 0) + 1;
   p.setProperty('LOG_LAST_NO', String(n));
-  sh.appendRow(safeRows_(['LOG-' + String(n).padStart(7, '0'), new Date(), u.email || '', u.name || '', action, module || '', recordId || '', String(summary || '').slice(0, 2000), String(changes || '').slice(0, 5000)]));
+  // the key ends in 4 random letters: two requests that take the same number at the same moment (the number is read outside
+  // the lock) used to write the SAME key, and the second line replaced the first – one line of the trail was lost (07-10-2026)
+  sh.appendRow(safeRows_(['LOG-' + String(n).padStart(7, '0') + '-' + Utilities.getUuid().replace(/-/g, '').slice(0, 4), new Date(), u.email || '', u.name || '', action, module || '', recordId || '', String(summary || '').slice(0, 2000), String(changes || '').slice(0, 5000)]));
   bump_(['activity']);
 }
 
@@ -2300,6 +2470,20 @@ function billMachOverlap_(a, b) { return !a.length || !b.length || a.some(k => b
  * The server builds every bill again from the database (Log Book, Diesel Issue, BOQ, Asset / Vendor Master) the same way
  * the Machinery Billing page does, and checks it line by line against the bill on the screen. A bill with any ✖ cannot be
  * submitted; ⚠ is shown to the user but does not stop the submit. A verified bill is remembered for 15 minutes. */
+/* A bill's saved data is what its papers are drawn from – on every screen that opens the bill later, by anybody. Text in it
+ * that looks like HTML (a "<" DIRECTLY followed by a letter, "/", "!" or "?" – "a < b" and "5<10" are ordinary text) is refused
+ * at the door: nothing of that bill is saved.
+ * (The page escapes what it draws; this is the second lock on the same door – 07-10-2026.) */
+function billNoHtml_(v, who, depth) {
+  depth = depth || 0;
+  if (depth > 14) throw new Error(who + ': the bill data is nested too deep to be checked – build the bill again from the Machinery Billing page.');
+  if (typeof v === 'string') {
+    if (/<[A-Za-z!\/?]/.test(v)) throw new Error(who + ': the bill holds text that looks like HTML – "' + v.replace(/[<>]/g, ' ').slice(0, 40) + '…". Remove the "<" from that text (a name, remark or work description), then build the bill again.');
+    return;
+  }
+  if (Array.isArray(v)) { v.forEach(x => billNoHtml_(x, who, depth + 1)); return; }
+  if (v && typeof v === 'object') Object.keys(v).forEach(k => { billNoHtml_(k, who, depth + 1); billNoHtml_(v[k], who, depth + 1); });
+}
 function billVerifyKey_(d, x) {
   const k = [vKey_((d.vendor || {}).name || x.vendor || ''), str_(x.company || d.company), dkey_(x.from || d.from), dkey_(x.to || d.to), r2_(num0_(d.A)), r2_(num0_(d.B)), r2_(num0_(d.C)), r2_(num0_(d.I))].join('|');
   return 'VB_' + hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, k, Utilities.Charset.UTF_8)).slice(0, 40);
@@ -2564,6 +2748,7 @@ function submitBills_(b) {
       if (billCompanies_().indexOf(str_(x.company)) === -1) throw new Error('Pick the company name for ' + x.vendor + '.');
       if (!clean_(x.billNo)) throw new Error('Enter the bill number for ' + x.vendor + '.');
       if (!dkey_(x.from) || !dkey_(x.to)) throw new Error('Pick the bill period.');
+      billNoHtml_(x.data || {}, clean_(x.vendor));
     });
     vbSheet_(APP.SHEET_BILLS, BILL_COLS_);
     addColIfMissing_(APP.SHEET_BILLS, BILL_COLS_, H.EBY); addColIfMissing_(APP.SHEET_BILLS, BILL_COLS_, H.UBY); TABLE_MEMO_ = {};
@@ -2652,7 +2837,11 @@ function deleteBill_(id, reason) {
     // debit notes that were deducted in this bill are open again
     try { const dt = vbTable_(DN_SHEET_, DN_COLS_);
       if (dt) dt.rows.map((r, k) => dnOut_(dt, r, k)).filter(d => d.billId === b.id).forEach(d => { const dr = dt.rows[d.i].slice(); set_(dr, dt, 'Bill ID', ''); set_(dr, dt, 'Status', 'Open'); stampEdit_(dr, dt); dt.sh.getRange(d.i + 2, 1, 1, dr.length).setValues([dr]); });
-      TABLE_MEMO_ = {}; } catch (e) { /* no debit notes table */ }
+      TABLE_MEMO_ = {}; } catch (e) {
+      // only "there is no debit-notes table (yet)" is passed over. Anything else (the database did not answer …) used to be
+      // passed over too: the bill was deleted, its debit notes stayed "Deducted" in a bill that no longer exists, and the
+      // answer was "ok". Now the whole delete fails and nothing is changed – it can be done again. (07-10-2026)
+      if (!/→ 404|PGRST20[25]|Could not find the table|not found in (the Google Sheet|tab)/.test(String((e && e.message) || e))) throw e; }
     return { ok: true, bill: b };
   });
 }
@@ -6614,12 +6803,54 @@ function withLock_(fn) {
   if (outer) { if (TABLE_MEMO_) TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_(); }
   try {
     const out = fn();
-    if (outer) sbFlush_();                  // Supabase: everything of this save is written together
+    if (outer) { if (typeof opResult_ === 'function' && !OP_SENT_) OP_RESULT_ = opResult_(leastOut_(OUT_FOR_, out));      // the answer goes into the database WITH the entry (see SupabaseData.gs flush)
+      sbFlush_();                // Supabase: everything of this save is written together
+      SAVED_ = true; if (typeof __saved === 'function') __saved(); }      // from here on the entry IS in the database (see "AFTER THE SAVE")
     return out;
   } catch (e) {
     if (outer && sbDataOn_()) { sbDiscard_(); if (TABLE_MEMO_) TABLE_MEMO_ = {}; } // nothing of a failed save is written
     throw e;
-  } finally { SB_DEPTH_--; lock.releaseLock(); }
+  } finally { SB_DEPTH_--;
+    // giving the lock back can fail on a network hiccup. It must never turn a save that is done into an error (the page
+    // would send it again and it would be saved twice); the lock frees itself (the server gives it back at the end of the
+    // request, and it ends by itself after 75 seconds).
+    try { lock.releaseLock(); } catch (e) { if (typeof console !== 'undefined') console.warn('lock not given back at once: ' + String((e && e.message) || e)); } }
+}
+/* ---------- AFTER THE SAVE (07-10-2026) ----------
+ * SAVED_ becomes true the moment the entry of this request is in the database (the write of withLock_ went through).
+ * What follows – the Activity Log line, telling the open pages that data changed, giving the lock back – is housekeeping.
+ * If one of those steps fails, the entry is still saved, so the request still answers "saved" and the fault is written
+ * down for the Admin. Before, such a failure answered "could not reach the database"; the page then sent the same entry
+ * again by itself and it was saved a second time. */
+let SAVED_ = false;
+let OUT_FOR_ = null;      // the user of this request (set in apiRun_): whose answer is being made
+function afterSaveFault_(u, fn, e) {
+  const msg = String((e && e.message) || e);
+  try { if (typeof console !== 'undefined') console.error('[after a save: ' + fn + '] ' + msg); } catch (e1) { /* no console */ }
+  try { errLog_({ kind: 'database', by: (u && (u.name || u.email)) || '', email: (u && u.email) || '', where: fn, msg: 'The entry was saved, but a step after it failed (Activity Log line or live refresh): ' + msg.slice(0, 160) }); } catch (e2) { /* noted in the server log above */ }
+}
+/* THE ENTRY IS IN, BUT WHAT FOLLOWS A SAVE NEVER RAN (update-68, with the step-5 SQL – see runOnce in server/runtime.js).
+ * The database says "this save IS done" although the server that saved got an error or no answer for its write, or stopped
+ * at that moment. The person is answered "saved" from the answer kept with the entry (it is never saved again). What a
+ * save normally does afterwards is done here, once: the open pages are told that data changed, the Activity Log gets its
+ * line (the usual one for a new entry; a plain "Saved" line otherwise – the values before the change are not known any
+ * more), and the Admin's fault list says what happened. Nothing here writes, repeats or undoes the entry itself. */
+function savedAfterAll_(token, fn, args, kept) {
+  const u = sessionUser_(token);
+  const spec = Object.prototype.hasOwnProperty.call(API_, String(fn)) ? API_[fn] : null;
+  if (!u || !spec) return false;
+  let res = null; try { res = JSON.parse(String(kept || '')); } catch (e) { res = null; }
+  if (sbDataOn_()) sbDiscard_();
+  try { if (spec.edit) bump_(SYNC_GROUPS_[spec.m] || []); } catch (e) { /* the pages ask again by themselves */ }
+  if (spec.log) {
+    try {
+      if (spec.log === 'add' && res && res.id) logAfter_(u, spec, args || [], res, null);
+      else writeLog_(u, 'Saved', spec.m, str_(res && res.id), 'Saved (' + fn + ') – the answer of the database was lost on the way, so this line has no details', '');
+      sbFlush_();
+    } catch (e) { try { sbDiscard_(); } catch (e2) { /* nothing more to drop */ } }
+  }
+  try { errLog_({ kind: 'database', by: u.name || u.email, email: u.email, where: fn, msg: 'An entry was SAVED although the answer of the database did not reach the server. It is saved once (not twice) and the user was told "saved".' }); } catch (e) { /* noted in the server log */ }
+  return true;
 }
 
 function set_(row, t, header, value) { if (header in t.c) row[t.c[header]] = value; }
@@ -6749,13 +6980,26 @@ function getAiReply_(u, x) {
   // how much one user and the whole site may ask
   const ch = CacheService.getScriptCache(), hour = Math.floor(Date.now() / 3600000), day = today_();
   const kU = 'AIU_' + hour + '_' + hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, str_(u.email).toLowerCase(), Utilities.Charset.UTF_8)).slice(0, 16), kS = 'AIS_' + day;
-  const nU = Number(ch.get(kU) || 0), nS = Number(ch.get(kS) || 0);
-  if (nU >= 150) throw new Error('You have asked the assistant a lot in this hour. Please try again a little later.');
-  if (nS >= 5000) throw new Error('The assistant has reached its limit for today for this site. It works again tomorrow.');
-  ch.put(kU, String(nU + 1), 3700); ch.put(kS, String(nS + 1), 90000);
+  /* Counted EXACTLY where the server has its exact counter (07-10-2026). Until then: read the count, ask the AI service, and
+   * write count + 1 at the END of the request – so any number of questions sent at the same moment counted as one, and the
+   * limits (the cost of the AI key) could be passed. Now every question takes its number first. Without the exact counter
+   * (step-3 SQL not installed): the old way. */
+  if (typeof __count === 'function' && __count('', 0) !== -1) {
+    if (__count(kU, 3700) > 150) throw new Error('You have asked the assistant a lot in this hour. Please try again a little later.');
+    if (__count(kS, 90000) > 5000) throw new Error('The assistant has reached its limit for today for this site. It works again tomorrow.');
+  } else {
+    const nU = Number(ch.get(kU) || 0), nS = Number(ch.get(kS) || 0);
+    if (nU >= 150) throw new Error('You have asked the assistant a lot in this hour. Please try again a little later.');
+    if (nS >= 5000) throw new Error('The assistant has reached its limit for today for this site. It works again tomorrow.');
+    ch.put(kU, String(nU + 1), 3700); ch.put(kS, String(nS + 1), 90000);
+  }
   // the conversation from the page: only its turns are taken – the rules and the look-ups are the server's
   let turns = Array.isArray(x.contents) ? x.contents.slice(-40) : [];
   turns = turns.filter(t => t && (t.role === 'user' || t.role === 'model') && Array.isArray(t.parts) && t.parts.length).map(t => ({ role: t.role, parts: t.parts }));
+  // a long chat is cut to its last 40 turns – the cut can land on an answer or on the result of a look-up. The conversation
+  // must begin with a QUESTION the person typed: everything before the first such turn is left out. (Before 07-10-2026 a chat
+  // of more than 40 turns answered only "Type a question for the assistant." until "New chat" was pressed.)
+  { const k = turns.findIndex(t => t.role === 'user' && t.parts.some(q => q && typeof q.text === 'string') && !t.parts.some(q => q && q.functionResponse)); turns = k > -1 ? turns.slice(k) : []; }
   if (!turns.length || turns[0].role !== 'user') throw new Error('Type a question for the assistant.');
   if (JSON.stringify(turns).length > 250000) throw new Error('This conversation has become too long. Press "New chat" and ask again.');
   /* THE SNAPSHOT (asked 04-10-2026: "the answer must come fast – keep the data ready for the AI, fresh within a second").
@@ -6858,7 +7102,7 @@ function getBrief_(u) {
   if (can('Diesel Issue')) part('diesel', () => { const d = getDieselIssues_({ from: y, to: y, all: true }).rows || [], t = getDieselIssues_({ from: today, to: today, all: true }).rows || [];
     return { litres: r2_(d.reduce((s, r) => s + num0_(r.qty), 0)), entries: d.length, top: top(d, 'no', 'qty', 3), todayLitres: r2_(t.reduce((s, r) => s + num0_(r.qty), 0)), todayEntries: t.length }; });
   if (can('Diesel Inward')) part('received', () => { const d = getInwards_({ from: y, to: y }); return { litres: num0_(d.qty), bills: num0_(d.count) }; });
-  part('stock', () => { const s = getStock_(); return { litres: s.stock, byLoc: s.byLoc }; });
+  if (seesAny_(u, FOR_STOCK_)) part('stock', () => { const s = getStock_(); return { litres: s.stock, byLoc: s.byLoc }; });
   if (can('Log Book')) part('logbook', () => { const p = pendingLogs_(), mine = p.items.filter(x => x.date === y).map(x => x.no);
     return { entries: num0_(getLogBookList_({ from: y, to: y, all: true }).count), pending: mine.length, names: mine.slice(0, 8), pendingToday: p.items.filter(x => x.date === today).length, pendingDaysInAll: p.total }; });
   if (can('Reports')) {
@@ -6872,7 +7116,7 @@ function getBrief_(u) {
     return { expired: exp, due: due, soonDays: c.soonDays, first: first }; });
   if (can('Breakdown')) part('breakdown', () => { const b = getBreakdowns_({ date: today }), nos = Object.keys(b.status || {}).filter(k => b.status[k].status === 'Breakdown'); return { down: nos.length }; });
   if (u.admin) part('admin', () => { const e = errList_(), yy = e.filter(x => str_(x.at).slice(0, 10) === y || str_(x.at).slice(0, 10) === today).length;
-    let hrs = ''; try { const b = typeof sbBackupInfo_ === 'function' ? sbBackupInfo_() : null, at = b && (b.at || b.time || b.when); if (at) hrs = Math.round((Date.now() - new Date(at).getTime()) / 3600000); } catch (e2) { hrs = ''; }
+    let hrs = ''; try { const b = typeof sbBackupInfo_ === 'function' ? sbBackupInfo_() : null, at = b && (b.lastRun || b.lastCheck); if (at) hrs = Math.round((Date.now() - new Date(at).getTime()) / 3600000); } catch (e2) { hrs = ''; }
     return { faults: yy, backupHours: hrs, closedUpto: booksClosed_() || '' }; });
   return out;
 }
@@ -7026,6 +7270,8 @@ function dbHealth_() {
   if (api) {
     add('Faster server (step 2)', ['web_boot', 'web_flush', 'web_lock', 'web_unlock', 'web_stamp'].every(fn), 'supabase_step2_web.sql', ['web_boot', 'web_flush', 'web_lock', 'web_unlock', 'web_stamp'].filter(n => !fn(n)).join(', '));
     add('Safe saving – all or nothing (step 3)', fn('web_write'), 'supabase_step3_safety.sql');
+    { const s5 = ['web_op_begin', 'web_op_mark', 'web_write2', 'web_op_end', 'web_ops_cleanup'];
+      add('A save is saved once – decided in the database (step 5)', s5.every(fn), 'supabase_step5_save_once.sql', s5.filter(n => !fn(n)).join(', ')); }
     if (fn('web_health')) {
       let h = null; try { h = sbFetch_('POST', '/rest/v1/rpc/web_health', {}); } catch (e) { h = null; }
       const look = h && Array.isArray(h.findings) ? h.findings.filter(x => !/^ok/.test(String(x))) : null;

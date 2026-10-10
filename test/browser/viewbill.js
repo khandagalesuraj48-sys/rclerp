@@ -48,8 +48,16 @@ print(json.dumps(o))
   const f = p.frames().find(x => x !== p.mainFrame());
   await f.evaluate(() => { try { localStorage.setItem('oc_brief_sujit@rcl.test', new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })); localStorage.removeItem('rcl_orient_rep_rep-lb'); localStorage.removeItem('rcl_orient_rep'); } catch (e) {} });
   await f.type('#lg_email', 'sujit@rcl.test'); await f.type('#lg_pass', 'Nashik#Road848!'); await f.click('#lg_btn'); await wait(6000);
-  await f.addScriptTag({ path: path.join(__dirname, 'node_modules/xlsx/dist/xlsx.full.min.js') });      // the Excel tool from the local copy (the CDN is closed in the test rig)
-  await f.addScriptTag({ path: path.join(__dirname, 'node_modules/exceljs/dist/exceljs.min.js') });     // the formatting tool, the same version the app loads (4.4.0)
+  // THE EXCEL TOOLS. From update-67 the app serves both itself (/vendor/…): the test waits for the page's OWN loading and puts nothing in.
+  // (The code before that fetched them from public file servers, which the test rig cannot reach: there the local copies are put in.)
+  let ownTools = null;
+  if (NEW) { await f.evaluate(() => { try { window.rclLoadXlsx(); } catch (e) {} rclLoadExcelJs().catch(() => {}); });
+    for (let i = 0; i < 40; i++) { ownTools = await f.evaluate(() => ({ xlsx: typeof XLSX !== 'undefined' && XLSX.version, exceljs: typeof ExcelJS !== 'undefined', from: [...document.scripts].map(x => x.src).filter(x => /xlsx|exceljs/.test(x)) })); if (ownTools.xlsx && ownTools.exceljs) break; await wait(250); }
+    ok('0. the two Excel tools are loaded by the page ITSELF from the app\'s own address (/vendor/…), nothing from a public file server', ownTools.xlsx === '0.18.5' && ownTools.exceljs && ownTools.from.length === 2 && ownTools.from.every(u => u.indexOf('http://127.0.0.1:' + PORT + '/vendor/') === 0), ownTools);
+  } else {
+    await f.addScriptTag({ path: path.join(__dirname, 'node_modules/xlsx/dist/xlsx.full.min.js') });
+    await f.addScriptTag({ path: path.join(__dirname, 'node_modules/exceljs/dist/exceljs.min.js') });
+  }
   await f.evaluate(() => { window.__xl = []; XLSX.writeFile = function (wb, name) { window.__xl.push({ name: name, plain: true, b64: XLSX.write(wb, { type: 'base64', bookType: 'xlsx' }) }); };
     saveXlsxBuffer = function (buf, name) { const u = new Uint8Array(buf); let bin = ''; for (let i = 0; i < u.length; i += 0x8000) bin += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); window.__xl.push({ name: name, b64: btoa(bin) }); }; });
   const yes = () => f.evaluate(() => { const c = document.getElementById('cf_back'); if (c && !c.hidden) { document.getElementById('cf_ok').click(); return true; } return false; });
@@ -112,6 +120,21 @@ print(json.dumps(o))
     ok('BEFORE (the code that is live): View / Print of the saved bill has the papers only – no Log Book, no Excel button', lay.logbooks.length === 0 && !lay.excel && !/LOG BOOK –/.test(pdf.text), { papers: lay.papers, logbooks: lay.logbooks.length, pages: pdf.pages, excel_button: lay.excel });
   }
   await w.close();
+
+  // ---------- 2b. a saved bill whose STORED DATA carries HTML (put there straight in the database, as an attacker with Billing rights could through the app) ----------
+  { const kept = sql("select data from bills where vendor_name = 'View Vendor Noreg' and status = 'Active'"), bad = JSON.parse(kept);
+    const P = n => '<img src=x onerror="window.__xss=(window.__xss||0)+1;try{window.opener.__xss=(window.opener.__xss||0)+1}catch(e){}">' + 'P' + n;
+    bad.from = '2026-09-01' + P(1); bad.to = '2026-09-30' + P(2); bad.billDate = '2026-10-05' + P(3); bad.woDate = '2026-09-01' + P(4);
+    (bad.machines || []).forEach(m => { m.nights = P(5); (m.lines || []).forEach(l => { if (l.unit !== 'Days') l.unit = l.unit + P(6); }); });
+    sql("update bills set data = $hx$" + JSON.stringify(bad) + "$hx$ where vendor_name = 'View Vendor Noreg' and status = 'Active'"); await wait(1500);
+    await f.evaluate(() => { window.__xss = 0; return sbLoad(); }); await wait(1500);
+    const wx = await popupOf(() => f.evaluate(() => { const tr = [...document.querySelectorAll('#sb_rows tr')].find(r => r.textContent.indexOf('View Vendor Noreg') > -1); tr.querySelector('[data-sbv]').click(); }));
+    await wait(1200);
+    const seen = wx ? await wx.evaluate(() => ({ ran: window.__xss || 0, tags: document.querySelectorAll('img[src="x"]').length, asText: (document.body.innerText.match(/<img src=x/g) || []).length })) : { ran: -1 };
+    const ranInApp = await f.evaluate(() => window.__xss || 0);
+    ok((NEW ? '[fix] ' : 'BEFORE: ') + '2b. a saved bill whose stored data carries HTML: it is SHOWN as text on the papers, nothing of it runs', seen.ran === 0 && ranInApp === 0 && seen.tags === 0 && seen.asText >= 4, Object.assign({ ran_in_the_app_page: ranInApp }, seen));
+    if (wx) await wx.close();
+    sql("update bills set data = $hx$" + kept + "$hx$ where vendor_name = 'View Vendor Noreg' and status = 'Active'"); await wait(1200); await f.evaluate(() => sbLoad()); await wait(1000); }
 
   if (NEW) {
     // ---------- 3. every other print has it too ----------

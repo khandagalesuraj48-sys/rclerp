@@ -85,6 +85,9 @@ function sbCachePut_(key, obj) {
     cache.put(key, String(n), 21600);                // written last: a copy is used only when complete
   } catch (e) { /* no cache – still correct, only slower */ }
 }
+let OP_SENT_ = false, OP_RESULT_ = null;      // this request's save number has gone in with a write / the answer known so far (JSON text)
+function opResult_(v) { try { const s = JSON.stringify(v === undefined ? null : v); return s.length <= 200000 ? s : JSON.stringify({ ok: true, _resent: true }); } catch (e) { return null; } }
+const SB_NO_WRITE_FN_ = 'Saving is switched off – nothing was saved. The database is missing its "all or nothing" save function (web_write), so an entry could be written only in part. The Admin must run sql/supabase_step3_safety.sql in Supabase → SQL Editor; saving works again at once after that.';
 SbBook_.prototype.flush = function () {
   const c = sbConf_(), calls = [], after = [];
   Object.keys(this.sheets).forEach(t => {
@@ -97,16 +100,29 @@ SbBook_.prototype.flush = function () {
   });
   if (!calls.length) return;
   /* One save = ONE database transaction (function web_write, step-3 SQL): everything of this save is written, or nothing.
-   * Where that function is not installed, the save is written the old way – one call per table (if one of them fails,
-   * the others stay written). */
+   * WHERE THAT FUNCTION IS MISSING THE SAVE IS REFUSED (07-10-2026). Until then such a save was quietly written "the old
+   * way" – one call per table, and if one of them failed the others stayed written (a Diesel Issue without its Log Book
+   * line), for as long as the server lived. A save that cannot be all-or-nothing is not made: the message names the SQL
+   * file, and saving works again the moment it is run. The old way remains only where the server's owner switches it on
+   * on purpose (RCL_OLD_WRITES=on in the server's settings – e.g. a new site before its step 3), and in Apps Script. */
   let done = false;
   if (!(typeof __writeMode === 'function' && __writeMode() === 'old')) {
     const p = [];
     Object.keys(this.sheets).forEach(t => { const w = this.sheets[t].pending(); if (w.upserts.length || w.deletes.length) p.push({ table: t, upserts: w.upserts, deletes: w.deletes.map(String) }); });
-    const r = UrlFetchApp.fetch(c.url + '/rest/v1/rpc/web_write', { method: 'post', muteHttpExceptions: true, headers: { apikey: c.key, 'Content-Type': 'application/json' }, payload: JSON.stringify({ p: p }) });
+    /* THE SAVE'S NUMBER GOES IN WITH IT (update-68, step-5 SQL). Where the server gave this request a save number
+     * (__op: { rid, holder }), the FIRST write of the request carries it: web_write2 marks the number "done" (with the
+     * answer known so far) and writes the rows in ONE transaction. A copy of the same save can then never write again –
+     * see runOnce in server/runtime.js. Later writes of the same request (the Activity Log line) go the plain way. */
+    const op = !OP_SENT_ && typeof __op === 'function' ? __op() : null;
+    const r = UrlFetchApp.fetch(c.url + '/rest/v1/rpc/' + (op ? 'web_write2' : 'web_write'), { method: 'post', muteHttpExceptions: true, headers: { apikey: c.key, 'Content-Type': 'application/json' },
+      payload: JSON.stringify(op ? { p: p, p_rid: op.rid, p_holder: op.holder, p_result: OP_RESULT_ } : { p: p }) });
     const code = r.getResponseCode();
-    if (code >= 200 && code < 300) done = true;
-    else if (code === 404 && /web_write|PGRST202/.test(r.getContentText())) { if (typeof __writeMode === 'function') __writeMode('old'); }   // not installed: the old way
+    if (code >= 200 && code < 300) { done = true; if (op) OP_SENT_ = true; }
+    else if (op && /OP_NOT_MINE/.test(r.getContentText())) { SB_BOOK_ = null; throw new Error('OP_NOT_MINE: this save is already being finished by another copy of it – nothing was written twice.'); }
+    else if (code === 404 && /web_write|PGRST202/.test(r.getContentText())) {
+      if (typeof __oldWrites === 'function' && !__oldWrites()) { SB_BOOK_ = null; throw new Error(SB_NO_WRITE_FN_); }
+      if (typeof __writeMode === 'function') __writeMode('old');      // switched on on purpose (or Apps Script): the old way
+    }
     else { SB_BOOK_ = null; throw new Error('Could not save to Supabase: ' + code + ' ' + r.getContentText().slice(0, 200)); }
   }
   if (!done) {
@@ -162,7 +178,7 @@ SbSheet_.prototype.fill = function (rows) {
   }
   this.data = data; this.ids = ids;
   // the columns the database really has (from the rows it sent). A column the app knows but the database does not have yet –
-  // its SQL step was not run – is left out of every save, so nothing breaks; it starts to be saved once the SQL is run.
+  // its SQL step was not run – is left out of a save ONLY while it is empty; a value for it is never dropped (see toRecord_).
   if (rows.length) this.dbCols = Object.keys(rows[0]);
   // rows added before the table was read (e.g. an Activity Log line) stay
   this.appended.forEach(row => { this.data.push(row); this.ids.push(null); });
@@ -176,7 +192,18 @@ SbSheet_.prototype.rowId_ = function (row) {
 };
 SbSheet_.prototype.toRecord_ = function (row) {
   const o = { id: this.rowId_(row) };
-  this.def.cols.forEach(x => { if (this.dbCols && this.dbCols.indexOf(x[1]) === -1) return; const i = this.hdr.indexOf(x[0]); o[x[1]] = sbVal_(row[i], x[2]); });
+  this.def.cols.forEach(x => {
+    const i = this.hdr.indexOf(x[0]);
+    if (this.dbCols && this.dbCols.indexOf(x[1]) === -1) {
+      /* NOTHING TYPED IS EVER DROPPED SILENTLY (07-10-2026). The database does not have this column (its SQL step was not
+       * run). Empty: left out, nothing is lost. A VALUE: until now it was left out too and the save said "saved" – the
+       * value was gone. Now the save is refused and says which column is missing; nothing of it is written. */
+      const v = i > -1 ? sbVal_(row[i], x[2]) : null;
+      if (v !== null && v !== '') throw new Error('System update incomplete – nothing was saved. The database does not have the column "' + this.def.table + '.' + x[1] + '" yet, so "' + x[0] + '" cannot be kept. The Admin must run the pending SQL step (Admin → the "Database" check names the file; Read Me lists the steps), then save again.');
+      return;
+    }
+    o[x[1]] = sbVal_(row[i], x[2]);
+  });
   return o;
 };
 SbSheet_.prototype.pending = function () {

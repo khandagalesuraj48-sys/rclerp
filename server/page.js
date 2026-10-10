@@ -150,17 +150,27 @@ const BRIDGE = `
       try { out.push('page size: ' + document.getElementsByTagName('*').length + ' elements'); } catch (e) {}
       return out.join(' · '); };
     window.rclDiag = function () { return crumbs.concat([t() + ' now: ' + context()]).join(String.fromCharCode(10)); };
-    window.__rclCrumb = add;
     var prev = null; try { prev = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { prev = null; }
-    var save = function (clean) { try { localStorage.setItem(KEY, JSON.stringify({ beat: Date.now(), clean: !!clean, crumbs: crumbs })); } catch (e) {} };
+    /* WRITTEN ONLY WHEN THERE IS SOMETHING NEW (07-10-2026). The note used to be written to the browser's storage EVERY SECOND,
+     * for as long as the page was open (also in the background) – a blocking write of up to 12 KB, 86,000 times a day per open
+     * page. Now: only when a line was added since the last write (looked at once a second), and when the page goes to the
+     * background or is closed. The once-a-second look that notices "the page did not answer" stays.
+     * "clean" (= no note next time) is now also set when the page goes to the background: a phone that ends a background app
+     * no longer shows "stopped without closing properly" at the next start. Each open page has its own mark (me), and a note
+     * left by ANOTHER page that is still open and answering is not shown (see showLast). */
+    var me = Math.random().toString(36).slice(2, 10), dirty = false, add0 = add;
+    add = function (what, long) { add0(what, long); dirty = true; }; window.__rclCrumb = add;
+    var save = function (clean) { dirty = false; try { localStorage.setItem(KEY, JSON.stringify({ beat: Date.now(), clean: !!clean, tab: me, crumbs: crumbs })); } catch (e) {} };
     var last = Date.now();
     var wasHidden = document.hidden;
-    document.addEventListener('visibilitychange', function () { if (document.hidden) wasHidden = true; });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) { wasHidden = true; save(true); } else save(false); });
     setInterval(function () { var now = Date.now(), gap = now - last; last = now;
       // more than about 2 seconds without a heartbeat while the page was on screen = the page did not answer
       if (gap > 300000) add('page paused for ' + Math.round(gap / 60000) + ' min (computer asleep?)');
       else if (gap > 2100 && !document.hidden && !wasHidden) add('PAGE DID NOT ANSWER for ' + (gap / 1000).toFixed(1) + ' s – ' + context(), true);
-      wasHidden = document.hidden; save(false); }, 1000);
+      wasHidden = document.hidden; if (dirty) save(document.hidden); }, 1000);
+    // other open pages of the app answer "I am still here" (so their note is not shown as a crash by a page that starts)
+    var chan = null; try { chan = new BroadcastChannel('rcl_trace'); chan.onmessage = function (e) { var d = e && e.data; if (d && d.ask === me) { try { chan.postMessage({ alive: me }); } catch (x) {} } }; } catch (e) { chan = null; }
     try { new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { if (e.duration >= 200) lastLong = Math.round(e.duration) + ' ms at ' + t(); if (e.duration >= 1000) add('long task ' + Math.round(e.duration) + ' ms'); }); }).observe({ entryTypes: ['longtask'] }); } catch (e) {}
     // Chrome 123+: a slow screen frame says WHICH code held it (function name and what started it)
     try { new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { if (e.duration < 1000) return;
@@ -184,7 +194,15 @@ const BRIDGE = `
       box.querySelector('button').onclick = function () { box.remove(); };
       (document.body || document.documentElement).appendChild(box);
     };
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLast); else showLast();
+    // a note of a page that is still open and answering is nobody's crash: it is asked first (half a second), then shown
+    var showIfGone = function () {
+      if (!prev || prev.clean || !prev.crumbs || !prev.crumbs.length) return;
+      if (!chan || !prev.tab) { showLast(); return; }
+      var alive = false, on = function (e) { if (e && e.data && e.data.alive === prev.tab) alive = true; };
+      try { chan.addEventListener('message', on); chan.postMessage({ ask: prev.tab }); } catch (e) { showLast(); return; }
+      setTimeout(function () { try { chan.removeEventListener('message', on); } catch (e) {} if (!alive) showLast(); }, 500);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showIfGone); else showIfGone();
     save(false);
   })();
 

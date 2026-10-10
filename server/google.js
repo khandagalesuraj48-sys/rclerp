@@ -34,16 +34,19 @@ function token(cfg) {
   tok = { value: j.access_token, exp: now + (Number(j.expires_in) || 3600), email: cfg.email };
   return tok.value;
 }
-// one call to the Sheets API → { code, text }
-function call(method, path, bodyJson) {
+// one call to the Sheets API → { code, text }.  ms = how long the caller can still wait (the backup's own clock): the call and
+// its repeats never run past it – before, 3 tries of up to 50 s each could outlast the 58 s a request is given (07-10-2026)
+function call(method, path, bodyJson, ms) {
   const cfg = config(); if (!cfg.ok) throw new Error(cfg.error);
   const base = (process.env.GOOGLE_SHEETS_URL || 'https://sheets.googleapis.com').replace(/\/+$/, '');
+  const until = Date.now() + Math.max(5000, Math.min(150000, Number(ms) || 150000));
   let last = null;
   for (let attempt = 0; attempt < 3; attempt++) {
-    const r = fetchAllSync([{ url: base + path, method: method, headers: { Authorization: 'Bearer ' + token(cfg), 'Content-Type': 'application/json' }, body: bodyJson || undefined }], 50000)[0];
+    const room = until - Date.now(); if (attempt && room < 4000) break;
+    const r = fetchAllSync([{ url: base + path, method: method, headers: { Authorization: 'Bearer ' + token(cfg), 'Content-Type': 'application/json' }, body: bodyJson || undefined }], Math.max(4000, Math.min(50000, room)))[0];
     if (r.error) { last = { code: 599, text: r.error }; continue; }
     if (r.code === 401) { tok = { value: '', exp: 0, email: '' }; last = r; continue; }          // token refused: take a new one
-    if (r.code === 429 || r.code >= 500) { last = r; require('./syncfetch').sleepSync(1500 * (attempt + 1)); continue; }
+    if (r.code === 429 || r.code >= 500) { last = r; if (until - Date.now() > 4000 + 1500 * (attempt + 1)) require('./syncfetch').sleepSync(1500 * (attempt + 1)); continue; }
     return { code: r.code, text: r.text || '' };
   }
   return { code: last.code, text: last.text || '' };

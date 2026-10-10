@@ -16,6 +16,14 @@ if (!isMainThread && workerData && workerData.rclWorker) {
 } else {
   const MAX = Math.max(1, Math.min(12, Number(process.env.RCL_WORKERS) || 6));
   const LIMIT_MS = 58000;
+  /* THE WAITING LINE HAS AN END (07-10-2026). All helper threads busy → a request waits in line. The line used to be
+   * endless and its clock started only when a thread took the request: with slow calls piling up, requests waited past
+   * the 60 seconds the platform gives a request and were cut off without an answer, while the line kept growing in memory.
+   * Now: at most QUEUE_MAX requests wait (the next one is told at once "busy – RETRY_LATER"; the page sends a save again by
+   * itself and asks a question again), and the 58 seconds count from the moment the request ARRIVED – one that has waited
+   * too long to still finish is not started. */
+  const QUEUE_MAX = Math.max(10, Math.min(1000, Number(process.env.RCL_QUEUE) || 120));
+  const BUSY = 'The server is busy right now – please try again in a moment (RETRY_LATER).';
   const workers = [], queue = [];
   let seq = 0;
   const drop = s => { const i = workers.indexOf(s); if (i > -1) workers.splice(i, 1); };
@@ -35,14 +43,18 @@ if (!isMainThread && workerData && workerData.rclWorker) {
       if (!s && workers.length < MAX) s = spawn();
       if (!s) return;
       const job = queue.shift();
+      const left = LIMIT_MS - (Date.now() - job.at);
+      if (left < 8000) { job.reject(new Error(BUSY)); continue; }      // waited too long in line to still finish in time: not started
       s.job = job;
-      job.timer = setTimeout(() => fail(s, 'This took too long – please try again (or pick a shorter period).'), LIMIT_MS);
+      job.timer = setTimeout(() => fail(s, 'This took too long – please try again (or pick a shorter period).'), left);
       s.w.postMessage({ id: job.id, fn: job.fn, args: job.args, meta: job.meta });
     }
   }
   module.exports = {
-    call: (fn, args, meta) => new Promise((resolve, reject) => { queue.push({ id: ++seq, fn: fn, args: args, meta: meta, resolve: resolve, reject: reject }); next(); }),
-    size: () => workers.length,
+    call: (fn, args, meta) => new Promise((resolve, reject) => {
+      if (queue.length >= QUEUE_MAX) { reject(new Error(BUSY)); return; }
+      queue.push({ id: ++seq, at: Date.now(), fn: fn, args: args, meta: meta, resolve: resolve, reject: reject }); next(); }),
+    size: () => workers.length, waiting: () => queue.length,
   };
   spawn(); spawn();      // two threads are made ready while the server starts (a click while the every-second check runs does not wait)
 }

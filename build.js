@@ -17,5 +17,8 @@ fs.writeFileSync(path.join(out, 'manifest.webmanifest'), JSON.stringify({
   start_url: '/', scope: '/', id: '/', display: 'standalone', orientation: 'any', background_color: '#0F1F3D', theme_color: '#0F1F3D', lang: 'en', categories: ['business', 'productivity'],
   icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' }, { src: '/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }],
 }, null, 1));
+// the Excel tools the page uses, served from the app's own address (app/vendor → /vendor/…)
+const vend = path.join(__dirname, 'app', 'vendor');
+if (fs.existsSync(vend)) { fs.mkdirSync(path.join(out, 'vendor'), { recursive: true }); fs.readdirSync(vend).filter(f => /\.js$/.test(f)).forEach(f => fs.copyFileSync(path.join(vend, f), path.join(out, 'vendor', f))); }
 fs.writeFileSync(path.join(out, 'sw.js'), fs.readFileSync(path.join(__dirname, 'app', 'sw.js'), 'utf8').replace('/*BUILD*/', build));
 console.log('Built public/index.html – app version ' + build);

@@ -31,6 +31,7 @@ function rpc(name, body) {
     last = r.code + ' ' + String(r.text || '').slice(0, 300);
     if (r.code >= 500 || r.code === 429) { sleepSync(400 * (attempt + 1)); continue; }
     if (r.code === 404 && /^web_(count|uncount|write)$/.test(name)) throw new Error('404 ' + name + ' is not installed (sql/supabase_step3_safety.sql)');
+    if (r.code === 404 && /^web_(op_begin|op_end|op_mark|write2|ops_cleanup)$/.test(name)) throw new Error('404 ' + name + ' is not installed (sql/supabase_step5_save_once.sql)');
     if (r.code === 404 && /web_/.test(name)) throw new Error('The database is not ready for this app: run sql/supabase_step2_web.sql in Supabase → SQL Editor (' + name + ' is missing).');
     throw new Error('Database (' + name + '): ' + last);
   }
@@ -108,7 +109,7 @@ function makeProperties(st) {
       const now = {};
       Object.keys(o || {}).forEach(k => { if (ENV_KEYS.indexOf(k) > -1) return; const v = String(o[k]); st.props[k] = v;
         if (isVersionKey(k)) st.propQueue[k] = v; else now[k] = v; });       // versions wait for the end of the request
-      if (Object.keys(now).length) rpc('web_props_set', { p: now });          // settings and counters are written at once
+      if (Object.keys(now).length) { rpc('web_props_set', { p: now }); BEAT.at = 0; }          // settings and counters are written at once (and this server's heartbeats do not answer from before that)
       return p;
     },
     deleteProperty: k => { k = String(k); if (ENV_KEYS.indexOf(k) > -1) return p; delete st.props[k]; delete st.propQueue[k]; rpc('web_props_set', { p: { [k]: null } }); return p; },
@@ -173,7 +174,8 @@ function makeLock(st) {
     },
     tryLock: ms => { try { lock.waitLock(ms); return true; } catch (e) { return false; } },
     hasLock: () => st.lockDepth > 0,
-    releaseLock: () => { if (st.lockDepth <= 0) return; st.lockDepth--; if (st.lockDepth === 0) rpc('web_unlock', { p_name: 'script', p_holder: st.holder }); },
+    // (if the database cannot be told now, the lock is still ours: the count is put back, so the end of the request tries once more – forceUnlock)
+    releaseLock: () => { if (st.lockDepth <= 0) return; st.lockDepth--; if (st.lockDepth === 0) { try { rpc('web_unlock', { p_name: 'script', p_holder: st.holder }); } catch (e) { st.lockDepth = 1; throw e; } } },
   };
   return lock;
 }
@@ -374,6 +376,16 @@ function makeAi() {
 
 const notHere = what => new Proxy(function () {}, { get: (t, p) => p === 'then' ? undefined : notHere(what), apply: () => { throw new Error(what + ' works only in Apps Script (the Google Sheet backup runs there).'); } });
 
+/* scrypt for the stored passwords (update-68). The app's code runs without Node's modules, so it gets this one function.
+ * Only cost settings from the short list are worked on: a damaged or planted value in the Users table (a huge N) must not
+ * be able to hold a server for minutes or eat its memory. The answer is 32 bytes as hex. */
+const SCRYPT_N = [16384, 32768, 65536, 131072];
+function scryptHex(pw, saltHex, N, r, p) {
+  N = Number(N); r = Number(r); p = Number(p);
+  if (SCRYPT_N.indexOf(N) === -1 || r !== 8 || !(p >= 1 && p <= 5) || !/^[0-9a-f]{32}$/.test(String(saltHex))) throw new Error('scrypt: settings not allowed');
+  return require('crypto').scryptSync(Buffer.from(String(pw), 'utf8'), Buffer.from(String(saltHex), 'hex'), 32, { N: N, r: r, p: p, maxmem: 160 * 1024 * 1024 }).toString('hex');
+}
+
 // everything the server code sees as "global" for one request
 function makeGlobals(st, page) {
   const props = makeProperties(st), cache = makeCache(st), lock = makeLock(st);
@@ -391,15 +403,7 @@ function makeGlobals(st, page) {
     console: console,
     __warm: makeWarm(st),       // the tables kept in this server's memory (see makeWarm)
     __ai: makeAi(),             // the assistant's line to the AI service (see makeAi)
-    __scrypt: scryptHex,        // update-65s: passwords kept by update-68 (scrypt) can be READ here (see checkPw_ in Code.gs)
+    __scrypt: scryptHex,        // passwords are kept with scrypt (see "PASSWORDS" in Code.gs)
   };
-}
-/* scrypt for reading the passwords update-68 keeps (update-65s). Only cost settings from the short list are worked on:
- * a damaged or planted value in the Users table (a huge N) must not be able to hold a server or eat its memory. */
-const SCRYPT_N = [16384, 32768, 65536, 131072];
-function scryptHex(pw, saltHex, N, r, p) {
-  N = Number(N); r = Number(r); p = Number(p);
-  if (SCRYPT_N.indexOf(N) === -1 || r !== 8 || !(p >= 1 && p <= 5) || !/^[0-9a-f]{32}$/.test(String(saltHex))) throw new Error('scrypt: settings not allowed');
-  return require('crypto').scryptSync(Buffer.from(String(pw), 'utf8'), Buffer.from(String(saltHex), 'hex'), 32, { N: N, r: r, p: p, maxmem: 160 * 1024 * 1024 }).toString('hex');
 }
 module.exports = { newState, boot, flush, forceUnlock, makeGlobals, rpc, conf, Utilities, TZ, scryptHex };

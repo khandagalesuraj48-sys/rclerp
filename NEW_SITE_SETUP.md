@@ -10,8 +10,11 @@ The code is the same for every copy (this repository); only the settings differ.
 ## Steps
 1. **Database** – Supabase → New project (region Mumbai). Keep the project URL and the `service_role` key.
 2. **Tables** – Supabase → SQL Editor: run every file of `sql/` in this order (each can be run again safely):
-   `supabase_step1.sql`, `step1b` … `step1u` (alphabetical), then `supabase_step2_web.sql`, `supabase_step3_safety.sql`,
-   `supabase_step4_health.sql`. Finish with `check_security.sql` – every line must start with "ok".
+   `supabase_step1.sql`, `step1b` … `step1w` (alphabetical), then `supabase_step2_web.sql`, `supabase_step3_safety.sql`,
+   `supabase_step4_health.sql`, `supabase_step5_save_once.sql`. Finish with `check_security.sql` – every line must start with "ok".
+   (The files in `sql/proposed/` are NOT steps: a read-only preflight and proposed constraints – see `UPDATE_68.md`.)
+   (`supabase_step3_safety.sql` is compulsory: without its "all or nothing" save function the app refuses every save and
+   says so – from update-67. A value typed for a column whose step was not run is refused the same way, never dropped.)
 3. **App** – Vercel → Add New → Project → import this same repository. Environment variables (Production and Preview):
    the same names as the first copy (Supabase URL, service key, `CRON_SECRET`, the Google backup values if a backup Sheet is used)
    with the NEW database's values. Deploy. Give the project its own domain / name.

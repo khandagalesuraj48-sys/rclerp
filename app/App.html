@@ -18,11 +18,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 <script>
   /* The Excel tool (about 900 KB) is only needed for exports / imports. It used to load BEFORE the page could show anything.
    * Now it loads in the background once the page is idle (at most 3 s after opening), or at once on the first click / key –
-   * long before anyone reaches an Export button. Same file, same version. (speed, 02-10-2026) */
+   * long before anyone reaches an Export button. Same file, same version. (speed, 02-10-2026)
+   * FROM THE APP'S OWN ADDRESS (07-10-2026). The two Excel tools (SheetJS 0.18.5, ExcelJS 4.4.0) are now files of the app itself
+   * (/vendor/…, the very files of those versions). Until then they were fetched from public file servers (cdnjs, jsDelivr) into
+   * the signed-in page: whoever controls such a server – or the road to it – could run code next to the sign-in. It also means
+   * Excel works where those servers are blocked. The public address stays only as the second try (the old Apps Script hosting
+   * has no /vendor/). */
+  window.rclVendor = function (name) { var o = ''; try { o = window.parent.location.origin; } catch (e) { o = ''; } if (!o || o === 'null') { try { o = window.location.origin; } catch (e) { o = ''; } } if (!o || o === 'null') o = ''; return o + '/vendor/' + name; };
   (function () {
     var started = false;
     function go() { if (started || window.XLSX) return; started = true; var sc = document.createElement('script');
-      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.async = true; sc.onerror = function () { started = false; }; document.head.appendChild(sc); }
+      sc.src = window.rclVendor('xlsx-0.18.5.full.min.js'); sc.async = true;
+      sc.onerror = function () { var s2 = document.createElement('script'); s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s2.async = true; s2.onerror = function () { started = false; }; document.head.appendChild(s2); };
+      document.head.appendChild(sc); }
     window.rclLoadXlsx = go;
     ['pointerdown', 'keydown'].forEach(function (ev) { document.addEventListener(ev, go, { capture: true, once: true, passive: true }); });
     window.addEventListener('load', function () { if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 3000 }); else setTimeout(go, 1500); });
@@ -2311,6 +2319,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #fixbox .fx-ai { margin: 8px 0 0; border: 1px solid #0F1F3D; background: #0F1F3D; color: #fff; border-radius: 8px; padding: 6px 12px; font: 700 12.5px var(--ui); cursor: pointer; }
   @media (max-width: 760px) { .ai-panel { inset: 0; width: auto; border-radius: 0; top: 0; } .ai-fab span { display: none; } .ai-fab { padding: 13px; right: 12px; bottom: 78px; } }
   @media print { .ai-fab, .ai-panel { display: none !important; } }
+  /* Time / Trips cell: the time boxes took the whole width of the cell (the general "input { width: 100% }"), so To, Break and
+     Challan ran out of the cell, over Total and the diesel columns (seen 07-10-2026). Each box has its own width now. */
+  table.lx-t input[type=time] { width: 112px; padding-right: 2px; } table.lx-t td.lx-tm { white-space: nowrap; } table.lx-t td.lx-tm input[data-f=tBrk] { width: 64px; } table.lx-t td.lx-tm .lx-bk { color: var(--muted); font-size: 11.5px; margin: 0 4px 0 8px; } table.lx-t td.lx-tm input + .lx-bk { margin: 0 6px 0 4px; }
   table.lx-t .lx-split { display: block; margin-top: 3px; color: #0F766E; font: 600 11.5px var(--ui); white-space: normal; }
   .le-xsw { grid-column: 1 / -1; } .le-x { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; } .le-x input[type=time] { width: 130px; } .le-x .tm-h { font: 700 12.5px var(--ui); color: #0F766E; min-width: 54px; } .le-x .tm-del { border: 0; background: none; color: #B3261E; font: 700 18px/1 var(--ui); cursor: pointer; }
   .tag.lk { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; border-radius: 999px; padding: 0 7px; font: 700 11px var(--ui); white-space: nowrap; margin-left: 4px; }
@@ -3351,7 +3362,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     </div>
     <div class="panel">
       <div class="panel-head"><h2>Users &amp; Access</h2><span class="chart-note">Who can open each page: <b>Edit</b> (add / change / delete), <b>View</b> (see and print) or <b>No access</b> (page hidden). Same list as the Users tab – a change works at once for that user.</span></div>
-      <div class="ua-bar"><button class="btn primary small" id="ua_new">+ Add user</button><span class="muted" id="ua_note"></span><span class="ua-site" id="ua_site"></span>
+      <div class="ua-bar"><button class="btn primary small" id="ua_new">+ Add user</button><button class="btn ghost small" id="ua_report" type="button" title="For every user and page: what is written in the Users table and the access it gives. Reads only – changes nothing.">Access report</button><span class="muted" id="ua_note"></span><span class="ua-site" id="ua_site"></span>
         <span class="ua-legend"><span class="ua-e">Edit</span><span class="ua-v">View</span><span class="ua-n">No access</span></span></div>
       <div class="table-wrap"><table class="ua-t">
         <thead id="ua_head"></thead>
@@ -4413,6 +4424,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('u_logout').addEventListener('click', async () => {
     if (!(await askConfirm({ title: 'Sign out?', message: 'You will need your email and password to sign in again.', ok: 'Sign out' }))) return;
     const t = S.token; credForget(); showLogin(''); try { await gsRun('logout', t); } catch (e) {}
+    // a shared computer: the next person must not find the last one's settings (mobile number, photo) or the Admin's database check here.
+    // (They are only this browser's copy – the settings themselves are kept with the account and come back at the next sign-in.)
+    try { Object.keys(localStorage).filter(k => /^oc_prefs_/.test(k) || k === 'rcl_dbcheck' || k === 'rcl_trace').forEach(k => localStorage.removeItem(k)); } catch (e) { /* storage blocked: nothing was kept */ }
     location.reload();
   });
   /* ---------- access: show edit parts only where the user has Edit ---------- */
@@ -4469,6 +4483,34 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The new Machinery Number cannot be used.', 'A number belongs to one machinery only. If it says "already in Master": another machinery has this number – check which of the two is right. If it says "already has records": entries of a machinery that was deleted from Asset Master are still kept under this number, and the two would be mixed – choose another number. Nothing was changed.'],
       mr: ['हा नवीन Machinery Number वापरता येत नाही.', 'एक नंबर एकाच गाडीचा असतो. "already in Master" असेल तर: हा नंबर दुसऱ्या गाडीला आधीच आहे; दोघांपैकी कोणता बरोबर ते तपासा. "already has records" असेल तर: Asset Master मधून काढलेल्या एका गाडीच्या entries अजून या नंबरखाली आहेत, आणि दोन्ही गाड्यांचा data मिसळेल; दुसरा नंबर निवडा. काहीही बदललेले नाही.'],
       hi: ['यह नया Machinery Number इस्तेमाल नहीं हो सकता।', 'एक नंबर एक ही गाड़ी का होता है। "already in Master" हो तो: यह नंबर दूसरी गाड़ी के पास पहले से है; दोनों में से कौन सा सही है जाँचें। "already has records" हो तो: Asset Master से हटाई गई एक गाड़ी की entries अभी इस नंबर के नीचे हैं, और दोनों गाड़ियों का data मिल जाएगा; दूसरा नंबर चुनें। कुछ भी बदला नहीं है।'] },
+    { re: /entry is SAVED, but the server could not finish/i,
+      en: ['Your entry reached the database and is saved. Only a small step after it (the Activity Log line or the live refresh of the other screens) could not be finished because the connection to the database dropped for a moment.',
+        'Do NOT enter it again – it would be there twice. Open the list (or press Refresh) and check that the entry is there. If it is not there, enter it once more and tell the Admin.'],
+      mr: ['तुमची entry database मध्ये पोहोचली आहे आणि save झाली आहे. त्यानंतरची एक छोटी पायरी (Activity Log ची ओळ किंवा इतर screens चा live refresh) database चे connection क्षणभर तुटल्यामुळे पूर्ण झाली नाही.',
+        'ही entry पुन्हा टाकू नका – ती दोनदा येईल. यादी उघडा (किंवा Refresh दाबा) आणि entry आहे का ते पाहा. ती तिथे नसेल तरच एकदा पुन्हा टाका आणि Admin ला सांगा.'],
+      hi: ['आपकी entry database में पहुँच गई है और save हो गई है। उसके बाद का एक छोटा कदम (Activity Log की लाइन या दूसरी screens का live refresh) database का connection पल भर टूटने से पूरा नहीं हुआ।',
+        'यह entry दोबारा न डालें – वह दो बार आ जाएगी। सूची खोलें (या Refresh दबाएँ) और देखें कि entry है या नहीं। वहाँ न हो तभी एक बार फिर डालें और Admin को बताएँ।'] },
+    { re: /Saving is switched off|System update incomplete/i,
+      en: ['The app was updated but the database is not: a function or a column the app now needs is missing. To keep your data whole the app does not save in this state – nothing was written and nothing was lost.',
+        'Tell the Admin. The Admin opens the "Database" check at the top of the app (it names the SQL file that was not run), runs that file once in Supabase → SQL Editor (Read Me lists every step), then you save again – what you typed is still on the screen.'],
+      mr: ['App update झाले आहे पण database नाही: app ला आता लागणारे एक function किंवा column database मध्ये नाही. तुमचा data अर्धवट जाऊ नये म्हणून app या स्थितीत save करत नाही – काहीही लिहिले गेले नाही आणि काहीही हरवले नाही.',
+        'Admin ला सांगा. Admin ने app च्या वरच्या "Database" तपासणीत पाहावे (न चालवलेल्या SQL file चे नाव तिथे येते), ती file Supabase → SQL Editor मध्ये एकदा चालवावी (Read Me मध्ये सर्व steps आहेत), मग तुम्ही पुन्हा save करा – तुम्ही भरलेले screen वर तसेच आहे.'],
+      hi: ['App update हो गया है पर database नहीं: app को अब जो function या column चाहिए वह database में नहीं है। आपका data अधूरा न जाए इसलिए app इस हालत में save नहीं करता – कुछ लिखा नहीं गया और कुछ खोया नहीं।',
+        'Admin को बताएँ। Admin app के ऊपर की "Database" जाँच खोले (न चलाई गई SQL file का नाम वहाँ आता है), वह file Supabase → SQL Editor में एक बार चलाए (Read Me में सारे steps हैं), फिर आप दोबारा save करें – आपने जो भरा है वह screen पर वैसा ही है।'] },
+    { re: /server is busy right now|RETRY_LATER/i,
+      en: ['Too many requests reached the server at the same moment, so this one was not started. Nothing was saved and nothing was changed by it.',
+        'Wait a few seconds and try again. A save is sent again by the app itself – leave the page open. If this shows often, tell the Admin: a long report or import may be running at the same time.'],
+      mr: ['एकाच क्षणी server कडे खूप requests आल्या, त्यामुळे ही सुरूच झाली नाही. यामुळे काहीही save झाले नाही किंवा बदलले नाही.',
+        'काही सेकंद थांबून पुन्हा करा. Save असेल तर app ती स्वतःच पुन्हा पाठवते – page उघडे ठेवा. हे वारंवार दिसले तर Admin ला सांगा: त्याच वेळी एखादा मोठा report किंवा import चालू असू शकतो.'],
+      hi: ['एक ही पल में server पर बहुत requests आईं, इसलिए यह शुरू ही नहीं हुई। इससे कुछ save नहीं हुआ और कुछ बदला नहीं।',
+        'कुछ सेकंड रुककर दोबारा करें। Save हो तो app उसे खुद दोबारा भेजता है – page खुला रखें। यह बार-बार दिखे तो Admin को बताएँ: उसी समय कोई बड़ा report या import चल रहा हो सकता है।'] },
+    { re: /looks like HTML|nested too deep to be checked/i,
+      en: ['A text inside this bill (a name, a remark or a work description) contains the sign "<" followed by a letter. Such text is not stored in a bill, because a bill is opened and printed on other people\'s screens. The bill was not saved.',
+        'Find that text (the message shows its beginning) in Asset Master, Vendor Master or the Log Book entry, remove the "<" sign, then build the bill again and submit it.'],
+      mr: ['या bill मधील एका मजकुरात (नाव, remark किंवा कामाचे वर्णन) "<" हे चिन्ह आणि त्यापुढे अक्षर आहे. असा मजकूर bill मध्ये ठेवला जात नाही, कारण bill इतरांच्या screen वर उघडले आणि print केले जाते. Bill save झाले नाही.',
+        'तो मजकूर (संदेशात त्याची सुरुवात दिली आहे) Asset Master, Vendor Master किंवा Log Book entry मध्ये शोधा, त्यातील "<" चिन्ह काढा, मग bill पुन्हा build करून submit करा.'],
+      hi: ['इस bill के किसी text में (नाम, remark या काम का विवरण) "<" चिह्न और उसके बाद अक्षर है। ऐसा text bill में नहीं रखा जाता, क्योंकि bill दूसरों की screen पर खुलता और print होता है। Bill save नहीं हुआ।',
+        'वह text (संदेश में उसकी शुरुआत दी है) Asset Master, Vendor Master या Log Book entry में ढूँढें, उसमें से "<" चिह्न हटाएँ, फिर bill दोबारा build करके submit करें।'] },
     { re: /Split timing|enter both From and To|starts before time|cover more than 24 hours/i,
       en: ['An entry measured by Time can have several From – To times (for example 11:00 to 13:00 and 14:00 to 17:00); the app adds their hours. Something in these times is not right, or the database is not ready for split timing yet.',
         'Every time line needs both From and To. Enter the times in the order they were worked, one after the other without overlap (a night can run past midnight: 22:00 to 02:00). All the times of one entry must fit in 24 hours. If it says "cannot be saved yet": the Admin runs the file sql/supabase_step1w_time_slots.sql once in Supabase → SQL Editor (Read Me has it) – until then save the entry with one From – To and the break.'],
@@ -4902,7 +4944,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     ravg: { saves: [], en: ['Report: diesel and average of every machinery for the months chosen.', 'Average = work done (KM or hours from the Log Book) against diesel; it is compared with the standard average of the Asset Master.'],
       mr: ['Report: निवडलेल्या महिन्यांसाठी प्रत्येक machinery चे diesel आणि average.', 'Average = झालेले काम (Log Book मधले KM किंवा तास) आणि diesel यांचे प्रमाण; त्याची Asset Master मधल्या standard average शी तुलना होते.'],
       hi: ['Report: चुने गए महीनों के लिए हर machinery का diesel और average।', 'Average = हुआ काम (Log Book के KM या घंटे) और diesel का अनुपात; उसकी Asset Master के standard average से तुलना होती है।'] },
-    users: { saves: ['saveUserAdmin', 'usersAdmin', 'saveOrgSettings'],
+    users: { saves: ['saveUserAdmin', 'usersAdmin', 'saveOrgSettings', 'accessReport'],
       en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters.'],
       mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा.'],
       hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो।'] },
@@ -4914,7 +4956,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Your own settings: photo, theme (light / dark), text size, language of the help, the page that opens first, your usual Log Book entry type, shift and diesel location, and favourite pages. For the Admin also the rules of the site.', 'Your settings belong to your sign-in: they are the same on every computer and change nobody else\'s app. Each change is saved by itself. Rules of the site (Admin): how many days back a user who is not Admin may enter or change entries, and a notice for everybody.'],
       mr: ['तुमचे स्वतःचे settings: फोटो, theme (light / dark), अक्षरांचा आकार, मदतीची भाषा, आधी उघडणारे page, Log Book entry चा नेहमीचा प्रकार, shift आणि diesel चे ठिकाण, आणि आवडती pages. Admin साठी site चे नियमही.', 'तुमचे settings तुमच्या sign-in शी जोडलेले आहेत: प्रत्येक computer वर तेच राहतात आणि दुसऱ्या कोणाचे app बदलत नाही. प्रत्येक बदल आपोआप save होतो. Site चे नियम (Admin): Admin नसलेला user किती दिवस मागच्या entries भरू किंवा बदलू शकतो, आणि सगळ्यांसाठी सूचना.'],
       hi: ['आपके अपने settings: फोटो, theme (light / dark), अक्षरों का आकार, मदद की भाषा, पहले खुलने वाला page, Log Book entry का सामान्य प्रकार, shift और diesel की जगह, और पसंदीदा pages। Admin के लिए site के नियम भी।', 'आपके settings आपके sign-in से जुड़े हैं: हर computer पर वही रहते हैं और किसी और का app नहीं बदलता। हर बदलाव अपने-आप save होता है। Site के नियम (Admin): Admin न होने वाला user कितने दिन पीछे की entries भर या बदल सकता है, और सबके लिए सूचना।'] },
-    readme: { saves: ['readme', 'dbHealth'],
+    readme: { saves: ['readme', 'dbHealth', 'backupNow'],
       en: ['The set-up notes of the app for the Admin: where the data is kept, the SQL steps and the backup.', 'Nothing is entered here.'],
       mr: ['Admin साठी app च्या set-up ची माहिती: data कुठे आहे, SQL चे टप्पे आणि backup.', 'इथे काहीही भरले जात नाही.'],
       hi: ['Admin के लिए app के set-up की जानकारी: data कहाँ है, SQL के चरण और backup।', 'यहाँ कुछ भरा नहीं जाता।'] },
@@ -5074,9 +5116,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             '</tbody><tfoot><tr class="grand"><td colspan="2">Total – ' + d.vendors.length + ' vendors</td><td class="n">' + d.total.machines + '</td><td class="n">' + d.total.entries + '</td><td class="n">' + fmt(d.total.qty) + '</td><td class="n">' + (d.total.qty ? money(d.total.amount / d.total.qty) : '') + '</td><td class="n">' + money(d.total.amount) + '</td></tr></tfoot></table>';
           const details = d.vendors.length ? '<h3 class="rsub">Details</h3><table class="rtable gtable debit-t" data-sheet="Details"><thead><tr><th>Sr</th><th>Date</th><th>Shift</th><th>Issue ID</th><th>Machinery</th><th>Type</th><th>Driver</th><th>Source</th><th class="n">Diesel (Ltr)</th><th class="n">Rate (₹)</th><th class="n">Amount (₹)</th></tr></thead><tbody>' +
             d.vendors.map(v => '<tr class="grp"><td colspan="11">' + esc(v.owner) + '  |  ' + v.machines + ' machinery  |  ' + v.rows.length + ' entries</td></tr>' +
-              v.rows.map((r, i) => '<tr data-qty="' + r.qty + '"><td>' + (i + 1) + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + '</td><td>' + esc(r.id) + '</td><td><b>' + esc(r.no) + '</b></td><td>' + esc(r.type) +
+              v.rows.map((r, i) => '<tr data-qty="' + esc(r.qty) + '"><td>' + (i + 1) + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + '</td><td>' + esc(r.id) + '</td><td><b>' + esc(r.no) + '</b></td><td>' + esc(r.type) +
                 '</td><td>' + esc(r.driver) + '</td><td>' + esc(r.source) + '</td><td class="n">' + fmt(r.qty) + '</td>' +
-                '<td class="n">' + (edit ? '<input class="drate' + (r.manual ? ' manual' : '') + '" type="number" step="0.01" min="0" data-id="' + esc(r.id) + '" data-auto="' + r.autoRate + '" data-orig="' + r.rate + '" value="' + r.rate + '" title="Rate of the day: ₹' + money(r.autoRate) + (r.manual ? ' (changed by hand)' : '') + '"><span class="prt">' + money(r.rate) + '</span>'
+                '<td class="n">' + (edit ? '<input class="drate' + (r.manual ? ' manual' : '') + '" type="number" step="0.01" min="0" data-id="' + esc(r.id) + '" data-auto="' + esc(r.autoRate) + '" data-orig="' + esc(r.rate) + '" value="' + esc(r.rate) + '" title="Rate of the day: ₹' + money(r.autoRate) + (r.manual ? ' (changed by hand)' : '') + '"><span class="prt">' + money(r.rate) + '</span>'
                   : money(r.rate) + (r.manual ? ' *' : '')) + '</td><td class="n amt">' + money(r.amount) + '</td></tr>').join('') +
               '<tr class="sub" data-vend="1"><td colspan="8">Total – ' + esc(v.owner) + '</td><td class="n">' + fmt(v.qty) + '</td><td class="n">' + money(v.rate) + '</td><td class="n vamt">' + money(v.amount) + '</td></tr>').join('') +
             '</tbody><tfoot><tr class="grand"><td colspan="8">Grand total</td><td class="n">' + fmt(d.total.qty) + '</td><td></td><td class="n gamt">' + money(d.total.amount) + '</td></tr></tfoot></table>' +
@@ -5554,7 +5596,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     lookupsAt = Date.now();
     try { const L = await rawCall('getLookups'); setMaster(L.master); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors); if ('closedUpto' in L) setClosed(L.closedUpto); if (L.rules) setRules(L.rules); } catch (e) { /* keep the lists we have */ }
   }
-  async function refreshStock() { try { setStock(await call('getStock')); } catch (e) { /* keep last value */ } }
+  // the diesel stock is asked only for a user with a page that shows it (the server gives it to nobody else)
+  const seesStock = () => { const u = S.user, p = (u && u.perms) || {}; return !!(u && (u.admin || ['Dashboard', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Reports'].some(m => p[m] && p[m] !== 'None'))); };
+  async function refreshStock() { if (!seesStock()) return; try { setStock(await call('getStock')); } catch (e) { /* keep last value */ } }
   // Fill every location dropdown (class loc-select); data-default = the option picked first
   // which database the app is working on – shown next to "Live", updated with every sync (about every second)
   function setDataSource(src) {
@@ -5587,10 +5631,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const bad = info.ok === false, t = info.lastCheck || info.lastRun;
     b.className = 'bk-pill ' + (bad ? 'bad' : 'ok');
     b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 12 3.5 3.5 0 0 0 6 19z"/>' + (bad ? '<path d="M12 11v3"/><path d="M12 17h.01"/>' : '<path d="m9 14 2 2 4-4"/>') + '</svg><span>Backup ' + (bad ? '!' : (t ? hhmm(t) : '')) + '</span>';
-    b.title = bad ? 'Backup problem: ' + (info.error || '') + ' – click to try now' : 'Google Sheet backup checked ' + dtFull(t) + '. Click to check again and copy anything new now.';
+    const adm = !!(S.user && S.user.admin);      // only the Admin can start a backup by hand (the server refuses anybody else)
+    b.title = bad ? 'Backup problem: ' + (info.error || '') + (adm ? ' – click to try now' : '') : 'Google Sheet backup checked ' + dtFull(t) + '.' + (info.pending ? ' ' + info.pending + ' table(s) are still being copied – it goes on by itself in a few minutes.' : '') + (adm ? ' Click to check again and copy anything new now.' : ' It runs by itself.');
   }
   $('bk_btn').addEventListener('click', async () => {
     const b = $('bk_btn'); if (b.dataset.busy) return;
+    if (!(S.user && S.user.admin)) { toast('The backup runs by itself. Only Admin can start one by hand.'); return; }
     b.dataset.busy = '1'; b.className = 'bk-pill busy'; b.innerHTML = '<span class="spin"></span><span>Checking…</span>';
     try {
       const r = await call('backupNow');
@@ -5601,7 +5647,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       else if (r && r.busy) html = '<p>The automatic backup is running right now. Try again in a minute.</p>';
       else if (r && r.upToDate) html = '<p>✓ <b>Backup is up to date.</b> Everything saved in Supabase is already in the Google Sheet.</p><p>Newest change copied: <b>' + esc(dtFull(info.lastChangeCopied)) + '</b></p>';
       else if (r && r.full) html = '<p>✓ <b>Full backup done.</b> Every table was copied to the Google Sheet.</p>';
-      else html = '<p>✓ <b>New data copied to the Google Sheet now.</b></p>' + listHtml(((r && r.lines) || []).map(x => x[0] + ': ' + x[1]));
+      else html = '<p>✓ <b>New data copied to the Google Sheet now.</b></p>' + listHtml(((r && r.lines) || []).map(x => x[0] + ': ' + x[1])) +
+        (r && r.pending ? '<p><b>' + esc(r.pending) + ' table(s) are still to be copied</b> – one run may take about half a minute; the rest goes on by itself in a few minutes (or press Backup again).</p>' : '');
       await askConfirm({ title: 'Backup to Google Sheet', ok: 'OK', alertOnly: true, html: html + link });
       setBackupInfo(info);
     } catch (e) { toast(errMsg(e), true); }
@@ -5725,8 +5772,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         '<tr' + (r.open ? ' class="open-row"' : '') + '><td>' + esc(r.id) + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.location) + '</td><td>' + (r.open ? '<span class="open-chip">Opening stock</span>' : r.extra ? '<span class="open-chip extra">Extra diesel</span>' : esc(r.pump)) + '</td><td class="n">' + fmt(r.qty) +
         '</td><td class="n">' + money(r.rate) + '</td><td class="n">' + money(r.amount) + '</td><td>' + esc(r.billNo) + '</td><td>' + esc(showDate(r.billDate)) +
         '</td><td class="n"><b>' + fmt(r.balance) + '</b></td>' + byCell(r) + '<td>' + rowActions('Diesel Inward', 'data-iedit', 'data-idel', r.id) + '</td></tr>').join('')
-        : '<tr><td colspan="11" class="none">No inward entries match this filter.</td></tr>';
-      $('i_foot').innerHTML = res.count ? '<tr><td colspan="4">Total – ' + res.count + ' entries</td><td class="n">' + fmt(res.qty) + ' Ltr</td><td></td><td class="n">₹' + money(res.amount) + '</td><td colspan="4"></td></tr>' : '';
+        : '<tr><td colspan="12" class="none">No inward entries match this filter.</td></tr>';
+      $('i_foot').innerHTML = res.count ? '<tr><td colspan="4">Total – ' + res.count + ' entries</td><td class="n">' + fmt(res.qty) + ' Ltr</td><td></td><td class="n">₹' + money(res.amount) + '</td><td colspan="5"></td></tr>' : '';      // 12 columns, as the heading (was 11: the line stopped one cell short)
     } catch (e) { toast(errMsg(e), true); }
   }
   $('i_save').addEventListener('click', e => busy(e.target, 'Saving…', saveInwardEntry));
@@ -6030,7 +6077,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // the page on screen is redrawn at most once in 5 seconds, however many entries other people save in that time
     S.freshAt = S.freshAt || {}; S.freshT = S.freshT || {};
     const fresh = (tab, fn) => { if (!visible(tab)) { if (loaded(tab)) S.stale[tab] = true; return; }
-      const wait = Math.max(0, (tab === 'dash' ? 5000 : 2000) - (Date.now() - (S.freshAt[tab] || 0)));   // lists: within 2 seconds; the Dashboard: 5 clearTimeout(S.freshT[tab]);
+      const wait = Math.max(0, (tab === 'dash' ? 5000 : 2000) - (Date.now() - (S.freshAt[tab] || 0)));   // lists: within 2 seconds; the Dashboard: 5
+      // ONE redraw waits per page. (Until 07-10-2026 this clearTimeout stood inside the comment of the line above, so it never ran:
+      // every change that arrived while a redraw was waiting added ANOTHER redraw, and all of them were carried out.)
+      clearTimeout(S.freshT[tab]);
       S.freshT[tab] = setTimeout(() => { if (!visible(tab)) { S.stale[tab] = true; return; } S.freshAt[tab] = Date.now(); whenCalm(fn); }, wait); };
     if (has('stock')) {
       refreshStock();
@@ -6335,7 +6385,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (xjsWait) return xjsWait;
     const one = u => new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = u; sc.async = true; const t = setTimeout(() => rej(new Error('The Excel formatting tool did not load in time.')), 20000);
       sc.onload = () => { clearTimeout(t); if (typeof ExcelJS !== 'undefined') res(); else rej(new Error('The Excel formatting tool did not start.')); }; sc.onerror = () => { clearTimeout(t); rej(new Error('The Excel formatting tool could not be loaded.')); }; document.head.appendChild(sc); });
-    xjsWait = one('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js').catch(() => one('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js')).catch(e => { xjsWait = null; throw e; });
+    xjsWait = one(window.rclVendor('exceljs-4.4.0.min.js')).catch(() => one('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js')).catch(e => { xjsWait = null; throw e; });      // the app's own file first
     return xjsWait;
   }
   // the finished file goes to Downloads
@@ -7186,6 +7236,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const d = LX.d, m = d.machine, modes = modesOf(m).concat(DAY_STATUS), km = meterKm(m) || LX.rows.some(r => hasKm(lxWay(r))), hr = meterHr(m) || LX.rows.some(r => hasHr(lxWay(r)));
     const tmCol = modes.indexOf('Time') > -1 || modes.indexOf('Trip') > -1 || (m.lbFormat === 'H' || m.lbFormat === 'B') || LX.rows.some(r => r.mode === 'Time' || r.mode === 'Trip' || DAY_STATUS.indexOf(r.mode) > -1), wayCol = modes.length > 1;
     const itemCol = Object.keys(d.boqItems || {}).length > 0; // Item-wise BOQ in these dates
+    LX.cols = { km: km, hr: hr, tmCol: tmCol, wayCol: wayCol };      // the columns drawn – the total line below must have the same ones
     lxSort();
     // the machinery's Log Book format decides what is shown (Master → Log Book Format)
     const FMT = m.lbFormat || 'A', need = LB_FMT_NEEDS[FMT] || {}, noDsl = FMT === 'F' || FMT === 'G', onlyIss = FMT === 'H';
@@ -7203,13 +7254,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('lx_head').innerHTML = '<tr><th class="sel"><input type="checkbox" id="lx_selall" title="Select all rows" aria-label="Select all rows"></th><th>#</th><th>Date</th><th>Shift</th>' + (wayCol ? '<th>Measured by</th>' : '') + (km ? '<th class="n">Start KM</th><th class="n">Close KM</th>' : '') + (hr ? '<th class="n">Start Hrs</th><th class="n">Close Hrs</th>' : '') + (tmCol ? '<th>Time / Trips</th>' : '') +
       '<th class="n">Total</th>' + (itemCol ? '<th>Items (BOQ)</th>' : '') + '<th class="n lx-dx">Opening diesel</th><th class="n lx-di">Issued</th><th class="n lx-dx">Consumed</th><th class="n lx-dx" title="Diesel left in the machinery, worked out with the Standard Average (not measured)">Closing diesel (est.)</th><th class="lx-chn">Challan No</th><th class="lx-prt">Particular</th><th class="lx-chc">Chainage From</th><th class="lx-chc">To</th><th>Work description</th><th></th></tr>';
     $('lx_rows').innerHTML = LX.rows.map((r, i) => '<tr data-i="' + i + '"><td class="sel"><input type="checkbox" class="lx-sel" aria-label="Select row"' + (r._sel ? ' checked' : '') + '></td><td>' + (i + 1) + (r.isNew ? '<span class="tag n">NEW</span>' : '') + '</td>' +
-      '<td>' + (r.isNew ? '<input type="date" data-f="date" value="' + r.date + '" min="' + d.from + '" max="' + (d.to < S.today ? d.to : S.today) + '">' : esc(showDate(r.date))) + '</td>' +
+      '<td>' + (r.isNew ? '<input type="date" data-f="date" value="' + esc(r.date) + '" min="' + esc(d.from) + '" max="' + esc(d.to < S.today ? d.to : S.today) + '">' : esc(showDate(r.date))) + '</td>' +
       '<td><select data-f="shift" title="Full Day = the only entry of the date. Day and Night = two entries of one date.">' + ['Full Day', 'Day', 'Night'].map(x => '<option' + (x === r.shift ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' +
         '<label class="lg-half" title="Half day / half night: the bill pays this entry as half (monthly and per-day rates)."><input type="checkbox" data-f="half"' + (r.half ? ' checked' : '') + '> ½ ' + (r.shift === 'Night' ? 'night' : 'day') + '</label></td>' +
       (wayCol ? '<td><select data-f="mode" class="lx-way">' + modes.map(x => '<option' + (x === lxWay(r) ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></td>' : '') +
       (km ? (hasKm(lxWay(r)) ? '<td>' + rd('okm', 'Start KM', r.okm) + '</td><td>' + rd('ckm', 'Close KM', r.ckm) + '</td>' : '<td class="lx-na">–</td><td class="lx-na">–</td>') : '') +
       (hr ? (hasHr(lxWay(r)) ? '<td>' + rd('ohr', 'Start Hrs', r.ohr) + '</td><td>' + rd('chr', 'Close Hrs', r.chr) + '</td>' : '<td class="lx-na">–</td><td class="lx-na">–</td>') : '') +
-      (tmCol ? '<td class="lx-tm">' + (lxWay(r) === 'Time' ? '<input type="time" data-f="tStart" value="' + esc(r.tStart || '') + '"> – <input type="time" data-f="tEnd" value="' + esc(r.tEnd || '') + '"> <input type="number" min="0" step="5" data-f="tBrk" placeholder="break min" value="' + (r.tBrk === '' ? '' : r.tBrk) + '">' + (need.challan ? '' : ' <input class="txt" data-f="challan" placeholder="Challan No" value="' + esc(r.challan || '') + '">') +
+      (tmCol ? '<td class="lx-tm">' + (lxWay(r) === 'Time' ? '<input type="time" data-f="tStart" value="' + esc(r.tStart || '') + '"> – <input type="time" data-f="tEnd" value="' + esc(r.tEnd || '') + '"> <small class="lx-bk">break</small><input type="number" min="0" step="5" data-f="tBrk" placeholder="min" title="Break in minutes (for a split entry: the gaps between its times + the break)" value="' + (r.tBrk === '' ? '' : r.tBrk) + '"><small class="lx-bk">min</small>' + (need.challan ? '' : ' <input class="txt" data-f="challan" placeholder="Challan No" value="' + esc(r.challan || '') + '">') +
           (slotsParse(r.tSlots).length > 1 && r.orig && r.tStart === r.orig.tStart && r.tEnd === r.orig.tEnd && String(r.tBrk) === String(r.orig.tBrk) ? '<small class="lx-split" title="Split timing: the Break here holds the gaps between the times. To change the split itself: Log Book list → Edit. Changing From, To or Break here makes it one From – To.">split: ' + esc(slotsText(r)) + '</small>' : '')
         : lxWay(r) === 'Trip' ? '<input type="number" min="0" step="1" data-f="trip" placeholder="trips" value="' + (r.trip === '' ? '' : r.trip) + '"> trips' + (need.tripTime ? ' <input type="time" data-f="tStart" title="In time" value="' + esc(r.tStart || '') + '"> – <input type="time" data-f="tEnd" title="Out time" value="' + esc(r.tEnd || '') + '">' : '') + (need.challan ? '' : ' <input class="txt" data-f="challan" placeholder="Challan No" value="' + esc(r.challan || '') + '">') : m.lbFormat === 'B' && DAY_STATUS.indexOf(lxWay(r)) === -1 ? '<input type="number" min="0" step="1" data-f="trip" placeholder="trips" value="' + (r.trip === '' || r.trip === undefined ? '' : r.trip) + '"> trips' : lxWay(r) === 'Day' ? '<span class="muted">worked (Day)</span>' : DAY_STATUS.indexOf(lxWay(r)) > -1 ? '<span class="lg-hol">' + lxWay(r) + (lxWay(r) === 'Idle' ? ' – no work' : ' – not paid') + '</span>' : '') + '</td>' : '') +
       '<td class="o tot"></td>' + (itemCol ? '<td><div class="itm lx-itm">' + itemBoxHtml((d.boqItems || {})[r.date] || [], r.items || {}, lxWay(r)) + '</div></td>' : '') + '<td class="o od lx-dx">' + (/-01$/.test(r.date) ? '<input type="number" step="0.01" min="0" class="odset" data-f="odSet" value="' + (r.odSet === '' || r.odSet === undefined || r.odSet === null ? '' : r.odSet) + '" title="Opening diesel of the month – type what is in the tank on the 1st (blank = worked out)">' : '') + '</td><td class="o is lx-di"></td><td class="o cn lx-dx"></td><td class="o cl lx-dx"></td>' +
@@ -7278,7 +7329,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (isBad) bad++; if (c) chg++;
       tk += wk > 0 ? wk : 0; th += wh > 0 ? wh : 0; ti += iss; tc += need; open = close;
     });
-    const km = kmCol, hr = hrCol, wayCol = modesOf(m).length > 1, tmCol = modesOf(m).indexOf('Time') > -1 || modesOf(m).indexOf('Trip') > -1 || LX.rows.some(r => r.mode === 'Time' || r.mode === 'Trip');
+    /* The total line has the columns of the header that is drawn (LX.cols). It decided them by itself before, and differently:
+       "Measured by" only for a machinery with more than one way (the header always has it) – so for a machinery with one way
+       every total stood one column to the left: the hours under "Time / Trips", Issued under "Opening diesel" (seen 07-10-2026). */
+    const C0 = LX.cols || {}, km = 'km' in C0 ? C0.km : kmCol, hr = 'hr' in C0 ? C0.hr : hrCol, wayCol = 'wayCol' in C0 ? C0.wayCol : true,
+      tmCol = 'tmCol' in C0 ? C0.tmCol : (modesOf(m).indexOf('Time') > -1 || modesOf(m).indexOf('Trip') > -1 || LX.rows.some(r => r.mode === 'Time' || r.mode === 'Trip'));
     const itemCol = Object.keys(d.boqItems || {}).length > 0;
     const n = LX.rows.length;
     $('lx_foot').innerHTML = n ? '<tr><td colspan="4">Total – ' + n + ' entries</td>' + (wayCol ? '<td></td>' : '') + (km ? '<td></td><td></td>' : '') + (hr ? '<td></td><td></td>' : '') + (tmCol ? '<td></td>' : '') +
@@ -7997,7 +8052,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function needExcelJS() {
     if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
     if (EJ_P) return EJ_P;
-    EJ_P = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+    EJ_P = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = window.rclVendor('exceljs-4.4.0.min.js');      // the app's own file (see rclVendor)
       sc.onload = () => window.ExcelJS ? res(window.ExcelJS) : rej(new Error('ExcelJS')); sc.onerror = () => { EJ_P = null; rej(new Error('ExcelJS')); }; document.head.appendChild(sc);
       setTimeout(() => { if (!window.ExcelJS) { EJ_P = null; rej(new Error('ExcelJS')); } }, 8000); }); // never wait more than 8 s
     return EJ_P;
@@ -8936,7 +8991,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ================= MACHINERY BILLING ================= */
   S.mb = { init: null, bills: [] };
   const mbN2 = v => (Number(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const mbDot = d => d ? d.split('-').reverse().join('.') : '';
+  // (escaped: a saved bill's dates come from its stored data – until 07-10-2026 they went into the page as they were, so HTML
+  // put there by somebody who may save bills ran in the print window of whoever opened that bill)
+  const mbDot = d => d ? esc(String(d).split('-').reverse().join('.')) : '';
   async function mbLoadInit() {
     try {
       const d = await call('billInit', {}); d.vendors = d.vendors || []; d.lastNo = d.lastNo || {}; S.mb.init = d;
@@ -9356,7 +9413,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const monthly = [...new Set(b.machines.map(m => (m.lines.find(l => l.monthly) || {}).monthly).filter(Boolean))];
     const pmCol = monthly.length > 1;
     const rows = [].concat(...b.machines.map(m => m.lines.length ? m.lines.map((l, k) => '<tr><td>' + (k ? '' : esc((m.type || '').toUpperCase())) + '</td><td>' + (k ? '' : '<b>' + esc(String(m.no).replace(/-/g, '')) + '</b>') + '</td><td>' + (k ? '' : esc((m.name || m.type || '').toUpperCase())) +
-      (pmCol ? '</td><td class="n"><b>' + (l.monthly ? mbN2(l.monthly) : '–') + '</b>' : '') + '</td><td class="c">' + (l.item ? '<b>' + esc(l.item.toUpperCase()) + '</b>' + (l.unit === 'Days' || l.note ? ' – ' : '') : '') + (l.unit === 'Days' ? (l.item ? 'DAY' : (m.nights ? 'DAY + ' + m.nights + ' NIGHT' : 'DAY')) : esc(l.item ? (l.note || '') : (l.note || l.unit.toUpperCase()))) + '</td><td class="c">' + fmt(l.qty) + (l.unit !== 'Days' ? ' ' + l.unit : '') + '</td><td class="n">' + mbN2(l.rate) + '</td><td class="n">' + mbN2(l.amount) + '</td></tr>')
+      (pmCol ? '</td><td class="n"><b>' + (l.monthly ? mbN2(l.monthly) : '–') + '</b>' : '') + '</td><td class="c">' + (l.item ? '<b>' + esc(l.item.toUpperCase()) + '</b>' + (l.unit === 'Days' || l.note ? ' – ' : '') : '') + (l.unit === 'Days' ? (l.item ? 'DAY' : (m.nights ? 'DAY + ' + esc(m.nights) + ' NIGHT' : 'DAY')) : esc(l.item ? (l.note || '') : (l.note || l.unit.toUpperCase()))) + '</td><td class="c">' + fmt(l.qty) + (l.unit !== 'Days' ? ' ' + esc(l.unit) : '') + '</td><td class="n">' + mbN2(l.rate) + '</td><td class="n">' + mbN2(l.amount) + '</td></tr>')
       : ['<tr><td>' + esc((m.type || '').toUpperCase()) + '</td><td><b>' + esc(String(m.no).replace(/-/g, '')) + '</b></td><td>' + esc((m.name || m.type || '').toUpperCase()) + '</td>' + (pmCol ? '<td class="n">–</td>' : '') + '<td class="c">–</td><td class="c">0</td><td class="n">–</td><td class="n">0.00</td></tr>']));
     const dq = (b.machines || []).reduce((a, x) => a + (Number(x.debitQty) || 0), 0), eq = (b.machines || []).reduce((a, x) => a + (Number(x.excessQty) || 0), 0);
     const bNote = [dq ? 'diesel debit ' + fmt(r2(dq)) + ' L' : '', eq ? 'excess diesel over standard ' + fmt(r2(eq)) + ' L' : ''].filter(Boolean).join(' + ');
@@ -9548,7 +9605,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try {
       const d = await call('getBills', { from: $('sb_from').value, to: $('sb_to').value, vendor: $('sb_vendor').value, company: $('sb_co').value });
       S.mb.saved = d.bills; const admin = S.user && S.user.admin;
-      $('sb_rows').innerHTML = d.bills.length ? d.bills.map(b => '<tr' + (b.status === 'Superseded' ? ' class="old"' : '') + '><td><b>' + esc(b.billNo) + (b.rev ? ' <small>rev ' + b.rev + '</small>' : '') + '</b></td><td>' + esc(b.vendor) + '</td><td>' + esc(b.company) + '</td><td>' + esc(showDate(b.from)) + ' – ' + esc(showDate(b.to)) +
+      $('sb_rows').innerHTML = d.bills.length ? d.bills.map(b => '<tr' + (b.status === 'Superseded' ? ' class="old"' : '') + '><td><b>' + esc(b.billNo) + (b.rev ? ' <small>rev ' + esc(b.rev) + '</small>' : '') + '</b></td><td>' + esc(b.vendor) + '</td><td>' + esc(b.company) + '</td><td>' + esc(showDate(b.from)) + ' – ' + esc(showDate(b.to)) +
         '</td><td>' + esc(showDate(b.billDate)) + '</td><td class="n"><b>' + mbN2(b.net) + '</b></td><td>' + (b.status === 'Superseded' ? '<span class="st low">Superseded</span>' : '<span class="st ok">Active</span>') + '</td><td>' + esc(b.enteredBy || '–') +
         '</td><td class="nowrap"><button class="link" data-sbv="' + esc(b.id) + '">View / Print</button> <button class="link" data-sbl="' + esc(b.id) + '" title="Log Book of this vendor\'s machinery for the bill period (as the Log Book is now)">Log Book</button>' + (admin ? ' <button class="link danger" data-sbd="' + esc(b.id) + '">Delete</button>' : '') + '</td></tr>').join('')
         : '<tr><td colspan="9" class="none">No submitted bills for these filters.</td></tr>';
@@ -10413,6 +10470,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   window.addEventListener('error', e => { if (e && e.message) reportErr(e.message, (e.filename ? e.filename.slice(-60) : '') + ':' + (e.lineno || '') + ' ' + ((e.error && e.error.stack) || '')); });
   window.addEventListener('unhandledrejection', e => { const r = e && e.reason; if (r && typeof r === 'object' && r.name && r.name !== 'Error') reportErr(r.message || String(r), r.stack || ''); });
+  /* THE SECURITY POLICY IS WATCHED (update-68, owner's decision D10: the strict script rule is NOT enforced yet).
+   * What the browser WOULD refuse under the stricter rule ("report only": nothing is blocked) is written to the Admin's
+   * fault list – quietly, the user sees nothing. So before the rule is ever enforced, the Admin can see whether anything
+   * real falls foul of it. Not reported: what a browser extension adds to the page (that is not the app). Each kind once,
+   * at most 3 per page load. The checklist for enforcing the rule one day is in UPDATE_68.md. */
+  const cspSeen = {}; let cspSent = 0;
+  document.addEventListener('securitypolicyviolation', e => { try {
+    const src = String(e.sourceFile || ''), blocked = String(e.blockedURI || ''), ext = /^(chrome|moz|safari|safari-web|ms-browser)-extension:/i;
+    if (!S.token || ext.test(src) || ext.test(blocked)) return;
+    const key = e.effectiveDirective + '|' + blocked.slice(0, 80); if (cspSeen[key] || cspSent >= 3) return; cspSeen[key] = 1; cspSent++;
+    rawCall('reportError', { where: 'policy', msg: 'Security policy (' + (e.disposition === 'enforce' ? 'BLOCKED' : 'watched only – nothing was blocked') + '): ' + e.effectiveDirective + ' – ' + (blocked || 'inline').slice(0, 120),
+      detail: 'page: ' + (S.curTab || '') + ' · source: ' + src.slice(-80) + ':' + (e.lineNumber || '') + ' · sample: ' + String(e.sample || '').slice(0, 80) }).catch(() => { /* only a note */ });
+  } catch (x) { /* never in the way of the page */ } });
   function setFaults(st) {
     const p = $('err_pill'); if (!p || !st) return;
     const was = S.faults; S.faults = st;
@@ -11000,7 +11070,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<tr class="vl-open"><td>' + esc(d.from ? showDate(d.from) : d.openEntry ? showDate(d.openEntry.date) : '') + '</td><td colspan="4"><b>Opening balance</b> <span class="muted">' +
         (d.openEntry ? '(old balance as on ' + esc(showDate(d.openEntry.date)) + ': ' + (d.openEntry.side === 'Advance' ? 'advance ' : 'payable ') + mbN2(d.openEntry.amount) + (d.from ? ', plus bills and payments before ' + esc(showDate(d.from)) : '') + ')' : d.from ? '(bills and payments before ' + esc(showDate(d.from)) + ')' : '(no old balance entered)') +
         '</span></td><td class="n"><b>' + balTxt(d.opening) + '</b></td></tr>' +
-      d.rows.map(r => '<tr class="vl-' + r.kind + '"><td class="nowrap">' + esc(showDate(r.date)) + '</td><td class="vl-p">' + vlPart(r) + '</td><td>' + esc(r.company || '') + '</td><td class="n">' + (r.bill ? mbN2(r.bill) : '') + '</td><td class="n">' + (r.paid ? mbN2(r.paid) : '') + '</td><td class="n"><b>' + balTxt(r.balance) + '</b></td></tr>').join('') +
+      d.rows.map(r => '<tr class="vl-' + esc(r.kind) + '"><td class="nowrap">' + esc(showDate(r.date)) + '</td><td class="vl-p">' + vlPart(r) + '</td><td>' + esc(r.company || '') + '</td><td class="n">' + (r.bill ? mbN2(r.bill) : '') + '</td><td class="n">' + (r.paid ? mbN2(r.paid) : '') + '</td><td class="n"><b>' + balTxt(r.balance) + '</b></td></tr>').join('') +
       '<tr class="grand"><td></td><td colspan="2">Total – ' + esc(period) + '</td><td class="n">' + mbN2(d.totalBill) + '</td><td class="n">' + mbN2(d.totalPaid) + '</td><td class="n">' + balTxt(d.closing) + '</td></tr></tbody></table></div>';
     $('vl_out').innerHTML = h;
   }
@@ -11379,7 +11449,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('bk_table').innerHTML = '<thead><tr><th>#</th><th>Owner</th><th>Machinery</th><th>Name / Type</th><th>Status</th><th>Reason (breakdown)</th><th>Remark</th><th>Since</th><th class="n">Days</th></tr></thead><tbody>' +
       (list.length ? list.map((m, i) => { const st = bkState(m), bd = st.status === 'Breakdown', sn = bkSince(m);
         return '<tr class="' + (bd ? 'bk-bd' : '') + '" data-bk="' + esc(m.id) + '"><td>' + (i + 1) + '</td><td>' + esc(m.owner || '') + '<small>' + esc(m.ownership || '') + '</small></td><td><b>' + esc(m.id) + '</b></td><td>' + esc([m.no ? m.name : '', m.type].filter(Boolean).join(' · ')) + '</td>' +
-          '<td>' + (can ? '<div class="bk-sw"><button type="button" class="' + (!bd ? 'on w' : '') + '" data-bks="Working">Working</button><button type="button" class="' + (bd ? 'on b' : '') + '" data-bks="Breakdown">Breakdown</button></div>' : '<span class="st ' + (bd ? 'low' : 'ok') + '">' + st.status + '</span>') + '</td>' +
+          '<td>' + (can ? '<div class="bk-sw"><button type="button" class="' + (!bd ? 'on w' : '') + '" data-bks="Working">Working</button><button type="button" class="' + (bd ? 'on b' : '') + '" data-bks="Breakdown">Breakdown</button></div>' : '<span class="st ' + (bd ? 'low' : 'ok') + '">' + esc(st.status) + '</span>') + '</td>' +
           '<td>' + (bd ? (can ? '<input class="bk-in" data-bkf="reason" list="dl_bk_reasons" value="' + esc(st.reason || '') + '" placeholder="Reason *">' : esc(st.reason)) : '') + '</td>' +
           '<td>' + (can ? '<input class="bk-in" data-bkf="remark" value="' + esc(st.remark || '') + '">' : esc(st.remark || '')) + '</td>' +
           '<td>' + (sn ? esc(showDate(sn.from)) : '') + '</td><td class="n">' + (sn ? '<b class="' + (sn.days >= 7 ? 'bk-long' : '') + '">' + sn.days + '</b>' : '') + '</td></tr>'; }).join('')
@@ -11588,6 +11658,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   /* ================= USERS & ACCESS (Admin) ================= */
   S.ua = { users: [], modules: [] };
+  /* ACCESS REPORT (update-68): for every user and page, what is WRITTEN in the Users table and the access the app gives.
+   * It only reads. Shown as a short summary; the full list (one line per user and page) is saved as a file for Excel. */
+  $('ua_report').addEventListener('click', async () => {
+    let d; try { d = await call('accessReport'); } catch (e) { toast(errMsg(e), true); return; }
+    const c = d.count || {}, odd = d.rows.filter(r => r.why === 'empty' || r.why === 'unknown');
+    const html = '<p>Users: <b>' + esc(d.users) + '</b> · pages: <b>' + esc(d.modules) + '</b> · cells looked at: <b>' + esc(d.rows.length) + '</b></p>' +
+      listHtml(['Written as Edit / View / No access: ' + (c.written || 0), 'EMPTY cell → counts as View today: ' + (c.empty || 0), 'Other text → counts as View today: ' + (c.unknown || 0), 'Admin (Edit everywhere, whatever the cell says): ' + (c.admin || 0),
+        'Page without its own column → taken from the page it came out of: ' + (c.from || 0), 'No column at all → No access: ' + (c.nocolumn || 0)]) +
+      (odd.length ? '<p><b>Empty or other text (' + odd.length + ')' + (odd.length > 40 ? ' – the first 40, all of them are in the full list' : '') + ':</b></p><table class="list"><thead><tr><th>User</th><th>Page</th><th>Written</th><th>Access now</th></tr></thead><tbody>' +
+        odd.slice(0, 40).map(r => '<tr><td>' + esc(r.email) + '</td><td>' + esc(r.module) + '</td><td>' + (r.raw === '' ? '<i>(empty)</i>' : esc(r.raw)) + '</td><td>' + esc(r.effective) + '</td></tr>').join('') + '</tbody></table>' : '<p>✓ No empty cell and no other text: every access is written out.</p>') +
+      '<p class="muted">This report changes nothing. "Save the full list" gives one line per user and page (opens in Excel).</p>';
+    if (!(await askConfirm({ title: 'Access report', ok: 'Save the full list', cancel: 'Close', wide: true, html: html }))) return;
+    const q = v => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""').replace(/^([=+\-@])/, "'$1") + '"';
+    const csv = [['User', 'Email', 'Active', 'Admin', 'Page', 'Written in the Users table', 'Access the app gives now', 'Why']].concat(d.rows.map(r => [r.name, r.email, r.active ? 'Yes' : 'No', r.admin ? 'Yes' : 'No', r.module, r.raw === '' ? '(empty)' : r.raw, r.effective, r.why])).map(r => r.map(q).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })), a = document.createElement('a');
+    a.href = url; a.download = 'Access_report_' + (S.today || '') + '.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  });
   async function uaLoad() {
     try { const d = await call('usersAdmin'); S.ua = d; uaRender(); } catch (e) { toast(errMsg(e), true); }
   }
@@ -12640,7 +12727,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       renderDieselShare();
     } catch (e) { toast(errMsg(e), true); }
   }
-  function showDate(dk) { if (!dk) return ''; const p = dk.split('-'); return p[2] + '-' + p[1] + '-' + p[0]; }
+  function showDate(dk) { if (!dk) return ''; const p = String(dk).split('-'); return esc(p[2] + '-' + p[1] + '-' + p[0]); }      // (a real date has nothing to escape; a value that is not a date can never become HTML)
   function isoDate(dt) { return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); }
   function setRange(kind) {
     const t = new Date(S.today + 'T00:00:00');
@@ -13568,6 +13655,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       payable = r2(payable + Object.values(itemSegs).reduce((s2, x) => s2 + r2(x.amount), 0));
       const itemRate = k => Object.keys(itemSegs).filter(q => q.indexOf(k + '|I') === 0).map(q => { const x = itemSegs[q]; return '<b>' + esc(up(x.item)) + '</b>' + (x.note ? ' <small>' + esc(x.note) + '</small>' : '') + ': ' + fmt(r2(x.qty)) + ' ' + up(x.unit) + ' × ₹ ' + n2(x.rate) + ' = ₹ ' + n2(x.amount); }).join('<br>');
       const bKeys = Object.keys(used2), last = bKeys.length ? used2[bKeys[bKeys.length - 1]] : null;
+      /* WHAT THE MACHINERY IS ON – the summary under the Log Book follows it (asked 07-10-2026: "this one is on hours and below it says
+       * days – not like that; some are on day, some on hours, some mixed"). The BOQ in force on the dates decides: Monthly / Per Day =
+       * days, Per Hour = hours, Per KM = KM, Per Trip = trips, an item-wise BOQ = the basis of each of its items; more than one = each
+       * of them (mixed). No BOQ in the dates (nothing is paid from this sheet): "Works on" of Asset Master – Hrs / Time = hours,
+       * Trip = trips, Day / KM = days, more than one = each of them. */
+      const kindOf = q => q === 'Monthly' || q === 'Per Day' ? 'day' : q === 'Per Hour' ? 'hr' : q === 'Per KM' ? 'km' : q === 'Per Trip' ? 'trip' : '';
+      const kinds = {};
+      bKeys.forEach(k => { const q = used2[k]; (q.items && q.items.length ? q.items.map(it => it.basis) : [q.basis]).forEach(z => { if (kindOf(z)) kinds[kindOf(z)] = true; }); });
+      if (!bKeys.length) { const w = worksOf(m); if (w.some(z => z === 'Hrs' || z === 'Time')) kinds.hr = true; if (w.indexOf('Trip') > -1) kinds.trip = true; if (w.some(z => z === 'Day' || z === 'KM' || z === 'KM + Hrs')) kinds.day = true; }
+      if (!kinds.day && !kinds.hr && !kinds.km && !kinds.trip) kinds.day = true;
       const unitWord = { 'Monthly': '/ MONTH', 'Per Day': '/ DAY', 'Per Hour': '/ HR', 'Per KM': '/ KM', 'Per Trip': '/ TRIP' };
       const rateCell = !last ? '–' : bKeys.map(k => { const b = used2[k]; return (k === 'legacy' ? '' : '<small>BOQ ' + esc(k) + ':</small> ') + (b.items && b.items.length ? '<br>' + (itemRate(k) || 'ITEM-WISE – NO ITEM WORK') : b.slabs && b.slabs.length ? b.slabs.map(sl => (sl.upTo === '' ? 'after' : 'up to ' + sl.upTo + ' hr') + ' ₹' + n2(sl.rate)).join(', ') + ' / HR' : '₹ ' + n2(b.rate) + (b.basis === 'Monthly' ? '' : ' ' + unitWord[b.basis])); }).join('<br>');
       const monthly = bKeys.filter(k => used2[k].basis === 'Monthly');
@@ -13625,12 +13722,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // standard vs actual: KM machinery – a LOWER km/ltr than standard is worse; Hrs machinery – a HIGHER ltr/hr than standard is worse
       const stdWord = [hasKm(u) && kmStd ? 'STD ' + fmt(kmStd) + ' KM/L' : '', hasHr(u) && hrStd ? 'STD ' + fmt(hrStd) + ' L/HR' : ''].filter(Boolean).join(' · ');
       const verdict = allDebit ? 'DIESEL ON DEBIT – ALL DIESEL IS DEBITED' : !stdQty ? 'NO STANDARD IN ASSET MASTER' : excessQty > 0 ? 'WORSE THAN STANDARD → DEBIT' : 'WITHIN STANDARD → NO DEBIT';
-      const L = [['TOTAL WORKING DAYS' + (halfDays ? '<small>' + halfDays + ' HALF DAY' + (halfDays === 1 ? '' : 'S') + ' COUNTED AS ½</small>' : ''), workDays], ['TOTAL WORKING NIGHT', nights]].concat([['NET WORKING DAYS' + ([holDays ? 'HOLIDAY ' + holDays : '', bdDaysP ? 'BREAKDOWN ' + bdDaysP : ''].filter(Boolean).length ? '<small>NOT PAID – ' + [holDays ? 'HOLIDAY ' + holDays : '', bdDaysP ? 'BREAKDOWN ' + bdDaysP : ''].filter(Boolean).join(', ') + '</small>' : '') + (idleDays ? '<small>IDLE ' + idleDays + (idlePaid ? ' – PAID' + (idleSet ? '' : ' HERE (FINAL IN THE BILL)') : ' – NOT PAID') + '</small>' : ''), net]]).concat([ ['TOTAL DIESEL ISSUE' + noEntryNote, n2(issued) + ' LTR'], ['DIESEL MONTHLY AVERAGE', avgWord],
+      const nightHr = r2(list.filter(r => r.shift === 'Night').reduce((s2, r) => s2 + (Number(r.whr) || 0), 0));
+      const onRows = k => k === 'hr' ? [['TOTAL HOURS' + (nightHr ? '<small>DAY ' + fmt(r2(tHr - nightHr)) + ' HRS · NIGHT ' + fmt(nightHr) + ' HRS</small>' : ''), fmt(tHr) + ' HRS']] : k === 'km' ? [['TOTAL KM', fmt(tKm) + ' KM']] : k === 'trip' ? [['TOTAL TRIPS', fmt(tTrips)]] : [];
+      const Ld = [['TOTAL WORKING DAYS' + (halfDays ? '<small>' + halfDays + ' HALF DAY' + (halfDays === 1 ? '' : 'S') + ' COUNTED AS ½</small>' : ''), workDays], ['TOTAL WORKING NIGHT', nights]].concat([['NET WORKING DAYS' + ([holDays ? 'HOLIDAY ' + holDays : '', bdDaysP ? 'BREAKDOWN ' + bdDaysP : ''].filter(Boolean).length ? '<small>NOT PAID – ' + [holDays ? 'HOLIDAY ' + holDays : '', bdDaysP ? 'BREAKDOWN ' + bdDaysP : ''].filter(Boolean).join(', ') + '</small>' : '') + (idleDays ? '<small>IDLE ' + idleDays + (idlePaid ? ' – PAID' + (idleSet ? '' : ' HERE (FINAL IN THE BILL)') : ' – NOT PAID') + '</small>' : ''), net]]);
+      const Lon = (kinds.day ? Ld : []).concat(onRows(kinds.hr ? 'hr' : '')).concat(onRows(kinds.km ? 'km' : '')).concat(onRows(kinds.trip ? 'trip' : ''));      // days only for a machinery on days
+      const Lz = ([ ['TOTAL DIESEL ISSUE' + noEntryNote, n2(issued) + ' LTR'], ['DIESEL MONTHLY AVERAGE', avgWord],
         ['STANDARD AVERAGE<small>' + verdict + '</small>', allDebit ? 'NOT CHECKED' : (stdWord || '–') + (stdQty ? '<br><small>' + fmt(stdQty) + ' L allowed for the work</small>' : '')]]);
-      const Rr = [[monthly.length ? 'MONTHLY RATE' : 'RATE', rateCell], ['DAILY RATE', dailyCell], ['PAYABLE AMOUNT', money(payable)],
+      const L = Lon.concat(Lz);
+      const Rr = [[monthly.length ? 'MONTHLY RATE' : 'RATE', rateCell]].concat(kinds.day ? [['DAILY RATE', dailyCell]] : []).concat([['PAYABLE AMOUNT', money(payable)],
         [(debitQty ? 'DIESEL DEBIT' : 'EXCESS DIESEL – DEBIT AMT') + '<small>rate = higher of avg ₹' + n2(avgR) + ' / last ₹' + n2(lastR) + '</small>', excessAmt ? '<small>' + [debitQty ? fmt(debitQty) + ' L debit' : '', excessQty ? fmt(excessQty) + ' L extra' : ''].filter(Boolean).join(' + ') + ' × ₹' + n2(avgRate) + '</small> − ₹ ' + n2(excessAmt) + (tank && tank.applied > 0 ? '<br><small>' + esc(tankText(tank).toUpperCase()) + '</small>' : '') : '<small>' + (tank && tank.applied > 0 ? esc(tankText(tank).toUpperCase()) : stdQty ? 'no extra diesel' : 'no standard') + '</small> –'],
         ['TDS ' + (tdsP ? fmt(tdsP) + '% (on basic)' : ''), tds ? '− ₹ ' + n2(tds) : '–'],
-        ['GST ' + (gstP ? fmt(gstP) + '% (on basic)' : '– not applicable'), gst ? '+ ₹ ' + n2(gst) : '–']];
+        ['GST ' + (gstP ? fmt(gstP) + '% (on basic)' : '– not applicable'), gst ? '+ ₹ ' + n2(gst) : '–']]);
       /* ---------- the format set for this machinery (Master → Log Book Format). A = the table above. ---------- */
       const FM = LBOPT.fmt || m.lbFormat || 'A';
       let tableF = table, LF = L;
@@ -13701,11 +13803,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           '</tr></tfoot></table>';
         // the summary on the left follows the format: days, the work it shows, and diesel only where the format has diesel
         const has = k => LB_FMT_COLS[FM].indexOf(k) > -1, hasDiesel = LB_FMT_COLS[FM].some(k => /^d[OITUCR]$/.test(k));
-        const work = [].concat(has('kmT') ? [['TOTAL KM', fmt(tKm) + ' KM']] : [])
-          .concat(has('hrT') || has('rT') || has('tN') || has('tG') ? [['TOTAL HOURS', fmt(tHr) + ' HRS']] : [])
+        const work = [].concat(has('kmT') && !kinds.km ? [['TOTAL KM', fmt(tKm) + ' KM']] : [])                 // (a total the machinery is ON is already in the rows above)
+          .concat((has('hrT') || has('rT') || has('tN') || has('tG')) && !kinds.hr ? [['TOTAL HOURS', fmt(tHr) + ' HRS']] : [])
           .concat(has('hr1') ? [['1ST HR / 2ND HRS', fmt(r2(list.reduce((s2, r) => s2 + hr1(r), 0))) + ' / ' + fmt(r2(list.reduce((s2, r) => s2 + hr2(r), 0))) + ' HRS']] : [])
-          .concat(has('trip') ? [['TOTAL TRIPS', fmt(tTrips)]] : []);
-        LF = L.slice(0, 3).concat(work).concat(hasDiesel || has('dQ') ? [L[3]] : []).concat(hasDiesel ? [L[4], L[5]] : []);
+          .concat(has('trip') && !kinds.trip ? [['TOTAL TRIPS', fmt(tTrips)]] : []);
+        LF = Lon.concat(work).concat(hasDiesel || has('dQ') ? [Lz[0]] : []).concat(hasDiesel ? [Lz[1], Lz[2]] : []);
       }
       const nB = Math.max(LF.length, Rr.length), padR = k => Rr[k] || ['', ''], padL = k => LF[k] || ['', ''];
       const bill =

@@ -326,15 +326,19 @@ function sbWriteTab_(bk, table, cols, rows) {
 }
 // the password of a user is never copied into the backup Sheet
 function sbSafe_(table, col, v) { return table === 'app_users' && col === 'password_hash' && v ? { __hidden: true } : v; }
-/* Backup Sheet sharing: anyone who has the link can OPEN it (view only) – nobody but the owner can edit.
+/* Backup Sheet sharing: RESTRICTED – only the owner and the people the owner adds by name can open it (07-10-2026).
+ * (Before, this made the Sheet "anyone who has the link can view": the whole database – vendors' bank and PAN numbers, the
+ * Activity Log – was readable by whoever got hold of the link. This code runs only in the old Apps Script project; the
+ * backup made from the server (backup.vm.js) never changes the sharing. The sharing of the EXISTING Sheet has to be set to
+ * "Restricted" once by its owner in Google Sheets → Share.)
  * Every tab is also protected, so even a person made editor by mistake cannot change it. */
 function sbShareViewOnly_() {
   const id = PropertiesService.getScriptProperties().getProperty('SB_BACKUP_SHEET_ID'); if (!id) return;
   const f = DriveApp.getFileById(id), owner = f.getOwner() ? f.getOwner().getEmail() : Session.getEffectiveUser().getEmail();
-  f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  f.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
   f.setShareableByEditors(false);
   f.getEditors().forEach(u => { if (u.getEmail() !== owner) f.removeEditor(u); });
-  PropertiesService.getScriptProperties().setProperty('SB_SHARED', 'view');
+  PropertiesService.getScriptProperties().setProperty('SB_SHARED', 'private');
 }
 function sbProtect_(sh) {
   try {
@@ -456,7 +460,7 @@ function sbSyncChanges() {
 function sbBackupNow_() {
   const P = PropertiesService.getScriptProperties();
   if (!P.getProperty('SB_BACKUP_SHEET_ID')) throw new Error('The backup Sheet is not set up yet (run setupSupabaseBackup once).');
-  if (P.getProperty('SB_SHARED') !== 'view') { try { sbShareViewOnly_(); } catch (e) { /* sharing is set again next time */ } }
+  if (P.getProperty('SB_SHARED') !== 'private') { try { sbShareViewOnly_(); } catch (e) { /* sharing is set again next time */ } }
   let r = sbSyncChanges();
   if (r && r.busy) { Utilities.sleep(4000); r = sbSyncChanges(); }   // the automatic backup was running – ask again
   if (r && r.busy) return { busy: true, info: sbBackupInfo_() };

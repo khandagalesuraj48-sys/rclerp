@@ -940,7 +940,8 @@ test('every print has "Excel" in its window; a saved bill opens with its Log Boo
   const ps = app.slice(app.indexOf('async function printExcelStyled('), app.indexOf('/* THE PLAIN EXCEL'));
   for (const want of ['new ExcelJS.Workbook()', 'showGridLines: false', 'style.border = it.bd', "pattern: 'solid'", 'ws.mergeCells(', 'wrapText: true', 'fitToPage: true', "paperSize: 9", 'ws.addImage(', 'saveXlsxBuffer(buf']) assert.ok(ps.indexOf(want) > -1, 'printExcelStyled: ' + want);
   assert.match(pd, /await rclLoadExcelJs\(\); n = await printExcelStyled\(w\.document, title\)/); assert.match(pd, /n = printExcelPlain\(w\.document, title\)/, 'the plain Excel when the formatting tool cannot be had');
-  assert.match(app, /cdn\.jsdelivr\.net\/npm\/exceljs@4\.4\.0\/dist\/exceljs\.min\.js/);
+  // (07-10-2026: the formatting tool is the app's own file now – a public file server is only the second try)
+  assert.match(app, /one\(window\.rclVendor\('exceljs-4\.4\.0\.min\.js'\)\)\.catch\(\(\) => one\('https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/exceljs\/4\.4\.0\/exceljs\.min\.js'\)\)/);
   // the rule for figures, tried: amounts become numbers; dates, codes and account-like numbers stay text
   const grabFn = m => { const i = app.indexOf(m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
   const num = new Function(grabFn('function xlNum(') + '; return xlNum;')();
@@ -1083,32 +1084,152 @@ test('split timing of a Time entry: several From – To in one entry, hours as d
   assert.strictEqual(cols()[0], '01 Day: 10:00>19:00 brk 90 hrs 7.5 whr 7.5');
 });
 
-test('update-65s (the version it is safe to go back to from update-68): a scrypt password is READ, a kept text is never a password', () => {
+test('audit 07-10-2026: the Excel tools are files of the app itself; the security headers; nothing of a bill becomes HTML', () => {
+  const crypto = require('crypto');
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  // 1. the two tools are in app/vendor, unchanged (their sha256 is written in the README beside them), and build.js publishes them
+  const readme = fs.readFileSync(path.join(root, 'app', 'vendor', 'README.txt'), 'utf8');
+  for (const f of ['xlsx-0.18.5.full.min.js', 'exceljs-4.4.0.min.js']) {
+    const sum = crypto.createHash('sha256').update(fs.readFileSync(path.join(root, 'app', 'vendor', f))).digest('hex');
+    assert.ok(readme.indexOf(sum) > -1, f + ' is the file the README describes (sha256 ' + sum.slice(0, 12) + '…)');
+    assert.ok(app.indexOf("rclVendor('" + f + "')") > -1, 'the page loads ' + f + ' from its own address');
+  }
+  assert.match(fs.readFileSync(path.join(root, 'build.js'), 'utf8'), /app', 'vendor'/);
+  // every script the page adds by itself: the first address is the app's own; a public server appears only inside an "on error" / catch
+  const srcs = [...app.matchAll(/\.src = ([^;]+);/g)].map(m => m[1]).filter(x => /https?:\/\//.test(x) && /\.js'/.test(x));
+  assert.deepStrictEqual(srcs, ["'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'"], 'only the second try of the Excel tool names a public server directly');
+  assert.match(app, /sc\.onerror = function \(\) \{ var s2 = document\.createElement\('script'\); s2\.src = 'https:\/\/cdnjs/);
+  // 2. the headers of the site
+  const vj = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')), hs = vj.headers.find(h => h.source === '/(.*)').headers, H = k => (hs.find(h => h.key === k) || {}).value || '';
+  assert.match(H('Content-Security-Policy'), /object-src 'none'/); assert.match(H('Content-Security-Policy'), /frame-ancestors 'self'/); assert.match(H('Content-Security-Policy'), /base-uri 'self'/); assert.match(H('Content-Security-Policy'), /form-action 'self'/);
+  assert.ok(!/script-src|default-src|style-src/.test(H('Content-Security-Policy')), 'nothing that could stop the page itself is ENFORCED yet');
+  assert.match(H('Content-Security-Policy-Report-Only'), /script-src 'self' 'unsafe-inline'/);
+  assert.match((vj.headers.find(h => h.source === '/vendor/(.*)') || { headers: [{}] }).headers[0].value || '', /immutable/);
+  // 3. a bill's stored data: the server refuses HTML in it, ordinary text passes
+  const { ctx } = require('./harness.js'); const h = { run: c => require('vm').runInContext(c, ctx) };
+  assert.throws(() => h.run("billNoHtml_({ from: '2026-09-01<img src=x onerror=alert(1)>' }, 'ABC')"), /looks like HTML/);
+  assert.throws(() => h.run("billNoHtml_({ machines: [{ lines: [{ unit: 'Hrs</td><script>x()</script>' }] }] }, 'ABC')"), /looks like HTML/);
+  assert.throws(() => h.run("billNoHtml_({ '<b>key': 1 }, 'ABC')"), /looks like HTML/);
+  assert.doesNotThrow(() => h.run("billNoHtml_({ vendor: { name: 'M/s A & B (Engg.) \"Works\"', addr: 'Plot < 5, Gat > 10, 5<10, a < b' }, machines: [{ no: 'MH-04-LM-8409', nights: 2, lines: [{ unit: 'Hrs', qty: 5.5, note: 'rate ₹1,000/hr' }] }], from: '2026-09-01', A: 100.5, ok: true, none: null }, 'ABC')"));
+});
+
+test('update-68: passwords – scrypt format, old format still read, re-keeping carries the stamp; the cost settings cannot be abused', () => {
   const { ctx } = require('./harness.js'); const gas = require('../server/gas.js'); const R = c => require('vm').runInContext(c, ctx);
-  const U0 = ctx.Utilities; ctx.Utilities = gas.Utilities; ctx.__scrypt = gas.scryptHex;
+  // the host function: only the short list of cost settings, a proper salt
+  const salt = '00112233445566778899aabbccddeeff';
+  assert.strictEqual(gas.scryptHex('pw', salt, 32768, 8, 3), crypto.scryptSync(Buffer.from('pw'), Buffer.from(salt, 'hex'), 32, { N: 32768, r: 8, p: 3, maxmem: 160 * 1024 * 1024 }).toString('hex'));
+  for (const bad of [[1024, 8, 1], [1073741824, 8, 1], [32768, 16, 1], [32768, 8, 9], [32768, 8, 0]]) assert.throws(() => gas.scryptHex('pw', salt, bad[0], bad[1], bad[2]), /not allowed/);
+  assert.throws(() => gas.scryptHex('pw', 'xyz', 32768, 8, 3), /not allowed/);
+  // without the host function (the old Apps Script copy of the code): the older way, as before
+  const U0 = ctx.Utilities; ctx.Utilities = gas.Utilities;      // (the real stand-in of the server: digests, random ids)
+  assert.match(R("makeHash_('Site#Office2468')"), /^sha256\$[0-9a-f]{16}\$[0-9a-f]{64}$/);
+  ctx.__scrypt = gas.scryptHex;
   try {
-    const salt = '00112233445566778899aabbccddeeff', pw = 'Site#Office2468';
-    const kept = 'scrypt$32768$8$3$' + salt + '$' + crypto.scryptSync(Buffer.from(pw), Buffer.from(salt, 'hex'), 32, { N: 32768, r: 8, p: 3, maxmem: 160 * 1024 * 1024 }).toString('hex') + '$abcdefabcdef';
-    ctx.__k = kept;
-    { const cg = fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8'); assert.match(cg, /if \(!good && !\(known && pwScrypt_\(u\.password\)\)\) pwDummy_\(password\);/, 'every refused sign-in costs one scrypt'); }
-    assert.strictEqual(R('pwScrypt_(__k)'), true); assert.strictEqual(R("pwScrypt_('tmp$' + __k)"), true); assert.strictEqual(R("pwScrypt_('sha256$ab$cd')"), false); assert.strictEqual(R("pwScrypt_('Plain#OneTime1')"), false); assert.strictEqual(R("pwScrypt_('')"), false);
-    assert.strictEqual(R("checkPw_('Site#Office2468', __k)"), true, 'the user signs in with the same password');
-    assert.strictEqual(R("checkPw_('Site#Office2469', __k)"), false); assert.strictEqual(R('checkPw_(__k, __k)'), false, 'the kept text itself is NOT a password');
-    assert.strictEqual(R('isHashed_(__k)'), true); assert.strictEqual(R('pwStamp_(__k)'), 'abcdefabcdef', 'a session made on update-68 stays good');
-    // a one-time password kept by update-68: accepted, still "must change" (isHashed_ false), the kept text is not a password
-    assert.strictEqual(R("checkPw_('Site#Office2468', 'tmp$' + __k)"), true); assert.strictEqual(R("checkPw_('tmp$' + __k, 'tmp$' + __k)"), false); assert.strictEqual(R("isHashed_('tmp$' + __k)"), false);
-    // damaged / planted kept texts: never open, never compared as typed text
-    for (const bad of ["__k.slice(0, -20) + 'zz' + __k.slice(-18)", "'scrypt$1073741824$8$1$' + '0'.repeat(32) + '$' + '0'.repeat(64) + '$' + '0'.repeat(12)", "'sha256$zz$zz'", "'tmp$scrypt$'", "'tmp$sha256$xx'"])
-      { assert.strictEqual(R('checkPw_(' + bad + ', ' + bad + ')'), false, bad); assert.strictEqual(R("checkPw_('Site#Office2468', " + bad + ')'), false, bad); }
-    // what update-65 did is unchanged: the old hash, a one-time password as typed, a changed password kept the old way
+    const h = R("makeHash_('Site#Office2468')");
+    assert.match(h, /^scrypt\$32768\$8\$3\$[0-9a-f]{32}\$[0-9a-f]{64}\$[0-9a-f]{12}$/);
+    assert.notStrictEqual(h, R("makeHash_('Site#Office2468')"), 'a new salt every time');
+    ctx.__h = h;
+    assert.strictEqual(R("checkPw_('Site#Office2468', __h)"), true); assert.strictEqual(R("checkPw_('Site#Office2469', __h)"), false); assert.strictEqual(R('checkPw_(__h, __h)'), false, 'the kept text is not a password');
+    assert.strictEqual(R('isHashed_(__h)'), true); assert.strictEqual(R("isHashed_('tmp$' + __h)"), false); assert.strictEqual(R("isTempHash_('tmp$' + __h)"), true); assert.strictEqual(R("checkPw_('Site#Office2468', 'tmp$' + __h)"), true);
+    assert.strictEqual(R('pwStamp_(__h)'), h.slice(-12)); assert.strictEqual(R('rehash_("Site#Office2468", __h)'), '', 'kept the current way: not written again');
+    // the older way: read, and kept afresh with the stamp it had (other sessions stay signed in)
     let x = crypto.createHash('sha256').update('03df218ade11434e|Nashik#Road848!', 'utf8').digest(); for (let i = 0; i < 300; i++) x = crypto.createHash('sha256').update(Buffer.concat([x, Buffer.from('03df218ade11434e', 'utf8')])).digest();
     ctx.__old = 'sha256$03df218ade11434e$' + x.toString('hex');
-    assert.strictEqual(R("checkPw_('Nashik#Road848!', __old)"), true); assert.strictEqual(R("checkPw_('x', __old)"), false); assert.strictEqual(R('checkPw_(__old, __old)'), false);
-    assert.strictEqual(R('pwStamp_(__old)'), crypto.createHash('sha256').update('st|' + ctx.__old).digest('hex').slice(0, 12));
-    assert.strictEqual(R("checkPw_('Temp#12345', 'Temp#12345')"), true); assert.strictEqual(R("isHashed_('Temp#12345')"), false);
-    assert.match(R("makeHash_('New#Pass2468')"), /^sha256\$[0-9a-f]{16}\$[0-9a-f]{64}$/);
-    // without the host function nothing kept with scrypt opens (and still nothing is compared as typed text)
-    delete ctx.__scrypt; assert.strictEqual(R("checkPw_('Site#Office2468', __k)"), false); assert.strictEqual(R('checkPw_(__k, __k)'), false);
-    for (const bad of [[1024, 8, 1], [1073741824, 8, 1], [32768, 16, 1], [32768, 8, 9]]) assert.throws(() => gas.scryptHex('pw', salt, bad[0], bad[1], bad[2]), /not allowed/);
-  } finally { delete ctx.__scrypt; delete ctx.__k; delete ctx.__old; ctx.Utilities = U0; }
+    assert.strictEqual(R("checkPw_('Nashik#Road848!', __old)"), true); assert.strictEqual(R("checkPw_('nashik#Road848!', __old)"), false); assert.strictEqual(R('isHashed_(__old)'), true);
+    const up = R("rehash_('Nashik#Road848!', __old)"), stamp = crypto.createHash('sha256').update('st|' + ctx.__old).digest('hex').slice(0, 12);
+    assert.match(up, /^scrypt\$32768\$8\$3\$/); assert.strictEqual(up.slice(-12), stamp); assert.strictEqual(R('pwStamp_(__old)'), stamp);
+    // a one-time hash of the older way and a plain text: kept afresh as ONE-TIME
+    assert.match(R("rehash_('Temp#1234', 'tmp$' + __old)"), /^tmp\$scrypt\$/); assert.match(R("rehash_('Plain#Typed9', 'Plain#Typed9')"), /^tmp\$scrypt\$/);
+    assert.strictEqual(R("isHashed_('Plain#Typed9')"), false);
+    // damaged or planted kept texts never open and are never compared as plain text
+    for (const bad of ["'scrypt$1073741824$8$1$' + '0'.repeat(32) + '$' + '0'.repeat(64) + '$' + '0'.repeat(12)", "__h.slice(0, -20) + 'zz' + __h.slice(-18)", "'sha256$zz$zz'", "'tmp$scrypt$'"]) {
+      assert.strictEqual(R('checkPw_(' + bad + ', ' + bad + ')'), false, bad); assert.strictEqual(R("checkPw_('Site#Office2468', " + bad + ')'), false, bad); assert.strictEqual(R('isHashed_(' + bad + ')'), false, bad); }
+    // other cost settings from the allowed list are read, and count as "to be kept afresh"
+    const low = 'scrypt$16384$8$1$' + salt + '$' + gas.scryptHex('Site#Office2468', salt, 16384, 8, 1) + '$abcdefabcdef'; ctx.__low = low;
+    assert.strictEqual(R("checkPw_('Site#Office2468', __low)"), true); assert.strictEqual(R('pwCurrent_(__low)'), false);
+    const up2 = R("rehash_('Site#Office2468', __low)"); assert.match(up2, /^scrypt\$32768\$8\$3\$/); assert.strictEqual(up2.slice(-12), 'abcdefabcdef');
+  } finally { delete ctx.__scrypt; delete ctx.__h; delete ctx.__old; delete ctx.__low; ctx.Utilities = U0; }
+});
+
+test('update-68: a session carries its sign-in time and ends 30 days after it', () => {
+  const { ctx } = require('./harness.js'); const R = c => require('vm').runInContext(c, ctx);
+  assert.strictEqual(R('SESSION_MAX_DAYS'), 30); assert.strictEqual(R('SESSION_SECONDS'), 21600);
+  const v = R("sessionMake_('a@b.c', 'sha256$03df218ade11434e$" + '0'.repeat(64) + "')").split('|');
+  assert.strictEqual(v.length, 3); assert.ok(Math.abs(Number(v[2]) - Date.now()) < 5000);
+  const day = 86400000;
+  assert.ok(R("sessionRead_('a@b.c|abc|" + (Date.now() - 29 * day) + "').left") > 0);
+  assert.ok(R("sessionRead_('a@b.c|abc|" + (Date.now() - 30 * day - 1000) + "').left") <= 0);
+  const old = R("sessionRead_('a@b.c|abc')"); assert.strictEqual(old.made, 0); assert.strictEqual(old.left, 30 * day); assert.strictEqual(old.email, 'a@b.c'); assert.strictEqual(old.stamp, 'abc');
+});
+
+test('update-68: machinery details leave the server only for users with a page that uses them (and the shared list is never changed)', () => {
+  const { ctx } = require('./harness.js'); const R = c => require('vm').runInContext(c, ctx);
+  const item = { id: 'X-1', no: 'X-1', name: 'JCB', type: 'JCB', make: 'JCB', lbFormat: 'A', worksOn: ['Hrs'], unit: 'Hrs', modes: ['Hrs'], kmStd: '', hrStd: 5, owner: 'V', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01', inactiveFrom: '', tankCap: 120,
+    monthlyRate: 55555, tdsRate: 2, engineNo: 'E1', chassisNo: 'C1', engineMake: 'K', taxUpto: '2027-01-01', pucUpto: '', permitUpto: '', fitnessUpto: '', insuranceUpto: '', enteredBy: 'a', updatedBy: 'b' };
+  ctx.__res = { master: [item, Object.assign({}, item, { id: 'X-2' })], machine: item, rows: [{ a: 1, machine: item }, { a: 2 }], deep: { list: [{ m: { x: { machine: item } } }] }, n: 5, when: new Date(), nothing: null };
+  const user = perms => ({ email: 'u@x', admin: false, perms: perms });
+  const out = u => { ctx.__u = u; return R('leastOut_(__u, __res)'); };
+  const RATE = ['monthlyRate', 'tdsRate'], FULL = ['engineNo', 'chassisNo', 'engineMake', 'taxUpto', 'pucUpto', 'permitUpto', 'fitnessUpto', 'insuranceUpto', 'enteredBy', 'updatedBy'];
+  const has = (o, ks) => ks.filter(k => k in o).length;
+  // Admin, and a user with the Asset Master: the very same object (nothing copied, nothing cut)
+  assert.strictEqual(out({ admin: true, perms: {} }), ctx.__res); assert.strictEqual(out(user({ Master: 'View' })), ctx.__res); assert.strictEqual(R('leastOut_(null, __res)'), ctx.__res);
+  // no page at all: every machinery item, wherever it sits in the answer, loses both groups; everything else is as it was
+  const n = out(user({ Master: 'None', 'Log Book': 'None' }));
+  for (const m of [n.master[0], n.master[1], n.machine, n.rows[0].machine, n.deep.list[0].m.x.machine]) { assert.strictEqual(has(m, RATE), 0); assert.strictEqual(has(m, FULL), 0); assert.strictEqual(m.hrStd, 5); assert.strictEqual(m.tankCap, 120); assert.strictEqual(m.owner, 'V'); assert.deepStrictEqual(m.worksOn, ['Hrs']); }
+  assert.strictEqual(n.n, 5); assert.strictEqual(n.rows[1], ctx.__res.rows[1]); assert.strictEqual(n.when, ctx.__res.when); assert.strictEqual(n.master.length, 2); assert.strictEqual(n.master[1].id, 'X-2');
+  // the shared list was NOT changed (the same items serve the next answer of the request)
+  assert.strictEqual(item.monthlyRate, 55555); assert.strictEqual(item.engineNo, 'E1'); assert.strictEqual(ctx.__res.master[0], item); assert.strictEqual(ctx.__res.rows[0].machine, item);
+  // Log Book (or Billing, Saved Bills): rate and TDS % stay, the Asset Master's own details go
+  for (const p of [{ 'Log Book': 'View' }, { 'Machinery Billing': 'Edit' }, { 'Saved Bills': 'View' }]) { const l = out(user(p)); assert.strictEqual(l.machine.monthlyRate, 55555); assert.strictEqual(l.machine.tdsRate, 2); assert.strictEqual(has(l.machine, FULL), 0); }
+  // other pages do not open the rate
+  for (const p of [{ 'Diesel Issue': 'Edit' }, { Reports: 'View' }, { Dashboard: 'View' }, { 'Vendor Ledger': 'View' }, { 'Vehicle Compliance': 'Edit' }]) assert.strictEqual(has(out(user(p)).machine, RATE.concat(FULL)), 0, JSON.stringify(p));
+  delete ctx.__res; delete ctx.__u;
+  // who gets which list
+  const sees = (p, list) => { ctx.__u = user(p); const r = R('seesAny_(__u, ' + list + ')'); delete ctx.__u; return r; };
+  assert.strictEqual(sees({ 'Diesel Issue': 'View' }, 'FOR_DRIVERS_'), true); assert.strictEqual(sees({ 'Log Book': 'Edit' }, 'FOR_DRIVERS_'), false);
+  assert.strictEqual(sees({ Reports: 'View' }, 'FOR_PUMPS_'), true); assert.strictEqual(sees({ Dashboard: 'View' }, 'FOR_STOCK_'), true); assert.strictEqual(sees({ 'Machinery Billing': 'View' }, 'FOR_STOCK_'), false);
+  assert.strictEqual(sees({ 'Log Book': 'None', 'Saved Bills': 'None' }, 'FOR_PARTIES_'), false); assert.strictEqual(sees({}, 'FOR_STOCK_'), false);
+});
+
+test('update-68: the step-5 SQL is in the project, shown in the app word for word, and only ADDS things; the manual backup is Admin-only', () => {
+  const file = fs.readFileSync(path.join(root, 'sql', 'supabase_step5_save_once.sql'), 'utf8');
+  const { ctx } = require('./harness.js');
+  const readme = fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8');
+  const list = new Function(readme + '; return README_SQL_;')();
+  const mine = list.find(x => x.name === 'supabase_step5_save_once.sql');
+  assert.ok(mine, 'step 5 is listed in the app'); assert.strictEqual(mine.sql, file, 'the text shown in the app is the file, word for word');
+  const code = file.split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
+  assert.ok(!/\b(drop|truncate)\b/i.test(code) && !/delete\s+from\s+public\./i.test(code) && !/alter\s+table\s+public\./i.test(code), 'nothing of the app\'s own tables is dropped, emptied or altered');
+  assert.ok(!/create or replace function public\.web_write\(/.test(code), 'web_write (step 3) is left as it is');
+  for (const f of ['web_op_begin', 'web_op_mark', 'web_write2', 'web_op_end', 'web_ops_cleanup']) { assert.match(code, new RegExp('revoke all on function public\\.' + f + '\\([^)]*\\) from public, anon, authenticated')); assert.match(code, new RegExp('grant execute on function public\\.' + f + '\\([^)]*\\) to service_role')); }
+  assert.match(code, /revoke all on web\.ops from public, anon, authenticated, service_role/); assert.match(code, /alter table web\.ops enable row level security/);
+  // release review (07-10-2026): one transaction; every function has a fixed, EMPTY search_path and names its tables with their schema; nothing is forced on the owner
+  assert.match(code, /^\s*begin;/m); assert.match(code, /commit;\s*$/);
+  const fns = [...code.matchAll(/create or replace function public\.(\w+)\([^)]*\)\s*returns \w+ language (?:plpgsql|sql) security (definer|invoker) set search_path = ([^ ]+) as \$\$([\s\S]*?)\$\$;/g)].map(m => ({ name: m[1], sec: m[2], path: m[3], body: m[4] }));
+  assert.deepStrictEqual(fns.map(f => f.name + ':' + f.sec + ':' + f.path).sort(), ["web_op_begin:definer:''", "web_op_end:definer:''", "web_op_mark:definer:''", "web_op_note:definer:''", "web_ops_cleanup:definer:''", "web_write2:invoker:''"]);
+  assert.strictEqual((code.match(/create or replace function/g) || []).length, 6, 'every function of the file was looked at');
+  assert.match(code, /revoke all on function public\.web_op_note\(text, text\) from public, anon, authenticated, service_role/); assert.ok(!/grant execute on function public\.web_op_note/.test(code), 'the note helper is for inside use only');
+  for (const f of fns) { const bare = f.body.replace(/web\.(ops|cache)\b/g, '').replace(/'[^']*'/g, ''); assert.ok(!/\b(from|into|update|join)\s+(ops|cache)\b/i.test(bare), f.name + ' names every table with its schema'); }
+  assert.match(fns.find(f => f.name === 'web_op_mark').body, /perform public\.web_op_note\(p_rid, p_result\)/, 'the old-style note is written in the same transaction as the entry');
+  assert.ok(!/force row level security/i.test(code), 'row-level security is not forced on the owner (the functions run as the owner)');
+  assert.match(code, /check \(state in \('started', 'done', 'refused'\)\)/); assert.match(code, /check \(rid ~ '\^\[A-Za-z0-9_-\]\{8,64\}\$'\)/);
+  assert.match(code, /if random\(\) < 0\.02 then begin perform public\.web_ops_cleanup\(\); exception when others then null; end; end if;/, 'housekeeping can never fail a save');
+  { const rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8'); assert.match(rt, /catch \(e2\) \{ st = null; asked = false; \}/); assert.match(rt, /if \(!asked\) throw new Error\('RETRY_LATER'\);/, 'outcome unknown and the database cannot be asked: the same number is sent again'); }
+  { const cg = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'); assert.match(cg, /if \(!good && !\(known && pwScrypt_\(u\.password\)\)\) pwDummy_\(password\);/, 'every refused sign-in costs one scrypt'); assert.ok(!/pwDummy_\(password\) \|\| true/.test(cg)); }
+  assert.match(fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8'), /if \(o\.cron\) \{ try \{ __opsCleanup\(\); \}/);
+  const api = require('vm').runInContext('API_', ctx);
+  assert.strictEqual(api.backupNow.admin, true); assert.strictEqual(api.accessReport.admin, true); assert.deepStrictEqual(Array.from(api.getStock.any), ['Dashboard', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Reports']);
+});
+
+test('update-68 (D1): no code can open the backup Sheet to "anyone with the link"', () => {
+  const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
+  const files = ['app', 'server', 'api'].flatMap(d => walk(path.join(root, d))).filter(f => /\.(gs|js)$/.test(f) && !/[\\/]vendor[\\/]/.test(f));
+  const all = files.map(f => fs.readFileSync(f, 'utf8')).join('\n');
+  // the server's backup talks to Google's Sheets API only, with a right that covers spreadsheets only: sharing (a Drive right) is out of its reach
+  const g = fs.readFileSync(path.join(root, 'server', 'google.js'), 'utf8');
+  assert.deepStrictEqual([...g.matchAll(/googleapis\.com\/auth\/([a-z.]+)/g)].map(m => m[1]), ['spreadsheets']);
+  assert.ok(!/auth\/drive/.test(all), 'no Drive right is asked for anywhere');
+  assert.ok(!/drive\/v[23]\/files\/[^'"]*permissions|permissions\.create|ANYONE_WITH_LINK|Access\.ANYONE|anyoneWithLink|role:\s*'reader',\s*type:\s*'anyone'/.test(all), 'nothing shares a file with "anyone"');
+  // the one place that sets sharing at all (the old Apps Script backup) sets it to PRIVATE
+  assert.deepStrictEqual([...all.matchAll(/\.setSharing\(([^)]*)\)/g)].map(m => m[1].replace(/\s+/g, ' ')), ['DriveApp.Access.PRIVATE, DriveApp.Permission.NONE']);
 });

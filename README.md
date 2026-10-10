@@ -13,7 +13,7 @@ App तेच आहे: तेच screens, तेच नियम, तेच pr
 
 ## SQL चालवण्याचा क्रम
 
-`sql/` मधल्या files क्रमाने: step1 … step1s, `supabase_step1t_debit_notes.sql`, `supabase_step1u_meter.sql`, मग `supabase_step2_web.sql`, मग `supabase_step3_safety.sql`. शेवटी `supabase_step4_health.sql` (app स्वतः database तपासते; Admin ला वरच्या पट्टीत "Database").
+`sql/` मधल्या files क्रमाने: step1 … step1s, `supabase_step1t_debit_notes.sql`, `supabase_step1u_meter.sql`, मग `supabase_step2_web.sql`, मग `supabase_step3_safety.sql`. शेवटी `supabase_step4_health.sql` (app स्वतः database तपासते; Admin ला वरच्या पट्टीत "Database"). त्यानंतर `supabase_step5_save_once.sql` (update-68: एक save database मध्ये एकदाच – उत्तर हरवलं तरी तीच entry पुन्हा save होत नाही). `sql/proposed/` मधल्या files या क्रमाचा भाग नाहीत – त्या फक्त तपासणी (preflight, फक्त वाचते) आणि प्रस्ताव आहेत; `UPDATE_68.md` पहा.
 `check_security.sql` काहीही बदलत नाही; database ची सुरक्षा पाहण्यासाठी आहे (प्रत्येक ओळ "ok" ने सुरू झाली पाहिजे).
 
 ## तपासणी (tests)
@@ -39,6 +39,15 @@ App तेच आहे: तेच screens, तेच नियम, तेच pr
 | `CRON_SECRET` | कोणताही लांब, गुप्त शब्द (उदा. 30 अक्षरे). रात्रीच्या backup साठी Vercel हा शब्द स्वतः पाठवते; त्याशिवाय रात्रीचा backup नाकारला जातो. |
 
 Keys कधीही code मध्ये किंवा git मध्ये टाकू नका.
+
+**गरज नसल्यास हात लावू नका (ऐच्छिक settings, 07-10-2026 च्या audit नंतर):**
+
+| नाव | काय |
+|---|---|
+| `RCL_OLD_WRITES` | ठेवू नका. Database मध्ये "सगळे किंवा काहीच नाही" save function (`web_write`, `sql/supabase_step3_safety.sql`) नसेल तर app आता save **नाकारते** (अर्धवट save होऊ नये म्हणून). फक्त नवीन site वर step 3 चालवण्याआधी तात्पुरते `on` ठेवता येते – मग जुन्या पद्धतीने (table-by-table) save होते. |
+| `RCL_QUEUE` | Server वर एका वेळी किती requests रांगेत थांबू शकतात (default 120). त्यापेक्षा जास्त आल्या तर "server busy" (503) लगेच मिळते आणि page स्वतः पुन्हा पाठवते. |
+
+**Backup Google Sheet चे sharing:** Sheet → Share → General access = **Restricted** ठेवा (फक्त तुम्ही आणि backup चा service account). Sheet मध्ये पूर्ण database आहे (vendors चे bank / PAN / Aadhaar, Activity Log). App आता Sheet ची link फक्त Admin ला दाखवते.
 
 ---
 

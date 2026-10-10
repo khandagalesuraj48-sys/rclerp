@@ -64,7 +64,9 @@
   function found(b) { if (!b || b === current) { live = null; banner(false); return false; } if (live !== b) { live = b; since = Date.now(); later = 0; } if (Date.now() >= later) banner(true); tellApp('update'); return true; }
   function check(cb) { google.script.run.withSuccessHandler(function (b) { var newer = found(b); if (cb) cb({ current: current, live: b || current, newer: newer }); }).withFailureHandler(function () { if (cb) cb({ current: current, live: current, newer: false, failed: true }); }).getAppBuild(); }
   // every minute: is a newer version live? shown at once; applied by itself after 3 minutes (10 after "Later") when nothing is half typed
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
   setInterval(function () {
+    if (document.hidden) return;      // a page nobody is looking at does not ask (07-10-2026) – it asks the moment it is looked at again
     check(function () {
       if (!live) return;
       var w = frameWin(), busy = false; try { busy = w && w.rclBusy ? w.rclBusy() : false; } catch (e) {}
