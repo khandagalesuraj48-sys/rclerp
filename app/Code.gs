@@ -2485,7 +2485,7 @@ function billNoHtml_(v, who, depth) {
   if (v && typeof v === 'object') Object.keys(v).forEach(k => { billNoHtml_(k, who, depth + 1); billNoHtml_(v[k], who, depth + 1); });
 }
 function billVerifyKey_(d, x) {
-  const k = [vKey_((d.vendor || {}).name || x.vendor || ''), str_(x.company || d.company), dkey_(x.from || d.from), dkey_(x.to || d.to), r2_(num0_(d.A)), r2_(num0_(d.B)), r2_(num0_(d.C)), r2_(num0_(d.I))].join('|');
+  const k = [vKey_((d.vendor || {}).name || x.vendor || ''), str_(x.company || d.company), dkey_(x.from || d.from), dkey_(x.to || d.to), r2_(num0_(d.A)), r2_(num0_(d.B)), r2_(num0_(d.C)), r2_(num0_(d.I))].concat(Number(d.dieselRate) > 0 ? ['rate ' + r2_(Number(d.dieselRate))] : []).join('|');      // (a diesel rate typed by hand is part of what was verified)
   return 'VB_' + hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, k, Utilities.Charset.UTF_8)).slice(0, 40);
 }
 /* ---------- THE LAST FILL OF THE PERIOD IS PARTLY STILL IN THE TANK (rule set by the MD, 02-10-2026) ----------
@@ -2601,8 +2601,11 @@ function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid) {
   const leftOn = str_(m.status) === 'Inactive' && m.inactiveFrom ? dkey_(m.inactiveFrom) : '', final = !!leftOn && leftOn <= addDays_(to, 1);
   const tank = final ? null : tankLeft_(m, u, own, iss0, isDebit, rawExcess);      // what is left of the last fill is not excess of this period
   const excessQty = r2_(rawExcess - (tank ? tank.applied : 0));
-  const dRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), excessAmt = r2_((debitQty + excessQty) * dRate);
-  return { final: final ? leftOn : '', tank: tank && tank.applied > 0 ? tank : null, rawExcess: rawExcess, no: m.id, workDays: workDays, nights: nights, holidays: holidays, breakdowns: breakdowns, idleDays: idleDays, itemOver: itemOver, itemUnknown: itemUnknown, itemLeft: itemLeft, amount: amount, issued: issued, excessAmt: excessAmt, debitQty: debitQty, excessQty: excessQty, noBoq: noBoq, legacy: legacy, zero: zero, days: Object.keys(units).length,
+  /* the rate of the debited diesel: the higher of the period's average and the last purchase rate – or, when it was typed by hand
+   * for this bill (asked 10-10-2026: "wherever diesel is debited I must be able to put the rate myself"), that rate. */
+  const autoRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), manRate = Number(extra.manualRate) > 0 ? r2_(Number(extra.manualRate)) : 0;
+  const dRate = manRate || autoRate, excessAmt = r2_((debitQty + excessQty) * dRate);
+  return { final: final ? leftOn : '', tank: tank && tank.applied > 0 ? tank : null, rawExcess: rawExcess, no: m.id, dieselRate: dRate, autoRate: autoRate, rateManual: !!manRate, workDays: workDays, nights: nights, holidays: holidays, breakdowns: breakdowns, idleDays: idleDays, itemOver: itemOver, itemUnknown: itemUnknown, itemLeft: itemLeft, amount: amount, issued: issued, excessAmt: excessAmt, debitQty: debitQty, excessQty: excessQty, noBoq: noBoq, legacy: legacy, zero: zero, days: Object.keys(units).length,
     gstPct: last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0,
     tdsPct: last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0), woNo: last ? last.woNo || '' : '' };
 }
@@ -2674,12 +2677,17 @@ function verifyBills_(p) {
     const own = (byVendor[vk] || { machines: [] }).machines;
     const left = own.filter(m => !billKeys[noKey_(m.id)] && !(inBatch[vk] || {})[noKey_(m.id)] && ((pd.byNo[noKey_(m.id)] || []).length || (pd.extra.issues || {})[noKey_(m.id)]));
     if (left.length) (b.partial ? warn : bad)('Machinery of this vendor with work / diesel in the period are not in this bill: ' + left.map(m => m.id).join(', ') + (b.partial ? ' – bill them separately.' : ' – build again.'));
+    // the diesel rate typed by hand in this bill (empty = the automatic rate of the period)
+    const mRate = blank_(b.dieselRate) || typeof b.dieselRate === 'boolean' || typeof b.dieselRate === 'object' ? (blank_(b.dieselRate) ? 0 : NaN) : r2_(Number(b.dieselRate));
+    if (!blank_(b.dieselRate) && !(mRate >= 0.01 && mRate < 1000)) bad('Diesel rate typed in the bill ("' + str_(b.dieselRate) + '") is not a proper rate – type ₹ per litre, or leave it empty for the automatic rate.');
+    const xtra = mRate >= 0.01 && mRate < 1000 ? Object.assign({}, pd.extra, { manualRate: mRate }) : pd.extra;
+    if (xtra !== pd.extra) ok('Diesel is debited at ₹' + mRate + ' per litre – typed by hand in this bill (automatic rate of the period: ₹' + r2_(Math.max(Number(pd.extra.avgRate) || 0, Number(pd.extra.lastRate) || 0)) + ').');
     let A = 0, B = 0, gstPct = 0, tdsPct = 0, woNo = '', mismatch = [];
     inBill.forEach(x => {
       const k = noKey_(x.no), m = mByKey[k];
       if (!m) { bad(x.no + ' is not in Asset Master.'); return; }
       if (vKey_(m.owner) !== vk) { bad(x.no + ' belongs to "' + (m.owner || 'no vendor') + '" in Asset Master, not to this vendor.'); return; }
-      const c = billMachineCalc_(m, pd.byNo[k] || [], pd.extra, from, to, undefined, b.idlePaid !== false);
+      const c = billMachineCalc_(m, pd.byNo[k] || [], xtra, from, to, undefined, b.idlePaid !== false);
       if (c.idleDays && b.idlePaid !== true && b.idlePaid !== false) bad(x.no + ': ' + c.idleDays + ' Idle day(s) in the Log Book – choose in the bill whether Idle days are Paid or Not paid.');
       else if (c.idleDays) ok(x.no + ': ' + c.idleDays + ' Idle day(s) – ' + (b.idlePaid ? 'PAID' : 'NOT paid') + ' as chosen in the bill.');
       if (c.itemOver.length) bad(x.no + ': items have more work than the Log Book entry (' + c.itemOver.slice(0, 4).join('; ') + (c.itemOver.length > 4 ? ' …' : '') + ') – correct the items in the Log Book.');
@@ -3054,16 +3062,81 @@ function itemQtyOf_(items, row) {
     out.list.push({ n: (pick || days[0]).name, q: dayPart_(row), k: 'day' });      // 1, or 0.5 for an entry marked "½ day"
     out.left = {}; // the day is paid by the Per Day / Monthly item: hours / KM given to no item are not "left out"
   }
-  Object.keys(work).forEach(n => { if (n !== '_day' && !known[n] && Number(work[n]) > 0) out.unknown.push(n); });
+  Object.keys(work).forEach(n => { if (n.charAt(0) !== '_' && !known[n] && Number(work[n]) > 0) out.unknown.push(n); });      // ("_day", "_parts" are not items)
   return out;
 }
+/* SEVERAL WORKS IN ONE SHIFT, EACH ON ITS OWN ROW (asked 10-10-2026: "the same machine, Day or Night, worked with the Bucket AND
+ * the Breaker – that must not give an error; and the Log Book must show them separately").
+ * The Log Book stays ONE stored entry per machinery + date + shift (its key, the diesel and the tank depend on it). The works
+ * of the shift are kept INSIDE the entry, in "Item Work", as "_parts": [{ n: item, q: hours / KM of that work, c: challan,
+ * p: particular, f / t: chainage, w: description }] in the order they were done. Each work starts where the one before it
+ * closed, so its Start / Close are worked out from the entry's Start: nothing can drift when a reading before it is corrected.
+ * The parts are a second look at the SAME quantities (Σ of an item's parts = the quantity of the item that is billed):
+ * the bill, the diesel and every total are untouched. Parts that no longer fit the entry (its total was changed elsewhere)
+ * are not used – the entry is then shown by its quantities, as a split entry always was.
+ * → [{ n, q, k, c, p, f, t, w }] or null. tot = { hr, km } of the entry. */
+function itemPartsOf_(items, work, tot) {
+  const ps = work && Array.isArray(work._parts) ? work._parts : null;
+  if (!ps || ps.length < 2 || !items || !items.length) return null;
+  let k = ''; const out = [], by = {};
+  for (let i = 0; i < ps.length; i++) {
+    const p = ps[i] || {}, it = items.find(x => x.name === str_(p.n)); if (!it) return null;
+    const kind = itemKind_(it.basis), q = Number(p.q);
+    if ((kind !== 'hr' && kind !== 'km') || (k && kind !== k) || !(r2_(q) > 0)) return null;
+    k = kind; by[it.name] = r2_((by[it.name] || 0) + r2_(q));
+    out.push({ n: it.name, q: r2_(q), k: kind, c: str_(p.c), p: str_(p.p), f: str_(p.f), t: str_(p.t), w: str_(p.w) });
+  }
+  const sum = r2_(out.reduce((a, x) => a + x.q, 0));
+  if (tot && Math.abs(sum - Math.max(0, Number(tot[k]) || 0)) > 0.005) return null;      // the entry's total is no longer the sum of its works
+  // the typed quantities kept for the bill must be the same figures
+  if (items.filter(it => itemKind_(it.basis) === k && it.qty !== 'rest').some(it => Math.abs((by[it.name] || 0) - Math.max(0, Number(work[it.name]) || 0)) > 0.005)) return null;
+  return out;
+}
+// did an edit of the WHOLE entry leave the texts that its rows hold as they were? (the small window shows the Particular as the work when no description was saved)
+function partsTxtSame_(lt, row, l) {
+  const c = lt.c, was = h => h in c ? str_(row[c[h]]) : '', eq = (h, v) => !(h in c) || v === undefined || was(h) === clean_(v);
+  const workSame = !(H.WORK in c) || l.work === undefined || was(H.WORK) === clean_(l.work) || (!was(H.WORK) && was(H.REMARK) === clean_(l.work));
+  return workSame && eq(H.CHFROM, l.chFrom) && eq(H.CHTO, l.chTo) && eq(H.CHALLAN, l.challan) && eq(H.REMARK, l.remark);
+}
+const itemPartsStrip_ = json => { const o = itemWorkParse_(json); if (!('_parts' in o)) return str_(json); delete o._parts; return Object.keys(o).length ? JSON.stringify(o) : ''; };
+
 /* what is kept for an entry ("Item Work"): the typed items and the picked day item, checked against the BOQ of that date.
  * l.items = { item: qty, _day: item } as typed; tot = { hr, km, trip } of the entry (null = totals not checked here). */
-function logItemWork_(m, dk, mode, l, tot) {
+function logItemWork_(m, dk, mode, l, tot, prev) {
   const items = boqItemsOn_(m, dk);
+  // (rows for the works of one shift can only come for a machinery whose BOQ has such works – anything else is a mistake of the page: refused, not joined)
+  if (!items.length && l && l.items && Array.isArray(l.items._parts) && l.items._parts.length > 1) throw new Error(m.id + ' (' + dmy_(dk) + '): two rows on the same date and shift – this machinery has no separate works in its BOQ on that date. Keep one row for the shift (or make one Day and the other Night).');
   if (!items.length || mode === 'Holiday' || mode === 'Breakdown') return '';
   const inp = l && l.items && typeof l.items === 'object' ? Object.assign({}, l.items) : {}, out = {}, when = m.id + ' (' + dmy_(dk) + '): ';
   const find = n => items.find(it => it.name.toUpperCase() === clean_(n).toUpperCase());
+  /* "_parts": the works of this shift, one after the other (Edit Log Book: a row for each). The quantity of every item is taken
+   * from them – whatever else was sent for those items is not used. See itemPartsOf_. */
+  let parts = null;
+  if (Array.isArray(inp._parts) && inp._parts.length === 1) inp._all = (inp._parts[0] || {}).n;      // one work only: the whole entry is that item
+  if (Array.isArray(inp._parts) && inp._parts.length > 1) {
+    if (!tot || mode === 'Idle') throw new Error(when + 'separate rows for the works of one shift are saved from Edit Log Book, on a working entry.');
+    if (inp._parts.length > 12) throw new Error(when + 'at most 12 rows for the works of one shift.');
+    let kind = ''; const by = {};
+    parts = inp._parts.map((p0, i) => {
+      const p = p0 || {}, it = find(p.n), row = 'row ' + (i + 1) + ' of ' + dmy_(dk);
+      if (!it) throw new Error(when + row + ' – "' + clean_(p.n) + '" is not an item of its BOQ (items: ' + items.map(x => x.name).join(', ') + '). Pick the work of that row.');
+      const k = itemKind_(it.basis), q = Number(p.q);
+      if (k !== 'hr' && k !== 'km') throw new Error(when + row + ' – ' + it.name + ' is paid ' + str_(it.basis).toLowerCase() + ': separate rows in one shift are for hour / KM works only. Keep one row for this shift.');
+      if (kind && k !== kind) throw new Error(when + 'the rows of one shift must be all hour works or all KM works.');
+      if (!isFinite(q) || !(r2_(q) > 0)) throw new Error(when + row + ' (' + it.name + ') has no work: its Close must be more than its Start. Type its Close, or delete that row.');
+      if (i && inp._parts[i - 1] && find((inp._parts[i - 1] || {}).n) === it) throw new Error(when + 'two rows one after the other are both ' + it.name + ' – make them one row (or pick the other work).');
+      kind = k; by[it.name] = r2_((by[it.name] || 0) + q);
+      const o = { n: it.name, q: r2_(q) };
+      [['c', p.c], ['p', p.p], ['f', p.f], ['t', p.t], ['w', p.w]].forEach(x => { const v = clean_(x[1]).slice(0, 300); if (v) o[x[0]] = v; });
+      return o;
+    });
+    const sum = r2_(parts.reduce((a, x) => a + x.q, 0)), total = Math.max(0, num0_(tot[kind])), w = ITEM_KIND_WORD_[kind];
+    if (Math.abs(sum - total) > 0.005) throw new Error(when + 'the rows of this shift make ' + fmtVal_(sum) + ' ' + w + ' but the entry has ' + fmtVal_(r2_(total)) + ' ' + w + ' – every row must start where the row before it closed.');
+    // the quantities of the items of this kind come from the rows alone – whatever was sent for them (in any spelling) is not used
+    Object.keys(inp).forEach(n => { if (n.charAt(0) === '_') return; const it = find(n); if (it && itemKind_(it.basis) === kind) delete inp[n]; });
+    items.filter(it => itemKind_(it.basis) === kind && it.qty !== 'rest').forEach(it => { if (by[it.name]) inp[it.name] = by[it.name]; });
+  }
+  delete inp._parts;
   /* "_all": the whole entry was ONE item (picked as "Work type" in the Excel sheet). That item takes the entry's total of its
    * kind: a typed item gets the total as its quantity; the "rest" item gets it by nothing being typed. Needs the totals. */
   if (!blank_(inp._all)) {
@@ -3098,6 +3171,13 @@ function logItemWork_(m, dk, mode, l, tot) {
     const hit = find(inp._day);
     if (!hit || itemKind_(hit.basis) !== 'day') throw new Error(when + '"' + clean_(inp._day) + '" is not a Per Day / Monthly item of its BOQ (' + days.map(x => x.name).join(', ') + ').');
     if (hit !== days[0]) out._day = hit.name;
+  }
+  if (parts) out._parts = parts;
+  /* nothing was said about parts, and the saved entry has them (the entry was changed in the small edit window, or by an Excel
+   * file): they stay only while they still say the same as the entry – same quantities, same total. */
+  else if (prev && prev.json) {
+    const old = itemWorkParse_(prev.json), t2 = prev.tot || tot;
+    if (Array.isArray(old._parts) && t2 && itemPartsOf_(items, Object.assign({}, out, { _parts: old._parts }), t2)) out._parts = old._parts;
   }
   return Object.keys(out).length ? JSON.stringify(out) : '';
 }
@@ -5512,6 +5592,7 @@ function logItemsOut_(o) {
   if (!items.length) return o;
   const q = itemQtyOf_(items, { mode: o.mode || o.unit, whr: o.whr, wkm: o.wkm, trip: o.trip, work: o.itemWork, half: o.half });
   o.itemQty = q.list; o.itemOver = q.over; o.itemUnknown = q.unknown; o.itemLeft = q.left; o.boqItems = itemBrief_(items);
+  const ps = itemPartsOf_(items, o.itemWork, { hr: o.whr, km: o.wkm }); if (ps) o.itemParts = ps;      // the works of the shift, each on its own row
   return o;
 }
 // the items of every Item-wise machinery on a date: { machinery: [{ name, basis, qty }] } (Excel export, hints)
@@ -5861,6 +5942,13 @@ function logEntriesOf_(lt, no) {
     mode: str_(r[c[H.UNIT]]),
   })).sort(logKeyCmp_);
 }
+// a machinery with two or more hour (or KM) works in its BOQ: the second work of a shift is a row in Edit Log Book
+function logSlotHint_(m, dk, slot) {
+  if (!/^already saved/.test(str_(slot))) return '';
+  let its = []; try { its = boqItemsOn_(m, dk); } catch (e) { its = []; }
+  const g = ['hr', 'km'].map(k => its.filter(it => itemKind_(it.basis) === k)).find(a => a.length > 1);
+  return g ? ' To add another work of the same shift (' + g.map(it => it.name).join(' / ') + '): Edit Log Book → "+ Add row" → the same date and shift – or open this entry and use Split.' : '';
+}
 // why this date + shift cannot take an entry ('' = it can)
 function logSlotProblem_(list, dk, shift) {
   const same = list.filter(x => x.dk === dk);
@@ -5888,7 +5976,7 @@ function getLogRowPrefill_(no, dateStr, shiftIn) {
   const slot = logSlotProblem_(list, dk, shift);
   const cy = cycleFor_(lt, m, dk);
   return {
-    machine: m, problem: problem || (slot ? m.id + ' ' + slot + '.' : ''), first: !prev,
+    machine: m, problem: problem || (slot ? m.id + ' ' + slot + '.' + logSlotHint_(m, dk, slot) : ''), first: !prev,
     openingKm: prevKm ? prevKm.ckm : (m.meterKm || hasKm_(m.unit) ? 0 : ''), openingHr: prevHr ? prevHr.chr : (m.meterHr || hasHr_(m.unit) ? 0 : ''),
     firstKm: !prevKm, firstHr: !prevHr, lastMode: prev && (m.modes || []).indexOf(prev.mode) > -1 ? prev.mode : '',
     openingDiesel: prev ? prev.stock : 0, prevDate: prev ? prev.dk : '', prevShift: prev ? prev.shift : '',
@@ -5929,7 +6017,7 @@ function importLogBook_(b) {
         txtDiff(H.CHFROM, l.chFrom, 'Chainage From'); txtDiff(H.CHTO, l.chTo, 'Chainage To'); txtDiff(H.WORK, l.work, 'Work'); txtDiff(H.DRIVER, l.driver, 'Driver'); txtDiff(H.REMARK, l.remark, 'Remark');
         // (a "Work type" of one item needs the entry's totals as they will be: the file's Close against the saved Start)
         const totOf = () => { const q = (cl, o, w) => blank_(cl) ? num0_(r[c[w]]) : r2_(Number(cl) - num0_(r[c[o]])); return { km: km ? q(l.closingKm, H.OKM, H.WKM) : 0, hr: hr ? q(l.closingHr, H.OHR, H.WHR) : (H.THRS in c ? num0_(r[c[H.THRS]]) : 0), trip: H.TRIP in c ? num0_(blank_(l.trip) ? r[c[H.TRIP]] : l.trip) : 0 }; };
-        if (hasItemsIn_(l)) { const want = logItemWork_(m, dk, str_(r[c[H.UNIT]]), l, l.items && !blank_(l.items._all) ? totOf() : null), have = H.ITEMS in c ? str_(r[c[H.ITEMS]]) : '';
+        if (hasItemsIn_(l)) { const have = H.ITEMS in c ? str_(r[c[H.ITEMS]]) : '', want = logItemWork_(m, dk, str_(r[c[H.UNIT]]), l, l.items && !blank_(l.items._all) ? totOf() : null, { json: have, tot: totOf() });
           if (JSON.stringify(itemWorkParse_(want)) !== JSON.stringify(itemWorkParse_(have))) diffs.push({ f: 'Item work', from: have, to: want, h: H.ITEMS, v: want }); }
         if (!diffs.length) same.push({ line: line, no: m.id, date: dk, shift: sh });
         else { billLock_(m.id, dk, 'Log Book entry'); changed.push({ line: line, no: m.id, date: dk, shift: sh, i: i, diffs: diffs }); }
@@ -5943,6 +6031,7 @@ function importLogBook_(b) {
     if (b.overwrite) changed.forEach(x => {
       const row = lt.rows[x.i].slice();
       x.diffs.forEach(d => { row[c[d.h]] = d.v; });
+      if (H.ITEMS in c && x.diffs.some(d => d.h !== H.DRIVER && d.h !== H.ITEMS)) row[c[H.ITEMS]] = itemPartsStrip_(row[c[H.ITEMS]]);      // (the file changed a reading or a text: the separate rows of the shift no longer say the same)
       stampEdit_(row, lt);
       lt.sh.getRange(x.i + 2, 1, 1, row.length).setValues([row]);
       touched[x.no] = true;
@@ -6042,7 +6131,7 @@ function saveLogRowsInner_(b) {
         const k = noKey_(m.id);
         const list = chain[k] = chain[k] || logEntriesOf_(lt, m.id);
         const slot = logSlotProblem_(list, dk, shift);
-        if (slot) throw new Error(m.id + ' ' + slot + '.');
+        if (slot) throw new Error(m.id + ' ' + slot + '.' + logSlotHint_(m, dk, slot));
         const before = list.filter(e => logKeyCmp_(e, { dk: dk, shift: shift }) < 0);
         const prev = before[before.length - 1] || null;
         // each meter follows its own last reading (an entry on Time / Trip / Day has no reading and does not break it)
@@ -6232,8 +6321,10 @@ function updateLogRow_(key, l) {
       const n2 = h => numOrBlank_(me[c[h]]);
       const tot = { km: hasKm_(unit) && n2(H.CKM) !== '' ? r2_(n2(H.CKM) - num0_(me[c[H.OKM]])) : 0,
         hr: hasHr_(unit) && n2(H.CHR) !== '' ? r2_(n2(H.CHR) - num0_(me[c[H.OHR]])) : unit === 'Time' && H.THRS in c ? num0_(me[c[H.THRS]]) : 0, trip: H.TRIP in c ? num0_(me[c[H.TRIP]]) : 0 };
-      me[c[H.ITEMS]] = logItemWork_(mm, dk, unit, l, tot);
+      // (the works of the shift kept as rows stay only when this edit changed neither the readings, the items nor the texts they hold)
+      me[c[H.ITEMS]] = logItemWork_(mm, dk, unit, l, tot, partsTxtSame_(lt, lt.rows[i], l) ? { json: str_(lt.rows[i][c[H.ITEMS]]) } : null);
     }
+    else if (H.ITEMS in c && /"_parts"/.test(str_(me[c[H.ITEMS]])) && !partsTxtSame_(lt, lt.rows[i], l)) me[c[H.ITEMS]] = itemPartsStrip_(me[c[H.ITEMS]]);      // (no items sent, a text changed: the rows of the shift no longer say the same)
     // an entry after it whose Start would follow the new Close: not when that entry is in a submitted bill
     (nextChanged ? [nextI] : []).concat(Object.keys(moved).map(Number)).forEach(j => billLock_(no, dkey_(lt.rows[j][c[H.DATE]]), 'The Log Book entry after it (its Start would follow the new Close)'));
     stampEdit_(me, lt);
@@ -6296,7 +6387,8 @@ function getLogEditData_(no, fromStr, toStr) {
   if (itemNos_()[noKey_(m.id)]) { let d = from; for (let k = 0; k < 100 && d <= to; k++) { const it = boqItemsOn_(m, d); if (it.length) boqItems[d] = itemBrief_(it); d = addDays_(d, 1); } }
   // submitted bills that hold this machinery in these dates: their dates are locked in the grid
   const locks = billLocksOfNo_(m.id).filter(b => b.from <= to && b.to >= from).map(billLockTag_);
-  return { machine: m, from: from, to: to, boqItems: boqItems, rows: rows.map(i => Object.assign(logRowOut_(lt, lt.rows[i]), { key: logKeyOf_(lt, lt.rows[i]) })),
+  const partsOut = o => { const it = boqItems[o.date] ? boqItemsOn_(m, o.date) : [], ps = it.length ? itemPartsOf_(it, o.itemWork, { hr: o.whr, km: o.wkm }) : null; if (ps) o.itemParts = ps; return o; };
+  return { machine: m, from: from, to: to, boqItems: boqItems, rows: rows.map(i => partsOut(Object.assign(logRowOut_(lt, lt.rows[i]), { key: logKeyOf_(lt, lt.rows[i]) }))),
     prev: brief(before[before.length - 1]), next: brief(after[0]), diesel: diesel, prevKm: lastRead(H.CKM), prevHr: lastRead(H.CHR), locks: locks };
 }
 // the links of debit notes to Log Book entries (the entry's key "number|date|shift") follow when an entry's key changes

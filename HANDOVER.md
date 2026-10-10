@@ -1258,6 +1258,62 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     its child test goes on as an orphan – a second run of the same test then collides with it (false FAILs). Start servers from
     script files only; after such a kill wait until the orphan is gone.
   * WAITING FOR HIM: to do the four steps of `RELEASE_68.md` §5 (backup, step-5 SQL, update-65s, update-68) and look at step 6.
+- 10-10-2026 10:04 IST – DEPLOYED BY HIM, step by step with screenshots: backup now (ok) → step-5 SQL in the live project (225 lines,
+  "Success. No rows returned") → update-65s pushed (`f397af6`, Vercel Ready, sign-in ok) → update-68 pushed (`0c18421`, Vercel Ready,
+  Production). Both commits read back from GitHub: byte-identical to the tested trees. Seen on live update-68: Admin signs in, Database
+  check 10 lines "in place" incl. step 5, Admin's backup works ("Users: 4 rows" copied right after the sign-in). Vercel plan = Hobby.
+  LIVE = update-68. Previous production deployment = update-65s (Instant Rollback lands there). CONFIRMED on live at 10:07 – 10:09:
+  `web.ops` state `done` = 9 (saves go through step 5), the Admin's password is kept as `scrypt` (scrypt works on Vercel; the
+  three users who have not signed in yet are still `sha256` – they move at their next sign-in), sign-in from a second browser ok.
+  So the Vercel runtime, which could not be tested beforehand, is now seen working. Not looked at: Vercel logs / memory figures.
+  (This note is in the working copy only – the pushed HANDOVER.md ends before it; carry it into the next update's zip.)
+- 10-10-2026 (update-69, asked after update-68 went live; screenshots: Edit Log Book "two entries on Day" for a JCB with Bucket + Breaker,
+  and a bill's Log Book "rate = higher of avg / last"). Report: `UPDATE_69.md`. NO SQL, NO schema change. NOT deployed by me.
+  * A ROW FOR EACH WORK OF ONE SHIFT. The Log Book is STILL one stored entry per machinery + date + shift (key `no|date|shift`,
+    `SupabaseSync.gs`; diesel, tank, bill lock, debit notes hang on it – do not try two stored rows a shift). The rows of a shift live
+    INSIDE the entry, in `item_work`: `{"Breaker":1,"_parts":[{n,q,c,p,f,t,w}, …]}` – n = item, q = hours / KM of that work, c challan,
+    p particular, f / t chainage, w description; in the order done; all one kind (hr or km), each q > 0, neighbours differ, Σq = the
+    entry's total. Readings of a row are DERIVED (entry Start + Σ earlier q). `itemPartsOf_(items, work, tot)` validates (null = not
+    usable → the entry is shown by its quantities); `logItemWork_(m, dk, mode, l, tot, prev)` takes `l.items._parts`, derives the typed
+    quantities from them, and with `prev = { json, tot }` keeps saved parts only while they still fit; `itemPartsStrip_`.
+    `updateLogRow_` keeps them only if readings, items AND the texts (work, chainage, challan, remark) are unchanged; `importLogBook_`
+    strips them when the file changes anything but the driver. `logItemsOut_` / `getLogEditData_` → `r.itemParts`.
+    Page, Edit Log Book (`LX`): `lxLoad` turns an entry with `itemParts` into grid rows (same `key`, `LX.pc[key]` = count);
+    `lxPartKind(r)` ('hr' / 'km' / '' = this machinery cannot have rows per work → OLD rule and OLD drawing, see `lxLater`);
+    `lxPickOf`, `lxSig` (item text + picked work), `lxPartsProblem` (messages on the row), `lxAddWork` + button `.lx-more`
+    ("+ work in this shift"), `LX.cut[key]` (a row of an entry was removed), `r._pick` (the pick survives a redraw). SAVE groups the
+    rows by date + shift: one payload row per group; the group's key = the entry that was saved on that slot, else an entry whose rows
+    all moved there, else ''; a key left with no group is added to `deleted`; `same` only if every row is untouched and the count is
+    `LX.pc[key]`. Entry-level challan / work / remark = the rows' texts joined with " / ".
+  * PRINT: `lbWorkRows(r)` (page) → copies of the entry, one per work (`_ent`, `_sub`, `_part`, `_prt`, `_gross`, `_grossLess`): kept parts
+    as entered, a Split entry in BOQ order with derived readings; null = one row. `logSheetsBuild` expands `lines` only – every total,
+    the summary and the money still come from `list` (entries). Format G `hr1` / `hr2` and gross time stand on the first row.
+    The page list, the Daily report and the Excel for filling stay one line per entry (the import matches by entry).
+  * DIESEL RATE BY HAND: `extra.manualRate` in `billMachineCalc_` (server) and `mbMachine` (page) – same signature as before, the
+    unit test calls both; `b.dieselRate` on a bill (box `.mb-dr` in the bills table, `change` → `mbFill` + `mbRender`), sent with the
+    bill, `verifyBills_` uses `Object.assign({}, pd.extra, { manualRate })` (pd.extra is shared between bills – never write into it).
+    Log Book print: `L.dieselRate` (one rate) or `L.rateBy` ({ machinery: rate } – each bill's own) → `MAN_RATE` per machinery;
+    `askPrintName(what, { rate: true, value })` adds the box `pn_rate` and returns `opt.typed` / `opt.bad`. A saved bill passes
+    `data.dieselRate` to its Log Book. Debit Recovery Statement already had Fixed + per-entry rates (untouched). Dashboard / cost
+    sheets stay automatic (estimates).
+  * Advice rules (EN / MR / HI) for both kinds of message; page descriptions of log / logedit / bill extended.
+  * Tests: `test/browser/works69.js` (33), `rate69.js` (19 – it TYPES into `.mb-dr`; setting `.value` hides a redraw fault), `compare69.js
+    <live port> <new port>` (print of every machinery, before / after), unit 47. Rig: `item2.js` / `xls.js` need EX-200 of "Item Vendor" with an Item-wise BOQ (Bucket 1200, Breaker 1500 per
+    hour) – create it through `saveMaster` / `saveBoq` if missing. `nightrow.js` needs an older server on 3002 that can read scrypt
+    (update-65s). `colsweep.js` says Diesel Issue's total row has 16 columns against 15 – already so on update-68, not touched.
+  * AFTER AN INDEPENDENT REVIEW (same day, all in the zip): the `input` listener of `#mb_rows` returns early for `.mb-dr` (its debounce
+    redrew the table under the cursor – the rate is taken on `change`); `lxOtherItems(g, kind)` – typed items of the OTHER kind stay on
+    the first row of a shift and are sent next to `_parts`; SAVE builds its groups BEFORE the question (it counts and names an entry
+    that goes because its row moved into another entry's shift) and checks `lxPartsProblem` once more; trips of a group are summed;
+    server: Σq within 0.005, `r2_(q) > 0`, at most 12 parts, texts cut at 300, keys matched without regard to case, `partsTxtSame_`
+    (kept rows survive only if work / chainage / challan / remark are unchanged), rate 0.01 – 999.99 (booleans refused), the rate is
+    part of `billVerifyKey_`; print box: a prefilled rate that is emptied = automatic (`rateBy` cleared), `validity.badInput` refused.
+    Known and left: KM + Hrs machinery with two KM items as well – hour works get rows, the KM items stand together on the first row.
+  * ROLLBACK to update-68 with `_parts` in the data: read and billed correctly, printed as one row; its Edit Log Book cannot save a
+    change to such an entry ('"_parts" is not an item of its BOQ'); its small edit window saves and drops the parts. No data harm.
+  * OPEN / ASK HIM: rows per work on the daily entry page (today: one line per shift, with a hint to Edit Log Book); rows for
+    clock-Time / Trip works; whether the automatic rate should be the last purchase rate alone (his words were not clear on that);
+    the order of a Split entry's printed rows is the BOQ order (an assumption).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

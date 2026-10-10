@@ -1021,6 +1021,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .itm .itm-pick { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; } .itm .itm-pick i { font-style: normal; font-weight: 700; color: #5B6B80; font-size: 11px; }
   .itm .itm-chip { border: 1px solid #C9D8FB; background: #fff; color: #1543B8; border-radius: 7px; padding: 3px 9px; font: 700 11.5px var(--ui); cursor: pointer; min-height: 0; }
   .itm .itm-chip.on { background: #1D55E2; border-color: #1D55E2; color: #fff; } .itm .itm-chip.itm-split-b { border-style: dashed; color: #475569; border-color: #CBD5E1; } .itm .itm-chip.itm-split-b.on { background: #475569; border-color: #475569; color: #fff; border-style: solid; }
+  /* Edit Log Book: a row for each work of one shift (update-69) */
+  table.lx-t .lx-more { display: block; margin: 5px 0 0; padding: 2px 9px; min-height: 0; font: 700 11px var(--ui); color: #475569; background: #fff; border: 1px dashed #94A3B8; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+  table.lx-t .lx-more:hover { color: #1543B8; border-color: #1D55E2; }
+  .itm .le-parts { display: block; flex-basis: 100%; margin-top: 6px; font: 500 12px/1.4 var(--ui); color: #6D28D9; }
+  table.lx-t .lx-part { display: block; margin: 5px 0 0; font: 700 11px var(--ui); color: #6D28D9; white-space: nowrap; }
   .itm .itm-pick.need .itm-chip:not(.on) { border-color: #F2A900; } .itm .itm-say { font-weight: 700; color: #0F1B2D; } .itm .itm-pick.need .itm-say { color: #B45309; }
   .itm .itm-split { display: inline-flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; } .itm .itm-split[hidden] { display: none; }
   .itm .itm-rest { color: var(--muted); white-space: nowrap; } .itm .itm-rest b { color: inherit; } .itm.bad .itm-rest { color: var(--bad); font-weight: 700; }
@@ -1242,6 +1247,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .doc-row .na input { width: 15px; height: 15px; min-height: 0; margin: 0; }
   @media (max-width: 900px) { .docs-grid { grid-template-columns: 1fr 1fr; } }
   .pn-list { display: grid; gap: 8px; margin-top: 8px; }
+  /* the diesel debit rate typed by hand: in the bills table and in the Log Book print dialog (update-69) */
+  .mb-drl { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px; font: 600 11px var(--ui); color: var(--muted); white-space: nowrap; }
+  .mb-drl input.mb-dr { width: 96px; min-height: 0; padding: 3px 6px; font-size: 12px; text-align: right; }
+  .pn-rate { margin: 14px 0 0; } .pn-rate label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; } .pn-rate input { width: 130px; } .pn-rate small { display: block; margin-top: 6px; line-height: 1.4; }
   .pn-opt { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #D9DEE2; border-radius: 10px; cursor: pointer; font-size: 14px; }
   .pn-opt:has(input:checked) { border-color: #0F766E; background: #F0FDFA; } .pn-opt input { width: 16px; height: 16px; min-height: 0; margin: 0; }
   .pg-back { display: inline-flex; align-items: center; gap: 4px; height: 34px; padding: 0 12px 0 8px; margin-right: 10px; border-radius: 10px; border: 1px solid #D9DEE2; background: #fff; color: #0F172A; font: 700 13px var(--ui); cursor: pointer; }
@@ -4760,6 +4769,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The time or the trips of this entry are missing or come to zero.', 'For a time sheet: type From and To (e.g. 08:00 and 17:00) and the break. For trips: type the number of trips.'],
       mr: ['या entry ची वेळ किंवा trips भरलेल्या नाहीत किंवा शून्य येतात.', 'Time sheet साठी: From आणि To (उदा. 08:00 आणि 17:00) आणि break भरा. Trips साठी: trips ची संख्या भरा.'],
       hi: ['इस entry का समय या trips भरे नहीं हैं या शून्य आ रहे हैं।', 'Time sheet के लिए: From और To (जैसे 08:00 और 17:00) और break भरें। Trips के लिए: trips की संख्या भरें।'] },
+    { re: /rows? (of|for) (one|this|the) shift|rows for the works|two rows one after the other|row \d+ of \d|every row must start where/i,
+      en: ['A shift of this machinery has a row for each work (for example Bucket, then Breaker), and one of those rows is not right.', 'In Edit Log Book: every row of the shift must have ONE work pressed (not Split), its own Close above its Start, and must start exactly where the row above it closed. Two rows one after the other cannot be the same work – make them one row. Then press Save changes again.'],
+      mr: ['या machinery च्या एका shift मध्ये प्रत्येक कामासाठी वेगळी ओळ आहे (उदा. आधी Bucket, मग Breaker), आणि त्यातली एक ओळ बरोबर नाही.', 'Edit Log Book मध्ये: त्या shift च्या प्रत्येक ओळीत एकच काम निवडा (Split नाही), Close हे Start पेक्षा जास्त हवे, आणि प्रत्येक ओळ वरच्या ओळीच्या Close पासूनच सुरू झाली पाहिजे. सलग दोन ओळींत तेच काम नको – त्यांची एकच ओळ करा. मग पुन्हा Save changes दाबा.'],
+      hi: ['इस machinery की एक shift में हर काम की अलग पंक्ति है (जैसे पहले Bucket, फिर Breaker), और उनमें से एक पंक्ति सही नहीं है।', 'Edit Log Book में: उस shift की हर पंक्ति में एक ही काम चुनें (Split नहीं), Close हमेशा Start से ज़्यादा हो, और हर पंक्ति ऊपर वाली पंक्ति के Close से ही शुरू हो। लगातार दो पंक्तियों में एक ही काम न रखें – उनकी एक पंक्ति बनाएँ। फिर Save changes दबाएँ।'] },
+    { re: /Diesel rate( typed| of this bill|:)|not a proper rate/i,
+      en: ['The diesel rate typed for this bill or print is not a proper rate.', 'Type the rate in ₹ per litre (for example 95.50), or leave the box empty: the app then uses the automatic rate – the higher of the average rate of the period and the last purchase rate.'],
+      mr: ['या bill किंवा print साठी टाकलेला diesel चा rate बरोबर नाही.', 'Rate ₹ प्रति लिटर मध्ये टाका (उदा. 95.50), किंवा box रिकामा ठेवा: मग app आपोआप rate घेतो – त्या कालावधीचा सरासरी rate आणि शेवटच्या खरेदीचा rate यातला जास्त.'],
+      hi: ['इस bill या print के लिए डाला गया diesel का rate सही नहीं है।', 'Rate ₹ प्रति लीटर में डालें (जैसे 95.50), या box खाली छोड़ें: तब app अपने आप rate लेता है – उस अवधि का औसत rate और आखिरी खरीद का rate, दोनों में जो ज़्यादा हो।'] },
     { re: /not an item of its BOQ|takes the rest of the entry|quantity of .* must be|is not a Per Day|ITEM-WISE|items? /i,
       en: ['The item work typed (e.g. Bucket / Breaker) does not fit the items of this machinery\'s BOQ.', 'Type hours only for the items named in the BOQ, and not more than the total of the entry. To add or rename an item, change the Vendor BOQ.'],
       mr: ['भरलेले item चे काम (उदा. Bucket / Breaker) या machinery च्या BOQ मधल्या items शी जुळत नाही.', 'फक्त BOQ मध्ये असलेल्या items चे तास भरा, आणि entry च्या एकूण कामापेक्षा जास्त नको. Item जोडायचा किंवा नाव बदलायचे असेल तर Vendor BOQ बदला.'],
@@ -4896,25 +4913,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते.'],
       hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है।'] },
     log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook'],
-      en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries.'],
-      mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात.'],
-      hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। Meter बंद हो तो "No reading" चुनें: दिन भरा जाता है और उसका काम अनुमान से लिया जाता है (app machinery का औसत सुझाता है), कारण के साथ; नए meter की पहली entry पर "new meter" tick करें। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं।'] },
+      en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic).'],
+      mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप).'],
+      hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। Meter बंद हो तो "No reading" चुनें: दिन भरा जाता है और उसका काम अनुमान से लिया जाता है (app machinery का औसत सुझाता है), कारण के साथ; नए meter की पहली entry पर "new meter" tick करें। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं। Print Log Book: दो काम वाली entry (Bucket और Breaker) print में हर काम की अलग पंक्ति में आती है, और diesel debit का rate print के box में हाथ से डाला जा सकता है (खाली = अपने आप)।'] },
     tankcheck: { saves: ['saveTankCheck', 'deleteTankCheck'],
       en: ['A physical check of the diesel in a machinery\'s tank against what the app calculates.', 'One check per machinery and date. When the difference is not zero a reason must be written. "Filled to full" needs the tank capacity in Asset Master.'],
       mr: ['Machinery च्या tank मधल्या diesel ची प्रत्यक्ष तपासणी, app च्या हिशोबाशी तुलना करून.', 'एका machinery चा एका तारखेला एकच check. फरक शून्य नसेल तर कारण लिहावे लागते. "Filled to full" साठी Asset Master मध्ये tank ची क्षमता लागते.'],
       hi: ['Machinery की tank के diesel की असली जाँच, app के हिसाब से तुलना करके।', 'एक machinery का एक तारीख को एक ही check। फर्क शून्य न हो तो कारण लिखना पड़ता है। "Filled to full" के लिए Asset Master में tank की क्षमता चाहिए।'] },
     logedit: { saves: ['saveLogBulk'],
-      en: ['Correct many saved Log Book entries of one machinery at once, date by date.', 'Each reading must fit between the entry before and the entry after. Entries that are already in a submitted bill should be changed only when the bill will be made again. A forgotten Night (or Day) entry of a date: tick that date\'s row and press "+ Add row"; tick "½" for a half. The Shift of a saved entry can be changed too – one entry per shift on a date, a Full Day entry stands alone.'],
-      mr: ['एका machinery च्या अनेक save झालेल्या Log Book entries एकदम, तारखेनुसार दुरुस्त करणे.', 'प्रत्येक reading मागच्या आणि पुढच्या entry च्या मधे बसले पाहिजे. Submit झालेल्या bill मधल्या entries फक्त तेव्हाच बदला जेव्हा ते bill पुन्हा बनवणार असाल. एखाद्या तारखेची राहिलेली Night (किंवा Day) entry: त्या तारखेच्या row ला tick करा आणि "+ Add row" दाबा; अर्ध्यासाठी "½" tick करा. Save झालेल्या entry ची Shift पण बदलता येते – एका तारखेला प्रत्येक shift ची एकच entry, Full Day entry एकटीच असते.'],
-      hi: ['एक machinery की कई save हुई Log Book entries एक साथ, तारीख के अनुसार ठीक करना।', 'हर reading पिछली और अगली entry के बीच बैठनी चाहिए। Submit हो चुके bill की entries तभी बदलें जब वह bill दोबारा बनाना हो। किसी तारीख की छूटी हुई Night (या Day) entry: उस तारीख की row को tick करें और "+ Add row" दबाएँ; आधे के लिए "½" tick करें। Save हुई entry की Shift भी बदली जा सकती है – एक तारीख पर हर shift की एक ही entry, Full Day entry अकेली रहती है।'] },
+      en: ['Correct many saved Log Book entries of one machinery at once, date by date.', 'Each reading must fit between the entry before and the entry after. Entries that are already in a submitted bill should be changed only when the bill will be made again. A forgotten Night (or Day) entry of a date: tick that date\'s row and press "+ Add row"; tick "½" for a half. The Shift of a saved entry can be changed too – one entry per shift on a date, a Full Day entry stands alone. A machinery whose BOQ has two or more hour (or KM) works (e.g. Bucket and Breaker) may have a row for EACH work in the same shift: press "+ work in this shift" under the row, press the work of each row, and let each row start where the row above closed – it is saved as one entry and printed as a row for each work.'],
+      mr: ['एका machinery च्या अनेक save झालेल्या Log Book entries एकदम, तारखेनुसार दुरुस्त करणे.', 'प्रत्येक reading मागच्या आणि पुढच्या entry च्या मधे बसले पाहिजे. Submit झालेल्या bill मधल्या entries फक्त तेव्हाच बदला जेव्हा ते bill पुन्हा बनवणार असाल. एखाद्या तारखेची राहिलेली Night (किंवा Day) entry: त्या तारखेच्या row ला tick करा आणि "+ Add row" दाबा; अर्ध्यासाठी "½" tick करा. Save झालेल्या entry ची Shift पण बदलता येते – एका तारखेला प्रत्येक shift ची एकच entry, Full Day entry एकटीच असते. ज्या machinery च्या BOQ मध्ये तासांची (किंवा KM ची) दोन किंवा जास्त कामे आहेत (उदा. Bucket आणि Breaker) तिला एकाच shift मध्ये प्रत्येक कामाची वेगळी ओळ देता येते: त्या row खालील "+ work in this shift" दाबा, प्रत्येक ओळीचे काम निवडा, आणि प्रत्येक ओळ वरच्या ओळीच्या Close पासून सुरू करा – ती एकच entry म्हणून save होते आणि print मध्ये प्रत्येक काम वेगळ्या ओळीत येते.'],
+      hi: ['एक machinery की कई save हुई Log Book entries एक साथ, तारीख के अनुसार ठीक करना।', 'हर reading पिछली और अगली entry के बीच बैठनी चाहिए। Submit हो चुके bill की entries तभी बदलें जब वह bill दोबारा बनाना हो। किसी तारीख की छूटी हुई Night (या Day) entry: उस तारीख की row को tick करें और "+ Add row" दबाएँ; आधे के लिए "½" tick करें। Save हुई entry की Shift भी बदली जा सकती है – एक तारीख पर हर shift की एक ही entry, Full Day entry अकेली रहती है। जिस machinery के BOQ में घंटों (या KM) के दो या अधिक काम हैं (जैसे Bucket और Breaker) उसे एक ही shift में हर काम की अलग पंक्ति दी जा सकती है: उस row के नीचे "+ work in this shift" दबाएँ, हर पंक्ति का काम चुनें, और हर पंक्ति ऊपर वाली पंक्ति के Close से शुरू करें – वह एक ही entry के रूप में save होती है और print में हर काम अलग पंक्ति में आता है।'] },
     brk: { saves: ['submitBdReport', 'deleteBdReport'],
       en: ['The daily breakdown report: which machinery is working and which is under breakdown, with the reason.', 'Each machinery needs Working or Breakdown; a breakdown needs its reason. One report per date.'],
       mr: ['रोजचा breakdown अहवाल: कोणती machinery चालू आहे आणि कोणती breakdown मध्ये आहे, कारणासह.', 'प्रत्येक machinery साठी Working किंवा Breakdown निवडावे लागते; breakdown ला कारण लागते. एका तारखेला एकच अहवाल.'],
       hi: ['रोज़ की breakdown रिपोर्ट: कौन सी machinery चालू है और कौन सी breakdown में है, कारण के साथ।', 'हर machinery के लिए Working या Breakdown चुनना होता है; breakdown का कारण ज़रूरी है। एक तारीख को एक ही रिपोर्ट।'] },
     bill: { saves: ['saveBillSettings', 'verifyBills', 'submitBills', 'saveBooksLock'],
-      en: ['Makes the vendor bills of a period from the Log Book, the diesel issues and the BOQ: the Abstract, the party\'s Tax Invoice and the diesel Debit Note.', 'A = work done at BOQ rates; B = diesel deducted (debit basis in full, otherwise only above the standard average, at the higher of the average and last diesel rate; what is left of the LAST fill of the period – its litres less the standard need of the run after it – is taken as still in the tank and not debited); D = A − B − C; GST and TDS on D; I = net payable; ticked debit notes come off after I. Before submit the server builds every bill again and compares it. Diesel issued on a day without a Log Book entry is counted and pointed out.'],
-      mr: ['Log Book, diesel issues आणि BOQ वरून एका कालावधीची vendor bills बनवते: Abstract, party चा Tax Invoice आणि diesel ची Debit Note.', 'A = BOQ दराने झालेले काम; B = कापलेले diesel (debit basis असेल तर पूर्ण, नाहीतर फक्त standard average पेक्षा जास्तीचे; दर = सरासरी आणि शेवटच्या diesel दरातला मोठा; कालावधीतल्या शेवटच्या भरण्यातले उरलेले diesel, म्हणजे त्याचे लिटर वजा त्यानंतरच्या चालण्याला standard प्रमाणे लागणारे, tank मध्ये धरले जाते आणि debit होत नाही); D = A − B − C; GST आणि TDS D वर; I = निव्वळ देय; tick केलेल्या debit notes I नंतर वजा होतात. Submit आधी server प्रत्येक bill पुन्हा बनवून तुलना करतो. Log Book entry नसलेल्या दिवशी दिलेले diesel मोजले जाते आणि दाखवले जाते.'],
-      hi: ['Log Book, diesel issues और BOQ से एक अवधि के vendor bills बनाता है: Abstract, party का Tax Invoice और diesel की Debit Note।', 'A = BOQ दर से हुआ काम; B = काटा गया diesel (debit basis हो तो पूरा, वरना केवल standard average से ऊपर का; दर = औसत और आख़िरी diesel दर में से बड़ी; अवधि की आख़िरी भराई का बचा हुआ diesel, यानी उसके लीटर घटा उसके बाद की चाल को standard से लगने वाला, tank में माना जाता है और debit नहीं होता); D = A − B − C; GST और TDS D पर; I = शुद्ध देय; tick की गई debit notes I के बाद घटती हैं। Submit से पहले server हर bill फिर बनाकर मिलाता है। बिना Log Book entry वाले दिन दिया गया diesel गिना और दिखाया जाता है।'] },
+      en: ['Makes the vendor bills of a period from the Log Book, the diesel issues and the BOQ: the Abstract, the party\'s Tax Invoice and the diesel Debit Note.', 'A = work done at BOQ rates; B = diesel deducted (debit basis in full, otherwise only above the standard average, at the higher of the average and last diesel rate; what is left of the LAST fill of the period – its litres less the standard need of the run after it – is taken as still in the tank and not debited); D = A − B − C; GST and TDS on D; I = net payable; ticked debit notes come off after I. Before submit the server builds every bill again and compares it. Diesel issued on a day without a Log Book entry is counted and pointed out. The diesel rate of a bill can be typed by hand in the box "₹/L" under its diesel deduction (empty = the automatic rate): the Abstract, the Debit Note and the Log Book of that bill follow it, and the saved bill keeps it.'],
+      mr: ['Log Book, diesel issues आणि BOQ वरून एका कालावधीची vendor bills बनवते: Abstract, party चा Tax Invoice आणि diesel ची Debit Note.', 'A = BOQ दराने झालेले काम; B = कापलेले diesel (debit basis असेल तर पूर्ण, नाहीतर फक्त standard average पेक्षा जास्तीचे; दर = सरासरी आणि शेवटच्या diesel दरातला मोठा; कालावधीतल्या शेवटच्या भरण्यातले उरलेले diesel, म्हणजे त्याचे लिटर वजा त्यानंतरच्या चालण्याला standard प्रमाणे लागणारे, tank मध्ये धरले जाते आणि debit होत नाही); D = A − B − C; GST आणि TDS D वर; I = निव्वळ देय; tick केलेल्या debit notes I नंतर वजा होतात. Submit आधी server प्रत्येक bill पुन्हा बनवून तुलना करतो. Log Book entry नसलेल्या दिवशी दिलेले diesel मोजले जाते आणि दाखवले जाते. एखाद्या bill चा diesel rate त्याच्या diesel कपातीखालील "₹/L" box मध्ये हाताने टाकता येतो (रिकामा = आपोआप rate): त्या bill चे Abstract, Debit Note आणि Log Book त्याच rate ने होतात, आणि save झालेले bill तो rate ठेवते.'],
+      hi: ['Log Book, diesel issues और BOQ से एक अवधि के vendor bills बनाता है: Abstract, party का Tax Invoice और diesel की Debit Note।', 'A = BOQ दर से हुआ काम; B = काटा गया diesel (debit basis हो तो पूरा, वरना केवल standard average से ऊपर का; दर = औसत और आख़िरी diesel दर में से बड़ी; अवधि की आख़िरी भराई का बचा हुआ diesel, यानी उसके लीटर घटा उसके बाद की चाल को standard से लगने वाला, tank में माना जाता है और debit नहीं होता); D = A − B − C; GST और TDS D पर; I = शुद्ध देय; tick की गई debit notes I के बाद घटती हैं। Submit से पहले server हर bill फिर बनाकर मिलाता है। बिना Log Book entry वाले दिन दिया गया diesel गिना और दिखाया जाता है। किसी bill का diesel rate उसकी diesel कटौती के नीचे "₹/L" box में हाथ से डाला जा सकता है (खाली = अपने आप rate): उस bill का Abstract, Debit Note और Log Book उसी rate से बनते हैं, और save हुआ bill वह rate रखता है।'] },
     bills: { saves: ['deleteBill', 'saveDebitNote', 'cancelDebitNote'],
       en: ['RCL Drive: every submitted bill with its three papers, and every debit note – exactly as saved.', 'A saved bill cannot be changed; building the same vendor and period again replaces it (the old one stays as "Superseded"). A debit note is made from the Log Book entries marked "Debit to"; one entry goes into one note only; a note lowers the party\'s balance in the Vendor Ledger. Only Admin can delete a bill or cancel a note.'],
       mr: ['RCL Drive: submit झालेले प्रत्येक bill त्याच्या तीन कागदांसह, आणि प्रत्येक debit note; जसे save झाले तसेच.', 'Save झालेले bill बदलता येत नाही; तोच vendor आणि कालावधी पुन्हा Build केल्यास ते बदलले जाते (जुने "Superseded" म्हणून राहते). Debit note "Debit to" लावलेल्या Log Book entries वरून बनते; एक entry एकाच note मध्ये जाते; note मुळे Vendor Ledger मधली party ची बाकी कमी होते. Bill delete करणे किंवा note रद्द करणे फक्त Admin करू शकतो.'],
@@ -6611,11 +6628,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const printName = company => /sketchline/i.test(company) ? String(company).toUpperCase() : company;
   const printHeadAs = (company, title, right) => printHead(company, title, right);
   // ask which name goes on top of the print (the last choice is remembered on this device)
-  async function askPrintName(what) {
+  async function askPrintName(what, opt) {
     let last = PRINT_NAMES[0]; try { last = localStorage.getItem('rcl_print_head') || last; } catch (e) {}
     const html = '<p>Which name should be printed at the top?</p><div class="pn-list">' + PRINT_NAMES.map((n, i) =>
-      '<label class="pn-opt"><input type="radio" name="pn_pick" value="' + esc(n) + '"' + (n === last ? ' checked' : '') + '> <b>' + esc(n) + '</b></label>').join('') + '</div>';
+      '<label class="pn-opt"><input type="radio" name="pn_pick" value="' + esc(n) + '"' + (n === last ? ' checked' : '') + '> <b>' + esc(n) + '</b></label>').join('') + '</div>' +
+      // a Log Book print: the diesel debit rate can be typed for this print (asked 10-10-2026)
+      (opt && opt.rate ? '<p class="pn-rate"><label><b>Diesel debit rate</b> ₹ / litre <input type="number" id="pn_rate" min="0" step="0.01" value="' + (Number(opt.value) > 0 ? esc(opt.value) : '') + '" placeholder="automatic"></label><small class="muted">' + (opt.byBill ? 'Empty = each bill at its own rate (the rate typed in that bill, else the automatic rate).' : 'Empty = the automatic rate (the higher of the average rate of these dates and the last purchase rate).') + ' Type a rate to debit the diesel at that rate in this print.</small></p>' : '');
     if (!(await askConfirm({ title: what || 'Print', ok: 'Print', html: html }))) return null;
+    if (opt && opt.rate) { const el = document.getElementById('pn_rate'), wrong = !!(el && el.validity && el.validity.badInput), v = wrong ? NaN : el && el.value.trim() !== '' ? Number(el.value) : ''; opt.bad = v !== '' && !(r2(v) >= 0.01 && v < 1000); opt.typed = opt.bad ? '' : v; }
     const pick = document.querySelector('input[name=pn_pick]:checked'); const name = pick ? pick.value : PRINT_NAMES[0];
     try { localStorage.setItem('rcl_print_head', name); } catch (e) {}
     return name;
@@ -7197,7 +7217,39 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   /* ================= EDIT LOG BOOK (many entries of one machinery) =================
      Load → edit in the grid (everything re-calculates live) → Save changes (one save for the whole grid). */
-  const LX = { d: null, rows: [], deleted: [], odsl: '' };
+  const LX = { d: null, rows: [], deleted: [], odsl: '', cut: {}, pc: {} };
+  /* SEVERAL WORKS IN ONE SHIFT (asked 10-10-2026): a machinery whose BOQ has two or more hour (or KM) works – Bucket and
+   * Breaker – may have MORE THAN ONE ROW on the same date and shift, one row for each work, each with its own Start / Close,
+   * challan and description. The rows follow each other (a row starts where the row above it closed). They are saved as ONE
+   * entry (the Log Book stays one entry per machinery + date + shift: key, diesel and tank depend on it) that remembers its
+   * rows ("_parts"); opening the grid again shows the rows again. For every other machinery the old rule stays: one row a shift. */
+  const lxSlot = r => r.date + '|' + r.shift;
+  const lxSlotRows = r => LX.rows.filter(x => x.date === r.date && x.shift === r.shift);
+  // the kind of work that can have a row each on this row's date ('hr' / 'km'), '' = this machinery / way has no such works
+  const lxPartKind = r => { const its = ((LX.d || {}).boqItems || {})[r.date] || [], w = lxWay(r), n = k => its.filter(it => itemKind(it.basis) === k).length;
+    return hasHr(w) && n('hr') > 1 ? 'hr' : hasKm(w) && n('km') > 1 ? 'km' : ''; };
+  // a later row of its shift (only a machinery whose shift can have a row for each work has such rows – for every other one this is never true)
+  const lxLater = r => !!lxPartKind(r) && lxSlotRows(r)[0] !== r;
+  const lxRowQty = (r, k) => k === 'hr' ? (lxN(r.ohr) !== '' && lxN(r.chr) !== '' ? r2(r.chr - r.ohr) : 0) : (lxN(r.okm) !== '' && lxN(r.ckm) !== '' ? r2(r.ckm - r.okm) : 0);
+  // the ONE work of a row ('' = none picked yet, or the row is a Split)
+  const lxPickOf = (r, k) => { const its = ((LX.d.boqItems || {})[r.date] || []).filter(it => itemKind(it.basis) === k), pk = (r._pick || {})[k];
+    if (pk !== undefined) return pk && pk !== '_split' && its.some(it => it.name === pk) ? pk : '';
+    const typed = its.filter(it => it.qty !== 'rest' && Number((r.items || {})[it.name]) > 0), rest = its.find(it => it.qty === 'rest'), tot = lxRowQty(r, k);
+    return !typed.length ? (rest ? rest.name : '') : typed.length === 1 && Math.abs(Number(r.items[typed[0].name]) - tot) < 0.005 ? typed[0].name : ''; };
+  // what was typed, on any row of a shift, for items of ANOTHER kind than its works (a per-KM item beside the hour works): they stay with the entry
+  const lxOtherItems = (g, kind) => { const its = ((LX.d || {}).boqItems || {})[g[0].date] || [], o = {}; g.forEach(x => Object.keys(x.items || {}).forEach(n => { const it = its.find(q => q.name === n), v = Number(x.items[n]); if (it && itemKind(it.basis) !== kind && itemKind(it.basis) !== 'day' && v > 0) o[n] = r2((o[n] || 0) + v); })); return o; };
+  const lxSig = r => { const k = lxPartKind(r); return itemSig(((LX.d || {}).boqItems || {})[r.date], r.items || {}) + (k ? '|' + lxPickOf(r, k) : ''); };
+  // what is wrong with this row as one of several rows of its shift: null = this machinery cannot have several rows a shift, '' = fine
+  function lxPartsProblem(grp, r) {
+    const k = lxPartKind(grp[0]); if (!k || grp.some(x => DAY_STATUS.indexOf(lxWay(x)) > -1 || lxWay(x) === METER_OFF)) return null;
+    if (grp.some(x => lxWay(x) !== lxWay(grp[0]))) return 'the rows of one shift must be measured the same way (' + lxWay(grp[0]) + ').';
+    const j = grp.indexOf(r), names = ((LX.d.boqItems || {})[r.date] || []).filter(it => itemKind(it.basis) === k).map(it => it.name).join(' / ');
+    if (!(lxRowQty(r, k) > 0)) return 'this row has no work yet – type its Close (or delete the row).';
+    const pick = lxPickOf(r, k);
+    if (!pick) return 'each row of this shift is ONE work – press ' + names + ' (not Split).';
+    if (j > 0 && lxPickOf(grp[j - 1], k) === pick) return 'same work as the row above (' + pick + ') – make them one row, or press the other work.';
+    return '';
+  }
   const lxOrd = { 'Day': 0, 'Full Day': 0, 'Night': 1 };
   const lxSort = () => LX.rows.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : lxOrd[a.shift] - lxOrd[b.shift]);
   const lxN = v => v === '' || v === null || v === undefined ? '' : Number(v);
@@ -7208,7 +7260,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     else { $('lx_from').value = isoDate(new Date(t.getFullYear(), t.getMonth() - 1, 1)); $('lx_to').value = isoDate(new Date(t.getFullYear(), t.getMonth(), 0)); }
   }));
   function lxDirty() { return LX.deleted.length || LX.rows.some(r => r.isNew || lxChanged(r)); }
-  function lxChanged(r) { if (r.isNew) return true; const o = r.orig; return ['shift', 'mode', 'half', 'okm', 'ckm', 'ohr', 'chr', 'tStart', 'tEnd', 'tBrk', 'trip', 'challan', 'remark', 'chFrom', 'chTo', 'work', 'odSet', 'itemSig'].some(k => String(r[k] ?? '') !== String(o[k] ?? '')); }
+  function lxChanged(r) { if (r.isNew || (r.key && LX.cut[r.key])) return true; const o = r.orig; return ['shift', 'mode', 'half', 'okm', 'ckm', 'ohr', 'chr', 'tStart', 'tEnd', 'tBrk', 'trip', 'challan', 'remark', 'chFrom', 'chTo', 'work', 'odSet', 'itemSig'].some(k => String(r[k] ?? '') !== String(o[k] ?? '')); }
   // Edit Log Book: the way of a row, and the Close of the last row before it that read each meter
   const lxWay = r => r.mode || LX.d.machine.unit;
   const lxPrevRead = (i, f) => { for (let k = i - 1; k >= 0; k--) { const r = LX.rows[k]; if ((f === 'ckm' ? hasKm(lxWay(r)) : hasHr(lxWay(r))) && lxN(r[f]) !== '') return Number(r[f]); } const v = f === 'ckm' ? LX.d.prevKm : LX.d.prevHr; return v === '' || v === undefined ? null : Number(v); };
@@ -7219,11 +7271,27 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!$('lx_from').value || !$('lx_to').value) throw new Error('Select From and To dates.');
     if (lxDirty() && !(await askConfirm({ title: 'Discard unsaved changes?', ok: 'Discard', danger: true, html: '<p>Changes in the grid are not saved yet.</p>' }))) return;
     const d = await call('getLogEditData', m.id, $('lx_from').value, $('lx_to').value);
-    LX.d = d; LX.deleted = []; LX.odsl = ''; LX.locks = d.locks || [];
+    LX.d = d; LX.deleted = []; LX.odsl = ''; LX.locks = d.locks || []; LX.cut = {}; LX.pc = {};
     const md0 = modesOf(d.machine).concat(DAY_STATUS);
-    LX.rows = d.rows.map(r => { const x = { key: r.key, half: !!r.half, date: r.date, shift: r.shift || 'Full Day', mode: md0.indexOf(r.mode) > -1 ? r.mode : (md0.indexOf(r.unit) > -1 ? r.unit : md0[0] || r.unit), okm: r.okm, ckm: r.ckm, ohr: r.ohr, chr: r.chr,
+    LX.rows = [].concat(...d.rows.map(r => { const x = { key: r.key, half: !!r.half, date: r.date, shift: r.shift || 'Full Day', mode: md0.indexOf(r.mode) > -1 ? r.mode : (md0.indexOf(r.unit) > -1 ? r.unit : md0[0] || r.unit), okm: r.okm, ckm: r.ckm, ohr: r.ohr, chr: r.chr,
       tStart: r.tStart || '', tEnd: r.tEnd || '', tBrk: r.tBrk === undefined ? '' : r.tBrk, tSlots: r.tSlots || '', trip: r.trip === undefined ? '' : r.trip, challan: r.challan || '', remark: r.remark || '', chFrom: r.chFrom, chTo: r.chTo, work: r.work || r.remark, odsl0: r.odsl, odSet: r.odSet === undefined ? '' : r.odSet,
-      items: Object.assign({}, r.itemWork || {}), itemSig: itemSig((d.boqItems || {})[r.date], r.itemWork || {}) }; x.orig = Object.assign({}, x); x.lock = lxLockOf(x.date); return x; });
+      items: Object.assign({}, r.itemWork || {}), itemSig: itemSig((d.boqItems || {})[r.date], r.itemWork || {}) };
+      delete x.items._parts; x.itemSig = lxSig(x);
+      const ps = r.itemParts && r.itemParts.length > 1 ? r.itemParts : null, its = (d.boqItems || {})[r.date] || [];
+      LX.pc[x.key] = ps ? ps.length : 1;
+      if (!ps) { x.orig = Object.assign({}, x); x.lock = lxLockOf(x.date); return [x]; }
+      // the entry holds the rows of its shift: one grid row for each work, its Start / Close worked out from the entry's Start
+      let at = Number(ps[0].k === 'hr' ? r.ohr : r.okm) || 0;
+      return ps.map((p, j) => { const y = Object.assign({}, x), it = its.find(q => q.name === p.n) || {};
+        const a = r2(at), b = r2(at + p.q); at = b;
+        if (p.k === 'hr') { y.ohr = a; y.chr = b; if (j) { y.okm = r.ckm; y.ckm = r.ckm; } } else { y.okm = a; y.ckm = b; if (j) { y.ohr = r.chr; y.chr = r.chr; } }
+        if (j === ps.length - 1) { if (p.k === 'hr') y.chr = r.chr; else y.ckm = r.ckm; }      // (the last row closes exactly on the entry's Close)
+        const others = {}; if (!j) Object.keys(x.items).forEach(n => { const o = its.find(q => q.name === n); if (o && itemKind(o.basis) !== p.k) others[n] = x.items[n]; });      // (typed items of another kind – e.g. a per-KM item beside the hour works – ride on the first row)
+        y.items = Object.assign(x.items._day ? { _day: x.items._day } : {}, others, it.qty === 'rest' ? {} : { [p.n]: p.q }); y._pick = { [p.k]: p.n };
+        y.itemSig = lxSig(y); y.challan = p.c || ''; y.remark = p.p || ''; y.chFrom = p.f || ''; y.chTo = p.t || ''; y.work = p.w || '';
+        if (j) y.trip = '';      // (what belongs to the entry as a whole is on its first row; the opening diesel of the 1st stays with every row so that it is not lost when the first row goes)
+        y.orig = Object.assign({}, y); y.lock = lxLockOf(y.date); return y; });
+    }));
     $('lx_no').value = d.machine.id;
     $('lx_panel').hidden = false;
     lxRender();
@@ -7231,7 +7299,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // the submitted bill that holds a date of this machinery (null = the date is free): its entries are shown, not changed
   const lxLockOf = dk => (LX.locks || []).find(L => L.from <= dk && dk <= L.to) || null;
   // diesel issued for a row, from the day's Diesel Issue (Full Day = both shifts)
-  const lxIssued = r => { const d = (LX.d.diesel || {})[r.date] || { Day: 0, Night: 0 }; return r.shift === 'Full Day' ? r2(d.Day + d.Night) : r.shift === 'Night' ? d.Night : d.Day; };
+  const lxIssued = r => { if (lxLater(r)) return 0;      // (several rows of one shift: its diesel stands on the first)
+    const d = (LX.d.diesel || {})[r.date] || { Day: 0, Night: 0 }; return r.shift === 'Full Day' ? r2(d.Day + d.Night) : r.shift === 'Night' ? d.Night : d.Day; };
   function lxRender() {
     const d = LX.d, m = d.machine, modes = modesOf(m).concat(DAY_STATUS), km = meterKm(m) || LX.rows.some(r => hasKm(lxWay(r))), hr = meterHr(m) || LX.rows.some(r => hasHr(lxWay(r)));
     const tmCol = modes.indexOf('Time') > -1 || modes.indexOf('Trip') > -1 || (m.lbFormat === 'H' || m.lbFormat === 'B') || LX.rows.some(r => r.mode === 'Time' || r.mode === 'Trip' || DAY_STATUS.indexOf(r.mode) > -1), wayCol = modes.length > 1;
@@ -7256,14 +7325,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('lx_rows').innerHTML = LX.rows.map((r, i) => '<tr data-i="' + i + '"><td class="sel"><input type="checkbox" class="lx-sel" aria-label="Select row"' + (r._sel ? ' checked' : '') + '></td><td>' + (i + 1) + (r.isNew ? '<span class="tag n">NEW</span>' : '') + '</td>' +
       '<td>' + (r.isNew ? '<input type="date" data-f="date" value="' + esc(r.date) + '" min="' + esc(d.from) + '" max="' + esc(d.to < S.today ? d.to : S.today) + '">' : esc(showDate(r.date))) + '</td>' +
       '<td><select data-f="shift" title="Full Day = the only entry of the date. Day and Night = two entries of one date.">' + ['Full Day', 'Day', 'Night'].map(x => '<option' + (x === r.shift ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' +
-        '<label class="lg-half" title="Half day / half night: the bill pays this entry as half (monthly and per-day rates)."><input type="checkbox" data-f="half"' + (r.half ? ' checked' : '') + '> ½ ' + (r.shift === 'Night' ? 'night' : 'day') + '</label></td>' +
+        (!lxLater(r) ? '<label class="lg-half" title="Half day / half night: the bill pays this entry as half (monthly and per-day rates)."><input type="checkbox" data-f="half"' + (r.half ? ' checked' : '') + '> ½ ' + (r.shift === 'Night' ? 'night' : 'day') + '</label>'
+          : '<small class="lx-part" title="Another work of the same shift: it starts where the row above closed. The shift is paid, and takes its diesel, once.">work ' + (lxSlotRows(r).indexOf(r) + 1) + ' of this ' + (r.shift === 'Night' ? 'night' : 'day') + '</small>') + '</td>' +
       (wayCol ? '<td><select data-f="mode" class="lx-way">' + modes.map(x => '<option' + (x === lxWay(r) ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></td>' : '') +
       (km ? (hasKm(lxWay(r)) ? '<td>' + rd('okm', 'Start KM', r.okm) + '</td><td>' + rd('ckm', 'Close KM', r.ckm) + '</td>' : '<td class="lx-na">–</td><td class="lx-na">–</td>') : '') +
       (hr ? (hasHr(lxWay(r)) ? '<td>' + rd('ohr', 'Start Hrs', r.ohr) + '</td><td>' + rd('chr', 'Close Hrs', r.chr) + '</td>' : '<td class="lx-na">–</td><td class="lx-na">–</td>') : '') +
       (tmCol ? '<td class="lx-tm">' + (lxWay(r) === 'Time' ? '<input type="time" data-f="tStart" value="' + esc(r.tStart || '') + '"> – <input type="time" data-f="tEnd" value="' + esc(r.tEnd || '') + '"> <small class="lx-bk">break</small><input type="number" min="0" step="5" data-f="tBrk" placeholder="min" title="Break in minutes (for a split entry: the gaps between its times + the break)" value="' + (r.tBrk === '' ? '' : r.tBrk) + '"><small class="lx-bk">min</small>' + (need.challan ? '' : ' <input class="txt" data-f="challan" placeholder="Challan No" value="' + esc(r.challan || '') + '">') +
           (slotsParse(r.tSlots).length > 1 && r.orig && r.tStart === r.orig.tStart && r.tEnd === r.orig.tEnd && String(r.tBrk) === String(r.orig.tBrk) ? '<small class="lx-split" title="Split timing: the Break here holds the gaps between the times. To change the split itself: Log Book list → Edit. Changing From, To or Break here makes it one From – To.">split: ' + esc(slotsText(r)) + '</small>' : '')
         : lxWay(r) === 'Trip' ? '<input type="number" min="0" step="1" data-f="trip" placeholder="trips" value="' + (r.trip === '' ? '' : r.trip) + '"> trips' + (need.tripTime ? ' <input type="time" data-f="tStart" title="In time" value="' + esc(r.tStart || '') + '"> – <input type="time" data-f="tEnd" title="Out time" value="' + esc(r.tEnd || '') + '">' : '') + (need.challan ? '' : ' <input class="txt" data-f="challan" placeholder="Challan No" value="' + esc(r.challan || '') + '">') : m.lbFormat === 'B' && DAY_STATUS.indexOf(lxWay(r)) === -1 ? '<input type="number" min="0" step="1" data-f="trip" placeholder="trips" value="' + (r.trip === '' || r.trip === undefined ? '' : r.trip) + '"> trips' : lxWay(r) === 'Day' ? '<span class="muted">worked (Day)</span>' : DAY_STATUS.indexOf(lxWay(r)) > -1 ? '<span class="lg-hol">' + lxWay(r) + (lxWay(r) === 'Idle' ? ' – no work' : ' – not paid') + '</span>' : '') + '</td>' : '') +
-      '<td class="o tot"></td>' + (itemCol ? '<td><div class="itm lx-itm">' + itemBoxHtml((d.boqItems || {})[r.date] || [], r.items || {}, lxWay(r)) + '</div></td>' : '') + '<td class="o od lx-dx">' + (/-01$/.test(r.date) ? '<input type="number" step="0.01" min="0" class="odset" data-f="odSet" value="' + (r.odSet === '' || r.odSet === undefined || r.odSet === null ? '' : r.odSet) + '" title="Opening diesel of the month – type what is in the tank on the 1st (blank = worked out)">' : '') + '</td><td class="o is lx-di"></td><td class="o cn lx-dx"></td><td class="o cl lx-dx"></td>' +
+      '<td class="o tot"></td>' + (itemCol ? '<td><div class="itm lx-itm">' + itemBoxHtml((d.boqItems || {})[r.date] || [], r.items || {}, lxWay(r)) + '</div>' +
+        (lxPartKind(r) && !r.lock && DAY_STATUS.indexOf(lxWay(r)) === -1 ? '<button type="button" class="lx-more" title="The machinery did another work in this same shift (e.g. Breaker after Bucket): adds a row for it under this one – same date, same shift, starting where this work closed.">+ work in this shift</button>' : '') + '</td>' : '') + '<td class="o od lx-dx">' + (/-01$/.test(r.date) && !lxLater(r) ? '<input type="number" step="0.01" min="0" class="odset" data-f="odSet" value="' + (r.odSet === '' || r.odSet === undefined || r.odSet === null ? '' : r.odSet) + '" title="Opening diesel of the month – type what is in the tank on the 1st (blank = worked out)">' : '') + '</td><td class="o is lx-di"></td><td class="o cn lx-dx"></td><td class="o cl lx-dx"></td>' +
       '<td class="lx-chn">' + (need.challan && DAY_STATUS.indexOf(lxWay(r)) === -1 && lxWay(r) !== 'Day' ? '<input class="txt" data-f="challan" value="' + esc(r.challan || '') + '">' : '') + '</td>' +
       '<td class="lx-prt">' + (need.part && DAY_STATUS.indexOf(lxWay(r)) === -1 ? '<input class="txt" data-f="remark" value="' + esc(r.remark || '') + '">' : '') + '</td>' +
       '<td class="lx-chc"><input class="txt" data-f="chFrom" value="' + esc(r.chFrom || '') + '"></td><td class="lx-chc"><input class="txt" data-f="chTo" value="' + esc(r.chTo || '') + '"></td>' +
@@ -7273,13 +7344,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('lx_rows').querySelectorAll('tr[data-i]').forEach(tr => { const r = LX.rows[Number(tr.dataset.i)]; if (!r || !r.lock) return; tr.dataset.lk = '1';
       tr.querySelectorAll('input, select, button').forEach(el => { el.disabled = true; }); const del = tr.querySelector('button.del'); if (del) del.style.visibility = 'hidden';
       tr.children[2].insertAdjacentHTML('beforeend', lockTag(r.lock)); });
+    $('lx_rows').querySelectorAll('tr[data-i]').forEach(tr => { const r = LX.rows[Number(tr.dataset.i)], box = tr.querySelector('.lx-itm'); if (r && box && r._pick) Object.keys(r._pick).forEach(k => { if (r._pick[k] !== undefined) box.dataset['pick' + k] = r._pick[k]; }); });
     lxCalc(); lxSelSum();
   }
   // live figures: total, consumed, opening / closing diesel, and which rows changed
   function lxCalc() {
     const d = LX.d, m = d.machine, kmCol = meterKm(m) || LX.rows.some(r => hasKm(lxWay(r))), hrCol = meterHr(m) || LX.rows.some(r => hasHr(lxWay(r)));
     let open = d.prev ? d.prev.stock : (LX.odsl !== '' ? Number(LX.odsl) : (LX.rows[0] && LX.rows[0].odsl0 !== '' ? Number(LX.rows[0].odsl0) || 0 : 0));
-    let tk = 0, th = 0, ti = 0, tc = 0, bad = 0, chg = 0, slots = 0;
+    let tk = 0, th = 0, ti = 0, tc = 0, bad = 0, chg = 0, slots = 0, pbad = 0;
     const trs = [...$('lx_rows').querySelectorAll('tr[data-i]')];
     LX.rows.forEach((r, i) => {
       const tr = trs[i]; if (!tr) return;
@@ -7287,12 +7359,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const wk = km && lxN(r.okm) !== '' && lxN(r.ckm) !== '' ? r2(r.ckm - r.okm) : '';
       const wh = hr && lxN(r.ohr) !== '' && lxN(r.chr) !== '' ? r2(r.chr - r.ohr) : tm ? lgTimeHrs(r.tStart, r.tEnd, r.tBrk) : '';
       const need = r2((km && wk > 0 && m.kmStd > 0 ? wk / m.kmStd : 0) + ((hr || tm) && wh > 0 && m.hrStd > 0 ? wh * m.hrStd : 0));
-      const first1 = /-01$/.test(r.date), typed = first1 && lxN(r.odSet) !== '';
+      const first1 = /-01$/.test(r.date), typed = first1 && !lxLater(r) && lxN(r.odSet) !== '';
       if (typed) open = Number(r.odSet);                 // opening diesel of the month, typed on the 1st
       const iss = lxIssued(r), close = r2(open + iss - need);
       // Start must be the Close just before it (row above, or the entry before these dates)
       const expK = km ? lxPrevRead(i, 'ckm') : null, expH = hr ? lxPrevRead(i, 'chr') : null;
-      const misK = expK !== null && (lxN(r.okm) === '' || lxN(r.okm) < expK), misH = expH !== null && (lxN(r.ohr) === '' || lxN(r.ohr) < expH);      // lower than the Close before it
+      const grp = lxSlotRows(r), inShift = lxLater(r);      // a later row of its shift: it must start exactly where the row above closed
+      const misK = expK !== null && (lxN(r.okm) === '' || lxN(r.okm) < expK || (inShift && lxN(r.okm) > expK)), misH = expH !== null && (lxN(r.ohr) === '' || lxN(r.ohr) < expH || (inShift && lxN(r.ohr) > expH));      // lower than the Close before it
       const gapK = expK !== null && !misK && lxN(r.okm) > expK ? r2(lxN(r.okm) - expK) : 0, gapH = expH !== null && !misH && lxN(r.ohr) > expH ? r2(lxN(r.ohr) - expH) : 0;
       r._fix = { k: misK ? expK : null, h: misH ? expH : null };
       const okmI = tr.querySelector('[data-f=okm]'), ohrI = tr.querySelector('[data-f=ohr]');
@@ -7301,20 +7374,26 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (misK || misH) {
         if (!note) { tr.children[2].insertAdjacentHTML('beforeend', '<div class="lx-note"></div>'); note = tr.querySelector('.lx-note'); }
         const when = 'the last reading before it';
-        note.innerHTML = 'Start cannot be less than <b>' + [misK ? fmt(expK) + (hr ? ' km' : '') : '', misH ? fmt(expH) + (km ? ' hr' : '') : ''].filter(Boolean).join(' / ') + '</b> (Close of ' + esc(when) + ')' + (r.lock ? ' – this entry is in RA Bill ' + esc(r.lock.billNo) + ': lower the Close before it' : ' <button class="lx-fix" data-fix="' + i + '">Use it</button>');
+        note.innerHTML = (inShift ? 'This work starts where the row above closed: <b>' : 'Start cannot be less than <b>') + [misK ? fmt(expK) + (hr ? ' km' : '') : '', misH ? fmt(expH) + (km ? ' hr' : '') : ''].filter(Boolean).join(' / ') + '</b> (Close of ' + esc(when) + ')' + (r.lock ? ' – this entry is in RA Bill ' + esc(r.lock.billNo) + ': lower the Close before it' : ' <button class="lx-fix" data-fix="' + i + '">Use it</button>');
       } else if (gapK || gapH) {
         if (!note) { tr.children[2].insertAdjacentHTML('beforeend', '<div class="lx-note"></div>'); note = tr.querySelector('.lx-note'); }
         note.innerHTML = '<span class="muted">' + [gapK ? fmt(gapK) + ' km' : '', gapH ? fmt(gapH) + ' hr' : ''].filter(Boolean).join(' + ') + ' ran elsewhere before this entry – not counted</span>';
       } else if (note) note.remove();
       const itemBad = itemBoxCalc(tr.querySelector('.lx-itm'), { hr: wh, km: wk, trip: Number(r.trip) || 0 });
       // a picked item follows the entry's total: keep the row's items in step with what the box now holds
-      if (tr.querySelector('.lx-itm .itm-pick')) { const now = itemBoxRead(tr.querySelector('.lx-itm')); if (JSON.stringify(now) !== JSON.stringify(r.items || {})) { r.items = now; r.itemSig = itemSig((LX.d.boqItems || {})[r.date], r.items); } }
-      // one entry per shift on a date, and a Full Day entry stands alone
-      const sib = LX.rows.filter(x => x !== r && x.date === r.date), slot = sib.some(x => x.shift === r.shift) ? 'two entries on ' + r.shift : sib.length && (r.shift === 'Full Day' || sib.some(x => x.shift === 'Full Day')) ? 'a Full Day entry stands alone' : '';
+      const bx = tr.querySelector('.lx-itm');
+      if (bx && bx.querySelector('.itm-pick')) { const now = itemBoxRead(bx); r._pick = { hr: bx.dataset.pickhr, km: bx.dataset.pickkm, trip: bx.dataset.picktrip }; if (JSON.stringify(now) !== JSON.stringify(r.items || {})) r.items = now; }
+      if (bx) r.itemSig = lxSig(r);
+      /* one entry per shift on a date, and a Full Day entry stands alone. A machinery with two or more hour (or KM) works in its
+         BOQ may have a ROW FOR EACH WORK in a shift (Bucket, then Breaker) – each row one work, one after the other. */
+      const sib = LX.rows.filter(x => x !== r && x.date === r.date), oth = sib.filter(x => x.shift !== r.shift);
+      const partBad = grp.length > 1 ? lxPartsProblem(grp, r) : '';
+      const slot = partBad === null ? 'two entries on ' + r.shift : oth.length && (r.shift === 'Full Day' || oth.some(x => x.shift === 'Full Day')) ? 'a Full Day entry stands alone' : '';
       let sn = tr.querySelector('.lx-slot');
       if (slot) { if (!sn) { tr.children[3].insertAdjacentHTML('beforeend', '<div class="lx-note lx-slot"></div>'); sn = tr.querySelector('.lx-slot'); } sn.textContent = showDate(r.date) + ': ' + slot + ' – make one Day and the other Night.'; slots++; }
+      else if (partBad) { if (!sn) { tr.children[3].insertAdjacentHTML('beforeend', '<div class="lx-note lx-slot"></div>'); sn = tr.querySelector('.lx-slot'); } sn.textContent = showDate(r.date) + ' ' + r.shift + ': ' + partBad; pbad++; }
       else if (sn) sn.remove();
-      const isBad = !!slot || misK || misH || (wk !== '' && wk < 0) || (wh !== '' && wh < 0) || (km && lxN(r.ckm) === '') || (hr && lxN(r.chr) === '') || (tm && (!r.tStart || !r.tEnd || !(wh > 0))) || (tp && !(Number(r.trip) > 0)) || !!itemBad;
+      const isBad = !!slot || !!partBad || misK || misH || (wk !== '' && wk < 0) || (wh !== '' && wh < 0) || (km && lxN(r.ckm) === '') || (hr && lxN(r.chr) === '') || (tm && (!r.tStart || !r.tEnd || !(wh > 0))) || (tp && !(Number(r.trip) > 0)) || !!itemBad;
       tr.querySelector('.tot').innerHTML = [wk !== '' ? fmt(wk) + ' <small>km</small>' : '', wh !== '' ? fmt(wh) + ' <small>hr</small>' : '', tp ? fmt(Number(r.trip) || 0) + ' <small>trips</small>' : '', way === 'Day' ? '<small>day</small>' : ''].filter(Boolean).join('<br>') || '–';
       const odIn = tr.querySelector('.od input');
       if (odIn) { odIn.placeholder = fmt(open); odIn.classList.toggle('typed', typed); } else tr.querySelector('.od').textContent = fmt(open);
@@ -7336,12 +7415,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       tmCol = 'tmCol' in C0 ? C0.tmCol : (modesOf(m).indexOf('Time') > -1 || modesOf(m).indexOf('Trip') > -1 || LX.rows.some(r => r.mode === 'Time' || r.mode === 'Trip'));
     const itemCol = Object.keys(d.boqItems || {}).length > 0;
     const n = LX.rows.length;
-    $('lx_foot').innerHTML = n ? '<tr><td colspan="4">Total – ' + n + ' entries</td>' + (wayCol ? '<td></td>' : '') + (km ? '<td></td><td></td>' : '') + (hr ? '<td></td><td></td>' : '') + (tmCol ? '<td></td>' : '') +
+    const nEnt = new Set(LX.rows.map(lxSlot)).size;      // (the rows of one shift are one entry)
+    $('lx_foot').innerHTML = n ? '<tr><td colspan="4">Total – ' + nEnt + ' entries' + (nEnt !== n ? ' (' + n + ' rows)' : '') + '</td>' + (wayCol ? '<td></td>' : '') + (km ? '<td></td><td></td>' : '') + (hr ? '<td></td><td></td>' : '') + (tmCol ? '<td></td>' : '') +
       '<td class="o">' + [tk ? fmt(r2(tk)) + ' km' : '', th ? fmt(r2(th)) + ' hr' : ''].filter(Boolean).join('<br>') + '</td>' + (itemCol ? '<td></td>' : '') + '<td class="lx-dx"></td><td class="o lx-di">' + fmt(r2(ti)) + '</td><td class="o lx-dx">' + fmt(r2(tc)) + '</td><td class="o lx-dx">' + fmt(open) + '</td><td class="lx-chn"></td><td class="lx-prt"></td><td class="lx-chc"></td><td class="lx-chc"></td><td></td><td></td></tr>' : '';
     const total = chg + LX.deleted.length;
     const mis = LX.rows.filter(r => r._fix && (r._fix.k !== null || r._fix.h !== null)).length;
     $('lx_sum').innerHTML = (total ? '<b>' + chg + '</b> changed / new, <b>' + LX.deleted.length + '</b> deleted' : 'No changes yet') +
-      (bad ? '  |  <span style="color:var(--bad)"><b>' + bad + '</b> row(s) in red' + (slots ? ' – a date has two entries on the same shift' : mis ? ' – Start must be the Close before it' : ' need a correct Close') + '</span>' : '');
+      (bad ? '  |  <span style="color:var(--bad)"><b>' + bad + '</b> row(s) in red' + (slots ? ' – a date has two entries on the same shift' : mis ? ' – Start must be the Close before it' : pbad ? ' – a shift with a row for each work is not complete (see the note on the row)' : ' need a correct Close') + '</span>' : '');
     $('lx_save').disabled = !total || !canEdit('Log Book') || bad > 0; // nothing wrong can be saved
     $('lx_save').textContent = total ? 'Save changes (' + total + ')' : 'Save changes';
   }
@@ -7349,7 +7429,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('lx_rows').addEventListener('input', e => {
     const tr = e.target.closest('tr[data-i]'); if (!tr) return;
     const r = LX.rows[Number(tr.dataset.i)], f = e.target.dataset.f;
-    if (e.target.dataset.item) { r.items = itemBoxRead(tr.querySelector('.lx-itm')); r.itemSig = itemSig((LX.d.boqItems || {})[r.date], r.items); lxCalc(); return; } // Item-wise BOQ
+    if (e.target.dataset.item) { r.items = itemBoxRead(tr.querySelector('.lx-itm')); lxCalc(); return; } // Item-wise BOQ (lxCalc reads the pick and the text to compare)
     if (!f) return;
     if (f === 'date' || f === 'shift' || f === 'mode') return;
     r[f] = e.target.type === 'number' ? lxN(e.target.value) : e.target.value;
@@ -7392,7 +7472,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // remove rows (one with ×, or all selected): the row after each gap starts where the row before it closed
   function lxRemove(list) {
     const gone = new Set(list.filter(r => !r.lock));      // (an entry of a submitted bill is not removed)
-    LX.rows.forEach(r => { if (gone.has(r) && !r.isNew) LX.deleted.push(r.key); });
+    const stay = {}; LX.rows.forEach(r => { if (!gone.has(r) && r.key) stay[r.key] = true; });
+    LX.rows.forEach(r => { if (!gone.has(r) || r.isNew || !r.key) return; if (stay[r.key]) LX.cut[r.key] = true; else if (LX.deleted.indexOf(r.key) === -1) LX.deleted.push(r.key); });      // (an entry is deleted when its last row goes)
     LX.rows = LX.rows.filter(r => !gone.has(r));
     // every row that reads a meter starts where the last reading of that meter before it closed
     LX.rows.forEach((r, i) => { if (r.lock) return; const pk = lxPrevRead(i, 'ckm'), ph = lxPrevRead(i, 'chr'); if (hasKm(lxWay(r)) && pk !== null) r.okm = pk; if (hasHr(lxWay(r)) && ph !== null) r.ohr = ph; });
@@ -7457,6 +7538,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (hasKm(lxWay(r)) && lxN(r.okm) !== '') r.ckm = r.okm; if (hasHr(lxWay(r)) && lxN(r.ohr) !== '') r.chr = r.ohr;      // closes where it starts, until a reading is typed
     return r;
   }
+  function lxAddWork(of) {
+    if (!of || of.lock || !lxPartKind(of)) return null;
+    const r = { key: '', isNew: true, half: false, date: of.date, shift: of.shift, mode: lxWay(of), okm: '', ckm: '', ohr: '', chr: '', tStart: '', tEnd: '', tBrk: '', trip: '', challan: '', remark: '', chFrom: of.chFrom || '', chTo: of.chTo || '', work: '', items: {}, itemSig: '', _pick: { [lxPartKind(of)]: '' }, orig: {} };
+    LX.rows.push(r); lxPlace(r);      // (it lands under the last row of that shift and starts where that row closed)
+    if (hasKm(lxWay(r)) && lxN(r.okm) !== '') r.ckm = r.okm; if (hasHr(lxWay(r)) && lxN(r.ohr) !== '') r.chr = r.ohr;      // closes where it starts, until its Close is typed
+    return r;
+  }
+  $('lx_rows').addEventListener('click', e => {
+    const b = e.target.closest('.lx-more'); if (!b) return; e.preventDefault();
+    const of = LX.rows[Number(b.closest('tr').dataset.i)], r = lxAddWork(of); if (!r) return;
+    S.formDirty = true; lxRender();
+    toast('Row added for another work of ' + showDate(r.date) + ' (' + r.shift + '): press its work, then type its Close – or lower the Close of the row above, its Start follows.');
+    const tr = $('lx_rows').querySelector('tr[data-i="' + LX.rows.indexOf(r) + '"]'); if (tr) tr.scrollIntoView({ block: 'nearest' });
+  });
   $('lx_add').addEventListener('click', () => {
     if (!LX.d) return;
     const ticked = [...new Set(LX.rows.filter(r => r._sel).map(r => r.date))];
@@ -7483,24 +7578,40 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     toast(miss.length + ' row(s) added for ' + showDate(miss[0]) + (miss.length > 1 ? ' to ' + showDate(miss[miss.length - 1]) : '') + ' – type their Close readings.');
   });
   $('lx_load').addEventListener('click', e => busy(e.target, 'Opening…', lxLoad));
-  $('lx_reload').addEventListener('click', e => { if (!LX.d) return; LX.rows = []; LX.deleted = []; busy(e.target, 'Reloading…', lxLoad); });
+  $('lx_reload').addEventListener('click', e => { if (!LX.d) return; LX.rows = []; LX.deleted = []; LX.cut = {}; busy(e.target, 'Reloading…', lxLoad); });
   $('lx_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
     const d = LX.d, m = d.machine;
     const bad = LX.rows.filter(r => { const w = lxWay(r), km = hasKm(w), hr = hasHr(w); return (km && (lxN(r.ckm) === '' || lxN(r.okm) === '' || r.ckm < r.okm)) || (hr && (lxN(r.chr) === '' || lxN(r.ohr) === '' || r.chr < r.ohr)) ||
       (w === 'Time' && !(lgTimeHrs(r.tStart, r.tEnd, r.tBrk) > 0)) || (w === 'Trip' && !(Number(r.trip) > 0)); });
     if (bad.length) throw new Error('Fix the rows in red first: every row needs its readings (Close not less than Start), its From / To time or its trips (' + bad.map(r => showDate(r.date)).join(', ') + ').');
+    /* the rows of one date + shift are ONE entry. Which saved entry it is: the one that was saved on that date + shift; else an
+       entry whose rows all moved here (its shift was changed); else a new entry. A saved entry left with no row is deleted. */
+    const groups = [], bySlot = {}; LX.rows.forEach(r => { const k = lxSlot(r); if (!bySlot[k]) groups.push(bySlot[k] = []); bySlot[k].push(r); });
+    const home = {}; LX.rows.forEach(r => { if (r.key && r.orig && r.orig.date) home[r.key] = r.orig.date + '|' + r.orig.shift; });
+    const used = {}, owner = new Map();
+    groups.forEach(g => { const k = g.map(r => r.key).find(k => k && home[k] === lxSlot(g[0])); if (k) { owner.set(g, k); used[k] = true; } });
+    groups.forEach(g => { if (owner.has(g)) return; const k = g.map(r => r.key).find(k => k && !used[k]); owner.set(g, k || ''); if (k) used[k] = true; });
+    const deleted = LX.deleted.concat([...new Set(LX.rows.map(r => r.key).filter(k => k && !used[k] && LX.deleted.indexOf(k) === -1))]);
+    // (the grid does not let a wrong shift be saved – Save is off while a row is red; this is the same rule once more, at the door)
+    groups.forEach(g => { if (g.length < 2) return; g.forEach(r => { const pb = lxPartsProblem(g, r); if (pb === null) throw new Error(showDate(r.date) + ': two entries on ' + r.shift + ' – make one Day and the other Night.'); if (pb) throw new Error(showDate(r.date) + ' ' + r.shift + ': ' + pb); }); });
     const ch = LX.rows.filter(r => !r.isNew && lxChanged(r)).length, nw = LX.rows.filter(r => r.isNew).length;
-    if (!(await askConfirm({ title: 'Save Log Book of ' + m.id + '?', ok: 'Save', html: listHtml([ch + ' entr' + (ch === 1 ? 'y' : 'ies') + ' changed', nw + ' new entr' + (nw === 1 ? 'y' : 'ies') + ' added', LX.deleted.length + ' entr' + (LX.deleted.length === 1 ? 'y' : 'ies') + ' deleted']) +
+    if (!(await askConfirm({ title: 'Save Log Book of ' + m.id + '?', ok: 'Save', html: listHtml([ch + ' entr' + (ch === 1 ? 'y' : 'ies') + ' changed', nw + ' new entr' + (nw === 1 ? 'y' : 'ies') + ' added', deleted.length + ' entr' + (deleted.length === 1 ? 'y' : 'ies') + ' deleted' + (deleted.length > LX.deleted.length ? ' (' + deleted.filter(k => LX.deleted.indexOf(k) === -1).map(k => { const q = String(k).split('|'); return showDate(q[1]) + ' ' + q[2]; }).join(', ') + ': its rows were moved into another entry of that date – it becomes part of that entry)' : '')]) +
       (d.next ? '<p>The entry after (' + esc(showDate(d.next.date)) + ') will start at the last Close here.</p>' : '') + '<p>Totals, diesel Opening / Closing and averages are worked out again for this machinery.</p>' }))) return;
-    const rows = LX.rows.map(r => { const w = lxWay(r), k = hasKm(w), h = hasHr(w);
-      return { key: r.key || '', same: !r.isNew && !lxChanged(r), half: !!r.half, date: r.date, shift: r.shift, mode: w, openingKm: k ? r.okm : '', closingKm: k ? r.ckm : '', openingHr: h ? r.ohr : '', closingHr: h ? r.chr : '',
+    const joinTxt = a => [...new Set(a.map(x => String(x || '').trim()).filter(Boolean))].join(' / ');
+    const rows = groups.map(g => { const r = g[0], z = g[g.length - 1], w = lxWay(r), k = hasKm(w), h = hasHr(w), own = owner.get(g);
+      if (g.length > 1) { const kind = lxPartKind(r);
+        return { key: own, same: g.every(x => !x.isNew && !lxChanged(x) && x.key === own) && LX.pc[own] === g.length, half: !!r.half, date: r.date, shift: r.shift, mode: w, openingKm: k ? r.okm : '', closingKm: k ? z.ckm : '', openingHr: h ? r.ohr : '', closingHr: h ? z.chr : '',
+          tStart: '', tEnd: '', tBreak: '', remark: joinTxt(g.map(x => x.remark)), trip: m.lbFormat === 'B' ? (g.reduce((a, x) => a + (Number(x.trip) || 0), 0) || '') : '', challan: joinTxt(g.map(x => x.challan)), chFrom: (g.find(x => String(x.chFrom || '').trim()) || {}).chFrom || '', chTo: (g.slice().reverse().find(x => String(x.chTo || '').trim()) || {}).chTo || '',
+          work: joinTxt(g.map(x => x.work)), odSet: /-01$/.test(r.date) ? (r.odSet ?? '') : '',
+          items: Object.assign(r.items && r.items._day ? { _day: r.items._day } : {}, lxOtherItems(g, kind), { _parts: g.map(x => ({ n: lxPickOf(x, kind), q: lxRowQty(x, kind), c: x.challan || '', p: x.remark || '', f: x.chFrom || '', t: x.chTo || '', w: x.work || '' })) }) }; }
+      return { key: own, same: !r.isNew && !lxChanged(r) && r.key === own && (LX.pc[own] || 1) === 1, half: !!r.half, date: r.date, shift: r.shift, mode: w, openingKm: k ? r.okm : '', closingKm: k ? r.ckm : '', openingHr: h ? r.ohr : '', closingHr: h ? r.chr : '',
         tStart: w === 'Time' || w === 'Trip' ? r.tStart || '' : '', tEnd: w === 'Time' || w === 'Trip' ? r.tEnd || '' : '', tBreak: w === 'Time' ? r.tBrk : '', remark: r.remark || '', trip: w === 'Trip' || (m.lbFormat === 'B' && DAY_STATUS.indexOf(w) === -1) ? r.trip : '', challan: w === 'Trip' || w === 'Time' ? (r.challan || '') : (r.challan || ''),
         chFrom: r.chFrom || '', chTo: r.chTo || '', work: r.work || '', odSet: /-01$/.test(r.date) ? (r.odSet ?? '') : '',
         items: ((d.boqItems || {})[r.date] || []).length ? (r.items || {}) : undefined }; });
-    const res = await call('saveLogBulk', { no: m.id, from: d.from, to: d.to, rows: rows, deleted: LX.deleted, openingDiesel: LX.odsl });
+    const res = await call('saveLogBulk', { no: m.id, from: d.from, to: d.to, rows: rows, deleted: deleted, openingDiesel: LX.odsl });
     if (res.ok === false) throw new Error('Nothing saved: ' + res.errors.map(x => x.msg).join(' | '));
     toast('Log Book saved – ' + res.changed + ' changed, ' + res.added + ' added, ' + res.deleted + ' deleted.');
-    LX.rows = []; LX.deleted = [];
+    LX.rows = []; LX.deleted = []; LX.cut = {};
     await lxLoad();
   }));
   window.addEventListener('beforeunload', e => { if (LX.d && lxDirty()) { e.preventDefault(); e.returnValue = ''; } });
@@ -9165,7 +9276,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const leftOn = m.status === 'Inactive' && m.inactiveFrom ? String(m.inactiveFrom).slice(0, 10) : '', final = !!leftOn && leftOn <= dayAfter;
     const tank = final ? null : tankLeft(m, u, own, iss0, isDebit, rawExcess);     // what is left of the last fill is not excess of this period
     const excessQty = r2(rawExcess - (tank ? tank.applied : 0));
-    const dRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), excessAmt = r2((debitQty + excessQty) * dRate);
+    // the rate: typed by hand for this bill (extra.manualRate), else the higher of the period's average and the last purchase rate
+    const autoRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), manRate = Number(extra.manualRate) > 0 ? r2(Number(extra.manualRate)) : 0;
+    const dRate = manRate || autoRate, excessAmt = r2((debitQty + excessQty) * dRate);
     // diesel issued on a day that has no WORKING Log Book entry (no entry at all, or only Idle / Holiday / Breakdown): the bill
     // counts it (as before) and now says so, so that whoever reads the bill knows why it differs from the Log Book rows
     const worked = {}; list.forEach(r => { if (DAY_STATUS.indexOf(r.mode || r.unit) === -1) worked[r.date] = true; });
@@ -9174,7 +9287,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const offRows = list.filter(r => (r.mode || r.unit) === METER_OFF);
     const est = { days: [...new Set(offRows.map(r => r.date))].length, km: r2(offRows.reduce((s2, r) => s2 + (Number(r.wkm) || 0), 0)), hr: r2(offRows.reduce((s2, r) => s2 + (Number(r.whr) || 0), 0)) };
     return { final: final ? leftOn : '', tank: tank && tank.applied > 0 ? tank : null, rawExcess: rawExcess, est: est, noEntry: noEntry, no: m.id || no, type: m.type || '', name: m.name || '', unit: u, supply: m.supply || '', workDays: workDays, nights: nights, holidays: holidays, idleDays: idleDays, itemNotes: itemNotes, lines: lines, amount: amount, zeroWork: zeroWork,
-      issued: issued, stdQty: stdQty, excessQty: excessQty, debitQty: debitQty, dieselRate: dRate, excessAmt: excessAmt, days: Object.keys(units).length,
+      issued: issued, stdQty: stdQty, excessQty: excessQty, debitQty: debitQty, dieselRate: dRate, autoRate: autoRate, rateManual: !!manRate, excessAmt: excessAmt, days: Object.keys(units).length,
       gstPct: last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0,
       tdsPct: last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0),
       woNo: last ? last.woNo || '' : '', woDate: last ? last.woDate || '' : '', hasBoq: !!last };
@@ -9182,7 +9295,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // the machinery, warnings and totals of a bill from the Log Book of the dates (again when the Idle choice changes)
   function mbFill(b) {
     const L = S.mb.logs, byNo = {}; (L.rows || []).forEach(r => { (byNo[String(r.no).toUpperCase()] = byNo[String(r.no).toUpperCase()] || []).push(r); });
-    const machines = b.picked.map(id => mbMachine(id, byNo[String(id).toUpperCase()] || [], L.extra, b.from, b.to, undefined, b.idlePaid !== false)).filter(x => x.days || x.issued || x.amount || x.idleDays);
+    const ex = Number(b.dieselRate) > 0 ? Object.assign({}, L.extra, { manualRate: Number(b.dieselRate) }) : L.extra;      // the diesel rate typed for this bill (empty = automatic)
+    const machines = b.picked.map(id => mbMachine(id, byNo[String(id).toUpperCase()] || [], ex, b.from, b.to, undefined, b.idlePaid !== false)).filter(x => x.days || x.issued || x.amount || x.idleDays);
     const wo = machines.find(x => x.woNo) || {};
     b.machines = machines; b.woNo = wo.woNo || ''; b.woDate = wo.woDate || '';
     b.idleDays = machines.reduce((a, x) => a + (x.idleDays || 0), 0);
@@ -9256,6 +9370,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ((b.warnings || []).length ? '<div class="mb-warn"><b>⚠ To check before submitting:</b><ul>' + b.warnings.map(w => '<li>' + esc(w) + '</li>').join('') + '</ul>' + fixHtml(b.warnings.join(' | ')) + '</div>' : '') +
       ((b.dnOpen || []).length ? '<div class="mb-dns"><span>Debit notes to deduct:</span>' + b.dnOpen.map(n => '<label><input type="checkbox" class="mb-dnck" data-id="' + esc(n.id) + '"' + ((b.dns || []).some(z => z.id === n.id) ? ' checked' : '') + '> ' + esc(n.no) + ' · ₹' + mbN2(n.total) + '</label>').join('') + '</div>' : '') +
       '</td><td class="n">' + b.machines.length + '</td><td>' + (b.idleDays ? '<b>' + b.idleDays + '</b> <select class="mb-idle" title="Idle days of the Log Book: pay them in this bill or not"><option value=""' + (b.idlePaid === undefined ? ' selected' : '') + '>choose…</option><option value="paid"' + (b.idlePaid === true ? ' selected' : '') + '>Paid</option><option value="no"' + (b.idlePaid === false ? ' selected' : '') + '>Not paid</option></select>' : '–') + '</td><td class="n">' + mbN2(b.A) + '</td><td class="n">' + mbN2(b.B) +
+      (b.machines.some(x => (x.debitQty || 0) + (x.excessQty || 0) > 0) ? '<label class="mb-drl" title="Diesel debit rate of this bill, ₹ per litre. Empty = automatic: the higher of the average rate of the period and the last purchase rate (₹' + mbN2((b.machines[0] || {}).autoRate) + '). Type a rate to debit the diesel of this bill at that rate – the Abstract, the Debit Note and the Log Book of the bill follow it.">₹/L <input class="mb-dr" type="number" step="0.01" min="0" value="' + (Number(b.dieselRate) > 0 ? b.dieselRate : '') + '" placeholder="' + mbN2((b.machines[0] || {}).autoRate) + ' auto"></label>' : '') +
       '</td><td class="n"><input class="mb-c" type="number" step="0.01" min="0" value="' + (b.C || '') + '" placeholder="0"></td><td><input class="mb-cr" value="' + esc(b.cReason) + '" placeholder="reason"></td>' +
       '<td class="n">' + (b.gstPct ? mbN2(b.E + b.F) : '–') + '</td><td class="n">' + mbN2(b.H) + '</td><td class="n"><b>' + mbN2(b.I) + '</b>' + (b.J ? '<small class="mb-part">less debit notes ' + mbN2(b.J) + '<br>balance <b>' + mbN2(b.K) + '</b></small>' : '') + '</td>' +
       '<td><input class="mb-no" value="' + esc(b.billNo) + '" placeholder="' + (b.firstBill ? 'first bill – type no.' : '') + '"' + (b.firstBill ? ' title="First bill of this vendor under this name – type its RA bill number; after this the next number comes by itself"' : '') + '></td>' +
@@ -9271,6 +9386,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   $('mb_rows').addEventListener('input', e => {
     const tr = e.target.closest('tr'); if (!tr) return; const b = S.mb.bills[Number(tr.dataset.i)];
+    if (e.target.classList.contains('mb-dr')) { clearTimeout(S.mb.t); return; }      // the diesel rate: taken when the box is left or Enter is pressed (the "change" below) – typing must not redraw the row under the cursor
     if (e.target.classList.contains('mb-c')) b.C = Number(e.target.value) || 0;
     if (e.target.classList.contains('mb-cr')) b.cReason = e.target.value;
     if (e.target.classList.contains('mb-no')) b.billNo = e.target.value.trim();
@@ -9283,6 +9399,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const n = (b0.dnOpen || []).find(z => z.id === e.target.dataset.id); b0.dns = (b0.dns || []).filter(z => z.id !== e.target.dataset.id);
       if (n && e.target.checked) b0.dns.push({ id: n.id, no: n.no, date: n.date, total: n.total });
       mbTotals(b0); mbRender(); return;
+    }
+    if (e.target.classList.contains('mb-dr')) {      // the diesel rate of this bill, typed by hand (empty = automatic)
+      const tr0 = e.target.closest('tr'), b0 = S.mb.bills[Number(tr0.dataset.i)]; if (!b0) return;
+      const typedBad = !!(e.target.validity && e.target.validity.badInput), v = typedBad ? NaN : e.target.value.trim() === '' ? '' : Number(e.target.value);      // ("96,5" in a number box reads as empty: it is a wrong figure, not "automatic")
+      if (v !== '' && !(r2(v) >= 0.01 && v < 1000)) { toast('Diesel rate: type ₹ per litre (for example 95.50), or leave it empty for the automatic rate.', true); e.target.value = Number(b0.dieselRate) > 0 ? b0.dieselRate : ''; return; }
+      b0.dieselRate = v === '' ? '' : r2(v); mbFill(b0); mbRender();
+      toast(v === '' ? 'Diesel rate of this bill: automatic again.' : 'Diesel of this bill is debited at ₹' + mbN2(v) + ' per litre.');
+      return;
     }
     if (!e.target.classList.contains('mb-idle')) return;
     const tr = e.target.closest('tr'), b = S.mb.bills[Number(tr.dataset.i)]; if (!b) return;
@@ -9301,7 +9425,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const nos = new Set((b.machines || []).map(m => String(m.noNow || m.no).toUpperCase()));
     const rows = (L.rows || []).filter(r => nos.has(String(r.no).toUpperCase())); if (!rows.length) return '';
     const idle = {}; nos.forEach(n => { idle[n.replace(/[^A-Z0-9]/g, '')] = b.idlePaid !== false; });
-    try { return logSheetsBuild({ rows: rows, f: { from: L.from, to: L.to }, summary: [], idle: idle }, b.company, L.extra).sheets; } catch (e) { return ''; }
+    try { return logSheetsBuild({ rows: rows, f: { from: L.from, to: L.to }, summary: [], idle: idle, dieselRate: Number(b.dieselRate) > 0 ? b.dieselRate : '' }, b.company, L.extra).sheets; } catch (e) { return ''; }
   }
   // the Log Book sheets shown on the bill page exactly as they print (in a frame of their own, with the print's styles)
   function mbLogFrames() {
@@ -9324,7 +9448,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const rows = L.rows.filter(r => nos.has(String(r.no).toUpperCase()));
     if (!rows.length) { toast('No Log Book entries for these machinery in these dates.', true); return; }
     const idle = {}; bills.forEach(b => b.machines.forEach(m => { idle[String(m.no).toUpperCase().replace(/[^A-Z0-9]/g, '')] = b.idlePaid !== false; }));
-    printLogRows({ rows: rows, f: { from: L.from, to: L.to }, summary: [], idle: idle });
+    const rateBy = {}; bills.forEach(b => { if (Number(b.dieselRate) > 0) b.machines.forEach(m => { rateBy[String(m.no).toUpperCase().replace(/[^A-Z0-9]/g, '')] = Number(b.dieselRate); }); });      // each bill's own diesel rate, where one was typed
+    printLogRows({ rows: rows, f: { from: L.from, to: L.to }, summary: [], idle: idle, rateBy: rateBy, dieselRate: bills.length === 1 && Number(bills[0].dieselRate) > 0 ? bills[0].dieselRate : '' });
   }
   $('mb_logbook').addEventListener('click', () => mbLogPrint(S.mb.bills));
   $('mb_rows').addEventListener('click', e => { const b = e.target.closest('[data-mblog]'); if (b) mbLogPrint([S.mb.bills[Number(b.dataset.mblog)]]); });
@@ -9595,7 +9720,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const logs = await call('getLogBookList', { from: b.from, to: b.to, all: true });
       const rows = (logs.rows || []).filter(x => nos.has(String(x.no).toUpperCase()));
       const idle = {}; nos.forEach(n => { idle[n.replace(/[^A-Z0-9]/g, '')] = (b.data || {}).idlePaid !== false; });
-      if (rows.length) lb = (await logSheetsOf({ rows: rows, f: { from: b.from, to: b.to }, summary: [], idle: idle }, b.company)).sheets;
+      if (rows.length) lb = (await logSheetsOf({ rows: rows, f: { from: b.from, to: b.to }, summary: [], idle: idle, dieselRate: Number((b.data || {}).dieselRate) > 0 ? b.data.dieselRate : '' }, b.company)).sheets;
       else toast('No Log Book entries now for this bill\'s machinery in its dates – the bill papers are shown without the Log Book.', true);
     } catch (e) { lb = ''; toast('The Log Book could not be read (' + errMsg(e) + ') – the bill papers are shown without it.', true); }
     printDoc('Abstract of Bill – ' + b.vendor + ' – RA Bill ' + b.billNo, billSheets(data, b.status === 'Superseded' ? ' superseded' : '') + lb, 'rep rep-bill' + (lb ? ' rep-lb' : ''), true, b.company, w0);
@@ -10758,7 +10883,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const rows = (logs.rows || []).filter(x => nos.has(String(x.no).toUpperCase()));
         if (!rows.length) { toast('No Log Book entries for this bill\'s machinery in its dates.', true); return; }
         const idle = {}; nos.forEach(n => { idle[n.replace(/[^A-Z0-9]/g, '')] = (b.data || {}).idlePaid !== false; });
-        printLogRows({ rows: rows, f: { from: b.from, to: b.to }, summary: [], idle: idle });
+        printLogRows({ rows: rows, f: { from: b.from, to: b.to }, summary: [], idle: idle, dieselRate: Number((b.data || {}).dieselRate) > 0 ? b.data.dieselRate : '' });      // (a bill made at a rate typed by hand: its Log Book opens at that rate)
       } catch (err) { toast(errMsg(err), true); }
       return;
     }
@@ -11310,6 +11435,34 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('dc_open').addEventListener('click', dcGo);
   $('dc_body').addEventListener('click', e => { if (e.target.closest('[data-dcgo]')) dcGo(); });
 
+  /* ONE ROW FOR EACH WORK (asked 10-10-2026: "when the Log Book is given, Bucket separate and Breaker separate – however I
+   * entered it, never two in one row"). An entry whose hours (KM, trips) went to two or more items of its BOQ is PRINTED as one
+   * row for each item. Where the entry holds the rows of its shift (Edit Log Book: a row for each work) they are printed as
+   * entered – own Start / Close, challan, chainage and description. An entry entered with "Split" holds only the quantity of
+   * each item: its rows follow each other in the order of the BOQ, each as long as its quantity, with the entry's description.
+   * Only the ROWS change: every total, the summary and the money are worked out from the entries, exactly as before.
+   * → the rows (copies of the entry) or null = the entry is one row. */
+  function lbWorkRows(r) {
+    const mode = r.mode || r.unit; if (!r || DAY_STATUS.indexOf(mode) > -1 || mode === METER_OFF) return null;
+    const q0 = r.itemQty || []; let k = '', ws = null; const kept = !!(r.itemParts && r.itemParts.length > 1);
+    if (kept) { k = r.itemParts[0].k; ws = r.itemParts; }
+    else { k = ['hr', 'km', 'trip'].find(kk => q0.filter(x => x.k === kk && x.q > 0).length > 1) || ''; if (!k) return null;
+      const order = (r.boqItems || []).map(it => it.name);
+      ws = q0.filter(x => x.k === k && x.q > 0).slice().sort((a, b) => order.indexOf(a.n) - order.indexOf(b.n)); }
+    const others = q0.filter(x => x.k !== k), F = k === 'hr' ? ['ohr', 'chr', 'whr'] : k === 'km' ? ['okm', 'ckm', 'wkm'] : null, O = k === 'hr' ? ['okm', 'ckm', 'wkm'] : k === 'km' ? ['ohr', 'chr', 'whr'] : ['okm', 'ckm', 'wkm', 'ohr', 'chr', 'whr'];
+    const set = v => v !== '' && v !== undefined && v !== null, reads = !!F && set(r[F[0]]) && set(r[F[1]]) && (k === 'hr' ? hasHr(mode) : hasKm(mode));
+    let at = reads ? Number(r[F[0]]) : 0; const later = r2(ws.slice(1).reduce((a, p) => a + (Number(p.q) || 0), 0));
+    return ws.map((p, j) => {
+      const y = Object.assign({}, r, { _ent: r, _sub: j, _part: p.n, _prt: kept ? (p.p || '') : '', itemQty: [{ n: p.n, q: p.q, k: k }].concat(j ? [] : others), itemParts: null });
+      if (k === 'trip') y.trip = p.q;
+      else { y[F[2]] = p.q; if (reads) { const a = r2(at), b = j === ws.length - 1 ? Number(r[F[1]]) : r2(at + p.q); at = b; y[F[0]] = a; y[F[1]] = b; } }
+      if (j) { O.forEach(f => { y[f] = ''; }); if (k !== 'trip') y.trip = '';      // what belongs to the entry as a whole (the other meter, times, marks) stands on its first row
+        y.tStart = ''; y.tEnd = ''; y.tSlots = ''; y.tBrk = ''; y.debitTo = ''; y.meter = ''; if (k === 'hr') y._gross = p.q; }
+      else if (k === 'hr') y._grossLess = later;
+      if (kept) { y.challan = p.c || ''; y.remark = p.p || ''; y.chFrom = p.f || ''; y.chTo = p.t || ''; y.work = p.w || ''; if (j || p.f || p.t) y.chainage = ''; }
+      return y;
+    });
+  }
   // Log Book print: Start / Closed / Total of one entry, by the way it was measured
   function lbPrintWork(r, w, plain) {
     const c = (a, b, t) => '<td class="n">' + a + '</td><td class="n">' + b + '</td><td class="n"><b>' + t + '</b></td>';
@@ -13474,6 +13627,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('le_chf').value = e.chFrom; $('le_cht').value = e.chTo; $('le_work').value = e.work || e.remark; $('le_dto').value = e.debitTo || ''; $('le_drate').value = e.debitRate === undefined || e.debitRate === null ? '' : e.debitRate;
     ['pickhr', 'pickkm', 'picktrip'].forEach(a => { delete $('le_itm').dataset[a]; });
     $('le_itm').innerHTML = itemBoxHtml(e.boqItems || [], e.itemWork || {}, e.unit); $('le_itm_w').hidden = !$('le_itm').innerHTML;
+    // an entry that holds a row for each work of its shift: those rows are changed in Edit Log Book
+    if (e.itemParts && e.itemParts.length > 1) $('le_itm').insertAdjacentHTML('beforeend', '<small class="le-parts">This shift has a row for each work: ' + e.itemParts.map(p => esc(p.n) + ' ' + fmt(p.q) + ' ' + ITEM_WORD[p.k]).join(', then ') + '. To change those rows (their readings, challan or description) use <b>Edit Log Book</b> – if a reading, the work or a text is changed here, the rows are joined into one entry.</small>');
     leNote();
     $('le_back').hidden = false;
     setTimeout(() => (km ? $('le_ckm') : hr ? $('le_chr') : e.unit === 'Time' ? $('le_ts') : e.unit === 'Trip' ? $('le_trip') : $('le_work')).focus(), 30);
@@ -13554,7 +13709,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   async function printLogRows(L) {
     if (!L || !L.rows.length) { toast('No Log Book entries to print – pick a Machinery and dates first.', true); return; }
-    const headName = await askPrintName('Print Log Book'); if (!headName) return;
+    const opt = { rate: !L.sample, value: L.dieselRate, byBill: !(Number(L.dieselRate) > 0) && !!L.rateBy && Object.keys(L.rateBy).length > 0 };
+    const headName = await askPrintName('Print Log Book', opt); if (!headName) return;
+    if (opt.bad) { toast('Diesel rate: type ₹ per litre (for example 95.50), or leave it empty for the automatic rate. Nothing was printed.', true); return; }
+    // typed here = the rate of this print; a rate that stood in the box and was emptied = automatic; left empty for several bills = each bill's own rate
+    if (opt.rate) L = Object.assign({}, L, Number(opt.typed) > 0 ? { dieselRate: r2(Number(opt.typed)), rateBy: null } : { dieselRate: '', rateBy: Number(opt.value) > 0 ? null : L.rateBy });
     const x = await logSheetsOf(L, headName);
     printDoc(x.title, x.sheets, 'rep rep-lb', true, headName);
   }
@@ -13575,6 +13734,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const dates = rows.map(r => r.date).sort();
     const from = L.f.from || dates[0], to = L.f.to || S.today;
     const extra = extra0 || { debit: {} };
+    // the diesel rate typed by hand: for this print / bill (L.dieselRate), or bill by bill (L.rateBy: { machinery: rate }); 0 = the automatic rate
+    const RATE_ALL = L && Number(L.dieselRate) > 0 ? r2(Number(L.dieselRate)) : 0, RATE_BY = (L && L.rateBy) || {}, RATE_X = Number(extra.manualRate) > 0 ? r2(Number(extra.manualRate)) : 0;
     const by = {}; rows.forEach(r => { (by[r.no] = by[r.no] || []).push(r); });
     const n2 = v => (Number(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const n0 = v => v === '' || v === null || v === undefined ? '' : fmt(v);
@@ -13598,13 +13759,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // diesel of each day straight from Diesel Issue: litres added up, reading of the last issue of that day.
       // Opening and closing are 0; total diesel = consumed = issued; the day's average is left blank.
       const iss0 = ((extra.issues || {})[String(no).toUpperCase().replace(/[^A-Z0-9]/g, '')]) || {};
+      const MAN_RATE = RATE_ALL || (Number(RATE_BY[String(no).toUpperCase().replace(/[^A-Z0-9]/g, '')]) > 0 ? r2(Number(RATE_BY[String(no).toUpperCase().replace(/[^A-Z0-9]/g, '')])) : 0) || RATE_X;
       const seenDay = {};
-      const lines = list.map((r, i) => {
+      const lines = [];
+      list.forEach((r, i) => {
         const d = iss0[r.date], first = !seenDay[r.date]; seenDay[r.date] = true;
         const iss = first && d ? Number(d.qty) || 0 : 0;                        // a day's diesel goes on its first line (Day before Night)
         const refill = first && d ? (isHr ? d.hr : dual ? [d.km, d.hr].filter(x => x !== '' && x !== undefined).join(' / ') : d.km) : '';
-        return { r: r, i: i, open: 0, iss: iss, refill: refill === undefined ? '' : refill, total: iss, used: iss, close: 0, avg: '' };
+        const x = { r: r, i: i, open: 0, iss: iss, refill: refill === undefined ? '' : refill, total: iss, used: iss, close: 0, avg: '' };
+        // an entry with two or more works: a row for each (lbWorkRows) – its diesel stays on its first row
+        const ws = LBOPT.sample ? null : lbWorkRows(r);
+        if (!ws) lines.push(x); else ws.forEach((y, j) => lines.push(Object.assign({}, x, { r: y }, j ? { iss: 0, refill: '', total: 0, used: 0 } : {})));
       });
+      lines.forEach((x, i) => { x.i = i; });      // the serial number of the printed row
       const sum = k => r2(lines.reduce((s, x) => s + (Number(x[k]) || 0), 0));
       const tKm = r2(list.reduce((s, r) => s + (Number(r.wkm) || 0), 0)), tHr = r2(list.reduce((s, r) => s + (Number(r.whr) || 0), 0)), tTrips = r2(list.reduce((s, r) => s + (DAY_STATUS.indexOf(r.mode || r.unit) > -1 ? 0 : Number(r.trip) || 0), 0));
       /* Diesel issued in the period. The rows above show the diesel issued on THEIR date and shift; a diesel issue on a date or
@@ -13683,7 +13850,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const tank = leftOnP && leftOnP <= dayAfterP ? null : tankLeft(m, u, ownRows, iss0, isDebitD, rawExcess);      // the bill's rule (a machinery that left the site: nothing left out)
       const excessQty = r2(rawExcess - (tank ? tank.applied : 0));
       // debit rate = the HIGHER of the average diesel rate of the dates and the last diesel purchase rate
-      const avgR = Number(extra.avgRate) || 0, lastR = Number(extra.lastRate) || 0, avgRate = Math.max(avgR, lastR), excessAmt = r2((debitQty + excessQty) * avgRate);
+      const avgR = Number(extra.avgRate) || 0, lastR = Number(extra.lastRate) || 0, avgRate = MAN_RATE || Math.max(avgR, lastR), excessAmt = r2((debitQty + excessQty) * avgRate);
       const basic = r2(payable - excessAmt);
       const tdsP = last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0);
       const gstP = last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0;
@@ -13730,7 +13897,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         ['STANDARD AVERAGE<small>' + verdict + '</small>', allDebit ? 'NOT CHECKED' : (stdWord || '–') + (stdQty ? '<br><small>' + fmt(stdQty) + ' L allowed for the work</small>' : '')]]);
       const L = Lon.concat(Lz);
       const Rr = [[monthly.length ? 'MONTHLY RATE' : 'RATE', rateCell]].concat(kinds.day ? [['DAILY RATE', dailyCell]] : []).concat([['PAYABLE AMOUNT', money(payable)],
-        [(debitQty ? 'DIESEL DEBIT' : 'EXCESS DIESEL – DEBIT AMT') + '<small>rate = higher of avg ₹' + n2(avgR) + ' / last ₹' + n2(lastR) + '</small>', excessAmt ? '<small>' + [debitQty ? fmt(debitQty) + ' L debit' : '', excessQty ? fmt(excessQty) + ' L extra' : ''].filter(Boolean).join(' + ') + ' × ₹' + n2(avgRate) + '</small> − ₹ ' + n2(excessAmt) + (tank && tank.applied > 0 ? '<br><small>' + esc(tankText(tank).toUpperCase()) + '</small>' : '') : '<small>' + (tank && tank.applied > 0 ? esc(tankText(tank).toUpperCase()) : stdQty ? 'no extra diesel' : 'no standard') + '</small> –'],
+        [(debitQty ? 'DIESEL DEBIT' : 'EXCESS DIESEL – DEBIT AMT') + '<small>' + (MAN_RATE ? 'rate = ₹' + n2(MAN_RATE) + ' (fixed by hand)' : 'rate = higher of avg ₹' + n2(avgR) + ' / last ₹' + n2(lastR)) + '</small>', excessAmt ? '<small>' + [debitQty ? fmt(debitQty) + ' L debit' : '', excessQty ? fmt(excessQty) + ' L extra' : ''].filter(Boolean).join(' + ') + ' × ₹' + n2(avgRate) + '</small> − ₹ ' + n2(excessAmt) + (tank && tank.applied > 0 ? '<br><small>' + esc(tankText(tank).toUpperCase()) + '</small>' : '') : '<small>' + (tank && tank.applied > 0 ? esc(tankText(tank).toUpperCase()) : stdQty ? 'no extra diesel' : 'no standard') + '</small> –'],
         ['TDS ' + (tdsP ? fmt(tdsP) + '% (on basic)' : ''), tds ? '− ₹ ' + n2(tds) : '–'],
         ['GST ' + (gstP ? fmt(gstP) + '% (on basic)' : '– not applicable'), gst ? '+ ₹ ' + n2(gst) : '–']]);
       /* ---------- the format set for this machinery (Master → Log Book Format). A = the table above. ---------- */
@@ -13739,8 +13906,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (FM !== 'A' && LB_FMT_COLS[FM]) {
         const stOf = r => DAY_STATUS.indexOf(r.mode || r.unit) > -1, wOf = r => r.mode || r.unit || u;
         const mins = t => { const q = /^(\d{1,2}):(\d{2})/.exec(t || ''); return q ? Number(q[1]) * 60 + Number(q[2]) : null; };
-        const gross = r => { const a = mins(r.tStart), b = mins(r.tEnd); if (a === null || b === null) return Number(r.whr) || 0; if (slotsParse(r.tSlots).length > 1) return slotsHrs(slotsParse(r.tSlots), 0) || 0;      // split timing: the hours of its times added up
-          let d = b - a; if (d <= 0) d += 1440; return r2(d / 60); };
+        const gross = r => { if (r._gross !== undefined) return r._gross;      // (a later row of an entry printed as a row for each work)
+          const a = mins(r.tStart), b = mins(r.tEnd); if (a === null || b === null) return Number(r.whr) || 0; if (slotsParse(r.tSlots).length > 1) return r2((slotsHrs(slotsParse(r.tSlots), 0) || 0) - (r._grossLess || 0));      // split timing: the hours of its times added up
+          let d = b - a; if (d <= 0) d += 1440; return r2(d / 60 - (r._grossLess || 0)); };
         const tFrom = r => slotsOf(r).map(x => esc(x[0])).join('<br>') || esc(r.tStart || ''), tTo = r => slotsOf(r).map(x => esc(x[1])).join('<br>') || esc(r.tEnd || '');
         const cap1 = r => { const b = bday[r.date]; return b && b.slabs && b.slabs.length && b.slabs[0].upTo !== '' ? Number(b.slabs[0].upTo) : 1; };
         const hrs = r => Number(r.whr) || 0, hr1 = r => stOf(r) ? 0 : r2(Math.min(hrs(r), cap1(r))), hr2 = r => stOf(r) ? 0 : r2(Math.max(0, hrs(r) - cap1(r)));
@@ -13752,7 +13920,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           shift: { h: 'SHIFT', w: 5, c: 'c', v: x => esc(shiftText(x.r)) },
           regno: { h: 'REG NO', w: 10, c: 'c', wrap: 1, v: x => esc(up(no)) },
           vehno: { h: 'VEHICLE NO', w: 10, c: 'c', wrap: 1, v: x => esc(up(no)) },
-          particular: { h: 'PARTICULAR', w: 9, v: x => esc(up(x.r.remark || m.type || '')) },
+          particular: { h: 'PARTICULAR', w: 9, v: x => esc(up(x.r._part ? (x.r._prt || x.r._part) : (x.r.remark || m.type || ''))) },      // (a row printed for ONE work of an entry: that work – or what was typed for that row)
           challan: { h: 'CHALLAN NO', w: 8, c: 'c', wrap: 1, v: x => esc(x.r.challan || '') },
           kmS: { h: 'START<br>KM', g: 'KM READING', w: 6.2, c: 'n', v: x => km(x.r) ? plain(x.r.okm) : dash },
           kmC: { h: 'CLOSED<br>KM', g: 'KM READING', w: 6.2, c: 'n', v: x => km(x.r) ? plain(x.r.ckm) : dash },
@@ -13767,8 +13935,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           tE: { h: 'CLOSED<br>TIME', g: 'READING', w: 6.5, c: 'c', v: x => tm(x.r) ? tTo(x.r) : dash },
           tG: { h: 'TOTAL<br>HRS', g: 'READING', w: 5.5, c: 'n', v: x => stOf(x.r) || !(tm(x.r) || hrM(x.r)) ? dash : num(gross(x.r)), t: () => fmt(r2(list.filter(r => !stOf(r)).reduce((s2, r) => s2 + gross(r), 0))) },
           tN: { h: 'TOTAL<br>HRS', w: 5.5, c: 'n', v: x => stOf(x.r) || !hrs(x.r) ? dash : '<b>' + num(x.r.whr) + '</b>' + (slotsBreak(x.r) ? '<br><small>break ' + fmt(slotsBreak(x.r)) + 'm</small>' : ''), t: () => fmt(tHr) },
-          hr1: { h: '1ST HR', w: 5, c: 'n', v: x => stOf(x.r) || !hrs(x.r) ? dash : num(hr1(x.r)), t: () => fmt(r2(list.reduce((s2, r) => s2 + hr1(r), 0))) },
-          hr2: { h: '2ND HRS', w: 5, c: 'n', v: x => stOf(x.r) || !hrs(x.r) ? dash : num(hr2(x.r)), t: () => fmt(r2(list.reduce((s2, r) => s2 + hr2(r), 0))) },
+          hr1: { h: '1ST HR', w: 5, c: 'n', v: x => stOf(x.r) || !hrs(x.r) || x.r._sub ? dash : num(hr1(x.r._ent || x.r)), t: () => fmt(r2(list.reduce((s2, r) => s2 + hr1(r), 0))) },
+          hr2: { h: '2ND HRS', w: 5, c: 'n', v: x => stOf(x.r) || !hrs(x.r) || x.r._sub ? dash : num(hr2(x.r._ent || x.r)), t: () => fmt(r2(list.reduce((s2, r) => s2 + hr2(r), 0))) },
           inT: { h: 'IN TIME', w: 6, c: 'c', v: x => tm(x.r) ? tFrom(x.r) : esc(x.r.tStart || '') },
           outT: { h: 'OUT TIME', w: 6, c: 'c', v: x => tm(x.r) ? tTo(x.r) : esc(x.r.tEnd || '') },
           dO: { h: 'OPENING<br>BALANCE', g: 'DIESEL (LTR)', w: 6, c: 'n', v: x => n2(x.open) },
@@ -13799,7 +13967,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         void kW; // widths follow the content: no letter is cut
         tableF = '<table class="lb-t lb-auto"><thead><tr>' + h1 + '</tr>' + (h2 ? '<tr>' + h2 + '</tr>' : '') + '</thead><tbody>' +
           lines.map(x => '<tr>' + cols.map(c => '<td class="' + (c.c || '') + (c === C.work || c.h === 'WORK DESCRIPTION' ? ' lb-wk' : c.h === 'CHAINAGE' ? ' lb-chx' : '') + '"' + wrapTd(c) + '>' + c.v(x) + '</td>').join('') + '</tr>').join('') + '</tbody><tfoot><tr>' +
-          (firstTot > 0 ? '<td colspan="' + firstTot + '" class="c">TOTAL</td>' + cols.slice(firstTot).map(c => '<td class="n">' + (c.t ? '<b>' + c.t() + '</b>' : '') + '</td>').join('') : '<td colspan="' + cols.length + '" class="c">TOTAL – ' + lines.length + ' ENTRIES</td>') +
+          (firstTot > 0 ? '<td colspan="' + firstTot + '" class="c">TOTAL</td>' + cols.slice(firstTot).map(c => '<td class="n">' + (c.t ? '<b>' + c.t() + '</b>' : '') + '</td>').join('') : '<td colspan="' + cols.length + '" class="c">TOTAL – ' + list.length + ' ENTRIES</td>') +
           '</tr></tfoot></table>';
         // the summary on the left follows the format: days, the work it shows, and diesel only where the format has diesel
         const has = k => LB_FMT_COLS[FM].indexOf(k) > -1, hasDiesel = LB_FMT_COLS[FM].some(k => /^d[OITUCR]$/.test(k));

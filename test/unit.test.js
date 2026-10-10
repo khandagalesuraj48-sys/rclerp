@@ -1233,3 +1233,140 @@ test('update-68 (D1): no code can open the backup Sheet to "anyone with the link
   // the one place that sets sharing at all (the old Apps Script backup) sets it to PRIVATE
   assert.deepStrictEqual([...all.matchAll(/\.setSharing\(([^)]*)\)/g)].map(m => m[1].replace(/\s+/g, ' ')), ['DriveApp.Access.PRIVATE, DriveApp.Permission.NONE']);
 });
+
+/* ===== update-69 (10-10-2026): a row for each work of one shift · each work on its own printed row · the diesel rate typed by hand ===== */
+test('several works in one shift are kept inside ONE entry: saved, read back, billed item by item, and dropped when they no longer fit (hand-worked)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  run('(x, m) => saveMaster_(x, m)', { no: 'P69-JCB', name: 'JCB', type: 'JCB', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 4, owner: 'P69 Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'P69 Earthmovers', gstReg: 'No', pan: 'ABCDE1269P', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'P69 Earthmovers', from: '2026-06-01', tdsPct: 2, woNo: 'WO-P69', lines: [{ no: 'P69-JCB', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'Bucket', basis: 'Per Hour', rate: 1200 }, { name: 'Breaker', basis: 'Per Hour', rate: 1500 }] }] }, 'add');
+  run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-06-23', shift: 'Day', no: 'P69-JCB', mode: 'Hrs', openingHr: 2357.6, closingHr: 2361.8, items: {}, work: 'DRAIN' },
+    { date: '2026-06-24', shift: 'Day', no: 'P69-JCB', mode: 'Hrs', closingHr: 2364.8, items: {}, work: 'PQC', challan: '694' }, { date: '2026-06-25', shift: 'Day', no: 'P69-JCB', mode: 'Hrs', closingHr: 2368.3, items: { Breaker: 1.5 }, work: 'SOLAR' }] });
+  const from = '2026-06-01', to = '2026-06-30', K = 'P69-JCB|2026-06-24|Day';
+  const grid = () => run('(f, t) => getLogEditData_("P69-JCB", f, t)', from, to);
+  const bulk = (parts, more) => { const rows = grid().rows.map(x => ({ key: x.key, same: x.key !== K, half: false, date: x.date, shift: x.shift, mode: x.mode || x.unit, openingHr: x.ohr, closingHr: x.chr, openingKm: '', closingKm: '', tStart: '', tEnd: '', tBreak: '', remark: x.remark || '', trip: '', challan: x.challan || '', chFrom: '', chTo: '', work: x.work || '', odSet: '',
+      items: x.key === K ? { _parts: parts } : x.itemWork })).map(x => x.key === K ? Object.assign(x, more || {}) : x);
+    return run('p => saveLogBulk_(p)', { no: 'P69-JCB', from: from, to: to, rows: rows, deleted: [], openingDiesel: '' }); };
+  const stored = () => run(`k => { const lt = table_(APP.SHEET_LOG), c = lt.c, r = lt.rows[findLogIdx_(lt, k)]; return { ohr: num0_(r[c[H.OHR]]), chr: num0_(r[c[H.CHR]]), whr: num0_(r[c[H.WHR]]), items: str_(r[c[H.ITEMS]]), work: str_(r[c[H.WORK]]), n: lt.rows.filter(x => str_(x[c[H.NO]]) === 'P69-JCB').length }; }`, K);
+  const entry = () => run('(f, t) => getLogBookList_({ from: f, to: t, no: "P69-JCB", all: true })', from, to).rows.find(r => r.date === '2026-06-24');
+  const amount = () => run('(f, t) => billMachineCalc_(findMachine_("P69-JCB"), getLogBookList_({ from: f, to: t, no: "P69-JCB", all: true }).rows, logPrintExtra_({ from: f, to: t, nos: ["P69-JCB"] }), f, t, undefined, true).amount', from, to);
+  // before: 4.2 + 3 + 2 hr of Bucket at 1,200 and 1.5 hr of Breaker at 1,500
+  assert.strictEqual(amount(), Math.round((4.2 + 3 + 2) * 1200 + 1.5 * 1500));
+  // the 24th (2361.8 → 2364.8 = 3 hr): Bucket 2 hr, then Breaker 1 hr – each with its own challan and description
+  let r = bulk([{ n: 'Bucket', q: 2, c: '694', w: 'PQC' }, { n: 'Breaker', q: 1, c: '694A', w: 'ROCK' }], { work: 'PQC / ROCK', challan: '694 / 694A' });
+  assert.ok(r.ok && r.changed === 1 && r.added === 0, JSON.stringify(r).slice(0, 200));
+  let s = stored();
+  assert.deepStrictEqual([s.ohr, s.chr, s.whr, s.n], [2361.8, 2364.8, 3, 3], 'still ONE entry with the same readings');
+  assert.deepStrictEqual(JSON.parse(s.items), { Breaker: 1, _parts: [{ n: 'Bucket', q: 2, c: '694', w: 'PQC' }, { n: 'Breaker', q: 1, c: '694A', w: 'ROCK' }] });
+  let e = entry();
+  assert.deepStrictEqual(e.itemQty.map(x => x.n + ' ' + x.q).sort(), ['Breaker 1', 'Bucket 2'], 'the quantities of the bill come from the rows');
+  assert.deepStrictEqual(e.itemParts.map(x => [x.n, x.q, x.k, x.c, x.w].join('|')), ['Bucket|2|hr|694|PQC', 'Breaker|1|hr|694A|ROCK']);
+  assert.deepStrictEqual(grid().rows.find(x => x.key === K).itemParts.length, 2, 'Edit Log Book gets the rows back');
+  assert.strictEqual(amount(), Math.round((4.2 + 2 + 2) * 1200 + (1 + 1.5) * 1500), 'by hand: Bucket 8.2 hr × 1,200 + Breaker 2.5 hr × 1,500 = 13,590');
+  assert.strictEqual(amount(), 13590);
+  // three works: Bucket – Breaker – Bucket
+  assert.ok(bulk([{ n: 'Bucket', q: 1.5 }, { n: 'Breaker', q: 0.5 }, { n: 'Bucket', q: 1 }]).ok);
+  assert.deepStrictEqual(JSON.parse(stored().items), { Breaker: 0.5, _parts: [{ n: 'Bucket', q: 1.5 }, { n: 'Breaker', q: 0.5 }, { n: 'Bucket', q: 1 }] });
+  // what is refused – with the reason, and nothing is changed
+  const keep = stored().items;
+  const no = (parts, re) => { const x = bulk(parts); assert.ok(x.ok === false && re.test(x.errors.map(y => y.msg).join(' | ')), JSON.stringify(x).slice(0, 300)); assert.strictEqual(stored().items, keep); };
+  no([{ n: 'Bucket', q: 1 }, { n: 'Breaker', q: 1 }], /the rows of this shift make 2 hr but the entry has 3 hr/);
+  no([{ n: 'Bucket', q: 2 }, { n: 'Bucket', q: 1 }], /two rows one after the other are both Bucket/);
+  no([{ n: 'Bucket', q: 2 }, { n: 'Ripper', q: 1 }], /"Ripper" is not an item of its BOQ/);
+  no([{ n: 'Bucket', q: 3 }, { n: 'Breaker', q: 0 }], /row 2 of 24-06-2026 \(Breaker\) has no work/);
+  // (tightened after the review) a sum that is off by a paisa-sized 0.01 hr is not the entry; a quantity that rounds to nothing is no work; at most 12 rows
+  no([{ n: 'Bucket', q: 2 }, { n: 'Breaker', q: 1.01 }], /the rows of this shift make 3\.01 hr but the entry has 3 hr/);
+  no([{ n: 'Bucket', q: 3 }, { n: 'Breaker', q: 0.004 }], /row 2 of 24-06-2026 \(Breaker\) has no work/);
+  no(Array.from({ length: 13 }, (_, i) => ({ n: i % 2 ? 'Breaker' : 'Bucket', q: i ? 0.2 : 0.6 })), /at most 12 rows for the works of one shift/);
+  // the small edit window (it knows nothing of rows): nothing changed → the rows stay; a text changed → the rows are joined
+  bulk([{ n: 'Bucket', q: 2, w: 'PQC' }, { n: 'Breaker', q: 1, w: 'ROCK' }], { work: 'PQC / ROCK' });
+  const upd = l => run('(k, l) => updateLogRow_(k, l)', K, l);
+  upd({ closingHr: 2364.8, work: 'PQC / ROCK', items: { Breaker: 1 } });
+  assert.ok(/"_parts"/.test(stored().items), 'an edit that changes nothing keeps the rows');
+  upd({ closingHr: 2364.8, work: 'ONLY ROCK', items: { Breaker: 1 } });
+  assert.deepStrictEqual(JSON.parse(stored().items), { Breaker: 1 }, 'a changed description: one entry again, the quantities stay');
+  assert.strictEqual(entry().itemParts, undefined);
+  // the entry's total changed elsewhere (its Close lowered in the small window, the items left as they were): the rows no longer
+  // fit → they are not used, and the bill goes by the quantities as it always did
+  bulk([{ n: 'Bucket', q: 2 }, { n: 'Breaker', q: 1 }]);
+  run(`k => { const lt = table_(APP.SHEET_LOG), c = lt.c, i = findLogIdx_(lt, k), row = lt.rows[i].slice(); row[c[H.CHR]] = 2364.3; row[c[H.WHR]] = 2.5; lt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); }`, K);
+  e = entry();
+  assert.strictEqual(e.itemParts, undefined, 'rows that do not add up to the entry are not shown');
+  assert.deepStrictEqual(e.itemQty.map(x => x.n + ' ' + x.q).sort(), ['Breaker 1', 'Bucket 1.5']);
+});
+
+test('the Log Book print gives each work its own row: kept rows as entered, a Split entry in the order of the BOQ (page function, hand-worked)', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const grab = m => { const i = app.indexOf(m); assert.ok(i > -1, m + ' found'); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
+  const env = { DAY_STATUS: ['Idle', 'Holiday', 'Breakdown'], METER_OFF: 'No reading', r2: n => Math.round(n * 100) / 100, hasKm: u => u === 'KM' || u === 'KM + Hrs', hasHr: u => u === 'Hrs' || u === 'KM + Hrs' };
+  const { lbWorkRows } = new Function(...Object.keys(env), grab('function lbWorkRows(') + '; return { lbWorkRows };')(...Object.values(env));
+  const boq = [{ name: 'Bucket', basis: 'Per Hour', qty: 'rest' }, { name: 'Breaker', basis: 'Per Hour', qty: 'typed' }];
+  const base = { no: 'JCB', date: '2026-09-24', shift: 'Day', mode: 'Hrs', unit: 'Hrs', ohr: 2361.8, chr: 2364.8, whr: 3, okm: '', ckm: '', wkm: '', trip: '', challan: '694', work: 'PQC', remark: 'BUCKET', chFrom: 'A', chTo: 'B', boqItems: boq, debitTo: 'X' };
+  const pick = y => [y.ohr, y.chr, y.whr, y.itemQty.map(x => x.n + ' ' + x.q).join('+'), y.challan, y.work].join(' ¦ ');
+  // one work only: one row, as always
+  assert.strictEqual(lbWorkRows(Object.assign({}, base, { itemQty: [{ n: 'Bucket', q: 3, k: 'hr' }] })), null);
+  assert.strictEqual(lbWorkRows(Object.assign({}, base, { itemQty: [] })), null);
+  assert.strictEqual(lbWorkRows(Object.assign({}, base, { mode: 'Idle', itemQty: [{ n: 'Bucket', q: 2, k: 'hr' }, { n: 'Breaker', q: 1, k: 'hr' }] })), null);
+  // entered with Split (Breaker 1 typed, Bucket takes the rest): Bucket first (the order of the BOQ), each as long as its hours
+  let ys = lbWorkRows(Object.assign({}, base, { itemQty: [{ n: 'Breaker', q: 1, k: 'hr' }, { n: 'Bucket', q: 2, k: 'hr' }] }));
+  assert.deepStrictEqual(ys.map(pick), ['2361.8 ¦ 2363.8 ¦ 2 ¦ Bucket 2 ¦ 694 ¦ PQC', '2363.8 ¦ 2364.8 ¦ 1 ¦ Breaker 1 ¦ 694 ¦ PQC']);
+  assert.deepStrictEqual(ys.map(y => y._part + '/' + (y.debitTo || '-')), ['Bucket/X', 'Breaker/-'], 'what belongs to the whole entry stands on its first row');
+  // rows kept by Edit Log Book: as entered – Breaker first here, own challan and description; the last row closes on the entry's Close
+  ys = lbWorkRows(Object.assign({}, base, { itemQty: [{ n: 'Breaker', q: 1.2, k: 'hr' }, { n: 'Bucket', q: 1.8, k: 'hr' }], itemParts: [{ n: 'Breaker', q: 1.2, k: 'hr', c: '700', w: 'ROCK', p: '', f: '', t: '' }, { n: 'Bucket', q: 1.8, k: 'hr', c: '', w: 'LOADING', p: 'BKT', f: 'C', t: 'D' }] }));
+  assert.deepStrictEqual(ys.map(pick), ['2361.8 ¦ 2363 ¦ 1.2 ¦ Breaker 1.2 ¦ 700 ¦ ROCK', '2363 ¦ 2364.8 ¦ 1.8 ¦ Bucket 1.8 ¦  ¦ LOADING']);
+  assert.deepStrictEqual([ys[1].chFrom, ys[1].chTo, ys[1]._prt, ys[0].chFrom], ['C', 'D', 'BKT', '']);
+  // the hours of the rows are the hours of the entry – nothing is added or lost
+  assert.strictEqual(Math.round(ys.reduce((a, y) => a + y.whr, 0) * 100) / 100, 3);
+  // trips shared between two per-trip items: a row each, no readings to share
+  const tr = lbWorkRows({ mode: 'Trip', unit: 'Trip', trip: 7, ohr: '', chr: '', whr: '', okm: '', ckm: '', wkm: '', boqItems: [{ name: 'Murum', basis: 'Per Trip', qty: 'typed' }, { name: 'Sand', basis: 'Per Trip', qty: 'rest' }], itemQty: [{ n: 'Murum', q: 3, k: 'trip' }, { n: 'Sand', q: 4, k: 'trip' }], work: 'CARTING' });
+  assert.deepStrictEqual(tr.map(y => y.trip + ' ' + y.itemQty[0].n), ['3 Murum', '4 Sand']);
+});
+
+test('the diesel rate typed by hand: the bill is worked out at it on the page and on the server alike; empty = the automatic rate (hand-worked)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  run('(x, m) => saveMaster_(x, m)', { no: 'R69-EX', name: 'Excavator', type: 'Excavator', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 10, owner: 'R69 Rate Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-03-01' }, 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'R69 Rate Vendor', gstReg: 'No', pan: 'ABCDE1269Q', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'R69 Rate Vendor', from: '2026-03-01', tdsPct: 0, woNo: 'WO-R', lines: [{ no: 'R69-EX', basis: 'Per Hour', rate: 1000, diesel: 'Debit Basis' }] }, 'add');
+  run('x => saveInward_(x)', { date: '2026-03-01', location: 'Dispenser', pump: 'Pump', qty: 1000, rate: 90, billNo: 'R69A', billDate: '2026-03-01' });
+  run('x => saveInward_(x)', { date: '2026-03-10', location: 'Dispenser', pump: 'Pump', qty: 1000, rate: 94, billNo: 'R69B', billDate: '2026-03-10' });
+  run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-03-05', shift: 'Full Day', no: 'R69-EX', mode: 'Hrs', openingHr: 100, closingHr: 108 }, { date: '2026-03-06', shift: 'Full Day', no: 'R69-EX', mode: 'Hrs', closingHr: 115 }] });
+  run('x => saveDieselIssue_(x)', { date: '2026-03-05', shift: 'Day', source: 'Dispenser', no: 'R69-EX', qty: 50, hrReading: 101, force: true });
+  const from = '2026-03-01', to = '2026-03-31';
+  const list = run('(f, t) => getLogBookList_({ from: f, to: t, no: "R69-EX", all: true }).rows', from, to), extra = run('(f, t) => logPrintExtra_({ from: f, to: t, nos: ["R69-EX"] })', from, to);
+  // automatic: the higher of the average of the period and the last purchase (94 – bought on the 10th; the average is below it)
+  assert.ok(extra.lastRate === 94 && extra.avgRate > 0 && extra.avgRate < 94, JSON.stringify([extra.avgRate, extra.lastRate]));
+  const srv = x => run('(l, e, f, t) => billMachineCalc_(findMachine_("R69-EX"), l, e, f, t, undefined, true)', list, x, from, to);
+  let c = srv(extra);
+  assert.deepStrictEqual([c.debitQty, c.dieselRate, c.autoRate, c.rateManual, c.excessAmt, c.amount], [50, 94, 94, false, 4700, 15000]);
+  // typed by hand: 95.50 → 50 L × 95.50 = 4,775; the work amount is not touched
+  c = srv(Object.assign({}, extra, { manualRate: 95.5 }));
+  assert.deepStrictEqual([c.debitQty, c.dieselRate, c.autoRate, c.rateManual, c.excessAmt, c.amount], [50, 95.5, 94, true, 4775, 15000]);
+  assert.strictEqual(srv(Object.assign({}, extra, { manualRate: 0 })).excessAmt, 4700, '0 / empty = automatic');
+  assert.strictEqual(srv(Object.assign({}, extra, { manualRate: 'abc' })).excessAmt, 4700);
+  // the page works out the same, with and without the typed rate
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const grab = m => { const i = app.indexOf(m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
+  const dayPartSrc = (app.match(/const dayPart = (r => [^\n]+?);\n/) || [])[1];
+  const env = { dayPart: new Function('return ' + dayPartSrc)(), r2: n => Math.round(n * 100) / 100, hasKm: u => u === 'KM' || u === 'KM + Hrs', hasHr: u => u === 'Hrs' || u === 'KM + Hrs', isHol: r => ['Holiday', 'Breakdown'].indexOf(r.mode || r.unit) > -1,
+    showDate: d => d.split('-').reverse().join('/'), fmt: String, DAY_STATUS: ['Idle', 'Holiday', 'Breakdown'], METER_OFF: 'No reading', isoDate: d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'), ITEM_WORD: { hr: 'hr', km: 'km', trip: 'trips' }, dieselDebitDay: (vt, bd, m) => bd ? bd.diesel === 'Debit Basis' : !!(m && m.supply === 'Debit Basis'), findMachine: no => T.getMaster_().find(m => m.id === no) };
+  const C = new Function(...Object.keys(env), grab('function itemDaySegs(') + '\n' + grab('function tankLeft(') + '\n' + grab('function mbMachine(') + '; return { mbMachine };')(...Object.values(env));
+  for (const x of [extra, Object.assign({}, extra, { manualRate: 95.5 }), Object.assign({}, extra, { manualRate: 88 })]) {
+    const pg = C.mbMachine('R69-EX', list, x, from, to, undefined, true), sv = srv(x);
+    assert.deepStrictEqual([pg.dieselRate, pg.autoRate, pg.rateManual, pg.excessAmt, pg.amount], [sv.dieselRate, sv.autoRate, sv.rateManual, sv.excessAmt, sv.amount], 'page = server at manualRate ' + x.manualRate);
+  }
+  // Verify (the server builds the bill again): the rate travels with the bill
+  const co = run('() => billCompanies_()')[0];
+  const mk = (rate, B) => ({ company: co, vendor: { name: 'R69 Rate Vendor' }, from: from, to: to, billDate: '2026-04-02', billNo: '1', picked: ['R69-EX'], partial: false, edited: false, idlePaid: true, dieselRate: rate,
+    machines: [{ no: 'R69-EX', workDays: 2, nights: 0, issued: 50, amount: 15000, excessAmt: B, lines: [] }], A: 15000, B: B, C: 0, D: 15000 - B, E: 0, F: 0, G: 15000 - B, H: 0, I: 15000 - B, gstPct: 0, tdsPct: 0 });
+  const said = b => JSON.stringify(run('b => verifyBills_({ bills: [b] })', b));
+  const okBill = run('b => verifyBills_({ bills: [b] })', mk(95.5, 4775));
+  assert.ok(okBill.ok, 'the bill at 95.50 verifies: ' + JSON.stringify(okBill).slice(0, 600));
+  assert.match(JSON.stringify(okBill), /Diesel is debited at ₹95\.5 per litre – typed by hand in this bill \(automatic rate of the period: ₹94\)/);
+  assert.ok(run('b => verifyBills_({ bills: [b] })', mk('', 4700)).ok, 'the automatic bill verifies as before');
+  assert.match(said(mk('', 4775)), /diesel deduction ₹4700 \(bill: ₹4775\)/, 'an amount made at another rate without saying so is refused');
+  assert.match(said(mk(95.5, 4700)), /diesel deduction ₹4775 \(bill: ₹4700\)/);
+  assert.match(said(mk(-2, 4775)), /is not a proper rate/);
+  assert.match(said(mk(5000, 4775)), /is not a proper rate/);
+});
