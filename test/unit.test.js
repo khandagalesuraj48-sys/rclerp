@@ -1370,3 +1370,38 @@ test('the diesel rate typed by hand: the bill is worked out at it on the page an
   assert.match(said(mk(-2, 4775)), /is not a proper rate/);
   assert.match(said(mk(5000, 4775)), /is not a proper rate/);
 });
+
+// update-70 (10-10-2026): a machinery whose entries were made by clock Time and whose Log Book format was LATER set to one read from
+// the hour meter (E). Edit Log Book sends each entry back in the way it was saved – the server must take that for an entry that
+// already has it (before: "does not work on Time"), and still refuse that way for a NEW entry (the format decides new entries).
+test('Edit Log Book: a saved entry keeps the way it was saved in after the Log Book format is changed; a new entry follows the format', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  run('(x, m) => saveMaster_(x, m)', { no: 'T70-JCB', name: 'JCB', type: 'JCB', unit: 'Hrs', worksOn: ['Hrs', 'Time'], hrStd: 4, owner: 'T70 Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-06-28', shift: 'Day', no: 'T70-JCB', mode: 'Time', tStart: '09:00', tEnd: '16:30', tSlots: [['09:00', '13:00'], ['14:00', '16:30']], work: 'CLEANING' }] });
+  run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-06-29', shift: 'Day', no: 'T70-JCB', mode: 'Time', tStart: '11:00', tEnd: '13:00', work: 'SHIFTING' }] });
+  run('x => saveLbFormats_(x)', { 'T70-JCB': 'E' });
+  const from = '2026-06-01', to = '2026-06-30';
+  const grid = () => run('(f, t) => getLogEditData_("T70-JCB", f, t)', from, to);
+  const g = grid();
+  assert.deepStrictEqual(g.machine.modes, ['Hrs'], 'format E: new entries are read from the hour meter');
+  assert.deepStrictEqual(g.rows.map(r => [r.date, r.mode, r.tHrs].join(' ')), ['2026-06-28 Time 6.5', '2026-06-29 Time 2'], 'the entries are still what was saved');
+  const send = (edit, extra) => run('p => { try { return saveLogBulk_(p); } catch (e) { return { thrown: String(e.message) }; } }', { no: 'T70-JCB', from: from, to: to, deleted: [], openingDiesel: '',
+    rows: grid().rows.map(r => Object.assign({ key: r.key, same: false, half: false, date: r.date, shift: r.shift, mode: r.mode, openingHr: '', closingHr: '', openingKm: '', closingKm: '', tStart: r.tStart, tEnd: r.tEnd, tBreak: r.tBrk, remark: '', trip: '', challan: '', chFrom: '', chTo: '', work: r.work, odSet: '' }, edit(r))).concat(extra || []) });
+  const stored = () => run(`() => { const lt = table_(APP.SHEET_LOG), c = lt.c; return lt.rows.filter(x => str_(x[c[H.NO]]) === 'T70-JCB').map(x => [dkey_(x[c[H.DATE]]), str_(x[c[H.UNIT]]), num0_(x[c[H.THRS]]), str_(x[c[H.WORK]])].join(' ')).sort(); }`);
+  // a description corrected, and the To time of the 29th: saved in the way they were saved in
+  let r = send(x => x.date === '2026-06-28' ? { work: 'CLEANING WORK' } : { tEnd: '14:00' });
+  assert.ok(r.ok && r.changed === 2, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual(stored(), ['2026-06-28 Time 6.5 CLEANING WORK', '2026-06-29 Time 3 SHIFTING']);
+  // a NEW entry by Time is still refused for this machinery (its format is read from the hour meter) – and nothing is changed by the try
+  r = send(() => ({ same: true }), [{ key: '', date: '2026-06-30', shift: 'Day', mode: 'Time', tStart: '09:00', tEnd: '11:00', tBreak: '', work: 'NEW' }]);
+  assert.ok(r.ok === false && /does not work on "Time"/.test((r.errors || []).map(e => e.msg).join(' ') + (r.thrown || '')), JSON.stringify(r).slice(0, 300));
+  // a saved entry cannot be moved to a way the machinery does not have either
+  r = send(x => x.date === '2026-06-29' ? { mode: 'KM', openingKm: 10, closingKm: 20 } : { same: true });
+  assert.ok(r.ok === false && /does not work on "KM"/.test((r.errors || []).map(e => e.msg).join(' ') + (r.thrown || '')), JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual(stored(), ['2026-06-28 Time 6.5 CLEANING WORK', '2026-06-29 Time 3 SHIFTING']);
+  // … but it can be moved to the way of the format (Hrs), with readings
+  r = send(x => x.date === '2026-06-29' ? { mode: 'Hrs', openingHr: 100, closingHr: 103, tStart: '', tEnd: '', tBreak: '' } : { same: true });
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual(stored().map(x => x.split(' ').slice(0, 2).join(' ')), ['2026-06-28 Time', '2026-06-29 Hrs']);
+});

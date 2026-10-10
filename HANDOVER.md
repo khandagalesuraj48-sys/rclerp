@@ -1314,6 +1314,14 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * OPEN / ASK HIM: rows per work on the daily entry page (today: one line per shift, with a hint to Edit Log Book); rows for
     clock-Time / Trip works; whether the automatic rate should be the last purchase rate alone (his words were not clear on that);
     the order of a Split entry's printed rows is the BOQ order (an assumption).
+- 10-10-2026 (update-70, asked right after update-69 went live – `fc3187e`). Report: `UPDATE_70.md`. NO SQL. NOT deployed by me.
+  "Log Book shows the data, Edit Log Book is blank": a JCB that works on Hrs + Time, entries made by clock Time, Log Book format LATER
+  set to E (`LB_FMT_MODES.E = ['Hrs']`). `lxLoad` mapped a way the format does not list to the format's first way → empty red rows.
+  Same on update-68 (reproduced) – not from update-69. Now: `lxLoad` keeps a saved way that is in `WAYS_ALL`; `lxRender` offers
+  `r.orig.mode` beside the format's ways; `saveLogBulk_` takes the stored way of an EXISTING entry (`cur`) without `logModeFor_`
+  (a new entry / another way is checked as before). The small edit window already worked from the stored unit. RULE: the format
+  decides the way of NEW entries; a saved entry is always shown and saved in the way it has. Test: `test/browser/timefmt70.js
+  [port] [look]`, unit 48. Not looked at (not asked): how the print in an hour-meter format shows entries made by Time.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

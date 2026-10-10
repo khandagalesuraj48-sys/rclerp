@@ -6457,7 +6457,10 @@ function saveLogBulk_(b) {
         if (clash(dk, sh)) throw new Error(dmy_(dk) + ' (' + sh + ') is entered more than once.');
         taken[dk] = (taken[dk] || []).concat(sh);
         const cur = l.key && l.key in byKey ? str_(lt.rows[byKey[l.key]][c[H.UNIT]]) : '';
-        const mode = logModeFor_(m, str_(l.mode) || cur), km = hasKm_(mode), hr = hasHr_(mode);
+        // an entry that is already saved keeps the way it was saved in – also when the machinery's Log Book format was changed afterwards
+        // (the format decides the way of NEW entries; a way that is new for this entry must be one the machinery has)
+        const wayKey = w => str_(w).toUpperCase().replace(/\s+/g, '');
+        const mode = cur && (!str_(l.mode) || wayKey(l.mode) === wayKey(cur)) ? cur : logModeFor_(m, str_(l.mode) || cur), km = hasKm_(mode), hr = hasHr_(mode);
         if (meterOff_(mode) && !(l.key && byKey[l.key] !== undefined && meterOff_(lt.rows[byKey[l.key]][c[H.UNIT]]))) throw new Error(m.id + ' (' + dmy_(dk) + '): a day without a reading is entered on the Log Book page (it needs the estimated work and the reason).');
         const v = { mode: mode, km: km, hr: hr, ex: logExtra_(m, mode, l, dmy_(dk)) };
         if (km) { v.okm = reqReading_(blank_(l.openingKm) ? 0 : l.openingKm, 'Start KM'); v.ckm = reqReading_(l.closingKm, 'Close KM'); if (v.ckm < v.okm) throw new Error(dmy_(dk) + ': Close KM ' + v.ckm + ' is less than Start KM ' + v.okm + '.'); }
