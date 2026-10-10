@@ -391,6 +391,15 @@ function makeGlobals(st, page) {
     console: console,
     __warm: makeWarm(st),       // the tables kept in this server's memory (see makeWarm)
     __ai: makeAi(),             // the assistant's line to the AI service (see makeAi)
+    __scrypt: scryptHex,        // update-65s: passwords kept by update-68 (scrypt) can be READ here (see checkPw_ in Code.gs)
   };
 }
-module.exports = { newState, boot, flush, forceUnlock, makeGlobals, rpc, conf, Utilities, TZ };
+/* scrypt for reading the passwords update-68 keeps (update-65s). Only cost settings from the short list are worked on:
+ * a damaged or planted value in the Users table (a huge N) must not be able to hold a server or eat its memory. */
+const SCRYPT_N = [16384, 32768, 65536, 131072];
+function scryptHex(pw, saltHex, N, r, p) {
+  N = Number(N); r = Number(r); p = Number(p);
+  if (SCRYPT_N.indexOf(N) === -1 || r !== 8 || !(p >= 1 && p <= 5) || !/^[0-9a-f]{32}$/.test(String(saltHex))) throw new Error('scrypt: settings not allowed');
+  return require('crypto').scryptSync(Buffer.from(String(pw), 'utf8'), Buffer.from(String(saltHex), 'hex'), 32, { N: N, r: r, p: p, maxmem: 160 * 1024 * 1024 }).toString('hex');
+}
+module.exports = { newState, boot, flush, forceUnlock, makeGlobals, rpc, conf, Utilities, TZ, scryptHex };

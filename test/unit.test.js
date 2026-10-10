@@ -1082,3 +1082,33 @@ test('split timing of a Time entry: several From – To in one entry, hours as d
   g = grid(); g.find(x => x.date === '2026-07-01' && x.shift === 'Day').tEnd = '19:00'; r = run('b => saveLogBulk_(b)', { no: 'TS-1', from: '2026-07-01', to: '2026-07-31', rows: g, deleted: [] }); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 300));
   assert.strictEqual(cols()[0], '01 Day: 10:00>19:00 brk 90 hrs 7.5 whr 7.5');
 });
+
+test('update-65s (the version it is safe to go back to from update-68): a scrypt password is READ, a kept text is never a password', () => {
+  const { ctx } = require('./harness.js'); const gas = require('../server/gas.js'); const R = c => require('vm').runInContext(c, ctx);
+  const U0 = ctx.Utilities; ctx.Utilities = gas.Utilities; ctx.__scrypt = gas.scryptHex;
+  try {
+    const salt = '00112233445566778899aabbccddeeff', pw = 'Site#Office2468';
+    const kept = 'scrypt$32768$8$3$' + salt + '$' + crypto.scryptSync(Buffer.from(pw), Buffer.from(salt, 'hex'), 32, { N: 32768, r: 8, p: 3, maxmem: 160 * 1024 * 1024 }).toString('hex') + '$abcdefabcdef';
+    ctx.__k = kept;
+    { const cg = fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8'); assert.match(cg, /if \(!good && !\(known && pwScrypt_\(u\.password\)\)\) pwDummy_\(password\);/, 'every refused sign-in costs one scrypt'); }
+    assert.strictEqual(R('pwScrypt_(__k)'), true); assert.strictEqual(R("pwScrypt_('tmp$' + __k)"), true); assert.strictEqual(R("pwScrypt_('sha256$ab$cd')"), false); assert.strictEqual(R("pwScrypt_('Plain#OneTime1')"), false); assert.strictEqual(R("pwScrypt_('')"), false);
+    assert.strictEqual(R("checkPw_('Site#Office2468', __k)"), true, 'the user signs in with the same password');
+    assert.strictEqual(R("checkPw_('Site#Office2469', __k)"), false); assert.strictEqual(R('checkPw_(__k, __k)'), false, 'the kept text itself is NOT a password');
+    assert.strictEqual(R('isHashed_(__k)'), true); assert.strictEqual(R('pwStamp_(__k)'), 'abcdefabcdef', 'a session made on update-68 stays good');
+    // a one-time password kept by update-68: accepted, still "must change" (isHashed_ false), the kept text is not a password
+    assert.strictEqual(R("checkPw_('Site#Office2468', 'tmp$' + __k)"), true); assert.strictEqual(R("checkPw_('tmp$' + __k, 'tmp$' + __k)"), false); assert.strictEqual(R("isHashed_('tmp$' + __k)"), false);
+    // damaged / planted kept texts: never open, never compared as typed text
+    for (const bad of ["__k.slice(0, -20) + 'zz' + __k.slice(-18)", "'scrypt$1073741824$8$1$' + '0'.repeat(32) + '$' + '0'.repeat(64) + '$' + '0'.repeat(12)", "'sha256$zz$zz'", "'tmp$scrypt$'", "'tmp$sha256$xx'"])
+      { assert.strictEqual(R('checkPw_(' + bad + ', ' + bad + ')'), false, bad); assert.strictEqual(R("checkPw_('Site#Office2468', " + bad + ')'), false, bad); }
+    // what update-65 did is unchanged: the old hash, a one-time password as typed, a changed password kept the old way
+    let x = crypto.createHash('sha256').update('03df218ade11434e|Nashik#Road848!', 'utf8').digest(); for (let i = 0; i < 300; i++) x = crypto.createHash('sha256').update(Buffer.concat([x, Buffer.from('03df218ade11434e', 'utf8')])).digest();
+    ctx.__old = 'sha256$03df218ade11434e$' + x.toString('hex');
+    assert.strictEqual(R("checkPw_('Nashik#Road848!', __old)"), true); assert.strictEqual(R("checkPw_('x', __old)"), false); assert.strictEqual(R('checkPw_(__old, __old)'), false);
+    assert.strictEqual(R('pwStamp_(__old)'), crypto.createHash('sha256').update('st|' + ctx.__old).digest('hex').slice(0, 12));
+    assert.strictEqual(R("checkPw_('Temp#12345', 'Temp#12345')"), true); assert.strictEqual(R("isHashed_('Temp#12345')"), false);
+    assert.match(R("makeHash_('New#Pass2468')"), /^sha256\$[0-9a-f]{16}\$[0-9a-f]{64}$/);
+    // without the host function nothing kept with scrypt opens (and still nothing is compared as typed text)
+    delete ctx.__scrypt; assert.strictEqual(R("checkPw_('Site#Office2468', __k)"), false); assert.strictEqual(R('checkPw_(__k, __k)'), false);
+    for (const bad of [[1024, 8, 1], [1073741824, 8, 1], [32768, 16, 1], [32768, 8, 9]]) assert.throws(() => gas.scryptHex('pw', salt, bad[0], bad[1], bad[2]), /not allowed/);
+  } finally { delete ctx.__scrypt; delete ctx.__k; delete ctx.__old; ctx.Utilities = U0; }
+});

@@ -151,15 +151,39 @@ function hashPw_(pw, salt) {
   return hex_(h);
 }
 function makeHash_(pw) { const salt = Utilities.getUuid().replace(/-/g, '').slice(0, 16); return 'sha256$' + salt + '$' + hashPw_(pw, salt); }
-const isHashed_ = stored => /^sha256\$[0-9a-f]{16}\$[0-9a-f]{64}$/.test(String(stored));
+/* ---------- update-65s: THE VERSION IT IS SAFE TO GO BACK TO FROM update-68 (07-10-2026) ----------
+ * This is update-65 with ONE change: it can READ a password kept the way update-68 keeps it
+ *      scrypt$<N>$<r>$<p>$<salt>$<hash>$<stamp>          one-time password:  tmp$scrypt$…  (or tmp$sha256$…)
+ * WHY. update-68 keeps a password afresh with scrypt at the user's next sign-in. The plain update-65 does not know that
+ *   form: it took such a kept text for a password "as typed" – so (1) the user could no longer sign in with the real
+ *   password and (2) whoever had a copy of the Users table could sign in by typing the kept text itself. Going back from
+ *   update-68 to the plain update-65 was therefore unsafe. Going back to THIS version is safe:
+ *     - a scrypt password is checked with scrypt: the user signs in with the same password as before, nobody is locked out;
+ *     - a kept text (anything that looks like "scrypt$…", "sha256$…", "tmp$…") is NEVER compared as typed text;
+ *     - a session made on update-68 stays good (the stamp kept inside the scrypt text is used, as update-68 does).
+ * Everything else is update-65 as it was: a password that is CHANGED here is kept the old way (sha256$…), a one-time
+ * password set by the Admin is kept as typed until the user changes it. update-68 reads both again when it comes back. */
+const SCRYPT_RE_ = /^scrypt\$(16384|32768|65536|131072)\$8\$([1-5])\$([0-9a-f]{32})\$([0-9a-f]{64})\$([0-9a-f]{12})$/;
+const isOldHash_ = stored => /^sha256\$[0-9a-f]{16}\$[0-9a-f]{64}$/.test(String(stored));
+const isHashed_ = stored => SCRYPT_RE_.test(String(stored)) || isOldHash_(stored);      // a person's own password (not a one-time one)
+const sameText_ = (a, b) => { a = String(a); b = String(b); let d = a.length ^ b.length; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i % (b.length || 1)); return d === 0; };
 function checkPw_(pw, stored) {
   stored = String(stored || '');
   if (!stored) return false;
-  if (isHashed_(stored)) { const p = stored.split('$'); return hashPw_(String(pw), p[1]) === p[2]; }
+  const body = /^tmp\$/.test(stored) && isHashed_(stored.slice(4)) ? stored.slice(4) : stored;      // a one-time password of update-68: the same, with "tmp$" in front
+  const m = body.match(SCRYPT_RE_);
+  if (m) return typeof __scrypt === 'function' && sameText_(__scrypt(String(pw), m[3], Number(m[1]), 8, Number(m[2])), m[4]);
+  if (isOldHash_(body)) { const p = body.split('$'); return sameText_(hashPw_(String(pw), p[1]), p[2]); }
+  if (/^(tmp\$)?(scrypt|sha256)\$/.test(stored)) return false;      // looks like a kept password but cannot be read: never compared as typed text
   return String(pw) === stored; // plain password set by Admin: accepted once, then must be changed
 }
+// is this kept password one that is checked with scrypt (also a one-time one)?
+const pwScrypt_ = stored => SCRYPT_RE_.test(String(stored || '').replace(/^tmp\$/, ''));
+// what a refused sign-in costs: the same work as checking a password kept with scrypt (the time of the answer must not tell which e-mails exist)
+function pwDummy_(pw) { try { if (typeof __scrypt === 'function') __scrypt(String(pw), '00000000000000000000000000000000', 32768, 8, 3); } catch (e) { /* only the time matters */ } return false; }
 // short fingerprint of the stored password: sessions carry it, so changing a password ends older sessions
-const pwStamp_ = stored => hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'st|' + String(stored || ''))).slice(0, 12);
+// (a scrypt password carries its stamp inside – the one update-68 gave the session)
+const pwStamp_ = stored => { const m = String(stored || '').replace(/^tmp\$/, '').match(SCRYPT_RE_); return m ? m[5] : hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'st|' + String(stored || ''))).slice(0, 12); };
 function pwPolicy_(pw) {
   pw = String(pw || '');
   if (pw.length < PW_MIN_) return 'Password must have at least ' + PW_MIN_ + ' characters.';
@@ -299,7 +323,11 @@ function login(email, password) {
   }
   if (fails >= 5) throw new Error('Too many wrong attempts. Try again after 15 minutes.');
   const u = e ? readUsers_().find(x => x.email === e) : null;
-  if (!u || !u.active || !checkPw_(password, u.password)) {
+  const known = !!u && u.active, good = known && checkPw_(password, u.password);
+  // every refusal costs one scrypt – an unknown e-mail, and also a wrong password for a password still kept the older way
+  // (a quick "no" would tell that the e-mail exists)
+  if (!good && !(known && pwScrypt_(u.password))) pwDummy_(password);
+  if (!good) {
     if (!exact) cache.put(failKey, String(fails + 1), 900);
     // log only the first failure and the lock, so failures cannot flood the Activity Log
     const hk = 'LGL_' + Math.floor(Date.now() / 3600000), logged = Number(cache.get(hk) || 0); // at most 100 failure lines an hour
