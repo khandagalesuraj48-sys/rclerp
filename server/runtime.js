@@ -44,7 +44,7 @@ function compiled() {
 }
 // the cache keys a call will surely ask for (read together with the settings, in the first database call)
 function bootKeys(fn, args) {
-  if (fn === 'api' || fn === 'saved') return ['S_' + String(args[0] || ''), 'USERS_LIST'];
+  if (fn === 'api' || fn === 'saved') return ['S_' + String(args[0] || ''), 'USERS_LIST', 'RTCN'];      // RTCN: the counter of screen-share notes (Code.gs rtcBeat_) – loaded with the rest, so the heartbeat asks nothing extra
   if (fn === 'login') { const e = String(args[0] || '').trim().toLowerCase().slice(0, 120); return ['USERS_LIST', 'F_' + e, 'LG_' + Math.floor(Date.now() / 60000)]; }
   if (fn === 'changePassword' || fn === 'logout') return ['S_' + String(args[0] || ''), 'USERS_LIST'];
   if (fn === 'backup') return ['S_' + String((args[0] && args[0].token) || ''), 'USERS_LIST'];
@@ -60,7 +60,7 @@ function bootKeys(fn, args) {
  * is NOT kept: the number is given back, so the next copy tries afresh.
  * web_count (step-3 SQL) makes "who is first" exact; without it a plain look is used. */
 const NOT_NOW = /Another save is still running|Could not reach the database|did not answer in time|^Database \([a-z_]+\): 5\d\d|RETRY_LATER/;
-const IS_QUESTION = f => /^(get|rpt)[A-Z]/.test(f) || ['sync', 'logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1;
+const IS_QUESTION = f => /^(get|rpt|rtc)[A-Z]/.test(f) || ['sync', 'logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1;
 const { sleepSync } = require('./syncfetch');
 const crypto = require('crypto');
 /* ---------- SAVED ONCE, DECIDED INSIDE THE DATABASE (update-68, step-5 SQL: web.ops) ----------

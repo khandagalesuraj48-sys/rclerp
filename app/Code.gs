@@ -427,6 +427,102 @@ function accessReport_() {
 }
 function publicUser_(u) { return { email: u.email, name: u.name, admin: u.admin, perms: u.perms }; }
 
+/* ================= SCREEN SHARE WITH VOICE (update-72, asked 10-10-2026) =================
+ * "User A has a difficulty on a screen: he shares his screen with user B and they talk – live, picked from a list of users."
+ * The screen and the voice go STRAIGHT from one browser to the other (WebRTC, encrypted) – never through this server.
+ * The server only carries the few short notes that set a call up ("A rings B", "B answers", "who is at the app now?"):
+ *
+ *   - a note is ONE entry of the existing cache store (web.cache): RTCM_<number>, kept for well under two minutes;
+ *   - its number comes from the store's own counter (RTCN, web_count: two notes can never take the same number) –
+ *     without that counter the next number is taken from the last one read;
+ *   - every open page already asks the server "anything new?" every 2 seconds (the heartbeat, "sync"). The heartbeat now
+ *     says up to which number the page has read; the server answers with the notes after it that are FOR THAT USER.
+ *     The counter is one of the keys every request loads at its start (server/runtime.js bootKeys), so a heartbeat costs
+ *     the database nothing more than before; the notes themselves are read only when the counter has moved.
+ *   - users are named to each other by a short code (rtcUid_), not by e-mail address.
+ * No new table, no SQL. Nothing of a call is recorded; the Activity Log gets one line when a call is joined and one when
+ * it ends (who, with whom, how long). */
+const RTC_COUNT_ = 'RTCN', RTC_MSG_ = 'RTCM_', RTC_STORE_ = 150;      // a note stays in the store for 150 s whatever its kind (so that a number that is gone is known to be OLD, not "not written yet")
+const RTC_KEEP_ = { who: 8, here: 8, ring: 75, answer: 45, decline: 45, cancel: 75, busy: 45, bye: 45 };      // seconds a note is of use to its receiver (a page in a background tab asks the server only about once a minute)
+function rtcUid_(email) { return hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'rtc|' + str_(email).toLowerCase(), Utilities.Charset.UTF_8)).slice(0, 16); }
+const rtcName_ = x => str_(x.name) || str_(x.email).split('@')[0] || 'User';      // (a user without a name is shown by the first part of the address, never the whole address)
+function rtcPeople_() { return readUsers_().filter(x => x.active).map(x => ({ uid: rtcUid_(x.email), name: rtcName_(x) })); }
+// the list a user picks from (everybody who can sign in, except himself) and how the browsers find each other
+function rtcUsers_(u) {
+  const me = rtcUid_(u.email);
+  return { me: me, name: rtcName_(u), users: rtcPeople_().filter(p => p.uid !== me).sort((a, b) => a.name.localeCompare(b.name)),
+    ice: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }], max: 3 };
+}
+/* A note from one user to others: { t: kind, to: code | [codes], call: the call's id, d: details }.
+ * "who" goes to everybody. A RING is remembered for a few hours (RTCC_<call>_<guest> = host): an answer, decline, busy or bye
+ * is taken only from a user who was rung in that call (or from its host), so nobody can make another user's page react to
+ * a call that never was, and the lines of the Activity Log ("joined", "ended") say only what the server itself has seen. */
+function rtcSend_(u, x) {
+  x = x && typeof x === 'object' ? x : {};
+  const t = str_(x.t), me = rtcUid_(u.email), people = rtcPeople_(), nameOf = id => (people.find(p => p.uid === id) || {}).name || '?', myName = rtcName_(u);
+  const call = str_(x.call).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40), cache = CacheService.getScriptCache();
+  if (typeof __count === 'function') { const k = __count('RTCR_' + me + '_' + Math.floor(Date.now() / 60000), 90); if (k > 150) throw new Error('Screen share: too many requests in a minute – wait a little and try again.'); }
+  if (call) cache.getAll(['RTCE_' + call, 'RTCC_' + call + '_' + me, 'RTCA_' + call + '_' + me].concat([...new Set((Array.isArray(x.to) ? x.to : [x.to]).map(str_).filter(Boolean))].slice(0, 6).reduce((k, id) => k.concat(['RTCC_' + call + '_' + id, 'RTCA_' + call + '_' + id]), [])));      // what is remembered of this call, read in one go
+  const rung = id => { const v = str_(cache.get('RTCC_' + call + '_' + id)).split('|'); return v[0] ? { host: v[0], at: Number(v[1]) || 0 } : null; };
+  if (t === 'end') {      // the call is over (said by its host): one line for the Activity Log, once
+    const ids = [...new Set((Array.isArray(x.to) ? x.to : []).map(str_))].slice(0, 6).filter(id => { const r = rung(id); return r && r.host === me && !!cache.get('RTCA_' + call + '_' + id); });
+    if (!call || !ids.length || cache.get('RTCE_' + call)) return { ok: true };
+    const since = Math.min.apply(null, ids.map(id => rung(id).at)), secs = Math.max(0, Math.min(Math.round(Number(x.secs) || 0), Math.round((Date.now() - since) / 1000) + 5));
+    cache.put('RTCE_' + call, '1', 21600);
+    writeLog_(u, 'Screen share', 'Screen Share', call, 'Screen share of ' + myName + ' with ' + ids.map(nameOf).join(', ') + ' ended after ' + Math.floor(secs / 60) + ' min ' + (secs % 60) + ' s', '');
+    return { ok: true };
+  }
+  if (!Object.prototype.hasOwnProperty.call(RTC_KEEP_, t)) throw new Error('Screen share: this request is not known to the server – press Update in the app and try again.');
+  let to = t === 'who' ? ['*'] : [...new Set((Array.isArray(x.to) ? x.to : [x.to]).map(str_).filter(Boolean))].filter(id => id !== me);
+  if (t !== 'who') {
+    if (!to.length) throw new Error('Screen share: pick the user to share with.');
+    if (to.length > 3) throw new Error('Screen share: at most 3 users at a time.');
+    if (to.some(id => !people.some(p => p.uid === id))) throw new Error('Screen share: that user is not in the list any more – open the list again.');
+  }
+  if (t !== 'who' && t !== 'here') {
+    if (!call) throw new Error('Screen share: this request is not complete – press Update in the app and try again.');
+    if (t !== 'ring') {      // only inside a call that was really rung: from one of its guests to its host, or from its host to its guests
+      const mine = rung(me), asGuest = !!mine && to.length === 1 && mine.host === to[0], asHost = to.every(id => { const r = rung(id); return !!r && r.host === me; });
+      if (!(asGuest || (asHost && (t === 'cancel' || t === 'bye')))) throw new Error('Screen share: that screen share is not there any more.');
+    }
+  }
+  const d = x.d === undefined || x.d === null ? '' : (typeof x.d === 'string' ? x.d : JSON.stringify(x.d));
+  if (d.length > 60000) throw new Error('Screen share: the connection details are too long to send – stop the share and start it again.');
+  let n = typeof __count === 'function' ? Number(__count(RTC_COUNT_, 2592000)) : -1;
+  if (!(n > 0)) { n = (Number(cache.get(RTC_COUNT_)) || 0) + 1; cache.put(RTC_COUNT_, String(n), 21600); }      // (no counter in the database: the next number after the last one read)
+  cache.put(RTC_MSG_ + n, JSON.stringify({ id: Utilities.getUuid(), n: n, to: to, from: me, name: myName, t: t, call: call, d: d, at: Date.now() }), RTC_STORE_);
+  if (t === 'ring') to.forEach(id => { if (!rung(id)) cache.put('RTCC_' + call + '_' + id, me + '|' + Date.now(), 21600); });
+  if (t === 'answer' && !cache.get('RTCA_' + call + '_' + me)) { cache.put('RTCA_' + call + '_' + me, '1', 21600); writeLog_(u, 'Screen share', 'Screen Share', call, myName + ' joined the screen share of ' + to.map(nameOf).join(', '), ''); }
+  return { ok: true, n: n };
+}
+/* The heartbeat's part: a = { r: the number this page has read up to, skip: true = do not wait any longer for a number that is
+ * not there }. Answer: { r: read up to, top: the last number given, m: the notes for this user } – or nothing when nothing
+ * is new. A note is written a moment AFTER its number is taken, so a number that is not there may still be on its way: the
+ * page is then held before it (r) and asks again. It is NOT waited for when a later note is already more than 10 seconds
+ * old (a note is written within a second of taking its number – that one is gone or never came), or when the page says
+ * "skip" after waiting a few seconds. */
+function rtcBeat_(u, a) {
+  const cache = CacheService.getScriptCache(), top = Math.max(0, Math.floor(Number(cache.get(RTC_COUNT_)) || 0));
+  if (!a || typeof a !== 'object' || a.r === undefined || a.r === null || !isFinite(Number(a.r))) return { r: top, top: top, m: [] };      // a page that has just opened: from now on
+  const since = Math.max(0, Math.floor(Number(a.r)));
+  if (since > top) return { r: top, top: top, m: [] };      // the counter started again
+  if (since === top) return null;
+  const lo = Math.max(since + 1, top - 299), keys = []; for (let n = lo; n <= top; n++) keys.push(RTC_MSG_ + n);
+  const got = cache.getAll(keys) || {}, me = rtcUid_(u.email), now = Date.now(), notes = [];
+  for (let n = lo; n <= top; n++) { let m = null; try { m = got[RTC_MSG_ + n] ? JSON.parse(got[RTC_MSG_ + n]) : null; } catch (e) { m = null; } notes.push(m); }
+  // the newest number that is surely not coming any more: every missing number before a note that is older than 10 s
+  let lastOld = -1; notes.forEach((m, i) => { if (m && now - Number(m.at) > 10000) lastOld = i; });
+  const out = []; let r = top;
+  for (let i = 0; i < notes.length; i++) {
+    const m = notes[i];
+    if (!m) { if (!a.skip && i > lastOld) { r = lo + i - 1; break; } continue; }
+    if (!Array.isArray(m.to) || m.from === me || !(m.to.indexOf(me) > -1 || m.to[0] === '*')) continue;
+    if (now - Number(m.at) > ((RTC_KEEP_[m.t] || 20) + 5) * 1000) continue;
+    out.push({ id: m.id, n: m.n, from: m.from, name: m.name, t: m.t, call: m.call, d: m.d, age: Math.max(0, now - Number(m.at)) });
+  }
+  return { r: r, top: top, m: out };
+}
+
 function login(email, password) {
   { const moved = movedTo_(); if (moved) throw new Error('The app has moved to a new link: ' + moved + ' – sign in there with the same password.'); }
   const e = str_(email).toLowerCase().slice(0, 120);
@@ -543,6 +639,8 @@ function canEdit_(u, module) { return u.perms[module] === 'Edit'; }
 const API_ = {
   whoami:            { m: '', f: () => true },
   sync:              { m: '', f: () => ({}) },          // heartbeat: fresh access + what changed (filled in api)
+  rtcUsers:          { m: '', withUser: true, f: u => rtcUsers_(u) },             // screen share: the users to pick from
+  rtcSend:           { m: '', withUser: true, f: (u, x) => rtcSend_(u, x) },      // screen share: a note to another user (ring / answer / …)
   getLookups:        { m: '', withUser: true, f: u => getLookups_(u) },
   // Only the Admin starts a backup by hand (update-68, owner's decision D5 – refused HERE, on the server, whatever the page shows).
   // The backup that runs by itself (the nightly job with its secret, and the check with the open app) does not come through this action.
@@ -741,7 +839,8 @@ function apiRun_(u, spec, fn, args) {
   const res = leastOut_(u, spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args));      // machinery details only for users with a page that uses them (D4)
   if (fn === 'getInit' || fn === 'sync') { res.user = publicUser_(u); res.versions = getVersions_(); res.today = today_(); res.source = sbDataOn_() ? 'supabase' : 'sheet'; res.build = appBuild_();
     if (typeof sbBackupInfo_ === 'function') res.backup = backupInfoFor_(u, sbBackupInfo_());
-    if (u.admin) res.faults = errStamp_(); }      // the Admin's page shows faults of today within seconds
+    if (u.admin) res.faults = errStamp_();      // the Admin's page shows faults of today within seconds
+    if (fn === 'sync') { try { const rb = rtcBeat_(u, args[0]); if (rb) res.rtc = rb; } catch (e) { /* a screen-share note must never stop the heartbeat */ } } }
   if (fn === 'backupNow' && res && res.info) res.info = backupInfoFor_(u, res.info);
   if (spec.log) {
     try { logAfter_(u, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ }

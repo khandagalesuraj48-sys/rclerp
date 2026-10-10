@@ -1338,6 +1338,33 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   shift"); the small edit window. Test: `test/browser/entry71.js`, unit 49.
   RULE FOR NEXT TIME (his words: "why did you fix it in one place only"): a rule about Log Book entries is built in EVERY place an
   entry is made or changed – entry page, Edit Log Book, small edit window, Excel import – or the note says at the top which are left.
+- 10-10-2026 (update-72, asked after update-71 went live – `d735e05`). Report: `UPDATE_72.md`. NO SQL. NOT deployed by me.
+  SCREEN SHARE WITH VOICE between users (WebRTC, browser to browser; nothing through Vercel but the set-up notes).
+  * SERVER (`Code.gs`, block "SCREEN SHARE WITH VOICE"): a note = cache entry `RTCM_<n>` (150 s), n from the atomic counter `RTCN`
+    (`__count` → web_count; fallback: last + 1). `rtcSend_(u, { t, to, call, d })` – kinds `who here ring answer decline cancel busy
+    bye`, plus `end` (Activity Log only). A ring writes `RTCC_<call>_<guest> = host|time`; every other call note is taken only from a
+    guest rung in that call (to its host) or from its host; an answer writes `RTCA_<call>_<guest>`; `end` is logged once (`RTCE_`).
+    Per-minute limit `RTCR_<uid>_<minute>`. `rtcBeat_(u, { r, skip })` → `{ r, top, m }` or null: notes after r for this user; a missing
+    number is waited for (r stays before it) unless a later note is > 10 s old or the page says skip. Users are named by `rtcUid_`
+    (16 hex of a hash), never by e-mail. `apiRun_` puts `res.rtc` into the `sync` answer. `server/runtime.js` `bootKeys` loads `RTCN`
+    with every api request – DO NOT take it out (a heartbeat would then ask the database every time); `IS_QUESTION` and
+    `server/page.js` `isQuestion` treat `rtc…` as questions (no rid, no save-once, no "being sent again").
+  * PAGE (`App.html`, block "SCREEN SHARE WITH VOICE", state `RTC`): `syncNow` sends `rtcBeatArg()` and feeds `rtcInbox`; `rtcOnNote`
+    handles the notes (every page has `RTC.dev`; notes carry `dev`, `todev`, `butdev` – one user, several tabs / devices).
+    `rtcStart` (host): list (`askConfirm`) → `getDisplayMedia` FIRST (needs the click), then the microphone → one `RTCPeerConnection`
+    per guest, offer with all ICE candidates in it (`rtcIceDone`, 3 s) → `ring`. `rtcAccept` (guest) → `answer`. After that everything
+    goes over the data channel `rcl`: `sdp` / `ice` (renegotiation, perfect-negotiation style: guest polite), `share`, `page`, `ptr`,
+    `roster`, `bye`. `onnegotiationneeded` is ignored until the channel is open (`P.dirty`). Host = star: `rtcForward` passes every
+    track of a guest on to the other guests; `rtcHello` gives a late joiner what is already on. `rtcViewPick` shows the newest live
+    screen; `rtcPointer` draws in the TOP document and only when `C.selfTab` (capture handle = `RTC.handle`, set on window.top).
+    `rtcSay` is the notice of the call – NEVER `toast(msg)` without `bad` there (it marks the open form as saved). Layers: picture 12,
+    bar 13 (under the app's dialogs 15 +), ring 58, notice 57; `body.rtc-on` lifts `#toast`. `rclBusy()` is true during a call.
+  * Tests: `test/browser/screen72.js` (23), `group72.js` (13) – Chromium flags `--use-fake-ui-for-media-stream
+    --use-fake-device-for-media-stream --auto-accept-this-tab-capture`; they delete `RTC%` from web.cache when they start (the
+    counter starts again – pages cope). Unit 50. Heartbeat cost measured: 3 database calls per 40 heartbeats, before and after.
+  * NOT VERIFIED: real networks (if "could not connect … networks" shows: add a TURN relay – `rtcUsers_` returns `ice`; put the relay
+    there, with its key from the environment). NOT BUILT: a right per user (needs a column in app_users → ask first), recording,
+    chat, more than 3 guests. Tried and taken back: a memory of read notes in `server/gas.js` (stale notes after a counter restart).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

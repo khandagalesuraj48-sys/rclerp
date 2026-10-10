@@ -24,7 +24,7 @@ const BRIDGE = `
   // a question (never a save) that is already on its way is not sent a second time: both askers get the one answer
   var flying = {}, saveNo = 0;      // saveNo goes up whenever anything that is not a question is sent or answered
   function isQuestion(name, args) { if (name !== 'api') return false; var f = String(args[1]);
-    return /^(get|rpt)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1; }
+    return /^(get|rpt|rtc)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1; }
   // calls on their way (for the freeze note: which answer the page was waiting for, and for how long) and the last answer
   var inFlight = {}, flightNo = 0, lastAnswer = '';
   window.__rclNet = function () { var now = Date.now(), w = Object.keys(inFlight).map(function (k) { return inFlight[k].fn + ' ' + ((now - inFlight[k].t0) / 1000).toFixed(1) + ' s'; });

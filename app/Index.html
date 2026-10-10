@@ -19,7 +19,7 @@
 <!-- RCL Fleet ERP – shell page.
      The app itself (App.html) runs in the frame below. When a new version is deployed, the shell loads it
      into the frame by itself – nobody has to refresh the browser. This file rarely needs to change. -->
-<iframe id="app" title="Rachana Construction Limited – Fleet ERP" allow="clipboard-read; clipboard-write; microphone"></iframe>
+<iframe id="app" title="Rachana Construction Limited – Fleet ERP" allow="clipboard-read; clipboard-write; microphone; display-capture"></iframe>
 <div id="upd" hidden role="status"><span><span id="upd_t"></span><small id="upd_s"></small></span><button type="button" class="go" id="upd_go"></button><button type="button" class="later" id="upd_later"></button></div>
 <script>
   window.RCL_APP = /*APP_JSON*/null;      // { html, build } – put in by the server (WebApp.gs) when the page opens
@@ -74,7 +74,8 @@
     });
   }, 60000);
   document.getElementById('upd_go').onclick = function () {
-    var w = frameWin(), busy = false, L = LANG(); try { busy = w && w.rclBusy ? w.rclBusy() : false; } catch (e) {}
+    var w = frameWin(), busy = false, why = '', L = LANG(); try { busy = w && w.rclBusy ? w.rclBusy() : false; why = busy && w.rclBusyWhy ? w.rclBusyWhy() : ''; } catch (e) {}
+    if (busy && why === 'call') { if (!confirm({ en: 'A screen share is on. Update anyway? (It will end.)', mr: 'Screen share चालू आहे. तरीही update करायचे? (ते बंद होईल.)', hi: 'Screen share चालू है। फिर भी update करें? (वह बंद हो जाएगा।)' }[L])) return; window.rclSwap(); return; }
     if (busy && !confirm({ en: 'An entry on this page is not saved yet. Update anyway? (It will be lost.)', mr: 'या page वरची entry अजून save झालेली नाही. तरीही update करायचे? (ती जाईल.)', hi: 'इस page की entry अभी save नहीं हुई है। फिर भी update करें? (वह चली जाएगी।)' }[L])) return;
     window.rclSwap();
   };

@@ -1462,3 +1462,86 @@ test('Log Book entry: rows of one machinery on the same date and shift are joine
   assert.deepStrictEqual([s[2].d, s[2].ohr, s[2].chr, s[2].whr], ['2026-06-04', 7, 10.5, 3.5]);
   assert.deepStrictEqual(JSON.parse(s[2].items), { Breaker: 1.5, _parts: [{ n: 'Bucket', q: 2, w: 'DRAIN' }, { n: 'Breaker', q: 1.5, w: 'ROCK' }] });
 });
+
+// update-72 (10-10-2026): screen share with voice. The server only carries the short notes that set a call up – through the
+// cache store and the heartbeat. Who gets which note, in which order, and what is refused.
+test('screen share: a note reaches only the users it is for, through the heartbeat, in order; nothing is lost when a number is not written yet', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const U = n => ({ email: n.toLowerCase() + '@site.test', name: n, active: n !== 'Dormant', admin: n === 'Asha', perms: {}, password: 'scrypt$x' });
+  const users = ['Asha', 'Bala', 'Chitra', 'Dev', 'Esha', 'Dormant'].map(U);
+  run('l => { const c = CacheService.getScriptCache(); c.put("USERS_LIST", JSON.stringify(l), 600); c.remove("RTCN"); }', users);
+  const A = users[0], B = users[1], C = users[2];
+  const list = u => run('u => rtcUsers_(u)', u), send = (u, x) => run('(u, x) => { try { return rtcSend_(u, x); } catch (e) { return { thrown: String(e.message) }; } }', u, x), beat = (u, a) => run('(u, a) => rtcBeat_(u, a)', u, a);
+  // the list: everybody who can sign in except oneself, by name and a short code – no e-mail address, not the user who is switched off
+  const la = list(A), uid = n => (list(n === 'Asha' ? B : A).users.find(x => x.name === n) || {}).uid || (n === 'Asha' ? la.me : '');
+  assert.deepStrictEqual(la.users.map(x => x.name), ['Bala', 'Chitra', 'Dev', 'Esha']);
+  assert.ok(la.users.every(x => /^[0-9a-f]{16}$/.test(x.uid) && !('email' in x)) && !/@/.test(JSON.stringify(la)), 'no e-mail address leaves the server');
+  assert.strictEqual(la.max, 3); assert.ok(la.ice.length && /^stun:/.test(la.ice[0].urls[0]));
+  // a page that has just opened reads "from now on"; nothing new → the heartbeat carries nothing
+  const r0 = beat(B, {}).r; assert.strictEqual(r0, 0); assert.strictEqual(beat(B, { r: 0 }), null);
+  // A rings B and C; D gets nothing; A does not get his own note
+  let s = send(A, { t: 'ring', to: [uid('Bala'), uid('Chitra')], call: 'call-1', d: { sdp: 'v=0 offer' } });
+  assert.ok(s.ok && s.n === 1, JSON.stringify(s));
+  let b = beat(B, { r: 0 });
+  assert.deepStrictEqual([b.r, b.top, b.m.length, b.m[0].t, b.m[0].name, b.m[0].call, JSON.parse(b.m[0].d).sdp, b.m[0].from], [1, 1, 1, 'ring', 'Asha', 'call-1', 'v=0 offer', la.me]);
+  assert.strictEqual(beat(C, { r: 0 }).m.length, 1);
+  assert.deepStrictEqual(beat(users[3], { r: 0 }).m, []); assert.deepStrictEqual(beat(A, { r: 0 }).m, []);
+  assert.strictEqual(beat(B, { r: 1 }), null, 'read once: the next heartbeat carries nothing');
+  // B answers A (one line in the Activity Log); "who is there?" goes to everybody but the asker
+  s = send(B, { t: 'answer', to: la.me, call: 'call-1', d: { sdp: 'v=0 answer' } }); assert.strictEqual(s.n, 2);
+  s = send(C, { t: 'who' }); assert.strictEqual(s.n, 3);
+  const a2 = beat(A, { r: 1 });
+  assert.deepStrictEqual(a2.m.map(m => m.t + ' from ' + m.name), ['answer from Bala', 'who from Chitra']); assert.strictEqual(a2.r, 3);
+  assert.deepStrictEqual(beat(C, { r: 1 }).m, [], 'the asker does not get his own question, nor B\'s answer to A');
+  // a number that is taken but not written yet (the note is written a moment later): the page is held BEFORE it and loses nothing
+  run('() => { const c = CacheService.getScriptCache(); c.put("RTCN", "5", 600); }');      // numbers 4 and 5 are taken …
+  run('(me, to) => CacheService.getScriptCache().put("RTCM_5", JSON.stringify({ id: "m5", n: 5, to: [to], from: me, name: "Chitra", t: "cancel", call: "c", d: "", at: Date.now() }), 60)', uid('Chitra'), la.me);      // … 5 is there, 4 not yet
+  let a3 = beat(A, { r: 3 });
+  assert.deepStrictEqual([a3.r, a3.top, a3.m.length], [3, 5, 0], 'held before the missing number');
+  run('(me, to) => CacheService.getScriptCache().put("RTCM_4", JSON.stringify({ id: "m4", n: 4, to: [to], from: me, name: "Bala", t: "bye", call: "c", d: "", at: Date.now() }), 60)', uid('Bala'), la.me);
+  a3 = beat(A, { r: 3 });
+  assert.deepStrictEqual([a3.r, a3.m.map(m => m.id).join()], [5, 'm4,m5'], 'both, in their order, once the missing one has landed');
+  // … and a number that never comes is passed over when the page says it has waited
+  run('() => CacheService.getScriptCache().put("RTCN", "7", 600)');
+  run('(me, to) => CacheService.getScriptCache().put("RTCM_7", JSON.stringify({ id: "m7", n: 7, to: [to], from: me, name: "Bala", t: "decline", call: "c", d: "", at: Date.now() }), 60)', uid('Bala'), la.me);
+  assert.deepStrictEqual([beat(A, { r: 5 }).r, beat(A, { r: 5 }).m.length], [5, 0]);
+  const a4 = beat(A, { r: 5, skip: true }); assert.deepStrictEqual([a4.r, a4.m.map(m => m.id).join()], [7, 'm7']);
+  // a note that is too old for its kind is not delivered; a counter that started again puts the page back in step
+  run('(me, to) => { const c = CacheService.getScriptCache(); c.put("RTCN", "8", 600); c.put("RTCM_8", JSON.stringify({ id: "m8", n: 8, to: [to], from: me, name: "Bala", t: "who", call: "", d: "", at: Date.now() - 60000 }), 60); }', uid('Bala'), '*');
+  assert.deepStrictEqual(beat(A, { r: 7 }).m, []);
+  assert.deepStrictEqual(beat(A, { r: 500 }), { r: 8, top: 8, m: [] });
+  // THE CASE THE REVIEW FOUND: a page that was not looked at for a while (it asks only once a minute). The "who is there?" notes
+  // before a ring are long gone from the store – that must NOT hold the ring back: a number is not waited for when a later
+  // note is already more than 10 seconds old.
+  run('(me, to) => { const c = CacheService.getScriptCache(); c.put("RTCN", "11", 600); c.put("RTCM_11", JSON.stringify({ id: "m11", n: 11, to: [to], from: me, name: "Bala", t: "ring", call: "late", d: "{}", at: Date.now() - 40000 }), 150); }', uid('Bala'), la.me);      // 9 and 10 are gone, the ring (11) is 40 s old
+  const a5 = beat(A, { r: 8 });
+  assert.deepStrictEqual([a5.r, a5.m.map(m => m.id + ' ' + m.t).join(), a5.m[0].age >= 40000], [11, 'm11 ring', true], 'the ring is given at once, with its age');
+  // what is refused
+  const no = (u, x, re) => { const r = send(u, x); assert.ok(r.thrown && re.test(r.thrown), JSON.stringify(r)); };
+  no(A, { t: 'ring', to: la.me, call: 'c' }, /pick the user to share with/);
+  no(A, { t: 'ring', to: [], call: 'c' }, /pick the user to share with/);
+  no(A, { t: 'ring', to: ['0000000000000000'], call: 'c' }, /not in the list any more/);
+  no(A, { t: 'ring', to: [uid('Bala'), uid('Chitra'), uid('Dev'), uid('Esha')], call: 'c' }, /at most 3 users at a time/);
+  no(A, { t: 'takeover', to: uid('Bala') }, /not known to the server/);
+  no(A, { t: 'ring', to: uid('Bala'), call: 'c', d: 'x'.repeat(60001) }, /too long to send/);
+  no(A, { t: 'ring', to: uid('Bala') }, /not complete/);
+  // only inside a call that was really rung: an answer / decline / bye to somebody who never rang is refused (nobody can make another user's page react, or write a "joined" line)
+  no(C, { t: 'answer', to: uid('Dev'), call: 'never-rung', d: {} }, /is not there any more/);
+  no(users[3], { t: 'answer', to: la.me, call: 'call-1', d: {} }, /is not there any more/);      // Dev was not rung in call-1
+  no(users[3], { t: 'bye', to: uid('Bala'), call: 'call-1' }, /is not there any more/);
+  assert.strictEqual(run('() => Number(CacheService.getScriptCache().get("RTCN"))'), 11, 'a refused note takes no number');
+  assert.ok(send(C, { t: 'decline', to: la.me, call: 'call-1' }).ok, 'Chitra WAS rung in call-1: her decline is taken');
+  assert.ok(send(A, { t: 'cancel', to: [uid('Chitra')], call: 'call-1' }).ok, 'and the host may cancel');
+  // the end of a call: only a line for the Activity Log, no note to anybody
+  const logged = () => run('() => { const sh = SS_().getSheetByName(LOG_SHEET); if (!sh || sh.getLastRow() < 2) return []; return sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues().map(r => r.join(" ¦ ")).filter(x => /Screen Share/.test(x)); }');
+  const before = logged().length;
+  assert.deepStrictEqual(send(A, { t: 'end', to: [uid('Bala'), uid('Chitra'), uid('Dev')], call: 'call-1', secs: 999999 }), { ok: true });
+  const lines = logged();
+  assert.strictEqual(lines.length, before + 1, 'one line');
+  assert.ok(/Screen share of Asha with Bala ended after 0 min \d+ s/.test(lines[lines.length - 1]), 'only who really answered (Bala – not Chitra who declined, not Dev who was never rung), and not longer than since the ring: ' + lines[lines.length - 1]);
+  assert.ok(lines.some(x => /Bala joined the screen share of Asha/.test(x)), 'the line of the answer');
+  send(A, { t: 'end', to: [uid('Bala')], call: 'call-1', secs: 5 }); assert.strictEqual(logged().length, before + 1, 'the end of a call is written once');
+  send(B, { t: 'end', to: [la.me], call: 'call-1', secs: 5 }); assert.strictEqual(logged().length, before + 1, 'and only by its host');
+  assert.strictEqual(run('() => Number(CacheService.getScriptCache().get("RTCN"))'), 13);
+});
