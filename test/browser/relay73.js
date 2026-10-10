@@ -81,7 +81,7 @@ const raw = async body => { for (let i = 0; ; i++) { try { return await (await f
   await shareWith(A, ['R73 Bala']); await until(async () => (await st(B)).inBox, 14000); await click(B, '#rtc_yes');
   bb = await until(async () => { const s = await st(B); return s.view && s.view.w > 0 && s.aIn > 0 ? s : null; }, 30000) || await st(B);
   await wait(1200); a = await st(A); const wA2 = await way(A);
-  ok('the same two pages left to choose (both on one computer): they connect DIRECTLY – the relay is only used when there is no direct way; the bar does not say "through the relay"', !!bb.view && wA2 && wA2[0].local !== 'relay' && wA2[0].remote !== 'relay' && wA2[0].via === 'direct' && !/through the relay/.test(a.bar), { way: wA2, bar: a.bar });
+  ok('the same two pages left to choose (both on one computer): they connect DIRECTLY – the relay is only used when there is no direct way; the bar says "direct connection", not "through the relay"', !!bb.view && wA2 && wA2[0].local !== 'relay' && wA2[0].remote !== 'relay' && wA2[0].via === 'direct' && !/through the relay/.test(a.bar) && /direct connection/.test(a.bar), { way: wA2, bar: a.bar });
   await click(A, '#rtc_end'); await until(async () => !(await st(B)).call, 8000);
 
   ok('no script error on the pages', !A.errs.length && !B.errs.length, [A.errs, B.errs]);

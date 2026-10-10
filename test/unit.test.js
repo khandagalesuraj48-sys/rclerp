@@ -1572,3 +1572,23 @@ test('screen share: the relay set in the hosting is given to the pages (over UDP
   assert.strictEqual(withRelay({ url: 'http://bad address/<script>', user: 'a', pass: 'b' }), null);
   run('() => { __rtcRelay = undefined; }');
 });
+
+// update-74 (10-10-2026): "the Admin must be able to understand which version the app runs on". The update number is read from the
+// message of the commit the live deployment was made from; the relay is shown by its address only – never its name or password.
+test('which version runs (Admin): the update number from the commit message; the relay by address only, never its password', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const ver = (d, r) => run('(d, r) => { __deployInfo = d ? (() => d) : undefined; __rtcRelay = r ? (() => r) : (() => null); return appVersion_(); }', d, r);
+  let v = ver({ sha: '8cb92cd0123456789abcdef', msg: 'update-73: screen share through a relay when the networks need it\n\nCo-Authored-By: someone', env: 'production' }, null);
+  assert.deepStrictEqual([v.update, v.msg, v.sha, v.env, v.relay], ['update-73', 'update-73: screen share through a relay when the networks need it', '8cb92cd', 'production', []]);
+  assert.strictEqual(typeof v.build, 'string');
+  // other ways a commit may be written; one without a number; nothing given (the rig, or a hosting that does not give it)
+  assert.strictEqual(ver({ sha: 'a', msg: 'Update-74B – version for the Admin', env: '' }, null).update, 'update-74b');
+  assert.deepStrictEqual([ver({ sha: 'abc1234', msg: 'fix a typo', env: '' }, null).update, ver({ sha: 'abc1234', msg: 'fix a typo', env: '' }, null).msg], ['', 'fix a typo']);
+  v = ver(null, null); assert.deepStrictEqual([v.update, v.msg, v.sha], ['', '', '']);
+  // the relay: its address (once, though it is offered over UDP and TCP) – the name and password are not in the answer at all
+  v = ver({ sha: '', msg: '', env: '' }, { url: 'free.expressturn.com:3478', user: 'name-xyz', pass: 'pass-xyz-123' });
+  assert.deepStrictEqual(v.relay, ['free.expressturn.com:3478']);
+  assert.ok(!/name-xyz|pass-xyz-123/.test(JSON.stringify(v)), 'no name / password in what the Admin page gets');
+  run('() => { __deployInfo = undefined; __rtcRelay = undefined; }');
+});

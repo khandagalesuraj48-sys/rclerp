@@ -194,6 +194,9 @@ function runPlain(fn, args, meta) {
     catch (e) { if (NOT_INSTALLED(e)) { COUNTER.off = true; return -1; } throw e; } };
   g.__uncount = key => { if (!COUNTER.off) gas.rpc('web_uncount', { p_key: String(key) }); };
   g.__writeMode = v => { if (v) WRITE.mode = v; return WRITE.mode; };
+  /* THE VERSION THAT RUNS (update-74): Vercel gives every deployment the commit it was made from (its "system environment
+   * variables", at runtime too). The Admin's Settings show the update number from the commit message ("update-74: …"). */
+  g.__deployInfo = () => ({ sha: String(process.env.VERCEL_GIT_COMMIT_SHA || ''), msg: String(process.env.VERCEL_GIT_COMMIT_MESSAGE || ''), env: String(process.env.VERCEL_ENV || '') });
   /* SCREEN SHARE THROUGH A RELAY (update-73). Two computers on different networks often cannot reach each other directly; a relay
    * (TURN server) passes the encrypted picture and sound on. It is switched on by three settings of the hosting (Vercel →
    * Environment Variables): RTC_TURN_URL (the relay's address, e.g. relay1.example.com:3478 – several with commas),

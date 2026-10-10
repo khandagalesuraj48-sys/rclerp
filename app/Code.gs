@@ -458,6 +458,16 @@ function rtcUsers_(u) {
  * site shows it – "relay1.example.com:3478", with or without "turn:" in front, several separated by commas; each address is
  * offered over UDP and over TCP. A browser needs the name and password to use the relay, so every signed-in user's page gets
  * them (they open the relay only, nothing of the app). */
+/* WHICH VERSION RUNS – for the Admin (update-74, asked 10-10-2026: "the Admin must be able to understand which version the app
+ * runs on", and whether the screen share's relay is there). The update number is read from the message of the commit the
+ * deployment was made from ("update-74: …"); the relay is given by its address only – never its name or password. */
+function appVersion_() {
+  let d = null; try { d = typeof __deployInfo === 'function' ? __deployInfo() : null; } catch (e) { d = null; }
+  const msg = String(d && d.msg || '').split(/\r?\n/)[0].trim().slice(0, 160), m = /\bupdate-(\d{1,4}[a-z]?)\b/i.exec(msg);
+  const relay = rtcRelay_(), hosts = [];
+  if (relay) relay.urls.forEach(x => { const h = x.replace(/^turns?:/, '').replace(/\?.*$/, ''); if (hosts.indexOf(h) < 0) hosts.push(h); });
+  return { update: m ? 'update-' + m[1].toLowerCase() : '', msg: msg, sha: String(d && d.sha || '').slice(0, 7), env: String(d && d.env || ''), build: appBuild_(), relay: hosts };
+}
 function rtcRelay_() {
   let r = null; try { r = typeof __rtcRelay === 'function' ? __rtcRelay() : null; } catch (e) { r = null; }
   if (!r || !r.url || !r.user || !r.pass) return null;
@@ -699,6 +709,7 @@ const API_ = {
   getMyPrefs:        { m: '', withUser: true, f: u => getMyPrefs_(u) },
   saveMyPrefs:       { m: '', withUser: true, f: (u, x) => saveMyPrefs_(u, x) },
   saveSiteRules:     { m: '', admin: true, f: saveSiteRules_, log: 'siteRules' },
+  getAppVersion:     { m: '', admin: true, f: () => appVersion_() },
   saveBillSettings:  { m: 'Machinery Billing', edit: true, f: saveBillSettings_, log: 'billSettings' },
   getBills:          { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Bill Summary', 'Vendor Ledger'], f: getBills_ },
   billSummary:       { m: 'Bill Summary', f: billSummary_ },

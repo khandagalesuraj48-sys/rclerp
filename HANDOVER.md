@@ -1391,6 +1391,21 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     relay could not be reached …": name / password, or port 3478 blocked.
   * ASKED ABOUT, NOT BUILT (wait for his yes): a notice when the app is closed (push) + a WhatsApp button with the users' "My
     mobile number"; then phone camera, reconnect, missed calls, a right per user (needs a column → ask), pen marks.
+- 10-10-2026 (update-74, asked after update-73 went live – `8cb92cd`). Report: `UPDATE_74.md`. NO SQL, nothing to set in Vercel.
+  "The Admin must understand which version runs" + "I cannot make out whether the relay is connected".
+  * `server/runtime.js` `__deployInfo()` = Vercel's system variables VERCEL_GIT_COMMIT_SHA / _MESSAGE / VERCEL_ENV (runtime);
+    `Code.gs` `appVersion_()` → { update ('update-NN' from the commit message – KEEP commit messages starting "update-NN:"), msg,
+    sha (7), env, build, relay: [host:port …] – NEVER the relay's name / password (unit test) }; Admin-only question `getAppVersion`
+    (listed under PAGE_GUIDE.settings.saves – the self-knowledge unit test demands it).
+  * PAGE: Settings → "This app" → `#av_box` (Admin only): `avLoad` (on opening Settings), `avRelayCheck` / `avRelayTry` – the
+    browser gathers with `iceTransportPolicy: 'relay'` for ≤ 8 s: a ` typ relay` candidate = Working (+ relayProtocol); an
+    `icecandidateerror` 401 = wrong name / password; else "did not answer". The call bar says "· direct connection" or
+    "· through the relay" (`P.via` from `rtcWay`).
+  * Tests: `test/browser/version74.js <relay+commit port> <wrong-password port> <plain port>` (9) – start script on the rig:
+    3009 with RTC_TURN_* + VERCEL_GIT_COMMIT_* set, 3010 with a wrong RTC_TURN_PASS, turn-standin.js running. Unit 51.
+  * His "Waiting for the server … (getInit)" after sign-in: the app's own slow-answer notice (names the call after 6 s). getInit
+    is unchanged since update-71; expected once after each deploy (fresh server). Not measured live – if at EVERY sign-in, get the
+    seconds from him and measure getInit.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
