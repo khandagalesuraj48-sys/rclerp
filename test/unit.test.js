@@ -1405,3 +1405,60 @@ test('Edit Log Book: a saved entry keeps the way it was saved in after the Log B
   assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
   assert.deepStrictEqual(stored().map(x => x.split(' ').slice(0, 2).join(' ')), ['2026-06-28 Time', '2026-06-29 Hrs']);
 });
+
+// update-71 (10-10-2026): "in Edit Log Book this can be entered, but filling the Log Book gives an error – use the same logic".
+// Rows of ONE machinery on the same date and shift in one save of the entry page: the works of that shift, one after the other.
+// The server joins them into ONE entry that keeps its rows – exactly what Edit Log Book saves. Hand-worked.
+test('Log Book entry: rows of one machinery on the same date and shift are joined into ONE entry that keeps its rows (same rule as Edit Log Book)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  run('(x, m) => saveMaster_(x, m)', { no: 'E71-JCB', name: 'JCB', type: 'JCB', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 4, owner: 'E71 Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: 'E71-TIP', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'E71 Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'E71 Earthmovers', gstReg: 'No', pan: 'ABCDE1271E', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'E71 Earthmovers', from: '2026-06-01', tdsPct: 2, woNo: 'WO-E71', lines: [{ no: 'E71-JCB', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'Bucket', basis: 'Per Hour', rate: 1200 }, { name: 'Breaker', basis: 'Per Hour', rate: 1500 }] }, { no: 'E71-TIP', basis: 'Per KM', rate: 40, diesel: 'Company' }] }, 'add');
+  const save = rows => run('x => { try { return saveLogRowsInner_(x); } catch (e) { return { thrown: String(e.message) }; } }', { rows: rows });
+  const stored = no => run(`no => { const lt = table_(APP.SHEET_LOG), c = lt.c; return lt.rows.filter(x => str_(x[c[H.NO]]) === no).map(x => ({ d: dkey_(x[c[H.DATE]]), sh: str_(x[c[H.SHIFT]]), ohr: num0_(x[c[H.OHR]]), chr: num0_(x[c[H.CHR]]), whr: num0_(x[c[H.WHR]]), items: str_(x[c[H.ITEMS]]), work: str_(x[c[H.WORK]]), challan: H.CHALLAN in c ? str_(x[c[H.CHALLAN]]) : '' })).sort((a, b) => a.d < b.d ? -1 : 1); }`, no);
+  const J = (d, o) => Object.assign({ date: d, shift: 'Day', no: 'E71-JCB', mode: 'Hrs' }, o);
+  // the screen he sent: the first entry of the machinery – Bucket 1 → 2, then Breaker 2 → 4 (the page sends the items as its boxes hold them: {} = Bucket, the "rest" item; { Breaker: hours } = Breaker)
+  let r = save([J('2026-06-01', { openingHr: 1, closingHr: 2, items: {}, work: 'LOADING', challan: '11' }), J('2026-06-01', { openingHr: 2, closingHr: 4, items: { Breaker: 2 }, work: 'ROCK BREAKING', challan: '12' })]);
+  assert.ok(r.ok && r.count === 1 && r.joined === 2, JSON.stringify(r).slice(0, 300));
+  let s = stored('E71-JCB');
+  assert.strictEqual(s.length, 1, 'ONE entry');
+  assert.deepStrictEqual([s[0].ohr, s[0].chr, s[0].whr], [1, 4, 3]);
+  assert.deepStrictEqual(JSON.parse(s[0].items), { Breaker: 2, _parts: [{ n: 'Bucket', q: 1, c: '11', w: 'LOADING' }, { n: 'Breaker', q: 2, c: '12', w: 'ROCK BREAKING' }] });
+  assert.strictEqual(s[0].work, 'LOADING / ROCK BREAKING'); assert.strictEqual(s[0].challan, '11 / 12');
+  // Edit Log Book reads it back as two rows; the bill is each work at its own rate: Bucket 1 × 1,200 + Breaker 2 × 1,500 = 4,200
+  const g = run('() => getLogEditData_("E71-JCB", "2026-06-01", "2026-06-30")');
+  assert.deepStrictEqual(g.rows[0].itemParts.map(x => [x.n, x.q].join(' ')), ['Bucket 1', 'Breaker 2']);
+  const amount = () => run('(f, t) => billMachineCalc_(findMachine_("E71-JCB"), getLogBookList_({ from: f, to: t, no: "E71-JCB", all: true }).rows, logPrintExtra_({ from: f, to: t, nos: ["E71-JCB"] }), f, t, undefined, true).amount', '2026-06-01', '2026-06-30');
+  assert.strictEqual(amount(), 1 * 1200 + 2 * 1500);
+  // the next day in the same save as another machinery; the Start of a later row left empty = the Close above; three works (Bucket – Breaker – Bucket)
+  r = save([J('2026-06-02', { closingHr: 5, items: {} }), { date: '2026-06-02', shift: 'Day', no: 'E71-TIP', mode: 'KM', openingKm: 100, closingKm: 160 }, J('2026-06-02', { closingHr: 5.5, items: { _all: 'Breaker' } }), J('2026-06-02', { openingHr: 5.5, closingHr: 7, items: {} })]);
+  assert.ok(r.ok && r.count === 2 && r.joined === 3, JSON.stringify(r).slice(0, 300));
+  s = stored('E71-JCB');
+  assert.deepStrictEqual([s[1].ohr, s[1].chr, s[1].whr], [4, 7, 3], 'the entry starts at the Close before it (4) and closes on the last row');
+  assert.deepStrictEqual(JSON.parse(s[1].items), { Breaker: 0.5, _parts: [{ n: 'Bucket', q: 1 }, { n: 'Breaker', q: 0.5 }, { n: 'Bucket', q: 1.5 }] });
+  assert.strictEqual(amount(), (1 + 2.5) * 1200 + (2 + 0.5) * 1500);
+  // what is refused – on the row that is wrong, and nothing is saved
+  const no = (rows, re, rowNo) => { const x = save(rows); assert.ok(x.ok === false && x.errors.some(e => re.test(e.msg) && (!rowNo || e.row === rowNo)), JSON.stringify(x).slice(0, 400)); assert.strictEqual(stored('E71-JCB').length, 2); };
+  no([J('2026-06-03', { closingHr: 8, items: {} }), J('2026-06-03', { openingHr: 9, closingHr: 10, items: { Breaker: 1 } })], /row 2 of 03-06-2026 starts at 9 but the row before it closed at 8 – every row must start where the row before it closed/, 2);
+  no([J('2026-06-03', { closingHr: 8, items: {} }), J('2026-06-03', { closingHr: 9, items: {} })], /two rows one after the other are both Bucket/);
+  no([J('2026-06-03', { closingHr: 8, items: {} }), J('2026-06-03', { closingHr: 10, items: { Breaker: 1 } })], /row 2 of 03-06-2026 – each row of one shift is ONE work: press Bucket \/ Breaker \(not Split\)/, 2);
+  no([J('2026-06-03', { closingHr: 9, items: { Breaker: 1 } }), J('2026-06-03', { closingHr: 10, items: {} })], /row 1 of 03-06-2026 – each row of one shift is ONE work/);
+  no([J('2026-06-03', { closingHr: 8, items: {} }), J('2026-06-03', { closingHr: 8, items: { _all: 'Breaker' } })], /row 2 of 03-06-2026 \(Breaker\) has no work/);
+  no([J('2026-06-03', { closingHr: 8, items: {} }), J('2026-06-03', { closingHr: 9, items: { _all: 'Breaker' }, half: true })], /the ½ tick belongs to the first row of the shift/, 2);
+  // a shift that is ALREADY saved is not added to from the entry page: the message says where to do it
+  no([J('2026-06-02', { closingHr: 8, items: { _all: 'Breaker' } })], /already saved for 02-06-2026 \(Day\)\. To add another work to this saved shift \(Bucket \/ Breaker\): Edit Log Book → "\+ work in this shift"/);
+  // a machinery with ONE kind of work keeps the old rule: the second row of a shift is refused, nothing is joined
+  r = save([{ date: '2026-06-03', shift: 'Day', no: 'E71-TIP', mode: 'KM', closingKm: 200 }, { date: '2026-06-03', shift: 'Day', no: 'E71-TIP', mode: 'KM', closingKm: 240 }]);
+  assert.ok(r.ok === false && /E71-TIP already saved for 03-06-2026 \(Day\)/.test(r.errors.map(e => e.msg).join(' ')) && r.errors[0].row === 2, JSON.stringify(r).slice(0, 300));
+  assert.strictEqual(stored('E71-TIP').length, 1);
+  // the Excel sheet that is imported: two lines of the machinery on the same date and shift, each with its "Work type" → one entry with two rows too
+  const imp = run('x => { try { return importLogBook_(x); } catch (e) { return { thrown: String(e.message) }; } }', { rows: [
+    { line: 2, date: '2026-06-04', shift: 'Day', no: 'E71-JCB', mode: 'Hrs', closingHr: 9, items: { _all: 'Bucket' }, work: 'DRAIN' }, { line: 3, date: '2026-06-04', shift: 'Day', no: 'E71-JCB', mode: 'Hrs', closingHr: 10.5, items: { _all: 'Breaker' }, work: 'ROCK' }] });
+  assert.ok(imp && !imp.thrown && imp.ok !== false, JSON.stringify(imp).slice(0, 400));
+  s = stored('E71-JCB');
+  assert.strictEqual(s.length, 3);
+  assert.deepStrictEqual([s[2].d, s[2].ohr, s[2].chr, s[2].whr], ['2026-06-04', 7, 10.5, 3.5]);
+  assert.deepStrictEqual(JSON.parse(s[2].items), { Breaker: 1.5, _parts: [{ n: 'Bucket', q: 2, w: 'DRAIN' }, { n: 'Breaker', q: 1.5, w: 'ROCK' }] });
+});

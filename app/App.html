@@ -1025,7 +1025,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   table.lx-t .lx-more { display: block; margin: 5px 0 0; padding: 2px 9px; min-height: 0; font: 700 11px var(--ui); color: #475569; background: #fff; border: 1px dashed #94A3B8; border-radius: 7px; cursor: pointer; white-space: nowrap; }
   table.lx-t .lx-more:hover { color: #1543B8; border-color: #1D55E2; }
   .itm .le-parts { display: block; flex-basis: 100%; margin-top: 6px; font: 500 12px/1.4 var(--ui); color: #6D28D9; }
-  table.lx-t .lx-part { display: block; margin: 5px 0 0; font: 700 11px var(--ui); color: #6D28D9; white-space: nowrap; }
+  table.lx-t .lx-part, .lg-partn { display: block; margin: 5px 0 0; font: 700 11px var(--ui); color: #6D28D9; white-space: nowrap; }
   .itm .itm-pick.need .itm-chip:not(.on) { border-color: #F2A900; } .itm .itm-say { font-weight: 700; color: #0F1B2D; } .itm .itm-pick.need .itm-say { color: #B45309; }
   .itm .itm-split { display: inline-flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; } .itm .itm-split[hidden] { display: none; }
   .itm .itm-rest { color: var(--muted); white-space: nowrap; } .itm .itm-rest b { color: inherit; } .itm.bad .itm-rest { color: var(--bad); font-weight: 700; }
@@ -4769,10 +4769,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The time or the trips of this entry are missing or come to zero.', 'For a time sheet: type From and To (e.g. 08:00 and 17:00) and the break. For trips: type the number of trips.'],
       mr: ['या entry ची वेळ किंवा trips भरलेल्या नाहीत किंवा शून्य येतात.', 'Time sheet साठी: From आणि To (उदा. 08:00 आणि 17:00) आणि break भरा. Trips साठी: trips ची संख्या भरा.'],
       hi: ['इस entry का समय या trips भरे नहीं हैं या शून्य आ रहे हैं।', 'Time sheet के लिए: From और To (जैसे 08:00 और 17:00) और break भरें। Trips के लिए: trips की संख्या भरें।'] },
-    { re: /rows? (of|for) (one|this|the) shift|rows for the works|two rows one after the other|row \d+ of \d|every row must start where/i,
-      en: ['A shift of this machinery has a row for each work (for example Bucket, then Breaker), and one of those rows is not right.', 'In Edit Log Book: every row of the shift must have ONE work pressed (not Split), its own Close above its Start, and must start exactly where the row above it closed. Two rows one after the other cannot be the same work – make them one row. Then press Save changes again.'],
-      mr: ['या machinery च्या एका shift मध्ये प्रत्येक कामासाठी वेगळी ओळ आहे (उदा. आधी Bucket, मग Breaker), आणि त्यातली एक ओळ बरोबर नाही.', 'Edit Log Book मध्ये: त्या shift च्या प्रत्येक ओळीत एकच काम निवडा (Split नाही), Close हे Start पेक्षा जास्त हवे, आणि प्रत्येक ओळ वरच्या ओळीच्या Close पासूनच सुरू झाली पाहिजे. सलग दोन ओळींत तेच काम नको – त्यांची एकच ओळ करा. मग पुन्हा Save changes दाबा.'],
-      hi: ['इस machinery की एक shift में हर काम की अलग पंक्ति है (जैसे पहले Bucket, फिर Breaker), और उनमें से एक पंक्ति सही नहीं है।', 'Edit Log Book में: उस shift की हर पंक्ति में एक ही काम चुनें (Split नहीं), Close हमेशा Start से ज़्यादा हो, और हर पंक्ति ऊपर वाली पंक्ति के Close से ही शुरू हो। लगातार दो पंक्तियों में एक ही काम न रखें – उनकी एक पंक्ति बनाएँ। फिर Save changes दबाएँ।'] },
+    { re: /rows? (of|for) (one|this|the) shift|rows for the works|two rows one after the other|row \d+ of \d|every row must start where|work starts where the row above|same work as the row above|this row has no work yet/i,
+      en: ['A shift of this machinery has a row for each work (for example Bucket, then Breaker), and one of those rows is not right.', 'On the Log Book entry page or in Edit Log Book: every row of the shift must have ONE work pressed (not Split), its own Close above its Start, and must start exactly where the row above it closed. Two rows one after the other cannot be the same work – make them one row. The ½ tick, "new meter" and "Debit to" stand on the first row of the shift. Then save again.'],
+      mr: ['या machinery च्या एका shift मध्ये प्रत्येक कामासाठी वेगळी ओळ आहे (उदा. आधी Bucket, मग Breaker), आणि त्यातली एक ओळ बरोबर नाही.', 'Log Book entry च्या पानावर किंवा Edit Log Book मध्ये: त्या shift च्या प्रत्येक ओळीत एकच काम निवडा (Split नाही), Close हे Start पेक्षा जास्त हवे, आणि प्रत्येक ओळ वरच्या ओळीच्या Close पासूनच सुरू झाली पाहिजे. सलग दोन ओळींत तेच काम नको – त्यांची एकच ओळ करा. ½ tick, "new meter" आणि "Debit to" हे त्या shift च्या पहिल्या ओळीवर ठेवा. मग पुन्हा save करा.'],
+      hi: ['इस machinery की एक shift में हर काम की अलग पंक्ति है (जैसे पहले Bucket, फिर Breaker), और उनमें से एक पंक्ति सही नहीं है।', 'Log Book entry के पन्ने पर या Edit Log Book में: उस shift की हर पंक्ति में एक ही काम चुनें (Split नहीं), Close हमेशा Start से ज़्यादा हो, और हर पंक्ति ऊपर वाली पंक्ति के Close से ही शुरू हो। लगातार दो पंक्तियों में एक ही काम न रखें – उनकी एक पंक्ति बनाएँ। ½ tick, "new meter" और "Debit to" उस shift की पहली पंक्ति पर रखें। फिर दोबारा save करें।'] },
     { re: /Diesel rate( typed| of this bill|:)|not a proper rate/i,
       en: ['The diesel rate typed for this bill or print is not a proper rate.', 'Type the rate in ₹ per litre (for example 95.50), or leave the box empty: the app then uses the automatic rate – the higher of the average rate of the period and the last purchase rate.'],
       mr: ['या bill किंवा print साठी टाकलेला diesel चा rate बरोबर नाही.', 'Rate ₹ प्रति लिटर मध्ये टाका (उदा. 95.50), किंवा box रिकामा ठेवा: मग app आपोआप rate घेतो – त्या कालावधीचा सरासरी rate आणि शेवटच्या खरेदीचा rate यातला जास्त.'],
@@ -4913,9 +4913,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते.'],
       hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है।'] },
     log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook'],
-      en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic).'],
-      mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप).'],
-      hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। Meter बंद हो तो "No reading" चुनें: दिन भरा जाता है और उसका काम अनुमान से लिया जाता है (app machinery का औसत सुझाता है), कारण के साथ; नए meter की पहली entry पर "new meter" tick करें। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं। Print Log Book: दो काम वाली entry (Bucket और Breaker) print में हर काम की अलग पंक्ति में आती है, और diesel debit का rate print के box में हाथ से डाला जा सकता है (खाली = अपने आप)।'] },
+      en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic).'],
+      mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप).'],
+      hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। Meter बंद हो तो "No reading" चुनें: दिन भरा जाता है और उसका काम अनुमान से लिया जाता है (app machinery का औसत सुझाता है), कारण के साथ; नए meter की पहली entry पर "new meter" tick करें। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं। जिस machinery के BOQ में घंटे के (या KM के) दो या ज़्यादा काम हैं – Bucket और Breaker – उसे यहाँ उसी तारीख और उसी shift में हर काम की अलग पंक्ति दी जा सकती है: उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें, उसका काम दबाएँ; उसका Start ऊपर वाली पंक्ति का Close है। वह एक ही entry के रूप में save होती है और उसकी पंक्तियाँ याद रहती हैं। Print Log Book: दो काम वाली entry (Bucket और Breaker) print में हर काम की अलग पंक्ति में आती है, और diesel debit का rate print के box में हाथ से डाला जा सकता है (खाली = अपने आप)।'] },
     tankcheck: { saves: ['saveTankCheck', 'deleteTankCheck'],
       en: ['A physical check of the diesel in a machinery\'s tank against what the app calculates.', 'One check per machinery and date. When the difference is not zero a reason must be written. "Filled to full" needs the tank capacity in Asset Master.'],
       mr: ['Machinery च्या tank मधल्या diesel ची प्रत्यक्ष तपासणी, app च्या हिशोबाशी तुलना करून.', 'एका machinery चा एका तारखेला एकच check. फरक शून्य नसेल तर कारण लिहावे लागते. "Filled to full" साठी Asset Master मध्ये tank ची क्षमता लागते.'],
@@ -13294,6 +13294,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   // the way picked for a row (one of the machinery's ticks)
   const lgWay = tr => wayOf(tr.querySelector('.unitcell'));
+  // 'hr' / 'km' when this row's machinery has two or more hour (KM) works in its BOQ on the row's date and the row is measured that way – its shift can then have a row for each work ('' = one row a shift, as always)
+  const lgPartKind = tr => { const its = (tr._p && tr._p.boqItems) || [], u = lgWay(tr), n = k => its.filter(it => itemKind(it.basis) === k).length; return hasHr(u) && n('hr') > 1 ? 'hr' : hasKm(u) && n('km') > 1 ? 'km' : ''; };
   const isHol = r => ['Holiday', 'Breakdown'].indexOf(r.mode || r.unit) > -1; // not paid
   /* SPLIT TIMING of an entry measured by Time (asked 07-10-2026: "11 to 1 and then 2 to 5 = 5 hours – let me enter it that way; the
    * time as time and the hours as a number, 2 pm to 3.30 pm = 1.5; a Day or a Night can be split too"). An entry has one or more
@@ -13388,8 +13390,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // read once per row: date, shift, the order key and the way
     const info = new Map(), byMach = {};
     rows.forEach(tr => { if (!tr._p) return; const date = lgf(tr, 'date').value, shift = lgf(tr, 'shift').value;
-      const x = { date: date, shift: shift, k: date + '|' + order[shift], u: lgWay(tr) }; info.set(tr, x);
+      const x = { date: date, shift: shift, k: date + '|' + order[shift] + '|00', u: lgWay(tr), grp: null, j: 0 }; info.set(tr, x);
       (byMach[tr._p.machine.id] = byMach[tr._p.machine.id] || []).push(tr); });
+    /* update-71 – the same rule as in Edit Log Book: a machinery whose BOQ has two or more hour (or KM) works may have MORE THAN ONE
+     * ROW on the same date and shift here, one row for each work (Bucket, then Breaker). The rows follow each other in the order
+     * they stand (a row starts where the row above it closed); the server saves them as ONE entry that keeps its rows. */
+    Object.keys(byMach).forEach(id => { const slots = {}; byMach[id].forEach(tr => { const x = info.get(tr), s = x.date + '|' + x.shift; (slots[s] = slots[s] || []).push(tr); });
+      Object.keys(slots).forEach(s => { const g = slots[s]; if (g.length < 2) return; const kind = lgPartKind(g[0]); if (!kind || g.some(tr => lgPartKind(tr) !== kind || info.get(tr).u !== info.get(g[0]).u)) return;
+        g.forEach((tr, j) => { const x = info.get(tr); x.grp = g; x.j = j; x.kind = kind; x.k = x.k.slice(0, -2) + String(j).padStart(2, '0'); }); }); });
     const keyOf = tr => info.get(tr).k;
     rows.forEach(tr => {
       const p = tr._p; if (!p) return;
@@ -13398,7 +13406,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // earlier rows of the same machinery in this list (latest before this date/shift); each meter follows the last row that read it
       const earlier = same.filter(o => o !== tr && keyOf(o) < k).sort((a, b) => keyOf(a) < keyOf(b) ? -1 : 1);
       const before = earlier[earlier.length - 1], beforeK = earlier.filter(o => hasKm(info.get(o).u)).pop(), beforeH = earlier.filter(o => hasHr(info.get(o).u)).pop();
-      const clash = same.some(o => { if (o === tr) return false; const x = info.get(o); return x.date === date && (x.shift === shift || x.shift === 'Full Day' || shift === 'Full Day'); });
+      const clash = same.some(o => { if (o === tr) return false; const x = info.get(o); if (me.grp && x.grp === me.grp) return false; return x.date === date && (x.shift === shift || x.shift === 'Full Day' || shift === 'Full Day'); });
+      const later = !!me.grp && me.j > 0;      // a later work of its shift: starts where the row above closed; the diesel, the ½ tick and the opening diesel of the shift stand on its first row
       const num = f => { const v = lgf(tr, f).value; return v === '' ? '' : Number(v); };
       let openKm, openHr, odsl, locked;
       if (before) { odsl = before._closing === undefined ? 0 : before._closing; locked = true; }
@@ -13417,6 +13426,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (el.dataset.manual && (el.value === '' || Number(el.value) === Number(a[3]))) delete el.dataset.manual;      // back on the proposed value: it follows again
         if (!el.dataset.manual) { if (String(el.value) !== String(a[3])) el.value = a[3]; }
         else if (Number(el.value) < Number(a[3])) startBad = 'Start ' + a[4] + ' ' + el.value + ' is less than the last Close ' + a[4] + ' ' + a[3] + '. Start can be the same or more, never less (new meter fitted: tick "new meter").';
+        else if (later) startBad = 'This work starts where the row above closed: ' + a[3] + ' ' + a[5] + ' (the rows of one shift follow each other). Clear the Start – it fills by itself.';
         else gapSay += (gapSay ? ' + ' : '') + fmt(r2(Number(el.value) - Number(a[3]))) + ' ' + a[5];
         el.title = 'Proposed: the last Close (' + a[3] + '). Type a higher reading only when the machinery ran elsewhere in between – that distance is not counted here.';
       });
@@ -13432,8 +13442,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const whr = off ? num('estHr') : hr && num('openingHr') !== '' && num('closingHr') !== '' ? r2(num('closingHr') - num('openingHr')) : tm ? slotsHrs(lgSlots(tr), lgf(tr, 'tBreak').value) : '';
       if (tm) lgSlotsShow(tr);
       const need = r2(((km || off) && wkm > 0 && m.kmStd > 0 ? wkm / m.kmStd : 0) + ((hr || tm || off) && whr > 0 && m.hrStd > 0 ? whr * m.hrStd : 0));
-      const closing = r2(Number(odsl) + (Number(p.diesel) || 0) - need);
-      tr._closing = closing;
+      const issued = later ? 0 : (Number(p.diesel) || 0);
+      const closing = r2(Number(odsl) + issued - need);
+      tr._closing = closing; tr._later = later;
+      { const dz = lgo(tr, 'diesel'), want = later ? '0' : (fmt(p.diesel) || '0'); if (dz && dz.textContent !== want) dz.textContent = want;
+        const hf = tr.querySelector('.lg-half'); if (hf && hf.hidden !== later) { hf.hidden = later; if (later) { const cb = hf.querySelector('input'); if (cb) cb.checked = false; } }
+        let tag = tr.querySelector('.lg-partn'); if (later && !tag) { hf.insertAdjacentHTML('afterend', '<small class="lx-part lg-partn" title="Another work of the same shift: it starts where the row above closed. The shift is paid, and takes its diesel, once. Saved as one entry that keeps its rows."></small>'); tag = tr.querySelector('.lg-partn'); }
+        if (tag) { tag.hidden = !later; if (later) { const t = 'work ' + (me.j + 1) + ' of this ' + (shift === 'Night' ? 'night' : 'day'); if (tag.textContent !== t) tag.textContent = t; } } }
       lgTxt(lgo(tr, 'wkm'), tp ? (lgf(tr, 'trip').value || '0') + ' trips' : wkm === '' ? '–' : fmt(wkm) + (off ? ' km est.' : hr ? ' km' : '')); lgo(tr, 'wkm').classList.toggle('neg', wkm !== '' && wkm < 0);
       lgTxt(lgo(tr, 'whr'), whr === '' ? '–' : fmt(whr) + (off ? ' hr est.' : km || tm ? ' hr' : '')); lgo(tr, 'whr').classList.toggle('neg', whr !== '' && whr < 0);
       if (tp) lgo(tr, 'wkm').hidden = false;
@@ -13441,7 +13456,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       lgTxt(lgo(tr, 'closing'), fmt(closing)); lgo(tr, 'closing').classList.toggle('neg', closing < 0);
       // fill-to-fill average (details on the ⓘ)
       let avg = '–', tip = '';
-      const fillToday = Number(p.diesel) || 0, cy = p.cycle, pc = p.prevClosed;
+      const fillToday = issued, cy = p.cycle, pc = p.prevClosed;
       const work = (a, b) => [hasKm(m.unit) ? fmt(a) + ' km' : '', hasHr(m.unit) ? fmt(b) + ' hr' : ''].filter(Boolean).join(' + ');
       if (fillToday > 0 && pc) { avg = pc.avg || '–'; tip = 'Fill of ' + showDate(pc.start) + ' (' + fmt(pc.qty) + ' L) lasted till ' + showDate(pc.end) + ': ' + work(pc.km, pc.hr) + ', standard needs ' + fmt(pc.std) + ' L' + (pc.extra !== '' ? ', ' + (pc.extra > 0 ? 'extra ' : 'short ') + fmt(Math.abs(pc.extra)) + ' L' : '') + '. New fill today: ' + fmt(fillToday) + ' L.'; }
       else if (fillToday > 0) tip = 'First fill: ' + fmt(fillToday) + ' L – average shows when the next fill comes.';
@@ -13450,7 +13465,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       else tip = 'No diesel filled yet for this machinery.';
       lgTxt(lgo(tr, 'avg'), avg); lgo(tr, 'avgCell').title = tip;
       // Item-wise BOQ: what the rest item gets, and items typed above the entry's total
-      const itemBad = itemBoxCalc(tr.querySelector('.lg-itm'), { hr: whr, km: wkm, trip: Number(lgf(tr, 'trip').value) || 0 });
+      let itemBad = itemBoxCalc(tr.querySelector('.lg-itm'), { hr: whr, km: wkm, trip: Number(lgf(tr, 'trip').value) || 0 });
+      if (me.grp && !itemBad) { const box = tr.querySelector('.lg-itm'), pick = box ? box.dataset['pick' + me.kind] : '', q = me.kind === 'hr' ? whr : wkm, up = me.j ? me.grp[me.j - 1].querySelector('.lg-itm') : null;
+        const names = (p.boqItems || []).filter(it => itemKind(it.basis) === me.kind).map(it => it.name).join(' / ');
+        if (pick === '_split' || !pick) itemBad = 'Each row of this shift is ONE work – press ' + names + ' (not Split).';
+        else if (q !== '' && !(q > 0)) itemBad = 'This row has no work yet – its Close must be more than its Start.';
+        else if (up && up.dataset['pick' + me.kind] === pick) itemBad = 'Same work as the row above (' + pick + ') – make them one row, or press the other work.'; }
       // note under the machinery: only real problems and the first-entry hint
       const problem = p.problem || (clash ? m.id + ' is already in another row for this date / shift.' : '') || startBad || itemBad;
       tr.classList.toggle('err', !!problem);
@@ -13460,7 +13480,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function lgSum() {
     const rows = lgRows().filter(tr => tr._p);
-    const d = rows.reduce((s, tr) => s + (Number(tr._p.diesel) || 0), 0);
+    const d = rows.reduce((s, tr) => s + (tr._later ? 0 : (Number(tr._p.diesel) || 0)), 0);
     const h = 'Rows: <b>' + rows.length + '</b> &nbsp; Diesel issued: <b>' + fmt(r2(d)) + ' Ltr</b>';
     if ($('l_gsum')._h !== h) { $('l_gsum').innerHTML = h; $('l_gsum')._h = h; }
   }
@@ -13566,7 +13586,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // the message carries the rows' own errors too, so the help can say what to do about each kind
       throw new Error('Nothing saved – ' + res.errors.length + ' row(s) need attention (marked in red).\n' + res.errors.slice(0, 6).map(er => (er.row ? 'Row ' + er.row + ': ' : '') + String(er.msg || '').replace(/^Error:\s*/, '')).join('\n'));
     }
-    toast(res.count + ' Log Book ' + (res.count === 1 ? 'entry' : 'entries') + ' saved.');
+    toast(res.count + ' Log Book ' + (res.count === 1 ? 'entry' : 'entries') + ' saved' + (res.joined ? ' (' + res.joined + ' rows are works of the same shift – each such shift is one entry that keeps its rows).' : '.'));
     const dates = rows.map(r => r.date);
     loadLog();
     clearLogGrid();

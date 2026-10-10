@@ -1322,6 +1322,22 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (a new entry / another way is checked as before). The small edit window already worked from the stored unit. RULE: the format
   decides the way of NEW entries; a saved entry is always shown and saved in the way it has. Test: `test/browser/timefmt70.js
   [port] [look]`, unit 48. Not looked at (not asked): how the print in an hour-meter format shows entries made by Time.
+- 10-10-2026 (update-71, asked after update-70 went live – `06f2e72`). Report: `UPDATE_71.md`. NO SQL. NOT deployed by me.
+  "In Edit Log Book it can be entered, on the entry page it gives an error – use the same logic": the ENTRY PAGE now takes a row for
+  each work of one shift. SERVER does the joining: `saveLogRowsInner_` groups its prepared rows by machinery + date + shift;
+  `logRowsKind_(g)` ('hr' / 'km' when the BOQ of that date has 2+ works of the kind the rows are measured in, else '' → nothing is
+  joined, the old "already saved" refusal stays); `logRowsJoin_(g, kind)` builds ONE row `l` with `items._parts` (n from `_all`, the
+  single typed item that takes the whole row, or the "rest" item; q = Close − Close above; a later row's Start must be blank or the
+  Close above; ½ / new meter / Debit to only on the first row; other-kind typed items, `_day`, trips carried over; texts joined with
+  " / "). The first row's q is set in the main loop once the entry's Start is known (`p.join`). Errors carry `e.rowI` so the page
+  marks the row that is wrong. Answer has `joined`. `importLogBook_` adds its fresh lines through the same function → same rule.
+  PAGE: `lgPartKind(tr)`; in `lgCalcAll` the rows of one slot get `x.grp / x.j / x.kind` and an order key `date|shift|jj` (so the
+  existing "Start = last Close of the row before" chain does the rest); `later` rows: Start must equal the Close above, issued
+  diesel 0, `.lg-half` hidden, label `.lg-partn`; item rule after `itemBoxCalc` (one work, not Split, not the same as the row above).
+  NOT built: adding a work from the entry page to a shift that is ALREADY saved (message points to Edit Log Book → "+ work in this
+  shift"); the small edit window. Test: `test/browser/entry71.js`, unit 49.
+  RULE FOR NEXT TIME (his words: "why did you fix it in one place only"): a rule about Log Book entries is built in EVERY place an
+  entry is made or changed – entry page, Edit Log Book, small edit window, Excel import – or the note says at the top which are left.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
