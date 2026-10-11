@@ -1467,6 +1467,17 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * An entry with a gap: edit window locks readings / texts (Edit Log Book only); Excel import refuses a change to it; saveLogBulk_
     keeps its rows when they are not sent (page sends `joinRows: true` when the rows were joined on purpose).
   * Tests changed on purpose: unit update-69 / 71 / 76, browser entry71 / works69 (see UPDATE_77.md). New: unit (55), browser `gap77.js`.
+- 11-10-2026 (update-78, asked after update-77 went live – `73b503a`; his screen: Bucket on Time + Breaker on Hrs, same Day). Report: `UPDATE_78.md`. NO SQL.
+  ROWS BY TIME AMONG THE ROWS BY HRS OF ONE SHIFT (machinery on hours only). Part `{ m: 'T', ts: '09:00-11:00[,…]', tb: break min, q }`;
+  the entry stays on Hrs, Start / Close from its rows by Hrs (≥ 1 required), hours = Close − Start − Σg + Σ q(Time). Done by `partsGap_`
+  = Σg − Σ Time hours (may be < 0) everywhere the gap was used; Time hours always recomputed on the server (`partTime_` / `partTimeQ_`).
+  Locks (edit window, Excel, saveLogBulk_ rows not sent) by `partsSpecial_` (any g > 0 or any Time row). Entry page join: first row may be
+  Time (`join.firstIdx`). Tests: unit 56; browser `time78.js`.
+- 11-10-2026 (update-79, shipped together with update-78). Report: `UPDATE_79.md`. NO SQL.
+  ONE CLICK SOLUTION LOGO before the sign-in only: favicon / app icons (`app/icons/oc-*.png`, new names – the service worker keeps
+  icons cache-first under one cache name, so overwriting `icon-192.png` would never reach a phone), the opening (`img.oc-logo`,
+  `oc-logo-glow.webp`), the sign-in screen (his picture `oc-login.webp`, dark-blue card; CSS only under `#login_screen`). The logo
+  in the form shows on phones only (a wide screen has it in the picture). Inside the app nothing changed. `dev.js` serves `.webp`.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

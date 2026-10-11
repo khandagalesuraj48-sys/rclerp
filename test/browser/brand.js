@@ -13,11 +13,12 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   const errs = []; p.on('pageerror', e => errs.push(String(e.message).slice(0, 200)));
   await p.goto('http://127.0.0.1:3000/', { waitUntil: 'load' }); await wait(2600);
   const f = p.frames().find(x => x !== p.mainFrame());
-  const intro = await f.evaluate(() => { const bx = document.getElementById('oc_intro'); return { shown: !bx.hidden, word: bx.querySelector('.oc-word').textContent, forWho: document.getElementById('oc_for').textContent, opacity: getComputedStyle(bx.querySelector('.oc-word span')).opacity }; });
-  ok('the opening of One Click Solution plays when the app is opened', intro.shown && intro.word === 'ONECLICKSOLUTION' && /Rachana Construction Limited/.test(intro.forWho), intro);
+  // (update-79: the opening shows One Click Solution's own logo – a picture – instead of the drawn mark and the words)
+  const intro = await f.evaluate(() => { const bx = document.getElementById('oc_intro'), im = bx.querySelector('img.oc-logo'); return { shown: !bx.hidden, logo: im ? im.alt + ' ' + im.getAttribute('src') + ' ' + im.naturalWidth : '', forWho: document.getElementById('oc_for').textContent }; });
+  ok('the opening of One Click Solution plays when the app is opened – with its logo', intro.shown && /^One Click Solution \/icons\/oc-logo-glow\.webp 700$/.test(intro.logo) && /Rachana Construction Limited/.test(intro.forWho), intro);
   await p.screenshot({ path: 'shots/oc_intro.png' });
   await wait(2600); ok('…and goes by itself after about 4 seconds', await f.evaluate(() => document.getElementById('oc_intro').hidden));
-  const lg = await f.evaluate(() => ({ brand: document.querySelector('#login_form .oc-name').textContent, site: document.getElementById('lp_site').textContent, title: window.top.document.title }));
+  const lg = await f.evaluate(() => ({ brand: document.querySelector('#login_form .oc-logo').alt, site: document.getElementById('lp_site').textContent, title: window.top.document.title }));
   ok('the sign-in screen carries the One Click Solution brand, with the customer and site under it', /One Click Solution/.test(lg.brand) && lg.site === 'VTR Site – NH 848' && /Rachana Construction Limited – Fleet ERP · One Click Solution/.test(lg.title), lg);
   await p.screenshot({ path: 'shots/oc_login.png' });
   await p.reload({ waitUntil: 'load' }); await wait(1500);

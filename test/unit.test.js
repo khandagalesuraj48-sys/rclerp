@@ -1843,7 +1843,7 @@ test('an hours machinery: two rows in one shift with a gap (hours between not co
   assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', key('2026-07-02'), { openingHr: 113, closingHr: 115, work: '' }).thrown);
   assert.deepStrictEqual(brief('T77-BRK'), ['07-01 100→113 = 5', '07-02 113→115 = 2', '07-03 116→120 = 4']);
   // … and the readings of the 1st (rows with a gap) are changed row by row in Edit Log Book, not in the small window
-  assert.match(tryRun('(k, l) => updateLogRow_(k, l)', key('2026-07-01'), { openingHr: 100, closingHr: 112, work: 'ROCK BREAKING' }).thrown || '', /rows in this shift with hours not worked between them – change its Start \/ Close in Edit Log Book/);
+  assert.match(tryRun('(k, l) => updateLogRow_(k, l)', key('2026-07-01'), { openingHr: 100, closingHr: 112, work: 'ROCK BREAKING' }).thrown || '', /rows in this shift that are kept row by row \(hours not worked between them, or a row by Time\) – change its Start \/ Close in Edit Log Book/);
   // Edit Log Book on the 1st: three rows 100 → 102, 105 → 106, 110 → 113 = 2 + 1 + 3 = 6 h; the 2nd keeps its Start 113
   const e1 = run('(f, t) => getLogEditData_("T77-BRK", f, t)', '2026-07-01', '2026-07-01').rows[0];
   b = bulk([R(e1, { work: 'ROCK BREAKING', items: { _parts: [{ n: '', q: 2 }, { n: '', q: 1, g: 3 }, { n: '', q: 3, g: 4 }] } })], '2026-07-01', '2026-07-01');
@@ -1854,7 +1854,7 @@ test('an hours machinery: two rows in one shift with a gap (hours between not co
   assert.ok(b.ok === false && /the rows of this shift make 5 hours but the entry has 9 hours/.test(b.errors[0].msg), JSON.stringify(b).slice(0, 300));
   // an Excel file that changes the Close of the 1st is refused (its rows are changed in Edit Log Book)
   const imp = tryRun('x => importLogBook_(x)', { check: true, rows: [{ line: 2, date: '2026-07-01', shift: 'Full Day', no: 'T77-BRK', mode: 'Hrs', closingHr: 114 }] });
-  assert.ok(/has rows in its shift with hours not worked between them – change it in Edit Log Book/.test(JSON.stringify(imp)), JSON.stringify(imp).slice(0, 300));
+  assert.ok(/has rows in its shift that are kept row by row \(hours not worked between them, or a row by Time\) – change it in Edit Log Book/.test(JSON.stringify(imp)), JSON.stringify(imp).slice(0, 300));
   // delete the 2nd: the 3rd keeps its Start 116 (nothing else changes)
   run('k => deleteLogRow_(k)', key('2026-07-02'));
   assert.deepStrictEqual(brief('T77-BRK'), ['07-01 100→113 = 6', '07-03 116→120 = 4']);
@@ -1894,4 +1894,62 @@ test('an hours machinery: two rows in one shift with a gap (hours between not co
   assert.ok(b.ok, JSON.stringify(b).slice(0, 300));
   assert.deepStrictEqual(stored('T77-TIP').map(x => x.d), ['07-01', '07-02']);
   assert.strictEqual(run('() => { const lt = table_(APP.SHEET_LOG), c = lt.c; const r = lt.rows.find(x => str_(x[c[H.NO]]) === "T77-TIP" && dkey_(x[c[H.DATE]]) === "2026-07-02"); return num0_(r[c[H.OKM]]); }'), 160, 'the KM vehicle\'s next entry follows the new Close, as before');
+});
+
+// update-78 (11-10-2026, his screen: Bucket on Time and Breaker on Hrs in the same Day shift – "in one shift it can be so"): a machinery
+// on hours may have rows by Time (From – To, no reading) among its rows by Hrs; their hours are ADDED. Hand-worked: 30-06 3710 → 3714.5;
+// 01-07 Bucket 09:00–11:00 = 2 h (Time) + Breaker 3714.5 → 3717.5 = 3 h → 5 h; 02-07 3717.5 → 3719 (1.5) + Time 13:00–14:30 (1.5) + 3720 → 3721 (1, 1 h not worked) = 4 h.
+test('an hours machinery: rows by Time and rows by Hrs in one shift – the Time hours are added; Start / Close from the rows by Hrs', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => run('(f, a) => { try { return eval("(" + f + ")").apply(null, a); } catch (e) { return { thrown: String(e.message) }; } }', fn, a);
+  run('(x, m) => saveMaster_(x, m)', { no: 'T78-JCB', name: 'JCB', type: 'Excavator', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 5, owner: 'T78 Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: 'T78-BB', name: 'JCB', type: 'Excavator', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 5, owner: 'T78 Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('x => saveLbFormats_(x)', { 'T78-JCB': 'D', 'T78-BB': 'D' });
+  run('(x, m) => saveVendor_(x, m)', { name: 'T78 Earthmovers', gstReg: 'No', pan: 'ABCDE1278T', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'T78 Earthmovers', from: '2026-06-01', tdsPct: 2, woNo: 'WO-78', lines: [{ no: 'T78-JCB', basis: 'Per Hour', rate: 1000, diesel: 'Company' },
+    { no: 'T78-BB', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'Bucket', basis: 'Per Hour', rate: 1200 }, { name: 'Breaker', basis: 'Per Hour', rate: 1500 }] }] }, 'add');
+  const save = rows => { const x = tryRun('x => saveLogRowsInner_(x)', { rows: rows }); return x && (x.thrown || x.ok === false) ? { thrown: x.thrown || (x.errors || []).map(e => e.msg).join(' ') } : x; };
+  const J = (d, o) => Object.assign({ date: d, shift: 'Day', no: 'T78-JCB' }, o);
+  const stored = no => run(`no => { const lt = table_(APP.SHEET_LOG), c = lt.c; return lt.rows.filter(x => str_(x[c[H.NO]]) === no).map(x => ({ d: dkey_(x[c[H.DATE]]).slice(5), mode: str_(x[c[H.UNIT]]), ohr: num0_(x[c[H.OHR]]), chr: num0_(x[c[H.CHR]]), whr: num0_(x[c[H.WHR]]), tot: num0_(x[c[H.TOT]]), items: str_(x[c[H.ITEMS]]) })).sort((a, b) => a.d < b.d ? -1 : 1); }`, no);
+  assert.ok(save([J('2026-06-30', { mode: 'Hrs', openingHr: 3710, closingHr: 3714.5 })]).ok);
+  // his screen: row 1 Bucket by Time 09:00 – 11:00, row 2 Breaker by Hrs (its Start left to the app: 3714.5) → 3717.5
+  let r = save([J('2026-07-01', { mode: 'Time', tStart: '09:00', tEnd: '11:00', work: 'LOADING' }), J('2026-07-01', { mode: 'Hrs', closingHr: 3717.5, work: 'ROCK BREAKING' })]);
+  assert.ok(r.ok && r.count === 1 && r.joined === 2, JSON.stringify(r).slice(0, 300));
+  let s = stored('T78-JCB').find(x => x.d === '07-01');
+  assert.deepStrictEqual([s.mode, s.ohr, s.chr, s.whr, s.tot], ['Hrs', 3714.5, 3717.5, 5, 25], 'one entry on Hrs: Start / Close of its row by Hrs, 2 + 3 = 5 h, diesel 5 × 5 = 25 L');
+  assert.deepStrictEqual(JSON.parse(s.items), { _parts: [{ n: '', q: 2, m: 'T', ts: '09:00-11:00', w: 'LOADING' }, { n: '', q: 3, w: 'ROCK BREAKING' }] });
+  assert.strictEqual(run('(n, d, s) => getLogRowPrefill_(n, d, s)', 'T78-JCB', '2026-07-02', 'Day').openingHr, 3717.5, 'the next day starts at the last Close');
+  // Edit Log Book reads the rows back (the row by Time with its times); it saves three rows: Hrs 1.5, Time 1.5, Hrs 1 after 1 h not worked = 4 h
+  assert.ok(save([J('2026-07-02', { mode: 'Hrs', openingHr: 3717.5, closingHr: 3721 })]).ok);
+  const ed = run('(f, t) => getLogEditData_("T78-JCB", f, t)', '2026-07-01', '2026-07-02');
+  assert.deepStrictEqual(ed.rows[0].itemParts.map(p => [p.q, p.m || '', p.ts || ''].join('|')), ['2|T|09:00-11:00', '3||']);
+  const e2 = ed.rows[1], bulk = (rows, f, t) => tryRun('p => saveLogBulk_(p)', { no: 'T78-JCB', from: f, to: t, deleted: [], openingDiesel: '', rows: rows });
+  const R = (row, o) => Object.assign({ key: row.key, same: false, half: false, date: row.date, shift: row.shift, mode: 'Hrs', openingHr: row.ohr, closingHr: row.chr, openingKm: '', closingKm: '', tStart: '', tEnd: '', tBreak: '', remark: '', trip: '', challan: '', chFrom: '', chTo: '', work: '' }, o);
+  let b = bulk([R(e2, { items: { _parts: [{ n: '', q: 1.5 }, { n: '', q: 99, m: 'T', ts: '13:00-14:30' }, { n: '', q: 1, g: 1 }] } })], '2026-07-02', '2026-07-02');
+  assert.ok(b.ok, JSON.stringify(b).slice(0, 300));
+  s = stored('T78-JCB').find(x => x.d === '07-02');
+  assert.deepStrictEqual([s.ohr, s.chr, s.whr], [3717.5, 3721, 4], '3.5 − 1 not worked + 1.5 by Time = 4 h (the hours of the row by Time are worked out from its times, not taken as sent)');
+  assert.deepStrictEqual(JSON.parse(s.items)._parts, [{ n: '', q: 1.5 }, { n: '', q: 1.5, m: 'T', ts: '13:00-14:30' }, { n: '', q: 1, g: 1 }]);
+  // a row by Time whose time is 0, and a shift of rows all by Time, are refused
+  b = bulk([R(e2, { items: { _parts: [{ n: '', q: 3.5 }, { n: '', q: 0, m: 'T', ts: '13:00-14:00', tb: 60 }] } })], '2026-07-02', '2026-07-02');
+  assert.ok((b.ok === false && /working time is 0 for this row/.test(JSON.stringify(b))) || /working time is 0 for this row/.test(b.thrown || ''), JSON.stringify(b).slice(0, 300));
+  assert.match(save([J('2026-07-03', { mode: 'Time', tStart: '09:00', tEnd: '10:00' }), J('2026-07-03', { mode: 'Time', tStart: '11:00', tEnd: '12:00' })]).thrown || '', /already saved|all by Time/);
+  // the edit window: readings of such an entry are changed row by row in Edit Log Book
+  const key = d => run('(n, d) => { const lt = table_(APP.SHEET_LOG), c = lt.c, r = lt.rows.find(x => str_(x[c[H.NO]]) === n && dkey_(x[c[H.DATE]]) === d); return logKeyOf_(lt, r); }', 'T78-JCB', d);
+  assert.match(tryRun('(k, l) => updateLogRow_(k, l)', key('2026-07-01'), { openingHr: 3714.5, closingHr: 3718, work: 'LOADING / ROCK BREAKING' }).thrown || '', /kept row by row/);
+  // the bill per hour: 5 + 4 = 9 h × ₹1,000 = ₹9,000 (30-06 is June)
+  const bill = no => run('(n, f, t) => billMachineCalc_(findMachine_(n), getLogBookList_({ from: f, to: t, no: n, all: true }).rows, logPrintExtra_({ from: f, to: t, nos: [n] }), f, t, undefined, true).amount', no, '2026-07-01', '2026-07-31');
+  assert.strictEqual(bill('T78-JCB'), 9000);
+  // (after the review) a new meter fitted that day: ticked on the first row by Hrs, after a row by Time – the entry starts at the new meter's 0
+  const nm = save([J('2026-08-01', { mode: 'Time', tStart: '08:00', tEnd: '09:00' }), J('2026-08-01', { mode: 'Hrs', meter: 'new', meterNote: 'meter changed', openingHr: 0, closingHr: 2 })]);
+  assert.ok(nm.ok, JSON.stringify(nm).slice(0, 300));
+  s = stored('T78-JCB').find(x => x.d === '08-01');
+  assert.deepStrictEqual([s.ohr, s.chr, s.whr], [0, 2, 3]);
+  // a machinery with Bucket and Breaker: Bucket by Time 2 h, Breaker by Hrs 100 → 103 → 5 h; bill 2 × 1,200 + 3 × 1,500 = ₹6,900
+  r = save([J('2026-07-01', { no: 'T78-BB', mode: 'Time', tStart: '09:00', tEnd: '11:00', items: { _all: 'Bucket' } }), J('2026-07-01', { no: 'T78-BB', mode: 'Hrs', openingHr: 100, closingHr: 103, items: { _all: 'Breaker' } })]);
+  assert.ok(r.ok && r.joined === 2, JSON.stringify(r).slice(0, 300));
+  s = stored('T78-BB')[0];
+  assert.deepStrictEqual([s.ohr, s.chr, s.whr], [100, 103, 5]);
+  assert.strictEqual(bill('T78-BB'), 2 * 1200 + 3 * 1500);
 });

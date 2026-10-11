@@ -7,7 +7,7 @@
  *  - BUILD changes with every deploy, so the browser installs the new worker; it takes over at once (skipWaiting) – the
  *    "Update" the person sees is decided by the app's own version check, not by this file. */
 const BUILD = '/*BUILD*/', KEEP = 'fleet-erp-shell';
-self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(KEEP).then(c => c.addAll(['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']).catch(() => {}))); });
+self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(KEEP).then(c => c.addAll(['/', '/manifest.webmanifest', '/icons/oc-icon-192.png', '/icons/oc-icon-512.png']).catch(() => {}))); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== KEEP).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('message', e => { if (e.data === 'build' && e.source) e.source.postMessage({ swBuild: BUILD }); });
 /* SCREEN SHARE CALLS WHEN THE APP IS CLOSED (update-75): the server sends a ring (encrypted for this browser only) – shown as a
@@ -17,10 +17,10 @@ self.addEventListener('push', e => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (er) { d = {}; }
   const name = String(d.name || 'Somebody').slice(0, 60), tag = 'rtc-' + String(d.call || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
   const opt = d.t === 'ring'
-    ? { body: (d.help ? 'Needs help' + (d.page ? ' – ' + String(d.page).slice(0, 40) : '') + '. ' : '') + 'Screen share with voice – tap to open the app and answer.', tag: tag, renotify: true, requireInteraction: true, vibrate: [400, 200, 400, 200, 400], icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', data: { call: d.call || '', t: 'ring' } }
-    : { body: 'Tap to open the app – call back from the screen button at the top.', tag: tag, renotify: false, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', data: { call: d.call || '', t: 'missed' } };
+    ? { body: (d.help ? 'Needs help' + (d.page ? ' – ' + String(d.page).slice(0, 40) : '') + '. ' : '') + 'Screen share with voice – tap to open the app and answer.', tag: tag, renotify: true, requireInteraction: true, vibrate: [400, 200, 400, 200, 400], icon: '/icons/oc-icon-192.png', badge: '/icons/oc-icon-192.png', data: { call: d.call || '', t: 'ring' } }
+    : { body: 'Tap to open the app – call back from the screen button at the top.', tag: tag, renotify: false, icon: '/icons/oc-icon-192.png', badge: '/icons/oc-icon-192.png', data: { call: d.call || '', t: 'missed' } };
   if (d.t === 'done') {      // answered / declined on another device of this user: the ring here goes (a short quiet note, closed after 4 s)
-    e.waitUntil(self.registration.getNotifications({ tag: tag }).then(l => { l.forEach(n => n.close()); return self.registration.showNotification('Screen share answered on another device', { body: 'The call of ' + name + ' was answered or declined on another device of yours.', tag: tag, silent: true, icon: '/icons/icon-192.png', data: { t: 'done' } }); })
+    e.waitUntil(self.registration.getNotifications({ tag: tag }).then(l => { l.forEach(n => n.close()); return self.registration.showNotification('Screen share answered on another device', { body: 'The call of ' + name + ' was answered or declined on another device of yours.', tag: tag, silent: true, icon: '/icons/oc-icon-192.png', data: { t: 'done' } }); })
       .then(() => new Promise(ok => setTimeout(ok, 4000))).then(() => self.registration.getNotifications({ tag: tag })).then(l => l.forEach(n => n.close())));
     return;
   }
