@@ -1443,6 +1443,17 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   * NOT VERIFIED: real push services / phones (rig has no internet to FCM / WNS / Apple), a real camera / torch, a real line drop,
     WhatsApp on a phone, iPhone. Known and accepted: the missed list is read-change-write without a lock (two rings to the same
     user at the same instant can lose one line); the caller's help page name goes through the push service (≤ 40 letters).
+- 11-10-2026 (update-76, asked after update-75 went live – `93a3597`). Report: `UPDATE_76.md`. NO SQL.
+  AN HOURS MACHINERY MAY HAVE A DAY ON TIME ("JCB / excavators on hours sometimes give no hour reading – they give the timing").
+  * RULE (server `timeX_` / `withTime_`, page `timeX` / `modesOf` / `modesX` / `modesMain`): ways with an hour meter (Hrs, KM + Hrs) →
+    'Time' added as an EXTRA way (`m.modesX`). Formats D / E were ['Hrs'] only and the format overrides the ticks – that was the block.
+    The usual way = modesMain (wayAuto, Excel blank row, Edit Log Book new row, getLogRowPrefill_ lastMode ignores modesX).
+  * Everything after saving already summed whr for every way (bill per hour, diesel need, tank, print TOTAL HOURS, reports) – unchanged.
+  * Fixed past a Time day: getLogBookList_ summary (first / last entry WITH a reading; unit from the first entry that has a meter),
+    addReadings_ (oHr / cHr and their dates), getLogEntry_ next = next entry reading the same meter, deleteLogRow_ and saveLogBulk_
+    (the next READER follows a lowered Close / a deleted entry – before, only the very next entry, and recalcChain_ only raises).
+  * The update-70 unit test said "a NEW Time entry of a format-E machinery is refused" – changed on purpose (now accepted; KM still refused).
+  * Tests: unit 53; browser `time76.js` (entry page buttons and save, next Start 105, Edit Log Book ways, Excel columns / list, print D).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

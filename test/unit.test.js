@@ -1386,7 +1386,7 @@ test('Edit Log Book: a saved entry keeps the way it was saved in after the Log B
   const from = '2026-06-01', to = '2026-06-30';
   const grid = () => run('(f, t) => getLogEditData_("T70-JCB", f, t)', from, to);
   const g = grid();
-  assert.deepStrictEqual(g.machine.modes, ['Hrs'], 'format E: new entries are read from the hour meter');
+  assert.deepStrictEqual([g.machine.modes, g.machine.modesX], [['Hrs', 'Time'], ['Time']], 'format E: new entries are read from the hour meter – and Time for a day the meter gave no reading (update-76)');
   assert.deepStrictEqual(g.rows.map(r => [r.date, r.mode, r.tHrs].join(' ')), ['2026-06-28 Time 6.5', '2026-06-29 Time 2'], 'the entries are still what was saved');
   const send = (edit, extra) => run('p => { try { return saveLogBulk_(p); } catch (e) { return { thrown: String(e.message) }; } }', { no: 'T70-JCB', from: from, to: to, deleted: [], openingDiesel: '',
     rows: grid().rows.map(r => Object.assign({ key: r.key, same: false, half: false, date: r.date, shift: r.shift, mode: r.mode, openingHr: '', closingHr: '', openingKm: '', closingKm: '', tStart: r.tStart, tEnd: r.tEnd, tBreak: r.tBrk, remark: '', trip: '', challan: '', chFrom: '', chTo: '', work: r.work, odSet: '' }, edit(r))).concat(extra || []) });
@@ -1395,10 +1395,9 @@ test('Edit Log Book: a saved entry keeps the way it was saved in after the Log B
   let r = send(x => x.date === '2026-06-28' ? { work: 'CLEANING WORK' } : { tEnd: '14:00' });
   assert.ok(r.ok && r.changed === 2, JSON.stringify(r).slice(0, 300));
   assert.deepStrictEqual(stored(), ['2026-06-28 Time 6.5 CLEANING WORK', '2026-06-29 Time 3 SHIFTING']);
-  // a NEW entry by Time is still refused for this machinery (its format is read from the hour meter) – and nothing is changed by the try
-  r = send(() => ({ same: true }), [{ key: '', date: '2026-06-30', shift: 'Day', mode: 'Time', tStart: '09:00', tEnd: '11:00', tBreak: '', work: 'NEW' }]);
-  assert.ok(r.ok === false && /does not work on "Time"/.test((r.errors || []).map(e => e.msg).join(' ') + (r.thrown || '')), JSON.stringify(r).slice(0, 300));
-  // a saved entry cannot be moved to a way the machinery does not have either
+  // (update-76, asked 11-10-2026: an hours machinery whose hour meter gave no reading may have a day on TIME – so a NEW Time entry is
+  //  accepted now for this machinery on an hours format; until update-75 it was refused.) A way it does not have (KM) is still refused.
+  // a saved entry cannot be moved to a way the machinery does not have
   r = send(x => x.date === '2026-06-29' ? { mode: 'KM', openingKm: 10, closingKm: 20 } : { same: true });
   assert.ok(r.ok === false && /does not work on "KM"/.test((r.errors || []).map(e => e.msg).join(' ') + (r.thrown || '')), JSON.stringify(r).slice(0, 300));
   assert.deepStrictEqual(stored(), ['2026-06-28 Time 6.5 CLEANING WORK', '2026-06-29 Time 3 SHIFTING']);
@@ -1730,4 +1729,62 @@ test('screen share master level (server): rights, a waiting ring, missed calls, 
   const offList = api('rtcUsers_', D); assert.deepStrictEqual([offList.off, offList.ice.length, offList.relay], [true, 0, false]);
 
   run('() => { kvRead_ = __keep75.kvRead_; kvWrite_ = __keep75.kvWrite_; prefsRead_ = __keep75.prefsRead_; writeLog_ = __keep75.writeLog_; __pushKey = undefined; __pushOk = undefined; __pushSend = undefined; const c = CacheService.getScriptCache(); ["USERS_LIST", "RTC_OFF_C"].forEach(k => c.remove(k)); }');
+});
+
+// update-76 (11-10-2026): "the JCB / excavators set on hours sometimes give no hour reading – they give the timing instead, so one
+// machine has Hrs and Time in one month; entering it is a problem – fix it with logic". One rule everywhere: a machinery measured by
+// hours may have a day on Time. Hand-worked: 30th 95→100, 1st 100→105, 2nd Time 09:00–13:00 (4 h), 3rd 105→110, 4th Time 10:00–12:30.
+test('an hours machinery (format D) may have a day on Time: saved, Hrs stays its usual way, next Start, summaries, edit window, delete, Edit Log Book', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => run('(f, a) => { try { return eval("(" + f + ")").apply(null, a); } catch (e) { return { thrown: String(e.message) }; } }', fn, a);
+  run('(x, m) => saveMaster_(x, m)', { no: 'T76-JCB', name: 'JCB', type: 'JCB', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 5, owner: 'T76 Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('x => saveLbFormats_(x)', { 'T76-JCB': 'D' });
+  const m = run('() => findMachine_("T76-JCB")');
+  assert.deepStrictEqual([m.lbFormat, m.modes, m.modesX], ['D', ['Hrs', 'Time'], ['Time']], 'format D: Hrs, and Time for a day without a reading');
+  const save0 = row => tryRun('x => saveLogRowsInner_(x)', { rows: [Object.assign({ no: 'T76-JCB', shift: 'Full Day', work: 'EXCAVATION' }, row)] });
+  const save = row => { const x = save0(row); return x && (x.thrown || x.ok === false) ? { thrown: x.thrown || (x.errors || []).map(e => e.msg).join(' ') } : x; };      // (a refusal comes back as errors – the same as a throw here)
+  assert.ok(!save({ date: '2026-06-30', mode: 'Hrs', openingHr: 95, closingHr: 100 }).thrown);
+  assert.ok(!save({ date: '2026-07-01', mode: 'Hrs', openingHr: 100, closingHr: 105 }).thrown);
+  const t2 = save({ date: '2026-07-02', mode: 'Time', tStart: '09:00', tEnd: '13:00' });
+  assert.ok(!t2.thrown, 'a Time day is accepted for the hours machinery: ' + JSON.stringify(t2).slice(0, 200));
+  assert.match(save({ date: '2026-07-02', shift: 'Night', mode: 'KM', openingKm: 1, closingKm: 2 }).thrown || '', /does not work on "KM"/, 'a way it really does not have is still refused');
+  // the next day: Start = the last hour reading (105, from the 1st – the Time day has none); the usual way stays Hrs
+  const pf = run('(n, d, s) => getLogRowPrefill_(n, d, s)', 'T76-JCB', '2026-07-03', 'Full Day');
+  assert.deepStrictEqual([pf.openingHr, pf.lastMode], [105, ''], JSON.stringify(pf).slice(0, 200));
+  assert.ok(!save({ date: '2026-07-03', mode: 'Hrs', openingHr: 105, closingHr: 110 }).thrown);
+  assert.match(save({ date: '2026-07-05', mode: 'Hrs', openingHr: 104, closingHr: 108 }).thrown || '', /less than/, 'a Start below the last Close (110) is still refused, past the Time day');
+  assert.ok(!save({ date: '2026-07-04', mode: 'Time', tStart: '10:00', tEnd: '12:30' }).thrown);
+  const rows = run('f => getLogBookList_(f)', { from: '2026-07-01', to: '2026-07-04', no: 'T76-JCB', all: true });
+  assert.deepStrictEqual(rows.rows.map(r => r.date.slice(8) + ' ' + r.mode + ' ' + r.whr).sort(), ['01 Hrs 5', '02 Time 4', '03 Hrs 5', '04 Time 2.5']);
+  // the period summary: hours of both ways (16.5), the readings from the entries that have them although the period ENDS on a Time day
+  const sm = rows.summary.find(x => x.no === 'T76-JCB');
+  assert.deepStrictEqual([sm.hr, sm.ohr, sm.chr, sm.unit], [16.5, 100, 110, 'Hrs']);
+  // … and when the period STARTS on a Time day the average is still worked out (it was blank)
+  const sm2 = run('f => getLogBookList_(f)', { from: '2026-07-02', to: '2026-07-04', no: 'T76-JCB', all: true }).summary.find(x => x.no === 'T76-JCB');
+  assert.deepStrictEqual([sm2.hr, sm2.ohr, sm2.chr, sm2.unit], [11.5, 105, 110, 'Hrs']);
+  // Monthly Diesel & Average: opening / closing readings and their dates from the entries that have them
+  const g = [{ rows: [{ id: 'T76-JCB', total: 0 }] }]; run('(g, f, t) => { addReadings_(g, f, t); this.__g76 = g; }', g, '2026-07-02', '2026-07-04');
+  const mr = run('() => __g76[0].rows[0]');
+  assert.deepStrictEqual([mr.oHr, mr.cHr, mr.tHr, mr.oDate, mr.cDate], [105, 110, 11.5, '2026-07-03', '2026-07-03']);
+  // the edit window of the 1st: "the next entry" whose Start follows is the 3rd (the Time day in between has no Start)
+  const key = d => run('(n, d) => { const lt = table_(APP.SHEET_LOG), c = lt.c, r = lt.rows.find(x => str_(x[c[H.NO]]) === n && dkey_(x[c[H.DATE]]) === d); return logKeyOf_(lt, r); }', 'T76-JCB', d);
+  const e1 = run('k => getLogEntry_(k)', key('2026-07-01'));
+  assert.deepStrictEqual([e1.next && e1.next.date, e1.next && e1.next.ohr], ['2026-07-03', 105]);
+  // Edit Log Book on the 1st only: its Close lowered to 104 → the 3rd (past the Time day) starts at 104
+  const ed = run('(f, t) => getLogEditData_("T76-JCB", f, t)', '2026-07-01', '2026-07-01');
+  const r1 = ed.rows[0], b = run('p => { try { return saveLogBulk_(p); } catch (e) { return { thrown: String(e.message) }; } }', { no: 'T76-JCB', from: '2026-07-01', to: '2026-07-01', deleted: [], openingDiesel: '',
+    rows: [{ key: r1.key, same: false, half: false, date: r1.date, shift: r1.shift, mode: 'Hrs', openingHr: 100, closingHr: 104, openingKm: '', closingKm: '', tStart: '', tEnd: '', tBreak: '', remark: '', trip: '', challan: '', chFrom: '', chTo: '', work: 'EXCAVATION' }] });
+  assert.ok(b.ok, JSON.stringify(b).slice(0, 300));
+  const start3 = () => run('(n) => { const lt = table_(APP.SHEET_LOG), c = lt.c, r = lt.rows.find(x => str_(x[c[H.NO]]) === n && dkey_(x[c[H.DATE]]) === "2026-07-03"); return [num0_(r[c[H.OHR]]), num0_(r[c[H.CHR]])]; }', 'T76-JCB');
+  assert.deepStrictEqual(start3(), [104, 110], 'the 3rd follows the new Close of the 1st');
+  // delete the 1st: the 3rd (linked to its Close) takes over its Start (100) – the Time day in between is passed over
+  run('k => deleteLogRow_(k)', key('2026-07-01'));
+  assert.deepStrictEqual(start3(), [100, 110], 'the 3rd starts where the deleted 1st started');
+  // the bill per hour: July = 02 Time 4 h + 03 Hrs 10 h + 04 Time 2.5 h = 16.5 h × ₹1,000 = ₹16,500 – the Time hours are paid like the meter hours
+  run('(x, m) => saveVendor_(x, m)', { name: 'T76 Earthmovers', gstReg: 'No', pan: 'ABCDE1276T', bank: 'SBI', account: '12345676', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'T76 Earthmovers', from: '2026-06-01', tdsPct: 2, woNo: 'WO-76', lines: [{ no: 'T76-JCB', basis: 'Per Hour', rate: 1000, diesel: 'Company' }] }, 'add');
+  const from = '2026-07-01', to = '2026-07-31', list = run('f => getLogBookList_(f)', { from: from, to: to, no: 'T76-JCB', all: true }).rows, extra = run('f => logPrintExtra_(f)', { from: from, to: to, nos: ['T76-JCB'] });
+  const bl = run('(l, e, f, t) => billMachineCalc_(findMachine_("T76-JCB"), l, e, f, t, undefined, true)', list, extra, from, to);
+  assert.strictEqual(bl.amount, 16500, JSON.stringify(bl).slice(0, 400));
 });

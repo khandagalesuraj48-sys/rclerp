@@ -1286,9 +1286,10 @@ function logAfter_(u, spec, args, res, before) {
     case 'logrows': {
       const rows = (args[0] && args[0].rows || []).filter(r => str_(r.no));
       writeLog_(u, 'Add (multiple)', m, (res.ids || []).join(', '), res.count + ' Log Book entries',
-        rows.map(r => clean_(r.no) + ' ' + fmtVal_(toDate_(r.date)) + ' ' + (r.shift || 'Full Day') + ' – close ' +
-          [r.closingKm !== '' && r.closingKm !== undefined ? r.closingKm + ' km' : '', r.closingHr !== '' && r.closingHr !== undefined ? r.closingHr + ' hr' : ''].filter(Boolean).join(', ') +
-          (r.chFrom || r.chTo ? ', ch ' + (r.chFrom || '') + '–' + (r.chTo || '') : '') + (r.work ? ', ' + clean_(r.work) : '')).join('; '));
+        rows.map(r => { const cl = [r.closingKm !== '' && r.closingKm !== undefined ? r.closingKm + ' km' : '', r.closingHr !== '' && r.closingHr !== undefined ? r.closingHr + ' hr' : ''].filter(Boolean).join(', ');
+          // (an entry without a Close – a Time / Trip / Day day – says what it is; never a line ending in a space, which the backup Sheet trims – update-76)
+          return clean_(r.no) + ' ' + fmtVal_(toDate_(r.date)) + ' ' + (r.shift || 'Full Day') + (cl ? ' – close ' + cl : str_(r.mode) === 'Time' && r.tStart ? ' – Time ' + str_(r.tStart) + '–' + str_(r.tEnd) : str_(r.mode) ? ' – ' + clean_(r.mode) : '') +
+          (r.chFrom || r.chTo ? ', ch ' + (r.chFrom || '') + '–' + (r.chTo || '') : '') + (r.work ? ', ' + clean_(r.work) : ''); }).join('; '));
       break;
     }
     case 'logday': {
@@ -1353,7 +1354,7 @@ function buildMaster_() {
       no: str_(r[t.c[H.NO]]), name: str_(r[t.c[H.NAME]]), type: str_(r[t.c[H.TYPE]]),
       make: str_(r[t.c[H.MAKE]]), ...(() => { const w = H.WORKS in t.c && normWorks_(r[t.c[H.WORKS]]).length ? normWorks_(r[t.c[H.WORKS]]) : worksFromUnit_(r[t.c[H.UNIT]]);
         const fm = H.LBFMT in t.c ? (str_(r[t.c[H.LBFMT]]) || 'A') : 'A', fmd = LB_FMT_MODES_[fm];
-        return { lbFormat: fm, worksOn: w, unit: H.WORKS in t.c && normWorks_(r[t.c[H.WORKS]]).length ? unitFromWorks_(w) : normUnit_(r[t.c[H.UNIT]]), modes: fmd || logModes_(w), meterKm: fmd ? fmd.some(hasKm_) : (w.indexOf('KM') > -1 || w.indexOf('KM + Hrs') > -1), meterHr: fmd ? fmd.some(hasHr_) : (w.indexOf('Hrs') > -1 || w.indexOf('KM + Hrs') > -1) }; })(),
+        return { lbFormat: fm, worksOn: w, unit: H.WORKS in t.c && normWorks_(r[t.c[H.WORKS]]).length ? unitFromWorks_(w) : normUnit_(r[t.c[H.UNIT]]), modes: withTime_(fmd || logModes_(w)), modesX: timeX_(fmd || logModes_(w)), meterKm: fmd ? fmd.some(hasKm_) : (w.indexOf('KM') > -1 || w.indexOf('KM + Hrs') > -1), meterHr: fmd ? fmd.some(hasHr_) : (w.indexOf('Hrs') > -1 || w.indexOf('KM + Hrs') > -1) }; })(),
       kmStd: numOrBlank_(r[t.c[H.KMSTD]]), hrStd: numOrBlank_(r[t.c[H.HRSTD]]), owner: str_(r[t.c[H.OWNER]]),
       ownership: normOwnership_(r[t.c[H.OWNTYPE]]),
       supply: normSupply_(r[t.c[H.SUPPLY]], str_(r[t.c[H.OWNTYPE]])),
@@ -3607,6 +3608,14 @@ function normWorks_(v) {
 }
 function worksFromUnit_(unit) { const u = normUnit_(unit); return u === 'KM' ? ['KM'] : u === 'Hrs' ? ['Hrs'] : u === 'KM + Hrs' ? ['KM', 'Hrs'] : u === 'Day' ? ['Day'] : []; }
 function unitFromWorks_(w) { const both = w.indexOf('KM + Hrs') > -1, km = w.indexOf('KM') > -1 || both, hr = w.indexOf('Hrs') > -1 || w.indexOf('Time') > -1 || both; return km && hr ? 'KM + Hrs' : km ? 'KM' : hr ? 'Hrs' : w.length ? 'Day' : ''; }
+/* A MACHINERY MEASURED BY HOURS MAY HAVE A DAY ON TIME (update-76, asked 11-10-2026: "the JCB / excavators set on hours sometimes
+ * suddenly give no hour reading – they give the timing instead, so one machine has Hrs and Time in one month").
+ * One rule everywhere: a machinery whose ways include an hour meter (Hrs, KM + Hrs – by its Log Book format or its ticks) may also
+ * have an entry on Time (clock time From–To). Its usual way stays the first one (the entry page picks it by itself); Time is
+ * the extra way of such a day (modesX). Its hours count as hours everywhere (bill per hour, diesel average, tank), and the
+ * next hour-meter entry starts at the last hour reading before it (as for every entry without a reading). */
+const timeX_ = l => (l || []).some(hasHr_) && (l || []).indexOf('Time') < 0 ? ['Time'] : [];
+const withTime_ = l => (l || []).concat(timeX_(l));
 // the ways one Log Book entry can be measured, from the ticks
 function logModes_(w) {
   // KM + Hrs: when ticked, or when both KM and Hrs are ticked (as before)
@@ -5022,8 +5031,12 @@ function addReadings_(groups, from, to) {
     // Opening = first Start, Closing = last Close; Total = all the work of the entries in the period added up
     // (same as the Log Book period total and the Actual vs Standard Average report)
     const sumW = h => r2_(list.reduce((a, r) => a + Math.max(0, num0_(r[c[h]])), 0));
-    if (km) { row.oKm = numOrBlank_(first[c[H.OKM]]); row.cKm = numOrBlank_(last[c[H.CKM]]); row.tKm = sumW(H.WKM); }
-    if (hr) { row.oHr = numOrBlank_(first[c[H.OHR]]); row.cHr = numOrBlank_(last[c[H.CHR]]); row.tHr = sumW(H.WHR); }
+    // (an entry without a reading – Time, Trip, Day, No reading – is passed over: the first / last entry that HAS one gives it; update-76)
+    const firstOf = h => { const r = list.find(x => numOrBlank_(x[c[h]]) !== ''); return r ? numOrBlank_(r[c[h]]) : ''; }, lastOf = h => { const r = list.slice().reverse().find(x => numOrBlank_(x[c[h]]) !== ''); return r ? numOrBlank_(r[c[h]]) : ''; };
+    if (km) { row.oKm = firstOf(H.OKM); row.cKm = lastOf(H.CKM); row.tKm = sumW(H.WKM); }
+    if (hr) { row.oHr = firstOf(H.OHR); row.cHr = lastOf(H.CHR); row.tHr = sumW(H.WHR); }
+    { const ho = hr ? H.OHR : H.OKM, hc = hr ? H.CHR : H.CKM, fr = list.find(x => numOrBlank_(x[c[ho]]) !== ''), lr = list.slice().reverse().find(x => numOrBlank_(x[c[hc]]) !== '');
+      if ((km || hr) && fr) row.oDate = dkey_(fr[c[H.DATE]]); if ((km || hr) && lr) row.cDate = dkey_(lr[c[H.DATE]]); }      // (the dates of the entries the two readings come from)
     const d = row.total;
     if (unit === 'KM' && row.tKm !== '' && d > 0) row.actual = r2_(row.tKm / d) + ' km/L';
     else if (unit === 'Hrs' && row.tHr > 0 && d > 0) row.actual = r2_(d / row.tHr) + ' L/hr';
@@ -5805,9 +5818,12 @@ function getLogBookList_(f) {
     const x = by[k] = by[k] || { no: str_(r[t.c[H.NO]]), type: str_(r[t.c[H.TYPE]]), unit: str_(r[t.c[H.UNIT]]), entries: 0, days: {}, firstDate: '', lastDate: '',
       okm: '', ohr: '', ckm: '', chr: '', km: 0, hr: 0, issued: 0, consumed: 0, kmStd: numOrBlank_(r[t.c[H.KMSTD]]), hrStd: numOrBlank_(r[t.c[H.HRSTD]]), ownership: ownIdx[k] || 'Not in Master' };
     const dk = dkey_(r[t.c[H.DATE]]);
-    if (!x.entries) { x.firstDate = dk; x.okm = numOrBlank_(r[t.c[H.OKM]]); x.ohr = numOrBlank_(r[t.c[H.OHR]]); }
+    if (!x.entries) x.firstDate = dk;
+    // first Start / last Close of each meter: from the entries that have a reading (a Time / Trip / Day / No reading day has none – update-76)
+    if (x.okm === '' && numOrBlank_(r[t.c[H.OKM]]) !== '') x.okm = numOrBlank_(r[t.c[H.OKM]]); if (x.ohr === '' && numOrBlank_(r[t.c[H.OHR]]) !== '') x.ohr = numOrBlank_(r[t.c[H.OHR]]);
+    if (!hasKm_(x.unit) && !hasHr_(x.unit) && (hasKm_(str_(r[t.c[H.UNIT]])) || hasHr_(str_(r[t.c[H.UNIT]])))) x.unit = str_(r[t.c[H.UNIT]]);      // (the period started on a day without a reading: the average follows the first entry that has one)
     x.entries++; x.days[dk] = true; x.lastDate = dk;
-    x.ckm = numOrBlank_(r[t.c[H.CKM]]); x.chr = numOrBlank_(r[t.c[H.CHR]]);
+    if (numOrBlank_(r[t.c[H.CKM]]) !== '') x.ckm = numOrBlank_(r[t.c[H.CKM]]); if (numOrBlank_(r[t.c[H.CHR]]) !== '') x.chr = numOrBlank_(r[t.c[H.CHR]]);
     x.km = r2_(x.km + Math.max(0, num0_(r[t.c[H.WKM]]))); x.hr = r2_(x.hr + Math.max(0, num0_(r[t.c[H.WHR]])));
     x.issued = r2_(x.issued + num0_(r[t.c[H.QTY]])); x.consumed = r2_(x.consumed + num0_(r[t.c[H.TOT]]));
   });
@@ -6223,7 +6239,7 @@ function getLogRowPrefill_(no, dateStr, shiftIn) {
   return {
     machine: m, problem: problem || (slot ? m.id + ' ' + slot + '.' + logSlotHint_(m, dk, slot) : ''), first: !prev,
     openingKm: prevKm ? prevKm.ckm : (m.meterKm || hasKm_(m.unit) ? 0 : ''), openingHr: prevHr ? prevHr.chr : (m.meterHr || hasHr_(m.unit) ? 0 : ''),
-    firstKm: !prevKm, firstHr: !prevHr, lastMode: prev && (m.modes || []).indexOf(prev.mode) > -1 ? prev.mode : '',
+    firstKm: !prevKm, firstHr: !prevHr, lastMode: prev && (m.modes || []).indexOf(prev.mode) > -1 && (m.modesX || []).indexOf(prev.mode) < 0 ? prev.mode : '',      // (after a Time day of an hours machinery the next day is on hours again)
     openingDiesel: prev ? prev.stock : 0, prevDate: prev ? prev.dk : '', prevShift: prev ? prev.shift : '',
     lastDate: list.length ? list[list.length - 1].dk : '', lastShift: list.length ? list[list.length - 1].shift : '',
     diesel: ds.qty, dieselText: ds.text, reads: ds.reads, driver: ds.driver, cycle: cy.cycle, prevClosed: cy.prevClosed,
@@ -6314,7 +6330,7 @@ function importLogBook_(b) {
 // the way an entry is measured: the one picked (must be one of the machinery's ticks), else the usual one
 function logModeFor_(m, want) {
   // day status for any machinery: Holiday / Breakdown (not paid), Idle (standing by, no work – paid or not is chosen in the bill)
-  let modes = (m.modes && m.modes.length ? m.modes : logModes_(worksFromUnit_(m.unit))).concat(['Idle', 'Holiday', 'Breakdown']);
+  let modes = (m.modes && m.modes.length ? m.modes : withTime_(logModes_(worksFromUnit_(m.unit)))).concat(['Idle', 'Holiday', 'Breakdown']);
   if (modes.some(x => hasKm_(x) || hasHr_(x))) modes = modes.concat([METER_OFF_]);   // meter not working: the day without a reading
   const w = str_(want).toUpperCase().replace(/\s+/g, '');
   if (w) { const hit = modes.find(x => x.toUpperCase().replace(/\s+/g, '') === w); if (!hit) throw new Error(m.id + ' does not work on "' + str_(want) + '" – it works on ' + (m.worksOn || []).join(', ') + ' (Asset Master).'); return hit; }
@@ -6555,7 +6571,10 @@ function getLogEntry_(key) {
   const idx = machineLogIdx_(lt, no), pos = idx.indexOf(i);
   const brief = j => j === undefined ? null : { key: logKeyOf_(lt, lt.rows[j]), date: dkey_(lt.rows[j][lt.c[H.DATE]]), shift: str_(lt.rows[j][lt.c[H.SHIFT]]) || 'Full Day',
     ckm: numOrBlank_(lt.rows[j][lt.c[H.CKM]]), chr: numOrBlank_(lt.rows[j][lt.c[H.CHR]]), okm: numOrBlank_(lt.rows[j][lt.c[H.OKM]]), ohr: numOrBlank_(lt.rows[j][lt.c[H.OHR]]) };
-  const out = Object.assign(logRowOut_(lt, lt.rows[i]), { key: str_(key), first: pos === 0, prev: brief(idx[pos - 1]), next: brief(idx[pos + 1]) });
+  // "the next entry" whose Start follows this Close: the next one that READS the same meter (a Time / Trip / Day day in between has no Start – update-76)
+  const ue = str_(lt.rows[i][lt.c[H.UNIT]]), uj = j => str_(lt.rows[j][lt.c[H.UNIT]]);
+  const nextQ = idx.slice(pos + 1).find(j => (hasKm_(ue) && hasKm_(uj(j))) || (hasHr_(ue) && hasHr_(uj(j))));
+  const out = Object.assign(logRowOut_(lt, lt.rows[i]), { key: str_(key), first: pos === 0, prev: brief(idx[pos - 1]), next: brief(hasKm_(ue) || hasHr_(ue) ? nextQ : idx[pos + 1]) });
   let mm = null; try { mm = findMachine_(no); } catch (e) { mm = null; }
   out.boqItems = mm ? itemBrief_(boqItemsOn_(mm, out.date)) : [];
   out.lock = billLockTag_(billLockOf_(no, out.date));      // in a submitted bill: the page says so instead of opening the edit window
@@ -6804,7 +6823,7 @@ function saveLogBulk_(b) {
       if (errors.length) return { ok: false, errors: errors };
     }
     // the entry just after the grid follows the last Close – worked out BEFORE anything is written (it may be an entry of a submitted bill: then nothing is saved)
-    let nextWrite = null;
+    let nextWrite = null; const nextWrites = [];
     const order = { 'Day': 0, 'Full Day': 0, 'Night': 1 };
     const sorted = prepared.slice().sort((a, b) => a.dk < b.dk ? -1 : a.dk > b.dk ? 1 : order[a.sh] - order[b.sh]);
     const last = sorted[sorted.length - 1];
@@ -6818,6 +6837,19 @@ function saveLogBulk_(b) {
       if (hasKm_(nu) && lk && !meterNew_(r, c) && (num0_(row[c[H.OKM]]) === oldOf(lk, H.CKM) || num0_(row[c[H.OKM]]) < lk.v.ckm)) row[c[H.OKM]] = lk.v.ckm;
       if (hasHr_(nu) && lh && !meterNew_(r, c) && (num0_(row[c[H.OHR]]) === oldOf(lh, H.CHR) || num0_(row[c[H.OHR]]) < lh.v.chr)) row[c[H.OHR]] = lh.v.chr;
       if (row.some((v, k) => String(v) !== String(r[k]))) { billLock_(m.id, dkey_(r[c[H.DATE]]), 'The Log Book entry after these dates (its Start would follow the new last Close)'); nextWrite = { i: nextOut, row: row }; }
+    }
+    // … and when the entry just after the grid does not read a meter (a Time / Trip / Day day – update-76), the next one that does follows it
+    if (last && nextOut !== undefined && b.linkNext !== false) {
+      const after = idx.filter(i => deleted.indexOf(logKeyOf_(lt, lt.rows[i])) === -1 && !prepared.some(p => p.x.l.key === logKeyOf_(lt, lt.rows[i])) && i !== nextOut)
+        .filter(i => { const dk = dkey_(lt.rows[i][c[H.DATE]]); return dk > last.dk || (dk === last.dk && order[str_(lt.rows[i][c[H.SHIFT]]) || 'Full Day'] > order[last.sh]); });
+      const oldOf = (p, h) => p && p.x.l.key && byKey[p.x.l.key] !== undefined ? numOrBlank_(lt.rows[byKey[p.x.l.key]][c[h]]) : '';
+      [[hasKm_, H.OKM, H.CKM, 'km', 'ckm'], [hasHr_, H.OHR, H.CHR, 'hr', 'chr']].forEach(k => {
+        if (k[0](str_(lt.rows[nextOut][c[H.UNIT]]))) return;      // the very next entry reads this meter: done above
+        const lp = sorted.filter(p => p.v[k[3]]).pop(), j = after.find(i => k[0](str_(lt.rows[i][c[H.UNIT]]))); if (!lp || j === undefined) return;
+        const r = lt.rows[j], row = r.slice();
+        if (!meterNew_(r, c) && (num0_(row[c[k[1]]]) === oldOf(lp, k[2]) || num0_(row[c[k[1]]]) < lp.v[k[4]])) row[c[k[1]]] = lp.v[k[4]];
+        if (row.some((v, q) => String(v) !== String(r[q]))) { billLock_(m.id, dkey_(r[c[H.DATE]]), 'The Log Book entry after these dates (its Start would follow the new last Close)'); nextWrites.push({ i: j, row: row }); }
+      });
     }
     // 1) changed rows (and the entry just after the grid follows the last Close)
     let changed = 0;
@@ -6845,6 +6877,7 @@ function saveLogBulk_(b) {
       if (row.some((v, k) => String(v) !== String(r[k]))) { stampEdit_(row, lt); lt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); changed++; }
     });
     if (nextWrite) lt.sh.getRange(nextWrite.i + 2, 1, 1, nextWrite.row.length).setValues([nextWrite.row]);
+    nextWrites.forEach(w => lt.sh.getRange(w.i + 2, 1, 1, w.row.length).setValues([w.row]));
     // opening diesel of the machinery's very first entry
     if (!blank_(b.openingDiesel) && H.ODSL in c && sorted.length && !idx.some(i => dkey_(lt.rows[i][c[H.DATE]]) < sorted[0].dk && deleted.indexOf(logKeyOf_(lt, lt.rows[i])) === -1)) {
       const f = sorted[0];
@@ -7011,6 +7044,14 @@ function deleteLogRow_(key) {
     const idx = machineLogIdx_(lt, no), pos = idx.indexOf(i);
     const prevI = pos > 0 ? idx[pos - 1] : -1, nextI = pos < idx.length - 1 ? idx[pos + 1] : -1;
     // the next entry now starts where the entry before the deleted one closed
+    // the next entry that READS each meter – a Time / Trip / Day / No reading day in between is passed over (update-76)
+    const readerAfter = test => idx.slice(pos + 1).find(j => test(str_(lt.rows[j][c[H.UNIT]])));
+    [[hasKm_, H.OKM, H.CKM], [hasHr_, H.OHR, H.CHR]].forEach(k => {
+      const j = readerAfter(k[0]); if (prevI < 0 || j === undefined || j === nextI) return;      // (the very next entry: done below, as before)
+      const gone = lt.rows[i], n = lt.rows[j].slice();
+      if (k[0](str_(gone[c[H.UNIT]])) && !meterNew_(n, c) && numOrBlank_(gone[c[k[2]]]) !== '' && numOrBlank_(gone[c[k[1]]]) !== '' && num0_(n[c[k[1]]]) === num0_(gone[c[k[2]]])) {
+        n[c[k[1]]] = num0_(gone[c[k[1]]]); billLock_(no, dkey_(n[c[H.DATE]]), 'The Log Book entry after it (its Start would move)'); lt.sh.getRange(j + 2, 1, 1, n.length).setValues([n]); lt.rows[j] = n; }
+    });
     if (prevI > -1 && nextI > -1) {
       const p = lt.rows[prevI], n = lt.rows[nextI].slice(), unit = str_(n[c[H.UNIT]]);
       // (a previous entry without a reading, or a next entry that starts a new meter: nothing to link here – recalcChain_ follows the last reading)

@@ -16,7 +16,7 @@ const colNo = a => a.split('').reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64,
 const meta = t => ({ properties: { sheetId: t.id, title: t.title, gridProperties: { rowCount: t.rowCount, columnCount: t.columnCount, frozenRowCount: 1 } },
   protectedRanges: prot && t.id < 100 ? [{ range: { sheetId: t.id }, warningOnly: false, requestingUserCanEdit: false }] : [] });
 http.createServer((req, res) => {
-  let body = ''; req.on('data', c => { body += c; }); req.on('end', () => {
+  let body = ''; req.setEncoding('utf8'); req.on('data', c => { body += c; }); req.on('end', () => {      // (utf8: a letter of several bytes split between two pieces is not broken – update-76)
     const u = new URL(req.url, 'http://x'), p = u.pathname;
     if (p === '/dump') return send(res, 200, { calls: calls, writes: writes.length, tabs: tabs.map(t => ({ title: t.title, rows: t.values.length, grid: { rowCount: t.rowCount, columnCount: t.columnCount }, head: t.values[0] || [], second: t.values[1] || [], protected: prot && t.id < 100 })) });
     if (p === '/tab') { const t = tabs.find(x => x.title === u.searchParams.get('title')); return send(res, t ? 200 : 404, t ? { title: t.title, values: t.values } : {}); }

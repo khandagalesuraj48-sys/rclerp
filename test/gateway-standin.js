@@ -18,7 +18,7 @@ let faults = [];
 http.createServer((req, res) => {
   if (req.url === '/__fault') {
     if (req.method === 'GET') { res.setHeader('Content-Type', 'application/json'); return res.end(JSON.stringify(faults.map(f => ({ match: f.match, code: f.code, left: f.n, skip: f.skip, fired: f.fired })))); }
-    let b = ''; req.on('data', d => { b += d; }); req.on('end', () => { let j = {}; try { j = JSON.parse(b || '{}'); } catch (e) { j = {}; }
+    let b = ''; req.setEncoding('utf8'); req.on('data', d => { b += d; }); req.on('end', () => { let j = {}; try { j = JSON.parse(b || '{}'); } catch (e) { j = {}; }
       if (!j.match) faults = []; else faults.push({ match: String(j.match), re: new RegExp(j.match), code: Number(j.code) || 503, n: Number(j.n) || 1, skip: Number(j.skip) || 0, after: !!j.after, delay: Number(j.delay) || 0, drop: !!j.drop, text: j.text === undefined ? '{"message":"test fault"}' : String(j.text), fired: 0 });
       res.end('{"ok":true}'); });
     return;
