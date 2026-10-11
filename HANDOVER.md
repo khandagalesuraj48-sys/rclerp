@@ -1478,6 +1478,9 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   icons cache-first under one cache name, so overwriting `icon-192.png` would never reach a phone), the opening (`img.oc-logo`,
   `oc-logo-glow.webp`), the sign-in screen (his picture `oc-login.webp`, dark-blue card; CSS only under `#login_screen`). The logo
   in the form shows on phones only (a wide screen has it in the picture). Inside the app nothing changed. `dev.js` serves `.webp`.
+- 11-10-2026 (update-80, after update-79 went live – `11d9119`). Report: `UPDATE_80.md`. NO SQL. The sign-in screen BACK as it was
+  (left picture of before, white form) – his answer; only the form's brand is his round logo (`oc-logo.webp`, every screen size).
+  `oc-login.webp` removed. Icons and the opening stay as in update-79.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

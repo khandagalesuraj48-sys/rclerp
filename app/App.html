@@ -1836,44 +1836,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .oc-brand .oc-name { display: flex; flex-direction: column; line-height: 1.1; } .oc-brand .oc-name b { font: 800 22px var(--disp2, var(--ui)); letter-spacing: -.01em; color: #0C1A2E; } .oc-brand .oc-name i { font: 600 12px var(--ui); font-style: normal; letter-spacing: .14em; text-transform: uppercase; color: #5B6B80; margin-top: 3px; }
   .lp-brand { opacity: .95; } .lp-brand .rlogo img { max-height: 34px; }
   .brandsub .by-oc { display: block; font-size: 9.5px; letter-spacing: .08em; opacity: .7; margin-top: 2px; text-transform: none; }
-  /* ---------- update-79 (asked 11-10-2026): One Click Solution's own logo – the app icon, the opening, the sign-in screen in the look of
-   * his picture (blue, glowing). Only before the sign-in: inside the app nothing changes (the customer's logo stays). ---------- */
+  /* ---------- update-79 (asked 11-10-2026): One Click Solution's own logo – the app icon, the opening, the logo on the sign-in screen
+   * (the sign-in screen itself stays as it was: his answer). Only before the sign-in: inside the app nothing changes. ---------- */
   #oc_intro .oc-glow { background: radial-gradient(circle, rgba(30,144,255,.30) 0%, rgba(0,200,255,.12) 40%, transparent 68%); }
   #oc_intro .oc-logo { display: block; margin: 0 auto; width: clamp(240px, 52vmin, 560px); height: auto; opacity: 0; position: relative; filter: drop-shadow(0 0 26px rgba(40,140,255,.45)); }
   #oc_intro.play .oc-logo { animation: ocIn .9s .2s cubic-bezier(.2,.8,.2,1) both; }
   #oc_intro .oc-line { background: linear-gradient(90deg, transparent, #19B5FE, transparent); }
   #oc_intro .oc-for { color: #8FD3FF; }
-  #login_screen { background: #040B1E; }
-  #login_screen .lp-left { flex: 1 1 58%; background: #040B1E; }
-  #login_screen .lp-img { object-position: 50% 42%; }
-  #login_screen .lp-left::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent 72%, #040B1E 100%); }
-  #login_screen .lp-right { flex: 1 1 42%; background: radial-gradient(120% 80% at 70% 15%, #0E2A66 0%, #071533 48%, #040B1E 100%); }
-  #login_screen .lp-form { max-width: 430px; margin: 20px; padding: 26px 30px 22px; border-radius: 22px; color: #E6EEFF; background: rgba(10,28,70,.55); border: 1px solid rgba(80,170,255,.35);
-    box-shadow: inset 0 0 0 1px rgba(25,181,254,.08), 0 20px 60px rgba(0,0,0,.45), 0 0 44px rgba(25,120,255,.20); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-  #login_screen .oc-brand { justify-content: center; margin-bottom: 4px; }
-  #login_screen .oc-brand .oc-logo { width: min(230px, 72%); height: auto; filter: drop-shadow(0 0 18px rgba(40,140,255,.35)); }
-  #login_screen .lp-brand { margin-bottom: 18px; }
-  #login_screen .lp-brand .rlogo { width: min(210px, 76%); background: #fff; border-radius: 8px; box-shadow: 0 0 0 5px #fff, 0 6px 18px rgba(0,0,0,.35); }
-  #login_screen .lp-brand .rlogo.noimg .fb { font-size: 15px; }      /* (the customer's logo did not load: its name in the plate) */
-  @media (min-width: 861px) { #login_screen .oc-brand { display: none; } }      /* (a wide screen shows the logo big in the picture on the left) */
-  #login_screen .lp-sub { color: #9FC4FF; }
-  #login_screen .lp-head { margin-bottom: 20px; } #login_screen .lp-head h1 { color: #fff; } #login_screen .lp-head p { color: #A9B8D6; }
-  #login_screen .lp-field label { color: #C9D6EE; }
-  #login_screen .lp-field input { background: rgba(4,14,40,.72); border-color: rgba(110,160,255,.35); color: #fff; }
-  #login_screen .lp-field input::placeholder { color: #7488AE; }
-  #login_screen .lp-field input:focus { border-color: #19B5FE; box-shadow: 0 0 0 3px rgba(25,181,254,.28); }
-  #login_screen .lp-field input:-webkit-autofill { -webkit-box-shadow: 0 0 0 40px #0A1C46 inset; -webkit-text-fill-color: #fff; caret-color: #fff; }
-  #login_screen .lp-eye { color: #9FB3D6; } #login_screen .lp-eye:hover { background: rgba(255,255,255,.08); }
-  #login_screen .lp-check { color: #C9D6EE; } #login_screen .lp-link { color: #4FC3FF; } #login_screen .lp-link:hover { color: #8FD8FF; }
-  #login_screen .lp-submit { background: linear-gradient(135deg, #1E6BFF, #19B5FE) !important; color: #fff; font-weight: 700; letter-spacing: .02em; box-shadow: 0 10px 28px rgba(25,120,255,.45); }
-  #login_screen .lp-submit:hover { box-shadow: 0 14px 34px rgba(25,150,255,.55); }
-  #login_screen .login-err { color: #FF9A9A; } #login_screen .lp-note { color: #A9B8D6; }
-  #login_screen .lp-install { background: rgba(255,255,255,.06); border-color: rgba(110,160,255,.5); color: #DCE8FF; }
-  @media (max-width: 860px) {
-    #login_screen .lp-right { background: linear-gradient(rgba(4,11,30,.80), rgba(4,11,30,.93)), url(/icons/oc-login.webp) 50% 30% / cover no-repeat, #040B1E; }
-    #login_screen .lp-form { margin: 14px; padding: 22px 20px 18px; }
-  }
-  @media (max-height: 640px) { #login_screen .oc-brand .oc-logo { width: 150px; } #login_screen .lp-brand { margin-bottom: 10px; } #login_screen .lp-head { margin-bottom: 12px; } }
+  #login_screen .oc-brand { justify-content: center; margin-bottom: 10px; }      /* the sign-in screen stays as it was – only the logo is his (white form, the picture on the left) */
+  #login_screen .oc-brand .oc-logo { width: min(200px, 60%); height: auto; }
+  @media (max-height: 640px) { #login_screen .oc-brand .oc-logo { width: 130px; } }
   .vhint { display: block; margin-top: 4px; font-size: 12px; line-height: 1.3; color: #0B6B3A; } .vhint.bad { color: #C8102E; font-weight: 600; } .vhint[hidden] { display: none; }
   .ua-site { margin-left: 12px; font-size: 12.5px; font-weight: 600; color: #1543B8; }
   #org_panel[hidden] { display: none; } #org_panel textarea { width: 100%; min-height: 54px; }
@@ -2537,13 +2509,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 <div id="login_screen">
   <!-- Left panel – image (from the given design) -->
   <div class="lp-left">
-    <img class="lp-img" src="/icons/oc-login.webp" alt="" onerror="this.remove()">
+    <img class="lp-img" src="https://cdn.21st.dev/assets/mirror/0d/0d205a1a31d40e927885b0ec5f603407caa10585b5bc6e8b08240402c7417e86.png" alt="" onerror="this.remove()">
   </div>
 
   <!-- Right panel – form -->
   <div class="lp-right">
     <form id="login_form" class="lp-form" autocomplete="on" onsubmit="return false">
-      <div class="oc-brand"><img class="oc-logo" src="/icons/oc-logo-glow.webp" alt="One Click Solution" width="700" height="518" decoding="async"></div>
+      <div class="oc-brand"><img class="oc-logo" src="/icons/oc-logo.webp" alt="One Click Solution" width="640" height="462" decoding="async"></div>
       <div class="lp-brand"><span class="rlogo"><img src="https://i.ibb.co/CpSfBqXX/RCL-LOGO-PDF.png" alt="Rachana Construction Limited" onerror="this.parentNode.classList.add('noimg')"><span class="fb">Rachana Construction Ltd.</span></span><span class="lp-sub" id="lp_site">Fleet ERP</span></div>
       <div class="lp-head">
         <h1>Welcome Back</h1>

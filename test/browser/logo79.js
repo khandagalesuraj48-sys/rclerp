@@ -1,5 +1,5 @@
-// update-79 (asked 11-10-2026): One Click Solution's own logo – the browser-tab icon, the app icons, the opening – and the sign-in
-// screen in the look of his picture. After the sign-in nothing changes.   node logo79.js
+// update-79 (asked 11-10-2026): One Click Solution's own logo – the browser-tab icon, the app icons, the opening and the logo on the
+// sign-in screen (the sign-in screen itself as it was). After the sign-in nothing changes.   node logo79.js
 const chromium = require('@sparticuz/chromium').default || require('@sparticuz/chromium'); const puppeteer = require('puppeteer-core');
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : fail++; out.push((c ? 'PASS ' : 'FAIL ') + n + (x !== undefined ? '  → ' + String(typeof x === 'string' ? x : JSON.stringify(x)).slice(0, 600) : '')); };
@@ -19,8 +19,10 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
     await wait(5000);
     const lg = await f.evaluate(() => { const im = document.querySelector('#login_screen .lp-img'), lo = document.querySelector('#login_form .oc-logo'), card = getComputedStyle(document.getElementById('login_form'));
       return { pic: im && im.getAttribute('src'), picW: im && im.naturalWidth, picShown: !!(im && im.offsetParent), logoShown: !!(lo && lo.offsetParent), logoW: lo && lo.naturalWidth, card: card.backgroundColor, btn: getComputedStyle(document.getElementById('lg_btn')).backgroundImage.slice(0, 60), fields: !!document.getElementById('lg_email') && !!document.getElementById('lg_pass') && !!document.getElementById('lg_remember') && !!document.getElementById('lg_forgot') && !!document.getElementById('lg_signup') }; });
-    if (name === 'wide') ok('sign-in, wide screen: his picture on the left, the form in a dark-blue card, the blue button; the logo is in the picture (not twice)', lg.pic === '/icons/oc-login.webp' && lg.picW === 1672 && lg.picShown && !lg.logoShown && /rgba\(10, 28, 70/.test(lg.card) && /linear-gradient/.test(lg.btn) && lg.fields, lg);
-    else ok('sign-in, phone: the form with the logo on top (the picture is behind it)', !lg.picShown && lg.logoShown && lg.logoW === 700 && lg.fields, lg);
+    // (his answer: the sign-in screen stays as it was – the picture on the left, the white form; only the logo is his)
+    if (name === 'wide') lg.pic = await p.evaluate(async () => { const t = await (await fetch('/')).text(); const m = /class=\\?"lp-img\\?" src=\\?"([^"\\]+)/.exec(t); return m ? m[1] : ''; });      // (the rig cannot reach that picture: the page takes it away – read what the page asks for)
+    if (name === 'wide') ok('sign-in, wide screen: the same picture on the left as before, the white form; his logo on top of the form', /cdn\.21st\.dev\/assets\/mirror\/0d\/0d205a1a/.test(lg.pic) && lg.logoShown && lg.logoW === 640 && /rgba\(0, 0, 0, 0\)/.test(lg.card) && lg.fields, lg);
+    else ok('sign-in, phone: the form with his logo on top', !lg.picShown && lg.logoShown && lg.logoW === 640 && lg.fields, lg);
     await p.screenshot({ path: '/home/claude/test/shots/logo79_' + name + '.png' });
     if (name === 'wide') {      // after the sign-in: nothing of this shows; the app is as before
       await f.type('#lg_email', 'sujit@rcl.test'); await f.type('#lg_pass', 'Nashik#Road848!'); await f.click('#lg_btn'); await wait(6000);
