@@ -18,8 +18,9 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   ok('the opening of One Click Solution plays when the app is opened – with its logo', intro.shown && /^One Click Solution \/icons\/oc-logo-glow\.webp 700$/.test(intro.logo) && /Rachana Construction Limited/.test(intro.forWho), intro);
   await p.screenshot({ path: 'shots/oc_intro.png' });
   await wait(2600); ok('…and goes by itself after about 4 seconds', await f.evaluate(() => document.getElementById('oc_intro').hidden));
-  const lg = await f.evaluate(() => ({ brand: document.querySelector('#login_form .oc-logo').alt, site: document.getElementById('lp_site').textContent, title: window.top.document.title }));
-  ok('the sign-in screen carries the One Click Solution brand, with the customer and site under it', /One Click Solution/.test(lg.brand) && lg.site === 'VTR Site – NH 848' && /Rachana Construction Limited – Fleet ERP · One Click Solution/.test(lg.title), lg);
+  // (update-81, asked 11-10-2026: the sign-in screen shows One Click Solution only – no customer name or logo on it)
+  const lg = await f.evaluate(() => { const ls = document.getElementById('login_screen'); return { brand: document.querySelector('#login_form .oc-logo').alt, rachana: /Rachana/i.test(ls.textContent) || [...ls.querySelectorAll('img')].some(i => /Rachana|RCL/i.test(i.alt + i.getAttribute('src'))), title: window.top.document.title }; });
+  ok('the sign-in screen carries the One Click Solution logo only – no Rachana name or logo on it', /One Click Solution/.test(lg.brand) && !lg.rachana && /Rachana Construction Limited – Fleet ERP · One Click Solution/.test(lg.title), lg);
   await p.screenshot({ path: 'shots/oc_login.png' });
   await p.reload({ waitUntil: 'load' }); await wait(1500);
   const f2 = p.frames().find(x => x !== p.mainFrame());

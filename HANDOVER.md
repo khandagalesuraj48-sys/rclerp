@@ -1481,6 +1481,8 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 - 11-10-2026 (update-80, after update-79 went live – `11d9119`). Report: `UPDATE_80.md`. NO SQL. The sign-in screen BACK as it was
   (left picture of before, white form) – his answer; only the form's brand is his round logo (`oc-logo.webp`, every screen size).
   `oc-login.webp` removed. Icons and the opening stay as in update-79.
+- 11-10-2026 (update-81, after update-80 went live – `904c0c3`). Report: `UPDATE_81.md`. NO SQL. Sign-in screen: Rachana's logo and the
+  site line (`lp-brand`, `#lp_site`) removed – One Click Solution only. Tab title and the opening's customer line not changed.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
