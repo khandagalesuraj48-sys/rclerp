@@ -15,7 +15,7 @@ if (fs.existsSync(icons)) fs.readdirSync(icons).forEach(f => fs.copyFileSync(pat
 fs.writeFileSync(path.join(out, 'manifest.webmanifest'), JSON.stringify({
   name: 'Fleet ERP – One Click Solution', short_name: 'Fleet ERP', description: 'Diesel, Log Book and machinery billing for construction sites.',
   start_url: '/', scope: '/', id: '/', display: 'standalone', orientation: 'any', background_color: '#0F1F3D', theme_color: '#0F1F3D', lang: 'en', categories: ['business', 'productivity'],
-  icons: [{ src: '/icons/oc-icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: '/icons/oc-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' }, { src: '/icons/oc-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }],
+  icons: [{ src: '/icons/oc2-icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: '/icons/oc2-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' }, { src: '/icons/oc2-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }],
 }, null, 1));
 // the Excel tools the page uses, served from the app's own address (app/vendor → /vendor/…)
 const vend = path.join(__dirname, 'app', 'vendor');

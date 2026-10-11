@@ -1483,6 +1483,8 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `oc-login.webp` removed. Icons and the opening stay as in update-79.
 - 11-10-2026 (update-81, after update-80 went live – `904c0c3`). Report: `UPDATE_81.md`. NO SQL. Sign-in screen: Rachana's logo and the
   site line (`lp-brand`, `#lp_site`) removed – One Click Solution only. Tab title and the opening's customer line not changed.
+- 11-10-2026 (update-82, after update-81 went live – `70ce8e6`). Report: `UPDATE_82.md`. NO SQL. App / tab / iPhone / notification
+  icon = his mark on light #F7F7F7 (`app/icons/oc2-*.png`, new names because the service worker keeps icons cache-first).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
