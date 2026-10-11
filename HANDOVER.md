@@ -1454,6 +1454,19 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
     (the next READER follows a lowered Close / a deleted entry – before, only the very next entry, and recalcChain_ only raises).
   * The update-70 unit test said "a NEW Time entry of a format-E machinery is refused" – changed on purpose (now accepted; KM still refused).
   * Tests: unit 53; browser `time76.js` (entry page buttons and save, next Start 105, Edit Log Book ways, Excel columns / list, print D).
+- 11-10-2026 (update-77, asked after update-76 went live – `919c917`). Report: `UPDATE_77.md`. NO SQL.
+  A MACHINERY ON HOURS ONLY (hour meter, no KM meter – server `hrsOnly_`, page `hrsOnlyM`): SEVERAL ROWS IN ONE SHIFT WITH HOURS NOT
+  WORKED BETWEEN THEM, AND AN EDIT NEVER CHANGES ANOTHER DATE ("Breaker two times the same day; editing the 3rd must not change the 2nd or 4th").
+  * item_work `_parts[i].g` = hours not worked before row i (only when > 0; never on row 1). Entry ohr = row 1 Start, chr = last Close,
+    whr = chr − ohr − Σg (`logCalc_` gap param, `recalcChain_` via `gapOfJson_`). Rows `n: ''` = plain rows (BOQ with < 2 hour items).
+    Same work twice allowed. KM vehicles: old rules (contiguous, different works, ≥ 2 items).
+  * No automatic Start change of another entry for such a machinery: `recalcChain_` (no raise; blank still filled), `linkAfterInsert_`,
+    `deleteLogRow_`, `saveLogBulk_` (nextWrite / nextWrites off → refused when last Close > next hours Start), `updateLogRow_`, import
+    step 3. Checked instead: "Close … is more than the Start Hrs … of the entry of … – that entry is not changed by itself". A "new
+    meter" entry is a new chain (not checked against). Edit Log Book: the next row of the SAME shift still follows while linked.
+  * An entry with a gap: edit window locks readings / texts (Edit Log Book only); Excel import refuses a change to it; saveLogBulk_
+    keeps its rows when they are not sent (page sends `joinRows: true` when the rows were joined on purpose).
+  * Tests changed on purpose: unit update-69 / 71 / 76, browser entry71 / works69 (see UPDATE_77.md). New: unit (55), browser `gap77.js`.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

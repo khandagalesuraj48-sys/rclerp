@@ -54,7 +54,8 @@ const entries = no => sql("select coalesce(string_agg(date || ' ' || shift || ' 
   ok('a second row for the same machinery, date and shift is NOT "already in another row": it is marked "work 2 of this day" and its Start is the Close of the row above (2)',
     g.rows.length === 2 && !/already in another row/.test(g.rows.map(r => r.note).join(' ')) && g.rows[1].start === '2' && /work 2 of this day/.test(g.rows[1].label) && !g.rows[0].label, g.rows.map(r => r.start + '>' + r.close + ' ' + r.chips + ' [' + r.label + '] ' + (r.red ? 'RED ' : '') + r.note));
   await setF(1, 'closingHr', '4'); await pick(1, 'Bucket'); g = await rows();
-  ok('   Bucket pressed on the second row too: it says so – "Same work as the row above (Bucket) … press the other work"', g.rows[1].red && /Same work as the row above \(Bucket\)/.test(g.rows[1].note) && !g.rows[0].red, g.rows[1].note);
+  // (update-77, asked 11-10-2026: a machinery on HOURS may do the same work twice in a shift – "Breaker two times" – so this is no longer stopped)
+  ok('   Bucket pressed on the second row too: accepted for a machinery on hours (update-77) – no red row', !g.rows[1].red && !g.rows[0].red, g.rows[1].note);
   await pick(1, 'Breaker'); g = await rows();
   ok('Breaker pressed and Close 4 typed on the second row: no red row – Bucket 1 hr (1 → 2), Breaker 2 hr (2 → 4)', !g.rows[0].red && !g.rows[1].red && /Bucket\*/.test(g.rows[0].chips) && /Breaker\*/.test(g.rows[1].chips) && /^1\b/.test(g.rows[0].tot) && /^2\b/.test(g.rows[1].tot), g.rows.map(r => r.start + '>' + r.close + ' = ' + r.tot + ' ' + r.chips + ' ' + (r.red ? 'RED ' + r.note : '')));
   ok('   the diesel of the shift (30 L) stands once, on the first row; the second row starts from the diesel the first left (30 − 12 = 18) and has no ½ tick; the foot counts 30 L',
@@ -62,7 +63,10 @@ const entries = no => sql("select coalesce(string_agg(date || ' ' || shift || ' 
   await f.evaluate(() => document.getElementById('lg_in').scrollIntoView({ block: 'center' })); await wait(300); await p.screenshot({ path: '/home/claude/test/shots/entry71_rows.png' });
   // the wrong ways are stopped on the spot
   await setF(1, 'openingHr', '3'); g = await rows();
-  ok('   a Start typed away from the Close above (3 instead of 2, as on his screen) is stopped: "This work starts where the row above closed: 2 hr"', g.rows[1].red && /This work starts where the row above closed: 2/.test(g.rows[1].note), g.rows[1].note);
+  // (update-77: a machinery on HOURS – a row may start ABOVE the Close of the row above; the hour between is not counted. Below it is still stopped)
+  ok('   a Start typed above the Close above (3 instead of 2): accepted for a machinery on hours (update-77) – "1 hr not worked between the rows – not counted"', !g.rows[1].red && /^1\b/.test(g.rows[1].tot), [g.rows[1].tot, g.rows[1].note]);
+  await setF(1, 'openingHr', '1.5'); g = await rows();
+  ok('   a Start BELOW the Close above (1.5 < 2) is stopped', g.rows[1].red && /less than the last Close Hrs 2/.test(g.rows[1].note), g.rows[1].note);
   await setF(1, 'openingHr', ''); g = await rows();
   ok('   the Start cleared: it fills by itself with 2 – fine again', g.rows[1].start === '2' && !g.rows[1].red, g.rows[1].start + ' ' + g.rows[1].note);
   await pick(1, '_split'); g = await rows();

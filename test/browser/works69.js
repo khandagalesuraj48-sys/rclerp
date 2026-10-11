@@ -75,11 +75,15 @@ const entry = d => sql("select opening_hrs || '>' || closing_hrs || '=' || worki
   await f.evaluate(() => document.querySelector('table.lx-t').scrollIntoView({ block: 'center' })); await wait(300); await p.screenshot({ path: '/home/claude/test/shots/works69_grid.png' });
   // wrong ways are stopped on the spot
   await chip(2, 'Bucket'); g = await grid();
-  ok('   the same work on two rows one after the other is stopped: "same work as the row above … make them one row"', /bad/.test(g[2].cls) && /same work as the row above \(Bucket\)/.test(g[2].notes), g[2].notes);
+  // (update-77, asked 11-10-2026: a machinery on HOURS may do the same work twice in one shift – no longer stopped)
+  ok('   the same work on two rows one after the other: accepted for a machinery on hours (update-77) – no red row', !/bad/.test(g[2].cls) && !/same work as the row above/.test(g[2].notes), g[2].notes);
   await chip(2, '_split'); g = await grid();
   ok('   "Split" on a row of a shift that has a row for each work is stopped: "each row … is ONE work"', /bad/.test(g[2].cls) && /ONE work/.test(g[2].notes), g[2].notes);
+  // (update-77: a machinery on HOURS – a row may start ABOVE the Close of the row above, the hours between not counted; BELOW it is stopped)
   await chip(2, 'Breaker'); await setIn(2, 'ohr', '2364'); g = await grid();
-  ok('   a row that does not start where the row above closed is stopped, with "Use it"', /bad/.test(g[2].cls) && /starts where the row above closed: 2,?363\.8/.test(g[2].notes), g[2].notes);
+  ok('   a row that starts above the Close of the row above (2364 > 2363.8): accepted (update-77) – "0.2 hr not worked between the rows – not counted"', !/bad/.test(g[2].cls) && /0\.2 hr not worked between the rows/.test(g[2].notes), g[2].notes);
+  await setIn(2, 'ohr', '2363'); g = await grid();
+  ok('   a row that starts BELOW the Close of the row above is stopped, with "Use it"', /bad/.test(g[2].cls) && /Start cannot be less than 2,?363\.8 \(Close of the row above\)/.test(g[2].notes), g[2].notes);
   await clickIn(2, '.lx-fix'); g = await grid();
   ok('   "Use it" puts 2363.8 back – fine again', g[2].ohr === '2363.8' && !/bad/.test(g[2].cls), g[2].ohr + ' ' + g[2].cls);
 
@@ -123,7 +127,9 @@ const entry = d => sql("select opening_hrs || '>' || closing_hrs || '=' || worki
   await clickIn(2, 'button.del'); g = await grid(); s0 = await sum();
   ok('a row of the shift is deleted in the grid: the rows left are shown as changed, the entry itself is NOT counted as deleted', g.length === 4 && /0<\/b> deleted|0 deleted/.test(s0.sum.replace(/<[^>]+>/g, '')) && !/\(off\)/.test(s0.save) || /0 deleted/.test(s0.sum), { rows: g.slice(1, 3).map(r => r.ohr + '>' + r.chr + ' ' + r.chips.replace(/ Split/, '') + ' ' + r.cls + ' ' + r.notes), sum: s0.sum, save: s0.save });
   // (two Bucket rows are now one after the other → must be made one row: delete the second, the first takes the whole shift)
-  ok('   the two rows left are both Bucket → stopped ("make them one row")', /same work as the row above/.test(g[2].notes), g[2].notes);
+  // (update-77, asked 11-10-2026: a machinery on HOURS – the rows left keep their own readings (the hours of the removed row become hours
+  //  not worked, not counted), and the same work twice in a row is allowed – nothing is stopped or moved)
+  ok('   the two rows left are both Bucket: accepted (update-77); the row after keeps its Start – "0.5 hr not worked between the rows"', !/same work as the row above/.test(g[2].notes) && /0\.5 hr not worked between the rows/.test(g[2].notes), g[2].notes);
   await clickIn(2, 'button.del'); await setIn(1, 'chr', '2364.8'); g = await grid();
   await save(); await wait(2500); e3 = entry('2026-09-24');
   ok('   with one row left the entry is an ordinary entry again: 3 hr of Bucket, no rows kept, still 3 entries', /^2361\.8>2364\.8=3 /.test(e3) && !/_parts/.test(e3) && !/Breaker/.test(e3) && sql("select count(*) from log_book where machinery = 'W69-JCB'") === '3', e3);
