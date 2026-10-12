@@ -107,6 +107,7 @@ const db = () => sql("select string_agg(to_char(date,'DD') || ' ' || shift || ':
   await f.evaluate(() => { S.formDirty = false; });
 
   // ---------- the Log Book list ----------
+  await f.evaluate(() => { if (typeof foldOpen === 'function') foldOpen('log'); });      // (update-88: the list is a closed bar – opened as the person does)
   await f.evaluate(() => { document.getElementById('lf_from').value = '2026-09-01'; document.getElementById('lf_to').value = '2026-09-30'; const n = document.getElementById('lf_no'); n.value = 'SPX-1'; n.dispatchEvent(new Event('change', { bubbles: true })); return loadLog(); }); await wait(3000);
   const list = await f.evaluate(() => [...document.querySelectorAll('#l_rows tr')].map(tr => [...tr.children].slice(0, 7).map(td => td.innerText.replace(/\s+/g, ' ').trim()).join(' | ')).filter(x => /SPX-1/.test(x)));
   const l2 = list.find(x => /^02-09-2026 \| Day/.test(x)) || '';

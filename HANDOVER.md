@@ -1516,6 +1516,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   dash: `lastKnownReading_` (last diesel reading / Log Book Close) in the question + "numbers"; `pickReading_` (fits / ÷10 / ÷100
   / another number / check). pump: litres, amount, rate (`pumpAnswer_`). `phApplyRead` fills d_km / d_hr / d_qty (ai '1' blue,
   '0' typed over = silent). `dhDriver`: last fill's driver into an empty / auto Driver box.
+- 12-10-2026 (update-88, after update-87 went live – `a5f8950`). Report: `UPDATE_88.md`. NO SQL. The list under a form is a closed
+  bar (`FOLDS`: diesel, inward, transfer, log, tankcheck, pay, brk, comp – matched by the h2 text): `.panel.fold`, `.fold-head`
+  (role=button), `foldSet` / `foldOpen`; closed at every app start, kept open during the session; the search openers open it.
+  Lists still load when the page opens. Tests reading a folded list call `foldOpen` first (splittime).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
