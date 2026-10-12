@@ -4590,6 +4590,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   });
   /* ---------- access: show edit parts only where the user has Edit ---------- */
   function canEdit(module) { return !!(S.user && (S.user.perms || {})[module] === 'Edit'); }
+  // may open the page (View or Edit); "No access" or not given = no
+  function canSee(module) { const p = S.user && (S.user.perms || {})[module]; return !!(S.user && (S.user.admin || p === 'Edit' || p === 'View')); }
   // Same access written the same way every time (the server may send the fields in a different order)
   function accessKey(u) { if (!u) return ''; const p = u.perms || {}; return [u.email, u.name, u.admin ? 1 : 0].concat(Object.keys(p).sort().map(k => k + '=' + p[k])).join('|'); }
   function applyPerms() {
@@ -4604,7 +4606,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     Object.keys(TAB_MODULE).forEach(t => { const b = $('tab-' + t); if (b) b.hidden = (u.perms || {})[TAB_MODULE[t]] === 'None'; });
     document.querySelectorAll('.navbtn[id^="tab-rp-"]').forEach(b => { b.hidden = (u.perms || {}).Reports === 'None'; });
     document.querySelectorAll('.subgrp').forEach(g => { g.hidden = ![...g.querySelectorAll('.navbtn')].some(b => !b.hidden); });
-    if (S.curTab && $('tab-' + S.curTab) && $('tab-' + S.curTab).hidden) { const first = [...document.querySelectorAll('#grp_mach .navbtn[role=tab]')].find(b => !b.hidden); if (first) first.click(); }
+    // the page on screen is one he may not open (also the Dashboard shown at sign-in): to his first page – a Machinery page if he
+    // has one, else any page of his menu (update-84: a user with Diesel Issue only was left on the Dashboard with "no access")
+    const now = S.curTab || TABS.find(t => $('sec-' + t) && !$('sec-' + t).hidden);
+    if (now && $('tab-' + now) && $('tab-' + now).hidden) {
+      const mine = [...document.querySelectorAll('.navbtn[role=tab]')].filter(b => !b.hidden && !b.closest('[hidden]') && b.id !== 'tab-settings' && b.id !== 'tab-readme');
+      const first = mine.find(b => b.closest('#grp_mach')) || mine[0] || $('tab-settings');
+      if (first) showTab(first.id.slice(4));
+    }
   }
   // which access column each page follows
   const TAB_MODULE = { dash: 'Dashboard', vendors: 'Vendor Master', master: 'Master', boq: 'Vendor BOQ', comp: 'Vehicle Compliance', lbf: 'Master', brk: 'Breakdown', inward: 'Diesel Inward', transfer: 'Diesel Transfer', diesel: 'Diesel Issue',
@@ -5121,9 +5130,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['Report: निवडलेल्या महिन्यांसाठी प्रत्येक machinery चे diesel आणि average.', 'Average = झालेले काम (Log Book मधले KM किंवा तास) आणि diesel यांचे प्रमाण; त्याची Asset Master मधल्या standard average शी तुलना होते.'],
       hi: ['Report: चुने गए महीनों के लिए हर machinery का diesel और average।', 'Average = हुआ काम (Log Book के KM या घंटे) और diesel का अनुपात; उसकी Asset Master के standard average से तुलना होती है।'] },
     users: { saves: ['saveUserAdmin', 'usersAdmin', 'saveOrgSettings', 'accessReport', 'rtcRights', 'rtcRightsSave'],
-      en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters. "Screen share – who may use it": untick a user and save – he can then neither show a screen nor be called (Admin users always may).'],
-      mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा. "Screen share – who may use it": user चा tick काढून Save केले की तो screen दाखवू शकत नाही आणि त्याला call पण करता येत नाही (Admin नेहमी वापरू शकतो).'],
-      hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो। "Screen share – who may use it": user का tick हटाकर Save करने पर वह न screen दिखा सकता है, न उसे call किया जा सकता है (Admin हमेशा उपयोग कर सकता है)।'] },
+      en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'A new user starts with No access on every page – he sees only the pages you set to View or Edit (in the menu and in the search). Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters. "Screen share – who may use it": untick a user and save – he can then neither show a screen nor be called (Admin users always may).'],
+      mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'नवीन user ला सुरुवातीला प्रत्येक page वर No access असते – तुम्ही View किंवा Edit दिलेली pages च त्याला दिसतात (menu मध्ये आणि search मध्ये). हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा. "Screen share – who may use it": user चा tick काढून Save केले की तो screen दाखवू शकत नाही आणि त्याला call पण करता येत नाही (Admin नेहमी वापरू शकतो).'],
+      hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'नए user को शुरू में हर page पर No access होता है – आपने View या Edit दिए वही pages उसे दिखते हैं (menu में और search में)। यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो। "Screen share – who may use it": user का tick हटाकर Save करने पर वह न screen दिखा सकता है, न उसे call किया जा सकता है (Admin हमेशा उपयोग कर सकता है)।'] },
     activity: { saves: ['getActivity'],
       en: ['The record of who added, changed or deleted what, and when.', 'It is written by the app itself on every save and cannot be edited. Only Admin sees it. "Screen share calls" shows the screen share history: who showed a screen to whom and how long, and the calls that were declined (with the reply) or not answered.'],
       mr: ['कोणी, काय, कधी जोडले, बदलले किंवा delete केले याची नोंद.', 'प्रत्येक save वर app स्वतः ही नोंद लिहिते; ती बदलता येत नाही. ती फक्त Admin ला दिसते. "Screen share calls" दाबले की screen share चा इतिहास दिसतो: कोणी कोणाला किती वेळ screen दाखवला, आणि कोणते call नाकारले (उत्तरासह) किंवा उचलले नाहीत.'],
@@ -7114,18 +7123,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!words.length) return [['Pages', pages.slice(0, 8)], ['Quick actions', actions]];
     out.push(['Pages', gsRank(words, pages, p => [['Page', p.title], ['Group', p.sub]], fixes, fz).slice(0, 6)]);
     out.push(['Quick actions', gsRank(words, actions, a => [['Action', a.title], ['Page', a.sub]], fixes, fz)]);
-    const machines = gsRank(words, S.master || [], m => [['Machinery', m.id], ['No', m.no], ['Name', m.name], ['Type', m.type], ['Make', m.make], ['Owner', m.owner], ['Ownership', m.ownership], ['Supply', m.supply], ['Status', m.status], ['Unit', m.unit], ['Engine', m.engineNo], ['Chassis', m.chassisNo]], fixes, fz).slice(0, 8).map(m => ({
+    // (update-84) a machinery / owner result and each of its buttons only for a page the user may open
+    const mChips = m => [['Diesel issued', 'Diesel Issue', () => gsOpenIssues({ no: m.id })], ['Log Book', 'Log Book', () => gsOpenLog(m.id)], ['Ledger', 'Reports', () => gsLedger(m.id)], ['Master', 'Master', () => gsMaster(m.id)]]
+      .filter(c => canSee(c[1])).map(c => [c[0], c[2]]);
+    const machines = (mChips({}).length ? gsRank(words, S.master || [], m => [['Machinery', m.id], ['No', m.no], ['Name', m.name], ['Type', m.type], ['Make', m.make], ['Owner', m.owner], ['Ownership', m.ownership], ['Supply', m.supply], ['Status', m.status], ['Unit', m.unit], ['Engine', m.engineNo], ['Chassis', m.chassisNo]], fixes, fz) : []).slice(0, 8).map(m => ({
       kind: 'mach', title: m.id, sub: [m.name && m.name !== m.id ? m.name : '', m.type, m.owner, m.ownership, m.status === 'Inactive' ? 'Inactive' : ''].filter(Boolean).join('  |  '),
-      run: () => gsOpenIssues({ no: m.id }),
-      chips: [['Diesel issued', () => gsOpenIssues({ no: m.id })], ['Log Book', () => gsOpenLog(m.id)], ['Ledger', () => gsLedger(m.id)], ['Master', () => gsMaster(m.id)]]
+      run: mChips(m)[0][1],
+      chips: mChips(m)
         .concat(canEdit('Diesel Issue') ? [['New issue', () => { showTab('diesel'); setTimeout(() => { $('d_no').value = m.id; $('d_no').dispatchEvent(new Event('change')); $('d_qty').focus(); }, 60); }]] : []),
     }));
     out.push(['Machinery', machines]);
     const owners = {};
-    (S.master || []).forEach(m => { if (!m.owner) return; const k = m.owner.toUpperCase(); (owners[k] = owners[k] || { name: m.owner, n: 0, own: {}, debit: false }); owners[k].n++; owners[k].own[m.ownership] = true; if (m.supply === 'Debit Basis') owners[k].debit = true; });
+    if (canSee('Master')) (S.master || []).forEach(m => { if (!m.owner) return; const k = m.owner.toUpperCase(); (owners[k] = owners[k] || { name: m.owner, n: 0, own: {}, debit: false }); owners[k].n++; owners[k].own[m.ownership] = true; if (m.supply === 'Debit Basis') owners[k].debit = true; });
     out.push(['Owners', gsRank(words, Object.keys(owners).map(k => owners[k]), o => [['Owner', o.name]], fixes, fz).slice(0, 5).map(o => ({
       kind: 'owner', title: o.name, sub: Object.keys(o.own).join(', ') + '  |  ' + o.n + ' machinery', run: () => gsMaster(o.name),
-      chips: [['Machinery', () => gsMaster(o.name)]].concat(o.debit ? [['Debit statement', () => gsDebit(o.name)]] : []),
+      chips: [['Machinery', () => gsMaster(o.name)]].concat(o.debit && canSee('Reports') ? [['Debit statement', () => gsDebit(o.name)]] : []),
     }))]);
     return out;
   }
@@ -12135,7 +12147,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<td class="ua-who">' + (isNew ? '<input class="ua-email" placeholder="email" type="email"><input class="ua-name" placeholder="name">' : '<b>' + esc(u.name) + '</b><small>' + esc(u.email) + '</small>' + (u.mustChange ? '<span class="st low">must set password</span>' : '')) + '</td>' +
       '<td class="c"><input type="checkbox" class="ua-active"' + (u.active !== false ? ' checked' : '') + ' title="Active – can sign in"></td>' +
       '<td class="c"><input type="checkbox" class="ua-admin"' + (u.admin ? ' checked' : '') + ' title="Admin – every page with Edit, plus Users and Activity Log"></td>' +
-      S.ua.modules.map(m => '<td>' + uaSel(m.key, u.admin ? 'Edit' : (u.perms || {})[m.key] || 'View', u.admin) + '</td>').join('') +
+      S.ua.modules.map(m => '<td>' + uaSel(m.key, u.admin ? 'Edit' : (u.perms || {})[m.key] || 'None', u.admin) + '</td>').join('') +
       '<td><input class="ua-pw" placeholder="' + (isNew ? 'one-time password' : 'new one-time password') + '" autocomplete="new-password"></td>' +
       '<td class="nowrap"><button class="btn primary small ua-save">' + (isNew ? 'Add' : 'Save') + '</button>' + (isNew ? ' <button class="link ua-cancel">Cancel</button>' : '') + '</td></tr>';
   }

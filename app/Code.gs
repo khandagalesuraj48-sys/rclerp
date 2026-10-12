@@ -380,7 +380,8 @@ function saveUserAdmin_(x, me) {
   const put = (h, v) => { if (col(h) > -1) row[col(h)] = v; };
   put('Email', email); put('Name', clean_(x.name) || email);
   put('Active', x.active === false ? 'No' : 'Yes'); put('Admin', x.admin ? 'Yes' : 'No');
-  MODULES.forEach(m => { const v = (x.perms || {})[m]; if (v) put(m, v === 'None' ? 'No access' : v === 'Edit' ? 'Edit' : 'View'); });
+  // (update-84) a new user gets only the pages Admin gave: a page not sent is "No access" (not View)
+  MODULES.forEach(m => { const v = (x.perms || {})[m]; if (v) put(m, v === 'None' ? 'No access' : v === 'Edit' ? 'Edit' : 'View'); else if (adding) put(m, x.admin ? 'Edit' : 'No access'); });
   // Admin cannot lock himself out
   if (!adding && me && me.email === email && (x.active === false || !x.admin)) throw new Error('You cannot remove your own Admin access or deactivate yourself.');
   if (adding || x.newPassword) {

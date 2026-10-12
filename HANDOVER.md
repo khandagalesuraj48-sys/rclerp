@@ -1491,6 +1491,13 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   2 from 7 letters, also prefix of a longer word) ONLY in a second pass when the exact pass found nothing → `fixes` → "Did you mean".
   Kinds by page access: issues, logs, inwards, transfers, tanks (Log Book), breakdowns, vendors, bills + debit notes (Saved Bills),
   payments, BOQ, vehicle papers. Each result: `why` (field: value), `counts`. Unit test checks page = server matcher.
+- 12-10-2026 (update-84, after update-83 went live – `ba388b1`). Report: `UPDATE_84.md`. NO SQL. "A user sees only what he was
+  given, not even View of the rest": a NEW user starts with No access on every page (Users page row default `None`;
+  `saveUserAdmin_` writes "No access" for a page not sent when adding). Search: Machinery result and each button only for a page
+  he may open (`canSee`: Diesel Issue / Log Book / Reports-ledger / Master); Owners only with Master; Debit statement only with
+  Reports. `applyPerms`: the page on screen (also the Dashboard shown at sign-in) not allowed → his first page (Machinery group
+  first, else any) – before, a Diesel-Issue-only user got "no access to Dashboard" at sign-in.
+  Existing users and an EMPTY cell (= View, see Access report) NOT changed – Admin sets them in the Users page.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
