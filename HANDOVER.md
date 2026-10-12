@@ -1485,6 +1485,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   site line (`lp-brand`, `#lp_site`) removed – One Click Solution only. Tab title and the opening's customer line not changed.
 - 11-10-2026 (update-82, after update-81 went live – `70ce8e6`). Report: `UPDATE_82.md`. NO SQL. App / tab / iPhone / notification
   icon = his mark on light #F7F7F7 (`app/icons/oc2-*.png`, new names because the service worker keeps icons cache-first).
+- 12-10-2026 (update-83, after update-82 went live – `716626a`). Report: `UPDATE_83.md`. NO SQL. UNIVERSAL SEARCH (Ctrl + K):
+  `globalSearch_` (server) and `gsRecordP` (page) are the same matcher – every word in some field; whole word > start > inside >
+  without dashes; numbers equal / start / inside IDs; Log Book readings also Start ≤ n ≤ Close. Spelling mistakes (Damerau, 1 /
+  2 from 7 letters, also prefix of a longer word) ONLY in a second pass when the exact pass found nothing → `fixes` → "Did you mean".
+  Kinds by page access: issues, logs, inwards, transfers, tanks (Log Book), breakdowns, vendors, bills + debit notes (Saved Bills),
+  payments, BOQ, vehicle papers. Each result: `why` (field: value), `counts`. Unit test checks page = server matcher.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

@@ -1953,3 +1953,54 @@ test('an hours machinery: rows by Time and rows by Hrs in one shift – the Time
   assert.deepStrictEqual([s.ohr, s.chr, s.whr], [100, 103, 5]);
   assert.strictEqual(bill('T78-BB'), 2 * 1200 + 3 * 1500);
 });
+
+// update-83 (12-10-2026): the universal search (Ctrl + K) – "whatever I type must work: annd still finds Anand and suggests it; a
+// vehicle's reading shows where it is – Log Book, Diesel Issue"; each kind only for a user who may see its page.
+test('universal search: a spelling mistake still finds the name (and suggests it); a reading is found in the Log Book and the Diesel Issue; access respected', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  run('(x, m) => saveMaster_(x, m)', { no: 'T83-JCB', name: 'JCB', type: 'Excavator', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 5, owner: 'Sai Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'Sai Earthmovers', gstReg: 'No', pan: 'ABCDE1283S', bank: 'SBI', account: '12345683', ifsc: 'SBIN0000001', phone: '9822000083' }, 'add');
+  run('x => saveLogRowsInner_(x)', { rows: [{ no: 'T83-JCB', date: '2026-07-01', shift: 'Full Day', mode: 'Hrs', openingHr: 3714.5, closingHr: 3717.5, driver: 'Anand Patil', work: 'ROCK BREAKING', challan: 'CH-4471' }] });
+  run('x => saveInward_(x)', { date: '2026-06-30', location: 'Dispenser', pump: 'Pump', qty: 1000, rate: 92, billNo: 'IN83', billDate: '2026-06-30' });
+  run('x => saveDieselIssue_(x)', { date: '2026-07-01', shift: 'Day', source: 'Dispenser', no: 'T83-JCB', qty: 60, hrReading: 3714.5, driver: 'Anand Patil', force: true });
+  const ALL = { perms: { 'Log Book': 'View', 'Diesel Issue': 'View', 'Vendor Master': 'View' } };
+  const s = (u, q) => run('(u, q) => globalSearch_(u, q)', u, q);
+  // "annd" (a letter missing) finds Anand – in the Log Book and the Diesel Issue – and the spelling is suggested
+  let r = s(ALL, 'annd');
+  assert.ok(r.logs.some(x => x.no === 'T83-JCB' && /Driver: ANAND PATIL|Driver: Anand Patil/i.test(x.why)) && r.issues.some(x => x.no === 'T83-JCB'), JSON.stringify(r).slice(0, 500));
+  assert.deepStrictEqual(r.fixes, [{ w: 'ANND', to: 'ANAND' }]);
+  // two mistakes in a long word: "earthmovres" (swap) + "sai" → the vendor
+  r = s(ALL, 'sai earthmovres');
+  assert.ok(r.vendors.some(x => x.name === 'Sai Earthmovers'), JSON.stringify(r.vendors));
+  // a reading: exactly (3714.5 = 3714.50) – where it is: Start Hrs in the Log Book, Hrs reading in the Diesel Issue
+  r = s(ALL, '3714.50');
+  assert.ok(r.logs.some(x => /Start Hrs: 3714.5/.test(x.why)) && r.issues.some(x => /Hrs reading: 3714.5/.test(x.why)), JSON.stringify([r.logs, r.issues]).slice(0, 500));
+  // a reading in between Start and Close: the Log Book entry it falls in
+  r = s(ALL, '3716');
+  assert.ok(r.logs.some(x => x.date === '2026-07-01' && /Hrs: 3,?714.5 → 3,?717.5 \(3716 is in between\)/.test(x.why)), JSON.stringify(r.logs));
+  // machinery + challan, written without the dash
+  r = s(ALL, 't83jcb ch4471');
+  assert.strictEqual(r.logs.length, 1, JSON.stringify(r.logs));
+  // a short word is not "corrected" into something else (no noise): "sam" finds nothing of these
+  r = s(ALL, 'zzzq');
+  assert.ok(!r.logs.length && !r.issues.length && !r.vendors.length && !r.fixes.length);
+  // each kind only for a user who may see its page
+  r = s({ perms: { 'Diesel Issue': 'View' } }, 'anand');
+  assert.ok(!r.logs.length && r.issues.length && !r.vendors.length, JSON.stringify(r).slice(0, 300));
+  r = s({ perms: {} }, 'anand');
+  assert.ok(!r.logs.length && !r.issues.length && !r.vendors.length);
+  // the page's matcher is the same as the server's (same answers for the same words)
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), a = app.indexOf('const gsNormP = '), b = app.indexOf('const gsWords = ');
+  const P = new Function(app.slice(a, b) + '; return { gsRecordP };')();
+  const fld = [['Driver', 'Anand Patil'], ['Close Hrs', 3717.5], ['Machinery', 'T83-JCB']];
+  for (const fz of [false, true]) for (const w of ['annd', 'ANAND', 'patl', '3717.50', 't83jcb', 'zzzq', 'anadn', 'anandr']) {
+    const pg = P.gsRecordP([w.toUpperCase()], fld, fz), sv = run('(w, f, fz) => gsRecord_([w], f.map(x => gsField_(x[0], x[1])), null, fz)', w.toUpperCase(), fld, fz);
+    assert.deepStrictEqual(pg ? [pg.score, pg.fixes] : null, sv ? [sv.score, sv.fixes] : null, w + ' ' + fz);
+  }
+  // a word that is right is never "corrected": the mistakes are allowed only when nothing is found exactly
+  r = s(ALL, 'anand');
+  assert.ok(r.logs.length && !r.fixes.length, JSON.stringify(r.fixes));
+  // the start of a longer name with a mistake: "anadr" → ANANDRAO? (here: ANAND – the driver's first name)
+  assert.ok(P.gsRecordP(['ANND'], [['Driver', 'Anandrao Patil']], true) && !P.gsRecordP(['ANND'], [['Driver', 'Anandrao Patil']], false));
+});

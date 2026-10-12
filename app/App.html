@@ -816,6 +816,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .gs-chip { appearance: none; border: 1px solid #D9DEE2; background: #fff; border-radius: 12px; padding: 2px 9px; font: 500 11.5px var(--ui); color: var(--steel); cursor: pointer; white-space: nowrap; }
   .gs-chip:hover { border-color: var(--steel); background: #F6F7F8; }
   .gs-empty, .gs-wait { padding: 18px 16px; color: var(--muted); font-size: 13.5px; }
+  .gs-fix { padding: 9px 16px; font-size: 13.5px; color: var(--ink); background: #FFF8E1; border-bottom: 1px solid #F3E2A6; } .gs-fix small { color: var(--muted); }
+  .gs-fixbtn { appearance: none; border: 0; background: none; padding: 0; font: 700 13.5px var(--ui); color: #1D55E2; text-decoration: underline; cursor: pointer; }
   .gs-wait { padding: 8px 16px; font-size: 12px; }
   .gs-foot { display: flex; gap: 16px; padding: 8px 16px; border-top: 1px solid #E6EAED; font-size: 11.5px; color: var(--muted); background: #FAFBFC; }
   @media (max-width: 760px) { .gs-btn { min-width: 0; } .gs-btn span, .gs-btn kbd { display: none; } .gs-chips { display: none; } .gs-foot { display: none; } }
@@ -4028,7 +4030,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   <div id="gs_box" role="dialog" aria-modal="true" aria-label="Search the app">
     <div class="gs-top">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="gs_in" placeholder="Search machinery, owner, Issue ID, pump, bill no, date, page…" autocomplete="off" spellcheck="false" aria-label="Search">
+      <input id="gs_in" placeholder="Search anything – machinery, name, driver, reading, challan, bill no, vendor, date, page…" autocomplete="off" spellcheck="false" aria-label="Search">
       <kbd>Esc</kbd>
     </div>
     <div id="gs_list" role="listbox"></div>
@@ -5034,9 +5036,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * So: adding a page, a report or a save action without describing it here cannot go live unnoticed. */
   const PAGE_GUIDE = {
     dash: { saves: ['saveTankSettings'],
-      en: ['The day at a glance: diesel stock, diesel received and issued, the tanks, and the Log Book of the day.', 'Nothing is entered here. Every figure comes from the entries of the other pages for the dates chosen at the top; "Stock now" is always the live stock. Only the tank size can be set here.'],
-      mr: ['एका नजरेत दिवस: diesel stock, आलेले आणि दिलेले diesel, tanks, आणि दिवसाची Log Book.', 'इथे काहीही भरले जात नाही. प्रत्येक आकडा वर निवडलेल्या तारखांसाठी इतर pages च्या entries वरून येतो; "Stock now" नेहमी सध्याचा stock असतो. इथे फक्त tank चा आकार सेट करता येतो.'],
-      hi: ['एक नज़र में दिन: diesel stock, आया और दिया गया diesel, tanks, और दिन की Log Book।', 'यहाँ कुछ भरा नहीं जाता। हर आँकड़ा ऊपर चुनी तारीखों के लिए दूसरे pages की entries से आता है; "Stock now" हमेशा अभी का stock है। यहाँ केवल tank का आकार सेट होता है।'] },
+      en: ['The day at a glance: diesel stock, diesel received and issued, the tanks, and the Log Book of the day.', 'Nothing is entered here. Every figure comes from the entries of the other pages for the dates chosen at the top; "Stock now" is always the live stock. Only the tank size can be set here. The search at the top (Ctrl + K) finds anything in the app – machinery, names, drivers, a reading (also one that lies between the Start and Close of a Log Book entry), challan or bill number, vendor, date, page – even with a spelling mistake (it then asks "did you mean …"); a result opens its page.'],
+      mr: ['एका नजरेत दिवस: diesel stock, आलेले आणि दिलेले diesel, tanks, आणि दिवसाची Log Book.', 'इथे काहीही भरले जात नाही. प्रत्येक आकडा वर निवडलेल्या तारखांसाठी इतर pages च्या entries वरून येतो; "Stock now" नेहमी सध्याचा stock असतो. इथे फक्त tank चा आकार सेट करता येतो. वरचा search (Ctrl + K) app मधले काहीही शोधतो – machinery, नावे, driver, reading (Log Book entry च्या Start आणि Close च्या मधले reading सुद्धा), challan किंवा bill नंबर, vendor, तारीख, page – स्पेलिंग चुकले तरी (मग तो "did you mean …" विचारतो); result वर क्लिक केले की त्याचे page उघडते.'],
+      hi: ['एक नज़र में दिन: diesel stock, आया और दिया गया diesel, tanks, और दिन की Log Book।', 'यहाँ कुछ भरा नहीं जाता। हर आँकड़ा ऊपर चुनी तारीखों के लिए दूसरे pages की entries से आता है; "Stock now" हमेशा अभी का stock है। यहाँ केवल tank का आकार सेट होता है। ऊपर का search (Ctrl + K) app में कुछ भी ढूँढता है – machinery, नाम, driver, reading (Log Book entry के Start और Close के बीच की reading भी), challan या bill नंबर, vendor, तारीख, page – spelling गलत हो तब भी (तब वह "did you mean …" पूछता है); result पर क्लिक करने से उसका page खुलता है।'] },
     vendors: { saves: ['saveVendor', 'deleteVendor', 'vendorsFromOwners'],
       en: ['The parties: vendors and owners of machinery, with address, PAN, GST and bank details.', 'The app checks the format of PAN, GST, IFSC and mobile, and does not allow the same name twice. The name can be changed: the vendor\'s assets, BOQs, bills, payments, debit notes and Log Book entries follow to the new name. A vendor with assets or BOQs cannot be deleted. These details print on bills, tax invoices and debit notes.'],
       mr: ['Parties: machinery चे vendors आणि मालक, पत्ता, PAN, GST आणि bank तपशीलासह.', 'App PAN, GST, IFSC आणि mobile चे स्वरूप तपासते, आणि तेच नाव दोनदा घेत नाही. नाव बदलता येते: vendor चे assets, BOQ, bills, payments, debit notes आणि Log Book entries नवीन नावाकडे जातात. ज्या vendor कडे assets किंवा BOQ आहेत तो delete होत नाही. हा तपशील bills, tax invoice आणि debit notes वर छापला जातो.'],
@@ -7018,13 +7020,69 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
      One box for the whole app: pages, quick actions, machinery, owners (instant, in the app) and
      diesel issues, inward, transfers, Log Book entries (from the sheets). ↑ ↓ to move, Enter to open, Esc to close. */
   const GS = { items: [], sel: 0, q: '', seq: 0, timer: null, server: null };
-  const gsSquash = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  const gsWords = q => q.trim().toUpperCase().split(/\s+/).filter(Boolean);
-  // every word must be found (machinery numbers match with or without dashes / spaces)
-  function gsMatch(words, parts) {
-    const text = parts.map(v => String(v || '')).join(' ').toUpperCase(), flat = gsSquash(text);
-    return words.every(w => text.indexOf(w) > -1 || (gsSquash(w) && flat.indexOf(gsSquash(w)) > -1));
+  /* update-83 (asked 12-10-2026): one matcher for everything – the same as the server's (globalSearch_ in Code.gs): every word
+   * typed must be found; as a whole word, the start of a word, inside a word, without dashes / spaces, or (4 letters and more)
+   * with one spelling mistake (two from 7 letters) – the word it was taken for is suggested ("did you mean ANAND"); a number is
+   * found as the same number (3714.5 = 3714.50), as the start of a number or inside an ID. */
+  const gsNormP = v => String(v === null || v === undefined ? '' : v).toUpperCase();
+  const gsToksP = v => gsNormP(v).split(/[^A-Z0-9.ऀ-ॿ]+/).map(t => t.replace(/^\.+|\.+$/g, '')).filter(Boolean);
+  const gsNumP = t => /^\d+(\.\d+)?$/.test(t) ? Number(t) : null;
+  function gsDistP(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    let p2 = null, p1 = [], cur;
+    for (let j = 0; j <= b.length; j++) p1.push(j);
+    for (let i = 1; i <= a.length; i++) {
+      cur = [i]; let low = i;
+      for (let j = 1; j <= b.length; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        let v = Math.min(p1[j] + 1, cur[j - 1] + 1, p1[j - 1] + cost);
+        if (p2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, p2[j - 2] + 1);
+        cur.push(v); if (v < low) low = v;
+      }
+      if (low > max) return max + 1;
+      p2 = p1; p1 = cur;
+    }
+    return p1[b.length];
   }
+  const gsFieldP = (label, value) => { const text = gsNormP(value), toks = gsToksP(value); return { label: label, value: String(value === null || value === undefined ? '' : value), text: text, flat: text.replace(/[^A-Z0-9ऀ-ॿ]/g, ''), toks: toks, nums: toks.map(gsNumP).filter(n => n !== null) }; };
+  function gsWordHitP(w, f, fuzzy) {
+    if (!f.text) return null;
+    const wn = gsNumP(w);
+    if (wn !== null) {
+      if (f.nums.some(n => Math.abs(n - wn) < 1e-9)) return { s: 5 };
+      if (w.length >= 3 && f.toks.some(t => t.indexOf(w) === 0)) return { s: 3 };
+      if (w.length >= 3 && f.flat.indexOf(w.replace(/\./g, '')) > -1) return { s: 2 };
+      return null;
+    }
+    if (f.toks.indexOf(w) > -1) return { s: 5 };
+    if (f.toks.some(t => t.indexOf(w) === 0)) return { s: 4 };
+    if (f.text.indexOf(w) > -1) return { s: 3 };
+    const sw = w.replace(/[^A-Z0-9ऀ-ॿ]/g, ''); if (sw.length >= 2 && f.flat.indexOf(sw) > -1) return { s: 3 };
+    if (fuzzy && w.length >= 4 && /[A-Zऀ-ॿ]/.test(w)) {
+      const max = w.length >= 7 ? 2 : 1; let best = null;
+      f.toks.forEach(t => {
+        if (gsNumP(t) !== null || t.length < 3) return;
+        let d = gsDistP(w, t, max);
+        if (d > max && t.length > w.length + 1) d = Math.min(gsDistP(w, t.slice(0, w.length), max), gsDistP(w, t.slice(0, w.length + 1), max));
+        if (d <= max && (!best || d < best.d)) best = { d: d, t: t };
+      });
+      if (best) return { s: best.d === 1 ? 1.5 : 1, fix: best.t };
+    }
+    return null;
+  }
+  // every word found in one of the fields ([label, value] pairs): { score, fixes } – else null
+  function gsRecordP(words, pairs, fuzzy) {
+    const fields = pairs.map(x => gsFieldP(x[0], x[1])); let score = 0; const fixes = [];
+    for (const w of words) {
+      let best = null; fields.forEach(f => { const h = gsWordHitP(w, f, fuzzy); if (h && (!best || h.s > best.s)) best = h; });
+      if (!best) return null;
+      score += best.s; if (best.fix) fixes.push({ w: w, to: best.fix });
+    }
+    return { score: score, fixes: fixes };
+  }
+  const gsWords = q => gsNormP(q).trim().split(/\s+/).map(w => w.replace(/^[^A-Z0-9ऀ-ॿ]+|[^A-Z0-9ऀ-ॿ]+$/g, '')).filter(Boolean).slice(0, 8);
+  // kept for the old callers: every word found (now with the spelling allowance)
+  function gsMatch(words, parts) { const pr = parts.map(v => ['', v]); return !!(gsRecordP(words, pr) || gsRecordP(words, pr, true)); }
   function gsMark(text, words) {
     let h = esc(text);
     words.filter(w => w.length > 0).sort((a, b) => b.length - a.length).forEach(w => {
@@ -7034,11 +7092,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return h;
   }
   function gsClearFilters(sec) { document.querySelectorAll('#' + sec + ' .filters input, #' + sec + ' .filters select').forEach(el => { el.value = ''; }); }
-  const gsIcon = { page: '▦', action: '+', mach: '⛟', owner: '👤', issue: '⛽', inward: '⤓', transfer: '⇄', log: '📘' };
-  // everything the app already has in memory
-  function gsLocal(q) {
+  const gsIcon = { page: '▦', action: '+', mach: '⛟', owner: '👤', issue: '⛽', inward: '⤓', transfer: '⇄', log: '📘', vendor: '🏢', bill: '🧾', note: '📝', pay: '₹', boq: '📑', tank: '🛢', brk: '🔧', paper: '📄' };
+  // the best first (and only those found) – collects the spelling the words were taken for
+  function gsRank(words, list, pairsOf, fixes, fuzzy) {
+    return list.map(x => ({ x: x, m: gsRecordP(words, pairsOf(x), fuzzy) })).filter(y => y.m).sort((a, b) => b.m.score - a.m.score).map(y => { y.m.fixes.forEach(f => fixes.push(f)); return y.x; });
+  }
+  // everything the app already has in memory – exact first; only when nothing is found, allowing a spelling mistake (as the server)
+  function gsLocal(q, fixes) { const a = gsLocalPass(q, fixes, false); return !gsWords(q).length || a.some(g => g[1].length) ? a : gsLocalPass(q, fixes, true); }
+  function gsLocalPass(q, fixes, fz) {
     const words = gsWords(q), out = [];
-    const pages = [...document.querySelectorAll('.navbtn')].filter(b => !b.closest('.navgroup[hidden]') && b.id.indexOf('tab-') === 0).map(b => {
+    const pages = [...document.querySelectorAll('.navbtn')].filter(b => !b.closest('.navgroup[hidden]') && !b.hidden && b.id.indexOf('tab-') === 0).map(b => {
       let sub = '', el = b.previousElementSibling;
       while (el) { if (el.classList.contains('subcap')) { sub = el.dataset.sub; break; } el = el.previousElementSibling; }
       const grp = b.closest('.navgroup'); const g = grp ? grp.querySelector('.grphead .label').textContent : '';
@@ -7049,9 +7112,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ['Log Book', 'Log Book entry', 'log', null], ['Master', 'Add machinery', 'master', 'm_no'],
     ].filter(a => canEdit(a[0])).map(a => ({ kind: 'action', title: a[1], sub: a[0], run: () => { showTab(a[2]); if (a[3]) setTimeout(() => $(a[3]) && $(a[3]).focus(), 60); } }));
     if (!words.length) return [['Pages', pages.slice(0, 8)], ['Quick actions', actions]];
-    out.push(['Pages', pages.filter(p => gsMatch(words, [p.title, p.sub])).slice(0, 6)]);
-    out.push(['Quick actions', actions.filter(a => gsMatch(words, [a.title, a.sub]))]);
-    const machines = (S.master || []).filter(m => gsMatch(words, [m.id, m.no, m.name, m.type, m.make, m.owner, m.ownership, m.supply, m.status, m.unit])).slice(0, 8).map(m => ({
+    out.push(['Pages', gsRank(words, pages, p => [['Page', p.title], ['Group', p.sub]], fixes, fz).slice(0, 6)]);
+    out.push(['Quick actions', gsRank(words, actions, a => [['Action', a.title], ['Page', a.sub]], fixes, fz)]);
+    const machines = gsRank(words, S.master || [], m => [['Machinery', m.id], ['No', m.no], ['Name', m.name], ['Type', m.type], ['Make', m.make], ['Owner', m.owner], ['Ownership', m.ownership], ['Supply', m.supply], ['Status', m.status], ['Unit', m.unit], ['Engine', m.engineNo], ['Chassis', m.chassisNo]], fixes, fz).slice(0, 8).map(m => ({
       kind: 'mach', title: m.id, sub: [m.name && m.name !== m.id ? m.name : '', m.type, m.owner, m.ownership, m.status === 'Inactive' ? 'Inactive' : ''].filter(Boolean).join('  |  '),
       run: () => gsOpenIssues({ no: m.id }),
       chips: [['Diesel issued', () => gsOpenIssues({ no: m.id })], ['Log Book', () => gsOpenLog(m.id)], ['Ledger', () => gsLedger(m.id)], ['Master', () => gsMaster(m.id)]]
@@ -7060,23 +7123,32 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     out.push(['Machinery', machines]);
     const owners = {};
     (S.master || []).forEach(m => { if (!m.owner) return; const k = m.owner.toUpperCase(); (owners[k] = owners[k] || { name: m.owner, n: 0, own: {}, debit: false }); owners[k].n++; owners[k].own[m.ownership] = true; if (m.supply === 'Debit Basis') owners[k].debit = true; });
-    out.push(['Owners / Vendors', Object.keys(owners).map(k => owners[k]).filter(o => gsMatch(words, [o.name])).slice(0, 5).map(o => ({
+    out.push(['Owners', gsRank(words, Object.keys(owners).map(k => owners[k]), o => [['Owner', o.name]], fixes, fz).slice(0, 5).map(o => ({
       kind: 'owner', title: o.name, sub: Object.keys(o.own).join(', ') + '  |  ' + o.n + ' machinery', run: () => gsMaster(o.name),
       chips: [['Machinery', () => gsMaster(o.name)]].concat(o.debit ? [['Debit statement', () => gsDebit(o.name)]] : []),
     }))]);
     return out;
   }
-  // entries from the sheets
+  // entries from the server (each with where the words were found: x.why)
   function gsServer(r) {
-    const out = [];
-    out.push(['Diesel issues', (r.issues || []).map(x => ({ kind: 'issue', title: x.id + '  –  ' + x.no, sub: showDate(x.date) + ' ' + x.shift + '  |  ' + fmt(x.qty) + ' L  |  ' + x.source + (x.driver ? '  |  ' + x.driver : ''),
+    const out = [], c = r.counts || {}, head = (name, key) => name + (c[key] > (r[key] || []).length ? '  (' + c[key] + ' found – the best ' + (r[key] || []).length + ')' : '');
+    const why = (x, base) => [base, x.why ? 'found: ' + x.why : ''].filter(Boolean).join('  |  ');
+    out.push([head('Diesel issues', 'issues'), (r.issues || []).map(x => ({ kind: 'issue', title: x.id + '  –  ' + x.no, sub: why(x, showDate(x.date) + ' ' + x.shift + '  |  ' + fmt(x.qty) + ' L  |  ' + x.source + (x.driver ? '  |  ' + x.driver : '')),
       run: () => gsOpenIssues({ q: x.id }), chips: canEdit('Diesel Issue') ? [['Edit', async () => { await gsOpenIssues({ q: x.id }); editDiesel(x.id); }]] : [] }))]);
-    out.push(['Diesel inward', (r.inwards || []).map(x => ({ kind: 'inward', title: x.id + '  –  ' + x.pump, sub: showDate(x.date) + '  |  ' + fmt(x.qty) + ' L  |  ' + x.location + (x.bill ? '  |  Bill ' + x.bill : ''),
+    out.push([head('Log Book', 'logs'), (r.logs || []).map(x => ({ kind: 'log', title: x.no + '  –  ' + showDate(x.date) + ' (' + x.shift + ')',
+      sub: why(x, [x.wkm !== '' ? fmt(x.wkm) + ' km' : '', x.whr !== '' ? fmt(x.whr) + ' hr' : '', x.work].filter(Boolean).join('  |  ')), run: () => gsOpenLog(x.no, x.date) }))]);
+    out.push([head('Diesel inward', 'inwards'), (r.inwards || []).map(x => ({ kind: 'inward', title: x.id + '  –  ' + x.pump, sub: why(x, showDate(x.date) + '  |  ' + fmt(x.qty) + ' L  |  ' + x.location + (x.bill ? '  |  Bill ' + x.bill : '')),
       run: () => gsOpenInward(x.id), chips: canEdit('Diesel Inward') ? [['Edit', async () => { await gsOpenInward(x.id); editInward(x.id); }]] : [] }))]);
-    out.push(['Transfers', (r.transfers || []).map(x => ({ kind: 'transfer', title: x.id + '  –  ' + x.from + ' → ' + x.to, sub: showDate(x.date) + '  |  ' + fmt(x.qty) + ' L',
+    out.push([head('Transfers', 'transfers'), (r.transfers || []).map(x => ({ kind: 'transfer', title: x.id + '  –  ' + x.from + ' → ' + x.to, sub: why(x, showDate(x.date) + '  |  ' + fmt(x.qty) + ' L'),
       run: () => gsOpenTransfer(x.id), chips: canEdit('Diesel Transfer') ? [['Edit', async () => { await gsOpenTransfer(x.id); editTransfer(x.id); }]] : [] }))]);
-    out.push(['Log Book', (r.logs || []).map(x => ({ kind: 'log', title: x.no + '  –  ' + showDate(x.date) + ' (' + x.shift + ')',
-      sub: [x.wkm !== '' ? fmt(x.wkm) + ' km' : '', x.whr !== '' ? fmt(x.whr) + ' hr' : '', x.work].filter(Boolean).join('  |  '), run: () => gsOpenLog(x.no, x.date) }))]);
+    out.push([head('Tank checks', 'tanks'), (r.tanks || []).map(x => ({ kind: 'tank', title: x.id + '  –  ' + x.no, sub: why(x, showDate(x.date) + '  |  found ' + fmt(x.physical) + ' L  |  difference ' + fmt(x.diff) + ' L'), run: () => gsOpenTank(x) }))]);
+    out.push([head('Breakdowns', 'breakdowns'), (r.breakdowns || []).map(x => ({ kind: 'brk', title: x.no + '  –  from ' + showDate(x.from), sub: why(x, (x.backOn ? 'working again ' + showDate(x.backOn) : 'still in breakdown') + '  |  ' + x.days + ' day(s)' + (x.reason ? '  |  ' + x.reason : '')), run: () => gsOpenBreakdown(x) }))]);
+    out.push([head('Vendors', 'vendors'), (r.vendors || []).map(x => ({ kind: 'vendor', title: x.name, sub: why(x, [x.ownership, x.machines ? x.machines + ' machinery' : '', x.gst ? 'GST ' + x.gst : ''].filter(Boolean).join('  |  ')), run: () => gsOpenVendor(x.name) }))]);
+    out.push([head('Bills', 'bills'), (r.bills || []).map(x => ({ kind: 'bill', title: x.billNo + '  –  ' + x.vendor, sub: why(x, showDate(x.from) + ' to ' + showDate(x.to) + '  |  ₹ ' + fmt(x.net)), run: () => gsOpenBills(x.vendor, x.from, x.to) }))]);
+    out.push([head('Debit notes', 'notes'), (r.notes || []).map(x => ({ kind: 'note', title: x.no + '  –  ' + x.vendor, sub: why(x, showDate(x.date) + '  |  ₹ ' + fmt(x.total)), run: () => gsOpenBills(x.vendor, x.from || x.date, x.to || x.date) }))]);
+    out.push([head('Payments', 'payments'), (r.payments || []).map(x => ({ kind: 'pay', title: x.id + '  –  ' + x.vendor, sub: why(x, showDate(x.date) + '  |  ₹ ' + fmt(x.amount) + (x.mode ? '  |  ' + x.mode : '') + (x.ref ? '  |  ' + x.ref : '')), run: () => gsOpenPay(x) }))]);
+    out.push([head('BOQ / work orders', 'boqs'), (r.boqs || []).map(x => ({ kind: 'boq', title: (x.no || x.id) + '  –  ' + x.vendor, sub: why(x, (x.woNo ? 'WO ' + x.woNo + '  |  ' : '') + 'from ' + showDate(x.from) + (x.amendNo ? '  |  amendment ' + x.amendNo : '')), run: () => gsOpenBoq(x.vendor) }))]);
+    out.push([head('Vehicle papers', 'papers'), (r.papers || []).map(x => ({ kind: 'paper', title: x.no + '  –  ' + x.doc, sub: why(x, (x.docNo ? 'No ' + x.docNo + '  |  ' : '') + (x.to ? 'valid up to ' + (/^\d{4}-\d\d-\d\d$/.test(x.to) ? showDate(x.to) : x.to) : '')), run: () => gsOpenPaper(x.no) }))]);
     return out;
   }
   // where each result takes you
@@ -7087,22 +7159,41 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function gsMaster(text) { showTab('master'); $('m_search').value = text; $('m_search').dispatchEvent(new Event('input')); }
   function gsLedger(no) { showTab('rp-ledger'); $('rpledger_no').value = no; const d = S.rpDefs.find(x => x.key === 'ledger'); busy($('rpledger_go'), 'Generating…', () => rpGenerate(d)); }
   function gsDebit(owner) { showTab('rp-debit'); $('rpdebit_owner').value = owner; const d = S.rpDefs.find(x => x.key === 'debit'); busy($('rpdebit_go'), 'Generating…', () => rpGenerate(d)); }
+  // (update-83) a list's filter set BEFORE its page opens, so the page loads it once with that filter
+  const gsSel = (id, v) => { const el = $(id); if (!el) return; if (v && ![...el.options].some(o => o.value === v)) el.insertAdjacentHTML('beforeend', '<option>' + esc(v) + '</option>'); el.value = v || ''; };
+  function gsOpenVendor(name) { $('vf_q').value = name; showTab('vendors'); }      // (opening the page loads the list again – with this filter)
+  function gsOpenBills(vendor, from, to) { $('sb_from').value = from || ''; $('sb_to').value = to || ''; gsSel('sb_vendor', vendor); if ($('sb_co')) $('sb_co').value = ''; showTab('bills'); }
+  function gsOpenPay(x) { $('pyf_from').value = x.date; $('pyf_to').value = x.date; gsSel('pyf_vendor', x.vendor); if ($('pyf_type')) $('pyf_type').value = ''; showTab('pay'); }
+  function gsOpenBoq(vendor) { gsSel('bf_vendor', vendor); showTab('boq'); }
+  function gsOpenTank(x) { $('tcf_no').value = x.no; $('tcf_from').value = x.date; $('tcf_to').value = x.date; showTab('tankcheck'); }
+  function gsOpenBreakdown(x) { $('bk_date').value = x.from; showTab('brk'); }
+  function gsOpenPaper(no) { $('cp_q').value = no; showTab('comp'); }
   function gsRender() {
-    const words = gsWords(GS.q);
-    const groups = gsLocal(GS.q).concat(GS.server ? gsServer(GS.server) : []).filter(g => g[1].length);
+    const words = gsWords(GS.q), fixes = [];
+    const groups = gsLocal(GS.q, fixes).concat(GS.server ? gsServer(GS.server) : []);
+    // an owner of the machinery list that is also a vendor found by the server: ONE result, with a "Vendor" button (not twice)
+    const ownG = groups.find(g => g[0] === 'Owners'), venG = groups.find(g => /^Vendors/.test(g[0]));
+    if (ownG && venG) venG[1] = venG[1].filter(v => { const o = ownG[1].find(x => x.title.toUpperCase() === v.title.toUpperCase()); if (!o) return true; o.chips = (o.chips || []).concat([['Vendor', v.run]]); return false; });
+    for (let k = groups.length - 1; k >= 0; k--) if (!groups[k][1].length) groups.splice(k, 1);
+    (GS.server && GS.server.fixes || []).forEach(f => fixes.push(f));
+    // the spelling to suggest: each word that was found only as another word → "did you mean …"
+    const fixOf = {}; fixes.forEach(f => { (fixOf[f.w] = fixOf[f.w] || {})[f.to] = ((fixOf[f.w] || {})[f.to] || 0) + 1; });
+    const sure = groups.some(g => g[1].length) && words.some(w => fixOf[w]);
+    const better = sure ? words.map(w => fixOf[w] ? Object.keys(fixOf[w]).sort((a, b) => fixOf[w][b] - fixOf[w][a])[0] : w).join(' ') : '';
+    const markWords = words.concat([].concat(...Object.keys(fixOf).map(w => Object.keys(fixOf[w]))));
     GS.items = [];
-    let html = '';
+    let html = better && better !== words.join(' ') ? '<div class="gs-fix">Did you mean <button type="button" class="gs-fixbtn" data-fix="' + esc(better.toLowerCase()) + '">' + esc(better.toLowerCase()) + '</button>? <small>(shown below as well)</small></div>' : '';
     groups.forEach(g => {
       html += '<div class="gs-grp">' + esc(g[0]) + '</div>';
       g[1].forEach(it => {
         const i = GS.items.push(it) - 1;
         html += '<div class="gs-item' + (i === GS.sel ? ' on' : '') + '" role="option" data-i="' + i + '"><span class="gs-ic">' + (gsIcon[it.kind] || '•') + '</span>' +
-          '<span class="gs-tx"><b>' + gsMark(it.title, words) + '</b><small>' + gsMark(it.sub || '', words) + '</small></span>' +
+          '<span class="gs-tx"><b>' + gsMark(it.title, markWords) + '</b><small>' + gsMark(it.sub || '', markWords) + '</small></span>' +
           (it.chips && it.chips.length ? '<span class="gs-chips">' + it.chips.map((c, k) => '<button class="gs-chip" data-i="' + i + '" data-c="' + k + '">' + esc(c[0]) + '</button>').join('') + '</span>' : '') + '</div>';
       });
     });
-    const waiting = gsWords(GS.q).length && !GS.server && GS.q.trim().length >= 2;
-    if (!GS.items.length) html = waiting ? '<div class="gs-empty">Searching…</div>' : '<div class="gs-empty">Nothing found for “' + esc(GS.q) + '”.</div>';
+    const waiting = words.length && !GS.server && GS.q.trim().length >= 2;
+    if (!GS.items.length) html = waiting ? '<div class="gs-empty">Searching…</div>' : '<div class="gs-empty">Nothing found for “' + esc(GS.q) + '”. Try fewer words, a number (reading, bill no, challan) or a part of a name.</div>';
     else if (waiting) html += '<div class="gs-wait">Searching entries…</div>';
     $('gs_list').innerHTML = html;
     GS.sel = Math.min(GS.sel, Math.max(GS.items.length - 1, 0));
@@ -7134,6 +7225,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('gs_list').addEventListener('mousemove', e => { const r = e.target.closest('.gs-item'); if (r && Number(r.dataset.i) !== GS.sel) { GS.sel = Number(r.dataset.i); $('gs_list').querySelectorAll('.gs-item').forEach(x => x.classList.toggle('on', Number(x.dataset.i) === GS.sel)); } });
   $('gs_list').addEventListener('click', e => {
     const c = e.target.closest('.gs-chip'); if (c) { gsExec(GS.items[Number(c.dataset.i)], Number(c.dataset.c)); return; }
+    const fx = e.target.closest('.gs-fixbtn'); if (fx) { $('gs_in').value = fx.dataset.fix; gsInput(); $('gs_in').focus(); return; }      // (the spelling suggested)
     const r = e.target.closest('.gs-item'); if (r) gsExec(GS.items[Number(r.dataset.i)]);
   });
   $('gs_back').addEventListener('click', e => { if (e.target === $('gs_back')) gsClose(); });
@@ -7869,8 +7961,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     await call('saveTankCheck', { date: $('tc_date').value, no: TC.sys.machine.id, method: $('tc_method').value, physical: numv('tc_phys'), toFill: numv('tc_fill'), reason: val('tc_reason'), by: val('tc_by') });
     toast('Tank check saved.'); tcClear(); loadTankChecks();
   }));
+  let tcSeq = 0;
   async function loadTankChecks() {
+    const seq = ++tcSeq;      // (a newer filter is loading: an older answer is not shown – update-83)
     const res = await call('getTankChecks', { from: $('tcf_from').value, to: $('tcf_to').value, no: val('tcf_no') });
+    if (seq !== tcSeq) return;
     $('tc_rows').innerHTML = res.rows.length ? res.rows.map(x => {
       const big = Math.abs(x.diff) > Math.max(5, Math.abs(x.system) * 0.1);
       return '<tr><td>' + esc(x.id) + '</td><td>' + esc(showDate(x.date)) + '</td><td><b>' + esc(x.no) + '</b></td><td class="n">' + fmt(x.system) + '</td><td class="n">' + fmt(x.physical) + '</td>' +

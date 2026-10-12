@@ -4923,32 +4923,160 @@ function daysBetween_(a, b) {
  * Searches the entries in the sheets: Diesel Issue, Diesel Inward, Diesel Transfer and Log Book.
  * Every word typed must appear (machinery numbers match with or without dashes / spaces).
  * Newest first, a few of each kind. Machinery, owners and pages are searched in the app itself. */
-function globalSearch_(u, q) {
+/* ================= UNIVERSAL SEARCH (Ctrl + K) =================
+ * update-83 (asked 12-10-2026): "whatever I type, it must work – a spelling mistake (annd) still finds Anand and suggests it; anything
+ * in my app: a vehicle's reading shows where it is – in the Log Book, in a Diesel Issue – and I go there from the suggestion".
+ * One matcher for every kind (the page has the same one for what it holds itself – gsHitP in App.html):
+ *  - every word typed must be found in the entry (in any of its fields);
+ *  - a word is found as the whole word (best), the start of a word, inside a word, without dashes / spaces (MH12AB = MH-12-AB),
+ *    or – only when nothing at all is found that way – a word of 4 letters or more with one mistake (two from 7 letters): a
+ *    letter missing, extra, wrong or two swapped, also at the start of a longer word (annd → ANANDRAO). The word it was taken for
+ *    is given back as the spelling to suggest ("did you mean ANAND"). (First exact, then allowing mistakes: no noise when the
+ *    word is right.)
+ *  - a number is found as the same number in a reading, a quantity, an amount (3714.5 = 3714.50), as the start of a number or
+ *    inside an ID / bill number; in the Log Book also when it lies between the Start and the Close of an entry;
+ *  - each kind only for a user who may see its page; nothing more of an entry is given than its own list shows.
+ * The results: best match first, then the newest; at most 8 of each kind (and how many there are). */
+const GS_MAX_ = 8;
+const gsNorm_ = v => String(v === null || v === undefined ? '' : v).toUpperCase();
+const gsToks_ = v => gsNorm_(v).split(/[^A-Z0-9.ऀ-ॿ]+/).map(t => t.replace(/^\.+|\.+$/g, '')).filter(Boolean);
+const gsNumOf_ = t => /^\d+(\.\d+)?$/.test(t) ? Number(t) : null;
+// Damerau–Levenshtein (adjacent swaps count as one), stops as soon as it is sure the distance is more than max
+function gsDist_(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let p2 = null, p1 = [], cur;
+  for (let j = 0; j <= b.length; j++) p1.push(j);
+  for (let i = 1; i <= a.length; i++) {
+    cur = [i]; let low = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let v = Math.min(p1[j] + 1, cur[j - 1] + 1, p1[j - 1] + cost);
+      if (p2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, p2[j - 2] + 1);
+      cur.push(v); if (v < low) low = v;
+    }
+    if (low > max) return max + 1;
+    p2 = p1; p1 = cur;
+  }
+  return p1[b.length];
+}
+function gsField_(label, value) {
+  const text = gsNorm_(value), toks = gsToks_(value);
+  return { label: label, value: str_(value), text: text, flat: text.replace(/[^A-Z0-9ऀ-ॿ]/g, ''), toks: toks, nums: toks.map(gsNumOf_).filter(n => n !== null) };
+}
+// how well ONE typed word is found in ONE field: { s: score, fix: the word it was taken for } or null
+function gsWordHit_(w, f, fuzzy) {
+  if (!f.text) return null;
+  const wn = gsNumOf_(w);
+  if (wn !== null) {
+    if (f.nums.some(n => Math.abs(n - wn) < 1e-9)) return { s: 5 };
+    if (w.length >= 3 && f.toks.some(t => t.indexOf(w) === 0)) return { s: 3 };
+    if (w.length >= 3 && f.flat.indexOf(w.replace(/\./g, '')) > -1) return { s: 2 };
+    return null;
+  }
+  if (f.toks.indexOf(w) > -1) return { s: 5 };
+  if (f.toks.some(t => t.indexOf(w) === 0)) return { s: 4 };
+  if (f.text.indexOf(w) > -1) return { s: 3 };
+  const sw = w.replace(/[^A-Z0-9ऀ-ॿ]/g, ''); if (sw.length >= 2 && f.flat.indexOf(sw) > -1) return { s: 3 };
+  if (fuzzy && w.length >= 4 && /[A-Zऀ-ॿ]/.test(w)) {
+    const max = w.length >= 7 ? 2 : 1;
+    let best = null;
+    f.toks.forEach(t => {
+      if (gsNumOf_(t) !== null || t.length < 3) return;
+      let d = gsDist_(w, t, max);
+      if (d > max && t.length > w.length + 1) d = Math.min(gsDist_(w, t.slice(0, w.length), max), gsDist_(w, t.slice(0, w.length + 1), max));      // (the start of a longer word)
+      if (d <= max && (!best || d < best.d)) best = { d: d, t: t };
+    });
+    if (best) return { s: best.d === 1 ? 1.5 : 1, fix: best.t };
+  }
+  return null;
+}
+// the whole entry: every word must be found; ranges = [{ label, a, b }] (Log Book Start – Close)
+function gsRecord_(words, fields, ranges, fuzzy) {
+  let score = 0; const why = [], fixes = [];
+  for (const w of words) {
+    let best = null, bf = null;
+    fields.forEach(f => { const h = gsWordHit_(w, f, fuzzy); if (h && (!best || h.s > best.s)) { best = h; bf = f; } });
+    if (!best && ranges && gsNumOf_(w) !== null && w.length >= 3) {
+      const n = gsNumOf_(w), r = ranges.find(x => x.a !== '' && x.b !== '' && Number(x.a) <= n && n <= Number(x.b));
+      if (r) { best = { s: 1.2 }; bf = { label: r.label, value: fmtVal_(Number(r.a)) + ' → ' + fmtVal_(Number(r.b)) + ' (' + w + ' is in between)' }; }
+    }
+    if (!best) return null;
+    score += best.s;
+    if (best.fix) fixes.push({ w: w, to: best.fix });
+    const line = bf.label + ': ' + bf.value; if (why.indexOf(line) === -1) why.push(line);
+  }
+  return { score: score, why: why.slice(0, 3).join('  ·  '), fixes: fixes };
+}
+function globalSearch_(u, q, fuzzyPass) {
+  const fuzzy = fuzzyPass === true;      // (the first pass is exact; the second – only when nothing is found – allows spelling mistakes)
   const may = m => !!(u && u.perms && (u.perms[m] === 'View' || u.perms[m] === 'Edit'));
-  const words = clean_(q).toUpperCase().split(/\s+/).filter(Boolean);
-  if (!words.length) return { issues: [], inwards: [], transfers: [], logs: [] };
-  const squash = v => String(v).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  const hit = parts => {
-    const text = parts.map(str_).join(' ').toUpperCase(), flat = squash(text);
-    return words.every(w => text.indexOf(w) > -1 || (squash(w) && flat.indexOf(squash(w)) > -1));
+  const words = gsNorm_(clean_(q)).split(/\s+/).map(w => w.replace(/^[^A-Z0-9ऀ-ॿ]+|[^A-Z0-9ऀ-ॿ]+$/g, '')).filter(Boolean).slice(0, 8);
+  const out = { issues: [], inwards: [], transfers: [], logs: [], vendors: [], bills: [], notes: [], payments: [], boqs: [], tanks: [], breakdowns: [], papers: [], counts: {}, fixes: [] };
+  if (!words.length) return out;
+  const allFix = [];
+  // rows → matched, best first then newest, the first GS_MAX_; counts kept
+  const pick = (key, rows, fieldsOf, dateOf, shape, rangesOf) => {
+    const hits = [];
+    rows.forEach(r => { const m = gsRecord_(words, fieldsOf(r), rangesOf ? rangesOf(r) : null, fuzzy); if (m) hits.push({ r: r, m: m, d: dateOf(r) || '' }); });
+    hits.sort((a, b) => b.m.score - a.m.score || (a.d < b.d ? 1 : a.d > b.d ? -1 : 0));
+    out.counts[key] = hits.length;
+    out[key] = hits.slice(0, GS_MAX_).map(h => { h.m.fixes.forEach(f => allFix.push(f)); return Object.assign(shape(h.r), { why: h.m.why, fuzzy: h.m.fixes.length > 0 }); });
   };
-  const LIMIT = 8;
-  const newest = (rows, dateOf) => rows.sort((a, b) => dateOf(b) < dateOf(a) ? -1 : dateOf(b) > dateOf(a) ? 1 : 0).slice(0, LIMIT);
-  const T = stockTables_();
-  const dc = T.dt.c, ic = T.it.c, tc = T.tt.c;
-  const issues = newest(T.dt.rows.filter(r => hit([r[dc[H.ID]], r[dc[H.NO]], r[dc[H.DRIVER]], r[dc[H.REMARK]], r[dc[H.OWNER]], r[dc[H.TYPE]], loc_(r[dc[H.SOURCE]]), dmy_(dkey_(r[dc[H.IDATE]]))])), r => dkey_(r[dc[H.IDATE]]))
-    .map(r => ({ id: str_(r[dc[H.ID]]), date: dkey_(r[dc[H.IDATE]]), shift: str_(r[dc[H.SHIFT]]), no: str_(r[dc[H.NO]]), qty: num0_(r[dc[H.QTY]]), driver: str_(r[dc[H.DRIVER]]), source: loc_(r[dc[H.SOURCE]]) }));
-  const inwards = newest(T.it.rows.filter(r => hit([r[ic[H.IN_ID]], r[ic[H.PUMP]], r[ic[H.BILLNO]], loc_(r[ic[H.LOC]]), dmy_(dkey_(r[ic[H.DATE]]))])), r => dkey_(r[ic[H.DATE]]))
-    .map(r => ({ id: str_(r[ic[H.IN_ID]]), date: dkey_(r[ic[H.DATE]]), pump: str_(r[ic[H.PUMP]]), bill: str_(r[ic[H.BILLNO]]), qty: num0_(r[ic[H.IN_QTY]]), location: loc_(r[ic[H.LOC]]) }));
-  const transfers = newest(T.tt.rows.filter(r => hit([r[tc[H.TR_ID]], loc_(r[tc[H.FROM]]), loc_(r[tc[H.TO]]), r[tc[H.REMARK]], dmy_(dkey_(r[tc[H.DATE]]))])), r => dkey_(r[tc[H.DATE]]))
-    .map(r => ({ id: str_(r[tc[H.TR_ID]]), date: dkey_(r[tc[H.DATE]]), from: loc_(r[tc[H.FROM]]), to: loc_(r[tc[H.TO]]), qty: num0_(r[tc[H.IN_QTY]]) }));
-  const lt = table_(APP.SHEET_LOG, [H.DATE, H.NO, H.SHIFT]);
-  const lc = lt.c, g = h => (h in lc ? h : null);
-  const logs = newest(lt.rows.filter(r => hit([r[lc[H.NO]], r[lc[H.SHIFT]], g(H.WORK) ? r[lc[H.WORK]] : '', g(H.CHFROM) ? r[lc[H.CHFROM]] : '', g(H.CHTO) ? r[lc[H.CHTO]] : '',
-      g(H.DRIVER) ? r[lc[H.DRIVER]] : '', dmy_(dkey_(r[lc[H.DATE]]))])), r => dkey_(r[lc[H.DATE]]))
-    .map(r => ({ date: dkey_(r[lc[H.DATE]]), shift: str_(r[lc[H.SHIFT]]) || 'Full Day', no: str_(r[lc[H.NO]]),
-      work: g(H.WORK) ? str_(r[lc[H.WORK]]) : '', wkm: g(H.WKM) ? numOrBlank_(r[lc[H.WKM]]) : '', whr: g(H.WHR) ? numOrBlank_(r[lc[H.WHR]]) : '' }));
-  return { issues: may('Diesel Issue') ? issues : [], inwards: may('Diesel Inward') ? inwards : [], transfers: may('Diesel Transfer') ? transfers : [], logs: may('Log Book') ? logs : [] };
+  const F = gsField_;
+  if (may('Diesel Issue') || may('Diesel Inward') || may('Diesel Transfer')) {
+    const T = stockTables_(), dc = T.dt.c, ic = T.it.c, tc = T.tt.c, g = (c, r, h) => h in c ? r[c[h]] : '';
+    if (may('Diesel Issue')) pick('issues', T.dt.rows.filter(r => str_(g(dc, r, H.ID))), r => [F('Issue ID', g(dc, r, H.ID)), F('Machinery', g(dc, r, H.NO)), F('Driver', g(dc, r, H.DRIVER)), F('Remark', g(dc, r, H.REMARK)),
+        F('Owner', g(dc, r, H.OWNER)), F('Type', g(dc, r, H.TYPE)), F('Source', loc_(g(dc, r, H.SOURCE))), F('Date', dmy_(dkey_(g(dc, r, H.IDATE)))), F('Qty (L)', numOrBlank_(g(dc, r, H.QTY))),
+        F('KM reading', numOrBlank_(g(dc, r, H.KMR))), F('Hrs reading', numOrBlank_(g(dc, r, H.HRR))), F('Pump meter', numOrBlank_(g(dc, r, H.DMETER)))],
+      r => dkey_(g(dc, r, H.IDATE)),
+      r => ({ id: str_(g(dc, r, H.ID)), date: dkey_(g(dc, r, H.IDATE)), shift: str_(g(dc, r, H.SHIFT)), no: str_(g(dc, r, H.NO)), qty: num0_(g(dc, r, H.QTY)), driver: str_(g(dc, r, H.DRIVER)), source: loc_(g(dc, r, H.SOURCE)) }));
+    if (may('Diesel Inward')) pick('inwards', T.it.rows.filter(r => str_(g(ic, r, H.IN_ID))), r => [F('Inward ID', g(ic, r, H.IN_ID)), F('Pump', g(ic, r, H.PUMP)), F('Bill no', g(ic, r, H.BILLNO)), F('Location', loc_(g(ic, r, H.LOC))),
+        F('Date', dmy_(dkey_(g(ic, r, H.DATE)))), F('Qty (L)', numOrBlank_(g(ic, r, H.IN_QTY))), F('Amount', numOrBlank_(g(ic, r, H.AMOUNT))), F('Remark', g(ic, r, H.REMARK))],
+      r => dkey_(g(ic, r, H.DATE)),
+      r => ({ id: str_(g(ic, r, H.IN_ID)), date: dkey_(g(ic, r, H.DATE)), pump: str_(g(ic, r, H.PUMP)), bill: str_(g(ic, r, H.BILLNO)), qty: num0_(g(ic, r, H.IN_QTY)), location: loc_(g(ic, r, H.LOC)) }));
+    if (may('Diesel Transfer')) pick('transfers', T.tt.rows.filter(r => str_(g(tc, r, H.TR_ID))), r => [F('Transfer ID', g(tc, r, H.TR_ID)), F('From', loc_(g(tc, r, H.FROM))), F('To', loc_(g(tc, r, H.TO))), F('Remark', g(tc, r, H.REMARK)),
+        F('Date', dmy_(dkey_(g(tc, r, H.DATE)))), F('Qty (L)', numOrBlank_(g(tc, r, H.IN_QTY)))],
+      r => dkey_(g(tc, r, H.DATE)),
+      r => ({ id: str_(g(tc, r, H.TR_ID)), date: dkey_(g(tc, r, H.DATE)), from: loc_(g(tc, r, H.FROM)), to: loc_(g(tc, r, H.TO)), qty: num0_(g(tc, r, H.IN_QTY)) }));
+  }
+  if (may('Log Book')) {
+    const lt = table_(APP.SHEET_LOG, [H.DATE, H.NO, H.SHIFT]), lc = lt.c, g = (r, h) => h in lc ? r[lc[h]] : '';
+    pick('logs', lt.rows.filter(r => dkey_(g(r, H.DATE)) && str_(g(r, H.NO))), r => {
+      const its = str_(g(r, H.ITEMS)); let works = ''; try { const o = itemWorkParse_(its); works = Object.keys(o).filter(k => k.charAt(0) !== '_').join(' ') + ' ' + (Array.isArray(o._parts) ? o._parts.map(p => [p.n, p.w, p.c].join(' ')).join(' ') : ''); } catch (e) { works = ''; }
+      return [F('Machinery', g(r, H.NO)), F('Date', dmy_(dkey_(g(r, H.DATE)))), F('Shift', g(r, H.SHIFT)), F('Work', g(r, H.WORK)), F('Chainage', [g(r, H.CHFROM), g(r, H.CHTO)].filter(x => str_(x)).join(' – ')),
+        F('Driver', g(r, H.DRIVER)), F('Challan', g(r, H.CHALLAN)), F('Remark', g(r, H.REMARK)), F('Debit to', g(r, H.DEBITTO)), F('Way', g(r, H.UNIT)), F('Works', works),
+        F('Start KM', numOrBlank_(g(r, H.OKM))), F('Close KM', numOrBlank_(g(r, H.CKM))), F('Start Hrs', numOrBlank_(g(r, H.OHR))), F('Close Hrs', numOrBlank_(g(r, H.CHR))),
+        F('Time', [str_(g(r, H.TSTART)), str_(g(r, H.TEND))].filter(Boolean).join(' – ')), F('Trips', numOrBlank_(g(r, H.TRIP)))];
+    }, r => dkey_(g(r, H.DATE)),
+      r => ({ date: dkey_(g(r, H.DATE)), shift: str_(g(r, H.SHIFT)) || 'Full Day', no: str_(g(r, H.NO)), work: str_(g(r, H.WORK)), wkm: numOrBlank_(g(r, H.WKM)), whr: numOrBlank_(g(r, H.WHR)) }),
+      r => [{ label: 'KM', a: numOrBlank_(g(r, H.OKM)), b: numOrBlank_(g(r, H.CKM)) }, { label: 'Hrs', a: numOrBlank_(g(r, H.OHR)), b: numOrBlank_(g(r, H.CHR)) }]);
+    try { const t = tankTable_(); if (t) pick('tanks', t.rows.map(r => tankRowOut_(t, r)).filter(x => x.id && x.date), x => [F('Check ID', x.id), F('Machinery', x.no), F('Date', dmy_(x.date)), F('Reason', x.reason), F('Checked by', x.by),
+      F('Physical (L)', x.physical), F('System (L)', x.system)], x => x.date, x => ({ id: x.id, date: x.date, no: x.no, physical: x.physical, diff: x.diff })); } catch (e) { /* no tank checks yet */ }
+  }
+  if (may('Vendor Master')) pick('vendors', getVendors_(), v => [F('Vendor', v.name), F('GST', v.gst), F('PAN', v.pan), F('Phone', v.phone), F('Email', v.email), F('Bank', v.bank), F('Address', v.address), F('Remark', v.remark)],
+    () => '', v => ({ name: v.name, gst: v.gst || '', ownership: v.ownership || '', machines: (v.machines || []).length }));
+  if (may('Saved Bills')) {
+    pick('bills', getBills_({}).bills.filter(b => b.status !== 'Superseded'), b => [F('Bill no', b.billNo), F('Vendor', b.vendor), F('Company', b.company), F('Period', dmy_(b.from) + ' ' + dmy_(b.to)), F('Bill date', dmy_(b.billDate)),
+      F('Net payable', b.net), F('Debit note', b.dnNo), F('Remark', b.remark)], b => b.billDate || b.to,
+      b => ({ id: b.id, billNo: b.billNo, vendor: b.vendor, from: b.from, to: b.to, net: b.net }));
+    pick('notes', dnList_().filter(n => n.status !== 'Cancelled'), n => [F('Debit note', n.no), F('Party', n.vendor), F('Company', n.company), F('Date', dmy_(n.date)), F('Total', n.total), F('Remark', n.remark)],
+      n => n.date, n => ({ no: n.no, vendor: n.vendor, date: n.date, total: n.total, from: n.from, to: n.to }));
+  }
+  if (may('Machinery Payments')) pick('payments', payList_(), p => [F('Payment ID', p.id), F('Vendor', p.vendor), F('Date', dmy_(p.date)), F('Amount', p.amount), F('Mode', p.mode), F('Reference', p.ref), F('Against bill', p.bill), F('Remark', p.remark)],
+    p => p.date, p => ({ id: p.id, vendor: p.vendor, date: p.date, amount: p.amount, mode: p.mode, ref: p.ref }));
+  if (may('Vendor BOQ')) pick('boqs', allBoqs_(), b => [F('BOQ', b.no || b.id), F('Work order', b.woNo), F('Vendor', b.vendor), F('Valid from', dmy_(b.from)), F('Remark', b.remark),
+      F('Machinery', (b.lines || []).map(l => l && l.no).filter(Boolean).join(' '))], b => b.from, b => ({ id: b.id, no: b.no, woNo: b.woNo, vendor: b.vendor, from: b.from, amendNo: b.amendNo }));
+  if (may('Vehicle Compliance')) { try { const t = table_(APP.SHEET_COMPLIANCE, CMP_COLS_), c = t.c;
+    pick('papers', t.rows.filter(r => str_(r[c['History ID']])).map(r => ({ id: str_(r[c['History ID']]), no: str_(r[c['Machinery No']]), doc: str_(r[c['Document']]), docNo: str_(r[c['Document No']]), to: docVal_(r[c['New Valid Upto']]), on: dkey_(r[c['Renewed On']]), remark: str_(r[c['Remark']]) })),
+      x => [F('Machinery', x.no), F('Paper', x.doc), F('Paper no', x.docNo), F('Renewed on', dmy_(x.on)), F('Remark', x.remark)], x => x.on, x => ({ id: x.id, no: x.no, doc: x.doc, docNo: x.docNo, to: x.to, on: x.on })); } catch (e) { /* no papers yet */ } }
+  if (may('Breakdown')) { try { pick('breakdowns', getBreakdowns_({}).history || [], x => [F('Machinery', x.no), F('Reason', x.reason), F('Remark', x.remark), F('From', dmy_(x.from)), F('Type', x.type), F('Owner', x.owner)],
+    x => x.from, x => ({ no: x.no, from: x.from, backOn: x.backOn || '', days: x.days, reason: x.reason || '' })); } catch (e) { /* no reports yet */ } }
+  // the spelling to suggest: for each word, the word it was taken for most often
+  const byW = {}; allFix.forEach(f => { const x = byW[f.w] = byW[f.w] || {}; x[f.to] = (x[f.to] || 0) + 1; });
+  out.fixes = Object.keys(byW).map(w => ({ w: w, to: Object.keys(byW[w]).sort((a, b) => byW[w][b] - byW[w][a])[0] }));
+  // nothing found exactly: once more, allowing a spelling mistake
+  if (!fuzzy && !Object.keys(out.counts).some(k => out.counts[k] > 0)) return globalSearch_(u, q, true);
+  return out;
 }
 
 /* ================= REPORTS (read only) ================= */
