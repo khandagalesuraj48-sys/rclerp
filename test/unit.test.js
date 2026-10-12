@@ -2039,7 +2039,7 @@ test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the 
   assert.ok(ok.ok && ok.id, 'an entry without photos is saved as before');
   // the AI reads the dashboard photo AFTER it is kept, as its own question (a slow AI never holds up the photo or the Save);
   // not for a Debit Basis machinery (it has no reading); a photo belongs to one machinery and goes with one entry
-  assert.match(app, /if \(k === 'dash'\) \{[^\n]*if \(m\.supply !== 'Debit Basis'\) phAskMeter\(/);
+  assert.match(app, /if \(\(k === 'dash' && m\.supply !== 'Debit Basis'\) \|\| k === 'pump'\) phAsk\(k, m\.id, pic\.small\);/);      // (update-87: dashboard and dispenser, while the photo is sent)
   assert.match(code, /getMeterReading:\s+\{ m: 'Diesel Issue', withUser: true, f: \(u, x\) => meterReading_\(u, x\) \}/);
   assert.ok(!/aiReadMeter_/.test(code.slice(code.indexOf('function uploadDieselPhoto_'), code.indexOf('function meterReading_'))), 'the upload does not wait for the AI');
   assert.match(code, /rec\.no !== mId/); assert.match(code, /pc\.remove\('PH_' \+ x\.p\)/);
@@ -2053,4 +2053,34 @@ test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the 
   const sqlCode = sqlFile.split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
   assert.ok(!/\b(drop|truncate|delete|update)\b/i.test(sqlCode), 'nothing is dropped, emptied or changed');
   assert.match(sqlCode, /add column if not exists photos text/); assert.match(sqlCode, /'diesel-photos', 'diesel-photos', false, 2097152, array\['image\/jpeg'\]/); assert.match(sqlCode, /on conflict \(id\) do nothing/);
+});
+
+test('update-87 the AI reading checked against the last reading; the dispenser litres; the driver of the last fill', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const pick = (v, seen, last, today, kind) => run('(v, s, l, t, k) => pickReading_(v, s, l, t, k)', v, seen, last, today, kind);
+  const last = { value: 4500, date: '2026-10-05' };
+  // fits (not below the last, not more than the machinery can run since: Hrs 24 a day) → taken as read
+  assert.deepStrictEqual(pick(4517.3, [], last, '2026-10-12', 'hr'), { v: 4517.3, check: '' });
+  // the decimal point missed (a tenth digit in another colour) → moved
+  assert.deepStrictEqual(pick(45173, [], last, '2026-10-12', 'hr'), { v: 4517.3, check: '' });
+  // the AI took another number (the clock 1245, a trip meter) – the meter is among the numbers it saw → that one
+  assert.deepStrictEqual(pick(1245, [88.5, 4512.6, 1245], last, '2026-10-12', 'hr'), { v: 4512.6, check: '' });
+  // nothing fits → its reading, with the reason to look again
+  assert.deepStrictEqual(pick(4100, [12, 30], last, '2026-10-12', 'hr'), { v: 4100, check: 'less than the last reading 4500 (05-10-2026)' });
+  assert.match(pick(9000, [], last, '2026-10-06', 'hr').check, /^much more than the last reading 4500/);
+  // KM: 800 a day (at least 300)
+  assert.deepStrictEqual(pick(45320, [], { value: 45000, date: '2026-10-11' }, '2026-10-12', 'km'), { v: 45320, check: '' });
+  // no last reading known → as read
+  assert.deepStrictEqual(pick(77, [], null, '2026-10-12', 'km'), { v: 77, check: '' });
+  // the dispenser: litres; amount ÷ rate when the litres were not read; a mismatch → check
+  const pump = j => run('j => pumpAnswer_(j)', j);
+  assert.deepStrictEqual(pump({ litres: 45, amount: 4140, rate: 92 }), { litres: 45, check: '' });
+  assert.deepStrictEqual(pump({ litres: null, amount: 4140, rate: 92 }), { litres: 45, check: '' });
+  assert.match(pump({ litres: 4140, amount: 4140, rate: 92 }).check, /not the amount|not a normal fill/);
+  assert.deepStrictEqual(pump({ litres: '45.50' }), { litres: 45.5, check: '' });
+  // the page: the dispenser fills Diesel Qty, the driver of the last fill only into an empty box (or one filled the same way)
+  const fs = require('fs'), path = require('path'), app = fs.readFileSync(path.join(__dirname, '..', 'app', 'App.html'), 'utf8');
+  assert.match(app, /fill\('d_qty', null, p\.litres/);
+  assert.match(app, /function dhDriver\(h\) \{\s*const dr = \$\('d_driver'\); if \(S\.editDieselId \|\| \(dr\.value !== '' && dr\.dataset\.auto !== '1'\)\) return;/);
 });

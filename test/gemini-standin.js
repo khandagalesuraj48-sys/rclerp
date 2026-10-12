@@ -31,7 +31,7 @@ http.createServer((req, res) => {
     const callFn = (name, args) => send(res, 200, { candidates: [{ content: { role: 'model', parts: [{ functionCall: { name: name, args: args }, thoughtSignature: 'sig-' + name }] } }], usageMetadata: { totalTokenCount: 123 } });
     // update-85: a photo of a meter (an image in the question) → the reading set with /__meter (what a model would read on it)
     const img = last.parts.find(p => p.inlineData);
-    if (img) { log.push({ model: m[1], image: img.inlineData.mimeType, bytes: Math.round(String(img.inlineData.data || '').length * 3 / 4), json: (j.generationConfig || {}).responseMimeType || '' }); return text(meter.say); }
+    if (img) { const q = (last.parts.find(p => p.text) || {}).text || ''; log.push({ model: m[1], image: img.inlineData.mimeType, bytes: Math.round(String(img.inlineData.data || '').length * 3 / 4), json: (j.generationConfig || {}).responseMimeType || '', ask: q.slice(0, 600) }); return text(meter.say); }
     const fr = last.parts.find(p => p.functionResponse);
     if (fr) { const r = fr.functionResponse.response || {}, n = fr.functionResponse.name;
       if (r.error) return text('You cannot see this: ' + r.error);

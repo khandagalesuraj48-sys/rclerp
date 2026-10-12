@@ -5181,9 +5181,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['एका location वरून दुसऱ्या location ला हलवलेले diesel (उदा. Dispenser वरून VTR Store).', 'त्या तारखेला source मध्ये तेवढे diesel असले पाहिजे; From आणि To सारखे असू शकत नाहीत. Source चा stock कमी होतो आणि destination चा वाढतो.'],
       hi: ['एक location से दूसरे location को भेजा गया diesel (जैसे Dispenser से VTR Store)।', 'उस तारीख को source में उतना diesel होना चाहिए; From और To एक जैसे नहीं हो सकते। Source का stock घटता है और destination का बढ़ता है।'] },
     diesel: { saves: ['saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'updateDieselIssue', 'deleteDieselIssue', 'saveDebitRates', 'dieselPhoto', 'getMeterReading', 'getDieselPhotos'],
-      en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period. Photos (One entry, after picking the machinery): Dashboard, Vehicle + driver, Dispenser litres and Register – each taken with the camera there and then (not from the gallery), with the date, time and place printed on it; the AI reads the reading on the dashboard photo and puts it in the box (blue) – check it, type over it if it is wrong. 📷 in the list opens the photos of an entry. On a phone a saved entry shows a green "saved" box for 3 seconds (× closes it at once) and the form is empty for the next machinery; the keyboard opens only when a box is tapped.'],
-      mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते. Photos (One entry मध्ये, machinery निवडल्यावर): Dashboard, गाडी + driver, Dispenser वरचे लिटर आणि Register – प्रत्येक त्याच वेळी camera ने काढायचा (gallery मधून नाही); त्यावर तारीख, वेळ आणि ठिकाण छापले जाते. Dashboard च्या photo वरचे reading AI वाचून box मध्ये (निळ्या रंगात) भरते – ते तपासा, चुकले तर बदला. यादीतले 📷 दाबले की त्या entry चे photo दिसतात. Phone वर entry save झाली की 3 सेकंद हिरवा "saved" box दिसतो (× ने लगेच बंद) आणि पुढच्या गाडीसाठी form रिकामा होतो; keyboard फक्त box वर दाबल्यावर उघडतो.'],
-      hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है। Photos (One entry में, machinery चुनने के बाद): Dashboard, गाड़ी + driver, Dispenser के लीटर और Register – हर एक उसी समय camera से लेना है (gallery से नहीं); उस पर तारीख, समय और जगह छपती है। Dashboard की photo पर की reading AI पढ़कर box में (नीले रंग में) भरता है – उसे जाँचें, गलत हो तो बदलें। सूची का 📷 दबाने पर उस entry की photos दिखती हैं। Phone पर entry save होते ही 3 सेकंड हरा "saved" box दिखता है (× से तुरंत बंद) और अगली गाड़ी के लिए form खाली हो जाता है; keyboard केवल box पर दबाने से खुलता है।'] },
+      en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period. Photos (One entry, after picking the machinery): Dashboard, Vehicle + driver, Dispenser litres and Register – each taken with the camera there and then (not from the gallery), with the date, time and place printed on it; the AI reads the reading on the dashboard photo (it is told the last reading of the machinery, to pick the right number) and the litres on the dispenser photo, and puts them in the boxes (blue) – check them, type over them if wrong. The Driver box gets the driver of the last fill of the machinery (a typed name stays). 📷 in the list opens the photos of an entry. On a phone a saved entry shows a green "saved" box for 3 seconds (× closes it at once) and the form is empty for the next machinery; the keyboard opens only when a box is tapped.'],
+      mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते. Photos (One entry मध्ये, machinery निवडल्यावर): Dashboard, गाडी + driver, Dispenser वरचे लिटर आणि Register – प्रत्येक त्याच वेळी camera ने काढायचा (gallery मधून नाही); त्यावर तारीख, वेळ आणि ठिकाण छापले जाते. Dashboard च्या photo वरचे reading (योग्य आकडा निवडायला AI ला गाडीचे मागचे reading सांगितले जाते) आणि dispenser च्या photo वरचे लिटर AI वाचून box मध्ये (निळ्या रंगात) भरते – ते तपासा, चुकले तर बदला. Driver box मध्ये त्या गाडीच्या मागच्या fill चा driver आपोआप येतो (टाइप केलेले नाव तसेच राहते). यादीतले 📷 दाबले की त्या entry चे photo दिसतात. Phone वर entry save झाली की 3 सेकंद हिरवा "saved" box दिसतो (× ने लगेच बंद) आणि पुढच्या गाडीसाठी form रिकामा होतो; keyboard फक्त box वर दाबल्यावर उघडतो.'],
+      hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है। Photos (One entry में, machinery चुनने के बाद): Dashboard, गाड़ी + driver, Dispenser के लीटर और Register – हर एक उसी समय camera से लेना है (gallery से नहीं); उस पर तारीख, समय और जगह छपती है। Dashboard की photo पर की reading (सही अंक चुनने के लिए AI को गाड़ी की पिछली reading बताई जाती है) और dispenser की photo पर के लीटर AI पढ़कर box में (नीले रंग में) भरता है – उन्हें जाँचें, गलत हों तो बदलें। Driver box में उस गाड़ी की पिछली fill का driver अपने-आप आता है (टाइप किया नाम वैसा ही रहता है)। सूची का 📷 दबाने पर उस entry की photos दिखती हैं। Phone पर entry save होते ही 3 सेकंड हरा "saved" box दिखता है (× से तुरंत बंद) और अगली गाड़ी के लिए form खाली हो जाता है; keyboard केवल box पर दबाने से खुलता है।'] },
     log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook'],
       en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic). A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) that worked TWO OR MORE TIMES in one shift (e.g. Breaker 100 → 102, then 110 → 113): add a second row for the same machinery, date and shift and type its own Start and Close – it may start higher than the row above; the hours in between (102 → 110) are not counted, so that day is 5 hours (bill and diesel). For such a machinery, changing or deleting an entry never changes another date: if a Close comes above the Start of the next entry, the app says so and saves nothing. In such a shift a row may also be by Time (e.g. Bucket 09:00 – 11:00 when the meter gave no reading, then Breaker 3714.5 → 3717.5): its hours are added (2 + 3 = 5 hours); the Start and Close of the entry come from its rows by Hrs, and the next day starts at the last Close.'],
       mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप). Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ने (JCB, excavator, breaker) एकाच shift मध्ये दोन किंवा जास्त वेळा काम केले असेल (उदा. Breaker 100 → 102, मग 110 → 113): त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा आणि तिचे स्वतःचे Start आणि Close टाका – ते वरच्या ओळीच्या Close पेक्षा जास्त असू शकते; मधले तास (102 → 110) धरले जात नाहीत, म्हणून तो दिवस 5 तासांचा (bill आणि diesel). अशा machinery ची entry बदलली किंवा delete केली तरी दुसरी तारीख कधीच बदलत नाही: Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर app तसे सांगते आणि काहीही save करत नाही. अशा shift मध्ये एखादी ओळ Time वर पण असू शकते (उदा. meter ने reading दिले नाही तेव्हा Bucket 09:00 – 11:00, मग Breaker 3714.5 → 3717.5): त्या ओळीचे तास जोडले जातात (2 + 3 = 5 तास); entry चे Start आणि Close तिच्या Hrs ओळींवरून येतात, आणि पुढचा दिवस शेवटच्या Close पासून सुरू होतो.'],
@@ -12724,12 +12724,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function locKeep(p) { LOC.pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }; LOC.at = Date.now(); $('loc_block').hidden = true; }
   function locAsk(o) { return new Promise((ok, no) => { if (!navigator.geolocation) { no({ code: 'none' }); return; } navigator.geolocation.getCurrentPosition(ok, no, o); }); }
   let locBusy = null;
+  /* (update-87: "location is on, still it says Finding your location") – the location ALLOWED already: the app opens at once and
+   * the place is found behind it; only a "no" (location off / not allowed) brings the screen. Not allowed yet: the screen while
+   * the browser asks. */
   function locCheck() {
     if (locBusy) return locBusy;
-    if (!LOC.pos) locShow('checking');
-    locBusy = locAsk({ enableHighAccuracy: false, maximumAge: 600000, timeout: 20000 })
-      .then(p => { locKeep(p); return true; }, e => { LOC.pos = null; if (e && e.code === 1) locDenied(); else locShow(e && e.code ? e.code : 2); return false; })
-      .finally(() => { locBusy = null; });
+    locBusy = (async () => {
+      let st = ''; try { st = (await navigator.permissions.query({ name: 'geolocation' })).state; } catch (e) { st = ''; }
+      if (!LOC.pos && st !== 'granted') locShow('checking');
+      try { locKeep(await locAsk({ enableHighAccuracy: false, maximumAge: 600000, timeout: 20000 })); return true; }
+      catch (e) { LOC.pos = null; if (e && e.code === 1) locDenied(); else locShow(e && e.code ? e.code : 2); return false; }
+    })().finally(() => { locBusy = null; });
     return locBusy;
   }
   /* the place of THIS moment (a photo): the GPS fix (of the last 30 seconds or a fresh one). The GPS slow (in a shed, under a
@@ -13185,13 +13190,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     clearTimeout(dhTimer[box]);
     dhTimer[box] = setTimeout(async () => {
       const el = $(box); if (!el) return;
-      if (!findMachine(no)) { el.hidden = true; el.innerHTML = ''; return; }
+      if (!findMachine(no)) { el.hidden = true; el.innerHTML = ''; if (box === 'd_hist') dhDriver(null); return; }
       const h = await dhGet(no, date);
       el.innerHTML = dhCard(h); el.hidden = !h;
       // the last reading as a hint in the reading box of the one-entry form
       if (box === 'd_hist' && h) { $('d_km').placeholder = h.lastKm ? 'last ' + fmt(h.lastKm.value) : ''; $('d_hr').placeholder = h.lastHr ? 'last ' + fmt(h.lastHr.value) : ''; }
+      if (box === 'd_hist') dhDriver(h);
     }, 250);
   }
+  /* (update-87) the Driver box of the one-entry form: the driver of this machinery's last fill – put only in an empty box or one
+   * filled this way before (a name typed by the person stays); not when an entry is being edited. */
+  function dhDriver(h) {
+    const dr = $('d_driver'); if (S.editDieselId || (dr.value !== '' && dr.dataset.auto !== '1')) return;
+    const last = h && (h.rows || []).find(x => x.driver);
+    dr.value = last ? last.driver : ''; dr.dataset.auto = last ? '1' : '';
+  }
+  $('d_driver').addEventListener('input', () => { $('d_driver').dataset.auto = ''; });
   async function dhRowLine(tr) {
     const no = tr.querySelector('[data-f=no]').value, box = tr.querySelector('.lastfill');
     if (!box) return;
@@ -13232,11 +13246,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * The photos go with the entry when it is saved. Only for a NEW entry in "One entry" (an edit keeps the photos the entry has).
    * Not compulsory yet (the owner will say when). */
   const PH_KINDS = [['dash', 'Dashboard', '🧭'], ['veh', 'Vehicle + driver', '🚚'], ['pump', 'Dispenser litres', '⛽'], ['reg', 'Register', '📒']];
-  const PH = { no: null, items: {}, busy: {}, read: null, cur: null };
+  const PH = { no: null, items: {}, busy: {}, read: null, cur: null, tok: {} };
   function phClear() {
     Object.keys(PH.items).forEach(k => { try { URL.revokeObjectURL(PH.items[k].url); } catch (e) { /* already gone */ } });
-    PH.items = {}; PH.busy = {}; PH.read = null; PH.no = null;
-    ['d_km', 'd_hr'].forEach(id => { $(id).classList.remove('ai-read'); delete $(id).dataset.ai; });
+    PH.items = {}; PH.busy = {}; PH.read = null; PH.no = null; Object.keys(PH.tok).forEach(k => { PH.tok[k]++; });      // (an AI answer still on its way is not used)
+    ['d_km', 'd_hr', 'd_qty'].forEach(id => { $(id).classList.remove('ai-read'); delete $(id).dataset.ai; });
     $('d_ai_note').hidden = true; phPaint();
   }
   function phSending() { return Object.keys(PH.busy).some(k => PH.busy[k]); }
@@ -13273,23 +13287,26 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const at = new Date();
       const pic = await phMake(file, [phStamp(at) + '  ·  ' + label + '  ·  ' + m.id, 'Lat ' + pos.lat.toFixed(6) + ', Long ' + pos.lng.toFixed(6) + (pos.acc ? '  (± ' + Math.round(pos.acc) + ' m)' : '')]);
       if (PH.no !== m.id) { URL.revokeObjectURL(pic.url); return; }      // the machinery was changed meanwhile
+      // (update-87) the AI reads the dashboard (its reading) and the dispenser (its litres) NOW, while the photo is being sent – with
+      // a smaller copy; a Debit Basis machinery has no reading
+      if ((k === 'dash' && m.supply !== 'Debit Basis') || k === 'pump') phAsk(k, m.id, pic.small);
       let res;
       try { res = await call('dieselPhoto', { kind: k, data: pic.data, lat: pos.lat, lng: pos.lng, acc: pos.acc, at: at.toISOString(), no: m.id }); }
       catch (e) { URL.revokeObjectURL(pic.url); throw e; }
       if (PH.no !== m.id) { URL.revokeObjectURL(pic.url); return; }
       if (PH.items[k]) URL.revokeObjectURL(PH.items[k].url);
       PH.items[k] = { path: res.path, url: pic.url, kb: Math.round(pic.bytes / 1024) };
-      if (k === 'dash') { PH.read = null; phApplyRead(); if (m.supply !== 'Debit Basis') phAskMeter(m.id, res.path, pic.data); }      // (Debit Basis: no reading)
     } catch (e) { toast(errMsg(e), true); }
     finally { PH.busy[k] = false; phPaint(); }
   }
-  // the AI reads the meter – after the photo is kept, on its own: a slow AI never holds up the photo or the Save
-  async function phAskMeter(no, path, data) {
-    const note = $('d_ai_note'); note.classList.remove('warn'); note.textContent = 'The AI is reading the meter on the dashboard photo…'; note.hidden = false;
-    let r = null; try { r = await call('getMeterReading', { data: data, no: no }); } catch (e) { r = { error: errMsg(e) }; }
-    if (PH.no !== no || !PH.items.dash || PH.items.dash.path !== path) return;      // another photo or machinery meanwhile, or already saved
-    if (r && r.off) { note.hidden = true; return; }      // the AI is not set up on this site
-    PH.read = r; phApplyRead(true);
+  // the AI reads a photo (dash: the reading, pump: the litres) – on its own: a slow AI never holds up the photo or the Save
+  async function phAsk(k, no, data) {
+    const tok = PH.tok[k] = (PH.tok[k] || 0) + 1;
+    PH.read = Object.assign({}, PH.read, { [k]: { wait: true } }); phApplyRead();
+    let r = null; try { r = await call('getMeterReading', { kind: k, data: data, no: no }); } catch (e) { r = { error: errMsg(e) }; }
+    if (PH.no !== no || PH.tok[k] !== tok) return;      // another photo or machinery meanwhile, or already saved
+    if (r && r.off) { const R = Object.assign({}, PH.read); delete R[k]; PH.read = R; phApplyRead(); return; }      // the AI is not set up on this site
+    PH.read = Object.assign({}, PH.read, { [k]: r }); phApplyRead(k);
   }
   // the picture: smaller (longest side 1600 px), with a band under it – date, time, kind of photo, machinery; latitude, longitude
   async function phMake(file, lines) {
@@ -13310,28 +13327,46 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (blob && blob.size > 700 * 1024) blob = await new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.7));
       if (!blob) throw new Error('This photo cannot be made ready – take the photo again.');
       const data = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => no(new Error('This photo cannot be read – take the photo again.')); r.readAsDataURL(blob); });
-      return { data: data, url: URL.createObjectURL(blob), bytes: blob.size, w: w, h: h + band };
+      // (update-87) a smaller copy for the AI (longest side 1280 px) – it is read faster
+      const s2 = Math.min(1, 1280 / Math.max(w, h + band)), sm = document.createElement('canvas'); sm.width = Math.max(1, Math.round(w * s2)); sm.height = Math.max(1, Math.round((h + band) * s2));
+      const g2 = sm.getContext('2d'); g2.imageSmoothingQuality = 'high'; g2.drawImage(cv, 0, 0, sm.width, sm.height);
+      return { data: data, small: sm.toDataURL('image/jpeg', 0.85), url: URL.createObjectURL(blob), bytes: blob.size, w: w, h: h + band };
     } finally { if (img && img.close) img.close(); if (url0) URL.revokeObjectURL(url0); }
   }
   function phFit(g, text, x, y, max) { let t = text; while (t.length > 4 && g.measureText(t).width > max) t = t.slice(0, -2); g.fillText(t === text ? t : t.slice(0, -1) + '…', x, y); }
-  // the reading the AI read on the dashboard photo → the KM / Hrs box shown (only an empty box, or one the AI filled before)
+  /* what the AI read → the boxes: the dashboard → the KM / Hrs box shown, the dispenser → Diesel Qty (only an empty box, or one the
+   * AI filled before; typed values stay). Shown blue, with one line under the reading: what was read, what to check, what it is
+   * still reading. */
   function phApplyRead(fresh) {
-    const r = PH.read, m = findMachine(val('d_no')), note = $('d_ai_note');
-    if (!r || !m || PH.no !== m.id) { note.hidden = true; return; }
-    if (r.error) { note.classList.add('warn'); note.textContent = 'The AI could not read the meter on the photo now – type the reading.'; note.hidden = false; return; }
-    const put = [], other = [];
-    [['d_km', 'd_km_wrap', r.km, 'km'], ['d_hr', 'd_hr_wrap', r.hr, 'hr']].forEach(([id, wrap, v, u]) => {
-      const el = $(id); if (v === null || v === undefined || $(wrap).hidden) return;
+    const m = findMachine(val('d_no')), note = $('d_ai_note'), R = PH.read || {};
+    if (!m || PH.no !== m.id || (!R.dash && !R.pump)) { note.hidden = true; return; }
+    const put = [], warn = [];
+    const fill = (id, wrap, v, txt) => {
+      const el = $(id); if (v === null || v === undefined || (wrap && $(wrap).hidden) || el.dataset.ai === '0') return;      // ('0': the person typed over what the AI put – his value, nothing more said)
       if (el.value === '' || el.dataset.ai === '1') { el.value = v; el.dataset.ai = '1'; el.classList.add('ai-read'); }
-      if (el.dataset.ai === '1') put.push(fmt(v) + ' ' + u); else if (Number(el.value) !== Number(v)) other.push(fmt(v) + ' ' + u + ' (the box has ' + fmt(Number(el.value)) + ')');
-    });
-    if (put.length) { note.classList.remove('warn'); note.textContent = 'AI read on the dashboard photo: ' + put.join(' and ') + ' – check it with the photo; type over it if it is wrong.'; note.hidden = false; }
-    else if (other.length) { note.classList.add('warn'); note.textContent = 'The AI read ' + other.join(' and ') + ' on the dashboard photo – check which is right.'; note.hidden = false; }
-    else if (fresh && r.km === null && r.hr === null) { note.classList.add('warn'); note.textContent = 'The AI could not read the meter clearly on the photo – type the reading (or take the dashboard photo again, closer).'; note.hidden = false; }
-    else note.hidden = true;
+      if (el.dataset.ai === '1') put.push(txt(v)); else if (Number(el.value) !== Number(v)) warn.push('the AI read ' + txt(v) + ', the box has ' + fmt(Number(el.value)));
+    };
+    const d = R.dash, p = R.pump;
+    if (d && d.error) warn.push('the meter could not be read now – type the reading');
+    else if (d && !d.wait) {
+      fill('d_km', 'd_km_wrap', d.km, v => fmt(v) + ' km'); fill('d_hr', 'd_hr_wrap', d.hr, v => fmt(v) + ' hr');
+      if (d.check) warn.push('reading ' + d.check);
+      if (fresh === 'dash' && (d.km === null || d.km === undefined) && (d.hr === null || d.hr === undefined)) warn.push('the meter could not be read clearly – type the reading (or take the dashboard photo again, closer)');
+    }
+    if (p && p.error) warn.push('the litres could not be read now – type the Diesel Qty');
+    else if (p && !p.wait) {
+      fill('d_qty', null, p.litres, v => fmt(v) + ' L');
+      if (p.check) warn.push('litres: ' + p.check);
+      if (fresh === 'pump' && (p.litres === null || p.litres === undefined)) warn.push('the litres could not be read clearly – type the Diesel Qty');
+    }
+    const waiting = [d && d.wait ? 'the meter' : '', p && p.wait ? 'the litres' : ''].filter(Boolean), parts = [];
+    if (put.length) parts.push('AI read on the photos: ' + put.join(' · ') + ' – check with the photos; type over it if it is wrong.');
+    if (warn.length) parts.push('Check: ' + warn.join('; ') + '.');
+    if (waiting.length) parts.push('The AI is reading ' + waiting.join(' and ') + ' on the photo…');
+    note.classList.toggle('warn', warn.length > 0); note.textContent = parts.join(' '); note.hidden = !parts.length;
     if (fresh) dieselAfterLine();
   }
-  ['d_km', 'd_hr'].forEach(id => $(id).addEventListener('input', () => { const el = $(id); if (el.dataset.ai === '1') { el.dataset.ai = '0'; el.classList.remove('ai-read'); $('d_ai_note').hidden = true; } }));
+  ['d_km', 'd_hr', 'd_qty'].forEach(id => $(id).addEventListener('input', () => { const el = $(id); if (el.dataset.ai === '1') { el.dataset.ai = '0'; el.classList.remove('ai-read'); phApplyRead(); } }));
   // the photos of a saved fill: large, with when and where (the links open the pictures for 15 minutes)
   async function phView(id) {
     const d = await call('getDieselPhotos', id);

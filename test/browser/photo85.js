@@ -77,7 +77,9 @@ const kids = [];
     for (let i = 0; i < 80; i++) { await wait(250); const st = await f.evaluate(k => ({ busy: !!PH.busy[k], done: !!PH.items[k] }), k); if (!st.busy && i > 2) break; }
     return f.evaluate(k => PH.items[k] || null, k);
   };
-  await fetch(AI + '/__meter?say=' + encodeURIComponent('{"km": null, "hrs": 4517.3}'));
+  ok('(update-87) the Driver box has the driver of this machinery\'s last fill', await f.evaluate(() => $('d_driver').value === 'P85 driver' && $('d_driver').dataset.auto === '1'));
+  // what the "model" answers to a photo: the dashboard part (hrs + the other numbers) and the dispenser part (litres, amount, rate)
+  await fetch(AI + '/__meter?say=' + encodeURIComponent('{"km": null, "hrs": 4517.3, "numbers": [12.5, 1245], "litres": 45, "amount": 4140, "rate": 92}'));
   const dash = await take('dash', path.join(IMG, 'dash_now.jpg'));
   ok('Dashboard photo (3000 × 4000, ' + camKB + ' KB from the camera) sent and kept: ✓ on the tile', !!dash && /^\d{4}-\d{2}\/[0-9a-f-]{36}\.jpg$/.test(dash.path) && await f.evaluate(() => document.querySelector('[data-phk="dash"]').classList.contains('done')), dash);
   const look = await f.evaluate(url => new Promise(ok => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const g = c.getContext('2d'); g.drawImage(im, 0, 0);
@@ -91,16 +93,20 @@ const kids = [];
   ok('   the store has exactly the picture made on the phone (' + Math.round(kept / 1024) + ' KB)', Math.abs(kept / 1024 - dash.kb) <= 1, kept);
   const ai = await f.evaluate(() => ({ hr: $('d_hr').value, blue: $('d_hr').classList.contains('ai-read'), note: $('d_ai_note').hidden ? '' : $('d_ai_note').textContent }));
   const sent = (await (await fetch(AI + '/__log')).json()).filter(x => x.image);
-  ok('AI: the dashboard photo was read – Hrs Reading filled with 4517.3, shown blue, "check it with the photo"', ai.hr === '4517.3' && ai.blue && /AI read on the dashboard photo: 4,?517\.3 hr/.test(ai.note), ai);
-  ok('   the AI got the small picture (JPG, ~' + (sent[0] || {}).bytes + ' bytes) and was asked for JSON', sent.length === 1 && sent[0].image === 'image/jpeg' && Math.abs(sent[0].bytes / 1024 - dash.kb) <= 1 && sent[0].json === 'application/json', sent);
+  ok('AI: the dashboard photo was read – Hrs Reading filled with 4517.3, shown blue, "check it with the photo"', ai.hr === '4517.3' && ai.blue && /AI read on the photos: 4,?517\.3 hr/.test(ai.note), ai);
+  ok('   the AI got a smaller copy (JPG, ' + Math.round(((sent[0] || {}).bytes || 0) / 1024) + ' KB < ' + dash.kb + ' KB) and was asked for JSON', sent.length === 1 && sent[0].image === 'image/jpeg' && sent[0].bytes < dash.kb * 1024 && sent[0].json === 'application/json', sent.map(x => ({ bytes: x.bytes, json: x.json })));
+  ok('   (update-87) the AI was told the last reading of this machinery (4500 hours on its date) and asked for every other number too', /the hour meter showed 4500 hours on \d\d-\d\d-\d{4}/.test(sent[0].ask) && /"numbers"/.test(sent[0].ask), sent[0].ask);
   await f.evaluate(() => window.scrollBy(0, $('d_ai_note').getBoundingClientRect().top - 420)); await wait(300);
   await p.screenshot({ path: SHOTS + '/photo85_ai.png' });
   await f.evaluate(() => { const i = $('d_hr'); i.value = '4517.5'; i.dispatchEvent(new Event('input', { bubbles: true })); });
   ok('   typing over it: the box keeps what was typed, no longer blue (ONE reading is saved)', await f.evaluate(() => $('d_hr').value === '4517.5' && !$('d_hr').classList.contains('ai-read') && $('d_ai_note').hidden));
   const veh = await take('veh', path.join(IMG, 'veh_now.jpg'));
   const pump = await take('pump', path.join(IMG, 'pump_now.jpg'));
+  for (let i = 0; i < 40; i++) { await wait(250); if (await f.evaluate(() => $('d_qty').value !== '')) break; }
+  const qa = await f.evaluate(() => ({ qty: $('d_qty').value, blue: $('d_qty').classList.contains('ai-read'), note: $('d_ai_note').textContent }));
+  ok('(update-87) the dispenser photo: the AI read 45 L → Diesel Qty filled (blue), in the note', qa.qty === '45' && qa.blue && /45 L/.test(qa.note), qa);
   ok('Vehicle + driver and Dispenser litres photos kept (a landscape photo too: 1600 × 1200 + band)', !!veh && !!pump && await f.evaluate(u => new Promise(ok => { const im = new Image(); im.onload = () => ok(im.naturalWidth === 1600 && im.naturalHeight === 1320); im.src = u; }), pump.url), { veh: veh && veh.kb, pump: pump && pump.kb });
-  ok('   the AI is asked only for the dashboard photo', (await (await fetch(AI + '/__log')).json()).filter(x => x.image).length === 1);
+  ok('   the AI is asked for the dashboard and the dispenser photos only', (await (await fetch(AI + '/__log')).json()).filter(x => x.image).length === 2);
   // a picture from the gallery (an hour old) is refused
   const [ch2] = await Promise.all([p.waitForFileChooser({ timeout: 10000 }), f.evaluate(() => document.querySelector('#d_ph_grid [data-phk="reg"]').click())]);
   await ch2.accept([path.join(IMG, 'gallery.jpg')]); await wait(1500);
@@ -143,6 +149,16 @@ const kids = [];
   await ch3.accept([path.join(IMG, 'veh_now.jpg')]); await wait(3000);
   ok('location switched off before a photo: the photo is not sent, the location screen comes back', await f.evaluate(() => !PH.items.veh && !$('loc_block').hidden));
   ok('no script error on the page', !errs.length, errs);
+  // (update-87) the location allowed already: the app opens at once – no "Finding your location…" – even when the GPS is slow (3 s)
+  { const c2 = await b.createBrowserContext(), p2 = await c2.newPage(); await c2.overridePermissions(BASE, ['geolocation']); await p2.setGeolocation(NASHIK);
+    await p2.evaluateOnNewDocument(() => { const g = navigator.geolocation, own = g.getCurrentPosition.bind(g); g.getCurrentPosition = (ok, no, o) => setTimeout(() => own(ok, no, o), 3000); });
+    await p2.goto(BASE + '/', { waitUntil: 'load' }); await wait(1200);
+    const f2 = p2.frames().find(x => x !== p2.mainFrame());
+    const early = await f2.evaluate(() => ({ block: !$('loc_block').hidden, pos: !!LOC.pos }));
+    await wait(3000);
+    const later = await f2.evaluate(() => ({ block: !$('loc_block').hidden, pos: !!LOC.pos }));
+    ok('(update-87) location allowed already + a slow GPS: the app is open at once (no location screen), the place comes behind it', !early.block && !later.block && later.pos, { early, later });
+    await c2.close(); }
   await b.close();
   try { await api('deleteDieselIssue', id); } catch (e) {} clean();
   kids.forEach(c => { try { process.kill(-c.pid); } catch (e) {} });

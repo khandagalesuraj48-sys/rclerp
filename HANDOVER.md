@@ -1511,6 +1511,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Waiting bar without words (`server/page.js`). PHONE (`(hover: none) and (pointer: coarse)`): `HTMLElement.prototype.focus` does
   not put the cursor in a typing box while none is focused (except gs_in / ai_in) – scrolls it into view instead; `savedPop`
   after a diesel issue save (3 s, ×, tap outside). Open: Kolhapur 18B site (his choice A / B pending), approvals, alerts.
+- 12-10-2026 (update-87, after update-86 went live – `6bbe390`). Report: `UPDATE_87.md`. NO SQL. `locCheck`: permission granted →
+  no "checking" screen. AI: `getMeterReading` kind dash | pump, asked at once with a 1280 px copy (`phAsk`, tokens per kind);
+  dash: `lastKnownReading_` (last diesel reading / Log Book Close) in the question + "numbers"; `pickReading_` (fits / ÷10 / ÷100
+  / another number / check). pump: litres, amount, rate (`pumpAnswer_`). `phApplyRead` fills d_km / d_hr / d_qty (ai '1' blue,
+  '0' typed over = silent). `dhDriver`: last fill's driver into an empty / auto Driver box.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

@@ -4226,19 +4226,6 @@ function uploadDieselPhoto_(u, x) {
   CacheService.getScriptCache().put('PH_' + path, JSON.stringify({ e: u.email, k: k, no: m.id, at: at, lat: lat, lng: lng, acc: acc === null ? '' : Math.round(acc) }), 21600);
   return { ok: true, kind: k, path: path };
 }
-/* The AI reads the meter on the dashboard photo – its own question, AFTER the photo is kept (a slow AI never holds up the photo
- * or the Save). The page sends the same small picture again. Nothing is saved here. A Debit Basis machinery has no reading: the
- * page does not ask. Answer: { km, hr } (null = not read clearly), or { off: true } when the AI is not set up. */
-function meterReading_(u, x) {
-  x = x || {};
-  if (!canEdit_(u, 'Diesel Issue')) throw new Error('You have View access only for Diesel Issue. Ask Admin for Edit access.');
-  const mt = /^data:image\/jpeg;base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
-  if (!mt) throw new Error('The photo must be a JPG picture taken with the camera.');
-  if (mt[1].length > 2000000) throw new Error('The photo is too big (more than 1.5 MB) – take the photo again.');
-  const m = findMachine_(x.no);
-  if (!aiInfo_().on) return { off: true };
-  return aiReadMeter_(mt[1], m.id);
-}
 // the photos sent with a new entry → the list kept with it (time and place as the server noted them when each was sent)
 function photosOf_(list, u, no) {
   if (!Array.isArray(list) || !list.length) return null;
@@ -4274,15 +4261,24 @@ function dieselPhotos_(id) {
     .map(x => ({ k: x.k, label: PHOTO_KINDS_[x.k], at: str_(x.at), lat: x.lat, lng: x.lng, acc: x.acc, url: urlOf[x.p] || '' }));
   return out;
 }
-/* The AI reads the meter on the dashboard photo. Only the reading(s) the machinery is measured by are asked for (KM, Hrs or both).
- * Answer: { km, hr } – a number, or null when it could not be read clearly. Nothing is saved here; the page puts it in the form. */
-function aiReadMeter_(b64, no) {
-  let m = null; try { m = no ? findMachine_(no) : null; } catch (e) { m = null; }
-  const wantKm = m ? (m.meterKm !== undefined ? !!m.meterKm : hasKm_(m.unit)) : true, wantHr = m ? (m.meterHr !== undefined ? !!m.meterHr : hasHr_(m.unit)) : true;
-  const ask = 'This photo shows the dashboard / meter of a vehicle or machine' + (m ? ' (' + m.id + (m.type ? ', ' + m.type : '') + ')' : '') + '. Read the TOTAL ' +
-    [wantKm ? 'odometer in kilometres (km)' : '', wantHr ? 'hour meter (engine hours)' : ''].filter(Boolean).join(' and ') + ' shown on it. Do not read a trip meter, the speed, the fuel level, ' +
-    'the clock, the temperature or the RPM. Copy the digits exactly as shown, with the decimal digit if the meter shows one. A value that is not clearly visible is null. ' +
-    'Answer with JSON only: {"km": number or null, "hrs": number or null}.';
+/* THE AI READS A PHOTO (update-85 / 87) – its own question, sent by the page AT THE SAME TIME as the photo is kept (a slow AI
+ * never holds up the photo or the Save), with a smaller copy of the picture. Nothing is saved here. Two photos are read:
+ *   dash – the machinery's KM / hour meter (only the reading(s) it is measured by; a Debit Basis machinery has none: not asked)
+ *   pump – the litres given, on the dispenser's display
+ * Answer: dash { km, hr, check } · pump { litres, check } (null = not read clearly; check = a reason to look again, or '')
+ * or { off: true } when the AI is not set up on this site. */
+function meterReading_(u, x) {
+  x = x || {};
+  if (!canEdit_(u, 'Diesel Issue')) throw new Error('You have View access only for Diesel Issue. Ask Admin for Edit access.');
+  const mt = /^data:image\/jpeg;base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
+  if (!mt) throw new Error('The photo must be a JPG picture taken with the camera.');
+  if (mt[1].length > 2000000) throw new Error('The photo is too big (more than 1.5 MB) – take the photo again.');
+  const m = findMachine_(x.no);
+  if (!aiInfo_().on) return { off: true };
+  return str_(x.kind) === 'pump' ? aiReadPump_(mt[1], m) : aiReadMeter_(mt[1], m.id);
+}
+// one question with a picture to the AI (the same models and order as the assistant; a busy model → the next); → its text
+function aiAskPhoto_(b64, ask) {
   const body = { contents: [{ role: 'user', parts: [{ inlineData: { mimeType: 'image/jpeg', data: b64 } }, { text: ask }] }], generationConfig: { maxOutputTokens: 2048, responseMimeType: 'application/json' } };
   const models = aiModels_(), seq = aiTries_(models), t0 = Date.now();
   let last = '';
@@ -4293,21 +4289,82 @@ function aiReadMeter_(b64, no) {
     if (r.code === 400 && /thinking/i.test(r.text)) r = __ai.call('POST', '/v1beta/models/' + encodeURIComponent(seq[i]) + ':generateContent', body, 25000);
     if (!r.error && r.code < 300) {
       let txt = ''; try { txt = ((((JSON.parse(r.text).candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || '').join(''); } catch (e) { txt = ''; }
-      return meterAnswer_(txt, wantKm, wantHr);
+      return txt;
     }
     last = r.error || String(r.code);
     if (!(r.error || r.code === 503 || r.code === 500 || r.code === 429 || r.code === 404)) break;      // a refusal: asking again would fail the same way
   }
   throw new Error('The AI could not read the meter now (' + last + ') – type the reading.');
 }
-// the AI's answer → { km, hr } (only numbers ≥ 0; anything else = null)
-function meterAnswer_(txt, wantKm, wantHr) {
-  let j = null; const s = str_(txt).replace(/^```(?:json)?|```$/g, '').trim();
-  try { j = JSON.parse(s); } catch (e) { const mm = /\{[\s\S]*\}/.exec(s); try { j = mm ? JSON.parse(mm[0]) : null; } catch (e2) { j = null; } }
-  const num = v => { const n = typeof v === 'string' && v.trim() !== '' ? Number(v.replace(/[, ]/g, '')) : v; return typeof n === 'number' && isFinite(n) && n >= 0 ? r2_(n) : null; };
-  return { km: wantKm && j ? num(j.km) : null, hr: wantHr && j ? num(j.hrs !== undefined ? j.hrs : j.hr) : null };
+// the AI's text → its JSON (also when it put words or ``` around it)
+function aiJson_(txt) {
+  const s = str_(txt).replace(/^```(?:json)?|```$/g, '').trim();
+  try { return JSON.parse(s); } catch (e) { const mm = /\{[\s\S]*\}/.exec(s); try { return mm ? JSON.parse(mm[0]) : null; } catch (e2) { return null; } }
 }
-
+const aiNum_ = v => { const n = typeof v === 'string' && v.trim() !== '' ? Number(v.replace(/[, ]/g, '')) : v; return typeof n === 'number' && isFinite(n) && n >= 0 ? r2_(n) : null; };
+// the last reading of a machinery the app knows: its last diesel issue with a reading, or its last Log Book Close – the newer
+function lastKnownReading_(no) {
+  const out = { km: null, hr: null };
+  const put = (k, v, d) => { const n = aiNum_(v); if (n === null || !d) return; if (!out[k] || d > out[k].date || (d === out[k].date && n > out[k].value)) out[k] = { value: n, date: d }; };
+  try { const h = dieselHistory_({ no: no, limit: 1 }); if (h.lastKm) put('km', h.lastKm.value, h.lastKm.date); if (h.lastHr) put('hr', h.lastHr.value, h.lastHr.date); } catch (e) { /* no diesel yet */ }
+  try { const t = table_(APP.SHEET_LOG, logHeaders_()), c = t.c; t.rows.forEach(r => { if (!same_(r[c[H.NO]], no)) return; const d = dkey_(r[c[H.DATE]]); put('km', r[c[H.CKM]], d); put('hr', r[c[H.CHR]], d); }); } catch (e) { /* no Log Book yet */ }
+  return out;
+}
+/* THE READING TAKEN FROM WHAT THE AI SAW (update-87: "a dashboard has many numbers – check the last reading first"). The AI is told
+ * the last reading and asked for the meter AND every other number it sees. Then:
+ *   its reading not below the last and not more than the machinery can run since then (KM: 800 a day, at least 300; Hrs: 24 a day,
+ *   at least 30) → taken;
+ *   else the same number with the decimal point moved (the tenth digit of a meter in another colour: 451734 → 45173.4) or another
+ *   number it saw that fits → taken (the nearest above the last);
+ *   else its reading is put with check = why (less than / much more than the last) – the person looks at it. */
+function pickReading_(v, seen, last, today, kind) {
+  if (!last) return { v: v, check: '' };
+  const days = Math.max(1, daysBetween_(last.date, today));
+  const max = kind === 'km' ? Math.max(300, days * 800) : Math.max(30, days * 24);
+  const fits = x => x !== null && x >= last.value && x <= last.value + max;
+  if (fits(v)) return { v: v, check: '' };
+  const tries = [].concat(v !== null ? [r2_(v / 10), r2_(v / 100)] : [], (seen || []).map(aiNum_)).filter(fits).sort((a, b) => a - b);
+  if (tries.length) return { v: tries[0], check: '' };
+  if (v === null) return { v: null, check: '' };
+  return { v: v, check: (v < last.value ? 'less than' : 'much more than') + ' the last reading ' + last.value + ' (' + dmy_(last.date) + ')' };
+}
+function aiReadMeter_(b64, no) {
+  let m = null; try { m = no ? findMachine_(no) : null; } catch (e) { m = null; }
+  const wantKm = m ? (m.meterKm !== undefined ? !!m.meterKm : hasKm_(m.unit)) : true, wantHr = m ? (m.meterHr !== undefined ? !!m.meterHr : hasHr_(m.unit)) : true;
+  const last = m ? lastKnownReading_(m.id) : { km: null, hr: null }, today = today_();
+  const hint = [wantKm && last.km ? 'the odometer showed ' + last.km.value + ' km on ' + dmy_(last.km.date) : '', wantHr && last.hr ? 'the hour meter showed ' + last.hr.value + ' hours on ' + dmy_(last.hr.date) : ''].filter(Boolean);
+  const ask = 'This photo shows the dashboard / meter of a vehicle or machine' + (m ? ' (' + m.id + (m.type ? ', ' + m.type : '') + ')' : '') + '. Read the TOTAL ' +
+    [wantKm ? 'odometer in kilometres (km)' : '', wantHr ? 'hour meter (engine hours)' : ''].filter(Boolean).join(' and ') + ' shown on it. Do not read a trip meter, the speed, the fuel level, ' +
+    'the clock, the temperature or the RPM. Copy the digits exactly as shown, with the decimal digit if the meter shows one (often in another colour). ' +
+    (hint.length ? 'For help: the last time, ' + hint.join(' and ') + ' – the reading now is normally the same or a little more. ' : '') +
+    'A value that is not clearly visible is null. Answer with JSON only: {"km": number or null, "hrs": number or null, "numbers": [every other number you can see on the dashboard]}.';
+  const j = aiJson_(aiAskPhoto_(b64, ask)) || {};
+  const seen = Array.isArray(j.numbers) ? j.numbers : [];
+  const k = wantKm ? pickReading_(aiNum_(j.km), seen, last.km, today, 'km') : { v: null, check: '' };
+  const h = wantHr ? pickReading_(aiNum_(j.hrs !== undefined ? j.hrs : j.hr), seen, last.hr, today, 'hr') : { v: null, check: '' };
+  return { km: k.v, hr: h.v, check: [k.check ? 'KM ' + k.check : '', h.check ? 'Hrs ' + h.check : ''].filter(Boolean).join('; ') };
+}
+/* The litres on the dispenser's display (update-87). The AI gives the litres, the amount (₹) and the rate (₹/L) it sees: litres not
+ * read but amount and rate → amount ÷ rate; litres × rate far from the amount (more than 3 %) → check. */
+function aiReadPump_(b64, m) {
+  const ask = 'This photo shows the display of a diesel dispenser / fuel pump after filling a vehicle' + (m ? ' (' + m.id + ')' : '') + '. Read the QUANTITY given in this fill, in litres ' +
+    '(the window marked Litre / Volume / Qty / Ltr). Do not take the amount in rupees, the rate per litre or the total counter (totaliser) as the litres. Also give the amount and the rate if they are shown. ' +
+    'Copy the digits exactly as shown, with the decimals. A value that is not clearly visible is null. Answer with JSON only: {"litres": number or null, "amount": number or null, "rate": number or null}.';
+  return pumpAnswer_(aiJson_(aiAskPhoto_(b64, ask)) || {});
+}
+function pumpAnswer_(j) {
+  let litres = aiNum_(j.litres !== undefined ? j.litres : j.qty), check = '';
+  const amount = aiNum_(j.amount), rate = aiNum_(j.rate);
+  if (litres === null && amount && rate) litres = r2_(amount / rate);
+  else if (litres && amount && rate && Math.abs(litres * rate - amount) > amount * 0.03) check = litres + ' L × ₹' + rate + ' is not the amount ₹' + amount;
+  if (litres !== null && (litres <= 0 || litres > 2000)) { check = litres + ' L is not a normal fill'; }
+  return { litres: litres, check: check };
+}
+// (kept for the tests of update-85: the AI's answer → { km, hr }, numbers ≥ 0 only)
+function meterAnswer_(txt, wantKm, wantHr) {
+  const j = aiJson_(txt);
+  return { km: wantKm && j ? aiNum_(j.km) : null, hr: wantHr && j ? aiNum_(j.hrs !== undefined ? j.hrs : j.hr) : null };
+}
 
 /* ================= DIESEL STOCK: locations, inward, transfer ================= *
  * Stock points: APP.LOCATIONS (Dispenser, VTR Store).
