@@ -179,7 +179,10 @@ SbSheet_.prototype.fill = function (rows) {
   this.data = data; this.ids = ids;
   // the columns the database really has (from the rows it sent). A column the app knows but the database does not have yet –
   // its SQL step was not run – is left out of a save ONLY while it is empty; a value for it is never dropped (see toRecord_).
-  if (rows.length) this.dbCols = Object.keys(rows[0]);
+  // (update-85) a column of the app that the FIRST row does not show is looked for in the other rows too: this server's copy of a
+  // table (server/gas.js) keeps the rows read before a new column was added without it, and the rows changed since with it – the
+  // database has every column that any row shows. (Nearly always nothing is missing in the first row, and nothing more is done.)
+  if (rows.length) { const f = rows[0], cols = Object.keys(f); this.def.cols.forEach(x => { if (!(x[1] in f) && rows.some(r => x[1] in r)) cols.push(x[1]); }); this.dbCols = cols; }
   // rows added before the table was read (e.g. an Activity Log line) stay
   this.appended.forEach(row => { this.data.push(row); this.ids.push(null); });
   this.appended = [];

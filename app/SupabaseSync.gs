@@ -36,7 +36,7 @@ const SB_TABLES_ = [
     ['Type of Machinery', 'type', 'text'], ['Owner Name', 'owner_name', 'text'], ['Diesel Qty (Ltr)', 'qty', 'numeric'], ['KM Reading', 'km_reading', 'numeric'],
     ['Hrs Reading', 'hrs_reading', 'numeric'], ['Driver Name', 'driver_name', 'text'], ['Remark', 'remark', 'text'], ['Diesel Supply', 'diesel_supply', 'text'],
     ['Debit Rate', 'debit_rate', 'numeric'], ['Balance', 'balance', 'numeric'], ['Current Diesel Issue Reading', 'dispenser_reading', 'numeric'], ['Created At', 'entered_at', 'timestamptz'],
-    ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
+    ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text'], ['Photos', 'photos', 'text']] },
   { table: 'log_book', tab: 'Log Book', title: 'Log Book', pk: 'id',
     key: r => [sbStr_(r['Machinery Number']), sbDate_(r['Date']), sbStr_(r['Shift']) || 'Full Day'].join('|'), cols: [
     ['Date', 'date', 'date'], ['Machinery Number', 'machinery', 'text'], ['Shift', 'shift', 'text'], ['Owner Name', 'owner_name', 'text'], ['Type of Machinery', 'type', 'text'], ['Unit', 'unit', 'text'],

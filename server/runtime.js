@@ -60,7 +60,7 @@ function bootKeys(fn, args) {
  * is NOT kept: the number is given back, so the next copy tries afresh.
  * web_count (step-3 SQL) makes "who is first" exact; without it a plain look is used. */
 const NOT_NOW = /Another save is still running|Could not reach the database|did not answer in time|^Database \([a-z_]+\): 5\d\d|RETRY_LATER/;
-const IS_QUESTION = f => /^(get|rpt|rtc)[A-Z]/.test(f) || ['sync', 'logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1;
+const IS_QUESTION = f => /^(get|rpt|rtc)[A-Z]/.test(f) || ['sync', 'logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra', 'dieselPhoto'].indexOf(f) > -1;      // (dieselPhoto – update-85: as page.js)
 const { sleepSync, fetchAllSync } = require('./syncfetch');
 const crypto = require('crypto');
 /* ---------- SAVED ONCE, DECIDED INSIDE THE DATABASE (update-68, step-5 SQL: web.ops) ----------

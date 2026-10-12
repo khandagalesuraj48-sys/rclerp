@@ -1,10 +1,12 @@
 // a stand-in for the Gemini service (tests only): it checks what the app sends and answers the way the real service does –
 // first a functionCall (with a thoughtSignature the app must send back untouched), then a text made from the look-up's result
-const http = require('http'); const log = [], busy = {}, nothink = {};
+const http = require('http'); const log = [], busy = {}, nothink = {}, meter = { say: '{"km": null, "hrs": null}' };
 const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
 http.createServer((req, res) => {
   let body = ''; req.on('data', c => { body += c; }); req.on('end', () => {
     if (req.url === '/__log') return send(res, 200, log);
+    // tests (update-85): /__meter?say=<text> → what the "model" answers to the next photos of a meter
+    const mr = /^\/__meter\?say=(.*)$/.exec(req.url); if (mr) { meter.say = decodeURIComponent(mr[1]); return send(res, 200, meter); }
     if (req.url === '/__clear') { log.length = 0; Object.keys(busy).forEach(k => delete busy[k]); Object.keys(nothink).forEach(k => delete nothink[k]); return send(res, 200, {}); }
     // tests: /__nothink?model=NAME → that model refuses the "thinking" setting (400), as an older model of the real service would
     const nt = /^\/__nothink\?model=([^&]+)/.exec(req.url); if (nt) { nothink[decodeURIComponent(nt[1])] = 1; return send(res, 200, nothink); }
@@ -27,6 +29,9 @@ http.createServer((req, res) => {
     if (broken) return send(res, 400, { error: { message: 'the thought signature of a function call was not sent back' } });
     const text = say => send(res, 200, { candidates: [{ content: { role: 'model', parts: [{ text: say }] }, finishReason: 'STOP' }], usageMetadata: { totalTokenCount: 321 } });
     const callFn = (name, args) => send(res, 200, { candidates: [{ content: { role: 'model', parts: [{ functionCall: { name: name, args: args }, thoughtSignature: 'sig-' + name }] } }], usageMetadata: { totalTokenCount: 123 } });
+    // update-85: a photo of a meter (an image in the question) → the reading set with /__meter (what a model would read on it)
+    const img = last.parts.find(p => p.inlineData);
+    if (img) { log.push({ model: m[1], image: img.inlineData.mimeType, bytes: Math.round(String(img.inlineData.data || '').length * 3 / 4), json: (j.generationConfig || {}).responseMimeType || '' }); return text(meter.say); }
     const fr = last.parts.find(p => p.functionResponse);
     if (fr) { const r = fr.functionResponse.response || {}, n = fr.functionResponse.name;
       if (r.error) return text('You cannot see this: ' + r.error);

@@ -1498,6 +1498,14 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Reports. `applyPerms`: the page on screen (also the Dashboard shown at sign-in) not allowed → his first page (Machinery group
   first, else any) – before, a Diesel-Issue-only user got "no access to Dashboard" at sign-in.
   Existing users and an EMPTY cell (= View, see Access report) NOT changed – Admin sets them in the Users page.
+- 12-10-2026 (update-85, after update-84 went live – `c867b22`). Report: `UPDATE_85.md`. SQL step 1x (column diesel_issue.photos +
+  private Storage bucket diesel-photos). LOCATION compulsory to open the app (every user; `locCheck` / `locNow`; an app opened
+  before reloads its page once – `locDenied`); `geolocation=(self)` + frame allow. DIESEL ISSUE PHOTOS (One entry, not compulsory
+  yet): dash / veh / pump / reg, camera only (older than 3 min refused), 1600 px + band (time, kind, machinery, lat / long),
+  `dieselPhoto` → Storage, cache `PH_<path>` {user, kind, machinery, time, place} 6 h; save takes them (`photosOf_`: same user,
+  same machinery, each kind once, one entry); `getDieselPhotos` 15-min signed links; list 📷. AI: `getMeterReading` after the
+  upload → KM / Hrs box (blue), typed value wins. dbCols: a column missing in the first row is looked for in the other rows.
+  Browser tests need `test/browser/geo-shim.js`. Open: approval of no-reading entries, WhatsApp / e-mail alerts, photos compulsory.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

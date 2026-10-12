@@ -10,7 +10,7 @@ The code is the same for every copy (this repository); only the settings differ.
 ## Steps
 1. **Database** – Supabase → New project (region Mumbai). Keep the project URL and the `service_role` key.
 2. **Tables** – Supabase → SQL Editor: run every file of `sql/` in this order (each can be run again safely):
-   `supabase_step1.sql`, `step1b` … `step1w` (alphabetical), then `supabase_step2_web.sql`, `supabase_step3_safety.sql`,
+   `supabase_step1.sql`, `step1b` … `step1x` (alphabetical), then `supabase_step2_web.sql`, `supabase_step3_safety.sql`,
    `supabase_step4_health.sql`, `supabase_step5_save_once.sql`. Finish with `check_security.sql` – every line must start with "ok".
    (The files in `sql/proposed/` are NOT steps: a read-only preflight and proposed constraints – see `UPDATE_68.md`.)
    (`supabase_step3_safety.sql` is compulsory: without its "all or nothing" save function the app refuses every save and

@@ -16,7 +16,7 @@ const raw = async body => { for (let i = 0; ; i++) { try { return await (await f
   await wait(1300);
   const admin = (await raw({ fn: 'login', args: ['sujit@rcl.test', 'Nashik#Road848!'] })).result.token;
   const mods = (await raw({ fn: 'api', args: [admin, 'usersAdmin', []] })).result;
-  const MOD = (mods.modules || Object.keys((mods.users || [])[0].perms || {}));
+  const MOD = (mods.modules || Object.keys((mods.users || [])[0].perms || {})).map(m => (m && m.key) || m);      // (update-85: the list gives { key, label } – the page's NAME is the key; with the whole object no access was given, which update-84 made "No access")
   const mk = async name => { const email = 's72' + name.toLowerCase() + '@rcl.test', p = {}; MOD.forEach(m => { p[m] = m === 'Log Book' || m === 'Dashboard' ? 'Edit' : 'None'; });
     const a = await raw({ fn: 'api', args: [admin, 'saveUserAdmin', [{ email, name: 'S72 ' + name, active: true, admin: false, perms: p, isNew: true, newPassword: 'Temp#' + name + '1' }]] }); if (a.error) throw new Error(a.error);
     const l = await raw({ fn: 'login', args: [email, 'Temp#' + name + '1'] }), pw = 'Own#' + name + '2468'; const c = await raw({ fn: 'changePassword', args: [l.result.token, 'Temp#' + name + '1', pw] }); if (c.error) throw new Error(c.error); return { email, pw, name: 'S72 ' + name }; };

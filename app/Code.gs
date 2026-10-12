@@ -41,7 +41,7 @@ const H = {
   TRIP: 'Trip', CH: 'Chainage No.', WORK: 'Work Done', DRIVER: 'Driver Name',
   CYCLE: 'Fill Cycle', ODSL: 'Opening Diesel', DRATE: 'Debit Rate', TCAP: 'Tank Capacity (Ltr)', ODSET: 'Opening Diesel Set', MRATE: 'Monthly Rate', TDS: 'TDS Rate (%)',
   ENGNO: 'Engine Number', CHASSIS: 'Chassis Number', ENGMAKE: 'Engine Make',
-  TAXV: 'Tax Valid Upto', PUCV: 'PUC Valid Upto', PERMITV: 'Permit Valid Upto', FITV: 'Fitness Valid Upto', INSV: 'Insurance Valid Upto', EBY: 'Entered By', UBY: 'Updated By', DMETER: 'Current Diesel Issue Reading',
+  TAXV: 'Tax Valid Upto', PUCV: 'PUC Valid Upto', PERMITV: 'Permit Valid Upto', FITV: 'Fitness Valid Upto', INSV: 'Insurance Valid Upto', EBY: 'Entered By', UBY: 'Updated By', DMETER: 'Current Diesel Issue Reading', PHOTOS: 'Photos',
   CHFROM: 'Chainage From', CHTO: 'Chainage To', AVG: 'Actual Average', EXTRA: 'Extra / Short Diesel', DREAD: 'Diesel Readings',
   STATUS: 'Status', AFROM: 'Active From', IFROM: 'Inactive From', SUPPLY: 'Diesel Supply',
   BAL: 'Balance', SOURCE: 'Diesel Source', LOC: 'Location', TR_ID: 'Transfer ID', FROM: 'From', TO: 'To',
@@ -872,7 +872,10 @@ const API_ = {
   getDieselIssues:   { m: 'Diesel Issue', f: getDieselIssues_ },
   getIssueBalance:   { m: 'Diesel Issue', f: getIssueBalance_ },
   getStockPoints:    { m: 'Diesel Issue', f: getStockPoints_ },
-  saveDieselIssue:   { m: 'Diesel Issue', edit: true, f: saveDieselIssue_, log: 'add', sheet: 'SHEET_DIESEL', idh: 'ID' },
+  saveDieselIssue:   { m: 'Diesel Issue', edit: true, withUser: true, f: (u, d) => saveDieselIssue_(d, u), log: 'add', sheet: 'SHEET_DIESEL', idh: 'ID' },      // (the user: only his own photos can be attached – update-85)
+  dieselPhoto:       { m: 'Diesel Issue', withUser: true, f: (u, x) => uploadDieselPhoto_(u, x) },      // update-85: one photo of a diesel issue, sent the moment it is taken (Edit checked inside)
+  getMeterReading:   { m: 'Diesel Issue', withUser: true, f: (u, x) => meterReading_(u, x) },           // update-85: the AI reads the meter on the dashboard photo (a question: nothing is saved)
+  getDieselPhotos:   { m: 'Diesel Issue', f: dieselPhotos_ },                                            // update-85: the photos of an entry, to look at
   saveDieselBulk:    { m: 'Diesel Issue', edit: true, f: saveDieselBulk_, log: 'dieselBulk' },
   importDiesel:      { m: 'Diesel Issue', edit: true, f: importDiesel_, log: 'diImport' },
   updateDieselIssue: { m: 'Diesel Issue', edit: true, f: updateDieselIssue_, log: 'edit', sheet: 'SHEET_DIESEL', idh: 'ID' },
@@ -3862,9 +3865,10 @@ function dieselHistory_(f) {
     lastHr: withHr ? { value: numOrBlank_(withHr[c[H.HRR]]), date: dkey_(withHr[c[H.IDATE]]) } : null,
     month: { qty: r2_(inMonth.reduce((s2, r) => s2 + num0_(r[c[H.QTY]]), 0)), count: inMonth.length } };
 }
-function saveDieselIssue_(d) {
+function saveDieselIssue_(d, u) {
   return withLock_(() => {
     if (!blank_(d.meter)) ensureMeterCol_();
+    const photos = photosOf_(d.photos, u, d.no);      // (update-85) only photos this user took for this machinery, each once
     const dk = entryOpen_(d.date, 'Diesel issue');
     const shift = checkShift_(d.shift);
     const m = findMachine_(d.no);
@@ -3881,7 +3885,10 @@ function saveDieselIssue_(d) {
 
     const n = nextDieselNo_(t);
     const id = 'DI-' + String(n).padStart(6, '0');
-    t.sh.appendRow(buildDieselRow_(t, id, dk, shift, m, v, new Date()));
+    const row = buildDieselRow_(t, id, dk, shift, m, v, new Date());
+    if (photos) set_(row, t, H.PHOTOS, JSON.stringify(photos));
+    t.sh.appendRow(row);
+    if (photos) { const pc = CacheService.getScriptCache(); photos.forEach(x => { try { pc.remove('PH_' + x.p); } catch (e) { /* it ends by itself in 6 hours */ } }); }      // a photo goes with ONE entry
     markDieselNo_(n);
     syncLogFromDiesel_(m.id, dk, shift);
     recalcBalances_();
@@ -4156,9 +4163,151 @@ function getDieselIssues_(f) {
       driver: str_(r[c[H.DRIVER]]), balance: H.BAL in c ? numOrBlank_(r[c[H.BAL]]) : '', source: loc_(r[c[H.SOURCE]]), supply: str_(r[c[H.SUPPLY]]),
       meter: H.DMETER in c ? numOrBlank_(r[c[H.DMETER]]) : '', meterCheck: checks[str_(r[c[H.ID]])] || null,
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
+      ph: H.PHOTOS in c ? photoList_(r[c[H.PHOTOS]]).length : 0,      // how many photos it has (update-85)
     })),
   };
 }
+
+/* ---------- THE PHOTOS OF A DIESEL ISSUE (update-85, asked 12-10-2026) ----------
+ * Four photos, taken with the phone's camera at the fill: the dashboard (meter), the vehicle with its driver, the litres on the
+ * dispenser, the line in the register. Each carries the time and the place (latitude / longitude) it was taken – printed on the
+ * picture by the page, and kept with the entry. Not compulsory yet (the owner will say when).
+ * The pictures are kept in a PRIVATE place of Supabase Storage (bucket diesel-photos – sql/supabase_step1x_diesel_photos.sql).
+ * The entry keeps the list in its column Photos:  [{ k: dash | veh | pump | reg, p: '2026-10/<id>.jpg', at, lat, lng, acc }]
+ * A photo is sent the moment it is taken (dieselPhoto). The server keeps for 6 hours WHO sent which picture, with the time and
+ * place; a save takes those from the server (not from the page) and accepts only pictures the same user sent – nobody can attach
+ * another person's picture by its name. Looking at them (dieselPhotos): links that open a picture for 15 minutes, only for a
+ * user who may see Diesel Issue.
+ * The dashboard photo is also read by the AI (the same service as the assistant): the KM / hour-meter reading it shows is put in
+ * the form, where the person checks it and may change it – ONE reading is saved. */
+const PHOTO_BUCKET_ = 'diesel-photos';
+const PHOTO_KINDS_ = { dash: 'Dashboard', veh: 'Vehicle and driver', pump: 'Dispenser litres', reg: 'Register' };
+const PHOTO_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1x_diesel_photos.sql once in Supabase → SQL Editor.';
+const PHOTO_PATH_ = /^\d{4}-\d{2}\/[0-9a-f-]{36}\.jpg$/;
+function photosReady_() {
+  if (!sbDataOn_()) throw new Error('Photos are kept in Supabase only – this copy of the app runs on the Google Sheet.');
+  let sh = null, cols = null; try { table_(APP.SHEET_DIESEL, DIESEL_COLS_); sh = SS_().getSheetByName(APP.SHEET_DIESEL); cols = sh.dbCols; } catch (e) { cols = null; }      // (read first: the columns are known once the table is read)
+  if (!cols || cols.indexOf('photos') > -1) return;
+  /* The server's copy of the table in memory (see server/gas.js) is read whole again only every 15 minutes, so right after the
+   * Admin has run the SQL step it still shows the table without the new column. The database itself is asked then (one small
+   * question, its answer kept for 15 minutes), and the column is taken as there. */
+  const c = CacheService.getScriptCache();
+  let there = c.get('SBCOL_diesel_issue.photos') === '1';
+  if (!there) { try { sbFetch_('GET', '/rest/v1/diesel_issue?select=photos&limit=1'); there = true; } catch (e) { there = false; } if (there) c.put('SBCOL_diesel_issue.photos', '1', 900); }
+  if (!there) throw new Error('Photos of a diesel issue cannot be kept yet. ' + PHOTO_SQL_MSG_);
+  cols.push('photos');      // (this request writes the column: the database has it)
+}
+// the photos kept with an entry (a value that is not such a list = none)
+function photoList_(v) {
+  let a = null; try { a = JSON.parse(str_(v) || '[]'); } catch (e) { a = null; }
+  return Array.isArray(a) ? a.filter(x => x && PHOTO_KINDS_[x.k] && PHOTO_PATH_.test(str_(x.p))) : [];
+}
+const photoNum_ = (v, lo, hi) => { const n = Number(v); return v === '' || v === null || v === undefined || !isFinite(n) || n < lo || n > hi ? null : n; };
+// one photo, as it is taken: kept in the private store; the dashboard photo is read by the AI
+function uploadDieselPhoto_(u, x) {
+  x = x || {};
+  if (!canEdit_(u, 'Diesel Issue')) throw new Error('You have View access only for Diesel Issue. Ask Admin for Edit access.');
+  const k = str_(x.kind);
+  if (!PHOTO_KINDS_[k]) throw new Error('This is not one of the 4 photos of a diesel issue (Dashboard, Vehicle and driver, Dispenser litres, Register).');
+  const lat = photoNum_(x.lat, -90, 90), lng = photoNum_(x.lng, -180, 180), acc = photoNum_(x.acc, 0, 1e6);
+  if (lat === null || lng === null) throw new Error('The photo has no location – turn on the location of the phone and take the photo again.');
+  const mt = /^data:image\/jpeg;base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
+  if (!mt) throw new Error('The photo must be a JPG picture taken with the camera.');
+  if (mt[1].length > 2000000) throw new Error('The photo is too big (more than 1.5 MB) – take the photo again.');
+  const m = findMachine_(x.no);      // a photo belongs to ONE machinery (its number is printed on it)
+  photosReady_();
+  const c = sbConf_(), path = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM') + '/' + Utilities.getUuid() + '.jpg';
+  const res = UrlFetchApp.fetch(c.url + '/storage/v1/object/' + PHOTO_BUCKET_ + '/' + path, { method: 'post', headers: { apikey: c.key, 'x-upsert': 'false' }, contentType: 'image/jpeg',
+    payload: Utilities.newBlob(Utilities.base64Decode(mt[1]), 'image/jpeg', path.split('/')[1]), muteHttpExceptions: true });
+  const code = res.getResponseCode(), text = res.getContentText();
+  if (/bucket not found/i.test(text)) throw new Error('Photos cannot be kept yet – the place for the photos is missing. ' + PHOTO_SQL_MSG_);
+  if (code < 200 || code >= 300) throw new Error('The photo store did not keep the photo (' + code + ') – send the photo again.' + (u.admin ? ' It said: ' + str_(text).slice(0, 160) : ''));
+  const at = isNaN(new Date(str_(x.at))) ? new Date().toISOString() : new Date(str_(x.at)).toISOString();
+  CacheService.getScriptCache().put('PH_' + path, JSON.stringify({ e: u.email, k: k, no: m.id, at: at, lat: lat, lng: lng, acc: acc === null ? '' : Math.round(acc) }), 21600);
+  return { ok: true, kind: k, path: path };
+}
+/* The AI reads the meter on the dashboard photo – its own question, AFTER the photo is kept (a slow AI never holds up the photo
+ * or the Save). The page sends the same small picture again. Nothing is saved here. A Debit Basis machinery has no reading: the
+ * page does not ask. Answer: { km, hr } (null = not read clearly), or { off: true } when the AI is not set up. */
+function meterReading_(u, x) {
+  x = x || {};
+  if (!canEdit_(u, 'Diesel Issue')) throw new Error('You have View access only for Diesel Issue. Ask Admin for Edit access.');
+  const mt = /^data:image\/jpeg;base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
+  if (!mt) throw new Error('The photo must be a JPG picture taken with the camera.');
+  if (mt[1].length > 2000000) throw new Error('The photo is too big (more than 1.5 MB) – take the photo again.');
+  const m = findMachine_(x.no);
+  if (!aiInfo_().on) return { off: true };
+  return aiReadMeter_(mt[1], m.id);
+}
+// the photos sent with a new entry → the list kept with it (time and place as the server noted them when each was sent)
+function photosOf_(list, u, no) {
+  if (!Array.isArray(list) || !list.length) return null;
+  if (list.length > 4) throw new Error('A diesel issue keeps at most the 4 photos (Dashboard, Vehicle and driver, Dispenser litres, Register).');
+  photosReady_();
+  let mId = ''; try { mId = findMachine_(no).id; } catch (e) { mId = ''; }      // (a machinery that is not in Master is refused by the save itself)
+  const keys = list.map(x => 'PH_' + str_(x && x.p)), got = CacheService.getScriptCache().getAll(keys) || {}, seen = {};
+  return list.map((x, i) => {
+    const k = str_(x && x.k), p = str_(x && x.p);
+    if (!PHOTO_KINDS_[k] || seen[k]) throw new Error('Each of the 4 photos (Dashboard, Vehicle and driver, Dispenser litres, Register) can be given once.');
+    seen[k] = true;
+    let rec = null; try { rec = PHOTO_PATH_.test(p) ? JSON.parse(got[keys[i]] || 'null') : null; } catch (e) { rec = null; }
+    if (!rec || !u || rec.e !== u.email || rec.k !== k) throw new Error('The ' + PHOTO_KINDS_[k] + ' photo was not taken by you in the last 6 hours, or it is already with another entry – take the photo again.');
+    if (mId && rec.no !== mId) throw new Error('The ' + PHOTO_KINDS_[k] + ' photo was taken for ' + rec.no + ', not for ' + mId + ' – take the photo again.');
+    return { k: k, p: p, at: rec.at, lat: rec.lat, lng: rec.lng, acc: rec.acc };
+  });
+}
+// the photos of an entry, with links that open each picture for 15 minutes
+function dieselPhotos_(id) {
+  const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, r = t.rows.find(x => str_(x[c[H.ID]]) === str_(id));
+  if (!r) throw new Error('Diesel issue ' + str_(id) + ' was not found.');
+  const list = H.PHOTOS in c ? photoList_(r[c[H.PHOTOS]]) : [];
+  const out = { id: str_(r[c[H.ID]]), no: str_(r[c[H.NO]]), date: dkey_(r[c[H.IDATE]]), shift: str_(r[c[H.SHIFT]]), qty: num0_(r[c[H.QTY]]), photos: [] };
+  if (!list.length) return out;
+  const sb = sbConf_();
+  const res = UrlFetchApp.fetch(sb.url + '/storage/v1/object/sign/' + PHOTO_BUCKET_, { method: 'post', headers: { apikey: sb.key }, contentType: 'application/json',
+    payload: JSON.stringify({ expiresIn: 900, paths: list.map(x => x.p) }), muteHttpExceptions: true });
+  const code = res.getResponseCode();
+  if (code < 200 || code >= 300) throw new Error('The photos could not be opened (' + code + ') – try again in a moment.');
+  let signed = []; try { signed = JSON.parse(res.getContentText()) || []; } catch (e) { signed = []; }
+  const urlOf = {}; (Array.isArray(signed) ? signed : []).forEach(x => { if (x && x.path && x.signedURL) urlOf[x.path] = sb.url + '/storage/v1' + x.signedURL; });
+  out.photos = ['dash', 'veh', 'pump', 'reg'].map(k => list.find(x => x.k === k)).filter(Boolean)
+    .map(x => ({ k: x.k, label: PHOTO_KINDS_[x.k], at: str_(x.at), lat: x.lat, lng: x.lng, acc: x.acc, url: urlOf[x.p] || '' }));
+  return out;
+}
+/* The AI reads the meter on the dashboard photo. Only the reading(s) the machinery is measured by are asked for (KM, Hrs or both).
+ * Answer: { km, hr } – a number, or null when it could not be read clearly. Nothing is saved here; the page puts it in the form. */
+function aiReadMeter_(b64, no) {
+  let m = null; try { m = no ? findMachine_(no) : null; } catch (e) { m = null; }
+  const wantKm = m ? (m.meterKm !== undefined ? !!m.meterKm : hasKm_(m.unit)) : true, wantHr = m ? (m.meterHr !== undefined ? !!m.meterHr : hasHr_(m.unit)) : true;
+  const ask = 'This photo shows the dashboard / meter of a vehicle or machine' + (m ? ' (' + m.id + (m.type ? ', ' + m.type : '') + ')' : '') + '. Read the TOTAL ' +
+    [wantKm ? 'odometer in kilometres (km)' : '', wantHr ? 'hour meter (engine hours)' : ''].filter(Boolean).join(' and ') + ' shown on it. Do not read a trip meter, the speed, the fuel level, ' +
+    'the clock, the temperature or the RPM. Copy the digits exactly as shown, with the decimal digit if the meter shows one. A value that is not clearly visible is null. ' +
+    'Answer with JSON only: {"km": number or null, "hrs": number or null}.';
+  const body = { contents: [{ role: 'user', parts: [{ inlineData: { mimeType: 'image/jpeg', data: b64 } }, { text: ask }] }], generationConfig: { maxOutputTokens: 2048, responseMimeType: 'application/json' } };
+  const models = aiModels_(), seq = aiTries_(models), t0 = Date.now();
+  let last = '';
+  for (let i = 0; i < seq.length; i++) {
+    if (Date.now() - t0 > 25000) break;
+    const quick = Object.assign({}, body, { generationConfig: Object.assign({}, body.generationConfig, { thinkingConfig: { thinkingLevel: 'low' } }) });
+    let r = __ai.call('POST', '/v1beta/models/' + encodeURIComponent(seq[i]) + ':generateContent', quick, 25000);
+    if (r.code === 400 && /thinking/i.test(r.text)) r = __ai.call('POST', '/v1beta/models/' + encodeURIComponent(seq[i]) + ':generateContent', body, 25000);
+    if (!r.error && r.code < 300) {
+      let txt = ''; try { txt = ((((JSON.parse(r.text).candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || '').join(''); } catch (e) { txt = ''; }
+      return meterAnswer_(txt, wantKm, wantHr);
+    }
+    last = r.error || String(r.code);
+    if (!(r.error || r.code === 503 || r.code === 500 || r.code === 429 || r.code === 404)) break;      // a refusal: asking again would fail the same way
+  }
+  throw new Error('The AI could not read the meter now (' + last + ') – type the reading.');
+}
+// the AI's answer → { km, hr } (only numbers ≥ 0; anything else = null)
+function meterAnswer_(txt, wantKm, wantHr) {
+  let j = null; const s = str_(txt).replace(/^```(?:json)?|```$/g, '').trim();
+  try { j = JSON.parse(s); } catch (e) { const mm = /\{[\s\S]*\}/.exec(s); try { j = mm ? JSON.parse(mm[0]) : null; } catch (e2) { j = null; } }
+  const num = v => { const n = typeof v === 'string' && v.trim() !== '' ? Number(v.replace(/[, ]/g, '')) : v; return typeof n === 'number' && isFinite(n) && n >= 0 ? r2_(n) : null; };
+  return { km: wantKm && j ? num(j.km) : null, hr: wantHr && j ? num(j.hrs !== undefined ? j.hrs : j.hr) : null };
+}
+
 
 /* ================= DIESEL STOCK: locations, inward, transfer ================= *
  * Stock points: APP.LOCATIONS (Dispenser, VTR Store).
@@ -7986,7 +8135,8 @@ function dbHealth_() {
     add('"No reading" / "New meter" (step 1u)', u1, 'supabase_step1u_meter.sql');
     add('"½ day" in the Log Book (step 1v)', has('log_book', 'day_part'), 'supabase_step1v_half_day.sql');
     add('Split timing of a Time entry (step 1w)', has('log_book', 'time_slots'), 'supabase_step1w_time_slots.sql');
-    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes)/.test(x));
+    add('Photos of a diesel issue (step 1x)', has('diesel_issue', 'photos'), 'supabase_step1x_diesel_photos.sql');
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos)/.test(x));
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }
   let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }

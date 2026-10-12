@@ -689,7 +689,9 @@ test('talking with the assistant needs the microphone: the site\'s own security 
   const j = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
   const pp = (((j.headers || []).find(h => h.source === '/(.*)') || { headers: [] }).headers.find(h => h.key === 'Permissions-Policy') || {}).value || '';
   assert.match(pp, /microphone=\(self\)/, 'Permissions-Policy must say microphone=(self) – with microphone=() Chrome refuses the microphone even when the person allowed it');
-  assert.match(pp, /geolocation=\(\)/);                                     // what the app does not use stays forbidden
+  // update-85: the app opens only with the location on, and each photo of a diesel issue carries its place – this site only
+  assert.match(pp, /geolocation=\(self\)/, 'Permissions-Policy must say geolocation=(self) – with geolocation=() the browser never gives the location');
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'app', 'Index.html'), 'utf8'), /<iframe id="app"[^>]*allow="[^"]*geolocation/, 'the app\'s frame must allow geolocation');
   // update-75: the screen share may show the CAMERA of a phone (to show a machine) – this site only, never another one in a frame
   assert.match(pp, /camera=\(self\)/, 'Permissions-Policy must say camera=(self) for the screen share camera');
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'app', 'Index.html'), 'utf8'), /<iframe id="app"[^>]*allow="[^"]*microphone[^"]*camera/);
@@ -2003,4 +2005,52 @@ test('universal search: a spelling mistake still finds the name (and suggests it
   assert.ok(r.logs.length && !r.fixes.length, JSON.stringify(r.fixes));
   // the start of a longer name with a mistake: "anadr" → ANANDRAO? (here: ANAND – the driver's first name)
   assert.ok(P.gsRecordP(['ANND'], [['Driver', 'Anandrao Patil']], true) && !P.gsRecordP(['ANND'], [['Driver', 'Anandrao Patil']], false));
+});
+
+test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the list kept with an entry; the page and the server know the same 4 photos; a photo is refused where it cannot be kept', () => {
+  const { T, ctx } = require('./harness.js');
+  const fs = require('fs'), path = require('path');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // the AI's answer (only numbers ≥ 0; the reading(s) the machinery is measured by)
+  const ans = (t, km, hr) => run('(t, a, b) => meterAnswer_(t, a, b)', t, km, hr);
+  assert.deepStrictEqual(ans('{"km": 45173.4, "hrs": null}', true, false), { km: 45173.4, hr: null });
+  assert.deepStrictEqual(ans('```json\n{"km": null, "hrs": "3,714.5"}\n```', false, true), { km: null, hr: 3714.5 });
+  assert.deepStrictEqual(ans('The reading is {"km": 120, "hrs": 88.2} as shown', true, true), { km: 120, hr: 88.2 });
+  assert.deepStrictEqual(ans('{"km": 120, "hrs": 88.2}', false, true), { km: null, hr: 88.2 }, 'a KM the machinery is not measured by is not put in');
+  assert.deepStrictEqual(ans('{"km": -5, "hrs": "abc"}', true, true), { km: null, hr: null });
+  assert.deepStrictEqual(ans('I cannot see a meter', true, true), { km: null, hr: null });
+  assert.deepStrictEqual(ans('{"km": "", "hrs": null}', true, true), { km: null, hr: null }, 'an empty text is not 0');
+  // the list kept with an entry: only the 4 kinds and real names of the store
+  const P = '2026-10/3d7333fb-7e7b-4666-9174-de383d96c72f.jpg';
+  assert.strictEqual(run('v => photoList_(v).length', JSON.stringify([{ k: 'dash', p: P }, { k: 'xx', p: P }, { k: 'veh', p: '../../etc/passwd' }])), 1);
+  assert.strictEqual(run('v => photoList_(v).length', 'not a list'), 0);
+  assert.strictEqual(run('v => photoList_(v).length', ''), 0);
+  // the same 4 photos on the page and in the server, in the same order
+  const app = fs.readFileSync(path.join(__dirname, '..', 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8');
+  const pageKinds = [...(/const PH_KINDS = \[(.*)\];/.exec(app) || ['', ''])[1].matchAll(/\['(\w+)'/g)].map(m => m[1]);
+  assert.deepStrictEqual(pageKinds, ['dash', 'veh', 'pump', 'reg']);
+  assert.deepStrictEqual(run('() => Object.keys(PHOTO_KINDS_)'), pageKinds);
+  // a photo that this user did not send (or a copy where photos cannot be kept): the save is refused, nothing is saved; without photos as before
+  run('() => saveMaster_({ no: "PH-1", name: "Tipper", type: "Tipper", unit: "KM", worksOn: ["KM"], kmStd: 3, owner: "RCL", ownership: "Own", status: "Active", activeFrom: "2026-01-01" }, "add")');
+  const before = run('() => getDieselIssues_({ no: "PH-1", all: true }).count');
+  assert.throws(() => run('x => saveDieselIssue_(x, { email: "a@b.c" })', { date: '2026-06-01', shift: 'Day', source: 'Dispenser', no: 'PH-1', qty: 10, kmReading: 100, force: true, photos: [{ k: 'dash', p: P }] }), /not taken by you|kept in Supabase only/);
+  assert.strictEqual(run('() => getDieselIssues_({ no: "PH-1", all: true }).count'), before, 'nothing was saved');
+  const ok = run('x => saveDieselIssue_(x)', { date: '2026-06-01', shift: 'Day', source: 'Dispenser', no: 'PH-1', qty: 10, kmReading: 100, force: true });
+  assert.ok(ok.ok && ok.id, 'an entry without photos is saved as before');
+  // the AI reads the dashboard photo AFTER it is kept, as its own question (a slow AI never holds up the photo or the Save);
+  // not for a Debit Basis machinery (it has no reading); a photo belongs to one machinery and goes with one entry
+  assert.match(app, /if \(k === 'dash'\) \{[^\n]*if \(m\.supply !== 'Debit Basis'\) phAskMeter\(/);
+  assert.match(code, /getMeterReading:\s+\{ m: 'Diesel Issue', withUser: true, f: \(u, x\) => meterReading_\(u, x\) \}/);
+  assert.ok(!/aiReadMeter_/.test(code.slice(code.indexOf('function uploadDieselPhoto_'), code.indexOf('function meterReading_'))), 'the upload does not wait for the AI');
+  assert.match(code, /rec\.no !== mId/); assert.match(code, /pc\.remove\('PH_' \+ x\.p\)/);
+  // a photo being sent is tried again 3 times (a question), not for ever (a save) – the page's shell and the server agree
+  const shell = fs.readFileSync(path.join(__dirname, '..', 'server', 'page.js'), 'utf8'), rt = fs.readFileSync(path.join(__dirname, '..', 'server', 'runtime.js'), 'utf8');
+  assert.match(shell, /'logPrintExtra', 'dieselPhoto'\]/); assert.match(rt, /'logPrintExtra', 'dieselPhoto'\]/);
+  // the database step of this update: shown in the app's Read Me word for word; it only ADDS (a column, a private bucket)
+  const sqlFile = fs.readFileSync(path.join(__dirname, '..', 'sql', 'supabase_step1x_diesel_photos.sql'), 'utf8');
+  const listed = new Function(fs.readFileSync(path.join(__dirname, '..', 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1x_diesel_photos.sql');
+  assert.ok(listed && listed.sql === sqlFile, 'step 1x is in Read Me, word for word');
+  const sqlCode = sqlFile.split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
+  assert.ok(!/\b(drop|truncate|delete|update)\b/i.test(sqlCode), 'nothing is dropped, emptied or changed');
+  assert.match(sqlCode, /add column if not exists photos text/); assert.match(sqlCode, /'diesel-photos', 'diesel-photos', false, 2097152, array\['image\/jpeg'\]/); assert.match(sqlCode, /on conflict \(id\) do nothing/);
 });

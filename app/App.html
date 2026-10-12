@@ -1236,6 +1236,42 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .dhist { margin: 10px 0 2px; padding: 10px 12px; border: 1px solid #FED7AA; background: #FFF7ED; border-radius: 12px; font-size: 13px; }
   .dhist .dh-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-bottom: 6px; } .dhist .dh-head b:first-child { font-size: 13.5px; }
   .dhist .dh-head span { color: #7C2D12; } .dhist small { color: #9A3412; }
+  /* update-85: the 4 photos of a diesel issue, the AI reading, the location screen */
+  .dph { margin: 12px 0 4px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #F8FAFC; }
+  .dph-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; margin-bottom: 10px; font-size: 13px; }
+  .dph-head b { font-size: 14px; }
+  .dph-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  @media (max-width: 720px) { .dph-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .dph-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 120px; padding: 10px 8px; border: 2px dashed #94A3B8; border-radius: 12px; background: #fff; color: var(--ink); font: 600 14px var(--ui); cursor: pointer; overflow: hidden; text-align: center; }
+  .dph-tile:active { transform: scale(.98); }
+  .dph-tile .dph-ic { font-size: 30px; line-height: 1; }
+  .dph-tile .dph-st { font-size: 12.5px; font-weight: 500; color: #1D4ED8; }
+  .dph-tile.done { border-style: solid; border-color: var(--good); padding: 0; }
+  .dph-tile.done img { width: 100%; height: 120px; object-fit: cover; display: block; }
+  .dph-tile.done .dph-lbl { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 6px; background: rgba(0,0,0,.66); color: #fff; font-size: 12px; font-weight: 500; }
+  .dph-tile.done .dph-ok { position: absolute; top: 6px; right: 6px; background: var(--good); color: #fff; border-radius: 999px; padding: 1px 9px; font-size: 13px; }
+  .dph-tile.busy { cursor: progress; }
+  .dph-tile.busy .dph-st { color: var(--muted); }
+  .dph-tile.busy .dph-st::after { content: ''; display: inline-block; width: 12px; height: 12px; margin-left: 6px; border: 2px solid #94A3B8; border-top-color: transparent; border-radius: 50%; animation: dphspin .8s linear infinite; vertical-align: -2px; }
+  @keyframes dphspin { to { transform: rotate(360deg); } }
+  .dph-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .d-ainote { margin: 0; align-self: start; padding: 8px 12px; border-radius: 10px; background: #EFF6FF; border: 1px solid #BFDBFE; font-size: 13px; color: #1E3A8A; }
+  .d-ainote.warn { background: #FFFBEB; border-color: #FDE68A; color: #78350F; }
+  input.ai-read { outline: 2px solid #60A5FA; outline-offset: 1px; background: #EFF6FF; }
+  .d-phbtn { white-space: nowrap; font-size: 12.5px; }
+  .phv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 640px) { .phv-grid { grid-template-columns: 1fr; } }
+  .phv-grid figure { margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }
+  .phv-grid img { width: 100%; max-height: 60vh; object-fit: contain; display: block; background: #0F172A; }
+  .phv-grid figcaption { padding: 6px 10px; font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+  .phv-grid figcaption b { color: var(--ink); }
+  #loc_block { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; padding: 16px; background: rgba(15,23,42,.94); }
+  #loc_block[hidden] { display: none; }
+  .loc-box { max-width: 460px; width: 100%; background: #fff; border-radius: 16px; padding: 22px 20px; text-align: center; color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+  .loc-box .loc-ic { font-size: 44px; line-height: 1.1; } .loc-box h2 { margin: 6px 0 10px; font: 700 22px var(--ui); }
+  .loc-box p { margin: 8px 0; font-size: 14.5px; line-height: 1.45; } .loc-box p.loc-en { color: var(--muted); font-size: 13px; }
+  .loc-box .btn { margin-top: 12px; min-width: 210px; min-height: 46px; font-size: 16px; }
+
   .dhist table.dh-t { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
   .dhist table.dh-t th, .dhist table.dh-t td { padding: 5px 8px; border-bottom: 1px solid #FDE7D3; font-size: 12.5px; text-align: left; } .dhist table.dh-t .n { text-align: right; }
   .dhist .small { font-size: 12px; margin: 4px 0 0; }
@@ -2507,6 +2543,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   </div>
   <i class="oc-bar oc-top"></i><i class="oc-bar oc-bot"></i>
   <button type="button" id="oc_skip">Skip</button>
+</div>
+<!-- update-85: the app opens only with the location on (asked 12-10-2026) -->
+<div id="loc_block" hidden role="alertdialog" aria-modal="true" aria-labelledby="loc_t">
+  <div class="loc-box">
+    <div class="loc-ic" aria-hidden="true">📍</div>
+    <h2 id="loc_t">Location चालू करा</h2>
+    <p id="loc_mr"></p>
+    <p id="loc_hi"></p>
+    <p id="loc_en" class="loc-en"></p>
+    <button class="btn primary" id="loc_again" type="button">पुन्हा तपासा / Check again</button>
+  </div>
 </div>
 <div id="login_screen">
   <!-- Left panel – image (from the given design) -->
@@ -3784,11 +3831,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       </div>
       <div class="d-debit" id="d_debit" hidden>Debit Basis – no reading needed. All diesel given to this machinery is debited to the vendor (as per BOQ).</div>
       <div class="dhist" id="d_hist" hidden></div>
+      <div class="dph" id="d_ph" hidden>
+        <div class="dph-head"><b>Photos</b><span class="muted">Take each one with the camera now – the date, time and place are printed on it. The dashboard photo fills the reading.</span></div>
+        <div class="dph-grid" id="d_ph_grid"></div>
+        <input type="file" id="d_ph_in" class="dph-in" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+      </div>
       <div class="grid" style="margin-top:14px">
         <div class="field"><label for="d_qty">Diesel Qty (Ltr) <span class="req">*</span></label><input id="d_qty" type="number" step="0.01" min="0"></div>
         <div class="field d-way-f" id="d_way_w" hidden><label>Measured by <span class="req">*</span></label><div id="d_way"></div></div>
         <div class="field" id="d_km_wrap" hidden><label for="d_km">KM Reading <span class="req">*</span></label><input id="d_km" type="number" step="0.01" min="0"></div>
         <div class="field" id="d_hr_wrap" hidden><label for="d_hr">Hrs Reading <span class="req">*</span></label><input id="d_hr" type="number" step="0.01" min="0"></div>
+        <p class="field wide d-ainote" id="d_ai_note" hidden></p>
         <div class="field"><label for="d_driver">Driver Name</label><input id="d_driver" list="dl_drivers" autocomplete="off"></div>
         <div class="field"><label for="d_balance">Balance (Ltr)</label><input id="d_balance" class="balbox" readonly tabindex="-1"></div>
         <div class="field wide"><label for="d_remark">Remark</label><input id="d_remark" autocomplete="off"></div>
@@ -4647,6 +4700,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Shown: under every red message (a card at the bottom right), inside every "Nothing saved / Not submitted" box, and next
    * to warnings on the billing page. The language is remembered on this device (rcl_lang). To cover a new message: add a rule. */
   const FIX_RULES = [
+    { re: /no location|location of the phone|location could not be found/i,      // update-85: a photo without the place it was taken
+      en: ['The photo has no location, so it was not kept.', 'Every photo of a diesel issue carries the place it was taken. Turn on the location (GPS) of the phone, allow Location for this site in the browser, and take the photo again.'],
+      mr: ['Photo ला location नाही, म्हणून तो ठेवला गेला नाही.', 'Diesel issue च्या प्रत्येक photo सोबत तो कुठे काढला ते ठिकाण लागते. Phone चे Location (GPS) चालू करा, browser मध्ये या site ला Location ची परवानगी द्या, आणि photo पुन्हा काढा.'],
+      hi: ['Photo में location नहीं है, इसलिए वह रखी नहीं गई।', 'Diesel issue की हर photo के साथ वह कहाँ ली गई वह जगह चाहिए। Phone का Location (GPS) चालू करें, browser में इस site को Location की अनुमति दें, और photo दोबारा लें।'] },
+    { re: /could not read the meter/i,      // update-85: the AI reading of the dashboard photo
+      en: ['The AI could not read the reading on the dashboard photo.', 'Nothing is wrong with the entry. Type the KM / Hrs reading yourself, or take the dashboard photo again – closer, without glare, with the digits sharp.'],
+      mr: ['Dashboard च्या photo वरचे reading AI ला वाचता आले नाही.', 'Entry मध्ये काही चूक नाही. KM / Hrs reading स्वतः टाइप करा, किंवा dashboard चा photo पुन्हा काढा – जवळून, चमक न येता, आकडे स्पष्ट दिसतील असा.'],
+      hi: ['Dashboard की photo पर की reading AI पढ़ नहीं सका।', 'Entry में कोई गलती नहीं है। KM / Hrs reading खुद टाइप करें, या dashboard की photo दोबारा लें – पास से, चमक के बिना, अंक साफ़ दिखें ऐसी।'] },
+    { re: /photo (store|must be|is too big|was not taken|cannot be)|photos could not be opened|4 photos|Photos are kept in Supabase|photos of a diesel issue cannot|taken with the camera just now|take the photo with the camera/i,      // update-85: the photos of a diesel issue
+      en: ['The photo could not be used.', 'Take the photo again with the camera of this phone (not from the gallery), for this entry, and wait for the ✓ on its tile before saving. A photo is kept for the entry only if you took it within the last 6 hours. If it says a database step is needed, tell the Admin.'],
+      mr: ['हा photo वापरता आला नाही.', 'या phone च्या camera ने (gallery मधून नाही) याच entry साठी photo पुन्हा काढा, आणि save करण्यापूर्वी त्या tile वर ✓ येईपर्यंत थांबा. तुम्ही गेल्या 6 तासांत काढलेला photo च entry सोबत ठेवला जातो. Database step लागेल असे लिहिले असेल तर Admin ला सांगा.'],
+      hi: ['यह photo इस्तेमाल नहीं हो सकी।', 'इस phone के camera से (gallery से नहीं) इसी entry के लिए photo दोबारा लें, और save करने से पहले उस tile पर ✓ आने तक रुकें। आपकी पिछले 6 घंटों में ली गई photo ही entry के साथ रखी जाती है। Database step चाहिए लिखा हो तो Admin को बताएँ।'] },
     { re: /two machinery cannot|already has records in the app|Machinery Number \/ Name under/i,
       en: ['The new Machinery Number cannot be used.', 'A number belongs to one machinery only. If it says "already in Master": another machinery has this number – check which of the two is right. If it says "already has records": entries of a machinery that was deleted from Asset Master are still kept under this number, and the two would be mixed – choose another number. Nothing was changed.'],
       mr: ['हा नवीन Machinery Number वापरता येत नाही.', 'एक नंबर एकाच गाडीचा असतो. "already in Master" असेल तर: हा नंबर दुसऱ्या गाडीला आधीच आहे; दोघांपैकी कोणता बरोबर ते तपासा. "already has records" असेल तर: Asset Master मधून काढलेल्या एका गाडीच्या entries अजून या नंबरखाली आहेत, आणि दोन्ही गाड्यांचा data मिसळेल; दुसरा नंबर निवडा. काहीही बदललेले नाही.'],
@@ -5076,10 +5141,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Diesel moved from one location to another (for example Dispenser to VTR Store).', 'The source must have that much diesel on that date; From and To cannot be the same. Stock goes down at the source and up at the destination.'],
       mr: ['एका location वरून दुसऱ्या location ला हलवलेले diesel (उदा. Dispenser वरून VTR Store).', 'त्या तारखेला source मध्ये तेवढे diesel असले पाहिजे; From आणि To सारखे असू शकत नाहीत. Source चा stock कमी होतो आणि destination चा वाढतो.'],
       hi: ['एक location से दूसरे location को भेजा गया diesel (जैसे Dispenser से VTR Store)।', 'उस तारीख को source में उतना diesel होना चाहिए; From और To एक जैसे नहीं हो सकते। Source का stock घटता है और destination का बढ़ता है।'] },
-    diesel: { saves: ['saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'updateDieselIssue', 'deleteDieselIssue', 'saveDebitRates'],
-      en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period.'],
-      mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते.'],
-      hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है।'] },
+    diesel: { saves: ['saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'updateDieselIssue', 'deleteDieselIssue', 'saveDebitRates', 'dieselPhoto', 'getMeterReading', 'getDieselPhotos'],
+      en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period. Photos (One entry, after picking the machinery): Dashboard, Vehicle + driver, Dispenser litres and Register – each taken with the camera there and then (not from the gallery), with the date, time and place printed on it; the AI reads the reading on the dashboard photo and puts it in the box (blue) – check it, type over it if it is wrong. 📷 in the list opens the photos of an entry.'],
+      mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते. Photos (One entry मध्ये, machinery निवडल्यावर): Dashboard, गाडी + driver, Dispenser वरचे लिटर आणि Register – प्रत्येक त्याच वेळी camera ने काढायचा (gallery मधून नाही); त्यावर तारीख, वेळ आणि ठिकाण छापले जाते. Dashboard च्या photo वरचे reading AI वाचून box मध्ये (निळ्या रंगात) भरते – ते तपासा, चुकले तर बदला. यादीतले 📷 दाबले की त्या entry चे photo दिसतात.'],
+      hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है। Photos (One entry में, machinery चुनने के बाद): Dashboard, गाड़ी + driver, Dispenser के लीटर और Register – हर एक उसी समय camera से लेना है (gallery से नहीं); उस पर तारीख, समय और जगह छपती है। Dashboard की photo पर की reading AI पढ़कर box में (नीले रंग में) भरता है – उसे जाँचें, गलत हो तो बदलें। सूची का 📷 दबाने पर उस entry की photos दिखती हैं।'] },
     log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook'],
       en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic). A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) that worked TWO OR MORE TIMES in one shift (e.g. Breaker 100 → 102, then 110 → 113): add a second row for the same machinery, date and shift and type its own Start and Close – it may start higher than the row above; the hours in between (102 → 110) are not counted, so that day is 5 hours (bill and diesel). For such a machinery, changing or deleting an entry never changes another date: if a Close comes above the Start of the next entry, the app says so and saves nothing. In such a shift a row may also be by Time (e.g. Bucket 09:00 – 11:00 when the meter gave no reading, then Breaker 3714.5 → 3717.5): its hours are added (2 + 3 = 5 hours); the Start and Close of the entry come from its rows by Hrs, and the next day starts at the last Close.'],
       mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप). Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ने (JCB, excavator, breaker) एकाच shift मध्ये दोन किंवा जास्त वेळा काम केले असेल (उदा. Breaker 100 → 102, मग 110 → 113): त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा आणि तिचे स्वतःचे Start आणि Close टाका – ते वरच्या ओळीच्या Close पेक्षा जास्त असू शकते; मधले तास (102 → 110) धरले जात नाहीत, म्हणून तो दिवस 5 तासांचा (bill आणि diesel). अशा machinery ची entry बदलली किंवा delete केली तरी दुसरी तारीख कधीच बदलत नाही: Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर app तसे सांगते आणि काहीही save करत नाही. अशा shift मध्ये एखादी ओळ Time वर पण असू शकते (उदा. meter ने reading दिले नाही तेव्हा Bucket 09:00 – 11:00, मग Breaker 3714.5 → 3717.5): त्या ओळीचे तास जोडले जातात (2 + 3 = 5 तास); entry चे Start आणि Close तिच्या Hrs ओळींवरून येतात, आणि पुढचा दिवस शेवटच्या Close पासून सुरू होतो.'],
@@ -7256,7 +7321,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (t.closest('.filters, .toolbar, .rfilters, .dshare-head, .lf-dates, .selbar') || /^(df|if|tf|lf|mf|tcf)_/.test(t.id || '') || t.id === 'm_search' || t.type === 'file') return;
     S.formDirty = true;
   }, true);
-  function formDirty() { return !!S.formDirty || (typeof LX !== 'undefined' && LX && LX.d && typeof lxDirty === 'function' && lxDirty()); }
+  function formDirty() { return !!S.formDirty || (typeof LX !== 'undefined' && LX && LX.d && typeof lxDirty === 'function' && lxDirty()) ||
+    (typeof PH !== 'undefined' && !!PH && (Object.keys(PH.items).length > 0 || phSending())); }      // (update-85: photos taken and not saved yet)
   // the shell asks these before it swaps in a new version
   window.rclBusy = () => formDirty() || !$('cf_back').hidden || rtcOn();
   window.rclBusyWhy = () => { try { return !formDirty() && $('cf_back').hidden && rtcOn() ? 'call' : ''; } catch (e) { return ''; } };      // (a screen share that is on is not cut off by a new version of the app)
@@ -12561,6 +12627,77 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   });
   window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 
+  /* ---------- LOCATION (update-85, asked 12-10-2026: "location band asel tr app open nahi honar") ----------
+   * The app opens only with the location on – for every user, on a phone and on a computer. It is checked when the app opens and
+   * each time it is looked at again (back to the tab, the phone unlocked); a "no" covers the whole app with what to do (Marathi,
+   * Hindi, English) and "Check again". It is NOT watched all the time – that empties a phone's battery. A photo takes the place of
+   * that very moment (locNow). */
+  const LOC = { pos: null, at: 0 };
+  const LOC_TEXT = {
+    checking: ['Location शोधत आहे…', 'Location ढूँढ रहे हैं…', 'Finding your location…'],
+    1: ['हे app फक्त location सोबत उघडते. Browser मध्ये या site ला Location ची परवानगी द्या (address शेजारच्या कुलूपावर दाबा → Location → Allow), मग "पुन्हा तपासा" दाबा.',
+      'यह app केवल location के साथ खुलता है। Browser में इस site को Location की अनुमति दें (address के पास ताले पर दबाएँ → Location → Allow), फिर "पुन्हा तपासा" दबाएँ।',
+      'This app opens only with the location. Allow Location for this site in the browser (the lock next to the address → Location → Allow), then press Check again.'],
+    2: ['Phone / computer चे Location (GPS) बंद आहे. ते चालू करा, मग "पुन्हा तपासा" दाबा.',
+      'Phone / computer का Location (GPS) बंद है। उसे चालू करें, फिर "पुन्हा तपासा" दबाएँ।',
+      'The location (GPS) of the phone / computer is off. Turn it on, then press Check again.'],
+    3: ['Location वेळेत मिळाले नाही. Location चालू आहे ते तपासा, मोकळ्या जागी जा, मग "पुन्हा तपासा" दाबा.',
+      'Location समय पर नहीं मिला। Location चालू है यह जाँचें, खुली जगह पर जाएँ, फिर "पुन्हा तपासा" दबाएँ।',
+      'The location could not be found in time. Check that it is on, go to an open place, then press Check again.'],
+    none: ['हा browser location देत नाही – app Chrome मध्ये उघडा.', 'यह browser location नहीं देता – app Chrome में खोलें।', 'This browser cannot give the location – open the app in Chrome.'],
+  };
+  let locTimer = null;
+  function locShow(code) {
+    const t = LOC_TEXT[code] || LOC_TEXT[2];
+    $('loc_mr').textContent = t[0]; $('loc_hi').textContent = t[1]; $('loc_en').textContent = t[2];
+    $('loc_again').hidden = code === 'checking';
+    $('loc_block').hidden = false;
+    clearTimeout(locTimer);
+    if (code === 'checking') locTimer = setTimeout(() => { if (!$('loc_block').hidden) $('loc_again').hidden = false; }, 25000);      // the browser never answered: "Check again" comes back
+  }
+  /* A "no" that is not the person's: an app that was open BEFORE this update keeps its outer page from then – that page did not
+   * let the app ask for the location, and a new version only renews the app inside it. The whole page is then loaded once more
+   * (at most once in 5 minutes), which brings the outer page that allows it. */
+  function locFrameBlocked() { try { const fp = document.permissionsPolicy || document.featurePolicy; return !!(fp && typeof fp.allowsFeature === 'function' && !fp.allowsFeature('geolocation')); } catch (e) { return false; } }
+  function locReloadOnce() { try { const k = 'oc_loc_reload', last = Number(sessionStorage.getItem(k) || 0); if (Date.now() - last < 300000) return false; sessionStorage.setItem(k, String(Date.now())); window.top.location.reload(); return true; } catch (e) { return false; } }
+  async function locDenied() {
+    let st = ''; try { st = (await navigator.permissions.query({ name: 'geolocation' })).state; } catch (e) { st = ''; }
+    if ((locFrameBlocked() || st === 'granted') && locReloadOnce()) return;
+    locShow(1);
+  }
+  function locKeep(p) { LOC.pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }; LOC.at = Date.now(); $('loc_block').hidden = true; }
+  function locAsk(o) { return new Promise((ok, no) => { if (!navigator.geolocation) { no({ code: 'none' }); return; } navigator.geolocation.getCurrentPosition(ok, no, o); }); }
+  let locBusy = null;
+  function locCheck() {
+    if (locBusy) return locBusy;
+    if (!LOC.pos) locShow('checking');
+    locBusy = locAsk({ enableHighAccuracy: false, maximumAge: 600000, timeout: 20000 })
+      .then(p => { locKeep(p); return true; }, e => { LOC.pos = null; if (e && e.code === 1) locDenied(); else locShow(e && e.code ? e.code : 2); return false; })
+      .finally(() => { locBusy = null; });
+    return locBusy;
+  }
+  /* the place of THIS moment (a photo): the GPS fix (of the last 30 seconds or a fresh one). The GPS slow (in a shed, under a
+   * roof): the phone's quicker place, or the one of the last 2 minutes. Location off / not allowed → the location screen; only
+   * slow → a message, the app stays open. null = no place: the photo is not taken. */
+  async function locNow() {
+    const fresh = () => Object.assign({}, LOC.pos);
+    try { const p = await locAsk({ enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 }); locKeep(p); return fresh(); }
+    catch (e) {
+      if (e && e.code === 1) { LOC.pos = null; locDenied(); return null; }
+      if (e && e.code === 'none') { LOC.pos = null; locShow('none'); return null; }
+      try { const p = await locAsk({ enableHighAccuracy: false, maximumAge: 120000, timeout: 10000 }); locKeep(p); return fresh(); }
+      catch (e2) {
+        if (e2 && e2.code === 1) { LOC.pos = null; locDenied(); return null; }
+        if (LOC.pos && Date.now() - LOC.at < 120000) return fresh();
+        if (e2 && e2.code === 2) { LOC.pos = null; locShow(2); return null; }
+        toast('The location could not be found just now – go to an open place and take the photo again.', true); return null;
+      }
+    }
+  }
+  $('loc_again').addEventListener('click', () => locCheck());
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') locCheck(); });
+  try { navigator.permissions.query({ name: 'geolocation' }).then(st => { st.onchange = () => { if (st.state === 'denied') { LOC.pos = null; locShow(1); } else locCheck(); }; }).catch(() => { /* checked on open and on return */ }); } catch (e) { /* an older browser: checked on open and on return */ }
+
   /* ---------- init ---------- */
   async function init() {
     showBoot(true, 'Filling up your data');
@@ -13021,14 +13158,137 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const prob = activeProblem(m, $('d_date').value);
     $('d_inactive').hidden = !prob; $('d_inactive').textContent = prob;
     dhShow('d_hist', val('d_no'), $('d_date').value);
+    phShow();      // (update-85) the photos of this fill
   }
   // the reading box(es) of the way picked: KM, Hrs, both, or none (Time / Trip / Day)
   function dieselWayShow(way, debit) {
     $('d_km_wrap').hidden = debit || !hasKm(way); $('d_hr_wrap').hidden = debit || !hasHr(way);
     if (!hasKm(way)) $('d_km').value = ''; if (!hasHr(way)) $('d_hr').value = '';
+    if (typeof phApplyRead === 'function') phApplyRead();      // (update-85) the reading the AI read on the dashboard photo goes into the box now shown
   }
   $('d_way').addEventListener('waychange', e => dieselWayShow(e.detail, false));
   function meterBoxes() { /* the KM / Hrs reading at the fill is the reading – no separate dispenser reading */ }
+  /* ---------- THE 4 PHOTOS OF A DIESEL ISSUE (update-85, asked 12-10-2026) ----------
+   * Dashboard (meter) · Vehicle + driver · Dispenser litres · Register. Each is taken with the camera there and then (a picture
+   * from the gallery – older than 3 minutes – is refused), made smaller (1600 px, JPG of about 300 KB: the digits and the writing
+   * stay clear), and the date, time, place and machinery are printed on a band under it. It is sent at once; the tile shows it ✓.
+   * The dashboard photo is read by the AI: the reading goes into the KM / Hrs box (blue) to be checked – typing over it changes it.
+   * The photos go with the entry when it is saved. Only for a NEW entry in "One entry" (an edit keeps the photos the entry has).
+   * Not compulsory yet (the owner will say when). */
+  const PH_KINDS = [['dash', 'Dashboard', '🧭'], ['veh', 'Vehicle + driver', '🚚'], ['pump', 'Dispenser litres', '⛽'], ['reg', 'Register', '📒']];
+  const PH = { no: null, items: {}, busy: {}, read: null, cur: null };
+  function phClear() {
+    Object.keys(PH.items).forEach(k => { try { URL.revokeObjectURL(PH.items[k].url); } catch (e) { /* already gone */ } });
+    PH.items = {}; PH.busy = {}; PH.read = null; PH.no = null;
+    ['d_km', 'd_hr'].forEach(id => { $(id).classList.remove('ai-read'); delete $(id).dataset.ai; });
+    $('d_ai_note').hidden = true; phPaint();
+  }
+  function phSending() { return Object.keys(PH.busy).some(k => PH.busy[k]); }
+  function phList(no) { return PH.no === no ? PH_KINDS.map(x => x[0]).filter(k => PH.items[k]).map(k => ({ k: k, p: PH.items[k].path })) : []; }
+  function phShow() {
+    const m = findMachine(val('d_no')), on = !!m && !S.editDieselId && canEdit('Diesel Issue');
+    if (PH.no && (!m || m.id !== PH.no) && Object.keys(PH.items).length) { const was = PH.no; phClear(); toast('Machinery changed – the photos taken for ' + was + ' were removed. Take them again.'); }
+    PH.no = m && !S.editDieselId ? m.id : null;
+    $('d_ph').hidden = !on; phPaint();
+  }
+  function phPaint() {
+    const g = $('d_ph_grid'); if (!g) return;
+    g.innerHTML = PH_KINDS.map(([k, label, ic]) => {
+      const it = PH.items[k], b = PH.busy[k];
+      return '<button type="button" class="dph-tile' + (it && !b ? ' done' : '') + (b ? ' busy' : '') + '" data-phk="' + k + '"' + (b ? ' disabled' : '') + ' aria-label="' + esc(label) + ' photo"' + (it && !b ? ' title="Tap to take it again"' : '') + '>' +
+        (it && !b ? '<img src="' + esc(it.url) + '" alt=""><span class="dph-ok">✓</span><span class="dph-lbl">' + esc(label) + '</span>'
+          : '<span class="dph-ic" aria-hidden="true">' + ic + '</span><span class="dph-lbl">' + esc(label) + '</span><span class="dph-st">' + (b ? 'Sending' : '📷 Take photo') + '</span>') + '</button>';
+    }).join('');
+  }
+  $('d_ph_grid').addEventListener('click', e => {
+    const t = e.target.closest('[data-phk]'); if (!t || t.disabled) return;
+    PH.cur = t.dataset.phk; const i = $('d_ph_in'); i.value = ''; i.click();
+  });
+  $('d_ph_in').addEventListener('change', () => { const i = $('d_ph_in'), f = i.files && i.files[0], k = PH.cur; if (f && k) phTake(k, f); });
+  const phStamp = d => String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear() + ' ' + d.toTimeString().slice(0, 8);
+  async function phTake(k, file) {
+    const m = findMachine(val('d_no')); if (!m || PH.no !== m.id) return;
+    const label = PH_KINDS.find(x => x[0] === k)[1];
+    if (file.type && !/^image\//.test(file.type)) { await showAlert('Not a photo', 'Press the tile and take the photo with the camera.'); return; }
+    if (file.lastModified && Date.now() - file.lastModified > 180000) { await showAlert('Take the photo now', 'Only a photo taken with the camera just now can be used – not one from the gallery. Press the tile and take the photo.'); return; }
+    PH.busy[k] = true; phPaint();
+    try {
+      const pos = await locNow(); if (!pos) return;
+      const at = new Date();
+      const pic = await phMake(file, [phStamp(at) + '  ·  ' + label + '  ·  ' + m.id, 'Lat ' + pos.lat.toFixed(6) + ', Long ' + pos.lng.toFixed(6) + (pos.acc ? '  (± ' + Math.round(pos.acc) + ' m)' : '')]);
+      if (PH.no !== m.id) { URL.revokeObjectURL(pic.url); return; }      // the machinery was changed meanwhile
+      let res;
+      try { res = await call('dieselPhoto', { kind: k, data: pic.data, lat: pos.lat, lng: pos.lng, acc: pos.acc, at: at.toISOString(), no: m.id }); }
+      catch (e) { URL.revokeObjectURL(pic.url); throw e; }
+      if (PH.no !== m.id) { URL.revokeObjectURL(pic.url); return; }
+      if (PH.items[k]) URL.revokeObjectURL(PH.items[k].url);
+      PH.items[k] = { path: res.path, url: pic.url, kb: Math.round(pic.bytes / 1024) };
+      if (k === 'dash') { PH.read = null; phApplyRead(); if (m.supply !== 'Debit Basis') phAskMeter(m.id, res.path, pic.data); }      // (Debit Basis: no reading)
+    } catch (e) { toast(errMsg(e), true); }
+    finally { PH.busy[k] = false; phPaint(); }
+  }
+  // the AI reads the meter – after the photo is kept, on its own: a slow AI never holds up the photo or the Save
+  async function phAskMeter(no, path, data) {
+    const note = $('d_ai_note'); note.classList.remove('warn'); note.textContent = 'The AI is reading the meter on the dashboard photo…'; note.hidden = false;
+    let r = null; try { r = await call('getMeterReading', { data: data, no: no }); } catch (e) { r = { error: errMsg(e) }; }
+    if (PH.no !== no || !PH.items.dash || PH.items.dash.path !== path) return;      // another photo or machinery meanwhile, or already saved
+    if (r && r.off) { note.hidden = true; return; }      // the AI is not set up on this site
+    PH.read = r; phApplyRead(true);
+  }
+  // the picture: smaller (longest side 1600 px), with a band under it – date, time, kind of photo, machinery; latitude, longitude
+  async function phMake(file, lines) {
+    let img = null, url0 = '';
+    const apple = /Apple/.test(navigator.vendor || '');      // Safari (iPhone): its picture turns the photo upright; its createImageBitmap may not
+    try { if (apple) throw new Error('img'); img = await createImageBitmap(file, Object.assign({ imageOrientation: 'from-image' }, file.size > 3e6 ? { resizeWidth: 1600, resizeQuality: 'high' } : {})); }
+    catch (e) { url0 = URL.createObjectURL(file); img = await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => no(new Error('This photo cannot be read – take the photo again.')); im.src = url0; }); }
+    try {
+      const W = img.width || img.naturalWidth, Hh = img.height || img.naturalHeight, sc = Math.min(1, 1600 / Math.max(W, Hh));
+      const w = Math.max(1, Math.round(W * sc)), h = Math.max(1, Math.round(Hh * sc)), band = Math.max(56, Math.round(w * 0.075));
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h + band;
+      const g = cv.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, w, h);
+      g.fillStyle = '#111827'; g.fillRect(0, h, w, band);
+      const fs = Math.round(band * 0.32), x = Math.round(fs * 0.6); g.fillStyle = '#FFFFFF'; g.textBaseline = 'middle';
+      g.font = '700 ' + fs + 'px Arial, sans-serif'; phFit(g, lines[0], x, h + band * 0.3, w - 2 * x);
+      g.font = '400 ' + Math.round(fs * 0.92) + 'px Arial, sans-serif'; phFit(g, lines[1], x, h + band * 0.72, w - 2 * x);
+      let blob = await new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.82));
+      if (blob && blob.size > 700 * 1024) blob = await new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.7));
+      if (!blob) throw new Error('This photo cannot be made ready – take the photo again.');
+      const data = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => no(new Error('This photo cannot be read – take the photo again.')); r.readAsDataURL(blob); });
+      return { data: data, url: URL.createObjectURL(blob), bytes: blob.size, w: w, h: h + band };
+    } finally { if (img && img.close) img.close(); if (url0) URL.revokeObjectURL(url0); }
+  }
+  function phFit(g, text, x, y, max) { let t = text; while (t.length > 4 && g.measureText(t).width > max) t = t.slice(0, -2); g.fillText(t === text ? t : t.slice(0, -1) + '…', x, y); }
+  // the reading the AI read on the dashboard photo → the KM / Hrs box shown (only an empty box, or one the AI filled before)
+  function phApplyRead(fresh) {
+    const r = PH.read, m = findMachine(val('d_no')), note = $('d_ai_note');
+    if (!r || !m || PH.no !== m.id) { note.hidden = true; return; }
+    if (r.error) { note.classList.add('warn'); note.textContent = 'The AI could not read the meter on the photo now – type the reading.'; note.hidden = false; return; }
+    const put = [], other = [];
+    [['d_km', 'd_km_wrap', r.km, 'km'], ['d_hr', 'd_hr_wrap', r.hr, 'hr']].forEach(([id, wrap, v, u]) => {
+      const el = $(id); if (v === null || v === undefined || $(wrap).hidden) return;
+      if (el.value === '' || el.dataset.ai === '1') { el.value = v; el.dataset.ai = '1'; el.classList.add('ai-read'); }
+      if (el.dataset.ai === '1') put.push(fmt(v) + ' ' + u); else if (Number(el.value) !== Number(v)) other.push(fmt(v) + ' ' + u + ' (the box has ' + fmt(Number(el.value)) + ')');
+    });
+    if (put.length) { note.classList.remove('warn'); note.textContent = 'AI read on the dashboard photo: ' + put.join(' and ') + ' – check it with the photo; type over it if it is wrong.'; note.hidden = false; }
+    else if (other.length) { note.classList.add('warn'); note.textContent = 'The AI read ' + other.join(' and ') + ' on the dashboard photo – check which is right.'; note.hidden = false; }
+    else if (fresh && r.km === null && r.hr === null) { note.classList.add('warn'); note.textContent = 'The AI could not read the meter clearly on the photo – type the reading (or take the dashboard photo again, closer).'; note.hidden = false; }
+    else note.hidden = true;
+    if (fresh) dieselAfterLine();
+  }
+  ['d_km', 'd_hr'].forEach(id => $(id).addEventListener('input', () => { const el = $(id); if (el.dataset.ai === '1') { el.dataset.ai = '0'; el.classList.remove('ai-read'); $('d_ai_note').hidden = true; } }));
+  // the photos of a saved fill: large, with when and where (the links open the pictures for 15 minutes)
+  async function phView(id) {
+    const d = await call('getDieselPhotos', id);
+    if (!d.photos || !d.photos.length) { toast('This entry has no photos.'); return; }
+    const when = x => { const t = new Date(x.at); return isNaN(t) ? '' : phStamp(t); };
+    const html = '<div class="phv-grid">' + d.photos.map(x => '<figure>' +
+      (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener" title="Open full size"><img src="' + esc(x.url) + '" alt="' + esc(x.label) + '" loading="lazy"></a>' : '<div class="none">The picture was not found.</div>') +
+      '<figcaption><b>' + esc(x.label) + '</b><span>' + esc(when(x)) + '</span>' +
+      (x.lat !== '' && x.lat !== null && x.lat !== undefined ? '<a href="https://www.google.com/maps?q=' + encodeURIComponent(x.lat + ',' + x.lng) + '" target="_blank" rel="noopener">📍 Map' + (x.acc !== '' && x.acc !== null && x.acc !== undefined ? ' (± ' + esc(x.acc) + ' m)' : '') + '</a>' : '') +
+      '</figcaption></figure>').join('') + '</div><p class="muted small">A picture opens full size when it is pressed. The links work for 15 minutes.</p>';
+    await askConfirm({ title: 'Photos – ' + d.id + ' · ' + d.no + ' · ' + showDate(d.date) + ' ' + d.shift + ' · ' + fmt(d.qty) + ' L', html: html, ok: 'Close', alertOnly: true, wide: true });
+  }
+
   // Before saving: every fill needs "Measured by", and the reading of that way (KM / Hrs); Debit Basis has none
   async function confirmReadings(list) {
     const miss = [];
@@ -13052,7 +13312,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const lockTag = L => L ? ' <span class="tag lk" title="In the submitted RA Bill ' + esc(L.billNo) + ' (' + esc(showDate(L.from)) + ' to ' + esc(showDate(L.to)) + ') – cannot be changed until that bill is deleted">RA Bill ' + esc(L.billNo) + '</span>' : '';
   function clearDiesel() {
     ['d_no', 'd_qty', 'd_km', 'd_hr', 'd_driver', 'd_remark'].forEach(id => $(id).value = '');
-    S.editDieselId = null;
+    S.editDieselId = null; phClear();
     $('d_title').textContent = 'Issue diesel'; $('d_save').textContent = 'Save diesel issue'; $('d_cancel').hidden = true;
     dieselMachineChanged(); dieselAfterLine(); refreshIssueBal(); $('d_no').focus();
   }
@@ -13060,7 +13320,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const r = (S.dieselRows || []).find(x => x.id === id); if (!r) return;
     if (r.lk && lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
     setDieselMode('one');
-    S.editDieselId = r.id;
+    S.editDieselId = r.id; phClear();
     $('d_date').value = r.date; $('d_shift').value = r.shift; $('d_src').value = r.source || S.locations[0];
     $('d_no').value = r.no; dieselMachineChanged();
     $('d_qty').value = r.qty; $('d_km').value = r.kmReading; $('d_hr').value = r.hrReading; 
@@ -13131,10 +13391,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function saveDiesel(force) {
     const m = findMachine(val('d_no'));
     if (!m) throw new Error('Pick a Machinery Number / Name from Master.');
+    if (phSending()) { toast('A photo is still being sent – wait a moment, then save.', true); return; }
     const prob = activeProblem(m, $('d_date').value);
     if (prob) { await showAlert('Machinery is not active', prob); return; }
     const d = { date: $('d_date').value, shift: $('d_shift').value, no: m.id, qty: numv('d_qty'),
       kmReading: numv('d_km'), hrReading: numv('d_hr'), driver: val('d_driver'), remark: val('d_remark'), source: $('d_src').value, force: !!force, mode: wayOf($('d_way')) };
+    if (!S.editDieselId) { const ph = phList(m.id); if (ph.length) d.photos = ph; }      // (update-85) the photos taken for this fill
     if (!(await confirmReadings([{ m: m, way: d.mode, km: d.kmReading, hr: d.hrReading, source: d.source }]))) return;
     if (S.bal && d.qty !== '' && d.qty > dieselAvailable()) {
       await showAlert('Not enough diesel in stock', 'At ' + d.source + ' for ' + showDate(d.date) + ' (' + d.shift + ') you can issue up to ' + fmt(dieselAvailable()) + ' Ltr, and you are issuing ' + fmt(d.qty) + ' Ltr. Add a Diesel Inward entry first or reduce the quantity.');
@@ -13178,7 +13440,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('d_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Total diesel: <b>' + fmt(res.totalQty) + ' Ltr</b>' +
         (res.count > rows.length ? ' &nbsp; (showing latest ' + rows.length + ' – narrow the filter to see the rest)' : '');
       $('d_rows').innerHTML = rows.length ? rows.map(r =>
-        '<tr><td>' + esc(r.id) + (r.lk ? lockTag(S.dieselLocks[r.lk]) : '') + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + '</td><td>' + esc(r.source) + '</td><td>' + esc(r.no) + '</td><td>' + esc(r.type) + '</td><td>' + esc(r.owner) + '</td><td>' + esc(r.driver) +
+        '<tr><td>' + esc(r.id) + (r.lk ? lockTag(S.dieselLocks[r.lk]) : '') + (r.ph ? ' <button type="button" class="link d-phbtn" data-dph="' + esc(r.id) + '" title="Photos of this fill">📷 ' + r.ph + '</button>' : '') + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + '</td><td>' + esc(r.source) + '</td><td>' + esc(r.no) + '</td><td>' + esc(r.type) + '</td><td>' + esc(r.owner) + '</td><td>' + esc(r.driver) +
         '</td><td class="n">' + fmt(r.qty) + '</td><td class="n">' + [r.kmReading !== '' ? fmt(r.kmReading) + ' km' : '', r.hrReading !== '' ? fmt(r.hrReading) + ' hr' : ''].filter(Boolean).join('<br>') +
         '</td><td class="n' + (r.balance !== '' && r.balance < 0 ? ' neg' : '') + '"><b>' + fmt(r.balance) + '</b></td><td>' + esc(r.remark) +
         '</td><td class="n">' + (S.dTotal > 0 ? fmt(r2((Number(r.qty) || 0) / S.dTotal * 100)) + '%' : '–') + '</td>' + byCell(r) + '<td>' + rowActions('Diesel Issue', 'data-dedit', 'data-ddel', r.id) + '</td></tr>').join('')
@@ -13215,6 +13477,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('d_clear').addEventListener('click', clearDiesel);
   $('d_cancel').addEventListener('click', clearDiesel);
   $('d_rows').addEventListener('click', e => {
+    const pv = e.target.closest('[data-dph]'); if (pv) { busy(pv, '…', () => phView(pv.dataset.dph)); return; }      // (update-85) the photos of a fill
     const ed = e.target.closest('[data-dedit]'); if (ed) { editDiesel(ed.dataset.dedit); return; }
     const dl = e.target.closest('[data-ddel]'); if (dl) busy(dl, 'Deleting…', () => deleteDiesel(dl.dataset.ddel));
   });
@@ -14408,6 +14671,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   // start: use the saved sign-in if it is still valid, otherwise show the sign-in screen
   try { S.token = localStorage.getItem('rcl_token') || sessionStorage.getItem('rcl_token') || ''; } catch (e) { S.token = ''; }
+  locCheck();      // (update-85) the app opens only with the location on
   if (S.token) init(); else showLogin('');
   /* ================= SCREEN SHARE WITH VOICE (update-72, asked 10-10-2026) =================
    * "A has a difficulty on a screen: he shares his screen with B, shows it and they talk – live. He picks whom from a list."

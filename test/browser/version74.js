@@ -14,7 +14,7 @@ const raw = async (base, body) => { for (let i = 0; ; i++) { try { return await 
   try { clean(); } catch (e) { out.push('clean: ' + String(e.message).slice(0, 200)); }
   await wait(1300);
   const admin = (await raw(url(pA), { fn: 'login', args: ['sujit@rcl.test', 'Nashik#Road848!'] })).result.token;
-  const mods = (await raw(url(pA), { fn: 'api', args: [admin, 'usersAdmin', []] })).result, MOD = (mods.modules || Object.keys((mods.users || [])[0].perms || {}));
+  const mods = (await raw(url(pA), { fn: 'api', args: [admin, 'usersAdmin', []] })).result, MOD = (mods.modules || Object.keys((mods.users || [])[0].perms || {})).map(m => (m && m.key) || m);      // (update-85: the list gives { key, label } – the page's NAME is the key; with the whole object no access was given, which update-84 made "No access")
   const p = {}; MOD.forEach(m => { p[m] = m === 'Log Book' || m === 'Dashboard' ? 'Edit' : 'None'; });
   const a = await raw(url(pA), { fn: 'api', args: [admin, 'saveUserAdmin', [{ email: 'v74bala@rcl.test', name: 'V74 Bala', active: true, admin: false, perms: p, isNew: true, newPassword: 'Temp#Bala1' }]] }); if (a.error) throw new Error(a.error);
   const l = await raw(url(pA), { fn: 'login', args: ['v74bala@rcl.test', 'Temp#Bala1'] }); const c = await raw(url(pA), { fn: 'changePassword', args: [l.result.token, 'Temp#Bala1', 'Own#Bala2468'] }); if (c.error) throw new Error(c.error);

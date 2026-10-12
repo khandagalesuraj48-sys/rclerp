@@ -222,8 +222,14 @@ const Utilities = {
   getUuid: () => crypto.randomUUID(),
   sleep: ms => sleepSync(Number(ms) || 0),
   computeDigest: (alg, value, charset) => signed(crypto.createHash(alg).update(toBytes(value, charset)).digest()),
-  newBlob: data => ({ getBytes: () => signed(Buffer.from(String(data), 'utf8')), getDataAsString: () => String(data) }),
+  // a blob of text, or (update-85) of bytes – a picture sent as the body of a request (UrlFetchApp payload)
+  newBlob: (data, type, name) => {
+    if (typeof data === 'string') return { getBytes: () => signed(Buffer.from(data, 'utf8')), getDataAsString: () => data, getContentType: () => type || 'text/plain', getName: () => name || '' };
+    const buf = Buffer.isBuffer(data) ? data : data && data.__bytes ? data.__bytes : toBytes(data || []);
+    return { getBytes: () => signed(buf), getDataAsString: () => buf.toString('utf8'), getContentType: () => type || 'application/octet-stream', getName: () => name || '', __bytes: buf };
+  },
   base64Encode: v => (typeof v === 'string' ? Buffer.from(v, 'utf8') : toBytes(v)).toString('base64'),
+  base64Decode: v => { const buf = Buffer.from(String(v), 'base64'), a = signed(buf); Object.defineProperty(a, '__bytes', { value: buf }); return a; },      // (the bytes kept with the list: a blob made of it uses them as they are)
 };
 
 /* ---------- UrlFetchApp ---------- */
@@ -232,7 +238,8 @@ function toReq(url, o) {
   const headers = Object.assign({}, o.headers || {});
   if (o.contentType && !headers['Content-Type']) headers['Content-Type'] = o.contentType;
   let body = o.payload;
-  if (body !== undefined && body !== null && typeof body !== 'string') body = JSON.stringify(body);
+  if (body && typeof body === 'object' && typeof body.getBytes === 'function') body = body.__bytes || toBytes(body.getBytes());      // a blob: its bytes as they are (a picture)
+  else if (body !== undefined && body !== null && typeof body !== 'string') body = JSON.stringify(body);
   return { url: String(url), method: String(o.method || (body !== undefined && body !== null ? 'POST' : 'GET')).toUpperCase(), headers: headers, body: body, mute: !!o.muteHttpExceptions };
 }
 function toRes(q, r) {
