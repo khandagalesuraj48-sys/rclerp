@@ -118,8 +118,9 @@ const BRIDGE = `
       for (var k in inFlight) { var x = inFlight[k]; if (x.fn === 'sync' || x.fn === 'getAppBuild') continue; if (now - x.t0 > oldest) { oldest = now - x.t0; what = x.fn; } }
       if (oldest > 500) {
         if (!bar) { if (!document.body) return; bar = document.createElement('div'); bar.id = 'rcl_wait'; bar.innerHTML = '<i></i><span></span>'; document.body.appendChild(bar); }
-        bar.hidden = false; var s = bar.lastChild, txt = oldest > 2500 ? 'Waiting for the server… ' + Math.round(oldest / 1000) + ' s' + (oldest > 6000 ? ' (' + what + ')' : '') : '';      // after 6 s it names what it waits for – that is what to tell the developer
-        if (s.textContent !== txt) s.textContent = txt; s.hidden = !txt;
+        // (update-86, asked 12-10-2026: no "Waiting for the server…" words – only the thin moving bar; what it waits for and how
+        //  long is still noted for the freeze note: window.__rclNet)
+        bar.hidden = false; var s = bar.lastChild; if (s.textContent) s.textContent = ''; s.hidden = true;
       } else if (bar && !bar.hidden) bar.hidden = true;
     }, 250);
   })();

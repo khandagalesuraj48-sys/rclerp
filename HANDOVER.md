@@ -1506,6 +1506,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   same machinery, each kind once, one entry); `getDieselPhotos` 15-min signed links; list 📷. AI: `getMeterReading` after the
   upload → KM / Hrs box (blue), typed value wins. dbCols: a column missing in the first row is looked for in the other rows.
   Browser tests need `test/browser/geo-shim.js`. Open: approval of no-reading entries, WhatsApp / e-mail alerts, photos compulsory.
+- 12-10-2026 (update-86, after update-85 went live – `94a00a5`, redeployed as `78a2eb9` after a GitHub rate limit). Report:
+  `UPDATE_86.md`. SQL step 6 (pg_cron + pg_net: every 3 min GET /api/rpc?warm=1 – `api/rpc.js` runs orgInfo, answers { ok, ms }).
+  Waiting bar without words (`server/page.js`). PHONE (`(hover: none) and (pointer: coarse)`): `HTMLElement.prototype.focus` does
+  not put the cursor in a typing box while none is focused (except gs_in / ai_in) – scrolls it into view instead; `savedPop`
+  after a diesel issue save (3 s, ×, tap outside). Open: Kolhapur 18B site (his choice A / B pending), approvals, alerts.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

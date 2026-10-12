@@ -19,7 +19,7 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   const alive = await f.evaluate(() => { showTab('inward'); return document.getElementById('page_title').textContent; });
   slow = false; await wait(9000); const b3 = await bar();
   ok('a slow answer shows the moving bar after half a second', b1 === 'shown', b1);
-  ok('…and the seconds once it is longer than 2.5 s', /^shown: Waiting for the server… [34] s$/.test(b2), b2);
+  ok('…and still only the bar after 2.5 s – no "Waiting for the server…" words (update-86, asked 12-10-2026)', b2 === 'shown', b2);
   ok('…the app stays usable meanwhile (another page opens)', alive === 'Diesel Inward', alive);
   ok('…and the bar goes when the answer is there', b3 === 'hidden', b3);
   ok('the tab holds a lock (Chrome does not freeze such a tab)', await f.evaluate(async () => { const q = await navigator.locks.query(); return (q.held || []).some(l => l.name === 'rcl-fleet-erp-open'); }));

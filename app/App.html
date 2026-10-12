@@ -1265,6 +1265,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .phv-grid img { width: 100%; max-height: 60vh; object-fit: contain; display: block; background: #0F172A; }
   .phv-grid figcaption { padding: 6px 10px; font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
   .phv-grid figcaption b { color: var(--ink); }
+  /* update-86: the "saved" box on a phone */
+  #savedpop { position: fixed; inset: 0; z-index: 9800; display: grid; place-items: center; padding: 16px; background: rgba(15,23,42,.45); animation: spIn .16s ease-out; }
+  #savedpop[hidden] { display: none; }
+  #savedpop .sp-box { position: relative; width: min(360px, 100%); background: #fff; border-radius: 18px; padding: 22px 18px 16px; text-align: center; color: var(--ink); box-shadow: 0 18px 50px rgba(0,0,0,.35); overflow: hidden; }
+  #savedpop .sp-ok { width: 64px; height: 64px; margin: 0 auto 8px; border-radius: 50%; background: #16A34A; color: #fff; font: 700 38px/64px var(--ui); animation: spPop .3s cubic-bezier(.2,1.4,.4,1); }
+  #savedpop h3 { margin: 0 0 12px; font: 700 20px var(--ui); color: #15803D; }
+  #savedpop .sp-rows { text-align: left; border-top: 1px solid var(--line); }
+  #savedpop .sp-rows div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 2px; border-bottom: 1px solid var(--line); font-size: 15px; }
+  #savedpop .sp-rows span { color: var(--muted); } #savedpop .sp-rows b { text-align: right; }
+  #savedpop .sp-x { position: absolute; top: 6px; right: 8px; width: 40px; height: 40px; border: 0; background: transparent; font-size: 26px; line-height: 1; color: var(--muted); cursor: pointer; }
+  #savedpop .sp-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: #DCFCE7; }
+  #savedpop .sp-bar i { display: block; height: 100%; width: 100%; background: #16A34A; transform-origin: left; animation: spBar 3s linear forwards; }
+  @keyframes spBar { to { transform: scaleX(0); } } @keyframes spIn { from { opacity: 0; } } @keyframes spPop { from { transform: scale(.4); } }
   #loc_block { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; padding: 16px; background: rgba(15,23,42,.94); }
   #loc_block[hidden] { display: none; }
   .loc-box { max-width: 460px; width: 100%; background: #fff; border-radius: 16px; padding: 22px 20px; text-align: center; color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,.4); }
@@ -2545,6 +2558,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   <button type="button" id="oc_skip">Skip</button>
 </div>
 <!-- update-85: the app opens only with the location on (asked 12-10-2026) -->
+<!-- update-86: on a phone, a diesel issue saved – shown for 3 seconds (or closed by hand) -->
+<div id="savedpop" hidden role="status" aria-live="polite">
+  <div class="sp-box">
+    <button type="button" class="sp-x" id="sp_x" aria-label="Close">×</button>
+    <div class="sp-ok" aria-hidden="true">✓</div>
+    <h3 id="sp_t">Saved</h3>
+    <div class="sp-rows" id="sp_rows"></div>
+    <div class="sp-bar" aria-hidden="true"><i></i></div>
+  </div>
+</div>
 <div id="loc_block" hidden role="alertdialog" aria-modal="true" aria-labelledby="loc_t">
   <div class="loc-box">
     <div class="loc-ic" aria-hidden="true">📍</div>
@@ -4158,6 +4181,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const ls = document.getElementById('login_screen'); if (ls) ls.hidden = false;
   });
   const LOGO_URL = 'https://i.ibb.co/CpSfBqXX/RCL-LOGO-PDF.png';
+  /* A PHONE (update-86, asked 12-10-2026): the keyboard opens only when the person TAPS a box. The app itself never puts the cursor
+   * in a box while the keyboard is closed (after a save, on opening a page or a form …) – that opened the keyboard over the form.
+   * Moving on from a box while typing (Enter / Next) still works (the keyboard is open then), and Search and Ask – pressed to type –
+   * keep it. A box the app wanted to point at is scrolled into view instead. On a computer nothing changes. */
+  const PHONE = (() => { try { return matchMedia('(hover: none) and (pointer: coarse)').matches; } catch (e) { return false; } })();
+  if (PHONE) (function () {
+    const own = HTMLElement.prototype.focus, ALLOW = ['gs_in', 'ai_in'];
+    const typing = el => !!(el && el.matches && el.matches('input:not([type=button]):not([type=submit]):not([type=reset]):not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=color]):not([readonly]), textarea:not([readonly]), [contenteditable=""], [contenteditable=true]'));
+    HTMLElement.prototype.focus = function (o) {
+      if (typing(this) && ALLOW.indexOf(this.id) < 0 && !typing(document.activeElement)) {
+        try { const r = this.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) this.scrollIntoView({ block: 'center' }); } catch (e) { /* not shown */ }
+        return;
+      }
+      return own.call(this, o);
+    };
+  })();
   let SITE_NAME = 'VTR Site – NH 848'; // shown on every report (screen, print and Excel) – from the setting "Company & site" (applyOrg)
   const S = { master: [], drivers: [], today: '', editNo: null, prefill: null };
   const $ = id => document.getElementById(id);
@@ -5142,9 +5181,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['एका location वरून दुसऱ्या location ला हलवलेले diesel (उदा. Dispenser वरून VTR Store).', 'त्या तारखेला source मध्ये तेवढे diesel असले पाहिजे; From आणि To सारखे असू शकत नाहीत. Source चा stock कमी होतो आणि destination चा वाढतो.'],
       hi: ['एक location से दूसरे location को भेजा गया diesel (जैसे Dispenser से VTR Store)।', 'उस तारीख को source में उतना diesel होना चाहिए; From और To एक जैसे नहीं हो सकते। Source का stock घटता है और destination का बढ़ता है।'] },
     diesel: { saves: ['saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'updateDieselIssue', 'deleteDieselIssue', 'saveDebitRates', 'dieselPhoto', 'getMeterReading', 'getDieselPhotos'],
-      en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period. Photos (One entry, after picking the machinery): Dashboard, Vehicle + driver, Dispenser litres and Register – each taken with the camera there and then (not from the gallery), with the date, time and place printed on it; the AI reads the reading on the dashboard photo and puts it in the box (blue) – check it, type over it if it is wrong. 📷 in the list opens the photos of an entry.'],
-      mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते. Photos (One entry मध्ये, machinery निवडल्यावर): Dashboard, गाडी + driver, Dispenser वरचे लिटर आणि Register – प्रत्येक त्याच वेळी camera ने काढायचा (gallery मधून नाही); त्यावर तारीख, वेळ आणि ठिकाण छापले जाते. Dashboard च्या photo वरचे reading AI वाचून box मध्ये (निळ्या रंगात) भरते – ते तपासा, चुकले तर बदला. यादीतले 📷 दाबले की त्या entry चे photo दिसतात.'],
-      hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है। Photos (One entry में, machinery चुनने के बाद): Dashboard, गाड़ी + driver, Dispenser के लीटर और Register – हर एक उसी समय camera से लेना है (gallery से नहीं); उस पर तारीख, समय और जगह छपती है। Dashboard की photo पर की reading AI पढ़कर box में (नीले रंग में) भरता है – उसे जाँचें, गलत हो तो बदलें। सूची का 📷 दबाने पर उस entry की photos दिखती हैं।'] },
+      en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period. Photos (One entry, after picking the machinery): Dashboard, Vehicle + driver, Dispenser litres and Register – each taken with the camera there and then (not from the gallery), with the date, time and place printed on it; the AI reads the reading on the dashboard photo and puts it in the box (blue) – check it, type over it if it is wrong. 📷 in the list opens the photos of an entry. On a phone a saved entry shows a green "saved" box for 3 seconds (× closes it at once) and the form is empty for the next machinery; the keyboard opens only when a box is tapped.'],
+      mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते. Photos (One entry मध्ये, machinery निवडल्यावर): Dashboard, गाडी + driver, Dispenser वरचे लिटर आणि Register – प्रत्येक त्याच वेळी camera ने काढायचा (gallery मधून नाही); त्यावर तारीख, वेळ आणि ठिकाण छापले जाते. Dashboard च्या photo वरचे reading AI वाचून box मध्ये (निळ्या रंगात) भरते – ते तपासा, चुकले तर बदला. यादीतले 📷 दाबले की त्या entry चे photo दिसतात. Phone वर entry save झाली की 3 सेकंद हिरवा "saved" box दिसतो (× ने लगेच बंद) आणि पुढच्या गाडीसाठी form रिकामा होतो; keyboard फक्त box वर दाबल्यावर उघडतो.'],
+      hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है। Photos (One entry में, machinery चुनने के बाद): Dashboard, गाड़ी + driver, Dispenser के लीटर और Register – हर एक उसी समय camera से लेना है (gallery से नहीं); उस पर तारीख, समय और जगह छपती है। Dashboard की photo पर की reading AI पढ़कर box में (नीले रंग में) भरता है – उसे जाँचें, गलत हो तो बदलें। सूची का 📷 दबाने पर उस entry की photos दिखती हैं। Phone पर entry save होते ही 3 सेकंड हरा "saved" box दिखता है (× से तुरंत बंद) और अगली गाड़ी के लिए form खाली हो जाता है; keyboard केवल box पर दबाने से खुलता है।'] },
     log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook'],
       en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic). A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) that worked TWO OR MORE TIMES in one shift (e.g. Breaker 100 → 102, then 110 → 113): add a second row for the same machinery, date and shift and type its own Start and Close – it may start higher than the row above; the hours in between (102 → 110) are not counted, so that day is 5 hours (bill and diesel). For such a machinery, changing or deleting an entry never changes another date: if a Close comes above the Start of the next entry, the app says so and saves nothing. In such a shift a row may also be by Time (e.g. Bucket 09:00 – 11:00 when the meter gave no reading, then Breaker 3714.5 → 3717.5): its hours are added (2 + 3 = 5 hours); the Start and Close of the entry come from its rows by Hrs, and the next day starts at the last Close.'],
       mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप). Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ने (JCB, excavator, breaker) एकाच shift मध्ये दोन किंवा जास्त वेळा काम केले असेल (उदा. Breaker 100 → 102, मग 110 → 113): त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा आणि तिचे स्वतःचे Start आणि Close टाका – ते वरच्या ओळीच्या Close पेक्षा जास्त असू शकते; मधले तास (102 → 110) धरले जात नाहीत, म्हणून तो दिवस 5 तासांचा (bill आणि diesel). अशा machinery ची entry बदलली किंवा delete केली तरी दुसरी तारीख कधीच बदलत नाही: Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर app तसे सांगते आणि काहीही save करत नाही. अशा shift मध्ये एखादी ओळ Time वर पण असू शकते (उदा. meter ने reading दिले नाही तेव्हा Bucket 09:00 – 11:00, मग Breaker 3714.5 → 3717.5): त्या ओळीचे तास जोडले जातात (2 + 3 = 5 तास); entry चे Start आणि Close तिच्या Hrs ओळींवरून येतात, आणि पुढचा दिवस शेवटच्या Close पासून सुरू होतो.'],
@@ -12632,6 +12671,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * each time it is looked at again (back to the tab, the phone unlocked); a "no" covers the whole app with what to do (Marathi,
    * Hindi, English) and "Check again". It is NOT watched all the time – that empties a phone's battery. A photo takes the place of
    * that very moment (locNow). */
+  /* THE "SAVED" BOX ON A PHONE (update-86, asked 12-10-2026): after a diesel issue is saved the person sees it plainly – what was
+   * saved – and the form under it is already empty for the next machinery. It closes by itself after 3 seconds, or with × / a tap
+   * outside it. (On a computer the line at the bottom stays as it was.) It does what that line does after a save: the entry is no
+   * longer "being typed", and a new version of the app may come in. */
+  let spTimer = null;
+  function spClose() { clearTimeout(spTimer); $('savedpop').hidden = true; }
+  function savedPop(title, rows) {
+    S.formDirty = false; S.dhCache = {}; if (S.newBuild) setTimeout(() => { if (!window.rclBusy()) swapNow(); }, 3500);
+    if ($('fixbox') && !$('fixbox').classList.contains('info')) $('fixbox').hidden = true;
+    $('sp_t').textContent = title;
+    $('sp_rows').innerHTML = rows.filter(r => r && r[1] !== '' && r[1] !== undefined && r[1] !== null).map(r => '<div><span>' + esc(r[0]) + '</span><b>' + esc(r[1]) + '</b></div>').join('');
+    const bar = $('savedpop').querySelector('.sp-bar i'); bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = '';      // the 3 seconds start again
+    $('savedpop').hidden = false;
+    clearTimeout(spTimer); spTimer = setTimeout(spClose, 3000);
+  }
+  $('sp_x').addEventListener('click', spClose);
+  $('savedpop').addEventListener('click', e => { if (e.target === $('savedpop')) spClose(); });
   const LOC = { pos: null, at: 0 };
   const LOC_TEXT = {
     checking: ['Location शोधत आहे…', 'Location ढूँढ रहे हैं…', 'Finding your location…'],
@@ -13416,7 +13472,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (await askConfirm({ title: 'Please check the reading', message: res.warning, ok: 'Save anyway' })) return saveDiesel(true);
       return;
     }
-    toast(editing ? 'Diesel issue ' + res.id + ' updated.' : 'Diesel issue saved: ' + res.id);
+    if (PHONE) savedPop(editing ? 'Diesel issue updated' : 'Diesel issue saved', [['Issue ID', res.id], ['Machinery', m.id], ['Diesel', fmt(d.qty) + ' L'],
+      ['Reading', [d.kmReading !== '' ? fmt(d.kmReading) + ' km' : '', d.hrReading !== '' ? fmt(d.hrReading) + ' hr' : ''].filter(Boolean).join(' · ')], ['Photos', (d.photos || []).length ? d.photos.length + ' of 4' : '']]);
+    else toast(editing ? 'Diesel issue ' + res.id + ' updated.' : 'Diesel issue saved: ' + res.id);
     if (editing) { loadDiesel(); loadLog(); }
     addDriver(d.driver);
     loadDiesel();

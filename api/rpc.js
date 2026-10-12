@@ -29,6 +29,16 @@ function statusOf(msg) {
 }
 module.exports = async (req, res) => {
   const send = (code, text) => { if (code === 503 || code === 429) res.setHeader('Retry-After', code === 503 ? '2' : '60'); res.statusCode = code; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.setHeader('Cache-Control', 'no-store'); res.end(text); };
+  /* KEEP AWAKE (update-86, asked 12-10-2026: "the server must never go to sleep"). A server nobody has used for some minutes is
+   * put to sleep by the hosting, and the next person waits seconds while it wakes. The database calls GET /api/rpc?warm=1 every
+   * 3 minutes (sql/supabase_step6_keep_awake.sql): this runs the same light step as the sign-in screen (orgInfo) in a helper
+   * thread – the server, its threads and its connection to the database stay awake – and answers only "ok", no data. */
+  if (req.method === 'GET' && /[?&]warm=1(&|$)/.test(String(req.url || ''))) {
+    const t0 = Date.now(); let ok = true;
+    try { await pool.call('orgInfo', [], { url: '', rid: '' }); } catch (e) { ok = false; }      // (even a refusal has woken it)
+    res.setHeader('Cache-Control', 'no-store');
+    return send(200, JSON.stringify({ ok: ok, ms: Date.now() - t0 }));
+  }
   if (req.method !== 'POST') return send(405, JSON.stringify({ error: 'POST only.' }));
   let body;
   try { body = await readBody(req); } catch (e) { return send(400, JSON.stringify({ error: 'Bad request.' })); }
