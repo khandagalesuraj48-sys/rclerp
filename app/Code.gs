@@ -362,8 +362,12 @@ function usersAdmin_() {
     email: str_(r[col('Email')]).toLowerCase(), name: str_(r[col('Name')]), active: str_(r[col('Active')]).toUpperCase() !== 'NO',
     admin: col('Admin') > -1 && str_(r[col('Admin')]).toUpperCase() === 'YES', mustChange: !isHashed_(r[col('Password')]),
     perms: MODULES.reduce((o, m) => { o[m] = col(m) > -1 ? ACCESS_(r[col(m)]) : 'None'; return o; }, {}) }));
-  return { users: users, modules: MODULES.map(m => ({ key: m, label: MODULE_LABEL_[m] || m })) };
+  return { users: users, modules: MODULES.map(m => ({ key: m, label: MODULE_LABEL_[m] || m })),
+    // (update-90) given by the Super Admin? may this Admin make the Super Admin (the first site, step-7 SQL run, none yet)?
+    managedBySuper: superAdminOn_(), canCreateSuper: typeof __siteIsHome === 'function' && __siteIsHome() && typeof __sitesOn === 'function' && __sitesOn() && !superAdminOn_() };
 }
+// (update-90) is there a Super Admin? (the server knows – the first site's database; false where the step-7 SQL is not run)
+function superAdminOn_() { try { return typeof __superExists === 'function' && !!__superExists(); } catch (e) { return true; } }
 // add or change one user: name, active, admin, access per page; a new user (or a reset) gets a one-time password
 function saveUserAdmin_(x, me) {
   x = x || {};
@@ -906,7 +910,9 @@ const API_ = {
   usersAdmin:        { m: '', admin: true, f: usersAdmin_ },
   accessReport:      { m: '', admin: true, f: accessReport_ },      // reads only: what is written in each access cell and the access it gives (update-68, D3)
   readme:            { m: '', admin: true, f: () => (typeof readmePage_ === 'function' ? readmePage_() : { missing: true }) }, // ReadMe.gs
-  saveUserAdmin:     { m: '', admin: true, withUser: true, f: (u, x) => saveUserAdmin_(x, u), log: 'userSave' },
+  // (update-90) once there is a Super Admin, users and access are given by the Super Admin only – refused HERE for every Admin
+  saveUserAdmin:     { m: '', admin: true, withUser: true, f: (u, x) => { if (superAdminOn_()) throw new Error('Users and access are given by the Super Admin only.'); return saveUserAdmin_(x, u); }, log: 'userSave' },
+  createSuperAdmin:  { m: '', admin: true, withUser: true, f: (u, x) => saCreate_(x, u) },      // (update-90) the first site's Admin, once (Sites.gs)
   getMonthlyDieselReport: { m: 'Reports', f: getMonthlyDieselReport_ },
   getMonthlyAvgReport: { m: 'Reports', f: f => getMonthlyDieselReport_(Object.assign({}, f, { withReadings: true })) },
   getDailyInwardIssueReport: { m: 'Reports', f: getDailyInwardIssueReport_ },
@@ -8193,6 +8199,8 @@ function dbHealth_() {
     add('"½ day" in the Log Book (step 1v)', has('log_book', 'day_part'), 'supabase_step1v_half_day.sql');
     add('Split timing of a Time entry (step 1w)', has('log_book', 'time_slots'), 'supabase_step1w_time_slots.sql');
     add('Photos of a diesel issue (step 1x)', has('diesel_issue', 'photos'), 'supabase_step1x_diesel_photos.sql');
+    // (update-90) the list of sites, the Super Admin and who has which site – in the FIRST site's database only
+    if (typeof __siteIsHome === 'function' && __siteIsHome()) add('Several sites and the Super Admin (step 7 – the first site only)', typeof __sitesOn === 'function' && __sitesOn(), 'supabase_step7_sites.sql');
     const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos)/.test(x));
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }

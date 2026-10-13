@@ -1,7 +1,8 @@
 /* Stage 1 of "new site" (asked 12-10-2026): one app, several sites, each with its own database – the server is ready.
- * On the local rig: the first site = database rcl (door :3100), a second site "T2" = database rcl_s2 (door :3102), named for the
- * app servers by RCL_SITES (test setting). App servers: :3000 (helper threads as usual) and :3001 (ONE helper thread – every
- * request of both sites goes through the same thread and its memory).
+ * On the local rig: the first site = database rcl (door :3100), a second site "T2" = database rcl_s2 (door :3102).
+ * (update-90) T2 is in the list of sites (rcl_sites, its key locked – test/site90api.js puts it there; RCL_SITES_KEY of the app
+ * servers) and sujit@ is a user of it (rcl_user_sites). App servers: :3000 (helper threads as usual) and :3001 (ONE helper
+ * thread – every request of both sites goes through the same thread and its memory).
  *   node test/site89.js
  * Proves: the first site works as before (no site sent); a sign-in belongs to its site only; the data of one site is never seen
  * on the other – also when requests of the two sites take turns in one thread; a save on T2 does not change ONE row of the first
@@ -23,6 +24,7 @@ const snapshot = db => {
 };
 const PASS = 'Nashik#Road848!', EMAIL = 'sujit@rcl.test';
 (async () => {
+  sql('rcl', "insert into rcl_user_sites (email, site, is_admin) values ('sujit@rcl.test', 'T2', true) on conflict (email, site) do nothing; update rcl_user_sites set is_default = false where email = 'sujit@rcl.test';");
   for (const port of [3000, 3001]) {
     const P = ':' + port + ' ';
     // the first site, as before (no site sent)
@@ -36,12 +38,12 @@ const PASS = 'Nashik#Road848!', EMAIL = 'sujit@rcl.test';
     ok(P + 'site "" = the first site (same answer)', ((same.result || {}).rows || []).length === nA);
     const org1 = await call(port, null, 'orgInfo');
 
+    // (update-90) a person's password is proved on his FIRST site, then the site he asked for gets its session
+    const b = await call(port, null, 'login', EMAIL, PASS, { site: 'T2' });
+    ok(P + 'T2: sign-in – a session in T2\'s own database', b.result && b.result.token && b.result.site === 'T2', b.error);
+    const tB = b.result.token;
     // the first site's database is photographed NOW – everything that follows on T2 must leave it exactly as it is
     const before = snapshot('rcl');
-
-    const b = await call(port, 'T2', 'login', EMAIL, PASS);
-    ok(P + 'T2: sign-in in its own database', b.result && b.result.token, b.error);
-    const tB = b.result.token;
     const x1 = await call(port, 'T2', 'api', tA, 'getDieselIssues', [{}]);
     ok(P + 'the first site\'s sign-in is NOT valid on T2', /SESSION_EXPIRED/.test(x1.error || ''), x1.error);
     const t2Issues = await call(port, 'T2', 'api', tB, 'getDieselIssues', [{ from: '2000-01-01', to: '2099-12-31', all: true }]);
@@ -64,8 +66,10 @@ const PASS = 'Nashik#Road848!', EMAIL = 'sujit@rcl.test';
     ok(P + '   T2 lists it; the first site does not', has(vT2) && !has(vA), [vT2.error, vA.error]);
     const so = await call(port, 'T2', 'api', tB, 'saveOrgSettings', [{ customer: 'Sketchline Test ' + port, site: 'Site T2', logo: '', video: '', billNames: ['Sketchline Test'] }]);
     ok(P + 'T2: its company name saved', !so.error, so.error);
-    const org2 = await call(port, 'T2', 'orgInfo'), org1b = await call(port, null, 'orgInfo');
-    ok(P + '   the sign-in screen of T2 shows it; the first site\'s is unchanged', JSON.stringify(org2.result || '').indexOf('Sketchline Test ' + port) > -1 && JSON.stringify(org1b.result) === JSON.stringify(org1.result), [org2.result, org1b.result]);
+    const org2 = await call(port, 'T2', 'api', tB, 'getInit', []), org1b = await call(port, null, 'orgInfo');
+    ok(P + '   T2\'s app shows it; the first site\'s is unchanged', JSON.stringify((org2.result || {}).org || '').indexOf('Sketchline Test ' + port) > -1 && JSON.stringify(org1b.result) === JSON.stringify(org1.result), [org2.error || (org2.result || {}).org, org1b.result]);
+    const org3 = await call(port, 'T2', 'orgInfo');
+    ok(P + '   the sign-in screen (nobody signed in) never gives out another site\'s name – the first site\'s', JSON.stringify(org3.result) === JSON.stringify(org1.result), org3.result);
     const bk = await call(port, 'T2', 'api', tB, 'backupNow', []);
     const bkText = JSON.stringify(bk);
     ok(P + 'T2 has no Sheet: its backup is refused ("not set up") – nothing goes to the first site\'s Sheet', /not set up/.test(bkText), bkText);
@@ -78,9 +82,9 @@ const PASS = 'Nashik#Road848!', EMAIL = 'sujit@rcl.test';
 
     const a2 = await call(port, null, 'api', tA, 'getDieselIssues', [{ from: '2000-01-01', to: '2099-12-31', all: true }]);
     ok(P + 'the first site afterwards: the same sign-in and the same rows', ((a2.result || {}).rows || []).length === nA, a2.error);
-    const z = await call(port, 'ZZ', 'login', EMAIL, PASS);
+    const z = await call(port, 'ZZ', 'api', tA, 'whoami', []);
     ok(P + 'a site that is not set up: refused (404), nothing read', z.status === 404 && /This site is not set up \(ZZ\)/.test(z.error || ''), [z.status, z.error]);
-    const w = await call(port, 'a b', 'orgInfo');
+    const w = await call(port, 'a b', 'api', tA, 'whoami', []);
     ok(P + 'a wrong site code: refused', /This site is not set up/.test(w.error || ''), w.error);
     await call(port, null, 'logout', tA);
   }

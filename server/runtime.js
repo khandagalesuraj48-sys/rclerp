@@ -6,9 +6,11 @@ process.env.TZ = 'Asia/Kolkata';        // dates work as they do in the Apps Scr
 const vm = require('vm');
 const gas = require('./gas');
 const { page, read } = require('./page');
+const sites = require('./sites');
+const system = require('./system');
 const google = require('./google');
 
-const FILES = ['SupabaseSync.gs', 'SupabaseData.gs', 'Code.gs', 'ReadMe.gs'];
+const FILES = ['SupabaseSync.gs', 'SupabaseData.gs', 'Code.gs', 'ReadMe.gs', 'Sites.gs'];      // Sites.gs: several sites (update-90)
 // added after the app's own code (same scope): the door for the calls, and the two things that differ outside Apps Script
 const TAIL = `
 ;this.__call = function (fn, argsJson) {
@@ -21,7 +23,10 @@ const TAIL = `
       if (o.cron) { try { __opsCleanup(); } catch (e) { /* tried again with the next saves and the next night */ } }
       const r = webBackup_({ auto: true, full: !!o.cron && !!o.full }); return { ok: r.ok !== false, skipped: !!r.skipped, busy: !!r.busy, off: !!r.off }; },
     // only from this server itself (runOnce): the entry is in, what follows a save was never finished
-    saved: (token, fn, args, kept) => savedAfterAll_(token, fn, args, kept) }[fn];
+    saved: (token, fn, args, kept) => savedAfterAll_(token, fn, args, kept),
+    // (update-90) several sites – only from this server itself (system.js), never from the page (see run: OUTSIDE)
+    saLogin: saLogin_, saWho: saWho_, saLogout: saLogout_, saChangePassword: saChangePassword_, saRecover: saRecover_,
+    sysWho: sysWho_, sysSession: sysSession_, sysUserRow: sysUserRow_, sysSetPw: sysSetPw_, sysUsers: sysUsers_, sysSaveUser: sysSaveUser_, sysAccessReport: sysAccessReport_ }[fn];
   if (!f) throw new Error('Unknown action.');
   const r = f.apply(null, JSON.parse(argsJson));
   return JSON.stringify(r === undefined ? null : r);
@@ -148,8 +153,39 @@ function runOnce(fn, args, meta, rid) {
   try { end('done', out.length <= 400000 ? out : OK_RESENT); } catch (e) { /* the answer kept with the write itself stays */ }
   return out;
 }
+/* (update-90) what may be asked from OUTSIDE (the page, the backup door): the server's own functions of Sites.gs are reached
+ * only from here (system.js) – a name that is not on this list is refused before anything runs. */
+const OUTSIDE = new Set(['api', 'login', 'changePassword', 'logout', 'orgInfo', 'backup', 'switchSite', 'setDefaultSite', 'super']);
+// one of the app's own functions run inside another site (its database, its memory), its answer parsed; the site of this request is set back after it
+const R = { runIn(site, fn, args) {
+  const prev = gas.current();
+  useSite(site);
+  try { return JSON.parse(runPlain(fn, args, { site: site })); }
+  finally { gas.restore(prev); const m = PER_SITE.get(prev ? prev.site : '') || PER_SITE.get(''); COUNTER = m.COUNTER; WRITE = m.WRITE; }      // put back exactly – this cannot fail
+} };
 function run(fn, args, meta) {
-  useSite(meta && meta.site);      // the site this request is for: its database and its memory (no site = the first site, as before)
+  meta = meta || {};
+  if (!OUTSIDE.has(fn)) throw new Error('Unknown action.');
+  // signing in, and the Super Admin: decided by the list of sites (system.js), whatever site the page last had
+  if (fn === 'login') { useSite(''); return JSON.stringify(system.login(R, args)); }
+  if (fn === 'super') { useSite(''); return JSON.stringify(system.superDo(R, args)); }
+  if (fn === 'orgInfo') { useSite(''); return runPlain(fn, args, meta); }      // the sign-in screen (nobody signed in): the first site's – another site's name is not given out
+  useSite(meta.site);      // the site this request is for: its database and its memory (no site = the first site, as before)
+  if (fn === 'switchSite') return JSON.stringify(system.switchSite(R, args, gas.site()));
+  if (fn === 'setDefaultSite') return JSON.stringify(system.setDefaultSite(R, args, gas.site()));
+  if (fn === 'changePassword') {      // a password changed here is written to the person's other sites too (one password everywhere)
+    const out = runPlain(fn, args, meta);
+    try { const r = JSON.parse(out), who = R.runIn(gas.site(), 'sysWho', [r.token]), o = system.passwordToOthers(R, who.email, gas.site());
+      if (o.failed && o.failed.length) { r.pwFailed = o.failed; return JSON.stringify(r); } }      // the page says so: his other site still has the old password
+    catch (e) { console.error('[password to the other sites] ' + String((e && e.message) || e)); }
+    return out;
+  }
+  if (fn === 'api' && String(args[1]) === 'getInit') {      // the page also gets the site it is on and the person's other sites (the switch)
+    const out = runPlain(fn, args, meta);
+    try { const o = JSON.parse(out); if (o && o.user && o.user.email) { const si = system.siteInfo(R, o.user.email, gas.site()); if (si) { o.siteInfo = si; return JSON.stringify(o); } } }
+    catch (e) { console.error('[sites for the page] ' + String((e && e.message) || e)); }
+    return out;
+  }
   const rid = meta && typeof meta.rid === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(meta.rid) ? meta.rid : '';
   if (!rid || fn !== 'api' || IS_QUESTION(String(args[1]))) return runPlain(fn, args, meta);
   try { return runOnce(fn, args, meta, rid); } catch (e) { if (!(e && e.rclNoOps)) throw e; }      // step 5 not installed (or a number of the old way): the way described above
@@ -283,6 +319,11 @@ function runPlain(fn, args, meta) {
   // for the Google Sheet backup: its settings, Google's Sheets API, and its own lock (not the lock of the saves)
   // (stage 1 of "new site") each site its own Sheet: the first site BACKUP_SHEET_ID as before, another site only its own
   const sheetOf = () => gas.site() === '' ? undefined : (require('./sites').conf(gas.site()).sheet || '');
+  // (update-90) several sites: is this the first site? is the list of sites there (step 7)? is there a Super Admin?
+  g.__siteIsHome = () => gas.site() === '';
+  g.__sitesOn = () => { try { return !!sites.registry(); } catch (e) { return false; } };
+  g.__superExists = () => { try { return sites.superExists(); } catch (e) { return true; } };      // (cannot be known now: "yes" – a change of users is refused, never let through)
+  g.__sitesForget = () => { sites.forget(); };      // (the Super Admin was just made: this server knows it at once)
   g.__backupConfig = () => { const c = google.config(sheetOf()); return JSON.stringify(c.ok ? { ok: true, sheetId: c.sheetId, email: c.email } : c); };
   g.__g = (method, p2, body, ms) => JSON.stringify(google.call(String(method), String(p2), body ? String(body) : '', ms, sheetOf()));
   // the settings as the database has them NOW (the backup looks again once it holds its lock – another server may just have finished one)

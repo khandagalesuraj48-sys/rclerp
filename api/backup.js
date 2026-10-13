@@ -24,9 +24,9 @@ module.exports = async (req, res) => {
     } else if (req.method === 'POST') {
       const body = await readBody(req), token = String((body && body.token) || '');
       if (!token) return send(401, { ok: false, denied: true });
-      opt = { token: token };
+      opt = { token: token }; opt.site = typeof body.site === 'string' ? body.site.slice(0, 20) : '';      // (update-90) the site of that sign-in: its own Sheet
     } else return send(405, { ok: false });
-    const out = JSON.parse(await pool.call('backup', [opt], {}));
+    const out = JSON.parse(await pool.call('backup', [opt], { site: opt.site || '' }));
     // the nightly job: a backup that failed is a failed job in the server's log (it used to read "200 OK"); the open pages get 200 as before
     return send(opt.cron && out.ok === false ? 500 : 200, out);
   } catch (e) {

@@ -60,7 +60,10 @@ const BRIDGE = `
      * Not sent again: an entry the server REFUSES (a wrong reading, a closed month …) – that needs the person, and is shown.
      * A question (a list, a report) is asked again 3 times, then it says so as before. */
     var rid = (name === 'api' && !isQ) ? ('s' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12)) : '';
-    var body = JSON.stringify(rid ? { fn: name, args: args, rid: rid } : { fn: name, args: args }), tries = 0;
+    // (update-90) the site this page is on goes with every call (kept next to the sign-in; none = the first site, as before)
+    var site = ''; try { site = localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site') || ''; } catch (e) { site = ''; }
+    var msg = rid ? { fn: name, args: args, rid: rid } : { fn: name, args: args }; if (site) msg.site = site;
+    var body = JSON.stringify(msg), tries = 0;
     var again = function (why) {
       if (/Too much data/.test(why)) return false;
       if (name !== 'api' || fnName === 'sync') return false;
@@ -214,7 +217,9 @@ const BRIDGE = `
   if (window.parent !== window) {
     var tick = function () { try { var tk = ''; try { tk = sessionStorage.getItem('rcl_token') || localStorage.getItem('rcl_token') || ''; } catch (e) { tk = ''; }
       if (!tk) return;      // nobody signed in: nothing to ask
-      fetch(base + '/api/backup', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tk }) }).catch(function () {}); } catch (e) {} };
+      var st = ''; try { st = localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site') || ''; } catch (e) { st = ''; }
+      if (/^sa/.test(tk)) return;      // (update-90) the Super Admin has no site of his own: nothing to back up
+      fetch(base + '/api/backup', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tk, site: st }) }).catch(function () {}); } catch (e) {} };
     setTimeout(tick, 40000); setInterval(tick, 300000);
   }
 })();`;

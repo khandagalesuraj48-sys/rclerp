@@ -1265,6 +1265,26 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .phv-grid img { width: 100%; max-height: 60vh; object-fit: contain; display: block; background: #0F172A; }
   .phv-grid figcaption { padding: 6px 10px; font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
   .phv-grid figcaption b { color: var(--ink); }
+  /* update-90: several sites – the site switch, the site choice, the Super Admin's screen */
+  .site-pill { display: inline-flex; align-items: center; gap: 6px; max-width: 260px; padding: 6px 12px; min-height: 34px; border: 1px solid #1D55E2; border-radius: 999px; background: #EEF3FF; color: #1D4ED8; font: 600 13.5px var(--ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .site-pill .sp-ic { font-size: 15px; }
+  .sp-list { display: grid; gap: 8px; margin: 10px 0; }
+  .sp-list .sp-btn { justify-content: flex-start; min-height: 44px; font-size: 15px; text-align: left; }
+  body.locked #cf_back { z-index: 60; }
+  body.sa-mode #toast { z-index: 70; }
+  .sa-code { font: 700 22px/1.4 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; text-align: center; padding: 12px; border: 2px dashed #1D55E2; border-radius: 10px; background: #F8FAFC; user-select: all; }
+  #sa_screen { position: fixed; inset: 0; z-index: 17; overflow: auto; background: var(--bg, #F4F6FA); }
+  #sa_screen .sa-top { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 12px 16px; background: #0F1F3D; color: #fff; }
+  #sa_screen .sa-top b { font-size: 17px; } #sa_screen .sa-top small { display: block; opacity: .8; }
+  #sa_tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+  #sa_tabs button { min-height: 38px; padding: 6px 14px; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; background: transparent; color: #fff; font: 600 14px var(--ui); cursor: pointer; }
+  #sa_tabs button[aria-selected="true"] { background: #fff; color: #0F1F3D; }
+  #sa_screen .sa-top .btn { color: #fff; background: transparent; border-color: rgba(255,255,255,.5); }
+  #sa_screen .sa-top small { color: rgba(255,255,255,.75); }
+  #sa_screen .sa-p { max-width: 1400px; margin: 16px auto; padding: 0 16px; }
+  .sa-sres.ok { color: #15803D; } .sa-sres.bad { color: #B91C1C; }
+  #sa_sites_rows input, #sa_sites_rows select { min-width: 180px; }
+  #sa_sites_rows small { display: block; margin-top: 3px; }
   /* update-88: a list under a form is folded – a bar "▸ Diesel issued – Show"; pressed, the list opens under it */
   .panel.fold:not(.open) > :not(.fold-head) { display: none !important; }
   .panel.fold:not(.open) .fold-head .chart-note { display: none; }
@@ -2631,6 +2651,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <button class="lp-submit" id="lg_btn" type="submit">Sign In</button>
 
       <p class="lp-note" id="lg_note" role="status"></p>
+      <button type="button" class="lp-link" id="lg_sarec" hidden>Super Admin: set a new password with the recovery code</button>
     </form>
   </div>
 </div>
@@ -2738,6 +2759,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     <button class="db-pill" id="db_pill" hidden type="button" title="Admin: the app checks every SQL step of the database once a day – press to see the result"></button>
     <button class="db-pill bad" id="err_pill" hidden type="button" title="Admin: faults of the app that were reported today – press to see them"></button>
     <span class="live off" id="live_dot" title="Connecting…"><i></i> Connecting…</span>
+    <button class="site-pill" id="site_pill" type="button" hidden title="The site you are on – press to open another of your sites"></button>
     <div class="today"><b id="company">Rachana Construction Limited</b><span id="todayLabel"></span></div>
     <div class="userchip"><button type="button" class="u-ava" id="u_ava" title="My settings" aria-label="My settings"></button><div><b id="u_name"></b><span id="u_role"></span></div>
       <button class="btn ghost small" id="u_share" type="button" title="Share my screen with another user – with voice" aria-label="Share my screen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="m9 11 3-3 3 3M12 8v6"/></svg><span class="rtc-badge" id="rtc_badge" hidden></span></button>
@@ -3521,7 +3543,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     </div>
     <div class="panel">
       <div class="panel-head"><h2>Users &amp; Access</h2><span class="chart-note">Who can open each page: <b>Edit</b> (add / change / delete), <b>View</b> (see and print) or <b>No access</b> (page hidden). Same list as the Users tab – a change works at once for that user.</span></div>
-      <div class="ua-bar"><button class="btn primary small" id="ua_new">+ Add user</button><button class="btn ghost small" id="ua_report" type="button" title="For every user and page: what is written in the Users table and the access it gives. Reads only – changes nothing.">Access report</button><span class="muted" id="ua_note"></span><span class="ua-site" id="ua_site"></span>
+      <p class="empty-note" id="ua_sa_note" hidden>Users and their access are given by the <b>Super Admin</b> – this list shows them; ask the Super Admin for a change.</p>
+      <div class="ua-bar"><button class="btn primary small" id="ua_new">+ Add user</button><button class="btn ghost small" id="ua_mksa" type="button" hidden title="Once: the Super Admin designs the system – sites, users and access, companies">Create Super Admin</button><button class="btn ghost small" id="ua_report" type="button" title="For every user and page: what is written in the Users table and the access it gives. Reads only – changes nothing.">Access report</button><span class="muted" id="ua_note"></span><span class="ua-site" id="ua_site"></span>
         <span class="ua-legend"><span class="ua-e">Edit</span><span class="ua-v">View</span><span class="ua-n">No access</span></span></div>
       <div class="table-wrap"><table class="ua-t">
         <thead id="ua_head"></thead>
@@ -3548,6 +3571,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           <button class="btn ghost small" type="button" id="set_pw">Change my password</button></div>
         <div class="set-logins"><b>My last sign-ins</b><div id="set_logins" class="muted">–</div><small class="muted">A sign-in that was not yours? Change your password at once – that signs every other device out.</small></div>
       </div>
+    </div>
+    <div class="panel set-p" id="set_sites" hidden>
+      <div class="panel-head"><h2>My sites</h2><span class="chart-note">You have more than one site. The site you are on is shown at the top – press it to open another one.</span></div>
+      <div class="field"><label for="set_site_def">When I sign in, open</label><select id="set_site_def"></select></div>
     </div>
     <div class="panel set-p">
       <div class="panel-head"><h2>Look</h2></div>
@@ -4083,6 +4110,64 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 <!-- screen share with voice (update-72): a notice, the incoming ring, the bar of the call, the picture of a screen shown to me -->
 <div id="rtc_note" role="status" title="Click to close" hidden></div>
 <div id="rtc_in" role="alertdialog" aria-labelledby="rtc_in_t" hidden><span class="rtc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="rtc-inx"><b id="rtc_in_t"></b><small id="rtc_in_s">Screen share with voice · nothing is recorded</small></span><button type="button" id="rtc_yes">Accept</button><button type="button" id="rtc_no">Decline</button><button type="button" id="rtc_rep" aria-haspopup="true">Reply…</button><span id="rtc_rep_m" hidden><button type="button" data-reply="1">I will call you back in 5 minutes</button><button type="button" data-reply="2">In a meeting – later, please</button><button type="button" data-reply="3">Please call me on the phone</button></span></div>
+<!-- ================= SUPER ADMIN (update-90) ================= -->
+<div id="sa_screen" hidden>
+  <header class="sa-top">
+    <div><b>Super Admin</b><small id="sa_who"></small></div>
+    <nav id="sa_tabs" role="tablist" aria-label="Super Admin">
+      <button type="button" role="tab" data-t="sites" aria-selected="true">Sites</button>
+      <button type="button" role="tab" data-t="users" aria-selected="false">Users &amp; Access</button>
+      <button type="button" role="tab" data-t="companies" aria-selected="false">Companies</button>
+      <button type="button" role="tab" data-t="me" aria-selected="false">My account</button>
+    </nav>
+    <button class="btn ghost small" id="sa_out" type="button">Sign out</button>
+  </header>
+  <section class="sa-p" id="sa_sites">
+    <div class="panel">
+      <div class="panel-head"><h2>Sites</h2><span class="chart-note">Every site has its own database and its own data; the app is one for all. The name is what users see in the site switch.</span></div>
+      <div class="table-wrap"><table class="list"><thead><tr><th>Site</th><th>Company</th><th>State</th><th class="num">Users</th><th>Database</th><th></th></tr></thead><tbody id="sa_sites_rows"></tbody></table></div>
+    </div>
+  </section>
+  <section class="sa-p" id="sa_users" hidden>
+    <div class="panel">
+      <div class="panel-head"><h2>Users &amp; Access</h2><span class="chart-note">Pick a site: who can open it and each page there – <b>Edit</b>, <b>View</b> or <b>No access</b>. Access is separate on every site. A person who is already on another site keeps his one password.</span></div>
+      <div class="rfilters"><div class="field"><label for="sa_u_site">Site</label><select id="sa_u_site"></select></div></div>
+      <div class="ua-bar"><button class="btn primary small" id="sa_ua_new" type="button">+ Add user</button><button class="btn ghost small" id="sa_ua_report" type="button" title="For every user and page of this site: what is written and the access it gives (a file for Excel). Reads only.">Access report</button><span class="muted" id="sa_ua_note"></span>
+        <span class="ua-legend"><span class="ua-e">Edit</span><span class="ua-v">View</span><span class="ua-n">No access</span></span></div>
+      <datalist id="sa_known"></datalist>
+      <div class="table-wrap"><table class="ua-t"><thead id="sa_ua_head"></thead><tbody id="sa_ua_rows"></tbody></table></div>
+      <p class="empty-note">A brand-new person gets a <b>one-time password</b> – at his first sign-in he sets his own. A new one-time password typed for a person is his password on all his sites.</p>
+    </div>
+  </section>
+  <section class="sa-p" id="sa_companies" hidden>
+    <div class="panel">
+      <div class="panel-head"><h2>Companies</h2><span class="chart-note">The companies a site can belong to. A new site takes its company's name, address, GSTIN, PAN and logo.</span></div>
+      <div class="table-wrap"><table class="list"><thead><tr><th>Company</th><th>GSTIN</th><th>PAN</th><th>Address</th><th>Logo</th><th></th></tr></thead><tbody id="sa_co_rows"></tbody></table></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2 id="sa_co_title">Add a company</h2></div>
+      <div class="rfilters">
+        <div class="field"><label for="sa_co_name">Name *</label><input id="sa_co_name" maxlength="80" autocomplete="off"></div>
+        <div class="field"><label for="sa_co_gstin">GSTIN</label><input id="sa_co_gstin" maxlength="15" autocomplete="off" placeholder="27ABCDE1234F1Z5"></div>
+        <div class="field"><label for="sa_co_pan">PAN</label><input id="sa_co_pan" maxlength="10" autocomplete="off" placeholder="ABCDE1234F"></div>
+        <div class="field"><label for="sa_co_address">Address</label><input id="sa_co_address" maxlength="300" autocomplete="off"></div>
+        <div class="field"><label for="sa_co_logo">Logo (https link)</label><input id="sa_co_logo" maxlength="300" autocomplete="off" placeholder="https://…"></div>
+      </div>
+      <div class="actions"><button class="btn primary" id="sa_co_save" type="button">Save company</button><button class="btn ghost" id="sa_co_new" type="button">New company</button></div>
+    </div>
+  </section>
+  <section class="sa-p" id="sa_me" hidden>
+    <div class="panel">
+      <div class="panel-head"><h2>My password</h2><span class="chart-note">Forgotten? On the sign-in screen: "Forgot password?" → the recovery code you wrote down.</span></div>
+      <div class="rfilters">
+        <div class="field"><label for="sa_pw_old">Current password</label><input id="sa_pw_old" type="password" autocomplete="current-password"></div>
+        <div class="field"><label for="sa_pw_new">New password – 8 or more, letters and numbers</label><input id="sa_pw_new" type="password" autocomplete="new-password"></div>
+        <div class="field"><label for="sa_pw_new2">New password again</label><input id="sa_pw_new2" type="password" autocomplete="new-password"></div>
+      </div>
+      <div class="actions"><button class="btn primary" id="sa_pw_save" type="button">Change password</button></div>
+    </div>
+  </section>
+</div>
 <div id="rtc_bar" role="status" hidden><i class="rtc-dot" id="rtc_live"></i><span class="rtc-txt"><b id="rtc_who"></b><small><span id="rtc_mine"></span> <span id="rtc_clock"></span> <span id="rtc_net"></span></small><small id="rtc_fol" hidden><span id="rtc_fol_t"></span> <button type="button" id="rtc_unfollow">Stop following</button></small></span><button type="button" id="rtc_mic">Mute</button><button type="button" id="rtc_share">Show my screen</button><button type="button" id="rtc_chatb">Chat<span class="rtc-badge" id="rtc_chat_n" hidden></span></button><button type="button" id="rtc_more" aria-haspopup="true">More ▾</button><button type="button" id="rtc_end">End</button><div id="rtc_menu" hidden><button type="button" id="rtc_cam">Show my camera</button><button type="button" id="rtc_flip" hidden>Switch camera</button><button type="button" id="rtc_torch" hidden>Light on</button><button type="button" id="rtc_page">Show only my page (low data)</button><button type="button" id="rtc_low">Low data: off</button></div></div><div id="rtc_chat" hidden><header><b>Chat</b><small>not saved – gone when the call ends</small><button type="button" id="rtc_chat_x" aria-label="Close">×</button></header><div id="rtc_msgs" aria-live="polite"></div><form id="rtc_chat_f" autocomplete="off"><button type="button" id="rtc_photo" title="Send a photo">Photo</button><input id="rtc_txt" maxlength="500" placeholder="Type – e.g. a vehicle number"><button type="submit" id="rtc_send">Send</button></form><input type="file" id="rtc_file" accept="image/*" hidden></div>
 <div id="rtc_view" data-size="m" hidden><header><b id="rtc_vt"></b><span id="rtc_tabs"></span><button type="button" id="rtc_open" hidden></button><button type="button" id="rtc_penb" title="Draw on the picture – it shows on the sharer's screen" hidden>Pen</button><button type="button" id="rtc_clr" hidden>Clear</button><button type="button" id="rtc_snap" title="Save a picture of this screen on this device">Snapshot</button><button type="button" id="rtc_size" title="Smaller / larger picture">Size</button></header><div class="rtc-vw"><video id="rtc_video" autoplay playsinline muted></video><canvas id="rtc_pen"></canvas></div><small id="rtc_hint"></small></div>
 <!-- the assistant: ask the app in your own words -->
@@ -4599,8 +4684,62 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     } catch (e) { return false; }
   }
   function credForget() { try { const W = credWin(); if (W && W.navigator.credentials.preventSilentAccess) W.navigator.credentials.preventSilentAccess(); } catch (e) { /* nothing */ } }
+  /* ---------- SEVERAL SITES (update-90, asked 12/13-10-2026) ----------
+   * The site this app is on is kept next to the sign-in (the same place: this device, or this tab only); every call carries it
+   * (the bridge in page.js). "rcl_last_site" stays on this device: an Admin with several sites opens where he was last.
+   * Signing in: the server decides which of the person's sites opens – his default site (Settings → My sites); an Admin is
+   * never asked; anybody else with several sites and no default site is asked (sitePick). The pill at the top shows the site
+   * and opens another one without signing in again. */
+  function siteKeep(code) {
+    try { localStorage.removeItem('rcl_site'); sessionStorage.removeItem('rcl_site'); if (!code) return;
+      (localStorage.getItem('rcl_token') ? localStorage : sessionStorage).setItem('rcl_site', code); localStorage.setItem('rcl_last_site', code); } catch (e) { /* storage blocked: the first site */ }
+  }
+  function tokenKeep(t) { try { if (localStorage.getItem('rcl_token')) localStorage.setItem('rcl_token', t); else sessionStorage.setItem('rcl_token', t); } catch (e) { /* storage blocked */ } }
+  async function sitePick(list, cur) {
+    let chosen = '';
+    const curName = (list.find(x => x.code === cur) || {}).name || cur;
+    const onClick = e => { const b = e.target.closest('.sp-btn'); if (!b) return; chosen = b.dataset.code; closeConfirm(true); };
+    $('cf_msg').addEventListener('click', onClick);
+    try { await askConfirm({ title: 'Which site do you want to open?', alertOnly: true, ok: 'Open ' + curName,
+      html: '<div class="sp-list">' + list.map(x => '<button type="button" class="btn ghost sp-btn" data-code="' + esc(x.code) + '">' + esc(x.name) + '</button>').join('') + '</div><p class="muted">The site that opens by itself can be set in Settings → My sites.</p>' }); }
+    finally { $('cf_msg').removeEventListener('click', onClick); }
+    return chosen || cur;
+  }
+  async function siteSwitch(code) {
+    if (!S.siteInfo || code === S.siteInfo.site) return;
+    if (window.__rclSaving && window.__rclSaving()) { toast('An entry is still being sent – wait until it is saved, then open the other site.', true); return; }
+    try { const r = await gsRun('switchSite', S.token, code); S.token = r.token; tokenKeep(r.token); siteKeep(r.site);
+      toast('Opening ' + r.siteName + '…'); setTimeout(() => { try { window.top.location.reload(); } catch (e) { location.reload(); } }, 300); }
+    catch (e) { toast(errMsg(e), true); }
+  }
+  function siteBoot(si) {
+    S.siteInfo = si || null;
+    const many = !!(si && si.sites && si.sites.length > 1);
+    if (si && si.site) { try { if (!(localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site'))) siteKeep(si.site); } catch (e) { /* storage blocked */ } }
+    $('site_pill').hidden = !many; $('set_sites').hidden = !many;
+    if (!many) return;
+    $('site_pill').innerHTML = '<span class="sp-ic" aria-hidden="true">⌂</span>' + esc(si.name) + '<span aria-hidden="true"> ▾</span>';
+    const def = (si.sites.find(x => x.default) || {}).code || '';
+    $('set_site_def').innerHTML = '<option value="">' + (S.user && S.user.admin ? 'The site I used last' : 'Ask me every time') + '</option>' + si.sites.map(x => '<option value="' + esc(x.code) + '"' + (x.code === def ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('');
+  }
+  $('site_pill').addEventListener('click', async () => {
+    const si = S.siteInfo; if (!si) return;
+    let chosen = '';
+    const onClick = e => { const b = e.target.closest('.sp-btn'); if (!b || b.disabled) return; chosen = b.dataset.code; closeConfirm(true); };
+    $('cf_msg').addEventListener('click', onClick);
+    try { await askConfirm({ title: 'Open another site', alertOnly: true, ok: 'Stay here',
+      html: '<div class="sp-list">' + si.sites.map(x => '<button type="button" class="btn ' + (x.current ? 'primary' : 'ghost') + ' sp-btn" data-code="' + esc(x.code) + '"' + (x.current ? ' disabled' : '') + '>' + esc(x.name) + (x.current ? ' – open now' : '') + '</button>').join('') + '</div>' }); }
+    finally { $('cf_msg').removeEventListener('click', onClick); }
+    if (chosen) siteSwitch(chosen);
+  });
+  $('set_site_def').addEventListener('change', async () => {
+    const v = $('set_site_def').value;
+    try { const r = await gsRun('setDefaultSite', S.token, v); if (S.siteInfo) S.siteInfo.sites = r.sites; toast(v ? 'Saved – this site opens when you sign in.' : (S.user && S.user.admin ? 'Saved – the site you used last opens.' : 'Saved – you are asked at every sign-in.')); }
+    catch (e) { toast(errMsg(e), true); }
+  });
   function showLogin(msg) {
     try { rtcRingClose(); rtcEnd('', true); } catch (e) { /* no screen share */ }
+    try { saHide(); $('site_pill').hidden = true; S.siteInfo = null; } catch (e) { /* the site parts are not built yet at the first start */ }
     S.token = ''; try { localStorage.removeItem('rcl_token'); sessionStorage.removeItem('rcl_token'); } catch (e) {}
     try { const de = document.documentElement; de.dataset.theme = 'light'; de.dataset.text = 'normal'; de.dataset.density = 'normal'; if ($('grp_fav')) $('grp_fav').hidden = true; if ($('announce')) $('announce').hidden = true; } catch (e) { /* the sign-in screen is always the plain one */ }
     document.body.classList.add('locked');
@@ -4614,17 +4753,28 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const btn = $('lg_btn'); btn.disabled = true; btn.textContent = 'Signing in…'; $('lg_err').textContent = '';
     try {
       const typed = $('lg_pass').value, mail = $('lg_email').value.trim();
-      const r = await gsRun('login', mail, typed);
+      let last = ''; try { last = localStorage.getItem('rcl_last_site') || ''; } catch (e) { last = ''; }
+      const r = await gsRun('login', mail, typed, { last: last });
       S.token = r.token;
+      // (update-90) the Super Admin: his own screen – no site, no entries, no reports
+      if (r.superAdmin) { try { ($('lg_remember').checked ? localStorage : sessionStorage).setItem('rcl_token', r.token); } catch (e) { /* storage blocked */ } credSave(mail, typed); await saStart(r); return; }
       if (!r.mustChange) credSave(mail, typed);      // the browser asks "Save password?" (a password that must be changed first is not offered)
       // Remember me: stay signed in on this device; otherwise only until the browser tab is closed
       let store = null; // browser storage can be blocked (private mode): the app still works without it
       try { store = $('lg_remember').checked ? localStorage : sessionStorage; store.setItem('rcl_token', r.token); } catch (e) { store = null; }
+      siteKeep(r.site || '');      // (update-90) the site this sign-in is for
       // a password set by Admin (or a weak one) must be replaced before the app opens
       if (r.mustChange) {
         $('lg_err').textContent = '';
         const t = await pwDialog(true, typed);
         if (!t) { S.token = ''; try { if (store) store.removeItem('rcl_token'); } catch (e) {} showLogin('Set your own password to continue.'); return; }
+      }
+      // (update-90) a one-time password was set on his first site: now the site meant
+      if (r.mustChange && r.want && r.want !== r.site && !r.choose) { const sw = await gsRun('switchSite', S.token, r.want); S.token = sw.token; tokenKeep(sw.token); siteKeep(sw.site); }
+      // (update-90) several sites and no default site: which one (the first one is open already)
+      if (r.choose && r.sites && r.sites.length > 1) {
+        const pick = await sitePick(r.sites, r.site);
+        if (pick && pick !== r.site) { const sw = await gsRun('switchSite', S.token, pick); S.token = sw.token; tokenKeep(sw.token); siteKeep(sw.site); }
       }
       $('lg_err').textContent = 'Loading…';
       await init();
@@ -4673,6 +4823,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       try { if (localStorage.getItem('rcl_token')) localStorage.setItem('rcl_token', r.token); else sessionStorage.setItem('rcl_token', r.token); } catch (e) {}
       pwClose(r.token);
       toast('Password changed. Other devices are signed out.');
+      if (r.pwFailed && r.pwFailed.length) setTimeout(() => toast('Your new password could not be written on your other site(s) now (' + r.pwFailed.join(', ') + ') – there the old one still works. Change it again later, or ask the Super Admin.', true), 2500);
     } catch (e) { $('pw_err').textContent = errMsg(e) === 'SESSION_EXPIRED' ? 'Your session ended – sign in again.' : errMsg(e); }
     finally { b.disabled = false; b.textContent = 'Save password'; }
   });
@@ -4680,7 +4831,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('u_pw').addEventListener('click', () => pwDialog(false));
   const lgNote = t => { $('lg_note').textContent = t; };
   $('lg_signup').addEventListener('click', () => lgNote('New accounts are created by the Admin. Please contact your Admin.'));
-  $('lg_forgot').addEventListener('click', () => lgNote('Please ask your Admin to reset your password.'));
+  $('lg_forgot').addEventListener('click', () => { lgNote('Please ask your Admin to reset your password.'); $('lg_sarec').hidden = false; });
   $('u_logout').addEventListener('click', async () => {
     if (!(await askConfirm({ title: 'Sign out?', message: 'You will need your email and password to sign in again.', ok: 'Sign out' }))) return;
     try { await rtcPushLeave(); } catch (e) { /* this device then simply stops getting this user's calls at the next sign-in of someone else */ }
@@ -4749,6 +4900,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Shown: under every red message (a card at the bottom right), inside every "Nothing saved / Not submitted" box, and next
    * to warnings on the billing page. The language is remembered on this device (rcl_lang). To cover a new message: add a rule. */
   const FIX_RULES = [
+    { re: /given by the Super Admin only|do not have access to this site|Ask the Super Admin/i,      // update-90: several sites
+      en: ['Users and access – also which sites a person has – are given by the Super Admin.', 'Nothing was changed. Ask the Super Admin to give the access or the site; then sign in again.'],
+      mr: ['Users आणि access – कोणाला कोणती site – हे Super Admin देतो.', 'काहीही बदलले नाही. Super Admin ला access किंवा site द्यायला सांगा; मग पुन्हा sign in करा.'],
+      hi: ['Users और access – किसे कौन सी site – यह Super Admin देता है।', 'कुछ भी नहीं बदला। Super Admin से access या site देने को कहें; फिर दोबारा sign in करें।'] },
+    { re: /recovery code is wrong|already a Super Admin|Super Admin is made on the first site|Super Admin\'s email|email of its own/i,      // update-90: the Super Admin
+      en: ['The Super Admin could not be made or reached this way.', 'There is one Super Admin, made once by the first site\'s Admin with an email no user has. A forgotten password: the recovery code written down then (Forgot password? on the sign-in screen).'],
+      mr: ['Super Admin असा बनवता किंवा उघडता आला नाही.', 'Super Admin एकच असतो, पहिल्या site चा Admin तो एकदाच बनवतो – कोणत्याही user चा नसलेला email देऊन. Password विसरला: तेव्हा लिहून ठेवलेला Recovery code (sign-in screen वर Forgot password?).'],
+      hi: ['Super Admin इस तरह बनाया या खोला नहीं जा सका।', 'Super Admin एक ही होता है, पहली site का Admin उसे एक बार बनाता है – किसी user का न हो ऐसा email देकर। Password भूल गए: तब लिखकर रखा Recovery code (sign-in screen पर Forgot password?)।'] },
     { re: /This site is not set up|backup of this site is not set up|not the backup Sheet of this site/i,      // stage 1 of "new site": a site the server does not know (yet), or its Sheet
       en: ['This site is not set up on the server yet (or its backup Sheet is not).', 'Nothing was read or saved. Ask the Super Admin to finish setting up this site, then open the app again.'],
       mr: ['ही site अजून server वर set up झालेली नाही (किंवा तिची backup Sheet नाही).', 'काहीही वाचले किंवा save झाले नाही. Super Admin ला ही site set up पूर्ण करायला सांगा, मग app पुन्हा उघडा.'],
@@ -5247,18 +5406,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     ravg: { saves: [], en: ['Report: diesel and average of every machinery for the months chosen.', 'Average = work done (KM or hours from the Log Book) against diesel; it is compared with the standard average of the Asset Master.'],
       mr: ['Report: निवडलेल्या महिन्यांसाठी प्रत्येक machinery चे diesel आणि average.', 'Average = झालेले काम (Log Book मधले KM किंवा तास) आणि diesel यांचे प्रमाण; त्याची Asset Master मधल्या standard average शी तुलना होते.'],
       hi: ['Report: चुने गए महीनों के लिए हर machinery का diesel और average।', 'Average = हुआ काम (Log Book के KM या घंटे) और diesel का अनुपात; उसकी Asset Master के standard average से तुलना होती है।'] },
-    users: { saves: ['saveUserAdmin', 'usersAdmin', 'saveOrgSettings', 'accessReport', 'rtcRights', 'rtcRightsSave'],
-      en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'A new user starts with No access on every page – he sees only the pages you set to View or Edit (in the menu and in the search). Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters. "Screen share – who may use it": untick a user and save – he can then neither show a screen nor be called (Admin users always may).'],
-      mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'नवीन user ला सुरुवातीला प्रत्येक page वर No access असते – तुम्ही View किंवा Edit दिलेली pages च त्याला दिसतात (menu मध्ये आणि search मध्ये). हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा. "Screen share – who may use it": user चा tick काढून Save केले की तो screen दाखवू शकत नाही आणि त्याला call पण करता येत नाही (Admin नेहमी वापरू शकतो).'],
-      hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'नए user को शुरू में हर page पर No access होता है – आपने View या Edit दिए वही pages उसे दिखते हैं (menu में और search में)। यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो। "Screen share – who may use it": user का tick हटाकर Save करने पर वह न screen दिखा सकता है, न उसे call किया जा सकता है (Admin हमेशा उपयोग कर सकता है)।'] },
+    users: { saves: ['saveUserAdmin', 'usersAdmin', 'saveOrgSettings', 'accessReport', 'rtcRights', 'rtcRightsSave', 'createSuperAdmin'],
+      en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'A new user starts with No access on every page – he sees only the pages you set to View or Edit (in the menu and in the search). Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters. "Screen share – who may use it": untick a user and save – he can then neither show a screen nor be called (Admin users always may). Several sites: the Admin of the first site makes the Super Admin once ("Create Super Admin" – write the recovery code down). From then on the Super Admin gives users and access, separately for every site; this page then only shows them.'],
+      mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'नवीन user ला सुरुवातीला प्रत्येक page वर No access असते – तुम्ही View किंवा Edit दिलेली pages च त्याला दिसतात (menu मध्ये आणि search मध्ये). हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा. "Screen share – who may use it": user चा tick काढून Save केले की तो screen दाखवू शकत नाही आणि त्याला call पण करता येत नाही (Admin नेहमी वापरू शकतो). अनेक sites: पहिल्या site चा Admin एकदाच Super Admin बनवतो ("Create Super Admin" – Recovery code लिहून ठेवा). त्यानंतर users आणि access फक्त Super Admin देतो, प्रत्येक site साठी वेगळा; हे page मग फक्त ते दाखवते.'],
+      hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'नए user को शुरू में हर page पर No access होता है – आपने View या Edit दिए वही pages उसे दिखते हैं (menu में और search में)। यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो। "Screen share – who may use it": user का tick हटाकर Save करने पर वह न screen दिखा सकता है, न उसे call किया जा सकता है (Admin हमेशा उपयोग कर सकता है)। कई sites: पहली site का Admin एक बार Super Admin बनाता है ("Create Super Admin" – Recovery code लिखकर रखें)। उसके बाद users और access सिर्फ Super Admin देता है, हर site के लिए अलग; यह page फिर सिर्फ उन्हें दिखाता है।'] },
     activity: { saves: ['getActivity'],
       en: ['The record of who added, changed or deleted what, and when.', 'It is written by the app itself on every save and cannot be edited. Only Admin sees it. "Screen share calls" shows the screen share history: who showed a screen to whom and how long, and the calls that were declined (with the reply) or not answered.'],
       mr: ['कोणी, काय, कधी जोडले, बदलले किंवा delete केले याची नोंद.', 'प्रत्येक save वर app स्वतः ही नोंद लिहिते; ती बदलता येत नाही. ती फक्त Admin ला दिसते. "Screen share calls" दाबले की screen share चा इतिहास दिसतो: कोणी कोणाला किती वेळ screen दाखवला, आणि कोणते call नाकारले (उत्तरासह) किंवा उचलले नाहीत.'],
       hi: ['किसने, क्या, कब जोड़ा, बदला या delete किया इसका रिकॉर्ड।', 'हर save पर app खुद यह रिकॉर्ड लिखता है; इसे बदला नहीं जा सकता। यह केवल Admin को दिखता है। "Screen share calls" दबाने पर screen share का इतिहास दिखता है: किसने किसे कितनी देर screen दिखाई, और कौन-से call मना किए गए (जवाब के साथ) या उठाए नहीं गए।'] },
     settings: { saves: ['saveMyPrefs', 'saveSiteRules', 'getErrors', 'clearErrors', 'getAiCheck', 'rtcUsers', 'rtcSend', 'getAppVersion'],
-      en: ['Your own settings: photo, theme (light / dark), text size, language of the help, the page that opens first, your usual Log Book entry type, shift and diesel location, and favourite pages. For the Admin also the rules of the site.', 'Your settings belong to your sign-in: they are the same on every computer and change nobody else\'s app. Each change is saved by itself. Rules of the site (Admin): how many days back a user who is not Admin may enter or change entries, and a notice for everybody. Screen share (the screen button at the top of every page, from a computer in Chrome or Edge): tick up to 3 users, choose this tab in the box of the browser – they see your screen live and you can talk to each other; anybody in the call can show his own screen too. A click on the picture shows a red ring at that place on the sharer\'s screen, and "Open this page here" opens the same page in the viewer\'s own app (nobody can click or type in another person\'s screen). A phone can receive a screen share and talk but cannot show its screen. When the two networks do not let the computers reach each other directly, the call goes through the relay of the site (if one is set in the hosting) – the bar of the call then says "through the relay" (otherwise "direct connection"). For the Admin, under "This app": the update that runs now (e.g. update-74) and whether the relay is set, with "Check the relay" (it asks the relay from this computer and says whether it works). What to show: my screen, my camera (a phone\'s back camera – Switch camera, Light) or only my page (no video: the others\' app opens the page you are on, with their own access). In the call: Chat (text and photos), Pen (lines on the sharer\'s screen for 10 s), Snapshot (saved on this device), More → Low data; the bar shows the network (good / weak / poor); a line that drops is made again by itself. A call reaches a user even when his app is closed – "Screen share calls when the app is closed" → Turn on (each device once); not answered after 15 s → "Ask on WhatsApp" (his My mobile number); Reply… sends a short answer instead of a plain Decline; missed calls show as a red number on the screen button, with Call back. A red message has "Show this to the Admin" (it rings the Admin with the message). Nothing is recorded; the Activity Log notes who shared with whom and for how long.'],
-      mr: ['तुमचे स्वतःचे settings: फोटो, theme (light / dark), अक्षरांचा आकार, मदतीची भाषा, आधी उघडणारे page, Log Book entry चा नेहमीचा प्रकार, shift आणि diesel चे ठिकाण, आणि आवडती pages. Admin साठी site चे नियमही.', 'तुमचे settings तुमच्या sign-in शी जोडलेले आहेत: प्रत्येक computer वर तेच राहतात आणि दुसऱ्या कोणाचे app बदलत नाही. प्रत्येक बदल आपोआप save होतो. Site चे नियम (Admin): Admin नसलेला user किती दिवस मागच्या entries भरू किंवा बदलू शकतो, आणि सगळ्यांसाठी सूचना. Screen share (प्रत्येक page च्या वर screen चे बटण; computer वर Chrome किंवा Edge मध्ये): जास्तीत जास्त 3 users निवडा, browser च्या box मध्ये हा tab निवडा – त्यांना तुमचा screen live दिसतो आणि तुम्ही एकमेकांशी बोलू शकता; call मधला कोणीही स्वतःचा screen दाखवू शकतो. चित्रावर click केले की दाखवणाऱ्याच्या screen वर त्या जागी लाल गोल दिसतो, आणि "Open this page here" ने तेच page पाहणाऱ्याच्या स्वतःच्या app मध्ये उघडते (दुसऱ्याच्या screen मध्ये कोणी click किंवा type करू शकत नाही). Phone वर screen share घेता येते आणि बोलता येते, पण phone स्वतःचा screen दाखवू शकत नाही. दोन networks मधून computers थेट एकमेकांपर्यंत पोहोचत नसतील तर call site च्या relay मधून जातो (hosting मध्ये relay लावलेला असेल तर) – तेव्हा call च्या bar मध्ये "through the relay" दिसते (नाहीतर "direct connection"). Admin साठी "This app" खाली: आत्ता कोणते update चालू आहे (उदा. update-74) आणि relay लावलेला आहे का, सोबत "Check the relay" (हा computer relay ला विचारतो आणि तो चालतो की नाही ते सांगतो). काय दाखवायचे: माझा screen, माझा camera (phone चा मागचा camera – Switch camera, Light) किंवा फक्त माझे page (video नाही: समोरच्याच्या app मध्ये तुम्ही असलेले page त्याच्या स्वतःच्या परवानगीने उघडते). Call मध्ये: Chat (मजकूर आणि photo), Pen (दाखवणाऱ्याच्या screen वर 10 सेकंद रेघा), Snapshot (या device मध्ये save), More → Low data; bar मध्ये network (good / weak / poor) दिसते; line तुटली तर आपोआप परत जोडली जाते. App बंद असले तरी call पोहोचतो – "Screen share calls when the app is closed" → Turn on (प्रत्येक device वर एकदा); 15 सेकंदात उत्तर नाही तर "Ask on WhatsApp" (त्याचा My mobile number); Reply… ने साध्या Decline ऐवजी छोटे उत्तर जाते; न उचललेले call screen बटणावर लाल आकड्याने दिसतात, Call back सोबत. लाल संदेशात "हे Admin ला दाखवा" बटण असते (संदेशासह Admin ला call जातो). काहीही record होत नाही; कोणी कोणाला किती वेळ दाखवले एवढेच Activity Log मध्ये नोंदले जाते.'],
-      hi: ['आपके अपने settings: फोटो, theme (light / dark), अक्षरों का आकार, मदद की भाषा, पहले खुलने वाला page, Log Book entry का सामान्य प्रकार, shift और diesel की जगह, और पसंदीदा pages। Admin के लिए site के नियम भी।', 'आपके settings आपके sign-in से जुड़े हैं: हर computer पर वही रहते हैं और किसी और का app नहीं बदलता। हर बदलाव अपने-आप save होता है। Site के नियम (Admin): Admin न होने वाला user कितने दिन पीछे की entries भर या बदल सकता है, और सबके लिए सूचना। Screen share (हर page के ऊपर screen वाला बटन; computer पर Chrome या Edge में): ज़्यादा से ज़्यादा 3 users चुनें, browser के box में यही tab चुनें – उन्हें आपका screen live दिखता है और आप आपस में बात कर सकते हैं; call में कोई भी अपना screen दिखा सकता है। तस्वीर पर click करने से दिखाने वाले के screen पर उसी जगह लाल घेरा दिखता है, और "Open this page here" से वही page देखने वाले के अपने app में खुलता है (दूसरे के screen में कोई click या type नहीं कर सकता)। Phone पर screen share लिया जा सकता है और बात हो सकती है, पर phone अपना screen नहीं दिखा सकता। दोनों networks से computers सीधे एक-दूसरे तक न पहुँच पाएँ तो call site के relay से होकर जाता है (hosting में relay लगा हो तो) – तब call के bar में "through the relay" दिखता है (वरना "direct connection")। Admin के लिए "This app" के नीचे: अभी कौन-सा update चल रहा है (जैसे update-74) और relay लगा है या नहीं, साथ में "Check the relay" (यह computer relay से पूछता है और बताता है कि वह चलता है या नहीं)। क्या दिखाना है: मेरी screen, मेरा camera (phone का पीछे का camera – Switch camera, Light) या केवल मेरा page (video नहीं: सामने वाले के app में आपका page उसकी अपनी अनुमति से खुलता है)। Call में: Chat (text और photo), Pen (दिखाने वाले की screen पर 10 सेकंड रेखाएँ), Snapshot (इसी device में save), More → Low data; bar में network (good / weak / poor) दिखता है; line टूटे तो अपने-आप फिर जुड़ती है। App बंद हो तब भी call पहुँचता है – "Screen share calls when the app is closed" → Turn on (हर device पर एक बार); 15 सेकंड में जवाब नहीं तो "Ask on WhatsApp" (उसका My mobile number); Reply… से सादे Decline की जगह छोटा जवाब जाता है; न उठाए call screen बटन पर लाल अंक से दिखते हैं, Call back के साथ। लाल संदेश में "यह Admin को दिखाएँ" बटन होता है (संदेश के साथ Admin को call जाता है)। कुछ भी record नहीं होता; किसने किसे कितनी देर दिखाया, इतना ही Activity Log में लिखा जाता है।'] },
+      en: ['Your own settings: photo, theme (light / dark), text size, language of the help, the page that opens first, your usual Log Book entry type, shift and diesel location, and favourite pages. For the Admin also the rules of the site.', 'Your settings belong to your sign-in: they are the same on every computer and change nobody else\'s app. Each change is saved by itself. Rules of the site (Admin): how many days back a user who is not Admin may enter or change entries, and a notice for everybody. Screen share (the screen button at the top of every page, from a computer in Chrome or Edge): tick up to 3 users, choose this tab in the box of the browser – they see your screen live and you can talk to each other; anybody in the call can show his own screen too. A click on the picture shows a red ring at that place on the sharer\'s screen, and "Open this page here" opens the same page in the viewer\'s own app (nobody can click or type in another person\'s screen). A phone can receive a screen share and talk but cannot show its screen. When the two networks do not let the computers reach each other directly, the call goes through the relay of the site (if one is set in the hosting) – the bar of the call then says "through the relay" (otherwise "direct connection"). For the Admin, under "This app": the update that runs now (e.g. update-74) and whether the relay is set, with "Check the relay" (it asks the relay from this computer and says whether it works). What to show: my screen, my camera (a phone\'s back camera – Switch camera, Light) or only my page (no video: the others\' app opens the page you are on, with their own access). In the call: Chat (text and photos), Pen (lines on the sharer\'s screen for 10 s), Snapshot (saved on this device), More → Low data; the bar shows the network (good / weak / poor); a line that drops is made again by itself. A call reaches a user even when his app is closed – "Screen share calls when the app is closed" → Turn on (each device once); not answered after 15 s → "Ask on WhatsApp" (his My mobile number); Reply… sends a short answer instead of a plain Decline; missed calls show as a red number on the screen button, with Call back. A red message has "Show this to the Admin" (it rings the Admin with the message). Nothing is recorded; the Activity Log notes who shared with whom and for how long. My sites (only with more than one site): the site that opens when you sign in. The site you are on is shown at the top – press it to open another site without signing in again.'],
+      mr: ['तुमचे स्वतःचे settings: फोटो, theme (light / dark), अक्षरांचा आकार, मदतीची भाषा, आधी उघडणारे page, Log Book entry चा नेहमीचा प्रकार, shift आणि diesel चे ठिकाण, आणि आवडती pages. Admin साठी site चे नियमही.', 'तुमचे settings तुमच्या sign-in शी जोडलेले आहेत: प्रत्येक computer वर तेच राहतात आणि दुसऱ्या कोणाचे app बदलत नाही. प्रत्येक बदल आपोआप save होतो. Site चे नियम (Admin): Admin नसलेला user किती दिवस मागच्या entries भरू किंवा बदलू शकतो, आणि सगळ्यांसाठी सूचना. Screen share (प्रत्येक page च्या वर screen चे बटण; computer वर Chrome किंवा Edge मध्ये): जास्तीत जास्त 3 users निवडा, browser च्या box मध्ये हा tab निवडा – त्यांना तुमचा screen live दिसतो आणि तुम्ही एकमेकांशी बोलू शकता; call मधला कोणीही स्वतःचा screen दाखवू शकतो. चित्रावर click केले की दाखवणाऱ्याच्या screen वर त्या जागी लाल गोल दिसतो, आणि "Open this page here" ने तेच page पाहणाऱ्याच्या स्वतःच्या app मध्ये उघडते (दुसऱ्याच्या screen मध्ये कोणी click किंवा type करू शकत नाही). Phone वर screen share घेता येते आणि बोलता येते, पण phone स्वतःचा screen दाखवू शकत नाही. दोन networks मधून computers थेट एकमेकांपर्यंत पोहोचत नसतील तर call site च्या relay मधून जातो (hosting मध्ये relay लावलेला असेल तर) – तेव्हा call च्या bar मध्ये "through the relay" दिसते (नाहीतर "direct connection"). Admin साठी "This app" खाली: आत्ता कोणते update चालू आहे (उदा. update-74) आणि relay लावलेला आहे का, सोबत "Check the relay" (हा computer relay ला विचारतो आणि तो चालतो की नाही ते सांगतो). काय दाखवायचे: माझा screen, माझा camera (phone चा मागचा camera – Switch camera, Light) किंवा फक्त माझे page (video नाही: समोरच्याच्या app मध्ये तुम्ही असलेले page त्याच्या स्वतःच्या परवानगीने उघडते). Call मध्ये: Chat (मजकूर आणि photo), Pen (दाखवणाऱ्याच्या screen वर 10 सेकंद रेघा), Snapshot (या device मध्ये save), More → Low data; bar मध्ये network (good / weak / poor) दिसते; line तुटली तर आपोआप परत जोडली जाते. App बंद असले तरी call पोहोचतो – "Screen share calls when the app is closed" → Turn on (प्रत्येक device वर एकदा); 15 सेकंदात उत्तर नाही तर "Ask on WhatsApp" (त्याचा My mobile number); Reply… ने साध्या Decline ऐवजी छोटे उत्तर जाते; न उचललेले call screen बटणावर लाल आकड्याने दिसतात, Call back सोबत. लाल संदेशात "हे Admin ला दाखवा" बटण असते (संदेशासह Admin ला call जातो). काहीही record होत नाही; कोणी कोणाला किती वेळ दाखवले एवढेच Activity Log मध्ये नोंदले जाते. My sites (एकापेक्षा जास्त site असतील तरच): sign in केल्यावर कोणती site उघडायची. तुम्ही ज्या site वर आहात ती वर दिसते – ती दाबून दुसरी site पुन्हा sign in न करता उघडा.'],
+      hi: ['आपके अपने settings: फोटो, theme (light / dark), अक्षरों का आकार, मदद की भाषा, पहले खुलने वाला page, Log Book entry का सामान्य प्रकार, shift और diesel की जगह, और पसंदीदा pages। Admin के लिए site के नियम भी।', 'आपके settings आपके sign-in से जुड़े हैं: हर computer पर वही रहते हैं और किसी और का app नहीं बदलता। हर बदलाव अपने-आप save होता है। Site के नियम (Admin): Admin न होने वाला user कितने दिन पीछे की entries भर या बदल सकता है, और सबके लिए सूचना। Screen share (हर page के ऊपर screen वाला बटन; computer पर Chrome या Edge में): ज़्यादा से ज़्यादा 3 users चुनें, browser के box में यही tab चुनें – उन्हें आपका screen live दिखता है और आप आपस में बात कर सकते हैं; call में कोई भी अपना screen दिखा सकता है। तस्वीर पर click करने से दिखाने वाले के screen पर उसी जगह लाल घेरा दिखता है, और "Open this page here" से वही page देखने वाले के अपने app में खुलता है (दूसरे के screen में कोई click या type नहीं कर सकता)। Phone पर screen share लिया जा सकता है और बात हो सकती है, पर phone अपना screen नहीं दिखा सकता। दोनों networks से computers सीधे एक-दूसरे तक न पहुँच पाएँ तो call site के relay से होकर जाता है (hosting में relay लगा हो तो) – तब call के bar में "through the relay" दिखता है (वरना "direct connection")। Admin के लिए "This app" के नीचे: अभी कौन-सा update चल रहा है (जैसे update-74) और relay लगा है या नहीं, साथ में "Check the relay" (यह computer relay से पूछता है और बताता है कि वह चलता है या नहीं)। क्या दिखाना है: मेरी screen, मेरा camera (phone का पीछे का camera – Switch camera, Light) या केवल मेरा page (video नहीं: सामने वाले के app में आपका page उसकी अपनी अनुमति से खुलता है)। Call में: Chat (text और photo), Pen (दिखाने वाले की screen पर 10 सेकंड रेखाएँ), Snapshot (इसी device में save), More → Low data; bar में network (good / weak / poor) दिखता है; line टूटे तो अपने-आप फिर जुड़ती है। App बंद हो तब भी call पहुँचता है – "Screen share calls when the app is closed" → Turn on (हर device पर एक बार); 15 सेकंड में जवाब नहीं तो "Ask on WhatsApp" (उसका My mobile number); Reply… से सादे Decline की जगह छोटा जवाब जाता है; न उठाए call screen बटन पर लाल अंक से दिखते हैं, Call back के साथ। लाल संदेश में "यह Admin को दिखाएँ" बटन होता है (संदेश के साथ Admin को call जाता है)। कुछ भी record नहीं होता; किसने किसे कितनी देर दिखाया, इतना ही Activity Log में लिखा जाता है। My sites (एक से ज़्यादा site हों तभी): sign in करने पर कौन सी site खुले। आप जिस site पर हैं वह ऊपर दिखती है – उसे दबाकर दूसरी site बिना दोबारा sign in किए खोलें।'] },
     readme: { saves: ['readme', 'dbHealth', 'backupNow'],
       en: ['The set-up notes of the app for the Admin: where the data is kept, the SQL steps and the backup.', 'Nothing is entered here.'],
       mr: ['Admin साठी app च्या set-up ची माहिती: data कुठे आहे, SQL चे टप्पे आणि backup.', 'इथे काहीही भरले जात नाही.'],
@@ -12257,45 +12416,179 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     a.href = url; a.download = 'Access_report_' + (S.today || '') + '.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
   });
   async function uaLoad() {
-    try { const d = await call('usersAdmin'); S.ua = d; uaRender(); } catch (e) { toast(errMsg(e), true); }
+    try { const d = await call('usersAdmin'); S.ua = d; uaRender('ua', S.ua); uaSuperMarks(); } catch (e) { toast(errMsg(e), true); }
   }
   const uaCls = v => 'ua-p ua-' + (v === 'Edit' ? 'e' : v === 'None' ? 'n' : 'v');
   const uaSel = (m, v, dis) => '<select class="' + uaCls(v) + '" data-m="' + esc(m) + '"' + (dis ? ' disabled' : '') + '><option value="Edit"' + (v === 'Edit' ? ' selected' : '') + '>Edit</option><option value="View"' + (v === 'View' ? ' selected' : '') + '>View</option><option value="None"' + (v === 'None' ? ' selected' : '') + '>No access</option></select>';
-  function uaRow(u, isNew) {
+  /* one row of the table. o.ro = read only (an Admin, once the Super Admin gives users and access – update-90);
+   * o.sa = the Super Admin's table (a person who is on another site keeps his password: no one-time password needed) */
+  function uaRow(u, isNew, mods, o) {
+    o = o || {}; const ro = !!o.ro, dis = ro ? ' disabled' : '';
     return '<tr data-email="' + esc(u.email) + '"' + (isNew ? ' data-new="1" class="ua-newrow"' : u.active === false ? ' class="ua-off"' : '') + '>' +
-      '<td class="ua-who">' + (isNew ? '<input class="ua-email" placeholder="email" type="email"><input class="ua-name" placeholder="name">' : '<b>' + esc(u.name) + '</b><small>' + esc(u.email) + '</small>' + (u.mustChange ? '<span class="st low">must set password</span>' : '')) + '</td>' +
-      '<td class="c"><input type="checkbox" class="ua-active"' + (u.active !== false ? ' checked' : '') + ' title="Active – can sign in"></td>' +
-      '<td class="c"><input type="checkbox" class="ua-admin"' + (u.admin ? ' checked' : '') + ' title="Admin – every page with Edit, plus Users and Activity Log"></td>' +
-      S.ua.modules.map(m => '<td>' + uaSel(m.key, u.admin ? 'Edit' : (u.perms || {})[m.key] || 'None', u.admin) + '</td>').join('') +
-      '<td><input class="ua-pw" placeholder="' + (isNew ? 'one-time password' : 'new one-time password') + '" autocomplete="new-password"></td>' +
-      '<td class="nowrap"><button class="btn primary small ua-save">' + (isNew ? 'Add' : 'Save') + '</button>' + (isNew ? ' <button class="link ua-cancel">Cancel</button>' : '') + '</td></tr>';
+      '<td class="ua-who">' + (isNew ? '<input class="ua-email" placeholder="email" type="email"' + (o.sa ? ' list="sa_known"' : '') + '><input class="ua-name" placeholder="name">' : '<b>' + esc(u.name) + '</b><small>' + esc(u.email) + '</small>' + (u.mustChange ? '<span class="st low">must set password</span>' : '')) + '</td>' +
+      '<td class="c"><input type="checkbox" class="ua-active"' + (u.active !== false ? ' checked' : '') + dis + ' title="Active – can sign in"></td>' +
+      '<td class="c"><input type="checkbox" class="ua-admin"' + (u.admin ? ' checked' : '') + dis + ' title="Admin – every page with Edit, plus Users and Activity Log"></td>' +
+      mods.map(m => '<td>' + uaSel(m.key, u.admin ? 'Edit' : (u.perms || {})[m.key] || 'None', u.admin || ro) + '</td>').join('') +
+      (ro ? '' : '<td><input class="ua-pw" placeholder="' + (isNew ? (o.sa ? 'one-time password (not needed if he is on another site)' : 'one-time password') : 'new one-time password') + '" autocomplete="new-password"></td>' +
+      '<td class="nowrap"><button class="btn primary small ua-save">' + (isNew ? 'Add' : 'Save') + '</button>' + (isNew ? ' <button class="link ua-cancel">Cancel</button>' : '') + '</td>') + '</tr>';
   }
-  function uaRender() {
-    $('ua_head').innerHTML = '<tr><th>User</th><th class="c">Active</th><th class="c">Admin</th>' + S.ua.modules.map(m => '<th class="ua-mh">' + esc(m.label) + '</th>').join('') + '<th>Password</th><th></th></tr>' +
-      '<tr class="ua-all"><td colspan="3" class="muted">Set a whole column →</td>' + S.ua.modules.map(m => '<td><select class="ua-col" data-m="' + esc(m.key) + '"><option value="">–</option><option value="Edit">all Edit</option><option value="View">all View</option><option value="None">all No access</option></select></td>').join('') + '<td colspan="2" class="muted small">(then Save each user)</td></tr>';
-    $('ua_rows').innerHTML = S.ua.users.map(u => uaRow(u, false)).join('');
-    $('ua_note').textContent = S.ua.users.length + ' users · ' + S.ua.users.filter(u => u.active).length + ' active';
+  function uaRender(p, d) {
+    const ro = p === 'ua' && !!d.managedBySuper, sa = p === 'sa_ua';
+    $(p + '_head').innerHTML = '<tr><th>User</th><th class="c">Active</th><th class="c">Admin</th>' + d.modules.map(m => '<th class="ua-mh">' + esc(m.label) + '</th>').join('') + (ro ? '' : '<th>Password</th><th></th>') + '</tr>' +
+      (ro ? '' : '<tr class="ua-all"><td colspan="3" class="muted">Set a whole column →</td>' + d.modules.map(m => '<td><select class="ua-col" data-m="' + esc(m.key) + '"><option value="">–</option><option value="Edit">all Edit</option><option value="View">all View</option><option value="None">all No access</option></select></td>').join('') + '<td colspan="2" class="muted small">(then Save each user)</td></tr>');
+    $(p + '_rows').innerHTML = d.users.map(u => uaRow(u, false, d.modules, { ro: ro, sa: sa })).join('');
+    $(p + '_note').textContent = d.users.length + ' users · ' + d.users.filter(u => u.active).length + ' active';
   }
-  $('ua_new').addEventListener('click', () => { if (document.querySelector('#ua_rows tr[data-new]')) return; $('ua_rows').insertAdjacentHTML('afterbegin', uaRow({ email: '', name: '', active: true, admin: false, perms: {} }, true)); document.querySelector('#ua_rows .ua-email').focus(); });
-  $('ua_head').addEventListener('change', e => { const c = e.target.closest('.ua-col'); if (!c || !c.value) return; document.querySelectorAll('#ua_rows .ua-p[data-m="' + c.dataset.m + '"]:not([disabled])').forEach(x => { x.value = c.value; x.className = uaCls(c.value); x.closest('tr').classList.add('ua-dirty'); }); c.value = ''; });
-  $('ua_rows').addEventListener('change', e => {
-    const tr = e.target.closest('tr'); if (!tr) return; tr.classList.add('ua-dirty');
-    if (e.target.classList.contains('ua-p')) e.target.className = uaCls(e.target.value);
-    if (e.target.classList.contains('ua-admin')) tr.querySelectorAll('.ua-p').forEach(x => { x.disabled = e.target.checked; if (e.target.checked) { x.value = 'Edit'; x.className = uaCls('Edit'); } });
-  });
-  $('ua_rows').addEventListener('click', e => {
-    const tr = e.target.closest('tr'); if (!tr) return;
-    if (e.target.classList.contains('ua-cancel')) { tr.remove(); return; }
-    if (!e.target.classList.contains('ua-save')) return;
-    const isNew = !!tr.dataset.new;
-    const x = { isNew: isNew, email: isNew ? tr.querySelector('.ua-email').value.trim() : tr.dataset.email, name: isNew ? tr.querySelector('.ua-name').value.trim() : (S.ua.users.find(u => u.email === tr.dataset.email) || {}).name,
-      active: tr.querySelector('.ua-active').checked, admin: tr.querySelector('.ua-admin').checked, newPassword: tr.querySelector('.ua-pw').value, perms: {} };
-    tr.querySelectorAll('.ua-p').forEach(p => { x.perms[p.dataset.m] = p.value; });
-    busy(e.target, 'Saving…', async () => {
-      await call('saveUserAdmin', x);
-      toast((isNew ? 'User added: ' : 'Saved: ') + x.email + (x.newPassword ? ' – tell the user the one-time password.' : ''));
-      await uaLoad();
+  /* the table's buttons – the same for the Admin's page and the Super Admin's: only the save differs */
+  function uaBind(p, data, save) {
+    $(p + '_new').addEventListener('click', () => { if (document.querySelector('#' + p + '_rows tr[data-new]')) return; $(p + '_rows').insertAdjacentHTML('afterbegin', uaRow({ email: '', name: '', active: true, admin: false, perms: {} }, true, data().modules, { sa: p === 'sa_ua' })); document.querySelector('#' + p + '_rows .ua-email').focus(); });
+    $(p + '_head').addEventListener('change', e => { const c = e.target.closest('.ua-col'); if (!c || !c.value) return; document.querySelectorAll('#' + p + '_rows .ua-p[data-m="' + c.dataset.m + '"]:not([disabled])').forEach(x => { x.value = c.value; x.className = uaCls(c.value); x.closest('tr').classList.add('ua-dirty'); }); c.value = ''; });
+    $(p + '_rows').addEventListener('change', e => {
+      const tr = e.target.closest('tr'); if (!tr) return; tr.classList.add('ua-dirty');
+      if (e.target.classList.contains('ua-p')) e.target.className = uaCls(e.target.value);
+      if (e.target.classList.contains('ua-admin')) tr.querySelectorAll('.ua-p').forEach(x => { x.disabled = e.target.checked; if (e.target.checked) { x.value = 'Edit'; x.className = uaCls('Edit'); } });
     });
+    $(p + '_rows').addEventListener('click', e => {
+      const tr = e.target.closest('tr'); if (!tr) return;
+      if (e.target.classList.contains('ua-cancel')) { tr.remove(); return; }
+      if (!e.target.classList.contains('ua-save')) return;
+      const isNew = !!tr.dataset.new;
+      const x = { isNew: isNew, email: isNew ? tr.querySelector('.ua-email').value.trim() : tr.dataset.email, name: isNew ? tr.querySelector('.ua-name').value.trim() : (data().users.find(u => u.email === tr.dataset.email) || {}).name,
+        active: tr.querySelector('.ua-active').checked, admin: tr.querySelector('.ua-admin').checked, newPassword: tr.querySelector('.ua-pw').value, perms: {} };
+      tr.querySelectorAll('.ua-p').forEach(q => { x.perms[q.dataset.m] = q.value; });
+      busy(e.target, 'Saving…', () => save(x, isNew));
+    });
+  }
+  uaBind('ua', () => S.ua, async (x, isNew) => {
+    await call('saveUserAdmin', x);
+    toast((isNew ? 'User added: ' : 'Saved: ') + x.email + (x.newPassword ? ' – tell the user the one-time password.' : ''));
+    await uaLoad();
+  });
+  /* (update-90) once there is a Super Admin, the Admin sees users and access but cannot change them; the first site's Admin
+   * makes the Super Admin (once) */
+  function uaSuperMarks() {
+    const d = S.ua || {};
+    $('ua_new').hidden = !!d.managedBySuper; $('ua_sa_note').hidden = !d.managedBySuper; $('ua_mksa').hidden = !d.canCreateSuper;
+  }
+  $('ua_mksa').addEventListener('click', async () => {
+    const html = '<p>The <b>Super Admin</b> designs the system: the sites, the users and their access on each site, and the companies. He makes no entries and sees no reports. From then on users and access are given by the Super Admin only – also yours.</p>' +
+      '<div class="field"><label for="mk_name">Name</label><input id="mk_name" maxlength="80" autocomplete="off"></div>' +
+      '<div class="field"><label for="mk_email">Email – one of its own, not a user\'s</label><input id="mk_email" type="email" autocomplete="off"></div>' +
+      '<div class="field"><label for="mk_pw">Password – 8 or more, letters and numbers</label><input id="mk_pw" type="password" autocomplete="new-password"></div>' +
+      '<div class="field"><label for="mk_pw2">Password again</label><input id="mk_pw2" type="password" autocomplete="new-password"></div>';
+    if (!(await askConfirm({ title: 'Create the Super Admin', html: html, ok: 'Create', wide: true }))) return;
+    const x = { name: $('mk_name').value, email: $('mk_email').value.trim(), password: $('mk_pw').value, password2: $('mk_pw2').value };
+    let r; try { r = await call('createSuperAdmin', x); } catch (e) { showAlert('Super Admin not created', errMsg(e)); return; }
+    await askConfirm({ title: 'Super Admin created – write this code down', alertOnly: true, ok: 'I have written it down',
+      html: '<p>Sign in as the Super Admin with <b>' + esc(r.email) + '</b> and the password you chose.</p><p>If that password is ever forgotten, this <b>recovery code</b> is the only way back in. Write it on paper and keep it safe – it is shown only now:</p><p class="sa-code">' + esc(r.recovery) + '</p>' });
+    uaLoad();
+  });
+
+  /* ================= SUPER ADMIN (update-90, asked 12/13-10-2026) =================
+   * "The Super Admin designs the system: no entries, no reports." He signs in on the same screen and gets only this:
+   *   Sites – the name of each site (shown in the site switch), its company, and a check that its database answers;
+   *   Users & Access – pick a site: the same table as the Admin's page, for that site (access is separate on every site; a
+   *     person put on another site keeps his one password);
+   *   Companies – Rachana, Sketchline …: name, address, GSTIN, PAN, logo (a new site will take them – stage 3);
+   *   My account – his password (and the recovery code if it is ever forgotten: on the sign-in screen).
+   * Nothing of a site's entries or reports is reachable from here: his session is not a user's session of any site. */
+  const SA = { sites: [], companies: [], site: '', ua: { users: [], modules: [] }, coId: '' };
+  const saCall = (action, x) => gsRun('super', S.token, action, x || {});
+  function saHide() { $('sa_screen').hidden = true; document.body.classList.remove('sa-mode'); }
+  function saFail(e) { const m = errMsg(e); if (/SESSION_EXPIRED/.test(m)) { saHide(); showLogin('Your session ended – sign in again.'); return; } toast(m, true); }
+  async function saStart(r) {
+    document.body.classList.add('sa-mode'); document.body.classList.remove('locked'); $('login_screen').hidden = true; $('sa_screen').hidden = false;
+    let me = r && r.email ? r : null;
+    if (!me) { try { me = await saCall('me'); } catch (e) { saFail(e); return; } }
+    $('sa_who').textContent = (me.name || 'Super Admin') + ' · ' + me.email;
+    saTab('sites');
+  }
+  function saTab(t) {
+    document.querySelectorAll('#sa_tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.t === t)));
+    ['sites', 'users', 'companies', 'me'].forEach(k => { $('sa_' + k).hidden = k !== t; });
+    if (t === 'sites') saSites(); else if (t === 'users') saUsersBoot(); else if (t === 'companies') saCompanies();
+  }
+  $('sa_tabs').addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (b) saTab(b.dataset.t); });
+  $('sa_out').addEventListener('click', async () => {
+    if (!(await askConfirm({ title: 'Sign out?', message: 'You will need your email and password to sign in again.', ok: 'Sign out' }))) return;
+    const t = S.token; saHide(); showLogin(''); try { await gsRun('super', t, 'logout', {}); } catch (e) { /* the session runs out by itself */ }
+  });
+  // ---- Sites ----
+  async function saSites() {
+    $('sa_sites_rows').innerHTML = '<tr><td colspan="6" class="muted">Loading…</td></tr>';
+    let d; try { d = await saCall('sites'); } catch (e) { saFail(e); return; }
+    SA.sites = d.sites; SA.companies = d.companies;
+    const opts = c => '<option value="">–</option>' + d.companies.map(x => '<option value="' + esc(x.id) + '"' + (x.id === c ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('');
+    $('sa_sites_rows').innerHTML = d.sites.map(s => '<tr data-code="' + esc(s.code) + '"><td><input class="sa-sname" maxlength="80" value="' + esc(s.name) + '" aria-label="Name of the site"><small class="muted">' + esc(s.code) + (s.home ? ' · the first site' : '') + '</small></td>' +
+      '<td><select class="sa-scomp" aria-label="Company">' + opts(s.company) + '</select></td><td>' + (s.status === 'ready' ? 'Ready' : esc(s.status)) + '</td><td class="num">' + esc(s.users) + '</td>' +
+      '<td class="nowrap"><button class="btn ghost small sa-scheck" type="button">Check</button> <span class="sa-sres muted"></span></td><td><button class="btn primary small sa-ssave" type="button">Save</button></td></tr>').join('');
+  }
+  $('sa_sites_rows').addEventListener('click', e => {
+    const tr = e.target.closest('tr'); if (!tr) return;
+    if (e.target.classList.contains('sa-scheck')) busy(e.target, 'Checking…', async () => { try { const r = await saCall('siteCheck', { site: tr.dataset.code }); const o = tr.querySelector('.sa-sres');
+      o.textContent = r.ok ? '✓ its database answers (' + r.ms + ' ms)' : '✖ ' + r.error; o.className = 'sa-sres ' + (r.ok ? 'ok' : 'bad'); } catch (er) { saFail(er); } });
+    if (e.target.classList.contains('sa-ssave')) busy(e.target, 'Saving…', async () => { try { await saCall('siteSave', { site: tr.dataset.code, name: tr.querySelector('.sa-sname').value, company: tr.querySelector('.sa-scomp').value }); toast('Site saved.'); SA.sites = []; saSites(); } catch (er) { saFail(er); } });
+  });
+  // ---- Users & Access, per site ----
+  async function saUsersBoot() {
+    if (!SA.sites.length) { try { const d = await saCall('sites'); SA.sites = d.sites; SA.companies = d.companies; } catch (e) { saFail(e); return; } }
+    const cur = SA.sites.some(s => s.code === SA.site) ? SA.site : (SA.sites[0] || {}).code || '';
+    $('sa_u_site').innerHTML = SA.sites.map(s => '<option value="' + esc(s.code) + '"' + (s.code === cur ? ' selected' : '') + '>' + esc(s.name) + '</option>').join('');
+    SA.site = cur; saUsers();
+  }
+  $('sa_u_site').addEventListener('change', () => { SA.site = $('sa_u_site').value; saUsers(); });
+  async function saUsers() {
+    $('sa_ua_rows').innerHTML = '<tr><td class="muted">Loading…</td></tr>';
+    let d; try { d = await saCall('users', { site: SA.site }); } catch (e) { saFail(e); return; }
+    SA.ua = d; uaRender('sa_ua', d);
+    $('sa_known').innerHTML = (d.elsewhere || []).map(m => '<option value="' + esc(m) + '"></option>').join('');
+  }
+  uaBind('sa_ua', () => SA.ua, async (x, isNew) => {
+    try {
+      const r = await saCall('userSave', { site: SA.site, user: x });
+      toast((isNew ? 'User added: ' : 'Saved: ') + x.email + (r.copiedPassword ? ' – he signs in with the password he already has.' : x.newPassword ? ' – tell the user the one-time password' + (r.otherSites ? ' (it is his password on his other sites too)' : '') + '.' : ''));
+      if (r.failedSites && r.failedSites.length) toast('The password could not be written on: ' + r.failedSites.join(', ') + ' – save it again.', true);
+      await saUsers();
+    } catch (e) { saFail(e); }
+  });
+  $('sa_ua_report').addEventListener('click', e => busy(e.target, 'Reading…', async () => {
+    try { const d = await saCall('accessReport', { site: SA.site }); const q = v => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""').replace(/^([=+\-@])/, "'$1") + '"';
+      const csv = [['User', 'Email', 'Active', 'Admin', 'Page', 'Written in the Users table', 'Access the app gives now', 'Why']].concat(d.rows.map(r => [r.name, r.email, r.active ? 'Yes' : 'No', r.admin ? 'Yes' : 'No', r.module, r.raw, r.effective, r.why])).map(r => r.map(q).join(',')).join('\r\n');
+      const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })), a = document.createElement('a');
+      a.href = url; a.download = 'Access_report_' + SA.site + '.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    } catch (er) { saFail(er); } }));
+  // ---- Companies ----
+  async function saCompanies() {
+    let d; try { d = await saCall('companies'); } catch (e) { saFail(e); return; }
+    SA.companies = d.companies;
+    $('sa_co_rows').innerHTML = d.companies.length ? d.companies.map(c => '<tr data-id="' + esc(c.id) + '"><td><b>' + esc(c.name) + '</b></td><td>' + esc(c.gstin || '–') + '</td><td>' + esc(c.pan || '–') + '</td><td>' + esc(c.address || '–') + '</td><td>' + (c.logo ? 'Yes' : '–') + '</td><td><button class="btn ghost small sa-coedit" type="button">Change</button></td></tr>').join('')
+      : '<tr><td colspan="6" class="muted">No company yet – add them below (Rachana, Sketchline …).</td></tr>';
+    saCoForm(null);
+  }
+  function saCoForm(c) { SA.coId = c ? c.id : ''; $('sa_co_title').textContent = c ? 'Change: ' + c.name : 'Add a company'; ['name', 'address', 'gstin', 'pan', 'logo'].forEach(k => { $('sa_co_' + k).value = c ? (c[k] || '') : ''; }); }
+  $('sa_co_rows').addEventListener('click', e => { if (!e.target.classList.contains('sa-coedit')) return; const id = e.target.closest('tr').dataset.id; saCoForm(SA.companies.find(c => c.id === id)); $('sa_co_name').focus(); });
+  $('sa_co_new').addEventListener('click', () => saCoForm(null));
+  $('sa_co_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
+    try { await saCall('companySave', { id: SA.coId, name: $('sa_co_name').value, address: $('sa_co_address').value, gstin: $('sa_co_gstin').value, pan: $('sa_co_pan').value, logo: $('sa_co_logo').value });
+      toast('Company saved.'); SA.sites = []; saCompanies(); } catch (er) { saFail(er); } }));
+  // ---- My account ----
+  $('sa_pw_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
+    if ($('sa_pw_new').value !== $('sa_pw_new2').value) { toast('The two new passwords are not the same.', true); return; }
+    try { const r = await saCall('changePassword', { old: $('sa_pw_old').value, password: $('sa_pw_new').value }); S.token = r.token; tokenKeep(r.token);
+      ['sa_pw_old', 'sa_pw_new', 'sa_pw_new2'].forEach(id => { $(id).value = ''; }); toast('Password changed. Other devices are signed out.'); } catch (er) { saFail(er); } }));
+  // the sign-in screen: the Super Admin who forgot his password uses the recovery code written down when he was made
+  $('lg_sarec').addEventListener('click', async () => {
+    const html = '<p>Only for the Super Admin: the recovery code written down when the Super Admin was made.</p>' +
+      '<div class="field"><label for="rc_email">Super Admin email</label><input id="rc_email" type="email" autocomplete="username"></div>' +
+      '<div class="field"><label for="rc_code">Recovery code</label><input id="rc_code" autocomplete="off" placeholder="XXXX-XXXX-XXXX-XXXX"></div>' +
+      '<div class="field"><label for="rc_pw">New password – 8 or more, letters and numbers</label><input id="rc_pw" type="password" autocomplete="new-password"></div>' +
+      '<div class="field"><label for="rc_pw2">New password again</label><input id="rc_pw2" type="password" autocomplete="new-password"></div>';
+    if (!(await askConfirm({ title: 'Super Admin – a new password', html: html, ok: 'Set the new password', wide: true }))) return;
+    if ($('rc_pw').value !== $('rc_pw2').value) { showAlert('Not changed', 'The two passwords are not the same.'); return; }
+    try { const r = await gsRun('super', '', 'recover', { email: $('rc_email').value.trim(), code: $('rc_code').value, password: $('rc_pw').value });
+      await askConfirm({ title: 'Password set – write the NEW recovery code down', alertOnly: true, ok: 'I have written it down', html: '<p>The old recovery code does not work any more. Your new one – shown only now:</p><p class="sa-code">' + esc(r.recovery) + '</p>' });
+      lgNote('Password set – sign in with it.'); }
+    catch (e) { showAlert('Not changed', errMsg(e)); }
   });
 
   /* ================= DASHBOARD ================= */
@@ -12812,7 +13105,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (d.faults) setFaults(d.faults);
       showBoot(false);
       $('login_screen').hidden = true; document.body.classList.remove('locked');
-      S.user = d.user; S.ver = d.versions || null; applyPerms(); startSync(); setClosed(S.closedUpto); dbCheckDaily(); try { rtcAfterLogin(); } catch (e) { /* the screen share's extras never stop a sign-in */ }
+      S.user = d.user; S.ver = d.versions || null; siteBoot(d.siteInfo); applyPerms(); startSync(); setClosed(S.closedUpto); dbCheckDaily(); try { rtcAfterLogin(); } catch (e) { /* the screen share's extras never stop a sign-in */ }
       setBackupInfo(S.backup);
       S.today = d.today; $('company').textContent = d.company; if (d.org) applyOrg(d.org);
       $('todayLabel').textContent = new Date(d.today + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
@@ -14807,7 +15100,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // start: use the saved sign-in if it is still valid, otherwise show the sign-in screen
   try { S.token = localStorage.getItem('rcl_token') || sessionStorage.getItem('rcl_token') || ''; } catch (e) { S.token = ''; }
   locCheck();      // (update-85) the app opens only with the location on
-  if (S.token) init(); else showLogin('');
+  if (/^sa/.test(S.token)) saStart(null); else if (S.token) init(); else showLogin('');      // (update-90) "sa…" = the Super Admin's sign-in
   /* ================= SCREEN SHARE WITH VOICE (update-72, asked 10-10-2026) =================
    * "A has a difficulty on a screen: he shares his screen with B, shows it and they talk – live. He picks whom from a list."
    *

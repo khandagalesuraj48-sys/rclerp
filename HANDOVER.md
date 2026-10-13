@@ -1529,6 +1529,18 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   :3102 (rig/proxy2.js, rig/postgrest2.conf); test/site89.js with srv89.sh-style servers (RCL_SITES={"T2":…}).
   NEXT: stage 2 (Super Admin, sites list, user ↔ sites, per-site access, site choice at sign-in, default site, switcher –
   needs new tables in the first site's DB: show the SQL first), stage 3 (New site form + Create site), stage 4 (rehearsal).
+- 13-10-2026 (update-90, after update-89 went live – `1f3a85e`). Report: `UPDATE_90.md`. SQL: `sql/supabase_step7_sites.sql`
+  (FIRST site only; 4 new tables rcl_super_admin (one row – unique index on (true)), rcl_companies, rcl_sites (S1 = home),
+  rcl_user_sites; owner approved the 4 tables 13-10-2026). Stage 2: Super Admin (Sites.gs sa*: own session SA_…, recovery
+  code), per-site users kept in each site's app_users (server copies the kept password), server/system.js (login choice:
+  default → Admin last/first → else ask; switchSite mints a session on the target site (Sites.gs sysSession_) and logs the
+  old one out; setDefaultSite; passwordToOthers after changePassword / SA reset; superDo), runtime OUTSIDE list + R.runIn,
+  sites.js registry from rcl_sites (15 s; other sites' keys sealed with RCL_SITES_KEY – AES-256-GCM), page.js sends `site`
+  with every call (rcl_site next to rcl_token; rcl_last_site for Admins), App.html siteBoot / site pill / Settings My sites /
+  #sa_screen / uaRender(p, d) + uaBind(p, data, save). Admin's saveUserAdmin refused once a Super Admin exists.
+  Rig: RCL_SITES_KEY='rig-sites-key-0123456789-abcdefghij' (scratchpad srv90.sh); T2 row inserted by test/site90api.js.
+  Tests: site90api.js (74), browser/site90.js (24), site89.js (36, updated to the list). NEXT: stage 3 – "Create site"
+  (form, run the SQL steps on the new DB through its connection string, Sheet tabs, Ready), then stage 4 rehearsal.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

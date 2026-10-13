@@ -2085,3 +2085,37 @@ test('update-87 the AI reading checked against the last reading; the dispenser l
   assert.match(app, /fill\('d_qty', null, p\.litres/);
   assert.match(app, /function dhDriver\(h\) \{\s*const dr = \$\('d_driver'\); if \(S\.editDieselId \|\| \(dr\.value !== '' && dr\.dataset\.auto !== '1'\)\) return;/);
 });
+
+test('update-90: the step-7 SQL (several sites) is listed word for word and only ADDS – four new tables, closed to the public', () => {
+  const file = fs.readFileSync(path.join(root, 'sql', 'supabase_step7_sites.sql'), 'utf8');
+  const list = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')();
+  const mine = list.find(x => x.name === 'supabase_step7_sites.sql');
+  assert.ok(mine, 'listed in the app'); assert.strictEqual(mine.sql, file, 'the text shown in the app is the file, word for word');
+  const code = file.split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
+  assert.ok(!/\b(drop\s+table|truncate)\b/i.test(code) && !/delete\s+from/i.test(code) && !/\bupdate\s+public\./i.test(code), 'nothing is dropped, emptied or changed');
+  const altered = [...code.matchAll(/alter\s+table\s+public\.(\w+)/gi)].map(m => m[1]);
+  const made = [...code.matchAll(/create table if not exists public\.(\w+)/gi)].map(m => m[1]);
+  assert.deepStrictEqual(made.sort(), ['rcl_companies', 'rcl_sites', 'rcl_super_admin', 'rcl_user_sites']);
+  assert.ok(altered.every(t => made.indexOf(t) > -1), 'only the new tables are altered (row level security on): ' + altered);
+  made.forEach(t => { assert.match(code, new RegExp('alter table public\\.' + t + ' enable row level security')); assert.match(code, new RegExp('revoke all on [^;]*public\\.' + t + '[^;]* from public, anon, authenticated')); });
+  assert.match(code, /create unique index if not exists rcl_super_admin_only_one on public\.rcl_super_admin \(\(true\)\)/, 'one Super Admin only – the database itself');
+  assert.ok(!/grant[^;]*to (anon|authenticated|public)\b/i.test(code), 'nothing is given to the public API');
+  assert.match(code, /from public\.app_users u/, 'the users of the site are COPIED into the list (app_users is only read)');
+});
+
+test('update-90: the key of another site is kept locked – it opens only with the same RCL_SITES_KEY', () => {
+  const sites = require(path.join(root, 'server', 'sites.js'));
+  const was = process.env.RCL_SITES_KEY;
+  try {
+    process.env.RCL_SITES_KEY = 'unit-test-key-0123456789-abcdef';
+    const sealed = sites.seal('sb_secret_abc123');
+    assert.match(sealed, /^v1\./); assert.ok(sealed.indexOf('sb_secret') === -1, 'the key cannot be read in the database');
+    assert.strictEqual(sites.open(sealed), 'sb_secret_abc123');
+    assert.notStrictEqual(sites.seal('sb_secret_abc123'), sealed, 'a new lock every time');
+    process.env.RCL_SITES_KEY = 'another-key-0123456789-abcdefgh';
+    assert.throws(() => sites.open(sealed), /does not match/);
+    delete process.env.RCL_SITES_KEY;
+    assert.throws(() => sites.open(sealed), /no key for sites/); assert.throws(() => sites.seal('x'), /RCL_SITES_KEY/);
+    assert.throws(() => sites.code('a b'), /not set up/); assert.strictEqual(sites.code(' t2 '), 'T2'); assert.strictEqual(sites.code(''), '');
+  } finally { if (was === undefined) delete process.env.RCL_SITES_KEY; else process.env.RCL_SITES_KEY = was; }
+});

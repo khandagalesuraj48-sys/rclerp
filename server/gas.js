@@ -411,6 +411,9 @@ function useSite(code) {
   return c;
 }
 const site = () => (CUR ? CUR.site : '');
+// the site in use, and putting it back exactly as it was (no new look at the list of sites – that cannot fail)
+const current = () => CUR;
+function restore(c) { const m = MEM.get(c ? c.site : '') || MEM.get(''); CUR = c; LOCAL = m.LOCAL; BEAT = m.BEAT; WARM = m.WARM; }
 // everything the server code sees as "global" for one request
 function makeGlobals(st, page) {
   const props = makeProperties(st), cache = makeCache(st), lock = makeLock(st);
@@ -431,4 +434,4 @@ function makeGlobals(st, page) {
     __scrypt: scryptHex,        // passwords are kept with scrypt (see "PASSWORDS" in Code.gs)
   };
 }
-module.exports = { newState, boot, flush, forceUnlock, makeGlobals, rpc, conf, useSite, site, Utilities, TZ, scryptHex };
+module.exports = { newState, boot, flush, forceUnlock, makeGlobals, rpc, conf, useSite, site, current, restore, Utilities, TZ, scryptHex };
