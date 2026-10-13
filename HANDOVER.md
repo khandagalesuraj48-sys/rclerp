@@ -1603,6 +1603,8 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   replaces the 02-10 "part of the page" rule. Ctrl K: gsModPages (module pages from MOD_MENU), gsModAsk/gsModGroups (each
   module page's window.rclModule.search(q); open(page, find) via extFind; extFrame/extReady load it out of sight). Store gives
   rclModule (Item Master search, Damerau spelling allowance). Tests: unit "update-101", browser search101.js 10.
+- 13-10-2026 (update-102). Report: `UPDATE_102.md`. extKeys: Ctrl K / "/" / Alt+B heard inside every module page of the screen
+  (attached on each frame load). search101.js 13.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

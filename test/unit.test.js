@@ -2289,3 +2289,9 @@ test('update-101: the dark menu scrolls by itself on a computer; Ctrl K also sea
   assert.match(app, /gsModAsk\(q, seq\);/); assert.match(app, /w\.rclModule\.search\(q\)/); assert.match(app, /w\.rclModule\.open\(page, find\)/);
   assert.match(app, /if \(seq !== GS\.seq\) return;/, 'an old answer never shows for a new search');
 });
+test('update-102: the keys of this screen (Ctrl K, "/", Alt + B) also work inside a module\'s page – for every module, nothing needed in it', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /fr\.addEventListener\('load', \(\) => extKeys\(fr\)\);/);
+  assert.match(app, /function extKeys\(fr\) \{/); assert.match(app, /w\.__rclKeys = true;/, 'heard once per page load');
+  assert.match(app, /\(e\.ctrlKey \|\| e\.metaKey\) && \(e\.key === 'k' \|\| e\.key === 'K' \|\| e\.code === 'KeyK'\)\) \{ e\.preventDefault\(\); e\.stopPropagation\(\); \$\('gs_back'\)\.hidden \? gsOpen\(\) : gsClose\(\); return; \}/);
+});

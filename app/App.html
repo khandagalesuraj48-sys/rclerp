@@ -4958,8 +4958,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // a module's page in this screen (made once; kept – hidden while a page of Mechanical is shown)
   function extFrame(m, hash) {
     const fr = document.createElement('iframe'); fr.id = 'ext_' + m.key; fr.className = 'ext-frame'; fr.title = m.name; fr.hidden = true;
+    fr.addEventListener('load', () => extKeys(fr));      // (each time its page loads: the keys of this screen work inside it too)
     fr.src = modBase(m) + '/?embed=1' + (hash || '#site=' + encodeURIComponent((S.siteInfo && S.siteInfo.site) || ptSite()) + '&u=' + encodeURIComponent(String((S.user && S.user.email) || '').toLowerCase()));
     $('ext_frames').appendChild(fr); return fr;
+  }
+  /* (13-10-2026: "Store ch Dashboard / Item madhe gelo Ctrl K kel ki kamach krt nahi … new modual ale tri search Ctrl K sagli
+   * kade kam karel") the keys of this screen also work while the person is in a module's page: what is pressed there is
+   * heard here – Ctrl K (⌘ K) opens / closes the search, "/" opens it when not typing, Alt + B is Back. Done by this screen
+   * for EVERY module of this address (its page is the same site), so a new module needs nothing for it. */
+  function extKeys(fr) {
+    let w; try { w = fr.contentWindow; if (!w || !w.document || w.__rclKeys) return; } catch (e) { return; }
+    w.__rclKeys = true;
+    w.addEventListener('keydown', e => {
+      const el = w.document.activeElement, typing = !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName || '') || el.isContentEditable);
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K' || e.code === 'KeyK')) { e.preventDefault(); e.stopPropagation(); $('gs_back').hidden ? gsOpen() : gsClose(); return; }
+      if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey && $('gs_back').hidden) { e.preventDefault(); gsOpen(); return; }
+      if (e.altKey && !e.ctrlKey && (e.key === 'b' || e.key === 'B' || e.code === 'KeyB')) { e.preventDefault(); goBack(); }
+    }, true);
   }
   // the module's page, loaded and answering (window.rclModule) – made out of sight when not there yet; null after 12 s
   async function extReady(m) {
