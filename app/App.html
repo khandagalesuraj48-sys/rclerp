@@ -2653,6 +2653,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <p class="lp-note" id="lg_note" role="status"></p>
       <button type="button" class="lp-link" id="lg_sarec" hidden>Super Admin: set a new password with the recovery code</button>
     </form>
+    <!-- (update-91) sign-in goes through the Portal: shown only when the Portal could not sign the person in here -->
+    <div class="lp-form" id="lg_portal" hidden>
+      <div class="oc-brand"><img class="oc-logo" src="/icons/oc-logo.webp" alt="One Click Solution" width="640" height="462" decoding="async"></div>
+      <div class="lp-head"><h1>Sign in through the Portal</h1><p>Everybody signs in on the RCL ERP Portal – one sign-in for all modules.</p></div>
+      <p class="login-err" id="lg_pt_err" role="alert"></p>
+      <a class="lp-submit" id="lg_pt_go" href="#" style="display:block;text-align:center;text-decoration:none">Open the Portal</a>
+    </div>
+    <script>
+      // (update-91) linked to the Portal: the old sign-in form is not shown even for the moment before the app has started
+      try { if (localStorage.getItem('rcl_portal') && !/[?&]local=1(&|$)/.test(window.top.location.search || '') && sessionStorage.getItem('rcl_local') !== '1') {
+        document.getElementById('login_form').hidden = true; document.getElementById('lg_portal').hidden = false; document.getElementById('lg_pt_err').textContent = 'Opening…'; } } catch (e) { /* the form stays */ }
+    </script>
   </div>
 </div>
 <div class="app">
@@ -2759,6 +2771,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     <button class="db-pill" id="db_pill" hidden type="button" title="Admin: the app checks every SQL step of the database once a day – press to see the result"></button>
     <button class="db-pill bad" id="err_pill" hidden type="button" title="Admin: faults of the app that were reported today – press to see them"></button>
     <span class="live off" id="live_dot" title="Connecting…"><i></i> Connecting…</span>
+    <button class="site-pill" id="mod_pill" type="button" hidden title="My modules and sites – open another one without signing in again"><span class="sp-ic" aria-hidden="true">▦</span>Modules</button>
     <button class="site-pill" id="site_pill" type="button" hidden title="The site you are on – press to open another of your sites"></button>
     <div class="today"><b id="company">Rachana Construction Limited</b><span id="todayLabel"></span></div>
     <div class="userchip"><button type="button" class="u-ava" id="u_ava" title="My settings" aria-label="My settings"></button><div><b id="u_name"></b><span id="u_role"></span></div>
@@ -4473,7 +4486,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if ($('ua_site')) $('ua_site').textContent = 'All users of this page belong to: ' + o.customer + (o.site ? ' – ' + o.site : '');
   }
   try { const kept = JSON.parse(localStorage.getItem('oc_org') || 'null'); if (kept) applyOrg(kept); } catch (e) { /* first visit */ }
-  gsRun('orgInfo').then(applyOrg).catch(() => { /* an older server: the page keeps what it has */ });
+  const ORG_P = gsRun('orgInfo');      // (update-91) also says whether sign-in goes through the Portal (ptSeen)
+  ORG_P.then(o => { applyOrg(o); ptSeen(o); }).catch(() => { /* an older server: the page keeps what it has */ });
   $('org_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
     const r = await call('saveOrgSettings', { customer: $('org_customer').value.trim(), site: $('org_site').value.trim(), logo: $('org_logo').value.trim(), billNames: $('org_names').value.split(/\n/).map(x => x.trim()).filter(Boolean), video: $('org_video').value.trim(), intro: $('org_intro').checked });
     applyOrg(r.org); toast('Company & site saved.');
@@ -4714,7 +4728,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function siteBoot(si) {
     S.siteInfo = si || null;
-    const many = !!(si && si.sites && si.sites.length > 1);
+    $('mod_pill').hidden = !ptOn();      // (update-91) through the Portal: "Modules" opens his other modules and sites
+    const many = !ptOn() && !!(si && si.sites && si.sites.length > 1);
     if (si && si.site) { try { if (!(localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site'))) siteKeep(si.site); } catch (e) { /* storage blocked */ } }
     $('site_pill').hidden = !many; $('set_sites').hidden = !many;
     if (!many) return;
@@ -4737,13 +4752,83 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try { const r = await gsRun('setDefaultSite', S.token, v); if (S.siteInfo) S.siteInfo.sites = r.sites; toast(v ? 'Saved – this site opens when you sign in.' : (S.user && S.user.admin ? 'Saved – the site you used last opens.' : 'Saved – you are asked at every sign-in.')); }
     catch (e) { toast(errMsg(e), true); }
   });
-  function showLogin(msg) {
+  /* ---------- SIGN-IN THROUGH THE PORTAL (update-91, asked 13-10-2026) ----------
+   * "Login moves out of Mechanical onto the Portal; from inside one module the person goes to another without going out."
+   * When the server is linked to the Portal (Vercel setting PORTAL_URL – orgInfo says so):
+   *   nobody signed in → the browser goes to the Portal, which sends him back with a ticket (#sso=…) → ssoStart;
+   *   a sign-in that ended → the same (while the Portal still knows him, he is back at once, without typing anything);
+   *   "Modules" (top bar) → his other modules on this site and Mechanical on his other sites – through the Portal, no sign-in;
+   *   the key button (password) and Logout → the Portal (one password, one sign-out for every module).
+   * The app's own sign-in stays as the reserve: the link with ?local=1 (this tab only). Not linked → everything as before.
+   * Going round in circles is stopped: at most 3 automatic trips to the Portal in 2 minutes, then a message. */
+  const PT = { url: '', mods: [], sites: [], local: false };
+  try { const o = JSON.parse(localStorage.getItem('rcl_portal') || 'null'); if (o && o.url) Object.assign(PT, { url: String(o.url), mods: o.mods || [], sites: o.sites || [] }); } catch (e) { /* not linked as far as this browser knows */ }
+  try { PT.local = sessionStorage.getItem('rcl_local') === '1'; } catch (e) { /* no reserve */ }
+  const ptOn = () => !!PT.url && !PT.local;
+  function ptKeep(p) { if (!p || !p.url) return; PT.url = String(p.url); PT.mods = p.mods || []; PT.sites = p.sites || [];
+    try { localStorage.setItem('rcl_portal', JSON.stringify({ url: PT.url, mods: PT.mods, sites: PT.sites })); } catch (e) { /* kept for this page only */ } }
+  function ptForget() { PT.url = ''; PT.mods = []; PT.sites = []; try { localStorage.removeItem('rcl_portal'); } catch (e) { /* nothing kept */ } }
+  // what the server says (orgInfo): linked to a Portal, or no longer (the setting taken out – the app's own sign-in again)
+  function ptSeen(o) { if (!o || typeof o !== 'object') return; if (o.portal) { if (PT.url !== o.portal) ptKeep({ url: o.portal, mods: PT.mods, sites: PT.sites }); } else if (o.customer && PT.url) ptForget(); }
+  const ptSite = () => { try { return localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site') || localStorage.getItem('rcl_last_site') || ''; } catch (e) { return ''; } };
+  const ptOpen = (mod, site) => '/api/go?module=' + encodeURIComponent(mod) + '&site=' + encodeURIComponent(site);
+  function ptNav(path) { try { window.top.location.href = PT.url + path; } catch (e) { location.href = PT.url + path; } }
+  // an automatic trip to the Portal (not a click): refused after 3 in 2 minutes
+  function ptGo(path) {
+    let hops = []; try { hops = JSON.parse(sessionStorage.getItem('rcl_pt_hops') || '[]').filter(t => Date.now() - t < 120000); } catch (e) { hops = []; }
+    if (hops.length >= 3) return false;
+    hops.push(Date.now()); try { sessionStorage.setItem('rcl_pt_hops', JSON.stringify(hops)); } catch (e) { /* no guard without storage: the Portal still answers */ }
+    ptNav(path); return true;
+  }
+  const PT_STUCK = 'The Portal could not sign you in here (several tries in a row). Open the Portal and choose the module again; if it keeps happening, tell the Admin.';
+  // the page was opened by the Portal with a ticket
+  async function ssoStart(ticket) {
+    document.body.classList.add('locked'); $('login_screen').hidden = false; $('login_form').hidden = true; $('lg_portal').hidden = false;
+    $('lg_pt_err').textContent = 'Signing in…'; $('lg_pt_go').href = PT.url ? PT.url + '/' : '#';
+    try {
+      const r = await gsRun('ssoLogin', ticket);
+      S.token = r.token; try { sessionStorage.removeItem('rcl_token'); localStorage.setItem('rcl_token', r.token); } catch (e) { /* this page only */ }
+      ptKeep(r.portal); siteKeep(r.site || '');
+      try { sessionStorage.removeItem('rcl_pt_hops'); } catch (e) { /* fine */ }
+      $('lg_pt_err').textContent = 'Loading…';
+      await init();
+    } catch (e) {
+      const m = errMsg(e);
+      if (/not linked to the Portal/.test(m)) { ptForget(); showLogin('', { here: true }); return; }
+      showLogin(m, { here: !/ran out|already used/.test(m) });      // an old ticket: the Portal gives a new one (the guard above stops circles)
+    }
+  }
+  $('mod_pill').addEventListener('click', async () => {
+    if (!ptOn()) return;
+    const cur = (S.siteInfo && S.siteInfo.site) || ptSite(), mods = PT.mods.filter(m => m.key !== 'mechanical'), sites = PT.sites.filter(x => x.code !== cur);
+    const btn = (go, label) => '<button type="button" class="btn ghost sp-btn" data-go="' + esc(go) + '">' + esc(label) + '</button>';
+    let go = '';
+    const onClick = e => { const b = e.target.closest('.sp-btn'); if (!b) return; go = b.dataset.go; closeConfirm(true); };
+    $('cf_msg').addEventListener('click', onClick);
+    try { await askConfirm({ title: 'Modules', alertOnly: true, ok: 'Stay here',
+      html: (mods.length ? '<p class="muted">Other modules on this site</p><div class="sp-list">' + mods.map(m => btn(ptOpen(m.key, cur), m.name)).join('') + '</div>' : '') +
+        (sites.length ? '<p class="muted">Mechanical on another site</p><div class="sp-list">' + sites.map(x => btn(ptOpen('mechanical', x.code), x.name)).join('') + '</div>' : '') +
+        '<div class="sp-list">' + btn('/?menu=1', 'All my modules (Portal)') + '</div>' }); }
+    finally { $('cf_msg').removeEventListener('click', onClick); }
+    if (!go) return;
+    if (window.__rclSaving && window.__rclSaving()) { toast('An entry is still being sent – wait until it is saved, then open the other module.', true); return; }
+    ptNav(go);
+  });
+  function showLogin(msg, opt) {
     try { rtcRingClose(); rtcEnd('', true); } catch (e) { /* no screen share */ }
     try { saHide(); $('site_pill').hidden = true; S.siteInfo = null; } catch (e) { /* the site parts are not built yet at the first start */ }
     S.token = ''; try { localStorage.removeItem('rcl_token'); sessionStorage.removeItem('rcl_token'); } catch (e) {}
     try { const de = document.documentElement; de.dataset.theme = 'light'; de.dataset.text = 'normal'; de.dataset.density = 'normal'; if ($('grp_fav')) $('grp_fav').hidden = true; if ($('announce')) $('announce').hidden = true; } catch (e) { /* the sign-in screen is always the plain one */ }
     document.body.classList.add('locked');
-    $('login_screen').hidden = false; $('lg_err').textContent = msg || ''; $('lg_pass').value = '';
+    $('login_screen').hidden = false;
+    // (update-91) linked to the Portal: sign-in happens there (the reserve ?local=1, a message from here, or "Logout" stay here)
+    if (!PT.local && !(opt && opt.here)) {
+      if (ptOn()) { const st = ptSite(); if (ptGo(st ? ptOpen('mechanical', st) : '/')) { $('login_form').hidden = true; $('lg_portal').hidden = false; $('lg_pt_err').textContent = 'Opening the Portal…'; return; } msg = PT_STUCK; }
+      else ORG_P.then(o => { if (o && o.portal && !S.token && !PT.local && $('login_screen').hidden === false) { ptSeen(o); showLogin(msg); } }).catch(() => { /* the app's own sign-in */ });
+    }
+    $('login_form').hidden = ptOn(); $('lg_portal').hidden = !ptOn();
+    if (ptOn()) { $('lg_pt_err').textContent = msg || ''; $('lg_pt_go').href = PT.url + '/'; try { $('ai_panel').hidden = true; $('ai_fab').hidden = true; } catch (e) { /* not built yet */ } return; }
+    $('lg_err').textContent = msg || ''; $('lg_pass').value = '';
     try { $('ai_panel').hidden = true; $('ai_fab').hidden = true; AI.turns = []; $('ai_msgs').innerHTML = ''; } catch (e) { /* the assistant is not built yet at the first start */ }
     if ($('lg_cred')) $('lg_cred').hidden = true;
     setTimeout(() => $('lg_email').focus(), 50);
@@ -4828,17 +4913,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     finally { b.disabled = false; b.textContent = 'Save password'; }
   });
   $('pw_new2').addEventListener('keydown', e => { if (e.key === 'Enter') $('pw_save').click(); });
-  $('u_pw').addEventListener('click', () => pwDialog(false));
+  $('u_pw').addEventListener('click', () => { if (ptOn()) { ptNav('/?pw=1'); return; } pwDialog(false); });      // (update-91) one password: the Portal's
   const lgNote = t => { $('lg_note').textContent = t; };
   $('lg_signup').addEventListener('click', () => lgNote('New accounts are created by the Admin. Please contact your Admin.'));
   $('lg_forgot').addEventListener('click', () => { lgNote('Please ask your Admin to reset your password.'); $('lg_sarec').hidden = false; });
   $('u_logout').addEventListener('click', async () => {
-    if (!(await askConfirm({ title: 'Sign out?', message: 'You will need your email and password to sign in again.', ok: 'Sign out' }))) return;
+    if (!(await askConfirm({ title: 'Sign out?', message: ptOn() ? 'You will be signed out of the Portal and every module.' : 'You will need your email and password to sign in again.', ok: 'Sign out' }))) return;
     try { await rtcPushLeave(); } catch (e) { /* this device then simply stops getting this user's calls at the next sign-in of someone else */ }
-    const t = S.token; credForget(); showLogin(''); try { await gsRun('logout', t); } catch (e) {}
+    const t = S.token, viaPortal = ptOn(); credForget(); showLogin('', { here: true }); try { await gsRun('logout', t); } catch (e) {}
     // a shared computer: the next person must not find the last one's settings (mobile number, photo) or the Admin's database check here.
     // (They are only this browser's copy – the settings themselves are kept with the account and come back at the next sign-in.)
     try { Object.keys(localStorage).filter(k => /^oc_prefs_/.test(k) || k === 'rcl_dbcheck' || k === 'rcl_trace').forEach(k => localStorage.removeItem(k)); } catch (e) { /* storage blocked: nothing was kept */ }
+    if (viaPortal) { ptNav('/?signout=1'); return; }      // (update-91) signed out of the Portal too (its page does it)
     location.reload();
   });
   /* ---------- access: show edit parts only where the user has Edit ---------- */
@@ -4971,6 +5057,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['You were signed out because the session ended.', 'Sign in again. Anything typed but not saved has to be typed again.'],
       mr: ['Session संपल्यामुळे तुम्ही sign out झाला आहात.', 'पुन्हा sign in करा. Save न केलेली माहिती पुन्हा भरावी लागेल.'],
       hi: ['Session खत्म होने से आप sign out हो गए हैं।', 'फिर से sign in करें। जो जानकारी save नहीं हुई थी, उसे दोबारा भरना होगा।'] },
+    { re: /Portal sign-in could not be accepted|Portal could not sign you in/i,
+      en: ['The app could not sign you in with the note the Portal sent (it was too old, already used, or the Portal and the app are not linked properly).', 'Open the Portal and press the module again. If the same message comes again, tell the Admin – the Portal address in the app\'s settings (PORTAL_URL) may be wrong.'],
+      mr: ['Portal ने पाठवलेल्या माहितीने app तुम्हाला sign in करू शकले नाही (ती जुनी होती, आधीच वापरली होती, किंवा Portal आणि app नीट जोडलेले नाहीत).', 'Portal उघडा आणि module वर पुन्हा दाबा. तोच संदेश परत आला तर Admin ला सांगा – app च्या settings मधला Portal चा पत्ता (PORTAL_URL) चुकीचा असू शकतो.'],
+      hi: ['Portal की भेजी जानकारी से app आपको sign in नहीं कर सका (वह पुरानी थी, पहले ही इस्तेमाल हो चुकी थी, या Portal और app ठीक से जुड़े नहीं हैं)।', 'Portal खोलें और module पर फिर दबाएँ। वही संदेश फिर आए तो Admin को बताएँ – app की settings में Portal का पता (PORTAL_URL) गलत हो सकता है।'] },
     { re: /Wrong email or password|Current password is wrong/i,
       en: ['The email or the password does not match.', 'Check the spelling and Caps Lock and try again. If the password is forgotten, ask the Admin to set a new one in Users & Access.'],
       mr: ['Email किंवा password जुळत नाही.', 'Spelling आणि Caps Lock तपासून पुन्हा प्रयत्न करा. Password विसरला असेल तर Admin ला Users & Access मधून नवीन password द्यायला सांगा.'],
@@ -15100,7 +15190,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // start: use the saved sign-in if it is still valid, otherwise show the sign-in screen
   try { S.token = localStorage.getItem('rcl_token') || sessionStorage.getItem('rcl_token') || ''; } catch (e) { S.token = ''; }
   locCheck();      // (update-85) the app opens only with the location on
-  if (/^sa/.test(S.token)) saStart(null); else if (S.token) init(); else showLogin('');      // (update-90) "sa…" = the Super Admin's sign-in
+  // (update-91) a ticket from the Portal (#sso=… in the link – taken out of the address at once), or the reserve (?local=1)
+  let ssoTicket = '';
+  try { const top = window.top, m = /^#sso=([A-Za-z0-9_.-]{20,8000})$/.exec(top.location.hash || '');
+    if (/[?&]local=1(&|$)/.test(top.location.search || '')) { try { sessionStorage.setItem('rcl_local', '1'); } catch (e) { /* this page only */ } PT.local = true; }
+    if (m || /^#sso=/.test(top.location.hash || '')) { ssoTicket = m ? m[1] : ''; top.history.replaceState(null, '', top.location.pathname + top.location.search); } }
+  catch (e) { /* another origin: no ticket */ }
+  if (ssoTicket && !PT.local) ssoStart(ssoTicket);
+  else if (/^sa/.test(S.token)) saStart(null); else if (S.token) init(); else showLogin('');      // (update-90) "sa…" = the Super Admin's sign-in
   /* ================= SCREEN SHARE WITH VOICE (update-72, asked 10-10-2026) =================
    * "A has a difficulty on a screen: he shares his screen with B, shows it and they talk – live. He picks whom from a list."
    *

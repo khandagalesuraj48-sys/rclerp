@@ -2119,3 +2119,39 @@ test('update-90: the key of another site is kept locked – it opens only with t
     assert.throws(() => sites.code('a b'), /not set up/); assert.strictEqual(sites.code(' t2 '), 'T2'); assert.strictEqual(sites.code(''), '');
   } finally { if (was === undefined) delete process.env.RCL_SITES_KEY; else process.env.RCL_SITES_KEY = was; }
 });
+
+test('update-91: sign-in through the Portal – switched on only by PORTAL_URL (https), a ticket is refused before any key is asked for when it is no ticket, help in 3 languages', () => {
+  const portal = require(path.join(root, 'server', 'portal.js'));
+  const was = process.env.PORTAL_URL;
+  try {
+    delete process.env.PORTAL_URL; assert.strictEqual(portal.url(), '');
+    assert.throws(() => portal.verify('a.b.c'), /not linked to the Portal/, 'without the setting: nothing is accepted (the app\'s own sign-in, as before)');
+    process.env.PORTAL_URL = 'https://rcl-portal-flame.vercel.app/'; assert.strictEqual(portal.url(), 'https://rcl-portal-flame.vercel.app');
+    process.env.PORTAL_URL = 'http://rcl-portal.example'; assert.strictEqual(portal.url(), '', 'plain http is never trusted (only this computer, for tests)');
+    process.env.PORTAL_URL = 'http://127.0.0.1:3010'; assert.strictEqual(portal.url(), 'http://127.0.0.1:3010');
+    process.env.PORTAL_URL = 'https://x.example/path'; assert.strictEqual(portal.url(), '', 'an address with a path is not a Portal');
+    process.env.PORTAL_URL = 'https://rcl-portal-flame.vercel.app';
+    assert.throws(() => portal.verify('not-a-ticket'), /not a ticket/);
+    assert.throws(() => portal.verify('x'.repeat(9000) + '.a.b'), /not a ticket/);
+    const head = Buffer.from(JSON.stringify({ alg: 'HS256', kid: 'k' })).toString('base64url');
+    assert.throws(() => portal.verify(head + '.e30.c2ln'), /not a ticket of the Portal/, 'only ES256 tickets (no "none", no shared-secret ones)');
+  } finally { if (was === undefined) delete process.env.PORTAL_URL; else process.env.PORTAL_URL = was; portal.forget(); }
+  // the session's 4th part: a shorter life (12 hours for a Portal sign-in), never longer than 30 days
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  const a = code.indexOf('const SESSION_MAX_DAYS'), b = code.indexOf('function readUsers_(');
+  const pwStamp_ = () => 'abcdef012345';
+  const F = new Function('pwStamp_', code.slice(a, b) + '; return { sessionMake_, sessionRead_ };')(pwStamp_);
+  const v = F.sessionMake_('a@b.c', 'x', 12 * 3600000), r = F.sessionRead_(v);
+  assert.match(v, /^a@b\.c\|abcdef012345\|\d+\|43200000$/); assert.ok(r.left > 12 * 3600000 - 5000 && r.left <= 12 * 3600000);
+  assert.ok(F.sessionRead_(F.sessionMake_('a@b.c', 'x')).left > 29 * 86400000, 'an ordinary sign-in: 30 days as before');
+  assert.ok(F.sessionRead_(F.sessionMake_('a@b.c', 'x', 999 * 86400000)).left <= 30 * 86400000, 'never longer than 30 days');
+  assert.ok(F.sessionRead_('a@b.c|abcdef012345|' + (Date.now() - 13 * 3600000) + '|43200000').left < 0, '13 hours old: ended');
+  // the page's help for the new messages
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  for (const m of ['The Portal sign-in could not be accepted (it ran out – it is valid for one minute) – open the module again from the Portal.', 'The Portal could not sign you in here (several tries in a row). Open the Portal and choose the module again; if it keeps happening, tell the Admin.'])
+    assert.ok(H.fixRules(m)[0] !== H.FIX_ANY && /Portal/.test(H.fixRules(m)[0].en.join(' ')), m);
+  // the page: the old sign-in is hidden when linked, kept behind ?local=1; one "Modules" button
+  assert.strictEqual((app.match(/id="mod_pill"/g) || []).length, 1); assert.strictEqual((app.match(/id="lg_portal"/g) || []).length, 1);
+  assert.ok(/local=1/.test(app) && /ssoLogin/.test(app) && /#sso=/.test(app));
+});
