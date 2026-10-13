@@ -29,6 +29,14 @@
   ],
   "rewrites": [
     {
+      "source": "/store/",
+      "destination": "https://rcl-store.vercel.app/index.html"
+    },
+    {
+      "source": "/portal/",
+      "destination": "https://rcl-portal-flame.vercel.app/index.html"
+    },
+    {
       "source": "/store/:path*",
       "destination": "https://rcl-store.vercel.app/:path*"
     },
