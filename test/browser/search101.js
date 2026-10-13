@@ -63,6 +63,20 @@ const until = async (fn, ms) => { const t = Date.now(); while (Date.now() - t < 
     const shown = await until(async () => { const f = store(p); if (!f) return null; const s = await f.evaluate(() => !document.getElementById('pg_items').hidden && document.getElementById('f_q').value + '|' + [...document.querySelectorAll('#i_rows tr[data-code]')].map(t => t.dataset.code).join(',')); const v = await app(p).evaluate(() => !document.getElementById('sec-ext').hidden && document.getElementById('page_title').textContent); return s && v === 'Item Master' && s; }, 20000);
     ok('   a click on it: Store › Item Master in the same screen, showing that item only', shown === code + '|' + code, shown);
     await wait(500); await p.screenshot({ path: SHOTS + 'search_opened_item.png' });
+    // ---- Ctrl K while working INSIDE the Store's page (13-10-2026: "Store madhe gelo Ctrl K kel ki kamach krt nahi") ----
+    await app(p).evaluate(() => gsClose());
+    await store(p).focus('#f_q'); await p.keyboard.down('Control'); await p.keyboard.press('k'); await p.keyboard.up('Control');
+    const k1 = await until(() => app(p).evaluate(() => !document.getElementById('gs_back').hidden && document.activeElement && document.activeElement.id === 'gs_in'), 5000);
+    ok('in the Store\'s Item Master (cursor in its search box): Ctrl K opens the search – the cursor is in it', !!k1);
+    await p.keyboard.type('hydraulic');
+    const k2 = await until(() => app(p).evaluate(() => [...document.querySelectorAll('#gs_list .gs-item b')].some(b => /Searchtest Hydraulic Pump/.test(b.textContent))), 20000);
+    ok('   typing right away searches (the Store\'s item found)', !!k2);
+    await p.keyboard.press('Escape'); await wait(300);
+    await store(p).evaluate(() => { document.activeElement && document.activeElement.blur(); document.querySelector('[data-page="dashboard"]') && window.rclModule.open('dashboard'); });
+    await store(p).evaluate(() => document.body.focus()); await p.keyboard.press('/');
+    const k3 = await until(() => app(p).evaluate(() => !document.getElementById('gs_back').hidden), 5000);
+    ok('   in the Store\'s Dashboard (not typing): "/" opens the search too', !!k3);
+    await app(p).evaluate(() => gsClose());
     r = await search('diesel issue');
     ok('Mechanical\'s own search as before ("diesel issue" → the page)', !!r && r.some(x => /^Diesel Issue \//.test(x)), r);
     ok('one tab', (await ctx.pages()).length === 1);
