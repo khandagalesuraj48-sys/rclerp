@@ -1268,6 +1268,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* update-90: several sites – the site switch, the site choice, the Super Admin's screen */
   .site-pill { display: inline-flex; align-items: center; gap: 6px; max-width: 260px; padding: 6px 12px; min-height: 34px; border: 1px solid #1D55E2; border-radius: 999px; background: #EEF3FF; color: #1D4ED8; font: 600 13.5px var(--ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
   .site-pill .sp-ic { font-size: 15px; }
+  /* (update-93) the modules of this site as shortcuts in the top bar – the one open now is marked; a click opens another (through the Portal, no sign-in) */
+  .mod-chips { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid #CBD5E1; border-radius: 999px; background: #F8FAFC; white-space: nowrap; }
+  .mod-chips[hidden] { display: none; }
+  .mod-chips button { border: 0; background: none; border-radius: 999px; padding: 5px 12px; min-height: 28px; font: 600 13px var(--ui); color: #334155; cursor: pointer; }
+  .mod-chips button:hover { background: #E2E8F0; }
+  .mod-chips button.on { background: #1D55E2; color: #fff; cursor: default; }
+  .site-pill.compact .mp-l { display: none; }      /* next to the shortcuts the "Modules" button keeps only its sign (other sites, all modules) */
   .sp-list { display: grid; gap: 8px; margin: 10px 0; }
   .sp-list .sp-btn { justify-content: flex-start; min-height: 44px; font-size: 15px; text-align: left; }
   body.locked #cf_back { z-index: 60; }
@@ -2771,7 +2778,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     <button class="db-pill" id="db_pill" hidden type="button" title="Admin: the app checks every SQL step of the database once a day – press to see the result"></button>
     <button class="db-pill bad" id="err_pill" hidden type="button" title="Admin: faults of the app that were reported today – press to see them"></button>
     <span class="live off" id="live_dot" title="Connecting…"><i></i> Connecting…</span>
-    <button class="site-pill" id="mod_pill" type="button" hidden title="My modules and sites – open another one without signing in again"><span class="sp-ic" aria-hidden="true">▦</span>Modules</button>
+    <span class="mod-chips" id="mod_chips" role="group" aria-label="My modules on this site" hidden></span>
+    <button class="site-pill" id="mod_pill" type="button" hidden title="My modules and sites – open another one without signing in again"><span class="sp-ic" aria-hidden="true">▦</span><span class="mp-l">Modules</span></button>
     <button class="site-pill" id="site_pill" type="button" hidden title="The site you are on – press to open another of your sites"></button>
     <div class="today"><b id="company">Rachana Construction Limited</b><span id="todayLabel"></span></div>
     <div class="userchip"><button type="button" class="u-ava" id="u_ava" title="My settings" aria-label="My settings"></button><div><b id="u_name"></b><span id="u_role"></span></div>
@@ -4729,6 +4737,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function siteBoot(si) {
     S.siteInfo = si || null;
     $('mod_pill').hidden = !ptOn();      // (update-91) through the Portal: "Modules" opens his other modules and sites
+    modChips();      // (update-93) and his modules of this site as shortcuts
     const many = !ptOn() && !!(si && si.sites && si.sites.length > 1);
     if (si && si.site) { try { if (!(localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site'))) siteKeep(si.site); } catch (e) { /* storage blocked */ } }
     $('site_pill').hidden = !many; $('set_sites').hidden = !many;
@@ -4798,6 +4807,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       showLogin(m, { here: !/ran out|already used/.test(m) });      // an old ticket: the Portal gives a new one (the guard above stops circles)
     }
   }
+  /* (update-93, asked 13-10-2026: "shortcuts – the modules in the top bar") – shown when he has two modules or more on this
+   * site (with Mechanical alone there is nothing to go to). Mechanical is marked as open; another opens through the Portal. */
+  function modChips() {
+    const box = $('mod_chips'), cur = (S.siteInfo && S.siteInfo.site) || ptSite(), mods = ptOn() ? PT.mods : [];
+    box.hidden = mods.length < 2; $('mod_pill').classList.toggle('compact', !box.hidden); if (box.hidden) { box.innerHTML = ''; return; }
+    box.innerHTML = mods.map(m => m.key === 'mechanical' ? '<button type="button" class="on" aria-current="page">' + esc(m.name) + '</button>'
+      : '<button type="button" data-go="' + esc(ptOpen(m.key, cur)) + '" title="Open ' + esc(m.name) + ' – no new sign-in">' + esc(m.name) + '</button>').join('');
+  }
+  $('mod_chips').addEventListener('click', e => { const b = e.target.closest('button[data-go]'); if (!b) return;
+    if (window.__rclSaving && window.__rclSaving()) { toast('An entry is still being sent – wait until it is saved, then open the other module.', true); return; }
+    ptNav(b.dataset.go); });
   $('mod_pill').addEventListener('click', async () => {
     if (!ptOn()) return;
     const cur = (S.siteInfo && S.siteInfo.site) || ptSite(), mods = PT.mods.filter(m => m.key !== 'mechanical'), sites = PT.sites.filter(x => x.code !== cur);

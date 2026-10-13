@@ -18,7 +18,9 @@ const settled = p => p.waitForFunction(() => document.activeElement && document.
 const until = async (fn, ms) => { const t = Date.now(); while (Date.now() - t < (ms || 20000)) { try { const v = await fn(); if (v) return v; } catch (e) { /* the page is changing */ } await wait(300); } return null; };
 (async () => {
   // the start: sujit has Mechanical on S1 (Admin) and on T2 (User) in the Portal
-  sql('rcl_portal', "insert into public.access (email, site, module, role, granted_by) values ('sujit@rcl.test', 'T2', 'mechanical', 'user', 'test') on conflict (email, site, module) do update set role = 'user'; delete from public.counters;");
+  sql('rcl_portal', "insert into public.access (email, site, module, role, granted_by) values ('sujit@rcl.test', 'T2', 'mechanical', 'user', 'test') on conflict (email, site, module) do update set role = 'user'; delete from public.counters; update public.users set start_item = null where email = 'sujit@rcl.test';");
+  // (update-93) a second module on S1 for the shortcuts in the top bar – "Store" played by the other app server (:3001)
+  sql('rcl_portal', "insert into public.modules (key, name, url, status, sort) values ('store', 'Store', 'http://127.0.0.1:3001', 'live', 2) on conflict (key) do update set url = excluded.url, status = 'live'; insert into public.access (email, site, module, role, granted_by) values ('sujit@rcl.test', 'S1', 'store', 'user', 'test') on conflict (email, site, module) do nothing;");
   sql('rcl', "delete from web.cache where key like 'F\\_%' or key like 'LG\\_%';");
   const hadT2 = sql('rcl', "select count(*) from rcl_user_sites where email = 'sujit@rcl.test' and site = 'T2'") !== '0';      // (opening T2 through the Portal writes it; put back at the end)
   const b = await puppeteer.launch({ executablePath: await chromium.executablePath(), args: [...chromium.args, '--no-sandbox'], headless: 'shell', protocolTimeout: 120000 });
@@ -38,7 +40,7 @@ const until = async (fn, ms) => { const t = Date.now(); while (Date.now() - t < 
     await settled(p); await p.type('#l_email', 'sujit@rcl.test'); await p.type('#l_pass', PW); await p.click('#l_btn');
     await until(() => p.evaluate(() => !document.getElementById('v_home').hidden));
     const cards = await p.$$eval('#h_sites a.mod', x => x.map(a => a.textContent));
-    ok('the Portal shows his modules: Mechanical on S1 and on T2', cards.length === 2, cards);
+    ok('the Portal shows his modules: Mechanical and Store on S1, Mechanical on T2', cards.length === 3, cards);
     await p.screenshot({ path: SHOTS + 'p91_portal_dashboard.png' });
     await p.click('#h_sites a.mod');
     const inS1 = await until(async () => p.url().startsWith(M) && await inApp(p), 40000);
@@ -46,7 +48,15 @@ const until = async (fn, ms) => { const t = Date.now(); while (Date.now() - t < 
     ok('   the ticket is taken out of the address at once', !/sso=/.test(p.url()), p.url());
     let st = await app(p).evaluate(() => ({ mods: !document.getElementById('mod_pill').hidden, sitePill: !document.getElementById('site_pill').hidden, site: localStorage.getItem('rcl_site'), user: (document.getElementById('u_name') || {}).textContent }));
     ok('   on S1; the top bar has "Modules" (the old site switch is not shown)', st.mods && !st.sitePill && st.site === 'S1', st);
+    // (update-93) the modules of this site as shortcuts in the top bar
+    const chips = await app(p).evaluate(() => { const b = document.getElementById('mod_chips'); return { shown: !b.hidden, list: [...b.querySelectorAll('button')].map(x => x.textContent + (x.classList.contains('on') ? '*' : '')) }; });
+    ok('   the top bar shows his modules of this site as shortcuts – Mechanical marked as open', chips.shown && chips.list.join(',') === 'Mechanical*,Store', chips);
     await wait(1500); await p.screenshot({ path: SHOTS + 'p91_mech_modules_button.png' });
+    await closeDlg(p);
+    const [toStore] = await Promise.all([p.waitForResponse(r => r.url().startsWith(P + '/api/go?module=store') && r.status() === 302, { timeout: 30000 }), app(p).click('#mod_chips button[data-go]')]);
+    ok('   a click on "Store" opens Store on S1 with a ticket (no sign-in)', /site=S1/.test(toStore.url()) && (toStore.headers().location || '').startsWith('http://127.0.0.1:3001/#sso='), toStore.url());
+    await p.evaluate(u => { location.href = u; }, P + '/api/go?module=mechanical&site=S1');
+    await until(async () => p.url().startsWith(M) && await inApp(p), 40000);
     // ---- Modules → Mechanical on T2 ----
     await closeDlg(p); await app(p).click('#mod_pill'); await wait(600);
     const dlg = await app(p).evaluate(() => [...document.querySelectorAll('#cf_msg .sp-btn')].map(x => x.textContent));
@@ -118,7 +128,7 @@ const until = async (fn, ms) => { const t = Date.now(); while (Date.now() - t < 
   // (this test browser has no password store: the app's "saved sign-in" look on the sign-in screen fails there – cred.js plays the store)
   const real = errs.filter(e => !/does not support public key credentials/.test(e));
   ok('no script error on any page', real.length === 0, real);
-  sql('rcl_portal', "delete from public.access where email = 'sujit@rcl.test' and site = 'T2' and granted_by = 'test';");
+  sql('rcl_portal', "delete from public.access where email = 'sujit@rcl.test' and granted_by = 'test'; delete from public.modules where key = 'store';");
   if (!hadT2) sql('rcl', "delete from rcl_user_sites where email = 'sujit@rcl.test' and site = 'T2';");
   console.log(out.join('\n')); console.log('\nTOTAL ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

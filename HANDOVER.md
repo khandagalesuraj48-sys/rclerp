@@ -1555,6 +1555,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   sbOrder_ (deleted_rows seq, rcl_sites code, rcl_super_admin email, rcl_user_sites email,site) used by sbAllRows_ and the old
   full/changes copies; SB_HIDDEN_ (sbSafe_) also hides rcl_super_admin password_hash/recovery_hash, rcl_sites
   db_key_enc/db_conn_enc. test/backup.js 30 (before: 4 failed). Run test/backup.js after any SQL step that adds a table.
+- 13-10-2026 (update-93). Report: `UPDATE_93.md`. Top-bar module shortcuts (Portal mode): #mod_chips filled by modChips()
+  from PT.mods (≥ 2 modules on this site; Mechanical .on), a click → ptNav(ptOpen(key, site)); #mod_pill gets .compact (only
+  ▦). browser/portal91.js 20 (a "store" module on :3001 in the rig Portal). Portal: OneClickSolution sign-in look, "My start"
+  (users.start_item – Portal sql/portal_step2_start.sql), ?signout clears ?menu.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
