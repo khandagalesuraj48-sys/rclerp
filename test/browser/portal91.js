@@ -49,8 +49,13 @@ const until = async (fn, ms) => { const t = Date.now(); while (Date.now() - t < 
     let st = await app(p).evaluate(() => ({ chg: !document.getElementById('site_box').hidden, name: document.getElementById('site_chg_name').textContent, site: localStorage.getItem('rcl_site'), topbar: [...document.querySelectorAll('.topbar .site-pill, .topbar .mod-chips')].length }));
     ok('   on S1; the dark menu starts with "Change site" and the site\'s name (nothing of it in the top bar)', st.chg && /S1|VTR|Nashik/i.test(st.name) && st.site === 'S1' && st.topbar === 0, st);
     // (asked 13-10-2026) his other modules of this site – in the dark menu, under Machinery
-    const chips = await app(p).evaluate(() => { const b = document.getElementById('grp_mods'); return { shown: !b.hidden, list: [...b.querySelectorAll('button[data-go]')].map(x => x.textContent.replace('↗', '').trim()), afterMach: b.previousElementSibling && b.previousElementSibling.id }; });
+    // (update-99) each other module is a group like Machinery – a click shows its pages; here "Store" is played by the other app
+    // server at another address, whose menu cannot be read from this page: one line "Open Store" through the Portal, as before
+    const chips = await app(p).evaluate(() => { const b = document.getElementById('grp_mods'); return { shown: !b.hidden, list: [...b.querySelectorAll('.modgrp > .grphead')].map(x => x.textContent.trim()), afterMach: b.previousElementSibling && b.previousElementSibling.id }; });
     ok('   the dark menu shows his other module of this site (Store) under Machinery', chips.shown && chips.list.join(',') === 'Store' && chips.afterMach === 'grp_mach', chips);
+    await app(p).evaluate(() => document.querySelector('#grp_mods .modgrp > .grphead').click());
+    const pgs = await until(() => app(p).evaluate(() => { const l = [...document.querySelectorAll('#grp_mods .modgrp.open button[data-go]')].map(x => x.textContent.trim()); return l.length && !document.querySelector('#grp_mods .mp-wait') && l; }), 15000);
+    ok('   a click on "Store" shows its pages below it (here: "Open Store")', !!pgs && pgs.join() === 'Open Store', pgs);
     await wait(1500); await p.screenshot({ path: SHOTS + 'p96_menu_change_site.png' });
     await closeDlg(p);
     const [toStore] = await Promise.all([p.waitForResponse(r => r.url().startsWith(P + '/api/go?module=store') && r.status() === 302, { timeout: 30000 }), app(p).click('#grp_mods button[data-go]')]);

@@ -39,6 +39,9 @@ self.addEventListener('notificationclick', e => {
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== self.location.origin || u.pathname.indexOf('/api/') === 0) return;      // the server's calls: untouched
+  // (13-10-2026, one address) other modules are served under this address too (/store/, the Portal /portal/, any module added
+  // later): only this app's own page and files are this worker's – any other address is left untouched
+  if (!/^\/(index\.html|manifest\.webmanifest|menu\.json|sw\.js|icons\/.*|vendor\/.*)?$/.test(u.pathname)) return;
   if (e.request.mode === 'navigate' || u.pathname === '/' || u.pathname === '/index.html') {
     // only the page itself (/ or /index.html) is kept as the offline copy. (Any address opened in a tab – an icon, the manifest –
     // used to be stored AS the page, so the offline copy could become a picture. 07-10-2026)

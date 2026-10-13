@@ -251,3 +251,17 @@ function shell() {
   return s;
 }
 module.exports = { page, shell, read, APP_DIR };
+
+/* (13-10-2026, one address) THE MENU OF THIS MODULE for the other modules: /menu.json lists the pages of Machinery – each with
+ * its key (the page's tab name), its name and its section – read from the page itself (App.html), so it is never out of date.
+ * The Store (and every module added later) shows these pages under "Mechanical" in its own dark menu; a click opens this app
+ * on that page (<address>/#site=…&page=…), in the same window. Which pages a person may open is decided here, as always. */
+function menu() {
+  const h = read('App.html'), a = h.indexOf('id="grp_mach"'), b = h.indexOf('id="grp_mods"');
+  const part = a > -1 && b > a ? h.slice(a, b) : '', pages = [];
+  let group = '';
+  const re = /<button class="sghead"[\s\S]*?<span class="label">([^<]+)<\/span>|<button class="navbtn" role="tab" id="tab-([a-z0-9-]+)"[\s\S]*?<span class="label">([^<]+)<\/span>/g;
+  let m; while ((m = re.exec(part))) { if (m[1]) group = m[1].trim(); else pages.push(Object.assign({ key: m[2], name: m[3].replace(/&amp;/g, '&').trim() }, group && m[2] !== 'dash' ? { group: group.replace(/&amp;/g, '&') } : {})); }
+  return { module: 'mechanical', name: 'Mechanical', pages: pages };
+}
+module.exports.menu = menu;

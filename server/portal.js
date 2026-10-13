@@ -24,9 +24,12 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 function url() {
   const u = String(process.env.PORTAL_URL || '').trim().replace(/\/+$/, '');
   if (!u) return '';
-  if (!/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(u) && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(u)) return '';
+  // (13-10-2026, one address) the Portal may also be served under a path of the main address, e.g. https://…/portal
+  if (!/^https:\/\/[a-z0-9.-]+(:\d+)?(\/[a-z0-9-]{1,30})?$/i.test(u) && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/[a-z0-9-]{1,30})?$/i.test(u)) return '';
   return u;
 }
+// a module's address as the ticket gives it (the same rule: https, an optional path); '' = none (then it opens through the Portal)
+const modUrl = u => { u = String(u || '').trim().replace(/\/+$/, ''); return /^https:\/\/[a-z0-9.-]+(:\d+)?(\/[a-z0-9-]{1,30})?$/i.test(u) || /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/[a-z0-9-]{1,30})?$/i.test(u) ? u : ''; };
 const bad = why => { const e = new Error('The Portal sign-in could not be accepted (' + why + ') – open the module again from the Portal.'); e.portal = true; return e; };
 
 let KEYS = { at: 0, from: '', keys: [] };
@@ -77,7 +80,7 @@ function verify(ticket, now) {
   return {
     email: email, name: String(c.name || email).slice(0, 80), site: c.site, siteName: String(c.siteName || c.site).slice(0, 80),
     admin: c.role === 'admin', jti: c.jti, exp: c.exp,
-    mods: list(c.mods, m => m && /^[a-z]{2,20}$/.test(String(m.key)) ? { key: m.key, name: String(m.name || m.key).slice(0, 40) } : null),
+    mods: list(c.mods, m => m && /^[a-z]{2,20}$/.test(String(m.key)) ? { key: m.key, name: String(m.name || m.key).slice(0, 40), url: modUrl(m.url) } : null),
     sites: list(c.sites, s => s && /^[A-Z0-9]{1,12}$/.test(String(s.code)) ? { code: s.code, name: String(s.name || s.code).slice(0, 80) } : null),
   };
 }
