@@ -1269,12 +1269,24 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .site-pill { display: inline-flex; align-items: center; gap: 6px; max-width: 260px; padding: 6px 12px; min-height: 34px; border: 1px solid #1D55E2; border-radius: 999px; background: #EEF3FF; color: #1D4ED8; font: 600 13.5px var(--ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
   .site-pill .sp-ic { font-size: 15px; }
   /* (update-93) the modules of this site as shortcuts in the top bar – the one open now is marked; a click opens another (through the Portal, no sign-in) */
-  .mod-chips { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid #CBD5E1; border-radius: 999px; background: #F8FAFC; white-space: nowrap; }
-  .mod-chips[hidden] { display: none; }
-  .mod-chips button { border: 0; background: none; border-radius: 999px; padding: 5px 12px; min-height: 28px; font: 600 13px var(--ui); color: #334155; cursor: pointer; }
-  .mod-chips button:hover { background: #E2E8F0; }
-  .mod-chips button.on { background: #1D55E2; color: #fff; cursor: default; }
-  .site-pill.compact .mp-l { display: none; }      /* next to the shortcuts the "Modules" button keeps only its sign (other sites, all modules) */
+  /* (asked 13-10-2026) the dark menu: "Change site" at its top, the other modules of this site under Machinery */
+  .sitebox { padding: 10px 8px 2px; }
+  .sitebox[hidden] { display: none; }
+  .site-chg { appearance: none; width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(242,183,5,.45); background: rgba(242,183,5,.10); color: #fff; cursor: pointer; text-align: left; font: 500 14px var(--ui); }
+  .site-chg:hover { background: rgba(242,183,5,.2); }
+  .site-chg:focus-visible { outline: 2px solid var(--hivis); outline-offset: 2px; }
+  .site-chg > svg { flex: 0 0 18px; width: 18px; height: 18px; color: var(--hivis); }
+  .site-chg .label { min-width: 0; flex: 1 1 auto; line-height: 1.2; }
+  .site-chg .label small { display: block; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #F2C94C; }
+  .site-chg .label b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .site-chg .chev { flex: 0 0 16px; width: 16px; height: 16px; color: #C9D3D9; }
+  .site-chg .sc-code { display: none; }
+  .side.mini .sitebox { padding: 10px 6px 2px; }
+  .side.mini .site-chg { flex-direction: column; gap: 2px; padding: 6px 2px; }
+  .side.mini .site-chg .chev { display: none; }
+  .side.mini .site-chg .sc-code { display: block; font-size: 10px; font-weight: 700; color: #F2C94C; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .modgrp .grphead .ext { margin-left: auto; opacity: .7; }
+  .side.mini .modgrp .grphead { justify-content: center; padding: 0; } .side.mini .modgrp .ext { display: none; }
   .sp-list { display: grid; gap: 8px; margin: 10px 0; }
   .sp-list .sp-btn { justify-content: flex-start; min-height: 44px; font-size: 15px; text-align: left; }
   body.locked #cf_back { z-index: 60; }
@@ -2684,6 +2696,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     </div>
     <div class="brandsub">Fleet ERP<small class="by-oc">by One Click Solution</small></div>
   </div>
+  <div class="sitebox" id="site_box" hidden>
+    <button type="button" class="site-chg" id="site_chg" title="Change site – open another of your sites" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg><span class="label"><small>Change site</small><b id="site_chg_name"></b></span><span class="sc-code" id="site_chg_code" aria-hidden="true"></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+  </div>
   <nav aria-label="Modules">
     <div class="navgroup open" id="grp_mach">
       <button class="grphead" aria-expanded="true" aria-controls="grp_mach_items" title="Machinery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg><span class="label">Machinery</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -2738,6 +2753,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         </div>
       </div>
     </div>
+    <div class="navgroup modgrp" id="grp_mods" role="group" aria-label="My other modules on this site" hidden></div>
     <div class="navgroup open" id="grp_admin" hidden>
       <button class="grphead" aria-expanded="true" aria-controls="grp_admin_items" title="Admin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg><span class="label">Admin</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
       <div class="grpitems" id="grp_admin_items" role="tablist" aria-orientation="vertical">
@@ -2778,9 +2794,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     <button class="db-pill" id="db_pill" hidden type="button" title="Admin: the app checks every SQL step of the database once a day – press to see the result"></button>
     <button class="db-pill bad" id="err_pill" hidden type="button" title="Admin: faults of the app that were reported today – press to see them"></button>
     <span class="live off" id="live_dot" title="Connecting…"><i></i> Connecting…</span>
-    <span class="mod-chips" id="mod_chips" role="group" aria-label="My modules on this site" hidden></span>
-    <button class="site-pill" id="mod_pill" type="button" hidden title="My modules and sites – open another one without signing in again"><span class="sp-ic" aria-hidden="true">▦</span><span class="mp-l">Modules</span></button>
-    <button class="site-pill" id="site_pill" type="button" hidden title="The site you are on – press to open another of your sites"></button>
     <div class="today"><b id="company">Rachana Construction Limited</b><span id="todayLabel"></span></div>
     <div class="userchip"><button type="button" class="u-ava" id="u_ava" title="My settings" aria-label="My settings"></button><div><b id="u_name"></b><span id="u_role"></span></div>
       <button class="btn ghost small" id="u_share" type="button" title="Share my screen with another user – with voice" aria-label="Share my screen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="m9 11 3-3 3 3M12 8v6"/></svg><span class="rtc-badge" id="rtc_badge" hidden></span></button>
@@ -4736,25 +4749,39 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function siteBoot(si) {
     S.siteInfo = si || null;
-    $('mod_pill').hidden = !ptOn();      // (update-91) through the Portal: "Modules" opens his other modules and sites
-    modChips();      // (update-93) and his modules of this site as shortcuts
     const many = !ptOn() && !!(si && si.sites && si.sites.length > 1);
     if (si && si.site) { try { if (!(localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site'))) siteKeep(si.site); } catch (e) { /* storage blocked */ } }
-    $('site_pill').hidden = !many; $('set_sites').hidden = !many;
+    sideSite(); sideMods();      // (asked 13-10-2026) "Change site" and his other modules of this site – in the dark menu
+    $('set_sites').hidden = !many;
     if (!many) return;
-    $('site_pill').innerHTML = '<span class="sp-ic" aria-hidden="true">⌂</span>' + esc(si.name) + '<span aria-hidden="true"> ▾</span>';
     const def = (si.sites.find(x => x.default) || {}).code || '';
     $('set_site_def').innerHTML = '<option value="">' + (S.user && S.user.admin ? 'The site I used last' : 'Ask me every time') + '</option>' + si.sites.map(x => '<option value="' + esc(x.code) + '"' + (x.code === def ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('');
   }
-  $('site_pill').addEventListener('click', async () => {
-    const si = S.siteInfo; if (!si) return;
+  /* (asked 13-10-2026) "Change site" – at the top of the dark menu, for everybody who can open more than one site (through the
+   * Portal: always – it also leads back to all his modules). Through the Portal another site opens with a new ticket, without
+   * signing in; without the Portal (the reserve sign-in) the app's own switch as before (update-90). */
+  function sideSite() {
+    const si = S.siteInfo, cur = (si && si.site) || ptSite(), pt = ptOn();
+    const many = !pt && !!(si && si.sites && si.sites.length > 1);
+    const name = (pt && ((PT.sites.find(x => x.code === cur) || {}).name)) || (si && si.name) || cur || '';
+    $('site_box').hidden = !(pt || many) || !name;
+    $('site_chg_name').textContent = name; $('site_chg_code').textContent = cur || '';
+  }
+  $('site_chg').addEventListener('click', async () => {
+    const si = S.siteInfo, cur = (si && si.site) || ptSite(), pt = ptOn();
+    const list = pt ? PT.sites.map(x => ({ code: x.code, name: x.name, current: x.code === cur })) : ((si && si.sites) || []);
+    if (pt && cur && !list.some(x => x.current)) list.unshift({ code: cur, name: $('site_chg_name').textContent || cur, current: true });
     let chosen = '';
     const onClick = e => { const b = e.target.closest('.sp-btn'); if (!b || b.disabled) return; chosen = b.dataset.code; closeConfirm(true); };
     $('cf_msg').addEventListener('click', onClick);
-    try { await askConfirm({ title: 'Open another site', alertOnly: true, ok: 'Stay here',
-      html: '<div class="sp-list">' + si.sites.map(x => '<button type="button" class="btn ' + (x.current ? 'primary' : 'ghost') + ' sp-btn" data-code="' + esc(x.code) + '"' + (x.current ? ' disabled' : '') + '>' + esc(x.name) + (x.current ? ' – open now' : '') + '</button>').join('') + '</div>' }); }
+    try { await askConfirm({ title: 'Change site', alertOnly: true, ok: 'Stay here',
+      html: '<div class="sp-list">' + list.map(x => '<button type="button" class="btn ' + (x.current ? 'primary' : 'ghost') + ' sp-btn" data-code="' + esc(x.code) + '"' + (x.current ? ' disabled' : '') + '>' + esc(x.name) + (x.current ? ' – open now' : '') + '</button>').join('') + '</div>' +
+        (pt ? '<div class="sp-list"><button type="button" class="btn ghost sp-btn" data-code="__portal">All my modules (Portal)</button></div>' : '') }); }
     finally { $('cf_msg').removeEventListener('click', onClick); }
-    if (chosen) siteSwitch(chosen);
+    if (!chosen) return;
+    if (chosen !== '__portal' && !pt) { siteSwitch(chosen); return; }
+    if (window.__rclSaving && window.__rclSaving()) { toast('An entry is still being sent – wait until it is saved, then open the other site.', true); return; }
+    ptNav(chosen === '__portal' ? '/?menu=1' : ptOpen('mechanical', chosen));
   });
   $('set_site_def').addEventListener('change', async () => {
     const v = $('set_site_def').value;
@@ -4766,7 +4793,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * When the server is linked to the Portal (Vercel setting PORTAL_URL – orgInfo says so):
    *   nobody signed in → the browser goes to the Portal, which sends him back with a ticket (#sso=…) → ssoStart;
    *   a sign-in that ended → the same (while the Portal still knows him, he is back at once, without typing anything);
-   *   "Modules" (top bar) → his other modules on this site and Mechanical on his other sites – through the Portal, no sign-in;
+   *   "Change site" (top of the dark menu) and his other modules under Machinery – through the Portal, no sign-in;
    *   the key button (password) and Logout → the Portal (one password, one sign-out for every module).
    * The app's own sign-in stays as the reserve: the link with ?local=1 (this tab only). Not linked → everything as before.
    * Going round in circles is stopped: at most 3 automatic trips to the Portal in 2 minutes, then a message. */
@@ -4807,36 +4834,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       showLogin(m, { here: !/ran out|already used/.test(m) });      // an old ticket: the Portal gives a new one (the guard above stops circles)
     }
   }
-  /* (update-93, asked 13-10-2026: "shortcuts – the modules in the top bar") – shown when he has two modules or more on this
-   * site (with Mechanical alone there is nothing to go to). Mechanical is marked as open; another opens through the Portal. */
-  function modChips() {
-    const box = $('mod_chips'), cur = (S.siteInfo && S.siteInfo.site) || ptSite(), mods = ptOn() ? PT.mods : [];
-    box.hidden = mods.length < 2; $('mod_pill').classList.toggle('compact', !box.hidden); if (box.hidden) { box.innerHTML = ''; return; }
-    box.innerHTML = mods.map(m => m.key === 'mechanical' ? '<button type="button" class="on" aria-current="page">' + esc(m.name) + '</button>'
-      : '<button type="button" data-go="' + esc(ptOpen(m.key, cur)) + '" title="Open ' + esc(m.name) + ' – no new sign-in">' + esc(m.name) + '</button>').join('');
+  /* (update-93; moved into the dark menu 13-10-2026) his OTHER modules on this site – under Machinery; one opens through the
+   * Portal, without signing in again. Shown only when he has another module on this site. */
+  const MOD_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
+  function sideMods() {
+    const box = $('grp_mods'), cur = (S.siteInfo && S.siteInfo.site) || ptSite(), mods = ptOn() ? PT.mods.filter(m => m.key !== 'mechanical') : [];
+    box.hidden = !mods.length;
+    box.innerHTML = mods.map(m => '<button type="button" class="grphead" data-go="' + esc(ptOpen(m.key, cur)) + '" title="Open ' + esc(m.name) + ' – no new sign-in">' + MOD_IC + '<span class="label">' + esc(m.name) + '</span><span class="ext" aria-hidden="true">↗</span></button>').join('');
   }
-  $('mod_chips').addEventListener('click', e => { const b = e.target.closest('button[data-go]'); if (!b) return;
+  $('grp_mods').addEventListener('click', e => { const b = e.target.closest('button[data-go]'); if (!b) return;
     if (window.__rclSaving && window.__rclSaving()) { toast('An entry is still being sent – wait until it is saved, then open the other module.', true); return; }
     ptNav(b.dataset.go); });
-  $('mod_pill').addEventListener('click', async () => {
-    if (!ptOn()) return;
-    const cur = (S.siteInfo && S.siteInfo.site) || ptSite(), mods = PT.mods.filter(m => m.key !== 'mechanical'), sites = PT.sites.filter(x => x.code !== cur);
-    const btn = (go, label) => '<button type="button" class="btn ghost sp-btn" data-go="' + esc(go) + '">' + esc(label) + '</button>';
-    let go = '';
-    const onClick = e => { const b = e.target.closest('.sp-btn'); if (!b) return; go = b.dataset.go; closeConfirm(true); };
-    $('cf_msg').addEventListener('click', onClick);
-    try { await askConfirm({ title: 'Modules', alertOnly: true, ok: 'Stay here',
-      html: (mods.length ? '<p class="muted">Other modules on this site</p><div class="sp-list">' + mods.map(m => btn(ptOpen(m.key, cur), m.name)).join('') + '</div>' : '') +
-        (sites.length ? '<p class="muted">Mechanical on another site</p><div class="sp-list">' + sites.map(x => btn(ptOpen('mechanical', x.code), x.name)).join('') + '</div>' : '') +
-        '<div class="sp-list">' + btn('/?menu=1', 'All my modules (Portal)') + '</div>' }); }
-    finally { $('cf_msg').removeEventListener('click', onClick); }
-    if (!go) return;
-    if (window.__rclSaving && window.__rclSaving()) { toast('An entry is still being sent – wait until it is saved, then open the other module.', true); return; }
-    ptNav(go);
-  });
   function showLogin(msg, opt) {
     try { rtcRingClose(); rtcEnd('', true); } catch (e) { /* no screen share */ }
-    try { saHide(); $('site_pill').hidden = true; S.siteInfo = null; } catch (e) { /* the site parts are not built yet at the first start */ }
+    try { saHide(); $('site_box').hidden = true; $('grp_mods').hidden = true; S.siteInfo = null; } catch (e) { /* the site parts are not built yet at the first start */ }
     S.token = ''; try { localStorage.removeItem('rcl_token'); sessionStorage.removeItem('rcl_token'); } catch (e) {}
     try { const de = document.documentElement; de.dataset.theme = 'light'; de.dataset.text = 'normal'; de.dataset.density = 'normal'; if ($('grp_fav')) $('grp_fav').hidden = true; if ($('announce')) $('announce').hidden = true; } catch (e) { /* the sign-in screen is always the plain one */ }
     document.body.classList.add('locked');
@@ -5014,6 +5025,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The Super Admin could not be made or reached this way.', 'There is one Super Admin, made once by the first site\'s Admin with an email no user has. A forgotten password: the recovery code written down then (Forgot password? on the sign-in screen).'],
       mr: ['Super Admin असा बनवता किंवा उघडता आला नाही.', 'Super Admin एकच असतो, पहिल्या site चा Admin तो एकदाच बनवतो – कोणत्याही user चा नसलेला email देऊन. Password विसरला: तेव्हा लिहून ठेवलेला Recovery code (sign-in screen वर Forgot password?).'],
       hi: ['Super Admin इस तरह बनाया या खोला नहीं जा सका।', 'Super Admin एक ही होता है, पहली site का Admin उसे एक बार बनाता है – किसी user का न हो ऐसा email देकर। Password भूल गए: तब लिखकर रखा Recovery code (sign-in screen पर Forgot password?)।'] },
+    { re: /This is the first site – it cannot be deleted/i,      // (asked 13-10-2026) the Super Admin deleting a site in the Portal
+      en: ['The first site cannot be deleted.', 'Nothing was changed. The first site keeps the list of all sites; it can only stay.'],
+      mr: ['पहिली site delete करता येत नाही.', 'काहीही बदलले नाही. सर्व sites ची यादी पहिल्या site मध्ये असते; ती राहतेच.'],
+      hi: ['पहली site delete नहीं की जा सकती।', 'कुछ भी नहीं बदला। सभी sites की सूची पहली site में होती है; वह रहती ही है।'] },
     { re: /This site is not set up|backup of this site is not set up|not the backup Sheet of this site/i,      // stage 1 of "new site": a site the server does not know (yet), or its Sheet
       en: ['This site is not set up on the server yet (or its backup Sheet is not).', 'Nothing was read or saved. Ask the Super Admin to finish setting up this site, then open the app again.'],
       mr: ['ही site अजून server वर set up झालेली नाही (किंवा तिची backup Sheet नाही).', 'काहीही वाचले किंवा save झाले नाही. Super Admin ला ही site set up पूर्ण करायला सांगा, मग app पुन्हा उघडा.'],
@@ -6176,6 +6191,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // which database the app is working on – shown next to "Live", updated with every sync (about every second)
   function setDataSource(src) {
     const el = $('ds_pill'); if (!el) return;
+    if (!(S.user && S.user.admin)) { el.hidden = true; return; }      // (asked 13-10-2026) the top bar of a user stays clean – only the Admin sees where the data is
     const sb = src === 'supabase';
     if (el.dataset.src === src && !el.hidden) return; el.dataset.src = src;
     el.hidden = false;
@@ -6187,17 +6203,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const hhmm = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }); };
   const dtFull = iso => { const d = new Date(iso); return isNaN(d) ? '–' : d.toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
   /* MONTH CLOSE: the date up to which entries are closed (set by the Admin on the Billing page; the server enforces it).
-   * Everybody sees it in the top bar; an entry date inside the closed period is pointed out while typing. */
+   * The Admin sees it in the top bar (asked 13-10-2026: a user's top bar stays clean); an entry date inside the closed period is pointed out while typing. */
   function setClosed(v) {
     S.closedUpto = /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : '';
-    const p = $('lock_pill'); if (p) { p.hidden = !S.closedUpto || !S.user; p.textContent = S.closedUpto ? 'Closed up to ' + showDate(S.closedUpto) : ''; p.title = S.closedUpto ? 'Month close: no diesel, Log Book, tank-check or breakdown entry dated on or before ' + showDate(S.closedUpto) + ' can be added, changed or deleted. Only the Admin can reopen it (Machinery Billing → Month close).' : ''; }
+    const p = $('lock_pill'); if (p) { p.hidden = !S.closedUpto || !(S.user && S.user.admin); p.textContent = S.closedUpto ? 'Closed up to ' + showDate(S.closedUpto) : ''; p.title = S.closedUpto ? 'Month close: no diesel, Log Book, tank-check or breakdown entry dated on or before ' + showDate(S.closedUpto) + ' can be added, changed or deleted. Only the Admin can reopen it (Machinery Billing → Month close).' : ''; }
     const pn = $('lk_panel'); if (pn) { pn.hidden = !(S.user && S.user.admin); if ($('lk_date') && document.activeElement !== $('lk_date')) $('lk_date').value = S.closedUpto || '';
       $('lk_now').textContent = S.closedUpto ? 'Now: entries up to ' + showDate(S.closedUpto) + ' are closed.' : 'Now: nothing is closed.'; $('lk_open').disabled = !S.closedUpto; }
   }
   function setBackupInfo(info) {
     const b = $('bk_btn'); if (!b) return;
     S.backup = info;
-    if (!S.user || !info) { b.hidden = true; return; } // every signed-in user
+    if (!S.user || !info || !S.user.admin) { b.hidden = true; return; } // (asked 13-10-2026) only the Admin – the backup runs by itself
     b.hidden = false;
     if (b.dataset.busy) return;
     const sig = JSON.stringify(info); if (b.dataset.sig === sig) return; b.dataset.sig = sig;   // nothing new: leave the page alone

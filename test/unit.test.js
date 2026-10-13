@@ -2152,6 +2152,6 @@ test('update-91: sign-in through the Portal – switched on only by PORTAL_URL (
   for (const m of ['The Portal sign-in could not be accepted (it ran out – it is valid for one minute) – open the module again from the Portal.', 'The Portal could not sign you in here (several tries in a row). Open the Portal and choose the module again; if it keeps happening, tell the Admin.'])
     assert.ok(H.fixRules(m)[0] !== H.FIX_ANY && /Portal/.test(H.fixRules(m)[0].en.join(' ')), m);
   // the page: the old sign-in is hidden when linked, kept behind ?local=1; one "Modules" button
-  assert.strictEqual((app.match(/id="mod_pill"/g) || []).length, 1); assert.strictEqual((app.match(/id="lg_portal"/g) || []).length, 1);
+  assert.strictEqual((app.match(/id="site_chg"/g) || []).length, 1); assert.strictEqual((app.match(/id="grp_mods"/g) || []).length, 1); assert.ok(!/id="(mod_pill|site_pill|mod_chips)"/.test(app)); assert.strictEqual((app.match(/id="lg_portal"/g) || []).length, 1);
   assert.ok(/local=1/.test(app) && /ssoLogin/.test(app) && /#sso=/.test(app));
 });

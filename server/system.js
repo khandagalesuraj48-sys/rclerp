@@ -96,6 +96,7 @@ function portalAdmin(R, args) {
   const c = portal.verifyAdmin(args[0]);
   if (c.act === 'siteSql') return R.runIn('', 'sysNewSiteSql', [c]);
   if (c.act === 'siteSetup') return siteSetup(R, c);
+  if (c.act === 'siteOff') return siteOff(c);
   const reg = sites.registry();
   let at = '';
   if (reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
@@ -135,7 +136,8 @@ function siteSetup(R, c) {
   // the company settings of the first site, with this site's own name
   let org = null; try { org = R.runIn('', 'orgInfo', []); } catch (e) { org = null; }
   let orgOk = false, orgNote = '';
-  if (cur && cur.status === 'ready') { orgOk = true; orgNote = 'already set (kept as the site has it)'; }      // checked again later: its own settings are never overwritten
+  const same = cur && (cur.status === 'ready' || cur.status === 'closed') && String(cur.db_url || '').replace(/\/+$/, '') === c.url;      // (a deleted site brought back with its own database keeps its settings too)
+  if (same) { orgOk = true; orgNote = 'already set (kept as the site has it)'; }      // checked again later: its own settings are never overwritten
   else try { sites.setupWith(conf); R.runIn(code, 'sysOrgSet', [{ customer: org && org.customer, site: c.name, logo: org && org.logo, billNames: org && org.billNames, intro: !(org && org.intro === false), video: org && org.video }]); orgOk = true; }
   catch (e) { orgNote = String((e && e.message) || e).slice(0, 200); } finally { sites.setupWith(null); }
   if (!add('company', orgOk, orgNote)) return out();
@@ -149,6 +151,18 @@ function siteSetup(R, c) {
   add('ready', true, '');
   let email = ''; try { email = JSON.parse(String(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}')).client_email || ''; } catch (e) { email = ''; }
   return out({ ready: true, backupEmail: email });
+}
+/* ---- (asked 13-10-2026) the Super Admin deleted a site in the Portal: here it is only set to "closed" – nobody opens it any
+ * more (it is not "ready"), and NOTHING of its own database is touched. "New site" with the same link brings it back, with its
+ * data and its own settings. The first site cannot be deleted. ---- */
+function siteOff(c) {
+  const reg = sites.registry(); if (!reg) return { ok: true, known: false };
+  const cur = reg.find(x => x.code === c.site);
+  if (!cur) return { ok: true, known: false };
+  if (cur.home) throw new Error('This is the first site – it cannot be deleted.');
+  sites.homeRest('PATCH', 'rcl_sites?code=eq.' + encodeURIComponent(c.site), { status: 'closed' }, 'return=minimal');
+  sites.forget();
+  return { ok: true, known: true };
 }
 /* ---- open another of my sites ---- */
 function switchSite(R, args, curNorm) {

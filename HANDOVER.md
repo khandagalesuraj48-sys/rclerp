@@ -1570,6 +1570,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   → rcl_sites upsert ready, db_key_enc null). sites.conf: key from db_key_enc OR env. api/backup.js nightly: every ready site
   with a sheet, in parallel. portal.js unknown kid asked again at most every 5 s. Rig: rcl_s3 behind :3104 (all.sh; NSKEY=1 →
   SITE_N3_KEY on :3000). Test: newsite95.js 27.
+- 13-10-2026 (update-96). Report: `UPDATE_96.md`. Dark menu: `#site_box/#site_chg` "Change site" (sideSite: Portal → PT.sites +
+  "All my modules", reserve sign-in → siteSwitch) and `#grp_mods` his other modules of this site (sideMods); the top-bar
+  mod_pill / mod_chips / site_pill are gone. ds_pill, bk_btn and lock_pill are for the Admin only. portalAdmin act `siteOff`
+  (system.js siteOff: rcl_sites status 'closed', never the site's database, refuses the home site). siteSetup keeps the
+  settings of a closed site brought back with the same db_url.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
