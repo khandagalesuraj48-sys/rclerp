@@ -1593,6 +1593,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   one .modgrp group per other module with its pages (modMenu → <url>/menu.json; else "Open …" through the Portal),
   links #site=…&page=… (S.wantTab / S.wantSite → wantTabGo after init; another site → the Portal with &page=).
   Rig: GATEWAY=1 (rig/gateway.js :3030). Tests: unit "update-99", browser oneaddress99.js 12, portal91 22.
+  Fix after merge (PR #11): /store/ and /portal/ first pages have their own rewrite (to index.html).
+- 13-10-2026 (update-100). Report: `UPDATE_100.md`. THE SAME VIEW: a module under this address (Store) opens INSIDE
+  Mechanical's screen – #sec-ext with one frame per module (<url>/?embed=1#site&page&u); extOpen/extHide (showTab)/extGo
+  (#page=store__items)/extSize; Back from it; Logout ends module sign-ins; modsFresh (Portal "me" once for old sign-ins).
+  Store ?embed=1 (no own menu/top bar, ticket via Portal /api/go json=1, frame SAMEORIGIN), Store alone beside Mechanical →
+  Mechanical's screen. Tests: unit "update-100", browser inframe100.js 11 (oneaddress99.js retired).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
