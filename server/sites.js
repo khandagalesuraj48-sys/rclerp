@@ -62,6 +62,16 @@ function open(sealed) {
   catch (e) { throw new Error('This site cannot be opened: its database key does not match the server\'s key for sites (RCL_SITES_KEY).'); }
 }
 
+/* ---------- (update-95) a site's database key kept in Vercel ----------
+ * A site made from the Portal ("New site") keeps its secret key ONLY in Vercel → Environment Variables, under SITE_<CODE>_KEY
+ * (e.g. SITE_18B_KEY) – nothing about it is stored in any database. (A site of update-90 with its key locked in the list
+ * still works the same way.) */
+const envKeyName = c => 'SITE_' + String(c || '').toUpperCase() + '_KEY';
+const envKey = c => String(process.env[envKeyName(c)] || '').trim();
+// the site being set up by "New site" (one request only): its database is used before it is in the list as ready
+let SETUP = null;
+function setupWith(c) { SETUP = c || null; }
+
 /* ---------- the list ---------- */
 let REG = { at: 0, rows: null, off: false, sa: false };
 const REG_MS = 15000;
@@ -89,9 +99,10 @@ function norm(c) { c = code(c); if (!c) return ''; const r = registry(); const h
 function conf(c, opt) {
   c = norm(c);
   if (c === '') return homeConf();
+  if (SETUP && SETUP.site === c) return SETUP;
   const r = registry(), x = r && r.find(y => y.code === c);
   if (!x) throw new Error('This site is not set up (' + c + ').');
-  if ((x.status !== 'ready' && !(opt && opt.setup)) || !x.db_url || !x.db_key_enc) throw new Error('This site is not set up (' + c + ').');
-  return { site: c, url: String(x.db_url).replace(/\/+$/, ''), key: open(x.db_key_enc), sheet: String(x.sheet || '').trim() };
+  if ((x.status !== 'ready' && !(opt && opt.setup)) || !x.db_url || (!x.db_key_enc && !envKey(c))) throw new Error('This site is not set up (' + c + ').');
+  return { site: c, url: String(x.db_url).replace(/\/+$/, ''), key: x.db_key_enc ? open(x.db_key_enc) : envKey(c), sheet: String(x.sheet || '').trim() };
 }
-module.exports = { code, conf, norm, homeConf, homeCode, homeRest, registry, forget, superExists, seal, open };
+module.exports = { code, conf, norm, homeConf, homeCode, homeRest, registry, forget, superExists, seal, open, envKey, envKeyName, setupWith };

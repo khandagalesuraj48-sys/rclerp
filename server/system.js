@@ -10,6 +10,7 @@
 'use strict';
 const sites = require('./sites');
 const portal = require('./portal');
+const { fetchAllSync } = require('./syncfetch');
 
 const lc = s => String(s || '').trim().toLowerCase();
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -92,12 +93,62 @@ function ssoLogin(R, args) {
 }
 /* ---- (update-94) the Super Admin in the Portal: a site's users and their pages; one person's pages ---- */
 function portalAdmin(R, args) {
-  const c = portal.verifyAdmin(args[0]), reg = sites.registry();
+  const c = portal.verifyAdmin(args[0]);
+  if (c.act === 'siteSql') return R.runIn('', 'sysNewSiteSql', [c]);
+  if (c.act === 'siteSetup') return siteSetup(R, c);
+  const reg = sites.registry();
   let at = '';
   if (reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
   const r = R.runIn(at, 'sysPortalAdmin', [c]);
   if (c.act === 'pages' && reg) { try { keepMembership(c.email, c.site, true, r.admin); } catch (e) { console.error('[portal pages: site list] ' + String((e && e.message) || e)); } }
   return r;
+}
+/* ---- (update-95, asked 13-10-2026) "New site" – the Super Admin fills a form in the Portal, the system checks and sets up ----
+ * Mechanical is one app for every site; a site is its own database. The Super Admin makes the Supabase project himself and
+ * gives its link; its secret key goes ONLY into Vercel (SITE_<CODE>_KEY – the form says so); the tables are made by one SQL
+ * the form hands him (Mechanical's own steps, the same as every site). This checks every step, in order, and stops at the
+ * first one that is not done – it can be run again and again:
+ *   link → key in Vercel → the database answers with that key → every table and function of Mechanical is there →
+ *   the company settings of the first site (Rachana, Sketchline, logo; the new site's own name) → in the list: Ready.
+ * Nothing of the first site's data is copied; no user is made (the Super Admin gives the site to people in the Portal). */
+const URL_RE = /^https:\/\/([a-z0-9]{20})\.supabase\.co$/, RIG_RE = /^http:\/\/127\.0\.0\.1:\d{2,5}$/;
+function siteSetup(R, c) {
+  const code = c.site, steps = [], add = (k, ok, note) => { steps.push({ step: k, ok: !!ok, note: note || '' }); return !!ok; };
+  const out = extra => Object.assign({ site: code, keyName: sites.envKeyName(code), steps: steps, ready: false }, extra || {});
+  const reg = sites.registry() || [], cur = reg.find(x => x.code === code);
+  if (!sites.registry()) return out({ steps: [{ step: 'list', ok: false, note: 'The first site has no list of sites yet (step-7 SQL).' }] });
+  if (cur && cur.home) return out({ steps: [{ step: 'link', ok: false, note: 'This is the first site – it is already set up.' }] });
+  const m = URL_RE.exec(c.url), rig = RIG_RE.test(c.url) && !process.env.VERCEL;
+  if (!add('link', m || rig, 'The link must be the project\'s address, like https://abcdefghijklmnopqrst.supabase.co (Supabase → the project → Connect).')) return out();
+  if (cur && cur.status === 'ready' && cur.db_url && String(cur.db_url).replace(/\/+$/, '') !== c.url) { steps[0] = { step: 'link', ok: false, note: 'Site ' + code + ' is already set up with another database – a site keeps its database.' }; return out(); }
+  if (reg.some(x => x.code !== code && String(x.db_url || '').replace(/\/+$/, '') === c.url)) { steps[0] = { step: 'link', ok: false, note: 'This database already belongs to another site.' }; return out(); }
+  const ref = m ? m[1] : '', sqlLink = ref ? 'https://supabase.com/dashboard/project/' + ref + '/sql/new' : '', keysLink = ref ? 'https://supabase.com/dashboard/project/' + ref + '/settings/api-keys' : '';
+  const key = sites.envKey(code);
+  if (!add('key', key, 'Vercel → the Mechanical project (rclerp) → Settings → Environment Variables → add ' + sites.envKeyName(code) + ' = the project\'s Secret key (Supabase → Project Settings → API Keys → Secret keys) → Save → Deployments → Redeploy. Then press Check again.')) return out({ sqlLink: sqlLink, keysLink: keysLink });
+  const r = fetchAllSync([{ url: c.url + '/rest/v1/', method: 'GET', headers: { apikey: key, Accept: 'application/openapi+json' } }])[0];
+  if (!add('connect', !r.error && r.code === 200, r.error ? 'The database did not answer: ' + String(r.error).slice(0, 120) : r.code === 401 || r.code === 403 ? 'The key in Vercel (' + sites.envKeyName(code) + ') does not belong to this project – take the Secret key of THIS project.' : 'The database answered ' + r.code + '.')) return out({ sqlLink: sqlLink, keysLink: keysLink });
+  const conf = { site: code, url: c.url, key: key, sheet: c.sheet };
+  let h = null;
+  try { sites.setupWith(conf); h = R.runIn(code, 'sysSiteHealth', []); } catch (e) { h = { ok: false, checks: [{ name: String((e && e.message) || e).slice(0, 200), ok: false }] }; } finally { sites.setupWith(null); }
+  const missing = (h.checks || []).filter(x => !x.ok).map(x => x.name + (x.note ? ' – ' + x.note : ''));
+  if (!add('tables', h.ok, missing.length ? 'Not there yet: ' + missing.slice(0, 6).join(' · ') : '')) return out({ sqlLink: sqlLink, missing: missing });
+  // the company settings of the first site, with this site's own name
+  let org = null; try { org = R.runIn('', 'orgInfo', []); } catch (e) { org = null; }
+  let orgOk = false, orgNote = '';
+  if (cur && cur.status === 'ready') { orgOk = true; orgNote = 'already set (kept as the site has it)'; }      // checked again later: its own settings are never overwritten
+  else try { sites.setupWith(conf); R.runIn(code, 'sysOrgSet', [{ customer: org && org.customer, site: c.name, logo: org && org.logo, billNames: org && org.billNames, intro: !(org && org.intro === false), video: org && org.video }]); orgOk = true; }
+  catch (e) { orgNote = String((e && e.message) || e).slice(0, 200); } finally { sites.setupWith(null); }
+  if (!add('company', orgOk, orgNote)) return out();
+  // in the list of sites: Ready (its key stays in Vercel – nothing locked here)
+  const comp = c.company && c.company.id ? c.company : null;
+  if (comp && !(sites.homeRest('GET', 'rcl_companies?select=id&id=eq.' + encodeURIComponent(comp.id)) || []).length && comp.name)
+    sites.homeRest('POST', 'rcl_companies', [{ id: comp.id, name: comp.name }], 'return=minimal');
+  const sort = cur ? cur.sort : reg.reduce((a, x) => Math.max(a, Number(x.sort) || 0), 0) + 1;
+  sites.homeRest('POST', 'rcl_sites?on_conflict=code', [{ code: code, name: c.name || code, company_id: comp ? comp.id : null, status: 'ready', db_url: c.url, db_key_enc: null, sheet: c.sheet || null, sort: sort, created_by: c.by }], 'resolution=merge-duplicates,return=minimal');
+  sites.forget();
+  add('ready', true, '');
+  let email = ''; try { email = JSON.parse(String(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}')).client_email || ''; } catch (e) { email = ''; }
+  return out({ ready: true, backupEmail: email });
 }
 /* ---- open another of my sites ---- */
 function switchSite(R, args, curNorm) {

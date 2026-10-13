@@ -1564,6 +1564,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Sites.gs sysPortalAdmin_ (portalOnce_ jti shared with sysSso_; users: usersAdmin_ without passwords; pages: saveUserAdmin_
   perms only, a new person written with them and portalUnknownPw_). Portal api/admin.js mechPages / mechPagesSave (mechAsk
   signs and POSTs to the Mechanical module's url). Test: portal94api.js 17.
+- 13-10-2026 (update-95). Report: `UPDATE_95.md`. "New site" from the Portal: portalAdmin acts siteSql (Sites.gs
+  sysNewSiteSql_: README_SQL_ without step6/7) and siteSetup (system.js siteSetup: link → env key SITE_<CODE>_KEY → REST
+  answers → sysSiteHealth_ = dbHealth_ in the new site (sites.setupWith) → sysOrgSet_ (home org, own name; not on a ready site)
+  → rcl_sites upsert ready, db_key_enc null). sites.conf: key from db_key_enc OR env. api/backup.js nightly: every ready site
+  with a sheet, in parallel. portal.js unknown kid asked again at most every 5 s. Rig: rcl_s3 behind :3104 (all.sh; NSKEY=1 →
+  SITE_N3_KEY on :3000). Test: newsite95.js 27.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
