@@ -44,8 +44,8 @@ function keys(fresh) {
 }
 const part = s => { try { return JSON.parse(Buffer.from(String(s), 'base64url').toString('utf8')); } catch (e) { return null; } };
 
-// the ticket's claims when everything is right; otherwise an error the page shows (and then sends the person to the Portal)
-function verify(ticket, now) {
+// a ticket's claims after the checks every ticket gets (signature, issuer, for whom, time, number)
+function check(ticket, aud, now) {
   const from = url();
   if (!from) throw bad('this app is not linked to the Portal');
   const t = String(ticket || '');
@@ -61,14 +61,18 @@ function verify(ticket, now) {
   if (!ok) throw bad('the signature does not match');
   const sec = Math.floor((now || Date.now()) / 1000);
   if (c.iss !== from) throw bad('made by another Portal');
-  if (c.aud !== AUD) throw bad('made for another module');
+  if (c.aud !== aud) throw bad('made for another module');
   if (typeof c.exp !== 'number' || typeof c.iat !== 'number' || c.exp - c.iat > 120) throw bad('no proper time');
   if (c.exp < sec - 5) throw bad('it ran out – it is valid for one minute');
   if (c.iat > sec + 60) throw bad('made in the future – check the clock');
-  const email = String(c.sub || '').trim().toLowerCase();
-  if (!EMAIL.test(email) || email.length > 120) throw bad('no proper email');
+  if (!EMAIL.test(String(c.sub || '').trim()) || String(c.sub).length > 120) throw bad('no proper email');
   if (!/^[A-Z0-9]{1,12}$/.test(String(c.site || ''))) throw bad('no proper site');
   if (!/^[0-9a-f]{16,64}$/.test(String(c.jti || ''))) throw bad('no ticket number');
+  return c;
+}
+// a person's ticket (opening Mechanical): the claims the sign-in needs, or an error the page shows (and then it sends him to the Portal)
+function verify(ticket, now) {
+  const c = check(ticket, AUD, now), email = String(c.sub).trim().toLowerCase();
   const list = (a, f) => (Array.isArray(a) ? a : []).slice(0, 40).map(f).filter(Boolean);
   return {
     email: email, name: String(c.name || email).slice(0, 80), site: c.site, siteName: String(c.siteName || c.site).slice(0, 80),
@@ -77,5 +81,19 @@ function verify(ticket, now) {
     sites: list(c.sites, s => s && /^[A-Z0-9]{1,12}$/.test(String(s.code)) ? { code: s.code, name: String(s.name || s.code).slice(0, 80) } : null),
   };
 }
+/* (update-94) the Super Admin's ticket – the Portal's server asks for one site's users and their pages, or sets one person's
+ * pages ("Users & Access" in the Portal). Made by the Portal's server only (its signature), for "mechanical-admin", 60 s, once.
+ * The pages and their access travel INSIDE the signed ticket, so nothing can be changed on the way. */
+const ADMIN_AUD = 'mechanical-admin', ACCESS = ['Edit', 'View', 'None'];
+function verifyAdmin(ticket, now) {
+  const c = check(ticket, ADMIN_AUD, now), out = { by: String(c.sub).trim().toLowerCase(), act: c.act, site: c.site, jti: c.jti };
+  if (c.act === 'users') return out;
+  if (c.act !== 'pages') throw bad('not a known request');
+  const email = String(c.email || '').trim().toLowerCase();
+  if (!EMAIL.test(email) || email.length > 120) throw bad('no proper email of the user');
+  const perms = {};
+  Object.keys(c.perms && typeof c.perms === 'object' ? c.perms : {}).slice(0, 60).forEach(k => { const v = c.perms[k]; if (/^[A-Za-z &]{2,40}$/.test(k) && ACCESS.indexOf(v) > -1) perms[k] = v; });
+  return Object.assign(out, { email: email, name: String(c.name || email).slice(0, 80), admin: c.admin === true, perms: perms });
+}
 function forget() { KEYS = { at: 0, from: '', keys: [] }; }
-module.exports = { url, verify, forget, AUD };
+module.exports = { url, verify, verifyAdmin, forget, AUD, ADMIN_AUD };

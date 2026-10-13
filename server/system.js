@@ -90,6 +90,15 @@ function ssoLogin(R, args) {
   if (reg) { try { keepMembership(c.email, c.site, true, c.admin); } catch (e) { console.error('[portal sign-in: site list] ' + String((e && e.message) || e)); } }      // (only the app's own list – the sign-in works without it)
   return { token: r.token, user: r.user, site: reg ? c.site : '', siteName: c.siteName, portal: { url: portal.url(), mods: c.mods, sites: c.sites } };
 }
+/* ---- (update-94) the Super Admin in the Portal: a site's users and their pages; one person's pages ---- */
+function portalAdmin(R, args) {
+  const c = portal.verifyAdmin(args[0]), reg = sites.registry();
+  let at = '';
+  if (reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
+  const r = R.runIn(at, 'sysPortalAdmin', [c]);
+  if (c.act === 'pages' && reg) { try { keepMembership(c.email, c.site, true, r.admin); } catch (e) { console.error('[portal pages: site list] ' + String((e && e.message) || e)); } }
+  return r;
+}
 /* ---- open another of my sites ---- */
 function switchSite(R, args, curNorm) {
   const token = String(args[0] || ''), target = String(args[1] || '').toUpperCase();
@@ -219,4 +228,4 @@ function superDo(R, args) {
     default: throw new Error('Unknown action.');
   }
 }
-module.exports = { login, ssoLogin, switchSite, setDefaultSite, passwordToOthers, siteInfo, superDo, memberships };
+module.exports = { login, ssoLogin, portalAdmin, switchSite, setDefaultSite, passwordToOthers, siteInfo, superDo, memberships };

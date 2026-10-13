@@ -152,14 +152,20 @@ function sysSetPw_(email, stored) {
  * A sign-in from the Portal lasts 12 hours at most (then the page asks the Portal again – silently while the Portal still
  * knows him): access taken away in the Portal ends here within the day. */
 const SSO_SESSION_MS_ = 12 * 3600000;
-function sysSso_(x) {
-  x = x || {};
-  const email = str_(x.email).toLowerCase(), jk = 'SSO_' + str_(x.jti), cache = CacheService.getScriptCache();
-  if (!/^[0-9a-f]{16,64}$/.test(str_(x.jti))) throw new Error('The Portal sign-in could not be accepted (no ticket number) – open the module again from the Portal.');
+// a ticket of the Portal is used once: its number is kept 5 minutes (a ticket lives 60 s) – a person's and the Super Admin's alike
+function portalOnce_(jti) {
+  const jk = 'SSO_' + str_(jti), cache = CacheService.getScriptCache();
+  if (!/^[0-9a-f]{16,64}$/.test(str_(jti))) throw new Error('The Portal sign-in could not be accepted (no ticket number) – open the module again from the Portal.');
   const exact = typeof __count === 'function' && __count('', 0) !== -1;
   if (exact) { if (__count(jk, 300) > 1) throw new Error('The Portal sign-in could not be accepted (this ticket was already used) – open the module again from the Portal.'); }
   else { if (cache.get(jk)) throw new Error('The Portal sign-in could not be accepted (this ticket was already used) – open the module again from the Portal.'); cache.put(jk, '1', 300); }
-  const unknownPw = () => makeHash_('Portal|' + Utilities.getUuid() + Utilities.getUuid());
+}
+const portalUnknownPw_ = () => makeHash_('Portal|' + Utilities.getUuid() + Utilities.getUuid());      // a password nobody knows (sign-in is through the Portal)
+function sysSso_(x) {
+  x = x || {};
+  const email = str_(x.email).toLowerCase(), cache = CacheService.getScriptCache();
+  portalOnce_(x.jti);
+  const unknownPw = portalUnknownPw_;
   let u = readUsersSheet_().find(w => w.email === email), changes = [];
   if (!u) {
     saveUserAdmin_({ isNew: true, email: email, name: clean_(x.name) || email, active: true, admin: !!x.admin, perms: {}, newPassword: 'Tmp' + Utilities.getUuid().replace(/-/g, '').slice(0, 16) }, null);
@@ -181,6 +187,30 @@ function sysSso_(x) {
   writeLog_(u, 'Login', '', '', 'Signed in through the Portal', changes.join('; '));
   sbFlush_();
   return { token: token, user: publicUser_(u) };
+}
+/* ---- (update-94) the Super Admin in the Portal ("Users & Access" there, asked 13-10-2026: the pages of every user are given
+ * there, in one place). act "users": this site's users with their pages (no password ever leaves). act "pages": one person's
+ * pages (Edit / View / No access) – Active and Admin stay as they are (the Portal sets those at his sign-in). A person the
+ * Portal gave this site but who has never opened it is written into Users now, with these pages and a password nobody knows. */
+function sysPortalAdmin_(c) {
+  c = c || {};
+  portalOnce_(c.jti);
+  const pub = u => ({ email: u.email, name: u.name, active: u.active, admin: u.admin, perms: u.perms });
+  if (c.act === 'users') { const d = usersAdmin_(); return { users: d.users.map(pub), pages: d.modules }; }
+  if (c.act !== 'pages') throw new Error('Unknown action.');
+  const email = str_(c.email).toLowerCase(), perms = {};
+  MODULES.forEach(m => { const v = (c.perms || {})[m]; if (v === 'Edit' || v === 'View' || v === 'None') perms[m] = v; });
+  if (!Object.keys(perms).length) throw new Error('No page was given.');
+  const who = { email: str_(c.by), name: 'Super Admin (Portal)' };
+  let u = readUsersSheet_().find(w => w.email === email), res;
+  if (!u) {
+    res = saveUserAdmin_({ isNew: true, email: email, name: clean_(c.name) || email, active: true, admin: !!c.admin, perms: perms, newPassword: 'Tmp' + Utilities.getUuid().replace(/-/g, '').slice(0, 16) }, null);
+    storePw_(email, portalUnknownPw_());
+  } else res = saveUserAdmin_({ email: email, name: u.name, active: u.active, admin: u.admin, perms: perms }, null);
+  writeLog_(who, res.added ? 'Add' : 'Edit', 'Users', email, (res.added ? 'User added by the Super Admin in the Portal: ' : 'Pages set by the Super Admin in the Portal: ') + email, res.changes || '');
+  sbFlush_();
+  u = readUsersSheet_().find(w => w.email === email) || {};
+  return { ok: true, added: !!res.added, changes: res.changes || '', admin: !!u.admin, user: u.email ? pub(u) : null };
 }
 function sysUsers_() { return usersAdmin_(); }
 function sysAccessReport_() { return accessReport_(); }

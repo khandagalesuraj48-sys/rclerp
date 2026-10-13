@@ -27,7 +27,7 @@ const TAIL = `
     saved: (token, fn, args, kept) => savedAfterAll_(token, fn, args, kept),
     // (update-90) several sites – only from this server itself (system.js), never from the page (see run: OUTSIDE)
     saLogin: saLogin_, saWho: saWho_, saLogout: saLogout_, saChangePassword: saChangePassword_, saRecover: saRecover_,
-    sysWho: sysWho_, sysSession: sysSession_, sysSso: sysSso_, sysUserRow: sysUserRow_, sysSetPw: sysSetPw_, sysUsers: sysUsers_, sysSaveUser: sysSaveUser_, sysAccessReport: sysAccessReport_ }[fn];
+    sysWho: sysWho_, sysSession: sysSession_, sysSso: sysSso_, sysPortalAdmin: sysPortalAdmin_, sysUserRow: sysUserRow_, sysSetPw: sysSetPw_, sysUsers: sysUsers_, sysSaveUser: sysSaveUser_, sysAccessReport: sysAccessReport_ }[fn];
   if (!f) throw new Error('Unknown action.');
   const r = f.apply(null, JSON.parse(argsJson));
   return JSON.stringify(r === undefined ? null : r);
@@ -156,7 +156,7 @@ function runOnce(fn, args, meta, rid) {
 }
 /* (update-90) what may be asked from OUTSIDE (the page, the backup door): the server's own functions of Sites.gs are reached
  * only from here (system.js) – a name that is not on this list is refused before anything runs. */
-const OUTSIDE = new Set(['api', 'login', 'changePassword', 'logout', 'orgInfo', 'backup', 'switchSite', 'setDefaultSite', 'super', 'ssoLogin']);      // ssoLogin: a ticket of the Portal (update-91)
+const OUTSIDE = new Set(['api', 'login', 'changePassword', 'logout', 'orgInfo', 'backup', 'switchSite', 'setDefaultSite', 'super', 'ssoLogin', 'portalAdmin']);      // ssoLogin: a ticket of the Portal (update-91)
 // one of the app's own functions run inside another site (its database, its memory), its answer parsed; the site of this request is set back after it
 const R = { runIn(site, fn, args) {
   const prev = gas.current();
@@ -170,7 +170,8 @@ function run(fn, args, meta) {
   // signing in, and the Super Admin: decided by the list of sites (system.js), whatever site the page last had
   if (fn === 'login') { useSite(''); return JSON.stringify(system.login(R, args)); }
   if (fn === 'super') { useSite(''); return JSON.stringify(system.superDo(R, args)); }
-  if (fn === 'ssoLogin') { useSite(''); return JSON.stringify(system.ssoLogin(R, args)); }      // (update-91) a ticket of the Portal: the site it names (system.js)
+  if (fn === 'ssoLogin') { useSite(''); return JSON.stringify(system.ssoLogin(R, args)); }
+  if (fn === 'portalAdmin') { useSite(''); return JSON.stringify(system.portalAdmin(R, args)); }      // (update-94) the Super Admin, from the Portal's server      // (update-91) a ticket of the Portal: the site it names (system.js)
   if (fn === 'orgInfo') { useSite('');      // the sign-in screen (nobody signed in): the first site's – another site's name is not given out
     const out = runPlain(fn, args, meta), p = portal.url();      // (update-91) and the Portal's address, when sign-in goes through the Portal
     if (!p) return out;
