@@ -2129,7 +2129,10 @@ test('update-91: sign-in through the Portal – switched on only by PORTAL_URL (
     process.env.PORTAL_URL = 'https://rcl-portal-flame.vercel.app/'; assert.strictEqual(portal.url(), 'https://rcl-portal-flame.vercel.app');
     process.env.PORTAL_URL = 'http://rcl-portal.example'; assert.strictEqual(portal.url(), '', 'plain http is never trusted (only this computer, for tests)');
     process.env.PORTAL_URL = 'http://127.0.0.1:3010'; assert.strictEqual(portal.url(), 'http://127.0.0.1:3010');
-    process.env.PORTAL_URL = 'https://x.example/path'; assert.strictEqual(portal.url(), '', 'an address with a path is not a Portal');
+    // (13-10-2026, one address) the Portal under the main address: ONE path part is allowed – nothing more
+    process.env.PORTAL_URL = 'https://x.example/portal/'; assert.strictEqual(portal.url(), 'https://x.example/portal', 'the Portal under the main address (…/portal)');
+    process.env.PORTAL_URL = 'http://127.0.0.1:3030/portal'; assert.strictEqual(portal.url(), 'http://127.0.0.1:3030/portal');
+    for (const v of ['https://x.example/a/b', 'https://x.example/portal?x=1', 'https://x.example/por tal', 'javascript:alert(1)']) { process.env.PORTAL_URL = v; assert.strictEqual(portal.url(), '', v); }
     process.env.PORTAL_URL = 'https://rcl-portal-flame.vercel.app';
     assert.throws(() => portal.verify('not-a-ticket'), /not a ticket/);
     assert.throws(() => portal.verify('x'.repeat(9000) + '.a.b'), /not a ticket/);
@@ -2239,4 +2242,26 @@ test('update-97: a water tanker trip by trip – many trips a day (Day / Night),
   assert.match(app, /I: \['sr', 'date', 'shift', 'agency', 'vehno', 'challan', 'dspT', 'unlT', 'trip', 'chno', 'usefor'\]/);
   for (const id of ['wt_form', 'wt_date', 'wt_shift', 'wt_no', 'wt_in', 'wt_save', 'wt_saved', 'wt_tot']) assert.strictEqual((app.match(new RegExp('id="' + id + '"', 'g')) || []).length, 1, id);
   assert.match(app, /data-lgmode="tanker"/); assert.match(app, /data-bl="nightRate"/); assert.match(app, /'DAY TRIPS'/); assert.match(app, /'NIGHT TRIPS'/);
+});
+test('update-99: one address – the Store and the Portal under this address, the menu of this module for the others, other modules\' pages in the dark menu', () => {
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  assert.deepStrictEqual(v.rewrites, [{ source: '/store/:path*', destination: 'https://rcl-store.vercel.app/:path*' }, { source: '/portal/:path*', destination: 'https://rcl-portal-flame.vercel.app/:path*' }]);
+  assert.deepStrictEqual(v.redirects.map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
+  assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
+  // the menu: every page of Machinery, read from the page itself; every key a real page of the app
+  const { menu } = require('../server/page.js'), m = menu(), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.strictEqual(m.module, 'mechanical'); assert.ok(m.pages.length >= 20, m.pages.length);
+  m.pages.forEach(p => { assert.match(p.key, /^[a-z0-9-]+$/); assert.ok(app.indexOf('id="tab-' + p.key + '"') > -1 && app.indexOf('id="sec-' + p.key + '"') > -1, p.key); assert.ok(!/[<&]/.test(p.name) || /&/.test(p.name), p.name); });
+  assert.deepStrictEqual(m.pages.slice(0, 2), [{ key: 'dash', name: 'Dashboard' }, { key: 'vendors', name: 'Vendor Master', group: 'Master' }]);
+  assert.ok(m.pages.some(p => p.key === 'log' && p.group === 'Log Book') && !m.pages.some(p => p.key === 'users'), 'Admin pages are not in it');
+  assert.match(fs.readFileSync(path.join(root, 'build.js'), 'utf8'), /'menu\.json'/);
+  // the worker keeps to this app's own addresses (the Store, the Portal and modules added later are left alone)
+  const sw = fs.readFileSync(path.join(root, 'app', 'sw.js'), 'utf8'), own = /if \(!(\/.+\/)\.test\(u\.pathname\)\) return;/.exec(sw);
+  assert.ok(own, 'the rule is there'); const re = eval(own[1]);
+  for (const p of ['/', '/index.html', '/manifest.webmanifest', '/icons/oc2-icon-192.png', '/menu.json']) assert.ok(re.test(p), p);
+  for (const p of ['/store/', '/store/api/items', '/portal/', '/hr/', '/storex']) assert.ok(!re.test(p), p);
+  // the page: a link #site=…&page=…; the other modules as groups of their pages
+  assert.match(app, /if \(\/\^\[a-z0-9-\]\{1,40\}\$\/\.test\(arg\('page'\)\)\) S\.wantTab = arg\('page'\);/);
+  assert.match(app, /wantTabGo\(\);      \/\/ \(13-10-2026\)/); assert.match(app, /modBase\(m\) \+ '\/menu\.json'/);
+  assert.strictEqual((app.match(/id="grp_mods"/g) || []).length, 1);
 });

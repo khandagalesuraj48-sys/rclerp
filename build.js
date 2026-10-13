@@ -5,7 +5,7 @@
 //                                 carries the build number, so every deploy is a "new version" to an installed app
 'use strict';
 const fs = require('fs'), path = require('path');
-const { page, shell } = require('./server/page.js');
+const { page, shell, menu } = require('./server/page.js');
 const out = path.join(__dirname, 'public');
 fs.mkdirSync(path.join(out, 'icons'), { recursive: true });
 const build = page().build;
@@ -20,5 +20,7 @@ fs.writeFileSync(path.join(out, 'manifest.webmanifest'), JSON.stringify({
 // the Excel tools the page uses, served from the app's own address (app/vendor → /vendor/…)
 const vend = path.join(__dirname, 'app', 'vendor');
 if (fs.existsSync(vend)) { fs.mkdirSync(path.join(out, 'vendor'), { recursive: true }); fs.readdirSync(vend).filter(f => /\.js$/.test(f)).forEach(f => fs.copyFileSync(path.join(vend, f), path.join(out, 'vendor', f))); }
+// (13-10-2026, one address) this module's pages for the other modules' menus (server/page.js menu)
+fs.writeFileSync(path.join(out, 'menu.json'), JSON.stringify(menu()));
 fs.writeFileSync(path.join(out, 'sw.js'), fs.readFileSync(path.join(__dirname, 'app', 'sw.js'), 'utf8').replace('/*BUILD*/', build));
 console.log('Built public/index.html – app version ' + build);

@@ -1290,6 +1290,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .side.mini .site-chg .sc-code { display: block; font-size: 10px; font-weight: 700; color: #F2C94C; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .modgrp .grphead .ext { margin-left: auto; opacity: .7; }
   .side.mini .modgrp .grphead { justify-content: center; padding: 0; } .side.mini .modgrp .ext { display: none; }
+  /* (13-10-2026, one address) each other module is a group of the dark menu like Machinery: a click shows its pages */
+  #grp_mods > .navgroup, #grp_mods + .navgroup { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.07); }
+  .modgrp .mp-cap { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #F2B705; padding: 8px 12px 2px; opacity: .85; }
+  .modgrp .mp-wait { color: #93A3AE; font-size: 12.5px; padding: 6px 12px; }
+  .side.mini .modgrp .grpitems, .side.mini .modgrp .chev { display: none; }
   .sp-list { display: grid; gap: 8px; margin: 10px 0; }
   .sp-list .sp-btn { justify-content: flex-start; min-height: 44px; font-size: 15px; text-align: left; }
   body.locked #cf_back { z-index: 60; }
@@ -2756,7 +2761,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         </div>
       </div>
     </div>
-    <div class="navgroup modgrp" id="grp_mods" role="group" aria-label="My other modules on this site" hidden></div>
+    <div id="grp_mods" role="group" aria-label="My other modules on this site" hidden></div>
     <div class="navgroup open" id="grp_admin" hidden>
       <button class="grphead" aria-expanded="true" aria-controls="grp_admin_items" title="Admin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg><span class="label">Admin</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
       <div class="grpitems" id="grp_admin_items" role="tablist" aria-orientation="vertical">
@@ -4834,7 +4839,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // what the server says (orgInfo): linked to a Portal, or no longer (the setting taken out – the app's own sign-in again)
   function ptSeen(o) { if (!o || typeof o !== 'object') return; if (o.portal) { if (PT.url !== o.portal) ptKeep({ url: o.portal, mods: PT.mods, sites: PT.sites }); } else if (o.customer && PT.url) ptForget(); }
   const ptSite = () => { try { return localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site') || localStorage.getItem('rcl_last_site') || ''; } catch (e) { return ''; } };
-  const ptOpen = (mod, site) => '/api/go?module=' + encodeURIComponent(mod) + '&site=' + encodeURIComponent(site);
+  const ptOpen = (mod, site, page) => '/api/go?module=' + encodeURIComponent(mod) + '&site=' + encodeURIComponent(site) + (page ? '&page=' + encodeURIComponent(page) : '');
   function ptNav(path) { try { window.top.location.href = PT.url + path; } catch (e) { location.href = PT.url + path; } }
   // an automatic trip to the Portal (not a click): refused after 3 in 2 minutes
   function ptGo(path) {
@@ -4861,17 +4866,55 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       showLogin(m, { here: !/ran out|already used/.test(m) });      // an old ticket: the Portal gives a new one (the guard above stops circles)
     }
   }
-  /* (update-93; moved into the dark menu 13-10-2026) his OTHER modules on this site – under Machinery; one opens through the
-   * Portal, without signing in again. Shown only when he has another module on this site. */
+  /* (update-93; moved into the dark menu 13-10-2026) his OTHER modules on this site – under Machinery, shown only when he has one.
+   * (13-10-2026, one address: "a click on Store shows the Store's pages below it; the one clicked opens right there, in the same
+   * view – for every module, new ones too, on every site") each module is a group like Machinery: its pages come from the module
+   * itself (<its address>/menu.json); a page opens that module on that page (<its address>/#site=…&page=…) in this same window –
+   * without signing in again. A module whose menu cannot be read (no address of its own, or another address): one line
+   * "Open …" through the Portal, as before. */
   const MOD_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
+  const PG_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>';
+  const CHEV_IC = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  const modBase = m => String(m.url || '').replace(/\/+$/, '');
+  const modLink = (m, site, page) => modBase(m) ? modBase(m) + '/#site=' + encodeURIComponent(site) + (page ? '&page=' + encodeURIComponent(page) : '') : PT.url + ptOpen(m.key, site, page);
+  const MOD_MENU = {};      // a module's pages, read once per page load
   function sideMods() {
     const box = $('grp_mods'), cur = (S.siteInfo && S.siteInfo.site) || ptSite(), mods = ptOn() ? PT.mods.filter(m => m.key !== 'mechanical') : [];
     box.hidden = !mods.length;
-    box.innerHTML = mods.map(m => '<button type="button" class="grphead" data-go="' + esc(ptOpen(m.key, cur)) + '" title="Open ' + esc(m.name) + ' – no new sign-in">' + MOD_IC + '<span class="label">' + esc(m.name) + '</span><span class="ext" aria-hidden="true">↗</span></button>').join('');
+    box.innerHTML = mods.map(m => '<div class="navgroup modgrp" data-mod="' + esc(m.key) + '"><button type="button" class="grphead" aria-expanded="false" title="' + esc(m.name) + ' – its pages">' + MOD_IC + '<span class="label">' + esc(m.name) + '</span>' + CHEV_IC + '</button>' +
+      '<div class="grpitems"><div class="mp-wait">…</div></div></div>').join('');
+    mods.forEach(m => modMenu(m, cur));
   }
-  $('grp_mods').addEventListener('click', e => { const b = e.target.closest('button[data-go]'); if (!b) return;
+  async function modMenu(m, cur) {
+    const box = document.querySelector('#grp_mods .modgrp[data-mod="' + m.key + '"] .grpitems'); if (!box) return;
+    let pages = MOD_MENU[m.key];
+    if (!pages) {
+      pages = [];
+      try { if (modBase(m)) { const r = await fetch(modBase(m) + '/menu.json', { credentials: 'same-origin', cache: 'no-cache' }); if (r.ok) { const j = await r.json(); pages = (j && Array.isArray(j.pages) ? j.pages : []).filter(p => p && /^[a-z0-9_-]{1,40}$/i.test(String(p.key))).slice(0, 60); } } } catch (e) { pages = []; }
+      MOD_MENU[m.key] = pages;
+    }
+    let grp = '';
+    box.innerHTML = (pages.length ? pages : [{ key: '', name: 'Open ' + m.name }]).map(p => {
+      const cap = p.group && p.group !== grp ? '<div class="mp-cap">' + esc(p.group) + '</div>' : ''; if (p.group) grp = p.group;
+      return cap + '<button type="button" class="navbtn" data-go="' + esc(pages.length ? modLink(m, cur, p.key) : PT.url + ptOpen(m.key, cur)) + '" title="' + esc(m.name + ' – ' + p.name) + '">' + PG_IC + '<span class="label">' + esc(String(p.name).slice(0, 60)) + '</span></button>';
+    }).join('');
+  }
+  $('grp_mods').addEventListener('click', e => {
+    const h = e.target.closest('.grphead');
+    if (h) {
+      if ($('side').classList.contains('mini')) { if (document.querySelector('.app.side-auto')) $('side_toggle').click(); else setSide(false); }
+      const g = h.closest('.navgroup'), open = !g.classList.contains('open'); g.classList.toggle('open', open); h.setAttribute('aria-expanded', String(open)); return;
+    }
+    const b = e.target.closest('button[data-go]'); if (!b) return;
     if (window.__rclSaving && window.__rclSaving()) { toast('An entry is still being sent – wait until it is saved, then open the other module.', true); return; }
-    ptNav(b.dataset.go); });
+    try { window.top.location.href = b.dataset.go; } catch (er) { location.href = b.dataset.go; }
+  });
+  // the page asked for in the link (another module's menu): opened once the app is loaded – if he may open it here
+  function wantTabGo() {
+    const t = S.wantTab; S.wantTab = ''; S.wantSite = ''; if (!t || TABS.indexOf(t) < 0 || !$('tab-' + t)) return;
+    if ($('tab-' + t).hidden || $('tab-' + t).closest('[hidden]')) { toast('You cannot open that page here – ask the Admin for access. · हे पान उघडण्याची परवानगी नाही – Admin ला विचारा. · यह पेज खोलने की अनुमति नहीं – Admin से पूछें.', true); return; }
+    showTab(t);
+  }
   function showLogin(msg, opt) {
     try { rtcRingClose(); rtcEnd('', true); } catch (e) { /* no screen share */ }
     try { saHide(); $('site_box').hidden = true; $('grp_mods').hidden = true; S.siteInfo = null; } catch (e) { /* the site parts are not built yet at the first start */ }
@@ -4881,7 +4924,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('login_screen').hidden = false;
     // (update-91) linked to the Portal: sign-in happens there (the reserve ?local=1, a message from here, or "Logout" stay here)
     if (!PT.local && !(opt && opt.here)) {
-      if (ptOn()) { const st = ptSite(); if (ptGo(st ? ptOpen('mechanical', st) : '/')) { $('login_form').hidden = true; $('lg_portal').hidden = false; $('lg_pt_err').textContent = 'Opening the Portal…'; return; } msg = PT_STUCK; }
+      if (ptOn()) { const st = S.wantSite || ptSite(); if (ptGo(st ? ptOpen('mechanical', st, S.wantTab) : '/')) { $('login_form').hidden = true; $('lg_portal').hidden = false; $('lg_pt_err').textContent = 'Opening the Portal…'; return; } msg = PT_STUCK; }
       else ORG_P.then(o => { if (o && o.portal && !S.token && !PT.local && $('login_screen').hidden === false) { ptSeen(o); showLogin(msg); } }).catch(() => { /* the app's own sign-in */ });
     }
     $('login_form').hidden = ptOn(); $('lg_portal').hidden = !ptOn();
@@ -13303,6 +13346,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       resumeTab();      // just updated to a new version: back on the page the user was going to
       S.locations = d.locations || []; if (d.rules) setRules(d.rules);
       prefsBoot(S.curTab === tab0);      // the user's own settings (look, first page, usual entry type …)
+      wantTabGo();      // (13-10-2026) opened from another module's menu on one page: that page
       if (d.faults) setFaults(d.faults);
       aiBoot(d.ai);
       setTimeout(aiBriefAuto, 3500);      // the daily summary, once a day (after the start-up notices have had their turn)
@@ -15381,12 +15425,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   try { S.token = localStorage.getItem('rcl_token') || sessionStorage.getItem('rcl_token') || ''; } catch (e) { S.token = ''; }
   locCheck();      // (update-85) the app opens only with the location on
   // (update-91) a ticket from the Portal (#sso=… in the link – taken out of the address at once), or the reserve (?local=1)
-  let ssoTicket = '';
-  try { const top = window.top, m = /^#sso=([A-Za-z0-9_.-]{20,8000})$/.exec(top.location.hash || '');
+  // (13-10-2026, one address) a link from another module's menu: #site=…&page=… (and after the Portal: #sso=…&page=…) – this app
+  // opens on that page; another site than the one signed in here goes through the Portal first (no sign-in typed)
+  let ssoTicket = '', wantSite = '';
+  try { const top = window.top, h = top.location.hash || '', arg = k => { const x = new RegExp('[#&]' + k + '=([^&]*)').exec(h); try { return x ? decodeURIComponent(x[1]) : ''; } catch (e) { return ''; } };
+    const m = /^#sso=([A-Za-z0-9_.-]{20,8000})(&|$)/.exec(h);
     if (/[?&]local=1(&|$)/.test(top.location.search || '')) { try { sessionStorage.setItem('rcl_local', '1'); } catch (e) { /* this page only */ } PT.local = true; }
-    if (m || /^#sso=/.test(top.location.hash || '')) { ssoTicket = m ? m[1] : ''; top.history.replaceState(null, '', top.location.pathname + top.location.search); } }
+    if (/^[a-z0-9-]{1,40}$/.test(arg('page'))) S.wantTab = arg('page');
+    if (/^[A-Z0-9]{1,12}$/.test(arg('site').toUpperCase())) S.wantSite = wantSite = arg('site').toUpperCase();
+    if (/^#(sso|site|page)=/.test(h)) { ssoTicket = m ? m[1] : ''; top.history.replaceState(null, '', top.location.pathname + top.location.search); } }
   catch (e) { /* another origin: no ticket */ }
   if (ssoTicket && !PT.local) ssoStart(ssoTicket);
+  else if (wantSite && ptOn() && !/^sa/.test(S.token) && wantSite !== ptSite() && ptGo(ptOpen('mechanical', wantSite, S.wantTab))) { /* the other site: through the Portal */ }
   else if (/^sa/.test(S.token)) saStart(null); else if (S.token) init(); else showLogin('');      // (update-90) "sa…" = the Super Admin's sign-in
   /* ================= SCREEN SHARE WITH VOICE (update-72, asked 10-10-2026) =================
    * "A has a difficulty on a screen: he shares his screen with B, shows it and they talk – live. He picks whom from a list."

@@ -15,6 +15,28 @@
       "includeFiles": "app/**"
     }
   },
+  "redirects": [
+    {
+      "source": "/store",
+      "destination": "/store/",
+      "permanent": false
+    },
+    {
+      "source": "/portal",
+      "destination": "/portal/",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/store/:path*",
+      "destination": "https://rcl-store.vercel.app/:path*"
+    },
+    {
+      "source": "/portal/:path*",
+      "destination": "https://rcl-portal-flame.vercel.app/:path*"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -91,6 +113,15 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/menu.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
         }
       ]
     }
