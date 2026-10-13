@@ -1520,6 +1520,15 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   bar (`FOLDS`: diesel, inward, transfer, log, tankcheck, pay, brk, comp – matched by the h2 text): `.panel.fold`, `.fold-head`
   (role=button), `foldSet` / `foldOpen`; closed at every app start, kept open during the session; the search openers open it.
   Lists still load when the page opens. Tests reading a folded list call `foldOpen` first (splittime).
+- 13-10-2026 (update-89, after update-88 went live – `0cb1e58`). Report: `UPDATE_89.md`. NO SQL. NEW SITES stage 1 (plan agreed
+  12-10-2026: one app, every site its own Supabase + Sheet; Super Admin = system only (sites, users, per-site access, companies
+  Rachana / Sketchline), no entry, no reports; "Create site" button runs the SQL itself; bill numbers stay as now). Stage 1:
+  `meta.site` (api/rpc.js body.site) → `runtime.useSite` → `gas.useSite`: conf / LOCAL / BEAT / WARM / COUNTER / WRITE per site;
+  '' = first site from the Vercel env as before. `server/sites.js` – other sites only from RCL_SITES (test setting) until stage 2.
+  google.config(sheetOf) / call(…, sheetOf): a site writes only its own Sheet. Rig: second DB rcl_s2, PostgREST :3103, door
+  :3102 (rig/proxy2.js, rig/postgrest2.conf); test/site89.js with srv89.sh-style servers (RCL_SITES={"T2":…}).
+  NEXT: stage 2 (Super Admin, sites list, user ↔ sites, per-site access, site choice at sign-in, default site, switcher –
+  needs new tables in the first site's DB: show the SQL first), stage 3 (New site form + Create site), stage 4 (rehearsal).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

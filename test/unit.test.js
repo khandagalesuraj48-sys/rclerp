@@ -254,6 +254,7 @@ test('help for errors: every rule has English, Marathi and Hindi; real messages 
     ['Line 1: JCB-1 is not an asset of ABC Earthmovers in Asset Master (its Vendor / Owner Name is XYZ).', /does not belong to this vendor/],
     ['Enter the bill number for ABC Earthmovers.', /bill number/],
     ['Failed to fetch', /NOT saved/], ['Diesel issued on a day with no Log Book entry', /no working Log Book entry/],
+    ['This site is not set up (ZZ).', /not set up on the server/], ['The Google Sheet backup of this site is not set up yet.', /backup Sheet/],
     ['Enter Qty (Ltr).', /must be filled/], ['Something nobody has seen before', /could not accept/]])
     assert.match(first(msg), want, msg);
   // every error text the server can throw: how many fall through to the general advice only

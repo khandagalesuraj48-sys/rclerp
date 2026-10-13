@@ -5,9 +5,12 @@
 const crypto = require('crypto');
 const { fetchAllSync } = require('./syncfetch');
 
-function config() {
+/* sheetOf: the Sheet of a site other than the first (stage 1 of "new site") – its own Sheet, never the first site's ('' = none
+ * yet: "not set up"). Not given = the first site: BACKUP_SHEET_ID, as before. */
+function config(sheetOf) {
   const raw = String(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '').trim();
-  const sheet = String(process.env.BACKUP_SHEET_ID || '').trim();
+  const sheet = sheetOf === undefined ? String(process.env.BACKUP_SHEET_ID || '').trim() : String(sheetOf || '').trim();
+  if (sheetOf !== undefined && !sheet) return { ok: false, error: 'The Google Sheet backup of this site is not set up yet.' };
   if (!raw || !sheet) return { ok: false, error: 'The Google Sheet backup is not set up yet: add GOOGLE_SERVICE_ACCOUNT_JSON and BACKUP_SHEET_ID in Vercel → Settings → Environment Variables, then Redeploy (see README).' };
   let key = null;
   try { key = JSON.parse(raw); } catch (e) { return { ok: false, error: 'GOOGLE_SERVICE_ACCOUNT_JSON is not the complete key file – paste the whole content of the .json file Google gave, from { to }.' }; }
@@ -36,8 +39,10 @@ function token(cfg) {
 }
 // one call to the Sheets API → { code, text }.  ms = how long the caller can still wait (the backup's own clock): the call and
 // its repeats never run past it – before, 3 tries of up to 50 s each could outlast the 58 s a request is given (07-10-2026)
-function call(method, path, bodyJson, ms) {
-  const cfg = config(); if (!cfg.ok) throw new Error(cfg.error);
+function call(method, path, bodyJson, ms, sheetOf) {
+  const cfg = config(sheetOf); if (!cfg.ok) throw new Error(cfg.error);
+  // (stage 1 of "new site") a site writes only to its OWN Sheet
+  if (path.indexOf('/spreadsheets/') > -1 && path.indexOf('/spreadsheets/' + cfg.sheetId) === -1) throw new Error('This Sheet is not the backup Sheet of this site.');
   const base = (process.env.GOOGLE_SHEETS_URL || 'https://sheets.googleapis.com').replace(/\/+$/, '');
   const until = Date.now() + Math.max(5000, Math.min(150000, Number(ms) || 150000));
   let last = null;

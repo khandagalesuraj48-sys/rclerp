@@ -30,7 +30,15 @@ appBuild_ = function () { return __BUILD; };                 // the version of t
 movedTo_ = function () { return ''; };                       // "the app has moved" is only for the old Apps Script app
 sbBackupNow_ = function () { return webBackup_({ manual: true }); };   // the Google Sheet backup is made from here (see backup.vm.js)
 `;
-const COUNTER = { off: false }, WRITE = { mode: '' };   // remembered while this server lives: is the step-3 SQL there?
+let COUNTER = { off: false }, WRITE = { mode: '' };   // remembered while this server lives: is the step-3 SQL there?
+// (stage 1 of "new site") remembered PER SITE – one site's database may have a step the other has not yet
+const PER_SITE = new Map([['', { COUNTER: COUNTER, WRITE: WRITE }]]);
+function useSite(code) {
+  const c = gas.useSite(code);
+  let m = PER_SITE.get(c.site); if (!m) { m = { COUNTER: { off: false }, WRITE: { mode: '' } }; PER_SITE.set(c.site, m); }
+  COUNTER = m.COUNTER; WRITE = m.WRITE;
+  return c;
+}
 /* "Not installed" is ONLY the answer 404 of the database for that function (gas.rpc words it "404 <name> is not installed").
  * Until 07-10-2026 the test was /404|web_count/ – and every error text of that function carries its name, so ONE network
  * hiccup switched the exact counters off for as long as the server lived: the sign-in limit and "a save sent twice is
@@ -141,6 +149,7 @@ function runOnce(fn, args, meta, rid) {
   return out;
 }
 function run(fn, args, meta) {
+  useSite(meta && meta.site);      // the site this request is for: its database and its memory (no site = the first site, as before)
   const rid = meta && typeof meta.rid === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(meta.rid) ? meta.rid : '';
   if (!rid || fn !== 'api' || IS_QUESTION(String(args[1]))) return runPlain(fn, args, meta);
   try { return runOnce(fn, args, meta, rid); } catch (e) { if (!(e && e.rclNoOps)) throw e; }      // step 5 not installed (or a number of the old way): the way described above
@@ -272,8 +281,10 @@ function runPlain(fn, args, meta) {
   g.__opsCleanup = () => gas.rpc('web_ops_cleanup', {});      // old save numbers are forgotten (3 days; long answers 24 hours) – see the step-5 SQL
   g.__op = () => (st.meta && st.meta.op) || null;      // { rid, holder } of this request's save, where the step-5 SQL is installed (see runOnce)      // the app's code says: the save of this request IS in the database (see "AFTER THE SAVE")
   // for the Google Sheet backup: its settings, Google's Sheets API, and its own lock (not the lock of the saves)
-  g.__backupConfig = () => { const c = google.config(); return JSON.stringify(c.ok ? { ok: true, sheetId: c.sheetId, email: c.email } : c); };
-  g.__g = (method, p2, body, ms) => JSON.stringify(google.call(String(method), String(p2), body ? String(body) : '', ms));
+  // (stage 1 of "new site") each site its own Sheet: the first site BACKUP_SHEET_ID as before, another site only its own
+  const sheetOf = () => gas.site() === '' ? undefined : (require('./sites').conf(gas.site()).sheet || '');
+  g.__backupConfig = () => { const c = google.config(sheetOf()); return JSON.stringify(c.ok ? { ok: true, sheetId: c.sheetId, email: c.email } : c); };
+  g.__g = (method, p2, body, ms) => JSON.stringify(google.call(String(method), String(p2), body ? String(body) : '', ms, sheetOf()));
   // the settings as the database has them NOW (the backup looks again once it holds its lock – another server may just have finished one)
   g.__propFresh = key => { const b = gas.rpc('web_boot', { p_keys: [] }) || {}; st.props = Object.assign({}, b.props || {}, st.propQueue); return key in st.props ? st.props[key] : null; };
   g.__lockNamed = (name, ttl) => { const r = gas.rpc('web_lock', { p_name: String(name), p_holder: st.holder, p_ttl: Number(ttl) || 110 }); if (r && r.ok) { st.named = (st.named || []).concat(String(name)); return true; } return false; };

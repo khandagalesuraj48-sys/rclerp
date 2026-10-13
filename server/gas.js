@@ -10,15 +10,17 @@
 'use strict';
 const crypto = require('crypto');
 const { fetchAllSync, sleepSync } = require('./syncfetch');
+const sites = require('./sites');
 
 const TZ = 'Asia/Kolkata';
 const LOCK_TTL = 75;               // seconds: a lock left by a request that died frees itself
 const ENV_KEYS = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'DATA_SOURCE'];
 
+/* the database of the site this request is for (see sites.js and useSite below; no site = the first site, as before).
+ * The first site's settings are read afresh every time, as before. */
 function conf() {
-  const url = String(process.env.SUPABASE_URL || '').replace(/\/+$/, ''), key = String(process.env.SUPABASE_SECRET_KEY || '');
-  if (!url || !key) throw new Error('The server is not set up: add SUPABASE_URL and SUPABASE_SECRET_KEY in Vercel → Settings → Environment Variables, then Redeploy.');
-  return { url: url, key: key };
+  if (!CUR || CUR.site === '') { const c = sites.conf(''); return { url: c.url, key: c.key }; }
+  return { url: CUR.url, key: CUR.key };
 }
 // one database function (Supabase RPC); a network hiccup or a busy database is tried again
 function rpc(name, body) {
@@ -39,7 +41,7 @@ function rpc(name, body) {
 }
 
 /* ---------- memory of this server (lives while the server stays warm) ---------- */
-const LOCAL = { stamp: null, map: new Map() };           // the big copy of the main tables (SBG_…), valid for one "stamp"
+let LOCAL = { stamp: null, map: new Map() };           // the big copy of the main tables (SBG_…), valid for one "stamp"
 const isLocalKey = k => /^SBG_/.test(k) || k === 'APP_BUILD';
 const isVersionKey = k => /^V_/.test(k);                    // data versions: kept with the settings (one place, not two)
 
@@ -57,7 +59,7 @@ function newState(meta) {
  *     renewed in time; a user switched off by the Admin is stopped by the users list, i.e. within a second).
  * So a change is seen by the others at most one second later than before, and the database is asked about once a second
  * per server instead of once per page. Only the heartbeat ("light") uses this; every real action reads the database. */
-const BEAT = { at: 0, props: null, stamp: '', tables: null, shared: {}, sess: new Map() };
+let BEAT = { at: 0, props: null, stamp: '', tables: null, shared: {}, sess: new Map() };
 function boot(st, keys, light) {
   const now = Date.now(); keys = keys || [];
   if (light && process.env.RCL_WARM !== 'off' && BEAT.props && now - BEAT.at < 1000) {
@@ -286,7 +288,7 @@ function makeFetch(st) {
  * save that was still being written is not missed; every table is read whole again after 15 minutes; a change list that
  * is too long (1,000) reads the table whole. Every server has its own copy and each brings itself up to date this way,
  * so two servers agree. RCL_WARM=off switches all of this off (the old way). The Activity Log is not kept (it only grows). */
-const WARM = { tables: new Map(), skip: new Set(['activity_log', 'deleted_rows']), stats: { whole: 0, changes: 0, kept: 0 } };
+let WARM = { tables: new Map(), skip: new Set(['activity_log', 'deleted_rows']), stats: { whole: 0, changes: 0, kept: 0 } };
 const WARM_OVERLAP = 15000, WARM_REFRESH = 15 * 60 * 1000, WARM_MAX = 250000;
 const warmPos = (ids, id) => { let lo = 0, hi = ids.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ids[m] < id) lo = m + 1; else hi = m; } return lo; };
 const isoBack = (iso, ms) => new Date((Date.parse(iso) || 0) - ms).toISOString();
@@ -393,6 +395,22 @@ function scryptHex(pw, saltHex, N, r, p) {
   return require('crypto').scryptSync(Buffer.from(String(pw), 'utf8'), Buffer.from(String(saltHex), 'hex'), 32, { N: N, r: r, p: p, maxmem: 160 * 1024 * 1024 }).toString('hex');
 }
 
+/* ---------- ONE MEMORY PER SITE (stage 1 of "new site") ----------
+ * What this server keeps between requests – the copy of the tables (LOCAL, WARM) and the heartbeat's memory (BEAT) – is kept
+ * for each site on its own. A request first says its site (useSite – runtime.js, before anything else); a helper thread
+ * runs one request at a time, so the memory in use is that site's for the whole request. The first site ('') keeps the
+ * memory it always had. */
+let CUR = null;
+const MEM = new Map([['', { LOCAL: LOCAL, BEAT: BEAT, WARM: WARM }]]);
+function useSite(code) {
+  const c = sites.conf(code);            // throws "This site is not set up" for a site that does not exist
+  let m = MEM.get(c.site);
+  if (!m) { m = { LOCAL: { stamp: null, map: new Map() }, BEAT: { at: 0, props: null, stamp: '', tables: null, shared: {}, sess: new Map() },
+    WARM: { tables: new Map(), skip: new Set(['activity_log', 'deleted_rows']), stats: { whole: 0, changes: 0, kept: 0 } } }; MEM.set(c.site, m); }
+  CUR = c; LOCAL = m.LOCAL; BEAT = m.BEAT; WARM = m.WARM;
+  return c;
+}
+const site = () => (CUR ? CUR.site : '');
 // everything the server code sees as "global" for one request
 function makeGlobals(st, page) {
   const props = makeProperties(st), cache = makeCache(st), lock = makeLock(st);
@@ -413,4 +431,4 @@ function makeGlobals(st, page) {
     __scrypt: scryptHex,        // passwords are kept with scrypt (see "PASSWORDS" in Code.gs)
   };
 }
-module.exports = { newState, boot, flush, forceUnlock, makeGlobals, rpc, conf, Utilities, TZ, scryptHex };
+module.exports = { newState, boot, flush, forceUnlock, makeGlobals, rpc, conf, useSite, site, Utilities, TZ, scryptHex };

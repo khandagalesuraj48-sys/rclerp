@@ -25,6 +25,7 @@ function statusOf(msg) {
   if (/RETRY_LATER|Another save is still running|Could not reach the database|did not answer in time|^Database \([a-z_]+\): 5\d\d/.test(msg)) return 503;
   if (/^This took too long/.test(msg)) return 504;
   if (/^The app hit a fault|^The server had a problem|^The server is not set up/.test(msg)) return 500;
+  if (/^This site is not set up/.test(msg)) return 404;
   return 200;
 }
 module.exports = async (req, res) => {
@@ -48,7 +49,8 @@ module.exports = async (req, res) => {
     if (fn === 'getAppHtml') { const p = page(); return send(200, JSON.stringify({ result: { build: p.build, html: p.html } })); }
     if (ALLOWED.indexOf(fn) === -1) return send(404, JSON.stringify({ error: 'Unknown action.' }));
     const host = req.headers['x-forwarded-host'] || req.headers.host || '';
-    const out = await pool.call(fn, args, { url: host ? 'https://' + host + '/' : '', rid: typeof body.rid === 'string' ? body.rid.slice(0, 64) : '' });   // rid: the number of a save (a save sent again is saved once – runtime.js)
+    // site: which site's database (stage 1 of "new site" – not sent = the first site, as before; a site that is not set up is refused)
+    const out = await pool.call(fn, args, { url: host ? 'https://' + host + '/' : '', rid: typeof body.rid === 'string' ? body.rid.slice(0, 64) : '', site: typeof body.site === 'string' ? body.site.slice(0, 20) : '' });   // rid: the number of a save (a save sent again is saved once – runtime.js)
     // Vercel does not send an answer bigger than about 4.5 MB
     if (Buffer.byteLength(out, 'utf8') > 4200000) return send(200, JSON.stringify({ error: 'Too much data in one go – pick a shorter period (or fewer machinery) and try again.' }));
     return send(200, '{"result":' + out + '}');

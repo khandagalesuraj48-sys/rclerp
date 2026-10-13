@@ -4749,6 +4749,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Shown: under every red message (a card at the bottom right), inside every "Nothing saved / Not submitted" box, and next
    * to warnings on the billing page. The language is remembered on this device (rcl_lang). To cover a new message: add a rule. */
   const FIX_RULES = [
+    { re: /This site is not set up|backup of this site is not set up|not the backup Sheet of this site/i,      // stage 1 of "new site": a site the server does not know (yet), or its Sheet
+      en: ['This site is not set up on the server yet (or its backup Sheet is not).', 'Nothing was read or saved. Ask the Super Admin to finish setting up this site, then open the app again.'],
+      mr: ['ही site अजून server वर set up झालेली नाही (किंवा तिची backup Sheet नाही).', 'काहीही वाचले किंवा save झाले नाही. Super Admin ला ही site set up पूर्ण करायला सांगा, मग app पुन्हा उघडा.'],
+      hi: ['यह site अभी server पर set up नहीं हुई है (या उसकी backup Sheet नहीं है)।', 'कुछ भी पढ़ा या save नहीं हुआ। Super Admin से इस site का set up पूरा करने को कहें, फिर app दोबारा खोलें।'] },
     { re: /no location|location of the phone|location could not be found/i,      // update-85: a photo without the place it was taken
       en: ['The photo has no location, so it was not kept.', 'Every photo of a diesel issue carries the place it was taken. Turn on the location (GPS) of the phone, allow Location for this site in the browser, and take the photo again.'],
       mr: ['Photo ला location नाही, म्हणून तो ठेवला गेला नाही.', 'Diesel issue च्या प्रत्येक photo सोबत तो कुठे काढला ते ठिकाण लागते. Phone चे Location (GPS) चालू करा, browser मध्ये या site ला Location ची परवानगी द्या, आणि photo पुन्हा काढा.'],
