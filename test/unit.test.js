@@ -2279,3 +2279,13 @@ test('update-100: the same view – another module of this address opens INSIDE 
   // only a module under THIS address opens inside (another address: as before, through the Portal)
   assert.match(app, /const inHere = m => \{ try \{ return !!modBase\(m\) && new URL\(modBase\(m\)\)\.origin === hereOrigin\(\); \}/);
 });
+test('update-101: the dark menu scrolls by itself on a computer; Ctrl K also searches the other modules of this screen', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /\.app \.side, \.app\.side-auto \.side \{ position: sticky; top: 0; bottom: auto; left: auto; height: 100vh; align-self: flex-start; \}/);
+  assert.match(app, /\.app \.side nav \{ flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;/);
+  assert.ok(!/\.app \.side, \.app\.side-auto \.side \{ position: relative;/.test(app), 'the old "part of the page" rule is gone');
+  // search: the modules' pages and their own entries (window.rclModule – the same two for every module)
+  assert.match(app, /\}\)\.concat\(gsModPages\(\)\);/); assert.match(app, /\.concat\(gsModGroups\(\)\);/);
+  assert.match(app, /gsModAsk\(q, seq\);/); assert.match(app, /w\.rclModule\.search\(q\)/); assert.match(app, /w\.rclModule\.open\(page, find\)/);
+  assert.match(app, /if \(seq !== GS\.seq\) return;/, 'an old answer never shows for a new search');
+});

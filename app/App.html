@@ -2351,13 +2351,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
   }
 
-  /* ---------- menu on a computer: part of the page (not pinned to the screen) ----------
-     Asked for 02-10-2026: the menu is NOT fixed / sticky any more; it is an ordinary column of the page and scrolls away with it.
-     Its look is unchanged. No inner scroll bar: the whole list is shown and the page's own scroll bar moves it.
-     (The phone drawer below 761 px is unchanged – it is hidden until the menu button is pressed.) */
+  /* ---------- menu on a computer: its OWN scroll (13-10-2026) ----------
+     Asked 13-10-2026: "kali patti scroll je ahe tyach logic wegle asave ani baki jo bhag scroll hoto tyach logic wegle … kali
+     patti scroll krtana white portion side la dise naye" – the dark menu stays on the screen and scrolls by itself (its list of
+     pages only); the page beside it scrolls by itself. Scrolling the menu never moves the page, so no empty part shows beside
+     it. (Before: 02-10-2026 it was an ordinary column of the page, which left an empty part beside a long menu.)
+     The phone drawer below 761 px is unchanged. */
   @media (min-width: 761px) {
-    .app .side, .app.side-auto .side { position: relative; top: auto; bottom: auto; left: auto; height: auto; align-self: stretch; }
-    .app .side nav { flex: 0 0 auto; min-height: auto; overflow: visible; }
+    .app .side, .app.side-auto .side { position: sticky; top: 0; bottom: auto; left: auto; height: 100vh; align-self: flex-start; }
+    .app .side nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.22) transparent; }
+    .app .side nav::-webkit-scrollbar { width: 8px; } .app .side nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 8px; }
     .app.side-auto .mainwrap { margin-left: 0; }
   }
 
@@ -4937,8 +4940,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const pages = MOD_MENU[key] || [], pg = pages.find(p => p.key === page) || pages[0] || { key: page || '', name: m.name };
     const hash = '#site=' + encodeURIComponent(cur) + '&page=' + encodeURIComponent(pg.key) + '&u=' + encodeURIComponent(email);
     let fr = document.getElementById('ext_' + key);
-    if (!fr) { fr = document.createElement('iframe'); fr.id = 'ext_' + key; fr.className = 'ext-frame'; fr.title = m.name; fr.src = modBase(m) + '/?embed=1' + hash; $('ext_frames').appendChild(fr); }
+    if (!fr) fr = extFrame(m, hash);
     else { try { fr.contentWindow.location.hash = hash; } catch (e) { fr.src = modBase(m) + '/?embed=1' + hash; } }
+    window.scrollTo(0, 0);
     TABS.forEach(t => { $('tab-' + t).setAttribute('aria-selected', 'false'); $('sec-' + t).hidden = true; });
     $('sec-ext').hidden = false; [...$('ext_frames').children].forEach(f => { f.hidden = f !== fr; });
     $('page_title').textContent = pg.name; $('crumb_mod').textContent = m.name;
@@ -4950,6 +4954,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if ($('pg_back')) $('pg_back').disabled = false;
     extSize(); setTimeout(extSize, 300);
     return true;
+  }
+  // a module's page in this screen (made once; kept – hidden while a page of Mechanical is shown)
+  function extFrame(m, hash) {
+    const fr = document.createElement('iframe'); fr.id = 'ext_' + m.key; fr.className = 'ext-frame'; fr.title = m.name; fr.hidden = true;
+    fr.src = modBase(m) + '/?embed=1' + (hash || '#site=' + encodeURIComponent((S.siteInfo && S.siteInfo.site) || ptSite()) + '&u=' + encodeURIComponent(String((S.user && S.user.email) || '').toLowerCase()));
+    $('ext_frames').appendChild(fr); return fr;
+  }
+  // the module's page, loaded and answering (window.rclModule) – made out of sight when not there yet; null after 12 s
+  async function extReady(m) {
+    const fr = document.getElementById('ext_' + m.key) || extFrame(m), t0 = Date.now();
+    while (Date.now() - t0 < 12000) { try { const w = fr.contentWindow; if (w && w.rclModule) return w; } catch (e) { return null; } await new Promise(ok => setTimeout(ok, 150)); }
+    return null;
   }
   function extHide() { if (!EXT || !EXT.on) return; EXT.on = null; $('sec-ext').hidden = true; document.querySelectorAll('#grp_mods .navbtn[data-page]').forEach(b => b.setAttribute('aria-selected', 'false')); }
   // the module's page fills the screen below the top bar (it scrolls inside)
@@ -7662,7 +7678,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return h;
   }
   function gsClearFilters(sec) { document.querySelectorAll('#' + sec + ' .filters input, #' + sec + ' .filters select').forEach(el => { el.value = ''; }); }
-  const gsIcon = { page: '▦', action: '+', mach: '⛟', owner: '👤', issue: '⛽', inward: '⤓', transfer: '⇄', log: '📘', vendor: '🏢', bill: '🧾', note: '📝', pay: '₹', boq: '📑', tank: '🛢', brk: '🔧', paper: '📄' };
+  const gsIcon = { item: '📦', mod: '•', page: '▦', action: '+', mach: '⛟', owner: '👤', issue: '⛽', inward: '⤓', transfer: '⇄', log: '📘', vendor: '🏢', bill: '🧾', note: '📝', pay: '₹', boq: '📑', tank: '🛢', brk: '🔧', paper: '📄' };
   // the best first (and only those found) – collects the spelling the words were taken for
   function gsRank(words, list, pairsOf, fixes, fuzzy) {
     return list.map(x => ({ x: x, m: gsRecordP(words, pairsOf(x), fuzzy) })).filter(y => y.m).sort((a, b) => b.m.score - a.m.score).map(y => { y.m.fixes.forEach(f => fixes.push(f)); return y.x; });
@@ -7676,7 +7692,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       while (el) { if (el.classList.contains('subcap')) { sub = el.dataset.sub; break; } el = el.previousElementSibling; }
       const grp = b.closest('.navgroup'); const g = grp ? grp.querySelector('.grphead .label').textContent : '';
       return { kind: 'page', title: b.querySelector('.label').textContent, sub: [g, sub].filter(Boolean).join(' / '), run: () => showTab(b.id.slice(4)) };
-    });
+    }).concat(gsModPages());
     const actions = [
       ['Diesel Issue', 'New diesel issue', 'diesel', 'd_no'], ['Diesel Inward', 'New diesel inward', 'inward', 'i_pump'], ['Diesel Transfer', 'New diesel transfer', 'transfer', 't_qty'],
       ['Log Book', 'Log Book entry', 'log', null], ['Master', 'Add machinery', 'master', 'm_no'],
@@ -7701,6 +7717,35 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       chips: [['Machinery', () => gsMaster(o.name)]].concat(o.debit && canSee('Reports') ? [['Debit statement', () => gsDebit(o.name)]] : []),
     }))]);
     return out;
+  }
+  /* (13-10-2026) "search … new modual la search krt nahi … new task add zal tr search proper full in built": the other modules
+   * of this screen are searched too – their pages (from their menu) at once, and their own entries by the module itself
+   * (window.rclModule.search in its page – every module gives it, so a new module is searched without a change here). */
+  function gsModPages() {
+    const out = []; (ptOn() ? PT.mods : []).filter(m => m.key !== 'mechanical' && inHere(m)).forEach(m => (MOD_MENU[m.key] || []).forEach(p => out.push({ kind: 'page', title: p.name, sub: m.name + (p.group ? ' / ' + p.group : ''), run: () => extOpen(m.key, p.key) })));
+    return out;
+  }
+  function gsModGroups() {
+    const out = [];
+    Object.keys(GS.mods || {}).forEach(k => { const m = PT.mods.find(x => x.key === k); if (!m) return; const by = {};
+      (GS.mods[k] || []).forEach(x => { (by[x.group || 'Found'] = by[x.group || 'Found'] || []).push({ kind: x.kind || 'mod', title: String(x.title || ''), sub: String(x.sub || ''), run: () => extFind(k, x.page, x.find) }); });
+      Object.keys(by).forEach(g => out.push([m.name + ' – ' + g, by[g].slice(0, 8)])); });
+    return out;
+  }
+  // a module's own search: its page is loaded (out of sight) the first time – it signs in by itself – then asked
+  async function gsModAsk(q, seq) {
+    const mods = (ptOn() ? PT.mods : []).filter(m => m.key !== 'mechanical' && inHere(m)); if (!mods.length) return;
+    GS.modWait = mods.length; gsRender();
+    await Promise.all(mods.map(async m => {
+      let res = [];
+      try { const w = await extReady(m); if (w && w.rclModule && typeof w.rclModule.search === 'function') res = await Promise.race([w.rclModule.search(q), new Promise(ok => setTimeout(() => ok([]), 10000))]); } catch (e) { res = []; }
+      if (seq !== GS.seq) return;
+      GS.mods = GS.mods || {}; GS.mods[m.key] = (Array.isArray(res) ? res : []).slice(0, 20); GS.modWait = Math.max(0, (GS.modWait || 1) - 1); gsRender();
+    }));
+  }
+  async function extFind(key, page, find) {
+    extOpen(key, page); const m = PT.mods.find(x => x.key === key); const w = m && await extReady(m);
+    try { if (w && w.rclModule && w.rclModule.open) w.rclModule.open(page, find); } catch (e) { /* the page is shown anyway */ }
   }
   // entries from the server (each with where the words were found: x.why)
   function gsServer(r) {
@@ -7743,7 +7788,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function gsOpenPaper(no) { $('cp_q').value = no; showTab('comp'); }
   function gsRender() {
     const words = gsWords(GS.q), fixes = [];
-    const groups = gsLocal(GS.q, fixes).concat(GS.server ? gsServer(GS.server) : []);
+    const groups = gsLocal(GS.q, fixes).concat(GS.server ? gsServer(GS.server) : []).concat(gsModGroups());
     // an owner of the machinery list that is also a vendor found by the server: ONE result, with a "Vendor" button (not twice)
     const ownG = groups.find(g => g[0] === 'Owners'), venG = groups.find(g => /^Vendors/.test(g[0]));
     if (ownG && venG) venG[1] = venG[1].filter(v => { const o = ownG[1].find(x => x.title.toUpperCase() === v.title.toUpperCase()); if (!o) return true; o.chips = (o.chips || []).concat([['Vendor', v.run]]); return false; });
@@ -7765,7 +7810,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           (it.chips && it.chips.length ? '<span class="gs-chips">' + it.chips.map((c, k) => '<button class="gs-chip" data-i="' + i + '" data-c="' + k + '">' + esc(c[0]) + '</button>').join('') + '</span>' : '') + '</div>';
       });
     });
-    const waiting = words.length && !GS.server && GS.q.trim().length >= 2;
+    const waiting = words.length && (!GS.server || GS.modWait > 0) && GS.q.trim().length >= 2;
     if (!GS.items.length) html = waiting ? '<div class="gs-empty">Searching…</div>' : '<div class="gs-empty">Nothing found for “' + esc(GS.q) + '”. Try fewer words, a number (reading, bill no, challan) or a part of a name.</div>';
     else if (waiting) html += '<div class="gs-wait">Searching entries…</div>';
     $('gs_list').innerHTML = html;
@@ -7773,11 +7818,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const on = $('gs_list').querySelector('.gs-item.on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
   }
   function gsInput() {
-    GS.q = $('gs_in').value; GS.sel = 0; GS.server = null; gsRender();
+    GS.q = $('gs_in').value; GS.sel = 0; GS.server = null; GS.mods = {}; GS.modWait = 0; gsRender();
     clearTimeout(GS.timer);
-    if (GS.q.trim().length < 2) return;
+    if (GS.q.trim().length < 2) { GS.seq++; return; }
     const seq = ++GS.seq, q = GS.q;
     GS.timer = setTimeout(async () => {
+      gsModAsk(q, seq);      // (13-10-2026) the other modules of this screen, side by side with the server
       try { const r = await rawCall('globalSearch', q); if (seq === GS.seq) { GS.server = r; gsRender(); } } catch (e) { if (seq === GS.seq) { GS.server = {}; gsRender(); } }
     }, 250);
   }
