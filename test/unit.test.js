@@ -2263,7 +2263,19 @@ test('update-99: one address – the Store and the Portal under this address, th
   for (const p of ['/', '/index.html', '/manifest.webmanifest', '/icons/oc2-icon-192.png', '/menu.json']) assert.ok(re.test(p), p);
   for (const p of ['/store/', '/store/api/items', '/portal/', '/hr/', '/storex']) assert.ok(!re.test(p), p);
   // the page: a link #site=…&page=…; the other modules as groups of their pages
-  assert.match(app, /if \(\/\^\[a-z0-9-\]\{1,40\}\$\/\.test\(arg\('page'\)\)\) S\.wantTab = arg\('page'\);/);
+  assert.match(app, /if \(\/\^\[a-z0-9_-\]\{1,64\}\$\/\.test\(arg\('page'\)\)\) S\.wantTab = arg\('page'\);/);
   assert.match(app, /wantTabGo\(\);      \/\/ \(13-10-2026\)/); assert.match(app, /modBase\(m\) \+ '\/menu\.json'/);
   assert.strictEqual((app.match(/id="grp_mods"/g) || []).length, 1);
+});
+test('update-100: the same view – another module of this address opens INSIDE this screen (only the middle changes)', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.strictEqual((app.match(/id="sec-ext"/g) || []).length, 1); assert.match(app, /<div id="ext_frames"><\/div>/);
+  assert.match(app, /var EXT = \{ on: null, fresh: false \};/, 'var: showTab may run before it at the start');
+  assert.match(app, /function showTab\(name, fromBack\) \{\n    extHide\(\);/, 'a page of Mechanical takes the middle back');
+  assert.match(app, /fr\.src = modBase\(m\) \+ '\/\?embed=1' \+ hash;/); assert.match(app, /'&u=' \+ encodeURIComponent\(email\)/);
+  assert.match(app, /const x = \/\^\(\[a-z\]\{2,20\}\)__\(\[a-z0-9_-\]\{1,40\}\)\$\/\.exec\(t \|\| ''\); if \(x\) \{ extGo\(x\[1\], x\[2\]\); return; \}/);
+  assert.match(app, /if \(EXT && EXT\.on && S\.curTab\) \{ showTab\(S\.curTab, true\); return; \}/, 'Back from a module page');
+  assert.match(app, /modBase\(m\) \+ '\/api\/logout'/, 'Logout ends the modules\' sign-ins too');
+  // only a module under THIS address opens inside (another address: as before, through the Portal)
+  assert.match(app, /const inHere = m => \{ try \{ return !!modBase\(m\) && new URL\(modBase\(m\)\)\.origin === hereOrigin\(\); \}/);
 });

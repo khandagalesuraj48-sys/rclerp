@@ -1295,6 +1295,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .modgrp .mp-cap { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #F2B705; padding: 8px 12px 2px; opacity: .85; }
   .modgrp .mp-wait { color: #93A3AE; font-size: 12.5px; padding: 6px 12px; }
   .side.mini .modgrp .grpitems, .side.mini .modgrp .chev { display: none; }
+  #sec-ext { padding: 0; } #ext_frames { height: 100%; }
+  .ext-frame { display: block; width: 100%; height: 100%; border: 0; background: transparent; }
   .sp-list { display: grid; gap: 8px; margin: 10px 0; }
   .sp-list .sp-btn { justify-content: flex-start; min-height: 44px; font-size: 15px; text-align: left; }
   body.locked #cf_back { z-index: 60; }
@@ -3602,6 +3604,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   </section>
 
   <!-- ================= READ ME (Admin) ================= -->
+  <!-- (13-10-2026) a page of another module of this address (the Store …), shown here in the middle – only this part changes -->
+  <section id="sec-ext" role="tabpanel" aria-label="Other module" hidden><div id="ext_frames"></div></section>
   <section id="sec-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
     <div class="panel set-p">
       <div class="panel-head"><h2>My profile</h2><span class="chart-note">Your own settings – they belong to your sign-in and are the same on every computer. Nobody else's app changes. Every change is saved by itself.</span><span class="set-saved" id="set_saved" hidden>Saved ✔</span></div>
@@ -4878,12 +4882,36 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const modBase = m => String(m.url || '').replace(/\/+$/, '');
   const modLink = (m, site, page) => modBase(m) ? modBase(m) + '/#site=' + encodeURIComponent(site) + (page ? '&page=' + encodeURIComponent(page) : '') : PT.url + ptOpen(m.key, site, page);
   const MOD_MENU = {};      // a module's pages, read once per page load
+  /* IN THE SAME VIEW (asked 13-10-2026: "Store open kel tri Mechanical sarkha view – sagle fix, fkt tab change … sign in
+   * ekdach, modual change sathi sign in nahi … app ekdam smooth"): a module served under this same address (the Store at
+   * /store/) opens INSIDE this screen – in the middle, where a page of Mechanical is shown; the dark menu, the top bar,
+   * Change site and Back stay as they are. The module's page is kept loaded, so going back and forth is instant; it signs in
+   * by itself (a ticket from the Portal, nothing typed, no page change). A module elsewhere: as before (through the Portal). */
+  const hereOrigin = () => { try { return window.top.location.origin; } catch (e) { return location.origin; } };
+  const inHere = m => { try { return !!modBase(m) && new URL(modBase(m)).origin === hereOrigin(); } catch (e) { return false; } };
+  var EXT = { on: null, fresh: false };      // (var: showTab may run before this line at the start)
+  // a sign-in from before the one address has the other modules without their address: asked of the Portal once
+  async function modsFresh() {
+    if (EXT.fresh || !ptOn() || !PT.mods.some(m => m.key !== 'mechanical' && !inHere(m))) return false;
+    EXT.fresh = true;
+    try {
+      if (new URL(PT.url).origin !== hereOrigin()) return false;
+      const r = await fetch(PT.url + '/api/auth', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: JSON.stringify({ action: 'me' }) });
+      const j = await r.json(), cur = (S.siteInfo && S.siteInfo.site) || ptSite();
+      if (!j || !j.signedIn || !j.user || String(j.user.email).toLowerCase() !== String((S.user && S.user.email) || '').toLowerCase()) return false;
+      const items = (Array.isArray(j.items) ? j.items : []).filter(x => x.site === cur);
+      if (!items.length) return false;
+      ptKeep({ url: PT.url, mods: items.map(x => ({ key: x.module, name: x.moduleName, url: x.url || '' })), sites: PT.sites });
+      return true;
+    } catch (e) { return false; }
+  }
   function sideMods() {
     const box = $('grp_mods'), cur = (S.siteInfo && S.siteInfo.site) || ptSite(), mods = ptOn() ? PT.mods.filter(m => m.key !== 'mechanical') : [];
     box.hidden = !mods.length;
     box.innerHTML = mods.map(m => '<div class="navgroup modgrp" data-mod="' + esc(m.key) + '"><button type="button" class="grphead" aria-expanded="false" title="' + esc(m.name) + ' – its pages">' + MOD_IC + '<span class="label">' + esc(m.name) + '</span>' + CHEV_IC + '</button>' +
       '<div class="grpitems"><div class="mp-wait">…</div></div></div>').join('');
     mods.forEach(m => modMenu(m, cur));
+    modsFresh().then(ch => { if (ch) sideMods(); });
   }
   async function modMenu(m, cur) {
     const box = document.querySelector('#grp_mods .modgrp[data-mod="' + m.key + '"] .grpitems'); if (!box) return;
@@ -4891,13 +4919,49 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!pages) {
       pages = [];
       try { if (modBase(m)) { const r = await fetch(modBase(m) + '/menu.json', { credentials: 'same-origin', cache: 'no-cache' }); if (r.ok) { const j = await r.json(); pages = (j && Array.isArray(j.pages) ? j.pages : []).filter(p => p && /^[a-z0-9_-]{1,40}$/i.test(String(p.key))).slice(0, 60); } } } catch (e) { pages = []; }
-      MOD_MENU[m.key] = pages;
+      if (pages.length) MOD_MENU[m.key] = pages;
     }
+    const here = pages.length && inHere(m);
     let grp = '';
     box.innerHTML = (pages.length ? pages : [{ key: '', name: 'Open ' + m.name }]).map(p => {
       const cap = p.group && p.group !== grp ? '<div class="mp-cap">' + esc(p.group) + '</div>' : ''; if (p.group) grp = p.group;
-      return cap + '<button type="button" class="navbtn" data-go="' + esc(pages.length ? modLink(m, cur, p.key) : PT.url + ptOpen(m.key, cur)) + '" title="' + esc(m.name + ' – ' + p.name) + '">' + PG_IC + '<span class="label">' + esc(String(p.name).slice(0, 60)) + '</span></button>';
+      const act = here ? 'data-mod="' + esc(m.key) + '" data-page="' + esc(p.key) + '" aria-selected="' + String(!!(EXT.on && EXT.on.key === m.key && EXT.on.page === p.key)) + '"'
+        : 'data-go="' + esc(pages.length ? modLink(m, cur, p.key) : PT.url + ptOpen(m.key, cur)) + '"';
+      return cap + '<button type="button" class="navbtn" ' + act + ' title="' + esc(m.name + ' – ' + p.name) + '">' + PG_IC + '<span class="label">' + esc(String(p.name).slice(0, 60)) + '</span></button>';
     }).join('');
+  }
+  // a page of a module of this address, inside this screen (only the middle changes)
+  function extOpen(key, page) {
+    const m = PT.mods.find(x => x.key === key); if (!m || !inHere(m)) return false;
+    const cur = (S.siteInfo && S.siteInfo.site) || ptSite(), email = String((S.user && S.user.email) || '').toLowerCase();
+    const pages = MOD_MENU[key] || [], pg = pages.find(p => p.key === page) || pages[0] || { key: page || '', name: m.name };
+    const hash = '#site=' + encodeURIComponent(cur) + '&page=' + encodeURIComponent(pg.key) + '&u=' + encodeURIComponent(email);
+    let fr = document.getElementById('ext_' + key);
+    if (!fr) { fr = document.createElement('iframe'); fr.id = 'ext_' + key; fr.className = 'ext-frame'; fr.title = m.name; fr.src = modBase(m) + '/?embed=1' + hash; $('ext_frames').appendChild(fr); }
+    else { try { fr.contentWindow.location.hash = hash; } catch (e) { fr.src = modBase(m) + '/?embed=1' + hash; } }
+    TABS.forEach(t => { $('tab-' + t).setAttribute('aria-selected', 'false'); $('sec-' + t).hidden = true; });
+    $('sec-ext').hidden = false; [...$('ext_frames').children].forEach(f => { f.hidden = f !== fr; });
+    $('page_title').textContent = pg.name; $('crumb_mod').textContent = m.name;
+    if ($('dash_tabs')) $('dash_tabs').hidden = true;
+    document.body.dataset.mod = 'dash';      // (the colours of the Dashboard)
+    EXT.on = { key: key, page: pg.key };
+    document.querySelectorAll('#grp_mods .navbtn[data-page]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.mod === key && b.dataset.page === pg.key)));
+    const g = document.querySelector('#grp_mods .modgrp[data-mod="' + key + '"]'); if (g && !g.classList.contains('open')) { g.classList.add('open'); g.querySelector('.grphead').setAttribute('aria-expanded', 'true'); }
+    if ($('pg_back')) $('pg_back').disabled = false;
+    extSize(); setTimeout(extSize, 300);
+    return true;
+  }
+  function extHide() { if (!EXT || !EXT.on) return; EXT.on = null; $('sec-ext').hidden = true; document.querySelectorAll('#grp_mods .navbtn[data-page]').forEach(b => b.setAttribute('aria-selected', 'false')); }
+  // the module's page fills the screen below the top bar (it scrolls inside)
+  function extSize() { const sx = $('sec-ext'); if (!sx || sx.hidden) return; sx.style.height = Math.max(420, window.innerHeight - Math.max(0, sx.getBoundingClientRect().top) - 8) + 'px'; }
+  window.addEventListener('resize', extSize);
+  // opened by a link (#page=store__items): the module's address may first have to be asked of the Portal
+  async function extGo(key, page) {
+    let m = PT.mods.find(x => x.key === key);
+    if (!m || !inHere(m)) { if (await modsFresh()) sideMods(); m = PT.mods.find(x => x.key === key); }
+    if (!m || !inHere(m)) { toast('That module cannot be opened here. · ते module इथे उघडता येत नाही. · वह module यहाँ नहीं खुल सकता.', true); return; }
+    await modMenu(m, (S.siteInfo && S.siteInfo.site) || ptSite());
+    extOpen(key, page);
   }
   $('grp_mods').addEventListener('click', e => {
     const h = e.target.closest('.grphead');
@@ -4905,13 +4969,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if ($('side').classList.contains('mini')) { if (document.querySelector('.app.side-auto')) $('side_toggle').click(); else setSide(false); }
       const g = h.closest('.navgroup'), open = !g.classList.contains('open'); g.classList.toggle('open', open); h.setAttribute('aria-expanded', String(open)); return;
     }
+    const pb = e.target.closest('button[data-page]');
+    if (pb) {
+      extOpen(pb.dataset.mod, pb.dataset.page);
+      try { setDrawer(false); } catch (er) { /* a computer */ }
+      if (document.querySelector('.app.side-auto') && !$('side').classList.contains('mini')) $('side_toggle').click();      // the menu closes, as after a page of Mechanical
+      return;
+    }
     const b = e.target.closest('button[data-go]'); if (!b) return;
     if (window.__rclSaving && window.__rclSaving()) { toast('An entry is still being sent – wait until it is saved, then open the other module.', true); return; }
     try { window.top.location.href = b.dataset.go; } catch (er) { location.href = b.dataset.go; }
   });
   // the page asked for in the link (another module's menu): opened once the app is loaded – if he may open it here
   function wantTabGo() {
-    const t = S.wantTab; S.wantTab = ''; S.wantSite = ''; if (!t || TABS.indexOf(t) < 0 || !$('tab-' + t)) return;
+    const t = S.wantTab; S.wantTab = ''; S.wantSite = '';
+    const x = /^([a-z]{2,20})__([a-z0-9_-]{1,40})$/.exec(t || ''); if (x) { extGo(x[1], x[2]); return; }      // a page of another module (Store__items)
+    if (!t || TABS.indexOf(t) < 0 || !$('tab-' + t)) return;
     if ($('tab-' + t).hidden || $('tab-' + t).closest('[hidden]')) { toast('You cannot open that page here – ask the Admin for access. · हे पान उघडण्याची परवानगी नाही – Admin ला विचारा. · यह पेज खोलने की अनुमति नहीं – Admin से पूछें.', true); return; }
     showTab(t);
   }
@@ -5025,6 +5098,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // a shared computer: the next person must not find the last one's settings (mobile number, photo) or the Admin's database check here.
     // (They are only this browser's copy – the settings themselves are kept with the account and come back at the next sign-in.)
     try { Object.keys(localStorage).filter(k => /^oc_prefs_/.test(k) || k === 'rcl_dbcheck' || k === 'rcl_trace').forEach(k => localStorage.removeItem(k)); } catch (e) { /* storage blocked: nothing was kept */ }
+    // (13-10-2026) the modules shown inside this screen end their sign-in too (the next person on this computer starts afresh)
+    try { await Promise.all(PT.mods.filter(m => m.key !== 'mechanical' && inHere(m)).map(m => fetch(modBase(m) + '/api/logout', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: '{}' }).catch(() => null))); } catch (e) { /* they end by themselves */ }
     if (viaPortal) { ptNav('/?signout=1'); return; }      // (update-91) signed out of the Portal too (its page does it)
     location.reload();
   });
@@ -6138,6 +6213,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     ['tab-rp-owner', 'tab-ravg'].forEach(id => { after.insertAdjacentElement('afterend', $(id)); after = $(id); });
   })();
   function showTab(name, fromBack) {
+    extHide();      // (13-10-2026) a page of another module shown in the middle goes
     setTimeout(() => { try { if (!$('ai_panel').hidden) aiSuggest(); } catch (e) { /* not built yet */ } }, 0);      // the assistant's ready questions follow the page
     if ($('guidebox')) $('guidebox').hidden = true;
     try { localStorage.setItem('rcl_last', JSON.stringify({ tab: name, at: Date.now() })); } catch (e) { /* only a convenience */ }
@@ -7820,6 +7896,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   });
   /* ---------- Back: one step to the previous page ---------- */
   function goBack() {
+    if (EXT && EXT.on && S.curTab) { showTab(S.curTab, true); return; }      // from another module's page: the page of Mechanical before it
     S.hist = S.hist || [];
     while (S.hist.length && (S.hist[S.hist.length - 1] === S.curTab || TABS.indexOf(S.hist[S.hist.length - 1]) === -1)) S.hist.pop();
     if (!S.hist.length) { toast('This is the first page you opened.'); if ($('pg_back')) $('pg_back').disabled = true; return; }
@@ -15431,7 +15508,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   try { const top = window.top, h = top.location.hash || '', arg = k => { const x = new RegExp('[#&]' + k + '=([^&]*)').exec(h); try { return x ? decodeURIComponent(x[1]) : ''; } catch (e) { return ''; } };
     const m = /^#sso=([A-Za-z0-9_.-]{20,8000})(&|$)/.exec(h);
     if (/[?&]local=1(&|$)/.test(top.location.search || '')) { try { sessionStorage.setItem('rcl_local', '1'); } catch (e) { /* this page only */ } PT.local = true; }
-    if (/^[a-z0-9-]{1,40}$/.test(arg('page'))) S.wantTab = arg('page');
+    if (/^[a-z0-9_-]{1,64}$/.test(arg('page'))) S.wantTab = arg('page');
     if (/^[A-Z0-9]{1,12}$/.test(arg('site').toUpperCase())) S.wantSite = wantSite = arg('site').toUpperCase();
     if (/^#(sso|site|page)=/.test(h)) { ssoTicket = m ? m[1] : ''; top.history.replaceState(null, '', top.location.pathname + top.location.search); } }
   catch (e) { /* another origin: no ticket */ }
