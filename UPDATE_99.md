@@ -125,3 +125,12 @@ No SQL. Bills, ledgers, stock, permissions: untouched.
 * Or use Vercel → Instant Rollback of each project.
 
 The code itself works at the old addresses as before.
+
+## Fix after the merge (13-10-2026, live check)
+Live, `…/store/menu.json` came through the rewrite, but the bare first pages `…/store/` and `…/portal/` gave Vercel's
+404. Each first page now has its own rule, placed before the general ones:
+* `/store/` → `https://rcl-store.vercel.app/index.html`
+* `/portal/` → `https://rcl-portal-flame.vercel.app/index.html`
+
+Why the general rule with an empty path did not reach the first page was not found. The rig's gateway cannot show it.
+Unit test "update-99" checks the four rules (63/63).
