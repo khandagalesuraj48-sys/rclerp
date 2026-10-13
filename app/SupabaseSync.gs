@@ -293,12 +293,15 @@ function sbHeader_(table, col) {
   const c = d && d.cols.find(x => x[1] === col);
   return c ? c[0] : col;
 }
+/* the order a table is read in (page by page): its own key. Most tables have "id"; the delete log has "seq"; the tables of
+ * several sites (update-90, step-7 SQL) have other keys – read with "id" they were refused (400 "column … id does not exist"),
+ * and the whole backup stopped (13-10-2026). */
+const SB_KEYS_ = { deleted_rows: 'seq', rcl_sites: 'code', rcl_super_admin: 'email', rcl_user_sites: 'email,site' };
+const sbOrder_ = table => (SB_KEYS_[table] || 'id').split(',').map(c => c + '.asc').join(',');
 function sbAllRows_(table, filter) {
   const out = [];
   for (let from = 0; ; from += 1000) {
-    // the delete log has no "id" column – its order column is "seq"
-    const order = table === 'deleted_rows' ? 'seq' : 'id';
-    const page = sbFetch_('GET', '/rest/v1/' + table + '?select=*' + (filter || '') + '&order=' + order + '.asc', undefined, { Range: from + '-' + (from + 999), 'Range-Unit': 'items' });
+    const page = sbFetch_('GET', '/rest/v1/' + table + '?select=*' + (filter || '') + '&order=' + sbOrder_(table), undefined, { Range: from + '-' + (from + 999), 'Range-Unit': 'items' });
     out.push.apply(out, page);
     if (page.length < 1000) break;
   }
@@ -324,8 +327,10 @@ function sbWriteTab_(bk, table, cols, rows) {
   sbProtect_(sh);
   return sh;
 }
-// the password of a user is never copied into the backup Sheet
-function sbSafe_(table, col, v) { return table === 'app_users' && col === 'password_hash' && v ? { __hidden: true } : v; }
+// a password is never copied into the backup Sheet – a user's, the Super Admin's and his recovery code – nor the (locked)
+// database key of another site (update-90 tables)
+const SB_HIDDEN_ = { app_users: ['password_hash'], rcl_super_admin: ['password_hash', 'recovery_hash'], rcl_sites: ['db_key_enc', 'db_conn_enc'] };
+function sbSafe_(table, col, v) { return v && (SB_HIDDEN_[table] || []).indexOf(col) > -1 ? { __hidden: true } : v; }
 /* Backup Sheet sharing: RESTRICTED – only the owner and the people the owner adds by name can open it (07-10-2026).
  * (Before, this made the Sheet "anyone who has the link can view": the whole database – vendors' bank and PAN numbers, the
  * Activity Log – was readable by whoever got hold of the link. This code runs only in the old Apps Script project; the
@@ -378,7 +383,7 @@ function sbSyncFull() {
   try {
     const bk = sbBackup_(), mark = sbLastChange_(), cat = sbCatalog_(), lines = [];
     const tables = Object.keys(cat).sort();
-    const first = sbFetchAllGet_(tables.map(t => '/rest/v1/' + t + '?select=*&order=id.asc'));
+    const first = sbFetchAllGet_(tables.map(t => '/rest/v1/' + t + '?select=*&order=' + sbOrder_(t)));
     tables.forEach((table, i) => {
       const rows = first[i].length === 1000 ? sbAllRows_(table) : first[i];
       sbWriteTab_(bk, table, cat[table], rows);
@@ -414,7 +419,7 @@ function sbSyncChanges() {
     const tables = Object.keys(cat).sort();
     const since = encodeURIComponent(seen);
     // all changed rows and all deletes in one network round
-    const res = sbFetchAllGet_(tables.map(t => '/rest/v1/' + t + '?select=*&updated_at=gt.' + since + '&order=id.asc')
+    const res = sbFetchAllGet_(tables.map(t => '/rest/v1/' + t + '?select=*&updated_at=gt.' + since + '&order=' + sbOrder_(t))
       .concat(['/rest/v1/deleted_rows?select=*&deleted_at=gt.' + since + '&order=seq.asc']));
     const deleted = res[tables.length];
     let total = 0;

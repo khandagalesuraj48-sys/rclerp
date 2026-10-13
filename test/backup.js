@@ -42,6 +42,8 @@ const mismatch = async (counts, loose) => { const d = await g('/dump'), bad = []
     const mail = 'bkp' + Date.now().toString(36) + '@rcl.test'; const init = await api('usersAdmin'), perms = {}; ((init.result && init.result.modules) || []).forEach(m => { perms[m.key || m] = 'View'; });
     await api('saveUserAdmin', [{ email: mail, name: 'Backup Viewer', active: true, admin: false, perms: perms, isNew: true, newPassword: 'Temp#12345' }]);
     let l = await raw(3005, { fn: 'login', args: [mail, 'Temp#12345'] }); const c = await raw(3005, { fn: 'changePassword', args: [l.result.token, 'Temp#12345', 'Backup#View9!x'] }); const user = (c.result && c.result.token) || l.result.token;
+    // a Super Admin row for the check of the site tables below (rig only; after the user above is made – with a Super Admin the Admin gives no users) – taken out at the end
+    sql("insert into rcl_super_admin (email, name, password_hash, recovery_hash) values ('bk-sa@rcl.test', 'Backup check', 'scrypt$32768$8$3$00$11$22', 'scrypt$32768$8$3$33$44$55') on conflict do nothing;");
 
     if (on('first') || on('text') || on('privacy') || on('manual')) {
       console.log('\n=== THE FIRST BACKUP: EVERY TABLE, AS IT IS IN THE DATABASE ===');
@@ -53,6 +55,11 @@ const mismatch = async (counts, loose) => { const d = await g('/dump'), bad = []
       ok('"Backup" button on an empty Sheet: every table has its tab with exactly its rows', !r.error && bad.length === 0 && d.tabs.length >= Object.keys(counts).length, r.error || bad.join('; ') || (d.tabs.length + ' tabs, ' + d.calls + ' calls to Google'));
       const users = (await g('/tab?title=Users')).values || [], flat = JSON.stringify(users);
       ok('passwords are not copied (the cell says "(hidden)")', flat.indexOf('(hidden)') > -1 && flat.indexOf('sha256') === -1 && flat.indexOf('scrypt') === -1 && flat.indexOf('Temp#') === -1, JSON.stringify(users[1] || []).slice(0, 120));
+      // (13-10-2026) the tables of several sites (step-7 SQL, update-90) have no "id": read by their own key; the Super Admin's
+      // password and recovery code and another site's locked database key are never copied
+      const sa = JSON.stringify((await g('/tab?title=rcl_super_admin')).values || []), st = JSON.stringify((await g('/tab?title=rcl_sites')).values || []), us = (await g('/tab?title=rcl_user_sites')).values || [];
+      ok('the tables of several sites are copied too (rcl_sites, rcl_user_sites, rcl_super_admin)', st.indexOf('S1') > -1 && us.length - 1 === Number(sql('select count(*) from rcl_user_sites')) && sa.indexOf('bk-sa@rcl.test') > -1, [st.slice(0, 80), us.length, sa.slice(0, 80)]);
+      ok('   the Super Admin\'s password and recovery code, and a site\'s database key: "(hidden)"', sa.indexOf('(hidden)') > -1 && sa.indexOf('scrypt') === -1 && sa.indexOf('sha256') === -1 && st.indexOf('v1.') === -1, [sa.slice(0, 160), st.slice(0, 160)]);
       if (on('text')) {
         const v = (await g('/tab?title=Vendors')).values || [], row = v.find(x => x.some(c2 => String(c2).indexOf(vend) > -1)) || [], head = v[0] || [];
         const at = h => row[head.indexOf(h)];
@@ -167,6 +174,7 @@ const mismatch = async (counts, loose) => { const d = await g('/dump'), bad = []
       ok('no lock is left behind', sql("select count(*) from web.locks where name = 'backup'") === '0');
     }
   } finally {
+    try { sql("delete from rcl_super_admin where email = 'bk-sa@rcl.test';"); } catch (e) { /* rig only */ }
     stop(3005); stop(3006); try { process.kill(-stand.pid); } catch (e) { try { stand.kill(); } catch (e2) {} }
     try { clearNotes(); sql("delete from vendors where vendor_name like 'BKP Vendor%'; delete from app_users where id like 'bkp%@rcl.test'; delete from diesel_issue where driver_name = 'BKP';"); } catch (e) { console.log('clean-up: ' + String(e.message).slice(0, 160)); }
   }
