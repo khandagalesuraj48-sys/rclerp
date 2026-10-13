@@ -1559,6 +1559,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   from PT.mods (≥ 2 modules on this site; Mechanical .on), a click → ptNav(ptOpen(key, site)); #mod_pill gets .compact (only
   ▦). browser/portal91.js 20 (a "store" module on :3001 in the rig Portal). Portal: OneClickSolution sign-in look, "My start"
   (users.start_item – Portal sql/portal_step2_start.sql), ?signout clears ?menu.
+- 13-10-2026 (update-94). Report: `UPDATE_94.md`. Page access set from the Portal: fn portalAdmin (rpc ALLOWED, runtime
+  OUTSIDE) → system.portalAdmin → portal.verifyAdmin (aud 'mechanical-admin', act users|pages, perms inside the ticket) →
+  Sites.gs sysPortalAdmin_ (portalOnce_ jti shared with sysSso_; users: usersAdmin_ without passwords; pages: saveUserAdmin_
+  perms only, a new person written with them and portalUnknownPw_). Portal api/admin.js mechPages / mechPagesSave (mechAsk
+  signs and POSTs to the Mechanical module's url). Test: portal94api.js 17.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
