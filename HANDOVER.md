@@ -1550,6 +1550,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   out of top's address), showLogin → Portal /api/go (≤ 3 trips / 2 min), #mod_pill "Modules", u_pw → Portal ?pw=1, Logout →
   Portal ?signout=1, ?local=1 = reserve (sessionStorage rcl_local), early script hides the form. Rig: all.sh (PORTAL=1 →
   :3000 linked, :3001 not), Portal :3010 (portal_srv.sh). Tests: portal91api.js (40), browser/portal91.js (18), unit 61.
+- 13-10-2026 (update-92). Report: `UPDATE_92.md`. The Sheet backup stopped after the step-7 SQL: it read every table
+  `order=id.asc`, and rcl_sites / rcl_user_sites / rcl_super_admin have no id (400 42703). Fix: SupabaseSync.gs SB_KEYS_ /
+  sbOrder_ (deleted_rows seq, rcl_sites code, rcl_super_admin email, rcl_user_sites email,site) used by sbAllRows_ and the old
+  full/changes copies; SB_HIDDEN_ (sbSafe_) also hides rcl_super_admin password_hash/recovery_hash, rcl_sites
+  db_key_enc/db_conn_enc. test/backup.js 30 (before: 4 failed). Run test/backup.js after any SQL step that adds a table.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
