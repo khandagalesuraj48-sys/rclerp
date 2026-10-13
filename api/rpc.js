@@ -4,7 +4,7 @@
 'use strict';
 const pool = require('../server/pool');            // each request in its own helper thread
 const { page } = require('../server/page');
-const ALLOWED = ['api', 'login', 'changePassword', 'logout', 'orgInfo', 'switchSite', 'setDefaultSite', 'super'];   // (update-90) another of my sites / my default site / the Super Admin   // orgInfo: what the sign-in screen shows (brand, customer, site) – nothing else is given without a sign-in
+const ALLOWED = ['api', 'login', 'changePassword', 'logout', 'orgInfo', 'switchSite', 'setDefaultSite', 'super', 'ssoLogin'];   // ssoLogin (update-91): a ticket of the Portal   // (update-90) another of my sites / my default site / the Super Admin   // orgInfo: what the sign-in screen shows (brand, customer, site) – nothing else is given without a sign-in
 
 function readBody(req) {
   if (req.body !== undefined && req.body !== null) return Promise.resolve(typeof req.body === 'string' ? JSON.parse(req.body || '{}') : Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8') || '{}') : req.body);
@@ -18,7 +18,7 @@ function readBody(req) {
  *   504 the request took too long           500 a fault of the app itself
  * A REFUSAL of an entry (a wrong reading, a closed month, a locked bill …) is an ANSWER for the person and stays 200. */
 function statusOf(msg) {
-  if (/SESSION_EXPIRED|^Wrong email or password/.test(msg)) return 401;
+  if (/SESSION_EXPIRED|^Wrong email or password|^The Portal sign-in could not be accepted/.test(msg)) return 401;
   if (/^You do not have access|^You have View access only|^Only Admin /.test(msg)) return 403;
   if (/^Unknown action/.test(msg)) return 404;
   if (/^Too many (sign-in|wrong) attempts/.test(msg)) return 429;
@@ -56,7 +56,7 @@ module.exports = async (req, res) => {
     return send(200, '{"result":' + out + '}');
   } catch (e) {
     const msg = String((e && e.message) || e).replace(/^Error:\s*/, '');
-    if (!/SESSION_EXPIRED|Wrong email|View access|do not have access|Only Admin/.test(msg)) console.error('[' + fn + (fn === 'api' ? ':' + args[1] : '') + '] ' + msg);
+    if (!/SESSION_EXPIRED|Wrong email|View access|do not have access|Only Admin|^The Portal sign-in could not be accepted \((it ran out|this ticket was already used)/.test(msg)) console.error('[' + fn + (fn === 'api' ? ':' + args[1] : '') + '] ' + msg);
     return send(statusOf(msg), JSON.stringify({ error: msg }));
   }
 };

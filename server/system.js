@@ -9,6 +9,7 @@
  * R = { runIn(site, fn, args) } – runs one of the app's own functions inside a site (runtime.js), its answer parsed. */
 'use strict';
 const sites = require('./sites');
+const portal = require('./portal');
 
 const lc = s => String(s || '').trim().toLowerCase();
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -71,6 +72,23 @@ function login(R, args) {
   }
   const names = siteNames(R);
   return Object.assign(res, { siteName: names[res.site] || res.site, sites: pub(mine, names, res.site), choose: choose, want: pick.code });
+}
+/* ---- (update-91) sign-in through the Portal: a ticket (server/portal.js) → a session on the site the ticket names ----
+ * The Portal is the one place access is given: a person with a ticket for a site gets in there – the site writes him into
+ * its Users if he is new, switches him on, and sets Admin as the Portal says (Sites.gs sysSso_). Which PAGES he sees inside
+ * stays this app's own access, set by the site's Admin as before. */
+function ssoLogin(R, args) {
+  const c = portal.verify(args[0]);
+  const reg = sites.registry();
+  let at = '';
+  if (reg) {
+    const s = reg.find(x => x.code === c.site);
+    if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').');
+    at = s.home ? '' : s.code;
+  }
+  const r = R.runIn(at, 'sysSso', [{ email: c.email, name: c.name, admin: c.admin, jti: c.jti, exp: c.exp }]);
+  if (reg) { try { keepMembership(c.email, c.site, true, c.admin); } catch (e) { console.error('[portal sign-in: site list] ' + String((e && e.message) || e)); } }      // (only the app's own list – the sign-in works without it)
+  return { token: r.token, user: r.user, site: reg ? c.site : '', siteName: c.siteName, portal: { url: portal.url(), mods: c.mods, sites: c.sites } };
 }
 /* ---- open another of my sites ---- */
 function switchSite(R, args, curNorm) {
@@ -201,4 +219,4 @@ function superDo(R, args) {
     default: throw new Error('Unknown action.');
   }
 }
-module.exports = { login, switchSite, setDefaultSite, passwordToOthers, siteInfo, superDo, memberships };
+module.exports = { login, ssoLogin, switchSite, setDefaultSite, passwordToOthers, siteInfo, superDo, memberships };

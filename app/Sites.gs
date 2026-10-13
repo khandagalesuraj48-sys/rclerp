@@ -142,6 +142,46 @@ function sysSetPw_(email, stored) {
   storePw_(e, String(stored)); bump_(['users']); sbFlush_();
   return { ok: true };
 }
+/* ---- (update-91) a person who comes from the Portal with a ticket (server/portal.js has checked its signature) ----
+ * The ticket is used ONCE (its number is kept 5 minutes – a ticket lives 60 s). The Portal is the one place a site is given,
+ * so here: a person new on this site is written into Users (no page open until the site's Admin gives pages – as any new
+ * user); a person switched off is switched on; Admin is set as the Portal says. Which pages he sees stays this site's own.
+ * His kept password here is not used for this sign-in. A one-time password left here (the Portal already made him set his
+ * own) is replaced by a random one nobody knows – otherwise this site would refuse every action of his. The app's own
+ * sign-in (the reserve, ?local=1) then needs a new one-time password from the Admin.
+ * A sign-in from the Portal lasts 12 hours at most (then the page asks the Portal again – silently while the Portal still
+ * knows him): access taken away in the Portal ends here within the day. */
+const SSO_SESSION_MS_ = 12 * 3600000;
+function sysSso_(x) {
+  x = x || {};
+  const email = str_(x.email).toLowerCase(), jk = 'SSO_' + str_(x.jti), cache = CacheService.getScriptCache();
+  if (!/^[0-9a-f]{16,64}$/.test(str_(x.jti))) throw new Error('The Portal sign-in could not be accepted (no ticket number) – open the module again from the Portal.');
+  const exact = typeof __count === 'function' && __count('', 0) !== -1;
+  if (exact) { if (__count(jk, 300) > 1) throw new Error('The Portal sign-in could not be accepted (this ticket was already used) – open the module again from the Portal.'); }
+  else { if (cache.get(jk)) throw new Error('The Portal sign-in could not be accepted (this ticket was already used) – open the module again from the Portal.'); cache.put(jk, '1', 300); }
+  const unknownPw = () => makeHash_('Portal|' + Utilities.getUuid() + Utilities.getUuid());
+  let u = readUsersSheet_().find(w => w.email === email), changes = [];
+  if (!u) {
+    saveUserAdmin_({ isNew: true, email: email, name: clean_(x.name) || email, active: true, admin: !!x.admin, perms: {}, newPassword: 'Tmp' + Utilities.getUuid().replace(/-/g, '').slice(0, 16) }, null);
+    storePw_(email, unknownPw());
+    changes.push('new user on this site (from the Portal' + (x.admin ? ', Admin' : '') + ') – the site\'s Admin gives the pages');
+  } else {
+    if (!u.active || u.admin !== !!x.admin) {
+      saveUserAdmin_({ email: email, name: u.name, active: true, admin: !!x.admin }, null);
+      if (!u.active) changes.push('switched on (the Portal gives this site)');
+      if (u.admin !== !!x.admin) changes.push('Admin: ' + (u.admin ? 'Yes' : 'No') + ' → ' + (x.admin ? 'Yes' : 'No') + ' (as in the Portal)');
+    }
+    if (!isHashed_(u.password)) { storePw_(email, unknownPw()); changes.push('one-time password of this app replaced (the Portal password is used)'); }
+  }
+  if (changes.length) bump_(['users']);
+  u = readUsersSheet_().find(w => w.email === email);
+  if (!u || !u.active || !isHashed_(u.password)) throw new Error('The Portal sign-in could not be accepted (the user could not be set on this site) – try again.');
+  const token = Utilities.getUuid() + Utilities.getUuid().slice(0, 8);
+  cache.put('S_' + token, sessionMake_(u.email, u.password, SSO_SESSION_MS_), SESSION_SECONDS);
+  writeLog_(u, 'Login', '', '', 'Signed in through the Portal', changes.join('; '));
+  sbFlush_();
+  return { token: token, user: publicUser_(u) };
+}
 function sysUsers_() { return usersAdmin_(); }
 function sysAccessReport_() { return accessReport_(); }
 /* the Super Admin adds or changes a person on THIS site. pw = the person's kept password from his other site (he keeps one

@@ -306,9 +306,10 @@ const SESSION_SECONDS = 21600; // 6 hours, renewed on every action
  * gets "now" at its first use, so it too ends within 30 days. */
 const SESSION_MAX_DAYS = 30;
 const SESSION_MAX_MS_ = SESSION_MAX_DAYS * 86400000;
-function sessionMake_(email, stored) { return email + '|' + pwStamp_(stored) + '|' + Date.now(); }
-// the parts of a session's value; left = milliseconds until its 30 days are over (a value without a time: the full 30 days)
-function sessionRead_(val) { const p = String(val || '').split('|'), made = Number(p[2]) || 0; return { email: p[0] || '', stamp: p[1] || '', made: made, left: made ? made + SESSION_MAX_MS_ - Date.now() : SESSION_MAX_MS_ }; }
+// (update-91) a 4th part: a shorter longest life (a sign-in through the Portal: 12 hours – Sites.gs sysSso_); never longer than 30 days
+function sessionMake_(email, stored, maxMs) { return email + '|' + pwStamp_(stored) + '|' + Date.now() + (Number(maxMs) > 0 ? '|' + Math.min(Number(maxMs), SESSION_MAX_MS_) : ''); }
+// the parts of a session's value; left = milliseconds until its 30 days (or its own shorter time) are over (a value without a time: the full 30 days)
+function sessionRead_(val) { const p = String(val || '').split('|'), made = Number(p[2]) || 0, max = Math.min(Number(p[3]) > 0 ? Number(p[3]) : SESSION_MAX_MS_, SESSION_MAX_MS_); return { email: p[0] || '', stamp: p[1] || '', made: made, left: made ? made + max - Date.now() : SESSION_MAX_MS_ }; }
 
 function readUsers_() {
   const cache = CacheService.getScriptCache();

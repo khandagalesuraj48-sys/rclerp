@@ -1541,6 +1541,15 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Rig: RCL_SITES_KEY='rig-sites-key-0123456789-abcdefghij' (scratchpad srv90.sh); T2 row inserted by test/site90api.js.
   Tests: site90api.js (74), browser/site90.js (24), site89.js (36, updated to the list). NEXT: stage 3 – "Create site"
   (form, run the SQL steps on the new DB through its connection string, Sheet tabs, Ready), then stage 4 rehearsal.
+- 13-10-2026 (update-91, after update-90). Report: `UPDATE_91.md`. No SQL. Switched on by the Vercel setting PORTAL_URL
+  (Portal repo rcl-portal). server/portal.js (verify: ES256 via <PORTAL_URL>/api/jwks, 10 min memory, unknown kid asked again
+  at most every 30 s; iss = PORTAL_URL, aud 'mechanical', exp−iat ≤ 120 s), system.js ssoLogin (site from the ticket →
+  Sites.gs sysSso_: jti once (SSO_ in the site's cache, 5 min), new user written with no pages / switched on / Admin as the
+  Portal says / a tmp$ password replaced by an unknown one; session value email|stamp|made|43200000 – sessionRead_ 4th part),
+  runtime OUTSIDE + 'ssoLogin', orgInfo carries `portal`. App.html: PT (rcl_portal in localStorage), ssoStart (#sso= taken
+  out of top's address), showLogin → Portal /api/go (≤ 3 trips / 2 min), #mod_pill "Modules", u_pw → Portal ?pw=1, Logout →
+  Portal ?signout=1, ?local=1 = reserve (sessionStorage rcl_local), early script hides the form. Rig: all.sh (PORTAL=1 →
+  :3000 linked, :3001 not), Portal :3010 (portal_srv.sh). Tests: portal91api.js (40), browser/portal91.js (18), unit 61.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
