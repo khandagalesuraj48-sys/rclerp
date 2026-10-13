@@ -21,7 +21,8 @@ const stop = (port, sig) => { const c = procs[port]; if (!c) return; try { proce
 const props = () => { const o = {}; sql("select key || chr(9) || value from web.props where key in ('BK_STATE', 'SB_INFO')").split('\n').filter(Boolean).forEach(l => { const i = l.indexOf('\t'); try { o[l.slice(0, i)] = JSON.parse(l.slice(i + 1)); } catch (e) { o[l.slice(0, i)] = l.slice(i + 1); } }); return o; };
 const clearNotes = () => sql("delete from web.props where key in ('BK_STATE', 'SB_INFO', 'BK_BUDGET_MS', 'BK_GROUP_ROWS'); delete from web.locks where name = 'backup';");
 const setKnob = (k, v) => sql("insert into web.props (key, value) values ('" + k + "', '" + v + "') on conflict (key) do update set value = excluded.value");
-const tableRows = () => { const o = {}; sql("select table_name from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' and table_name <> 'deleted_rows'").split('\n').filter(Boolean).forEach(t => { o[t] = Number(sql('select count(*) from public.' + t)); }); return o; };
+// (update-98: a module's sign-ins and used tickets are never copied – SB_SKIP_)
+const tableRows = () => { const o = {}; sql("select table_name from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' and table_name not in ('deleted_rows', 'store_sessions', 'store_tickets')").split('\n').filter(Boolean).forEach(t => { o[t] = Number(sql('select count(*) from public.' + t)); }); return o; };
 const TITLES = { master: 'Master', diesel_inward: 'Diesel Inward', diesel_transfer: 'Diesel Transfer', diesel_issue: 'Diesel Issue', log_book: 'Log Book', tank_check: 'Tank Check', activity_log: 'Activity Log', app_users: 'Users', vendors: 'Vendors', boq: 'BOQ', bills: 'Bills', payments: 'Payments', debit_notes: 'Debit Notes', compliance_history: 'Compliance History', breakdowns: 'Breakdowns', breakdown_reports: 'Breakdown Reports' };
 // which tabs do not have exactly the rows of their table (the Activity Log grows with every call: it must have at least as many as before)
 const mismatch = async (counts, loose) => { const d = await g('/dump'), bad = []; Object.keys(counts).forEach(t => { const tab = d.tabs.find(x => x.title === (TITLES[t] || t)); const rows = tab ? tab.rows - 1 : -1, want2 = counts[t];
@@ -52,6 +53,8 @@ const mismatch = async (counts, loose) => { const d = await g('/dump'), bad = []
       const acct = sql("select account_number from vendors where vendor_name = '" + vend + "'");
       r = await api('backupNow');
       const counts = tableRows(), bad = await mismatch(counts), d = await g('/dump');
+      // (update-98) the Store's tables in the same database: its items are copied (read by their code), its sign-ins never
+      if (Object.prototype.hasOwnProperty.call(counts, 'items')) ok('[update-98] the Store\'s Item Master is copied (its own key "code"); the Store\'s sign-ins and used tickets are NOT', d.tabs.some(x => x.title === 'items') && !d.tabs.some(x => /store_sessions|store_tickets/.test(x.title)), d.tabs.map(x => x.title));
       ok('"Backup" button on an empty Sheet: every table has its tab with exactly its rows', !r.error && bad.length === 0 && d.tabs.length >= Object.keys(counts).length, r.error || bad.join('; ') || (d.tabs.length + ' tabs, ' + d.calls + ' calls to Google'));
       const users = (await g('/tab?title=Users')).values || [], flat = JSON.stringify(users);
       ok('passwords are not copied (the cell says "(hidden)")', flat.indexOf('(hidden)') > -1 && flat.indexOf('sha256') === -1 && flat.indexOf('scrypt') === -1 && flat.indexOf('Temp#') === -1, JSON.stringify(users[1] || []).slice(0, 120));

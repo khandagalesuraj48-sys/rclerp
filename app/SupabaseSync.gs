@@ -278,11 +278,18 @@ function sbBackup_() {
   return SpreadsheetApp.openById(id);
 }
 // what is in Supabase now: every table and its columns (in order)
+/* (update-98, 13-10-2026) the database of a site holds the tables of EVERY module of that site (the Store's next to
+ * Mechanical's). The backup copies them too – except a module's sign-ins and used tickets (SB_SKIP_: not data, never in a
+ * Sheet). A table without an "id" column is read in the order of its own key (SB_KEYS_), or of its first column: the Store's
+ * "items" (key: code) stopped the whole backup with 400 "column items.id does not exist" on 13-10-2026. */
+const SB_SKIP_ = ['store_sessions', 'store_tickets'];
+let SB_CAT_MEMO_ = null;
 function sbCatalog_() {
   const cat = sbFetch_('POST', '/rest/v1/rpc/backup_catalog', {});
   const t = {};
-  cat.forEach(x => { (t[x.table_name] = t[x.table_name] || []).push({ name: x.column_name, pos: x.ordinal_position }); });
+  cat.forEach(x => { if (SB_SKIP_.indexOf(x.table_name) > -1) return; (t[x.table_name] = t[x.table_name] || []).push({ name: x.column_name, pos: x.ordinal_position }); });
   Object.keys(t).forEach(k => t[k].sort((a, b) => a.pos - b.pos));
+  SB_CAT_MEMO_ = t;
   return t;
 }
 function sbTabName_(table) { const d = SB_TABLES_.find(x => x.table === table); return d ? d.title : table; }
@@ -296,8 +303,11 @@ function sbHeader_(table, col) {
 /* the order a table is read in (page by page): its own key. Most tables have "id"; the delete log has "seq"; the tables of
  * several sites (update-90, step-7 SQL) have other keys – read with "id" they were refused (400 "column … id does not exist"),
  * and the whole backup stopped (13-10-2026). */
-const SB_KEYS_ = { deleted_rows: 'seq', rcl_sites: 'code', rcl_super_admin: 'email', rcl_user_sites: 'email,site' };
-const sbOrder_ = table => (SB_KEYS_[table] || 'id').split(',').map(c => c + '.asc').join(',');
+const SB_KEYS_ = { deleted_rows: 'seq', rcl_sites: 'code', rcl_super_admin: 'email', rcl_user_sites: 'email,site', items: 'code' };
+// the key a table is read (and its rows matched) by: its own (SB_KEYS_), else "id", else – a table of another module without
+// "id" – its first column (update-98)
+const sbKeyOf_ = table => SB_KEYS_[table] || (SB_CAT_MEMO_ && SB_CAT_MEMO_[table] && !SB_CAT_MEMO_[table].some(c => c.name === 'id') ? SB_CAT_MEMO_[table][0].name : 'id');
+const sbOrder_ = table => sbKeyOf_(table).split(',').map(c => c + '.asc').join(',');
 function sbAllRows_(table, filter) {
   const out = [];
   for (let from = 0; ; from += 1000) {
@@ -419,7 +429,8 @@ function sbSyncChanges() {
     const tables = Object.keys(cat).sort();
     const since = encodeURIComponent(seen);
     // all changed rows and all deletes in one network round
-    const res = sbFetchAllGet_(tables.map(t => '/rest/v1/' + t + '?select=*&updated_at=gt.' + since + '&order=' + sbOrder_(t))
+    const hasUpd = t => cat[t].some(c => c.name === 'updated_at');      // (update-98: a table without it is read whole)
+    const res = sbFetchAllGet_(tables.map(t => '/rest/v1/' + t + '?select=*' + (hasUpd(t) ? '&updated_at=gt.' + since : '') + '&order=' + sbOrder_(t))
       .concat(['/rest/v1/deleted_rows?select=*&deleted_at=gt.' + since + '&order=seq.asc']));
     const deleted = res[tables.length];
     let total = 0;
@@ -430,7 +441,8 @@ function sbSyncChanges() {
         const rows = sbAllRows_(table); sbWriteTab_(bk, table, cols, rows);
         lines.push([sbTabName_(table), rows.length + ' (layout changed – rewritten)']); total += rows.length; return;
       }
-      const changed = res[ti].length === 1000 ? sbAllRows_(table, '&updated_at=gt.' + since) : res[ti];
+      const changed = res[ti].length === 1000 ? sbAllRows_(table, hasUpd(table) ? '&updated_at=gt.' + since : '') : res[ti];
+      const k1 = sbKeyOf_(table).indexOf(',') === -1 ? sbKeyOf_(table) : 'id', rid = r => String(r[k1]);      // (update-98: the row's own key)
       const gone = deleted.filter(d => d.table_name === table).map(d => String(d.row_id));
       if (!changed.length && !gone.length) return;
       const last = sh.getLastRow();
@@ -439,11 +451,11 @@ function sbSyncChanges() {
       const adds = [];
       changed.forEach(r => {
         const line = cols.map(c => sbCell_(sbSafe_(table, c.name, r[c.name])));
-        const row = at[String(r.id)];
+        const row = at[rid(r)];
         if (row) sh.getRange(row, 1, 1, cols.length).setValues([line]); else adds.push(line);
       });
       if (adds.length) sh.getRange(sh.getLastRow() + 1, 1, adds.length, cols.length).setValues(adds);
-      gone.filter(id => changed.every(r => String(r.id) !== id)).map(id => at[id]).filter(Boolean).sort((a, b) => b - a).forEach(row => sh.deleteRow(row));
+      gone.filter(id => changed.every(r => rid(r) !== id)).map(id => at[id]).filter(Boolean).sort((a, b) => b - a).forEach(row => sh.deleteRow(row));
       lines.push([sbTabName_(table), changed.length + ' new / changed, ' + gone.length + ' deleted']);
       total += changed.length + gone.length;
     });
