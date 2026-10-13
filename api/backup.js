@@ -26,6 +26,14 @@ module.exports = async (req, res) => {
       if (!token) return send(401, { ok: false, denied: true });
       opt = { token: token }; opt.site = typeof body.site === 'string' ? body.site.slice(0, 20) : '';      // (update-90) the site of that sign-in: its own Sheet
     } else return send(405, { ok: false });
+    // (update-95) the nightly job copies EVERY ready site, each into its own Sheet, side by side (each has its own time limit)
+    if (opt.cron) {
+      let codes = ['']; try { const reg = require('../server/sites').registry() || []; codes = codes.concat(reg.filter(x => x.status === 'ready' && !x.home && String(x.sheet || '').trim()).map(x => x.code)); } catch (e) { /* the first site at least */ }      // (a site without its own Sheet yet has nothing to copy into)
+      const all = await Promise.all(codes.map(c => pool.call('backup', [opt], { site: c }).then(t => JSON.parse(t)).catch(e => ({ ok: false, site: c, error: String((e && e.message) || e).slice(0, 200) }))));
+      const bad = all.filter(x => x && x.ok === false);
+      if (bad.length) console.error('[backup] nightly: ' + bad.length + ' of ' + all.length + ' sites failed');
+      return send(bad.length ? 500 : 200, { ok: !bad.length, sites: all.length, failed: bad.length, busy: all.some(x => x && x.busy), skipped: all.every(x => x && x.skipped), off: all.every(x => x && x.off) });
+    }
     const out = JSON.parse(await pool.call('backup', [opt], { site: opt.site || '' }));
     // the nightly job: a backup that failed is a failed job in the server's log (it used to read "200 OK"); the open pages get 200 as before
     return send(opt.cron && out.ok === false ? 500 : 200, out);

@@ -30,11 +30,11 @@ function url() {
 const bad = why => { const e = new Error('The Portal sign-in could not be accepted (' + why + ') – open the module again from the Portal.'); e.portal = true; return e; };
 
 let KEYS = { at: 0, from: '', keys: [] };
-const KEYS_MS = 10 * 60 * 1000, AGAIN_MS = 30 * 1000;
+const KEYS_MS = 10 * 60 * 1000, AGAIN_MS = 5 * 1000;
 function keys(fresh) {
   const from = url();
   if (!fresh && KEYS.from === from && KEYS.at && Date.now() - KEYS.at < KEYS_MS) return KEYS.keys;
-  // asked again for an unknown key: at most once in 30 s (made-up tickets cannot make this server ask the Portal on every try)
+  // asked again for an unknown key: at most once in 5 s (made-up tickets cannot make this server ask the Portal on every try)
   if (fresh && KEYS.from === from && KEYS.at && Date.now() - KEYS.at < AGAIN_MS) return KEYS.keys;
   const r = fetchAllSync([{ url: from + '/api/jwks', method: 'GET', headers: { Accept: 'application/json' } }])[0];
   if (r.error || r.code !== 200) { if (KEYS.from === from && KEYS.keys.length) return KEYS.keys; throw bad('the Portal could not be reached: ' + String(r.error || r.code).slice(0, 80)); }
@@ -87,7 +87,12 @@ function verify(ticket, now) {
 const ADMIN_AUD = 'mechanical-admin', ACCESS = ['Edit', 'View', 'None'];
 function verifyAdmin(ticket, now) {
   const c = check(ticket, ADMIN_AUD, now), out = { by: String(c.sub).trim().toLowerCase(), act: c.act, site: c.site, jti: c.jti };
-  if (c.act === 'users') return out;
+  if (c.act === 'users' || c.act === 'siteSql') return out;
+  if (c.act === 'siteSetup') {      // (update-95) "New site" from the Portal: the site's name, company and database link – never a key
+    const comp = c.company && typeof c.company === 'object' ? c.company : {};
+    return Object.assign(out, { name: String(c.name || '').replace(/\s+/g, ' ').trim().slice(0, 80), url: String(c.url || '').trim().replace(/\/+$/, '').slice(0, 200),
+      sheet: String(c.sheet || '').trim().slice(0, 200), company: { id: String(comp.id || '').slice(0, 40), name: String(comp.name || '').replace(/\s+/g, ' ').trim().slice(0, 80) } });
+  }
   if (c.act !== 'pages') throw bad('not a known request');
   const email = String(c.email || '').trim().toLowerCase();
   if (!EMAIL.test(email) || email.length > 120) throw bad('no proper email of the user');

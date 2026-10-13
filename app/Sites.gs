@@ -212,6 +212,20 @@ function sysPortalAdmin_(c) {
   u = readUsersSheet_().find(w => w.email === email) || {};
   return { ok: true, added: !!res.added, changes: res.changes || '', admin: !!u.admin, user: u.email ? pub(u) : null };
 }
+/* ---- (update-95) "New site": run inside the NEW site's database while it is set up ---- */
+// every SQL step of Mechanical for a new site, in one piece – the same files as Read Me, without the keep-awake timer (the first
+// site has it) and without step 7 (the list of sites lives in the first site only)
+function sysNewSiteSql_() {
+  const steps = README_SQL_.filter(x => !/step6_keep_awake|step7_sites/.test(x.name));
+  return { sql: '-- RCL Fleet ERP (Mechanical) – everything a NEW site\'s database needs, in one piece. Run once in the NEW site\'s Supabase\n' +
+    '-- → SQL Editor → New query → paste → Run. It only makes tables and functions; it can be run again safely.\n\n' +
+    steps.map(x => '-- ===== ' + x.name + ' =====\n' + x.sql).join('\n\n') + '\n', files: steps.map(x => x.name) };
+}
+// is every table, column and function of Mechanical there? (the Admin's own "Database" check – the same list)
+function sysSiteHealth_() { return dbHealth_(); }
+// the company settings of the new site (from the first site; its own site name)
+function sysOrgSet_(o) { o = o || {}; const names = Array.isArray(o.billNames) && o.billNames.length ? o.billNames : [str_(o.customer) || 'Rachana Construction Limited'];
+  return saveOrgSettings_({ customer: str_(o.customer) || names[0], site: str_(o.site), logo: str_(o.logo), billNames: names, intro: o.intro !== false, video: str_(o.video) }); }
 function sysUsers_() { return usersAdmin_(); }
 function sysAccessReport_() { return accessReport_(); }
 /* the Super Admin adds or changes a person on THIS site. pw = the person's kept password from his other site (he keeps one
