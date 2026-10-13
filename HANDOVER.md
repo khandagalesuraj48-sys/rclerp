@@ -1599,6 +1599,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (#page=store__items)/extSize; Back from it; Logout ends module sign-ins; modsFresh (Portal "me" once for old sign-ins).
   Store ?embed=1 (no own menu/top bar, ticket via Portal /api/go json=1, frame SAMEORIGIN), Store alone beside Mechanical →
   Mechanical's screen. Tests: unit "update-100", browser inframe100.js 11 (oneaddress99.js retired).
+- 13-10-2026 (update-101). Report: `UPDATE_101.md`. Computer menu: sticky, 100vh, nav scrolls by itself (overscroll contain) –
+  replaces the 02-10 "part of the page" rule. Ctrl K: gsModPages (module pages from MOD_MENU), gsModAsk/gsModGroups (each
+  module page's window.rclModule.search(q); open(page, find) via extFind; extFrame/extReady load it out of sight). Store gives
+  rclModule (Item Master search, Damerau spelling allowance). Tests: unit "update-101", browser search101.js 10.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
