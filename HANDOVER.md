@@ -1582,6 +1582,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   import, saveLogBook_, saveLogDay_, updateLogRow_, and saveLogBulk_ (deletes only). BOQ Per Trip `nightRate` (optional) in
   billMachineCalc_, mbMachine and the print. Page: lg mode 'tanker' (#wt_form), print columns agency/dspT/unlT/chno/usefor,
   DAY / NIGHT TRIPS. Tests: unit "update-97", browser tanker97.js 16.
+- 13-10-2026 (update-98). Report: `UPDATE_98.md`. Backup fix: the site database also holds the Store's tables (items/code,
+  store_sessions, store_tickets, store_activity). SupabaseSync.gs: SB_SKIP_ (store_sessions, store_tickets – never copied),
+  sbKeyOf_ (SB_KEYS_ → id → the first column; SB_CAT_MEMO_ from sbCatalog_), sbSyncChanges reads a table without
+  updated_at whole and matches rows by their key. test/backup.js 31.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
