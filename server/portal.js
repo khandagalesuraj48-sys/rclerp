@@ -87,7 +87,7 @@ function verify(ticket, now) {
 const ADMIN_AUD = 'mechanical-admin', ACCESS = ['Edit', 'View', 'None'];
 function verifyAdmin(ticket, now) {
   const c = check(ticket, ADMIN_AUD, now), out = { by: String(c.sub).trim().toLowerCase(), act: c.act, site: c.site, jti: c.jti };
-  if (c.act === 'users' || c.act === 'siteSql') return out;
+  if (c.act === 'users' || c.act === 'siteSql' || c.act === 'siteOff') return out;      // siteOff: (asked 13-10-2026) the Super Admin deleted the site in the Portal
   if (c.act === 'siteSetup') {      // (update-95) "New site" from the Portal: the site's name, company and database link – never a key
     const comp = c.company && typeof c.company === 'object' ? c.company : {};
     return Object.assign(out, { name: String(c.name || '').replace(/\s+/g, ' ').trim().slice(0, 80), url: String(c.url || '').trim().replace(/\/+$/, '').slice(0, 200),

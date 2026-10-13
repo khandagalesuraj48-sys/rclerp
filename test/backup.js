@@ -34,7 +34,7 @@ const mismatch = async (counts, loose) => { const d = await g('/dump'), bad = []
     for (let i = 0; i < 30; i++) { try { await g('/dump'); break; } catch (e) { await wait(200); } }
     clearNotes(); await g('/reset?bare=1');
     await start(3005); await start(3006);
-    let r = await raw(3005, { fn: 'login', args: ADMIN }); const admin = r.result.token; ok('admin signs in (a server with the backup switched on)', !!admin, r.error);
+    let r = await raw(3005, { fn: 'login', args: ADMIN }); const admin = (r.result || {}).token; ok('admin signs in (a server with the backup switched on)', !!admin, r.error);
     const api = (fn, args, opt) => raw((opt && opt.port) || 3005, { fn: 'api', args: [(opt && opt.token) || admin, fn, args || []] });
     const page = (port, token) => fetch('http://127.0.0.1:' + port + '/api/backup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token || admin }) }).then(async x => Object.assign({ status: x.status }, await x.json()));
     const cron = (port, proof) => fetch('http://127.0.0.1:' + port + '/api/backup?full=1', { headers: proof === false ? {} : { Authorization: 'Bearer local-cron-secret' } }).then(async x => Object.assign({ status: x.status }, await x.json()));

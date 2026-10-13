@@ -98,6 +98,17 @@ const steps = r => (r.j.steps || []).map(x => x.step + (x.ok ? '✓' : '✗')).j
   ok('"Check" again on a ready site: still ready, its own company settings kept', r.j.ready && /N3 own name/.test(sql('rcl_s3', "select value from web.props where key = 'ORG_SETTINGS'")), r.j);
   r = await S.req('/api/admin', { action: 'siteSetup', code: 'N3', name: 'Test Site N3', company: comp, url: 'http://127.0.0.1:3100' });
   ok('   a ready site cannot be moved to another database', !r.j.ready && /another database|belongs to another site/.test(JSON.stringify(r.j.steps)), r.j);
+  // ---- (asked 13-10-2026) the Super Admin deletes N3 in the Portal, then brings it back with "New site" ----
+  await S.req('/api/admin', { action: 'siteSave', code: 'N3', name: 'Test Site N3', company: comp, status: 'closed' });
+  r = await S.req('/api/admin', { action: 'siteDelete', code: 'N3', confirm: 'N3' });
+  ok('deleted in the Portal (Closed, its code typed): gone there, "closed" in Mechanical\'s list', r.status === 200 && sql('rcl_portal', "select count(*) from sites where code = 'N3'") === '0' && sql('rcl', "select status from rcl_sites where code = 'N3'") === 'closed', r.j);
+  ok('   its own database is untouched (its settings, its users)', /N3 own name/.test(sql('rcl_s3', "select value from web.props where key = 'ORG_SETTINGS'")) && sql('rcl_s3', "select count(*) from app_users where email = 'sujit@rcl.test'") === '1');
+  const gone = await mech('api', [s.result.token, 'whoami', []], 'N3');
+  ok('   a session still open on N3 can do nothing more there', !!gone.error && /not set up/.test(gone.error), gone);
+  r = await U.req('/api/go?module=mechanical&site=N3');
+  ok('   and nobody gets a ticket for it', !/#sso=/.test(String(r.loc || '')), r.loc);
+  r = await S.req('/api/admin', { action: 'siteSetup', code: 'N3', name: 'Test Site N3', company: comp, url: N3 });
+  ok('"New site" with the same link brings it back: Ready, Active, its own settings kept', r.j.ready && sql('rcl_portal', "select status from sites where code = 'N3'") === 'active' && sql('rcl', "select status from rcl_sites where code = 'N3'") === 'ready' && /N3 own name/.test(sql('rcl_s3', "select value from web.props where key = 'ORG_SETTINGS'")), r.j);
   const U2 = browser(); await U2.req('/api/auth', { action: 'login', email: 'view@rcl.test', password: 'Audit#PassView9!x' });
   r = await U2.req('/api/admin', { action: 'siteSetup', code: 'N9', name: 'x', url: N3 });
   ok('nobody but the Super Admin can make a site', r.status === 403, r.status);

@@ -28,7 +28,7 @@ const until = async (fn, ms) => { const t = Date.now(); while (Date.now() - t < 
   const app = p => p.frames().find(x => x !== p.mainFrame());
   // a note the app shows by itself at the start (e.g. "Vehicle papers need attention" for an Admin) is closed first, as a person would
   const closeDlg = async p => { await wait(2500); await app(p).evaluate(() => { const c = document.getElementById('cf_back'); if (c && !c.hidden) { try { closeConfirm(false); } catch (e) { document.getElementById('cf_ok').click(); } } }); await wait(400); };
-  const inApp = async p => { const f = app(p); return f && f.evaluate(() => document.getElementById('login_screen').hidden === true && !!document.getElementById('mod_pill')); };
+  const inApp = async p => { const f = app(p); return f && f.evaluate(() => document.getElementById('login_screen').hidden === true && !!document.getElementById('site_chg')); };
   try {
     const ctx = await b.createBrowserContext(), p = await ctx.newPage();
     p.on('pageerror', e => errs.push(String(e.message).slice(0, 200)));
@@ -46,25 +46,30 @@ const until = async (fn, ms) => { const t = Date.now(); while (Date.now() - t < 
     const inS1 = await until(async () => p.url().startsWith(M) && await inApp(p), 40000);
     ok('a card opens Mechanical, signed in – no password typed in Mechanical', !!inS1, p.url());
     ok('   the ticket is taken out of the address at once', !/sso=/.test(p.url()), p.url());
-    let st = await app(p).evaluate(() => ({ mods: !document.getElementById('mod_pill').hidden, sitePill: !document.getElementById('site_pill').hidden, site: localStorage.getItem('rcl_site'), user: (document.getElementById('u_name') || {}).textContent }));
-    ok('   on S1; the top bar has "Modules" (the old site switch is not shown)', st.mods && !st.sitePill && st.site === 'S1', st);
-    // (update-93) the modules of this site as shortcuts in the top bar
-    const chips = await app(p).evaluate(() => { const b = document.getElementById('mod_chips'); return { shown: !b.hidden, list: [...b.querySelectorAll('button')].map(x => x.textContent + (x.classList.contains('on') ? '*' : '')) }; });
-    ok('   the top bar shows his modules of this site as shortcuts – Mechanical marked as open', chips.shown && chips.list.join(',') === 'Mechanical*,Store', chips);
-    await wait(1500); await p.screenshot({ path: SHOTS + 'p91_mech_modules_button.png' });
+    let st = await app(p).evaluate(() => ({ chg: !document.getElementById('site_box').hidden, name: document.getElementById('site_chg_name').textContent, site: localStorage.getItem('rcl_site'), topbar: [...document.querySelectorAll('.topbar .site-pill, .topbar .mod-chips')].length }));
+    ok('   on S1; the dark menu starts with "Change site" and the site\'s name (nothing of it in the top bar)', st.chg && /S1|VTR|Nashik/i.test(st.name) && st.site === 'S1' && st.topbar === 0, st);
+    // (asked 13-10-2026) his other modules of this site – in the dark menu, under Machinery
+    const chips = await app(p).evaluate(() => { const b = document.getElementById('grp_mods'); return { shown: !b.hidden, list: [...b.querySelectorAll('button[data-go]')].map(x => x.textContent.replace('↗', '').trim()), afterMach: b.previousElementSibling && b.previousElementSibling.id }; });
+    ok('   the dark menu shows his other module of this site (Store) under Machinery', chips.shown && chips.list.join(',') === 'Store' && chips.afterMach === 'grp_mach', chips);
+    await wait(1500); await p.screenshot({ path: SHOTS + 'p96_menu_change_site.png' });
     await closeDlg(p);
-    const [toStore] = await Promise.all([p.waitForResponse(r => r.url().startsWith(P + '/api/go?module=store') && r.status() === 302, { timeout: 30000 }), app(p).click('#mod_chips button[data-go]')]);
+    const [toStore] = await Promise.all([p.waitForResponse(r => r.url().startsWith(P + '/api/go?module=store') && r.status() === 302, { timeout: 30000 }), app(p).click('#grp_mods button[data-go]')]);
     ok('   a click on "Store" opens Store on S1 with a ticket (no sign-in)', /site=S1/.test(toStore.url()) && (toStore.headers().location || '').startsWith('http://127.0.0.1:3001/#sso='), toStore.url());
     await p.evaluate(u => { location.href = u; }, P + '/api/go?module=mechanical&site=S1');
     await until(async () => p.url().startsWith(M) && await inApp(p), 40000);
-    // ---- Modules → Mechanical on T2 ----
-    await closeDlg(p); await app(p).click('#mod_pill'); await wait(600);
-    const dlg = await app(p).evaluate(() => [...document.querySelectorAll('#cf_msg .sp-btn')].map(x => x.textContent));
-    ok('"Modules" lists Mechanical on his other site and "All my modules"', dlg.some(t => /T2/.test(t)) && dlg.some(t => /All my modules/.test(t)), dlg);
+    // ---- Change site → Mechanical on T2 ----
+    await closeDlg(p); await app(p).click('#site_chg'); await wait(600);
+    const dlg = await app(p).evaluate(() => [...document.querySelectorAll('#cf_msg .sp-btn')].map(x => x.textContent + (x.disabled ? '*' : '')));
+    ok('"Change site" lists his sites (this one marked) and "All my modules"', dlg.some(t => /T2/.test(t)) && dlg.some(t => /open now\*$/.test(t)) && dlg.some(t => /All my modules/.test(t)), dlg);
     await p.screenshot({ path: SHOTS + 'p91_modules_dialog.png' });
     await app(p).evaluate(() => [...document.querySelectorAll('#cf_msg .sp-btn')].find(x => /T2/.test(x.textContent)).click());
     const inT2 = await until(async () => p.url().startsWith(M) && await inApp(p) && (await app(p).evaluate(() => localStorage.getItem('rcl_site'))) === 'T2', 40000);
     ok('   a click opens Mechanical on T2 – through the Portal, without signing in', !!inT2, await p.url());
+    // (asked 13-10-2026) on T2 he is a User: the top bar is clean – no Backup, no "Supabase", no database or month-close pill
+    await wait(2500);
+    const clean = await app(p).evaluate(() => ['bk_btn', 'ds_pill', 'db_pill', 'err_pill', 'lock_pill'].filter(id => { const e = document.getElementById(id); return e && !e.hidden && e.getBoundingClientRect().width > 0; }));
+    ok('   a User\'s top bar: no Backup / Supabase / database pills', clean.length === 0, clean);
+    await p.screenshot({ path: SHOTS + 'p96_user_clean_topbar.png' });
     // ---- a sign-in that ended comes back by itself ----
     const tokBefore = await app(p).evaluate(() => localStorage.getItem('rcl_token'));
     await app(p).evaluate(() => { localStorage.setItem('rcl_token', 'ended-session-0000'); });
@@ -119,8 +124,9 @@ const until = async (fn, ms) => { const t = Date.now(); while (Date.now() - t < 
     await r.click('#h_sites a.mod');
     const phoneIn = await until(async () => r.url().startsWith(M) && await inApp(r), 40000);
     if (phoneIn) await closeDlg(r);
-    const vis = phoneIn ? await app(r).evaluate(() => { const b = document.getElementById('mod_pill').getBoundingClientRect(); return { w: b.width, h: b.height, shown: !document.getElementById('mod_pill').hidden && b.width > 0 && b.right <= window.innerWidth + 1 }; }) : {};
-    ok('phone: Portal → Mechanical, signed in; "Modules" is on the screen', !!phoneIn && vis.shown, vis);
+    if (phoneIn) { await app(r).click('#nav_menu'); await wait(800); }
+    const vis = phoneIn ? await app(r).evaluate(() => { const b = document.getElementById('site_chg').getBoundingClientRect(); return { w: b.width, h: b.height, shown: !document.getElementById('site_box').hidden && b.width > 0 && b.left >= -1 && b.right <= window.innerWidth + 1 }; }) : {};
+    ok('phone: Portal → Mechanical, signed in; the menu opens with "Change site" on the screen', !!phoneIn && vis.shown, vis);
     await wait(1500); await r.screenshot({ path: SHOTS + 'p91_phone.png' });
     await c3.close();
   } catch (e) { ok('the run finished', false, e.stack || String(e)); }
