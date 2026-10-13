@@ -253,6 +253,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .sbad { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
   .sbad.on { background: #E3F4EE; color: #1F6B52; } .sbad.off { background: #FDECEA; color: var(--bad); }
   .bulk tr.warn td { background: #FFF6DA; }
+  table.wtt { width: 100%; } table.wtt input { width: 100%; min-width: 90px; } table.wtt td.c { text-align: center; font-weight: 600; } table.wtt tr.wt-bad td { background: #FDECEA; }
+  .wt-h { margin: 18px 0 6px; font-size: 15px; } .wt-tot { margin: 8px 0 0; font-weight: 600; } .wt-tot span { margin-right: 18px; }
   .errlist { margin: 12px 0 0; padding: 10px 14px 10px 30px; background: #FDECEA; color: var(--bad); border-radius: 4px; font-size: 13px; }
   .errlist[hidden] { display: none; }
   td .link.danger { color: var(--bad); margin-left: 12px; }
@@ -1015,6 +1017,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .v-grid, .b-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .v-grid .wide, .b-grid .wide { grid-column: span 2; }
   @media (max-width: 760px) { .v-grid, .b-grid { grid-template-columns: 1fr 1fr; } }
   table.b-lines select, table.b-lines input { min-height: 34px; } table.b-lines td { vertical-align: top; }
+  table.b-lines .bl-night { display: flex; align-items: center; gap: 4px; margin-top: 4px; } table.b-lines .bl-night[hidden] { display: none; } table.b-lines .bl-night small { white-space: nowrap; color: var(--muted); } table.b-lines [data-bl=nightRate] { width: 90px; text-align: right; }
   table.b-lines td:nth-child(2) select { min-width: 210px; } table.b-lines [data-bl=basis] { min-width: 170px; } table.b-lines [data-bl=slabOn] { width: auto; min-width: 0; margin-top: 4px; } table.b-lines [data-bl=rate] { width: 120px; text-align: right; }
   .slabs .slab { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 12.5px; color: var(--muted); }
   .slabs .slab input { width: 90px; min-height: 30px; }
@@ -4049,6 +4052,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <p>How do you want to fill the Log Book?</p>
         <button class="lg-opt" data-lgmode="date"><b>One date – many machinery</b><span>Pick the date once, then add a row for each machinery (e.g. all machinery of 03-06-2026).</span></button>
         <button class="lg-opt" data-lgmode="mach"><b>One machinery – many dates</b><span>Pick the machinery once, then add a row for each date (e.g. MH-25-AJ-3232 from 1st to 10th).</span></button>
+        <button class="lg-opt" data-lgmode="tanker"><b>Water tanker – trip by trip</b><span>A water tanker (Log Book Format I): one line per trip – challan no, dispatch and unload time, chainage, use for. Add trips any time of the day.</span></button>
         <div class="lg-imp" data-perm-edit="Log Book">
           <span>Or from Excel:</span>
           <button class="btn ghost" id="lg_import" title="Add many Log Book entries from an Excel / CSV file (either layout)">Import from Excel</button>
@@ -4056,6 +4060,29 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           <button class="btn ghost small" id="lg_tpl_mach">Template: one machinery – many dates</button>
           <input type="file" id="lg_file" accept=".xlsx,.xls,.csv" hidden>
         </div>
+      </div>
+      <!-- (update-97) WATER TANKER – trip by trip -->
+      <div id="wt_form" hidden>
+        <div class="lg-top">
+          <div class="field"><label for="wt_date">Date *</label><input id="wt_date" type="date"></div>
+          <div class="field"><label for="wt_shift">Shift *</label><select id="wt_shift"><option>Day</option><option>Night</option></select></div>
+          <div class="field"><label for="wt_no">Tanker No *</label><input id="wt_no" list="dl_tankers" autocomplete="off" placeholder="Type or pick"></div>
+          <div class="lg-top-info" id="wt_info"></div>
+        </div>
+        <datalist id="dl_tankers"></datalist>
+        <div class="table-wrap"><table class="wtt">
+          <thead><tr><th>#</th><th>Challan No *</th><th>Dispatch Time *</th><th>Unload Time *</th><th>Trip</th><th>Chainage No</th><th>Use For</th><th></th></tr></thead>
+          <tbody id="wt_in"></tbody></table></div>
+        <div class="errlist" id="wt_err" hidden></div>
+        <div class="actions">
+          <button class="btn ghost" id="wt_add" type="button">+ Add trip</button>
+          <button class="btn primary" id="wt_save" type="button">Save trips</button>
+        </div>
+        <h3 class="wt-h" id="wt_saved_h">Saved trips</h3>
+        <div class="table-wrap"><table class="wtt">
+          <thead><tr><th>#</th><th>Shift</th><th>Challan No</th><th>Dispatch Time</th><th>Unload Time</th><th>Trip</th><th>Chainage No</th><th>Use For</th><th></th></tr></thead>
+          <tbody id="wt_saved"></tbody></table></div>
+        <div class="wt-tot" id="wt_tot"></div>
       </div>
       <div id="lg_form" hidden>
       <div class="lg-top">
@@ -4386,7 +4413,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   });
   const unitFromWorks = w => { const both = w.indexOf('KM + Hrs') > -1, km = w.indexOf('KM') > -1 || both, hr = w.indexOf('Hrs') > -1 || w.indexOf('Time') > -1 || both; return km && hr ? 'KM + Hrs' : km ? 'KM' : hr ? 'Hrs' : w.length ? 'Day' : ''; };
   // the ways a Log Book format measures the work (Format A: the Asset Master ticks)
-  const LB_FMT_MODES = { B: ['KM', 'Hrs', 'KM + Hrs', 'Trip'], C: ['KM'], D: ['Hrs'], E: ['Hrs'], F: ['Time'], G: ['Time'], H: ['Trip'] };
+  const LB_FMT_MODES = { B: ['KM', 'Hrs', 'KM + Hrs', 'Trip'], C: ['KM'], D: ['Hrs'], E: ['Hrs'], F: ['Time'], G: ['Time'], H: ['Trip'], I: ['Trip'] };
   const modesBase = m => { if (m && LB_FMT_MODES[m.lbFormat]) return LB_FMT_MODES[m.lbFormat]; if (m && m.modes && m.modes.length) return m.modes; const w = worksOf(m), o = []; if (w.indexOf('KM') > -1) o.push('KM'); if (w.indexOf('Hrs') > -1) o.push('Hrs'); if (w.indexOf('KM + Hrs') > -1 || (w.indexOf('KM') > -1 && w.indexOf('Hrs') > -1)) o.push('KM + Hrs');
     if (w.indexOf('Time') > -1) o.push('Time'); if (w.indexOf('Trip') > -1) o.push('Trip'); if (w.indexOf('Day') > -1) o.push('Day'); return o; };
   /* update-76 (asked 11-10-2026): a machinery measured by HOURS may also have a day on TIME (clock time) – its hour meter gave no reading
@@ -5025,6 +5052,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The Super Admin could not be made or reached this way.', 'There is one Super Admin, made once by the first site\'s Admin with an email no user has. A forgotten password: the recovery code written down then (Forgot password? on the sign-in screen).'],
       mr: ['Super Admin असा बनवता किंवा उघडता आला नाही.', 'Super Admin एकच असतो, पहिल्या site चा Admin तो एकदाच बनवतो – कोणत्याही user चा नसलेला email देऊन. Password विसरला: तेव्हा लिहून ठेवलेला Recovery code (sign-in screen वर Forgot password?).'],
       hi: ['Super Admin इस तरह बनाया या खोला नहीं जा सका।', 'Super Admin एक ही होता है, पहली site का Admin उसे एक बार बनाता है – किसी user का न हो ऐसा email देकर। Password भूल गए: तब लिखकर रखा Recovery code (sign-in screen पर Forgot password?)।'] },
+    { re: /is a water tanker \(Log Book Format I\)|is not a water tanker|not made trip by trip|Edit Log Book can only delete its entries|a water tanker is paid Per Trip/i,      // (update-97) water tanker – trip by trip
+      en: ['A water tanker (Log Book Format I) is entered trip by trip, on its own form.', 'Nothing was saved. Log Book → Change entry type → "Water tanker – trip by trip": pick the date, shift and tanker, one line per trip. Its BOQ line must be Per Trip. To make a machinery a water tanker: Master → Log Book Format → Format I. An old entry of that date and shift that was not made trip by trip: delete it in Edit Log Book first.'],
+      mr: ['Water tanker (Log Book Format I) ची entry trip-by-trip, त्याच्या वेगळ्या form मधून होते.', 'काहीही save झाले नाही. Log Book → Change entry type → "Water tanker – trip by trip": तारीख, shift आणि tanker निवडा, प्रत्येक trip ची एक ओळ. त्याची BOQ line Per Trip हवी. Machinery ला water tanker करायला: Master → Log Book Format → Format I. त्या तारखेची आणि shift ची trip-by-trip न केलेली जुनी entry असेल तर आधी Edit Log Book मध्ये delete करा.'],
+      hi: ['Water tanker (Log Book Format I) की entry trip-by-trip, उसके अलग form से होती है।', 'कुछ भी save नहीं हुआ। Log Book → Change entry type → "Water tanker – trip by trip": तारीख, shift और tanker चुनें, हर trip की एक पंक्ति। उसकी BOQ line Per Trip होनी चाहिए। Machinery को water tanker बनाने के लिए: Master → Log Book Format → Format I। उस तारीख और shift की trip-by-trip न बनी पुरानी entry हो तो पहले Edit Log Book में delete करें।'] },
+    { re: /DUPLICATE – this challan no|DUPLICATE time|DUPLICATE challan|Dispatch and Unload time are the same|more than 12 hours after Dispatch|enter the Dispatch time|enter the Unload time|at most 60 trips in one save|add at least one trip/i,      // (update-97)
+      en: ['A trip of the water tanker is not right: the same challan again, a time on another trip, or a time missing.', 'Nothing was saved. One challan no of an agency is used once only; one tanker cannot make two trips at the same time. Check the challan and the Dispatch / Unload time of that trip (a Night trip after midnight is the next morning), correct it and save again.'],
+      mr: ['Water tanker ची एक trip बरोबर नाही: तोच challan पुन्हा, दुसऱ्या trip च्या वेळेवर वेळ, किंवा वेळ भरलेली नाही.', 'काहीही save झाले नाही. एका agency चा एक challan no एकदाच वापरला जातो; एक tanker एकाच वेळी दोन trips करू शकत नाही. त्या trip चा challan आणि Dispatch / Unload वेळ तपासा (रात्री 12 नंतरची Night trip म्हणजे दुसऱ्या दिवशी सकाळ), दुरुस्त करा आणि पुन्हा save करा.'],
+      hi: ['Water tanker की एक trip सही नहीं है: वही challan दोबारा, दूसरी trip के समय पर समय, या समय भरा नहीं।', 'कुछ भी save नहीं हुआ। एक agency का एक challan no एक ही बार इस्तेमाल होता है; एक tanker एक ही समय दो trips नहीं कर सकता। उस trip का challan और Dispatch / Unload समय जाँचें (रात 12 के बाद की Night trip यानी अगली सुबह), ठीक करें और फिर save करें।'] },
+    { re: /Night trip rate must be more than 0/i,      // (update-97) BOQ
+      en: ['The Night trip rate of a Per Trip line is not a proper amount.', 'Nothing was saved. Type the rate for a trip of the Night shift (more than 0), or leave it empty – then a Night trip is paid at the same rate as by day.'],
+      mr: ['Per Trip line चा Night trip rate योग्य रक्कम नाही.', 'काहीही save झाले नाही. Night shift च्या trip चा rate टाका (0 पेक्षा जास्त), किंवा रिकामा ठेवा – मग Night trip ला दिवसाचाच rate लागेल.'],
+      hi: ['Per Trip line का Night trip rate सही रकम नहीं है।', 'कुछ भी save नहीं हुआ। Night shift की trip का rate डालें (0 से ज़्यादा), या खाली छोड़ें – तब Night trip को दिन वाला ही rate लगेगा।'] },
     { re: /This is the first site – it cannot be deleted/i,      // (asked 13-10-2026) the Super Admin deleting a site in the Portal
       en: ['The first site cannot be deleted.', 'Nothing was changed. The first site keeps the list of all sites; it can only stay.'],
       mr: ['पहिली site delete करता येत नाही.', 'काहीही बदलले नाही. सर्व sites ची यादी पहिल्या site मध्ये असते; ती राहतेच.'],
@@ -5482,10 +5521,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period. Photos (One entry, after picking the machinery): Dashboard, Vehicle + driver, Dispenser litres and Register – each taken with the camera there and then (not from the gallery), with the date, time and place printed on it; the AI reads the reading on the dashboard photo (it is told the last reading of the machinery, to pick the right number) and the litres on the dispenser photo, and puts them in the boxes (blue) – check them, type over them if wrong. The Driver box gets the driver of the last fill of the machinery (a typed name stays). 📷 in the list opens the photos of an entry. On a phone a saved entry shows a green "saved" box for 3 seconds (× closes it at once) and the form is empty for the next machinery; the keyboard opens only when a box is tapped. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed.'],
       mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते. Photos (One entry मध्ये, machinery निवडल्यावर): Dashboard, गाडी + driver, Dispenser वरचे लिटर आणि Register – प्रत्येक त्याच वेळी camera ने काढायचा (gallery मधून नाही); त्यावर तारीख, वेळ आणि ठिकाण छापले जाते. Dashboard च्या photo वरचे reading (योग्य आकडा निवडायला AI ला गाडीचे मागचे reading सांगितले जाते) आणि dispenser च्या photo वरचे लिटर AI वाचून box मध्ये (निळ्या रंगात) भरते – ते तपासा, चुकले तर बदला. Driver box मध्ये त्या गाडीच्या मागच्या fill चा driver आपोआप येतो (टाइप केलेले नाव तसेच राहते). यादीतले 📷 दाबले की त्या entry चे photo दिसतात. Phone वर entry save झाली की 3 सेकंद हिरवा "saved" box दिसतो (× ने लगेच बंद) आणि पुढच्या गाडीसाठी form रिकामा होतो; keyboard फक्त box वर दाबल्यावर उघडतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
       hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है। Photos (One entry में, machinery चुनने के बाद): Dashboard, गाड़ी + driver, Dispenser के लीटर और Register – हर एक उसी समय camera से लेना है (gallery से नहीं); उस पर तारीख, समय और जगह छपती है। Dashboard की photo पर की reading (सही अंक चुनने के लिए AI को गाड़ी की पिछली reading बताई जाती है) और dispenser की photo पर के लीटर AI पढ़कर box में (नीले रंग में) भरता है – उन्हें जाँचें, गलत हों तो बदलें। Driver box में उस गाड़ी की पिछली fill का driver अपने-आप आता है (टाइप किया नाम वैसा ही रहता है)। सूची का 📷 दबाने पर उस entry की photos दिखती हैं। Phone पर entry save होते ही 3 सेकंड हरा "saved" box दिखता है (× से तुरंत बंद) और अगली गाड़ी के लिए form खाली हो जाता है; keyboard केवल box पर दबाने से खुलता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है।'] },
-    log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook'],
-      en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic). A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) that worked TWO OR MORE TIMES in one shift (e.g. Breaker 100 → 102, then 110 → 113): add a second row for the same machinery, date and shift and type its own Start and Close – it may start higher than the row above; the hours in between (102 → 110) are not counted, so that day is 5 hours (bill and diesel). For such a machinery, changing or deleting an entry never changes another date: if a Close comes above the Start of the next entry, the app says so and saves nothing. In such a shift a row may also be by Time (e.g. Bucket 09:00 – 11:00 when the meter gave no reading, then Breaker 3714.5 → 3717.5): its hours are added (2 + 3 = 5 hours); the Start and Close of the entry come from its rows by Hrs, and the next day starts at the last Close. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed.'],
-      mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप). Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ने (JCB, excavator, breaker) एकाच shift मध्ये दोन किंवा जास्त वेळा काम केले असेल (उदा. Breaker 100 → 102, मग 110 → 113): त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा आणि तिचे स्वतःचे Start आणि Close टाका – ते वरच्या ओळीच्या Close पेक्षा जास्त असू शकते; मधले तास (102 → 110) धरले जात नाहीत, म्हणून तो दिवस 5 तासांचा (bill आणि diesel). अशा machinery ची entry बदलली किंवा delete केली तरी दुसरी तारीख कधीच बदलत नाही: Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर app तसे सांगते आणि काहीही save करत नाही. अशा shift मध्ये एखादी ओळ Time वर पण असू शकते (उदा. meter ने reading दिले नाही तेव्हा Bucket 09:00 – 11:00, मग Breaker 3714.5 → 3717.5): त्या ओळीचे तास जोडले जातात (2 + 3 = 5 तास); entry चे Start आणि Close तिच्या Hrs ओळींवरून येतात, आणि पुढचा दिवस शेवटच्या Close पासून सुरू होतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
-      hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। Meter बंद हो तो "No reading" चुनें: दिन भरा जाता है और उसका काम अनुमान से लिया जाता है (app machinery का औसत सुझाता है), कारण के साथ; नए meter की पहली entry पर "new meter" tick करें। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं। जिस machinery के BOQ में घंटे के (या KM के) दो या ज़्यादा काम हैं – Bucket और Breaker – उसे यहाँ उसी तारीख और उसी shift में हर काम की अलग पंक्ति दी जा सकती है: उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें, उसका काम दबाएँ; उसका Start ऊपर वाली पंक्ति का Close है। वह एक ही entry के रूप में save होती है और उसकी पंक्तियाँ याद रहती हैं। Print Log Book: दो काम वाली entry (Bucket और Breaker) print में हर काम की अलग पंक्ति में आती है, और diesel debit का rate print के box में हाथ से डाला जा सकता है (खाली = अपने आप)। Hours पर चलने वाली machine (JCB, excavator) का hour meter किसी दिन reading न दे तो: उस दिन के लिए Time चुनें और From – To डालें – वे घंटे, घंटे ही गिने जाते हैं (bill, diesel average); अगले hours दिन का Start आख़िरी hour reading से आता है। सिर्फ़ घंटों पर चलने वाली machinery ने (JCB, excavator, breaker) एक ही shift में दो या ज़्यादा बार काम किया हो (जैसे Breaker 100 → 102, फिर 110 → 113): उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें और उसका अपना Start और Close डालें – वह ऊपर वाली पंक्ति के Close से ज़्यादा हो सकता है; बीच के घंटे (102 → 110) नहीं गिने जाते, इसलिए वह दिन 5 घंटे का (bill और diesel)। ऐसी machinery की entry बदलने या delete करने पर दूसरी तारीख कभी नहीं बदलती: Close अगली entry के Start से ज़्यादा हो जाए तो app बताता है और कुछ भी save नहीं करता। ऐसी shift में कोई पंक्ति Time पर भी हो सकती है (जैसे meter ने reading नहीं दी तब Bucket 09:00 – 11:00, फिर Breaker 3714.5 → 3717.5): उस पंक्ति के घंटे जोड़े जाते हैं (2 + 3 = 5 घंटे); entry का Start और Close उसकी Hrs पंक्तियों से आता है, और अगला दिन आख़िरी Close से शुरू होता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है।'] },
+    log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip'],
+      en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic). A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) that worked TWO OR MORE TIMES in one shift (e.g. Breaker 100 → 102, then 110 → 113): add a second row for the same machinery, date and shift and type its own Start and Close – it may start higher than the row above; the hours in between (102 → 110) are not counted, so that day is 5 hours (bill and diesel). For such a machinery, changing or deleting an entry never changes another date: if a Close comes above the Start of the next entry, the app says so and saves nothing. In such a shift a row may also be by Time (e.g. Bucket 09:00 – 11:00 when the meter gave no reading, then Breaker 3714.5 → 3717.5): its hours are added (2 + 3 = 5 hours); the Start and Close of the entry come from its rows by Hrs, and the next day starts at the last Close. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. A WATER TANKER (Log Book Format I) is entered with "Water tanker – trip by trip": one line per trip (challan no, dispatch and unload time, chainage, use for), Day or Night, trips can be added any time of the day; the same challan of the agency or a time on another trip is refused.'],
+      mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप). Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ने (JCB, excavator, breaker) एकाच shift मध्ये दोन किंवा जास्त वेळा काम केले असेल (उदा. Breaker 100 → 102, मग 110 → 113): त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा आणि तिचे स्वतःचे Start आणि Close टाका – ते वरच्या ओळीच्या Close पेक्षा जास्त असू शकते; मधले तास (102 → 110) धरले जात नाहीत, म्हणून तो दिवस 5 तासांचा (bill आणि diesel). अशा machinery ची entry बदलली किंवा delete केली तरी दुसरी तारीख कधीच बदलत नाही: Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर app तसे सांगते आणि काहीही save करत नाही. अशा shift मध्ये एखादी ओळ Time वर पण असू शकते (उदा. meter ने reading दिले नाही तेव्हा Bucket 09:00 – 11:00, मग Breaker 3714.5 → 3717.5): त्या ओळीचे तास जोडले जातात (2 + 3 = 5 तास); entry चे Start आणि Close तिच्या Hrs ओळींवरून येतात, आणि पुढचा दिवस शेवटच्या Close पासून सुरू होतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. WATER TANKER (Log Book Format I) ची entry "Water tanker – trip by trip" मधून: प्रत्येक trip ची एक ओळ (challan no, dispatch आणि unload वेळ, chainage, use for), Day किंवा Night; दिवसभरात कधीही trips जोडता येतात; agency चा तोच challan किंवा दुसऱ्या trip च्या वेळेवरची वेळ save होत नाही.'],
+      hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। Meter बंद हो तो "No reading" चुनें: दिन भरा जाता है और उसका काम अनुमान से लिया जाता है (app machinery का औसत सुझाता है), कारण के साथ; नए meter की पहली entry पर "new meter" tick करें। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं। जिस machinery के BOQ में घंटे के (या KM के) दो या ज़्यादा काम हैं – Bucket और Breaker – उसे यहाँ उसी तारीख और उसी shift में हर काम की अलग पंक्ति दी जा सकती है: उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें, उसका काम दबाएँ; उसका Start ऊपर वाली पंक्ति का Close है। वह एक ही entry के रूप में save होती है और उसकी पंक्तियाँ याद रहती हैं। Print Log Book: दो काम वाली entry (Bucket और Breaker) print में हर काम की अलग पंक्ति में आती है, और diesel debit का rate print के box में हाथ से डाला जा सकता है (खाली = अपने आप)। Hours पर चलने वाली machine (JCB, excavator) का hour meter किसी दिन reading न दे तो: उस दिन के लिए Time चुनें और From – To डालें – वे घंटे, घंटे ही गिने जाते हैं (bill, diesel average); अगले hours दिन का Start आख़िरी hour reading से आता है। सिर्फ़ घंटों पर चलने वाली machinery ने (JCB, excavator, breaker) एक ही shift में दो या ज़्यादा बार काम किया हो (जैसे Breaker 100 → 102, फिर 110 → 113): उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें और उसका अपना Start और Close डालें – वह ऊपर वाली पंक्ति के Close से ज़्यादा हो सकता है; बीच के घंटे (102 → 110) नहीं गिने जाते, इसलिए वह दिन 5 घंटे का (bill और diesel)। ऐसी machinery की entry बदलने या delete करने पर दूसरी तारीख कभी नहीं बदलती: Close अगली entry के Start से ज़्यादा हो जाए तो app बताता है और कुछ भी save नहीं करता। ऐसी shift में कोई पंक्ति Time पर भी हो सकती है (जैसे meter ने reading नहीं दी तब Bucket 09:00 – 11:00, फिर Breaker 3714.5 → 3717.5): उस पंक्ति के घंटे जोड़े जाते हैं (2 + 3 = 5 घंटे); entry का Start और Close उसकी Hrs पंक्तियों से आता है, और अगला दिन आख़िरी Close से शुरू होता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। WATER TANKER (Log Book Format I) की entry "Water tanker – trip by trip" से: हर trip की एक पंक्ति (challan no, dispatch और unload समय, chainage, use for), Day या Night; दिन में कभी भी trips जोड़ी जा सकती हैं; agency का वही challan या दूसरी trip के समय पर का समय save नहीं होता।'] },
     tankcheck: { saves: ['saveTankCheck', 'deleteTankCheck'],
       en: ['A physical check of the diesel in a machinery\'s tank against what the app calculates.', 'One check per machinery and date. When the difference is not zero a reason must be written. "Filled to full" needs the tank capacity in Asset Master. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed.'],
       mr: ['Machinery च्या tank मधल्या diesel ची प्रत्यक्ष तपासणी, app च्या हिशोबाशी तुलना करून.', 'एका machinery चा एका तारखेला एकच check. फरक शून्य नसेल तर कारण लिहावे लागते. "Filled to full" साठी Asset Master मध्ये tank ची क्षमता लागते. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
@@ -9442,7 +9481,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // an Item-wise line: every item with its own rent type and rate
   const boqItemsText = l => (l.items || []).map(it => it.name + ' – ' + boqRateText(it) + (it.qty === 'typed' ? ' [typed in Log Book]' : '')).join('; ');
   const boqLineText = l => l.items && l.items.length ? 'Item-wise: ' + boqItemsText(l) : l.slabs && l.slabs.length ? 'Per Hour: ' + l.slabs.map((s, k) => (k === 0 ? 'first ' + fmt(s.upTo) + ' hr' : s.upTo === '' ? 'after that' : 'up to ' + fmt(s.upTo) + ' hr') + ' ' + vbMoney(s.rate)).join(', ') + ' (' + (l.slabOn === 'Period' ? 'on total hrs' : 'each day') + ')'
-    : l.basis === 'No rent – diesel only' ? 'No rent – diesel only (all diesel debited)' : l.basis + ' ' + vbMoney(l.rate);
+    : l.basis === 'No rent – diesel only' ? 'No rent – diesel only (all diesel debited)' : l.basis + ' ' + vbMoney(l.rate) + (Number(l.nightRate) > 0 ? ', Night trip ' + vbMoney(l.nightRate) : '');
   function renderBoqs() {
     const v = $('bf_vendor').value, list = S.boqs.filter(b => !v || b.vendor === v), can = canEdit('Vendor BOQ');
     $('bf_sum').innerHTML = 'BOQs: <b>' + list.filter(b => !b.amendOf).length + '</b> · amendments: <b>' + list.filter(b => b.amendOf).length + '</b>';
@@ -9596,7 +9635,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const free = ms.filter(m => !taken[m.id] || m.id === l.no);
     return '<tr><td class="bl-n"></td><td><select data-bl="no"><option value="">Pick…</option>' + free.map(m => '<option value="' + esc(m.id) + '"' + (m.id === l.no ? ' selected' : '') + '>' + esc(m.id) + ' (' + esc(m.type || '') + ')' + (taken[m.id] ? ' – in BOQ ' + esc(taken[m.id].no || taken[m.id].id) : '') + '</option>').join('') + '</select></td>' +
       '<td><select data-bl="basis">' + BOQ_BASIS.map(b => '<option value="' + b + '"' + (b === (l.basis || 'Monthly') ? ' selected' : '') + '>' + ({ 'Monthly': 'Monthly (per month)', 'Per Day': 'Daily (per day)', 'Per Hour': 'Hourly (per hour)', 'Per KM': 'Per KM', 'Per Trip': 'Per trip', 'Item-wise': 'Item-wise (several items, own rates)', 'No rent – diesel only': 'No rent – diesel only' }[b]) + '</option>').join('') + '</select></td>' +
-      '<td><input data-bl="rate" type="number" step="0.01" min="0" value="' + (l.rate && !slabs.length ? l.rate : '') + '"' + (slabs.length ? ' disabled placeholder="see slabs"' : '') + '></td>' +
+      '<td><input data-bl="rate" type="number" step="0.01" min="0" value="' + (l.rate && !slabs.length ? l.rate : '') + '"' + (slabs.length ? ' disabled placeholder="see slabs"' : '') + '>' +
+        '<label class="bl-night"' + (l.basis === 'Per Trip' ? '' : ' hidden') + ' title="(asked 13-10-2026) a trip of the Night shift at its own rate – leave empty: the same rate as by day"><small>Night trip ₹</small><input data-bl="nightRate" type="number" step="0.01" min="0" placeholder="same" value="' + (Number(l.nightRate) > 0 ? l.nightRate : '') + '"></label></td>' +
       '<td class="bl-slab"><div class="slabs">' + slabs.map(s => slabHtml(s)).join('') + '</div>' +
       '<button class="link bl-addslab" type="button">+ add hour slab (e.g. 1st hr ₹1,000, after that ₹2,000)</button> <select data-bl="slabOn" title="Slab hours counted on"' + (slabs.length ? '' : ' hidden') + '><option value="Day"' + (l.slabOn !== 'Period' ? ' selected' : '') + '>on each day\'s hours</option><option value="Period"' + (l.slabOn === 'Period' ? ' selected' : '') + '>on the period\'s total hours</option></select>' +
       '<div class="bl-items"' + (l.basis === 'Item-wise' ? '' : ' hidden') + '><div class="bl-itemlist">' + (l.items || []).map(bItemHtml).join('') + '</div><button class="link bl-additem" type="button">+ add item</button></div></td>' +
@@ -9609,7 +9649,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const slabs = [...tr.querySelectorAll('.slab')].map(s => ({ upTo: s.querySelector('[data-sl=upTo]').value.trim(), rate: s.querySelector('[data-sl=rate]').value.trim() }));
     const items = g('basis') !== 'Item-wise' ? [] : [...tr.querySelectorAll('.bl-item')].map(d => { const gi = k => d.querySelector('[data-it=' + k + ']').value.trim();
       return { name: gi('name'), basis: gi('basis'), rate: gi('rate'), qty: gi('qty'), slabOn: gi('slabOn'), slabs: [...d.querySelectorAll('.islab')].map(x => ({ upTo: x.querySelector('[data-sl=upTo]').value.trim(), rate: x.querySelector('[data-sl=rate]').value.trim() })) }; });
-    return { no: g('no'), basis: g('basis'), rate: g('rate'), slabs: slabs, slabOn: g('slabOn'), items: items, diesel: g('diesel'), remark: g('remark') };
+    return { no: g('no'), basis: g('basis'), rate: g('rate'), nightRate: g('basis') === 'Per Trip' ? g('nightRate') : '', slabs: slabs, slabOn: g('slabOn'), items: items, diesel: g('diesel'), remark: g('remark') };
   }
   /* WHICH MACHINERY IS THIS BOQ FOR (asked 02-10-2026). A party can have many assets: the form lists them all with a tick –
    * tick the ones this BOQ is for (each tick = one line, untick = the line goes). A machinery already in another BOQ of the
@@ -9668,6 +9708,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function bNumber() { [...$('b_lines').children].forEach((tr, i) => { tr.querySelector('.bl-n').textContent = i + 1; }); try { bPickDraw(); } catch (e) { /* the ticks are a convenience */ }
     [...$('b_lines').children].forEach(tr => { const basis = tr.querySelector('[data-bl=basis]').value, n = tr.querySelectorAll('.slab').length;
       tr.querySelector('.bl-addslab').hidden = basis !== 'Per Hour'; tr.querySelector('[data-bl=slabOn]').hidden = !n; tr.querySelector('[data-bl=rate]').disabled = n > 0;
+      const bn = tr.querySelector('.bl-night'); if (bn) bn.hidden = basis !== 'Per Trip';      // (update-97) Night trip rate
       tr.querySelector('[data-bl=rate]').placeholder = n ? 'see slabs' : '';
       const nr = basis === 'No rent – diesel only', rt = tr.querySelector('[data-bl=rate]'), ds = tr.querySelector('[data-bl=diesel]');
       if (nr) { rt.value = ''; rt.disabled = true; rt.placeholder = 'no rent'; ds.value = 'Debit Basis'; ds.disabled = true; } else ds.disabled = false;
@@ -9802,7 +9843,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<h3 class="rsub psec">Vendor</h3><div class="mfacts">' + facts.map(x => '<div><span>' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b></div>').join('') + '</div>' +
       '<h3 class="rsub psec">Rates' + (b.amendOf ? ' – from ' + esc(showDate(b.from)) + ' (amendment ' + b.amendNo + ' of ' + esc(b.amendOf) + ')' : '') + '</h3>' +
       '<table><thead><tr><th>Sr</th><th>Machinery</th><th>Type</th><th>Rent type</th><th>Rate</th><th>Diesel</th><th>Remark</th></tr></thead><tbody>' +
-      b.lines.map((l, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(l.no) + '</b></td><td>' + esc(l.type || '') + '</td><td>' + esc(l.basis) + '</td><td>' + (l.items && l.items.length ? l.items.map(it => '<b>' + esc(it.name) + '</b> – ' + esc(boqRateText(it))).join('<br>') : esc(l.slabs && l.slabs.length ? boqLineText(l) : vbMoney(l.rate) + ' ' + ({ 'Monthly': 'per month', 'Per Day': 'per day', 'Per Hour': 'per hour', 'Per KM': 'per km', 'Per Trip': 'per trip' }[l.basis] || ''))) + '</td><td>' + (l.diesel === 'Debit Basis' ? 'Debit basis' : 'Company paid') + '</td><td>' + esc(l.remark || '') + '</td></tr>').join('') +
+      b.lines.map((l, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(l.no) + '</b></td><td>' + esc(l.type || '') + '</td><td>' + esc(l.basis) + '</td><td>' + (l.items && l.items.length ? l.items.map(it => '<b>' + esc(it.name) + '</b> – ' + esc(boqRateText(it))).join('<br>') : esc(l.slabs && l.slabs.length ? boqLineText(l) : vbMoney(l.rate) + ' ' + ({ 'Monthly': 'per month', 'Per Day': 'per day', 'Per Hour': 'per hour', 'Per KM': 'per km', 'Per Trip': 'per trip' }[l.basis] || '') + (Number(l.nightRate) > 0 ? ' (Night trip ' + vbMoney(l.nightRate) + ')' : ''))) + '</td><td>' + (l.diesel === 'Debit Basis' ? 'Debit basis' : 'Company paid') + '</td><td>' + esc(l.remark || '') + '</td></tr>').join('') +
       '</tbody></table>' + (b.remark ? '<p><b>Remark:</b> ' + esc(b.remark) + '</p>' : '') +
       (versions.length > 1 ? '<h3 class="rsub psec">All versions of this BOQ</h3><table><thead><tr><th>BOQ ID</th><th>Version</th><th>From</th><th>To</th><th>Rates</th></tr></thead><tbody>' +
         versions.sort((x, y) => x.amendNo - y.amendNo).map(x => '<tr><td>' + esc(x.id) + '</td><td>' + (x.amendOf ? 'Amendment ' + x.amendNo : 'Original') + '</td><td>' + esc(showDate(x.from)) + '</td><td>' + (x.to ? esc(showDate(x.to)) : 'open') + '</td><td>' + x.lines.map(l => esc(l.no) + ': ' + esc(boqLineText(l))).join('<br>') + '</td></tr>').join('') + '</tbody></table>' : '') +
@@ -9959,6 +10000,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (b.basis === 'Monthly') { const s1 = seg(bk + '|M|' + dim(d), { unit: 'Days', rate: b.rate / dim(d), monthly: b.rate }); s1.qty += n; s1.amount += b.rate / dim(d) * n; }
       else if (b.basis === 'Per Day') { const s1 = seg(bk + '|D', { unit: 'Days', rate: b.rate }); s1.qty += n; s1.amount += b.rate * n; }
       else if (b.basis === 'Per KM') { const s1 = seg(bk + '|K', { unit: 'KM', rate: b.rate }); s1.qty += km; s1.amount += b.rate * km; }
+      else if (b.basis === 'Per Trip' && Number(b.nightRate) > 0) {      // (update-97) a Night trip at its own rate – the same as the server's bill
+        const tN = dayRows.filter(r => r.shift === 'Night').reduce((s2, r) => s2 + (Number(r.trip) || 0), 0), tD = trips - tN;
+        if (tD > 0) { const s1 = seg(bk + '|T', { unit: 'Trips', rate: b.rate }); s1.qty += tD; s1.amount += b.rate * tD; }
+        if (tN > 0) { const s2 = seg(bk + '|TN', { unit: 'Night trips', rate: Number(b.nightRate) }); s2.qty += tN; s2.amount += Number(b.nightRate) * tN; }
+      }
       else if (b.basis === 'Per Trip') { const s1 = seg(bk + '|T', { unit: 'Trips', rate: b.rate }); s1.qty += trips; s1.amount += b.rate * trips; }
       else if (b.basis === 'Per Hour') {
         if (b.slabs && b.slabs.length) {
@@ -12204,7 +12250,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     { id: 'E', name: 'Format E – Particular / Challan (reading)', about: 'Particular, challan no, start / closed reading, total hrs, diesel, average, chainage, work – no shift.' },
     { id: 'F', name: 'Format F – Time sheet', about: 'Reg no, particular, challan no, start / closed time, total hrs, chainage, work – no diesel.' },
     { id: 'G', name: 'Format G – Time sheet, 1st hr / 2nd hrs', about: 'Reg no, particular, challan no, start / closed time, total hrs, 1st hr, 2nd hrs (BOQ slab), chainage, work.' },
-    { id: 'H', name: 'Format H – Trip register (vehicle / challan)', about: 'Shift, vehicle no, challan no, diesel qty, in time, out time, trip, chainage, work.' }];
+    { id: 'H', name: 'Format H – Trip register (vehicle / challan)', about: 'Shift, vehicle no, challan no, diesel qty, in time, out time, trip, chainage, work.' },
+    { id: 'I', name: 'Format I – Water tanker (trip by trip)', about: 'Water Tanker Report: date, shift, agency, tanker no, challan no, dispatch / unload time, trip, chainage, use for – one line per trip; total, day and night trips. Entered on Log Book → "Water tanker – trip by trip".' }];
   const LB_FMT_COLS = {
     B: ['sr', 'date', 'shift', 'kmS', 'kmC', 'kmT', 'hrS', 'hrC', 'hrT', 'dO', 'dI', 'dT', 'dU', 'dC', 'trip', 'ch', 'work'],
     C: ['sr', 'date', 'shift', 'kmS', 'kmC', 'kmT', 'dO', 'dI', 'dR', 'dT', 'dU', 'dC', 'avg', 'work'],
@@ -12212,7 +12259,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     E: ['sr', 'date', 'particular', 'challan', 'rS', 'rC', 'rT', 'dO', 'dI', 'dT', 'dU', 'dC', 'avg', 'ch', 'work'],
     F: ['sr', 'date', 'regno', 'particular', 'challan', 'tS', 'tE', 'tG', 'tN', 'ch', 'work'],
     G: ['sr', 'date', 'regno', 'particular', 'challan', 'tS', 'tE', 'tG', 'hr1', 'hr2', 'ch', 'work'],
-    H: ['sr', 'date', 'shift', 'vehno', 'challan', 'dQ', 'inT', 'outT', 'trip', 'ch', 'work'] };
+    H: ['sr', 'date', 'shift', 'vehno', 'challan', 'dQ', 'inT', 'outT', 'trip', 'ch', 'work'],
+    I: ['sr', 'date', 'shift', 'agency', 'vehno', 'challan', 'dspT', 'unlT', 'trip', 'chno', 'usefor'] };      // (update-97) one line per trip
   S.lf = { ch: {}, sel: new Set(), names: null };
   const lfName = f => (S.lf.names && S.lf.names[f.id]) || f.name; // the name given in the app, else the default
   const lfOf = m => S.lf.ch[m.id] || m.lbFormat || 'A';
@@ -12265,6 +12313,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         Object.assign({}, base, { date: dd(4), mode: 'KM', unit: 'KM', okm: 1040, ckm: 1075, wkm: 35, work: 'Shifting' }),
         Object.assign({}, base, { date: dd(5), mode: 'Holiday', unit: 'Holiday' }),
         Object.assign({}, base, { date: dd(6), mode: 'Idle', unit: 'Idle' })];
+      if (F === 'I') {      // (update-97) a water tanker: its trips, Day and Night
+        const tr = (sh, d, list) => Object.assign({}, base, { date: dd(d), shift: sh, mode: 'Trip', unit: 'Trip', trip: list.length, itemWork: { _trips: list.map(x => ({ c: x[0], a: x[1], b: x[2], ch: x[3], u: x[4] })) } });
+        rows.splice(0, rows.length, tr('Day', 1, [['WT-501', '08:10', '08:55', '12+500', 'Curing'], ['WT-502', '09:20', '10:05', '13+000', 'Dust suppression']]),
+          tr('Night', 1, [['WT-503', '21:30', '22:15', '12+800', 'Compaction']]), tr('Day', 2, [['WT-504', '07:45', '08:30', '14+200', 'Curing']]));
+      }
       printLogRows({ rows: rows, f: { from: dd(1), to: dd(6) }, fmt: F, sample: lfName(LB_FORMATS.find(x => x.id === F)) });
     }
   });
@@ -14199,8 +14252,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   let lgMode = '';                       // 'date' = one date, many machinery; 'mach' = one machinery, many dates
   function setLgMode(mode) {
     lgMode = mode;
-    $('lg_choose').hidden = !!mode; $('lg_form').hidden = !mode; $('lg_change').hidden = !mode;
+    $('lg_choose').hidden = !!mode; $('lg_form').hidden = !mode || mode === 'tanker'; $('lg_change').hidden = !mode; $('wt_form').hidden = mode !== 'tanker';
     if (!mode) return;
+    if (mode === 'tanker') { wtOpen(); return; }      // (update-97) water tanker – trip by trip
     const t = $('lg_in').closest('table');
     t.classList.toggle('m-date', mode === 'date'); t.classList.toggle('m-mach', mode === 'mach');
     $('lg_top_date_w').hidden = mode !== 'date'; $('lg_top_no_w').hidden = mode !== 'mach';
@@ -14211,6 +14265,93 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     setTimeout(() => (mode === 'date' ? lgf(lgRows()[0], 'no') : $('lg_top_no')).focus(), 50);
     lgPendLoad();
   }
+
+  /* ---------- WATER TANKER – TRIP BY TRIP (update-97, asked 13-10-2026) ----------
+   * A tanker on Log Book Format I. Date, shift and tanker on top; one line per trip (Challan No, Dispatch, Unload, Chainage No,
+   * Use For; Trip = 1). Saved trips of that date are listed under it (both shifts) with their totals. A trip added later the
+   * same day goes into the same day / night. The same challan or a time on another trip: an alert here, and the server refuses
+   * it as well (the same challan of the same agency on ANY date / tanker is checked there). */
+  S.wt = null;
+  const wtTankers = () => (S.master || []).filter(m => m.lbFormat === 'I');
+  const wtMin = t => { const q = /^(\d{1,2}):(\d{2})/.exec(String(t || '')); return q ? Number(q[1]) * 60 + Number(q[2]) : null; };
+  // a trip's time on the clock of its shift date (a Night trip after midnight = the next morning) – the same as the server
+  const wtSpan = (a, b, sh) => { let x = wtMin(a), y = wtMin(b); if (x === null || y === null) return null; if (sh === 'Night' && x < 720) x += 1440; while (y <= x) y += 1440; return [x, y]; };
+  const wtKey = c => String(c || '').trim().toUpperCase().replace(/\s+/g, '');
+  const wtRowHtml = () => '<tr class="wrow"><td class="idx"></td><td><input data-w="c" maxlength="40" autocomplete="off" placeholder="Challan No"></td><td><input data-w="a" type="time"></td><td><input data-w="b" type="time"></td>' +
+    '<td class="c">1</td><td><input data-w="ch" maxlength="60" autocomplete="off" placeholder="e.g. 12+500"></td><td><input data-w="u" maxlength="80" autocomplete="off" placeholder="e.g. Curing"></td><td><button class="del" type="button" title="Delete row" aria-label="Delete row">×</button></td></tr>';
+  const wtRows = () => [...$('wt_in').querySelectorAll('.wrow')];
+  const wtNum = () => wtRows().forEach((tr, i) => { tr.querySelector('.idx').textContent = i + 1; });
+  function wtAdd() { $('wt_in').insertAdjacentHTML('beforeend', wtRowHtml()); wtNum(); }
+  function wtOpen() {
+    if (!$('wt_date').value) $('wt_date').value = S.today || ''; $('wt_date').max = S.today || '';
+    $('dl_tankers').innerHTML = wtTankers().map(m => '<option value="' + esc(m.id) + '">' + esc((m.owner || '') + (m.type ? ' – ' + m.type : '')) + '</option>').join('');
+    if (!wtRows().length) wtAdd();
+    $('wt_info').textContent = wtTankers().length ? '' : 'No water tanker yet – set a tanker\'s Log Book format to "Format I – Water tanker" (Master → Log Book Format).';
+    wtLoad(); setTimeout(() => $('wt_no').focus(), 50);
+  }
+  async function wtLoad() {
+    const m = findMachine(val('wt_no')), d = $('wt_date').value; S.wt = null;
+    if (!m || !d) { $('wt_info').textContent = val('wt_no') && !m ? 'Pick a tanker from the list.' : $('wt_info').textContent; wtDraw(); return; }
+    $('wt_no').value = m.id;
+    if (m.lbFormat !== 'I') { $('wt_info').textContent = m.id + ' is not a water tanker – set its Log Book format to "Format I – Water tanker" (Master → Log Book Format).'; wtDraw(); return; }
+    try { const r = await call('getTankerTrips', m.id, d); if (val('wt_no') !== m.id || $('wt_date').value !== d) return; S.wt = r;
+      $('wt_info').textContent = 'Agency: ' + (r.machine.owner || '–') + (r.problem ? '  |  ' + r.problem : '') + (r.other ? '  |  ' + r.other : ''); }
+    catch (e) { $('wt_info').textContent = errMsg(e); }
+    wtDraw();
+  }
+  function wtDraw() {
+    const w = S.wt, can = canEdit('Log Book'), list = (w && w.trips) || [];
+    $('wt_saved_h').textContent = w ? 'Saved trips – ' + w.machine.id + ', ' + showDate(w.date) : 'Saved trips';
+    $('wt_saved').innerHTML = list.length ? list.map((t, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(t.shift) + '</td><td><b>' + esc(t.c) + '</b></td><td>' + esc(t.a) + '</td><td>' + esc(t.b) + '</td><td class="c">1</td><td>' + esc(t.ch) + '</td><td>' + esc(t.u) + '</td>' +
+      '<td>' + (can ? '<button class="del" type="button" data-wtdel="' + i + '" title="Delete this trip" aria-label="Delete this trip">×</button>' : '') + '</td></tr>').join('') : '<tr><td colspan="9" class="none">' + (w ? 'No trip saved for this date yet.' : 'Pick the date and the tanker.') + '</td></tr>';
+    const nD = list.filter(t => t.shift !== 'Night').length, nN = list.length - nD;
+    $('wt_tot').innerHTML = list.length ? '<span>Day trips: ' + nD + '</span><span>Night trips: ' + nN + '</span><span>Total trips: ' + list.length + '</span>' : '';
+  }
+  // what is wrong with the trips typed (before anything is sent): empty boxes, the same challan twice, a time on another trip
+  function wtProblems(trips, sh) {
+    const out = [], seen = {}, spans = ((S.wt && S.wt.trips) || []).map(t => ({ sp: wtSpan(t.a, t.b, t.shift), t: t, sh: t.shift })).filter(x => x.sp);
+    ((S.wt && S.wt.trips) || []).forEach(t => { seen[wtKey(t.c)] = t.shift + ' trip ' + t.a + '–' + t.b; });
+    trips.forEach((t, i) => {
+      const at = 'Trip ' + (i + 1) + ': ';
+      if (!t.c) out.push({ i: i, m: at + 'enter the Challan No.' });
+      if (wtMin(t.a) === null) out.push({ i: i, m: at + 'enter the Dispatch time.' });
+      if (wtMin(t.b) === null) out.push({ i: i, m: at + 'enter the Unload time.' });
+      if (!t.c || wtMin(t.a) === null || wtMin(t.b) === null) return;
+      if (t.a === t.b) { out.push({ i: i, m: at + 'the Dispatch and Unload time are the same.' }); return; }
+      const k = wtKey(t.c); if (seen[k]) out.push({ i: i, m: at + 'DUPLICATE challan ' + t.c + ' – already ' + seen[k] + '.' }); else seen[k] = 'trip ' + (i + 1) + ' above';
+      const sp = wtSpan(t.a, t.b, sh), hit = spans.find(x => sp[0] < x.sp[1] && x.sp[0] < sp[1]);
+      if (hit) out.push({ i: i, m: at + 'DUPLICATE time – ' + t.a + '–' + t.b + ' falls on the trip ' + hit.t.a + '–' + hit.t.b + ' (' + hit.sh + ', challan ' + hit.t.c + ').' });
+      else spans.push({ sp: sp, t: t, sh: sh });
+    });
+    return out;
+  }
+  $('wt_add').addEventListener('click', wtAdd);
+  $('wt_in').addEventListener('click', e => { const b = e.target.closest('.del'); if (!b) return; b.closest('tr').remove(); if (!wtRows().length) wtAdd(); wtNum(); });
+  $('wt_no').addEventListener('change', wtLoad); $('wt_date').addEventListener('change', wtLoad);
+  $('wt_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
+    const m = findMachine(val('wt_no')), d = $('wt_date').value, sh = $('wt_shift').value;
+    $('wt_err').hidden = true; wtRows().forEach(tr => tr.classList.remove('wt-bad'));
+    if (!m || m.lbFormat !== 'I') { toast('Pick a water tanker.', true); return; }
+    if (!d) { toast('Pick the date.', true); return; }
+    const rows = wtRows().filter(tr => [...tr.querySelectorAll('input')].some(x => x.value.trim()));
+    const g = (tr, k) => tr.querySelector('[data-w=' + k + ']').value.trim();
+    const trips = rows.map(tr => ({ c: g(tr, 'c'), a: g(tr, 'a'), b: g(tr, 'b'), ch: g(tr, 'ch'), u: g(tr, 'u') }));
+    if (!trips.length) { toast('Type at least one trip.', true); return; }
+    if (!S.wt || S.wt.machine.id !== m.id || S.wt.date !== d) await wtLoad();
+    const bad = wtProblems(trips, sh);
+    if (bad.length) { bad.forEach(x => rows[x.i].classList.add('wt-bad')); $('wt_err').innerHTML = bad.map(x => esc(x.m)).join('<br>') + '<br><b>Nothing was saved.</b>'; $('wt_err').hidden = false; toast(bad[0].m, true); return; }
+    try {
+      const r = await call('saveTankerTrips', { no: m.id, date: d, shift: sh, trips: trips });
+      S.wt = r; $('wt_in').innerHTML = ''; wtAdd(); wtDraw();
+      toast(r.added + ' trip' + (r.added === 1 ? '' : 's') + ' saved – ' + m.id + ', ' + showDate(d) + ' (' + r.shift + ').');
+    } catch (er) { $('wt_err').innerHTML = esc(errMsg(er)) + '<br><b>Nothing was saved.</b>'; $('wt_err').hidden = false; toast(errMsg(er), true); }
+  }));
+  $('wt_saved').addEventListener('click', async e => {
+    const b = e.target.closest('[data-wtdel]'); if (!b || !S.wt) return; const t = S.wt.trips[Number(b.dataset.wtdel)]; if (!t) return;
+    if (!(await askConfirm({ title: 'Delete this trip?', ok: 'Delete', html: '<p>' + esc(S.wt.machine.id) + ', ' + esc(showDate(S.wt.date)) + ' (' + esc(t.shift) + '): challan <b>' + esc(t.c) + '</b>, ' + esc(t.a) + '–' + esc(t.b) + '.</p>' }))) return;
+    try { const r = await call('deleteTankerTrip', { no: S.wt.machine.id, date: S.wt.date, shift: t.shift, c: t.c }); S.wt = r; wtDraw(); toast('Trip deleted.'); }
+    catch (er) { toast(errMsg(er), true); }
+  });
 
   /* ---------- PENDING LOG BOOK ON THE ENTRY PAGE (asked 04-10-2026) ----------
    * "While entering I must see which machinery are pending – without going to the pending page every time."
@@ -14405,7 +14546,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     box.innerHTML = u ? itemBoxHtml(items, keep, u, true) : ''; box.hidden = !box.innerHTML; box.dataset.sig = sig; box.dataset.key = tr._key || '';
   }
   // what the machinery's Log Book format asks for, besides the readings: Challan, Particular, Chainage, In / Out time with trips
-  const LB_FMT_NEEDS = { A: {}, B: { tripAll: 1 }, C: { noCh: 1 }, D: {}, E: { challan: 1, part: 1 }, F: { challan: 1, part: 1 }, G: { challan: 1, part: 1 }, H: { challan: 1, tripTime: 1 } };
+  const LB_FMT_NEEDS = { A: {}, B: { tripAll: 1 }, C: { noCh: 1 }, D: {}, E: { challan: 1, part: 1 }, F: { challan: 1, part: 1 }, G: { challan: 1, part: 1 }, H: { challan: 1, tripTime: 1 }, I: { challan: 1, tripTime: 1 } };
   function lgFormatFields(tr, u) {
     const m = tr._p && tr._p.machine, f = LB_FMT_NEEDS[(m && m.lbFormat) || 'A'] || {}, st = !u || DAY_STATUS.indexOf(u) > -1;
     tr.querySelectorAll('.rd.ch').forEach(d => { d.hidden = st || !(f.challan || u === 'Trip'); });
@@ -14471,6 +14612,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       lgCalcSoon(); return;
     }
     inp.value = m.id;
+    if (m.lbFormat === 'I') { lgShowUnit(tr, ''); tr.querySelector('.unitcell').textContent = 'Water tanker'; lgRowNote(tr, m.id + ' is a water tanker – enter its trips with "Change entry type" → "Water tanker – trip by trip".'); tr.classList.add('err'); return; }      // (update-97)
     const modes = modesOf(m);
     if (!modes.length) { tr.querySelector('.unitcell').textContent = 'Tick "Works on" in Asset Master'; lgShowUnit(tr, ''); lgRowNote(tr, 'Tick what ' + m.id + ' works on in Asset Master.'); tr.classList.add('err'); return; }
     const seq = tr._seq = (tr._seq || 0) + 1;
@@ -14973,6 +15115,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (b.basis === 'Monthly') payable += b.rate / dim(d) * n;
         else if (b.basis === 'Per Day') payable += b.rate * n;
         else if (b.basis === 'Per KM') payable += b.rate * km;
+        else if (b.basis === 'Per Trip' && Number(b.nightRate) > 0) { const tN = dayRows.filter(r => r.shift === 'Night').reduce((s2, r) => s2 + (Number(r.trip) || 0), 0); payable += b.rate * (trips - tN) + Number(b.nightRate) * tN; }      // (update-97)
         else if (b.basis === 'Per Trip') payable += b.rate * trips;
         else if (b.basis === 'Per Hour') {
           if (b.slabs && b.slabs.length) {
@@ -14996,7 +15139,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (!bKeys.length) { const w = worksOf(m); if (w.some(z => z === 'Hrs' || z === 'Time')) kinds.hr = true; if (w.indexOf('Trip') > -1) kinds.trip = true; if (w.some(z => z === 'Day' || z === 'KM' || z === 'KM + Hrs')) kinds.day = true; }
       if (!kinds.day && !kinds.hr && !kinds.km && !kinds.trip) kinds.day = true;
       const unitWord = { 'Monthly': '/ MONTH', 'Per Day': '/ DAY', 'Per Hour': '/ HR', 'Per KM': '/ KM', 'Per Trip': '/ TRIP' };
-      const rateCell = !last ? '–' : bKeys.map(k => { const b = used2[k]; return (k === 'legacy' ? '' : '<small>BOQ ' + esc(k) + ':</small> ') + (b.items && b.items.length ? '<br>' + (itemRate(k) || 'ITEM-WISE – NO ITEM WORK') : b.slabs && b.slabs.length ? b.slabs.map(sl => (sl.upTo === '' ? 'after' : 'up to ' + sl.upTo + ' hr') + ' ₹' + n2(sl.rate)).join(', ') + ' / HR' : '₹ ' + n2(b.rate) + (b.basis === 'Monthly' ? '' : ' ' + unitWord[b.basis])); }).join('<br>');
+      const rateCell = !last ? '–' : bKeys.map(k => { const b = used2[k]; return (k === 'legacy' ? '' : '<small>BOQ ' + esc(k) + ':</small> ') + (b.items && b.items.length ? '<br>' + (itemRate(k) || 'ITEM-WISE – NO ITEM WORK') : b.slabs && b.slabs.length ? b.slabs.map(sl => (sl.upTo === '' ? 'after' : 'up to ' + sl.upTo + ' hr') + ' ₹' + n2(sl.rate)).join(', ') + ' / HR' : '₹ ' + n2(b.rate) + (b.basis === 'Monthly' ? '' : ' ' + unitWord[b.basis]) + (b.basis === 'Per Trip' && Number(b.nightRate) > 0 ? ', NIGHT ₹ ' + n2(b.nightRate) + ' / TRIP' : '')); }).join('<br>');
       const monthly = bKeys.filter(k => used2[k].basis === 'Monthly');
       const dailyCell = monthly.length ? monthly.map(k => { const b = used2[k]; const dd = dim(from); return '₹ ' + n2(b.rate / dd) + ' <small>(÷ ' + dd + ')</small>'; }).join('<br>') : '–';
       // excess diesel: issued above what the standard average allows for the work done → recovered at the average diesel rate of the dates
@@ -15025,7 +15168,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         '<div class="lb-head">' + (logo ? '<div class="lb-logo">' + logo + '</div>' : '') +
         '<div class="lb-title"><div class="lb-co">' + esc(up(printName(headName))) + '</div>' +
         '<div class="lb-site">SITE :- ' + esc(up(SITE_NAME.replace(/^VTR Site\s*[–-]\s*/i, 'VTR '))) + '</div>' +
-        '<div class="lb-name">LOG BOOK – ' + esc(up(periodText)) + '</div>' +
+        '<div class="lb-name">' + ((LBOPT.fmt || m.lbFormat) === 'I' ? 'WATER TANKER REPORT' : 'LOG BOOK') + ' – ' + esc(up(periodText)) + '</div>' +
         '<div class="lb-owner">OWNER: ' + esc(up(m.owner || list[0].owner)) + '</div>' +
         '<div class="lb-mach">' + esc(up(no)) + (m.type ? ' (' + esc(up(m.type)) + ')' : '') + '</div></div>' +
         '<div class="lb-meta">STANDARD AVG: <b>' + esc(std) + '</b><br>WORKS ON: <b>' + esc(up(worksOf(m).join(', ') || u)) + '</b></div></div>';
@@ -15084,7 +15227,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           regno: { h: 'REG NO', w: 10, c: 'c', wrap: 1, v: x => esc(up(no)) },
           vehno: { h: 'VEHICLE NO', w: 10, c: 'c', wrap: 1, v: x => esc(up(no)) },
           particular: { h: 'PARTICULAR', w: 9, v: x => esc(up(x.r._part ? (x.r._prt || x.r._part) : (x.r.remark || m.type || ''))) },      // (a row printed for ONE work of an entry: that work – or what was typed for that row)
-          challan: { h: 'CHALLAN NO', w: 8, c: 'c', wrap: 1, v: x => esc(x.r.challan || '') },
+          challan: { h: 'CHALLAN NO', w: 8, c: 'c', wrap: 1, v: x => esc(x.t ? x.t.c || '' : x.r.challan || '') },
           kmS: { h: 'START<br>KM', g: 'KM READING', w: 6.2, c: 'n', v: x => km(x.r) ? plain(x.r.okm) : dash },
           kmC: { h: 'CLOSED<br>KM', g: 'KM READING', w: 6.2, c: 'n', v: x => km(x.r) ? plain(x.r.ckm) : dash },
           kmT: { h: 'TOTAL<br>KM', g: 'KM READING', w: 5, c: 'n', v: x => km(x.r) ? '<b>' + num(x.r.wkm) + '</b>' : dash, t: () => fmt(tKm) },
@@ -15110,11 +15253,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           dC: { h: 'CLOSING<br>BALANCE', g: 'DIESEL (LTR)', w: 6, c: 'n', v: x => n2(x.close) },
           dQ: { h: 'DIESEL<br>QTY', w: 6, c: 'n', v: x => x.iss ? '<b>' + fmt(x.iss) + '</b>' : '', t: () => fmt(issued) },
           avg: { h: 'AVG', w: 4.5, c: 'n', v: x => x.avg || '' },
-          trip: { h: 'TRIP', w: 4.5, c: 'n', v: x => !stOf(x.r) && Number(x.r.trip) > 0 ? '<b>' + num(x.r.trip) + '</b>' : '', t: () => fmt(tTrips) },
+          trip: { h: 'TRIP', w: 4.5, c: 'n', v: x => x.t ? '<b>1</b>' : !stOf(x.r) && Number(x.r.trip) > 0 ? '<b>' + num(x.r.trip) + '</b>' : '', t: () => fmt(tTrips) },
           ch: { h: 'CHAINAGE', w: 11, wrap: 1, c: 'lb-sm', v: x => esc(up([x.r.chFrom, x.r.chTo].filter(Boolean).join(' – '))) },
+          // (update-97) Format I – Water tanker: one line per trip (x.t = the trip; a line without a trip = a day status such as Breakdown)
+          agency: { h: 'NAME OF AGENCY', w: 10, wrap: 1, v: x => esc(up(m.owner || x.r.owner || '')) },
+          dspT: { h: 'DISPATCH<br>TIME', w: 6, c: 'c', v: x => x.t ? esc(x.t.a || '') : dash },
+          unlT: { h: 'UNLOAD<br>TIME', w: 6, c: 'c', v: x => x.t ? esc(x.t.b || '') : dash },
+          chno: { h: 'CHAINAGE NO', w: 9, wrap: 1, c: 'lb-sm', v: x => esc(up(x.t ? x.t.ch || '' : x.r.chainage || '')) },
+          usefor: { h: 'USE FOR', w: 0, wrap: 1, v: x => x.t ? esc(up(x.t.u || '')) : stOf(x.r) ? '<b>' + esc(up(wOf(x.r))) + '</b>' : esc(up(x.r.work || '')) },
           work: { h: 'WORK DESCRIPTION', w: 0, wrap: 1, v: x => (stOf(x.r) ? '<b>' + esc(up(wOf(x.r))) + '</b>' + (x.r.work || x.r.remark ? ' – ' : '') : '') + lbMarks(x.r) + (!stOf(x.r) && itemQtyText(x.r) ? '<b>' + esc(up(itemQtyText(x.r))) + '</b> ' : '') + esc(up(x.r.work || (FM === 'E' || FM === 'F' || FM === 'G' ? '' : x.r.remark))) }
         };
         const cols = LB_FMT_COLS[FM].map(k => (FM === 'C' || FM === 'D') && /^(km|hr)[SCT]$/.test(k) ? Object.assign({}, C[k], { g: 'READING' }) : C[k]);
+        // (update-97) Format I: every trip of an entry is a line of its own, numbered 1, 2, 3 … through the sheet
+        const linesF = FM !== 'I' ? lines : (() => { const o = []; lines.forEach(x => { const tr = x.r.itemWork && Array.isArray(x.r.itemWork._trips) ? x.r.itemWork._trips : null;
+          if (tr && tr.length) tr.forEach(t => o.push(Object.assign({}, x, { i: o.length, t: t }))); else o.push(Object.assign({}, x, { i: o.length, t: null })); }); return o; })();
         // two heading rows: a group (e.g. DIESEL) over its columns, a single column spans both rows
         let h1 = '', h2 = '';
         for (let k = 0; k < cols.length; k++) {
@@ -15129,7 +15281,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const sumW = cols.reduce((t2, c) => t2 + (c.w || 0), 0), kW = sumW > 80 ? 80 / sumW : 1;
         void kW; // widths follow the content: no letter is cut
         tableF = '<table class="lb-t lb-auto"><thead><tr>' + h1 + '</tr>' + (h2 ? '<tr>' + h2 + '</tr>' : '') + '</thead><tbody>' +
-          lines.map(x => '<tr>' + cols.map(c => '<td class="' + (c.c || '') + (c === C.work || c.h === 'WORK DESCRIPTION' ? ' lb-wk' : c.h === 'CHAINAGE' ? ' lb-chx' : '') + '"' + wrapTd(c) + '>' + c.v(x) + '</td>').join('') + '</tr>').join('') + '</tbody><tfoot><tr>' +
+          linesF.map(x => '<tr>' + cols.map(c => '<td class="' + (c.c || '') + (c === C.work || c.h === 'WORK DESCRIPTION' ? ' lb-wk' : c.h === 'CHAINAGE' ? ' lb-chx' : '') + '"' + wrapTd(c) + '>' + c.v(x) + '</td>').join('') + '</tr>').join('') + '</tbody><tfoot><tr>' +
           (firstTot > 0 ? '<td colspan="' + firstTot + '" class="c">TOTAL</td>' + cols.slice(firstTot).map(c => '<td class="n">' + (c.t ? '<b>' + c.t() + '</b>' : '') + '</td>').join('') : '<td colspan="' + cols.length + '" class="c">TOTAL – ' + list.length + ' ENTRIES</td>') +
           '</tr></tfoot></table>';
         // the summary on the left follows the format: days, the work it shows, and diesel only where the format has diesel
@@ -15137,7 +15289,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const work = [].concat(has('kmT') && !kinds.km ? [['TOTAL KM', fmt(tKm) + ' KM']] : [])                 // (a total the machinery is ON is already in the rows above)
           .concat((has('hrT') || has('rT') || has('tN') || has('tG')) && !kinds.hr ? [['TOTAL HOURS', fmt(tHr) + ' HRS']] : [])
           .concat(has('hr1') ? [['1ST HR / 2ND HRS', fmt(r2(list.reduce((s2, r) => s2 + hr1(r), 0))) + ' / ' + fmt(r2(list.reduce((s2, r) => s2 + hr2(r), 0))) + ' HRS']] : [])
-          .concat(has('trip') && !kinds.trip ? [['TOTAL TRIPS', fmt(tTrips)]] : []);
+          .concat(has('trip') && !kinds.trip ? [['TOTAL TRIPS', fmt(tTrips)]] : [])
+          .concat(FM === 'I' ? (() => { const tN = r2(list.filter(r => r.shift === 'Night' && DAY_STATUS.indexOf(r.mode || r.unit) === -1).reduce((s2, r) => s2 + (Number(r.trip) || 0), 0));
+            return [['DAY TRIPS', fmt(r2(tTrips - tN))], ['NIGHT TRIPS', fmt(tN)]]; })() : []);      // (update-97) total trips, day trips, night trips
         LF = Lon.concat(work).concat(hasDiesel || has('dQ') ? [Lz[0]] : []).concat(hasDiesel ? [Lz[1], Lz[2]] : []);
       }
       const nB = Math.max(LF.length, Rr.length), padR = k => Rr[k] || ['', ''], padL = k => LF[k] || ['', ''];

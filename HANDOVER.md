@@ -1575,6 +1575,13 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   mod_pill / mod_chips / site_pill are gone. ds_pill, bk_btn and lock_pill are for the Admin only. portalAdmin act `siteOff`
   (system.js siteOff: rcl_sites status 'closed', never the site's database, refuses the home site). siteSetup keeps the
   settings of a closed site brought back with the same db_url.
+- 13-10-2026 (update-97). Report: `UPDATE_97.md`. Water tanker – trip by trip: Log Book Format I (LB_FORMATS_/LB_FMT_MODES_ I:
+  ['Trip']). Code.gs getTankerTrips_ / saveTankerTrips_ / deleteTankerTrip_. One entry per tanker+date+shift; the trips are in
+  Item Work `_trips: [{c,a,b,ch,u}]`; trip = count. Duplicates: the challan per agency (owner) on any date, and the time
+  overlap per tanker+date (tripSpan_: Night before 12:00 = +24 h). TANKER_HERE_ guards saveLogRowsInner_ (unless b.tanker),
+  import, saveLogBook_, saveLogDay_, updateLogRow_, and saveLogBulk_ (deletes only). BOQ Per Trip `nightRate` (optional) in
+  billMachineCalc_, mbMachine and the print. Page: lg mode 'tanker' (#wt_form), print columns agency/dspT/unlT/chno/usefor,
+  DAY / NIGHT TRIPS. Tests: unit "update-97", browser tanker97.js 16.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
