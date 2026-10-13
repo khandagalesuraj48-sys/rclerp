@@ -2155,3 +2155,88 @@ test('update-91: sign-in through the Portal – switched on only by PORTAL_URL (
   assert.strictEqual((app.match(/id="site_chg"/g) || []).length, 1); assert.strictEqual((app.match(/id="grp_mods"/g) || []).length, 1); assert.ok(!/id="(mod_pill|site_pill|mod_chips)"/.test(app)); assert.strictEqual((app.match(/id="lg_portal"/g) || []).length, 1);
   assert.ok(/local=1/.test(app) && /ssoLogin/.test(app) && /#sso=/.test(app));
 });
+
+test('update-97: a water tanker trip by trip – many trips a day (Day / Night), the same challan of the agency or a time on another trip refused, billed per trip with its own Night rate (page = server)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  for (const [no, owner] of [['WT-1', 'Jal Agency'], ['WT-2', 'Jal Agency'], ['WT-3', 'Other Water Co']])
+    assert.ok(!(run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Water Tanker', type: 'Water Tanker', unit: 'Trip', worksOn: ['Trip'], owner: owner, ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-07-01' }, 'add') || {}).THROWN, no);
+  for (const v of ['Jal Agency', 'Other Water Co']) run('(x, m) => saveVendor_(x, m)', { name: v, gstReg: 'No', pan: 'ABCPJ1234L', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  // the BOQ: a Night trip rate only on a Per Trip line; 0 is refused; on another rent type it is not kept
+  assert.match(run('(x, m) => saveBoq_(x, m)', { vendor: 'Jal Agency', from: '2026-07-01', woNo: 'WO-WT', lines: [{ no: 'WT-1', basis: 'Per Trip', rate: 500, nightRate: 0, diesel: 'Company' }] }, 'add').THROWN || '', /Night trip rate must be more than 0/);
+  assert.ok(!(run('(x, m) => saveBoq_(x, m)', { vendor: 'Jal Agency', from: '2026-07-01', woNo: 'WO-WT', lines: [{ no: 'WT-1', basis: 'Per Trip', rate: 500, nightRate: 700, diesel: 'Company' }, { no: 'WT-2', basis: 'Per Trip', rate: 500, diesel: 'Company' }] }, 'add') || {}).THROWN);
+  assert.ok(!(run('(x, m) => saveBoq_(x, m)', { vendor: 'Other Water Co', from: '2026-07-01', woNo: 'WO-WT3', lines: [{ no: 'WT-3', basis: 'Monthly', rate: 30000, nightRate: 900, diesel: 'Company' }] }, 'add') || {}).THROWN);
+  assert.deepStrictEqual(run('() => [boqRateFor_("Jal Agency", "WT-1", "2026-07-05").line.nightRate, boqRateFor_("Jal Agency", "WT-2", "2026-07-05").line.nightRate, boqRateFor_("Other Water Co", "WT-3", "2026-07-05").line.nightRate]'), [700, null, null]);
+  // a machinery on another format: not a water tanker; Format I is set in Master → Log Book Format
+  assert.match(run('x => saveTankerTrips_(x)', { no: 'WT-1', date: '2026-07-01', shift: 'Day', trips: [{ c: 'X', a: '08:00', b: '09:00' }] }).THROWN || '', /not a water tanker/);
+  run('x => saveLbFormats_(x)', { 'WT-1': 'I', 'WT-2': 'I', 'WT-3': 'I' });
+  // the usual entry page, Excel and the old ways do not take a water tanker
+  const gen = run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-07-01', shift: 'Day', no: 'WT-1', mode: 'Trip', trip: 3 }] });
+  assert.ok(!gen.ok && /is a water tanker \(Log Book Format I\)/.test(gen.errors[0].msg), JSON.stringify(gen));
+  assert.match(JSON.stringify(run('x => importLogBook_(x)', { check: true, rows: [{ date: '2026-07-01', shift: 'Day', no: 'WT-1', mode: 'Trip', trip: 3 }] })), /is a water tanker/);
+  const save = (no, date, shift, trips) => run('x => saveTankerTrips_(x)', { no: no, date: date, shift: shift, trips: trips.map(t => ({ c: t[0], a: t[1], b: t[2], ch: t[3] || '', u: t[4] || '' })) });
+  const entry = (no, date, shift) => run('(n, d, s) => { const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c; const r = lt.rows.find(r => logKeyOf_(lt, r) === n + "|" + d + "|" + s); return r ? { trip: num0_(r[c[H.TRIP]]), challan: str_(r[c[H.CHALLAN]]), from: tStr_(r[c[H.TSTART]]), to: tStr_(r[c[H.TEND]]), ch: str_(r[c[H.CH]]), work: str_(r[c[H.WORK]]), unit: str_(r[c[H.UNIT]]), n: tankerTripsOf_(r[c[H.ITEMS]]).length } : null; }', no, date, shift);
+  const count = () => run('() => table_(APP.SHEET_LOG, logHeaders_()).rows.filter(r => /^WT-/.test(str_(r[table_(APP.SHEET_LOG, logHeaders_()).c[H.NO]]))).length');
+  // ---- many trips a day: the first two, then one more later the same day – ONE Day entry ----
+  let r = save('WT-1', '2026-07-01', 'Day', [['CH-1', '08:00', '08:45', '12+500', 'Curing'], ['CH-2', '09:00', '09:40', '13+000', 'Dust suppression']]);
+  assert.ok(r.ok && r.added === 2, JSON.stringify(r).slice(0, 300));
+  r = save('WT-1', '2026-07-01', 'Day', [['CH-3', '10:00', '10:30', '13+000', 'Curing']]);
+  assert.ok(r.ok && r.trips.length === 3, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual(entry('WT-1', '2026-07-01', 'Day'), { trip: 3, challan: 'CH-1, CH-2, CH-3', from: '08:00', to: '10:30', ch: '12+500 / 13+000', work: 'Curing / Dust suppression', unit: 'Trip', n: 3 });
+  // a Night shift with a trip after midnight (01:00 = the next morning of that night)
+  r = save('WT-1', '2026-07-01', 'Night', [['CH-4', '21:00', '21:40'], ['CH-5', '01:00', '01:30']]);
+  assert.ok(r.ok && r.trips.filter(t => t.shift === 'Night').length === 2);
+  // ---- duplicates: nothing of that save is kept ----
+  const n0 = count(), dup = (x, re) => { assert.match(x.THROWN || '', re); assert.strictEqual(count(), n0); };
+  dup(save('WT-2', '2026-07-05', 'Day', [['CH-2', '08:00', '09:00']]), /DUPLICATE – this challan no of Jal Agency is already saved \(WT-1 01-07-2026 \(Day\)\)/);      // the same agency, another tanker and date
+  dup(save('WT-1', '2026-07-01', 'Day', [['ch 7', '11:00', '11:30'], ['CH7', '12:00', '12:30']]), /DUPLICATE/);      // twice in one save (spaces and small letters do not matter)
+  dup(save('WT-1', '2026-07-01', 'Day', [['CH-8', '08:30', '09:10']]), /DUPLICATE time – 08:30–09:10 falls on the trip 08:00–08:45 \(Day, challan CH-1\)/);
+  dup(save('WT-1', '2026-07-01', 'Night', [['CH-9', '01:15', '01:45']]), /DUPLICATE time/);
+  dup(save('WT-1', '2026-07-01', 'Day', [['CH-10', '09:30', '09:30']]), /Dispatch and Unload time are the same/);
+  dup(save('WT-1', '2026-07-01', 'Day', [['', '11:00', '11:30']]), /enter the Challan No/);
+  dup(save('WT-1', '2026-07-01', 'Day', [['CH-11', '11:00', '']]), /enter the Unload time/);
+  dup(save('WT-1', '2026-07-01', 'Full Day', [['CH-12', '11:00', '11:30']]), /Pick the shift: Day or Night/);
+  dup(save('WT-1', '2099-07-01', 'Day', [['CH-12', '11:00', '11:30']]), /./);
+  // another agency may have the same challan no; a trip that only touches another (08:45 → 09:00) is fine
+  assert.ok(save('WT-3', '2026-07-02', 'Day', [['CH-2', '08:00', '09:00']]).ok);
+  assert.ok(save('WT-1', '2026-07-01', 'Day', [['CH-6', '08:45', '09:00']]).ok);
+  r = run('(n, d) => getTankerTrips_(n, d)', 'WT-1', '2026-07-01');
+  assert.deepStrictEqual(r.trips.map(t => t.shift + ' ' + t.c + ' ' + t.a), ['Day CH-1 08:00', 'Day CH-6 08:45', 'Day CH-2 09:00', 'Day CH-3 10:00', 'Night CH-4 21:00', 'Night CH-5 01:00']);
+  // ---- a trip deleted; the last trip of a shift takes its entry with it ----
+  r = run('x => deleteTankerTrip_(x)', { no: 'WT-1', date: '2026-07-01', shift: 'Day', c: 'ch-6' });
+  assert.ok(r.ok && r.gone.c === 'CH-6' && entry('WT-1', '2026-07-01', 'Day').trip === 3);
+  save('WT-2', '2026-07-02', 'Night', [['N-1', '22:00', '22:30']]);
+  r = run('x => deleteTankerTrip_(x)', { no: 'WT-2', date: '2026-07-02', shift: 'Night', c: 'N-1' });
+  assert.ok(r.ok && entry('WT-2', '2026-07-02', 'Night') === null && r.trips.length === 0);
+  assert.match(run('x => deleteTankerTrip_(x)', { no: 'WT-1', date: '2026-07-01', shift: 'Day', c: 'NOPE' }).THROWN || '', /This trip was not found/);
+  // ---- Edit Log Book / the edit window change nothing of a water tanker; Edit Log Book may delete a whole entry ----
+  const ed = run('() => getLogEditData_("WT-1", "2026-07-01", "2026-07-01")');
+  const rows = (ed.rows || []).map(x => ({ key: x.key, same: true, date: x.date, shift: x.shift, mode: x.mode, trip: x.trip }));
+  assert.match(run('b => saveLogBulk_(b)', { no: 'WT-1', from: '2026-07-01', to: '2026-07-01', rows: rows.map((x, i) => i ? x : Object.assign({}, x, { same: false, trip: 9 })), deleted: [] }).THROWN || '', /Edit Log Book can only delete its entries/);
+  assert.match(run('(k, l) => updateLogRow_(k, l)', 'WT-1|2026-07-01|Day', { trip: 9 }).THROWN || '', /is a water tanker/);
+  assert.strictEqual(entry('WT-1', '2026-07-01', 'Day').trip, 3);
+  // ---- the bill: Day trips at 500, Night trips at 700 (WT-1); WT-2 has no Night rate – every trip at 500 ----
+  save('WT-2', '2026-07-03', 'Day', [['W2-1', '08:00', '08:30']]); save('WT-2', '2026-07-03', 'Night', [['W2-2', '20:00', '20:30'], ['W2-3', '23:50', '00:20']]);
+  const from = '2026-07-01', to = '2026-07-31';
+  const logs = run('x => getLogBookList_(x)', { from, to, all: true }), extra = run('x => logPrintExtra_(x)', { from, to, nos: ['WT-1', 'WT-2'] });
+  const byNo = {}; logs.rows.forEach(x => (byNo[x.no] = byNo[x.no] || []).push(x));
+  const srv = no => run('(no, L, e, f, t) => billMachineCalc_(findMachine_(no), L, e, f, t, undefined, true)', no, byNo[no], extra, from, to);
+  const b1 = srv('WT-1'), b2 = srv('WT-2');
+  assert.strictEqual(b1.amount, 3 * 500 + 2 * 700, JSON.stringify(b1).slice(0, 400));
+  assert.strictEqual(b2.amount, 3 * 500);
+  // the page works the bill out by itself – the same figures
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const grab = m => { const i = app.indexOf(m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
+  const dayPartSrc = (app.match(/const dayPart = (r => [^\n]+?);\n/) || [])[1];
+  const env = { dayPart: new Function('return ' + dayPartSrc)(), r2: n => Math.round(n * 100) / 100, hasKm: u => u === 'KM' || u === 'KM + Hrs', hasHr: u => u === 'Hrs' || u === 'KM + Hrs', isHol: r => ['Holiday', 'Breakdown'].indexOf(r.mode || r.unit) > -1,
+    showDate: d => d.split('-').reverse().join('/'), fmt: String, DAY_STATUS: ['Idle', 'Holiday', 'Breakdown'], METER_OFF: 'No reading', isoDate: d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'), ITEM_WORD: { hr: 'hr', km: 'km', trip: 'trips' }, dieselDebitDay: (vt, bd, m) => bd ? bd.diesel === 'Debit Basis' : !!(m && m.supply === 'Debit Basis'), findMachine: no => run('n => findMachine_(n)', no) };
+  const C = new Function(...Object.keys(env), grab('function itemDaySegs(') + '\n' + grab('function tankLeft(') + '\n' + grab('function mbMachine(') + '; return { mbMachine };')(...Object.values(env));
+  const p1 = C.mbMachine('WT-1', byNo['WT-1'], extra, from, to, undefined, true);
+  assert.strictEqual(p1.amount, b1.amount); assert.strictEqual(C.mbMachine('WT-2', byNo['WT-2'], extra, from, to, undefined, true).amount, b2.amount);
+  assert.deepStrictEqual(p1.lines.map(x => x.unit + ' ' + x.qty + ' × ' + x.rate), ['Trips 3 × 500', 'Night trips 2 × 700']);
+  // the page: Format I in its lists, its print columns, the form and the Night rate in the BOQ form
+  assert.match(app, /\{ id: 'I', name: 'Format I – Water tanker \(trip by trip\)'/);
+  assert.match(app, /I: \['sr', 'date', 'shift', 'agency', 'vehno', 'challan', 'dspT', 'unlT', 'trip', 'chno', 'usefor'\]/);
+  for (const id of ['wt_form', 'wt_date', 'wt_shift', 'wt_no', 'wt_in', 'wt_save', 'wt_saved', 'wt_tot']) assert.strictEqual((app.match(new RegExp('id="' + id + '"', 'g')) || []).length, 1, id);
+  assert.match(app, /data-lgmode="tanker"/); assert.match(app, /data-bl="nightRate"/); assert.match(app, /'DAY TRIPS'/); assert.match(app, /'NIGHT TRIPS'/);
+});
