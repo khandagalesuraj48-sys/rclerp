@@ -1605,6 +1605,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   rclModule (Item Master search, Damerau spelling allowance). Tests: unit "update-101", browser search101.js 10.
 - 13-10-2026 (update-102). Report: `UPDATE_102.md`. extKeys: Ctrl K / "/" / Alt+B heard inside every module page of the screen
   (attached on each frame load). search101.js 13.
+- 14-10-2026 (update-103). Report: `UPDATE_103.md`. Water tanker: an entry made before trip by trip (or a Full Day one) no longer
+  stops new trips – `legacyTrips_` reads it as its trips (Trip count, challans, its time when 1 trip, `old: 1`); new trips join it
+  (`mineTrips`), Day trips join a Full Day entry, Night trips turn a Full Day entry into the Day (`full`); `tankerSum_` (time order,
+  untimed last); Idle / Holiday / Breakdown entry still refused ("a day without trips", FIX_RULES). deleteTankerTrip_ takes an old
+  entry's trip too. Edit Log Book: no "+ Add row" / "Add all missing dates" for Format I, a note instead. Unit "update-103",
+  browser tanker103.js 11.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
