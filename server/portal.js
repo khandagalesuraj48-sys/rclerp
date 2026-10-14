@@ -80,6 +80,7 @@ function verify(ticket, now) {
   return {
     email: email, name: String(c.name || email).slice(0, 80), site: c.site, siteName: String(c.siteName || c.site).slice(0, 80),
     admin: c.role === 'admin', jti: c.jti, exp: c.exp,
+    super: c.super === true,      // (14-10-2026) the Portal's Super Admin: entries of a billed period, Approvals
     mods: list(c.mods, m => m && /^[a-z]{2,20}$/.test(String(m.key)) ? { key: m.key, name: String(m.name || m.key).slice(0, 40), url: modUrl(m.url) } : null),
     sites: list(c.sites, s => s && /^[A-Z0-9]{1,12}$/.test(String(s.code)) ? { code: s.code, name: String(s.name || s.code).slice(0, 80) } : null),
   };

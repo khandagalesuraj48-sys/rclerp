@@ -82,6 +82,12 @@ const SB_TABLES_ = [
     ['Period From', 'period_from', 'date'], ['Period To', 'period_to', 'date'], ['Lines', 'lines', 'text'], ['Log IDs', 'log_ids', 'text'], ['Amount', 'amount', 'numeric'],
     ['GST %', 'gst_pct', 'numeric'], ['GST Amount', 'gst_amt', 'numeric'], ['TDS %', 'tds_pct', 'numeric'], ['TDS Amount', 'tds_amt', 'numeric'], ['Total', 'total', 'numeric'],
     ['Status', 'status', 'text'], ['Bill ID', 'bill_id', 'text'], ['Remark', 'remark', 'text'], ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
+  // (update-108, step 1z) changes of a billed period: a user's change waiting for the Super Admin, a bill's figures before its first change
+  { table: 'billed_changes', tab: 'Billed Changes', title: 'Billed Changes', pk: 'id', key: r => sbStr_(r['Request ID']), cols: [
+    ['Kind', 'kind', 'text'], ['Requested At', 'requested_at', 'timestamptz'], ['Requested By', 'requested_by', 'text'], ['Requester Email', 'requester_email', 'text'], ['Action', 'action', 'text'],
+    ['Args', 'args', 'text'], ['Summary', 'summary', 'text'], ['Machinery', 'machinery', 'text'], ['Dates', 'dates', 'text'], ['Reason', 'reason', 'text'], ['Status', 'status', 'text'],
+    ['Decided By', 'decided_by', 'text'], ['Decided At', 'decided_at', 'timestamptz'], ['Decision Note', 'decision_note', 'text'], ['Result', 'result', 'text'],
+    ['Bill ID', 'bill_id', 'text'], ['Data', 'data', 'text'], ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
   { table: 'breakdowns', tab: 'Breakdowns', title: 'Breakdowns', pk: 'id', key: r => sbStr_(r['Breakdown ID']), cols: [
     ['Machinery No', 'machinery_no', 'text'], ['From Date', 'from_date', 'date'], ['Reason', 'reason', 'text'], ['Remark', 'remark', 'text'], ['Status', 'status', 'text'],
     ['Back On', 'back_on', 'date'], ['Closing Remark', 'closing_remark', 'text'], ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
@@ -297,7 +303,7 @@ function sbTabName_(table) { const d = SB_TABLES_.find(x => x.table === table); 
 // header shown in the backup: the app's own column names where known, the database name otherwise
 function sbHeader_(table, col) {
   const d = SB_TABLES_.find(x => x.table === table);
-  if (col === 'id') return d ? ({ master: 'Machinery', diesel_inward: 'Inward ID', diesel_transfer: 'Transfer ID', diesel_issue: 'Issue ID', boq: 'BOQ ID', bills: 'Bill ID', vendors: 'Vendor', log_book: 'Log Book Key', tank_check: 'Check ID', app_users: 'User', activity_log: 'Log ID' }[table] || 'ID') : 'id';
+  if (col === 'id') return d ? ({ master: 'Machinery', diesel_inward: 'Inward ID', diesel_transfer: 'Transfer ID', diesel_issue: 'Issue ID', boq: 'BOQ ID', bills: 'Bill ID', vendors: 'Vendor', log_book: 'Log Book Key', tank_check: 'Check ID', app_users: 'User', activity_log: 'Log ID', billed_changes: 'Request ID' }[table] || 'ID') : 'id';
   const c = d && d.cols.find(x => x[1] === col);
   return c ? c[0] : col;
 }

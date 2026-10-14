@@ -1632,6 +1632,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `checkTankerImport` / `importTankerTrips` (no server change; `importLogBook_` still refuses tanker rows). A line with more
   trips = "one line per trip"; a tanker Idle/Holiday/Breakdown line is not imported (said). The Log Book Excel (`lbExport`)
   writes a tanker's entry one line per trip (`tripsOfRow`). Unit "update-107", browser tanker107.js 8.
+- 14-10-2026 (update-108). Report: `UPDATE_108.md`. A billed period: the Portal's Super Admin (ticket `super`, session part "S",
+  `ACTOR_SUPER_`) passes the bill lock; others "Send for approval" (`sendChangeRequest` → `billed_changes` kind Request, SQL step
+  1z); Approvals page (`getChangeRequests` / `decideChangeRequest`: runs the same save as the user). Before the first change the
+  bill's figures are kept (`billBaselines_`, kind Baseline); the next bill shows the difference at the old rates
+  (`billCorrections_`), must be ticked (verify), submit makes Correction CN / DN (`DN_CN_` / `DN_CD_`) taken in J / K,
+  `data.corr`; delete / revision cancels them. Unit "update-108", browser billed108.js 22, billlock.js updated.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

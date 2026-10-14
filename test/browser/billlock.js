@@ -57,25 +57,25 @@ const snap = () => sql("select coalesce((select string_agg(id || ' ' || opening_
   const marks = await f.evaluate(() => [...document.querySelectorAll('#l_rows tr')].map(tr => (tr.children[0] ? tr.children[0].textContent.trim() : '') + (tr.querySelector('.tag.lk') ? ' [' + tr.querySelector('.tag.lk').textContent.trim() + ']' : '')).filter(Boolean).sort());
   ok('1. Log Book list: the five entries of September carry the mark "RA Bill 61"; 31 Aug and 1 Oct do not', JSON.stringify(marks) === JSON.stringify(['01-09-2026 [RA Bill 61]', '01-10-2026', '02-09-2026 [RA Bill 61]', '03-09-2026 [RA Bill 61]', '04-09-2026 [RA Bill 61]', '05-09-2026 [RA Bill 61]', '31-08-2026']), marks);
   await f.evaluate(() => { const tr = [...document.querySelectorAll('#l_rows tr')].find(r => /^03-09-2026/.test(r.textContent.trim())); tr.querySelector('[data-ledit]').click(); }); await wait(2500);
-  let s = await said(); const editOpen = await f.evaluate(() => !document.getElementById('le_back').hidden);
-  ok('   Edit on 03-09: the edit window does NOT open; the red line says why (in Marathi first) and names the bill', !editOpen && /submit झालेल्या bill मध्ये आहे/.test(s.toast) && /Log Book entry of KLX-1 on 03-09-2026: this machinery is in the submitted RA Bill 61 of Lock Vendor P/.test(s.toast), s.toast.slice(0, 330));
-  ok('   …and the card says what to do: Admin deletes the bill → correct → build and submit again', /काय करायचे/.test(s.advice) && /Admin ला ते bill delete करायला सांगा \(RCL Drive → Saved Bills → Delete/.test(s.advice) && /पुन्हा Build करून submit करा/.test(s.advice), s.advice.slice(0, 420));
+  let s = await said(); let warnBox = await f.evaluate(() => { const c = document.getElementById('cf_back'); return c && !c.hidden ? document.getElementById('cf_title').textContent + ' :: ' + document.getElementById('cf_msg').textContent.replace(/\s+/g, ' ') : ''; }); await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} }); await wait(500); const editOpen = await f.evaluate(() => !document.getElementById('le_back').hidden);
+  // (update-108) the warning is now a box: it names the bill and offers to send the change to the Super Admin; Cancel = nothing opens
+  ok('   Edit on 03-09: a box says why and names the bill, with the way out (send for approval); Cancel – the edit window does NOT open', !editOpen && /This entry is in a submitted bill/.test(warnBox) && /Log Book entry of KLX-1 on 03-09-2026: this machinery is in the submitted RA Bill 61 of Lock Vendor P/.test(warnBox) && /send it to the Super Admin for approval/.test(warnBox), warnBox.slice(0, 400));
   await p.screenshot({ path: '/home/claude/test/shots/billlock_list.png' });
   await hush();
   await f.evaluate(() => { const tr = [...document.querySelectorAll('#l_rows tr')].find(r => /^04-09-2026/.test(r.textContent.trim())); tr.querySelector('[data-ldel]').click(); }); await wait(2500);
-  s = await said(); const asked = await f.evaluate(() => !document.getElementById('cf_back').hidden);
-  ok('   Delete on 04-09: no "Delete?" question – the same warning; the entry is still in the database', !asked && /is in the submitted RA Bill 61/.test(s.toast) && snap() === before, s.toast.slice(0, 160));
+  warnBox = await f.evaluate(() => { const c = document.getElementById('cf_back'); return c && !c.hidden ? document.getElementById('cf_title').textContent + ' :: ' + document.getElementById('cf_msg').textContent.replace(/\s+/g, ' ') : ''; }); await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} }); await wait(500);
+  ok('   Delete on 04-09: the same box (not the "Delete?" question); Cancel – the entry is still in the database', /This entry is in a submitted bill/.test(warnBox) && /is in the submitted RA Bill 61/.test(warnBox) && !/Delete Log Book entry\?/.test(warnBox) && snap() === before, warnBox.slice(0, 200));
   await hush();
 
   // ---------- 2. Diesel Issue list ----------
   await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} S.formDirty = false; showTab('diesel'); }); await wait(2500);
   const dmark = await f.evaluate(() => { const tr = [...document.querySelectorAll('#d_rows tr')].find(r => /KLX-1/.test(r.textContent)); if (!tr) return null; const res = { tag: (tr.querySelector('.tag.lk') || { textContent: '' }).textContent.trim() }; tr.querySelector('[data-dedit]').click(); return res; }); await wait(1500);
-  s = await said(); const dEdit = await f.evaluate(() => ({ editing: S.editDieselId, title: document.getElementById('d_title').textContent }));
-  ok('2. Diesel Issue list: the issue of 03-09 carries the mark; Edit does not open it – warning with the way out', dmark && dmark.tag === 'RA Bill 61' && !dEdit.editing && /Diesel issue of KLX-1 on 03-09-2026: this machinery is in the submitted RA Bill 61/.test(s.toast) && /काय करायचे/.test(s.advice), { tag: dmark && dmark.tag, form: dEdit.title, toast: s.toast.slice(0, 200) });
+  warnBox = await f.evaluate(() => { const c = document.getElementById('cf_back'); return c && !c.hidden ? document.getElementById('cf_title').textContent + ' :: ' + document.getElementById('cf_msg').textContent.replace(/\s+/g, ' ') : ''; }); await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} }); await wait(500); const dEdit = await f.evaluate(() => ({ editing: S.editDieselId, title: document.getElementById('d_title').textContent }));
+  ok('2. Diesel Issue list: the issue of 03-09 carries the mark; Edit: the box with the way out; Cancel – the issue is not opened', dmark && dmark.tag === 'RA Bill 61' && !dEdit.editing && /Diesel issue of KLX-1 on 03-09-2026: this machinery is in the submitted RA Bill 61/.test(warnBox) && /send it to the Super Admin for approval/.test(warnBox), { dmark, dEdit, warnBox: warnBox.slice(0, 300) });
   await hush();
   await f.evaluate(() => { const tr = [...document.querySelectorAll('#d_rows tr')].find(r => /KLX-1/.test(r.textContent)); tr.querySelector('[data-ddel]').click(); }); await wait(2000);
-  s = await said();
-  ok('   Delete: the same warning, the issue stays', /is in the submitted RA Bill 61/.test(s.toast) && snap() === before && !(await f.evaluate(() => !document.getElementById('cf_back').hidden)), s.toast.slice(0, 120));
+  warnBox = await f.evaluate(() => { const c = document.getElementById('cf_back'); return c && !c.hidden ? document.getElementById('cf_title').textContent + ' :: ' + document.getElementById('cf_msg').textContent.replace(/\s+/g, ' ') : ''; }); await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} }); await wait(500);
+  ok('   Delete: the same box; Cancel – the issue stays', /is in the submitted RA Bill 61/.test(warnBox) && snap() === before && !(await f.evaluate(() => !document.getElementById('cf_back').hidden)), warnBox.slice(0, 160));
   await hush();
 
   // ---------- 3. Edit Log Book ----------
@@ -83,7 +83,7 @@ const snap = () => sql("select coalesce((select string_agg(id || ' ' || opening_
   const gridState = await f.evaluate(() => ({ note: document.getElementById('lx_lock').hidden ? '' : document.getElementById('lx_lock').textContent.replace(/\s+/g, ' '),
     rows: [...document.querySelectorAll('#lx_rows tr[data-i]')].map(tr => { const r = LX.rows[Number(tr.dataset.i)], ins = [...tr.querySelectorAll('input, select')]; return showDate(r.date).slice(0, 5) + (ins.every(x => x.disabled) ? ' LOCKED' : ins.some(x => x.disabled) ? ' part' : ' open') + (tr.querySelector('.tag.lk') ? ' tag' : '') + (getComputedStyle(tr.querySelector('button.del')).visibility === 'hidden' ? ' no-del' : ''); }) }));
   ok('3. Edit Log Book (25-08 to 05-10): a note above the grid names the bill and the way out; the September rows are read-only (no typing, no ×), 31-08 and 01-10 are open',
-    /01-09-2026 to 30-09-2026 are in the submitted RA Bill 61/.test(gridState.note) && /To correct them: the Admin deletes that bill/.test(gridState.note) && JSON.stringify(gridState.rows) === JSON.stringify(['31-08 open', '01-09 LOCKED tag no-del', '02-09 LOCKED tag no-del', '03-09 LOCKED tag no-del', '04-09 LOCKED tag no-del', '05-09 LOCKED tag no-del', '01-10 open']), gridState);
+    /01-09-2026 to 30-09-2026 are in the submitted RA Bill 61/.test(gridState.note) && /To correct one: Log Book list → Edit \/ Delete on that entry – the change goes to the Super Admin for approval/.test(gridState.note) && JSON.stringify(gridState.rows) === JSON.stringify(['31-08 open', '01-09 LOCKED tag no-del', '02-09 LOCKED tag no-del', '03-09 LOCKED tag no-del', '04-09 LOCKED tag no-del', '05-09 LOCKED tag no-del', '01-10 open']), gridState);
   await p.screenshot({ path: '/home/claude/test/shots/billlock_grid.png' });
   // "+ Add row" / "Add all missing dates": no row for a date of the bill
   await f.evaluate(() => document.getElementById('lx_fill').click()); await wait(600);
@@ -120,7 +120,7 @@ const snap = () => sql("select coalesce((select string_agg(id || ' ' || opening_
     'diesel issue of 03-09 changed': await api('updateDieselIssue', dId, { date: '2026-09-03', shift: 'Day', source: 'Dispenser', no: 'KLX-1', qty: 99, kmReading: 1080, force: true }),
     'diesel issue of 03-09 deleted': await api('deleteDieselIssue', dId),
   };
-  const notRefused = Object.keys(tries).filter(k => !/is in the submitted RA Bill 61 of Lock Vendor P/.test(JSON.stringify(tries[k])) || !/To correct them: the Admin deletes that bill/.test(JSON.stringify(tries[k])));
+  const notRefused = Object.keys(tries).filter(k => !/is in the submitted RA Bill 61 of Lock Vendor P/.test(JSON.stringify(tries[k])) || !/send it to the Super Admin for approval .* or the Admin deletes that bill/.test(JSON.stringify(tries[k])));      // (update-108: the way out names the Super Admin)
   ok('4. the server (asked directly, as the Admin): all ' + Object.keys(tries).length + ' ways of adding / changing / deleting inside the bill are refused with the way out', notRefused.length === 0, notRefused.length ? notRefused.map(k => k + ' → ' + JSON.stringify(tries[k]).slice(0, 160)) : Object.keys(tries));
   ok('   …and the database is exactly as before those tries', snap() === base, snap() === base ? 'identical' : snap());
   const free = [await api('saveLogRows', { rows: [{ date: '2026-10-02', shift: 'Full Day', no: 'KLX-1', mode: 'KM', closingKm: 1290 }] }), await api('saveLogRows', { rows: [{ date: '2026-10-02', shift: 'Full Day', no: 'KLX-2', mode: 'KM', closingKm: 580 }] }), await api('saveDieselIssue', { date: '2026-10-02', shift: 'Day', source: 'Dispenser', no: 'KLX-1', qty: 6, kmReading: 1250, force: true })];

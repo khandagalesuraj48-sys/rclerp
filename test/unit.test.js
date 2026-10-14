@@ -964,7 +964,7 @@ test('every print has "Excel" in its window; a saved bill opens with its Log Boo
 test('a submitted bill locks the Log Book and diesel entries of its machinery for its dates – for everyone, until the bill is deleted; the refusal says the way out', () => {
   const { T, ctx } = require('./harness.js');
   const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
-  const LOCK = /this machinery is in the submitted RA Bill 9 of Lock Vendor \(.+, 01-07-2026 to 31-07-2026\) – its Log Book and diesel entries of those dates cannot be added, changed or deleted\. To correct them: the Admin deletes that bill/;
+  const LOCK = /this machinery is in the submitted RA Bill 9 of Lock Vendor \(.+, 01-07-2026 to 31-07-2026\) – its Log Book and diesel entries of those dates cannot be added, changed or deleted without the Super Admin\. To correct them: change the entry and send it to the Super Admin for approval .* or the Admin deletes that bill/;      // (update-108: the Super Admin's approval is the way out)
   const refused = r => LOCK.test(String((r && r.THROWN) || '') + ' ' + ((r && r.errors) || []).map(e => e.msg).join(' '));
   for (const no of ['BLK-1', 'BLK-2']) run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: no === 'BLK-1' ? 'Lock Vendor' : 'Other Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
   for (const v of ['Lock Vendor', 'Other Vendor']) run('(x, m) => saveVendor_(x, m)', { name: v, gstReg: 'No', pan: 'ABCPE1234L', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
@@ -2532,4 +2532,93 @@ test('update-107: Log Book → Import from Excel takes a water tanker\'s lines a
   for (const m of ['WT-1 is a water tanker – one line per trip (this line has 3 trips): each trip on its own line with its Challan No, From time (dispatch) and To time (unload).',
     '1 line of a water tanker with Idle / Holiday / Breakdown – not imported (a water tanker is entered by its trips only). Nothing to import.'])
     { const r = H.fixRules(m)[0]; assert.ok(r !== H.FIX_ANY && r.mr && r.hi && /one line of the file = one trip/.test(r.en[0]), m); }
+});
+
+test('update-108: the Super Admin changes a billed entry; a user\'s change waits for his approval; the next bill takes the difference (Credit / Debit Note)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  // the session of a Portal sign-in carries the Super Admin; only that one
+  assert.strictEqual(run('() => sessionRead_(sessionMake_("a@b.c", "scrypt$x", 3600000, true)).sup'), true);
+  assert.strictEqual(run('() => sessionRead_(sessionMake_("a@b.c", "scrypt$x", 3600000)).sup'), false);
+  assert.strictEqual(run('() => sessionRead_(sessionMake_("a@b.c", "scrypt$x", 0, true)).sup'), true);
+  assert.match(fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8'), /super: c\.super === true,/);
+  assert.match(fs.readFileSync(path.join(root, 'server', 'system.js'), 'utf8'), /super: c\.super === true && c\.admin,/);
+  // a machinery, its bill of September (as the page builds it), verified and submitted
+  run('(x, m) => saveVendor_(x, m)', { name: 'Corr Unit V', gstReg: 'No', pan: 'ABCPU1234V', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: 'CRU-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Corr Unit V', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-08-01' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'Corr Unit V', from: '2026-08-01', tdsPct: 2, woNo: 'WO-CU', lines: [{ no: 'CRU-1', basis: 'Per KM', rate: 50, diesel: 'Company' }] }, 'add');
+  assert.ok(run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-08-31', shift: 'Full Day', no: 'CRU-1', mode: 'KM', openingKm: 960, closingKm: 1000 }, { date: '2026-09-01', shift: 'Full Day', no: 'CRU-1', mode: 'KM', closingKm: 1040 }, { date: '2026-09-02', shift: 'Full Day', no: 'CRU-1', mode: 'KM', closingKm: 1080 }] }).ok);
+  const co = run('() => billCompanies_()')[0];
+  const mk = (from, to, no) => run(`(a) => { const m = findMachine_('CRU-1'), from = a[0], to = a[1];
+    const c = billMachineCalc_(m, getLogBookList_({ from: from, to: to, no: 'CRU-1', all: true }).rows, logPrintExtra_({ from: from, to: to, nos: ['CRU-1'] }), from, to, undefined, true);
+    const A = r2_(c.amount), B = r2_(c.excessAmt), D = r2_(A - B), H2 = D > 0 ? r2_(D * c.tdsPct / 100) : 0;
+    return { company: a[3], vendor: { name: 'Corr Unit V' }, from: from, to: to, billDate: to, billNo: a[2], picked: ['CRU-1'], partial: false, edited: false, idlePaid: true,
+      machines: [{ no: 'CRU-1', workDays: c.workDays, nights: c.nights, issued: c.issued, amount: c.amount, excessAmt: c.excessAmt, debitQty: c.debitQty, excessQty: c.excessQty, dieselRate: c.dieselRate, lines: c.segs.map(s => ({ unit: s.unit, qty: s.qty, rate: s.rate, amount: s.amount })) }],
+      A: A, B: B, C: 0, D: D, E: 0, F: 0, G: D, H: H2, I: r2_(D - H2), gstPct: c.gstPct, tdsPct: c.tdsPct }; }`, [from, to, no, co]);
+  const submit = b => run('(b, co) => { const v = verifyBills_({ bills: [b] }); if (!v.ok) return { verify: v.bills[0].checks.filter(c => c.s === "bad").map(c => c.t) }; return submitBills_({ bills: [{ vendor: "Corr Unit V", company: co, billNo: b.billNo, from: b.from, to: b.to, billDate: b.billDate, net: b.I, data: b }] }); }', b, co);
+  const s1 = submit(mk('2026-09-01', '2026-09-30', '81'));
+  assert.ok(s1 && s1.ok, JSON.stringify(s1));
+  const key = d => run('d => { const lt = table_(APP.SHEET_LOG), c = lt.c; return logKeyOf_(lt, lt.rows.find(r => str_(r[c[H.NO]]) === "CRU-1" && dkey_(r[c[H.DATE]]) === d)); }', d);
+  // a user is refused as before; the refusal names the way out
+  const refused = run('(k) => { ACTOR_SUPER_ = false; return updateLogRow_(k, { closingKm: 1100 }); }', key('2026-09-02'));
+  assert.match(refused.THROWN || '', /is in the submitted RA Bill 81 .* without the Super Admin\. To correct them: change the entry and send it to the Super Admin for approval/);
+  // he sends it; nothing is saved; another user (not the Super Admin) cannot approve
+  const user = { email: 'u@rcl.test', name: 'User U', admin: false, perms: { 'Log Book': 'Edit' }, active: true };
+  const sent = run('(u, k) => crRequest_(u, { fn: "updateLogRow", args: [k, { closingKm: 1100 }], reason: "typed wrong" })', user, key('2026-09-02'));
+  assert.ok(sent && sent.ok && /^CR-\d{5}$/.test(sent.id), JSON.stringify(sent));
+  assert.match(sent.summary[0], /Change Log Book entry: CRU-1 · 02-09-2026 · Full Day – Close KM 1100 \(saved now: .*Close KM 1080\)/);
+  assert.match(run('(u, k) => crRequest_(u, { fn: "updateLogRow", args: [k, { closingKm: 1100 }], reason: "again" })', user, key('2026-09-02')).THROWN, /already waiting for the Super Admin/);
+  assert.match(run('(u, k) => crRequest_(u, { fn: "saveMaster", args: [], reason: "x" })', user).THROWN, /Only a Log Book or diesel issue change/);
+  assert.match(run('(u, x) => crDecide_(u, x)', user, { id: sent.id, approve: true }).THROWN, /Only the Super Admin approves/);
+  // approved: the requester must still have Edit access (not in this harness's Users) – the request keeps waiting
+  const sa = { email: 'sa@rcl.test', name: 'Super Admin', admin: true, super: true, perms: {} };
+  assert.match(run('(u, x) => crDecide_(u, x)', sa, { id: sent.id, approve: true }).THROWN, /is not an active user of this site any more – reject this request/);
+  assert.match(run('(u, x) => crDecide_(u, x)', sa, { id: sent.id, approve: false }).THROWN, /Write why the change is rejected/);
+  const rej = run('(u, x) => crDecide_(u, x)', sa, { id: sent.id, approve: false, note: 'not needed' });
+  assert.ok(rej.ok && rej.status === 'Rejected' && rej.list.requests[0].status === 'Rejected');
+  // the Super Admin changes the entry himself: allowed; the bill's "before" is kept first (120 → 80 km here: 40 + 40)
+  const saSave = run('(k) => { ACTOR_SUPER_ = true; try { billBaselines_("updateLogRow", [k, { closingKm: 1100 }]); return updateLogRow_(k, { closingKm: 1100 }); } finally { ACTOR_SUPER_ = false; } }', key('2026-09-02'));
+  assert.ok(saSave && !saSave.THROWN, JSON.stringify(saSave));
+  const base = run('() => { const t = crTable_(false); return t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.kind === "Baseline").map(r => ({ id: r.id, data: JSON.parse(r.data) })); }');
+  assert.strictEqual(base.length, 1); assert.strictEqual(base[0].data.units.KM.qty, 80); assert.strictEqual(base[0].data.amount, 4000);
+  // the next bill: KM 80 → 100 at the old rate ₹50 = +₹1,000 → a Credit Note of ₹980 (TDS 2%)
+  assert.ok(run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-10-01', shift: 'Full Day', no: 'CRU-1', mode: 'KM', closingKm: 1140 }] }).ok);
+  const corr = run('co => billCorrections_({ vendor: "Corr Unit V", company: co, bills: [{ from: "2026-10-01", to: "2026-10-10", machines: ["CRU-1"] }] })', co);
+  assert.strictEqual(corr.items.length, 1);
+  const z = corr.items[0];
+  assert.deepStrictEqual([z.billNo, z.no, z.work[0].from, z.work[0].to, z.work[0].rate, z.work[0].amount, z.diesel, z.kind, z.amount, z.tds, z.total], ['81', 'CRU-1', 80, 100, 50, 1000, null, 'Credit', 1000, 20, 980]);
+  // a bill that does not take it (or does not tick it) is not submitted
+  const b2 = mk('2026-10-01', '2026-10-10', '82');
+  assert.ok((submit(b2).verify || []).some(t => /a difference of ₹980 \(Credit Note – to the vendor\) is not taken in this bill/.test(t)));
+  b2.corr = corr.items.map(x => Object.assign({}, x, { checked: false }));
+  assert.ok((submit(b2).verify || []).some(t => /tick "Checked" for its difference/.test(t)));
+  b2.corr.forEach(x => { x.checked = true; });
+  const s2 = submit(b2);
+  assert.ok(s2 && s2.ok, JSON.stringify(s2));
+  const saved = run('id => { const b = getBills_({ id: id }).bills[0]; return { J: b.data.J, K: b.data.K, I: b.data.I, corr: b.data.corr.map(x => x.noteNo + " " + x.kind + " " + x.total) }; }', s2.saved[0].id);
+  assert.deepStrictEqual([saved.J, saved.K, saved.corr.length], [-980, saved.I + 980, 1]);
+  assert.match(saved.corr[0], /CN-001 Credit 980$/);
+  const notes = run('() => dnList_().filter(d => d.vendor === "Corr Unit V").map(d => d.kind + " " + d.total + " " + d.status + " " + d.lines.map(l => l.amount).join("/"))');
+  assert.deepStrictEqual(notes, ['Correction CN 980 Deducted 1000']);
+  assert.strictEqual(run('co => billCorrections_({ vendor: "Corr Unit V", company: co, bills: [] }).items.length', co), 0, 'taken: nothing left');
+  // the ledger: the Credit Note adds to what the vendor gets; the Debit Note run is not moved by it
+  assert.ok(run('() => ledgerLines_().filter(l => l.vendor === "Corr Unit V" && l.kind === "cn").map(l => l.bill)').includes(980));
+  assert.match(run('co => nextDnNo_(co)', co), /DN-\d{3}$/);
+  // the bill deleted: its note is cancelled and the difference comes back
+  assert.ok(run('id => deleteBill_(id, "test")', s2.saved[0].id).ok);
+  assert.deepStrictEqual(run('() => dnList_().filter(d => d.vendor === "Corr Unit V").map(d => d.status)'), ['Cancelled']);
+  assert.strictEqual(run('co => billCorrections_({ vendor: "Corr Unit V", company: co, bills: [] }).items.length', co), 1);
+  // the page: the Super Admin's lock is no lock; a user may send the refused save; Approvals is his page; the bill shows the calculation
+  assert.match(app, /const lxLockOf = dk => S\.user && S\.user\.super \? null :/);
+  assert.match(app, /if \(CR_FNS\.indexOf\(fn\) > -1\) p0 = p0\.then\(/);
+  assert.match(app, /\$\('tab-approvals'\)\.hidden = !u\.super;/);
+  assert.match(app, /Corrections of earlier bills taken in this bill \(at the earlier bill\\'s rates\)/);
+  const pageFns = (app.match(/const CR_FNS = \[([^\]]+)\]/) || [])[1].replace(/\s+/g, ''), srvFns = (code.match(/const CR_FNS_ = \[([^\]]+)\]/) || [])[1].replace(/\s+/g, '');
+  assert.strictEqual(pageFns, srvFns, 'the page and the server know the same saves');
+  // step 1z: only adds a table; listed word for word in Read Me
+  const sqlFile = fs.readFileSync(path.join(root, 'sql', 'supabase_step1z_billed_changes.sql'), 'utf8');
+  assert.ok(/create table if not exists public\.billed_changes/.test(sqlFile) && !/\b(drop table|delete from|truncate|update public)\b/i.test(sqlFile.replace(/^--.*$/gm, '')));
+  const listed = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1z_billed_changes.sql');
+  assert.ok(listed && listed.sql === sqlFile);
 });
