@@ -87,7 +87,7 @@ function ssoLogin(R, args) {
     if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').');
     at = s.home ? '' : s.code;
   }
-  const r = R.runIn(at, 'sysSso', [{ email: c.email, name: c.name, admin: c.admin, jti: c.jti, exp: c.exp }]);
+  const r = R.runIn(at, 'sysSso', [{ email: c.email, name: c.name, admin: c.admin, super: c.super === true && c.admin, jti: c.jti, exp: c.exp }]);
   if (reg) { try { keepMembership(c.email, c.site, true, c.admin); } catch (e) { console.error('[portal sign-in: site list] ' + String((e && e.message) || e)); } }      // (only the app's own list – the sign-in works without it)
   return { token: r.token, user: r.user, site: reg ? c.site : '', siteName: c.siteName, portal: { url: portal.url(), mods: c.mods, sites: c.sites } };
 }

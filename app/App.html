@@ -1231,7 +1231,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .bl-t tbody tr:not(.bl-rent) td, .bl-sum tr:not(.rD):not(.rG):not(.rI) td { background: #fff !important; }
   .bl-head tr.bl-site td { background: #FAFAFA; line-height: 1.45; }
   .bl-wc { display: flex; justify-content: center; gap: 28px; align-items: baseline; text-align: center; font-weight: 700; font-size: 19px; padding: 6px 10px; background: #EDEDED; border-top: 1px solid #111; border-bottom: 1px solid #111; }
-  .bl-t th { background: #EDEDED; font-weight: 700; text-align: left; } .bl-t td.n, .bl-sum td.n { text-align: right; white-space: nowrap; } .bl-t td.c, .bl-sum td.c { text-align: center; }
+  .bl-t th { background: #EDEDED; font-weight: 700; text-align: left; } .bl-t td.n, .bl-sum td.n { text-align: right; white-space: nowrap; } .bl-t td.c, .bl-sum td.c { text-align: center; } .bl-t.bl-corr { margin-top: 3mm; } .bl-t.bl-corr th[colspan] { white-space: normal; text-align: center; } .bl-t.bl-corr small { display: block; font-size: .82em; color: #333; }
   .bl-t td b { font-weight: 700; letter-spacing: .02em; }
   .bl-t tr.bl-rent td { font-weight: 700; background: #F7F7F7; } .bl-t tr.bl-rent td.rl { text-align: right; } .bl-t tr.bl-rent td.n { text-align: right; }
   .bl-sum td.l { width: 6%; font-weight: 600; } .bl-sum td.t { text-align: right; font-style: italic; } .bl-sum td.t small { display: block; font-size: 14px; font-style: normal; color: #444; }
@@ -2065,6 +2065,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .mb-warn { margin-top: 7px; padding: 8px 10px; border: 1px solid #F0D58A; background: #FFFBEC; border-radius: 9px; font-size: 12.5px; color: #5C3D00; white-space: normal; max-width: 520px; }
   .mb-warn .fixhelp { margin-top: 7px; font-size: 12.5px; }
   @media (max-width: 760px) { #fixbox { right: 8px; bottom: 70px; } }
+  .cr-why { display: block; margin-top: 8px; font-weight: 600; } .cr-why textarea { width: 100%; margin-top: 4px; font: inherit; }      /* (update-108) */
+  .mb-corr { margin-top: 6px; font-size: 12px; color: #1E3A8A; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }      /* (update-108) */
+  .mb-corr label { display: flex; gap: 6px; align-items: flex-start; font-weight: 500; cursor: pointer; } .mb-corr input[type=checkbox] { width: 16px; height: 16px; min-height: 0; flex: none; margin: 2px 0 0; padding: 0; } .mb-corr small { color: #475569; }
   .mb-dns { margin-top: 6px; font-size: 12px; color: #9A3412; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
   .mb-dns span { font-weight: 700; } .mb-dns label { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; cursor: pointer; } .mb-dns input { width: auto; min-height: 0; }
   .dn-new { border: 1px solid #DDE3EA; border-radius: 12px; padding: 14px 16px; margin: 0 0 14px; background: #FAFBFC; }
@@ -2776,6 +2779,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="grpitems" id="grp_admin_items" role="tablist" aria-orientation="vertical">
         <button class="navbtn" role="tab" id="tab-users" aria-controls="sec-users" aria-selected="false" title="Users &amp; Access"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg><span class="label">Users &amp; Access</span></button>
         <button class="navbtn" role="tab" id="tab-activity" aria-controls="sec-activity" aria-selected="false" title="Activity Log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8v4l3 3"/><path d="M3.05 11a9 9 0 1 1 .5 4"/><path d="M3 16v-5h5"/></svg><span class="label">Activity Log</span></button>
+        <button class="navbtn" role="tab" id="tab-approvals" aria-controls="sec-approvals" aria-selected="false" title="Approvals" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="label">Approvals</span></button>
         <button class="navbtn" role="tab" id="tab-readme" aria-controls="sec-readme" aria-selected="false" title="Read Me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7"/><path d="M9 11h5"/></svg><span class="label">Read Me</span></button>
       </div>
     </div>
@@ -3189,6 +3193,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   </section>
 
   <!-- ================= ACTIVITY LOG (Admin) ================= -->
+  <!-- (update-108) the Super Admin approves or rejects a change of a billed period -->
+  <section id="sec-approvals" role="tabpanel" aria-labelledby="tab-approvals" hidden>
+    <div class="panel">
+      <h2>Approvals</h2>
+      <p class="empty-note" style="margin:-4px 0 10px">Changes of Log Book and diesel entries that are in a submitted bill, sent by the users. <b>Approve</b> = the change is saved now (checked like any save) and the difference is taken in the vendor's next bill. <b>Reject</b> = nothing is saved.</p>
+      <div class="toolbar">
+        <div class="quick"><button class="btn ghost small" id="cr_refresh" type="button">Refresh</button><label class="pn-opt"><input type="checkbox" id="cr_all"> Show approved and rejected too</label></div>
+        <div class="sum" id="cr_sum"></div>
+      </div>
+      <div class="table-wrap"><table class="activity">
+        <thead><tr><th>Asked</th><th>By</th><th>What changes</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+        <tbody id="cr_rows"></tbody>
+      </table></div>
+    </div>
+  </section>
   <section id="sec-activity" role="tabpanel" aria-labelledby="tab-activity" hidden>
     <div class="panel">
       <h2>Activity Log</h2>
@@ -4471,8 +4490,30 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   const CHANGES_DATA = ['saveTransfer', 'updateTransfer', 'deleteTransfer', 'saveInward', 'updateInward', 'deleteInward', 'saveDieselIssue', 'saveDieselBulk', 'updateDieselIssue', 'deleteDieselIssue', 'saveLogBook',
     'saveLogDay', 'saveLogRows', 'updateLogRow', 'deleteLogRow', 'saveMaster', 'saveMasterBulk', 'deleteMaster', 'importMaster'];
+  /* (update-108) A SAVE THE BILL LOCK REFUSED (an entry of a submitted bill): the user may send exactly that save to the Super Admin for
+   * approval (with a reason). It is saved only when he approves (Approvals). The caller then gets CR_SENT – nothing was saved here. */
+  const CR_FNS = ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'saveLogBulk', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip', 'updateTankerTrip',
+    'saveTankerRange', 'importTankerTrips', 'saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'updateDieselIssue', 'deleteDieselIssue'];
+  const CR_SENT = 'Sent to the Super Admin for approval – it is saved only when he approves (nothing is saved until then).';
+  const crLocked = m => /is in the submitted RA Bill/.test(String(m || ''));
+  async function crOffer(fn, args, msg) {
+    if (!S.user || S.user.super) return false;
+    for (;;) {
+      if (!(await askConfirm({ title: 'In a submitted bill – send it to the Super Admin?', ok: 'Send for approval', wide: true,
+        html: '<p>' + esc(String(msg).replace(/^(Line|Row) [^:]+: /, '')) + '</p><p>This change can be <b>sent to the Super Admin</b>: it is saved only when he approves it. The bill itself is not changed – the difference is taken in the next bill of the vendor.</p>' +
+          '<label class="cr-why">Why is this change needed? <textarea id="cr_reason" rows="2" maxlength="300" placeholder="e.g. Close KM was typed wrong – the meter photo shows 1040"></textarea></label>' }))) return false;
+      const why = String(($('cr_reason') || {}).value || '').trim();
+      if (!why) { toast('Write why the change is needed – the Super Admin reads it.', true); continue; }
+      const r = await rawCall('sendChangeRequest', { fn: fn, args: args, reason: why });
+      toast('Sent to the Super Admin for approval (' + r.id + ').');
+      return true;
+    }
+  }
   function call(fn, ...args) {
-    const p = rawCall(fn, ...args).then(r => { if (r && r.stock && typeof r.stock.stock === 'number') setStock(r.stock); return r; });
+    let p0 = rawCall(fn, ...args);
+    if (CR_FNS.indexOf(fn) > -1) p0 = p0.then(async r => { const lk = (r && r.ok === false ? (r.errors || []) : []).map(e => (e && e.msg) || e).find(crLocked); if (lk && await crOffer(fn, args, lk)) throw new Error(CR_SENT); return r; },
+      async e => { if (crLocked(errMsg(e)) && await crOffer(fn, args, errMsg(e))) throw new Error(CR_SENT); throw e; });
+    const p = p0.then(r => { if (r && r.stock && typeof r.stock.stock === 'number') setStock(r.stock); return r; });
     if (CHANGES_DATA.indexOf(fn) > -1) return p.then(r => {
       if (typeof dashSoon === 'function') dashSoon();
       // own save: if nobody else changed anything meanwhile, just note the new versions (no second reload)
@@ -5179,6 +5220,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     document.querySelectorAll('[data-perm]').forEach(el => { el.hidden = !canEdit(el.dataset.perm); });
     document.querySelectorAll('[data-viewonly]').forEach(el => { el.hidden = canEdit(el.dataset.viewonly); });
     $('grp_admin').hidden = !u.admin;
+    $('tab-approvals').hidden = !u.super;      // (update-108) the Super Admin only
+    if (u.super && !S.crAsked) { S.crAsked = true; setTimeout(() => crLoad(true), 1500); }
     // pages the user has no access to are not shown; a section with nothing left in it is hidden too
     Object.keys(TAB_MODULE).forEach(t => { const b = $('tab-' + t); if (b) b.hidden = (u.perms || {})[TAB_MODULE[t]] === 'None'; });
     document.querySelectorAll('.navbtn[id^="tab-rp-"]').forEach(b => { b.hidden = (u.perms || {}).Reports === 'None'; });
@@ -5461,13 +5504,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         'तारीख तपासा. Entry खरोखर त्याच दिवसाची असेल तर Admin ला ती भरायला सांगा, किंवा काही काळासाठी दिवसांची संख्या वाढवायला सांगा (Settings → Rules of this site).'],
       hi: ['User कितने दिन पीछे की entries भर या बदल सकता है यह Admin ने तय किया है। यह तारीख उससे पुरानी है।',
         'तारीख जाँचें। Entry सच में उसी दिन की हो तो Admin से भरने को कहें, या कुछ समय के लिए दिनों की संख्या बढ़ाने को कहें (Settings → Rules of this site)।'] },
-    { re: /is in the submitted RA Bill/i,
-      en: ['This machinery is in a bill that is already submitted for these dates. Once a bill is submitted, the Log Book and diesel entries of its machinery for the bill\'s dates are locked – so that the saved bill and the entries always agree.',
-        'Check the machinery and the date first – if the entry belongs to another date, correct the date. If an entry of the billed dates really has to be added, changed or deleted: ask the Admin to delete that bill (RCL Drive → Saved Bills → Delete, with the reason); make the correction; then build and submit the bill again (Machinery Billing).'],
-      mr: ['ही machinery या तारखांसाठी आधीच submit झालेल्या bill मध्ये आहे. Bill submit झाले की त्यातल्या machinery च्या त्या तारखांच्या Log Book आणि diesel entries lock होतात – म्हणजे save झालेले bill आणि entries नेहमी जुळतात.',
-        'आधी machinery आणि तारीख तपासा – entry दुसऱ्या तारखेची असेल तर तारीख दुरुस्त करा. Bill च्या तारखांमधली entry खरोखर जोडायची, बदलायची किंवा delete करायची असेल तर: Admin ला ते bill delete करायला सांगा (RCL Drive → Saved Bills → Delete, कारणासह); दुरुस्ती करा; मग bill पुन्हा Build करून submit करा (Machinery Billing).'],
-      hi: ['यह machinery इन तारीखों के लिए पहले से submit हुए bill में है। Bill submit होते ही उसकी machinery की उन तारीखों की Log Book और diesel entries lock हो जाती हैं – ताकि save हुआ bill और entries हमेशा मेल खाएँ।',
-        'पहले machinery और तारीख जाँचें – entry किसी और तारीख की हो तो तारीख ठीक करें। Bill की तारीखों की entry सच में जोड़नी, बदलनी या delete करनी हो तो: Admin से वह bill delete करवाएँ (RCL Drive → Saved Bills → Delete, कारण के साथ); सुधार करें; फिर bill दोबारा Build करके submit करें (Machinery Billing)।'] },
+    { re: /is in the submitted RA Bill/i,      // (update-108: the way out is the Super Admin's approval)
+      en: ['This machinery is in a bill that is already submitted for these dates. Its Log Book and diesel entries of those dates are locked, so that the saved bill and the entries always agree – only the Super Admin changes them.',
+        'Check the machinery and the date first – if the entry belongs to another date, correct the date. If an entry of the billed dates really has to change: make the change and press Save – the page offers "Send for approval"; write why. The Super Admin approves it (Approvals) and then it is saved; the bill is not changed – the difference comes in the vendor\'s next bill as a Credit / Debit Note.'],
+      mr: ['ही machinery या तारखांसाठी आधीच submit झालेल्या bill मध्ये आहे. त्या तारखांच्या Log Book आणि diesel entries lock असतात – म्हणजे save झालेले bill आणि entries नेहमी जुळतात; त्या फक्त Super Admin बदलू शकतो.',
+        'आधी machinery आणि तारीख तपासा – entry दुसऱ्या तारखेची असेल तर तारीख दुरुस्त करा. Bill च्या तारखेची entry खरोखर बदलायची असेल तर: बदल करून Save दाबा – page "Send for approval" विचारते; कारण लिहा. Super Admin ने (Approvals पानावर) मंजूर केले की तो बदल save होतो; bill बदलत नाही – फरक vendor च्या पुढच्या bill मध्ये Credit / Debit Note ने येतो.'],
+      hi: ['यह machinery इन तारीखों के लिए पहले से submit हुए bill में है। उन तारीखों की Log Book और diesel entries lock होती हैं – ताकि save हुआ bill और entries हमेशा मेल खाएँ; इन्हें सिर्फ Super Admin बदल सकता है।',
+        'पहले machinery और तारीख जाँचें – entry दूसरी तारीख की हो तो तारीख ठीक करें। Bill की तारीख की entry सच में बदलनी हो तो: बदलाव करके Save दबाएँ – page "Send for approval" पूछता है; कारण लिखें। Super Admin (Approvals पेज पर) मंज़ूर करे तो बदलाव save होता है; bill नहीं बदलता – फर्क vendor के अगले bill में Credit / Debit Note से आता है।'] },
+    { re: /cannot be sent to the Super Admin yet|supabase_step1z/i,      // (update-108)
+      en: ['A change of a billed period needs one database step first (step 1z) – it has not been run in this site\'s database yet.', 'Nothing was saved or sent. The Super Admin runs sql/supabase_step1z_billed_changes.sql in Supabase → SQL Editor, in every site (Read Me lists it word for word; it only adds one empty table). Then send the change again.'],
+      mr: ['Bill झालेल्या तारखेच्या बदलासाठी database मध्ये एक step लागते (step 1z) – ती या site च्या database मध्ये अजून run झालेली नाही.', 'काहीही save किंवा पाठवले गेले नाही. Super Admin ने sql/supabase_step1z_billed_changes.sql Supabase → SQL Editor मध्ये प्रत्येक site ला run करावे (Read Me मध्ये शब्दशः आहे; ते फक्त एक रिकामी table जोडते). मग बदल पुन्हा पाठवा.'],
+      hi: ['Bill हुई तारीख के बदलाव के लिए database में एक step चाहिए (step 1z) – वह इस site के database में अभी run नहीं हुई है।', 'कुछ भी save या भेजा नहीं गया। Super Admin sql/supabase_step1z_billed_changes.sql को Supabase → SQL Editor में हर site पर run करे (Read Me में शब्दशः है; यह सिर्फ एक खाली table जोड़ता है)। फिर बदलाव दोबारा भेजें।'] },
+    { re: /sent to the Super Admin|already waiting for the Super Admin|Super Admin's approval|Super Admin\\'s approval|This request (is already|was not found|names an action)|It could not be saved: |save the change directly|Only the Super Admin approves|reject this request|Write why (this|the) change/i,      // (update-108) Approvals
+      en: ['A change of a billed period: it waits for the Super Admin\'s approval (Approvals) and is saved only when he approves it.', 'Each change is sent once, with its reason. The Super Admin (signed in through the Portal) opens Approvals: Approve saves it as the user\'s change with every check of a save – if something else changed meanwhile it is refused with the reason and keeps waiting (correct that first, or Reject). Reject needs a reason. A request already decided cannot be decided again.'],
+      mr: ['Bill झालेल्या तारखेचा बदल: तो Super Admin च्या मंजुरीसाठी (Approvals) थांबतो आणि मंजूर झाल्यावरच save होतो.', 'प्रत्येक बदल एकदाच, कारणासह पाठवला जातो. Super Admin (Portal मधून sign in) Approvals उघडतो: Approve केल्यावर तो user चा बदल म्हणून save होतो, save चे सगळे checks होऊन – मध्ये दुसरे काही बदलले असेल तर कारणासह नाकारला जातो आणि थांबून राहतो (आधी ते दुरुस्त करा, किंवा Reject करा). Reject ला कारण लागते. एकदा निर्णय झालेली request पुन्हा ठरवता येत नाही.'],
+      hi: ['Bill हुई तारीख का बदलाव: वह Super Admin की मंज़ूरी (Approvals) के लिए रुकता है और मंज़ूर होने पर ही save होता है।', 'हर बदलाव एक बार, कारण के साथ भेजा जाता है। Super Admin (Portal से sign in) Approvals खोलता है: Approve करने पर वह user के बदलाव के रूप में save होता है, save के सारे checks के साथ – बीच में कुछ और बदला हो तो कारण के साथ मना होता है और रुका रहता है (पहले वह ठीक करें, या Reject करें)। Reject के लिए कारण चाहिए। एक बार तय हुई request दोबारा तय नहीं होती।'] },
+    { re: /earlier RA Bill|earlier bills of this vendor|differences of earlier bills|difference of an earlier bill/i,      // (update-108) the next bill takes what changed
+      en: ['An entry of an earlier submitted bill of this vendor was changed (by the Super Admin, or approved by him). The new bill must take the difference: worked out at the earlier bill\'s rates, as a Credit Note (to the vendor) or a Debit Note (from the vendor).', 'Build the bills again: the differences show in a blue box on the vendor\'s first bill, with the calculation. Check each one and tick it – then Verify & Submit. The notes are made on submit and shown in the bill (J / K). A difference not ticked stops the submit.'],
+      mr: ['या vendor च्या आधीच्या submit झालेल्या bill ची entry बदलली आहे (Super Admin ने, किंवा त्याच्या मंजुरीने). नव्या bill ने तो फरक घ्यायलाच हवा: जुन्या bill च्या rate ने, Credit Note (vendor ला) किंवा Debit Note (vendor कडून) म्हणून.', 'Bills पुन्हा Build करा: vendor च्या पहिल्या bill वर निळ्या box मध्ये फरक हिशोबासह दिसतात. प्रत्येक तपासून tick करा – मग Verify & Submit. Submit झाल्यावर notes बनतात आणि bill मध्ये दिसतात (J / K). Tick न केलेला फरक असेल तर submit होत नाही.'],
+      hi: ['इस vendor के पहले submit हुए bill की entry बदली गई है (Super Admin ने, या उसकी मंज़ूरी से)। नए bill को वह फर्क लेना ही होगा: पुराने bill के rate से, Credit Note (vendor को) या Debit Note (vendor से) के रूप में।', 'Bills फिर से Build करें: vendor के पहले bill पर नीले box में फर्क हिसाब के साथ दिखते हैं। हर एक जाँचकर tick करें – फिर Verify & Submit। Submit पर notes बनते हैं और bill में दिखते हैं (J / K)। Tick न किया फर्क हो तो submit नहीं होता।'] },
     { re: /are closed \(month closed/i,
       en: ['The month of this date has been closed by the Admin. After the bills of a month are submitted its entries are locked, so that the saved bills and the entries stay the same.',
         'Check the date – if the entry belongs to an open date, correct the date. If an entry of the closed month really has to be added or corrected, ask the Admin: Machinery Billing → Month close → Reopen; make the correction; build the affected bill again; close the month again.'],
@@ -5717,7 +5772,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period. Photos (One entry, after picking the machinery): Dashboard, Vehicle + driver, Dispenser litres and Register – each taken with the camera there and then (not from the gallery), with the date, time and place printed on it; the AI reads the reading on the dashboard photo (it is told the last reading of the machinery, to pick the right number) and the litres on the dispenser photo, and puts them in the boxes (blue) – check them, type over them if wrong. The Driver box gets the driver of the last fill of the machinery (a typed name stays). 📷 in the list opens the photos of an entry. On a phone a saved entry shows a green "saved" box for 3 seconds (× closes it at once) and the form is empty for the next machinery; the keyboard opens only when a box is tapped. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed.'],
       mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते. Photos (One entry मध्ये, machinery निवडल्यावर): Dashboard, गाडी + driver, Dispenser वरचे लिटर आणि Register – प्रत्येक त्याच वेळी camera ने काढायचा (gallery मधून नाही); त्यावर तारीख, वेळ आणि ठिकाण छापले जाते. Dashboard च्या photo वरचे reading (योग्य आकडा निवडायला AI ला गाडीचे मागचे reading सांगितले जाते) आणि dispenser च्या photo वरचे लिटर AI वाचून box मध्ये (निळ्या रंगात) भरते – ते तपासा, चुकले तर बदला. Driver box मध्ये त्या गाडीच्या मागच्या fill चा driver आपोआप येतो (टाइप केलेले नाव तसेच राहते). यादीतले 📷 दाबले की त्या entry चे photo दिसतात. Phone वर entry save झाली की 3 सेकंद हिरवा "saved" box दिसतो (× ने लगेच बंद) आणि पुढच्या गाडीसाठी form रिकामा होतो; keyboard फक्त box वर दाबल्यावर उघडतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
       hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है। Photos (One entry में, machinery चुनने के बाद): Dashboard, गाड़ी + driver, Dispenser के लीटर और Register – हर एक उसी समय camera से लेना है (gallery से नहीं); उस पर तारीख, समय और जगह छपती है। Dashboard की photo पर की reading (सही अंक चुनने के लिए AI को गाड़ी की पिछली reading बताई जाती है) और dispenser की photo पर के लीटर AI पढ़कर box में (नीले रंग में) भरता है – उन्हें जाँचें, गलत हों तो बदलें। Driver box में उस गाड़ी की पिछली fill का driver अपने-आप आता है (टाइप किया नाम वैसा ही रहता है)। सूची का 📷 दबाने पर उस entry की photos दिखती हैं। Phone पर entry save होते ही 3 सेकंड हरा "saved" box दिखता है (× से तुरंत बंद) और अगली गाड़ी के लिए form खाली हो जाता है; keyboard केवल box पर दबाने से खुलता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है।'] },
-    log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip', 'updateTankerTrip', 'importTankerTrips'],
+    log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip', 'updateTankerTrip', 'importTankerTrips', 'sendChangeRequest'],
       en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic). A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) that worked TWO OR MORE TIMES in one shift (e.g. Breaker 100 → 102, then 110 → 113): add a second row for the same machinery, date and shift and type its own Start and Close – it may start higher than the row above; the hours in between (102 → 110) are not counted, so that day is 5 hours (bill and diesel). For such a machinery, changing or deleting an entry never changes another date: if a Close comes above the Start of the next entry, the app says so and saves nothing. In such a shift a row may also be by Time (e.g. Bucket 09:00 – 11:00 when the meter gave no reading, then Breaker 3714.5 → 3717.5): its hours are added (2 + 3 = 5 hours); the Start and Close of the entry come from its rows by Hrs, and the next day starts at the last Close. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. A WATER TANKER (Log Book Format I) is entered with "Water tanker – trip by trip": one line per trip (challan no, dispatch and unload time, chainage, use for), Day or Night, trips can be added any time of the day; the same challan of the agency or a time on another trip is refused.'],
       mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप). Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ने (JCB, excavator, breaker) एकाच shift मध्ये दोन किंवा जास्त वेळा काम केले असेल (उदा. Breaker 100 → 102, मग 110 → 113): त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा आणि तिचे स्वतःचे Start आणि Close टाका – ते वरच्या ओळीच्या Close पेक्षा जास्त असू शकते; मधले तास (102 → 110) धरले जात नाहीत, म्हणून तो दिवस 5 तासांचा (bill आणि diesel). अशा machinery ची entry बदलली किंवा delete केली तरी दुसरी तारीख कधीच बदलत नाही: Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर app तसे सांगते आणि काहीही save करत नाही. अशा shift मध्ये एखादी ओळ Time वर पण असू शकते (उदा. meter ने reading दिले नाही तेव्हा Bucket 09:00 – 11:00, मग Breaker 3714.5 → 3717.5): त्या ओळीचे तास जोडले जातात (2 + 3 = 5 तास); entry चे Start आणि Close तिच्या Hrs ओळींवरून येतात, आणि पुढचा दिवस शेवटच्या Close पासून सुरू होतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. WATER TANKER (Log Book Format I) ची entry "Water tanker – trip by trip" मधून: प्रत्येक trip ची एक ओळ (challan no, dispatch आणि unload वेळ, chainage, use for), Day किंवा Night; दिवसभरात कधीही trips जोडता येतात; agency चा तोच challan किंवा दुसऱ्या trip च्या वेळेवरची वेळ save होत नाही.'],
       hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। Meter बंद हो तो "No reading" चुनें: दिन भरा जाता है और उसका काम अनुमान से लिया जाता है (app machinery का औसत सुझाता है), कारण के साथ; नए meter की पहली entry पर "new meter" tick करें। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं। जिस machinery के BOQ में घंटे के (या KM के) दो या ज़्यादा काम हैं – Bucket और Breaker – उसे यहाँ उसी तारीख और उसी shift में हर काम की अलग पंक्ति दी जा सकती है: उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें, उसका काम दबाएँ; उसका Start ऊपर वाली पंक्ति का Close है। वह एक ही entry के रूप में save होती है और उसकी पंक्तियाँ याद रहती हैं। Print Log Book: दो काम वाली entry (Bucket और Breaker) print में हर काम की अलग पंक्ति में आती है, और diesel debit का rate print के box में हाथ से डाला जा सकता है (खाली = अपने आप)। Hours पर चलने वाली machine (JCB, excavator) का hour meter किसी दिन reading न दे तो: उस दिन के लिए Time चुनें और From – To डालें – वे घंटे, घंटे ही गिने जाते हैं (bill, diesel average); अगले hours दिन का Start आख़िरी hour reading से आता है। सिर्फ़ घंटों पर चलने वाली machinery ने (JCB, excavator, breaker) एक ही shift में दो या ज़्यादा बार काम किया हो (जैसे Breaker 100 → 102, फिर 110 → 113): उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें और उसका अपना Start और Close डालें – वह ऊपर वाली पंक्ति के Close से ज़्यादा हो सकता है; बीच के घंटे (102 → 110) नहीं गिने जाते, इसलिए वह दिन 5 घंटे का (bill और diesel)। ऐसी machinery की entry बदलने या delete करने पर दूसरी तारीख कभी नहीं बदलती: Close अगली entry के Start से ज़्यादा हो जाए तो app बताता है और कुछ भी save नहीं करता। ऐसी shift में कोई पंक्ति Time पर भी हो सकती है (जैसे meter ने reading नहीं दी तब Bucket 09:00 – 11:00, फिर Breaker 3714.5 → 3717.5): उस पंक्ति के घंटे जोड़े जाते हैं (2 + 3 = 5 घंटे); entry का Start और Close उसकी Hrs पंक्तियों से आता है, और अगला दिन आख़िरी Close से शुरू होता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। WATER TANKER (Log Book Format I) की entry "Water tanker – trip by trip" से: हर trip की एक पंक्ति (challan no, dispatch और unload समय, chainage, use for), Day या Night; दिन में कभी भी trips जोड़ी जा सकती हैं; agency का वही challan या दूसरी trip के समय पर का समय save नहीं होता।'] },
@@ -5733,7 +5788,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The daily breakdown report: which machinery is working and which is under breakdown, with the reason.', 'Each machinery needs Working or Breakdown; a breakdown needs its reason. One report per date. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed.'],
       mr: ['रोजचा breakdown अहवाल: कोणती machinery चालू आहे आणि कोणती breakdown मध्ये आहे, कारणासह.', 'प्रत्येक machinery साठी Working किंवा Breakdown निवडावे लागते; breakdown ला कारण लागते. एका तारखेला एकच अहवाल. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
       hi: ['रोज़ की breakdown रिपोर्ट: कौन सी machinery चालू है और कौन सी breakdown में है, कारण के साथ।', 'हर machinery के लिए Working या Breakdown चुनना होता है; breakdown का कारण ज़रूरी है। एक तारीख को एक ही रिपोर्ट। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है।'] },
-    bill: { saves: ['saveBillSettings', 'verifyBills', 'submitBills', 'saveBooksLock'],
+    bill: { saves: ['saveBillSettings', 'verifyBills', 'submitBills', 'saveBooksLock', 'billCorrections'],
       en: ['Makes the vendor bills of a period from the Log Book, the diesel issues and the BOQ: the Abstract, the party\'s Tax Invoice and the diesel Debit Note.', 'A = work done at BOQ rates; B = diesel deducted (debit basis in full, otherwise only above the standard average, at the higher of the average and last diesel rate; what is left of the LAST fill of the period – its litres less the standard need of the run after it – is taken as still in the tank and not debited); D = A − B − C; GST and TDS on D; I = net payable; ticked debit notes come off after I. Before submit the server builds every bill again and compares it. Diesel issued on a day without a Log Book entry is counted and pointed out. The diesel rate of a bill can be typed by hand in the box "₹/L" under its diesel deduction (empty = the automatic rate): the Abstract, the Debit Note and the Log Book of that bill follow it, and the saved bill keeps it.'],
       mr: ['Log Book, diesel issues आणि BOQ वरून एका कालावधीची vendor bills बनवते: Abstract, party चा Tax Invoice आणि diesel ची Debit Note.', 'A = BOQ दराने झालेले काम; B = कापलेले diesel (debit basis असेल तर पूर्ण, नाहीतर फक्त standard average पेक्षा जास्तीचे; दर = सरासरी आणि शेवटच्या diesel दरातला मोठा; कालावधीतल्या शेवटच्या भरण्यातले उरलेले diesel, म्हणजे त्याचे लिटर वजा त्यानंतरच्या चालण्याला standard प्रमाणे लागणारे, tank मध्ये धरले जाते आणि debit होत नाही); D = A − B − C; GST आणि TDS D वर; I = निव्वळ देय; tick केलेल्या debit notes I नंतर वजा होतात. Submit आधी server प्रत्येक bill पुन्हा बनवून तुलना करतो. Log Book entry नसलेल्या दिवशी दिलेले diesel मोजले जाते आणि दाखवले जाते. एखाद्या bill चा diesel rate त्याच्या diesel कपातीखालील "₹/L" box मध्ये हाताने टाकता येतो (रिकामा = आपोआप rate): त्या bill चे Abstract, Debit Note आणि Log Book त्याच rate ने होतात, आणि save झालेले bill तो rate ठेवते.'],
       hi: ['Log Book, diesel issues और BOQ से एक अवधि के vendor bills बनाता है: Abstract, party का Tax Invoice और diesel की Debit Note।', 'A = BOQ दर से हुआ काम; B = काटा गया diesel (debit basis हो तो पूरा, वरना केवल standard average से ऊपर का; दर = औसत और आख़िरी diesel दर में से बड़ी; अवधि की आख़िरी भराई का बचा हुआ diesel, यानी उसके लीटर घटा उसके बाद की चाल को standard से लगने वाला, tank में माना जाता है और debit नहीं होता); D = A − B − C; GST और TDS D पर; I = शुद्ध देय; tick की गई debit notes I के बाद घटती हैं। Submit से पहले server हर bill फिर बनाकर मिलाता है। बिना Log Book entry वाले दिन दिया गया diesel गिना और दिखाया जाता है। किसी bill का diesel rate उसकी diesel कटौती के नीचे "₹/L" box में हाथ से डाला जा सकता है (खाली = अपने आप rate): उस bill का Abstract, Debit Note और Log Book उसी rate से बनते हैं, और save हुआ bill वह rate रखता है।'] },
@@ -5770,6 +5825,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'A new user starts with No access on every page – he sees only the pages you set to View or Edit (in the menu and in the search). Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters. "Screen share – who may use it": untick a user and save – he can then neither show a screen nor be called (Admin users always may). Several sites: the Admin of the first site makes the Super Admin once ("Create Super Admin" – write the recovery code down). From then on the Super Admin gives users and access, separately for every site; this page then only shows them.'],
       mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'नवीन user ला सुरुवातीला प्रत्येक page वर No access असते – तुम्ही View किंवा Edit दिलेली pages च त्याला दिसतात (menu मध्ये आणि search मध्ये). हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा. "Screen share – who may use it": user चा tick काढून Save केले की तो screen दाखवू शकत नाही आणि त्याला call पण करता येत नाही (Admin नेहमी वापरू शकतो). अनेक sites: पहिल्या site चा Admin एकदाच Super Admin बनवतो ("Create Super Admin" – Recovery code लिहून ठेवा). त्यानंतर users आणि access फक्त Super Admin देतो, प्रत्येक site साठी वेगळा; हे page मग फक्त ते दाखवते.'],
       hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'नए user को शुरू में हर page पर No access होता है – आपने View या Edit दिए वही pages उसे दिखते हैं (menu में और search में)। यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो। "Screen share – who may use it": user का tick हटाकर Save करने पर वह न screen दिखा सकता है, न उसे call किया जा सकता है (Admin हमेशा उपयोग कर सकता है)। कई sites: पहली site का Admin एक बार Super Admin बनाता है ("Create Super Admin" – Recovery code लिखकर रखें)। उसके बाद users और access सिर्फ Super Admin देता है, हर site के लिए अलग; यह page फिर सिर्फ उन्हें दिखाता है।'] },
+    approvals: { saves: ['decideChangeRequest', 'getChangeRequests'],
+      en: ['Changes of Log Book and diesel entries that are in a submitted bill, sent by the users for the Super Admin\'s approval.', 'Only the Super Admin (signed in through the Portal) sees this page. Each line says who asked, what the change is (machinery, date, readings) and why. Approve = the change is saved now as that user\'s change, with every check of a save – if something else changed meanwhile it is refused and keeps waiting. Reject = nothing is saved; write why. The bill on the Drive is never changed: the next bill of the vendor shows the difference and takes it as a Credit / Debit Note.'],
+      mr: ['Submit झालेल्या bill मधील Log Book / diesel entries चे बदल – users नी Super Admin च्या मंजुरीसाठी पाठवलेले.', 'हे पान फक्त Super Admin ला (Portal मधून sign in) दिसते. प्रत्येक ओळीत: कोणी मागितले, काय बदल (machinery, तारीख, readings) आणि का. Approve = बदल आत्ता त्या user चा बदल म्हणून save होतो, save चे सगळे checks होऊन – मध्ये दुसरे काही बदलले असेल तर नाकारला जातो आणि थांबून राहतो. Reject = काहीही save होत नाही; कारण लिहा. Drive वरचे bill कधीच बदलत नाही: vendor च्या पुढच्या bill मध्ये फरक दिसतो आणि Credit / Debit Note ने घेतला जातो.'],
+      hi: ['Submit हुए bill की Log Book / diesel entries के बदलाव – users ने Super Admin की मंज़ूरी के लिए भेजे हुए।', 'यह पेज सिर्फ Super Admin को (Portal से sign in) दिखता है। हर लाइन में: किसने माँगा, क्या बदलाव (machinery, तारीख, readings) और क्यों। Approve = बदलाव अभी उस user के बदलाव के रूप में save होता है, save के सारे checks के साथ – बीच में कुछ और बदला हो तो मना होता है और रुका रहता है। Reject = कुछ भी save नहीं होता; कारण लिखें। Drive वाला bill कभी नहीं बदलता: vendor के अगले bill में फर्क दिखता है और Credit / Debit Note से लिया जाता है।'] },
     activity: { saves: ['getActivity'],
       en: ['The record of who added, changed or deleted what, and when.', 'It is written by the app itself on every save and cannot be edited. Only Admin sees it. "Screen share calls" shows the screen share history: who showed a screen to whom and how long, and the calls that were declined (with the reply) or not answered.'],
       mr: ['कोणी, काय, कधी जोडले, बदलले किंवा delete केले याची नोंद.', 'प्रत्येक save वर app स्वतः ही नोंद लिहिते; ती बदलता येत नाही. ती फक्त Admin ला दिसते. "Screen share calls" दाबले की screen share चा इतिहास दिसतो: कोणी कोणाला किती वेळ screen दाखवला, आणि कोणते call नाकारले (उत्तरासह) किंवा उचलले नाहीत.'],
@@ -5861,7 +5920,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const m = errMsg(e);
       if (/^(Not enough diesel|Cannot (delete|reduce) this inward)/.test(m)) { showAlert('Diesel stock', m); refreshStock(); }
       else if (/ is (inactive|active only from)/.test(m)) showAlert('Machinery is not active', m.replace(/^Row \d+: /, ''));
-      else toast(m, true);
+      else toast(m, m !== CR_SENT);
     }
     finally { btn.disabled = false; if (btn.textContent === label) btn.textContent = old; }
   }
@@ -6279,7 +6338,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     XLSX.writeFile(wb, 'RCL_' + d.title.replace(/[^A-Za-z0-9]+/g, '_') + (d.from ? '_' + d.from + '_to_' + d.to : '') + '.xlsx');
   }
 
-  const TABS = ['dash', 'vendors', 'master', 'boq', 'comp', 'lbf', 'brk', 'bill', 'bills', 'breg', 'pay', 'vled', 'vout', 'users', 'readme', 'settings', 'inward', 'transfer', 'diesel', 'log', 'activity', 'rmonthly', 'ravg', 'rdaily', 'logedit', 'tankcheck'].concat(buildReports());
+  const TABS = ['dash', 'vendors', 'master', 'boq', 'comp', 'lbf', 'brk', 'bill', 'bills', 'breg', 'pay', 'vled', 'vout', 'users', 'readme', 'settings', 'inward', 'transfer', 'diesel', 'log', 'activity', 'approvals', 'rmonthly', 'ravg', 'rdaily', 'logedit', 'tankcheck'].concat(buildReports());
   document.querySelectorAll('.navbtn').forEach(b => { const l = b.querySelector('.label'); if (l) b.title = l.textContent.trim(); });
   document.querySelectorAll('.rhead h2').forEach(h => { h.dataset.site = SITE_NAME; });
   // Reports menu: a second section "Head Office Reports" with the Owner / Vendor-wise Summary and Monthly Diesel & Average
@@ -6306,7 +6365,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     });
     $('page_title').textContent = $('tab-' + name).querySelector('.label').textContent;
     // colour of the module and a soft glide-in of the page
-    document.body.dataset.mod = name.indexOf('rp-') === 0 || /^r(monthly|daily|avg)$/.test(name) ? 'report' : name === 'activity' ? 'admin' : (name === 'logedit' || name === 'tankcheck') ? 'log' : name;
+    document.body.dataset.mod = name.indexOf('rp-') === 0 || /^r(monthly|daily|avg)$/.test(name) ? 'report' : name === 'activity' || name === 'approvals' ? 'admin' : (name === 'logedit' || name === 'tankcheck') ? 'log' : name;
     const sec = $('sec-' + name); sec.classList.remove('enter'); void sec.offsetWidth; sec.classList.add('enter');
     if (typeof armReveal === 'function') requestAnimationFrame(() => armReveal(sec));
     $('dash_tabs').hidden = name !== 'dash';
@@ -6388,6 +6447,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     S.loaded[name] = true;
     if (name === 'dash') { dashToday(); } // the Dashboard always opens on Today
     else if (name === 'activity') loadActivity();
+    else if (name === 'approvals') crLoad();
     else if (name === 'vendors' || name === 'boq') { loadVendors(); refreshLookups(); }
     else if (name === 'master') loadVendors();
     else if (name === 'bill') { if (first) { const t = new Date(S.today + 'T00:00:00'); $('mb_from').value = isoDate(new Date(t.getFullYear(), t.getMonth() - 1, 1)); $('mb_to').value = isoDate(new Date(t.getFullYear(), t.getMonth(), 0)); $('mb_date').value = S.today; } mbLoadInit(); refreshLookups(); }
@@ -6721,6 +6781,47 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   /* ================= ACTIVITY LOG (Admin) ================= */
   let actSeq = 0, actTimer;
+  /* ================= APPROVALS (update-108) – the Super Admin approves or rejects a change of a billed period =================
+   * The list comes from the server (waiting ones first). Approve: the same save is run now on the server, as the user's change; a
+   * refusal is shown and the request keeps waiting. Reject: a reason is needed; nothing is saved. */
+  const crWhen = v => { const d = new Date(v); return isNaN(d) ? String(v || '') : d.toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
+  async function crLoad(quiet) {
+    if (!S.user || !S.user.super) return;
+    try { S.cr = await call('getChangeRequests', {}); crDraw(); }
+    catch (e) { if (!quiet) $('cr_rows').innerHTML = '<tr><td colspan="6" class="none">' + esc(errMsg(e)) + '</td></tr>'; }
+  }
+  function crDraw() {
+    const d = S.cr || { requests: [] }, all = $('cr_all').checked, L = (d.requests || []).filter(r => all || r.status === 'Pending');
+    const lab = $('tab-approvals').querySelector('.label'); lab.textContent = 'Approvals' + (d.pending ? ' (' + d.pending + ')' : '');
+    $('cr_sum').textContent = d.missing ? d.missing : (d.pending || 0) + ' waiting';
+    $('cr_rows').innerHTML = L.length ? L.map(r => '<tr><td class="nowrap">' + esc(crWhen(r.at)) + '<br><small>' + esc(r.id) + '</small></td><td>' + esc(r.by) + '</td><td>' + (r.summary || []).map(esc).join('<br>') + '</td><td>' + esc(r.reason) + '</td>' +
+      '<td>' + (r.status === 'Pending' ? '<span class="st low">Waiting</span>' : '<span class="st ' + (r.status === 'Approved' ? 'ok' : 'bad') + '">' + esc(r.status) + '</span><br><small>' + esc(r.decidedBy) + ' · ' + esc(crWhen(r.decidedAt)) + (r.note ? '<br>' + esc(r.note) : '') + '</small>') + '</td>' +
+      '<td class="nowrap">' + (r.status === 'Pending' ? '<button class="btn small" type="button" data-crok="' + esc(r.id) + '">Approve</button> <button class="btn ghost small" type="button" data-crno="' + esc(r.id) + '">Reject</button>' : '') + '</td></tr>').join('')
+      : '<tr><td colspan="6" class="none">' + (all ? 'No change has been asked yet.' : 'Nothing is waiting for approval.') + '</td></tr>';
+  }
+  $('cr_refresh').addEventListener('click', () => crLoad());
+  $('cr_all').addEventListener('change', crDraw);
+  $('cr_rows').addEventListener('click', async e => {
+    const ok = e.target.closest('[data-crok]'), no = e.target.closest('[data-crno]'); if (!ok && !no) return;
+    const id = (ok || no).dataset[ok ? 'crok' : 'crno'], r = ((S.cr || {}).requests || []).find(x => x.id === id); if (!r) return;
+    const what = listHtml(r.summary || []) + '<p><b>Asked by:</b> ' + esc(r.by) + ' · <b>Reason:</b> ' + esc(r.reason) + '</p>';
+    if (ok) {
+      if (!(await askConfirm({ title: 'Approve this change?', ok: 'Approve and save', wide: true, html: what + '<p>It is saved now as ' + esc(r.by) + '\'s change, with every check of a save. The submitted bill is not changed – the difference is taken in the vendor\'s next bill (Credit / Debit Note).</p>' }))) return;
+    } else {
+      for (;;) {
+        if (!(await askConfirm({ title: 'Reject this change?', ok: 'Reject', danger: true, wide: true, html: what + '<label class="cr-why">Why is it rejected? (' + esc(r.by) + ' reads it) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>' }))) return;
+        if (String(($('cr_note') || {}).value || '').trim()) break;
+        toast('Write why the change is rejected.', true);
+      }
+    }
+    const note = no ? String($('cr_note').value).trim() : '';
+    await busy(ok || no, ok ? 'Saving…' : 'Rejecting…', async () => {
+      const res = await call('decideChangeRequest', { id: id, approve: !!ok, note: note });
+      S.cr = res.list; crDraw();
+      toast(res.id + ' ' + res.status.toLowerCase() + (ok ? ' – the change is saved.' : ' – nothing was saved.'));
+      if (ok) { if (S.loaded && S.loaded.log) loadLog(); if (S.loaded && S.loaded.diesel) loadDiesel(); }
+    });
+  });
   async function loadActivity() {
     if (!S.user || !S.user.admin) return;
     const f = { from: $('af_from').value, to: $('af_to').value, user: val('af_user'), module: $('af_module').value, action: $('af_action').value, q: val('af_q') };
@@ -7001,7 +7102,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .bl-t tbody tr:not(.bl-rent) td, .bl-sum tr:not(.rD):not(.rG):not(.rI) td { background: #fff !important; }
     .bl-head tr.bl-site td { background: #FAFAFA; line-height: 1.45; }
     .bl-wc { display: flex; justify-content: center; gap: 28px; align-items: baseline; text-align: center; font-weight: 700; font-size: 19px; padding: 6px 10px; background: #EDEDED; border-top: 1px solid #111; border-bottom: 1px solid #111; }
-    .bl-t th { background: #EDEDED; font-weight: 700; text-align: left; } .bl-t td.n, .bl-sum td.n { text-align: right; white-space: nowrap; } .bl-t td.c, .bl-sum td.c { text-align: center; }
+    .bl-t th { background: #EDEDED; font-weight: 700; text-align: left; } .bl-t td.n, .bl-sum td.n { text-align: right; white-space: nowrap; } .bl-t td.c, .bl-sum td.c { text-align: center; } .bl-t.bl-corr { margin-top: 3mm; } .bl-t.bl-corr th[colspan] { white-space: normal; text-align: center; } .bl-t.bl-corr small { display: block; font-size: .82em; color: #333; }
     .bl-t td b { font-weight: 700; letter-spacing: .02em; }
     .bl-t tr.bl-rent td { font-weight: 700; background: #F7F7F7; } .bl-t tr.bl-rent td.rl { text-align: right; } .bl-t tr.bl-rent td.n { text-align: right; }
     .bl-sum td.l { width: 6%; font-weight: 600; } .bl-sum td.t { text-align: right; font-style: italic; } .bl-sum td.t small { display: block; font-size: 14px; font-style: normal; color: #444; }
@@ -8260,7 +8361,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     lxRender();
   }
   // the submitted bill that holds a date of this machinery (null = the date is free): its entries are shown, not changed
-  const lxLockOf = dk => (LX.locks || []).find(L => L.from <= dk && dk <= L.to) || null;
+  const lxLockOf = dk => S.user && S.user.super ? null : (LX.locks || []).find(L => L.from <= dk && dk <= L.to) || null;      // (update-108: the Super Admin changes them)
   // diesel issued for a row, from the day's Diesel Issue (Full Day = both shifts)
   const lxIssued = r => { if (lxLater(r)) return 0;      // (several rows of one shift: its diesel stands on the first)
     const d = (LX.d.diesel || {})[r.date] || { Day: 0, Night: 0 }; return r.shift === 'Full Day' ? r2(d.Day + d.Night) : r.shift === 'Night' ? d.Night : d.Day; };
@@ -8282,7 +8383,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const rd = (f, u, v) => '<input type="number" step="0.01" min="0" data-f="' + f + '" value="' + (v === '' || v === undefined || v === null ? '' : v) + '" title="' + (u || '') + '">';
     $('lx_lock').hidden = !(LX.locks || []).length;
     $('lx_lock').innerHTML = (LX.locks || []).map(L => '<b>' + esc(showDate(L.from < d.from ? d.from : L.from)) + ' to ' + esc(showDate(L.to > d.to ? d.to : L.to)) + ' are in the submitted RA Bill ' + esc(L.billNo) + (L.rev ? ' rev ' + L.rev : '') + '</b> of ' + esc(L.vendor) + ' (' + esc(L.company) + ', ' + esc(showDate(L.from)) + ' to ' + esc(showDate(L.to)) +
-      ') – the entries of those dates are shown but cannot be added, changed or deleted. <b>To correct them:</b> the Admin deletes that bill (RCL Drive → Saved Bills → Delete), then the correction is made, and the bill is built and submitted again.').join('<br>');
+      ') – ' + (S.user && S.user.super ? 'you are the Super Admin: you can change them here; the difference is taken in the next bill of the vendor.' : 'the entries of those dates are shown but cannot be changed here. <b>To correct one:</b> Log Book list → Edit / Delete on that entry – the change goes to the Super Admin for approval. (Or the Admin deletes that bill, the correction is made, and the bill is built and submitted again.)')).join('<br>');
     $('lx_head').innerHTML = '<tr><th class="sel"><input type="checkbox" id="lx_selall" title="Select all rows" aria-label="Select all rows"></th><th>#</th><th>Date</th><th>Shift</th>' + (wayCol ? '<th>Measured by</th>' : '') + (km ? '<th class="n">Start KM</th><th class="n">Close KM</th>' : '') + (hr ? '<th class="n">Start Hrs</th><th class="n">Close Hrs</th>' : '') + (tmCol ? '<th>Time / Trips</th>' : '') +
       '<th class="n">Total</th>' + (itemCol ? '<th>Items (BOQ)</th>' : '') + '<th class="n lx-dx">Opening diesel</th><th class="n lx-di">Issued</th><th class="n lx-dx">Consumed</th><th class="n lx-dx" title="Diesel left in the machinery, worked out with the Standard Average (not measured)">Closing diesel (est.)</th><th class="lx-chn">Challan No</th><th class="lx-prt">Particular</th><th class="lx-chc">Chainage From</th><th class="lx-chc">To</th><th>Work description</th><th></th></tr>';
     $('lx_rows').innerHTML = LX.rows.map((r, i) => '<tr data-i="' + i + '"><td class="sel"><input type="checkbox" class="lx-sel" aria-label="Select row"' + (r._sel ? ' checked' : '') + '></td><td>' + (i + 1) + (r.isNew ? '<span class="tag n">NEW</span>' : '') + '</td>' +
@@ -8418,7 +8519,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (f === 'half') { LX.rows[Number(tr.dataset.i)].half = !!e.target.checked; S.formDirty = true; lxCalc(); return; }      // "½ day": paid as half a day in the bill (the Save button learns of the change)
     if (f !== 'date' && f !== 'shift' && f !== 'mode') return;
     const r = LX.rows[Number(tr.dataset.i)];
-    if (f === 'date' && lxLockOf(e.target.value)) { lockStop(lxLockOf(e.target.value), LX.d.machine.id, e.target.value, 'Log Book entry'); e.target.value = r.date; return; }
+    if (f === 'date' && lxLockOf(e.target.value)) { lockStopNow(lxLockOf(e.target.value), LX.d.machine.id, e.target.value, 'Log Book entry'); e.target.value = r.date; return; }
     r[f] = e.target.value;
     if (f === 'mode') { if (!hasKm(r.mode)) { r.okm = ''; r.ckm = ''; } if (!hasHr(r.mode)) { r.ohr = ''; r.chr = ''; } }
     if (f !== 'mode') lxFullToDay(r);
@@ -10381,7 +10482,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     b.E = plus ? r2(b.D * b.gstPct / 200) : 0; b.F = b.E;
     b.G = r2(b.D + b.E + b.F); b.H = plus ? r2(b.D * b.tdsPct / 100) : 0; b.I = r2(b.G - b.H);
     // debit notes ticked for this bill: taken off AFTER the net payable (lines A–I and the tax are not touched)
-    b.J = r2((b.dns || []).reduce((a, n) => a + (Number(n.total) || 0), 0)); b.K = r2(b.I - b.J);
+    // (update-108) and the differences of earlier bills: a Debit Note comes off, a Credit Note is added
+    b.J = r2((b.dns || []).reduce((a, n) => a + (Number(n.total) || 0), 0) + (b.corr || []).reduce((a, z) => a + (z.kind === 'Credit' ? -(Number(z.total) || 0) : (Number(z.total) || 0)), 0)); b.K = r2(b.I - b.J);
     b.gstDecl = gstDeclNeed(b.vendor, b.gstPct);      // a party without GST registration: its declaration is one of the bill's papers
     return b;
   }
@@ -10416,9 +10518,29 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         dnOpen: (S.mb.init.pendingDn || []).filter(n => String(n.vendor).trim().toUpperCase() === String(v.name).trim().toUpperCase() && n.company === co), dns: [] };
       return mbFill(b);
     });
+    await mbCorrLoad();
     mbRender();
     $('mb_out').hidden = false; if ($('mb_out').scrollIntoView) $('mb_out').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }));
+  /* (update-108) THE DIFFERENCES OF EARLIER BILLS (an entry of a submitted bill was changed – by the Super Admin, or approved by him):
+   * worked out by the server at the earlier bill's rates (billCorrections_), shown on the vendor's first bill of this batch. Each one
+   * must be ticked "Checked"; on submit it becomes a Credit Note (to the vendor) or a Debit Note (from him), taken in this bill. */
+  async function mbCorrLoad() {
+    const L = S.mb.bills, seen = {};
+    L.forEach(b => { b.corr = []; delete b.corrErr; });
+    for (const b of L) {
+      const g = b.vendor.name.toUpperCase() + '|' + b.company; if (seen[g]) continue; seen[g] = true;
+      const grp = L.filter(z => z.vendor.name.toUpperCase() + '|' + z.company === g);
+      try { const r = await call('billCorrections', { vendor: b.vendor.name, company: b.company, bills: grp.map(z => ({ from: z.from, to: z.to, machines: z.machines.map(x => x.no) })) });
+        b.corr = (r.items || []).map(z => Object.assign({}, z, { checked: false })); }
+      catch (e) { b.corrErr = errMsg(e); }
+      mbTotals(b);
+    }
+  }
+  const corrSgn = v => (v < 0 ? '− ' : '+ ') + '₹' + mbN2(Math.abs(v));
+  // what changed in an earlier bill, the calculation line by line (work at its rate, diesel debited at its rate)
+  const corrCalc = z => (z.work || []).map(w => esc(w.unit) + ' ' + fmt(w.from) + ' → ' + fmt(w.to) + (w.rate !== '' ? ' × ₹' + mbN2(w.rate) : '') + ' = ' + corrSgn(w.amount))
+    .concat(z.diesel ? ['Diesel debited ' + fmt(z.diesel.from) + ' L → ' + fmt(z.diesel.to) + ' L × ₹' + mbN2(z.diesel.rate) + ' = ' + corrSgn(-z.diesel.amount) + ' <small>(issued ' + fmt(z.diesel.issuedFrom) + ' → ' + fmt(z.diesel.issuedTo) + ' L)</small>'] : []).join('<br>');
   function mbRender() {
     const L = S.mb.bills;
     $('mb_title').textContent = 'Bills – ' + L.length + ' vendor' + (L.length === 1 ? '' : 's');
@@ -10426,11 +10548,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('mb_rows').innerHTML = L.map((b, i) => '<tr data-i="' + i + '"><td><b>' + esc(b.vendor.name) + '</b>' + (b.partial ? '<small class="mb-part">' + esc(b.picked.join(', ')) + '</small>' : '') +
       (billNoEntry(b) ? '<div class="mb-warn"><b>⚠ Diesel issued on a day with no Log Book entry:</b> ' + esc(billNoEntry(b)) + '. It is counted in this bill.' + fixHtml('Diesel issued on a day with no Log Book entry') + '</div>' : '') +
       ((b.warnings || []).length ? '<div class="mb-warn"><b>⚠ To check before submitting:</b><ul>' + b.warnings.map(w => '<li>' + esc(w) + '</li>').join('') + '</ul>' + fixHtml(b.warnings.join(' | ')) + '</div>' : '') +
+      (b.corrErr ? '<div class="mb-warn"><b>⚠ Earlier bills could not be checked:</b> ' + esc(b.corrErr) + '</div>' : '') +
+      ((b.corr || []).length ? '<div class="mb-corr"><b>Earlier bills changed – tick each one after checking (it is taken in this bill; without it the bill is not submitted):</b>' + b.corr.map(z => '<label><input type="checkbox" class="mb-corck" data-key="' + esc(z.key) + '"' + (z.checked ? ' checked' : '') + '> <span><b>RA Bill ' + esc(z.billNo) + (z.rev ? ' rev ' + esc(z.rev) : '') + ' · ' + esc(z.no) + '</b> (' + esc(showDate(z.from)) + ' to ' + esc(showDate(z.to)) + '): ' + corrCalc(z) +
+        ' → ' + (z.kind === 'Credit' ? 'Credit Note' : 'Debit Note') + ' ' + corrSgn(z.kind === 'Credit' ? z.total : -z.total) + (z.gst || z.tds ? ' <small>(incl. GST ' + fmt(z.gstPct) + '%, TDS ' + fmt(z.tdsPct) + '%)</small>' : '') + '</span></label>').join('') + '</div>' : '') +
       ((b.dnOpen || []).length ? '<div class="mb-dns"><span>Debit notes to deduct:</span>' + b.dnOpen.map(n => '<label><input type="checkbox" class="mb-dnck" data-id="' + esc(n.id) + '"' + ((b.dns || []).some(z => z.id === n.id) ? ' checked' : '') + '> ' + esc(n.no) + ' · ₹' + mbN2(n.total) + '</label>').join('') + '</div>' : '') +
       '</td><td class="n">' + b.machines.length + '</td><td>' + (b.idleDays ? '<b>' + b.idleDays + '</b> <select class="mb-idle" title="Idle days of the Log Book: pay them in this bill or not"><option value=""' + (b.idlePaid === undefined ? ' selected' : '') + '>choose…</option><option value="paid"' + (b.idlePaid === true ? ' selected' : '') + '>Paid</option><option value="no"' + (b.idlePaid === false ? ' selected' : '') + '>Not paid</option></select>' : '–') + '</td><td class="n">' + mbN2(b.A) + '</td><td class="n">' + mbN2(b.B) +
       (b.machines.some(x => (x.debitQty || 0) + (x.excessQty || 0) > 0) ? '<label class="mb-drl" title="Diesel debit rate of this bill, ₹ per litre. Empty = automatic: the higher of the average rate of the period and the last purchase rate (₹' + mbN2((b.machines[0] || {}).autoRate) + '). Type a rate to debit the diesel of this bill at that rate – the Abstract, the Debit Note and the Log Book of the bill follow it.">₹/L <input class="mb-dr" type="number" step="0.01" min="0" value="' + (Number(b.dieselRate) > 0 ? b.dieselRate : '') + '" placeholder="' + mbN2((b.machines[0] || {}).autoRate) + ' auto"></label>' : '') +
       '</td><td class="n"><input class="mb-c" type="number" step="0.01" min="0" value="' + (b.C || '') + '" placeholder="0"></td><td><input class="mb-cr" value="' + esc(b.cReason) + '" placeholder="reason"></td>' +
-      '<td class="n">' + (b.gstPct ? mbN2(b.E + b.F) : '–') + '</td><td class="n">' + mbN2(b.H) + '</td><td class="n"><b>' + mbN2(b.I) + '</b>' + (b.J ? '<small class="mb-part">less debit notes ' + mbN2(b.J) + '<br>balance <b>' + mbN2(b.K) + '</b></small>' : '') + '</td>' +
+      '<td class="n">' + (b.gstPct ? mbN2(b.E + b.F) : '–') + '</td><td class="n">' + mbN2(b.H) + '</td><td class="n"><b>' + mbN2(b.I) + '</b>' + (b.J ? '<small class="mb-part">' + (b.J > 0 ? 'less' : 'add') + ' notes ' + mbN2(Math.abs(b.J)) + '<br>balance <b>' + mbN2(b.K) + '</b></small>' : '') + '</td>' +
       '<td><input class="mb-no" value="' + esc(b.billNo) + '" placeholder="' + (b.firstBill ? 'first bill – type no.' : '') + '"' + (b.firstBill ? ' title="First bill of this vendor under this name – type its RA bill number; after this the next number comes by itself"' : '') + '></td>' +
       '<td>' + (b.edited ? '<span class="st bad">Changed by hand</span> ' : '') + (b.warnings.length ? '<span class="st low" title="' + esc(b.warnings.join(' · ')) + '">' + b.warnings.length + ' to check</span>' : '<span class="st ok">OK</span>') +
       ' <button class="link" data-mblog="' + i + '" title="Log Book of this vendor\'s machinery for these dates">Log Book</button></td></tr>').join('');
@@ -10452,6 +10577,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   });
   // Idle days: paid or not paid is chosen here, bill by bill – the bill is worked out again
   $('mb_rows').addEventListener('change', e => {
+    if (e.target.classList.contains('mb-corck')) {      // (update-108) a difference of an earlier bill ticked "checked"
+      const tr0 = e.target.closest('tr'), b0 = S.mb.bills[Number(tr0.dataset.i)]; if (!b0) return;
+      const z = (b0.corr || []).find(y => y.key === e.target.dataset.key); if (z) z.checked = e.target.checked; return;
+    }
     if (e.target.classList.contains('mb-dnck')) {       // a debit note ticked / unticked for this bill
       const tr0 = e.target.closest('tr'), b0 = S.mb.bills[Number(tr0.dataset.i)]; if (!b0) return;
       const n = (b0.dnOpen || []).find(z => z.id === e.target.dataset.id); b0.dns = (b0.dns || []).filter(z => z.id !== e.target.dataset.id);
@@ -10605,7 +10734,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ['C', 'Other Deduction >>>' + (b.C && b.cReason ? '<small>' + esc(b.cReason) + '</small>' : ''), b.C ? -b.C : ''], ['D', 'Net Work Done Amount D=(A-B-C) >>>', b.D],
       ['E', 'Add CGST >>>', b.gstPct ? b.E : '', b.gstPct ? fmt(b.gstPct / 2) + '%' : ''], ['F', 'Add SGST >>>', b.gstPct ? b.F : '', b.gstPct ? fmt(b.gstPct / 2) + '%' : ''],
       ['G', 'Total Amount (G=D+E+F)', b.G], ['H', 'Less TDS >>>', b.H ? -b.H : '', b.tdsPct ? fmt(b.tdsPct) + '%' : ''], ['I', 'Net Payable Amt I = (G-H) >>>>', b.I]]
-      .concat(b.J ? [['J', 'Less – Debit Note(s) >>>' + '<small>' + esc((b.dns || []).map(n => n.no).join(', ')) + '</small>', -b.J], ['K', 'Balance Payable K = (I-J) >>>>', b.K]] : []);
+      .concat(b.J || (b.corr || []).length ? [['J', ((b.corr || []).length ? 'Less – Debit Note(s) / Add – Credit Note(s) >>>' : 'Less – Debit Note(s) >>>') + '<small>' + esc((b.dns || []).map(n => n.no).concat((b.corr || []).map(z => (z.kind === 'Credit' ? 'CN ' : 'DN ') + (z.noteNo || '(number on submit)'))).join(', ')) + '</small>', -b.J], ['K', 'Balance Payable K = (I-J) >>>>', b.K]] : []);
+    // (update-108) the differences of earlier bills taken in this one: the calculation of each, at the earlier bill's rates
+    const corrT = (b.corr || []).length ? '<table class="bl-t bl-corr"><thead><tr><th colspan="7">Corrections of earlier bills taken in this bill (at the earlier bill\'s rates)</th></tr><tr><th>Earlier RA Bill</th><th>Vehicle No</th><th>What changed</th><th class="n">Difference</th><th class="n">GST</th><th class="n">TDS</th><th class="n">Note</th></tr></thead><tbody>' +
+      b.corr.map(z => '<tr><td>' + esc(z.billNo) + (z.rev ? ' (Rev ' + esc(z.rev) + ')' : '') + '<br><small>' + mbDot(z.from) + ' To ' + mbDot(z.to) + '</small></td><td><b>' + esc(String(z.no).replace(/-/g, '')) + '</b></td><td>' + corrCalc(z) + '</td><td class="n">' + corrSgn(z.net) + '</td><td class="n">' + (z.gst ? mbN2(z.gst) + '<small>' + fmt(z.gstPct) + '%</small>' : '–') + '</td><td class="n">' + (z.tds ? '− ' + mbN2(z.tds) + '<small>' + fmt(z.tdsPct) + '%</small>' : '–') + '</td>' +
+        '<td class="n"><b>' + (z.kind === 'Credit' ? 'Credit Note' : 'Debit Note') + '</b><br>' + esc(z.noteNo || 'on submit') + '<br><b>' + corrSgn(z.kind === 'Credit' ? z.total : -z.total) + '</b></td></tr>').join('') + '</tbody></table>' : '';
     return '<div class="bl"><div class="bl-frame">' +
       '<div class="bl-top">' + logo + '<div class="bl-co">' + esc(co.toUpperCase()) + '</div></div>' +
       '<div class="bl-proj"><b>Project Name :-</b> ' + esc(b.project || '') + '</div>' +
@@ -10624,7 +10757,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<div class="bl-wc"><span>Work Contract: Rent On Vehicle</span>' + (monthly.length === 1 ? '<span class="rpm">Rent Per Month : ₹ ' + mbN2(monthly[0]) + '</span>' : monthly.length > 1 ? '<span class="rpm">Rent Per Month : as per vehicle</span>' : '') + '</div>' +
       '<table class="bl-t"><thead>' +
       '<tr><th>Machine type</th><th>Vehicle No</th><th>Vehicle Type</th>' + (pmCol ? '<th class="n">Rent / Month</th>' : '') + '<th>Shift</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>' +
-      '<table class="bl-sum"><tbody>' + sum.map(x => '<tr class="r' + x[0] + '"><td class="c l">' + x[0] + '</td><td class="t">' + x[1] + '</td><td class="p">' + (x[3] || '') + '</td><td class="n' + (x[0] === (b.J ? 'K' : 'I') ? ' net' : '') + '">' + (x[2] === '' ? '–' : (x[2] < 0 ? '− ' : '') + mbN2(Math.abs(x[2]))) + '</td></tr>').join('') + '</tbody></table></div>' +
+      '<table class="bl-sum"><tbody>' + sum.map(x => '<tr class="r' + x[0] + '"><td class="c l">' + x[0] + '</td><td class="t">' + x[1] + '</td><td class="p">' + (x[3] || '') + '</td><td class="n' + (x[0] === (b.J ? 'K' : 'I') ? ' net' : '') + '">' + (x[2] === '' ? '–' : (x[2] < 0 ? '− ' : x[0] === 'J' ? '+ ' : '') + mbN2(Math.abs(x[2]))) + '</td></tr>').join('') + '</tbody></table>' + corrT + '</div>' +
       '<div class="bl-sign">' + [['Accepted By', 'Sub Contractor'], ['Prepared & Checked By', 'Mechanical Dept'], ['Checked By', 'Site Incharge'], ['Checked By', 'Billing Dept'], ['Checked & Verified By', 'Acc. Dept'], ['Verified By', 'Project Manager'], ['Approved By', 'General Manager']]
         .map(x => '<div><span></span><b>' + x[0] + '</b><small>' + x[1] + '</small></div>').join('') + '</div>' +
       '</div>';
@@ -10866,11 +10999,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function debitNoteDocHtml(n) {
     const ci = n.companyInfo || {}, v = n.vendorInfo || { name: n.vendor }, pct = x => x ? fmt(x) + '%' : '';
     const rows = (n.lines || []).map((l, i) => '<tr><td class="c">' + (i + 1) + '</td><td><b>' + esc(l.machinery || '') + '</b></td><td>' + esc(l.particular || '') + '</td><td class="n">' + fmt(l.qty) + ' ' + esc(l.unit || '') + '</td><td class="n">' + mbN2(l.rate) + '</td><td class="n">' + mbN2(l.amount) + '</td></tr>');
-    const sum = [['Amount', mbN2(n.amount)]].concat(n.gst ? [['Add: GST ' + pct(n.gstPct), mbN2(n.gst)]] : []).concat(n.tds ? [['Less: TDS ' + pct(n.tdsPct), '− ' + mbN2(n.tds)]] : []).concat([['Total debit', mbN2(n.total)]]);
-    return DOC_CSS + '<div class="dnp"><div class="dnp-co">' + esc(String(n.company || '').toUpperCase()) + '</div><div class="dnp-title">DEBIT NOTE' + (n.status === 'Cancelled' ? ' – CANCELLED' : '') + '</div>' +
+    const cn = n.kind === 'Correction CN';      // (update-108) the difference of an earlier bill in the vendor's favour: a CREDIT NOTE
+    const sum = [['Amount', mbN2(n.amount)]].concat(n.gst ? [['Add: GST ' + pct(n.gstPct), mbN2(n.gst)]] : []).concat(n.tds ? [['Less: TDS ' + pct(n.tdsPct), '− ' + mbN2(n.tds)]] : []).concat([[cn ? 'Total credit' : 'Total debit', mbN2(n.total)]]);
+    return DOC_CSS + '<div class="dnp"><div class="dnp-co">' + esc(String(n.company || '').toUpperCase()) + '</div><div class="dnp-title">' + (cn ? 'CREDIT NOTE' : 'DEBIT NOTE') + (n.status === 'Cancelled' ? ' – CANCELLED' : '') + '</div>' +
       '<table><colgroup><col style="width:50%"><col style="width:20%"><col style="width:30%"></colgroup><tbody>' +
       '<tr><td rowspan="3">To,<br><b>' + esc(String(v.name || n.vendor || '').toUpperCase()) + '</b>' + (v.address ? '<br>' + esc(v.address) : '') + (v.pan ? '<br>PAN NO :- ' + esc(v.pan) : '') + (v.gst ? '<br>GSTIN :- ' + esc(v.gst) : '') + '</td>' +
-        '<td><b>Debit Note No</b></td><td><b>' + esc(n.no) + '</b></td></tr><tr><td><b>Date</b></td><td>' + mbDot(n.date) + '</td></tr>' +
+        '<td><b>' + (cn ? 'Credit' : 'Debit') + ' Note No</b></td><td><b>' + esc(n.no) + '</b></td></tr><tr><td><b>Date</b></td><td>' + mbDot(n.date) + '</td></tr>' +
       '<tr><td><b>Work Period</b></td><td>' + (n.from ? mbDot(n.from) + ' To ' + mbDot(n.to || n.from) : '–') + '</td></tr>' +
       '<tr><td colspan="3"><b>' + esc(String(n.company || '').toUpperCase()) + '</b>' + (ci.address ? ', ' + esc(ci.address) : '') + ' &nbsp; <b>GSTIN :</b> ' + esc(ci.gstin || '–') + '</td></tr></tbody></table>' +
       '<table><colgroup><col style="width:7%"><col style="width:22%"><col style="width:33%"><col style="width:13%"><col style="width:11%"><col style="width:14%"></colgroup><thead><tr><th class="c">Sr.No</th><th>Machinery</th><th>Particular</th><th class="c">Qty</th><th class="c">Rate</th><th class="c">Amount</th></tr></thead><tbody>' +
@@ -12240,7 +12374,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function vlPart(r) {
     if (r.kind === 'opening') return '<b>Opening balance</b> – ' + (r.side === 'Advance' ? 'advance paid' : 'payable') + (r.remark ? '<small>' + esc(r.remark) + '</small>' : '');
-    if (r.kind === 'dn') return '<b>Debit Note ' + esc(r.dnNo) + '</b>' + (r.company ? ' – ' + esc(r.company) : '') + (r.remark ? '<small>' + esc(r.remark) + '</small>' : '');
+    if (r.kind === 'dn' || r.kind === 'cn') return '<b>' + (r.kind === 'cn' ? 'Credit' : 'Debit') + ' Note ' + esc(r.dnNo) + '</b>' + (r.company ? ' – ' + esc(r.company) : '') + (r.remark ? '<small>' + esc(r.remark) + '</small>' : '');
     if (r.kind === 'payment') return '<b>Payment</b> – ' + esc(r.mode) + (r.ref ? ' · ' + esc(r.ref) : '') + (r.against ? ' · against ' + esc(r.against) : '') + (r.remark ? '<small>' + esc(r.remark) + '</small>' : '');
     return '<b>RA Bill ' + esc(r.billNo) + (r.rev ? ' (Rev ' + r.rev + ')' : '') + '</b> – work ' + esc(showDate(r.from)) + ' to ' + esc(showDate(r.to)) + ' <button class="link noprint" data-sbv="' + esc(r.id) + '">View bill</button>' +
       '<small>Basic ' + mbN2(r.basic) + (r.diesel ? ' · Diesel ded. − ' + mbN2(r.diesel) : '') + (r.other ? ' · Other ded. − ' + mbN2(r.other) : '') + (r.gst ? ' · GST + ' + mbN2(r.gst) : '') + (r.tds ? ' · TDS − ' + mbN2(r.tds) : '') + ' · Net ' + mbN2(r.bill) + '</small>';
@@ -12276,7 +12410,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const d = S.vl, wb = XLSX.utils.book_new();
     const aoa = [[SITE_NAME], ['Vendor Ledger – ' + d.vendor], [(d.from ? showDate(d.from) : 'from the start') + ' to ' + (d.to ? showDate(d.to) : showDate(S.today))], [],
       ['Date', 'Particulars', 'Name on bill', 'Basic', 'Diesel ded.', 'Other ded.', 'GST', 'TDS', 'Bill Amount', 'Paid', 'Balance'], ['', 'Opening balance' + (d.openEntry ? ' (old balance as on ' + showDate(d.openEntry.date) + ')' : ''), '', '', '', '', '', '', '', '', d.opening]]
-      .concat(d.rows.map(r => [showDate(r.date), r.kind === 'bill' ? 'RA Bill ' + r.billNo + (r.rev ? ' (Rev ' + r.rev + ')' : '') + ' – work ' + showDate(r.from) + ' to ' + showDate(r.to) : r.kind === 'dn' ? 'Debit Note ' + r.dnNo + (r.remark ? ' – ' + r.remark : '') : r.kind === 'payment' ? 'Payment – ' + r.mode + (r.ref ? ' ' + r.ref : '') + (r.against ? ' – against ' + r.against : '') + (r.remark ? ' – ' + r.remark : '') : 'Opening balance – ' + r.side,
+      .concat(d.rows.map(r => [showDate(r.date), r.kind === 'bill' ? 'RA Bill ' + r.billNo + (r.rev ? ' (Rev ' + r.rev + ')' : '') + ' – work ' + showDate(r.from) + ' to ' + showDate(r.to) : r.kind === 'dn' || r.kind === 'cn' ? (r.kind === 'cn' ? 'Credit' : 'Debit') + ' Note ' + r.dnNo + (r.remark ? ' – ' + r.remark : '') : r.kind === 'payment' ? 'Payment – ' + r.mode + (r.ref ? ' ' + r.ref : '') + (r.against ? ' – against ' + r.against : '') + (r.remark ? ' – ' + r.remark : '') : 'Opening balance – ' + r.side,
         r.company || '', r.kind === 'bill' ? r.basic : '', r.kind === 'bill' ? r.diesel || '' : '', r.kind === 'bill' ? r.other || '' : '', r.kind === 'bill' ? r.gst || '' : '', r.kind === 'bill' ? r.tds || '' : '', r.bill || '', r.paid || '', r.balance]))
       .concat([['', 'Total', '', '', '', '', '', '', d.totalBill, d.totalPaid, d.closing]]);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Ledger');
@@ -14214,8 +14348,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* AN ENTRY IN A SUBMITTED BILL (rule of 06-10-2026): the lists mark it, and going to edit or delete it says at once what the server
    * would say on saving – with the way out. (The server is the one that refuses; this only saves the person the typing.) */
   const lockText = (L, no, dk, what) => (what || 'Entry') + ' of ' + no + ' on ' + showDate(dk) + ': this machinery is in the submitted RA Bill ' + L.billNo + (L.rev ? ' rev ' + L.rev : '') + ' of ' + L.vendor + ' (' + L.company + ', ' + showDate(L.from) + ' to ' + showDate(L.to) +
-    ') – its Log Book and diesel entries of those dates cannot be added, changed or deleted. To correct them: the Admin deletes that bill (RCL Drive → Saved Bills → Delete), then the correction is made, and the bill is built and submitted again.';
-  const lockStop = (L, no, dk, what) => { if (!L) return false; toast(lockText(L, no, dk, what), true); return true; };
+    ') – its Log Book and diesel entries of those dates cannot be added, changed or deleted without the Super Admin. To correct them: change the entry and send it to the Super Admin for approval (the page asks) – approved, it is saved and the difference is taken in the next bill of this vendor; or the Admin deletes that bill, the correction is made, and the bill is built and submitted again.';
+  /* (update-108) going to change an entry of a submitted bill: the Super Admin goes on (his change is saved; the difference is taken in
+   * the vendor's next bill). Anybody else is told, and may go on: on saving, the change is sent to the Super Admin for approval. */
+  const lockStop = async (L, no, dk, what) => { if (!L) return false;
+    if (S.user && S.user.super) { toast('Super Admin: ' + (what || 'this entry') + ' of ' + no + ' on ' + showDate(dk) + ' is in the submitted RA Bill ' + L.billNo + ' – your change is saved; the difference is taken in the next bill of ' + L.vendor + '.'); return false; }
+    return !(await askConfirm({ title: 'This entry is in a submitted bill', ok: 'Change it – send for approval', wide: true,
+      html: '<p>' + esc(lockText(L, no, dk, what)) + '</p><p><b>You can make the change:</b> when you save it, it goes to the <b>Super Admin</b> for approval and is saved only when he approves. The bill itself is not changed – the difference is taken in the next bill of ' + esc(L.vendor) + '.</p>' })); };
+  const lockStopNow = (L, no, dk, what) => { if (!L || (S.user && S.user.super)) return false; toast(lockText(L, no, dk, what), true); return true; };
   const lockTag = L => L ? ' <span class="tag lk" title="In the submitted RA Bill ' + esc(L.billNo) + ' (' + esc(showDate(L.from)) + ' to ' + esc(showDate(L.to)) + ') – cannot be changed until that bill is deleted">RA Bill ' + esc(L.billNo) + '</span>' : '';
   function clearDiesel() {
     ['d_no', 'd_qty', 'd_km', 'd_hr', 'd_driver', 'd_remark'].forEach(id => $(id).value = '');
@@ -14223,9 +14363,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('d_title').textContent = 'Issue diesel'; $('d_save').textContent = 'Save diesel issue'; $('d_cancel').hidden = true;
     dieselMachineChanged(); dieselAfterLine(); refreshIssueBal(); $('d_no').focus();
   }
-  function editDiesel(id) {
+  async function editDiesel(id) {
     const r = (S.dieselRows || []).find(x => x.id === id); if (!r) return;
-    if (r.lk && lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
+    if (r.lk && await lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
     setDieselMode('one');
     S.editDieselId = r.id; phClear();
     $('d_date').value = r.date; $('d_shift').value = r.shift; $('d_src').value = r.source || S.locations[0];
@@ -14238,7 +14378,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   async function deleteDiesel(id) {
     const r = (S.dieselRows || []).find(x => x.id === id); if (!r) return;
-    if (r.lk && lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
+    if (r.lk && await lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
     if (!(await askConfirm({ title: 'Delete ' + r.id + '?', danger: true, ok: 'Delete',
       html: listHtml([r.no + ' – ' + fmt(r.qty) + ' Ltr from ' + r.source, showDate(r.date) + ', ' + r.shift + ' shift', 'Driver: ' + (r.driver || '–')]) + '<p>This cannot be undone. The Log Book for this date and shift will be recalculated.</p>' }))) return;
     await call('deleteDieselIssue', r.id);
@@ -14691,7 +14831,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   S.lt = null;
   const LT_SH = ['Day', 'Night'];
   const ltRowsEl = () => [...$('lt_rows').querySelectorAll('tr.ltr')];
-  const ltLocked = dk => ((S.lt && S.lt.d.locks) || []).find(L => L.from <= dk && dk <= L.to) || null;
+  const ltLocked = dk => S.user && S.user.super ? null : ((S.lt && S.lt.d.locks) || []).find(L => L.from <= dk && dk <= L.to) || null;      // (update-108: the Super Admin changes them)
   const ltSig = t => [wtKey(t.c), t.a || '', t.b || '', String(t.ch || '').trim(), String(t.u || '').trim(), t.date, t.shift].join('|');
   function ltRead() {      // the rows as they are on screen now
     return ltRowsEl().map(tr => { const g = k => { const x = tr.querySelector('[data-t=' + k + ']'); return x ? x.value.trim() : ''; };
@@ -14721,7 +14861,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('lt_title').textContent = d.machine.id + (d.machine.type ? ' – ' + d.machine.type : '');
     $('lt_info').textContent = 'Agency: ' + (d.machine.owner || '–') + '  |  ' + showDate(d.from) + ' to ' + showDate(d.to) + (d.days.length ? '  |  Without trips: ' + d.days.map(x => showDate(x.date) + ' ' + x.shift + ' (' + x.status + ')').join(', ') : '');
     $('lt_lock').hidden = !(d.locks || []).length;
-    $('lt_lock').innerHTML = (d.locks || []).map(L => '<b>' + esc(showDate(L.from)) + ' to ' + esc(showDate(L.to)) + ' are in the submitted RA Bill ' + esc(L.billNo) + '</b> of ' + esc(L.vendor) + ' – those trips are shown, not changed.').join('<br>');
+    $('lt_lock').innerHTML = (d.locks || []).map(L => '<b>' + esc(showDate(L.from)) + ' to ' + esc(showDate(L.to)) + ' are in the submitted RA Bill ' + esc(L.billNo) + '</b> of ' + esc(L.vendor) + ' – ' + (S.user && S.user.super ? 'you are the Super Admin: you can change those trips; the difference is taken in the next bill.' : 'those trips are shown, not changed here (Log Book list → Edit on a trip: the change goes to the Super Admin for approval).')).join('<br>');
     $('lt_rows').innerHTML = d.trips.map((t, i) => ltRowHtml(Object.assign({}, t, { orig: ltSig(t) }), i + 1)).join('');
     if (!d.trips.length) ltAdd(true);
     $('lt_err').hidden = true; $('lt_all').checked = false; ltState();
@@ -15366,7 +15506,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   async function openLogEdit(key) {
     const e = await call('getLogEntry', key);
-    if (lockStop(e.lock, e.no, e.date, 'Log Book entry')) return;
+    if (await lockStop(e.lock, e.no, e.date, 'Log Book entry')) return;
     leCur = e;
     const km = hasKm(e.unit), hr = hasHr(e.unit);
     $('le_title').textContent = 'Edit Log Book – ' + e.no;
@@ -15429,13 +15569,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!(await askConfirm({ title: 'Update ' + e.no + ' – ' + showDate(e.date) + '?', ok: 'Update',
       html: 'These details will change:' + changeTable(changes) +
         (e.next && (x.closingKm !== before.closingKm || x.closingHr !== before.closingHr) ? (hrsOnlyM(findMachine(e.no)) ? '<p>The next entry (' + esc(showDate(e.next.date)) + ') is not changed – its Start stays ' + esc(fmt(e.next.ohr)) + '. Nothing else changes.</p>' : '<p>The next entry (' + esc(showDate(e.next.date)) + ') will start at the new Close. Nothing else changes.</p>') : '') }))) return;
-    await call('updateLogRow', e.key, x);
+    try { await call('updateLogRow', e.key, x); } catch (er) { if (errMsg(er) === CR_SENT) { leClose(); toast(CR_SENT); return; } throw er; }      // (update-108) sent to the Super Admin: the window closes
     toast('Log Book of ' + e.no + ' (' + showDate(e.date) + ') updated' + (e.next && (x.closingKm !== before.closingKm || x.closingHr !== before.closingHr) ? ' – next entry\'s Start updated.' : '.'));
     leClose(); loadLog(); lgRefreshAll();
   }));
   async function deleteLogEntry(key) {
     const e = await call('getLogEntry', key);
-    if (lockStop(e.lock, e.no, e.date, 'Log Book entry')) return;
+    if (await lockStop(e.lock, e.no, e.date, 'Log Book entry')) return;
     const hint = e.next ? '<p>The next entry <b>' + esc(showDate(e.next.date)) + ' (' + esc(e.next.shift) + ')</b> will then start from ' +
       (e.prev ? 'the Close of ' + esc(showDate(e.prev.date)) + ' (<b>' + esc(lg2(hasKm(e.unit) ? e.prev.ckm : '', hasHr(e.unit) ? e.prev.chr : '')) + '</b>)' : 'its own Start (it becomes the first entry)') +
       ', and all later entries update automatically.</p>' : '';

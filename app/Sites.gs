@@ -183,10 +183,10 @@ function sysSso_(x) {
   u = readUsersSheet_().find(w => w.email === email);
   if (!u || !u.active || !isHashed_(u.password)) throw new Error('The Portal sign-in could not be accepted (the user could not be set on this site) – try again.');
   const token = Utilities.getUuid() + Utilities.getUuid().slice(0, 8);
-  cache.put('S_' + token, sessionMake_(u.email, u.password, SSO_SESSION_MS_), SESSION_SECONDS);
-  writeLog_(u, 'Login', '', '', 'Signed in through the Portal', changes.join('; '));
+  cache.put('S_' + token, sessionMake_(u.email, u.password, SSO_SESSION_MS_, !!x.super), SESSION_SECONDS);      // (14-10-2026) the Super Admin: his session says so
+  writeLog_(u, 'Login', '', '', 'Signed in through the Portal' + (x.super ? ' (Super Admin)' : ''), changes.join('; '));
   sbFlush_();
-  return { token: token, user: publicUser_(u) };
+  return { token: token, user: publicUser_(x.super ? Object.assign({}, u, { super: true }) : u) };
 }
 /* ---- (update-94) the Super Admin in the Portal ("Users & Access" there, asked 13-10-2026: the pages of every user are given
  * there, in one place). act "users": this site's users with their pages (no password ever leaves). act "pages": one person's

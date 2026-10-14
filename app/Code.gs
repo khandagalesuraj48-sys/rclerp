@@ -307,9 +307,10 @@ const SESSION_SECONDS = 21600; // 6 hours, renewed on every action
 const SESSION_MAX_DAYS = 30;
 const SESSION_MAX_MS_ = SESSION_MAX_DAYS * 86400000;
 // (update-91) a 4th part: a shorter longest life (a sign-in through the Portal: 12 hours – Sites.gs sysSso_); never longer than 30 days
-function sessionMake_(email, stored, maxMs) { return email + '|' + pwStamp_(stored) + '|' + Date.now() + (Number(maxMs) > 0 ? '|' + Math.min(Number(maxMs), SESSION_MAX_MS_) : ''); }
+// (14-10-2026) sup: the Portal's Super Admin signed in – a 5th part "S" (only a Portal sign-in gives it: its ticket is signed by the Portal)
+function sessionMake_(email, stored, maxMs, sup) { return email + '|' + pwStamp_(stored) + '|' + Date.now() + (Number(maxMs) > 0 ? '|' + Math.min(Number(maxMs), SESSION_MAX_MS_) : sup ? '|' : '') + (sup ? '|S' : ''); }
 // the parts of a session's value; left = milliseconds until its 30 days (or its own shorter time) are over (a value without a time: the full 30 days)
-function sessionRead_(val) { const p = String(val || '').split('|'), made = Number(p[2]) || 0, max = Math.min(Number(p[3]) > 0 ? Number(p[3]) : SESSION_MAX_MS_, SESSION_MAX_MS_); return { email: p[0] || '', stamp: p[1] || '', made: made, left: made ? made + max - Date.now() : SESSION_MAX_MS_ }; }
+function sessionRead_(val) { const p = String(val || '').split('|'), made = Number(p[2]) || 0, max = Math.min(Number(p[3]) > 0 ? Number(p[3]) : SESSION_MAX_MS_, SESSION_MAX_MS_); return { email: p[0] || '', stamp: p[1] || '', made: made, left: made ? made + max - Date.now() : SESSION_MAX_MS_, sup: p[4] === 'S' }; }
 
 function readUsers_() {
   const cache = CacheService.getScriptCache();
@@ -431,7 +432,7 @@ function accessReport_() {
   });
   return { at: new Date().toISOString(), users: data.filter(r => str_(r[col('Email')])).length, modules: MODULES.length, rows: rows, count: count };
 }
-function publicUser_(u) { return { email: u.email, name: u.name, admin: u.admin, perms: u.perms }; }
+function publicUser_(u) { return { email: u.email, name: u.name, admin: u.admin, perms: u.perms, super: !!u.super }; }
 
 /* ================= SCREEN SHARE WITH VOICE (update-72, asked 10-10-2026) =================
  * "User A has a difficulty on a screen: he shares his screen with user B and they talk – live, picked from a list of users."
@@ -773,7 +774,7 @@ function sessionUser_(token) {
   // renewed for 6 hours (kept no longer than its 30 days; the 30 days are checked above at EVERY use, whatever the cache
   // still holds). A session from before update-68 has no time yet: it gets "now".
   cache.put('S_' + token, sv.made ? val : email + '|' + stamp + '|' + Date.now(), Math.max(1, Math.min(SESSION_SECONDS, Math.ceil(sv.left / 1000))));
-  return u;
+  return sv.sup && u.admin ? Object.assign({}, u, { super: true }) : u;      // (14-10-2026) the Super Admin (his session from the Portal)
 }
 // Edit where the user's access says Edit (an Admin's access is Edit everywhere – readUsersSheet_).
 function canEdit_(u, module) { return u.perms[module] === 'Edit'; }
@@ -856,6 +857,11 @@ const API_ = {
   submitBills:       { m: 'Machinery Billing', edit: true, f: submitBills_, log: 'billSubmit' },
   deleteBill:        { m: 'Saved Bills', admin: true, f: deleteBill_, log: 'billDelete' },
   getDebitPending:   { m: 'Machinery Billing', f: debitPending_ },
+  billCorrections:   { m: 'Machinery Billing', f: billCorrections_ },      // (update-108) the differences of earlier bills a new bill must take
+  // (update-108) a change of a billed period: sent by a user, approved or rejected by the Super Admin (Approvals)
+  sendChangeRequest: { m: '', withUser: true, f: (u, x) => crRequest_(u, x), log: 'crSend' },
+  getChangeRequests: { m: '', withUser: true, f: (u, x) => crList_(u, x) },
+  decideChangeRequest: { m: '', withUser: true, f: (u, x) => crDecide_(u, x), log: 'crDecide' },
   saveDebitNote:     { m: 'Machinery Billing', edit: true, f: saveDebitNote_, log: 'debitNote' },
   getDebitNotes:     { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Vendor Ledger'], f: getDebitNotes_ },
   cancelDebitNote:   { m: 'Saved Bills', admin: true, f: cancelDebitNote_, log: 'debitNoteCancel' },
@@ -1000,9 +1006,11 @@ function apiRun_(u, spec, fn, args) {
   TABLE_MEMO_ = {}; // each tab read once per request (dropped automatically when written)
   if (sbDataOn_()) sbDiscard_(); // Supabase: every request starts with fresh data
   const before = spec.log ? logBefore_(spec, args) : null;
-  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin;
+  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = !!u.super;
   OUT_FOR_ = u;      // (the answer kept with a save – step 5 – is cut the same way: see withLock_)
-  const res = leastOut_(u, spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args));      // machinery details only for users with a page that uses them (D4)
+  const run = () => spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args);
+  // (update-108) the Super Admin's save of Log Book / diesel: first the "before" of every submitted bill it may change (billBaselines_) – both saved together, or neither
+  const res = leastOut_(u, u.super && CR_FNS_.indexOf(fn) > -1 ? withLock_(() => { billBaselines_(fn, args); return run(); }) : run());      // machinery details only for users with a page that uses them (D4)
   if (fn === 'getInit' || fn === 'sync') { res.user = publicUser_(u); res.versions = getVersions_(); res.today = today_(); res.source = sbDataOn_() ? 'supabase' : 'sheet'; res.build = appBuild_();
     if (typeof sbBackupInfo_ === 'function') res.backup = backupInfoFor_(u, sbBackupInfo_());
     if (u.admin) res.faults = errStamp_();      // the Admin's page shows faults of today within seconds
@@ -1162,6 +1170,12 @@ function logAfter_(u, spec, args, res, before) {
     }
     case 'delete':
       writeLog_(u, 'Delete', m, str_(args[0]), 'Deleted ' + str_(args[0]), 'Deleted values – ' + describe_(before));
+      break;
+    case 'crSend':      // (update-108)
+      writeLog_(u, 'Add', 'Approvals', res.id, 'Change of a billed period sent to the Super Admin: ' + clean_((args[0] || {}).fn), (res.summary || []).join('; ').slice(0, 900) + ' | Reason: ' + clean_((args[0] || {}).reason));
+      break;
+    case 'crDecide':
+      writeLog_(u, res.status === 'Approved' ? 'Edit' : 'Delete', 'Approvals', res.id, res.status + ' (Super Admin): change of a billed period by ' + res.by, (res.summary || []).join('; ').slice(0, 900) + (clean_((args[0] || {}).note) ? ' | Note: ' + clean_((args[0] || {}).note) : ''));
       break;
     case 'dieselBulk': {
       const b = args[0] || {};
@@ -2567,6 +2581,8 @@ function deletePayment_(id) {
  * A Log Book entry can be in ONE note only (until that note is cancelled).
  * Money: a note that is not cancelled lowers what is payable to the party in the Vendor Ledger from its date. */
 const DN_SHEET_ = 'Debit Notes';
+// (update-108) a note made by a bill for the difference of an earlier bill: a Credit Note (to the vendor) or a Debit Note (from him)
+const DN_CN_ = 'Correction CN', DN_CD_ = 'Correction DN', dnCorr_ = d => d && (d.kind === DN_CN_ || d.kind === DN_CD_);
 const DN_COLS_ = ['Note ID', 'DN No', 'Company', 'Date', 'Vendor Name', 'Kind', 'Period From', 'Period To', 'Lines', 'Log IDs', 'Amount', 'GST %', 'GST Amount', 'TDS %', 'TDS Amount', 'Total', 'Status', 'Bill ID', 'Remark', 'Created At'];
 const dnParse_ = v => { try { const o = JSON.parse(str_(v) || '[]'); return Array.isArray(o) ? o : []; } catch (e) { return []; } };
 const dnNum_ = no => Number((/(\d+)\s*$/.exec(str_(no)) || [])[1]) || 0;
@@ -2623,7 +2639,7 @@ function debitPending_(f) {
 function nextDnNo_(company) {
   let last = 0;
   const t = billTable_(); if (t) t.rows.forEach(r => { const b = billOut_(t, r, false); if (b.company === company) last = Math.max(last, dnNum_(b.dnNo)); });
-  dnList_().forEach(d => { if (d.company === company) last = Math.max(last, dnNum_(d.no)); });
+  dnList_().forEach(d => { if (d.company === company && d.kind !== DN_CN_) last = Math.max(last, dnNum_(d.no)); });      // (a Credit Note has its own run)
   return str_(((billSettings_().companies || {})[company] || {}).dnPrefix) + String(last + 1).padStart(3, '0');
 }
 function saveDebitNote_(x) {
@@ -2711,7 +2727,7 @@ function ledgerLines_() {
     lines.push({ vendor: b.vendor, date: b.billDate || b.to, kind: 'bill', ord: 1, id: b.id, bill: net, paid: 0, company: b.company, billNo: b.billNo, rev: b.rev, from: b.from, to: b.to,
       basic: n(d.A), diesel: n(d.B), other: n(d.C), gst: r2_(n(d.E) + n(d.F)), tds: n(d.H) });
   });
-  dnList_().filter(d => d.status !== 'Cancelled').forEach(d => lines.push({ vendor: d.vendor, date: d.date, kind: 'dn', ord: 2, id: d.id, bill: 0, paid: d.total, company: d.company, dnNo: d.no, remark: d.remark,
+  dnList_().filter(d => d.status !== 'Cancelled').forEach(d => lines.push({ vendor: d.vendor, date: d.date, kind: d.kind === DN_CN_ ? 'cn' : 'dn', ord: 2, id: d.id, bill: d.kind === DN_CN_ ? d.total : 0, paid: d.kind === DN_CN_ ? 0 : d.total, company: d.company, dnNo: d.no, remark: d.remark,      // (update-108: a Credit Note adds to what the vendor gets)
     basic: d.amount, gst: d.gst, tds: d.tds }));
   lines.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || a.ord - b.ord || (a.id < b.id ? -1 : 1));
   return lines;
@@ -2787,7 +2803,7 @@ function billNoHtml_(v, who, depth) {
   if (v && typeof v === 'object') Object.keys(v).forEach(k => { billNoHtml_(k, who, depth + 1); billNoHtml_(v[k], who, depth + 1); });
 }
 function billVerifyKey_(d, x) {
-  const k = [vKey_((d.vendor || {}).name || x.vendor || ''), str_(x.company || d.company), dkey_(x.from || d.from), dkey_(x.to || d.to), r2_(num0_(d.A)), r2_(num0_(d.B)), r2_(num0_(d.C)), r2_(num0_(d.I))].concat(Number(d.dieselRate) > 0 ? ['rate ' + r2_(Number(d.dieselRate))] : []).join('|');      // (a diesel rate typed by hand is part of what was verified)
+  const k = [vKey_((d.vendor || {}).name || x.vendor || ''), str_(x.company || d.company), dkey_(x.from || d.from), dkey_(x.to || d.to), r2_(num0_(d.A)), r2_(num0_(d.B)), r2_(num0_(d.C)), r2_(num0_(d.I))].concat(Number(d.dieselRate) > 0 ? ['rate ' + r2_(Number(d.dieselRate))] : []).concat((Array.isArray(d.corr) ? d.corr : []).map(z => 'corr ' + str_(z && z.key) + ':' + r2_(num0_(z && z.total)) + (z && z.checked === true ? '✓' : ''))).join('|');      // (a diesel rate typed by hand is part of what was verified)
   return 'VB_' + hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, k, Utilities.Charset.UTF_8)).slice(0, 40);
 }
 /* ---------- THE LAST FILL OF THE PERIOD IS PARTLY STILL IN THE TANK (rule set by the MD, 02-10-2026) ----------
@@ -2912,7 +2928,8 @@ function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid) {
    * for this bill (asked 10-10-2026: "wherever diesel is debited I must be able to put the rate myself"), that rate. */
   const autoRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), manRate = Number(extra.manualRate) > 0 ? r2_(Number(extra.manualRate)) : 0;
   const dRate = manRate || autoRate, excessAmt = r2_((debitQty + excessQty) * dRate);
-  return { final: final ? leftOn : '', tank: tank && tank.applied > 0 ? tank : null, rawExcess: rawExcess, no: m.id, dieselRate: dRate, autoRate: autoRate, rateManual: !!manRate, workDays: workDays, nights: nights, holidays: holidays, breakdowns: breakdowns, idleDays: idleDays, itemOver: itemOver, itemUnknown: itemUnknown, itemLeft: itemLeft, amount: amount, issued: issued, excessAmt: excessAmt, debitQty: debitQty, excessQty: excessQty, noBoq: noBoq, legacy: legacy, zero: zero, days: Object.keys(units).length,
+  return { segs: Object.keys(segs).map(k => ({ unit: segs[k].unit, rate: r2_(segs[k].rate), qty: r2_(segs[k].qty), amount: r2_(segs[k].amount) })),      // (update-108: the corrections of an earlier bill)
+    final: final ? leftOn : '', tank: tank && tank.applied > 0 ? tank : null, rawExcess: rawExcess, no: m.id, dieselRate: dRate, autoRate: autoRate, rateManual: !!manRate, workDays: workDays, nights: nights, holidays: holidays, breakdowns: breakdowns, idleDays: idleDays, itemOver: itemOver, itemUnknown: itemUnknown, itemLeft: itemLeft, amount: amount, issued: issued, excessAmt: excessAmt, debitQty: debitQty, excessQty: excessQty, noBoq: noBoq, legacy: legacy, zero: zero, days: Object.keys(units).length,
     gstPct: last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0,
     tdsPct: last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0), woNo: last ? last.woNo || '' : '' };
 }
@@ -2940,6 +2957,12 @@ function verifyBills_(p) {
   const bs = billSettings_(), tbl = billTable_(), saved = tbl ? tbl.rows.map(r => billOut_(tbl, r, true)) : [];
   // machinery billed in this same batch (so a per-machinery bill does not report its sister bills as "left out")
   const inBatch = {}; bills.forEach(b => (b.machines || []).forEach(x => { (inBatch[vKey_((b.vendor || {}).name)] = inBatch[vKey_((b.vendor || {}).name)] || {})[noKey_(x.no)] = true; }));
+  // (update-108) what earlier bills of each vendor + name must give or take: in ONE bill of the batch (the first of that vendor + name)
+  const corrOf = {}, corrCarrier = {};
+  bills.forEach((b, bi) => { const g = vKey_((b.vendor || {}).name) + '|' + str_(b.company); if (corrCarrier[g] === undefined) corrCarrier[g] = bi; });
+  Object.keys(corrCarrier).forEach(g => { const grp = bills.filter(b => vKey_((b.vendor || {}).name) + '|' + str_(b.company) === g);
+    try { corrOf[g] = billCorrections_({ vendor: (grp[0].vendor || {}).name, company: grp[0].company, bills: grp.map(b => ({ from: b.from, to: b.to, machines: (b.machines || []).map(x => x.no) })) }).items; }
+    catch (e) { corrOf[g] = { error: String(e && e.message || e) }; } });
   const out = bills.map((b, bi) => {
     const checks = [], ok = t => checks.push({ s: 'ok', t: t }), warn = t => checks.push({ s: 'warn', t: t }), bad = t => checks.push({ s: 'bad', t: t });
     const vname = clean_((b.vendor || {}).name), vk = vKey_(vname), from = dkey_(b.from), to = dkey_(b.to), co = str_(b.company);
@@ -3020,6 +3043,18 @@ function verifyBills_(p) {
     });
     if (mismatch.length) bad('Bill does not match the Log Book / Diesel / BOQ now (something changed after "Build bills") – build again. ' + mismatch.join(' · '));
     else if (inBill.length) ok('Log Book, diesel issued and BOQ rates match the bill for all ' + inBill.length + ' machinery.');
+    // (update-108) the differences of earlier bills of this vendor: every one taken (and ticked) in this bill, at the figures of now
+    { const g = vk + '|' + co, exp = corrOf[g], mine = Array.isArray(b.corr) ? b.corr : [], at = z => 'earlier RA Bill ' + z.billNo + (z.rev ? ' rev ' + z.rev : '') + ' (' + z.no + ', ' + dmy_(z.from) + ' to ' + dmy_(z.to) + ')';
+      if (exp && exp.error) bad('The earlier bills of this vendor could not be checked for changes: ' + exp.error);
+      else if (corrCarrier[g] !== bi) { if (mine.length) bad('The differences of earlier bills are taken in one bill of this vendor only – build again.'); }
+      else {
+        (exp || []).forEach(z => { const h = mine.find(y => y && y.key === z.key);
+          if (!h) bad(at(z) + ': a difference of ₹' + z.total + ' (' + (z.kind === 'Credit' ? 'Credit Note – to the vendor' : 'Debit Note – from the vendor') + ') is not taken in this bill – build again.');
+          else if (Math.abs(num0_(h.total) - z.total) > 1) bad(at(z) + ': its difference is now ₹' + z.total + ' (the bill says ₹' + num0_(h.total) + ') – something changed after "Build bills"; build again.');
+          else if (h.checked !== true) bad(at(z) + ': tick "Checked" for its difference (₹' + z.total + ', ' + (z.kind === 'Credit' ? 'Credit Note' : 'Debit Note') + ') – a difference that is not cleared stops the submit.');
+          else ok(at(z) + ': difference ₹' + z.total + ' taken – ' + (z.kind === 'Credit' ? 'Credit Note (to the vendor)' : 'Debit Note (from the vendor)') + ' on submit.'); });
+        mine.filter(y => !(exp || []).some(z => z.key === (y && y.key))).forEach(() => bad('The bill takes a difference of an earlier bill that is not there any more – build again.'));
+      } }
     // amounts
     A = r2_(A); B = r2_(B);
     // GST and TDS only on a plus amount (a full-debit or diesel-heavy bill comes to a minus: the vendor owes)
@@ -3092,6 +3127,17 @@ function submitBills_(b) {
         dnTaken[id] = true; return n; }).filter(Boolean);
     });
     if (dnErr.length) return { ok: false, errors: dnErr };
+    // (update-108) the differences of earlier bills: worked out again here; the page's list must be the same (it was verified)
+    const corrErr = [], groups = {};
+    bills.forEach(x => { const g = vKey_(x.vendor) + '|' + str_(x.company); (groups[g] = groups[g] || []).push(x); });
+    Object.keys(groups).forEach(g => { const grp = groups[g], carry = grp.filter(x => Array.isArray((x.data || {}).corr) && x.data.corr.length);
+      const exp = billCorrections_({ vendor: grp[0].vendor, company: grp[0].company, bills: grp.map(x => ({ from: x.from, to: x.to, machines: ((x.data || {}).machines || []).map(y => y.no) })) }).items;
+      if (carry.length > 1) corrErr.push(clean_(grp[0].vendor) + ': the differences of earlier bills are taken in one bill only.');
+      const mine = carry.length ? carry[0].data.corr : [];
+      if (exp.length !== mine.length || exp.some(z => { const h = mine.find(y => y && y.key === z.key); return !h || Math.abs(num0_(h.total) - z.total) > 1 || h.checked !== true; }))
+        corrErr.push(clean_(grp[0].vendor) + ': the differences of earlier bills changed after the bill was verified – verify again.');
+      grp.forEach(x => { x._corr = carry.length && x === carry[0] ? exp : []; }); });
+    if (corrErr.length) return { ok: false, errors: corrErr };
     if (dup.length && !b.confirm) return { ok: false, duplicates: dup };
     let n = all.reduce((mx, r) => Math.max(mx, Number(String(r.id).replace(/\D/g, '')) || 0), 0);
     const saved = [];
@@ -3101,7 +3147,9 @@ function submitBills_(b) {
     const st = billSettings_(), dnLast = {};
     const dnNum = no => Number((/(\d+)\s*$/.exec(str_(no)) || [])[1]) || 0;
     all.forEach(y => { const k = y.company; dnLast[k] = Math.max(dnLast[k] || 0, dnNum((y.data || {}).dnNo)); });
-    dnList_().forEach(y => { dnLast[y.company] = Math.max(dnLast[y.company] || 0, dnNum(y.no)); });   // the notes made from the Log Book use the same run
+    dnList_().forEach(y => { if (y.kind === DN_CN_) return; dnLast[y.company] = Math.max(dnLast[y.company] || 0, dnNum(y.no)); });   // the notes made from the Log Book use the same run (a Credit Note has its own)
+    const cnLast = {}; dnList_().filter(y => y.kind === DN_CN_).forEach(y => { cnLast[y.company] = Math.max(cnLast[y.company] || 0, dnNum(y.no)); });
+    let dnIdN = dnAll.reduce((mx, d) => Math.max(mx, Number(String(d.id).replace(/\D/g, '')) || 0), 0);
     bills.forEach(x => {
       const older = sameKey(x);
       // the older bill(s) of the same vendor and period are kept, marked Superseded
@@ -3116,8 +3164,29 @@ function submitBills_(b) {
         if (kept) x.data.dnNo = kept;
         else { dnLast[x.company] = (dnLast[x.company] || 0) + 1; x.data.dnNo = str_(((st.companies || {})[x.company] || {}).dnPrefix) + String(dnLast[x.company]).padStart(3, '0'); }
       } else delete x.data.dnNo;
-      const J = r2_(x._dn.reduce((a, n2) => a + n2.total, 0));
-      if (x._dn.length) { x.data.dns = x._dn.map(n2 => ({ id: n2.id, no: n2.no, date: n2.date, total: n2.total })); x.data.J = J; x.data.K = r2_(num0_(x.data.I) - J); }
+      // (update-108) the differences of earlier bills: a Credit Note (to the vendor) or Debit Note (from the vendor) each, taken in this bill
+      if (x._corr.length && !dnT) { vbSheet_(DN_SHEET_, DN_COLS_); addColIfMissing_(DN_SHEET_, DN_COLS_, H.EBY); addColIfMissing_(DN_SHEET_, DN_COLS_, H.UBY); TABLE_MEMO_ = {}; dnT = vbTable_(DN_SHEET_, DN_COLS_); }
+      x.data.corr = x._corr.map(z => {
+        const cn = z.kind === 'Credit', co = x.company, pre = str_(((st.companies || {})[co] || {}).dnPrefix);
+        let no; if (cn) { cnLast[co] = (cnLast[co] || 0) + 1; no = (/DN/.test(pre) ? pre.replace(/DN(?!.*DN)/, 'CN') : pre + 'CN-') + String(cnLast[co]).padStart(3, '0'); }
+        else { dnLast[co] = (dnLast[co] || 0) + 1; no = pre + String(dnLast[co]).padStart(3, '0'); }
+        const nid = 'DN-' + String(++dnIdN).padStart(5, '0'), sign = v => r2_(cn ? v : -v);      // (a line's amount on the note's side: the lines add up to the note)
+        const lines = z.work.map(w => ({ machinery: z.no, particular: 'Work ' + w.unit + ': ' + w.from + ' → ' + w.to + (w.rate !== '' ? ' at ₹' + w.rate : ''), qty: r2_(w.to - w.from), unit: w.unit, rate: w.rate, amount: sign(w.amount) }))
+          .concat(z.diesel ? [{ machinery: z.no, particular: 'Diesel debited: ' + z.diesel.from + ' L → ' + z.diesel.to + ' L at ₹' + z.diesel.rate + ' (issued ' + z.diesel.issuedFrom + ' → ' + z.diesel.issuedTo + ' L)', qty: r2_(z.diesel.to - z.diesel.from), unit: 'L', rate: z.diesel.rate, amount: sign(-z.diesel.amount) }] : [])
+          .map((l, i) => Object.assign({ sr: i + 1, logId: '' }, l));
+        const dr = newRow_(dnT);
+        set_(dr, dnT, 'Note ID', nid); set_(dr, dnT, 'DN No', no); set_(dr, dnT, 'Company', co); set_(dr, dnT, 'Date', toDate_(dkey_(x.billDate) || today_())); set_(dr, dnT, 'Vendor Name', clean_(x.vendor));
+        set_(dr, dnT, 'Kind', cn ? DN_CN_ : DN_CD_); set_(dr, dnT, 'Period From', toDate_(z.from)); set_(dr, dnT, 'Period To', toDate_(z.to)); set_(dr, dnT, 'Lines', JSON.stringify(lines)); set_(dr, dnT, 'Log IDs', '[]');
+        set_(dr, dnT, 'Amount', z.amount); set_(dr, dnT, 'GST %', z.gstPct); set_(dr, dnT, 'GST Amount', z.gst); set_(dr, dnT, 'TDS %', z.tdsPct); set_(dr, dnT, 'TDS Amount', z.tds); set_(dr, dnT, 'Total', z.total);
+        set_(dr, dnT, 'Status', 'Deducted'); set_(dr, dnT, 'Bill ID', id); set_(dr, dnT, 'Remark', 'Correction of RA Bill ' + z.billNo + (z.rev ? ' rev ' + z.rev : '') + ' (' + dmy_(z.from) + ' to ' + dmy_(z.to) + ') – ' + z.no); set_(dr, dnT, 'Created At', new Date());
+        dnT.sh.appendRow(dr);
+        const pg = ((x.data.corr || []).find(y => y && y.key === z.key)) || {};
+        return Object.assign({}, z, { checked: pg.checked === true, noteId: nid, noteNo: no });
+      });
+      if (!x.data.corr.length) delete x.data.corr;
+      const corrNet = r2_((x.data.corr || []).reduce((a, z) => a + (z.kind === 'Credit' ? -z.total : z.total), 0));
+      const J = r2_(x._dn.reduce((a, n2) => a + n2.total, 0) + corrNet);
+      if (x._dn.length || (x.data.corr || []).length) { if (x._dn.length) x.data.dns = x._dn.map(n2 => ({ id: n2.id, no: n2.no, date: n2.date, total: n2.total })); else delete x.data.dns; x.data.J = J; x.data.K = r2_(num0_(x.data.I) - J); }
       else { delete x.data.dns; delete x.data.J; delete x.data.K; }
       delete x.data.dnOpen;
       // the notes of this bill are marked as deducted in it; notes of the bill(s) it replaces that are no longer ticked are free again
@@ -3127,8 +3196,8 @@ function submitBills_(b) {
         dnAll.forEach(n2 => {
           const link = mine[n2.id] ? id : (n2.billId && olderIds.indexOf(n2.billId) > -1 ? '' : null);
           if (link === null) return;
-          const dr = dnT.rows[n2.i].slice(); set_(dr, dnT, 'Bill ID', link); set_(dr, dnT, 'Status', link ? 'Deducted' : 'Open'); stampEdit_(dr, dnT);
-          dnT.sh.getRange(n2.i + 2, 1, 1, dr.length).setValues([dr]); dnT.rows[n2.i] = dr; n2.billId = link; n2.status = link ? 'Deducted' : 'Open';
+          const dr = dnT.rows[n2.i].slice(); set_(dr, dnT, 'Bill ID', link); set_(dr, dnT, 'Status', link ? 'Deducted' : dnCorr_(n2) ? 'Cancelled' : 'Open'); stampEdit_(dr, dnT);      // (update-108: a correction note of the bill replaced is cancelled – the revision makes its own)
+          dnT.sh.getRange(n2.i + 2, 1, 1, dr.length).setValues([dr]); dnT.rows[n2.i] = dr; n2.billId = link; n2.status = link ? 'Deducted' : dnCorr_(n2) ? 'Cancelled' : 'Open';
         });
       }
       const row = newRow_(t);
@@ -3151,7 +3220,7 @@ function deleteBill_(id, reason) {
     t.sh.deleteRow(i + 2);
     // debit notes that were deducted in this bill are open again
     try { const dt = vbTable_(DN_SHEET_, DN_COLS_);
-      if (dt) dt.rows.map((r, k) => dnOut_(dt, r, k)).filter(d => d.billId === b.id).forEach(d => { const dr = dt.rows[d.i].slice(); set_(dr, dt, 'Bill ID', ''); set_(dr, dt, 'Status', 'Open'); stampEdit_(dr, dt); dt.sh.getRange(d.i + 2, 1, 1, dr.length).setValues([dr]); });
+      if (dt) dt.rows.map((r, k) => dnOut_(dt, r, k)).filter(d => d.billId === b.id).forEach(d => { const dr = dt.rows[d.i].slice(); set_(dr, dt, 'Bill ID', ''); set_(dr, dt, 'Status', dnCorr_(d) ? 'Cancelled' : 'Open'); stampEdit_(dr, dt); dt.sh.getRange(d.i + 2, 1, 1, dr.length).setValues([dr]); });
       TABLE_MEMO_ = {}; } catch (e) {
       // only "there is no debit-notes table (yet)" is passed over. Anything else (the database did not answer …) used to be
       // passed over too: the bill was deleted, its debit notes stayed "Deducted" in a bill that no longer exists, and the
@@ -7873,7 +7942,7 @@ function saveLogBulk_(b) {
         /* an entry of a date that is in a submitted bill: it stays exactly as it is saved. The page sends it with the others of the
          * grid; it is kept out of the save (its saved readings are used for the chain). If what was sent differs from what is
          * saved – shift, way of measuring, a reading, the half-day mark – the save is refused with the way out. */
-        const lockB = l.key && l.key in byKey ? billLockOf_(m.id, dkey_(lt.rows[byKey[l.key]][c[H.DATE]])) : null;
+        const lockB = l.key && l.key in byKey && !ACTOR_SUPER_ ? billLockOf_(m.id, dkey_(lt.rows[byKey[l.key]][c[H.DATE]])) : null;      // (the Super Admin: saved like any other entry)
         if (lockB) {
           const r0 = lt.rows[byKey[l.key]], dk0 = dkey_(r0[c[H.DATE]]), sh0 = str_(r0[c[H.SHIFT]]) || 'Full Day', cur0 = str_(r0[c[H.UNIT]]), km0 = hasKm_(cur0), hr0 = hasHr_(cur0);
           const neq = (sent, saved) => (blank_(sent) ? '' : r2_(Number(sent))) !== numOrBlank_(saved);
@@ -8834,9 +8903,10 @@ function dbHealth_() {
     add('"½ day" in the Log Book (step 1v)', has('log_book', 'day_part'), 'supabase_step1v_half_day.sql');
     add('Split timing of a Time entry (step 1w)', has('log_book', 'time_slots'), 'supabase_step1w_time_slots.sql');
     add('Photos of a diesel issue (step 1x)', has('diesel_issue', 'photos'), 'supabase_step1x_diesel_photos.sql');
+    add('Changes of a billed period – Approvals and the next bill (step 1z)', has('billed_changes'), 'supabase_step1z_billed_changes.sql');
     // (update-90) the list of sites, the Super Admin and who has which site – in the FIRST site's database only
     if (typeof __siteIsHome === 'function' && __siteIsHome()) add('Several sites and the Super Admin (step 7 – the first site only)', typeof __sitesOn === 'function' && __sitesOn(), 'supabase_step7_sites.sql');
-    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos)/.test(x));
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes)/.test(x));
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }
   let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }
@@ -8883,10 +8953,235 @@ const billLockTag_ = b => b ? { billNo: b.billNo, rev: b.rev, vendor: b.vendor, 
 function lockMarker_() { const locks = {}; return { locks: locks, of: (no, dk) => { const b = billLockOf_(no, dk); if (!b) return undefined; locks[b.id] = locks[b.id] || billLockTag_(b); return b.id; } }; }
 function billLockMsg_(b, no, dk, what) {
   return (what || 'Entry') + ' of ' + clean_(no) + ' on ' + dmy_(dk) + ': this machinery is in the submitted RA Bill ' + b.billNo + (b.rev ? ' rev ' + b.rev : '') + ' of ' + b.vendor + ' (' + b.company + ', ' + dmy_(b.from) + ' to ' + dmy_(b.to) +
-    ') – its Log Book and diesel entries of those dates cannot be added, changed or deleted. To correct them: the Admin deletes that bill (RCL Drive → Saved Bills → Delete), then the correction is made, and the bill is built and submitted again.';
+    ') – its Log Book and diesel entries of those dates cannot be added, changed or deleted without the Super Admin. To correct them: change the entry and send it to the Super Admin for approval (the page asks) – approved, it is saved and the difference is taken in the next bill of this vendor; or the Admin deletes that bill, the correction is made, and the bill is built and submitted again.';
 }
-function billLockFail_(b, no, dk, what) { const msg = billLockMsg_(b, no, dk, what); throw new Error(msg); }
+/* (14-10-2026, asked by the MD: "bill entry change fkt super admin change kru shakel … user pn change kru shakel but approval tewach
+ * hoil jewa super admin approval deil") THE SUPER ADMIN (signed in through the Portal – his session says so, ACTOR_SUPER_) changes
+ * entries of a submitted bill directly: the lock lets him through. Everybody else is refused as before – the page then offers to
+ * send the same change to the Super Admin (Approvals); approved, it is saved as his. The saved bill itself is never changed: the
+ * difference is found and taken in the next bill of the vendor (billCorrections_). */
+let ACTOR_SUPER_ = false;
+function billLockFail_(b, no, dk, what) { if (ACTOR_SUPER_) return; const msg = billLockMsg_(b, no, dk, what); throw new Error(msg); }
 function billLock_(no, dk, what) { const b = billLockOf_(no, dk); if (b) billLockFail_(b, no, dk, what); return dk; }
+
+/* ================= A CHANGE OF A BILLED PERIOD WAITS FOR THE SUPER ADMIN (update-108, asked 14-10-2026) =================
+ * "user pn change kru shakel but approval tewach hoil jewa super admin approval deil". A user's save that the bill lock refuses
+ * (Log Book or Diesel Issue, any way of entering) can be SENT to the Super Admin: exactly what the page sent (the action and its
+ * values) is kept in billed_changes (SQL step 1z, kind Request) with the user's reason – nothing of it is saved yet. The Super Admin sees the
+ * list on "Approvals": Approve = the same save is run now, with every check of that save, as the user's change (the bill lock
+ * lets it through, as for the Super Admin); it is saved, or – if something else changed meanwhile – refused with the reason and
+ * left waiting. Reject = nothing is saved. The difference with the bill is taken in the vendor's next bill (billCorrections_). */
+const CR_SHEET_ = 'Billed Changes';
+const CR_COLS_ = ['Request ID', 'Kind', 'Requested At', 'Requested By', 'Requester Email', 'Action', 'Args', 'Summary', 'Machinery', 'Dates', 'Reason', 'Status', 'Decided By', 'Decided At', 'Decision Note', 'Result', 'Bill ID', 'Data', 'Created At'];
+const CR_FNS_ = ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'saveLogBulk', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip', 'updateTankerTrip',
+  'saveTankerRange', 'importTankerTrips', 'saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'updateDieselIssue', 'deleteDieselIssue'];
+const CR_SQL_MSG_ = 'This needs one database step first: run sql/supabase_step1z_billed_changes.sql in Supabase → SQL Editor, in every site (it only adds a table).';
+function crTable_(make) {
+  try {
+    if (make) { vbSheet_(CR_SHEET_, CR_COLS_); addColIfMissing_(CR_SHEET_, CR_COLS_, H.EBY); addColIfMissing_(CR_SHEET_, CR_COLS_, H.UBY); TABLE_MEMO_ = {}; }
+    const t = vbTable_(CR_SHEET_, CR_COLS_); if (t) t.rows.length;      // (read now: a missing table is said here)
+    return t;
+  } catch (e) { if (/billed_changes|42P01|PGRST205|does not exist|Could not find the table/.test(String(e && e.message))) throw new Error('A change of a billed period cannot be sent to the Super Admin yet. ' + CR_SQL_MSG_); throw e; }
+}
+function crOut_(t, r, i) {
+  const g = h => h in t.c ? r[t.c[h]] : '', at = v => v instanceof Date ? v.toISOString() : str_(v);
+  let summary = []; try { summary = JSON.parse(str_(g('Summary')) || '[]'); } catch (e) { summary = [str_(g('Summary'))]; }
+  return { i: i, id: str_(g('Request ID')), kind: str_(g('Kind')) || 'Request', billId: str_(g('Bill ID')), data: str_(g('Data')), at: at(g('Requested At')), by: str_(g('Requested By')), email: str_(g('Requester Email')).toLowerCase(), fn: str_(g('Action')),
+    args: str_(g('Args')), summary: Array.isArray(summary) ? summary : [String(summary)], nos: str_(g('Machinery')), dates: str_(g('Dates')), reason: str_(g('Reason')),
+    status: str_(g('Status')) || 'Pending', decidedBy: str_(g('Decided By')), decidedAt: at(g('Decided At')), note: str_(g('Decision Note')), result: str_(g('Result')) };
+}
+// what a request changes, in words: each entry it names (machinery, date, shift) with the values sent – and, for a saved entry, what is saved now
+const CR_FIELDS_ = { mode: 'Measured by', openingKm: 'Start KM', closingKm: 'Close KM', openingHr: 'Start Hrs', closingHr: 'Close Hrs', tStart: 'From', tEnd: 'To', tBreak: 'Break', trip: 'Trips',
+  challan: 'Challan', c: 'Challan', a: 'Dispatch', b: 'Unload', ch: 'Chainage', u: 'Use for', chFrom: 'Chainage From', chTo: 'Chainage To', work: 'Work', qty: 'Litres', kmReading: 'KM reading',
+  hrReading: 'Hrs reading', driver: 'Driver', remark: 'Remark', status: 'Status', half: '½ day' };
+function crDescribe_(fn, args) {
+  const lines = [], nos = {}, dates = {}, pairs = [];
+  const vals = o => Object.keys(CR_FIELDS_).filter(k => o && !blank_(o[k]) && typeof o[k] !== 'object').map(k => CR_FIELDS_[k] + ' ' + clean_(o[k]).slice(0, 40)).join(', ');
+  const one = (no, dk, sh, o, what) => { if (!no) return; nos[noKey_(no)] = clean_(no); if (/^\d{4}-\d{2}-\d{2}$/.test(dk)) { dates[dk] = true; pairs.push({ no: clean_(no), dk: dk }); } if (lines.length < 60) lines.push((what ? what + ': ' : '') + clean_(no) + ' · ' + dmy_(dk) + (sh ? ' · ' + sh : '') + (o ? (vals(o) ? ' – ' + vals(o) : '') : '')); };
+  const logRow = key => { try { const lt = table_(APP.SHEET_LOG, logHeaders_()), r = lt.rows[findLogIdx_(lt, key)], c = lt.c; return { no: str_(r[c[H.NO]]), date: dkey_(r[c[H.DATE]]), shift: str_(r[c[H.SHIFT]]) || 'Full Day', saved: 'saved now: ' + [[H.UNIT, 'Measured by'], [H.OKM, 'Start KM'], [H.CKM, 'Close KM'], [H.OHR, 'Start Hrs'], [H.CHR, 'Close Hrs'], [H.TRIP, 'Trips']].filter(x => x[0] in c && !blank_(r[c[x[0]]])).map(x => x[1] + ' ' + str_(r[c[x[0]]])).join(', ') }; } catch (e) { return null; } };
+  const diesel = id => { try { const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), r = t.rows.find(x => str_(x[t.c[H.ID]]) === str_(id)); if (!r) return null; return { no: str_(r[t.c[H.NO]]), date: dkey_(r[t.c[H.IDATE]]), shift: str_(r[t.c[H.SHIFT]]), saved: 'saved now: Litres ' + str_(r[t.c[H.QTY]]) }; } catch (e) { return null; } };
+  const a = args || [];
+  if (fn === 'updateLogRow' || fn === 'deleteLogRow') { const r = logRow(a[0]); const k = str_(a[0]).split('|'); one(r ? r.no : k[0], r ? r.date : k[1], r ? r.shift : k[2], fn === 'updateLogRow' ? a[1] : null, fn === 'deleteLogRow' ? 'Delete Log Book entry' : 'Change Log Book entry'); if (r && r.saved && lines.length) lines[lines.length - 1] += ' (' + r.saved + ')'; }
+  else if (fn === 'updateDieselIssue' || fn === 'deleteDieselIssue') { const r = diesel(a[0]); one(r ? r.no : str_(a[0]), r ? r.date : '', r ? r.shift : '', fn === 'updateDieselIssue' ? a[1] : null, (fn === 'deleteDieselIssue' ? 'Delete diesel issue ' : 'Change diesel issue ') + str_(a[0])); if (r && r.saved && lines.length) lines[lines.length - 1] += ' (' + r.saved + ')'; }
+  else {
+    const what = /^delete/.test(fn) ? 'Delete' : /^(update|saveTankerRange|saveLogBulk)/.test(fn) ? 'Change' : 'Add';
+    const walk = (v, d, no0, dk0) => {
+      if (d > 5 || v === null || v === undefined) return;
+      if (Array.isArray(v)) { v.slice(0, 500).forEach(x => walk(x, d + 1, no0, dk0)); return; }
+      if (typeof v === 'string') { const q = /^(.+)\|(\d{4}-\d{2}-\d{2})\|(Full Day|Day|Night)$/.exec(v); if (q) one(q[1], q[2], q[3], null, 'Delete'); return; }
+      if (typeof v !== 'object') return;
+      const no = clean_(v.no || v.machinery || '') || no0, dk = /^\d{4}-\d{2}-\d{2}$/.test(str_(v.date)) ? str_(v.date) : '';
+      if (no && (dk || dk0) && (dk || vals(v))) one(no, dk || dk0, str_(v.shift), v, what);
+      Object.keys(v).forEach(k => { if (v[k] && typeof v[k] === 'object') walk(v[k], d + 1, no, dk || dk0); else if (k === 'key' || k === 'deleted') walk(v[k], d + 1, no, dk || dk0); });
+    };
+    walk(a, 0, '', '');
+    const b0 = a[0] || {}; if (b0 && typeof b0 === 'object' && b0.no && /^\d{4}-\d{2}-\d{2}$/.test(str_(b0.from))) pairs.push({ no: clean_(b0.no), dk: str_(b0.from) });      // (Edit Log Book: its whole range)
+  }
+  return { lines: lines.length ? lines : ['(' + fn + ')'], nos: Object.values(nos).join(', '), dates: Object.keys(dates).sort().map(dmy_).join(', '), pairs: pairs };
+}
+function crRequest_(u, x) {
+  return withLock_(() => {
+    x = x || {};
+    const fn = str_(x.fn), spec = Object.prototype.hasOwnProperty.call(API_, fn) ? API_[fn] : null;
+    if (!spec || CR_FNS_.indexOf(fn) === -1) throw new Error('Only a Log Book or diesel issue change can be sent to the Super Admin.');
+    if (u.super) throw new Error('You are the Super Admin – save the change directly.');
+    if (spec.m && !canEdit_(u, spec.m)) throw new Error('You have View access only for ' + (MODULE_LABEL_[spec.m] || spec.m) + '. Ask Admin for Edit access.');
+    const args = Array.isArray(x.args) ? x.args : [], json = JSON.stringify(args);
+    if (json.length > 400000) throw new Error('This change is too big to send at once – send it in parts (fewer rows).');
+    const reason = clean_(x.reason).slice(0, 300); if (!reason) throw new Error('Write why this change is needed – the Super Admin reads it.');
+    const t = crTable_(true), all = t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.id && r.kind === 'Request');
+    if (all.some(r => r.status === 'Pending' && r.email === str_(u.email).toLowerCase() && r.fn === fn && r.args === json)) throw new Error('This same change is already waiting for the Super Admin\'s approval.');
+    const d = crDescribe_(fn, args);
+    const id = 'CR-' + String(all.reduce((mx, r) => Math.max(mx, Number(r.id.replace(/\D/g, '')) || 0), 0) + 1).padStart(5, '0');
+    const row = newRow_(t);
+    set_(row, t, 'Request ID', id); set_(row, t, 'Kind', 'Request'); set_(row, t, 'Requested At', new Date()); set_(row, t, 'Requested By', u.name || u.email); set_(row, t, 'Requester Email', str_(u.email).toLowerCase());
+    set_(row, t, 'Action', fn); set_(row, t, 'Args', json); set_(row, t, 'Summary', JSON.stringify(d.lines)); set_(row, t, 'Machinery', d.nos.slice(0, 300)); set_(row, t, 'Dates', d.dates.slice(0, 300));
+    set_(row, t, 'Reason', reason); set_(row, t, 'Status', 'Pending'); set_(row, t, 'Created At', new Date());
+    t.sh.appendRow(row); TABLE_MEMO_ = {};
+    return { ok: true, id: id, summary: d.lines };
+  });
+}
+/* ================= THE NEXT BILL TAKES WHAT CHANGED IN AN EARLIER BILL (update-108, asked 14-10-2026) =================
+ * "next bill banwatana … pratek submit kelelya bill … check karel … diesel debit 20 L pending, 20 L extra credit … Credit Note /
+ * Debit Note banwaych aahech but bill madhe pn tas calculation dakhwaych aahe … farak disla tr to clear krun dyayla haw, clear nahi
+ * kel tr bill submit honar nahi". The saved bill (its papers on the Drive) is never changed. Instead:
+ *   1. BEFORE an entry of a submitted bill is changed (the Super Admin's own save, or a user's change he approves), the bill's figures
+ *      of that machinery are worked out from the entries as they still are and kept (billed_changes, kind Baseline) – the same way
+ *      the bill is worked out (billMachineCalc_), the bill's own choices (Idle paid or not, its diesel rate). Once per bill and
+ *      machinery: the first change keeps the "before".
+ *   2. The next bill of the vendor (same name on the bill) works every such bill out again from today's entries and shows what is
+ *      different, at THE OLD BILL'S RATES: the work (days / hours / KM / trips at the rate of its lines) and the diesel debited (litres
+ *      at its diesel rate). Plus = the vendor gets more → a Credit Note; minus = the vendor got too much → a Debit Note; GST and TDS
+ *      at the old bill's %.
+ *   3. Every difference must be ticked "checked" in the new bill; the bill shows the calculation, and on submit the Credit / Debit
+ *      Notes are made and taken in it (J / K, after the net payable). A difference that is not taken stops the submit.
+ *   4. What a bill took is kept in it (data.corr – the figures "now" of each one): the bill after it compares with those. A bill
+ *      deleted (or replaced by a revision) gives its differences back, and its notes are cancelled. */
+function billSavedFig_(x) {
+  const units = {}; (x.lines || []).forEach(l => { const u = units[l.unit] = units[l.unit] || { qty: 0, amount: 0, rates: [] }; u.qty = r2_(u.qty + num0_(l.qty)); u.amount = r2_(u.amount + num0_(l.amount)); if (u.rates.indexOf(r2_(num0_(l.rate))) === -1) u.rates.push(r2_(num0_(l.rate))); });
+  return { units: units, amount: r2_(num0_(x.amount)), dieselL: r2_(num0_(x.debitQty) + num0_(x.excessQty)), issued: r2_(num0_(x.issued)), rate: r2_(num0_(x.dieselRate)), workDays: num0_(x.workDays), nights: num0_(x.nights) };
+}
+// one machinery of a saved bill, worked out again from today's entries (the bill's own choices); per = a memory of the periods read
+function billNowFig_(b, x, per) {
+  const no = billMachNo_(x); let m; try { m = findMachine_(no); } catch (e) { return null; }
+  const k = b.from + '|' + b.to + '|' + noKey_(m.id);
+  if (!per[k]) per[k] = { rows: getLogBookList_({ from: b.from, to: b.to, no: m.id, all: true }).rows.filter(r => same_(r.no, m.id)), extra: logPrintExtra_({ from: b.from, to: b.to, nos: [m.id] }) };
+  const pd = per[k], xtra = num0_(x.dieselRate) > 0 ? Object.assign({}, pd.extra, { manualRate: num0_(x.dieselRate) }) : pd.extra;
+  const c = billMachineCalc_(m, pd.rows, xtra, b.from, b.to, undefined, (b.data || {}).idlePaid !== false);
+  const units = {}; c.segs.forEach(sg => { const u = units[sg.unit] = units[sg.unit] || { qty: 0, amount: 0, rates: [] }; u.qty = r2_(u.qty + sg.qty); u.amount = r2_(u.amount + sg.amount); if (u.rates.indexOf(sg.rate) === -1) u.rates.push(sg.rate); });
+  return { units: units, amount: c.amount, dieselL: r2_(c.debitQty + c.excessQty), issued: c.issued, rate: c.dieselRate, workDays: c.workDays, nights: c.nights };
+}
+const billsAll_ = () => { const t = billTable_(); return t ? t.rows.map(r => billOut_(t, r, true)).filter(b => b.id) : []; };
+// 1. the "before" of every submitted bill that a save about to run may change (its machinery, on / after the first date it names)
+function billBaselines_(fn, args) {
+  const d = crDescribe_(fn, args); if (!d.pairs.length) return 0;
+  let t = null; try { t = crTable_(true); } catch (e) { return 0; }      // (step 1z not run: the Super Admin's save goes on; the next bill then cannot show its difference)
+  const have = {}; t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.kind === 'Baseline').forEach(r => { have[r.id] = true; });
+  const taken = billCorrTaken_(billsAll_(), {}), per = {}; let n = 0;
+  const first = {}; d.pairs.forEach(p => { const k = noKey_(p.no); if (!first[k] || p.dk < first[k]) first[k] = p.dk; });
+  billsAll_().filter(b => b.status === 'Active').forEach(b => ((b.data || {}).machines || []).forEach(x => {
+    const k = noKey_(billMachNo_(x)), id = 'BL|' + b.id + '|' + k;
+    if (!first[k] || b.to < first[k] || have[id] || taken[b.id + '|' + k]) return;
+    const fig = billNowFig_(b, x, per); if (!fig) return;
+    const row = newRow_(t);
+    set_(row, t, 'Request ID', id); set_(row, t, 'Kind', 'Baseline'); set_(row, t, 'Requested At', new Date()); set_(row, t, 'Requested By', ACTOR_); set_(row, t, 'Action', fn);
+    set_(row, t, 'Machinery', billMachNo_(x)); set_(row, t, 'Dates', dmy_(b.from) + ' to ' + dmy_(b.to)); set_(row, t, 'Bill ID', b.id); set_(row, t, 'Data', JSON.stringify(fig)); set_(row, t, 'Created At', new Date());
+    t.sh.appendRow(row); have[id] = true; n++;
+  }));
+  if (n) TABLE_MEMO_ = {};
+  return n;
+}
+// what the bills in force already took: key "bill id|machinery" → the figures "now" it took (the newest bill wins)
+function billCorrTaken_(bills, skipIds) {
+  const out = {};
+  bills.filter(b => b.status === 'Active' && !skipIds[b.id]).sort((a, b) => (a.created < b.created ? -1 : 1)).forEach(b => ((b.data || {}).corr || []).forEach(c => { if (c && c.key && c.now) out[c.key] = c.now; }));
+  return out;
+}
+/* 2. the differences a new bill of vendor + name must take. f: { vendor, company, bills: [{ from, to, machines: [no] }] } – the bills of
+ * this batch (a bill of the same period and machinery is a revision: the bill it replaces is not looked at, and what it took is
+ * looked at again). */
+function billCorrections_(f) {
+  f = f || {};
+  const vk = vKey_(f.vendor || ''), co = str_(f.company); if (!vk) throw new Error('Pick the vendor.');
+  let t = null; try { t = crTable_(false); } catch (e) { return { items: [], missing: true }; }
+  if (!t) return { items: [] };
+  const all = billsAll_(), batch = Array.isArray(f.bills) ? f.bills : [];
+  const replaced = {}; all.filter(b => b.status === 'Active' && vKey_(b.vendor) === vk && b.company === co && batch.some(z => dkey_(z.from) === b.from && dkey_(z.to) === b.to &&
+    billMachOverlap_(billMachKeys_(b.data), (z.machines || []).map(noKey_)))).forEach(b => { replaced[b.id] = true; });
+  const taken = billCorrTaken_(all, replaced), base = {};
+  t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.kind === 'Baseline').forEach(r => { try { base[r.id.slice(3)] = JSON.parse(r.data || '{}'); } catch (e) { /* a broken row is passed over */ } });
+  const per = {}, items = [];
+  all.filter(b => b.status === 'Active' && !replaced[b.id] && vKey_(b.vendor) === vk && b.company === co).sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0)).forEach(b => ((b.data || {}).machines || []).forEach(x => {
+    const nk = noKey_(billMachNo_(x)), key = b.id + '|' + nk;
+    const before = taken[key] || base[key]; if (!before) return;      // no entry of it changed since the bill (or since what a later bill took)
+    const now = billNowFig_(b, x, per); if (!now) return;
+    // the work at the old bill's rate of each line (a unit with one rate); a unit with more rates (slabs) – its amount
+    const old = billSavedFig_(x), work = [];
+    Object.keys(Object.assign({}, before.units, now.units)).forEach(u => {
+      const a = before.units[u] || { qty: 0, amount: 0, rates: [] }, z = now.units[u] || { qty: 0, amount: 0, rates: [] }, oldR = (old.units[u] || a).rates || [];
+      const dq = r2_(z.qty - a.qty); if (Math.abs(dq) < 0.005 && Math.abs(z.amount - a.amount) < 0.5) return;
+      if (oldR.length === 1) work.push({ unit: u, from: a.qty, to: z.qty, rate: oldR[0], amount: r2_(dq * oldR[0]) });
+      else work.push({ unit: u, from: a.qty, to: z.qty, rate: '', amount: r2_(z.amount - a.amount) });
+    });
+    const rate = old.rate || before.rate || now.rate, dl = r2_(now.dieselL - before.dieselL);
+    const diesel = Math.abs(dl) >= 0.005 ? { from: before.dieselL, to: now.dieselL, issuedFrom: before.issued, issuedTo: now.issued, rate: rate, amount: r2_(dl * rate) } : null;
+    const workDiff = r2_(work.reduce((s, w) => s + w.amount, 0)), dieselDiff = diesel ? diesel.amount : 0, net = r2_(workDiff - dieselDiff);
+    if (!work.length && !diesel) return;
+    if (Math.abs(net) < 0.5) return;
+    const d = b.data || {}, gstPct = num0_(d.gstPct), tdsPct = num0_(d.tdsPct), amt = Math.abs(net), gst = r2_(amt * gstPct / 100), tds = r2_(amt * tdsPct / 100);
+    items.push({ key: key, billId: b.id, billNo: b.billNo, rev: b.rev, from: b.from, to: b.to, no: billMachNo_(x), work: work, diesel: diesel, workDiff: workDiff, dieselDiff: dieselDiff,
+      net: net, kind: net > 0 ? 'Credit' : 'Debit', amount: r2_(amt), gstPct: gstPct, gst: gst, tdsPct: tdsPct, tds: tds, total: r2_(amt + gst - tds), now: now });
+  }));
+  return { items: items, credit: r2_(items.filter(i => i.kind === 'Credit').reduce((s, i) => s + i.total, 0)), debit: r2_(items.filter(i => i.kind === 'Debit').reduce((s, i) => s + i.total, 0)) };
+}
+// the list: the Super Admin sees every request (waiting ones first); a user sees his own
+function crList_(u, f) {
+  f = f || {};
+  let t = null; try { t = crTable_(false); } catch (e) { return { requests: [], missing: CR_SQL_MSG_ }; }
+  const me = str_(u.email).toLowerCase();
+  const list = (t ? t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.id && r.kind === 'Request') : []).filter(r => u.super || r.email === me).filter(r => !f.status || r.status === f.status)
+    .sort((a, b) => (a.status === 'Pending' ? 0 : 1) - (b.status === 'Pending' ? 0 : 1) || (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)).slice(0, 300)
+    .map(r => { const o = Object.assign({}, r); delete o.args; delete o.i; delete o.data; delete o.billId; return o; });
+  return { requests: list, pending: list.filter(r => r.status === 'Pending').length, superAdmin: !!u.super };
+}
+function crDecide_(u, x) {
+  x = x || {};
+  if (!u.super) throw new Error('Only the Super Admin approves or rejects a change of a billed period (signed in through the Portal).');
+  return withLock_(() => {
+    const t = crTable_(false), r0 = t ? t.rows.map((r, i) => crOut_(t, r, i)).find(r => r.id === str_(x.id) && r.kind === 'Request') : null;
+    if (!r0) throw new Error('This request was not found – refresh the list.');
+    if (r0.status !== 'Pending') throw new Error('This request is already ' + r0.status.toLowerCase() + ' (by ' + (r0.decidedBy || '–') + ').');
+    const note = clean_(x.note).slice(0, 300), approve = x.approve === true;
+    if (!approve && !note) throw new Error('Write why the change is rejected – the user reads it.');
+    let res = null;
+    if (approve) {
+      const spec = API_[r0.fn];
+      if (!spec || CR_FNS_.indexOf(r0.fn) === -1) throw new Error('This request names an action that cannot be approved here (' + r0.fn + ').');
+      const ru = readUsers_().find(w => w.email === r0.email);
+      if (!ru || !ru.active) throw new Error(r0.by + ' is not an active user of this site any more – reject this request.');
+      if (spec.m && !canEdit_(ru, spec.m)) throw new Error(r0.by + ' has no Edit access to ' + (MODULE_LABEL_[spec.m] || spec.m) + ' any more – reject this request.');
+      let args = []; try { args = JSON.parse(r0.args || '[]'); } catch (e) { args = []; }
+      // the save runs as the user's change; the bill lock lets it through (as for the Super Admin). A refusal stops it all: nothing saved, the request waits
+      const actor0 = ACTOR_, admin0 = ACTOR_ADMIN_;
+      ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = true;
+      try {
+        const before = spec.log ? logBefore_(spec, args) : null;
+        billBaselines_(r0.fn, args);      // the "before" of the bills it may change (saved with it, or not at all)
+        res = spec.withUser ? spec.f.apply(null, [ru].concat(args)) : spec.f.apply(null, args);
+        const errs = res && typeof res === 'object' ? (res.errors || []) : [];
+        if (res && (res.ok === false || errs.length)) throw new Error('It could not be saved: ' + (errs.length ? errs.slice(0, 5).map(e => (e.row ? 'Line ' + e.row + ': ' : '') + (e.msg || e)).join(' | ') : (res.error || res.warning || 'refused')) + ' – nothing was saved; the request still waits.');
+        if (spec.log) { try { logAfter_(ru, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ } }
+      } finally { ACTOR_ = actor0; ACTOR_ADMIN_ = admin0; }
+      bump_(SYNC_GROUPS_[spec.m] || []);
+    }
+    TABLE_MEMO_ = {};
+    const t2 = crTable_(false), r1 = t2.rows.map((r, i) => crOut_(t2, r, i)).find(r => r.id === r0.id), row = t2.rows[r1.i].slice();
+    set_(row, t2, 'Status', approve ? 'Approved' : 'Rejected'); set_(row, t2, 'Decided By', u.name || u.email); set_(row, t2, 'Decided At', new Date()); set_(row, t2, 'Decision Note', note);
+    set_(row, t2, 'Result', approve ? 'Saved' : ''); stampEdit_(row, t2);
+    t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
+    return { ok: true, id: r0.id, status: approve ? 'Approved' : 'Rejected', by: r0.by, summary: r0.summary, list: crList_(u, {}) };
+  });
+}
 // (read once per table-memo lifetime: the memo is emptied for every request and after every write, so the date is never stale)
 // a value kept for as long as the table memory of the request lives (outside a request – sign-in, the sign-in screen – there is no memory: read every time)
 const memoGet_ = (k, make) => { if (TABLE_MEMO_ && k in TABLE_MEMO_) return TABLE_MEMO_[k]; const v = make(); if (TABLE_MEMO_) TABLE_MEMO_[k] = v; return v; };
