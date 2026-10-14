@@ -1627,6 +1627,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   there too); delete refused if any site uses it (`sysVendorUsed_`). "Vendors of all sites" (Admin, `vendorsTogether_`):
   same name = one vendor, owner = marked site else first made; check shows differences first. Runtime: `__siteCode`,
   `__siteNames`, `__runOthers` (only OTHERS_ = sysVendorList/Used/Copy). API test vendors106api.js 17, browser vendors106.js 5.
+- 14-10-2026 (update-107). Report: `UPDATE_107.md`. Log Book → "Import from Excel" (`lg_file`) takes a water tanker's lines
+  as trips (one line = one trip: Challan, From/To time = Dispatch/Unload, Chainage, Work Done = use for) through
+  `checkTankerImport` / `importTankerTrips` (no server change; `importLogBook_` still refuses tanker rows). A line with more
+  trips = "one line per trip"; a tanker Idle/Holiday/Breakdown line is not imported (said). The Log Book Excel (`lbExport`)
+  writes a tanker's entry one line per trip (`tripsOfRow`). Unit "update-107", browser tanker107.js 8.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
