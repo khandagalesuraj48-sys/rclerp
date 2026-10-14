@@ -27,7 +27,9 @@ const TAIL = `
     saved: (token, fn, args, kept) => savedAfterAll_(token, fn, args, kept),
     // (update-90) several sites – only from this server itself (system.js), never from the page (see run: OUTSIDE)
     saLogin: saLogin_, saWho: saWho_, saLogout: saLogout_, saChangePassword: saChangePassword_, saRecover: saRecover_,
-    sysWho: sysWho_, sysSession: sysSession_, sysSso: sysSso_, sysPortalAdmin: sysPortalAdmin_, sysNewSiteSql: sysNewSiteSql_, sysSiteHealth: sysSiteHealth_, sysOrgSet: sysOrgSet_, sysUserRow: sysUserRow_, sysSetPw: sysSetPw_, sysUsers: sysUsers_, sysSaveUser: sysSaveUser_, sysAccessReport: sysAccessReport_ }[fn];
+    sysWho: sysWho_, sysSession: sysSession_, sysSso: sysSso_, sysPortalAdmin: sysPortalAdmin_, sysNewSiteSql: sysNewSiteSql_, sysSiteHealth: sysSiteHealth_, sysOrgSet: sysOrgSet_, sysUserRow: sysUserRow_, sysSetPw: sysSetPw_, sysUsers: sysUsers_, sysSaveUser: sysSaveUser_, sysAccessReport: sysAccessReport_,
+    // (update-106) the Vendor Master common to every site: what one site asks the others (only from __runOthers below)
+    sysVendorList: sysVendorList_, sysVendorUsed: sysVendorUsed_, sysVendorCopy: sysVendorCopy_ }[fn];
   if (!f) throw new Error('Unknown action.');
   const r = f.apply(null, JSON.parse(argsJson));
   return JSON.stringify(r === undefined ? null : r);
@@ -158,6 +160,7 @@ function runOnce(fn, args, meta, rid) {
  * only from here (system.js) – a name that is not on this list is refused before anything runs. */
 const OUTSIDE = new Set(['api', 'login', 'changePassword', 'logout', 'orgInfo', 'backup', 'switchSite', 'setDefaultSite', 'super', 'ssoLogin', 'portalAdmin']);      // ssoLogin: a ticket of the Portal (update-91)
 // one of the app's own functions run inside another site (its database, its memory), its answer parsed; the site of this request is set back after it
+const OTHERS_ = new Set(['sysVendorList', 'sysVendorUsed', 'sysVendorCopy']);      // (update-106) what one site may ask the others
 const R = { runIn(site, fn, args) {
   const prev = gas.current();
   useSite(site);
@@ -331,6 +334,22 @@ function runPlain(fn, args, meta) {
   g.__sitesOn = () => { try { return !!sites.registry(); } catch (e) { return false; } };
   g.__superExists = () => { try { return sites.superExists(); } catch (e) { return true; } };      // (cannot be known now: "yes" – a change of users is refused, never let through)
   g.__sitesForget = () => { sites.forget(); };      // (the Super Admin was just made: this server knows it at once)
+  /* (update-106) ONE MASTER FOR EVERY SITE (the Vendor Master): this site's code and name, and a question to every OTHER site that
+   * is ready – run there (its database, its lock, its own save) and answered here, site by site (a site that cannot be reached
+   * says so; the others still answer). Only the functions named in OTHERS_ may be asked, never anything from the page. */
+  g.__siteCode = () => { const c = gas.site(); return c === '' ? (sites.homeCode() || '') : c; };
+  g.__siteNames = () => { let reg = null; try { reg = sites.registry(); } catch (e) { reg = null; } const o = {}; (reg || []).forEach(x => { o[x.code] = String(x.name || '').trim() || x.code; }); return JSON.stringify(o); };
+  g.__runOthers = (fn, argsJson) => {
+    if (!OTHERS_.has(String(fn))) throw new Error('Unknown action.');
+    let reg = null; try { reg = sites.registry(); } catch (e) { reg = null; }
+    const me = gas.site(), out = [];
+    (reg || []).filter(x => x.status === 'ready').forEach(x => {
+      const run = x.home ? '' : x.code; if (run === me) return;
+      try { out.push({ site: x.code, name: String(x.name || '').trim() || x.code, ok: true, r: R.runIn(run, String(fn), JSON.parse(String(argsJson))) }); }
+      catch (e) { out.push({ site: x.code, name: String(x.name || '').trim() || x.code, ok: false, error: String((e && e.message) || e).slice(0, 300) }); }
+    });
+    return JSON.stringify(out);
+  };
   g.__backupConfig = () => { const c = google.config(sheetOf()); return JSON.stringify(c.ok ? { ok: true, sheetId: c.sheetId, email: c.email } : c); };
   g.__g = (method, p2, body, ms) => JSON.stringify(google.call(String(method), String(p2), body ? String(body) : '', ms, sheetOf()));
   // the settings as the database has them NOW (the backup looks again once it holds its lock – another server may just have finished one)

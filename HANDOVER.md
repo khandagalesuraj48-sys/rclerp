@@ -1621,6 +1621,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `S.logView`, data-tedit / data-tdel – the entry's diesel on its first line); a saved trip can be changed (also its shift):
   updateTankerTrip_ (→ tankerPlan_), "Edit" on the trip form's saved trips (`wtEditStart` / `wtEditEnd`, `S.wtEdit`), and from
   the list. Storage unchanged (one entry a tanker, date and shift; trips inside). Unit "update-105", browser tanker105.js 7.
+- 14-10-2026 (update-106). Report: `UPDATE_106.md`. Vendor Master common to every site: every site keeps a copy of every vendor
+  (billing reads it as before) with `vendors.owner_site` (SQL step 1y, every site). Save / rename / delete only at the owner
+  site (`vendorGuard_`), copied to the others (`vendorSpread_` → runtime `__runOthers` → `sysVendorCopy_`, rename cascades
+  there too); delete refused if any site uses it (`sysVendorUsed_`). "Vendors of all sites" (Admin, `vendorsTogether_`):
+  same name = one vendor, owner = marked site else first made; check shows differences first. Runtime: `__siteCode`,
+  `__siteNames`, `__runOthers` (only OTHERS_ = sysVendorList/Used/Copy). API test vendors106api.js 17, browser vendors106.js 5.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
