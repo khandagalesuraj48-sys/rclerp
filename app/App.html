@@ -15126,7 +15126,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // one machinery: next row = next shift / next date
     if (lgMode === 'mach' && last && lgf(last, 'date').value) date = ls === 'Day' ? lgf(last, 'date').value : addDay(lgf(last, 'date').value, 1);
     if (date > S.today) { toast('Log Book can be filled only up to today (' + showDate(S.today) + ').', true); return; }
-    const shift = lgMode === 'mach' && ls === 'Day' ? 'Night' : lgMode === 'mach' && ls === 'Night' ? 'Day' : ls;
+    const shift = lgMode === 'mach' && last && ls === 'Day' ? 'Night' : lgMode === 'mach' && last && ls === 'Night' ? 'Day' : ls;      // (the first row: its own shift, not the one after it)
     $('lg_in').insertAdjacentHTML('beforeend', lgRowHtml(date, shift));
     const tr = $('lg_in').lastElementChild; lgBlank(tr); lgNumber();
     if (lgMode === 'mach') { const m = findMachine(val('lg_top_no')); if (m) { lgf(tr, 'no').value = m.id; lgFill(tr); } lgf(tr, 'date').focus(); }

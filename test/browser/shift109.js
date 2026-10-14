@@ -31,6 +31,11 @@ const BASE = 'http://127.0.0.1:3001';
     await f.evaluate(t => { setRules(Object.assign({}, S.rules, { dayFrom: t.z, nightFrom: t.a })); }, times); await wait(500);
     s = await state();
     ok('the hours changed so that now is Night: the boxes follow, and the first Log Book row (no machinery yet) is Night', s.auto === 'Night' && s.d === 'Night' && s.bd === 'Night' && s.t === 'Night' && s.lg === 'Night', s);
+    // one machinery (Log Book "one machinery – many dates"): its first row has the shift of now, not the one after it
+    const mrow = await f.evaluate(() => { S.formDirty = false; setLgMode('mach'); const n = $('lg_top_no'); n.value = S.master[0].no; n.dispatchEvent(new Event('change', { bubbles: true })); return S.master[0].no; }); await wait(1500);
+    const ms = await f.evaluate(() => { const tr = lgRows()[0]; return tr ? lgf(tr, 'shift').value : ''; });
+    ok('Log Book, one machinery (' + mrow + '): the first row is Night as well (before the fix it took the shift after it)', ms === 'Night', ms);
+    await f.evaluate(() => { S.formDirty = false; setLgMode('date'); }); await wait(500);
     // a box changed by hand (keyboard): kept while the entry is not saved
     await f.evaluate(() => showTab('diesel')); await wait(500);
     await f.focus('#d_shift'); await p.keyboard.press('ArrowUp'); await wait(300);

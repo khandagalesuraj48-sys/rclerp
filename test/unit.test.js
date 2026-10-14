@@ -2677,6 +2677,7 @@ test('update-109: Day / Night by the time – the site\'s hours (8 AM / 8 PM unl
   // where it is used: the new-entry boxes, the first Log Book row, a pending machinery put in the rows; a box changed by hand is kept
   assert.match(app, /function shiftBoxes\(\) \{ return \['d_shift', 'bd_shift', 't_shift', 'wt_shift'\]; \}/);
   assert.match(app, /const ls = last \? lgf\(last, 'shift'\)\.value : myShift\(\);/);
+  assert.match(app, /const shift = lgMode === 'mach' && last && ls === 'Day' \? 'Night' : lgMode === 'mach' && last && ls === 'Night' \? 'Day' : ls;/, 'one machinery: the FIRST row keeps its own shift (found by half.js: it took the shift after it)');
   assert.match(app, /const shift = myShift\(\), fire = el =>/);
   assert.match(app, /if \(t && e\.isTrusted && \(shiftBoxes\(\)\.indexOf\(t\.id\) > -1 \|\| \(t\.dataset && t\.dataset\.f === 'shift'\)\)\) t\.dataset\.hand = '1';/);
   assert.match(app, /<option value="">Automatic – Day \/ Night by the time<\/option>/);  // (found by the browser test idle.js: an "if" put inside the else-if chain of showTab stopped the Diesel page loading its list)

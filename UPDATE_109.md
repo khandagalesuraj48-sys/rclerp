@@ -42,13 +42,19 @@ the Log Book too; the notification of a request to the Super Admin only.
 While testing, the browser test idle.js showed that a line put inside showTab's chain stopped the Diesel page from loading its
 list. It is fixed (a statement of its own before the chain), and a unit check guards it.
 
+Later (found by the old browser test half.js): in the Log Book "one machinery – many dates", the FIRST row took the shift AFTER
+the one of the time (Day by the clock → the row said Night), because "next row = next shift" was applied to it too. Fixed: only a
+row after another one moves to the next shift. A unit check and shift109.js guard it. half.js now sets its row to "Full Day" itself
+(a new row no longer starts as Full Day – it follows the time, as asked).
+
 ## Evidence (local rig, test data only)
 * Unit: 74 / 74 (new "update-109": notifications to the Super Admin and to the sender, the user's own list, rejected with reason;
   "update-109" shift: the hours saved / checked / kept, the page's rule for every hour incl. a Day over midnight, where it is used,
   the showTab chain).
 * Browser:
-  * shift109.js 7 / 7 – the boxes follow the hours, the first Log Book row, a hand choice kept, "My usual shift" wins, Settings
-    saves the hours;
+  * shift109.js 8 / 8 – the boxes follow the hours, the first Log Book row (one date, and one machinery), a hand choice kept,
+    "My usual shift" wins, Settings saves the hours;
+  * half.js 12 / 12 (after the fix above);
   * billed108.js 24 / 24 (with the user's Approvals: Waiting, then Approved);
   * idle 10 / 10, entry71 20 / 20, lgrows 12 / 12, pendm 6 / 6, tanker104 12 / 12, tanker105 7 / 7, tanker107 8 / 8, xls 14 / 14.
 * pend.js (3 FAIL) and batch.js (2 FAIL) fail the same on main before this change (not caused by it).
