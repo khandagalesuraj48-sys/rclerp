@@ -1617,6 +1617,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   One rule for many dates: `tankerPlan_` (Full Day + Night → Day, `dnRelink_`). AI call that ran out of time = "the AI service was
   too slow" (gas.js makeAi), no longer a database fault. `window.rclGo(page)` for the phone app (no eval). Unit "update-104",
   browser tanker104.js 12, tanker103.js 11, tanker97.js 16; rcl-mobile real_erp.js 18.
+- 14-10-2026 (update-105). Report: `UPDATE_105.md`. Water tanker: the Log Book list shows a line per trip (`tripsOfRow`,
+  `S.logView`, data-tedit / data-tdel – the entry's diesel on its first line); a saved trip can be changed (also its shift):
+  updateTankerTrip_ (→ tankerPlan_), "Edit" on the trip form's saved trips (`wtEditStart` / `wtEditEnd`, `S.wtEdit`), and from
+  the list. Storage unchanged (one entry a tanker, date and shift; trips inside). Unit "update-105", browser tanker105.js 7.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

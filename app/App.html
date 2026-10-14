@@ -256,6 +256,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   table.wtt { width: 100%; } table.wtt input { width: 100%; min-width: 90px; } table.wtt td.c { text-align: center; font-weight: 600; } table.wtt tr.wt-bad td { background: #FDECEA; }
   table.lt-t input[type=checkbox] { width: auto; min-width: 0; } table.lt-t td small { display: block; margin-top: 2px; }
   table.lt-t input[type=date] { min-width: 140px; } table.lt-t select { min-width: 90px; } table.lt-t tr.lt-new td { background: #F1F8F4; } table.lt-t tr.lt-chg td { background: #FFF8E1; } table.lt-t tr.lt-lock td { opacity: .6; }
+  .wt-edit { margin: 10px 0; padding: 10px 14px; background: #FFF6DA; border: 1px solid #F3D9A4; border-radius: 6px; font-size: 13.5px; }
+  .wt-edit .link { margin-left: 10px; } table.wtt td .link { margin-right: 6px; }
   .wt-h { margin: 18px 0 6px; font-size: 15px; } .wt-tot { margin: 8px 0 0; font-weight: 600; } .wt-tot span { margin-right: 18px; }
   .errlist { margin: 12px 0 0; padding: 10px 14px 10px 30px; background: #FDECEA; color: var(--bad); border-radius: 4px; font-size: 13px; }
   .errlist[hidden] { display: none; }
@@ -4105,6 +4107,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           <div class="lg-top-info" id="wt_info"></div>
         </div>
         <datalist id="dl_tankers"></datalist>
+        <div class="wt-edit" id="wt_edit" hidden></div>
         <div class="table-wrap"><table class="wtt">
           <thead><tr><th>#</th><th>Challan No *</th><th>Dispatch Time *</th><th>Unload Time *</th><th>Trip</th><th>Chainage No</th><th>Use For</th><th></th></tr></thead>
           <tbody id="wt_in"></tbody></table></div>
@@ -5704,7 +5707,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period. Photos (One entry, after picking the machinery): Dashboard, Vehicle + driver, Dispenser litres and Register – each taken with the camera there and then (not from the gallery), with the date, time and place printed on it; the AI reads the reading on the dashboard photo (it is told the last reading of the machinery, to pick the right number) and the litres on the dispenser photo, and puts them in the boxes (blue) – check them, type over them if wrong. The Driver box gets the driver of the last fill of the machinery (a typed name stays). 📷 in the list opens the photos of an entry. On a phone a saved entry shows a green "saved" box for 3 seconds (× closes it at once) and the form is empty for the next machinery; the keyboard opens only when a box is tapped. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed.'],
       mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते. Photos (One entry मध्ये, machinery निवडल्यावर): Dashboard, गाडी + driver, Dispenser वरचे लिटर आणि Register – प्रत्येक त्याच वेळी camera ने काढायचा (gallery मधून नाही); त्यावर तारीख, वेळ आणि ठिकाण छापले जाते. Dashboard च्या photo वरचे reading (योग्य आकडा निवडायला AI ला गाडीचे मागचे reading सांगितले जाते) आणि dispenser च्या photo वरचे लिटर AI वाचून box मध्ये (निळ्या रंगात) भरते – ते तपासा, चुकले तर बदला. Driver box मध्ये त्या गाडीच्या मागच्या fill चा driver आपोआप येतो (टाइप केलेले नाव तसेच राहते). यादीतले 📷 दाबले की त्या entry चे photo दिसतात. Phone वर entry save झाली की 3 सेकंद हिरवा "saved" box दिसतो (× ने लगेच बंद) आणि पुढच्या गाडीसाठी form रिकामा होतो; keyboard फक्त box वर दाबल्यावर उघडतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
       hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है। Photos (One entry में, machinery चुनने के बाद): Dashboard, गाड़ी + driver, Dispenser के लीटर और Register – हर एक उसी समय camera से लेना है (gallery से नहीं); उस पर तारीख, समय और जगह छपती है। Dashboard की photo पर की reading (सही अंक चुनने के लिए AI को गाड़ी की पिछली reading बताई जाती है) और dispenser की photo पर के लीटर AI पढ़कर box में (नीले रंग में) भरता है – उन्हें जाँचें, गलत हों तो बदलें। Driver box में उस गाड़ी की पिछली fill का driver अपने-आप आता है (टाइप किया नाम वैसा ही रहता है)। सूची का 📷 दबाने पर उस entry की photos दिखती हैं। Phone पर entry save होते ही 3 सेकंड हरा "saved" box दिखता है (× से तुरंत बंद) और अगली गाड़ी के लिए form खाली हो जाता है; keyboard केवल box पर दबाने से खुलता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है।'] },
-    log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip'],
+    log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip', 'updateTankerTrip'],
       en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic). A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) that worked TWO OR MORE TIMES in one shift (e.g. Breaker 100 → 102, then 110 → 113): add a second row for the same machinery, date and shift and type its own Start and Close – it may start higher than the row above; the hours in between (102 → 110) are not counted, so that day is 5 hours (bill and diesel). For such a machinery, changing or deleting an entry never changes another date: if a Close comes above the Start of the next entry, the app says so and saves nothing. In such a shift a row may also be by Time (e.g. Bucket 09:00 – 11:00 when the meter gave no reading, then Breaker 3714.5 → 3717.5): its hours are added (2 + 3 = 5 hours); the Start and Close of the entry come from its rows by Hrs, and the next day starts at the last Close. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. A WATER TANKER (Log Book Format I) is entered with "Water tanker – trip by trip": one line per trip (challan no, dispatch and unload time, chainage, use for), Day or Night, trips can be added any time of the day; the same challan of the agency or a time on another trip is refused.'],
       mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप). Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ने (JCB, excavator, breaker) एकाच shift मध्ये दोन किंवा जास्त वेळा काम केले असेल (उदा. Breaker 100 → 102, मग 110 → 113): त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा आणि तिचे स्वतःचे Start आणि Close टाका – ते वरच्या ओळीच्या Close पेक्षा जास्त असू शकते; मधले तास (102 → 110) धरले जात नाहीत, म्हणून तो दिवस 5 तासांचा (bill आणि diesel). अशा machinery ची entry बदलली किंवा delete केली तरी दुसरी तारीख कधीच बदलत नाही: Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर app तसे सांगते आणि काहीही save करत नाही. अशा shift मध्ये एखादी ओळ Time वर पण असू शकते (उदा. meter ने reading दिले नाही तेव्हा Bucket 09:00 – 11:00, मग Breaker 3714.5 → 3717.5): त्या ओळीचे तास जोडले जातात (2 + 3 = 5 तास); entry चे Start आणि Close तिच्या Hrs ओळींवरून येतात, आणि पुढचा दिवस शेवटच्या Close पासून सुरू होतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. WATER TANKER (Log Book Format I) ची entry "Water tanker – trip by trip" मधून: प्रत्येक trip ची एक ओळ (challan no, dispatch आणि unload वेळ, chainage, use for), Day किंवा Night; दिवसभरात कधीही trips जोडता येतात; agency चा तोच challan किंवा दुसऱ्या trip च्या वेळेवरची वेळ save होत नाही.'],
       hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। Meter बंद हो तो "No reading" चुनें: दिन भरा जाता है और उसका काम अनुमान से लिया जाता है (app machinery का औसत सुझाता है), कारण के साथ; नए meter की पहली entry पर "new meter" tick करें। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं। जिस machinery के BOQ में घंटे के (या KM के) दो या ज़्यादा काम हैं – Bucket और Breaker – उसे यहाँ उसी तारीख और उसी shift में हर काम की अलग पंक्ति दी जा सकती है: उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें, उसका काम दबाएँ; उसका Start ऊपर वाली पंक्ति का Close है। वह एक ही entry के रूप में save होती है और उसकी पंक्तियाँ याद रहती हैं। Print Log Book: दो काम वाली entry (Bucket और Breaker) print में हर काम की अलग पंक्ति में आती है, और diesel debit का rate print के box में हाथ से डाला जा सकता है (खाली = अपने आप)। Hours पर चलने वाली machine (JCB, excavator) का hour meter किसी दिन reading न दे तो: उस दिन के लिए Time चुनें और From – To डालें – वे घंटे, घंटे ही गिने जाते हैं (bill, diesel average); अगले hours दिन का Start आख़िरी hour reading से आता है। सिर्फ़ घंटों पर चलने वाली machinery ने (JCB, excavator, breaker) एक ही shift में दो या ज़्यादा बार काम किया हो (जैसे Breaker 100 → 102, फिर 110 → 113): उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें और उसका अपना Start और Close डालें – वह ऊपर वाली पंक्ति के Close से ज़्यादा हो सकता है; बीच के घंटे (102 → 110) नहीं गिने जाते, इसलिए वह दिन 5 घंटे का (bill और diesel)। ऐसी machinery की entry बदलने या delete करने पर दूसरी तारीख कभी नहीं बदलती: Close अगली entry के Start से ज़्यादा हो जाए तो app बताता है और कुछ भी save नहीं करता। ऐसी shift में कोई पंक्ति Time पर भी हो सकती है (जैसे meter ने reading नहीं दी तब Bucket 09:00 – 11:00, फिर Breaker 3714.5 → 3717.5): उस पंक्ति के घंटे जोड़े जाते हैं (2 + 3 = 5 घंटे); entry का Start और Close उसकी Hrs पंक्तियों से आता है, और अगला दिन आख़िरी Close से शुरू होता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। WATER TANKER (Log Book Format I) की entry "Water tanker – trip by trip" से: हर trip की एक पंक्ति (challan no, dispatch और unload समय, chainage, use for), Day या Night; दिन में कभी भी trips जोड़ी जा सकती हैं; agency का वही challan या दूसरी trip के समय पर का समय save नहीं होता।'] },
@@ -14508,7 +14511,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     wtLoad(); setTimeout(() => $('wt_no').focus(), 50);
   }
   async function wtLoad() {
-    const m = findMachine(val('wt_no')), d = $('wt_date').value; S.wt = null;
+    const m = findMachine(val('wt_no')), d = $('wt_date').value; S.wt = null; wtEditEnd();
     if (!m || !d) { $('wt_info').textContent = val('wt_no') && !m ? 'Pick a tanker from the list.' : $('wt_info').textContent; wtDraw(); return; }
     $('wt_no').value = m.id;
     if (m.lbFormat !== 'I') { $('wt_info').textContent = m.id + ' is not a water tanker – set its Log Book format to "Format I – Water tanker" (Master → Log Book Format).'; wtDraw(); return; }
@@ -14522,14 +14525,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('wt_saved_h').textContent = w ? 'Saved trips – ' + w.machine.id + ', ' + showDate(w.date) : 'Saved trips';
     // (update-103) a trip of an entry made before trip by trip: marked; its time is blank when that entry had more trips than one
     $('wt_saved').innerHTML = list.length ? list.map((t, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(t.shift) + '</td><td><b>' + (esc(t.c) || '–') + '</b>' + (t.old ? ' <small class="muted">(entered before trip by trip)</small>' : '') + '</td><td>' + (esc(t.a) || '–') + '</td><td>' + (esc(t.b) || '–') + '</td><td class="c">1</td><td>' + esc(t.ch) + '</td><td>' + esc(t.u) + '</td>' +
-      '<td>' + (can ? '<button class="del" type="button" data-wtdel="' + i + '" title="Delete this trip" aria-label="Delete this trip">×</button>' : '') + '</td></tr>').join('') : '<tr><td colspan="9" class="none">' + (w ? 'No trip saved for this date yet.' : 'Pick the date and the tanker.') + '</td></tr>';
+      '<td>' + (can ? '<button class="link" type="button" data-wtedit="' + i + '" title="Change this trip">Edit</button><button class="del" type="button" data-wtdel="' + i + '" title="Delete this trip" aria-label="Delete this trip">×</button>' : '') + '</td></tr>').join('') : '<tr><td colspan="9" class="none">' + (w ? 'No trip saved for this date yet.' : 'Pick the date and the tanker.') + '</td></tr>';
     const nD = list.filter(t => t.shift !== 'Night').length, nN = list.length - nD;
     $('wt_tot').innerHTML = list.length ? '<span>Day trips: ' + nD + '</span><span>Night trips: ' + nN + '</span><span>Total trips: ' + list.length + '</span>' : '';
   }
   // what is wrong with the trips typed (before anything is sent): empty boxes, the same challan twice, a time on another trip
   function wtProblems(trips, sh) {
-    const out = [], seen = {}, spans = ((S.wt && S.wt.trips) || []).map(t => ({ sp: wtSpan(t.a, t.b, t.shift), t: t, sh: t.shift })).filter(x => x.sp);
-    ((S.wt && S.wt.trips) || []).forEach(t => { if (wtKey(t.c)) seen[wtKey(t.c)] = t.shift + ' trip ' + (t.a ? t.a + '–' + t.b : 'challan ' + t.c); });
+    const ed = S.wtEdit, saved = ((S.wt && S.wt.trips) || []).filter(t => !(ed && t.shift === ed.shift && t.n === ed.n));      // (update-105) the trip being changed is not "another" trip
+    const out = [], seen = {}, spans = saved.map(t => ({ sp: wtSpan(t.a, t.b, t.shift), t: t, sh: t.shift })).filter(x => x.sp);
+    saved.forEach(t => { if (wtKey(t.c)) seen[wtKey(t.c)] = t.shift + ' trip ' + (t.a ? t.a + '–' + t.b : 'challan ' + t.c); });
     trips.forEach((t, i) => {
       const at = 'Trip ' + (i + 1) + ': ';
       if (!t.c) out.push({ i: i, m: at + 'enter the Challan No.' });
@@ -14556,19 +14560,44 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const g = (tr, k) => tr.querySelector('[data-w=' + k + ']').value.trim();
     const trips = rows.map(tr => ({ c: g(tr, 'c'), a: g(tr, 'a'), b: g(tr, 'b'), ch: g(tr, 'ch'), u: g(tr, 'u') }));
     if (!trips.length) { toast('Type at least one trip.', true); return; }
-    if (!S.wt || S.wt.machine.id !== m.id || S.wt.date !== d) await wtLoad();
+    const ed = S.wtEdit;
+    if (ed && trips.length !== 1) { toast('Change one trip at a time – keep one line.', true); return; }
+    if (!ed && (!S.wt || S.wt.machine.id !== m.id || S.wt.date !== d)) await wtLoad();
     const bad = wtProblems(trips, sh);
     if (bad.length) { bad.forEach(x => rows[x.i].classList.add('wt-bad')); $('wt_err').innerHTML = bad.map(x => esc(x.m)).join('<br>') + '<br><b>Nothing was saved.</b>'; $('wt_err').hidden = false; toast(bad[0].m, true); return; }
+    if (ed) {      // (update-105) one saved trip changed
+      try {
+        const r = await call('updateTankerTrip', { no: m.id, date: d, shift: ed.shift, n: ed.n, c: ed.c, trip: trips[0], to: sh });
+        S.wt = r; wtEditEnd(); $('wt_in').innerHTML = ''; wtAdd(); wtDraw();
+        toast('Trip changed – ' + m.id + ', ' + showDate(d) + ' (' + sh + ').'); if (S.loaded && S.loaded.log) loadLog();
+      } catch (er) { $('wt_err').innerHTML = esc(errMsg(er)) + '<br><b>Nothing was saved.</b>'; $('wt_err').hidden = false; toast(errMsg(er), true); }
+      return;
+    }
     try {
       const r = await call('saveTankerTrips', { no: m.id, date: d, shift: sh, trips: trips });
       S.wt = r; $('wt_in').innerHTML = ''; wtAdd(); wtDraw();
       toast(r.added + ' trip' + (r.added === 1 ? '' : 's') + ' saved – ' + m.id + ', ' + showDate(d) + ' (' + r.shift + ').');
     } catch (er) { $('wt_err').innerHTML = esc(errMsg(er)) + '<br><b>Nothing was saved.</b>'; $('wt_err').hidden = false; toast(errMsg(er), true); }
   }));
+  /* (update-105) A SAVED TRIP CHANGED: "Edit" puts it into the line above; Save changes that one trip (updateTankerTrip – checked as a new
+   * trip: its challan and times, the agency's challans, a time on another trip); its shift can be changed too. */
+  S.wtEdit = null;
+  function wtEditStart(t) {
+    if (!t || !S.wt) return;
+    S.wtEdit = t; $('wt_in').innerHTML = ''; wtAdd();
+    const tr = wtRows()[0]; ['c', 'a', 'b', 'ch', 'u'].forEach(k => { tr.querySelector('[data-w=' + k + ']').value = t[k] || ''; });
+    $('wt_shift').value = t.shift === 'Night' ? 'Night' : 'Day';
+    $('wt_edit').innerHTML = 'Changing trip <b>' + esc(String(t.n)) + '</b> of ' + esc(t.shift) + (t.c ? ' – challan <b>' + esc(t.c) + '</b>' : '') + '. Change it above and press <b>Save change</b>.<button class="link" type="button" id="wt_edit_x">Cancel</button>';
+    $('wt_edit').hidden = false; $('wt_add').hidden = true; $('wt_save').textContent = 'Save change'; $('wt_err').hidden = true;
+    $('wt_edit_x').addEventListener('click', () => { wtEditEnd(); $('wt_in').innerHTML = ''; wtAdd(); });
+    tr.querySelector('[data-w=c]').focus(); $('wt_form').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+  function wtEditEnd() { S.wtEdit = null; if (!$('wt_edit')) return; $('wt_edit').hidden = true; $('wt_add').hidden = false; $('wt_save').textContent = 'Save trips'; }
   $('wt_saved').addEventListener('click', async e => {
+    const ed = e.target.closest('[data-wtedit]'); if (ed && S.wt) { wtEditStart(S.wt.trips[Number(ed.dataset.wtedit)]); return; }
     const b = e.target.closest('[data-wtdel]'); if (!b || !S.wt) return; const t = S.wt.trips[Number(b.dataset.wtdel)]; if (!t) return;
     if (!(await askConfirm({ title: 'Delete this trip?', ok: 'Delete', html: '<p>' + esc(S.wt.machine.id) + ', ' + esc(showDate(S.wt.date)) + ' (' + esc(t.shift) + '): challan <b>' + (esc(t.c) || '–') + '</b>' + (t.a ? ', ' + esc(t.a) + '–' + esc(t.b) : '') + '.</p>' }))) return;
-    try { const r = await call('deleteTankerTrip', { no: S.wt.machine.id, date: S.wt.date, shift: t.shift, c: t.c }); S.wt = r; wtDraw(); toast('Trip deleted.'); }
+    try { const r = await call('deleteTankerTrip', { no: S.wt.machine.id, date: S.wt.date, shift: t.shift, c: t.c }); S.wt = r; if (S.wtEdit) { wtEditEnd(); $('wt_in').innerHTML = ''; wtAdd(); } wtDraw(); toast('Trip deleted.'); if (S.loaded && S.loaded.log) loadLog(); }
     catch (er) { toast(errMsg(er), true); }
   });
 
@@ -15336,10 +15365,37 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     loadLog(); lgRefreshAll();
   }
   $('l_rows').addEventListener('click', e => {
+    const te = e.target.closest('[data-tedit]'); if (te) { busy(te, 'Opening…', () => tripEditFromList((S.logView || [])[Number(te.dataset.tedit)])); return; }
+    const td = e.target.closest('[data-tdel]'); if (td) { busy(td, 'Deleting…', () => tripDelFromList((S.logView || [])[Number(td.dataset.tdel)])); return; }
     const ed = e.target.closest('[data-ledit]'); if (ed) { busy(ed, 'Opening…', () => openLogEdit(ed.dataset.ledit)); return; }
     const dl = e.target.closest('[data-ldel]'); if (dl) busy(dl, 'Deleting…', () => deleteLogEntry(dl.dataset.ldel));
   });
 
+  /* (update-105) the trips of a water tanker's entry, for the list: its saved trips; an older entry (made before trip by trip) read the
+   * way the server reads it (legacyTrips_): its Trip count and challan nos, its time when it is one trip */
+  function tripsOfRow(r) {
+    const m = findMachine(r.no); if (!m || m.lbFormat !== 'I' || r.unit !== 'Trip') return null;
+    const tr = r.itemWork && Array.isArray(r.itemWork._trips) ? r.itemWork._trips : null;
+    if (tr && tr.length) return tr.map(t => ({ c: t.c || '', a: t.a || '', b: t.b || '', ch: t.ch || '', u: t.u || '' }));
+    const n = Math.max(1, Math.round(Number(r.trip)) || 0), list = String(r.challan || '').split(/\s*[,;]\s*/).filter(Boolean), cnt = Math.max(n, list.length);
+    const ch = r.chainage || [r.chFrom, r.chTo].filter(Boolean).join(' – ');
+    return Array.from({ length: cnt }, (x, i) => ({ c: list[i] || '', a: cnt === 1 ? r.tStart || '' : '', b: cnt === 1 ? r.tEnd || '' : '', ch: ch || '', u: r.work || '', old: 1 }));
+  }
+  // Edit: the trip opens in Log Book → "Water tanker – trip by trip", ready to be changed
+  async function tripEditFromList(v) {
+    if (!v) return;
+    showTab('log'); setLgMode('tanker');
+    $('wt_date').value = v.date; $('wt_no').value = v.no; await wtLoad();
+    const t = ((S.wt && S.wt.trips) || []).find(x => x.shift === v.shift && x.n === v._n);
+    if (!t) throw new Error('This trip was not found (it may have been changed by someone else). Open the tanker again.');
+    wtEditStart(t);
+  }
+  async function tripDelFromList(v) {
+    if (!v) return;
+    if (!(await askConfirm({ title: 'Delete this trip?', ok: 'Delete', danger: true, html: '<p>' + esc(v.no) + ', ' + esc(showDate(v.date)) + ' (' + esc(v.shift) + '): trip ' + v._n + (v._t.c ? ', challan <b>' + esc(v._t.c) + '</b>' : '') + (v._t.a ? ', ' + esc(v._t.a) + '–' + esc(v._t.b) : '') + '.</p><p>The other trips of that entry stay; the last trip takes its entry with it.</p>' }))) return;
+    await call('deleteTankerTrip', { no: v.no, date: v.date, shift: v.shift, c: v._t.c });
+    toast('Trip deleted.'); loadLog();
+  }
   /* Print the Log Book shown in the list: machinery by machinery, dates in order (only dates that have an entry) */
   $('lf_print').addEventListener('click', () => printLogRows(S.logList));
   // Edit Log Book: print the opened machinery and dates (what is saved)
@@ -15692,18 +15748,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         ' &nbsp; Issued: <b>' + fmt(t.issued) + ' L</b> &nbsp; Consumed: <b>' + fmt(t.consumed) + ' L</b>' + (res.count > rows.length ? ' &nbsp; (showing latest ' + rows.length + ')' : '');
       const stdTxt = r => [r.kmStd ? r.kmStd + ' km/L' : '', r.hrStd ? r.hrStd + ' L/hr' : ''].filter(Boolean).join(' + ');
       const two = (a, b, u) => [a !== '' ? fmt(a) + (u ? ' km' : '') : '', b !== '' ? fmt(b) + (u ? ' hr' : '') : ''].filter(Boolean).join('<br>');
-      $('l_rows').innerHTML = rows.length ? rows.map(r =>
+      // (update-105) a water tanker's entry: one line per trip, each with its Edit / Delete (the diesel of the entry on its first line)
+      const view = S.logView = [].concat(...rows.map(r => { const ts = tripsOfRow(r); if (!ts) return [r];
+        return ts.map((t, i) => Object.assign({}, r, { _t: t, _n: i + 1 }, i ? { odsl: '', qty: '', stdUse: '', stock: '', avg: '', cycle: '', dread: '' } : {})); }));
+      $('l_rows').innerHTML = view.length ? view.map((r, vi) =>
         '<tr><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + (r.half ? ' <span class="tag half" title="Half day – the bill pays this entry as half a day">½ day</span>' : '') + '</td><td><b>' + esc(r.no) + '</b>' + (r.type ? ' <small>' + esc(r.type) + '</small>' : '') + (r.lk ? lockTag(((S.logList || {}).locks || {})[r.lk]) : '') + '</td><td>' + esc(r.unit) + '</td>' +
         (r.unit === 'Time' ? (() => { const sl = slotsOf(r), br = slotsBreak(r); return '<td class="n">' + sl.map(x => esc(x[0])).join('<br>') + '</td><td class="n">' + sl.map(x => esc(x[1]) + (sl.length > 1 ? ' <small>(' + fmt(slotHrs(x[0], x[1])) + ' hr)</small>' : '')).join('<br>') + (br ? '<br><small>break ' + fmt(br) + ' min</small>' : '') + '</td>'; })()
           : DAY_STATUS.indexOf(r.unit) > -1 ? '<td class="n">–</td><td class="n"><span class="lg-hol">' + r.unit + '</span></td>'
+          : r._t ? '<td class="n">' + (r._t.a ? esc(r._t.a) + '–' + esc(r._t.b) : '–') + '</td><td class="n">Trip ' + r._n + (r._t.c ? '<br><small>Challan ' + esc(r._t.c) + '</small>' : '') + (r._t.old ? '<br><small class="muted">entered before trip by trip</small>' : '') + '</td>'
           : r.unit === 'Trip' ? '<td class="n">–</td><td class="n">' + fmt(r.trip) + ' <small>trips</small>' + (r.challan ? '<br><small>Challan ' + esc(r.challan) + '</small>' : '') + '</td>' : r.unit === 'Day' ? '<td class="n">–</td><td class="n"><small>day</small></td>'
           : '<td class="n">' + two(r.okm, r.ohr, r.unit === 'KM + Hrs') + '</td><td class="n">' + two(r.ckm, r.chr, r.unit === 'KM + Hrs') + '</td>') + '<td class="n' + ((r.wkm !== '' && r.wkm < 0) || (r.whr !== '' && r.whr < 0) ? ' neg" title="Start is more than Close – correct this entry' : '') + '"><b>' + two(r.wkm, r.whr, r.unit === 'KM + Hrs') + '</b></td>' +
         '<td class="n">' + fmt(r.odsl) + '</td>' +
         '<td class="n" title="' + esc(r.dread) + '">' + fmt(r.qty) + '</td><td class="n">' + fmt(r.stdUse) + '</td>' + (() => { const cap = capOf(r.no), over = cap > 0 && r.stock > cap;
           return '<td class="n' + (over ? ' overcap' : '') + '"' + (over ? ' title="More than the ' + fmt(cap) + ' L tank capacity – check Log Book / diesel entries"' : '') + '><b class="' + (r.stock < 0 ? 'neg' : '') + '">' + fmt(r.stock) + '</b>' + (over ? '<small class="over-cap">tank ' + fmt(cap) + ' L</small>' : '') + '</td>'; })() +
         '<td>' + esc(stdTxt(r)) + '</td><td title="' + esc(r.cycle) + '">' + esc(r.avg) + (r.cycle ? '<br><small>' + esc(r.cycle) + '</small>' : '') + '</td>' +
-        '<td>' + esc(r.chFrom || r.chTo ? (r.chFrom || '') + ' to ' + (r.chTo || '') : r.chainage) + '</td><td>' + (itemQtyText(r) ? '<small class="muted">' + esc(itemQtyText(r)) + '</small><br>' : '') + esc(r.work || r.remark) + (r.meter ? '<small class="lg-mtr">' + esc(r.meter) + (r.unit === METER_OFF ? ' (work estimated)' : '') + '</small>' : '') + (r.debitTo ? '<small class="lg-dto">Debit to ' + esc(r.debitTo) + ' @ ' + fmt(r.debitRate) + '</small>' : '') + '</td>' +
-        byCell(r) + '<td>' + rowActions('Log Book', 'data-ledit', 'data-ldel', r.key) + '</td></tr>').join('')
+        (r._t ? '<td>' + esc(r._t.ch) + '</td><td>' + esc(r._t.u) + '</td>' :
+        '<td>' + esc(r.chFrom || r.chTo ? (r.chFrom || '') + ' to ' + (r.chTo || '') : r.chainage) + '</td><td>' + (itemQtyText(r) ? '<small class="muted">' + esc(itemQtyText(r)) + '</small><br>' : '') + esc(r.work || r.remark) + (r.meter ? '<small class="lg-mtr">' + esc(r.meter) + (r.unit === METER_OFF ? ' (work estimated)' : '') + '</small>' : '') + (r.debitTo ? '<small class="lg-dto">Debit to ' + esc(r.debitTo) + ' @ ' + fmt(r.debitRate) + '</small>' : '') + '</td>') +
+        byCell(r) + '<td>' + (r._t ? rowActions('Log Book', 'data-tedit', 'data-tdel', vi) : rowActions('Log Book', 'data-ledit', 'data-ldel', r.key)) + '</td></tr>').join('')
         : '<tr><td colspan="16" class="none">No Log Book entries match this filter.</td></tr>';
     } catch (e) { toast(errMsg(e), true); }
   }

@@ -908,6 +908,7 @@ const API_ = {
   getTankerTrips:    { m: 'Log Book', f: getTankerTrips_ },                                              // (update-97) water tanker – trip by trip
   saveTankerTrips:   { m: 'Log Book', edit: true, f: saveTankerTrips_, log: 'tankerTrips' },
   deleteTankerTrip:  { m: 'Log Book', edit: true, f: deleteTankerTrip_, log: 'tankerTripDel' },
+  updateTankerTrip:  { m: 'Log Book', edit: true, f: updateTankerTrip_, log: 'tankerTripEdit' },      // (update-105) one saved trip changed
   getTankerRange:    { m: 'Log Book', f: getTankerRange_ },                                              // (update-104) Edit Log Book of a water tanker
   saveTankerRange:   { m: 'Log Book', edit: true, f: saveTankerRange_, log: 'tankerRange' },
   checkTankerImport: { m: 'Log Book', f: b => importTankerTrips_(Object.assign({}, b, { check: true })) },
@@ -1305,6 +1306,12 @@ function logAfter_(u, spec, args, res, before) {
       const x = args[0] || {}, tr = Array.isArray(x.trips) ? x.trips : [];
       writeLog_(u, 'Add', m, clean_(x.no) + ' ' + fmtVal_(toDate_(x.date)) + ' ' + clean_(x.shift), tr.length + ' water tanker trip' + (tr.length === 1 ? '' : 's'),
         tr.map(t => 'challan ' + clean_(t && t.c) + ' ' + clean_(t && t.a) + '–' + clean_(t && t.b) + (t && t.ch ? ', ch ' + clean_(t.ch) : '') + (t && t.u ? ', ' + clean_(t.u) : '')).join('; '));
+      break;
+    }
+    case 'tankerTripEdit': {      // (update-105)
+      const x = args[0] || {}, w = (res && res.was) || {}, t = x.trip || {};
+      if (res && res.changed) writeLog_(u, 'Edit', m, clean_(x.no) + ' ' + fmtVal_(toDate_(x.date)) + ' ' + clean_(x.shift), 'Changed a water tanker trip',
+        'challan ' + clean_(w.c) + ' ' + str_(w.a) + '–' + str_(w.b) + ' → ' + clean_(t.c) + ' ' + str_(t.a) + '–' + str_(t.b) + (x.to && x.to !== x.shift ? ' (' + clean_(x.to) + ')' : ''));
       break;
     }
     case 'tankerRange': {      // (update-104) Edit Log Book of a water tanker
@@ -7375,6 +7382,28 @@ function importTankerTrips_(b) {
     return { ok: true, added: sum.added, same: same, tankers: plans.length };
   };
   return b && b.check ? run() : withLock_(run);
+}
+
+/* ONE SAVED TRIP CHANGED (update-105, asked 14-10-2026: "pratek entry seprate asawi … edit delete pn asaw log book entry water
+ * tanker chi kartana"). b = { no, date, shift, n, c, trip: { c, a, b, ch, u }, to } – the n-th trip of that shift's entry (its challan
+ * c must still be the same: someone else may have changed it), changed to `trip`, in the shift `to` (Day / Night; the same shift
+ * when not given). Checked and written by the same rule as Edit Log Book (tankerPlan_). */
+function updateTankerTrip_(b) {
+  return withLock_(() => {
+    b = b || {};
+    const m = tankerOf_(b.no), dk = checkDate_(b.date), sh = ['Day', 'Night', 'Full Day'].find(x => x.toUpperCase() === str_(b.shift).toUpperCase()) || '';
+    const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c, of = s2 => { const r = lt.rows.find(x => same_(x[c[H.NO]], m.id) && dkey_(x[c[H.DATE]]) === dk && (str_(x[c[H.SHIFT]]) || 'Full Day') === s2);
+      if (!r) return null; const t0 = H.ITEMS in c ? tankerTripsOf_(r[c[H.ITEMS]]) : null; return t0 || (tankerNoTrip_(r, c) ? null : legacyTrips_(r, c)); };
+    const list = sh ? of(sh) : null, j = Math.round(Number(b.n)) - 1;
+    if (!list || !(j >= 0 && j < list.length) || challanKey_(list[j].c) !== challanKey_(b.c)) throw new Error('This trip was not found (it may have been changed by someone else). Open the tanker again.');
+    const t = b.trip || {}, nt = { c: t.c, a: t.a, b: t.b, ch: t.ch, u: t.u };
+    const to = ['Day', 'Night'].find(x => x.toUpperCase() === str_(b.to).toUpperCase()) || (sh === 'Full Day' ? 'Day' : sh);
+    const plan = {};
+    if (to === sh || (sh === 'Full Day' && to === 'Day')) { const l2 = list.slice(); l2[j] = nt; plan[dk + '|' + sh] = l2; }
+    else { plan[dk + '|' + sh] = list.filter((x, k) => k !== j); plan[dk + '|' + to] = (of(to) || []).concat([nt]); }
+    const r = tankerPlan_(m, plan);
+    return Object.assign(getTankerTrips_(m.id, dk), { ok: true, changed: r.changed, was: list[j] });
+  });
 }
 
 /* ================= LOG BOOK: EDIT / DELETE with automatic re-chaining =================
