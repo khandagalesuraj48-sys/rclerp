@@ -813,6 +813,7 @@ const API_ = {
   deleteMaster:      { m: 'Master', edit: true, f: deleteMaster_, log: 'masterDelete' },
   getVendors:        { m: 'Vendor Master', any: ['Vendor Master', 'Master', 'Vendor BOQ', 'Machinery Billing', 'Machinery Payments', 'Vendor Ledger', 'Vendor Outstanding'], f: getVendors_ },
   saveVendor:        { m: 'Vendor Master', edit: true, f: saveVendor_, log: 'vendor' },
+  vendorsTogether:   { m: 'Vendor Master', admin: true, f: vendorsTogether_, log: 'vendorsTogether' },      // (update-106) the vendors of all sites brought together
   deleteVendor:      { m: 'Vendor Master', edit: true, f: deleteVendor_, log: 'vendorDel' },
   getBoqs:           { m: 'Vendor BOQ', any: ['Vendor BOQ', 'Vendor Master', 'Master'], f: getBoqs_ },
   saveBoq:           { m: 'Vendor BOQ', edit: true, f: saveBoq_, log: 'boq' },
@@ -1308,6 +1309,9 @@ function logAfter_(u, spec, args, res, before) {
         tr.map(t => 'challan ' + clean_(t && t.c) + ' ' + clean_(t && t.a) + '–' + clean_(t && t.b) + (t && t.ch ? ', ch ' + clean_(t.ch) : '') + (t && t.u ? ', ' + clean_(t.u) : '')).join('; '));
       break;
     }
+    case 'vendorsTogether':      // (update-106)
+      if (res && res.ok && !res.check) writeLog_(u, 'Edit', m, res.vendors + ' vendors', 'Vendors of all sites brought together', (res.sites || []).map(x => x.site + ': ' + x.add + ' added, ' + x.update + ' updated').join('; ') + ((res.failed || []).length ? ' | not done: ' + res.failed.map(f => f.site).join(', ') : ''));
+      break;
     case 'tankerTripEdit': {      // (update-105)
       const x = args[0] || {}, w = (res && res.was) || {}, t = x.trip || {};
       if (res && res.changed) writeLog_(u, 'Edit', m, clean_(x.no) + ' ' + fmtVal_(toDate_(x.date)) + ' ' + clean_(x.shift), 'Changed a water tanker trip',
@@ -1759,9 +1763,11 @@ function vendorMachines_() {
 }
 function getVendors_() {
   const t = vendorTable_(), mach = vendorMachines_(), out = [], seen = {};
+  const here = siteHere_(), names = here ? siteNames_() : {};
   if (t) t.rows.forEach(r => {
     const v = vendorOut_(t, r); if (!v.name) return;
     const k = vKey_(v.name); seen[k] = true;
+    const o = vOwnerOf_(t, r); v.ownerSite = o; v.ownerName = o ? (names[o] || o) : ''; v.mine = !o || o === here;      // (update-106) made at which site
     const ms = (mach[k] || {}).machines || [];
     out.push(Object.assign(v, { saved: true, machines: ms, ownership: [...new Set(ms.map(m => m.ownership))].join(', ') || v.ownership,
       complete: ms.length && ms.every(m => m.ownership === 'Own') ? true : !!(v.pan && v.bank && v.account && v.ifsc && (v.gstReg !== 'Yes' || v.gst)) }));
@@ -1845,6 +1851,8 @@ function renameVendor_(oldName, newName) {
 function saveVendor_(v, mode) {
   return withLock_(() => {
     const x = validateVendor_(v || {});
+    // (update-106) a vendor of another site is changed only there
+    const was0 = clean_((v || {}).oldName); vendorGuard_(was0 || x.name); if (was0 && was0 !== x.name) vendorGuard_(x.name);
     // the name was changed in the form: everything of the vendor follows to the new name first
     const was = clean_((v || {}).oldName), renamed = was && was !== x.name ? renameVendor_(was, x.name) : null;
     const mach = vendorMachines_()[vKey_(x.name)];
@@ -1859,9 +1867,11 @@ function saveVendor_(v, mode) {
     put('Vendor Name', x.name); put('Ownership', mach ? [...new Set(mach.machines.map(m => m.ownership))].join(', ') : ''); put('GST Registered', x.gstReg); put('GST Number', x.gst);
     put('GST %', x.gstPct); put('PAN Number', x.pan); put('TDS %', x.tds); put('Bank Name', x.bank); put('Branch', x.branch); put('Account Number', x.account);
     put('IFSC Code', x.ifsc); put('Address', x.address); put('Phone', x.phone); put('Remark', x.remark); put('Aadhaar Number', x.aadhaar); put('Email', x.email);
+    if (vendorOwnOn_() && !vOwnerOf_(t, row)) put('Owner Site', siteHere_());      // (update-106) made here (or before update-106 here): this site's
     if (i === -1) { put('Created At', new Date()); t.sh.appendRow(row); } else t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
     TABLE_MEMO_ = {};
-    return { ok: true, name: x.name, renamed: renamed, vendors: getVendors_() };
+    const spread = vendorSpread_({ rows: [x.name], rename: renamed ? { from: was, to: x.name } : null });      // (update-106) the same at every other site
+    return { ok: true, name: x.name, renamed: renamed, spread: spread, vendors: getVendors_() };
   });
 }
 // vendor names that are not yet saved in Vendor Master are saved (name only – details can be filled later)
@@ -1876,10 +1886,12 @@ function ensureVendorRows_(names) {
     const ms = (mach[vKey_(n)] || {}).machines || [];
     const row = newRow_(t);
     set_(row, t, 'Vendor Name', n); set_(row, t, 'Ownership', [...new Set(ms.map(m => m.ownership))].join(', ')); set_(row, t, 'GST Registered', 'No'); set_(row, t, 'Created At', new Date());
+    if (vendorOwnOn_()) set_(row, t, 'Owner Site', siteHere_());      // (update-106) made here
     t.sh.appendRow(row); added.push(n);
   });
   if (added.length) TABLE_MEMO_ = {};
-  return { added: added, names: have };
+  const spread = added.length ? vendorSpread_({ rows: added }) : null;      // (update-106) at every other site too
+  return { added: added, names: have, spread: spread };
 }
 // save the Owner Names of Asset Master as vendors (name only – details can be filled later)
 function vendorsFromOwners_(names) {
@@ -3153,14 +3165,187 @@ function deleteVendor_(name) {
     const t = vendorTable_(); if (!t) throw new Error('Vendor not found.');
     const i = t.rows.findIndex(r => vKey_(r[t.c['Vendor Name']]) === vKey_(name));
     if (i === -1) throw new Error(clean_(name) + ' has no saved details.');
+    vendorGuard_(name);      // (update-106) a vendor of another site: said first – it is deleted only there
     const b = boqTable_();
     const n = b ? b.rows.filter(r => vKey_(r[b.c['Vendor Name']]) === vKey_(name)).length : 0;
     if (n) throw new Error(clean_(name) + ' has ' + n + ' BOQ(s). Delete them first.');
     const a = (vendorMachines_()[vKey_(name)] || {}).machines || [];
     if (a.length) throw new Error(clean_(name) + ' has ' + a.length + ' asset(s) in Asset Master (' + a.slice(0, 3).map(m => m.id).join(', ') + (a.length > 3 ? '…' : '') + '). Give them another vendor first.');
+    // (update-106) and only when no other site uses it
+    if (vendorOwnOn_()) {
+      const ans = othersAsk_('sysVendorUsed', [clean_(name)]), down = ans.filter(x => !x.ok), used = ans.filter(x => x.ok && x.r && (x.r.boqs || x.r.assets));
+      if (used.length) throw new Error(clean_(name) + ' is used at site ' + used.map(x => x.name + ' (' + [x.r.boqs ? x.r.boqs + ' BOQ' : '', x.r.assets ? x.r.assets + ' asset(s): ' + (x.r.assetIds || []).join(', ') : ''].filter(Boolean).join(', ') + ')').join('; ') + '. A vendor used at any site is not deleted.');
+      if (down.length) throw new Error(clean_(name) + ': site ' + down.map(x => x.name).join(', ') + ' could not be asked whether it uses this vendor – nothing was deleted. Try again in a moment.');
+    }
     t.sh.deleteRow(i + 2);
-    return { ok: true, vendors: getVendors_() };
+    const spread = vendorSpread_({ del: [clean_(name)] });
+    return { ok: true, spread: spread, vendors: getVendors_() };
   });
+}
+/* ================= THE VENDOR MASTER – COMMON TO EVERY SITE (update-106, asked 14-10-2026) =================
+ * "iteam master and vendor master he common asel – ekde add kel ki tikde pn distil … edit / delete tyach site la; dusrya site
+ * la box: koni banwala aahe … jyala sangel tyala tya site cha access ani master cha access asne grjech aahe."
+ * Every site keeps a COPY of every vendor in its own database (its bills, BOQs, ledgers read it as before – nothing of the
+ * billing changes) and the vendor carries the site that made it (vendors.owner_site, SQL step 1y). So:
+ *   – a vendor saved, renamed or deleted at its own site is written to every other site too (sysVendorCopy_, through the
+ *     server: __runOthers), the rename with all that holds the name there (its assets, BOQs, bills … as at home);
+ *   – at another site its Edit / Delete is refused, and says which site and who made it;
+ *   – it is deleted only when no site has a BOQ or an asset of it;
+ *   – the vendors that each site had before are brought together once by its Admin ("Vendors of all sites"): the same name is
+ *     ONE vendor, its details those of the site that made it first; the differences are shown before anything is written.
+ * Until step 1y is run at a site, that site keeps its own vendors as before. A site that cannot be reached when a vendor is saved
+ * is named in the answer; "Vendors of all sites" brings it up to date later. */
+const siteHere_ = () => (typeof __siteCode === 'function' ? str_(__siteCode()) : '');
+const siteNames_ = () => { try { return typeof __siteNames === 'function' ? JSON.parse(__siteNames()) : {}; } catch (e) { return {}; } };
+const siteNameOf_ = c => siteNames_()[c] || c;
+const othersAsk_ = (fn, args) => (typeof __runOthers === 'function' ? JSON.parse(__runOthers(fn, JSON.stringify(args))) : []);
+// does this site's database have vendors.owner_site (step 1y)?
+function vendorOwnOn_() {
+  if (!sbDataOn_() || !siteHere_()) return false;
+  let sh = null, cols = null; try { vendorTable_(); sh = SS_().getSheetByName(APP.SHEET_VENDORS); cols = sh && sh.dbCols; } catch (e) { cols = null; }
+  if (cols && cols.indexOf('owner_site') > -1) return true;
+  const c = CacheService.getScriptCache(), was = c.get('SBCOL_vendors.owner_site');
+  if (was === '0') return false;      // (asked in the last minute: not there – the page does not ask the database at every look)
+  let there = was === '1';
+  if (!there) { try { sbFetch_('GET', '/rest/v1/vendors?select=owner_site&limit=1'); there = true; } catch (e) { there = false; } c.put('SBCOL_vendors.owner_site', there ? '1' : '0', there ? 900 : 60); }
+  if (there && cols) cols.push('owner_site');
+  return there;
+}
+// the site that made a saved vendor ('' = made here before update-106)
+const vOwnerOf_ = (t, r) => ('Owner Site' in t.c ? str_(r[t.c['Owner Site']]) : '');
+function vendorNotHere_(name, owner, by) {
+  const at = siteNameOf_(owner);
+  return new Error('"' + clean_(name) + '" was made at site ' + at + (by ? ' by ' + by : '') + '. It can be changed or deleted only there – by a user with Vendor Master edit access at ' + at + '. Ask them, or open that site.');
+}
+// a vendor of another site is not changed here
+function vendorGuard_(name) {
+  if (!vendorOwnOn_()) return;
+  const t = vendorTable_(); if (!t) return;
+  const r = t.rows.find(x => vKey_(x[t.c['Vendor Name']]) === vKey_(name)); if (!r) return;
+  const o = vOwnerOf_(t, r);
+  if (o && o !== siteHere_()) throw vendorNotHere_(name, o, H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '');
+}
+// a saved vendor as it travels to the other sites (the "Ownership" is worked out by each site from its own machinery)
+const V_FIELDS_ = [['GST Registered', 'gstReg'], ['GST Number', 'gst'], ['GST %', 'gstPct'], ['PAN Number', 'pan'], ['TDS %', 'tds'], ['Bank Name', 'bank'], ['Branch', 'branch'],
+  ['Account Number', 'account'], ['IFSC Code', 'ifsc'], ['Address', 'address'], ['Phone', 'phone'], ['Remark', 'remark'], ['Aadhaar Number', 'aadhaar'], ['Email', 'email']];
+function vendorWire_(t, r) {
+  const v = vendorOut_(t, r), ca = 'Created At' in t.c ? r[t.c['Created At']] : '';
+  return Object.assign(v, { owner: vOwnerOf_(t, r), createdAt: ca instanceof Date ? ca.toISOString() : str_(ca) });
+}
+// write a travelling vendor into a row of this site
+function vendorPut_(t, row, v, owner) {
+  set_(row, t, 'Vendor Name', v.name);
+  V_FIELDS_.forEach(f => { if (f[0] in t.c) row[t.c[f[0]]] = v[f[1]] === undefined || v[f[1]] === null ? '' : v[f[1]]; });
+  if (owner) set_(row, t, 'Owner Site', owner);
+  if (v.enteredBy && H.EBY in t.c && !str_(row[t.c[H.EBY]])) row[t.c[H.EBY]] = v.enteredBy;
+  if ('Created At' in t.c && !row[t.c['Created At']]) row[t.c['Created At']] = v.createdAt ? new Date(v.createdAt) : new Date();
+  const ms = (vendorMachines_()[vKey_(v.name)] || {}).machines || [];
+  set_(row, t, 'Ownership', [...new Set(ms.map(m => m.ownership))].join(', '));
+}
+const vendorCols_ = () => { vbSheet_(APP.SHEET_VENDORS, VENDOR_COLS_); addColIfMissing_(APP.SHEET_VENDORS, VENDOR_COLS_, H.EBY); addColIfMissing_(APP.SHEET_VENDORS, VENDOR_COLS_, H.UBY);
+  VENDOR_MORE_.forEach(h => addColIfMissing_(APP.SHEET_VENDORS, VENDOR_COLS_, h)); TABLE_MEMO_ = {}; };
+/* what this site did to its vendors, done at every other site: x = { rows: [names saved here], rename: { from, to } | null,
+ * del: [names] } → { ok: [site names], failed: [{ site, error }] } (null: this site does not share – step 1y not run here) */
+function vendorSpread_(x) {
+  if (!vendorOwnOn_()) return null;
+  const t = vendorTable_(), here = siteHere_(), rows = [];
+  (x.rows || []).forEach(n => { const r = t ? t.rows.find(y => vKey_(y[t.c['Vendor Name']]) === vKey_(n)) : null; if (r) rows.push(vendorWire_(t, r)); });
+  const ans = othersAsk_('sysVendorCopy', [{ owner: here, by: (typeof ACTOR_ === 'string' ? ACTOR_ : '') || '', rows: rows, rename: x.rename || null, del: x.del || [] }]);
+  const out = { ok: [], failed: [] };
+  ans.forEach(a => { if (a.ok && a.r && !(a.r.skipped || []).length) out.ok.push(a.name); else out.failed.push({ site: a.name, error: a.ok ? (a.r.skipped || []).join(' ') : a.error }); });
+  return out;
+}
+// AT ANOTHER SITE: the vendors of the site x.owner, as they are there now (x.merge: the vendors of all sites brought together – the
+// owner and the details are those given, whatever this site had)
+function sysVendorCopy_(x) {
+  return withLock_(() => {
+    x = x || {};
+    if (!vendorOwnOn_()) throw new Error('Step 1y (vendors.owner_site) is not run in this site\'s database yet.');
+    vendorCols_();
+    const skipped = [], owner = str_(x.owner), mine = (t, r) => { const o = vOwnerOf_(t, r); return !o || o === owner || !!x.merge; };
+    let t = table_(APP.SHEET_VENDORS, VENDOR_COLS_);
+    if (x.rename && x.rename.from && x.rename.to && clean_(x.rename.from) !== clean_(x.rename.to)) {
+      const r = t.rows.find(y => vKey_(y[t.c['Vendor Name']]) === vKey_(x.rename.from));
+      if (r && mine(t, r)) { try { renameVendor_(x.rename.from, x.rename.to); } catch (e) { skipped.push(clean_(x.rename.from) + ' → ' + clean_(x.rename.to) + ': ' + e.message); } }
+      t = table_(APP.SHEET_VENDORS, VENDOR_COLS_);
+    }
+    let added = 0, changed = 0, deleted = 0;
+    (x.rows || []).forEach(v => {
+      const i = t.rows.findIndex(y => vKey_(y[t.c['Vendor Name']]) === vKey_(v.name));
+      if (i > -1 && !mine(t, t.rows[i])) { skipped.push(v.name + ': here it belongs to site ' + siteNameOf_(vOwnerOf_(t, t.rows[i])) + '.'); return; }
+      const row = i > -1 ? t.rows[i].slice() : newRow_(t);
+      vendorPut_(t, row, v, x.merge ? v.owner : owner);
+      if (i > -1) { if (x.by && H.UBY in t.c) row[t.c[H.UBY]] = x.by; t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); t.rows[i] = row; changed++; }
+      else { t.sh.appendRow(row); t.rows.push(row); added++; }
+    });
+    (x.del || []).forEach(n => {
+      const i = t.rows.findIndex(y => vKey_(y[t.c['Vendor Name']]) === vKey_(n)); if (i === -1) return;
+      if (!mine(t, t.rows[i])) { skipped.push(clean_(n) + ': here it belongs to another site.'); return; }
+      const u = sysVendorUsed_(n); if (u.boqs || u.assets) { skipped.push(clean_(n) + ': used here (' + u.boqs + ' BOQ, ' + u.assets + ' assets).'); return; }
+      t.sh.deleteRow(i + 2); t.rows.splice(i, 1); deleted++;
+    });
+    TABLE_MEMO_ = {};
+    return { ok: true, added: added, changed: changed, deleted: deleted, skipped: skipped };
+  });
+}
+// AT ANOTHER SITE: is this vendor used here? (its BOQs, its assets)
+function sysVendorUsed_(name) {
+  const b = boqTable_(), a = (vendorMachines_()[vKey_(name)] || {}).machines || [];
+  return { boqs: b ? b.rows.filter(r => vKey_(r[b.c['Vendor Name']]) === vKey_(name)).length : 0, assets: a.length, assetIds: a.slice(0, 3).map(m => m.id) };
+}
+// AT ANOTHER SITE: its vendors (for "Vendors of all sites")
+function sysVendorList_() {
+  const on = vendorOwnOn_(), t = vendorTable_();
+  return { ready: on, site: siteHere_(), rows: on && t ? t.rows.map(r => vendorWire_(t, r)).filter(v => v.name) : [] };
+}
+/* "VENDORS OF ALL SITES" (the Admin): every site's vendors brought together. x.check: only what would be done. The same name is
+ * ONE vendor; its owner is the site that has it marked as its own, else the site that saved it first (Created At); its details
+ * are that site's. Each site then gets every vendor it lacks, and its copies take the owner's details. Nothing is deleted. */
+function vendorsTogether_(x) {
+  x = x || {};
+  if (!vendorOwnOn_()) throw new Error('The Vendor Master of all sites needs SQL step 1y here first: the Admin runs sql/supabase_step1y_vendor_owner.sql in this site\'s Supabase (and in every other site\'s).');
+  const here = siteHere_(), names = siteNames_(), mineList = sysVendorList_(), others = othersAsk_('sysVendorList', []);
+  const notReady = others.filter(a => !a.ok || !a.r || !a.r.ready).map(a => a.name + (a.ok ? ' (SQL step 1y not run there)' : ' (' + a.error + ')'));
+  if (notReady.length) return { ok: false, notReady: notReady, message: 'Not every site is ready: ' + notReady.join('; ') + '. Run sql/supabase_step1y_vendor_owner.sql in that site\'s Supabase, then try again.' };
+  const sitesL = [{ site: here, name: names[here] || here, rows: mineList.rows }].concat(others.map(a => ({ site: a.site, name: a.name, rows: a.r.rows })));
+  const order = sitesL.map(s => s.site), groups = {};
+  sitesL.forEach(s => s.rows.forEach(v => { const k = vKey_(v.name); (groups[k] = groups[k] || []).push(Object.assign({}, v, { at: s.site, owner: v.owner || '' })); }));
+  const time = v => { const d = new Date(v.createdAt); return isNaN(d) ? 8.64e15 : d.getTime(); };
+  const FIELDS = V_FIELDS_.map(f => f[1]), plan = {}, diffs = [];
+  sitesL.forEach(s => { plan[s.site] = { add: [], upd: [] }; });
+  Object.keys(groups).forEach(k => {
+    const g = groups[k], marked = g.filter(v => v.owner);
+    const pick = (marked.length ? marked : g).slice().sort((a, b) => time(a) - time(b) || order.indexOf(a.at) - order.indexOf(b.at))[0];
+    const owner = pick.owner || pick.at, best = Object.assign({}, pick, { owner: owner });
+    sitesL.forEach(s => {
+      const have = g.find(v => v.at === s.site);
+      if (!have) { plan[s.site].add.push(best); return; }
+      const fd = FIELDS.filter(f => String(have[f] === null || have[f] === undefined ? '' : have[f]) !== String(best[f] === null || best[f] === undefined ? '' : best[f]));
+      if (fd.length || have.owner !== owner || have.name !== best.name) {
+        plan[s.site].upd.push(best);
+        if (fd.length) diffs.push({ name: best.name, owner: names[owner] || owner, site: s.name, fields: fd.map(f => ({ f: f, from: have[f], to: best[f] })) });
+      }
+    });
+  });
+  const sum = sitesL.map(s => ({ site: s.name, add: plan[s.site].add.length, update: plan[s.site].upd.length }));
+  const res = { ok: true, vendors: Object.keys(groups).length, sites: sum, diffs: diffs.slice(0, 300), moreDiffs: Math.max(0, diffs.length - 300) };
+  if (x.check) return Object.assign(res, { check: true });
+  // here first (this request's save), then every other site (each its own save)
+  const mineRows = plan[here].add.concat(plan[here].upd);
+  if (mineRows.length) sysVendorCopy_({ owner: here, merge: true, rows: mineRows });
+  const done = [], failed = [];
+  sitesL.filter(s => s.site !== here).forEach(s => {
+    const rows = plan[s.site].add.concat(plan[s.site].upd); if (!rows.length) { done.push(s.name); return; }
+    const a = othersAsk_('sysVendorCopy', [{ owner: here, merge: true, rows: rows }]).find(y => y.site === s.site);
+    if (a && a.ok) done.push(s.name); else failed.push({ site: s.name, error: a ? a.error : 'no answer' });
+  });
+  return Object.assign(res, { done: done, failed: failed });
+}
+// what the Vendor Master page is told about the sharing
+function vendorShareInfo_() {
+  const here = siteHere_();
+  if (!here) return { on: false };
+  return { on: vendorOwnOn_(), here: here, hereName: siteNameOf_(here) };
 }
 /* ---------- BOQ ---------- */
 function boqOut_(t, r) {
@@ -3183,7 +3368,7 @@ function getBoqs_(f) {
   const out = [];
   roots.forEach(r => { out.push(r); list.filter(b => b.amendOf === r.id).sort((a, b) => a.amendNo - b.amendNo).forEach(a => out.push(a)); });
   list.filter(b => b.amendOf && !roots.some(r => r.id === b.amendOf)).forEach(b => out.push(b));
-  return { boqs: out, vendors: getVendors_() };
+  return { boqs: out, vendors: getVendors_(), vshare: vendorShareInfo_() };
 }
 // hour slabs of a Per Hour rate (2 or more): [{ upTo, rate }], the last one open ("after that")
 function boqSlabs_(l, basis, at) {

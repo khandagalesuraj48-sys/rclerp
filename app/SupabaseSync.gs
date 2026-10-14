@@ -62,7 +62,8 @@ const SB_TABLES_ = [
     ['GST %', 'gst_percent', 'numeric'], ['PAN Number', 'pan_number', 'text'], ['TDS %', 'tds_percent', 'numeric'], ['Bank Name', 'bank_name', 'text'], ['Branch', 'branch', 'text'],
     ['Account Number', 'account_number', 'text'], ['IFSC Code', 'ifsc_code', 'text'], ['Address', 'address', 'text'], ['Phone', 'phone', 'text'], ['Remark', 'remark', 'text'],
     ['Aadhaar Number', 'aadhaar_number', 'text'], ['Email', 'email', 'text'],
-    ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
+    ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text'],
+    ['Owner Site', 'owner_site', 'text']] },      // (update-106, step 1y) the site that made the vendor – only it changes / deletes it
   { table: 'boq', tab: 'BOQ', title: 'BOQ', pk: 'id', key: r => sbStr_(r['BOQ ID']), cols: [
     ['BOQ No', 'boq_no', 'text'], ['Vendor Name', 'vendor_name', 'text'], ['Valid From', 'valid_from', 'date'], ['Valid To', 'valid_to', 'date'],
     ['Amendment Of', 'amendment_of', 'text'], ['Amendment No', 'amendment_no', 'numeric'], ['Lines', 'lines', 'text'], ['Remark', 'remark', 'text'],

@@ -2436,6 +2436,35 @@ test('update-105: a water tanker – each trip its own line in the Log Book with
   assert.ok(H.fixRules('This trip was not found (it may have been changed by someone else). Open the tanker again.')[0] !== H.FIX_ANY);
 });
 
+test('update-106: the Vendor Master common to every site – step 1y listed, the other sites asked only through the server, help in 3 languages', () => {
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8');
+  // the SQL step: only adds a column; listed word for word in Read Me
+  const sqlFile = fs.readFileSync(path.join(root, 'sql', 'supabase_step1y_vendor_owner.sql'), 'utf8');
+  assert.ok(/alter table public\.vendors add column if not exists owner_site text;/.test(sqlFile) && !/\b(drop|delete|truncate|update)\b[^\n]*;/i.test(sqlFile.replace(/^--.*$/gm, '')));
+  const listed = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1y_vendor_owner.sql');
+  assert.ok(listed && listed.sql === sqlFile && /owner_site/.test(listed.about));
+  // the column is known to the data layer; another site is asked ONLY for the three vendor questions, never from the page
+  assert.ok(/\['Owner Site', 'owner_site', 'text'\]/.test(fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8')));
+  const others = (rt.match(/const OTHERS_ = new Set\(\[([^\]]+)\]\)/) || [])[1] || '', outside = (rt.match(/const OUTSIDE = new Set\(\[([^\]]+)\]\)/) || [])[1] || '';
+  assert.deepStrictEqual(others.split(',').map(x => x.trim().replace(/'/g, '')).sort(), ['sysVendorCopy', 'sysVendorList', 'sysVendorUsed']);
+  assert.ok(!/sysVendor/.test(outside), 'the page cannot call them');
+  // save, create, delete all go through the guard and the copy to the other sites
+  assert.ok(/vendorGuard_\(was0 \|\| x\.name\)/.test(code) && /const spread = vendorSpread_\(\{ rows: \[x\.name\]/.test(code) && /vendorSpread_\(\{ rows: added \}\)/.test(code) && /vendorSpread_\(\{ del: \[clean_\(name\)\] \}\)/.test(code));
+  assert.ok(/vendorsTogether: +\{ m: 'Vendor Master', admin: true/.test(code), 'bringing all sites together: the Admin only');
+  // in the test harness (no list of sites): nothing of this is on – every site as before
+  const { T, ctx } = require('./harness.js');
+  assert.strictEqual(require('vm').runInContext('vendorShareInfo_()', ctx).on, false);
+  // the page and its help
+  assert.ok(/function vOtherSite\(v\)/.test(app) && /call\('vendorsTogether'/.test(app) && /id="v_all"/.test(app));
+  const guide = app.slice(app.indexOf('    vendors: { saves: ['), app.indexOf(']', app.indexOf('    vendors: { saves: [')));
+  assert.ok(guide.indexOf("'vendorsTogether'") > -1);
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  for (const m of ['"V106 Alpha" was made at site VTR NH 848 by Sujit. It can be changed or deleted only there – by a user with Vendor Master edit access at VTR NH 848. Ask them, or open that site.',
+    'V106 Alpha is used at site Test Site T2 (1 BOQ). A vendor used at any site is not deleted.', 'V106 Alpha: site 18B could not be asked whether it uses this vendor – nothing was deleted. Try again in a moment.',
+    'Step 1y (vendors.owner_site) is not run in this site\'s database yet.'])
+    { const h = H.fixRules(m)[0]; assert.ok(h !== H.FIX_ANY && h.mr && h.hi && /site/.test(h.en.join(' ')), m); }
+});
+
 test('update-99: one address – the Store and the Portal under this address, the menu of this module for the others, other modules\' pages in the dark menu', () => {
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   // (live 13-10-2026: /store/menu.json came through, the bare /store/ and /portal/ gave 404 – the first page has its own rule)
