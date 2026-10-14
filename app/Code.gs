@@ -8870,13 +8870,19 @@ function saveMyPrefs_(u, x) {
 function siteRules_() {
   return memoGet_('__rules', () => { let s = {}; try { s = JSON.parse(PropertiesService.getScriptProperties().getProperty('SITE_RULES') || '{}') || {}; } catch (e) { s = {}; }
     const n = s.backDays === '' || s.backDays === undefined || s.backDays === null ? '' : Number(s.backDays);
-    return { backDays: n === '' || !isFinite(n) || n < 0 ? '' : Math.min(365, Math.floor(n)), announce: clean_(s.announce).slice(0, 200) }; });
+    // (update-109) the Day shift's hours: Day from dayFrom to nightFrom, Night the rest (8 AM – 8 PM unless the Admin sets other)
+    const hm = v => /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(str_(v)) ? str_(v) : '';
+    return { backDays: n === '' || !isFinite(n) || n < 0 ? '' : Math.min(365, Math.floor(n)), announce: clean_(s.announce).slice(0, 200), dayFrom: hm(s.dayFrom) || '08:00', nightFrom: hm(s.nightFrom) || '20:00' }; });
 }
 function saveSiteRules_(x) {
   x = x || {};
   const raw = str_(x.backDays).trim();
   if (raw !== '' && !/^[0-9]{1,3}$/.test(raw)) throw new Error('Days back must be a whole number (0 to 365), or empty for no limit.');
-  const o = { backDays: raw === '' ? '' : Math.min(365, Number(raw)), announce: clean_(x.announce).slice(0, 200) };
+  const t = v => { const q = /^(\d{1,2}):(\d{2})$/.exec(str_(v)); return q && Number(q[1]) < 24 && Number(q[2]) < 60 ? String(Number(q[1])).padStart(2, '0') + ':' + q[2] : null; };
+  const cur = siteRules_(), dayFrom = x.dayFrom === undefined ? cur.dayFrom : t(x.dayFrom), nightFrom = x.nightFrom === undefined ? cur.nightFrom : t(x.nightFrom);      // (update-109)
+  if (!dayFrom || !nightFrom) throw new Error('Shift times: type the hour as HH:MM (for example 08:00 and 20:00).');
+  if (dayFrom === nightFrom) throw new Error('Shift times: the Day shift and the Night shift cannot start at the same time.');
+  const o = { backDays: raw === '' ? '' : Math.min(365, Number(raw)), announce: clean_(x.announce).slice(0, 200), dayFrom: dayFrom, nightFrom: nightFrom };
   PropertiesService.getScriptProperties().setProperty('SITE_RULES', JSON.stringify(o)); memoDrop_('__rules');
   return { ok: true, rules: siteRules_() };
 }
@@ -9020,7 +9026,7 @@ function crDescribe_(fn, args) {
   return { lines: lines.length ? lines : ['(' + fn + ')'], nos: Object.values(nos).join(', '), dates: Object.keys(dates).sort().map(dmy_).join(', '), pairs: pairs };
 }
 function crRequest_(u, x) {
-  return withLock_(() => {
+  const out = withLock_(() => {
     x = x || {};
     const fn = str_(x.fn), spec = Object.prototype.hasOwnProperty.call(API_, fn) ? API_[fn] : null;
     if (!spec || CR_FNS_.indexOf(fn) === -1) throw new Error('Only a Log Book or diesel issue change can be sent to the Super Admin.');
@@ -9040,6 +9046,8 @@ function crRequest_(u, x) {
     t.sh.appendRow(row); TABLE_MEMO_ = {};
     return { ok: true, id: id, summary: d.lines };
   });
+  crNotify_(crSupers_(), { id: out.id, title: 'Approval needed – ' + (u.name || u.email), body: out.summary[0] + (out.summary.length > 1 ? ' (+' + (out.summary.length - 1) + ')' : '') + ' · ' + clean_(x && x.reason).slice(0, 80) });
+  return out;
 }
 /* ================= THE NEXT BILL TAKES WHAT CHANGED IN AN EARLIER BILL (update-108, asked 14-10-2026) =================
  * "next bill banwatana … pratek submit kelelya bill … check karel … diesel debit 20 L pending, 20 L extra credit … Credit Note /
@@ -9134,6 +9142,13 @@ function billCorrections_(f) {
   }));
   return { items: items, credit: r2_(items.filter(i => i.kind === 'Credit').reduce((s, i) => s + i.total, 0)), debit: r2_(items.filter(i => i.kind === 'Debit').reduce((s, i) => s + i.total, 0)) };
 }
+/* (update-109, asked 14-10-2026: "push notification … jyala approval pathwale aahe tyalach … approval zal ki tyach same user la pn")
+ * A request sent → a notification to the Super Admin's devices; decided → to the devices of the user who sent it. The devices are
+ * the ones that allowed the app's notifications (Settings → notifications, the same as the screen-share calls). The Super Admin is
+ * known from his Portal sign-ins here (kept: CR_SUPERS, the last 5 emails). Never stops a save. */
+function crSupers_() { let l = []; try { l = JSON.parse(kvRead_('CR_SUPERS') || '[]'); } catch (e) { l = []; } return Array.isArray(l) ? l.map(str_).filter(Boolean) : []; }
+function crSuperSeen_(email) { try { const e = str_(email).toLowerCase(), l = crSupers_(); if (l[0] === e) return; kvWrite_('CR_SUPERS', JSON.stringify([e].concat(l.filter(x => x !== e)).slice(0, 5))); } catch (e) { /* only for the notifications */ } }
+function crNotify_(emails, msg) { try { rtcPush_([...new Set(emails.map(e => rtcUid_(e)))], Object.assign({ t: 'cr' }, msg)); } catch (e) { /* a notification never stops a save */ } }
 // the list: the Super Admin sees every request (waiting ones first); a user sees his own
 function crList_(u, f) {
   f = f || {};
@@ -9147,7 +9162,7 @@ function crList_(u, f) {
 function crDecide_(u, x) {
   x = x || {};
   if (!u.super) throw new Error('Only the Super Admin approves or rejects a change of a billed period (signed in through the Portal).');
-  return withLock_(() => {
+  const out = withLock_(() => {
     const t = crTable_(false), r0 = t ? t.rows.map((r, i) => crOut_(t, r, i)).find(r => r.id === str_(x.id) && r.kind === 'Request') : null;
     if (!r0) throw new Error('This request was not found – refresh the list.');
     if (r0.status !== 'Pending') throw new Error('This request is already ' + r0.status.toLowerCase() + ' (by ' + (r0.decidedBy || '–') + ').');
@@ -9179,8 +9194,11 @@ function crDecide_(u, x) {
     set_(row, t2, 'Status', approve ? 'Approved' : 'Rejected'); set_(row, t2, 'Decided By', u.name || u.email); set_(row, t2, 'Decided At', new Date()); set_(row, t2, 'Decision Note', note);
     set_(row, t2, 'Result', approve ? 'Saved' : ''); stampEdit_(row, t2);
     t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
-    return { ok: true, id: r0.id, status: approve ? 'Approved' : 'Rejected', by: r0.by, summary: r0.summary, list: crList_(u, {}) };
+    return { ok: true, id: r0.id, status: approve ? 'Approved' : 'Rejected', by: r0.by, email: r0.email, summary: r0.summary, list: crList_(u, {}) };
   });
+  crNotify_([out.email], { id: out.id, title: (out.status === 'Approved' ? 'Approved – saved: ' : 'Rejected – not saved: ') + (out.summary[0] || out.id).slice(0, 80), body: 'By ' + (u.name || 'the Super Admin') + (clean_(x.note) ? ': ' + clean_(x.note).slice(0, 120) : '') });
+  delete out.email;
+  return out;
 }
 // (read once per table-memo lifetime: the memo is emptied for every request and after every write, so the date is never stale)
 // a value kept for as long as the table memory of the request lives (outside a request – sign-in, the sign-in screen – there is no memory: read every time)

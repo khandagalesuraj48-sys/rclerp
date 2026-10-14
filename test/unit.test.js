@@ -538,8 +538,8 @@ test('settings: every user has own settings (checked, kept apart); the site rule
   const today = run('() => today_()'), day = n => run('(d, n) => addDays_(d, n)', today, n), closed = /older than 3 days can be made or changed only by the Admin/;
   run('(x, m) => saveMaster_(x, m)', { no: 'RL-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Rule Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: day(-40) }, 'add');
   assert.match(tryIt(() => run('x => saveSiteRules_(x)', { backDays: 'many' })).err, /whole number/);
-  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '3', announce: '  Fill every entry by the 30th  ' }).rules, { backDays: 3, announce: 'Fill every entry by the 30th' });
-  assert.deepStrictEqual(run('() => getInit_().rules'), { backDays: 3, announce: 'Fill every entry by the 30th' });
+  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '3', announce: '  Fill every entry by the 30th  ' }).rules, { backDays: 3, announce: 'Fill every entry by the 30th', dayFrom: '08:00', nightFrom: '20:00' });
+  assert.deepStrictEqual(run('() => getInit_().rules'), { backDays: 3, announce: 'Fill every entry by the 30th', dayFrom: '08:00', nightFrom: '20:00' });
   const asUser = (admin, f) => { run('a => { ACTOR_ADMIN_ = a; }', admin); try { return f(); } finally { run('() => { ACTOR_ADMIN_ = true; }'); } };
   const entry = d => ({ rows: [{ date: d, shift: 'Full Day', no: 'RL-1', mode: 'KM', openingKm: 100, closingKm: 150 }] });
   assert.match(asUser(false, () => tryIt(() => run('x => saveLogRowsInner_(x)', entry(day(-10))))).err, closed);          // 10 days back: refused for a user
@@ -547,7 +547,7 @@ test('settings: every user has own settings (checked, kept apart); the site rule
   assert.match(asUser(false, () => tryIt(() => run('k => deleteLogRow_(k)', 'RL-1|' + day(-10) + '|Full Day'))).err, closed);   // … and the user cannot delete it either
   assert.strictEqual(asUser(false, () => tryIt(() => run('x => saveLogRowsInner_(x)', { rows: [{ date: day(-3), shift: 'Full Day', no: 'RL-1', mode: 'KM', closingKm: 200 }] }))).ok, true);   // 3 days back: inside the rule
   // no limit again
-  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '', announce: '' }).rules, { backDays: '', announce: '' });
+  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '', announce: '' }).rules, { backDays: '', announce: '', dayFrom: '08:00', nightFrom: '20:00' });      // (update-109: the shift times, 8 AM / 8 PM unless set)
   assert.strictEqual(asUser(false, () => tryIt(() => run('k => deleteLogRow_(k)', 'RL-1|' + day(-10) + '|Full Day'))).ok, true);
 });
 
@@ -2612,7 +2612,7 @@ test('update-108: the Super Admin changes a billed entry; a user\'s change waits
   // the page: the Super Admin's lock is no lock; a user may send the refused save; Approvals is his page; the bill shows the calculation
   assert.match(app, /const lxLockOf = dk => S\.user && S\.user\.super \? null :/);
   assert.match(app, /if \(CR_FNS\.indexOf\(fn\) > -1\) p0 = p0\.then\(/);
-  assert.match(app, /\$\('tab-approvals'\)\.hidden = !u\.super;/);
+  assert.match(app, /const crSees = !!\(u\.super \|\| canEdit\('Log Book'\) \|\| canEdit\('Diesel Issue'\)\);\n    \$\('tab-approvals'\)\.hidden = !crSees;/, '(update-109) the Super Admin, and the users who may send a change');
   assert.match(app, /Corrections of earlier bills taken in this bill \(at the earlier bill\\'s rates\)/);
   const pageFns = (app.match(/const CR_FNS = \[([^\]]+)\]/) || [])[1].replace(/\s+/g, ''), srvFns = (code.match(/const CR_FNS_ = \[([^\]]+)\]/) || [])[1].replace(/\s+/g, '');
   assert.strictEqual(pageFns, srvFns, 'the page and the server know the same saves');
@@ -2621,4 +2621,66 @@ test('update-108: the Super Admin changes a billed entry; a user\'s change waits
   assert.ok(/create table if not exists public\.billed_changes/.test(sqlFile) && !/\b(drop table|delete from|truncate|update public)\b/i.test(sqlFile.replace(/^--.*$/gm, '')));
   const listed = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1z_billed_changes.sql');
   assert.ok(listed && listed.sql === sqlFile);
+});
+
+test('update-109: a request notifies the Super Admin\'s devices, a decision the devices of the user who sent it; a user sees his own requests', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  vm.runInContext('globalThis.__sent = []; rtcPush_ = function (ids, msg) { __sent.push({ ids: ids, msg: msg }); };', ctx);
+  run('() => { crSuperSeen_("SA@rcl.test"); crSuperSeen_("sa@rcl.test"); crSuperSeen_("sa2@rcl.test"); }');
+  assert.deepStrictEqual(run('() => crSupers_()'), ['sa2@rcl.test', 'sa@rcl.test'], 'the last Super Admins seen, newest first, once each');
+  const user = { email: 'n109@rcl.test', name: 'User N', admin: false, perms: { 'Diesel Issue': 'Edit' }, active: true };
+  const sent = run('u => crRequest_(u, { fn: "deleteDieselIssue", args: ["DI-999999"], reason: "entered twice" })', user);
+  assert.ok(sent && sent.ok, JSON.stringify(sent));
+  let pushes = run('() => __sent');
+  assert.strictEqual(pushes.length, 1);
+  assert.deepStrictEqual(pushes[0].ids, run('() => [rtcUid_("sa2@rcl.test"), rtcUid_("sa@rcl.test")]'));
+  assert.strictEqual(pushes[0].msg.t, 'cr'); assert.match(pushes[0].msg.title, /^Approval needed – User N$/); assert.match(pushes[0].msg.body, /entered twice/);
+  // the user's own list; another user's list does not have it
+  const mine = run('u => crList_(u, {})', user);
+  assert.ok(mine.requests.some(r => r.id === sent.id && r.status === 'Pending') && mine.pending >= 1 && mine.superAdmin === false);
+  assert.ok(!run('u => crList_(u, {})', { email: 'other@rcl.test', perms: {} }).requests.some(r => r.id === sent.id));
+  assert.ok(mine.requests.every(r => r.args === undefined), 'what the page sent is not given back');
+  // rejected: the user's devices are told, with the reason
+  const sa = { email: 'sa@rcl.test', name: 'Super Admin', admin: true, super: true, perms: {} };
+  const rej = run('(u, x) => crDecide_(u, x)', sa, { id: sent.id, approve: false, note: 'not a duplicate' });
+  assert.ok(rej.ok && rej.status === 'Rejected' && rej.email === undefined, JSON.stringify(rej).slice(0, 200));
+  pushes = run('() => __sent');
+  assert.strictEqual(pushes.length, 2);
+  assert.deepStrictEqual(pushes[1].ids, run('() => [rtcUid_("n109@rcl.test")]'));
+  assert.match(pushes[1].msg.title, /^Rejected – not saved: /); assert.match(pushes[1].msg.body, /By Super Admin: not a duplicate/);
+  assert.strictEqual(run('u => crList_(u, {})', user).requests.find(r => r.id === sent.id).status, 'Rejected');
+  // the page: a tap on the notification opens Approvals; the Super Admin is remembered at his Portal sign-in
+  const sw = fs.readFileSync(path.join(root, 'app', 'sw.js'), 'utf8'), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(sw, /if \(d\.t === 'cr'\) \{/); assert.match(sw, /openWindow\(data\.t === 'cr' \? '\/#page=approvals' : '\/'\)/);
+  assert.match(app, /window\.top\.rclCrOpen = \(\) => \{ if \(S\.token && S\.user\) \{ showTab\('approvals'\); \} \};/);
+  assert.match(fs.readFileSync(path.join(root, 'app', 'Sites.gs'), 'utf8'), /if \(x\.super\) crSuperSeen_\(u\.email\);/);
+});
+
+test('update-109: Day / Night by the time – the site\'s hours (8 AM / 8 PM unless set), checked when saved; the page picks the shift of a new entry', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  assert.deepStrictEqual(run('x => saveSiteRules_(x).rules', { backDays: '', announce: '', dayFrom: '7:30', nightFrom: '19:30' }), { backDays: '', announce: '', dayFrom: '07:30', nightFrom: '19:30' });
+  assert.match(run('x => saveSiteRules_(x)', { backDays: '', dayFrom: '25:00', nightFrom: '19:30' }).THROWN, /^Shift times: type the hour as HH:MM/);
+  assert.match(run('x => saveSiteRules_(x)', { backDays: '', dayFrom: '08:00', nightFrom: '08:00' }).THROWN, /cannot start at the same time/);
+  assert.deepStrictEqual(run('x => saveSiteRules_(x).rules', { backDays: '2', announce: 'x' }), { backDays: 2, announce: 'x', dayFrom: '07:30', nightFrom: '19:30' }, 'not sent = kept');
+  run('x => saveSiteRules_(x)', { backDays: '', announce: '', dayFrom: '08:00', nightFrom: '20:00' });
+  // the page's rule, worked on its own
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const src = app.slice(app.indexOf('  function autoShift(at) {'), app.indexOf('  function myShift() {'));
+  const auto = (rules, h, m) => new Function('S', src + '; return autoShift(new Date(2026, 9, 14, ' + h + ', ' + m + '));')({ rules: rules });
+  const r8 = { dayFrom: '08:00', nightFrom: '20:00' };
+  assert.deepStrictEqual([[7, 59], [8, 0], [13, 0], [19, 59], [20, 0], [23, 30], [2, 0]].map(([h, m]) => auto(r8, h, m)), ['Night', 'Day', 'Day', 'Day', 'Night', 'Night', 'Night']);
+  assert.strictEqual(auto({}, 9, 0), 'Day', 'no rules yet: 8 AM / 8 PM');
+  assert.deepStrictEqual([[21, 0], [5, 0], [12, 0]].map(([h, m]) => auto({ dayFrom: '20:00', nightFrom: '06:00' }, h, m)), ['Day', 'Day', 'Night'], 'a "Day" that runs over midnight');
+  // where it is used: the new-entry boxes, the first Log Book row, a pending machinery put in the rows; a box changed by hand is kept
+  assert.match(app, /function shiftBoxes\(\) \{ return \['d_shift', 'bd_shift', 't_shift', 'wt_shift'\]; \}/);
+  assert.match(app, /const ls = last \? lgf\(last, 'shift'\)\.value : myShift\(\);/);
+  assert.match(app, /const shift = myShift\(\), fire = el =>/);
+  assert.match(app, /if \(t && e\.isTrusted && \(shiftBoxes\(\)\.indexOf\(t\.id\) > -1 \|\| \(t\.dataset && t\.dataset\.f === 'shift'\)\)\) t\.dataset\.hand = '1';/);
+  assert.match(app, /<option value="">Automatic – Day \/ Night by the time<\/option>/);  // (found by the browser test idle.js: an "if" put inside the else-if chain of showTab stopped the Diesel page loading its list)
+  const st = app.slice(app.indexOf('  function showTab(name, fromBack) {'), app.indexOf("    else if (name === 'master') loadVendors();"));
+  assert.match(st, /setTimeout\(shiftAuto, 0\);[^\n]*\n    if \(name === 'dash'\) \{ dashToday\(\); \}/);
+  assert.ok(!/crLoad\(\);\n    if \(/.test(st), 'nothing breaks the chain of the pages');
 });

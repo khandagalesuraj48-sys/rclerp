@@ -1638,6 +1638,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   bill's figures are kept (`billBaselines_`, kind Baseline); the next bill shows the difference at the old rates
   (`billCorrections_`), must be ticked (verify), submit makes Correction CN / DN (`DN_CN_` / `DN_CD_`) taken in J / K,
   `data.corr`; delete / revision cancels them. Unit "update-108", browser billed108.js 22, billlock.js updated.
+- 14-10-2026 (update-109). Report: `UPDATE_109.md`. Approvals under My account for the Super Admin and every Log Book / Diesel
+  editor (a user: his own requests, read only); web push `t: 'cr'` (`crNotify_` → `rtcPush_`): request → the Super Admin (CR_SUPERS,
+  remembered at his Portal sign-in), decision → the sender; sw.js opens `/#page=approvals`. Day / Night by the time: site rules
+  `dayFrom` / `nightFrom` (08:00 / 20:00), `autoShift` / `myShift` / `shiftAuto` on the new-entry shift boxes and Log Book rows; a
+  hand choice kept (`data-hand`). Unit "update-109" ×2, browser shift109.js 7, billed108.js 24.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

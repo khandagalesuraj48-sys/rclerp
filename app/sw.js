@@ -15,6 +15,12 @@ self.addEventListener('message', e => { if (e.data === 'build' && e.source) e.so
  * A ring that was not answered becomes "Missed". Nothing else is ever sent this way. */
 self.addEventListener('push', e => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (er) { d = {}; }
+  // (update-109) a change of a billed period: sent for approval (to the Super Admin) or decided (to the user who sent it)
+  if (d.t === 'cr') {
+    e.waitUntil(self.registration.showNotification(String(d.title || 'Approvals').slice(0, 120), { body: String(d.body || '').slice(0, 240), tag: 'cr-' + String(d.id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 20),
+      renotify: true, icon: '/icons/oc2-icon-192.png', badge: '/icons/oc2-icon-192.png', data: { t: 'cr' } }));
+    return;
+  }
   const name = String(d.name || 'Somebody').slice(0, 60), tag = 'rtc-' + String(d.call || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
   const opt = d.t === 'ring'
     ? { body: (d.help ? 'Needs help' + (d.page ? ' – ' + String(d.page).slice(0, 40) : '') + '. ' : '') + 'Screen share with voice – tap to open the app and answer.', tag: tag, renotify: true, requireInteraction: true, vibrate: [400, 200, 400, 200, 400], icon: '/icons/oc2-icon-192.png', badge: '/icons/oc2-icon-192.png', data: { call: d.call || '', t: 'ring' } }
@@ -32,8 +38,8 @@ self.addEventListener('notificationclick', e => {
   const data = e.notification.data || {}; if (data.t === 'done') return;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(ws => {
     const w = ws.find(x => { try { return new URL(x.url).origin === self.location.origin; } catch (er) { return false; } });
-    if (w) { w.postMessage({ rtcOpen: data.call || '1' }); return w.focus(); }
-    return self.clients.openWindow('/');
+    if (w) { w.postMessage(data.t === 'cr' ? { crOpen: 1 } : { rtcOpen: data.call || '1' }); return w.focus(); }
+    return self.clients.openWindow(data.t === 'cr' ? '/#page=approvals' : '/');      // (update-109: an approval opens the Approvals page)
   }));
 });
 self.addEventListener('fetch', e => {
