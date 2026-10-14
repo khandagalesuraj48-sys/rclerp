@@ -8815,12 +8815,12 @@ function faultKind_(err) {
 
 /* ---------- SETTINGS: EVERY USER'S OWN, AND THE RULES OF THE SITE (asked 03-10-2026) ----------
  * OWN settings (the Settings page, every signed-in user): how the app looks and behaves for THAT user – theme, text size,
- * language of the help, the page to open first, the usual Log Book entry type / shift / diesel location, favourite pages,
+ * language of the help, the language of the app (update-110: '' = English), the page to open first, the usual Log Book entry type / shift / diesel location, favourite pages,
  * a photo. Kept with the user's account (one row per user in app_settings: USER_PREFS|<email>), so they are the same on
  * every computer. Only what is in PREF_RULES_ is kept; anything else that is sent is dropped.
  * RULES OF THE SITE (Admin): how many days back a user who is not Admin may enter or change entries, and a line of
  * notice shown to everybody. Kept with the app settings (SITE_RULES). */
-const PREF_PICK_ = { theme: ['light', 'dark', 'auto'], text: ['normal', 'large', 'xlarge'], density: ['normal', 'compact'], lang: ['mr', 'hi', 'en'],
+const PREF_PICK_ = { theme: ['light', 'dark', 'auto'], text: ['normal', 'large', 'xlarge'], density: ['normal', 'compact'], lang: ['mr', 'hi', 'en'], appLang: ['', 'mr', 'hi'],
   lbMode: ['', 'date', 'mach'], lbDays: ['2', '7', '30'], shift: ['', 'Full Day', 'Day', 'Night'], menu: ['open', 'closed'] };
 const PREF_YESNO_ = { enterNext: false, sound: false, lessMotion: false, intro: true, brief: true, voiceOut: true };      // brief: the daily summary opens by itself; voiceOut: spoken answers when asked by voice
 function prefsClean_(x) {

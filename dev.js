@@ -17,7 +17,7 @@ http.createServer((req, res) => {
   if (req.url.split('?')[0] === '/menu.json') { res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.setHeader('Cache-Control', 'no-cache'); return res.end(JSON.stringify(require('./server/page').menu())); }
   if (req.url.split('?')[0] === '/' || req.url.split('?')[0] === '/index.html') { res.setHeader('Content-Type', 'text/html; charset=utf-8'); return res.end(shell()); }
   // the app's own static files (made by build.js – on Vercel they are served from public/)
-  const st = /^\/(sw\.js|manifest\.webmanifest|icons\/[a-z0-9-]+\.(?:png|webp)|vendor\/[a-z0-9.-]+\.js)$/.exec(req.url.split('?')[0]);
-  if (st) { const fp = path.join(__dirname, 'public', st[1]); if (fs.existsSync(fp)) { res.setHeader('Content-Type', /\.js$/.test(fp) ? 'text/javascript; charset=utf-8' : /\.png$/.test(fp) ? 'image/png' : /\.webp$/.test(fp) ? 'image/webp' : 'application/manifest+json'); res.setHeader('Cache-Control', 'no-cache'); return res.end(fs.readFileSync(fp)); } }
+  const st = /^\/(sw\.js|manifest\.webmanifest|icons\/[a-z0-9-]+\.(?:png|webp)|vendor\/[a-z0-9.-]+\.js|i18n\/(?:mr|hi)\.json)$/.exec(req.url.split('?')[0]);
+  if (st) { const fp = path.join(__dirname, 'public', st[1]); if (fs.existsSync(fp)) { res.setHeader('Content-Type', /\.js$/.test(fp) ? 'text/javascript; charset=utf-8' : /\.png$/.test(fp) ? 'image/png' : /\.webp$/.test(fp) ? 'image/webp' : /\.json$/.test(fp) ? 'application/json; charset=utf-8' : 'application/manifest+json'); res.setHeader('Cache-Control', 'no-cache'); return res.end(fs.readFileSync(fp)); } }
   res.statusCode = 404; res.end('Not found');
 }).listen(port, () => console.log('RCL Fleet ERP – http://localhost:' + port));

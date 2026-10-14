@@ -2685,3 +2685,58 @@ test('update-109: Day / Night by the time – the site\'s hours (8 AM / 8 PM unl
   assert.match(st, /setTimeout\(shiftAuto, 0\);[^\n]*\n    if \(name === 'dash'\) \{ dashToday\(\); \}/);
   assert.ok(!/crLoad\(\);\n    if \(/.test(st), 'nothing breaks the chain of the pages');
 });
+
+test('update-110: the language of the app – the Marathi / Hindi words keep every {0}, the page turns texts and patterns, each user his own (Settings), served by build / dev / Vercel', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const keys = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', 'keys.json'), 'utf8'));
+  const ks = new Set(Array.isArray(keys) ? keys.map(k => typeof k === 'string' ? k : k.en || k.text) : Object.keys(keys));
+  ['mr', 'hi'].forEach(l => {
+    const d = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8')), en = Object.keys(d);
+    assert.ok(en.length > 4000, l + ': most of the texts are there (' + en.length + ')');
+    en.forEach(k => {
+      const v = d[k], ph = s => (s.match(/\{\d+\}/g) || []).sort().join(',');
+      assert.ok(typeof v === 'string' && v.trim() && v !== k, l + ': a real translation for ' + JSON.stringify(k));
+      assert.strictEqual(ph(v), ph(k), l + ': every {n} kept in ' + JSON.stringify(k) + ' → ' + JSON.stringify(v));
+      assert.ok(ks.has(k), l + ': a text of the page / server (' + JSON.stringify(k) + ')');
+    });
+    assert.ok(/[ऀ-ॿ]/.test(d['Both'] || ''), l + ': in Devanagari');
+  });
+  // every script block of the page parses (a // note put before a catch once made the whole page stop)
+  [...app.matchAll(/<script>([\s\S]*?)<\/script>/g)].forEach((m, i) => assert.doesNotThrow(() => new Function(m[1]), 'script block ' + (i + 1)));
+  // the page's runtime, worked on its own
+  const at = app.indexOf('  function i18nIndex(d) {'), to = app.indexOf('  function i18nText(n, inside) {');
+  assert.ok(at > 0 && to > at);
+  const rt = new Function('I18N', app.slice(at, to) + '; return { i18nIndex, i18nStr, i18nAs, i18nSame };');
+  const I = { map: null, seen: new Map() }, f = rt(I), x = f.i18nIndex({ 'Saved.': 'Save झाले.', 'Machinery {0} is inactive.': 'मशीन {0} बंद आहे.', 'Row {0}: {1} is inactive.': 'ओळ {0}: {1} बंद आहे.', 'Both': 'दोन्ही' });
+  Object.assign(I, { map: x.map, tpl: x.tpl, word: x.word, seen: new Map() });
+  assert.strictEqual(f.i18nStr('  Saved. '), '  Save झाले. ', 'exact, the spaces around kept');
+  assert.strictEqual(f.i18nStr('Machinery JCB-07 is inactive.'), 'मशीन JCB-07 बंद आहे.', 'a pattern: the name carried over');
+  assert.strictEqual(f.i18nStr('Row 3: MH-04-AB-1 is inactive.'), 'ओळ 3: MH-04-AB-1 बंद आहे.', 'the longer pattern first');
+  const y = f.i18nIndex({ 'Delete {0} entr{1}?': '{0} एन्ट्री{1} डिलीट करायच्या?', 'in {0} day{1}': '{0} दिवस{1} मध्ये', 'Inactive{0}': 'निष्क्रिय{0}' });
+  Object.assign(I, { map: y.map, tpl: y.tpl, word: y.word, seen: new Map() });
+  assert.deepStrictEqual(['Delete 1 entry?', 'Delete 3 entries?', 'in 1 day', 'in 4 days', 'Inactive', 'Inactive (from 01-10-2026)', 'Inactivex'].map(f.i18nStr),
+    ['1 एन्ट्री डिलीट करायच्या?', '3 एन्ट्री डिलीट करायच्या?', '1 दिवस मध्ये', '4 दिवस मध्ये', 'निष्क्रिय', 'निष्क्रिय (from 01-10-2026)', null], 'the English ending is left out, the words after it are carried over');
+  Object.assign(I, { map: x.map, tpl: x.tpl, word: x.word, seen: new Map() });
+  assert.strictEqual(f.i18nStr('Something new'), null, 'no translation: stays English');
+  assert.strictEqual(f.i18nStr('12,500.00'), null, 'numbers are not touched');
+  assert.strictEqual(f.i18nStr('Machinery JCB-07 is inactive.'), 'मशीन JCB-07 बंद आहे.', 'the second time from what was worked out');
+  assert.strictEqual(f.i18nStr('Something new'), null, '…also a text without a translation');
+  assert.strictEqual(f.i18nAs('Something new'), 'Something new');
+  assert.ok(f.i18nSame('दोन्ही', 'Both') && f.i18nSame('Both', 'Both') && !f.i18nSame('Night', 'Both'), 'code that looks at a button / option text works in any language');
+  // where the page must not change anything: papers, typed boxes, the values of drop-downs
+  assert.match(app, /const I18N_SKIP = 'script, style, textarea, code, pre, svg, \[data-noi18n\], \.sheet, \.bl, \.tx, \.dnp, \.billsheet, \.lbsheet, \.mb-paper, #mb_pages, \[contenteditable="true"\]';/);
+  assert.match(app, /if \(p\.tagName === 'OPTION' && !p\.hasAttribute\('value'\)\) p\.setAttribute\('value', p\.value\);/);
+  assert.match(app, /finally \{ btn\.disabled = false; if \(i18nSame\(btn\.textContent, label\)\) btn\.textContent = old; \}/, 'busy() gives the button its words back in any language');
+  assert.ok(!/x\.textContent (===|!==) 'Both'/.test(app), 'the bill-name drop-downs');
+  // each user his own: Settings → Language of the app (the help follows it); kept with the account
+  assert.match(app, /<b>Language of the app<\/b><div class="set-seg" data-pref="appLang" data-noi18n><button type="button" data-v="mr">मराठी<\/button><button type="button" data-v="hi">हिंदी<\/button><button type="button" data-v="">English<\/button><\/div>/);
+  assert.match(app, /prefSet\(k === 'appLang' \? \{ appLang: b\.dataset\.v, lang: b\.dataset\.v \|\| 'en' \} : \{ \[k\]: b\.dataset\.v \}\)/);
+  assert.match(app, /if \(S\.user && p && Object\.prototype\.hasOwnProperty\.call\(p, 'appLang'\)\) i18nSet\(S\.prefs\.appLang\);/);
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  assert.deepStrictEqual(['mr', 'hi', '', 'en', 'xx', undefined].map(v => run('v => prefsClean_({ appLang: v }).appLang', v)), ['mr', 'hi', '', '', '', '']);
+  // served: build.js copies the files, the local server and Vercel give them out
+  assert.match(fs.readFileSync(path.join(root, 'build.js'), 'utf8'), /\['mr', 'hi'\]\.forEach\(l => fs\.copyFileSync\(path\.join\(__dirname, 'app', 'i18n', l \+ '\.json'\), path\.join\(out, 'i18n', l \+ '\.json'\)\)\);/);
+  assert.match(fs.readFileSync(path.join(root, 'dev.js'), 'utf8'), /\|i18n\\\/\(\?:mr\|hi\)\\\.json\)\$\//);
+  assert.ok(JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')).headers.some(h => h.source === '/i18n/(.*)'));
+});

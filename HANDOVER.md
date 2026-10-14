@@ -1643,6 +1643,14 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   remembered at his Portal sign-in), decision → the sender; sw.js opens `/#page=approvals`. Day / Night by the time: site rules
   `dayFrom` / `nightFrom` (08:00 / 20:00), `autoShift` / `myShift` / `shiftAuto` on the new-entry shift boxes and Log Book rows; a
   hand choice kept (`data-hand`). Unit "update-109" ×2, browser shift109.js 7, billed108.js 24.
+- 14-10-2026 (update-110). Report: `UPDATE_110.md`. The language of the app (Marathi / Hindi / English, each user his own:
+  Settings → "Language of the app", pref `appLang`, the help `lang` follows it). The page stays English in the code; the I18N
+  runtime in App.html (after `const S`) turns what is SHOWN – text nodes, placeholder / title / aria-label – through
+  `app/i18n/mr.json` / `hi.json` (exact texts + patterns with {0}; an English ending glued to a word is dropped), with a
+  MutationObserver. Not touched: `I18N_SKIP` (papers, prints, typing boxes, data-noi18n), drop-down values (an option without
+  value gets its English value first). Code that compares shown words uses `i18nSame`; browser boxes `i18nAs`. Files served at
+  /i18n/ (build.js, dev.js, vercel.json), cached in localStorage per build. New texts: `node tools/i18n/extract.js` → keys.json,
+  then translate the missing ones. Unit "update-110", browser lang110.js 17.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
