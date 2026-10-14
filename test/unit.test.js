@@ -2243,6 +2243,70 @@ test('update-97: a water tanker trip by trip – many trips a day (Day / Night),
   for (const id of ['wt_form', 'wt_date', 'wt_shift', 'wt_no', 'wt_in', 'wt_save', 'wt_saved', 'wt_tot']) assert.strictEqual((app.match(new RegExp('id="' + id + '"', 'g')) || []).length, 1, id);
   assert.match(app, /data-lgmode="tanker"/); assert.match(app, /data-bl="nightRate"/); assert.match(app, /'DAY TRIPS'/); assert.match(app, /'NIGHT TRIPS'/);
 });
+test('update-103: a water tanker – more trips in the same Day / Night join an entry made before trip by trip (no error); Full Day + Night; Idle refused (page = server)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  for (const no of ['WT-7', 'WT-8'])
+    assert.ok(!(run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Water Tanker', type: 'Water Tanker', unit: 'Trip', worksOn: ['Trip'], owner: 'Neer Agency', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-08-01' }, 'add') || {}).THROWN, no);
+  run('(x, m) => saveVendor_(x, m)', { name: 'Neer Agency', gstReg: 'No', pan: 'ABCPN1234L', bank: 'SBI', account: '12345679', ifsc: 'SBIN0000001' }, 'add');
+  assert.ok(!(run('(x, m) => saveBoq_(x, m)', { vendor: 'Neer Agency', from: '2026-08-01', woNo: 'WO-NA', lines: [{ no: 'WT-7', basis: 'Per Trip', rate: 400, diesel: 'Company' }, { no: 'WT-8', basis: 'Per Trip', rate: 400, diesel: 'Company' }] }, 'add') || {}).THROWN);
+  // entries made the usual way BEFORE the tanker was put on trip by trip (as on site: 17-09 Day, Trip 1, challan, its times)
+  const old = rows => { const x = run('x => saveLogRowsInner_(x)', { rows: rows }); assert.ok(x.ok, JSON.stringify(x).slice(0, 400)); };
+  old([{ date: '2026-08-10', shift: 'Day', no: 'WT-7', mode: 'Trip', trip: 1, challan: '18521', tStart: '08:00', tEnd: '09:00', work: 'Curing' },
+       { date: '2026-08-11', shift: 'Full Day', no: 'WT-8', mode: 'Trip', trip: 3, challan: '501, 502' },
+       { date: '2026-08-12', shift: 'Full Day', no: 'WT-7', mode: 'Idle' },
+       { date: '2026-08-13', shift: 'Day', no: 'WT-7', mode: 'Trip', trip: 1, challan: 'L-1', tStart: '07:00', tEnd: '07:30' }]);
+  run('x => saveLbFormats_(x)', { 'WT-7': 'I', 'WT-8': 'I' });
+  const save = (no, date, shift, trips) => run('x => saveTankerTrips_(x)', { no: no, date: date, shift: shift, trips: trips.map(t => ({ c: t[0], a: t[1], b: t[2], ch: t[3] || '', u: t[4] || '' })) });
+  const entry = (no, date, shift) => run('(n, d, s) => { const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c; const r = lt.rows.find(r => logKeyOf_(lt, r) === n + "|" + d + "|" + s); return r ? { trip: num0_(r[c[H.TRIP]]), challan: str_(r[c[H.CHALLAN]]), from: tStr_(r[c[H.TSTART]]), to: tStr_(r[c[H.TEND]]), n: (tankerTripsOf_(r[c[H.ITEMS]]) || []).length } : null; }', no, date, shift);
+  const count = () => run('() => { const lt = table_(APP.SHEET_LOG, logHeaders_()); return lt.rows.filter(r => /^WT-[78]$/.test(str_(r[lt.c[H.NO]]))).length; }');
+  // ---- the old Day entry is shown as its trip (marked), not as an error ----
+  let r = run('(n, d) => getTankerTrips_(n, d)', 'WT-7', '2026-08-10');
+  assert.strictEqual(r.other, ''); assert.deepStrictEqual(r.trips.map(t => [t.shift, t.c, t.a, t.b, t.old]), [['Day', '18521', '08:00', '09:00', 1]]);
+  // ---- more Day trips the same day: they JOIN that entry (one entry, as always) ----
+  const n0 = count();
+  r = save('WT-7', '2026-08-10', 'Day', [['18523', '10:00', '10:30'], ['18524', '11:00', '11:40']]);
+  assert.ok(r.ok && r.added === 2 && r.trips.length === 3, JSON.stringify(r).slice(0, 400));
+  assert.deepStrictEqual(entry('WT-7', '2026-08-10', 'Day'), { trip: 3, challan: '18521, 18523, 18524', from: '08:00', to: '11:40', n: 3 });
+  assert.strictEqual(count(), n0, 'no second entry');
+  // the old trip still counts: its challan and its time are not taken again
+  assert.match(save('WT-7', '2026-08-10', 'Day', [['18521', '12:00', '12:30']]).THROWN || '', /DUPLICATE – this challan no of Neer Agency/);
+  assert.match(save('WT-7', '2026-08-10', 'Day', [['18530', '08:30', '08:50']]).THROWN || '', /DUPLICATE time – 08:30–08:50 falls on the trip 08:00–09:00 \(Day, challan 18521\)/);
+  // ---- Night trips of that day: their own Night entry ----
+  r = save('WT-7', '2026-08-10', 'Night', [['N-71', '21:00', '21:30'], ['N-72', '00:30', '01:00']]);
+  assert.ok(r.ok && r.trips.filter(t => t.shift === 'Night').length === 2 && entry('WT-7', '2026-08-10', 'Night').trip === 2);
+  // ---- an old Full Day entry (3 trips, two challans, no time): Day trips join it; Night trips make it the Day shift ----
+  r = run('(n, d) => getTankerTrips_(n, d)', 'WT-8', '2026-08-11');
+  assert.deepStrictEqual(r.trips.map(t => [t.shift, t.c, t.a, t.old]), [['Full Day', '501', '', 1], ['Full Day', '502', '', 1], ['Full Day', '', '', 1]]);
+  r = save('WT-8', '2026-08-11', 'Day', [['503', '08:00', '09:00']]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 400));
+  assert.deepStrictEqual(entry('WT-8', '2026-08-11', 'Full Day'), { trip: 4, challan: '503, 501, 502', from: '08:00', to: '09:00', n: 4 });
+  r = save('WT-8', '2026-08-11', 'Night', [['601', '21:00', '21:30']]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 400));
+  assert.strictEqual(entry('WT-8', '2026-08-11', 'Full Day'), null);
+  assert.deepStrictEqual([entry('WT-8', '2026-08-11', 'Day').trip, entry('WT-8', '2026-08-11', 'Night').trip], [4, 1]);
+  // a trip of the old entry taken out (the one without a challan, then one with)
+  r = run('x => deleteTankerTrip_(x)', { no: 'WT-8', date: '2026-08-11', shift: 'Day', c: '' });
+  assert.ok(r.ok && entry('WT-8', '2026-08-11', 'Day').trip === 3);
+  // an old entry of ONE trip deleted from the form: the entry goes
+  r = run('x => deleteTankerTrip_(x)', { no: 'WT-7', date: '2026-08-13', shift: 'Day', c: 'l-1' });
+  assert.ok(r.ok && r.gone.c === 'L-1' && entry('WT-7', '2026-08-13', 'Day') === null);
+  // ---- an Idle / Holiday / Breakdown day has no trips: refused, and said why ----
+  const n1 = count();
+  assert.match(save('WT-7', '2026-08-12', 'Day', [['I-1', '08:00', '09:00']]).THROWN || '', /Full Day \(Idle\) entry on this date – a day without trips/);
+  assert.strictEqual(count(), n1);
+  assert.match(run('(n, d) => getTankerTrips_(n, d)', 'WT-7', '2026-08-12').other, /a day without trips/);
+  // ---- Edit Log Book still changes nothing of a tanker ----
+  assert.match(run('(k, l) => updateLogRow_(k, l)', 'WT-7|2026-08-10|Day', { trip: 9 }).THROWN || '', /is a water tanker/);
+  // ---- the page: old trips marked, the same checks; Edit Log Book adds no row for a tanker; help in 3 languages ----
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.ok(/entered before trip by trip/.test(app) && /\$\('lx_add'\)\.hidden = tanker; \$\('lx_fill'\)\.hidden = tanker;/.test(app));
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  for (const m of ['WT-7 (12-08-2026, Day): the tanker has a Full Day (Idle) entry on this date – a day without trips. If it made trips, delete that entry in Edit Log Book first.'])
+    { const h = H.fixRules(m)[0]; assert.ok(h !== H.FIX_ANY && /Idle/.test(h.en.join(' ')) && h.mr && h.hi, m); }
+  assert.ok(!/not made trip by trip/.test(fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8').replace(/\/\/[^\n]*/g, '')), 'the old refusal is gone');
+});
+
 test('update-99: one address – the Store and the Portal under this address, the menu of this module for the others, other modules\' pages in the dark menu', () => {
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   // (live 13-10-2026: /store/menu.json came through, the bare /store/ and /portal/ gave 404 – the first page has its own rule)

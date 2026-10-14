@@ -7012,6 +7012,26 @@ function tripSpan_(t, shift) {
   while (b <= a) b += 1440;
   return [a, b];
 }
+/* (update-103, asked 14-10-2026: "water tanker madhe ek diwsat multiple entry … day aso ki night … error yetoy – proper logic")
+ * An entry of a tanker made BEFORE the trip-by-trip form (or on the usual Log Book): it is no longer refused – it is taken as
+ * that shift's trips and the new trips are added to it (one entry per tanker, date and shift, as always). Its Trip count, its
+ * challan no(s), its time and chainage become the trips (one trip: its Dispatch / Unload time; more trips: their challans, the
+ * time not known); the trips keep "old" so the form can say so. A Full Day entry becomes the Day shift (a tanker works by Day
+ * and Night). A day the tanker was on Idle / Holiday / Breakdown has no trips – that one is still refused. */
+const TANKER_NOTRIP_ = ['Idle', 'Holiday', 'Breakdown'];
+function legacyTrips_(r, c) {
+  const n = Math.max(1, Math.round(num0_(r[c[H.TRIP]])) || 0);
+  const chl = H.CHALLAN in c ? clean_(r[c[H.CHALLAN]]) : '', list = chl ? chl.split(/\s*[,;]\s*/).filter(Boolean) : [];
+  const a = H.TSTART in c ? hhmm_(r[c[H.TSTART]]) : null, b = H.TEND in c ? hhmm_(r[c[H.TEND]]) : null;
+  const chNo = (H.CH in c ? clean_(r[c[H.CH]]) : '') || [H.CHFROM in c ? clean_(r[c[H.CHFROM]]) : '', H.CHTO in c ? clean_(r[c[H.CHTO]]) : ''].filter(Boolean).join(' – ');
+  const u = H.WORK in c ? clean_(r[c[H.WORK]]) : '', count = Math.max(n, list.length), one = count === 1;
+  return Array.from({ length: count }, (x, i) => {
+    const o = { c: list[i] || '', a: one && a !== null ? hm_(a) : '', b: one && b !== null ? hm_(b) : '', old: 1 };
+    if (chNo) o.ch = chNo.slice(0, 60); if (u) o.u = u.slice(0, 80);
+    return o;
+  });
+}
+const tankerNoTrip_ = (r, c) => TANKER_NOTRIP_.indexOf(str_(r[c[H.UNIT]])) > -1;
 function tankerOf_(no) {
   const m = findMachine_(no);
   if (m.lbFormat !== 'I') throw new Error(m.id + ' is not a water tanker – set its Log Book format to "Format I – Water tanker" (Master → Log Book Format) first.');
@@ -7024,14 +7044,15 @@ function getTankerTrips_(no, dateStr) {
   let other = '';
   lt.rows.forEach(r => {
     if (!same_(r[c[H.NO]], m.id) || dkey_(r[c[H.DATE]]) !== dk) return;
-    const sh = str_(r[c[H.SHIFT]]) || 'Full Day', trips = H.ITEMS in c ? tankerTripsOf_(r[c[H.ITEMS]]) : null;
-    if (!trips) { other = sh; return; }
-    trips.forEach((t, i) => out.push({ shift: sh, n: i + 1, c: str_(t.c), a: str_(t.a), b: str_(t.b), ch: str_(t.ch), u: str_(t.u) }));
+    const sh = str_(r[c[H.SHIFT]]) || 'Full Day', trips0 = H.ITEMS in c ? tankerTripsOf_(r[c[H.ITEMS]]) : null;
+    if (!trips0 && tankerNoTrip_(r, c)) { other = sh + ' (' + str_(r[c[H.UNIT]]) + ')'; return; }
+    const trips = trips0 || legacyTrips_(r, c);      // (update-103) an old entry: its trips
+    trips.forEach((t, i) => out.push({ shift: sh, n: i + 1, c: str_(t.c), a: str_(t.a), b: str_(t.b), ch: str_(t.ch), u: str_(t.u), old: t.old ? 1 : 0 }));
   });
   out.sort((x, y) => logOrd_(x.shift) - logOrd_(y.shift) || x.n - y.n);
   let problem = ''; try { assertActive_(m, dk); } catch (e) { problem = e.message; }
   return { machine: { id: m.id, owner: m.owner, type: m.type }, date: dk, trips: out, problem: problem,
-    other: other ? m.id + ' already has a ' + other + ' entry on ' + dmy_(dk) + ' that was not made trip by trip – change or delete it in Edit Log Book.' : '' };
+    other: other ? m.id + ' has a ' + other + ' entry on ' + dmy_(dk) + ' – a day without trips. If it made trips that day, delete that entry in Edit Log Book first.' : '' };
 }
 // b = { no, date, shift, trips: [{ c, a, b, ch, u }] } – the new trips of that shift (added to the ones already saved)
 function saveTankerTrips_(b) {
@@ -7061,55 +7082,76 @@ function saveTankerTrips_(b) {
     logTimeCols_(); logItemCol_();
     const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c, agency = clean_(m.owner).toUpperCase();
     // what is already saved: every challan of this agency's tankers, and this tanker's trips on this date
-    const seen = {}, spans = []; let mine = -1, otherEntry = '';
+    const seen = {}, spans = []; let mine = -1, mineTrips = null, full = -1, otherEntry = '';
     lt.rows.forEach((r, i) => {
-      const trips = tankerTripsOf_(r[c[H.ITEMS]]), no = str_(r[c[H.NO]]), d = dkey_(r[c[H.DATE]]), sh = str_(r[c[H.SHIFT]]) || 'Full Day';
-      if (same_(no, m.id) && d === dk) { if (sh === shift && trips) mine = i; else if (!trips && (sh === shift || sh === 'Full Day')) otherEntry = sh; }
+      let trips = tankerTripsOf_(r[c[H.ITEMS]]);
+      const no = str_(r[c[H.NO]]), d = dkey_(r[c[H.DATE]]), sh = str_(r[c[H.SHIFT]]) || 'Full Day';
+      if (same_(no, m.id) && d === dk) {
+        if (!trips && tankerNoTrip_(r, c)) { if (sh === shift || sh === 'Full Day') otherEntry = sh + ' (' + str_(r[c[H.UNIT]]) + ')'; }
+        else {
+          if (!trips) trips = legacyTrips_(r, c);      // (update-103) an old entry (not made trip by trip): taken as its trips
+          if (sh === shift || (sh === 'Full Day' && shift === 'Day')) { mine = i; mineTrips = trips; }      // the Day trips go into a Full Day entry
+          else if (sh === 'Full Day') full = i;      // Night trips and a Full Day entry: that entry becomes the Day shift (below)
+        }
+      }
       if (!trips) return;
-      if (clean_(r[c[H.OWNER]]).toUpperCase() === agency) trips.forEach(t => { seen[challanKey_(t.c)] = no + ' ' + dmy_(d) + ' (' + sh + ')'; });
+      if (clean_(r[c[H.OWNER]]).toUpperCase() === agency || (same_(no, m.id) && d === dk)) trips.forEach(t => { if (challanKey_(t.c)) seen[challanKey_(t.c)] = no + ' ' + dmy_(d) + ' (' + sh + ')'; });
       if (same_(no, m.id) && d === dk) trips.forEach(t => { const sp = tripSpan_(t, sh); if (sp) spans.push({ sp: sp, t: t, sh: sh }); });
     });
-    if (otherEntry) throw new Error(when + 'there is already a ' + otherEntry + ' entry that was not made trip by trip – change or delete it in Edit Log Book first.');
+    if (otherEntry) throw new Error(when + 'the tanker has a ' + otherEntry + ' entry on this date – a day without trips. If it made trips, delete that entry in Edit Log Book first.');
     fresh.forEach((t, i) => {
       const at = when + 'trip ' + (i + 1) + ' (challan ' + t.c + '): ', k = challanKey_(t.c);
-      if (seen[k]) throw new Error(at + 'DUPLICATE – this challan no of ' + m.owner + ' is already saved (' + seen[k] + '). Not saved.');
+      if (k && seen[k]) throw new Error(at + 'DUPLICATE – this challan no of ' + m.owner + ' is already saved (' + seen[k] + '). Not saved.');
       seen[k] = 'this save';
       const sp = tripSpan_(t, shift), hit = spans.find(x => sp[0] < x.sp[1] && x.sp[0] < sp[1]);
       if (hit) throw new Error(at + 'DUPLICATE time – ' + t.a + '–' + t.b + ' falls on the trip ' + hit.t.a + '–' + hit.t.b + ' (' + hit.sh + ', challan ' + hit.t.c + '). One tanker cannot make two trips at the same time. Not saved.');
       spans.push({ sp: sp, t: t, sh: shift });
     });
-    const sumUp = trips => { const sorted = trips.slice().sort((x, y) => tripSpan_(x, shift)[0] - tripSpan_(y, shift)[0]), uniq = f => [...new Set(trips.map(f).filter(Boolean))].join(' / ').slice(0, 300);
-      return { trips: sorted, trip: sorted.length, challan: sorted.map(t => t.c).join(', ').slice(0, 500), tStart: sorted[0].a, tEnd: sorted[sorted.length - 1].b, chNo: uniq(t => t.ch), work: uniq(t => t.u) }; };
+    const sumUp = trips => tankerSum_(trips, shift);
+    const tripsIn = (row, trips) => JSON.stringify(Object.assign(itemWorkParse_(row[c[H.ITEMS]]), { _trips: trips }));
+    if (full > -1) {      // (update-103) Night trips on a date with a Full Day entry: that entry becomes the Day shift, so the Night can be added
+      const row = lt.rows[full].slice();
+      const had = tankerTripsOf_(row[c[H.ITEMS]]) || legacyTrips_(row, c);
+      row[c[H.SHIFT]] = 'Day'; row[c[H.ITEMS]] = tripsIn(row, tankerSum_(had, 'Day').trips);
+      stampEdit_(row, lt); lt.sh.getRange(full + 2, 1, 1, row.length).setValues([row]); lt.rows[full] = row;
+    }
     if (mine === -1) {
       const x = sumUp(fresh);
       const res = saveLogRowsInner_({ tanker: true, rows: [{ no: m.id, date: dk, shift: shift, mode: 'Trip', trip: x.trip, challan: x.challan, tStart: x.tStart, tEnd: x.tEnd, work: x.work, chNo: x.chNo, trips: x.trips }] });
       if (!res.ok) throw new Error((res.errors || []).map(e => e.msg).join(' | '));
     } else {
-      const row = lt.rows[mine].slice(), x = sumUp(tankerTripsOf_(row[c[H.ITEMS]]).concat(fresh));
-      row[c[H.ITEMS]] = JSON.stringify({ _trips: x.trips }); row[c[H.TRIP]] = x.trip; row[c[H.CHALLAN]] = x.challan; row[c[H.TSTART]] = x.tStart; row[c[H.TEND]] = x.tEnd;
+      const row = lt.rows[mine].slice(), x = tankerSum_(mineTrips.concat(fresh), str_(row[c[H.SHIFT]]) || 'Day');
+      row[c[H.ITEMS]] = tripsIn(row, x.trips); row[c[H.TRIP]] = x.trip; row[c[H.CHALLAN]] = x.challan; row[c[H.TSTART]] = x.tStart; row[c[H.TEND]] = x.tEnd;
       set_(row, lt, H.CH, x.chNo); set_(row, lt, H.WORK, x.work);
       stampEdit_(row, lt); lt.sh.getRange(mine + 2, 1, 1, row.length).setValues([row]);
     }
     return Object.assign(getTankerTrips_(m.id, dk), { ok: true, added: fresh.length, shift: shift });
   });
 }
+// the trips of a shift in time order, and what the entry keeps of them (a trip without its time – an old entry's – comes last)
+function tankerSum_(trips, shift) {
+  const at = t => { const sp = tripSpan_(t, shift); return sp ? sp[0] : 1e9; };
+  const sorted = trips.map((t, i) => ({ t: t, i: i })).sort((x, y) => at(x.t) - at(y.t) || x.i - y.i).map(x => x.t);
+  const uniq = f => [...new Set(trips.map(f).filter(Boolean))].join(' / ').slice(0, 300), timed = sorted.filter(t => t.a && t.b);
+  return { trips: sorted, trip: sorted.length, challan: sorted.map(t => t.c).filter(Boolean).join(', ').slice(0, 500), tStart: timed.length ? timed[0].a : '', tEnd: timed.length ? timed[timed.length - 1].b : '', chNo: uniq(t => t.ch), work: uniq(t => t.u) };
+}
 // b = { no, date, shift, c } – one trip taken out (found by its challan no); the last trip of a shift takes its entry with it
 function deleteTankerTrip_(b) {
   return withLock_(() => {
     b = b || {};
-    const m = tankerOf_(b.no), dk = checkDate_(b.date), shift = TANKER_SHIFTS_.find(x => x.toUpperCase() === str_(b.shift).toUpperCase()) || '';
-    booksOpen_(dk, 'Log Book entry'); billLock_(m.id, dk, 'Log Book entry');
+    const m = tankerOf_(b.no), dk = checkDate_(b.date), shift = TANKER_SHIFTS_.concat(['Full Day']).find(x => x.toUpperCase() === str_(b.shift).toUpperCase()) || '';
+    booksOpen_(dk, 'Log Book entry'); billLock_(m.id, dk, 'Log Book entry'); logItemCol_();
     const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c, key = m.id + '|' + dk + '|' + shift;
     const i = lt.rows.findIndex(r => logKeyOf_(lt, r).toUpperCase() === key.toUpperCase());
-    const trips = i > -1 ? tankerTripsOf_(lt.rows[i][c[H.ITEMS]]) : null;
+    const trips = i > -1 ? (tankerTripsOf_(lt.rows[i][c[H.ITEMS]]) || (tankerNoTrip_(lt.rows[i], c) ? null : legacyTrips_(lt.rows[i], c))) : null;      // (update-103) an old entry's trips too
     const k = challanKey_(b.c), j = trips ? trips.findIndex(t => challanKey_(t.c) === k) : -1;
     if (j === -1) throw new Error('This trip was not found (it may have been changed by someone else). Open the tanker again.');
     const gone = trips[j];
     if (trips.length === 1) deleteLogRow_(logKeyOf_(lt, lt.rows[i]));
     else {
-      const rest = trips.filter((t, n) => n !== j), row = lt.rows[i].slice(), uniq = f => [...new Set(rest.map(f).filter(Boolean))].join(' / ').slice(0, 300);
-      row[c[H.ITEMS]] = JSON.stringify({ _trips: rest }); row[c[H.TRIP]] = rest.length; row[c[H.CHALLAN]] = rest.map(t => t.c).join(', ').slice(0, 500);
-      row[c[H.TSTART]] = rest[0].a; row[c[H.TEND]] = rest[rest.length - 1].b; set_(row, lt, H.CH, uniq(t => t.ch)); set_(row, lt, H.WORK, uniq(t => t.u));
+      const row = lt.rows[i].slice(), x = tankerSum_(trips.filter((t, n) => n !== j), str_(row[c[H.SHIFT]]) || 'Day');
+      row[c[H.ITEMS]] = JSON.stringify(Object.assign(itemWorkParse_(row[c[H.ITEMS]]), { _trips: x.trips })); row[c[H.TRIP]] = x.trip; row[c[H.CHALLAN]] = x.challan;
+      row[c[H.TSTART]] = x.tStart; row[c[H.TEND]] = x.tEnd; set_(row, lt, H.CH, x.chNo); set_(row, lt, H.WORK, x.work);
       stampEdit_(row, lt); lt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
     }
     return Object.assign(getTankerTrips_(m.id, dk), { ok: true, gone: gone });

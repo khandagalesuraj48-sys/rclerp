@@ -5201,10 +5201,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The Super Admin could not be made or reached this way.', 'There is one Super Admin, made once by the first site\'s Admin with an email no user has. A forgotten password: the recovery code written down then (Forgot password? on the sign-in screen).'],
       mr: ['Super Admin असा बनवता किंवा उघडता आला नाही.', 'Super Admin एकच असतो, पहिल्या site चा Admin तो एकदाच बनवतो – कोणत्याही user चा नसलेला email देऊन. Password विसरला: तेव्हा लिहून ठेवलेला Recovery code (sign-in screen वर Forgot password?).'],
       hi: ['Super Admin इस तरह बनाया या खोला नहीं जा सका।', 'Super Admin एक ही होता है, पहली site का Admin उसे एक बार बनाता है – किसी user का न हो ऐसा email देकर। Password भूल गए: तब लिखकर रखा Recovery code (sign-in screen पर Forgot password?)।'] },
-    { re: /is a water tanker \(Log Book Format I\)|is not a water tanker|not made trip by trip|Edit Log Book can only delete its entries|a water tanker is paid Per Trip/i,      // (update-97) water tanker – trip by trip
-      en: ['A water tanker (Log Book Format I) is entered trip by trip, on its own form.', 'Nothing was saved. Log Book → Change entry type → "Water tanker – trip by trip": pick the date, shift and tanker, one line per trip. Its BOQ line must be Per Trip. To make a machinery a water tanker: Master → Log Book Format → Format I. An old entry of that date and shift that was not made trip by trip: delete it in Edit Log Book first.'],
-      mr: ['Water tanker (Log Book Format I) ची entry trip-by-trip, त्याच्या वेगळ्या form मधून होते.', 'काहीही save झाले नाही. Log Book → Change entry type → "Water tanker – trip by trip": तारीख, shift आणि tanker निवडा, प्रत्येक trip ची एक ओळ. त्याची BOQ line Per Trip हवी. Machinery ला water tanker करायला: Master → Log Book Format → Format I. त्या तारखेची आणि shift ची trip-by-trip न केलेली जुनी entry असेल तर आधी Edit Log Book मध्ये delete करा.'],
-      hi: ['Water tanker (Log Book Format I) की entry trip-by-trip, उसके अलग form से होती है।', 'कुछ भी save नहीं हुआ। Log Book → Change entry type → "Water tanker – trip by trip": तारीख, shift और tanker चुनें, हर trip की एक पंक्ति। उसकी BOQ line Per Trip होनी चाहिए। Machinery को water tanker बनाने के लिए: Master → Log Book Format → Format I। उस तारीख और shift की trip-by-trip न बनी पुरानी entry हो तो पहले Edit Log Book में delete करें।'] },
+    { re: /is a water tanker \(Log Book Format I\)|is not a water tanker|Edit Log Book can only delete its entries|a water tanker is paid Per Trip/i,      // (update-97) water tanker – trip by trip
+      en: ['A water tanker (Log Book Format I) is entered trip by trip, on its own form.', 'Nothing was saved. Log Book → Change entry type → "Water tanker – trip by trip": pick the date, shift and tanker, one line per trip. Its BOQ line must be Per Trip. To make a machinery a water tanker: Master → Log Book Format → Format I. More trips in the same Day / Night are added there too – they join that shift\'s entry (also an entry made before).'],
+      mr: ['Water tanker (Log Book Format I) ची entry trip-by-trip, त्याच्या वेगळ्या form मधून होते.', 'काहीही save झाले नाही. Log Book → Change entry type → "Water tanker – trip by trip": तारीख, shift आणि tanker निवडा, प्रत्येक trip ची एक ओळ. त्याची BOQ line Per Trip हवी. Machinery ला water tanker करायला: Master → Log Book Format → Format I. त्याच Day / Night मधल्या आणखी trips पण तिथेच add करा – त्या त्या shift च्या entry मध्ये जोडल्या जातात (आधी केलेल्या entry मध्ये सुद्धा).'],
+      hi: ['Water tanker (Log Book Format I) की entry trip-by-trip, उसके अलग form से होती है।', 'कुछ भी save नहीं हुआ। Log Book → Change entry type → "Water tanker – trip by trip": तारीख, shift और tanker चुनें, हर trip की एक पंक्ति। उसकी BOQ line Per Trip होनी चाहिए। Machinery को water tanker बनाने के लिए: Master → Log Book Format → Format I। उसी Day / Night की और trips भी वहीं add करें – वे उस shift की entry में जुड़ जाती हैं (पहले बनी entry में भी)।'] },
+    { re: /a day without trips/i,      // (update-103) the tanker was on Idle / Holiday / Breakdown that day
+      en: ['The tanker is entered as Idle / Holiday / Breakdown on this date and shift – a day without trips.', 'Nothing was saved. If the tanker did make trips that day: Log Book → Edit Log Book → this tanker and date → delete that Idle / Holiday / Breakdown entry, then add the trips on "Water tanker – trip by trip".'],
+      mr: ['या तारखेला आणि shift ला tanker ची Idle / Holiday / Breakdown entry आहे – म्हणजे trip नसलेला दिवस.', 'काहीही save झाले नाही. त्या दिवशी tanker ने trips केल्या असतील तर: Log Book → Edit Log Book → हा tanker आणि तारीख → ती Idle / Holiday / Breakdown entry delete करा, मग "Water tanker – trip by trip" वर trips add करा.'],
+      hi: ['इस तारीख और shift पर tanker की Idle / Holiday / Breakdown entry है – यानी बिना trip का दिन।', 'कुछ भी save नहीं हुआ। उस दिन tanker ने trips की हों तो: Log Book → Edit Log Book → यह tanker और तारीख → वह Idle / Holiday / Breakdown entry delete करें, फिर "Water tanker – trip by trip" पर trips add करें।'] },
     { re: /DUPLICATE – this challan no|DUPLICATE time|DUPLICATE challan|Dispatch and Unload time are the same|more than 12 hours after Dispatch|enter the Dispatch time|enter the Unload time|at most 60 trips in one save|add at least one trip/i,      // (update-97)
       en: ['A trip of the water tanker is not right: the same challan again, a time on another trip, or a time missing.', 'Nothing was saved. One challan no of an agency is used once only; one tanker cannot make two trips at the same time. Check the challan and the Dispatch / Unload time of that trip (a Night trip after midnight is the next morning), correct it and save again.'],
       mr: ['Water tanker ची एक trip बरोबर नाही: तोच challan पुन्हा, दुसऱ्या trip च्या वेळेवर वेळ, किंवा वेळ भरलेली नाही.', 'काहीही save झाले नाही. एका agency चा एक challan no एकदाच वापरला जातो; एक tanker एकाच वेळी दोन trips करू शकत नाही. त्या trip चा challan आणि Dispatch / Unload वेळ तपासा (रात्री 12 नंतरची Night trip म्हणजे दुसऱ्या दिवशी सकाळ), दुरुस्त करा आणि पुन्हा save करा.'],
@@ -8227,6 +8231,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const fmtName = (LB_FORMATS.find(f => f.id === FMT) || LB_FORMATS[0]);
     $('lx_title').textContent = m.id + (m.type ? ' – ' + m.type : '');
     $('lx_info').textContent = 'Works on ' + worksOf(m).join(', ') + '  |  Standard ' + [km && m.kmStd ? m.kmStd + ' km/L' : '', hr && m.hrStd ? m.hrStd + ' L/hr' : ''].filter(Boolean).join(' + ') + '  |  ' + showDate(d.from) + ' to ' + showDate(d.to);
+    // (update-103) a water tanker makes many trips in a Day / Night: they are added on Log Book → "Water tanker – trip by trip" (they go into
+    // that shift's entry – also into an entry made before). Here its entries can only be deleted – no row is added (it was refused at Save).
+    const tanker = FMT === 'I'; $('lx_add').hidden = tanker; $('lx_fill').hidden = tanker;
+    if (tanker) $('lx_info').textContent += '  |  Water tanker: more trips in a Day / Night are added on Log Book → "Water tanker – trip by trip" (they join that shift\'s entry). Here entries can only be deleted.';
     const two = (a, b) => [km && a !== '' ? fmt(a) + (hr ? ' km' : '') : '', hr && b !== '' ? fmt(b) + (km ? ' hr' : '') : ''].filter(Boolean).join(' / ');
     $('lx_prev').innerHTML = d.prev ? 'Entry before: <b>' + esc(showDate(d.prev.date)) + ' (' + esc(d.prev.shift) + ')</b> closed at <b>' + two(d.prev.ckm, d.prev.chr) + '</b>, diesel left <b>' + fmt(d.prev.stock) + ' L</b>.' : 'No entry before ' + esc(showDate(d.from)) + ' – the first row is the first entry of this machinery.';
     $('lx_next').innerHTML = d.next ? 'Entry after: <b>' + esc(showDate(d.next.date)) + ' (' + esc(d.next.shift) + ')</b> starts at <b>' + two(d.next.okm, d.next.ohr) + '</b> – it follows the last Close here when it was joined to it, or when that Close passes it.' : '';
@@ -14484,7 +14492,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function wtDraw() {
     const w = S.wt, can = canEdit('Log Book'), list = (w && w.trips) || [];
     $('wt_saved_h').textContent = w ? 'Saved trips – ' + w.machine.id + ', ' + showDate(w.date) : 'Saved trips';
-    $('wt_saved').innerHTML = list.length ? list.map((t, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(t.shift) + '</td><td><b>' + esc(t.c) + '</b></td><td>' + esc(t.a) + '</td><td>' + esc(t.b) + '</td><td class="c">1</td><td>' + esc(t.ch) + '</td><td>' + esc(t.u) + '</td>' +
+    // (update-103) a trip of an entry made before trip by trip: marked; its time is blank when that entry had more trips than one
+    $('wt_saved').innerHTML = list.length ? list.map((t, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(t.shift) + '</td><td><b>' + (esc(t.c) || '–') + '</b>' + (t.old ? ' <small class="muted">(entered before trip by trip)</small>' : '') + '</td><td>' + (esc(t.a) || '–') + '</td><td>' + (esc(t.b) || '–') + '</td><td class="c">1</td><td>' + esc(t.ch) + '</td><td>' + esc(t.u) + '</td>' +
       '<td>' + (can ? '<button class="del" type="button" data-wtdel="' + i + '" title="Delete this trip" aria-label="Delete this trip">×</button>' : '') + '</td></tr>').join('') : '<tr><td colspan="9" class="none">' + (w ? 'No trip saved for this date yet.' : 'Pick the date and the tanker.') + '</td></tr>';
     const nD = list.filter(t => t.shift !== 'Night').length, nN = list.length - nD;
     $('wt_tot').innerHTML = list.length ? '<span>Day trips: ' + nD + '</span><span>Night trips: ' + nN + '</span><span>Total trips: ' + list.length + '</span>' : '';
@@ -14492,7 +14501,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // what is wrong with the trips typed (before anything is sent): empty boxes, the same challan twice, a time on another trip
   function wtProblems(trips, sh) {
     const out = [], seen = {}, spans = ((S.wt && S.wt.trips) || []).map(t => ({ sp: wtSpan(t.a, t.b, t.shift), t: t, sh: t.shift })).filter(x => x.sp);
-    ((S.wt && S.wt.trips) || []).forEach(t => { seen[wtKey(t.c)] = t.shift + ' trip ' + t.a + '–' + t.b; });
+    ((S.wt && S.wt.trips) || []).forEach(t => { if (wtKey(t.c)) seen[wtKey(t.c)] = t.shift + ' trip ' + (t.a ? t.a + '–' + t.b : 'challan ' + t.c); });
     trips.forEach((t, i) => {
       const at = 'Trip ' + (i + 1) + ': ';
       if (!t.c) out.push({ i: i, m: at + 'enter the Challan No.' });
@@ -14530,7 +14539,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }));
   $('wt_saved').addEventListener('click', async e => {
     const b = e.target.closest('[data-wtdel]'); if (!b || !S.wt) return; const t = S.wt.trips[Number(b.dataset.wtdel)]; if (!t) return;
-    if (!(await askConfirm({ title: 'Delete this trip?', ok: 'Delete', html: '<p>' + esc(S.wt.machine.id) + ', ' + esc(showDate(S.wt.date)) + ' (' + esc(t.shift) + '): challan <b>' + esc(t.c) + '</b>, ' + esc(t.a) + '–' + esc(t.b) + '.</p>' }))) return;
+    if (!(await askConfirm({ title: 'Delete this trip?', ok: 'Delete', html: '<p>' + esc(S.wt.machine.id) + ', ' + esc(showDate(S.wt.date)) + ' (' + esc(t.shift) + '): challan <b>' + (esc(t.c) || '–') + '</b>' + (t.a ? ', ' + esc(t.a) + '–' + esc(t.b) : '') + '.</p>' }))) return;
     try { const r = await call('deleteTankerTrip', { no: S.wt.machine.id, date: S.wt.date, shift: t.shift, c: t.c }); S.wt = r; wtDraw(); toast('Trip deleted.'); }
     catch (er) { toast(errMsg(er), true); }
   });
