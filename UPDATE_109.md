@@ -55,6 +55,8 @@ row after another one moves to the next shift. A unit check and shift109.js guar
   * shift109.js 8 / 8 – the boxes follow the hours, the first Log Book row (one date, and one machinery), a hand choice kept,
     "My usual shift" wins, Settings saves the hours;
   * half.js 12 / 12 (after the fix above);
+  * old page tests that counted on a new Log Book row being "Full Day" now set that shift themselves (the row follows the time,
+    as asked): dnui 8 / 8, item2 13 / 13, meter 8 / 8, start 8 / 8;
   * billed108.js 24 / 24 (with the user's Approvals: Waiting, then Approved);
   * idle 10 / 10, entry71 20 / 20, lgrows 12 / 12, pendm 6 / 6, tanker104 12 / 12, tanker105 7 / 7, tanker107 8 / 8, xls 14 / 14.
 * pend.js (3 FAIL) and batch.js (2 FAIL) fail the same on main before this change (not caused by it).
