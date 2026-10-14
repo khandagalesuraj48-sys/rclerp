@@ -378,7 +378,11 @@ function makeAi() {
     call: (method, path, body, ms) => {
       const key = String(process.env.GEMINI_API_KEY || ''); if (!key) return { code: 0, text: '', error: 'no key' };
       const r = fetchAllSync([{ url: AI_BASE() + path, method: method, headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: body === undefined || body === null ? undefined : JSON.stringify(body) }], Math.max(3000, Math.min(50000, Number(ms) || 50000)))[0] || {};
-      return { code: r.code || 0, text: String(r.text || ''), error: r.error ? String(r.error) : '' };
+      // (update-104) the line to the AI is not the database: a call that ran out of time is said as the AI's slowness – before it read
+      // "The database did not answer in time", so the page asked again (a database pause is asked again by itself) and the Admin's
+      // fault list took it as a fault of the database. A slow AI is no fault of the app: the person types the reading.
+      const err = r.error ? String(r.error) : '';
+      return { code: r.code || 0, text: String(r.text || ''), error: /did not answer in time/i.test(err) ? 'the AI service was too slow to answer' : err };
     },
   };
 }

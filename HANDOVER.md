@@ -1611,6 +1611,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   untimed last); Idle / Holiday / Breakdown entry still refused ("a day without trips", FIX_RULES). deleteTankerTrip_ takes an old
   entry's trip too. Edit Log Book: no "+ Add row" / "Add all missing dates" for Format I, a note instead. Unit "update-103",
   browser tanker103.js 11.
+- 14-10-2026 (update-104). Report: `UPDATE_104.md`. Edit Log Book of a water tanker = its trips, one row each (`lt_panel`,
+  `ltLoad` / `ltSave`, getTankerRange_ / saveTankerRange_): + Add row, change, take out; Export Excel (Water Tanker Report
+  layout + 100 empty lines) / Import Excel (importTankerTrips_, checked first, all or none, an already-saved challan skipped).
+  One rule for many dates: `tankerPlan_` (Full Day + Night → Day, `dnRelink_`). AI call that ran out of time = "the AI service was
+  too slow" (gas.js makeAi), no longer a database fault. `window.rclGo(page)` for the phone app (no eval). Unit "update-104",
+  browser tanker104.js 12, tanker103.js 11, tanker97.js 16; rcl-mobile real_erp.js 18.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
