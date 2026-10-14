@@ -66,13 +66,14 @@ const today = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10), yda
     await p.screenshot({ path: SHOTS + 'wt103_fullday.png' });
     // Edit Log Book: no row is added for a tanker; another machinery as before
     const lx = async (no, from, to) => { await f.evaluate((no, from, to) => { try { closeConfirm(false); } catch (e) {} S.formDirty = false; LX.rows = []; LX.deleted = []; showTab('logedit'); $('lx_from').value = from; $('lx_to').value = to; const n = $('lx_no'); n.value = no; n.dispatchEvent(new Event('change', { bubbles: true })); $('lx_load').click(); }, no, from, to); await wait(3500);
-      return f.evaluate(() => ({ add: $('lx_add').hidden, fill: $('lx_fill').hidden, info: $('lx_info').textContent, rows: document.querySelectorAll('#lx_rows tr').length })); };
+      return f.evaluate(() => ({ lt: !$('lt_panel').hidden, lx: !$('lx_panel').hidden, ltAdd: !$('lt_add').hidden, add: $('lx_add').hidden, fill: $('lx_fill').hidden, info: $('lx_info').textContent, trips: document.querySelectorAll('#lt_rows tr.ltr').length })); };
     let L = await lx('WT-C1', yday, today);
-    ok('Edit Log Book, a water tanker: "+ Add row" / "Add all missing dates" hidden; the note says where more trips go', L.add && L.fill && /more trips in a Day \/ Night are added on Log Book → "Water tanker – trip by trip"/.test(L.info), L);
+    // (update-104 changed this: a water tanker opens as its trips, one row each, WITH "+ Add row" – see tanker104.js)
+    ok('Edit Log Book, a water tanker: its trips (5), one row each, with "+ Add row" (update-104)', L.lt && !L.lx && L.ltAdd && L.trips === 5, L);
     await p.screenshot({ path: SHOTS + 'wt103_lx.png' });
     const other = sql("select id from master where id not like 'WT-%' and coalesce(log_book_format,'') not in ('I') order by id limit 1");
     L = await lx(other, '2026-09-01', '2026-09-30');
-    ok('Edit Log Book, another machinery (' + other + '): the buttons are back, no tanker note', !L.add && !L.fill && !/Water tanker/.test(L.info), L);
+    ok('Edit Log Book, another machinery (' + other + '): the usual grid with its buttons', L.lx && !L.lt && !L.add && !L.fill, L);
   } catch (e) { ok('the run finished', false, e.stack || String(e)); }
   finally { await b.close(); }
   ok('no script error', errs.length === 0, errs);

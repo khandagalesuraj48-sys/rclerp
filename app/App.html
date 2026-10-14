@@ -254,6 +254,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .sbad.on { background: #E3F4EE; color: #1F6B52; } .sbad.off { background: #FDECEA; color: var(--bad); }
   .bulk tr.warn td { background: #FFF6DA; }
   table.wtt { width: 100%; } table.wtt input { width: 100%; min-width: 90px; } table.wtt td.c { text-align: center; font-weight: 600; } table.wtt tr.wt-bad td { background: #FDECEA; }
+  table.lt-t input[type=checkbox] { width: auto; min-width: 0; } table.lt-t td small { display: block; margin-top: 2px; }
+  table.lt-t input[type=date] { min-width: 140px; } table.lt-t select { min-width: 90px; } table.lt-t tr.lt-new td { background: #F1F8F4; } table.lt-t tr.lt-chg td { background: #FFF8E1; } table.lt-t tr.lt-lock td { opacity: .6; }
   .wt-h { margin: 18px 0 6px; font-size: 15px; } .wt-tot { margin: 8px 0 0; font-weight: 600; } .wt-tot span { margin-right: 18px; }
   .errlist { margin: 12px 0 0; padding: 10px 14px 10px 30px; background: #FDECEA; color: var(--bad); border-radius: 4px; font-size: 13px; }
   .errlist[hidden] { display: none; }
@@ -2864,6 +2866,27 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       </div>
       <p class="lx-rule">Change any reading – everything updates live. When you change a <b>Close</b>, the next row's <b>Start</b> follows it. Add missing dates or delete rows, then press <b>Save changes</b>. Nothing is saved until then.<br>A <b>Night</b> entry for a date that already has its entry: tick that row and press <b>+ Add row</b>; tick <b>½</b> for a half night.</p>
     </div>
+    <!-- (update-104) EDIT LOG BOOK OF A WATER TANKER: one row per trip -->
+    <div class="panel" id="lt_panel" hidden>
+      <div class="panel-head"><h2 id="lt_title"></h2><span class="chart-note" id="lt_info"></span></div>
+      <p class="lx-rule">One row = one trip. <b>+ Add row</b> for another trip – the trips of a Day / Night go into that shift's entry (one entry a date and shift). Change or take out a row, then press <b>Save changes</b>. Nothing is saved until then. <b>Export Excel</b> gives these trips with empty lines to fill; <b>Import Excel</b> adds the file's trips (many tankers and dates at once).</p>
+      <div class="lx-lock" id="lt_lock" hidden></div>
+      <div class="table-wrap"><table class="wtt lt-t">
+        <thead><tr><th><input type="checkbox" id="lt_all" aria-label="Tick all rows"></th><th>#</th><th>Date *</th><th>Shift *</th><th>Challan No *</th><th>Dispatch Time *</th><th>Unload Time *</th><th>Trip</th><th>Chainage No</th><th>Use For</th><th></th></tr></thead>
+        <tbody id="lt_rows"></tbody></table></div>
+      <div class="errlist" id="lt_err" hidden></div>
+      <div class="wt-tot" id="lt_tot"></div>
+      <div class="actions">
+        <button class="btn ghost" id="lt_add" type="button">+ Add row</button>
+        <button class="btn primary" id="lt_save" type="button" disabled>Save changes</button>
+        <button class="btn ghost" id="lt_reload" type="button">Undo all (reload)</button>
+        <button class="btn danger" id="lt_delsel" type="button" hidden>Delete selected</button>
+        <button class="btn ghost" id="lt_export" type="button" title="These trips in the Water Tanker Report layout, with empty lines to fill">Export Excel</button>
+        <button class="btn ghost" id="lt_import" type="button" title="Add many trips from an Excel file (this layout) – many tankers and dates">Import Excel</button>
+        <input type="file" id="lt_file" accept=".xlsx,.xls,.csv" hidden>
+        <span class="sum" id="lt_sum" style="margin-left:auto"></span>
+      </div>
+    </div>
     <div class="panel" id="lx_panel" hidden>
       <div class="panel-head"><h2 id="lx_title"></h2><span class="chart-note" id="lx_info"></span></div>
       <div class="lx-lock" id="lx_lock" hidden></div>
@@ -4674,6 +4697,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       : L3({ en: 'If no Install button shows: Chrome menu (⋮) → "Install app" or "Add to Home screen".', mr: 'Install बटण दिसत नसेल तर: Chrome menu (⋮) → "Install app" किंवा "Add to Home screen".', hi: 'Install बटन न दिखे तो: Chrome menu (⋮) → "Install app" या "Add to Home screen".' }); }
   }
   window.rclShell = () => { try { appDraw(); } catch (e) { /* the page is still loading */ } };
+  // (update-104) the phone app opens a page of this one (its own module buttons) by this – before it ran a piece of text as code
+  // (eval), which the watched security policy wrote into the Admin's faults each time
+  window.rclGo = p => { if (typeof S === 'undefined' || !S || !S.token) return 'no'; S.wantTab = String(p || 'dash'); wantTabGo(); return 'ok'; };
   async function appInstall() { const A = shellApp(); if (!A) return; const r = await A.install(); appDraw(); if (r === 'accepted') toast({ en: 'Installed. Open it from the home screen.', mr: 'Install झाले. Home screen वरून उघडा.', hi: 'Install हो गया। Home screen से खोलें।' }[fixLang] || 'Installed.'); }
   function appCheck() { const A = shellApp(), b = $('app_check'); if (!A || !b) return; b.disabled = true;
     A.check(r => { b.disabled = false; appDraw();
@@ -5205,11 +5231,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['A water tanker (Log Book Format I) is entered trip by trip, on its own form.', 'Nothing was saved. Log Book → Change entry type → "Water tanker – trip by trip": pick the date, shift and tanker, one line per trip. Its BOQ line must be Per Trip. To make a machinery a water tanker: Master → Log Book Format → Format I. More trips in the same Day / Night are added there too – they join that shift\'s entry (also an entry made before).'],
       mr: ['Water tanker (Log Book Format I) ची entry trip-by-trip, त्याच्या वेगळ्या form मधून होते.', 'काहीही save झाले नाही. Log Book → Change entry type → "Water tanker – trip by trip": तारीख, shift आणि tanker निवडा, प्रत्येक trip ची एक ओळ. त्याची BOQ line Per Trip हवी. Machinery ला water tanker करायला: Master → Log Book Format → Format I. त्याच Day / Night मधल्या आणखी trips पण तिथेच add करा – त्या त्या shift च्या entry मध्ये जोडल्या जातात (आधी केलेल्या entry मध्ये सुद्धा).'],
       hi: ['Water tanker (Log Book Format I) की entry trip-by-trip, उसके अलग form से होती है।', 'कुछ भी save नहीं हुआ। Log Book → Change entry type → "Water tanker – trip by trip": तारीख, shift और tanker चुनें, हर trip की एक पंक्ति। उसकी BOQ line Per Trip होनी चाहिए। Machinery को water tanker बनाने के लिए: Master → Log Book Format → Format I। उसी Day / Night की और trips भी वहीं add करें – वे उस shift की entry में जुड़ जाती हैं (पहले बनी entry में भी)।'] },
+    { re: /is not between \d{2}-\d{2}-\d{4} and \d{2}-\d{2}-\d{4} – open those dates|No trips in the file|At most 3000 trips in one save|the shift must be Day or Night|^Row \d+: select the Date/i,      // (update-104) Edit Log Book / Excel of a water tanker
+      en: ['A row of the water tanker\'s trips cannot be taken as it is.', 'Nothing was saved. Every row needs its date (within the From – To dates that are open; for another date open those dates), the shift Day or Night, the challan no and the Dispatch / Unload time. An Excel file needs at least one trip under its headings (Export Excel gives the right layout). Save up to 3000 trips at a time.'],
+      mr: ['Water tanker च्या trips मधली एक row जशी आहे तशी घेता येत नाही.', 'काहीही save झाले नाही. प्रत्येक row ला तारीख (उघडलेल्या From – To तारखांच्या आत; दुसऱ्या तारखेसाठी त्या तारखा उघडा), shift Day किंवा Night, challan no आणि Dispatch / Unload वेळ हवी. Excel file मध्ये headings खाली किमान एक trip हवी (Export Excel ने बरोबर layout मिळतो). एका वेळी जास्तीत जास्त 3000 trips save करा.'],
+      hi: ['Water tanker की trips की एक row जैसी है वैसी नहीं ली जा सकती।', 'कुछ भी save नहीं हुआ। हर row में तारीख (खुली From – To तारीखों के अंदर; दूसरी तारीख के लिए वे तारीखें खोलें), shift Day या Night, challan no और Dispatch / Unload समय चाहिए। Excel file में headings के नीचे कम से कम एक trip चाहिए (Export Excel से सही layout मिलता है)। एक बार में ज़्यादा से ज़्यादा 3000 trips save करें।'] },
     { re: /a day without trips/i,      // (update-103) the tanker was on Idle / Holiday / Breakdown that day
       en: ['The tanker is entered as Idle / Holiday / Breakdown on this date and shift – a day without trips.', 'Nothing was saved. If the tanker did make trips that day: Log Book → Edit Log Book → this tanker and date → delete that Idle / Holiday / Breakdown entry, then add the trips on "Water tanker – trip by trip".'],
       mr: ['या तारखेला आणि shift ला tanker ची Idle / Holiday / Breakdown entry आहे – म्हणजे trip नसलेला दिवस.', 'काहीही save झाले नाही. त्या दिवशी tanker ने trips केल्या असतील तर: Log Book → Edit Log Book → हा tanker आणि तारीख → ती Idle / Holiday / Breakdown entry delete करा, मग "Water tanker – trip by trip" वर trips add करा.'],
       hi: ['इस तारीख और shift पर tanker की Idle / Holiday / Breakdown entry है – यानी बिना trip का दिन।', 'कुछ भी save नहीं हुआ। उस दिन tanker ने trips की हों तो: Log Book → Edit Log Book → यह tanker और तारीख → वह Idle / Holiday / Breakdown entry delete करें, फिर "Water tanker – trip by trip" पर trips add करें।'] },
-    { re: /DUPLICATE – this challan no|DUPLICATE time|DUPLICATE challan|Dispatch and Unload time are the same|more than 12 hours after Dispatch|enter the Dispatch time|enter the Unload time|at most 60 trips in one save|add at least one trip/i,      // (update-97)
+    { re: /DUPLICATE – this challan no|DUPLICATE time|DUPLICATE challan|is twice on \d|Dispatch and Unload time are the same|more than 12 hours after Dispatch|enter the Dispatch time|enter the Unload time|at most 60 trips in one save|add at least one trip/i,      // (update-97)
       en: ['A trip of the water tanker is not right: the same challan again, a time on another trip, or a time missing.', 'Nothing was saved. One challan no of an agency is used once only; one tanker cannot make two trips at the same time. Check the challan and the Dispatch / Unload time of that trip (a Night trip after midnight is the next morning), correct it and save again.'],
       mr: ['Water tanker ची एक trip बरोबर नाही: तोच challan पुन्हा, दुसऱ्या trip च्या वेळेवर वेळ, किंवा वेळ भरलेली नाही.', 'काहीही save झाले नाही. एका agency चा एक challan no एकदाच वापरला जातो; एक tanker एकाच वेळी दोन trips करू शकत नाही. त्या trip चा challan आणि Dispatch / Unload वेळ तपासा (रात्री 12 नंतरची Night trip म्हणजे दुसऱ्या दिवशी सकाळ), दुरुस्त करा आणि पुन्हा save करा.'],
       hi: ['Water tanker की एक trip सही नहीं है: वही challan दोबारा, दूसरी trip के समय पर समय, या समय भरा नहीं।', 'कुछ भी save नहीं हुआ। एक agency का एक challan no एक ही बार इस्तेमाल होता है; एक tanker एक ही समय दो trips नहीं कर सकता। उस trip का challan और Dispatch / Unload समय जाँचें (रात 12 के बाद की Night trip यानी अगली सुबह), ठीक करें और फिर save करें।'] },
@@ -5682,10 +5712,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['A physical check of the diesel in a machinery\'s tank against what the app calculates.', 'One check per machinery and date. When the difference is not zero a reason must be written. "Filled to full" needs the tank capacity in Asset Master. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed.'],
       mr: ['Machinery च्या tank मधल्या diesel ची प्रत्यक्ष तपासणी, app च्या हिशोबाशी तुलना करून.', 'एका machinery चा एका तारखेला एकच check. फरक शून्य नसेल तर कारण लिहावे लागते. "Filled to full" साठी Asset Master मध्ये tank ची क्षमता लागते. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
       hi: ['Machinery की tank के diesel की असली जाँच, app के हिसाब से तुलना करके।', 'एक machinery का एक तारीख को एक ही check। फर्क शून्य न हो तो कारण लिखना पड़ता है। "Filled to full" के लिए Asset Master में tank की क्षमता चाहिए। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है।'] },
-    logedit: { saves: ['saveLogBulk'],
-      en: ['Correct many saved Log Book entries of one machinery at once, date by date.', 'Each reading must fit between the entry before and the entry after. Entries that are already in a submitted bill should be changed only when the bill will be made again. A forgotten Night (or Day) entry of a date: tick that date\'s row and press "+ Add row"; tick "½" for a half. The Shift of a saved entry can be changed too – one entry per shift on a date, a Full Day entry stands alone. A machinery whose BOQ has two or more hour (or KM) works (e.g. Bucket and Breaker) may have a row for EACH work in the same shift: press "+ work in this shift" under the row, press the work of each row, and let each row start where the row above closed – it is saved as one entry and printed as a row for each work. A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) may have several rows in one shift whatever its BOQ – the same work twice too: press "+ work in this shift" and type the row\'s Start (the Close of the row above, or higher – the hours in between are not counted) and its Close. For such a machinery nothing moves by itself: the entry before and the entry after keep their readings, and a Close above the Start of the next entry turns the row red (the save is refused with the reason). A row of such a shift may be by Time (pick Time in its "Measured by" and type From – To): its hours are added to the rows by Hrs.'],
-      mr: ['एका machinery च्या अनेक save झालेल्या Log Book entries एकदम, तारखेनुसार दुरुस्त करणे.', 'प्रत्येक reading मागच्या आणि पुढच्या entry च्या मधे बसले पाहिजे. Submit झालेल्या bill मधल्या entries फक्त तेव्हाच बदला जेव्हा ते bill पुन्हा बनवणार असाल. एखाद्या तारखेची राहिलेली Night (किंवा Day) entry: त्या तारखेच्या row ला tick करा आणि "+ Add row" दाबा; अर्ध्यासाठी "½" tick करा. Save झालेल्या entry ची Shift पण बदलता येते – एका तारखेला प्रत्येक shift ची एकच entry, Full Day entry एकटीच असते. ज्या machinery च्या BOQ मध्ये तासांची (किंवा KM ची) दोन किंवा जास्त कामे आहेत (उदा. Bucket आणि Breaker) तिला एकाच shift मध्ये प्रत्येक कामाची वेगळी ओळ देता येते: त्या row खालील "+ work in this shift" दाबा, प्रत्येक ओळीचे काम निवडा, आणि प्रत्येक ओळ वरच्या ओळीच्या Close पासून सुरू करा – ती एकच entry म्हणून save होते आणि print मध्ये प्रत्येक काम वेगळ्या ओळीत येते. Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ला (JCB, excavator, breaker) BOQ काहीही असो एकाच shift मध्ये अनेक ओळी देता येतात – तेच काम दोनदा सुद्धा: "+ work in this shift" दाबा आणि त्या ओळीचे Start (वरच्या ओळीचे Close, किंवा जास्त – मधले तास धरले जात नाहीत) आणि Close टाका. अशा machinery मध्ये काहीही आपोआप बदलत नाही: आधीची आणि पुढची entry आपली readings ठेवते, आणि Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर ती ओळ लाल होते (save कारण सांगून थांबते). अशा shift ची एखादी ओळ Time वर असू शकते (तिच्या "Measured by" मध्ये Time निवडा आणि From – To टाका): तिचे तास Hrs ओळींच्या तासांत जोडले जातात.'],
-      hi: ['एक machinery की कई save हुई Log Book entries एक साथ, तारीख के अनुसार ठीक करना।', 'हर reading पिछली और अगली entry के बीच बैठनी चाहिए। Submit हो चुके bill की entries तभी बदलें जब वह bill दोबारा बनाना हो। किसी तारीख की छूटी हुई Night (या Day) entry: उस तारीख की row को tick करें और "+ Add row" दबाएँ; आधे के लिए "½" tick करें। Save हुई entry की Shift भी बदली जा सकती है – एक तारीख पर हर shift की एक ही entry, Full Day entry अकेली रहती है। जिस machinery के BOQ में घंटों (या KM) के दो या अधिक काम हैं (जैसे Bucket और Breaker) उसे एक ही shift में हर काम की अलग पंक्ति दी जा सकती है: उस row के नीचे "+ work in this shift" दबाएँ, हर पंक्ति का काम चुनें, और हर पंक्ति ऊपर वाली पंक्ति के Close से शुरू करें – वह एक ही entry के रूप में save होती है और print में हर काम अलग पंक्ति में आता है। Hours पर चलने वाली machine (JCB, excavator) का hour meter किसी दिन reading न दे तो: उस दिन के लिए Time चुनें और From – To डालें – वे घंटे, घंटे ही गिने जाते हैं (bill, diesel average); अगले hours दिन का Start आख़िरी hour reading से आता है। सिर्फ़ घंटों पर चलने वाली machinery को (JCB, excavator, breaker) BOQ कुछ भी हो एक ही shift में कई पंक्तियाँ दी जा सकती हैं – वही काम दो बार भी: "+ work in this shift" दबाएँ और उस पंक्ति का Start (ऊपर वाली पंक्ति का Close, या ज़्यादा – बीच के घंटे नहीं गिने जाते) और Close डालें। ऐसी machinery में कुछ भी अपने-आप नहीं बदलता: पिछली और अगली entry अपनी readings रखती हैं, और Close अगली entry के Start से ज़्यादा हो तो वह पंक्ति लाल होती है (save कारण बताकर रुकता है)। ऐसी shift की कोई पंक्ति Time पर हो सकती है (उसके "Measured by" में Time चुनें और From – To डालें): उसके घंटे Hrs पंक्तियों के घंटों में जोड़े जाते हैं।'] },
+    logedit: { saves: ['saveLogBulk', 'saveTankerRange', 'importTankerTrips'],
+      en: ['Correct many saved Log Book entries of one machinery at once, date by date.', 'Each reading must fit between the entry before and the entry after. Entries that are already in a submitted bill should be changed only when the bill will be made again. A forgotten Night (or Day) entry of a date: tick that date\'s row and press "+ Add row"; tick "½" for a half. The Shift of a saved entry can be changed too – one entry per shift on a date, a Full Day entry stands alone. A machinery whose BOQ has two or more hour (or KM) works (e.g. Bucket and Breaker) may have a row for EACH work in the same shift: press "+ work in this shift" under the row, press the work of each row, and let each row start where the row above closed – it is saved as one entry and printed as a row for each work. A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) may have several rows in one shift whatever its BOQ – the same work twice too: press "+ work in this shift" and type the row\'s Start (the Close of the row above, or higher – the hours in between are not counted) and its Close. For such a machinery nothing moves by itself: the entry before and the entry after keep their readings, and a Close above the Start of the next entry turns the row red (the save is refused with the reason). A row of such a shift may be by Time (pick Time in its "Measured by" and type From – To): its hours are added to the rows by Hrs. A water tanker opens as its trips, one row each: + Add row for another trip, Export Excel / Import Excel for many trips at once.'],
+      mr: ['एका machinery च्या अनेक save झालेल्या Log Book entries एकदम, तारखेनुसार दुरुस्त करणे.', 'प्रत्येक reading मागच्या आणि पुढच्या entry च्या मधे बसले पाहिजे. Submit झालेल्या bill मधल्या entries फक्त तेव्हाच बदला जेव्हा ते bill पुन्हा बनवणार असाल. एखाद्या तारखेची राहिलेली Night (किंवा Day) entry: त्या तारखेच्या row ला tick करा आणि "+ Add row" दाबा; अर्ध्यासाठी "½" tick करा. Save झालेल्या entry ची Shift पण बदलता येते – एका तारखेला प्रत्येक shift ची एकच entry, Full Day entry एकटीच असते. ज्या machinery च्या BOQ मध्ये तासांची (किंवा KM ची) दोन किंवा जास्त कामे आहेत (उदा. Bucket आणि Breaker) तिला एकाच shift मध्ये प्रत्येक कामाची वेगळी ओळ देता येते: त्या row खालील "+ work in this shift" दाबा, प्रत्येक ओळीचे काम निवडा, आणि प्रत्येक ओळ वरच्या ओळीच्या Close पासून सुरू करा – ती एकच entry म्हणून save होते आणि print मध्ये प्रत्येक काम वेगळ्या ओळीत येते. Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ला (JCB, excavator, breaker) BOQ काहीही असो एकाच shift मध्ये अनेक ओळी देता येतात – तेच काम दोनदा सुद्धा: "+ work in this shift" दाबा आणि त्या ओळीचे Start (वरच्या ओळीचे Close, किंवा जास्त – मधले तास धरले जात नाहीत) आणि Close टाका. अशा machinery मध्ये काहीही आपोआप बदलत नाही: आधीची आणि पुढची entry आपली readings ठेवते, आणि Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर ती ओळ लाल होते (save कारण सांगून थांबते). अशा shift ची एखादी ओळ Time वर असू शकते (तिच्या "Measured by" मध्ये Time निवडा आणि From – To टाका): तिचे तास Hrs ओळींच्या तासांत जोडले जातात. Water tanker च्या trips प्रत्येकी एका row मध्ये दिसतात: आणखी trip साठी + Add row, अनेक trips एकदम टाकायला Export Excel / Import Excel.'],
+      hi: ['एक machinery की कई save हुई Log Book entries एक साथ, तारीख के अनुसार ठीक करना।', 'हर reading पिछली और अगली entry के बीच बैठनी चाहिए। Submit हो चुके bill की entries तभी बदलें जब वह bill दोबारा बनाना हो। किसी तारीख की छूटी हुई Night (या Day) entry: उस तारीख की row को tick करें और "+ Add row" दबाएँ; आधे के लिए "½" tick करें। Save हुई entry की Shift भी बदली जा सकती है – एक तारीख पर हर shift की एक ही entry, Full Day entry अकेली रहती है। जिस machinery के BOQ में घंटों (या KM) के दो या अधिक काम हैं (जैसे Bucket और Breaker) उसे एक ही shift में हर काम की अलग पंक्ति दी जा सकती है: उस row के नीचे "+ work in this shift" दबाएँ, हर पंक्ति का काम चुनें, और हर पंक्ति ऊपर वाली पंक्ति के Close से शुरू करें – वह एक ही entry के रूप में save होती है और print में हर काम अलग पंक्ति में आता है। Hours पर चलने वाली machine (JCB, excavator) का hour meter किसी दिन reading न दे तो: उस दिन के लिए Time चुनें और From – To डालें – वे घंटे, घंटे ही गिने जाते हैं (bill, diesel average); अगले hours दिन का Start आख़िरी hour reading से आता है। सिर्फ़ घंटों पर चलने वाली machinery को (JCB, excavator, breaker) BOQ कुछ भी हो एक ही shift में कई पंक्तियाँ दी जा सकती हैं – वही काम दो बार भी: "+ work in this shift" दबाएँ और उस पंक्ति का Start (ऊपर वाली पंक्ति का Close, या ज़्यादा – बीच के घंटे नहीं गिने जाते) और Close डालें। ऐसी machinery में कुछ भी अपने-आप नहीं बदलता: पिछली और अगली entry अपनी readings रखती हैं, और Close अगली entry के Start से ज़्यादा हो तो वह पंक्ति लाल होती है (save कारण बताकर रुकता है)। ऐसी shift की कोई पंक्ति Time पर हो सकती है (उसके "Measured by" में Time चुनें और From – To डालें): उसके घंटे Hrs पंक्तियों के घंटों में जोड़े जाते हैं। Water tanker की trips हर एक अलग row में दिखती हैं: और trip के लिए + Add row, कई trips एक साथ डालने के लिए Export Excel / Import Excel.'] },
     brk: { saves: ['submitBdReport', 'deleteBdReport'],
       en: ['The daily breakdown report: which machinery is working and which is under breakdown, with the reason.', 'Each machinery needs Working or Breakdown; a breakdown needs its reason. One report per date. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed.'],
       mr: ['रोजचा breakdown अहवाल: कोणती machinery चालू आहे आणि कोणती breakdown मध्ये आहे, कारणासह.', 'प्रत्येक machinery साठी Working किंवा Breakdown निवडावे लागते; breakdown ला कारण लागते. एका तारखेला एकच अहवाल. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
@@ -7882,7 +7912,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (t.closest('.filters, .toolbar, .rfilters, .dshare-head, .lf-dates, .selbar') || /^(df|if|tf|lf|mf|tcf)_/.test(t.id || '') || t.id === 'm_search' || t.type === 'file') return;
     S.formDirty = true;
   }, true);
-  function formDirty() { return !!S.formDirty || (typeof LX !== 'undefined' && LX && LX.d && typeof lxDirty === 'function' && lxDirty()) ||
+  function formDirty() { return !!S.formDirty || (typeof LX !== 'undefined' && LX && LX.d && typeof lxDirty === 'function' && lxDirty()) || !!(S.lt && S.lt.d && ltDirty()) ||
     (typeof PH !== 'undefined' && !!PH && (Object.keys(PH.items).length > 0 || phSending())); }      // (update-85: photos taken and not saved yet)
   // the shell asks these before it swaps in a new version
   window.rclBusy = () => formDirty() || !$('cf_back').hidden || rtcOn();
@@ -8179,7 +8209,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const m = findMachine(val('lx_no'));
     if (!m) throw new Error('Pick a machinery from the list.');
     if (!$('lx_from').value || !$('lx_to').value) throw new Error('Select From and To dates.');
-    if (lxDirty() && !(await askConfirm({ title: 'Discard unsaved changes?', ok: 'Discard', danger: true, html: '<p>Changes in the grid are not saved yet.</p>' }))) return;
+    if ((lxDirty() || (S.lt && S.lt.d && ltDirty())) && !(await askConfirm({ title: 'Discard unsaved changes?', ok: 'Discard', danger: true, html: '<p>Changes in the grid are not saved yet.</p>' }))) return;
+    if (m.lbFormat === 'I') { await ltLoad(m); return; }      // (update-104) a water tanker: its trips, one row each
+    $('lt_panel').hidden = true; S.lt = null;
     const d = await call('getLogEditData', m.id, $('lx_from').value, $('lx_to').value);
     LX.d = d; LX.deleted = []; LX.odsl = ''; LX.locks = d.locks || []; LX.cut = {}; LX.pc = {};
     const md0 = modesOf(d.machine).concat(DAY_STATUS);
@@ -8231,10 +8263,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const fmtName = (LB_FORMATS.find(f => f.id === FMT) || LB_FORMATS[0]);
     $('lx_title').textContent = m.id + (m.type ? ' – ' + m.type : '');
     $('lx_info').textContent = 'Works on ' + worksOf(m).join(', ') + '  |  Standard ' + [km && m.kmStd ? m.kmStd + ' km/L' : '', hr && m.hrStd ? m.hrStd + ' L/hr' : ''].filter(Boolean).join(' + ') + '  |  ' + showDate(d.from) + ' to ' + showDate(d.to);
-    // (update-103) a water tanker makes many trips in a Day / Night: they are added on Log Book → "Water tanker – trip by trip" (they go into
-    // that shift's entry – also into an entry made before). Here its entries can only be deleted – no row is added (it was refused at Save).
-    const tanker = FMT === 'I'; $('lx_add').hidden = tanker; $('lx_fill').hidden = tanker;
-    if (tanker) $('lx_info').textContent += '  |  Water tanker: more trips in a Day / Night are added on Log Book → "Water tanker – trip by trip" (they join that shift\'s entry). Here entries can only be deleted.';
     const two = (a, b) => [km && a !== '' ? fmt(a) + (hr ? ' km' : '') : '', hr && b !== '' ? fmt(b) + (km ? ' hr' : '') : ''].filter(Boolean).join(' / ');
     $('lx_prev').innerHTML = d.prev ? 'Entry before: <b>' + esc(showDate(d.prev.date)) + ' (' + esc(d.prev.shift) + ')</b> closed at <b>' + two(d.prev.ckm, d.prev.chr) + '</b>, diesel left <b>' + fmt(d.prev.stock) + ' L</b>.' : 'No entry before ' + esc(showDate(d.from)) + ' – the first row is the first entry of this machinery.';
     $('lx_next').innerHTML = d.next ? 'Entry after: <b>' + esc(showDate(d.next.date)) + ' (' + esc(d.next.shift) + ')</b> starts at <b>' + two(d.next.okm, d.next.ohr) + '</b> – it follows the last Close here when it was joined to it, or when that Close passes it.' : '';
@@ -14542,6 +14570,136 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!(await askConfirm({ title: 'Delete this trip?', ok: 'Delete', html: '<p>' + esc(S.wt.machine.id) + ', ' + esc(showDate(S.wt.date)) + ' (' + esc(t.shift) + '): challan <b>' + (esc(t.c) || '–') + '</b>' + (t.a ? ', ' + esc(t.a) + '–' + esc(t.b) : '') + '.</p>' }))) return;
     try { const r = await call('deleteTankerTrip', { no: S.wt.machine.id, date: S.wt.date, shift: t.shift, c: t.c }); S.wt = r; wtDraw(); toast('Trip deleted.'); }
     catch (er) { toast(errMsg(er), true); }
+  });
+
+  /* ---------- EDIT LOG BOOK OF A WATER TANKER (update-104, asked 14-10-2026) ----------
+   * "Edit Log Book madhe Add row nahiye … Import / Export pn haway – bulk madhe data upload". A tanker on Log Book Format I opens
+   * here as its TRIPS, one row each (an older entry's trips too, marked). + Add row = one more trip (the date and shift of the row
+   * above); a row can be changed or taken out. Save sends all the trips of these dates (saveTankerRange) – the server checks
+   * them as the trip-by-trip form does and writes one entry a date and shift. Export: the Water Tanker Report layout with empty
+   * lines; Import: trips of any tanker and date ADDED (checked first, then all or none). */
+  S.lt = null;
+  const LT_SH = ['Day', 'Night'];
+  const ltRowsEl = () => [...$('lt_rows').querySelectorAll('tr.ltr')];
+  const ltLocked = dk => ((S.lt && S.lt.d.locks) || []).find(L => L.from <= dk && dk <= L.to) || null;
+  const ltSig = t => [wtKey(t.c), t.a || '', t.b || '', String(t.ch || '').trim(), String(t.u || '').trim(), t.date, t.shift].join('|');
+  function ltRead() {      // the rows as they are on screen now
+    return ltRowsEl().map(tr => { const g = k => { const x = tr.querySelector('[data-t=' + k + ']'); return x ? x.value.trim() : ''; };
+      return { date: g('date'), shift: g('shift'), c: g('c'), a: g('a'), b: g('b'), ch: g('ch'), u: g('u'), old: tr.dataset.old === '1' ? 1 : 0, orig: tr.dataset.orig || '' }; });
+  }
+  const ltBlank = t => !t.orig && !t.c && !t.a && !t.b && !t.ch && !t.u;
+  function ltDirty() { if (!S.lt || !S.lt.d) return false; const now = ltRead().filter(t => !ltBlank(t)); return now.length !== S.lt.d.trips.length || now.some(t => !t.orig || ltSig(t) !== t.orig); }
+  function ltRowHtml(t, n) {
+    const lock = ltLocked(t.date), dis = lock || !canEdit('Log Book') ? ' disabled' : '', sh = t.shift === 'Full Day' ? ['Full Day'].concat(LT_SH) : LT_SH;
+    return '<tr class="ltr' + (lock ? ' lt-lock' : '') + (t.orig ? '' : ' lt-new') + '" data-orig="' + esc(t.orig || '') + '" data-old="' + (t.old ? 1 : 0) + '">' +
+      '<td><input type="checkbox" class="lt-sel" aria-label="Tick this row"' + dis + '></td><td class="idx">' + n + '</td>' +
+      '<td><input data-t="date" type="date" value="' + esc(t.date || '') + '" min="' + esc(S.lt.d.from) + '" max="' + esc(S.lt.d.to < S.today ? S.lt.d.to : S.today) + '"' + dis + '></td>' +
+      '<td><select data-t="shift"' + dis + '>' + sh.map(x => '<option' + (x === t.shift ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></td>' +
+      '<td><input data-t="c" maxlength="40" autocomplete="off" placeholder="Challan No" value="' + esc(t.c || '') + '"' + dis + '>' + (t.old ? '<small class="muted">entered before trip by trip</small>' : '') + '</td>' +
+      '<td><input data-t="a" type="time" value="' + esc(t.a || '') + '"' + dis + '></td><td><input data-t="b" type="time" value="' + esc(t.b || '') + '"' + dis + '></td><td class="c">1</td>' +
+      '<td><input data-t="ch" maxlength="60" autocomplete="off" placeholder="e.g. 12+500" value="' + esc(t.ch || '') + '"' + dis + '></td>' +
+      '<td><input data-t="u" maxlength="80" autocomplete="off" placeholder="e.g. Curing" value="' + esc(t.u || '') + '"' + dis + '></td>' +
+      '<td>' + (dis ? '' : '<button class="del" type="button" title="Take out this row" aria-label="Take out this row">×</button>') + '</td></tr>';
+  }
+  async function ltLoad(m) {
+    const d = await call('getTankerRange', m.id, $('lx_from').value, $('lx_to').value);
+    LX.d = null; LX.rows = []; LX.deleted = []; $('lx_panel').hidden = true;
+    S.lt = { d: d }; $('lx_no').value = d.machine.id; ltDraw(); $('lt_panel').hidden = false;
+  }
+  function ltDraw() {
+    const d = S.lt.d;
+    $('lt_title').textContent = d.machine.id + (d.machine.type ? ' – ' + d.machine.type : '');
+    $('lt_info').textContent = 'Agency: ' + (d.machine.owner || '–') + '  |  ' + showDate(d.from) + ' to ' + showDate(d.to) + (d.days.length ? '  |  Without trips: ' + d.days.map(x => showDate(x.date) + ' ' + x.shift + ' (' + x.status + ')').join(', ') : '');
+    $('lt_lock').hidden = !(d.locks || []).length;
+    $('lt_lock').innerHTML = (d.locks || []).map(L => '<b>' + esc(showDate(L.from)) + ' to ' + esc(showDate(L.to)) + ' are in the submitted RA Bill ' + esc(L.billNo) + '</b> of ' + esc(L.vendor) + ' – those trips are shown, not changed.').join('<br>');
+    $('lt_rows').innerHTML = d.trips.map((t, i) => ltRowHtml(Object.assign({}, t, { orig: ltSig(t) }), i + 1)).join('');
+    if (!d.trips.length) ltAdd(true);
+    $('lt_err').hidden = true; $('lt_all').checked = false; ltState();
+  }
+  function ltState() {
+    const rows = ltRead(), real = rows.filter(t => !ltBlank(t)), nN = real.filter(t => t.shift === 'Night').length;
+    ltRowsEl().forEach((tr, i) => { tr.querySelector('.idx').textContent = i + 1; const t = rows[i]; tr.classList.toggle('lt-chg', !!t.orig && ltSig(t) !== t.orig); });
+    $('lt_tot').innerHTML = '<span>Day trips: ' + (real.length - nN) + '</span><span>Night trips: ' + nN + '</span><span>Total trips: ' + real.length + '</span>';
+    const dirty = ltDirty(), can = canEdit('Log Book');
+    $('lt_save').disabled = !dirty || !can; $('lt_add').hidden = !can; $('lt_import').hidden = !can;
+    $('lt_sum').textContent = dirty ? 'Not saved yet' : 'No changes yet';
+    const sel = ltRowsEl().filter(tr => tr.querySelector('.lt-sel').checked).length; $('lt_delsel').hidden = !sel; $('lt_delsel').textContent = 'Delete selected (' + sel + ')';
+  }
+  function ltAdd(quiet) {
+    const rows = ltRead(), last = rows[rows.length - 1], top = S.lt.d.to < S.today ? S.lt.d.to : S.today;
+    $('lt_rows').insertAdjacentHTML('beforeend', ltRowHtml({ date: last ? last.date : top, shift: last && last.shift !== 'Full Day' ? last.shift : 'Day' }, rows.length + 1));
+    if (!quiet) { const r = ltRowsEl().pop(); r.querySelector('[data-t=c]').focus(); }
+    ltState();
+  }
+  $('lt_add').addEventListener('click', () => ltAdd());
+  $('lt_rows').addEventListener('input', ltState); $('lt_rows').addEventListener('change', ltState);
+  $('lt_rows').addEventListener('click', e => { const b = e.target.closest('.del'); if (!b) return; b.closest('tr').remove(); if (!ltRowsEl().length) ltAdd(true); ltState(); });
+  $('lt_all').addEventListener('change', e => { ltRowsEl().forEach(tr => { const x = tr.querySelector('.lt-sel'); if (!x.disabled) x.checked = e.target.checked; }); ltState(); });
+  $('lt_delsel').addEventListener('click', () => { ltRowsEl().forEach(tr => { if (tr.querySelector('.lt-sel').checked) tr.remove(); }); if (!ltRowsEl().length) ltAdd(true); $('lt_all').checked = false; ltState(); });
+  $('lt_reload').addEventListener('click', e => busy(e.target, 'Loading…', async () => { const m = findMachine(S.lt.d.machine.id); S.lt.d = null; await ltLoad(m); }).then(() => { if (S.lt && S.lt.d) ltState(); }));
+  // what is wrong in the rows (before anything is sent): a new or changed row needs its date, challan and both times; the same
+  // challan twice on a date; a time on another trip of that date – the server checks all of it again (and the agency's challans)
+  function ltProblems(rows) {
+    const out = [], keys = {}, spans = [];
+    rows.forEach((t, i) => {
+      const at = 'Row ' + (i + 1) + ': ', kept = t.orig && ltSig(t) === t.orig;
+      if (!t.date) { out.push({ i: i, m: at + 'select the Date.' }); return; }
+      if (!kept) { if (!t.c) out.push({ i: i, m: at + 'enter the Challan No.' }); if (wtMin(t.a) === null) out.push({ i: i, m: at + 'enter the Dispatch time.' }); if (wtMin(t.b) === null) out.push({ i: i, m: at + 'enter the Unload time.' });
+        if (t.a && t.a === t.b) out.push({ i: i, m: at + 'the Dispatch and Unload time are the same.' }); }
+      const k = wtKey(t.c); if (k) { if (keys[t.date + k]) out.push({ i: i, m: at + 'DUPLICATE challan ' + t.c + ' – also in row ' + keys[t.date + k] + '.' }); else keys[t.date + k] = i + 1; }
+      const sp = wtSpan(t.a, t.b, t.shift); if (!sp) return;
+      const hit = spans.find(x => x.date === t.date && sp[0] < x.sp[1] && x.sp[0] < sp[1]);
+      if (hit) out.push({ i: i, m: at + 'DUPLICATE time – ' + t.a + '–' + t.b + ' falls on row ' + hit.n + ' (' + hit.a + '–' + hit.b + ').' }); else spans.push({ date: t.date, sp: sp, n: i + 1, a: t.a, b: t.b });
+    });
+    return out;
+  }
+  $('lt_save').addEventListener('click', e => busy(e.target, 'Saving…', ltSave).then(ltState));      // (busy() frees the button at the end – ltState sets it again)
+  async function ltSave() {
+    const all = ltRead(), keep = all.map((t, i) => ({ t: t, i: i })).filter(x => !ltBlank(x.t)), rows = keep.map(x => x.t);
+    $('lt_err').hidden = true; ltRowsEl().forEach(tr => tr.classList.remove('wt-bad'));
+    const bad = ltProblems(rows);
+    if (bad.length) { bad.forEach(x => ltRowsEl()[keep[x.i].i].classList.add('wt-bad')); $('lt_err').innerHTML = bad.map(x => esc(x.m)).join('<br>') + '<br><b>Nothing was saved.</b>'; $('lt_err').hidden = false; toast(bad[0].m, true); return; }
+    const d = S.lt.d;
+    try {
+      const r = await call('saveTankerRange', { no: d.machine.id, from: d.from, to: d.to, trips: rows.map(t => ({ date: t.date, shift: t.shift, c: t.c, a: t.a, b: t.b, ch: t.ch, u: t.u, old: t.old })) });
+      S.lt.d = r; ltDraw();
+      toast(r.changed ? 'Saved – ' + r.added + ' trip' + (r.added === 1 ? '' : 's') + ' added, ' + r.removed + ' taken out (' + r.changed + ' date' + (r.changed === 1 ? '' : 's') + ').' : 'Nothing changed.');
+      if (S.loaded && S.loaded.log) loadLog();
+    } catch (er) { $('lt_err').innerHTML = esc(errMsg(er)) + '<br><b>Nothing was saved.</b>'; $('lt_err').hidden = false; toast(errMsg(er), true); }
+  }
+  // Excel – the layout of the WATER TANKER REPORT; the same columns come back with Import (read by their headings, any order)
+  const LT_HEAD = ['SR. NO.', 'DATE', 'SHIFT', 'NAME OF AGENCY', 'VEHICLE NO', 'CHALLAN NO', 'DISPATCH TIME', 'UNLOAD TIME', 'TRIP', 'CHAINAGE NO', 'USE FOR'];
+  const LT_COLS = [['date', /^date$/], ['shift', /^shift$/], ['no', /^(vehicle no|vehicle|vehicle number|tanker|tanker no|machinery|machinery no)$/], ['c', /^(challan no|challan|challan number)$/],
+    ['a', /^(dispatch time|dispatch)$/], ['b', /^(unload time|unload|unloading time)$/], ['ch', /^(chainage no|chainage|chainage no\.)$/], ['u', /^(use for|use|used for)$/]];
+  $('lt_export').addEventListener('click', e => busy(e.target, 'Exporting…', async () => {
+    const d = S.lt.d, rows = d.trips.map((t, i) => [i + 1, showDate(t.date), t.shift, d.machine.owner || '', d.machine.id, t.c, t.a, t.b, 1, t.ch, t.u]);
+    const body = [LT_HEAD].concat(rows); for (let k = 0; k < 100; k++) body.push(['', '', '', d.machine.owner || '', d.machine.id]);      // empty lines to fill (the tanker filled in)
+    const head = lbHeadRows('WATER TANKER REPORT – ' + d.machine.id + ' – ' + showDate(d.from) + ' to ' + showDate(d.to));
+    await saveXlsxLists('Water tanker ' + d.machine.id + ' ' + showDate(d.from).replace(/\//g, '-') + ' to ' + showDate(d.to).replace(/\//g, '-') + '.xlsx',
+      [{ name: 'Trips', aoa: head.concat(body), widths: [8, 12, 10, 24, 16, 16, 13, 13, 7, 14, 22], head: head.length + 1,
+         lists: [{ col: 2, values: ['Day', 'Night'], title: 'Shift', prompt: 'Day or Night', skip: r => !String(r[4] || '').trim() }] }]);
+    toast(d.trips.length + ' trip' + (d.trips.length === 1 ? '' : 's') + ' and 100 empty lines. Fill the lines (date, shift, challan, dispatch, unload…) and bring the file back with "Import Excel".');
+  }));
+  $('lt_import').addEventListener('click', () => { try { window.rclLoadXlsx(); } catch (e) {} $('lt_file').click(); });
+  $('lt_file').addEventListener('change', e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (f) busy($('lt_import'), 'Reading…', async () => {      // (afterwards: the buttons as the grid says)
+      needXlsx();
+      const raw = await readExcelRows(f, LT_COLS, ['date', 'c'], true), me = S.lt && S.lt.d ? S.lt.d.machine.id : '';
+      const tm = v => { if (v === '' || v === null || v === undefined) return ''; if (typeof v === 'number') { const t = Math.round((v % 1) * 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); } return String(v).trim(); };
+      const rows = raw.filter(x => String(x.c).trim() || String(x.a).trim() || String(x.b).trim()).map(x => ({ line: x.line, no: String(x.no || '').trim() || me, date: xlDate(x.date), shift: /^n/i.test(String(x.shift || '')) ? 'Night' : 'Day',
+        c: String(x.c || '').trim(), a: tm(x.a), b: tm(x.b), ch: String(x.ch || '').trim(), u: String(x.u || '').trim() }));
+      if (!rows.length) throw new Error('No trips in the file.');
+      const chk = await call('checkTankerImport', { rows: rows });
+      if (!chk.ok) { await askConfirm({ title: 'Fix the file first', ok: 'OK', alertOnly: true, wide: true, html: '<p>Nothing was imported.</p>' + listHtml((chk.errors || []).map(x => (x.row ? 'Line ' + x.row + ': ' : '') + x.msg)) }); return; }
+      if (!chk.added) { await askConfirm({ title: 'Already in the Log Book', ok: 'OK', alertOnly: true, html: '<p>All <b>' + chk.same + '</b> trips of this file are already saved. Nothing to import.</p>' }); return; }
+      if (!(await askConfirm({ title: 'Import the trips?', ok: 'Import', html: listHtml([chk.added + ' trip' + (chk.added === 1 ? '' : 's') + ' will be added (' + chk.tankers + ' tanker' + (chk.tankers === 1 ? '' : 's') + ')', chk.same + ' already saved – skipped']) + '<p>The trips of a date and shift go into that entry. All are saved together, or none.</p>' }))) return;
+      const res = await call('importTankerTrips', { rows: rows });
+      if (!res.ok) { await askConfirm({ title: 'Nothing imported', ok: 'OK', alertOnly: true, wide: true, html: listHtml((res.errors || []).map(x => (x.row ? 'Line ' + x.row + ': ' : '') + x.msg)) }); return; }
+      toast('Water tanker: ' + res.added + ' trip' + (res.added === 1 ? '' : 's') + ' added, ' + res.same + ' already saved.');
+      if (S.lt && S.lt.d) { const m = findMachine(S.lt.d.machine.id); S.lt.d = null; await ltLoad(m); }
+      if (S.loaded && S.loaded.log) loadLog();
+    }).then(() => { if (S.lt && S.lt.d) ltState(); });
   });
 
   /* ---------- PENDING LOG BOOK ON THE ENTRY PAGE (asked 04-10-2026) ----------

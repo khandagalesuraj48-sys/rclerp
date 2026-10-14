@@ -2300,11 +2300,90 @@ test('update-103: a water tanker – more trips in the same Day / Night join an 
   assert.match(run('(k, l) => updateLogRow_(k, l)', 'WT-7|2026-08-10|Day', { trip: 9 }).THROWN || '', /is a water tanker/);
   // ---- the page: old trips marked, the same checks; Edit Log Book adds no row for a tanker; help in 3 languages ----
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
-  assert.ok(/entered before trip by trip/.test(app) && /\$\('lx_add'\)\.hidden = tanker; \$\('lx_fill'\)\.hidden = tanker;/.test(app));
+  assert.ok(/entered before trip by trip/.test(app) && /if \(m\.lbFormat === 'I'\) \{ await ltLoad\(m\); return; \}/.test(app));      // (update-104: Edit Log Book opens a tanker as its trips, with + Add row)
   const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
   for (const m of ['WT-7 (12-08-2026, Day): the tanker has a Full Day (Idle) entry on this date – a day without trips. If it made trips, delete that entry in Edit Log Book first.'])
     { const h = H.fixRules(m)[0]; assert.ok(h !== H.FIX_ANY && /Idle/.test(h.en.join(' ')) && h.mr && h.hi, m); }
   assert.ok(!/not made trip by trip/.test(fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8').replace(/\/\/[^\n]*/g, '')), 'the old refusal is gone');
+});
+
+test('update-104: a water tanker in Edit Log Book – one row per trip, rows added / changed / taken out; Excel import of trips (bulk); AI slowness is not a database fault; the app opens a page without eval', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  for (const no of ['WT-11', 'WT-12'])
+    assert.ok(!(run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Water Tanker', type: 'Water Tanker', unit: 'Trip', worksOn: ['Trip'], owner: 'Pani Agency', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-08-01' }, 'add') || {}).THROWN, no);
+  run('(x, m) => saveVendor_(x, m)', { name: 'Pani Agency', gstReg: 'No', pan: 'ABCPP1234L', bank: 'SBI', account: '12345671', ifsc: 'SBIN0000001' }, 'add');
+  assert.ok(!(run('(x, m) => saveBoq_(x, m)', { vendor: 'Pani Agency', from: '2026-08-01', woNo: 'WO-PA', lines: [{ no: 'WT-11', basis: 'Per Trip', rate: 450, diesel: 'Company' }, { no: 'WT-12', basis: 'Per Trip', rate: 450, diesel: 'Company' }] }, 'add') || {}).THROWN);
+  const old = rows => { const x = run('x => saveLogRowsInner_(x)', { rows: rows }); assert.ok(x.ok, JSON.stringify(x).slice(0, 400)); };
+  old([{ date: '2026-08-20', shift: 'Day', no: 'WT-11', mode: 'Trip', trip: 1, challan: 'P-1', tStart: '08:00', tEnd: '08:40' },
+       { date: '2026-08-21', shift: 'Full Day', no: 'WT-11', mode: 'Trip', trip: 2, challan: 'P-21, P-22' },
+       { date: '2026-08-23', shift: 'Full Day', no: 'WT-11', mode: 'Holiday' }]);
+  run('x => saveLbFormats_(x)', { 'WT-11': 'I', 'WT-12': 'I' });
+  assert.ok(run('x => saveTankerTrips_(x)', { no: 'WT-12', date: '2026-08-20', shift: 'Day', trips: [{ c: 'Q-9', a: '07:00', b: '07:30' }] }).ok);
+  const entry = (no, date, shift) => run('(n, d, s) => { const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c; const r = lt.rows.find(r => logKeyOf_(lt, r) === n + "|" + d + "|" + s); return r ? { trip: num0_(r[c[H.TRIP]]), challan: str_(r[c[H.CHALLAN]]), from: tStr_(r[c[H.TSTART]]), to: tStr_(r[c[H.TEND]]), n: (tankerTripsOf_(r[c[H.ITEMS]]) || []).length } : null; }', no, date, shift);
+  const range = () => run('() => getTankerRange_("WT-11", "2026-08-20", "2026-08-23")');
+  const save = trips => run('x => saveTankerRange_(x)', { no: 'WT-11', from: '2026-08-20', to: '2026-08-23', trips: trips });
+  // ---- Edit Log Book: the trips one per row (an older entry's too), the Holiday apart ----
+  let g = range();
+  assert.deepStrictEqual(g.trips.map(t => [t.date, t.shift, t.c, t.a, t.old]), [['2026-08-20', 'Day', 'P-1', '08:00', 1], ['2026-08-21', 'Full Day', 'P-21', '', 1], ['2026-08-21', 'Full Day', 'P-22', '', 1]]);
+  assert.deepStrictEqual(g.days.map(d => d.date + ' ' + d.status), ['2026-08-23 Holiday']);
+  // nothing changed: nothing written (the older entries stay as they were)
+  let r = save(g.trips); assert.ok(r.ok && r.changed === 0 && r.added === 0, JSON.stringify(r).slice(0, 300));
+  // ---- + Add row: a trip more on the same Day, and a new date (Night) ----
+  r = save(g.trips.concat([{ date: '2026-08-20', shift: 'Day', c: 'P-2', a: '10:00', b: '10:30', ch: '5+200', u: 'Curing' }, { date: '2026-08-22', shift: 'Night', c: 'P-3', a: '21:00', b: '21:30' }]));
+  assert.ok(r.ok && r.added === 2 && r.removed === 0 && r.trips.length === 5, JSON.stringify(r).slice(0, 400));
+  assert.deepStrictEqual(entry('WT-11', '2026-08-20', 'Day'), { trip: 2, challan: 'P-1, P-2', from: '08:00', to: '10:30', n: 2 });
+  assert.deepStrictEqual(entry('WT-11', '2026-08-22', 'Night'), { trip: 1, challan: 'P-3', from: '21:00', to: '21:30', n: 1 });
+  assert.strictEqual(entry('WT-11', '2026-08-21', 'Full Day').n, 0, 'the untouched older Full Day entry is not rewritten');
+  // ---- refused, nothing saved ----
+  g = range(); const plus = x => save(g.trips.concat([x]));
+  assert.match(plus({ date: '2026-08-22', shift: 'Day', c: 'Q-9', a: '11:00', b: '11:30' }).THROWN || '', /Row 6: .*DUPLICATE – this challan no of Pani Agency is already saved \(WT-12 20-08-2026 \(Day\)\)/);
+  assert.match(plus({ date: '2026-08-20', shift: 'Day', c: 'P-4', a: '10:10', b: '10:20' }).THROWN || '', /DUPLICATE time – 10:10–10:20 falls on the trip 10:00–10:30/);
+  assert.match(plus({ date: '2026-08-20', shift: 'Day', c: 'P-4', a: '12:00', b: '' }).THROWN || '', /Row 6: WT-11 \(20-08-2026, Day\) challan P-4: enter the Unload time/);
+  assert.match(plus({ date: '2026-08-20', shift: 'Day', c: 'p-2 ', a: '12:00', b: '12:30' }).THROWN || '', /challan p-2 is twice on 20-08-2026/);
+  assert.match(plus({ date: '2026-08-23', shift: 'Day', c: 'P-5', a: '12:00', b: '12:30' }).THROWN || '', /Full Day \(Holiday\) entry on this date – a day without trips/);
+  assert.match(plus({ date: '2026-09-01', shift: 'Day', c: 'P-5', a: '12:00', b: '12:30' }).THROWN || '', /is not between 20-08-2026 and 23-08-2026/);
+  assert.strictEqual(range().trips.length, 5);
+  // ---- a row changed and a row taken out; a Night trip on the Full Day date (it becomes the Day); a date emptied (its entry goes) ----
+  g = range();
+  const t2 = g.trips.map(t => t.c === 'P-1' ? Object.assign({}, t, { a: '07:30', b: '08:10' }) : t).filter(t => t.c !== 'P-2' && t.c !== 'P-3').concat([{ date: '2026-08-21', shift: 'Night', c: 'P-23', a: '22:00', b: '22:30' }]);
+  r = save(t2);
+  assert.ok(r.ok && r.added === 2 && r.removed === 3, JSON.stringify(r).slice(0, 400));
+  assert.deepStrictEqual(entry('WT-11', '2026-08-20', 'Day'), { trip: 1, challan: 'P-1', from: '07:30', to: '08:10', n: 1 });
+  assert.strictEqual(entry('WT-11', '2026-08-22', 'Night'), null);
+  assert.deepStrictEqual([entry('WT-11', '2026-08-21', 'Full Day'), entry('WT-11', '2026-08-21', 'Day').trip, entry('WT-11', '2026-08-21', 'Night').trip], [null, 2, 1]);
+  // ---- Excel: trips of two tankers ADDED; one already saved is skipped; checked first, then all or none ----
+  const imp = (rows, check) => run('x => importTankerTrips_(x)', { rows: rows, check: check });
+  const file = [{ line: 2, no: 'WT-11', date: '2026-08-20', shift: 'Day', c: 'P-1', a: '07:30', b: '08:10' },      // already saved
+    { line: 3, no: 'WT-11', date: '2026-08-20', shift: 'Day', c: 'P-6', a: '09:00', b: '09:30', ch: '6+000', u: 'Curing' },
+    { line: 4, no: 'wt-12', date: '2026-08-24', shift: 'Night', c: 'Q-10', a: '23:30', b: '00:15' },
+    { line: 5, no: 'WT-12', date: '2026-08-24', shift: 'Day', c: 'Q-11', a: 0.375, b: '9:45 AM' }];      // (an Excel time is a part of a day: 0.375 = 09:00)
+  r = imp(file, true);
+  assert.ok(r.ok && r.check && r.added === 3 && r.same === 1 && r.tankers === 2, JSON.stringify(r));
+  assert.strictEqual(entry('WT-12', '2026-08-24', 'Day'), null, 'the check saves nothing');
+  r = imp(file.concat([{ line: 6, no: 'WT-12', date: '2026-08-25', shift: 'Day', c: 'P-6', a: '10:00', b: '10:30' }]));
+  assert.ok(!r.ok && r.errors.length === 1 && r.errors[0].row === '6' && /DUPLICATE – this challan no of Pani Agency is already saved \(WT-11 20-08-2026 \(Day\)\)/.test(r.errors[0].msg), JSON.stringify(r));
+  assert.strictEqual(entry('WT-12', '2026-08-24', 'Day'), null, 'one bad line: nothing imported');
+  r = imp([{ line: 2, no: 'EX-NOT', date: '2026-08-24', shift: 'Day', c: 'Z', a: '08:00', b: '09:00' }]);
+  assert.ok(!r.ok && r.errors[0].row === 2 && /not in Master/.test(r.errors[0].msg), JSON.stringify(r));
+  r = imp(file);
+  assert.ok(r.ok && r.added === 3 && r.same === 1, JSON.stringify(r));
+  assert.deepStrictEqual(entry('WT-11', '2026-08-20', 'Day'), { trip: 2, challan: 'P-1, P-6', from: '07:30', to: '09:30', n: 2 });
+  assert.deepStrictEqual([entry('WT-12', '2026-08-24', 'Day'), entry('WT-12', '2026-08-24', 'Night')].map(x => x && x.challan + ' ' + x.from + '-' + x.to), ['Q-11 09:00-09:45', 'Q-10 23:30-00:15']);
+  r = imp(file); assert.ok(r.ok && r.added === 0 && r.same === 4, 'the same file again: nothing added');
+  // ---- the AI's line: a call that ran out of time is the AI's slowness, not the database (no fault, not asked again) ----
+  const gas = fs.readFileSync(path.join(root, 'server', 'gas.js'), 'utf8');
+  assert.ok(/did not answer in time\/i\.test\(err\) \? 'the AI service was too slow to answer'/.test(gas));
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), DBF = new RegExp(code.match(/const DB_FAULT_ = \/(.+)\/;/)[1]);
+  assert.ok(!DBF.test('The AI could not read the meter now (the AI service was too slow to answer) – type the reading.') && DBF.test('The database did not answer in time.'));
+  // ---- the page: Edit Log Book of a tanker (+ Add row, Export / Import), help in 3 languages; the app's page door ----
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.ok(/window\.rclGo = p =>/.test(app) && /id="lt_add"/.test(app) && /id="lt_export"/.test(app) && /id="lt_import"/.test(app));
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  for (const m of ['Row 6: WT-11 (20-08-2026, Day) challan p 2: DUPLICATE – challan p 2 is twice on 20-08-2026. Not saved.', 'Row 6: 01-09-2026 is not between 20-08-2026 and 23-08-2026 – open those dates.', 'No trips in the file.', 'At most 3000 trips in one save.'])
+    { const h = H.fixRules(m)[0]; assert.ok(h !== H.FIX_ANY && h.mr && h.hi, m); }
+  const guide = app.slice(app.indexOf('logedit: { saves: ['), app.indexOf(']', app.indexOf('logedit: { saves: [')));
+  assert.ok(['saveTankerRange', 'importTankerTrips'].every(a => guide.indexOf("'" + a + "'") > -1), guide);
 });
 
 test('update-99: one address – the Store and the Portal under this address, the menu of this module for the others, other modules\' pages in the dark menu', () => {

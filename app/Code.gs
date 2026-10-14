@@ -908,6 +908,10 @@ const API_ = {
   getTankerTrips:    { m: 'Log Book', f: getTankerTrips_ },                                              // (update-97) water tanker – trip by trip
   saveTankerTrips:   { m: 'Log Book', edit: true, f: saveTankerTrips_, log: 'tankerTrips' },
   deleteTankerTrip:  { m: 'Log Book', edit: true, f: deleteTankerTrip_, log: 'tankerTripDel' },
+  getTankerRange:    { m: 'Log Book', f: getTankerRange_ },                                              // (update-104) Edit Log Book of a water tanker
+  saveTankerRange:   { m: 'Log Book', edit: true, f: saveTankerRange_, log: 'tankerRange' },
+  checkTankerImport: { m: 'Log Book', f: b => importTankerTrips_(Object.assign({}, b, { check: true })) },
+  importTankerTrips: { m: 'Log Book', edit: true, f: importTankerTrips_, log: 'tankerImport' },
   checkLogImport:    { m: 'Log Book', f: b => importLogBook_(Object.assign({}, b, { check: true })) },
   importLogBook:     { m: 'Log Book', edit: true, f: importLogBook_, log: 'logImport' },
   getActivity:       { m: '', admin: true, f: getActivity_ },
@@ -1303,6 +1307,14 @@ function logAfter_(u, spec, args, res, before) {
         tr.map(t => 'challan ' + clean_(t && t.c) + ' ' + clean_(t && t.a) + '–' + clean_(t && t.b) + (t && t.ch ? ', ch ' + clean_(t.ch) : '') + (t && t.u ? ', ' + clean_(t.u) : '')).join('; '));
       break;
     }
+    case 'tankerRange': {      // (update-104) Edit Log Book of a water tanker
+      const x = args[0] || {};
+      if (res && (res.added || res.removed || res.changed)) writeLog_(u, 'Edit', m, clean_(x.no), 'Edit Log Book (water tanker) ' + fmtVal_(toDate_(x.from)) + ' to ' + fmtVal_(toDate_(x.to)) + ': ' + res.added + ' trip(s) added, ' + res.removed + ' taken out', (res.changedDates || []).length ? 'Dates: ' + res.changedDates.map(d => fmtVal_(toDate_(d))).join(', ') : '');
+      break;
+    }
+    case 'tankerImport':
+      if (res && res.ok) writeLog_(u, 'Add', m, res.tankers + ' tanker(s)', 'Water tanker trips imported from a file: ' + res.added + ' added, ' + res.same + ' already there', '');
+      break;
     case 'tankerTripDel': {
       const x = args[0] || {}, g = (res && res.gone) || {};
       writeLog_(u, 'Delete', m, clean_(x.no) + ' ' + fmtVal_(toDate_(x.date)) + ' ' + clean_(x.shift), 'Deleted a water tanker trip', 'challan ' + clean_(x.c) + (g.a ? ' ' + g.a + '–' + g.b : '') + (g.ch ? ', ch ' + g.ch : '') + (g.u ? ', ' + g.u : ''));
@@ -7113,7 +7125,9 @@ function saveTankerTrips_(b) {
       const row = lt.rows[full].slice();
       const had = tankerTripsOf_(row[c[H.ITEMS]]) || legacyTrips_(row, c);
       row[c[H.SHIFT]] = 'Day'; row[c[H.ITEMS]] = tripsIn(row, tankerSum_(had, 'Day').trips);
+      const key0 = logKeyOf_(lt, lt.rows[full]);
       stampEdit_(row, lt); lt.sh.getRange(full + 2, 1, 1, row.length).setValues([row]); lt.rows[full] = row;
+      dnRelink_({ [key0]: logKeyOf_(lt, row) });      // (update-104) a debit note linked to the Full Day entry follows it to the Day
     }
     if (mine === -1) {
       const x = sumUp(fresh);
@@ -7156,6 +7170,211 @@ function deleteTankerTrip_(b) {
     }
     return Object.assign(getTankerTrips_(m.id, dk), { ok: true, gone: gone });
   });
+}
+
+/* ================= WATER TANKER – THE TRIPS OF MANY DATES AT ONCE (update-104, asked 14-10-2026) =================
+ * "Edit Log Book madhe Add row … same Import / Export option pn haway – bulk madhe pn data upload" (a water tanker's Edit Log
+ * Book had no "+ Add row" after update-103, and no Excel in / out). Two ways in, ONE rule (tankerPlan_):
+ *   Edit Log Book (saveTankerRange_): the tanker's trips of the dates shown, one row each – rows added, changed or taken out;
+ *   Excel (importTankerTrips_): trips of many tankers and dates ADDED to what is saved (a trip that is already there = skipped).
+ * The plan is "the trips of a date and shift"; for each date that changes, everything the trip-by-trip form checks is checked
+ * again over the date's whole list: a challan no and its Dispatch / Unload time, the same challan of the agency (any tanker,
+ * any date), a time on another trip of the tanker, Idle / Holiday / Breakdown, a closed month, a submitted bill, the tanker
+ * active, a Per Trip BOQ. A Full Day entry takes that date's Day trips; Night trips make it the Day (as update-103). Then the
+ * entries are written: one per tanker, date and shift (its Trip, challans, first / last time, chainage, use for) – an entry
+ * whose trips are all gone is deleted. A trip as it was saved (also an older entry's trip without its time) is kept as it is. */
+const tripSig_ = t => [challanKey_(t.c), str_(t.a), str_(t.b), clean_(t.ch), clean_(t.u)].join('|');
+const tripsSig_ = list => (list || []).map(tripSig_).sort().join('§');
+function tankerPlan_(m, plan, opt) {
+  opt = opt || {};
+  logTimeCols_(); logItemCol_();
+  const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c, agency = clean_(m.owner).toUpperCase();
+  const ex = {};      // date → its entries: { i, sh, status, trips }
+  lt.rows.forEach((r, i) => {
+    if (!same_(r[c[H.NO]], m.id)) return; const dk = dkey_(r[c[H.DATE]]); if (!dk) return;
+    const t0 = tankerTripsOf_(r[c[H.ITEMS]]), status = !t0 && tankerNoTrip_(r, c);
+    (ex[dk] = ex[dk] || []).push({ i: i, sh: str_(r[c[H.SHIFT]]) || 'Full Day', status: status ? str_(r[c[H.UNIT]]) : '', trips: status ? null : (t0 || legacyTrips_(r, c)) });
+  });
+  // the plan by date: { Day: [...], Night: [...], 'Full Day': [...] } – a shift not in the plan keeps what is saved
+  const byDate = {};
+  Object.keys(plan).forEach(k => { const p = k.split('|'), dk = checkDate_(p[0]), sh = TANKER_SHIFTS_.concat(['Full Day']).find(x => x.toUpperCase() === str_(p[1]).toUpperCase());
+    if (!sh) throw new Error(m.id + ' (' + dmy_(dk) + '): the shift must be Day or Night.');
+    const d = byDate[dk] = byDate[dk] || {}; d[sh] = (d[sh] || []).concat(plan[k] || []); });
+  const label = (t, dk, sh) => (t.line ? 'Line ' + t.line + ': ' : t.row ? 'Row ' + t.row + ': ' : '') + m.id + ' (' + dmy_(dk) + ', ' + sh + ')' + (t.c ? ' challan ' + clean_(t.c) : '') + ': ';
+  const out = { dates: [] };
+  Object.keys(byDate).sort().forEach(dk => {
+    const es = ex[dk] || [], st = es.filter(e => e.status), eFull = es.find(e => !e.status && e.sh === 'Full Day');
+    // what the date will have: what is saved, the plan over it
+    const fin = {}; es.filter(e => !e.status).forEach(e => { fin[e.sh] = e.trips.slice(); });
+    Object.keys(byDate[dk]).forEach(sh => { fin[sh] = byDate[dk][sh]; });
+    if (fin['Full Day'] && !eFull) { fin.Day = (fin.Day || []).concat(fin['Full Day']); delete fin['Full Day']; }      // no Full Day entry: its trips are Day trips
+    if (eFull && fin.Day && fin.Day.length && byDate[dk].Day) { fin['Full Day'] = (fin['Full Day'] || []).concat(fin.Day); delete fin.Day; }      // the Day trips go into the Full Day entry
+    let fullTo = 'Full Day';
+    if (fin['Full Day'] && fin['Full Day'].length && fin.Night && fin.Night.length) fullTo = 'Day';      // Night trips: the Full Day entry becomes the Day
+    const same = (sh, list) => { const e = es.find(x => !x.status && x.sh === sh); return tripsSig_(e ? e.trips : []) === tripsSig_(list); };
+    if (Object.keys(fin).every(sh => same(sh, fin[sh])) && fullTo === 'Full Day') return;      // nothing of this date changes
+    entryOpen_(dk, 'Log Book entry'); billLock_(m.id, dk, 'Log Book entry');
+    const any = Object.keys(fin).some(sh => fin[sh].length);
+    if (any) {
+      assertActive_(m, dk);
+      if (boqItemsOn_(m, dk).length) throw new Error(m.id + ' is paid Item-wise in its BOQ on ' + dmy_(dk) + ' – a water tanker is paid Per Trip. Change its BOQ line to Per Trip.');
+      Object.keys(fin).forEach(sh => { if (!fin[sh].length) return; const s = st.find(e => e.sh === sh || e.sh === 'Full Day' || sh === 'Full Day');
+        if (s) throw new Error(label(fin[sh][0], dk, sh) + 'the tanker has a ' + s.sh + ' (' + s.status + ') entry on this date – a day without trips. If it made trips, delete that entry in Edit Log Book first.'); });
+    }
+    // the trips themselves: a trip as it was saved stays as it is; a new or changed one needs its challan and both times
+    const was = {}; es.forEach(e => (e.trips || []).forEach(t => { was[tripSig_(t)] = true; }));
+    const spans = [], keys = {};
+    Object.keys(fin).forEach(sh => {
+      const shOf = sh === 'Full Day' ? fullTo : sh;
+      fin[sh] = fin[sh].map(t0 => {
+        const t = t0 || {}, o = { c: clean_(t.c).slice(0, 40), a: '', b: '' }, ch = clean_(t.ch).slice(0, 60), u = clean_(t.u).slice(0, 80), at = label(t, dk, shOf);
+        const a = hhmm_(t.a), b = hhmm_(t.b); if (a !== null) o.a = hm_(a); if (b !== null) o.b = hm_(b); if (ch) o.ch = ch; if (u) o.u = u;
+        if (t.line) Object.defineProperty(o, 'line', { value: t.line }); if (t.row) Object.defineProperty(o, 'row', { value: t.row });      // (for the message only – never kept)
+        const kept = was[tripSig_(o)];
+        if (!kept) {
+          if (!o.c) throw new Error(at + 'enter the Challan No.');
+          if (a === null) throw new Error(at + 'enter the Dispatch time (e.g. 08:30).');
+          if (b === null) throw new Error(at + 'enter the Unload time (e.g. 09:15).');
+          if (a === b) throw new Error(at + 'the Dispatch and Unload time are the same.');
+        } else if (t.old) o.old = 1;
+        const sp = tripSpan_(o, shOf);
+        if (sp && !kept && sp[1] - sp[0] > 720) throw new Error(at + 'Unload ' + o.b + ' is more than 12 hours after Dispatch ' + o.a + ' – check the times.');
+        if (sp) { const hit = spans.find(x => sp[0] < x.sp[1] && x.sp[0] < sp[1]);
+          if (hit) throw new Error(at + 'DUPLICATE time – ' + o.a + '–' + o.b + ' falls on the trip ' + hit.t.a + '–' + hit.t.b + ' (' + hit.sh + ', challan ' + hit.t.c + '). One tanker cannot make two trips at the same time. Not saved.');
+          spans.push({ sp: sp, t: o, sh: shOf }); }
+        const k = challanKey_(o.c);
+        if (k && keys[k]) throw new Error(at + 'DUPLICATE – challan ' + o.c + ' is twice on ' + dmy_(dk) + '. Not saved.');
+        if (k) keys[k] = 1;
+        return o;
+      });
+    });
+    out.dates.push({ dk: dk, es: es, fin: fin, fullTo: fullTo, keys: keys });
+  });
+  if (!out.dates.length) return { changed: 0, added: 0, removed: 0 };
+  // the same challan no of the agency anywhere else (another tanker, another date) – and earlier in this import
+  const mineDates = {}; out.dates.forEach(x => { mineDates[x.dk] = x; });
+  const seen = Object.assign({}, opt.seen || {});
+  lt.rows.forEach(r => {
+    const no = str_(r[c[H.NO]]), d = dkey_(r[c[H.DATE]]);
+    if (same_(no, m.id) && mineDates[d]) return;      // this tanker's dates being written: their new lists are below
+    if (clean_(r[c[H.OWNER]]).toUpperCase() !== agency) return;
+    const trips = tankerTripsOf_(r[c[H.ITEMS]]); if (!trips) return;
+    trips.forEach(t => { const k = challanKey_(t.c); if (k && !seen[k]) seen[k] = no + ' ' + dmy_(d) + ' (' + (str_(r[c[H.SHIFT]]) || 'Full Day') + ')'; });
+  });
+  out.dates.forEach(x => Object.keys(x.fin).forEach(sh => x.fin[sh].forEach(t => { const k = challanKey_(t.c); if (!k) return;
+    if (seen[k] && seen[k] !== m.id + ' ' + dmy_(x.dk) + ' (' + (sh === 'Full Day' ? x.fullTo : sh) + ')') throw new Error(label(t, x.dk, sh) + 'DUPLICATE – this challan no of ' + m.owner + ' is already saved (' + seen[k] + '). Not saved.');
+    seen[k] = m.id + ' ' + dmy_(x.dk) + ' (' + (sh === 'Full Day' ? x.fullTo : sh) + ')'; })));
+  if (opt.seen) Object.assign(opt.seen, seen);
+  let added = 0, removed = 0;
+  out.dates.forEach(x => Object.keys(x.fin).forEach(sh => { const e = x.es.find(y => !y.status && y.sh === sh), now = x.fin[sh], before = e ? e.trips : [];
+    const bs = {}; before.forEach(t => { bs[tripSig_(t)] = (bs[tripSig_(t)] || 0) + 1; });
+    now.forEach(t => { const s = tripSig_(t); if (bs[s]) bs[s]--; else added++; }); removed += Object.values(bs).reduce((a, n) => a + n, 0); }));
+  const res = { changed: out.dates.length, added: added, removed: removed, dates: out.dates.map(x => x.dk) };
+  if (opt.dry) return res;
+  // write: changed entries first (and a Full Day that becomes the Day), then the entries left without a trip, then the new ones
+  const gone = [], fresh = [], moved = {};
+  out.dates.forEach(x => {
+    Object.keys(x.fin).forEach(sh => {
+      const e = x.es.find(y => !y.status && y.sh === sh), list = x.fin[sh], toSh = sh === 'Full Day' ? x.fullTo : sh;
+      if (!list.length) { if (e) gone.push(logKeyOf_(lt, lt.rows[e.i])); return; }
+      const sum = tankerSum_(list, toSh);
+      if (!e) { fresh.push({ no: m.id, date: x.dk, shift: toSh, mode: 'Trip', trip: sum.trip, challan: sum.challan, tStart: sum.tStart, tEnd: sum.tEnd, work: sum.work, chNo: sum.chNo, trips: sum.trips }); return; }
+      if (tripsSig_(e.trips) === tripsSig_(list) && toSh === e.sh) return;
+      const row = lt.rows[e.i].slice(), key0 = logKeyOf_(lt, row);
+      row[c[H.SHIFT]] = toSh; row[c[H.ITEMS]] = JSON.stringify(Object.assign(itemWorkParse_(row[c[H.ITEMS]]), { _trips: sum.trips }));
+      row[c[H.TRIP]] = sum.trip; row[c[H.CHALLAN]] = sum.challan; row[c[H.TSTART]] = sum.tStart; row[c[H.TEND]] = sum.tEnd; set_(row, lt, H.CH, sum.chNo); set_(row, lt, H.WORK, sum.work);
+      stampEdit_(row, lt); lt.sh.getRange(e.i + 2, 1, 1, row.length).setValues([row]); lt.rows[e.i] = row;
+      if (toSh !== e.sh) moved[key0] = logKeyOf_(lt, row);
+    });
+  });
+  if (Object.keys(moved).length) dnRelink_(moved);      // a debit note linked to the Full Day entry follows it to the Day
+  gone.forEach(k => deleteLogRow_(k));
+  if (fresh.length) { const r = saveLogRowsInner_({ tanker: true, rows: fresh }); if (!r.ok) throw new Error((r.errors || []).map(e => e.msg).join(' | ')); }
+  return res;
+}
+// the trips of a tanker for Edit Log Book (one row each) – an older entry's trips too; Idle / Holiday / Breakdown days listed apart
+function getTankerRange_(no, fromStr, toStr) {
+  const m = tankerOf_(no), from = checkDate_(fromStr), to = checkDate_(toStr);
+  if (from > to) throw new Error('From date is after To date.');
+  if (daysBetween_(from, to) > 92) throw new Error('Select up to 3 months at a time.');
+  const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c, trips = [], days = [];
+  lt.rows.forEach(r => {
+    if (!same_(r[c[H.NO]], m.id)) return; const dk = dkey_(r[c[H.DATE]]); if (!dk || dk < from || dk > to) return;
+    const sh = str_(r[c[H.SHIFT]]) || 'Full Day', t0 = H.ITEMS in c ? tankerTripsOf_(r[c[H.ITEMS]]) : null;
+    if (!t0 && tankerNoTrip_(r, c)) { days.push({ date: dk, shift: sh, status: str_(r[c[H.UNIT]]), key: logKeyOf_(lt, r) }); return; }
+    (t0 || legacyTrips_(r, c)).forEach(t => trips.push({ date: dk, shift: sh, c: str_(t.c), a: str_(t.a), b: str_(t.b), ch: str_(t.ch), u: str_(t.u), old: t.old ? 1 : 0 }));
+  });
+  const at = t => { const sp = tripSpan_(t, t.shift); return sp ? sp[0] : 1e9; };
+  trips.sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : logOrd_(x.shift) - logOrd_(y.shift) || at(x) - at(y));
+  const locks = billLocksOfNo_(m.id).filter(b => b.from <= to && b.to >= from).map(billLockTag_);
+  return { machine: { id: m.id, owner: m.owner, type: m.type }, from: from, to: to, trips: trips, days: days, locks: locks };
+}
+// b = { no, from, to, trips: [{ date, shift, c, a, b, ch, u }] } – ALL the trips of those dates as Edit Log Book shows them now
+function saveTankerRange_(b) {
+  return withLock_(() => {
+    b = b || {};
+    const m = tankerOf_(b.no), from = checkDate_(b.from), to = checkDate_(b.to);
+    if (from > to) throw new Error('From date is after To date.');
+    if (daysBetween_(from, to) > 92) throw new Error('Select up to 3 months at a time.');
+    const list = Array.isArray(b.trips) ? b.trips : [];
+    if (list.length > 3000) throw new Error('At most 3000 trips in one save.');
+    const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c, plan = {};
+    // every saved trip entry of those dates: its list comes from the rows (none left = the entry goes)
+    lt.rows.forEach(r => { if (!same_(r[c[H.NO]], m.id)) return; const dk = dkey_(r[c[H.DATE]]); if (!dk || dk < from || dk > to) return;
+      if (!tankerTripsOf_(r[c[H.ITEMS]]) && tankerNoTrip_(r, c)) return; plan[dk + '|' + (str_(r[c[H.SHIFT]]) || 'Full Day')] = []; });
+    list.forEach((t, i) => { t = t || {}; const dk = str_(t.date);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dk)) throw new Error('Row ' + (i + 1) + ': select the Date.');
+      if (dk < from || dk > to) throw new Error('Row ' + (i + 1) + ': ' + dmy_(dk) + ' is not between ' + dmy_(from) + ' and ' + dmy_(to) + ' – open those dates.');
+      const sh = ['Day', 'Night', 'Full Day'].find(x => x.toUpperCase() === str_(t.shift).toUpperCase()) || 'Day', k = dk + '|' + sh;
+      (plan[k] = plan[k] || []).push({ c: t.c, a: t.a, b: t.b, ch: t.ch, u: t.u, old: t.old, row: i + 1 }); });
+    const r = tankerPlan_(m, plan);
+    return Object.assign(getTankerRange_(m.id, from, to), { ok: true, changed: r.changed, added: r.added, removed: r.removed, changedDates: r.dates || [] });
+  });
+}
+/* b = { rows: [{ line, no, date, shift, c, a, b, ch, u }], check } – trips from Excel, ADDED to what is saved. A trip already saved
+ * (the same tanker, date, challan and times) is skipped. Checked for all tankers first; then all are saved – or none. */
+function importTankerTrips_(b) {
+  const run = () => {
+    b = b || {};
+    const rows = Array.isArray(b.rows) ? b.rows : [];
+    if (!rows.length) throw new Error('No trips in the file.');
+    if (rows.length > 3000) throw new Error('Import up to 3000 trips at a time.');
+    const errors = [], byNo = {};
+    rows.forEach((x, i) => { x = x || {}; const line = x.line || i + 2;
+      try {
+        const m = tankerOf_(x.no), dk = checkDate_(x.date), sh = /^n/i.test(str_(x.shift)) ? 'Night' : 'Day';
+        const tm = v => typeof v === 'number' && v >= 0 && v < 2 ? hm_(Math.round((v % 1) * 1440) % 1440) : v;      // an Excel time = a part of a day (0.375 = 09:00)
+        (byNo[m.id] = byNo[m.id] || { m: m, rows: [] }).rows.push({ dk: dk, sh: sh, t: { c: x.c, a: tm(x.a), b: tm(x.b), ch: x.ch, u: x.u, line: line } });
+      } catch (e) { errors.push({ row: line, msg: String(e && e.message || e) }); } });
+    if (errors.length) return { ok: false, errors: errors };
+    const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c, plans = [];
+    // a trip already saved: the same tanker, date and challan (a trip without a challan – an older entry's – by its times)
+    const savedKey = (dk, t) => dk + '|' + (challanKey_(t.c) || '~' + str_(t.a) + '-' + str_(t.b));
+    let same = 0;
+    Object.keys(byNo).forEach(no => {
+      const g = byNo[no], saved = {}, plan = {};
+      lt.rows.forEach(r => { if (!same_(r[c[H.NO]], g.m.id)) return; const dk = dkey_(r[c[H.DATE]]); const t0 = tankerTripsOf_(r[c[H.ITEMS]]);
+        if (!t0 && tankerNoTrip_(r, c)) return; (t0 || legacyTrips_(r, c)).forEach(t => { saved[savedKey(dk, t)] = true; }); });
+      g.rows.forEach(x => {
+        const n = { c: clean_(x.t.c), a: hhmm_(x.t.a) === null ? str_(x.t.a) : hm_(hhmm_(x.t.a)), b: hhmm_(x.t.b) === null ? str_(x.t.b) : hm_(hhmm_(x.t.b)), ch: clean_(x.t.ch), u: clean_(x.t.u) };
+        if (saved[savedKey(x.dk, n)]) { same++; return; }      // already in the Log Book (this tanker, date and challan) – a saved trip is changed in Edit Log Book
+        const k = x.dk + '|' + x.sh; (plan[k] = plan[k] || []).push(x.t);
+      });
+      // the plan of a date + shift = what is saved there + the file's new trips
+      Object.keys(plan).forEach(k => { const p = k.split('|'); lt.rows.forEach(r => { if (!same_(r[c[H.NO]], g.m.id) || dkey_(r[c[H.DATE]]) !== p[0]) return;
+        const sh = str_(r[c[H.SHIFT]]) || 'Full Day'; if (sh !== p[1]) return; const t0 = tankerTripsOf_(r[c[H.ITEMS]]); if (!t0 && tankerNoTrip_(r, c)) return;
+        plan[k] = (t0 || legacyTrips_(r, c)).concat(plan[k]); }); });
+      if (Object.keys(plan).length) plans.push({ m: g.m, plan: plan });
+    });
+    const seen = {}, sum = { added: 0, dates: 0 };
+    plans.forEach(p => { try { const r = tankerPlan_(p.m, p.plan, { dry: true, seen: seen }); sum.added += r.added; sum.dates += r.changed; }
+      catch (e) { const msg = String(e && e.message || e), q = /^Line (\d+): /.exec(msg); errors.push({ row: q ? q[1] : '', msg: q ? msg.slice(q[0].length) : msg }); } });
+    if (errors.length) return { ok: false, errors: errors };
+    if (b.check) return { ok: true, check: true, added: sum.added, same: same, tankers: plans.length };
+    plans.forEach(p => tankerPlan_(p.m, p.plan));
+    return { ok: true, added: sum.added, same: same, tankers: plans.length };
+  };
+  return b && b.check ? run() : withLock_(run);
 }
 
 /* ================= LOG BOOK: EDIT / DELETE with automatic re-chaining =================
