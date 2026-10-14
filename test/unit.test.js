@@ -2386,6 +2386,56 @@ test('update-104: a water tanker in Edit Log Book – one row per trip, rows add
   assert.ok(['saveTankerRange', 'importTankerTrips'].every(a => guide.indexOf("'" + a + "'") > -1), guide);
 });
 
+test('update-105: a water tanker – each trip its own line in the Log Book with Edit / Delete; a saved trip changed (also its shift, also an older entry\'s trip)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  for (const no of ['WT-21', 'WT-22'])
+    assert.ok(!(run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Water Tanker', type: 'Water Tanker', unit: 'Trip', worksOn: ['Trip'], owner: 'Jal Seva', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-08-01' }, 'add') || {}).THROWN, no);
+  run('(x, m) => saveVendor_(x, m)', { name: 'Jal Seva', gstReg: 'No', pan: 'ABCPJ1234S', bank: 'SBI', account: '12345673', ifsc: 'SBIN0000001' }, 'add');
+  assert.ok(!(run('(x, m) => saveBoq_(x, m)', { vendor: 'Jal Seva', from: '2026-08-01', woNo: 'WO-JS', lines: [{ no: 'WT-21', basis: 'Per Trip', rate: 450, diesel: 'Company' }, { no: 'WT-22', basis: 'Per Trip', rate: 450, diesel: 'Company' }] }, 'add') || {}).THROWN);
+  assert.ok(run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-08-15', shift: 'Day', no: 'WT-21', mode: 'Trip', trip: 1, challan: '18522', tStart: '10:30', tEnd: '10:36', work: 'PQC curing' }] }).ok);
+  run('x => saveLbFormats_(x)', { 'WT-21': 'I', 'WT-22': 'I' });
+  const save = (no, date, shift, trips) => run('x => saveTankerTrips_(x)', { no: no, date: date, shift: shift, trips: trips.map(t => ({ c: t[0], a: t[1], b: t[2] })) });
+  const upd = x => run('x => updateTankerTrip_(x)', x);
+  const entry = (no, date, shift) => run('(n, d, s) => { const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c; const r = lt.rows.find(r => logKeyOf_(lt, r) === n + "|" + d + "|" + s); return r ? { trip: num0_(r[c[H.TRIP]]), challan: str_(r[c[H.CHALLAN]]), from: tStr_(r[c[H.TSTART]]), to: tStr_(r[c[H.TEND]]) } : null; }', no, date, shift);
+  // his case: an older Day entry (18522) and one more trip (123) the same day
+  assert.ok(save('WT-21', '2026-08-15', 'Day', [['123', '07:35', '07:50']]).ok);
+  let g = run('(n, d) => getTankerTrips_(n, d)', 'WT-21', '2026-08-15');
+  assert.deepStrictEqual(g.trips.map(t => [t.shift, t.n, t.c]), [['Day', 1, '123'], ['Day', 2, '18522']]);
+  // ---- a trip changed: its times and challan ----
+  let r = upd({ no: 'WT-21', date: '2026-08-15', shift: 'Day', n: 1, c: '123', trip: { c: '124', a: '07:40', b: '08:00', ch: '3+100', u: 'Curing' } });
+  assert.ok(r.ok && r.was.c === '123', JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual(entry('WT-21', '2026-08-15', 'Day'), { trip: 2, challan: '124, 18522', from: '07:40', to: '10:36' });
+  // ---- the older entry's trip changed (it becomes an ordinary trip) ----
+  r = upd({ no: 'WT-21', date: '2026-08-15', shift: 'Day', n: 2, c: '18522', trip: { c: '18522', a: '10:30', b: '10:40', ch: 'VTR', u: 'PQC curing' } });
+  assert.ok(r.ok && r.trips.every(t => !t.old) && entry('WT-21', '2026-08-15', 'Day').to === '10:40', JSON.stringify(r).slice(0, 300));
+  // ---- moved to the Night: the Day keeps the other trip, the Night gets an entry ----
+  r = upd({ no: 'WT-21', date: '2026-08-15', shift: 'Day', n: 1, c: '124', trip: { c: '124', a: '21:00', b: '21:20' }, to: 'Night' });
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual([entry('WT-21', '2026-08-15', 'Day').challan, entry('WT-21', '2026-08-15', 'Night').challan], ['18522', '124']);
+  // ---- refused, nothing changed ----
+  assert.ok(save('WT-22', '2026-08-16', 'Day', [['999', '09:00', '09:30']]).ok);
+  assert.match(upd({ no: 'WT-21', date: '2026-08-15', shift: 'Night', n: 1, c: '124', trip: { c: '999', a: '21:00', b: '21:20' } }).THROWN || '', /DUPLICATE – this challan no of Jal Seva is already saved \(WT-22 16-08-2026 \(Day\)\)/);
+  assert.match(upd({ no: 'WT-21', date: '2026-08-15', shift: 'Night', n: 1, c: '124', trip: { c: '125', a: '21:00', b: '' } }).THROWN || '', /enter the Unload time/);
+  assert.match(upd({ no: 'WT-21', date: '2026-08-15', shift: 'Night', n: 1, c: '124', trip: { c: '124', a: '10:35', b: '10:50' }, to: 'Day' }).THROWN || '', /DUPLICATE time/);
+  assert.match(upd({ no: 'WT-21', date: '2026-08-15', shift: 'Night', n: 1, c: 'OTHER', trip: { c: '125', a: '21:00', b: '21:10' } }).THROWN || '', /This trip was not found/);
+  assert.match(upd({ no: 'WT-21', date: '2026-08-15', shift: 'Night', n: 4, c: '124', trip: { c: '125', a: '21:00', b: '21:10' } }).THROWN || '', /This trip was not found/);
+  assert.strictEqual(entry('WT-21', '2026-08-15', 'Night').challan, '124');
+  // ---- the page: the list shows a line per trip (Edit / Delete), the saved trips have Edit; the help; the page guide ----
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const fn = app.slice(app.indexOf('  function tripsOfRow(r) {'), app.indexOf('  // Edit: the trip opens in Log Book'));
+  const tripsOfRow = new Function('findMachine', fn + '; return tripsOfRow;')(no => ({ lbFormat: /^WT/.test(no) ? 'I' : 'A' }));
+  assert.deepStrictEqual(tripsOfRow({ no: 'WT-21', unit: 'Trip', itemWork: { _trips: [{ c: '124', a: '07:40', b: '08:00' }, { c: '18522', a: '10:30', b: '10:36' }] } }).map(t => t.c), ['124', '18522']);
+  assert.deepStrictEqual(tripsOfRow({ no: 'WT-21', unit: 'Trip', itemWork: {}, trip: 1, challan: '18521', tStart: '13:00', tEnd: '13:18', chainage: '', chFrom: 'VTR', chTo: '', work: 'Water' }),
+    [{ c: '18521', a: '13:00', b: '13:18', ch: 'VTR', u: 'Water', old: 1 }], 'an older entry: its one trip with its time (as the server reads it)');
+  assert.strictEqual(tripsOfRow({ no: 'EX-1', unit: 'Trip', trip: 3 }), null, 'other machinery: one line as before');
+  assert.ok(/data-tedit/.test(app) && /data-wtedit/.test(app) && /call\('updateTankerTrip'/.test(app));
+  const guide = app.slice(app.indexOf('    log: { saves: ['), app.indexOf(']', app.indexOf('    log: { saves: [')));
+  assert.ok(guide.indexOf("'updateTankerTrip'") > -1);
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  assert.ok(H.fixRules('This trip was not found (it may have been changed by someone else). Open the tanker again.')[0] !== H.FIX_ANY);
+});
+
 test('update-99: one address – the Store and the Portal under this address, the menu of this module for the others, other modules\' pages in the dark menu', () => {
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   // (live 13-10-2026: /store/menu.json came through, the bare /store/ and /portal/ gave 404 – the first page has its own rule)
