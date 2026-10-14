@@ -2517,3 +2517,19 @@ test('update-102: the keys of this screen (Ctrl K, "/", Alt + B) also work insid
   assert.match(app, /function extKeys\(fr\) \{/); assert.match(app, /w\.__rclKeys = true;/, 'heard once per page load');
   assert.match(app, /\(e\.ctrlKey \|\| e\.metaKey\) && \(e\.key === 'k' \|\| e\.key === 'K' \|\| e\.code === 'KeyK'\)\) \{ e\.preventDefault\(\); e\.stopPropagation\(\); \$\('gs_back'\)\.hidden \? gsOpen\(\) : gsClose\(\); return; \}/);
 });
+
+test('update-107: Log Book → Import from Excel takes a water tanker\'s lines as trips (by the tanker\'s own check), its Excel = one line per trip', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const h = app.slice(app.indexOf("$('lg_file').addEventListener('change'"), app.indexOf("$('lg_file').addEventListener('change'") + 12000);
+  assert.match(h, /const isTk = r => \{ const m = findMachine\(r\.no\); return !!\(m && m\.lbFormat === 'I'\); \};/);
+  assert.match(h, /rows\.splice\(0, rows\.length, \.\.\.rows\.filter\(r => !isTk\(r\)\)\);/, 'the tanker lines never reach importLogBook (the server still refuses them there)');
+  assert.match(h, /call\('checkTankerImport', \{ rows: trips \}\)/); assert.match(h, /call\('importTankerTrips', \{ rows: trips \}\)/);
+  assert.ok(h.indexOf("call('checkTankerImport'") < h.indexOf("call('importLogBook'"), 'both are checked before anything is saved');
+  assert.match(app, /return ts\.map\(\(t, k\) => Object\.assign\(\{\}, r, \{ trip: 1, challan: t\.c, tStart: t\.a, tEnd: t\.b, chFrom: t\.ch, chTo: '', work: t\.u \}/);
+  const guide = app.slice(app.indexOf('    log: { saves: ['), app.indexOf(']', app.indexOf('    log: { saves: [')));
+  assert.ok(guide.indexOf("'importTankerTrips'") > -1);
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  for (const m of ['WT-1 is a water tanker – one line per trip (this line has 3 trips): each trip on its own line with its Challan No, From time (dispatch) and To time (unload).',
+    '1 line of a water tanker with Idle / Holiday / Breakdown – not imported (a water tanker is entered by its trips only). Nothing to import.'])
+    { const r = H.fixRules(m)[0]; assert.ok(r !== H.FIX_ANY && r.mr && r.hi && /one line of the file = one trip/.test(r.en[0]), m); }
+});
