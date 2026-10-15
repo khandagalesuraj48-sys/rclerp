@@ -2436,33 +2436,59 @@ test('update-105: a water tanker – each trip its own line in the Log Book with
   assert.ok(H.fixRules('This trip was not found (it may have been changed by someone else). Open the tanker again.')[0] !== H.FIX_ANY);
 });
 
-test('update-106: the Vendor Master common to every site – step 1y listed, the other sites asked only through the server, help in 3 languages', () => {
+test('update-106 → update-111: every site its own vendors – step 1y stays listed, no site is asked by another, nothing copied, help in 3 languages', () => {
   const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8');
-  // the SQL step: only adds a column; listed word for word in Read Me
+  // the SQL step 1y (owner_site) stays: it only added a column; listed word for word in Read Me
   const sqlFile = fs.readFileSync(path.join(root, 'sql', 'supabase_step1y_vendor_owner.sql'), 'utf8');
   assert.ok(/alter table public\.vendors add column if not exists owner_site text;/.test(sqlFile) && !/\b(drop|delete|truncate|update)\b[^\n]*;/i.test(sqlFile.replace(/^--.*$/gm, '')));
   const listed = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1y_vendor_owner.sql');
   assert.ok(listed && listed.sql === sqlFile && /owner_site/.test(listed.about));
-  // the column is known to the data layer; another site is asked ONLY for the three vendor questions, never from the page
   assert.ok(/\['Owner Site', 'owner_site', 'text'\]/.test(fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8')));
-  const others = (rt.match(/const OTHERS_ = new Set\(\[([^\]]+)\]\)/) || [])[1] || '', outside = (rt.match(/const OUTSIDE = new Set\(\[([^\]]+)\]\)/) || [])[1] || '';
-  assert.deepStrictEqual(others.split(',').map(x => x.trim().replace(/'/g, '')).sort(), ['sysVendorCopy', 'sysVendorList', 'sysVendorUsed']);
-  assert.ok(!/sysVendor/.test(outside), 'the page cannot call them');
-  // save, create, delete all go through the guard and the copy to the other sites
-  assert.ok(/vendorGuard_\(was0 \|\| x\.name\)/.test(code) && /const spread = vendorSpread_\(\{ rows: \[x\.name\]/.test(code) && /vendorSpread_\(\{ rows: added \}\)/.test(code) && /vendorSpread_\(\{ del: \[clean_\(name\)\] \}\)/.test(code));
-  assert.ok(/vendorsTogether: +\{ m: 'Vendor Master', admin: true/.test(code), 'bringing all sites together: the Admin only');
-  // in the test harness (no list of sites): nothing of this is on – every site as before
-  const { T, ctx } = require('./harness.js');
-  assert.strictEqual(require('vm').runInContext('vendorShareInfo_()', ctx).on, false);
-  // the page and its help
-  assert.ok(/function vOtherSite\(v\)/.test(app) && /call\('vendorsTogether'/.test(app) && /id="v_all"/.test(app));
+  // (update-111) one site asks the others nothing any more; nothing is copied; no "Vendors of all sites"
+  assert.ok(/const OTHERS_ = new Set\(\[\]\);/.test(rt) && !/sysVendor/.test(rt) && !/sysVendor|vendorSpread_|vendorsTogether|othersAsk_|vendorGuard_/.test(code));
+  assert.ok(!/vOtherSite|vendorsTogether|id="v_all"|id="v_share"|\.mine ===/.test(app));
   const guide = app.slice(app.indexOf('    vendors: { saves: ['), app.indexOf(']', app.indexOf('    vendors: { saves: [')));
-  assert.ok(guide.indexOf("'vendorsTogether'") > -1);
+  assert.ok(guide.indexOf("'vendorsTogether'") === -1 && guide.indexOf("'saveVendor'") > -1);
   const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
-  for (const m of ['"V106 Alpha" was made at site VTR NH 848 by Sujit. It can be changed or deleted only there – by a user with Vendor Master edit access at VTR NH 848. Ask them, or open that site.',
-    'V106 Alpha is used at site Test Site T2 (1 BOQ). A vendor used at any site is not deleted.', 'V106 Alpha: site 18B could not be asked whether it uses this vendor – nothing was deleted. Try again in a moment.',
-    'Step 1y (vendors.owner_site) is not run in this site\'s database yet.'])
-    { const h = H.fixRules(m)[0]; assert.ok(h !== H.FIX_ANY && h.mr && h.hi && /site/.test(h.en.join(' ')), m); }
+  { const h = H.fixRules('V111 Copy is not a vendor of this site.')[0]; assert.ok(h !== H.FIX_ANY && h.mr && h.hi && /own vendors/.test(h.en.join(' '))); }
+});
+
+test('update-111: a copy of another site\'s vendor is not shown, picked or changed here – unless this site already uses it (asset, BOQ, bill …); a new vendor of that name is this site\'s own', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // this site = S1; the database is asked who is billed: "V111 Billed" has a bill here
+  require('vm').runInContext(`__siteCode = () => 'S1'; var __sbReal = sbFetch_; var __asked = [];
+    sbFetch_ = function (m, url, body, h) { const u = decodeURIComponent(String(url));
+      if (/\\/rest\\/v1\\/(bills|payments|debit_notes|log_book)\\?select=/.test(u)) { __asked.push(u); return /bills/.test(u) && /V111 Billed/.test(u) ? [{ vendor_name: 'V111 Billed' }] : []; }
+      if (/\\/rest\\/v1\\/vendors\\?select=owner_site/.test(u)) return [];      // (the column is there)
+      return __sbReal(m, url, body, h); }; CacheService.getScriptCache().remove('SBCOL_vendors.owner_site');`, ctx);
+  try {
+    assert.strictEqual(run('() => vendorOwnOn_()'), true, 'the column is there');
+    const det = { gstReg: 'No', pan: 'ABCDE1234K', bank: 'SBI', account: '12345688', ifsc: 'SBIN0000001' };
+    run('(x, m) => saveVendor_(x, m)', Object.assign({ name: 'V111 Own' }, det), 'add');
+    // copies that update-106 wrote here from site S2
+    run(`() => { const t = table_(APP.SHEET_VENDORS, VENDOR_COLS_); ['V111 Copy', 'V111 Billed', 'V111 Asset'].forEach(n => { const row = newRow_(t); set_(row, t, 'Vendor Name', n); set_(row, t, 'Owner Site', 'S2'); set_(row, t, 'GST Registered', 'No'); t.sh.appendRow(row); }); TABLE_MEMO_ = {}; }`);
+    run('(x, m) => saveMaster_(x, m)', { no: 'V111-JCB', name: 'JCB', type: 'JCB', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 5, owner: 'V111 Asset', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01' }, 'add');
+    const names = run('() => getVendors_().filter(v => /^V111/.test(v.name)).map(v => v.name + (v.saved ? "" : " (not saved)"))');
+    assert.deepStrictEqual(names, ['V111 Asset', 'V111 Billed', 'V111 Own'], 'the copy no one uses here is not shown; the billed one and the asset owner are');
+    assert.deepStrictEqual(run('() => vendorNames_().filter(n => /^V111/.test(n))'), ['V111 Asset', 'V111 Billed', 'V111 Own'], 'the parties to pick (Debit to)');
+    assert.match(run('() => logDebit_({ debitTo: "V111 Copy", debitRate: 50 })').THROWN, /not in the Vendor Master/, 'cannot be charged here');
+    assert.match(run('(x, m) => saveVendor_(x, m)', Object.assign({ name: 'V111 Copy X', oldName: 'V111 Copy' }, det), 'edit').THROWN, /^V111 Copy is not a vendor of this site\.$/);
+    assert.match(run('n => deleteVendor_(n)', 'V111 Copy').THROWN, /has no saved details/, 'not deleted from here');
+    // a NEW vendor with that name: this site's own (the copy's row is taken over – nothing is added twice, nothing deleted)
+    const r = run('(x, m) => saveVendor_(x, m)', Object.assign({ name: 'V111 Copy' }, det), 'add');
+    assert.ok(r.ok && r.vendors.some(v => v.name === 'V111 Copy'), JSON.stringify(r).slice(0, 200));
+    assert.deepStrictEqual(run(`() => { const t = table_(APP.SHEET_VENDORS, VENDOR_COLS_); return t.rows.filter(x => /^V111 Copy$/.test(x[t.c['Vendor Name']])).map(x => x[t.c['Owner Site']]); }`), ['S1']);
+    // an edit of a vendor used here makes it this site's own
+    run('(x, m) => saveVendor_(x, m)', Object.assign({ name: 'V111 Billed', oldName: 'V111 Billed' }, det, { phone: '9876543210' }), 'edit');
+    assert.deepStrictEqual(run(`() => { const t = table_(APP.SHEET_VENDORS, VENDOR_COLS_); return t.rows.filter(x => /^V111 Billed$/.test(x[t.c['Vendor Name']])).map(x => x[t.c['Owner Site']]); }`), ['S1']);
+    // the database is asked only about the copies, and only the tables that count
+    assert.ok(require('vm').runInContext('__asked', ctx).every(u => /=in\.\("/.test(u)));
+    // the database cannot be asked: nothing is hidden (a vendor of this site never goes missing)
+    require('vm').runInContext(`var __sb2 = sbFetch_; sbFetch_ = function (m, url, b, h) { if (/\\/rest\\/v1\\/bills\\?select=/.test(decodeURIComponent(url))) throw new Error('Supabase GET → 503'); return __sb2(m, url, b, h); };`, ctx);
+    run(`() => { const t = table_(APP.SHEET_VENDORS, VENDOR_COLS_); const row = newRow_(t); set_(row, t, 'Vendor Name', 'V111 Other'); set_(row, t, 'Owner Site', 'S2'); t.sh.appendRow(row); TABLE_MEMO_ = {}; }`);
+    assert.ok(run('() => getVendors_().some(v => v.name === "V111 Other")'));
+  } finally { require('vm').runInContext("__siteCode = undefined; sbFetch_ = __sbReal; CacheService.getScriptCache().remove('SBCOL_vendors.owner_site');", ctx); }
 });
 
 test('update-99: one address – the Store and the Portal under this address, the menu of this module for the others, other modules\' pages in the dark menu', () => {

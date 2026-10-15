@@ -3348,10 +3348,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="vf_st">Details</label><select id="vf_st"><option value="">All</option><option value="missing">Not filled / incomplete</option><option value="done">Complete</option></select></div>
         <button class="btn primary small" id="v_new" data-perm="Vendor Master">+ New vendor</button>
         <button class="btn ghost small" id="v_mkall" data-perm="Vendor Master" hidden></button>
-        <button class="btn ghost small" id="v_all" hidden title="The vendors of every site brought together: one Vendor Master for all sites">Vendors of all sites</button>
         <div class="sum" id="vf_sum"></div>
       </div>
-      <p class="chart-note" id="v_share" hidden></p>
       <div class="table-wrap"><table>
         <thead><tr><th>Vendor</th><th>Ownership</th><th>Assets</th><th>Mobile</th><th>GST Number</th><th>PAN</th><th>Bank</th><th class="n">BOQs</th><th>Details</th><th></th></tr></thead>
         <tbody id="v_rows"></tbody>
@@ -5394,10 +5392,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['A row of the water tanker\'s trips cannot be taken as it is.', 'Nothing was saved. Every row needs its date (within the From – To dates that are open; for another date open those dates), the shift Day or Night, the challan no and the Dispatch / Unload time. An Excel file needs at least one trip under its headings (Export Excel gives the right layout). Save up to 3000 trips at a time.'],
       mr: ['Water tanker च्या trips मधली एक row जशी आहे तशी घेता येत नाही.', 'काहीही save झाले नाही. प्रत्येक row ला तारीख (उघडलेल्या From – To तारखांच्या आत; दुसऱ्या तारखेसाठी त्या तारखा उघडा), shift Day किंवा Night, challan no आणि Dispatch / Unload वेळ हवी. Excel file मध्ये headings खाली किमान एक trip हवी (Export Excel ने बरोबर layout मिळतो). एका वेळी जास्तीत जास्त 3000 trips save करा.'],
       hi: ['Water tanker की trips की एक row जैसी है वैसी नहीं ली जा सकती।', 'कुछ भी save नहीं हुआ। हर row में तारीख (खुली From – To तारीखों के अंदर; दूसरी तारीख के लिए वे तारीखें खोलें), shift Day या Night, challan no और Dispatch / Unload समय चाहिए। Excel file में headings के नीचे कम से कम एक trip चाहिए (Export Excel से सही layout मिलता है)। एक बार में ज़्यादा से ज़्यादा 3000 trips save करें।'] },
-    { re: /was made at site .* can be changed or deleted only there|is used at site .*A vendor used at any site is not deleted|could not be asked whether it uses this vendor|step 1y/i,      // (update-106) the Vendor Master common to every site
-      en: ['This vendor belongs to another site, or another site uses it, or a site is not ready.', 'Nothing was changed. A vendor is changed or deleted only at the site that made it (the message names the site and who made it) – ask a user there with Vendor Master edit access, or open that site if you have its access. A vendor used by any site (its BOQs or assets) is not deleted. If a site could not be asked, try again in a moment. "Step 1y": the Admin runs sql/supabase_step1y_vendor_owner.sql in that site\'s Supabase.'],
-      mr: ['हा vendor दुसऱ्या site चा आहे, किंवा दुसरी site तो वापरते, किंवा एखादी site तयार नाही.', 'काहीही बदलले नाही. Vendor फक्त ज्या site ने बनवला तिथूनच बदलता / delete करता येतो (message मध्ये site आणि कोणी बनवला ते आहे) – तिथे Vendor Master चा edit access असलेल्या user ला सांगा, किंवा तुम्हाला access असेल तर ती site उघडा. कोणतीही site वापरत असलेला vendor (BOQ / assets) delete होत नाही. एखादी site विचारता आली नाही तर थोड्या वेळाने पुन्हा करा. "Step 1y": Admin ने त्या site च्या Supabase मध्ये sql/supabase_step1y_vendor_owner.sql run करावी.'],
-      hi: ['यह vendor दूसरी site का है, या दूसरी site उसे इस्तेमाल करती है, या कोई site तैयार नहीं है।', 'कुछ भी नहीं बदला। Vendor सिर्फ उसी site से बदला / delete होता है जिसने उसे बनाया (message में site और किसने बनाया लिखा है) – वहाँ Vendor Master edit access वाले user से कहें, या आपके पास access हो तो वह site खोलें। किसी भी site पर इस्तेमाल हो रहा vendor (BOQ / assets) delete नहीं होता। कोई site पूछी न जा सकी तो थोड़ी देर बाद फिर करें। "Step 1y": Admin उस site के Supabase में sql/supabase_step1y_vendor_owner.sql run करे।'] },
+    { re: /is not a vendor of this site/i,      // (update-111) every site its own vendors
+      en: ['This vendor is not one of this site\'s vendors.', 'Nothing was changed. Every site has its own vendors: open the vendor from this site\'s Vendor Master list, or add it here with "+ New vendor" (it becomes this site\'s own).'],
+      mr: ['हा vendor या site चा नाही.', 'काहीही बदलले नाही. प्रत्येक site चे vendors वेगळे आहेत: या site च्या Vendor Master list मधूनच vendor उघडा, किंवा "+ New vendor" ने तो इथे जोडा (तो या site चा होईल).'],
+      hi: ['यह vendor इस site का नहीं है।', 'कुछ भी नहीं बदला। हर site के vendors अलग हैं: इस site की Vendor Master list से ही vendor खोलें, या "+ New vendor" से उसे यहाँ जोड़ें (वह इस site का हो जाएगा)।'] },
     { re: /is a water tanker – one line per trip|of a water tanker with Idle \/ Holiday \/ Breakdown – not imported/i,      // (update-107) Log Book → Import from Excel: a water tanker's lines are trips
       en: ['Log Book → Import from Excel: a water tanker (Log Book Format I) is imported trip by trip – one line of the file = one trip.', 'Nothing was imported. Put each trip on its own line: Date, Shift (Day / Night), the tanker, its Challan No, From time (dispatch) and To time (unload); Chainage and Work Done (use for) if known. A trip already saved (the same challan) is skipped. A water tanker has no Idle / Holiday / Breakdown line – leave that day out.'],
       mr: ['Log Book → Import from Excel: water tanker (Log Book Format I) trip-trip ने import होतो – file ची एक line = एक trip.', 'काहीही import झाले नाही. प्रत्येक trip वेगळ्या line वर टाका: तारीख, Shift (Day / Night), tanker, त्याचा Challan No, From time (dispatch) आणि To time (unload); Chainage आणि Work Done (use for) माहीत असल्यास. आधीच save असलेली trip (तोच challan) सोडली जाते. Water tanker ची Idle / Holiday / Breakdown line नसते – तो दिवस file मधून काढा.'],
@@ -5855,7 +5853,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The day at a glance: diesel stock, diesel received and issued, the tanks, and the Log Book of the day.', 'Nothing is entered here. Every figure comes from the entries of the other pages for the dates chosen at the top; "Stock now" is always the live stock. Only the tank size can be set here. The search at the top (Ctrl + K) finds anything in the app – machinery, names, drivers, a reading (also one that lies between the Start and Close of a Log Book entry), challan or bill number, vendor, date, page – even with a spelling mistake (it then asks "did you mean …"); a result opens its page.'],
       mr: ['एका नजरेत दिवस: diesel stock, आलेले आणि दिलेले diesel, tanks, आणि दिवसाची Log Book.', 'इथे काहीही भरले जात नाही. प्रत्येक आकडा वर निवडलेल्या तारखांसाठी इतर pages च्या entries वरून येतो; "Stock now" नेहमी सध्याचा stock असतो. इथे फक्त tank चा आकार सेट करता येतो. वरचा search (Ctrl + K) app मधले काहीही शोधतो – machinery, नावे, driver, reading (Log Book entry च्या Start आणि Close च्या मधले reading सुद्धा), challan किंवा bill नंबर, vendor, तारीख, page – स्पेलिंग चुकले तरी (मग तो "did you mean …" विचारतो); result वर क्लिक केले की त्याचे page उघडते.'],
       hi: ['एक नज़र में दिन: diesel stock, आया और दिया गया diesel, tanks, और दिन की Log Book।', 'यहाँ कुछ भरा नहीं जाता। हर आँकड़ा ऊपर चुनी तारीखों के लिए दूसरे pages की entries से आता है; "Stock now" हमेशा अभी का stock है। यहाँ केवल tank का आकार सेट होता है। ऊपर का search (Ctrl + K) app में कुछ भी ढूँढता है – machinery, नाम, driver, reading (Log Book entry के Start और Close के बीच की reading भी), challan या bill नंबर, vendor, तारीख, page – spelling गलत हो तब भी (तब वह "did you mean …" पूछता है); result पर क्लिक करने से उसका page खुलता है।'] },
-    vendors: { saves: ['saveVendor', 'deleteVendor', 'vendorsFromOwners', 'vendorsTogether'],
+    vendors: { saves: ['saveVendor', 'deleteVendor', 'vendorsFromOwners'],
       en: ['The parties: vendors and owners of machinery, with address, PAN, GST and bank details.', 'The app checks the format of PAN, GST, IFSC and mobile, and does not allow the same name twice. The name can be changed: the vendor\'s assets, BOQs, bills, payments, debit notes and Log Book entries follow to the new name. A vendor with assets or BOQs cannot be deleted. These details print on bills, tax invoices and debit notes.'],
       mr: ['Parties: machinery चे vendors आणि मालक, पत्ता, PAN, GST आणि bank तपशीलासह.', 'App PAN, GST, IFSC आणि mobile चे स्वरूप तपासते, आणि तेच नाव दोनदा घेत नाही. नाव बदलता येते: vendor चे assets, BOQ, bills, payments, debit notes आणि Log Book entries नवीन नावाकडे जातात. ज्या vendor कडे assets किंवा BOQ आहेत तो delete होत नाही. हा तपशील bills, tax invoice आणि debit notes वर छापला जातो.'],
       hi: ['Parties: machinery के vendors और मालिक, पता, PAN, GST और bank विवरण के साथ।', 'App PAN, GST, IFSC और mobile का रूप जाँचता है, और वही नाम दो बार नहीं लेता। नाम बदला जा सकता है: vendor के assets, BOQ, bills, भुगतान, debit notes और Log Book entries नए नाम पर चले जाते हैं। जिस vendor के assets या BOQ हैं वह delete नहीं होता। यह विवरण bills, tax invoice और debit notes पर छपता है।'] },
@@ -9823,7 +9821,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function loadVendors() {
     try {
       const d = await call('getBoqs', {});
-      S.vendors = d.vendors || []; S.boqs = d.boqs || []; S.vshare = d.vshare || { on: false };
+      S.vendors = d.vendors || []; S.boqs = d.boqs || [];
       renderVendors(); renderBoqs(); if (S.master) renderMaster();
       const sel = $('bf_vendor'), cur = sel.value;
       sel.innerHTML = '<option value="">All vendors</option>' + S.vendors.map(v => '<option>' + esc(v.name) + '</option>').join('');
@@ -9839,12 +9837,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const unsaved = S.vendors.filter(v => !v.saved).map(v => v.name);
     $('v_mkall').hidden = !unsaved.length || !canEdit('Vendor Master'); $('v_mkall').textContent = 'Save all ' + unsaved.length + ' owners as vendors';
     $('vf_sum').innerHTML = 'Vendors: <b>' + list.length + '</b> · details complete: <b>' + S.vendors.filter(v => v.complete).length + '</b> of ' + S.vendors.length;
-    const can = canEdit('Vendor Master'), sh = S.vshare || {};
-    // (update-106) one Vendor Master for every site: who made a vendor; the Admin brings the vendors of all sites together
-    $('v_share').hidden = !sh.here; $('v_all').hidden = !(sh.on && S.user && S.user.admin);
-    $('v_share').innerHTML = !sh.here ? '' : sh.on ? 'One Vendor Master for every site: a vendor made here is copied to the other sites; a vendor made at another site is shown with its site and is changed or deleted only there.'
-      : 'One Vendor Master for every site needs a database step first: the Admin runs <b>sql/supabase_step1y_vendor_owner.sql</b> in the Supabase of EVERY site (Read Me lists it). Until then this site keeps its own vendors.';
-    $('v_rows').innerHTML = list.length ? list.map(v => '<tr><td><b>' + esc(v.name) + '</b>' + (v.saved && v.mine === false ? '<br><small class="muted">made at ' + esc(v.ownerName || v.ownerSite) + (v.enteredBy ? ' · ' + esc(v.enteredBy) : '') + '</small>' : '') + '</td><td>' + esc(v.ownership || '') + '</td><td>' + (v.machines || []).length +
+    const can = canEdit('Vendor Master');      // (update-111) every site its own vendors – the server sends only this site's
+    $('v_rows').innerHTML = list.length ? list.map(v => '<tr><td><b>' + esc(v.name) + '</b></td><td>' + esc(v.ownership || '') + '</td><td>' + (v.machines || []).length +
       '<small class="muted"> ' + esc((v.machines || []).map(m => m.id).slice(0, 3).join(', ')) + ((v.machines || []).length > 3 ? '…' : '') + '</small></td><td>' + esc(v.phone || '–') + '</td><td>' + esc(v.gst ? v.gst : (v.saved && v.gstReg !== 'Yes' ? 'Not registered' : '–')) +
       '</td><td>' + esc(v.pan || '–') +
       '</td><td>' + esc(v.bank ? v.bank + (v.account ? ' · ' + String(v.account).slice(-4).padStart(8, '•') : '') : '–') + '</td><td class="n">' + (v.boqs || 0) +
@@ -9855,41 +9849,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   ['vf_q'].forEach(id => $(id).addEventListener('input', renderVendors)); $('vf_st').addEventListener('change', renderVendors);
   $('v_rows').addEventListener('click', e => {
-    const b = e.target.closest('[data-vedit]'); if (b) { const v = S.vendors.find(x => x.name === b.dataset.vedit); if (v && v.saved && v.mine === false) { vOtherSite(v); return; } vOpen(b.dataset.vedit); return; }
-    const dl = e.target.closest('[data-vdel]'); if (dl) { S.vEdit = S.vendors.find(x => x.name === dl.dataset.vdel); if (S.vEdit && S.vEdit.mine === false) { vOtherSite(S.vEdit); return; } $('v_del').click(); return; }
+    const b = e.target.closest('[data-vedit]'); if (b) { const v = S.vendors.find(x => x.name === b.dataset.vedit); vOpen(b.dataset.vedit); return; }
+    const dl = e.target.closest('[data-vdel]'); if (dl) { S.vEdit = S.vendors.find(x => x.name === dl.dataset.vdel); $('v_del').click(); return; }
     const q = e.target.closest('[data-vboq]'); if (!q) return;
     showTab('boq'); $('bf_vendor').value = q.dataset.vboq; renderBoqs();
     if (!S.boqs.some(x => x.vendor === q.dataset.vboq)) bOpen('new');       // no BOQ yet → the form opens for this vendor
     else { const el = $('boq_rows'); if (el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   });
-  // (update-106) a vendor made at another site: it is changed or deleted only there – which site, who, what to do
-  function vOtherSite(v) {
-    const at = esc(v.ownerName || v.ownerSite);
-    return askConfirm({ title: 'Made at ' + (v.ownerName || v.ownerSite), ok: 'OK', alertOnly: true, html: '<p><b>' + esc(v.name) + '</b> was made at site <b>' + at + '</b>' + (v.enteredBy ? ' by <b>' + esc(v.enteredBy) + '</b>' : '') + '.</p>' +
-      '<p>You cannot change or delete it here. It is changed or deleted only at ' + at + ', by a user with Vendor Master edit access there. Ask them – or, if you have ' + at + '\'s access, open that site.</p>' +
-      '<p class="muted">हा vendor ' + at + ' site ने बनवला आहे' + (v.enteredBy ? ' (' + esc(v.enteredBy) + ')' : '') + '. तो इथे बदलता / delete करता येणार नाही – फक्त ' + at + ' site वरून, तिथे Vendor Master चा edit access असलेल्या user कडून.</p>' });
-  }
-  // after a save / delete: the other sites that could not take it now (the vendor is saved here; "Vendors of all sites" brings them up to date)
-  function vSpreadSaid(res) {
-    const f = res && res.spread && res.spread.failed; if (!f || !f.length) return;
-    askConfirm({ title: 'Saved here – not yet at every site', ok: 'OK', alertOnly: true, html: '<p>Saved at this site. It could not be copied now to:</p>' + listHtml(f.map(x => x.site + ' – ' + x.error)) + '<p class="muted">The Admin presses "Vendors of all sites" later to bring that site up to date.</p>' });
-  }
-  $('v_all').addEventListener('click', e => busy(e.target, 'Checking…', async () => {
-    const c = await call('vendorsTogether', { check: true });
-    if (!c.ok) { await askConfirm({ title: 'Not every site is ready', ok: 'OK', alertOnly: true, html: '<p>' + esc(c.message || '') + '</p>' }); return; }
-    const work = (c.sites || []).reduce((n, x) => n + x.add + x.update, 0);
-    if (!work) { await askConfirm({ title: 'Vendors of all sites', ok: 'OK', alertOnly: true, html: '<p>Every site already has the same <b>' + c.vendors + '</b> vendors. Nothing to do.</p>' }); return; }
-    const diffs = c.diffs || [];
-    const ok = await askConfirm({ title: 'Bring the vendors of all sites together?', ok: 'Bring together', wide: true, html: '<p><b>' + c.vendors + '</b> vendors in all. The same name is ONE vendor; its details are those of the site that made it first.</p>' +
-      listHtml((c.sites || []).map(x => x.site + ': ' + x.add + ' vendor(s) added, ' + x.update + ' updated')) +
-      (diffs.length ? '<p><b>Details that will change at a site</b> (the site that made the vendor decides):</p><div class="imp-wrap"><table class="imp-t"><thead><tr><th>Vendor</th><th>Made at</th><th>Changes at</th><th>What</th></tr></thead><tbody>' +
-        diffs.map(d => '<tr><td>' + esc(d.name) + '</td><td>' + esc(d.owner) + '</td><td>' + esc(d.site) + '</td><td>' + d.fields.map(x => esc(x.f) + ': <s>' + esc(x.from === '' || x.from === null ? '–' : x.from) + '</s> → <b>' + esc(x.to === '' || x.to === null ? '–' : x.to) + '</b>').join('<br>') + '</td></tr>').join('') + '</tbody></table></div>' + (c.moreDiffs ? '<p class="muted">… and ' + c.moreDiffs + ' more.</p>' : '') : '') +
-      '<p class="muted">Nothing is deleted. Bills already made keep what is printed on them.</p>' });
-    if (!ok) return;
-    const r = await call('vendorsTogether', {});
-    toast('Vendors of all sites brought together' + ((r.failed || []).length ? ' – not done at: ' + r.failed.map(x => x.site).join(', ') : '') + '.', !!(r.failed || []).length);
-    loadVendors();
-  }));
   function vGstBoxes() { document.querySelectorAll('#v_form .v-gst').forEach(el => { el.hidden = $('v_gstreg').value !== 'Yes'; }); }
   $('v_gstreg').addEventListener('change', vGstBoxes);
   // PAN is the 3rd to 12th character of the GST number
@@ -9988,13 +9954,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     const res = await call('saveVendor', { oldName: renaming ? was : '', name: g('v_name'), gstReg: g('v_gstreg'), gst: g('v_gst'), gstPct: g('v_gstpct'), pan: g('v_pan'), tds: g('v_tds'), bank: g('v_bank'),
       branch: g('v_branch'), account: g('v_acc'), ifsc: g('v_ifsc'), phone: g('v_phone'), address: g('v_addr'), remark: g('v_remark'), aadhaar: g('v_aadhaar'), email: g('v_email')}, S.vEdit && S.vEdit.saved ? 'edit' : 'add');
-    S.vendors = res.vendors; renderVendors(); $('v_form').hidden = true; vSpreadSaid(res);
+    S.vendors = res.vendors; renderVendors(); $('v_form').hidden = true;
     toast(res.renamed ? 'Vendor renamed: ' + res.renamed.from + ' → ' + res.renamed.to + (res.renamed.text ? ' (' + res.renamed.text + ' moved with it)' : '') : 'Vendor saved: ' + res.name);
     loadVendors(); if (res.renamed) { S.stale = S.stale || {}; ['master', 'boq', 'log', 'diesel', 'bills', 'pay', 'vled', 'vout'].forEach(t => { S.stale[t] = true; }); refreshLookups(true); }
   }));
   $('v_del').addEventListener('click', async () => {
     if (!S.vEdit || !(await askConfirm({ title: 'Delete vendor ' + S.vEdit.name + '?', ok: 'Delete', danger: true, html: '<p>A vendor that still has assets in Asset Master, or BOQs, cannot be deleted – give the assets another vendor / delete the BOQs first.</p>' }))) return;
-    try { const res = await call('deleteVendor', S.vEdit.name); $('v_form').hidden = true; toast('Vendor details deleted.'); vSpreadSaid(res); loadVendors(); } catch (e) { toast(errMsg(e), true); }
+    try { const res = await call('deleteVendor', S.vEdit.name); $('v_form').hidden = true; toast('Vendor details deleted.'); loadVendors(); } catch (e) { toast(errMsg(e), true); }
   });
   /* ---------- BOQ list ---------- */
   const boqDieselText = l => l.diesel === 'Debit Basis' ? ' · diesel: debit basis' : ' · diesel: company paid';
