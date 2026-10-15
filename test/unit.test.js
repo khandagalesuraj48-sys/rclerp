@@ -2947,3 +2947,45 @@ test('update-114: verification of every work – the Super Admin\'s rules, level
       CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); TABLE_MEMO_ = {};`, ctx);
   }
 });
+
+test('update-115: a machinery that left the site (Inactive From) – not shown, not pending, no entry from that date; the Asset Master dates show it when it was on site', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  // the page's rule (taken from the page itself) and the server's are the same rule
+  const pick = re => { const m = app.match(re); assert.ok(m, String(re)); return m[0]; };
+  const page = new Function(pick(/const mDay = .*\n/) + pick(/const onSiteOn = .*\n/) + pick(/const onSiteIn = .*\n/) + 'return { onSiteOn, onSiteIn };')();
+  const left = { id: 'IN-1', activeFrom: '2026-08-01', status: 'Inactive', inactiveFrom: '2026-10-01' };
+  const days = ['2026-07-31', '2026-08-01', '2026-09-30', '2026-10-01', '2026-10-15'];
+  assert.deepStrictEqual(days.map(d => page.onSiteOn(left, d)), [false, true, true, false, false], 'on site 01-08 … 30-09');
+  assert.deepStrictEqual(days.map(d => run('(m, d) => onSiteOn_(m, d)', left, d)), [false, true, true, false, false], 'the server: the same');
+  assert.deepStrictEqual(days.map(d => !run('(m, d) => { try { assertActive_(m, d); return true; } catch (e) { return false; } }', left, d)), [true, false, false, true, true], 'an entry is refused on exactly the days it is not on site');
+  // his example: inactive from the 1st – a list of 1st … 5th does not show it, a list that has the 30th does
+  assert.strictEqual(page.onSiteIn(left, '2026-10-01', '2026-10-05'), false);
+  assert.strictEqual(page.onSiteIn(left, '2026-09-30', '2026-10-05'), true);
+  assert.strictEqual(page.onSiteIn(left, '2026-07-01', '2026-07-31'), false, 'before it came');
+  assert.strictEqual(page.onSiteIn({ status: 'Inactive', inactiveFrom: '' }, '2000-01-01', '2099-01-01'), false, 'Inactive with no date = not on site (as the server)');
+  assert.strictEqual(page.onSiteOn({ status: 'Active' }, '2026-10-15'), true);
+  const leaving = { status: 'Inactive', inactiveFrom: '2026-10-20' };
+  assert.strictEqual(page.onSiteOn(leaving, '2026-10-15'), true, 'leaves next week: still on site today');
+  // the server: not pending from that date; the papers / BOQ / tank lists by the date, not by the word "Inactive" alone
+  run('(x, m) => saveVendor_(x, m)', { name: 'Left V115', gstReg: 'No', pan: 'ABCPL1150L', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  assert.ok(run('(x, m) => saveMaster_(x, m)', { no: 'LFT-115', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Left V115', ownership: 'Rental', supply: 'Company', status: 'Inactive', activeFrom: '2026-09-25', inactiveFrom: '2026-10-01' }, 'add').ok);
+  assert.ok(run('(x, m) => saveMaster_(x, m)', { no: 'LVG-115', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Left V115', ownership: 'Rental', supply: 'Company', status: 'Inactive', activeFrom: '2026-09-25', inactiveFrom: run('() => addDays_(today_(), 5)') }, 'add').ok);
+  const pend = run('() => pendingLogs_({ from: "2026-09-28", to: "2026-10-03" })');
+  const dates = no => (pend.items || []).filter(x => x.no === no).map(x => x.date);
+  assert.deepStrictEqual(dates('LFT-115'), ['2026-09-28', '2026-09-29', '2026-09-30'], 'pending only while it was on site');
+  const miss = run('d => boqMissing_({ date: d }).rows.map(r => r.no)', run('() => today_()'));
+  assert.ok(!miss.includes('LFT-115') && miss.includes('LVG-115'), 'BOQ missing: only machinery on site that day (the one leaving next week still counts)');
+  assert.ok(run('d => boqMissing_({ date: d }).rows.map(r => r.no)', '2026-09-30').includes('LFT-115'), '…and on a date it was on site, it counts');
+  // the page: the pickers where an entry is made use the list of the entry's date; filters keep every machinery
+  ['d_no" list="dl_mach_on" data-on="d_date"', 'tc_no" list="dl_mach_on" data-on="tc_date"', 'lg_top_no" list="dl_mach_on" data-on="lg_top_date"', 'data-f="no" list="dl_mach_on" data-on="bd_date"', 'data-f="no" list="dl_mach_on" data-on="row"']
+    .forEach(x => assert.ok(app.includes(x), x));
+  ['df_no" list="dl_machines"', 'lf_no" list="dl_machines"', 'lx_no" list="dl_machines"', 'bm_no" list="dl_machines"'].forEach(x => assert.ok(app.includes(x), x));
+  assert.match(app, /\$\('dl_mach_on'\)\.innerHTML = \(S\.master \|\| \[\]\)\.filter\(m => !dk \|\| onSiteOn\(m, dk\)\)/);
+  assert.match(app, /<label for="mf_from">On site from<\/label><input id="mf_from" type="date">/);
+  assert.match(app, /if \(!S\.mfDated && S\.today\) \{ S\.mfDated = true; \$\('mf_from'\)\.value = S\.today; \$\('mf_to'\)\.value = S\.today; \}/);
+  assert.ok(!/status !== 'Inactive'/.test(app), 'no list of the page looks at the word "Inactive" without its date');
+  assert.ok(!/m\.status !== 'Inactive'/.test(fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8')), '…nor of the server');
+});
