@@ -27,7 +27,9 @@ const TAIL = `
     saved: (token, fn, args, kept) => savedAfterAll_(token, fn, args, kept),
     // (update-90) several sites – only from this server itself (system.js), never from the page (see run: OUTSIDE)
     saLogin: saLogin_, saWho: saWho_, saLogout: saLogout_, saChangePassword: saChangePassword_, saRecover: saRecover_,
-    sysWho: sysWho_, sysSession: sysSession_, sysSso: sysSso_, sysPortalAdmin: sysPortalAdmin_, sysNewSiteSql: sysNewSiteSql_, sysSiteHealth: sysSiteHealth_, sysOrgSet: sysOrgSet_, sysUserRow: sysUserRow_, sysSetPw: sysSetPw_, sysUsers: sysUsers_, sysSaveUser: sysSaveUser_, sysAccessReport: sysAccessReport_ }[fn];
+    sysWho: sysWho_, sysSession: sysSession_, sysSso: sysSso_, sysPortalAdmin: sysPortalAdmin_, sysNewSiteSql: sysNewSiteSql_, sysSiteHealth: sysSiteHealth_, sysOrgSet: sysOrgSet_, sysUserRow: sysUserRow_, sysSetPw: sysSetPw_, sysUsers: sysUsers_, sysSaveUser: sysSaveUser_, sysAccessReport: sysAccessReport_,
+    // (update-112) the person's language at his other sites (only from __runOthers below)
+    sysPrefLang: sysPrefLang_ }[fn];
   if (!f) throw new Error('Unknown action.');
   const r = f.apply(null, JSON.parse(argsJson));
   return JSON.stringify(r === undefined ? null : r);
@@ -158,7 +160,7 @@ function runOnce(fn, args, meta, rid) {
  * only from here (system.js) – a name that is not on this list is refused before anything runs. */
 const OUTSIDE = new Set(['api', 'login', 'changePassword', 'logout', 'orgInfo', 'backup', 'switchSite', 'setDefaultSite', 'super', 'ssoLogin', 'portalAdmin']);      // ssoLogin: a ticket of the Portal (update-91)
 // one of the app's own functions run inside another site (its database, its memory), its answer parsed; the site of this request is set back after it
-const OTHERS_ = new Set([]);      // what one site may ask the others – nothing since update-111 (every site its own vendors; update-106 asked for the Vendor Master)
+const OTHERS_ = new Set(['sysPrefLang']);      // what one site may ask the others: the person's language (update-112) – nothing else (update-111: every site its own vendors)
 const R = { runIn(site, fn, args) {
   const prev = gas.current();
   useSite(site);

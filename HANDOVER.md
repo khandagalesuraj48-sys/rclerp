@@ -1656,6 +1656,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   copy written by update-106 (`owner_site` = another site) is hidden by `vendorHidden_()` unless this site uses it (asset owner,
   BOQ, bill, payment, debit note, Log Book Debit To – the database asked with `in.(…)`; when it cannot be asked nothing is
   hidden); a save here sets `owner_site` = this site. Unit "update-106 → update-111", "update-111"; rig `test/vendors111api.js` 12.
+- 15-10-2026 (update-112). Report: `UPDATE_112.md`. The language of the app is the person's: `saveMyPrefs_` writes a changed
+  `appLang` / `lang` to his other sites (`langSpread_` → `__runOthers('sysPrefLang')`, OTHERS_ = ['sysPrefLang']; written only
+  where he is a user). `appLang` 'en' = English chosen (the phone app then shows English only; '' = not chosen). Unit
+  "update-112"; rig `test/lang112api.js` 5; lang110.js 17.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

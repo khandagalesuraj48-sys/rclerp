@@ -30,7 +30,7 @@ const BASE = 'http://127.0.0.1:3001', DEVA = /[ऀ-ॿ]/;
     // Settings → Language of the app → मराठी
     await F().evaluate(() => showTab('settings')); await wait(1200);
     const seg = await F().evaluate(() => { const g = document.querySelector('#sec-settings .set-seg[data-pref="appLang"]'); return g ? { label: g.parentNode.querySelector('b').textContent, btns: [...g.querySelectorAll('button')].map(x => x.textContent + '=' + x.dataset.v) } : null; });
-    ok('Settings shows "Language of the app": मराठी / हिंदी / English', seg && seg.label === 'Language of the app' && seg.btns.join('|') === 'मराठी=mr|हिंदी=hi|English=', seg);
+    ok('Settings shows "Language of the app": मराठी / हिंदी / English', seg && seg.label === 'Language of the app' && seg.btns.join('|') === 'मराठी=mr|हिंदी=hi|English=en', seg);
     await F().click('#sec-settings .set-seg[data-pref="appLang"] button[data-v="mr"]'); await wait(2500);
     const n1 = await nav();
     ok('Marathi at once (no reload): the menu – ' + n1.join(', '), n1.length === 4 && n1.every(t => DEVA.test(t)), n1);
@@ -81,11 +81,11 @@ const BASE = 'http://127.0.0.1:3001', DEVA = /[ऀ-ॿ]/;
     const sp2 = (await api('getMyPrefs')).prefs;
     ok('हिंदी: the page is drawn again in Hindi – ' + n2.join(', '), n2.every(t => DEVA.test(t)) && sp2.appLang === 'hi' && sp2.lang === 'hi', { n2, sp2 });
     await F().evaluate(() => showTab('settings')); await wait(800);
-    await F().click('#sec-settings .set-seg[data-pref="appLang"] button[data-v=""]');
+    await F().click('#sec-settings .set-seg[data-pref="appLang"] button[data-v="en"]');
     for (let i = 0; i < 30; i++) { await wait(1000); try { await findF(); if (await F().evaluate(() => !!S.user && document.documentElement.lang === 'en' && !I18N.lang)) break; } catch (e) { /* drawn again */ } }
     await wait(2500); await findF();
     const n3 = await nav(); const sp3 = (await api('getMyPrefs')).prefs;
-    ok('English: drawn again in English – ' + n3.join(', ') + ' (help: ' + sp3.lang + ')', n3.length === 4 && n3.every(t => !DEVA.test(t)) && sp3.appLang === '' && sp3.lang === 'en', { n3, sp3 });
+    ok('English: drawn again in English – ' + n3.join(', ') + ' (help: ' + sp3.lang + ')', n3.length === 4 && n3.every(t => !DEVA.test(t)) && sp3.appLang === 'en' && sp3.lang === 'en', { n3, sp3 });
     ok('no page error', !errs.length, errs);
   } catch (e) { ok('run', false, String(e && e.stack || e).slice(0, 700)); }
   finally { await b.close(); await api('saveMyPrefs', { appLang: was.appLang || '', lang: was.lang || 'mr' }); }

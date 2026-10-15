@@ -8683,12 +8683,12 @@ function faultKind_(err) {
 
 /* ---------- SETTINGS: EVERY USER'S OWN, AND THE RULES OF THE SITE (asked 03-10-2026) ----------
  * OWN settings (the Settings page, every signed-in user): how the app looks and behaves for THAT user – theme, text size,
- * language of the help, the language of the app (update-110: '' = English), the page to open first, the usual Log Book entry type / shift / diesel location, favourite pages,
+ * language of the help, the language of the app (update-110: '' = not chosen – English on the web; update-112: 'en' = English chosen; the same at all his sites), the page to open first, the usual Log Book entry type / shift / diesel location, favourite pages,
  * a photo. Kept with the user's account (one row per user in app_settings: USER_PREFS|<email>), so they are the same on
  * every computer. Only what is in PREF_RULES_ is kept; anything else that is sent is dropped.
  * RULES OF THE SITE (Admin): how many days back a user who is not Admin may enter or change entries, and a line of
  * notice shown to everybody. Kept with the app settings (SITE_RULES). */
-const PREF_PICK_ = { theme: ['light', 'dark', 'auto'], text: ['normal', 'large', 'xlarge'], density: ['normal', 'compact'], lang: ['mr', 'hi', 'en'], appLang: ['', 'mr', 'hi'],
+const PREF_PICK_ = { theme: ['light', 'dark', 'auto'], text: ['normal', 'large', 'xlarge'], density: ['normal', 'compact'], lang: ['mr', 'hi', 'en'], appLang: ['', 'mr', 'hi', 'en'],
   lbMode: ['', 'date', 'mach'], lbDays: ['2', '7', '30'], shift: ['', 'Full Day', 'Day', 'Night'], menu: ['open', 'closed'] };
 const PREF_YESNO_ = { enterNext: false, sound: false, lessMotion: false, intro: true, brief: true, voiceOut: true };      // brief: the daily summary opens by itself; voiceOut: spoken answers when asked by voice
 function prefsClean_(x) {
@@ -8731,9 +8731,25 @@ function myLogins_(u) {
 }
 function getMyPrefs_(u) { return { prefs: prefsRead_(u.email), logins: myLogins_(u), email: u.email, rules: siteRules_() }; }
 function saveMyPrefs_(u, x) {
-  const o = prefsClean_(Object.assign({}, prefsRead_(u.email), x && typeof x === 'object' ? x : {}));
+  const was = prefsRead_(u.email);
+  const o = prefsClean_(Object.assign({}, was, x && typeof x === 'object' ? x : {}));
   prefsWrite_(u.email, o);
+  if (o.appLang !== was.appLang || o.lang !== was.lang) langSpread_(u.email, o);
   return { ok: true, prefs: o };
+}
+/* (update-112, asked 15-10-2026: "app madhe language change ha option hawa aahe all site user sathi") the language of the app
+ * (and of the help) is the person's, not the site's: chosen at one site – on the web or in the phone app – it is written at
+ * every other site where he is a user too. A site that cannot be reached now keeps its own until the next change. */
+function langSpread_(email, o) {
+  try { if (typeof __runOthers === 'function') __runOthers('sysPrefLang', JSON.stringify([str_(email).toLowerCase(), o.appLang, o.lang])); } catch (e) { /* this site's choice is saved; the others follow at the next change */ }
+}
+// AT ANOTHER SITE: the person's language, when he is a user here
+function sysPrefLang_(email, appLang, lang) {
+  const e = str_(email).toLowerCase();
+  if (!readUsersSheet_().some(x => x.email === e)) return { ok: false };
+  const p = prefsRead_(e); p.appLang = appLang; p.lang = lang;
+  prefsWrite_(e, prefsClean_(p));
+  return { ok: true };
 }
 function siteRules_() {
   return memoGet_('__rules', () => { let s = {}; try { s = JSON.parse(PropertiesService.getScriptProperties().getProperty('SITE_RULES') || '{}') || {}; } catch (e) { s = {}; }

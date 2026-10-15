@@ -3675,7 +3675,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="set-item"><b>Theme</b><div class="set-seg" data-pref="theme"><button type="button" data-v="light">Light</button><button type="button" data-v="dark">Dark</button><button type="button" data-v="auto">As the device</button></div><small class="muted">Prints and PDFs are always on white.</small></div>
         <div class="set-item"><b>Size of the text</b><div class="set-seg" data-pref="text"><button type="button" data-v="normal">Normal</button><button type="button" data-v="large">Large</button><button type="button" data-v="xlarge">Larger</button></div></div>
         <div class="set-item"><b>Rows in lists</b><div class="set-seg" data-pref="density"><button type="button" data-v="normal">Roomy</button><button type="button" data-v="compact">Tight (more rows)</button></div></div>
-        <div class="set-item"><b>Language of the app</b><div class="set-seg" data-pref="appLang" data-noi18n><button type="button" data-v="mr">मराठी</button><button type="button" data-v="hi">हिंदी</button><button type="button" data-v="">English</button></div><small class="muted">Everything on the screens, the messages, errors and help – for you only. Bills, notes and prints stay in English.</small></div>
+        <div class="set-item"><b>Language of the app</b><div class="set-seg" data-pref="appLang" data-noi18n><button type="button" data-v="mr">मराठी</button><button type="button" data-v="hi">हिंदी</button><button type="button" data-v="en">English</button></div><small class="muted">Everything on the screens, the messages, errors and help – for you only, at all your sites and in the phone app. Bills, notes and prints stay in English.</small></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="lessMotion"> Less movement (no gliding, no opening film)</label><label class="ck"><input type="checkbox" data-pref="intro"> Play the opening when I open the app</label></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="brief"> Show me the daily summary when I open the app (once a day)</label><label class="ck"><input type="checkbox" data-pref="voiceOut"> Speak the answer aloud when I ask by voice</label></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="sound"> A short sound when something is saved or goes wrong</label><label class="ck"><input type="checkbox" data-pref="enterNext"> Enter moves to the next box (like Tab)</label></div>
@@ -12018,7 +12018,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function setDraw() {
     try { appDraw(); } catch (e) { /* the shell is not there (opened outside it) */ }
     if (!$('sec-settings')) return; const p = S.prefs, u = S.user || {};
-    document.querySelectorAll('#sec-settings .set-seg').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === String(p[g.dataset.pref]))));
+    document.querySelectorAll('#sec-settings .set-seg').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === (g.dataset.pref === 'appLang' && !p.appLang ? 'en' : String(p[g.dataset.pref])))));      // (update-112: the app's language not chosen = English)
     document.querySelectorAll('#sec-settings input[type=checkbox][data-pref]').forEach(c => { c.checked = !!p[c.dataset.pref]; });
     $('set_name').textContent = u.name || ''; $('set_email').textContent = u.email || ''; $('set_role').textContent = u.admin ? 'Admin' : 'User';
     if (document.activeElement !== $('set_mobile')) $('set_mobile').value = p.mobile || '';
@@ -12064,7 +12064,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   $('sec-settings').addEventListener('click', e => {
     const b = e.target.closest('.set-seg button'); if (b) { const k = b.parentNode.dataset.pref;
-      prefSet(k === 'appLang' ? { appLang: b.dataset.v, lang: b.dataset.v || 'en' } : { [k]: b.dataset.v }); return; }      // (update-110) the help follows the app's language
+      prefSet(k === 'appLang' ? { appLang: b.dataset.v, lang: b.dataset.v === 'mr' || b.dataset.v === 'hi' ? b.dataset.v : 'en' } : { [k]: b.dataset.v }); return; }      // (update-110) the help follows the app's language
     const go = e.target.closest('[data-go]'); if (go) { showTab(go.dataset.go); return; }
   });
   $('sec-settings').addEventListener('change', e => {
