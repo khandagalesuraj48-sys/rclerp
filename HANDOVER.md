@@ -1660,6 +1660,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `appLang` / `lang` to his other sites (`langSpread_` → `__runOthers('sysPrefLang')`, OTHERS_ = ['sysPrefLang']; written only
   where he is a user). `appLang` 'en' = English chosen (the phone app then shows English only; '' = not chosen). Unit
   "update-112"; rig `test/lang112api.js` 5; lang110.js 17.
+- 15-10-2026 (update-114). Report: `UPDATE_114.md`. Verification of every work: the Super Admin's rules per site (`FLOW_RULES`
+  in app_settings: per page on/off, levels of named users, "only when" days back / litres, remind hours); a save under a rule is
+  checked (`flowSend_`, thrown away – `FLOW_DRY_ON_` keeps counters / settings unwritten), kept in `billed_changes` (Kind "Flow",
+  VF-00001) and saved only at the last level as the sender's own (`flowDecide_`, Returned if it fails then). Diesel waiting is held
+  back (`flowReserved_` in `requireStockAt_`). Live sync part "flow"; runtime.js answers a resent save with the same words. Approvals
+  page for everybody (summary, bulk, steps) + rules panel. Unit "update-114"; rig `test/flow114api.js` 30; browser flow114.js 12.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

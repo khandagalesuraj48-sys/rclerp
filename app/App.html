@@ -2470,6 +2470,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .lx-lock { margin: 8px 0; padding: 9px 12px; border: 1px solid #FCA5A5; background: #FEF2F2; color: #7F1D1D; border-radius: 10px; font-size: 13.5px; line-height: 1.45; } .lx-lock b { color: #7F1D1D; }
   .tag.half { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; border-radius: 999px; padding: 0 7px; font: 700 11px var(--ui); white-space: nowrap; }
   /* "½ day" under the shift of a Log Book entry */
+  .cr-dash { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; } .cr-dash div { background: var(--soft, #F1F5F9); border-radius: 12px; padding: 8px 14px; min-width: 120px; } .cr-dash b { display: block; font-size: 22px; }
+  .fr-task { border: 1px solid #E2E8F0; border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; } .fr-task.on { border-color: #16A34A; background: #F0FDF4; }
+  .fr-level { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 6px 0; border-top: 1px dashed #E2E8F0; } .fr-level > b { min-width: 64px; }
+  .fr-level label, .fr-task > label { white-space: nowrap; font-size: 13.5px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; } .fr-when { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 6px; font-size: 13.5px; }
+  .fr-when label { display: inline-flex; align-items: center; gap: 6px; } .fr-when input { width: 80px; min-height: 30px; padding: 4px 8px; }
+  .fr-task input[type=checkbox], #cr_rows input[type=checkbox], #cr_tickall { width: 16px; height: 16px; min-height: 0; min-width: 0; flex: none; margin: 0; padding: 0; accent-color: #16A34A; }
+  .fr-task .link, .fr-level .link { background: none; border: 0; padding: 2px 4px; color: var(--steel, #1D4ED8); cursor: pointer; font-size: 13px; text-decoration: underline; } .fr-level .link.danger { color: #B91C1C; }
   .lg-half { display: flex; align-items: center; gap: 5px; margin: 5px 0 0; font: 600 12px var(--ui); color: #475569; white-space: nowrap; cursor: pointer; }
   /* (the rows give every box its full width and height – a tick must stay a tick; on a touch screen it is a little bigger) */
   .lg-half input[type=checkbox], main td .lg-half input[type=checkbox], main .lg-wrap .lg-half input[type=checkbox] { width: 18px !important; height: 18px !important; min-width: 0 !important; min-height: 0 !important; max-width: 18px; flex: 0 0 18px !important; margin: 0 !important; padding: 0 !important; box-shadow: none; accent-color: #B45309; }
@@ -3198,14 +3205,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     <div class="panel">
       <h2>Approvals</h2>
       <p class="empty-note" id="cr_intro" style="margin:-4px 0 10px"></p>
+      <div class="cr-dash" id="cr_dash"></div>
       <div class="toolbar">
-        <div class="quick"><button class="btn ghost small" id="cr_refresh" type="button">Refresh</button><label class="pn-opt"><input type="checkbox" id="cr_all"> Show approved and rejected too</label></div>
+        <div class="quick"><button class="btn ghost small" id="cr_refresh" type="button">Refresh</button><label class="pn-opt"><input type="checkbox" id="cr_all"> Show approved and rejected too</label>
+          <button class="btn small" id="cr_bulk_ok" type="button" hidden>Approve ticked</button><button class="btn ghost small" id="cr_bulk_no" type="button" hidden>Reject ticked</button></div>
         <div class="sum" id="cr_sum"></div>
       </div>
       <div class="table-wrap"><table class="activity">
-        <thead><tr><th>Asked</th><th>By</th><th>What changes</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="cr_tickall" title="Tick all that wait for you"></th><th>Asked</th><th>By</th><th>Work</th><th>What</th><th>Status</th><th></th></tr></thead>
         <tbody id="cr_rows"></tbody>
       </table></div>
+    </div>
+    <!-- (update-114) the Super Admin's verification rules: which work, which people, how many levels -->
+    <div class="panel" id="fr_panel" hidden>
+      <h2>Verification rules</h2>
+      <p class="empty-note" style="margin:-4px 0 10px">Tick a work of this site: its saves go to the people of level 1, then level 2 …, and are saved only when the last level approves.</p>
+      <p class="empty-note" style="margin:-4px 0 10px">Any one person of a level approves (the others are the backup). Nobody approves his own entry. The Super Admin's own entries are saved at once.</p>
+      <p class="empty-note" style="margin:-4px 0 10px">Only when (optional): only entries dated more than N days back, or (diesel) more than X litres. Empty = every entry. A work added to the app later shows up here by itself.</p>
+      <div id="fr_list"></div>
+      <div class="toolbar"><div class="quick"><label>Remind after <input type="number" id="fr_hours" min="1" max="168" style="width:80px"> hours (twice as long: the Super Admin too)</label></div><button class="btn primary" id="fr_save" type="button">Save the rules</button></div>
     </div>
   </section>
   <section id="sec-activity" role="tabpanel" aria-labelledby="tab-activity" hidden>
@@ -4616,8 +4634,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       return true;
     }
   }
+  // (update-114) a save of a task under verification comes back "Sent for verification …": nothing is saved yet – the form is
+  // emptied as after a save (the entry waits on Approvals), the list of requests is refreshed
+  const FLOW_SENT_RE = /^Sent for verification /;
+  const FLOW_CLEAR = { saveDieselIssue: 'clearDiesel', saveDieselBulk: 'clearDieselBulk', saveInward: 'clearInward', saveTransfer: 'clearTransfer', saveLogRows: 'clearLogGrid' };
+  function flowSent(fn) {
+    S.formDirty = false;
+    try { const c = FLOW_CLEAR[fn]; if (c && typeof window[c] === 'function') window[c](); } catch (e) { /* the form stays as it is */ }
+    setTimeout(() => crLoad(true), 300);
+  }
   function call(fn, ...args) {
     let p0 = rawCall(fn, ...args);
+    p0 = p0.catch(e => { if (FLOW_SENT_RE.test(errMsg(e))) flowSent(fn); throw e; });
     if (CR_FNS.indexOf(fn) > -1) p0 = p0.then(async r => { const lk = (r && r.ok === false ? (r.errors || []) : []).map(e => (e && e.msg) || e).find(crLocked); if (lk && await crOffer(fn, args, lk)) throw new Error(CR_SENT); return r; },
       async e => { if (crLocked(errMsg(e)) && await crOffer(fn, args, errMsg(e))) throw new Error(CR_SENT); throw e; });
     const p = p0.then(r => { if (r && r.stock && typeof r.stock.stock === 'number') setStock(r.stock); return r; });
@@ -5328,7 +5356,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     document.querySelectorAll('[data-viewonly]').forEach(el => { el.hidden = canEdit(el.dataset.viewonly); });
     $('grp_admin').hidden = !u.admin;
     // (update-108 / 109) Approvals: the Super Admin approves there; a user who may change Log Book or diesel sees what he sent
-    const crSees = !!(u.super || canEdit('Log Book') || canEdit('Diesel Issue'));
+    const crSees = true;      // (update-114) everybody: what he sent, and what waits for him
     $('tab-approvals').hidden = !crSees;
     if (crSees && !S.crAsked) { S.crAsked = true; setTimeout(() => crLoad(true), 1500); }
     // pages the user has no access to are not shown; a section with nothing left in it is hidden too
@@ -5392,6 +5420,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['A row of the water tanker\'s trips cannot be taken as it is.', 'Nothing was saved. Every row needs its date (within the From – To dates that are open; for another date open those dates), the shift Day or Night, the challan no and the Dispatch / Unload time. An Excel file needs at least one trip under its headings (Export Excel gives the right layout). Save up to 3000 trips at a time.'],
       mr: ['Water tanker च्या trips मधली एक row जशी आहे तशी घेता येत नाही.', 'काहीही save झाले नाही. प्रत्येक row ला तारीख (उघडलेल्या From – To तारखांच्या आत; दुसऱ्या तारखेसाठी त्या तारखा उघडा), shift Day किंवा Night, challan no आणि Dispatch / Unload वेळ हवी. Excel file मध्ये headings खाली किमान एक trip हवी (Export Excel ने बरोबर layout मिळतो). एका वेळी जास्तीत जास्त 3000 trips save करा.'],
       hi: ['Water tanker की trips की एक row जैसी है वैसी नहीं ली जा सकती।', 'कुछ भी save नहीं हुआ। हर row में तारीख (खुली From – To तारीखों के अंदर; दूसरी तारीख के लिए वे तारीखें खोलें), shift Day या Night, challan no और Dispatch / Unload समय चाहिए। Excel file में headings के नीचे कम से कम एक trip चाहिए (Export Excel से सही layout मिलता है)। एक बार में ज़्यादा से ज़्यादा 3000 trips save करें।'] },
+    { re: /^Sent for verification|already waiting for verification|^Verification rules|cannot approve your own entry|This request is not waiting for you|sets the verification rules|too big to send for verification|Tick the requests first|Write why it is rejected/i,      // (update-114) verification
+      en: ['Verification: this work goes to the people the Super Admin chose before it is saved.', 'A "Sent for verification" entry is NOT saved yet – it is saved when the last person approves it (Approvals shows where it waits). The same entry is not sent twice. You cannot approve your own entry; another person of that level (or the Super Admin) does. The rules – which work, which people, how many levels – are set by the Super Admin in Approvals → Verification rules.'],
+      mr: ['पडताळणी: हे काम सेव्ह होण्याआधी Super Admin ने निवडलेल्या लोकांकडे जाते.', '"पडताळणीसाठी पाठवले" म्हणजे अजून सेव्ह झाले नाही – शेवटच्या व्यक्तीने मंजूर केल्यावर सेव्ह होईल (Approvals मध्ये कुठे थांबले ते दिसते). तीच एन्ट्री दोनदा जात नाही. स्वतःची एन्ट्री स्वतः मंजूर करता येत नाही; त्या level चा दुसरा माणूस (किंवा Super Admin) करतो. कोणते काम, कोणते लोक, किती levels – हे नियम Super Admin Approvals → Verification rules मध्ये ठरवतो.'],
+      hi: ['सत्यापन: यह काम सेव होने से पहले Super Admin के चुने लोगों के पास जाता है।', '"सत्यापन के लिए भेजा" यानी अभी सेव नहीं हुआ – आखिरी व्यक्ति के मंज़ूर करने पर सेव होगा (Approvals में दिखता है कि कहाँ रुका है)। वही एंट्री दो बार नहीं जाती। अपनी एंट्री खुद मंज़ूर नहीं कर सकते; उस level का दूसरा व्यक्ति (या Super Admin) करता है। कौन-सा काम, कौन लोग, कितने levels – ये नियम Super Admin Approvals → Verification rules में तय करता है।'] },
     { re: /is not a vendor of this site/i,      // (update-111) every site its own vendors
       en: ['This vendor is not one of this site\'s vendors.', 'Nothing was changed. Every site has its own vendors: open the vendor from this site\'s Vendor Master list, or add it here with "+ New vendor" (it becomes this site\'s own).'],
       mr: ['हा vendor या site चा नाही.', 'काहीही बदलले नाही. प्रत्येक site चे vendors वेगळे आहेत: या site च्या Vendor Master list मधूनच vendor उघडा, किंवा "+ New vendor" ने तो इथे जोडा (तो या site चा होईल).'],
@@ -5938,7 +5970,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'A new user starts with No access on every page – he sees only the pages you set to View or Edit (in the menu and in the search). Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters. "Screen share – who may use it": untick a user and save – he can then neither show a screen nor be called (Admin users always may). Several sites: the Admin of the first site makes the Super Admin once ("Create Super Admin" – write the recovery code down). From then on the Super Admin gives users and access, separately for every site; this page then only shows them.'],
       mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'नवीन user ला सुरुवातीला प्रत्येक page वर No access असते – तुम्ही View किंवा Edit दिलेली pages च त्याला दिसतात (menu मध्ये आणि search मध्ये). हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा. "Screen share – who may use it": user चा tick काढून Save केले की तो screen दाखवू शकत नाही आणि त्याला call पण करता येत नाही (Admin नेहमी वापरू शकतो). अनेक sites: पहिल्या site चा Admin एकदाच Super Admin बनवतो ("Create Super Admin" – Recovery code लिहून ठेवा). त्यानंतर users आणि access फक्त Super Admin देतो, प्रत्येक site साठी वेगळा; हे page मग फक्त ते दाखवते.'],
       hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'नए user को शुरू में हर page पर No access होता है – आपने View या Edit दिए वही pages उसे दिखते हैं (menu में और search में)। यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो। "Screen share – who may use it": user का tick हटाकर Save करने पर वह न screen दिखा सकता है, न उसे call किया जा सकता है (Admin हमेशा उपयोग कर सकता है)। कई sites: पहली site का Admin एक बार Super Admin बनाता है ("Create Super Admin" – Recovery code लिखकर रखें)। उसके बाद users और access सिर्फ Super Admin देता है, हर site के लिए अलग; यह page फिर सिर्फ उन्हें दिखाता है।'] },
-    approvals: { saves: ['decideChangeRequest', 'getChangeRequests'],
+    approvals: { saves: ['decideChangeRequest', 'getChangeRequests', 'decideChangeRequests', 'saveFlowRules', 'getFlowRules'],
       en: ['Changes of Log Book and diesel entries that are in a submitted bill, sent by the users for the Super Admin\'s approval.', 'The Super Admin (signed in through the Portal) approves here; a user sees here the changes he sent – Waiting, Approved (saved) or Rejected with the reason – and gets a notification when it is decided. Each line says who asked, what the change is (machinery, date, readings) and why. Approve = the change is saved now as that user\'s change, with every check of a save – if something else changed meanwhile it is refused and keeps waiting. Reject = nothing is saved; write why. The bill on the Drive is never changed: the next bill of the vendor shows the difference and takes it as a Credit / Debit Note.'],
       mr: ['Submit झालेल्या bill मधील Log Book / diesel entries चे बदल – users नी Super Admin च्या मंजुरीसाठी पाठवलेले.', 'Super Admin (Portal मधून sign in) इथे मंजुरी देतो; user ला इथे त्याने पाठवलेले बदल दिसतात – Waiting, Approved (save झाले) किंवा Rejected कारणासह – आणि निर्णय झाला की notification येते. प्रत्येक ओळीत: कोणी मागितले, काय बदल (machinery, तारीख, readings) आणि का. Approve = बदल आत्ता त्या user चा बदल म्हणून save होतो, save चे सगळे checks होऊन – मध्ये दुसरे काही बदलले असेल तर नाकारला जातो आणि थांबून राहतो. Reject = काहीही save होत नाही; कारण लिहा. Drive वरचे bill कधीच बदलत नाही: vendor च्या पुढच्या bill मध्ये फरक दिसतो आणि Credit / Debit Note ने घेतला जातो.'],
       hi: ['Submit हुए bill की Log Book / diesel entries के बदलाव – users ने Super Admin की मंज़ूरी के लिए भेजे हुए।', 'Super Admin (Portal से sign in) यहाँ मंज़ूरी देता है; user को यहाँ उसके भेजे बदलाव दिखते हैं – Waiting, Approved (save हुआ) या Rejected कारण के साथ – और फैसला होने पर notification आता है। हर लाइन में: किसने माँगा, क्या बदलाव (machinery, तारीख, readings) और क्यों। Approve = बदलाव अभी उस user के बदलाव के रूप में save होता है, save के सारे checks के साथ – बीच में कुछ और बदला हो तो मना होता है और रुका रहता है। Reject = कुछ भी save नहीं होता; कारण लिखें। Drive वाला bill कभी नहीं बदलता: vendor के अगले bill में फर्क दिखता है और Credit / Debit Note से लिया जाता है।'] },
@@ -5985,6 +6017,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     box.innerHTML = '<button type="button" class="fx-x" aria-label="Close" title="Close">×</button><div class="fx-msg">' + esc($('page_title').textContent) + '</div><div class="fixhelp guide">' + guideInner(box.dataset.tab) + '</div>'; box.hidden = false;
   }
   function toast(msg, bad) {
+    if (bad && FLOW_SENT_RE.test(String(msg || ''))) bad = false;      // (update-114) sent for verification: not a fault
     if (bad) { try { fixCard(msg); } catch (e) { /* the message itself is still shown */ } } else if ($('fixbox') && !$('fixbox').classList.contains('info')) $('fixbox').hidden = true;   // an information card stays until it is closed
     // the red line itself: in Marathi / Hindi first what is wrong in that language, then the app's own line with the names and numbers
     if (bad && fixLang !== 'en') { try { const r0 = fixRules(msg)[0]; if (r0 !== FIX_ANY) msg = r0[fixLang][0] + '\n' + i18nAs(msg); } catch (e) { /* keep the message */ } }      // (update-110) the app's own line in the app's language too
@@ -6902,28 +6935,88 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function crLoad(quiet) {
     if (!S.user || $('tab-approvals').hidden) return;
     try { S.cr = await call('getChangeRequests', {}); crDraw(); }
-    catch (e) { if (!quiet) $('cr_rows').innerHTML = '<tr><td colspan="6" class="none">' + esc(errMsg(e)) + '</td></tr>'; }
+    catch (e) { if (!quiet) $('cr_rows').innerHTML = '<tr><td colspan="7" class="none">' + esc(errMsg(e)) + '</td></tr>'; }
   }
   function crDraw() {
-    const d = S.cr || { requests: [] }, sup = !!(S.user && S.user.super), all = $('cr_all').checked || !sup, L = (d.requests || []).filter(r => all || r.status === 'Pending');      // (a user sees all he sent: waiting, approved, rejected)
-    const lab = $('tab-approvals').querySelector('.label'); lab.textContent = 'Approvals' + (d.pending ? ' (' + d.pending + ')' : '');
-    $('cr_all').closest('label').hidden = !sup;
-    $('cr_intro').innerHTML = sup ? 'Changes of Log Book and diesel entries that are in a submitted bill, sent by the users. <b>Approve</b> = the change is saved now (checked like any save) and the difference is taken in the vendor\'s next bill. <b>Reject</b> = nothing is saved.'
-      : 'The changes you sent to the <b>Super Admin</b> for approval (entries of a submitted bill): <b>Waiting</b> = not saved yet; <b>Approved</b> = saved; <b>Rejected</b> = not saved – his reason is shown. You get a notification when he decides.';
-    $('cr_sum').textContent = d.missing ? d.missing : (d.pending || 0) + ' waiting';
-    $('cr_rows').innerHTML = L.length ? L.map(r => '<tr><td class="nowrap">' + esc(crWhen(r.at)) + '<br><small>' + esc(r.id) + '</small></td><td>' + esc(r.by) + '</td><td>' + (r.summary || []).map(esc).join('<br>') + '</td><td>' + esc(r.reason) + '</td>' +
-      '<td>' + (r.status === 'Pending' ? '<span class="st low">Waiting</span>' : '<span class="st ' + (r.status === 'Approved' ? 'ok' : 'bad') + '">' + esc(r.status) + '</span><br><small>' + esc(r.decidedBy) + ' · ' + esc(crWhen(r.decidedAt)) + (r.note ? '<br>' + esc(r.note) : '') + '</small>') + '</td>' +
-      '<td class="nowrap">' + (r.status === 'Pending' && sup ? '<button class="btn small" type="button" data-crok="' + esc(r.id) + '">Approve</button> <button class="btn ghost small" type="button" data-crno="' + esc(r.id) + '">Reject</button>' : '') + '</td></tr>').join('')
-      : '<tr><td colspan="6" class="none">' + (!sup ? 'You have not sent any change for approval.' : all ? 'No change has been asked yet.' : 'Nothing is waiting for approval.') + '</td></tr>';
+    const d = S.cr || { requests: [] }, sup = !!(S.user && S.user.super), all = $('cr_all').checked, me = d.requests || [];
+    const L = me.filter(r => all || r.status === 'Pending' || r.mine);      // (a person sees all he sent – waiting, approved, rejected – and what waits; "show … too": also what was decided at his level)
+    const lab = $('tab-approvals').querySelector('.label'); lab.textContent = 'Approvals' + (d.pending ? ' (' + d.pending + ')' : '');      // (as before: what is waiting in his list)
+    $('cr_intro').textContent = 'Entries sent for verification (the Super Admin\'s rules) and changes of a submitted bill. Waiting = not saved yet; Approved = saved; Rejected or Returned = not saved, the reason is shown. Tick several to approve them at once. You get a notification when something waits for you, and when your entry is decided.';
+    const wait = me.filter(r => r.status === 'Pending'), old = wait.reduce((mx, r) => Math.max(mx, (Date.now() - Date.parse(r.waitSince || r.at)) / 3600000), 0);
+    $('cr_dash').innerHTML = '<div>Waiting for you<b>' + (d.forMe || 0) + '</b></div><div>Waiting in all<b>' + wait.length + '</b></div><div>Your entries waiting<b>' + wait.filter(r => r.mine).length + '</b></div>' + (wait.length ? '<div>Oldest waiting<b>' + (old >= 24 ? Math.floor(old / 24) + ' d' : Math.floor(old) + ' h') + '</b></div>' : '');
+    $('cr_sum').textContent = d.missing ? d.missing : '';
+    const can = L.some(r => r.canDecide); $('cr_bulk_ok').hidden = !can; $('cr_bulk_no').hidden = !can; $('cr_tickall').disabled = !can; $('cr_tickall').checked = false;
+    const st = r => r.status === 'Pending' ? '<span class="st low">Waiting</span>' + (r.levels ? '<br><small>level ' + r.level + ' of ' + r.levels + (r.waitingFor && r.waitingFor.length ? ': ' + esc(r.waitingFor.join(', ')) : '') + '</small>' : '<br><small>Super Admin</small>')
+      : '<span class="st ' + (r.status === 'Approved' ? 'ok' : 'bad') + '">' + esc(r.status) + '</span><br><small>' + esc(r.decidedBy) + ' · ' + esc(crWhen(r.decidedAt)) + (r.note ? '<br>' + esc(r.note) : '') + (r.status === 'Returned' && r.result ? '<br>' + esc(r.result) : '') + '</small>';
+    const hist = r => (r.history || []).length ? '<details><summary><small>Steps (' + r.history.length + ')</small></summary><small>' + r.history.map(h => esc(h.step) + (h.level ? ' L' + h.level : '') + ' – ' + esc(h.by) + ' · ' + esc(crWhen(h.at)) + (h.note ? ': ' + esc(h.note) : '')).join('<br>') + '</small></details>' : '';
+    $('cr_rows').innerHTML = L.length ? L.map(r => '<tr><td>' + (r.canDecide ? '<input type="checkbox" class="cr-tick" data-id="' + esc(r.id) + '">' : '') + '</td><td class="nowrap">' + esc(crWhen(r.at)) + '<br><small>' + esc(r.id) + '</small></td><td>' + esc(r.by) + '</td>' +
+      '<td>' + esc(r.kind === 'Flow' ? r.task : 'Change of a billed period') + (r.qty ? '<br><small>' + esc(fmt(r.qty)) + ' L</small>' : '') + '</td><td>' + (r.summary || []).map(esc).join('<br>') + (r.kind !== 'Flow' && r.reason ? '<br><small>Reason: ' + esc(r.reason) + '</small>' : '') + hist(r) + '</td>' +
+      '<td>' + st(r) + '</td><td class="nowrap">' + (r.canDecide ? '<button class="btn small" type="button" data-crok="' + esc(r.id) + '">Approve</button> <button class="btn ghost small" type="button" data-crno="' + esc(r.id) + '">Reject</button>' : '') + '</td></tr>').join('')
+      : '<tr><td colspan="7" class="none">' + (all ? 'Nothing yet.' : 'Nothing is waiting.') + '</td></tr>';
+    $('fr_panel').hidden = !sup;
+    if (sup && !S.frLoaded) { S.frLoaded = true; frLoad(); }
   }
+  // (update-114) several at once
+  $('cr_tickall').addEventListener('change', e => document.querySelectorAll('#cr_rows .cr-tick').forEach(c => { c.checked = e.target.checked; }));
+  async function crBulk(approve, btn) {
+    const ids = [...document.querySelectorAll('#cr_rows .cr-tick:checked')].map(c => c.dataset.id);
+    if (!ids.length) { toast('Tick the requests first.', true); return; }
+    let note = '';
+    for (;;) {
+      if (!(await askConfirm({ title: (approve ? 'Approve ' : 'Reject ') + ids.length + ' request(s)?', ok: approve ? 'Approve' : 'Reject', danger: !approve, wide: true,
+        html: listHtml(ids) + (approve ? '<p>Each one goes to its next level, or – at the last level – is saved now with every check of a save (one that cannot be saved goes back to its sender with the reason).</p><label class="cr-why">Note (optional) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>' : '<label class="cr-why">Why are they rejected? (the senders read it) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>') }))) return;
+      note = String(($('cr_note') || {}).value || '').trim();
+      if (approve || note) break;
+      toast('Write why they are rejected.', true);
+    }
+    await busy(btn, approve ? 'Approving…' : 'Rejecting…', async () => {
+      const r = await call('decideChangeRequests', { ids: ids, approve: approve, note: note });
+      S.cr = r.list; crDraw();
+      toast((r.done || []).length + ' done' + ((r.failed || []).length ? ', ' + r.failed.length + ' not: ' + r.failed.map(f => f.id + ' – ' + f.error).join('; ') : '') + '.', !!(r.failed || []).length);
+    });
+  }
+  $('cr_bulk_ok').addEventListener('click', e => crBulk(true, e.target));
+  $('cr_bulk_no').addEventListener('click', e => crBulk(false, e.target));
+  /* (update-114) THE VERIFICATION RULES (the Super Admin): every work of this site, its levels of named people, "only when" */
+  async function frLoad() {
+    try { S.fr = await call('getFlowRules'); frDraw(); } catch (e) { $('fr_list').innerHTML = '<p class="none">' + esc(errMsg(e)) + '</p>'; }
+  }
+  function frDraw() {
+    const d = S.fr || { tasks: [], rules: { tasks: {} }, users: [] }, R = d.rules.tasks || {};
+    $('fr_hours').value = d.rules.remindHours || 4;
+    const level = (m, i, sel) => '<div class="fr-level" data-i="' + i + '"><b>Level ' + (i + 1) + '</b>' + d.users.map(u => '<label><input type="checkbox" value="' + esc(u.email) + '"' + (sel.indexOf(u.email) > -1 ? ' checked' : '') + '> ' + esc(u.name) + '</label>').join('') +
+      ' <button type="button" class="link danger fr-del">remove level</button></div>';
+    $('fr_list').innerHTML = d.tasks.map(t => { const r = R[t.m] || { on: false, levels: [], daysBack: '', qtyAbove: '' }, lv = (r.levels || []).length ? r.levels : [[]];
+      return '<div class="fr-task' + (r.on ? ' on' : '') + '" data-m="' + esc(t.m) + '" data-diesel="' + (t.diesel ? 1 : '') + '"><label><input type="checkbox" class="fr-on"' + (r.on ? ' checked' : '') + '> <b>' + esc(t.label) + '</b></label> <small class="muted">' + esc(t.fns.length + ' kind(s) of save') + '</small>' +
+        '<div class="fr-levels">' + lv.map((l, i) => level(t.m, i, l)).join('') + '</div><button type="button" class="link fr-add">+ add a level</button>' +
+        '<div class="fr-when">Only when: <label>dated more than <input type="number" class="fr-days" min="0" max="365" value="' + esc(r.daysBack === undefined ? '' : r.daysBack) + '"> days back</label>' +
+        (t.diesel ? '<label>more than <input type="number" class="fr-qty" min="1" value="' + esc(r.qtyAbove === undefined ? '' : r.qtyAbove) + '"> litres</label>' : '') + '<small class="muted">(empty = every entry)</small></div></div>'; }).join('') || '<p class="none">No work found.</p>';
+    S.frLevel = level;
+  }
+  $('fr_list').addEventListener('click', e => {
+    const box = e.target.closest('.fr-task'); if (!box) return;
+    if (e.target.classList.contains('fr-add')) { const ls = box.querySelector('.fr-levels'); const n = ls.children.length; if (n >= 5) { toast('At most 5 levels.', true); return; } ls.insertAdjacentHTML('beforeend', S.frLevel(box.dataset.m, n, [])); }
+    if (e.target.classList.contains('fr-del')) { const ls = box.querySelector('.fr-levels'); if (ls.children.length > 1) e.target.closest('.fr-level').remove(); else e.target.closest('.fr-level').querySelectorAll('input').forEach(c => { c.checked = false; });
+      [...ls.children].forEach((x, i) => { x.dataset.i = i; x.querySelector('b').textContent = 'Level ' + (i + 1); }); }
+  });
+  $('fr_list').addEventListener('change', e => { if (e.target.classList.contains('fr-on')) e.target.closest('.fr-task').classList.toggle('on', e.target.checked); });
+  $('fr_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
+    const tasks = {};
+    document.querySelectorAll('#fr_list .fr-task').forEach(b => { const q = b.querySelector('.fr-qty');
+      tasks[b.dataset.m] = { on: b.querySelector('.fr-on').checked, levels: [...b.querySelectorAll('.fr-level')].map(l => [...l.querySelectorAll('input:checked')].map(c => c.value)), daysBack: b.querySelector('.fr-days').value.trim(), qtyAbove: q ? q.value.trim() : '' }; });
+    const r = await call('saveFlowRules', { tasks: tasks, remindHours: $('fr_hours').value });
+    S.fr.rules = r.rules; frDraw(); toast('Verification rules saved.');
+  }));
   $('cr_refresh').addEventListener('click', () => crLoad());
   $('cr_all').addEventListener('change', crDraw);
   $('cr_rows').addEventListener('click', async e => {
     const ok = e.target.closest('[data-crok]'), no = e.target.closest('[data-crno]'); if (!ok && !no) return;
     const id = (ok || no).dataset[ok ? 'crok' : 'crno'], r = ((S.cr || {}).requests || []).find(x => x.id === id); if (!r) return;
-    const what = listHtml(r.summary || []) + '<p><b>Asked by:</b> ' + esc(r.by) + ' · <b>Reason:</b> ' + esc(r.reason) + '</p>';
+    const flow = r.kind === 'Flow', last = !flow || r.level >= r.levels;
+    const what = listHtml(r.summary || []) + '<p><b>Asked by:</b> ' + esc(r.by) + (flow ? ' · <b>Work:</b> ' + esc(r.task) + ' · <b>Level</b> ' + r.level + ' of ' + r.levels : ' · <b>Reason:</b> ' + esc(r.reason)) + '</p>';
     if (ok) {
-      if (!(await askConfirm({ title: 'Approve this change?', ok: 'Approve and save', wide: true, html: what + '<p>It is saved now as ' + esc(r.by) + '\'s change, with every check of a save. The submitted bill is not changed – the difference is taken in the vendor\'s next bill (Credit / Debit Note).</p>' }))) return;
+      if (!(await askConfirm({ title: flow ? 'Approve this entry?' : 'Approve this change?', ok: last ? 'Approve and save' : 'Approve – to level ' + (r.level + 1), wide: true, html: what + (!flow ? '<p>It is saved now as ' + esc(r.by) + '\'s change, with every check of a save. The submitted bill is not changed – the difference is taken in the vendor\'s next bill (Credit / Debit Note).</p>'
+        : last ? '<p>It is saved now as ' + esc(r.by) + '\'s entry, with every check of a save.</p>' : '<p>It goes on to level ' + (r.level + 1) + ' – nothing is saved yet.</p>') }))) return;
     } else {
       for (;;) {
         if (!(await askConfirm({ title: 'Reject this change?', ok: 'Reject', danger: true, wide: true, html: what + '<label class="cr-why">Why is it rejected? (' + esc(r.by) + ' reads it) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>' }))) return;
@@ -6935,7 +7028,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     await busy(ok || no, ok ? 'Saving…' : 'Rejecting…', async () => {
       const res = await call('decideChangeRequest', { id: id, approve: !!ok, note: note });
       S.cr = res.list; crDraw();
-      toast(res.id + ' ' + res.status.toLowerCase() + (ok ? ' – the change is saved.' : ' – nothing was saved.'));
+      toast(res.id + ' ' + res.status.toLowerCase() + (res.status === 'Approved' ? ' – saved.' : res.status === 'Pending' ? ' – sent on to level ' + res.level + '.' : res.status === 'Returned' ? ' – not saved: ' + (res.result || '') : ' – nothing was saved.'), res.status === 'Returned');
       if (ok) { if (S.loaded && S.loaded.log) loadLog(); if (S.loaded && S.loaded.diesel) loadDiesel(); }
     });
   });
@@ -7113,6 +7206,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
      * diesel / Log Book entries at most once in 15 seconds (they only add a new driver name or a last reading) –
      * and without asking for the vehicle-papers badge again, which those entries cannot change. */
     const lookups = async quiet => { try { const L = await rawCall('getLookups'); S.quietMaster = !!quiet; setMaster(L.master); setTimeout(() => { S.quietMaster = false; }, 50); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors); } catch (e) {} };
+    if (has('flow')) crLoad(true);      // (update-114) a verification request sent or decided: the Approvals list and its number
     if (has('master')) await lookups(false);
     else if (has('stock') || has('log')) { const wait = Math.max(0, 15000 - (Date.now() - (S.lookAt || 0))); clearTimeout(S.lookT); S.lookT = setTimeout(() => { S.lookAt = Date.now(); lookups(true); }, wait); }
     /* Only the page that is ON SCREEN is refreshed now (and only when the person is not in the middle of a click).

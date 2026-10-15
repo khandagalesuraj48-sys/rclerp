@@ -860,7 +860,10 @@ const API_ = {
   // (update-108) a change of a billed period: sent by a user, approved or rejected by the Super Admin (Approvals)
   sendChangeRequest: { m: '', withUser: true, f: (u, x) => crRequest_(u, x), log: 'crSend' },
   getChangeRequests: { m: '', withUser: true, f: (u, x) => crList_(u, x) },
-  decideChangeRequest: { m: '', withUser: true, f: (u, x) => crDecide_(u, x), log: 'crDecide' },
+  decideChangeRequest: { m: '', withUser: true, f: (u, x) => /^VF-/.test(str_((x || {}).id)) ? Object.assign(flowDecide_(u, x), { list: crList_(u, {}) }) : crDecide_(u, x), log: 'crDecide' },
+  decideChangeRequests: { m: '', withUser: true, f: (u, x) => flowDecideMany_(u, x), log: 'flowDecideMany' },      // (update-114) several verification requests at once
+  getFlowRules:      { m: '', withUser: true, f: u => getFlowRules_(u) },      // (update-114) the Super Admin's verification rules
+  saveFlowRules:     { m: '', withUser: true, f: (u, x) => saveFlowRules_(u, x), log: 'flowRules' },
   saveDebitNote:     { m: 'Machinery Billing', edit: true, f: saveDebitNote_, log: 'debitNote' },
   getDebitNotes:     { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Vendor Ledger'], f: getDebitNotes_ },
   cancelDebitNote:   { m: 'Saved Bills', admin: true, f: cancelDebitNote_, log: 'debitNoteCancel' },
@@ -975,7 +978,12 @@ function api(token, fn, args) {
     if (n > 1) throw new Error('This entry was just sent twice – it is saved once. Check the list before entering it again.');
     if (n === 1) onceKey = k;
   }
-  try { return apiRun_(u, spec, fn, args); }
+  try {
+    // (update-114) a save of a task the Super Admin put under verification: checked, then sent – not saved now
+    const rule = flowRuleFor_(u, spec, fn, args);
+    if (rule) return flowSend_(u, spec, fn, args, rule);
+    return apiRun_(u, spec, fn, args);
+  }
   catch (err) {
     if (onceKey && !SAVED_) { try { __uncount(onceKey); } catch (e2) { /* it frees itself in a few seconds */ } }      // a failed entry may be sent again at once; one that IS saved keeps its place
     // a fault of the app or of the database (not a refusal): written down for the Admin; the user is told it is not the entry
@@ -1013,7 +1021,8 @@ function apiRun_(u, spec, fn, args) {
   if (fn === 'getInit' || fn === 'sync') { res.user = publicUser_(u); res.versions = getVersions_(); res.today = today_(); res.source = sbDataOn_() ? 'supabase' : 'sheet'; res.build = appBuild_();
     if (typeof sbBackupInfo_ === 'function') res.backup = backupInfoFor_(u, sbBackupInfo_());
     if (u.admin) res.faults = errStamp_();      // the Admin's page shows faults of today within seconds
-    if (fn === 'sync') { try { const rb = rtcBeat_(u, args[0]); if (rb) res.rtc = rb; } catch (e) { /* a screen-share note must never stop the heartbeat */ } } }
+    if (fn === 'sync') { try { const rb = rtcBeat_(u, args[0]); if (rb) res.rtc = rb; } catch (e) { /* a screen-share note must never stop the heartbeat */ }
+      try { flowRemind_(); } catch (e) { /* (update-114) a reminder never stops the heartbeat */ } } }
   if (fn === 'backupNow' && res && res.info) res.info = backupInfoFor_(u, res.info);
   if (spec.log) {
     try { logAfter_(u, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ }
@@ -1047,7 +1056,7 @@ const SHEET_GROUPS_ = {
 };
 // Versions live in the fast script cache (read by every user every few seconds, no daily limit),
 // with a copy in Script Properties in case the cache is cleared.
-const SYNC_KEYS_ = ['master', 'stock', 'log', 'users', 'activity'].map(g => 'V_' + g);
+const SYNC_KEYS_ = ['master', 'stock', 'log', 'users', 'activity', 'flow'].map(g => 'V_' + g);      // flow: the verification requests (update-114)
 function bump_(groups) {
   if (!groups || !groups.length) return;
   if (groups.indexOf('users') > -1) CacheService.getScriptCache().remove('USERS_LIST'); // access changes apply at once
@@ -1173,7 +1182,15 @@ function logAfter_(u, spec, args, res, before) {
     case 'crSend':      // (update-108)
       writeLog_(u, 'Add', 'Approvals', res.id, 'Change of a billed period sent to the Super Admin: ' + clean_((args[0] || {}).fn), (res.summary || []).join('; ').slice(0, 900) + ' | Reason: ' + clean_((args[0] || {}).reason));
       break;
+    case 'flowDecideMany':      // (update-114)
+      writeLog_(u, 'Edit', 'Approvals', (res.done || []).map(d => d.id).join(', ').slice(0, 120), 'Verification (several at once): ' + ((args[0] || {}).approve === true ? 'approve' : 'reject'),
+        (res.done || []).map(d => d.id + ' ' + d.status).join('; ').slice(0, 900) + ((res.failed || []).length ? ' | not done: ' + res.failed.map(f => f.id + ' ' + f.error).join('; ').slice(0, 400) : ''));
+      break;
+    case 'flowRules':      // (update-114)
+      writeLog_(u, 'Edit', 'Approvals', 'Verification rules', 'Verification rules saved', Object.keys((res.rules || {}).tasks || {}).map(m => { const r = res.rules.tasks[m]; return m + ': ' + (r.on ? 'on, ' + r.levels.length + ' level(s)' : 'off'); }).join('; ').slice(0, 900));
+      break;
     case 'crDecide':
+      if (/^VF-/.test(str_(res.id))) { writeLog_(u, res.status === 'Rejected' ? 'Delete' : 'Edit', 'Approvals', res.id, 'Verification – ' + res.status + (res.status === 'Pending' ? ' at level ' + (res.level - 1) + ', now level ' + res.level + ' of ' + res.levels : '') + ': entry of ' + res.by, (res.summary || []).join('; ').slice(0, 900) + (res.result ? ' | ' + res.result : '') + (clean_((args[0] || {}).note) ? ' | Note: ' + clean_(args[0].note) : '')); break; }
       writeLog_(u, res.status === 'Approved' ? 'Edit' : 'Delete', 'Approvals', res.id, res.status + ' (Super Admin): change of a billed period by ' + res.by, (res.summary || []).join('; ').slice(0, 900) + (clean_((args[0] || {}).note) ? ' | Note: ' + clean_((args[0] || {}).note) : ''));
       break;
     case 'dieselBulk': {
@@ -4680,10 +4697,11 @@ function getStockPoints_(points) {
 }
 function requireStockAt_(loc, dk, shift, excludeId, qty) {
   const b = getIssueBalance_(dk, shift, excludeId, loc);
-  if (qty > b.available) {
+  const held = flowReserved_(loc);      // (update-114) diesel of entries waiting for verification is held back
+  if (qty > r2_(b.available - held)) {
     const p = dk.split('-');
     throw new Error('Not enough diesel at ' + loc + ' for ' + p[2] + '-' + p[1] + '-' + p[0] + ' (' + shift + '). Available: ' +
-      b.available + ' Ltr, you are issuing: ' + r2_(qty) + ' Ltr.');
+      r2_(Math.max(0, b.available - held)) + ' Ltr' + (held ? ' (' + held + ' Ltr more waits for verification)' : '') + ', you are issuing: ' + r2_(qty) + ' Ltr.');
   }
 }
 
@@ -4714,7 +4732,7 @@ function nextNo_(t, idHeader, prop) {
   t.rows.forEach(r => { const mt = String(r[t.c[idHeader]]).match(/(\d+)$/); if (mt) max = Math.max(max, Number(mt[1])); });
   return max + 1;
 }
-function markNo_(prop, n) { PropertiesService.getScriptProperties().setProperty(prop, String(n)); }
+function markNo_(prop, n) { if (FLOW_DRY_ON_) return; PropertiesService.getScriptProperties().setProperty(prop, String(n)); }      // (update-114: not while an entry is only checked before it is sent for verification – no number is used up)
 
 /* ---------- Inward (from pump) ---------- */
 function validateInward_(x) {
@@ -8644,6 +8662,7 @@ function kvRead_(id) {
   return str_(PropertiesService.getScriptProperties().getProperty(id));
 }
 function kvWrite_(id, v) {
+  if (FLOW_DRY_ON_) return;      // (update-114) an entry only checked (sent for verification) writes no setting
   if (prefsInDb_()) sbFetch_('POST', '/rest/v1/app_settings?on_conflict=id', [{ id: id, value: v }], { Prefer: 'resolution=merge-duplicates,return=minimal' });
   else PropertiesService.getScriptProperties().setProperty(id, v);
 }
@@ -9037,11 +9056,20 @@ function crNotify_(emails, msg) { try { rtcPush_([...new Set(emails.map(e => rtc
 function crList_(u, f) {
   f = f || {};
   let t = null; try { t = crTable_(false); } catch (e) { return { requests: [], missing: CR_SQL_MSG_ }; }
-  const me = str_(u.email).toLowerCase();
-  const list = (t ? t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.id && r.kind === 'Request') : []).filter(r => u.super || r.email === me).filter(r => !f.status || r.status === f.status)
-    .sort((a, b) => (a.status === 'Pending' ? 0 : 1) - (b.status === 'Pending' ? 0 : 1) || (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)).slice(0, 300)
-    .map(r => { const o = Object.assign({}, r); delete o.args; delete o.i; delete o.data; delete o.billId; return o; });
-  return { requests: list, pending: list.filter(r => r.status === 'Pending').length, superAdmin: !!u.super };
+  const me = str_(u.email).toLowerCase(), names = {}; readUsers_().forEach(w => { names[w.email] = w.name || w.email; });
+  // (update-114) the verification requests too: the Super Admin sees all; a person what he sent and what is (or was) at his level
+  const rows = t ? t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.id && (r.kind === 'Request' || r.kind === 'Flow')) : [];
+  rows.forEach(r => { if (r.kind !== 'Flow') return; let d = {}; try { d = JSON.parse(r.data || '{}') || {}; } catch (e) { d = {}; } r.flow = d; });
+  const mine = r => r.email === me || (r.kind === 'Flow' && ((r.flow || {}).levels || []).some(l => l.indexOf(me) > -1));
+  const list = rows.filter(r => u.super || mine(r)).filter(r => !f.status || r.status === f.status)
+    .sort((a, b) => (a.status === 'Pending' ? 0 : 1) - (b.status === 'Pending' ? 0 : 1) || (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)).slice(0, 500)
+    .map(r => { const o = Object.assign({}, r); delete o.args; delete o.i; delete o.data; delete o.billId; delete o.flow;
+      if (r.kind === 'Flow') { const fl = r.flow || {}, lv = (fl.levels || [])[fl.level || 0] || [];
+        o.task = MODULE_LABEL_[fl.m] || fl.m || ''; o.level = (fl.level || 0) + 1; o.levels = (fl.levels || []).length; o.waitingFor = r.status === 'Pending' ? lv.map(e => names[e] || e) : [];
+        o.waitSince = fl.waitSince || r.at; o.history = (fl.history || []).slice(-20); o.canDecide = flowCan_(u, r); o.qty = fl.qty || 0; }
+      else o.canDecide = !!u.super && r.status === 'Pending';
+      o.mine = r.email === me; return o; });
+  return { requests: list, pending: list.filter(r => r.status === 'Pending').length, forMe: list.filter(r => r.canDecide).length, superAdmin: !!u.super };
 }
 function crDecide_(u, x) {
   x = x || {};
@@ -9083,6 +9111,263 @@ function crDecide_(u, x) {
   crNotify_([out.email], { id: out.id, title: (out.status === 'Approved' ? 'Approved – saved: ' : 'Rejected – not saved: ') + (out.summary[0] || out.id).slice(0, 80), body: 'By ' + (u.name || 'the Super Admin') + (clean_(x.note) ? ': ' + clean_(x.note).slice(0, 120) : '') });
   delete out.email;
   return out;
+}
+/* ================= VERIFICATION OF EVERY WORK – THE SUPER ADMIN'S RULES (update-114, asked 15-10-2026) =================
+ * "pratek kamach verification approval systeam … konte task la verification approval systeam lawaychi ka nahi he super admin
+ * tharwel … send to verification … approval kona kade janar ani tyan approval kel ki pudh pn approval sathi janr ki nahi … jr
+ * approval ale ki systeam madhe data add honar … approval he department designation la nko … user wise". So:
+ *   – RULES (the Super Admin, Approvals → Verification rules, per site): every work of the app that saves data is a task – one per
+ *     page (Diesel Issue, Log Book, Diesel Inward, Vendor Master …; a page added later is in the list by itself). A task's rule:
+ *     on / off; its LEVELS, each a list of named users (any one of them approves that level – the others are his backup); and,
+ *     if wanted, only when an entry is dated more than N days back and / or is more than X litres (else every entry).
+ *   – SENT: a save of such a task (by anyone but the Super Admin) is first CHECKED as a save (every rule of the save – nothing is
+ *     written), then kept as a request (billed_changes, kind Flow – the same table as update-108, no new SQL) with the rule's
+ *     levels as they are at that moment; the person is told "Sent for verification to …"; level 1 gets a notification. Nothing
+ *     is in the data yet: not in stock, not in a bill, not in a report. Diesel waiting for verification is held back from the
+ *     stock that can still be issued, so the same litres are not given twice.
+ *   – APPROVED at a level: the next level gets it; at the last level the save runs now, as the sender's own (every check again).
+ *     The sender never approves his own (another of the level does, or the Super Admin, who may approve any level). REJECTED:
+ *     with a reason, back to the sender. A save that fails at the last approval (something changed meanwhile) goes back to the
+ *     sender with the reason (Returned). Every step is kept (who, when, what, note).
+ *   – REMINDERS: a request waiting longer than the rule's hours reminds its level again; after twice as long the Super Admin too.
+ *   – Every open page and the phone app hear of it at once (the "flow" version of the live sync). */
+const FLOW_SKIP_ = ['saveTankSettings', 'saveBillSettings', 'saveLbFormats', 'saveLbFormatName', 'saveCmpRules', 'verifyBills', 'saveDebitRates'];      // settings and checks: not entries
+const FLOW_DRY_ = { flowDry: true };
+let FLOW_RUN_ID_ = '';      // the request being saved now (its own held-back diesel is not counted against it)
+var FLOW_DRY_ON_ = false;      // an entry is being CHECKED only (flowSend_): what is written outside the save's own database write (counters, settings) is not written
+const flowLabel_ = fn => String(fn).replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).replace(/\bLog Rows\b/, 'Log Book rows').trim();
+// the tasks: every page with a save, and its saves (a page added later is here by itself)
+function flowTasks_() {
+  const by = {};
+  Object.keys(API_).forEach(fn => { const s = API_[fn]; if (!s || !s.edit || !s.m || FLOW_SKIP_.indexOf(fn) > -1) return; (by[s.m] = by[s.m] || []).push(fn); });
+  return Object.keys(by).sort().map(m => ({ m: m, label: MODULE_LABEL_[m] || m, fns: by[m], diesel: m === 'Diesel Issue' || m === 'Diesel Transfer' }));
+}
+function flowRules_() {
+  return memoGet_('__flowRules', () => { let r = {}; try { r = JSON.parse(kvRead_('FLOW_RULES') || '{}') || {}; } catch (e) { r = {}; }
+    return { tasks: r.tasks && typeof r.tasks === 'object' ? r.tasks : {}, remindHours: Number(r.remindHours) > 0 ? Number(r.remindHours) : 4 }; });
+}
+function getFlowRules_(u) {
+  if (!u.super) throw new Error('Only the Super Admin sets the verification rules (signed in through the Portal).');
+  return { tasks: flowTasks_(), rules: flowRules_(), users: readUsers_().filter(x => x.active).map(x => ({ email: x.email, name: x.name || x.email })).sort((a, b) => a.name.localeCompare(b.name)) };
+}
+function saveFlowRules_(u, x) {
+  if (!u.super) throw new Error('Only the Super Admin sets the verification rules (signed in through the Portal).');
+  x = x || {};
+  const known = {}; flowTasks_().forEach(t => { known[t.m] = t; });
+  const users = {}; readUsers_().filter(w => w.active).forEach(w => { users[w.email] = w; });
+  const out = { tasks: {}, remindHours: 4 };
+  const rh = blank_(x.remindHours) ? 4 : Number(x.remindHours);
+  if (!(rh >= 1 && rh <= 168)) throw new Error('Verification rules: "remind after" must be 1 to 168 hours.');
+  out.remindHours = Math.round(rh);
+  Object.keys(x.tasks || {}).forEach(m => {
+    const r = x.tasks[m] || {}, t = known[m]; if (!t) return;
+    const levels = (Array.isArray(r.levels) ? r.levels : []).map(l => [...new Set((Array.isArray(l) ? l : []).map(e => str_(e).toLowerCase()).filter(Boolean))]).filter(l => l.length);
+    levels.forEach(l => l.forEach(e => { if (!users[e]) throw new Error('Verification rules – ' + t.label + ': ' + e + ' is not an active user of this site.'); }));
+    if (levels.length > 5) throw new Error('Verification rules – ' + t.label + ': at most 5 levels.');
+    const on = r.on === true;
+    if (on && !levels.length) throw new Error('Verification rules – ' + t.label + ': pick at least one person for level 1 (or switch it off).');
+    const db = blank_(r.daysBack) ? '' : Number(r.daysBack), qa = blank_(r.qtyAbove) ? '' : Number(r.qtyAbove);
+    if (db !== '' && !(db >= 0 && db <= 365 && Math.floor(db) === db)) throw new Error('Verification rules – ' + t.label + ': "days back" must be a whole number 0 to 365.');
+    if (qa !== '' && !(qa > 0 && qa < 100000)) throw new Error('Verification rules – ' + t.label + ': "more than litres" must be a number above 0.');
+    if (on || levels.length) out.tasks[m] = { on: on, levels: levels, daysBack: db, qtyAbove: t.diesel ? qa : '' };
+  });
+  kvWrite_('FLOW_RULES', JSON.stringify(out)); memoDrop_('__flowRules');
+  return { ok: true, rules: out };
+}
+// what a save names: its dates, and the diesel litres it takes out at each place
+function flowFacts_(fn, args) {
+  const dates = {}, byLoc = {}, spec = API_[fn] || {}, takes = (spec.m === 'Diesel Issue' || spec.m === 'Diesel Transfer') && !/^delete/.test(fn);
+  const walk = (v, d) => {
+    if (d > 6 || v === null || v === undefined) return;
+    if (Array.isArray(v)) { v.slice(0, 3000).forEach(x => walk(x, d + 1)); return; }
+    if (typeof v !== 'object') return;
+    ['date', 'idate', 'from'].forEach(k => { const s = str_(v[k]); if (/^\d{4}-\d{2}-\d{2}$/.test(s)) dates[s] = true; });
+    if (takes) { const q = Number(v.qty !== undefined ? v.qty : v.litres); if (q > 0 && isFinite(q)) { const loc = str_(v.source || (spec.m === 'Diesel Transfer' ? v.from : '')) || APP.MAIN_LOC; byLoc[loc] = r2_((byLoc[loc] || 0) + q); } }
+    Object.keys(v).forEach(k => { if (v[k] && typeof v[k] === 'object') walk(v[k], d + 1); });
+  };
+  walk(args, 0);
+  return { dates: Object.keys(dates).sort(), byLoc: byLoc, qty: r2_(Object.keys(byLoc).reduce((s, k) => s + byLoc[k], 0)) };
+}
+// the rule that holds this save back (null = it is saved now, as before)
+function flowRuleFor_(u, spec, fn, args) {
+  if (!u || u.super || !spec || !spec.edit || !spec.m || FLOW_SKIP_.indexOf(fn) > -1) return null;
+  const r = flowRules_().tasks[spec.m]; if (!r || r.on !== true || !(r.levels || []).length) return null;
+  const conds = [];
+  if (r.daysBack !== '' && r.daysBack !== undefined) conds.push(f => f.dates.some(dk => dk < addDays_(today_(), -Number(r.daysBack))));
+  if (r.qtyAbove !== '' && r.qtyAbove !== undefined) conds.push(f => f.qty > Number(r.qtyAbove));
+  if (conds.length) { const f = flowFacts_(fn, args); if (!conds.some(c => c(f))) return null; }
+  return r;
+}
+function flowAll_() {
+  let t = null; try { t = crTable_(false); } catch (e) { return []; }
+  return t ? t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.id && r.kind === 'Flow').map(r => { let d = {}; try { d = JSON.parse(r.data || '{}') || {}; } catch (e) { d = {}; } r.flow = d; return r; }) : [];
+}
+const flowNames_ = emails => { const by = {}; readUsers_().forEach(w => { by[w.email] = w.name || w.email; }); return emails.map(e => by[e] || e); };
+// diesel held back for requests waiting at a place (not the one being saved now)
+function flowReserved_(loc) {
+  const all = memoGet_('__flowRes', () => { const o = {}; flowAll_().filter(r => r.status === 'Pending').forEach(r => { const b = (r.flow || {}).byLoc || {}; Object.keys(b).forEach(l => { (o[l] = o[l] || []).push({ id: r.id, q: Number(b[l]) || 0 }); }); }); return o; });
+  return r2_((all[loc] || []).filter(x => x.id !== FLOW_RUN_ID_).reduce((s, x) => s + x.q, 0));
+}
+// A SAVE HELD BACK: checked as a save (nothing written), then kept for the first level. Returns the save's own refusal, if any.
+function flowSend_(u, spec, fn, args, rule) {
+  TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
+  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
+  let res = null;
+  FLOW_DRY_ON_ = true;
+  try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); throw FLOW_DRY_; }); }
+  catch (e) { if (e !== FLOW_DRY_) throw e; }
+  finally { FLOW_DRY_ON_ = false; }
+  TABLE_MEMO_ = {};
+  const errs = res && typeof res === 'object' ? (res.errors || []) : [];
+  if (res && typeof res === 'object' && (res.ok === false || errs.length)) return res;      // the save itself refuses it: said as for a save, nothing is sent
+  const json = JSON.stringify(args || []);
+  if (json.length > 400000) throw new Error('This entry is too big to send for verification at once – send it in parts (fewer rows).');
+  const me = str_(u.email).toLowerCase(), facts = flowFacts_(fn, args), d = flowDescribe_(fn, args);
+  const levels = rule.levels.map(l => l.slice());
+  const out = withLock_(() => {
+    const t = crTable_(true), all = flowAll_();
+    if (all.some(r => r.status === 'Pending' && r.email === me && r.fn === fn && r.args === json)) throw new Error('This same entry is already waiting for verification – it is saved when it is approved.');
+    const id = 'VF-' + String(all.reduce((mx, r) => Math.max(mx, Number(r.id.replace(/\D/g, '')) || 0), 0) + 1).padStart(5, '0');
+    const now = new Date(), data = { m: spec.m, levels: levels, level: 0, history: [{ step: 'Sent', by: u.name || u.email, email: me, at: now.toISOString() }], byLoc: facts.byLoc, qty: facts.qty, waitSince: now.toISOString(), reminded: {} };
+    const row = newRow_(t);
+    set_(row, t, 'Request ID', id); set_(row, t, 'Kind', 'Flow'); set_(row, t, 'Requested At', now); set_(row, t, 'Requested By', u.name || u.email); set_(row, t, 'Requester Email', me);
+    set_(row, t, 'Action', fn); set_(row, t, 'Args', json); set_(row, t, 'Summary', JSON.stringify(d.lines)); set_(row, t, 'Machinery', d.nos.slice(0, 300)); set_(row, t, 'Dates', d.dates.slice(0, 300));
+    set_(row, t, 'Reason', (MODULE_LABEL_[spec.m] || spec.m) + ' – ' + flowLabel_(fn)); set_(row, t, 'Status', 'Pending'); set_(row, t, 'Data', JSON.stringify(data)); set_(row, t, 'Created At', now);
+    t.sh.appendRow(row); TABLE_MEMO_ = {};
+    writeLog_(u, 'Add', 'Approvals', id, 'Sent for verification: ' + (MODULE_LABEL_[spec.m] || spec.m) + ' – ' + flowLabel_(fn), d.lines.join('; ').slice(0, 900));
+    const names = flowNames_(levels[0].filter(e => e !== me));
+    // the answer kept with this write (update-68 "saved once"): a copy sent again is told the same words, not "saved" (server/runtime.js)
+    return { id: id, lines: d.lines, __refused: 'Sent for verification to ' + (names.length ? names.join(', ') : 'the Super Admin') + (levels.length > 1 ? ' (level 1 of ' + levels.length + ')' : '') + ' – ' + id + '. It is saved when it is approved; nothing is saved until then.' };
+  });
+  bump_(['flow']);
+  const to = levels[0].filter(e => e !== me);
+  crNotify_(to.length ? to : crSupers_(), { id: out.id, title: 'Verification – ' + (MODULE_LABEL_[spec.m] || spec.m) + ' by ' + (u.name || u.email), body: out.lines[0] + (out.lines.length > 1 ? ' (+' + (out.lines.length - 1) + ')' : '') });
+  throw new Error(out.__refused);
+}
+// in words: as the billed changes (machinery, date, readings); other pages – the main fields of what was sent
+function flowDescribe_(fn, args) {
+  const d = crDescribe_(fn, args);
+  if (d.lines.length && d.lines[0] !== '(' + fn + ')') return d;
+  const keys = ['name', 'vendor', 'no', 'machinery', 'id', 'code', 'billNo', 'date', 'from', 'to', 'amount', 'qty', 'type', 'owner', 'mode', 'remark', 'status', 'reference'];
+  const o = (args || []).find(a => a && typeof a === 'object' && !Array.isArray(a)) || {};
+  const parts = keys.filter(k => !blank_(o[k]) && typeof o[k] !== 'object').map(k => k + ' ' + clean_(o[k]).slice(0, 40));
+  const first = (args || []).find(a => typeof a === 'string' || typeof a === 'number');
+  d.lines = [flowLabel_(fn) + (parts.length ? ': ' + parts.slice(0, 8).join(', ') : first !== undefined ? ': ' + clean_(first).slice(0, 80) : '')];
+  return d;
+}
+// may this user decide this request now?
+function flowCan_(u, r) {
+  if (r.kind !== 'Flow' || r.status !== 'Pending') return false;
+  if (u.super) return true;
+  const me = str_(u.email).toLowerCase(), lv = ((r.flow || {}).levels || [])[(r.flow || {}).level || 0] || [];
+  return me !== r.email && lv.indexOf(me) > -1;
+}
+function flowDecide_(u, x) {
+  x = x || {};
+  const note = clean_(x.note).slice(0, 300), approve = x.approve === true, me = str_(u.email).toLowerCase();
+  if (!approve && !note) throw new Error('Write why it is rejected – the person who sent it reads it.');
+  // the request as it is now (looked at again inside each save: someone else may have decided it meanwhile)
+  const look = () => {
+    const r0 = flowAll_().find(r => r.id === str_(x.id));
+    if (!r0) throw new Error('This request was not found – refresh the list.');
+    if (r0.status !== 'Pending') throw new Error('This request is already ' + r0.status.toLowerCase() + ' (by ' + (r0.decidedBy || '–') + ').');
+    const lv = r0.flow.levels[r0.flow.level] || [];
+    if (!u.super && me === r0.email) throw new Error('You cannot approve your own entry – another person of the level (or the Super Admin) does.');
+    if (!u.super && lv.indexOf(me) === -1) throw new Error('This request is not waiting for you (level ' + (r0.flow.level + 1) + ': ' + flowNames_(lv).join(', ') + ').');
+    return r0;
+  };
+  const write = (r0, f, status, result) => {
+    TABLE_MEMO_ = {};
+    const t2 = crTable_(false), r1 = t2.rows.map((r, i) => crOut_(t2, r, i)).find(r => r.id === r0.id), row = t2.rows[r1.i].slice();
+    set_(row, t2, 'Status', status); set_(row, t2, 'Data', JSON.stringify(f)); set_(row, t2, 'Decided By', u.name || u.email); set_(row, t2, 'Decided At', new Date());
+    set_(row, t2, 'Decision Note', note); if (result) set_(row, t2, 'Result', result); stampEdit_(row, t2);
+    t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
+  };
+  let r0 = look();
+  const last = approve && r0.flow.level + 1 >= r0.flow.levels.length;
+  let status = 'Pending', result = '', next = null, f = null;
+  if (!last) {
+    withLock_(() => {
+      r0 = look(); f = r0.flow;
+      f.history.push({ step: approve ? 'Approved' : 'Rejected', level: f.level + 1, by: u.name || u.email, email: me, at: new Date().toISOString(), note: note });
+      if (approve) { f.level++; f.waitSince = new Date().toISOString(); next = f.levels[f.level]; } else status = 'Rejected';
+      write(r0, f, status, '');
+    });
+  } else {
+    // the last level: the save runs now, as the sender's own, with every check of a save – saved together with "Approved", or not at all
+    const spec = API_[r0.fn], ru = readUsers_().find(w => w.email === r0.email);
+    let why = '';
+    if (!spec) why = 'the action ' + r0.fn + ' is not in the app any more';
+    else if (!ru || !ru.active) why = r0.by + ' is not an active user of this site any more';
+    else if (spec.m && !canEdit_(ru, spec.m)) why = r0.by + ' has no Edit access to ' + (MODULE_LABEL_[spec.m] || spec.m) + ' any more';
+    if (!why) {
+      let args = []; try { args = JSON.parse(r0.args || '[]'); } catch (e) { args = []; }
+      const a0 = ACTOR_, ad0 = ACTOR_ADMIN_, su0 = ACTOR_SUPER_;
+      try {
+        withLock_(() => {
+          r0 = look(); f = r0.flow;
+          ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; FLOW_RUN_ID_ = r0.id;
+          const before = spec.log ? logBefore_(spec, args) : null;
+          const res = spec.withUser ? spec.f.apply(null, [ru].concat(args)) : spec.f.apply(null, args);
+          const errs = res && typeof res === 'object' ? (res.errors || []) : [];
+          if (res && typeof res === 'object' && (res.ok === false || errs.length)) throw new Error(errs.length ? errs.slice(0, 5).map(e => (e.row ? 'Line ' + e.row + ': ' : '') + (e.msg || e)).join(' | ') : (res.error || res.warning || 'refused'));
+          if (spec.log) { try { logAfter_(ru, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ } }
+          ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0;
+          f.history.push({ step: 'Approved', level: f.level + 1, by: u.name || u.email, email: me, at: new Date().toISOString(), note: note });
+          write(r0, f, 'Approved', 'Saved');
+        });
+        bump_(SYNC_GROUPS_[spec.m] || []);
+        status = 'Approved'; result = 'Saved';
+      } catch (e) {
+        if (/^(This request (was not found|is already|is not waiting)|You cannot approve)/.test(String(e && e.message)) || faultKind_(e)) throw e;
+        why = String((e && e.message) || e).slice(0, 400);
+      } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; FLOW_RUN_ID_ = ''; }
+    }
+    if (why) {
+      withLock_(() => {
+        r0 = look(); f = r0.flow;
+        f.history.push({ step: 'Approved', level: f.level + 1, by: u.name || u.email, email: me, at: new Date().toISOString(), note: note });
+        f.history.push({ step: 'Returned', by: 'the app', at: new Date().toISOString(), note: why });
+        write(r0, f, 'Returned', 'Not saved: ' + why);
+      });
+      status = 'Returned'; result = 'Not saved: ' + why;
+    }
+  }
+  bump_(['flow']);
+  const what = (r0.summary[0] || r0.id).slice(0, 80), lvN = r0.flow.levels.length;
+  if (next) crNotify_(next.filter(e => e !== r0.email), { id: r0.id, title: 'Verification – level ' + (r0.flow.level + 1) + ' of ' + lvN + ' (' + r0.by + ')', body: what });
+  else crNotify_([r0.email], { id: r0.id, title: (status === 'Approved' ? 'Approved – saved: ' : status === 'Rejected' ? 'Rejected – not saved: ' : 'Not saved: ') + what, body: 'By ' + (u.name || u.email) + (note ? ': ' + note : result ? ': ' + result : '') });
+  return { ok: true, id: r0.id, status: status, result: result, level: r0.flow.level + 1, levels: lvN, by: r0.by, summary: r0.summary };
+}
+// several at once (each its own save: one that cannot be saved does not stop the others)
+function flowDecideMany_(u, x) {
+  x = x || {};
+  const ids = (Array.isArray(x.ids) ? x.ids : []).map(str_).filter(Boolean).slice(0, 200);
+  if (!ids.length) throw new Error('Tick the requests first.');
+  const done = [], failed = [];
+  ids.forEach(id => { try { const r = flowDecide_(u, { id: id, approve: x.approve === true, note: x.note }); done.push({ id: id, status: r.status, result: r.result }); } catch (e) { failed.push({ id: id, error: String((e && e.message) || e).slice(0, 200) }); } });
+  return { ok: true, done: done, failed: failed, list: crList_(u, {}) };
+}
+// reminders: at most every 10 minutes (any open page's heartbeat), for requests waiting longer than the rule's hours
+function flowRemind_() {
+  const c = CacheService.getScriptCache(); if (c.get('FLOW_REMIND')) return; c.put('FLOW_REMIND', '1', 600);
+  const hrs = flowRules_().remindHours, now = Date.now(), due = [];
+  flowAll_().filter(r => r.status === 'Pending').forEach(r => {
+    const f = r.flow || {}, since = Date.parse(f.waitSince || r.at), age = (now - since) / 3600000, key = String(f.level || 0), rm = f.reminded || {};
+    if (!(age >= hrs)) return;
+    const esc = age >= 2 * hrs;
+    if (rm[key] === (esc ? 2 : 1) || (rm[key] === 2)) return;
+    due.push({ id: r.id, level: key, esc: esc, to: ((f.levels || [])[f.level || 0] || []).filter(e => e !== r.email), by: r.by, what: (r.summary[0] || r.id).slice(0, 80), hours: Math.floor(age) });
+  });
+  if (!due.length) return;
+  withLock_(() => {
+    const t = crTable_(false); if (!t) return;
+    due.forEach(d => { const r1 = t.rows.map((r, i) => crOut_(t, r, i)).find(r => r.id === d.id); if (!r1) return;
+      let f = {}; try { f = JSON.parse(r1.data || '{}'); } catch (e) { f = {}; } f.reminded = f.reminded || {}; f.reminded[d.level] = d.esc ? 2 : 1;
+      const row = t.rows[r1.i].slice(); set_(row, t, 'Data', JSON.stringify(f)); t.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); });
+    TABLE_MEMO_ = {};
+  });
+  due.forEach(d => crNotify_(d.esc ? d.to.concat(crSupers_()) : d.to, { id: d.id, title: (d.esc ? 'Waiting too long – ' : 'Reminder – ') + 'verification of ' + d.by + ' (' + d.hours + ' h)', body: d.what }));
 }
 // (read once per table-memo lifetime: the memo is emptied for every request and after every write, so the date is never stale)
 // a value kept for as long as the table memory of the request lives (outside a request – sign-in, the sign-in screen – there is no memory: read every time)
