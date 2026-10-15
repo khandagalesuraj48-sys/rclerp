@@ -1651,6 +1651,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   value gets its English value first). Code that compares shown words uses `i18nSame`; browser boxes `i18nAs`. Files served at
   /i18n/ (build.js, dev.js, vercel.json), cached in localStorage per build. New texts: `node tools/i18n/extract.js` → keys.json,
   then translate the missing ones. Unit "update-110", browser lang110.js 17.
+- 15-10-2026 (update-111). Report: `UPDATE_111.md`. Every site its own vendors (replaces update-106's one Vendor Master): nothing
+  is copied to another site (`vendorSpread_`, `sysVendor*`, `vendorsTogether_` and the runtime's `OTHERS_` entries removed); a
+  copy written by update-106 (`owner_site` = another site) is hidden by `vendorHidden_()` unless this site uses it (asset owner,
+  BOQ, bill, payment, debit note, Log Book Debit To – the database asked with `in.(…)`; when it cannot be asked nothing is
+  hidden); a save here sets `owner_site` = this site. Unit "update-106 → update-111", "update-111"; rig `test/vendors111api.js` 12.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
