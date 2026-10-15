@@ -20,6 +20,9 @@ fs.writeFileSync(path.join(out, 'manifest.webmanifest'), JSON.stringify({
 // the Excel tools the page uses, served from the app's own address (app/vendor → /vendor/…)
 const vend = path.join(__dirname, 'app', 'vendor');
 if (fs.existsSync(vend)) { fs.mkdirSync(path.join(out, 'vendor'), { recursive: true }); fs.readdirSync(vend).filter(f => /\.js$/.test(f)).forEach(f => fs.copyFileSync(path.join(vend, f), path.join(out, 'vendor', f))); }
+// (update-110) the words of the app in Marathi and Hindi (app/i18n → /i18n/mr.json, /i18n/hi.json), fetched by the page when a user picks the language
+fs.mkdirSync(path.join(out, 'i18n'), { recursive: true });
+['mr', 'hi'].forEach(l => fs.copyFileSync(path.join(__dirname, 'app', 'i18n', l + '.json'), path.join(out, 'i18n', l + '.json')));
 // (13-10-2026, one address) this module's pages for the other modules' menus (server/page.js menu)
 fs.writeFileSync(path.join(out, 'menu.json'), JSON.stringify(menu()));
 fs.writeFileSync(path.join(out, 'sw.js'), fs.readFileSync(path.join(__dirname, 'app', 'sw.js'), 'utf8').replace('/*BUILD*/', build));

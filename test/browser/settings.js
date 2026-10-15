@@ -25,7 +25,7 @@ const saved = () => { const v = sql("select value from app_settings where id = '
   const press = (pref, v) => f.evaluate((a, c) => document.querySelector('#sec-settings .set-seg[data-pref="' + a + '"] button[data-v="' + c + '"]').click(), pref, v);
   const pick = (id, v) => f.evaluate((a, c) => { const el = document.getElementById(a); el.value = c; el.dispatchEvent(new Event('change', { bubbles: true })); }, id, v);
   // ---- look ----
-  await press('theme', 'dark'); await press('text', 'large'); await press('density', 'compact'); await press('lang', 'en'); await wait(1500);
+  await press('theme', 'dark'); await press('text', 'large'); await press('density', 'compact'); await press('appLang', ''); await wait(1500);      // (update-110: "Language of the app" – English also gives the English help)
   s = await st(); let d = saved();
   ok('dark, large text, tight rows, English help: applied at once and saved with my account', s.theme === 'dark' && s.text === 'large' && s.dens === 'compact' && s.lang === 'en' && d.theme === 'dark' && d.text === 'large' && d.density === 'compact' && d.lang === 'en', { page: s, db: { theme: d.theme, text: d.text, density: d.density, lang: d.lang } });
   await Promise.race([p.screenshot({ path: 'shots/settings_dark.png' }).catch(() => {}), wait(20000)]);

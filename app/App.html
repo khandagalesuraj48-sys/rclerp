@@ -3677,7 +3677,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="set-item"><b>Theme</b><div class="set-seg" data-pref="theme"><button type="button" data-v="light">Light</button><button type="button" data-v="dark">Dark</button><button type="button" data-v="auto">As the device</button></div><small class="muted">Prints and PDFs are always on white.</small></div>
         <div class="set-item"><b>Size of the text</b><div class="set-seg" data-pref="text"><button type="button" data-v="normal">Normal</button><button type="button" data-v="large">Large</button><button type="button" data-v="xlarge">Larger</button></div></div>
         <div class="set-item"><b>Rows in lists</b><div class="set-seg" data-pref="density"><button type="button" data-v="normal">Roomy</button><button type="button" data-v="compact">Tight (more rows)</button></div></div>
-        <div class="set-item"><b>Language of the help</b><div class="set-seg" data-pref="lang"><button type="button" data-v="mr">मराठी</button><button type="button" data-v="hi">हिंदी</button><button type="button" data-v="en">English</button></div><small class="muted">Error explanations, page guides and the "being sent again" line.</small></div>
+        <div class="set-item"><b>Language of the app</b><div class="set-seg" data-pref="appLang" data-noi18n><button type="button" data-v="mr">मराठी</button><button type="button" data-v="hi">हिंदी</button><button type="button" data-v="">English</button></div><small class="muted">Everything on the screens, the messages, errors and help – for you only. Bills, notes and prints stay in English.</small></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="lessMotion"> Less movement (no gliding, no opening film)</label><label class="ck"><input type="checkbox" data-pref="intro"> Play the opening when I open the app</label></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="brief"> Show me the daily summary when I open the app (once a day)</label><label class="ck"><input type="checkbox" data-pref="voiceOut"> Speak the answer aloud when I ask by voice</label></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="sound"> A short sound when something is saved or goes wrong</label><label class="ck"><input type="checkbox" data-pref="enterNext"> Enter moves to the next box (like Tab)</label></div>
@@ -4416,6 +4416,112 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   })();
   let SITE_NAME = 'VTR Site – NH 848'; // shown on every report (screen, print and Excel) – from the setting "Company & site" (applyOrg)
   const S = { master: [], drivers: [], today: '', editNo: null, prefill: null };
+  /* ================= THE APP'S LANGUAGE (update-110, asked 14-10-2026) =================
+   * "app madhe app language cha option haway marathi hindi englis ji language selet asel app tyach language madhe sagle kahi dakhwel mg
+   * kam aso ki errors aso suggestions aso … he user vise asel". Settings → Language of the app – each user his own (kept with his
+   * settings; English until he picks one).
+   * The page stays written in English; what it SHOWS is turned into Marathi / Hindi as it appears on the screen: every text, and the
+   * hints (placeholder) and tooltips (title), from app/i18n/<lang>.json (English → the language). A text with {0}, {1}… is a pattern:
+   * the parts in braces are what the page fills in (a machinery, a date, a number) and are carried over as they are. The server's
+   * messages are found the same way. Not touched: what is typed (boxes keep their values; a drop-down keeps its English value), the
+   * papers that go out (Abstract, Tax Invoice, notes, Log Book sheets, prints – they stay English), anything marked data-noi18n.
+   * A text without a translation stays English. tools/i18n/extract.js collects the texts; the unit test checks the files. */
+  const I18N = { lang: '', map: null, tpl: null, seen: new Map(), done: new WeakMap(), obs: null, todo: new Set(), raf: 0, want: '' };
+  const I18N_SKIP = 'script, style, textarea, code, pre, svg, [data-noi18n], .sheet, .bl, .tx, .dnp, .billsheet, .lbsheet, .mb-paper, #mb_pages, [contenteditable="true"]';
+  function i18nIndex(d) {
+    const map = new Map(), tpl = new Map(), word = w => String(w || '').replace(/[^A-Za-z0-9'-]/g, '').toLowerCase();
+    Object.keys(d).forEach(k => {
+      if (!/\{\d+\}/.test(k)) { map.set(k, d[k]); return; }
+      const parts = k.split(/(\{\d+\})/), lits = parts.filter((p, i) => i % 2 === 0);
+      const first = lits.map(x => x.trim().split(/\s+/).map(word).find(w => /[a-z]{2}/.test(w))).find(Boolean); if (!first) return;
+      // a part put right after a word: an English ending ("entr" + "y" / "ies", "day" + "" / "s" – left out of the translation) and / or
+      // more words after a space or a sign ("Active" + " (from …)" – carried over), or nothing
+      const end = i => /[A-Za-z]$/.test(parts[i - 1]) && !/^[A-Za-z]/.test(parts[i + 1] || '');
+      let re; try { re = new RegExp('^' + parts.map((p, i) => i % 2 ? (end(i) ? '((?:ies|es|s|y)?(?:[^A-Za-z][\\s\\S]*?)?)' : '([\\s\\S]+?)') : p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('') + '$'); } catch (e) { return; }
+      (tpl.get(first) || tpl.set(first, []).get(first)).push({ re: re, ids: parts.filter((p, i) => i % 2).map(p => p.slice(1, -1)), end: parts.map((p, i) => i % 2 && end(i) ? p.slice(1, -1) : null).filter(Boolean), to: d[k], n: lits.join('').length });
+    });
+    tpl.forEach(l => l.sort((a, b) => b.n - a.n));      // the longest pattern first (the most exact)
+    return { map: map, tpl: tpl, word: word };
+  }
+  // one text → the chosen language; null = keep it as it is
+  function i18nStr(s) {
+    if (!I18N.map || typeof s !== 'string') return null;
+    const t = s.trim(); if (!t || t.length > 3000 || !/[A-Za-z]{2}/.test(t)) return null;
+    let v = I18N.map.get(t);
+    if (v === undefined && I18N.seen.has(t)) v = I18N.seen.get(t);      // a text worked out before (a list drawn again)
+    else if (v === undefined) {
+      const tried = new Set();
+      for (const w0 of t.split(/\s+/).slice(0, 10)) { const w = I18N.word(w0); if (!w || tried.has(w)) continue; tried.add(w);
+        const L = I18N.tpl.get(w); if (!L) continue;
+        for (const x of L) { const m = x.re.exec(t); if (m) { v = x.to.replace(/\{(\d+)\}/g, (a, n) => { const j = x.ids.indexOf(n); return j < 0 ? a : x.end.indexOf(n) > -1 ? m[j + 1].replace(/^(ies|es|s|y)/, '') : m[j + 1]; }); break; } }
+        if (v !== undefined) break; }
+      if (I18N.seen.size > 20000) I18N.seen.clear(); I18N.seen.set(t, v);
+    }
+    if (v === undefined || v === t) return null;
+    const at = s.indexOf(t); return s.slice(0, at) + v + s.slice(at + t.length);
+  }
+  const i18nAs = s => { const v = i18nStr(s); return v === null ? s : v; };      // for a box of the browser's own (alert / confirm)
+  // is this text (shown) the same as this English text – in English or in the chosen language (for code that looks at a button's words)
+  const i18nSame = (shown, en) => shown === en || (!!I18N.map && shown === i18nStr(en));
+  function i18nText(n, inside) {      // inside: reached by the walk below, which already left out the papers / typing boxes
+    const p = n.parentElement; if (!p) return;
+    const was = I18N.done.get(n); if (was !== undefined && was === n.nodeValue) return;      // (already turned by us)
+    if (!inside && p.closest(I18N_SKIP)) return;
+    const v = i18nStr(n.nodeValue); if (v === null) return;
+    if (p.tagName === 'OPTION' && !p.hasAttribute('value')) p.setAttribute('value', p.value);      // the drop-down keeps its English value
+    n.nodeValue = v; I18N.done.set(n, v);
+  }
+  function i18nEl(el, inside) {
+    if (el.nodeType !== 1) return; if (!el.hasAttribute('placeholder') && !el.hasAttribute('title') && !el.hasAttribute('aria-label')) return;
+    const sk = inside && el.tagName !== 'TEXTAREA' ? null : el.closest(I18N_SKIP);
+    if (sk && !(sk === el && el.tagName === 'TEXTAREA' && !(el.parentElement && el.parentElement.closest(I18N_SKIP)))) return;      // a typing box: its hint only, never what is typed
+    ['placeholder', 'title', 'aria-label'].forEach(a => { const x = el.getAttribute(a); if (!x || el['__i18n_' + a] === x) return; const v = i18nStr(x); if (v !== null) { el['__i18n_' + a] = v; el.setAttribute(a, v); } });
+  }
+  function i18nTree(root) {
+    if (!root) return;
+    if (root.nodeType === 3) { i18nText(root); return; }
+    if (root.nodeType !== 1) return;
+    i18nEl(root); if (root.closest(I18N_SKIP)) return;
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, { acceptNode: x => x.nodeType === 1 && x.matches(I18N_SKIP) ? (x.tagName === 'TEXTAREA' && i18nEl(x), NodeFilter.FILTER_REJECT) : NodeFilter.FILTER_ACCEPT });
+    let x; while ((x = w.nextNode())) { if (x.nodeType === 3) i18nText(x, true); else i18nEl(x, true); }
+  }
+  function i18nFlush() {
+    I18N.raf = 0; const l = [...I18N.todo]; I18N.todo.clear();
+    try { l.forEach(i18nTree); } catch (e) { /* a text that cannot be turned stays as it is */ }
+  }
+  function i18nWatch(on) {
+    if (I18N.obs) { I18N.obs.disconnect(); I18N.obs = null; }
+    if (!on) return;
+    I18N.obs = new MutationObserver(ms => { ms.forEach(m => { if (m.type === 'childList') m.addedNodes.forEach(x => I18N.todo.add(x)); else I18N.todo.add(m.target); });
+      if (!I18N.raf) I18N.raf = requestAnimationFrame(i18nFlush); });
+    I18N.obs.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['placeholder', 'title', 'aria-label'] });
+    i18nTree(document.body);
+  }
+  async function i18nDict(l) {
+    const key = 'rcl_i18n_' + l, ver = String(window.APP_BUILD || '');
+    try { const c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && c.d && (c.v === ver || !ver)) return c.d; } catch (e) { /* read again */ }
+    const r = await fetch('/i18n/' + l + '.json', { cache: 'no-cache' }); if (!r.ok) throw new Error('The ' + (l === 'mr' ? 'Marathi' : 'Hindi') + ' words could not be loaded (' + r.status + ').');
+    const d = await r.json(); try { Object.keys(localStorage).filter(k => /^rcl_i18n_/.test(k)).forEach(k => localStorage.removeItem(k)); localStorage.setItem(key, JSON.stringify({ v: ver, d: d })); } catch (e) { /* kept for this page only */ }
+    return d;
+  }
+  // drawn again once the setting is saved with the account (a save on its way is not lost)
+  function i18nReload() {
+    const go = () => { let wait = false; try { wait = prefBusy > 0 || Object.keys(prefDirty).length > 0; } catch (e) { wait = false; }
+      if (wait) { setTimeout(go, 200); return; } try { window.top.location.reload(); } catch (e) { location.reload(); } };
+    setTimeout(go, 600);
+  }
+  // the language to show: the user's own (Settings), before the sign-in the last one used on this device
+  async function i18nSet(lang) {
+    lang = lang === 'mr' || lang === 'hi' ? lang : '';
+    try { localStorage.setItem('rcl_applang', lang); } catch (e) { /* this page only */ }
+    if (lang === I18N.want) return; I18N.want = lang;
+    document.documentElement.lang = lang || 'en';
+    if (!lang) { if (I18N.lang) { i18nWatch(false); i18nReload(); } return; }      // back to English: the page is drawn again
+    if (I18N.lang && I18N.lang !== lang) { i18nWatch(false); i18nReload(); return; }      // another language: drawn again from English
+    try { const d = await i18nDict(lang); if (I18N.want !== lang) return; const x = i18nIndex(d); I18N.map = x.map; I18N.tpl = x.tpl; I18N.word = x.word; I18N.lang = lang; i18nWatch(true); }
+    catch (e) { I18N.want = ''; try { console.warn(String(e && e.message || e)); } catch (er) { /* fine */ } }
+  }
+  try { const l0 = localStorage.getItem('rcl_applang'); if (l0 === 'mr' || l0 === 'hi') setTimeout(() => i18nSet(l0), 0); } catch (e) { /* English */ }
   const $ = id => document.getElementById(id);
   const hasKm = u => u === 'KM' || u === 'KM + Hrs';
   const hasHr = u => u === 'Hrs' || u === 'KM + Hrs';
@@ -4608,10 +4714,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if ($('oc_for')) $('oc_for').textContent = o.customer + (o.site ? '  ·  ' + o.site : '');
     try { (window.top || window).document.title = o.customer + ' – ' + (o.product || 'Fleet ERP') + ' · ' + (o.brand || 'One Click Solution'); } catch (e) { /* another origin: leave the title */ }
     // the drop-downs with the names bills are made in: redrawn only when the names are not the ones written in the page
-    document.querySelectorAll('select').forEach(sel => { const os = [...sel.options], vals = os.filter(x => x.value !== '' || x.textContent !== 'Both').map(x => x.textContent);
+    document.querySelectorAll('select').forEach(sel => { const os = [...sel.options], vals = os.filter(x => x.value !== '' || !i18nSame(x.textContent, 'Both')).map(x => x.textContent);
       if (!os.some(x => x.textContent === 'Sketchline Industries' || x.dataset.bn) || !names.length) return;
       if (vals.length === names.length && vals.every(v => names.indexOf(v) > -1)) return;
-      const keep = sel.value, both = os.find(x => x.value === '' && x.textContent === 'Both');
+      const keep = sel.value, both = os.find(x => x.value === '' && i18nSame(x.textContent, 'Both'));
       sel.innerHTML = (both ? '<option value="">Both</option>' : '') + names.map(n => '<option data-bn="1">' + esc(n) + '</option>').join(''); if (names.indexOf(keep) > -1 || keep === '') sel.value = keep; });
     // the Admin's form and the note above the users
     if ($('org_customer') && document.activeElement !== $('org_customer')) { $('org_customer').value = o.customer; $('org_site').value = o.site || ''; $('org_logo').value = o.logo || ''; $('org_names').value = (o.billNames || []).join('\n'); $('org_video').value = o.video || ''; $('org_intro').checked = o.intro !== false; }
@@ -5883,7 +5989,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function toast(msg, bad) {
     if (bad) { try { fixCard(msg); } catch (e) { /* the message itself is still shown */ } } else if ($('fixbox') && !$('fixbox').classList.contains('info')) $('fixbox').hidden = true;   // an information card stays until it is closed
     // the red line itself: in Marathi / Hindi first what is wrong in that language, then the app's own line with the names and numbers
-    if (bad && fixLang !== 'en') { try { const r0 = fixRules(msg)[0]; if (r0 !== FIX_ANY) msg = r0[fixLang][0] + '\n' + msg; } catch (e) { /* keep the message */ } }
+    if (bad && fixLang !== 'en') { try { const r0 = fixRules(msg)[0]; if (r0 !== FIX_ANY) msg = r0[fixLang][0] + '\n' + i18nAs(msg); } catch (e) { /* keep the message */ } }      // (update-110) the app's own line in the app's language too
     if (!bad) { S.formDirty = false; S.dhCache = {}; if (S.newBuild) setTimeout(() => { if (!window.rclBusy()) swapNow(); }, 2500); } // saved → now take the new version
     const t = $('toast');
     try { prefSound(!!bad); } catch (e) { /* the message matters, not the sound */ }
@@ -5931,7 +6037,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       else if (/ is (inactive|active only from)/.test(m)) showAlert('Machinery is not active', m.replace(/^Row \d+: /, ''));
       else toast(m, m !== CR_SENT);
     }
-    finally { btn.disabled = false; if (btn.textContent === label) btn.textContent = old; }
+    finally { btn.disabled = false; if (i18nSame(btn.textContent, label)) btn.textContent = old; }
   }
   const noKey = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   /* THE AVERAGE OF A TWO-ENGINE, ONE-TANK MACHINERY (unit "KM + Hrs", a transit mixer) – the MD's rule of 03-10-2026, the same
@@ -7532,8 +7638,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         try { await rclLoadExcelJs(); n = await printExcelStyled(w.document, title); }
         catch (e1) { plain = errMsg(e1); n = printExcelPlain(w.document, title); }      // without the formatting tool: the plain Excel, and it says so
         xb.textContent = 'Excel ✓'; xb.title = n + ' tab(s) saved to Downloads' + (plain ? ' – WITHOUT formatting (' + plain + ')' : '');
-        if (plain) w.alert('The Excel was saved WITHOUT formatting: ' + plain + ' Check the internet and press Excel again for the formatted one.');
-      } catch (e) { xb.textContent = 'Excel'; w.alert(errMsg(e)); } finally { delete xb.dataset.busy; } }; } catch (e) { /* print works without it */ }
+        if (plain) w.alert(i18nAs('The Excel was saved WITHOUT formatting: ' + plain + ' Check the internet and press Excel again for the formatted one.'));
+      } catch (e) { xb.textContent = 'Excel'; w.alert(i18nAs(errMsg(e))); } finally { delete xb.dataset.busy; } }; } catch (e) { /* print works without it */ }
     if (/rep-bill/.test(kind || '')) { try { fitBillPages(w.document); } catch (e) { /* print as it is */ } }
     if (!isBill) { try { const b1 = w.document.getElementById('or_' + orient); if (b1) b1.className = 'on'; } catch (e) { /* no buttons */ } }
     try { fitWideTables(w.document); } catch (e) { /* print as it is */ }
@@ -8067,7 +8173,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     location.reload();
   }
   $('upd_now').addEventListener('click', () => {
-    if (formDirty() && !confirm('An entry on this page is not saved yet. Update anyway? (It will be lost.)')) return;
+    if (formDirty() && !confirm(i18nAs('An entry on this page is not saved yet. Update anyway? (It will be lost.)'))) return;
     if (!swapNow()) updateNow();
   });
   // after an update: open the page the user was going to
@@ -11891,7 +11997,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * S.prefs = the signed-in user's own settings (server: getMyPrefs / saveMyPrefs, kept with the account). A copy is kept on
    * this device per e-mail (oc_prefs_<email>) so the look is right at once after sign-in; the server's copy then replaces it.
    * applyPrefs puts them to work; every change on the Settings page is applied at once and saved by itself. */
-  const PREF_DEFAULT = { theme: 'light', text: 'normal', density: 'normal', lang: 'mr', lbMode: '', lbDays: '2', shift: '', menu: 'open', enterNext: false, sound: false, lessMotion: false, intro: true, brief: true, voiceOut: true, start: '', loc: '', fav: [], mobile: '', photo: '' };
+  const PREF_DEFAULT = { theme: 'light', text: 'normal', density: 'normal', lang: 'mr', appLang: '', lbMode: '', lbDays: '2', shift: '', menu: 'open', enterNext: false, sound: false, lessMotion: false, intro: true, brief: true, voiceOut: true, start: '', loc: '', fav: [], mobile: '', photo: '' };
   S.prefs = Object.assign({}, PREF_DEFAULT); S.rules = { backDays: '', announce: '', dayFrom: '08:00', nightFrom: '20:00' };
   const prefKey = () => 'oc_prefs_' + String((S.user && S.user.email) || '').toLowerCase();
   const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
@@ -11925,6 +12031,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     root.dataset.theme = S.prefs.theme === 'dark' || (S.prefs.theme === 'auto' && q && q.matches) ? 'dark' : 'light';
     root.dataset.density = S.prefs.density; root.dataset.motion = S.prefs.lessMotion ? 'less' : ''; root.dataset.text = S.prefs.text;
     if (S.prefs.lang !== fixLang) { fixLang = S.prefs.lang; try { localStorage.setItem('rcl_lang', fixLang); } catch (e) {} }
+    if (S.user && p && Object.prototype.hasOwnProperty.call(p, 'appLang')) i18nSet(S.prefs.appLang);      // (update-110) the user's language (a copy without it – first time on this device – waits for the account's)
     try { localStorage.setItem('oc_intro_off', S.prefs.intro === false || S.prefs.lessMotion ? '1' : ''); } catch (e) {}
     avaDraw(); favDraw(); setDraw();
     // the usual diesel location and shift of this user, where a form is still untouched
@@ -11990,7 +12097,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if ($('sec-settings') && !$('sec-settings').hidden) setDraw();
   }
   $('sec-settings').addEventListener('click', e => {
-    const b = e.target.closest('.set-seg button'); if (b) { prefSet({ [b.parentNode.dataset.pref]: b.dataset.v }); return; }
+    const b = e.target.closest('.set-seg button'); if (b) { const k = b.parentNode.dataset.pref;
+      prefSet(k === 'appLang' ? { appLang: b.dataset.v, lang: b.dataset.v || 'en' } : { [k]: b.dataset.v }); return; }      // (update-110) the help follows the app's language
     const go = e.target.closest('[data-go]'); if (go) { showTab(go.dataset.go); return; }
   });
   $('sec-settings').addEventListener('change', e => {
@@ -13734,7 +13842,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   (function foldSetup() {
     Object.keys(FOLDS).forEach(tab => {
       const sec = $('sec-' + tab); if (!sec) return;
-      const h = [...sec.querySelectorAll(':scope > .panel h2')].find(x => x.textContent.trim() === FOLDS[tab]); if (!h) return;
+      const h = [...sec.querySelectorAll(':scope > .panel h2')].find(x => i18nSame(x.textContent.trim(), FOLDS[tab])); if (!h) return;
       const panel = h.closest('.panel'), head = h.parentElement.classList.contains('panel-head') ? h.parentElement : h;
       panel.classList.add('fold'); panel.dataset.fold = tab; head.classList.add('fold-head');
       head.setAttribute('role', 'button'); head.setAttribute('tabindex', '0'); head.setAttribute('aria-expanded', 'false');
@@ -15285,7 +15393,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   let lgCalcRaf = 0;
   function lgCalcSoon() { if (!lgCalcRaf) lgCalcRaf = requestAnimationFrame(() => { lgCalcRaf = 0; lgCalcAll(); }); }
   function lgCalcFlush() { if (lgCalcRaf) lgCalcAll(); }
-  const lgTxt = (el, v) => { v = String(v); if (el.textContent !== v) el.textContent = v; };
+  const lgTxt = (el, v) => { v = String(v); if (!i18nSame(el.textContent, v)) el.textContent = v; };
   function lgCalcAll() {
     if (lgCalcRaf) { cancelAnimationFrame(lgCalcRaf); lgCalcRaf = 0; }
     const rows = lgRows();
@@ -15355,7 +15463,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       { const dz = lgo(tr, 'diesel'), want = later ? '0' : (fmt(p.diesel) || '0'); if (dz && dz.textContent !== want) dz.textContent = want;
         const hf = tr.querySelector('.lg-half'); if (hf && hf.hidden !== later) { hf.hidden = later; if (later) { const cb = hf.querySelector('input'); if (cb) cb.checked = false; } }
         let tag = tr.querySelector('.lg-partn'); if (later && !tag) { hf.insertAdjacentHTML('afterend', '<small class="lx-part lg-partn" title="Another work of the same shift: it starts where the row above closed. The shift is paid, and takes its diesel, once. Saved as one entry that keeps its rows."></small>'); tag = tr.querySelector('.lg-partn'); }
-        if (tag) { tag.hidden = !later; if (later) { const t = 'work ' + (me.j + 1) + ' of this ' + (shift === 'Night' ? 'night' : 'day'); if (tag.textContent !== t) tag.textContent = t; } } }
+        if (tag) { tag.hidden = !later; if (later) { const t = 'work ' + (me.j + 1) + ' of this ' + (shift === 'Night' ? 'night' : 'day'); if (!i18nSame(tag.textContent, t)) tag.textContent = t; } } }
       lgTxt(lgo(tr, 'wkm'), tp ? (lgf(tr, 'trip').value || '0') + ' trips' : wkm === '' ? '–' : fmt(wkm) + (off ? ' km est.' : hr ? ' km' : '')); lgo(tr, 'wkm').classList.toggle('neg', wkm !== '' && wkm < 0);
       lgTxt(lgo(tr, 'whr'), whr === '' ? '–' : fmt(whr) + (off ? ' hr est.' : km || tm ? ' hr' : '')); lgo(tr, 'whr').classList.toggle('neg', whr !== '' && whr < 0);
       if (tp) lgo(tr, 'wkm').hidden = false;
