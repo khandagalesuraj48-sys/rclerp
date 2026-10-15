@@ -1086,6 +1086,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .way .wy.idl { border-color: #CBD5E1; color: #475569; } .way .wy.idl.on { background: #475569; border-color: #475569; color: #fff; }
   .way .wy.brk { border-color: #FCA5A5; color: #B91C1C; } .way .wy.brk.on { background: #DC2626; border-color: #DC2626; color: #fff; } .lg-hol { color: #6D28D9; font-weight: 700; font-size: 12.5px; }
   .way .wy.on { background: #0F172A; color: #fff; border-color: #0F172A; } .way .wy.dis { background: #F1F5F9; color: #CBD5E1; border-style: dashed; cursor: help; text-decoration: line-through; }
+  .way.auto .wy.fixed { cursor: default; background: #ECFDF5; border-color: #16A34A; color: #166534; font-weight: 600; } .way.auto .wy.fixed:not(.on) { background: #fff; color: #64748B; border-color: #CBD5E1; font-weight: 400; }
   .way .wy:not(.dis):not(.on):hover { border-color: #F59E0B; } .rdcell .waybox { margin-bottom: 4px; } #d_way .way .wy { padding: 6px 10px; font-size: 13px; } .d-way-f { grid-column: span 2; }
   table.lgt td.unitcell { min-width: 150px; max-width: 190px; }
   tr.bk-day { cursor: pointer; } tr.bk-day:hover td { background: #FFFBEB !important; } tr.bk-day.on td { background: #FEF3C7 !important; } .bk-days { max-height: 340px; }
@@ -2470,6 +2471,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .lx-lock { margin: 8px 0; padding: 9px 12px; border: 1px solid #FCA5A5; background: #FEF2F2; color: #7F1D1D; border-radius: 10px; font-size: 13.5px; line-height: 1.45; } .lx-lock b { color: #7F1D1D; }
   .tag.half { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; border-radius: 999px; padding: 0 7px; font: 700 11px var(--ui); white-space: nowrap; }
   /* "½ day" under the shift of a Log Book entry */
+  .cr-dash .cr-back { background: #FEF3C7; } .cr-q { background: #FEF3C7; padding: 8px 10px; border-radius: 8px; } button.flow-send { background: #B45309 !important; border-color: #B45309 !important; }
   .cr-dash { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; } .cr-dash div { background: var(--soft, #F1F5F9); border-radius: 12px; padding: 8px 14px; min-width: 120px; } .cr-dash b { display: block; font-size: 22px; }
   .fr-task { border: 1px solid #E2E8F0; border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; } .fr-task.on { border-color: #16A34A; background: #F0FDF4; }
   .fr-level { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 6px 0; border-top: 1px dashed #E2E8F0; } .fr-level > b { min-width: 64px; }
@@ -3208,7 +3210,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="cr-dash" id="cr_dash"></div>
       <div class="toolbar">
         <div class="quick"><button class="btn ghost small" id="cr_refresh" type="button">Refresh</button><label class="pn-opt"><input type="checkbox" id="cr_all"> Show approved and rejected too</label>
-          <button class="btn small" id="cr_bulk_ok" type="button" hidden>Approve ticked</button><button class="btn ghost small" id="cr_bulk_no" type="button" hidden>Reject ticked</button></div>
+          <button class="btn small" id="cr_bulk_ok" type="button" hidden>Approve ticked</button><button class="btn ghost small" id="cr_bulk_back" type="button" hidden>Send back ticked</button><button class="btn ghost small" id="cr_bulk_no" type="button" hidden>Reject ticked</button></div>
         <div class="sum" id="cr_sum"></div>
       </div>
       <div class="table-wrap"><table class="activity">
@@ -4572,6 +4574,26 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return '<div class="way" data-no="' + esc(m.id) + '" data-sel="' + esc(sel || '') + '" role="radiogroup" aria-label="Measured by">' + all.map(w => '<button type="button" class="wy' + (w === 'Holiday' ? ' hol' : w === 'Idle' ? ' idl' : w === 'Breakdown' ? ' brk' : w === METER_OFF ? ' nrd' : '') + (ok.indexOf(w) > -1 ? '' : ' dis') + (w === sel ? ' on' : '') +
       '" data-way="' + w + '" aria-pressed="' + (w === sel) + '" title="' + (w === METER_OFF ? 'Meter not working: no reading for this entry – the work of the day is estimated' : w === 'Time' && modesX(m).indexOf('Time') > -1 ? 'Time (clock time From – To): for a day when the hour meter gave no reading – the hours count as hours' : ok.indexOf(w) > -1 ? 'Measured by ' + w : esc(m.id) + ' is not set to work on ' + w + ' – see Asset Master') + '">' + w + '</button>').join('') + '</div>';
   }
+  /* (update-116) A DIESEL FILL: KM / Hrs / KM + Hrs BY ITSELF from the Asset Master ("diesel issue madhe … km aahe hrs aahe ki km+hrs
+   * aahe he auto select asaw … koni te manual nahi taknar"): the readings its meters give – nothing to pick. Only "Meter not
+   * working" stays, for a day its meter is broken (no reading, as before). */
+  function dieselWay(m) {
+    if (!m) return '';
+    const md = modesOf(m);
+    if (['KM', 'Hrs', 'KM + Hrs'].indexOf(m.unit) > -1 && md.indexOf(m.unit) > -1) return m.unit;
+    const km = md.some(hasKm), hr = md.some(hasHr);
+    return km && hr && md.indexOf('KM + Hrs') > -1 ? 'KM + Hrs' : km ? 'KM' : hr ? 'Hrs' : '';
+  }
+  function dieselWayMount(box, m) {
+    if (!box) return '';
+    const auto = dieselWay(m);
+    if (!m || !auto) { if (box) box.innerHTML = ''; return ''; }
+    const cur = box.querySelector('.way'), sel = cur && cur.dataset.no === m.id && cur.dataset.sel === METER_OFF ? METER_OFF : auto;
+    box.innerHTML = '<div class="way auto" data-no="' + esc(m.id) + '" data-auto="' + esc(auto) + '" data-sel="' + esc(sel) + '" aria-label="Measured by">' +
+      '<span class="wy fixed' + (sel === auto ? ' on' : '') + '" data-way="' + esc(auto) + '" title="From the Asset Master – ' + esc(m.id) + ' gives its ' + esc(auto) + ' reading">' + esc(auto) + '</span>' +
+      '<button type="button" class="wy nrd' + (sel === METER_OFF ? ' on' : '') + '" data-way="' + METER_OFF + '" aria-pressed="' + (sel === METER_OFF) + '" title="Meter not working: no reading for this fill">Meter not working</button></div>';
+    return sel;
+  }
   const wayOf = el => { const w = el && (el.classList && el.classList.contains('way') ? el : el.querySelector('.way')); return w ? w.dataset.sel || '' : ''; };
   // put the buttons in a box (keeps the pick when it is still allowed)
   function wayMount(box, m, withHoliday) {
@@ -4584,7 +4606,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   document.addEventListener('click', async e => {
     const b = e.target.closest('.way .wy'); if (!b) return;
     e.preventDefault();
-    const box = b.closest('.way'), m = findMachine(box.dataset.no), w = b.dataset.way;
+    const box = b.closest('.way'), m = findMachine(box.dataset.no);
+    let w = b.dataset.way;
+    if (box.classList.contains('auto') && w === METER_OFF && box.dataset.sel === METER_OFF) w = box.dataset.auto;      // (update-116) pressed again: the readings again
     if (b.classList.contains('dis')) {
       const need = w === 'KM + Hrs' ? 'KM and Hrs' : w;
       await askConfirm({ title: '"' + w + '" is not set for ' + (m ? m.id : box.dataset.no), ok: 'OK', alertOnly: true,
@@ -4593,7 +4617,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       return;
     }
     box.dataset.sel = w;
-    box.querySelectorAll('.wy').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+    box.querySelectorAll('.wy').forEach(x => { x.classList.toggle('on', x.dataset.way === w); x.setAttribute('aria-pressed', String(x.dataset.way === w)); });
     box.dispatchEvent(new CustomEvent('waychange', { bubbles: true, detail: w }));
   });
   const unitFromWorks = w => { const both = w.indexOf('KM + Hrs') > -1, km = w.indexOf('KM') > -1 || both, hr = w.indexOf('Hrs') > -1 || w.indexOf('Time') > -1 || both; return km && hr ? 'KM + Hrs' : km ? 'KM' : hr ? 'Hrs' : w.length ? 'Day' : ''; };
@@ -4639,6 +4663,42 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // (update-114) a save of a task under verification comes back "Sent for verification …": nothing is saved yet – the form is
   // emptied as after a save (the entry waits on Approvals), the list of requests is refreshed
   const FLOW_SENT_RE = /^Sent for verification /;
+  /* (update-116) "SEND TO VERIFICATION" INSTEAD OF "SAVE": a save button of a work the Super Admin put under verification for this
+   * person says so (and its "only when" – days back, litres – is looked at from the form as it is filled). A work without anyone to
+   * approve it keeps its own "Save …". The server decides in the end (its answer says "Sent for verification" or saves). */
+  const FLOW_BTNS = {
+    d_save: { m: 'Diesel Issue', dates: () => [$('d_date').value], qty: () => Number($('d_qty').value) || 0 },
+    bd_save: { m: 'Diesel Issue', dates: () => [$('bd_date').value], qty: () => [...document.querySelectorAll('#bd_rows input[data-f=qty]')].reduce((a, x) => a + (Number(x.value) || 0), 0) },
+    bm_save: { m: 'Diesel Issue', dates: () => [...document.querySelectorAll('#bm_rows input[data-f=date]')].map(x => x.value), qty: () => [...document.querySelectorAll('#bm_rows input[data-f=qty]')].reduce((a, x) => a + (Number(x.value) || 0), 0) },
+    i_save: { m: 'Diesel Inward', dates: () => [$('i_date').value], qty: () => Number($('i_qty').value) || 0 },
+    t_save: { m: 'Diesel Transfer', dates: () => [$('t_date').value], qty: () => Number($('t_qty').value) || 0 },
+    tb_save: { m: 'Diesel Transfer', dates: () => [...document.querySelectorAll('#tb_rows input[data-f=date]')].map(x => x.value), qty: () => [...document.querySelectorAll('#tb_rows input[data-f=qty]')].reduce((a, x) => a + (Number(x.value) || 0), 0) },
+    l_save: { m: 'Log Book', dates: () => [...document.querySelectorAll('#lg_in input[data-f=date]')].map(x => x.value).concat([$('lg_top_date').value]) },
+    lx_save: { m: 'Log Book' }, lt_save: { m: 'Log Book' }, le_save: { m: 'Log Book' }, wt_save: { m: 'Log Book' }, tc_save: { m: 'Log Book', dates: () => [$('tc_date').value] },
+    m_save: { m: 'Master' }, b_save: { m: 'Master' }, v_save: { m: 'Vendor Master' }, boq_save: { m: 'Vendor BOQ' }, py_save: { m: 'Machinery Payments' },
+    dn_save: { m: 'Machinery Billing' }, mb_abstract: { m: 'Machinery Billing' }, bk_submit: { m: 'Breakdown' },
+  };
+  function flowWill(id) {
+    const b = FLOW_BTNS[id], r = b && (S.flowMine || {})[b.m];
+    if (!r) return false;
+    const db = r.daysBack === '' || r.daysBack === undefined || r.daysBack === null ? null : Number(r.daysBack), qa = r.qtyAbove === '' || r.qtyAbove === undefined || r.qtyAbove === null ? null : Number(r.qtyAbove);
+    if (db === null && qa === null) return true;
+    let hit = false;
+    try {
+      if (db !== null && b.dates) { const lim = isoDate(new Date(new Date((S.today || isoDate(new Date())) + 'T00:00:00').getTime() - db * 86400000)); hit = b.dates().some(d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') && d < lim); }
+      if (!hit && qa !== null && b.qty) hit = b.qty() > qa;
+    } catch (e) { hit = false; }
+    return hit;
+  }
+  function flowLabels() {
+    Object.keys(FLOW_BTNS).forEach(id => { const x = $(id); if (!x || (x.disabled && /…$/.test(x.textContent))) return;      // (not while it is busy: "Saving…")
+      if (!x.dataset.flowOrig) x.dataset.flowOrig = x.textContent;
+      const want = flowWill(id) ? 'Send to verification' : x.dataset.flowOrig;
+      if (x.dataset.flowNow !== want) { x.dataset.flowNow = want; x.textContent = want; x.classList.toggle('flow-send', want === 'Send to verification');
+        x.title = want === 'Send to verification' ? 'Goes to ' + ((S.flowMine[FLOW_BTNS[id].m] || {}).to || []).join(', ') + ' for approval – saved when it is approved' : ''; } });
+  }
+  let flowLblT = 0;
+  ['input', 'change'].forEach(ev => document.addEventListener(ev, () => { clearTimeout(flowLblT); flowLblT = setTimeout(flowLabels, 250); }, true));
   const FLOW_CLEAR = { saveDieselIssue: 'clearDiesel', saveDieselBulk: 'clearDieselBulk', saveInward: 'clearInward', saveTransfer: 'clearTransfer', saveLogRows: 'clearLogGrid' };
   function flowSent(fn) {
     S.formDirty = false;
@@ -5422,7 +5482,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['A row of the water tanker\'s trips cannot be taken as it is.', 'Nothing was saved. Every row needs its date (within the From – To dates that are open; for another date open those dates), the shift Day or Night, the challan no and the Dispatch / Unload time. An Excel file needs at least one trip under its headings (Export Excel gives the right layout). Save up to 3000 trips at a time.'],
       mr: ['Water tanker च्या trips मधली एक row जशी आहे तशी घेता येत नाही.', 'काहीही save झाले नाही. प्रत्येक row ला तारीख (उघडलेल्या From – To तारखांच्या आत; दुसऱ्या तारखेसाठी त्या तारखा उघडा), shift Day किंवा Night, challan no आणि Dispatch / Unload वेळ हवी. Excel file मध्ये headings खाली किमान एक trip हवी (Export Excel ने बरोबर layout मिळतो). एका वेळी जास्तीत जास्त 3000 trips save करा.'],
       hi: ['Water tanker की trips की एक row जैसी है वैसी नहीं ली जा सकती।', 'कुछ भी save नहीं हुआ। हर row में तारीख (खुली From – To तारीखों के अंदर; दूसरी तारीख के लिए वे तारीखें खोलें), shift Day या Night, challan no और Dispatch / Unload समय चाहिए। Excel file में headings के नीचे कम से कम एक trip चाहिए (Export Excel से सही layout मिलता है)। एक बार में ज़्यादा से ज़्यादा 3000 trips save करें।'] },
-    { re: /^Sent for verification|already waiting for verification|^Verification rules|cannot approve your own entry|This request is not waiting for you|sets the verification rules|too big to send for verification|Tick the requests first|Write why it is rejected/i,      // (update-114) verification
+    { re: /^Sent for verification|already waiting for verification|^Verification rules|Write the remark or question|Write your answer|Only the person who sent this entry answers it|This request is not sent back to you|cannot approve your own entry|This request is not waiting for you|sets the verification rules|too big to send for verification|Tick the requests first|Write why it is rejected/i,      // (update-114) verification
       en: ['Verification: this work goes to the people the Super Admin chose before it is saved.', 'A "Sent for verification" entry is NOT saved yet – it is saved when the last person approves it (Approvals shows where it waits). The same entry is not sent twice. You cannot approve your own entry; another person of that level (or the Super Admin) does. The rules – which work, which people, how many levels – are set by the Super Admin in Approvals → Verification rules.'],
       mr: ['पडताळणी: हे काम सेव्ह होण्याआधी Super Admin ने निवडलेल्या लोकांकडे जाते.', '"पडताळणीसाठी पाठवले" म्हणजे अजून सेव्ह झाले नाही – शेवटच्या व्यक्तीने मंजूर केल्यावर सेव्ह होईल (Approvals मध्ये कुठे थांबले ते दिसते). तीच एन्ट्री दोनदा जात नाही. स्वतःची एन्ट्री स्वतः मंजूर करता येत नाही; त्या level चा दुसरा माणूस (किंवा Super Admin) करतो. कोणते काम, कोणते लोक, किती levels – हे नियम Super Admin Approvals → Verification rules मध्ये ठरवतो.'],
       hi: ['सत्यापन: यह काम सेव होने से पहले Super Admin के चुने लोगों के पास जाता है।', '"सत्यापन के लिए भेजा" यानी अभी सेव नहीं हुआ – आखिरी व्यक्ति के मंज़ूर करने पर सेव होगा (Approvals में दिखता है कि कहाँ रुका है)। वही एंट्री दो बार नहीं जाती। अपनी एंट्री खुद मंज़ूर नहीं कर सकते; उस level का दूसरा व्यक्ति (या Super Admin) करता है। कौन-सा काम, कौन लोग, कितने levels – ये नियम Super Admin Approvals → Verification rules में तय करता है।'] },
@@ -5972,7 +6032,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'A new user starts with No access on every page – he sees only the pages you set to View or Edit (in the menu and in the search). Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters. "Screen share – who may use it": untick a user and save – he can then neither show a screen nor be called (Admin users always may). Several sites: the Admin of the first site makes the Super Admin once ("Create Super Admin" – write the recovery code down). From then on the Super Admin gives users and access, separately for every site; this page then only shows them.'],
       mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'नवीन user ला सुरुवातीला प्रत्येक page वर No access असते – तुम्ही View किंवा Edit दिलेली pages च त्याला दिसतात (menu मध्ये आणि search मध्ये). हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा. "Screen share – who may use it": user चा tick काढून Save केले की तो screen दाखवू शकत नाही आणि त्याला call पण करता येत नाही (Admin नेहमी वापरू शकतो). अनेक sites: पहिल्या site चा Admin एकदाच Super Admin बनवतो ("Create Super Admin" – Recovery code लिहून ठेवा). त्यानंतर users आणि access फक्त Super Admin देतो, प्रत्येक site साठी वेगळा; हे page मग फक्त ते दाखवते.'],
       hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'नए user को शुरू में हर page पर No access होता है – आपने View या Edit दिए वही pages उसे दिखते हैं (menu में और search में)। यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो। "Screen share – who may use it": user का tick हटाकर Save करने पर वह न screen दिखा सकता है, न उसे call किया जा सकता है (Admin हमेशा उपयोग कर सकता है)। कई sites: पहली site का Admin एक बार Super Admin बनाता है ("Create Super Admin" – Recovery code लिखकर रखें)। उसके बाद users और access सिर्फ Super Admin देता है, हर site के लिए अलग; यह page फिर सिर्फ उन्हें दिखाता है।'] },
-    approvals: { saves: ['decideChangeRequest', 'getChangeRequests', 'decideChangeRequests', 'saveFlowRules', 'getFlowRules'],
+    approvals: { saves: ['decideChangeRequest', 'getChangeRequests', 'decideChangeRequests', 'saveFlowRules', 'getFlowRules', 'answerFlow'],
       en: ['Changes of Log Book and diesel entries that are in a submitted bill, sent by the users for the Super Admin\'s approval.', 'The Super Admin (signed in through the Portal) approves here; a user sees here the changes he sent – Waiting, Approved (saved) or Rejected with the reason – and gets a notification when it is decided. Each line says who asked, what the change is (machinery, date, readings) and why. Approve = the change is saved now as that user\'s change, with every check of a save – if something else changed meanwhile it is refused and keeps waiting. Reject = nothing is saved; write why. The bill on the Drive is never changed: the next bill of the vendor shows the difference and takes it as a Credit / Debit Note.'],
       mr: ['Submit झालेल्या bill मधील Log Book / diesel entries चे बदल – users नी Super Admin च्या मंजुरीसाठी पाठवलेले.', 'Super Admin (Portal मधून sign in) इथे मंजुरी देतो; user ला इथे त्याने पाठवलेले बदल दिसतात – Waiting, Approved (save झाले) किंवा Rejected कारणासह – आणि निर्णय झाला की notification येते. प्रत्येक ओळीत: कोणी मागितले, काय बदल (machinery, तारीख, readings) आणि का. Approve = बदल आत्ता त्या user चा बदल म्हणून save होतो, save चे सगळे checks होऊन – मध्ये दुसरे काही बदलले असेल तर नाकारला जातो आणि थांबून राहतो. Reject = काहीही save होत नाही; कारण लिहा. Drive वरचे bill कधीच बदलत नाही: vendor च्या पुढच्या bill मध्ये फरक दिसतो आणि Credit / Debit Note ने घेतला जातो.'],
       hi: ['Submit हुए bill की Log Book / diesel entries के बदलाव – users ने Super Admin की मंज़ूरी के लिए भेजे हुए।', 'Super Admin (Portal से sign in) यहाँ मंज़ूरी देता है; user को यहाँ उसके भेजे बदलाव दिखते हैं – Waiting, Approved (save हुआ) या Rejected कारण के साथ – और फैसला होने पर notification आता है। हर लाइन में: किसने माँगा, क्या बदलाव (machinery, तारीख, readings) और क्यों। Approve = बदलाव अभी उस user के बदलाव के रूप में save होता है, save के सारे checks के साथ – बीच में कुछ और बदला हो तो मना होता है और रुका रहता है। Reject = कुछ भी save नहीं होता; कारण लिखें। Drive वाला bill कभी नहीं बदलता: vendor के अगले bill में फर्क दिखता है और Credit / Debit Note से लिया जाता है।'] },
@@ -6936,49 +6996,75 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const crWhen = v => { const d = new Date(v); return isNaN(d) ? String(v || '') : d.toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
   async function crLoad(quiet) {
     if (!S.user || $('tab-approvals').hidden) return;
-    try { S.cr = await call('getChangeRequests', {}); crDraw(); }
+    try { S.cr = await call('getChangeRequests', {}); if (S.cr && S.cr.mine) { S.flowMine = S.cr.mine; flowLabels(); } crDraw(); }
     catch (e) { if (!quiet) $('cr_rows').innerHTML = '<tr><td colspan="7" class="none">' + esc(errMsg(e)) + '</td></tr>'; }
   }
   function crDraw() {
     const d = S.cr || { requests: [] }, sup = !!(S.user && S.user.super), all = $('cr_all').checked, me = d.requests || [];
     const L = me.filter(r => all || r.status === 'Pending' || r.mine);      // (a person sees all he sent – waiting, approved, rejected – and what waits; "show … too": also what was decided at his level)
     const lab = $('tab-approvals').querySelector('.label'); lab.textContent = 'Approvals' + (d.pending ? ' (' + d.pending + ')' : '');      // (as before: what is waiting in his list)
-    $('cr_intro').textContent = 'Entries sent for verification (the Super Admin\'s rules) and changes of a submitted bill. Waiting = not saved yet; Approved = saved; Rejected or Returned = not saved, the reason is shown. Tick several to approve them at once. You get a notification when something waits for you, and when your entry is decided.';
+    $('cr_intro').textContent = 'Entries sent for verification (the Super Admin\'s rules) and changes of a submitted bill. Waiting = not saved yet; Approved = saved; Sent back = a remark or question for the sender, he answers and sends it again; Rejected, Returned or Taken back = not saved. Tick several to approve them at once. You get a notification when something waits for you, and when your entry is decided.';
     const wait = me.filter(r => r.status === 'Pending'), old = wait.reduce((mx, r) => Math.max(mx, (Date.now() - Date.parse(r.waitSince || r.at)) / 3600000), 0);
-    $('cr_dash').innerHTML = '<div>Waiting for you<b>' + (d.forMe || 0) + '</b></div><div>Waiting in all<b>' + wait.length + '</b></div><div>Your entries waiting<b>' + wait.filter(r => r.mine).length + '</b></div>' + (wait.length ? '<div>Oldest waiting<b>' + (old >= 24 ? Math.floor(old / 24) + ' d' : Math.floor(old) + ' h') + '</b></div>' : '');
+    $('cr_dash').innerHTML = '<div>Waiting for you<b>' + (d.forMe || 0) + '</b></div>' + (d.backToMe ? '<div class="cr-back">Sent back to you<b>' + d.backToMe + '</b></div>' : '') + '<div>Waiting in all<b>' + wait.length + '</b></div><div>Your entries waiting<b>' + wait.filter(r => r.mine).length + '</b></div>' + (wait.length ? '<div>Oldest waiting<b>' + (old >= 24 ? Math.floor(old / 24) + ' d' : Math.floor(old) + ' h') + '</b></div>' : '');
     $('cr_sum').textContent = d.missing ? d.missing : '';
-    const can = L.some(r => r.canDecide); $('cr_bulk_ok').hidden = !can; $('cr_bulk_no').hidden = !can; $('cr_tickall').disabled = !can; $('cr_tickall').checked = false;
-    const st = r => r.status === 'Pending' ? '<span class="st low">Waiting</span>' + (r.levels ? '<br><small>level ' + r.level + ' of ' + r.levels + (r.waitingFor && r.waitingFor.length ? ': ' + esc(r.waitingFor.join(', ')) : '') + '</small>' : '<br><small>Super Admin</small>')
+    const can = L.some(r => r.canDecide), canBack = L.some(r => r.canDecide && r.kind === 'Flow'); $('cr_bulk_ok').hidden = !can; $('cr_bulk_no').hidden = !can; $('cr_bulk_back').hidden = !canBack; $('cr_tickall').disabled = !can; $('cr_tickall').checked = false;
+    const st = r => r.status === 'Reverted' ? '<span class="st low">Sent back</span><br><small>' + esc((r.reverted || {}).by) + ' · ' + esc(crWhen((r.reverted || {}).at)) + '<br><b>' + esc((r.reverted || {}).note) + '</b></small>'
+      : r.status === 'Withdrawn' ? '<span class="st">Taken back</span>'
+      : r.status === 'Pending' ? '<span class="st low">Waiting</span>' + (r.levels ? '<br><small>level ' + r.level + ' of ' + r.levels + (r.waitingFor && r.waitingFor.length ? ': ' + esc(r.waitingFor.join(', ')) : '') + '</small>' : '<br><small>Super Admin</small>')
       : '<span class="st ' + (r.status === 'Approved' ? 'ok' : 'bad') + '">' + esc(r.status) + '</span><br><small>' + esc(r.decidedBy) + ' · ' + esc(crWhen(r.decidedAt)) + (r.note ? '<br>' + esc(r.note) : '') + (r.status === 'Returned' && r.result ? '<br>' + esc(r.result) : '') + '</small>';
     const hist = r => (r.history || []).length ? '<details><summary><small>Steps (' + r.history.length + ')</small></summary><small>' + r.history.map(h => esc(h.step) + (h.level ? ' L' + h.level : '') + ' – ' + esc(h.by) + ' · ' + esc(crWhen(h.at)) + (h.note ? ': ' + esc(h.note) : '')).join('<br>') + '</small></details>' : '';
     $('cr_rows').innerHTML = L.length ? L.map(r => '<tr><td>' + (r.canDecide ? '<input type="checkbox" class="cr-tick" data-id="' + esc(r.id) + '">' : '') + '</td><td class="nowrap">' + esc(crWhen(r.at)) + '<br><small>' + esc(r.id) + '</small></td><td>' + esc(r.by) + '</td>' +
       '<td>' + esc(r.kind === 'Flow' ? r.task : 'Change of a billed period') + (r.qty ? '<br><small>' + esc(fmt(r.qty)) + ' L</small>' : '') + '</td><td>' + (r.summary || []).map(esc).join('<br>') + (r.kind !== 'Flow' && r.reason ? '<br><small>Reason: ' + esc(r.reason) + '</small>' : '') + hist(r) + '</td>' +
-      '<td>' + st(r) + '</td><td class="nowrap">' + (r.canDecide ? '<button class="btn small" type="button" data-crok="' + esc(r.id) + '">Approve</button> <button class="btn ghost small" type="button" data-crno="' + esc(r.id) + '">Reject</button>' : '') + '</td></tr>').join('')
+      '<td>' + st(r) + '</td><td class="nowrap">' + (r.canDecide ? '<button class="btn small" type="button" data-crok="' + esc(r.id) + '">Approve</button> ' + (r.kind === 'Flow' ? '<button class="btn ghost small" type="button" data-crback="' + esc(r.id) + '">Send back</button> ' : '') + '<button class="btn ghost small" type="button" data-crno="' + esc(r.id) + '">Reject</button>' : '') +
+        (r.canAnswer ? '<button class="btn small" type="button" data-cranswer="' + esc(r.id) + '">Answer and send again</button> <button class="btn ghost small" type="button" data-crwithdraw="' + esc(r.id) + '">Take back</button>' : '') + '</td></tr>').join('')
       : '<tr><td colspan="7" class="none">' + (all ? 'Nothing yet.' : 'Nothing is waiting.') + '</td></tr>';
     $('fr_panel').hidden = !sup;
     if (sup && !S.frLoaded) { S.frLoaded = true; frLoad(); }
   }
   // (update-114) several at once
   $('cr_tickall').addEventListener('change', e => document.querySelectorAll('#cr_rows .cr-tick').forEach(c => { c.checked = e.target.checked; }));
-  async function crBulk(approve, btn) {
+  async function crBulk(approve, btn, back) {
     const ids = [...document.querySelectorAll('#cr_rows .cr-tick:checked')].map(c => c.dataset.id);
     if (!ids.length) { toast('Tick the requests first.', true); return; }
     let note = '';
     for (;;) {
-      if (!(await askConfirm({ title: (approve ? 'Approve ' : 'Reject ') + ids.length + ' request(s)?', ok: approve ? 'Approve' : 'Reject', danger: !approve, wide: true,
-        html: listHtml(ids) + (approve ? '<p>Each one goes to its next level, or – at the last level – is saved now with every check of a save (one that cannot be saved goes back to its sender with the reason).</p><label class="cr-why">Note (optional) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>' : '<label class="cr-why">Why are they rejected? (the senders read it) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>') }))) return;
+      if (!(await askConfirm({ title: (back ? 'Send back ' : approve ? 'Approve ' : 'Reject ') + ids.length + ' request(s)?', ok: back ? 'Send back' : approve ? 'Approve' : 'Reject', danger: !approve && !back, wide: true,
+        html: listHtml(ids) + (back ? '<p>Each goes back to the person who sent it, with your remark or question – nothing is saved; he answers and sends it again.</p><label class="cr-why">Remark or question (the senders read it) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>'
+          : approve ? '<p>Each one goes to its next level, or – at the last level – is saved now with every check of a save (one that cannot be saved goes back to its sender with the reason).</p><label class="cr-why">Note (optional) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>' : '<label class="cr-why">Why are they rejected? (the senders read it) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>') }))) return;
       note = String(($('cr_note') || {}).value || '').trim();
-      if (approve || note) break;
-      toast('Write why they are rejected.', true);
+      if ((approve && !back) || note) break;
+      toast(back ? 'Write the remark or question.' : 'Write why they are rejected.', true);
     }
-    await busy(btn, approve ? 'Approving…' : 'Rejecting…', async () => {
-      const r = await call('decideChangeRequests', { ids: ids, approve: approve, note: note });
+    await busy(btn, back ? 'Sending back…' : approve ? 'Approving…' : 'Rejecting…', async () => {
+      const r = await call('decideChangeRequests', { ids: ids, approve: approve && !back, revert: !!back, note: note });
       S.cr = r.list; crDraw();
       toast((r.done || []).length + ' done' + ((r.failed || []).length ? ', ' + r.failed.length + ' not: ' + r.failed.map(f => f.id + ' – ' + f.error).join('; ') : '') + '.', !!(r.failed || []).length);
     });
   }
   $('cr_bulk_ok').addEventListener('click', e => crBulk(true, e.target));
   $('cr_bulk_no').addEventListener('click', e => crBulk(false, e.target));
+  $('cr_bulk_back').addEventListener('click', e => crBulk(false, e.target, true));
+  /* (update-116) SEND BACK one entry (remark / question); the SENDER answers it (it goes again to the same level) or takes it back */
+  $('cr_rows').addEventListener('click', async e => {
+    const bk = e.target.closest('[data-crback]'), an = e.target.closest('[data-cranswer]'), wd = e.target.closest('[data-crwithdraw]'); if (!bk && !an && !wd) return;
+    const b = bk || an || wd, id = b.dataset.crback || b.dataset.cranswer || b.dataset.crwithdraw, r = ((S.cr || {}).requests || []).find(x => x.id === id); if (!r) return;
+    const what = listHtml(r.summary || []) + '<p><b>Sent by:</b> ' + esc(r.by) + ' · <b>Work:</b> ' + esc(r.task) + '</p>';
+    let note = '';
+    if (wd) { if (!(await askConfirm({ title: 'Take this entry back?', ok: 'Take back', danger: true, wide: true, html: what + '<p>It is not saved. To enter it again with changes, make a new entry.</p>' }))) return; }
+    else for (;;) {
+      if (!(await askConfirm({ title: bk ? 'Send this entry back?' : 'Answer and send again?', ok: bk ? 'Send back' : 'Send again', wide: true,
+        html: what + (an ? '<p class="cr-q"><b>' + esc((r.reverted || {}).by) + ':</b> ' + esc((r.reverted || {}).note) + '</p>' : '') +
+          '<label class="cr-why">' + (bk ? 'Remark or question for ' + esc(r.by) + ' (he answers it)' : 'Your answer (it goes with the entry to ' + esc((r.reverted || {}).by || 'the person') + ')') + ' <textarea id="cr_note" rows="3" maxlength="300"></textarea></label>' }))) return;
+      note = String(($('cr_note') || {}).value || '').trim();
+      if (note) break;
+      toast(bk ? 'Write the remark or question.' : 'Write your answer.', true);
+    }
+    await busy(b, bk ? 'Sending back…' : an ? 'Sending…' : 'Taking back…', async () => {
+      const res = bk ? await call('decideChangeRequest', { id: id, revert: true, note: note }) : await call('answerFlow', { id: id, note: note, withdraw: !!wd });
+      S.cr = res.list; crDraw();
+      toast(res.id + (bk ? ' sent back to ' + r.by + '.' : wd ? ' taken back – nothing saved.' : ' sent again for verification.'));
+    });
+  });
   /* (update-114) THE VERIFICATION RULES (the Super Admin): every work of this site, its levels of named people, "only when" */
   async function frLoad() {
     try { S.fr = await call('getFlowRules'); frDraw(); } catch (e) { $('fr_list').innerHTML = '<p class="none">' + esc(errMsg(e)) + '</p>'; }
@@ -9304,7 +9390,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function bmApplyUnit(tr) {
     const m = bmMachine(), debit = !!(m && m.supply === 'Debit Basis');
     const box = tr.querySelector('.waybox'), cur = box.querySelector('.way');
-    const way = m && !debit ? (cur && cur.dataset.no === m.id && modesOf(m).indexOf(cur.dataset.sel) > -1 ? cur.dataset.sel : wayMount(box, m)) : (box.innerHTML = '', '');
+    const way = m && !debit ? dieselWayMount(box, m) : (box.innerHTML = '', '');      // (update-116) by itself, from the Asset Master
     const useKm = hasKm(way) && !debit, useHr = hasHr(way) && !debit;
     const km = tr.querySelector('[data-f=kmReading]'), hr = tr.querySelector('[data-f=hrReading]');
     if (!useKm) km.value = ''; if (!useHr) hr.value = '';
@@ -13935,6 +14021,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       S.user = d.user; S.ver = d.versions || null; siteBoot(d.siteInfo); applyPerms(); startSync(); setClosed(S.closedUpto); dbCheckDaily(); try { rtcAfterLogin(); } catch (e) { /* the screen share's extras never stop a sign-in */ }
       setBackupInfo(S.backup);
       S.today = d.today; $('company').textContent = d.company; if (d.org) applyOrg(d.org);
+      S.flowMine = d.flow || {}; setTimeout(flowLabels, 0);      // (update-116) his works under verification
       $('todayLabel').textContent = new Date(d.today + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
       ['d_date', 'bd_date', 'i_date', 't_date'].forEach(id => $(id).value = d.today);
       ['d_date', 'bd_date', 'i_date', 't_date', 'lg_top_date'].forEach(id => { if ($(id)) $(id).max = d.today; });
@@ -14400,7 +14487,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // Debit Basis machinery: no KM / Hrs reading is asked
     const debit = !!(m && m.supply === 'Debit Basis');
     $('d_way_w').hidden = !m || debit;
-    const way = !m || debit ? '' : wayMount($('d_way'), m);
+    const way = !m || debit ? '' : dieselWayMount($('d_way'), m);      // (update-116) by itself, from the Asset Master
     dieselWayShow(way, debit);
     if (debit) { $('d_km').value = ''; $('d_hr').value = ''; }
     if (m) { $('d_f_type').textContent = m.type || '–'; $('d_f_owner').textContent = m.owner || '–'; $('d_f_unit').textContent = worksOf(m).join(', ') || '–';
@@ -14811,7 +14898,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     tr.querySelector('.ownercell').textContent = m ? (m.owner || '–') : '';
     const km = tr.querySelector('[data-f=kmReading]'), hr = tr.querySelector('[data-f=hrReading]');
     const debit = !!(m && m.supply === 'Debit Basis'); // Debit Basis: no readings
-    const way = m && !debit ? wayMount(tr.querySelector('.waybox'), m) : (tr.querySelector('.waybox').innerHTML = '', '');
+    const way = m && !debit ? dieselWayMount(tr.querySelector('.waybox'), m) : (tr.querySelector('.waybox').innerHTML = '', '');      // (update-116) by itself
     const useKm = hasKm(way) && !debit, useHr = hasHr(way) && !debit;
     km.disabled = !useKm; if (!useKm) km.value = '';
     hr.disabled = !useHr; if (!useHr) hr.value = '';

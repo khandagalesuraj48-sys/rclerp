@@ -170,7 +170,7 @@ function getInit_(u) {
   const all = !u;      // (called without a user only by the code itself)
   return { company: orgSettings_().customer, org: orgPublic_(), rules: siteRules_(), ai: aiInfo_(), today: today_(), master: getMaster_(),
     drivers: all || seesAny_(u, FOR_DRIVERS_) ? getDrivers_() : [], stock: all || seesAny_(u, FOR_STOCK_) ? getStock_() : null,
-    pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [], locations: APP.LOCATIONS, closedUpto: booksClosed_() };
+    pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [], locations: APP.LOCATIONS, closedUpto: booksClosed_(), flow: all ? {} : flowMine_(u) };
 }
 
 /* ================= LOGIN, ACCESS AND ACTIVITY LOG ================= *
@@ -862,7 +862,8 @@ const API_ = {
   getChangeRequests: { m: '', withUser: true, f: (u, x) => crList_(u, x) },
   decideChangeRequest: { m: '', withUser: true, f: (u, x) => /^VF-/.test(str_((x || {}).id)) ? Object.assign(flowDecide_(u, x), { list: crList_(u, {}) }) : crDecide_(u, x), log: 'crDecide' },
   decideChangeRequests: { m: '', withUser: true, f: (u, x) => flowDecideMany_(u, x), log: 'flowDecideMany' },      // (update-114) several verification requests at once
-  getFlowRules:      { m: '', withUser: true, f: u => getFlowRules_(u) },      // (update-114) the Super Admin's verification rules
+  getFlowRules:      { m: '', withUser: true, f: u => getFlowRules_(u) },
+  answerFlow:        { m: '', withUser: true, f: (u, x) => flowAnswer_(u, x), log: 'flowAnswer' },      // (update-116) the sender answers an entry sent back to him, or takes it back      // (update-114) the Super Admin's verification rules
   saveFlowRules:     { m: '', withUser: true, f: (u, x) => saveFlowRules_(u, x), log: 'flowRules' },
   saveDebitNote:     { m: 'Machinery Billing', edit: true, f: saveDebitNote_, log: 'debitNote' },
   getDebitNotes:     { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Vendor Ledger'], f: getDebitNotes_ },
@@ -1183,8 +1184,11 @@ function logAfter_(u, spec, args, res, before) {
       writeLog_(u, 'Add', 'Approvals', res.id, 'Change of a billed period sent to the Super Admin: ' + clean_((args[0] || {}).fn), (res.summary || []).join('; ').slice(0, 900) + ' | Reason: ' + clean_((args[0] || {}).reason));
       break;
     case 'flowDecideMany':      // (update-114)
-      writeLog_(u, 'Edit', 'Approvals', (res.done || []).map(d => d.id).join(', ').slice(0, 120), 'Verification (several at once): ' + ((args[0] || {}).approve === true ? 'approve' : 'reject'),
+      writeLog_(u, 'Edit', 'Approvals', (res.done || []).map(d => d.id).join(', ').slice(0, 120), 'Verification (several at once): ' + ((args[0] || {}).revert === true ? 'send back' : (args[0] || {}).approve === true ? 'approve' : 'reject'),
         (res.done || []).map(d => d.id + ' ' + d.status).join('; ').slice(0, 900) + ((res.failed || []).length ? ' | not done: ' + res.failed.map(f => f.id + ' ' + f.error).join('; ').slice(0, 400) : ''));
+      break;
+    case 'flowAnswer':      // (update-116)
+      writeLog_(u, res.status === 'Withdrawn' ? 'Delete' : 'Edit', 'Approvals', res.id, res.status === 'Withdrawn' ? 'Verification – taken back by the sender' : 'Verification – answered and sent again', clean_((args[0] || {}).note).slice(0, 300));
       break;
     case 'flowRules':      // (update-114)
       writeLog_(u, 'Edit', 'Approvals', 'Verification rules', 'Verification rules saved', Object.keys((res.rules || {}).tasks || {}).map(m => { const r = res.rules.tasks[m]; return m + ': ' + (r.on ? 'on, ' + r.levels.length + ' level(s)' : 'off'); }).join('; ').slice(0, 900));
@@ -9068,10 +9072,11 @@ function crList_(u, f) {
     .map(r => { const o = Object.assign({}, r); delete o.args; delete o.i; delete o.data; delete o.billId; delete o.flow;
       if (r.kind === 'Flow') { const fl = r.flow || {}, lv = (fl.levels || [])[fl.level || 0] || [];
         o.task = MODULE_LABEL_[fl.m] || fl.m || ''; o.level = (fl.level || 0) + 1; o.levels = (fl.levels || []).length; o.waitingFor = r.status === 'Pending' ? lv.map(e => names[e] || e) : [];
-        o.waitSince = fl.waitSince || r.at; o.history = (fl.history || []).slice(-20); o.canDecide = flowCan_(u, r); o.qty = fl.qty || 0; }
+        o.waitSince = fl.waitSince || r.at; o.history = (fl.history || []).slice(-20); o.canDecide = flowCan_(u, r); o.qty = fl.qty || 0;
+        if (r.status === 'Reverted') { o.reverted = { by: (fl.reverted || {}).by || '', note: (fl.reverted || {}).note || '', at: (fl.reverted || {}).at || '' }; o.canAnswer = r.email === me; } }
       else o.canDecide = !!u.super && r.status === 'Pending';
       o.mine = r.email === me; return o; });
-  return { requests: list, pending: list.filter(r => r.status === 'Pending').length, forMe: list.filter(r => r.canDecide).length, superAdmin: !!u.super };
+  return { mine: flowMine_(u), requests: list, pending: list.filter(r => r.status === 'Pending' || r.canAnswer).length, forMe: list.filter(r => r.canDecide || r.canAnswer).length, backToMe: list.filter(r => r.canAnswer).length, superAdmin: !!u.super };
 }
 function crDecide_(u, x) {
   x = x || {};
@@ -9174,7 +9179,17 @@ function saveFlowRules_(u, x) {
     if (on || levels.length) out.tasks[m] = { on: on, levels: levels, daysBack: db, qtyAbove: t.diesel ? qa : '' };
   });
   kvWrite_('FLOW_RULES', JSON.stringify(out)); memoDrop_('__flowRules');
+  bump_(['flow']);      // (update-116) every open page and phone: its "Send to verification" buttons follow at once
   return { ok: true, rules: out };
+}
+/* (update-116) THE PERSON'S OWN RULES – for the page and the app: which of his works go to verification (the button then says
+ * "Send to verification" instead of "Save"), with its "only when", and to whom. The Super Admin: none (his saves go in at once). */
+function flowMine_(u) {
+  const out = {}; if (!u || u.super) return out;
+  const me = str_(u.email).toLowerCase(), R = flowRules_().tasks;
+  Object.keys(R).forEach(m => { const r = R[m]; if (!r || r.on !== true || !(r.levels || []).length) return;
+    out[m] = { daysBack: r.daysBack === undefined ? '' : r.daysBack, qtyAbove: r.qtyAbove === undefined ? '' : r.qtyAbove, to: flowNames_((r.levels[0] || []).filter(e => e !== me)), levels: r.levels.length }; });
+  return out;
 }
 // what a save names: its dates, and the diesel litres it takes out at each place
 function flowFacts_(fn, args) {
@@ -9266,8 +9281,9 @@ function flowCan_(u, r) {
 }
 function flowDecide_(u, x) {
   x = x || {};
-  const note = clean_(x.note).slice(0, 300), approve = x.approve === true, me = str_(u.email).toLowerCase();
-  if (!approve && !note) throw new Error('Write why it is rejected – the person who sent it reads it.');
+  const note = clean_(x.note).slice(0, 300), revert = x.revert === true, approve = !revert && x.approve === true, me = str_(u.email).toLowerCase();
+  if (revert && !note) throw new Error('Write the remark or question for the person who sent it – he answers it and sends the entry again.');
+  if (!approve && !revert && !note) throw new Error('Write why it is rejected – the person who sent it reads it.');
   // the request as it is now (looked at again inside each save: someone else may have decided it meanwhile)
   const look = () => {
     const r0 = flowAll_().find(r => r.id === str_(x.id));
@@ -9286,6 +9302,18 @@ function flowDecide_(u, x) {
     t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
   };
   let r0 = look();
+  if (revert) {
+    // (update-116) back to the sender with a remark / question: nothing saved; he answers and sends it again (or takes it back)
+    withLock_(() => {
+      r0 = look(); const f = r0.flow;
+      f.history.push({ step: 'Reverted', level: f.level + 1, by: u.name || u.email, email: me, at: new Date().toISOString(), note: note });
+      f.reverted = { level: f.level, by: u.name || u.email, email: me, at: new Date().toISOString(), note: note }; f.revNext = '';
+      write(r0, f, 'Reverted', '');
+    });
+    bump_(['flow']);
+    crNotify_([r0.email], { id: r0.id, title: 'Sent back to you – ' + (r0.summary[0] || r0.id).slice(0, 70), body: (u.name || u.email) + ': ' + note });
+    return { ok: true, id: r0.id, status: 'Reverted', result: '', level: r0.flow.level + 1, levels: r0.flow.levels.length, by: r0.by, summary: r0.summary };
+  }
   const last = approve && r0.flow.level + 1 >= r0.flow.levels.length;
   let status = 'Pending', result = '', next = null, f = null;
   if (!last) {
@@ -9347,13 +9375,49 @@ function flowDecideMany_(u, x) {
   const ids = (Array.isArray(x.ids) ? x.ids : []).map(str_).filter(Boolean).slice(0, 200);
   if (!ids.length) throw new Error('Tick the requests first.');
   const done = [], failed = [];
-  ids.forEach(id => { try { const r = flowDecide_(u, { id: id, approve: x.approve === true, note: x.note }); done.push({ id: id, status: r.status, result: r.result }); } catch (e) { failed.push({ id: id, error: String((e && e.message) || e).slice(0, 200) }); } });
+  ids.forEach(id => { try { const r = flowDecide_(u, { id: id, approve: x.approve === true, revert: x.revert === true, note: x.note }); done.push({ id: id, status: r.status, result: r.result }); } catch (e) { failed.push({ id: id, error: String((e && e.message) || e).slice(0, 200) }); } });
   return { ok: true, done: done, failed: failed, list: crList_(u, {}) };
+}
+/* (update-116) THE SENDER ANSWERS an entry sent back to him: his answer goes with it to the same level again (nothing changed in the
+ * entry – to change it he takes it back and enters it again); or he takes it back (Withdrawn: nothing saved). */
+function flowAnswer_(u, x) {
+  x = x || {};
+  const me = str_(u.email).toLowerCase(), note = clean_(x.note).slice(0, 300), back = x.withdraw === true;
+  if (!back && !note) throw new Error('Write your answer – it goes with the entry to the person who sent it back.');
+  let r0 = null, to = [];
+  withLock_(() => {
+    r0 = flowAll_().find(r => r.id === str_(x.id));
+    if (!r0) throw new Error('This request was not found – refresh the list.');
+    if (r0.email !== me) throw new Error('Only the person who sent this entry answers it.');
+    if (r0.status !== 'Reverted') throw new Error('This request is not sent back to you (it is ' + r0.status.toLowerCase() + ').');
+    const f = r0.flow;
+    f.history.push({ step: back ? 'Withdrawn' : 'Answered', by: u.name || u.email, email: me, at: new Date().toISOString(), note: back ? (note || 'taken back') : note });
+    if (!back) { f.waitSince = new Date().toISOString(); f.reminded = {}; to = (f.levels[f.level] || []).filter(e => e !== me); }
+    delete f.reverted;
+    TABLE_MEMO_ = {};
+    const t2 = crTable_(false), r1 = t2.rows.map((r, i) => crOut_(t2, r, i)).find(r => r.id === r0.id), row = t2.rows[r1.i].slice();
+    set_(row, t2, 'Status', back ? 'Withdrawn' : 'Pending'); set_(row, t2, 'Data', JSON.stringify(f)); stampEdit_(row, t2);
+    t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
+  });
+  bump_(['flow']);
+  if (!back) crNotify_(to.length ? to : crSupers_(), { id: r0.id, title: 'Answered – verification of ' + r0.by, body: note });
+  return { ok: true, id: r0.id, status: back ? 'Withdrawn' : 'Pending', list: crList_(u, {}) };
 }
 // reminders: at most every 10 minutes (any open page's heartbeat), for requests waiting longer than the rule's hours
 function flowRemind_() {
   const c = CacheService.getScriptCache(); if (c.get('FLOW_REMIND')) return; c.put('FLOW_REMIND', '1', 600);
-  const hrs = flowRules_().remindHours, now = Date.now(), due = [];
+  const hrs = flowRules_().remindHours, now = Date.now(), due = [], back = [];
+  // (update-116) sent back to the sender: he is reminded every 30 minutes until he answers or takes it back
+  flowAll_().filter(r => r.status === 'Reverted').forEach(r => { const f = r.flow || {}, last = Date.parse(f.revNext || (f.reverted || {}).at || r.at);
+    if (!(now - last >= 30 * 60000)) return; back.push({ id: r.id, to: [r.email], note: (f.reverted || {}).note || '', by: (f.reverted || {}).by || '', what: (r.summary[0] || r.id).slice(0, 70) }); });
+  if (back.length) {
+    withLock_(() => { const t = crTable_(false); if (!t) return;
+      back.forEach(d => { const r1 = t.rows.map((r, i) => crOut_(t, r, i)).find(r => r.id === d.id); if (!r1) return;
+        let f = {}; try { f = JSON.parse(r1.data || '{}'); } catch (e) { f = {}; } f.revNext = new Date().toISOString();
+        const row = t.rows[r1.i].slice(); set_(row, t, 'Data', JSON.stringify(f)); t.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); });
+      TABLE_MEMO_ = {}; });
+    back.forEach(d => crNotify_(d.to, { id: d.id, title: 'Waiting for your answer – ' + d.what, body: d.by + ': ' + d.note }));
+  }
   flowAll_().filter(r => r.status === 'Pending').forEach(r => {
     const f = r.flow || {}, since = Date.parse(f.waitSince || r.at), age = (now - since) / 3600000, key = String(f.level || 0), rm = f.reminded || {};
     if (!(age >= hrs)) return;

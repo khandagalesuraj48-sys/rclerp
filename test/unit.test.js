@@ -2938,7 +2938,7 @@ test('update-114: verification of every work – the Super Admin\'s rules, level
     const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8');
     assert.match(app, /const FLOW_SENT_RE = \/\^Sent for verification \//);
     assert.match(app, /if \(has\('flow'\)\) crLoad\(true\);/);
-    assert.match(app, /call\('decideChangeRequests', \{ ids: ids, approve: approve, note: note \}\)/);
+    assert.match(app, /call\('decideChangeRequests', \{ ids: ids, approve: approve && !back, revert: !!back, note: note \}\)/);
     assert.match(app, /call\('saveFlowRules', \{ tasks: tasks, remindHours: \$\('fr_hours'\)\.value \}\)/);
     assert.match(rt, /const no = refusedOf\(String\(st\.result\)\);/, 'a copy sent again is told "sent for verification", never "saved"');
     assert.match(run('() => SYNC_KEYS_.join()'), /V_flow/);
@@ -2988,4 +2988,92 @@ test('update-115: a machinery that left the site (Inactive From) – not shown, 
   assert.match(app, /if \(!S\.mfDated && S\.today\) \{ S\.mfDated = true; \$\('mf_from'\)\.value = S\.today; \$\('mf_to'\)\.value = S\.today; \}/);
   assert.ok(!/status !== 'Inactive'/.test(app), 'no list of the page looks at the word "Inactive" without its date');
   assert.ok(!/m\.status !== 'Inactive'/.test(fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8')), '…nor of the server');
+});
+
+test('update-116: "Send to verification" for the works under a rule; sent back with a question, answered and sent again or taken back; the sender reminded; diesel KM / Hrs by itself', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  vm.runInContext(`globalThis.__k116 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_ };
+    globalThis.DB116 = {};
+    globalThis.__fill116 = s => { const d = DB116[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep116 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill116(s); if (s.loaded) DB116[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    if (SB_BOOK_) __keep116(SB_BOOK_);
+    SbBook_.prototype.flush = function () { __keep116(this); __k116.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill116(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill116(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    globalThis.__sent = []; rtcPush_ = function (ids, msg) { __sent.push({ ids: ids, msg: msg }); };`, ctx);
+  try {
+    const PW = 'sha256$0123456789abcdef$' + 'b'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('mahesh@rcl.test', 'Mahesh Jadhav', false, { 'Vendor Master': 'Edit', 'Diesel Inward': 'Edit' }), mk('shubham@rcl.test', 'Shubham', false), mk('sa116@rcl.test', 'Super B', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok116_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa116@rcl.test'); });
+    const api = (who, fn, ...a) => run('(t, f, a) => api(t, f, a)', tok[who], fn, a);
+    const V = n => ({ name: n, gstReg: 'No', pan: 'ABCPV1116A', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' });
+    // ---- his rules reach his page (getInit / Approvals): the button says "Send to verification" ----
+    assert.ok(api('sa116@rcl.test', 'saveFlowRules', { tasks: { 'Vendor Master': { on: true, levels: [['shubham@rcl.test']] }, 'Diesel Inward': { on: true, levels: [['shubham@rcl.test']], daysBack: '3' } } }).ok);
+    const mine = api('mahesh@rcl.test', 'getInit').flow;
+    assert.deepStrictEqual(mine['Vendor Master'], { daysBack: '', qtyAbove: '', to: ['Shubham'], levels: 1 });
+    assert.strictEqual(mine['Diesel Inward'].daysBack, 3);
+    assert.deepStrictEqual(api('sa116@rcl.test', 'getInit').flow, {}, 'the Super Admin: none (saved at once)');
+    assert.deepStrictEqual(Object.keys(api('mahesh@rcl.test', 'getChangeRequests', {}).mine).sort(), ['Diesel Inward', 'Vendor Master']);
+    // ---- sent; Shubham sends it back with a question (a remark is needed) ----
+    assert.match(api('mahesh@rcl.test', 'saveVendor', V('Rev 116'), 'add').THROWN, /^Sent for verification to Shubham – (VF-\d{5})/);
+    const id = run('() => flowAll_().filter(r => r.status === "Pending").pop().id');
+    assert.match(api('shubham@rcl.test', 'decideChangeRequest', { id: id, revert: true }).THROWN, /Write the remark or question/);
+    run('() => { __sent.length = 0; }');
+    let r = api('shubham@rcl.test', 'decideChangeRequest', { id: id, revert: true, note: 'Which PAN is right?' });
+    assert.ok(r.status === 'Reverted' && r.list, JSON.stringify(r).slice(0, 200));
+    assert.deepStrictEqual(run('() => __sent.map(p => [p.ids, p.msg.title, p.msg.body])')[0], [run('() => [rtcUid_("mahesh@rcl.test")]'), 'Sent back to you – ' + run('id => flowAll_().find(r => r.id === id).summary[0]', id).slice(0, 70), 'Shubham: Which PAN is right?']);
+    let q = api('mahesh@rcl.test', 'getChangeRequests', {});
+    let row = q.requests.find(x => x.id === id);
+    assert.ok(row.canAnswer && !row.canDecide && row.reverted.note === 'Which PAN is right?' && q.backToMe === 1 && q.forMe === 1, JSON.stringify(row).slice(0, 300));
+    assert.ok(!api('shubham@rcl.test', 'getChangeRequests', {}).requests.find(x => x.id === id).canDecide, 'not waiting for Shubham now');
+    assert.match(api('shubham@rcl.test', 'answerFlow', { id: id, note: 'x' }).THROWN, /Only the person who sent this entry answers it/);
+    assert.match(api('mahesh@rcl.test', 'answerFlow', { id: id }).THROWN, /Write your answer/);
+    assert.match(api('shubham@rcl.test', 'decideChangeRequest', { id: id, approve: true }).THROWN, /already reverted/);
+    // ---- reminders: every 30 minutes until he answers ----
+    run('() => { __sent.length = 0; CacheService.getScriptCache().remove("FLOW_REMIND"); flowRemind_(); }');
+    assert.strictEqual(run('() => __sent.length'), 0, 'not yet 30 minutes');
+    run(`id => { const t = crTable_(false), r1 = t.rows.map((r, i) => crOut_(t, r, i)).find(r => r.id === id), f = JSON.parse(r1.data); f.reverted.at = new Date(Date.now() - 31 * 60000).toISOString();
+      const row = t.rows[r1.i].slice(); set_(row, t, 'Data', JSON.stringify(f)); t.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); sbFlush_(); }`, id);
+    run('() => { __sent.length = 0; CacheService.getScriptCache().remove("FLOW_REMIND"); flowRemind_(); }');
+    assert.match(run('() => __sent.map(p => p.msg.title).join("|")'), /^Waiting for your answer – /);
+    run('() => { __sent.length = 0; CacheService.getScriptCache().remove("FLOW_REMIND"); flowRemind_(); }');
+    assert.strictEqual(run('() => __sent.length'), 0, 'the next one after another 30 minutes');
+    // ---- he answers: back to Shubham (same level), who approves – saved ----
+    r = api('mahesh@rcl.test', 'answerFlow', { id: id, note: 'PAN as typed is right' });
+    assert.ok(r.status === 'Pending', JSON.stringify(r).slice(0, 200));
+    row = api('shubham@rcl.test', 'getChangeRequests', {}).requests.find(x => x.id === id);
+    assert.ok(row.canDecide && row.history.map(h => h.step).join() === 'Sent,Reverted,Answered', JSON.stringify(row.history));
+    assert.strictEqual(api('shubham@rcl.test', 'decideChangeRequest', { id: id, approve: true }).status, 'Approved');
+    assert.ok(run('() => getVendors_().some(v => (v.name || v) === "Rev 116")'));
+    // ---- another: sent back, then taken back – nothing saved; several sent back at once ----
+    assert.match(api('mahesh@rcl.test', 'saveVendor', V('Rev 116 B'), 'add').THROWN, /^Sent for verification/);
+    const id2 = run('() => flowAll_().filter(r => r.status === "Pending").pop().id');
+    api('shubham@rcl.test', 'decideChangeRequests', { ids: [id2], revert: true, note: 'duplicate?' });
+    assert.strictEqual(run('id => flowAll_().find(r => r.id === id).status', id2), 'Reverted', 'several at once: sent back');
+    assert.strictEqual(api('mahesh@rcl.test', 'answerFlow', { id: id2, withdraw: true }).status, 'Withdrawn');
+    assert.ok(!run('() => getVendors_().some(v => (v.name || v) === "Rev 116 B")'));
+    assert.match(api('mahesh@rcl.test', 'answerFlow', { id: id2, note: 'again' }).THROWN, /not sent back to you \(it is withdrawn\)/);
+    // ---- the page: the buttons, the diesel way ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    ['d_save', 'bd_save', 'bm_save', 'i_save', 't_save', 'tb_save', 'l_save', 'm_save', 'v_save', 'boq_save', 'py_save'].forEach(b => assert.ok(new RegExp('\\b' + b + ': \\{ m: ').test(app), b));
+    assert.match(app, /const want = flowWill\(id\) \? 'Send to verification' : x\.dataset\.flowOrig;/);
+    assert.match(app, /S\.flowMine = d\.flow \|\| \{\}/);
+    // the page's dieselWay (taken from the page) on machinery of the Asset Master
+    const src = app.slice(app.indexOf('  function dieselWay(m) {'), app.indexOf('  function dieselWayMount('));
+    const dw = new Function('modesOf', 'hasKm', 'hasHr', src + ' return dieselWay;')(m => m.modes, w => w === 'KM' || w === 'KM + Hrs', w => w === 'Hrs' || w === 'KM + Hrs');
+    assert.deepStrictEqual([
+      dw({ unit: 'KM', modes: ['KM'] }), dw({ unit: 'Hrs', modes: ['Hrs', 'Time'] }), dw({ unit: 'KM + Hrs', modes: ['KM', 'Hrs', 'KM + Hrs'] }),
+      dw({ unit: 'Day', modes: ['Trip'] }), dw({ unit: '', modes: ['KM', 'Hrs', 'KM + Hrs'] })], ['KM', 'Hrs', 'KM + Hrs', '', 'KM + Hrs']);
+    assert.ok((app.match(/dieselWayMount\(/g) || []).length === 4, 'single, many rows, one machinery – many dates (+ its definition)');
+    assert.match(app, /title="Meter not working: no reading for this fill">Meter not working<\/button>/);
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k116.flush; SbBook_.prototype.loadMany = __k116.loadMany; SbSheet_.prototype.load_ = __k116.load_; sbDiscard_ = __k116.discard; rtcPush_ = __k116.push;
+      CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); TABLE_MEMO_ = {};`, ctx);
+  }
 });
