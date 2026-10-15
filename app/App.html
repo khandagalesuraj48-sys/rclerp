@@ -2838,7 +2838,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="viewonly" data-perm-view="Log Book" hidden>View only – you can see the checks, but cannot add or delete them.</div>
       <div class="grid-4 tc-form" data-perm-edit="Log Book">
         <div class="field"><label for="tc_date">Date *</label><input id="tc_date" type="date"></div>
-        <div class="field"><label for="tc_no">Machinery *</label><input id="tc_no" list="dl_machines" autocomplete="off" placeholder="Type or pick"></div>
+        <div class="field"><label for="tc_no">Machinery *</label><input id="tc_no" list="dl_mach_on" data-on="tc_date" autocomplete="off" placeholder="Type or pick"></div>
         <div class="field"><label for="tc_method">How was it checked? *</label><select id="tc_method"><option value="measure">Measured the diesel in the tank</option><option value="full">Filled the tank to full</option></select></div>
         <div class="field" id="tc_phys_w"><label for="tc_phys">Diesel found in the tank (Ltr) *</label><input id="tc_phys" type="number" step="0.01" min="0"></div>
         <div class="field" id="tc_fill_w" hidden><label for="tc_fill">Litres it took to fill to full *</label><input id="tc_fill" type="number" step="0.01" min="0"></div>
@@ -3328,6 +3328,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="mf_owner">Owner</label><input id="mf_owner" list="dl_owner" autocomplete="off" placeholder="All"></div>
         <div class="field"><label for="mf_supply">Diesel Supply</label><select id="mf_supply"><option value="">All</option><option>Company</option><option>Debit Basis</option><option>Other</option></select></div>
         <div class="field"><label for="mf_status">Status</label><select id="mf_status"><option value="">All</option><option>Active</option><option>Inactive</option></select></div>
+        <div class="field" title="Machinery on site on at least one day of these dates (from its Active From, until the day before its Inactive From). Empty = all machinery, also the machinery that left."><label for="mf_from">On site from</label><input id="mf_from" type="date"></div>
+        <div class="field" title="Machinery on site on at least one day of these dates. Empty = all machinery, also the machinery that left."><label for="mf_to">to</label><input id="mf_to" type="date"></div>
         <button class="btn ghost small" id="mf_clear">Clear filters</button>
         <button class="btn ghost" id="m_export">Export to Excel</button>
         <button class="btn ghost" id="m_print">Print list</button>
@@ -3994,7 +3996,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="d_shift">Shift <span class="req">*</span></label>
           <select id="d_shift"><option>Day</option><option>Night</option></select></div>
         <div class="field"><label for="d_src">Diesel Source <span class="req">*</span></label><select id="d_src" class="loc-select src-select" data-default="first"></select></div>
-        <div class="field wide"><label for="d_no">Machinery Number / Name <span class="req">*</span></label><input id="d_no" list="dl_machines" autocomplete="off" placeholder="Type or pick a number or name"></div>
+        <div class="field wide"><label for="d_no">Machinery Number / Name <span class="req">*</span></label><input id="d_no" list="dl_mach_on" data-on="d_date" autocomplete="off" placeholder="Type or pick a number or name"></div>
       </div>
       <div class="facts" id="d_facts" hidden>
         <div class="fact"><span>Type of Machinery</span><b id="d_f_type"></b></div>
@@ -4164,7 +4166,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div id="lg_form" hidden>
       <div class="lg-top">
         <div class="field" id="lg_top_date_w"><label for="lg_top_date">Date *</label><input id="lg_top_date" type="date"></div>
-        <div class="field" id="lg_top_no_w"><label for="lg_top_no">Machinery *</label><input id="lg_top_no" list="dl_machines" autocomplete="off" placeholder="Type or pick"></div>
+        <div class="field" id="lg_top_no_w"><label for="lg_top_no">Machinery *</label><input id="lg_top_no" list="dl_mach_on" data-on="lg_top_date" autocomplete="off" placeholder="Type or pick"></div>
         <div class="lg-top-info" id="lg_top_info"></div>
       </div>
       <div class="lg-pend" id="lg_pend" hidden></div>
@@ -4238,7 +4240,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 </div>
 </div>
 
-<datalist id="dl_machines"></datalist>
+<datalist id="dl_machines"></datalist><datalist id="dl_mach_on"></datalist>
 <datalist id="dl_type"></datalist>
 <datalist id="dl_make"></datalist>
 <datalist id="dl_owner"></datalist>
@@ -9253,7 +9255,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   });
   $('d_template').addEventListener('click', () => {
     const L = S.locations || ['Dispenser', 'VTR Store'];
-    const m = (S.master || []).filter(x => x.status !== 'Inactive').slice(0, 2);
+    const m = (S.master || []).filter(x => onSiteOn(x, S.today)).slice(0, 2);
     const ws = XLSX.utils.aoa_to_sheet([['Date', 'Shift', 'Diesel Source', 'Machinery Number / Name', 'Diesel Qty (Ltr)', 'KM Reading', 'Hrs Reading', 'Driver Name', 'Remark'],
       [showDate(S.today), 'Day', L[0], m[0] ? m[0].id : 'MH-25-AJ-3232', 60, '', '', '', ''], [showDate(S.today), 'Night', L[1] || L[0], m[1] ? m[1].id : '400 KVA DG', 40, '', '', '', '']]);
     ws['!cols'] = [12, 8, 14, 24, 14, 11, 11, 16, 20].map(w => ({ wch: w }));
@@ -9624,7 +9626,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('lf_exp_mach').addEventListener('click', e => lbExport('mach', e.target));
   // templates: the same columns, filled the way each entry type is used
   function lbTemplate(kind) {
-    const act = (S.master || []).filter(m => m.status !== 'Inactive' && needsLogBook(m));
+    const act = (S.master || []).filter(m => onSiteOn(m, S.today) && needsLogBook(m));
     const km = act.find(m => m.unit === 'KM'), hr = act.find(m => m.unit === 'Hrs') || km;
     const head = ['Date', 'Shift', 'Machinery', 'Measured by', 'Start KM', 'Close KM', 'Start Hrs', 'Close Hrs', 'From time', 'To time', 'Break (min)', 'Trips', 'Challan No', 'Opening diesel (L)', 'Chainage From', 'Chainage To', 'Work Done', 'Driver Name', 'Remark', 'Status', 'Item work'];
     const ins = r => r.slice(0, 3).concat([''], r.slice(3, 7), ['', '', '', '', ''], r.slice(7)); // old example rows → new columns
@@ -9772,14 +9774,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // vendor assigned = its Vendor (Owner Name) is a vendor saved in Vendor Master
   const vendorAssigned = m => !!String(m.owner || '').trim();
   S.mVc = '';
+  /* (update-115) ON SITE BY DATE: a machinery is on this site from its "Active From" (blank = always) until the day BEFORE its
+   * "Inactive From" (as the server's check of an entry – assertActive_). From that date it is not shown where entries are made,
+   * not pending, not counted; a list of dates (Asset Master) shows it when it was on site on at least one day of them. */
+  const mDay = v => String(v || '').slice(0, 10);
+  const onSiteOn = (m, dk) => !!m && (!m.activeFrom || mDay(m.activeFrom) <= dk) && !(m.status === 'Inactive' && (!m.inactiveFrom || mDay(m.inactiveFrom) <= dk));
+  const onSiteIn = (m, a, b) => !!m && (!m.activeFrom || mDay(m.activeFrom) <= b) && !(m.status === 'Inactive' && (!m.inactiveFrom || mDay(m.inactiveFrom) <= a));
   function masterFiltered(noVc) {
     const q = val('m_search').toUpperCase(), fo = $('mf_own').value, fu = $('mf_unit').value, fs = $('mf_status').value, fd = $('mf_supply').value;
+    const fa = $('mf_from').value, fb = $('mf_to').value, ra = fa || '0000-01-01', rb = fb || '9999-12-31';
     const vc = noVc ? '' : S.mVc;
     const ft = val('mf_type').toUpperCase(), fw = val('mf_owner').toUpperCase();
     return S.master.filter(m => (!q || [m.id, m.no, m.name, m.type, m.owner, m.ownership].join(' ').toUpperCase().includes(q)) &&
       (!fo || m.ownership === fo) && (!fu || m.unit === fu) && (!fs || m.status === fs) && (!fd || m.supply === fd) &&
       (!ft || String(m.type || '').toUpperCase().includes(ft)) && (!fw || String(m.owner || '').toUpperCase().includes(fw)) &&
-      (!vc || (vc === 'done' ? vendorAssigned(m) : !vendorAssigned(m))));
+      (!vc || (vc === 'done' ? vendorAssigned(m) : !vendorAssigned(m))) && (!(fa || fb) || onSiteIn(m, ra < rb ? ra : rb, ra < rb ? rb : ra)));
   }
   function masterChips() {
     const base = masterFiltered(true), n = base.filter(vendorAssigned).length;       // counts follow Ownership / Type / … filters
@@ -9849,9 +9858,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     document.querySelectorAll('#m_rows .m-sel').forEach(x => { x.checked = e.target.checked; if (e.target.checked) S.mSel.add(x.dataset.id); else S.mSel.delete(x.dataset.id); x.closest('tr').classList.toggle('picked', e.target.checked); });
     masterSelBar();
   });
-  ['mf_own', 'mf_unit', 'mf_status', 'mf_supply'].forEach(id => $(id).addEventListener('change', renderMaster));
+  ['mf_own', 'mf_unit', 'mf_status', 'mf_supply', 'mf_from', 'mf_to'].forEach(id => $(id).addEventListener('change', renderMaster));
   ['mf_type', 'mf_owner'].forEach(id => $(id).addEventListener('input', renderMaster));
-  $('mf_clear').addEventListener('click', () => { ['m_search', 'mf_type', 'mf_owner'].forEach(id => { $(id).value = ''; }); ['mf_own', 'mf_unit', 'mf_status', 'mf_supply'].forEach(id => { $(id).value = ''; }); renderMaster(); });
+  $('mf_clear').addEventListener('click', () => { ['m_search', 'mf_type', 'mf_owner'].forEach(id => { $(id).value = ''; }); ['mf_own', 'mf_unit', 'mf_status', 'mf_supply', 'mf_from', 'mf_to'].forEach(id => { $(id).value = ''; }); renderMaster(); });
   $('m_selnone').addEventListener('click', () => { S.mSel.clear(); renderMaster(); });
   // Edit selected: the form opens with the machinery's own data. A value that is the same for all selected
   // machinery is filled in and can be changed (or cleared); where they differ the box shows "different" and
@@ -11388,7 +11397,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // 5. to look at
       const logged = new Set(logs.map(r => r.no)), fuelled = [...new Set(issues.map(x => x.no))];
       const noLog = fuelled.filter(x => !logged.has(x));
-      const active = (S.master || []).filter(m => m.status !== 'Inactive' && (!m.activeFrom || String(m.activeFrom).slice(0, 10) <= day) && needsLogBook(m));
+      const active = (S.master || []).filter(m => onSiteOn(m, day) && needsLogBook(m));
       const noEntry = active.filter(m => !logged.has(m.id)).map(m => m.id);
       const brk = (bk.onDate || bk.rows || []).map(x => '<b>' + esc(x.no || x.machinery || '') + '</b>' + (x.reason || x.remark ? ' – ' + esc(x.reason || x.remark) : '') + (x.since || x.from ? ' <small>(since ' + esc(showDate(String(x.since || x.from).slice(0, 10))) + ')</small>' : ''));
       const look = '<ul class="dr-look">' +
@@ -11466,7 +11475,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       return { from: d.from, upTo: d.asOf, pendingDaysInAll: d.total, lastTenDays: days.map(k => ({ date: k, machinery: by[k] })), page: 'log' }; },
     diesel_stock: async () => { const d = await rawCall('getStock'); return { litresInStockNow: d.stock, byLocation: d.byLoc, receivedInAll: d.inward, issuedInAll: d.issued, page: 'dash' }; },
     machinery: async a => { const q = String(a.query || '').trim().toUpperCase(), all = S.master || [];
-      if (!q) { const c = {}, t = {}; all.forEach(m => { c[m.ownership || 'Other'] = (c[m.ownership || 'Other'] || 0) + 1; t[m.type || '(no type)'] = (t[m.type || '(no type)'] || 0) + 1; }); return { machineryInAll: all.length, active: all.filter(m => m.status !== 'Inactive').length, byOwnership: c, byType: t, page: 'master' }; }
+      if (!q) { const c = {}, t = {}; all.forEach(m => { c[m.ownership || 'Other'] = (c[m.ownership || 'Other'] || 0) + 1; t[m.type || '(no type)'] = (t[m.type || '(no type)'] || 0) + 1; }); return { machineryInAll: all.length, active: all.filter(m => onSiteOn(m, S.today)).length, byOwnership: c, byType: t, page: 'master' }; }
       const hit = all.filter(m => [m.id, m.name, m.type, m.owner].some(v => String(v || '').toUpperCase().indexOf(q) > -1));
       return { found: hit.length, machinery: aiCut(hit, ['id', 'name', 'type', 'owner', 'ownership', 'unit', 'kmStd', 'hrStd', 'tankCap', 'status', 'supply', 'activeFrom'], 25), page: 'master' }; },
     diesel_average: async a => { const d = await rawCall('rptAverage', { from: a.from, to: a.to }); let rows = [].concat(...(d.groups || []).map(g => g.rows || [])); const no = aiMach(a.machinery);
@@ -12013,7 +12022,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const qrLink = id => { let base = ''; try { base = window.top.location.origin + window.top.location.pathname; } catch (e) { base = location.origin + '/'; } return base + '?m=' + encodeURIComponent(id); };
   function qrSvg(text) { const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); }
   async function qrLabels() {
-    const all = (S.master || []).filter(m => m.status !== 'Inactive');
+    const all = (S.master || []).filter(m => onSiteOn(m, S.today));
     if (!all.length) { toast('There is no active machinery.', true); return; }
     const pickOne = S.masterEdit && S.masterEdit.id ? S.masterEdit.id : '';
     const yes = await askConfirm({ title: 'QR labels', ok: 'Make the labels', html: '<p>A label with a QR code for the machinery – stick it where the driver / operator can reach it. A scan with a phone opens this app on that machinery (after sign-in): Diesel Issue or Log Book entry.</p>' +
@@ -13970,8 +13979,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!quietMaster) S.cpBadgeAt = Date.now();
     setTimeout(() => { if (quietMaster) return; try { cpBadgeLoad(); } catch (e) { /* badge only */ } try { if (!S.bkBadged) { S.bkBadged = true; bkBadgeLoad(); } } catch (e) { /* badge only */ } }, 0);
     // value = number, or the name when there is no number
-    $('dl_machines').innerHTML = S.master.map(m => '<option value="' + esc(m.id) + '">' +
-      esc((m.no ? [m.name, m.type].filter(Boolean).join(' – ') : [m.type, 'No number'].filter(Boolean).join(' – ')) + (m.status === 'Inactive' ? ' (Inactive' + (m.inactiveFrom ? ' from ' + showDate(m.inactiveFrom) : '') + ')' : '')) + '</option>').join('');
+    $('dl_machines').innerHTML = S.master.map(machOpt).join('');
+    S.machOnFor = '';      // (update-115) the list of an entry's date is made again
     const uniq = key => [...new Set(S.master.map(m => m[key]).filter(Boolean))].sort();
     $('dl_type').innerHTML = uniq('type').map(v => '<option value="' + esc(v) + '">').join('');
     $('dl_make').innerHTML = uniq('make').map(v => '<option value="' + esc(v) + '">').join('');
@@ -13980,10 +13989,28 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if ($('dl_vendors')) setVendors();
     setTypeOwnerLists();
   }
+  const machOpt = m => '<option value="' + esc(m.id) + '">' +
+    esc((m.no ? [m.name, m.type].filter(Boolean).join(' – ') : [m.type, 'No number'].filter(Boolean).join(' – ')) + (m.status === 'Inactive' ? ' (Inactive' + (m.inactiveFrom ? ' from ' + showDate(m.inactiveFrom) : '') + ')' : '')) + '</option>';
+  // (update-115) the picker of an entry: the machinery on site on the entry's date (its date box: data-on = its id, or "row" = the date of its row)
+  function machOnFill(inp) {
+    let dk = '';
+    const on = inp.dataset.on || '';
+    if (on === 'row') { const tr = inp.closest('tr'), d = tr && tr.querySelector('[data-f=date]'); dk = d ? d.value : ''; if (!dk && $('lg_top_date')) dk = $('lg_top_date').value; }
+    else if (on && $(on)) dk = $(on).value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dk)) dk = S.today || '';
+    if (S.machOnFor === dk) return;
+    S.machOnFor = dk;
+    $('dl_mach_on').innerHTML = (S.master || []).filter(m => !dk || onSiteOn(m, dk)).map(machOpt).join('');
+  }
+  document.addEventListener('focusin', e => { const t = e.target; if (t && t.getAttribute && t.getAttribute('list') === 'dl_mach_on') machOnFill(t); });
+  document.addEventListener('input', e => { const t = e.target; if (t && t.getAttribute && t.getAttribute('list') === 'dl_mach_on') machOnFill(t); });
   function renderMaster() {
+    if (!S.mfDated && S.today) { S.mfDated = true; $('mf_from').value = S.today; $('mf_to').value = S.today; }      // (update-115) at first: the machinery on site today
     const rows = masterFiltered(), can = canEdit('Master');
     masterChips();
-    $('m_sum').innerHTML = 'Machinery: <b>' + rows.length + '</b>' + (rows.length !== S.master.length ? ' of ' + S.master.length : '');
+    const fa = $('mf_from').value, fb = $('mf_to').value;
+    $('m_sum').innerHTML = 'Machinery: <b>' + rows.length + '</b>' + (rows.length !== S.master.length ? ' of ' + S.master.length : '') +
+      (fa || fb ? ' · on site ' + (fa === fb ? 'on ' + esc(showDate(fa)) : (fa ? 'from ' + esc(showDate(fa)) + ' ' : '') + (fb ? 'to ' + esc(showDate(fb)) : '')) : '');
     $('m_selth').hidden = !can;
     $('m_rows').innerHTML = rows.length ? rows.map(m =>
       '<tr' + (S.mSel.has(m.id) ? ' class="picked"' : '') + '>' + (can ? '<td class="sel"><input type="checkbox" class="m-sel" data-id="' + esc(m.id) + '" aria-label="Select ' + esc(m.id) + '"' + (S.mSel.has(m.id) ? ' checked' : '') + '></td>' : '') + '<td>' + esc(m.no) + '</td><td>' + esc(m.name) + '</td><td>' + esc(m.type) + '</td><td>' + esc(m.make) + '</td><td>' + esc(worksOf(m).join(', ') || m.unit || '') +
@@ -14753,7 +14780,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const BD_FIELDS = ['no', 'qty', 'kmReading', 'hrReading', 'driver', 'remark'];
   function dieselRowHtml() {
     return '<td class="idx"></td>' +
-      '<td><input data-f="no" list="dl_machines" autocomplete="off"><div class="lastfill"></div></td>' +
+      '<td><input data-f="no" list="dl_mach_on" data-on="bd_date" autocomplete="off"><div class="lastfill"></div></td>' +
       '<td class="unitcell"></td>' +
       '<td class="unitcell ownercell"></td>' +
       '<td><input data-f="qty" type="number" step="0.01" min="0"></td>' +
@@ -15265,7 +15292,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<td class="c-date"><input data-f="date" type="date" max="' + esc(S.today || '') + '" value="' + esc(date || S.today || '') + '"><small class="lnote dnote"></small></td>' +
       '<td><select data-f="shift">' + LOG_SHIFTS.map(x => '<option' + (x === (shift || 'Full Day') ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' +
         '<label class="lg-half" title="Half day: the machinery was on the job for half of this shift. The bill pays this entry as half a day (monthly and per-day rates). Pay by hour, KM or trip is not changed."><input type="checkbox" data-f="half"> ½ day</label></td>' +
-      '<td class="c-m"><input data-f="no" list="dl_machines" autocomplete="off" placeholder="Type or pick"><small class="lnote"></small></td>' +
+      '<td class="c-m"><input data-f="no" list="dl_mach_on" data-on="row" autocomplete="off" placeholder="Type or pick"><small class="lnote"></small></td>' +
       '<td class="unitcell c-unit"></td>' +
       '<td>' + rd('openingKm', 'km') + rd('openingHr', 'hr') + '<small class="gaphint" hidden></small><div class="rd tm"><small>from</small><input data-f="tStart" type="time"></div><div class="tm-xa"></div><div class="rd tm addt"><button type="button" class="tm-add" title="This machinery worked in parts (e.g. 11 to 1 and 2 to 5): add another From – To. The hours of all the times are added up.">+ time</button><button type="button" class="tm-rem" hidden title="Remove the last From – To of this entry" aria-label="Remove the last time">− time</button></div><span class="lg-day">—</span>' +
         '<div class="rd nr nrk" hidden><small title="Estimated KM of the day (the app proposes this machinery\'s own average)">est km</small><input data-f="estKm" type="number" step="0.01" min="0"></div><div class="rd nr nrh" hidden><small title="Estimated hours of the day">est hr</small><input data-f="estHr" type="number" step="0.01" min="0"></div><small class="nrhint" hidden></small>' +

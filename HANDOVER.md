@@ -1666,6 +1666,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   VF-00001) and saved only at the last level as the sender's own (`flowDecide_`, Returned if it fails then). Diesel waiting is held
   back (`flowReserved_` in `requireStockAt_`). Live sync part "flow"; runtime.js answers a resent save with the same words. Approvals
   page for everybody (summary, bulk, steps) + rules panel. Unit "update-114"; rig `test/flow114api.js` 30; browser flow114.js 12.
+- 15-10-2026 (update-115). Report: `UPDATE_115.md`. A machinery that left the site, by its date everywhere: one rule (page
+  `onSiteOn` / `onSiteIn`, server `onSiteOn_` = assertActive_'s days). Entry pickers use `dl_mach_on` (filled on focus for the
+  entry's date: `data-on` = its date box or "row"); filters keep `dl_machines`. Asset Master "On site from / to" (opens with
+  today). Compliance, BOQ missing, tank report, templates, QR labels by the date. Unit "update-115"; browser inactive115.js 11.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
