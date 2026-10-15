@@ -1455,6 +1455,8 @@ function normSupply_(v, ownership) {
   if (k === 'OTHER') return 'Other';
   return ownership === 'Debit' ? 'Debit Basis' : 'Company'; // blank: sensible default
 }
+// (update-115) on this site on a date: from "Active From" (blank = always) until the day before "Inactive From" – the same rule as assertActive_
+const onSiteOn_ = (m, dk) => !!m && (!m.activeFrom || dkey_(m.activeFrom) <= dk) && !(m.status === 'Inactive' && (!m.inactiveFrom || dkey_(m.inactiveFrom) <= dk));
 // Machinery must be active on the entry date: on/after "Active From" and before "Inactive From"
 function assertActive_(m, dk) {
   const show = k => k.split('-').reverse().join('-');
@@ -2309,7 +2311,7 @@ function saveCmpRules_(rules) {
 }
 function getCompliance_() {
   const today = today_(), docs = cmpDocs_(), rules = cmpRules_();
-  const active = getMaster_().filter(m => m.status !== 'Inactive' && ['Own', 'Rental', 'Hired'].indexOf(m.ownership) > -1);
+  const active = getMaster_().filter(m => onSiteOn_(m, today) && ['Own', 'Rental', 'Hired'].indexOf(m.ownership) > -1);      // (update-115) on site today
   // papers needed by each type (the list for "Papers per type")
   const typeMap = {};
   active.forEach(m => { const k = String(m.type || '').trim().toUpperCase() || '(NO TYPE)'; const x = typeMap[k] = typeMap[k] || { type: m.type || '(no type)', key: k, count: 0 }; x.count++; });
@@ -3724,7 +3726,7 @@ function boqMissing_(f) {
   f = f || {};
   const dk = dkey_(f.date) || today_();
   const saved = {}; const vt = vendorTable_(); if (vt) vt.rows.forEach(r => { saved[vKey_(r[vt.c['Vendor Name']])] = true; });
-  const out = getMaster_().filter(m => m.ownership !== 'Own' && m.status !== 'Inactive').map(m => ({ no: m.id, type: m.type, vendor: clean_(m.owner), ownership: m.ownership, vendorSaved: !!clean_(m.owner) }))
+  const out = getMaster_().filter(m => m.ownership !== 'Own' && onSiteOn_(m, dk)).map(m => ({ no: m.id, type: m.type, vendor: clean_(m.owner), ownership: m.ownership, vendorSaved: !!clean_(m.owner) }))
     .filter(x => !x.vendor || !boqRateFor_(x.vendor, x.no, dk));
   return { date: dk, rows: out };
 }
@@ -8098,7 +8100,7 @@ function rptTank_(f) {
   const rg = rptRange_(f);
   const checks = getTankChecks_({ from: rg.from, to: rg.to }).rows;
   const today = today_();
-  const current = getMaster_().filter(m => m.status !== 'Inactive' && m.supply !== 'Debit Basis').map(m => {
+  const current = getMaster_().filter(m => onSiteOn_(m, rg.to < today ? rg.to : today) && m.supply !== 'Debit Basis').map(m => {
     let s = null; try { s = systemTankAt_(m.id, rg.to < today ? rg.to : today); } catch (e) { s = null; }
     if (!s) return null;
     const last = tankChecksOf_(m.id).filter(x => x.date <= (rg.to < today ? rg.to : today)).pop();
