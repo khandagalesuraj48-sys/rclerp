@@ -35,8 +35,8 @@ the Log Book too; the notification of a request to the Super Admin only.
 * An entry being changed keeps its own shift.
 * **"My usual shift"** (Settings, per user) still wins; its empty choice is now "Automatic – Day / Night by the time".
 * **Phone app 3.1.4:** the same (diesel, transfer, Log Book, tanker), from the site's hours.
-* Not changed: the date. An entry made after midnight in the Night shift still gets today's date – ask if the night's date should be
-  the day before.
+* Not changed: the date. An entry made after midnight gets that day's date, as the clock says (his answer 15-10-2026: "ratri 12
+  nantar next day chalu hoto, so te time ani date standard pramane asel").
 
 ## Fixed on the way
 While testing, the browser test idle.js showed that a line put inside showTab's chain stopped the Diesel page from loading its
