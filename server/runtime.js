@@ -105,14 +105,17 @@ const crypto = require('crypto');
  * went the old way for a while could save a copy again that another server had already saved the new way. A number that
  * was started the old way just before the change-over is finished the old way (web_op_begin answers "old"). */
 const OK_RESENT = JSON.stringify({ ok: true, _resent: true });
+// (update-114) an answer kept as { __refused: words } is not a save: an entry SENT FOR VERIFICATION (Code.gs flowSend_) writes its
+// request with the number, and the person is told "Sent for verification …" – a copy sent again gets the same words, never "saved"
+const refusedOf = v => { let j = null; try { j = JSON.parse(v); } catch (e) { j = null; } return j && typeof j === 'object' && j.__refused !== undefined ? String(j.__refused) : null; };
 function runOnce(fn, args, meta, rid) {
   const holder = crypto.randomUUID();
   const hash = crypto.createHash('sha256').update(JSON.stringify([String(args[0] || ''), String(args[1] || ''), args[2] === undefined ? null : args[2]])).digest('hex');
   const begin = () => gas.rpc('web_op_begin', { p_rid: rid, p_hash: hash, p_holder: holder });
   const end = (state, result) => gas.rpc('web_op_end', { p_rid: rid, p_holder: holder, p_state: state, p_result: result === undefined ? null : result });
   // an answer that was kept: only for a sign-in that is still good (the same checks as any call – whoami does nothing else)
-  const kept = result => { runPlain('api', [args[0], 'whoami', []], {}); return result === null || result === undefined || result === '' ? OK_RESENT : String(result); };
-  const finish = result => { try { const c = end('close', null); if (c && c.n === 1) runPlain('saved', [args[0], String(args[1]), args[2] === undefined || args[2] === null ? [] : args[2], result === null || result === undefined ? '' : String(result)], {}); }
+  const kept = result => { runPlain('api', [args[0], 'whoami', []], {}); if (result === null || result === undefined || result === '') return OK_RESENT; const no = refusedOf(String(result)); if (no !== null) throw new Error(no); return String(result); };
+  const finish = result => { try { const c = end('close', null); if (c && c.n === 1 && refusedOf(String(result)) === null) runPlain('saved', [args[0], String(args[1]), args[2] === undefined || args[2] === null ? [] : args[2], result === null || result === undefined ? '' : String(result)], {}); }
     catch (e) { console.error('[after a save whose answer was lost] ' + String((e && e.message) || e)); } };
   // the number is done: its answer – and, if the request that saved never finished what follows a save, that is done now
   // (it is given 3 seconds first: normally it is just about to finish)
@@ -144,6 +147,8 @@ function runOnce(fn, args, meta, rid) {
     let st = null, asked = true;
     try { st = end(notNow ? 'free' : 'refused', notNow ? null : msg); } catch (e2) { st = null; asked = false; }      // (cannot be told now: the number stays "started" and is taken over or found done later)
     if (st && st.state === 'done') {      // the write DID go through (the database has the last word): answered "saved", and what follows a save is done now
+      const no = refusedOf(String(st.result));      // (update-114) … unless it was SENT FOR VERIFICATION: nothing follows; the number is closed with its words
+      if (no !== null) { try { end('done', null); } catch (e3) { /* closed by a later copy (finish) */ } throw e; }
       if (st.closed === false) finish(st.result);
       return st.result === null || st.result === undefined ? OK_RESENT : String(st.result); }
     if (/OP_NOT_MINE/.test(msg)) throw new Error('RETRY_LATER');
