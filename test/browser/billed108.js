@@ -75,6 +75,10 @@ const logOf = (dk) => sql("select coalesce(opening_km::float::text, '') || '>' |
     ok('   the edit window opens; Save is refused by the server and the page asks to send it, with a reason → "Sent"; nothing saved', editOpen && /In a submitted bill – send it to the Super Admin\?/.test(asked) && /CR-\d+\|Pending\|updateLogRow\|/.test(req) && /meter photo/.test(req) && logOf('2026-09-03') === '1080>1120' && /Sent to the Super Admin/.test(sent), { editOpen, asked: asked.slice(0, 200), req, log: logOf('2026-09-03'), sent });
     await pu.screenshot({ path: SHOTS + 'b108_sent.png' });
     const reqId = req.split('|')[0];
+    // (update-109) the user sees what he sent: Approvals (1), his request Waiting – no Approve / Reject for him
+    await fu.evaluate(() => { try { closeConfirm(false); } catch (e) {} showTab('approvals'); }); await wait(2500);
+    const mineW = await fu.evaluate(() => ({ tab: !document.getElementById('tab-approvals').hidden, label: document.getElementById('tab-approvals').textContent.trim(), rows: [...document.querySelectorAll('#cr_rows tr')].map(tr => tr.textContent.replace(/\s+/g, ' ').trim()), buttons: document.querySelectorAll('#cr_rows [data-crok]').length, intro: document.getElementById('cr_intro').textContent }));
+    ok('   (update-109) the user\'s Approvals: his request Waiting, no Approve button; the page says what Waiting / Approved / Rejected mean', mineW.tab && /Approvals \(1\)/.test(mineW.label) && mineW.rows.length === 1 && /Waiting/.test(mineW.rows[0]) && /CRX-1 · 03-09-2026/.test(mineW.rows[0]) && mineW.buttons === 0 && /You get a notification/.test(mineW.intro), mineW);
     const notSuper = await api('decideChangeRequest', { id: reqId, approve: true });
     ok('   a user (an Admin, not the Super Admin) cannot approve it', /Only the Super Admin approves/.test(notSuper.ERROR || ''), notSuper);
 
@@ -102,6 +106,9 @@ const logOf = (dk) => sql("select coalesce(opening_km::float::text, '') || '>' |
       { ask: ask.slice(0, 160), log: logOf('2026-09-03'), st: sql("select status || '|' || decided_by from billed_changes where id = '" + reqId + "'"), after });
     ok('   …the "before" of RA Bill 71: KM 120 (₹6,000), diesel debited 10 L', base.startsWith(id71 + '|') && JSON.parse(base.split('|').slice(1).join('|')).units.KM.qty === 120 && JSON.parse(base.split('|').slice(1).join('|')).dieselL === 10, base);
     ok('   …the entry after it (01-10) starts from the new Close (1150 > 1190)', logOf('2026-10-01') === '1150>1190', logOf('2026-10-01'));
+    await fu.evaluate(() => crLoad()); await wait(2000);
+    const mineA = await fu.evaluate(() => [...document.querySelectorAll('#cr_rows tr')].map(tr => tr.textContent.replace(/\s+/g, ' ').trim()));
+    ok('   (update-109) …and the user\'s list now says Approved, by whom', mineA.length === 1 && /Approved/.test(mineA[0]) && !/Waiting/.test(mineA[0]), mineA);
 
     // ---------- 4. the Super Admin changes a diesel issue of the bill himself ----------
     const satk = await fs2.evaluate(() => S.token);
