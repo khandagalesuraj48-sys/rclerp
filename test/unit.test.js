@@ -2445,7 +2445,7 @@ test('update-106 → update-111: every site its own vendors – step 1y stays li
   assert.ok(listed && listed.sql === sqlFile && /owner_site/.test(listed.about));
   assert.ok(/\['Owner Site', 'owner_site', 'text'\]/.test(fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8')));
   // (update-111) one site asks the others nothing any more; nothing is copied; no "Vendors of all sites"
-  assert.ok(/const OTHERS_ = new Set\(\[\]\);/.test(rt) && !/sysVendor/.test(rt) && !/sysVendor|vendorSpread_|vendorsTogether|othersAsk_|vendorGuard_/.test(code));
+  assert.ok(/const OTHERS_ = new Set\(\['sysPrefLang'\]\);/.test(rt) && !/sysVendor/.test(rt) && !/sysVendor|vendorSpread_|vendorsTogether|othersAsk_|vendorGuard_/.test(code));
   assert.ok(!/vOtherSite|vendorsTogether|id="v_all"|id="v_share"|\.mine ===/.test(app));
   const guide = app.slice(app.indexOf('    vendors: { saves: ['), app.indexOf(']', app.indexOf('    vendors: { saves: [')));
   assert.ok(guide.indexOf("'vendorsTogether'") === -1 && guide.indexOf("'saveVendor'") > -1);
@@ -2755,14 +2755,46 @@ test('update-110: the language of the app – the Marathi / Hindi words keep eve
   assert.match(app, /finally \{ btn\.disabled = false; if \(i18nSame\(btn\.textContent, label\)\) btn\.textContent = old; \}/, 'busy() gives the button its words back in any language');
   assert.ok(!/x\.textContent (===|!==) 'Both'/.test(app), 'the bill-name drop-downs');
   // each user his own: Settings → Language of the app (the help follows it); kept with the account
-  assert.match(app, /<b>Language of the app<\/b><div class="set-seg" data-pref="appLang" data-noi18n><button type="button" data-v="mr">मराठी<\/button><button type="button" data-v="hi">हिंदी<\/button><button type="button" data-v="">English<\/button><\/div>/);
-  assert.match(app, /prefSet\(k === 'appLang' \? \{ appLang: b\.dataset\.v, lang: b\.dataset\.v \|\| 'en' \} : \{ \[k\]: b\.dataset\.v \}\)/);
+  assert.match(app, /<b>Language of the app<\/b><div class="set-seg" data-pref="appLang" data-noi18n><button type="button" data-v="mr">मराठी<\/button><button type="button" data-v="hi">हिंदी<\/button><button type="button" data-v="en">English<\/button><\/div>/);
+  assert.match(app, /prefSet\(k === 'appLang' \? \{ appLang: b\.dataset\.v, lang: b\.dataset\.v === 'mr' \|\| b\.dataset\.v === 'hi' \? b\.dataset\.v : 'en' \} : \{ \[k\]: b\.dataset\.v \}\)/);
   assert.match(app, /if \(S\.user && p && Object\.prototype\.hasOwnProperty\.call\(p, 'appLang'\)\) i18nSet\(S\.prefs\.appLang\);/);
   const { T, ctx } = require('./harness.js');
   const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
-  assert.deepStrictEqual(['mr', 'hi', '', 'en', 'xx', undefined].map(v => run('v => prefsClean_({ appLang: v }).appLang', v)), ['mr', 'hi', '', '', '', '']);
+  assert.deepStrictEqual(['mr', 'hi', '', 'en', 'xx', undefined].map(v => run('v => prefsClean_({ appLang: v }).appLang', v)), ['mr', 'hi', '', 'en', '', '']);
   // served: build.js copies the files, the local server and Vercel give them out
   assert.match(fs.readFileSync(path.join(root, 'build.js'), 'utf8'), /\['mr', 'hi'\]\.forEach\(l => fs\.copyFileSync\(path\.join\(__dirname, 'app', 'i18n', l \+ '\.json'\), path\.join\(out, 'i18n', l \+ '\.json'\)\)\);/);
   assert.match(fs.readFileSync(path.join(root, 'dev.js'), 'utf8'), /\|i18n\\\/\(\?:mr\|hi\)\\\.json\)\$\//);
   assert.ok(JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')).headers.some(h => h.source === '/i18n/(.*)'));
+});
+
+test('update-112: the language is the person\'s – chosen at one site (web or phone app) it is written at his other sites; "en" = English chosen', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8');
+  assert.match(rt, /const OTHERS_ = new Set\(\['sysPrefLang'\]\);/);
+  assert.match(rt, /sysPrefLang: sysPrefLang_ \}\[fn\];/);
+  assert.ok(!/sysPrefLang/.test((rt.match(/const OUTSIDE = new Set\(\[([^\]]+)\]\)/) || [])[1]), 'the page cannot call it');
+  vm.runInContext('var __asked = []; __runOthers = function (fn, a) { __asked.push([fn, JSON.parse(a)]); return "[]"; };', ctx);
+  try {
+    const u = { email: 'Lang112@RCL.test', name: 'L' };
+    run('u => saveMyPrefs_(u, { theme: "dark" })', u);
+    assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(__asked)', ctx)), [], 'another setting: nothing asked of the other sites');
+    run('u => saveMyPrefs_(u, { appLang: "hi", lang: "hi" })', u);
+    assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(__asked)', ctx)), [['sysPrefLang', ['lang112@rcl.test', 'hi', 'hi']]]);
+    run('u => saveMyPrefs_(u, { appLang: "hi", lang: "hi" })', u);
+    assert.strictEqual(vm.runInContext('__asked.length', ctx), 1, 'the same again: not sent again');
+    run('u => saveMyPrefs_(u, { appLang: "en", lang: "en" })', u);
+    assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(__asked[1])', ctx)), ['sysPrefLang', ['lang112@rcl.test', 'en', 'en']]);
+    // AT THE OTHER SITE: written for a user of that site only
+    assert.deepStrictEqual(run('() => sysPrefLang_("nobody112@rcl.test", "mr", "mr")'), { ok: false });
+    const someone = run('() => (readUsersSheet_()[0] || {}).email || ""');
+    if (someone) {
+      assert.deepStrictEqual(run('e => sysPrefLang_(e, "mr", "mr")', someone), { ok: true });
+      assert.deepStrictEqual(run('e => { const p = prefsRead_(e); return [p.appLang, p.lang]; }', someone), ['mr', 'mr']);
+    }
+  } finally { vm.runInContext('__runOthers = undefined;', ctx); }
+  // the web: English chosen = "en"; not chosen marks English too
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /g\.dataset\.pref === 'appLang' && !p\.appLang \? 'en'/);
 });
