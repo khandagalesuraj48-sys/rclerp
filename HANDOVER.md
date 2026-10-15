@@ -1670,6 +1670,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `onSiteOn` / `onSiteIn`, server `onSiteOn_` = assertActive_'s days). Entry pickers use `dl_mach_on` (filled on focus for the
   entry's date: `data-on` = its date box or "row"); filters keep `dl_machines`. Asset Master "On site from / to" (opens with
   today). Compliance, BOQ missing, tank report, templates, QR labels by the date. Unit "update-115"; browser inactive115.js 11.
+- 15-10-2026 (update-116). Report: `UPDATE_116.md`. "Send to verification" on the save buttons of works under a rule
+  (`flowMine_` → getInit.flow / Approvals.mine; page `FLOW_BTNS`, `flowWill`, `flowLabels`). Send back (`flowDecide_` revert → status
+  Reverted, single + bulk), the sender answers / takes back (`answerFlow` → `flowAnswer_`), reminded every 30 min (`flowRemind_`).
+  Diesel Issue reading way by itself (`dieselWay` / `dieselWayMount`; "Meter not working" only). Unit "update-116"; browser flow116.js 18.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
