@@ -1680,6 +1680,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `savePlaces_` (a place with entries keeps its name; first place fixed while old entries have no place); Sites.gs acts `places` /
   `placesSave`, `sysPlacesSetup_`. No setting = Dispenser + VTR Store (VTR as before). Dashboard: one tank per place (`tankOwnHtml`).
   Unit "update-117"; rig places117api.js 33, newsite95.js 37; browser places117.js 13.
+- 16-10-2026 (update-118). Report: `UPDATE_118.md`. The sender's own entries in verification on the page where he made them and
+  on the Dashboard (page `FV_TABS` / `fvDraw` / `fvHtml`, from the Approvals list – live); "Remind" one / "Remind all waiting":
+  `remindFlow` → `flowRemindMine_` (own Pending only, the same entry once in 5 min, step "Reminded", notification to the level, else
+  the Super Admin); `crList_` gives `m`, `remindedAt`, `reminds`, `canRemind`; the approver's open page says a reminder
+  (`fvRemindSeen`). Rules panel: people picked but not ticked → asked before saving. Unit "update-118"; browser remind118.js 13.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

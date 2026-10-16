@@ -3200,3 +3200,106 @@ test('update-117: every site its own diesel places (18B: Camp Pump + 2 dispenser
   }
   function DB117reset() { vm.runInContext('DB117 = {}; SB_BOOK_ = null; TABLE_MEMO_ = {};', ctx); }
 });
+
+test('update-118: the sender sees his entries in verification where he made them (and on the Dashboard) and reminds the approvers – one or all, once in 5 minutes', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  vm.runInContext(`globalThis.__k118 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_ };
+    globalThis.DB118 = {};
+    globalThis.__fill118 = s => { const d = DB118[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep118 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill118(s); if (s.loaded) DB118[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    SB_BOOK_ = null;
+    SbBook_.prototype.flush = function () { __keep118(this); __k118.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill118(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill118(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    globalThis.__sent = []; rtcPush_ = function (ids, msg) { __sent.push({ ids: ids, msg: msg }); };
+    kvWrite_("FLOW_RULES", "{}"); kvWrite_("CR_SUPERS", JSON.stringify(["sa118@rcl.test"]));`, ctx);
+  try {
+    const PW = 'sha256$0123456789abcdef$' + 'd'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('mahesh118@rcl.test', 'Mahesh Jadhav', false, { 'Vendor Master': 'Edit', 'Diesel Inward': 'Edit' }), mk('shubham118@rcl.test', 'Shubham', false), mk('ravi118@rcl.test', 'Ravi', false, { 'Vendor Master': 'Edit' }), mk('sa118@rcl.test', 'Super C', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok118_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa118@rcl.test'); });
+    const api = (who, fn, ...a) => run('(t, f, a) => api(t, f, a)', tok[who], fn, a);
+    const V = n => ({ name: n, gstReg: 'No', pan: 'ABCPV1118A', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' });
+    const M = 'mahesh118@rcl.test', S = 'shubham118@rcl.test';
+    assert.ok(api('sa118@rcl.test', 'saveFlowRules', { tasks: { 'Vendor Master': { on: true, levels: [[S]] }, 'Diesel Inward': { on: true, levels: [[M]] } } }).ok);
+    const sent = n => (api(M, 'saveVendor', V(n), 'add').THROWN || '').match(/VF-\d{5}/)[0];
+    const a = sent('Rem 118 A'), b = sent('Rem 118 B');
+    // ---- his list: the work (page) of each, and "Remind" on what waits ----
+    let q = api(M, 'getChangeRequests', {}), ra = q.requests.find(x => x.id === a);
+    assert.deepStrictEqual([ra.m, ra.task, ra.canRemind, ra.reminds, ra.remindedAt, ra.mine], ['Vendor Master', MODULE_LABEL('Vendor Master'), true, 0, '', true]);
+    assert.ok(!api(S, 'getChangeRequests', {}).requests.find(x => x.id === a).canRemind, 'the approver does not remind');
+    // ---- the checks ----
+    assert.match(api(M, 'remindFlow', {}).THROWN, /^Pick the entries to remind about/);
+    assert.match(api(S, 'remindFlow', { ids: [a] }).THROWN, new RegExp('^Only the person who sent entry ' + a + ' reminds about it\\.$'));
+    assert.match(api(M, 'remindFlow', { ids: ['VF-99999'] }).THROWN, /^Entry VF-99999 was not found/);
+    // ---- one entry: the approver of its level gets a notification now; a step of the entry; the Activity Log ----
+    run('() => { __sent.length = 0; }');
+    let r = api(M, 'remindFlow', { ids: [a] });
+    assert.deepStrictEqual([r.ok, r.reminded, r.later], [true, [a], []]);
+    const push = run('() => __sent.map(p => [p.ids, p.msg.t, p.msg.id, p.msg.title, p.msg.body])');
+    assert.strictEqual(push.length, 1);
+    assert.deepStrictEqual(push[0].slice(0, 4), [run('() => [rtcUid_("shubham118@rcl.test")]'), 'cr', a, 'Reminder from Mahesh Jadhav – ' + MODULE_LABEL('Vendor Master') + ' waits for your approval']);
+    assert.match(push[0][4], new RegExp('^' + a + ': '));
+    ra = r.list.requests.find(x => x.id === a);
+    assert.ok(ra.reminds === 1 && ra.remindedAt && ra.history.some(h => h.step === 'Reminded' && h.by === 'Mahesh Jadhav' && h.note === 'to Shubham'), JSON.stringify(ra).slice(0, 400));
+    assert.strictEqual(api(S, 'getChangeRequests', {}).requests.find(x => x.id === a).reminds, 1, 'the approver sees it was reminded');
+    assert.ok(run('() => table_(LOG_SHEET, []).rows.some(x => x.join("|").indexOf("Verification – reminder sent by the sender") > -1)'));
+    // ---- again within 5 minutes: not sent again, he is told when; "Remind all": the other one goes ----
+    run('() => { __sent.length = 0; }');
+    r = api(M, 'remindFlow', { ids: [a] });
+    assert.ok(r.reminded.length === 0 && r.later.length === 1 && r.later[0].id === a && /^\d{2}:\d{2}$/.test(r.later[0].next), JSON.stringify(r.later));
+    r = api(M, 'remindFlow', { all: true });
+    assert.deepStrictEqual([r.reminded, r.later.map(l => l.id)], [[b], [a]]);
+    assert.strictEqual(run('() => __sent.length'), 1);
+    // after 5 minutes it goes again
+    run(`id => { const t = crTable_(false), o = t.rows.map((x, i) => crOut_(t, x, i)).find(z => z.id === id), f = JSON.parse(o.data); f.remindedAt = new Date(Date.now() - 6 * 60000).toISOString();
+      const row = t.rows[o.i].slice(); set_(row, t, 'Data', JSON.stringify(f)); t.sh.getRange(o.i + 2, 1, 1, row.length).setValues([row]); sbFlush_(); }`, a);
+    r = api(M, 'remindFlow', { ids: [a] });
+    assert.ok(r.reminded[0] === a && r.list.requests.find(x => x.id === a).reminds === 2);
+    // ---- a decided entry is not reminded; nothing waiting: said so ----
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: b, approve: true }).status, 'Approved');
+    assert.match(api(M, 'remindFlow', { ids: [b] }).THROWN, /^This entry is not waiting for approval any more/);
+    assert.ok(!api(M, 'getChangeRequests', {}).requests.find(x => x.id === b).canRemind);
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: a, approve: false, note: 'duplicate' }).status, 'Rejected');
+    assert.match(api(M, 'remindFlow', { all: true }).THROWN, /^None of your entries is waiting for approval\.$/);
+    // ---- nobody else at the level (he is its only person): the Super Admin is reminded ----
+    const today = run('() => today_()');
+    const c = (api(M, 'saveInward', { date: today, location: 'Dispenser', pump: 'Pump 118', qty: 100, rate: 92, billNo: 'R118', billDate: today }).THROWN || '').match(/VF-\d{5}/)[0];
+    run('() => { __sent.length = 0; }');
+    r = api(M, 'remindFlow', { ids: [c] });
+    assert.deepStrictEqual(run('() => __sent.map(p => p.ids)'), [run('() => [rtcUid_("sa118@rcl.test")]')]);
+    assert.strictEqual(r.list.requests.find(x => x.id === c).history.pop().note, 'to the Super Admin');
+    // ---- the page: the box on the pages and the Dashboard, the buttons, the approver told on his open page ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.match(app, /const FV_TABS = \{ 'Diesel Issue': 'diesel', 'Diesel Inward': 'inward', 'Diesel Transfer': 'transfer', 'Log Book': 'log',/);
+    assert.match(app, /fvDraw\(\);\n  \}\n  \/\* =+ MY ENTRIES IN VERIFICATION/);
+    assert.match(app, /put\('sec-dash', 'fv_dash', fvMine\('', 1\), '', true\);/);
+    assert.match(app, /fvRemindSeen\(was, S\.cr\); crDraw\(\);/);
+    assert.match(app, /approvals: \{ saves: \[[^\]]*'remindFlow'\]/);
+    assert.match(app, /const offWith = Object\.keys\(tasks\)\.filter\(m => !tasks\[m\]\.on && tasks\[m\]\.levels\.some\(l => l\.length\)\);/, 'people picked but not ticked: asked before saving');
+    const src = app.slice(app.indexOf('  const FV_DAYS = 7;'), app.indexOf('  function fvDraw() {'));
+    const F = new Function('S', 'esc', 'crWhen', src + '; return { fvMine, fvHtml };');
+    const now = new Date().toISOString(), old = new Date(Date.now() - 9 * 86400000).toISOString();
+    const SS = { cr: { requests: [
+      { kind: 'Flow', mine: true, m: 'Diesel Issue', id: 'VF-00001', task: 'Diesel Issue', status: 'Pending', at: now, waitSince: now, waitingFor: ['Shubham'], level: 1, levels: 2, canRemind: true, reminds: 2, remindedAt: now, summary: ['Diesel issue MH-1 60 L'] },
+      { kind: 'Flow', mine: true, m: 'Diesel Issue', id: 'VF-00002', task: 'Diesel Issue', status: 'Approved', at: now, decidedAt: now, decidedBy: 'Shubham', summary: ['Diesel issue MH-2 40 L'] },
+      { kind: 'Flow', mine: true, m: 'Diesel Issue', id: 'VF-00003', task: 'Diesel Issue', status: 'Rejected', at: old, decidedAt: old, decidedBy: 'Shubham', summary: ['old'] },
+      { kind: 'Flow', mine: true, m: 'Diesel Inward', id: 'VF-00004', task: 'Diesel Inward', status: 'Reverted', at: old, canAnswer: true, reverted: { by: 'Shubham', note: 'bill?' }, summary: ['Inward 500 L'] },
+      { kind: 'Flow', mine: false, m: 'Diesel Issue', id: 'VF-00005', status: 'Pending', at: now, summary: ['not his'] }] } };
+    const f = F(SS, x => String(x), x => String(x));
+    assert.deepStrictEqual(f.fvMine('Diesel Issue').map(x => x.id), ['VF-00001', 'VF-00002'], 'his, of this page; decided ones of the last 7 days');
+    assert.deepStrictEqual(f.fvMine('', 1).map(x => x.id), ['VF-00001', 'VF-00002', 'VF-00004'], 'the Dashboard: all pages, waiting and sent back always');
+    const h = f.fvHtml(f.fvMine('Diesel Issue'), 'Diesel Issue', false);
+    assert.ok(/Waiting<b>1<\/b>/.test(h) && /Approved<b>1<\/b>/.test(h) && /data-fvr="VF-00001">Remind<\/button><br><small>reminded 2×/.test(h) && /Remind all waiting \(1\)/.test(h) && /at Shubham · level 1 of 2 · since 0 min/.test(h), h);
+    assert.ok(/Sent back<b>1<\/b>/.test(f.fvHtml(f.fvMine('', 1), '', true)) && /data-fvopen="1">Answer/.test(f.fvHtml(f.fvMine('', 1), '', true)));
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k118.flush; SbBook_.prototype.loadMany = __k118.loadMany; SbSheet_.prototype.load_ = __k118.load_; sbDiscard_ = __k118.discard; rtcPush_ = __k118.push;
+      CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
+  }
+  function MODULE_LABEL(m) { return vm.runInContext('MODULE_LABEL_', ctx)[m] || m; }
+});

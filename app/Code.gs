@@ -862,7 +862,8 @@ const API_ = {
   decideChangeRequest: { m: '', withUser: true, f: (u, x) => /^VF-/.test(str_((x || {}).id)) ? Object.assign(flowDecide_(u, x), { list: crList_(u, {}) }) : crDecide_(u, x), log: 'crDecide' },
   decideChangeRequests: { m: '', withUser: true, f: (u, x) => flowDecideMany_(u, x), log: 'flowDecideMany' },      // (update-114) several verification requests at once
   getFlowRules:      { m: '', withUser: true, f: u => getFlowRules_(u) },
-  answerFlow:        { m: '', withUser: true, f: (u, x) => flowAnswer_(u, x), log: 'flowAnswer' },      // (update-116) the sender answers an entry sent back to him, or takes it back      // (update-114) the Super Admin's verification rules
+  answerFlow:        { m: '', withUser: true, f: (u, x) => flowAnswer_(u, x), log: 'flowAnswer' },
+  remindFlow:        { m: '', withUser: true, f: (u, x) => flowRemindMine_(u, x), log: 'flowRemindMine' },      // (update-118) the sender reminds the approvers of his waiting entries      // (update-116) the sender answers an entry sent back to him, or takes it back      // (update-114) the Super Admin's verification rules
   saveFlowRules:     { m: '', withUser: true, f: (u, x) => saveFlowRules_(u, x), log: 'flowRules' },
   saveDebitNote:     { m: 'Machinery Billing', edit: true, f: saveDebitNote_, log: 'debitNote' },
   getDebitNotes:     { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Vendor Ledger'], f: getDebitNotes_ },
@@ -1185,6 +1186,9 @@ function logAfter_(u, spec, args, res, before) {
     case 'flowDecideMany':      // (update-114)
       writeLog_(u, 'Edit', 'Approvals', (res.done || []).map(d => d.id).join(', ').slice(0, 120), 'Verification (several at once): ' + ((args[0] || {}).revert === true ? 'send back' : (args[0] || {}).approve === true ? 'approve' : 'reject'),
         (res.done || []).map(d => d.id + ' ' + d.status).join('; ').slice(0, 900) + ((res.failed || []).length ? ' | not done: ' + res.failed.map(f => f.id + ' ' + f.error).join('; ').slice(0, 400) : ''));
+      break;
+    case 'flowRemindMine':      // (update-118)
+      if ((res.reminded || []).length) writeLog_(u, 'Edit', 'Approvals', res.reminded.join(', ').slice(0, 120), 'Verification – reminder sent by the sender', res.reminded.join(', ').slice(0, 900));
       break;
     case 'flowAnswer':      // (update-116)
       writeLog_(u, res.status === 'Withdrawn' ? 'Delete' : 'Edit', 'Approvals', res.id, res.status === 'Withdrawn' ? 'Verification – taken back by the sender' : 'Verification – answered and sent again', clean_((args[0] || {}).note).slice(0, 300));
@@ -9142,7 +9146,8 @@ function crList_(u, f) {
       if (r.kind === 'Flow') { const fl = r.flow || {}, lv = (fl.levels || [])[fl.level || 0] || [];
         o.task = MODULE_LABEL_[fl.m] || fl.m || ''; o.level = (fl.level || 0) + 1; o.levels = (fl.levels || []).length; o.waitingFor = r.status === 'Pending' ? lv.map(e => names[e] || e) : [];
         o.waitSince = fl.waitSince || r.at; o.history = (fl.history || []).slice(-20); o.canDecide = flowCan_(u, r); o.qty = fl.qty || 0;
-        if (r.status === 'Reverted') { o.reverted = { by: (fl.reverted || {}).by || '', note: (fl.reverted || {}).note || '', at: (fl.reverted || {}).at || '' }; o.canAnswer = r.email === me; } }
+        if (r.status === 'Reverted') { o.reverted = { by: (fl.reverted || {}).by || '', note: (fl.reverted || {}).note || '', at: (fl.reverted || {}).at || '' }; o.canAnswer = r.email === me; }
+        o.m = fl.m || ''; o.remindedAt = fl.remindedAt || ''; o.reminds = Number(fl.reminds) || 0; o.canRemind = r.email === me && r.status === 'Pending'; }      // (update-118) the sender's reminders
       else o.canDecide = !!u.super && r.status === 'Pending';
       o.mine = r.email === me; return o; });
   return { mine: flowMine_(u), requests: list, pending: list.filter(r => r.status === 'Pending' || r.canAnswer).length, forMe: list.filter(r => r.canDecide || r.canAnswer).length, backToMe: list.filter(r => r.canAnswer).length, superAdmin: !!u.super };
@@ -9471,6 +9476,43 @@ function flowAnswer_(u, x) {
   bump_(['flow']);
   if (!back) crNotify_(to.length ? to : crSupers_(), { id: r0.id, title: 'Answered – verification of ' + r0.by, body: note });
   return { ok: true, id: r0.id, status: back ? 'Withdrawn' : 'Pending', list: crList_(u, {}) };
+}
+/* (update-118, asked 16-10-2026: "jya pending aahe tyach reminder pn to pathau shakel … entry wise or all send reminder dable ki
+ * verification pending aslele entry la tya user hard push notification app la send krel jene krun jo koni approval krnar aahe
+ * tyala samjel patkan") THE SENDER REMINDS – one entry ("Remind") or all his entries that wait ("Remind all"): the people of the
+ * level each waits at get a notification now (web and phone app); nobody else at that level → the Super Admin. The same entry
+ * once in 5 minutes (no flood – a later press says when). Each reminder is a step of the entry, so the approver sees it. */
+const FLOW_REMIND_GAP_MS_ = 5 * 60000;
+function flowRemindMine_(u, x) {
+  x = x || {};
+  const me = str_(u.email).toLowerCase(), all = x.all === true, ids = (Array.isArray(x.ids) ? x.ids : []).map(str_).filter(Boolean).slice(0, 200);
+  if (!all && !ids.length) throw new Error('Pick the entries to remind about (or press "Remind all").');
+  const reminded = [], later = [], tell = [], now = new Date(), hm = d => Utilities.formatDate(d, tz_(), 'HH:mm');
+  withLock_(() => {
+    const t = crTable_(false); if (!t) throw new Error(CR_SQL_MSG_);
+    const rows = flowAll_();
+    ids.forEach(id => { const r = rows.find(z => z.id === id);
+      if (!r) throw new Error('Entry ' + id + ' was not found – refresh the list.');
+      if (r.email !== me) throw new Error('Only the person who sent entry ' + id + ' reminds about it.'); });
+    const wait = rows.filter(r => r.email === me && r.status === 'Pending' && (all || ids.indexOf(r.id) > -1));
+    if (!wait.length) throw new Error(all ? 'None of your entries is waiting for approval.' : 'This entry is not waiting for approval any more – refresh the list.');
+    const byRow = {}; t.rows.forEach((r, i) => { const o = crOut_(t, r, i); if (o.id) byRow[o.id] = o.i; });
+    wait.forEach(r => {
+      const f = r.flow || {}, last = Date.parse(f.remindedAt || '');
+      if (last && now.getTime() - last < FLOW_REMIND_GAP_MS_) { later.push({ id: r.id, at: hm(new Date(last)), next: hm(new Date(last + FLOW_REMIND_GAP_MS_)) }); return; }
+      const to = ((f.levels || [])[f.level || 0] || []).filter(e => e !== me);
+      f.remindedAt = now.toISOString(); f.reminds = (Number(f.reminds) || 0) + 1;
+      f.history = (f.history || []).concat([{ step: 'Reminded', level: (f.level || 0) + 1, by: u.name || u.email, email: me, at: f.remindedAt, note: to.length ? 'to ' + flowNames_(to).join(', ') : 'to the Super Admin' }]);
+      const i = byRow[r.id]; if (i === undefined) return;
+      const row = t.rows[i].slice(); set_(row, t, 'Data', JSON.stringify(f)); stampEdit_(row, t);
+      t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
+      reminded.push(r.id); tell.push({ id: r.id, to: to, task: MODULE_LABEL_[f.m] || f.m || '', what: (r.summary[0] || r.id).slice(0, 90), level: (f.level || 0) + 1, levels: (f.levels || []).length });
+    });
+    TABLE_MEMO_ = {};
+  });
+  if (reminded.length) bump_(['flow']);
+  tell.forEach(d => crNotify_(d.to.length ? d.to : crSupers_(), { id: d.id, title: 'Reminder from ' + (u.name || u.email) + ' – ' + d.task + ' waits for your approval', body: d.id + (d.levels > 1 ? ' (level ' + d.level + ' of ' + d.levels + ')' : '') + ': ' + d.what }));
+  return { ok: true, reminded: reminded, later: later, list: crList_(u, {}) };
 }
 // reminders: at most every 10 minutes (any open page's heartbeat), for requests waiting longer than the rule's hours
 function flowRemind_() {

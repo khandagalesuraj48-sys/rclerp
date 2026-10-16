@@ -2475,6 +2475,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .tag.half { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; border-radius: 999px; padding: 0 7px; font: 700 11px var(--ui); white-space: nowrap; }
   /* "½ day" under the shift of a Log Book entry */
   .cr-dash .cr-back { background: #FEF3C7; } .cr-q { background: #FEF3C7; padding: 8px 10px; border-radius: 8px; } button.flow-send { background: #B45309 !important; border-color: #B45309 !important; }
+  /* (update-118) my entries in verification – on the page where they were made and on the Dashboard */
+  .fv-box { margin: 0 0 12px; padding: 12px 14px; border: 1px solid #F2D7A6; border-left: 4px solid #B45309; border-radius: 12px; background: #FFFBF2; }
+  .fv-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; } .fv-head h3 { margin: 0; font-size: 15px; }
+  .fv-chips span { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #fff; border: 1px solid #E5E7EB; font-size: 12.5px; margin-right: 4px; } .fv-chips b { margin-left: 4px; } .fv-chips .bk { background: #FEF3C7; border-color: #FCD34D; }
+  .fv-acts { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; } .fv-t { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 13px; } .fv-t td { padding: 6px 8px; border-top: 1px solid #F1E4CC; vertical-align: top; } .fv-t small { color: #64748B; }
+  .fv-note { margin: 6px 0 0; font-size: 12px; color: #64748B; } .cr-rem { color: #B45309; font-weight: 600; }
   .cr-dash { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; } .cr-dash div { background: var(--soft, #F1F5F9); border-radius: 12px; padding: 8px 14px; min-width: 120px; } .cr-dash b { display: block; font-size: 22px; }
   .fr-task { border: 1px solid #E2E8F0; border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; } .fr-task.on { border-color: #16A34A; background: #F0FDF4; }
   .fr-level { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 6px 0; border-top: 1px dashed #E2E8F0; } .fr-level > b { min-width: 64px; }
@@ -6039,7 +6045,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'A new user starts with No access on every page – he sees only the pages you set to View or Edit (in the menu and in the search). Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters. "Screen share – who may use it": untick a user and save – he can then neither show a screen nor be called (Admin users always may). Several sites: the Admin of the first site makes the Super Admin once ("Create Super Admin" – write the recovery code down). From then on the Super Admin gives users and access, separately for every site; this page then only shows them.'],
       mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'नवीन user ला सुरुवातीला प्रत्येक page वर No access असते – तुम्ही View किंवा Edit दिलेली pages च त्याला दिसतात (menu मध्ये आणि search मध्ये). हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा. "Screen share – who may use it": user चा tick काढून Save केले की तो screen दाखवू शकत नाही आणि त्याला call पण करता येत नाही (Admin नेहमी वापरू शकतो). अनेक sites: पहिल्या site चा Admin एकदाच Super Admin बनवतो ("Create Super Admin" – Recovery code लिहून ठेवा). त्यानंतर users आणि access फक्त Super Admin देतो, प्रत्येक site साठी वेगळा; हे page मग फक्त ते दाखवते.'],
       hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'नए user को शुरू में हर page पर No access होता है – आपने View या Edit दिए वही pages उसे दिखते हैं (menu में और search में)। यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो। "Screen share – who may use it": user का tick हटाकर Save करने पर वह न screen दिखा सकता है, न उसे call किया जा सकता है (Admin हमेशा उपयोग कर सकता है)। कई sites: पहली site का Admin एक बार Super Admin बनाता है ("Create Super Admin" – Recovery code लिखकर रखें)। उसके बाद users और access सिर्फ Super Admin देता है, हर site के लिए अलग; यह page फिर सिर्फ उन्हें दिखाता है।'] },
-    approvals: { saves: ['decideChangeRequest', 'getChangeRequests', 'decideChangeRequests', 'saveFlowRules', 'getFlowRules', 'answerFlow'],
+    approvals: { saves: ['decideChangeRequest', 'getChangeRequests', 'decideChangeRequests', 'saveFlowRules', 'getFlowRules', 'answerFlow', 'remindFlow'],
       en: ['Changes of Log Book and diesel entries that are in a submitted bill, sent by the users for the Super Admin\'s approval.', 'The Super Admin (signed in through the Portal) approves here; a user sees here the changes he sent – Waiting, Approved (saved) or Rejected with the reason – and gets a notification when it is decided. Each line says who asked, what the change is (machinery, date, readings) and why. Approve = the change is saved now as that user\'s change, with every check of a save – if something else changed meanwhile it is refused and keeps waiting. Reject = nothing is saved; write why. The bill on the Drive is never changed: the next bill of the vendor shows the difference and takes it as a Credit / Debit Note.'],
       mr: ['Submit झालेल्या bill मधील Log Book / diesel entries चे बदल – users नी Super Admin च्या मंजुरीसाठी पाठवलेले.', 'Super Admin (Portal मधून sign in) इथे मंजुरी देतो; user ला इथे त्याने पाठवलेले बदल दिसतात – Waiting, Approved (save झाले) किंवा Rejected कारणासह – आणि निर्णय झाला की notification येते. प्रत्येक ओळीत: कोणी मागितले, काय बदल (machinery, तारीख, readings) आणि का. Approve = बदल आत्ता त्या user चा बदल म्हणून save होतो, save चे सगळे checks होऊन – मध्ये दुसरे काही बदलले असेल तर नाकारला जातो आणि थांबून राहतो. Reject = काहीही save होत नाही; कारण लिहा. Drive वरचे bill कधीच बदलत नाही: vendor च्या पुढच्या bill मध्ये फरक दिसतो आणि Credit / Debit Note ने घेतला जातो.'],
       hi: ['Submit हुए bill की Log Book / diesel entries के बदलाव – users ने Super Admin की मंज़ूरी के लिए भेजे हुए।', 'Super Admin (Portal से sign in) यहाँ मंज़ूरी देता है; user को यहाँ उसके भेजे बदलाव दिखते हैं – Waiting, Approved (save हुआ) या Rejected कारण के साथ – और फैसला होने पर notification आता है। हर लाइन में: किसने माँगा, क्या बदलाव (machinery, तारीख, readings) और क्यों। Approve = बदलाव अभी उस user के बदलाव के रूप में save होता है, save के सारे checks के साथ – बीच में कुछ और बदला हो तो मना होता है और रुका रहता है। Reject = कुछ भी save नहीं होता; कारण लिखें। Drive वाला bill कभी नहीं बदलता: vendor के अगले bill में फर्क दिखता है और Credit / Debit Note से लिया जाता है।'] },
@@ -7008,7 +7014,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const crWhen = v => { const d = new Date(v); return isNaN(d) ? String(v || '') : d.toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
   async function crLoad(quiet) {
     if (!S.user || $('tab-approvals').hidden) return;
-    try { S.cr = await call('getChangeRequests', {}); if (S.cr && S.cr.mine) { S.flowMine = S.cr.mine; flowLabels(); } crDraw(); }
+    try { const was = S.cr; S.cr = await call('getChangeRequests', {}); if (S.cr && S.cr.mine) { S.flowMine = S.cr.mine; flowLabels(); } fvRemindSeen(was, S.cr); crDraw(); }
     catch (e) { if (!quiet) $('cr_rows').innerHTML = '<tr><td colspan="7" class="none">' + esc(errMsg(e)) + '</td></tr>'; }
   }
   function crDraw() {
@@ -7022,7 +7028,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const can = L.some(r => r.canDecide), canBack = L.some(r => r.canDecide && r.kind === 'Flow'); $('cr_bulk_ok').hidden = !can; $('cr_bulk_no').hidden = !can; $('cr_bulk_back').hidden = !canBack; $('cr_tickall').disabled = !can; $('cr_tickall').checked = false;
     const st = r => r.status === 'Reverted' ? '<span class="st low">Sent back</span><br><small>' + esc((r.reverted || {}).by) + ' · ' + esc(crWhen((r.reverted || {}).at)) + '<br><b>' + esc((r.reverted || {}).note) + '</b></small>'
       : r.status === 'Withdrawn' ? '<span class="st">Taken back</span>'
-      : r.status === 'Pending' ? '<span class="st low">Waiting</span>' + (r.levels ? '<br><small>level ' + r.level + ' of ' + r.levels + (r.waitingFor && r.waitingFor.length ? ': ' + esc(r.waitingFor.join(', ')) : '') + '</small>' : '<br><small>Super Admin</small>')
+      : r.status === 'Pending' ? '<span class="st low">Waiting</span>' + (r.levels ? '<br><small>level ' + r.level + ' of ' + r.levels + (r.waitingFor && r.waitingFor.length ? ': ' + esc(r.waitingFor.join(', ')) : '') + '</small>' : '<br><small>Super Admin</small>') +
+        (r.reminds ? '<br><small class="cr-rem">Reminded ' + r.reminds + '× by ' + esc(r.by) + ' · ' + esc(crWhen(r.remindedAt)) + '</small>' : '')
       : '<span class="st ' + (r.status === 'Approved' ? 'ok' : 'bad') + '">' + esc(r.status) + '</span><br><small>' + esc(r.decidedBy) + ' · ' + esc(crWhen(r.decidedAt)) + (r.note ? '<br>' + esc(r.note) : '') + (r.status === 'Returned' && r.result ? '<br>' + esc(r.result) : '') + '</small>';
     const hist = r => (r.history || []).length ? '<details><summary><small>Steps (' + r.history.length + ')</small></summary><small>' + r.history.map(h => esc(h.step) + (h.level ? ' L' + h.level : '') + ' – ' + esc(h.by) + ' · ' + esc(crWhen(h.at)) + (h.note ? ': ' + esc(h.note) : '')).join('<br>') + '</small></details>' : '';
     $('cr_rows').innerHTML = L.length ? L.map(r => '<tr><td>' + (r.canDecide ? '<input type="checkbox" class="cr-tick" data-id="' + esc(r.id) + '">' : '') + '</td><td class="nowrap">' + esc(crWhen(r.at)) + '<br><small>' + esc(r.id) + '</small></td><td>' + esc(r.by) + '</td>' +
@@ -7032,7 +7039,63 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       : '<tr><td colspan="7" class="none">' + (all ? 'Nothing yet.' : 'Nothing is waiting.') + '</td></tr>';
     $('fr_panel').hidden = !sup;
     if (sup && !S.frLoaded) { S.frLoaded = true; frLoad(); }
+    fvDraw();
   }
+  /* ================= MY ENTRIES IN VERIFICATION (update-118, asked 16-10-2026) =================
+   * "jewa t entry sent verification krel tyala pn samajayla haw konti entry verification madhe aahe ani konte approval zale aahet
+   * tithch disaw ani diesel issue sathi dashbord war tya user la disel ki konte entry pending aahet … tyach reminder pn to pathau
+   * shakel … entry wise or all send reminder": on the page where they were made (Diesel Issue, Inward, Transfer, Log Book …) and
+   * on the Dashboard – his entries waiting (at whom, since when), sent back to him, approved and not saved (the last 7 days on a
+   * page, the last day on the Dashboard); "Remind" one, or "Remind all waiting". The list is the Approvals list (live). */
+  const FV_TABS = { 'Diesel Issue': 'diesel', 'Diesel Inward': 'inward', 'Diesel Transfer': 'transfer', 'Log Book': 'log', Master: 'master', 'Vendor Master': 'vendors', 'Vendor BOQ': 'boq', 'Machinery Payments': 'pay', 'Machinery Billing': 'bill', Breakdown: 'brk', 'Vehicle Compliance': 'comp' };
+  const FV_DAYS = 7;
+  function fvMine(m, days) {
+    const since = Date.now() - (days || FV_DAYS) * 86400000;
+    return ((S.cr || {}).requests || []).filter(r => r.kind === 'Flow' && r.mine && (!m || r.m === m) && (r.status === 'Pending' || r.status === 'Reverted' || Date.parse(r.decidedAt || r.at) >= since));
+  }
+  function fvAgo(v) { const ms = Date.now() - Date.parse(v); if (!(ms >= 0)) return ''; const n = Math.floor(ms / 60000); return n < 60 ? n + ' min' : n < 1440 ? Math.floor(n / 60) + ' h ' + (n % 60) + ' min' : Math.floor(n / 1440) + ' day(s)'; }
+  function fvHtml(list, m, onDash) {
+    const n = l => list.filter(r => l.indexOf(r.status) > -1).length, wait = n(['Pending']), back = n(['Reverted']), ok = n(['Approved']), no = n(['Rejected', 'Returned', 'Withdrawn']);
+    const st = r => r.status === 'Pending' ? '<span class="st low">Waiting</span> <small>' + (r.waitingFor && r.waitingFor.length ? 'at ' + esc(r.waitingFor.join(', ')) : 'at the Super Admin') + (r.levels > 1 ? ' · level ' + r.level + ' of ' + r.levels : '') + ' · since ' + esc(fvAgo(r.waitSince || r.at)) + '</small>'
+      : r.status === 'Reverted' ? '<span class="st bad">Sent back to you</span> <small>' + esc((r.reverted || {}).by) + ': ' + esc((r.reverted || {}).note) + '</small>'
+      : r.status === 'Approved' ? '<span class="st ok">Approved – saved</span> <small>' + esc(r.decidedBy) + ' · ' + esc(crWhen(r.decidedAt)) + '</small>'
+      : '<span class="st bad">' + (r.status === 'Withdrawn' ? 'Taken back' : esc(r.status)) + ' – not saved</span> <small>' + esc(r.decidedBy) + (r.note ? ': ' + esc(r.note) : '') + '</small>';
+    const act = r => r.canRemind ? '<button class="btn small" type="button" data-fvr="' + esc(r.id) + '">Remind</button>' + (r.reminds ? '<br><small>reminded ' + r.reminds + '× · ' + esc(crWhen(r.remindedAt)) + '</small>' : '')
+      : r.canAnswer ? '<button class="btn small" type="button" data-fvopen="1">Answer</button>' : '';
+    const rows = list.slice(0, onDash ? 8 : 12).map(r => '<tr data-id="' + esc(r.id) + '"><td class="nowrap"><b>' + esc(r.id) + '</b><br><small>' + esc(crWhen(r.at)) + '</small></td>' + (onDash ? '<td>' + esc(r.task) + '</td>' : '') +
+      '<td>' + esc((r.summary || [])[0] || '') + ((r.summary || []).length > 1 ? ' <small>(+' + (r.summary.length - 1) + ')</small>' : '') + '</td><td>' + st(r) + '</td><td class="nowrap">' + act(r) + '</td></tr>').join('');
+    return '<div class="fv-head"><h3>My entries in verification</h3><span class="fv-chips"><span>Waiting<b>' + wait + '</b></span>' + (back ? '<span class="bk">Sent back<b>' + back + '</b></span>' : '') +
+      '<span>Approved<b>' + ok + '</b></span>' + (no ? '<span>Not saved<b>' + no + '</b></span>' : '') + '</span><span class="fv-acts">' +
+      (wait ? '<button class="btn small" type="button" data-fvall="' + esc(m || '') + '">Remind all waiting (' + wait + ')</button>' : '') + '<button class="btn ghost small" type="button" data-fvopen="1">Open Approvals</button></span></div>' +
+      '<div class="tw"><table class="fv-t"><tbody>' + rows + '</tbody></table></div><p class="fv-note">' + (onDash ? 'Waiting and sent back: all; approved and not saved: the last day.' : 'Waiting and sent back: all; approved and not saved: the last ' + FV_DAYS + ' days.') + ' A reminder goes at once to the person it waits for (web and phone app).</p>';
+  }
+  function fvDraw() {
+    const put = (secId, boxId, list, m, onDash) => { const sec = $(secId); if (!sec) return; let b = $(boxId);
+      if (!list.length) { if (b) b.hidden = true; return; }
+      if (!b) { b = document.createElement('div'); b.id = boxId; b.className = 'fv-box'; sec.insertBefore(b, sec.firstElementChild); }
+      b.hidden = false; b.innerHTML = fvHtml(list, m, onDash); };
+    Object.keys(FV_TABS).forEach(m => put('sec-' + FV_TABS[m], 'fv_' + FV_TABS[m], fvMine(m), m, false));
+    put('sec-dash', 'fv_dash', fvMine('', 1), '', true);
+  }
+  // the approver's open page: a reminder that came now is said on the screen too (the notification comes as well)
+  function fvRemindSeen(was, now) {
+    if (!was || !now) return;
+    const old = {}; (was.requests || []).forEach(r => { old[r.id] = r.remindedAt || ''; });
+    const fresh = (now.requests || []).filter(r => r.canDecide && r.remindedAt && r.id in old && old[r.id] !== r.remindedAt);
+    if (fresh.length) toast('Reminder from ' + [...new Set(fresh.map(r => r.by))].join(', ') + ': ' + fresh.map(r => r.id).join(', ') + ' – waiting for your approval.');
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.fv-box [data-fvr], .fv-box [data-fvall], .fv-box [data-fvopen]'); if (!b) return;
+    if (b.dataset.fvopen) { showTab('approvals'); return; }
+    const one = b.dataset.fvr, m = b.dataset.fvall;
+    const x = one ? { ids: [one] } : m ? { ids: fvMine(m).filter(r => r.canRemind).map(r => r.id) } : { all: true };
+    busy(b, 'Sending…', async () => {
+      try { const r = await call('remindFlow', x); S.cr = r.list; if (S.cr && S.cr.mine) S.flowMine = S.cr.mine; crDraw();
+        const later = (r.later || []).map(l => l.id + ' was reminded at ' + l.at + ' – again after ' + l.next).join('; ');
+        toast(((r.reminded || []).length ? 'Reminder sent: ' + r.reminded.join(', ') + '.' : '') + (later ? ' ' + later + '.' : ''), !(r.reminded || []).length); }
+      catch (er) { toast(errMsg(er), true); }
+    });
+  });
   // (update-114) several at once
   $('cr_tickall').addEventListener('change', e => document.querySelectorAll('#cr_rows .cr-tick').forEach(c => { c.checked = e.target.checked; }));
   async function crBulk(approve, btn, back) {
@@ -7104,6 +7167,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const tasks = {};
     document.querySelectorAll('#fr_list .fr-task').forEach(b => { const q = b.querySelector('.fr-qty');
       tasks[b.dataset.m] = { on: b.querySelector('.fr-on').checked, levels: [...b.querySelectorAll('.fr-level')].map(l => [...l.querySelectorAll('input:checked')].map(c => c.value)), daysBack: b.querySelector('.fr-days').value.trim(), qtyAbove: q ? q.value.trim() : '' }; });
+    // (update-118) people picked but the work not ticked: its entries are saved at once – said before it is saved like that
+    const offWith = Object.keys(tasks).filter(m => !tasks[m].on && tasks[m].levels.some(l => l.length));
+    if (offWith.length && !(await askConfirm({ title: 'Ticked off, but people are picked', ok: 'Save like this', wide: true,
+      html: '<p>' + offWith.map(m => '<b>' + esc(((S.fr.tasks || []).find(t => t.m === m) || {}).label || m) + '</b>').join(', ') + ': people are picked for approval, but the work is not ticked – its entries are saved at once, without verification, and the button says "Save".</p><p>To send them for verification: tick the work, then Save.</p>' }))) return;
     const r = await call('saveFlowRules', { tasks: tasks, remindHours: $('fr_hours').value });
     S.fr.rules = r.rules; frDraw(); toast('Verification rules saved.');
   }));
