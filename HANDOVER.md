@@ -1685,6 +1685,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `remindFlow` → `flowRemindMine_` (own Pending only, the same entry once in 5 min, step "Reminded", notification to the level, else
   the Super Admin); `crList_` gives `m`, `remindedAt`, `reminds`, `canRemind`; the approver's open page says a reminder
   (`fvRemindSeen`). Rules panel: people picked but not ticked → asked before saving. Unit "update-118"; browser remind118.js 13.
+- 16-10-2026 (update-119). Report: `UPDATE_119.md`. A machinery on a site several times: earlier periods in `master.site_periods`
+  (**SQL step 1za**, every site) as [{ from, until }]; the current one stays Active From / Status / Inactive From. `periodsOf_` /
+  `onSiteOn_` / `assertActive_` (words for the days away), `sitePeriodsSave_` (Inactive → Active with a new Active From = came
+  back: the ended period kept; same Active From = never left), `assertEntriesStay_` (no date change that puts entries off site);
+  saveMaster_ / editMasterMany_ / importMaster_; pending Log Book, Log Book dashboard, final-bill rule. Page `mPeriods`,
+  `siteSpan`, form "Earlier periods on site" + "Did it come back?". App 3.1.12. Unit "update-119"; browser periods119.js 13.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

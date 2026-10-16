@@ -42,7 +42,7 @@ const H = {
   ENGNO: 'Engine Number', CHASSIS: 'Chassis Number', ENGMAKE: 'Engine Make',
   TAXV: 'Tax Valid Upto', PUCV: 'PUC Valid Upto', PERMITV: 'Permit Valid Upto', FITV: 'Fitness Valid Upto', INSV: 'Insurance Valid Upto', EBY: 'Entered By', UBY: 'Updated By', DMETER: 'Current Diesel Issue Reading', PHOTOS: 'Photos',
   CHFROM: 'Chainage From', CHTO: 'Chainage To', AVG: 'Actual Average', EXTRA: 'Extra / Short Diesel', DREAD: 'Diesel Readings',
-  STATUS: 'Status', AFROM: 'Active From', IFROM: 'Inactive From', SUPPLY: 'Diesel Supply',
+  STATUS: 'Status', AFROM: 'Active From', IFROM: 'Inactive From', SPER: 'Site Periods', SUPPLY: 'Diesel Supply',
   BAL: 'Balance', SOURCE: 'Diesel Source', LOC: 'Location', TR_ID: 'Transfer ID', FROM: 'From', TO: 'To',
   FROMBAL: 'From Balance', TOBAL: 'To Balance', IN_ID: 'Inward ID', IN_QTY: 'Qty (Ltr)', PUMP: 'Pump Name', RATE: 'Rate', AMOUNT: 'Amount', BILLNO: 'Bill Number', BILLDATE: 'Bill Date',
 };
@@ -1443,6 +1443,7 @@ function buildMaster_() {
       status: str_(r[t.c[H.STATUS]]).toUpperCase() === 'INACTIVE' ? 'Inactive' : 'Active',
       activeFrom: r[t.c[H.AFROM]] === '' ? '' : dkey_(r[t.c[H.AFROM]]),
       inactiveFrom: r[t.c[H.IFROM]] === '' ? '' : dkey_(r[t.c[H.IFROM]]),
+      earlier: H.SPER in t.c ? parsePeriods_(r[t.c[H.SPER]]) : [],      // (update-119) the periods it was on site before (it left and came back)
       tankCap: H.TCAP in t.c ? numOrBlank_(r[t.c[H.TCAP]]) : '', // optional, reference only
       monthlyRate: H.MRATE in t.c ? numOrBlank_(r[t.c[H.MRATE]]) : '', // Rental / Hired only
       engineNo: H.ENGNO in t.c ? str_(r[t.c[H.ENGNO]]) : '', chassisNo: H.CHASSIS in t.c ? str_(r[t.c[H.CHASSIS]]) : '', engineMake: H.ENGMAKE in t.c ? str_(r[t.c[H.ENGMAKE]]) : '',
@@ -1462,15 +1463,90 @@ function normSupply_(v, ownership) {
   if (k === 'OTHER') return 'Other';
   return ownership === 'Debit' ? 'Debit Basis' : 'Company'; // blank: sensible default
 }
-// (update-115) on this site on a date: from "Active From" (blank = always) until the day before "Inactive From" – the same rule as assertActive_
-const onSiteOn_ = (m, dk) => !!m && (!m.activeFrom || dkey_(m.activeFrom) <= dk) && !(m.status === 'Inactive' && (!m.inactiveFrom || dkey_(m.inactiveFrom) <= dk));
-// Machinery must be active on the entry date: on/after "Active From" and before "Inactive From"
+/* ================= ON THIS SITE: ITS PERIODS (update-119, asked 16-10-2026) =================
+ * "vehicle ali first time active aste nantr jate inactive hote nantr part ali kahi months nantr … period wise active inactive
+ * haway … jya date pasun ali tewa pasunch tich prt sagle chalu hoil … all site la lagu". A machinery may be on a site several
+ * times:
+ *   – its CURRENT period is the Asset Master's Active From / Status / Inactive From, exactly as before (update-115);
+ *   – its EARLIER periods (it left, and came back later) are kept with it in "Site Periods": [{ from, until }] – until = the
+ *     first day it was away; a blank from = from the beginning; the oldest first.
+ * On site on a date = inside one of them. Off site = exactly as after Inactive From: no entry, not pending, not offered, not
+ * counted, no rent for those days.
+ * IT CAME BACK: Status Inactive → Active with a NEW Active From (on or after the day it left): the period that ended is kept as
+ * an earlier one, and everything starts again from that date – nothing of before is changed. Active From left as it was = it
+ * never left (the Inactive was a mistake): the Inactive is simply taken away, as before. A change of these dates is refused
+ * when entries already made would fall off site (they would not be on any list any more). */
+const PERIOD_NONE_ = '0000-01-01';      // "Inactive" without a date: never on site
+function parsePeriods_(v) {
+  let j = []; try { j = Array.isArray(v) ? v : str_(v) ? JSON.parse(str_(v)) : []; } catch (e) { j = []; }
+  const day = x => { const k = x instanceof Date ? dkey_(x) : str_(x).slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(k) ? k : ''; };
+  return (Array.isArray(j) ? j : []).map(p => ({ from: day(p && p.from), until: day(p && p.until) })).filter(p => p.until).sort((a, b) => (a.from || '') < (b.from || '') ? -1 : (a.from || '') > (b.from || '') ? 1 : 0);
+}
+// every period of a machinery, the current one last ({ from, until }: until '' = still on site)
+function periodsOf_(m) {
+  const cur = { from: m.activeFrom ? dkey_(m.activeFrom) : '', until: m.status === 'Inactive' ? (m.inactiveFrom ? dkey_(m.inactiveFrom) : PERIOD_NONE_) : '' };
+  return (Array.isArray(m.earlier) ? m.earlier : []).concat([cur]);
+}
+// on this site on a date (the same rule as assertActive_ – used by every list, check and report)
+const onSiteOn_ = (m, dk) => !!m && periodsOf_(m).some(p => (!p.from || p.from <= dk) && (!p.until || dk < p.until));
+// Machinery must be on site on the entry date: inside one of its periods
 function assertActive_(m, dk) {
-  const show = k => k.split('-').reverse().join('-');
-  if (m.activeFrom && dk < m.activeFrom) throw new Error(m.id + ' is active only from ' + show(m.activeFrom) + '. Entry date ' + show(dk) + ' is before that.');
-  if (m.status === 'Inactive' && (!m.inactiveFrom || dk >= m.inactiveFrom)) {
-    throw new Error(m.id + ' is inactive' + (m.inactiveFrom ? ' from ' + show(m.inactiveFrom) : '') + '. Activate it in Master to make entries.');
+  if (onSiteOn_(m, dk)) return;
+  const show = k => k.split('-').reverse().join('-'), ps = periodsOf_(m), first = ps[0].from;
+  if (first && dk < first) throw new Error(m.id + ' is active only from ' + show(first) + '. Entry date ' + show(dk) + ' is before that.');
+  if (m.status === 'Inactive' && (!m.inactiveFrom || dk >= dkey_(m.inactiveFrom))) {
+    throw new Error(m.id + ' is inactive' + (m.inactiveFrom ? ' from ' + show(dkey_(m.inactiveFrom)) : '') + '. Activate it in Master to make entries.');
   }
+  const i = ps.findIndex((p, k) => p.until && dk >= p.until && k + 1 < ps.length && ps[k + 1].from && dk < ps[k + 1].from);
+  if (i > -1) throw new Error(m.id + ' was not on this site from ' + show(ps[i].until) + ' to ' + show(addDays_(ps[i + 1].from, -1)) + ' (it came back on ' + show(ps[i + 1].from) + '). Entry date ' + show(dk) + ' is in that time.');
+  throw new Error(m.id + ' is not on this site on ' + show(dk) + '.');
+}
+/* the earlier periods to keep for a save of machinery [v] (checked by validateMaster_) – [old]: the machinery as it is now (none:
+ * a new one); [given]: the earlier periods as the Asset Master form sends them (undefined: kept as they are). */
+function sitePeriodsSave_(old, v, given) {
+  const show = k => k.split('-').reverse().join('-');
+  let earlier;
+  if (given === undefined) earlier = old ? (old.earlier || []).map(p => ({ from: p.from, until: p.until })) : [];
+  else {
+    if (!Array.isArray(given)) throw new Error(v.id + ': the earlier periods on site could not be read – open the machinery again.');
+    earlier = given.map((p, i) => {
+      const from = str_(p && p.from) ? checkDate_(str_(p.from)) : '', until = str_(p && p.until) ? checkDate_(str_(p.until)) : '';
+      if (!until) throw new Error(v.id + ': earlier period ' + (i + 1) + ' on site – enter the date it left ("Until").');
+      return { from: from, until: until };
+    });
+  }
+  // IT CAME BACK: Inactive → Active with a new Active From – the period that ended is kept
+  if (old && old.status === 'Inactive' && old.inactiveFrom && v.status === 'Active') {
+    const left = dkey_(old.inactiveFrom), af0 = old.activeFrom ? dkey_(old.activeFrom) : '';
+    if (v.activeFrom && v.activeFrom !== af0) {
+      if (v.activeFrom < left) throw new Error(v.id + ' left the site on ' + show(left) + ': "Active From" (the day it came back) must be on or after that – or keep its old Active From (' + (af0 ? show(af0) : 'blank') + ') if it never left.');
+      if (!earlier.some(p => p.until === left)) earlier.push({ from: af0, until: left });
+    }
+  }
+  earlier.sort((a, b) => (a.from || '') < (b.from || '') ? -1 : (a.from || '') > (b.from || '') ? 1 : 0);
+  earlier.forEach((p, i) => {
+    if (i && !p.from) throw new Error(v.id + ': an earlier period on site needs its "From" date (only the first may be blank).');
+    if (p.from && p.until <= p.from) throw new Error(v.id + ': earlier period ' + show(p.from) + ' – "Until" must be after "From".');
+    if (i && p.from < earlier[i - 1].until) throw new Error(v.id + ': two periods on site overlap (' + show(earlier[i - 1].until) + ' and ' + show(p.from) + ').');
+  });
+  const last = earlier[earlier.length - 1];
+  if (last && (!v.activeFrom || v.activeFrom < last.until)) throw new Error(v.id + ': "Active From" must be on or after ' + show(last.until) + ' – the day its earlier period on site ended.');
+  return earlier;
+}
+/* entries already made that a change of the dates would put off site: refused (they would be on no list any more) – the
+ * Log Book entries and diesel issues of this machinery on a day it was on site and would not be after the change */
+function assertEntriesStay_(id, old, now) {
+  if (!old || JSON.stringify(periodsOf_(old)) === JSON.stringify(periodsOf_(now))) return;
+  const k = noKey_(id), hits = [];
+  const look = (sheet, cols, dateH, what) => { const t = table_(sheet, cols); if (!(H.NO in t.c) || !(dateH in t.c)) return;
+    t.rows.forEach(r => { if (noKey_(r[t.c[H.NO]]) !== k) return; const d = dkey_(r[t.c[dateH]]); if (d && onSiteOn_(old, d) && !onSiteOn_(now, d)) hits.push({ d: d, what: what }); }); };
+  look(APP.SHEET_LOG, [H.NO, H.DATE], H.DATE, 'Log Book');
+  look(APP.SHEET_DIESEL, [H.NO, H.IDATE], H.IDATE, 'Diesel Issue');
+  if (!hits.length) return;
+  hits.sort((a, b) => a.d < b.d ? -1 : 1);
+  const show = d => d.split('-').reverse().join('-'), days = [...new Set(hits.map(h => h.d))];
+  throw new Error(id + ' has entries on ' + days.slice(0, 5).map(show).join(', ') + (days.length > 5 ? ' (+' + (days.length - 5) + ' more days)' : '') + ' (' + [...new Set(hits.map(h => h.what))].join(', ') +
+    ') – with these dates it would not be on site then. Change the dates, or first delete those entries.');
 }
 
 function docCheck_(id, label, v) {
@@ -1528,6 +1604,7 @@ function buildMasterRow_(t, base, v) {
   set_(row, t, H.HRSTD, v.hrStd); set_(row, t, H.OWNER, v.owner); set_(row, t, H.OWNTYPE, v.ownership);
   set_(row, t, H.SUPPLY, v.supply); set_(row, t, H.STATUS, v.status);
   set_(row, t, H.AFROM, v.activeFrom ? toDate_(v.activeFrom) : ''); set_(row, t, H.IFROM, v.inactiveFrom ? toDate_(v.inactiveFrom) : '');
+  if (v.earlier !== undefined) set_(row, t, H.SPER, v.earlier.length ? JSON.stringify(v.earlier) : '');      // (update-119)
   set_(row, t, H.TCAP, v.tankCap);
   if (v.monthlyRate !== undefined) set_(row, t, H.MRATE, v.monthlyRate);
   if (v.tdsRate !== undefined) set_(row, t, H.TDS, v.tdsRate);
@@ -1595,6 +1672,11 @@ function renameMachine_(oldId, newId) {
 function saveMaster_(m, mode, origId) {
   return withLock_(() => {
     const v = validateMaster_(m);
+    // (update-119) its earlier periods on site (it came back: the period that ended is kept); entries already made stay on site
+    const old = mode === 'add' ? null : getMaster_().find(x => same_(x.id, origId)) || null;
+    v.earlier = sitePeriodsSave_(old, v, m.earlier);
+    if (old) assertEntriesStay_(old.id, old, Object.assign({}, old, v));
+    if (v.earlier.length) addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.SPER);
     addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.WORKS);
     if (v.tankCap !== '') addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.TCAP);
     if (v.monthlyRate !== undefined && v.monthlyRate !== '') addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.MRATE);
@@ -1666,6 +1748,7 @@ function editMasterMany_(ids, changes) {
     if (keys.indexOf('tankCap') > -1 && !blank_(changes.tankCap)) addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.TCAP);
     if (keys.indexOf('monthlyRate') > -1 && !blank_(changes.monthlyRate)) addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.MRATE);
     if (keys.indexOf('tdsRate') > -1 && !blank_(changes.tdsRate)) addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.TDS);
+    if (keys.indexOf('status') > -1 || keys.indexOf('activeFrom') > -1) addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.SPER);      // (update-119)
     const t = table_(APP.SHEET_MASTER, MASTER_COLS_);
     const errors = [], writes = [];
     ids.forEach(id => {
@@ -1679,6 +1762,8 @@ function editMasterMany_(ids, changes) {
         if (keys.indexOf('status') > -1 && changes.status === 'Active') cur.inactiveFrom = '';
         if (keys.indexOf('ownership') > -1 && keys.indexOf('supply') === -1) cur.supply = '';   // Diesel Supply follows the new Ownership
         const v = validateMaster_(cur);
+        v.earlier = sitePeriodsSave_(m, v, undefined);      // (update-119) came back with a new Active From: the period that ended is kept
+        assertEntriesStay_(m.id, m, Object.assign({}, m, v));
         writes.push({ i: i, row: buildMasterRow_(t, t.rows[i], v) });
       } catch (e) { errors.push({ id: id, msg: e.message.replace(/^Error:\s*/, '') }); }
     });
@@ -2396,8 +2481,8 @@ function logDashboard_(f) {
     const days = []; for (let d = a; d <= b; d = addDays_(d, 1)) days.push(d);
     const M = {};
     machines.forEach(m => {
-      const k = noKey_(m.id), af = m.activeFrom ? dkey_(m.activeFrom) : '', inf = m.status === 'Inactive' && m.inactiveFrom ? dkey_(m.inactiveFrom) : '';
-      const avail = days.filter(d => (!af || d >= af) && (!inf || d < inf) && d <= today);
+      const k = noKey_(m.id);
+      const avail = days.filter(d => d <= today && onSiteOn_(m, d));      // (update-119) the days of its periods on site (an Inactive without a date cannot be saved)
       M[k] = { no: m.id, type: m.type || '', owner: m.owner || '', ownership: own5(m.ownership), unit: m.unit, kmStd: num0_(m.kmStd), hrStd: num0_(m.hrStd),
         avail: avail.length, availSet: avail.reduce((o, d) => { o[d] = true; return o; }, {}), day: {}, night: {}, hrs: 0, km: 0, trips: 0, entries: 0, nightHrs: 0,
         issued: 0, dieselDays: {}, drivers: {}, chain: {}, work: {}, anomalies: [], lastLog: '', rows: [] };
@@ -2941,7 +3026,9 @@ function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid) {
   const rawExcess = stdQty > 0 ? Math.max(0, r2_(companyQty - stdQty)) : 0;
   /* FINAL BILL: the machinery left the site (Asset Master: Inactive, "Inactive From" on or before the day after the period).
    * The diesel in its tank left with it, so nothing is taken as "still in the tank": the whole excess is debited. */
-  const leftOn = str_(m.status) === 'Inactive' && m.inactiveFrom ? dkey_(m.inactiveFrom) : '', final = !!leftOn && leftOn <= addDays_(to, 1);
+  const leftOn = str_(m.status) === 'Inactive' && m.inactiveFrom ? dkey_(m.inactiveFrom) : '', dayAfter = addDays_(to, 1);
+  // (update-119) it also left in this period when an earlier period on site ended in it (it came back later)
+  const final = (!!leftOn && leftOn <= dayAfter) || (m.earlier || []).some(p => p.until > from && p.until <= dayAfter);
   const tank = final ? null : tankLeft_(m, u, own, iss0, isDebit, rawExcess);      // what is left of the last fill is not excess of this period
   const excessQty = r2_(rawExcess - (tank ? tank.applied : 0));
   /* the rate of the debited diesel: the higher of the period's average and the last purchase rate – or, when it was typed by hand
@@ -3789,7 +3876,7 @@ function exportMaster_() {
 // apply = false only checks and counts; apply = true saves. Nothing is saved if any row has a problem.
 function importMaster_(rows, apply) {
   return withLock_(() => {
-    if (apply) { addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.WORKS); TABLE_MEMO_ = {}; }
+    if (apply) { addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.WORKS); addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.SPER); TABLE_MEMO_ = {}; }
     const t = table_(APP.SHEET_MASTER, MASTER_COLS_);
     const index = {};
     t.rows.forEach((r, i) => { const k = noKey_(rowId_(r, t)); if (k) index[k] = i; });
@@ -3821,6 +3908,8 @@ function importMaster_(rows, apply) {
         }
         const v = validateMaster_(merged);
         if (i !== undefined) {
+          const oldM = getMaster_().find(z => noKey_(z.id) === key);      // (update-119) came back: the period that ended is kept; entries stay on site
+          if (oldM) { v.earlier = sitePeriodsSave_(oldM, v, undefined); assertEntriesStay_(oldM.id, oldM, Object.assign({}, oldM, v)); }
           const row = buildMasterRow_(t, t.rows[i], v);
           const changed = row.some((val, k) => String(val) !== String(t.rows[i][k] === null ? '' : t.rows[i][k]));
           if (changed) updates.push({ i: i, row: row }); else same++;
@@ -5354,9 +5443,9 @@ function pendingLogs_(f) {
   lt.rows.forEach(r => { const dk = dkey_(r[lt.c[H.DATE]]); if (dk >= from && dk <= to) done[noKey_(r[lt.c[H.NO]]) + '|' + dk] = true; }); // any entry on that day counts
   const items = [], byMachine = {};
   getMaster_().filter(needsLogBook_).forEach(m => {
-    const k = noKey_(m.id), af = m.activeFrom ? dkey_(m.activeFrom) : '', inf = m.status === 'Inactive' ? (m.inactiveFrom ? dkey_(m.inactiveFrom) : '0000') : '';
+    const k = noKey_(m.id);
     for (let d = from; d <= to; d = addDays_(d, 1)) {
-      if ((af && d < af) || (inf && d >= inf)) continue;
+      if (!onSiteOn_(m, d)) continue;      // (update-119) only the days of its periods on site
       if (done[k + '|' + d]) continue;
       items.push({ no: m.id, type: m.type || '', owner: m.owner || '', date: d });
       const x = byMachine[k] = byMachine[k] || { no: m.id, type: m.type || '', owner: m.owner || '', today: false, older: [] };

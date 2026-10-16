@@ -2955,7 +2955,7 @@ test('update-115: a machinery that left the site (Inactive From) – not shown, 
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   // the page's rule (taken from the page itself) and the server's are the same rule
   const pick = re => { const m = app.match(re); assert.ok(m, String(re)); return m[0]; };
-  const page = new Function(pick(/const mDay = .*\n/) + pick(/const onSiteOn = .*\n/) + pick(/const onSiteIn = .*\n/) + 'return { onSiteOn, onSiteIn };')();
+  const page = new Function(pick(/const mDay = .*\n/) + pick(/const mPeriods = .*\n/) + pick(/const onSiteOn = .*\n/) + pick(/const onSiteIn = .*\n/) + 'return { onSiteOn, onSiteIn };')();      // (update-119: with its periods on site)
   const left = { id: 'IN-1', activeFrom: '2026-08-01', status: 'Inactive', inactiveFrom: '2026-10-01' };
   const days = ['2026-07-31', '2026-08-01', '2026-09-30', '2026-10-01', '2026-10-15'];
   assert.deepStrictEqual(days.map(d => page.onSiteOn(left, d)), [false, true, true, false, false], 'on site 01-08 … 30-09');
@@ -3302,4 +3302,102 @@ test('update-118: the sender sees his entries in verification where he made them
       CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
   }
   function MODULE_LABEL(m) { return vm.runInContext('MODULE_LABEL_', ctx)[m] || m; }
+});
+
+test('update-119: a machinery on a site several times – it left, came back: its earlier period is kept; off site in between (entries, pending, pickers); entries made stay on site', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  vm.runInContext(`globalThis.__k119 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_ };
+    globalThis.DB119 = {};
+    globalThis.__fill119 = s => { const d = DB119[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep119 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill119(s); if (s.loaded) DB119[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    SB_BOOK_ = null;
+    SbBook_.prototype.flush = function () { __keep119(this); __k119.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill119(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill119(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    kvWrite_("FLOW_RULES", "{}"); PropertiesService.getScriptProperties().deleteProperty("DIESEL_PLACES");`, ctx);
+  try {
+    const PW = 'sha256$0123456789abcdef$' + 'e'.repeat(64);
+    const u = run(`pw => { const o = {}; MODULES.forEach(m => { o[m] = 'Edit'; }); return { email: 'a119@rcl.test', name: 'Admin 119', password: pw, active: true, admin: true, perms: o }; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', [u]);
+    run('(e, pw) => CacheService.getScriptCache().put("S_tok119", sessionMake_(e, pw, 3600000, false), 3600)', u.email, PW);
+    const api = (fn, ...a) => run('(f, a) => api("tok119", f, a)', fn, a);
+    const M = (no, x) => Object.assign({ no: no, name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Rachana Construction Limited', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, x || {});
+    const mOf = id => run('id => getMaster_().find(m => m.id === id)', id);
+    const on = (id, days) => run('(id, ds) => { const m = getMaster_().find(x => x.id === id); return ds.map(d => onSiteOn_(m, d)); }', id, days);
+    assert.ok(api('saveMaster', M('CB-119'), 'add').ok);
+    assert.ok(api('saveInward', { date: '2026-01-01', location: 'Dispenser', pump: 'P119', qty: 2000, rate: 92, billNo: 'B119', billDate: '2026-01-01' }).ok);
+    assert.ok(api('saveDieselIssue', { date: '2026-03-10', shift: 'Day', source: 'Dispenser', no: 'CB-119', qty: 50, kmReading: 1000, force: true }).ok);
+    // ---- it leaves: an Inactive From that would put an entry off site is refused ----
+    assert.match(api('saveMaster', M('CB-119', { status: 'Inactive', inactiveFrom: '2026-03-05' }), 'edit', 'CB-119').THROWN, /^CB-119 has entries on 10-03-2026 \(Diesel Issue\) – with these dates it would not be on site then\. Change the dates, or first delete those entries\.$/);
+    assert.ok(api('saveMaster', M('CB-119', { status: 'Inactive', inactiveFrom: '2026-07-01' }), 'edit', 'CB-119').ok);
+    assert.deepStrictEqual(on('CB-119', ['2026-06-30', '2026-07-01']), [true, false]);
+    // ---- it came back: a date before it left is refused; on 01-09 → the period that ended is kept ----
+    assert.match(api('saveMaster', M('CB-119', { activeFrom: '2026-06-15' }), 'edit', 'CB-119').THROWN, /^CB-119 left the site on 01-07-2026: "Active From" \(the day it came back\) must be on or after that – or keep its old Active From \(01-01-2026\) if it never left\.$/);
+    assert.ok(api('saveMaster', M('CB-119', { activeFrom: '2026-09-01' }), 'edit', 'CB-119').ok);
+    let m = mOf('CB-119');
+    assert.deepStrictEqual([m.status, m.activeFrom, m.inactiveFrom, m.earlier], ['Active', '2026-09-01', '', [{ from: '2026-01-01', until: '2026-07-01' }]]);
+    assert.strictEqual(run('() => { const t = table_(APP.SHEET_MASTER, MASTER_COLS_); return t.rows.find(r => rowId_(r, t) === "CB-119")[t.c[H.SPER]]; }'), '[{"from":"2026-01-01","until":"2026-07-01"}]', 'kept in "Site Periods" (SQL step 1za)');
+    assert.deepStrictEqual(on('CB-119', ['2025-12-31', '2026-03-10', '2026-06-30', '2026-07-01', '2026-08-31', '2026-09-01', '2026-10-15']), [false, true, true, false, false, true, true]);
+    // ---- entries: in either period yes; in between and before: refused with the reason ----
+    assert.ok(api('saveDieselIssue', { date: '2026-06-20', shift: 'Day', source: 'Dispenser', no: 'CB-119', qty: 10, kmReading: 1100, force: true }).ok, 'its earlier period');
+    assert.ok(api('saveDieselIssue', { date: '2026-09-05', shift: 'Day', source: 'Dispenser', no: 'CB-119', qty: 10, kmReading: 1300, force: true }).ok, 'back on site');
+    assert.match(api('saveDieselIssue', { date: '2026-08-10', shift: 'Day', source: 'Dispenser', no: 'CB-119', qty: 10, kmReading: 1200, force: true }).THROWN, /^CB-119 was not on this site from 01-07-2026 to 31-08-2026 \(it came back on 01-09-2026\)\. Entry date 10-08-2026 is in that time\.$/);
+    assert.match(api('saveDieselIssue', { date: '2025-12-31', shift: 'Day', source: 'Dispenser', no: 'CB-119', qty: 10, kmReading: 900, force: true }).THROWN, /^CB-119 is active only from 01-01-2026\. Entry date 31-12-2025 is before that\.$/);
+    // ---- the Log Book pending list: only its days on site ----
+    const pend = api('pendingLog', { from: '2026-06-28', to: '2026-09-02' });
+    assert.deepStrictEqual((pend.items || []).filter(x => x.no === 'CB-119').map(x => x.date), ['2026-06-28', '2026-06-29', '2026-06-30', '2026-09-01', '2026-09-02']);
+    // ---- the earlier periods corrected in the form: checked; one with entries cannot go ----
+    assert.match(api('saveMaster', M('CB-119', { activeFrom: '2026-09-01', earlier: [{ from: '2026-01-01', until: '' }] }), 'edit', 'CB-119').THROWN, /earlier period 1 on site – enter the date it left/);
+    assert.match(api('saveMaster', M('CB-119', { activeFrom: '2026-09-01', earlier: [{ from: '2026-01-01', until: '2026-05-01' }, { from: '2026-04-01', until: '2026-07-01' }] }), 'edit', 'CB-119').THROWN, /two periods on site overlap \(01-05-2026 and 01-04-2026\)/);
+    assert.match(api('saveMaster', M('CB-119', { activeFrom: '2026-09-01', earlier: [{ from: '2026-01-01', until: '2026-09-15' }] }), 'edit', 'CB-119').THROWN, /"Active From" must be on or after 15-09-2026 – the day its earlier period on site ended/);
+    assert.match(api('saveMaster', M('CB-119', { activeFrom: '2026-09-01', earlier: [] }), 'edit', 'CB-119').THROWN, /^CB-119 has entries on 10-03-2026, 20-06-2026 \(Diesel Issue\)/, 'its earlier period has entries: it stays');
+    assert.ok(api('saveMaster', M('CB-119', { activeFrom: '2026-09-01', earlier: [{ from: '2026-01-01', until: '2026-07-10' }] }), 'edit', 'CB-119').ok, 'a correction that keeps every entry on site');
+    assert.deepStrictEqual(mOf('CB-119').earlier, [{ from: '2026-01-01', until: '2026-07-10' }]);
+    assert.ok(api('saveMaster', M('CB-119', { activeFrom: '2026-09-01', type: 'Tipper 2' }), 'edit', 'CB-119').ok, 'another change: the periods stay as they are');
+    assert.deepStrictEqual(mOf('CB-119').earlier, [{ from: '2026-01-01', until: '2026-07-10' }]);
+    // ---- "it never left" (the Inactive was a mistake): the same Active From – the Inactive simply goes, as before ----
+    assert.ok(api('saveMaster', M('NL-119', { status: 'Inactive', inactiveFrom: '2026-05-01' }), 'add').ok);
+    assert.ok(api('saveMaster', M('NL-119'), 'edit', 'NL-119').ok);
+    m = mOf('NL-119'); assert.deepStrictEqual([m.status, m.earlier, on('NL-119', ['2026-06-01'])[0]], ['Active', [], true]);
+    // ---- many at once (Asset Master → Edit selected): came back with a new Active From ----
+    assert.ok(api('saveMaster', M('BK-119', { status: 'Inactive', inactiveFrom: '2026-04-01' }), 'add').ok);
+    let r = api('editMasterMany', ['BK-119'], { status: 'Active', activeFrom: '2026-03-01' });
+    assert.ok(!r.ok && /BK-119 left the site on 01-04-2026/.test(r.errors[0].msg), JSON.stringify(r));
+    r = api('editMasterMany', ['BK-119'], { status: 'Active', activeFrom: '2026-06-01' });
+    assert.ok(r.ok, JSON.stringify(r)); assert.deepStrictEqual(mOf('BK-119').earlier, [{ from: '2026-01-01', until: '2026-04-01' }]);
+    // ---- the machinery list of the page / the phone app carries the earlier periods ----
+    assert.deepStrictEqual(api('getInit').master.find(x => x.id === 'CB-119').earlier, [{ from: '2026-01-01', until: '2026-07-10' }]);
+    // ---- the page: the same rule as the server, the form, the bill rule ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+    const pick = re => { const x = app.match(re); assert.ok(x, String(re)); return x[0]; };
+    const P = new Function('isoDate', 'showDate', pick(/const mDay = .*\n/) + pick(/const mPeriods = .*\n/) + pick(/const onSiteOn = .*\n/) + pick(/const onSiteIn = .*\n/) + pick(/const dayBefore = .*\n/) +
+      app.slice(app.indexOf('  function siteSpan(m, from, to) {'), app.indexOf('  /* ================= MASTER – filters') > 0 ? app.indexOf('  function siteSpan(m, from, to) {') + app.slice(app.indexOf('  function siteSpan(m, from, to) {')).indexOf('\n  }\n') + 4 : 0) +
+      app.slice(app.indexOf('  function activeProblem(m, dk) {'), app.indexOf('  function activeProblem(m, dk) {') + app.slice(app.indexOf('  function activeProblem(m, dk) {')).indexOf('\n  }\n') + 4) +
+      'return { onSiteOn, onSiteIn, siteSpan, activeProblem };')(d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'), d => d.split('-').reverse().join('-'));      // (the page's isoDate: the local date)
+    const cb = mOf('CB-119');
+    const days = ['2025-12-31', '2026-03-10', '2026-07-09', '2026-07-10', '2026-08-31', '2026-09-01'];
+    assert.deepStrictEqual(days.map(d => P.onSiteOn(cb, d)), on('CB-119', days), 'page = server');
+    assert.deepStrictEqual([P.onSiteIn(cb, '2026-07-10', '2026-08-31'), P.onSiteIn(cb, '2026-07-01', '2026-07-10'), P.onSiteIn(cb, '2026-08-01', '2026-09-01')], [false, true, true]);
+    assert.deepStrictEqual(P.siteSpan(cb, '2026-07-01', '2026-09-05'), { days: 9 + 5, first: '2026-07-01', last: '2026-09-05' }, '01-07 … 09-07 and 01-09 … 05-09');
+    assert.strictEqual(P.activeProblem(cb, '2026-08-10'), 'CB-119 was not on this site from 10-07-2026 to 31-08-2026 (it came back on 01-09-2026). Entry date 10-08-2026 is in that time.');
+    assert.strictEqual(run('(m, d) => { try { assertActive_(m, d); return ""; } catch (e) { return e.message; } }', cb, '2026-08-10'), P.activeProblem(cb, '2026-08-10'), 'the same words');
+    assert.match(app, /if \(S\.editNo\) m\.earlier = mPerRead\(\)\.filter\(p => p\.from \|\| p\.until\);/);
+    assert.match(app, /title: 'Did ' \+ was\.id \+ ' come back to the site\?', ok: 'It came back on this date', cancel: 'It never left'/);
+    assert.match(app, /\['activeFrom', 'Active From \(made Active again: the day it came back\)', 'date'\]/);
+    assert.match(app, /const final = \(m\.status === 'Inactive' && !!m\.inactiveFrom && String\(m\.inactiveFrom\)\.slice\(0, 10\) <= dayAfter\) \|\| \(m\.earlier \|\| \[\]\)\.some\(p => p\.until > from && p\.until <= dayAfter\);/);
+    assert.match(code, /const final = \(!!leftOn && leftOn <= dayAfter\) \|\| \(m\.earlier \|\| \[\]\)\.some\(p => p\.until > from && p\.until <= dayAfter\);/, 'the bill: page = server');
+    // ---- the database step ----
+    const step = fs.readFileSync(path.join(root, 'sql', 'supabase_step1za_site_periods.sql'), 'utf8');
+    assert.match(step, /^alter table public\.master add column if not exists site_periods text;$/m);
+    assert.ok(!/drop |delete |update |truncate /i.test(step.replace(/^--.*$/mg, '')), 'it only adds');
+    const listed = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1za_site_periods.sql');
+    assert.ok(listed && listed.sql === step, 'Read Me lists it word for word');
+    assert.match(fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8'), /\['Site Periods', 'site_periods', 'text'\]/);
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k119.flush; SbBook_.prototype.loadMany = __k119.loadMany; SbSheet_.prototype.load_ = __k119.load_; sbDiscard_ = __k119.discard;
+      CacheService.getScriptCache().remove("USERS_LIST"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
+  }
 });
