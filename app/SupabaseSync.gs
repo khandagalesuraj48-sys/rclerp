@@ -27,7 +27,8 @@ const SB_TABLES_ = [
   { table: 'diesel_inward', tab: 'Diesel Inward', title: 'Diesel Inward', pk: 'id', key: r => sbStr_(r['Inward ID']), cols: [
     ['Date', 'date', 'date'], ['Location', 'location', 'text'], ['Pump Name', 'pump_name', 'text'], ['Qty (Ltr)', 'qty', 'numeric'], ['Rate', 'rate', 'numeric'],
     ['Amount', 'amount', 'numeric'], ['Bill Number', 'bill_number', 'text'], ['Bill Date', 'bill_date', 'date'], ['Balance', 'balance', 'numeric'], ['Created At', 'entered_at', 'timestamptz'],
-    ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
+    ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text'],
+    ['Photos', 'photos', 'text']] },      // (update-120, step 1zb) the bill copies: [{ p, at }]
   { table: 'diesel_transfer', tab: 'Diesel Transfer', title: 'Diesel Transfer', pk: 'id', key: r => sbStr_(r['Transfer ID']), cols: [
     ['Date', 'date', 'date'], ['Shift', 'shift', 'text'], ['From', 'from_location', 'text'], ['To', 'to_location', 'text'], ['Qty (Ltr)', 'qty', 'numeric'],
     ['Remark', 'remark', 'text'], ['From Balance', 'from_balance', 'numeric'], ['To Balance', 'to_balance', 'numeric'], ['Created At', 'entered_at', 'timestamptz'],

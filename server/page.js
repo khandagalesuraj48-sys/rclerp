@@ -25,8 +25,9 @@ const BRIDGE = `
   var flying = {}, saveNo = 0;      // saveNo goes up whenever anything that is not a question is sent or answered
   function isQuestion(name, args) { if (name !== 'api') return false; var f = String(args[1]);
     // (update-85: dieselPhoto – a photo being sent – is tried again 3 times like a question, not for ever like a save: on a weak
-    //  connection the person must be able to take it again or save without it. A copy that arrived twice is only a spare file.)
-    return /^(get|rpt|rtc)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra', 'dieselPhoto'].indexOf(f) > -1; }
+    //  connection the person must be able to take it again or save without it. A copy that arrived twice is only a spare file.
+    //  update-120: inwardPhoto – a bill copy of a diesel inward – the same)
+    return /^(get|rpt|rtc)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra', 'dieselPhoto', 'inwardPhoto'].indexOf(f) > -1; }
   // calls on their way (for the freeze note: which answer the page was waiting for, and for how long) and the last answer
   var inFlight = {}, flightNo = 0, lastAnswer = '';
   window.__rclNet = function () { var now = Date.now(), w = Object.keys(inFlight).map(function (k) { return inFlight[k].fn + ' ' + ((now - inFlight[k].t0) / 1000).toFixed(1) + ' s'; });

@@ -1691,6 +1691,14 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   back: the ended period kept; same Active From = never left), `assertEntriesStay_` (no date change that puts entries off site);
   saveMaster_ / editMasterMany_ / importMaster_; pending Log Book, Log Book dashboard, final-bill rule. Page `mPeriods`,
   `siteSpan`, form "Earlier periods on site" + "Did it come back?". App 3.1.12. Unit "update-119"; browser periods119.js 13.
+- 16-10-2026 (update-120). Report: `UPDATE_120.md`. Bill copies of a diesel inward: up to 10 photos in `diesel_inward.photos`
+  (**SQL step 1zb**, every site) as [{ p: 'inward/yyyy-MM/<uuid>.jpg', at }], the pictures in the private bucket diesel-photos
+  (step 1x). `inwardPhoto` (`uploadInwardPhoto_`, Edit, PH_ cache 6 h, kind 'bill'), `billsOf_` (own copies or the inward's own;
+  not given = kept), `getInwardPhotos` (`inwardPhotos_`, `photoLinks_`); saveInward / updateInward withUser; list `ph`. FIX: an
+  entry with photos sent for verification was always "Returned – not saved" at the approval (the check removed the photos the
+  server remembered): `FLOW_PHOTOS_` – noted with the request (Data.photos, held), used by the approval (`photoRecs_`,
+  `photosTaken_`). Page: "Bill copy" box (`IB`, `ibAdd`, `ibLoad`, `ibForSave`, `ibView`; `phMake(file, null, 2000)`).
+  App 3.1.13. Unit "update-120"; API inward120api.js 44; browser bills120.js 17.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
