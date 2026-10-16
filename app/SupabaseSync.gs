@@ -22,6 +22,7 @@ const SB_TABLES_ = [
     ['Engine Number', 'engine_number', 'text'], ['Chassis Number', 'chassis_number', 'text'], ['Engine Make', 'engine_make', 'text'],
     ['Tax Valid Upto', 'tax_valid_upto', 'text'], ['PUC Valid Upto', 'puc_valid_upto', 'text'], ['Permit Valid Upto', 'permit_valid_upto', 'text'],
     ['Fitness Valid Upto', 'fitness_valid_upto', 'text'], ['Insurance Valid Upto', 'insurance_valid_upto', 'text'],
+    ['Site Periods', 'site_periods', 'text'],      // (update-119, step 1za) its earlier periods on site: [{ from, until }]
     ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
   { table: 'diesel_inward', tab: 'Diesel Inward', title: 'Diesel Inward', pk: 'id', key: r => sbStr_(r['Inward ID']), cols: [
     ['Date', 'date', 'date'], ['Location', 'location', 'text'], ['Pump Name', 'pump_name', 'text'], ['Qty (Ltr)', 'qty', 'numeric'], ['Rate', 'rate', 'numeric'],

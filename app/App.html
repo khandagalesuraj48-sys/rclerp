@@ -2476,6 +2476,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* "½ day" under the shift of a Log Book entry */
   .cr-dash .cr-back { background: #FEF3C7; } .cr-q { background: #FEF3C7; padding: 8px 10px; border-radius: 8px; } button.flow-send { background: #B45309 !important; border-color: #B45309 !important; }
   /* (update-118) my entries in verification – on the page where they were made and on the Dashboard */
+  /* (update-119) earlier periods on site */
+  .m-per-wrap { grid-column: 1 / -1; } .m-per { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: end; margin: 0 0 6px; } .m-per label { display: flex; flex-direction: column; font-size: 12.5px; gap: 2px; } .m-per input { width: auto; }
+  .m-per-note { display: block; font-size: 11.5px; color: #64748B; margin-top: 2px; }
   .fv-box { margin: 0 0 12px; padding: 12px 14px; border: 1px solid #F2D7A6; border-left: 4px solid #B45309; border-radius: 12px; background: #FFFBF2; }
   .fv-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; } .fv-head h3 { margin: 0; font-size: 15px; }
   .fv-chips span { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #fff; border: 1px solid #E5E7EB; font-size: 12.5px; margin-right: 4px; } .fv-chips b { margin-left: 4px; } .fv-chips .bk { background: #FEF3C7; border-color: #FCD34D; }
@@ -3299,6 +3302,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           <select id="m_status"><option>Active</option><option>Inactive</option></select></div>
         <div class="field"><label for="m_afrom">Active From <span style="font-weight:400">(blank = always)</span></label><input id="m_afrom" type="date"></div>
         <div class="field" id="m_ifrom_wrap" hidden><label for="m_ifrom">Inactive From <span class="req">*</span></label><input id="m_ifrom" type="date"></div>
+        <div class="field m-per-wrap" id="m_per_wrap" hidden><label>Earlier periods on site <span style="font-weight:400">(it left and came back – kept by itself when it comes back)</span></label><div id="m_per"></div><button class="btn ghost small" id="m_per_add" type="button">+ Add an earlier period</button></div>
         <div class="field"><label for="m_engno">Engine Number</label><input id="m_engno" autocomplete="off" style="text-transform:uppercase"></div>
         <div class="field"><label for="m_chassis">Chassis Number</label><input id="m_chassis" autocomplete="off" style="text-transform:uppercase"></div>
         <div class="field"><label for="m_engmake">Engine Make (company)</label><input id="m_engmake" list="dl_engmake" autocomplete="off" placeholder="e.g. Cummins, Tata"></div>
@@ -5785,6 +5789,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The date is in the future. Entries can be made only up to today.', 'Pick today or an earlier date. If today itself is refused, check the date and time of the computer.'],
       mr: ['तारीख पुढची (भविष्यातील) आहे. Entry फक्त आजपर्यंतच करता येते.', 'आजची किंवा आधीची तारीख निवडा. आजचीच तारीख नाकारली जात असेल तर computer ची तारीख आणि वेळ तपासा.'],
       hi: ['तारीख आगे की (भविष्य की) है। Entry केवल आज तक की हो सकती है।', 'आज की या पहले की तारीख चुनें। अगर आज की तारीख ही मना हो रही हो तो computer की तारीख और समय जाँचें।'] },
+    { re: /was not on this site from|is not on this site on|earlier period|periods on site|"Active From" must be on or after|left the site on|with these dates it would not be on site/i,      // (update-119) a machinery on site several times
+      en: ['A machinery can be on this site several times: its earlier periods (it left and came back) and its current one (Active From … Inactive From). On the days between, it was not on site: no entry is taken for those days.', 'Check the date of the entry. In Asset Master: when it came back, set Status Active and its new "Active From" (the day it came back) – the period that ended is kept. Periods must not overlap; entries already made must stay inside a period (change the dates, or first delete those entries).'],
+      mr: ['एकच machinery या site वर अनेक वेळा असू शकते: आधीचे कालावधी (गेली आणि परत आली) आणि आत्ताचा (Active From … Inactive From). मधल्या दिवसांत ती site वर नव्हती: त्या दिवसांची entry घेतली जात नाही.', 'Entry ची तारीख तपासा. Asset Master मध्ये: परत आली तेव्हा Status Active आणि नवीन "Active From" (परत आल्याची तारीख) द्या – संपलेला कालावधी तसाच राहतो. कालावधी एकमेकांत येऊ नयेत; आधी केलेल्या entries एखाद्या कालावधीतच राहिल्या पाहिजेत (तारखा बदला, किंवा आधी त्या entries delete करा).'],
+      hi: ['एक ही machinery इस site पर कई बार हो सकती है: पहले के समय (गई और वापस आई) और अभी का (Active From … Inactive From)। बीच के दिनों में वह site पर नहीं थी: उन दिनों की entry नहीं ली जाती।', 'Entry की तारीख जाँचें। Asset Master में: वापस आने पर Status Active और नई "Active From" (वापस आने की तारीख) दें – खत्म हुआ समय वैसा ही रहता है। समय एक-दूसरे में न आएँ; पहले की entries किसी समय के अंदर ही रहें (तारीखें बदलें, या पहले वे entries delete करें)।'] },
     { re: /is (inactive|active only from)/i,
       en: ['This machinery is not active on the date of the entry (it was added later, or made inactive).', 'Check the date of the entry. If the date is right, open Asset Master and correct "Active From" / "Inactive From" of this machinery, then save the entry again.'],
       mr: ['Entry च्या तारखेला ही machinery active नाही (ती नंतर जोडली आहे, किंवा inactive केली आहे).', 'Entry ची तारीख तपासा. तारीख बरोबर असेल तर Asset Master मध्ये या machinery ची "Active From" / "Inactive From" तारीख दुरुस्त करा आणि entry पुन्हा save करा.'],
@@ -9754,7 +9762,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (from > to) throw new Error('From date is after To date.');
       const nDays = Math.round((new Date(to + 'T00:00:00') - new Date(from + 'T00:00:00')) / 86400000) + 1;
       if (nDays > 93) throw new Error('Pick up to 3 months (From and To) to get the dates to fill.');
-      const onSite = (m, dk) => (!m.activeFrom || m.activeFrom <= dk) && !(m.status === 'Inactive' && m.inactiveFrom && m.inactiveFrom <= dk);
+      const onSite = (m, dk) => onSiteOn(m, dk);      // (update-119) its periods on site
       const fm = f.no ? findMachine(f.no) : null;
       const ms = (fm ? [fm] : (S.master || []).filter(m => m.supply !== 'Debit Basis' && (!f.own || m.ownership === f.own) && (!f.type || String(m.type || '').toUpperCase() === String(f.type).toUpperCase()) && (!f.owner || String(m.owner || '').toUpperCase() === String(f.owner).toUpperCase())));
       const have = {}; d.rows.forEach(r => { have[r.no + '|' + r.date] = true; });
@@ -9944,8 +9952,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * "Inactive From" (as the server's check of an entry – assertActive_). From that date it is not shown where entries are made,
    * not pending, not counted; a list of dates (Asset Master) shows it when it was on site on at least one day of them. */
   const mDay = v => String(v || '').slice(0, 10);
-  const onSiteOn = (m, dk) => !!m && (!m.activeFrom || mDay(m.activeFrom) <= dk) && !(m.status === 'Inactive' && (!m.inactiveFrom || mDay(m.inactiveFrom) <= dk));
-  const onSiteIn = (m, a, b) => !!m && (!m.activeFrom || mDay(m.activeFrom) <= b) && !(m.status === 'Inactive' && (!m.inactiveFrom || mDay(m.inactiveFrom) <= a));
+  /* (update-119) A MACHINERY ON SITE SEVERAL TIMES: its earlier periods (it left and came back – kept by the server in "Site
+   * Periods") and its current one (Active From … the day before Inactive From). On site on a date = inside one of them. */
+  const mPeriods = m => (Array.isArray(m.earlier) ? m.earlier : []).concat([{ from: m.activeFrom ? mDay(m.activeFrom) : '', until: m.status === 'Inactive' ? (m.inactiveFrom ? mDay(m.inactiveFrom) : '0000-01-01') : '' }]);
+  const onSiteOn = (m, dk) => !!m && mPeriods(m).some(p => (!p.from || p.from <= dk) && (!p.until || dk < p.until));
+  const onSiteIn = (m, a, b) => !!m && mPeriods(m).some(p => (!p.from || p.from <= b) && (!p.until || a < p.until));
+  const dayBefore = d => isoDate(new Date(new Date(d + 'T00:00:00').getTime() - 86400000));
+  // the days from … to it was on site, and its first and last day on site in them ('' when none)
+  function siteSpan(m, from, to) {
+    let n = 0, a = '', b = '';
+    mPeriods(m).forEach(p => { if (p.until === '0000-01-01') return; const s0 = p.from && p.from > from ? p.from : from, e0 = p.until ? dayBefore(p.until) : to, e = e0 < to ? e0 : to;
+      if (e < s0) return; n += Math.round((new Date(e + 'T00:00:00') - new Date(s0 + 'T00:00:00')) / 86400000) + 1; if (!a || s0 < a) a = s0; if (!b || e > b) b = e; });
+    return { days: n, first: a, last: b };
+  }
+
   function masterFiltered(noVc) {
     const q = val('m_search').toUpperCase(), fo = $('mf_own').value, fu = $('mf_unit').value, fs = $('mf_status').value, fd = $('mf_supply').value;
     const fa = $('mf_from').value, fb = $('mf_to').value, ra = fa || '0000-01-01', rb = fb || '9999-12-31';
@@ -10036,7 +10056,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     ['kmStd', 'Standard (KM/Ltr)', 'number'], ['hrStd', 'Standard (Ltr/Hr)', 'number'], ['tankCap', 'Tank Capacity (Ltr)', 'number'],
     ['owner', 'Vendor (Owner Name)', 'text', 'dl_vendornames'], ['ownership', 'Ownership', ['Own', 'Rental', 'Hired', 'Debit', 'Other']],
     ['supply', 'Diesel Supply', ['Company', 'Debit Basis', 'Other']], ['status', 'Status', ['Active', 'Inactive']],
-    ['inactiveFrom', 'Inactive From (when Inactive)', 'date'], ['monthlyRate', 'Monthly Rate (₹) – Rental / Hired', 'number'], ['tdsRate', 'TDS Rate (%) – Rental / Hired', 'number']];
+    ['activeFrom', 'Active From (made Active again: the day it came back)', 'date'], ['inactiveFrom', 'Inactive From (when Inactive)', 'date'], ['monthlyRate', 'Monthly Rate (₹) – Rental / Hired', 'number'], ['tdsRate', 'TDS Rate (%) – Rental / Hired', 'number']];
   const meStr = v => v === null || v === undefined ? '' : String(v);
   $('m_seledit').addEventListener('click', async () => {
     const ids = [...S.mSel]; if (!ids.length) return;
@@ -10062,6 +10082,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (c.same ? nv !== c.v : nv !== '') ch[f[0]] = nv;   // same value → any change (also clearing); different → only a new value
     });
     if (ch.status === 'Inactive' && !ch.inactiveFrom && !(common.inactiveFrom.same && common.inactiveFrom.v)) ch.inactiveFrom = S.today;
+    // (update-119) made Active again without the day it came back: they never left (asked first – else the days away count as on site)
+    const wereOff = list.filter(m => m.status === 'Inactive' && m.inactiveFrom);
+    if (ch.status === 'Active' && !ch.activeFrom && wereOff.length && !(await askConfirm({ title: 'They never left the site?', ok: 'They never left', wide: true,
+      html: '<p>' + wereOff.map(m => esc(m.id) + ' (inactive from ' + esc(showDate(mDay(m.inactiveFrom))) + ')').join(', ') + '</p><p>If they <b>came back</b>, press Cancel and put the day they came back in <b>Active From</b> – their time on site until they left is kept as an earlier period.</p><p>"They never left": the Inactive was a mistake – every day counts as on site.</p>' }))) return;
     if (!Object.keys(ch).length) { toast('Nothing changed.'); return; }
     const res = await call('editMasterMany', list.map(m => m.id), ch);
     if (!res.ok) { await askConfirm({ title: 'Nothing saved', ok: 'OK', alertOnly: true, wide: true, html: listHtml(res.errors.map(e => e.id + ': ' + e.msg)) }); return; }
@@ -10786,7 +10810,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const rawExcess = stdQty > 0 ? Math.max(0, r2(companyQty - stdQty)) : 0;
     // final bill: the machinery left the site (Inactive from a date up to the day after the period) → no "still in the tank" allowance
     const dayAfter = (() => { const t0 = new Date(to + 'T00:00:00'); t0.setDate(t0.getDate() + 1); return isoDate(t0); })();
-    const leftOn = m.status === 'Inactive' && m.inactiveFrom ? String(m.inactiveFrom).slice(0, 10) : '', final = !!leftOn && leftOn <= dayAfter;
+    const final = (m.status === 'Inactive' && !!m.inactiveFrom && String(m.inactiveFrom).slice(0, 10) <= dayAfter) || (m.earlier || []).some(p => p.until > from && p.until <= dayAfter);      // (update-119) also when an earlier period on site ended in this one
     const tank = final ? null : tankLeft(m, u, own, iss0, isDebit, rawExcess);     // what is left of the last fill is not excess of this period
     const excessQty = r2(rawExcess - (tank ? tank.applied : 0));
     // the rate: typed by hand for this bill (extra.manualRate), else the higher of the period's average and the last purchase rate
@@ -13146,7 +13170,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   S.bk = { d: null, rows: {} };
   const bkOwns = () => [...document.querySelectorAll('#bk_own input:checked')].map(x => x.value);
   // machinery on site on a date
-  const bkOnSite = (m, d) => (!m.activeFrom || m.activeFrom <= d) && !(m.status === 'Inactive' && m.inactiveFrom && m.inactiveFrom <= d);
+  const bkOnSite = (m, d) => onSiteOn(m, d);      // (update-119) its periods on site
   async function bkLoad() {
     if (!$('bk_date').value) $('bk_date').value = S.today;
     try {
@@ -13210,8 +13234,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const ms = (S.master || []).filter(m => (!own || (m.ownership || 'Other') === own) && (!owner || String(m.owner || '').toUpperCase() === owner) && (!mno || m.id === (findMachine(mno) || {}).id));
     return ms.map(m => {
       // on site in the period
-      const a = m.activeFrom && m.activeFrom > from ? m.activeFrom : from, b0 = m.status === 'Inactive' && m.inactiveFrom ? bpPrev(m.inactiveFrom) : to, b = b0 < to ? b0 : to;
-      const site = b < a ? 0 : bpDayN(a, b);
+      const sp = siteSpan(m, from, to), a = sp.first || from, b = sp.last || dayBefore(from);      // (update-119) the days of its periods on site
+      const site = sp.days;
       let bd = 0, times = 0; const why = [];
       d.history.filter(x => x.no === m.id).forEach(x => {
         const s1 = x.from > a ? x.from : a, e0 = x.backOn ? bpPrev(x.backOn) : S.today, e1 = e0 < b ? e0 : b;
@@ -13323,12 +13347,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!from || !to) { toast('Pick the dates.', true); return; }
     if (from > to) { toast('From date is after To date.', true); return; }
     const headName = await askPrintName('Print – Asset list'); if (!headName) return;
-    const onSite = m => (!m.activeFrom || m.activeFrom <= to) && !(m.status === 'Inactive' && m.inactiveFrom && m.inactiveFrom <= from);
+    const onSite = m => onSiteIn(m, from, to);      // (update-119) its periods on site
     const ms = (S.master || []).filter(m => onSite(m) && (!own || m.ownership === own)).sort((a, b) => (a.ownership || '').localeCompare(b.ownership || '') || (a.type || '').localeCompare(b.type || '') || a.id.localeCompare(b.id, undefined, { numeric: true }));
     let bd = null; try { if ((S.user.perms || {})['Breakdown'] !== 'None') bd = await call('getBreakdowns', { date: to }); } catch (e) { bd = null; }
     const dayN = (a, b) => Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000) + 1;
     const prev = d => isoDate(new Date(new Date(d + 'T00:00:00').getTime() - 86400000));
-    const siteDays = m => { const a = m.activeFrom && m.activeFrom > from ? m.activeFrom : from, b0 = m.status === 'Inactive' && m.inactiveFrom ? prev(m.inactiveFrom) : to, b = b0 < to ? b0 : to; return b < a ? 0 : dayN(a, b); };
+    const siteDays = m => siteSpan(m, from, to).days;      // (update-119) the days of its periods on site
     const bdDays = m => { if (!bd) return ''; let n = 0; bd.history.filter(x => x.no === m.id).forEach(x => { const a = x.from > from ? x.from : from, e0 = x.backOn ? prev(x.backOn) : to, e = e0 < to ? e0 : to; if (e >= a) n += dayN(a, e); }); return n; };
     const bdNow = m => { if (!bd) return ''; const x = bd.onDate.find(y => y.no === m.id); return x ? 'Breakdown since ' + showDate(x.from) + ' (' + x.days + ' d) – ' + x.reason : 'Working'; };
     const paper = v => v === 'NA' ? 'N/A' : v === 'LIFETIME' ? 'Lifetime' : /^\d{4}-/.test(v || '') ? showDate(v) : '–';
@@ -14248,6 +14272,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('m_unit').value = ''; document.querySelectorAll('#m_works input').forEach(x => { x.checked = false; }); $('m_ownership').value = ''; $('m_no').readOnly = false; $('m_name').readOnly = false;
     masterOwnershipChanged();
     $('m_title').textContent = 'Add machinery'; $('m_save').textContent = 'Save machinery';
+    S.mEarlier = []; mPerDraw();      // (update-119)
     masterUnitChanged();
   }
   function editMaster(no) {
@@ -14263,6 +14288,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     masterOwnershipChanged();
     $('m_supply').value = m.supply || 'Company'; $('m_supply').dataset.touched = '1';
     $('m_status').value = m.status || 'Active'; $('m_afrom').value = m.activeFrom || ''; $('m_ifrom').value = m.inactiveFrom || ''; masterStatusChanged();
+    S.mEarlier = (m.earlier || []).map(p => ({ from: p.from || '', until: p.until || '' })); mPerDraw();      // (update-119)
     $('m_title').textContent = 'Edit ' + m.id; $('m_save').textContent = 'Update machinery';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -14295,18 +14321,47 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (inactive && !$('m_ifrom').value) $('m_ifrom').value = S.today;
   }
   $('m_status').addEventListener('change', masterStatusChanged);
+  /* (update-119) EARLIER PERIODS ON SITE (it left and came back): shown and corrected here. Inactive → Active: "did it come back?" –
+   * its new Active From is the day it came back (the server keeps the period that ended); "it never left" keeps the old one. */
+  S.mEarlier = [];
+  function mPerDraw() {
+    $('m_per_wrap').hidden = !S.editNo;
+    $('m_per').innerHTML = S.mEarlier.length ? S.mEarlier.map((p, i) => '<div class="m-per" data-i="' + i + '"><label>From <input type="date" class="mp-from" value="' + esc(p.from || '') + '"></label><label>Inactive From (it left) <input type="date" class="mp-until" value="' + esc(p.until || '') + '"></label><button class="btn ghost small mp-del" type="button">Remove</button></div>').join('')
+      : '<p class="muted" style="margin:0 0 6px">None – on site in one period.</p>';
+  }
+  const mPerRead = () => [...document.querySelectorAll('#m_per .m-per')].map(r => ({ from: r.querySelector('.mp-from').value, until: r.querySelector('.mp-until').value }));
+  $('m_per').addEventListener('input', () => { S.mEarlier = mPerRead(); });
+  $('m_per').addEventListener('click', e => { const b = e.target.closest('.mp-del'); if (!b) return; S.mEarlier = mPerRead(); S.mEarlier.splice(Number(b.closest('.m-per').dataset.i), 1); mPerDraw(); });
+  $('m_per_add').addEventListener('click', () => { S.mEarlier = mPerRead().concat([{ from: '', until: '' }]); mPerDraw(); });
+  $('m_status').addEventListener('change', async () => {
+    const was = S.editNo ? findMachine(S.editNo) : null;
+    if (!was || !(was.status === 'Inactive' && was.inactiveFrom) || $('m_status').value !== 'Active') return;      // (only a machinery that left on a date)
+    const left = mDay(was.inactiveFrom), af0 = mDay(was.activeFrom);
+    const back = await askConfirm({ title: 'Did ' + was.id + ' come back to the site?', ok: 'It came back on this date', cancel: 'It never left', wide: true,
+      html: '<p>' + esc(was.id) + ' left the site on <b>' + esc(showDate(left)) + '</b> (Inactive From).</p><label class="cr-why">It came back on <input type="date" id="m_back" value="' + esc(S.today > left ? S.today : left) + '" min="' + esc(left) + '"></label>' +
+        '<p>Its time on site until then is kept as an earlier period. From this date its Log Book and diesel go on; the days between: not on site.</p><p><small>"It never left": the Inactive was a mistake – it counts as on site for every day.</small></p>' });
+    const d = String(($('m_back') || {}).value || '');
+    $('m_afrom').value = back ? (d && d >= left ? d : (S.today > left ? S.today : left)) : af0;
+  });
   $('m_supply').addEventListener('change', () => { $('m_supply').dataset.touched = '1'; });
+  // (update-119) its earlier periods on site, under the badge
+  const mPerText = p => (p.from ? showDate(p.from) : 'start') + ' – ' + showDate(dayBefore(p.until));
+  const mPerNote = m => (m.earlier || []).length ? '<small class="m-per-note" title="On site earlier: ' + esc(m.earlier.map(mPerText).join('; ')) + '">earlier: ' + esc(m.earlier.map(mPerText).join('; ')) + '</small>' : '';
   // "Active" / "Inactive from 01-10-2026" badge
   function statusBadge(m) {
-    if (m.status === 'Inactive') return '<span class="sbad off">Inactive' + (m.inactiveFrom ? ' from ' + esc(showDate(m.inactiveFrom)) : '') + '</span>';
-    return '<span class="sbad on">Active' + (m.activeFrom ? ' from ' + esc(showDate(m.activeFrom)) : '') + '</span>';
+    if (m.status === 'Inactive') return '<span class="sbad off">Inactive' + (m.inactiveFrom ? ' from ' + esc(showDate(m.inactiveFrom)) : '') + '</span>' + mPerNote(m);
+    return '<span class="sbad on">Active' + (m.activeFrom ? ' from ' + esc(showDate(m.activeFrom)) : '') + '</span>' + mPerNote(m);
   }
   // Why a machinery cannot take an entry on this date ('' = it can)
   function activeProblem(m, dk) {
     if (!m || !dk) return '';
-    if (m.activeFrom && dk < m.activeFrom) return m.id + ' is active only from ' + showDate(m.activeFrom) + '. Entry date ' + showDate(dk) + ' is before that.';
-    if (m.status === 'Inactive' && (!m.inactiveFrom || dk >= m.inactiveFrom)) return m.id + ' is inactive' + (m.inactiveFrom ? ' from ' + showDate(m.inactiveFrom) : '') + '. Activate it in Master to make entries.';
-    return '';
+    if (onSiteOn(m, dk)) return '';      // (update-119) inside one of its periods on site – the server's check (assertActive_)
+    const ps = mPeriods(m), first = ps[0].from;
+    if (first && dk < first) return m.id + ' is active only from ' + showDate(first) + '. Entry date ' + showDate(dk) + ' is before that.';
+    if (m.status === 'Inactive' && (!m.inactiveFrom || dk >= mDay(m.inactiveFrom))) return m.id + ' is inactive' + (m.inactiveFrom ? ' from ' + showDate(mDay(m.inactiveFrom)) : '') + '. Activate it in Master to make entries.';
+    const i = ps.findIndex((p, k) => p.until && dk >= p.until && k + 1 < ps.length && ps[k + 1].from && dk < ps[k + 1].from);
+    if (i > -1) return m.id + ' was not on this site from ' + showDate(ps[i].until) + ' to ' + showDate(dayBefore(ps[i + 1].from)) + ' (it came back on ' + showDate(ps[i + 1].from) + '). Entry date ' + showDate(dk) + ' is in that time.';
+    return m.id + ' is not on this site on ' + showDate(dk) + '.';
   }
   $('m_ownership').addEventListener('change', masterOwnershipChanged);
   $('m_no').addEventListener('change', () => { if (!$('m_no').readOnly) $('m_no').value = formatNo($('m_no').value); });
@@ -14441,12 +14496,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       insuranceUpto: $('m_na_ins').checked ? 'NA' : $('m_doc_ins').value,
 
       supply: $('m_supply').value, status: $('m_status').value, activeFrom: $('m_afrom').value, inactiveFrom: $('m_status').value === 'Inactive' ? $('m_ifrom').value : '' };
+    if (S.editNo) m.earlier = mPerRead().filter(p => p.from || p.until);      // (update-119) its earlier periods on site
     const mode = S.editNo ? 'edit' : 'add';
     if (mode === 'edit') {
       const before = Object.assign({}, findMachine(S.editNo) || {}); before.worksOn = worksOf(before).join(', ');
       const changes = diff([['no', 'Machinery Number'], ['name', 'Machinery Name'], ['type', 'Type of Machinery'], ['make', 'Make'], ['worksOn', 'Works on'],
         ['kmStd', 'Standard Average (KM/Ltr)'], ['hrStd', 'Standard Average (Ltr/Hr)'], ['owner', 'Owner Name'], ['ownership', 'Ownership'],
         ['supply', 'Diesel Supply'], ['status', 'Status'], ['activeFrom', 'Active From'], ['inactiveFrom', 'Inactive From']], before, m);
+      { const pt = l => (l || []).map(p => mPerText({ from: p.from, until: p.until || p.from })).join('; ') || 'none', a0 = pt(before.earlier), a1 = pt(m.earlier);      // (update-119)
+        if (a0 !== a1) changes.push(['Earlier periods on site', a0, a1]);
+        if (before.status === 'Inactive' && before.inactiveFrom && m.status === 'Active') changes.push(String(m.activeFrom || '') !== String(before.activeFrom || '') ? ['It came back', 'left on ' + showDate(mDay(before.inactiveFrom)), 'back on ' + showDate(m.activeFrom) + ' (until then kept as an earlier period)'] : ['It never left', 'Inactive from ' + showDate(mDay(before.inactiveFrom)), 'on site every day']); }
       if (!changes.length) { toast('Nothing changed.'); return; }
       /* THE NUMBER THAT IDENTIFIES THE MACHINERY CHANGES (its Number, or its Name when it has no number): said plainly before the
        * save, because it reaches further than this form – everything entered for the machinery moves to the new number. */
@@ -16197,8 +16256,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const tKmC = r2(ownRows.reduce((s2, r) => s2 + (Number(r.wkm) || 0), 0)), tHrC = r2(ownRows.reduce((s2, r) => s2 + (Number(r.whr) || 0), 0));
       const stdQty = r2((hasKm(u) && kmStd ? tKmC / kmStd : 0) + (hasHr(u) && hrStd ? tHrC * hrStd : 0));
       const rawExcess = stdQty > 0 ? Math.max(0, r2(issued - debitQty - stdQty)) : 0;
-      const leftOnP = m.status === 'Inactive' && m.inactiveFrom ? String(m.inactiveFrom).slice(0, 10) : '', dayAfterP = (() => { const t0 = new Date(to + 'T00:00:00'); t0.setDate(t0.getDate() + 1); return isoDate(t0); })();
-      const tank = leftOnP && leftOnP <= dayAfterP ? null : tankLeft(m, u, ownRows, iss0, isDebitD, rawExcess);      // the bill's rule (a machinery that left the site: nothing left out)
+      const dayAfterP = (() => { const t0 = new Date(to + 'T00:00:00'); t0.setDate(t0.getDate() + 1); return isoDate(t0); })();
+      const leftP = (m.status === 'Inactive' && !!m.inactiveFrom && String(m.inactiveFrom).slice(0, 10) <= dayAfterP) || (m.earlier || []).some(p => p.until > from && p.until <= dayAfterP);      // (update-119) as the bill
+      const tank = leftP ? null : tankLeft(m, u, ownRows, iss0, isDebitD, rawExcess);      // the bill's rule (a machinery that left the site: nothing left out)
       const excessQty = r2(rawExcess - (tank ? tank.applied : 0));
       // debit rate = the HIGHER of the average diesel rate of the dates and the last diesel purchase rate
       const avgR = Number(extra.avgRate) || 0, lastR = Number(extra.lastRate) || 0, avgRate = MAN_RATE || Math.max(avgR, lastR), excessAmt = r2((debitQty + excessQty) * avgRate);
