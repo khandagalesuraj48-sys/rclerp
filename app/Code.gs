@@ -874,9 +874,11 @@ const API_ = {
   deleteMasterMany:  { m: 'Master', edit: true, f: deleteMasterMany_, log: 'masterManyDel' },
   importMaster:      { m: 'Master', edit: true, f: importMaster_, log: 'masterImport' },
   getInwards:        { m: 'Diesel Inward', f: getInwards_ },
-  saveInward:        { m: 'Diesel Inward', edit: true, f: saveInward_, log: 'add', sheet: 'SHEET_INWARD', idh: 'IN_ID' },
+  saveInward:        { m: 'Diesel Inward', edit: true, withUser: true, f: (u, x) => saveInward_(x, u), log: 'add', sheet: 'SHEET_INWARD', idh: 'IN_ID' },      // (update-120: the user – only his own bill copies)
   importInward:      { m: 'Diesel Inward', edit: true, f: importInward_, log: 'inImport' },
-  updateInward:      { m: 'Diesel Inward', edit: true, f: updateInward_, log: 'edit', sheet: 'SHEET_INWARD', idh: 'IN_ID' },
+  updateInward:      { m: 'Diesel Inward', edit: true, withUser: true, f: (u, id, x) => updateInward_(id, x, u), log: 'edit', sheet: 'SHEET_INWARD', idh: 'IN_ID' },
+  inwardPhoto:       { m: 'Diesel Inward', withUser: true, f: (u, x) => uploadInwardPhoto_(u, x) },      // update-120: one photo of the bill copy, sent the moment it is added (Edit checked inside)
+  getInwardPhotos:   { m: 'Diesel Inward', f: inwardPhotos_ },                                           // update-120: the bill copies of an inward, to look at
   deleteInward:      { m: 'Diesel Inward', edit: true, f: deleteInward_, log: 'delete', sheet: 'SHEET_INWARD', idh: 'IN_ID' },
   getTransfers:      { m: 'Diesel Transfer', f: getTransfers_ },
   getTransferBalance:{ m: 'Diesel Transfer', f: getTransferBalance_ },
@@ -4172,7 +4174,7 @@ function saveDieselIssue_(d, u) {
     const row = buildDieselRow_(t, id, dk, shift, m, v, new Date());
     if (photos) set_(row, t, H.PHOTOS, JSON.stringify(photos));
     t.sh.appendRow(row);
-    if (photos) { const pc = CacheService.getScriptCache(); photos.forEach(x => { try { pc.remove('PH_' + x.p); } catch (e) { /* it ends by itself in 6 hours */ } }); }      // a photo goes with ONE entry
+    if (photos) photosTaken_(photos.map(x => x.p));      // a photo goes with ONE entry (update-120: an entry sent for verification keeps them for its approval)
     markDieselNo_(n);
     syncLogFromDiesel_(m.id, dk, shift);
     recalcBalances_();
@@ -4468,17 +4470,19 @@ const PHOTO_BUCKET_ = 'diesel-photos';
 const PHOTO_KINDS_ = { dash: 'Dashboard', veh: 'Vehicle and driver', pump: 'Dispenser litres', reg: 'Register' };
 const PHOTO_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1x_diesel_photos.sql once in Supabase → SQL Editor.';
 const PHOTO_PATH_ = /^\d{4}-\d{2}\/[0-9a-f-]{36}\.jpg$/;
-function photosReady_() {
+function photosReady_() { photoColReady_(APP.SHEET_DIESEL, DIESEL_COLS_, 'diesel_issue', 'Photos of a diesel issue cannot be kept yet. ' + PHOTO_SQL_MSG_); }
+// (update-120: the same for the bill copies of a diesel inward – billsReady_) the table's column "photos" is there, or `fail` is said
+function photoColReady_(sheetName, cols0, table, fail) {
   if (!sbDataOn_()) throw new Error('Photos are kept in Supabase only – this copy of the app runs on the Google Sheet.');
-  let sh = null, cols = null; try { table_(APP.SHEET_DIESEL, DIESEL_COLS_); sh = SS_().getSheetByName(APP.SHEET_DIESEL); cols = sh.dbCols; } catch (e) { cols = null; }      // (read first: the columns are known once the table is read)
+  let sh = null, cols = null; try { table_(sheetName, cols0); sh = SS_().getSheetByName(sheetName); cols = sh.dbCols; } catch (e) { cols = null; }      // (read first: the columns are known once the table is read)
   if (!cols || cols.indexOf('photos') > -1) return;
   /* The server's copy of the table in memory (see server/gas.js) is read whole again only every 15 minutes, so right after the
    * Admin has run the SQL step it still shows the table without the new column. The database itself is asked then (one small
    * question, its answer kept for 15 minutes), and the column is taken as there. */
-  const c = CacheService.getScriptCache();
-  let there = c.get('SBCOL_diesel_issue.photos') === '1';
-  if (!there) { try { sbFetch_('GET', '/rest/v1/diesel_issue?select=photos&limit=1'); there = true; } catch (e) { there = false; } if (there) c.put('SBCOL_diesel_issue.photos', '1', 900); }
-  if (!there) throw new Error('Photos of a diesel issue cannot be kept yet. ' + PHOTO_SQL_MSG_);
+  const c = CacheService.getScriptCache(), key = 'SBCOL_' + table + '.photos';
+  let there = c.get(key) === '1';
+  if (!there) { try { sbFetch_('GET', '/rest/v1/' + table + '?select=photos&limit=1'); there = true; } catch (e) { there = false; } if (there) c.put(key, '1', 900); }
+  if (!there) throw new Error(fail);
   cols.push('photos');      // (this request writes the column: the database has it)
 }
 // the photos kept with an entry (a value that is not such a list = none)
@@ -4516,16 +4520,37 @@ function photosOf_(list, u, no) {
   if (list.length > 4) throw new Error('A diesel issue keeps at most the 4 photos (Dashboard, Vehicle and driver, Dispenser litres, Register).');
   photosReady_();
   let mId = ''; try { mId = findMachine_(no).id; } catch (e) { mId = ''; }      // (a machinery that is not in Master is refused by the save itself)
-  const keys = list.map(x => 'PH_' + str_(x && x.p)), got = CacheService.getScriptCache().getAll(keys) || {}, seen = {};
+  const recs = photoRecs_(list.map(x => str_(x && x.p))), seen = {};
   return list.map((x, i) => {
     const k = str_(x && x.k), p = str_(x && x.p);
     if (!PHOTO_KINDS_[k] || seen[k]) throw new Error('Each of the 4 photos (Dashboard, Vehicle and driver, Dispenser litres, Register) can be given once.');
     seen[k] = true;
-    let rec = null; try { rec = PHOTO_PATH_.test(p) ? JSON.parse(got[keys[i]] || 'null') : null; } catch (e) { rec = null; }
+    const rec = PHOTO_PATH_.test(p) ? recs[i] : null;
     if (!rec || !u || rec.e !== u.email || rec.k !== k) throw new Error('The ' + PHOTO_KINDS_[k] + ' photo was not taken by you in the last 6 hours, or it is already with another entry – take the photo again.');
     if (mId && rec.no !== mId) throw new Error('The ' + PHOTO_KINDS_[k] + ' photo was taken for ' + rec.no + ', not for ' + mId + ' – take the photo again.');
     return { k: k, p: p, at: rec.at, lat: rec.lat, lng: rec.lng, acc: rec.acc };
   });
+}
+/* (update-120) A SAVE THAT WAITS FOR VERIFICATION. When it is sent, the save is first checked as a save (flowSend_): the pictures it
+ * takes are noted with the request (its Data: photos) and marked "with request VF-…" for the 6 hours the server remembers them
+ * (no other entry can take them meanwhile). When it is approved – maybe days later – the save takes them as noted then.
+ * (Until update-120 the check removed what the server remembered, so a photo sent with an entry for verification was refused at
+ * the approval: "Returned – not saved".) */
+let FLOW_PHOTOS_ = null;      // { path: what the server noted when it was sent } – while a save is checked (flowSend_) or approved (flowDecide_)
+// what the server noted for each picture (null = not sent by anybody in the last 6 hours, or with another entry)
+function photoRecs_(paths) {
+  const keys = paths.map(p => 'PH_' + p), got = CacheService.getScriptCache().getAll(keys) || {};
+  return paths.map((p, i) => {
+    let rec = null; try { rec = JSON.parse(got[keys[i]] || 'null'); } catch (e) { rec = null; }
+    if (FLOW_RUN_ID_ && FLOW_PHOTOS_ && FLOW_PHOTOS_[p] && typeof FLOW_PHOTOS_[p] === 'object') rec = Object.assign({}, FLOW_PHOTOS_[p], { held: FLOW_RUN_ID_ });      // being approved: as noted when it was sent
+    return rec && rec.held && rec.held !== FLOW_RUN_ID_ ? null : rec;      // (with an entry that waits for verification)
+  });
+}
+// a save took these pictures: no other entry may take them (or, only checked before it is sent for verification: noted with it)
+function photosTaken_(paths) {
+  const pc = CacheService.getScriptCache();
+  if (FLOW_DRY_ON_) { if (FLOW_PHOTOS_) { const recs = photoRecs_(paths); paths.forEach((p, i) => { if (recs[i]) FLOW_PHOTOS_[p] = recs[i]; }); } return; }
+  paths.forEach(p => { try { pc.remove('PH_' + p); } catch (e) { /* it ends by itself in 6 hours */ } });
 }
 // the photos of an entry, with links that open each picture for 15 minutes
 function dieselPhotos_(id) {
@@ -4544,6 +4569,82 @@ function dieselPhotos_(id) {
   out.photos = ['dash', 'veh', 'pump', 'reg'].map(k => list.find(x => x.k === k)).filter(Boolean)
     .map(x => ({ k: x.k, label: PHOTO_KINDS_[x.k], at: str_(x.at), lat: x.lat, lng: x.lng, acc: x.acc, url: urlOf[x.p] || '' }));
   return out;
+}
+/* ---------- THE BILL COPIES OF A DIESEL INWARD (update-120, asked 16-10-2026: "jewa diesel inward hote tewa inward bill copy pn add
+ * krayche aahet … inward copy eka weli multiple click krun save kru shakel user") ----------
+ * Photos of the pump's bill: several – taken with the camera one after another, or picked together from the gallery – at most
+ * 10 with one inward. Each is sent the moment it is added (inwardPhoto) and kept in the same PRIVATE store as the photos of a
+ * diesel issue (bucket diesel-photos, its folder inward/). As there, the server keeps for 6 hours who sent which picture: a save
+ * takes only pictures the same user sent, or the ones the inward already has (an edit keeps, removes or adds them).
+ * The inward keeps its list in its column Photos (sql/supabase_step1zb_inward_bills.sql):  [{ p: 'inward/2026-10/<id>.jpg', at }]
+ * A copy removed in an edit leaves the list only – the picture itself stays in the store (nothing is deleted).
+ * Looking at them (getInwardPhotos): links that open a picture for 15 minutes, for a user who may see Diesel Inward. */
+const BILL_MAX_ = 10;
+const BILL_PATH_ = /^inward\/\d{4}-\d{2}\/[0-9a-f-]{36}\.jpg$/;
+const BILL_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1zb_inward_bills.sql once in Supabase → SQL Editor.';
+function billsReady_() { photoColReady_(APP.SHEET_INWARD, INWARD_COLS_, 'diesel_inward', 'Bill copies of a diesel inward cannot be kept yet. ' + BILL_SQL_MSG_); }
+// the bill copies kept with an inward (a value that is not such a list = none)
+function billList_(v) {
+  let a = null; try { a = JSON.parse(str_(v) || '[]'); } catch (e) { a = null; }
+  return Array.isArray(a) ? a.filter(x => x && BILL_PATH_.test(str_(x.p))) : [];
+}
+// one bill copy, as it is added: kept in the private store
+function uploadInwardPhoto_(u, x) {
+  x = x || {};
+  if (!canEdit_(u, 'Diesel Inward')) throw new Error('You have View access only for Diesel Inward. Ask Admin for Edit access.');
+  const mt = /^data:image\/jpeg;base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
+  if (!mt) throw new Error('The bill copy must be a JPG picture.');
+  if (mt[1].length > 2000000) throw new Error('The bill copy is too big (more than 1.5 MB) – add it again.');
+  billsReady_();
+  const c = sbConf_(), path = 'inward/' + Utilities.formatDate(new Date(), tz_(), 'yyyy-MM') + '/' + Utilities.getUuid() + '.jpg';
+  const res = UrlFetchApp.fetch(c.url + '/storage/v1/object/' + PHOTO_BUCKET_ + '/' + path, { method: 'post', headers: { apikey: c.key, 'x-upsert': 'false' }, contentType: 'image/jpeg',
+    payload: Utilities.newBlob(Utilities.base64Decode(mt[1]), 'image/jpeg', path.split('/')[2]), muteHttpExceptions: true });
+  const code = res.getResponseCode(), text = res.getContentText();
+  if (/bucket not found/i.test(text)) throw new Error('Bill copies cannot be kept yet – the place for the photos is missing. ' + PHOTO_SQL_MSG_);
+  if (code < 200 || code >= 300) throw new Error('The photo store did not keep the bill copy (' + code + ') – add it again.' + (u.admin ? ' It said: ' + str_(text).slice(0, 160) : ''));
+  CacheService.getScriptCache().put('PH_' + path, JSON.stringify({ e: u.email, k: 'bill', at: new Date().toISOString() }), 21600);
+  return { ok: true, path: path };
+}
+/* the bill copies a save gives → the list kept with the inward. `list` not given (an older page, the import): the inward keeps what
+ * it has (null = nothing changes). Each copy: one the inward already has, or one this user sent in the last 6 hours. */
+function billsOf_(list, u, had) {
+  if (list === undefined || list === null) return null;
+  if (!Array.isArray(list)) throw new Error('The bill copies were not sent right – add them again.');
+  const paths = list.map(x => str_(x && typeof x === 'object' ? x.p : x));
+  if (paths.length > BILL_MAX_) throw new Error('An inward keeps at most ' + BILL_MAX_ + ' bill copy photos – remove some.');
+  const old = {}; (had || []).forEach(x => { old[x.p] = x; });
+  if (!paths.length) return [];
+  billsReady_();
+  const recs = photoRecs_(paths), seen = {};
+  return paths.map((p, i) => {
+    if (seen[p]) throw new Error('The same bill copy is given twice – remove one.');
+    seen[p] = true;
+    if (old[p]) return { p: p, at: str_(old[p].at) };
+    const rec = BILL_PATH_.test(p) ? recs[i] : null;
+    if (!rec || !u || rec.e !== u.email || rec.k !== 'bill') throw new Error('A bill copy was not added by you in the last 6 hours, or it is already with another entry – add it again.');
+    return { p: p, at: str_(rec.at) };
+  });
+}
+// links to the signed pictures (15 minutes): { path: url }
+function photoLinks_(paths) {
+  if (!paths.length) return {};
+  const sb = sbConf_();
+  const res = UrlFetchApp.fetch(sb.url + '/storage/v1/object/sign/' + PHOTO_BUCKET_, { method: 'post', headers: { apikey: sb.key }, contentType: 'application/json',
+    payload: JSON.stringify({ expiresIn: 900, paths: paths }), muteHttpExceptions: true });
+  const code = res.getResponseCode();
+  if (code < 200 || code >= 300) throw new Error('The photos could not be opened (' + code + ') – try again in a moment.');
+  let signed = []; try { signed = JSON.parse(res.getContentText()) || []; } catch (e) { signed = []; }
+  const urlOf = {}; (Array.isArray(signed) ? signed : []).forEach(x => { if (x && x.path && x.signedURL) urlOf[x.path] = sb.url + '/storage/v1' + x.signedURL; });
+  return urlOf;
+}
+// the bill copies of an inward, with links that open each picture for 15 minutes
+function inwardPhotos_(id) {
+  const t = table_(APP.SHEET_INWARD, INWARD_COLS_), c = t.c, r = t.rows.find(x => str_(x[c[H.IN_ID]]) === str_(id));
+  if (!r) throw new Error('Inward ' + str_(id) + ' was not found.');
+  const list = H.PHOTOS in c ? billList_(r[c[H.PHOTOS]]) : [];
+  const urlOf = photoLinks_(list.map(x => x.p));
+  return { id: str_(r[c[H.IN_ID]]), date: dkey_(r[c[H.DATE]]), pump: str_(r[c[H.PUMP]]), qty: num0_(r[c[H.IN_QTY]]), billNo: str_(r[c[H.BILLNO]]),
+    photos: list.map(x => ({ p: x.p, at: str_(x.at), url: urlOf[x.p] || '' })) };
 }
 /* THE AI READS A PHOTO (update-85 / 87) – its own question, sent by the page AT THE SAME TIME as the photo is kept (a slow AI
  * never holds up the photo or the Save), with a smaller copy of the picture. Nothing is saved here. Two photos are read:
@@ -4988,20 +5089,24 @@ function checkOpening_(T, v, selfId) {
   const earlier = events_(T).find(e => e.loc === v.loc && e.dk < v.dk && !(e.kind === 'inward' && str_(T.it.rows[e.idx][c[H.IN_ID]]) === str_(selfId || '')));
   if (earlier) throw new Error(v.loc + ' already has entries before ' + dmy_(v.dk) + ' (first on ' + dmy_(earlier.dk) + '). The opening stock must be on or before the first entry.');
 }
-function saveInward_(x) {
+function saveInward_(x, u) {
   return withLock_(() => {
     const v = validateInward_(x);
     const T = stockTables_();
     checkOpening_(T, v, '');
+    const bills = billsOf_(x && x.photos, u, []);      // (update-120) the bill copies: only ones this user added
     const n = nextNo_(T.it, H.IN_ID, 'INWARD_LAST_NO');
     const id = 'IN-' + String(n).padStart(6, '0');
-    T.it.sh.appendRow(buildInwardRow_(T.it, id, v, new Date()));
+    const row = buildInwardRow_(T.it, id, v, new Date());
+    if (bills && bills.length) set_(row, T.it, H.PHOTOS, JSON.stringify(bills));
+    T.it.sh.appendRow(row);
+    if (bills && bills.length) photosTaken_(bills.map(b => b.p));      // a copy goes with ONE entry
     markNo_('INWARD_LAST_NO', n);
     recalcBalances_();
     return { ok: true, id: id, stock: getStock_() };
   });
 }
-function updateInward_(id, x) {
+function updateInward_(id, x, u) {
   return withLock_(() => {
     const v = validateInward_(x);
     const T = stockTables_();
@@ -5010,7 +5115,10 @@ function updateInward_(id, x) {
     if (i === -1) throw new Error('Inward ' + id + ' was not found.');
     const old = T.it.rows[i];
     booksOpen_(dkey_(old[T.it.c[H.DATE]]), 'Diesel inward');
+    const had = H.PHOTOS in T.it.c ? billList_(old[T.it.c[H.PHOTOS]]) : [];
+    const bills = billsOf_(x && x.photos, u, had);      // (update-120) not given: the inward keeps its bill copies
     const row = buildInwardRow_(T.it, str_(id), v, old[T.it.c[H.CREATED]] instanceof Date ? old[T.it.c[H.CREATED]] : new Date(), old);
+    if (bills) set_(row, T.it, H.PHOTOS, bills.length ? JSON.stringify(bills) : '');
     const rows = T.it.rows.slice(); rows[i] = row;
     try { assertNoNegative_(T, withRows_(T, 'it', rows)); }
     catch (e) {
@@ -5020,6 +5128,7 @@ function updateInward_(id, x) {
         ' Less diesel on this inward than what was already issued from it.'));
     }
     T.it.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
+    if (bills) photosTaken_(bills.filter(b => !had.some(h => h.p === b.p)).map(b => b.p));
     recalcBalances_();
     return { ok: true, id: str_(id), stock: getStock_() };
   });
@@ -5068,6 +5177,7 @@ function getInwards_(f) {
       billDate: r[c[H.BILLDATE]] === '' ? '' : dkey_(r[c[H.BILLDATE]]), location: loc_(r[c[H.LOC]]),
       balance: H.BAL in c ? numOrBlank_(r[c[H.BAL]]) : '', open: isOpeningPump_(r[c[H.PUMP]]), extra: isExtraPump_(r[c[H.PUMP]]),
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
+      ph: H.PHOTOS in c ? billList_(r[c[H.PHOTOS]]).length : 0,      // (update-120) how many bill copies
     })),
   };
 }
@@ -9392,11 +9502,11 @@ function flowReserved_(loc) {
 function flowSend_(u, spec, fn, args, rule) {
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
-  let res = null;
-  FLOW_DRY_ON_ = true;
+  let res = null, held = {};
+  FLOW_DRY_ON_ = true; FLOW_PHOTOS_ = held;      // (update-120) the pictures this save takes are noted with the request
   try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); throw FLOW_DRY_; }); }
   catch (e) { if (e !== FLOW_DRY_) throw e; }
-  finally { FLOW_DRY_ON_ = false; }
+  finally { FLOW_DRY_ON_ = false; FLOW_PHOTOS_ = null; }
   TABLE_MEMO_ = {};
   const errs = res && typeof res === 'object' ? (res.errors || []) : [];
   if (res && typeof res === 'object' && (res.ok === false || errs.length)) return res;      // the save itself refuses it: said as for a save, nothing is sent
@@ -9409,6 +9519,10 @@ function flowSend_(u, spec, fn, args, rule) {
     if (all.some(r => r.status === 'Pending' && r.email === me && r.fn === fn && r.args === json)) throw new Error('This same entry is already waiting for verification – it is saved when it is approved.');
     const id = 'VF-' + String(all.reduce((mx, r) => Math.max(mx, Number(r.id.replace(/\D/g, '')) || 0), 0) + 1).padStart(5, '0');
     const now = new Date(), data = { m: spec.m, levels: levels, level: 0, history: [{ step: 'Sent', by: u.name || u.email, email: me, at: now.toISOString() }], byLoc: facts.byLoc, qty: facts.qty, waitSince: now.toISOString(), reminded: {} };
+    if (Object.keys(held).length) {      // (update-120) its photos: kept for the approval; no other entry takes them meanwhile
+      data.photos = held;
+      const pc = CacheService.getScriptCache(); Object.keys(held).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: id })), 21600); } catch (e) { /* the request keeps them */ } });
+    }
     const row = newRow_(t);
     set_(row, t, 'Request ID', id); set_(row, t, 'Kind', 'Flow'); set_(row, t, 'Requested At', now); set_(row, t, 'Requested By', u.name || u.email); set_(row, t, 'Requester Email', me);
     set_(row, t, 'Action', fn); set_(row, t, 'Args', json); set_(row, t, 'Summary', JSON.stringify(d.lines)); set_(row, t, 'Machinery', d.nos.slice(0, 300)); set_(row, t, 'Dates', d.dates.slice(0, 300));
@@ -9431,6 +9545,7 @@ function flowDescribe_(fn, args) {
   const keys = ['name', 'vendor', 'no', 'machinery', 'id', 'code', 'billNo', 'date', 'from', 'to', 'amount', 'qty', 'type', 'owner', 'mode', 'remark', 'status', 'reference'];
   const o = (args || []).find(a => a && typeof a === 'object' && !Array.isArray(a)) || {};
   const parts = keys.filter(k => !blank_(o[k]) && typeof o[k] !== 'object').map(k => k + ' ' + clean_(o[k]).slice(0, 40));
+  if (/^(save|update)Inward$/.test(fn) && Array.isArray(o.photos) && o.photos.length) parts.push('bill copies ' + o.photos.length);      // (update-120)
   const first = (args || []).find(a => typeof a === 'string' || typeof a === 'number');
   d.lines = [flowLabel_(fn) + (parts.length ? ': ' + parts.slice(0, 8).join(', ') : first !== undefined ? ': ' + clean_(first).slice(0, 80) : '')];
   return d;
@@ -9499,7 +9614,7 @@ function flowDecide_(u, x) {
       try {
         withLock_(() => {
           r0 = look(); f = r0.flow;
-          ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; FLOW_RUN_ID_ = r0.id;
+          ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = f.photos && typeof f.photos === 'object' ? f.photos : null;      // (update-120) its photos, as noted when it was sent
           const before = spec.log ? logBefore_(spec, args) : null;
           const res = spec.withUser ? spec.f.apply(null, [ru].concat(args)) : spec.f.apply(null, args);
           const errs = res && typeof res === 'object' ? (res.errors || []) : [];
@@ -9514,7 +9629,7 @@ function flowDecide_(u, x) {
       } catch (e) {
         if (/^(This request (was not found|is already|is not waiting)|You cannot approve)/.test(String(e && e.message)) || faultKind_(e)) throw e;
         why = String((e && e.message) || e).slice(0, 400);
-      } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; FLOW_RUN_ID_ = ''; }
+      } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
     }
     if (why) {
       withLock_(() => {

@@ -2043,10 +2043,10 @@ test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the 
   assert.match(app, /if \(\(k === 'dash' && m\.supply !== 'Debit Basis'\) \|\| k === 'pump'\) phAsk\(k, m\.id, pic\.small\);/);      // (update-87: dashboard and dispenser, while the photo is sent)
   assert.match(code, /getMeterReading:\s+\{ m: 'Diesel Issue', withUser: true, f: \(u, x\) => meterReading_\(u, x\) \}/);
   assert.ok(!/aiReadMeter_/.test(code.slice(code.indexOf('function uploadDieselPhoto_'), code.indexOf('function meterReading_'))), 'the upload does not wait for the AI');
-  assert.match(code, /rec\.no !== mId/); assert.match(code, /pc\.remove\('PH_' \+ x\.p\)/);
+  assert.match(code, /rec\.no !== mId/); assert.match(code, /photosTaken_\(photos\.map\(x => x\.p\)\)/); assert.match(code, /pc\.remove\('PH_' \+ p\)/);      // (update-120: photosTaken_)
   // a photo being sent is tried again 3 times (a question), not for ever (a save) – the page's shell and the server agree
   const shell = fs.readFileSync(path.join(__dirname, '..', 'server', 'page.js'), 'utf8'), rt = fs.readFileSync(path.join(__dirname, '..', 'server', 'runtime.js'), 'utf8');
-  assert.match(shell, /'logPrintExtra', 'dieselPhoto'\]/); assert.match(rt, /'logPrintExtra', 'dieselPhoto'\]/);
+  assert.match(shell, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto'\]/); assert.match(rt, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto'\]/);      // (update-120: and a bill copy)
   // the database step of this update: shown in the app's Read Me word for word; it only ADDS (a column, a private bucket)
   const sqlFile = fs.readFileSync(path.join(__dirname, '..', 'sql', 'supabase_step1x_diesel_photos.sql'), 'utf8');
   const listed = new Function(fs.readFileSync(path.join(__dirname, '..', 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1x_diesel_photos.sql');
@@ -3400,4 +3400,92 @@ test('update-119: a machinery on a site several times – it left, came back: it
     vm.runInContext(`SbBook_.prototype.flush = __k119.flush; SbBook_.prototype.loadMany = __k119.loadMany; SbSheet_.prototype.load_ = __k119.load_; sbDiscard_ = __k119.discard;
       CacheService.getScriptCache().remove("USERS_LIST"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
   }
+});
+
+test('update-120: the bill copies of a diesel inward – several, from the camera or the gallery; only the user\'s own (or the inward\'s own on an edit); photos of an entry sent for verification kept for its approval', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  const B = n => 'inward/2026-10/' + String(n).padStart(8, '0') + '-7e7b-4666-9174-de383d96c72f.jpg';
+  // ---- the list kept with an inward: only names of the folder inward/ ----
+  assert.strictEqual(run('v => billList_(v).length', JSON.stringify([{ p: B(1) }, { p: '2026-10/3d7333fb-7e7b-4666-9174-de383d96c72f.jpg' }, { p: 'inward/../../etc/passwd' }, null])), 1);
+  assert.strictEqual(run('v => billList_(v).length', 'not a list'), 0);
+  assert.strictEqual(run('v => billList_(v).length', ''), 0);
+  vm.runInContext('globalThis.__k120 = { ready: billsReady_ }; billsReady_ = function () {};', ctx);      // (the column is there – the unit tests run on the Sheet copy)
+  try {
+    const put = (p, rec) => run('(p, r) => CacheService.getScriptCache().put("PH_" + p, JSON.stringify(r), 21600)', p, rec);
+    const me = { email: 'mk120@rcl.test' }, other = { email: 'xx120@rcl.test' };
+    put(B(1), { e: me.email, k: 'bill', at: '2026-10-16T08:00:00.000Z' }); put(B(2), { e: me.email, k: 'bill', at: '2026-10-16T08:01:00.000Z' });
+    put(B(3), { e: other.email, k: 'bill', at: 'x' }); put(B(4), { e: me.email, k: 'dash', no: 'JCB-1', at: 'x' });
+    const of = (list, u, had) => run('(l, u, h) => billsOf_(l, u, h)', list, u, had);
+    assert.deepStrictEqual(of(undefined, me, []), null, 'not given: nothing changes');
+    assert.deepStrictEqual(of([], me, [{ p: B(9), at: 'a' }]), [], 'an empty list: none');
+    assert.deepStrictEqual(of([{ p: B(1) }, B(2)], me, []), [{ p: B(1), at: '2026-10-16T08:00:00.000Z' }, { p: B(2), at: '2026-10-16T08:01:00.000Z' }], 'his own, with the time the server noted');
+    assert.match(of([{ p: B(3) }], me, []).THROWN, /^A bill copy was not added by you in the last 6 hours, or it is already with another entry – add it again\.$/, 'another user\'s');
+    assert.match(of([{ p: B(4) }], me, []).THROWN, /was not added by you/, 'a photo of a diesel issue');
+    assert.match(of([{ p: B(5) }], me, []).THROWN, /was not added by you/, 'never sent');
+    assert.match(of([{ p: B(1) }], null, []).THROWN, /was not added by you/, 'no user (the import)');
+    assert.match(of([{ p: B(1) }, { p: B(1) }], me, []).THROWN, /^The same bill copy is given twice/);
+    assert.match(of(Array.from({ length: 11 }, (_, i) => ({ p: B(1) })), me, []).THROWN, /^An inward keeps at most 10 bill copy photos/);
+    assert.match(of('x', me, []).THROWN, /^The bill copies were not sent right/);
+    assert.deepStrictEqual(of([{ p: B(9) }], other, [{ p: B(9), at: 'kept' }]), [{ p: B(9), at: 'kept' }], 'an edit: a copy the inward has stays (whoever edits)');
+    // ---- sent for verification: checked (nothing taken), noted with the request; approved later – as noted, also when the server forgot ----
+    const flow = run(`p => {
+      FLOW_DRY_ON_ = true; FLOW_PHOTOS_ = {}; photosTaken_([p]); const noted = FLOW_PHOTOS_; FLOW_DRY_ON_ = false; FLOW_PHOTOS_ = null;
+      const still = CacheService.getScriptCache().get("PH_" + p) !== null;
+      CacheService.getScriptCache().put("PH_" + p, JSON.stringify(Object.assign({}, noted[p], { held: "VF-00120" })), 21600);
+      const other = photoRecs_([p])[0];
+      CacheService.getScriptCache().remove("PH_" + p);
+      FLOW_RUN_ID_ = "VF-00120"; FLOW_PHOTOS_ = noted; const later = photoRecs_([p])[0]; FLOW_RUN_ID_ = ""; FLOW_PHOTOS_ = null;
+      return { noted: noted, still: still, other: other, later: later };
+    }`, B(2));
+    assert.deepStrictEqual(Object.keys(flow.noted), [B(2)], 'noted with the request');
+    assert.strictEqual(flow.noted[B(2)].e, me.email);
+    assert.strictEqual(flow.still, true, 'only checked: the server still knows it');
+    assert.strictEqual(flow.other, null, 'with the request: no other entry takes it');
+    assert.deepStrictEqual([flow.later && flow.later.e, flow.later && flow.later.k, flow.later && flow.later.held], [me.email, 'bill', 'VF-00120'], 'approved after the server forgot it: as noted');
+    put(B(1), { e: me.email, k: 'bill', at: 'x' });
+    assert.strictEqual(run('p => { photosTaken_([p]); return CacheService.getScriptCache().get("PH_" + p); }', B(1)), null, 'saved: it goes with ONE entry');
+  } finally { vm.runInContext('billsReady_ = __k120.ready; FLOW_DRY_ON_ = false; FLOW_PHOTOS_ = null; FLOW_RUN_ID_ = "";', ctx); }
+  // the request keeps them; the approval uses them; both cleared after
+  assert.match(code, /FLOW_DRY_ON_ = true; FLOW_PHOTOS_ = held;/);
+  assert.match(code, /finally \{ FLOW_DRY_ON_ = false; FLOW_PHOTOS_ = null; \}/);
+  assert.match(code, /if \(Object\.keys\(held\)\.length\) \{[^\n]*\n\s+data\.photos = held;/);
+  assert.match(code, /FLOW_RUN_ID_ = r0\.id; FLOW_PHOTOS_ = f\.photos && typeof f\.photos === 'object' \? f\.photos : null;/);
+  assert.match(code, /FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; \}/);
+  // ---- the actions: the user goes with a save; a copy is sent like a question (tried 3 times) ----
+  assert.match(code, /saveInward: +\{ m: 'Diesel Inward', edit: true, withUser: true, f: \(u, x\) => saveInward_\(x, u\)/);
+  assert.match(code, /updateInward: +\{ m: 'Diesel Inward', edit: true, withUser: true, f: \(u, id, x\) => updateInward_\(id, x, u\)/);
+  assert.match(code, /inwardPhoto: +\{ m: 'Diesel Inward', withUser: true, f: \(u, x\) => uploadInwardPhoto_\(u, x\) \}/);
+  assert.match(code, /getInwardPhotos: +\{ m: 'Diesel Inward', f: inwardPhotos_ \}/);
+  assert.match(code.slice(code.indexOf('function uploadInwardPhoto_'), code.indexOf('function billsOf_')), /canEdit_\(u, 'Diesel Inward'\)/, 'Edit checked inside');
+  assert.match(code.slice(code.indexOf('function getInwards_'), code.indexOf('function getPumps_')), /ph: H\.PHOTOS in c \? billList_\(r\[c\[H\.PHOTOS\]\]\)\.length : 0/);
+  assert.strictEqual(run('() => BILL_MAX_'), 10); assert.match(app, /const IB_MAX = 10;/, 'page = server: 10');
+  // ---- the page: what a save sends ----
+  const blk = app.slice(app.indexOf('  const IB_MAX = 10;'), app.indexOf("  $('i_bill_grid').addEventListener('click'"));
+  const P = new Function('$', 'esc', 'call', 'phMake', 'toast', 'errMsg', blk + '; return { IB, ibReset, ibForSave, ibWhat, ibCount, ibSending };')(() => null, s => s, null, null, () => {}, e => e);
+  P.ibReset('new'); assert.strictEqual(P.ibForSave(), undefined, 'a new inward without copies: nothing sent (as before)');
+  P.IB.items = [{ path: B(1) }, { path: B(2) }]; assert.deepStrictEqual(P.ibForSave(), [{ p: B(1) }, { p: B(2) }]);
+  P.IB.items.push({ path: '' }); assert.strictEqual(P.ibSending(), true, 'one still being sent');
+  P.ibReset('edit'); P.IB.items = [{ path: B(1) }]; P.IB.had = [B(1)]; assert.strictEqual(P.ibForSave(), undefined, 'an edit, copies not changed: not sent – the inward keeps its own');
+  P.IB.changed = true; P.IB.items = [{ path: B(2) }]; assert.deepStrictEqual(P.ibForSave(), [{ p: B(2) }]);
+  assert.strictEqual(P.ibWhat([{ p: B(2) }]), ' (1 added, 1 taken out)'); assert.strictEqual(P.ibCount(1) + '/' + P.ibCount(3), '1 photo/3 photos');
+  P.ibReset('fail'); P.IB.changed = true; assert.strictEqual(P.ibForSave(), undefined, 'they could not be read: nothing can change them');
+  P.ibReset('loading'); assert.strictEqual(P.ibForSave(), undefined);
+  assert.match(app, /if \(x\.photos\) changes\.push\(\['Bill copy', ibCount\(\(IB\.had \|\| \[\]\)\.length\), ibCount\(x\.photos\.length\) \+ ibWhat\(x\.photos\)\]\);/, 'Update asks it');
+  assert.match(app, /<input type="file" id="i_bill_cam" class="dph-in" accept="image\/\*" capture="environment"/);
+  assert.match(app, /<input type="file" id="i_bill_pick" class="dph-in" accept="image\/\*" multiple /);
+  // ---- help for the new messages ----
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules };')();
+  ['The bill copy must be a JPG picture.', 'An inward keeps at most 10 bill copy photos – remove some.', 'Bill copies of a diesel inward cannot be kept yet. This needs one database step first: the Admin runs sql/supabase_step1zb_inward_bills.sql once in Supabase → SQL Editor.',
+    'The photo store did not keep the bill copy (500) – add it again.', 'A bill copy was not added by you in the last 6 hours, or it is already with another entry – add it again.']
+    .forEach(m => assert.match(H.fixRules(m)[0].en.join(' '), /bill copy/i, m));
+  // ---- the database step ----
+  const step = fs.readFileSync(path.join(root, 'sql', 'supabase_step1zb_inward_bills.sql'), 'utf8');
+  assert.match(step, /^alter table public\.diesel_inward add column if not exists photos text;$/m);
+  assert.ok(!/drop |delete |update |truncate /i.test(step.replace(/^--.*$/mg, '')), 'it only adds');
+  const listed = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1zb_inward_bills.sql');
+  assert.ok(listed && listed.sql === step, 'Read Me lists it word for word');
+  assert.match(fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8'), /\['Updated By', 'updated_by', 'text'\],\n {4}\['Photos', 'photos', 'text'\]\] \},\s+\/\/ \(update-120/);
 });

@@ -1267,6 +1267,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .d-ainote.warn { background: #FFFBEB; border-color: #FDE68A; color: #78350F; }
   input.ai-read { outline: 2px solid #60A5FA; outline-offset: 1px; background: #EFF6FF; }
   .d-phbtn { white-space: nowrap; font-size: 12.5px; }
+  /* (update-120) the bill copies of a diesel inward: the same tiles as the diesel photos; a copy has its ✕ to take it out */
+  .ib-item { cursor: default; }
+  .ib-item img { cursor: zoom-in; }
+  .ib-x { position: absolute; top: 6px; left: 6px; width: 30px; height: 30px; border: 0; border-radius: 999px; background: rgba(15,23,42,.78); color: #fff; font-size: 16px; line-height: 30px; cursor: pointer; padding: 0; }
+  .ib-x:hover { background: var(--bad); }
+  .ib-add .dph-st { text-align: center; }
   .phv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   @media (max-width: 640px) { .phv-grid { grid-template-columns: 1fr; } }
   .phv-grid figure { margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }
@@ -3878,6 +3884,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field inw-only"><label for="i_billno">Bill Number</label><input id="i_billno" autocomplete="off"></div>
         <div class="field inw-only"><label for="i_billdate">Bill Date</label><input id="i_billdate" type="date"></div>
       </div>
+      <div class="dph ib inw-only" id="i_bills">
+        <div class="dph-head"><b>Bill copy</b><span class="muted">Photos of the bill – take them one after another with the camera, or pick several at once from the gallery (up to 10).</span></div>
+        <div class="dph-grid ib-grid" id="i_bill_grid"></div>
+        <input type="file" id="i_bill_cam" class="dph-in" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+        <input type="file" id="i_bill_pick" class="dph-in" accept="image/*" multiple tabindex="-1" aria-hidden="true">
+      </div>
       <p class="stockline" id="i_after"></p>
       <div class="actions">
         <button class="btn primary" id="i_save">Save inward</button>
@@ -5539,6 +5551,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The AI could not read the reading on the dashboard photo.', 'Nothing is wrong with the entry. Type the KM / Hrs reading yourself, or take the dashboard photo again – closer, without glare, with the digits sharp.'],
       mr: ['Dashboard च्या photo वरचे reading AI ला वाचता आले नाही.', 'Entry मध्ये काही चूक नाही. KM / Hrs reading स्वतः टाइप करा, किंवा dashboard चा photo पुन्हा काढा – जवळून, चमक न येता, आकडे स्पष्ट दिसतील असा.'],
       hi: ['Dashboard की photo पर की reading AI पढ़ नहीं सका।', 'Entry में कोई गलती नहीं है। KM / Hrs reading खुद टाइप करें, या dashboard की photo दोबारा लें – पास से, चमक के बिना, अंक साफ़ दिखें ऐसी।'] },
+    { re: /bill cop(y|ies)|photo of the bill/i,      // update-120: the bill copies of a diesel inward (before the rule of the diesel photos)
+      en: ['The bill copy could not be used.', 'Add it again with "Take photo" or "Choose photos" and wait for the ✓ on its tile before saving. A copy goes with the inward only if you added it within the last 6 hours; at most 10 with one inward. If it says a database step is needed, tell the Admin.'],
+      mr: ['ही bill copy वापरता आली नाही.', '"Take photo" किंवा "Choose photos" ने ती पुन्हा जोडा, आणि save करण्यापूर्वी तिच्या tile वर ✓ येईपर्यंत थांबा. तुम्ही गेल्या 6 तासांत जोडलेली copy च inward सोबत जाते; एका inward सोबत जास्तीत जास्त 10. Database step लागेल असे सांगितले तर Admin ला सांगा.'],
+      hi: ['यह bill copy इस्तेमाल नहीं हो सकी।', '"Take photo" या "Choose photos" से उसे फिर से जोड़ें, और save करने से पहले उसकी tile पर ✓ आने तक रुकें। आपकी पिछले 6 घंटों में जोड़ी गई copy ही inward के साथ जाती है; एक inward के साथ ज़्यादा से ज़्यादा 10। Database step चाहिए ऐसा कहे तो Admin को बताएँ।'] },
     { re: /photo (store|must be|is too big|was not taken|cannot be)|photos could not be opened|4 photos|Photos are kept in Supabase|photos of a diesel issue cannot|taken with the camera just now|take the photo with the camera/i,      // update-85: the photos of a diesel issue
       en: ['The photo could not be used.', 'Take the photo again with the camera of this phone (not from the gallery), for this entry, and wait for the ✓ on its tile before saving. A photo is kept for the entry only if you took it within the last 6 hours. If it says a database step is needed, tell the Admin.'],
       mr: ['हा photo वापरता आला नाही.', 'या phone च्या camera ने (gallery मधून नाही) याच entry साठी photo पुन्हा काढा, आणि save करण्यापूर्वी त्या tile वर ✓ येईपर्यंत थांबा. तुम्ही गेल्या 6 तासांत काढलेला photo च entry सोबत ठेवला जातो. Database step लागेल असे लिहिले असेल तर Admin ला सांगा.'],
@@ -5988,10 +6004,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Which Log Book format (A to H) each machinery uses: it decides the fields asked in the entry and the layout of the printed Log Book.', 'The format does not change the bill – the bill follows the BOQ. A format can be renamed; "View format" shows a sample print.'],
       mr: ['प्रत्येक machinery कोणता Log Book format (A ते H) वापरते: त्यावरून entry मध्ये कोणते fields विचारले जातात आणि छापलेल्या Log Book ची मांडणी ठरते.', 'Format मुळे bill बदलत नाही; bill BOQ प्रमाणे चालते. Format चे नाव बदलता येते; "View format" नमुना print दाखवते.'],
       hi: ['हर machinery कौन सा Log Book format (A से H) इस्तेमाल करती है: उससे entry में कौन से fields पूछे जाते हैं और छपी Log Book का रूप तय होता है।', 'Format से bill नहीं बदलता; bill BOQ के अनुसार चलता है। Format का नाम बदला जा सकता है; "View format" नमूना print दिखाता है।'] },
-    inward: { saves: ['saveInward', 'importInward', 'updateInward', 'deleteInward'],
-      en: ['Diesel received: from which pump, how many litres, at what rate, bill number and date – it adds to the stock of the location.', 'The same pump bill cannot be entered twice. Opening stock is entered once, before the other entries of a location. An inward whose diesel is already issued cannot be deleted or reduced below that. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed.'],
-      mr: ['आलेले diesel: कोणत्या pump कडून, किती लिटर, कोणत्या दराने, bill नंबर आणि तारीख; ते त्या location च्या stock मध्ये जमा होते.', 'तेच pump bill दोनदा भरता येत नाही. Opening stock एकदाच, त्या location च्या इतर entries च्या आधी भरतात. ज्या inward चे diesel आधीच दिले गेले आहे तो delete करता येत नाही किंवा त्यापेक्षा कमी करता येत नाही. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
-      hi: ['आया हुआ diesel: किस pump से, कितने लीटर, किस दर पर, bill नंबर और तारीख; यह उस location के stock में जुड़ता है।', 'वही pump bill दो बार नहीं भरा जा सकता। Opening stock एक ही बार, उस location की बाकी entries से पहले भरते हैं। जिस inward का diesel पहले ही दिया जा चुका है वह delete या उससे कम नहीं हो सकता। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है।'] },
+    inward: { saves: ['saveInward', 'importInward', 'updateInward', 'deleteInward', 'inwardPhoto', 'getInwardPhotos'],
+      en: ['Diesel received: from which pump, how many litres, at what rate, bill number and date – it adds to the stock of the location.', 'The same pump bill cannot be entered twice. Opening stock is entered once, before the other entries of a location. An inward whose diesel is already issued cannot be deleted or reduced below that. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. Bill copy: photos of the bill – with the camera one after another, or several at once from the gallery (up to 10); 📷 in the list opens them.'],
+      mr: ['आलेले diesel: कोणत्या pump कडून, किती लिटर, कोणत्या दराने, bill नंबर आणि तारीख; ते त्या location च्या stock मध्ये जमा होते.', 'तेच pump bill दोनदा भरता येत नाही. Opening stock एकदाच, त्या location च्या इतर entries च्या आधी भरतात. ज्या inward चे diesel आधीच दिले गेले आहे तो delete करता येत नाही किंवा त्यापेक्षा कमी करता येत नाही. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. Bill copy: bill चे photos – camera ने एकामागून एक, किंवा gallery मधून एकदम अनेक (10 पर्यंत); यादीतील 📷 दाबले की ते दिसतात.'],
+      hi: ['आया हुआ diesel: किस pump से, कितने लीटर, किस दर पर, bill नंबर और तारीख; यह उस location के stock में जुड़ता है।', 'वही pump bill दो बार नहीं भरा जा सकता। Opening stock एक ही बार, उस location की बाकी entries से पहले भरते हैं। जिस inward का diesel पहले ही दिया जा चुका है वह delete या उससे कम नहीं हो सकता। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। Bill copy: bill की photos – camera से एक के बाद एक, या gallery से एक साथ कई (10 तक); सूची में 📷 दबाने पर वे दिखती हैं।'] },
     transfer: { saves: ['saveTransfer', 'saveTransferBulk', 'updateTransfer', 'deleteTransfer'],
       en: ['Diesel moved from one location to another (for example Dispenser to VTR Store).', 'The source must have that much diesel on that date; From and To cannot be the same. Stock goes down at the source and up at the destination. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed.'],
       mr: ['एका location वरून दुसऱ्या location ला हलवलेले diesel (उदा. Dispenser वरून VTR Store).', 'त्या तारखेला source मध्ये तेवढे diesel असले पाहिजे; From आणि To सारखे असू शकत नाहीत. Source चा stock कमी होतो आणि destination चा वाढतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
@@ -6837,6 +6853,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('i_title').textContent = 'Diesel inward'; $('i_save').textContent = 'Save inward'; $('i_cancel').hidden = true;
     setInwType(inwType());
     inwardAfterLine();
+    ibReset('new');      // (update-120) no bill copies
   }
   function editInward(id) {
     const r = (S.inwardRows || []).find(x => x.id === id); if (!r) return;
@@ -6845,6 +6862,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('i_date').value = r.date; $('i_loc').value = r.location; $('i_pump').value = r.open || r.extra ? '' : r.pump; $('i_qty').value = r.qty; $('i_rate').value = r.rate;
     $('i_billno').value = r.billNo; $('i_billdate').value = r.billDate;
     inwardAmount();
+    ibLoad(r);      // (update-120) the bill copies it has
     $('i_title').textContent = 'Edit ' + r.id; $('i_save').textContent = 'Update inward'; $('i_cancel').hidden = false;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -6853,6 +6871,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const x = opening ? { type: 'opening', date: $('i_date').value, location: $('i_loc').value, pump: 'Opening Stock', qty: numv('i_qty'), rate: numv('i_rate'), billNo: '', billDate: '' }
       : extra ? { type: 'extra', date: $('i_date').value, location: $('i_loc').value, pump: 'Extra Diesel', qty: numv('i_qty'), rate: numv('i_rate'), billNo: '', billDate: '' }
       : { date: $('i_date').value, location: $('i_loc').value, pump: val('i_pump'), qty: numv('i_qty'), rate: numv('i_rate'), billNo: val('i_billno'), billDate: $('i_billdate').value };
+    if (!opening && !extra) {      // (update-120) the bill copies
+      if (ibSending()) { await showAlert('A bill copy is still being sent', 'Wait until every bill copy shows ✓, then save.'); return; }
+      const ph = ibForSave(); if (ph) x.photos = ph;
+    }
     if (extra && !S.editInwardId && !(await askConfirm({ title: 'Save extra diesel?', ok: 'Save extra diesel',
       html: '<p><b>' + fmt(x.qty) + ' Ltr</b> extra in <b>' + esc(x.location) + '</b> on <b>' + esc(showDate(x.date)) + '</b>.</p><p>It is added to the stock and to the inward of that date (not to purchases).</p>' }))) return;
     if (opening && !S.editInwardId && !(await askConfirm({ title: 'Save opening stock?', ok: 'Save opening stock',
@@ -6861,6 +6883,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (editing) {
       const r = (S.inwardRows || []).find(z => z.id === editing) || {};
       const changes = diff([['date', 'Date'], ['location', 'Received at'], ['pump', 'Pump Name'], ['qty', 'Qty (Ltr)'], ['rate', 'Rate'], ['billNo', 'Bill Number'], ['billDate', 'Bill Date']], r, x);
+      if (x.photos) changes.push(['Bill copy', ibCount((IB.had || []).length), ibCount(x.photos.length) + ibWhat(x.photos)]);      // (update-120)
       if (!changes.length) { toast('Nothing changed.'); return; }
       if (!(await askConfirm({ title: 'Update ' + editing + '?', html: 'These details will change:' + changeTable(changes), ok: 'Update' }))) return;
     }
@@ -6889,7 +6912,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('i_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Qty: <b>' + fmt(res.qty) + ' Ltr</b> &nbsp; Amount: <b>₹' + money(res.amount) + '</b>' +
         (res.count > res.rows.length ? ' &nbsp; (showing latest ' + res.rows.length + ')' : '');
       $('i_rows').innerHTML = res.rows.length ? res.rows.map(r =>
-        '<tr' + (r.open ? ' class="open-row"' : '') + '><td>' + esc(r.id) + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.location) + '</td><td>' + (r.open ? '<span class="open-chip">Opening stock</span>' : r.extra ? '<span class="open-chip extra">Extra diesel</span>' : esc(r.pump)) + '</td><td class="n">' + fmt(r.qty) +
+        '<tr' + (r.open ? ' class="open-row"' : '') + '><td>' + esc(r.id) + (r.ph ? ' <button type="button" class="link d-phbtn" data-iph="' + esc(r.id) + '" title="Bill copies of this inward">📷 ' + r.ph + '</button>' : '') + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.location) + '</td><td>' + (r.open ? '<span class="open-chip">Opening stock</span>' : r.extra ? '<span class="open-chip extra">Extra diesel</span>' : esc(r.pump)) + '</td><td class="n">' + fmt(r.qty) +
         '</td><td class="n">' + money(r.rate) + '</td><td class="n">' + money(r.amount) + '</td><td>' + esc(r.billNo) + '</td><td>' + esc(showDate(r.billDate)) +
         '</td><td class="n"><b>' + fmt(r.balance) + '</b></td>' + byCell(r) + '<td>' + rowActions('Diesel Inward', 'data-iedit', 'data-idel', r.id) + '</td></tr>').join('')
         : '<tr><td colspan="12" class="none">No inward entries match this filter.</td></tr>';
@@ -6902,6 +6925,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('i_rows').addEventListener('click', e => {
     const ed = e.target.closest('[data-iedit]'); if (ed) { editInward(ed.dataset.iedit); return; }
     const dl = e.target.closest('[data-idel]'); if (dl) busy(dl, 'Deleting…', () => deleteInwardEntry(dl.dataset.idel));
+    const pv = e.target.closest('[data-iph]'); if (pv) busy(pv, '…', () => ibView(pv.dataset.iph));      // (update-120) the bill copies of an inward
   });
   ['if_from', 'if_to', 'if_loc'].forEach(id => $(id).addEventListener('change', loadInward));
   ['if_pump', 'if_bill'].forEach(id => $(id).addEventListener('input', () => { clearTimeout(inwardTimer); inwardTimer = setTimeout(loadInward, 400); }));
@@ -6911,6 +6935,93 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('if_to').value = S.today; loadInward();
   }));
   $('if_reset').addEventListener('click', () => { ['if_from', 'if_to', 'if_pump', 'if_bill', 'if_loc'].forEach(id => $(id).value = ''); loadInward(); });
+
+  /* ---------- THE BILL COPIES OF A DIESEL INWARD (update-120, asked 16-10-2026: "inward bill copy pn add krayche aahet … inward copy
+   * eka weli multiple click krun save kru shakel user") ----------
+   * "📷 Take photo" – the camera, one copy after another; "🖼️ Choose photos" – several at once from the gallery. Each is made smaller
+   * (longest side 2000 px: the writing of the bill stays clear) and sent at once – its tile shows ✓; ✕ takes a copy out. Up to 10
+   * with one inward. They go with the inward when it is saved. An edit shows the copies the inward has: keep, take out, add.
+   * mode: new – a new inward · loading – an edit, its copies being read · edit · fail – they could not be read (nothing can change
+   * them then: the inward keeps its own). */
+  const IB_MAX = 10;
+  const IB = { mode: 'new', items: [], had: [], changed: false, tok: 0, n: 0 };
+  const ibCount = n => n === 1 ? '1 photo' : n + ' photos';
+  const ibWhat = list => { const old = IB.had || [], kept = list.filter(x => old.indexOf(x.p) > -1).length, added = list.length - kept, out = old.length - kept;
+    return added || out ? ' (' + [added ? added + ' added' : '', out ? out + ' taken out' : ''].filter(Boolean).join(', ') + ')' : ''; };
+  const ibSending = () => IB.items.some(it => !it.path);
+  function ibReset(mode) {
+    IB.items.forEach(it => { if (it.blob) { try { URL.revokeObjectURL(it.url); } catch (e) { /* already gone */ } } });
+    IB.items = []; IB.had = []; IB.changed = false; IB.mode = mode || 'new'; IB.tok++; ibPaint();
+  }
+  function ibPaint() {
+    const g = $('i_bill_grid'); if (!g) return;
+    const add = (IB.mode === 'new' || IB.mode === 'edit') && IB.items.length < IB_MAX;
+    g.innerHTML = IB.items.map((it, i) => '<div class="dph-tile ib-item' + (it.path ? ' done' : ' busy') + '">' +
+        (it.path ? '<img src="' + esc(it.url) + '" alt="Bill copy ' + (i + 1) + '" data-ibv="' + i + '" title="Open it large"><span class="dph-ok">✓</span><span class="dph-lbl">Bill copy ' + (i + 1) + '</span>' +
+          '<button type="button" class="ib-x" data-ibx="' + i + '" title="Take this copy out" aria-label="Take bill copy ' + (i + 1) + ' out">✕</button>'
+          : '<span class="dph-ic" aria-hidden="true">🧾</span><span class="dph-lbl">Bill copy ' + (i + 1) + '</span><span class="dph-st">Sending</span>') + '</div>').join('') +
+      (IB.mode === 'loading' ? '<div class="dph-tile busy"><span class="dph-st">Loading the bill copies</span></div>' : '') +
+      (IB.mode === 'fail' ? '<div class="dph-tile"><span class="dph-st">The bill copies could not be loaded – they stay as they are. Press Edit again to change them.</span></div>' : '') +
+      (add ? '<button type="button" class="dph-tile ib-add" data-iba="cam"><span class="dph-ic" aria-hidden="true">📷</span><span class="dph-lbl">Take photo</span><span class="dph-st">camera</span></button>' +
+        '<button type="button" class="dph-tile ib-add" data-iba="pick"><span class="dph-ic" aria-hidden="true">🖼️</span><span class="dph-lbl">Choose photos</span><span class="dph-st">several at once</span></button>' : '');
+  }
+  // photos picked or taken → made smaller and sent, one after another; a copy that cannot be sent is taken out again (and said why)
+  async function ibAdd(files) {
+    let list = [...(files || [])].filter(Boolean);
+    if (!list.length || !(IB.mode === 'new' || IB.mode === 'edit')) return;
+    const room = IB_MAX - IB.items.length;
+    if (list.length > room) { toast('Up to ' + IB_MAX + ' bill copies with one inward' + (room > 0 ? ' – the first ' + room + ' are added.' : ' – take one out first.')); list = list.slice(0, Math.max(0, room)); }      // (a note, not a fault)
+    const tok = IB.tok, its = list.map(f => ({ key: ++IB.n, file: f, path: '', url: '' }));
+    IB.items.push(...its); ibPaint();
+    for (const it of its) {
+      if (tok !== IB.tok) return;      // cleared, saved or another inward meanwhile
+      try {
+        if (it.file.type && !/^image\//.test(it.file.type)) throw new Error('This file is not a photo – pick a photo of the bill.');
+        const pic = await phMake(it.file, null, 2000);
+        let res;
+        try { res = await call('inwardPhoto', { data: pic.data }); } catch (e) { URL.revokeObjectURL(pic.url); throw e; }
+        if (tok !== IB.tok || IB.items.indexOf(it) === -1) { URL.revokeObjectURL(pic.url); continue; }
+        it.path = res.path; it.url = pic.url; it.blob = true; IB.changed = true;
+      } catch (e) { const i = IB.items.indexOf(it); if (i > -1) IB.items.splice(i, 1); if (tok === IB.tok) toast(errMsg(e), true); }
+      delete it.file; ibPaint();
+    }
+  }
+  // an edit: the copies the inward has
+  async function ibLoad(r) {
+    ibReset(r && r.ph ? 'loading' : 'edit');
+    if (!r || !r.ph) return;
+    const tok = IB.tok;
+    try {
+      const d = await call('getInwardPhotos', r.id);
+      if (tok !== IB.tok) return;
+      IB.items = (d.photos || []).map(x => ({ key: ++IB.n, path: x.p, url: x.url }));
+      IB.had = IB.items.map(x => x.path); IB.mode = 'edit';
+    } catch (e) { if (tok !== IB.tok) return; IB.mode = 'fail'; toast(errMsg(e), true); }
+    ibPaint();
+  }
+  // what a save sends: a new inward – the copies added; an edit – the list only when it was changed (else the inward keeps its own)
+  function ibForSave() {
+    if (IB.mode === 'new') return IB.items.length ? IB.items.map(it => ({ p: it.path })) : undefined;
+    if (IB.mode === 'edit' && IB.changed) return IB.items.map(it => ({ p: it.path }));
+    return undefined;
+  }
+  $('i_bill_grid').addEventListener('click', e => {
+    const a = e.target.closest('[data-iba]'); if (a) { const inp = $(a.dataset.iba === 'cam' ? 'i_bill_cam' : 'i_bill_pick'); inp.value = ''; inp.click(); return; }
+    const x = e.target.closest('[data-ibx]'); if (x) { const it = IB.items[Number(x.dataset.ibx)]; if (it && it.path) { IB.items.splice(IB.items.indexOf(it), 1); if (it.blob) { try { URL.revokeObjectURL(it.url); } catch (e2) { /* gone */ } } IB.changed = true; ibPaint(); } return; }
+    const v = e.target.closest('[data-ibv]'); if (v) { const it = IB.items[Number(v.dataset.ibv)]; if (it && it.url) window.open(it.url, '_blank', 'noopener'); }
+  });
+  ['i_bill_cam', 'i_bill_pick'].forEach(id => $(id).addEventListener('change', () => ibAdd($(id).files)));
+  ibPaint();
+  // the bill copies of a saved inward: large (the links open the pictures for 15 minutes)
+  async function ibView(id) {
+    const d = await call('getInwardPhotos', id);
+    if (!d.photos || !d.photos.length) { toast('This inward has no bill copy.'); return; }
+    const when = x => { const t = new Date(x.at); return isNaN(t) ? '' : phStamp(t); };
+    const html = '<div class="phv-grid">' + d.photos.map((x, i) => '<figure>' +
+      (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener" title="Open full size"><img src="' + esc(x.url) + '" alt="Bill copy ' + (i + 1) + '" loading="lazy"></a>' : '<div class="none">The picture was not found.</div>') +
+      '<figcaption><b>Bill copy ' + (i + 1) + '</b><span>' + esc(when(x)) + '</span></figcaption></figure>').join('') + '</div><p class="muted small">A picture opens full size when it is pressed. The links work for 15 minutes.</p>';
+    await askConfirm({ title: 'Bill copy – ' + d.id + ' · ' + showDate(d.date) + ' · ' + d.pump + ' · ' + fmt(d.qty) + ' L' + (d.billNo ? ' · Bill ' + d.billNo : ''), html: html, ok: 'Close', alertOnly: true, wide: true });
+  }
 
   /* ================= DIESEL TRANSFER ================= */
   let tbSeq = 0;
@@ -14737,24 +14848,30 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     PH.read = Object.assign({}, PH.read, { [k]: r }); phApplyRead(k);
   }
   // the picture: smaller (longest side 1600 px), with a band under it – date, time, kind of photo, machinery; latitude, longitude
-  async function phMake(file, lines) {
+  // (update-120: lines = null – a bill copy of a diesel inward: no band, longest side `max` px, no copy for the AI)
+  async function phMake(file, lines, max) {
+    max = max || 1600;
     let img = null, url0 = '';
     const apple = /Apple/.test(navigator.vendor || '');      // Safari (iPhone): its picture turns the photo upright; its createImageBitmap may not
-    try { if (apple) throw new Error('img'); img = await createImageBitmap(file, Object.assign({ imageOrientation: 'from-image' }, file.size > 3e6 ? { resizeWidth: 1600, resizeQuality: 'high' } : {})); }
+    try { if (apple) throw new Error('img'); img = await createImageBitmap(file, Object.assign({ imageOrientation: 'from-image' }, file.size > 3e6 && lines ? { resizeWidth: 1600, resizeQuality: 'high' } : {})); }
     catch (e) { url0 = URL.createObjectURL(file); img = await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => no(new Error('This photo cannot be read – take the photo again.')); im.src = url0; }); }
     try {
-      const W = img.width || img.naturalWidth, Hh = img.height || img.naturalHeight, sc = Math.min(1, 1600 / Math.max(W, Hh));
-      const w = Math.max(1, Math.round(W * sc)), h = Math.max(1, Math.round(Hh * sc)), band = Math.max(56, Math.round(w * 0.075));
+      const W = img.width || img.naturalWidth, Hh = img.height || img.naturalHeight, sc = Math.min(1, max / Math.max(W, Hh));
+      const w = Math.max(1, Math.round(W * sc)), h = Math.max(1, Math.round(Hh * sc)), band = lines ? Math.max(56, Math.round(w * 0.075)) : 0;
       const cv = document.createElement('canvas'); cv.width = w; cv.height = h + band;
       const g = cv.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, w, h);
-      g.fillStyle = '#111827'; g.fillRect(0, h, w, band);
-      const fs = Math.round(band * 0.32), x = Math.round(fs * 0.6); g.fillStyle = '#FFFFFF'; g.textBaseline = 'middle';
-      g.font = '700 ' + fs + 'px Arial, sans-serif'; phFit(g, lines[0], x, h + band * 0.3, w - 2 * x);
-      g.font = '400 ' + Math.round(fs * 0.92) + 'px Arial, sans-serif'; phFit(g, lines[1], x, h + band * 0.72, w - 2 * x);
+      if (lines) {
+        g.fillStyle = '#111827'; g.fillRect(0, h, w, band);
+        const fs = Math.round(band * 0.32), x = Math.round(fs * 0.6); g.fillStyle = '#FFFFFF'; g.textBaseline = 'middle';
+        g.font = '700 ' + fs + 'px Arial, sans-serif'; phFit(g, lines[0], x, h + band * 0.3, w - 2 * x);
+        g.font = '400 ' + Math.round(fs * 0.92) + 'px Arial, sans-serif'; phFit(g, lines[1], x, h + band * 0.72, w - 2 * x);
+      }
       let blob = await new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.82));
       if (blob && blob.size > 700 * 1024) blob = await new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.7));
+      if (blob && !lines && blob.size > 1300 * 1024) blob = await new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.55));      // (a bill copy: the store keeps at most 1.5 MB)
       if (!blob) throw new Error('This photo cannot be made ready – take the photo again.');
       const data = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => no(new Error('This photo cannot be read – take the photo again.')); r.readAsDataURL(blob); });
+      if (!lines) return { data: data, url: URL.createObjectURL(blob), bytes: blob.size, w: w, h: h };
       // (update-87) a smaller copy for the AI (longest side 1280 px) – it is read faster
       const s2 = Math.min(1, 1280 / Math.max(w, h + band)), sm = document.createElement('canvas'); sm.width = Math.max(1, Math.round(w * s2)); sm.height = Math.max(1, Math.round((h + band) * s2));
       const g2 = sm.getContext('2d'); g2.imageSmoothingQuality = 'high'; g2.drawImage(cv, 0, 0, sm.width, sm.height);
