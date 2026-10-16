@@ -89,14 +89,17 @@ function verify(ticket, now) {
  * pages ("Users & Access" in the Portal). Made by the Portal's server only (its signature), for "mechanical-admin", 60 s, once.
  * The pages and their access travel INSIDE the signed ticket, so nothing can be changed on the way. */
 const ADMIN_AUD = 'mechanical-admin', ACCESS = ['Edit', 'View', 'None'];
+// (update-117) a site's diesel places in the ticket: [{ name, cap }] – Mechanical checks them again (Code.gs savePlaces_)
+const placesOf = v => (Array.isArray(v) ? v : []).slice(0, 20).map(p => ({ name: String((p && p.name) || '').replace(/\s+/g, ' ').trim().slice(0, 60), cap: Number(p && p.cap) || 0 }));
 function verifyAdmin(ticket, now) {
   const c = check(ticket, ADMIN_AUD, now), out = { by: String(c.sub).trim().toLowerCase(), act: c.act, site: c.site, jti: c.jti };
-  if (c.act === 'users' || c.act === 'siteSql' || c.act === 'siteOff') return out;      // siteOff: (asked 13-10-2026) the Super Admin deleted the site in the Portal
+  if (c.act === 'users' || c.act === 'siteSql' || c.act === 'siteOff' || c.act === 'places') return out;      // siteOff: (asked 13-10-2026) the Super Admin deleted the site in the Portal; places: (update-117) the site's diesel places
   if (c.act === 'siteSetup') {      // (update-95) "New site" from the Portal: the site's name, company and database link – never a key
     const comp = c.company && typeof c.company === 'object' ? c.company : {};
     return Object.assign(out, { name: String(c.name || '').replace(/\s+/g, ' ').trim().slice(0, 80), url: String(c.url || '').trim().replace(/\/+$/, '').slice(0, 200),
-      sheet: String(c.sheet || '').trim().slice(0, 200), company: { id: String(comp.id || '').slice(0, 40), name: String(comp.name || '').replace(/\s+/g, ' ').trim().slice(0, 80) } });
+      sheet: String(c.sheet || '').trim().slice(0, 200), company: { id: String(comp.id || '').slice(0, 40), name: String(comp.name || '').replace(/\s+/g, ' ').trim().slice(0, 80) }, places: placesOf(c.places) });
   }
+  if (c.act === 'placesSave') return Object.assign(out, { places: placesOf(c.places) });      // (update-117) Sites → Diesel places
   if (c.act !== 'pages') throw bad('not a known request');
   const email = String(c.email || '').trim().toLowerCase();
   if (!EMAIL.test(email) || email.length > 120) throw bad('no proper email of the user');

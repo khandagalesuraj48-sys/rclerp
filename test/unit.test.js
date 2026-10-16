@@ -2915,7 +2915,7 @@ test('update-114: verification of every work – the Super Admin\'s rules, level
     assert.ok(before !== null);
     // ---- diesel held back while it waits; the facts of a save ----
     const f = run('() => flowFacts_("saveDieselBulk", [{ rows: [{ date: "2026-10-10", source: "Dispenser", qty: 40 }, { date: "2026-10-11", qty: 60.5 }, { date: "2026-10-11", source: "Tank 2", litres: 10 }] }])');
-    assert.strictEqual(run('() => APP.MAIN_LOC'), 'Dispenser', 'no source = the main place');
+    assert.strictEqual(run('() => mainPlace_()'), 'Dispenser', 'no source = the main place (update-117: the site\'s first diesel place)');
     assert.deepStrictEqual(f, { dates: ['2026-10-10', '2026-10-11'], byLoc: { Dispenser: 100.5, 'Tank 2': 10 }, qty: 110.5 });
     assert.strictEqual(run('() => flowFacts_("deleteDieselIssue", [{ qty: 50 }]).qty'), 0, 'a delete takes nothing out');
     run('() => { const r = flowRules_(); r.tasks["Diesel Issue"] = { on: true, levels: [["c1@rcl.test"]], daysBack: "", qtyAbove: 100 }; kvWrite_("FLOW_RULES", JSON.stringify(r)); }');
@@ -3076,4 +3076,127 @@ test('update-116: "Send to verification" for the works under a rule; sent back w
     vm.runInContext(`SbBook_.prototype.flush = __k116.flush; SbBook_.prototype.loadMany = __k116.loadMany; SbSheet_.prototype.load_ = __k116.load_; sbDiscard_ = __k116.discard; rtcPush_ = __k116.push;
       CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); TABLE_MEMO_ = {};`, ctx);
   }
+});
+
+test('update-117: every site its own diesel places (18B: Camp Pump + 2 dispensers) – set by the Super Admin in the Portal; the first site stays Dispenser + VTR Store', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // a stand-in database of its own (empty): what a failed save wrote is thrown away
+  vm.runInContext(`globalThis.__k117 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_ };
+    globalThis.DB117 = {};
+    globalThis.__fill117 = s => { const d = DB117[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep117 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill117(s); if (s.loaded) DB117[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    SB_BOOK_ = null;
+    SbBook_.prototype.flush = function () { __keep117(this); __k117.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill117(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill117(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    rtcPush_ = function () {};
+    kvWrite_("FLOW_RULES", "{}");`, ctx);
+  // the Portal's two functions of Sites.gs (the rest of Sites.gs needs the server)
+  const sitesGs = fs.readFileSync(path.join(root, 'app', 'Sites.gs'), 'utf8');
+  vm.runInContext(sitesGs.slice(sitesGs.indexOf('function sysPlacesSave_('), sitesGs.indexOf('/* ---- (update-95) "New site"')), ctx);
+  const P = PL => run('p => PropertiesService.getScriptProperties().setProperties({ DIESEL_PLACES: p })', PL);
+  try {
+    // ---- a site without its own setting (the first site, VTR): exactly as before ----
+    run('() => { PropertiesService.getScriptProperties().deleteProperty("DIESEL_PLACES"); }');
+    assert.deepStrictEqual(run('() => [placeNames_(), mainPlace_(), meterPlaces_(), tankSettings_().own]'), [['Dispenser', 'VTR Store'], 'Dispenser', { Dispenser: true }, false]);
+    assert.match(run('() => { try { checkLoc_("Camp Pump", "Diesel Source"); } catch (e) { return e.message; } }'), /^Select Diesel Source \(Dispenser \/ VTR Store\)\.$/);
+    assert.strictEqual(run('() => loc_("")'), 'Dispenser', 'an old entry without a place: the Dispenser, as before');
+    const mT = { id: 'X-117', unit: 'KM', supply: 'Company' };
+    assert.deepStrictEqual(run('m => [validateDiesel_({ qty: 5, source: "Dispenser", meter: 12345 }, m).meter, validateDiesel_({ qty: 5, source: "VTR Store", meter: 12345 }, m).meter]', mT), [12345, ''], 'the pump counter reading: only at the Dispenser, as before');
+    assert.ok(!/APP\.(LOCATIONS|MAIN_LOC)/.test(fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8') + fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8')), 'no fixed list of places is left');
+    // ---- the Super Admin's check of the places ----
+    const bad = list => run('l => { try { savePlaces_(l); return "saved"; } catch (e) { return e.message; } }', list);
+    assert.match(bad([]), /Add at least one diesel place/);
+    assert.match(bad([{ name: '', cap: 10 }]), /Diesel place 1: enter its name/);
+    assert.match(bad([{ name: 'Camp Pump', cap: 18000 }, { name: 'camp  pump', cap: 2650 }]), /"camp pump" is there twice/);
+    assert.match(bad([{ name: 'Camp Pump', cap: 0 }]), /tank size \(Ltr\) for Camp Pump/);
+    assert.match(bad([{ name: '<b>Pump', cap: 10 }]), /use letters, digits/);
+    assert.match(bad(Array.from({ length: 13 }, (_, i) => ({ name: 'T' + i, cap: 10 }))), /Up to 12 diesel places/);
+    assert.strictEqual(run('() => PropertiesService.getScriptProperties().getProperty("DIESEL_PLACES")'), null, 'nothing was written');
+    // ---- 18B: set from the Portal (Sites.gs sysPlacesSave_), with the Activity Log line ----
+    const SA = { email: 'sa117@rcl.test' };
+    let r = run('(l, by) => sysPlacesSave_(l, by)', [{ name: ' Camp  Pump ', cap: 18000 }, { name: 'MH12ZE1739', cap: 2650 }, { name: 'MH12WJ1381', cap: 2650.4 }], SA.email);
+    assert.deepStrictEqual(r.places.map(p => [p.name, p.cap, p.meter, p.used, p.stock]), [['Camp Pump', 18000, false, false, 0], ['MH12ZE1739', 2650, false, false, 0], ['MH12WJ1381', 2650, false, false, 0]]);
+    assert.deepStrictEqual(run('() => [placeNames_(), mainPlace_(), meterPlaces_(), tankSettings_()]'), [['Camp Pump', 'MH12ZE1739', 'MH12WJ1381'], 'Camp Pump', {}, { caps: { 'Camp Pump': 18000, MH12ZE1739: 2650, MH12WJ1381: 2650 }, low: 1000, own: true }]);
+    const log = run('() => { const t = table_(LOG_SHEET, []); return t.rows.map(x => x.join(" | ")).filter(x => /Diesel places set/.test(x)).pop() || ""; }');
+    assert.match(log, /sa117@rcl\.test \| Super Admin \(Portal\) \| Edit \| Settings \| Diesel places \| Diesel places set by the Super Admin in the Portal: Camp Pump 18000 Ltr, MH12ZE1739 2650 Ltr, MH12WJ1381 2650 Ltr \| Before: Dispenser 10000 Ltr, VTR Store 10000 Ltr/);
+    // the page and the phone app get them (getInit, and getLookups for a page already open)
+    const PW = 'sha256$0123456789abcdef$' + 'c'.repeat(64);
+    const u = run(`pw => { const o = {}; MODULES.forEach(m => { o[m] = 'Edit'; }); return { email: 'm117@rcl.test', name: 'Maker 117', password: pw, active: true, admin: true, perms: o }; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', [u]);
+    run('(e, pw) => CacheService.getScriptCache().put("S_tok117", sessionMake_(e, pw, 3600000, false), 3600)', u.email, PW);
+    const api = (fn, ...a) => run('(f, a) => api("tok117", f, a)', fn, a);
+    assert.deepStrictEqual(api('getInit').locations, ['Camp Pump', 'MH12ZE1739', 'MH12WJ1381']);
+    assert.deepStrictEqual(api('getLookups').locations, ['Camp Pump', 'MH12ZE1739', 'MH12WJ1381']);
+    // ---- the diesel of 18B: inward at any of the 3, transfers pump → dispenser and dispenser → dispenser, issue from any ----
+    const today = run('() => today_()');
+    assert.ok(api('saveMaster', { no: 'TP-117', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Rachana Construction Limited', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add').ok);
+    const inw = (loc, qty, bill) => api('saveInward', { date: today, location: loc, pump: 'HP Pump', qty: qty, rate: 92, billNo: bill, billDate: today });
+    assert.ok(inw('Camp Pump', 5000, 'B117-1').ok);
+    assert.ok(inw('mh12wj1381', 100, 'B117-2').ok, 'the name in any case');
+    assert.match(inw('Dispenser', 10, 'B117-3').THROWN, /^Select Received at \(Camp Pump \/ MH12ZE1739 \/ MH12WJ1381\)\.$/, 'the first site\'s places are not places of 18B');
+    assert.ok(api('saveTransfer', { date: today, shift: 'Day', from: 'Camp Pump', to: 'MH12ZE1739', qty: 1000 }).ok);
+    assert.ok(api('saveTransfer', { date: today, shift: 'Day', from: 'MH12ZE1739', to: 'MH12WJ1381', qty: 300 }).ok);
+    assert.match(api('saveTransfer', { date: today, shift: 'Day', from: 'MH12WJ1381', to: 'Camp Pump', qty: 401 }).THROWN, /Not enough diesel at MH12WJ1381 .*Available: 400 Ltr/);
+    assert.ok(api('saveDieselIssue', { date: today, shift: 'Day', source: 'MH12WJ1381', no: 'TP-117', qty: 150, kmReading: 1000, force: true }).ok);
+    assert.ok(api('saveDieselIssue', { date: today, shift: 'Day', source: 'Camp Pump', no: 'TP-117', qty: 50, kmReading: 1100, force: true }).ok);
+    assert.match(api('saveDieselIssue', { date: today, shift: 'Day', source: 'MH12ZE1739', no: 'TP-117', qty: 701, kmReading: 1200, force: true }).THROWN, /Not enough diesel at MH12ZE1739 .*Available: 700 Ltr/);
+    assert.match(api('saveDieselIssue', { date: today, shift: 'Day', source: 'VTR Store', no: 'TP-117', qty: 5, kmReading: 1200, force: true }).THROWN, /^Select Diesel Source \(Camp Pump \/ MH12ZE1739 \/ MH12WJ1381\)\.$/);
+    assert.ok(api('saveDieselIssue', { date: today, shift: 'Day', no: 'TP-117', qty: 10, kmReading: 1300, force: true }).ok, 'no source: the first place (Camp Pump)');
+    const st = run('() => getStock_()');
+    assert.deepStrictEqual([st.byLoc, st.stock, st.inward, st.issued], [{ 'Camp Pump': 3940, MH12ZE1739: 700, MH12WJ1381: 250 }, 4890, 5100, 210]);
+    const sum = run('d => stockSummary_(events_(stockTables_()), d, d)', today).map(x => [x.loc, x.inward, x.tin, x.tout, x.issued, x.closing]);
+    assert.deepStrictEqual(sum, [['Camp Pump', 5000, 0, 1000, 60, 3940], ['MH12ZE1739', 0, 1000, 300, 0, 700], ['MH12WJ1381', 100, 300, 0, 150, 250]]);
+    // the pump counter reading: only where the place has one (the first site's Dispenser) – none at 18B
+    assert.strictEqual(run('() => validateDiesel_({ qty: 5, source: "Camp Pump", meter: 12345 }, findMachine_("TP-117")).meter'), '');
+    // ---- a place with entries keeps its name; it is not taken away; new places and tank sizes can change ----
+    const cur = [{ name: 'Camp Pump', cap: 18000 }, { name: 'MH12ZE1739', cap: 2650 }, { name: 'MH12WJ1381', cap: 2650 }];
+    assert.match(bad(cur.slice(0, 2)), /^Diesel place MH12WJ1381 has entries – it cannot be renamed or taken away\.$/);
+    assert.match(bad([{ name: 'Camp Tank', cap: 18000 }].concat(cur.slice(1))), /Camp Pump has entries/);
+    r = run('l => savePlaces_(l)', [cur[1], cur[0], cur[2], { name: 'Tanker MH09 4521', cap: 6000 }].map((p, i) => i === 1 ? { name: p.name, cap: 20000 } : p));
+    assert.deepStrictEqual(r.places.map(p => [p.name, p.cap, p.used, p.stock]), [['MH12ZE1739', 2650, true, 700], ['Camp Pump', 20000, true, 3940], ['MH12WJ1381', 2650, true, 250], ['Tanker MH09 4521', 6000, false, 0]], 'no entry without a place here: the order may change');
+    assert.ok(api('saveInward', { date: today, location: 'Tanker MH09 4521', pump: 'HP Pump', qty: 10, rate: 92, billNo: 'B117-4', billDate: today }).ok, 'the new place is a place at once');
+    // a place used only by an entry that waits for verification is kept too
+    const fl = run('() => { const keep = flowAll_; flowAll_ = () => [{ status: "Pending", flow: { byLoc: { "Tanker MH09 4521": 5 } } }, { status: "Approved", flow: { byLoc: { "MH12ZE1739": 1 } } }]; try { const T = { it: { rows: [], c: {} }, tt: { rows: [], c: {} }, dt: { rows: [], c: {} } }; return placesUsed_(T); } finally { flowAll_ = keep; } }');
+    assert.deepStrictEqual(fl, { at: { 'TANKER MH09 4521': true }, blank: false, any: false });
+    // old entries without a place (the first site's oldest): they count at the first place – it stays the first
+    const blank = run(`l => { const keep = stockTables_;
+      stockTables_ = () => ({ it: { rows: [[''], ['VTR Store']], c: { [H.LOC]: 0 } }, tt: { rows: [], c: { [H.FROM]: 0, [H.TO]: 1 } }, dt: { rows: [], c: { [H.SOURCE]: 0 } } });
+      try { try { savePlaces_(l); return 'saved'; } catch (e) { return e.message; } } finally { stockTables_ = keep; } }`, [{ name: 'Camp Pump', cap: 1 }, { name: 'MH12ZE1739', cap: 1 }, { name: 'MH12WJ1381', cap: 1 }, { name: 'Tanker MH09 4521', cap: 1 }]);
+    assert.strictEqual(blank, 'MH12ZE1739 must stay the first diesel place: old entries without a place count there.');
+    // ---- New site (system.js siteSetup → Sites.gs sysPlacesSetup_): set once; a site with its places keeps them ----
+    assert.deepStrictEqual(run('() => sysPlacesSetup_({ places: [{ name: "X", cap: 1 }] })'), { ok: true, note: 'already set: MH12ZE1739, Camp Pump, MH12WJ1381, Tanker MH09 4521 (to change them: Sites → Diesel places)' });
+    assert.ok(run('() => sysPlacesSetup_({ keep: true })').ok);
+    run('() => { PropertiesService.getScriptProperties().deleteProperty("DIESEL_PLACES"); }');
+    DB117reset();
+    assert.deepStrictEqual(run('() => sysPlacesSetup_({ places: [] })'), { ok: false, note: 'Add the diesel places of this site (name and tank size), then press Check & set up again.' });
+    assert.deepStrictEqual(run('() => sysPlacesSetup_({ places: [{ name: "Camp Pump", cap: 18000 }, { name: "Camp Pump", cap: 1 }] })'), { ok: false, note: 'Diesel place "Camp Pump" is there twice.' });
+    assert.deepStrictEqual(run('() => sysPlacesSetup_({ places: [{ name: "Camp Pump", cap: 18000 }, { name: "MH12ZE1739", cap: 2650 }], by: "sa117@rcl.test" })'), { ok: true, note: 'Camp Pump (18000 Ltr), MH12ZE1739 (2650 Ltr)' });
+    // ---- the Portal's door: two acts; the ticket carries the places; system.js has the step ----
+    assert.match(sitesGs, /if \(c\.act === 'places'\) return placesInfo_\(\);[^\n]*\n  if \(c\.act === 'placesSave'\) return sysPlacesSave_\(c\.places, c\.by\);/);
+    const portalJs = fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8'), sysJs = fs.readFileSync(path.join(root, 'server', 'system.js'), 'utf8');
+    assert.match(portalJs, /if \(c\.act === 'placesSave'\) return Object\.assign\(out, \{ places: placesOf\(c\.places\) \}\);/);
+    assert.match(portalJs, /company: \{ id: [^\n]*\}, places: placesOf\(c\.places\) \}\);/);
+    assert.match(sysJs, /pl = R\.runIn\(code, 'sysPlacesSetup', \[\{ places: [^\n]*, by: c\.by, keep: same \}\]\);[\s\S]*if \(!add\('places', pl && pl\.ok/);
+    assert.match(fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8'), /sysPlacesSetup: sysPlacesSetup_,/);
+    // ---- the page: the Dashboard draws one tank per place for such a site; the first site's texts stay as they were ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.match(app, /if \(TANKS\.own\) \{[^\n]*\n      const key = locs\.map/);
+    assert.match(app, /function vtrPlaces\(\) \{ return \(S\.locations \|\| \[\]\)\.join\('\|'\) === 'Dispenser\|VTR Store'; \}/);
+    assert.match(app, /'Moved Dispenser ↔ VTR Store \(inside company, not added or removed\)' : 'Moved between the diesel places/);
+    assert.match(app, /if \(L\.locations && L\.locations\.length && L\.locations\.join\('\|'\) !== \(S\.locations \|\| \[\]\)\.join\('\|'\)\) setLocations\(L\.locations\);/);
+    const tk = app.slice(app.indexOf('  const DRUM_ICON = '), app.indexOf("  $('tank_set').addEventListener('click'"));
+    const H2 = new Function('wavePath', 'esc', 'tkHead', tk + '; return { tankOwnHtml, tankBarrelsHtml };')(() => 'M0 0', x => x, (n, sub) => '[' + n + '|' + sub + ']');
+    const own = H2.tankOwnHtml(['Camp Pump', 'MH12ZE1739', 'MH12WJ1381']);
+    assert.strictEqual((own.match(/class="tkc tk-one"/g) || []).length, 3);
+    assert.ok(/id="gFuel"/.test(own) && /\[MH12WJ1381\|Diesel tank\]/.test(own) && /id="gDrumo2"/.test(own));
+    assert.strictEqual((H2.tankBarrelsHtml('VTR Store', 2000).match(/class="brl"/g) || []).length, 10, 'the first site\'s barrels as before');
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k117.flush; SbBook_.prototype.loadMany = __k117.loadMany; SbSheet_.prototype.load_ = __k117.load_; sbDiscard_ = __k117.discard; rtcPush_ = __k117.push;
+      PropertiesService.getScriptProperties().deleteProperty("DIESEL_PLACES"); CacheService.getScriptCache().remove("USERS_LIST"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
+  }
+  function DB117reset() { vm.runInContext('DB117 = {}; SB_BOOK_ = null; TABLE_MEMO_ = {};', ctx); }
 });

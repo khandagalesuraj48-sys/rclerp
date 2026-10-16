@@ -22,7 +22,7 @@ function readme_() {
     backupId: p.getProperty('SB_BACKUP_SHEET_ID') || '',
     webUrl: url, triggers: triggers,
     timeZone: Session.getScriptTimeZone(),
-    company: APP.COMPANY, locations: APP.LOCATIONS || [],
+    company: APP.COMPANY, locations: placeNames_(),      // (update-117) this site's diesel places
   };
   const modules = MODULES.map(m => ({ key: m, label: MODULE_LABEL_[m] || m, info: README_MODULE_INFO_[m] || '' }));
   const tbl = tables.map(d => ({ table: d.table, tab: d.tab, cols: d.cols.map(c => c[1] + ' (' + c[0] + ')') }));
@@ -70,7 +70,7 @@ const README_MODULE_INFO_ = {
   'Vendor BOQ': 'Vendor-wise rates (BOQ): Monthly / Daily / Hourly / Per KM / Per Trip / Item-wise (एका machinery चे अनेक items, प्रत्येकाचा वेगळा rate – उदा. Bucket, Breaker), GST %, TDS %, diesel (company paid / debit), Work Order; amendments.',
   'Vehicle Compliance': 'Tax, PUC, Permit, Fitness, Insurance: expired / 30 दिवसात संपणारे / न भरलेले papers, renewal (नवीन तारीख Asset Master मध्ये आपोआप) आणि renewal history. रोज पहिल्या login ला notice.',
   'Breakdown': 'Daily machinery status: तारीख आणि Own / Rental निवडून प्रत्येक machinery Working की Breakdown (कारणासह) – Submit, नंतर बदल किंवा delete; breakdown कधीपासून आणि किती दिवस आपोआप; history आणि print. Breakdown असली तरी diesel आणि Log Book बंद होत नाही.',
-  'Diesel Inward': 'Pump वरून आलेलं diesel आणि Opening stock (Dispenser / Store).',
+  'Diesel Inward': 'Pump वरून आलेलं diesel आणि Opening stock (site ची प्रत्येक diesel जागा).',
   'Diesel Transfer': 'Dispenser → Store (barrels) diesel transfer.',
   'Diesel Issue': 'Machinery ला diesel दिलं: date, shift, qty, KM / Hrs reading, driver, source.',
   'Log Book': 'दररोजची Log Book (KM / Hrs), Tank Check, Edit Log Book, Log Book print.',
@@ -184,14 +184,14 @@ function readmeGuide_(d) {
     step(13, 'Site ची माहिती भरा',
       '<ol><li><b>Billing → Machinery Billing → Company details:</b> Project name, प्रत्येक company चा GST पत्ता, GSTIN, PAN, Site Address. (नवीन site मध्ये सुरुवातीला VTR चे details दिसतात – ते बदला आणि Save.)</li>' +
       '<li><b>Vendor Master:</b> सगळे vendors. <b>Asset Master:</b> सगळी machinery (Excel import पण चालतं). <b>Vendor BOQ:</b> vendor-wise rates.</li>' +
-      '<li><b>Diesel Inward:</b> प्रकार <b>Opening stock</b> निवडून सुरुवातीच्या तारखेचा Dispenser / Store चा stock. मग pump inward.</li>' +
+      '<li><b>Diesel Inward:</b> प्रकार <b>Opening stock</b> निवडून सुरुवातीच्या तारखेचा प्रत्येक diesel जागेचा stock (जागा: Portal → Sites → Diesel places). मग pump inward.</li>' +
       '<li><b>Admin → Users & Access:</b> + Add user → email, नाव, one-time password आणि प्रत्येक page ला Edit / View / No access.</li></ol>') +
     step(14, 'नावं बदलायची असतील तर (ऐच्छिक)',
       '<p>काही नावं code मध्ये आहेत. नवीन site साठी बदलायची असतील तर Apps Script editor मध्ये ती file उघडा → <b>Ctrl + H</b> (Find and replace) → <b>Replace all</b> → Save → नवीन version deploy करा (section 6).</p>' +
       '<table class="rm-t"><tr><th>काय</th><th>आत्ता</th><th>कुठे</th></tr>' +
       '<tr><td>Reports / print वरचं site नाव</td><td><code>VTR Site  NH 848</code></td><td><code>App.html</code> – <code>const SITE_NAME = …</code> ही एक ओळ</td></tr>' +
       '<tr><td>App चं company नाव (browser tab)</td><td><code>' + h(L.company) + '</code></td><td><code>Code.gs</code> – <code>COMPANY: …</code> ही एक ओळ</td></tr>' +
-      '<tr><td>दुसरा diesel stock point</td><td><code>VTR Store</code></td><td><code>Code.gs</code> आणि <code>App.html</code> दोन्हीत – <b>Replace all</b>, दोन्ही files मध्ये एकच नवीन नाव. हे <b>पहिली diesel entry करण्याआधीच</b> करा.</td></tr></table>') +
+      '<tr><td>Diesel stock points (pump, dispenser, store)</td><td><code>' + h(L.locations.join(', ')) + '</code></td><td>code मध्ये नाही: <b>Portal → Sites → Diesel places</b> (Super Admin) – प्रत्येक site चे स्वतःचे, नाव आणि tank size. Entry असलेली जागा बदलता / काढता येत नाही.</td></tr></table>') +
     step(15, 'शेवटची तपासणी', '<ul class="rm-check"><li>Read Me section 2 – सगळीकडे ✔</li><li>एक test machinery, एक diesel inward, एक diesel issue केलं आणि ते Dashboard ला दिसलं</li>' +
       '<li>2–3 मिनिटांनी Backup Sheet मध्ये तीच entry दिसली</li><li>दुसऱ्या user ने login करून फक्त दिलेली pages दिसली</li><li>Test entries delete केल्या</li><li>VTR app मध्ये नवीन site चा काहीही data दिसत नाही, आणि नवीन app मध्ये VTR चा नाही</li></ul>');
 

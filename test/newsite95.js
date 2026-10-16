@@ -32,7 +32,7 @@ const steps = r => (r.j.steps || []).map(x => x.step + (x.ok ? '✓' : '✗')).j
   // ---- the start: a blank rcl_s3, no N3 anywhere, the Portal set up afresh – the rig WITHOUT the site's key ----
   sql('postgres', 'drop database if exists rcl_s3 with (force);'); sql('postgres', 'create database rcl_s3;');
   execSync('timeout 60 su postgres -c "pg_dump -s -n storage rcl_s2" | timeout 60 su postgres -c "psql -q -d rcl_s3"');
-  sql('rcl', "delete from rcl_user_sites where site = 'N3'; delete from rcl_sites where code = 'N3'; delete from rcl_super_admin; delete from web.cache where key like 'SA%' or key like 'F\\_%' or key like 'LG\\_%' or key like 'SSO\\_%';");
+  sql('rcl', "delete from rcl_user_sites where site = 'N3'; delete from rcl_sites where code = 'N3'; delete from rcl_super_admin; delete from app_users where email = 'sa@rcl.test'; delete from rcl_user_sites where email = 'sa@rcl.test'; delete from web.cache where key = 'USERS_LIST' or key like 'SA%' or key like 'F\\_%' or key like 'LG\\_%' or key like 'SSO\\_%';");
   sql('rcl_portal', "truncate public.access, public.sessions, public.audit, public.counters, public.signing_keys, public.users, public.sites, public.companies cascade; update public.modules set url = null, status = 'live' where key = 'mechanical'; delete from public.modules where key <> 'mechanical';");
   ok('rig started without SITE_N3_KEY', /rig up/.test(rig('NSKEY=0')));
   const a = await mech('login', ['sujit@rcl.test', PW]);
@@ -68,7 +68,12 @@ const steps = r => (r.j.steps || []).map(x => x.step + (x.ok ? '✓' : '✗')).j
   ok('   it runs in a blank database without one error', true);
   await wait(1500);
   r = await S.req('/api/admin', { action: 'siteSetup', code: 'N3', name: 'Test Site N3', company: comp, url: N3 });
-  ok('steps 4–6: tables there, company settings copied, Ready', steps(r) === 'link✓ key✓ connect✓ tables✓ company✓ ready✓' && r.j.ready, r.j);
+  ok('steps 4–6: tables there, company settings copied; (update-117) step 6 waits for the diesel places', steps(r) === 'link✓ key✓ connect✓ tables✓ company✓ places✗' && !r.j.ready && /Add the diesel places of this site/.test(JSON.stringify(r.j.steps)), r.j);
+  r = await S.req('/api/admin', { action: 'siteSetup', code: 'N3', name: 'Test Site N3', company: comp, url: N3, places: [{ name: 'Camp Pump', cap: 18000 }, { name: 'MH12ZE1739', cap: 2650 }, { name: 'MH12ZE1739', cap: 2650 }] });
+  ok('   the same place twice: step 6 says so', steps(r) === 'link✓ key✓ connect✓ tables✓ company✓ places✗' && /^Diesel place "MH12ZE1739" is there twice\.$/.test(((r.j.steps || []).find(x => x.step === 'places') || {}).note || ''), r.j);
+  r = await S.req('/api/admin', { action: 'siteSetup', code: 'N3', name: 'Test Site N3', company: comp, url: N3, places: [{ name: 'Camp Pump', cap: 18000 }, { name: 'MH12ZE1739', cap: 2650 }, { name: 'MH12WJ1381', cap: 2650 }] });
+  ok('steps 6–7: the diesel places of the form (as 18B), Ready', steps(r) === 'link✓ key✓ connect✓ tables✓ company✓ places✓ ready✓' && r.j.ready && /Camp Pump \(18000 Ltr\), MH12ZE1739 \(2650 Ltr\), MH12WJ1381 \(2650 Ltr\)/.test(JSON.stringify(r.j.steps)), r.j);
+  ok('   in N3\'s own database: its places and tank sizes', JSON.parse(sql('rcl_s3', "select value from web.props where key = 'DIESEL_PLACES'") || '[]').map(x => x.name).join() === 'Camp Pump,MH12ZE1739,MH12WJ1381' && sql('rcl_s3', "select value from web.props where key = 'TANK_CAP_Camp Pump'") === '18000');
   ok('   the Portal lists N3 as Active', sql('rcl_portal', "select status from sites where code = 'N3'") === 'active');
   ok('   Mechanical\'s list: N3 ready, its key NOT stored (it stays in the server\'s settings)', sql('rcl', "select status || '|' || coalesce(db_key_enc, '-') || '|' || db_url from rcl_sites where code = 'N3'") === 'ready|-|' + N3);
   const org = sql('rcl_s3', "select value from web.props where key = 'ORG_SETTINGS'");
@@ -91,11 +96,13 @@ const steps = r => (r.j.steps || []).map(x => x.step + (x.ok ? '✓' : '✗')).j
   ok('   it works on N3\'s own database; he is written into N3\'s Users as Admin', w.result === true && sql('rcl_s3', "select admin from app_users where email = 'sujit@rcl.test'") === 'Yes', w.error);
   const o = await mech('api', [s.result.token, 'getInit', []], 'N3');
   ok('   the app on N3 shows its own name', o.result && o.result.siteInfo && o.result.siteInfo.name === 'Test Site N3', o.result && o.result.siteInfo);
+  ok('   and its own diesel places (update-117)', o.result && JSON.stringify(o.result.locations) === '["Camp Pump","MH12ZE1739","MH12WJ1381"]', o.result && o.result.locations);
 
   // ---- pressed again: nothing changes, the site's own settings are kept ----
   sql('rcl_s3', "update web.props set value = replace(value, 'Test Site N3', 'N3 own name') where key = 'ORG_SETTINGS'");
   r = await S.req('/api/admin', { action: 'siteSetup', code: 'N3', name: 'Test Site N3', company: comp, url: N3 });
   ok('"Check" again on a ready site: still ready, its own company settings kept', r.j.ready && /N3 own name/.test(sql('rcl_s3', "select value from web.props where key = 'ORG_SETTINGS'")), r.j);
+  ok('   and its diesel places kept (none given this time)', /kept as the site has them: Camp Pump, MH12ZE1739, MH12WJ1381/.test(JSON.stringify(r.j.steps)), r.j);
   r = await S.req('/api/admin', { action: 'siteSetup', code: 'N3', name: 'Test Site N3', company: comp, url: 'http://127.0.0.1:3100' });
   ok('   a ready site cannot be moved to another database', !r.j.ready && /another database|belongs to another site/.test(JSON.stringify(r.j.steps)), r.j);
   // ---- (asked 13-10-2026) the Super Admin deletes N3 in the Portal, then brings it back with "New site" ----
