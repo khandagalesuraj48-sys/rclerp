@@ -20,8 +20,7 @@ const APP = {
   SHEET_BDREPORT: 'Breakdown Reports',
   SHEET_INWARD: 'Diesel Inward',
   SHEET_TRANSFER: 'Diesel Transfer',
-  LOCATIONS: ['Dispenser', 'VTR Store'], // diesel stock points; pump diesel comes into the first one by default
-  MAIN_LOC: 'Dispenser',
+  // (update-117) the diesel places are the SITE's own: places_() / placeNames_() / mainPlace_() (block "DIESEL PLACES OF THIS SITE")
   UNITS: ['KM', 'Hrs', 'KM + Hrs', 'Day'],
   OWNERSHIP: ['Own', 'Rental', 'Hired', 'Debit', 'Other'],
   SUPPLY: ['Company', 'Debit Basis', 'Other'],   // who gives the diesel to this machinery
@@ -170,7 +169,7 @@ function getInit_(u) {
   const all = !u;      // (called without a user only by the code itself)
   return { company: orgSettings_().customer, org: orgPublic_(), rules: siteRules_(), ai: aiInfo_(), today: today_(), master: getMaster_(),
     drivers: all || seesAny_(u, FOR_DRIVERS_) ? getDrivers_() : [], stock: all || seesAny_(u, FOR_STOCK_) ? getStock_() : null,
-    pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [], locations: APP.LOCATIONS, closedUpto: booksClosed_(), flow: all ? {} : flowMine_(u) };
+    pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [], locations: placeNames_(), closedUpto: booksClosed_(), flow: all ? {} : flowMine_(u) };
 }
 
 /* ================= LOGIN, ACCESS AND ACTIVITY LOG ================= *
@@ -1082,7 +1081,7 @@ function getVersions_() {
 }
 function getLookups_(u) { const all = !u;      // each list only for a user who has a page that uses it (see getInit_)
   return { master: getMaster_(), drivers: all || seesAny_(u, FOR_DRIVERS_) ? getDrivers_() : [], pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [],
-    vendors: all || seesAny_(u, FOR_PARTIES_) ? vendorNames_() : [], closedUpto: booksClosed_(), rules: siteRules_() }; }
+    vendors: all || seesAny_(u, FOR_PARTIES_) ? vendorNames_() : [], closedUpto: booksClosed_(), rules: siteRules_(), locations: placeNames_() }; }      // (update-117) the site's diesel places: a change by the Super Admin reaches every open page
 
 // Simple trigger: runs by itself whenever someone types in the Google Sheet
 function onEdit(e) {
@@ -3963,9 +3962,9 @@ function validateDiesel_(d, m) {
   const km = !debit && useKm && !blank_(d.kmReading) ? reqReading_(d.kmReading, m.id + ' KM Reading') : '';
   const hr = !debit && useHr && !blank_(d.hrReading) ? reqReading_(d.hrReading, m.id + ' Hrs Reading') : '';
   const driver = clean_(d.driver);
-  // reading on the dispenser's total-litres counter after this fill (optional; only for the Dispenser)
-  const src0 = checkLoc_(d.source || APP.MAIN_LOC, 'Diesel Source');
-  const meter = src0 === APP.MAIN_LOC && !blank_(d.meter) ? reqReading_(d.meter, 'Current diesel issue reading') : '';
+  // reading on the pump's total-litres counter after this fill (optional; only at a place with a counter – the first site's Dispenser)
+  const src0 = checkLoc_(d.source || mainPlace_(), 'Diesel Source');
+  const meter = meterPlaces_()[src0] && !blank_(d.meter) ? reqReading_(d.meter, 'Current diesel issue reading') : '';
   return { qty: qty, km: km, hr: hr, driver: driver, remark: clean_(d.remark), source: src0, meter: meter };
 }
 
@@ -3989,21 +3988,20 @@ function ensureMeterCol_() {
   TABLE_MEMO_ = {};
 }
 /* Dispenser meter check: between two meter readings, the counter must have moved by exactly the diesel that
- * went out of the Dispenser (issues + transfers to VTR Store). A difference means a missing / wrong entry
- * or diesel taken without an entry. */
+ * went out of that place (issues + transfers out). A difference means a missing / wrong entry or diesel taken without an
+ * entry. (update-117) Each place with a counter on its own – at the first site only the Dispenser, as before. */
 function meterChecks_(T) {
   const dc = T.dt.c;
   if (!(H.DMETER in dc)) return {};
-  const out = {};
-  let last = null, since = 0;
+  const out = {}, mp = meterPlaces_(), last = {}, since = {};
   events_(T).forEach(e => {
-    if (e.loc !== APP.MAIN_LOC || e.q >= 0) return;         // only diesel going out of the Dispenser
-    since = r2_(since - e.q);
+    if (!mp[e.loc] || e.q >= 0) return;         // only diesel going out of a place with a counter
+    since[e.loc] = r2_((since[e.loc] || 0) - e.q);
     if (e.kind !== 'issue') return;
     const r = T.dt.rows[e.idx], mt = numOrBlank_(r[dc[H.DMETER]]);
     if (mt === '') return;
-    if (last !== null) out[str_(r[dc[H.ID]])] = { used: r2_(mt - last), entered: since, gap: r2_((mt - last) - since) };
-    last = mt; since = 0;
+    if (last[e.loc] !== undefined) out[str_(r[dc[H.ID]])] = { used: r2_(mt - last[e.loc]), entered: since[e.loc], gap: r2_((mt - last[e.loc]) - since[e.loc]) };
+    last[e.loc] = mt; since[e.loc] = 0;
   });
   return out;
 }
@@ -4186,7 +4184,7 @@ function saveDieselBulk_(b) {
     });
     if (errors.length) return { ok: false, errors: errors };
     if (!items.length) throw new Error('Enter at least one diesel issue.');
-    const bsource = checkLoc_(b.source || APP.MAIN_LOC, 'Diesel Source');
+    const bsource = checkLoc_(b.source || mainPlace_(), 'Diesel Source');
     items.forEach(it => { it.v.source = bsource; });
     requireStockAt_(bsource, dk, shift, '', r2_(items.reduce((sum, it) => sum + it.v.qty, 0)));
     if (warnings.length && !b.force) return { ok: false, warnings: warnings };
@@ -4559,9 +4557,80 @@ function meterAnswer_(txt, wantKm, wantHr) {
   return { km: wantKm && j ? aiNum_(j.km) : null, hr: wantHr && j ? aiNum_(j.hrs !== undefined ? j.hrs : j.hr) : null };
 }
 
+/* ================= DIESEL PLACES OF THIS SITE (update-117, asked 16-10-2026) ================= *
+ * Every site has its own diesel places (a "Diesel Source" / "Location" / "Received at" / "From" / "To"): at 18B the Camp Pump
+ * (18,000 Ltr) and the two dispensers MH12ZE1739 and MH12WJ1381 (2,650 Ltr each); the first site keeps its Dispenser and
+ * VTR Store exactly as before. The Super Admin sets them in the Portal (New site, or Sites → Diesel places).
+ *   Kept in the site's own settings: DIESEL_PLACES = [{ "name": …, "meter": true|false }], in order – the first is chosen
+ *   first on the forms and an old entry without a place counts there; the tank size of each in TANK_CAP_<name> (as before).
+ *   A site without the setting has Dispenser (with its pump counter reading) and VTR Store – as every site had until now.
+ * A place that an entry (or an entry waiting for verification) uses is never renamed or taken away, and the first place stays
+ * the first while old entries without a place count there – the stock of every entry stays where it is. Places can be added
+ * at any time; the tank sizes changed at any time. */
+const PLACES_DEFAULT_ = [{ name: 'Dispenser', meter: true }, { name: 'VTR Store', meter: false }];
+const PLACES_MAX_ = 12, PLACE_RE_ = /^[A-Za-z0-9][A-Za-z0-9 .\/()&-]*$/;
+let PLACES_MEMO_ = { raw: null, list: null };
+function places_() {
+  const raw = str_(PropertiesService.getScriptProperties().getProperty('DIESEL_PLACES'));
+  if (PLACES_MEMO_.list && PLACES_MEMO_.raw === raw) return PLACES_MEMO_.list;
+  let list = [];
+  try { const j = raw ? JSON.parse(raw) : null; if (Array.isArray(j)) list = j.map(p => ({ name: clean_(p && p.name), meter: !!(p && p.meter) })).filter(p => p.name); }
+  catch (e) { list = []; }
+  if (!list.length) list = PLACES_DEFAULT_.map(p => ({ name: p.name, meter: p.meter }));
+  PLACES_MEMO_ = { raw: raw, list: list };
+  return list;
+}
+function placeNames_() { return places_().map(p => p.name); }
+function mainPlace_() { return places_()[0].name; }
+// the places whose pump counter reading is kept with a diesel issue ("Current Diesel Issue Reading"): the first site's Dispenser
+function meterPlaces_() { const o = {}; places_().forEach(p => { if (p.meter) o[p.name] = true; }); return o; }
+// which places the entries use (every row, also one without a date) and the entries waiting for verification
+function placesUsed_(T) {
+  const at = {}; let blank = false, any = false;
+  const see = v => { any = true; const s = clean_(v); if (s) at[s.toUpperCase()] = true; else blank = true; };
+  T.it.rows.forEach(r => see(r[T.it.c[H.LOC]]));
+  T.tt.rows.forEach(r => { see(r[T.tt.c[H.FROM]]); see(r[T.tt.c[H.TO]]); });
+  T.dt.rows.forEach(r => see(r[T.dt.c[H.SOURCE]]));
+  try { flowAll_().filter(r => r.status === 'Pending' || r.status === 'Reverted').forEach(r => { Object.keys((r.flow || {}).byLoc || {}).forEach(l => { const s = clean_(l); if (s) at[s.toUpperCase()] = true; }); }); }
+  catch (e) { /* no verification table at this site */ }
+  return { at: at, blank: blank, any: any };
+}
+// for the Portal (Sites → Diesel places): the places with their tank size, whether entries use them, and the stock now
+function placesInfo_() {
+  const T = stockTables_(), used = placesUsed_(T), ev = events_(T), caps = tankSettings_().caps;
+  return { set: !!str_(PropertiesService.getScriptProperties().getProperty('DIESEL_PLACES')), entries: used.any, firstFixed: used.blank,
+    places: places_().map(p => ({ name: p.name, cap: caps[p.name], meter: p.meter, used: !!used.at[p.name.toUpperCase()] || (used.blank && p.name === mainPlace_()), stock: r2_(ev.run[p.name] || 0) })) };
+}
+function savePlaces_(list) {
+  if (!Array.isArray(list) || !list.length) throw new Error('Add at least one diesel place (its name and tank size).');
+  if (list.length > PLACES_MAX_) throw new Error('Up to ' + PLACES_MAX_ + ' diesel places.');
+  const cur = places_(), curOf = {}, seen = {}, out = [], caps = {};
+  cur.forEach(p => { curOf[p.name.toUpperCase()] = p; });
+  list.forEach((p, i) => {
+    const name = clean_(p && p.name), k = name.toUpperCase();
+    if (!name) throw new Error('Diesel place ' + (i + 1) + ': enter its name.');
+    if (name.length > 40 || !PLACE_RE_.test(name)) throw new Error('Diesel place "' + name.slice(0, 40) + '": use letters, digits, spaces and - . / ( ) & only (up to 40).');
+    if (seen[k]) throw new Error('Diesel place "' + name + '" is there twice.');
+    seen[k] = true;
+    const cap = Number(p && p.cap);
+    if (!(cap > 0) || cap > 1000000) throw new Error('Enter the tank size (Ltr) for ' + name + '.');
+    out.push({ name: name, meter: curOf[k] ? curOf[k].meter : false });      // the pump counter reading stays as the place had it
+    caps[name] = Math.round(cap);
+  });
+  const used = placesUsed_(stockTables_());
+  const gone = cur.filter(p => used.at[p.name.toUpperCase()] && !seen[p.name.toUpperCase()]).map(p => p.name);
+  if (gone.length) throw new Error('Diesel place ' + gone.join(', ') + (gone.length > 1 ? ' have' : ' has') + ' entries – it cannot be renamed or taken away.');
+  if (used.blank && out[0].name.toUpperCase() !== cur[0].name.toUpperCase()) throw new Error(cur[0].name + ' must stay the first diesel place: old entries without a place count there.');
+  const props = { DIESEL_PLACES: JSON.stringify(out) };
+  out.forEach(p => { props['TANK_CAP_' + p.name] = String(caps[p.name]); });
+  PropertiesService.getScriptProperties().setProperties(props);
+  bump_(['master', 'stock']);      // every open page takes the new places (getLookups) and its stock
+  return placesInfo_();
+}
+
 /* ================= DIESEL STOCK: locations, inward, transfer ================= *
- * Stock points: APP.LOCATIONS (Dispenser, VTR Store).
- *   Inward (pump)        : + at its Location (default Dispenser)
+ * Stock points: the site's diesel places (above; at the first site Dispenser and VTR Store).
+ *   Inward (pump)        : + at its Location (default the first place)
  *   Transfer             : - at From, + at To (e.g. Dispenser -> VTR Store)
  *   Diesel Issue         : - at its Diesel Source
  * Order on one date: first all Inward, then the Day shift, then the Night shift.
@@ -4573,13 +4642,13 @@ const KIND_ORDER_ = { inward: 0, tout: 1, tin: 2, issue: 3 };
 
 function loc_(v) {
   const s = clean_(v);
-  if (!s) return APP.MAIN_LOC;
-  return APP.LOCATIONS.find(l => l.toUpperCase() === s.toUpperCase()) || s;
+  if (!s) return mainPlace_();
+  return placeNames_().find(l => l.toUpperCase() === s.toUpperCase()) || s;
 }
 function checkLoc_(v, label) {
-  const s = clean_(v);
-  const f = APP.LOCATIONS.find(l => l.toUpperCase() === s.toUpperCase());
-  if (!f) throw new Error('Select ' + label + ' (' + APP.LOCATIONS.join(' / ') + ').');
+  const s = clean_(v), names = placeNames_();
+  const f = names.find(l => l.toUpperCase() === s.toUpperCase());
+  if (!f) throw new Error('Select ' + label + ' (' + names.join(' / ') + ').');
   return f;
 }
 
@@ -4661,7 +4730,7 @@ function assertNoNegative_(T, T2) {
 function stockFrom_(T, ev) {
   ev = ev || events_(T);
   const byLoc = {};
-  APP.LOCATIONS.forEach(l => { byLoc[l] = r2_(ev.run[l] || 0); });
+  placeNames_().forEach(l => { byLoc[l] = r2_(ev.run[l] || 0); });
   let inward = 0, issued = 0;
   ev.forEach(e => { if (e.kind === 'inward') inward += e.q; if (e.kind === 'issue') issued -= e.q; });
   const total = r2_(Object.keys(ev.run).reduce((s, k) => s + ev.run[k], 0));
@@ -4673,7 +4742,7 @@ function issuePoint_(dk, shift, ct) { return { dk: dk, ord: 2 + 2 * shiftOrder_(
 
 // Stock at one source for a diesel issue on this date and shift (excludeId = the issue being edited)
 function getIssueBalance_(dateStr, shiftIn, excludeId, source) {
-  const dk = checkDate_(dateStr), shift = checkShift_(shiftIn), loc = checkLoc_(source || APP.MAIN_LOC, 'Diesel Source');
+  const dk = checkDate_(dateStr), shift = checkShift_(shiftIn), loc = checkLoc_(source || mainPlace_(), 'Diesel Source');
   const T = stockTables_();
   const ex = str_(excludeId);
   let ct = Number.MAX_SAFE_INTEGER, T2 = T;
@@ -4695,7 +4764,7 @@ function getStockPoints_(points) {
   const ev = events_(stockTables_());
   return (points || []).slice(0, 400).map(p => {
     try {
-      const dk = checkDate_(p.date), shift = checkShift_(p.shift || 'Day'), loc = checkLoc_(p.source || APP.MAIN_LOC, 'Diesel Source');
+      const dk = checkDate_(p.date), shift = checkShift_(p.shift || 'Day'), loc = checkLoc_(p.source || mainPlace_(), 'Diesel Source');
       const b = availableAt_(ev, loc, issuePoint_(dk, shift, Number.MAX_SAFE_INTEGER));
       return { balance: b.balance, available: b.available };
     } catch (e) { return null; }
@@ -4750,14 +4819,14 @@ function validateInward_(x) {
     if (rate !== '' && rate < 0) throw new Error('Rate cannot be below zero.');
     const r = rate === '' ? 0 : rate;
     return { dk: dk, qty: qty, pump: EXTRA_PUMP_, rate: r, amount: r2_(qty * r), billNo: clean_(x.billNo), billDate: '', extra: true,
-      loc: checkLoc_(x.location || APP.MAIN_LOC, 'Location') };
+      loc: checkLoc_(x.location || mainPlace_(), 'Location') };
   }
   if (x.type === 'opening' || isOpeningPump_(x.pump)) {
     const rate = numOrBlank_(x.rate);
     if (rate !== '' && rate < 0) throw new Error('Rate cannot be below zero.');
     const r = rate === '' ? 0 : rate;
     return { dk: dk, qty: qty, pump: OPENING_PUMP_, rate: r, amount: r2_(qty * r), billNo: '', billDate: '', open: true,
-      loc: checkLoc_(x.location || APP.MAIN_LOC, 'Location') };
+      loc: checkLoc_(x.location || mainPlace_(), 'Location') };
   }
   const pump = clean_(x.pump);
   if (!pump) throw new Error('Enter the Pump Name.');
@@ -4765,7 +4834,7 @@ function validateInward_(x) {
   if (!(rate > 0)) throw new Error('Enter the Rate.');
   const billDate = str_(x.billDate) ? entryDate_(x.billDate) : '';
   return { dk: dk, qty: qty, pump: pump, rate: rate, amount: r2_(qty * rate), billNo: clean_(x.billNo), billDate: billDate,
-    loc: checkLoc_(x.location || APP.MAIN_LOC, 'Received at') };
+    loc: checkLoc_(x.location || mainPlace_(), 'Received at') };
 }
 function buildInwardRow_(t, id, v, created, base) {
   const row = base ? stampEdit_(base.slice(), t) : newRow_(t);
@@ -5077,7 +5146,7 @@ function getTransfers_(f) {
 /* ---------- Stock position per location for a period, and day-wise ledger ---------- */
 function stockSummary_(ev, from, to) {
   const out = {};
-  APP.LOCATIONS.forEach(l => { out[l] = { loc: l, opening: 0, inward: 0, tin: 0, tout: 0, issued: 0, closing: 0 }; });
+  placeNames_().forEach(l => { out[l] = { loc: l, opening: 0, inward: 0, tin: 0, tout: 0, issued: 0, closing: 0 }; });
   ev.forEach(e => {
     const x = out[e.loc] || (out[e.loc] = { loc: e.loc, opening: 0, inward: 0, tin: 0, tout: 0, issued: 0, closing: 0 });
     if ((from && e.dk < from) || isOpenBefore_(e, from)) { x.opening = e.bal; x.closing = e.bal; return; }
@@ -5210,13 +5279,13 @@ const TANK_DEFAULT_ = 10000, TANK_LOW_ = 1000;
 function tankSettings_() {
   const p = PropertiesService.getScriptProperties().getProperties();
   const caps = {};
-  APP.LOCATIONS.forEach(l => { caps[l] = num0_(p['TANK_CAP_' + l]) || TANK_DEFAULT_; });
-  return { caps: caps, low: num0_(p.TANK_LOW) || TANK_LOW_ };
+  placeNames_().forEach(l => { caps[l] = num0_(p['TANK_CAP_' + l]) || TANK_DEFAULT_; });
+  return { caps: caps, low: num0_(p.TANK_LOW) || TANK_LOW_, own: !!str_(p.DIESEL_PLACES) };      // own: the site's own diesel places (update-117) – one tank each on the Dashboard
 }
 function saveTankSettings_(t) {
   t = t || {};
   const out = {};
-  APP.LOCATIONS.forEach(l => {
+  placeNames_().forEach(l => {
     const v = Number((t.caps || {})[l]);
     if (!(v > 0)) throw new Error('Enter the tank size (Ltr) for ' + l + '.');
     out['TANK_CAP_' + l] = String(Math.round(v));
@@ -5699,7 +5768,7 @@ function getDailyInwardIssueReport_(f) {
   tot.closing = rows.length ? rows[rows.length - 1].closing : 0;
   return {
     company: orgSettings_().customer, from: from, to: to, location: loc || 'All locations', byLocation: !!loc,
-    otherLocations: loc ? APP.LOCATIONS.filter(l => l !== loc) : [],
+    otherLocations: loc ? placeNames_().filter(l => l !== loc) : [],
     groups: groups, rows: rows, totals: tot,
     generated: Utilities.formatDate(new Date(), tz_(), 'dd-MM-yyyy HH:mm'),
   };
@@ -6127,7 +6196,7 @@ function rptOwner_(f) {
   const sumL = k => r2_(locs.reduce((s, x) => s + x[k], 0));
   const combined = { loc: 'All locations', opening: sumL('opening'), inward: sumL('inward'), tin: 0, tout: 0, issued: sumL('issued'), closing: sumL('closing') };
   return Object.assign(rptBase_('Owner / Vendor-wise Diesel Summary', rg), {
-    owners: list, total: { qty: total, amount: amountAll, owners: list.length }, locations: APP.LOCATIONS,
+    owners: list, total: { qty: total, amount: amountAll, owners: list.length }, locations: placeNames_(),
     transfers: transfers, transferQty: r2_(transfers.reduce((s, x) => s + x.qty, 0)),
     stock: locs.concat([combined]),
   });
@@ -9199,7 +9268,7 @@ function flowFacts_(fn, args) {
     if (Array.isArray(v)) { v.slice(0, 3000).forEach(x => walk(x, d + 1)); return; }
     if (typeof v !== 'object') return;
     ['date', 'idate', 'from'].forEach(k => { const s = str_(v[k]); if (/^\d{4}-\d{2}-\d{2}$/.test(s)) dates[s] = true; });
-    if (takes) { const q = Number(v.qty !== undefined ? v.qty : v.litres); if (q > 0 && isFinite(q)) { const loc = str_(v.source || (spec.m === 'Diesel Transfer' ? v.from : '')) || APP.MAIN_LOC; byLoc[loc] = r2_((byLoc[loc] || 0) + q); } }
+    if (takes) { const q = Number(v.qty !== undefined ? v.qty : v.litres); if (q > 0 && isFinite(q)) { const loc = str_(v.source || (spec.m === 'Diesel Transfer' ? v.from : '')) || mainPlace_(); byLoc[loc] = r2_((byLoc[loc] || 0) + q); } }
     Object.keys(v).forEach(k => { if (v[k] && typeof v[k] === 'object') walk(v[k], d + 1); });
   };
   walk(args, 0);

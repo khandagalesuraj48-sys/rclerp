@@ -198,6 +198,8 @@ function sysPortalAdmin_(c) {
   portalOnce_(c.jti);
   const pub = u => ({ email: u.email, name: u.name, active: u.active, admin: u.admin, perms: u.perms });
   if (c.act === 'users') { const d = usersAdmin_(); return { users: d.users.map(pub), pages: d.modules }; }
+  if (c.act === 'places') return placesInfo_();      // (update-117) Sites → Diesel places
+  if (c.act === 'placesSave') return sysPlacesSave_(c.places, c.by);
   if (c.act !== 'pages') throw new Error('Unknown action.');
   const email = str_(c.email).toLowerCase(), perms = {};
   MODULES.forEach(m => { const v = (c.perms || {})[m]; if (v === 'Edit' || v === 'View' || v === 'None') perms[m] = v; });
@@ -212,6 +214,27 @@ function sysPortalAdmin_(c) {
   sbFlush_();
   u = readUsersSheet_().find(w => w.email === email) || {};
   return { ok: true, added: !!res.added, changes: res.changes || '', admin: !!u.admin, user: u.email ? pub(u) : null };
+}
+/* ---- (update-117, asked 16-10-2026) the diesel places of a site, set by the Super Admin in the Portal: when he makes the site
+ * (New site) and later under Sites → Diesel places (Code.gs "DIESEL PLACES OF THIS SITE"). The Activity Log keeps the places
+ * before and after. ---- */
+function sysPlacesSave_(list, by) {
+  const caps0 = tankSettings_().caps, before = placeNames_().map(n => n + ' ' + caps0[n] + ' Ltr').join(', ');
+  let res = null;
+  withLock_(() => { res = savePlaces_(list); });
+  const after = res.places.map(p => p.name + ' ' + p.cap + ' Ltr').join(', ');
+  writeLog_({ email: str_(by), name: 'Super Admin (Portal)' }, 'Edit', 'Settings', 'Diesel places', 'Diesel places set by the Super Admin in the Portal: ' + after, before === after ? '' : 'Before: ' + before);
+  sbFlush_();
+  return Object.assign({ ok: true }, res);
+}
+// New site: the places of the form are set once – a site that already has its own places keeps them
+function sysPlacesSetup_(x) {
+  x = x || {};
+  if (x.keep) return { ok: true, note: 'kept as the site has them: ' + placeNames_().join(', ') };      // a site brought back with its own database
+  if (str_(PropertiesService.getScriptProperties().getProperty('DIESEL_PLACES'))) return { ok: true, note: 'already set: ' + placeNames_().join(', ') + ' (to change them: Sites → Diesel places)' };
+  if (!Array.isArray(x.places) || !x.places.length) return { ok: false, note: 'Add the diesel places of this site (name and tank size), then press Check & set up again.' };
+  try { const r = sysPlacesSave_(x.places, x.by); return { ok: true, note: r.places.map(p => p.name + ' (' + p.cap + ' Ltr)').join(', ') }; }
+  catch (e) { return { ok: false, note: String((e && e.message) || e) }; }
 }
 /* ---- (update-95) "New site": run inside the NEW site's database while it is set up ---- */
 // every SQL step of Mechanical for a new site, in one piece – the same files as Read Me, without the keep-awake timer (the first

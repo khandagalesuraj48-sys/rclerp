@@ -1674,6 +1674,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (`flowMine_` → getInit.flow / Approvals.mine; page `FLOW_BTNS`, `flowWill`, `flowLabels`). Send back (`flowDecide_` revert → status
   Reverted, single + bulk), the sender answers / takes back (`answerFlow` → `flowAnswer_`), reminded every 30 min (`flowRemind_`).
   Diesel Issue reading way by itself (`dieselWay` / `dieselWayMount`; "Meter not working" only). Unit "update-116"; browser flow116.js 18.
+- 16-10-2026 (update-117). Report: `UPDATE_117.md`. Every site its own diesel places (18B: Camp Pump 18,000 + dispensers
+  MH12ZE1739 / MH12WJ1381 2,650), set by the Super Admin in the Portal (New site step 6, Sites → Diesel places). Site setting
+  `DIESEL_PLACES` + `TANK_CAP_<name>`; `places_` / `placeNames_` / `mainPlace_` / `meterPlaces_` replace `APP.LOCATIONS` / `MAIN_LOC`;
+  `savePlaces_` (a place with entries keeps its name; first place fixed while old entries have no place); Sites.gs acts `places` /
+  `placesSave`, `sysPlacesSetup_`. No setting = Dispenser + VTR Store (VTR as before). Dashboard: one tank per place (`tankOwnHtml`).
+  Unit "update-117"; rig places117api.js 33, newsite95.js 37; browser places117.js 13.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

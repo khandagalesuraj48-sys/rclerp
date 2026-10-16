@@ -141,6 +141,11 @@ function siteSetup(R, c) {
   else try { sites.setupWith(conf); R.runIn(code, 'sysOrgSet', [{ customer: org && org.customer, site: c.name, logo: org && org.logo, billNames: org && org.billNames, intro: !(org && org.intro === false), video: org && org.video }]); orgOk = true; }
   catch (e) { orgNote = String((e && e.message) || e).slice(0, 200); } finally { sites.setupWith(null); }
   if (!add('company', orgOk, orgNote)) return out();
+  // (update-117, asked 16-10-2026) the site's own diesel places (name, tank size) from the form – set once; later: Sites → Diesel places
+  let pl = null;
+  try { sites.setupWith(conf); pl = R.runIn(code, 'sysPlacesSetup', [{ places: Array.isArray(c.places) ? c.places.slice(0, 20) : [], by: c.by, keep: same }]); }
+  catch (e) { pl = { ok: false, note: String((e && e.message) || e).slice(0, 200) }; } finally { sites.setupWith(null); }
+  if (!add('places', pl && pl.ok, (pl && pl.note) || '')) return out();
   // in the list of sites: Ready (its key stays in Vercel – nothing locked here)
   const comp = c.company && c.company.id ? c.company : null;
   if (comp && !(sites.homeRest('GET', 'rcl_companies?select=id&id=eq.' + encodeURIComponent(comp.id)) || []).length && comp.name)

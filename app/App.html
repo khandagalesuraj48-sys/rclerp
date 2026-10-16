@@ -1742,6 +1742,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .brl-row { display: grid; grid-template-columns: repeat(5, 68px); gap: 14px 16px; justify-content: center; align-items: end; }
   .brl { width: 68px; height: auto; filter: drop-shadow(0 4px 6px rgba(15,23,42,.12)); transition: opacity .3s; }
   .brl.empty { opacity: .75; }
+  #tanks.tanks.own { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }      /* (update-117) one tank per diesel place */
+  .tk-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .tk-one .brl-row { grid-template-columns: 112px; } .tk-one .brl { width: 112px; } .tk-one .brl-base { width: 160px; } .tk-one .tkc-vis { min-height: 190px; }
   .brl-base { width: min(420px, 94%); height: 10px; margin-top: 8px; border-radius: 6px; background: linear-gradient(180deg, #CBD5E1, #94A3B8); box-shadow: 0 6px 10px rgba(15,23,42,.08); }
   @media (max-width: 900px) { #tanks.tanks { grid-template-columns: 1fr; } }
   @media (max-width: 760px) { .brl-row { grid-template-columns: repeat(5, 44px); gap: 10px; } .brl { width: 44px; } .tkc-num b { font-size: 32px; } }
@@ -5466,6 +5469,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Shown: under every red message (a card at the bottom right), inside every "Nothing saved / Not submitted" box, and next
    * to warnings on the billing page. The language is remembered on this device (rcl_lang). To cover a new message: add a rule. */
   const FIX_RULES = [
+    { re: /Diesel place|diesel places|must stay the first diesel place/i,      // (update-117) the site's diesel places, set by the Super Admin in the Portal
+      en: ['The diesel places of this site (pump, dispensers, store – each with its tank size) are set by the Super Admin in the Portal: Sites → Diesel places.', 'Nothing was changed. Give every place a name (letters, digits, spaces) and its tank size in Ltr, each name once. A place that has entries keeps its name and cannot be taken away; new places can be added at any time.'],
+      mr: ['या site च्या diesel जागा (pump, dispenser, store – प्रत्येकाची tank size) Super Admin Portal मध्ये ठरवतो: Sites → Diesel places.', 'काहीही बदलले नाही. प्रत्येक जागेला नाव (अक्षरे, अंक, space) आणि Ltr मध्ये tank size द्या, प्रत्येक नाव एकदाच. ज्या जागेच्या entries आहेत तिचे नाव बदलत नाही आणि ती काढता येत नाही; नवीन जागा कधीही add करता येते.'],
+      hi: ['इस site की diesel जगहें (pump, dispenser, store – हर एक का tank size) Super Admin Portal में तय करता है: Sites → Diesel places।', 'कुछ भी नहीं बदला। हर जगह को नाम (अक्षर, अंक, space) और Ltr में tank size दें, हर नाम एक बार। जिस जगह की entries हैं उसका नाम नहीं बदलता और उसे हटाया नहीं जा सकता; नई जगह कभी भी add की जा सकती है।'] },
     { re: /given by the Super Admin only|do not have access to this site|Ask the Super Admin/i,      // update-90: several sites
       en: ['Users and access – also which sites a person has – are given by the Super Admin.', 'Nothing was changed. Ask the Super Admin to give the access or the site; then sign in again.'],
       mr: ['Users आणि access – कोणाला कोणती site – हे Super Admin देतो.', 'काहीही बदलले नाही. Super Admin ला access किंवा site द्यायला सांगा; मग पुन्हा sign in करा.'],
@@ -6757,7 +6764,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       sel.value = keep && S.locations.indexOf(keep) > -1 ? keep : (def || (all ? '' : S.locations[0]));
     });
     if (typeof meterBoxes === 'function') meterBoxes(); // meter box only for the Dispenser
+    // (update-117) a site with its own diesel places (Portal → Sites → Diesel places): no text names the first site's two places
+    const sn = document.querySelector('#sec-rp-stock .empty-note');
+    if (sn && !vtrPlaces()) sn.textContent = 'Every diesel movement of one diesel place with the running balance.';
   }
+  // the first site's two places (Dispenser, VTR Store) – its texts stay exactly as they were
+  function vtrPlaces() { return (S.locations || []).join('|') === 'Dispenser|VTR Store'; }
   function setTypeOwnerLists() {
     const uniq = k => [...new Set((S.master || []).map(m => m[k]).filter(Boolean))].sort();
     if ($('dl_types')) $('dl_types').innerHTML = uniq('type').map(v => '<option value="' + esc(v) + '">').join('');
@@ -7293,7 +7305,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     /* The lists every form needs (machinery, drivers, pumps): at once when the Asset Master changed; after other people's
      * diesel / Log Book entries at most once in 15 seconds (they only add a new driver name or a last reading) –
      * and without asking for the vehicle-papers badge again, which those entries cannot change. */
-    const lookups = async quiet => { try { const L = await rawCall('getLookups'); S.quietMaster = !!quiet; setMaster(L.master); setTimeout(() => { S.quietMaster = false; }, 50); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors); } catch (e) {} };
+    const lookups = async quiet => { try { const L = await rawCall('getLookups'); S.quietMaster = !!quiet; setMaster(L.master); setTimeout(() => { S.quietMaster = false; }, 50); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors);
+      if (L.locations && L.locations.length && L.locations.join('|') !== (S.locations || []).join('|')) setLocations(L.locations); } catch (e) {} };      // (update-117) the diesel places changed in the Portal
     if (has('flow')) crLoad(true);      // (update-114) a verification request sent or decided: the Approvals list and its number
     if (has('master')) await lookups(false);
     else if (has('stock') || has('log')) { const wait = Math.max(0, 15000 - (Date.now() - (S.lookAt || 0))); clearTimeout(S.lookT); S.lookT = setTimeout(() => { S.lookAt = Date.now(); lookups(true); }, wait); }
@@ -13610,12 +13623,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!stock) return;
     const caps = TANKS.caps || {}, low = Number(TANKS.low) || 0, by = stock.byLoc || {};
     const locs = S.locations && S.locations.length ? S.locations : Object.keys(caps);
-    const dName = locs[0] || 'Dispenser', vName = locs[1] || 'VTR Store';
-    const d = { qty: Number(by[dName]) || 0, cap: Number(caps[dName]) || 10000 };
-    const v = { qty: Number(by[vName]) || 0, cap: Number(caps[vName]) || 2000 };
     const box = $('tanks');
-    // built once (so the diesel keeps moving smoothly between updates); again only if the store size changes
-    if (!box.querySelector('.tk-pick') || box.dataset.vcap !== String(v.cap)) { box.innerHTML = tankPickupHtml(dName) + tankBarrelsHtml(vName, v.cap); box.dataset.vcap = String(v.cap); }
     const head = (card, qty, cap, isLow) => {
       const p = cap > 0 ? Math.max(0, Math.min(1, qty / cap)) : 0;
       card.classList.toggle('low', isLow);
@@ -13626,6 +13634,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       card.querySelector('.tcap').textContent = isLow ? 'Below ' + fmt(low) + ' Ltr – refill soon' : 'Turns red below ' + fmt(low) + ' Ltr';
       return p;
     };
+    if (TANKS.own) {      // (update-117) a site with its own diesel places (Portal → Sites → Diesel places): one tank for each place
+      const key = locs.map(l => l + '|' + (Number(caps[l]) || 0)).join(';');
+      if (box.dataset.own !== key) { box.innerHTML = tankOwnHtml(locs); box.dataset.own = key; box.dataset.vcap = ''; box.classList.add('own'); }
+      box.querySelectorAll('.tk-one').forEach((card, i) => {
+        const l = locs[i], qty = Number(by[l]) || 0, cap = Number(caps[l]) || 10000, p = head(card, qty, cap, qty < low), BH = 66;
+        card.querySelector('.liq-g').style.transform = 'translateY(' + (p <= 0 ? BH + 8 : BH * (1 - p)).toFixed(1) + 'px)';
+        card.querySelector('.brl').classList.toggle('empty', p <= 0);
+        card.title = l + ': ' + fmt(qty) + ' Ltr of ' + fmt(cap) + ' Ltr';
+      });
+      $('tank_set').hidden = !canEdit('Master');
+      return;
+    }
+    const dName = locs[0] || 'Dispenser', vName = locs[1] || 'VTR Store';
+    const d = { qty: Number(by[dName]) || 0, cap: Number(caps[dName]) || 10000 };
+    const v = { qty: Number(by[vName]) || 0, cap: Number(caps[vName]) || 2000 };
+    // built once (so the diesel keeps moving smoothly between updates); again only if the store size changes
+    if (!box.querySelector('.tk-pick') || box.dataset.vcap !== String(v.cap)) { box.innerHTML = tankPickupHtml(dName) + tankBarrelsHtml(vName, v.cap); box.dataset.vcap = String(v.cap); box.dataset.own = ''; box.classList.remove('own'); }
     // Dispenser: pickup with the tank on its back
     const pk = box.querySelector('.tk-pick');
     const pd = head(pk, d.qty, d.cap, d.qty < low);
@@ -13694,10 +13719,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<path d="M300 140 l16 5 l-3 9 l-16 -5 z" fill="#DC2626"/><path d="M314 146 l8 2" stroke="#94A3B8" stroke-width="3" stroke-linecap="round"/>' +
       '</svg></div><div class="tcap"></div></div>';
   }
-  function tankBarrelsHtml(name, cap) {
-    const n = Math.max(1, Math.min(12, Math.round(cap / 200)));
-    const icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="7" ry="2.5"/><path d="M5 5v14c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V5"/><path d="M5 10c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5M5 15c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></svg>';
-    const one = i => '<svg class="brl" viewBox="0 0 64 90" aria-hidden="true"><defs>' +
+  const DRUM_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="7" ry="2.5"/><path d="M5 5v14c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V5"/><path d="M5 10c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5M5 15c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></svg>';
+  const drumSvg = i => '<svg class="brl" viewBox="0 0 64 90" aria-hidden="true"><defs>' +
       '<linearGradient id="gDrum' + i + '" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#94A3B8"/><stop offset=".3" stop-color="#F1F5F9"/><stop offset=".65" stop-color="#E2E8F0"/><stop offset="1" stop-color="#64748B"/></linearGradient>' +
       '<clipPath id="cB' + i + '"><rect x="8" y="12" width="48" height="66" rx="5"/></clipPath></defs>' +
       '<rect x="5" y="8" width="54" height="76" rx="8" fill="url(#gDrum' + i + ')" stroke="#64748B" stroke-width="1.5"/>' +
@@ -13705,9 +13728,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<path d="M5 32 H59 M5 60 H59" stroke="#475569" stroke-width="2.5" opacity=".75"/>' +
       '<ellipse cx="32" cy="8.5" rx="26.5" ry="4.5" fill="#CBD5E1" stroke="#64748B" stroke-width="1.5"/><circle cx="44" cy="8" r="2.4" fill="#334155"/>' +
       '<rect x="11" y="14" width="5" height="62" rx="2.5" fill="#fff" opacity=".45"/></svg>';
-    return '<div class="tkc tk-barrels">' + tkHead(name, 'Diesel in barrels', icon) +
-      '<div class="tkc-vis"><div class="brl-row">' + Array.from({ length: n }, (_, i) => one(i)).join('') + '</div><div class="brl-base"></div></div>' +
+  function tankBarrelsHtml(name, cap) {
+    const n = Math.max(1, Math.min(12, Math.round(cap / 200)));
+    return '<div class="tkc tk-barrels">' + tkHead(name, 'Diesel in barrels', DRUM_ICON) +
+      '<div class="tkc-vis"><div class="brl-row">' + Array.from({ length: n }, (_, i) => drumSvg(i)).join('') + '</div><div class="brl-base"></div></div>' +
       '<div class="tkc-foot"><span class="b-sub"></span></div><div class="tcap"></div></div>';
+  }
+  // (update-117) a site's own diesel places: one tank each (the diesel colour is defined once here – at the first site the pickup has it)
+  function tankOwnHtml(locs) {
+    return '<svg class="tk-defs" width="0" height="0" aria-hidden="true"><defs>' +
+      '<linearGradient id="gFuel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FCD34D"/><stop offset=".45" stop-color="#F59E0B"/><stop offset="1" stop-color="#B45309"/></linearGradient>' +
+      '<linearGradient id="gFuelLow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FCA5A5"/><stop offset=".4" stop-color="#EF4444"/><stop offset="1" stop-color="#991B1B"/></linearGradient></defs></svg>' +
+      locs.map((l, i) => '<div class="tkc tk-one">' + tkHead(l, 'Diesel tank', DRUM_ICON) +
+        '<div class="tkc-vis"><div class="brl-row">' + drumSvg('o' + i) + '</div><div class="brl-base"></div></div><div class="tcap"></div></div>').join('');
   }
   $('tank_set').addEventListener('click', async () => {
     const t = TANKS || { caps: {}, low: 1000 };
@@ -13734,7 +13767,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<dt>+ Received from pump (inward)</dt><dd class="plus">' + fmt(c.inward) + '</dd>' +
       '<dt>− Issued to machinery</dt><dd class="minus">' + fmt(c.issued) + '</dd>' +
       '<dt class="tot">= ' + esc(endTxt) + '</dt><dd class="tot">' + fmt(c.closing) + ' Ltr</dd>' +
-      '<dt class="sm">Moved Dispenser ↔ VTR Store (inside company, not added or removed)</dt><dd class="note">' + fmt(c.moved) + '</dd></dl>' +
+      '<dt class="sm">' + (vtrPlaces() ? 'Moved Dispenser ↔ VTR Store (inside company, not added or removed)' : 'Moved between the diesel places (inside company, not added or removed)') + '</dt><dd class="note">' + fmt(c.moved) + '</dd></dl>' +
       '<div class="check' + (cOk ? '' : ' off') + '">' + (cOk ? '✓ Opening + Received − Issued = Closing' : 'Does not add up: ' + fmt(cCalc) + ' vs ' + fmt(c.closing)) + '</div></div>' : '';
     $('loc_cards').innerHTML = combined + list.map(x => {
       const calc = r2(x.opening + x.inward + x.tin - x.tout - x.issued);
@@ -13765,7 +13798,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         : [['opening', 'Opening stock'], ['inward', '+ Received from pump'], ['issued', '− Issued to machinery'], ['closing', 'Closing stock']];
       $('lg_help').textContent = loc
         ? 'Stock of ' + loc + ' only. "Received from / Sent to" are diesel transfers between ' + loc + ' and ' + other + '. Opening + Received − Sent − Issued = Closing.'
-        : 'All locations together. Opening + Received from pump − Issued = Closing. Transfers between Dispenser and VTR Store are inside the company and do not change this total.';
+        : vtrPlaces() ? 'All locations together. Opening + Received from pump − Issued = Closing. Transfers between Dispenser and VTR Store are inside the company and do not change this total.'
+        : 'All locations together. Opening + Received from pump − Issued = Closing. Transfers between the diesel places are inside the company and do not change this total.';
       $('lg_head').innerHTML = '<tr><th>Date</th>' + cols.map(c => '<th class="n">' + esc(c[1]) + '</th>').join('') + '</tr>';
       const cell = (x, k) => k === 'closing' ? '<td class="n"><b class="' + (x[k] < 0 ? 'neg' : '') + '">' + fmt(x[k]) + '</b></td>' : '<td class="n">' + fmt(x[k]) + '</td>';
       $('lg_rows').innerHTML = L.rows.slice().reverse().map(x => '<tr><td>' + esc(showDate(x.date)) + '</td>' + cols.map(c => cell(x, c[0])).join('') + '</tr>').join('');
