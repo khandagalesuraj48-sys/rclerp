@@ -36,11 +36,16 @@ vehicle aahet water tanker che … new jari koni water tanker add zala tri tyach
   agencies in order; 100 empty lines with only the agency formula; the drop-downs (Shift on every line, VEHICLE NO from the 3
   tankers); the hidden list; the message. Import: a line without VEHICLE NO → "Fix the file first", nothing sent; two tankers in a
   file → each line its own tanker. The same test on the page before this update **fails** (one tanker, fixed in the lines).
+* The real file: the page's own `saveXlsxLists` (ExcelJS 4.4.0, the page's copy) run in node on the Export's sheets (4 tankers of
+  2 agencies), opened with openpyxl: tab "Trips" + tab "Lists" (hidden, every tanker with its agency); the 8 trips; lines 14–113
+  empty but for the agency formula; drop-downs Shift (C6:C113) and VEHICLE NO (E…:E113 = Lists!$A$1:$A$4). Two vehicles picked
+  in the empty lines and the file recalculated by LibreOffice: NAME OF AGENCY came by itself (Patil Water Supply, Chalke
+  Enterprises); a line without a vehicle stays blank.
 * `node --check` on server/*.js and api/*.js; every script block of the page parses (unit update-110); no secret in the change.
 
 ## Not run / not verified
-* Browser and API tests (the local rig was not built for this change); the file was not opened in Excel here – the drop-down
-  from a hidden "Lists" tab and the formula cells are the same kinds the Log Book template / export already make.
+* Browser and API tests (the local rig was not built for this change); not opened in Microsoft Excel itself (LibreOffice and
+  openpyxl were used).
 
 ## Going back
 Vercel → Instant Rollback to the deployment before this one. Nothing in the data changes.
