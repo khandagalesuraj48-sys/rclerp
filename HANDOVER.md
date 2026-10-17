@@ -1704,6 +1704,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   tankers only), 100 empty lines with no tanker in them (VEHICLE NO drop-down from the hidden tab "Lists" = every Format I tanker,
   NAME OF AGENCY a VLOOKUP formula on it, Shift on every line); `lt_file` no longer gives a line without its VEHICLE NO to the
   tanker open ("Fix the file first"). Page only, no server change. App 3.18.1. Unit "update-121".
+- 17-10-2026 (update-122). Report: `UPDATE_122.md`. FIX (live since update-115): on a phone / tablet the machinery box of an entry
+  (Diesel Issue, Log Book, Tank Check, Breakdown – `dl_mach_on`) showed no number: `pkTake` moves `list` to `data-pk`, and
+  `machOnFill`'s listeners looked only at `list`. Now `machOnBox` (list or data-pk) and `pkOptions` → `machOnFill` first; `pkApple`:
+  every iPad / iPhone gets the app's own list. Page only. Browser `test/browser/picklist122.js` 13 (no rig needed).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
