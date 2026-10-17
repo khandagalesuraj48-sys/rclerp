@@ -13,8 +13,7 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
     if (name === 'wide') {
       const tab = await p.evaluate(async () => { const l = document.querySelector('link[rel="icon"]'), a = document.querySelector('link[rel="apple-touch-icon"]'); const sz = async u => { const bm = await createImageBitmap(await (await fetch(u)).blob()); return bm.width + 'x' + bm.height; }; return { icon: l && l.getAttribute('href'), iconSize: l ? await sz(l.href) : '', apple: a && a.getAttribute('href'), appleSize: a ? await sz(a.href) : '' }; });
       ok('the browser tab and an iPhone show the new logo (its own files of the app, not a link elsewhere)', tab.icon === '/icons/oc2-favicon-64.png' && tab.iconSize === '64x64' && tab.apple === '/icons/oc2-apple-180.png' && tab.appleSize === '180x180', tab);
-      const intro = await f.evaluate(() => { const bx = document.getElementById('oc_intro'), im = bx.querySelector('img.oc-logo'); return { shown: !bx.hidden, src: im && im.getAttribute('src'), w: im && im.naturalWidth, oldMark: !!bx.querySelector('svg.oc-mark') }; });
-      ok('the opening shows the logo (the drawn mark is gone)', intro.shown && intro.src === '/icons/oc-logo-glow.webp' && intro.w === 700 && !intro.oldMark, intro);
+      ok('(update-123) no opening film – the sign-in at once', await f.evaluate(() => !document.getElementById('oc_intro')));
     }
     await wait(5000);
     const lg = await f.evaluate(() => { const im = document.querySelector('#login_screen .lp-img'), lo = document.querySelector('#login_form .oc-logo'), card = getComputedStyle(document.getElementById('login_form'));

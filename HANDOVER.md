@@ -1708,6 +1708,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (Diesel Issue, Log Book, Tank Check, Breakdown – `dl_mach_on`) showed no number: `pkTake` moves `list` to `data-pk`, and
   `machOnFill`'s listeners looked only at `list`. Now `machOnBox` (list or data-pk) and `pkOptions` → `machOnFill` first; `pkApple`:
   every iPad / iPhone gets the app's own list. Page only. Browser `test/browser/picklist122.js` 13 (no rig needed).
+- 17-10-2026 (update-123). Report: `UPDATE_123.md`. No opening film: `#oc_intro`, its styles and `ocIntro` are gone; the link opens
+  the sign-in at once. "Company & site" without the film link / tick / "Play the opening now", My settings without "Play the
+  opening"; `org_save` sends back the kept `video` / `intro` unchanged (no data change, no server change). App 3.19.1 (its
+  "Company & site" too). Unit "update-123"; browser `test/browser/nofilm123.js` 6 (no rig needed).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

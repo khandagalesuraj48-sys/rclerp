@@ -3544,3 +3544,30 @@ test('update-121: the water tanker Excel is of EVERY water tanker (every agency)
   assert.deepStrictEqual(r.calls.map(x => [x[0], x[1].rows.map(y => y.no + ' ' + y.shift + ' ' + y.a)]), [['checkTankerImport', ['MH-12-AB-1001 Day 09:00', 'MH-12-ZZ-7777 Night 21:00']], ['importTankerTrips', ['MH-12-AB-1001 Day 09:00', 'MH-12-ZZ-7777 Night 21:00']]], 'two tankers of a file, each its own');
   assert.match(r.boxes[0].html, /2 trips will be added \(2 tankers\)/);
 });
+
+test('update-123: no opening film of One Click Solution – the link opens the sign-in at once; "Company & site" without the film; what was kept for it stays as it was', async () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  for (const gone of ['id="oc_intro"', 'id="oc_video"', 'id="oc_skip"', 'function ocIntro', 'ocIntro(', 'id="org_video"', 'id="org_intro"', 'id="org_play"', 'data-pref="intro"', 'oc_intro_off', '/icons/oc-logo-glow.webp', '@keyframes ocZoom'])
+    assert.ok(app.indexOf(gone) === -1, 'still in the page: ' + gone);
+  assert.ok(app.indexOf('id="login_screen"') > -1 && app.indexOf('id="boot"') > -1, 'the sign-in and the loading gauge are there');
+  // "Save company & site": the film's link and its tick are not asked any more – what the server keeps for them is sent back as it is
+  const i = app.indexOf("$('org_save').addEventListener('click'"), j = app.indexOf('}).catch(er => toast(errMsg(er), true)));', i);
+  assert.ok(i > -1 && j > i);
+  const save = app.slice(app.indexOf('busy(e.target', i), j) + '})';
+  const field = { org_customer: ' Rachana Construction Limited ', org_site: 'VTR Site – NH 848', org_logo: '', org_names: 'Rachana Construction Limited\nSketchline Industries' };
+  const sent = [];
+  const run = org => new Function('e', 'S', '$', 'call', 'applyOrg', 'toast', 'busy', 'return ' + save + ';')(
+    { target: {} }, { org: org }, id => ({ value: field[id] }), async (fn, b) => { sent.push([fn, b]); return { org: b }; }, () => {}, () => {}, (b, t, fn) => fn());
+  await run({ customer: 'Rachana Construction Limited', video: 'https://example.test/film.mp4', intro: false });
+  await run({ customer: 'Rachana Construction Limited' });
+  assert.deepStrictEqual(sent.map(x => [x[0], x[1].customer, x[1].billNames.length, x[1].video, x[1].intro]), [
+    ['saveOrgSettings', 'Rachana Construction Limited', 2, 'https://example.test/film.mp4', false],
+    ['saveOrgSettings', 'Rachana Construction Limited', 2, '', true]], 'the kept film settings go back unchanged (nothing in the data changes)');
+  // the words of the film are gone from the languages too (every word of a dictionary is a word of the page)
+  for (const l of ['mr', 'hi']) {
+    const d = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8'));
+    for (const k of ['Play the opening now', 'Play the opening when the app is opened', 'Play the opening when I open the app', 'Opening film (https link to an .mp4, optional)', 'Fleet ERP · diesel, machinery and bills in one click'])
+      assert.ok(!(k in d), l + ': ' + k);
+    assert.ok('Less movement (no gliding)' in d, l);
+  }
+});
