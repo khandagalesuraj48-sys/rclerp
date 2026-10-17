@@ -4874,10 +4874,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    *     a computer), so everything that follows a pick – the machinery's details, the Start reading – happens immediately;
    *   - above the box when the keyboard leaves no room below; goes away on a tap elsewhere, on Back, or when the box is left.
    * It works for every such box, also the ones in rows added later, and for lists filled later. A computer keeps the browser's list. */
-  const pkTouch = () => { try { return (window.matchMedia && matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints > 0 && Math.min(window.innerWidth, screen.width || 9999) < 900); } catch (e) { return false; } };
+  // (update-122) an iPad / iPhone always gets this list – also an iPad with a keyboard or trackpad, or one that says it is a Mac:
+  // Safari's own list there is shown only in the keyboard's bar (not at all with a keyboard attached)
+  const pkApple = () => { try { const u = navigator.userAgent || ''; return /iPad|iPhone|iPod/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints > 1); } catch (e) { return false; } };
+  const pkTouch = () => { try { return pkApple() || (window.matchMedia && matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints > 0 && Math.min(window.innerWidth, screen.width || 9999) < 900); } catch (e) { return false; } };
   const PK = { box: null, el: null, at: 0 };
   const pkKey = v => String(v || '').toUpperCase().replace(/[^A-Z0-9\u0900-\u097F]/g, '');
-  function pkOptions(inp) { const dl = document.getElementById(inp.dataset.pk || ''); if (!dl) return [];
+  function pkOptions(inp) { if (inp.dataset.pk === 'dl_mach_on') machOnFill(inp);      // (update-122) the machinery on site on the entry's date – made before it is read
+    const dl = document.getElementById(inp.dataset.pk || ''); if (!dl) return [];
     return [...dl.querySelectorAll('option')].map(o => ({ v: o.value || o.textContent || '', l: o.label && o.label !== o.value ? o.label : (o.value && o.textContent && o.textContent !== o.value ? o.textContent : '') })).filter(o => o.v); }
   function pkClose() { if (PK.box) PK.box.hidden = true; PK.el = null; }
   function pkPlace() { const inp = PK.el, box = PK.box; if (!inp || !box || box.hidden) return;
@@ -14325,8 +14329,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     S.machOnFor = dk;
     $('dl_mach_on').innerHTML = (S.master || []).filter(m => !dk || onSiteOn(m, dk)).map(machOpt).join('');
   }
-  document.addEventListener('focusin', e => { const t = e.target; if (t && t.getAttribute && t.getAttribute('list') === 'dl_mach_on') machOnFill(t); });
-  document.addEventListener('input', e => { const t = e.target; if (t && t.getAttribute && t.getAttribute('list') === 'dl_mach_on') machOnFill(t); });
+  // (update-122) on a phone / tablet the box's list is the app's own (pkTake moves "list" to data-pk) – it is that box too. Before
+  // this, the list of the machinery on site stayed EMPTY there: Diesel Issue, Log Book, Tank Check, Breakdown showed no number to pick
+  const machOnBox = t => !!(t && t.getAttribute && (t.getAttribute('list') || (t.dataset && t.dataset.pk)) === 'dl_mach_on');
+  document.addEventListener('focusin', e => { if (machOnBox(e.target)) machOnFill(e.target); });
+  document.addEventListener('input', e => { if (machOnBox(e.target)) machOnFill(e.target); });
   function renderMaster() {
     if (!S.mfDated && S.today) { S.mfDated = true; $('mf_from').value = S.today; $('mf_to').value = S.today; }      // (update-115) at first: the machinery on site today
     const rows = masterFiltered(), can = canEdit('Master');
