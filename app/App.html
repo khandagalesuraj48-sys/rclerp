@@ -2914,7 +2914,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <button class="btn primary" id="lt_save" type="button" disabled>Save changes</button>
         <button class="btn ghost" id="lt_reload" type="button">Undo all (reload)</button>
         <button class="btn danger" id="lt_delsel" type="button" hidden>Delete selected</button>
-        <button class="btn ghost" id="lt_export" type="button" title="These trips in the Water Tanker Report layout, with empty lines to fill">Export Excel</button>
+        <button class="btn ghost" id="lt_export" type="button" title="The trips of every water tanker (every agency) in these dates – the Water Tanker Report layout, with empty lines to fill">Export Excel</button>
         <button class="btn ghost" id="lt_import" type="button" title="Add many trips from an Excel file (this layout) – many tankers and dates">Import Excel</button>
         <input type="file" id="lt_file" accept=".xlsx,.xls,.csv" hidden>
         <span class="sum" id="lt_sum" style="margin-left:auto"></span>
@@ -15516,25 +15516,43 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const LT_HEAD = ['SR. NO.', 'DATE', 'SHIFT', 'NAME OF AGENCY', 'VEHICLE NO', 'CHALLAN NO', 'DISPATCH TIME', 'UNLOAD TIME', 'TRIP', 'CHAINAGE NO', 'USE FOR'];
   const LT_COLS = [['date', /^date$/], ['shift', /^shift$/], ['no', /^(vehicle no|vehicle|vehicle number|tanker|tanker no|machinery|machinery no)$/], ['c', /^(challan no|challan|challan number)$/],
     ['a', /^(dispatch time|dispatch)$/], ['b', /^(unload time|unload|unloading time)$/], ['ch', /^(chainage no|chainage|chainage no\.)$/], ['u', /^(use for|use|used for)$/]];
+  /* (update-121, asked 17-10-2026: "water tanker … import export madhe ekach fix vehicle nko – multiple vendor vehicle aahet … new
+   * water tanker add zala tri tyach pan sagle karta yaw") the file is of EVERY water tanker of every agency, not of the one open:
+   * the trips of all of them in the dates on screen (date, shift, agency, vehicle, time), and 100 empty lines whose VEHICLE NO is
+   * picked from the list of water tankers (Asset Master, Log Book Format I – a tanker set to Format I is in it at once) and whose
+   * NAME OF AGENCY comes by itself from that list (hidden tab "Lists"). Import reads each line's own VEHICLE NO. */
   $('lt_export').addEventListener('click', e => busy(e.target, 'Exporting…', async () => {
-    const d = S.lt.d, rows = d.trips.map((t, i) => [i + 1, showDate(t.date), t.shift, d.machine.owner || '', d.machine.id, t.c, t.a, t.b, 1, t.ch, t.u]);
-    const body = [LT_HEAD].concat(rows); for (let k = 0; k < 100; k++) body.push(['', '', '', d.machine.owner || '', d.machine.id]);      // empty lines to fill (the tanker filled in)
-    const head = lbHeadRows('WATER TANKER REPORT – ' + d.machine.id + ' – ' + showDate(d.from) + ' to ' + showDate(d.to));
-    await saveXlsxLists('Water tanker ' + d.machine.id + ' ' + showDate(d.from).replace(/\//g, '-') + ' to ' + showDate(d.to).replace(/\//g, '-') + '.xlsx',
+    const d = S.lt.d, tks = wtTankers().slice().sort((a, b) => String(a.owner || '').localeCompare(String(b.owner || '')) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+    const list = await call('getLogBookList', { from: d.from, to: d.to, all: true }), trips = [], ord = { 'Full Day': 0, Day: 1, Night: 2 };
+    (list.rows || []).forEach(r => { const m = findMachine(r.no), ts = m && m.lbFormat === 'I' ? tripsOfRow(r) : null; if (!ts) return;
+      ts.forEach(t => trips.push(Object.assign({ date: r.date, shift: r.shift || 'Full Day', no: m.id, owner: m.owner || '' }, t))); });
+    const at = t => { const sp = wtSpan(t.a, t.b, t.shift); return sp ? sp[0] : 1e9; };
+    trips.sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : (ord[x.shift] || 0) - (ord[y.shift] || 0) || x.owner.localeCompare(y.owner) || x.no.localeCompare(y.no, undefined, { numeric: true }) || at(x) - at(y));
+    const head = lbHeadRows('WATER TANKER REPORT – all water tankers – ' + showDate(d.from) + ' to ' + showDate(d.to));
+    const body = [LT_HEAD].concat(trips.map((t, i) => [i + 1, showDate(t.date), t.shift, t.owner, t.no, t.c, t.a, t.b, 1, t.ch, t.u])), last = Math.max(1, tks.length);
+    for (let k = 0; k < 100; k++) { const n = head.length + body.length + 1;      // an empty line to fill: its agency follows the VEHICLE NO picked
+      body.push(['', '', '', { formula: 'IF(E' + n + '="","",IFERROR(VLOOKUP(E' + n + ',Lists!$A$1:$B$' + last + ',2,FALSE),""))' }]); }
+    await saveXlsxLists('Water tankers ' + showDate(d.from).replace(/\//g, '-') + ' to ' + showDate(d.to).replace(/\//g, '-') + '.xlsx',
       [{ name: 'Trips', aoa: head.concat(body), widths: [8, 12, 10, 24, 16, 16, 13, 13, 7, 14, 22], head: head.length + 1,
-         lists: [{ col: 2, values: ['Day', 'Night'], title: 'Shift', prompt: 'Day or Night', skip: r => !String(r[4] || '').trim() }] }]);
-    toast(d.trips.length + ' trip' + (d.trips.length === 1 ? '' : 's') + ' and 100 empty lines. Fill the lines (date, shift, challan, dispatch, unload…) and bring the file back with "Import Excel".');
+         lists: [{ col: 2, values: ['Day', 'Night'], title: 'Shift', prompt: 'Day or Night' },
+           { col: 4, ref: 'Lists!$A$1:$A$' + last, title: 'Vehicle No', prompt: 'Pick the water tanker – its agency comes by itself.' }] },
+       { name: 'Lists', aoa: tks.map(m => [m.id, m.owner || '']), hidden: true }]);
+    const n = new Set(trips.map(t => t.no)).size;
+    toast(trips.length + ' trip' + (trips.length === 1 ? '' : 's') + ' of ' + n + ' water tanker' + (n === 1 ? '' : 's') + ' and 100 empty lines. Pick the VEHICLE NO of a line (its agency comes by itself), fill the date, shift, challan, dispatch, unload… and bring the file back with "Import Excel".');
   }));
   $('lt_import').addEventListener('click', () => { try { window.rclLoadXlsx(); } catch (e) {} $('lt_file').click(); });
   $('lt_file').addEventListener('change', e => {
     const f = e.target.files[0]; e.target.value = '';
     if (f) busy($('lt_import'), 'Reading…', async () => {      // (afterwards: the buttons as the grid says)
       needXlsx();
-      const raw = await readExcelRows(f, LT_COLS, ['date', 'c'], true), me = S.lt && S.lt.d ? S.lt.d.machine.id : '';
+      const raw = await readExcelRows(f, LT_COLS, ['date', 'c'], true);
       const tm = v => { if (v === '' || v === null || v === undefined) return ''; if (typeof v === 'number') { const t = Math.round((v % 1) * 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); } return String(v).trim(); };
-      const rows = raw.filter(x => String(x.c).trim() || String(x.a).trim() || String(x.b).trim()).map(x => ({ line: x.line, no: String(x.no || '').trim() || me, date: xlDate(x.date), shift: /^n/i.test(String(x.shift || '')) ? 'Night' : 'Day',
+      const rows = raw.filter(x => String(x.c).trim() || String(x.a).trim() || String(x.b).trim()).map(x => ({ line: x.line, no: String(x.no || '').trim(), date: xlDate(x.date), shift: /^n/i.test(String(x.shift || '')) ? 'Night' : 'Day',
         c: String(x.c || '').trim(), a: tm(x.a), b: tm(x.b), ch: String(x.ch || '').trim(), u: String(x.u || '').trim() }));
       if (!rows.length) throw new Error('No trips in the file.');
+      // (update-121) every line its own tanker: a line without its VEHICLE NO is not given to the tanker open here
+      const noVeh = rows.filter(x => !x.no);
+      if (noVeh.length) { await askConfirm({ title: 'Fix the file first', ok: 'OK', alertOnly: true, wide: true, html: '<p>Nothing was imported.</p>' + listHtml(noVeh.slice(0, 50).map(x => 'Line ' + x.line + ': pick the VEHICLE NO – the water tanker of this trip.')) }); return; }
       const chk = await call('checkTankerImport', { rows: rows });
       if (!chk.ok) { await askConfirm({ title: 'Fix the file first', ok: 'OK', alertOnly: true, wide: true, html: '<p>Nothing was imported.</p>' + listHtml((chk.errors || []).map(x => (x.row ? 'Line ' + x.row + ': ' : '') + x.msg)) }); return; }
       if (!chk.added) { await askConfirm({ title: 'Already in the Log Book', ok: 'OK', alertOnly: true, html: '<p>All <b>' + chk.same + '</b> trips of this file are already saved. Nothing to import.</p>' }); return; }

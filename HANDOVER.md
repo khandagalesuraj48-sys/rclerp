@@ -1699,6 +1699,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   server remembered): `FLOW_PHOTOS_` – noted with the request (Data.photos, held), used by the approval (`photoRecs_`,
   `photosTaken_`). Page: "Bill copy" box (`IB`, `ibAdd`, `ibLoad`, `ibForSave`, `ibView`; `phMake(file, null, 2000)`).
   App 3.1.13. Unit "update-120"; API inward120api.js 44; browser bills120.js 17.
+- 17-10-2026 (update-121). Report: `UPDATE_121.md`. The water tanker Excel (Edit Log Book → a tanker → Export / Import Excel) is
+  of every water tanker of every agency: `lt_export` reads the dates with one `getLogBookList` { all } and `tripsOfRow` (Format I
+  tankers only), 100 empty lines with no tanker in them (VEHICLE NO drop-down from the hidden tab "Lists" = every Format I tanker,
+  NAME OF AGENCY a VLOOKUP formula on it, Shift on every line); `lt_file` no longer gives a line without its VEHICLE NO to the
+  tanker open ("Fix the file first"). Page only, no server change. App 3.18.1. Unit "update-121".
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

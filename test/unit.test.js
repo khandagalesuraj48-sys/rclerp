@@ -3489,3 +3489,58 @@ test('update-120: the bill copies of a diesel inward – several, from the camer
   assert.ok(listed && listed.sql === step, 'Read Me lists it word for word');
   assert.match(fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8'), /\['Updated By', 'updated_by', 'text'\],\n {4}\['Photos', 'photos', 'text'\]\] \},\s+\/\/ \(update-120/);
 });
+
+test('update-121: the water tanker Excel is of EVERY water tanker (every agency) – the empty lines pick the VEHICLE NO from the list of tankers, its agency comes by itself; Import takes each line\'s own tanker', async () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const cut = (a, b) => { const i = app.indexOf(a); assert.ok(i > -1, a); const j = app.indexOf(b, i); assert.ok(j > i, b); return app.slice(i, j); };
+  const ex = cut("$('lt_export').addEventListener('click', e => busy(e.target, 'Exporting…', ", "\n  $('lt_import')");
+  const exFn = ex.slice(ex.indexOf('async () => {'), ex.lastIndexOf('}));') + 1);
+  const page = cut('  const wtMin = t =>', '  const wtKey = ') + cut('  function tripsOfRow(r) {', '  // Edit: the trip opens') + cut('  const LT_HEAD = ', '  const LT_COLS = ');
+  // three tankers of two agencies (one just set to Format I – a new one), a machinery that is not a tanker
+  const master = [{ id: 'MH-04-J-9844', owner: 'Chalke Enterprises', lbFormat: 'I' }, { id: 'MH-12-AB-1001', owner: 'Patil Water Supply', lbFormat: 'I' },
+    { id: 'MH-12-ZZ-7777', owner: 'Patil Water Supply', lbFormat: 'I' }, { id: 'Sany 210', owner: 'RCL', lbFormat: 'A' }];
+  const findMachine = n => master.find(m => m.id === n) || null;
+  const rows = [
+    { no: 'MH-12-AB-1001', date: '2026-10-14', shift: 'Day', unit: 'Trip', itemWork: { _trips: [{ c: 'P-2', a: '10:00', b: '10:20', ch: '', u: 'Curing' }, { c: 'P-1', a: '08:00', b: '08:15', ch: '', u: 'Curing' }] } },
+    { no: 'MH-04-J-9844', date: '2026-10-14', shift: 'Day', unit: 'Trip', itemWork: { _trips: [{ c: 'C-7', a: '07:35', b: '07:50', ch: '12+500', u: 'Dust' }] } },
+    { no: 'MH-04-J-9844', date: '2026-10-13', shift: 'Night', unit: 'Trip', itemWork: { _trips: [{ c: 'C-5', a: '21:00', b: '21:30', ch: '', u: '' }] } },
+    { no: 'MH-12-ZZ-7777', date: '2026-10-14', shift: 'Day', unit: 'Idle', itemWork: {} },
+    { no: 'Sany 210', date: '2026-10-14', shift: 'Full Day', unit: 'Hrs', itemWork: {} }];
+  const asked = [], saved = [], said = [];
+  const S = { lt: { d: { machine: { id: 'MH-04-J-9844', owner: 'Chalke Enterprises' }, from: '2026-10-01', to: '2026-10-14', trips: [] } } };
+  const run = new Function('S', 'findMachine', 'call', 'saveXlsxLists', 'toast', 'lbHeadRows', 'showDate', 'wtTankers', page + '; return (' + exFn + ');');
+  await run(S, findMachine, async (fn, f) => { asked.push([fn, f]); return { rows: rows }; }, async (name, sheets) => { saved.push({ name: name, sheets: sheets }); }, t => said.push(t),
+    t => [['RCL'], ['VTR'], [t], []], d => d.split('-').reverse().join('/'), () => master.filter(m => m.lbFormat === 'I'))();
+  assert.deepStrictEqual(asked, [['getLogBookList', { from: '2026-10-01', to: '2026-10-14', all: true }]], 'the trips of every tanker in the dates on screen – one call');
+  const f = saved[0], sh = f.sheets[0], aoa = sh.aoa, H = sh.head;
+  assert.strictEqual(f.name, 'Water tankers 01-10-2026 to 14-10-2026.xlsx');
+  assert.strictEqual(aoa[2][0], 'WATER TANKER REPORT – all water tankers – 01/10/2026 to 14/10/2026');
+  assert.strictEqual(aoa[H - 1].join('|'), 'SR. NO.|DATE|SHIFT|NAME OF AGENCY|VEHICLE NO|CHALLAN NO|DISPATCH TIME|UNLOAD TIME|TRIP|CHAINAGE NO|USE FOR');
+  const trips = aoa.slice(H, H + 4).map(r => r.slice(1, 8).join(' '));
+  assert.deepStrictEqual(trips, ['13/10/2026 Night Chalke Enterprises MH-04-J-9844 C-5 21:00 21:30', '14/10/2026 Day Chalke Enterprises MH-04-J-9844 C-7 07:35 07:50',
+    '14/10/2026 Day Patil Water Supply MH-12-AB-1001 P-1 08:00 08:15', '14/10/2026 Day Patil Water Supply MH-12-AB-1001 P-2 10:00 10:20'], 'every tanker of every agency: date, shift, agency, vehicle, time');
+  assert.deepStrictEqual(aoa.slice(H, H + 4).map(r => r[0]), [1, 2, 3, 4]);
+  // 100 empty lines: no tanker fixed in them – the agency is a formula on the VEHICLE NO picked
+  const empty = aoa.slice(H + 4);
+  assert.strictEqual(empty.length, 100);
+  empty.forEach((r, k) => { const n = H + 4 + k + 1; assert.deepStrictEqual(r, ['', '', '', { formula: 'IF(E' + n + '="","",IFERROR(VLOOKUP(E' + n + ',Lists!$A$1:$B$3,2,FALSE),""))' }], 'line ' + n); });
+  // the drop-downs: Shift on every line, VEHICLE NO from the hidden list of every water tanker (a new Format I tanker is in it)
+  assert.deepStrictEqual(sh.lists.map(L => [L.col, L.values || L.ref, !!L.skip]), [[2, ['Day', 'Night'], false], [4, 'Lists!$A$1:$A$3', false]]);
+  assert.deepStrictEqual(f.sheets[1], { name: 'Lists', aoa: [['MH-04-J-9844', 'Chalke Enterprises'], ['MH-12-AB-1001', 'Patil Water Supply'], ['MH-12-ZZ-7777', 'Patil Water Supply']], hidden: true });
+  assert.strictEqual(said[0], '4 trips of 2 water tankers and 100 empty lines. Pick the VEHICLE NO of a line (its agency comes by itself), fill the date, shift, challan, dispatch, unload… and bring the file back with "Import Excel".');
+  // Import: each line its own VEHICLE NO; a line without one is not given to the tanker open on the screen – nothing is imported
+  const im = cut("    if (f) busy($('lt_import'), 'Reading…', ", "    }).then(() => { if (S.lt && S.lt.d) ltState(); });");
+  const imFn = im.slice(im.indexOf('async () => {')) + '}';
+  const go = async raw => { const out = { calls: [], boxes: [] };
+    await new Function('S', 'f', 'needXlsx', 'readExcelRows', 'LT_COLS', 'xlDate', 'call', 'askConfirm', 'listHtml', 'toast', 'findMachine', 'ltLoad', 'loadLog', 'return (' + imFn + ');')(
+      S, {}, () => {}, async () => raw, [], d => d, async (fn, b) => { out.calls.push([fn, b]); return { ok: true, added: b.rows.length, same: 0, tankers: new Set(b.rows.map(x => x.no)).size }; },
+      async o => { out.boxes.push(o); return true; }, l => l.join(' / '), () => {}, findMachine, async () => {}, () => {})();
+    return out; };
+  let r = await go([{ line: 8, no: 'MH-12-AB-1001', date: '2026-10-15', shift: 'Day', c: 'P-9', a: '09:00', b: '09:20', ch: '', u: '' }, { line: 9, no: '', date: '2026-10-15', shift: 'Night', c: 'C-9', a: '21:00', b: '21:20', ch: '', u: '' }]);
+  assert.deepStrictEqual(r.calls, [], 'nothing sent');
+  assert.strictEqual(r.boxes[0].title, 'Fix the file first');
+  assert.match(r.boxes[0].html, /Line 9: pick the VEHICLE NO – the water tanker of this trip\./);
+  r = await go([{ line: 8, no: 'MH-12-AB-1001', date: '2026-10-15', shift: 'Day', c: 'P-9', a: 0.375, b: '09:20', ch: '', u: '' }, { line: 9, no: 'MH-12-ZZ-7777', date: '2026-10-15', shift: 'n', c: 'Z-1', a: '21:00', b: '21:20', ch: '', u: '' }]);
+  assert.deepStrictEqual(r.calls.map(x => [x[0], x[1].rows.map(y => y.no + ' ' + y.shift + ' ' + y.a)]), [['checkTankerImport', ['MH-12-AB-1001 Day 09:00', 'MH-12-ZZ-7777 Night 21:00']], ['importTankerTrips', ['MH-12-AB-1001 Day 09:00', 'MH-12-ZZ-7777 Night 21:00']]], 'two tankers of a file, each its own');
+  assert.match(r.boxes[0].html, /2 trips will be added \(2 tankers\)/);
+});
