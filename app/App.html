@@ -1954,62 +1954,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .bp-list .bp.on { border-color: #1D55E2; background: #EAF0FE; } .bp-list .bp.dis { opacity: .6; cursor: not-allowed; background: #F1F4F8; }
   .b-lines .bl-same { font-size: 11.5px; line-height: 1.2; text-align: left; margin-right: 8px; }
 
-  /* ---------- One Click Solution: brand on the sign-in screen, the opening film, "Company & site" ---------- */
+  /* ---------- One Click Solution: brand on the sign-in screen, "Company & site" (update-123: the opening film is gone) ---------- */
   .oc-mark { width: 40px; height: 40px; color: #0C1A2E; flex: none; }
   .oc-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
   .oc-brand .oc-name { display: flex; flex-direction: column; line-height: 1.1; } .oc-brand .oc-name b { font: 800 22px var(--disp2, var(--ui)); letter-spacing: -.01em; color: #0C1A2E; } .oc-brand .oc-name i { font: 600 12px var(--ui); font-style: normal; letter-spacing: .14em; text-transform: uppercase; color: #5B6B80; margin-top: 3px; }
   .lp-brand { opacity: .95; } .lp-brand .rlogo img { max-height: 34px; }
   .brandsub .by-oc { display: block; font-size: 9.5px; letter-spacing: .08em; opacity: .7; margin-top: 2px; text-transform: none; }
-  /* ---------- update-79 (asked 11-10-2026): One Click Solution's own logo – the app icon, the opening, the logo on the sign-in screen
+  /* ---------- update-79 (asked 11-10-2026): One Click Solution's own logo – the app icon, the logo on the sign-in screen
    * (the sign-in screen itself stays as it was: his answer). Only before the sign-in: inside the app nothing changes. ---------- */
-  #oc_intro .oc-glow { background: radial-gradient(circle, rgba(30,144,255,.30) 0%, rgba(0,200,255,.12) 40%, transparent 68%); }
-  #oc_intro .oc-logo { display: block; margin: 0 auto; width: clamp(240px, 52vmin, 560px); height: auto; opacity: 0; position: relative; filter: drop-shadow(0 0 26px rgba(40,140,255,.45)); }
-  #oc_intro.play .oc-logo { animation: ocIn .9s .2s cubic-bezier(.2,.8,.2,1) both; }
-  #oc_intro .oc-line { background: linear-gradient(90deg, transparent, #19B5FE, transparent); }
-  #oc_intro .oc-for { color: #8FD3FF; }
   #login_screen .oc-brand { justify-content: center; margin-bottom: 22px; }      /* the sign-in screen stays as it was – only the logo is his (white form, the picture on the left) */
   #login_screen .oc-brand .oc-logo { width: min(200px, 60%); height: auto; }
   @media (max-height: 640px) { #login_screen .oc-brand .oc-logo { width: 130px; } }
   .vhint { display: block; margin-top: 4px; font-size: 12px; line-height: 1.3; color: #0B6B3A; } .vhint.bad { color: #C8102E; font-weight: 600; } .vhint[hidden] { display: none; }
   .ua-site { margin-left: 12px; font-size: 12.5px; font-weight: 600; color: #1543B8; }
   #org_panel[hidden] { display: none; } #org_panel textarea { width: 100%; min-height: 54px; }
-  #oc_intro { position: fixed; inset: 0; z-index: 20000; background: radial-gradient(120% 90% at 50% 40%, #13294B 0%, #0A1526 55%, #04080F 100%); display: grid; place-items: center; overflow: hidden; cursor: pointer; opacity: 1; transition: opacity .5s ease; }
-  #oc_intro[hidden] { display: none; } #oc_intro.out { opacity: 0; pointer-events: none; }      /* while it fades it must not swallow a press meant for the page */
-  #oc_intro video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; } #oc_intro video[hidden] { display: none; }
-  #oc_intro .oc-stage { position: relative; text-align: center; color: #fff; padding: 0 24px; transform: scale(1.12); } #oc_intro .oc-stage[hidden] { display: none; }
-  #oc_intro.play .oc-stage { animation: ocZoom 4.2s cubic-bezier(.2,.7,.2,1) both; }
-  #oc_intro .oc-glow { position: absolute; left: 50%; top: 46%; width: 70vmin; height: 70vmin; transform: translate(-50%, -50%); background: radial-gradient(circle, rgba(242,169,0,.20) 0%, rgba(29,85,226,.14) 38%, transparent 68%); filter: blur(6px); opacity: 0; }
-  #oc_intro.play .oc-glow { animation: ocGlow 4.2s ease both; }
-  #oc_intro .oc-mark { width: clamp(64px, 11vmin, 104px); height: clamp(64px, 11vmin, 104px); color: #fff; opacity: 0; position: relative; }
-  #oc_intro.play .oc-mark { animation: ocIn .7s .25s cubic-bezier(.2,.8,.2,1) both; }
-  #oc_intro.play .oc-cur { transform-origin: 30px 29px; animation: ocCur 1.1s .9s cubic-bezier(.3,.8,.3,1) both; }
-  #oc_intro .oc-r1, #oc_intro .oc-r2 { transform-origin: 28px 27px; opacity: 0; }
-  #oc_intro.play .oc-r1 { animation: ocRing 1s 1.55s ease-out both; } #oc_intro.play .oc-r2 { animation: ocRing 1.2s 1.7s ease-out both; }
-  #oc_intro .oc-word { position: relative; margin-top: 2.2vmin; font: 800 clamp(30px, 6.4vmin, 76px)/1.02 var(--disp2, var(--ui)); letter-spacing: .01em; display: flex; gap: .32em; justify-content: center; flex-wrap: wrap; }
-  #oc_intro .oc-word span { opacity: 0; display: inline-block; background: linear-gradient(100deg, #fff 30%, #FFD777 50%, #fff 70%); background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; }
-  #oc_intro .oc-word .oc-thin { font-weight: 500; letter-spacing: .08em; }
-  #oc_intro.play .oc-word span { animation: ocUp .8s cubic-bezier(.2,.8,.2,1) both, ocShine 2.2s 1.9s ease both; }
-  #oc_intro.play .oc-word span:nth-child(1) { animation-delay: 1.15s, 1.9s; } #oc_intro.play .oc-word span:nth-child(2) { animation-delay: 1.32s, 2.0s; } #oc_intro.play .oc-word span:nth-child(3) { animation-delay: 1.5s, 2.1s; }
-  #oc_intro .oc-line { height: 2px; width: 0; margin: 2vmin auto 0; background: linear-gradient(90deg, transparent, #F2A900, transparent); }
-  #oc_intro.play .oc-line { animation: ocLine 1.1s 1.9s ease both; }
-  #oc_intro .oc-tag { margin-top: 1.8vmin; font: 500 clamp(12px, 1.9vmin, 18px) var(--ui); letter-spacing: .16em; text-transform: uppercase; color: #B9C6DA; opacity: 0; }
-  #oc_intro.play .oc-tag { animation: ocFade .9s 2.3s ease both; }
-  #oc_intro .oc-for { margin-top: 2.6vmin; font: 600 clamp(12px, 1.7vmin, 16px) var(--ui); color: #FFD777; opacity: 0; min-height: 1.2em; }
-  #oc_intro.play .oc-for { animation: ocFade .9s 2.75s ease both; }
-  #oc_intro .oc-bar { position: absolute; left: 0; right: 0; height: 11vh; background: #000; } #oc_intro .oc-top { top: 0; transform: translateY(-100%); } #oc_intro .oc-bot { bottom: 0; transform: translateY(100%); }
-  #oc_intro.play .oc-top { animation: ocBarT 4.2s ease both; } #oc_intro.play .oc-bot { animation: ocBarB 4.2s ease both; }
-  #oc_skip { position: absolute; right: 22px; bottom: calc(11vh + 14px); border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.08); color: #fff; border-radius: 18px; padding: 6px 14px; font: 600 12px var(--ui); letter-spacing: .08em; cursor: pointer; z-index: 2; }
-  @keyframes ocZoom { 0% { transform: scale(1.12); } 100% { transform: scale(1); } }
-  @keyframes ocGlow { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: .75; } }
-  @keyframes ocIn { 0% { opacity: 0; transform: translateY(14px) scale(.9); } 100% { opacity: 1; transform: none; } }
-  @keyframes ocCur { 0% { transform: translate(16px, 16px); opacity: 0; } 60% { transform: translate(0, 0); opacity: 1; } 78% { transform: translate(0, 0) scale(.86); } 100% { transform: translate(0, 0) scale(1); opacity: 1; } }
-  @keyframes ocRing { 0% { opacity: .9; transform: scale(.4); } 100% { opacity: 0; transform: scale(2.6); } }
-  @keyframes ocUp { 0% { opacity: 0; transform: translateY(.5em); filter: blur(6px); } 100% { opacity: 1; transform: none; filter: none; } }
-  @keyframes ocShine { 0% { background-position: 120% 0; } 100% { background-position: -20% 0; } }
-  @keyframes ocLine { 0% { width: 0; } 100% { width: min(520px, 62vw); } }
-  @keyframes ocFade { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: none; } }
-  @keyframes ocBarT { 0% { transform: translateY(-100%); } 14%, 86% { transform: translateY(0); } 100% { transform: translateY(-100%); } }
-  @keyframes ocBarB { 0% { transform: translateY(100%); } 14%, 86% { transform: translateY(0); } 100% { transform: translateY(100%); } }
 
   /* ---------- the big box: any typing box opened large (double-click, F2 or ⤢) ---------- */
   #bigbox { position: fixed; inset: 0; z-index: 10000; background: rgba(12,26,46,.5); display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -2425,8 +2383,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   html[data-density=compact] main .panel { padding-top: 12px; padding-bottom: 12px; }
   html[data-motion=less] *, html[data-motion=less] *::before, html[data-motion=less] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
   /* DARK THEME. The app's colours are written for a light page in very many places; the dark theme turns the whole page
-   * (light ↔ dark, the colour tones kept) and turns back what must stay as it is: pictures, photos, the menu (already dark)
-   * and the opening film. Prints and PDFs are separate pages and stay on white. */
+   * (light ↔ dark, the colour tones kept) and turns back what must stay as it is: pictures, photos and the menu (already
+   * dark). Prints and PDFs are separate pages and stay on white. */
   /* the assistant */
   .ai-fab { position: fixed; right: 18px; bottom: 84px; z-index: 40; display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 999px; padding: 11px 16px 11px 13px; background: #0F1F3D; color: #fff; font: 700 14px var(--ui); cursor: pointer; box-shadow: 0 10px 24px rgba(15, 31, 61, .35); }
   .ai-fab[hidden] { display: none; }
@@ -2516,8 +2474,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #qr_sheet #qr_go .btn { display: block; width: 100%; margin: 9px 0 0; padding: 15px; font-size: 16.5px; }
   #qr_sheet .qr-x { position: absolute; right: 10px; top: 8px; border: 0; background: transparent; font-size: 26px; line-height: 1; color: #64748B; cursor: pointer; padding: 6px 10px; }
   html[data-theme=dark] { filter: invert(1) hue-rotate(180deg); background: #fff; }
-  html[data-theme=dark] img, html[data-theme=dark] video, html[data-theme=dark] #side, html[data-theme=dark] #oc_intro, html[data-theme=dark] .lp-left { filter: invert(1) hue-rotate(180deg); }
-  html[data-theme=dark] #side img, html[data-theme=dark] #oc_intro video, html[data-theme=dark] #oc_intro img, html[data-theme=dark] .lp-left img { filter: none; }
+  html[data-theme=dark] img, html[data-theme=dark] video, html[data-theme=dark] #side, html[data-theme=dark] .lp-left { filter: invert(1) hue-rotate(180deg); }
+  html[data-theme=dark] #side img, html[data-theme=dark] .lp-left img { filter: none; }
   html[data-theme=dark] main .panel, html[data-theme=dark] .topbar { box-shadow: none; }
   @media print { html[data-theme=dark], html[data-theme=dark] img, html[data-theme=dark] video, html[data-theme=dark] #side { filter: none !important; } }      /* paper is always white */
 
@@ -2640,19 +2598,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     <span class="boot-sub" id="boot_sub">One Click Solution  |  Fleet ERP</span>
   </div>
 </div>
-<!-- the opening film of One Click Solution: plays once per browser session when the app is opened; a press or a key skips it -->
-<div id="oc_intro" hidden>
-  <video id="oc_video" hidden muted playsinline></video>
-  <div class="oc-stage" id="oc_stage">
-    <div class="oc-glow"></div>
-    <img class="oc-logo" src="/icons/oc-logo-glow.webp" alt="One Click Solution" width="700" height="518" decoding="async">
-    <div class="oc-line"></div>
-    <div class="oc-tag">Fleet ERP &nbsp;·&nbsp; diesel, machinery and bills in one click</div>
-    <div class="oc-for" id="oc_for"></div>
-  </div>
-  <i class="oc-bar oc-top"></i><i class="oc-bar oc-bot"></i>
-  <button type="button" id="oc_skip">Skip</button>
-</div>
+<!-- (update-123, asked 17-10-2026: "one click che ek animation yete te animation purn kadhun tak … link click direct login page")
+     the opening film of One Click Solution is gone: the link opens the sign-in at once -->
 <!-- update-85: the app opens only with the location on (asked 12-10-2026) -->
 <!-- update-86: on a phone, a diesel issue saved – shown for 3 seconds (or closed by hand) -->
 <div id="savedpop" hidden role="status" aria-live="polite">
@@ -3668,10 +3615,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="org_site">Site / project (printed on every report)</label><input id="org_site" maxlength="80" autocomplete="off"></div>
         <div class="field"><label for="org_logo">Logo (https link, optional)</label><input id="org_logo" autocomplete="off" placeholder="https://…"></div>
         <div class="field"><label for="org_names">Names bills are made in (one per line, 1 to 4)</label><textarea id="org_names" rows="2"></textarea></div>
-        <div class="field"><label for="org_video">Opening film (https link to an .mp4, optional)</label><input id="org_video" autocomplete="off" placeholder="empty = the built-in opening"></div>
-        <div class="field"><label class="ck"><input type="checkbox" id="org_intro"> Play the opening when the app is opened</label></div>
       </div>
-      <div class="actions"><button class="btn primary" id="org_save" type="button">Save company &amp; site</button><button class="btn ghost" id="org_play" type="button">Play the opening now</button></div>
+      <div class="actions"><button class="btn primary" id="org_save" type="button">Save company &amp; site</button></div>
     </div>
     <div class="panel">
       <div class="panel-head"><h2>Users &amp; Access</h2><span class="chart-note">Who can open each page: <b>Edit</b> (add / change / delete), <b>View</b> (see and print) or <b>No access</b> (page hidden). Same list as the Users tab – a change works at once for that user.</span></div>
@@ -3717,7 +3662,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="set-item"><b>Size of the text</b><div class="set-seg" data-pref="text"><button type="button" data-v="normal">Normal</button><button type="button" data-v="large">Large</button><button type="button" data-v="xlarge">Larger</button></div></div>
         <div class="set-item"><b>Rows in lists</b><div class="set-seg" data-pref="density"><button type="button" data-v="normal">Roomy</button><button type="button" data-v="compact">Tight (more rows)</button></div></div>
         <div class="set-item"><b>Language of the app</b><div class="set-seg" data-pref="appLang" data-noi18n><button type="button" data-v="mr">मराठी</button><button type="button" data-v="hi">हिंदी</button><button type="button" data-v="en">English</button></div><small class="muted">Everything on the screens, the messages, errors and help – for you only, at all your sites and in the phone app. Bills, notes and prints stay in English.</small></div>
-        <div class="set-item"><label class="ck"><input type="checkbox" data-pref="lessMotion"> Less movement (no gliding, no opening film)</label><label class="ck"><input type="checkbox" data-pref="intro"> Play the opening when I open the app</label></div>
+        <div class="set-item"><label class="ck"><input type="checkbox" data-pref="lessMotion"> Less movement (no gliding)</label></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="brief"> Show me the daily summary when I open the app (once a day)</label><label class="ck"><input type="checkbox" data-pref="voiceOut"> Speak the answer aloud when I ask by voice</label></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="sound"> A short sound when something is saved or goes wrong</label><label class="ck"><input type="checkbox" data-pref="enterNext"> Enter moves to the next box (like Tab)</label></div>
       </div>
@@ -4814,7 +4759,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ---------- sign in / sign out ---------- */
   /* ================= ONE CLICK SOLUTION: the product's brand, and whose copy this is =================
    * The server gives (also before sign-in): the product, the customer and site this copy is for, the logo, the names bills are
-   * made in, and the opening film. applyOrg puts them wherever the customer's name used to be written in the code. What was
+   * made in. applyOrg puts them wherever the customer's name used to be written in the code. What was
    * given last is kept on this device (oc_org), so the sign-in screen is right at once the next time. */
   function applyOrg(o) {
     if (!o || !o.customer) return; S.org = o; try { localStorage.setItem('oc_org', JSON.stringify(o)); } catch (e) {}
@@ -4824,7 +4769,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     document.querySelectorAll('.rlogo img, .rmark img').forEach(im => { im.alt = o.customer; if (o.logo && im.getAttribute('src') !== o.logo) { im.parentNode.classList.remove('noimg'); im.src = o.logo; } else if (!o.logo) im.parentNode.classList.add('noimg'); });
     if (o.customer !== 'Rachana Construction Limited') document.querySelectorAll('.rlogo .fb').forEach(x => { x.textContent = o.customer; });      // the text shown when the logo cannot be loaded
     if ($('lp_site')) $('lp_site').textContent = o.site || (o.product || 'Fleet ERP');
-    if ($('oc_for')) $('oc_for').textContent = o.customer + (o.site ? '  ·  ' + o.site : '');
     try { (window.top || window).document.title = o.customer + ' – ' + (o.product || 'Fleet ERP') + ' · ' + (o.brand || 'One Click Solution'); } catch (e) { /* another origin: leave the title */ }
     // the drop-downs with the names bills are made in: redrawn only when the names are not the ones written in the page
     document.querySelectorAll('select').forEach(sel => { const os = [...sel.options], vals = os.filter(x => x.value !== '' || !i18nSame(x.textContent, 'Both')).map(x => x.textContent);
@@ -4833,37 +4777,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const keep = sel.value, both = os.find(x => x.value === '' && i18nSame(x.textContent, 'Both'));
       sel.innerHTML = (both ? '<option value="">Both</option>' : '') + names.map(n => '<option data-bn="1">' + esc(n) + '</option>').join(''); if (names.indexOf(keep) > -1 || keep === '') sel.value = keep; });
     // the Admin's form and the note above the users
-    if ($('org_customer') && document.activeElement !== $('org_customer')) { $('org_customer').value = o.customer; $('org_site').value = o.site || ''; $('org_logo').value = o.logo || ''; $('org_names').value = (o.billNames || []).join('\n'); $('org_video').value = o.video || ''; $('org_intro').checked = o.intro !== false; }
+    if ($('org_customer') && document.activeElement !== $('org_customer')) { $('org_customer').value = o.customer; $('org_site').value = o.site || ''; $('org_logo').value = o.logo || ''; $('org_names').value = (o.billNames || []).join('\n'); }
     if ($('ua_site')) $('ua_site').textContent = 'All users of this page belong to: ' + o.customer + (o.site ? ' – ' + o.site : '');
   }
   try { const kept = JSON.parse(localStorage.getItem('oc_org') || 'null'); if (kept) applyOrg(kept); } catch (e) { /* first visit */ }
   const ORG_P = gsRun('orgInfo');      // (update-91) also says whether sign-in goes through the Portal (ptSeen)
   ORG_P.then(o => { applyOrg(o); ptSeen(o); }).catch(() => { /* an older server: the page keeps what it has */ });
   $('org_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
-    const r = await call('saveOrgSettings', { customer: $('org_customer').value.trim(), site: $('org_site').value.trim(), logo: $('org_logo').value.trim(), billNames: $('org_names').value.split(/\n/).map(x => x.trim()).filter(Boolean), video: $('org_video').value.trim(), intro: $('org_intro').checked });
+    const r = await call('saveOrgSettings', { customer: $('org_customer').value.trim(), site: $('org_site').value.trim(), logo: $('org_logo').value.trim(), billNames: $('org_names').value.split(/\n/).map(x => x.trim()).filter(Boolean),
+      video: (S.org && S.org.video) || '', intro: !(S.org && S.org.intro === false) });      // (update-123) the film is gone: what was kept stays as it is
     applyOrg(r.org); toast('Company & site saved.');
   }).catch(er => toast(errMsg(er), true)));
 
-  /* THE OPENING: a short film of One Click Solution when the app is opened (once per browser session). Built into the page
-   * (no file to load); when a film link is set in "Company & site" that film plays instead. A press, a key or "Skip" ends it;
-   * it never blocks the app – after 4.2 s (a film: 12 s at most) it goes by itself. Off: the tick in "Company & site",
-   * or a device that asks for less motion. */
-  function ocIntro(force) {
-    const box = $('oc_intro'); if (!box) return;
-    const o = S.org || {};
-    if (!force) { if (o.intro === false) return; try { if (localStorage.getItem('oc_intro_off') === '1') return; } catch (e) { /* plays */ }
-      try { if (sessionStorage.getItem('oc_intro')) return; sessionStorage.setItem('oc_intro', '1'); } catch (e) { /* plays */ }
-      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; }
-    const vid = $('oc_video'), stage = $('oc_stage'); let done = false, t = null;
-    const end = () => { if (done) return; done = true; clearTimeout(t); box.classList.add('out'); try { vid.pause(); } catch (e) {} setTimeout(() => { box.hidden = true; box.classList.remove('out', 'play'); vid.hidden = true; stage.hidden = false; }, 520);
-      document.removeEventListener('keydown', end, true); };
-    box.hidden = false; box.classList.remove('out'); void box.offsetWidth; box.classList.add('play');
-    if (o.video) { vid.hidden = false; stage.hidden = true; vid.src = o.video; vid.onended = end; vid.onerror = () => { vid.hidden = true; stage.hidden = false; }; const pl = vid.play(); if (pl && pl.catch) pl.catch(() => { vid.hidden = true; stage.hidden = false; }); t = setTimeout(end, 12000); }
-    else t = setTimeout(end, 4200);
-    box.onclick = end; document.addEventListener('keydown', end, true);
-  }
-  $('org_play').addEventListener('click', () => ocIntro(true));
-  ocIntro(false);
   /* ---------- PICKING FROM A LIST ON A PHONE (asked 05-10-2026: "on the mobile a vehicle number that I select does not get selected") ----------
    * The 40-odd boxes with suggestions (machinery, vendor, driver, type, pump …) used the browser's own list (<datalist>). On a
    * computer that works. On Android phones it is unreliable – in an installed app and inside this app's frame the list often does
@@ -12406,7 +12331,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     root.dataset.density = S.prefs.density; root.dataset.motion = S.prefs.lessMotion ? 'less' : ''; root.dataset.text = S.prefs.text;
     if (S.prefs.lang !== fixLang) { fixLang = S.prefs.lang; try { localStorage.setItem('rcl_lang', fixLang); } catch (e) {} }
     if (S.user && p && Object.prototype.hasOwnProperty.call(p, 'appLang')) i18nSet(S.prefs.appLang);      // (update-110) the user's language (a copy without it – first time on this device – waits for the account's)
-    try { localStorage.setItem('oc_intro_off', S.prefs.intro === false || S.prefs.lessMotion ? '1' : ''); } catch (e) {}
     avaDraw(); favDraw(); setDraw();
     // the usual diesel location and shift of this user, where a form is still untouched
     const src = $('d_src'); if (src && S.prefs.loc && [...src.options].some(o => o.value === S.prefs.loc) && !S.formDirty) src.value = S.prefs.loc;

@@ -1,4 +1,4 @@
-// One Click Solution: the opening film, the sign-in brand, "Company & site" settings
+// One Click Solution: the sign-in brand, "Company & site" settings (update-123: no opening film – the link opens the sign-in at once)
 const chromium = require('@sparticuz/chromium').default || require('@sparticuz/chromium'); const puppeteer = require('puppeteer-core');
 const fs = require('fs'); const { execSync } = require('child_process');
 const wait = ms => new Promise(r => setTimeout(r, ms)); const sql = q => execSync('su postgres -c "psql -d rcl -tA"', { input: q }).toString().trim();
@@ -13,18 +13,20 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   const errs = []; p.on('pageerror', e => errs.push(String(e.message).slice(0, 200)));
   await p.goto('http://127.0.0.1:3000/', { waitUntil: 'load' }); await wait(2600);
   const f = p.frames().find(x => x !== p.mainFrame());
-  // (update-79: the opening shows One Click Solution's own logo – a picture – instead of the drawn mark and the words)
-  const intro = await f.evaluate(() => { const bx = document.getElementById('oc_intro'), im = bx.querySelector('img.oc-logo'); return { shown: !bx.hidden, logo: im ? im.alt + ' ' + im.getAttribute('src') + ' ' + im.naturalWidth : '', forWho: document.getElementById('oc_for').textContent }; });
-  ok('the opening of One Click Solution plays when the app is opened – with its logo', intro.shown && /^One Click Solution \/icons\/oc-logo-glow\.webp 700$/.test(intro.logo) && /Rachana Construction Limited/.test(intro.forWho), intro);
-  await p.screenshot({ path: 'shots/oc_intro.png' });
-  await wait(2600); ok('…and goes by itself after about 4 seconds', await f.evaluate(() => document.getElementById('oc_intro').hidden));
+  // (update-123, asked 17-10-2026: "one click che ek animation … purn kadhun tak … link click direct login page")
+  // (the sign-in is position: fixed – it has no offsetParent: what is seen is asked of the screen itself, at its middle)
+  const seen = () => { const ls = document.getElementById('login_screen'), top = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
+    return { film: !!document.getElementById('oc_intro'), login: !ls.hidden && getComputedStyle(ls).display !== 'none', atMiddle: top ? (top.closest('#login_screen') ? 'sign-in' : top.id || top.className || top.tagName) : '' }; };
+  const open = await f.evaluate(seen);
+  ok('the link opens the sign-in at once – no opening film, nothing over the sign-in', !open.film && open.login && open.atMiddle === 'sign-in', open);
   // (update-81, asked 11-10-2026: the sign-in screen shows One Click Solution only – no customer name or logo on it)
   const lg = await f.evaluate(() => { const ls = document.getElementById('login_screen'); return { brand: document.querySelector('#login_form .oc-logo').alt, rachana: /Rachana/i.test(ls.textContent) || [...ls.querySelectorAll('img')].some(i => /Rachana|RCL/i.test(i.alt + i.getAttribute('src'))), title: window.top.document.title }; });
   ok('the sign-in screen carries the One Click Solution logo only – no Rachana name or logo on it', /One Click Solution/.test(lg.brand) && !lg.rachana && /Rachana Construction Limited – Fleet ERP · One Click Solution/.test(lg.title), lg);
   await p.screenshot({ path: 'shots/oc_login.png' });
   await p.reload({ waitUntil: 'load' }); await wait(1500);
   const f2 = p.frames().find(x => x !== p.mainFrame());
-  ok('the opening plays once per browser session (not again on a reload)', await f2.evaluate(() => document.getElementById('oc_intro').hidden));
+  const again = await f2.evaluate(seen);
+  ok('a reload: the sign-in at once again (no film)', !again.film && again.login && again.atMiddle === 'sign-in', again);
   await f2.type('#lg_email', 'sujit@rcl.test'); await f2.type('#lg_pass', 'Nashik#Road848!'); await f2.click('#lg_btn'); await wait(5500);
   await f2.evaluate(() => { try { closeConfirm(false); } catch (e) {} showTab('users'); }); await wait(2500);
   const form = await f2.evaluate(() => ({ customer: document.getElementById('org_customer').value, site: document.getElementById('org_site').value, names: document.getElementById('org_names').value, note: document.getElementById('ua_site').textContent, company: document.getElementById('company').textContent, by: document.querySelector('.brandsub').textContent }));
@@ -41,9 +43,9 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   t = await save({ org_names: 'Sketchline Industries' }); ok('a name that saved bills carry cannot be taken away (' + hasBills + ' bills)', hasBills > 0 ? /cannot be taken away/.test(t) : /saved/.test(t), t.slice(0, 140));
   await f2.evaluate(() => { const bx = document.getElementById('fixbox'); if (bx) bx.hidden = true; });
   t = await save({ org_site: 'VTR Site – NH 848', org_names: 'Sketchline Industries\nRachana Construction Limited' }); ok('put back as it was', /saved/.test(t) && await f2.evaluate(() => SITE_NAME === 'VTR Site – NH 848'), t.slice(0, 80));
-  await f2.evaluate(() => document.getElementById('org_play').click()); await wait(700);
-  ok('"Play the opening now" shows it again; a press ends it', await f2.evaluate(() => !document.getElementById('oc_intro').hidden)); await f2.evaluate(() => document.getElementById('oc_intro').click()); await wait(800);
-  ok('…ended', await f2.evaluate(() => document.getElementById('oc_intro').hidden));
+  ok('Company & site: no film link, no "Play the opening" tick or button', await f2.evaluate(() => !document.getElementById('org_video') && !document.getElementById('org_intro') && !document.getElementById('org_play')));
+  const kept = JSON.parse(sql("select value from web.props where key = 'ORG_SETTINGS'"));
+  ok('a save keeps what was kept for the film as it was (nothing in the data changes)', kept.intro === true && kept.video === '', { intro: kept.intro, video: kept.video });
   ok('no script error', errs.length === 0, errs.join(' | '));
   out.push(pass + ' passed, ' + fail + ' failed'); fs.writeFileSync('/tmp/brand.out', out.join('\n')); await b.close();
   sql("delete from web.props where key = 'ORG_SETTINGS'");
