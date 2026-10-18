@@ -1712,6 +1712,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   the sign-in at once. "Company & site" without the film link / tick / "Play the opening now", My settings without "Play the
   opening"; `org_save` sends back the kept `video` / `intro` unchanged (no data change, no server change). App 3.19.1 (its
   "Company & site" too). Unit "update-123"; browser `test/browser/nofilm123.js` 6 (no rig needed).
+- 18-10-2026 (update-124). Report: `UPDATE_124.md`. The party's Tax Invoice of a bill made from now on (`b.txNet`, set in `mbFill`,
+  saved with the bill): each vehicle "FOR THE MONTH OF …" (`txPeriod`; dates when not a whole month) and its amount after its
+  diesel debit (`m.amount − m.excessAmt`) – no hours / days / rate, no diesel line; GST on it; no TDS. Abstract, Debit Note and the
+  figures unchanged; a bill without the mark (RCL Drive) is drawn as before (29 / 29 papers identical to main). App 3.20.0.
+  Unit "update-124".
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
