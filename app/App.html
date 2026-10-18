@@ -10876,6 +10876,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const machines = b.picked.map(id => mbMachine(id, byNo[String(id).toUpperCase()] || [], ex, b.from, b.to, undefined, b.idlePaid !== false)).filter(x => x.days || x.issued || x.amount || x.idleDays);
     const wo = machines.find(x => x.woNo) || {};
     b.machines = machines; b.woNo = wo.woNo || ''; b.woDate = wo.woDate || '';
+    b.txNet = true;      // (update-124) a bill made from now on: its Tax Invoice is of the value after the diesel debit (taxInvoiceHtml)
     b.idleDays = machines.reduce((a, x) => a + (x.idleDays || 0), 0);
     b.warnings = [];
     if (!machines.length) b.warnings.push('no Log Book / diesel in these dates' + (b.picked.length === 1 ? ' for ' + b.picked[0] : ''));
@@ -11185,6 +11186,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * 2. Tax Invoice – the party's invoice to the company, in the fixed format, made from the SAME figures as the Abstract
    *    (work done A, deductions B and C, value D, GST E + F, total G). TDS is NOT on it: the party bills value + GST and the
    *    company deducts TDS when it pays (lines H and I are on the Abstract only). Nothing is worked out again.
+   *    (update-124) A bill made from now on: each vehicle for the month and its amount after its diesel debit (txNet, below).
    * 3. Debit Note – only when diesel is deducted (B): what the company debits the party for diesel, machinery by machinery.
    * All three are made from the bill as it is saved, so an old bill always shows the papers it had. */
   const DOC_CSS = '<style>' +
@@ -11215,18 +11217,32 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return (neg ? 'Minus ' : '') + 'Rupees ' + (words(r) || 'Zero') + (p ? ' and ' + two(p) + ' Paise' : '') + ' Only';
   }
   const docDash = v => (v === '' || v === null || v === undefined || Number(v) === 0) ? '-' : mbN2(v);
+  /* (update-124, asked 18-10-2026: "tax invoice war debit as nko disayla … 100 gross, debit 10, basic 90 … tax invoice direct 90 asel";
+   * "tax invoice warti days hours rate nako … fkt month ani tya month chi amount") A bill made from now on (b.txNet – set when the
+   * bill is built): the party's invoice shows each vehicle's rent for the month (or the period) and its amount AFTER the diesel
+   * debit – no days / hours / rate, no diesel line; GST on that value; no TDS (the Abstract's). The Abstract and the Debit Note
+   * show the working and the debit as before. A bill made before (RCL Drive) keeps its papers exactly as they were. */
+  // the month of a bill ("SEPTEMBER 2026") when it is one whole month, else its dates ("01.09.2026 TO 15.09.2026")
+  function txPeriod(b) {
+    const f = String(b.from || ''), t = String(b.to || ''), M = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+    const y = Number(f.slice(0, 4)), mo = Number(f.slice(5, 7)), last = mo ? new Date(Date.UTC(y, mo, 0)).getUTCDate() : 0;
+    if (/^\d{4}-\d{2}-01$/.test(f) && t === f.slice(0, 8) + String(last).padStart(2, '0')) return 'FOR THE MONTH OF ' + M[mo - 1] + ' ' + y;
+    return 'FOR THE PERIOD ' + mbDot(f) + ' TO ' + mbDot(t);
+  }
   function taxInvoiceHtml(b) {
     const co = b.company || '', ci = b.companyInfo || {}, v = b.vendor || {}, gst = Number(b.gstPct) || 0, half = gst / 2;
-    const less = (Number(b.B) || 0) + (Number(b.C) || 0), rowTax = gst > 0 && !less && b.D > 0;      // tax per row only when the value taxed is the work done itself
+    const net = !!b.txNet;      // a new bill: each vehicle's amount after its diesel debit, the month only
+    const amt = m => net ? r2((Number(m.amount) || 0) - (Number(m.excessAmt) || 0)) : m.amount, before = net ? r2(b.A - b.B) : b.A;
+    const less = (net ? 0 : Number(b.B) || 0) + (Number(b.C) || 0), rowTax = gst > 0 && !less && b.D > 0;      // tax per row only when the value taxed is the rows themselves
     const rows = (b.machines || []).map((m, i) => {
-      const lines = (m.lines || []).filter(l => !(l.monthly && m.lines.length === 1));
-      const detail = lines.map(l => (l.item ? String(l.item).toUpperCase() + (l.note ? ' – ' + l.note : '') + ': ' : (l.note ? l.note + ': ' : '')) + fmt(l.qty) + ' ' + (l.unit || '') + ' × ' + mbN2(l.rate) + ' = ' + mbN2(l.amount));
-      const tax = rowTax ? r2(m.amount * half / 100) : 0;
+      const lines = net ? [] : (m.lines || []).filter(l => !(l.monthly && m.lines.length === 1));
+      const detail = net ? [txPeriod(b)] : lines.map(l => (l.item ? String(l.item).toUpperCase() + (l.note ? ' – ' + l.note : '') + ': ' : (l.note ? l.note + ': ' : '')) + fmt(l.qty) + ' ' + (l.unit || '') + ' × ' + mbN2(l.rate) + ' = ' + mbN2(l.amount));
+      const a = amt(m), tax = rowTax ? r2(a * half / 100) : 0;
       return '<tr><td class="c">' + (i + 1) + '</td><td><b>RENT ON VEHICLE ' + esc(String(m.no).replace(/-/g, '').toUpperCase()) + '</b>' + (m.type ? ' <span>(' + esc(String(m.type).toUpperCase()) + ')</span>' : '') +
-        (detail.length ? '<small>' + detail.map(esc).join('<br>') + '</small>' : '') + '</td><td class="n">' + mbN2(m.amount) + '</td><td class="n">' + (rowTax ? mbN2(tax) : '-') + '</td><td class="n">' + (rowTax ? mbN2(tax) : '-') + '</td><td class="n">' + mbN2(r2(m.amount + 2 * tax)) + '</td></tr>'; });
+        (detail.length ? '<small>' + detail.map(esc).join('<br>') + '</small>' : '') + '</td><td class="n">' + mbN2(a) + '</td><td class="n">' + (rowTax ? mbN2(tax) : '-') + '</td><td class="n">' + (rowTax ? mbN2(tax) : '-') + '</td><td class="n">' + mbN2(r2(a + 2 * tax)) + '</td></tr>'; });
     const pct = gst ? fmt(half) + '%' : '';
-    const sum = [['Total Amount Before Tax', mbN2(b.A)]]
-      .concat(b.B ? [['Less: Diesel deduction' + (b.dnNo ? ' (Debit Note ' + esc(b.dnNo) + ')' : ''), '− ' + mbN2(b.B)]] : [])
+    const sum = [['Total Amount Before Tax', mbN2(before)]]
+      .concat(b.B && !net ? [['Less: Diesel deduction' + (b.dnNo ? ' (Debit Note ' + esc(b.dnNo) + ')' : ''), '− ' + mbN2(b.B)]] : [])
       .concat(b.C ? [['Less: Other deduction' + (b.cReason ? ' (' + esc(b.cReason) + ')' : ''), '− ' + mbN2(b.C)]] : [])
       .concat([['Basic Value', mbN2(b.D)], ['SGST ' + pct, docDash(b.F)], ['CGST ' + pct, docDash(b.E)], ['Total Billing Amt', mbN2(b.G)]])
       .concat([['Net Cheque Amount', mbN2(b.G)]]);      // the party bills value + GST; TDS is the company's deduction when it pays (line H of the Abstract), never on the party's invoice
@@ -11241,7 +11257,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<tr><td>To,<br>' + party + (ci.address ? '<br>Address : ' + esc(ci.address) : '') + '<br><b>GST : ' + esc(ci.gstin || '–') + '</b></td>' +
       '<td>To,<br>' + party + (b.siteAddress ? '<br>Address : ' + esc(b.siteAddress) : '') + '<br><b>GST : ' + esc(ci.gstin || '–') + '</b></td></tr></tbody></table>' +
       '<table><colgroup><col style="width:7%"><col style="width:43%"><col style="width:14%"><col style="width:11%"><col style="width:11%"><col style="width:14%"></colgroup><thead><tr><th class="c">Sr.No</th><th class="c">Description of Work</th><th class="c">Amount</th><th class="c">Add CGST ' + pct + '</th><th class="c">Add SGST ' + pct + '</th><th class="c">Total Amount</th></tr></thead><tbody>' +
-      rows.join('') + '<tr class="sum"><td colspan="2" class="c">Total Billing Amount</td><td class="n">' + mbN2(b.A) + '</td><td class="n">-</td><td class="n">-</td><td class="n">' + mbN2(b.A) + '</td></tr></tbody></table>' +
+      rows.join('') + '<tr class="sum"><td colspan="2" class="c">Total Billing Amount</td><td class="n">' + mbN2(before) + '</td><td class="n">-</td><td class="n">-</td><td class="n">' + mbN2(before) + '</td></tr></tbody></table>' +
       '<table class="foot"><colgroup><col style="width:50%"><col style="width:36%"><col style="width:14%"></colgroup><tbody>' +
       sum.map((x, i) => '<tr>' + (i === 0 ? '<td rowspan="' + sum.length + '"><b>In Word : ' + esc(rupeesWords(b.G)) + ' /-</b></td>' : '') + '<td class="k">' + x[0] + '</td><td class="n"><b>' + x[1] + '</b></td></tr>').join('') +
       '<tr><td>' + esc(v.name || '') + (v.address ? '<br>' + esc(v.address) : '') + (v.account ? '<br>AC.NO : - ' + esc(v.account) : '') + (v.ifsc ? '<br>IFSC CODE :' + esc(v.ifsc) : '') + (v.bank ? '<br>BANK : ' + esc(v.bank) + (v.branch ? ', ' + esc(v.branch) : '') : '') +

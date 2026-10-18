@@ -3571,3 +3571,41 @@ test('update-123: no opening film of One Click Solution – the link opens the s
     assert.ok('Less movement (no gliding)' in d, l);
   }
 });
+
+test('update-124: a bill made from now on – its Tax Invoice shows each vehicle for the month and its amount AFTER the diesel debit (no hours, days, rate or debit line; GST on it, no TDS); a bill made before keeps its paper', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const grab = m => { const i = app.indexOf(m); assert.ok(i > -1, m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
+  const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const env = { r2: n => Math.round(n * 100) / 100, esc, fmt: n => String(n), DOC_CSS: '', mbN2: n => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), mbDot: d => String(d || '').split('-').reverse().join('.') };
+  const C = new Function(...Object.keys(env), grab('function rupeesWords(') + '\nconst docDash = v => (v === \'\' || v === null || v === undefined || Number(v) === 0) ? \'-\' : mbN2(v);\n' + grab('function txPeriod(') + '\n' + grab('function taxInvoiceHtml(') + '; return { taxInvoiceHtml, txPeriod };')(...Object.values(env));
+  const text = h => h.replace(/<style>[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+  // the bill he was shown (18-10-2026): JCB with excess diesel, a tipper on debit basis, a Bolero without diesel – GST 18 %, TDS 1 %
+  const base = { company: 'Rachana Construction Limited', companyInfo: { gstin: '27BBBBB0000B1Z0', invPrefix: 'RCL/TST/RA-' }, vendor: { name: 'Shree Earthmovers' }, billNo: '12', billDate: '2026-10-18', from: '2026-09-01', to: '2026-09-30', dnNo: 'RCL/TST/DN-7',
+    machines: [{ no: 'MH-12-AB-1234', type: 'JCB', amount: 134000, excessAmt: 9200, lines: [{ item: 'Bucket', unit: 'Hrs', qty: 120, rate: 900, amount: 108000 }, { item: 'Breaker', unit: 'Hrs', qty: 20, rate: 1300, amount: 26000 }] },
+      { no: 'MH-12-CD-5678', type: 'Tipper', amount: 60000, excessAmt: 27600, lines: [{ monthly: 60000, unit: 'Days', qty: 30, rate: 2000, amount: 60000 }] },
+      { no: 'MH-12-EF-9012', type: 'Bolero', amount: 40000, excessAmt: 0, lines: [{ monthly: 40000, unit: 'Days', qty: 30, rate: 1333.33, amount: 40000 }] }],
+    A: 234000, B: 36800, C: 0, D: 197200, gstPct: 18, tdsPct: 1, E: 17748, F: 17748, G: 232696, H: 1972, I: 230724 };
+  const now = text(C.taxInvoiceHtml(Object.assign({}, base, { txNet: true })));
+  for (const want of ['1 RENT ON VEHICLE MH12AB1234 (JCB) FOR THE MONTH OF SEPTEMBER 2026 1,24,800.00 11,232.00 11,232.00 1,47,264.00',
+    '2 RENT ON VEHICLE MH12CD5678 (TIPPER) FOR THE MONTH OF SEPTEMBER 2026 32,400.00 2,916.00 2,916.00 38,232.00',
+    '3 RENT ON VEHICLE MH12EF9012 (BOLERO) FOR THE MONTH OF SEPTEMBER 2026 40,000.00 3,600.00 3,600.00 47,200.00',
+    'Total Billing Amount 1,97,200.00', 'Total Amount Before Tax 1,97,200.00 Basic Value 1,97,200.00 SGST 9% 17,748.00 CGST 9% 17,748.00 Total Billing Amt 2,32,696.00 Net Cheque Amount 2,32,696.00',
+    'Rupees Two Lakh Thirty Two Thousand Six Hundred Ninety Six Only']) assert.ok(now.indexOf(want) > -1, 'the new Tax Invoice should say: ' + want + '\n' + now.slice(0, 1600));
+  for (const gone of ['Diesel', 'Debit', 'Less:', 'Hrs', 'Days', '×', 'BUCKET', 'TDS', '2,34,000', '36,800', '1,972']) assert.ok(now.indexOf(gone) === -1, 'not on the new Tax Invoice: ' + gone);
+  // the same bill made before update-124 (no txNet – every bill in RCL Drive): its paper as it was – the work, the rates and the debit line
+  const old = text(C.taxInvoiceHtml(base));
+  for (const want of ['BUCKET: 120 Hrs × 900.00 = 1,08,000.00', 'RENT ON VEHICLE MH12CD5678 (TIPPER) 60,000.00 - - 60,000.00', 'Total Billing Amount 2,34,000.00', 'Total Amount Before Tax 2,34,000.00',
+    'Less: Diesel deduction (Debit Note RCL/TST/DN-7) − 36,800.00', 'Basic Value 1,97,200.00']) assert.ok(old.indexOf(want) > -1, 'a bill made before keeps: ' + want);
+  assert.ok(old.indexOf('FOR THE MONTH') === -1);
+  // the month: a whole calendar month by its name, else the dates
+  assert.deepStrictEqual([['2026-09-01', '2026-09-30'], ['2026-02-01', '2026-02-28'], ['2028-02-01', '2028-02-28'], ['2028-02-01', '2028-02-29'], ['2026-09-01', '2026-09-15'], ['2026-09-20', '2026-10-10'], ['2026-12-01', '2026-12-31']].map(([f, t]) => C.txPeriod({ from: f, to: t })),
+    ['FOR THE MONTH OF SEPTEMBER 2026', 'FOR THE MONTH OF FEBRUARY 2026', 'FOR THE PERIOD 01.02.2028 TO 28.02.2028', 'FOR THE MONTH OF FEBRUARY 2028', 'FOR THE PERIOD 01.09.2026 TO 15.09.2026', 'FOR THE PERIOD 20.09.2026 TO 10.10.2026', 'FOR THE MONTH OF DECEMBER 2026']);
+  // an other deduction (C) stays a line of its own (the value taxed is then not the rows: no tax per row)
+  const withC = text(C.taxInvoiceHtml(Object.assign({}, base, { txNet: true, C: 1000, cReason: 'tyre', D: 196200, E: 17658, F: 17658, G: 231516 })));
+  assert.ok(withC.indexOf('Total Amount Before Tax 1,97,200.00 Less: Other deduction (tyre) − 1,000.00 Basic Value 1,96,200.00') > -1, withC.slice(900, 1500));
+  assert.ok(withC.indexOf('1,24,800.00 - - 1,24,800.00') > -1 && withC.indexOf('Diesel') === -1);
+  // a bill is marked when it is BUILT (Make Bill) – never when an old one is opened
+  assert.match(grab('function mbFill('), /b\.txNet = true;/);
+  assert.doesNotMatch(grab('function mbTotals('), /txNet/);
+  assert.doesNotMatch(grab('function billSheets('), /txNet/);
+});
