@@ -1717,6 +1717,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   diesel debit (`m.amount − m.excessAmt`) – no hours / days / rate, no diesel line; GST on it; no TDS. Abstract, Debit Note and the
   figures unchanged; a bill without the mark (RCL Drive) is drawn as before (29 / 29 papers identical to main). App 3.20.0.
   Unit "update-124".
+- 18-10-2026 (update-125). Report: `UPDATE_125.md`. Phone / tablet (≤ 760 px): "Change site" at the top of the dark menu opened its
+  box behind the drawer (`.side` 30 / `#nav_back` 29 over `#cf_back` 20) – the sites could not be pressed. The click now closes the
+  drawer first (`setDrawer(false)`, as a page of the menu does). Computer unchanged. Unit "update-125"; browser
+  `test/browser/sitechg125.js` 18 (no rig needed; 12 / 18 on main).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
