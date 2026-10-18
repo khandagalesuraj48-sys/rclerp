@@ -3609,3 +3609,21 @@ test('update-124: a bill made from now on – its Tax Invoice shows each vehicle
   assert.doesNotMatch(grab('function mbTotals('), /txNet/);
   assert.doesNotMatch(grab('function billSheets('), /txNet/);
 });
+
+test('update-125: "Change site" in the dark menu closes the phone / tablet drawer first, so its box with the sites is on top (not behind the menu)', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  // the click on "Change site": the drawer closes before the box opens
+  const i = app.indexOf("$('site_chg').addEventListener('click'"); assert.ok(i > -1);
+  const h = app.slice(i, app.indexOf('\n  });', i));
+  const close = h.indexOf('setDrawer(false)'), box = h.indexOf('askConfirm(');
+  assert.ok(close > -1 && box > -1 && close < box, 'the drawer must close before the "Change site" box opens');
+  // setDrawer(false) takes the drawer away (the class that slides it in), and the drawer and its shade are above the box
+  assert.match(app, /function setDrawer\(open\) \{ document\.querySelector\('\.app'\)\.classList\.toggle\('nav-open', open\); \}/);
+  const z = re => Number((app.match(re) || [])[1]);
+  const side = z(/\.side \{ position: fixed;[^}]*z-index: (\d+);/), shade = z(/#nav_back \{ display: block;[^}]*z-index: (\d+);/), cf = z(/#cf_back \{[^}]*z-index: (\d+);/);
+  assert.ok(side > cf && shade > cf, 'on a phone the drawer (' + side + ') and its shade (' + shade + ') are above the box (' + cf + ') – that is why it must close first');
+  // nothing else changed in the box: the same sites, "Stay here", the Portal's way and the app's own switch
+  assert.match(h, /title: 'Change site', alertOnly: true, ok: 'Stay here'/);
+  assert.match(h, /ptNav\(chosen === '__portal' \? '\/\?menu=1' : ptOpen\('mechanical', chosen\)\)/);
+  assert.match(h, /siteSwitch\(chosen\)/);
+});

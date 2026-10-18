@@ -5030,6 +5030,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('site_chg_name').textContent = name; $('site_chg_code').textContent = cur || '';
   }
   $('site_chg').addEventListener('click', async () => {
+    // (update-125, asked 18-10-2026: "site change krnecha option yetoy but blue pattice maghe hide hotey") on a phone or tablet the
+    // dark menu is a drawer over the page: it closes first, as after a page of the menu, so the box with the sites is on top
+    try { setDrawer(false); } catch (er) { /* a computer: the menu is part of the page */ }
     const si = S.siteInfo, cur = (si && si.site) || ptSite(), pt = ptOn();
     const list = pt ? PT.sites.map(x => ({ code: x.code, name: x.name, current: x.code === cur })) : ((si && si.sites) || []);
     if (pt && cur && !list.some(x => x.current)) list.unshift({ code: cur, name: $('site_chg_name').textContent || cur, current: true });
