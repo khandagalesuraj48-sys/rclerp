@@ -3429,7 +3429,35 @@ function getBoqs_(f) {
   const out = [];
   roots.forEach(r => { out.push(r); list.filter(b => b.amendOf === r.id).sort((a, b) => a.amendNo - b.amendNo).forEach(a => out.push(a)); });
   list.filter(b => b.amendOf && !roots.some(r => r.id === b.amendOf)).forEach(b => out.push(b));
-  return { boqs: out, vendors: getVendors_() };
+  return { boqs: out, vendors: getVendors_(), history: boqHistory_(list) };
+}
+/* (update-132, asked 19-10-2026: "mala disayla haw old kay hot nantr amendment zali kadhi … boq period wise ani vehicle wise …
+ * jewa tya party war jail mi tewa mala disel 01 month sathi yacha ha rate hot … second month la ha rate … ani hi rate change zal tya
+ * sathi amendment pn dili aahe") THE RATE HISTORY of each machinery of a vendor – period by period, exactly as the bills take it
+ * (boqRateFor_: on each date the newest version that covers it): from – to, the rate, and which BOQ / amendment gave it. The old
+ * rate ends the day before an amendment starts; a time with no BOQ between two periods is said too. */
+const boqNewer_ = (x, y) => (x.from < y.from ? 1 : x.from > y.from ? -1 : 0) || (y.amendNo - x.amendNo) || (y.created > x.created ? 1 : y.created < x.created ? -1 : 0);
+function boqHistory_(list) {
+  const byVM = {}, byId = {};
+  list.forEach(b => { byId[b.id] = b; (b.lines || []).forEach(l => { const k = vKey_(b.vendor) + '|' + noKey_(l.no); (byVM[k] = byVM[k] || { vendor: b.vendor, no: l.no, vs: [] }).vs.push({ b: b, l: l }); }); });
+  return Object.keys(byVM).map(k => {
+    const g = byVM[k], vs = g.vs;
+    const at = d => vs.filter(v => v.b.from <= d && (!v.b.to || v.b.to >= d)).sort((x, y) => boqNewer_(x.b, y.b))[0] || null;
+    const bounds = [...new Set(vs.map(v => v.b.from).concat(vs.filter(v => v.b.to).map(v => addDays_(v.b.to, 1))))].filter(Boolean).sort();
+    const segs = [];
+    bounds.forEach((d, i) => {
+      const v = at(d), end = i + 1 < bounds.length ? addDays_(bounds[i + 1], -1) : (v ? v.b.to : '');
+      const last = segs[segs.length - 1];
+      if (last && (last.v && v ? last.v.b.id === v.b.id : !last.v && !v)) { last.to = end; return; }
+      segs.push({ from: d, to: end, v: v });
+    });
+    while (segs.length && !segs[segs.length - 1].v) segs.pop();
+    while (segs.length && !segs[0].v) segs.shift();
+    return { vendor: g.vendor, no: g.no, periods: segs.map(x => {
+      if (!x.v) return { from: x.from, to: x.to, none: true };
+      const b = x.v.b, root = b.amendOf ? byId[b.amendOf] : null;
+      return { from: x.from, to: x.to, boq: b.id, boqNo: b.no, amendNo: b.amendOf ? b.amendNo : 0, of: root ? root.no : (b.amendOf || ''), line: x.v.l, woNo: b.woNo || (root ? root.woNo : '') }; }) };
+  }).sort((a, b) => a.vendor.localeCompare(b.vendor) || String(a.no).localeCompare(String(b.no)));
 }
 // hour slabs of a Per Hour rate (2 or more): [{ upTo, rate }], the last one open ("after that")
 function boqSlabs_(l, basis, at) {
@@ -3516,7 +3544,9 @@ function saveBoq_(b, mode, id) {
     if (amendOf) {
       const root = all.find(x => x.id === amendOf); if (!root) throw new Error('The BOQ being amended (' + amendOf + ') was not found.');
       if (vKey_(root.vendor) !== vKey_(vendor)) throw new Error('An amendment must be for the same vendor (' + root.vendor + ').');
-      if (from < root.from || (root.to && from > root.to)) throw new Error('The amendment must start inside the BOQ period (' + dmy_(root.from) + ' to ' + (root.to ? dmy_(root.to) : 'open') + ').');
+      // (update-132) from the date the new rate starts – on or after the BOQ's start, also after its end (that machinery goes on at
+      // the new rate; the others of the BOQ stay as they are)
+      if (from < root.from) throw new Error('The amendment must start on or after the start of BOQ ' + (root.no || root.id) + ' (' + dmy_(root.from) + ').');
       if (mode !== 'edit') amendNo = all.filter(x => x.amendOf === amendOf).reduce((mx, x) => Math.max(mx, x.amendNo), 0) + 1;
     } else {
       // two BOQs (not amendments) of one vendor may not give the same machinery for the same dates
@@ -3821,7 +3851,7 @@ function boqRateFor_(vendor, no, dk) {
     const l = b.lines.find(x => same_(x.no, no)); if (l) hits.push({ b: b, l: l });
   });
   if (!hits.length) return null;
-  hits.sort((x, y) => (x.b.from < y.b.from ? 1 : x.b.from > y.b.from ? -1 : 0) || (y.b.amendNo - x.b.amendNo) || (y.b.created > x.b.created ? 1 : -1));
+  hits.sort((x, y) => boqNewer_(x.b, y.b));      // (update-132: the same order as the rate history)
   const h = hits[0];
   const root = h.b.amendOf ? allBoqs_().find(x => x.id === h.b.amendOf) : null;
   return { boq: h.b.id, boqNo: h.b.no, amendNo: h.b.amendNo, from: h.b.from, to: h.b.to, line: h.l, gstPct: h.b.gstPct, tdsPct: h.b.tdsPct,

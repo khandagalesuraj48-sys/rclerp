@@ -2497,6 +2497,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .fv-chips span { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #fff; border: 1px solid #E5E7EB; font-size: 12.5px; margin-right: 4px; } .fv-chips b { margin-left: 4px; } .fv-chips .bk { background: #FEF3C7; border-color: #FCD34D; }
   .fv-acts { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; } .fv-t { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 13px; } .fv-t td { padding: 6px 8px; border-top: 1px solid #F1E4CC; vertical-align: top; } .fv-t small { color: #64748B; }
   .fv-note { margin: 6px 0 0; font-size: 12px; color: #64748B; } .cr-rem { color: #B45309; font-weight: 600; }
+  #bh_box { margin-top: 14px; } #bh_box .bh-note { margin: 2px 0 8px; } .bh-t td { vertical-align: top; } .bh-t tr.bh-amend td { background: #FFF8E6; } .bh-t tr.bh-gap td { color: #6B7280; } .bh-t td.bh-chg { font-weight: 600; }      /* (update-132) */
   .fixbar { border: 1px solid #F0C36D; background: #FFF8E6; color: #3A2E00; border-radius: 10px; padding: 10px 12px; margin: 4px 0 12px; line-height: 1.5; } .fixbar .btn { margin-left: 6px; } .fixbar .fv-why { display: inline-block; margin: 2px 0; }      /* (update-130) */
   .cr-chg { background: #FFF8E6; border-left: 3px solid #F0A500; padding: 4px 8px; margin-top: 6px; font-size: 13px; } .cr-chg ul { margin: 2px 0 0; padding-left: 18px; }
   .fv-why { color: #B3261E; font-weight: 600; } .fv-again { border-bottom: 1px dashed #D3D9DE; padding: 6px 0; } .fv-again ul { margin: 4px 0; } .fv-again .fv-why { margin: 2px 0 4px; font-size: 13.5px; }      /* (update-128) */
@@ -3438,6 +3439,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <thead><tr><th>BOQ No</th><th>Vendor</th><th>Period (from – to)</th><th>Version</th><th>Machinery – rent type &amp; rate</th><th>Entered by</th><th></th></tr></thead>
         <tbody id="boq_rows"></tbody>
       </table></div>
+      <div id="bh_box" hidden></div>
     </div>
     <div class="panel" id="b_form" hidden>
       <div class="panel-head"><h2 id="b_title">New BOQ</h2><span class="chart-note" id="b_note"></span></div>
@@ -5902,9 +5904,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['Asset Master प्रमाणे ही machinery या vendor ची नाही.', 'Asset Master मध्ये या machinery चे "Vendor / Owner Name" तपासा; ते अगदी हाच vendor असले पाहिजे. तिथे दुरुस्त करा, किंवा इथे योग्य vendor निवडा.'],
       hi: ['Asset Master के अनुसार यह machinery इस vendor की नहीं है।', 'Asset Master में इस machinery का "Vendor / Owner Name" जाँचें; वह ठीक यही vendor होना चाहिए। वहाँ ठीक करें, या यहाँ सही vendor चुनें।'] },
     { re: /BOQ|slab|rate basis|amendment|"Amend"/i,
-      en: ['The Vendor BOQ is incomplete or clashes with another BOQ (rate, basis, slabs, items, dates or number).', 'Fill every line: rate basis and rate (and for slabs / items each rate). One machinery only once in a BOQ. For a change of rate use "Amend" with a start date inside the BOQ period.'],
-      mr: ['Vendor BOQ अपूर्ण आहे किंवा दुसऱ्या BOQ शी टक्कर होते (दर, basis, slabs, items, तारखा किंवा नंबर).', 'प्रत्येक ओळ पूर्ण भरा: rate basis आणि दर (slabs / items असतील तर प्रत्येकाचा दर). एका BOQ मध्ये एक machinery एकदाच. दर बदलायचा असेल तर "Amend" वापरा आणि सुरुवातीची तारीख BOQ च्या कालावधीत ठेवा.'],
-      hi: ['Vendor BOQ अधूरा है या किसी दूसरे BOQ से टकरा रहा है (दर, basis, slabs, items, तारीखें या नंबर)।', 'हर पंक्ति पूरी भरें: rate basis और दर (slabs / items हों तो हर एक की दर)। एक BOQ में एक machinery एक ही बार। दर बदलनी हो तो "Amend" का उपयोग करें और शुरू की तारीख BOQ की अवधि के अंदर रखें।'] },
+      en: ['The Vendor BOQ is incomplete or clashes with another BOQ (rate, basis, slabs, items, dates or number).', 'Fill every line: rate basis and rate (and for slabs / items each rate). One machinery only once in a BOQ. For a change of rate use "Make amendment" with the date the new rate starts (on or after the BOQ start – also after its end); keep only the machinery whose rate changes.'],
+      mr: ['Vendor BOQ अपूर्ण आहे किंवा दुसऱ्या BOQ शी टक्कर होते (दर, basis, slabs, items, तारखा किंवा नंबर).', 'प्रत्येक ओळ पूर्ण भरा: rate basis आणि दर (slabs / items असतील तर प्रत्येकाचा दर). एका BOQ मध्ये एक machinery एकदाच. दर बदलायचा असेल तर "Make amendment" वापरा आणि नवा दर ज्या तारखेपासून लागतो ती तारीख द्या (BOQ सुरू झाल्यापासून पुढची – BOQ संपल्यानंतरचीही चालते); फक्त ज्या गाडीचा दर बदलला ती ठेवा.'],
+      hi: ['Vendor BOQ अधूरा है या किसी दूसरे BOQ से टकरा रहा है (दर, basis, slabs, items, तारीखें या नंबर)।', 'हर पंक्ति पूरी भरें: rate basis और दर (slabs / items हों तो हर एक की दर)। एक BOQ में एक machinery एक ही बार। दर बदलनी हो तो "Make amendment" का उपयोग करें और नई दर जिस तारीख से लगती है वह दें (BOQ शुरू होने के बाद की – BOQ खत्म होने के बाद की भी चलती है); सिर्फ़ वही गाड़ी रखें जिसकी दर बदली।'] },
     { re: /bill number|company name for|bill period|No bill to|is already in .* for |reason for deleting this bill/i,
       en: ['The bill cannot be made or submitted as it is (bill number, name on the bill, period, or the same machinery is already billed for these dates).', 'Type the RA bill number, pick the name (Rachana / Sketchline) and the period. If the machinery is already in a saved bill for these dates, open RCL Drive and check that bill; to replace it, build the same vendor and period again.'],
       mr: ['Bill आहे तसे बनवता किंवा submit करता येत नाही (bill नंबर, bill वरचे नाव, कालावधी, किंवा तीच machinery या तारखांसाठी आधीच bill झाली आहे).', 'RA bill नंबर टाइप करा, नाव (Rachana / Sketchline) आणि कालावधी निवडा. Machinery या तारखांसाठी आधीच्या bill मध्ये असेल तर RCL Drive मध्ये ते bill पाहा; ते बदलायचे असेल तर तोच vendor आणि कालावधी पुन्हा Build करा.'],
@@ -10369,7 +10371,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function loadVendors() {
     try {
       const d = await call('getBoqs', {});
-      S.vendors = d.vendors || []; S.boqs = d.boqs || [];
+      S.vendors = d.vendors || []; S.boqs = d.boqs || []; S.boqHist = d.history || [];
       renderVendors(); renderBoqs(); if (S.master) renderMaster();
       const sel = $('bf_vendor'), cur = sel.value;
       sel.innerHTML = '<option value="">All vendors</option>' + S.vendors.map(v => '<option>' + esc(v.name) + '</option>').join('');
@@ -10517,7 +10519,34 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const boqItemsText = l => (l.items || []).map(it => it.name + ' – ' + boqRateText(it) + (it.qty === 'typed' ? ' [typed in Log Book]' : '')).join('; ');
   const boqLineText = l => l.items && l.items.length ? 'Item-wise: ' + boqItemsText(l) : l.slabs && l.slabs.length ? 'Per Hour: ' + l.slabs.map((s, k) => (k === 0 ? 'first ' + fmt(s.upTo) + ' hr' : s.upTo === '' ? 'after that' : 'up to ' + fmt(s.upTo) + ' hr') + ' ' + vbMoney(s.rate)).join(', ') + ' (' + (l.slabOn === 'Period' ? 'on total hrs' : 'each day') + ')'
     : l.basis === 'No rent – diesel only' ? 'No rent – diesel only (all diesel debited)' : l.basis + ' ' + vbMoney(l.rate) + (Number(l.nightRate) > 0 ? ', Night trip ' + vbMoney(l.nightRate) : '');
+  /* (update-132, asked 19-10-2026: "mala disayla haw old kay hot nantr amendment zali kadhi … boq period wise ani vehicle wise … jewa
+   * tya party war jail mi tewa mala disel 01 month sathi yacha ha rate hot … second month la ha rate … ani hi rate change zal tya sathi
+   * amendment pn dili aahe") THE RATE HISTORY of the vendor's machinery – period by period, from the server (boqHistory_: the same rule
+   * as the bills): from – to, the rate, which BOQ / amendment gave it, and what changed. */
+  function renderBoqHistory() {
+    const box = $('bh_box'); if (!box) return;
+    const v = $('bf_vendor').value;
+    if ($('bf_show').value === 'missing') { box.hidden = true; return; }
+    box.hidden = false;
+    if (!v) { box.innerHTML = '<p class="muted bh-note">Pick a vendor to see the rate history of each machinery – which rate from which date, and which amendment changed it.</p>'; return; }
+    const list = (S.boqHist || []).filter(h => h.vendor === v);
+    if (!list.length) { box.innerHTML = '<h3 class="rsub">Rate history – machinery-wise</h3><p class="muted bh-note">No BOQ yet for ' + esc(v) + '.</p>'; return; }
+    const by = p => p.amendNo ? 'Amendment ' + p.amendNo + ' of BOQ ' + p.of : 'BOQ ' + p.boqNo + ' – Original';
+    const txt = l => boqLineText(l) + boqDieselText(l);
+    const rows = list.map(h => h.periods.map((p, i) => {
+      const prev = h.periods.slice(0, i).reverse().find(x => !x.none);
+      const chg = p.none ? '' : !prev ? 'First rate' : txt(prev.line) === txt(p.line) ? 'Same rate' : 'Changed – was ' + txt(prev.line);
+      return '<tr' + (p.none ? ' class="bh-gap"' : p.amendNo ? ' class="bh-amend"' : '') + '>' + (i === 0 ? '<td rowspan="' + h.periods.length + '"><b>' + esc(h.no) + '</b></td>' : '') +
+        '<td class="nowrap">' + esc(showDate(p.from)) + ' – ' + (p.to ? esc(showDate(p.to)) : 'open') + '</td>' +
+        '<td>' + (p.none ? 'No BOQ – no rate' : esc(boqLineText(p.line)) + '<small class="muted">' + esc(boqDieselText(p.line)) + '</small>') + '</td>' +
+        '<td>' + (p.none ? '' : esc(by(p)) + (p.amendNo ? '<br><small class="muted">saved as BOQ ' + esc(p.boqNo) + '</small>' : '') + (p.woNo ? '<br><small class="muted">WO ' + esc(p.woNo) + '</small>' : '')) + '</td>' +
+        '<td class="bh-chg">' + esc(chg) + '</td></tr>';
+    }).join('')).join('');
+    box.innerHTML = '<h3 class="rsub">Rate history – machinery-wise</h3><p class="muted bh-note">Each machinery of ' + esc(v) + ': which rate from which date to which date, and which BOQ or amendment gave it. The old rate ends the day before an amendment starts. Bills take exactly these rates.</p>' +
+      '<div class="table-wrap"><table class="bh-t"><thead><tr><th>Machinery</th><th>Period (from – to)</th><th>Rent type &amp; rate</th><th>Given by</th><th>Change</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
   function renderBoqs() {
+    renderBoqHistory();      // (update-132)
     const v = $('bf_vendor').value, list = S.boqs.filter(b => !v || b.vendor === v), can = canEdit('Vendor BOQ');
     $('bf_sum').innerHTML = 'BOQs: <b>' + list.filter(b => !b.amendOf).length + '</b> · amendments: <b>' + list.filter(b => b.amendOf).length + '</b>';
     const noOf = id => { const x = S.boqs.find(y => y.id === id); return x ? 'BOQ ' + x.no : id; };
@@ -10544,7 +10573,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('bf_show').addEventListener('change', () => {
     const miss = $('bf_show').value === 'missing';
     $('bm_wrap').hidden = !miss; $('boq_rows').closest('.table-wrap').hidden = miss; $('bf_date_wrap').hidden = !miss;
-    if (miss) loadMissing(); else renderBoqs();
+    if (miss) { loadMissing(); renderBoqHistory(); } else renderBoqs();
   });
   $('bf_date').addEventListener('change', loadMissing);
   $('bm_missing').addEventListener('click', e => { const b = e.target.closest('[data-bmake]'); if (!b) return; $('bf_vendor').value = b.dataset.bmake; bOpen('new'); });
@@ -10769,8 +10798,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (mode === 'amend') {
         const next = S.boqs.filter(x => x.amendOf === b.id).reduce((m, x) => Math.max(m, x.amendNo), 0) + 1;
         $('b_title').textContent = 'Amendment ' + next + ' of BOQ ' + b.no + ' – ' + b.vendor + ' (saves as BOQ ' + bNextNo(b.vendor) + ')';
-        $('b_note').textContent = 'Change the rates / rent type below, and set "Valid From" = the date the new rates start (inside ' + showDate(b.from) + ' – ' + (b.to ? showDate(b.to) : 'open') + '). Before that date BOQ ' + b.no + ' stays in force.';
-        $('b_from').value = S.today > b.from && (!b.to || S.today <= b.to) ? S.today : b.from; $('b_to').value = b.to;
+        $('b_note').textContent = 'Keep only the machinery whose rate changes, change its rate / rent type, and set "Valid From" = the date the new rate starts (on or after ' + showDate(b.from) + ' – also after BOQ ' + b.no + ' ends: that machinery goes on at the new rate). Before that date the old rate stays; the other machinery of BOQ ' + b.no + ' stay as they are.';      // (update-132)
+        $('b_from').value = S.today > b.from ? S.today : b.from; $('b_to').value = b.to && b.to >= $('b_from').value ? b.to : '';
       } else {
         const root = b.amendOf ? S.boqs.find(x => x.id === b.amendOf) : null;
         $('b_title').textContent = 'Edit BOQ ' + b.no + (b.amendOf ? ' (amendment ' + b.amendNo + ' of BOQ ' + (root ? root.no : b.amendOf) + ')' : '') + ' – ' + b.vendor; $('b_note').textContent = '';
