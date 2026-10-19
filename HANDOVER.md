@@ -1731,6 +1731,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `flowResendOne_`, action `resendFlow` { id | ids, note }); checked as a save first (`FLOW_DRY_ON_`, `FLOW_RUN_ID_`, its photos):
   refused again → "Not sent again: …", nothing changed. `canResend` / `resent` in the list; the box shows a returned entry's
   reason; "Send again" / "Send all again (n)" (`flowAgain`), Approvals too. Unit "update-128"; rig `test/browser/again128.js` 11.
+- 19-10-2026 (update-129). Report: `UPDATE_129.md`. Live fix of update-128: a save's WARNINGS ("Multiple entries" `warnings`, `warning`,
+  `used`, `duplicates`) were said as "refused". `flowRefusal_` gives the reason in words (warning or mistake) at the approval and
+  on Send again; `resendFlow` { …, force: true } = "Send again anyway" (`flowForce_`: `force` on the entry / `confirm` for
+  `submitBills` / the 2nd value of the master deletes), stored in Args; one refused entry comes back in `failed` (`warn`). Page:
+  "Please check – warnings, not mistakes" box. Unit "update-129"; rig `test/browser/again129.js` 9.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
