@@ -2497,6 +2497,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .fv-chips span { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #fff; border: 1px solid #E5E7EB; font-size: 12.5px; margin-right: 4px; } .fv-chips b { margin-left: 4px; } .fv-chips .bk { background: #FEF3C7; border-color: #FCD34D; }
   .fv-acts { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; } .fv-t { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 13px; } .fv-t td { padding: 6px 8px; border-top: 1px solid #F1E4CC; vertical-align: top; } .fv-t small { color: #64748B; }
   .fv-note { margin: 6px 0 0; font-size: 12px; color: #64748B; } .cr-rem { color: #B45309; font-weight: 600; }
+  .fixbar { border: 1px solid #F0C36D; background: #FFF8E6; color: #3A2E00; border-radius: 10px; padding: 10px 12px; margin: 4px 0 12px; line-height: 1.5; } .fixbar .btn { margin-left: 6px; } .fixbar .fv-why { display: inline-block; margin: 2px 0; }      /* (update-130) */
+  .cr-chg { background: #FFF8E6; border-left: 3px solid #F0A500; padding: 4px 8px; margin-top: 6px; font-size: 13px; } .cr-chg ul { margin: 2px 0 0; padding-left: 18px; }
   .fv-why { color: #B3261E; font-weight: 600; } .fv-again { border-bottom: 1px dashed #D3D9DE; padding: 6px 0; } .fv-again ul { margin: 4px 0; } .fv-again .fv-why { margin: 2px 0 4px; font-size: 13.5px; }      /* (update-128) */
   .cr-dash { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; } .cr-dash div { background: var(--soft, #F1F5F9); border-radius: 12px; padding: 8px 14px; min-width: 120px; } .cr-dash b { display: block; font-size: 22px; }
   .fr-task { border: 1px solid #E2E8F0; border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; } .fr-task.on { border-color: #16A34A; background: #F0FDF4; }
@@ -4012,6 +4014,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           <button id="dmode_many" aria-pressed="false">Multiple entries</button>
         </div>
       </div>
+      <div class="fixbar" id="d_fixbar" hidden></div>
       <div id="d_single">
       <div class="grid">
         <div class="field"><label for="d_date">Issue Date <span class="req">*</span></label><input id="d_date" type="date"></div>
@@ -4725,8 +4728,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function flowLabels() {
     Object.keys(FLOW_BTNS).forEach(id => { const x = $(id); if (!x || (x.disabled && /…$/.test(x.textContent))) return;      // (not while it is busy: "Saving…")
       if (!x.dataset.flowOrig) x.dataset.flowOrig = x.textContent;
-      const want = flowWill(id) ? 'Send to verification' : x.dataset.flowOrig;
-      if (x.dataset.flowNow !== want) { x.dataset.flowNow = want; x.textContent = want; x.classList.toggle('flow-send', want === 'Send to verification');
+      const want = S.flowFix && FIX_BTN[S.flowFix.form] === id ? 'Send again (' + S.flowFix.id + ')' : flowWill(id) ? 'Send to verification' : x.dataset.flowOrig;      // (update-130) correcting a returned entry
+      if (x.dataset.flowNow !== want) { x.dataset.flowNow = want; x.textContent = want; x.classList.toggle('flow-send', want !== x.dataset.flowOrig);
         x.title = want === 'Send to verification' ? 'Goes to ' + ((S.flowMine[FLOW_BTNS[id].m] || {}).to || []).join(', ') + ' for approval – saved when it is approved' : ''; } });
   }
   let flowLblT = 0;
@@ -5505,10 +5508,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['A row of the water tanker\'s trips cannot be taken as it is.', 'Nothing was saved. Every row needs its date (within the From – To dates that are open; for another date open those dates), the shift Day or Night, the challan no and the Dispatch / Unload time. An Excel file needs at least one trip under its headings (Export Excel gives the right layout). Save up to 3000 trips at a time.'],
       mr: ['Water tanker च्या trips मधली एक row जशी आहे तशी घेता येत नाही.', 'काहीही save झाले नाही. प्रत्येक row ला तारीख (उघडलेल्या From – To तारखांच्या आत; दुसऱ्या तारखेसाठी त्या तारखा उघडा), shift Day किंवा Night, challan no आणि Dispatch / Unload वेळ हवी. Excel file मध्ये headings खाली किमान एक trip हवी (Export Excel ने बरोबर layout मिळतो). एका वेळी जास्तीत जास्त 3000 trips save करा.'],
       hi: ['Water tanker की trips की एक row जैसी है वैसी नहीं ली जा सकती।', 'कुछ भी save नहीं हुआ। हर row में तारीख (खुली From – To तारीखों के अंदर; दूसरी तारीख के लिए वे तारीखें खोलें), shift Day या Night, challan no और Dispatch / Unload समय चाहिए। Excel file में headings के नीचे कम से कम एक trip चाहिए (Export Excel से सही layout मिलता है)। एक बार में ज़्यादा से ज़्यादा 3000 trips save करें।'] },
-    { re: /^Sent for verification|already waiting for verification|^Verification rules|Write the remark or question|Write your answer|Only the person who sent this entry answers it|This request is not sent back to you|Write why it is sent again|sends it again|^Not sent again|only a rejected or returned entry is sent again|cannot be sent again|Pick the entries to send again|already waiting for verification as|cannot approve your own entry|This request is not waiting for you|sets the verification rules|too big to send for verification|Tick the requests first|Write why it is rejected/i,      // (update-114) verification
-      en: ['Verification: this work goes to the people the Super Admin chose before it is saved.', 'A "Sent for verification" entry is NOT saved yet – it is saved when the last person approves it (Approvals shows where it waits). The same entry is not sent twice. You cannot approve your own entry; another person of that level (or the Super Admin) does. The rules – which work, which people, how many levels – are set by the Super Admin in Approvals → Verification rules. A rejected or returned entry is not typed again: press "Send again" and write why – it goes as it was (the same lines and photos) to level 1. If the save finds a mistake ("Line 3: …"), it is said and the entry stays as it is – put it right first. If it finds only warnings ("To check (warnings, not mistakes)", e.g. a reading lower than the last one), check them: if they are right, press "Send again anyway".'],
-      mr: ['पडताळणी: हे काम सेव्ह होण्याआधी Super Admin ने निवडलेल्या लोकांकडे जाते.', '"पडताळणीसाठी पाठवले" म्हणजे अजून सेव्ह झाले नाही – शेवटच्या व्यक्तीने मंजूर केल्यावर सेव्ह होईल (Approvals मध्ये कुठे थांबले ते दिसते). तीच एन्ट्री दोनदा जात नाही. स्वतःची एन्ट्री स्वतः मंजूर करता येत नाही; त्या level चा दुसरा माणूस (किंवा Super Admin) करतो. कोणते काम, कोणते लोक, किती levels – हे नियम Super Admin Approvals → Verification rules मध्ये ठरवतो. Rejected किंवा Returned झालेली एन्ट्री पुन्हा टाइप करायची नाही: "Send again" दाबा आणि कारण लिहा – ती जशीच्या तशी (त्याच ओळी, तेच फोटो) पुन्हा level 1 ला जाते. सेव्हला चूक सापडली ("Line 3: …") तर ती सांगितली जाते आणि एन्ट्री आहे तशीच राहते – आधी ती दुरुस्त करा. फक्त सूचना असतील ("To check (warnings, not mistakes)", उदा. reading मागच्यापेक्षा कमी) तर त्या तपासा: बरोबर असतील तर "Send again anyway" दाबा.'],
-      hi: ['सत्यापन: यह काम सेव होने से पहले Super Admin के चुने लोगों के पास जाता है।', '"सत्यापन के लिए भेजा" यानी अभी सेव नहीं हुआ – आखिरी व्यक्ति के मंज़ूर करने पर सेव होगा (Approvals में दिखता है कि कहाँ रुका है)। वही एंट्री दो बार नहीं जाती। अपनी एंट्री खुद मंज़ूर नहीं कर सकते; उस level का दूसरा व्यक्ति (या Super Admin) करता है। कौन-सा काम, कौन लोग, कितने levels – ये नियम Super Admin Approvals → Verification rules में तय करता है। Rejected या Returned हुई एंट्री दोबारा टाइप नहीं करनी: "Send again" दबाएँ और कारण लिखें – वह जैसी थी वैसी (वही लाइनें, वही फोटो) फिर level 1 को जाती है। सेव को गलती मिली ("Line 3: …") तो वह बताई जाती है और एंट्री जैसी है वैसी रहती है – पहले उसे ठीक करें। सिर्फ़ चेतावनियाँ हों ("To check (warnings, not mistakes)", जैसे reading पिछली से कम) तो उन्हें जाँचें: सही हों तो "Send again anyway" दबाएँ।'] },
+    { re: /^Sent for verification|already waiting for verification|^Verification rules|Write the remark or question|Write your answer|Only the person who sent this entry answers it|This request is not sent back to you|Write why it is sent again|sends it again|^Not sent again|opens and corrects it|opened to correct|cannot be corrected|Write what you corrected|cannot be sent like this|only a rejected or returned entry is sent again|cannot be sent again|Pick the entries to send again|already waiting for verification as|cannot approve your own entry|This request is not waiting for you|sets the verification rules|too big to send for verification|Tick the requests first|Write why it is rejected/i,      // (update-114) verification
+      en: ['Verification: this work goes to the people the Super Admin chose before it is saved.', 'A "Sent for verification" entry is NOT saved yet – it is saved when the last person approves it (Approvals shows where it waits). The same entry is not sent twice. You cannot approve your own entry; another person of that level (or the Super Admin) does. The rules – which work, which people, how many levels – are set by the Super Admin in Approvals → Verification rules. A rejected or returned entry is not typed again: press "Send again" and write why – it goes as it was (the same lines and photos) to level 1. If the save finds a mistake ("Line 3: …"), it is said and the entry stays as it is – put it right first. If it finds only warnings ("To check (warnings, not mistakes)", e.g. a reading lower than the last one), check them: if they are right, press "Send again anyway". A rejected or returned Diesel Issue entry can also be corrected: "Open & correct" opens it in its form with what is wrong marked (red: a mistake, amber: a warning); correct it and press "Send again".'],
+      mr: ['पडताळणी: हे काम सेव्ह होण्याआधी Super Admin ने निवडलेल्या लोकांकडे जाते.', '"पडताळणीसाठी पाठवले" म्हणजे अजून सेव्ह झाले नाही – शेवटच्या व्यक्तीने मंजूर केल्यावर सेव्ह होईल (Approvals मध्ये कुठे थांबले ते दिसते). तीच एन्ट्री दोनदा जात नाही. स्वतःची एन्ट्री स्वतः मंजूर करता येत नाही; त्या level चा दुसरा माणूस (किंवा Super Admin) करतो. कोणते काम, कोणते लोक, किती levels – हे नियम Super Admin Approvals → Verification rules मध्ये ठरवतो. Rejected किंवा Returned झालेली एन्ट्री पुन्हा टाइप करायची नाही: "Send again" दाबा आणि कारण लिहा – ती जशीच्या तशी (त्याच ओळी, तेच फोटो) पुन्हा level 1 ला जाते. सेव्हला चूक सापडली ("Line 3: …") तर ती सांगितली जाते आणि एन्ट्री आहे तशीच राहते – आधी ती दुरुस्त करा. फक्त सूचना असतील ("To check (warnings, not mistakes)", उदा. reading मागच्यापेक्षा कमी) तर त्या तपासा: बरोबर असतील तर "Send again anyway" दाबा. Rejected किंवा Returned झालेली Diesel Issue एन्ट्री दुरुस्तही करता येते: "Open & correct" दाबल्यावर ती तिच्या फॉर्ममध्ये उघडते, चूक लाल (सूचना पिवळी) दिसते; दुरुस्त करून "Send again" दाबा.'],
+      hi: ['सत्यापन: यह काम सेव होने से पहले Super Admin के चुने लोगों के पास जाता है।', '"सत्यापन के लिए भेजा" यानी अभी सेव नहीं हुआ – आखिरी व्यक्ति के मंज़ूर करने पर सेव होगा (Approvals में दिखता है कि कहाँ रुका है)। वही एंट्री दो बार नहीं जाती। अपनी एंट्री खुद मंज़ूर नहीं कर सकते; उस level का दूसरा व्यक्ति (या Super Admin) करता है। कौन-सा काम, कौन लोग, कितने levels – ये नियम Super Admin Approvals → Verification rules में तय करता है। Rejected या Returned हुई एंट्री दोबारा टाइप नहीं करनी: "Send again" दबाएँ और कारण लिखें – वह जैसी थी वैसी (वही लाइनें, वही फोटो) फिर level 1 को जाती है। सेव को गलती मिली ("Line 3: …") तो वह बताई जाती है और एंट्री जैसी है वैसी रहती है – पहले उसे ठीक करें। सिर्फ़ चेतावनियाँ हों ("To check (warnings, not mistakes)", जैसे reading पिछली से कम) तो उन्हें जाँचें: सही हों तो "Send again anyway" दबाएँ। Rejected या Returned हुई Diesel Issue एंट्री ठीक भी की जा सकती है: "Open & correct" दबाने पर वह अपने फ़ॉर्म में खुलती है, गलती लाल (चेतावनी पीली) दिखती है; ठीक करके "Send again" दबाएँ।'] },
     { re: /is not a vendor of this site/i,      // (update-111) every site its own vendors
       en: ['This vendor is not one of this site\'s vendors.', 'Nothing was changed. Every site has its own vendors: open the vendor from this site\'s Vendor Master list, or add it here with "+ New vendor" (it becomes this site\'s own).'],
       mr: ['हा vendor या site चा नाही.', 'काहीही बदलले नाही. प्रत्येक site चे vendors वेगळे आहेत: या site च्या Vendor Master list मधूनच vendor उघडा, किंवा "+ New vendor" ने तो इथे जोडा (तो या site चा होईल).'],
@@ -6063,7 +6066,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'A new user starts with No access on every page – he sees only the pages you set to View or Edit (in the menu and in the search). Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters. "Screen share – who may use it": untick a user and save – he can then neither show a screen nor be called (Admin users always may). Several sites: the Admin of the first site makes the Super Admin once ("Create Super Admin" – write the recovery code down). From then on the Super Admin gives users and access, separately for every site; this page then only shows them.'],
       mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'नवीन user ला सुरुवातीला प्रत्येक page वर No access असते – तुम्ही View किंवा Edit दिलेली pages च त्याला दिसतात (menu मध्ये आणि search मध्ये). हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा. "Screen share – who may use it": user चा tick काढून Save केले की तो screen दाखवू शकत नाही आणि त्याला call पण करता येत नाही (Admin नेहमी वापरू शकतो). अनेक sites: पहिल्या site चा Admin एकदाच Super Admin बनवतो ("Create Super Admin" – Recovery code लिहून ठेवा). त्यानंतर users आणि access फक्त Super Admin देतो, प्रत्येक site साठी वेगळा; हे page मग फक्त ते दाखवते.'],
       hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'नए user को शुरू में हर page पर No access होता है – आपने View या Edit दिए वही pages उसे दिखते हैं (menu में और search में)। यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो। "Screen share – who may use it": user का tick हटाकर Save करने पर वह न screen दिखा सकता है, न उसे call किया जा सकता है (Admin हमेशा उपयोग कर सकता है)। कई sites: पहली site का Admin एक बार Super Admin बनाता है ("Create Super Admin" – Recovery code लिखकर रखें)। उसके बाद users और access सिर्फ Super Admin देता है, हर site के लिए अलग; यह page फिर सिर्फ उन्हें दिखाता है।'] },
-    approvals: { saves: ['decideChangeRequest', 'getChangeRequests', 'decideChangeRequests', 'saveFlowRules', 'getFlowRules', 'answerFlow', 'remindFlow', 'resendFlow'],
+    approvals: { saves: ['decideChangeRequest', 'getChangeRequests', 'decideChangeRequests', 'saveFlowRules', 'getFlowRules', 'answerFlow', 'remindFlow', 'openFlow', 'editFlow', 'resendFlow'],
       en: ['Changes of Log Book and diesel entries that are in a submitted bill, sent by the users for the Super Admin\'s approval.', 'The Super Admin (signed in through the Portal) approves here; a user sees here the changes he sent – Waiting, Approved (saved) or Rejected with the reason – and gets a notification when it is decided. Each line says who asked, what the change is (machinery, date, readings) and why. Approve = the change is saved now as that user\'s change, with every check of a save – if something else changed meanwhile it is refused and keeps waiting. Reject = nothing is saved; write why. The bill on the Drive is never changed: the next bill of the vendor shows the difference and takes it as a Credit / Debit Note. Your own entry that was Rejected or Returned (not saved): "Send again" with why – it goes to verification again exactly as it was (the same lines and photos), from level 1; nothing is typed again.'],
       mr: ['Submit झालेल्या bill मधील Log Book / diesel entries चे बदल – users नी Super Admin च्या मंजुरीसाठी पाठवलेले.', 'Super Admin (Portal मधून sign in) इथे मंजुरी देतो; user ला इथे त्याने पाठवलेले बदल दिसतात – Waiting, Approved (save झाले) किंवा Rejected कारणासह – आणि निर्णय झाला की notification येते. प्रत्येक ओळीत: कोणी मागितले, काय बदल (machinery, तारीख, readings) आणि का. Approve = बदल आत्ता त्या user चा बदल म्हणून save होतो, save चे सगळे checks होऊन – मध्ये दुसरे काही बदलले असेल तर नाकारला जातो आणि थांबून राहतो. Reject = काहीही save होत नाही; कारण लिहा. Drive वरचे bill कधीच बदलत नाही: vendor च्या पुढच्या bill मध्ये फरक दिसतो आणि Credit / Debit Note ने घेतला जातो. तुमची Rejected किंवा Returned (save न झालेली) एन्ट्री: "Send again" दाबा आणि कारण लिहा – ती जशीच्या तशी (त्याच ओळी, तेच फोटो) पुन्हा level 1 पासून verification ला जाते; पुन्हा टाइप करायची नाही.'],
       hi: ['Submit हुए bill की Log Book / diesel entries के बदलाव – users ने Super Admin की मंज़ूरी के लिए भेजे हुए।', 'Super Admin (Portal से sign in) यहाँ मंज़ूरी देता है; user को यहाँ उसके भेजे बदलाव दिखते हैं – Waiting, Approved (save हुआ) या Rejected कारण के साथ – और फैसला होने पर notification आता है। हर लाइन में: किसने माँगा, क्या बदलाव (machinery, तारीख, readings) और क्यों। Approve = बदलाव अभी उस user के बदलाव के रूप में save होता है, save के सारे checks के साथ – बीच में कुछ और बदला हो तो मना होता है और रुका रहता है। Reject = कुछ भी save नहीं होता; कारण लिखें। Drive वाला bill कभी नहीं बदलता: vendor के अगले bill में फर्क दिखता है और Credit / Debit Note से लिया जाता है। आपकी Rejected या Returned (save न हुई) एंट्री: "Send again" दबाएँ और कारण लिखें – वह जैसी थी वैसी (वही लाइनें, वही फोटो) फिर level 1 से verification को जाती है; दोबारा टाइप नहीं करनी।'] },
@@ -7134,7 +7137,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const d = S.cr || { requests: [] }, sup = !!(S.user && S.user.super), all = $('cr_all').checked, me = d.requests || [];
     const L = me.filter(r => all || r.status === 'Pending' || r.mine);      // (a person sees all he sent – waiting, approved, rejected – and what waits; "show … too": also what was decided at his level)
     const lab = $('tab-approvals').querySelector('.label'); lab.textContent = 'Approvals' + (d.pending ? ' (' + d.pending + ')' : '');      // (as before: what is waiting in his list)
-    $('cr_intro').textContent = 'Entries sent for verification (the Super Admin\'s rules) and changes of a submitted bill. Waiting = not saved yet; Approved = saved; Sent back = a remark or question for the sender, he answers and sends it again; Rejected, Returned or Taken back = not saved – your own rejected or returned entry: "Send again" (write why) and it goes again as it was, nothing typed again. Tick several to approve them at once. You get a notification when something waits for you, and when your entry is decided.';
+    $('cr_intro').textContent = 'Entries sent for verification (the Super Admin\'s rules) and changes of a submitted bill. Waiting = not saved yet; Approved = saved; Sent back = a remark or question for the sender, he answers and sends it again; Rejected, Returned or Taken back = not saved – your own rejected or returned entry: "Send again" (write why) and it goes again as it was, nothing typed again – or "Open & correct" (Diesel Issue): it opens in its form with what is wrong marked; correct it and send it again. Tick several to approve them at once. You get a notification when something waits for you, and when your entry is decided.';
     const wait = me.filter(r => r.status === 'Pending'), old = wait.reduce((mx, r) => Math.max(mx, (Date.now() - Date.parse(r.waitSince || r.at)) / 3600000), 0);
     $('cr_dash').innerHTML = '<div>Waiting for you<b>' + (d.forMe || 0) + '</b></div>' + (d.backToMe ? '<div class="cr-back">Sent back to you<b>' + d.backToMe + '</b></div>' : '') + '<div>Waiting in all<b>' + wait.length + '</b></div><div>Your entries waiting<b>' + wait.filter(r => r.mine).length + '</b></div>' + (wait.length ? '<div>Oldest waiting<b>' + (old >= 24 ? Math.floor(old / 24) + ' d' : Math.floor(old) + ' h') + '</b></div>' : '');
     $('cr_sum').textContent = d.missing ? d.missing : '';
@@ -7144,11 +7147,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       : r.status === 'Pending' ? '<span class="st low">Waiting</span>' + (r.levels ? '<br><small>level ' + r.level + ' of ' + r.levels + (r.waitingFor && r.waitingFor.length ? ': ' + esc(r.waitingFor.join(', ')) : '') + '</small>' : '<br><small>Super Admin</small>') +
         (r.reminds ? '<br><small class="cr-rem">Reminded ' + r.reminds + '× by ' + esc(r.by) + ' · ' + esc(crWhen(r.remindedAt)) + '</small>' : '')
       : '<span class="st ' + (r.status === 'Approved' ? 'ok' : 'bad') + '">' + esc(r.status) + '</span><br><small>' + esc(r.decidedBy) + ' · ' + esc(crWhen(r.decidedAt)) + (r.note ? '<br>' + esc(r.note) : '') + (r.status === 'Returned' && r.result ? '<br>' + esc(r.result) : '') + '</small>';
-    const hist = r => (r.history || []).length ? '<details><summary><small>Steps (' + r.history.length + ')</small></summary><small>' + r.history.map(h => esc(h.step) + (h.level ? ' L' + h.level : '') + ' – ' + esc(h.by) + ' · ' + esc(crWhen(h.at)) + (h.note ? ': ' + esc(h.note) : '')).join('<br>') + '</small></details>' : '';
+    const hist = r => (r.history || []).length ? '<details><summary><small>Steps (' + r.history.length + ')</small></summary><small>' + r.history.map(h => esc(h.step) + (h.level ? ' L' + h.level : '') + ' – ' + esc(h.by) + ' · ' + esc(crWhen(h.at)) + (h.note ? ': ' + esc(h.note) : '') + ((h.changes || []).length ? '<br>&nbsp;&nbsp;' + h.changes.map(esc).join('<br>&nbsp;&nbsp;') : '')).join('<br>') + '</small></details>' : '';
+    // (update-130) corrected by the sender: what changed, in sight of the people who approve it
+    const fixd = r => { if (r.status !== 'Pending') return ''; const h = (r.history || []).slice().reverse().find(x => /^(Sent|Sent again|Corrected and sent again)$/.test(x.step));
+      return h && h.step === 'Corrected and sent again' ? '<div class="cr-chg"><b>Corrected by ' + esc(h.by) + '</b>' + (h.note ? ': ' + esc(h.note) : '') + listHtml((h.changes || []).length ? h.changes : ['(nothing changed in the entry)']) + '</div>' : ''; };
     $('cr_rows').innerHTML = L.length ? L.map(r => '<tr><td>' + (r.canDecide ? '<input type="checkbox" class="cr-tick" data-id="' + esc(r.id) + '">' : '') + '</td><td class="nowrap">' + esc(crWhen(r.at)) + '<br><small>' + esc(r.id) + '</small></td><td>' + esc(r.by) + '</td>' +
-      '<td>' + esc(r.kind === 'Flow' ? r.task : 'Change of a billed period') + (r.qty ? '<br><small>' + esc(fmt(r.qty)) + ' L</small>' : '') + '</td><td>' + (r.summary || []).map(esc).join('<br>') + (r.kind !== 'Flow' && r.reason ? '<br><small>Reason: ' + esc(r.reason) + '</small>' : '') + hist(r) + '</td>' +
+      '<td>' + esc(r.kind === 'Flow' ? r.task : 'Change of a billed period') + (r.qty ? '<br><small>' + esc(fmt(r.qty)) + ' L</small>' : '') + '</td><td>' + (r.summary || []).map(esc).join('<br>') + (r.kind !== 'Flow' && r.reason ? '<br><small>Reason: ' + esc(r.reason) + '</small>' : '') + fixd(r) + hist(r) + '</td>' +
       '<td>' + st(r) + '</td><td class="nowrap">' + (r.canDecide ? '<button class="btn small" type="button" data-crok="' + esc(r.id) + '">Approve</button> ' + (r.kind === 'Flow' ? '<button class="btn ghost small" type="button" data-crback="' + esc(r.id) + '">Send back</button> ' : '') + '<button class="btn ghost small" type="button" data-crno="' + esc(r.id) + '">Reject</button>' : '') +
         (r.canAnswer ? '<button class="btn small" type="button" data-cranswer="' + esc(r.id) + '">Answer and send again</button> <button class="btn ghost small" type="button" data-crwithdraw="' + esc(r.id) + '">Take back</button>' : '') +
+        (r.canFix ? '<button class="btn small" type="button" data-crfix="' + esc(r.id) + '">Open &amp; correct</button> ' : '') +      // (update-130)
         (r.canResend ? '<button class="btn small" type="button" data-cragain="' + esc(r.id) + '">Send again</button>' + (r.resent ? '<br><small>sent again ' + r.resent + '× before</small>' : '') : '') + '</td></tr>').join('')
       : '<tr><td colspan="7" class="none">' + (all ? 'Nothing yet.' : 'Nothing is waiting.') + '</td></tr>';
     $('fr_panel').hidden = !sup;
@@ -7177,7 +7184,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         (r.status === 'Returned' && r.result ? '<br><small class="fv-why">' + esc(r.result) + '</small>' : '');      // (update-128) why the save refused it
     const act = r => r.canRemind ? '<button class="btn small" type="button" data-fvr="' + esc(r.id) + '">Remind</button>' + (r.reminds ? '<br><small>reminded ' + r.reminds + '× · ' + esc(crWhen(r.remindedAt)) + '</small>' : '')
       : r.canAnswer ? '<button class="btn small" type="button" data-fvopen="1">Answer</button>'
-      : r.canResend ? '<button class="btn small" type="button" data-fvagain="' + esc(r.id) + '">Send again</button>' + (r.resent ? '<br><small>sent again ' + r.resent + '× before</small>' : '') : '';      // (update-128)
+      : r.canResend ? (r.canFix ? '<button class="btn small" type="button" data-fvfix="' + esc(r.id) + '">Open &amp; correct</button> ' : '') + '<button class="btn small" type="button" data-fvagain="' + esc(r.id) + '">Send again</button>' + (r.resent ? '<br><small>sent again ' + r.resent + '× before</small>' : '') : '';      // (update-128; update-130: Open & correct)
     const rows = list.slice(0, onDash ? 8 : 12).map(r => '<tr data-id="' + esc(r.id) + '"><td class="nowrap"><b>' + esc(r.id) + '</b><br><small>' + esc(crWhen(r.at)) + '</small></td>' + (onDash ? '<td>' + esc(r.task) + '</td>' : '') +
       '<td>' + esc((r.summary || [])[0] || '') + ((r.summary || []).length > 1 ? ' <small>(+' + (r.summary.length - 1) + ')</small>' : '') + '</td><td>' + st(r) + '</td><td class="nowrap">' + act(r) + '</td></tr>').join('');
     return '<div class="fv-head"><h3>My entries in verification</h3><span class="fv-chips"><span>Waiting<b>' + wait + '</b></span>' + (back ? '<span class="bk">Sent back<b>' + back + '</b></span>' : '') +
@@ -7254,6 +7261,102 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       said(await call('resendFlow', { ids: warn.map(f => f.id), note: note, force: true }));
     });
   }
+  /* (update-130, asked 19-10-2026: "jy entry pathwale hote te mala open krun edit pn krta yaw kay kuth chukley te pn samjayla haw";
+   * his choices: only the sender, corrected → to verification again, Diesel Issue first) OPEN & CORRECT – his own rejected /
+   * returned Diesel Issue entry opens in the form it was made in (one entry; Multiple entries by date or by machinery), what is
+   * wrong NOW marked (the server checks it as a save: red – a mistake; amber – a warning) and why it came back on top. He corrects
+   * it; the form's button – "Send again (VF-…)" – sends it again: the same request, from level 1, corrected; the people who
+   * approve it see what changed. Nothing is saved until it is approved. */
+  const FIX_BTN = { one: 'd_save', date: 'bd_save', mach: 'bm_save' };
+  function flowFixEnd(form) {
+    if (!S.flowFix || (form && S.flowFix.form !== form)) return;
+    const b = $(FIX_BTN[S.flowFix.form]); S.flowFix = null; $('d_fixbar').hidden = true; $('d_fixbar').innerHTML = '';
+    if ($('d_title').textContent.indexOf('Correct ') === 0) $('d_title').textContent = 'Issue diesel';
+    setTimeout(() => { if (b) delete b.dataset.flowNow; flowLabels(); }, 0);      // (after busy() gives the button its words back)
+  }
+  const fixVal = v => v === null || v === undefined ? '' : v;
+  function flowFixMark(c) {
+    const fx = S.flowFix; if (!fx || !c) return;
+    const list = (c.errors || []).map(x => ({ row: x.row, msg: x.msg, cls: 'err' })).concat((c.warnings || []).map(x => ({ row: x.row, msg: x.msg, cls: 'warn' })));
+    const li = x => '<li>' + (x.row ? 'Row ' + x.row + ': ' : '') + esc(String(x.msg || '').replace(/^Error:\s*/, '')) + '</li>';
+    if (fx.form === 'date') { const trs = [...$('bd_rows').children]; list.forEach(x => { if (trs[x.row - 1]) trs[x.row - 1].classList.add(x.cls); }); if (list.length) { $('bd_errors').innerHTML = list.map(li).join(''); $('bd_errors').hidden = false; } }
+    if (fx.form === 'mach') { const rs = bmRows(); list.forEach(x => { const r = rs.find(y => y.line === x.row); if (r) r.tr.classList.add(x.cls); }); if (list.length) { $('bm_errors').innerHTML = list.map(li).join(''); $('bm_errors').hidden = false; } }
+  }
+  async function flowFix(id, btn) {
+    await busy(btn, 'Opening…', async () => {
+      const r = await call('openFlow', { id: id });
+      flowFixEnd();
+      if (typeof showTab === 'function') showTab('diesel');
+      const a = (r.args || [])[0] || {};
+      if (r.form === 'one') {
+        setDieselMode('one'); clearDiesel();
+        $('d_date').value = a.date || S.today; $('d_shift').value = a.shift || 'Day'; if (a.source) $('d_src').value = a.source;
+        $('d_no').value = a.no || ''; dieselMachineChanged();
+        $('d_qty').value = fixVal(a.qty); $('d_km').value = fixVal(a.kmReading); $('d_hr').value = fixVal(a.hrReading); $('d_driver').value = a.driver || ''; $('d_remark').value = a.remark || '';
+        if (a.mode === METER_OFF) { const w = document.querySelector('#d_way .wy.nrd'); if (w) w.click(); }
+        $('d_cancel').hidden = false; S.bal = null; dieselAfterLine(); refreshIssueBal();
+      } else if (r.form === 'date') {
+        setDieselMode('many'); setDMType('date');
+        $('bd_date').value = a.date || S.today; $('bd_shift').value = a.shift || 'Day'; if (a.source) $('bd_src').value = a.source;
+        $('bd_rows').innerHTML = ''; $('bd_errors').hidden = true; addDieselRows(Math.max(1, (a.rows || []).length));
+        const trs = [...$('bd_rows').children];
+        (a.rows || []).forEach((x, i) => { const tr = trs[i]; if (!tr || !x) return; tr.querySelector('[data-f=no]').value = x.no || ''; if (String(x.no || '').trim()) dieselRowMachine(tr);
+          ['qty', 'kmReading', 'hrReading', 'driver', 'remark'].forEach(f => { const el = tr.querySelector('[data-f=' + f + ']'); if (el) el.value = fixVal(x[f]); });
+          if (x.mode === METER_OFF) { const w = tr.querySelector('.wy.nrd'); if (w) w.click(); } });
+        S.bbal = null; dieselBulkSum(); refreshIssueBal();
+      } else if (r.form === 'mach') {
+        setDieselMode('many'); setDMType('mach');
+        const rows = (Array.isArray(r.args[0]) ? r.args[0] : []).filter(Boolean);
+        $('bm_no').value = (rows[0] || {}).no || ''; $('bm_no').dispatchEvent(new Event('change'));
+        $('bm_rows').innerHTML = ''; $('bm_errors').hidden = true;
+        rows.forEach(x => { const tr = document.createElement('tr'); tr.innerHTML = bmRowHtml({ date: x.date || '', shift: x.shift || 'Day', source: x.source || '' }); $('bm_rows').appendChild(tr); bmApplyUnit(tr);
+          ['qty', 'kmReading', 'hrReading', 'driver', 'remark'].forEach(f => { const el = tr.querySelector('[data-f=' + f + ']'); if (el) el.value = fixVal(x[f]); }); });
+        bmSum();
+      } else throw new Error('Entry ' + id + ' cannot be opened to correct here – use "Send again", or enter it again.');
+      S.flowFix = { id: r.id, form: r.form, note: '' };
+      flowFixMark(r.check);
+      const c = r.check || {}, why = r.status === 'Returned' ? (r.result || 'Not saved') : 'Rejected by ' + (r.decidedBy || '–') + (r.note ? ': ' + r.note : '');
+      const now = c.ok ? 'The save takes it now as it is – check it, correct what is needed and send it again.'
+        : c.error ? 'Now: ' + c.error
+        : (c.errors || []).length ? 'Now: the rows in red are wrong – correct them (the list is under the rows).'
+        : (c.warnings || []).length ? 'Now: the rows in amber have warnings, not mistakes – check them (the list is under the rows).'
+        : c.warning ? 'Now (a warning, not a mistake): ' + String(c.warning).replace(/\s*Save anyway\?\s*$/, '') : '';
+      const nPh = r.form === 'one' && Array.isArray(a.photos) ? a.photos.length : 0;      // the photos sent with it stay with it (the server keeps them)
+      $('d_fixbar').innerHTML = '<b>Correcting ' + esc(r.id) + '</b> – ' + esc(r.status === 'Returned' ? 'Returned, not saved' : 'Rejected, not saved') + '<br><span class="fv-why">' + esc(why) + '</span><br>' + esc(now) +
+        (nPh ? '<br>' + esc('Photos sent with it: ' + nPh + ' – they stay with it; a new photo of the same kind takes its place.') : '') +
+        '<br><small>Correct the entry below and press "Send again (' + esc(r.id) + ')": it goes to verification again – the same request, from level 1 – and is saved when it is approved. Nothing is saved until then.</small>' +
+        '<button type="button" class="btn ghost small" id="d_fixstop">Stop correcting</button>';
+      $('d_fixbar').hidden = false;
+      if (r.form === 'one') $('d_title').textContent = 'Correct ' + r.id;
+      const sb = $(FIX_BTN[r.form]); if (sb) delete sb.dataset.flowNow; flowLabels();
+      $('d_fixbar').scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+  }
+  // the corrected entry → the server (the remark asked once); its answer is the save's own (rows marked) or "sent again"
+  async function flowFixCall(args) {
+    const fx = S.flowFix;
+    if (!fx.note) {
+      const html = '<p>' + esc(fx.id) + ' goes to verification again, corrected – the same request, from level 1. The people who approve it see what you changed. It is checked as a save first: what is still wrong is marked and nothing is sent.</p>' +
+        '<label class="cr-why">What did you correct? (your remark goes with the entry to the people who approve it) <textarea id="cr_note" rows="3" maxlength="300"></textarea></label>';
+      for (;;) {
+        if (!(await askConfirm({ title: 'Send ' + fx.id + ' again, corrected?', ok: 'Send again', wide: true, html: html }))) return null;
+        const n = String(($('cr_note') || {}).value || '').trim();
+        if (n) { fx.note = n; break; }
+        toast('Write what you corrected.', true);
+      }
+    }
+    return call('editFlow', { id: fx.id, note: fx.note, args: args });
+  }
+  function flowFixDone(res) {
+    if (res.list) { S.cr = res.list; if (S.cr.mine) S.flowMine = S.cr.mine; crDraw(); }
+    toast(res.id + ' corrected and sent again for verification (level 1' + (res.levels > 1 ? ' of ' + res.levels : '') + ') – saved when approved.');
+  }
+  document.addEventListener('click', e => {
+    const st = e.target.closest('#d_fixstop');
+    if (st) { const fx = S.flowFix; if (!fx) return; const id = fx.id; if (fx.form === 'one') clearDiesel(); else if (fx.form === 'date') clearDieselBulk(); else { $('bm_no').value = ''; $('bm_no').dispatchEvent(new Event('change')); bmReset(); } flowFixEnd(); toast(id + ' stays as it was – nothing changed.'); return; }
+    const b = e.target.closest('.fv-box [data-fvfix], #cr_rows [data-crfix]'); if (!b) return;
+    flowFix(b.dataset.fvfix || b.dataset.crfix, b);
+  });
   document.addEventListener('click', e => {
     const b = e.target.closest('.fv-box [data-fvagain], .fv-box [data-fvagainall], #cr_rows [data-cragain]'); if (!b) return;
     const m = b.dataset.fvagainall;
@@ -9610,6 +9713,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const dMType = () => (document.querySelector('input[name=d_mtype]:checked') || {}).value || 'date';
   function setDMType(t) {
     const r = document.querySelector('input[name=d_mtype][value="' + t + '"]'); if (r) r.checked = true;
+    if (S.flowFix && S.flowFix.form !== 'one' && S.flowFix.form !== t) flowFixEnd();      // (update-130)
     $('d_many_date').hidden = t !== 'date'; $('d_many_mach').hidden = t !== 'mach';
     if (t === 'mach' && !$('bm_rows').children.length) bmAddRow();
     updateDieselPill();
@@ -9736,7 +9840,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('bm_add').addEventListener('click', () => { const tr = bmAddRow(); if (tr) tr.querySelector('[data-f=qty]').focus(); });
   $('bm_rows').addEventListener('input', bmSum); $('bm_rows').addEventListener('change', bmSum);
   $('bm_rows').addEventListener('click', e => { const b = e.target.closest('.del'); if (!b) return; b.closest('tr').remove(); if (!$('bm_rows').children.length) bmAddRow(); bmSum(); });
-  function bmReset() { $('bm_rows').innerHTML = ''; bmAddRow(); $('bm_errors').hidden = true; }
+  function bmReset() { flowFixEnd('mach'); $('bm_rows').innerHTML = ''; bmAddRow(); $('bm_errors').hidden = true; }
   $('bm_clear').addEventListener('click', () => { $('bm_no').value = ''; $('bm_no').dispatchEvent(new Event('change')); bmReset(); });
   $('bm_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
     const m = bmMachine(); if (!m) throw new Error('Pick the machinery first.');
@@ -9745,11 +9849,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const bad = rows.filter(r => r.tr.classList.contains('err'));
     if (bad.length) throw new Error('Fix the rows in red first (row ' + bad.map(r => r.line).join(', ') + ').');
     if (!(await confirmReadings(rows.map(r => ({ i: r.line, m: m, way: r.mode, km: r.kmReading, hr: r.hrReading, source: r.source }))))) return;
-    if (!(await askConfirm({ title: 'Save ' + rows.length + ' diesel issues of ' + m.id + '?', ok: 'Save ' + rows.length + ' entries',
+    const fixing = !!(S.flowFix && S.flowFix.form === 'mach');      // (update-130) correcting a returned entry: its own question (the remark)
+    if (!fixing && !(await askConfirm({ title: 'Save ' + rows.length + ' diesel issues of ' + m.id + '?', ok: 'Save ' + rows.length + ' entries',
       html: '<p>Total <b>' + fmt(r2(rows.reduce((a, r) => a + r.qty, 0))) + ' Ltr</b> from ' + esc(showDate(rows[0].date)) + (rows.length > 1 ? ' to ' + esc(showDate(rows[rows.length - 1].date)) : '') + '. All rows are saved together, or none.</p>' }))) return;
     $('bm_errors').hidden = true;
-    const res = await call('importDiesel', rows.map(r => ({ line: r.line, date: r.date, shift: r.shift, source: r.source, no: m.id, qty: r.qty, kmReading: r.kmReading, hrReading: r.hrReading, driver: r.driver, remark: r.remark })));
+    const out = rows.map(r => ({ line: r.line, date: r.date, shift: r.shift, source: r.source, no: m.id, qty: r.qty, kmReading: r.kmReading, hrReading: r.hrReading, driver: r.driver, remark: r.remark }));
+    const res = fixing ? await flowFixCall([out]) : await call('importDiesel', out);
+    if (!res) return;
     if (!res.ok) { $('bm_errors').innerHTML = res.errors.map(x => '<li>' + (x.row ? 'Row ' + x.row + ': ' : '') + esc(x.msg) + '</li>').join(''); $('bm_errors').hidden = false; fixCard($('bm_errors').textContent); return; }
+    if (fixing) { flowFixDone(res); S.bmPts = {}; bmReset(); return; }
     toast(res.count + ' diesel issues saved for ' + m.id + ' (' + fmt(res.qty) + ' Ltr).');
     if (res.stock) setStock(res.stock);
     S.bmPts = {}; bmReset(); loadDiesel();
@@ -15125,6 +15233,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const lockStopNow = (L, no, dk, what) => { if (!L || (S.user && S.user.super)) return false; toast(lockText(L, no, dk, what), true); return true; };
   const lockTag = L => L ? ' <span class="tag lk" title="In the submitted RA Bill ' + esc(L.billNo) + ' (' + esc(showDate(L.from)) + ' to ' + esc(showDate(L.to)) + ') – cannot be changed until that bill is deleted">RA Bill ' + esc(L.billNo) + '</span>' : '';
   function clearDiesel() {
+    flowFixEnd('one');      // (update-130) correcting a returned entry: stopped
     ['d_no', 'd_qty', 'd_km', 'd_hr', 'd_driver', 'd_remark'].forEach(id => $(id).value = '');
     S.editDieselId = null; phClear();
     $('d_title').textContent = 'Issue diesel'; $('d_save').textContent = 'Save diesel issue'; $('d_cancel').hidden = true;
@@ -15132,6 +15241,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   async function editDiesel(id) {
     const r = (S.dieselRows || []).find(x => x.id === id); if (!r) return;
+    flowFixEnd();      // (update-130)
     if (r.lk && await lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
     setDieselMode('one');
     S.editDieselId = r.id; phClear();
@@ -15216,7 +15326,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       await showAlert('Not enough diesel in stock', 'At ' + d.source + ' for ' + showDate(d.date) + ' (' + d.shift + ') you can issue up to ' + fmt(dieselAvailable()) + ' Ltr, and you are issuing ' + fmt(d.qty) + ' Ltr. Add a Diesel Inward entry first or reduce the quantity.');
       return;
     }
-    const editing = S.editDieselId;
+    const editing = S.editDieselId, fixing = !!(S.flowFix && S.flowFix.form === 'one');      // (update-130) correcting a returned entry
     if (editing && !force) {
       const r = (S.dieselRows || []).find(x => x.id === editing) || {};
       const before = { date: r.date, shift: r.shift, source: r.source, no: r.no, qty: r.qty, kmReading: r.kmReading, hrReading: r.hrReading, driver: r.driver, remark: r.remark };
@@ -15225,11 +15335,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (!changes.length) { toast('Nothing changed.'); return; }
       if (!(await askConfirm({ title: 'Update ' + editing + '?', html: 'These details will change:' + changeTable(changes), ok: 'Update' }))) return;
     }
-    const res = editing ? await call('updateDieselIssue', editing, d) : await call('saveDieselIssue', d);
+    const res = fixing ? await flowFixCall([d]) : editing ? await call('updateDieselIssue', editing, d) : await call('saveDieselIssue', d);
+    if (!res) return;      // (no remark written: nothing sent)
     if (res.warning) {
-      if (await askConfirm({ title: 'Please check the reading', message: res.warning, ok: 'Save anyway' })) return saveDiesel(true);
+      if (await askConfirm({ title: 'Please check the reading', message: res.warning, ok: fixing ? 'Send again anyway' : 'Save anyway' })) return saveDiesel(true);
       return;
     }
+    if (fixing) { flowFixDone(res); clearDiesel(); return; }
     if (PHONE) savedPop(editing ? 'Diesel issue updated' : 'Diesel issue saved', [['Issue ID', res.id], ['Machinery', m.id], ['Diesel', fmt(d.qty) + ' L'],
       ['Reading', [d.kmReading !== '' ? fmt(d.kmReading) + ' km' : '', d.hrReading !== '' ? fmt(d.hrReading) + ' hr' : ''].filter(Boolean).join(' · ')], ['Photos', (d.photos || []).length ? d.photos.length + ' of 4' : '']]);
     else toast(editing ? 'Diesel issue ' + res.id + ' updated.' : 'Diesel issue saved: ' + res.id);
@@ -15303,6 +15415,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ---------- diesel: one / multiple ---------- */
   function setDieselMode(mode) {
     const many = mode === 'many';
+    if (S.flowFix && (S.flowFix.form === 'one') === many) flowFixEnd();      // (update-130) another form: correcting stopped
     if (many && S.editDieselId) clearDiesel();
     $('dmode_one').setAttribute('aria-pressed', String(!many));
     $('dmode_many').setAttribute('aria-pressed', String(many));
@@ -15404,7 +15517,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     });
     dieselBulkSum();
   });
-  function clearDieselBulk() { $('bd_rows').innerHTML = ''; addDieselRows(2); $('bd_errors').hidden = true; dieselBulkSum(); }
+  function clearDieselBulk() { flowFixEnd('date'); $('bd_rows').innerHTML = ''; addDieselRows(2); $('bd_errors').hidden = true; dieselBulkSum(); }
   $('bd_add').addEventListener('click', () => {
     addDieselRows(1);
     const inp = $('bd_rows').lastElementChild.querySelector('[data-f=no]'); if (inp) inp.focus(); // straight to the new row
@@ -15430,7 +15543,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       await showAlert('Not enough diesel in stock', 'At ' + b.source + ' for ' + showDate(b.date) + ' (' + b.shift + ') you can issue up to ' + fmt(availB) + ' Ltr, and these rows total ' + fmt(total) + ' Ltr. Add a Diesel Inward entry first or reduce the quantities.');
       return;
     }
-    const res = await call('saveDieselBulk', b);
+    const fixing = !!(S.flowFix && S.flowFix.form === 'date');      // (update-130) correcting a returned entry
+    const res = fixing ? await flowFixCall([b]) : await call('saveDieselBulk', b);
+    if (!res) return;
     const show = (list, cls) => {
       $('bd_errors').innerHTML = list.map(x => '<li>Row ' + x.row + ': ' + esc(x.msg.replace(/^Error:\s*/, '')) + '</li>').join('');
       $('bd_errors').hidden = false;
@@ -15439,10 +15554,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (res.errors) { show(res.errors, 'err'); toast('Nothing saved. Fix the rows marked in red.', true); return; }
     if (res.warnings) {
       show(res.warnings, 'warn');
-      if (await askConfirm({ title: 'Please check these rows', ok: 'Save all anyway',
+      if (await askConfirm({ title: 'Please check these rows', ok: fixing ? 'Send again anyway' : 'Save all anyway',
         html: listHtml(res.warnings.map(x => 'Row ' + x.row + ': ' + x.msg)) })) return saveDieselBulk(true);
       return;
     }
+    if (fixing) { flowFixDone(res); clearDieselBulk(); return; }
     rows.forEach(r => addDriver(r.driver));
     toast(res.count + ' diesel issues saved (' + res.firstId + ' to ' + res.lastId + ').');
     loadDiesel();
