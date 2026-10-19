@@ -249,6 +249,12 @@ function shell() {
   s = s.replace('<meta charset="utf-8">', () => '<meta charset="utf-8">\n' + head);
   s = s.replace('<script>', () => '<script>' + BRIDGE + '</script>\n<script>');
   s = s.replace('/*APP_JSON*/null', () => json);
+  // (update-138) a Preview (a test copy on the staging database): a band on top of every page, so nobody takes it for the live app
+  if (String(process.env.VERCEL_ENV || '') === 'preview') {
+    // (22 px high; the app's frame starts below it, so it hides nothing of the app)
+    const band = '<style>#app{top:22px;height:calc(100% - 22px)}</style><div id="rcl_preview_band" style="position:fixed;z-index:6;left:0;right:0;top:0;height:22px;padding:0 8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;background:#F59E0B;color:#111;font:700 12px/22px system-ui,sans-serif;text-align:center">TEST copy (Preview) – the staging database · nothing here is live</div>';
+    s = /<body[^>]*>/.test(s) ? s.replace(/<body[^>]*>/, m => m + band) : band + s;
+  }
   return s;
 }
 module.exports = { page, shell, read, APP_DIR };

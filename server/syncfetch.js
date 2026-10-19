@@ -48,9 +48,37 @@ function getWorker() {
   if (!worker) { const w = new Worker(WORKER_SRC, { eval: true, workerData: { readMs: READ_MS, writeMs: WRITE_MS } }); made++; w.unref(); w.on('error', () => { if (worker === w) worker = null; }); w.on('exit', () => { if (worker === w) worker = null; }); worker = w; }
   return worker;
 }
+/* (update-138, asked 20-10-2026: "Staging database … KR PERFECT") A PREVIEW NEVER TOUCHES THE LIVE DATA.
+ * A Preview (a test deployment of a branch – VERCEL_ENV = 'preview') works ONLY with a database that says of itself "I am a test
+ * database": the row app_settings THIS_IS_A_TEST_DATABASE = 'yes' (STAGING_SETUP.md; only the staging database has it). Before a
+ * Preview's first call to a database it asks that row (once in 5 minutes); a database without it – the live one, if a Vercel
+ * setting of the Preview was left pointing there – is refused: nothing is read or saved, the page says why. Production does not
+ * ask anything (VERCEL_ENV = 'production'); the local copy neither (none set). */
+const isPreview = () => String(process.env.VERCEL_ENV || '') === 'preview';
+const PREVIEW_NO = 'This is a Preview (a test copy of the app): it works only with the TEST database, and this database is not marked as one – nothing was read or saved. (STAGING_SETUP.md: the Preview\'s settings in Vercel must point to the staging database.)';
+const testDbs = new Map();      // the database's address → { ok, at }
+function dbBase(url) { const m = /^(https?:\/\/[^/]+)\/(rest|storage|auth|functions)\/v1\//.exec(String(url || '')); return m ? m[1] : ''; }
+function previewGuard(reqs) {
+  if (!isPreview()) return;
+  for (const q of reqs) {
+    const base = dbBase(q && q.url); if (!base) continue;      // (not a database: Google, the AI …)
+    const h = (q && q.headers) || {}, key = String(h.apikey || h.Apikey || String(h.Authorization || h.authorization || '').replace(/^Bearer\s+/i, ''));
+    const was = testDbs.get(base);
+    if (was && Date.now() - was.at < (was.ok ? 300000 : 10000)) { if (!was.ok) throw new Error(PREVIEW_NO); continue; }
+    const r = rawFetch([{ url: base + '/rest/v1/app_settings?id=eq.THIS_IS_A_TEST_DATABASE&select=value', method: 'GET', headers: { apikey: key, Accept: 'application/json' } }], 15000)[0] || {};
+    let ok = false; try { ok = r.code === 200 && (JSON.parse(r.text || '[]')[0] || {}).value === 'yes'; } catch (e) { ok = false; }
+    if (r.error && !ok) throw new Error('Could not reach the database – please try again in a moment.');      // (not known yet: asked again next time)
+    testDbs.set(base, { ok: ok, at: Date.now() });
+    if (!ok) throw new Error(PREVIEW_NO);
+  }
+}
 // reqs: [{ url, method, headers, body }] → [{ code, text, headers } | { error }] (all at the same time, in order)
 function fetchAllSync(reqs, timeoutMs) {
   if (!reqs.length) return [];
+  previewGuard(reqs);
+  return rawFetch(reqs, timeoutMs);
+}
+function rawFetch(reqs, timeoutMs) {
   const flag = new Int32Array(new SharedArrayBuffer(4));
   const { port1, port2 } = new MessageChannel();
   getWorker().postMessage({ reqs: reqs, flag: flag, port: port2 }, [port2]);
@@ -62,4 +90,4 @@ function fetchAllSync(reqs, timeoutMs) {
 }
 const SLEEP = new Int32Array(new SharedArrayBuffer(4));
 function sleepSync(ms) { if (ms > 0) Atomics.wait(SLEEP, 0, 0, ms); }
-module.exports = { fetchAllSync, sleepSync, helpersMade: () => made };
+module.exports = { fetchAllSync, sleepSync, helpersMade: () => made, isPreview, PREVIEW_NO };

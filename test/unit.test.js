@@ -2494,7 +2494,8 @@ test('update-111: a copy of another site\'s vendor is not shown, picked or chang
 test('update-99: one address – the Store and the Portal under this address, the menu of this module for the others, other modules\' pages in the dark menu', () => {
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   // (live 13-10-2026: /store/menu.json came through, the bare /store/ and /portal/ gave 404 – the first page has its own rule)
-  assert.deepStrictEqual(v.rewrites, [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
+  // (update-138) the staging copy's own rules come first and match ONLY the staging address; the live rules are as before
+  assert.deepStrictEqual(v.rewrites.filter(r => !r.has), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
     { source: '/store/:path*', destination: 'https://rcl-store.vercel.app/:path*' }, { source: '/portal/:path*', destination: 'https://rcl-portal-flame.vercel.app/:path*' }]);
   assert.deepStrictEqual(v.redirects.map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
   assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
@@ -4220,4 +4221,51 @@ test('update-132: a BOQ amendment changes only its machinery, from any date on o
   assert.match(app, /Keep only the machinery whose rate changes/);
   ['mr', 'hi'].forEach(l => { const d = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8'));
     ['Rate history – machinery-wise', 'The amendment must start on or after the start of BOQ {0} ({1}).'].forEach(k => assert.ok(d[k], l + ': ' + k)); });
+});
+
+test('update-138: the staging (test) database – a Preview works only with a database marked as the test one; the one SQL file for it', () => {
+  // the servers: a Preview checks the mark before anything is read or written; the Sheet backup never runs on a Preview; the band
+  const sf = require('../server/syncfetch.js'), was = process.env.VERCEL_ENV;
+  try {
+    process.env.VERCEL_ENV = 'preview';
+    assert.strictEqual(sf.isPreview(), true);
+    assert.ok(/^This is a Preview/.test(require('../server/google.js').config().error), 'no backup on a Preview');
+    assert.ok(/id="rcl_preview_band"/.test(require('../server/page.js').shell()), 'the TEST band on a Preview');
+    process.env.VERCEL_ENV = 'production';
+    assert.strictEqual(sf.isPreview(), false);
+    assert.ok(!/id="rcl_preview_band"/.test(require('../server/page.js').shell()), 'no band live');
+  } finally { if (was === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = was; }
+  const src = fs.readFileSync(path.join(root, 'server', 'syncfetch.js'), 'utf8');
+  assert.ok(/function fetchAllSync\(reqs, timeoutMs\) \{[^}]*previewGuard\(reqs\);/.test(src), 'every database call goes through the guard');
+  assert.ok(src.indexOf("app_settings?id=eq.THIS_IS_A_TEST_DATABASE") > -1);
+  // the message: 503 and the page's help in three languages
+  const rpc = fs.readFileSync(path.join(root, 'api', 'rpc.js'), 'utf8');
+  assert.ok(/This is a Preview \\\(a test copy of the app\\\)\/\.test\(msg\)\) return 503/.test(rpc));
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  const r = H.fixRules(sf.PREVIEW_NO)[0];
+  assert.ok(r !== H.FIX_ANY && /staging|test/i.test(r.en.join(' ')) && r.mr && r.hi, 'help for the Preview message');
+  // the one SQL file: up to date with the steps (when the Store and Portal repositories are next to this one)
+  const mk = require('../staging/make_staging_sql.js'), sql = fs.readFileSync(path.join(root, 'staging', 'rcl_staging_all.sql'), 'utf8');
+  const store = path.join(root, '..', 'rcl-store'), portal = path.join(root, '..', 'rcl-portal');
+  if (fs.existsSync(path.join(store, 'sql')) && fs.existsSync(path.join(portal, 'sql'))) assert.strictEqual(sql, mk.build(store, portal).sql, 'staging/rcl_staging_all.sql is not up to date – run node staging/make_staging_sql.js');
+  // nothing runs before the typed values and the guard; every step of Read Me except keep-awake (it calls the LIVE address)
+  const guard = sql.indexOf('STOPPED – nothing was run: this database already has tables'), first = sql.search(/create table/i);
+  assert.ok(guard > 0 && first > guard && sql.indexOf("'TYPE-YOUR-EMAIL-HERE'") > 0 && sql.indexOf("'TYPE-YOUR-EMAIL-HERE'") < guard);
+  const rd = fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8'), names = (rd.match(/"name": "supabase_step[^"]+"/g) || []).map(s => s.slice(9, -1));
+  assert.ok(names.length > 30);
+  names.forEach(n => assert.strictEqual(sql.split('MECHANICAL: ' + n + ' ').length - 1, /step6_keep_awake/.test(n) ? 0 : 1, n));
+  assert.ok(!/cron\.schedule|net\.http_get/.test(sql), 'no timer that calls an address');
+  const mark = sql.indexOf("('THIS_IS_A_TEST_DATABASE', 'yes')");
+  assert.ok(mark > sql.indexOf('MECHANICAL: supabase_step1.sql') && mark < sql.indexOf('MECHANICAL: supabase_step1b_grants.sql'), 'the mark right after step 1');
+  assert.ok(sql.indexOf("'ORG_SETTINGS'") < sql.indexOf('MECHANICAL: supabase_step7_sites.sql') && sql.indexOf("'ORG_SETTINGS'") > sql.indexOf('MECHANICAL: supabase_step2_web.sql'));
+  ['STORE: store_step1_items.sql', 'PORTAL: portal_step1.sql', 'PORTAL: portal_step2_start.sql', 'PORTAL: portal_step3_pages.sql'].forEach(k => assert.ok(sql.indexOf(k) > -1, k));
+  // the test entries: made-up names only, the staging addresses, nothing live
+  assert.ok(!/rcl-portal-flame|rcl-store\.vercel\.app|oneclicksolution-erp|rclerp\.vercel\.app/.test(sql), 'no live address in the staging SQL');
+  assert.ok(sql.indexOf("'" + mk.MECH + "'") > -1 && sql.indexOf("'" + mk.MECH + "/store'") > -1);
+  // vercel.json: the staging rules match ONLY the staging address and send to the staging Portal / Store
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')), st = v.rewrites.filter(x => x.has);
+  assert.strictEqual(st.length, 4);
+  st.forEach(x => { assert.deepStrictEqual(x.has, [{ type: 'host', value: mk.HOST }]); assert.ok(/^https:\/\/rcl-(store|portal)-git-staging-pk12356843\.vercel\.app\//.test(x.destination), x.destination); });
+  assert.ok(v.rewrites.indexOf(st[3]) < v.rewrites.findIndex(x => !x.has), 'the staging rules come before the live ones');
 });
