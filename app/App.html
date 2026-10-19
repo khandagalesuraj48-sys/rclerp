@@ -2578,11 +2578,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .rtc-badge { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; margin-left: 4px; border-radius: 9px; background: #DC2626; color: #fff; font: 800 10.5px/1 var(--ui); vertical-align: middle; } .rtc-badge[hidden] { display: none; }
   #u_share { position: relative; } #u_share .rtc-badge { position: absolute; top: -6px; right: -6px; margin: 0; }
   #rtc_in #rtc_rep { background: #fff; color: #0F1B3D; border-color: #CBD5E1 !important; } #rtc_rep_m { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; } #rtc_rep_m button { background: #F1F5F9; color: #0F1B3D; border-color: #CBD5E1 !important; font-weight: 600; }
-  #rtc_menu { position: absolute; bottom: calc(100% + 8px); right: 8px; display: grid; gap: 6px; min-width: 230px; background: #0F1B3D; border: 1px solid #33457D; border-radius: 12px; padding: 8px; box-shadow: 0 14px 40px rgba(15, 27, 61, .5); }
+  #rtc_menu { position: absolute; bottom: calc(100% + 8px); right: 8px; display: grid; gap: 6px; min-width: 230px; background: #202124; border: 1px solid #3C4043; border-radius: 12px; padding: 8px; box-shadow: 0 14px 40px rgba(15, 27, 61, .5); }
   #rtc_menu button { text-align: left; } #rtc_menu button.on { background: #B91C1C; border-color: #DC2626; }
   #rtc_net.good { color: #86EFAC; } #rtc_net.weak { color: #FCD34D; } #rtc_net.poor { color: #FCA5A5; font-weight: 700; }
   #rtc_bar #rtc_fol button { min-height: 0; padding: 2px 8px; font-size: 11.5px; background: #F2A900; color: #1F2937; border-color: #F2A900; }
-  #rtc_chat { position: fixed; z-index: 13; right: 12px; bottom: 82px; width: min(92vw, 360px); max-height: min(60vh, 520px); display: flex; flex-direction: column; background: #fff; color: #0F1B3D; border: 1px solid #CBD5E1; border-radius: 12px; box-shadow: 0 18px 50px rgba(15, 27, 61, .35); overflow: hidden; }
+  #rtc_chat { position: fixed; z-index: 13; right: 12px; bottom: 104px; width: min(92vw, 360px); max-height: min(60vh, 520px); display: flex; flex-direction: column; background: #fff; color: #0F1B3D; border: 1px solid #CBD5E1; border-radius: 12px; box-shadow: 0 18px 50px rgba(15, 27, 61, .35); overflow: hidden; }
   #rtc_chat header { display: flex; align-items: baseline; gap: 8px; padding: 8px 10px 8px 12px; background: #0F1B3D; color: #fff; } #rtc_chat header small { color: #B8C4DA; font: 500 11px var(--ui); margin-right: auto; } #rtc_chat header button { background: transparent; color: #fff; border: 0; font-size: 20px; cursor: pointer; }
   #rtc_msgs { flex: 1 1 auto; overflow: auto; padding: 8px 10px; display: grid; gap: 6px; align-content: start; min-height: 80px; }
   #rtc_msgs .m { max-width: 85%; padding: 6px 9px; border-radius: 10px; background: #F1F5F9; font: 500 13.5px/1.35 var(--ui); white-space: pre-wrap; overflow-wrap: anywhere; } #rtc_msgs .m.me { justify-self: end; background: #FEF3C7; } #rtc_msgs .m small { display: block; font: 700 11px var(--ui); color: #64748B; margin-bottom: 2px; }
@@ -2596,32 +2596,56 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .rtc-miss { margin: 6px 0 4px; padding: 8px 10px; border: 1px solid #FECACA; background: #FEF2F2; border-radius: 10px; font: 600 13px var(--ui); color: #991B1B; } .rtc-miss div { display: flex; align-items: center; gap: 8px; margin-top: 4px; color: #0F1B3D; } .rtc-miss div span { margin-right: auto; } .rtc-miss button { font: 700 12px var(--ui); border: 1px solid #FCA5A5; background: #fff; color: #B91C1C; border-radius: 7px; padding: 4px 9px; cursor: pointer; }
   .rtc-help { margin: 6px 0; padding: 8px 10px; border-left: 4px solid #F2A900; background: #FFFBEB; border-radius: 6px; font: 500 13px/1.4 var(--ui); white-space: pre-wrap; overflow-wrap: anywhere; }
   #rtc_note a, #rtc_note button { margin-left: 10px; display: inline-block; background: #25D366; color: #fff; font: 700 13px var(--ui); border: 0; border-radius: 8px; padding: 5px 10px; text-decoration: none; cursor: pointer; } #rtc_note button.plain { background: #F2A900; color: #1F2937; }
-  body.rtc-on #toast { z-index: 14; bottom: 92px; }
+  body.rtc-on #toast { z-index: 14; bottom: 112px; } body.rtc-on.rtc-mini #toast { bottom: 70px; }
+  body.rtc-on:not(.rtc-mini) .ai-fab { bottom: 112px !important; }      /* (update-135) the assistant's button above the call bar, not over it */
+  @media (max-width: 700px) { body.rtc-on:not(.rtc-mini) .ai-fab { bottom: 150px !important; } body.rtc-on.rtc-mini .ai-fab { bottom: 70px !important; } }
   #rtc_note { position: fixed; z-index: 57; top: 74px; left: 50%; transform: translateX(-50%); max-width: min(92vw, 660px); background: #0F1B3D; color: #fff; font: 600 14px/1.4 var(--ui); padding: 10px 16px; border-radius: 10px; box-shadow: 0 10px 30px rgba(15, 27, 61, .35); cursor: pointer; }
   #rtc_in { position: fixed; z-index: 58; top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; width: max-content; max-width: min(94vw, 640px); background: #fff; color: #0F1B3D; border: 2px solid #F2A900; border-radius: 14px; padding: 14px 16px; box-shadow: 0 18px 50px rgba(15, 27, 61, .45); }
   #rtc_in .rtc-ic { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: #FEF3C7; color: #B45309; animation: rtcRing 1s ease-in-out infinite alternate; }
   @keyframes rtcRing { from { transform: scale(1); } to { transform: scale(1.14); } }
   #rtc_in .rtc-inx { display: grid; gap: 2px; flex: 1 1 220px; } #rtc_in .rtc-inx b { font: 700 15px var(--ui); } #rtc_in .rtc-inx small { font: 500 12px var(--ui); color: #64748B; }
-  #rtc_in button, #rtc_bar button, #rtc_view header button { font: 700 13px var(--ui); border-radius: 9px; padding: 9px 14px; border: 1px solid transparent; cursor: pointer; min-height: 38px; }
+  #rtc_in button, #rtc_menu button, #rtc_view header button { font: 700 13px var(--ui); border-radius: 9px; padding: 9px 14px; border: 1px solid transparent; cursor: pointer; min-height: 38px; }
   #rtc_yes { background: #16A34A; color: #fff; } #rtc_no { background: #fff; color: #B91C1C; border-color: #FCA5A5 !important; }
-  #rtc_bar { position: fixed; z-index: 13; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 96vw; background: #0F1B3D; color: #fff; border-radius: 14px; padding: 9px 12px 9px 16px; box-shadow: 0 14px 40px rgba(15, 27, 61, .5); }
+  /* (update-135, asked 19-10-2026: "proper google meet war kas aste tas kr … khali je connect zale nantr je yet te hide karta haw") the bar as in
+     Google Meet: dark, round buttons with their word under them, the red End; "Hide" makes it a small pill (time, microphone, Stop) */
+  #rtc_bar { position: fixed; z-index: 13; bottom: 12px; left: 0; right: 0; margin: 0 auto; width: max-content; display: flex; align-items: center; gap: 14px; max-width: 96vw; background: #202124; color: #E8EAED; border-radius: 20px; padding: 8px 10px 6px 16px; box-shadow: 0 12px 36px rgba(0, 0, 0, .45); }
+  #rtc_bar .rtc-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  #rtc_bar .rtc-btns { display: flex; align-items: flex-start; gap: 4px; }
+  #rtc_bar .rtc-b { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 60px; padding: 0 2px; background: none; border: 0; color: #E8EAED; font: 600 11.5px var(--ui); cursor: pointer; }
+  #rtc_bar .rtc-b .rtc-i { position: relative; display: block; width: 46px; height: 46px; border-radius: 50%; background: #3C4043; transition: background .15s; }
+  #rtc_bar .rtc-b .rtc-i::after { content: ''; position: absolute; inset: 12px; background: currentColor; -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat; }
+  #rtc_bar .rtc-b:hover .rtc-i { background: #4A4E52; } #rtc_bar .rtc-b:focus-visible { outline: none; } #rtc_bar .rtc-b:focus-visible .rtc-i { box-shadow: 0 0 0 3px #8AB4F8; }
+  #rtc_bar .rtc-b.off .rtc-i { background: #EA4335; color: #fff; } #rtc_bar .rtc-b.on .rtc-i { background: #8AB4F8; color: #202124; }
+  #rtc_bar #rtc_end .rtc-i { width: 66px; border-radius: 23px; background: #EA4335; color: #fff; } #rtc_bar #rtc_end:hover .rtc-i { background: #D93025; }
+  #rtc_bar .rtc-b .lb { white-space: nowrap; max-width: 96px; overflow: hidden; text-overflow: ellipsis; }
+  #rtc_bar #rtc_chatb .rtc-badge { position: absolute; top: -3px; right: 6px; margin: 0; }
+  #rtc_bar .rtc-hide .rtc-i { width: 38px; height: 38px; margin-top: 4px; background: transparent; box-shadow: inset 0 0 0 1px #5F6368; } #rtc_bar .rtc-hide .rtc-i::after { inset: 9px; }
+  .i-mic { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='2' width='6' height='12' rx='3'/%3E%3Cpath d='M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8'/%3E%3C/svg%3E"); } #rtc_mic.off .i-mic { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='2' width='6' height='12' rx='3'/%3E%3Cpath d='M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8M3 3l18 18'/%3E%3C/svg%3E"); }
+  .i-cam { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M23 7l-7 5 7 5V7z'/%3E%3Crect x='1' y='5' width='15' height='14' rx='2'/%3E%3C/svg%3E"); } .i-scr { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='13' rx='2'/%3E%3Cpath d='M8 21h8M12 17v4M9 11l3-3 3 3M12 8v6'/%3E%3C/svg%3E"); } #rtc_share.on .i-scr { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='13' rx='2'/%3E%3Cpath d='M8 21h8M12 17v4M9.5 8l5 5M14.5 8l-5 5'/%3E%3C/svg%3E"); }
+  .i-chat { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3C/svg%3E"); } .i-more { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='none' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='5' r='2'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='12' cy='19' r='2'/%3E%3C/svg%3E"); } .i-end { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='none' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.96.96 0 0 1 0-1.36C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.72c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28a11.3 11.3 0 0 0-2.67-1.85.99.99 0 0 1-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z'/%3E%3C/svg%3E"); }
+  .i-down { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); } #rtc_bar.mini .i-down { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 15l-6-6-6 6'/%3E%3C/svg%3E"); }
+  #rtc_bar.mini { left: auto; right: 12px; margin: 0; gap: 8px; padding: 6px 8px 6px 14px; border-radius: 30px; }
+  #rtc_bar.mini .rtc-txt b, #rtc_bar.mini #rtc_mine, #rtc_bar.mini #rtc_net, #rtc_bar.mini #rtc_fol, #rtc_bar.mini .lb { display: none !important; }
+  #rtc_bar.mini .rtc-btns > .rtc-b:not(#rtc_mic):not(#rtc_share.on):not(#rtc_cam.on) { display: none; }
+  #rtc_bar.mini .rtc-b { min-width: 0; } #rtc_bar.mini .rtc-b .rtc-i { width: 38px; height: 38px; margin-top: 0; } #rtc_bar.mini .rtc-b .rtc-i::after { inset: 10px; }
+  #rtc_bar.mini #rtc_clock { font: 700 13px var(--ui); color: #E8EAED; }
   #rtc_bar .rtc-dot { width: 11px; height: 11px; border-radius: 50%; background: #64748B; flex: 0 0 11px; } #rtc_bar .rtc-dot.on { background: #EF4444; box-shadow: 0 0 0 4px rgba(239, 68, 68, .28); }
-  #rtc_bar .rtc-txt { display: grid; gap: 1px; margin-right: 6px; max-width: 52vw; } #rtc_bar .rtc-txt b { font: 700 13.5px var(--ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } #rtc_bar .rtc-txt small { font: 500 12px var(--ui); color: #B8C4DA; }
-  #rtc_bar button { background: #22315F; color: #fff; border-color: #33457D; } #rtc_bar button.off { background: #7F1D1D; border-color: #991B1B; } #rtc_bar button.on { background: #B91C1C; border-color: #DC2626; }
-  #rtc_bar #rtc_end { background: #DC2626; border-color: #EF4444; }
-  #rtc_view { position: fixed; z-index: 12; right: 12px; bottom: 76px; width: min(58vw, 980px); background: #0B1220; border: 1px solid #1E293B; border-radius: 12px; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); overflow: hidden; display: flex; flex-direction: column; }
-  #rtc_view[data-size=s] { width: min(86vw, 340px); } #rtc_view[data-size=l] { inset: 8px 8px 76px 8px; width: auto; }
-  #rtc_view header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 7px 8px 7px 12px; background: #0F1B3D; color: #fff; }
+  #rtc_bar .rtc-txt { display: grid; gap: 1px; margin-right: 6px; max-width: min(24vw, 280px); } #rtc_bar .rtc-txt > small:first-of-type { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } #rtc_bar .rtc-txt b { font: 700 13.5px var(--ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } #rtc_bar .rtc-txt small { font: 500 12px var(--ui); color: #B8C4DA; }
+  #rtc_menu button { background: #3C4043; color: #fff; border-color: #5F6368; }
+  #rtc_view { position: fixed; z-index: 12; right: 12px; bottom: 104px; width: min(58vw, 980px); background: #202124; border: 1px solid #3C4043; border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); overflow: hidden; display: flex; flex-direction: column; }
+  #rtc_view[data-size=s] { width: min(86vw, 340px); } #rtc_view[data-size=l] { inset: 10px 10px 104px 10px; width: auto; }
+  body.rtc-mini #rtc_view { bottom: 66px; } body.rtc-mini #rtc_view[data-size=l] { bottom: 10px; }
+  #rtc_view header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px 6px 14px; background: #202124; color: #E8EAED; }
   #rtc_view header b { font: 700 13.5px var(--ui); margin-right: auto; }
-  #rtc_view header button { background: #22315F; color: #fff; border-color: #33457D; padding: 6px 10px; min-height: 32px; font-size: 12.5px; } #rtc_view #rtc_open { background: #F2A900; color: #1F2937; border-color: #F2A900; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #rtc_view header button { background: #3C4043; color: #E8EAED; border-color: #5F6368; padding: 6px 12px; min-height: 32px; font-size: 12.5px; border-radius: 16px; } #rtc_view #rtc_open { background: #F2A900; color: #1F2937; border-color: #F2A900; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #rtc_view .rtc-tab.on { background: #F2A900; color: #1F2937; }
-  #rtc_video { display: block; width: 100%; max-height: 72vh; background: #000; object-fit: contain; cursor: crosshair; } #rtc_view[data-size=l] #rtc_video { flex: 1 1 auto; max-height: none; min-height: 0; height: 100%; }
+  #rtc_video { display: block; width: 100%; max-height: 72vh; background: #202124; object-fit: contain; cursor: crosshair; } #rtc_view[data-size=l] #rtc_video { flex: 1 1 auto; max-height: none; min-height: 0; height: 100%; }
   #rtc_hint { display: block; padding: 5px 12px 7px; font: 500 11.5px var(--ui); color: #94A3B8; } #rtc_hint:empty { display: none; }
   .rtc-list { display: grid; gap: 6px; max-height: 46vh; overflow: auto; margin: 10px 0; }
   .rtc-u { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 10px; cursor: pointer; } .rtc-u:has(input:checked) { border-color: #F2A900; background: #FFFBEB; }
   .rtc-u input { width: 18px; height: 18px; flex: 0 0 18px; } .rtc-u b { font: 700 14px var(--ui); margin-right: auto; } .rtc-u .rtc-adm { font: 700 11px var(--ui); color: #1543B8; background: #EEF3FF; border-radius: 6px; padding: 2px 6px; }
   .rtc-st { font: 600 12px var(--ui); color: #94A3B8; } .rtc-st.on { color: #15803D; } .rtc-st.on::before { content: '● '; } .rtc-st.busy { color: #B45309; }
-  @media (max-width: 700px) { #rtc_view, #rtc_view[data-size=m] { left: 6px; right: 6px; width: auto; } #rtc_bar { left: 6px; right: 6px; transform: none; } #rtc_bar .rtc-txt { max-width: none; flex: 1 1 100%; } }
+  @media (max-width: 700px) { #rtc_view, #rtc_view[data-size=m] { left: 6px; right: 6px; width: auto; } #rtc_bar:not(.mini) { left: 6px; right: 6px; width: auto; margin: 0; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 8px 8px 6px; } #rtc_bar:not(.mini) .rtc-left { flex: 1 1 100%; } #rtc_bar .rtc-txt { max-width: none; } #rtc_bar:not(.mini) .rtc-btns { flex: 1 1 auto; justify-content: space-between; gap: 0; } #rtc_bar:not(.mini) .rtc-b { min-width: 0; flex: 1 1 0; } #rtc_bar .rtc-b .lb { max-width: 62px; font-size: 10.5px; } #rtc_bar .rtc-b .rtc-i { width: 42px; height: 42px; } #rtc_bar #rtc_end .rtc-i { width: 50px; } #rtc_bar:not(.mini) .rtc-hide { position: absolute; top: 6px; right: 8px; } #rtc_bar:not(.mini) .rtc-hide .lb { display: none; } #rtc_bar:not(.mini) .rtc-hide .rtc-i { width: 32px; height: 32px; margin: 0; } }
   @media print { #rtc_note, #rtc_in, #rtc_bar, #rtc_view, #rtc_chat { display: none !important; } }
   @media (max-width: 700px) { #rtc_chat { left: 6px; right: 6px; width: auto; bottom: 128px; } #rtc_menu { right: 0; left: 0; } }
 </style>
@@ -4347,7 +4371,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     </div>
   </section>
 </div>
-<div id="rtc_bar" role="status" hidden><i class="rtc-dot" id="rtc_live"></i><span class="rtc-txt"><b id="rtc_who"></b><small><span id="rtc_mine"></span> <span id="rtc_clock"></span> <span id="rtc_net"></span></small><small id="rtc_fol" hidden><span id="rtc_fol_t"></span> <button type="button" id="rtc_unfollow">Stop following</button></small></span><button type="button" id="rtc_mic">Mute</button><button type="button" id="rtc_share">Show my screen</button><button type="button" id="rtc_chatb">Chat<span class="rtc-badge" id="rtc_chat_n" hidden></span></button><button type="button" id="rtc_more" aria-haspopup="true">More ▾</button><button type="button" id="rtc_end">End</button><div id="rtc_menu" hidden><button type="button" id="rtc_cam">Show my camera</button><button type="button" id="rtc_flip" hidden>Switch camera</button><button type="button" id="rtc_torch" hidden>Light on</button><button type="button" id="rtc_page">Show only my page (low data)</button><button type="button" id="rtc_low">Low data: off</button></div></div><div id="rtc_chat" hidden><header><b>Chat</b><small>not saved – gone when the call ends</small><button type="button" id="rtc_chat_x" aria-label="Close">×</button></header><div id="rtc_msgs" aria-live="polite"></div><form id="rtc_chat_f" autocomplete="off"><button type="button" id="rtc_photo" title="Send a photo">Photo</button><input id="rtc_txt" maxlength="500" placeholder="Type – e.g. a vehicle number"><button type="submit" id="rtc_send">Send</button></form><input type="file" id="rtc_file" accept="image/*" hidden></div>
+<!-- (update-135) the call bar as in Google Meet: round buttons in the middle (microphone, camera, screen, chat, more, end), who / time on the left, Hide on the right; hidden it is a small pill --><div id="rtc_bar" role="status" hidden><span class="rtc-left"><i class="rtc-dot" id="rtc_live"></i><span class="rtc-txt"><b id="rtc_who"></b><small><span id="rtc_mine"></span> <span id="rtc_clock"></span> <span id="rtc_net"></span></small><small id="rtc_fol" hidden><span id="rtc_fol_t"></span> <button type="button" id="rtc_unfollow">Stop following</button></small></span></span><span class="rtc-btns"><button type="button" id="rtc_mic" class="rtc-b"><i class="rtc-i i-mic" aria-hidden="true"></i><span class="lb">Mute</span></button><button type="button" id="rtc_cam" class="rtc-b"><i class="rtc-i i-cam" aria-hidden="true"></i><span class="lb">Show my camera</span></button><button type="button" id="rtc_share" class="rtc-b"><i class="rtc-i i-scr" aria-hidden="true"></i><span class="lb">Show my screen</span></button><button type="button" id="rtc_chatb" class="rtc-b"><i class="rtc-i i-chat" aria-hidden="true"></i><span class="lb">Chat</span><span class="rtc-badge" id="rtc_chat_n" hidden></span></button><button type="button" id="rtc_more" class="rtc-b" aria-haspopup="true"><i class="rtc-i i-more" aria-hidden="true"></i><span class="lb">More</span></button><button type="button" id="rtc_end" class="rtc-b"><i class="rtc-i i-end" aria-hidden="true"></i><span class="lb">End</span></button></span><button type="button" id="rtc_hide" class="rtc-b rtc-hide"><i class="rtc-i i-down" aria-hidden="true"></i><span class="lb">Hide</span></button><div id="rtc_menu" hidden><button type="button" id="rtc_flip" hidden>Switch camera</button><button type="button" id="rtc_torch" hidden>Light on</button><button type="button" id="rtc_page">Show only my page (low data)</button><button type="button" id="rtc_low">Low data: off</button></div></div><div id="rtc_chat" hidden><header><b>Chat</b><small>not saved – gone when the call ends</small><button type="button" id="rtc_chat_x" aria-label="Close">×</button></header><div id="rtc_msgs" aria-live="polite"></div><form id="rtc_chat_f" autocomplete="off"><button type="button" id="rtc_photo" title="Send a photo">Photo</button><input id="rtc_txt" maxlength="500" placeholder="Type – e.g. a vehicle number"><button type="submit" id="rtc_send">Send</button></form><input type="file" id="rtc_file" accept="image/*" hidden></div>
 <div id="rtc_view" data-size="m" hidden><header><b id="rtc_vt"></b><span id="rtc_tabs"></span><button type="button" id="rtc_open" hidden></button><button type="button" id="rtc_penb" title="Draw on the picture – it shows on the sharer's screen" hidden>Pen</button><button type="button" id="rtc_clr" hidden>Clear</button><button type="button" id="rtc_snap" title="Save a picture of this screen on this device">Snapshot</button><button type="button" id="rtc_size" title="Smaller / larger picture">Size</button></header><div class="rtc-vw"><video id="rtc_video" autoplay playsinline muted></video><canvas id="rtc_pen"></canvas></div><small id="rtc_hint"></small></div>
 <!-- the assistant: ask the app in your own words -->
 <button type="button" id="ai_fab" class="ai-fab" hidden title="Ask the assistant – how to do something, how much diesel, who did what …"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Ask</span></button>
@@ -17209,10 +17233,35 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return s;
   }
   // the camera (update-75): the back camera of a phone first – to show a machine, a meter, a paper
-  async function rtcGetCam(facing) {
-    const opt = { video: { facingMode: { ideal: facing || 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 15, max: 24 } }, audio: false };
-    try { return await navigator.mediaDevices.getUserMedia(opt); }
-    catch (e) { if (e && e.name === 'NotAllowedError' && /polic/i.test(String(e.message || ''))) return await window.top.navigator.mediaDevices.getUserMedia(opt); throw e; }      // (an older shell page does not hand the camera to the app's frame)
+  /* (update-135, asked 19-10-2026: "show my camera kel ki new app open krtey tr high priority ki laptop cha camera use krel jr laptop la
+   * camre nasel tewa externel app la prefere karel") A COMPUTER: its own camera first – the laptop's built-in one, then another real
+   * camera; a camera app (a phone used as a camera, a "virtual camera" – it opens its own app) only when there is no other. Asked
+   * for the front ("user") camera, which a laptop's own camera is; a camera app has no side, so it is not taken first any more
+   * (until now "the back camera" was asked – on a laptop that took the camera app). Once the camera was allowed the browser gives
+   * the names, and the best one is taken by its name. A phone: as before. */
+  const rtcOnComputer = () => !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') && !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent || ''));
+  const RTC_CAMAPP_ = /virtual|\bobs\b|camo\b|droidcam|iriun|epoccam|\bndi\b|snap camera|manycam|xsplit|mmhmm|phone link|link to windows|e2esoft|splitcam|youcam|broadcast|ivcam|reincubate|vcam|avatarify|camtwist|chromacam|nvidia/i;
+  const RTC_OWNCAM_ = /integrated|built-?in|internal|facetime|truevision|easycamera|hd uvc|uvc webcam|front|user-facing|laptop/i;
+  async function rtcCamRank() {      // the cameras of this computer, the best first (names: only once the camera was allowed)
+    let ds = []; try { ds = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput' && d.deviceId); } catch (e) { ds = []; }
+    const score = d => RTC_CAMAPP_.test(d.label || '') ? 0 : RTC_OWNCAM_.test(d.label || '') ? 2 : 1;
+    return ds.map((d, i) => ({ d: d, s: score(d), i: i })).sort((a, b) => (b.s - a.s) || (a.i - b.i)).map(x => x.d);
+  }
+  async function rtcGetCam(facing, devId) {
+    const base = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 15, max: 24 } };
+    const open = async v => { const opt = { video: Object.assign({}, base, v), audio: false };
+      try { return await navigator.mediaDevices.getUserMedia(opt); }
+      catch (e) { if (e && e.name === 'NotAllowedError' && /polic/i.test(String(e.message || ''))) return await window.top.navigator.mediaDevices.getUserMedia(opt); throw e; } };      // (an older shell page does not hand the camera to the app's frame)
+    if (devId) return open({ deviceId: { exact: devId } });
+    if (!rtcOnComputer()) return open({ facingMode: { ideal: facing || 'environment' } });
+    const best = (await rtcCamRank())[0];
+    if (best && best.label) { try { return await open({ deviceId: { exact: best.deviceId } }); } catch (e) { /* busy or gone: the usual way below */ } }
+    const s = await open({ facingMode: { ideal: 'user' } });
+    // the first time (no names before it was allowed): a camera app was taken although the computer has its own – take its own
+    try { const t = s.getVideoTracks()[0], top = (await rtcCamRank())[0], cur = (t.getSettings() || {}).deviceId;
+      if (top && top.label && cur && top.deviceId !== cur && RTC_CAMAPP_.test(t.label || '') && !RTC_CAMAPP_.test(top.label)) { const s2 = await open({ deviceId: { exact: top.deviceId } }); s.getTracks().forEach(x => x.stop()); return s2; } }
+    catch (e) { /* keep the one that opened */ }
+    return s;
   }
   const rtcCamErr = e => 'Screen share: the camera ' + (e && e.name === 'NotAllowedError' ? 'is not allowed – allow it for this site (the lock sign beside the address → Camera → Allow). If the app was open from before the update, close it and open it again.' : e && (e.name === 'NotFoundError' || e.name === 'OverconstrainedError') ? 'was not found on this device.' : 'could not be started (' + (e && e.name || 'error') + ').');
   async function rtcGetMic() { try { return await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); } catch (e) { return null; } }
@@ -17400,10 +17449,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }));
   }
   function rtcNewCall(id, role) { return { id: id, role: role, peers: new Map(), screen: null, kind: '', facing: 'environment', torch: false, selfTab: false, pageMode: false, follow: '', noFollow: {}, followAt: 0, low: false, lowSet: false, net: '', poorN: 0, pen: false, unread: 0, chat: [],
-    mic: null, micOn: true, t0: Date.now(), t1: 0, met: new Set(), shares: {}, vids: {}, pages: {}, audio: [], view: '', size: 'm', roster: null }; }
+    mic: null, micOn: true, t0: Date.now(), t1: 0, met: new Set(), shares: {}, vids: {}, pages: {}, audio: [], view: '', size: 'l', roster: null }; }      // (update-135) a screen shown to me: big, as in Meet (Size makes it smaller)
   function rtcUseScreen(s, kind) {
     const C = RTC.call, t = s.getVideoTracks()[0];
     C.screen = s; C.kind = kind === 'cam' ? 'cam' : 'screen'; C.selfTab = C.kind === 'screen' && rtcIsThisTab(t); C.torch = false;
+    if (C.kind === 'screen' && !C.mini) { C.mini = true; C.autoMini = true; }      // (update-135) as in Meet: my bar is not over the screen the others see – a pill with Stop
     t.addEventListener('ended', () => { if (RTC.call === C && C.screen === s && s.getVideoTracks()[0] === t) rtcStopMine(true); });      // "Stop sharing" of the browser itself (or the camera taken away)
   }
   // the host's answer arrived (the guest accepted)
@@ -17476,6 +17526,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function rtcStopMine(byBrowser, quiet) {
     const C = RTC.call; if (!C || !C.screen) return;
     const s = C.screen; C.screen = null; C.selfTab = false; C.kind = ''; C.torch = false;
+    if (C.autoMini) { C.mini = false; C.autoMini = false; }      // (update-135) the bar comes back as it was
     C.peers.forEach(P => { if (P.scr) { try { P.pc.removeTrack(P.scr); } catch (e) { /* the connection is closing */ } P.scr = null; if (!P.open) P.dirty = true; } });
     s.getTracks().forEach(t => { try { t.stop(); } catch (e) { /* already stopped */ } });
     rtcTellAll({ t: 'share', on: false, sid: s.id, uid: RTC.me });
@@ -17492,8 +17543,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   async function rtcFlip() {
     const C = RTC.call; if (!C || !C.screen || C.kind !== 'cam') return;
-    const want = C.facing === 'user' ? 'environment' : 'user'; let s2 = null;
-    try { s2 = await rtcGetCam(want); } catch (e) { rtcSay('This device has no other camera.'); return; }
+    let want = C.facing === 'user' ? 'environment' : 'user', s2 = null, dev = '';
+    if (rtcOnComputer()) {      // (update-135) a computer: the next of its cameras (its own first, then the others – a camera app last)
+      const list = await rtcCamRank(); let cur = ''; try { cur = C.screen.getVideoTracks()[0].getSettings().deviceId || ''; } catch (e) { cur = ''; }
+      const nx = list.length > 1 ? list[(list.findIndex(d => d.deviceId === cur) + 1) % list.length] : null;
+      if (!nx) { rtcSay('This computer has no other camera.'); return; }
+      dev = nx.deviceId; want = C.facing;
+    }
+    try { s2 = await rtcGetCam(want, dev); } catch (e) { rtcSay('This device has no other camera.'); return; }
     if (RTC.call !== C || !C.screen || C.kind !== 'cam') { s2.getTracks().forEach(t => t.stop()); return; }
     const nt = s2.getVideoTracks()[0], old = C.screen.getVideoTracks()[0], s = C.screen;
     for (const P of C.peers.values()) { if (P.scr) { try { await P.scr.replaceTrack(nt); } catch (e) { rtcWarn(e); } } }
@@ -17546,7 +17603,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       RTC.netTick = (RTC.netTick || 0) + 1; if (RTC.netTick % 3 === 0) rtcNetCheck().catch(rtcWarn); }, 1000); }
   function rtcBar() {
     const bar = $('rtc_bar'), C = RTC.call; if (!bar) return;
-    bar.hidden = !C; document.body.classList.toggle('rtc-on', !!C); if (!C) return;
+    bar.hidden = !C; document.body.classList.toggle('rtc-on', !!C); document.body.classList.toggle('rtc-mini', !!(C && C.mini)); if (!C) return;
+    bar.classList.toggle('mini', !!C.mini); rtcLab('rtc_hide', C.mini ? 'Show the bar' : 'Hide');      // (update-135)
     const ps = [...C.peers.values()], up = ps.filter(P => P.up), word = { ringing: 'ringing', connecting: 'connecting', weak: 'weak connection', reconnecting: 'connecting again…', on: '' };
     let who = ps.map(P => P.name + (P.up && P.state === 'on' ? '' : ' (' + (word[P.state] || P.state) + ')')).join(', ');
     if (C.role === 'guest' && C.roster) who = [C.roster.host.name].concat((C.roster.people || []).filter(x => x.uid !== RTC.me && x.up).map(x => x.name)).join(', ');
@@ -17554,18 +17612,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('rtc_live').className = 'rtc-dot' + (C.screen ? ' on' : '');
     $('rtc_mine').textContent = (C.screen ? (C.kind === 'cam' ? 'Your camera is shown' : 'Your screen is shown') : C.pageMode ? 'Your page is shown (no video)' : 'Your screen is not shown') + (up.some(P => P.via === 'relay') ? ' · through the relay' : up.some(P => P.via === 'direct') ? ' · direct connection' : '');
     const nt = $('rtc_net'); nt.textContent = (C.net ? '· Network: ' + C.net : '') + (C.low ? ' · low data' : ''); nt.className = C.net || '';
-    $('rtc_mic').textContent = !C.mic ? 'No microphone' : C.micOn ? 'Mute' : 'Unmute'; $('rtc_mic').classList.toggle('off', !C.mic || !C.micOn);
+    rtcLab('rtc_mic', !C.mic ? 'No microphone' : C.micOn ? 'Mute' : 'Unmute'); $('rtc_mic').classList.toggle('off', !C.mic || !C.micOn);
     const scr = !!C.screen && C.kind === 'screen', cam = !!C.screen && C.kind === 'cam';
-    $('rtc_share').textContent = scr ? 'Stop showing my screen' : 'Show my screen'; $('rtc_share').hidden = !rtcCanShare(); $('rtc_share').classList.toggle('on', scr);
-    $('rtc_cam').textContent = cam ? 'Stop my camera' : 'Show my camera'; $('rtc_cam').classList.toggle('on', cam);
+    rtcLab('rtc_share', scr ? 'Stop showing my screen' : 'Show my screen'); $('rtc_share').hidden = !rtcCanShare(); $('rtc_share').classList.toggle('on', scr);
+    rtcLab('rtc_cam', cam ? 'Stop my camera' : 'Show my camera'); $('rtc_cam').classList.toggle('on', cam);
     $('rtc_flip').hidden = !cam; let torch = false; try { const t = cam ? C.screen.getVideoTracks()[0] : null; torch = !!(t && t.getCapabilities && t.getCapabilities().torch); } catch (e) { torch = false; }
     $('rtc_torch').hidden = !torch; $('rtc_torch').textContent = C.torch ? 'Light off' : 'Light on';
     $('rtc_page').textContent = C.pageMode ? 'Stop showing my page' : 'Show only my page (low data)'; $('rtc_page').classList.toggle('on', !!C.pageMode);
     $('rtc_low').textContent = 'Low data: ' + (C.low ? 'on' : 'off'); $('rtc_low').classList.toggle('on', !!C.low);
     const cn = $('rtc_chat_n'); cn.hidden = !C.unread; cn.textContent = C.unread > 9 ? '9+' : String(C.unread || '');
-    $('rtc_end').textContent = C.role === 'host' ? 'End' : 'Leave';
+    rtcLab('rtc_end', C.role === 'host' ? 'End' : 'Leave'); rtcLab('rtc_more', 'More'); rtcLab('rtc_chatb', 'Chat');
     rtcFolDraw();
   }
+  // (update-135) a round button of the bar: its word under the icon (and as its tooltip)
+  function rtcLab(id, txt) { const b = $(id); if (!b) return; const l = b.querySelector('.lb'); if (l) { if (l.textContent !== txt) l.textContent = txt; } else b.textContent = txt; b.title = txt; b.setAttribute('aria-label', txt); }
   // which screen is shown to me: the one that was switched on last and is still coming in
   function rtcViewPick(want) {
     const box = $('rtc_view'), C = RTC.call; if (!box) return;
@@ -17610,6 +17670,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (t.closest('#rtc_mic')) { rtcMic(); return; }
     if (t.closest('#rtc_share')) { rtcShareMine().catch(rtcWarn); return; }
     if (t.closest('#rtc_more')) { $('rtc_menu').hidden = !$('rtc_menu').hidden; return; }
+    if (t.closest('#rtc_hide')) { C.mini = !C.mini; C.autoMini = false; $('rtc_menu').hidden = true; if (C.mini) $('rtc_chat').hidden = true; rtcBar(); return; }      // (update-135)
     if (t.closest('#rtc_cam')) { $('rtc_menu').hidden = true; rtcCamMine().catch(rtcWarn); return; }
     if (t.closest('#rtc_flip')) { rtcFlip().catch(rtcWarn); return; }
     if (t.closest('#rtc_torch')) { rtcTorch(); return; }

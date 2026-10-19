@@ -1762,6 +1762,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   request keeps its row as kind "Flow Deleted"; all ticked together or none; not one of a submitted bill or a closed month; a new
   VF- number counts every request ever made. Page: Diesel Issue → `#sx_panel` (`sxLoad`, `sxRender`). Unit "update-134"; rig
   `test/browser/sdel134.js` 6.
+- 19-10-2026 (update-135). Report: `UPDATE_135.md`. The call as in Google Meet (page only): `#rtc_bar` round buttons (`.rtc-b`, icons
+  `.rtc-i` by CSS mask, the word in `.lb` – set with `rtcLab`), the camera in the bar, `#rtc_hide` → `C.mini` (the pill; body
+  `rtc-mini`), my bar hides itself while my screen is shown (`C.autoMini`, in `rtcUseScreen`; back in `rtcStopMine`); a screen shown
+  to me starts big (`size: 'l'`). Camera of a computer: `rtcCamRank` (own camera → other real → camera app, by name), `rtcGetCam`
+  asks the front camera / the best by id, `rtcFlip` goes to the next camera. Rig `test/browser/call135.js` 9.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
