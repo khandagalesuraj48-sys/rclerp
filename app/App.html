@@ -405,6 +405,55 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #dlg header p { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }
   #dlg .body { padding: 12px 16px; overflow: auto; }
   #dlg footer { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--line); }
+  /* (update-126) the Dashboard's numbers open the entries behind them – one big box, only shown */
+  .kcards .kc[data-kd], .kmini .km[data-kd] { cursor: pointer; }
+  .kcards .kc[data-kd]:focus-visible, .kmini .km[data-kd]:focus-visible { outline: 3px solid #1D55E2; outline-offset: 3px; }
+  .kc[data-kd] .kd-hint, .km[data-kd] .kd-hint { display: block; margin-top: 3px; font: 600 11.5px var(--ui); color: #1D55E2; opacity: 0; transition: opacity .2s; }
+  .kc[data-kd]:hover .kd-hint, .km[data-kd]:hover .kd-hint, .kc[data-kd]:focus-visible .kd-hint, .km[data-kd]:focus-visible .kd-hint { opacity: 1; }
+  @media (hover: none) { .kc[data-kd] .kd-hint, .km[data-kd] .kd-hint { opacity: .85; } }
+  #kd_back { position: fixed; inset: 0; z-index: 16; background: rgba(12,26,46,.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 16px; animation: fadeIn .2s ease; }
+  #kd_back[hidden] { display: none; }
+  #kd { --kd-tone: #F2A900; background: #fff; width: min(1320px, 100%); height: min(90vh, 920px); display: flex; flex-direction: column; border-radius: 18px; box-shadow: 0 30px 80px rgba(12,26,46,.42); overflow: hidden; border-top: 6px solid var(--kd-tone); animation: pop .28s var(--ease); }
+  #kd header { display: flex; align-items: flex-start; gap: 16px; padding: 16px 20px 12px; border-bottom: 1px solid #E3E8EF; }
+  #kd header h3 { margin: 0; font: 700 25px/1.15 var(--display); color: #0F1B2D; }
+  #kd header p { margin: 4px 0 0; font-size: 13px; color: #5B6B80; }
+  #kd .kd-big { margin-left: auto; text-align: right; white-space: nowrap; }
+  #kd .kd-big b { display: block; font: 800 32px/1 var(--display); color: var(--kd-tone); }
+  #kd .kd-big small { display: block; margin-top: 4px; font-size: 12.5px; color: #5B6B80; }
+  #kd .kd-body { flex: 1; overflow: auto; padding: 12px 20px 16px; -webkit-overflow-scrolling: touch; }
+  #kd .kd-body table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+  #kd .kd-body thead th { position: sticky; top: 0; z-index: 2; background: #F1F5F9; text-align: left; vertical-align: bottom; padding: 9px 8px; font-weight: 700; color: #334155; border-bottom: 2px solid #CBD5E1; }
+  #kd .kd-body td { padding: 8px 8px; border-bottom: 1px solid #EEF2F6; vertical-align: top; }
+  #kd .kd-body tbody tr:nth-child(even) td { background: #FAFBFD; }
+  #kd .kd-body tbody tr:hover td { background: #F3F7FF; }
+  #kd .kd-body .n { text-align: right; font-variant-numeric: tabular-nums; } #kd .kd-body td.n { white-space: nowrap; }
+  #kd .kd-body tfoot td { position: sticky; bottom: 0; z-index: 1; background: #FFF8E6; font-weight: 800; border-top: 2px solid var(--kd-tone); }
+  #kd .kd-body td.hl { background: #FFF4D6 !important; font-weight: 800; }
+  #kd .kd-note { margin: 0 0 10px; padding: 9px 12px; border-radius: 10px; background: #F1F5F9; color: #334155; font-size: 13px; }
+  #kd .kd-none { padding: 48px 10px; text-align: center; color: #5B6B80; font-size: 15px; }
+  #kd footer { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-top: 1px solid #E3E8EF; }
+  #kd footer .muted { font-size: 12.5px; }
+  #kd footer .btn { margin-left: auto; }
+  #kd header > div:first-child { flex: 1; min-width: 0; }
+  body.kd-open .ai-fab { display: none !important; }      /* the assistant's button is not over the box */
+  @media (max-width: 760px) {
+    #kd_back { padding: 0; }
+    #kd { width: 100%; height: 100dvh; border-radius: 0; }
+    #kd header { padding: calc(12px + env(safe-area-inset-top)) 14px 10px; gap: 10px; flex-wrap: wrap; }
+    #kd header h3 { font-size: 20px; }
+    #kd .kd-big { order: 3; margin-left: 0; text-align: left; flex-basis: 100%; } #kd .kd-big b { font-size: 26px; display: inline; } #kd .kd-big small { display: inline; margin-left: 8px; }
+    #kd .kd-body { padding: 10px 10px 14px; }
+    #kd footer { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); }
+    #kd .kd-body table, #kd .kd-body tbody, #kd .kd-body tfoot, #kd .kd-body tr, #kd .kd-body td { display: block; width: auto; min-width: 0; }
+    #kd .kd-body thead { display: none; }
+    #kd .kd-body tbody tr { margin: 0 0 10px; border: 1px solid #E3E8EF; border-radius: 14px; padding: 8px 12px; background: #fff; }
+    #kd .kd-body tbody tr td, #kd .kd-body tfoot td { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border: 0; background: none !important; text-align: right; white-space: normal; }
+    #kd .kd-body td[data-l]::before { content: attr(data-l); flex: 0 0 auto; color: #5B6B80; font-weight: 600; text-align: left; }
+    #kd .kd-body td:empty { display: none; }
+    #kd .kd-body td.hl { color: var(--kd-tone); }
+    #kd .kd-body tfoot { position: sticky; bottom: 0; }
+    #kd .kd-body tfoot tr { border: 2px solid var(--kd-tone); border-radius: 14px; padding: 8px 12px; background: #FFF8E6; }
+  }
   .iconbtn { appearance: none; border: 0; background: none; cursor: pointer; color: var(--muted); padding: 4px; border-radius: 4px; }
   .iconbtn:hover { color: var(--ink); background: #F4F6F7; }
   .iconbtn svg { width: 20px; height: 20px; display: block; }
@@ -2912,22 +2961,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         </div>
       </div>
       <div class="kcards">
-        <div class="kc c-open"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v17"/><path d="M3 22h12"/><path d="M5 9h8"/><path d="M15 13h2a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0V9l-3-3"/></svg></i>
-          <div><span>Opening stock</span><b id="k_open" data-roll>–</b><em id="k_open_d"></em></div></div>
-        <div class="kc c-in"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v14"/><path d="m6 12 6 6 6-6"/><path d="M5 21h14"/></svg></i>
-          <div><span>Received (inward)</span><b id="k_inqty" data-roll>–</b><em id="k_inamt"></em></div></div>
-        <div class="kc c-out"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V6"/><path d="m6 12 6-6 6 6"/></svg></i>
-          <div><span>Issued to machinery</span><b id="k_total" data-roll>–</b><em id="k_isssub"></em></div></div>
-        <div class="kc c-close"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 8-9-5-9 5 9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></i>
-          <div><span>Closing stock</span><b id="k_close" data-roll>–</b><em id="k_close_d"></em></div></div>
-        <div class="kc c-now"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v17"/><path d="M3 22h12"/><path d="M6 7h6v4H6z"/><path d="M15 13h2a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0V9l-3-3"/></svg></i>
-          <div><span>Stock now (live)</span><b id="k_stock" data-roll>–</b><em id="k_stock_loc"></em></div></div>
+        <div class="kc c-open" data-kd="open" role="button" tabindex="0" title="Click to see the entries of this number"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v17"/><path d="M3 22h12"/><path d="M5 9h8"/><path d="M15 13h2a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0V9l-3-3"/></svg></i>
+          <div><span>Opening stock</span><b id="k_open" data-roll>–</b><em id="k_open_d"></em><i class="kd-hint">See the entries ›</i></div></div>
+        <div class="kc c-in" data-kd="in" role="button" tabindex="0" title="Click to see the entries of this number"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v14"/><path d="m6 12 6 6 6-6"/><path d="M5 21h14"/></svg></i>
+          <div><span>Received (inward)</span><b id="k_inqty" data-roll>–</b><em id="k_inamt"></em><i class="kd-hint">See the entries ›</i></div></div>
+        <div class="kc c-out" data-kd="issued" role="button" tabindex="0" title="Click to see the entries of this number"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V6"/><path d="m6 12 6-6 6 6"/></svg></i>
+          <div><span>Issued to machinery</span><b id="k_total" data-roll>–</b><em id="k_isssub"></em><i class="kd-hint">See the entries ›</i></div></div>
+        <div class="kc c-close" data-kd="close" role="button" tabindex="0" title="Click to see the entries of this number"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 8-9-5-9 5 9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></i>
+          <div><span>Closing stock</span><b id="k_close" data-roll>–</b><em id="k_close_d"></em><i class="kd-hint">See the entries ›</i></div></div>
+        <div class="kc c-now" data-kd="now" role="button" tabindex="0" title="Click to see the entries of this number"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v17"/><path d="M3 22h12"/><path d="M6 7h6v4H6z"/><path d="M15 13h2a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0V9l-3-3"/></svg></i>
+          <div><span>Stock now (live)</span><b id="k_stock" data-roll>–</b><em id="k_stock_loc"></em><i class="kd-hint">See the entries ›</i></div></div>
       </div>
       <div class="kmini">
-        <div class="km"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></i><div><span>Issued today</span><b id="k_todayqty" data-roll>–</b></div></div>
-        <div class="km"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="17" r="3"/><circle cx="18" cy="17" r="2"/><path d="M4 14V8h7l3 6"/><path d="M14 14h6v-3l-3-3h-3"/></svg></i><div><span>Machines fuelled</span><b id="k_machines" data-roll>–</b></div></div>
-        <div class="km"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></i><div><span>Issue entries</span><b id="k_entries" data-roll>–</b></div></div>
-        <div class="km"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 20v-6"/><path d="M12 20V8"/><path d="M18 20V4"/></svg></i><div><span>Average per entry</span><b id="k_avg" data-roll>–</b></div></div>
+        <div class="km" data-kd="today" role="button" tabindex="0" title="Click to see the entries of this number"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></i><div><span>Issued today</span><b id="k_todayqty" data-roll>–</b><i class="kd-hint">See the entries ›</i></div></div>
+        <div class="km" data-kd="machines" role="button" tabindex="0" title="Click to see the entries of this number"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="17" r="3"/><circle cx="18" cy="17" r="2"/><path d="M4 14V8h7l3 6"/><path d="M14 14h6v-3l-3-3h-3"/></svg></i><div><span>Machines fuelled</span><b id="k_machines" data-roll>–</b><i class="kd-hint">See the entries ›</i></div></div>
+        <div class="km" data-kd="entries" role="button" tabindex="0" title="Click to see the entries of this number"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></i><div><span>Issue entries</span><b id="k_entries" data-roll>–</b><i class="kd-hint">See the entries ›</i></div></div>
+        <div class="km" data-kd="avg" role="button" tabindex="0" title="Click to see the entries of this number"><i class="ki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 20v-6"/><path d="M12 20V8"/><path d="M18 20V4"/></svg></i><div><span>Average per entry</span><b id="k_avg" data-roll>–</b><i class="kd-hint">See the entries ›</i></div></div>
       </div>
     </div>
 
@@ -4306,6 +4355,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <button class="btn primary" id="dlg_print"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>Print</button>
       <button class="btn ghost" id="dlg_close">Close</button>
     </footer>
+  </div>
+</div>
+<!-- (update-126) the Dashboard's numbers: the entries behind each one – only shown -->
+<div id="kd_back" hidden>
+  <div id="kd" role="dialog" aria-modal="true" aria-labelledby="kd_title">
+    <header>
+      <div><h3 id="kd_title"></h3><p id="kd_sub"></p></div>
+      <div class="kd-big"><b id="kd_big"></b><small id="kd_big_s"></small></div>
+      <button class="iconbtn" id="kd_x" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </header>
+    <div class="kd-body" id="kd_body"></div>
+    <footer><span class="muted">Only shown here – nothing is changed. An entry is changed on its own page.</span><button class="btn ghost" id="kd_close" type="button">Close</button></footer>
   </div>
 </div>
 <div id="print_area"></div>
@@ -5913,9 +5974,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * So: adding a page, a report or a save action without describing it here cannot go live unnoticed. */
   const PAGE_GUIDE = {
     dash: { saves: ['saveTankSettings'],
-      en: ['The day at a glance: diesel stock, diesel received and issued, the tanks, and the Log Book of the day.', 'Nothing is entered here. Every figure comes from the entries of the other pages for the dates chosen at the top; "Stock now" is always the live stock. Only the tank size can be set here. The search at the top (Ctrl + K) finds anything in the app – machinery, names, drivers, a reading (also one that lies between the Start and Close of a Log Book entry), challan or bill number, vendor, date, page – even with a spelling mistake (it then asks "did you mean …"); a result opens its page.'],
-      mr: ['एका नजरेत दिवस: diesel stock, आलेले आणि दिलेले diesel, tanks, आणि दिवसाची Log Book.', 'इथे काहीही भरले जात नाही. प्रत्येक आकडा वर निवडलेल्या तारखांसाठी इतर pages च्या entries वरून येतो; "Stock now" नेहमी सध्याचा stock असतो. इथे फक्त tank चा आकार सेट करता येतो. वरचा search (Ctrl + K) app मधले काहीही शोधतो – machinery, नावे, driver, reading (Log Book entry च्या Start आणि Close च्या मधले reading सुद्धा), challan किंवा bill नंबर, vendor, तारीख, page – स्पेलिंग चुकले तरी (मग तो "did you mean …" विचारतो); result वर क्लिक केले की त्याचे page उघडते.'],
-      hi: ['एक नज़र में दिन: diesel stock, आया और दिया गया diesel, tanks, और दिन की Log Book।', 'यहाँ कुछ भरा नहीं जाता। हर आँकड़ा ऊपर चुनी तारीखों के लिए दूसरे pages की entries से आता है; "Stock now" हमेशा अभी का stock है। यहाँ केवल tank का आकार सेट होता है। ऊपर का search (Ctrl + K) app में कुछ भी ढूँढता है – machinery, नाम, driver, reading (Log Book entry के Start और Close के बीच की reading भी), challan या bill नंबर, vendor, तारीख, page – spelling गलत हो तब भी (तब वह "did you mean …" पूछता है); result पर क्लिक करने से उसका page खुलता है।'] },
+      en: ['The day at a glance: diesel stock, diesel received and issued, the tanks, and the Log Book of the day.', 'Nothing is entered here. Every figure comes from the entries of the other pages for the dates chosen at the top; "Stock now" is always the live stock. Only the tank size can be set here. A click on a number (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) opens a big box with its entries – only shown. The search at the top (Ctrl + K) finds anything in the app – machinery, names, drivers, a reading (also one that lies between the Start and Close of a Log Book entry), challan or bill number, vendor, date, page – even with a spelling mistake (it then asks "did you mean …"); a result opens its page.'],
+      mr: ['एका नजरेत दिवस: diesel stock, आलेले आणि दिलेले diesel, tanks, आणि दिवसाची Log Book.', 'इथे काहीही भरले जात नाही. प्रत्येक आकडा वर निवडलेल्या तारखांसाठी इतर pages च्या entries वरून येतो; "Stock now" नेहमी सध्याचा stock असतो. इथे फक्त tank चा आकार सेट करता येतो. कोणत्याही आकड्यावर (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) click केले की त्याच्या entries एका मोठ्या box मध्ये दिसतात – फक्त पाहण्यासाठी. वरचा search (Ctrl + K) app मधले काहीही शोधतो – machinery, नावे, driver, reading (Log Book entry च्या Start आणि Close च्या मधले reading सुद्धा), challan किंवा bill नंबर, vendor, तारीख, page – स्पेलिंग चुकले तरी (मग तो "did you mean …" विचारतो); result वर क्लिक केले की त्याचे page उघडते.'],
+      hi: ['एक नज़र में दिन: diesel stock, आया और दिया गया diesel, tanks, और दिन की Log Book।', 'यहाँ कुछ भरा नहीं जाता। हर आँकड़ा ऊपर चुनी तारीखों के लिए दूसरे pages की entries से आता है; "Stock now" हमेशा अभी का stock है। यहाँ केवल tank का आकार सेट होता है। किसी भी आँकड़े पर (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) click करने पर उसकी entries एक बड़े box में दिखती हैं – केवल देखने के लिए। ऊपर का search (Ctrl + K) app में कुछ भी ढूँढता है – machinery, नाम, driver, reading (Log Book entry के Start और Close के बीच की reading भी), challan या bill नंबर, vendor, तारीख, page – spelling गलत हो तब भी (तब वह "did you mean …" पूछता है); result पर क्लिक करने से उसका page खुलता है।'] },
     vendors: { saves: ['saveVendor', 'deleteVendor', 'vendorsFromOwners'],
       en: ['The parties: vendors and owners of machinery, with address, PAN, GST and bank details.', 'The app checks the format of PAN, GST, IFSC and mobile, and does not allow the same name twice. The name can be changed: the vendor\'s assets, BOQs, bills, payments, debit notes and Log Book entries follow to the new name. A vendor with assets or BOQs cannot be deleted. These details print on bills, tax invoices and debit notes.'],
       mr: ['Parties: machinery चे vendors आणि मालक, पत्ता, PAN, GST आणि bank तपशीलासह.', 'App PAN, GST, IFSC आणि mobile चे स्वरूप तपासते, आणि तेच नाव दोनदा घेत नाही. नाव बदलता येते: vendor चे assets, BOQ, bills, payments, debit notes आणि Log Book entries नवीन नावाकडे जातात. ज्या vendor कडे assets किंवा BOQ आहेत तो delete होत नाही. हा तपशील bills, tax invoice आणि debit notes वर छापला जातो.'],
@@ -13698,6 +13759,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const sig = JSON.stringify([f, d]);
       if (sig === S.dashSig) return;
       S.dashSig = sig;
+      S.dashD = d; S.dashF = f;      // (update-126) what the numbers' box shows
       markQuick(f);
       $('k_range').textContent = rangeText(f.from, f.to);
       const L = d.locations || [];
@@ -14008,6 +14070,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
 
   $('sec-dash').addEventListener('click', e => {
+    const kd = e.target.closest('[data-kd]'); if (kd) { kdOpen(kd.dataset.kd); return; }      // (update-126) a number → its entries
     const f = e.target.closest('[data-fill]'); if (f) { const p = f.dataset.fill.split('|'); goFill(p[0], p[1], p[2]); return; }
     const o = e.target.closest('[data-own]');
     if (o && !o.disabled) {
@@ -14055,6 +14118,114 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('dlg_close').addEventListener('click', closeDlg);
   $('dlg_back').addEventListener('click', e => { if (e.target === $('dlg_back')) closeDlg(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('dlg_back').hidden && $('cf_back').hidden) closeDlg(); });
+  /* ---------- THE NUMBERS OF THE DASHBOARD → THEIR ENTRIES (update-126, asked 19-10-2026: "dashbord war opening closing received je
+   * numbers aahet n nantr khali bgh issued today … ya waril kuth hi click kel ki tyanchi entryies open hotil ek mast motha
+   * dialogbox open hoil tyatach entry open hotil fkt show hotil") ----------
+   * A click (or Enter) on a number of the Diesel dashboard opens one big box with what makes that number – ONLY SHOWN, nothing
+   * can be changed there. The Dashboard's own dates; the box's total is the number on the card.
+   *   Opening stock / Closing stock – each diesel place: opening + received + from the other place − sent − issued = closing
+   *   Stock now (live)              – each diesel place: its stock now, its tank size, how full
+   *   Received (inward)             – the Diesel Inward entries of the dates (an opening stock entered on or before the start date
+   *                                   is part of the opening, not "received" – the same as getDashboard counts it)
+   *   Issued to machinery, Issue entries, Average per entry – the Diesel Issue entries of the dates
+   *   Issued today                  – today's Diesel Issue entries
+   *   Machines fuelled              – machine by machine: its entries and litres in the dates
+   * The entries come through the pages' own server actions (getInwards, getDieselIssues), so with the same access as those pages:
+   * a person without Diesel Issue (or Diesel Inward) is told so in the box. No new server action, nothing written. */
+  const KD = {
+    open: { t: 'Opening stock', tone: '#E11D48' }, in: { t: 'Received (inward)', tone: '#059669' }, issued: { t: 'Issued to machinery', tone: '#EA580C' },
+    close: { t: 'Closing stock', tone: '#7C3AED' }, now: { t: 'Stock now (live)', tone: '#1D4ED8' }, today: { t: 'Issued today', tone: '#2563EB' },
+    machines: { t: 'Machines fuelled', tone: '#2563EB' }, entries: { t: 'Issue entries', tone: '#2563EB' }, avg: { t: 'Average per entry', tone: '#2563EB' },
+  };
+  const kdTd = (v, num, hl, span) => '<td' + (span > 1 ? ' colspan="' + span + '"' : '') + (num || hl ? ' class="' + [num ? 'n' : '', hl ? 'hl' : ''].join(' ').trim() + '"' : '') + '>' + v + '</td>';
+  const kdTable = (head, rows, foot) => '<table><thead><tr>' + head.map(h => '<th' + (h[1] ? ' class="n"' : '') + '>' + esc(h[0]) + '</th>').join('') + '</tr></thead><tbody>' +
+    rows.join('') + '</tbody>' + (foot ? '<tfoot><tr>' + foot + '</tr></tfoot>' : '') + '</table>';
+  const kdN = v => Number(v) || 0;
+  let kdSeq = 0;
+  async function kdOpen(kind) {
+    const d = S.dashD, f = S.dashF || dashFilter(), k = KD[kind];
+    if (!d || !k) return;
+    const seq = ++kdSeq;
+    $('kd').style.setProperty('--kd-tone', k.tone);
+    $('kd_title').textContent = k.t;
+    $('kd_sub').textContent = kind === 'today' ? 'Today, ' + showDate(S.today) : kind === 'now' ? 'Live – after every entry saved till now' : rangeText(f.from, f.to);
+    $('kd_big').textContent = ''; $('kd_big_s').textContent = '';
+    $('kd_body').innerHTML = '<div class="kd-none">Loading the entries…</div>';
+    $('kd_back').hidden = false; document.body.classList.add('kd-open');
+    setTimeout(() => $('kd_close').focus(), 0);
+    try {
+      const out = await kdBuild(kind, d, f);
+      if (seq !== kdSeq || $('kd_back').hidden) return;
+      $('kd_big').textContent = out.big; $('kd_big_s').textContent = out.bigSub || '';
+      $('kd_body').innerHTML = out.html;
+      kdLabels();
+      $('kd_body').scrollTop = 0;
+    } catch (e) {
+      if (seq === kdSeq) $('kd_body').innerHTML = '<div class="kd-none">' + esc(errMsg(e)) + '</div>';
+    }
+  }
+  async function kdBuild(kind, d, f) {
+    if (kind === 'open' || kind === 'close') {
+      const L = d.locations || [], keys = ['opening', 'inward', 'tin', 'tout', 'issued', 'closing'], hk = kind === 'open' ? 'opening' : 'closing';
+      const sum = key => r2(L.reduce((a, x) => a + kdN(x[key]), 0));
+      const head = [['Diesel place'], [f.from ? 'Opening stock on ' + showDate(f.from) : 'Opening stock (at the very start)', 1], ['+ Received from pump', 1], ['+ From another place', 1],
+        ['− Sent to another place', 1], ['− Issued to machinery', 1], ['= Closing stock on ' + (f.to ? showDate(f.to) : 'today'), 1]];
+      const rows = L.map(x => '<tr>' + kdTd('<b>' + esc(x.loc) + '</b>') + keys.map(key => kdTd(fmt(kdN(x[key])), true, key === hk)).join('') + '</tr>');
+      return { big: fmt(sum(hk)) + ' Ltr', bigSub: kind === 'open' ? (f.from ? 'as on start of ' + showDate(f.from) : 'at the very start') : 'as on end of ' + (f.to ? showDate(f.to) : 'today'),
+        html: '<p class="kd-note">' + (kind === 'open' ? 'The diesel in each place when the period starts – what every entry before it left there.' : 'The diesel left in each place at the end of the period: Opening + Received + From another place − Sent − Issued.') + '</p>' +
+          (L.length ? kdTable(head, rows, kdTd('All places') + keys.map(key => kdTd(fmt(sum(key)), true, key === hk)).join('')) : '<div class="kd-none">No diesel place yet.</div>') };
+    }
+    if (kind === 'now') {
+      const st = d.stock || {}, by = st.byLoc || {}, caps = (d.tanks && d.tanks.caps) || {}, names = Object.keys(by);
+      const rows = names.map(l => { const cap = kdN(caps[l]), v = kdN(by[l]); return '<tr>' + kdTd('<b>' + esc(l) + '</b>') + kdTd(fmt(v), true, true) + kdTd(cap ? fmt(cap) : '–', true) + kdTd(cap ? Math.round(v / cap * 100) + '%' : '–', true) + '</tr>'; });
+      return { big: fmt(kdN(st.stock)) + ' Ltr', bigSub: 'live',
+        html: '<p class="kd-note">The diesel in each place now – after every entry saved till now.</p>' +
+          (names.length ? kdTable([['Diesel place'], ['Stock now (Ltr)', 1], ['Tank size (Ltr)', 1], ['Full', 1]], rows, kdTd('All places') + kdTd(fmt(kdN(st.stock)), true, true) + kdTd('', true) + kdTd('', true)) : '<div class="kd-none">No diesel place yet.</div>') };
+    }
+    if (kind === 'in') {
+      const r = await call('getInwards', { from: f.from, to: f.to, all: true });
+      const list = (r.rows || []).filter(x => !(x.open && (!f.from || x.date <= f.from)));      // as getDashboard: an opening stock on or before the start is the opening
+      const qty = r2(list.reduce((a, x) => a + kdN(x.qty), 0)), amt = r2(list.reduce((a, x) => a + kdN(x.amount), 0));
+      const what = x => x.open ? 'Opening stock' : x.extra ? 'Extra diesel' : (x.pump || '');
+      const rows = list.map((x, i) => '<tr>' + kdTd(i + 1, true) + kdTd(esc(showDate(x.date))) + kdTd(esc(x.id)) + kdTd(esc(x.location)) + kdTd(esc(what(x))) + kdTd(esc(x.billNo || '')) +
+        kdTd(esc(x.billDate ? showDate(x.billDate) : '')) + kdTd('<b>' + fmt(kdN(x.qty)) + '</b>', true) + kdTd(x.rate === '' ? '' : money(x.rate), true) + kdTd(x.amount === '' ? '' : money(x.amount), true) + kdTd(esc(x.enteredBy || '')) + '</tr>');
+      return { big: fmt(qty) + ' Ltr', bigSub: '₹' + money(amt) + ', ' + list.length + ' bills',
+        html: list.length ? kdTable([['Sr', 1], ['Date'], ['Inward'], ['Received at'], ['Pump'], ['Bill No'], ['Bill date'], ['Qty (Ltr)', 1], ['Rate', 1], ['Amount (₹)', 1], ['Entered by']], rows,
+          kdTd('Total – ' + list.length + ' bills', false, false, 7) + kdTd(fmt(qty), true, true) + kdTd('', true) + kdTd(money(amt), true) + kdTd('')) : '<div class="kd-none">No diesel received in this period.</div>' };
+    }
+    // the Diesel Issue entries: of today, or of the Dashboard's dates
+    const r = await call('getDieselIssues', kind === 'today' ? { from: S.today, to: S.today } : { from: f.from, to: f.to });
+    const n = kdN(r.count), tq = kdN(r.totalQty);
+    if (kind === 'machines') {
+      const sh = r.share || [];
+      const rows = sh.map((x, i) => '<tr>' + kdTd(i + 1, true) + kdTd('<b>' + esc(x.no) + '</b>') + kdTd(esc(x.type || '')) + kdTd(esc(x.owner || '')) + kdTd(x.entries, true) + kdTd('<b>' + fmt(kdN(x.qty)) + '</b>', true) + '</tr>');
+      return { big: fmt(sh.length) + ' machines', bigSub: fmt(tq) + ' Ltr, ' + n + ' entries',
+        html: sh.length ? kdTable([['Sr', 1], ['Machinery'], ['Type'], ['Owner'], ['Entries', 1], ['Diesel (Ltr)', 1]], rows, kdTd('Total – ' + sh.length + ' machines', false, false, 4) + kdTd(n, true) + kdTd(fmt(tq), true, true)) : '<div class="kd-none">No machinery was given diesel in this period.</div>' };
+    }
+    const list = r.rows || [];
+    const reading = x => [x.kmReading !== '' && x.kmReading !== undefined ? 'KM ' + fmt(x.kmReading) : '', x.hrReading !== '' && x.hrReading !== undefined ? 'Hrs ' + fmt(x.hrReading) : ''].filter(Boolean).join(' · ');
+    const rows = list.map((x, i) => '<tr>' + kdTd(i + 1, true) + kdTd(esc(showDate(x.date))) + kdTd(esc(x.shift || '')) + kdTd(esc(x.id)) + kdTd('<b>' + esc(x.no) + '</b>') + kdTd(esc(x.type || '')) + kdTd(esc(x.owner || '')) +
+      kdTd(esc(x.source || '')) + kdTd('<b>' + fmt(kdN(x.qty)) + '</b>', true) + kdTd(esc(reading(x)), true) + kdTd(esc(x.driver || '')) + kdTd(esc(x.remark || '')) + kdTd(esc(x.enteredBy || '')) + '</tr>');
+    const avg = n ? r2(tq / n) : 0;
+    const big = kind === 'avg' ? (n ? fmt(avg) + ' Ltr' : '–') : kind === 'entries' ? fmt(n) + ' entries' : fmt(tq) + ' Ltr';
+    const bigSub = kind === 'avg' ? (n ? fmt(tq) + ' Ltr ÷ ' + n + ' entries' : '') : kind === 'entries' ? fmt(tq) + ' Ltr' : n + ' entries';
+    const more = n > list.length ? '<p class="kd-note">The latest ' + list.length + ' of the ' + n + ' entries are listed here; the total is of all ' + n + '.</p>' : '';
+    return { big: big, bigSub: bigSub,
+      html: list.length ? more + kdTable([['Sr', 1], ['Date'], ['Shift'], ['Entry'], ['Machinery'], ['Type'], ['Owner'], ['From'], ['Diesel (Ltr)', 1], ['KM / Hrs reading', 1], ['Driver / Operator'], ['Remark'], ['Entered by']], rows,
+        kdTd('Total – ' + n + ' entries', false, false, 8) + kdTd(fmt(tq), true, true) + kdTd(kind === 'avg' && n ? 'Average ' + fmt(avg) : '', true) + kdTd('') + kdTd('') + kdTd(''))
+        : '<div class="kd-none">' + (kind === 'today' ? 'No diesel issued today.' : 'No diesel issued in this period.') + '</div>' };
+  }
+  function kdClose() { kdSeq++; $('kd_back').hidden = true; document.body.classList.remove('kd-open'); }
+  // every cell knows its column's name: a phone shows the entry as a card – the name on the left, the value on the right
+  function kdLabels() {
+    const heads = [...$('kd_body').querySelectorAll('thead th')].map(x => { const t = x.textContent.trim(); return typeof i18nAs === 'function' ? i18nAs(t) : t; });
+    $('kd_body').querySelectorAll('tbody tr, tfoot tr').forEach(tr => { let col = 0; [...tr.children].forEach(td => { if (td.colSpan < 2 && heads[col]) td.dataset.l = heads[col]; col += td.colSpan || 1; }); });
+  }
+  $('kd_x').addEventListener('click', kdClose);
+  $('kd_close').addEventListener('click', kdClose);
+  $('kd_back').addEventListener('click', e => { if (e.target === $('kd_back')) kdClose(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('kd_back').hidden && $('cf_back').hidden) kdClose(); });
+  $('sec-dash').addEventListener('keydown', e => { const kd = e.target.closest && e.target.closest('[data-kd]'); if (kd && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); kdOpen(kd.dataset.kd); } });
   $('dlg_print').addEventListener('click', async () => {
     const d = dlgData; if (!d) return;
     const headName = await askPrintName('Print – Diesel Issue Report'); if (!headName) return;

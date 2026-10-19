@@ -1721,6 +1721,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   box behind the drawer (`.side` 30 / `#nav_back` 29 over `#cf_back` 20) – the sites could not be pressed. The click now closes the
   drawer first (`setDrawer(false)`, as a page of the menu does). Computer unchanged. Unit "update-125"; browser
   `test/browser/sitechg125.js` 18 (no rig needed; 12 / 18 on main).
+- 19-10-2026 (update-126). Report: `UPDATE_126.md`. The Diesel dashboard's nine numbers (`data-kd` on `.kc` / `.km`) open one big box
+  (`#kd_back`, `kdOpen` / `kdBuild`) with the entries behind each – only shown: the places from `S.dashD` (getDashboard), the
+  Diesel Inward entries (getInwards – an opening stock on or before the start date left out, as getDashboard) and the Diesel
+  Issue entries (getDieselIssues; today's; `share` machine by machine). Same access as those pages; no new server action, no SQL.
+  A phone shows each entry as a card (`kdLabels`). App 3.21.0 (`numDetail`). Unit "update-126"; rig `test/browser/dashkd126.js` 72.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
