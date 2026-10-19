@@ -1726,6 +1726,9 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Diesel Inward entries (getInwards – an opening stock on or before the start date left out, as getDashboard) and the Diesel
   Issue entries (getDieselIssues; today's; `share` machine by machine). Same access as those pages; no new server action, no SQL.
   A phone shows each entry as a card (`kdLabels`). App 3.21.0 (`numDetail`). Unit "update-126"; rig `test/browser/dashkd126.js` 72.
+- 19-10-2026 (update-127). Report: `UPDATE_127.md`. `vercel.json`: `/engineering` → `/engineering/`, `/engineering/` and
+  `/engineering/:path*` → `https://rcl-engineering.vercel.app` (the Engineering module – repo `rcl-engineering`, its own Supabase
+  for every site – opens inside this screen like the Store). Unit "update-127"; rig `rcl-engineering/test/inmech.test.js` 7.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
