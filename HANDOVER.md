@@ -1772,6 +1772,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (`#rtc_faces`, `rtcFaces`, mine "You"), the big picture a screen or a phone's back camera (`rtcViewPick0`; a tapped face `C.pin`);
   quality in `rtcLowApply` (screen 2.5 Mbit/s maintain-resolution, camera 1.2 Mbit/s 24/s, voice 64 kbit/s high), capture up to
   1080p / camera 24–30/s / microphone speech 48 kHz. Rig `test/browser/both136.js` 12.
+- 19-10-2026 (update-137, with App 3.26.0). Report: `UPDATE_137.md`. Calls between the phone app and the web: the app speaks the same
+  screen-share notes / heartbeat / data-channel messages (rcl-mobile `lib/core/rtc.dart`); the web's ring and the notification say a
+  call of mode `voice` / `video` as a call (`rtcIncoming`, `rtcSend_` → `rtcPush_` mode, `app/sw.js`). Rig `test/browser/app137.js` 16
+  (a page that speaks as the app).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
