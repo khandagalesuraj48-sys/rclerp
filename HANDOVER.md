@@ -1747,6 +1747,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   and, for approval, `importDiesel_`; for an entry going to approval (`flowStrict_`: FLOW_DRY_ON_ or FLOW_RUN_ID_) it is a mistake
   (errors / thrown, force not read). "Send again anyway" (update-129 `flowForce_`, `resendFlow` force) removed. Unit "update-131";
   rig `test/browser/fit131.js` 8 (replaces again129.js).
+- 19-10-2026 (update-132). Report: `UPDATE_132.md`. BOQ: an amendment from any date on or after its BOQ's start (also after the
+  BOQ ends – only its machinery go on at the new rate); `getBoqs` gives `history` (`boqHistory_`: per vendor + machinery, the
+  periods from – to with the BOQ / amendment that gave the rate, the same order as the bills – `boqNewer_`, also in `boqRateFor_`);
+  page: "Rate history – machinery-wise" under the BOQ list for the picked vendor (`renderBoqHistory`, `#bh_box`). Unit "update-132";
+  rig `test/browser/boqhist132.js` 4.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

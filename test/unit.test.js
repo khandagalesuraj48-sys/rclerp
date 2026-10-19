@@ -4072,3 +4072,46 @@ test('update-131: a diesel reading is checked BY ITS DATE (the fills before and 
       CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
   }
 });
+
+test('update-132: a BOQ amendment changes only its machinery, from any date on or after the BOQ start (also after its end); the rate history machinery-wise = what the bills take', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  assert.ok(run('(x, m) => saveVendor_(x, m)', { name: 'Hist Vendor', gstReg: 'No', pan: 'ABCDE1234H', bank: 'SBI', account: '12345670', ifsc: 'SBIN0000001' }, 'add').ok !== false);
+  const mach = no => run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Tanker', type: 'Water Tanker', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Hist Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add');
+  assert.ok(mach('HV-1').ok && mach('HV-2').ok);
+  const line = (no, rate) => ({ no: no, basis: 'Per Trip', rate: rate, diesel: 'Company' });
+  const b1 = run('(x, m) => saveBoq_(x, m)', { vendor: 'Hist Vendor', from: '2026-01-01', to: '2026-08-31', tdsPct: 2, woNo: 'WO-HIST', lines: [line('HV-1', 100), line('HV-2', 300)] }, 'add');
+  assert.ok(b1.ok, JSON.stringify(b1));
+  // amendment 1: only HV-1, from 01-02 (open); amendment 2: only HV-2, from 01-09 – after BOQ 1 ends (until update-132: refused)
+  const a1 = run('(x, m) => saveBoq_(x, m)', { vendor: 'Hist Vendor', amendOf: b1.id, from: '2026-02-01', to: '', tdsPct: 2, woNo: 'WO-HIST', lines: [line('HV-1', 200)] }, 'add');
+  const a2 = run('(x, m) => saveBoq_(x, m)', { vendor: 'Hist Vendor', amendOf: b1.id, from: '2026-09-01', to: '2026-09-30', tdsPct: 2, woNo: 'WO-HIST', lines: [line('HV-2', 350)] }, 'add');
+  assert.ok(a1.ok && a2.ok, JSON.stringify([a1, a2]));
+  assert.deepStrictEqual([a1.amendNo, a2.amendNo], [1, 2]);
+  assert.strictEqual(run('(x, m) => saveBoq_(x, m)', { vendor: 'Hist Vendor', amendOf: b1.id, from: '2025-12-01', tdsPct: 2, lines: [line('HV-1', 50)] }, 'add').THROWN,
+    'The amendment must start on or after the start of BOQ ' + b1.no + ' (01-01-2026).');
+  // the history: period by period, which BOQ / amendment
+  const h = run('() => getBoqs_({ vendor: "Hist Vendor" }).history');
+  const simple = h.map(x => [x.no, x.periods.map(p => [p.from, p.to, p.amendNo ? 'A' + p.amendNo + ' of ' + p.of : 'BOQ ' + p.boqNo, p.line.rate, p.woNo])]);
+  assert.deepStrictEqual(simple, [
+    ['HV-1', [['2026-01-01', '2026-01-31', 'BOQ ' + b1.no, 100, 'WO-HIST'], ['2026-02-01', '', 'A1 of ' + b1.no, 200, 'WO-HIST']]],
+    ['HV-2', [['2026-01-01', '2026-08-31', 'BOQ ' + b1.no, 300, 'WO-HIST'], ['2026-09-01', '2026-09-30', 'A2 of ' + b1.no, 350, 'WO-HIST']]],
+  ], JSON.stringify(simple));
+  // = what the bills take, every day of the year (boqRateFor_)
+  const days = run(`() => { const out = []; let d = '2025-12-30'; while (d <= '2027-01-02') { ['HV-1', 'HV-2'].forEach(no => { const r = boqRateFor_('Hist Vendor', no, d); out.push([no, d, r ? r.line.rate : null]); }); d = addDays_(d, 1); } return out; }`);
+  const fromHist = (no, d) => { const p = h.find(x => x.no === no).periods.find(p => p.from <= d && (!p.to || p.to >= d)); return p && !p.none ? p.line.rate : null; };
+  const diff = days.filter(([no, d, r]) => fromHist(no, d) !== r);
+  assert.deepStrictEqual(diff, [], 'the history says exactly the bills\' rate on every day');
+  assert.deepStrictEqual(['2026-01-31', '2026-02-01', '2026-10-05'].map(d => days.find(x => x[0] === 'HV-1' && x[1] === d)[2]), [100, 200, 200]);
+  assert.deepStrictEqual(['2026-08-31', '2026-09-15', '2026-10-01'].map(d => days.find(x => x[0] === 'HV-2' && x[1] === d)[2]), [300, 350, null]);
+  // a time with no BOQ between two periods is said
+  assert.deepStrictEqual(run(`() => boqHistory_([{ id: 'X1', no: '1', vendor: 'V', from: '2026-01-01', to: '2026-01-31', amendOf: '', amendNo: 0, created: '1', lines: [{ no: 'M', rate: 1 }] },
+    { id: 'X2', no: '2', vendor: 'V', from: '2026-03-01', to: '', amendOf: 'X1', amendNo: 1, created: '2', lines: [{ no: 'M', rate: 2 }] }])[0].periods.map(p => [p.from, p.to, p.none ? 'none' : p.line.rate])`),
+    [['2026-01-01', '2026-01-31', 1], ['2026-02-01', '2026-02-28', 'none'], ['2026-03-01', '', 2]]);
+  // the page: the history under the BOQ list; the amendment's words
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /<div id="bh_box" hidden><\/div>/);
+  assert.match(app, /const list = \(S\.boqHist \|\| \[\]\)\.filter\(h => h\.vendor === v\);/);
+  assert.match(app, /Keep only the machinery whose rate changes/);
+  ['mr', 'hi'].forEach(l => { const d = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8'));
+    ['Rate history – machinery-wise', 'The amendment must start on or after the start of BOQ {0} ({1}).'].forEach(k => assert.ok(d[k], l + ': ' + k)); });
+});
