@@ -1726,6 +1726,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Diesel Inward entries (getInwards – an opening stock on or before the start date left out, as getDashboard) and the Diesel
   Issue entries (getDieselIssues; today's; `share` machine by machine). Same access as those pages; no new server action, no SQL.
   A phone shows each entry as a card (`kdLabels`). App 3.21.0 (`numDetail`). Unit "update-126"; rig `test/browser/dashkd126.js` 72.
+- 19-10-2026 (update-128). Report: `UPDATE_128.md`. SEND AGAIN: the sender's Rejected / Returned verification entry goes again
+  exactly as it was sent (same args and photos), with his remark (needed), from level 1 – the same request (`flowResend_` /
+  `flowResendOne_`, action `resendFlow` { id | ids, note }); checked as a save first (`FLOW_DRY_ON_`, `FLOW_RUN_ID_`, its photos):
+  refused again → "Not sent again: …", nothing changed. `canResend` / `resent` in the list; the box shows a returned entry's
+  reason; "Send again" / "Send all again (n)" (`flowAgain`), Approvals too. Unit "update-128"; rig `test/browser/again128.js` 11.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

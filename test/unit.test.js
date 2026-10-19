@@ -3280,7 +3280,7 @@ test('update-118: the sender sees his entries in verification where he made them
     assert.match(app, /fvDraw\(\);\n  \}\n  \/\* =+ MY ENTRIES IN VERIFICATION/);
     assert.match(app, /put\('sec-dash', 'fv_dash', fvMine\('', 1\), '', true\);/);
     assert.match(app, /fvRemindSeen\(was, S\.cr\); crDraw\(\);/);
-    assert.match(app, /approvals: \{ saves: \[[^\]]*'remindFlow'\]/);
+    assert.match(app, /approvals: \{ saves: \[[^\]]*'remindFlow'[^\]]*\]/);      // (update-128 adds resendFlow after it)
     assert.match(app, /const offWith = Object\.keys\(tasks\)\.filter\(m => !tasks\[m\]\.on && tasks\[m\]\.levels\.some\(l => l\.length\)\);/, 'people picked but not ticked: asked before saving');
     const src = app.slice(app.indexOf('  const FV_DAYS = 7;'), app.indexOf('  function fvDraw() {'));
     const F = new Function('S', 'esc', 'crWhen', src + '; return { fvMine, fvHtml };');
@@ -3688,4 +3688,101 @@ test('update-126: every number of the Diesel dashboard opens one big box with it
   assert.match(app, /click केले की त्याच्या entries एका मोठ्या box मध्ये दिसतात – फक्त पाहण्यासाठी\./);
   assert.match(app, /click करने पर उसकी entries एक बड़े box में दिखती हैं – केवल देखने के लिए।/);
   function getDashSrc(c) { const i = c.indexOf('function getDashboard_('); return c.slice(i, c.indexOf('\n}\n', i)); }
+});
+
+test('update-128: the sender sends his rejected / returned entry again – as it was, with his remark; checked as a save first; nothing lost', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  vm.runInContext(`globalThis.__k128 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_ };
+    globalThis.DB128 = {};
+    globalThis.__fill128 = s => { const d = DB128[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep128 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill128(s); if (s.loaded) DB128[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    SB_BOOK_ = null;
+    SbBook_.prototype.flush = function () { __keep128(this); __k128.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill128(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill128(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    globalThis.__sent = []; rtcPush_ = function (ids, msg) { __sent.push({ ids: ids, msg: msg }); };
+    kvWrite_("FLOW_RULES", "{}"); kvWrite_("CR_SUPERS", JSON.stringify(["sa128@rcl.test"]));`, ctx);
+  try {
+    const PW = 'sha256$0123456789abcdef$' + 'd'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('mahesh128@rcl.test', 'Mahesh Jadhav', false, { 'Vendor Master': 'Edit' }), mk('shubham128@rcl.test', 'Shubham', false, { 'Vendor Master': 'Edit' }), mk('sa128@rcl.test', 'Super C', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok128_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa128@rcl.test'); });
+    const api = (who, fn, ...a) => run('(t, f, a) => api(t, f, a)', tok[who], fn, a);
+    const V = n => ({ name: n, gstReg: 'No', pan: 'ABCPV1128A', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' });
+    const M = 'mahesh128@rcl.test', S = 'shubham128@rcl.test', SA = 'sa128@rcl.test';
+    assert.ok(api(SA, 'saveFlowRules', { tasks: { 'Vendor Master': { on: true, levels: [[S]] } } }).ok);
+    const sent = n => (api(M, 'saveVendor', V(n), 'add').THROWN || '').match(/VF-\d{5}/)[0];
+    const has = n => run('n => getVendors_().some(v => v.name === n)', n);
+    const req = (who, id) => api(who, 'getChangeRequests', {}).requests.find(x => x.id === id);
+    // ---- REJECTED: he sends it again with his remark – the same request, back to level 1, every step kept ----
+    const a = sent('Again 128 A');
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: a, approve: false, note: 'PAN?' }).status, 'Rejected');
+    assert.deepStrictEqual([req(M, a).canResend, req(S, a).canResend], [true, false], 'only the sender sends it again');
+    assert.match(api(M, 'resendFlow', { id: a }).THROWN, /^Write why it is sent again/);
+    assert.match(api(S, 'resendFlow', { id: a, note: 'x' }).THROWN, new RegExp('^Only the person who sent entry ' + a + ' sends it again\\.$'));
+    assert.match(api(M, 'resendFlow', { id: 'VF-99999', note: 'x' }).THROWN, /^Entry VF-99999 was not found/);
+    run('() => { __sent.length = 0; }');
+    let r = api(M, 'resendFlow', { id: a, note: 'PAN checked with the card' });
+    assert.deepStrictEqual([r.ok, r.id, r.status, r.level, r.levels, r.to], [true, a, 'Pending', 1, 1, ['Shubham']], JSON.stringify(r).slice(0, 300));
+    let ra = r.list.requests.find(x => x.id === a);
+    assert.deepStrictEqual([ra.status, ra.canResend, ra.canRemind, ra.resent, ra.waitingFor], ['Pending', false, true, 1, ['Shubham']]);
+    assert.deepStrictEqual(ra.history.map(h => h.step), ['Sent', 'Rejected', 'Sent again'], 'every step kept');
+    assert.strictEqual(ra.history[2].note, 'PAN checked with the card');
+    assert.deepStrictEqual(run('() => __sent.map(p => [p.ids, p.msg.id, p.msg.title])'), [[run('() => [rtcUid_("shubham128@rcl.test")]'), a, 'Sent again for verification – ' + MODULE_LABEL('Vendor Master') + ' by Mahesh Jadhav']]);
+    assert.ok(run('() => table_(LOG_SHEET, []).rows.some(x => x.join("|").indexOf("Verification – sent again by the sender") > -1)'), 'the Activity Log');
+    assert.match(api(M, 'resendFlow', { id: a, note: 'again' }).THROWN, new RegExp('^Entry ' + a + ' is waiting for verification already – only a rejected or returned entry is sent again\\.$'));
+    assert.ok(!has('Again 128 A'), 'nothing saved while it waits');
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: a, approve: true }).status, 'Approved');
+    assert.ok(has('Again 128 A'), 'approved: saved – as it was sent, nothing typed again');
+    // ---- RETURNED (approved, but the save refused it): the reason is with it; sent again only when the save would take it ----
+    const b = sent('Again 128 B');
+    assert.ok(api(SA, 'saveVendor', V('Again 128 B'), 'add').ok !== false && has('Again 128 B'), 'meanwhile the Super Admin saved the same vendor');
+    r = api(S, 'decideChangeRequest', { id: b, approve: true });
+    assert.deepStrictEqual([r.status, /^Not saved: Again 128 B is already saved/.test(r.result)], ['Returned', true], JSON.stringify(r));
+    const rb = req(M, b);
+    assert.ok(rb.canResend && /^Not saved: /.test(rb.result), 'he sees why, and may send it again');
+    r = api(M, 'resendFlow', { id: b, note: 'try again' });
+    assert.match(r.THROWN, new RegExp('^Not sent again: Again 128 B is already saved – use Edit\\. – entry ' + b + ' stays as it is \\(nothing is lost\\); send it again when this is put right\\.$'));
+    assert.deepStrictEqual([req(M, b).status, req(M, b).canResend, req(M, b).history.length], ['Returned', true, rb.history.length], 'refused again by the save: nothing changed');
+    assert.ok(api(SA, 'deleteVendor', 'Again 128 B').ok !== false && !has('Again 128 B'));
+    r = api(M, 'resendFlow', { id: b, note: 'the other one is deleted' });
+    assert.deepStrictEqual([r.status, r.list.requests.find(x => x.id === b).result || ''], ['Pending', ''], JSON.stringify(r).slice(0, 300));
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: b, approve: true }).status, 'Approved');
+    assert.ok(has('Again 128 B'));
+    // ---- the same entry sent anew meanwhile: the old one is not sent twice ----
+    const c = sent('Again 128 C');
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: c, approve: false, note: 'no' }).status, 'Rejected');
+    const c2 = sent('Again 128 C');
+    assert.match(api(M, 'resendFlow', { id: c, note: 'x' }).THROWN, new RegExp('already waiting for verification as ' + c2 + ' – it is not sent twice'));
+    // ---- several at once: each on its own ----
+    const d = sent('Again 128 D'), e = sent('Again 128 E');
+    api(S, 'decideChangeRequests', { ids: [d, e], approve: false, note: 'later' });
+    r = api(M, 'resendFlow', { ids: [d, e, 'VF-99999'], note: 'now' });
+    assert.deepStrictEqual([r.done.map(x => x.id), r.failed.map(x => x.id)], [[d, e], ['VF-99999']], JSON.stringify(r).slice(0, 300));
+    assert.ok([d, e].every(id => r.list.requests.find(x => x.id === id).status === 'Pending'));
+    assert.match(api(M, 'resendFlow', { ids: [], note: 'x' }).THROWN, /^Pick the entries to send again/);
+    // ---- the page: why it was not saved is in the box; "Send again" one or all; the Approvals page too ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.match(app, /approvals: \{ saves: \[[^\]]*'resendFlow'\]/);
+    assert.match(app, /data-cragain="' \+ esc\(r\.id\) \+ '">Send again<\/button>/);
+    assert.match(app, /const r = await call\('resendFlow', rs\.length > 1 \? \{ ids: rs\.map\(x => x\.id\), note: note \} : \{ id: rs\[0\]\.id, note: note \}\);/);
+    const src = app.slice(app.indexOf('  const FV_DAYS = 7;'), app.indexOf('  function fvDraw() {'));
+    const F = new Function('S', 'esc', 'crWhen', src + '; return { fvMine, fvHtml };');
+    const now = new Date().toISOString();
+    const SS = { cr: { requests: [
+      { kind: 'Flow', mine: true, m: 'Diesel Issue', id: 'VF-00011', task: 'Diesel Issue', status: 'Returned', at: now, decidedAt: now, decidedBy: 'suraj', note: 'approved', result: 'Not saved: KM reading 48409.3 is less than the last one', canResend: true, summary: ['Add: MH-25-AJ-5091'] },
+      { kind: 'Flow', mine: true, m: 'Diesel Issue', id: 'VF-00010', task: 'Diesel Issue', status: 'Rejected', at: now, decidedAt: now, decidedBy: 'suraj', note: 'wrong litres', canResend: true, resent: 1, summary: ['Add: MH-25-AJ-5091'] }] } };
+    const h = F(SS, x => String(x), x => String(x)).fvHtml(F(SS, x => String(x), x => String(x)).fvMine('Diesel Issue'), 'Diesel Issue', false);
+    assert.ok(/class="fv-why">Not saved: KM reading 48409\.3 is less than the last one</.test(h), 'why it was not saved');
+    assert.ok(/data-fvagain="VF-00011">Send again<\/button>/.test(h) && /data-fvagain="VF-00010">Send again<\/button><br><small>sent again 1× before/.test(h) && /data-fvagainall="Diesel Issue">Send all again \(2\)/.test(h), h);
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k128.flush; SbBook_.prototype.loadMany = __k128.loadMany; SbSheet_.prototype.load_ = __k128.load_; sbDiscard_ = __k128.discard; rtcPush_ = __k128.push;
+      CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
+  }
+  function MODULE_LABEL(m) { return vm.runInContext('MODULE_LABEL_', ctx)[m] || m; }
 });
