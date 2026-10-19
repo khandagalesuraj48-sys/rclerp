@@ -3808,6 +3808,7 @@ test('update-129: Send again and the approval say a save\'s WARNINGS (not "refus
       if (W129 === 'errors') return { ok: false, errors: [{ row: 3, msg: '"MH-X" is not in Master.' }] };
       if (W129 === 'warns' && !o.force) return { ok: false, warnings: [{ row: 2, msg: 'MH-1: KM Reading 5 is less than the last KM Reading 9.' }, { row: 4, msg: 'MH-2: Hrs Reading 1 is less than the last Hrs Reading 2.' }] };
       if (W129 === 'warn' && !o.force) return { ok: false, warning: 'MH-1: the next entry has a lower reading. Save anyway?' };
+      if (W129 === 'many' && !o.force) return { ok: false, warnings: Array.from({ length: 12 }, (x, i) => ({ row: i + 1, msg: 'MH-' + (i + 1) + ': KM Reading 5 is less than the last KM Reading 9.' })) };
       if (!FLOW_DRY_ON_) SAVED129.push(o.n);
       return { ok: true }; } };
     kvWrite_("FLOW_RULES", "{}"); kvWrite_("CR_SUPERS", JSON.stringify(["sa129@rcl.test"]));`, ctx);
@@ -3863,6 +3864,14 @@ test('update-129: Send again and the approval say a save\'s WARNINGS (not "refus
     assert.deepStrictEqual([r.status, r.done.map(x => x.id)], ['Pending', [c]]);
     assert.strictEqual(api(S, 'decideChangeRequest', { id: c, approve: true }).status, 'Approved');
     assert.deepStrictEqual(saved(), ['A', 'C']);
+    // ---- many lines ("Multiple entries" of 59 lines): the approval says 8 and how many more; Send again lists them all, to check ----
+    const e = sent('E');
+    W('many');
+    r = api(S, 'decideChangeRequest', { id: e, approve: true });
+    assert.ok(/^Not saved: To check \(warnings, not mistakes\): Line 1: MH-1: .* \| Line 8: MH-8: [^|]* \| … 4 more – the sender can send it again and confirm them$/.test(r.result), r.result);
+    r = api(M, 'resendFlow', { id: e, note: 'x' });
+    assert.strictEqual(r.failed[0].error.split(' | ').length, 12, r.failed[0].error);
+    assert.ok(r.failed[0].warn && /Line 12: MH-12: KM Reading 5 is less than the last KM Reading 9\. – entry /.test(r.failed[0].error));
     // ---- every "Save anyway" as its save reads it; every answer in words ----
     assert.deepStrictEqual(run(`() => [['deleteMaster', ['X']], ['deleteMasterMany', [['X', 'Y']]], ['submitBills', [{ bills: [] }]], ['saveDieselBulk', [{ rows: [] }]], ['updateDieselIssue', ['DI-1', { qty: 5 }]], ['saveDieselIssue', [{ qty: 5 }]], ['x', ['only text']]]
       .map(([f, a]) => [flowForce_(f, a), a])`), [[true, ['X', true]], [true, [['X', 'Y'], true]], [true, [{ bills: [], confirm: true }]], [true, [{ rows: [], force: true }]], [true, ['DI-1', { qty: 5, force: true }]], [true, [{ qty: 5, force: true }]], [false, ['only text']]]);

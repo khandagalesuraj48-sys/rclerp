@@ -15,7 +15,7 @@ Issue "Multiple entries" said "Not sent again: the save refuses it – entry VF-
 ## What changes
 * **The reason in full**, at the approval (Returned) and when sent again:
   * warnings → "To check (warnings, not mistakes): Line 2: MH-…: KM Reading 5100 is less than the last KM Reading 5300. | …"
-    (up to 8 lines, then "… n more");
+    (the approval's reason: up to 8 lines, then "… n more"; Send again lists every line, to check before confirming);
   * one warning → "To check (a warning, not a mistake): …" (without the page's "Save anyway?");
   * mistakes → "Line 3: … | …" (up to 5 lines), as before.
 * **Send again → the warnings to check:** a box "Please check – warnings, not mistakes" lists them for each entry.
@@ -42,7 +42,8 @@ Issue "Multiple entries" said "Not sent again: the save refuses it – entry VF-
 * **Unit tests: 91 / 91** (new "update-129"; "update-128" updated: one refused entry now comes back in `failed`). The new test
   runs the real server code with a save that answers as the diesel saves do: warnings at the approval → Returned with each line
   → Send again: the same warnings, nothing changed → "anyway" → waiting, kept confirmed → approved → saved; mistakes → said line
-  by line, "anyway" does not pass them, nothing changed; one warning ("Save anyway?" taken off); the confirm of every save
+  by line, "anyway" does not pass them, nothing changed; one warning ("Save anyway?" taken off); 12 lines: the approval says 8
+  and "… 4 more", Send again lists all 12; the confirm of every save
   (`flowForce_`); the words of `used` / `duplicates`; the page's code; the Marathi / Hindi words.
 * **Rig browser test** `test/browser/again129.js`: **9 / 9** with the real Diesel Issue "Multiple entries" (`saveDieselBulk`):
   sent (readings above the last) → a later reading saved meanwhile → approved → Returned "Not saved: To check (warnings, not
