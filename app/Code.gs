@@ -863,6 +863,7 @@ const API_ = {
   decideChangeRequests: { m: '', withUser: true, f: (u, x) => flowDecideMany_(u, x), log: 'flowDecideMany' },      // (update-114) several verification requests at once
   getFlowRules:      { m: '', withUser: true, f: u => getFlowRules_(u) },
   answerFlow:        { m: '', withUser: true, f: (u, x) => flowAnswer_(u, x), log: 'flowAnswer' },
+  resendFlow:        { m: '', withUser: true, f: (u, x) => flowResend_(u, x), log: 'flowResend' },      // (update-128) the sender sends his rejected / returned entry again, as it was
   remindFlow:        { m: '', withUser: true, f: (u, x) => flowRemindMine_(u, x), log: 'flowRemindMine' },      // (update-118) the sender reminds the approvers of his waiting entries      // (update-116) the sender answers an entry sent back to him, or takes it back      // (update-114) the Super Admin's verification rules
   saveFlowRules:     { m: '', withUser: true, f: (u, x) => saveFlowRules_(u, x), log: 'flowRules' },
   saveDebitNote:     { m: 'Machinery Billing', edit: true, f: saveDebitNote_, log: 'debitNote' },
@@ -1191,6 +1192,9 @@ function logAfter_(u, spec, args, res, before) {
       break;
     case 'flowRemindMine':      // (update-118)
       if ((res.reminded || []).length) writeLog_(u, 'Edit', 'Approvals', res.reminded.join(', ').slice(0, 120), 'Verification – reminder sent by the sender', res.reminded.join(', ').slice(0, 900));
+      break;
+    case 'flowResend':      // (update-128)
+      if ((res.done || []).length) writeLog_(u, 'Edit', 'Approvals', res.done.map(d => d.id).join(', ').slice(0, 120), 'Verification – sent again by the sender', clean_((args[0] || {}).note).slice(0, 300) + ((res.failed || []).length ? ' | not sent: ' + res.failed.map(f => f.id).join(', ') : ''));
       break;
     case 'flowAnswer':      // (update-116)
       writeLog_(u, res.status === 'Withdrawn' ? 'Delete' : 'Edit', 'Approvals', res.id, res.status === 'Withdrawn' ? 'Verification – taken back by the sender' : 'Verification – answered and sent again', clean_((args[0] || {}).note).slice(0, 300));
@@ -9346,7 +9350,8 @@ function crList_(u, f) {
         o.task = MODULE_LABEL_[fl.m] || fl.m || ''; o.level = (fl.level || 0) + 1; o.levels = (fl.levels || []).length; o.waitingFor = r.status === 'Pending' ? lv.map(e => names[e] || e) : [];
         o.waitSince = fl.waitSince || r.at; o.history = (fl.history || []).slice(-20); o.canDecide = flowCan_(u, r); o.qty = fl.qty || 0;
         if (r.status === 'Reverted') { o.reverted = { by: (fl.reverted || {}).by || '', note: (fl.reverted || {}).note || '', at: (fl.reverted || {}).at || '' }; o.canAnswer = r.email === me; }
-        o.m = fl.m || ''; o.remindedAt = fl.remindedAt || ''; o.reminds = Number(fl.reminds) || 0; o.canRemind = r.email === me && r.status === 'Pending'; }      // (update-118) the sender's reminders
+        o.m = fl.m || ''; o.remindedAt = fl.remindedAt || ''; o.reminds = Number(fl.reminds) || 0; o.canRemind = r.email === me && r.status === 'Pending';      // (update-118) the sender's reminders
+        o.canResend = r.email === me && FLOW_AGAIN_.indexOf(r.status) > -1; o.resent = Number(fl.resent) || 0; }      // (update-128) his rejected / returned entry: Send again
       else o.canDecide = !!u.super && r.status === 'Pending';
       o.mine = r.email === me; return o; });
   return { mine: flowMine_(u), requests: list, pending: list.filter(r => r.status === 'Pending' || r.canAnswer).length, forMe: list.filter(r => r.canDecide || r.canAnswer).length, backToMe: list.filter(r => r.canAnswer).length, superAdmin: !!u.super };
@@ -9680,6 +9685,81 @@ function flowAnswer_(u, x) {
   bump_(['flow']);
   if (!back) crNotify_(to.length ? to : crSupers_(), { id: r0.id, title: 'Answered – verification of ' + r0.by, body: note });
   return { ok: true, id: r0.id, status: back ? 'Withdrawn' : 'Pending', list: crList_(u, {}) };
+}
+/* (update-128, asked 19-10-2026: "ata user prt tya entry krt basnar nahi ata je return reject zal tech reason deun return krta
+ * yeil as banaw ata jyana return zaley tith tyana option asel send to approval or verification data loss nko karu") SEND AGAIN –
+ * the sender's own entry that was REJECTED, or RETURNED (approved, but the save refused it), goes to verification again exactly
+ * as it was sent (the same lines, the same photos), with his remark: nothing is typed again, nothing is lost. It is the same
+ * request (VF-…): back to level 1 of its levels, every earlier step kept in its steps. First it is checked as a save (nothing
+ * written), as when it was sent: if the save would refuse it again, that is said now and the entry stays as it is. Several at
+ * once (ids): each on its own; one that cannot go does not stop the others. */
+const FLOW_AGAIN_ = ['Rejected', 'Returned'];
+function flowResend_(u, x) {
+  x = x || {};
+  const note = clean_(x.note).slice(0, 300);
+  if (!note) throw new Error('Write why it is sent again – your remark goes with the entry to the people who approve it.');
+  if (Array.isArray(x.ids)) {
+    const ids = [...new Set(x.ids.map(str_).filter(Boolean))].slice(0, 100);
+    if (!ids.length) throw new Error('Pick the entries to send again.');
+    const done = [], failed = [];
+    ids.forEach(id => { try { const r = flowResendOne_(u, id, note); done.push({ id: r.id, level: r.level, levels: r.levels }); } catch (e) { if (faultKind_(e)) throw e; failed.push({ id: id, error: String((e && e.message) || e).slice(0, 300) }); } });
+    return { ok: true, done: done, failed: failed, list: crList_(u, {}) };
+  }
+  const r = flowResendOne_(u, str_(x.id), note);
+  return Object.assign(r, { done: [{ id: r.id, level: r.level, levels: r.levels }], failed: [], list: crList_(u, {}) });
+}
+function flowResendOne_(u, id, note) {
+  const me = str_(u.email).toLowerCase();
+  const look = () => {
+    const r0 = flowAll_().find(r => r.id === id);
+    if (!r0) throw new Error('Entry ' + id + ' was not found – refresh the list.');
+    if (r0.email !== me) throw new Error('Only the person who sent entry ' + id + ' sends it again.');
+    if (FLOW_AGAIN_.indexOf(r0.status) === -1) throw new Error('Entry ' + id + ' is ' + (r0.status === 'Pending' ? 'waiting for verification already' : r0.status === 'Reverted' ? 'sent back to you – answer it and send it again' : r0.status.toLowerCase()) + ' – only a rejected or returned entry is sent again.');
+    return r0;
+  };
+  let r0 = look();
+  const spec = API_[r0.fn];
+  if (!spec) throw new Error('Entry ' + id + ' cannot be sent again: the action ' + r0.fn + ' is not in the app any more.');
+  if (spec.m && !canEdit_(u, spec.m)) throw new Error('Entry ' + id + ' cannot be sent again: you have no Edit access to ' + (MODULE_LABEL_[spec.m] || spec.m) + ' any more.');
+  const levels = ((r0.flow || {}).levels || []).filter(l => Array.isArray(l) && l.length);
+  if (!levels.length) throw new Error('Entry ' + id + ' cannot be sent again: it has no verification levels.');
+  let args = []; try { args = JSON.parse(r0.args || '[]'); } catch (e) { args = []; }
+  // checked as a save, as the sender's own (nothing written) – with the photos noted with it when it was first sent
+  const f0 = r0.flow || {}, held = f0.photos && typeof f0.photos === 'object' ? JSON.parse(JSON.stringify(f0.photos)) : {};
+  TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
+  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
+  let res = null;
+  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = held;
+  try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); throw FLOW_DRY_; }); }
+  catch (e) {
+    if (e !== FLOW_DRY_) {
+      if (faultKind_(e)) throw e;
+      throw new Error('Not sent again: ' + String((e && e.message) || e).slice(0, 300) + ' – entry ' + id + ' stays as it is (nothing is lost); send it again when this is put right.');
+    }
+  } finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
+  TABLE_MEMO_ = {};
+  const errs = res && typeof res === 'object' ? (res.errors || []) : [];
+  if (res && typeof res === 'object' && (res.ok === false || errs.length)) throw new Error('Not sent again: ' + (errs.length ? errs.slice(0, 3).map(e => (e.row ? 'Line ' + e.row + ': ' : '') + (e.msg || e)).join(' | ') : (res.error || res.warning || 'the save refuses it')) + ' – entry ' + id + ' stays as it is (nothing is lost); send it again when this is put right.');
+  let to = [];
+  withLock_(() => {
+    r0 = look();
+    const dup = flowAll_().find(r => r.id !== r0.id && r.status === 'Pending' && r.email === me && r.fn === r0.fn && r.args === r0.args);
+    if (dup) throw new Error('This same entry is already waiting for verification as ' + dup.id + ' – it is not sent twice.');
+    const f = r0.flow || {}, now = new Date().toISOString();
+    f.levels = levels; f.level = 0; f.waitSince = now; f.reminded = {}; f.resent = (Number(f.resent) || 0) + 1;
+    delete f.reverted; delete f.remindedAt; f.reminds = 0;
+    if (Object.keys(held).length) f.photos = held;
+    f.history = (f.history || []).concat([{ step: 'Sent again', level: 1, by: u.name || u.email, email: me, at: now, note: note }]);
+    TABLE_MEMO_ = {};
+    const t2 = crTable_(false), r1 = t2.rows.map((r, i) => crOut_(t2, r, i)).find(r => r.id === r0.id), row = t2.rows[r1.i].slice();
+    set_(row, t2, 'Status', 'Pending'); set_(row, t2, 'Data', JSON.stringify(f)); set_(row, t2, 'Result', ''); stampEdit_(row, t2);
+    t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
+    if (Object.keys(held).length) { const pc = CacheService.getScriptCache(); Object.keys(held).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: r0.id })), 21600); } catch (e) { /* the request keeps them */ } }); }
+    to = levels[0].filter(e => e !== me);
+  });
+  bump_(['flow']);
+  crNotify_(to.length ? to : crSupers_(), { id: r0.id, title: 'Sent again for verification – ' + (MODULE_LABEL_[spec.m] || spec.m) + ' by ' + (u.name || u.email), body: (r0.summary[0] || r0.id).slice(0, 80) + ' – ' + note });
+  return { ok: true, id: r0.id, status: 'Pending', level: 1, levels: levels.length, to: flowNames_(to), summary: r0.summary };
 }
 /* (update-118, asked 16-10-2026: "jya pending aahe tyach reminder pn to pathau shakel … entry wise or all send reminder dable ki
  * verification pending aslele entry la tya user hard push notification app la send krel jene krun jo koni approval krnar aahe
