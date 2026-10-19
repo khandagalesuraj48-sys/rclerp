@@ -1742,6 +1742,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   the form's button "Send again (VF-…)" → `editFlow` { id, note, args } (`flowFixCall`): refused → the save's own answer; else the
   same request at level 1 with the new Args / Summary and a step "Corrected and sent again" with `changes` (`flowChanges_`);
   Approvals shows "Corrected by …" (`fixd`). `canFix` in the list. Unit "update-130"; rig `test/browser/fix130.js` 12.
+- 19-10-2026 (update-131). Report: `UPDATE_131.md`. NOTHING WRONG GOES FOR APPROVAL: a diesel reading is checked BY ITS DATE (the
+  nearest fill before and after – `fitWarnings_`, `dieselPts_`; was: against the newest fill) in One entry, Multiple entries, Edit
+  and, for approval, `importDiesel_`; for an entry going to approval (`flowStrict_`: FLOW_DRY_ON_ or FLOW_RUN_ID_) it is a mistake
+  (errors / thrown, force not read). "Send again anyway" (update-129 `flowForce_`, `resendFlow` force) removed. Unit "update-131";
+  rig `test/browser/fit131.js` 8 (replaces again129.js).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
