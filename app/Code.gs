@@ -4137,12 +4137,6 @@ function nextDieselNo_(t) {
 }
 function markDieselNo_(n) { PropertiesService.getScriptProperties().setProperty('DIESEL_LAST_NO', String(n)); }
 
-function readingWarnings_(no, v, last) {
-  const w = [];
-  if (last && v.km !== '' && last.km !== '' && v.km < last.km) w.push(no + ': KM Reading ' + v.km + ' is less than the last KM Reading ' + last.km + '.');
-  if (last && v.hr !== '' && last.hr !== '' && v.hr < last.hr) w.push(no + ': Hrs Reading ' + v.hr + ' is less than the last Hrs Reading ' + last.hr + '.');
-  return w;
-}
 
 /* Diesel given to one machinery before / on a date (newest first): shown while issuing diesel,
  * so the person knows when it was last filled, how much, and the last reading. */
@@ -4173,9 +4167,10 @@ function saveDieselIssue_(d, u) {
     const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_);
     requireStockAt_(v.source, dk, shift, '', v.qty);
 
-    if (!d.force) {
-      const warn = readingWarnings_(m.id, v, lastReadings_(t, m.id));
-      if (warn.length) return { ok: false, warning: warn.join(' ') + ' Save anyway?' };
+    if (!d.force || flowStrict_()) {      // (update-131) by its date – the fills before and after it; for approval: a mistake
+      const warn = fitWarnings_(dieselPts_(t, dieselIdxs_(t, m.id), -1), [dk, shiftOrder_(shift), Date.now()], v);
+      if (warn.length && flowStrict_()) throw new Error(m.id + ': ' + warn.join(' ') + ' ' + FLOW_FIT_MSG_);
+      if (warn.length) return { ok: false, warning: m.id + ': ' + warn.join(' ') + ' Save anyway?' };
     }
 
     const n = nextDieselNo_(t);
@@ -4205,6 +4200,7 @@ function importDiesel_(rows) {
     getMaster_().forEach(m => { byKey[noKey_(m.id)] = m; });
     const T = stockTables_(), t = T.dt;
     const errors = [], items = [];
+    const strict = flowStrict_(), idxOf = strict ? dieselIdxsAll_(t) : {}, seen = {}, now0 = Date.now();      // (update-131)
     rows.forEach((d, i) => {
       const line = Number((d && d.line) || i + 1);
       try {
@@ -4215,6 +4211,12 @@ function importDiesel_(rows) {
         if (m.ownership !== 'Debit' && APP.UNITS.indexOf(m.unit) === -1) throw new Error('Set the Unit for ' + m.id + ' in Master first.');
         assertActive_(m, dk);
         const v = validateDiesel_(d, m);
+        if (strict) {      // (update-131) going to approval: a reading that does not fit its date is a mistake (the rows above it count too)
+          const k = noKey_(m.id), me = [dk, shiftOrder_(shift), now0 + i];
+          const warn = fitWarnings_(dieselPts_(t, idxOf[k] || [], -1).concat(seen[k] || []), me, v);
+          (seen[k] = seen[k] || []).push({ key: me, km: v.km, hr: v.hr, at: 'row ' + line + ' of this entry' });
+          if (warn.length) throw new Error(m.id + ': ' + warn.join(' '));
+        }
         items.push({ line: line, dk: dk, shift: shift, m: m, v: v });
       } catch (e) { errors.push({ row: line, msg: e.message }); }
     });
@@ -4256,16 +4258,9 @@ function saveDieselBulk_(b) {
     getMaster_().forEach(m => { byKey[noKey_(m.id)] = m; });
     const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_);
 
-    // last readings of every machine, read once
-    const last = {}, lastRow = {};
-    t.rows.forEach(r => {
-      const k = noKey_(r[t.c[H.NO]]);
-      if (!k) return;
-      if (!lastRow[k] || cmpDiesel_(r, lastRow[k], t.c) >= 0) {
-        lastRow[k] = r;
-        last[k] = { km: numOrBlank_(r[t.c[H.KMR]]), hr: numOrBlank_(r[t.c[H.HRR]]) };
-      }
-    });
+    // (update-131) each machinery's fills, read once – a row's readings are checked by its date (the fills before and after it,
+    // and the rows above it in this entry); for an entry going to approval a reading that does not fit is a mistake
+    const idxOf = dieselIdxsAll_(t), now = Date.now(), strict = flowStrict_();
 
     const errors = [], warnings = [], items = [], seen = {};
     (b.rows || []).forEach((d, i) => {
@@ -4280,9 +4275,9 @@ function saveDieselBulk_(b) {
         const v = validateDiesel_(d, m);
         const k = noKey_(m.id);
         // the same machinery more than once in a day is normal (several fills) – only its readings are checked in order
-        readingWarnings_(m.id, v, seen[k] || last[k]).forEach(msg => warnings.push({ row: i + 1, msg: msg }));
-        const prev = seen[k] || last[k] || { km: '', hr: '' };
-        seen[k] = { km: v.km !== '' ? v.km : prev.km, hr: v.hr !== '' ? v.hr : prev.hr };
+        const pts = dieselPts_(t, idxOf[k] || [], -1).concat(seen[k] || []);
+        fitWarnings_(pts, [dk, shiftOrder_(shift), now + i], v).forEach(msg => (strict ? errors : warnings).push({ row: i + 1, msg: m.id + ': ' + msg }));
+        (seen[k] = seen[k] || []).push({ key: [dk, shiftOrder_(shift), now + i], km: v.km, hr: v.hr, at: 'row ' + (i + 1) + ' of this entry' });
         items.push({ m: m, v: v });
       } catch (e) { errors.push({ row: i + 1, msg: e.message }); }
     });
@@ -4339,8 +4334,9 @@ function updateDieselIssue_(id, d) {
     const v = validateDiesel_(d, m);
     requireStockAt_(v.source, dk, shift, str_(id), v.qty); // the entry being edited is left out first
 
-    if (!d.force) {
+    if (!d.force || flowStrict_()) {      // (update-131) for approval: a mistake
       const warn = neighbourWarnings_(t, i, m.id, dk, shift, created, v);
+      if (warn.length && flowStrict_()) throw new Error(m.id + ': ' + warn.join(' ') + ' ' + FLOW_FIT_MSG_);
       if (warn.length) return { ok: false, warning: warn.join(' ') + ' Save anyway?' };
     }
 
@@ -4372,29 +4368,36 @@ function deleteDieselIssue_(id) {
 }
 
 // For an edited entry: reading should not be below the entry before it or above the entry after it.
-function neighbourWarnings_(t, skip, no, dk, shift, created, v) {
-  const key = r => [dkey_(r[t.c[H.IDATE]]), shiftOrder_(str_(r[t.c[H.SHIFT]])),
-    r[t.c[H.CREATED]] instanceof Date ? r[t.c[H.CREATED]].getTime() : 0];
+/* (update-131, 19-10-2026: "send any way he option nko aahe chukicha data approval sathi gelach nahi pahije kay chukey te user la
+ * patkan samjle pahije user correct krel tya nantr correct hoil mg te send hou shakel") A FILL'S READINGS BY ITS DATE – not lower
+ * than the nearest fill BEFORE it that has that reading (by date, shift, time) and not higher than the nearest fill AFTER it; the
+ * message names that fill's date, so the person sees at once what does not fit. (Until update-131 a new fill was checked against
+ * the machinery's NEWEST fill: an entry of an earlier date – e.g. one approved days later – was "less than the last" on every
+ * line. Edit already checked the fills before and after.) For an entry going to approval (flowStrict_) it is a mistake: it is
+ * corrected first – no "Save anyway"; a save that waits for no one keeps "Save anyway". */
+const FLOW_FIT_MSG_ = 'Correct the reading – an entry for approval goes only when its readings fit.';
+// an entry is being checked or saved for approval (sent, sent again, corrected, approved)
+const flowStrict_ = () => !!(FLOW_DRY_ON_ || FLOW_RUN_ID_);
+const dieselIdxs_ = (t, no) => { const k = noKey_(no), out = []; t.rows.forEach((r, i) => { if (noKey_(r[t.c[H.NO]]) === k) out.push(i); }); return out; };
+const dieselIdxsAll_ = t => { const o = {}; t.rows.forEach((r, i) => { const k = noKey_(r[t.c[H.NO]]); if (k) (o[k] = o[k] || []).push(i); }); return o; };
+// the saved fills (rows idxs, but skip) as points: [date, shift order, time], the readings, and the fill's date in words
+const dieselPts_ = (t, idxs, skip) => idxs.filter(i => i !== skip).map(i => { const r = t.rows[i], dk = dkey_(r[t.c[H.IDATE]]);
+  return { key: [dk, shiftOrder_(str_(r[t.c[H.SHIFT]])), r[t.c[H.CREATED]] instanceof Date ? r[t.c[H.CREATED]].getTime() : 0], km: numOrBlank_(r[t.c[H.KMR]]), hr: numOrBlank_(r[t.c[H.HRR]]), at: 'fill of ' + dmy_(dk) + ', ' + str_(r[t.c[H.SHIFT]]) }; });
+function fitWarnings_(pts, me, v) {
   const cmp = (a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : (a[1] - b[1]) || (a[2] - b[2]));
-  const me = [dk, shiftOrder_(shift), created.getTime()];
-  let prev = null, next = null;
-  t.rows.forEach((r, k) => {
-    if (k === skip || !same_(r[t.c[H.NO]], no)) return;
-    const kk = key(r);
-    if (cmp(kk, me) < 0) { if (!prev || cmp(kk, key(prev)) > 0) prev = r; }
-    else if (!next || cmp(kk, key(next)) < 0) next = r;
-  });
   const w = [];
-  const chk = (val, col, label) => {
-    if (val === '') return;
-    const p = prev ? numOrBlank_(prev[t.c[col]]) : '';
-    const n = next ? numOrBlank_(next[t.c[col]]) : '';
-    if (p !== '' && val < p) w.push(label + ' ' + val + ' is less than the earlier ' + label + ' ' + p + '.');
-    if (n !== '' && val > n) w.push(label + ' ' + val + ' is more than the later ' + label + ' ' + n + '.');
-  };
-  chk(v.km, H.KMR, 'KM Reading');
-  chk(v.hr, H.HRR, 'Hrs Reading');
+  [['km', 'KM Reading'], ['hr', 'Hrs Reading']].forEach(([f, L]) => {
+    const val = v[f]; if (val === '' || val === null || val === undefined) return;
+    let prev = null, next = null;
+    pts.forEach(p => { if (p[f] === '' || p[f] === null || p[f] === undefined) return; const c = cmp(p.key, me);
+      if (c < 0) { if (!prev || cmp(p.key, prev.key) > 0) prev = p; } else if (c > 0 && (!next || cmp(p.key, next.key) < 0)) next = p; });
+    if (prev && val < prev[f]) w.push(L + ' ' + val + ' is less than the earlier ' + L + ' ' + prev[f] + ' (' + prev.at + ').');
+    if (next && val > next[f]) w.push(L + ' ' + val + ' is more than the later ' + L + ' ' + next[f] + ' (' + next.at + ').');
+  });
   return w;
+}
+function neighbourWarnings_(t, skip, no, dk, shift, created, v) {
+  return fitWarnings_(dieselPts_(t, dieselIdxs_(t, no), skip), [dk, shiftOrder_(shift), created.getTime()], v);
 }
 
 // Filtered list of diesel issues, newest first.
@@ -8523,15 +8526,6 @@ function previousLog_(lt, no, dk, shift) {
   return best;
 }
 
-function lastReadings_(t, no) {
-  let best = null;
-  t.rows.forEach(r => {
-    if (!same_(r[t.c[H.NO]], no)) return;
-    if (!best || cmpDiesel_(r, best, t.c) >= 0) best = r;
-  });
-  return best ? { km: numOrBlank_(best[t.c[H.KMR]]), hr: numOrBlank_(best[t.c[H.HRR]]) } : { km: '', hr: '' };
-}
-
 function cmpKey_(a, b, c) {
   const da = dkey_(a[c[H.DATE]]), db = dkey_(b[c[H.DATE]]);
   if (da !== db) return da < db ? -1 : 1;
@@ -9629,7 +9623,7 @@ function flowDecide_(u, x) {
           const before = spec.log ? logBefore_(spec, args) : null;
           const res = spec.withUser ? spec.f.apply(null, [ru].concat(args)) : spec.f.apply(null, args);
           const errs = res && typeof res === 'object' ? (res.errors || []) : [];
-          if (res && typeof res === 'object' && (res.ok === false || errs.length)) { const rf = flowRefusal_(res); throw new Error(rf.text + (rf.warn ? ' – the sender can send it again and confirm them' : '')); }      // (update-129)
+          if (res && typeof res === 'object' && (res.ok === false || errs.length)) { throw new Error(flowRefusal_(res).text); }      // (update-129: the reason in words; update-131: no "anyway" – the sender corrects it)
           if (spec.log) { try { logAfter_(ru, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ } }
           ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0;
           f.history.push({ step: 'Approved', level: f.level + 1, by: u.name || u.email, email: me, at: new Date().toISOString(), note: note });
@@ -9715,38 +9709,29 @@ function flowRefusal_(res, n) {      // n: how many lines (Send again shows them
   if (res.error) return { warn: false, text: String(res.error) };
   return { warn: false, text: 'the save refuses it – open the entry\'s page to see why' };
 }
-// "Save anyway" as each save reads it (as its page sends it): on its entry, force – the bills' confirm – or the master deletes' second value
-const FLOW_FORCE_AT_ = { deleteMaster: 1, deleteMasterMany: 1 }, FLOW_FORCE_KEY_ = { submitBills: 'confirm' };
-function flowForce_(fn, args) {
-  if (FLOW_FORCE_AT_[fn] !== undefined) { while (args.length < FLOW_FORCE_AT_[fn]) args.push(undefined); args[FLOW_FORCE_AT_[fn]] = true; return true; }
-  const box = args.find(a => a && typeof a === 'object' && !Array.isArray(a));
-  if (box) { box[FLOW_FORCE_KEY_[fn] || 'force'] = true; return true; }
-  return false;
-}
 function flowResend_(u, x) {
   x = x || {};
   const note = clean_(x.note).slice(0, 300);
   if (!note) throw new Error('Write why it is sent again – your remark goes with the entry to the people who approve it.');
-  const force = x.force === true;      // (update-129) he confirms the warnings ("Send again anyway"), as "Save anyway" on the page
+  // (update-131: "send any way he option nko aahe" – no "Send again anyway": what the save refuses is corrected first – Open & correct)
   if (Array.isArray(x.ids)) {
     const ids = [...new Set(x.ids.map(str_).filter(Boolean))].slice(0, 100);
     if (!ids.length) throw new Error('Pick the entries to send again.');
     const done = [], failed = [];
-    ids.forEach(id => { try { const r = flowResendOne_(u, id, note, force); done.push({ id: r.id, level: r.level, levels: r.levels }); } catch (e) { if (faultKind_(e)) throw e; failed.push({ id: id, error: String((e && e.message) || e).slice(0, 9000), warn: !!(e && e.flowWarn) }); } });
+    ids.forEach(id => { try { const r = flowResendOne_(u, id, note); done.push({ id: r.id, level: r.level, levels: r.levels }); } catch (e) { if (faultKind_(e)) throw e; failed.push({ id: id, error: String((e && e.message) || e).slice(0, 9000) }); } });
     return { ok: true, done: done, failed: failed, list: crList_(u, {}) };
   }
   let r;
-  try { r = flowResendOne_(u, str_(x.id), note, force); }
-  catch (e) { if (e && e.flowRefused) return { ok: true, done: [], failed: [{ id: str_(x.id), error: String(e.message).slice(0, 9000), warn: !!e.flowWarn }], list: crList_(u, {}) }; throw e; }
+  try { r = flowResendOne_(u, str_(x.id), note); }
+  catch (e) { if (e && e.flowRefused) return { ok: true, done: [], failed: [{ id: str_(x.id), error: String(e.message).slice(0, 9000) }], list: crList_(u, {}) }; throw e; }
   return Object.assign(r, { done: [{ id: r.id, level: r.level, levels: r.levels }], failed: [], list: crList_(u, {}) });
 }
-// the save refuses it again (nothing changed): said with what the save says; a warning can be confirmed (force)
-function flowRefused_(id, text, warn) {
-  const e = new Error(warn ? 'Not sent again: ' + text + ' – entry ' + id + ' stays as it is (nothing is lost); check them and press "Send again anyway" to confirm them.'
-    : 'Not sent again: ' + text + ' – entry ' + id + ' stays as it is (nothing is lost); send it again when this is put right.');
-  e.flowRefused = true; e.flowWarn = !!warn; return e;
+// the save refuses it again (nothing changed): said with what the save says – corrected first (Open & correct), then sent
+function flowRefused_(id, text) {
+  const e = new Error('Not sent again: ' + text + ' – entry ' + id + ' stays as it is (nothing is lost); send it again when this is put right.');
+  e.flowRefused = true; return e;
 }
-function flowResendOne_(u, id, note, force) {
+function flowResendOne_(u, id, note) {
   const me = str_(u.email).toLowerCase();
   const look = () => {
     const r0 = flowAll_().find(r => r.id === id);
@@ -9762,8 +9747,6 @@ function flowResendOne_(u, id, note, force) {
   const levels = ((r0.flow || {}).levels || []).filter(l => Array.isArray(l) && l.length);
   if (!levels.length) throw new Error('Entry ' + id + ' cannot be sent again: it has no verification levels.');
   let args = []; try { args = JSON.parse(r0.args || '[]'); } catch (e) { args = []; }
-  // (update-129) he confirms its warnings: the save takes it as "Save anyway" (force on the entry, where every save reads it)
-  const forced = force ? flowForce_(r0.fn, args) : false;
   // checked as a save, as the sender's own (nothing written) – with the photos noted with it when it was first sent
   const f0 = r0.flow || {}, held = f0.photos && typeof f0.photos === 'object' ? JSON.parse(JSON.stringify(f0.photos)) : {};
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
@@ -9774,14 +9757,12 @@ function flowResendOne_(u, id, note, force) {
   catch (e) {
     if (e !== FLOW_DRY_) {
       if (faultKind_(e)) throw e;
-      throw flowRefused_(id, String((e && e.message) || e).replace(/^Error:\s*/, '').slice(0, 600), false);
+      throw flowRefused_(id, String((e && e.message) || e).replace(/^Error:\s*/, '').slice(0, 1500));
     }
   } finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
   TABLE_MEMO_ = {};
   const errs = res && typeof res === 'object' ? (res.errors || []) : [];
-  let confirmed = '';
-  if (res && typeof res === 'object' && (res.ok === false || errs.length)) { const rf = flowRefusal_(res, 100); throw flowRefused_(id, rf.text, rf.warn && !forced); }
-  if (forced) confirmed = ' – warnings confirmed by the sender';
+  if (res && typeof res === 'object' && (res.ok === false || errs.length)) throw flowRefused_(id, flowRefusal_(res, 100).text);
   let to = [];
   withLock_(() => {
     r0 = look();
@@ -9791,11 +9772,10 @@ function flowResendOne_(u, id, note, force) {
     f.levels = levels; f.level = 0; f.waitSince = now; f.reminded = {}; f.resent = (Number(f.resent) || 0) + 1;
     delete f.reverted; delete f.remindedAt; f.reminds = 0;
     if (Object.keys(held).length) f.photos = held;
-    f.history = (f.history || []).concat([{ step: 'Sent again', level: 1, by: u.name || u.email, email: me, at: now, note: note + confirmed }]);
+    f.history = (f.history || []).concat([{ step: 'Sent again', level: 1, by: u.name || u.email, email: me, at: now, note: note }]);
     TABLE_MEMO_ = {};
     const t2 = crTable_(false), r1 = t2.rows.map((r, i) => crOut_(t2, r, i)).find(r => r.id === r0.id), row = t2.rows[r1.i].slice();
     set_(row, t2, 'Status', 'Pending'); set_(row, t2, 'Data', JSON.stringify(f)); set_(row, t2, 'Result', ''); stampEdit_(row, t2);
-    if (forced) set_(row, t2, 'Args', JSON.stringify(args));      // (update-129) saved at the approval as confirmed
     t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
     if (Object.keys(held).length) { const pc = CacheService.getScriptCache(); Object.keys(held).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: r0.id })), 21600); } catch (e) { /* the request keeps them */ } }); }
     to = levels[0].filter(e => e !== me);
