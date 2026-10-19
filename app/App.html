@@ -2641,12 +2641,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #rtc_view .rtc-tab.on { background: #F2A900; color: #1F2937; }
   #rtc_video { display: block; width: 100%; max-height: 72vh; background: #202124; object-fit: contain; cursor: crosshair; } #rtc_view[data-size=l] #rtc_video { flex: 1 1 auto; max-height: none; min-height: 0; height: 100%; }
   #rtc_hint { display: block; padding: 5px 12px 7px; font: 500 11.5px var(--ui); color: #94A3B8; } #rtc_hint:empty { display: none; }
+  /* (update-136) the faces at the side, as in Google Meet; the big picture leaves them room */
+  #rtc_faces { position: fixed; z-index: 13; right: 10px; top: 10px; bottom: 104px; width: 224px; display: flex; flex-direction: column; gap: 8px; overflow: auto; pointer-events: none; } #rtc_faces[hidden] { display: none !important; }
+  .rtc-face { position: relative; flex: 0 0 auto; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: #3C4043; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); pointer-events: auto; cursor: pointer; }
+  .rtc-face.me { cursor: default; outline: 2px solid #8AB4F8; outline-offset: -2px; }
+  .rtc-face video { display: block; width: 100%; height: 100%; object-fit: cover; background: #202124; } .rtc-face.mirror video { transform: scaleX(-1); }
+  .rtc-face b { position: absolute; left: 8px; bottom: 6px; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12.5px var(--ui); color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .9); }
+  body.rtc-faces #rtc_view, body.rtc-faces #rtc_view[data-size=l] { right: 244px; } body.rtc-mini #rtc_faces { bottom: 66px; }
+  @media (max-width: 700px) { #rtc_faces { top: 8px; left: 6px; right: 6px; bottom: auto; width: auto; height: 92px; flex-direction: row; } .rtc-face { height: 92px; } body.rtc-faces #rtc_view, body.rtc-faces #rtc_view[data-size=l], body.rtc-faces #rtc_view[data-size=m] { right: 6px; top: 108px; } }
   .rtc-list { display: grid; gap: 6px; max-height: 46vh; overflow: auto; margin: 10px 0; }
   .rtc-u { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 10px; cursor: pointer; } .rtc-u:has(input:checked) { border-color: #F2A900; background: #FFFBEB; }
   .rtc-u input { width: 18px; height: 18px; flex: 0 0 18px; } .rtc-u b { font: 700 14px var(--ui); margin-right: auto; } .rtc-u .rtc-adm { font: 700 11px var(--ui); color: #1543B8; background: #EEF3FF; border-radius: 6px; padding: 2px 6px; }
   .rtc-st { font: 600 12px var(--ui); color: #94A3B8; } .rtc-st.on { color: #15803D; } .rtc-st.on::before { content: '● '; } .rtc-st.busy { color: #B45309; }
   @media (max-width: 700px) { #rtc_view, #rtc_view[data-size=m] { left: 6px; right: 6px; width: auto; } #rtc_bar:not(.mini) { left: 6px; right: 6px; width: auto; margin: 0; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 8px 8px 6px; } #rtc_bar:not(.mini) .rtc-left { flex: 1 1 100%; } #rtc_bar .rtc-txt { max-width: none; } #rtc_bar:not(.mini) .rtc-btns { flex: 1 1 auto; justify-content: space-between; gap: 0; } #rtc_bar:not(.mini) .rtc-b { min-width: 0; flex: 1 1 0; } #rtc_bar .rtc-b .lb { max-width: 62px; font-size: 10.5px; } #rtc_bar .rtc-b .rtc-i { width: 42px; height: 42px; } #rtc_bar #rtc_end .rtc-i { width: 50px; } #rtc_bar:not(.mini) .rtc-hide { position: absolute; top: 6px; right: 8px; } #rtc_bar:not(.mini) .rtc-hide .lb { display: none; } #rtc_bar:not(.mini) .rtc-hide .rtc-i { width: 32px; height: 32px; margin: 0; } }
-  @media print { #rtc_note, #rtc_in, #rtc_bar, #rtc_view, #rtc_chat { display: none !important; } }
+  @media print { #rtc_note, #rtc_in, #rtc_bar, #rtc_view, #rtc_chat, #rtc_faces { display: none !important; } }
   @media (max-width: 700px) { #rtc_chat { left: 6px; right: 6px; width: auto; bottom: 128px; } #rtc_menu { right: 0; left: 0; } }
 </style>
 </head>
@@ -4372,7 +4380,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   </section>
 </div>
 <!-- (update-135) the call bar as in Google Meet: round buttons in the middle (microphone, camera, screen, chat, more, end), who / time on the left, Hide on the right; hidden it is a small pill --><div id="rtc_bar" role="status" hidden><span class="rtc-left"><i class="rtc-dot" id="rtc_live"></i><span class="rtc-txt"><b id="rtc_who"></b><small><span id="rtc_mine"></span> <span id="rtc_clock"></span> <span id="rtc_net"></span></small><small id="rtc_fol" hidden><span id="rtc_fol_t"></span> <button type="button" id="rtc_unfollow">Stop following</button></small></span></span><span class="rtc-btns"><button type="button" id="rtc_mic" class="rtc-b"><i class="rtc-i i-mic" aria-hidden="true"></i><span class="lb">Mute</span></button><button type="button" id="rtc_cam" class="rtc-b"><i class="rtc-i i-cam" aria-hidden="true"></i><span class="lb">Show my camera</span></button><button type="button" id="rtc_share" class="rtc-b"><i class="rtc-i i-scr" aria-hidden="true"></i><span class="lb">Show my screen</span></button><button type="button" id="rtc_chatb" class="rtc-b"><i class="rtc-i i-chat" aria-hidden="true"></i><span class="lb">Chat</span><span class="rtc-badge" id="rtc_chat_n" hidden></span></button><button type="button" id="rtc_more" class="rtc-b" aria-haspopup="true"><i class="rtc-i i-more" aria-hidden="true"></i><span class="lb">More</span></button><button type="button" id="rtc_end" class="rtc-b"><i class="rtc-i i-end" aria-hidden="true"></i><span class="lb">End</span></button></span><button type="button" id="rtc_hide" class="rtc-b rtc-hide"><i class="rtc-i i-down" aria-hidden="true"></i><span class="lb">Hide</span></button><div id="rtc_menu" hidden><button type="button" id="rtc_flip" hidden>Switch camera</button><button type="button" id="rtc_torch" hidden>Light on</button><button type="button" id="rtc_page">Show only my page (low data)</button><button type="button" id="rtc_low">Low data: off</button></div></div><div id="rtc_chat" hidden><header><b>Chat</b><small>not saved – gone when the call ends</small><button type="button" id="rtc_chat_x" aria-label="Close">×</button></header><div id="rtc_msgs" aria-live="polite"></div><form id="rtc_chat_f" autocomplete="off"><button type="button" id="rtc_photo" title="Send a photo">Photo</button><input id="rtc_txt" maxlength="500" placeholder="Type – e.g. a vehicle number"><button type="submit" id="rtc_send">Send</button></form><input type="file" id="rtc_file" accept="image/*" hidden></div>
-<div id="rtc_view" data-size="m" hidden><header><b id="rtc_vt"></b><span id="rtc_tabs"></span><button type="button" id="rtc_open" hidden></button><button type="button" id="rtc_penb" title="Draw on the picture – it shows on the sharer's screen" hidden>Pen</button><button type="button" id="rtc_clr" hidden>Clear</button><button type="button" id="rtc_snap" title="Save a picture of this screen on this device">Snapshot</button><button type="button" id="rtc_size" title="Smaller / larger picture">Size</button></header><div class="rtc-vw"><video id="rtc_video" autoplay playsinline muted></video><canvas id="rtc_pen"></canvas></div><small id="rtc_hint"></small></div>
+<div id="rtc_faces" hidden></div><div id="rtc_view" data-size="m" hidden><header><b id="rtc_vt"></b><span id="rtc_tabs"></span><button type="button" id="rtc_open" hidden></button><button type="button" id="rtc_penb" title="Draw on the picture – it shows on the sharer's screen" hidden>Pen</button><button type="button" id="rtc_clr" hidden>Clear</button><button type="button" id="rtc_snap" title="Save a picture of this screen on this device">Snapshot</button><button type="button" id="rtc_size" title="Smaller / larger picture">Size</button></header><div class="rtc-vw"><video id="rtc_video" autoplay playsinline muted></video><canvas id="rtc_pen"></canvas></div><small id="rtc_hint"></small></div>
 <!-- the assistant: ask the app in your own words -->
 <button type="button" id="ai_fab" class="ai-fab" hidden title="Ask the assistant – how to do something, how much diesel, who did what …"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Ask</span></button>
 <aside id="ai_panel" class="ai-panel" hidden role="dialog" aria-label="Assistant">
@@ -17225,7 +17233,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   /* ---------- the screen and the microphone ---------- */
   async function rtcGetScreen() {
-    const opt = { video: { displaySurface: 'browser', frameRate: { ideal: 15, max: 24 } }, audio: false, preferCurrentTab: true, selfBrowserSurface: 'include' };
+    const opt = { video: { displaySurface: 'browser', width: { ideal: 1920, max: 1920 }, height: { ideal: 1080, max: 1080 }, frameRate: { ideal: 15, max: 24 } }, audio: false, preferCurrentTab: true, selfBrowserSurface: 'include' };      // (update-136) sharp: up to Full HD
     let s;
     try { s = await navigator.mediaDevices.getDisplayMedia(opt); }
     catch (e) { if (e && e.name === 'NotAllowedError' && /polic/i.test(String(e.message || ''))) s = await window.top.navigator.mediaDevices.getDisplayMedia(opt); else throw e; }      // (an older shell page does not hand "show the screen" to the app's frame: asked from the shell itself)
@@ -17248,7 +17256,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return ds.map((d, i) => ({ d: d, s: score(d), i: i })).sort((a, b) => (b.s - a.s) || (a.i - b.i)).map(x => x.d);
   }
   async function rtcGetCam(facing, devId) {
-    const base = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 15, max: 24 } };
+    const base = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 24, max: 30 } };      // (update-136) a smooth face
     const open = async v => { const opt = { video: Object.assign({}, base, v), audio: false };
       try { return await navigator.mediaDevices.getUserMedia(opt); }
       catch (e) { if (e && e.name === 'NotAllowedError' && /polic/i.test(String(e.message || ''))) return await window.top.navigator.mediaDevices.getUserMedia(opt); throw e; } };      // (an older shell page does not hand the camera to the app's frame)
@@ -17264,7 +17272,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return s;
   }
   const rtcCamErr = e => 'Screen share: the camera ' + (e && e.name === 'NotAllowedError' ? 'is not allowed – allow it for this site (the lock sign beside the address → Camera → Allow). If the app was open from before the update, close it and open it again.' : e && (e.name === 'NotFoundError' || e.name === 'OverconstrainedError') ? 'was not found on this device.' : 'could not be started (' + (e && e.name || 'error') + ').');
-  async function rtcGetMic() { try { return await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); } catch (e) { return null; } }
+  // (update-136) a clear voice: the browser's echo cancelling, noise removal and level; one channel at 48 kHz; marked as speech
+  async function rtcGetMic() { try { const m = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: { ideal: 1 }, sampleRate: { ideal: 48000 } } });
+    try { m.getAudioTracks().forEach(t => { t.contentHint = 'speech'; }); } catch (e) { /* only a hint */ } return m; } catch (e) { return null; } }
   function rtcIsThisTab(track) { try { const h = track.getCaptureHandle ? track.getCaptureHandle() : null; return !!(h && h.handle === RTC.handle); } catch (e) { return false; } }
   /* The offer / answer goes out with every way to reach this computer written in it (nothing can be added before the two are
    * connected). So it waits until the browser has found them all – at most `ms`; with a relay it waits (up to 6 s) until the
@@ -17313,14 +17323,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const C = RTC.call;
     if (C.mic) P.micS = P.pc.addTrack(C.mic.getAudioTracks()[0], C.mic); else if (!P.polite) P.pc.addTransceiver('audio', { direction: 'recvonly' });      // (no microphone here: the other side can still be heard)
     if (C.screen) P.scr = P.pc.addTrack(C.screen.getVideoTracks()[0], C.screen);
+    if (C.cam) P.camS = P.pc.addTrack(C.cam.getVideoTracks()[0], C.cam);      // (update-136) the camera too, at the same time
   }
   // what a person who has just been connected must know: who is in the call, whose screens are on, which page I am on
   function rtcHello(P) {
     const C = RTC.call; if (!C) return;
-    if (C.role === 'host') { rtcRoster(); Object.keys(C.shares).forEach(sid => { const s = C.shares[sid]; if (s.uid !== P.uid) rtcDc(P, { t: 'share', on: true, sid: sid, uid: s.uid, name: s.name, ptr: s.ptr }); });
-      Object.keys(C.pages).forEach(uid => { if (uid !== P.uid) rtcDc(P, Object.assign({ t: 'page', uid: uid }, C.pages[uid])); });
+    if (C.role === 'host') { rtcRoster(); Object.keys(C.shares).forEach(sid => { const s = C.shares[sid]; if (s.uid !== P.uid) rtcDc(P, { t: 'share', on: true, sid: sid, uid: s.uid, name: s.name, ptr: s.ptr, kind: s.kind, face: s.face }); });
+      Object.keys(C.pages).forEach(uid => { if (uid !== P.uid) rtcDc(P, Object.assign({ t: 'page', uid: uid }, C.pages[uid])); });      // (the shares above: with their kind – a camera is a face, a screen the big picture)
       C.peers.forEach(Q => { if (Q !== P) Q.inc.forEach(x => rtcForward(Q, P, x.track, x.stream)); }); }
-    if (C.screen) rtcDc(P, { t: 'share', on: true, sid: C.screen.id, uid: RTC.me, name: RTC.myName, ptr: C.selfTab, kind: C.kind });
+    if (C.screen) rtcDc(P, { t: 'share', on: true, sid: C.screen.id, uid: RTC.me, name: RTC.myName, ptr: C.selfTab, kind: 'screen' });
+    if (C.cam) rtcDc(P, { t: 'share', on: true, sid: C.cam.id, uid: RTC.me, name: RTC.myName, ptr: false, kind: 'cam', face: rtcMyFace(C) });
     if (C.screen || C.pageMode) rtcDc(P, rtcPageNow());
     if (C.low) rtcDc(P, { t: 'low', on: true });
   }
@@ -17362,7 +17374,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (m.t === 'sdp') { rtcOnSdp(P, m.d).catch(rtcWarn); return; }
     if (m.t === 'ice') { P.pc.addIceCandidate(m.d).catch(e => { if (!P.ignore) rtcWarn(e); }); return; }
     if (m.t === 'share') { const sid = String(m.sid || ''); if (!sid) return;
-      if (m.on) C.shares[sid] = { uid: m.uid || P.uid, name: m.name || P.name, ptr: !!m.ptr, kind: m.kind === 'cam' ? 'cam' : 'screen', at: Date.now() }; else { delete C.shares[sid]; }
+      if (m.on) { const was = C.shares[sid]; C.shares[sid] = { uid: m.uid || P.uid, name: m.name || P.name, ptr: !!m.ptr, kind: m.kind === 'cam' ? 'cam' : 'screen', face: m.kind === 'cam' && !!m.face, at: was ? was.at : Date.now() }; } else { delete C.shares[sid]; }      // (update-136: face – a camera of a face, shown at the side)
       if (host) rtcTellAll(m, P); rtcViewPick(); rtcBar(); return; }
     if (m.t === 'page') { const uid = m.uid || P.uid; C.pages[uid] = { tab: String(m.tab || ''), title: String(m.title || '').slice(0, 80), follow: !!m.follow, sy: Math.max(0, Math.min(1, Number(m.sy) || 0)), name: uid === (C.roster && C.roster.host.uid) ? C.roster.host.name : rtcNameOf(uid) || P.name };
       if (host) rtcTellAll(m, P); rtcViewHead(); rtcFollowSeen(uid); return; }
@@ -17448,13 +17460,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       } catch (e) { rtcWarn(e); rtcPeerGone(P, 'send'); }
     }));
   }
-  function rtcNewCall(id, role) { return { id: id, role: role, peers: new Map(), screen: null, kind: '', facing: 'environment', torch: false, selfTab: false, pageMode: false, follow: '', noFollow: {}, followAt: 0, low: false, lowSet: false, net: '', poorN: 0, pen: false, unread: 0, chat: [],
+  function rtcNewCall(id, role) { return { id: id, role: role, peers: new Map(), screen: null, cam: null, facing: 'environment', torch: false, selfTab: false, pageMode: false, follow: '', noFollow: {}, followAt: 0, low: false, lowSet: false, net: '', poorN: 0, pen: false, unread: 0, chat: [],
     mic: null, micOn: true, t0: Date.now(), t1: 0, met: new Set(), shares: {}, vids: {}, pages: {}, audio: [], view: '', size: 'l', roster: null }; }      // (update-135) a screen shown to me: big, as in Meet (Size makes it smaller)
+  /* (update-136, asked 19-10-2026: "show my camera kela ki screen band hote screen kel ki camrea band hot as nko aahe screen share chalu
+   * astana user ne jar camera share kela tr poper mala maza pn face disel ani user ch … quality pn super … voice pn clear") A SCREEN
+   * AND A CAMERA AT THE SAME TIME: C.screen (sent as P.scr) and C.cam (sent as P.camS) each on its own – one does not stop the other.
+   * Everybody sees the screen big and the faces (cameras) at the side, his own too ("You"), as in Google Meet. */
+  // a camera of a face (a computer's own, a phone's front one): shown as a face at the side; a phone's back camera (a machine, a meter, a
+  // paper – update-75) is shown big, as a screen is
+  const rtcMyFace = C => !!C && (rtcOnComputer() || C.facing === 'user');
   function rtcUseScreen(s, kind) {
-    const C = RTC.call, t = s.getVideoTracks()[0];
-    C.screen = s; C.kind = kind === 'cam' ? 'cam' : 'screen'; C.selfTab = C.kind === 'screen' && rtcIsThisTab(t); C.torch = false;
-    if (C.kind === 'screen' && !C.mini) { C.mini = true; C.autoMini = true; }      // (update-135) as in Meet: my bar is not over the screen the others see – a pill with Stop
-    t.addEventListener('ended', () => { if (RTC.call === C && C.screen === s && s.getVideoTracks()[0] === t) rtcStopMine(true); });      // "Stop sharing" of the browser itself (or the camera taken away)
+    const C = RTC.call, t = s.getVideoTracks()[0], cam = kind === 'cam';
+    if (cam) { C.cam = s; C.torch = false; try { t.contentHint = 'motion'; } catch (e) { /* only a hint */ } }
+    else { C.screen = s; C.selfTab = rtcIsThisTab(t); if (!C.mini) { C.mini = true; C.autoMini = true; } }      // (update-135) as in Meet: my bar is not over the screen the others see – a pill with Stop
+    t.addEventListener('ended', () => { if (RTC.call === C && (cam ? C.cam : C.screen) === s && s.getVideoTracks()[0] === t) rtcStopMine(true, false, cam ? 'cam' : 'screen'); });      // "Stop sharing" of the browser itself (or the camera taken away)
   }
   // the host's answer arrived (the guest accepted)
   function rtcAnswered(P, d) {
@@ -17502,37 +17521,38 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ---------- my own screen on / off, the microphone, the end ---------- */
   async function rtcShareMine() {
     const C = RTC.call; if (!C) return;
-    if (C.screen && C.kind === 'screen') { rtcStopMine(); return; }
+    if (C.screen) { rtcStopMine(); return; }
     if (!rtcCanShare()) { toast('Screen share: the browser of a phone cannot show its screen – show the camera or only your page instead (More).', true); return; }
     let s = null; try { s = await rtcGetScreen(); } catch (e) { if (!(e && (e.name === 'NotAllowedError' || e.name === 'AbortError'))) toast('Screen share: the browser could not show the screen (' + (e && e.name || 'error') + ').', true); return; }
     rtcShowMine(C, s, 'screen');
   }
   async function rtcCamMine() {
     const C = RTC.call; if (!C) return;
-    if (C.screen && C.kind === 'cam') { rtcStopMine(); return; }
+    if (C.cam) { rtcStopMine(false, false, 'cam'); return; }
     let s = null; try { s = await rtcGetCam(C.facing || 'environment'); } catch (e) { toast(rtcCamErr(e), true); return; }
     rtcShowMine(C, s, 'cam');
   }
-  // a screen or a camera goes to everybody in the call (what was shown before stops: one picture per person)
+  // my screen or my camera goes to everybody in the call (update-136: each on its own – the screen and the camera can be on together)
   function rtcShowMine(C, s, kind) {
     if (RTC.call !== C) { s.getTracks().forEach(t => t.stop()); return; }
-    if (C.screen) rtcStopMine(false, true);
-    if (C.pageMode) rtcPageMine(false, true);
+    const cam = kind === 'cam';
+    if (cam ? C.cam : C.screen) rtcStopMine(false, true, cam ? 'cam' : 'screen');
+    if (!cam && C.pageMode) rtcPageMine(false, true);
     rtcUseScreen(s, kind);
-    C.peers.forEach(P => { try { P.scr = P.pc.addTrack(s.getVideoTracks()[0], s); if (!P.open) P.dirty = true; } catch (e) { rtcWarn(e); } });
-    rtcTellAll({ t: 'share', on: true, sid: s.id, uid: RTC.me, name: RTC.myName, ptr: C.selfTab, kind: C.kind }); rtcTellAll(rtcPageNow());
-    rtcBar();
+    C.peers.forEach(P => { try { const sn = P.pc.addTrack(s.getVideoTracks()[0], s); if (cam) P.camS = sn; else P.scr = sn; if (!P.open) P.dirty = true; } catch (e) { rtcWarn(e); } });
+    rtcTellAll({ t: 'share', on: true, sid: s.id, uid: RTC.me, name: RTC.myName, ptr: cam ? false : C.selfTab, kind: cam ? 'cam' : 'screen', face: cam && rtcMyFace(C) }); rtcTellAll(rtcPageNow());
+    rtcBar(); rtcFaces();
   }
-  function rtcStopMine(byBrowser, quiet) {
-    const C = RTC.call; if (!C || !C.screen) return;
-    const s = C.screen; C.screen = null; C.selfTab = false; C.kind = ''; C.torch = false;
-    if (C.autoMini) { C.mini = false; C.autoMini = false; }      // (update-135) the bar comes back as it was
-    C.peers.forEach(P => { if (P.scr) { try { P.pc.removeTrack(P.scr); } catch (e) { /* the connection is closing */ } P.scr = null; if (!P.open) P.dirty = true; } });
+  function rtcStopMine(byBrowser, quiet, kind) {
+    const C = RTC.call, cam = kind === 'cam'; if (!C) return;
+    const s = cam ? C.cam : C.screen; if (!s) return;
+    if (cam) { C.cam = null; C.torch = false; } else { C.screen = null; C.selfTab = false; if (C.autoMini) { C.mini = false; C.autoMini = false; } }      // (update-135) the bar comes back as it was
+    C.peers.forEach(P => { const sn = cam ? P.camS : P.scr; if (sn) { try { P.pc.removeTrack(sn); } catch (e) { /* the connection is closing */ } if (cam) P.camS = null; else P.scr = null; if (!P.open) P.dirty = true; } });
     s.getTracks().forEach(t => { try { t.stop(); } catch (e) { /* already stopped */ } });
     rtcTellAll({ t: 'share', on: false, sid: s.id, uid: RTC.me });
-    rtcPenTopClear();
-    if (byBrowser) rtcSay('Your screen is not shown any more. The call is still on – you can talk, or show the screen again.');
-    if (!quiet) rtcBar();
+    if (!cam) rtcPenTopClear();
+    if (byBrowser) rtcSay(cam ? 'Your camera is not shown any more. The call is still on.' : 'Your screen is not shown any more. The call is still on – you can talk, or show the screen again.');
+    if (!quiet) rtcBar(); rtcFaces();
   }
   // "only my page": no picture – the others' app follows the page this user is on (with voice; almost no data)
   function rtcPageMine(on, quiet) {
@@ -17542,29 +17562,30 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!quiet) { rtcBar(); if (on) rtcSay('The others now see the page you are on (in their own app, with their own access) – as you move. No video.'); }
   }
   async function rtcFlip() {
-    const C = RTC.call; if (!C || !C.screen || C.kind !== 'cam') return;
+    const C = RTC.call; if (!C || !C.cam) return;
     let want = C.facing === 'user' ? 'environment' : 'user', s2 = null, dev = '';
     if (rtcOnComputer()) {      // (update-135) a computer: the next of its cameras (its own first, then the others – a camera app last)
-      const list = await rtcCamRank(); let cur = ''; try { cur = C.screen.getVideoTracks()[0].getSettings().deviceId || ''; } catch (e) { cur = ''; }
+      const list = await rtcCamRank(); let cur = ''; try { cur = C.cam.getVideoTracks()[0].getSettings().deviceId || ''; } catch (e) { cur = ''; }
       const nx = list.length > 1 ? list[(list.findIndex(d => d.deviceId === cur) + 1) % list.length] : null;
       if (!nx) { rtcSay('This computer has no other camera.'); return; }
       dev = nx.deviceId; want = C.facing;
     }
     try { s2 = await rtcGetCam(want, dev); } catch (e) { rtcSay('This device has no other camera.'); return; }
-    if (RTC.call !== C || !C.screen || C.kind !== 'cam') { s2.getTracks().forEach(t => t.stop()); return; }
-    const nt = s2.getVideoTracks()[0], old = C.screen.getVideoTracks()[0], s = C.screen;
-    for (const P of C.peers.values()) { if (P.scr) { try { await P.scr.replaceTrack(nt); } catch (e) { rtcWarn(e); } } }
+    if (RTC.call !== C || !C.cam) { s2.getTracks().forEach(t => t.stop()); return; }
+    const nt = s2.getVideoTracks()[0], old = C.cam.getVideoTracks()[0], s = C.cam; try { nt.contentHint = 'motion'; } catch (e) { /* only a hint */ }
+    for (const P of C.peers.values()) { if (P.camS) { try { await P.camS.replaceTrack(nt); } catch (e) { rtcWarn(e); } } }
     s.removeTrack(old); try { old.stop(); } catch (e) { /* stopped */ } s.addTrack(nt); C.facing = want; C.torch = false;
-    nt.addEventListener('ended', () => { if (RTC.call === C && C.screen === s && s.getVideoTracks()[0] === nt) rtcStopMine(true); });
-    rtcBar();
+    nt.addEventListener('ended', () => { if (RTC.call === C && C.cam === s && s.getVideoTracks()[0] === nt) rtcStopMine(true, false, 'cam'); });
+    rtcTellAll({ t: 'share', on: true, sid: s.id, uid: RTC.me, name: RTC.myName, ptr: false, kind: 'cam', face: rtcMyFace(C) });
+    rtcBar(); rtcFaces();
   }
   function rtcTorch() {
-    const C = RTC.call; if (!C || !C.screen || C.kind !== 'cam') return; const t = C.screen.getVideoTracks()[0];
+    const C = RTC.call; if (!C || !C.cam) return; const t = C.cam.getVideoTracks()[0];
     const cap = t && t.getCapabilities ? t.getCapabilities() : {}; if (!cap.torch) { rtcSay('This camera has no light.'); return; }
     C.torch = !C.torch; t.applyConstraints({ advanced: [{ torch: C.torch }] }).catch(e => { C.torch = false; rtcWarn(e); rtcBar(); }); rtcBar();
   }
   function rtcMic() { const C = RTC.call; if (!C || !C.mic) { rtcSay('The microphone is not allowed in this browser (the lock sign beside the address → Microphone → Allow, then start again).', true); return; } C.micOn = !C.micOn; C.mic.getAudioTracks().forEach(t => { t.enabled = C.micOn; }); rtcBar(); }
-  function rtcDrop(C) { try { if (C.screen) C.screen.getTracks().forEach(t => t.stop()); if (C.mic) C.mic.getTracks().forEach(t => t.stop()); C.audio.forEach(a => { try { a.pause(); a.srcObject = null; } catch (e) { /* gone */ } }); C.peers.forEach(P => { clearTimeout(P.ringT); clearTimeout(P.watchT); try { P.pc.close(); } catch (e) { /* closed */ } }); } catch (e) { rtcWarn(e); } }
+  function rtcDrop(C) { try { if (C.screen) C.screen.getTracks().forEach(t => t.stop()); if (C.cam) C.cam.getTracks().forEach(t => t.stop()); if (C.mic) C.mic.getTracks().forEach(t => t.stop()); C.audio.forEach(a => { try { a.pause(); a.srcObject = null; } catch (e) { /* gone */ } }); C.peers.forEach(P => { clearTimeout(P.ringT); clearTimeout(P.watchT); try { P.pc.close(); } catch (e) { /* closed */ } }); } catch (e) { rtcWarn(e); } }
   // the call is over on this side (pressed here, or nobody is left)
   function rtcEnd(say, quiet) {
     const C = RTC.call; if (!C) return;
@@ -17609,14 +17630,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     let who = ps.map(P => P.name + (P.up && P.state === 'on' ? '' : ' (' + (word[P.state] || P.state) + ')')).join(', ');
     if (C.role === 'guest' && C.roster) who = [C.roster.host.name].concat((C.roster.people || []).filter(x => x.uid !== RTC.me && x.up).map(x => x.name)).join(', ');
     $('rtc_who').textContent = (up.length ? 'Screen share with ' : C.role === 'host' ? 'Calling ' : 'Joining ') + who;
-    $('rtc_live').className = 'rtc-dot' + (C.screen ? ' on' : '');
-    $('rtc_mine').textContent = (C.screen ? (C.kind === 'cam' ? 'Your camera is shown' : 'Your screen is shown') : C.pageMode ? 'Your page is shown (no video)' : 'Your screen is not shown') + (up.some(P => P.via === 'relay') ? ' · through the relay' : up.some(P => P.via === 'direct') ? ' · direct connection' : '');
+    $('rtc_live').className = 'rtc-dot' + (C.screen || C.cam ? ' on' : '');
+    $('rtc_mine').textContent = (C.screen && C.cam ? 'Your screen and camera are shown' : C.screen ? 'Your screen is shown' : C.cam ? (C.pageMode ? 'Your camera and page are shown' : 'Your camera is shown') : C.pageMode ? 'Your page is shown (no video)' : 'Your screen is not shown') + (up.some(P => P.via === 'relay') ? ' · through the relay' : up.some(P => P.via === 'direct') ? ' · direct connection' : '');
     const nt = $('rtc_net'); nt.textContent = (C.net ? '· Network: ' + C.net : '') + (C.low ? ' · low data' : ''); nt.className = C.net || '';
     rtcLab('rtc_mic', !C.mic ? 'No microphone' : C.micOn ? 'Mute' : 'Unmute'); $('rtc_mic').classList.toggle('off', !C.mic || !C.micOn);
-    const scr = !!C.screen && C.kind === 'screen', cam = !!C.screen && C.kind === 'cam';
+    const scr = !!C.screen, cam = !!C.cam;      // (update-136) each on its own
     rtcLab('rtc_share', scr ? 'Stop showing my screen' : 'Show my screen'); $('rtc_share').hidden = !rtcCanShare(); $('rtc_share').classList.toggle('on', scr);
     rtcLab('rtc_cam', cam ? 'Stop my camera' : 'Show my camera'); $('rtc_cam').classList.toggle('on', cam);
-    $('rtc_flip').hidden = !cam; let torch = false; try { const t = cam ? C.screen.getVideoTracks()[0] : null; torch = !!(t && t.getCapabilities && t.getCapabilities().torch); } catch (e) { torch = false; }
+    $('rtc_flip').hidden = !cam; let torch = false; try { const t = cam ? C.cam.getVideoTracks()[0] : null; torch = !!(t && t.getCapabilities && t.getCapabilities().torch); } catch (e) { torch = false; }
     $('rtc_torch').hidden = !torch; $('rtc_torch').textContent = C.torch ? 'Light off' : 'Light on';
     $('rtc_page').textContent = C.pageMode ? 'Stop showing my page' : 'Show only my page (low data)'; $('rtc_page').classList.toggle('on', !!C.pageMode);
     $('rtc_low').textContent = 'Low data: ' + (C.low ? 'on' : 'off'); $('rtc_low').classList.toggle('on', !!C.low);
@@ -17627,19 +17648,46 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // (update-135) a round button of the bar: its word under the icon (and as its tooltip)
   function rtcLab(id, txt) { const b = $(id); if (!b) return; const l = b.querySelector('.lb'); if (l) { if (l.textContent !== txt) l.textContent = txt; } else b.textContent = txt; b.title = txt; b.setAttribute('aria-label', txt); }
   // which screen is shown to me: the one that was switched on last and is still coming in
-  function rtcViewPick(want) {
+  // (update-136) big: a screen first (as in Meet), a camera only when no screen is shown; the other cameras are the faces at the side
+  function rtcViewPick(want) { try { rtcViewPick0(want); } finally { rtcFaces(); } }
+  const rtcLive = C => C ? Object.keys(C.vids).filter(sid => { const v = C.vids[sid]; return v.track.readyState === 'live' && !v.track.muted && C.shares[sid] && C.shares[sid].uid !== RTC.me; }) : [];
+  const rtcIsFace = (C, sid) => !!(C && C.shares[sid] && C.shares[sid].kind === 'cam' && C.shares[sid].face);
+  function rtcViewPick0(want) {
     const box = $('rtc_view'), C = RTC.call; if (!box) return;
-    const live = C ? Object.keys(C.vids).filter(sid => { const v = C.vids[sid]; return v.track.readyState === 'live' && !v.track.muted && C.shares[sid] && C.shares[sid].uid !== RTC.me; }) : [];
-    live.sort((a, b) => C.shares[a].at - C.shares[b].at);
-    const newest = live[live.length - 1] || '';      // a screen that has just been switched on is shown; otherwise the one that was being looked at stays
-    const sid = want && live.indexOf(want) > -1 ? want : (C && live.indexOf(C.view) > -1 && C.newest === newest) ? C.view : newest;
+    const live = rtcLive(C);
+    const big = live.filter(x => !rtcIsFace(C, x)).sort((a, b) => ((C.shares[a].kind === 'cam') - (C.shares[b].kind === 'cam')) || (C.shares[a].at - C.shares[b].at));
+    const scr = big.filter(x => C.shares[x].kind !== 'cam'), newest = scr[scr.length - 1] || big[big.length - 1] || '';      // a screen that has just been switched on is shown; otherwise the one that was being looked at stays
+    if (C) { if (want && live.indexOf(want) > -1) C.pin = rtcIsFace(C, want) ? want : ''; if (C.pin && (live.indexOf(C.pin) < 0 || C.newest !== newest)) C.pin = ''; }      // a face tapped: big until a tab is pressed, it goes, or a new screen comes
+    const sid = C && C.pin ? C.pin : want && big.indexOf(want) > -1 ? want : (C && big.indexOf(C.view) > -1 && C.newest === newest) ? C.view : newest;
     if (C) { C.newest = newest; C.view = sid; }
     const v = $('rtc_video');
     if (!sid) { box.hidden = true; if (v.srcObject) v.srcObject = null; return; }
     if (v.srcObject !== C.vids[sid].stream) { v.srcObject = C.vids[sid].stream; const pl = v.play(); if (pl && pl.catch) pl.catch(() => {}); }
     box.hidden = false; box.dataset.size = C.size;
-    $('rtc_tabs').innerHTML = live.length > 1 ? live.map(x => '<button type="button" class="rtc-tab' + (x === sid ? ' on' : '') + '" data-sid="' + esc(x) + '">' + esc(C.shares[x].name) + '</button>').join('') : '';
+    const tabs = big.concat(C.pin ? [C.pin] : []);
+    $('rtc_tabs').innerHTML = tabs.length > 1 ? tabs.map(x => '<button type="button" class="rtc-tab' + (x === sid ? ' on' : '') + '" data-sid="' + esc(x) + '">' + esc(C.shares[x].name) + (C.shares[x].kind === 'cam' ? ' – camera' : '') + '</button>').join('') : '';
     rtcViewHead();
+  }
+  /* (update-136) THE FACES: the cameras of the others (not the one shown big) and my own ("You", as in a mirror on a computer), each a
+   * small picture at the side – a tap on another's face shows it big. Kept from draw to draw (no flicker). */
+  function rtcFaces() {
+    const box = $('rtc_faces'), C = RTC.call; if (!box) return;
+    const items = [];
+    if (C) {
+      rtcLive(C).filter(sid => rtcIsFace(C, sid) && sid !== C.view).sort((a, b) => C.shares[a].at - C.shares[b].at).forEach(sid => items.push({ sid: sid, name: C.shares[sid].name, stream: C.vids[sid].stream, me: false }));
+      if (C.cam) items.push({ sid: C.cam.id, name: 'You', stream: C.cam, me: true, mirror: rtcMyFace(C) });
+    }
+    box.hidden = !items.length; document.body.classList.toggle('rtc-faces', items.length > 0);
+    const have = {}; [...box.children].forEach(el => { have[el.dataset.sid] = el; });
+    items.forEach(it => {
+      let el = have[it.sid]; delete have[it.sid];
+      if (!el) { el = document.createElement('div'); el.dataset.sid = it.sid; el.innerHTML = '<video autoplay playsinline muted></video><b></b>'; box.appendChild(el); }
+      el.className = 'rtc-face' + (it.me ? ' me' : '') + (it.mirror ? ' mirror' : ''); el.title = it.me ? 'Your camera – as the others see it' : 'Show ' + it.name + ' big';
+      const v = el.querySelector('video'); if (v.srcObject !== it.stream) { v.srcObject = it.stream; const pl = v.play(); if (pl && pl.catch) pl.catch(() => {}); }
+      const b = el.querySelector('b'); if (b.textContent !== it.name) b.textContent = it.name;
+      if (box.lastElementChild !== el) box.appendChild(el);      // in this order (mine last)
+    });
+    Object.keys(have).forEach(k => { const v = have[k].querySelector('video'); if (v) v.srcObject = null; have[k].remove(); });
   }
   // a page of this user's OWN menu (the same test as the favourites: the page exists, and neither it nor its group is hidden from him)
   const rtcTabOk = t => TABS.indexOf(t) > -1 && !!$('tab-' + t) && !$('tab-' + t).hidden && !($('tab-' + t).closest('.navgroup') || {}).hidden;
@@ -17689,6 +17737,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (t.closest('#rtc_size')) { C.size = C.size === 's' ? 'm' : C.size === 'm' ? 'l' : 's'; $('rtc_view').dataset.size = C.size; return; }
     if (t.closest('#rtc_open')) { const tab = $('rtc_open').dataset.tab; if (tab && rtcTabOk(tab)) { C.size = 's'; $('rtc_view').dataset.size = 's'; showTab(tab); rtcViewHead(); } return; }
     const tb = t.closest('#rtc_tabs [data-sid]'); if (tb) { rtcViewPick(tb.dataset.sid); return; }
+    const fc = t.closest('#rtc_faces .rtc-face:not(.me)'); if (fc) { rtcViewPick(fc.dataset.sid); return; }      // (update-136)
     if (t.closest('#rtc_video') && !C.pen) {
       const sh = C.shares[C.view], v = $('rtc_video'); if (!sh || !v.videoWidth) return;
       const r = v.getBoundingClientRect(), k = Math.min(r.width / v.videoWidth, r.height / v.videoHeight), w = v.videoWidth * k, h = v.videoHeight * k, x = (e.clientX - (r.left + (r.width - w) / 2)) / w, y = (e.clientY - (r.top + (r.height - h) / 2)) / h;
@@ -17762,13 +17811,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (auto) rtcSay('The network is weak: low data is on – the picture is smaller and slower, the voice stays. (More → Low data switches it off.)');
   }
   // the pictures this page SENDS: smaller and slower to a person who asked for low data (or when this page is on low data)
+  /* (update-136, "quality pn super yeyla hawi voice pn clear yawa") otherwise the best the line carries: a screen sharp (up to
+   * 2.5 Mbit/s, its letters kept – the size is kept, the speed gives way), a camera smooth (up to 1.2 Mbit/s, 24 a second), what the
+   * host passes on up to 2 Mbit/s; the voice first (high priority, up to 64 kbit/s; 32 on low data – it is never cut). */
   function rtcLowApply() {
     const C = RTC.call; if (!C) return;
+    const set = (sn, f) => { const go = all => { const prm = sn.getParameters(); if (!prm.encodings || !prm.encodings.length) return Promise.resolve();      // (not agreed yet: done again after the agreement)
+        f(prm, prm.encodings[0]); if (!all) { delete prm.degradationPreference; prm.encodings.forEach(e => { delete e.priority; delete e.networkPriority; }); } return sn.setParameters(prm); };
+      try { go(true).catch(() => { try { go(false).catch(rtcWarn); } catch (er) { rtcWarn(er); } }); } catch (er) { try { go(false).catch(rtcWarn); } catch (er2) { rtcWarn(er2); } } };      // (a browser that does not know a part: the rest still applies)
     C.peers.forEach(P => { const low = !!(C.low || P.low);
-      [P.scr].concat(P.fwd.map(f => f.sender)).filter(sn => sn && sn.track && sn.track.kind === 'video').forEach(sn => { try {
-        const prm = sn.getParameters(); if (!prm.encodings || !prm.encodings.length) return;      // (not agreed yet: done again after the agreement)
-        const e = prm.encodings[0]; if (low) { e.maxBitrate = 150000; e.maxFramerate = 5; e.scaleResolutionDownBy = 1.5; } else { delete e.maxBitrate; delete e.maxFramerate; e.scaleResolutionDownBy = 1; }
-        sn.setParameters(prm).catch(rtcWarn); } catch (er) { rtcWarn(er); } }); });
+      const vids = [[P.scr, 'screen'], [P.camS, 'cam']].concat(P.fwd.map(f => [f.sender, 'fwd'])).filter(x => x[0] && x[0].track && x[0].track.kind === 'video');
+      vids.forEach(([sn, kind]) => set(sn, (prm, e) => {
+        if (low) { e.maxBitrate = 150000; e.maxFramerate = 5; e.scaleResolutionDownBy = 1.5; e.priority = 'low'; }
+        else { e.maxBitrate = kind === 'screen' ? 2500000 : kind === 'cam' ? 1200000 : 2000000; e.maxFramerate = kind === 'screen' ? 15 : kind === 'cam' ? 24 : 24; e.scaleResolutionDownBy = 1; e.priority = kind === 'screen' ? 'medium' : 'low'; }
+        if (kind !== 'fwd') prm.degradationPreference = kind === 'screen' ? 'maintain-resolution' : 'balanced'; }));
+      [P.micS].concat(P.fwd.map(f => f.sender)).filter(sn => sn && sn.track && sn.track.kind === 'audio').forEach(sn => set(sn, (prm, e) => { e.maxBitrate = low ? 32000 : 64000; e.priority = 'high'; e.networkPriority = 'high'; }));
+    });
   }
 
   /* ---------- "only my page": this app follows the page of the one who shows it ---------- */
