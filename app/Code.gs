@@ -9623,7 +9623,7 @@ function flowDecide_(u, x) {
           const before = spec.log ? logBefore_(spec, args) : null;
           const res = spec.withUser ? spec.f.apply(null, [ru].concat(args)) : spec.f.apply(null, args);
           const errs = res && typeof res === 'object' ? (res.errors || []) : [];
-          if (res && typeof res === 'object' && (res.ok === false || errs.length)) throw new Error(errs.length ? errs.slice(0, 5).map(e => (e.row ? 'Line ' + e.row + ': ' : '') + (e.msg || e)).join(' | ') : (res.error || res.warning || 'refused'));
+          if (res && typeof res === 'object' && (res.ok === false || errs.length)) { const rf = flowRefusal_(res); throw new Error(rf.text + (rf.warn ? ' – the sender can send it again and confirm them' : '')); }      // (update-129)
           if (spec.log) { try { logAfter_(ru, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ } }
           ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0;
           f.history.push({ step: 'Approved', level: f.level + 1, by: u.name || u.email, email: me, at: new Date().toISOString(), note: note });
@@ -9694,21 +9694,53 @@ function flowAnswer_(u, x) {
  * written), as when it was sent: if the save would refuse it again, that is said now and the entry stays as it is. Several at
  * once (ids): each on its own; one that cannot go does not stop the others. */
 const FLOW_AGAIN_ = ['Rejected', 'Returned'];
+/* (update-129, 19-10-2026: live, "Not saved: refused" / "Not sent again: the save refuses it" on entries of "Multiple entries")
+ * WHAT A SAVE'S REFUSAL SAYS – a save answers "not saved" in its own answer (not an error): mistakes (errors – each line), or
+ * WARNINGS that the person confirms on the page with "Save anyway" (warning / warnings – e.g. a reading lower than the last one).
+ * Until update-129 only the mistakes and one warning were read; the warnings of "Multiple entries" were said as "refused". */
+function flowRefusal_(res) {
+  const line = e => (e && e.row ? 'Line ' + e.row + ': ' : '') + String((e && typeof e === 'object' ? (e.msg || e.message) : e) || '').replace(/^Error:\s*/, '');
+  const list = (l, n) => l.slice(0, n).map(line).join(' | ') + (l.length > n ? ' | … ' + (l.length - n) + ' more' : '');
+  if ((res.errors || []).length) return { warn: false, text: list(res.errors, 5) };
+  if ((res.warnings || []).length) return { warn: true, text: 'To check (warnings, not mistakes): ' + list(res.warnings, 8) };
+  if (res.warning) return { warn: true, text: 'To check (a warning, not a mistake): ' + String(res.warning).replace(/\s*(Save|Delete) anyway\?\s*$/, '') };
+  if ((res.used || []).length) return { warn: true, text: 'To check (a warning, not a mistake): ' + list(res.used.map(x => x.id + ' has ' + (x.diesel || 0) + ' Diesel Issue and ' + (x.log || 0) + ' Log Book entries (they stay)'), 8) };      // deleteMasterMany
+  if ((res.duplicates || []).length) return { warn: true, text: 'To check (a warning, not a mistake): ' + list(res.duplicates.map(d => d.vendor + ': a bill for the same period is already submitted (' + (d.existing || []).map(x => 'RA Bill ' + x.billNo + (x.rev ? ' rev ' + x.rev : '')).join('; ') + ') – the new one is saved with the same bill number as its revision and the older one is marked Superseded'), 8) };      // submitBills
+  if (res.error) return { warn: false, text: String(res.error) };
+  return { warn: false, text: 'the save refuses it – open the entry\'s page to see why' };
+}
+// "Save anyway" as each save reads it (as its page sends it): on its entry, force – the bills' confirm – or the master deletes' second value
+const FLOW_FORCE_AT_ = { deleteMaster: 1, deleteMasterMany: 1 }, FLOW_FORCE_KEY_ = { submitBills: 'confirm' };
+function flowForce_(fn, args) {
+  if (FLOW_FORCE_AT_[fn] !== undefined) { while (args.length < FLOW_FORCE_AT_[fn]) args.push(undefined); args[FLOW_FORCE_AT_[fn]] = true; return true; }
+  const box = args.find(a => a && typeof a === 'object' && !Array.isArray(a));
+  if (box) { box[FLOW_FORCE_KEY_[fn] || 'force'] = true; return true; }
+  return false;
+}
 function flowResend_(u, x) {
   x = x || {};
   const note = clean_(x.note).slice(0, 300);
   if (!note) throw new Error('Write why it is sent again – your remark goes with the entry to the people who approve it.');
+  const force = x.force === true;      // (update-129) he confirms the warnings ("Send again anyway"), as "Save anyway" on the page
   if (Array.isArray(x.ids)) {
     const ids = [...new Set(x.ids.map(str_).filter(Boolean))].slice(0, 100);
     if (!ids.length) throw new Error('Pick the entries to send again.');
     const done = [], failed = [];
-    ids.forEach(id => { try { const r = flowResendOne_(u, id, note); done.push({ id: r.id, level: r.level, levels: r.levels }); } catch (e) { if (faultKind_(e)) throw e; failed.push({ id: id, error: String((e && e.message) || e).slice(0, 300) }); } });
+    ids.forEach(id => { try { const r = flowResendOne_(u, id, note, force); done.push({ id: r.id, level: r.level, levels: r.levels }); } catch (e) { if (faultKind_(e)) throw e; failed.push({ id: id, error: String((e && e.message) || e).slice(0, 900), warn: !!(e && e.flowWarn) }); } });
     return { ok: true, done: done, failed: failed, list: crList_(u, {}) };
   }
-  const r = flowResendOne_(u, str_(x.id), note);
+  let r;
+  try { r = flowResendOne_(u, str_(x.id), note, force); }
+  catch (e) { if (e && e.flowRefused) return { ok: true, done: [], failed: [{ id: str_(x.id), error: String(e.message).slice(0, 900), warn: !!e.flowWarn }], list: crList_(u, {}) }; throw e; }
   return Object.assign(r, { done: [{ id: r.id, level: r.level, levels: r.levels }], failed: [], list: crList_(u, {}) });
 }
-function flowResendOne_(u, id, note) {
+// the save refuses it again (nothing changed): said with what the save says; a warning can be confirmed (force)
+function flowRefused_(id, text, warn) {
+  const e = new Error(warn ? 'Not sent again: ' + text + ' – entry ' + id + ' stays as it is (nothing is lost); check them and press "Send again anyway" to confirm them.'
+    : 'Not sent again: ' + text + ' – entry ' + id + ' stays as it is (nothing is lost); send it again when this is put right.');
+  e.flowRefused = true; e.flowWarn = !!warn; return e;
+}
+function flowResendOne_(u, id, note, force) {
   const me = str_(u.email).toLowerCase();
   const look = () => {
     const r0 = flowAll_().find(r => r.id === id);
@@ -9724,6 +9756,8 @@ function flowResendOne_(u, id, note) {
   const levels = ((r0.flow || {}).levels || []).filter(l => Array.isArray(l) && l.length);
   if (!levels.length) throw new Error('Entry ' + id + ' cannot be sent again: it has no verification levels.');
   let args = []; try { args = JSON.parse(r0.args || '[]'); } catch (e) { args = []; }
+  // (update-129) he confirms its warnings: the save takes it as "Save anyway" (force on the entry, where every save reads it)
+  const forced = force ? flowForce_(r0.fn, args) : false;
   // checked as a save, as the sender's own (nothing written) – with the photos noted with it when it was first sent
   const f0 = r0.flow || {}, held = f0.photos && typeof f0.photos === 'object' ? JSON.parse(JSON.stringify(f0.photos)) : {};
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
@@ -9734,12 +9768,14 @@ function flowResendOne_(u, id, note) {
   catch (e) {
     if (e !== FLOW_DRY_) {
       if (faultKind_(e)) throw e;
-      throw new Error('Not sent again: ' + String((e && e.message) || e).slice(0, 300) + ' – entry ' + id + ' stays as it is (nothing is lost); send it again when this is put right.');
+      throw flowRefused_(id, String((e && e.message) || e).replace(/^Error:\s*/, '').slice(0, 600), false);
     }
   } finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
   TABLE_MEMO_ = {};
   const errs = res && typeof res === 'object' ? (res.errors || []) : [];
-  if (res && typeof res === 'object' && (res.ok === false || errs.length)) throw new Error('Not sent again: ' + (errs.length ? errs.slice(0, 3).map(e => (e.row ? 'Line ' + e.row + ': ' : '') + (e.msg || e)).join(' | ') : (res.error || res.warning || 'the save refuses it')) + ' – entry ' + id + ' stays as it is (nothing is lost); send it again when this is put right.');
+  let confirmed = '';
+  if (res && typeof res === 'object' && (res.ok === false || errs.length)) { const rf = flowRefusal_(res); throw flowRefused_(id, rf.text, rf.warn && !forced); }
+  if (forced) confirmed = ' – warnings confirmed by the sender';
   let to = [];
   withLock_(() => {
     r0 = look();
@@ -9749,10 +9785,11 @@ function flowResendOne_(u, id, note) {
     f.levels = levels; f.level = 0; f.waitSince = now; f.reminded = {}; f.resent = (Number(f.resent) || 0) + 1;
     delete f.reverted; delete f.remindedAt; f.reminds = 0;
     if (Object.keys(held).length) f.photos = held;
-    f.history = (f.history || []).concat([{ step: 'Sent again', level: 1, by: u.name || u.email, email: me, at: now, note: note }]);
+    f.history = (f.history || []).concat([{ step: 'Sent again', level: 1, by: u.name || u.email, email: me, at: now, note: note + confirmed }]);
     TABLE_MEMO_ = {};
     const t2 = crTable_(false), r1 = t2.rows.map((r, i) => crOut_(t2, r, i)).find(r => r.id === r0.id), row = t2.rows[r1.i].slice();
     set_(row, t2, 'Status', 'Pending'); set_(row, t2, 'Data', JSON.stringify(f)); set_(row, t2, 'Result', ''); stampEdit_(row, t2);
+    if (forced) set_(row, t2, 'Args', JSON.stringify(args));      // (update-129) saved at the approval as confirmed
     t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
     if (Object.keys(held).length) { const pc = CacheService.getScriptCache(); Object.keys(held).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: r0.id })), 21600); } catch (e) { /* the request keeps them */ } }); }
     to = levels[0].filter(e => e !== me);

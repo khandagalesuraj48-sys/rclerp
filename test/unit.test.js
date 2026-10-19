@@ -3746,8 +3746,9 @@ test('update-128: the sender sends his rejected / returned entry again – as it
     assert.deepStrictEqual([r.status, /^Not saved: Again 128 B is already saved/.test(r.result)], ['Returned', true], JSON.stringify(r));
     const rb = req(M, b);
     assert.ok(rb.canResend && /^Not saved: /.test(rb.result), 'he sees why, and may send it again');
-    r = api(M, 'resendFlow', { id: b, note: 'try again' });
-    assert.match(r.THROWN, new RegExp('^Not sent again: Again 128 B is already saved – use Edit\\. – entry ' + b + ' stays as it is \\(nothing is lost\\); send it again when this is put right\\.$'));
+    r = api(M, 'resendFlow', { id: b, note: 'try again' });      // (update-129) a refusal comes back in "failed" – for one entry as for several
+    assert.deepStrictEqual([r.ok, r.done.length, r.failed.length, r.failed[0].id, r.failed[0].warn], [true, 0, 1, b, false], JSON.stringify(r).slice(0, 300));
+    assert.match(r.failed[0].error, new RegExp('^Not sent again: Again 128 B is already saved – use Edit\\. – entry ' + b + ' stays as it is \\(nothing is lost\\); send it again when this is put right\\.$'));
     assert.deepStrictEqual([req(M, b).status, req(M, b).canResend, req(M, b).history.length], ['Returned', true, rb.history.length], 'refused again by the save: nothing changed');
     assert.ok(api(SA, 'deleteVendor', 'Again 128 B').ok !== false && !has('Again 128 B'));
     r = api(M, 'resendFlow', { id: b, note: 'the other one is deleted' });
@@ -3785,4 +3786,112 @@ test('update-128: the sender sends his rejected / returned entry again – as it
       CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
   }
   function MODULE_LABEL(m) { return vm.runInContext('MODULE_LABEL_', ctx)[m] || m; }
+});
+
+test('update-129: Send again and the approval say a save\'s WARNINGS (not "refused"); the sender confirms them ("Send again anyway"); mistakes stay mistakes', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // a save that answers as the diesel saves do: warnings (several – "Multiple entries"), one warning ("Save anyway?") or mistakes – by W129
+  vm.runInContext(`globalThis.__k129 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_ };
+    globalThis.DB129 = {};
+    globalThis.__fill129 = s => { const d = DB129[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep129 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill129(s); if (s.loaded) DB129[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    SB_BOOK_ = null;
+    SbBook_.prototype.flush = function () { __keep129(this); __k129.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill129(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill129(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    rtcPush_ = function () {};
+    globalThis.W129 = 'clean'; globalThis.SAVED129 = [];
+    API_.test129 = { m: 'Vendor Master', edit: true, f: o => {
+      if (W129 === 'errors') return { ok: false, errors: [{ row: 3, msg: '"MH-X" is not in Master.' }] };
+      if (W129 === 'warns' && !o.force) return { ok: false, warnings: [{ row: 2, msg: 'MH-1: KM Reading 5 is less than the last KM Reading 9.' }, { row: 4, msg: 'MH-2: Hrs Reading 1 is less than the last Hrs Reading 2.' }] };
+      if (W129 === 'warn' && !o.force) return { ok: false, warning: 'MH-1: the next entry has a lower reading. Save anyway?' };
+      if (!FLOW_DRY_ON_) SAVED129.push(o.n);
+      return { ok: true }; } };
+    kvWrite_("FLOW_RULES", "{}"); kvWrite_("CR_SUPERS", JSON.stringify(["sa129@rcl.test"]));`, ctx);
+  try {
+    const PW = 'sha256$0123456789abcdef$' + 'd'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('mahesh129@rcl.test', 'Mahesh Jadhav', false, { 'Vendor Master': 'Edit' }), mk('shubham129@rcl.test', 'Shubham', false, { 'Vendor Master': 'Edit' }), mk('sa129@rcl.test', 'Super C', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok129_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa129@rcl.test'); });
+    const api = (who, fn, ...a) => run('(t, f, a) => api(t, f, a)', tok[who], fn, a);
+    const M = 'mahesh129@rcl.test', S = 'shubham129@rcl.test', SA = 'sa129@rcl.test';
+    const W = w => run('w => { W129 = w; }', w);
+    assert.ok(api(SA, 'saveFlowRules', { tasks: { 'Vendor Master': { on: true, levels: [[S]] } } }).ok);
+    const sent = n => { W('clean'); const t = api(M, 'test129', { n: n }).THROWN || ''; assert.match(t, /^Sent for verification/, t); return t.match(/VF-\d{5}/)[0]; };
+    const req = id => api(M, 'getChangeRequests', {}).requests.find(x => x.id === id);
+    const saved = () => run('() => SAVED129.slice()');
+    const argsOf = id => JSON.parse(run('id => flowAll_().find(r => r.id === id).args', id));
+    // ---- WARNINGS at the approval (the readings of another entry saved meanwhile): said as warnings, not "refused" ----
+    const a = sent('A');
+    W('warns');
+    let r = api(S, 'decideChangeRequest', { id: a, approve: true });
+    assert.deepStrictEqual([r.status, r.result], ['Returned', 'Not saved: To check (warnings, not mistakes): Line 2: MH-1: KM Reading 5 is less than the last KM Reading 9. | Line 4: MH-2: Hrs Reading 1 is less than the last Hrs Reading 2. – the sender can send it again and confirm them'], JSON.stringify(r));
+    const h0 = req(a).history.length;
+    // sent again as it was: the same warnings – said, to confirm; nothing changes
+    r = api(M, 'resendFlow', { id: a, note: 'try' });
+    assert.deepStrictEqual([r.done.length, r.failed.length, r.failed[0].warn], [0, 1, true], JSON.stringify(r).slice(0, 400));
+    assert.strictEqual(r.failed[0].error, 'Not sent again: To check (warnings, not mistakes): Line 2: MH-1: KM Reading 5 is less than the last KM Reading 9. | Line 4: MH-2: Hrs Reading 1 is less than the last Hrs Reading 2. – entry ' + a + ' stays as it is (nothing is lost); check them and press "Send again anyway" to confirm them.');
+    assert.deepStrictEqual([req(a).status, req(a).history.length, argsOf(a)[0].force], ['Returned', h0, undefined], 'nothing changed');
+    // "Send again anyway": confirmed – to level 1, the confirmation kept with it; saved as it is when approved
+    r = api(M, 'resendFlow', { ids: [a], note: 'readings checked – a later day was saved first', force: true });
+    assert.deepStrictEqual([r.done.map(x => x.id), r.failed.length], [[a], 0], JSON.stringify(r).slice(0, 400));
+    const ra = req(a);
+    assert.deepStrictEqual([ra.status, ra.history.slice(-1)[0].step, ra.history.slice(-1)[0].note], ['Pending', 'Sent again', 'readings checked – a later day was saved first – warnings confirmed by the sender']);
+    assert.deepStrictEqual(argsOf(a), [{ n: 'A', force: true }], 'kept confirmed for the approval – nothing else changed');
+    assert.deepStrictEqual(saved(), [], 'nothing saved before the approval');
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: a, approve: true }).status, 'Approved');
+    assert.deepStrictEqual(saved(), ['A'], 'approved: saved as it was sent, the warnings confirmed');
+    // ---- MISTAKES: said line by line; "anyway" does not pass a mistake ----
+    const b = sent('B');
+    W('errors');
+    r = api(S, 'decideChangeRequest', { id: b, approve: true });
+    assert.deepStrictEqual([r.status, r.result], ['Returned', 'Not saved: Line 3: "MH-X" is not in Master.']);
+    r = api(M, 'resendFlow', { ids: [b], note: 'x', force: true });
+    assert.deepStrictEqual([r.done.length, r.failed[0].warn, r.failed[0].error], [0, false, 'Not sent again: Line 3: "MH-X" is not in Master. – entry ' + b + ' stays as it is (nothing is lost); send it again when this is put right.']);
+    assert.deepStrictEqual([req(b).status, argsOf(b)], ['Returned', [{ n: 'B' }]], 'not sent: not changed');
+    // ---- ONE WARNING ("… Save anyway?", as one diesel issue): said without the page's question ----
+    const c = sent('C');
+    W('warn');
+    r = api(S, 'decideChangeRequest', { id: c, approve: true });
+    assert.strictEqual(r.result, 'Not saved: To check (a warning, not a mistake): MH-1: the next entry has a lower reading. – the sender can send it again and confirm them');
+    r = api(M, 'resendFlow', { id: c, note: 'ok', force: true });
+    assert.deepStrictEqual([r.status, r.done.map(x => x.id)], ['Pending', [c]]);
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: c, approve: true }).status, 'Approved');
+    assert.deepStrictEqual(saved(), ['A', 'C']);
+    // ---- every "Save anyway" as its save reads it; every answer in words ----
+    assert.deepStrictEqual(run(`() => [['deleteMaster', ['X']], ['deleteMasterMany', [['X', 'Y']]], ['submitBills', [{ bills: [] }]], ['saveDieselBulk', [{ rows: [] }]], ['updateDieselIssue', ['DI-1', { qty: 5 }]], ['saveDieselIssue', [{ qty: 5 }]], ['x', ['only text']]]
+      .map(([f, a]) => [flowForce_(f, a), a])`), [[true, ['X', true]], [true, [['X', 'Y'], true]], [true, [{ bills: [], confirm: true }]], [true, [{ rows: [], force: true }]], [true, ['DI-1', { qty: 5, force: true }]], [true, [{ qty: 5, force: true }]], [false, ['only text']]]);
+    assert.deepStrictEqual(run(`() => [flowRefusal_({ ok: false, used: [{ id: 'JCB-1', diesel: 2, log: 0 }] }), flowRefusal_({ ok: false, duplicates: [{ vendor: 'V1', existing: [{ billNo: '4', rev: 1 }] }] }), flowRefusal_({ ok: false, warning: 'X. Delete anyway?' }), flowRefusal_({ ok: false, error: 'E1' }), flowRefusal_({ ok: false })]`),
+      [{ warn: true, text: 'To check (a warning, not a mistake): JCB-1 has 2 Diesel Issue and 0 Log Book entries (they stay)' },
+        { warn: true, text: 'To check (a warning, not a mistake): V1: a bill for the same period is already submitted (RA Bill 4 rev 1) – the new one is saved with the same bill number as its revision and the older one is marked Superseded' },
+        { warn: true, text: 'To check (a warning, not a mistake): X.' }, { warn: false, text: 'E1' }, { warn: false, text: 'the save refuses it – open the entry\'s page to see why' }]);
+    // every save that answers "to confirm" is one of these (a new one: add it to flowRefusal_ / flowForce_ and here)
+    const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8').split('\n'), asks = new Set(); let fnName = '';
+    code.forEach(l => { const m = l.match(/^function (\w+)\(/); if (m) fnName = m[1]; if (/return \{ ok: false, (warning|warnings|used|duplicates)\b/.test(l)) asks.add(fnName); });
+    assert.deepStrictEqual([...asks].sort(), ['deleteMasterMany_', 'deleteMaster_', 'saveDieselBulk_', 'saveDieselIssue_', 'submitBills_', 'updateDieselIssue_']);
+    const src = code.join('\n');
+    assert.match(src, /function saveDieselBulk_\(b\) \{[\s\S]*?if \(warnings\.length && !b\.force\) return/);
+    assert.match(src, /function saveDieselIssue_\(d, u\) \{[\s\S]*?if \(!d\.force\) \{/);
+    assert.match(src, /function updateDieselIssue_\(id, d\) \{[\s\S]*?if \(!d\.force\) \{/);
+    assert.match(src, /function submitBills_\(b\) \{[\s\S]*?if \(dup\.length && !b\.confirm\) return/);
+    assert.match(src, /function deleteMaster_\(id, force\) \{/); assert.match(src, /function deleteMasterMany_\(ids, force\) \{/);
+    // ---- the page: the warnings shown to confirm; "Send again anyway" sends them confirmed ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.match(app, /askConfirm\(\{ title: 'Please check – warnings, not mistakes', ok: 'Send again anyway', wide: true, html: html \}\)/);
+    assert.match(app, /said\(await call\('resendFlow', \{ ids: warn\.map\(f => f\.id\), note: note, force: true \}\)\);/);
+    const wl = new Function(app.match(/    const warnLines = (t => [^\n]*);\n/)[0].replace('const warnLines =', 'return'))();
+    assert.deepStrictEqual(wl('Not sent again: To check (warnings, not mistakes): Line 2: a. | Line 4: b. – entry VF-00011 stays as it is (nothing is lost); check them and press "Send again anyway" to confirm them.'), ['Line 2: a.', 'Line 4: b.']);
+    // the words in Marathi and Hindi
+    ['mr', 'hi'].forEach(l => { const d = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8'));
+      ['Not sent again: {0} – entry {1} stays as it is (nothing is lost); check them and press "Send again anyway" to confirm them.', 'Please check – warnings, not mistakes', 'Send again anyway', 'To check (warnings, not mistakes): {0}', 'To check (a warning, not a mistake): {0}']
+        .forEach(k => assert.ok(d[k], l + ': ' + k)); });
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k129.flush; SbBook_.prototype.loadMany = __k129.loadMany; SbSheet_.prototype.load_ = __k129.load_; sbDiscard_ = __k129.discard; rtcPush_ = __k129.push; delete API_.test129;
+      CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
+  }
 });
