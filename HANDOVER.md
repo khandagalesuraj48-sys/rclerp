@@ -1736,6 +1736,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   on Send again; `resendFlow` { …, force: true } = "Send again anyway" (`flowForce_`: `force` on the entry / `confirm` for
   `submitBills` / the 2nd value of the master deletes), stored in Args; one refused entry comes back in `failed` (`warn`). Page:
   "Please check – warnings, not mistakes" box. Unit "update-129"; rig `test/browser/again129.js` 9.
+- 19-10-2026 (update-130). Report: `UPDATE_130.md`. OPEN & CORRECT: the sender's Rejected / Returned Diesel Issue entry
+  (`saveDieselIssue`, `saveDieselBulk`, `importDiesel` of one machinery – `FLOW_FIX_`, `flowFixForm_`) opens in its form as sent
+  (`openFlow` → args + the save's check now, `flowDry_`); the page (`flowFix`, `S.flowFix`, `#d_fixbar`, `FIX_BTN`) marks the rows;
+  the form's button "Send again (VF-…)" → `editFlow` { id, note, args } (`flowFixCall`): refused → the save's own answer; else the
+  same request at level 1 with the new Args / Summary and a step "Corrected and sent again" with `changes` (`flowChanges_`);
+  Approvals shows "Corrected by …" (`fixd`). `canFix` in the list. Unit "update-130"; rig `test/browser/fix130.js` 12.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

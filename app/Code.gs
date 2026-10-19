@@ -864,6 +864,8 @@ const API_ = {
   getFlowRules:      { m: '', withUser: true, f: u => getFlowRules_(u) },
   answerFlow:        { m: '', withUser: true, f: (u, x) => flowAnswer_(u, x), log: 'flowAnswer' },
   resendFlow:        { m: '', withUser: true, f: (u, x) => flowResend_(u, x), log: 'flowResend' },      // (update-128) the sender sends his rejected / returned entry again, as it was
+  openFlow:          { m: '', withUser: true, f: (u, x) => flowOpen_(u, x) },      // (update-130) the sender opens his rejected / returned entry in its form, what is wrong marked
+  editFlow:          { m: '', withUser: true, f: (u, x) => flowEdit_(u, x), log: 'flowEdit' },      // (update-130) …corrected: to verification again
   remindFlow:        { m: '', withUser: true, f: (u, x) => flowRemindMine_(u, x), log: 'flowRemindMine' },      // (update-118) the sender reminds the approvers of his waiting entries      // (update-116) the sender answers an entry sent back to him, or takes it back      // (update-114) the Super Admin's verification rules
   saveFlowRules:     { m: '', withUser: true, f: (u, x) => saveFlowRules_(u, x), log: 'flowRules' },
   saveDebitNote:     { m: 'Machinery Billing', edit: true, f: saveDebitNote_, log: 'debitNote' },
@@ -1195,6 +1197,9 @@ function logAfter_(u, spec, args, res, before) {
       break;
     case 'flowResend':      // (update-128)
       if ((res.done || []).length) writeLog_(u, 'Edit', 'Approvals', res.done.map(d => d.id).join(', ').slice(0, 120), 'Verification – sent again by the sender', clean_((args[0] || {}).note).slice(0, 300) + ((res.failed || []).length ? ' | not sent: ' + res.failed.map(f => f.id).join(', ') : ''));
+      break;
+    case 'flowEdit':      // (update-130)
+      if (res && res.ok === true) writeLog_(u, 'Edit', 'Approvals', res.id, 'Verification – corrected and sent again by the sender', (clean_((args[0] || {}).note).slice(0, 300) + ' | ' + (res.changes || []).join('; ')).slice(0, 900));
       break;
     case 'flowAnswer':      // (update-116)
       writeLog_(u, res.status === 'Withdrawn' ? 'Delete' : 'Edit', 'Approvals', res.id, res.status === 'Withdrawn' ? 'Verification – taken back by the sender' : 'Verification – answered and sent again', clean_((args[0] || {}).note).slice(0, 300));
@@ -9351,7 +9356,8 @@ function crList_(u, f) {
         o.waitSince = fl.waitSince || r.at; o.history = (fl.history || []).slice(-20); o.canDecide = flowCan_(u, r); o.qty = fl.qty || 0;
         if (r.status === 'Reverted') { o.reverted = { by: (fl.reverted || {}).by || '', note: (fl.reverted || {}).note || '', at: (fl.reverted || {}).at || '' }; o.canAnswer = r.email === me; }
         o.m = fl.m || ''; o.remindedAt = fl.remindedAt || ''; o.reminds = Number(fl.reminds) || 0; o.canRemind = r.email === me && r.status === 'Pending';      // (update-118) the sender's reminders
-        o.canResend = r.email === me && FLOW_AGAIN_.indexOf(r.status) > -1; o.resent = Number(fl.resent) || 0; }      // (update-128) his rejected / returned entry: Send again
+        o.canResend = r.email === me && FLOW_AGAIN_.indexOf(r.status) > -1; o.resent = Number(fl.resent) || 0;      // (update-128) his rejected / returned entry: Send again
+        if (o.canResend && FLOW_FIX_.indexOf(r.fn) > -1) { let a = []; try { a = JSON.parse(r.args || '[]'); } catch (e) { a = []; } o.canFix = !!flowFixForm_(r.fn, a); } }      // (update-130) …or open it and correct it
       else o.canDecide = !!u.super && r.status === 'Pending';
       o.mine = r.email === me; return o; });
   return { mine: flowMine_(u), requests: list, pending: list.filter(r => r.status === 'Pending' || r.canAnswer).length, forMe: list.filter(r => r.canDecide || r.canAnswer).length, backToMe: list.filter(r => r.canAnswer).length, superAdmin: !!u.super };
@@ -9797,6 +9803,115 @@ function flowResendOne_(u, id, note, force) {
   bump_(['flow']);
   crNotify_(to.length ? to : crSupers_(), { id: r0.id, title: 'Sent again for verification – ' + (MODULE_LABEL_[spec.m] || spec.m) + ' by ' + (u.name || u.email), body: (r0.summary[0] || r0.id).slice(0, 80) + ' – ' + note });
   return { ok: true, id: r0.id, status: 'Pending', level: 1, levels: levels.length, to: flowNames_(to), summary: r0.summary };
+}
+/* (update-130, asked 19-10-2026: "jy entry pathwale hote te mala open krun edit pn krta yaw kay kuth chukley te pn samjayla haw";
+ * his choices: only the sender; corrected → to verification again; Diesel Issue first) OPEN & CORRECT – the sender's own Rejected /
+ * Returned entry opens in the form it was made in (Diesel Issue: one entry; Multiple entries by date or by machinery) with what is
+ * wrong NOW marked – the save checked as his own (nothing written). He corrects it and sends it again: the same request (VF-…), the
+ * corrected entry, from level 1; its steps say what changed (before → after), shown to the people who approve it. */
+const FLOW_FIX_ = ['saveDieselIssue', 'saveDieselBulk', 'importDiesel'];
+// the form an entry opens in: one / date (Multiple entries, one date) / mach (Multiple entries, one machinery) – '' = it does not open
+function flowFixForm_(fn, args) {
+  const a = (args || [])[0];
+  if (FLOW_FIX_.indexOf(fn) === -1) return '';
+  if (fn === 'saveDieselIssue') return a && typeof a === 'object' && !Array.isArray(a) ? 'one' : '';
+  if (fn === 'saveDieselBulk') return a && typeof a === 'object' && Array.isArray(a.rows) ? 'date' : '';
+  const rows = Array.isArray(a) ? a.filter(r => r && typeof r === 'object') : [], nos = [...new Set(rows.map(r => noKey_(r.no)))];
+  return rows.length && nos.length === 1 && nos[0] ? 'mach' : '';
+}
+function flowFixOf_(u, id) {
+  const me = str_(u.email).toLowerCase(), r0 = flowAll_().find(r => r.id === id);
+  if (!r0) throw new Error('Entry ' + id + ' was not found – refresh the list.');
+  if (r0.email !== me) throw new Error('Only the person who sent entry ' + id + ' opens and corrects it.');
+  if (FLOW_AGAIN_.indexOf(r0.status) === -1) throw new Error('Entry ' + id + ' is ' + (r0.status === 'Pending' ? 'waiting for verification already' : r0.status === 'Reverted' ? 'sent back to you – answer it and send it again' : r0.status.toLowerCase()) + ' – only a rejected or returned entry is opened to correct.');
+  const spec = API_[r0.fn];
+  if (!spec) throw new Error('Entry ' + id + ' cannot be corrected: the action ' + r0.fn + ' is not in the app any more.');
+  if (spec.m && !canEdit_(u, spec.m)) throw new Error('Entry ' + id + ' cannot be corrected: you have no Edit access to ' + (MODULE_LABEL_[spec.m] || spec.m) + ' any more.');
+  let args0 = []; try { args0 = JSON.parse(r0.args || '[]'); } catch (e) { args0 = []; }
+  const form = flowFixForm_(r0.fn, args0);
+  if (!form) throw new Error('Entry ' + id + ' cannot be opened to correct here (Diesel Issue – one entry and Multiple entries – only, for now) – use "Send again", or enter it again.');
+  const levels = ((r0.flow || {}).levels || []).filter(l => Array.isArray(l) && l.length);
+  if (!levels.length) throw new Error('Entry ' + id + ' cannot be sent again: it has no verification levels.');
+  return { r0: r0, spec: spec, form: form, args0: args0, levels: levels };
+}
+// the save run as his own, nothing written (as flowSend_): { res } – its answer – or { error } – what it said, as for a save
+function flowDry_(u, spec, args, id, held) {
+  TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
+  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
+  let res = null;
+  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = id; FLOW_PHOTOS_ = held;
+  try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); throw FLOW_DRY_; }); }
+  catch (e) { if (e !== FLOW_DRY_) { if (faultKind_(e)) throw e; return { error: String((e && e.message) || e).replace(/^Error:\s*/, '') }; } }
+  finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; TABLE_MEMO_ = {}; }
+  return { res: res };
+}
+const flowHeld_ = r0 => { const f0 = r0.flow || {}; return f0.photos && typeof f0.photos === 'object' ? JSON.parse(JSON.stringify(f0.photos)) : {}; };
+const flowRefusing_ = res => !!(res && typeof res === 'object' && (res.ok === false || (res.errors || []).length));
+// what changed, in words: "Row 3 – KM reading: 48409.3 → 48509.3", "Date: … → …", "Row 5: added" (up to 30)
+const FLOW_FIELD_ = { no: 'Machinery', qty: 'Litres', kmReading: 'KM reading', hrReading: 'Hrs reading', meter: 'Meter', driver: 'Driver', remark: 'Remark', date: 'Date', shift: 'Shift', source: 'Diesel source', mode: 'Measured by', photos: 'Photos' };
+function flowChanges_(a0, a1) {
+  const A = (a0 || [])[0] || {}, B = (a1 || [])[0] || {}, out = [];
+  const val = v => v === null || v === undefined ? '' : Array.isArray(v) ? String(v.length) : typeof v === 'object' ? JSON.stringify(v) : String(v).trim();
+  const cmp = (x, y, pre) => [...new Set(Object.keys(x || {}).concat(Object.keys(y || {})))].forEach(k => {
+    if (['force', 'line', 'rows'].indexOf(k) > -1) return;
+    const p = val((x || {})[k]), q = val((y || {})[k]);
+    if (k === 'mode' && (!p || !q)) return;      // "Measured by" is put by the page from the Master – only a real change (e.g. "Meter not working") is said
+    if (p !== q) out.push(pre + (FLOW_FIELD_[k] || k) + ': ' + (p || '–') + ' → ' + (q || '–'));
+  });
+  const ra = Array.isArray(A) ? A : Array.isArray(A.rows) ? A.rows : null, rb = Array.isArray(B) ? B : Array.isArray(B.rows) ? B.rows : null;
+  if (!Array.isArray(A)) cmp(A, B, '');
+  if (ra || rb) for (let i = 0; i < Math.max((ra || []).length, (rb || []).length); i++) {
+    const x = (ra || [])[i], y = (rb || [])[i], line = 'Row ' + (i + 1);
+    if (!x) out.push(line + ': added'); else if (!y) out.push(line + ': taken out'); else cmp(x, y, line + ' – ');
+  }
+  return out.length > 30 ? out.slice(0, 30).concat(['… ' + (out.length - 30) + ' more']) : out;
+}
+// OPEN: the entry as it was sent, and what the save says of it now
+function flowOpen_(u, x) {
+  const id = str_((x || {}).id), fx = flowFixOf_(u, id), r0 = fx.r0;
+  const dry = flowDry_(u, fx.spec, JSON.parse(JSON.stringify(fx.args0)), r0.id, flowHeld_(r0));
+  const check = dry.error ? { ok: false, error: dry.error } : flowRefusing_(dry.res)
+    ? ['errors', 'warnings', 'warning', 'error', 'used', 'duplicates'].reduce((o, k) => { if (dry.res[k] !== undefined) o[k] = dry.res[k]; return o; }, { ok: false }) : { ok: true };
+  return { ok: true, id: r0.id, fn: r0.fn, form: fx.form, args: fx.args0, status: r0.status, result: r0.result || '', decidedBy: r0.decidedBy || '', note: r0.note || '', check: check, summary: r0.summary };
+}
+// CORRECTED: checked as a save – what it refuses is said on the form, as for a save (nothing changes); else it goes again
+function flowEdit_(u, x) {
+  x = x || {};
+  const id = str_(x.id), note = clean_(x.note).slice(0, 300), me = str_(u.email).toLowerCase();
+  if (!note) throw new Error('Write what you corrected – your remark goes with the entry to the people who approve it.');
+  const fx = flowFixOf_(u, id), fn = fx.r0.fn, spec = fx.spec, levels = fx.levels;
+  const args = Array.isArray(x.args) ? JSON.parse(JSON.stringify(x.args)) : null;
+  if (!args || flowFixForm_(fn, args) === '') throw new Error('Entry ' + id + ' cannot be sent like this – open it again and correct it in its form.');
+  // one entry: the photos sent with it stay with it; a photo of the same kind taken now in the form takes its place
+  if (fn === 'saveDieselIssue') { const p0 = (fx.args0[0] || {}).photos; if (Array.isArray(p0) && p0.length) { const byK = {};
+    p0.concat(Array.isArray(args[0].photos) ? args[0].photos : []).forEach(x => { if (x && typeof x === 'object' && x.k) byK[x.k] = x; }); args[0].photos = Object.keys(byK).map(k => byK[k]).slice(0, 4); } }
+  const json = JSON.stringify(args);
+  if (json.length > 400000) throw new Error('This entry is too big to send for verification at once – send it in parts (fewer rows).');
+  const held = flowHeld_(fx.r0), dry = flowDry_(u, spec, args, fx.r0.id, held);
+  if (dry.error) throw new Error(dry.error);      // the save's own words (e.g. not enough diesel) – nothing changed
+  if (flowRefusing_(dry.res)) return Object.assign({}, dry.res, { ok: false, id: id, notSent: true });      // its lines marked on the form; warnings: "anyway"
+  const changes = flowChanges_(fx.args0, args), facts = flowFacts_(fn, args), d = flowDescribe_(fn, args);
+  let to = [], r0 = fx.r0;
+  withLock_(() => {
+    r0 = flowFixOf_(u, id).r0;
+    const dup = flowAll_().find(r => r.id !== r0.id && r.status === 'Pending' && r.email === me && r.fn === fn && r.args === json);
+    if (dup) throw new Error('This same entry is already waiting for verification as ' + dup.id + ' – it is not sent twice.');
+    const f = r0.flow || {}, now = new Date().toISOString();
+    f.levels = levels; f.level = 0; f.waitSince = now; f.reminded = {}; f.resent = (Number(f.resent) || 0) + 1; f.corrected = (Number(f.corrected) || 0) + 1;
+    delete f.reverted; delete f.remindedAt; f.reminds = 0; f.byLoc = facts.byLoc; f.qty = facts.qty;
+    if (Object.keys(held).length) f.photos = held;
+    f.history = (f.history || []).concat([{ step: 'Corrected and sent again', level: 1, by: u.name || u.email, email: me, at: now, note: note, changes: changes }]);
+    TABLE_MEMO_ = {};
+    const t2 = crTable_(false), r1 = t2.rows.map((r, i) => crOut_(t2, r, i)).find(r => r.id === r0.id), row = t2.rows[r1.i].slice();
+    set_(row, t2, 'Status', 'Pending'); set_(row, t2, 'Data', JSON.stringify(f)); set_(row, t2, 'Result', ''); set_(row, t2, 'Args', json);
+    set_(row, t2, 'Summary', JSON.stringify(d.lines)); set_(row, t2, 'Machinery', d.nos.slice(0, 300)); set_(row, t2, 'Dates', d.dates.slice(0, 300)); stampEdit_(row, t2);
+    t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
+    if (Object.keys(held).length) { const pc = CacheService.getScriptCache(); Object.keys(held).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: r0.id })), 21600); } catch (e) { /* the request keeps them */ } }); }
+    to = levels[0].filter(e => e !== me);
+  });
+  bump_(['flow']);
+  crNotify_(to.length ? to : crSupers_(), { id: r0.id, title: 'Corrected and sent again – ' + (MODULE_LABEL_[spec.m] || spec.m) + ' by ' + (u.name || u.email), body: (d.lines[0] || r0.id).slice(0, 80) + ' – ' + note });
+  return { ok: true, id: r0.id, status: 'Pending', level: 1, levels: levels.length, to: flowNames_(to), changes: changes, summary: d.lines, list: crList_(u, {}) };
 }
 /* (update-118, asked 16-10-2026: "jya pending aahe tyach reminder pn to pathau shakel … entry wise or all send reminder dable ki
  * verification pending aslele entry la tya user hard push notification app la send krel jene krun jo koni approval krnar aahe

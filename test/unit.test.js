@@ -3062,7 +3062,7 @@ test('update-116: "Send to verification" for the works under a rule; sent back w
     // ---- the page: the buttons, the diesel way ----
     const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
     ['d_save', 'bd_save', 'bm_save', 'i_save', 't_save', 'tb_save', 'l_save', 'm_save', 'v_save', 'boq_save', 'py_save'].forEach(b => assert.ok(new RegExp('\\b' + b + ': \\{ m: ').test(app), b));
-    assert.match(app, /const want = flowWill\(id\) \? 'Send to verification' : x\.dataset\.flowOrig;/);
+    assert.match(app, /const want = S\.flowFix && FIX_BTN\[S\.flowFix\.form\] === id \? 'Send again \(' \+ S\.flowFix\.id \+ '\)' : flowWill\(id\) \? 'Send to verification' : x\.dataset\.flowOrig;/);      // (update-130: correcting a returned entry)
     assert.match(app, /S\.flowMine = d\.flow \|\| \{\}/);
     // the page's dieselWay (taken from the page) on machinery of the Asset Master
     const src = app.slice(app.indexOf('  function dieselWay(m) {'), app.indexOf('  function dieselWayMount('));
@@ -3901,6 +3901,129 @@ test('update-129: Send again and the approval say a save\'s WARNINGS (not "refus
         .forEach(k => assert.ok(d[k], l + ': ' + k)); });
   } finally {
     vm.runInContext(`SbBook_.prototype.flush = __k129.flush; SbBook_.prototype.loadMany = __k129.loadMany; SbSheet_.prototype.load_ = __k129.load_; sbDiscard_ = __k129.discard; rtcPush_ = __k129.push; delete API_.test129;
+      CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
+  }
+});
+
+test('update-130: Open & correct – the sender opens his returned / rejected Diesel Issue entry in its form, what is wrong marked; corrected, it goes to verification again (what changed in its steps)', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // the three Diesel Issue saves answer as theirs do (a KM reading under 100 is a mistake in "strict"; one entry: a warning unless force)
+  vm.runInContext(`globalThis.__k130 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_,
+      one: API_.saveDieselIssue, bulk: API_.saveDieselBulk, imp: API_.importDiesel };
+    globalThis.DB130 = {};
+    globalThis.__fill130 = s => { const d = DB130[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep130 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill130(s); if (s.loaded) DB130[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    SB_BOOK_ = null;
+    SbBook_.prototype.flush = function () { __keep130(this); __k130.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill130(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill130(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    globalThis.SENT130 = []; rtcPush_ = function (ids, msg) { SENT130.push(msg); };
+    globalThis.W130 = 'clean'; globalThis.SAVED130 = [];
+    const bad = (rows, k) => rows.map((r, i) => ({ row: (k ? r.line : i + 1), r: r })).filter(x => W130 === 'strict' && x.r && x.r.kmReading !== '' && x.r.kmReading !== undefined && Number(x.r.kmReading) < 100)
+      .map(x => ({ row: x.row, msg: x.r.no + ': KM Reading ' + x.r.kmReading + ' is less than the last KM Reading 100.' }));
+    API_.saveDieselBulk = { m: 'Diesel Issue', edit: true, f: b => { const e = bad(b.rows || []); if (e.length) return { ok: false, errors: e }; if (!FLOW_DRY_ON_) SAVED130.push(['bulk', b]); return { ok: true, count: b.rows.length }; } };
+    API_.importDiesel = { m: 'Diesel Issue', edit: true, f: rows => { const e = bad(rows, true); if (e.length) return { ok: false, errors: e }; if (!FLOW_DRY_ON_) SAVED130.push(['imp', rows]); return { ok: true, count: rows.length }; } };
+    API_.saveDieselIssue = { m: 'Diesel Issue', edit: true, withUser: true, f: (u, d) => { if (W130 === 'strict' && !d.force) return { ok: false, warning: d.no + ': the next fill has a lower reading. Save anyway?' }; if (!FLOW_DRY_ON_) SAVED130.push(['one', d]); return { ok: true, id: 'DI-1' }; } };
+    kvWrite_("FLOW_RULES", "{}"); kvWrite_("CR_SUPERS", JSON.stringify(["sa130@rcl.test"]));`, ctx);
+  try {
+    const PW = 'sha256$0123456789abcdef$' + 'd'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('mahesh130@rcl.test', 'Mahesh Jadhav', false, { 'Diesel Issue': 'Edit' }), mk('shubham130@rcl.test', 'Shubham', false, { 'Diesel Issue': 'Edit' }), mk('sa130@rcl.test', 'Super C', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok130_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa130@rcl.test'); });
+    const api = (who, fn, ...a) => run('(t, f, a) => api(t, f, a)', tok[who], fn, a);
+    const M = 'mahesh130@rcl.test', S = 'shubham130@rcl.test', SA = 'sa130@rcl.test';
+    const W = w => run('w => { W130 = w; }', w);
+    assert.ok(api(SA, 'saveFlowRules', { tasks: { 'Diesel Issue': { on: true, levels: [[S]] } } }).ok);
+    const sent = (fn, ...a) => { W('clean'); const t = api(M, fn, ...a).THROWN || ''; assert.match(t, /^Sent for verification/, t); return t.match(/VF-\d{5}/)[0]; };
+    const req = (who, id) => api(who, 'getChangeRequests', {}).requests.find(x => x.id === id);
+    const argsOf = id => JSON.parse(run('id => flowAll_().find(r => r.id === id).args', id));
+    const saved = () => run('() => SAVED130.slice()');
+    // ---- MULTIPLE ENTRIES (one date): returned with a mistake on row 1 ----
+    const B = { date: '2026-10-18', shift: 'Day', source: 'Dispenser', rows: [{ no: 'MH-1', qty: '10', kmReading: '50', hrReading: '', driver: 'Ravi', remark: '' }, { no: 'MH-2', qty: '5', kmReading: '500', hrReading: '', driver: '', remark: '' }, { no: '', qty: '', kmReading: '', hrReading: '', driver: '', remark: '' }], force: false };
+    const a = sent('saveDieselBulk', B);
+    W('strict');
+    let r = api(S, 'decideChangeRequest', { id: a, approve: true });
+    assert.deepStrictEqual([r.status, r.result], ['Returned', 'Not saved: Line 1: MH-1: KM Reading 50 is less than the last KM Reading 100.']);
+    assert.deepStrictEqual([req(M, a).canFix, req(M, a).canResend, !!req(S, a).canFix], [true, true, false], 'only the sender may open it');
+    // only the sender opens it; it opens as it was sent, with what is wrong NOW
+    assert.strictEqual(api(S, 'openFlow', { id: a }).THROWN, 'Only the person who sent entry ' + a + ' opens and corrects it.');
+    r = api(M, 'openFlow', { id: a });
+    assert.deepStrictEqual([r.form, r.fn, r.status, r.args, r.check], ['date', 'saveDieselBulk', 'Returned', [B], { ok: false, errors: [{ row: 1, msg: 'MH-1: KM Reading 50 is less than the last KM Reading 100.' }] }], JSON.stringify(r).slice(0, 500));
+    assert.deepStrictEqual(saved(), [], 'opening saves nothing');
+    // a remark is needed; still wrong → said on its rows (as the save says it), nothing changes
+    assert.strictEqual(api(M, 'editFlow', { id: a, args: [B] }).THROWN, 'Write what you corrected – your remark goes with the entry to the people who approve it.');
+    const B2 = JSON.parse(JSON.stringify(B)); B2.rows[1].kmReading = '550';
+    r = api(M, 'editFlow', { id: a, note: 'row 2 reading', args: [B2] });
+    assert.deepStrictEqual([r.ok, r.notSent, r.errors], [false, true, [{ row: 1, msg: 'MH-1: KM Reading 50 is less than the last KM Reading 100.' }]]);
+    assert.deepStrictEqual([req(M, a).status, argsOf(a)], ['Returned', [B]], 'not sent: nothing changed');
+    assert.match(api(M, 'editFlow', { id: a, note: 'x', args: [{ rows: 'x' }] }).THROWN, /cannot be sent like this – open it again and correct it in its form\.$/);
+    // corrected → the same request waits again at level 1, corrected; its steps say what changed; the approver is told
+    B2.rows[0].kmReading = '150'; B2.rows[0].driver = 'Ravi Patil';
+    run('() => { SENT130.length = 0; }');
+    r = api(M, 'editFlow', { id: a, note: 'Reading corrected from the meter photo', args: [B2] });
+    assert.deepStrictEqual([r.ok, r.id, r.status, r.level, r.levels, r.to], [true, a, 'Pending', 1, 1, ['Shubham']], JSON.stringify(r).slice(0, 400));
+    assert.deepStrictEqual(r.changes, ['Row 1 – KM reading: 50 → 150', 'Row 1 – Driver: Ravi → Ravi Patil', 'Row 2 – KM reading: 500 → 550']);
+    const ra = r.list.requests.find(x => x.id === a), last = ra.history.slice(-1)[0];
+    assert.deepStrictEqual([ra.status, ra.canFix, ra.canResend, last.step, last.note, last.changes], ['Pending', undefined, false, 'Corrected and sent again', 'Reading corrected from the meter photo', r.changes]);
+    assert.deepStrictEqual(argsOf(a), [B2], 'the corrected entry is what waits');
+    assert.deepStrictEqual(run('() => SENT130.map(m => m.title)'), ['Corrected and sent again – ' + run("() => MODULE_LABEL_['Diesel Issue'] || 'Diesel Issue'") + ' by Mahesh Jadhav']);
+    assert.ok(run('() => table_(LOG_SHEET, []).rows.some(x => x.join("|").indexOf("Verification – corrected and sent again by the sender") > -1 && x.join("|").indexOf("Row 1 – KM reading: 50 → 150") > -1)'), 'the Activity Log');
+    assert.match(api(M, 'openFlow', { id: a }).THROWN, new RegExp('^Entry ' + a + ' is waiting for verification already – only a rejected or returned entry is opened to correct\\.$'));
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: a, approve: true }).status, 'Approved');
+    assert.deepStrictEqual(saved(), [['bulk', B2]], 'approved: the corrected entry is saved');
+    // ---- ONE ENTRY: a warning ("Save anyway?") – sent with it confirmed; its photos stay with it ----
+    const D = { date: '2026-10-18', shift: 'Day', source: 'Dispenser', no: 'MH-3', qty: 20, kmReading: 900, hrReading: '', driver: '', remark: '', force: false, mode: 'KM', photos: [{ k: 'dash', p: 'p/dash.jpg' }, { k: 'pump', p: 'p/pump.jpg' }] };
+    const b = sent('saveDieselIssue', D);
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: b, approve: false, note: 'litres?' }).status, 'Rejected');
+    assert.strictEqual(req(M, b).canFix, true, 'a rejected entry too');
+    W('strict');
+    r = api(M, 'openFlow', { id: b });
+    assert.deepStrictEqual([r.form, r.check], ['one', { ok: false, warning: 'MH-3: the next fill has a lower reading. Save anyway?' }]);
+    const D2 = Object.assign({}, D, { qty: 18, photos: [{ k: 'pump', p: 'p/pump2.jpg' }] });      // a new Dispenser photo taken in the form
+    r = api(M, 'editFlow', { id: b, note: 'litres 18', args: [D2] });
+    assert.deepStrictEqual([r.ok, r.notSent, r.warning], [false, true, 'MH-3: the next fill has a lower reading. Save anyway?']);
+    r = api(M, 'editFlow', { id: b, note: 'litres 18', args: [Object.assign({}, D2, { force: true })] });
+    assert.deepStrictEqual([r.status, r.changes], ['Pending', ['Litres: 20 → 18']], 'force is not a change; the photos: as many as before');
+    assert.deepStrictEqual(argsOf(b)[0].photos, [{ k: 'dash', p: 'p/dash.jpg' }, { k: 'pump', p: 'p/pump2.jpg' }], 'the photos sent with it stay; the new one of its kind takes its place');
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: b, approve: true }).status, 'Approved');
+    assert.deepStrictEqual(saved().slice(-1)[0][1].qty, 18);
+    // ---- MULTIPLE ENTRIES (one machinery): opens; several machinery → not here (Send again only) ----
+    const R = [{ line: 1, date: '2026-10-17', shift: 'Day', source: 'Dispenser', no: 'MH-4', qty: 10, kmReading: 40, hrReading: '', driver: '', remark: '' }, { line: 2, date: '2026-10-18', shift: 'Day', source: 'Dispenser', no: 'MH-4', qty: 12, kmReading: 160, hrReading: '', driver: '', remark: '' }];
+    const c = sent('importDiesel', R);
+    W('strict');
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: c, approve: true }).status, 'Returned');
+    r = api(M, 'openFlow', { id: c });
+    assert.deepStrictEqual([r.form, r.check.errors], ['mach', [{ row: 1, msg: 'MH-4: KM Reading 40 is less than the last KM Reading 100.' }]]);
+    const R2 = [Object.assign({}, R[0], { kmReading: 140 }), R[1], Object.assign({}, R[1], { line: 3, date: '2026-10-19', kmReading: 170 })];
+    r = api(M, 'editFlow', { id: c, note: 'ok', args: [R2] });
+    assert.deepStrictEqual(r.changes, ['Row 1 – KM reading: 40 → 140', 'Row 3: added']);
+    const d = sent('importDiesel', [R[0], Object.assign({}, R[1], { no: 'MH-5' })]);
+    api(S, 'decideChangeRequest', { id: d, approve: false, note: 'no' });
+    assert.deepStrictEqual([req(M, d).canResend, req(M, d).canFix], [true, false]);
+    assert.match(api(M, 'openFlow', { id: d }).THROWN, /cannot be opened to correct here \(Diesel Issue – one entry and Multiple entries – only, for now\) – use "Send again", or enter it again\.$/);
+    // ---- the words of what changed ----
+    assert.deepStrictEqual(run(`() => flowChanges_([{ date: '2026-10-01', shift: 'Day', rows: [{ no: 'A', qty: '1' }, { no: 'B', qty: '2' }] }], [{ date: '2026-10-02', shift: 'Day', rows: [{ no: 'A', qty: '1' }] }])`), ['Date: 2026-10-01 → 2026-10-02', 'Row 2: taken out']);
+    assert.deepStrictEqual(run(`() => flowChanges_([{ rows: [{ no: 'A' }, { no: 'B', mode: 'KM' }] }], [{ rows: [{ no: 'A', mode: 'KM' }, { no: 'B', mode: 'Meter not working' }] }])`), ['Row 2 – Measured by: KM → Meter not working'], '"Measured by" put by the page is not a change');
+    // ---- the page ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.match(app, /approvals: \{ saves: \[[^\]]*'openFlow', 'editFlow', 'resendFlow'\]/);
+    assert.match(app, /r\.canFix \? '<button class="btn small" type="button" data-fvfix="' \+ esc\(r\.id\) \+ '">Open &amp; correct<\/button> ' : ''/);
+    assert.match(app, /\(r\.canFix \? '<button class="btn small" type="button" data-crfix="' \+ esc\(r\.id\) \+ '">Open &amp; correct<\/button> ' : ''\)/);
+    assert.match(app, /const res = fixing \? await flowFixCall\(\[d\]\) : editing \? await call\('updateDieselIssue', editing, d\) : await call\('saveDieselIssue', d\);/);
+    assert.match(app, /const res = fixing \? await flowFixCall\(\[b\]\) : await call\('saveDieselBulk', b\);/);
+    assert.match(app, /const res = fixing \? await flowFixCall\(\[out\]\) : await call\('importDiesel', out\);/);
+    assert.match(app, /return call\('editFlow', \{ id: fx\.id, note: fx\.note, args: args \}\);/);
+    assert.match(app, /<div class="fixbar" id="d_fixbar" hidden><\/div>/);
+    ['mr', 'hi'].forEach(l => { const dd = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8'));
+      ['Open & correct', 'Stop correcting', 'Write what you corrected.', 'Only the person who sent entry {0} opens and corrects it.', '{0} corrected and sent again for verification (level 1{1}) – saved when approved.'].forEach(k => assert.ok(dd[k], l + ': ' + k)); });
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k130.flush; SbBook_.prototype.loadMany = __k130.loadMany; SbSheet_.prototype.load_ = __k130.load_; sbDiscard_ = __k130.discard; rtcPush_ = __k130.push;
+      API_.saveDieselIssue = __k130.one; API_.saveDieselBulk = __k130.bulk; API_.importDiesel = __k130.imp;
       CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
   }
 });
