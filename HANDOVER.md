@@ -1767,6 +1767,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `rtc-mini`), my bar hides itself while my screen is shown (`C.autoMini`, in `rtcUseScreen`; back in `rtcStopMine`); a screen shown
   to me starts big (`size: 'l'`). Camera of a computer: `rtcCamRank` (own camera → other real → camera app, by name), `rtcGetCam`
   asks the front camera / the best by id, `rtcFlip` goes to the next camera. Rig `test/browser/call135.js` 9.
+- 19-10-2026 (update-136). Report: `UPDATE_136.md`. Screen share: `C.screen` (sender `P.scr`) and `C.cam` (sender `P.camS`) each on
+  its own (`rtcShowMine` / `rtcStopMine(…, kind)`); a share has `face` (a camera of a face – `rtcMyFace`); faces at the side
+  (`#rtc_faces`, `rtcFaces`, mine "You"), the big picture a screen or a phone's back camera (`rtcViewPick0`; a tapped face `C.pin`);
+  quality in `rtcLowApply` (screen 2.5 Mbit/s maintain-resolution, camera 1.2 Mbit/s 24/s, voice 64 kbit/s high), capture up to
+  1080p / camera 24–30/s / microphone speech 48 kHz. Rig `test/browser/both136.js` 12.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

@@ -6,7 +6,7 @@
 //   1. A calls B (his screen is shown at once): A's bar hides itself – a small pill with the time, the microphone and "Stop";
 //   2. B accepts: A's screen BIG (as in Meet); B's bar: round buttons Mute · Show my camera · Show my screen · Chat · More · Leave, Hide;
 //   3. B: Hide → the pill; Show the bar → back;
-//   4. B: Show my camera → A sees "Camera of B 135 Bala";
+//   4. B: Show my camera → A sees B's face at the side (update-136);
 //   5. A: Stop (on the pill) → his bar comes back by itself;
 //   6. the camera of a computer: its own camera first, a camera app last – by name; the first time (no names yet) the front camera is
 //      asked, and a camera app that opened is changed for the computer's own camera.
@@ -65,9 +65,10 @@ const clean = () => sql("delete from app_users where email in ('a135@rcl.test', 
     await B.p.setViewport({ width: 1440, height: 860 }); await wait(500);
     // ---- 4. B shows his camera ----
     await click(B, '#rtc_cam');
-    a = await until(async () => { const s = await st(A); return s.view && /^Camera of B 135 Bala/.test(s.view.title) && s.view.w > 0 ? s : null; }, 20000) || await st(A);
+    const face = X => X.f.evaluate(() => [...document.querySelectorAll('#rtc_faces .rtc-face')].map(el => el.querySelector('b').textContent + (el.querySelector('video').videoWidth > 0 ? ':live' : ':dark')));
+    const af = await until(async () => { const f = await face(A); return f.indexOf('B 135 Bala:live') > -1 ? f : null; }, 20000) || await face(A);
     bb = await st(B);
-    ok('4. B: Show my camera → A sees "' + (a.view && a.view.title) + '"; B\'s button says "Stop my camera" (the camera: ' + bb.camLabel + ')', !!a.view && /^Camera of B 135 Bala/.test(a.view.title) && bb.btns.indexOf('Stop my camera') > -1, { a: a.view, b: bb.btns });
+    ok('4. B: Show my camera → A sees B\'s face at the side ' + JSON.stringify(af) + ' (update-136: a camera of a face is a face, a screen is big); B\'s button says "Stop my camera"', af.indexOf('B 135 Bala:live') > -1 && bb.btns.indexOf('Stop my camera') > -1, { af, b: bb.btns });
     await click(B, '#rtc_cam'); await wait(800);
     // ---- 5. A stops his screen on the pill → his bar comes back ----
     await click(A, '#rtc_share'); await wait(800); a = await st(A);
