@@ -548,7 +548,8 @@ function rtcSend_(u, x) {
     // the ones rung: on their list of calls (missed until they answer), and a notification to their devices (the app may be closed)
     const help = dj.help && typeof dj.help === 'object' ? clean_(dj.help.title || '').slice(0, 40) : '';
     fresh.forEach(id => { try { rtcMissEdit_(id, l => { l.unshift({ call: call, from: me, name: myName, at: Date.now(), st: 'r' }); return l; }); } catch (e) { /* the list is a help, never in the way of the ring */ } });
-    rtcPush_(fresh.filter(id => !cache.get('RTCPU_' + me + '_' + id) && (cache.put('RTCPU_' + me + '_' + id, '1', 20), true)), { t: 'ring', call: call, name: myName, help: help ? 1 : 0, page: help });      // (one notification per caller and person in 20 s)
+    const mode = dj.mode === 'voice' || dj.mode === 'video' ? dj.mode : '';      // (update-137) a call of the phone app: "is calling you" on the notification
+    rtcPush_(fresh.filter(id => !cache.get('RTCPU_' + me + '_' + id) && (cache.put('RTCPU_' + me + '_' + id, '1', 20), true)), { t: 'ring', call: call, name: myName, help: help ? 1 : 0, page: help, mode: mode });      // (one notification per caller and person in 20 s)
   }
   if ((t === 'answer' || t === 'decline') && !cache.get('RTCA_' + call + '_' + me) && !cache.get('RTCD_' + call + '_' + me)) rtcPush_([me], { t: 'done', call: call, name: nameOf(to[0]) }, str_(dj.ep));      // his other devices: "answered on another device"
   if (t === 'answer' && !cache.get('RTCA_' + call + '_' + me)) { cache.put('RTCA_' + call + '_' + me, '1', 21600); rtcPendDrop_(me, call); try { rtcMissEdit_(me, l => rtcMissMark_(l, call, 'a')); } catch (e) { /* see above */ } writeLog_(u, 'Screen share', 'Screen Share', call, myName + ' joined the screen share of ' + to.map(nameOf).join(', '), ''); }

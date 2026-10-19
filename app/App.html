@@ -17489,11 +17489,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     RTC.ring = { call: m.call, from: m.from, name: m.name, dev: d.dev || '', sdp: d.sdp, people: Array.isArray(d.people) ? d.people : [], at: Date.now() };
     const others = RTC.ring.people.length > 1 ? ' (with ' + (RTC.ring.people.length - 1) + ' more)' : '', help = d.help && typeof d.help === 'object' ? d.help : null;
     const what = d.mode === 'cam' ? 'a camera' : d.mode === 'page' ? 'a page of the app' : 'a screen';
-    $('rtc_in_t').textContent = help ? m.name + ' needs help – wants to show you ' + what + others : m.name + ' wants to show you ' + what + others;
-    $('rtc_in_s').textContent = help ? String((help.title ? help.title + ': ' : '') + (help.msg || '')).slice(0, 320) : 'Screen share with voice · nothing is recorded';
+    /* (update-137, asked 19-10-2026: "JR SAMAJ EK USER APP WAR AAHE ANI EK USER WEB WAR TRI SUDHA CONNECT HOYLA HAW TE PN PROPER") a call
+     * from the PHONE APP (App 3.26.0): it may start as a voice call or a video call (its front camera) – said as a call, not "a screen" */
+    const call = d.mode === 'voice' ? 'voice call' : d.mode === 'video' ? 'video call' : '';
+    $('rtc_in_t').textContent = call ? m.name + ' is calling you – ' + call + others : help ? m.name + ' needs help – wants to show you ' + what + others : m.name + ' wants to show you ' + what + others;
+    $('rtc_in_s').textContent = help ? String((help.title ? help.title + ': ' : '') + (help.msg || '')).slice(0, 320) : call ? 'A call from the phone app, with voice · nothing is recorded' : 'Screen share with voice · nothing is recorded';
     $('rtc_rep_m').hidden = true; $('rtc_in').hidden = false;
-    rtcTone(true); rtcTitle('● ' + m.name + ' – screen share');
-    RTC.ring.t = setTimeout(() => { if (RTC.ring && RTC.ring.call === m.call) { rtcRingClose(); RTC.missN++; rtcMissBadge(); rtcSay('Missed: ' + m.name + ' wanted to show you ' + what + '. (Call back: the screen button at the top.)', true); } }, Math.max(5000, 78000 - (Number(m.age) || 0)));
+    rtcTone(true); rtcTitle(call ? '● ' + m.name + ' – call' : '● ' + m.name + ' – screen share');
+    RTC.ring.t = setTimeout(() => { if (RTC.ring && RTC.ring.call === m.call) { rtcRingClose(); RTC.missN++; rtcMissBadge(); rtcSay(call ? 'Missed: ' + m.name + ' called you (' + call + '). (Call back: the screen button at the top.)' : 'Missed: ' + m.name + ' wanted to show you ' + what + '. (Call back: the screen button at the top.)', true); } }, Math.max(5000, 78000 - (Number(m.age) || 0)));
   }
   function rtcRingClose() { if (RTC.ring) { clearTimeout(RTC.ring.t); rtcNotifClose(RTC.ring.call); } RTC.ring = null; if ($('rtc_in')) $('rtc_in').hidden = true; if ($('rtc_rep_m')) $('rtc_rep_m').hidden = true; rtcTone(false); rtcTitle(''); }
   function rtcDecline(reply) { const R = RTC.ring; if (!R) return; rtcRingClose(); rtcNote('decline', [R.from], R.call, { todev: R.dev, reply: RTC_REPLY[Number(reply)] ? Number(reply) : 0, ep: RTC.pushEp || '' }).catch(rtcWarn); if (RTC_REPLY[Number(reply)]) rtcSay('Sent to ' + R.name + ': "' + RTC_REPLY[Number(reply)] + '"'); }
