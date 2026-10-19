@@ -1756,6 +1756,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   an amendment prints as an amendment letter (To / Subject / Reference – the work order, of its BOQ when it has none of its own /
   "with effect from" / Annexure-I with the earlier rate from `S.boqHist` and the new rate / vendor's details / all versions / "For and
   on behalf of" / ACCEPTED BY VENDOR); print styles `.bl-to`, `.bl-p`, `.bl-for`. No server change. Rig `test/browser/boqprint133.js` 4.
+- 19-10-2026 (update-134). Report: `UPDATE_134.md`. The Super Admin deletes Diesel Issue entries (saved / waiting / returned /
+  rejected) of a date or a period and brings them back: `superDelList` / `superDelete` / `superRestore` (`sdelList_`, `sdelDelete_`,
+  `sdelRestore_`, `sdelSuper_`); a deleted entry kept in `billed_changes` kind "Deleted" (DEL-…, every column of the row), a deleted
+  request keeps its row as kind "Flow Deleted"; all ticked together or none; not one of a submitted bill or a closed month; a new
+  VF- number counts every request ever made. Page: Diesel Issue → `#sx_panel` (`sxLoad`, `sxRender`). Unit "update-134"; rig
+  `test/browser/sdel134.js` 6.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

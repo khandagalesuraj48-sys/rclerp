@@ -3994,6 +3994,112 @@ test('update-130: Open & correct – the sender opens his returned / rejected Di
   }
 });
 
+test('update-134: the Super Admin deletes Diesel Issue entries – saved, waiting, rejected – of a date or a period (ticked; all or none; not one of a submitted bill or a closed month), and brings them back from Deleted entries', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  vm.runInContext(`globalThis.__k134 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_, blo: billLockOf_ };
+    globalThis.DB134 = {};
+    globalThis.__fill134 = s => { const d = DB134[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep134 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill134(s); if (s.loaded) DB134[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    SB_BOOK_ = null;
+    SbBook_.prototype.flush = function () { __keep134(this); __k134.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill134(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill134(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    rtcPush_ = function () {};
+    kvWrite_("FLOW_RULES", "{}"); kvWrite_("CR_SUPERS", JSON.stringify(["sa134@rcl.test"])); PropertiesService.getScriptProperties().deleteProperty("BOOKS_CLOSED_UPTO");`, ctx);
+  try {
+    const mach = (no, unit) => run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Tipper', type: 'Tipper', unit: unit, worksOn: [unit], kmStd: 4, hrStd: 5, owner: 'Rachana Construction Limited', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-08-01' }, 'add');
+    assert.ok(mach('SD-1', 'KM').ok && mach('SD-2', 'Hrs').ok);
+    assert.ok(run('x => saveInward_(x)', { date: '2026-07-31', location: 'Dispenser', pump: 'Pump', qty: 100, rate: 92, billNo: 'SD134', billDate: '2026-07-31' }).ok);
+    const one = (date, no, x) => run('x => saveDieselIssue_(x)', Object.assign({ date: date, shift: 'Day', source: 'Dispenser', no: no, qty: 10 }, x || {}));
+    run('() => { ACTOR_ = "Store Keeper"; }');      // who entered them (the earlier tests leave their own)
+    const d1 = one('2026-08-01', 'SD-1', { kmReading: 1000 }).id, d2 = one('2026-08-02', 'SD-1', { kmReading: 1100 }).id, d3 = one('2026-08-02', 'SD-2', { hrReading: 50 }).id;
+    assert.ok(d1 && d2 && d3);
+    const PW = 'sha256$0123456789abcdef$' + 'd'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('mahesh134@rcl.test', 'Mahesh Jadhav', false, { 'Diesel Issue': 'Edit' }), mk('shubham134@rcl.test', 'Shubham', false, { 'Diesel Issue': 'Edit' }), mk('admin134@rcl.test', 'Admin D', true), mk('sa134@rcl.test', 'Super D', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok134_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa134@rcl.test'); });
+    const api = (who, fn, ...a) => run('(t, f, a) => api(t, f, a)', tok[who], fn, a);
+    const M = 'mahesh134@rcl.test', S = 'shubham134@rcl.test', AD = 'admin134@rcl.test', SA = 'sa134@rcl.test';
+    assert.ok(api(SA, 'saveFlowRules', { tasks: { 'Diesel Issue': { on: true, levels: [[S]] } } }).ok);
+    const bulk = (date, km) => ({ date: date, shift: 'Day', source: 'Dispenser', rows: [{ no: 'SD-1', qty: '5', kmReading: String(km), hrReading: '', driver: '', remark: '' }] });
+    const v1 = (api(M, 'saveDieselBulk', bulk('2026-08-03', 1200)).THROWN || '').match(/VF-\d{5}/)[0], v2 = (api(M, 'saveDieselBulk', bulk('2026-08-04', 1300)).THROWN || '').match(/VF-\d{5}/)[0];
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: v2, approve: false, note: 'wrong litres' }).status, 'Rejected');
+    const rows = () => run('() => { const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_); return t.rows.map(r => [r[t.c[H.ID]], r[t.c[H.NO]], dkey_(r[t.c[H.IDATE]]), Number(r[t.c[H.QTY]]), r[t.c[H.KMR]], r[t.c[H.HRR]], r[t.c[H.EBY]] || "", r[t.c[H.CREATED]] instanceof Date ? r[t.c[H.CREATED]].toISOString() : String(r[t.c[H.CREATED]])]); }');
+    const before = rows();
+    // ---- only the Super Admin (an Admin who is not the Super Admin, a user: refused) ----
+    for (const who of [M, AD]) for (const fn of ['superDelList', 'superDelete', 'superRestore'])
+      assert.strictEqual(api(who, fn, { from: '2026-08-01', ids: [d1] }).THROWN, 'Only the Super Admin deletes or brings back entries here (signed in through the Portal).', who + ' ' + fn);
+    // ---- the list: a date or a period; who entered it; the machinery ----
+    assert.strictEqual(api(SA, 'superDelList', {}).THROWN, 'Pick the date (or From and To).');
+    let L = api(SA, 'superDelList', { from: '2026-08-01', to: '2026-08-04' });
+    assert.deepStrictEqual([L.saved.map(r => r.id), L.waiting.map(r => [r.id, r.label, r.dates.join()]), L.deleted.length], [[d1, d2, d3], [[v1, 'Waiting for verification', '2026-08-03'], [v2, 'Rejected', '2026-08-04']], 0]);
+    assert.deepStrictEqual(api(SA, 'superDelList', { from: '2026-08-02' }).saved.map(r => r.id), [d2, d3], 'one date');
+    assert.deepStrictEqual(api(SA, 'superDelList', { from: '2026-08-01', to: '2026-08-04', no: 'SD-2' }).saved.map(r => r.id), [d3], 'one machinery');
+    assert.deepStrictEqual(api(SA, 'superDelList', { from: '2026-08-01', to: '2026-08-04', by: 'Mahesh Jadhav' }).waiting.map(r => r.id), [v1, v2], 'who sent it');
+    // ---- all together or none: one wrong → nothing deleted ----
+    let r = api(SA, 'superDelete', { ids: [d1, 'DI-999999'] });
+    assert.deepStrictEqual(r, { ok: false, errors: ['DI-999999: not found – deleted or changed meanwhile. Show the list again.'] });
+    assert.deepStrictEqual(rows(), before, 'nothing deleted');
+    assert.strictEqual(api(SA, 'superDelete', {}).THROWN, 'Tick the entries to delete first.');
+    // a closed month; an entry of a submitted bill (his choice: not deleted – the bill first)
+    run('() => PropertiesService.getScriptProperties().setProperty("BOOKS_CLOSED_UPTO", "2026-08-01")');
+    assert.match(api(SA, 'superDelete', { ids: [d1] }).errors[0], /entries up to 01-08-2026 are closed/);
+    run('() => PropertiesService.getScriptProperties().deleteProperty("BOOKS_CLOSED_UPTO")');
+    run('() => { billLockOf_ = (no, dk) => noKey_(no) === "SD2" ? { id: "BL-7", billNo: "RA-7", vendor: "V Seven", company: "RCL", from: dk, to: dk } : null; }');
+    assert.strictEqual(api(SA, 'superDelList', { from: '2026-08-02' }).saved.find(x => x.id === d3).bill, 'RA-7', 'the list says it (no tick)');
+    assert.deepStrictEqual(api(SA, 'superDelete', { ids: [d2, d3] }), { ok: false, errors: [d3 + ' (SD-2, 02-08-2026): it is in the submitted RA Bill RA-7 of V Seven – an entry of a submitted bill is not deleted (delete that bill first).'] });
+    run('() => { billLockOf_ = __k134.blo; }');
+    assert.deepStrictEqual(rows(), before, 'still nothing deleted');
+    // ---- deleted: two saved, one waiting, one rejected – each kept whole ----
+    r = api(SA, 'superDelete', { ids: [d1, d2], flows: [v1, v2] });
+    assert.deepStrictEqual([r.ok, r.deleted, r.saved, r.requests, r.kept.map(k => k.del + '=' + k.entry)], [true, 4, 2, 2, ['DEL-00001=' + d1, 'DEL-00002=' + d2, 'DEL-00003=' + v1, 'DEL-00004=' + v2]]);
+    assert.deepStrictEqual(rows().map(x => x[0]), [d3], 'out of the diesel');
+    const cr = api(SA, 'getChangeRequests', {}).requests.map(x => x.id);
+    assert.ok(cr.indexOf(v1) === -1 && cr.indexOf(v2) === -1, 'out of Approvals: ' + cr);
+    L = api(SA, 'superDelList', { from: '2026-08-01', to: '2026-08-04' });
+    assert.deepStrictEqual([L.saved.map(x => x.id), L.waiting.length, L.deleted.map(x => [x.id, x.entry, x.was, x.by, x.deletedBy])],
+      [[d3], 0, [['DEL-00001', d1, 'Saved', 'Store Keeper', 'Super D'], ['DEL-00002', d2, 'Saved', 'Store Keeper', 'Super D'], ['DEL-00003', v1, 'Waiting for verification', 'Mahesh Jadhav', 'Super D'], ['DEL-00004', v2, 'Rejected', 'Mahesh Jadhav', 'Super D']]]);
+    // a new request does not take the number of a deleted one
+    assert.match(api(M, 'saveDieselBulk', bulk('2026-08-05', 1400)).THROWN, /VF-00003/);
+    // ---- brought back: the same entry (ID, values, time, who entered it) and the request as it was ----
+    r = api(SA, 'superRestore', { ids: ['DEL-00001', 'DEL-00003'] });
+    assert.deepStrictEqual([r.ok, r.restored, r.ids], [true, 2, [d1, v1]]);
+    assert.deepStrictEqual(rows().find(x => x[0] === d1), before.find(x => x[0] === d1), 'the same row');
+    const back = api(SA, 'getChangeRequests', {}).requests.find(x => x.id === v1);
+    assert.strictEqual(back && back.status, 'Pending', 'waiting again');
+    assert.deepStrictEqual(api(SA, 'superDelList', { from: '2026-08-01', to: '2026-08-04' }).deleted.map(x => x.id), ['DEL-00002', 'DEL-00004']);
+    assert.deepStrictEqual(api(SA, 'superRestore', { ids: ['DEL-00001'] }), { ok: false, errors: ['DEL-00001: not in Deleted entries – brought back meanwhile. Show the list again.'] });
+    // ---- brought back only when the diesel is there on its date: after the stock was used meanwhile → nothing brought back ----
+    const fill = one('2026-08-01', 'SD-2', { qty: 60, hrReading: 40 }); assert.ok(fill.ok, 'the stock used meanwhile: ' + JSON.stringify(fill));
+    assert.match(api(M, 'saveDieselBulk', bulk('2026-08-06', 1500)).THROWN, /VF-00004/, 'and 5 Ltr more waits for verification');
+    r = api(SA, 'superRestore', { ids: ['DEL-00002', 'DEL-00004'] });
+    assert.ok(r.ok === false && r.errors.length === 1 && r.errors[0].indexOf(d2 + ' (SD-1, 02-08-2026): ') === 0, JSON.stringify(r));
+    assert.deepStrictEqual(api(SA, 'superDelList', { from: '2026-08-01', to: '2026-08-04' }).deleted.map(x => x.id), ['DEL-00002', 'DEL-00004'], 'nothing brought back');
+    assert.deepStrictEqual(api(SA, 'superRestore', { ids: ['DEL-00004'] }).ids, [v2], 'the rejected request alone');
+    // the Activity Log has every delete and restore
+    const acts = run('() => { const t = table_(LOG_SHEET, ["Record ID"]); return t.rows.map(r => r[t.c["Record ID"]] + " " + r[t.c["Summary"]]); }');
+    assert.ok([d1, d2, v1, v2].every(id => acts.some(a => a.indexOf(id + ' Deleted by the Super Admin') === 0)), JSON.stringify(acts.slice(-8)));
+    assert.ok(acts.some(a => a.indexOf(d1 + ' Brought back by the Super Admin from Deleted entries (DEL-00001)') === 0));
+    // ---- the page: the panel for the Super Admin only; its help in 3 languages ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.ok(app.indexOf('<div class="panel" id="sx_panel" hidden>') > -1 && app.indexOf("if ($('sx_panel')) { $('sx_panel').hidden = !u.super;") > -1);
+    assert.ok(["call('superDelList'", "call('superDelete'", "call('superRestore'"].every(x => app.indexOf(x) > -1));
+    const H2 = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules };')();
+    for (const [m, want] of [['Only the Super Admin deletes or brings back entries here (signed in through the Portal).', /Only the Super Admin/],
+      [d3 + ' (SD-2, 02-08-2026): it is in the submitted RA Bill RA-7 of V Seven – an entry of a submitted bill is not deleted (delete that bill first).', /Delete that bill first/],
+      ['DEL-00001: not in Deleted entries – brought back meanwhile. Show the list again.', /Show entries/], ['Tick the entries to delete first.', /Nothing is picked/]])
+      assert.match(H2.fixRules(m)[0].en.join(' '), want, m);
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k134.flush; SbBook_.prototype.loadMany = __k134.loadMany; SbSheet_.prototype.load_ = __k134.load_; sbDiscard_ = __k134.discard; rtcPush_ = __k134.push; billLockOf_ = __k134.blo;
+      CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); PropertiesService.getScriptProperties().deleteProperty("BOOKS_CLOSED_UPTO"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
+  }
+});
+
 test('update-131: a diesel reading is checked BY ITS DATE (the fills before and after it); an entry for approval with a reading that does not fit is a MISTAKE – no "anyway", corrected first', () => {
   const { T, ctx } = require('./harness.js');
   const vm = require('vm');

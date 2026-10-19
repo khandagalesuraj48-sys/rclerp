@@ -900,6 +900,10 @@ const API_ = {
   importDiesel:      { m: 'Diesel Issue', edit: true, f: importDiesel_, log: 'diImport' },
   updateDieselIssue: { m: 'Diesel Issue', edit: true, f: updateDieselIssue_, log: 'edit', sheet: 'SHEET_DIESEL', idh: 'ID' },
   deleteDieselIssue: { m: 'Diesel Issue', edit: true, f: deleteDieselIssue_, log: 'delete', sheet: 'SHEET_DIESEL', idh: 'ID' },
+  // (update-134) the Super Admin deletes entries (saved / waiting / returned / rejected) and brings them back – checked inside (sdelSuper_)
+  superDelList: { m: '', withUser: true, f: (u, x) => sdelList_(u, x) },
+  superDelete: { m: '', withUser: true, f: (u, x) => sdelDelete_(u, x) },
+  superRestore: { m: '', withUser: true, f: (u, x) => sdelRestore_(u, x) },
   getLogBook:        { m: 'Log Book', f: getLogBook_ },
   getLogBookList:    { m: 'Log Book', any: ['Log Book', 'Machinery Billing', 'Saved Bills'], f: getLogBookList_ },
   logPrintExtra:     { m: 'Log Book', any: ['Log Book', 'Machinery Billing', 'Saved Bills'], f: logPrintExtra_ },
@@ -4395,6 +4399,190 @@ function deleteDieselIssue_(id) {
     recalcBalances_();
     return { ok: true, stock: getStock_() };
   });
+}
+
+/* (update-134, asked 19-10-2026: "super admin user ni kelelI konti hi entry mg ti save aso approval madhe aso ki retuen aso ki
+ * reject aso konti hi entry delet kru shakel jas ki koni diesel issue kel aasel super admin ti entry delet kru shakel single date or
+ * ya period wise"; his choices: Diesel Issue first, an entry in a submitted bill is NOT deleted, a deleted entry can be brought back,
+ * picked from a list with ticks) THE SUPER ADMIN DELETES ENTRIES – Diesel Issue: the saved ones and the ones waiting for
+ * verification, returned or rejected, of one date or a period (also: who entered it, which machinery).
+ *   – The ticked entries are deleted together or none (each refusal said): an entry in a submitted RA Bill (the bill is deleted
+ *     first) or of a closed month is not deleted. An approved request is not listed: its entries are saved, they are deleted.
+ *   – Each deleted entry is KEPT WHOLE in "Deleted entries" (the table billed_changes, kind "Deleted" – no new table): a saved
+ *     entry with every column of its row (its ID, photos, who entered it), a request with its kind set to "Flow Deleted" (all of it
+ *     stays). The Super Admin brings it back from there: the same entry, checked again – the month open, not in a bill now, the
+ *     diesel in stock on its date, its ID not taken; a request goes back as it was (waiting / returned / rejected).
+ *   – Every delete and restore is in the Activity Log. */
+const SDEL_M_ = 'Diesel Issue';
+function sdelSuper_(u) { if (!u || !u.super) throw new Error('Only the Super Admin deletes or brings back entries here (signed in through the Portal).'); }
+const sdelIsFlow_ = r => !!(API_[r.fn] && API_[r.fn].m === SDEL_M_);
+// the dates of a request: those in what it saves, and those it names (an edit / delete of a saved entry)
+function sdelFlowDates_(r) {
+  let a = []; try { a = JSON.parse(r.args || '[]'); } catch (e) { a = []; }
+  const o = {}; flowFacts_(r.fn, a).dates.forEach(d => { o[d] = true; });
+  (str_(r.dates).match(/\d{2}-\d{2}-\d{4}/g) || []).forEach(x => { o[x.split('-').reverse().join('-')] = true; });
+  return Object.keys(o).sort();
+}
+function sdelRange_(f) {
+  f = f || {};
+  const from = str_(f.from) ? checkDate_(f.from) : str_(f.to) ? checkDate_(f.to) : '';
+  if (!from) throw new Error('Pick the date (or From and To).');
+  const to = str_(f.to) ? checkDate_(f.to) : from;
+  if (from > to) throw new Error('From date is after To date.');
+  return { from: from, to: to };
+}
+const sdelStatus_ = s => s === 'Pending' ? 'Waiting for verification' : s;
+function sdelDeleted_(t) { return t ? t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.id && r.kind === 'Deleted') : []; }
+function sdelList_(u, f) {
+  sdelSuper_(u); f = f || {};
+  const R = sdelRange_(f), by = clean_(f.by).toUpperCase(), noK = noKey_(f.no);
+  const inR = ds => ds.some(d => d >= R.from && d <= R.to);
+  const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, LK = lockMarker_(), closed = booksClosed_(), users = {};
+  const saved = [];
+  t.rows.forEach(r => {
+    const dk = dkey_(r[c[H.IDATE]]); if (!dk || dk < R.from || dk > R.to) return;
+    const eby = H.EBY in c ? str_(r[c[H.EBY]]) : '', no = str_(r[c[H.NO]]);
+    if (eby) users[eby] = true;
+    if (noK && noKey_(no).indexOf(noK) === -1) return;
+    if (by && eby.toUpperCase() !== by) return;
+    const bid = LK.of(no, dk);
+    saved.push({ id: str_(r[c[H.ID]]), date: dk, shift: str_(r[c[H.SHIFT]]), no: no, type: str_(r[c[H.TYPE]]), qty: numOrBlank_(r[c[H.QTY]]), kmReading: numOrBlank_(r[c[H.KMR]]),
+      hrReading: numOrBlank_(r[c[H.HRR]]), source: loc_(r[c[H.SOURCE]]), by: eby, bill: bid ? (LK.locks[bid] || {}).billNo || bid : '', closed: !!(closed && dk <= closed) });
+  });
+  saved.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || (shiftOrder_(a.shift) - shiftOrder_(b.shift)) || a.id.localeCompare(b.id));
+  const waiting = flowAll_().filter(r => sdelIsFlow_(r) && r.status !== 'Approved').map(r => Object.assign(r, { ds: sdelFlowDates_(r) })).filter(r => {
+    if (r.by) users[r.by] = true;
+    return inR(r.ds) && (!noK || noKey_(r.nos).indexOf(noK) > -1) && (!by || str_(r.by).toUpperCase() === by);
+  }).map(r => ({ id: r.id, status: r.status, label: sdelStatus_(r.status), what: flowLabel_(r.fn), dates: r.ds, nos: r.nos, qty: (r.flow || {}).qty || '', by: r.by, at: r.at,
+    lines: (r.summary || []).slice(0, 5), more: Math.max(0, (r.summary || []).length - 5) }));
+  let ct = null; try { ct = crTable_(false); } catch (e) { ct = null; }
+  const deleted = sdelDeleted_(ct).filter(r => r.status === 'Deleted').map(r => { let a = {}; try { a = JSON.parse(r.args || '{}') || {}; } catch (e) { a = {}; } return Object.assign(r, { a: a, ds: (str_(r.dates).match(/\d{4}-\d{2}-\d{2}/g) || []) }); })
+    .filter(r => inR(r.ds) && (!noK || noKey_(r.nos).indexOf(noK) > -1) && (!by || str_(r.a.by).toUpperCase() === by))
+    .map(r => ({ id: r.id, entry: r.result, kind: r.a.flow ? 'request' : 'saved', was: r.a.flow ? sdelStatus_(r.a.status) : 'Saved', dates: r.ds, nos: r.nos, qty: r.a.qty === undefined ? '' : r.a.qty,
+      by: r.a.by || '', deletedBy: r.by, deletedAt: r.at, lines: (r.summary || []).slice(0, 5) }));
+  return { from: R.from, to: R.to, closedUpto: closed, saved: saved, waiting: waiting, deleted: deleted, users: Object.keys(users).sort((a, b) => a.localeCompare(b)) };
+}
+// the next DEL-00001 … (never taken again: the rows stay)
+const sdelNextNo_ = ct => ct.rows.reduce((mx, r) => { const m = str_(r[ct.c['Request ID']]).match(/^DEL-(\d+)$/); return m ? Math.max(mx, Number(m[1])) : mx; }, 0) + 1;
+const sdelKeep_ = v => v instanceof Date ? { d: v.toISOString() } : v;
+const sdelBack_ = v => v && typeof v === 'object' && typeof v.d === 'string' ? new Date(v.d) : v;
+function sdelDelete_(u, x) {
+  sdelSuper_(u); x = x || {};
+  const uniq = a => [...new Set((Array.isArray(a) ? a : []).map(str_).filter(Boolean))];
+  const ids = uniq(x.ids), flows = uniq(x.flows);
+  if (!ids.length && !flows.length) throw new Error('Tick the entries to delete first.');
+  if (ids.length + flows.length > 500) throw new Error('Delete up to 500 entries at a time.');
+  const out = withLock_(() => {
+    TABLE_MEMO_ = {};
+    const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, all = flowAll_(), bad = [], rows = [], fl = [];
+    ids.forEach(id => {
+      const i = t.rows.findIndex(r => str_(r[c[H.ID]]) === id);
+      if (i === -1) { bad.push(id + ': not found – deleted or changed meanwhile. Show the list again.'); return; }
+      const r = t.rows[i], no = str_(r[c[H.NO]]), dk = dkey_(r[c[H.IDATE]]);
+      try { booksOpen_(dk, 'Diesel issue ' + id + ' (' + no + ')'); } catch (e) { bad.push(e.message); return; }
+      const b = billLockOf_(no, dk);
+      if (b) { bad.push(id + ' (' + no + ', ' + dmy_(dk) + '): it is in the submitted RA Bill ' + b.billNo + ' of ' + b.vendor + ' – an entry of a submitted bill is not deleted (delete that bill first).'); return; }
+      rows.push({ i: i, r: r, id: id, no: no, dk: dk, shift: str_(r[c[H.SHIFT]]) });
+    });
+    flows.forEach(id => {
+      const f = all.find(r => r.id === id);
+      if (!f || !sdelIsFlow_(f)) { bad.push(id + ': not found – deleted or decided meanwhile. Show the list again.'); return; }
+      if (f.status === 'Approved') { bad.push(id + ': approved – its entries are saved; delete those.'); return; }
+      fl.push(f);
+    });
+    if (bad.length) return { ok: false, errors: bad };      // nothing is deleted
+    const ct = crTable_(true), now = new Date();
+    let n = sdelNextNo_(ct);
+    const kept = [];
+    const keepRow = (entry, dates, nos, summary, args) => {
+      const id = 'DEL-' + String(n++).padStart(5, '0'), row = newRow_(ct);
+      set_(row, ct, 'Request ID', id); set_(row, ct, 'Kind', 'Deleted'); set_(row, ct, 'Requested At', now); set_(row, ct, 'Requested By', u.name || u.email);
+      set_(row, ct, 'Requester Email', str_(u.email).toLowerCase()); set_(row, ct, 'Action', SDEL_M_); set_(row, ct, 'Args', JSON.stringify(args)); set_(row, ct, 'Summary', JSON.stringify(summary));
+      set_(row, ct, 'Machinery', str_(nos).slice(0, 300)); set_(row, ct, 'Dates', dates.join(', ').slice(0, 300)); set_(row, ct, 'Status', 'Deleted'); set_(row, ct, 'Result', entry); set_(row, ct, 'Created At', now);
+      ct.sh.appendRow(row); kept.push({ del: id, entry: entry });
+      return id;
+    };
+    const logs = [];
+    rows.forEach(e => {
+      const keep = {}; Object.keys(c).forEach(h => { keep[h] = sdelKeep_(e.r[c[h]]); });
+      const words = e.no + ' – ' + dmy_(e.dk) + ', ' + e.shift + ': ' + fmtVal_(e.r[c[H.QTY]]) + ' Ltr' + (str_(e.r[c[H.KMR]]) ? ', KM ' + str_(e.r[c[H.KMR]]) : '') + (str_(e.r[c[H.HRR]]) ? ', Hrs ' + str_(e.r[c[H.HRR]]) : '') + ' from ' + loc_(e.r[c[H.SOURCE]]);
+      const del = keepRow(e.id, [e.dk], e.no, [words], { row: keep, by: H.EBY in c ? str_(e.r[c[H.EBY]]) : '', qty: numOrBlank_(e.r[c[H.QTY]]) });
+      logs.push([e.id, 'Deleted by the Super Admin – kept as ' + del + ' (Deleted entries)', 'Deleted values – ' + describe_(Object.keys(c).reduce((o, h) => { o[h] = e.r[c[h]]; return o; }, {}))]);
+    });
+    rows.slice().sort((a, b) => b.i - a.i).forEach(e => t.sh.deleteRow(e.i + 2));
+    fl.forEach(f => {
+      const r1 = ct.rows.map((r, i) => crOut_(ct, r, i)).find(r => r.id === f.id && r.kind === 'Flow'), row = ct.rows[r1.i].slice();
+      set_(row, ct, 'Kind', 'Flow Deleted'); stampEdit_(row, ct);
+      ct.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]);
+      const del = keepRow(f.id, sdelFlowDates_(f), f.nos, f.summary || [], { flow: f.id, status: f.status, by: f.by, qty: (f.flow || {}).qty || '' });
+      logs.push([f.id, 'Deleted by the Super Admin (' + sdelStatus_(f.status) + ') – kept as ' + del + ' (Deleted entries)', (f.summary || []).join('; ').slice(0, 900)]);
+    });
+    TABLE_MEMO_ = {};
+    const done = {}; rows.forEach(e => { const k = e.no + '|' + e.dk + '|' + e.shift; if (!done[k]) { done[k] = true; syncLogFromDiesel_(e.no, e.dk, e.shift); } });
+    if (rows.length) recalcBalances_();
+    logs.forEach(l => writeLog_(u, 'Delete', l[0].indexOf('VF-') === 0 ? 'Approvals' : SDEL_M_, l[0], l[1], l[2]));
+    return { ok: true, deleted: rows.length + fl.length, saved: rows.length, requests: fl.length, kept: kept, stock: getStock_() };
+  });
+  if (out && out.ok) bump_(['stock', 'log', 'flow', 'activity']);
+  return out;
+}
+function sdelRestore_(u, x) {
+  sdelSuper_(u); x = x || {};
+  const ids = [...new Set((Array.isArray(x.ids) ? x.ids : []).map(str_).filter(Boolean))];
+  if (!ids.length) throw new Error('Tick the deleted entries to bring back first.');
+  if (ids.length > 500) throw new Error('Bring back up to 500 entries at a time.');
+  const out = withLock_(() => {
+    TABLE_MEMO_ = {};
+    const ct = crTable_(true), dl = sdelDeleted_(ct), t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, bad = [], todo = [];
+    const need = {};      // the diesel taken out of stock again, per place (in date order), checked together
+    ids.forEach(id => {
+      const d = dl.find(r => r.id === id);
+      if (!d || d.status !== 'Deleted') { bad.push(id + ': not in Deleted entries – brought back meanwhile. Show the list again.'); return; }
+      let a = {}; try { a = JSON.parse(d.args || '{}') || {}; } catch (e) { a = {}; }
+      if (a.flow) {
+        const r1 = ct.rows.map((r, i) => crOut_(ct, r, i)).find(r => r.id === a.flow && r.kind === 'Flow Deleted');
+        if (!r1) { bad.push(id + ': its request ' + a.flow + ' is not there any more.'); return; }
+        todo.push({ d: d, a: a, flowAt: r1.i }); return;
+      }
+      const row = a.row || {}, eid = str_(row[H.ID]), dk = dkey_(sdelBack_(row[H.IDATE])), no = str_(row[H.NO]);
+      if (!eid || !dk) { bad.push(id + ': the kept entry is not complete – it cannot be brought back.'); return; }
+      if (t.rows.some(r => str_(r[c[H.ID]]) === eid)) { bad.push(id + ': an entry ' + eid + ' is saved already.'); return; }
+      try { booksOpen_(dk, 'Diesel issue ' + eid + ' (' + no + ')'); } catch (e) { bad.push(e.message); return; }
+      const b = billLockOf_(no, dk);
+      if (b) { bad.push(eid + ' (' + no + ', ' + dmy_(dk) + '): that date is now in the submitted RA Bill ' + b.billNo + ' of ' + b.vendor + ' – it is not brought back into a submitted bill.'); return; }
+      todo.push({ d: d, a: a, row: row, eid: eid, dk: dk, no: no, shift: str_(row[H.SHIFT]) });
+    });
+    // the diesel goes out of stock again on its date: there must be that much (all brought back together)
+    todo.filter(x => x.row).sort((p, q) => (p.dk < q.dk ? -1 : p.dk > q.dk ? 1 : 0)).forEach(x => {
+      const loc = loc_(sdelBack_(x.row[H.SOURCE])), q = num0_(x.row[H.QTY]);
+      need[loc] = r2_((need[loc] || 0) + q);      // the earlier ones brought back with it count too
+      try { requireStockAt_(loc, x.dk, x.shift, '', need[loc]); } catch (e) { bad.push(x.eid + ' (' + x.no + ', ' + dmy_(x.dk) + '): ' + e.message); }
+    });
+    if (bad.length) return { ok: false, errors: bad };      // nothing is brought back
+    const now = new Date(), logs = [];
+    todo.forEach(x => {
+      if (x.a.flow) {
+        const row = ct.rows[x.flowAt].slice(); set_(row, ct, 'Kind', 'Flow'); stampEdit_(row, ct);
+        ct.sh.getRange(x.flowAt + 2, 1, 1, row.length).setValues([row]);
+        logs.push(['Approvals', x.a.flow, 'Brought back by the Super Admin from Deleted entries (' + x.d.id + ') – ' + sdelStatus_(x.a.status), (x.d.summary || []).join('; ').slice(0, 900)]);
+      } else {
+        const row = new Array(t.headers.length).fill('');
+        Object.keys(x.row).forEach(h => { if (h in c) row[c[h]] = sdelBack_(x.row[h]); });
+        t.sh.appendRow(row);
+        logs.push([SDEL_M_, x.eid, 'Brought back by the Super Admin from Deleted entries (' + x.d.id + ')', (x.d.summary || []).join('; ').slice(0, 900)]);
+      }
+      const dr = ct.rows[x.d.i].slice();
+      set_(dr, ct, 'Status', 'Restored'); set_(dr, ct, 'Decided By', u.name || u.email); set_(dr, ct, 'Decided At', now); stampEdit_(dr, ct);
+      ct.sh.getRange(x.d.i + 2, 1, 1, dr.length).setValues([dr]);
+    });
+    TABLE_MEMO_ = {};
+    const done = {}; todo.filter(x => x.row).forEach(x => { const k = x.no + '|' + x.dk + '|' + x.shift; if (!done[k]) { done[k] = true; syncLogFromDiesel_(x.no, x.dk, x.shift); } });
+    if (todo.some(x => x.row)) recalcBalances_();
+    logs.forEach(l => writeLog_(u, 'Add', l[0], l[1], l[2], l[3]));
+    return { ok: true, restored: todo.length, ids: todo.map(x => x.eid || x.a.flow), stock: getStock_() };
+  });
+  if (out && out.ok) bump_(['stock', 'log', 'flow', 'activity']);
+  return out;
 }
 
 // For an edited entry: reading should not be below the entry before it or above the entry after it.
@@ -9552,7 +9740,7 @@ function flowSend_(u, spec, fn, args, rule) {
   const out = withLock_(() => {
     const t = crTable_(true), all = flowAll_();
     if (all.some(r => r.status === 'Pending' && r.email === me && r.fn === fn && r.args === json)) throw new Error('This same entry is already waiting for verification – it is saved when it is approved.');
-    const id = 'VF-' + String(all.reduce((mx, r) => Math.max(mx, Number(r.id.replace(/\D/g, '')) || 0), 0) + 1).padStart(5, '0');
+    const id = 'VF-' + String(t.rows.reduce((mx, r) => { const m = str_(r[t.c['Request ID']]).match(/^VF-(\d+)$/); return m ? Math.max(mx, Number(m[1])) : mx; }, 0) + 1).padStart(5, '0');      // (update-134) every request ever made counts – a deleted one ("Flow Deleted") keeps its number
     const now = new Date(), data = { m: spec.m, levels: levels, level: 0, history: [{ step: 'Sent', by: u.name || u.email, email: me, at: now.toISOString() }], byLoc: facts.byLoc, qty: facts.qty, waitSince: now.toISOString(), reminded: {} };
     if (Object.keys(held).length) {      // (update-120) its photos: kept for the approval; no other entry takes them meanwhile
       data.photos = held;
