@@ -7840,6 +7840,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     body.rep td.up { color: #B3261E; font-weight: 700; } body.rep td.down { color: #1F6B52; font-weight: 700; }
     body.rep .st { font-weight: 700; } body.rep .st.bad { color: #B3261E; }
     body.rep .rsub { font-size: 10.5pt; margin: 10px 0 4px; }
+    body.rep .bl-to { margin: 8px 0 6px; font-size: 9.5pt; line-height: 1.45; } body.rep .bl-p { font-size: 9.5pt; line-height: 1.45; margin: 5px 0; } body.rep .bl-for { margin-top: 12px; font-size: 9.5pt; font-weight: 700; }      /* (update-133) the amendment letter */
     body.rep .mfacts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px 10px; border: 1px solid #999; padding: 5px 8px; margin-bottom: 6px; font-size: 8pt; }
     body.rep .mfacts span { display: block; color: #555; font-size: 7pt; }
     body.rep-average th, body.rep-average td { font-size: 7.6pt; }
@@ -10895,23 +10896,62 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       : 'No BOQ rate for <b>' + esc(r.no) + '</b> on ' + esc(showDate(r.date)) + '.';
   }));
   /* ---------- BOQ print ---------- */
+  /* (update-133, asked 19-10-2026 with his picture of an "Amendment letter Of Intent": "je boq bantat je amendment bante tya warti work
+   * order number date he sagle yeu de … ata fkt etkach distey so he proper amendment watayla haw") The work order number and date on top
+   * of every BOQ print. An amendment prints as an amendment letter: to the vendor, subject, reference (the work order, BOQ n), "with
+   * effect from", Annexure-I with each machinery's earlier rate (as the bills took it – the rate history) and its new rate, the
+   * vendor's acceptance. */
   async function boqPrint(b) {
     const headName = await askPrintName('Print – BOQ'); if (!headName) return;
     const v = S.vendors.find(x => x.name === b.vendor) || {};
     const root = b.amendOf ? S.boqs.find(x => x.id === b.amendOf) : b;
     const versions = S.boqs.filter(x => x.id === (root || b).id || x.amendOf === (root || b).id);
-    const title = 'BOQ / Rate Contract – BOQ ' + (b.no || b.id) + (b.amendOf ? ' (Amendment ' + b.amendNo + ' of BOQ ' + (root ? root.no : b.amendOf) + ')' : '');
+    const rootNo = b.amendOf ? (root ? root.no : b.amendOf) : b.no;
+    const wo = b.woNo || b.woDate ? b : root || {};      // an amendment without its own: the work order of its BOQ
+    const woLine = (wo.woNo ? 'Work Order No: <b>' + esc(wo.woNo) + '</b>' : '') + (wo.woDate ? (wo.woNo ? '<br>' : '') + 'Work Order Date: <b>' + esc(showDate(wo.woDate)) + '</b>' : '');
+    const title = b.amendOf ? 'Amendment Letter – Amendment ' + b.amendNo + ' of BOQ ' + rootNo + ' (BOQ ' + (b.no || b.id) + ')' : 'BOQ / Rate Contract – BOQ ' + (b.no || b.id);
     const facts = [['Vendor', v.name || b.vendor], ['GST Number', v.gstReg === 'Yes' ? v.gst : 'Not registered'], ['PAN', v.pan], ['GST % (this BOQ)', b.gstPct !== '' && b.gstPct !== undefined ? fmt(b.gstPct) + '%' : ''], ['TDS % (this BOQ)', b.tdsPct !== '' && b.tdsPct !== undefined ? fmt(b.tdsPct) + '%' : ''],
-      ['Bank', [v.bank, v.branch].filter(Boolean).join(', ')], ['Account No', v.account], ['IFSC', v.ifsc], ['Address', v.address], ['Phone', v.phone]].filter(x => x[1]);
-    const html = printHeadAs(headName, title, 'BOQ ID: <b>' + esc(b.id) + '</b><br>Period: <b>' + esc(showDate(b.from)) + ' to ' + (b.to ? esc(showDate(b.to)) : 'open') + '</b><br>Printed: ' + esc(new Date().toLocaleString('en-IN'))) +
-      '<h3 class="rsub psec">Vendor</h3><div class="mfacts">' + facts.map(x => '<div><span>' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b></div>').join('') + '</div>' +
-      '<h3 class="rsub psec">Rates' + (b.amendOf ? ' – from ' + esc(showDate(b.from)) + ' (amendment ' + b.amendNo + ' of ' + esc(b.amendOf) + ')' : '') + '</h3>' +
-      '<table><thead><tr><th>Sr</th><th>Machinery</th><th>Type</th><th>Rent type</th><th>Rate</th><th>Diesel</th><th>Remark</th></tr></thead><tbody>' +
-      b.lines.map((l, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(l.no) + '</b></td><td>' + esc(l.type || '') + '</td><td>' + esc(l.basis) + '</td><td>' + (l.items && l.items.length ? l.items.map(it => '<b>' + esc(it.name) + '</b> – ' + esc(boqRateText(it))).join('<br>') : esc(l.slabs && l.slabs.length ? boqLineText(l) : vbMoney(l.rate) + ' ' + ({ 'Monthly': 'per month', 'Per Day': 'per day', 'Per Hour': 'per hour', 'Per KM': 'per km', 'Per Trip': 'per trip' }[l.basis] || '') + (Number(l.nightRate) > 0 ? ' (Night trip ' + vbMoney(l.nightRate) + ')' : ''))) + '</td><td>' + (l.diesel === 'Debit Basis' ? 'Debit basis' : 'Company paid') + '</td><td>' + esc(l.remark || '') + '</td></tr>').join('') +
-      '</tbody></table>' + (b.remark ? '<p><b>Remark:</b> ' + esc(b.remark) + '</p>' : '') +
-      (versions.length > 1 ? '<h3 class="rsub psec">All versions of this BOQ</h3><table><thead><tr><th>BOQ ID</th><th>Version</th><th>From</th><th>To</th><th>Rates</th></tr></thead><tbody>' +
-        versions.sort((x, y) => x.amendNo - y.amendNo).map(x => '<tr><td>' + esc(x.id) + '</td><td>' + (x.amendOf ? 'Amendment ' + x.amendNo : 'Original') + '</td><td>' + esc(showDate(x.from)) + '</td><td>' + (x.to ? esc(showDate(x.to)) : 'open') + '</td><td>' + x.lines.map(l => esc(l.no) + ': ' + esc(boqLineText(l))).join('<br>') + '</td></tr>').join('') + '</tbody></table>' : '') +
-      '<div class="lb-sign" style="grid-template-columns:repeat(3,1fr)">' + [['VENDOR', 'SIGN & STAMP'], ['PREPARED BY', 'BILLING DEPT'], ['APPROVED BY', 'PROJECT MANAGER']].map(x => '<div><span></span><b>' + x[0] + '</b><small>' + x[1] + '</small></div>').join('') + '</div>';
+      ['Bank', [v.bank, v.branch].filter(Boolean).join(', ')], ['Account No', v.account], ['IFSC', v.ifsc], ['Address', v.address], ['Phone', v.phone]].filter(x => x[1] && !(b.amendOf && ['Vendor', 'Address', 'Phone'].includes(x[0])));
+    const rateCell = l => l.items && l.items.length ? l.items.map(it => '<b>' + esc(it.name) + '</b> – ' + esc(boqRateText(it))).join('<br>') : esc(l.slabs && l.slabs.length ? boqLineText(l) : vbMoney(l.rate) + ' ' + ({ 'Monthly': 'per month', 'Per Day': 'per day', 'Per Hour': 'per hour', 'Per KM': 'per km', 'Per Trip': 'per trip' }[l.basis] || '') + (Number(l.nightRate) > 0 ? ' (Night trip ' + vbMoney(l.nightRate) + ')' : ''));
+    const dieselCell = l => l.diesel === 'Debit Basis' ? 'Debit basis' : 'Company paid';
+    const factsHtml = facts.length ? '<div class="mfacts">' + facts.map(x => '<div><span>' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b></div>').join('') + '</div>' : '';
+    const versionsHtml = versions.length > 1 ? '<h3 class="rsub psec">All versions of this BOQ</h3><table><thead><tr><th>BOQ ID</th><th>Version</th><th>From</th><th>To</th><th>Rates</th></tr></thead><tbody>' +
+      versions.sort((x, y) => x.amendNo - y.amendNo).map(x => '<tr><td>' + esc(x.id) + '</td><td>' + (x.amendOf ? 'Amendment ' + x.amendNo : 'Original') + '</td><td>' + esc(showDate(x.from)) + '</td><td>' + (x.to ? esc(showDate(x.to)) : 'open') + '</td><td>' + x.lines.map(l => esc(l.no) + ': ' + esc(boqLineText(l))).join('<br>') + '</td></tr>').join('') + '</tbody></table>' : '';
+    const remarkHtml = b.remark ? '<p><b>Remark:</b> ' + esc(b.remark) + '</p>' : '';
+    const signs = list => '<div class="lb-sign" style="grid-template-columns:repeat(3,1fr)">' + list.map(x => '<div><span></span><b>' + x[0] + '</b><small>' + x[1] + '</small></div>').join('') + '</div>';
+    let html;
+    if (!b.amendOf) {
+      html = printHeadAs(headName, title, 'BOQ ID: <b>' + esc(b.id) + '</b><br>' + (woLine ? woLine + '<br>' : '') + 'Period: <b>' + esc(showDate(b.from)) + ' to ' + (b.to ? esc(showDate(b.to)) : 'open') + '</b><br>Printed: ' + esc(new Date().toLocaleString('en-IN'))) +
+        '<h3 class="rsub psec">Vendor</h3>' + factsHtml +
+        '<h3 class="rsub psec">Rates</h3>' +
+        '<table><thead><tr><th>Sr</th><th>Machinery</th><th>Type</th><th>Rent type</th><th>Rate</th><th>Diesel</th><th>Remark</th></tr></thead><tbody>' +
+        b.lines.map((l, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(l.no) + '</b></td><td>' + esc(l.type || '') + '</td><td>' + esc(l.basis) + '</td><td>' + rateCell(l) + '</td><td>' + dieselCell(l) + '</td><td>' + esc(l.remark || '') + '</td></tr>').join('') +
+        '</tbody></table>' + remarkHtml + versionsHtml +
+        signs([['VENDOR', 'SIGN & STAMP'], ['PREPARED BY', 'BILLING DEPT'], ['APPROVED BY', 'PROJECT MANAGER']]);
+    } else {
+      // each machinery's earlier rate: its last period before this amendment in the rate history (the bills' own rule)
+      const hist = (S.boqHist || []).filter(h => h.vendor === b.vendor);
+      const earlier = l => { const h = hist.find(x => noKey(x.no) === noKey(l.no)); const p = h ? h.periods.filter(x => !x.none && x.from < b.from).pop() : null; return p ? { line: p.line, till: p.to && p.to < b.from ? p.to : dayBefore(b.from) } : null; };
+      const types = {}; b.lines.forEach(l => { const t = l.type || 'machinery'; types[t] = (types[t] || 0) + 1; });
+      const what = Object.keys(types).map(t => String(types[t]).padStart(2, '0') + ' Nos ' + t).join(', ');
+      const many = b.lines.length > 1;
+      html = printHeadAs(headName, 'Amendment Letter – Amendment ' + b.amendNo + ' of BOQ ' + rootNo, 'BOQ ID: <b>' + esc(b.id) + '</b> (BOQ ' + esc(b.no || b.id) + ')<br>' + (woLine ? woLine + '<br>' : '') +
+          'With effect from: <b>' + esc(showDate(b.from)) + '</b>' + (b.to ? ' to <b>' + esc(showDate(b.to)) + '</b>' : '') + '<br>Printed: ' + esc(new Date().toLocaleString('en-IN'))) +
+        '<div class="bl-to">To,<br><b>' + esc(v.name || b.vendor) + '</b>' + (v.address ? '<br>' + esc(v.address) : '') + (v.phone ? '<br>Contact No. ' + esc(v.phone) : '') + '</div>' +
+        '<p class="bl-p"><b>Subject:</b> Amendment ' + b.amendNo + ' of BOQ ' + esc(rootNo) + ' – change of rate' + (many ? 's' : '') + ' for ' + esc(what) + '.</p>' +
+        '<p class="bl-p"><b>Reference:</b> ' + (wo.woNo ? 'Work Order No. ' + esc(wo.woNo) + (wo.woDate ? ' dated ' + esc(showDate(wo.woDate)) : '') + '; ' : wo.woDate ? 'Work Order dated ' + esc(showDate(wo.woDate)) + '; ' : '') +
+          'BOQ ' + esc(rootNo) + (root ? ' (' + esc(root.id) + ') from ' + esc(showDate(root.from)) + (root.to ? ' to ' + esc(showDate(root.to)) : '') : '') + '.</p>' +
+        '<p class="bl-p">Dear Sir,<br>With reference to the above' + (wo.woNo || wo.woDate ? ' work order' : ' BOQ') + ', we are changing the rate' + (many ? 's' : '') + ' of the machinery given below (Annexure-I) <b>with effect from ' + esc(showDate(b.from)) + '</b>' + (b.to ? ' to ' + esc(showDate(b.to)) : '') +
+          '. The other machinery of BOQ ' + esc(rootNo) + ' and all other terms and conditions remain the same.</p>' +
+        '<h3 class="rsub psec">Annexure-I – BOQ (amended rate' + (many ? 's' : '') + ')</h3>' +
+        '<table><thead><tr><th>Sr</th><th>Machinery</th><th>Type</th><th>Rent type</th><th>Earlier rate</th><th>New rate from ' + esc(showDate(b.from)) + '</th><th>Diesel</th><th>Remark</th></tr></thead><tbody>' +
+        b.lines.map((l, i) => { const e = earlier(l); return '<tr><td>' + (i + 1) + '</td><td><b>' + esc(l.no) + '</b></td><td>' + esc(l.type || '') + '</td><td>' + esc(l.basis) + '</td><td>' +
+          (e ? rateCell(e.line) + (e.line.diesel !== l.diesel ? ' · ' + dieselCell(e.line) : '') + '<br><small>till ' + esc(showDate(e.till)) + '</small>' : '–') + '</td><td><b>' + rateCell(l) + '</b></td><td>' + dieselCell(l) + '</td><td>' + esc(l.remark || '') + '</td></tr>'; }).join('') +
+        '</tbody></table>' + remarkHtml +
+        '<h3 class="rsub psec">Vendor details</h3>' + factsHtml + versionsHtml +
+        '<p class="bl-for">For and on behalf of ' + esc(printName(headName).toUpperCase()) + '.</p>' +
+        signs([['ACCEPTED BY VENDOR', 'SIGN & STAMP'], ['PREPARED BY', 'BILLING DEPT'], ['APPROVED BY', 'PROJECT MANAGER']]);
+    }
     printDoc(title, html, 'rep', true, headName);
   }
 

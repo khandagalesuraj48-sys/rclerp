@@ -1752,6 +1752,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   periods from – to with the BOQ / amendment that gave the rate, the same order as the bills – `boqNewer_`, also in `boqRateFor_`);
   page: "Rate history – machinery-wise" under the BOQ list for the picked vendor (`renderBoqHistory`, `#bh_box`). Unit "update-132";
   rig `test/browser/boqhist132.js` 4.
+- 19-10-2026 (update-133). Report: `UPDATE_133.md`. BOQ print (`boqPrint`): the work order number and date on top of every BOQ;
+  an amendment prints as an amendment letter (To / Subject / Reference – the work order, of its BOQ when it has none of its own /
+  "with effect from" / Annexure-I with the earlier rate from `S.boqHist` and the new rate / vendor's details / all versions / "For and
+  on behalf of" / ACCEPTED BY VENDOR); print styles `.bl-to`, `.bl-p`, `.bl-for`. No server change. Rig `test/browser/boqprint133.js` 4.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
