@@ -3627,3 +3627,65 @@ test('update-125: "Change site" in the dark menu closes the phone / tablet drawe
   assert.match(h, /ptNav\(chosen === '__portal' \? '\/\?menu=1' : ptOpen\('mechanical', chosen\)\)/);
   assert.match(h, /siteSwitch\(chosen\)/);
 });
+
+test('update-126: every number of the Diesel dashboard opens one big box with its entries – only shown; the box\'s total is the number on the card', async () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  // the nine numbers can be pressed (a click, or Enter with the keyboard)
+  for (const k of ['open', 'in', 'issued', 'close', 'now', 'today', 'machines', 'entries', 'avg'])
+    assert.match(app, new RegExp('<div class="k[cm][^"]*" data-kd="' + k + '" role="button" tabindex="0" title="Click to see the entries of this number">'), k);
+  assert.match(app, /const kd = e\.target\.closest\('\[data-kd\]'\); if \(kd\) \{ kdOpen\(kd\.dataset\.kd\); return; \}/);
+  assert.match(app, /if \(kd && \(e\.key === 'Enter' \|\| e\.key === ' '\)\) \{ e\.preventDefault\(\); kdOpen\(kd\.dataset\.kd\); \}/);
+  // the box: nothing to type or change in it – only × and Close
+  const box = app.slice(app.indexOf('<div id="kd_back" hidden>'), app.indexOf('<div id="print_area"></div>'));
+  assert.ok(box.length > 100 && !/<(input|select|textarea)\b/.test(box) && (box.match(/<button/g) || []).length === 2, 'only × and Close');
+  // the entries come through the pages' own actions – the same access as those pages; no new server action, nothing saved
+  const at = app.indexOf('  async function kdBuild(kind, d, f) {'), to = app.indexOf('  function kdClose() {');
+  assert.ok(at > 0 && to > at);
+  const kdCode = app.slice(at, to), called = [...kdCode.matchAll(/call\('(\w+)'/g)].map(m => m[1]);
+  assert.deepStrictEqual([...new Set(called)].sort(), ['getDieselIssues', 'getInwards']);
+  assert.match(code, /getInwards: +\{ m: 'Diesel Inward', f: getInwards_ \}/);
+  assert.match(code, /getDieselIssues: +\{ m: 'Diesel Issue', f: getDieselIssues_ \}/);
+  // worked through with the page's own code: the totals are the Dashboard's figures
+  const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fmt = v => (v === '' || v === null || v === undefined) ? '' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  const money = v => (v === '' || v === null || v === undefined) ? '' : Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const calls = [], answers = {
+    getInwards: { rows: [{ id: 'IN-3', date: '2026-10-12', qty: 500, rate: 92.5, amount: 46250, location: 'Dispenser', pump: 'HP Pump', billNo: 'B-7', billDate: '2026-10-12', enteredBy: 'Ravi' },
+      { id: 'IN-2', date: '2026-10-05', qty: 200, rate: 92, amount: 18400, location: 'VTR Store', pump: 'HP Pump', billNo: 'B-6', billDate: '', enteredBy: 'Ravi' },
+      { id: 'IN-1', date: '2026-10-01', qty: 1000, rate: '', amount: '', location: 'Dispenser', pump: 'Opening stock', open: true }] },
+    getDieselIssues: { count: 3, totalQty: 95.5, share: [{ no: 'JCB-1', type: 'JCB', owner: 'A', qty: 60, entries: 2 }, { no: 'TP-2', type: 'Tipper', owner: 'B', qty: 35.5, entries: 1 }],
+      rows: [{ id: 'DI-3', date: '2026-10-14', shift: 'Day', no: 'JCB-1', qty: 30, hrReading: 1200, kmReading: '', source: 'Dispenser' }, { id: 'DI-2', date: '2026-10-13', shift: 'Night', no: 'TP-2', qty: 35.5, kmReading: 9800, hrReading: '', source: 'Dispenser' },
+        { id: 'DI-1', date: '2026-10-12', shift: 'Day', no: 'JCB-1', qty: 30, hrReading: 1190, kmReading: '', source: 'VTR Store' }] } };
+  const K = new Function('call', 'fmt', 'money', 'esc', 'showDate', 'S', 'r2', app.slice(app.indexOf('  const kdTd = '), app.indexOf('  let kdSeq = 0;')) + app.slice(at, to) + '\nreturn kdBuild;')(
+    async (fn, a) => { calls.push([fn, a]); return answers[fn]; }, fmt, money, esc, d => d.split('-').reverse().join('-'), { today: '2026-10-14' }, n => Math.round(n * 100) / 100);
+  const text = h => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const d = { locations: [{ loc: 'Dispenser', opening: 1000, inward: 500, tin: 0, tout: 100, issued: 65.5, closing: 1334.5 }, { loc: 'VTR Store', opening: 300, inward: 200, tin: 100, tout: 0, issued: 30, closing: 570 }],
+    stock: { stock: 1904.5, byLoc: { Dispenser: 1334.5, 'VTR Store': 570 } }, tanks: { caps: { Dispenser: 2400, 'VTR Store': 1000 } } };
+  const F = { from: '2026-10-01', to: '2026-10-14' };
+  let r = await K('open', d, F);
+  assert.strictEqual(r.big, '1,300 Ltr'); assert.match(text(r.html), /Dispenser 1,000 500 0 100 65\.5 1,334\.5 VTR Store 300 200 100 0 30 570 All places 1,300 700 100 100 95\.5 1,904\.5/);
+  r = await K('close', d, F); assert.strictEqual(r.big, '1,904.5 Ltr');
+  r = await K('now', d, F); assert.strictEqual(r.big, '1,904.5 Ltr'); assert.match(text(r.html), /Dispenser 1,334\.5 2,400 56% VTR Store 570 1,000 57%/);
+  // Received: the opening stock entered ON the start date is part of the opening (as getDashboard counts it) – 700 Ltr in 2 bills
+  r = await K('in', d, F);
+  assert.deepStrictEqual(calls.pop(), ['getInwards', { from: '2026-10-01', to: '2026-10-14', all: true }]);
+  assert.strictEqual(r.big, '700 Ltr'); assert.strictEqual(r.bigSub, '₹64,650.00, 2 bills'); assert.ok(!/IN-1/.test(r.html) && /IN-3/.test(r.html) && /IN-2/.test(r.html));
+  assert.match(getDashSrc(code), /if \(open && \(!from \|\| dk <= from\)\) return;/, 'the same rule on the server');
+  // an opening stock AFTER the start date (a new place) is received diesel, as the server counts it
+  r = await K('in', d, { from: '2026-09-30', to: '2026-10-14' }); calls.pop(); assert.strictEqual(r.big, '1,700 Ltr');
+  // the Diesel Issue entries of the dates; today's of today; machine by machine; the average
+  r = await K('issued', d, F); assert.deepStrictEqual(calls.pop(), ['getDieselIssues', { from: '2026-10-01', to: '2026-10-14' }]);
+  assert.strictEqual(r.big, '95.5 Ltr'); assert.strictEqual(r.bigSub, '3 entries'); assert.match(text(r.html), /Total – 3 entries 95\.5/); assert.match(text(r.html), /Hrs 1,200/); assert.match(text(r.html), /KM 9,800/);
+  r = await K('today', d, F); assert.deepStrictEqual(calls.pop(), ['getDieselIssues', { from: '2026-10-14', to: '2026-10-14' }]);
+  r = await K('entries', d, F); calls.pop(); assert.strictEqual(r.big, '3 entries');
+  r = await K('avg', d, F); calls.pop(); assert.strictEqual(r.big, '31.83 Ltr'); assert.strictEqual(r.bigSub, '95.5 Ltr ÷ 3 entries');
+  r = await K('machines', d, F); calls.pop(); assert.strictEqual(r.big, '2 machines'); assert.match(text(r.html), /JCB-1 JCB A 2 60 .*TP-2 Tipper B 1 35\.5 .*Total – 2 machines 3 95\.5/);
+  // more than the 500 the server lists: said so, the total is of all
+  answers.getDieselIssues = Object.assign({}, answers.getDieselIssues, { count: 812 });
+  r = await K('issued', d, F); calls.pop(); assert.match(text(r.html), /The latest 3 of the 812 entries are listed here; the total is of all 812\./);
+  // the help of the Dashboard says it, in the three languages
+  assert.match(app, /A click on a number \(Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average\) opens a big box with its entries – only shown\./);
+  assert.match(app, /click केले की त्याच्या entries एका मोठ्या box मध्ये दिसतात – फक्त पाहण्यासाठी\./);
+  assert.match(app, /click करने पर उसकी entries एक बड़े box में दिखती हैं – केवल देखने के लिए।/);
+  function getDashSrc(c) { const i = c.indexOf('function getDashboard_('); return c.slice(i, c.indexOf('\n}\n', i)); }
+});
