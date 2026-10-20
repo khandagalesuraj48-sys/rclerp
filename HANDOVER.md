@@ -1785,6 +1785,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `staging/make_staging_sql.js` – Read Me's steps without step 6, the mark, TEST entries, him as Super Admin typed at the top; it
   refuses a database that has the ERP's tables without the mark). vercel.json: /portal and /store of the staging address only
   (`has` host) go to the staging Portal / Store. Guide: `staging/STAGING_SETUP.md`. Rig: `rig/stg_up.sh`, `test/browser/staging138.js` 30.
+- 20-10-2026 (update-139, with App 3.29.0). Report: `UPDATE_139.md`. The Hour meter photo: PHOTO_KINDS_ hrs ('Hour meter'),
+  PHOTO_ORDER_ / PHOTO_NAMES_, at most 5 photos; meterReading_ kind hrs → aiReadMeter_(…, 'hr') (the hours only). App.html PH_KINDS
+  + hrs, phKindsOf (only a KM + Hrs machinery, not Debit Basis), phApplyRead R.hrs fills d_hr (wins over the dashboard's hours),
+  .dph-grid.five. Rig `test/browser/photo139.js` 11.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
