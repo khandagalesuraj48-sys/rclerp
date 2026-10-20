@@ -1298,7 +1298,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .dph-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; margin-bottom: 10px; font-size: 13px; }
   .dph-head b { font-size: 14px; }
   .dph-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-  @media (max-width: 720px) { .dph-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .dph-grid.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }      /* (update-139) with the Hour meter photo */
+  @media (max-width: 720px) { .dph-grid, .dph-grid.five { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .dph-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 120px; padding: 10px 8px; border: 2px dashed #94A3B8; border-radius: 12px; background: #fff; color: var(--ink); font: 600 14px var(--ui); cursor: pointer; overflow: hidden; text-align: center; }
   .dph-tile:active { transform: scale(.98); }
   .dph-tile .dph-ic { font-size: 30px; line-height: 1; }
@@ -5603,7 +5604,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The bill copy could not be used.', 'Add it again with "Take photo" or "Choose photos" and wait for the ✓ on its tile before saving. A copy goes with the inward only if you added it within the last 6 hours; at most 10 with one inward. If it says a database step is needed, tell the Admin.'],
       mr: ['ही bill copy वापरता आली नाही.', '"Take photo" किंवा "Choose photos" ने ती पुन्हा जोडा, आणि save करण्यापूर्वी तिच्या tile वर ✓ येईपर्यंत थांबा. तुम्ही गेल्या 6 तासांत जोडलेली copy च inward सोबत जाते; एका inward सोबत जास्तीत जास्त 10. Database step लागेल असे सांगितले तर Admin ला सांगा.'],
       hi: ['यह bill copy इस्तेमाल नहीं हो सकी।', '"Take photo" या "Choose photos" से उसे फिर से जोड़ें, और save करने से पहले उसकी tile पर ✓ आने तक रुकें। आपकी पिछले 6 घंटों में जोड़ी गई copy ही inward के साथ जाती है; एक inward के साथ ज़्यादा से ज़्यादा 10। Database step चाहिए ऐसा कहे तो Admin को बताएँ।'] },
-    { re: /photo (store|must be|is too big|was not taken|cannot be)|photos could not be opened|4 photos|Photos are kept in Supabase|photos of a diesel issue cannot|taken with the camera just now|take the photo with the camera/i,      // update-85: the photos of a diesel issue
+    { re: /photo (store|must be|is too big|was not taken|cannot be)|photos could not be opened|4 photos|one of the photos of a diesel issue|keeps at most these photos|Each of the photos \(|Photos are kept in Supabase|photos of a diesel issue cannot|taken with the camera just now|take the photo with the camera/i,      // update-85: the photos of a diesel issue
       en: ['The photo could not be used.', 'Take the photo again with the camera of this phone (not from the gallery), for this entry, and wait for the ✓ on its tile before saving. A photo is kept for the entry only if you took it within the last 6 hours. If it says a database step is needed, tell the Admin.'],
       mr: ['हा photo वापरता आला नाही.', 'या phone च्या camera ने (gallery मधून नाही) याच entry साठी photo पुन्हा काढा, आणि save करण्यापूर्वी त्या tile वर ✓ येईपर्यंत थांबा. तुम्ही गेल्या 6 तासांत काढलेला photo च entry सोबत ठेवला जातो. Database step लागेल असे लिहिले असेल तर Admin ला सांगा.'],
       hi: ['यह photo इस्तेमाल नहीं हो सकी।', 'इस phone के camera से (gallery से नहीं) इसी entry के लिए photo दोबारा लें, और save करने से पहले उस tile पर ✓ आने तक रुकें। आपकी पिछले 6 घंटों में ली गई photo ही entry के साथ रखी जाती है। Database step चाहिए लिखा हो तो Admin को बताएँ।'] },
@@ -15199,7 +15200,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * The dashboard photo is read by the AI: the reading goes into the KM / Hrs box (blue) to be checked – typing over it changes it.
    * The photos go with the entry when it is saved. Only for a NEW entry in "One entry" (an edit keeps the photos the entry has).
    * Not compulsory yet (the owner will say when). */
-  const PH_KINDS = [['dash', 'Dashboard', '🧭'], ['veh', 'Vehicle + driver', '🚚'], ['pump', 'Dispenser litres', '⛽'], ['reg', 'Register', '📒']];
+  const PH_KINDS = [['dash', 'Dashboard', '🧭'], ['hrs', 'Hour meter', '⏱️'], ['veh', 'Vehicle + driver', '🚚'], ['pump', 'Dispenser litres', '⛽'], ['reg', 'Register', '📒']];
+  /* (update-139, asked 20-10-2026: "jya gadich 2 engine yet tith 2 reading takayla lahtat ek km ani ek hrs tr ase 2 photo weg wegle
+   * gheta yawet") the Hour meter photo – only for a machinery measured by KM and Hrs (its hour meter is often not on the dashboard);
+   * it fills the Hrs box (the dashboard's KM box as before) */
+  const phKindsOf = m => PH_KINDS.filter(x => x[0] !== 'hrs' || (!!m && m.supply !== 'Debit Basis' && meterKm(m) && meterHr(m)));
   const PH = { no: null, items: {}, busy: {}, read: null, cur: null, tok: {} };
   function phClear() {
     Object.keys(PH.items).forEach(k => { try { URL.revokeObjectURL(PH.items[k].url); } catch (e) { /* already gone */ } });
@@ -15217,7 +15222,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function phPaint() {
     const g = $('d_ph_grid'); if (!g) return;
-    g.innerHTML = PH_KINDS.map(([k, label, ic]) => {
+    const kinds = phKindsOf(findMachine(val('d_no'))); g.classList.toggle('five', kinds.length === 5);
+    g.innerHTML = kinds.map(([k, label, ic]) => {
       const it = PH.items[k], b = PH.busy[k];
       return '<button type="button" class="dph-tile' + (it && !b ? ' done' : '') + (b ? ' busy' : '') + '" data-phk="' + k + '"' + (b ? ' disabled' : '') + ' aria-label="' + esc(label) + ' photo"' + (it && !b ? ' title="Tap to take it again"' : '') + '>' +
         (it && !b ? '<img src="' + esc(it.url) + '" alt=""><span class="dph-ok">✓</span><span class="dph-lbl">' + esc(label) + '</span>'
@@ -15243,7 +15249,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (PH.no !== m.id) { URL.revokeObjectURL(pic.url); return; }      // the machinery was changed meanwhile
       // (update-87) the AI reads the dashboard (its reading) and the dispenser (its litres) NOW, while the photo is being sent – with
       // a smaller copy; a Debit Basis machinery has no reading
-      if ((k === 'dash' && m.supply !== 'Debit Basis') || k === 'pump') phAsk(k, m.id, pic.small);
+      if (((k === 'dash' || k === 'hrs') && m.supply !== 'Debit Basis') || k === 'pump') phAsk(k, m.id, pic.small);
       let res;
       try { res = await call('dieselPhoto', { kind: k, data: pic.data, lat: pos.lat, lng: pos.lng, acc: pos.acc, at: at.toISOString(), no: m.id }); }
       catch (e) { URL.revokeObjectURL(pic.url); throw e; }
@@ -15299,7 +15305,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * still reading. */
   function phApplyRead(fresh) {
     const m = findMachine(val('d_no')), note = $('d_ai_note'), R = PH.read || {};
-    if (!m || PH.no !== m.id || (!R.dash && !R.pump)) { note.hidden = true; return; }
+    if (!m || PH.no !== m.id || (!R.dash && !R.hrs && !R.pump)) { note.hidden = true; return; }
     const put = [], warn = [];
     const fill = (id, wrap, v, txt) => {
       const el = $(id); if (v === null || v === undefined || (wrap && $(wrap).hidden) || el.dataset.ai === '0') return;      // ('0': the person typed over what the AI put – his value, nothing more said)
@@ -15309,9 +15315,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const d = R.dash, p = R.pump;
     if (d && d.error) warn.push('the meter could not be read now – type the reading');
     else if (d && !d.wait) {
-      fill('d_km', 'd_km_wrap', d.km, v => fmt(v) + ' km'); fill('d_hr', 'd_hr_wrap', d.hr, v => fmt(v) + ' hr');
+      const hrsHas = !!(R.hrs && !R.hrs.wait && !R.hrs.error && R.hrs.hr !== null && R.hrs.hr !== undefined);      // (update-139) the Hour meter photo's hours win
+      fill('d_km', 'd_km_wrap', d.km, v => fmt(v) + ' km'); fill('d_hr', 'd_hr_wrap', hrsHas ? null : d.hr, v => fmt(v) + ' hr');
       if (d.check) warn.push('reading ' + d.check);
       if (fresh === 'dash' && (d.km === null || d.km === undefined) && (d.hr === null || d.hr === undefined)) warn.push('the meter could not be read clearly – type the reading (or take the dashboard photo again, closer)');
+    }
+    // (update-139) the Hour meter photo: the hours (after the dashboard's, so its reading is the one kept)
+    const hm = R.hrs;
+    if (hm && hm.error) warn.push('the hour meter could not be read now – type the hours');
+    else if (hm && !hm.wait) {
+      fill('d_hr', 'd_hr_wrap', hm.hr, v => fmt(v) + ' hr');
+      if (hm.check) warn.push('reading ' + hm.check);
+      if (fresh === 'hrs' && (hm.hr === null || hm.hr === undefined)) warn.push('the hour meter could not be read clearly – type the hours (or take the hour meter photo again, closer)');
     }
     if (p && p.error) warn.push('the litres could not be read now – type the Diesel Qty');
     else if (p && !p.wait) {
@@ -15319,7 +15334,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (p.check) warn.push('litres: ' + p.check);
       if (fresh === 'pump' && (p.litres === null || p.litres === undefined)) warn.push('the litres could not be read clearly – type the Diesel Qty');
     }
-    const waiting = [d && d.wait ? 'the meter' : '', p && p.wait ? 'the litres' : ''].filter(Boolean), parts = [];
+    const waiting = [d && d.wait ? 'the meter' : '', hm && hm.wait ? 'the hour meter' : '', p && p.wait ? 'the litres' : ''].filter(Boolean), parts = [];
     if (put.length) parts.push('AI read on the photos: ' + put.join(' · ') + ' – check with the photos; type over it if it is wrong.');
     if (warn.length) parts.push('Check: ' + warn.join('; ') + '.');
     if (waiting.length) parts.push('The AI is reading ' + waiting.join(' and ') + ' on the photo…');

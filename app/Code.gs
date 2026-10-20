@@ -4698,7 +4698,11 @@ function getDieselIssues_(f) {
  * The dashboard photo is also read by the AI (the same service as the assistant): the KM / hour-meter reading it shows is put in
  * the form, where the person checks it and may change it – ONE reading is saved. */
 const PHOTO_BUCKET_ = 'diesel-photos';
-const PHOTO_KINDS_ = { dash: 'Dashboard', veh: 'Vehicle and driver', pump: 'Dispenser litres', reg: 'Register' };
+const PHOTO_KINDS_ = { dash: 'Dashboard', hrs: 'Hour meter', veh: 'Vehicle and driver', pump: 'Dispenser litres', reg: 'Register' };
+// (update-139, asked 20-10-2026: "jya gadich 2 engine yet tith 2 reading takayla lahtat ek km ani ek hrs tr ase 2 photo weg wegle
+// gheta yawet") the Hour meter photo: for a machinery measured by KM and Hrs, whose hour meter is not on the dashboard
+const PHOTO_ORDER_ = ['dash', 'hrs', 'veh', 'pump', 'reg'];
+const PHOTO_NAMES_ = 'Dashboard, Hour meter, Vehicle and driver, Dispenser litres, Register';
 const PHOTO_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1x_diesel_photos.sql once in Supabase → SQL Editor.';
 const PHOTO_PATH_ = /^\d{4}-\d{2}\/[0-9a-f-]{36}\.jpg$/;
 function photosReady_() { photoColReady_(APP.SHEET_DIESEL, DIESEL_COLS_, 'diesel_issue', 'Photos of a diesel issue cannot be kept yet. ' + PHOTO_SQL_MSG_); }
@@ -4727,7 +4731,7 @@ function uploadDieselPhoto_(u, x) {
   x = x || {};
   if (!canEdit_(u, 'Diesel Issue')) throw new Error('You have View access only for Diesel Issue. Ask Admin for Edit access.');
   const k = str_(x.kind);
-  if (!PHOTO_KINDS_[k]) throw new Error('This is not one of the 4 photos of a diesel issue (Dashboard, Vehicle and driver, Dispenser litres, Register).');
+  if (!PHOTO_KINDS_[k]) throw new Error('This is not one of the photos of a diesel issue (' + PHOTO_NAMES_ + ').');
   const lat = photoNum_(x.lat, -90, 90), lng = photoNum_(x.lng, -180, 180), acc = photoNum_(x.acc, 0, 1e6);
   if (lat === null || lng === null) throw new Error('The photo has no location – turn on the location of the phone and take the photo again.');
   const mt = /^data:image\/jpeg;base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
@@ -4748,13 +4752,13 @@ function uploadDieselPhoto_(u, x) {
 // the photos sent with a new entry → the list kept with it (time and place as the server noted them when each was sent)
 function photosOf_(list, u, no) {
   if (!Array.isArray(list) || !list.length) return null;
-  if (list.length > 4) throw new Error('A diesel issue keeps at most the 4 photos (Dashboard, Vehicle and driver, Dispenser litres, Register).');
+  if (list.length > PHOTO_ORDER_.length) throw new Error('A diesel issue keeps at most these photos: ' + PHOTO_NAMES_ + '.');
   photosReady_();
   let mId = ''; try { mId = findMachine_(no).id; } catch (e) { mId = ''; }      // (a machinery that is not in Master is refused by the save itself)
   const recs = photoRecs_(list.map(x => str_(x && x.p))), seen = {};
   return list.map((x, i) => {
     const k = str_(x && x.k), p = str_(x && x.p);
-    if (!PHOTO_KINDS_[k] || seen[k]) throw new Error('Each of the 4 photos (Dashboard, Vehicle and driver, Dispenser litres, Register) can be given once.');
+    if (!PHOTO_KINDS_[k] || seen[k]) throw new Error('Each of the photos (' + PHOTO_NAMES_ + ') can be given once.');
     seen[k] = true;
     const rec = PHOTO_PATH_.test(p) ? recs[i] : null;
     if (!rec || !u || rec.e !== u.email || rec.k !== k) throw new Error('The ' + PHOTO_KINDS_[k] + ' photo was not taken by you in the last 6 hours, or it is already with another entry – take the photo again.');
@@ -4797,7 +4801,7 @@ function dieselPhotos_(id) {
   if (code < 200 || code >= 300) throw new Error('The photos could not be opened (' + code + ') – try again in a moment.');
   let signed = []; try { signed = JSON.parse(res.getContentText()) || []; } catch (e) { signed = []; }
   const urlOf = {}; (Array.isArray(signed) ? signed : []).forEach(x => { if (x && x.path && x.signedURL) urlOf[x.path] = sb.url + '/storage/v1' + x.signedURL; });
-  out.photos = ['dash', 'veh', 'pump', 'reg'].map(k => list.find(x => x.k === k)).filter(Boolean)
+  out.photos = PHOTO_ORDER_.map(k => list.find(x => x.k === k)).filter(Boolean)
     .map(x => ({ k: x.k, label: PHOTO_KINDS_[x.k], at: str_(x.at), lat: x.lat, lng: x.lng, acc: x.acc, url: urlOf[x.p] || '' }));
   return out;
 }
@@ -4878,8 +4882,9 @@ function inwardPhotos_(id) {
     photos: list.map(x => ({ p: x.p, at: str_(x.at), url: urlOf[x.p] || '' })) };
 }
 /* THE AI READS A PHOTO (update-85 / 87) – its own question, sent by the page AT THE SAME TIME as the photo is kept (a slow AI
- * never holds up the photo or the Save), with a smaller copy of the picture. Nothing is saved here. Two photos are read:
+ * never holds up the photo or the Save), with a smaller copy of the picture. Nothing is saved here. These photos are read:
  *   dash – the machinery's KM / hour meter (only the reading(s) it is measured by; a Debit Basis machinery has none: not asked)
+ *   hrs  – (update-139) the Hour meter photo of a machinery measured by KM and Hrs: the hours only
  *   pump – the litres given, on the dispenser's display
  * Answer: dash { km, hr, check } · pump { litres, check } (null = not read clearly; check = a reason to look again, or '')
  * or { off: true } when the AI is not set up on this site. */
@@ -4891,7 +4896,8 @@ function meterReading_(u, x) {
   if (mt[1].length > 2000000) throw new Error('The photo is too big (more than 1.5 MB) – take the photo again.');
   const m = findMachine_(x.no);
   if (!aiInfo_().on) return { off: true };
-  return str_(x.kind) === 'pump' ? aiReadPump_(mt[1], m) : aiReadMeter_(mt[1], m.id);
+  // (update-139) the Hour meter photo: the hour meter only
+  return str_(x.kind) === 'pump' ? aiReadPump_(mt[1], m) : aiReadMeter_(mt[1], m.id, str_(x.kind) === 'hrs' ? 'hr' : '');
 }
 // one question with a picture to the AI (the same models and order as the assistant; a busy model → the next); → its text
 function aiAskPhoto_(b64, ask) {
@@ -4944,9 +4950,10 @@ function pickReading_(v, seen, last, today, kind) {
   if (v === null) return { v: null, check: '' };
   return { v: v, check: (v < last.value ? 'less than' : 'much more than') + ' the last reading ' + last.value + ' (' + dmy_(last.date) + ')' };
 }
-function aiReadMeter_(b64, no) {
+function aiReadMeter_(b64, no, only) {
   let m = null; try { m = no ? findMachine_(no) : null; } catch (e) { m = null; }
-  const wantKm = m ? (m.meterKm !== undefined ? !!m.meterKm : hasKm_(m.unit)) : true, wantHr = m ? (m.meterHr !== undefined ? !!m.meterHr : hasHr_(m.unit)) : true;
+  const wantKm = only !== 'hr' && (m ? (m.meterKm !== undefined ? !!m.meterKm : hasKm_(m.unit)) : true), wantHr = m ? (m.meterHr !== undefined ? !!m.meterHr : hasHr_(m.unit)) : true;
+  if (!wantKm && !wantHr) return { km: null, hr: null, check: '' };
   const last = m ? lastKnownReading_(m.id) : { km: null, hr: null }, today = today_();
   const hint = [wantKm && last.km ? 'the odometer showed ' + last.km.value + ' km on ' + dmy_(last.km.date) : '', wantHr && last.hr ? 'the hour meter showed ' + last.hr.value + ' hours on ' + dmy_(last.hr.date) : ''].filter(Boolean);
   const ask = 'This photo shows the dashboard / meter of a vehicle or machine' + (m ? ' (' + m.id + (m.type ? ', ' + m.type : '') + ')' : '') + '. Read the TOTAL ' +

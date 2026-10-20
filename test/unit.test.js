@@ -2029,7 +2029,7 @@ test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the 
   // the same 4 photos on the page and in the server, in the same order
   const app = fs.readFileSync(path.join(__dirname, '..', 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8');
   const pageKinds = [...(/const PH_KINDS = \[(.*)\];/.exec(app) || ['', ''])[1].matchAll(/\['(\w+)'/g)].map(m => m[1]);
-  assert.deepStrictEqual(pageKinds, ['dash', 'veh', 'pump', 'reg']);
+  assert.deepStrictEqual(pageKinds, ['dash', 'hrs', 'veh', 'pump', 'reg']);      // (update-139: the Hour meter photo)
   assert.deepStrictEqual(run('() => Object.keys(PHOTO_KINDS_)'), pageKinds);
   // a photo that this user did not send (or a copy where photos cannot be kept): the save is refused, nothing is saved; without photos as before
   run('() => saveMaster_({ no: "PH-1", name: "Tipper", type: "Tipper", unit: "KM", worksOn: ["KM"], kmStd: 3, owner: "RCL", ownership: "Own", status: "Active", activeFrom: "2026-01-01" }, "add")');
@@ -2040,7 +2040,7 @@ test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the 
   assert.ok(ok.ok && ok.id, 'an entry without photos is saved as before');
   // the AI reads the dashboard photo AFTER it is kept, as its own question (a slow AI never holds up the photo or the Save);
   // not for a Debit Basis machinery (it has no reading); a photo belongs to one machinery and goes with one entry
-  assert.match(app, /if \(\(k === 'dash' && m\.supply !== 'Debit Basis'\) \|\| k === 'pump'\) phAsk\(k, m\.id, pic\.small\);/);      // (update-87: dashboard and dispenser, while the photo is sent)
+  assert.match(app, /if \(\(\(k === 'dash' \|\| k === 'hrs'\) && m\.supply !== 'Debit Basis'\) \|\| k === 'pump'\) phAsk\(k, m\.id, pic\.small\);/);      // (update-87: dashboard and dispenser, while the photo is sent; update-139: the hour meter)
   assert.match(code, /getMeterReading:\s+\{ m: 'Diesel Issue', withUser: true, f: \(u, x\) => meterReading_\(u, x\) \}/);
   assert.ok(!/aiReadMeter_/.test(code.slice(code.indexOf('function uploadDieselPhoto_'), code.indexOf('function meterReading_'))), 'the upload does not wait for the AI');
   assert.match(code, /rec\.no !== mId/); assert.match(code, /photosTaken_\(photos\.map\(x => x\.p\)\)/); assert.match(code, /pc\.remove\('PH_' \+ p\)/);      // (update-120: photosTaken_)
