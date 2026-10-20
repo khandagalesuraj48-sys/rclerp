@@ -1776,6 +1776,15 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   screen-share notes / heartbeat / data-channel messages (rcl-mobile `lib/core/rtc.dart`); the web's ring and the notification say a
   call of mode `voice` / `video` as a call (`rtcIncoming`, `rtcSend_` → `rtcPush_` mode, `app/sw.js`). Rig `test/browser/app137.js` 16
   (a page that speaks as the app).
+- 20-10-2026 (update-138, with rcl-portal and rcl-store PRs "staging-guard"). Report: `UPDATE_138.md`. THE STAGING (TEST) DATABASE:
+  a Vercel Preview (VERCEL_ENV=preview) works only with a database that has the row app_settings THIS_IS_A_TEST_DATABASE = yes
+  (server/syncfetch.js `previewGuard` before every fetch – 503 "This is a Preview …", FIX_RULES; the Portal lib/preview.js in
+  lib/db.js `call`; the Store lib/preview.js in lib/sites.js `rest`); no Google Sheet backup on a Preview (server/google.js); the
+  orange TEST band on every page (server/page.js shell, Portal and Store pages, not inside Mechanical's frame). One SQL file for a
+  new Supabase project "rcl-staging" with Mechanical + Store + Portal: `staging/rcl_staging_all.sql` (made by
+  `staging/make_staging_sql.js` – Read Me's steps without step 6, the mark, TEST entries, him as Super Admin typed at the top; it
+  refuses a database that has the ERP's tables without the mark). vercel.json: /portal and /store of the staging address only
+  (`has` host) go to the staging Portal / Store. Guide: `staging/STAGING_SETUP.md`. Rig: `rig/stg_up.sh`, `test/browser/staging138.js` 30.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

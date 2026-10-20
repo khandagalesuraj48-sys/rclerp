@@ -26,6 +26,7 @@ function statusOf(msg) {
   if (/^This took too long/.test(msg)) return 504;
   if (/^The app hit a fault|^The server had a problem|^The server is not set up/.test(msg)) return 500;
   if (/^This site is not set up/.test(msg)) return 404;
+  if (/^This is a Preview \(a test copy of the app\)/.test(msg)) return 503;      // (update-138) a Preview not on the test database
   return 200;
 }
 module.exports = async (req, res) => {

@@ -8,6 +8,8 @@ const { fetchAllSync } = require('./syncfetch');
 /* sheetOf: the Sheet of a site other than the first (stage 1 of "new site") – its own Sheet, never the first site's ('' = none
  * yet: "not set up"). Not given = the first site: BACKUP_SHEET_ID, as before. */
 function config(sheetOf) {
+  // (update-138) a Preview (a test copy, the staging database) never writes to a backup Sheet – the live Sheet stays the live data's
+  if (String(process.env.VERCEL_ENV || '') === 'preview') return { ok: false, error: 'This is a Preview (a test copy): it makes no Google Sheet backup.' };
   const raw = String(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '').trim();
   const sheet = sheetOf === undefined ? String(process.env.BACKUP_SHEET_ID || '').trim() : String(sheetOf || '').trim();
   if (sheetOf !== undefined && !sheet) return { ok: false, error: 'The Google Sheet backup of this site is not set up yet.' };
