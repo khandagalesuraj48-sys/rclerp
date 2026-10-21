@@ -213,15 +213,17 @@ const BRIDGE = `
     save(false);
   })();
 
-  // the Google Sheet backup: while the app is open it asks the server now and then to copy what changed
-  // (the server does nothing when nothing changed or when a backup ran a moment ago)
+  // the Google Sheet backup: while the app is open it asks the server now and then whether the day's backup is done
+  // (update-141: the backup runs ONCE A DAY – at night by itself; the first open page of the day starts it if the night's
+  // did not run. The server does nothing when today's is done. Every 30 minutes; a minute later while a backup is unfinished.)
   if (window.parent !== window) {
     var tick = function () { try { var tk = ''; try { tk = sessionStorage.getItem('rcl_token') || localStorage.getItem('rcl_token') || ''; } catch (e) { tk = ''; }
       if (!tk) return;      // nobody signed in: nothing to ask
       var st = ''; try { st = localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site') || ''; } catch (e) { st = ''; }
       if (/^sa/.test(tk)) return;      // (update-90) the Super Admin has no site of his own: nothing to back up
-      fetch(base + '/api/backup', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tk, site: st }) }).catch(function () {}); } catch (e) {} };
-    setTimeout(tick, 40000); setInterval(tick, 300000);
+      fetch(base + '/api/backup', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tk, site: st }) })
+        .then(function (r) { return r.json(); }).then(function (j) { if (j && j.pending > 0) { clearTimeout(soon); soon = setTimeout(tick, 60000); } }).catch(function () {}); } catch (e) {} };
+    var soon = 0; setTimeout(tick, 40000); setInterval(tick, 1800000);
   }
 })();`;
 

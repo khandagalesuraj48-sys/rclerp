@@ -6821,6 +6821,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   /* ---------- Backup to Google Sheet (Admin) ---------- */
   const hhmm = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }); };
+  // (update-141) the backup runs once a day (at night): its time today, else its date – an old backup is never shown as if it were today's
+  const bkWhen = iso => { const d = new Date(iso); if (isNaN(d)) return ''; const day = x => x.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }); return day(d) === day(new Date()) ? hhmm(iso) : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', timeZone: 'Asia/Kolkata' }); };
   const dtFull = iso => { const d = new Date(iso); return isNaN(d) ? '–' : d.toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
   /* MONTH CLOSE: the date up to which entries are closed (set by the Admin on the Billing page; the server enforces it).
    * The Admin sees it in the top bar (asked 13-10-2026: a user's top bar stays clean); an entry date inside the closed period is pointed out while typing. */
@@ -6839,7 +6841,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const sig = JSON.stringify(info); if (b.dataset.sig === sig) return; b.dataset.sig = sig;   // nothing new: leave the page alone
     const bad = info.ok === false, t = info.lastCheck || info.lastRun;
     b.className = 'bk-pill ' + (bad ? 'bad' : 'ok');
-    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 12 3.5 3.5 0 0 0 6 19z"/>' + (bad ? '<path d="M12 11v3"/><path d="M12 17h.01"/>' : '<path d="m9 14 2 2 4-4"/>') + '</svg><span>Backup ' + (bad ? '!' : (t ? hhmm(t) : '')) + '</span>';
+    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 12 3.5 3.5 0 0 0 6 19z"/>' + (bad ? '<path d="M12 11v3"/><path d="M12 17h.01"/>' : '<path d="m9 14 2 2 4-4"/>') + '</svg><span>Backup ' + (bad ? '!' : (t ? bkWhen(t) : '')) + '</span>';
     const adm = !!(S.user && S.user.admin);      // only the Admin can start a backup by hand (the server refuses anybody else)
     b.title = bad ? 'Backup problem: ' + (info.error || '') + (adm ? ' – click to try now' : '') : 'Google Sheet backup checked ' + dtFull(t) + '.' + (info.pending ? ' ' + info.pending + ' table(s) are still being copied – it goes on by itself in a few minutes.' : '') + (adm ? ' Click to check again and copy anything new now.' : ' It runs by itself.');
   }

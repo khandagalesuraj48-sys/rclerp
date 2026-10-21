@@ -5,8 +5,14 @@ module.exports = String.raw`
  * What it does: looks at every table of the database; a table that changed since the last backup (rows added,
  * changed or deleted) has its tab in the Google Sheet written again, whole. Once a day every tab is written again.
  * The Sheet is a copy for reading – the app never reads it back.
- * When: a few minutes after any change while somebody has the app open (the page asks), every night (Vercel cron),
- * and at once with the "Backup" button. Two backups never run together (lock "backup").
+ * When: ONCE A DAY (update-141, 21-10-2026 – "one successful Google Sheets backup daily" with the least data read from the
+ * database): every night by the Vercel cron (02:00 India time); if that did not run (no CRON_SECRET, Vercel or Google down),
+ * the first open page of the day starts it; and at once with the "Backup" button. Until update-141 every open page started
+ * one every 4 minutes after any change, and each read every changed table WHOLE again – the Activity Log (it changes with
+ * every save) many times a day: most of what the database sent out. Two backups never run together (lock "backup").
+ * THE LOGS ONLY GROW (the Activity Log, the Store's log – APPEND_ below): only their NEW rows are read and added at the end of the
+ * tab, when the tab and the notes agree exactly (rows in the tab = rows copied, and the table has exactly those plus the new
+ * ones); otherwise, and once in 30 days, the tab is written whole as before.
  *
  * IN PIECES, AND IT GOES ON WHERE IT STOPPED (07-10-2026). A request of this server is stopped after 58 seconds. Until now
  * the backup read every changed table, wrote them all, and only at the very END noted what it had done. A backup that
@@ -15,7 +21,7 @@ module.exports = String.raw`
  * Now:  - the tables are written in GROUPS (the small ones together, a big one alone), the smallest first, and after
  *         every group "these are done" is written down at once;
  *       - the run stops by itself after about 36 seconds; what is left (state.todo) is taken up by the next asking
- *         (the open pages ask every few minutes; an unfinished backup does not wait for the 4-minute rule);
+ *         (an open page asks again a minute later while something is left; an unfinished backup is not "done today");
  *       - a run that was cut off all the same leaves a mark (state.running); after two in a row the app shows the
  *         backup as failed, with the reason, instead of staying green;
  *       - after a failure the next automatic try waits 4 minutes too (every open page used to try again at once).
@@ -30,14 +36,17 @@ function webBackup_(opt) {
   let state = readState();
   const nowMs = Date.now(), nowIso = new Date(nowMs).toISOString(), ms = iso => (iso ? new Date(iso).getTime() || 0 : 0);
   const unfinished = !!(state.todo && state.todo.length);
-  // the automatic check: not more often than every 4 minutes (counted from the last check OR the last failed try);
+  // (update-141) the automatic check (an open page; the nightly job always runs): ONCE A DAY – nothing when a backup already
+  // ended today (India date); after a failed try the next one waits 4 minutes (every open page used to try again at once);
   // an unfinished backup goes on at the next asking – but not for several open pages in the same half minute
-  if (opt.auto && !opt.full && !unfinished && Math.max(ms(state.lastCheck), ms(state.lastTry)) && nowMs - Math.max(ms(state.lastCheck), ms(state.lastTry)) < 4 * 60000) return { skipped: true };
+  const dayOf = t => Utilities.formatDate(new Date(t), 'Asia/Kolkata', 'yyyy-MM-dd');
+  const doneToday = st => !!ms(st.lastCheck) && dayOf(ms(st.lastCheck)) === dayOf(nowMs);
+  if (opt.auto && !opt.full && !unfinished && (doneToday(state) || (ms(state.lastTry) && nowMs - ms(state.lastTry) < 4 * 60000))) return { skipped: true };
   if (opt.auto && !opt.full && unfinished && nowMs - Math.max(ms(state.lastCheck), ms(state.lastTry)) < 30000) return { skipped: true };
   if (!__lockNamed('backup', 110)) return { busy: true, info: sbBackupInfo_() };
   // with the lock: the notes as they are NOW (while this request waited, another server may have finished a backup)
   try { if (typeof __propFresh === 'function') { const now = __propFresh('BK_STATE'); state = now ? (JSON.parse(now) || {}) : {}; } } catch (e) { /* the notes read at the start are used */ }
-  if (opt.auto && !opt.full && !(state.todo && state.todo.length) && ms(state.lastCheck) && nowMs - ms(state.lastCheck) < 60000) { __unlockNamed('backup'); return { skipped: true }; }      // it was just done
+  if (opt.auto && !opt.full && !(state.todo && state.todo.length) && doneToday(state)) { __unlockNamed('backup'); return { skipped: true }; }      // another server has just done it
   // how long one run works before it stops by itself, and how many rows go into one group – the app's settings may change
   // them (BK_BUDGET_MS, BK_GROUP_ROWS in web.props: for tests, or to tune a very big site); normally 36 s and 6,000 rows
   const knob = (k, d, lo, hi) => { const v = Number(P.getProperty(k)); return isFinite(v) && v >= lo && v <= hi ? v : d; };
@@ -111,17 +120,36 @@ function webBackup_(opt) {
         (rep.replies || []).forEach(r => { if (r.addSheet) byTitle[r.addSheet.properties.title] = r.addSheet.properties; }); }
       // one group of tabs: every tab to its exact size + heading style – one call; the values – a few big calls
       const writeTabs = jobs => {
+        if (!jobs.length) return;
         const shape = [];
+        // (update-141) a job with "from" adds rows at the end of its tab: the tab grows to "total" rows, the values go from row from + 1
         jobs.forEach(x => { const id = byTitle[x.title].sheetId;
-          shape.push({ updateSheetProperties: { properties: { sheetId: id, gridProperties: { rowCount: x.data.length, columnCount: x.cols, frozenRowCount: 1 } }, fields: 'gridProperties(rowCount,columnCount,frozenRowCount)' } });
+          shape.push({ updateSheetProperties: { properties: { sheetId: id, gridProperties: { rowCount: x.total || x.data.length, columnCount: x.cols, frozenRowCount: 1 } }, fields: 'gridProperties(rowCount,columnCount,frozenRowCount)' } });
           shape.push({ repeatCell: { range: { sheetId: id, startRowIndex: 0, endRowIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.91, green: 0.93, blue: 0.95 } } }, fields: 'userEnteredFormat(textFormat,backgroundColor)' } }); });
         G('POST', sid + ':batchUpdate', { requests: shape });
         let pack = [], size = 0;
         const send = () => { if (pack.length) { G('POST', sid + '/values:batchUpdate', { valueInputOption: 'USER_ENTERED', data: pack }); pack = []; size = 0; } };
         jobs.forEach(x => { const name = "'" + x.title.replace(/'/g, "''") + "'";
           let i = 0; while (i < x.data.length) { let j = i, part = 0; while (j < x.data.length && (j === i || (part < 1200000 && size + part < 3000000)) && j - i < 5000) { part += JSON.stringify(x.data[j]).length; j++; }
-            pack.push({ range: name + '!A' + (i + 1), values: x.data.slice(i, j) }); size += part; i = j; if (size >= 3000000) send(); } });
+            pack.push({ range: name + '!A' + ((x.from || 0) + i + 1), values: x.data.slice(i, j) }); size += part; i = j; if (size >= 3000000) send(); } });
         send();
+      };
+      /* (update-141) THE LOGS: ONLY THEIR NEW ROWS. A log only grows; its tab is sorted by its key like every tab. The notes
+       * (state.app) say how many rows were copied (n) and the last key (last). The new rows (key after "last") are added at the
+       * end of the tab only when everything agrees: the tab has exactly n rows (nobody changed it in the Sheet), and the table
+       * has exactly n rows up to the newest key read (none was deleted, none came in below "last"). Anything else – and once in
+       * 30 days – the tab is written whole, as before, and the notes start again from it. */
+      const APPEND_ = { activity_log: 'id', store_activity: 'id' };      // (the Store's log: its id is a growing number)
+      const apps = Object.assign({}, state.app || {}), MONTH = 30 * day;
+      const countUpTo = (t, kcol, last) => { const r = UrlFetchApp.fetchAll([{ url: c.url + '/rest/v1/' + t + '?select=' + kcol + '&' + kcol + '=lte.' + encodeURIComponent(last) + '&limit=1', method: 'get', muteHttpExceptions: true, headers: { apikey: c.key, Prefer: 'count=exact' } }])[0];
+        if (r.getResponseCode() >= 300) return -1; const h = r.getHeaders() || {}, n = Number(String(h['content-range'] || h['Content-Range'] || '').split('/')[1]); return isFinite(n) ? n : -1; };
+      const newRowsOf = t => {      // the new rows to add, or null: write the tab whole
+        const kcol = APPEND_[t], a = apps[t], tab = byTitle[sbTabName_(t)];
+        if (!kcol || !a || !(Number(a.n) > 0) || a.last === undefined || a.last === null || a.last === '' || !(nowMs - ms(a.whole) < MONTH)) return null;
+        if (!tab || !tab.gridProperties || Number(tab.gridProperties.rowCount) !== Number(a.n) + 1) return null;
+        const add = sbAllRows_(t, '&' + kcol + '=gt.' + encodeURIComponent(String(a.last)));
+        const top = add.length ? String(add[add.length - 1][kcol]) : String(a.last);
+        return countUpTo(t, kcol, top) === Number(a.n) + add.length ? add : null;
       };
       // the smallest tables first: whatever happens later, most of the copy is up to date
       changed.sort((a, b) => rowsOf(a) - rowsOf(b) || (a < b ? -1 : 1));
@@ -132,12 +160,17 @@ function webBackup_(opt) {
         while (k < changed.length && (!group.length || rows + rowsOf(changed[k]) <= GROUP_ROWS)) { group.push(changed[k]); rows += rowsOf(changed[k]); k++; }
         try {
           // (read with a filter that leaves nothing out, so that this is asked from the database itself and not answered from the server's memory)
-          const jobs = group.map(t => { const cols = cat[t], hasId = cols.some(x => x.name === 'id'), list = sbAllRows_(t, hasId ? '&id=not.is.null' : ''), hdr = cols.map(x => sbHeader_(t, x.name));
+          const jobs = group.map(t => { const cols = cat[t], hdr = cols.map(x => sbHeader_(t, x.name)), kcol = APPEND_[t];
+            const add = newRowsOf(t);
+            if (add) { const a = apps[t]; return { table: t, title: sbTabName_(t), data: add.map(r => cols.map(x => cell(t, x.name, r[x.name]))), cols: hdr.length, from: Number(a.n) + 1, total: Number(a.n) + 1 + add.length, added: add.length,
+              n: Number(a.n) + add.length, app: { n: Number(a.n) + add.length, last: add.length ? String(add[add.length - 1][kcol]) : a.last, whole: a.whole } }; }
+            const hasId = cols.some(x => x.name === 'id'), list = sbAllRows_(t, hasId ? '&id=not.is.null' : '');
             const data = [hdr].concat(list.map(r => cols.map(x => cell(t, x.name, r[x.name])))); if (data.length < 2) data.push(hdr.map(() => ''));
-            return { table: t, title: sbTabName_(t), data: data, cols: hdr.length, n: list.length }; });
-          writeTabs(jobs);
-          jobs.forEach(x => { old[x.table] = sig[x.table]; doneNow[x.table] = 1; if (fullRun) fullRun.done[x.table] = 1; lines.push([x.title, x.n + ' rows']); });
-          keep({ sig: old, fullRun: fullRun, todo: changed.filter(t => !doneNow[t]), lastRun: nowIso });      // noted at once: a run that is cut off after this loses nothing of it
+            return { table: t, title: sbTabName_(t), data: data, cols: hdr.length, n: list.length, app: kcol ? { n: list.length, last: list.length ? String(list[list.length - 1][kcol]) : '', whole: nowIso } : null }; });
+          writeTabs(jobs.filter(x => !(x.added === 0)));      // a log with no new row: its tab is already right
+          jobs.forEach(x => { old[x.table] = sig[x.table]; doneNow[x.table] = 1; if (fullRun) fullRun.done[x.table] = 1; if (x.app) apps[x.table] = x.app;
+            lines.push([x.title, x.added !== undefined ? '+' + x.added + ' new rows (' + x.n + ' in all)' : x.n + ' rows']); });
+          keep({ sig: old, fullRun: fullRun, todo: changed.filter(t => !doneNow[t]), lastRun: nowIso, app: apps });      // noted at once: a run that is cut off after this loses nothing of it
         } catch (e) { if (/BK_OUT_OF_TIME/.test(String(e && e.message))) { stopped = true; break; } throw e; }
       }
       const todo = changed.filter(t => !doneNow[t]);
