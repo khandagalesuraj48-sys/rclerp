@@ -54,7 +54,15 @@ minutes on working days since 13 October; the limit is about 8 minutes a day. Ov
   36–37 ms, save 137–142 ms).
 * Where the CPU went before (CPU profile of the same load, every thread): **31 % in helper threads**, 24 of them started in 3
   minutes. A busy site gains little (12 %); a quiet site gains most (above: 8–12× less per heartbeat).
-* Regression: TBD
+* **Regression sweep of every test file** of the repository (141: unit, API and browser tests on the test copy, each alone with a
+  time limit), this update (`07643f8`, before the review fixes, which only add checks to the renewal) against the sweep of
+  21-10-2026 (update-140): **138 of 141 the same**. The 3 differences:
+  * `unit.test.js` 97 → 99 – the new checks;
+  * `backup.js` 1 → 49 / 49 – that run stopped on old fixtures, fixed in update-141;
+  * `saveonce.js` 44 → 43 / 44 – the check "RETENTION". **Not this update:** the database clears old save numbers at random,
+    on about one save in 50 (step 5: `random() < 0.02`). The test copy's saved database holds 3 long answers older than 24 h;
+    when no random clean-up ran before the check, it counts 4 trimmed instead of 1. Run alone from the same saved database:
+    main 1 failure in 4 runs, this update 1 in 3 (each time "trimmed": 4); the other runs 44 / 44.
 
 ## After an independent review (22-10-2026)
 A second reviewer read the change, ran the tests and tried it on Node 20.20, 21.7 and 22.22. On Node 20–22 it confirmed: the
