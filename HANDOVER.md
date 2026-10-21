@@ -1795,6 +1795,13 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   { n, last, whole }; whole when the tab rows ≠ n, the count up to the last key ≠ n + new, or 30 days). page.js tick every 30 min,
   60 s while `pending` (runtime backup answer). App.html `bkWhen` (time today, else date). test/backup.js: sections daily, logs;
   fixtures fixed (user via SQL, one Super Admin, "Billed Changes"); RIG_DB / RIG_DOOR. Measured run: 9.16 MB → 0.08 MB.
+- 21-10-2026 (update-140, SQL step 2b). Report: `UPDATE_140.md`. LESS DATA FROM THE DATABASE PER REQUEST (egress): gas.js
+  `bootAsk` → `web_boot2(p_keys, p_ver, p_have, p_stamp)` (sql/supabase_step2b_light_boot.sql): settings by md5 "ver", cache
+  entries by md5 (`same` = names only), the stamp by md5 "sh"; BEAT.pver/pall/kept/st/sh; without step 2b → web_boot (asked again
+  after 10 min, BEAT.boot2 = time). makeWarm `check`: 15-min light check (id,updated_at; rows by id via `inList`; > 300 diffs or
+  every 6 h (`wholeAt`, RCL_WARM_WHOLE_MS) whole). pool.js SNAP + gas.seed/onTable: one copy per server, given to every thread.
+  bootKeys + FLOW_REMIND; flush updates BEAT.shared. load-site sends {r}. Tests: unit, browser/egress140.js 8, boot140.js 4.
+  Measured (20 min, 15 people): 49.12 → 23.44 MiB. A two-step "what changed" read was measured (no better) and taken out.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

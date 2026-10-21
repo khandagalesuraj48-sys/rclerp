@@ -23,12 +23,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   for (let i = 0; i < 40; i++) { const no = 'LD-' + String(i).padStart(2, '0'); if (!have.has(no)) await api('saveMaster', { no: no, name: 'Load test', type: 'Load test', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Load test', ownership: 'Other', status: 'Active' }, 'add'); }
   const inw = await api('saveInward', { date: today, location: loc, pump: 'Load test', qty: N * 30 + 1000, rate: 1, billNo: 'LOADTEST-' + Date.now(), billDate: today });
   if (inw.error) console.log('note: the test diesel could not be received (' + inw.error + ') – saves may be refused for lack of stock');
-  const lat = { poll: [], read: [], save: [] }, errs = {}, made = []; let n = 0; const end = Date.now() + T * 1000;
+  const lat = { poll: [], read: [], save: [] }, errs = {}, made = [], beat = {}; let n = 0; const end = Date.now() + T * 1000;
   const one = async (kind, u) => { const s0 = Date.now(); let r;
-    try { r = kind === 'poll' ? await api('sync') : kind === 'read' ? await api('getLogBookList', { from: today, to: today })
+    try { r = kind === 'poll' ? await api('sync', beat[u] || {}) : kind === 'read' ? await api('getLogBookList', { from: today, to: today })
         : await api('saveDieselIssue', { date: today, shift: 'Day', source: loc, no: 'LD-' + String(u % 40).padStart(2, '0'), qty: Math.round((1 + Math.random() * 8) * 100) / 100, kmReading: 100 + (n % 900), remark: 'LOAD TEST', force: true }); }
     catch (e) { r = { error: 'call failed: ' + String((e.cause && e.cause.code) || e.message) }; }
     lat[kind].push(Date.now() - s0); n++;
+    // (update-140) the heartbeat says up to which screen-share note this page has read – as the web page does (rtcBeatArg)
+    if (kind === 'poll' && r && r.result && r.result.rtc && r.result.rtc.r !== undefined) beat[u] = { r: r.result.rtc.r };
     if (r.error) { const k = kind + ': ' + String(r.error).slice(0, 80); errs[k] = (errs[k] || 0) + 1; } else if (kind === 'save' && r.result && r.result.id) made.push(r.result.id); };
   const every = async (kind, u, ms) => { const first = Math.random() * ms; if (Date.now() + first >= end) return; await wait(first);
     while (Date.now() < end) { const s0 = Date.now(); await one(kind, u); if (s0 + ms >= end) break; await wait(Math.max(0, s0 + ms - Date.now())); } };
