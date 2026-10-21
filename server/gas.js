@@ -371,7 +371,9 @@ function makeWarm(st) {
       // "at" = when this copy was true, on the database's clock (its answer's time, to the second; without it: the newest change seen)
       WARM.tables.set(t, { ids: ids, list: ids.map(id => byId.get(id)), at: answered ? answered - 1000 : 0, seen: newest(rows, 'updated_at', '') || new Date(t0 - 600000).toISOString(), delSeen: delSeen || new Date(t0 - 600000).toISOString(),
         sync: st.stamp, loadedAt: Date.now(), wholeAt: Date.now(), slack: Date.now() - t0, big: rows.length >= WARM_MAX });
-      if (ON_TABLE) ON_TABLE(site(), t, WARM.tables.get(t));      // (update-140) the other threads of this server take this copy
+      // (update-140) the other threads of this server take this copy – not a very big table (read whole every time anyway, so a
+      // copy of it would only be copied between threads for nothing; review of 21-10-2026)
+      if (ON_TABLE && rows.length < WARM_MAX) ON_TABLE(site(), t, WARM.tables.get(t));
     });
   };
   // (update-140) a value for PostgREST's in.(…) list: quoted, so an id with a comma, a dot or a bracket is still one value

@@ -4341,5 +4341,6 @@ test('update-140: step 2b (web_boot2 – the settings and the users list only wh
   assert.match(gas, /Date\.now\(\) - \(s\.wholeAt \|\| 0\) > WARM_WHOLE\) cold\.push\(t\)/, 'a whole read once in 6 hours still');
   assert.match(gas, /WARM_DIFF_MAX = 300/);
   assert.match(pool, /workerData: \{ rclWorker: true, seed: \[\.\.\.SNAP\.values\(\)\] \}/, 'a new thread starts with the tables the server already read');
+  assert.match(gas, /if \(ON_TABLE && rows\.length < WARM_MAX\) ON_TABLE\(site\(\), t, WARM\.tables\.get\(t\)\);/, 'a very big table is not passed between threads');
   assert.match(rt, /return \['S_' \+ String\(args\[0\] \|\| ''\), 'USERS_LIST', 'RTCN', 'FLOW_REMIND'\];/, 'the reminder mark comes with the start of the request');
 });

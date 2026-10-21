@@ -84,6 +84,23 @@
   * `boot140.js` 4 / 4;
   * `backup.js` 46 / 46.
 
+## After an independent review (21-10-2026)
+A second reviewer read the change; it found nothing critical and confirmed:
+* the fall-back without step 2b;
+* sessions always fresh;
+* the SQL function's grants and empty search_path;
+* the light check's safety;
+* the threads' shared copies.
+
+Changed after it:
+* **A very big table (250,000 rows or more) is not passed between threads.** It is read whole every time anyway, so passing it
+  only cost memory and time.
+
+Accepted as it is:
+* **The approvals' "reminded in the last 10 minutes" mark can be up to 1 second old** on a heartbeat. It comes from the
+  heartbeat's memory, like the users list.
+* At worst two servers send the same reminder within the same second. A race of this kind existed before.
+
 ## Not verified
 * Not on Vercel, not against the live database. **How much less the live database sends is not measured** – it depends on the
   number of servers Vercel runs, their threads and the live load. The live split of egress is not known.
