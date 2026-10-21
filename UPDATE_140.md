@@ -78,11 +78,11 @@
   * Users are given by the Super Admin since update-90;
   * machinery MH-15-AB-0005… is not in the test Master;
   * tests that need ports or stand-ins not running.
-* The combination with update-141 (this branch sits on it):
+* The combination with update-141 (this branch sits on it), after the review fixes of both:
   * unit 98 / 98;
   * `egress140.js` 8 / 8;
   * `boot140.js` 4 / 4;
-  * `backup.js` 46 / 46.
+  * `backup.js` 49 / 49.
 
 ## After an independent review (21-10-2026)
 A second reviewer read the change; it found nothing critical and confirmed:
