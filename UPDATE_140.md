@@ -64,8 +64,25 @@
 ## Measured
 (filled from the test copy's byte counter – see the table below)
 
-## Regression
-(filled from the sweep)
+## Regression (every API and browser test of this repository, main against this update)
+* **How it was run:**
+  * the test copy (Postgres 16 + PostgREST + the gateway stand-in, the Portal, the Store, Engineering), each test alone with a
+    time limit, the same clean database before each sweep;
+  * update-140 with step 2b in the site databases;
+  * 141 test files: 21 API files (with unit and net) and 120 browser files (PORTAL and GATEWAY modes where a test needs
+    them).
+* **Result:** **139 of 141 tests give exactly the same result on both.**
+  * Compared PASS / FAIL line by line in all 140 shared files: **0 differences**.
+  * The two that differ are new: `boot140.js` (4 / 4) and unit (97 against 96 – the new check).
+* **On both, main and this update:** 144 FAIL lines (796 PASS on main, 801 here). These are old test fixtures, not this update:
+  * Users are given by the Super Admin since update-90;
+  * machinery MH-15-AB-0005… is not in the test Master;
+  * tests that need ports or stand-ins not running.
+* The combination with update-141 (this branch sits on it):
+  * unit 98 / 98;
+  * `egress140.js` 8 / 8;
+  * `boot140.js` 4 / 4;
+  * `backup.js` 46 / 46.
 
 ## Not verified
 * Not on Vercel, not against the live database. **How much less the live database sends is not measured** – it depends on the
@@ -73,7 +90,7 @@
 * Step 2b has never been run on a Supabase project. It was run only on the local test copy (PostgreSQL 16 + PostgREST).
 
 ## Steps for him (in order)
-1. Merge this PR. It works without step 2b, exactly as before.
+1. Merge update-141 (#52) first – this branch sits on it – then this PR. It works without step 2b, exactly as before.
 2. With his approval: run `sql/supabase_step2b_light_boot.sql` in **every** site's Supabase (VTR NH 848, 18B) – SQL Editor →
    New query → paste all → Run. It only adds a function; safe to run again.
 3. The Admin's database page then shows step 2b as done.
