@@ -4303,6 +4303,10 @@ test('update-140: step 2b (web_boot2 – the settings and the users list only wh
   assert.match(gas, /else if \(Date\.now\(\) - s\.loadedAt > WARM_REFRESH\) due\.push\(t\);/, 'after 15 minutes: the light check, not a whole read');
   assert.match(gas, /Date\.now\(\) - \(s\.wholeAt \|\| 0\) > WARM_WHOLE\) cold\.push\(t\)/, 'a whole read once in 6 hours still');
   assert.match(gas, /WARM_DIFF_MAX = 300/);
+  // "what changed since": first only id and time of change, then only the rows this copy does not have with that time
+  assert.match(gas, /get\('\/rest\/v1\/' \+ t \+ '\?select=id,updated_at&order=id\.asc&updated_at=gt\.' \+ encodeURIComponent\(since\(t\)\), '0-999'\)/);
+  assert.match(gas, /return !\(s\.ids\[p\] === id && String\(s\.list\[p\]\.updated_at\) === String\(r\.updated_at\)\);/);
+  assert.ok(!/get\('\/rest\/v1\/' \+ t \+ '\?select=\*&order=id\.asc&updated_at=gt\./.test(gas), 'no whole rows for every change any more');
   assert.match(pool, /workerData: \{ rclWorker: true, seed: \[\.\.\.SNAP\.values\(\)\] \}/, 'a new thread starts with the tables the server already read');
   assert.match(rt, /return \['S_' \+ String\(args\[0\] \|\| ''\), 'USERS_LIST', 'RTCN', 'FLOW_REMIND'\];/, 'the reminder mark comes with the start of the request');
 });

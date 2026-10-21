@@ -428,18 +428,29 @@ function makeWarm(st) {
         const delSince = hot.map(t => { const s = WARM.tables.get(t); return s.at ? new Date(s.at - back(s)).toISOString() : isoBack(s.delSeen, back(s)); }).sort()[0];
         const delReq = after => get('/rest/v1/deleted_rows?select=seq,table_name,row_id,deleted_at&order=seq.asc&deleted_at=gt.' + encodeURIComponent(delSince) + '&table_name=in.(' + hot.join(',') + ')' + (after ? '&seq=gt.' + after : ''), '0-999');
         answered = 0;
-        const res = ask(hot.map(t => get('/rest/v1/' + t + '?select=*&order=id.asc&updated_at=gt.' + encodeURIComponent(since(t)), '0-999')).concat([delReq(0)]));
+        /* (update-140) FIRST ONLY WHICH ROWS CHANGED (id and time of change), THEN ONLY THE ROWS THIS COPY DOES NOT HAVE. The
+         * question goes 15 s back (the overlap above), so the same just-saved rows came again whole with every request of those
+         * 15 seconds – on every thread. Now a row this copy already has with the same time of change is not sent again. */
+        const res = ask(hot.map(t => get('/rest/v1/' + t + '?select=id,updated_at&order=id.asc&updated_at=gt.' + encodeURIComponent(since(t)), '0-999')).concat([delReq(0)]));
         const now = answered ? answered - 1000 : 0;
+        hot.forEach((t, i) => {
+          const s = WARM.tables.get(t), listed = res[i];
+          if (listed.length >= 1000) return;            // (read whole below)
+          const want = listed.filter(r => { const id = String(r.id), p = warmPos(s.ids, id); return !(s.ids[p] === id && String(s.list[p].updated_at) === String(r.updated_at)); }).map(r => String(r.id));
+          let got = [];
+          for (let k = 0; k < want.length; k += 100) got = got.concat(ask([get('/rest/v1/' + t + '?select=*&order=id.asc&id=in.(' + inList(want.slice(k, k + 100)) + ')')])[0]);
+          res[i] = { listed: listed, rows: got };
+        });
         // the list of deleted ids can be long (a clean-up): it is read to its end, page by page – it never forces a whole table to be read
         let gone = res[hot.length], page = gone;
         while (page.length === 1000 && gone.length < 200000) { page = ask([delReq(page[999].seq)])[0]; gone = gone.concat(page); }
         const again = [];
         hot.forEach((t, i) => {
-          const s = WARM.tables.get(t), rows = res[i];
-          if (rows.length >= 1000) { again.push(t); return; }            // a thousand rows changed: the whole table is read instead
+          const s = WARM.tables.get(t), rows = Array.isArray(res[i]) ? res[i] : res[i].rows, listed = Array.isArray(res[i]) ? res[i] : res[i].listed;
+          if (listed.length >= 1000) { again.push(t); return; }            // a thousand rows changed: the whole table is read instead
           gone.forEach(d => { if (d.table_name !== t) return; const id = String(d.row_id), p = warmPos(s.ids, id); if (s.ids[p] === id) { s.ids.splice(p, 1); s.list.splice(p, 1); } });
           rows.forEach(r => { const id = String(r.id), p = warmPos(s.ids, id); if (s.ids[p] === id) s.list[p] = r; else { s.ids.splice(p, 0, id); s.list.splice(p, 0, r); } });
-          s.seen = newest(rows, 'updated_at', s.seen); s.delSeen = newest(gone, 'deleted_at', s.delSeen); s.at = now; s.sync = st.stamp; s.slack = 0;
+          s.seen = newest(listed, 'updated_at', s.seen); s.delSeen = newest(gone, 'deleted_at', s.delSeen); s.at = now; s.sync = st.stamp; s.slack = 0;
           WARM.stats.changes++;
         });
         if (again.length) whole(again);

@@ -25,6 +25,9 @@
   * A row that is new, changed or missing is then read by its id; a row gone from the database is dropped. The copy ends exactly
     as a whole read would leave it.
   * More than 300 differences: the table is read whole, as before. Once in 6 hours it is read whole anyway.
+* **"What changed since" sends only what the copy does not have** (`server/gas.js`, the `hot` read).
+  * It goes 15 seconds back, so a row saved just now came again whole with every request of those 15 seconds, on every thread.
+  * Now it first lists only id and time of change, then reads only the rows the copy does not have with that time.
 * **One read per server, not per thread** (`server/pool.js`, `gas.seed`). A thread that read or checked a table hands its copy
   to the server's other threads, and to every thread started later.
 * **`FLOW_REMIND` comes with the start of the request** (`server/runtime.js` `bootKeys`) and from the heartbeat's memory.
