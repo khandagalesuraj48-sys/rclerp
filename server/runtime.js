@@ -60,7 +60,9 @@ function compiled() {
 }
 // the cache keys a call will surely ask for (read together with the settings, in the first database call)
 function bootKeys(fn, args) {
-  if (fn === 'api' || fn === 'saved') return ['S_' + String(args[0] || ''), 'USERS_LIST', 'RTCN'];      // RTCN: the counter of screen-share notes (Code.gs rtcBeat_) – loaded with the rest, so the heartbeat asks nothing extra
+  // FLOW_REMIND (update-140): the approvals' "reminded in the last 10 minutes" mark (Code.gs flowRemind_, at every heartbeat) – it
+  // was asked of the database by itself at every heartbeat; now it comes with the rest (and from the heartbeat's memory)
+  if (fn === 'api' || fn === 'saved') return ['S_' + String(args[0] || ''), 'USERS_LIST', 'RTCN', 'FLOW_REMIND'];      // RTCN: the counter of screen-share notes (Code.gs rtcBeat_) – loaded with the rest, so the heartbeat asks nothing extra
   if (fn === 'login') { const e = String(args[0] || '').trim().toLowerCase().slice(0, 120); return ['USERS_LIST', 'F_' + e, 'LG_' + Math.floor(Date.now() / 60000)]; }
   if (fn === 'changePassword' || fn === 'logout') return ['S_' + String(args[0] || ''), 'USERS_LIST'];
   if (fn === 'backup') return ['S_' + String((args[0] && args[0].token) || ''), 'USERS_LIST'];

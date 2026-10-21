@@ -4269,3 +4269,36 @@ test('update-138: the staging (test) database – a Preview works only with a da
   st.forEach(x => { assert.deepStrictEqual(x.has, [{ type: 'host', value: mk.HOST }]); assert.ok(/^https:\/\/rcl-(store|portal)-git-staging-pk12356843\.vercel\.app\//.test(x.destination), x.destination); });
   assert.ok(v.rewrites.indexOf(st[3]) < v.rewrites.findIndex(x => !x.has), 'the staging rules come before the live ones');
 });
+
+test('update-140: step 2b (web_boot2 – the settings and the users list only when changed) is listed word for word, only ADDS one function, is checked by the Admin\'s database page, and the server uses it with a way back', () => {
+  const file = fs.readFileSync(path.join(root, 'sql', 'supabase_step2b_light_boot.sql'), 'utf8');
+  const list = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')();
+  const i = list.findIndex(x => x.name === 'supabase_step2b_light_boot.sql');
+  assert.ok(i > -1, 'step 2b is listed in Read Me (so a new site and the staging database get it too)');
+  assert.strictEqual(list[i].sql, file, 'the text shown in the app is the file, word for word');
+  assert.strictEqual(list[i - 1].name, 'supabase_step2_web.sql', 'right after step 2 (it needs web.props / web.cache)');
+  const code = file.split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
+  assert.ok(!/\b(drop|truncate|delete|insert|update|alter)\b/i.test(code), 'nothing is dropped, emptied, changed or written – one function is added');
+  assert.match(code, /^\s*begin;/m); assert.match(code, /commit;/);
+  const fns = [...code.matchAll(/create or replace function public\.(\w+)\(/g)].map(m => m[1]);
+  assert.deepStrictEqual(fns, ['web_boot2'], 'exactly one function');
+  assert.match(code, /returns jsonb language sql stable security definer set search_path = '' as/, 'a fixed, EMPTY search_path');
+  assert.match(code, /revoke all on function public\.web_boot2\(text\[\], text, jsonb\) from public, anon, authenticated;/);
+  assert.match(code, /grant execute on function public\.web_boot2\(text\[\], text, jsonb\) to service_role;/);
+  const fnBody = (code.match(/as \$\$([\s\S]*?)\$\$;/) || [])[1] || '';
+  assert.ok(fnBody && !/from\s+(?!web\.|c\b|v\b)\w+/i.test(fnBody), 'every table it reads is named with its schema (web.props, web.cache)');
+  // the Admin's database page knows the step; the staging file has it
+  const cg = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  assert.match(cg, /add\('Less data from the database[^']*\(step 2b\)', fn\('web_boot2'\), 'supabase_step2b_light_boot\.sql'\)/);
+  assert.ok(fs.readFileSync(path.join(root, 'staging', 'rcl_staging_all.sql'), 'utf8').indexOf(file) > -1, 'the staging database gets step 2b');
+  // the server: web_boot2 first, web_boot when it is missing (404); the light 15-minute check; one read shared by the threads
+  const gas = fs.readFileSync(path.join(root, 'server', 'gas.js'), 'utf8'), pool = fs.readFileSync(path.join(root, 'server', 'pool.js'), 'utf8'), rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8');
+  assert.match(gas, /rpc\('web_boot2', \{ p_keys: keys, p_ver: [^}]+p_have: have \}\)/);
+  assert.match(gas, /if \(!BOOT_NOT_THERE\(e\)\) throw e; BEAT\.boot2 = false;/, 'a missing step 2b → web_boot, as before (any other error is not hidden)');
+  assert.match(gas, /throw new Error\('404 web_boot2 is not installed/);
+  assert.match(gas, /else if \(Date\.now\(\) - s\.loadedAt > WARM_REFRESH\) due\.push\(t\);/, 'after 15 minutes: the light check, not a whole read');
+  assert.match(gas, /Date\.now\(\) - \(s\.wholeAt \|\| 0\) > WARM_WHOLE\) cold\.push\(t\)/, 'a whole read once in 6 hours still');
+  assert.match(gas, /WARM_DIFF_MAX = 300/);
+  assert.match(pool, /workerData: \{ rclWorker: true, seed: \[\.\.\.SNAP\.values\(\)\] \}/, 'a new thread starts with the tables the server already read');
+  assert.match(rt, /return \['S_' \+ String\(args\[0\] \|\| ''\), 'USERS_LIST', 'RTCN', 'FLOW_REMIND'\];/, 'the reminder mark comes with the start of the request');
+});

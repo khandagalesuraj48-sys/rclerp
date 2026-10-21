@@ -7,8 +7,13 @@ const { Worker, isMainThread, parentPort, workerData } = require('worker_threads
 
 if (!isMainThread && workerData && workerData.rclWorker) {
   const { run, warm } = require('./runtime');
+  // (update-140) the tables this server already read (another thread's copy) – and every copy this thread makes is handed on
+  const gas = require('./gas');
+  try { (workerData.seed || []).forEach(x => gas.seed(x.site, x.table, x.state)); } catch (e) { /* this thread reads for itself */ }
+  gas.onTable((site, table, state) => { try { parentPort.postMessage({ warmTable: { site: site, table: table, state: state } }); } catch (e) { /* the others read for themselves */ } });
   try { warm(); } catch (e) { /* shown with the first request */ }
   parentPort.on('message', m => {
+    if (m && m.seed) { try { m.seed.forEach(x => gas.seed(x.site, x.table, x.state)); } catch (e) { /* kept as it is */ } return; }
     let out;
     try { out = { id: m.id, ok: run(m.fn, m.args, m.meta) }; } catch (e) { out = { id: m.id, err: String((e && e.message) || e) }; }
     parentPort.postMessage(out);
@@ -26,11 +31,21 @@ if (!isMainThread && workerData && workerData.rclWorker) {
   const BUSY = 'The server is busy right now – please try again in a moment (RETRY_LATER).';
   const workers = [], queue = [];
   let seq = 0;
+  /* (update-140) THE NEWEST COPY OF EACH TABLE (per site) that a thread read or checked: given to the other threads at once and to
+   * every thread started later, so the server reads a table once, not once per thread (see gas.js seed). */
+  const SNAP = new Map();
+  const shared = (from, x) => {
+    if (!x || !x.state || typeof x.table !== 'string') return;
+    const k = String(x.site || '') + '|' + x.table, had = SNAP.get(k);
+    if (had && !(Number(x.state.at) > Number(had.state.at))) return;
+    SNAP.set(k, x);
+    workers.forEach(o => { if (o !== from) { try { o.w.postMessage({ seed: [x] }); } catch (e) { /* that thread reads for itself */ } } });
+  };
   const drop = s => { const i = workers.indexOf(s); if (i > -1) workers.splice(i, 1); };
   const fail = (s, msg) => { const job = s.job; s.job = null; drop(s); try { s.w.terminate(); } catch (e) {} if (job) { clearTimeout(job.timer); job.reject(new Error(msg)); } next(); };
   function spawn() {
-    const s = { w: new Worker(__filename, { workerData: { rclWorker: true } }), job: null };
-    s.w.on('message', m => { const job = s.job; if (!job || m.id !== job.id) return; s.job = null; clearTimeout(job.timer); if (m.err !== undefined) job.reject(new Error(m.err)); else job.resolve(m.ok); next(); });
+    const s = { w: new Worker(__filename, { workerData: { rclWorker: true, seed: [...SNAP.values()] } }), job: null };
+    s.w.on('message', m => { if (m && m.warmTable) { shared(s, m.warmTable); return; } const job = s.job; if (!job || m.id !== job.id) return; s.job = null; clearTimeout(job.timer); if (m.err !== undefined) job.reject(new Error(m.err)); else job.resolve(m.ok); next(); });
     s.w.on('error', e => fail(s, 'The server had a problem: ' + String((e && e.message) || e)));
     s.w.on('exit', () => { if (workers.indexOf(s) > -1) fail(s, 'The server had a problem – please try again.'); });
     s.w.unref();
