@@ -22,7 +22,7 @@ const TAIL = `
     backup: o => { o = o || {}; if (!o.cron && !sessionUser_(o.token)) throw new Error('SESSION_EXPIRED');
       // the nightly job also forgets old save numbers (step-5 SQL: web_ops_cleanup). Never in the way of the backup; nothing to do where step 5 is not installed.
       if (o.cron) { try { __opsCleanup(); } catch (e) { /* tried again with the next saves and the next night */ } }
-      const r = webBackup_({ auto: true, full: !!o.cron && !!o.full }); return { ok: r.ok !== false, skipped: !!r.skipped, busy: !!r.busy, off: !!r.off }; },
+      const r = webBackup_({ auto: true, full: !!o.cron && !!o.full }); return { ok: r.ok !== false, skipped: !!r.skipped, busy: !!r.busy, off: !!r.off, pending: Number(r.pending) || 0 }; },      // (update-141) pending: the page asks again a minute later
     // only from this server itself (runOnce): the entry is in, what follows a save was never finished
     saved: (token, fn, args, kept) => savedAfterAll_(token, fn, args, kept),
     // (update-90) several sites – only from this server itself (system.js), never from the page (see run: OUTSIDE)

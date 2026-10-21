@@ -3129,7 +3129,10 @@ test('update-117: every site its own diesel places (18B: Camp Pump + 2 dispenser
     const u = run(`pw => { const o = {}; MODULES.forEach(m => { o[m] = 'Edit'; }); return { email: 'm117@rcl.test', name: 'Maker 117', password: pw, active: true, admin: true, perms: o }; }`, PW);
     run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', [u]);
     run('(e, pw) => CacheService.getScriptCache().put("S_tok117", sessionMake_(e, pw, 3600000, false), 3600)', u.email, PW);
-    const api = (fn, ...a) => run('(f, a) => api("tok117", f, a)', fn, a);
+    // (21-10-2026) two saves in the SAME millisecond have the same "created" time, and the stock then orders them by kind, not by
+    // which came first – a transfer out could come before the transfer in that it needs (this test failed about 1 run in 7).
+    // People never save twice in one millisecond; the test waits for the next one.
+    const api = (fn, ...a) => { const t0 = Date.now(); while (Date.now() === t0) { /* the next millisecond */ } return run('(f, a) => api("tok117", f, a)', fn, a); };
     assert.deepStrictEqual(api('getInit').locations, ['Camp Pump', 'MH12ZE1739', 'MH12WJ1381']);
     assert.deepStrictEqual(api('getLookups').locations, ['Camp Pump', 'MH12ZE1739', 'MH12WJ1381']);
     // ---- the diesel of 18B: inward at any of the 3, transfers pump → dispenser and dispenser → dispenser, issue from any ----
@@ -4268,4 +4271,38 @@ test('update-138: the staging (test) database – a Preview works only with a da
   assert.strictEqual(st.length, 4);
   st.forEach(x => { assert.deepStrictEqual(x.has, [{ type: 'host', value: mk.HOST }]); assert.ok(/^https:\/\/rcl-(store|portal)-git-staging-pk12356843\.vercel\.app\//.test(x.destination), x.destination); });
   assert.ok(v.rewrites.indexOf(st[3]) < v.rewrites.findIndex(x => !x.has), 'the staging rules come before the live ones');
+});
+
+test('update-141: the Google Sheet backup ONCE A DAY (the nightly job; the first open page of the day if it did not run); the logs only their new rows', () => {
+  const root = path.join(__dirname, '..');
+  const bk = require('../server/backup.vm.js'), rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8'), pg = fs.readFileSync(path.join(root, 'server', 'page.js'), 'utf8');
+  // an open page: nothing when a backup ended today (India date); 4 minutes after a failed try; the nightly job (full) always runs
+  assert.ok(/const doneToday = st => !!ms\(st\.lastCheck\) && dayOf\(ms\(st\.lastCheck\)\) === dayOf\(nowMs\)/.test(bk) && /'Asia\/Kolkata', 'yyyy-MM-dd'/.test(bk));
+  assert.ok(/if \(opt\.auto && !opt\.full && !unfinished && \(doneToday\(state\) \|\| \(ms\(state\.lastTry\) && nowMs - ms\(state\.lastTry\) < 4 \* 60000\)\)\) return \{ skipped: true \};/.test(bk));
+  assert.ok(/!\(state\.todo && state\.todo\.length\) && doneToday\(state\)\) \{ __unlockNamed\('backup'\); return \{ skipped: true \}; \}/.test(bk), 'checked again with the lock');
+  assert.ok(!/nowMs - Math\.max\(ms\(state\.lastCheck\), ms\(state\.lastTry\)\) < 4 \* 60000/.test(bk), 'no backup every 4 minutes any more');
+  // the logs: only the new rows, when the tab and the notes agree; else (and once in 30 days) whole
+  assert.ok(/const APPEND_ = \{ activity_log: 'id', store_activity: 'id' \};/.test(bk) && /MONTH = 30 \* day/.test(bk));
+  // (review 21-10-2026) read by key page by page, each key once; same columns; never into a tab made again in the same run
+  assert.ok(/const add = byKey\(t, kcol, a\.last\);/.test(bk) && /if \(!distinct\(add, kcol\)\) return null;/.test(bk) && /list = kcol \? byKey\(t, kcol, ''\) :/.test(bk));
+  assert.ok(/if \(a\.cols !== colsOf\(t\)\) return null;/.test(bk) && /if \(missing\.indexOf\(sbTabName_\(t\)\) > -1\) return null;/.test(bk));
+  assert.ok(/Number\(tab\.gridProperties\.rowCount\) !== Number\(a\.n\) \+ 1\) return null;/.test(bk) && /return countUpTo\(t, kcol, top\) === Number\(a\.n\) \+ add\.length \? add : null;/.test(bk));
+  assert.ok(/rowCount: x\.total \|\| x\.data\.length/.test(bk) && /'!A' \+ \(\(x\.from \|\| 0\) \+ i \+ 1\)/.test(bk) && /if \(!jobs\.length\) return;/.test(bk));
+  assert.ok(/keep\(\{ sig: old, fullRun: fullRun, todo: changed\.filter\(t => !doneNow\[t\]\), lastRun: nowIso, app: apps \}\)/.test(bk), 'the notes of the logs are kept with each group');
+  // the page asks every 30 minutes; a minute later while something is left (the answer says "pending")
+  assert.ok(/setInterval\(tick, 1800000\)/.test(pg) && !/setInterval\(tick, 300000\)/.test(pg) && /j\.pending > 0\) \{ clearTimeout\(soon\); soon = setTimeout\(tick, 60000\)/.test(pg));
+  assert.ok(/pending: Number\(r\.pending\) \|\| 0 \}; \}/.test(rt));
+  // the page's script still parses
+  const { shell } = require('../server/page.js'); const sh = shell(); const scripts = sh.match(/<script>([\s\S]*?)<\/script>/g) || [];
+  scripts.forEach(s => { new Function(s.replace(/^<script>|<\/script>$/g, '')); });
+  // the nightly job is still in vercel.json (02:00 India time) and still needs its secret
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  assert.deepStrictEqual(v.crons, [{ path: '/api/backup?full=1', schedule: '30 20 * * *' }]);
+  assert.ok(/if \(!secret \|\| !same\(got, 'Bearer ' \+ secret\)\) return send\(401/.test(fs.readFileSync(path.join(root, 'api', 'backup.js'), 'utf8')));
+  // the Admin's pill: the time when today's, else the date
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.ok(/'<\/svg><span>Backup ' \+ \(bad \? '!' : \(t \? bkWhen\(t\) : ''\)\)/.test(app) && /const bkWhen = iso =>/.test(app));
+  const bkWhen = new Function('const hhmm = iso => "T"; ' + app.slice(app.indexOf('const bkWhen = iso =>'), app.indexOf('\n', app.indexOf('const bkWhen = iso =>'))) + ' return bkWhen;')();
+  assert.strictEqual(bkWhen(new Date().toISOString()), 'T');
+  assert.ok(/^\d{2} [A-Z][a-z]{2}$/.test(bkWhen(new Date(Date.now() - 3 * 86400000).toISOString())), bkWhen(new Date(Date.now() - 3 * 86400000).toISOString()));
 });
