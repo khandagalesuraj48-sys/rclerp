@@ -1802,6 +1802,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   every 6 h (`wholeAt`, RCL_WARM_WHOLE_MS) whole). pool.js SNAP + gas.seed/onTable: one copy per server, given to every thread.
   bootKeys + FLOW_REMIND; flush updates BEAT.shared. load-site sends {r}. Tests: unit, browser/egress140.js 8, boot140.js 4.
   Measured (20 min, 15 people): 49.12 → 23.44 MiB. A two-step "what changed" read was measured (no better) and taken out.
+- 22-10-2026 (update-142). Report: `UPDATE_142.md`. LESS CPU ON VERCEL (Hobby's 4 h of Fluid Active CPU in 30 days were used up,
+  94 % rclerp): syncfetch.js – a helper unused for IDLE_MS is no longer terminated and restarted; `renew` asks it to replace
+  Node's connection pool (`Symbol.for('undici.globalDispatcher.1')`, new pool of the same kind, old one destroyed) and answers
+  true / false; false or no answer in 2 s → replaced as before. `renewals()` next to `helpersMade()`. test/net.test.js updated
+  (4 pauses → 4 renewals, 1 helper, no retry), unit check update-142. Measured per heartbeat of an idle page 156 → 13 ms CPU,
+  of a background tab 162 → 20 ms; 15 people 10 min 89.6 → 78.9 s.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

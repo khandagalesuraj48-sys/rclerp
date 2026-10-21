@@ -18,9 +18,13 @@ minutes on working days since 13 October; the limit is about 8 minutes a day. Ov
 
   | The page | main (before) | this update |
   |---|---|---|
-  | in use (every 2 s) | TBD | TBD |
-  | open, nobody touching it (every 15 s) | TBD | TBD |
-  | tab in the background (every 30 s) | TBD | TBD |
+  | in use (every 2 s, 60 calls) | 10.5 ms | 10.2 ms |
+  | open, nobody touching it (every 15 s, 12 calls) | **156 ms** | **13 ms** |
+  | tab in the background (every 30 s, 6 calls) | **162 ms** | **20 ms** |
+
+  (The server's own CPU over the whole time, divided by the calls – its own timers, about 0.06 s a minute with nobody asking,
+  are included, so the small numbers are at most that. Each copy freshly started on the same test database; the server's CPU
+  read from /proc before and after.)
 
 ## What changes
 * **The helper is kept.** After 5 s without use it only throws away its connections and opens new ones for the next request:
@@ -40,8 +44,18 @@ minutes on working days since 13 October; the limit is about 8 minutes a day. Ov
   so the connections really are new – and no new helper was started (4 pauses, 4 renewals). The dead-connection read and the
   write that is never sent twice: as before.
 * The way back was checked by hand: a helper that refuses the renewal is replaced (2 helpers, 0 renewals).
-* CPU: TBD
+* **CPU under the usual load** (`test/load-site.js`: 15 people for 10 minutes – a heartbeat every 2 s each, the Log Book every
+  15 s, a diesel issue every 90 s; the same test database, VTR's size, put back before each run): the server used
+  **89.6 s → 78.9 s of CPU (12 % less)**. Nothing failed; the speed is the same ("anything new?" half under 6 ms, Log Book list
+  36–37 ms, save 137–142 ms).
+* Where the CPU went before (CPU profile of the same load, every thread): **31 % in helper threads**, 24 of them started in 3
+  minutes. A busy site gains little (12 %); a quiet site gains most (above: 8–12× less per heartbeat).
 * Regression: TBD
+
+## Seen while measuring, not changed
+* Every request builds the app's server code afresh in a new sandbox (`runtime.js` `runPlain`: `vm.createContext` and the whole
+  script run again) – about 2 ms of CPU per request, close to half of a heartbeat of a page in use. Changing that touches how
+  every action runs; it is not part of this update.
 
 ## Not verified
 * Not on Vercel and not against the live database (TLS to Supabase; the test copy talks plain HTTP on this computer).
