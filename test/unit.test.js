@@ -4282,19 +4282,23 @@ test('update-140: step 2b (web_boot2 – the settings and the users list only wh
   assert.match(code, /^\s*begin;/m); assert.match(code, /commit;/);
   const fns = [...code.matchAll(/create or replace function public\.(\w+)\(/g)].map(m => m[1]);
   assert.deepStrictEqual(fns, ['web_boot2'], 'exactly one function');
-  assert.match(code, /returns jsonb language sql stable security definer set search_path = '' as/, 'a fixed, EMPTY search_path');
-  assert.match(code, /revoke all on function public\.web_boot2\(text\[\], text, jsonb\) from public, anon, authenticated;/);
-  assert.match(code, /grant execute on function public\.web_boot2\(text\[\], text, jsonb\) to service_role;/);
+  assert.match(code, /returns jsonb language plpgsql stable security definer set search_path = '' as/, 'a fixed, EMPTY search_path');
+  assert.match(code, /revoke all on function public\.web_boot2\(text\[\], text, jsonb, text\) from public, anon, authenticated;/);
+  assert.match(code, /grant execute on function public\.web_boot2\(text\[\], text, jsonb, text\) to service_role;/);
   const fnBody = (code.match(/as \$\$([\s\S]*?)\$\$;/) || [])[1] || '';
   assert.ok(fnBody && !/from\s+(?!web\.|c\b|v\b)\w+/i.test(fnBody), 'every table it reads is named with its schema (web.props, web.cache)');
+  assert.match(fnBody, /if p_stamp is null or p_stamp = '' or p_stamp <> v_sh then v_out := v_out \|\| v_st; end if;/, 'the stamp only when the server does not have it');
+  assert.match(fnBody, /'same',\s+coalesce\(\(select jsonb_agg\(c\.key\) from c where p_have is not null and \(p_have ->> c\.key\) = c\.h\)/, 'an unchanged entry: only its name');
   // the Admin's database page knows the step; the staging file has it
   const cg = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
   assert.match(cg, /add\('Less data from the database[^']*\(step 2b\)', fn\('web_boot2'\), 'supabase_step2b_light_boot\.sql'\)/);
   assert.ok(fs.readFileSync(path.join(root, 'staging', 'rcl_staging_all.sql'), 'utf8').indexOf(file) > -1, 'the staging database gets step 2b');
   // the server: web_boot2 first, web_boot when it is missing (404); the light 15-minute check; one read shared by the threads
   const gas = fs.readFileSync(path.join(root, 'server', 'gas.js'), 'utf8'), pool = fs.readFileSync(path.join(root, 'server', 'pool.js'), 'utf8'), rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8');
-  assert.match(gas, /rpc\('web_boot2', \{ p_keys: keys, p_ver: [^}]+p_have: have \}\)/);
-  assert.match(gas, /if \(!BOOT_NOT_THERE\(e\)\) throw e; BEAT\.boot2 = false;/, 'a missing step 2b → web_boot, as before (any other error is not hidden)');
+  assert.match(gas, /rpc\('web_boot2', \{ p_keys: keys, p_ver: [^}]+p_have: have, p_stamp: BEAT\.st \? BEAT\.sh : '' \}\)/);
+  assert.match(gas, /if \(!BOOT_NOT_THERE\(e\)\) throw e; BEAT\.boot2 = Date\.now\(\);/, 'a missing step 2b → web_boot, as before (any other error is not hidden)');
+  assert.match(gas, /if \(BEAT\.boot2 === true \|\| Date\.now\(\) - Number\(BEAT\.boot2\) > 600000\)/, 'asked again 10 minutes later (the step may have been run since)');
+  assert.match(gas, /if \(whole \|\| lost \|\| stampLost\) \{ BEAT\.pall = null; BEAT\.kept\.clear\(\); BEAT\.st = null; BEAT\.sh = ''; return bootAsk\(keys\); \}/, 'anything that does not fit: everything again');
   assert.match(gas, /throw new Error\('404 web_boot2 is not installed/);
   assert.match(gas, /else if \(Date\.now\(\) - s\.loadedAt > WARM_REFRESH\) due\.push\(t\);/, 'after 15 minutes: the light check, not a whole read');
   assert.match(gas, /Date\.now\(\) - \(s\.wholeAt \|\| 0\) > WARM_WHOLE\) cold\.push\(t\)/, 'a whole read once in 6 hours still');

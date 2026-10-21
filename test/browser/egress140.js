@@ -5,12 +5,13 @@
 // time – like a slow save): after the check both servers must show exactly what the database has. On the rig's gateway with its
 // byte counter (GET /__meter) the check must also send far less than a whole read of the table.
 const { execSync, spawn } = require('child_process');
-const sql = q => execSync('su postgres -c "psql -d rcl -tA -q"', { input: q }).toString().trim();
+const RIG_DB = process.env.RIG_DB || 'rcl', DOOR = process.env.RIG_DOOR || 'http://127.0.0.1:3100';      // another test database of the rig
+const sql = q => execSync('su postgres -c "psql -d ' + RIG_DB + ' -tA -q"', { input: q }).toString().trim();
 const APP = process.env.APP_DIR || '/home/claude/vercel', A = 3007, B = 3008;
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const call = async (port, body) => { for (let i = 0; i < 3; i++) { try { return await (await fetch('http://127.0.0.1:' + port + '/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json', Connection: 'close' }, body: JSON.stringify(body) })).json(); } catch (e) { await wait(300); } } throw new Error('server ' + port + ' does not answer'); };
 const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : fail++; out.push((c ? 'PASS ' : 'FAIL ') + n + (x !== undefined ? '  → ' + String(typeof x === 'string' ? x : JSON.stringify(x)).slice(0, 300) : '')); };
-const meter = async () => { try { return await (await fetch('http://127.0.0.1:3100/__meter')).json(); } catch (e) { return null; } };
+const meter = async () => { try { return await (await fetch(DOOR + '/__meter')).json(); } catch (e) { return null; } };
 const NO = 'EG-1', LOGID = 'EG-1|2026-10-01|Full Day';
 const clean = () => sql("delete from diesel_issue where machinery = '" + NO + "' or id = 'EG-LATE'; delete from log_book where machinery = '" + NO + "'; delete from master where id = '" + NO + "';");
 const off = (table, trig, q) => sql('alter table ' + table + ' disable trigger ' + trig + '; ' + q + '; alter table ' + table + ' enable trigger ' + trig + ';');
@@ -50,7 +51,7 @@ const off = (table, trig, q) => sql('alter table ' + table + ' disable trigger '
     const m0 = await meter();
     if (!m0) ok('(the byte counter of the rig\'s gateway is not there – the cost was not measured)', true);
     else {
-      await fetch('http://127.0.0.1:3100/__meter', { method: 'POST' });
+      await fetch(DOOR + '/__meter', { method: 'POST' });
       await wait(2600); await api(A, 'getLogBookList', { from: '2026-10-01', to: '2026-10-01', no: NO });
       const m = await meter(), sum = re => m.rows.filter(r => re.test(r.kind)).reduce((t, r) => t + r.bytes, 0);
       const light = sum(/^GET other log_book select&order/), whole = Number(sql("select sum(octet_length(row_to_json(t)::text)) from log_book t"));

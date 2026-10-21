@@ -60,31 +60,38 @@ function newState(meta) {
  *     renewed in time; a user switched off by the Admin is stopped by the users list, i.e. within a second).
  * So a change is seen by the others at most one second later than before, and the database is asked about once a second
  * per server instead of once per page. Only the heartbeat ("light") uses this; every real action reads the database. */
-let BEAT = { at: 0, props: null, stamp: '', tables: null, shared: {}, sess: new Map(), pver: '', pall: null, kept: new Map(), boot2: true };
+let BEAT = { at: 0, props: null, stamp: '', tables: null, shared: {}, sess: new Map(), pver: '', pall: null, kept: new Map(), boot2: true, st: null, sh: '' };
 /* (update-140) THE SETTINGS AND THE USERS LIST ONLY WHEN THEY CHANGED. Every request began by reading ALL the settings (web.props)
  * and the users list (cache USERS_LIST) – several KB, more than twice a second on a busy site: the largest part of what the live
  * database sent. With step 2b (web_boot2) the server says which versions it already has – the settings' fingerprint (pver) and
  * each kept cache entry's (BEAT.kept: key → { h, v }) – and the database sends only what differs; everything else of the start of
- * a request is exactly as before. Sign-in sessions (S_…) are not kept here (one per person, small): they always come. Without
- * step 2b (the function is not there – 404) the server goes on with web_boot, as before (remembered per site: boot2 = false). */
+ * a request is exactly as before. Sign-in sessions (S_…) are not kept here (one per person, small): they always come. The same
+ * for the stamp (the time of the last change of each main table, ~400 bytes): the server sends the fingerprint of the stamp it
+ * has (BEAT.sh) and gets the stamp only when it differs. Without step 2b (the function is not there – 404) the server goes on
+ * with web_boot, as before (remembered per site for 10 minutes: boot2 = the time it was missing). */
 const BOOT_NOT_THERE = e => /^404 /.test(String((e && e.message) || e).replace(/^Error:\s*/, ''));
 const keepable = k => !/^S_/.test(k);
 function bootAsk(keys) {
-  if (BEAT.boot2) {
+  if (BEAT.boot2 === true || Date.now() - Number(BEAT.boot2) > 600000) {      // (without step 2b: asked again every 10 minutes – it may have been run since)
     const have = {}; keys.forEach(k => { const m = keepable(k) && BEAT.kept.get(k); if (m) have[k] = m.h; });
     let b = null;
-    try { b = rpc('web_boot2', { p_keys: keys, p_ver: BEAT.pall ? BEAT.pver : '', p_have: have }) || {}; }
-    catch (e) { if (!BOOT_NOT_THERE(e)) throw e; BEAT.boot2 = false; }
+    try { b = rpc('web_boot2', { p_keys: keys, p_ver: BEAT.pall ? BEAT.pver : '', p_have: have, p_stamp: BEAT.st ? BEAT.sh : '' }) || {}; }
+    catch (e) { if (!BOOT_NOT_THERE(e)) throw e; BEAT.boot2 = Date.now(); }
     if (b) {
-      const cache = b.cache || {}, hash = b.hash || {};
-      // every entry the database has: sent (new or changed) → kept; not sent → this server's copy, which has the same fingerprint
+      const cache = b.cache || {}, hash = b.hash || {}, same = Array.isArray(b.same) ? b.same.map(String) : [];
+      // every entry the database has: sent (new or changed, with its fingerprint) → kept; named in "same" → this server's copy
       const whole = !(b.props && typeof b.props === 'object') && !(BEAT.pall && String(b.ver || '') === BEAT.pver);
-      const lost = Object.keys(hash).some(k => !(k in cache) && !(BEAT.kept.has(k) && BEAT.kept.get(k).h === hash[k]));
-      if (whole || lost) { BEAT.pall = null; BEAT.kept.clear(); return bootAsk(keys); }       // (cannot happen – if it does: everything again)
+      const lost = same.some(k => !(BEAT.kept.has(k) && have[k] === BEAT.kept.get(k).h)) || Object.keys(cache).some(k => keepable(k) && !(k in hash));
+      // the stamp: sent, or – its fingerprint (sh) the same as the one this server sent – the stamp this server has
+      const stampLost = !(typeof b.stamp === 'string') && !(BEAT.st && b.sh && String(b.sh) === BEAT.sh);
+      if (whole || lost || stampLost) { BEAT.pall = null; BEAT.kept.clear(); BEAT.st = null; BEAT.sh = ''; return bootAsk(keys); }       // (cannot happen – if it does: everything again)
       if (b.props && typeof b.props === 'object') { BEAT.pall = b.props; BEAT.pver = String(b.ver || ''); }
+      if (typeof b.stamp === 'string') { BEAT.st = { stamp: b.stamp, tables: b.tables }; BEAT.sh = String(b.sh || ''); }
+      else { b.stamp = BEAT.st.stamp; b.tables = BEAT.st.tables; }
       const out = {};
-      Object.keys(hash).forEach(k => { if (k in cache) { out[k] = cache[k]; if (keepable(k)) BEAT.kept.set(k, { h: hash[k], v: cache[k] }); } else out[k] = BEAT.kept.get(k).v; });
-      keys.forEach(k => { if (!(k in hash)) BEAT.kept.delete(k); });          // gone or run out in the database: not kept either
+      Object.keys(cache).forEach(k => { out[k] = cache[k]; if (keepable(k)) BEAT.kept.set(k, { h: hash[k], v: cache[k] }); });
+      same.forEach(k => { out[k] = BEAT.kept.get(k).v; });
+      keys.forEach(k => { if (!(k in out)) BEAT.kept.delete(k); });          // gone or run out in the database: not kept either
       if (BEAT.kept.size > 500) BEAT.kept.clear();
       b.cache = out;
       b.props = Object.assign({}, BEAT.pall);      // (a copy: the request may change its settings – the kept ones stay as the database has them)
@@ -484,7 +491,7 @@ function scryptHex(pw, saltHex, N, r, p) {
  * memory it always had. */
 let CUR = null;
 const MEM = new Map([['', { LOCAL: LOCAL, BEAT: BEAT, WARM: WARM }]]);
-const newMem = () => ({ LOCAL: { stamp: null, map: new Map() }, BEAT: { at: 0, props: null, stamp: '', tables: null, shared: {}, sess: new Map(), pver: '', pall: null, kept: new Map(), boot2: true },
+const newMem = () => ({ LOCAL: { stamp: null, map: new Map() }, BEAT: { at: 0, props: null, stamp: '', tables: null, shared: {}, sess: new Map(), pver: '', pall: null, kept: new Map(), boot2: true, st: null, sh: '' },
   WARM: { tables: new Map(), skip: new Set(['activity_log', 'deleted_rows']), stats: { whole: 0, changes: 0, kept: 0, checks: 0, fixed: 0, seeded: 0 } } });
 function useSite(code) {
   const c = sites.conf(code);            // throws "This site is not set up" for a site that does not exist
