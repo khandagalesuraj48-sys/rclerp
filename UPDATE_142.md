@@ -31,7 +31,10 @@ minutes on working days since 13 October; the limit is about 8 minutes a day. Ov
   the same protection against a dead connection, without starting a new thread.
   * How: the helper replaces Node's pool of open connections (`Symbol.for('undici.globalDispatcher.1')`) with a new, empty
     pool of the same kind and closes the old one.
-  * The helper answers whether it could. If it could not (an unexpected Node version), it is replaced exactly as before.
+  * Only on the layout it was built and tested for: Node 20 / 22 keep exactly one pool, under that name. Anything else – a
+    newer Node (Node 26's undici 8 keeps it under `.2`), no pool where one should be, a pool that cannot be replaced – and the
+    helper answers "no": it is then replaced exactly as before (the old CPU cost, never a dead connection).
+  * A helper that does not answer within 2 s is replaced as before too.
 * Nothing else changes: the same 2-second updates, the same time limits (reads 15 s, writes 30 s), a read that failed on the
   network is still asked once more on a new connection, a write is still never repeated by itself.
 * **No database step. No new setting. No change on the page.**
@@ -52,17 +55,33 @@ minutes on working days since 13 October; the limit is about 8 minutes a day. Ov
   minutes. A busy site gains little (12 %); a quiet site gains most (above: 8–12× less per heartbeat).
 * Regression: TBD
 
+## After an independent review (22-10-2026)
+A second reviewer read the change, ran the tests and tried it on Node 20.20, 21.7 and 22.22. On Node 20–22 it confirmed: the
+built-in `fetch` takes the pool from that name on every request; the new pool is the same as Node's own; after a renewal the
+old connection closes at once and the next request opens a new one; 10,000 renewals keep the memory flat; a renewal never
+reaches a helper with a request in flight; the other protections are unchanged. Two things were fixed:
+* **A newer Node** keeps its pool under another name (undici 8 in Node 26: `.2`). The first version then said "renewed" while
+  nothing was renewed – the dead-connection protection would have been lost. Now only the known layout (exactly one pool,
+  under `.1`) is renewed; on any other the helper says "no" and is replaced as before.
+* **The new pool is checked before the old one is closed**; if it could not be put in place, the pool in use is left open.
+* New checks in `test/unit.test.js` (update-142), run in a sandbox: nothing to renew before the first request; used but no pool
+  under the known name → "no"; Node 20 / 22 → new pool, old one closed; a pool under `.2` (with or without `.1`) → "no",
+  nothing closed; a pool that cannot be replaced → "no", left open.
+* Checked by hand with the name changed to `.2` (as on another Node): a new helper is started (2 helpers, 0 renewals), every
+  read answered at once.
+
 ## Seen while measuring, not changed
 * Every request builds the app's server code afresh in a new sandbox (`runtime.js` `runPlain`: `vm.createContext` and the whole
   script run again) – about 2 ms of CPU per request, close to half of a heartbeat of a page in use. Changing that touches how
   every action runs; it is not part of this update.
 
 ## Not verified
-* Not on Vercel and not against the live database (TLS to Supabase; the test copy talks plain HTTP on this computer).
+* Not on Vercel and not against the live database.
 * **How much less CPU Vercel will count is not known before it runs live.** It depends on how often the live site is quiet for
   more than 5 s between requests. Vercel → Usage → Fluid Active CPU shows it per day.
-* Which Node version the Vercel project uses is not known here (tested on Node 22). On a version where the renewal cannot be
-  done, the helper is replaced as before (the old cost, nothing breaks).
+* Which Node version the Vercel project uses is not known here (tested on Node 22; the reviewer also on 20 and 21). On any
+  other layout the helper is replaced as before (the old cost, nothing breaks) – and the CPU saving does not happen.
+* Not tested over TLS (the live database is HTTPS; the test copy is plain HTTP on this computer).
 
 ## Going back
 Vercel → Instant Rollback to the update before. No SQL, no data touched.

@@ -22,6 +22,7 @@ const { parentPort, workerData } = require('worker_threads');
 async function once(q, ms) {
   const ac = new AbortController(), t = setTimeout(() => ac.abort(), ms);
   try {
+    used = true;
     const res = await fetch(q.url, { method: q.method || 'GET', headers: q.headers || {}, body: q.body === undefined || q.body === null ? undefined : q.body, redirect: q.redirect === 'error' ? 'error' : 'follow', signal: ac.signal });
     const text = await res.text();
     const headers = {}; res.headers.forEach((v, k) => { headers[k] = v; });
@@ -37,19 +38,29 @@ async function one(q) {
 }
 // (update-142) "fresh connections": every open connection is closed, the next request opens new ones (Node's web requests use
 // the connection pool kept under this name; a new pool of the same kind replaces it). Answers true only when that was done.
+// (review 22-10-2026) Only for the layout it was built and tested for – Node 20 / 22: ONE pool, under '.1'. A newer Node keeps
+// it elsewhere (undici 8, Node 26: '.2'): then false, and the helper is replaced as before (the old cost, never a dead connection).
+// <renewPool>
 const POOL_KEY = Symbol.for('undici.globalDispatcher.1');
-function renewPool() {
+function renewPool(used) {
+  if (!used) return true;                                   // no request made yet: no connection to throw away
+  const keys = Object.getOwnPropertySymbols(globalThis).filter(k => /^undici[.]globalDispatcher[.]/.test(String(k.description)));
+  if (keys.length !== 1 || keys[0] !== POOL_KEY) return false;
   const old = globalThis[POOL_KEY];
-  if (old === undefined) return true;                       // no request made yet: no connection to throw away
   if (!old || typeof old.constructor !== 'function' || typeof old.destroy !== 'function') return false;
   const neu = new old.constructor();
   if (typeof neu.dispatch !== 'function') return false;
   globalThis[POOL_KEY] = neu;
+  if (globalThis[POOL_KEY] !== neu) return false;           // could not be replaced: the pool in use is left as it is
   try { const p = old.destroy(); if (p && typeof p.catch === 'function') p.catch(() => {}); } catch (e) { /* closed anyway */ }
   return true;
 }
+// </renewPool>
+let used = false;                                           // this helper has made a request (Node's pool exists)
+// (a renewal never reaches a helper with a request in flight: rawFetch returns only when all its requests are answered, and
+// a helper that ran out of time is thrown away – a request in flight would end with UND_ERR_DESTROYED)
 parentPort.on('message', async m => {
-  if (m && m.renew) { let ok = false; try { ok = renewPool(); } catch (e) { ok = false; } m.port.postMessage(ok === true); Atomics.store(m.flag, 0, 1); Atomics.notify(m.flag, 0); return; }
+  if (m && m.renew) { let ok = false; try { ok = renewPool(used); } catch (e) { ok = false; } m.port.postMessage(ok === true); Atomics.store(m.flag, 0, 1); Atomics.notify(m.flag, 0); return; }
   let out;
   try { out = await Promise.all(m.reqs.map(one)); } catch (e) { out = m.reqs.map(() => ({ error: String(e && e.message || e) })); }
   m.port.postMessage(out);
