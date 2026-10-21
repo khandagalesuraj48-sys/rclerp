@@ -250,6 +250,24 @@ const mismatch = async (counts, loose) => { const d = await g('/dump'), bad = []
       await api('saveDieselIssue', [{ date: '2026-09-30', shift: 'Night', source: 'Dispenser', no: 'MH-15-AB-0002', qty: 2, kmReading: 99950, driver: 'BKP', force: true }]).then(x => { if (id0(x)) ids.push(id0(x)); });
       b = await api('backupNow'); const l4 = ((b.result && b.result.lines) || []).find(x => x[0] === 'Activity Log');
       ok('once in 30 days the Activity Log is written whole', !b.error && l4 && /^\d+ rows$/.test(l4[1]) && (await tabIs('Activity Log', AL)).same, b.error || l4);
+      // (review 21-10-2026) more than 1000 new rows: read by key, page by page – every row once, the tab exactly the table
+      b = await api('backupNow');
+      sql("insert into public.activity_log (id, at, email, action, module, summary) select 'LOG-9' || lpad(g::text, 6, '0') || '-bkp', now(), 'bkp@rcl.test', 'Backup test', 'Backup', 'row ' || g from generate_series(1, 1500) g");
+      b = await api('backupNow'); const l5 = ((b.result && b.result.lines) || []).find(x => x[0] === 'Activity Log');
+      ok('[review] 1,500 new rows at once (two pages): only they are added, each once – the tab is exactly the table', !b.error && l5 && /^\+1500 new rows/.test(l5[1]) && (await tabIs('Activity Log', AL)).same, b.error || l5);
+      // a column added to a log: its tab is written whole (heading and rows), not appended under the old heading
+      if (sql("select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'store_activity'") === '1') {
+        b = await api('backupNow');
+        sql("alter table public.store_activity add column bkp_note text; insert into public.store_activity (at, email, action, target, detail) values (now(), 'bkp@rcl.test', 'Backup test', 'BKP', '{}')");
+        b = await api('backupNow'); const lc = ((b.result && b.result.lines) || []).find(x => x[0] === 'store_activity'), head = ((await g('/tab?title=store_activity')).values || [])[0] || [];
+        ok('[review] a column added to a log: its tab is written WHOLE, with the new heading', !b.error && lc && /^\d+ rows$/.test(lc[1]) && head.indexOf('bkp_note') > -1, b.error || { line: lc, head: head });
+        sql("delete from public.store_activity where email = 'bkp@rcl.test'; alter table public.store_activity drop column bkp_note");
+      }
+      // every tab gone from the Sheet (made again in the same run): the log is written whole, never appended into the new tab
+      await g('/reset?bare=1'); sql("insert into public.activity_log (id, at, email, action, module, summary) values ('LOG-9999999-bkpz', now(), 'bkp@rcl.test', 'Backup test', 'Backup', 'after reset')");
+      b = await api('backupNow'); let guard2 = 0; while (!b.error && b.result && b.result.pending > 0 && guard2++ < 30) b = await api('backupNow');
+      ok('[review] the tabs made again: the Activity Log is written WHOLE and is exactly the table', !b.error && (await tabIs('Activity Log', AL)).same, b.error || 'whole');
+      sql("delete from public.activity_log where email = 'bkp@rcl.test'");
       for (const x of ids) await api('deleteDieselIssue', [x]);
     }
 

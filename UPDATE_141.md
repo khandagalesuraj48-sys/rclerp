@@ -55,6 +55,19 @@ plan's 5 GB were used in 13 days).
   * Before: up to one such run every 4–5 minutes while anything changed.
   * After: one a day, plus the Admin's button.
 
+## After an independent review (21-10-2026)
+A second reviewer read the change; it found nothing critical. Four edge cases of "only the new log rows" are now closed:
+* **Read by key, not by position.** A log is read page by page after the last key, never by position. Before, a row saved
+  between two pages of a read of more than 1,000 rows could come twice while another row was missed. A read whose keys are not
+  each once is not trusted (whole next time).
+* **Columns changed.** The notes keep the log's columns; a column added or taken away → the tab is written whole.
+* **Tab made again.** A tab made again in the same run (it was missing) is written whole, never appended into.
+* **Always from the database.** Every page of a log read has a filter, so it is always asked of the database.
+* New checks in `test/backup.js` (logs):
+  * 1,500 new rows at once – each once, the tab exactly the table;
+  * a column added → whole with the new heading;
+  * all tabs gone → whole.
+
 ## Also (tests only)
 * The unit test "update-117" failed about 1 run in 7. Two of its saves came in the same millisecond. The stock then orders them
   by kind, so a transfer out could come before the transfer in that it needs. People never save twice in one millisecond, so

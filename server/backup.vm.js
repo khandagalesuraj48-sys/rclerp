@@ -143,11 +143,22 @@ function webBackup_(opt) {
       const apps = Object.assign({}, state.app || {}), MONTH = 30 * day;
       const countUpTo = (t, kcol, last) => { const r = UrlFetchApp.fetchAll([{ url: c.url + '/rest/v1/' + t + '?select=' + kcol + '&' + kcol + '=lte.' + encodeURIComponent(last) + '&limit=1', method: 'get', muteHttpExceptions: true, headers: { apikey: c.key, Prefer: 'count=exact' } }])[0];
         if (r.getResponseCode() >= 300) return -1; const h = r.getHeaders() || {}, n = Number(String(h['content-range'] || h['Content-Range'] || '').split('/')[1]); return isFinite(n) ? n : -1; };
+      // a log read page by page BY ITS KEY (after the last key of the page before), never by position: a row saved meanwhile
+      // can then neither come twice nor push another row out of the read (review of 21-10-2026)
+      const byKey = (t, kcol, after) => { const out = []; let last = after;
+        for (;;) { const page = sbFetch_('GET', '/rest/v1/' + t + '?select=*&order=' + kcol + '.asc' + (last !== undefined && last !== null && last !== '' ? '&' + kcol + '=gt.' + encodeURIComponent(String(last)) : '&' + kcol + '=not.is.null'), undefined, { Range: '0-999', 'Range-Unit': 'items' }) || [];      // (a filter on every page: always asked of the database, never of the server's memory)
+          out.push.apply(out, page); if (page.length < 1000) break; last = page[page.length - 1][kcol]; }
+        return out; };
+      const distinct = (list, kcol) => new Set(list.map(r => String(r[kcol]))).size === list.length;
+      const colsOf = t => cat[t].map(x => x.name).join(',');
       const newRowsOf = t => {      // the new rows to add, or null: write the tab whole
         const kcol = APPEND_[t], a = apps[t], tab = byTitle[sbTabName_(t)];
         if (!kcol || !a || !(Number(a.n) > 0) || a.last === undefined || a.last === null || a.last === '' || !(nowMs - ms(a.whole) < MONTH)) return null;
+        if (a.cols !== colsOf(t)) return null;      // a column added or taken away: the tab's heading and rows must change – whole
+        if (missing.indexOf(sbTabName_(t)) > -1) return null;      // the tab was made again just now: whole
         if (!tab || !tab.gridProperties || Number(tab.gridProperties.rowCount) !== Number(a.n) + 1) return null;
-        const add = sbAllRows_(t, '&' + kcol + '=gt.' + encodeURIComponent(String(a.last)));
+        const add = byKey(t, kcol, a.last);
+        if (!distinct(add, kcol)) return null;
         const top = add.length ? String(add[add.length - 1][kcol]) : String(a.last);
         return countUpTo(t, kcol, top) === Number(a.n) + add.length ? add : null;
       };
@@ -163,12 +174,13 @@ function webBackup_(opt) {
           const jobs = group.map(t => { const cols = cat[t], hdr = cols.map(x => sbHeader_(t, x.name)), kcol = APPEND_[t];
             const add = newRowsOf(t);
             if (add) { const a = apps[t]; return { table: t, title: sbTabName_(t), data: add.map(r => cols.map(x => cell(t, x.name, r[x.name]))), cols: hdr.length, from: Number(a.n) + 1, total: Number(a.n) + 1 + add.length, added: add.length,
-              n: Number(a.n) + add.length, app: { n: Number(a.n) + add.length, last: add.length ? String(add[add.length - 1][kcol]) : a.last, whole: a.whole } }; }
-            const hasId = cols.some(x => x.name === 'id'), list = sbAllRows_(t, hasId ? '&id=not.is.null' : '');
+              n: Number(a.n) + add.length, app: { n: Number(a.n) + add.length, last: add.length ? String(add[add.length - 1][kcol]) : a.last, whole: a.whole, cols: a.cols } }; }
+            const hasId = cols.some(x => x.name === 'id'), list = kcol ? byKey(t, kcol, '') : sbAllRows_(t, hasId ? '&id=not.is.null' : '');
             const data = [hdr].concat(list.map(r => cols.map(x => cell(t, x.name, r[x.name])))); if (data.length < 2) data.push(hdr.map(() => ''));
-            return { table: t, title: sbTabName_(t), data: data, cols: hdr.length, n: list.length, app: kcol ? { n: list.length, last: list.length ? String(list[list.length - 1][kcol]) : '', whole: nowIso } : null }; });
+            // a log's notes start from this whole copy – only when its keys came each once (else the next run writes it whole again)
+            return { table: t, title: sbTabName_(t), data: data, cols: hdr.length, n: list.length, app: kcol ? (distinct(list, kcol) ? { n: list.length, last: list.length ? String(list[list.length - 1][kcol]) : '', whole: nowIso, cols: colsOf(t) } : 'none') : null }; });
           writeTabs(jobs.filter(x => !(x.added === 0)));      // a log with no new row: its tab is already right
-          jobs.forEach(x => { old[x.table] = sig[x.table]; doneNow[x.table] = 1; if (fullRun) fullRun.done[x.table] = 1; if (x.app) apps[x.table] = x.app;
+          jobs.forEach(x => { old[x.table] = sig[x.table]; doneNow[x.table] = 1; if (fullRun) fullRun.done[x.table] = 1; if (x.app === 'none') delete apps[x.table]; else if (x.app) apps[x.table] = x.app;
             lines.push([x.title, x.added !== undefined ? '+' + x.added + ' new rows (' + x.n + ' in all)' : x.n + ' rows']); });
           keep({ sig: old, fullRun: fullRun, todo: changed.filter(t => !doneNow[t]), lastRun: nowIso, app: apps });      // noted at once: a run that is cut off after this loses nothing of it
         } catch (e) { if (/BK_OUT_OF_TIME/.test(String(e && e.message))) { stopped = true; break; } throw e; }
