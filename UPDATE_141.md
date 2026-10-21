@@ -35,7 +35,7 @@ plan's 5 GB were used in 13 days).
   * the page's timer;
   * the nightly job in `vercel.json`;
   * the pill.
-* `node test/backup.js` on the test copy (Sheets stand-in): **46 / 46**, every section.
+* `node test/backup.js` on the test copy (Sheets stand-in): **49 / 49**, every section (after the review fixes).
   * New sections:
     * **daily** – the first page of the day starts the backup; after it, open pages are left alone even after a new entry;
       the nightly job and the button still run; an unfinished run says `pending` and ends complete;
