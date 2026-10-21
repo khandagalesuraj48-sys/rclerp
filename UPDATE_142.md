@@ -24,7 +24,8 @@ minutes on working days since 13 October; the limit is about 8 minutes a day. Ov
 
   (The server's own CPU over the whole time, divided by the calls – its own timers, about 0.06 s a minute with nobody asking,
   are included, so the small numbers are at most that. Each copy freshly started on the same test database; the server's CPU
-  read from /proc before and after.)
+  read from /proc before and after.) Measured again on the final code (after the review): 9.2 ms in use, **12.5 ms** idle,
+  **11.7 ms** in the background.
 
 ## What changes
 * **The helper is kept.** After 5 s without use it only throws away its connections and opens new ones for the next request:
