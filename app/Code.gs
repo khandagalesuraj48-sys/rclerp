@@ -9329,6 +9329,7 @@ function dbHealth_() {
   const fn = n => !!(api && api.paths && api.paths['/rpc/' + n]);
   if (api) {
     add('Faster server (step 2)', ['web_boot', 'web_flush', 'web_lock', 'web_unlock', 'web_stamp'].every(fn), 'supabase_step2_web.sql', ['web_boot', 'web_flush', 'web_lock', 'web_unlock', 'web_stamp'].filter(n => !fn(n)).join(', '));
+    add('Less data from the database – settings and users only when changed (step 2b)', fn('web_boot2'), 'supabase_step2b_light_boot.sql');      // (update-140)
     add('Safe saving – all or nothing (step 3)', fn('web_write'), 'supabase_step3_safety.sql');
     { const s5 = ['web_op_begin', 'web_op_mark', 'web_write2', 'web_op_end', 'web_ops_cleanup'];
       add('A save is saved once – decided in the database (step 5)', s5.every(fn), 'supabase_step5_save_once.sql', s5.filter(n => !fn(n)).join(', ')); }
