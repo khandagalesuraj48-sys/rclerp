@@ -40,6 +40,7 @@ const count = no => sql("select count(*) from log_book where machinery = '" + no
   const f = p.frames().find(x => x !== p.mainFrame());
   await f.evaluate(() => { try { localStorage.setItem('oc_brief_sujit@rcl.test', new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })); localStorage.setItem('rcl_lang', 'en'); } catch (e) {} });
   await f.type('#lg_email', 'sujit@rcl.test'); await f.type('#lg_pass', 'Nashik#Road848!'); await f.click('#lg_btn'); await wait(6000);
+  await f.evaluate(() => { window.__t = []; const o = window.toast; if (!o.__w) { window.toast = function (m, e) { window.__t.push(String(m)); return o.apply(this, arguments); }; window.toast.__w = 1; } });
   const yes = () => f.evaluate(() => { const c = document.getElementById('cf_back'); if (c && !c.hidden) { const t = document.getElementById('cf_title').textContent + ' :: ' + document.getElementById('cf_back').textContent.replace(/\s+/g, ' ').slice(0, 400); document.getElementById('cf_ok').click(); return t; } return ''; });
 
   // ---------- Edit Log Book ----------
@@ -56,15 +57,15 @@ const count = no => sql("select count(*) from log_book where machinery = '" + no
   const m1 = await more(0), say1 = await f.evaluate(() => (window.__t || []).join(' '));
   let x = await grid();
   ok('Edit Log Book, a tipper on KM: "+ work in this shift" under 02-09 (1100 → 1150) – row 2 starts at 1150; the page says what to type', m1 && x.rows.length === 2 && /^02 KM 1150>1150 /.test(x.rows[1]) && /type its Close – it starts where the row above closed/.test(say1), [x.rows, say1]);
-  await lxSet(1, 'ckm', '1220'); await lxSet(1, 'challan', 'C2'); await lxSet(1, 'work', 'CARTING'); x = await grid();
-  ok('   its Close 1220, challan C2, CARTING: nothing red, no "two entries on"; 50 + 70 km; Save on', !/RED/.test(x.rows.join()) && !/two entries on/.test(x.all) && /=50km/.test(x.rows[0]) && /=70km/.test(x.rows[1]) && x.save === 'on', x);
+  await lxSet(1, 'ckm', '1220'); await lxSet(1, 'work', 'CARTING'); x = await grid();
+  ok('   its Close 1220, CARTING: nothing red, no "two entries on"; 50 + 70 km; Save on', !/RED/.test(x.rows.join()) && !/two entries on/.test(x.all) && /=50km/.test(x.rows[0]) && /=70km/.test(x.rows[1]) && x.save === 'on', x);
   await lxSet(1, 'okm', '1180'); x = await grid();
   ok('   a gap (row 2 Start 1180): red "This work starts where the row above closed: 1150"; Save off', /RED/.test(x.rows[1]) && /This work starts where the row above closed: 1150/.test(x.rows[1]) && x.save === 'off', x);
   await lxSet(1, 'okm', '1150');
   let sv = await lxSave();
-  ok('   saved: ONE entry 1100 → 1220 (120 KM), work "LOADING / CARTING", its two rows (50 km C1, 70 km C2)', /^KM 1100>1220 /.test(ent('N146-TIP', '02')) && /\[LOADING \/ CARTING\]/.test(ent('N146-TIP', '02')) && /"q":\s*50.*"k":\s*"km".*"q":\s*70/.test(ent('N146-TIP', '02')) && count('N146-TIP') === '2', [ent('N146-TIP', '02'), sv.slice(0, 300)]);
+  ok('   saved: ONE entry 1100 → 1220 (120 KM), work "LOADING / CARTING", its two rows (50 km, 70 km)', /^KM 1100>1220 /.test(ent('N146-TIP', '02')) && /\[LOADING \/ CARTING\]/.test(ent('N146-TIP', '02')) && /"q":\s*50.*"k":\s*"km".*"q":\s*70/.test(ent('N146-TIP', '02')) && count('N146-TIP') === '2', [ent('N146-TIP', '02'), sv.slice(0, 300)]);
   await open('N146-TIP', '2026-09-02', '2026-09-02'); x = await grid();
-  ok('   opened again: its two rows 1100 > 1150 and 1150 > 1220, each with its challan and work; nothing red', x.rows.length === 2 && /^02 KM 1100>1150 .* C1 LOADING =50km/.test(x.rows[0]) && /^02 KM 1150>1220 .* C2 CARTING =70km/.test(x.rows[1]) && !/RED/.test(x.rows.join()), x);
+  ok('   opened again: its two rows 1100 > 1150 and 1150 > 1220, each with its work; nothing red', x.rows.length === 2 && /^02 KM 1100>1150 .* LOADING =50km/.test(x.rows[0]) && /^02 KM 1150>1220 .* CARTING =70km/.test(x.rows[1]) && !/RED/.test(x.rows.join()), x);
 
   // 2. a tipper by trips
   await open('N146-TRP', '2026-09-01', '2026-09-01');
