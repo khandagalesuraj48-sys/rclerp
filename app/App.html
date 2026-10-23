@@ -5914,6 +5914,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The Save button was pressed twice; the entry is saved ONCE.', 'Do not enter it again. Look at the list – the entry is there.'],
       mr: ['Save बटण दोनदा दाबले गेले; entry एकदाच save झाली आहे.', 'ती पुन्हा भरू नका. यादी पाहा; entry तिथे आहे.'],
       hi: ['Save बटन दो बार दब गया; entry एक ही बार save हुई है।', 'उसे दोबारा न भरें। सूची देखें; entry वहाँ है।'] },
+    // update-143: a second entry of a saved shift is added to it – the same work twice, or a saved entry that cannot take another work
+    { re: /already in the saved entry of this shift/i,
+      en: ['This work is already in the Log Book entry of that shift – the same Start and Close (or the same From – To) was entered before.', 'Nothing was saved. If the machinery really worked again, type the readings of that new work (they start at the last Close); otherwise leave it – it is already there.'],
+      mr: ['हे काम त्या shift च्या Log Book entry मध्ये आधीच आहे; तेच Start आणि Close (किंवा तीच From – To वेळ) आधी भरले आहे.', 'काहीही save झाले नाही. machinery ने खरोखर पुन्हा काम केले असेल तर त्या नवीन कामाची reading भरा (ती शेवटच्या Close पासून सुरू होते); नाहीतर राहू द्या, entry आधीच आहे.'],
+      hi: ['यह काम उस shift की Log Book entry में पहले से है; वही Start और Close (या वही From – To समय) पहले भरा गया है।', 'कुछ भी save नहीं हुआ। machinery ने सच में फिर काम किया हो तो उस नए काम की reading भरें (वह आखिरी Close से शुरू होती है); वरना रहने दें, entry पहले से है।'] },
+    { re: /another work cannot be added to it|Another work of the same shift is added to a saved entry only/i,
+      en: ['That shift is already saved, and this kind of entry cannot take a second work: a vehicle on KM, a day saved as Idle / Holiday / Breakdown, without a reading or with a new meter, or an entry split between two works.', 'Open that date in Edit Log Book and change the saved entry there (add the work to it, or correct it) – or pick the other shift if the work was in the other shift.'],
+      mr: ['ती shift आधीच save झाली आहे, आणि अशा entry मध्ये दुसरे काम जोडता येत नाही: KM वर चालणारे वाहन, Idle / Holiday / Breakdown म्हणून save झालेला दिवस, reading शिवाय किंवा नवीन meter असलेली entry, किंवा दोन कामांत विभागलेली entry.', 'तो दिवस Edit Log Book मध्ये उघडा आणि save झालेली entry तिथेच बदला (काम जोडा किंवा दुरुस्त करा); काम दुसऱ्या shift मध्ये झाले असेल तर ती shift निवडा.'],
+      hi: ['वह shift पहले से save है, और ऐसी entry में दूसरा काम नहीं जुड़ सकता: KM पर चलने वाला वाहन, Idle / Holiday / Breakdown के रूप में save हुआ दिन, reading के बिना या नए meter वाली entry, या दो कामों में बँटी entry।', 'वह दिन Edit Log Book में खोलें और save हुई entry वहीं बदलें (काम जोड़ें या ठीक करें); काम दूसरी shift में हुआ हो तो वह shift चुनें।'] },
     { re: /already (saved|exists|entered|in Master|a user|has)|more than once|is repeated|is twice|use Edit/i,
       en: ['The same entry (same machinery, date and shift – or the same name / number) is already there.', 'Do not add it again. Find it in the list and use Edit to change it; or correct the date, shift or number if this is really a different entry.'],
       mr: ['तीच entry (तीच machinery, तारीख आणि shift, किंवा तेच नाव / नंबर) आधीच आहे.', 'ती पुन्हा जोडू नका. यादीत शोधून Edit ने बदला; किंवा ही खरोखर वेगळी entry असेल तर तारीख, shift किंवा नंबर दुरुस्त करा.'],
@@ -12330,6 +12339,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     let pf = null; try { pf = await rawCall('getLogRowPrefill', m.id, date, shift); } catch (e) { return { error: errMsg(e) }; }
     if (pf.problem) return { error: pf.problem };
     const ckm = aiN(a.close_km), chr = aiN(a.close_hr), notes = [];
+    if (pf.addTo) notes.push(T({ en: showDate(date) + ' (' + shift + ') is already saved for ' + m.id + ' – this work is added to that entry as work ' + (pf.addTo.rows + 1) + '.', mr: m.id + ' ची ' + showDate(date) + ' (' + shift + ') ची entry आधीच आहे; हे काम त्याच entry मध्ये work ' + (pf.addTo.rows + 1) + ' म्हणून जोडले जाईल.', hi: m.id + ' की ' + showDate(date) + ' (' + shift + ') की entry पहले से है; यह काम उसी entry में work ' + (pf.addTo.rows + 1) + ' के रूप में जुड़ेगा।' }));      // (update-143)
     if (status) return { kind: kind, tab: 'log', title: 'Log Book entry', data: { date: date, shift: shift, no: m.id, mode: status }, notes: notes, lines: [['Machinery', m.id + (m.type ? ' · ' + m.type : '')], ['Date', showDate(date) + ' · ' + shift], ['Status', status]],
       say: T({ en: m.id + ', ' + showDate(date) + ': ' + status + '. Shall I save?', mr: m.id + ', ' + showDate(date) + ': ' + status + '. Save करू का?', hi: m.id + ', ' + showDate(date) + ': ' + status + '. Save करूँ?' }), save: () => call('saveLogRows', { rows: [{ date: date, shift: shift, no: m.id, mode: status }] }) };
     const modes = (m.modes || []).filter(x => x === 'KM' || x === 'Hrs' || x === 'KM + Hrs'); let mode = modes.length === 1 ? modes[0] : (ckm !== '' && chr !== '' ? 'KM + Hrs' : ckm !== '' ? 'KM' : chr !== '' ? 'Hrs' : (pf.lastMode || modes[0] || ''));
@@ -16397,11 +16407,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const earlier = same.filter(o => o !== tr && keyOf(o) < k).sort((a, b) => keyOf(a) < keyOf(b) ? -1 : 1);
       const before = earlier[earlier.length - 1], beforeK = earlier.filter(o => hasKm(info.get(o).u)).pop(), beforeH = earlier.filter(o => hasHr(info.get(o).u)).pop();
       const clash = same.some(o => { if (o === tr) return false; const x = info.get(o); if (me.grp && x.grp === me.grp) return false; return x.date === date && (x.shift === shift || x.shift === 'Full Day' || shift === 'Full Day'); });
-      const later = !!me.grp && me.j > 0;      // a later work of its shift: starts where the row above closed; the diesel, the ½ tick and the opening diesel of the shift stand on its first row
+      /* update-143: this date and shift is already saved and the server adds this row to that entry (p.addTo): it is a later work of the shift –
+       * after the saved rows (add.rows of them), starting at their Close; the diesel and the ½ tick stay on the saved entry */
+      const add = p.addTo || null, off0 = add ? add.rows : 0;
+      const later = !!add || (!!me.grp && me.j > 0);      // a later work of its shift: starts where the row above closed; the diesel, the ½ tick and the opening diesel of the shift stand on its first row
       const ho = hrsOnlyM(m);      // update-77: a machinery on hours – a later row may start ABOVE the Close of the row above it (the hours between are not counted)
       const num = f => { const v = lgf(tr, f).value; return v === '' ? '' : Number(v); };
       let openKm, openHr, odsl, locked;
       if (before) { odsl = before._closing === undefined ? 0 : before._closing; locked = true; }
+      else if (add) { odsl = Number(add.stock) || 0; locked = true; }      // (update-143: the tank after the saved entry of this shift)
       else { odsl = p.first ? (tr._odsl === null || tr._odsl === undefined ? 0 : tr._odsl) : p.openingDiesel; locked = !p.first; }
       openKm = beforeK ? lgf(beforeK, 'closingKm').value : p.openingKm; openHr = beforeH ? lgf(beforeH, 'closingHr').value : p.openingHr;
       const fresh = !!(lgf(tr, 'newMeter') && lgf(tr, 'newMeter').checked), off = u === METER_OFF;      // new meter: its Start is typed
@@ -16421,7 +16435,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         else gapSay += (gapSay ? ' + ' : '') + fmt(r2(Number(el.value) - Number(a[3]))) + ' ' + a[5];
         el.title = 'Proposed: the last Close (' + a[3] + '). Type a higher reading only when the machinery ran elsewhere in between – that distance is not counted here.';
       });
-      const hrAbove = later && me.grp.slice(0, me.j).some(o => hasHr(info.get(o).u));      // (a row by Hrs above it in this shift – update-78)
+      const hrAbove = later && ((!!me.grp && me.grp.slice(0, me.j).some(o => hasHr(info.get(o).u))) || (!!add && add.kind === 'hr' && hasHr(add.mode)));      // (a row by Hrs above it in this shift – update-78; or in the saved entry – update-143)
       const gh = tr.querySelector('.gaphint'); if (gh) { gh.hidden = !gapSay; if (gapSay) gh.textContent = gapSay + (hrAbove ? ' not worked between the rows – not counted' : ' ran elsewhere – not counted'); }
       // Opening diesel: typed only for the machinery's very first entry
       const cell = lgo(tr, 'odslCell');
@@ -16440,7 +16454,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       { const dz = lgo(tr, 'diesel'), want = later ? '0' : (fmt(p.diesel) || '0'); if (dz && dz.textContent !== want) dz.textContent = want;
         const hf = tr.querySelector('.lg-half'); if (hf && hf.hidden !== later) { hf.hidden = later; if (later) { const cb = hf.querySelector('input'); if (cb) cb.checked = false; } }
         let tag = tr.querySelector('.lg-partn'); if (later && !tag) { hf.insertAdjacentHTML('afterend', '<small class="lx-part lg-partn" title="Another work of the same shift: it starts where the row above closed. The shift is paid, and takes its diesel, once. Saved as one entry that keeps its rows."></small>'); tag = tr.querySelector('.lg-partn'); }
-        if (tag) { tag.hidden = !later; if (later) { const t = 'work ' + (me.j + 1) + ' of this ' + (shift === 'Night' ? 'night' : 'day'); if (!i18nSame(tag.textContent, t)) tag.textContent = t; } } }
+        if (tag) { tag.hidden = !later; if (later) { const t = 'work ' + (off0 + me.j + 1) + ' of this ' + (shift === 'Night' ? 'night' : 'day'); if (!i18nSame(tag.textContent, t)) tag.textContent = t; } } }
       lgTxt(lgo(tr, 'wkm'), tp ? (lgf(tr, 'trip').value || '0') + ' trips' : wkm === '' ? '–' : fmt(wkm) + (off ? ' km est.' : hr ? ' km' : '')); lgo(tr, 'wkm').classList.toggle('neg', wkm !== '' && wkm < 0);
       lgTxt(lgo(tr, 'whr'), whr === '' ? '–' : fmt(whr) + (off ? ' hr est.' : km || tm ? ' hr' : '')); lgo(tr, 'whr').classList.toggle('neg', whr !== '' && whr < 0);
       if (tp) lgo(tr, 'wkm').hidden = false;
@@ -16458,16 +16472,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       lgTxt(lgo(tr, 'avg'), avg); lgo(tr, 'avgCell').title = tip;
       // Item-wise BOQ: what the rest item gets, and items typed above the entry's total
       let itemBad = itemBoxCalc(tr.querySelector('.lg-itm'), { hr: whr, km: wkm, trip: Number(lgf(tr, 'trip').value) || 0 });
-      if (me.grp && !itemBad) { const box = tr.querySelector('.lg-itm'), pick = box ? box.dataset['pick' + me.kind] : '', q = me.kind === 'hr' ? whr : wkm, up = me.j ? me.grp[me.j - 1].querySelector('.lg-itm') : null;
-        const names = (p.boqItems || []).filter(it => itemKind(it.basis) === me.kind).map(it => it.name).join(' / ');
+      if ((me.grp || add) && !itemBad) { const kd = me.grp ? me.kind : add.kind, box = tr.querySelector('.lg-itm'), pick = box ? box.dataset['pick' + kd] : '', q = kd === 'hr' ? whr : wkm, up = me.grp && me.j ? me.grp[me.j - 1].querySelector('.lg-itm') : null;
+        const upPick = up ? up.dataset['pick' + kd] : add ? add.lastWork || '' : '';      // (update-143: the last work of the saved entry is the row above)
+        const names = (p.boqItems || []).filter(it => itemKind(it.basis) === kd).map(it => it.name).join(' / ');
         const plain = ho && (p.boqItems || []).filter(it => itemKind(it.basis) === 'hr').length < 2;      // (update-77: no work to pick)
         if (!plain && (pick === '_split' || !pick)) itemBad = 'Each row of this shift is ONE work – press ' + names + ' (not Split).';
         else if (q !== '' && !(q > 0)) itemBad = 'This row has no work yet – its Close must be more than its Start.';
-        else if (!ho && up && up.dataset['pick' + me.kind] === pick) itemBad = 'Same work as the row above (' + pick + ') – make them one row, or press the other work.'; }
+        else if (!ho && upPick && upPick === pick) itemBad = 'Same work as the row above (' + pick + ') – make them one row, or press the other work.'; }
       // note under the machinery: only real problems and the first-entry hint
       const problem = p.problem || (clash ? m.id + ' is already in another row for this date / shift.' : '') || startBad || itemBad;
       tr.classList.toggle('err', !!problem);
-      lgRowNote(tr, problem || (!locked ? 'First entry – type Start and Opening diesel' : ''));
+      lgRowNote(tr, problem || (!locked ? 'First entry – type Start and Opening diesel' : add && !(me.grp && me.j) ? 'This ' + (shift === 'Night' ? 'night' : 'day') + ' is already saved – this row is added to it as work ' + (off0 + 1) + ' (it starts at its Close; its diesel is already there).' : ''));
     });
     lgSum();
   }
@@ -16579,7 +16594,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // the message carries the rows' own errors too, so the help can say what to do about each kind
       throw new Error('Nothing saved – ' + res.errors.length + ' row(s) need attention (marked in red).\n' + res.errors.slice(0, 6).map(er => (er.row ? 'Row ' + er.row + ': ' : '') + String(er.msg || '').replace(/^Error:\s*/, '')).join('\n'));
     }
-    toast(res.count + ' Log Book ' + (res.count === 1 ? 'entry' : 'entries') + ' saved' + (res.joined ? ' (' + res.joined + ' rows are works of the same shift – each such shift is one entry that keeps its rows).' : '.'));
+    toast(res.count + ' Log Book ' + (res.count === 1 ? 'entry' : 'entries') + ' saved' + (res.added ? ' – ' + res.added + ' ' + (res.added === 1 ? 'work was' : 'works were') + ' added to ' + (res.into === 1 ? 'the entry' : res.into + ' entries') + ' already saved for that shift' + (res.joined > res.added ? '; ' + (res.joined - res.added) + ' rows are works of the same shift' : '') + '.' : res.joined ? ' (' + res.joined + ' rows are works of the same shift – each such shift is one entry that keeps its rows).' : '.'));      // (update-143: added / into)
     const dates = rows.map(r => r.date);
     loadLog();
     clearLogGrid();

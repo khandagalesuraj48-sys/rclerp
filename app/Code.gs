@@ -7346,13 +7346,28 @@ function getLogRowPrefill_(no, dateStr, shiftIn) {
   const ds = dieselFor_(m.id, dk, shift);
   let problem = '';
   try { assertActive_(m, dk); } catch (e) { problem = e.message; }
-  const slot = logSlotProblem_(list, dk, shift);
+  let slot = logSlotProblem_(list, dk, shift), addTo = null, slotSay = slot ? m.id + ' ' + slot + '.' + logSlotHint_(m, dk, slot) : '';
+  // update-143: this shift is already saved – a new entry is added to it as its next row (when the saved entry and the machinery allow it)
+  if (/^already saved/.test(slot) && m.lbFormat !== 'I') {
+    const si = logSavedIdx_(lt, m.id, dk, shift), sv = si > -1 ? logEntryRows_(lt, si, m) : { why: 'was not found' }, at = LOG_ADD_TO_(m, dk, shift);
+    const kind = sv.rows ? logRowsKind_(sv.rows.map(l => ({ x: { l: l, i: 0 }, m: m, dk: dk, shift: shift }))) : '';
+    if (!sv.rows) slotSay = at + 'this shift is already saved, and another work cannot be added to it: the saved entry ' + sv.why + '.';
+    else if (!kind) slotSay = m.id + ' already saved for ' + dmy_(dk) + ' (' + shift + '). Another work of the same shift is added to a saved entry only for a machinery on hours, or one whose BOQ has two or more works of this kind – change the saved entry in Edit Log Book.';
+    else {
+      const r0 = lt.rows[si], c = lt.c, its = H.ITEMS in c ? itemWorkParse_(r0[c[H.ITEMS]]) : {}, items = boqItemsOn_(m, dk);
+      const ps = Array.isArray(its._parts) && its._parts.length > 1 ? its._parts.filter(p => !partIsTime_(p)) : null;
+      const last = ps ? str_((ps[ps.length - 1] || {}).n) : ((itemQtyOf_(items, { mode: str_(r0[c[H.UNIT]]), whr: numOrBlank_(r0[c[H.WHR]]), wkm: numOrBlank_(r0[c[H.WKM]]), trip: numOrBlank_(r0[c[H.TRIP]]), work: its }).list.find(x => x.k === kind && x.q > 0) || {}).n || '');
+      addTo = { rows: sv.rows.length, kind: kind, mode: str_(r0[c[H.UNIT]]), closeKm: numOrBlank_(r0[c[H.CKM]]), closeHr: numOrBlank_(r0[c[H.CHR]]), stock: num0_(r0[c[H.STOCK]]), lastWork: last };
+      slot = ''; slotSay = '';
+    }
+  }
   const cy = cycleFor_(lt, m, dk);
   return {
-    machine: m, problem: problem || (slot ? m.id + ' ' + slot + '.' + logSlotHint_(m, dk, slot) : ''), first: !prev,
-    openingKm: prevKm ? prevKm.ckm : (m.meterKm || hasKm_(m.unit) ? 0 : ''), openingHr: prevHr ? prevHr.chr : (m.meterHr || hasHr_(m.unit) ? 0 : ''),
-    firstKm: !prevKm, firstHr: !prevHr, lastMode: prev && (m.modes || []).indexOf(prev.mode) > -1 && (m.modesX || []).indexOf(prev.mode) < 0 ? prev.mode : '',      // (after a Time day of an hours machinery the next day is on hours again)
-    openingDiesel: prev ? prev.stock : 0, prevDate: prev ? prev.dk : '', prevShift: prev ? prev.shift : '',
+    machine: m, problem: problem || slotSay, first: !prev && !addTo,
+    openingKm: addTo && addTo.closeKm !== '' ? addTo.closeKm : prevKm ? prevKm.ckm : (m.meterKm || hasKm_(m.unit) ? 0 : ''), openingHr: addTo && addTo.closeHr !== '' ? addTo.closeHr : prevHr ? prevHr.chr : (m.meterHr || hasHr_(m.unit) ? 0 : ''),
+    firstKm: !prevKm && !(addTo && addTo.closeKm !== ''), firstHr: !prevHr && !(addTo && addTo.closeHr !== ''), lastMode: addTo && (m.modes || []).indexOf(addTo.mode) > -1 ? addTo.mode : prev && (m.modes || []).indexOf(prev.mode) > -1 && (m.modesX || []).indexOf(prev.mode) < 0 ? prev.mode : '',      // (after a Time day of an hours machinery the next day is on hours again)
+    addTo: addTo,      // update-143: { rows, kind, mode, closeKm, closeHr, stock, lastWork } – this entry is added to the saved entry of its shift as row rows + 1
+    openingDiesel: addTo ? addTo.stock : prev ? prev.stock : 0, prevDate: prev ? prev.dk : '', prevShift: prev ? prev.shift : '',
     lastDate: list.length ? list[list.length - 1].dk : '', lastShift: list.length ? list[list.length - 1].shift : '',
     diesel: ds.qty, dieselText: ds.text, reads: ds.reads, driver: ds.driver, cycle: cy.cycle, prevClosed: cy.prevClosed,
     boqItems: itemBrief_(boqItemsOn_(m, dk)), // Item-wise BOQ on this date ([] = none)
@@ -7559,6 +7574,93 @@ function logRowsJoin_(g, kind) {
   if (fh > 0) { l.mode = mode; l[F[0]] = g[fh].x.l[F[0]]; ['tStart', 'tEnd', 'tBreak', 'tSlots'].forEach(k => { delete l[k]; }); if (str_(g[fh].x.l.meter) === 'new') { l.meter = 'new'; l.meterNote = g[fh].x.l.meterNote; } }      // (update-78: the first row was by Time – the entry reads the meter from its first row by Hrs)
   return { x: { l: l, i: g[0].x.i }, m: m, dk: dk, shift: sh, join: { kind: kind, firstClose: Number(g[fh].x.l[F[1]]), firstIdx: fh, typed0: typed0, rows: g.length, names: names } };
 }
+/* update-143 (asked 23-10-2026: "1 day madhe multiple entry ghet nahi, shift change kel ki ghete … multiple entry hou de; jar same
+ * data bharat asel tr te duplicate hoil ani jr same data nasel tr duplicate honar nahi – hydra farana water tanker excavater je
+ * rental astat te multiple thikani 1 day madhe kam kartat").
+ * A NEW entry for a machinery, date and shift that is ALREADY SAVED is no longer refused: it becomes the next row(s) of that saved
+ * entry – exactly as if all its rows had been entered together (the rows of one shift: update-71 / 77 / 78). The Log Book still has
+ * ONE entry per machinery + date + shift: its key, its diesel, its tank, the bill and every total stay one entry's.
+ *   - Which machinery: every one whose shift can keep rows – on hours only (an hour meter, no KM meter), or whose BOQ of that date
+ *     has two or more works of the entry's kind (hour / KM). A water tanker already adds its trips (update-103). Anything else, and a
+ *     saved day on Idle / Holiday / Breakdown, without a reading or with a new meter: refused as before, with the reason.
+ *   - The new work comes AFTER what is saved: it starts at the saved Close (on hours it may start above it – the hours between are
+ *     not counted, update-77). Before it: refused (Edit Log Book puts a work in between).
+ *   - The same work twice – the same Start and Close of its meter, or the same From – To – is refused as a duplicate.
+ *   - A date in a submitted bill stays as it is (billLock_), as for any entry.
+ * logEntryRows_: the saved entry as the rows it was entered with (its "_parts"; else the entry itself as one row), in the shape the
+ * entry page sends a row – or { why } when it cannot take another row. */
+function logEntryRows_(lt, i, m) {
+  const c = lt.c, r = lt.rows[i], g = h => h in c ? r[c[h]] : '', num = h => numOrBlank_(g(h));
+  const dk = dkey_(g(H.DATE)), shift = str_(g(H.SHIFT)) || 'Full Day', mode = str_(g(H.UNIT));
+  const its = H.ITEMS in c ? itemWorkParse_(g(H.ITEMS)) : {};
+  if (['Idle', 'Holiday', 'Breakdown'].indexOf(mode) > -1) return { why: 'is saved as ' + mode + ' (a day without work)' };
+  if (meterOff_(mode)) return { why: 'was saved without a meter reading' };
+  if (meterNew_(r, c)) return { why: 'was saved with a new meter' };
+  if (Array.isArray(its._trips)) return { why: 'is a water tanker entry (its trips are added on the trip-by-trip form)' };
+  const slots = H.TSLOTS in c ? str_(g(H.TSLOTS)) : '', tStart = H.TSTART in c ? tStr_(g(H.TSTART)) : '', tEnd = H.TEND in c ? tStr_(g(H.TEND)) : '';
+  let tBreak = H.TBRK in c ? num(H.TBRK) : '';
+  if (mode === 'Time' && slots && tBreak !== '') { let ts = null; try { ts = timeSlots_(slots, ''); } catch (e) { ts = null; } if (ts) tBreak = r2_(Math.max(0, tBreak - ts.gaps)) || ''; }      // (the saved Break, in minutes, holds the gaps between its times too)
+  const items0 = Object.assign({}, its); delete items0._parts;
+  const base = { no: m.id, date: dk, shift: shift, mode: mode, openingKm: num(H.OKM), closingKm: num(H.CKM), openingHr: num(H.OHR), closingHr: num(H.CHR),
+    tStart: tStart, tEnd: tEnd, tBreak: tBreak, tSlots: slots || undefined, trip: num(H.TRIP), challan: H.CHALLAN in c ? str_(g(H.CHALLAN)) : '',
+    chFrom: str_(g(H.CHFROM)), chTo: str_(g(H.CHTO)), work: str_(g(H.WORK)), remark: H.REMARK in c ? str_(g(H.REMARK)) : '', driver: str_(g(H.DRIVER)),
+    half: halfOf_(r, c), debitTo: H.DEBITTO in c ? str_(g(H.DEBITTO)) : '', debitRate: H.DEBITRATE in c ? num(H.DEBITRATE) : '', items: items0 };
+  const items = boqItemsOn_(m, dk), tot = { hr: num(H.WHR), km: num(H.WKM), trip: num(H.TRIP) };
+  const ps = Array.isArray(its._parts) && its._parts.length > 1 ? its._parts : null;
+  if (!ps) {
+    // one row holds ONE work: an entry split between two works of one kind (typed quantities) cannot be a row of its shift
+    if (items.length) { const q = itemQtyOf_(items, { mode: mode, whr: tot.hr, wkm: tot.km, trip: tot.trip, work: items0 }), n = {};
+      q.list.forEach(x => { if (x.k !== 'day' && x.q > 0) n[x.k] = (n[x.k] || 0) + 1; });
+      if (Object.keys(n).some(k => n[k] > 1)) return { why: 'is split between two works (' + q.list.filter(x => x.k !== 'day' && x.q > 0).map(x => x.n).join(' / ') + ') – change it in Edit Log Book to one row for each work first' }; }
+    return { rows: [base] };
+  }
+  // its rows (update-71 / 77 / 78): each row's Start / Close worked out from the entry's Start, as Edit Log Book does
+  if (!itemPartsOf_(items, its, tot)) return { why: 'has rows that no longer match its total (it was changed elsewhere) – open it in Edit Log Book first' };
+  const firstR = ps.find(p => !partIsTime_(p)), it0 = firstR && str_(firstR.n) ? items.find(x => x.name === str_(firstR.n)) : null;
+  const k = it0 ? itemKind_(it0.basis) : 'hr';
+  let at = Number(k === 'hr' ? base.openingHr : base.openingKm) || 0;
+  const lastR = ps.map((p, j) => partIsTime_(p) ? -1 : j).filter(j => j > -1).pop();
+  const rows = ps.map((p, j) => {
+    const y = Object.assign({}, base, { challan: str_(p.c), remark: str_(p.p), chFrom: str_(p.f), chTo: str_(p.t), work: str_(p.w) });
+    if (j) Object.assign(y, { trip: '', half: false, debitTo: '', debitRate: '' });      // (what belongs to the entry as a whole stands on its first row)
+    let q = 0;
+    if (partIsTime_(p)) {      // a row by Time (From – To) of a machinery on hours (update-78)
+      let ts = null; try { ts = timeSlots_(p.ts, ''); } catch (e) { ts = null; }
+      Object.assign(y, { mode: 'Time', openingHr: '', closingHr: '', openingKm: '', closingKm: '', tSlots: str_(p.ts), tStart: ts ? ts.start : '', tEnd: ts ? ts.end : '', tBreak: num0_(p.tb) > 0 ? num0_(p.tb) : '' });
+    } else {
+      const a = r2_(at + (Number(p.g) || 0)), b = j === lastR ? Number(k === 'hr' ? base.closingHr : base.closingKm) : r2_(a + Number(p.q)); at = b; q = r2_(b - a);
+      if (k === 'hr') { y.openingHr = a; y.closingHr = b; if (j) { y.openingKm = base.closingKm; y.closingKm = base.closingKm; } }
+      else { y.openingKm = a; y.closingKm = b; if (j) { y.openingHr = base.closingHr; y.closingHr = base.closingHr; } }
+      y.mode = base.mode;
+    }
+    const it = items.find(x => x.name === str_(p.n)) || {}, others = {};
+    if (!j) Object.keys(items0).forEach(n => { if (n.charAt(0) === '_') return; const o = items.find(x => x.name === n); if (o && itemKind_(o.basis) !== k) others[n] = items0[n]; });      // (typed items of another kind ride on the first row)
+    y.items = Object.assign(items0._day ? { _day: items0._day } : {}, others, !str_(p.n) || it.qty === 'rest' ? {} : { [str_(p.n)]: partIsTime_(p) ? r2_(Number(p.q)) : q });
+    return y;
+  });
+  return { rows: rows };
+}
+// update-143: the same work twice – the same Start and Close of the meter it is read on, or the same From – To
+function logSameWork_(a, b) {
+  const way = l => str_(l.mode) === 'Time' ? 'T' : hasHr_(l.mode) ? 'H' : hasKm_(l.mode) ? 'K' : '';
+  const w = way(a); if (!w || w !== way(b)) return false;
+  const eq = (x, y) => !blank_(x) && !blank_(y) && Math.abs(Number(x) - Number(y)) < 0.005;
+  if (w === 'H') return eq(a.openingHr, b.openingHr) && eq(a.closingHr, b.closingHr);
+  if (w === 'K') return eq(a.openingKm, b.openingKm) && eq(a.closingKm, b.closingKm);
+  const times = l => { try { const ts = timeSlots_(l.tSlots !== undefined && l.tSlots !== '' ? l.tSlots : [[l.tStart, l.tEnd]], ''); return ts ? ts.text : ''; } catch (e) { return ''; } };
+  return !!times(a) && times(a) === times(b);
+}
+// update-143: the saved entry of this machinery, date and shift (-1 = none)
+function logSavedIdx_(lt, no, dk, shift) {
+  const c = lt.c; return lt.rows.findIndex(r => same_(r[c[H.NO]], no) && dkey_(r[c[H.DATE]]) === dk && (str_(r[c[H.SHIFT]]) || 'Full Day') === shift);
+}
+const LOG_ADD_TO_ = (m, dk, sh) => m.id + ' (' + dmy_(dk) + ', ' + sh + '): ';
+// update-143: the saved row written again – its own row (its key, who entered it), the cells that are set only when they apply emptied first
+function logRowAgain_(lt, i) {
+  const row = lt.rows[i].slice();
+  [H.ITEMS, H.METER, H.DAYPART, H.DEBITTO, H.DEBITRATE, H.TSLOTS, H.TRIP, H.CHALLAN, H.REMARK].forEach(h => { if (h in lt.c) row[lt.c[h]] = ''; });
+  return stampEdit_(row, lt);
+}
 function saveLogRows_(b) { return withLock_(() => saveLogRowsInner_(b)); }
 function logTimeCols_() { [H.TSTART, H.TEND, H.TBRK, H.THRS, H.CHALLAN].forEach(h => addColIfMissing_(APP.SHEET_LOG, logHeaders_(), h)); TABLE_MEMO_ = {}; }
 function saveLogRowsInner_(b) {
@@ -7583,8 +7685,23 @@ function saveLogRowsInner_(b) {
     prepared.sort((a, b) => natCmp_(a.m.id, b.m.id) || logKeyCmp_(a, b) || a.x.i - b.x.i);
     // the rows of one machinery on the same date and shift: the works of that shift → one entry (logRowsJoin_); anything else stays a row of its own
     const slots = []; prepared.forEach(p => { const g = slots[slots.length - 1]; if (g && g[0].m.id === p.m.id && g[0].dk === p.dk && g[0].shift === p.shift) g.push(p); else slots.push([p]); });
-    const todo = []; let joined = 0;
-    slots.forEach(g => { const kind = g.length > 1 ? logRowsKind_(g) : ''; if (!kind) { g.forEach(p => todo.push(p)); return; }
+    const todo = []; let joined = 0, added = 0;
+    slots.forEach(g => {
+      // update-143: this machinery, date and shift is already saved – the new rows become the next rows of that entry (see logEntryRows_)
+      const si = b.tanker ? -1 : logSavedIdx_(lt, g[0].m.id, g[0].dk, g[0].shift);
+      if (si > -1) {
+        const at = LOG_ADD_TO_(g[0].m, g[0].dk, g[0].shift), sv = logEntryRows_(lt, si, g[0].m);
+        if (!sv.rows) { errors.push({ row: g[0].x.i + 1, msg: at + 'this shift is already saved, and another work cannot be added to it: the saved entry ' + sv.why + '.' }); return; }
+        const dup = g.find(p => sv.rows.some(s => logSameWork_(s, p.x.l)));
+        if (dup) { errors.push({ row: dup.x.i + 1, msg: at + 'this work is already in the saved entry of this shift (the same Start and Close, or the same From – To) – the same work is not saved twice.' }); return; }
+        const all = sv.rows.map(l => ({ x: { l: l, i: g[0].x.i, saved: true }, m: g[0].m, dk: g[0].dk, shift: g[0].shift })).concat(g);
+        const kind = logRowsKind_(all);
+        if (!kind) { errors.push({ row: g[0].x.i + 1, msg: g[0].m.id + ' already saved for ' + dmy_(g[0].dk) + ' (' + g[0].shift + '). Another work of the same shift is added to a saved entry only for a machinery on hours, or one whose BOQ has two or more works of this kind – change the saved entry in Edit Log Book.' }); return; }
+        try { const p = logRowsJoin_(all, kind); p.replace = si; todo.push(p); joined += g.length; added += g.length; }
+        catch (e) { errors.push({ row: (e.rowI !== undefined ? e.rowI : g[0].x.i) + 1, msg: e.message }); }
+        return;
+      }
+      const kind = g.length > 1 ? logRowsKind_(g) : ''; if (!kind) { g.forEach(p => todo.push(p)); return; }
       try { todo.push(logRowsJoin_(g, kind)); joined += g.length; } catch (e) { errors.push({ row: (e.rowI !== undefined ? e.rowI : g[0].x.i) + 1, msg: e.message }); } });
     const chain = {}; // machinery -> entries (sheet + this batch)
     todo.forEach(p => {
@@ -7596,6 +7713,7 @@ function saveLogRowsInner_(b) {
         const mode = logModeFor_(m, l.mode);
         const k = noKey_(m.id);
         const list = chain[k] = chain[k] || logEntriesOf_(lt, m.id);
+        if (p.replace !== undefined) { const ix = list.findIndex(e => e.dk === dk && e.shift === shift); if (ix > -1) list.splice(ix, 1); }      // (update-143: that saved entry is written again, with its new rows)
         const slot = logSlotProblem_(list, dk, shift);
         if (slot) throw new Error(m.id + ' ' + slot + '.' + logSlotHint_(m, dk, slot));
         const before = list.filter(e => logKeyCmp_(e, { dk: dk, shift: shift }) < 0);
@@ -7633,7 +7751,7 @@ function saveLogRowsInner_(b) {
           l.items._parts[p.join.firstIdx || 0].q = q0;
         }
         const itemWork = b.tanker ? '' : logItemWork_(m, dk, mode, l, { hr: cal.whr, km: cal.wkm, trip: ex.trip });
-        const row = newRow_(lt);
+        const row = p.replace !== undefined ? logRowAgain_(lt, p.replace) : newRow_(lt);
         if (itemWork) set_(row, lt, H.ITEMS, itemWork);
         if (b.tanker && Array.isArray(l.trips)) { set_(row, lt, H.ITEMS, JSON.stringify({ _trips: l.trips })); set_(row, lt, H.CH, clean_(l.chNo)); }      // (update-97) the trips of a water tanker
         if (meterNote) set_(row, lt, H.METER, meterNote);
@@ -7656,14 +7774,18 @@ function saveLogRowsInner_(b) {
         set_(row, lt, H.DRIVER, clean_(l.driver) || ds.driver);
         if (!blank_(l.remark)) set_(row, lt, H.REMARK, clean_(l.remark));
         list.push({ dk: dk, shift: shift, ckm: ckm, chr: chr, stock: closing, mode: mode, ohr: ohr }); list.sort(logKeyCmp_);
-        out.push({ id: m.id, row: row });
+        out.push({ id: m.id, row: row, replace: p.replace });
       } catch (e) { errors.push({ row: (e.rowI !== undefined ? e.rowI : x.i) + 1, msg: e.message }); }
     });
     if (errors.length) return { ok: false, errors: errors.sort((a, b) => a.row - b.row) };
-    lt.sh.getRange(lt.sh.getLastRow() + 1, 1, out.length, lt.headers.length).setValues(out.map(o => o.row));
+    // update-143: a saved entry that took new rows is written again in its own place; then the new entries are added at the end
+    const again = out.filter(o => o.replace !== undefined), fresh = out.filter(o => o.replace === undefined);
+    again.forEach(o => lt.sh.getRange(o.replace + 2, 1, 1, o.row.length).setValues([o.row]));
+    if (fresh.length) lt.sh.getRange(lt.sh.getLastRow() + 1, 1, fresh.length, lt.headers.length).setValues(fresh.map(o => o.row));
     const done = {};
-    out.forEach(o => { if (!done[o.id]) { done[o.id] = true; linkAfterInsert_(o.id, out.filter(x => x.id === o.id).map(x => x.row)); } });
-    return { ok: true, count: out.length, ids: Object.keys(done), joined: joined };      // joined = rows that went into an entry as the works of its shift
+    fresh.forEach(o => { if (!done[o.id]) { done[o.id] = true; linkAfterInsert_(o.id, fresh.filter(x => x.id === o.id).map(x => x.row)); } });
+    again.forEach(o => { if (!done[o.id]) { done[o.id] = true; recalcChain_(o.id); } });      // (its total changed: the tank and the entries after it follow)
+    return { ok: true, count: out.length, ids: Object.keys(done), joined: joined, added: added, into: again.length };      // joined = rows that went into an entry as the works of its shift; added / into (update-143) = new rows added to how many saved entries
   }
 }
 
