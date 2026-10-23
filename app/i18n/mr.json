@@ -6270,5 +6270,10 @@
 "was saved with a new meter": "नवीन मीटरसह सेव्ह झाली होती",
 "was saved without a meter reading": "मीटर रीडिंगशिवाय सेव्ह झाली होती",
 "was not found": "सापडली नाही",
-"Less data from the database – settings and users only when changed (step 2b)": "डेटाबेसमधून कमी डेटा – सेटिंग्ज आणि यूजर्स फक्त बदलल्यावर (step 2b)"
+"Less data from the database – settings and users only when changed (step 2b)": "डेटाबेसमधून कमी डेटा – सेटिंग्ज आणि यूजर्स फक्त बदलल्यावर (step 2b)",
+"{0} was changed by {1} after you opened it – open it again and make your change there. Nothing was saved.": "{0} तुम्ही उघडल्यानंतर {1} यांनी बदलली – ती पुन्हा उघडा आणि तिथे तुमचा बदल करा. काहीही सेव्ह झाले नाही.",
+"{0} Nothing was saved.": "{0} काहीही सेव्ह झाले नाही.",
+"Reload the list.": "यादी पुन्हा लोड करा.",
+"another user": "दुसरा user",
+"Diesel issue {0} ({1}, {2})": "डिझेल इश्यू {0} ({1}, {2})"
 }

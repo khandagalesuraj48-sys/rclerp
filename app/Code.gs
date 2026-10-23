@@ -4388,6 +4388,7 @@ function updateDieselIssue_(id, d) {
     if (i === -1) throw new Error('Diesel issue ' + id + ' was not found.');
     const old = t.rows[i];
     const oldNo = str_(old[t.c[H.NO]]), oldDk = dkey_(old[t.c[H.IDATE]]), oldShift = str_(old[t.c[H.SHIFT]]);
+    verCheck_(t, old, DIESEL_VER_H_(), d && d.ver, 'Diesel issue ' + str_(id) + ' (' + oldNo + ', ' + dmy_(oldDk) + ')');      // (update-145)
     booksOpen_(oldDk, 'Diesel issue');
     billLock_(oldNo, oldDk, 'Diesel issue');
     const created = old[t.c[H.CREATED]] instanceof Date ? old[t.c[H.CREATED]] : new Date();
@@ -4418,12 +4419,13 @@ function updateDieselIssue_(id, d) {
   });
 }
 
-function deleteDieselIssue_(id) {
+function deleteDieselIssue_(id, ver) {
   return withLock_(() => {
     const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_);
     const i = t.rows.findIndex(r => str_(r[t.c[H.ID]]) === str_(id));
     if (i === -1) throw new Error('Diesel issue ' + id + ' was not found.');
     const old = t.rows[i];
+    verCheck_(t, old, DIESEL_VER_H_(), ver, 'Diesel issue ' + str_(id) + ' (' + str_(old[t.c[H.NO]]) + ', ' + dmy_(dkey_(old[t.c[H.IDATE]])) + ')');      // (update-145)
     booksOpen_(dkey_(old[t.c[H.IDATE]]), 'Diesel issue');
     billLock_(str_(old[t.c[H.NO]]), dkey_(old[t.c[H.IDATE]]), 'Diesel issue');
     t.sh.deleteRow(i + 2);
@@ -4712,6 +4714,7 @@ function getDieselIssues_(f) {
       meter: H.DMETER in c ? numOrBlank_(r[c[H.DMETER]]) : '', meterCheck: checks[str_(r[c[H.ID]])] || null,
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
       ph: H.PHOTOS in c ? photoList_(r[c[H.PHOTOS]]).length : 0,      // how many photos it has (update-85)
+      ver: rowVer_(t, r, DIESEL_VER_H_()),      // (update-145) sent back with a change / a delete
     })),
   };
 }
@@ -8297,6 +8300,35 @@ function recalcChain_(no) {
   recalcStock_(no); // tank opening / closing and fill-to-fill average
 }
 // one entry with the entries just before and after it (for the edit window)
+/* update-145 (asked 23-10-2026: two people changing the same entry – "Log Book + Diesel Issue first"): an entry opened for a change
+ * carries its VERSION ("ver" – a short fingerprint of what a person can change in it); the save sends it back. If someone else changed
+ * the entry in between, nothing is saved: "… was changed by <who> after you opened it – open it again and make your change there."
+ * A save without a version (an older page or app) is taken as before. What the app works out by itself (diesel, tank, averages,
+ * the driver from the Diesel Issue) is not part of it, so a change elsewhere that only moves those figures never stops a save. */
+const LOG_VER_H_ = () => [H.DATE, H.SHIFT, H.UNIT, H.OKM, H.CKM, H.OHR, H.CHR, H.TSTART, H.TEND, H.TBRK, H.TSLOTS, H.TRIP, H.CHALLAN, H.CHFROM, H.CHTO, H.WORK, H.REMARK, H.ITEMS, H.DAYPART, H.DEBITTO, H.DEBITRATE, H.METER, H.ODSET];
+const DIESEL_VER_H_ = () => [H.IDATE, H.SHIFT, H.NO, H.QTY, H.KMR, H.HRR, H.REMARK, H.DRIVER, H.SOURCE, H.DMETER];
+const VER_NUM_ = h => [H.OKM, H.CKM, H.OHR, H.CHR, H.TBRK, H.TRIP, H.DAYPART, H.DEBITRATE, H.ODSET, H.QTY, H.KMR, H.HRR, H.DMETER].indexOf(h) > -1;
+// a value as the same text however it was read (a date or a number in any form; JSON with its keys in order – the database reorders them)
+function verVal_(h, x) {
+  if (h === H.DATE || h === H.IDATE) return dkey_(x) || str_(x);
+  if (h === H.TSTART || h === H.TEND) return tStr_(x);
+  if (VER_NUM_(h)) return String(numOrBlank_(x));
+  const v = x !== null && typeof x === 'object' && !(x instanceof Date) ? JSON.stringify(x) : str_(x);
+  if (/^[{[]/.test(v)) { try { const canon = o => Array.isArray(o) ? '[' + o.map(canon).join(',') + ']' : o && typeof o === 'object' ? '{' + Object.keys(o).sort().map(k => JSON.stringify(k) + ':' + canon(o[k])).join(',') + '}' : JSON.stringify(o); return canon(JSON.parse(v)); } catch (e) { return v; } }
+  return v;
+}
+function rowVer_(t, row, hs) {
+  const v = hs.filter(h => h in t.c).map(h => verVal_(h, row[t.c[h]])).join('\u0001');
+  let a = 0x811c9dc5; for (let k = 0; k < v.length; k++) { a ^= v.charCodeAt(k); a = Math.imul(a, 0x01000193) >>> 0; }
+  return a.toString(36);
+}
+// the version sent with a save is not the entry's now: someone changed it after it was opened → nothing is saved
+function verCheck_(t, row, hs, ver, what) {
+  if (blank_(ver) || rowVer_(t, row, hs) === str_(ver)) return;
+  const who = (H.UBY in t.c && str_(row[t.c[H.UBY]])) || (H.EBY in t.c && str_(row[t.c[H.EBY]])) || 'another user';
+  throw new Error(what + ' was changed by ' + who + ' after you opened it – open it again and make your change there. Nothing was saved.');
+}
+const logWhat_ = (lt, r) => str_(r[lt.c[H.NO]]) + ' (' + dmy_(dkey_(r[lt.c[H.DATE]])) + ', ' + (str_(r[lt.c[H.SHIFT]]) || 'Full Day') + ')';
 function getLogEntry_(key) {
   const lt = table_(APP.SHEET_LOG, logHeaders_());
   const i = findLogIdx_(lt, key);
@@ -8313,6 +8345,7 @@ function getLogEntry_(key) {
   let mm = null; try { mm = findMachine_(no); } catch (e) { mm = null; }
   out.boqItems = mm ? itemBrief_(boqItemsOn_(mm, out.date)) : [];
   out.lock = billLockTag_(billLockOf_(no, out.date));      // in a submitted bill: the page says so instead of opening the edit window
+  out.ver = rowVer_(lt, lt.rows[i], LOG_VER_H_());      // (update-145) sent back with the change
   return out;
 }
 /* Edit a Log Book entry (Start / Close reading, Chainage, Work description; Opening diesel on the first entry).
@@ -8330,6 +8363,7 @@ function updateLogRow_(key, l) {
     const c = lt.c;
     const i = findLogIdx_(lt, key);
     const r = lt.rows[i], no = str_(r[c[H.NO]]), unit = str_(r[c[H.UNIT]]);
+    verCheck_(lt, r, LOG_VER_H_(), l && l.ver, logWhat_(lt, r));      // (update-145) changed by someone else after it was opened: nothing saved
     booksOpen_(dkey_(r[c[H.DATE]]), 'Log Book entry');
     billLock_(no, dkey_(r[c[H.DATE]]), 'Log Book entry');
     const idx = machineLogIdx_(lt, no), pos = idx.indexOf(i);
@@ -8479,7 +8513,7 @@ function getLogEditData_(no, fromStr, toStr) {
   // submitted bills that hold this machinery in these dates: their dates are locked in the grid
   const locks = billLocksOfNo_(m.id).filter(b => b.from <= to && b.to >= from).map(billLockTag_);
   const partsOut = o => { const it = boqItems[o.date] ? boqItemsOn_(m, o.date) : [], ps = itemPartsOf_(it, o.itemWork, { hr: o.whr, km: o.wkm }); if (ps) o.itemParts = ps; return o; };
-  return { machine: m, from: from, to: to, boqItems: boqItems, rows: rows.map(i => partsOut(Object.assign(logRowOut_(lt, lt.rows[i]), { key: logKeyOf_(lt, lt.rows[i]) }))),
+  return { machine: m, from: from, to: to, boqItems: boqItems, rows: rows.map(i => partsOut(Object.assign(logRowOut_(lt, lt.rows[i]), { key: logKeyOf_(lt, lt.rows[i]), ver: rowVer_(lt, lt.rows[i], LOG_VER_H_()) }))),
     prev: brief(before[before.length - 1]), next: brief(after[0]), diesel: diesel, prevKm: lastRead(H.CKM), prevHr: lastRead(H.CHR), locks: locks,
     // update-77: a machinery on hours – the next entry that reads the hour meter (its Start is never changed from here: a Close above it is refused)
     nextHr: hrsOnly_(m) ? (j => j === undefined || meterNew_(lt.rows[j], c) ? null : brief(j))(after.find(i => hasHr_(str_(lt.rows[i][c[H.UNIT]])) && numOrBlank_(lt.rows[i][c[H.OHR]]) !== '')) : null, hrsOnly: hrsOnly_(m) };
@@ -8523,6 +8557,10 @@ function saveLogBulk_(b) {
     const idx = machineLogIdx_(lt, m.id);
     const byKey = {}; idx.forEach(i => { byKey[logKeyOf_(lt, lt.rows[i])] = i; });
     const deleted = (b.deleted || []).map(str_).filter(k => k in byKey);
+    // (update-145) an entry of the grid that someone else changed after the grid was opened: nothing is saved
+    if (b.vers && typeof b.vers === 'object') { const changedBy = [];
+      Object.keys(b.vers).forEach(k => { if (!(k in byKey)) return; try { verCheck_(lt, lt.rows[byKey[k]], LOG_VER_H_(), b.vers[k], logWhat_(lt, lt.rows[byKey[k]])); } catch (e) { changedBy.push({ row: 0, msg: e.message.replace(' Nothing was saved.', '') + (changedBy.length ? '' : ' Reload the list.') }); } });
+      if (changedBy.length) return { ok: false, errors: changedBy.map(x => ({ row: x.row, msg: x.msg + ' Nothing was saved.' })) }; }
     deleted.forEach(k => booksOpen_(dkey_(lt.rows[byKey[k]][c[H.DATE]]), 'Log Book entry'));
     deleted.forEach(k => billLock_(m.id, dkey_(lt.rows[byKey[k]][c[H.DATE]]), 'Log Book entry'));
     const odOf = l => blank_(l.odSet) ? '' : (() => { const v = Number(l.odSet); if (!isFinite(v) || v < 0) throw new Error('Opening diesel must be 0 or more.'); return r2_(v); })();
@@ -8819,11 +8857,12 @@ function rptTank_(f) {
     total: { checks: checks.length, diff: r2_(checks.reduce((a, x) => a + x.diff, 0)), over: current.filter(x => x.over).length, bigDiff: checks.filter(x => Math.abs(x.diff) > Math.max(5, Math.abs(x.system) * 0.1)).length } });
 }
 
-function deleteLogRow_(key) {
+function deleteLogRow_(key, ver) {
   return withLock_(() => {
     const lt = table_(APP.SHEET_LOG, logHeaders_());
     const i = findLogIdx_(lt, key);
     const c = lt.c, no = str_(lt.rows[i][c[H.NO]]);
+    verCheck_(lt, lt.rows[i], LOG_VER_H_(), ver, logWhat_(lt, lt.rows[i]));      // (update-145)
     booksOpen_(dkey_(lt.rows[i][c[H.DATE]]), 'Log Book entry');
     billLock_(no, dkey_(lt.rows[i][c[H.DATE]]), 'Log Book entry');
     const idx = machineLogIdx_(lt, no), pos = idx.indexOf(i);

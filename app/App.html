@@ -5951,6 +5951,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The time or the trips of this entry are missing or come to zero.', 'For a time sheet: type From and To (e.g. 08:00 and 17:00) and the break. For trips: type the number of trips.'],
       mr: ['या entry ची वेळ किंवा trips भरलेल्या नाहीत किंवा शून्य येतात.', 'Time sheet साठी: From आणि To (उदा. 08:00 आणि 17:00) आणि break भरा. Trips साठी: trips ची संख्या भरा.'],
       hi: ['इस entry का समय या trips भरे नहीं हैं या शून्य आ रहे हैं।', 'Time sheet के लिए: From और To (जैसे 08:00 और 17:00) और break भरें। Trips के लिए: trips की संख्या भरें।'] },
+    { re: /was changed by .* after you opened it/i,
+      en: ['Someone else changed this entry after you opened it. Your change was not saved, so that his change is not lost.', 'Open the entry again (or press Load / reload the list) – it shows his change – and make your change there. Then save.'],
+      mr: ['तुम्ही ही entry उघडल्यानंतर दुसऱ्या कोणीतरी ती बदलली. त्याचा बदल पुसला जाऊ नये म्हणून तुमचा बदल save झाला नाही.', 'Entry पुन्हा उघडा (किंवा Load / यादी पुन्हा लोड करा) – त्यात त्याचा बदल दिसेल – आणि तिथे तुमचा बदल करा. मग save करा.'],
+      hi: ['आपके खोलने के बाद किसी और ने यह entry बदली। उसका बदलाव न मिटे इसलिए आपका बदलाव save नहीं हुआ।', 'Entry फिर से खोलें (या Load / सूची दोबारा लोड करें) – उसमें उसका बदलाव दिखेगा – और वहाँ अपना बदलाव करें। फिर save करें।'] },
     { re: /is at the same time as row|does one work at a time/i,
       en: ['Two rows of this shift are by Time and their From – To overlap. One machinery does one work at a time.', 'Correct the From – To of one of the two rows so that the times do not overlap (for example Breaker 09:00 – 13:00 and Bucket 14:00 – 18:00), then save again.'],
       mr: ['या shift च्या दोन ओळी Time वर आहेत आणि त्यांच्या From – To वेळा एकमेकांत येतात. एक machinery एका वेळी एकच काम करते.', 'दोनपैकी एका ओळीची From – To अशी दुरुस्त करा की वेळा एकमेकांत येणार नाहीत (उदा. Breaker 09:00 – 13:00 आणि Bucket 14:00 – 18:00), मग पुन्हा save करा.'],
@@ -9423,7 +9427,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         tStart: w === 'Time' || w === 'Trip' ? r.tStart || '' : '', tEnd: w === 'Time' || w === 'Trip' ? r.tEnd || '' : '', tBreak: w === 'Time' ? r.tBrk : '', remark: r.remark || '', trip: w === 'Trip' || (m.lbFormat === 'B' && DAY_STATUS.indexOf(w) === -1) ? r.trip : '', challan: w === 'Trip' || w === 'Time' ? (r.challan || '') : (r.challan || ''),
         chFrom: r.chFrom || '', chTo: r.chTo || '', work: r.work || '', odSet: /-01$/.test(r.date) ? (r.odSet ?? '') : '',
         items: ((d.boqItems || {})[r.date] || []).length ? (r.items || {}) : d.hrsOnly && (LX.pc[own] || 1) > 1 ? {} : undefined }; });      // (an entry that had rows and has one now: its rows go)
-    const res = await call('saveLogBulk', { no: m.id, from: d.from, to: d.to, rows: rows, deleted: deleted, openingDiesel: LX.odsl });
+    const vers = {}; (d.rows || []).forEach(r => { if (r.key && r.ver) vers[r.key] = r.ver; });      // (update-145) every entry of the grid as it was opened
+    const res = await call('saveLogBulk', { no: m.id, from: d.from, to: d.to, rows: rows, deleted: deleted, openingDiesel: LX.odsl, vers: vers });
     if (res.ok === false) throw new Error('Nothing saved: ' + res.errors.map(x => x.msg).join(' | '));
     toast('Log Book saved – ' + res.changed + ' changed, ' + res.added + ' added, ' + res.deleted + ' deleted.');
     LX.rows = []; LX.deleted = []; LX.cut = {};
@@ -15418,7 +15423,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     flowFixEnd();      // (update-130)
     if (r.lk && await lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
     setDieselMode('one');
-    S.editDieselId = r.id; phClear();
+    S.editDieselId = r.id; S.editDieselVer = r.ver || ''; phClear();      // (update-145: the version as it was opened – the list itself is refreshed every few seconds)
     $('d_date').value = r.date; $('d_shift').value = r.shift; $('d_src').value = r.source || S.locations[0];
     $('d_no').value = r.no; dieselMachineChanged();
     $('d_qty').value = r.qty; $('d_km').value = r.kmReading; $('d_hr').value = r.hrReading; 
@@ -15432,7 +15437,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (r.lk && await lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
     if (!(await askConfirm({ title: 'Delete ' + r.id + '?', danger: true, ok: 'Delete',
       html: listHtml([r.no + ' – ' + fmt(r.qty) + ' Ltr from ' + r.source, showDate(r.date) + ', ' + r.shift + ' shift', 'Driver: ' + (r.driver || '–')]) + '<p>This cannot be undone. The Log Book for this date and shift will be recalculated.</p>' }))) return;
-    await call('deleteDieselIssue', r.id);
+    await call('deleteDieselIssue', r.id, S.editDieselId === r.id && S.editDieselVer ? S.editDieselVer : r.ver || '');      // (update-145)
     if (S.editDieselId === r.id) clearDiesel();
     toast(r.id + ' deleted.');
     loadDiesel(); loadLog();
@@ -15575,7 +15580,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (!changes.length) { toast('Nothing changed.'); return; }
       if (!(await askConfirm({ title: 'Update ' + editing + '?', html: 'These details will change:' + changeTable(changes), ok: 'Update' }))) return;
     }
-    const res = fixing ? await flowFixCall([d]) : editing ? await call('updateDieselIssue', editing, d) : await call('saveDieselIssue', d);
+    const res = fixing ? await flowFixCall([d]) : editing ? await call('updateDieselIssue', editing, Object.assign({}, d, { ver: S.editDieselVer || '' })) : await call('saveDieselIssue', d);      // (update-145: changed by someone else since it was opened → refused)
     if (!res) return;      // (no remark written: nothing sent)
     if (res.warning) {
       if (fixing) { await showAlert('Please check the reading', String(res.warning).replace(/\s*Save anyway\?\s*$/, '')); return; }      // (update-131) for approval: corrected first
@@ -16730,6 +16735,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!(await askConfirm({ title: 'Update ' + e.no + ' – ' + showDate(e.date) + '?', ok: 'Update',
       html: 'These details will change:' + changeTable(changes) +
         (e.next && (x.closingKm !== before.closingKm || x.closingHr !== before.closingHr) ? (hrsOnlyM(findMachine(e.no)) ? '<p>The next entry (' + esc(showDate(e.next.date)) + ') is not changed – its Start stays ' + esc(fmt(e.next.ohr)) + '. Nothing else changes.</p>' : '<p>The next entry (' + esc(showDate(e.next.date)) + ') will start at the new Close. Nothing else changes.</p>') : '') }))) return;
+    x.ver = e.ver || '';      // (update-145) the entry as it was opened: changed by someone else since → refused
     try { await call('updateLogRow', e.key, x); } catch (er) { if (errMsg(er) === CR_SENT) { leClose(); toast(CR_SENT); return; } throw er; }      // (update-108) sent to the Super Admin: the window closes
     toast('Log Book of ' + e.no + ' (' + showDate(e.date) + ') updated' + (e.next && (x.closingKm !== before.closingKm || x.closingHr !== before.closingHr) ? ' – next entry\'s Start updated.' : '.'));
     leClose(); loadLog(); lgRefreshAll();
@@ -16742,7 +16748,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ', and all later entries update automatically.</p>' : '';
     if (!(await askConfirm({ title: 'Delete Log Book entry?', danger: true, ok: 'Delete',
       html: listHtml([e.no + ' – ' + showDate(e.date) + ' (' + e.shift + ')', 'Start ' + lg2(e.okm, e.ohr) + '  →  Close ' + lg2(e.ckm, e.chr), 'Diesel issued ' + fmt(e.qty || 0) + ' L']) + hint + '<p>This cannot be undone.</p>' }))) return;
-    await call('deleteLogRow', key);
+    await call('deleteLogRow', key, e.ver || '');      // (update-145)
     toast('Log Book entry deleted' + (e.next ? ' – later entries updated.' : '.'));
     loadLog(); lgRefreshAll();
   }
