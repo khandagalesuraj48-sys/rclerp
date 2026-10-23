@@ -9,7 +9,7 @@ const port = process.argv[2] || '3000';
 const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : fail++; out.push((c ? 'PASS ' : 'FAIL ') + n + (x !== undefined ? '  → ' + String(typeof x === 'string' ? x : JSON.stringify(x)).slice(0, 700) : '')); };
 const clean = () => sql("delete from log_book where machinery like 'N145-%'; delete from diesel_issue where machinery like 'N145-%'; delete from boq where vendor_name = 'N145 Vendor'; delete from master where id like 'N145-%'; delete from vendors where vendor_name = 'N145 Vendor'; delete from web.cache where key like 'LG\\_%' or key like 'F\\_%' or key like 'DUP\\_%';");
 const work = d => sql("select coalesce(work_done, '') || ' ' || coalesce(closing_km::text, '') from log_book where machinery = 'N145-TIP' and date = '2026-10-" + d + "'");
-const qty = () => sql("select coalesce(string_agg(trim(trailing '.' from trim(trailing '0' from qty::text)), ','), '') from diesel_issue where machinery = 'N145-TIP'");
+const qty = () => sql("select coalesce(string_agg(qty::float8::text, ','), '') from diesel_issue where machinery = 'N145-TIP'");
 (async () => {
   try { clean(); } catch (e) { out.push('clean: ' + String(e.message).slice(0, 200)); }
   await wait(1300);
