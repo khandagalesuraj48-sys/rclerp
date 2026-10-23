@@ -1834,7 +1834,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   edit window locks le_ts / le_te / le_tb / "+ time"; FIX_RULES +1, help texts; i18n keys + mr / hi (also update-143's). Review:
   `partsTol_` (rows all by Time: the rounding of each row, also in itemPartsOf_), the entry's slots = every slot of every row sorted
   by `timeSpans_` (server, page, phone), texts in the order of the day (`gT` / `G` / `gg`), the rows' breaks = the entry's (timesOk).
-  Tests: unit update-144 (+ update-78 changed to the new rule), browser/time144.js 15.
+  Then (his Hydra on Time only, "sagle machinery la ha rule ghe"): for EVERY machinery – logRowsKind_ (all Time → 'hr'), join
+  `tAll` (isT / plainRows), logItemWork_ tOnly = mode Time, prefill sameOk also for a saved Time entry; page lxPartKind / lgPartKind
+  'hr' for a Time row, lxPlain / plain with Time, no "same work" on Time rows, allT payload without lxHO; phone partKind / plain.
+  Tests: unit update-144 (+ update-78 changed to the new rule), browser/time144.js.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
