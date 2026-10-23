@@ -947,6 +947,8 @@ const API_ = {
   getMonthlyAvgReport: { m: 'Reports', f: f => getMonthlyDieselReport_(Object.assign({}, f, { withReadings: true })) },
   getDailyInwardIssueReport: { m: 'Reports', f: getDailyInwardIssueReport_ },
   rptDebit:          { m: 'Reports', f: rptDebit_ },
+  rptLogDebit:       { m: 'Reports', f: rptLogDebit_ },      // (update-149) the Log Book entries charged to a party (Debit to)
+  saveLogDebits:     { m: 'Log Book', edit: true, f: saveLogDebits_, log: 'logDebits' },      // (update-149) their party + rate: one, all shown, or from Excel
   saveDebitRates:    { m: 'Diesel Issue', edit: true, f: saveDebitRates_, log: 'debitRates' },
   rptCost:           { m: 'Reports', f: rptCost_ },
   rptMachineCost:    { m: 'Reports', f: rptMachineCost_ },
@@ -1320,6 +1322,10 @@ function logAfter_(u, spec, args, res, before) {
     case 'masterImport':
       if (res.saved) writeLog_(u, 'Import', m, '', 'Excel import: ' + res.adds + ' new, ' + res.updates + ' updated',
         (args[0] || []).filter(x => str_(x.no) || str_(x.name)).map(x => formatNo_(x.no || '') || clean_(x.name)).join(', '));
+      break;
+    case 'logDebits':      // (update-149)
+      if (res.count) writeLog_(u, 'Edit', 'Log Book', (res.keys || []).slice(0, 6).join(', ').slice(0, 120), 'Debit to / rate changed for ' + res.count + ' Log Book entr' + (res.count === 1 ? 'y' : 'ies') + ((args[0] || {}).from === 'import' ? ' (Excel import)' : ''),
+        (res.changes || []).join('; ').slice(0, 900));
       break;
     case 'debitRates':
       if (res.count) writeLog_(u, 'Edit', 'Diesel Issue', (args[0] || []).map(x => x.id).join(', '), 'Debit rate changed for ' + res.count + ' entr' + (res.count === 1 ? 'y' : 'ies'),
@@ -2759,6 +2765,80 @@ function debitPending_(f) {
     .map(r => { const q = debitQty_(r), rate = r2_(num0_(r.debitRate));
       return { logId: logIdOf_(r), date: r.date, shift: r.shift, no: r.no, type: r.type || '', mode: r.mode || r.unit, qty: q.qty, unit: q.unit, rate: rate, amount: r2_(q.qty * rate), work: r.work || r.remark || '', inNote: used[logIdOf_(r)] || '' }; });
   return { vendor: clean_(f.vendor), from: from, to: to, rows: rows.filter(r => !r.inNote), already: rows.filter(r => r.inNote).length };
+}
+/* (update-149, asked 24-10-2026: "log book mdhun ekadi entry debit to keli jate tr tyach wegle record rahaw jas diesell debit rahte tas
+ * yach pn asawa proper tyt pn filter import export print rate change he sagle krta yaw app mdhe debit t kelel aahe ntr updet ntr te
+ * disaw"; his choices: in Reports, the import puts the party + rate on entries already saved, a rate changed for one entry or for all
+ * at once) THE LOG BOOK DEBIT STATEMENT: every Log Book entry charged to a party ("Debit to") in a period, party by party – the
+ * quantity as the entry was measured (hours, KM, trips or one day: debitQty_, as in a Debit Note), the rate typed with it, the amount,
+ * and the Debit Note it is in. It only reads; the rates are changed with saveLogDebits. */
+function rptLogDebit_(f) {
+  f = f || {};
+  const rg = rptRange_(f);
+  const party = vKey_(f.party || ''), m = str_(f.no) ? findMachine_(f.no) : null, mno = m ? noKey_(m.id) : '';
+  const notes = {}; dnList_().filter(d => d.status !== 'Cancelled').forEach(d => d.logIds.forEach(k => { notes[k] = d.no; }));
+  const list = getLogBookList_({ from: rg.from, to: rg.to, all: true }).rows.filter(r => r.debitTo && (!party || vKey_(r.debitTo) === party) && (!mno || noKey_(r.no) === mno));
+  const by = {};
+  list.forEach(r => {
+    const q = debitQty_(r), rate = r2_(num0_(r.debitRate)), id = logIdOf_(r), k = vKey_(r.debitTo);
+    const p = by[k] = by[k] || { party: r.debitTo, rows: [], amount: 0, machines: {}, qty: {} };
+    const amount = r2_(q.qty * rate);
+    p.rows.push({ logId: id, date: r.date, shift: r.shift, no: r.no, type: r.type || '', owner: r.owner || '', mode: r.mode || r.unit || '', qty: q.qty, unit: q.unit, rate: rate, amount: amount,
+      work: r.work || r.remark || '', note: notes[id] || '' });
+    p.amount = r2_(p.amount + amount); p.machines[noKey_(r.no)] = true; p.qty[q.unit] = r2_((p.qty[q.unit] || 0) + q.qty);
+  });
+  const parties = Object.keys(by).map(k => by[k]).sort((a, b) => natCmp_(a.party, b.party)).map(p => {
+    p.rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || natCmp_(a.no, b.no) || shiftOrder_(a.shift) - shiftOrder_(b.shift));
+    p.machines = Object.keys(p.machines).length; p.inNote = p.rows.filter(x => x.note).length; return p; });
+  const qty = {}; parties.forEach(p => Object.keys(p.qty).forEach(u => { qty[u] = r2_((qty[u] || 0) + p.qty[u]); }));
+  return Object.assign(rptBase_('Log Book Debit Statement', rg), { party: clean_(f.party), no: m ? m.id : '', parties: parties,
+    total: { entries: list.length, amount: r2_(parties.reduce((t, p) => t + p.amount, 0)), machines: new Set(list.map(r => noKey_(r.no))).size, inNote: parties.reduce((t, p) => t + p.inNote, 0), qty: qty } });
+}
+/* …and its rates and parties: from the statement (one entry, or the same rate for all shown) and from an Excel file (machinery + date +
+ * shift → the party and the rate). Each entry with the checks of a Log Book change: the party in the Vendor Master and a rate above
+ * 0 (logDebit_), the month not closed, a submitted bill's entry only by the Super Admin (billLock_), an entry in a Debit Note never
+ * (cancel the note first). All or nothing: one entry that cannot be changed – nothing is saved and it is said which. */
+function saveLogDebits_(x) {
+  x = x || {};
+  const inR = Array.isArray(x.rows) ? x.rows : [];
+  if (!inR.length) throw new Error('Nothing to save – change a rate or a party first.');
+  if (inR.length > 2000) throw new Error('Up to 2000 entries can be changed at once – import the rest in a second file.');
+  return withLock_(() => {
+    logDebitCol_(); debitReady_();
+    const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c;
+    const notes = {}; dnList_().filter(d => d.status !== 'Cancelled').forEach(d => d.logIds.forEach(k => { notes[k] = d.no; }));
+    const seen = {}, idxOf = {}, dayOf = {};      // every entry's key once: its row, and the keys of a machinery's day
+    lt.rows.forEach((r, i) => { const k = logKeyOf_(lt, r); idxOf[k] = i; const d = k.slice(0, k.lastIndexOf('|')); (dayOf[d] = dayOf[d] || []).push(k); });
+    const plan = inR.map((y, i) => {
+      y = y || {};
+      const at = y.line ? 'Row ' + y.line + ': ' : inR.length > 1 ? 'Entry ' + (i + 1) + ': ' : '';
+      let key = str_(y.logId);
+      if (!key) {
+        const mm = findMachine_(y.no), dk = checkDate_(y.date);
+        if (str_(y.shift)) key = mm.id + '|' + dk + '|' + (/^full ?day$/i.test(str_(y.shift)) ? 'Full Day' : checkShift_(y.shift));      // (a whole-day entry: "Full Day")
+        else {      // no shift typed: the one entry of that machinery on that date
+          const ks = dayOf[mm.id + '|' + dk] || [];
+          if (ks.length !== 1) throw new Error(at + mm.id + ' · ' + dmy_(dk) + (ks.length ? ' has ' + ks.length + ' entries (Day and Night) – give the shift.' : ': there is no Log Book entry of that date – check the machinery and the date.'));
+          key = ks[0];
+        }
+      }
+      const [no, dk, sh] = key.split('|'), who = no + ' · ' + dmy_(dk) + ' · ' + sh;
+      if (seen[key]) throw new Error(at + who + ' is given twice – keep one line for it.');
+      seen[key] = true;
+      const idx = key in idxOf ? idxOf[key] : -1;
+      if (idx === -1) throw new Error(at + 'there is no Log Book entry of ' + who + ' – check the machinery, the date and the shift.');
+      const r = lt.rows[idx], curTo = str_(r[c[H.DEBITTO]]), curRate = numOrBlank_(r[c[H.DEBITRATE]]);
+      const to = clean_(y.to) ? y.to : curTo;      // no "Debit to" column, or its cell blank: the entry keeps its party
+      if (!clean_(to)) throw new Error(at + who + ' has no "Debit to" – give the party with the rate.');
+      const dbt = logDebit_({ debitTo: to, debitRate: y.rate }, at + who + ' – ');
+      if (dbt.to === curTo && String(dbt.rate) === String(curRate)) return null;      // as it is
+      if (notes[key]) throw new Error(at + who + ' is in debit note ' + notes[key] + ' – its "Debit to" and rate cannot be changed. Cancel that note first.');
+      booksOpen_(dk, 'Log Book entry'); billLock_(no, dk, 'Log Book entry');
+      return { idx: idx, key: key, who: who, to: dbt.to, rate: dbt.rate, was: (curTo || '–') + (curRate !== '' ? ' @ ' + curRate : '') };
+    }).filter(Boolean);
+    plan.forEach(p => { const me = lt.rows[p.idx].slice(); me[c[H.DEBITTO]] = p.to; me[c[H.DEBITRATE]] = p.rate; stampEdit_(me, lt); lt.sh.getRange(p.idx + 2, 1, 1, me.length).setValues([me]); });
+    return { ok: true, count: plan.length, same: inR.length - plan.length, keys: plan.map(p => p.key), changes: plan.map(p => p.who + ': ' + p.was + ' → ' + p.to + ' @ ' + p.rate) };
+  });
 }
 function nextDnNo_(company) {
   let last = 0;
