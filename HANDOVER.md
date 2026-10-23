@@ -1789,6 +1789,15 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   PHOTO_ORDER_ / PHOTO_NAMES_, at most 5 photos; meterReading_ kind hrs → aiReadMeter_(…, 'hr') (the hours only). App.html PH_KINDS
   + hrs, phKindsOf (only a KM + Hrs machinery, not Debit Basis), phApplyRead R.hrs fills d_hr (wins over the dashboard's hours),
   .dph-grid.five. Rig `test/browser/photo139.js` 11.
+- 23-10-2026 (update-143, with App 3.31.2). Report: `UPDATE_143.md`. A SECOND ENTRY FOR A SAVED SHIFT IS ADDED TO IT: saveLogRowsInner_ –
+  a slot already in the sheet (`logSavedIdx_`, not a tanker) → `logEntryRows_` (the saved entry as entry-page rows: its `_parts` with
+  Start / Close from the entry's Start as Edit Log Book does, else itself; `{ why }` for Idle / Holiday / Breakdown, No reading, new
+  meter, tanker, a typed split, parts that no longer fit) + the new rows → `logRowsKind_` / `logRowsJoin_` → `p.replace` = its row:
+  written in place (`logRowAgain_`: own row, optional cells emptied, `stampEdit_`), then `recalcChain_`; duplicates `logSameWork_`
+  (same Start + Close of its meter, or the same times). Answer `added` / `into` (count as before). getLogRowPrefill_ `addTo` { rows,
+  kind, mode, closeKm, closeHr, stock, lastWork, sameOk }, no problem, Start = saved Close. App.html lgCalcAll: `add` = a later work
+  (work N, diesel 0, odsl = add.stock, no ½, one work per row, upPick = lastWork), row note, toast; assistant note; FIX_RULES ×2.
+  Tests: unit update-143 (+ update-71 changed to the new rule), browser/add143.js 17.
 - 21-10-2026 (update-141). Report: `UPDATE_141.md`. THE GOOGLE SHEET BACKUP ONCE A DAY (egress): webBackup_ auto (an open page)
   only when no backup ended today (India date, `doneToday`) – the nightly cron (vercel.json 30 20 * * *, full) as before; 4 min
   after a failed try; the button at once. Logs only their new rows (`APPEND_` activity_log / store_activity by id; `BK_STATE.app`

@@ -7357,7 +7357,7 @@ function getLogRowPrefill_(no, dateStr, shiftIn) {
       const r0 = lt.rows[si], c = lt.c, its = H.ITEMS in c ? itemWorkParse_(r0[c[H.ITEMS]]) : {}, items = boqItemsOn_(m, dk);
       const ps = Array.isArray(its._parts) && its._parts.length > 1 ? its._parts.filter(p => !partIsTime_(p)) : null;
       const last = ps ? str_((ps[ps.length - 1] || {}).n) : ((itemQtyOf_(items, { mode: str_(r0[c[H.UNIT]]), whr: numOrBlank_(r0[c[H.WHR]]), wkm: numOrBlank_(r0[c[H.WKM]]), trip: numOrBlank_(r0[c[H.TRIP]]), work: its }).list.find(x => x.k === kind && x.q > 0) || {}).n || '');
-      addTo = { rows: sv.rows.length, kind: kind, mode: str_(r0[c[H.UNIT]]), closeKm: numOrBlank_(r0[c[H.CKM]]), closeHr: numOrBlank_(r0[c[H.CHR]]), stock: num0_(r0[c[H.STOCK]]), lastWork: last };
+      addTo = { rows: sv.rows.length, kind: kind, mode: str_(r0[c[H.UNIT]]), closeKm: numOrBlank_(r0[c[H.CKM]]), closeHr: numOrBlank_(r0[c[H.CHR]]), stock: num0_(r0[c[H.STOCK]]), lastWork: last, sameOk: hrsOnly_(m) && kind === 'hr' };      // (sameOk: on hours the same work may come again – update-77)
       slot = ''; slotSay = '';
     }
   }
@@ -7366,7 +7366,7 @@ function getLogRowPrefill_(no, dateStr, shiftIn) {
     machine: m, problem: problem || slotSay, first: !prev && !addTo,
     openingKm: addTo && addTo.closeKm !== '' ? addTo.closeKm : prevKm ? prevKm.ckm : (m.meterKm || hasKm_(m.unit) ? 0 : ''), openingHr: addTo && addTo.closeHr !== '' ? addTo.closeHr : prevHr ? prevHr.chr : (m.meterHr || hasHr_(m.unit) ? 0 : ''),
     firstKm: !prevKm && !(addTo && addTo.closeKm !== ''), firstHr: !prevHr && !(addTo && addTo.closeHr !== ''), lastMode: addTo && (m.modes || []).indexOf(addTo.mode) > -1 ? addTo.mode : prev && (m.modes || []).indexOf(prev.mode) > -1 && (m.modesX || []).indexOf(prev.mode) < 0 ? prev.mode : '',      // (after a Time day of an hours machinery the next day is on hours again)
-    addTo: addTo,      // update-143: { rows, kind, mode, closeKm, closeHr, stock, lastWork } – this entry is added to the saved entry of its shift as row rows + 1
+    addTo: addTo,      // update-143: { rows, kind, mode, closeKm, closeHr, stock, lastWork, sameOk } – this entry is added to the saved entry of its shift as row rows + 1
     openingDiesel: addTo ? addTo.stock : prev ? prev.stock : 0, prevDate: prev ? prev.dk : '', prevShift: prev ? prev.shift : '',
     lastDate: list.length ? list[list.length - 1].dk : '', lastShift: list.length ? list[list.length - 1].shift : '',
     diesel: ds.qty, dieselText: ds.text, reads: ds.reads, driver: ds.driver, cycle: cy.cycle, prevClosed: cy.prevClosed,
