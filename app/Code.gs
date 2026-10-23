@@ -3741,7 +3741,7 @@ const itemPartsStrip_ = json => { const o = itemWorkParse_(json); if (!('_parts'
 function logItemWork_(m, dk, mode, l, tot, prev) {
   const items = boqItemsOn_(m, dk);
   const hOnly = hrsOnly_(m) && hasHr_(mode), hrItems = items.filter(it => itemKind_(it.basis) === 'hr');
-  const tOnly = hrsOnly_(m) && mode === 'Time';      // update-144: a shift of such a machinery whose rows are ALL by Time (the entry is by Time)
+  const tOnly = mode === 'Time';      // update-144: a shift whose rows are ALL by Time (the entry is by Time) – of ANY machinery ("sagle machinery la ha rule ghe", 23-10-2026)
   /* update-144: such an entry's From – To are its rows' times – the same times, nothing more, nothing less (none can be at the same
    * time as another: the entry's times are checked as one list, timeSlots_) */
   const sameWay = (who, i) => new Error(who + 'row ' + (i + 1) + ' of ' + dmy_(dk) + ' – the rows of one shift must be measured the same way (Time).');
@@ -7390,7 +7390,7 @@ function getLogRowPrefill_(no, dateStr, shiftIn, opt) {
       const r0 = lt.rows[si], c = lt.c, its = H.ITEMS in c ? itemWorkParse_(r0[c[H.ITEMS]]) : {}, items = boqItemsOn_(m, dk);
       const ps0 = Array.isArray(its._parts) && its._parts.length > 1 ? its._parts : null, ps = ps0 && ps0.some(p => !partIsTime_(p)) ? ps0.filter(p => !partIsTime_(p)) : ps0;      // (update-144: rows all by Time – the last of them)
       const last = ps ? str_((ps[ps.length - 1] || {}).n) : ((itemQtyOf_(items, { mode: str_(r0[c[H.UNIT]]), whr: numOrBlank_(r0[c[H.WHR]]), wkm: numOrBlank_(r0[c[H.WKM]]), trip: numOrBlank_(r0[c[H.TRIP]]), work: its }).list.find(x => x.k === kind && x.q > 0) || {}).n || '');
-      addTo = { rows: sv.rows.length, kind: kind, mode: str_(r0[c[H.UNIT]]), closeKm: numOrBlank_(r0[c[H.CKM]]), closeHr: numOrBlank_(r0[c[H.CHR]]), stock: num0_(r0[c[H.STOCK]]), lastWork: last, sameOk: hrsOnly_(m) && kind === 'hr' };      // (sameOk: on hours the same work may come again – update-77)
+      addTo = { rows: sv.rows.length, kind: kind, mode: str_(r0[c[H.UNIT]]), closeKm: numOrBlank_(r0[c[H.CKM]]), closeHr: numOrBlank_(r0[c[H.CHR]]), stock: num0_(r0[c[H.STOCK]]), lastWork: last, sameOk: kind === 'hr' && (hrsOnly_(m) || str_(r0[c[H.UNIT]]) === 'Time') };      // (update-144: rows by Time – the same work at another time too)      // (sameOk: on hours the same work may come again – update-77)
       slot = ''; slotSay = '';
     }
   }
@@ -7540,6 +7540,8 @@ function logRowsKind_(g) {
   if (hrsOnly_(m) && hasHr_(mode)) return 'hr';      // update-77: any hours machinery may have several rows in one shift
   // update-78: … also when its first row is by Time and another row of the shift is by Hrs – update-144: or when every row is by Time
   if (hrsOnly_(m) && mode === 'Time') return 'hr';
+  // update-144 (23-10-2026: "sagle machinery la ha rule ghe"): EVERY machinery – rows that are all by Time (From – To) are the works of the shift
+  if (mode === 'Time') { let allT = false; try { allT = g.every(p => logModeFor_(m, p.x.l.mode) === 'Time'); } catch (e) { allT = false; } if (allT) return 'hr'; }
   return ['hr', 'km'].find(k => (k === 'hr' ? hasHr_(mode) : hasKm_(mode)) && items.filter(it => itemKind_(it.basis) === k).length > 1) || '';
 }
 function logRowsJoin_(g, kind) {
@@ -7551,11 +7553,12 @@ function logRowsJoin_(g, kind) {
   const mode = hOnly0 && g.some(p => hasHr_(modeOf(p))) ? modeOf(g.find(p => hasHr_(modeOf(p)))) : modeOf(g[0]);
   const F = kind === 'hr' ? ['openingHr', 'closingHr', 'Hrs'] : ['openingKm', 'closingKm', 'KM'];
   const kindItems = items.filter(it => itemKind_(it.basis) === kind), rest = kindItems.find(it => it.qty === 'rest'), names = kindItems.map(it => it.name).join(' / ');
-  const hOnly = hrsOnly_(m) && kind === 'hr', plainRows = hOnly && kindItems.length < 2;      // update-77: gaps between rows; no work to pick when it has no separate works
+  let tAll = false; try { tAll = kind === 'hr' && g.every(p => modeOf(p) === 'Time'); } catch (e) { tAll = false; }      // (update-144: rows all by Time – any machinery)
+  const hOnly = hrsOnly_(m) && kind === 'hr', plainRows = (hOnly || tAll) && kindItems.length < 2;      // update-77: gaps between rows; no work to pick when it has no separate works
   const find = n => items.find(it => it.name.toUpperCase() === clean_(n).toUpperCase());
   const parts = [], other = {}; let day = '', trips = 0, anyTrip = false, lastClose = null, typed0 = null, fh = -1, lh = -1;
   g.forEach((p, i) => {
-    const l = p.x.l, isT = hOnly && modeOf(p) === 'Time';      // update-78: a row by Time (From – To) among the rows by Hrs
+    const l = p.x.l, isT = (hOnly || tAll) && modeOf(p) === 'Time';      // update-78: a row by Time (From – To) among the rows by Hrs (update-144: or all of them, any machinery)
     if (!isT && modeOf(p) !== mode) fail(i, 'the rows of one shift must be measured the same way (' + mode + (hOnly ? (mode === 'Time' ? ' or Hrs' : ' or Time') : '') + ').');
     let tx = null;
     if (isT) { const ex = logExtra_(m, 'Time', l, dmy_(dk) + ' row ' + (i + 1)); tx = { ts: ex.tSlots || (ex.tStart + '-' + ex.tEnd), tb: blank_(l.tBreak) ? 0 : Math.max(0, num0_(l.tBreak)), q: ex.tHrs }; }
@@ -7600,7 +7603,7 @@ function logRowsJoin_(g, kind) {
    * "ase error nko n yeyla"): EVERY row of the shift by Time (From – To) – the entry is ONE entry by Time whose times are the rows'
    * times in the order of the shift (a Night's times after midnight come last), its break the breaks typed on the rows; each row
    * keeps its own work and times. Two rows at the same time: refused (a machinery does one work at a time). */
-  const allT = fh === -1;      // (only a machinery on hours has rows by Time – logRowsKind_: so here every row is by Time)
+  const allT = fh === -1;      // (a row is by Time only on hours or when all of them are – so here every row is by Time)
   let ordered = parts, tsAll = null, gT = g;
   if (allT) {
     const sp = parts.map((x, i) => ({ i: i, s: timeSpans_(x.ts, sh) })).sort((a, b) => a.s[0][0] - b.s[0][0] || a.i - b.i), say = i => row(i) + ' (' + str_(parts[i].ts).replace(/-/g, ' – ').replace(/,/g, ', ') + ')';

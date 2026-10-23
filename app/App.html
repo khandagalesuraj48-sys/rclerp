@@ -8997,7 +8997,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Close above the Start of the entry after it). */
   const lxHO = () => hrsOnlyM(((LX || {}).d || {}).machine);
   // its rows need no work picked when the BOQ has fewer than two hour works ("plain" rows: just its times of work)
-  const lxPlain = r => lxHO() && (((LX.d || {}).boqItems || {})[r.date] || []).filter(it => itemKind(it.basis) === 'hr').length < 2;
+  const lxPlain = r => (lxHO() || lxWay(r) === 'Time') && (((LX.d || {}).boqItems || {})[r.date] || []).filter(it => itemKind(it.basis) === 'hr').length < 2;      // (update-144: rows by Time of any machinery)
   // "+ work in this shift" under a row (in the item column; a machinery without an item-wise BOQ: under its Close – update-77)
   const lxMoreBtn = r => (lxPartKind(r) && !r.lock && DAY_STATUS.indexOf(lxWay(r)) === -1 ? '<button type="button" class="lx-more" title="' + (lxHO() ? 'The machinery worked once more in this same shift (e.g. Breaker 100 → 102, then again 110 → 113): adds a row under this one – same date, same shift. Its Start may be higher than the Close above; the hours between are not counted.' : 'The machinery did another work in this same shift (e.g. Breaker after Bucket): adds a row for it under this one – same date, same shift, starting where this work closed.') + '">+ work in this shift</button>' : '');
   // update-78: a row by Time of a shift with rows by Hrs: its times (a split kept while From, To and Break are as loaded) and the break typed
@@ -9008,6 +9008,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // the kind of work that can have a row each on this row's date ('hr' / 'km'), '' = this machinery / way has no such works
   const lxPartKind = r => { const its = ((LX.d || {}).boqItems || {})[r.date] || [], w = lxWay(r), n = k => its.filter(it => itemKind(it.basis) === k).length;
     if (lxHO() && (hasHr(w) || w === 'Time')) return 'hr';      // (update-78: a row by Time among the rows by Hrs)
+    if (w === 'Time') return 'hr';      // (update-144, 23-10-2026 "sagle machinery la ha rule ghe": every machinery – a row by Time for each work / each time it worked)
     return hasHr(w) && n('hr') > 1 ? 'hr' : hasKm(w) && n('km') > 1 ? 'km' : ''; };
   // a later row of its shift (only a machinery whose shift can have a row for each work has such rows – for every other one this is never true)
   const lxLater = r => !!lxPartKind(r) && lxSlotRows(r)[0] !== r;
@@ -9024,16 +9025,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function lxPartsProblem(grp, r) {
     const k = lxPartKind(grp[0]); if (!k || grp.some(x => DAY_STATUS.indexOf(lxWay(x)) > -1 || lxWay(x) === METER_OFF)) return null;
     const mixOk = lxHO() && grp.every(x => hasHr(lxWay(x)) || lxWay(x) === 'Time');      // update-78: Hrs and Time rows in one shift
+    const allTime = grp.every(x => lxWay(x) === 'Time');      // update-144: every row by Time (any machinery)
     if (!mixOk && grp.some(x => lxWay(x) !== lxWay(grp[0]))) return 'the rows of one shift must be measured the same way (' + lxWay(grp[0]) + ').';
     const j = grp.indexOf(r), names = ((LX.d.boqItems || {})[r.date] || []).filter(it => itemKind(it.basis) === k).map(it => it.name).join(' / ');
     if (!(lxRowQty(r, k) > 0)) return 'this row has no work yet – type its ' + (lxWay(r) === 'Time' ? 'From and To' : 'Close') + ' (or delete the row).';
     // update-144: every row of the shift by Time (no row by Hrs) – each row its own From – To, never at the same time as another row
-    if (mixOk && !grp.some(x => hasHr(lxWay(x)))) { const sl = x => slotsParse(lxTimePart(x).ts), mine = timeSpansP(sl(r), r.shift), o = grp.find(x => x !== r && lxRowQty(x, k) > 0 && spansMeet(mine, timeSpansP(sl(x), x.shift)));
+    if (allTime) { const sl = x => slotsParse(lxTimePart(x).ts), mine = timeSpansP(sl(r), r.shift), o = grp.find(x => x !== r && lxRowQty(x, k) > 0 && spansMeet(mine, timeSpansP(sl(x), x.shift)));
       if (o) return 'this row (' + slotsSay(sl(r)) + ') is at the same time as row ' + (grp.indexOf(o) + 1) + ' of this shift (' + slotsSay(sl(o)) + ') – a machinery does one work at a time: correct the From – To.'; }
     if (lxPlain(r)) return '';
     const pick = lxPickOf(r, k);
     if (!pick) return 'each row of this shift is ONE work – press ' + names + ' (not Split).';
-    if (j > 0 && !lxHO() && lxPickOf(grp[j - 1], k) === pick) return 'same work as the row above (' + pick + ') – make them one row, or press the other work.';
+    if (j > 0 && !lxHO() && !allTime && lxPickOf(grp[j - 1], k) === pick) return 'same work as the row above (' + pick + ') – make them one row, or press the other work.';
     return '';
   }
   const lxOrd = { 'Day': 0, 'Full Day': 0, 'Night': 1 };
@@ -9408,7 +9410,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const R = mix ? hg[0] : r, z = mix ? hg[hg.length - 1] : g[g.length - 1], w = lxWay(R), k = hasKm(w), h = hasHr(w);      // (update-78: Start from its first row by Hrs, Close from its last)
       /* update-144: every row of the shift by Time – ONE entry by Time: its times are the rows' times in the order of the shift, its break
        * the breaks typed on the rows; the rows go in that order too */
-      const allT = g.length > 1 && lxHO() && !hg.length && g.every(x => lxWay(x) === 'Time'), tp = x => lxTimePart(x), at0 = x => (timeSpansP(slotsParse(tp(x).ts), x.shift)[0] || [0])[0];
+      const allT = g.length > 1 && !hg.length && g.every(x => lxWay(x) === 'Time'), tp = x => lxTimePart(x), at0 = x => (timeSpansP(slotsParse(tp(x).ts), x.shift)[0] || [0])[0];
       const G = allT ? g.slice().sort((a, b) => at0(a) - at0(b)) : g, tB = allT ? r2(G.reduce((a, x) => a + (Number(tp(x).tb) || 0), 0)) : 0;
       // (every time of every row in the order of the shift – a row with "+ time" may hold times around another row's)
       const tSl = allT ? [].concat(...G.map(x => { const sl = slotsParse(tp(x).ts), sp = timeSpansP(sl, x.shift); return sl.map((t, j) => ({ at: (sp[j] || sp[0] || [0])[0], t: t })); })).sort((a, b) => a.at - b.at).map(o => o.t) : [];
@@ -16304,6 +16306,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // 'hr' / 'km' when this row's machinery has two or more hour (KM) works in its BOQ on the row's date and the row is measured that way – its shift can then have a row for each work ('' = one row a shift, as always)
   const lgPartKind = tr => { const its = (tr._p && tr._p.boqItems) || [], u = lgWay(tr), n = k => its.filter(it => itemKind(it.basis) === k).length;
     if (tr._p && hrsOnlyM(tr._p.machine) && (hasHr(u) || u === 'Time')) return 'hr';      // update-77: a machinery on hours – several rows of a shift, whatever its BOQ (update-78: a row by Time among them)
+    if (tr._p && u === 'Time') return 'hr';      // update-144 (23-10-2026 "sagle machinery la ha rule ghe"): every machinery – rows by Time
     return hasHr(u) && n('hr') > 1 ? 'hr' : hasKm(u) && n('km') > 1 ? 'km' : ''; };
   const isHol = r => ['Holiday', 'Breakdown'].indexOf(r.mode || r.unit) > -1; // not paid
   /* SPLIT TIMING of an entry measured by Time (asked 07-10-2026: "11 to 1 and then 2 to 5 = 5 hours – let me enter it that way; the
@@ -16493,10 +16496,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if ((me.grp || add) && !itemBad) { const kd = me.grp ? me.kind : add.kind, box = tr.querySelector('.lg-itm'), pick = box ? box.dataset['pick' + kd] : '', q = kd === 'hr' ? whr : wkm, up = me.grp && me.j ? me.grp[me.j - 1].querySelector('.lg-itm') : null;
         const upPick = up ? up.dataset['pick' + kd] : add ? add.lastWork || '' : '';      // (update-143: the last work of the saved entry is the row above)
         const names = (p.boqItems || []).filter(it => itemKind(it.basis) === kd).map(it => it.name).join(' / ');
-        const plain = ho && (p.boqItems || []).filter(it => itemKind(it.basis) === 'hr').length < 2;      // (update-77: no work to pick)
+        const plain = (ho || tm) && (p.boqItems || []).filter(it => itemKind(it.basis) === 'hr').length < 2;      // (update-77: no work to pick – update-144: nor on rows by Time)
         if (!plain && (pick === '_split' || !pick)) itemBad = 'Each row of this shift is ONE work – press ' + names + ' (not Split).';
         else if (q !== '' && !(q > 0)) itemBad = 'This row has no work yet – its Close must be more than its Start.';
-        else if (!ho && upPick && upPick === pick) itemBad = 'Same work as the row above (' + pick + ') – make them one row, or press the other work.'; }
+        else if (!ho && !tm && upPick && upPick === pick) itemBad = 'Same work as the row above (' + pick + ') – make them one row, or press the other work.'; }      // (update-144: by Time the same work may come again at another time)
       // update-144: every row of the shift by Time – each its own From – To, never at the same time as another row (a machinery does one work at a time)
       if (me.grp && tm && !itemBad && me.grp.every(o => info.get(o).u === 'Time')) { const sl = o => lgSlots(o).filter(x => x[0] && x[1]), mine = timeSpansP(sl(tr), shift);
         const o = mine.length ? me.grp.find(o => o !== tr && spansMeet(mine, timeSpansP(sl(o), shift))) : null;
