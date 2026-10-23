@@ -66,7 +66,9 @@ const parts = (no, d) => sql("select coalesce(item_work::text,'') from log_book 
   ok('   typing the same 105 → 108 again is red already on the page (it starts below the saved Close 108)', g[0].red && /less than the last Close/.test(g[0].note), g[0]);
   sv = await save();
   ok('   … and if it is sent anyway the server refuses it, nothing saved', entry('N143-EXC', '2026-10-06') === '06 Full Day 100>108=5', [sv.slice(0, 300), entry('N143-EXC')]);
-  const dup = await api('saveLogRows', { rows: [{ no: 'N143-EXC', date: '2026-10-06', shift: 'Full Day', mode: 'Hrs', openingHr: 105, closingHr: 108 }] });
+  const dup = await api('saveLogRows', { rows: [{ no: 'N143-EXC', date: '2026-10-06', shift: 'Full Day', mode: 'Hrs', openingHr: 105, closingHr: 108, add: 1 }] });
+  const old = await api('saveLogRows', { rows: [{ no: 'N143-EXC', date: '2026-10-06', shift: 'Full Day', mode: 'Hrs', openingHr: 108, closingHr: 109 }] });
+  ok('   an older app (its row without the "add" mark) is refused as before: "already saved", nothing saved', old && old.ok === false && /already saved for 06-10-2026 \(Full Day\)/.test(JSON.stringify(old)) && entry('N143-EXC', '2026-10-06') === '06 Full Day 100>108=5', old);
   ok('   the same work sent again (e.g. from a phone that was offline): "already in the saved entry of this shift", nothing saved', dup && dup.ok === false && /this work is already in the saved entry of this shift/.test(JSON.stringify(dup)) && entry('N143-EXC', '2026-10-06') === '06 Full Day 100>108=5', dup);
   const fix = await f.evaluate(m => fixRules(m).map(r => r.en[0] + ' ' + r.mr[0]).join(' || '), String(dup && dup.errors && dup.errors[0] && dup.errors[0].msg));
   ok('   its help (English / मराठी): the work is already there', /already in the Log Book entry of that shift/.test(fix) && /आधीच आहे/.test(fix), fix);

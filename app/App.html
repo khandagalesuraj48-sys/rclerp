@@ -12336,7 +12336,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     const shift = /night/i.test(a.shift || '') ? 'Night' : /^day$/i.test(String(a.shift || '').trim()) ? 'Day' : ((S.prefs || {}).shift || 'Full Day'), status = ['Idle', 'Holiday', 'Breakdown'].find(x => x.toLowerCase() === String(a.status || '').toLowerCase()) || '';
     if (m.supply === 'Debit Basis') return { error: T({ en: m.id + ' is on debit basis – it keeps no Log Book.', mr: m.id + ' debit basis वर आहे; तिची Log Book नसते.', hi: m.id + ' debit basis पर है; उसकी Log Book नहीं होती।' }) };
-    let pf = null; try { pf = await rawCall('getLogRowPrefill', m.id, date, shift); } catch (e) { return { error: errMsg(e) }; }
+    let pf = null; try { pf = await rawCall('getLogRowPrefill', m.id, date, shift, { add: 1 }); } catch (e) { return { error: errMsg(e) }; }
     if (pf.problem) return { error: pf.problem };
     const ckm = aiN(a.close_km), chr = aiN(a.close_hr), notes = [];
     if (pf.addTo) notes.push(T({ en: showDate(date) + ' (' + shift + ') is already saved for ' + m.id + ' – this work is added to that entry as work ' + (pf.addTo.rows + 1) + '.', mr: m.id + ' ची ' + showDate(date) + ' (' + shift + ') ची entry आधीच आहे; हे काम त्याच entry मध्ये work ' + (pf.addTo.rows + 1) + ' म्हणून जोडले जाईल.', hi: m.id + ' की ' + showDate(date) + ' (' + shift + ') की entry पहले से है; यह काम उसी entry में work ' + (pf.addTo.rows + 1) + ' के रूप में जुड़ेगा।' }));      // (update-143)
@@ -12353,7 +12353,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const wk = needKm ? aiNum(ckm - Number(pf.openingKm || 0)) : '', wh = needHr ? aiNum(chr - Number(pf.openingHr || 0)) : '';
     if (needKm && wk > 600) notes.push(T({ en: '⚠ ' + fmt(wk) + ' km in one entry – check the reading.', mr: '⚠ एका entry मध्ये ' + fmt(wk) + ' km; reading तपासा.', hi: '⚠ एक entry में ' + fmt(wk) + ' km; reading जाँचें।' }));
     if (needHr && wh > 24) notes.push(T({ en: '⚠ ' + fmt(wh) + ' hours in one entry – check the reading.', mr: '⚠ एका entry मध्ये ' + fmt(wh) + ' तास; reading तपासा.', hi: '⚠ एक entry में ' + fmt(wh) + ' घंटे; reading जाँचें।' }));
-    const row = Object.assign({ date: date, shift: shift, no: m.id, mode: mode }, needKm ? { openingKm: pf.openingKm, closingKm: ckm } : {}, needHr ? { openingHr: pf.openingHr, closingHr: chr } : {}, a.work ? { work: String(a.work).slice(0, 200) } : {});
+    const row = Object.assign({ date: date, shift: shift, no: m.id, mode: mode }, needKm ? { openingKm: pf.openingKm, closingKm: ckm } : {}, needHr ? { openingHr: pf.openingHr, closingHr: chr } : {}, a.work ? { work: String(a.work).slice(0, 200) } : {}, pf.addTo ? { add: 1 } : {});
     return { kind: kind, tab: 'log', title: 'Log Book entry', data: row, notes: notes, lines: [['Machinery', m.id + (m.type ? ' · ' + m.type : '')], ['Date', showDate(date) + ' · ' + shift + ' · ' + mode]].concat(needKm ? [['KM', fmt(pf.openingKm) + ' → ' + fmt(ckm) + '  =  ' + fmt(wk) + ' km']] : []).concat(needHr ? [['Hrs', fmt(pf.openingHr) + ' → ' + fmt(chr) + '  =  ' + fmt(wh) + ' hr']] : []).concat(a.work ? [['Work', row.work]] : []),
       say: T({ en: m.id + ', ' + showDate(date) + ': ' + [needKm ? wk + ' kilometres' : '', needHr ? wh + ' hours' : ''].filter(Boolean).join(' and ') + '. Shall I save?', mr: m.id + ', ' + showDate(date) + ': ' + [needKm ? wk + ' किलोमीटर' : '', needHr ? wh + ' तास' : ''].filter(Boolean).join(' आणि ') + '. Save करू का?', hi: m.id + ', ' + showDate(date) + ': ' + [needKm ? wk + ' किलोमीटर' : '', needHr ? wh + ' घंटे' : ''].filter(Boolean).join(' और ') + '. Save करूँ?' }),
       save: () => call('saveLogRows', { rows: [row] }) };
@@ -16347,7 +16347,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!modes.length) { tr.querySelector('.unitcell').textContent = 'Tick "Works on" in Asset Master'; lgShowUnit(tr, ''); lgRowNote(tr, 'Tick what ' + m.id + ' works on in Asset Master.'); tr.classList.add('err'); return; }
     const seq = tr._seq = (tr._seq || 0) + 1;
     try {
-      const p = pre || await call('getLogRowPrefill', m.id, date, shift);
+      const p = pre || await call('getLogRowPrefill', m.id, date, shift, { add: 1 });      // (update-143: a saved shift answered as "add to it" – p.addTo)
       if (seq !== tr._seq) return;
       const key = m.id + '|' + date + '|' + shift;
       // the same answer as the one already in this row (a background refresh after someone else saved): nothing to redraw
@@ -16507,7 +16507,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       lgRefBusy = true; lgRefAt = Date.now();
       try {
         const rows = lgRows().filter(tr => tr._p && tr.isConnected);
-        const asks = rows.map(tr => { const m = findMachine(lgf(tr, 'no').value), date = lgf(tr, 'date').value; return m && date ? { no: m.id, date: date, shift: lgf(tr, 'shift').value } : null; });
+        const asks = rows.map(tr => { const m = findMachine(lgf(tr, 'no').value), date = lgf(tr, 'date').value; return m && date ? { no: m.id, date: date, shift: lgf(tr, 'shift').value, add: 1 } : null; });
         const list = asks.filter(Boolean); if (!list.length) return;
         let res = null;
         try { res = await rawCall('getLogRowPrefills', list); } catch (e) { res = null; }
@@ -16585,7 +16585,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       openingHr: hasHr(lgWay(tr)) ? v(tr, 'openingHr') : '', closingHr: hasHr(lgWay(tr)) ? v(tr, 'closingHr') : '', tStart: v(tr, 'tStart'), tEnd: lgWay(tr) === 'Time' ? lgSlots(tr).slice(-1)[0][1] : v(tr, 'tEnd'), tSlots: lgWay(tr) === 'Time' ? lgSlots(tr) : undefined, tBreak: v(tr, 'tBreak'), trip: lgWay(tr) === 'Trip' || (tr._p && tr._p.machine && tr._p.machine.lbFormat === 'B' && DAY_STATUS.indexOf(lgWay(tr)) === -1) ? v(tr, 'trip') : '', challan: lgWay(tr) && DAY_STATUS.indexOf(lgWay(tr)) === -1 ? v(tr, 'challan').trim() : '', remark: v(tr, 'remark').trim(),
       openingDiesel: v(tr, 'openingDiesel'), chFrom: v(tr, 'chFrom'), chTo: v(tr, 'chTo'), work: v(tr, 'work'), debitTo: v(tr, 'debitTo').trim(), debitRate: v(tr, 'debitRate'),
       estKm: v(tr, 'estKm'), estHr: v(tr, 'estHr'), meterNote: v(tr, 'meterNote').trim(), meter: lgf(tr, 'newMeter') && lgf(tr, 'newMeter').checked ? 'new' : '',
-      items: tr._p && tr._p.boqItems && tr._p.boqItems.length ? itemBoxRead(tr.querySelector('.lg-itm')) : undefined }))
+      items: tr._p && tr._p.boqItems && tr._p.boqItems.length ? itemBoxRead(tr.querySelector('.lg-itm')) : undefined, add: tr._p && tr._p.addTo ? 1 : '' }))      // (update-143: shown as added to the saved entry)
       .map(r => { ['openingKm', 'closingKm', 'openingHr', 'closingHr', 'openingDiesel', 'trip', 'tBreak'].forEach(k => { r[k] = r[k] === '' ? '' : Number(r[k]); }); return r; });
     const res = await call('saveLogRows', { rows: rows });
     lgPendAt = 0; setTimeout(() => lgPendLoad(true), 300);      // what was pending has changed
