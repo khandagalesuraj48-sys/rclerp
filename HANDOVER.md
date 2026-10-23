@@ -1880,6 +1880,14 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   disayla haw"; update-147 showed them as a table of file names): approvalDetails_ `addPics` (DET_PHOTO_ keys first, rows' photos
   "Row n – …"), `pics [{label, at, url}]` with one photoLinks_ for all, `picErr`; crDetHtml `.phv-grid.cr-pics`; guide approvals.
   details147api 24, browser/details147 10.
+- 24-10-2026 (update-149, with App 3.31.7). Report: `UPDATE_149.md`. REPORTS → LOG BOOK DEBIT STATEMENT ("log book mdhun ekadi entry
+  debit to keli jate tr tyach wegle record rahaw … filter import export print rate change"): `rptLogDebit_` (party by party, each
+  entry: quantity as measured × rate, its Debit Note; filters party / one machinery) and `saveLogDebits_` (rows `{logId | no+date+
+  shift ; to? ; rate ; line?}`, from 'report' / 'import'; all or nothing under withLock_; each row checked as a Log Book change –
+  logDebit_, booksOpen_, billLock_, not in a Debit Note, two entries on a day need the shift, a line given twice; a blank "Debit to"
+  keeps the party; stampEdit_; Activity 'logDebits'); page report def `ldebit` (rate boxes `input.ldrate`, Put on all shown, Import
+  party + rate, Excel layout with the entries shown, print without boxes + "Party acceptance"); REPORT_GUIDE.ldebit, 5 FIX_RULES.
+  Under a Log Book verification rule the change is sent and saved when approved. ldebit149api 26, browser/ldebit149 14.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
