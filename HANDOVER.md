@@ -1808,6 +1808,20 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   true / false; false or no answer in 2 s → replaced as before. `renewals()` next to `helpersMade()`. test/net.test.js updated
   (4 pauses → 4 renewals, 1 helper, no retry), unit check update-142. Measured per heartbeat of an idle page 156 → 13 ms CPU,
   of a background tab 162 → 20 ms; 15 people 10 min 89.6 → 78.9 s.
+- 23-10-2026 (update-143, with App 3.31.2). Report: `UPDATE_143.md`. A SECOND ENTRY FOR A SAVED SHIFT IS ADDED TO IT: saveLogRowsInner_ –
+  a slot already in the sheet (`logSavedIdx_`, not a tanker) → `logEntryRows_` (the saved entry as entry-page rows: its `_parts` with
+  Start / Close from the entry's Start as Edit Log Book does, else itself; `{ why }` for Idle / Holiday / Breakdown, No reading, new
+  meter, tanker, a typed split, parts that no longer fit) + the new rows → `logRowsKind_` / `logRowsJoin_` → `p.replace` = its row:
+  written in place (`logRowAgain_`: own row, optional cells emptied, `stampEdit_`), then `recalcChain_`; duplicates `logSameWork_`
+  (same Start + Close of its meter, or the same times). Answer `added` / `into` (count as before). getLogRowPrefill_ `addTo` { rows,
+  kind, mode, closeKm, closeHr, stock, lastWork, sameOk }, no problem, Start = saved Close. App.html lgCalcAll: `add` = a later work
+  (work N, diesel 0, odsl = add.stock, no ½, one work per row, upPick = lastWork), row note, toast; assistant note; FIX_RULES ×2.
+  Only rows marked `add` (getLogRowPrefill_(…, { add: 1 }), the page / assistant / App 3.31.2) are added – an older app is refused
+  as before. Adding a work never moves another entry (its Close above the next entry's Start → refused, every machinery); the
+  saved entry keeps its opening diesel (`base.openingDiesel`) and its standard average (`mS`); plain rows keep their typed hours;
+  overlapping From – To = the same work; the Activity Log `logrows` keeps the saved entry as it was (`was`). A saved Time-only day
+  of an hrsOnly machinery takes a row by Hrs (prefill kind 'hr').
+  Tests: unit update-143 (+ update-71 changed to the new rule), browser/add143.js 18, entry71.js 20 (the old-rule check changed).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
