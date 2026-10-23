@@ -40,7 +40,7 @@ other ways: rows by the readings of a machinery that is not on hours only, by tr
 * No database step, no setting.
 
 ## Evidence (local test copy only)
-* `node --test test/unit.test.js` **103 / 103** – new check "update-146" (in the server code): a tipper on KM – two works of 02-09 =
+* `node --test test/unit.test.js` **104 / 104** – new checks "update-146" and "update-146 (after the review)" (in the server code): a tipper on KM – two works of 02-09 =
   ONE entry 1100 → 1220 (rows 50 + 70 km, their challans, chainage, work), bill 120 × 40, read back by Edit Log Book; a gap refused
   with the way out; the same row twice refused; a work added to the saved shift (the prefill offers it, kind km), the same work again
   refused; Edit Log Book's save of the rows kept, rows that do not add up refused; a tipper with LOADED / EMPTY: LOADED twice in a row
@@ -49,6 +49,13 @@ other ways: rows by the readings of a machinery that is not on hours only, by tr
   5 + 3 = 8 trips, bill 8 × 600, duplicate refused, a row without trips refused, added to the saved shift (10 trips, bill 6,000), in /
   out times at the same time refused and in the order of the day; the edit window keeps the rows when nothing changes and drops them
   when the trips change; Edit Log Book's save of trips; a machinery by the day: two works = one day, bill one day, duplicate refused.
+  After the review: SHIFTING typed 10 + 20 on a Hydra's rows kept on each row and on the entry (bill 7 × 1,000 + 30 × 50), read back as
+  10 / 20, kept through an Edit Log Book save; a tipper's rows with Work type CARTING – 40 + 60 KM to CARTING (bill 4,000, before ₹0); a
+  Work type of another BOQ refused; trips SOIL 5 + SOIL 3 (Work type) = 8 × 600 (before 8 × 400), SOIL 5 typed + 3 (rest MURUM) =
+  5 × 600 + 3 × 400, read back as SOIL / MURUM, a split refused, a third work added; KM + Hrs rows of 0 hours with other KM are two works,
+  the same both meters a duplicate, a new work beside old rows of 0 hours accepted; rows by the day with trips 4 + 3 = 7, each row its
+  own, Work type DAY-B picks the day item; an entry approved in verification added to its saved shift (without the mark otherwise:
+  refused as before).
   The update-71 and update-143 checks changed where they held the OLD rule (the tipper's second row is now its next work; a work
   added to 02-06 that passes the Start of 03-06 is refused; the Hydra's rows keep their KM).
 * `test/browser/rows146.js` **22 / 22** – the real pages: Edit Log Book (a tipper on KM: "+ work in this shift", its Close, a gap red,
@@ -59,6 +66,28 @@ other ways: rows by the readings of a machinery that is not on hours only, by tr
 * The Log Book browser tests of the page on this update – see "Regression".
 * The phone app (App 3.31.2, its own pull request): its GitHub build – analyze, the tests (new: a tipper on KM, by trips, KM + Hrs;
   the print of rows of every way the same as the web's own print), the screens.
+
+## After an independent review (fixed, each with a check)
+1. **A typed item on rows without a work picked was lost when Edit Log Book saved the shift again** (e.g. SHIFTING per KM typed 10 + 20
+   on two rows of a Hydra: after a challan was changed the bill lost the 30 KM). Each such row now keeps what was typed on it (`x`);
+   rows saved before that get the entry's typed items back shared out over the rows in order (each up to its own quantity) – nothing is
+   lost, every row's box adds up (the page, the add path, the phone). This also mends the same old gap of update-77 (rows on hours).
+2. **The Excel "Work type" of rows of one shift was dropped** (all trips went to the rest item; a typed KM item got nothing): a row's
+   Work type is now its whole quantity – on the row and on the entry (the first row's when its Start is known); a day item named is the
+   entry's day item; a work paid another way is refused with the reason.
+3. **Trips with two works (SOIL / MURUM): each row is ONE of them** (as for hours and KM) – picked on the page, named by its Work type
+   or its typed trips, the rest one otherwise; the bill pays each row at its work's rate; Split refused (the phone the same).
+4. **KM + Hrs: a duplicate only when BOTH meters read the same** (rows of 0 hours with other KM were taken as the same); rows already
+   saved are not compared with each other (adding a 4th work to an old shift was refused).
+5. **Trips on rows by the day (Format B) are added**, and every row keeps its own trips (`tr`, also on rows by readings); the page's
+   and the server's duplicate check agree.
+6. **Edit Log Book no longer rewrites an untouched entry** (it added each row's KM to old Hydra entries and stamped them): what is new
+   (o / x / tr) is sent only for an entry that was changed.
+7. Old words: the help ("a vehicle on KM cannot take a second work"), the fallback message and the hint for an older app say the
+   update-146 rule.
+8. A machinery by the day (no item column) has "+ work in this shift" in Edit Log Book.
+9. An entry approved in verification after another entry of its shift was saved is added to that shift (it was sent before the other
+   was saved, so it carried no "add" mark) – as the page would have done.
 
 ## Regression
 (filled in after the sweep)

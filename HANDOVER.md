@@ -1861,7 +1861,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   lxMoreSay, "+ work" under KM / time-trip-day cells, lxLoad (trip / day rows, o), lx_save (k, o, ti, trips Σ, items {} when the rows
   go), lgPartKind / lgWhyNot / lgSame, edit-window note, lbWorkRows (day, o, ti), partsGapP; FIX_RULES +1 (+2 changed); guides log /
   logedit; mr / hi. Unit update-146 (update-71 / 143 checks follow the new rule); browser/rows146.js; entry71 / works69 / nightrow
-  checks follow the new rule.
+  / add143 checks follow the new rule. Review: plain rows keep `x` (typed items of the row; rowTyped_, `a` = Excel Work type resolved
+  on save), `tr` (Format B trips); lxLoad / phone share old entries' typed items over the rows (dist); itemized trip rows (≥2 trip
+  works, logItemWork_ / itemPartsOf_ allow 'trip'); logSameWork_ 'B' = KM + Hrs both meters, saved rows not compared; LX.pk (o / x /
+  tr sent only for a changed entry); tmCol for Day; FLOW_RUN_ID_ counts as "add"; logSlotHint_ / fallback / help words.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
