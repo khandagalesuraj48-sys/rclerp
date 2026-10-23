@@ -4512,6 +4512,27 @@ test('update-144: a shift of a machinery on hours whose rows are ALL by Time is 
   // 4) Edit Log Book: a break on the rows that is not the entry's break – refused
   x = bulk([C({ date: '2026-10-01', items: { _parts: [{ n: 'BREAKER', q: 3.5, m: 'T', ts: '09:00-13:00', tb: 30 }, { n: 'BUCKET', q: 4, m: 'T', ts: '14:00-18:00', tb: 0 }] } })]);
   assert.ok(x.ok === false && /are not the From – To of the entry/.test(JSON.stringify(x)), JSON.stringify(x).slice(0, 400));
+  // (23-10-2026, his screen of MH-46-B-0651 – a Hydra on Time only, no hour meter: "sagle machinery la ha rule ghe") EVERY machinery:
+  // 10:00 – 18:00 (13:00 – 14:00 off) HYDRA and 19:00 – 22:00 FARANA the same Day – ONE entry by Time, 10 h; the same in Edit Log Book and added
+  run('(x, m) => saveMaster_(x, m)', { no: 'R144-HT', name: 'Hydra', type: 'Hydra', unit: 'Time', worksOn: ['Time'], hrStd: 3, owner: 'R144 Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01' }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: 'R144-HU', name: 'Hydra', type: 'Hydra', unit: 'Time', worksOn: ['Time'], hrStd: 3, owner: 'R144 Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'R144 Earthmovers', from: '2026-09-01', tdsPct: 2, woNo: 'WO-R144H', lines: ['R144-HT', 'R144-HU'].map(no => ({ no: no, basis: 'Item-wise', diesel: 'Company', items: [
+    { name: 'HYDRA', basis: 'Per Hour', rate: 1700, qty: 'rest' }, { name: 'FARANA', basis: 'Per Hour', rate: 2200, qty: 'typed' }] })) });
+  const H1 = (no, o) => Object.assign({ date: '2026-09-01', shift: 'Day', no: no, mode: 'Time' }, o);
+  r = save([H1('R144-HT', { tStart: '10:00', tEnd: '18:00', tSlots: [['10:00', '13:00'], ['14:00', '18:00']], items: { _all: 'HYDRA' }, work: 'LIFTING' }), H1('R144-HT', { tStart: '19:00', tEnd: '22:00', items: { _all: 'FARANA' }, work: 'PICK AND CARRY' })]);
+  assert.ok(r.ok && r.joined === 2 && r.count === 1, JSON.stringify(r).slice(0, 300));
+  const ht = stored('R144-HT')[0];
+  assert.deepStrictEqual([ht.unit, ht.whr, ht.slots, ht.tb, JSON.parse(ht.items)], ['Time', 10, '10:00-13:00,14:00-18:00,19:00-22:00', 120,
+    { FARANA: 3, _parts: [{ n: 'HYDRA', q: 7, m: 'T', ts: '10:00-13:00,14:00-18:00', w: 'LIFTING' }, { n: 'FARANA', q: 3, m: 'T', ts: '19:00-22:00', w: 'PICK AND CARRY' }] }]);
+  assert.strictEqual(run('(no, f, t) => billMachineCalc_(findMachine_(no), getLogBookList_({ from: f, to: t, no: no, all: true }).rows, logPrintExtra_({ from: f, to: t, nos: [no] }), f, t, undefined, true).amount', 'R144-HT', '2026-09-01', '2026-09-01'), 7 * 1700 + 3 * 2200);
+  r = save([H1('R144-HU', { tStart: '10:00', tEnd: '18:00', tSlots: [['10:00', '13:00'], ['14:00', '18:00']], items: { _all: 'HYDRA' }, work: 'LIFTING' })]); assert.ok(r.ok);
+  let hp = run('(n, d, s, o) => getLogRowPrefill_(n, d, s, o)', 'R144-HU', '2026-09-01', 'Day', { add: 1 });
+  assert.deepStrictEqual([hp.problem, hp.addTo && hp.addTo.mode, hp.addTo && hp.addTo.sameOk], ['', 'Time', true], 'a Time-only machinery: the saved Day takes another work (the same work at another time too)');
+  r = save([H1('R144-HU', { tStart: '19:00', tEnd: '22:00', items: { _all: 'FARANA' }, work: 'PICK AND CARRY', add: 1 })]);
+  assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual(Object.assign({}, stored('R144-HU')[0], { work: '' }), Object.assign({}, ht, { work: '' }), 'added = one save');
+  no(save([H1('R144-HU', { tStart: '21:00', tEnd: '23:00', items: { _all: 'HYDRA' }, add: 1 })]), /this work is already in the saved entry of this shift/);
+  no(save([H1('R144-HU', { date: '2026-09-02', tStart: '09:00', tEnd: '12:00', items: { _all: 'HYDRA' } }), H1('R144-HU', { date: '2026-09-02', tStart: '11:00', tEnd: '13:00', items: { _all: 'FARANA' } })]), /is at the same time as row 1/);
   // a machinery on hours keeps its rule for rows by Hrs and by Time together (update-78) – unchanged
   r = save([E('R144-C', { date: '2026-09-29', tStart: '09:00', tEnd: '11:00', items: { _all: 'BUCKET' } }), E('R144-C', { date: '2026-09-29', mode: 'Hrs', openingHr: 1008, closingHr: 1011, items: { _all: 'BREAKER' } })]);
   assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
