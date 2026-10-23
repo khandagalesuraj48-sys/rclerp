@@ -9,7 +9,7 @@ const port = process.argv[2] || '3000';
 const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : fail++; out.push((c ? 'PASS ' : 'FAIL ') + n + (x !== undefined ? '  → ' + String(typeof x === 'string' ? x : JSON.stringify(x)).slice(0, 700) : '')); };
 const clean = () => sql("delete from log_book where machinery like 'N145-%'; delete from diesel_issue where machinery like 'N145-%'; delete from boq where vendor_name = 'N145 Vendor'; delete from master where id like 'N145-%'; delete from vendors where vendor_name = 'N145 Vendor'; delete from web.cache where key like 'LG\\_%' or key like 'F\\_%' or key like 'DUP\\_%';");
 const work = d => sql("select coalesce(work_done, '') || ' ' || coalesce(closing_km::text, '') from log_book where machinery = 'N145-TIP' and date = '2026-10-" + d + "'");
-const qty = () => sql("select coalesce(string_agg(diesel_qty::text, ','), '') from diesel_issue where machinery = 'N145-TIP'");
+const qty = () => sql("select coalesce(string_agg(trim(trailing '.' from trim(trailing '0' from qty::text)), ','), '') from diesel_issue where machinery = 'N145-TIP'");
 (async () => {
   try { clean(); } catch (e) { out.push('clean: ' + String(e.message).slice(0, 200)); }
   await wait(1300);
@@ -48,7 +48,7 @@ const qty = () => sql("select coalesce(string_agg(diesel_qty::text, ','), '') fr
   await setV(A, 'le_work', 'CARTING BY A'); await click(A, 'le_save'); const sa = await said(A);
   ok('   A saves what he opened before B\'s change: refused – "N145-TIP (02-10-2026, Full Day) was changed by … after you opened it – open it again"; B\'s change stays',
     /N145-TIP \(02-10-2026, Full Day\) was changed by .* after you opened it – open it again and make your change there\. Nothing was saved\./.test(sa) && /^LOADING BY B 1180/.test(work('02')), [sa, work('02')]);
-  ok('   the help says what happened and what to do', /Someone else changed this entry after you opened it/.test(sa), sa);
+  ok('   the help says what happened and what to do (in his language)', /Someone else changed this entry after you opened it|तुम्ही ही entry उघडल्यानंतर दुसऱ्या कोणीतरी ती बदलली/.test(sa), sa);
   await A.evaluate(() => { try { document.getElementById('le_cancel').click(); } catch (e) {} }); await edit(A, key);
   await setV(A, 'le_work', 'CARTING BY A'); await click(A, 'le_save'); await said(A);
   ok('   opened again (it shows B\'s change) and saved: A\'s change is in', /^CARTING BY A 1180/.test(work('02')), work('02'));
