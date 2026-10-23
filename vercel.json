@@ -25,6 +25,11 @@
       "source": "/portal",
       "destination": "/portal/",
       "permanent": false
+    },
+    {
+      "source": "/engineering",
+      "destination": "/engineering/",
+      "permanent": false
     }
   ],
   "rewrites": [
@@ -83,6 +88,14 @@
     {
       "source": "/portal/:path*",
       "destination": "https://rcl-portal-flame.vercel.app/:path*"
+    },
+    {
+      "source": "/engineering/",
+      "destination": "https://rcl-engineering.vercel.app/index.html"
+    },
+    {
+      "source": "/engineering/:path*",
+      "destination": "https://rcl-engineering.vercel.app/:path*"
     }
   ],
   "headers": [
