@@ -957,7 +957,11 @@ test('every print has "Excel" in its window; a saved bill opens with its Log Boo
   // one way to open a saved bill
   assert.strictEqual((app.match(/await viewSavedBill\(/g) || []).length, 4, 'RCL Drive (bills and debit notes), Bill Summary, Vendor Ledger');
   const vs = app.slice(app.indexOf('async function viewSavedBill('), app.indexOf('/* ---------- saved bills ---------- */'));
-  assert.match(vs, /window\.open\('', '_blank'\)/); assert.match(vs, /logSheetsOf\(\{ rows: rows, f: \{ from: b\.from, to: b\.to \}/); assert.match(vs, /billSheets\(data, [^)]*\) \+ lb, 'rep rep-bill' \+ \(lb \? ' rep-lb' : ''\)/);
+  assert.match(vs, /window\.open\('', '_blank'\)/); assert.match(vs, /billSheets\(data, [^)]*\) \+ lb, 'rep rep-bill' \+ \(lb \? ' rep-lb' : ''\)/);
+  // (update-151) its Log Book from the bill's evidence (as submitted); a legacy bill: today's Log Book with the note that says so
+  assert.match(vs, /const x = await billLogOf\(b\);\s+if \(x\.L\.rows\.length\) lb = x\.note \+ \(await logSheetsOf\(x\.L, b\.company\)\)\.sheets;/);
+  assert.match(vs, /call\('getBillEvidence', \{ id: b\.id \}\)/); assert.match(vs, /logs = await call\('getLogBookList', \{ from: b\.from, to: b\.to, all: true \}\)/);
+  assert.match(vs, /The Log Book below is TODAY\\'S Log Book/);
   assert.match(app, /\.billsheet \+ \.lbsheet, \.lbsheet \+ \.billsheet \{ break-before: page; \}/);
 });
 
@@ -4982,4 +4986,104 @@ test('update-142: a database helper unused for a while keeps running – only it
     for (let i = 0; i < 3; i++) { sf.sleepSync(700); assert.strictEqual(sf.fetchAllSync([{ url: url }])[0].code, 200); }
     assert.strictEqual(sf.renewals(), renewed + 3, 'renewed after each pause'); assert.strictEqual(sf.helpersMade(), made, 'no new helper');
   } finally { await srv.terminate(); delete process.env.RCL_FETCH_IDLE_MS; delete require.cache[require.resolve(file)]; }
+});
+
+test('update-151: a submitted bill keeps its Log Book as evidence – the same as verified, written with the bill, checked later; changed after Verify = nothing submitted', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // the rig's storage of the evidence is the database; here an in-memory stand-in with the same rows (the database's no-change rule is tested on the rig)
+  vm.runInContext(`var EV_STORE = { snap: [], rows: [] }; var __evReady0 = evReady_, __evAppend0 = evAppend_, __evRead0 = evRead_;
+    evReady_ = () => true;
+    evAppend_ = (tab, o) => { (tab === EV_SNAP_TAB_ ? EV_STORE.snap : EV_STORE.rows).push(JSON.parse(JSON.stringify(o))); };
+    evRead_ = id => { const s = EV_STORE.snap.find(x => x['Bill ID'] === id); if (!s) return null;
+      return { snap: { id: id, bill_no: s['Bill No'], rev: s['Rev'], vendor_name: s['Vendor Name'], company: s['Company'], period_from: String(s['Period From']).slice(0, 10), period_to: String(s['Period To']).slice(0, 10), kind: s['Kind'],
+        bill_data: s['Bill Data'], machines: s['Machines'], extra: s['Extra'], rows_count: s['Rows Count'], snapshot_sha256: s['Snapshot SHA256'], submitted_by: s['Submitted By'], submitted_at: s['Submitted At'] },
+        rows: EV_STORE.rows.filter(r => r['Bill ID'] === id).map(r => ({ entry_key: r['Entry Key'], data: r['Data'], row_sha256: r['Row SHA256'] })) }; };`, ctx);
+  try {
+    // the canonical text: the same content gives the same text whatever order its keys were made in
+    assert.strictEqual(run('() => canon_({ b: 1, a: [2, { d: 4, c: 3 }], e: undefined, n: null })'), '{"a":[2,{"c":3,"d":4}],"b":1,"n":null}');
+    assert.strictEqual(run('() => canon_({ a: [2, { c: 3, d: 4 }], n: null, b: 1 })'), run('() => canon_({ b: 1, a: [2, { d: 4, c: 3 }], n: null })'));
+    run('(x, m) => saveVendor_(x, m)', { name: 'Ev Vendor', gstReg: 'No', pan: 'ABCPE1151V', bank: 'SBI', account: '15101510', ifsc: 'SBIN0000151' }, 'add');
+    run('(x, m) => saveMaster_(x, m)', { no: 'EVX-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Ev Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add');
+    run('(x, m) => saveBoq_(x, m)', { vendor: 'Ev Vendor', from: '2026-01-01', tdsPct: 2, woNo: 'WO-EV', lines: [{ no: 'EVX-1', basis: 'Per KM', rate: 50, diesel: 'Company' }] }, 'add');
+    const log = (date, shift, close, extra) => run('x => saveLogRowsInner_(x)', { rows: [Object.assign({ date: date, shift: shift, no: 'EVX-1', mode: 'KM', closingKm: close }, extra || {})] });
+    assert.ok(log('2026-05-01', 'Day', 1040, { openingKm: 1000 }).ok); assert.ok(log('2026-05-01', 'Night', 1070).ok); assert.ok(log('2026-05-02', 'Full Day', 1120).ok);
+    const co = run('() => billCompanies_()')[0];
+    const mk = no => run(`(a) => { const m = findMachine_('EVX-1'), from = '2026-05-01', to = '2026-05-31';
+      const c = billMachineCalc_(m, getLogBookList_({ from: from, to: to, no: 'EVX-1', all: true }).rows, logPrintExtra_({ from: from, to: to, nos: ['EVX-1'] }), from, to, undefined, true);
+      const A = r2_(c.amount), B = r2_(c.excessAmt), D = r2_(A - B), H2 = D > 0 ? r2_(D * c.tdsPct / 100) : 0;
+      return { company: a[1], vendor: { name: 'Ev Vendor' }, from: from, to: to, billDate: to, billNo: a[0], picked: ['EVX-1'], partial: false, edited: false, idlePaid: true,
+        machines: [{ no: 'EVX-1', workDays: c.workDays, nights: c.nights, issued: c.issued, amount: c.amount, excessAmt: c.excessAmt, lines: [] }], A: A, B: B, C: 0, D: D, E: 0, F: 0, G: D, H: H2, I: r2_(D - H2), gstPct: c.gstPct, tdsPct: c.tdsPct }; }`, [no, co]);
+    const sub = b => run('(b, co) => submitBills_({ bills: [{ vendor: "Ev Vendor", company: co, billNo: b.billNo, from: b.from, to: b.to, billDate: b.billDate, net: b.I, data: b }] })', b, co);
+    // 1. Verify keeps the evidence hash with its "verified" mark; Submit writes the bill and its evidence together
+    let bill = mk('151');
+    const ver = run('b => verifyBills_({ bills: [b] })', bill);
+    assert.ok(ver && ver.ok, JSON.stringify(ver).slice(0, 600));
+    assert.ok(ver.bills[0].checks.some(c => c.s === 'ok' && /^Log Book evidence: 3 entries of 1 machinery/.test(c.t)), 'said in the checks');
+    const mark = run('(b) => CacheService.getScriptCache().get(billVerifyKey_(b, { vendor: "Ev Vendor", company: b.company, from: b.from, to: b.to }))', bill);
+    const ev0 = run('(b) => billEvidence_(b)', bill);
+    assert.strictEqual(mark, 'S:' + ev0.hash); assert.match(ev0.hash, /^[0-9a-f]{64}$/);
+    assert.deepStrictEqual(ev0.rows.map(r => r.key), ['EVX-1|2026-05-01|Day', 'EVX-1|2026-05-01|Night', 'EVX-1|2026-05-02|Full Day']);
+    assert.strictEqual(run('(b) => billEvidence_(b).hash', bill), ev0.hash, 'the same database → the same hash');
+    const s1 = sub(bill);
+    assert.ok(s1 && s1.ok, JSON.stringify(s1).slice(0, 400));
+    const store = run('() => EV_STORE');
+    assert.strictEqual(store.snap.length, 1); assert.strictEqual(store.rows.length, 3);
+    assert.strictEqual(store.snap[0]['Bill ID'], s1.saved[0].id); assert.strictEqual(store.snap[0]['Snapshot SHA256'], ev0.hash); assert.strictEqual(store.snap[0]['Kind'], 'submission');
+    assert.ok(store.rows.every(r => r['Row ID'] === s1.saved[0].id + '|' + r['Entry Key'] && /^[0-9a-f]{64}$/.test(r['Row SHA256'])));
+    assert.match(store.rows[0]['Data'], /"ckm":1040/); assert.ok(!/"lk":/.test(store.rows.map(r => r['Data']).join('')), 'the on-screen lock mark is not part of the evidence');
+    // 2. the saved bill's Log Book from its evidence, checked: every hash worked out again
+    let e = run('id => getBillEvidence_({ id: id })', s1.saved[0].id);
+    assert.strictEqual(e.kind, 'submission'); assert.strictEqual(e.count, 3); assert.strictEqual(e.check.ok, true); assert.strictEqual(e.check.billSame, true);
+    assert.deepStrictEqual(e.rows.map(r => r.date + ' ' + r.shift + ' ' + r.ckm), ['2026-05-01 Day 1040', '2026-05-01 Night 1070', '2026-05-02 Full Day 1120']);
+    assert.deepStrictEqual(e.machines.map(m => m.id), ['EVX-1']); assert.strictEqual(e.extra.idlePaid, true);
+    // 3. the Super Admin corrects a billed entry afterwards: the live Log Book changes, the bill's evidence does not
+    const k3 = run('() => { const lt = table_(APP.SHEET_LOG), c = lt.c; return logKeyOf_(lt, lt.rows.find(r => str_(r[c[H.NO]]) === "EVX-1" && dkey_(r[c[H.DATE]]) === "2026-05-02")); }');
+    const upd = run('(k) => { ACTOR_SUPER_ = true; try { return updateLogRow_(k, { closingKm: 1125 }); } finally { ACTOR_SUPER_ = false; } }', k3);
+    assert.ok(upd && !upd.THROWN, JSON.stringify(upd).slice(0, 300));
+    assert.strictEqual(run('() => getLogBookList_({ from: "2026-05-02", to: "2026-05-02", no: "EVX-1", all: true }).rows[0].ckm'), 1125, 'the live entry is corrected');
+    e = run('id => getBillEvidence_({ id: id })', s1.saved[0].id);
+    assert.strictEqual(e.rows[2].ckm, 1120, 'the bill still shows the entry as billed'); assert.strictEqual(e.check.ok, true);
+    // 4. evidence that was tampered with is found by the check (here the stand-in lets it happen; the database refuses it – rig test)
+    run('() => { EV_STORE.rows[1]["Data"] = EV_STORE.rows[1]["Data"].replace(\'"ckm":1070\', \'"ckm":1099\'); }');
+    e = run('id => getBillEvidence_({ id: id })', s1.saved[0].id);
+    assert.strictEqual(e.check.ok, false); assert.deepStrictEqual(e.check.bad, ['EVX-1|2026-05-01|Night']);
+    // 5. changed after Verify: nothing is submitted, "verify again"
+    run('(x, m) => saveMaster_(x, m)', { no: 'EVX-2', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Ev Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add');
+    run('(x, m) => saveBoq_(x, m)', { vendor: 'Ev Vendor', from: '2026-06-01', tdsPct: 2, woNo: 'WO-EV2', lines: [{ no: 'EVX-1', basis: 'Per KM', rate: 50, diesel: 'Company' }] }, 'add');
+    assert.ok(log('2026-06-01', 'Full Day', 1200).ok);
+    const june = run(`(a) => { const m = findMachine_('EVX-1'), from = '2026-06-01', to = '2026-06-30';
+      const c = billMachineCalc_(m, getLogBookList_({ from: from, to: to, no: 'EVX-1', all: true }).rows, logPrintExtra_({ from: from, to: to, nos: ['EVX-1'] }), from, to, undefined, true);
+      const A = r2_(c.amount), D = r2_(A - r2_(c.excessAmt)), H2 = D > 0 ? r2_(D * c.tdsPct / 100) : 0;
+      return { company: a, vendor: { name: 'Ev Vendor' }, from: from, to: to, billDate: to, billNo: '152', picked: ['EVX-1'], partial: false, edited: false, idlePaid: true,
+        machines: [{ no: 'EVX-1', workDays: c.workDays, nights: c.nights, issued: c.issued, amount: c.amount, excessAmt: c.excessAmt, lines: [] }], A: A, B: r2_(c.excessAmt), C: 0, D: D, E: 0, F: 0, G: D, H: H2, I: r2_(D - H2), gstPct: c.gstPct, tdsPct: c.tdsPct }; }`, co);
+    assert.ok(run('b => verifyBills_({ bills: [b] })', june).ok);
+    // after Verify an entry of the bill's machinery and dates is changed (its work text – the figures stay the same, so only the evidence tells)
+    const k6 = run('() => { const lt = table_(APP.SHEET_LOG), c = lt.c; return logKeyOf_(lt, lt.rows.find(r => str_(r[c[H.NO]]) === "EVX-1" && dkey_(r[c[H.DATE]]) === "2026-06-01")); }');
+    const u6 = run('(k) => updateLogRow_(k, { closingKm: 1200, work: "changed after verify" })', k6); assert.ok(u6 && !u6.THROWN, JSON.stringify(u6).slice(0, 400));
+    const dbg = run('(b) => { const m = CacheService.getScriptCache().get(billVerifyKey_(b, { vendor: "Ev Vendor", company: b.company, from: b.from, to: b.to })); const e = billEvidence_(b); return { mark: m, now: e.hash, remark: e.rows.map(r => r.text).join(" ").indexOf("changed after verify") > -1 }; }', june);
+    const s2 = sub(june);
+    assert.strictEqual(s2.ok, false, JSON.stringify(dbg)); assert.match((s2.errors || []).join(' '), /^Ev Vendor: the Log Book of this bill changed after it was verified .* – verify the bill again \(Verify & Submit\)\.$/);
+    assert.strictEqual(run('() => EV_STORE.snap.length'), 1, 'nothing written'); assert.strictEqual(run('() => getBills_({}).bills.filter(b => b.billNo === "152").length'), 0, 'no bill');
+    // verified again: submitted, with the remark in its evidence
+    assert.ok(run('b => verifyBills_({ bills: [b] })', june).ok);
+    // (a bill removed earlier left its evidence under BILL-00050: that ID is never given again – the next is BILL-00051)
+    vm.runInContext('var __sbF0 = sbFetch_; sbFetch_ = (m, u) => /bill_snapshots\\?select=id&order=id\\.desc&limit=1$/.test(u) ? [{ id: "BILL-00050" }] : __sbF0(m, u);', ctx);
+    let s3; try { s3 = sub(june); } finally { vm.runInContext('sbFetch_ = __sbF0;', ctx); }
+    assert.ok(s3 && s3.ok, JSON.stringify(s3).slice(0, 300)); assert.strictEqual(s3.saved[0].id, 'BILL-00051');
+    assert.match(run('id => getBillEvidence_({ id: id }).rows[0].work', s3.saved[0].id), /changed after verify/);
+    // 6. before step 1zc (no evidence tables): bills are verified and submitted as before, without evidence
+    vm.runInContext('evReady_ = () => false;', ctx);
+    run('(x, m) => saveBoq_(x, m)', { vendor: 'Ev Vendor', from: '2026-07-01', tdsPct: 2, woNo: 'WO-EV3', lines: [{ no: 'EVX-1', basis: 'Per KM', rate: 50, diesel: 'Company' }] }, 'add');
+    assert.ok(log('2026-07-01', 'Full Day', 1300).ok);
+    const july = Object.assign(JSON.parse(JSON.stringify(june)), { from: '2026-07-01', to: '2026-07-31', billDate: '2026-07-31', billNo: '153' });
+    const jc = run(`() => { const m = findMachine_('EVX-1'), c = billMachineCalc_(m, getLogBookList_({ from: '2026-07-01', to: '2026-07-31', no: 'EVX-1', all: true }).rows, logPrintExtra_({ from: '2026-07-01', to: '2026-07-31', nos: ['EVX-1'] }), '2026-07-01', '2026-07-31', undefined, true); return c; }`);
+    july.machines = [{ no: 'EVX-1', workDays: jc.workDays, nights: jc.nights, issued: jc.issued, amount: jc.amount, excessAmt: jc.excessAmt, lines: [] }];
+    july.A = jc.amount; july.B = jc.excessAmt; july.D = Math.round((jc.amount - jc.excessAmt) * 100) / 100; july.G = july.D; july.H = Math.round(july.D * jc.tdsPct) / 100; july.I = Math.round((july.D - july.H) * 100) / 100;
+    const vj = run('b => verifyBills_({ bills: [b] })', july); assert.ok(vj.ok, JSON.stringify(vj).slice(0, 500));
+    assert.ok(!vj.bills[0].checks.some(c => /Log Book evidence/.test(c.t)));
+    const s4 = sub(july); assert.ok(s4 && s4.ok, JSON.stringify(s4).slice(0, 300)); assert.strictEqual(run('() => EV_STORE.snap.length'), 2, 'no evidence without its tables');
+    assert.strictEqual(run('id => getBillEvidence_({ id: id }).kind', s4.saved[0].id), 'off');
+  } finally { vm.runInContext('evReady_ = __evReady0; evAppend_ = __evAppend0; evRead_ = __evRead0;', ctx); }
 });

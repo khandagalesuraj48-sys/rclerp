@@ -836,6 +836,7 @@ const API_ = {
   getAppVersion:     { m: '', admin: true, f: () => appVersion_() },
   saveBillSettings:  { m: 'Machinery Billing', edit: true, f: saveBillSettings_, log: 'billSettings' },
   getBills:          { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Bill Summary', 'Vendor Ledger'], f: getBills_ },
+  getBillEvidence:   { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Bill Summary', 'Vendor Ledger'], f: getBillEvidence_ },      // update-151: a saved bill's Log Book as submitted (its fixed evidence), checked
   billSummary:       { m: 'Bill Summary', f: billSummary_ },
   getPayments:       { m: 'Machinery Payments', f: getPayments_ },
   savePayment:       { m: 'Machinery Payments', edit: true, f: savePayment_, log: 'payment' },
@@ -3281,8 +3282,12 @@ function verifyBills_(p) {
     }
     if (inBill.length && !tdsPct) warn('TDS % is 0 in the BOQ.');
     if (inBill.length && !woNo) warn('Work Order No is not in the BOQ.');
-    const nBad = checks.filter(c => c.s === 'bad').length;
-    if (!nBad) cache.put(billVerifyKey_(b, { vendor: vname, company: co, from: from, to: to }), '1', 900);
+    let nBad = checks.filter(c => c.s === 'bad').length;
+    // (update-151) the bill's evidence – its Log Book entries, machinery and Log Book sheet input as they are now – is part of what is verified
+    let evMark = '1';
+    if (!nBad && evReady_()) { try { const ev = billEvidence_(b); evMark = 'S:' + ev.hash; ok('Log Book evidence: ' + ev.rows.length + ' entr' + (ev.rows.length === 1 ? 'y' : 'ies') + ' of ' + inBill.length + ' machinery – kept with the bill exactly as it is now when it is submitted.'); }
+      catch (e) { bad('The Log Book evidence of this bill could not be made (' + String((e && e.message) || e).slice(0, 160) + ') – verify again.'); nBad++; } }
+    if (!nBad) cache.put(billVerifyKey_(b, { vendor: vname, company: co, from: from, to: to }), evMark, 900);
     return { vendor: vname, billNo: no, net: num0_(b.I), checks: checks, bad: nBad, warn: checks.filter(c => c.s === 'warn').length };
   });
   return { ok: out.every(x => !x.bad), bills: out };
@@ -3300,6 +3305,15 @@ function submitBills_(b) {
     if (!bills.length) throw new Error('No bill to submit.');
     const notVerified = bills.filter(x => !CacheService.getScriptCache().get(billVerifyKey_(x.data || {}, x)));
     if (notVerified.length) return { ok: false, errors: notVerified.map(x => clean_(x.vendor) + ': verify the bill first (Verify & Submit) – the data or the amounts changed after it was checked.') };
+    /* (update-151) THE EVIDENCE: built again here, inside the save, from the database. It must be exactly what was verified (the same
+     * hash) – a Log Book entry, a machinery or the Log Book sheet's input changed after Verify: nothing is submitted, "verify again". */
+    if (evReady_()) {
+      const evErr = [];
+      bills.forEach(x => { const mark = String(CacheService.getScriptCache().get(billVerifyKey_(x.data || {}, x)) || '');
+        x._ev = billEvidence_(Object.assign({}, x.data || {}, { from: x.from, to: x.to, company: x.company, vendor: (x.data && x.data.vendor) || { name: x.vendor } }));
+        if (mark !== 'S:' + x._ev.hash) evErr.push(clean_(x.vendor) + ': the Log Book of this bill changed after it was verified (an entry, a machinery or its diesel / BOQ) – verify the bill again (Verify & Submit).'); });
+      if (evErr.length) return { ok: false, errors: evErr };
+    }
     bills.forEach(x => {
       if (billCompanies_().indexOf(str_(x.company)) === -1) throw new Error('Pick the company name for ' + x.vendor + '.');
       if (!clean_(x.billNo)) throw new Error('Enter the bill number for ' + x.vendor + '.');
@@ -3346,6 +3360,9 @@ function submitBills_(b) {
     if (corrErr.length) return { ok: false, errors: corrErr };
     if (dup.length && !b.confirm) return { ok: false, duplicates: dup };
     let n = all.reduce((mx, r) => Math.max(mx, Number(String(r.id).replace(/\D/g, '')) || 0), 0);
+    // (update-151) a bill removed earlier (deleted before bills were kept) must not give its ID again: its evidence is kept for ever
+    // under that ID, and a new bill with the same ID could never save its own (the database refuses to change evidence)
+    if (evReady_()) { try { const top = sbFetch_('GET', '/rest/v1/bill_snapshots?select=id&order=id.desc&limit=1') || []; if (top.length) n = Math.max(n, Number(String(top[0].id).replace(/\D/g, '')) || 0); } catch (e) { /* the bills' own numbers; a clash is refused by the database, nothing half-saved */ } }
     const saved = [];
     const vRecs = {}; getVendors_().forEach(v => { vRecs[vKey_(v.name)] = v; });
     /* Debit Note numbers (diesel deducted in the bill): one run of numbers for each name (Rachana / Sketchline).
@@ -3411,6 +3428,7 @@ function submitBills_(b) {
       set_(row, t, 'Period From', toDate_(dkey_(x.from))); set_(row, t, 'Period To', toDate_(dkey_(x.to))); set_(row, t, 'Bill Date', toDate_(dkey_(x.billDate) || today_()));
       set_(row, t, 'Net Payable', r2_(num0_(x.net))); set_(row, t, 'Status', 'Active'); set_(row, t, 'Data', JSON.stringify(x.data || {})); set_(row, t, 'Created At', new Date());
       t.sh.appendRow(row);
+      if (x._ev) evSave_(id, x, rev, x._ev);      // (update-151) its evidence – in this same save: the bill and its evidence are written together, or neither
       saved.push({ id: id, vendor: clean_(x.vendor), billNo: clean_(x.billNo), rev: rev });
     });
     return { ok: true, saved: saved };
@@ -3434,6 +3452,137 @@ function deleteBill_(id, reason) {
       if (!/→ 404|PGRST20[25]|Could not find the table|not found in (the Google Sheet|tab)/.test(String((e && e.message) || e))) throw e; }
     return { ok: true, bill: b };
   });
+}
+/* ================= THE FIXED EVIDENCE OF A SUBMITTED BILL (update-151, asked 24-10-2026: "When a Bill is submitted: snapshot the
+ * exact billed Logbook rows … save the Bill and evidence atomically … render all future saved-Bill views and exports from that
+ * immutable snapshot … Do not invent historical snapshots for legacy Bills") =================
+ * At Verify the server builds each bill's EVIDENCE from the database (billEvidence_): every Log Book entry of its machinery and
+ * dates exactly as the bill and its Log Book sheet use it (getLogBookList_ – the same rows), the Asset Master of its machinery,
+ * the other input of its Log Book sheet (logPrintExtra_: BOQ in force, diesel issues of the days, diesel rates) and the bill's
+ * own Idle choice and diesel rate. Every entry gets a SHA-256 of its canonical text, the whole a SHA-256 (evHash_). The hash is
+ * kept with the bill's "verified" mark (15 minutes). Submit builds it again inside its save: another hash = something changed
+ * after Verify → "verify again", nothing is saved. The same hash: the evidence is written in the SAME all-or-nothing database
+ * write as the bill (tabs Bill Snapshots + Bill Log Rows = tables bill_snapshots, bill_log_rows of step 1zc). The database
+ * refuses every change or delete of them afterwards (a trigger), whoever asks.
+ * Every saved-bill view (getBillEvidence_) shows its Log Book from the evidence – never from the Log Book of today – and can
+ * check it (evCheck_: every hash worked out again from what is stored).
+ * A bill submitted before (no evidence) is LEGACY: nothing is made up for it. Its view says that its Log Book pages are the Log
+ * Book of today, and how many entries of its machinery and dates were changed / added / deleted after the bill was saved, by the
+ * database's own times (evLegacyChanges_). Until step 1zc is run everything works as before (evReady_ false). */
+const EV_SNAP_TAB_ = 'Bill Snapshots', EV_ROWS_TAB_ = 'Bill Log Rows', EV_V_ = 1;
+const EV_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1zc_bill_evidence.sql once in Supabase → SQL Editor, in every site.';
+// the evidence tables are there (asked once, kept 15 minutes) – the app on the Google Sheet keeps no evidence
+function evReady_() {
+  if (!sbDataOn_()) return false;
+  const c = CacheService.getScriptCache(), key = 'SBTAB_bill_evidence';
+  const v = c.get(key); if (v === '1') return true; if (v === '0') return false;
+  let there = false;
+  try { sbFetch_('GET', '/rest/v1/bill_snapshots?select=id&limit=1'); sbFetch_('GET', '/rest/v1/bill_log_rows?select=id&limit=1'); there = true; } catch (e) { there = false; }
+  c.put(key, there ? '1' : '0', there ? 900 : 120);
+  return there;
+}
+// text of a value with its keys in order (the same text for the same content, whatever order it was made in)
+function canon_(v) {
+  if (v === null || v === undefined || (typeof v === 'number' && !isFinite(v))) return 'null';
+  if (v instanceof Date) return JSON.stringify(isNaN(v) ? '' : v.toISOString());
+  if (Array.isArray(v)) return '[' + v.map(canon_).join(',') + ']';
+  if (typeof v === 'object') return '{' + Object.keys(v).filter(k => v[k] !== undefined).sort().map(k => JSON.stringify(k) + ':' + canon_(v[k])).join(',') + '}';
+  return JSON.stringify(v);
+}
+const sha_ = s => hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(s), Utilities.Charset.UTF_8));
+// an entry as kept in the evidence: the Log Book row the bill used, without what only marks it on screen (lk – the lock of a bill)
+function evRow_(r) { const o = Object.assign({}, r); delete o.lk; return o; }
+// the hash of a bill's evidence, from its texts (the same at Verify, at Submit and when it is checked later)
+function evHash_(head, machinesText, extraText, rows) {
+  return sha_(canon_(head) + '\n' + sha_(machinesText) + '\n' + sha_(extraText) + '\n' + rows.map(r => r.key + ':' + r.sha).sort().join('\n'));
+}
+const evHead_ = (vendor, company, from, to, nos) => ({ v: EV_V_, vendor: vKey_(vendor), company: str_(company), from: dkey_(from), to: dkey_(to), nos: nos.map(n => noKey_(n)).sort() });
+/* the evidence of one bill as the page sent it (d = the bill: vendor, company, from, to, machines [{ no }], idlePaid, dieselRate):
+ * { head, machines, extra, rows: [{ key, no, date, shift, text, sha }], hash } */
+function billEvidence_(d) {
+  d = d || {};
+  const from = dkey_(d.from), to = dkey_(d.to), nos = (d.machines || []).map(x => str_(x && x.no)).filter(Boolean);
+  const want = {}; nos.forEach(n => { want[noKey_(n)] = true; });
+  const pick = o => { const out = {}; Object.keys(o || {}).forEach(k => { if (want[k]) out[k] = o[k]; }); return out; };
+  const rows = (from && to ? getLogBookList_({ from: from, to: to, all: true }).rows || [] : []).filter(r => want[noKey_(r.no)]).map(evRow_)
+    .map(r => { const text = canon_(r); return { key: str_(r.key), no: r.no, date: r.date, shift: r.shift, text: text, sha: sha_(text) }; })
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  const machines = nos.map(n => { try { return findMachine_(n); } catch (e) { return { id: n, notInMaster: true }; } });
+  const ex = from && to ? logPrintExtra_({ from: from, to: to, nos: machines.map(m => m.id) }) : {};
+  const rate = num0_(d.dieselRate) >= 0.01 && num0_(d.dieselRate) < 1000 ? r2_(num0_(d.dieselRate)) : 0;
+  const extra = { debit: pick(ex.debit), boq: pick(ex.boq), issues: pick(ex.issues), avgRate: ex.avgRate || 0, lastRate: ex.lastRate || 0, lastDate: ex.lastDate || '',
+    manualRate: rate, dieselRate: rate, idlePaid: d.idlePaid !== false };
+  const head = evHead_((d.vendor && d.vendor.name) || d.vendor, d.company, from, to, nos);
+  const machinesText = canon_(machines), extraText = canon_(extra);
+  return { head: head, machines: machines, machinesText: machinesText, extra: extra, extraText: extraText, rows: rows, hash: evHash_(head, machinesText, extraText, rows) };
+}
+// a tab of the evidence: a row from { header: value }, appended without reading the table (it can be large)
+function evAppend_(tab, o) {
+  const d = SB_TABLES_.find(x => x.tab === tab), sh = SS_().getSheetByName(tab);
+  if (!d || !sh) throw new Error('The evidence of bills cannot be kept – ' + EV_SQL_MSG_);
+  const hdr = [SB_ID_HEADER_[d.table]].concat(d.cols.map(c => c[0]));
+  sh.appendRow(hdr.map(h => (h in o ? o[h] : '')));
+}
+// the evidence of a bill just saved: written with it (the caller is inside the bill's own save – one write for all)
+function evSave_(billId, x, rev, ev) {
+  evAppend_(EV_SNAP_TAB_, { 'Bill ID': billId, 'Bill No': clean_(x.billNo), 'Rev': rev, 'Vendor Name': clean_(x.vendor), 'Company': str_(x.company), 'Period From': toDate_(dkey_(x.from)), 'Period To': toDate_(dkey_(x.to)),
+    'Kind': 'submission', 'Bill Data': JSON.stringify(x.data || {}), 'Machines': ev.machinesText, 'Extra': ev.extraText, 'Rows Count': ev.rows.length, 'Snapshot SHA256': ev.hash,
+    'Submitted By': ACTOR_, 'Submitted At': new Date() });
+  ev.rows.forEach(r => evAppend_(EV_ROWS_TAB_, { 'Row ID': billId + '|' + r.key, 'Bill ID': billId, 'Entry Key': r.key, 'Machinery': r.no, 'Date': toDate_(r.date), 'Shift': r.shift, 'Data': r.text, 'Row SHA256': r.sha }));
+}
+// the stored evidence of one bill: { snap, rows } (null = none) – read with a filter, never the whole table
+function evRead_(billId) {
+  const id = encodeURIComponent(str_(billId));
+  const snaps = sbFetch_('GET', '/rest/v1/bill_snapshots?id=eq.' + id + '&select=*') || [];
+  if (!snaps.length) return null;
+  const rows = sbAllRows_('bill_log_rows', '&bill_id=eq.' + id);
+  return { snap: snaps[0], rows: rows };
+}
+// every hash of the stored evidence worked out again: { ok, rows, bad: [entry keys], hashOk, billSame }
+function evCheck_(st, billNow) {
+  const s = st.snap, bad = [];
+  const rows = st.rows.map(r => { const sha = sha_(r.data); if (sha !== r.row_sha256) bad.push(r.entry_key); return { key: r.entry_key, sha: sha }; });
+  let nos = []; try { nos = (JSON.parse(s.machines || '[]') || []).map(m => m.id); } catch (e) { nos = []; }
+  const hash = evHash_(evHead_(s.vendor_name, s.company, s.period_from, s.period_to, nos), s.machines || '', s.extra || '', rows);
+  // the bill's own figures: as submitted (its copy in the evidence) and as saved now – the same but for the link of a machinery number changed later (noNow)
+  const strip = t => { let o = {}; try { o = JSON.parse(t || '{}') || {}; } catch (e) { o = {}; } (o.machines || []).forEach(m => { delete m.noNow; }); return canon_(o); };
+  const billSame = billNow ? strip(s.bill_data) === strip(JSON.stringify(billNow.data || {})) : null;
+  return { ok: !bad.length && hash === s.snapshot_sha256, hashOk: hash === s.snapshot_sha256, rows: rows.length, bad: bad, billSame: billSame };
+}
+/* (legacy bill) entries of its machinery and dates changed / added / deleted after the bill was saved, by the database's own times
+ * (log_book.updated_at / created_at, deleted_rows.deleted_at). It errs on the safe side: an entry saved again counts as changed. */
+function evLegacyChanges_(b) {
+  const at = str_(b.created); if (!at || !b.from || !b.to) return null;
+  const keys = {}; billMachKeys_(b.data).forEach(k => { keys[k] = true; });
+  const all = !Object.keys(keys).length;      // (a very old bill without its machinery list: every machinery of its vendor)
+  const own = {}; if (all) getMaster_().forEach(m => { if (vKey_(m.owner) === vKey_(b.vendor)) own[noKey_(m.id)] = true; });
+  const mine = no => all ? !!own[noKey_(no)] : !!keys[noKey_(no)];
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const page = sbFetch_('GET', '/rest/v1/log_book?select=id,machinery,date,created_at,updated_at&date=gte.' + b.from + '&date=lte.' + b.to + '&order=id.asc', undefined, { Range: from + '-' + (from + 999), 'Range-Unit': 'items' }) || [];
+    rows.push.apply(rows, page); if (page.length < 1000) break;
+  }
+  const t0 = new Date(at).getTime(), later = v => v && new Date(v).getTime() > t0 + 1000;      // (a second of room: the bill and its last entry can be saved in the same second)
+  const own2 = rows.filter(r => mine(r.machinery));
+  let gone = []; try { gone = sbFetch_('GET', '/rest/v1/deleted_rows?table_name=eq.log_book&deleted_at=gt.' + encodeURIComponent(new Date(t0).toISOString()) + '&select=row_id,deleted_at') || []; } catch (e) { gone = []; }
+  const deleted = gone.filter(g => { const p = str_(g.row_id).split('|'); return p.length >= 2 && mine(p[0]) && p[1] >= b.from && p[1] <= b.to; }).length;
+  return { entries: own2.length, changed: own2.filter(r => later(r.updated_at) && !later(r.created_at)).length, added: own2.filter(r => later(r.created_at)).length, deleted: deleted, since: new Date(t0).toISOString() };
+}
+/* a saved bill's Log Book for its views and prints: { kind: 'submission', … the evidence, check } – or, for a bill without evidence,
+ * { kind: 'legacy', changes } (the page then shows the Log Book of today, said so) – or { kind: 'off' } before step 1zc */
+function getBillEvidence_(f) {
+  f = f || {};
+  const t = billTable_(); if (!t) throw new Error('Bill not found.');
+  const b = t.rows.map(r => billOut_(t, r, true)).find(x => x.id === str_(f.id));
+  if (!b) throw new Error('Bill ' + str_(f.id) + ' was not found.');
+  const base = { id: b.id, billNo: b.billNo, rev: b.rev, status: b.status, vendor: b.vendor, company: b.company, from: b.from, to: b.to, created: b.created };
+  if (!evReady_()) return Object.assign(base, { kind: 'off' });
+  const st = evRead_(b.id);
+  if (!st) { let ch = null; try { ch = evLegacyChanges_(b); } catch (e) { ch = null; } return Object.assign(base, { kind: 'legacy', changes: ch }); }
+  const s = st.snap, parse = (t2, d0) => { try { return JSON.parse(t2 || '') || d0; } catch (e) { return d0; } };
+  const rows = st.rows.map(r => parse(r.data, null)).filter(Boolean);
+  return Object.assign(base, { kind: s.kind || 'submission', submittedBy: str_(s.submitted_by), submittedAt: str_(s.submitted_at), hash: str_(s.snapshot_sha256), billNoThen: str_(s.bill_no), revThen: num0_(s.rev),
+    machines: parse(s.machines, []), extra: parse(s.extra, {}), billData: parse(s.bill_data, {}), rows: rows, count: rows.length, check: evCheck_(st, b) });
 }
 function deleteVendor_(name) {
   return withLock_(() => {
@@ -9869,9 +10018,10 @@ function dbHealth_() {
     add('Split timing of a Time entry (step 1w)', has('log_book', 'time_slots'), 'supabase_step1w_time_slots.sql');
     add('Photos of a diesel issue (step 1x)', has('diesel_issue', 'photos'), 'supabase_step1x_diesel_photos.sql');
     add('Changes of a billed period – Approvals and the next bill (step 1z)', has('billed_changes'), 'supabase_step1z_billed_changes.sql');
+    add('The fixed evidence of submitted bills – their Log Book as submitted (step 1zc)', has('bill_snapshots') && has('bill_log_rows'), 'supabase_step1zc_bill_evidence.sql');      // (update-151)
     // (update-90) the list of sites, the Super Admin and who has which site – in the FIRST site's database only
     if (typeof __siteIsHome === 'function' && __siteIsHome()) add('Several sites and the Super Admin (step 7 – the first site only)', typeof __sitesOn === 'function' && __sitesOn(), 'supabase_step7_sites.sql');
-    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes)/.test(x));
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows)/.test(x));
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }
   let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }

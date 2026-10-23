@@ -339,7 +339,7 @@ function makeFetch(st) {
  * that is gone from the database is dropped – the copy ends exactly as a whole read would leave it. More than 300 rows differ → the
  * table is read whole, as before. Once in 6 hours the table is still read whole (the last net: a change made with the database's
  * own triggers switched off). RCL_WARM_REFRESH_MS / RCL_WARM_WHOLE_MS change the two times (tests only). */
-let WARM = { tables: new Map(), skip: new Set(['activity_log', 'deleted_rows']), stats: { whole: 0, changes: 0, kept: 0, checks: 0, fixed: 0 } };
+let WARM = { tables: new Map(), skip: new Set(['activity_log', 'deleted_rows', 'bill_snapshots', 'bill_log_rows']), stats: { whole: 0, changes: 0, kept: 0, checks: 0, fixed: 0 } };
 const WARM_OVERLAP = 15000, WARM_MAX = 250000, WARM_DIFF_MAX = 300;
 const WARM_REFRESH = Number(process.env.RCL_WARM_REFRESH_MS) || 15 * 60 * 1000, WARM_WHOLE = Number(process.env.RCL_WARM_WHOLE_MS) || 6 * 3600 * 1000;
 const warmPos = (ids, id) => { let lo = 0, hi = ids.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ids[m] < id) lo = m + 1; else hi = m; } return lo; };
@@ -494,7 +494,7 @@ function scryptHex(pw, saltHex, N, r, p) {
 let CUR = null;
 const MEM = new Map([['', { LOCAL: LOCAL, BEAT: BEAT, WARM: WARM }]]);
 const newMem = () => ({ LOCAL: { stamp: null, map: new Map() }, BEAT: { at: 0, props: null, stamp: '', tables: null, shared: {}, sess: new Map(), pver: '', pall: null, kept: new Map(), boot2: true, st: null, sh: '' },
-  WARM: { tables: new Map(), skip: new Set(['activity_log', 'deleted_rows']), stats: { whole: 0, changes: 0, kept: 0, checks: 0, fixed: 0, seeded: 0 } } });
+  WARM: { tables: new Map(), skip: new Set(['activity_log', 'deleted_rows', 'bill_snapshots', 'bill_log_rows']), stats: { whole: 0, changes: 0, kept: 0, checks: 0, fixed: 0, seeded: 0 } } });
 function useSite(code) {
   const c = sites.conf(code);            // throws "This site is not set up" for a site that does not exist
   let m = MEM.get(c.site);
