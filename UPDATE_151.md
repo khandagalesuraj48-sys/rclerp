@@ -77,9 +77,14 @@ overwritten by the next save of the bill row.
      "Not submitted … changed after it was verified", no bill, no evidence.
   6. No script error.
 * Billing pages from the same snapshot, main and this branch (step 1zc applied for the branch):
-  REGRESSION_TABLE
+  `viewbill` 23 / 23, `billlock` 16 / 16, `bills120` 17 / 17, `gstdecl` 11 / 11, `rate69` 19 / 19, `boqprint133` 4 / 4, `lbpage`
+  13 / 13 – the same on main and on this branch. `billed108` (needs the Portal) 6 pass / 4 fail and `nightrow`, `compare69` (need
+  other servers of the rig) – the same output on both; `half`, `tank`, `item2`, `clear`, `debit` print nothing in this set-up (on
+  both). Nothing changed between main and this branch.
 * `node --check` on `server/*.js`, `api/*.js`; the page's script blocks parse (unit test); no secret in the change.
-* App 3.32.0: APP_CI
+* App 3.32.0 (`rcl-mobile`, branch `app-bill-evidence-3320`): the build (analyze, every test, the screens drawn, Android, iPhone,
+  Windows) passed. Its new tests: the note above a saved bill's Log Book – the web's own text for 11 answers (fixture made by running
+  this page's `billLogOf` in node), the time shown in the phone's time; the Log Book print with its note on top, the sheets the same.
 
 ## Not verified
 * The live sites; Supabase itself (the rig is Postgres + PostgREST of the same version family); a real phone; the time a site with
