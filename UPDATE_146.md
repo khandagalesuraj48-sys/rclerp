@@ -55,7 +55,8 @@ other ways: rows by the readings of a machinery that is not on hours only, by tr
   5 × 600 + 3 × 400, read back as SOIL / MURUM, a split refused, a third work added; KM + Hrs rows of 0 hours with other KM are two works,
   the same both meters a duplicate, a new work beside old rows of 0 hours accepted; rows by the day with trips 4 + 3 = 7, each row its
   own, Work type DAY-B picks the day item; an entry approved in verification added to its saved shift (without the mark otherwise:
-  refused as before).
+  refused as before); PICK (per hour) as the Work type of a Hydra's rows → 2 + 3 hours, also when the first row's Start comes from the
+  day before; a row by Time keeps its ROLLING; a work added to an old shift → ROLLING 2 / 1 / 2 on its rows (bill 5 × 1,000).
   The update-71 and update-143 checks changed where they held the OLD rule (the tipper's second row is now its next work; a work
   added to 02-06 that passes the Start of 03-06 is refused; the Hydra's rows keep their KM).
 * `test/browser/rows146.js` **22 / 22** – the real pages: Edit Log Book (a tipper on KM: "+ work in this shift", its Close, a gap red,
@@ -88,6 +89,11 @@ other ways: rows by the readings of a machinery that is not on hours only, by tr
 8. A machinery by the day (no item column) has "+ work in this shift" in Edit Log Book.
 9. An entry approved in verification after another entry of its shift was saved is added to that shift (it was sent before the other
    was saved, so it carried no "add" mark) – as the page would have done.
+A second look at the fixes found three more, fixed with a check each: a work added to a shift saved before the fix shares its typed
+items out over the rows (not all on row 1 – that row was red in Edit Log Book); a Work type of the other meter on rows read in KM + Hrs
+(PICK per hour on rows of a Hydra) takes each row's hours; a row by Time keeps what was typed on it too. Said plainly: for a shift saved
+before this update, the share-out of its typed items over its rows is worked out (in order, each row up to its own quantity) – the
+totals and the bill are the entry's and do not change.
 
 ## Regression
 (filled in after the sweep)

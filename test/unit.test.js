@@ -4841,6 +4841,34 @@ test('update-146 (after the review): rows keep what was typed on them and their 
   r = run('x => { FLOW_RUN_ID_ = "VF-146"; try { return saveLogRowsInner_(x); } catch (e) { return { thrown: String(e.message) }; } finally { FLOW_RUN_ID_ = ""; } }', { rows: [E('R146B-TIP', '2026-09-01', { mode: 'KM', closingKm: 1130, work: 'APPROVED LATER' })] });
   assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
   no(save([E('R146B-TIP', '2026-09-01', { mode: 'KM', closingKm: 1150 })]), /already saved for 01-09-2026 \(Full Day\)/);      // (without the mark and not from verification: an older app – as before)
+  // 7. (second review) a Work type of the OTHER meter on rows read in KM + Hrs: that meter's quantity of each row
+  M('R146B-HY2', { name: 'Hydra', type: 'Hydra', unit: 'KM + Hrs', worksOn: ['KM', 'Hrs'], kmStd: 3, hrStd: 4 });
+  M('R146B-ROL', { name: 'Roller', type: 'Roller', unit: 'Hrs', worksOn: ['Hrs', 'Time'], hrStd: 5 });
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'R146B Hire', from: '2026-09-01', tdsPct: 2, woNo: 'WO-R146C', lines: [
+    { no: 'R146B-HY2', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'PICK', basis: 'Per Hour', rate: 1200, qty: 'typed' }, { name: 'MOVE', basis: 'Per KM', rate: 30, qty: 'rest' }] },
+    { no: 'R146B-ROL', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'ROLLING', basis: 'Per Hour', rate: 1000, qty: 'typed' }] }] });
+  r = save([E('R146B-HY2', '2026-09-01', { mode: 'KM + Hrs', openingKm: 10, closingKm: 20, openingHr: 5, closingHr: 7, openingDiesel: 20, items: { _all: 'PICK' } }), E('R146B-HY2', '2026-09-01', { mode: 'KM + Hrs', closingKm: 25, closingHr: 10, items: { _all: 'PICK' } })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  j = J('R146B-HY2', '2026-09-01');
+  assert.deepStrictEqual([j.PICK, j._parts.map(p => (p.x || {}).PICK)], [5, [2, 3]]);
+  assert.strictEqual(amount('R146B-HY2', '2026-09-01'), 5 * 1200 + 15 * 30);
+  r = save([E('R146B-HY2', '2026-09-02', { mode: 'KM + Hrs', closingKm: 30, closingHr: 11, items: { _all: 'PICK' } }), E('R146B-HY2', '2026-09-02', { mode: 'KM + Hrs', closingKm: 40, closingHr: 14, items: { _all: 'PICK' } })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  j = J('R146B-HY2', '2026-09-02');
+  assert.deepStrictEqual([j.PICK, j._parts.map(p => [p.q, p.o, (p.x || {}).PICK])], [4, [[5, 1, 1], [10, 3, 3]]], 'the first row\'s Start from the day before: its hours known on save');
+  // 8. (second review) a row by Time keeps what was typed on it too; an old shift (rows without their share) takes a work – shared out, not all on row 1
+  r = save([E('R146B-ROL', '2026-09-01', { mode: 'Hrs', openingHr: 100, closingHr: 102, openingDiesel: 20, items: { ROLLING: 2 } }), E('R146B-ROL', '2026-09-01', { mode: 'Time', tStart: '14:00', tEnd: '16:00', items: { ROLLING: 2 } })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual(J('R146B-ROL', '2026-09-01')._parts.map(p => (p.x || {}).ROLLING), [2, 2]);
+  r = save([E('R146B-ROL', '2026-09-02', { mode: 'Hrs', closingHr: 104, items: { ROLLING: 2 } }), E('R146B-ROL', '2026-09-02', { mode: 'Hrs', closingHr: 105, items: { ROLLING: 1 } })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  run(`() => { const lt = table_(APP.SHEET_LOG), c = lt.c, i = lt.rows.findIndex(x => str_(x[c[H.NO]]) === 'R146B-ROL' && dkey_(x[c[H.DATE]]) === '2026-09-02'), row = lt.rows[i].slice();
+    row[c[H.ITEMS]] = JSON.stringify({ ROLLING: 3, _parts: [{ n: '', q: 2 }, { n: '', q: 1 }] }); lt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); }`);      // (as saved before the review: no share on its rows)
+  r = save([E('R146B-ROL', '2026-09-02', { mode: 'Hrs', closingHr: 107, items: { ROLLING: 2 }, add: 1 })]);
+  assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
+  j = J('R146B-ROL', '2026-09-02');
+  assert.deepStrictEqual([j.ROLLING, j._parts.map(p => (p.x || {}).ROLLING)], [5, [2, 1, 2]], 'row 1 keeps 2 (its hours), not all 3');
+  assert.strictEqual(amount('R146B-ROL', '2026-09-02'), 5 * 1000);
 });
 
 test('update-141: the Google Sheet backup ONCE A DAY (the nightly job; the first open page of the day if it did not run); the logs only their new rows', () => {
