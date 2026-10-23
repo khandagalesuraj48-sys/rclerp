@@ -1838,6 +1838,14 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `tAll` (isT / plainRows), logItemWork_ tOnly = mode Time, prefill sameOk also for a saved Time entry; page lxPartKind / lgPartKind
   'hr' for a Time row, lxPlain / plain with Time, no "same work" on Time rows, allT payload without lxHO; phone partKind / plain.
   Tests: unit update-144 (+ update-78 changed to the new rule), browser/time144.js.
+- 23-10-2026 (update-145, with App 3.31.2). Report: `UPDATE_145.md`. TWO PEOPLE CHANGING THE SAME ENTRY (Log Book + Diesel Issue
+  first, his choice): `rowVer_` (FNV-1a of `verVal_` of LOG_VER_H_ / DIESEL_VER_H_ – what a person can change; dates by dkey_, times
+  tStr_, numbers numOrBlank_, JSON with sorted keys), `verCheck_` → "<what> was changed by <UBY|EBY> after you opened it – open it
+  again and make your change there. Nothing was saved." Out: getLogEntry_.ver, getLogEditData_ rows[].ver, getDieselIssues_
+  rows[].ver. In: updateLogRow_ l.ver, deleteLogRow_(key, ver), saveLogBulk_ b.vers {key: ver} (before anything; ok:false),
+  updateDieselIssue_ d.ver, deleteDieselIssue_(id, ver); no ver = as before. App.html: x.ver (edit window), deleteLogRow e.ver,
+  lx save vers, S.editDieselVer (kept at editDiesel – the list refreshes), deleteDiesel ver; FIX_RULES +1; mr / hi. Unit
+  update-145 (update-130's line check follows), browser/same145.js 10.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
