@@ -1868,6 +1868,14 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   on save), `tr` (Format B trips); lxLoad / phone share old entries' typed items over the rows (dist); itemized trip rows (≥2 trip
   works, logItemWork_ / itemPartsOf_ allow 'trip'); logSameWork_ 'B' = KM + Hrs both meters, saved rows not compared; LX.pk (o / x /
   tr sent only for a changed entry); tmCol for Day; FLOW_RUN_ID_ counts as "add"; logSlotHint_ / fallback / help words.
+- 23-10-2026 (update-147, with App 3.31.5). Report: `UPDATE_147.md`. APPROVALS – AN ENTRY IN FULL ("approval detna details madhe sagle
+  bghta yaw … bulk approval asel tri"): `approvalDetails` (`approvalDetails_`: the Super Admin, the sender, the people of its levels –
+  else "not found"; fields with `DET_LABEL_` names, arrays of objects as tables (≤ 300 rows), machinery + name · type from
+  getMaster_, photos counted, crDescribe_'s "saved now", `DET_ACT_` / detAct_ plain words; only reads). App.html: "Details" per row
+  (crDetBtn / crDetRow – a row only while open), "Details of all" (#cr_det_all), crDetHtml, crDetLoad (once per id|status|history
+  length), crDetFill (an open entry that moved on), crBulk shows each ticked entry in full; guide approvals; FIX_RULES +1; mr / hi
+  (+42). test/details147api.js, browser/details147.js. Step 1 of 3 asked that day (2: an approved entry – only the Super Admin or its
+  approvers change / delete it; 3: the Portal – edit, delete, change a user's email).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

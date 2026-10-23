@@ -2500,6 +2500,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .fv-note { margin: 6px 0 0; font-size: 12px; color: #64748B; } .cr-rem { color: #B45309; font-weight: 600; }
   #bh_box { margin-top: 14px; } #bh_box .bh-note { margin: 2px 0 8px; } .bh-t td { vertical-align: top; } .bh-t tr.bh-amend td { background: #FFF8E6; } .bh-t tr.bh-gap td { color: #6B7280; } .bh-t td.bh-chg { font-weight: 600; }      /* (update-132) */
   .fixbar { border: 1px solid #F0C36D; background: #FFF8E6; color: #3A2E00; border-radius: 10px; padding: 10px 12px; margin: 4px 0 12px; line-height: 1.5; } .fixbar .btn { margin-left: 6px; } .fixbar .fv-why { display: inline-block; margin: 2px 0; }      /* (update-130) */
+  .cr-detb { font-size: 13px; margin-top: 4px; } .cr-detrow > td { background: var(--panel); }      /* (update-147) an entry's details in Approvals */
+  .cr-det { border: 1px solid var(--line); border-left: 3px solid #2563EB; border-radius: 8px; padding: 8px 10px; margin: 2px 0 6px; font-size: 13px; }
+  .cr-det-h { margin-bottom: 6px; } .cr-dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 14px; margin: 0 0 6px; } .cr-dl dt { color: var(--muted); } .cr-dl dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+  .cr-dtw { margin: 4px 0 6px; max-height: 360px; overflow: auto; } .cr-dt { font-size: 12.5px; } .cr-dt th, .cr-dt td { padding: 4px 6px; white-space: nowrap; } .cr-now { margin: 4px 0 0; }
+  .cr-bulkdet { max-height: 46vh; overflow: auto; margin-bottom: 8px; }
   .cr-chg { background: #FFF8E6; border-left: 3px solid #F0A500; padding: 4px 8px; margin-top: 6px; font-size: 13px; } .cr-chg ul { margin: 2px 0 0; padding-left: 18px; }
   .fv-why { color: #B3261E; font-weight: 600; } .fv-again { border-bottom: 1px dashed #D3D9DE; padding: 6px 0; } .fv-again ul { margin: 4px 0; } .fv-again .fv-why { margin: 2px 0 4px; font-size: 13.5px; }      /* (update-128) */
   .cr-dash { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; } .cr-dash div { background: var(--soft, #F1F5F9); border-radius: 12px; padding: 8px 14px; min-width: 120px; } .cr-dash b { display: block; font-size: 22px; }
@@ -3261,7 +3266,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="cr-dash" id="cr_dash"></div>
       <div class="toolbar">
         <div class="quick"><button class="btn ghost small" id="cr_refresh" type="button">Refresh</button><label class="pn-opt"><input type="checkbox" id="cr_all"> Show approved and rejected too</label>
-          <button class="btn small" id="cr_bulk_ok" type="button" hidden>Approve ticked</button><button class="btn ghost small" id="cr_bulk_back" type="button" hidden>Send back ticked</button><button class="btn ghost small" id="cr_bulk_no" type="button" hidden>Reject ticked</button></div>
+          <button class="btn ghost small" id="cr_det_all" type="button" hidden>Details of all</button><button class="btn small" id="cr_bulk_ok" type="button" hidden>Approve ticked</button><button class="btn ghost small" id="cr_bulk_back" type="button" hidden>Send back ticked</button><button class="btn ghost small" id="cr_bulk_no" type="button" hidden>Reject ticked</button></div>
         <div class="sum" id="cr_sum"></div>
       </div>
       <div class="table-wrap"><table class="activity">
@@ -5536,6 +5541,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Shown: under every red message (a card at the bottom right), inside every "Nothing saved / Not submitted" box, and next
    * to warnings on the billing page. The language is remembered on this device (rcl_lang). To cover a new message: add a rule. */
   const FIX_RULES = [
+    { re: /^Choose an entry to see its details/i,      // (update-147) Approvals → Details asked without an entry
+      en: ['No entry was chosen, so there is nothing to show yet.', 'Press "Details" under one entry in Approvals, or "Details of all" above the list. Nothing was changed.'],
+      mr: ['कोणतीही entry निवडली नाही, म्हणून अजून दाखवण्यासारखे काही नाही.', 'Approvals मध्ये एखाद्या entry खालचे "Details" दाबा, किंवा list वरचे "Details of all". काहीही बदलले नाही.'],
+      hi: ['कोई entry नहीं चुनी गई, इसलिए अभी दिखाने को कुछ नहीं है।', 'Approvals में किसी entry के नीचे "Details" दबाएँ, या list के ऊपर "Details of all"। कुछ भी नहीं बदला।'] },
     { re: /^This is a Preview \(a test copy/i,      // (update-138) a Preview (a test deployment) works only with the staging database
       en: ['This page is a Preview – a test copy of the app made from a branch. It works only with the TEST (staging) database, so that the live data is never touched.', 'Nothing was read or saved. For real work use the live address. To test: in Vercel the Preview\'s settings must point to the staging database (STAGING_SETUP.md); the staging database has the mark THIS_IS_A_TEST_DATABASE.'],
       mr: ['हे पान Preview आहे – branch वरून बनलेली app ची test copy. ती फक्त TEST (staging) database वर चालते, म्हणजे live data ला कधीच हात लागत नाही.', 'काहीही वाचले किंवा save झाले नाही. खऱ्या कामासाठी live address वापरा. Test साठी: Vercel मध्ये Preview च्या settings staging database कडे असाव्यात (STAGING_SETUP.md); staging database मध्ये THIS_IS_A_TEST_DATABASE ही खूण असते.'],
@@ -6172,10 +6181,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Who can sign in, and what each user may do on each module: no access, View or Edit; Admin can do everything.', 'A new user starts with No access on every page – he sees only the pages you set to View or Edit (in the menu and in the search). Only Admin sees this page. An Admin cannot remove their own Admin access. A new password must be at least 6 characters. "Screen share – who may use it": untick a user and save – he can then neither show a screen nor be called (Admin users always may). Several sites: the Admin of the first site makes the Super Admin once ("Create Super Admin" – write the recovery code down). From then on the Super Admin gives users and access, separately for every site; this page then only shows them.'],
       mr: ['कोण sign in करू शकतो, आणि प्रत्येक user प्रत्येक module वर काय करू शकतो: परवानगी नाही, View किंवा Edit; Admin सगळे करू शकतो.', 'नवीन user ला सुरुवातीला प्रत्येक page वर No access असते – तुम्ही View किंवा Edit दिलेली pages च त्याला दिसतात (menu मध्ये आणि search मध्ये). हे page फक्त Admin ला दिसते. Admin स्वतःची Admin परवानगी काढू शकत नाही. नवीन password किमान 6 अक्षरांचा असावा. "Screen share – who may use it": user चा tick काढून Save केले की तो screen दाखवू शकत नाही आणि त्याला call पण करता येत नाही (Admin नेहमी वापरू शकतो). अनेक sites: पहिल्या site चा Admin एकदाच Super Admin बनवतो ("Create Super Admin" – Recovery code लिहून ठेवा). त्यानंतर users आणि access फक्त Super Admin देतो, प्रत्येक site साठी वेगळा; हे page मग फक्त ते दाखवते.'],
       hi: ['कौन sign in कर सकता है, और हर user हर module पर क्या कर सकता है: अनुमति नहीं, View या Edit; Admin सब कर सकता है।', 'नए user को शुरू में हर page पर No access होता है – आपने View या Edit दिए वही pages उसे दिखते हैं (menu में और search में)। यह page केवल Admin को दिखता है। Admin अपनी Admin अनुमति नहीं हटा सकता। नया password कम से कम 6 अक्षरों का हो। "Screen share – who may use it": user का tick हटाकर Save करने पर वह न screen दिखा सकता है, न उसे call किया जा सकता है (Admin हमेशा उपयोग कर सकता है)। कई sites: पहली site का Admin एक बार Super Admin बनाता है ("Create Super Admin" – Recovery code लिखकर रखें)। उसके बाद users और access सिर्फ Super Admin देता है, हर site के लिए अलग; यह page फिर सिर्फ उन्हें दिखाता है।'] },
-    approvals: { saves: ['decideChangeRequest', 'getChangeRequests', 'decideChangeRequests', 'saveFlowRules', 'getFlowRules', 'answerFlow', 'remindFlow', 'openFlow', 'editFlow', 'resendFlow'],
-      en: ['Changes of Log Book and diesel entries that are in a submitted bill, sent by the users for the Super Admin\'s approval.', 'The Super Admin (signed in through the Portal) approves here; a user sees here the changes he sent – Waiting, Approved (saved) or Rejected with the reason – and gets a notification when it is decided. Each line says who asked, what the change is (machinery, date, readings) and why. Approve = the change is saved now as that user\'s change, with every check of a save – if something else changed meanwhile it is refused and keeps waiting. Reject = nothing is saved; write why. The bill on the Drive is never changed: the next bill of the vendor shows the difference and takes it as a Credit / Debit Note. Your own entry that was Rejected or Returned (not saved): "Send again" with why – it goes to verification again exactly as it was (the same lines and photos), from level 1; nothing is typed again.'],
-      mr: ['Submit झालेल्या bill मधील Log Book / diesel entries चे बदल – users नी Super Admin च्या मंजुरीसाठी पाठवलेले.', 'Super Admin (Portal मधून sign in) इथे मंजुरी देतो; user ला इथे त्याने पाठवलेले बदल दिसतात – Waiting, Approved (save झाले) किंवा Rejected कारणासह – आणि निर्णय झाला की notification येते. प्रत्येक ओळीत: कोणी मागितले, काय बदल (machinery, तारीख, readings) आणि का. Approve = बदल आत्ता त्या user चा बदल म्हणून save होतो, save चे सगळे checks होऊन – मध्ये दुसरे काही बदलले असेल तर नाकारला जातो आणि थांबून राहतो. Reject = काहीही save होत नाही; कारण लिहा. Drive वरचे bill कधीच बदलत नाही: vendor च्या पुढच्या bill मध्ये फरक दिसतो आणि Credit / Debit Note ने घेतला जातो. तुमची Rejected किंवा Returned (save न झालेली) एन्ट्री: "Send again" दाबा आणि कारण लिहा – ती जशीच्या तशी (त्याच ओळी, तेच फोटो) पुन्हा level 1 पासून verification ला जाते; पुन्हा टाइप करायची नाही.'],
-      hi: ['Submit हुए bill की Log Book / diesel entries के बदलाव – users ने Super Admin की मंज़ूरी के लिए भेजे हुए।', 'Super Admin (Portal से sign in) यहाँ मंज़ूरी देता है; user को यहाँ उसके भेजे बदलाव दिखते हैं – Waiting, Approved (save हुआ) या Rejected कारण के साथ – और फैसला होने पर notification आता है। हर लाइन में: किसने माँगा, क्या बदलाव (machinery, तारीख, readings) और क्यों। Approve = बदलाव अभी उस user के बदलाव के रूप में save होता है, save के सारे checks के साथ – बीच में कुछ और बदला हो तो मना होता है और रुका रहता है। Reject = कुछ भी save नहीं होता; कारण लिखें। Drive वाला bill कभी नहीं बदलता: vendor के अगले bill में फर्क दिखता है और Credit / Debit Note से लिया जाता है। आपकी Rejected या Returned (save न हुई) एंट्री: "Send again" दबाएँ और कारण लिखें – वह जैसी थी वैसी (वही लाइनें, वही फोटो) फिर level 1 से verification को जाती है; दोबारा टाइप नहीं करनी।'] },
+    approvals: { saves: ['decideChangeRequest', 'getChangeRequests', 'approvalDetails', 'decideChangeRequests', 'saveFlowRules', 'getFlowRules', 'answerFlow', 'remindFlow', 'openFlow', 'editFlow', 'resendFlow'],
+      en: ['Changes of Log Book and diesel entries that are in a submitted bill, sent by the users for the Super Admin\'s approval.', 'The Super Admin (signed in through the Portal) approves here; a user sees here the changes he sent – Waiting, Approved (saved) or Rejected with the reason – and gets a notification when it is decided. Each line says who asked, what the change is (machinery, date, readings) and why. Approve = the change is saved now as that user\'s change, with every check of a save – if something else changed meanwhile it is refused and keeps waiting. Reject = nothing is saved; write why. The bill on the Drive is never changed: the next bill of the vendor shows the difference and takes it as a Credit / Debit Note. Your own entry that was Rejected or Returned (not saved): "Send again" with why – it goes to verification again exactly as it was (the same lines and photos), from level 1; nothing is typed again. (update-147) "Details" on an entry – and "Details of all" – shows it in full: every field with its name, its rows as a table, the machinery name, the photos counted and, for a change of a saved entry, what is saved now; before "Approve ticked" every ticked entry is shown in full.'],
+      mr: ['Submit झालेल्या bill मधील Log Book / diesel entries चे बदल – users नी Super Admin च्या मंजुरीसाठी पाठवलेले.', 'Super Admin (Portal मधून sign in) इथे मंजुरी देतो; user ला इथे त्याने पाठवलेले बदल दिसतात – Waiting, Approved (save झाले) किंवा Rejected कारणासह – आणि निर्णय झाला की notification येते. प्रत्येक ओळीत: कोणी मागितले, काय बदल (machinery, तारीख, readings) आणि का. Approve = बदल आत्ता त्या user चा बदल म्हणून save होतो, save चे सगळे checks होऊन – मध्ये दुसरे काही बदलले असेल तर नाकारला जातो आणि थांबून राहतो. Reject = काहीही save होत नाही; कारण लिहा. Drive वरचे bill कधीच बदलत नाही: vendor च्या पुढच्या bill मध्ये फरक दिसतो आणि Credit / Debit Note ने घेतला जातो. तुमची Rejected किंवा Returned (save न झालेली) एन्ट्री: "Send again" दाबा आणि कारण लिहा – ती जशीच्या तशी (त्याच ओळी, तेच फोटो) पुन्हा level 1 पासून verification ला जाते; पुन्हा टाइप करायची नाही. (update-147) entry वरचे "Details" – आणि "Details of all" – पूर्ण entry दाखवते: प्रत्येक field त्याच्या नावासह, ओळी table मध्ये, machinery चे नाव, फोटो किती आणि save झालेली entry बदलत असेल तर आत्ता काय save आहे; "Approve ticked" आधी tick केलेली प्रत्येक entry पूर्ण दिसते.'],
+      hi: ['Submit हुए bill की Log Book / diesel entries के बदलाव – users ने Super Admin की मंज़ूरी के लिए भेजे हुए।', 'Super Admin (Portal से sign in) यहाँ मंज़ूरी देता है; user को यहाँ उसके भेजे बदलाव दिखते हैं – Waiting, Approved (save हुआ) या Rejected कारण के साथ – और फैसला होने पर notification आता है। हर लाइन में: किसने माँगा, क्या बदलाव (machinery, तारीख, readings) और क्यों। Approve = बदलाव अभी उस user के बदलाव के रूप में save होता है, save के सारे checks के साथ – बीच में कुछ और बदला हो तो मना होता है और रुका रहता है। Reject = कुछ भी save नहीं होता; कारण लिखें। Drive वाला bill कभी नहीं बदलता: vendor के अगले bill में फर्क दिखता है और Credit / Debit Note से लिया जाता है। आपकी Rejected या Returned (save न हुई) एंट्री: "Send again" दबाएँ और कारण लिखें – वह जैसी थी वैसी (वही लाइनें, वही फोटो) फिर level 1 से verification को जाती है; दोबारा टाइप नहीं करनी। (update-147) entry पर "Details" – और "Details of all" – पूरी entry दिखाता है: हर field उसके नाम के साथ, पंक्तियाँ table में, machinery का नाम, फोटो कितने और save हुई entry बदल रही हो तो अभी क्या save है; "Approve ticked" से पहले tick की हुई हर entry पूरी दिखती है।'] },
     activity: { saves: ['getActivity'],
       en: ['The record of who added, changed or deleted what, and when.', 'It is written by the app itself on every save and cannot be edited. Only Admin sees it. "Screen share calls" shows the screen share history: who showed a screen to whom and how long, and the calls that were declined (with the reply) or not answered.'],
       mr: ['कोणी, काय, कधी जोडले, बदलले किंवा delete केले याची नोंद.', 'प्रत्येक save वर app स्वतः ही नोंद लिहिते; ती बदलता येत नाही. ती फक्त Admin ला दिसते. "Screen share calls" दाबले की screen share चा इतिहास दिसतो: कोणी कोणाला किती वेळ screen दाखवला, आणि कोणते call नाकारले (उत्तरासह) किंवा उचलले नाहीत.'],
@@ -7260,12 +7269,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const fixd = r => { if (r.status !== 'Pending') return ''; const h = (r.history || []).slice().reverse().find(x => /^(Sent|Sent again|Corrected and sent again)$/.test(x.step));
       return h && h.step === 'Corrected and sent again' ? '<div class="cr-chg"><b>Corrected by ' + esc(h.by) + '</b>' + (h.note ? ': ' + esc(h.note) : '') + listHtml((h.changes || []).length ? h.changes : ['(nothing changed in the entry)']) + '</div>' : ''; };
     $('cr_rows').innerHTML = L.length ? L.map(r => '<tr><td>' + (r.canDecide ? '<input type="checkbox" class="cr-tick" data-id="' + esc(r.id) + '">' : '') + '</td><td class="nowrap">' + esc(crWhen(r.at)) + '<br><small>' + esc(r.id) + '</small></td><td>' + esc(r.by) + '</td>' +
-      '<td>' + esc(r.kind === 'Flow' ? r.task : 'Change of a billed period') + (r.qty ? '<br><small>' + esc(fmt(r.qty)) + ' L</small>' : '') + '</td><td>' + (r.summary || []).map(esc).join('<br>') + (r.kind !== 'Flow' && r.reason ? '<br><small>Reason: ' + esc(r.reason) + '</small>' : '') + fixd(r) + hist(r) + '</td>' +
+      '<td>' + esc(r.kind === 'Flow' ? r.task : 'Change of a billed period') + (r.qty ? '<br><small>' + esc(fmt(r.qty)) + ' L</small>' : '') + '</td><td>' + (r.summary || []).map(esc).join('<br>') + (r.kind !== 'Flow' && r.reason ? '<br><small>Reason: ' + esc(r.reason) + '</small>' : '') + fixd(r) + hist(r) + crDetBtn(r) + '</td>' +
       '<td>' + st(r) + '</td><td class="nowrap">' + (r.canDecide ? '<button class="btn small" type="button" data-crok="' + esc(r.id) + '">Approve</button> ' + (r.kind === 'Flow' ? '<button class="btn ghost small" type="button" data-crback="' + esc(r.id) + '">Send back</button> ' : '') + '<button class="btn ghost small" type="button" data-crno="' + esc(r.id) + '">Reject</button>' : '') +
         (r.canAnswer ? '<button class="btn small" type="button" data-cranswer="' + esc(r.id) + '">Answer and send again</button> <button class="btn ghost small" type="button" data-crwithdraw="' + esc(r.id) + '">Take back</button>' : '') +
         (r.canFix ? '<button class="btn small" type="button" data-crfix="' + esc(r.id) + '">Open &amp; correct</button> ' : '') +      // (update-130)
-        (r.canResend ? '<button class="btn small" type="button" data-cragain="' + esc(r.id) + '">Send again</button>' + (r.resent ? '<br><small>sent again ' + r.resent + '× before</small>' : '') : '') + '</td></tr>').join('')
+        (r.canResend ? '<button class="btn small" type="button" data-cragain="' + esc(r.id) + '">Send again</button>' + (r.resent ? '<br><small>sent again ' + r.resent + '× before</small>' : '') : '') + '</td></tr>' + crDetRow(r)).join('')
       : '<tr><td colspan="7" class="none">' + (all ? 'Nothing yet.' : 'Nothing is waiting.') + '</td></tr>';
+    $('cr_det_all').hidden = !L.length; $('cr_det_all').textContent = L.every(r => (S.crOpen || {})[r.id]) && L.length ? 'Hide all details' : 'Details of all';
+    crDetFill(L);      // (update-147) an open entry that changed meanwhile (approved, corrected and sent again): its details fetched again
     $('fr_panel').hidden = !sup;
     if (sup && !S.frLoaded) { S.frLoaded = true; frLoad(); }
     fvDraw();
@@ -7458,15 +7469,61 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const m = b.dataset.fvagainall;
     flowAgain(b.dataset.fvagain ? [b.dataset.fvagain] : b.dataset.cragain ? [b.dataset.cragain] : fvMine(m).filter(r => r.canResend).map(r => r.id), b);
   });
+  /* (update-147, asked 23-10-2026: "approval detna details madhe sagle bghta yaw ki entry mdhe ky ahe fkt diesel nhi sagle approval mdhe …
+   * bulk approval asel tri") DETAILS of an entry in Approvals: every field with its name, its rows as a table, the machinery's name,
+   * its photos counted and – for a change or a delete of a saved entry – what is saved now. "Details" on each entry, "Details of all",
+   * and each ticked entry in full in the question before "Approve ticked" / "Send back ticked" / "Reject ticked". Only read. */
+  const crDetKey = r => r.id + '|' + r.status + '|' + (r.history || []).length;
+  const crDetBtn = r => '<br><button class="link cr-detb" type="button" data-crdet="' + esc(r.id) + '">' + ((S.crOpen || {})[r.id] ? 'Hide details' : 'Details') + '</button>';
+  const crDetRow = r => { if (!(S.crOpen || {})[r.id]) return '';      // (a row only while it is open: the list is the same as before otherwise)
+    const d = (S.crDet || {})[crDetKey(r)];
+    return '<tr class="cr-detrow" data-for="' + esc(r.id) + '"><td></td><td colspan="6">' + (d ? crDetHtml(d) : '<p class="note">Loading the details…</p>') + '</td></tr>'; };
+  function crDetHtml(d) {
+    if (d.error) return '<p class="err">' + esc(d.id) + ': ' + esc(d.error) + '</p>';
+    const head = '<div class="cr-det-h"><b>' + esc(d.id) + '</b> · ' + esc(d.task) + ' · ' + esc(d.action) + ' · sent by <b>' + esc(d.by) + '</b> · ' + esc(crWhen(d.at)) + '</div>';
+    const dl = d.fields.length ? '<dl class="cr-dl">' + d.fields.map(f => '<dt>' + esc(f[0]) + '</dt><dd>' + esc(f[1]) + '</dd>').join('') + '</dl>' : '';
+    const tb = d.tables.map(t => '<div class="tw cr-dtw"><table class="cr-dt"><thead><tr>' + t.cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>' +
+      t.rows.map(row => '<tr>' + row.map(v => '<td>' + esc(v) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' + (t.more ? '<p class="note">… ' + t.more + ' more rows</p>' : '')).join('');
+    return '<div class="cr-det">' + head + dl + tb + (d.photos ? '<p class="note">Photos / bill copies with it: <b>' + d.photos + '</b></p>' : '') +
+      ((d.savedNow || []).length ? '<p class="cr-now"><b>Saved now (before this change):</b> ' + d.savedNow.map(esc).join('; ') + '</p>' : '') +
+      (d.reason ? '<p class="note"><b>Reason:</b> ' + esc(d.reason) + '</p>' : '') + (!dl && !tb ? '<p class="note">Nothing more than the line above was sent.</p>' : '') + '</div>';
+  }
+  // the details of these requests: from the server once per version of the entry (corrected and sent again → fetched again)
+  async function crDetLoad(ids) {
+    S.crDet = S.crDet || {}; const all = (S.cr || {}).requests || [], want = ids.map(id => all.find(r => r.id === id)).filter(r => r && !S.crDet[crDetKey(r)]);
+    for (let i = 0; i < want.length; i += 60) {
+      const part = want.slice(i, i + 60), res = await call('approvalDetails', { ids: part.map(r => r.id) });
+      (res.details || []).forEach(d => { const r = part.find(x => x.id === d.id); if (r) S.crDet[crDetKey(r)] = d; });
+    }
+    return ids.map(id => { const r = all.find(x => x.id === id); return r ? S.crDet[crDetKey(r)] : null; }).filter(Boolean);
+  }
+  // open entries without their details yet (the list moved on by itself): fetched once, then drawn again
+  function crDetFill(L) {
+    const miss = L.filter(r => (S.crOpen || {})[r.id] && !(S.crDet || {})[crDetKey(r)]).map(r => r.id);
+    if (!miss.length || S.crDetBusy) return;
+    S.crDetBusy = true; crDetLoad(miss).catch(() => { miss.forEach(id => { S.crOpen[id] = false; }); }).then(() => { S.crDetBusy = false; crDraw(); });
+  }
+  async function crDetOpen(ids, open) {
+    S.crOpen = S.crOpen || {}; ids.forEach(id => { S.crOpen[id] = open; });
+    if (!open) { crDraw(); return; }
+    S.crDetBusy = true; crDraw();      // (their rows say "Loading the details…")
+    try { await crDetLoad(ids); } catch (er) { toast(errMsg(er), true); ids.forEach(id => { S.crOpen[id] = false; }); }
+    S.crDetBusy = false; crDraw();
+  }
+  $('cr_rows').addEventListener('click', e => { const b = e.target.closest('[data-crdet]'); if (!b) return; crDetOpen([b.dataset.crdet], !(S.crOpen || {})[b.dataset.crdet]); });
+  $('cr_det_all').addEventListener('click', e => { const L = [...document.querySelectorAll('#cr_rows [data-crdet]')].map(b => b.dataset.crdet), open = !L.every(id => (S.crOpen || {})[id]);
+    busy(e.target, open ? 'Loading…' : 'Hiding…', () => crDetOpen(L, open)).then(() => crDraw()); });      // (busy gives the button its old words back – drawn again after it)
   // (update-114) several at once
   $('cr_tickall').addEventListener('change', e => document.querySelectorAll('#cr_rows .cr-tick').forEach(c => { c.checked = e.target.checked; }));
   async function crBulk(approve, btn, back) {
     const ids = [...document.querySelectorAll('#cr_rows .cr-tick:checked')].map(c => c.dataset.id);
     if (!ids.length) { toast('Tick the requests first.', true); return; }
+    let dets = []; try { dets = await crDetLoad(ids); } catch (er) { toast(errMsg(er), true); return; }      // (update-147) each one in full, before the decision
+    const full = '<div class="cr-bulkdet">' + (dets.length === ids.length ? dets.map(crDetHtml).join('') : listHtml(ids)) + '</div>';
     let note = '';
     for (;;) {
       if (!(await askConfirm({ title: (back ? 'Send back ' : approve ? 'Approve ' : 'Reject ') + ids.length + ' request(s)?', ok: back ? 'Send back' : approve ? 'Approve' : 'Reject', danger: !approve && !back, wide: true,
-        html: listHtml(ids) + (back ? '<p>Each goes back to the person who sent it, with your remark or question – nothing is saved; he answers and sends it again.</p><label class="cr-why">Remark or question (the senders read it) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>'
+        html: full + (back ? '<p>Each goes back to the person who sent it, with your remark or question – nothing is saved; he answers and sends it again.</p><label class="cr-why">Remark or question (the senders read it) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>'
           : approve ? '<p>Each one goes to its next level, or – at the last level – is saved now with every check of a save (one that cannot be saved goes back to its sender with the reason).</p><label class="cr-why">Note (optional) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>' : '<label class="cr-why">Why are they rejected? (the senders read it) <textarea id="cr_note" rows="2" maxlength="300"></textarea></label>') }))) return;
       note = String(($('cr_note') || {}).value || '').trim();
       if ((approve && !back) || note) break;
