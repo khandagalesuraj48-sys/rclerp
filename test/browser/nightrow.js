@@ -104,7 +104,8 @@ const idsOf = no => sql("select string_agg(id, ' , ' order by id) from log_book 
   // ---------- 5. the rule of a date, shown in the grid ----------
   await setF(await rowI('21', 'Night'), 'shift', 'Day', ['change']); await wait(500);
   let s = await sumNow(); g = await grid();
-  ok('5. two entries of one date on the same shift: both rows red with the reason, Save is off', g.filter(x => /^21 /.test(x)).every(x => / RED$/.test(x)) && s.save === 'off' && s.notes.length === 2 && /two entries on Day/.test(s.notes[0]), { rows: g.slice(0, 2), note: s.notes[0], sum: s.sum });
+  // update-146 (23-10-2026, "sagle machinery la ha rule ghe"): two rows of one date and shift are the works of that shift (before: "two entries on Day")
+  ok('5. (update-146) the Night of the 21st set to Day: it is the 2nd work of that Day – no row red, no "two entries on Day"', g.filter(x => /^21 /.test(x)).every(x => !/ RED$/.test(x)) && !s.notes.some(n => /two entries on/.test(n)), { rows: g.slice(0, 2), notes: s.notes, sum: s.sum });
   await setF(await f.evaluate(() => LX.rows.findIndex(r => r.date === '2026-09-21' && r.key && /Night$/.test(r.key))), 'shift', 'Full Day', ['change']); await wait(500);
   s = await sumNow();
   ok('   a Full Day entry next to another entry of the date: red, "a Full Day entry stands alone"', s.save === 'off' && s.notes.length === 2 && /Full Day entry stands alone/.test(s.notes.join(' ')), s.notes);

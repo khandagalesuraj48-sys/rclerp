@@ -99,9 +99,10 @@ const entries = no => sql("select coalesce(string_agg(date || ' ' || shift || ' 
   // ---------- 4. what stays as it was ----------
   await start('2026-10-03');
   await setRow(0, 'N71-TIP', 'Day'); await setF(0, 'closingKm', '200'); await addRow(); await setRow(1, 'N71-TIP', 'Day'); await setF(1, 'closingKm', '240'); g = await rows();
-  ok('a machinery with ONE kind of work (the Tipper) twice on the same shift is refused as before: "… is already in another row for this date / shift"', g.rows.every(r => r.red && /N71-TIP is already in another row for this date \/ shift/.test(r.note)) && !g.rows[1].label, g.rows.map(r => r.note));
+  // update-146 (23-10-2026, "sagle machinery la ha rule ghe"): a machinery with ONE kind of work too – the second row of a shift is its next work (before: "already in another row")
+  ok('(update-146) a machinery with ONE kind of work (the Tipper) twice on the same shift: no red – row 2 is "work 2 of this day", starting where row 1 closed', g.rows.every(r => !r.red && !/already in another row/.test(r.note)) && /work 2 of this day/.test(g.rows[1].label), g.rows.map(r => r.note + ' ' + r.label));
   said = await save(); await wait(800);
-  ok('   and Save does not take it ("Fix the rows marked in red first")', /Fix the rows marked in red first/.test(said) && entries('N71-TIP').split(' ;; ').length === 1, said.slice(0, 160));
+  ok('   saved as ONE entry of 03-10 that keeps its two rows (40 km, 40 km)', entries('N71-TIP').split(' ;; ').length === 2 && /2026-10-03 Day .* km 160>240 /.test(entries('N71-TIP')), [said.slice(0, 160), entries('N71-TIP')]);
   await start('2026-10-03');
   await setRow(0, 'N71-JCB', 'Day'); await setF(0, 'closingHr', '9'); await pick(0, 'Bucket'); await addRow(); await setRow(1, 'N71-JCB', 'Night'); await setF(1, 'closingHr', '12'); await pick(1, 'Breaker'); g = await rows();
   ok('Day and Night of one date stay two entries (not rows of one shift): the Night row starts at the Day Close (9), carries no "work 2" mark and keeps its ½ tick', g.rows.every(r => !r.red) && g.rows[1].start === '9' && !g.rows[1].label && g.rows[1].half === true, g.rows.map(r => r.shift + ' ' + r.start + '>' + r.close + ' [' + r.label + '] half:' + r.half));

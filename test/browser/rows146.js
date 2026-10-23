@@ -60,7 +60,7 @@ const count = no => sql("select count(*) from log_book where machinery = '" + no
   await lxSet(1, 'ckm', '1220'); await lxSet(1, 'work', 'CARTING'); x = await grid();
   ok('   its Close 1220, CARTING: nothing red, no "two entries on"; 50 + 70 km; Save on', !/RED/.test(x.rows.join()) && !/two entries on/.test(x.all) && /=50km/.test(x.rows[0]) && /=70km/.test(x.rows[1]) && x.save === 'on', x);
   await lxSet(1, 'okm', '1180'); x = await grid();
-  ok('   a gap (row 2 Start 1180): red "This work starts where the row above closed: 1150"; Save off', /RED/.test(x.rows[1]) && /This work starts where the row above closed: 1150/.test(x.rows[1]) && x.save === 'off', x);
+  ok('   a gap (row 2 Start 1180): red "This work starts where the row above closed: 1,150"; Save off', /RED/.test(x.rows[1]) && /This work starts where the row above closed: 1,150/.test(x.rows[1]) && x.save === 'off', x);
   await lxSet(1, 'okm', '1150');
   let sv = await lxSave();
   ok('   saved: ONE entry 1100 → 1220 (120 KM), work "LOADING / CARTING", its two rows (50 km, 70 km)', /^KM 1100>1220 /.test(ent('N146-TIP', '02')) && /\[LOADING \/ CARTING\]/.test(ent('N146-TIP', '02')) && /"q":\s*50.*"k":\s*"km".*"q":\s*70/.test(ent('N146-TIP', '02')) && count('N146-TIP') === '2', [ent('N146-TIP', '02'), sv.slice(0, 300)]);
