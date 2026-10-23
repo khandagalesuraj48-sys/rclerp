@@ -5,8 +5,9 @@
  * Checks: the checker (his level) sees every field the maker sent, with its name; a Multiple-entries diesel issue as a table (each
  * row, each column, the machinery's name); several at once; the sender and the Super Admin see it too; a person of no level and a
  * wrong number get "not found"; it only reads – nothing is decided, nothing written.
- * (Its figures differ from test/browser/details147.js on purpose: the same entry sent again within seconds is "sent twice".) */
-const { execSync } = require('child_process');
+ * (Its figures differ from test/browser/details147.js on purpose: the same entry sent again within seconds is "sent twice".)
+ * update-148: an entry with photos – the pictures themselves (their names and links that open them), never their file names. */
+const { execSync } = require('child_process'), fs = require('fs'), path = require('path');
 let pass = 0, fail = 0; const out = [];
 const ok = (n, c, x) => { c ? pass++ : fail++; out.push((c ? 'PASS ' : 'FAIL ') + n + (x !== undefined && !c ? '  → ' + String(typeof x === 'string' ? x : JSON.stringify(x)).slice(0, 900) : '')); };
 const sql = q => execSync('timeout 60 su postgres -c "psql -d rcl -tA -q"', { input: q }).toString().trim();
@@ -75,6 +76,20 @@ let n = 0; const rid = () => 'vf147' + Date.now().toString(36) + (n++);
       t3.rows && t3.rows.length === 2 && t3.cols.join('|') === '#|Machinery|Litres|KM reading|Driver|Remark' && t3.rows[0].join('|') === '1|VF147-1 – Tipper 147 · Tipper|29|5199|Suresh 147|' && t3.rows[1].join('|') === '2|VF147-1 – Tipper 147 · Tipper|24|5259||second fill', t3);
     ok('   …and its date, shift and source above the table', Object.fromEntries(((a3 || {}).fields || []).map(f => [f[0], f[1]])).Shift === 'Night', (a3 || {}).fields);
     ok('   the vendor too (a request of another work in the same call)', a1 && a1.task === 'Vendor Master', a1);
+    // ---- (update-148) an entry with photos: the pictures, never their file names ----
+    const TINY = fs.readFileSync(path.join(__dirname, 'photo85api.js'), 'utf8').match(/const TINY = '([^']+)'/)[1], pic = 'data:image/jpeg;base64,' + TINY;
+    const ph1 = await M('dieselPhoto', { kind: 'dash', data: pic, lat: 19.99, lng: 73.78, acc: 12, at: new Date().toISOString(), no: 'VF147-1' });
+    const ph2 = await M('dieselPhoto', { kind: 'pump', data: pic, lat: 19.99, lng: 73.78, acc: 12, at: new Date().toISOString(), no: 'VF147-1' });
+    r = await M('saveDieselIssue', { date: today, shift: 'Day', source: 'Dispenser', no: 'VF147-1', qty: 41, kmReading: 5140, photos: [{ k: 'dash', p: ph1.path }, { k: 'pump', p: ph2.path }], force: true });
+    const d4id = ((r.ERROR || '').match(/VF-\d{5}/) || [])[0];
+    ok('(update-148) a diesel issue with two photos (Dashboard, Dispenser litres) → sent (' + d4id + ')', ph1.ok && ph2.ok && !!d4id, [ph1, ph2, r]);
+    r = await C('approvalDetails', { ids: [d4id] });
+    const a4 = (r.details || [])[0] || {};
+    ok('   the checker\'s Details: the two pictures with their names and a link that opens each one; no table of file names, no file name among the fields',
+      (a4.pics || []).map(x => x.label).join('|') === 'Dashboard|Dispenser litres' && a4.pics.every(x => /^http.*\/storage\/v1\/object\/sign\/diesel-photos\//.test(x.url)) && a4.photos === 2 &&
+      !(a4.tables || []).length && !JSON.stringify([a4.fields, a4.tables]).includes(ph1.path), a4);
+    const img = await fetch(a4.pics[0].url, { signal: AbortSignal.timeout(30000) });
+    ok('   the link opens the picture', img.status === 200 && (await img.arrayBuffer()).byteLength > 100, img.status);
     // ---- who may see it ----
     r = await M('approvalDetails', { ids: [d2id] });
     ok('the sender sees his own entry in full', ((r.details || [])[0] || {}).fields && !r.details[0].error, r);

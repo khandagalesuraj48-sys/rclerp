@@ -1876,6 +1876,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   length), crDetFill (an open entry that moved on), crBulk shows each ticked entry in full; guide approvals; FIX_RULES +1; mr / hi
   (+42). test/details147api.js, browser/details147.js. Step 1 of 3 asked that day (2: an approved entry – only the Super Admin or its
   approvers change / delete it; 3: the Portal – edit, delete, change a user's email).
+- 24-10-2026 (update-148, with App 3.31.6). Report: `UPDATE_148.md`. APPROVALS → DETAILS: THE PHOTOS THEMSELVES ("details mdhe attachment
+  disayla haw"; update-147 showed them as a table of file names): approvalDetails_ `addPics` (DET_PHOTO_ keys first, rows' photos
+  "Row n – …"), `pics [{label, at, url}]` with one photoLinks_ for all, `picErr`; crDetHtml `.phv-grid.cr-pics`; guide approvals.
+  details147api 24, browser/details147 10.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

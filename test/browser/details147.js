@@ -5,10 +5,11 @@
 //   2. the checker's Approvals: "Details" under an entry opens it in full under its line (every field, the rows as a table, the
 //      machinery's name); "Hide details" closes it; "Details of all" opens every entry;
 //   3. he ticks both and presses "Approve ticked": the question shows EACH entry in full before he decides; he approves – saved;
-//   4. a phone-size screen: the details fit (the table scrolls inside its own box).
+//   4. a phone-size screen: the details fit (the table scrolls inside its own box);
+//   (update-148) the single issue carries two photos: its Details show the pictures themselves (loaded), never their file names.
 //   NODE_PATH=<folder with puppeteer-core, @sparticuz/chromium> NODE_OPTIONS="--require <path>/geo-shim.js" node details147.js
 const chromium = require('@sparticuz/chromium').default || require('@sparticuz/chromium'); const puppeteer = require('puppeteer-core');
-const { execSync } = require('child_process');
+const { execSync } = require('child_process'), fs = require('fs'), path = require('path');
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const sql = q => execSync('timeout 60 su postgres -c "psql -d rcl -tA -q"', { input: q }).toString().trim();
 const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : fail++; out.push((c ? 'PASS ' : 'FAIL ') + n + (x !== undefined && !c ? '  → ' + String(typeof x === 'string' ? x : JSON.stringify(x)).slice(0, 700) : '')); };
@@ -38,7 +39,10 @@ const U = 'http://127.0.0.1:3001', SA = 'http://127.0.0.1:3000', P = 'http://127
     const go = await fetch(P + '/api/go?module=mechanical&site=S1', { headers: { Cookie: cookie }, redirect: 'manual' });
     const sa = (await post(SA, { fn: 'ssoLogin', args: [(go.headers.get('location') || '').split('#sso=')[1] || ''] })).result.token;
     const s3 = await call(sa, SA, 'saveFlowRules', { remindHours: 4, tasks: { 'Diesel Issue': { on: true, levels: [['ck147@rcl.test']] } } });
-    const e1 = await call(mk, U, 'saveDieselIssue', { date: today, shift: 'Day', source: 'Dispenser', no: 'VF147-1', qty: 120, kmReading: 5120, driver: 'Ramesh 147', remark: 'night trip', force: true });
+    const TINY = fs.readFileSync(path.join(__dirname, '..', 'photo85api.js'), 'utf8').match(/const TINY = '([^']+)'/)[1], pic = 'data:image/jpeg;base64,' + TINY;
+    const ph = [];
+    for (const k of ['dash', 'pump']) ph.push(await call(mk, U, 'dieselPhoto', { kind: k, data: pic, lat: 19.99, lng: 73.78, acc: 12, at: new Date().toISOString(), no: 'VF147-1' }));
+    const e1 = await call(mk, U, 'saveDieselIssue', { date: today, shift: 'Day', source: 'Dispenser', no: 'VF147-1', qty: 120, kmReading: 5120, driver: 'Ramesh 147', remark: 'night trip', photos: [{ k: 'dash', p: ph[0].path }, { k: 'pump', p: ph[1].path }], force: true });
     const e2 = await call(mk, U, 'saveDieselBulk', { date: today, shift: 'Night', source: 'Dispenser', rows: [{ line: 1, no: 'VF147-1', qty: 30, kmReading: 5200, driver: 'Suresh 147' }, { line: 2, no: 'VF147-1', qty: 25, kmReading: 5260, remark: 'second fill' }], force: true });
     const id1 = ((e1.ERROR || '').match(/VF-\d{5}/) || [])[0], id2 = ((e2.ERROR || '').match(/VF-\d{5}/) || [])[0];
     ok('1. seed: machinery VF147-1, diesel in the Dispenser, the rule; the maker\'s two entries wait (' + id1 + ', ' + id2 + ')', s1.ok && s2.ok && s3.ok && !!id1 && !!id2, [s1.ok || s1.ERROR, s2.ok || s2.ERROR || s2, s3.ok || s3.ERROR || s3, e1, e2]);
@@ -67,6 +71,12 @@ const U = 'http://127.0.0.1:3001', SA = 'http://127.0.0.1:3000', P = 'http://127
     const all = await F.evaluate(id => ({ n: document.querySelectorAll('#cr_rows tr.cr-detrow .cr-det').length, one: document.querySelector('#cr_rows tr.cr-detrow[data-for="' + id + '"]').textContent, btn: $('cr_det_all').textContent }), id1);
     ok('   "Details of all": every entry open – the single issue with Litres 120, KM reading 5120, Driver, Remark; the button says "Hide all details"',
       all.n >= 2 && /Litres120/.test(all.one) && /KM reading5120/.test(all.one) && /Ramesh 147/.test(all.one) && /night trip/.test(all.one) && all.btn === 'Hide all details', all);
+    await F.waitForFunction(id => { const im = [...document.querySelectorAll('#cr_rows tr.cr-detrow[data-for="' + id + '"] .cr-pics img')]; return im.length === 2 && im.every(x => x.complete && x.naturalWidth > 0); }, { timeout: 30000 }, id1).catch(() => {});
+    const pics = await F.evaluate(id => { const r = document.querySelector('#cr_rows tr.cr-detrow[data-for="' + id + '"]'); return { imgs: [...r.querySelectorAll('.cr-pics img')].map(x => ({ alt: x.alt, w: x.naturalWidth })), caps: [...r.querySelectorAll('.cr-pics figcaption b')].map(x => x.textContent), text: r.textContent }; }, id1);
+    ok('   (update-148) its photos: the two pictures themselves, loaded, named (Dashboard, Dispenser litres); no file name in the details',
+      pics.imgs.length === 2 && pics.imgs.every(x => x.w > 0) && pics.caps.join('|') === 'Dashboard|Dispenser litres' && !pics.text.includes(ph[0].path) && !/\.jpg/.test(pics.text), pics);
+    await F.evaluate(id => { const c = document.getElementById('ai_close'); if (c && c.offsetParent !== null) c.click(); const r = document.querySelector('#cr_rows tr.cr-detrow[data-for="' + id + '"]'); r.scrollIntoView({ block: 'start' }); }, id1); await wait(500);
+    await p.screenshot({ path: 'shots/148-details-photos.png' });
     await p.screenshot({ path: 'shots/147-details-all.png', fullPage: true });
     // ---- 3. bulk: each ticked entry in full in the question ----
     await F.evaluate(ids => ids.forEach(id => { const c = document.querySelector('#cr_rows .cr-tick[data-id="' + id + '"]'); if (c) c.checked = true; }), [id1, id2]);
