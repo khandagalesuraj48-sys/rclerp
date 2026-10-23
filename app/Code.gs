@@ -963,8 +963,10 @@ const API_ = {
   rptWatch:          { m: 'Reports', f: rptWatch_ },
 };
 
-function api(token, fn, args) {
+function api(token, fn, args, meta) {
   SAVED_ = false; OUT_FOR_ = null;      // one request = one save (see "AFTER THE SAVE")
+  // (update-152) the Super Admin's reason for changing a locked Log Book entry comes with the request (meta.reason – the page asks for it)
+  SA_REASON_ = clean_(meta && typeof meta === 'object' ? meta.reason : '').slice(0, 300); LOCK_RENAME_ = false; APPROVER_ = ''; CUR_FN_ = String(fn || '').slice(0, 60);
   if (typeof OP_SENT_ !== 'undefined') { OP_SENT_ = false; OP_RESULT_ = null; }
   { const moved = movedTo_(); if (moved) throw new Error('The app has moved to a new link: ' + moved + ' – open it and sign in with the same password.'); }
   const u = sessionUser_(token);
@@ -1654,6 +1656,7 @@ function buildMasterRow_(t, base, v) {
 const billMachNo_ = x => str_((x && (x.noNow || x.no)) || '');      // the number a bill's machinery has TODAY (x.no = as printed on the bill)
 function renameMachine_(oldId, newId) {
   const from = str_(oldId), to = str_(newId), kf = noKey_(from), kt = noKey_(to);
+  LOCK_RENAME_ = true;      // (update-152) its Log Book entries follow the new number – also approved / billed ones (only the number changes)
   if (!kf || !kt) throw new Error('Enter the Machinery Number, or the Machinery Name if it has no number.');
   if (to.length > 60) throw new Error('Keep the Machinery Number / Name under 60 letters.');
   const tab = (sheet, col) => { if (!SS_().getSheetByName(sheet)) return null; const t = table_(sheet); return col in t.c ? t : null; };
@@ -2124,6 +2127,7 @@ function billOut_(t, r, withData) {
     from: dkey_(g('Period From')), to: dkey_(g('Period To')), billDate: dkey_(g('Bill Date')), net: num0_(g('Net Payable')), status: str_(g('Status')) || 'Active',
     remark: str_(g('Remark')), created: g('Created At') instanceof Date ? g('Created At').toISOString() : str_(g('Created At')),
     enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '' };
+  if (o.status === 'Deleted') { const da = g('Deleted At'); o.deletedBy = str_(g('Deleted By')); o.deletedAt = da instanceof Date ? da.toISOString() : str_(da); o.deleteReason = str_(g('Delete Reason')); }      // (update-152) kept, marked deleted
   // the diesel Debit Note of the bill (its number is kept inside the saved bill): number and amount, for the lists
   let d = null; try { d = JSON.parse(str_(g('Data')) || '{}'); } catch (e) { d = {}; }
   o.dnNo = str_(d && d.dnNo); o.dnAmt = r2_(num0_(d && d.B));
@@ -3189,6 +3193,7 @@ function verifyBills_(p) {
       const other = saved.filter(y => y.status !== 'Deleted' && vKey_(y.vendor) === vk && y.company === co && y.billNo === no && !sameBill(y));
       const same = saved.filter(y => y.status === 'Active' && sameBill(y) && (!billMachKeys_(y.data).length || billMachKeys_(y.data).every(k => myKeys.indexOf(k) > -1)));
       if (other.length) bad('RA Bill No ' + no + ' is already used by another bill of this vendor (' + dmy_(other[0].from) + ' to ' + dmy_(other[0].to) + (billMachKeys_(other[0].data).length ? ', ' + other[0].data.machines.map(x => x.no).join(', ') : '') + ').');
+      else if (same.length && !ACTOR_SUPER_) bad('A' + BILL_REVISE_MSG_(same[0]).slice(1));      // (update-152) a revision is the Super Admin's
       else if (same.length) warn('A bill of this vendor for the same period and machinery is already submitted (RA Bill ' + same[0].billNo + ') – you will be asked to keep the number (revision) or give a new one.');
       else ok('RA Bill No ' + no + ' is free.');
     }
@@ -3358,6 +3363,7 @@ function submitBills_(b) {
         corrErr.push(clean_(grp[0].vendor) + ': the differences of earlier bills changed after the bill was verified – verify again.');
       grp.forEach(x => { x._corr = carry.length && x === carry[0] ? exp : []; }); });
     if (corrErr.length) return { ok: false, errors: corrErr };
+    if (dup.length && !ACTOR_SUPER_) return { ok: false, errors: dup.map(d => d.vendor + ': ' + BILL_REVISE_MSG_(d.existing[0])) };      // (update-152) revise / rebuild a submitted bill: the Super Admin only
     if (dup.length && !b.confirm) return { ok: false, duplicates: dup };
     let n = all.reduce((mx, r) => Math.max(mx, Number(String(r.id).replace(/\D/g, '')) || 0), 0);
     // (update-151) a bill removed earlier (deleted before bills were kept) must not give its ID again: its evidence is kept for ever
@@ -3434,14 +3440,23 @@ function submitBills_(b) {
     return { ok: true, saved: saved };
   });
 }
+/* (update-152, asked 24-10-2026: "Super Admin-only revise / rebuild / controlled delete of submitted bills … logical deletion") ONLY THE
+ * SUPER ADMIN deletes a submitted bill, with a reason, and the bill is NOT removed: it is marked Deleted (who, when, why – step 1zd
+ * columns), kept with its evidence, and still locks its entries (billLocks_). Its money is out of every list and ledger (they count
+ * Active bills only) and the debit notes deducted in it are open again, as before. Until step 1zd: refused (nothing changes). */
 function deleteBill_(id, reason) {
   return withLock_(() => {
+    if (!ACTOR_SUPER_) throw new Error('Only the Super Admin deletes a submitted bill (signed in through the Portal) – it is then kept, marked Deleted, with its reason.');
     if (!clean_(reason)) throw new Error('Give the reason for deleting this bill.');
     const t = billTable_(); if (!t) throw new Error('Bill not found.');
+    if (!('Deleted At' in t.c) || !('Delete Reason' in t.c) || (t.sh.dbCols && t.sh.dbCols.indexOf('deleted_at') === -1)) throw new Error('A bill cannot be deleted yet: it is now kept, marked Deleted. ' + ENTRY_LOCK_SQL_MSG_);
     const i = t.rows.findIndex(r => str_(r[t.c['Bill ID']]) === str_(id));
     if (i === -1) throw new Error('Bill ' + id + ' was not found.');
     const b = billOut_(t, t.rows[i], false);
-    t.sh.deleteRow(i + 2);
+    if (b.status === 'Deleted') throw new Error('RA Bill ' + b.billNo + ' of ' + b.vendor + ' is already deleted.');
+    const row = t.rows[i].slice();
+    set_(row, t, 'Status', 'Deleted'); set_(row, t, 'Deleted By', ACTOR_); set_(row, t, 'Deleted At', new Date()); set_(row, t, 'Delete Reason', clean_(reason).slice(0, 300)); stampEdit_(row, t);
+    t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
     // debit notes that were deducted in this bill are open again
     try { const dt = vbTable_(DN_SHEET_, DN_COLS_);
       if (dt) dt.rows.map((r, k) => dnOut_(dt, r, k)).filter(d => d.billId === b.id).forEach(d => { const dr = dt.rows[d.i].slice(); set_(dr, dt, 'Bill ID', ''); set_(dr, dt, 'Status', dnCorr_(d) ? 'Cancelled' : 'Open'); stampEdit_(dr, dt); dt.sh.getRange(d.i + 2, 1, 1, dr.length).setValues([dr]); });
@@ -3450,9 +3465,11 @@ function deleteBill_(id, reason) {
       // passed over too: the bill was deleted, its debit notes stayed "Deducted" in a bill that no longer exists, and the
       // answer was "ok". Now the whole delete fails and nothing is changed – it can be done again. (07-10-2026)
       if (!/→ 404|PGRST20[25]|Could not find the table|not found in (the Google Sheet|tab)/.test(String((e && e.message) || e))) throw e; }
-    return { ok: true, bill: b };
+    return { ok: true, bill: Object.assign(b, { status: 'Deleted' }) };
   });
 }
+const BILL_REVISE_MSG_ = y => 'a bill of this vendor for the same period and machinery is already submitted (RA Bill ' + y.billNo + (y.rev ? ' rev ' + y.rev : '') + ') – only the Super Admin can revise a submitted bill (submit it again). A new bill of other dates can be made; to bill these dates again, the Super Admin revises it or deletes it first.';
+const ENTRY_LOCK_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1zd_entry_locks.sql once in Supabase → SQL Editor, in every site.';
 /* ================= THE FIXED EVIDENCE OF A SUBMITTED BILL (update-151, asked 24-10-2026: "When a Bill is submitted: snapshot the
  * exact billed Logbook rows … save the Bill and evidence atomically … render all future saved-Bill views and exports from that
  * immutable snapshot … Do not invent historical snapshots for legacy Bills") =================
@@ -7226,8 +7243,13 @@ function logRowOut_(t, r) {
     half: halfOf_(r, t.c),                                   // "½ day": paid as half a day in the bill (dayPart_)
     meter: H.METER in t.c ? str_(r[t.c[H.METER]]) : '',   // "No reading – reason" (work is estimated) / "New meter – reason"
     debitTo: H.DEBITTO in t.c ? str_(r[t.c[H.DEBITTO]]) : '', debitRate: H.DEBITRATE in t.c ? numOrBlank_(r[t.c[H.DEBITRATE]]) : '', // work charged to a party
+    ap: 'Approved At' in t.c && lbCell_(r[t.c['Approved At']]) !== '' ? apprOut_(t, r) : undefined,      // (update-152) saved through a verification: locked (only the Super Admin changes it)
   };
 }
+const apprRow_ = (t, r) => 'Approved At' in t.c && lbCell_(r[t.c['Approved At']]) !== '' ? apprOut_(t, r) : null;      // (update-152) the approval mark of a row of table_(Log Book)
+// an approved entry: refused for everybody but the Super Admin (the guard of the save says the same – this says it before anything is worked out)
+function apprLock_(t, r) { if (ACTOR_SUPER_) return; const a = apprRow_(t, r); if (a) throw new Error(apprLockMsg_({ no: str_(r[t.c[H.NO]]), dk: dkey_(r[t.c[H.DATE]]), shift: str_(r[t.c[H.SHIFT]]) || 'Full Day' }, a)); }
+function apprOut_(t, r) { const v = r[t.c['Approved At']], d = v instanceof Date ? v : new Date(v); return { by: str_(r[t.c['Approved By']]), at: isNaN(d) ? '' : d.toISOString(), ref: str_(r[t.c['Approval Ref']]) }; }
 // a time cell back to "HH:MM" (the sheet may hand back a Date for a time)
 function tStr_(v) { if (v instanceof Date) return Utilities.formatDate(v, tz_(), 'HH:mm'); const s = str_(v); const x = hhmm_(s); return x === null ? s : String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0'); }
 function getLogBook_(dateStr) {
@@ -8822,7 +8844,7 @@ function updateLogRow_(key, l) {
     const r = lt.rows[i], no = str_(r[c[H.NO]]), unit = str_(r[c[H.UNIT]]);
     verCheck_(lt, r, LOG_VER_H_(), l && l.ver, logWhat_(lt, r));      // (update-145) changed by someone else after it was opened: nothing saved
     booksOpen_(dkey_(r[c[H.DATE]]), 'Log Book entry');
-    billLock_(no, dkey_(r[c[H.DATE]]), 'Log Book entry');
+    billLock_(no, dkey_(r[c[H.DATE]]), 'Log Book entry'); apprLock_(lt, r);      // (update-152)
     const idx = machineLogIdx_(lt, no), pos = idx.indexOf(i);
     const mm = findMachine_(no);
     const nextI = pos < idx.length - 1 ? idx[pos + 1] : -1;
@@ -9020,11 +9042,12 @@ function saveLogBulk_(b) {
     // (update-145) an entry of the grid that someone else changed after the grid was opened: nothing is saved
     if (b.vers && typeof b.vers === 'object') { const changedBy = [];
       Object.keys(b.vers).forEach(k => { if (!(k in byKey)) return;
-        if (!ACTOR_SUPER_ && billLockOf_(m.id, dkey_(lt.rows[byKey[k]][c[H.DATE]]))) return;      // (review: an entry of a submitted bill is never written from here – kept out of the save)
+        if (!ACTOR_SUPER_ && (billLockOf_(m.id, dkey_(lt.rows[byKey[k]][c[H.DATE]])) || apprRow_(lt, lt.rows[byKey[k]]))) return;      // (review: an entry of a submitted bill – update-152: or an approved one – is never written from here – kept out of the save)
         try { verCheck_(lt, lt.rows[byKey[k]], LOG_VER_H_(), b.vers[k], logWhat_(lt, lt.rows[byKey[k]])); } catch (e) { changedBy.push({ row: 0, msg: e.message.replace(' Nothing was saved.', '') + (changedBy.length || VER_CTX_ ? '' : ' Reload the list.') }); } });
       if (changedBy.length) return { ok: false, errors: changedBy.map(x => ({ row: x.row, msg: x.msg + ' Nothing was saved.' })) }; }
     deleted.forEach(k => booksOpen_(dkey_(lt.rows[byKey[k]][c[H.DATE]]), 'Log Book entry'));
     deleted.forEach(k => billLock_(m.id, dkey_(lt.rows[byKey[k]][c[H.DATE]]), 'Log Book entry'));
+    deleted.forEach(k => apprLock_(lt, lt.rows[byKey[k]]));      // (update-152)
     const odOf = l => blank_(l.odSet) ? '' : (() => { const v = Number(l.odSet); if (!isFinite(v) || v < 0) throw new Error('Opening diesel must be 0 or more.'); return r2_(v); })();
     const errors = [];
     const rows = (b.rows || []).map((l, n) => ({ l: l, n: n }));
@@ -9040,11 +9063,12 @@ function saveLogBulk_(b) {
          * grid; it is kept out of the save (its saved readings are used for the chain). If what was sent differs from what is
          * saved – shift, way of measuring, a reading, the half-day mark – the save is refused with the way out. */
         const lockB = l.key && l.key in byKey && !ACTOR_SUPER_ ? billLockOf_(m.id, dkey_(lt.rows[byKey[l.key]][c[H.DATE]])) : null;      // (the Super Admin: saved like any other entry)
-        if (lockB) {
+        const lockA = !lockB && l.key && l.key in byKey && !ACTOR_SUPER_ ? apprRow_(lt, lt.rows[byKey[l.key]]) : null;      // (update-152) an approved entry: the same
+        if (lockB || lockA) {
           const r0 = lt.rows[byKey[l.key]], dk0 = dkey_(r0[c[H.DATE]]), sh0 = str_(r0[c[H.SHIFT]]) || 'Full Day', cur0 = str_(r0[c[H.UNIT]]), km0 = hasKm_(cur0), hr0 = hasHr_(cur0);
           const neq = (sent, saved) => (blank_(sent) ? '' : r2_(Number(sent))) !== numOrBlank_(saved);
           if (!l.same && (logShift_(l.shift || 'Full Day') !== sh0 || (str_(l.mode) && str_(l.mode) !== cur0) || (km0 && (neq(l.openingKm, r0[c[H.OKM]]) || neq(l.closingKm, r0[c[H.CKM]]))) ||
-            (hr0 && (neq(l.openingHr, r0[c[H.OHR]]) || neq(l.closingHr, r0[c[H.CHR]]))) || (l.half !== undefined && !!l.half !== halfOf_(r0, c)))) billLockFail_(lockB, m.id, dk0, 'Log Book entry');
+            (hr0 && (neq(l.openingHr, r0[c[H.OHR]]) || neq(l.closingHr, r0[c[H.CHR]]))) || (l.half !== undefined && !!l.half !== halfOf_(r0, c)))) { if (lockB) billLockFail_(lockB, m.id, dk0, 'Log Book entry'); else apprLock_(lt, r0); }
           if (clash(dk0, sh0)) throw new Error(dmy_(dk0) + ' (' + sh0 + ') is entered more than once.');
           taken[dk0] = (taken[dk0] || []).concat(sh0);
           const kmV = km0 && numOrBlank_(r0[c[H.CKM]]) !== '', hrV = hr0 && numOrBlank_(r0[c[H.CHR]]) !== '';
@@ -9328,7 +9352,7 @@ function deleteLogRow_(key, ver) {
     const c = lt.c, no = str_(lt.rows[i][c[H.NO]]);
     verCheck_(lt, lt.rows[i], LOG_VER_H_(), ver, logWhat_(lt, lt.rows[i]));      // (update-145)
     booksOpen_(dkey_(lt.rows[i][c[H.DATE]]), 'Log Book entry');
-    billLock_(no, dkey_(lt.rows[i][c[H.DATE]]), 'Log Book entry');
+    billLock_(no, dkey_(lt.rows[i][c[H.DATE]]), 'Log Book entry'); apprLock_(lt, lt.rows[i]);      // (update-152)
     const idx = machineLogIdx_(lt, no), pos = idx.indexOf(i);
     const prevI = pos > 0 ? idx[pos - 1] : -1, nextI = pos < idx.length - 1 ? idx[pos + 1] : -1;
     // the next entry now starts where the entry before the deleted one closed
@@ -10019,9 +10043,15 @@ function dbHealth_() {
     add('Photos of a diesel issue (step 1x)', has('diesel_issue', 'photos'), 'supabase_step1x_diesel_photos.sql');
     add('Changes of a billed period – Approvals and the next bill (step 1z)', has('billed_changes'), 'supabase_step1z_billed_changes.sql');
     add('The fixed evidence of submitted bills – their Log Book as submitted (step 1zc)', has('bill_snapshots') && has('bill_log_rows'), 'supabase_step1zc_bill_evidence.sql');      // (update-151)
+    { const z = has('log_book', 'approved_at') && has('bills', 'deleted_at') && has('bill_machines') && has('log_book_history');      // (update-152)
+      let note = '';
+      if (z) { try { const g = sbFetch_('GET', '/rest/v1/app_settings?id=eq.ENTRY_GUARD&select=value') || [], since = new Date(Date.now() - 30 * 86400000).toISOString();
+        const w = sbFetch_('GET', '/rest/v1/log_book_history?allowed=eq.false&at=gte.' + encodeURIComponent(since) + '&select=entry_key&order=seq.desc&limit=500') || [];
+        note = 'guard: ' + ((g[0] && g[0].value) || 'warn') + ' · changes of locked entries not by the Super Admin in 30 days: ' + w.length + (w.length ? ' (' + [...new Set(w.map(x => x.entry_key))].slice(0, 5).join(', ') + ')' : ''); } catch (e) { note = ''; } }
+      add('Approved / billed Log Book entries locked – only the Super Admin changes them (step 1zd)', z, 'supabase_step1zd_entry_locks.sql', note); }
     // (update-90) the list of sites, the Super Admin and who has which site – in the FIRST site's database only
     if (typeof __siteIsHome === 'function' && __siteIsHome()) add('Several sites and the Super Admin (step 7 – the first site only)', typeof __sitesOn === 'function' && __sitesOn(), 'supabase_step7_sites.sql');
-    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows)/.test(x));
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason))/.test(x));
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }
   let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }
@@ -10048,28 +10078,29 @@ function dbHealth_() {
  * Not closed: bills, debit notes and payments – they are made AFTER the month for the month.
  * Kept with the app settings (BOOKS_CLOSED_UPTO = yyyy-mm-dd, empty = nothing closed). */
 /* A SUBMITTED BILL LOCKS ITS ENTRIES (rule set by the MD, 06-10-2026: "once a bill is submitted, the Log Book of that vehicle cannot be
- * edited; when the bill is deleted it can be. Log Book or diesel – whoever goes to edit gets a warning, and is told the way out").
- * A bill that is in force (status Active – not Superseded, not deleted) locks, for each machinery in it and for its dates From–To:
- * every Log Book entry and every Diesel Issue – adding, changing and deleting, for everyone (the Admin too: his way is to delete
- * the bill). Also refused: a change outside the bill that would move the Start of an entry inside it. The way out, said in every
- * refusal: the Admin deletes the bill (RCL Drive → Saved Bills → Delete), the correction is made, the bill is built and submitted
- * again. A bill saved without its machinery list (very old) locks all machinery of its vendor. Tank Check is not locked. */
+ * edited"). A submitted bill locks, for each machinery in it and for its dates From–To: every Log Book entry and every Diesel Issue –
+ * adding, changing and deleting, for everyone but the Super Admin. Also refused: a change outside the bill that would move the Start
+ * of an entry inside it. A bill saved without its machinery list (very old) locks all machinery of its vendor. Tank Check is not locked.
+ * (update-152, asked 24-10-2026: "Do not automatically unlock an entry merely because its Bill is superseded, revised or logically
+ * deleted") EVERY submitted bill locks – Active, Superseded (replaced by a revision) or Deleted (kept, marked deleted) alike; until
+ * then only the Active one did, and deleting the bill was the way out. The way out now: the change is sent to the Super Admin. */
+const BILL_ST_ORDER_ = { Active: 0, Superseded: 1, Deleted: 2 };
 function billLocks_() { return memoGet_('__billLocks', () => { let t = null; try { t = billTable_(); } catch (e) { t = null; } if (!t) return [];
-  const st = 'Status' in t.c ? t.c['Status'] : -1;
-  return t.rows.filter(r => st === -1 || (str_(r[st]) || 'Active') === 'Active').map(r => billOut_(t, r, true)).filter(b => b.id && b.status === 'Active' && b.from && b.to)      // (only the bills in force are opened)
-    .map(b => ({ id: b.id, billNo: b.billNo, rev: b.rev, vendor: b.vendor, company: b.company, from: b.from, to: b.to, keys: billMachKeys_(b.data) })); }); }
+  return t.rows.map(r => billOut_(t, r, true)).filter(b => b.id && b.from && b.to)
+    .sort((a, b) => ((BILL_ST_ORDER_[a.status] === undefined ? 3 : BILL_ST_ORDER_[a.status]) - (BILL_ST_ORDER_[b.status] === undefined ? 3 : BILL_ST_ORDER_[b.status])))      // (the bill in force is named first)
+    .map(b => ({ id: b.id, billNo: b.billNo, rev: b.rev, vendor: b.vendor, company: b.company, from: b.from, to: b.to, status: b.status || 'Active', keys: billMachKeys_(b.data) })); }); }
 // (looked up by machinery: a list of thousands of entries asks this for every row)
 function billLockIdx_() { return memoGet_('__billLockIdx', () => { const by = {}, loose = []; billLocks_().forEach(b => { if (b.keys.length) b.keys.forEach(k => { (by[k] = by[k] || []).push(b); }); else loose.push(b); });
   let owners = null; const ownerOf = k => { if (!owners) { owners = {}; getMaster_().forEach(m => { owners[noKey_(m.id)] = vKey_(m.owner || ''); }); } return owners[k] || ''; };
   return { by: by, loose: loose, ownerOf: ownerOf }; }); }
 function billLocksOfNo_(no) { const k = noKey_(no); if (!k) return []; const X = billLockIdx_(); return (X.by[k] || []).concat(X.loose.length ? X.loose.filter(b => X.ownerOf(k) && X.ownerOf(k) === vKey_(b.vendor)) : []); }
 function billLockOf_(no, dk) { if (!dk) return null; return billLocksOfNo_(no).find(b => b.from <= dk && dk <= b.to) || null; }
-const billLockTag_ = b => b ? { billNo: b.billNo, rev: b.rev, vendor: b.vendor, company: b.company, from: b.from, to: b.to } : null;      // what the page is told about a lock
+const billLockTag_ = b => b ? { billNo: b.billNo, rev: b.rev, vendor: b.vendor, company: b.company, from: b.from, to: b.to, status: b.status && b.status !== 'Active' ? b.status : undefined } : null;      // what the page is told about a lock
 // for a list: rows carry "lk" (the bill's id) when they are locked, the list carries "locks" { id: what the page is told }
 function lockMarker_() { const locks = {}; return { locks: locks, of: (no, dk) => { const b = billLockOf_(no, dk); if (!b) return undefined; locks[b.id] = locks[b.id] || billLockTag_(b); return b.id; } }; }
 function billLockMsg_(b, no, dk, what) {
-  return (what || 'Entry') + ' of ' + clean_(no) + ' on ' + dmy_(dk) + ': this machinery is in the submitted RA Bill ' + b.billNo + (b.rev ? ' rev ' + b.rev : '') + ' of ' + b.vendor + ' (' + b.company + ', ' + dmy_(b.from) + ' to ' + dmy_(b.to) +
-    ') – its Log Book and diesel entries of those dates cannot be added, changed or deleted without the Super Admin. To correct them: change the entry and send it to the Super Admin for approval (the page asks) – approved, it is saved and the difference is taken in the next bill of this vendor; or the Admin deletes that bill, the correction is made, and the bill is built and submitted again.';
+  return (what || 'Entry') + ' of ' + clean_(no) + ' on ' + dmy_(dk) + ': this machinery is in the submitted RA Bill ' + b.billNo + (b.rev ? ' rev ' + b.rev : '') + (b.status && b.status !== 'Active' ? ' (' + b.status.toLowerCase() + ')' : '') + ' of ' + b.vendor + ' (' + b.company + ', ' + dmy_(b.from) + ' to ' + dmy_(b.to) +
+    ') – its Log Book and diesel entries of those dates cannot be added, changed or deleted without the Super Admin (a bill replaced or deleted keeps them locked). To correct them: change the entry and send it to the Super Admin for approval (the page asks) – approved, it is saved and the difference is taken in the next bill of this vendor.';
 }
 /* (14-10-2026, asked by the MD: "bill entry change fkt super admin change kru shakel … user pn change kru shakel but approval tewach
  * hoil jewa super admin approval deil") THE SUPER ADMIN (signed in through the Portal – his session says so, ACTOR_SUPER_) changes
@@ -10079,6 +10110,79 @@ function billLockMsg_(b, no, dk, what) {
 let ACTOR_SUPER_ = false;
 function billLockFail_(b, no, dk, what) { if (ACTOR_SUPER_) return; const msg = billLockMsg_(b, no, dk, what); throw new Error(msg); }
 function billLock_(no, dk, what) { const b = billLockOf_(no, dk); if (b) billLockFail_(b, no, dk, what); return dk; }
+
+/* ================= AN APPROVED OR BILLED LOG BOOK ENTRY IS LOCKED – ONLY THE SUPER ADMIN CHANGES IT (update-152, asked 24-10-2026,
+ * "FINAL DEVELOPMENT UPDATE": "Once a Logbook Entry has been approved, or it is included in a submitted Machinery Bill: ONLY SUPER
+ * ADMIN CAN: Edit … Delete or restore … Approve privileged corrections … Approval and bill submission are independent locks …
+ * Correction requests are allowed but must not directly modify … Enforce server-side and in the database") =================
+ *   – APPROVED: an entry saved through a verification rule (update-114) – at the last approval the save marks every Log Book row it
+ *     writes: Approved By / At, Approval Ref = the request (step 1zd columns). Entries saved before that have no mark.
+ *   – BILLED: in any submitted bill – Active, Superseded or Deleted (billLocks_).
+ *   – THE GUARD (entryGuard_) looks at EVERY Log Book row a save is about to write, whatever page or way it came from, just before
+ *     the one database write: a row whose ENTERED values change (LB_GUARD_ – not the figures the app works out, not the diesel the
+ *     Diesel Issue puts in), or that is added or deleted, while it is approved or billed (as it was saved, or where it goes) is
+ *     refused for everybody but the Super Admin – nothing of the save is written; the page offers to send it to him (Approvals).
+ *     A machinery number changed in Asset Master moves its entries (only the number changes) – allowed.
+ *   – THE SUPER ADMIN gives a REASON for such a change (the page asks: "SA_REASON"); it goes with the save to the database (web_write3,
+ *     step 1zd), whose own guard keeps every change of a locked entry in log_book_history (before, after, who, why).
+ *   – A save under a verification rule is checked the same way when it is sent (flowSend_). */
+let SA_REASON_ = '', LOCK_RENAME_ = false, APPROVER_ = '', CUR_FN_ = '';
+const LB_GUARD_ = ['Date', 'Machinery Number', 'Shift', 'Opening KM', 'Closing KM', 'Opening Hrs', 'Closing Hrs', 'Chainage From', 'Chainage To', 'Chainage No.', 'Work Done', 'Trip', 'Remark',
+  'Start Time', 'End Time', 'Break (min)', 'Time Hrs', 'Challan No', 'Item Work', 'Debit To', 'Debit Rate', 'Meter Note', 'Day Part', 'Time Slots', 'Approved By', 'Approved At', 'Approval Ref'];
+const lbCell_ = x => x instanceof Date ? 'D' + x.getTime() : x !== null && typeof x === 'object' ? JSON.stringify(x) : String(x === undefined || x === null ? '' : x);
+// the approval mark of a Log Book row (null = not approved)
+function apprOf_(row, hdr) {
+  const at = h => hdr.indexOf(h), i = at('Approved At'); if (i < 0 || lbCell_(row[i]) === '') return null;
+  const t = row[i] instanceof Date ? row[i] : new Date(row[i]);
+  return { by: str_(row[at('Approved By')]), at: isNaN(t) ? '' : t.toISOString(), ref: str_(row[at('Approval Ref')]) };
+}
+function apprLockMsg_(w, a) {
+  return 'Log Book entry of ' + clean_(w.no) + ' on ' + dmy_(w.dk) + (w.shift && w.shift !== 'Full Day' ? ' (' + w.shift + ')' : '') + ': it was approved' + (a.at ? ' on ' + dmy_(a.at.slice(0, 10)) : '') + (a.by ? ' by ' + a.by : '') + (a.ref ? ' (' + a.ref + ')' : '') +
+    ' – an approved entry cannot be changed or deleted without the Super Admin. To correct it: change the entry and send it to the Super Admin for approval (the page asks) – it is saved only when he approves.';
+}
+function entryGuard_(book) {
+  const s = book && book.sheets && book.sheets.log_book; if (!s) return;
+  const rows = s.loaded ? [...s.dirty] : (s.appended || []).slice(), gone = s.goneRows || [];
+  if (!rows.length && !gone.length) return;
+  const at = h => s.hdr.indexOf(h), iNo = at('Machinery Number'), iD = at('Date'), iSh = at('Shift'), ap = at('Approved At'), iBy = at('Approved By'), iRef = at('Approval Ref');
+  const g = LB_GUARD_.map(at).filter(i => i > -1), mine = g.filter(i => i !== ap && i !== iBy && i !== iRef);
+  const who = r => ({ no: str_(r[iNo]), dk: dkey_(r[iD]), shift: str_(r[iSh]) || 'Full Day' });
+  const superNow = ACTOR_SUPER_ && VER_CTX_ !== 'flow';      // (a save run at the last approval of a verification is the sender's, not the approver's)
+  const touched = [];
+  const look = (o, n) => {      // o = as it was saved (null: a new entry), n = as it is to be written (null: deleted)
+    const changed = o && n ? g.filter(i => lbCell_(o[i]) !== lbCell_(n[i])) : g.filter(i => lbCell_((o || n)[i]) !== '');
+    if (!changed.length) return;
+    if (LOCK_RENAME_ && o && n && changed.every(i => i === iNo)) return;      // its machinery's number changed in Asset Master: the entry follows
+    const a = o ? apprOf_(o, s.hdr) : null, wo = o ? who(o) : null, wn = n ? who(n) : null;
+    const b = (wo && billLockOf_(wo.no, wo.dk)) || (wn && billLockOf_(wn.no, wn.dk)) || null;
+    if (!a && !b) return;
+    const w = wo || wn;
+    if (!superNow) throw new Error(a ? apprLockMsg_(w, a) : billLockMsg_(b, w.no, w.dk, 'Log Book entry'));
+    touched.push(clean_(w.no) + ' ' + dmy_(w.dk) + (w.shift !== 'Full Day' ? ' ' + w.shift : '') + ' – ' + (!n ? 'deleted' : !o ? 'added' : 'changed') + ', ' + [a ? 'approved' : '', b ? 'in RA Bill ' + b.billNo : ''].filter(Boolean).join(' and '));
+  };
+  rows.forEach(r => look(s.loaded ? (s.orig.get(r) || null) : null, r));
+  gone.forEach(o => look(o, null));
+  if (touched.length && !SA_REASON_) throw new Error('SA_REASON: Super Admin – this save changes ' + touched.length + ' locked Log Book entr' + (touched.length === 1 ? 'y' : 'ies') + ' (' + touched.slice(0, 5).join('; ') + (touched.length > 5 ? '; …' : '') + '). Give the reason: it is kept with the entry\'s history.');
+  // at the last approval of a verification: the rows the save writes are marked approved (the columns of step 1zd are there)
+  if (VER_CTX_ === 'flow' && APPROVER_ && ap > -1 && iBy > -1 && iRef > -1 && (s.dbCols ? s.dbCols.indexOf('approved_at') > -1 : apprColsOn_())) {
+    const now = new Date();
+    rows.forEach(r => { if (lbCell_(r[ap]) !== '') return; const o = s.loaded ? (s.orig.get(r) || null) : null;
+      if (o && !mine.some(i => lbCell_(o[i]) !== lbCell_(r[i]))) return;      // (only its diesel or worked-out figures changed: not what was approved)
+      r[iBy] = APPROVER_; r[ap] = now; r[iRef] = FLOW_RUN_ID_; });
+  }
+}
+// the columns of the approval mark are in the database (step 1zd) – asked once, kept 15 minutes (for a Log Book still empty, whose columns
+// the rows do not show)
+function apprColsOn_() {
+  if (!sbDataOn_()) return false;
+  const c = CacheService.getScriptCache(), v = c.get('SBCOL_log_book_approved'); if (v === '1') return true; if (v === '0') return false;
+  let there = false; try { sbFetch_('GET', '/rest/v1/log_book?select=approved_at,approved_by,approval_ref&limit=1'); there = true; } catch (e) { there = false; }
+  c.put('SBCOL_log_book_approved', there ? '1' : '0', there ? 900 : 120); return there;
+}
+// who is saving and why – with the database write (web_write3, step 1zd), for the database's own guard and history
+function saveCtx_() {
+  return { actor: str_(ACTOR_), super: !!(ACTOR_SUPER_ && VER_CTX_ !== 'flow'), reason: SA_REASON_, fn: CUR_FN_, flow: VER_CTX_ === 'flow' ? str_(FLOW_RUN_ID_) : '', ctx: VER_CTX_, op: LOCK_RENAME_ ? 'rename' : '' };
+}
 
 /* ================= A CHANGE OF A BILLED PERIOD WAITS FOR THE SUPER ADMIN (update-108, asked 14-10-2026) =================
  * "user pn change kru shakel but approval tewach hoil jewa super admin approval deil". A user's save that the bill lock refuses
@@ -10301,6 +10405,7 @@ function crDecide_(u, x) {
       let args = []; try { args = JSON.parse(r0.args || '[]'); } catch (e) { args = []; }
       // the save runs as the user's change; the bill lock lets it through (as for the Super Admin). A refusal stops it all: nothing saved, the request waits
       const actor0 = ACTOR_, admin0 = ACTOR_ADMIN_;
+      SA_REASON_ = ('Change request ' + r0.id + ' of ' + r0.by + ' approved: ' + r0.reason + (note ? ' – ' + note : '')).slice(0, 300);      // (update-152) the reason kept with a locked entry's history
       ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = true; VER_CTX_ = 'approve';
       try {
         const before = spec.log ? logBefore_(spec, args) : null;
@@ -10435,7 +10540,7 @@ function flowSend_(u, spec, fn, args, rule) {
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
   let res = null, held = {};
   FLOW_DRY_ON_ = true; FLOW_PHOTOS_ = held;      // (update-120) the pictures this save takes are noted with the request
-  try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); throw FLOW_DRY_; }); }
+  try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
   catch (e) { if (e !== FLOW_DRY_) throw e; }
   finally { FLOW_DRY_ON_ = false; FLOW_PHOTOS_ = null; }
   TABLE_MEMO_ = {};
@@ -10546,6 +10651,7 @@ function flowDecide_(u, x) {
         withLock_(() => {
           r0 = look(); f = r0.flow;
           ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; VER_CTX_ = 'flow'; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = f.photos && typeof f.photos === 'object' ? f.photos : null;      // (update-120) its photos, as noted when it was sent
+          APPROVER_ = u.name || u.email;      // (update-152) the Log Book rows it writes are marked approved by him
           const before = spec.log ? logBefore_(spec, args) : null;
           const res = spec.withUser ? spec.f.apply(null, [ru].concat(args)) : spec.f.apply(null, args);
           const errs = res && typeof res === 'object' ? (res.errors || []) : [];
@@ -10679,7 +10785,7 @@ function flowResendOne_(u, id, note) {
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
   let res = null;
   FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = held; VER_CTX_ = 'resend';
-  try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); throw FLOW_DRY_; }); }
+  try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
   catch (e) {
     if (e !== FLOW_DRY_) {
       if (faultKind_(e)) throw e;
@@ -10746,7 +10852,7 @@ function flowDry_(u, spec, args, id, held) {
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
   let res = null;
   FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = id; FLOW_PHOTOS_ = held;
-  try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); throw FLOW_DRY_; }); }
+  try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
   catch (e) { if (e !== FLOW_DRY_) { if (faultKind_(e)) throw e; return { error: String((e && e.message) || e).replace(/^Error:\s*/, '') }; } }
   finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; TABLE_MEMO_ = {}; }
   return { res: res };

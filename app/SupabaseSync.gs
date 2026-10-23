@@ -53,6 +53,7 @@ const SB_TABLES_ = [
     ['Start Time', 'start_time', 'text'], ['End Time', 'end_time', 'text'], ['Break (min)', 'break_min', 'numeric'], ['Time Hrs', 'time_hrs', 'numeric'], ['Challan No', 'challan_no', 'text'], ['Item Work', 'item_work', 'text'], ['Debit To', 'debit_to', 'text'], ['Debit Rate', 'debit_rate', 'numeric'], ['Meter Note', 'meter_note', 'text'], ['Day Part', 'day_part', 'numeric'], ['Time Slots', 'time_slots', 'text'],
     ['Actual Average', 'actual_average', 'text'], ['Extra / Short Diesel', 'extra_short', 'numeric'], ['Fill Cycle', 'fill_cycle', 'text'],
     ['Opening Diesel Set', 'opening_diesel_set', 'numeric'],
+    ['Approved By', 'approved_by', 'text'], ['Approved At', 'approved_at', 'timestamptz'], ['Approval Ref', 'approval_ref', 'text'],      // (update-152, step 1zd) saved through a verification rule
     ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
   { table: 'tank_check', tab: 'Tank Check', title: 'Tank Check', pk: 'id', key: r => sbStr_(r['Check ID']), cols: [
     ['Date', 'date', 'date'], ['Machinery Number', 'machinery', 'text'], ['System Diesel (Ltr)', 'system_diesel', 'numeric'], ['Physical Diesel (Ltr)', 'physical_diesel', 'numeric'],
@@ -74,6 +75,7 @@ const SB_TABLES_ = [
     ['Vendor Name', 'vendor_name', 'text'], ['Company', 'company', 'text'], ['Bill No', 'bill_no', 'text'], ['Rev', 'rev', 'numeric'],
     ['Period From', 'period_from', 'date'], ['Period To', 'period_to', 'date'], ['Bill Date', 'bill_date', 'date'], ['Net Payable', 'net_payable', 'numeric'],
     ['Status', 'status', 'text'], ['Data', 'data', 'text'], ['Remark', 'remark', 'text'], ['Created At', 'entered_at', 'timestamptz'],
+    ['Deleted By', 'deleted_by', 'text'], ['Deleted At', 'deleted_at', 'timestamptz'], ['Delete Reason', 'delete_reason', 'text'],      // (update-152, step 1zd) a bill is deleted by its status, never removed
     ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
   { table: 'payments', tab: 'Payments', title: 'Payments', pk: 'id', key: r => sbStr_(r['Payment ID']), cols: [
     ['Type', 'entry_type', 'text'], ['Date', 'entry_date', 'date'], ['Vendor Name', 'vendor_name', 'text'], ['Amount', 'amount', 'numeric'], ['Side', 'side', 'text'],
