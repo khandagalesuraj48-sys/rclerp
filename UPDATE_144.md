@@ -4,12 +4,20 @@
 shift" Breaker by Time 09:00 – 13:00 – both rows red "the rows of this shift are all by Time – keep one row and give it its times (or
 one row of the shift by Hrs)". "ase error nko n yeyla".
 
+**Then (23-10-2026, 12:52), his screen of MH-46-B-0651 – a Hydra on Time only (no hour meter), 01-09-2026 Day: 10:00 – 18:00
+HYDRA and 19:00 – 22:00 FARANA – "two entries on Day":** "ha error mala kuthech nko … sagle machinery la ha rule ghe … same entry hot
+asel tr duplicate hoil … date same, same shift madhe weg wegle timing, weg wegle work ghetoy tri error yetoy – proper fix kr". So the
+rule is for EVERY machinery, not only one on hours.
+
 ## What was wrong
 * A machinery on hours (an hour meter, no KM meter) may have several rows in one shift (update-77), and a row may be by Time among
   rows by Hrs (update-78). But a shift whose rows were ALL by Time was refused: the page said "all by Time", the server the same.
 * The way left was one row with "+ time" and Split (typed hours) – the works lost their own times.
 
 ## What changes
+* **For every machinery** (on hours, on Time only like his Hydra, on KM + Hrs with Time …) – `logRowsKind_` (rows all by Time →
+  'hr'), `logRowsJoin_` (`tAll`), `logItemWork_` (`tOnly` = the entry by Time), the page's `lxPartKind` / `lgPartKind` / `lxPlain`,
+  the phone's `partKind` / `plain`. The same work may come again at another time (by Time).
 * **A shift whose rows are all by Time is ONE entry by Time** (`app/Code.gs` `logRowsJoin_`, `logItemWork_` `tOnly`):
   * its times are the rows' times **in the order of the shift** (`timeSpans_`: a Night's times after midnight come last) – e.g.
     09:00-13:00,14:00-18:00; its break is the breaks typed on the rows (the server adds the hour between, as for split timing);
@@ -28,8 +36,11 @@ one row of the shift by Hrs)". "ase error nko n yeyla".
   a changed From – To: `updateLogRow_`); the Excel import refuses a change to it – as for the entries of update-77 / 78.
 * **Help (English / मराठी / हिंदी):** a new rule for two rows at the same time; the rule of the rows of a shift and the page guides of
   the Log Book and Edit Log Book say it. The Marathi / Hindi words of the new messages (also those of update-143, which were missing).
-* **Unchanged:** shifts with rows by Hrs, rows by Hrs and by Time together (update-78), a single entry by Time with "+ time", KM
-  vehicles, every other machinery. No database step, no setting.
+* **Unchanged:** shifts with rows by Hrs, rows by Hrs and by Time together (update-78 – a machinery on hours), a single entry by Time
+  with "+ time", rows by KM. No database step, no setting.
+* **Not in this update (the next one):** rows by READINGS of a machinery that is not on hours only – a vehicle on KM, a machinery on
+  KM + Hrs – with different readings in one shift (a second place after a gap), and rows measured in different ways in one shift (a
+  KM row and a Time row): today they still say "two entries on Day".
 
 ## Evidence (local test copy only)
 * `node --test test/unit.test.js` **101 / 101**:
@@ -40,12 +51,16 @@ one row of the shift by Hrs)". "ase error nko n yeyla".
     refused; a third work 18:30 – 20:00 → 9.5 h, break 90, bill 4 × 1,200 + 5.5 × 1,700; a Night 20:00 – 23:00 + 01:00 – 04:00 = 6 h in
     the order of the night; the next day starts at the last hour reading; the edit window refuses another From – To and keeps the same
     one; the Excel import refuses a change; rows by Hrs and by Time together unchanged (5 h);
+  * his Hydra on Time only (no hour meter): 10:00 – 18:00 (13:00 – 14:00 off) HYDRA + 19:00 – 22:00 FARANA → ONE entry by Time
+    10 h, bill 7 × 1,700 + 3 × 2,200; the same added to the saved Day (the prefill offers it, the same work at another time allowed);
+    a time inside the saved ones and two rows at the same time refused;
   * after the review: 09:00 – 11:20 + 13:00 – 15:20 = 4.67 h (each row 2.33) saved in one save and added – the same, and read back
     as its rows; a saved entry with "+ time" 09:00 – 11:00, 14:00 – 16:00 takes Breaker 12:00 – 13:00 (5 h, times in order); the
     entry's chainage 9+000 → 10+500 and work "BREAKING / LOADING" in the order of the day; rows whose breaks are not the entry's: refused;
   * the check of update-78 changed where it held the OLD rule ("a shift of rows all by Time is refused"): now ONE entry by Time of
     2 h; its July bill 9,000 → 11,000 (the 2 h of 03-07).
-* `test/browser/time144.js` **15 / 15** (final code) – the real pages: his screen in Edit Log Book (no red, saved as one entry by Time 8 h, opened
+* `test/browser/time144.js` (final code) – the real pages: his Hydra on Time only in Edit Log Book ("+ work in this shift" 19:00 –
+  22:00 FARANA: nothing red, saved as one entry of 10 h); his screen in Edit Log Book (no red, saved as one entry by Time 8 h, opened
   again as its two rows in the order of the day; To 15:00 → both rows red with the reason, Save off); the entry page (two rows by
   Time of one Day, "work 2 of this day", diesel 0; the overlap red; saved as one entry); a third work added to the saved shift from
   the entry page (9.5 h) and a time inside the saved ones refused; the edit window (From, To, Break locked, no "+ time"); the print
