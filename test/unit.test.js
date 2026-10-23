@@ -4599,6 +4599,37 @@ test('update-145: two people changing the same entry – a Log Book or Diesel Is
   // the version reads a value the same however it was read (JSON with its keys in another order – the database reorders them)
   assert.strictEqual(run('() => verVal_(H.ITEMS, \'{"_parts":[{"n":"A","q":2}],"B":1}\') === verVal_(H.ITEMS, \'{"B":1,"_parts":[{"q":2,"n":"A"}]}\')'), true);
   assert.strictEqual(run('() => verVal_(H.OKM, "100.50") === verVal_(H.OKM, 100.5)'), true);
+  // (review) an update returns the version the entry has now (the page keeps it – a delete right after it is not refused)
+  const i1 = run('x => saveDieselIssue_(x)', D({ qty: 30 })), i1v = issues().find(r => r.id === i1.id).ver;
+  const up = run('(id, x) => updateDieselIssue_(id, x)', i1.id, D({ qty: 31, ver: i1v }));
+  assert.ok(up.ok && up.ver && up.ver === issues().find(r => r.id === i1.id).ver, JSON.stringify(up));
+  // (review) an entry whose Start followed someone's change carries his name – the refusal names him, not the one refused
+  run('() => { ACTOR_ = "Ravi"; }');
+  const e3 = entry('2026-06-03');
+  run('() => { ACTOR_ = "Shyam"; }');
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-02'), { closingKm: 1200, work: 'BY SHYAM', chFrom: '', chTo: '', ver: entry('2026-06-02').ver }).thrown);
+  assert.strictEqual(entry('2026-06-03').okm, 1200);
+  run('() => { ACTOR_ = "Ravi"; }');
+  assert.match(tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-03'), { closingKm: 1260, work: 'BY RAVI', chFrom: '', chTo: '', ver: e3.ver }).thrown || '', /^R145-TIP \(03-06-2026, Full Day\) was changed by Shyam after you opened it/);
+  // (review) a request replayed later (approved by the Super Admin, a verification's last approval, "Send again"): the words say what to do there
+  const e3b = entry('2026-06-03');
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-03'), { closingKm: 1265, work: 'MEANWHILE', chFrom: '', chTo: '', ver: e3b.ver }).thrown);
+  [['approve', /after this request was made – reject it: the person who asked makes the change again on the entry as it is now\. Nothing was saved\.$/], ['flow', /after this entry was sent – it goes back to the person who sent it/], ['resend', /after this entry was sent – it cannot be sent again: take it back/]].forEach(([cx, re]) => {
+    const t = run('(k, l, cx) => { VER_CTX_ = cx; try { updateLogRow_(k, l); return ""; } catch (e) { return String(e.message); } finally { VER_CTX_ = ""; } }', K('2026-06-03'), { closingKm: 1270, work: 'REQUEST', chFrom: '', chTo: '', ver: e3b.ver }, cx);
+    assert.match(t, re, cx); });
+  assert.strictEqual(entry('2026-06-03').work, 'MEANWHILE');
+  assert.ok(/VER_CTX_ = 'approve';/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8')) && /VER_CTX_ = 'flow';/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8')) && /VER_CTX_ = 'resend';/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8')));
+  // (review) Edit Log Book of a user who is not the Super Admin: an entry of a submitted bill is kept out of the save – a change to it meanwhile does not stop the grid
+  const g3 = run('() => getLogEditData_("R145-TIP", "2026-06-01", "2026-06-03")'), vers3 = {}; g3.rows.forEach(r => { vers3[r.key] = r.ver; });
+  run('() => { ACTOR_SUPER_ = true; }');
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-01'), { closingKm: 1100, work: 'BILLED, CHANGED BY THE SUPER ADMIN', chFrom: '', chTo: '', ver: entry('2026-06-01').ver }).thrown);
+  run('() => { ACTOR_SUPER_ = false; globalThis.__blo145 = billLockOf_; billLockOf_ = (no, dk) => dk === "2026-06-01" ? { no: "B-145", vendor: "R145 Transport", from: "2026-06-01", to: "2026-06-01" } : null; }');
+  try {
+    x = tryRun('p => saveLogBulk_(p)', { no: 'R145-TIP', from: '2026-06-01', to: '2026-06-03', deleted: [], openingDiesel: '', vers: vers3, rows: g3.rows.map(r => Object.assign(R(r), { same: true })).map((r, n) => n === 2 ? Object.assign(r, { same: false, work: 'GRID' }) : r) });
+    assert.ok(x.ok, JSON.stringify(x).slice(0, 400));
+    assert.strictEqual(entry('2026-06-01').work, 'BILLED, CHANGED BY THE SUPER ADMIN', 'the billed entry is not written');
+    assert.strictEqual(entry('2026-06-03').work, 'GRID');
+  } finally { run('() => { billLockOf_ = globalThis.__blo145; }'); }
 });
 
 test('update-141: the Google Sheet backup ONCE A DAY (the nightly job; the first open page of the day if it did not run); the logs only their new rows', () => {

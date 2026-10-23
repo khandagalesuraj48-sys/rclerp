@@ -5955,6 +5955,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Someone else changed this entry after you opened it. Your change was not saved, so that his change is not lost.', 'Open the entry again (or press Load / reload the list) – it shows his change – and make your change there. Then save.'],
       mr: ['तुम्ही ही entry उघडल्यानंतर दुसऱ्या कोणीतरी ती बदलली. त्याचा बदल पुसला जाऊ नये म्हणून तुमचा बदल save झाला नाही.', 'Entry पुन्हा उघडा (किंवा Load / यादी पुन्हा लोड करा) – त्यात त्याचा बदल दिसेल – आणि तिथे तुमचा बदल करा. मग save करा.'],
       hi: ['आपके खोलने के बाद किसी और ने यह entry बदली। उसका बदलाव न मिटे इसलिए आपका बदलाव save नहीं हुआ।', 'Entry फिर से खोलें (या Load / सूची दोबारा लोड करें) – उसमें उसका बदलाव दिखेगा – और वहाँ अपना बदलाव करें। फिर save करें।'] },
+    { re: /was changed by .* after this (request was made|entry was sent)/i,
+      en: ['The entry was changed by someone after this request was made (or after it was sent for verification). Saving the request now would wipe that change, so nothing was saved.', 'A change request: reject it – the person who asked makes the change again on the entry as it is now. A verification: it goes back to the person who sent it – he takes it back and makes the change again on the entry as it is now.'],
+      mr: ['ही विनंती केल्यानंतर (किंवा verification ला पाठवल्यानंतर) कोणीतरी ती entry बदलली. आता ही विनंती save केली तर तो बदल पुसला जाईल, म्हणून काहीही save झाले नाही.', 'बदलाची विनंती: ती नाकारा – ज्याने विनंती केली तो आत्ताच्या entry वर बदल पुन्हा करेल. Verification: ती पाठवणाऱ्याकडे परत जाते – तो ती परत घेऊन आत्ताच्या entry वर बदल पुन्हा करेल.'],
+      hi: ['यह अनुरोध करने के बाद (या verification के लिए भेजने के बाद) किसी ने वह entry बदली। अब यह अनुरोध save करने से वह बदलाव मिट जाता, इसलिए कुछ भी save नहीं हुआ।', 'बदलाव का अनुरोध: उसे अस्वीकार करें – अनुरोध करने वाला अभी की entry पर बदलाव फिर से करेगा। Verification: वह भेजने वाले के पास वापस जाता है – वह उसे वापस लेकर अभी की entry पर बदलाव फिर से करेगा।'] },
     { re: /is at the same time as row|does one work at a time/i,
       en: ['Two rows of this shift are by Time and their From – To overlap. One machinery does one work at a time.', 'Correct the From – To of one of the two rows so that the times do not overlap (for example Breaker 09:00 – 13:00 and Bucket 14:00 – 18:00), then save again.'],
       mr: ['या shift च्या दोन ओळी Time वर आहेत आणि त्यांच्या From – To वेळा एकमेकांत येतात. एक machinery एका वेळी एकच काम करते.', 'दोनपैकी एका ओळीची From – To अशी दुरुस्त करा की वेळा एकमेकांत येणार नाहीत (उदा. Breaker 09:00 – 13:00 आणि Bucket 14:00 – 18:00), मग पुन्हा save करा.'],
@@ -15439,7 +15443,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (r.lk && await lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
     if (!(await askConfirm({ title: 'Delete ' + r.id + '?', danger: true, ok: 'Delete',
       html: listHtml([r.no + ' – ' + fmt(r.qty) + ' Ltr from ' + r.source, showDate(r.date) + ', ' + r.shift + ' shift', 'Driver: ' + (r.driver || '–')]) + '<p>This cannot be undone. The Log Book for this date and shift will be recalculated.</p>' }))) return;
-    await call('deleteDieselIssue', r.id, S.editDieselId === r.id && S.editDieselVer ? S.editDieselVer : r.ver || '');      // (update-145)
+    await call('deleteDieselIssue', r.id, r.ver || '');      // (update-145: the version of what the confirm showed – changed by someone else since → refused)
     if (S.editDieselId === r.id) clearDiesel();
     toast(r.id + ' deleted.');
     loadDiesel(); loadLog();
@@ -15590,6 +15594,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       return;
     }
     if (fixing) { flowFixDone(res); clearDiesel(); return; }
+    if (editing && res.ver) { const was = (S.dieselRows || []).find(x => x.id === editing); if (was) was.ver = res.ver; }      // (review of update-145: its version now, until the list is read again)
     if (PHONE) savedPop(editing ? 'Diesel issue updated' : 'Diesel issue saved', [['Issue ID', res.id], ['Machinery', m.id], ['Diesel', fmt(d.qty) + ' L'],
       ['Reading', [d.kmReading !== '' ? fmt(d.kmReading) + ' km' : '', d.hrReading !== '' ? fmt(d.hrReading) + ' hr' : ''].filter(Boolean).join(' · ')], ['Photos', (d.photos || []).length ? d.photos.length + ' of 4' : '']]);
     else toast(editing ? 'Diesel issue ' + res.id + ' updated.' : 'Diesel issue saved: ' + res.id);
