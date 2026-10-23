@@ -904,6 +904,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .le-note b { color: var(--ink); } .le-note .bad { color: var(--bad); font-weight: 600; }
   #cf_back { position: fixed; inset: 0; background: rgba(34,48,58,.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
   #cf_box.wide { max-width: min(1100px, 96vw); }
+  /* (update-150) QR labels: which machinery – an owner, a search, a ticked list */
+  .qr-ask { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .qr-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 6px; } .qr-bar b { margin-left: auto; font-size: 13px; }
+  .qr-pick { max-height: 46vh; overflow-y: auto; border: 1px solid var(--line, #E2E8F0); border-radius: 10px; }
+  .qr-row { display: grid; grid-template-columns: 22px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; padding: 7px 10px; border-bottom: 1px solid var(--line, #E2E8F0); cursor: pointer; font-size: 13.5px; }
+  .qr-row:last-child { border-bottom: 0; } .qr-row input { margin: 0; } .qr-row span, .qr-row em { color: #475569; font-style: normal; overflow-wrap: anywhere; } .qr-row b { overflow-wrap: anywhere; }
+  @media (max-width: 640px) { .qr-ask { grid-template-columns: 1fr; } .qr-row { grid-template-columns: 22px 1fr; gap: 1px 8px; } .qr-row span, .qr-row em { grid-column: 2; font-size: 12.5px; } }
   .seg-type { display: flex; gap: 8px; flex-wrap: wrap; margin: 2px 0 12px; }
   .seg-type label { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid #D9DEE2; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13.5px; background: #fff; }
   .seg-type label small { font-weight: 400; color: var(--muted); }
@@ -6125,9 +6132,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['Parties: machinery चे vendors आणि मालक, पत्ता, PAN, GST आणि bank तपशीलासह.', 'App PAN, GST, IFSC आणि mobile चे स्वरूप तपासते, आणि तेच नाव दोनदा घेत नाही. नाव बदलता येते: vendor चे assets, BOQ, bills, payments, debit notes आणि Log Book entries नवीन नावाकडे जातात. ज्या vendor कडे assets किंवा BOQ आहेत तो delete होत नाही. हा तपशील bills, tax invoice आणि debit notes वर छापला जातो.'],
       hi: ['Parties: machinery के vendors और मालिक, पता, PAN, GST और bank विवरण के साथ।', 'App PAN, GST, IFSC और mobile का रूप जाँचता है, और वही नाम दो बार नहीं लेता। नाम बदला जा सकता है: vendor के assets, BOQ, bills, भुगतान, debit notes और Log Book entries नए नाम पर चले जाते हैं। जिस vendor के assets या BOQ हैं वह delete नहीं होता। यह विवरण bills, tax invoice और debit notes पर छपता है।'] },
     master: { saves: ['saveMaster', 'saveMasterBulk', 'deleteMaster', 'editMasterMany', 'deleteMasterMany', 'importMaster', 'assignVendors'],
-      en: ['Every machinery and vehicle: number, type, owner, ownership, what it works on (KM / Hrs / Trip / Day / Time), standard average and tank capacity.', 'Every other page reads this list. The number of a machinery can be changed here (Edit): everything entered for it moves to the new number, while bills and debit notes already saved keep the number they were issued with; "Active From / Inactive From" decide on which dates entries are allowed; the standard average decides the excess diesel in bills.'],
-      mr: ['प्रत्येक machinery आणि गाडी: नंबर, प्रकार, मालक, ownership, कशावर चालते (KM / Hrs / Trip / Day / Time), standard average आणि tank ची क्षमता.', 'बाकी सगळी pages ही यादी वाचतात. Machinery चा नंबर इथे (Edit) बदलता येतो: तिच्यासाठी भरलेले सगळे नवीन नंबरखाली जाते, आणि आधी save झालेली bills व debit notes ज्या नंबरने निघाली तोच ठेवतात; "Active From / Inactive From" वरून कोणत्या तारखांना entry करता येते ते ठरते; standard average वरून bill मधले जास्तीचे diesel ठरते.'],
-      hi: ['हर machinery और गाड़ी: नंबर, प्रकार, मालिक, ownership, किस पर चलती है (KM / Hrs / Trip / Day / Time), standard average और tank की क्षमता।', 'बाकी सभी pages यह सूची पढ़ते हैं। Machinery का नंबर यहाँ (Edit) बदला जा सकता है: उसके लिए भरा हुआ सब नए नंबर के नीचे चला जाता है, और पहले save हुए bills व debit notes उसी नंबर को रखते हैं जिससे वे निकले थे; "Active From / Inactive From" से तय होता है किन तारीखों को entry हो सकती है; standard average से bill का अतिरिक्त diesel तय होता है।'] },
+      en: ['Every machinery and vehicle: number, type, owner, ownership, what it works on (KM / Hrs / Trip / Day / Time), standard average and tank capacity.', 'Every other page reads this list. The number of a machinery can be changed here (Edit): everything entered for it moves to the new number, while bills and debit notes already saved keep the number they were issued with; "Active From / Inactive From" decide on which dates entries are allowed; the standard average decides the excess diesel in bills. QR labels (Machinery list): by owner, or the machinery ticked – one or many; 8 on an A4 page (2 × 4). A scan with a phone opens the app on that machinery.'],
+      mr: ['प्रत्येक machinery आणि गाडी: नंबर, प्रकार, मालक, ownership, कशावर चालते (KM / Hrs / Trip / Day / Time), standard average आणि tank ची क्षमता.', 'बाकी सगळी pages ही यादी वाचतात. Machinery चा नंबर इथे (Edit) बदलता येतो: तिच्यासाठी भरलेले सगळे नवीन नंबरखाली जाते, आणि आधी save झालेली bills व debit notes ज्या नंबरने निघाली तोच ठेवतात; "Active From / Inactive From" वरून कोणत्या तारखांना entry करता येते ते ठरते; standard average वरून bill मधले जास्तीचे diesel ठरते. QR labels (Machinery list): मालकानुसार, किंवा tick केलेल्या machinery – एक किंवा अनेक; एका A4 पानावर 8 (2 × 4). Phone ने scan केल्यावर app त्या machinery वर उघडते.'],
+      hi: ['हर machinery और गाड़ी: नंबर, प्रकार, मालिक, ownership, किस पर चलती है (KM / Hrs / Trip / Day / Time), standard average और tank की क्षमता।', 'बाकी सभी pages यह सूची पढ़ते हैं। Machinery का नंबर यहाँ (Edit) बदला जा सकता है: उसके लिए भरा हुआ सब नए नंबर के नीचे चला जाता है, और पहले save हुए bills व debit notes उसी नंबर को रखते हैं जिससे वे निकले थे; "Active From / Inactive From" से तय होता है किन तारीखों को entry हो सकती है; standard average से bill का अतिरिक्त diesel तय होता है। QR labels (Machinery list): मालिक के अनुसार, या tick की गई machinery – एक या कई; एक A4 पेज पर 8 (2 × 4)। Phone से scan करने पर app उस machinery पर खुलता है।'] },
     boq: { saves: ['saveBoq', 'deleteBoq'],
       en: ['The rate agreement with each vendor: which machinery, on what basis (monthly, per day, per hour, per KM, per trip, slabs or item-wise), at what rate, and who pays the diesel.', 'A machinery can be in one BOQ for a date; a change of rate is an "Amend" with its own start date. Bills take the rate of the BOQ that is valid on each day. GST % is needed when the vendor is GST registered.'],
       mr: ['प्रत्येक vendor सोबतचा दराचा करार: कोणती machinery, कोणत्या basis वर (monthly, per day, per hour, per KM, per trip, slabs किंवा item-wise), कोणत्या दराने, आणि diesel कोण देणार.', 'एका तारखेला एक machinery एकाच BOQ मध्ये असते; दर बदलायचा असेल तर स्वतःच्या सुरुवातीच्या तारखेसह "Amend". Bill प्रत्येक दिवशी लागू असलेल्या BOQ चा दर घेते. Vendor GST registered असेल तर GST % लागतो.'],
@@ -12900,25 +12907,55 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * The QR code holds the app's own link with the machinery in it (…/?m=MH-25-AJ-8511). Scanned with a phone's camera it opens
    * the app (sign-in first if needed) and asks what to do for that machinery: Diesel Issue / Log Book entry / its diesel
    * ledger. Nothing about the machinery is inside the code except its number – a label gives no access to somebody who
-   * has no sign-in. Labels: Asset Master → "QR labels" – all active machinery or one, 12 on an A4 sheet. */
+   * has no sign-in. Labels: Asset Master → "QR labels" – by owner, or the machinery ticked (one or many), 8 on an A4 sheet (2 × 4,
+   * update-150). */
   const qrLink = id => { let base = ''; try { base = window.top.location.origin + window.top.location.pathname; } catch (e) { base = location.origin + '/'; } return base + '?m=' + encodeURIComponent(id); };
   function qrSvg(text) { const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); }
+  // (update-150) which labels: by owner (all its machinery), or the machinery ticked – one or many; 8 on an A4 page (2 × 4)
+  const QR_PER_PAGE = 8;
+  const qrSub = m => [m.name && m.name !== m.id ? m.name : '', m.type].filter((x, i, arr) => x && arr.findIndex(y => String(y).toLowerCase() === String(x).toLowerCase()) === i).join(' · ');
+  function qrLabelsHtml(list, customer) {
+    const css = '<style>.qrs{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:62mm;gap:5mm;break-after:page;page-break-after:always}.qrs:last-child{break-after:auto;page-break-after:auto}' +
+      '.qrl{border:1.4px solid #222;border-radius:3mm;padding:3mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;overflow:hidden;break-inside:avoid;page-break-inside:avoid}' +
+      '.qrl .qrw{display:flex;align-items:center;gap:3mm}.qrl svg{width:50mm;height:50mm;flex:none;display:block}.qrl .qrt{flex:1;min-width:0;text-align:left}' +
+      '.qrl b{display:block;font:800 14pt Arial,sans-serif;letter-spacing:.02em;word-break:break-word;line-height:1.15}.qrl span{display:block;font:9.5pt Arial,sans-serif;color:#333;margin-top:1.2mm;word-break:break-word}' +
+      '.qrl i{display:block;font:italic 8pt Arial,sans-serif;color:#555;margin-top:1.5mm;text-align:center}.qrl u{display:block;text-decoration:none;font:700 7pt Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#777;margin-bottom:1.5mm;word-break:break-word}</style>';
+    const pages = []; for (let i = 0; i < list.length; i += QR_PER_PAGE) pages.push(list.slice(i, i + QR_PER_PAGE));
+    return css + pages.map(pg => '<div class="qrs">' + pg.map(m => '<div class="qrl"><div class="qrw">' + qrSvg(qrLink(m.id)) + '<div class="qrt"><u>' + esc(customer) + '</u><b>' + esc(m.id) + '</b><span>' + esc(qrSub(m)) + '</span></div></div><i>Scan: diesel issue · Log Book entry</i></div>').join('') + '</div>').join('');
+  }
   async function qrLabels() {
-    const all = (S.master || []).filter(m => onSiteOn(m, S.today));
+    const all = (S.master || []).filter(m => onSiteOn(m, S.today)).slice().sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true }));
     if (!all.length) { toast('There is no active machinery.', true); return; }
-    const pickOne = S.masterEdit && S.masterEdit.id ? S.masterEdit.id : '';
-    const yes = await askConfirm({ title: 'QR labels', ok: 'Make the labels', html: '<p>A label with a QR code for the machinery – stick it where the driver / operator can reach it. A scan with a phone opens this app on that machinery (after sign-in): Diesel Issue or Log Book entry.</p>' +
-      '<div class="field"><label for="qr_which">Which machinery</label><input id="qr_which" list="dl_machines" placeholder="empty = all ' + all.length + ' active machinery" autocomplete="off" value="' + esc(pickOne) + '"></div>' +
-      '<p class="muted">12 labels on an A4 page (portrait). Print on sticker paper, or on paper and laminate.</p>' });
+    const ownerOf = m => String(m.owner || '').trim() || '–';
+    const owners = {}; all.forEach(m => { owners[ownerOf(m)] = (owners[ownerOf(m)] || 0) + 1; });
+    const oNames = Object.keys(owners).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+    const pickOne = S.masterEdit && S.masterEdit.id && all.some(m => m.id === S.masterEdit.id) ? S.masterEdit.id : '';
+    const sel = new Set(pickOne ? [pickOne] : all.map(m => m.id));
+    const p = askConfirm({ title: 'QR labels', ok: 'Make the labels', wide: true, html: '<p>A label with a QR code for the machinery – stick it where the driver / operator can reach it. A scan with a phone opens this app on that machinery (after sign-in): Diesel Issue or Log Book entry.</p>' +
+      '<div class="qr-ask"><div class="field"><label for="qr_owner">Owner</label><select id="qr_owner"><option value="">All owners (' + all.length + ' machinery)</option>' +
+      oNames.map(o => '<option value="' + esc(o) + '">' + esc(o) + ' (' + owners[o] + ')</option>').join('') + '</select></div>' +
+      '<div class="field"><label for="qr_find">Find</label><input id="qr_find" placeholder="number, name or type" autocomplete="off"></div></div>' +
+      '<div class="qr-bar"><button class="btn ghost small" id="qr_tick" type="button">Tick all shown</button><button class="btn ghost small" id="qr_untick" type="button">Untick all shown</button><b id="qr_count"></b></div>' +
+      '<div class="qr-pick" id="qr_list"></div>' +
+      '<p class="muted">8 labels on an A4 page (2 × 4, portrait). Print on sticker paper, or on paper and laminate.</p>' });
+    const shown = () => { const o = $('qr_owner').value, q = $('qr_find').value.trim().toLowerCase();
+      return all.filter(m => (!o || ownerOf(m) === o) && (!q || [m.id, m.name, m.type, m.owner].some(x => String(x || '').toLowerCase().indexOf(q) > -1))); };
+    const count = () => { const n = sel.size, pg = Math.ceil(n / QR_PER_PAGE); $('qr_count').textContent = n ? n + ' ticked – ' + pg + ' page' + (pg === 1 ? '' : 's') : 'Nothing ticked'; $('cf_ok').disabled = !n; };
+    const draw = () => { const l = shown();
+      $('qr_list').innerHTML = l.length ? l.map(m => '<label class="qr-row"><input type="checkbox" data-qr="' + esc(m.id) + '"' + (sel.has(m.id) ? ' checked' : '') + '><b>' + esc(m.id) + '</b><span>' + esc(qrSub(m)) + '</span><em>' + esc(ownerOf(m)) + '</em></label>').join('')
+        : '<p class="muted">No machinery matches.</p>'; count(); };
+    $('qr_owner').addEventListener('change', () => { sel.clear(); shown().forEach(m => sel.add(m.id)); draw(); });      // an owner: all its machinery ticked
+    $('qr_find').addEventListener('input', draw);
+    $('qr_tick').addEventListener('click', () => { shown().forEach(m => sel.add(m.id)); draw(); });
+    $('qr_untick').addEventListener('click', () => { shown().forEach(m => sel.delete(m.id)); draw(); });
+    $('qr_list').addEventListener('change', e => { const c = e.target.closest('[data-qr]'); if (!c) return; if (c.checked) sel.add(c.dataset.qr); else sel.delete(c.dataset.qr); count(); });
+    draw();
+    const yes = await p; $('cf_ok').disabled = false;
     if (!yes) return;
-    const one = ($('qr_which') ? $('qr_which').value : '').trim(), m1 = one ? findMachine(one) : null;
-    if (one && !m1) { toast('"' + one + '" is not in the Master.', true); return; }
-    const list = (m1 ? [m1] : all).slice().sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true }));
-    const org = S.org || {};
-    const css = '<style>.qrs{display:grid;grid-template-columns:repeat(3,1fr);gap:5mm}.qrl{border:1.2px solid #222;border-radius:3mm;padding:3mm 3mm 2.5mm;text-align:center;break-inside:avoid;page-break-inside:avoid}.qrl svg{width:42mm;height:42mm;display:block;margin:0 auto 1.5mm}' +
-      '.qrl b{display:block;font:800 13pt Arial,sans-serif;letter-spacing:.02em;word-break:break-word}.qrl span{display:block;font:9pt Arial,sans-serif;color:#333;margin-top:.5mm}.qrl i{display:block;font:italic 7.5pt Arial,sans-serif;color:#555;margin-top:1.2mm}.qrl u{display:block;text-decoration:none;font:700 7pt Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#777;margin-bottom:1mm}</style>';
-    const html = css + '<div class="qrs">' + list.map(m => '<div class="qrl"><u>' + esc(org.customer || '') + '</u>' + qrSvg(qrLink(m.id)) + '<b>' + esc(m.id) + '</b><span>' + esc([m.name && m.name !== m.id ? m.name : '', m.type].filter((x, i, arr) => x && arr.findIndex(y => String(y).toLowerCase() === String(x).toLowerCase()) === i).join(' · ')) + '</span><i>Scan: diesel issue · Log Book entry</i></div>').join('') + '</div>';
-    printDoc('QR labels – ' + (m1 ? m1.id : list.length + ' machinery'), html, 'qr-labels', true, org.customer || '');
+    const list = all.filter(m => sel.has(m.id));
+    if (!list.length) { toast('Tick at least one machinery.', true); return; }
+    const org = S.org || {}, o = ($('qr_owner') || {}).value || '';
+    printDoc('QR labels – ' + (list.length === 1 ? list[0].id : (o && list.every(m => ownerOf(m) === o) ? o + ' – ' : '') + list.length + ' machinery'), qrLabelsHtml(list, org.customer || ''), 'qr-labels', true, org.customer || '');
   }
   $('m_qr').addEventListener('click', () => qrLabels().catch(e => toast(errMsg(e), true)));
   // a label was scanned: the link carries ?m=<machinery>. After sign-in: ask what to do for it; the link is then cleaned.

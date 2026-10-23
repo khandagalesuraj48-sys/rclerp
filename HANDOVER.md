@@ -1888,6 +1888,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   keeps the party; stampEdit_; Activity 'logDebits'); page report def `ldebit` (rate boxes `input.ldrate`, Put on all shown, Import
   party + rate, Excel layout with the entries shown, print without boxes + "Party acceptance"); REPORT_GUIDE.ldebit, 5 FIX_RULES.
   Under a Log Book verification rule the change is sent and saved when approved. ldebit149api 26, browser/ldebit149 14.
+- 24-10-2026 (update-150, with App 3.31.8). Report: `UPDATE_150.md`. QR LABELS BY OWNER / TICKED, 8 ON AN A4 PAGE ("qr mi owner wise
+  machine wise sigle or bulk … a4 page war … 6 to 8"; his answer 8, 2 × 4): `qrLabels` – the box with Owner (choosing one ticks all
+  its machinery), Find, the ticked list (`#qr_list [data-qr]`, Tick / Untick all shown), "n ticked – p pages", Make off when nothing
+  is ticked; `qrLabelsHtml` (pages of `QR_PER_PAGE` = 8, `.qrs` grid 2 columns × 62 mm rows, the code 50 mm left of the text),
+  `qrSub`. Page only. Browser qr150 12 (PDF pages counted), new3 changed to the ticks.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
