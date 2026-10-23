@@ -1831,8 +1831,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   saveLogRowsInner_ logSlotCol_ for Time rows that join. updateLogRow_ sp0 also for unit Time (From – To changed → refused; gap check
   only on Hrs); import guard also for unit Time. App.html: `timeSpansP` / `spansMeet` / `slotsSay`; lxPartsProblem (overlap instead of
   "all by Time"); Edit Log Book payload `allT` (mode Time, tSlots list, tBreak, rows sorted); entry page grouping and overlap note;
-  edit window locks le_ts / le_te / le_tb / "+ time"; FIX_RULES +1, help texts; i18n keys + mr / hi (also update-143's). Tests: unit
-  update-144 (+ update-78 changed to the new rule), browser/time144.js 15.
+  edit window locks le_ts / le_te / le_tb / "+ time"; FIX_RULES +1, help texts; i18n keys + mr / hi (also update-143's). Review:
+  `partsTol_` (rows all by Time: the rounding of each row, also in itemPartsOf_), the entry's slots = every slot of every row sorted
+  by `timeSpans_` (server, page, phone), texts in the order of the day (`gT` / `G` / `gg`), the rows' breaks = the entry's (timesOk).
+  Tests: unit update-144 (+ update-78 changed to the new rule), browser/time144.js 15.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

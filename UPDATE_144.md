@@ -40,18 +40,42 @@ one row of the shift by Hrs)". "ase error nko n yeyla".
     refused; a third work 18:30 – 20:00 → 9.5 h, break 90, bill 4 × 1,200 + 5.5 × 1,700; a Night 20:00 – 23:00 + 01:00 – 04:00 = 6 h in
     the order of the night; the next day starts at the last hour reading; the edit window refuses another From – To and keeps the same
     one; the Excel import refuses a change; rows by Hrs and by Time together unchanged (5 h);
+  * after the review: 09:00 – 11:20 + 13:00 – 15:20 = 4.67 h (each row 2.33) saved in one save and added – the same, and read back
+    as its rows; a saved entry with "+ time" 09:00 – 11:00, 14:00 – 16:00 takes Breaker 12:00 – 13:00 (5 h, times in order); the
+    entry's chainage 9+000 → 10+500 and work "BREAKING / LOADING" in the order of the day; rows whose breaks are not the entry's: refused;
   * the check of update-78 changed where it held the OLD rule ("a shift of rows all by Time is refused"): now ONE entry by Time of
     2 h; its July bill 9,000 → 11,000 (the 2 h of 03-07).
-* `test/browser/time144.js` **15 / 15** – the real pages: his screen in Edit Log Book (no red, saved as one entry by Time 8 h, opened
+* `test/browser/time144.js` **15 / 15** (final code) – the real pages: his screen in Edit Log Book (no red, saved as one entry by Time 8 h, opened
   again as its two rows in the order of the day; To 15:00 → both rows red with the reason, Save off); the entry page (two rows by
   Time of one Day, "work 2 of this day", diesel 0; the overlap red; saved as one entry); a third work added to the saved shift from
   the entry page (9.5 h) and a time inside the saved ones refused; the edit window (From, To, Break locked, no "+ time"); the print
   (three rows with their times, TOTAL HOURS 22, payable ₹31,150); no page error.
-* Browser tests of the rows of a shift, on the final code: time78 10 / 10, gap77 20 / 20, entry71 20 / 20, add143 18 / 18.
+* Browser tests of the rows of a shift, on the final code: time78 10 / 10, gap77 20 / 20, entry71 20 / 20, add143 18 / 18,
+  works69 34 / 34, splittime 18 / 18.
+* The phone app (App 3.31.2, its own pull request): its GitHub build passed – analyze, the tests (new: his screen in Edit Log Book,
+  the payload in the order of the day, the overlap red), the screens, the Android file.
 * The other Log Book tests of the page, before and after (see "Regression").
 
 ## Regression
-(filled after the run)
+All the Log Book tests of the page, on the test copy with the location shim, main and this update each from a clean copy (before the
+review fixes; the tests of the rows of a shift were run again on the final code, above): **the 30 tests of main give exactly the same
+result** – billlock 16, entry71 20, gap77 20, lbbasis 9, lbpage 13, lxlook 10, shift109 8, splittime 18, tanker97 16, tanker103 11,
+tanker105 7, tanker107 8, time76 10, time78 10, timefmt70 6, works69 34 pass on both; lg2 and tanker104 fail the same line on both;
+group72, half, idle, item2, lgrows, meter, meter2, nightrow, xls, xls2 stop before their first check on both; debit and tmbill print
+no PASS line on either. New: add143 18 / 18, time144 15 / 15.
+
+## After an independent review (fixed, each with a check)
+1. Times whose hours are rounded were refused: 09:00 – 11:20 + 13:00 – 15:20 – each row 2.33 h, the entry 4.67 h ("the rows make 4.66
+   but the entry has 4.67"). The rows are the entry's very times, so only the rounding of each row is allowed for (`partsTol_`) – also
+   where the rows are read back (Edit Log Book, the print, adding a work). The bill pays the entry's 4.67 h (the "rest" work takes
+   the rounding).
+2. A row with "+ time" (09:00 – 11:00, 14:00 – 16:00) and another row 12:00 – 13:00 were refused ("time 3 starts before time 2
+   ends"): the entry's times are now every time of every row in the order of the shift (server, Edit Log Book, phone).
+3. The entry's chainage and work followed the typing order: now the order of the day (server, Edit Log Book, phone).
+4. The rows' breaks must be the entry's break (else the minutes could differ): checked with the times.
+5. The wording "(Time or Time)" → "(Time or Hrs)".
+Left as it is (said plainly): in a Day or Full Day shift a time after midnight counts as early that day (Full Day 20:00 – 23:00 and
+02:00 – 05:00 → 02:00 – 05:00 first); the hours and the bill are right.
 
 ## Not verified
 * Not on Vercel, not against the live database.
