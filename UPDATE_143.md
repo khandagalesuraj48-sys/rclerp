@@ -37,12 +37,15 @@ water tanker excavater je rental astat te multiple thikani 1 day madhe kam karta
 * **The assistant** (web and phone) says "… is already saved – this work is added to that entry as work 2".
 * **Help:** two new rules in `FIX_RULES` (English / मराठी / हिंदी): the same work twice; a saved entry that cannot take another work.
 * **The phone app** (`rcl-mobile`, App 3.31.2, its own pull request): the same on its Log Book form.
+* **Only the new page and App 3.31.2 add to a saved entry.** Their rows carry the mark `add` (the prefill is asked with `{ add: 1 }`).
+  A row without it – an older phone app – is refused exactly as before ("… already saved"), so nothing is joined without the
+  person seeing "work 2" first.
 * **The answer of the save** keeps `count` as before (older phones), and adds `added` / `into`.
 * **No database step. No new setting. Edit Log Book, the bill, the diesel and the reports are not changed** – they already read the
   rows of a shift.
 
 ## Evidence (local test copy only)
-* `node --test test/unit.test.js` **99 / 99**.
+* `node --test test/unit.test.js` **100 / 100** (with update-142 from main); `test/net.test.js` 1 / 1.
   * New check "update-143" (in the server code itself, on the test harness):
     * two excavators on hours, one given its two works in two saves, the other in one save: **every stored figure the same**
       (readings, hours, the diesel issued, the standard diesel, the tank before and after, the rows);
@@ -56,13 +59,33 @@ water tanker excavater je rental astat te multiple thikani 1 day madhe kam karta
       (1,700 + 2 × 1,400) + (2,200 + 1,700) = **8,400**; a saved entry split between the two works refused with the reason.
   * The old check of update-71 changed where it held the OLD rule ("a shift that is already saved is not added to"): now that
     Breaker is added as the 4th row (02-06: 4 → 8, 4 hours) and the import of 04-06 starts at 8.
-* `test/browser/add143.js` **17 / 17** – the real Log Book entry page on the test copy (with `test/browser/geo-shim.js`): the
+* `test/browser/add143.js` **18 / 18** (final code) – the real Log Book entry page on the test copy (with `test/browser/geo-shim.js`): the
   excavator's second site, the duplicate, the Hydra's FARANA after HYDRA (the same work red), the tipper still refused, Edit Log
-  Book reading the rows, no page errors.
+  Book reading the rows, a row without the `add` mark (an older app) refused, no page errors.
 * The Log Book tests of the page, before and after (see "Regression").
 
 ## Regression
-(filled after the run)
+The Log Book tests of the page, on the test copy with the location shim, **main and this update, each from a clean copy**:
+* **passed, the same on both:** billlock 16, gap77 20, lbbasis 9, lbpage 13, lxlook 10, shift109 8, splittime 18, tanker97 16,
+  tanker103 11, tanker105 7, tanker107 8, time76 10, time78 10, timefmt70 6, works69 34.
+* **failing the same way on both (not caused by this update):** lg2 and tanker104 (one check each, the same line on main);
+  group72, half, idle, item2, lgrows, meter, meter2, nightrow, xls, xls2 stop before their first check on main too (older
+  tests of the test copy); debit and tmbill print no PASS lines on either.
+* **entry71:** main 20 / 0; this update 19 / 1 on the first run – its one check of the OLD rule ("a shift already saved is not
+  added to"). The check now follows the new rule (work 3 of that day, the note for a machinery with ONE work): **20 / 20** on
+  the final code.
+* **add143:** new, 18 / 18.
+
+## After an independent review (fixed, each with a check in update-143)
+1. A work added to a saved entry could reach above the NEXT entry's Start on a KM + Hrs machinery and cut that entry short →
+   refused for every machinery ("adding a work never changes another entry").
+2. The first entry of a machinery lost its opening diesel when written again → kept (`base.openingDiesel`).
+3. Plain rows lost the hours typed for their items → kept on the first row.
+4. The saved standard average was replaced by today's → the saved one stays.
+5. An older phone app would have joined silently → only rows marked `add` are joined.
+6. A saved Time-only day of a machinery on hours could not take a row by Hrs → it can (prefill kind 'hr').
+7. The same work was missed when the way was in lower case or the times overlapped → found.
+8. The Activity Log showed only the new figures → it keeps the saved entry as it was ("was 100→103 hr, 1 row, HYDRA").
 
 ## Not verified
 * Not on Vercel, not against the live database.
