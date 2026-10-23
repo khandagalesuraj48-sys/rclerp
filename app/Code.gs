@@ -3687,6 +3687,22 @@ function partTime_(p, who) {
   return { ts: ts.text, tb: tb, q: q };
 }
 const partExtra_ = p => partIsTime_(p) ? Object.assign({ m: 'T', ts: str_(p.ts) }, num0_(p.tb) > 0 ? { tb: num0_(p.tb) } : {}) : Number(p && p.g) > 0 ? { g: r2_(Number(p.g)) } : {};
+/* update-144: the From – To times of a row by Time ("09:00-11:00[,…]") as minutes [from, to] in the order of its shift: a Night runs
+ * past midnight, so its times before noon come after those of the evening; a row's own times follow each other. */
+function timeSpans_(ts, shift) {
+  let cur = null; const out = [];
+  slotsParse_(ts).forEach(x => { const a = hhmm_(x[0]), b = hhmm_(x[1]); if (a === null || b === null) return;
+    let d = b - a; if (d <= 0) d += 1440;
+    let at = cur === null ? (shift === 'Night' && a < 720 ? a + 1440 : a) : a; if (cur !== null) while (at < cur) at += 1440;
+    cur = at + d; out.push([at, at + d]); });
+  return out.length ? out : [[0, 0]];
+}
+/* update-144 (review 23-10-2026): rows ALL by Time – each row's hours are rounded on their own (2 h 20 = 2.33), the entry's are worked
+ * out from all its minutes (4 h 40 = 4.67): their sum may differ from the entry's hours by the rounding of each row and of the total.
+ * The rows are the entry's very times (timesOk), so the minutes agree exactly; only the rounding is allowed for. */
+const partsTol_ = ps => Array.isArray(ps) && ps.length > 1 && ps.every(p => partIsTime_(p)) ? 0.005 * (ps.length + 1) + 1e-9 : 0.005;
+// update-144: the times of an entry by Time, each "HH:MM-HH:MM", sorted (to compare the rows of a shift with the entry's own times)
+const slotsSorted_ = v => { let ts = null; try { ts = timeSlots_(v, ''); } catch (e) { ts = null; } return ts ? ts.text.split(',').sort() : []; };
 function itemPartsOf_(items, work, tot) {
   const ps = work && Array.isArray(work._parts) ? work._parts : null;
   if (!ps || ps.length < 2) return null;
@@ -3694,7 +3710,7 @@ function itemPartsOf_(items, work, tot) {
   if (ps.every(p => p && str_(p.n) === '')) {
     const out = ps.map(p => Object.assign({ n: '', q: r2_(Number(p.q)), k: 'hr', c: str_(p.c), p: str_(p.p), f: str_(p.f), t: str_(p.t), w: str_(p.w) }, partExtra_(p)));
     if (out.some(x => !(x.q > 0))) return null;
-    if (tot && Math.abs(r2_(out.reduce((a, x) => a + x.q, 0)) - Math.max(0, Number(tot.hr) || 0)) > 0.005) return null;
+    if (tot && Math.abs(r2_(out.reduce((a, x) => a + x.q, 0)) - Math.max(0, Number(tot.hr) || 0)) > partsTol_(ps)) return null;
     return out;
   }
   if (!items || !items.length) return null;
@@ -3707,7 +3723,7 @@ function itemPartsOf_(items, work, tot) {
     out.push(Object.assign({ n: it.name, q: r2_(q), k: kind, c: str_(p.c), p: str_(p.p), f: str_(p.f), t: str_(p.t), w: str_(p.w) }, partExtra_(p)));
   }
   const sum = r2_(out.reduce((a, x) => a + x.q, 0));
-  if (tot && Math.abs(sum - Math.max(0, Number(tot[k]) || 0)) > 0.005) return null;      // the entry's total is no longer the sum of its works
+  if (tot && Math.abs(sum - Math.max(0, Number(tot[k]) || 0)) > partsTol_(ps)) return null;      // the entry's total is no longer the sum of its works (update-144: rows all by Time – their rounding)
   // the typed quantities kept for the bill must be the same figures
   if (items.filter(it => itemKind_(it.basis) === k && it.qty !== 'rest').some(it => Math.abs((by[it.name] || 0) - Math.max(0, Number(work[it.name]) || 0)) > 0.005)) return null;
   return out;
@@ -3725,14 +3741,24 @@ const itemPartsStrip_ = json => { const o = itemWorkParse_(json); if (!('_parts'
 function logItemWork_(m, dk, mode, l, tot, prev) {
   const items = boqItemsOn_(m, dk);
   const hOnly = hrsOnly_(m) && hasHr_(mode), hrItems = items.filter(it => itemKind_(it.basis) === 'hr');
+  const tOnly = hrsOnly_(m) && mode === 'Time';      // update-144: a shift of such a machinery whose rows are ALL by Time (the entry is by Time)
+  /* update-144: such an entry's From – To are its rows' times – the same times, nothing more, nothing less (none can be at the same
+   * time as another: the entry's times are checked as one list, timeSlots_) */
+  const sameWay = (who, i) => new Error(who + 'row ' + (i + 1) + ' of ' + dmy_(dk) + ' – the rows of one shift must be measured the same way (Time).');
+  const timesOk = (ps, who) => { if (!tOnly) return;
+    const want = slotsSorted_(l && Array.isArray(l.tSlots) && l.tSlots.length ? l.tSlots : l && str_(l.tSlots) && !Array.isArray(l.tSlots) ? l.tSlots : [[l && l.tStart, l && l.tEnd]]);
+    const have = [].concat(...ps.map(p => slotsSorted_(p.ts))).sort();
+    const bRows = r2_(ps.reduce((a, p) => a + num0_(p.tb), 0)), bEnt = r2_(num0_(l && l.tBreak));
+    if (!want.length || want.join(',') !== have.join(',') || Math.abs(bRows - bEnt) > 0.005) throw new Error(who + 'the rows of this shift by Time (' + have.join(', ') + (bRows ? ', break ' + bRows + ' min' : '') + ') are not the From – To of the entry (' + (want.join(', ') || 'none') + (bEnt ? ', break ' + bEnt + ' min' : '') + ') – the times of the entry are the times of its rows. Reload the page and save the rows again.'); };
   // update-77: the rows of one shift of an hours machinery WITHOUT separate hour works (plain rows: its times of work, with gaps)
   let plain = null;
-  if (hOnly && hrItems.length < 2 && l && l.items && Array.isArray(l.items._parts) && l.items._parts.length > 1) {
+  if ((hOnly || tOnly) && hrItems.length < 2 && l && l.items && Array.isArray(l.items._parts) && l.items._parts.length > 1) {
     const ps = l.items._parts, when0 = m.id + ' (' + dmy_(dk) + '): ';
     if (!tot) throw new Error(when0 + 'separate rows of one shift are saved from Edit Log Book or the Log Book page, on a working entry.');
     if (ps.length > 12) throw new Error(when0 + 'at most 12 rows in one shift.');
     let seenHr = false;
     plain = ps.map((p0, i) => { const p = p0 || {};
+      if (tOnly && !partIsTime_(p)) throw sameWay(when0, i);
       if (partIsTime_(p)) { const t = partTime_(p, when0 + 'row ' + (i + 1) + ' of ' + dmy_(dk) + ' (Time): '); const o = { n: '', q: t.q, m: 'T', ts: t.ts }; if (t.tb) o.tb = t.tb;      // update-78: a row by Time
         [['c', p.c], ['p', p.p], ['f', p.f], ['t', p.t], ['w', p.w]].forEach(x => { const v = clean_(x[1]).slice(0, 300); if (v) o[x[0]] = v; }); return o; }
       const q = Number(p.q), g = blank_(p.g) ? 0 : Number(p.g);
@@ -3741,9 +3767,10 @@ function logItemWork_(m, dk, mode, l, tot, prev) {
       seenHr = true;
       const o = { n: '', q: r2_(q) }; if (g > 0) o.g = r2_(g);
       [['c', p.c], ['p', p.p], ['f', p.f], ['t', p.t], ['w', p.w]].forEach(x => { const v = clean_(x[1]).slice(0, 300); if (v) o[x[0]] = v; }); return o; });
-    if (!seenHr) throw new Error(when0 + 'the rows of this shift are all by Time – keep one row and give it its times with "+ time" (or one row of the shift by Hrs).');
+    if (!seenHr && !tOnly) throw new Error(when0 + 'the rows of this shift are all by Time – keep one row and give it its times with "+ time" (or one row of the shift by Hrs).');
+    timesOk(plain, when0);
     const sum = r2_(plain.reduce((a, x) => a + x.q, 0)), total = Math.max(0, num0_(tot.hr));
-    if (Math.abs(sum - total) > 0.005) throw new Error(when0 + 'the rows of this shift make ' + fmtVal_(sum) + ' hours but the entry has ' + fmtVal_(r2_(total)) + ' hours.');
+    if (Math.abs(sum - total) > partsTol_(plain)) throw new Error(when0 + 'the rows of this shift make ' + fmtVal_(sum) + ' hours but the entry has ' + fmtVal_(r2_(total)) + ' hours.');
     if (!items.length) return JSON.stringify({ _parts: plain });
     l = Object.assign({}, l, { items: Object.assign({}, l.items) }); delete l.items._parts;      // (the items of the entry are worked out from its total, as for one row)
   }
@@ -3762,7 +3789,8 @@ function logItemWork_(m, dk, mode, l, tot, prev) {
     let kind = '', seenHr = false; const by = {};
     parts = inp._parts.map((p0, i) => {
       const p = p0 || {}, it = find(p.n), row = 'row ' + (i + 1) + ' of ' + dmy_(dk), isT = partIsTime_(p);
-      if (isT && !hOnly) throw new Error(when + row + ' is by Time – rows of one shift by Time are for a machinery on hours only.');
+      if (isT && !hOnly && !tOnly) throw new Error(when + row + ' is by Time – rows of one shift by Time are for a machinery on hours only.');
+      if (tOnly && !isT) throw sameWay(when, i);
       const tq = isT ? partTime_(p, when + row + ' (Time): ') : null;
       if (!it) throw new Error(when + row + ' – "' + clean_(p.n) + '" is not an item of its BOQ (items: ' + items.map(x => x.name).join(', ') + '). Pick the work of that row.');
       const k = itemKind_(it.basis), q = tq ? tq.q : Number(p.q);
@@ -3772,16 +3800,17 @@ function logItemWork_(m, dk, mode, l, tot, prev) {
       if (!isFinite(q) || !(r2_(q) > 0)) throw new Error(when + row + ' (' + it.name + ') has no work: its Close must be more than its Start. Type its Close, or delete that row.');
       const g = tq || blank_(p.g) ? 0 : Number(p.g);
       if (!isFinite(g) || g < 0 || (g > 0 && (!hOnly || !seenHr))) throw new Error(when + row + ' starts away from the Close of the row before it – ' + (hOnly ? 'it must start at that Close or above it.' : 'every row must start where the row before it closed.'));
-      if (!hOnly && i && inp._parts[i - 1] && find((inp._parts[i - 1] || {}).n) === it) throw new Error(when + 'two rows one after the other are both ' + it.name + ' – make them one row (or pick the other work).');
+      if (!hOnly && !tOnly && i && inp._parts[i - 1] && find((inp._parts[i - 1] || {}).n) === it) throw new Error(when + 'two rows one after the other are both ' + it.name + ' – make them one row (or pick the other work).');
       kind = k; by[it.name] = r2_((by[it.name] || 0) + q);
       if (!tq) seenHr = true;
       const o = { n: it.name, q: r2_(q) }; if (g > 0) o.g = r2_(g); if (tq) { o.m = 'T'; o.ts = tq.ts; if (tq.tb) o.tb = tq.tb; }
       [['c', p.c], ['p', p.p], ['f', p.f], ['t', p.t], ['w', p.w]].forEach(x => { const v = clean_(x[1]).slice(0, 300); if (v) o[x[0]] = v; });
       return o;
     });
-    if (!seenHr) throw new Error(when + 'the rows of this shift are all by Time – keep one row and give it its times with "+ time" (or one row of the shift by Hrs).');
+    if (!seenHr && !tOnly) throw new Error(when + 'the rows of this shift are all by Time – keep one row and give it its times with "+ time" (or one row of the shift by Hrs).');
+    timesOk(parts, when);
     const sum = r2_(parts.reduce((a, x) => a + x.q, 0)), total = Math.max(0, num0_(tot[kind])), w = ITEM_KIND_WORD_[kind];
-    if (Math.abs(sum - total) > 0.005) throw new Error(when + 'the rows of this shift make ' + fmtVal_(sum) + ' ' + w + ' but the entry has ' + fmtVal_(r2_(total)) + ' ' + w + ' – every row must start where the row before it closed.');
+    if (Math.abs(sum - total) > partsTol_(parts)) throw new Error(when + 'the rows of this shift make ' + fmtVal_(sum) + ' ' + w + ' but the entry has ' + fmtVal_(r2_(total)) + ' ' + w + ' – every row must start where the row before it closed.');
     // the quantities of the items of this kind come from the rows alone – whatever was sent for them (in any spelling) is not used
     Object.keys(inp).forEach(n => { if (n.charAt(0) === '_') return; const it = find(n); if (it && itemKind_(it.basis) === kind) delete inp[n]; });
     items.filter(it => itemKind_(it.basis) === kind && it.qty !== 'rest').forEach(it => { if (by[it.name]) inp[it.name] = by[it.name]; });
@@ -7359,7 +7388,7 @@ function getLogRowPrefill_(no, dateStr, shiftIn, opt) {
     else if (!kind) slotSay = m.id + ' already saved for ' + dmy_(dk) + ' (' + shift + '). Another work of the same shift is added to a saved entry only for a machinery on hours, or one whose BOQ has two or more works of this kind – change the saved entry in Edit Log Book.';
     else {
       const r0 = lt.rows[si], c = lt.c, its = H.ITEMS in c ? itemWorkParse_(r0[c[H.ITEMS]]) : {}, items = boqItemsOn_(m, dk);
-      const ps = Array.isArray(its._parts) && its._parts.length > 1 ? its._parts.filter(p => !partIsTime_(p)) : null;
+      const ps0 = Array.isArray(its._parts) && its._parts.length > 1 ? its._parts : null, ps = ps0 && ps0.some(p => !partIsTime_(p)) ? ps0.filter(p => !partIsTime_(p)) : ps0;      // (update-144: rows all by Time – the last of them)
       const last = ps ? str_((ps[ps.length - 1] || {}).n) : ((itemQtyOf_(items, { mode: str_(r0[c[H.UNIT]]), whr: numOrBlank_(r0[c[H.WHR]]), wkm: numOrBlank_(r0[c[H.WKM]]), trip: numOrBlank_(r0[c[H.TRIP]]), work: its }).list.find(x => x.k === kind && x.q > 0) || {}).n || '');
       addTo = { rows: sv.rows.length, kind: kind, mode: str_(r0[c[H.UNIT]]), closeKm: numOrBlank_(r0[c[H.CKM]]), closeHr: numOrBlank_(r0[c[H.CHR]]), stock: num0_(r0[c[H.STOCK]]), lastWork: last, sameOk: hrsOnly_(m) && kind === 'hr' };      // (sameOk: on hours the same work may come again – update-77)
       slot = ''; slotSay = '';
@@ -7414,7 +7443,7 @@ function importLogBook_(b) {
         if (hasItemsIn_(l)) { const have = H.ITEMS in c ? str_(r[c[H.ITEMS]]) : '', want = logItemWork_(m, dk, str_(r[c[H.UNIT]]), l, l.items && !blank_(l.items._all) ? totOf() : null, { json: have, tot: totOf() });
           if (JSON.stringify(itemWorkParse_(want)) !== JSON.stringify(itemWorkParse_(have))) diffs.push({ f: 'Item work', from: have, to: want, h: H.ITEMS, v: want }); }
         // update-77: an entry with rows in its shift and hours NOT worked between them is changed row by row (Edit Log Book), not by a file
-        if (hr && H.ITEMS in c && specialOfJson_(r[c[H.ITEMS]]) && diffs.some(d => d.h !== H.DRIVER))
+        if ((hr || str_(r[c[H.UNIT]]) === 'Time') && H.ITEMS in c && specialOfJson_(r[c[H.ITEMS]]) && diffs.some(d => d.h !== H.DRIVER))      // (update-144: also an entry whose rows are all by Time)
           throw new Error(m.id + ' (' + dmy_(dk) + ', ' + sh + ') has rows in its shift that are kept row by row (hours not worked between them, or a row by Time) – change it in Edit Log Book (each row there), not by Excel.');
         if (!diffs.length) same.push({ line: line, no: m.id, date: dk, shift: sh });
         else { billLock_(m.id, dk, 'Log Book entry'); changed.push({ line: line, no: m.id, date: dk, shift: sh, i: i, diffs: diffs }); }
@@ -7509,8 +7538,8 @@ function logRowsKind_(g) {
   const m = g[0].m; let items = [], mode = '';
   try { items = boqItemsOn_(m, g[0].dk); mode = logModeFor_(m, g[0].x.l.mode); } catch (e) { return ''; }
   if (hrsOnly_(m) && hasHr_(mode)) return 'hr';      // update-77: any hours machinery may have several rows in one shift
-  // update-78: … also when its first row is by Time and another row of the shift is by Hrs
-  if (hrsOnly_(m) && mode === 'Time') { let any = false; try { any = g.some(p => hasHr_(logModeFor_(m, p.x.l.mode))); } catch (e) { any = false; } if (any) return 'hr'; }
+  // update-78: … also when its first row is by Time and another row of the shift is by Hrs – update-144: or when every row is by Time
+  if (hrsOnly_(m) && mode === 'Time') return 'hr';
   return ['hr', 'km'].find(k => (k === 'hr' ? hasHr_(mode) : hasKm_(mode)) && items.filter(it => itemKind_(it.basis) === k).length > 1) || '';
 }
 function logRowsJoin_(g, kind) {
@@ -7527,7 +7556,7 @@ function logRowsJoin_(g, kind) {
   const parts = [], other = {}; let day = '', trips = 0, anyTrip = false, lastClose = null, typed0 = null, fh = -1, lh = -1;
   g.forEach((p, i) => {
     const l = p.x.l, isT = hOnly && modeOf(p) === 'Time';      // update-78: a row by Time (From – To) among the rows by Hrs
-    if (!isT && modeOf(p) !== mode) fail(i, 'the rows of one shift must be measured the same way (' + mode + (hOnly ? ' or Time' : '') + ').');
+    if (!isT && modeOf(p) !== mode) fail(i, 'the rows of one shift must be measured the same way (' + mode + (hOnly ? (mode === 'Time' ? ' or Hrs' : ' or Time') : '') + ').');
     let tx = null;
     if (isT) { const ex = logExtra_(m, 'Time', l, dmy_(dk) + ' row ' + (i + 1)); tx = { ts: ex.tSlots || (ex.tStart + '-' + ex.tEnd), tb: blank_(l.tBreak) ? 0 : Math.max(0, num0_(l.tBreak)), q: ex.tHrs }; }
     else if (blank_(l[F[1]]) || !isFinite(Number(l[F[1]]))) fail(i, row(i) + ' has no Close ' + F[2] + ' – every row of one shift needs its Close.');
@@ -7566,12 +7595,34 @@ function logRowsJoin_(g, kind) {
     if (!day && !blank_(its._day)) day = its._day;
     if (!blank_(l.trip)) { anyTrip = true; trips += num0_(l.trip); }
   });
-  const joinTxt = f => { const seen = []; g.forEach(p => { const v = clean_(p.x.l[f]); if (v && seen.indexOf(v) === -1) seen.push(v); }); return seen.join(' / '); };
-  if (fh === -1) fail(0, 'the rows of this shift are all by Time – keep one row and give it its times with "+ time" (or one row of the shift by Hrs).');
-  const first = g[0].x.l, last = g[lh].x.l, O = kind === 'hr' ? 'closingKm' : 'closingHr';
+  const joinTxt = f => { const seen = []; gT.forEach(p => { const v = clean_(p.x.l[f]); if (v && seen.indexOf(v) === -1) seen.push(v); }); return seen.join(' / '); };
+  /* update-144 (asked 23-10-2026, his screen of a JCB: Bucket 14:00 – 18:00 and Breaker 09:00 – 13:00, the same Day, both by Time –
+   * "ase error nko n yeyla"): EVERY row of the shift by Time (From – To) – the entry is ONE entry by Time whose times are the rows'
+   * times in the order of the shift (a Night's times after midnight come last), its break the breaks typed on the rows; each row
+   * keeps its own work and times. Two rows at the same time: refused (a machinery does one work at a time). */
+  const allT = fh === -1;      // (only a machinery on hours has rows by Time – logRowsKind_: so here every row is by Time)
+  let ordered = parts, tsAll = null, gT = g;
+  if (allT) {
+    const sp = parts.map((x, i) => ({ i: i, s: timeSpans_(x.ts, sh) })).sort((a, b) => a.s[0][0] - b.s[0][0] || a.i - b.i), say = i => row(i) + ' (' + str_(parts[i].ts).replace(/-/g, ' – ').replace(/,/g, ', ') + ')';
+    for (let a = 0; a < sp.length; a++) for (let b = a + 1; b < sp.length; b++)
+      if (sp[a].s.some(u => sp[b].s.some(v => u[0] < v[1] && v[0] < u[1]))) { const hi = Math.max(sp[a].i, sp[b].i), lo = Math.min(sp[a].i, sp[b].i); fail(hi, say(hi) + ' is at the same time as ' + say(lo) + ' – a machinery does one work at a time: correct the From – To of one of them.'); }
+    ordered = sp.map(o => parts[o.i]);
+    // the entry's times: EVERY time of every row in the order of the shift (a row with "+ time" may hold times around another row's) – review 23-10-2026
+    const each = [].concat(...sp.map(o => slotsParse_(parts[o.i].ts).map((x, j) => ({ at: (o.s[j] || o.s[0])[0], t: x[0] + '-' + x[1] })))).sort((a, b) => a.at - b.at);
+    tsAll = timeSlots_(each.map(x => x.t).join(','), when);      // (all of them within 24 hours)
+    gT = sp.map(o => g[o.i]);      // (the entry's texts – work, chainage – in the order of the day too)
+  }
+  const first = g[0].x.l, last = allT ? null : g[lh].x.l, O = kind === 'hr' ? 'closingKm' : 'closingHr';
   const l = Object.assign({}, first, { work: joinTxt('work'), challan: joinTxt('challan'), remark: joinTxt('remark'),
-    chFrom: (g.map(p => p.x.l).find(x => clean_(x.chFrom)) || {}).chFrom || '', chTo: (g.map(p => p.x.l).reverse().find(x => clean_(x.chTo)) || {}).chTo || '',
-    items: Object.assign(day ? { _day: day } : {}, other, { _parts: parts }) });
+    chFrom: (gT.map(p => p.x.l).find(x => clean_(x.chFrom)) || {}).chFrom || '', chTo: (gT.map(p => p.x.l).reverse().find(x => clean_(x.chTo)) || {}).chTo || '',
+    items: Object.assign(day ? { _day: day } : {}, other, { _parts: ordered }) });
+  if (allT) {
+    const tb = r2_(ordered.reduce((a, x) => a + num0_(x.tb), 0));
+    ['openingHr', 'closingHr', 'openingKm', 'closingKm', 'meter', 'meterNote', 'tSlots'].forEach(k => { delete l[k]; });
+    Object.assign(l, { mode: 'Time', tSlots: tsAll.text, tStart: tsAll.start, tEnd: tsAll.end, tBreak: tb > 0 ? tb : '' });
+    if (anyTrip) l.trip = trips;
+    return { x: { l: l, i: g[0].x.i }, m: m, dk: dk, shift: sh, join: { kind: kind, allT: true, firstClose: null, firstIdx: -1, typed0: null, rows: g.length, names: names } };
+  }
   l[F[1]] = last[F[1]];
   if (!blank_(last[O])) l[O] = last[O];      // (a machinery read in KM + Hrs: its other meter closes on the last row)
   if (anyTrip) l.trip = trips;
@@ -7679,7 +7730,7 @@ function saveLogRowsInner_(b) {
     if ((b.rows || []).some(hasItemsIn_) || dupSlot) logItemCol_();
     if ((b.rows || []).some(hasDebitIn_)) logDebitCol_();
     if ((b.rows || []).some(hasMeterIn_)) logMeterCol_();
-    if ((b.rows || []).some(hasSlotsIn_)) logSlotCol_();
+    if ((b.rows || []).some(l => hasSlotsIn_(l) || (/^time$/i.test(str_(l && l.mode)) && (dupSlot || (l && l.add))))) logSlotCol_();      // (update-144: rows by Time of one shift become one entry with several From – To)
     const lt = table_(APP.SHEET_LOG, logHeaders_());
     const errors = [], out = [];
     const items = (b.rows || []).map((l, i) => ({ l: l, i: i })).filter(x => str_(x.l.no));
@@ -7763,7 +7814,7 @@ function saveLogRowsInner_(b) {
         const mS = p.replace === undefined ? m : (r0 => { const ks = numOrBlank_(r0[lt.c[H.KMSTD]]), hs = numOrBlank_(r0[lt.c[H.HRSTD]]); return Object.assign({}, m, ks !== '' ? { kmStd: ks } : {}, hs !== '' ? { hrStd: hs } : {}); })(lt.rows[p.replace]);
         const cal = logCalc_(mS, ds.qty, okm, ckm, ohr, chr, mode, ex.tHrs, est, l.items && hasHr_(mode) ? partsGap_(l.items._parts) : 0);
         const closing = r2_(odsl + ds.qty - cal.tot);
-        if (p.join) {      // (the first row of the shift: its work is from the entry's Start to its own Close)
+        if (p.join && !p.join.allT) {      // (the first row of the shift: its work is from the entry's Start to its own Close – update-144: not for rows all by Time, each has its own From – To)
           const q0 = r2_(p.join.firstClose - num0_(p.join.kind === 'hr' ? ohr : okm));
           if (p.join.typed0 !== null && Math.abs(p.join.typed0 - q0) > 0.005) throw new Error(m.id + ' (' + dmy_(dk) + ', ' + shift + '): row ' + ((p.join.firstIdx || 0) + 1) + ' of ' + dmy_(dk) + ' – each row of one shift is ONE work: press ' + p.join.names + ' (not Split).');
           l.items._parts[p.join.firstIdx || 0].q = q0;
@@ -8287,7 +8338,7 @@ function updateLogRow_(key, l) {
     const dk = dkey_(r[c[H.DATE]]);
     const me = r.slice(), next = nextI > -1 ? lt.rows[nextI].slice() : null;
     let nextChanged = false;
-    const keepNext = hrsOnly_(mm), gap0 = H.ITEMS in c && hasHr_(unit) ? gapOfJson_(r[c[H.ITEMS]]) : 0, sp0 = H.ITEMS in c && hasHr_(unit) && specialOfJson_(r[c[H.ITEMS]]);      // update-77 / 78
+    const keepNext = hrsOnly_(mm), gap0 = H.ITEMS in c && hasHr_(unit) ? gapOfJson_(r[c[H.ITEMS]]) : 0, sp0 = H.ITEMS in c && (hasHr_(unit) || unit === 'Time') && specialOfJson_(r[c[H.ITEMS]]);      // update-77 / 78 (update-144: an entry by Time whose rows are all by Time)
     const kinds = [];
     if (hasKm_(unit)) kinds.push({ o: H.OKM, cl: H.CKM, open: l.openingKm, close: l.closingKm, name: 'KM' });
     if (hasHr_(unit)) kinds.push({ o: H.OHR, cl: H.CHR, open: l.openingHr, close: l.closingHr, name: 'Hrs' });
@@ -8337,6 +8388,10 @@ function updateLogRow_(key, l) {
     }
     if (unit === 'Time' || unit === 'Trip') {
       const ex = logExtra_(mm, unit, { tStart: l.tStart, tEnd: l.tEnd, tBreak: l.tBreak, tSlots: l.tSlots, trip: l.trip, challan: l.challan }, dmy_(dkey_(r[c[H.DATE]])));
+      // update-144: an entry whose rows are all by Time – its From – To are its rows' times: changed row by row in Edit Log Book
+      if (unit === 'Time' && sp0) { const was = H.TSLOTS in c && str_(r[c[H.TSLOTS]]) ? str_(r[c[H.TSLOTS]]) : [[tStr_(r[c[H.TSTART]]), tStr_(r[c[H.TEND]])]];
+        if (slotsSorted_(ex.tSlots || [[ex.tStart, ex.tEnd]]).join(',') !== slotsSorted_(was).join(',') || Math.abs(num0_(ex.tHrs) - num0_(H.THRS in c ? r[c[H.THRS]] : ex.tHrs)) > 0.005)
+          throw new Error(no + ' (' + dmy_(dk) + ') has rows in this shift that are kept row by row (hours not worked between them, or a row by Time) – change its From – To in Edit Log Book (each row there). Nothing was saved.'); }
       if (unit === 'Time') { const split = slotsCell_(ex, unit, H.TSLOTS in c ? str_(r[c[H.TSLOTS]]) : '', c, r); if (H.TSLOTS in c) me[c[H.TSLOTS]] = split;
         ['TSTART', 'TEND', 'TBRK', 'THRS'].forEach((h, n) => { if (H[h] in c) me[c[H[h]]] = [ex.tStart, ex.tEnd, ex.tBrk, ex.tHrs][n]; }); }
       if (unit === 'Trip' && H.TRIP in c) me[c[H.TRIP]] = ex.trip;
@@ -8354,7 +8409,7 @@ function updateLogRow_(key, l) {
       // (the works of the shift kept as rows stay only when this edit changed neither the readings, the items nor the texts they hold)
       if (sp0 && !partsTxtSame_(lt, lt.rows[i], l)) throw new Error(no + ' (' + dmy_(dk) + ') has rows in this shift that are kept row by row (hours not worked between them, or a row by Time) – change its work / challan / remark in Edit Log Book (each row there). Nothing was saved.');
       me[c[H.ITEMS]] = logItemWork_(mm, dk, unit, l, tot, partsTxtSame_(lt, lt.rows[i], l) ? { json: str_(lt.rows[i][c[H.ITEMS]]) } : null);
-      if (sp0 && (!specialOfJson_(me[c[H.ITEMS]]) || Math.abs(gapOfJson_(me[c[H.ITEMS]]) - gap0) > 0.005)) throw new Error(no + ' (' + dmy_(dk) + ') has rows in this shift that are kept row by row (hours not worked between them, or a row by Time) – change its works in Edit Log Book (each row there). Nothing was saved.');
+      if (sp0 && (!specialOfJson_(me[c[H.ITEMS]]) || (hasHr_(unit) && Math.abs(gapOfJson_(me[c[H.ITEMS]]) - gap0) > 0.005))) throw new Error(no + ' (' + dmy_(dk) + ') has rows in this shift that are kept row by row (hours not worked between them, or a row by Time) – change its works in Edit Log Book (each row there). Nothing was saved.');
     }
     else if (H.ITEMS in c && /"_parts"/.test(str_(me[c[H.ITEMS]])) && !partsTxtSame_(lt, lt.rows[i], l)) {
       if (sp0) throw new Error(no + ' (' + dmy_(dk) + ') has rows in this shift that are kept row by row (hours not worked between them, or a row by Time) – change its work / challan / remark in Edit Log Book (each row there). Nothing was saved.');
