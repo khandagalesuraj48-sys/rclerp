@@ -1822,6 +1822,17 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   overlapping From – To = the same work; the Activity Log `logrows` keeps the saved entry as it was (`was`). A saved Time-only day
   of an hrsOnly machinery takes a row by Hrs (prefill kind 'hr').
   Tests: unit update-143 (+ update-71 changed to the new rule), browser/add143.js 18, entry71.js 20 (the old-rule check changed).
+- 23-10-2026 (update-144, with App 3.31.2). Report: `UPDATE_144.md`. THE ROWS OF A SHIFT MAY ALL BE BY TIME (a machinery on hours –
+  his JCB: Bucket 14:00 – 18:00 + Breaker 09:00 – 13:00): logRowsKind_ ('hr' for any shift of such a machinery by Time), logRowsJoin_
+  `allT` (fh = −1) → ONE entry by Time: tSlots = the rows' times in the order of the shift (`timeSpans_`, a Night's after-midnight
+  times last), tBreak = Σ row tb, `_parts` in that order, join.allT (no first-row reading fix in saveLogRowsInner_); two rows at the
+  same time → "… is at the same time as … – a machinery does one work at a time". logItemWork_ `tOnly` (hrsOnly_ + mode Time): Time
+  rows only (else "measured the same way (Time)"), `timesOk` = the parts' slots = the entry's slots (`slotsSorted_`), no seenHr.
+  saveLogRowsInner_ logSlotCol_ for Time rows that join. updateLogRow_ sp0 also for unit Time (From – To changed → refused; gap check
+  only on Hrs); import guard also for unit Time. App.html: `timeSpansP` / `spansMeet` / `slotsSay`; lxPartsProblem (overlap instead of
+  "all by Time"); Edit Log Book payload `allT` (mode Time, tSlots list, tBreak, rows sorted); entry page grouping and overlap note;
+  edit window locks le_ts / le_te / le_tb / "+ time"; FIX_RULES +1, help texts; i18n keys + mr / hi (also update-143's). Tests: unit
+  update-144 (+ update-78 changed to the new rule), browser/time144.js 15.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
