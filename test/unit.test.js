@@ -4480,3 +4480,34 @@ test('update-140: step 2b (web_boot2 – the settings and the users list only wh
   assert.match(gas, /if \(ON_TABLE && rows\.length < WARM_MAX\) ON_TABLE\(site\(\), t, WARM\.tables\.get\(t\)\);/, 'a very big table is not passed between threads');
   assert.match(rt, /return \['S_' \+ String\(args\[0\] \|\| ''\), 'USERS_LIST', 'RTCN', 'FLOW_REMIND'\];/, 'the reminder mark comes with the start of the request');
 });
+
+test('update-142: a database helper unused for a while keeps running – only its connections are renewed (a new helper only when that cannot be done)', async () => {
+  const root = path.join(__dirname, '..'), src = fs.readFileSync(path.join(root, 'server', 'syncfetch.js'), 'utf8');
+  assert.match(src, /if \(worker && Date\.now\(\) - lastUsed > IDLE_MS && !renew\(worker\)\) \{ const old = worker; worker = null; try \{ old\.terminate\(\); \} catch \(e\) \{\} \}/, 'renewed first; replaced only when that fails');
+  assert.match(src, /const POOL_KEY = Symbol\.for\('undici\.globalDispatcher\.1'\);/);
+  assert.match(src, /if \(m && m\.renew\) \{ let ok = false; try \{ ok = renewPool\(used\); \} catch \(e\) \{ ok = false; \} m\.port\.postMessage\(ok === true\);/);
+  // (review 22-10-2026) the renewal itself, on every layout: only Node 20 / 22's (one pool, under '.1') is renewed; anything else → false
+  const block = /\/\/ <renewPool>([\s\S]*?)\/\/ <\/renewPool>/.exec(src)[1], vm = require('vm');
+  const tryIt = body => JSON.parse(vm.runInNewContext(block + '\nglobalThis.destroyed = 0; class Pool { dispatch() {} destroy() { globalThis.destroyed++; return Promise.resolve(); } }\nJSON.stringify((() => { ' + body + ' })());'));      // (plain values: the answer comes from another realm)
+  const K1 = "Symbol.for('undici.globalDispatcher.1')", K2 = "Symbol.for('undici.globalDispatcher.2')", put = (k, w) => 'Object.defineProperty(globalThis, ' + k + ', { value: ' + w + ', writable: true });';
+  assert.strictEqual(tryIt('return renewPool(false);'), true, 'no request yet: nothing to renew');
+  assert.strictEqual(tryIt('return renewPool(true);'), false, 'used, but no pool under the known name (another Node): replaced as before');
+  assert.deepStrictEqual(tryIt('const o = new Pool(); ' + put(K1, 'o') + ' const r = renewPool(true); return [r, globalThis[' + K1 + '] !== o, globalThis.destroyed];'), [true, true, 1], 'Node 20 / 22: a new pool, the old one closed');
+  assert.deepStrictEqual(tryIt(put(K1, 'new Pool()') + put(K2, 'new Pool()') + ' return [renewPool(true), globalThis.destroyed];'), [false, 0], 'a newer Node (undici 8 keeps its pool under .2): not renewed, nothing closed');
+  assert.deepStrictEqual(tryIt(put(K2, 'new Pool()') + ' return [renewPool(true), globalThis.destroyed];'), [false, 0]);
+  assert.deepStrictEqual(tryIt('const o = new Pool(); Object.defineProperty(globalThis, ' + K1 + ', { value: o, writable: false }); return [renewPool(true), globalThis[' + K1 + '] === o, globalThis.destroyed];'), [false, true, 0], 'cannot be replaced: the pool in use is left open');
+  const helper = /const WORKER_SRC = `([\s\S]*?)`;/.exec(src); assert.ok(helper); new Function('require', helper[1]);      // the helper's own code parses
+  // in use: a pause longer than the idle limit renews the connections of the same helper, and the next request is answered
+  const { Worker } = require('worker_threads');
+  const srv = new Worker("const http = require('http'); const { parentPort } = require('worker_threads'); http.createServer((q, s) => s.end('ok')).listen(0, '127.0.0.1', function () { parentPort.postMessage(this.address().port); });", { eval: true });
+  const port = await new Promise(ok => srv.once('message', ok));
+  process.env.RCL_FETCH_IDLE_MS = '600';
+  const file = path.join(root, 'server', 'syncfetch.js'); delete require.cache[require.resolve(file)];
+  const sf = require(file), url = 'http://127.0.0.1:' + port + '/';
+  try {
+    assert.strictEqual(sf.fetchAllSync([{ url: url }])[0].code, 200);
+    const made = sf.helpersMade(), renewed = sf.renewals();
+    for (let i = 0; i < 3; i++) { sf.sleepSync(700); assert.strictEqual(sf.fetchAllSync([{ url: url }])[0].code, 200); }
+    assert.strictEqual(sf.renewals(), renewed + 3, 'renewed after each pause'); assert.strictEqual(sf.helpersMade(), made, 'no new helper');
+  } finally { await srv.terminate(); delete process.env.RCL_FETCH_IDLE_MS; delete require.cache[require.resolve(file)]; }
+});
