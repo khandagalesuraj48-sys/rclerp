@@ -107,9 +107,9 @@ const entries = no => sql("select coalesce(string_agg(date || ' ' || shift || ' 
   ok('Day and Night of one date stay two entries (not rows of one shift): the Night row starts at the Day Close (9), carries no "work 2" mark and keeps its ½ tick', g.rows.every(r => !r.red) && g.rows[1].start === '9' && !g.rows[1].label && g.rows[1].half === true, g.rows.map(r => r.shift + ' ' + r.start + '>' + r.close + ' [' + r.label + '] half:' + r.half));
   said = await save(); await wait(2500); db = entries('N71-JCB');
   ok('   saved as two entries (Day 7 → 9, Night 9 → 12), no rows kept inside them', /2026-10-03 Day 7>9=2 /.test(db) && /2026-10-03 Night 9>12=3 /.test(db) && !/_parts/.test(db.split(' ;; ').slice(2).join(' ')) && db.split(' ;; ').length === 4, db.split(' ;; ').slice(2));
-  // a shift that is already saved: the page says where another work is added to it
+  // (update-143, asked 23-10-2026) a shift that is already saved takes another work here: the row is its next work, it must pick ONE work
   await start('2026-10-01'); await setRow(0, 'N71-JCB', 'Day'); g = await rows();
-  ok('a shift that is ALREADY saved: the row says "already saved for 01-10-2026 (Day)" and where to add a work to it (Edit Log Book → "+ work in this shift")', g.rows[0].red && /already saved for 01-10-2026 \(Day\)/.test(g.rows[0].note) && /Edit Log Book → "\+ work in this shift"/.test(g.rows[0].note), g.rows[0].note);
+  ok('a shift that is ALREADY saved: no "already saved" any more – the row is the next work of that shift (work 3 of this day) and must be ONE work', !/already saved for 01-10-2026/.test(g.rows[0].note) && /work 3 of this day/.test(g.rows[0].label) && /Each row of this shift is ONE work – press Bucket \/ Breaker \(not Split\)/.test(g.rows[0].note), g.rows[0]);
   await f.evaluate(() => { S.formDirty = false; clearLogGrid(); });
 
   ok('no script error', errs.length === 0, errs.join(' | '));
