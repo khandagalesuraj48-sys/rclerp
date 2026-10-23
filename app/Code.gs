@@ -10128,7 +10128,7 @@ function billLock_(no, dk, what) { const b = billLockOf_(no, dk); if (b) billLoc
  *   – A save under a verification rule is checked the same way when it is sent (flowSend_). */
 let SA_REASON_ = '', LOCK_RENAME_ = false, APPROVER_ = '', CUR_FN_ = '';
 const LB_GUARD_ = ['Date', 'Machinery Number', 'Shift', 'Opening KM', 'Closing KM', 'Opening Hrs', 'Closing Hrs', 'Chainage From', 'Chainage To', 'Chainage No.', 'Work Done', 'Trip', 'Remark',
-  'Start Time', 'End Time', 'Break (min)', 'Time Hrs', 'Challan No', 'Item Work', 'Debit To', 'Debit Rate', 'Meter Note', 'Day Part', 'Time Slots', 'Approved By', 'Approved At', 'Approval Ref'];
+  'Start Time', 'End Time', 'Break (min)', 'Time Hrs', 'Challan No', 'Item Work', 'Debit To', 'Debit Rate', 'Meter Note', 'Day Part', 'Time Slots', 'Approved By', 'Approved At', 'Approval Ref', 'Attachments'];      // (Attachments: update-153)
 const lbCell_ = x => x instanceof Date ? 'D' + x.getTime() : x !== null && typeof x === 'object' ? JSON.stringify(x) : String(x === undefined || x === null ? '' : x);
 // the approval mark of a Log Book row (null = not approved)
 function apprOf_(row, hdr) {

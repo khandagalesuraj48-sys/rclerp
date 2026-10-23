@@ -1236,7 +1236,7 @@ declare
   -- copied from Diesel Issue, and every figure the app works out, are not in it)
   k constant text[] := array['date', 'machinery', 'shift', 'opening_km', 'closing_km', 'opening_hrs', 'closing_hrs',
     'chainage_from', 'chainage_to', 'chainage_no', 'work_done', 'trip', 'remark', 'start_time', 'end_time', 'break_min', 'time_hrs',
-    'challan_no', 'item_work', 'debit_to', 'debit_rate', 'meter_note', 'day_part', 'time_slots', 'approved_by', 'approved_at', 'approval_ref'];
+    'challan_no', 'item_work', 'debit_to', 'debit_rate', 'meter_note', 'day_part', 'time_slots', 'approved_by', 'approved_at', 'approval_ref', 'attachments'];      -- (attachments: a later step adds the column)
   o jsonb; n jsonb; ch text[]; bill text; appr boolean := false; ctx jsonb; ok boolean; mode text; key text;
 begin
   if tg_op <> 'INSERT' then o := to_jsonb(old); end if;
