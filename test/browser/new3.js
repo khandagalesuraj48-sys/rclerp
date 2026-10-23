@@ -43,7 +43,7 @@ const clean = () => sql("delete from log_book where machinery in ('WX-1', 'WX-2'
   // the labels
   await f.evaluate(() => { window.__docs = []; printDoc = function (title, inner) { window.__docs.push({ title: title, html: inner }); }; showTab('master'); }); await wait(2000);
   await f.evaluate(() => document.getElementById('m_qr').click()); await wait(500);
-  await f.evaluate(() => { document.getElementById('qr_which').value = 'WX-1'; document.getElementById('cf_ok').click(); }); await wait(900);
+  await f.evaluate(() => { $('qr_untick').click(); const i = $('qr_find'); i.value = 'WX-1'; i.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#qr_list [data-qr="WX-1"]').click(); document.getElementById('cf_ok').click(); }); await wait(900);      // (update-150) untick all, find, tick one
   const lab = await f.evaluate(() => { const d = window.__docs[0] || { title: '', html: '' }; const box = document.createElement('div'); box.innerHTML = d.html; return { title: d.title, labels: box.querySelectorAll('.qrl').length, svg: !!box.querySelector('.qrl svg'), text: (box.querySelector('.qrl') || {}).textContent || '', link: qrLink('WX-1') }; });
   ok('QR labels: a label for the machinery with its QR code and number; the code holds the app\'s link to that machinery', lab.labels === 1 && lab.svg && /WX-1/.test(lab.text) && /Scan: diesel issue/.test(lab.text) && /^http:\/\/127\.0\.0\.1:3000\/[?]m=WX-1$/.test(lab.link), lab);
   fs.writeFileSync('/tmp/qr.html', '<html><head><meta charset="utf-8"></head><body style="margin:20px;width:760px">' + (await f.evaluate(() => window.__docs[0].html)) + '</body></html>');
