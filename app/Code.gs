@@ -3673,7 +3673,11 @@ const hrsOnly_ = m => !!m && !!m.meterHr && !m.meterKm;
  * partsGap_ = what is taken off Close − Start: Σ g − Σ hours by Time (it can be below 0). */
 const partIsTime_ = p => !!p && str_(p.m) === 'T';
 const partTimeQ_ = p => { try { const ts = timeSlots_(p.ts, ''); return ts ? r2_(Math.max(0, ts.mins - Math.max(0, num0_(p.tb))) / 60) : 0; } catch (e) { return 0; } };
-const partsGap_ = ps => r2_((Array.isArray(ps) ? ps : []).reduce((a, p) => a + (partIsTime_(p) ? -partTimeQ_(p) : Math.max(0, Number(p && p.g) || 0)), 0));
+/* update-146 (23-10-2026: "sagle machinery la ha rule ghe"): a row of a shift kept without a work picked ("plain") is counted in the
+ * entry's own measure – hours (no k: the rows of update-77 / 78 / 144), KM (k 'km'), trips (k 'trip') or the day (k 'day'). A row
+ * of a machinery read in KM + Hrs also keeps what its other meter read (o). Only the hours of rows on hours can have a gap (g). */
+const partKindOf_ = p => { const k = str_(p && p.k); return k === 'km' || k === 'trip' || k === 'day' ? k : 'hr'; };
+const partsGap_ = ps => r2_((Array.isArray(ps) ? ps : []).reduce((a, p) => a + (partIsTime_(p) ? -partTimeQ_(p) : partKindOf_(p) === 'hr' ? Math.max(0, Number(p && p.g) || 0) : 0), 0));
 const gapOfJson_ = json => { let o = null; try { o = itemWorkParse_(json); } catch (e) { o = null; } return partsGap_(o && o._parts); };
 // rows kept one by one (a gap, or a row by Time): such an entry is changed row by row in Edit Log Book only
 const partsSpecial_ = ps => (Array.isArray(ps) ? ps : []).some(p => partIsTime_(p) || Number(p && p.g) > 0);
@@ -3686,7 +3690,36 @@ function partTime_(p, who) {
   if (!(q > 0)) throw new Error(who + 'the working time is 0 for this row – check From, To and the break.');
   return { ts: ts.text, tb: tb, q: q };
 }
-const partExtra_ = p => partIsTime_(p) ? Object.assign({ m: 'T', ts: str_(p.ts) }, num0_(p.tb) > 0 ? { tb: num0_(p.tb) } : {}) : Number(p && p.g) > 0 ? { g: r2_(Number(p.g)) } : {};
+const partExtra_ = p => Object.assign(partIsTime_(p) ? Object.assign({ m: 'T', ts: str_(p.ts) }, num0_(p.tb) > 0 ? { tb: num0_(p.tb) } : {}) : Number(p && p.g) > 0 && partKindOf_(p) === 'hr' ? { g: r2_(Number(p.g)) } : {},
+  !partIsTime_(p) && partKindOf_(p) !== 'hr' ? { k: partKindOf_(p) } : {}, p && !blank_(p.o) && isFinite(Number(p.o)) && !partIsTime_(p) ? { o: r2_(Number(p.o)) } : {}, p && str_(p.ti) ? { ti: str_(p.ti) } : {},
+  p && p.x && typeof p.x === 'object' && Object.keys(p.x).length ? { x: Object.assign({}, p.x) } : {}, p && !blank_(p.tr) && isFinite(Number(p.tr)) ? { tr: r2_(Number(p.tr)) } : {});      // (update-146: k, o, the in / out time of a row by trips; review: x – what was typed on the row, tr – its trips (Format B))
+/* update-146 (review 23-10-2026): what was TYPED on a row whose work is not picked (plain rows): { item: qty } of the row (x), and the
+ * item its Excel "Work type" names for the whole row (a – its quantity, known once the row's Start is) – so that Edit Log Book and the
+ * add path give each row back what it had and the bill keeps every typed item. A day item named becomes the entry's day item.
+ * → { x, a, day }; fail(msg) refuses a work paid in another measure than the row. */
+function rowTyped_(items, its, kind, isT, fail, other) {
+  const find = n => items.find(it => it.name.toUpperCase() === clean_(n).toUpperCase()), x = {}; let a = '', ao = '', day = '';
+  Object.keys(its || {}).forEach(k0 => { if (k0.charAt(0) === '_') return; const it = find(k0), v = Number(its[k0]); if (it && itemKind_(it.basis) !== 'day' && v > 0) x[it.name] = r2_((x[it.name] || 0) + v); });
+  if (its && !blank_(its._all)) {
+    const it = find(its._all);
+    if (!it) fail('"' + clean_(its._all) + '" is not an item of its BOQ (items: ' + items.map(q => q.name).join(', ') + ').');
+    const ik = itemKind_(it.basis);
+    if (ik === 'day') day = it.name;
+    else if (ik === kind || (isT && ik === 'hr') || (other && ik === other)) { Object.keys(x).forEach(n => { const q = find(n); if (q && itemKind_(q.basis) === ik) delete x[n]; }); if (it.qty !== 'rest') { if (ik === kind || isT) a = it.name; else ao = it.name; } }      // (review: read in KM + Hrs – a work of the other meter takes that meter's quantity)
+    else fail(it.name + ' is paid ' + str_(it.basis).toLowerCase() + ' – this row is measured in ' + (ITEM_KIND_WORD_[kind] || kind) + ': pick a work paid that way.');
+  }
+  return { x: x, a: a, ao: ao, day: day };
+}
+// (update-146 review) the typed items of an entry whose rows did not keep their own share: shared out over its rows in order, each up to
+// its own quantity of that measure (what is left: on its last row of that measure; items of another measure: on the first row)
+function partsShare_(ps, its0, items) {
+  const kindOf = p => partIsTime_(p) ? 'hr' : partKindOf_(p), out = ps.map(() => ({})), used = ps.map(() => ({}));
+  Object.keys(its0 || {}).filter(n => n.charAt(0) !== '_' && num0_(its0[n]) > 0).forEach(n => {
+    const it = items.find(q => q.name === n), ik = it ? itemKind_(it.basis) : ''; let left = num0_(its0[n]);
+    ps.forEach((p, j) => { if (left <= 0.005 || kindOf(p) !== ik) return; const take = r2_(Math.min(left, Math.max(0, num0_(p.q) - (used[j][ik] || 0)))); if (take > 0) { out[j][n] = r2_((out[j][n] || 0) + take); used[j][ik] = r2_((used[j][ik] || 0) + take); left = r2_(left - take); } });
+    if (left > 0.005) { const jj = ik && ps.some(p => kindOf(p) === ik) ? ps.length - 1 : 0; out[jj][n] = r2_((out[jj][n] || 0) + left); } });
+  return out;
+}
 /* update-144: the From – To times of a row by Time ("09:00-11:00[,…]") as minutes [from, to] in the order of its shift: a Night runs
  * past midnight, so its times before noon come after those of the evening; a row's own times follow each other. */
 function timeSpans_(ts, shift) {
@@ -3708,17 +3741,21 @@ function itemPartsOf_(items, work, tot) {
   if (!ps || ps.length < 2) return null;
   // plain rows (update-77): an hours machinery without separate hour works – the rows of a shift are its times of work, no item
   if (ps.every(p => p && str_(p.n) === '')) {
-    const out = ps.map(p => Object.assign({ n: '', q: r2_(Number(p.q)), k: 'hr', c: str_(p.c), p: str_(p.p), f: str_(p.f), t: str_(p.t), w: str_(p.w) }, partExtra_(p)));
-    if (out.some(x => !(x.q > 0))) return null;
-    if (tot && Math.abs(r2_(out.reduce((a, x) => a + x.q, 0)) - Math.max(0, Number(tot.hr) || 0)) > partsTol_(ps)) return null;
-    return out;
+    const out = ps.map(p => Object.assign({ n: '', q: r2_(Number(p.q)), k: partIsTime_(p) ? 'hr' : partKindOf_(p), c: str_(p.c), p: str_(p.p), f: str_(p.f), t: str_(p.t), w: str_(p.w) }, partExtra_(p)));
+    const k = out[0].k;      // (update-146: hours, KM, trips or the day – one measure for all the rows of a shift)
+    if (out.some(x => !(x.q > 0) || x.k !== k)) return null;
+    if (tot && k !== 'day' && Math.abs(r2_(out.reduce((a, x) => a + x.q, 0)) - Math.max(0, Number(tot[k]) || 0)) > partsTol_(ps)) return null;
+    // (review) what was typed on the rows: kept while it adds up to what the entry has
+    { const sx = {}; out.forEach(x => Object.keys(x.x || {}).forEach(n0 => { sx[n0] = r2_((sx[n0] || 0) + Number(x.x[n0])); }));
+      if (Object.keys(sx).some(n0 => Math.abs(sx[n0] - Math.max(0, Number(work[n0]) || 0)) > 0.005 * out.length + 1e-9)) out.forEach(x => { delete x.x; }); }
+    return partsOtherOk_(out, tot, k);
   }
   if (!items || !items.length) return null;
   let k = ''; const out = [], by = {};
   for (let i = 0; i < ps.length; i++) {
     const p = ps[i] || {}, it = items.find(x => x.name === str_(p.n)); if (!it) return null;
     const kind = itemKind_(it.basis), q = Number(p.q);
-    if ((kind !== 'hr' && kind !== 'km') || (k && kind !== k) || !(r2_(q) > 0)) return null;
+    if ((kind !== 'hr' && kind !== 'km' && kind !== 'trip') || (k && kind !== k) || !(r2_(q) > 0)) return null;      // (update-146 review: trip works too)
     k = kind; by[it.name] = r2_((by[it.name] || 0) + r2_(q));
     out.push(Object.assign({ n: it.name, q: r2_(q), k: kind, c: str_(p.c), p: str_(p.p), f: str_(p.f), t: str_(p.t), w: str_(p.w) }, partExtra_(p)));
   }
@@ -3726,6 +3763,15 @@ function itemPartsOf_(items, work, tot) {
   if (tot && Math.abs(sum - Math.max(0, Number(tot[k]) || 0)) > partsTol_(ps)) return null;      // the entry's total is no longer the sum of its works (update-144: rows all by Time – their rounding)
   // the typed quantities kept for the bill must be the same figures
   if (items.filter(it => itemKind_(it.basis) === k && it.qty !== 'rest').some(it => Math.abs((by[it.name] || 0) - Math.max(0, Number(work[it.name]) || 0)) > 0.005)) return null;
+  return partsOtherOk_(out, tot, k);
+}
+/* update-146: the other meter of the rows of a machinery read in KM + Hrs (o): kept only while every row has it and they add up to the
+ * entry's own figure of that meter – else the rows are shown as before (the other meter on the first row). */
+function partsOtherOk_(out, tot, k) {
+  const rd = out.filter(x => !partIsTime_(x)), k2 = k === 'km' ? 'hr' : 'km';
+  const drop = () => { out.forEach(x => { delete x.o; }); return out; };
+  if (!rd.length || (k !== 'km' && k !== 'hr') || !rd.every(x => x.o !== undefined && isFinite(Number(x.o)))) return drop();
+  if (tot && !blank_(tot[k2]) && Math.abs(r2_(rd.reduce((a, x) => a + Number(x.o), 0)) - Math.max(0, Number(tot[k2]) || 0)) > 0.005 * rd.length + 1e-9) return drop();
   return out;
 }
 // did an edit of the WHOLE entry leave the texts that its rows hold as they were? (the small window shows the Particular as the work when no description was saved)
@@ -3741,6 +3787,7 @@ const itemPartsStrip_ = json => { const o = itemWorkParse_(json); if (!('_parts'
 function logItemWork_(m, dk, mode, l, tot, prev) {
   const items = boqItemsOn_(m, dk);
   const hOnly = hrsOnly_(m) && hasHr_(mode), hrItems = items.filter(it => itemKind_(it.basis) === 'hr');
+  const two = hasKm_(mode) && hasHr_(mode);      // update-146: read in KM + Hrs – each row of a shift keeps what its other meter read (o)
   const tOnly = mode === 'Time';      // update-144: a shift whose rows are ALL by Time (the entry is by Time) – of ANY machinery ("sagle machinery la ha rule ghe", 23-10-2026)
   /* update-144: such an entry's From – To are its rows' times – the same times, nothing more, nothing less (none can be at the same
    * time as another: the entry's times are checked as one list, timeSlots_) */
@@ -3750,27 +3797,52 @@ function logItemWork_(m, dk, mode, l, tot, prev) {
     const have = [].concat(...ps.map(p => slotsSorted_(p.ts))).sort();
     const bRows = r2_(ps.reduce((a, p) => a + num0_(p.tb), 0)), bEnt = r2_(num0_(l && l.tBreak));
     if (!want.length || want.join(',') !== have.join(',') || Math.abs(bRows - bEnt) > 0.005) throw new Error(who + 'the rows of this shift by Time (' + have.join(', ') + (bRows ? ', break ' + bRows + ' min' : '') + ') are not the From – To of the entry (' + (want.join(', ') || 'none') + (bEnt ? ', break ' + bEnt + ' min' : '') + ') – the times of the entry are the times of its rows. Reload the page and save the rows again.'); };
-  // update-77: the rows of one shift of an hours machinery WITHOUT separate hour works (plain rows: its times of work, with gaps)
+  /* update-77: the rows of one shift WITHOUT separate works to pick (plain rows) – of a machinery on hours (its times of work, with
+   * gaps), by Time (update-144); update-146: of ANY machinery whose BOQ has fewer than two works of the entry's measure – rows by KM,
+   * by Hrs, in KM + Hrs (the other meter of each row: o), by trips, by the day. Only a machinery on hours may have hours not worked
+   * between its rows (g); every other one's rows follow each other. */
   let plain = null;
-  if ((hOnly || tOnly) && hrItems.length < 2 && l && l.items && Array.isArray(l.items._parts) && l.items._parts.length > 1) {
-    const ps = l.items._parts, when0 = m.id + ' (' + dmy_(dk) + '): ';
+  const ps0 = l && l.items && Array.isArray(l.items._parts) && l.items._parts.length > 1 ? l.items._parts : null;
+  const pk = ps0 && ps0.every(p => p && !str_(p.n)) ? (ps0.every(p => partIsTime_(p)) ? 'hr' : partKindOf_(ps0.find(p => p && !partIsTime_(p)))) : '';
+  if (pk && (pk === 'trip' || pk === 'day' || items.filter(it => itemKind_(it.basis) === pk).length < 2)) {
+    const ps = ps0, when0 = m.id + ' (' + dmy_(dk) + '): ', W = { hr: 'hours', km: 'KM', trip: 'trips' }[pk] || pk;
     if (!tot) throw new Error(when0 + 'separate rows of one shift are saved from Edit Log Book or the Log Book page, on a working entry.');
     if (ps.length > 12) throw new Error(when0 + 'at most 12 rows in one shift.');
+    // the measure of the rows is the entry's way (a page that sent anything else: refused)
+    const wayOk = pk === 'km' ? hasKm_(mode) : pk === 'hr' ? hasHr_(mode) || tOnly : pk === 'trip' ? mode === 'Trip' : mode === 'Day';
+    if (!wayOk) throw new Error(when0 + 'the rows of this shift are counted in ' + W + ' but the entry is by ' + (mode || 'nothing') + ' – the rows of one shift must be measured the same way. Reload the page and save the rows again.');
     let seenHr = false;
-    plain = ps.map((p0, i) => { const p = p0 || {};
+    const keepX = (p, o) => { if (!p.x || typeof p.x !== 'object') return; const x = {}; Object.keys(p.x).forEach(n0 => { const it = items.find(q => q.name.toUpperCase() === clean_(n0).toUpperCase()), v = Number(p.x[n0]); if (it && itemKind_(it.basis) !== 'day' && isFinite(v) && v > 0) x[it.name] = r2_((x[it.name] || 0) + v); }); if (Object.keys(x).length) o.x = x; };
+    plain = ps.map((p0, i) => { const p = p0 || {}, row = 'row ' + (i + 1) + ' of ' + dmy_(dk);
       if (tOnly && !partIsTime_(p)) throw sameWay(when0, i);
-      if (partIsTime_(p)) { const t = partTime_(p, when0 + 'row ' + (i + 1) + ' of ' + dmy_(dk) + ' (Time): '); const o = { n: '', q: t.q, m: 'T', ts: t.ts }; if (t.tb) o.tb = t.tb;      // update-78: a row by Time
+      if (partIsTime_(p)) { if (!hOnly && !tOnly) throw new Error(when0 + row + ' is by Time – the rows of one shift must be measured the same way (' + mode + ').');
+        const t = partTime_(p, when0 + row + ' (Time): '); const o = { n: '', q: t.q, m: 'T', ts: t.ts }; if (t.tb) o.tb = t.tb;      // update-78: a row by Time
+        keepX(p, o);      // (review: what was typed on it too)
         [['c', p.c], ['p', p.p], ['f', p.f], ['t', p.t], ['w', p.w]].forEach(x => { const v = clean_(x[1]).slice(0, 300); if (v) o[x[0]] = v; }); return o; }
-      const q = Number(p.q), g = blank_(p.g) ? 0 : Number(p.g);
-      if (!isFinite(q) || !(r2_(q) > 0)) throw new Error(when0 + 'row ' + (i + 1) + ' of ' + dmy_(dk) + ' has no work: its Close must be more than its Start. Type its Close, or delete that row.');
-      if (!isFinite(g) || g < 0 || (!seenHr && g > 0)) throw new Error(when0 + 'row ' + (i + 1) + ' of ' + dmy_(dk) + ' starts below the Close of the row before it – a row starts at that Close or above it.');
+      if (partKindOf_(p) !== pk) throw new Error(when0 + row + ' – the rows of one shift must be measured the same way (' + mode + ').');
+      const q = pk === 'day' ? 1 : Number(p.q), g = blank_(p.g) ? 0 : Number(p.g);
+      if (!isFinite(q) || !(r2_(q) > 0)) throw new Error(when0 + row + (pk === 'trip' ? ' has no trips: enter the number of trips of that row, or delete it.' : ' has no work: its Close must be more than its Start. Type its Close, or delete that row.'));
+      if (!isFinite(g) || g < 0 || (g > 0 && (!hOnly || pk !== 'hr' || !seenHr))) throw new Error(when0 + row + (hOnly && pk === 'hr' ? ' starts below the Close of the row before it – a row starts at that Close or above it.' : ' starts away from the Close of the row before it – every row must start where the row before it closed.'));
       seenHr = true;
-      const o = { n: '', q: r2_(q) }; if (g > 0) o.g = r2_(g);
+      const o = { n: '', q: r2_(q) }; if (g > 0) o.g = r2_(g); if (pk !== 'hr') o.k = pk;
+      if (two && (pk === 'km' || pk === 'hr') && !blank_(p.o)) { const ov = Number(p.o); if (!isFinite(ov) || ov < 0) throw new Error(when0 + row + ': its ' + (pk === 'km' ? 'Hrs' : 'KM') + ' must be 0 or more (its Close not below its Start).'); o.o = r2_(ov); }
+      if (pk === 'trip' && str_(p.ti)) { let ti = null; try { ti = timeSlots_(p.ti, ''); } catch (e) { ti = null; } if (ti && ti.n === 1) o.ti = ti.text; }      // (the in / out time of a row by trips – Format H)
+      if (pk !== 'trip' && !blank_(p.tr) && isFinite(Number(p.tr)) && Number(p.tr) >= 0) o.tr = r2_(Number(p.tr));      // (review: its trips – Format B)
+      keepX(p, o);      // (review: what was typed on it)
       [['c', p.c], ['p', p.p], ['f', p.f], ['t', p.t], ['w', p.w]].forEach(x => { const v = clean_(x[1]).slice(0, 300); if (v) o[x[0]] = v; }); return o; });
     if (!seenHr && !tOnly) throw new Error(when0 + 'the rows of this shift are all by Time – keep one row and give it its times with "+ time" (or one row of the shift by Hrs).');
     timesOk(plain, when0);
-    const sum = r2_(plain.reduce((a, x) => a + x.q, 0)), total = Math.max(0, num0_(tot.hr));
-    if (Math.abs(sum - total) > partsTol_(plain)) throw new Error(when0 + 'the rows of this shift make ' + fmtVal_(sum) + ' hours but the entry has ' + fmtVal_(r2_(total)) + ' hours.');
+    if (pk !== 'day') {
+      const sum = r2_(plain.reduce((a, x) => a + x.q, 0)), total = Math.max(0, num0_(tot[pk]));
+      if (Math.abs(sum - total) > partsTol_(plain)) throw new Error(when0 + 'the rows of this shift make ' + fmtVal_(sum) + ' ' + W + ' but the entry has ' + fmtVal_(r2_(total)) + ' ' + W + '.');
+    }
+    // (the other meter of the rows: kept when every row has it and they add up to the entry's – else not kept)
+    { const rd = plain.filter(x => !partIsTime_(x)), k2 = pk === 'km' ? 'hr' : 'km';
+      if (!two || !rd.every(x => x.o !== undefined) || Math.abs(r2_(rd.reduce((a, x) => a + x.o, 0)) - Math.max(0, num0_(tot[k2]))) > 0.005 * rd.length + 1e-9) plain.forEach(x => { delete x.o; }); }
+    // (review) what was typed on the rows is kept only while it adds up to what the entry has typed (else the rows are read back as before)
+    { const sx = {}, ev = n0 => { const k = Object.keys(l.items).find(x => x.charAt(0) !== '_' && clean_(x).toUpperCase() === n0.toUpperCase()); return k === undefined ? 0 : num0_(l.items[k]); };
+      plain.forEach(x => Object.keys(x.x || {}).forEach(n0 => { sx[n0] = r2_((sx[n0] || 0) + x.x[n0]); }));
+      if (Object.keys(sx).some(n0 => Math.abs(sx[n0] - ev(n0)) > 0.005 * plain.length + 1e-9)) plain.forEach(x => { delete x.x; }); }
     if (!items.length) return JSON.stringify({ _parts: plain });
     l = Object.assign({}, l, { items: Object.assign({}, l.items) }); delete l.items._parts;      // (the items of the entry are worked out from its total, as for one row)
   }
@@ -3795,15 +3867,18 @@ function logItemWork_(m, dk, mode, l, tot, prev) {
       if (!it) throw new Error(when + row + ' – "' + clean_(p.n) + '" is not an item of its BOQ (items: ' + items.map(x => x.name).join(', ') + '). Pick the work of that row.');
       const k = itemKind_(it.basis), q = tq ? tq.q : Number(p.q);
       if (tq && k !== 'hr') throw new Error(when + row + ' (' + it.name + ') is by Time – pick a work paid per hour.');
-      if (k !== 'hr' && k !== 'km') throw new Error(when + row + ' – ' + it.name + ' is paid ' + str_(it.basis).toLowerCase() + ': separate rows in one shift are for hour / KM works only. Keep one row for this shift.');
+      if (k !== 'hr' && k !== 'km' && k !== 'trip') throw new Error(when + row + ' – ' + it.name + ' is paid ' + str_(it.basis).toLowerCase() + ': separate rows in one shift are for hour / KM / trip works only. Keep one row for this shift.');      // (update-146 review: trip works too)
       if (kind && k !== kind) throw new Error(when + 'the rows of one shift must be all hour works or all KM works.');
       if (!isFinite(q) || !(r2_(q) > 0)) throw new Error(when + row + ' (' + it.name + ') has no work: its Close must be more than its Start. Type its Close, or delete that row.');
       const g = tq || blank_(p.g) ? 0 : Number(p.g);
       if (!isFinite(g) || g < 0 || (g > 0 && (!hOnly || !seenHr))) throw new Error(when + row + ' starts away from the Close of the row before it – ' + (hOnly ? 'it must start at that Close or above it.' : 'every row must start where the row before it closed.'));
-      if (!hOnly && !tOnly && i && inp._parts[i - 1] && find((inp._parts[i - 1] || {}).n) === it) throw new Error(when + 'two rows one after the other are both ' + it.name + ' – make them one row (or pick the other work).');
+      // (update-146: the same work may come again in a row of its own – its own readings, challan, chainage: different data is not refused)
       kind = k; by[it.name] = r2_((by[it.name] || 0) + q);
       if (!tq) seenHr = true;
       const o = { n: it.name, q: r2_(q) }; if (g > 0) o.g = r2_(g); if (tq) { o.m = 'T'; o.ts = tq.ts; if (tq.tb) o.tb = tq.tb; }
+      if (two && !tq && !blank_(p.o)) { const ov = Number(p.o); if (!isFinite(ov) || ov < 0) throw new Error(when + row + ': its ' + (k === 'km' ? 'Hrs' : 'KM') + ' must be 0 or more (its Close not below its Start).'); o.o = r2_(ov); }      // (update-146)
+      if (k === 'trip') { o.k = 'trip'; if (str_(p.ti)) { let ti = null; try { ti = timeSlots_(p.ti, ''); } catch (e) { ti = null; } if (ti && ti.n === 1) o.ti = ti.text; } }      // (update-146 review: a row of a trip work)
+      if (k !== 'trip' && !blank_(p.tr) && isFinite(Number(p.tr)) && Number(p.tr) >= 0) o.tr = r2_(Number(p.tr));      // (its trips – Format B)
       [['c', p.c], ['p', p.p], ['f', p.f], ['t', p.t], ['w', p.w]].forEach(x => { const v = clean_(x[1]).slice(0, 300); if (v) o[x[0]] = v; });
       return o;
     });
@@ -3811,6 +3886,8 @@ function logItemWork_(m, dk, mode, l, tot, prev) {
     timesOk(parts, when);
     const sum = r2_(parts.reduce((a, x) => a + x.q, 0)), total = Math.max(0, num0_(tot[kind])), w = ITEM_KIND_WORD_[kind];
     if (Math.abs(sum - total) > partsTol_(parts)) throw new Error(when + 'the rows of this shift make ' + fmtVal_(sum) + ' ' + w + ' but the entry has ' + fmtVal_(r2_(total)) + ' ' + w + ' – every row must start where the row before it closed.');
+    { const rd = parts.filter(x => !partIsTime_(x)), k2 = kind === 'km' ? 'hr' : 'km';      // (update-146: the other meter of the rows, kept only when it adds up)
+      if (!two || !rd.every(x => x.o !== undefined) || Math.abs(r2_(rd.reduce((a, x) => a + x.o, 0)) - Math.max(0, num0_(tot[k2]))) > 0.005 * rd.length + 1e-9) parts.forEach(x => { delete x.o; }); }
     // the quantities of the items of this kind come from the rows alone – whatever was sent for them (in any spelling) is not used
     Object.keys(inp).forEach(n => { if (n.charAt(0) === '_') return; const it = find(n); if (it && itemKind_(it.basis) === kind) delete inp[n]; });
     items.filter(it => itemKind_(it.basis) === kind && it.qty !== 'rest').forEach(it => { if (by[it.name]) inp[it.name] = by[it.name]; });
@@ -6991,14 +7068,14 @@ function getLogBookList_(f) {
 
 // Item-wise BOQ: the quantity of every item for this entry (rows of other machinery are left as they are)
 function logItemsOut_(o) {
-  if (o.itemWork && Array.isArray(o.itemWork._parts) && o.itemWork._parts.length > 1 && o.itemWork._parts.every(p => p && str_(p.n) === '')) { const ps0 = itemPartsOf_([], o.itemWork, { hr: o.whr }); if (ps0) o.itemParts = ps0; }      // (update-77: plain rows of a shift)
+  if (o.itemWork && Array.isArray(o.itemWork._parts) && o.itemWork._parts.length > 1 && o.itemWork._parts.every(p => p && str_(p.n) === '')) { const ps0 = itemPartsOf_([], o.itemWork, { hr: o.whr, km: o.wkm, trip: o.trip }); if (ps0) o.itemParts = ps0; }      // (update-77: plain rows of a shift – update-146: of any measure)
   if (!itemNos_()[noKey_(o.no)]) return o;
   let m = null; try { m = findMachine_(o.no); } catch (e) { m = null; }
   const items = m ? boqItemsOn_(m, o.date) : [];
   if (!items.length) return o;
   const q = itemQtyOf_(items, { mode: o.mode || o.unit, whr: o.whr, wkm: o.wkm, trip: o.trip, work: o.itemWork, half: o.half });
   o.itemQty = q.list; o.itemOver = q.over; o.itemUnknown = q.unknown; o.itemLeft = q.left; o.boqItems = itemBrief_(items);
-  const ps = itemPartsOf_(items, o.itemWork, { hr: o.whr, km: o.wkm }); if (ps) o.itemParts = ps;      // the works of the shift, each on its own row
+  const ps = itemPartsOf_(items, o.itemWork, { hr: o.whr, km: o.wkm, trip: o.trip }); if (ps) o.itemParts = ps;      // the works of the shift, each on its own row
   return o;
 }
 // the items of every Item-wise machinery on a date: { machinery: [{ name, basis, qty }] } (Excel export, hints)
@@ -7352,9 +7429,8 @@ function logEntriesOf_(lt, no) {
 // a machinery with two or more hour (or KM) works in its BOQ: the second work of a shift is a row in Edit Log Book
 function logSlotHint_(m, dk, slot) {
   if (!/^already saved/.test(str_(slot))) return '';
-  let its = []; try { its = boqItemsOn_(m, dk); } catch (e) { its = []; }
-  const g = ['hr', 'km'].map(k => its.filter(it => itemKind_(it.basis) === k)).find(a => a.length > 1);
-  return g ? ' To add another work to this saved shift (' + g.map(it => it.name).join(' / ') + '): Edit Log Book → "+ work in this shift" under that entry.' : '';
+  // update-146: every machinery may take another work of a saved shift (not a water tanker – its trips are on its own form)
+  return m && m.lbFormat === 'I' ? '' : ' To add another work to this saved shift: Edit Log Book → "+ work in this shift" under that entry.';
 }
 // why this date + shift cannot take an entry ('' = it can)
 function logSlotProblem_(list, dk, shift) {
@@ -7388,12 +7464,12 @@ function getLogRowPrefill_(no, dateStr, shiftIn, opt) {
     let kind = sv.rows ? logRowsKind_(sv.rows.map(l => ({ x: { l: l, i: 0 }, m: m, dk: dk, shift: shift }))) : '';
     if (!kind && sv.rows && hrsOnly_(m) && sv.rows.every(l => str_(l.mode) === 'Time') && (m.modes || []).some(hasHr_)) kind = 'hr';      // (a saved Time day of a machinery on hours takes a row by Hrs – update-78)
     if (!sv.rows) slotSay = at + 'this shift is already saved, and another work cannot be added to it: the saved entry ' + sv.why + '.';
-    else if (!kind) slotSay = m.id + ' already saved for ' + dmy_(dk) + ' (' + shift + '). Another work of the same shift is added to a saved entry only for a machinery on hours, or one whose BOQ has two or more works of this kind – change the saved entry in Edit Log Book.';
+    else if (!kind) slotSay = at + 'this shift is already saved, and another work cannot be added to it: the saved entry is measured in a way this machinery no longer has – change the saved entry in Edit Log Book.';      // (update-146: every machinery takes another work – only this is left)
     else {
       const r0 = lt.rows[si], c = lt.c, its = H.ITEMS in c ? itemWorkParse_(r0[c[H.ITEMS]]) : {}, items = boqItemsOn_(m, dk);
       const ps0 = Array.isArray(its._parts) && its._parts.length > 1 ? its._parts : null, ps = ps0 && ps0.some(p => !partIsTime_(p)) ? ps0.filter(p => !partIsTime_(p)) : ps0;      // (update-144: rows all by Time – the last of them)
       const last = ps ? str_((ps[ps.length - 1] || {}).n) : ((itemQtyOf_(items, { mode: str_(r0[c[H.UNIT]]), whr: numOrBlank_(r0[c[H.WHR]]), wkm: numOrBlank_(r0[c[H.WKM]]), trip: numOrBlank_(r0[c[H.TRIP]]), work: its }).list.find(x => x.k === kind && x.q > 0) || {}).n || '');
-      addTo = { rows: sv.rows.length, kind: kind, mode: str_(r0[c[H.UNIT]]), closeKm: numOrBlank_(r0[c[H.CKM]]), closeHr: numOrBlank_(r0[c[H.CHR]]), stock: num0_(r0[c[H.STOCK]]), lastWork: last, sameOk: kind === 'hr' && (hrsOnly_(m) || str_(r0[c[H.UNIT]]) === 'Time') };      // (update-144: rows by Time – the same work at another time too)      // (sameOk: on hours the same work may come again – update-77)
+      addTo = { rows: sv.rows.length, kind: kind, mode: str_(r0[c[H.UNIT]]), closeKm: numOrBlank_(r0[c[H.CKM]]), closeHr: numOrBlank_(r0[c[H.CHR]]), stock: num0_(r0[c[H.STOCK]]), lastWork: last, sameOk: true };      // (update-146: the same work may come again in a row of its own – a duplicate is the same data, checked when saved)      // (update-144: rows by Time – the same work at another time too)      // (sameOk: on hours the same work may come again – update-77)
       slot = ''; slotSay = '';
     }
   }
@@ -7538,16 +7614,41 @@ function logExtra_(m, mode, l, when) {
  * that date – for every other machinery nothing is joined and the second row is refused as before.
  * g = the prepared rows of that slot in the order they were entered. Returns the kind ('hr' / 'km') or ''. */
 function logRowsKind_(g) {
-  const m = g[0].m; let items = [], mode = '';
-  try { items = boqItemsOn_(m, g[0].dk); mode = logModeFor_(m, g[0].x.l.mode); } catch (e) { return ''; }
+  const m = g[0].m; let items = [], mode = '', ways = [];
+  try { items = boqItemsOn_(m, g[0].dk); mode = logModeFor_(m, g[0].x.l.mode); ways = g.map(p => logModeFor_(m, p.x.l.mode)); } catch (e) { return ''; }
+  if (m.lbFormat === 'I') return '';      // (a water tanker: its trips are added on its own form – update-97 / 103)
   if (hrsOnly_(m) && hasHr_(mode)) return 'hr';      // update-77: any hours machinery may have several rows in one shift
   // update-78: … also when its first row is by Time and another row of the shift is by Hrs – update-144: or when every row is by Time
   if (hrsOnly_(m) && mode === 'Time') return 'hr';
+  if (ways.some(w => w !== mode)) return '';      // (update-146: any other machinery – rows measured in different ways are not joined: logRowsWhyNot_ says why)
   // update-144 (23-10-2026: "sagle machinery la ha rule ghe"): EVERY machinery – rows that are all by Time (From – To) are the works of the shift
-  if (mode === 'Time') { let allT = false; try { allT = g.every(p => logModeFor_(m, p.x.l.mode) === 'Time'); } catch (e) { allT = false; } if (allT) return 'hr'; }
-  return ['hr', 'km'].find(k => (k === 'hr' ? hasHr_(mode) : hasKm_(mode)) && items.filter(it => itemKind_(it.basis) === k).length > 1) || '';
+  if (mode === 'Time') return 'hr';
+  const by = ['hr', 'km'].find(k => (k === 'hr' ? hasHr_(mode) : hasKm_(mode)) && items.filter(it => itemKind_(it.basis) === k).length > 1);
+  if (by) return by;
+  /* update-146 (23-10-2026, "sagle machinery la ha rule ghe … same data asel tr duplicate, nahi tr nahi"): EVERY machinery – rows by
+   * its readings (KM, Hrs, KM + Hrs), by trips or by the day are the works of the shift too, whatever its BOQ */
+  if (hasKm_(mode)) return 'km';
+  if (hasHr_(mode)) return 'hr';
+  if (mode === 'Trip') return 'trip';
+  if (mode === 'Day') return 'day';
+  return '';
+}
+/* update-146: why the rows of one machinery, date and shift cannot be one entry ('' = no reason known here – they are taken one by one,
+ * as before). Different data in one shift is joined (logRowsKind_); what is left are rows that cannot stand beside another row. */
+function logRowsWhyNot_(g) {
+  if (!g || g.length < 2) return '';
+  const m = g[0].m, when = m.id + ' (' + dmy_(g[0].dk) + ', ' + g[0].shift + '): ';
+  let ways = []; try { ways = g.map(p => logModeFor_(m, p.x.l.mode)); } catch (e) { return ''; }
+  if (m.lbFormat === 'I') return '';
+  const st = ways.find(w => ['Idle', 'Holiday', 'Breakdown'].indexOf(w) > -1);
+  if (st) return when + st + ' is the whole shift – it cannot be one of two rows of the same shift. Keep one row for it (or make one Day and the other Night).';
+  if (ways.some(meterOff_)) return when + 'a row without a meter reading (' + METER_OFF_ + ') cannot be one of two rows of the same shift – keep one row, with the estimated work of the whole shift.';
+  const w0 = ways[0], j = ways.findIndex(w => w !== w0);
+  if (j > -1) return when + 'the rows of one shift must be measured the same way (row 1 by ' + w0 + ', row ' + (j + 1) + ' by ' + ways[j] + ') – the shift is one entry: give its rows the same way.';
+  return '';
 }
 function logRowsJoin_(g, kind) {
+  if (kind === 'trip' || kind === 'day') return logRowsJoinCount_(g, kind);      // (update-146: rows by trips / by the day – no meter)
   const m = g[0].m, dk = g[0].dk, sh = g[0].shift, when = m.id + ' (' + dmy_(dk) + ', ' + sh + '): ';
   const fail = (i, msg) => { const e = new Error(when + msg); e.rowI = g[i].x.i; throw e; };
   const items = boqItemsOn_(m, dk), row = i => 'row ' + (i + 1) + ' of ' + dmy_(dk);
@@ -7555,11 +7656,16 @@ function logRowsJoin_(g, kind) {
   // the way of the entry: that of its first row – for a machinery on hours, Hrs when a row is by Hrs (its rows by Time are kept as rows – update-78)
   const mode = hOnly0 && g.some(p => hasHr_(modeOf(p))) ? modeOf(g.find(p => hasHr_(modeOf(p)))) : modeOf(g[0]);
   const F = kind === 'hr' ? ['openingHr', 'closingHr', 'Hrs'] : ['openingKm', 'closingKm', 'KM'];
+  // update-146: a machinery read in KM + Hrs – each row's other meter too: its rows follow each other on it as well, and each keeps what it read (o)
+  const two = hasKm_(mode) && hasHr_(mode), F2 = kind === 'hr' ? ['openingKm', 'closingKm', 'KM'] : ['openingHr', 'closingHr', 'Hrs'];
   const kindItems = items.filter(it => itemKind_(it.basis) === kind), rest = kindItems.find(it => it.qty === 'rest'), names = kindItems.map(it => it.name).join(' / ');
   let tAll = false; try { tAll = kind === 'hr' && g.every(p => modeOf(p) === 'Time'); } catch (e) { tAll = false; }      // (update-144: rows all by Time – any machinery)
-  const hOnly = hrsOnly_(m) && kind === 'hr', plainRows = (hOnly || tAll) && kindItems.length < 2;      // update-77: gaps between rows; no work to pick when it has no separate works
+  const hOnly = hrsOnly_(m) && kind === 'hr', plainRows = kindItems.length < 2;      // update-77: gaps between rows (on hours only); no work to pick when it has no separate works (update-146: any machinery)
+  // update-146: the same row twice – the same Start and Close (of a meter) – is a duplicate, not another work
+  { const wm = p => Object.assign({}, p.x.l, { mode: modeOf(p) });
+    for (let a = 0; a < g.length; a++) for (let b = a + 1; b < g.length; b++) if (!(g[a].x.saved && g[b].x.saved) && modeOf(g[a]) !== 'Time' && logSameWork_(wm(g[a]), wm(g[b]))) { const e = new Error(when + row(b) + ' is the same as ' + row(a) + ' (the same Start and Close) – the same work is not saved twice.'); e.rowI = g[b].x.i; throw e; } }      // (review: the saved rows were taken before – only a new row can be a duplicate)
   const find = n => items.find(it => it.name.toUpperCase() === clean_(n).toUpperCase());
-  const parts = [], other = {}; let day = '', trips = 0, anyTrip = false, lastClose = null, typed0 = null, fh = -1, lh = -1;
+  const parts = [], other = {}; let day = '', trips = 0, anyTrip = false, lastClose = null, typed0 = null, fh = -1, lh = -1, lastO = null, firstCloseO = null;
   g.forEach((p, i) => {
     const l = p.x.l, isT = (hOnly || tAll) && modeOf(p) === 'Time';      // update-78: a row by Time (From – To) among the rows by Hrs (update-144: or all of them, any machinery)
     if (!isT && modeOf(p) !== mode) fail(i, 'the rows of one shift must be measured the same way (' + mode + (hOnly ? (mode === 'Time' ? ' or Hrs' : ' or Time') : '') + ').');
@@ -7573,8 +7679,18 @@ function logRowsJoin_(g, kind) {
     if (!isT && lastClose !== null) {
       const st = blank_(l[F[0]]) ? lastClose : Number(l[F[0]]);
       if (hOnly) { if (st < lastClose - 0.005) fail(i, row(i) + ' starts at ' + fmtVal_(st) + ', below the Close ' + fmtVal_(lastClose) + ' of the row before it – a row starts at that Close or above it.'); gp = r2_(Math.max(0, st - lastClose)); }
-      else if (!blank_(l[F[0]]) && Math.abs(Number(l[F[0]]) - lastClose) > 0.005) fail(i, row(i) + ' starts at ' + fmtVal_(Number(l[F[0]])) + ' but the row before it closed at ' + fmtVal_(lastClose) + ' – every row must start where the row before it closed.');
+      else if (!blank_(l[F[0]]) && Math.abs(Number(l[F[0]]) - lastClose) > 0.005) fail(i, row(i) + ' starts at ' + fmtVal_(Number(l[F[0]])) + ' ' + F[2] + ' but the row before it closed at ' + fmtVal_(lastClose) + ' – every row must start where the row before it closed' + (Number(l[F[0]]) > lastClose ? ' (' + (kind === 'km' ? 'a vehicle\'s KM follow each other: the ' + fmtVal_(r2_(Number(l[F[0]]) - lastClose)) + ' KM between are part of a row' : 'the ' + fmtVal_(r2_(Number(l[F[0]]) - lastClose)) + ' Hrs between are part of a row') + ' – start it at ' + fmtVal_(lastClose) + ').' : ' (it starts at ' + fmtVal_(lastClose) + ').'));
       q = r2_(close - st);
+    }
+    let o = null;      // (update-146) the other meter of a row of a machinery read in KM + Hrs
+    if (two && !isT) {
+      const oc = l[F2[1]], oo = l[F2[0]];
+      if (blank_(oc) || !isFinite(Number(oc))) fail(i, row(i) + ' has no Close ' + F2[2] + ' – every row of one shift needs its Close (it is read in KM + Hrs).');
+      if (lastO !== null && !blank_(oo) && Math.abs(Number(oo) - lastO) > 0.005) fail(i, row(i) + ' starts at ' + fmtVal_(Number(oo)) + ' ' + F2[2] + ' but the row before it closed at ' + fmtVal_(lastO) + ' ' + F2[2] + ' – every row must start where the row before it closed (it starts at ' + fmtVal_(lastO) + ').');
+      const os = lastO !== null ? lastO : blank_(oo) ? null : Number(oo);
+      if (os !== null) { o = r2_(Number(oc) - os); if (o < -0.005) fail(i, row(i) + ': Close ' + F2[2] + ' ' + fmtVal_(Number(oc)) + ' is less than its Start ' + F2[2] + ' ' + fmtVal_(os) + '.'); }
+      if (i === fh) firstCloseO = Number(oc);
+      lastO = Number(oc);
     }
     if (i) {
       // what belongs to the entry as a whole stands on its first row
@@ -7586,18 +7702,26 @@ function logRowsJoin_(g, kind) {
     const its = l.items && typeof l.items === 'object' ? l.items : {};
     const val = name => { const k = Object.keys(its).find(x => x.charAt(0) !== '_' && clean_(x).toUpperCase() === name.toUpperCase()); return k === undefined ? 0 : Number(its[k]) || 0; };
     const typed = kindItems.filter(it => it.qty !== 'rest' && val(it.name) > 0);
-    let n = '', tq = null;
+    let n = '', tq = null, rt = null, xa = '', xao = '';
     if (!plainRows) {
       if (!blank_(its._all)) n = clean_(its._all);
       else if (!typed.length) n = rest ? rest.name : '';
       else if (typed.length === 1) { n = typed[0].name; tq = val(n); }
       if (typed.length > 1 || (tq !== null && q !== null && Math.abs(tq - q) > 0.005)) fail(i, row(i) + ' – each row of one shift is ONE work: press ' + names + ' (not Split).');
       if (!n) fail(i, row(i) + ' – pick the work of this row (' + names + ').');
+    } else {      // update-146 (review): a plain row keeps what was typed on it (x); its Excel "Work type" (_all) is its whole quantity
+      rt = rowTyped_(items, its, kind, isT, msg => fail(i, row(i) + ' – ' + msg), two && !isT ? (kind === 'km' ? 'hr' : 'km') : '');
+      if (rt.day && !day) day = rt.day;
+      if (rt.a) { if (q !== null) rt.x[rt.a] = r2_((rt.x[rt.a] || 0) + q); else xa = rt.a; }      // (the first row's quantity is known on save)
+      if (rt.ao) { if (o !== null) rt.x[rt.ao] = r2_((rt.x[rt.ao] || 0) + o); else xao = rt.ao; }      // (its other meter's – KM + Hrs)
     }
     if (i === fh) typed0 = tq;
-    parts.push(Object.assign({ n: n, q: q, c: l.challan, p: l.remark, f: l.chFrom, t: l.chTo, w: l.work }, gp > 0 ? { g: gp } : {}, isT ? Object.assign({ m: 'T', ts: tx.ts }, tx.tb ? { tb: tx.tb } : {}) : {}));
+    parts.push(Object.assign({ n: n, q: q, c: l.challan, p: l.remark, f: l.chFrom, t: l.chTo, w: l.work }, gp > 0 ? { g: gp } : {}, isT ? Object.assign({ m: 'T', ts: tx.ts }, tx.tb ? { tb: tx.tb } : {}) : {},
+      !isT && plainRows && kind === 'km' ? { k: 'km' } : {}, o !== null ? { o: o } : two && !isT ? { o: 0 } : {},      // (update-146: a plain row by KM says so; o: worked out for the first row on save)
+      rt && Object.keys(rt.x).length ? { x: rt.x } : {}, xa ? { a: xa } : {}, xao ? { ao: xao } : {}, !blank_(l.trip) && isFinite(Number(l.trip)) ? { tr: r2_(Number(l.trip)) } : {}));      // (review: x, a; tr – the row's trips, Format B)
     // what was typed for items of ANOTHER kind (a per-KM item beside the hour works), the day item, the trips: they stay with the entry
-    Object.keys(its).forEach(k0 => { if (k0.charAt(0) === '_') return; const it = find(k0), v = Number(its[k0]); if (it && (plainRows || itemKind_(it.basis) !== kind) && itemKind_(it.basis) !== 'day' && v > 0) other[it.name] = r2_((other[it.name] || 0) + v); });
+    if (rt) Object.keys(rt.x).forEach(nm => { other[nm] = r2_((other[nm] || 0) + rt.x[nm]); });
+    else Object.keys(its).forEach(k0 => { if (k0.charAt(0) === '_') return; const it = find(k0), v = Number(its[k0]); if (it && itemKind_(it.basis) !== kind && itemKind_(it.basis) !== 'day' && v > 0) other[it.name] = r2_((other[it.name] || 0) + v); });
     if (!day && !blank_(its._day)) day = its._day;
     if (!blank_(l.trip)) { anyTrip = true; trips += num0_(l.trip); }
   });
@@ -7633,7 +7757,72 @@ function logRowsJoin_(g, kind) {
   if (!blank_(last[O])) l[O] = last[O];      // (a machinery read in KM + Hrs: its other meter closes on the last row)
   if (anyTrip) l.trip = trips;
   if (fh > 0) { l.mode = mode; l[F[0]] = g[fh].x.l[F[0]]; ['tStart', 'tEnd', 'tBreak', 'tSlots'].forEach(k => { delete l[k]; }); if (str_(g[fh].x.l.meter) === 'new') { l.meter = 'new'; l.meterNote = g[fh].x.l.meterNote; } }      // (update-78: the first row was by Time – the entry reads the meter from its first row by Hrs)
-  return { x: { l: l, i: g[0].x.i }, m: m, dk: dk, shift: sh, join: { kind: kind, firstClose: Number(g[fh].x.l[F[1]]), firstIdx: fh, typed0: typed0, rows: g.length, names: names } };
+  return { x: { l: l, i: g[0].x.i }, m: m, dk: dk, shift: sh, join: { kind: kind, firstClose: Number(g[fh].x.l[F[1]]), firstIdx: fh, typed0: typed0, rows: g.length, names: names, firstCloseO: two ? firstCloseO : null } };
+}
+/* update-146: the rows of one shift by TRIPS or by the DAY (no meter): each row is a work of the shift – its trips (or the day) with
+ * its own challan, chainage, description and, by trips, its in / out time (Format H). The entry is ONE: its trips are the rows' trips
+ * added (a day is one day, paid once). The same row twice (the same trips, challan, chainage, work, remark – and times that meet) is a
+ * duplicate; two rows whose in / out times meet are at the same time (a machinery does one work at a time). */
+function logRowsJoinCount_(g, kind) {
+  const m = g[0].m, dk = g[0].dk, sh = g[0].shift, when = m.id + ' (' + dmy_(dk) + ', ' + sh + '): ';
+  const fail = (i, msg) => { const e = new Error(when + msg); e.rowI = g[i].x.i; throw e; };
+  const row = i => 'row ' + (i + 1) + ' of ' + dmy_(dk), mode = logModeFor_(m, g[0].x.l.mode), items = boqItemsOn_(m, dk);
+  const find = n => items.find(it => it.name.toUpperCase() === clean_(n).toUpperCase());
+  const t2 = v => String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(v % 60).padStart(2, '0');
+  // (review) a BOQ with two or more trip works (SOIL / MURUM): each row by trips is ONE of them – as for hours and KM
+  const kindItems = items.filter(it => itemKind_(it.basis) === kind), rest = kindItems.find(it => it.qty === 'rest'), names = kindItems.map(it => it.name).join(' / ');
+  const plainRows = kind === 'day' || kindItems.length < 2;
+  const parts = [], other = {}; let day = '', trips = 0, anyTrip = false;
+  g.forEach((p, i) => {
+    const l = p.x.l;
+    if (logModeFor_(m, l.mode) !== mode) fail(i, 'the rows of one shift must be measured the same way (' + mode + ').');
+    if (i) {
+      if (l.half && !g[0].x.l.half) fail(i, row(i) + ': the ½ tick belongs to the first row of the shift (rows of one shift are paid as one entry).');
+      if (!blank_(l.debitTo) && clean_(l.debitTo) !== clean_(g[0].x.l.debitTo)) fail(i, row(i) + ': "Debit to" belongs to the first row of the shift (rows of one shift are one entry).');
+    }
+    let q = 1;
+    if (kind === 'trip') { q = Number(l.trip); if (blank_(l.trip) || !isFinite(q) || !(q > 0)) fail(i, row(i) + ' has no trips: enter the number of trips of that row, or delete it.'); trips += q; }
+    for (let j = 0; j < i; j++) if (!(g[j].x.saved && p.x.saved) && logSameWork_(Object.assign({}, g[j].x.l, { mode: mode }), Object.assign({}, l, { mode: mode }))) fail(i, row(i) + ' is the same as row ' + (j + 1) + ' (the same ' + (kind === 'trip' ? 'trips, ' : '') + 'challan, chainage and work) – the same work is not saved twice.');
+    let ti = '';
+    if (kind === 'trip') { const a = hhmm_(l.tStart), b = hhmm_(l.tEnd); if (a !== null && b !== null) ti = t2(a) + '-' + t2(b); }
+    const its = l.items && typeof l.items === 'object' ? l.items : {};
+    let n = '', rt = null;
+    if (!plainRows) {      // (review) its ONE trip work: the one named, the one typed (all its trips), or the "rest" one
+      const val = nm => { const k = Object.keys(its).find(x => x.charAt(0) !== '_' && clean_(x).toUpperCase() === nm.toUpperCase()); return k === undefined ? 0 : Number(its[k]) || 0; };
+      const typed = kindItems.filter(it => it.qty !== 'rest' && val(it.name) > 0);
+      if (!blank_(its._all)) { const it = find(its._all); n = it ? it.name : clean_(its._all); if (!it || itemKind_(it.basis) !== 'trip') fail(i, row(i) + ' – pick the work of this row (' + names + ').'); }
+      else if (!typed.length) n = rest ? rest.name : '';
+      else if (typed.length === 1 && Math.abs(val(typed[0].name) - q) <= 0.005) n = typed[0].name;
+      if (typed.length > 1 || (typed.length === 1 && !n && blank_(its._all))) fail(i, row(i) + ' – each row of one shift is ONE work: press ' + names + ' (not Split).');
+      if (!n) fail(i, row(i) + ' – pick the work of this row (' + names + ').');
+    } else {
+      rt = rowTyped_(items, its, kind, false, msg => fail(i, row(i) + ' – ' + msg));
+      if (rt.day && !day) day = rt.day;
+      if (rt.a) rt.x[rt.a] = r2_((rt.x[rt.a] || 0) + q);
+    }
+    if (kind === 'day' && !blank_(l.trip) && isFinite(Number(l.trip))) { anyTrip = true; trips += Number(l.trip); }      // (review: Format B – trips on rows by the day are added)
+    parts.push(Object.assign({ n: n, q: r2_(q), k: kind, c: l.challan, p: l.remark, f: l.chFrom, t: l.chTo, w: l.work }, ti ? { ti: ti } : {},
+      rt && Object.keys(rt.x).length ? { x: rt.x } : {}, kind === 'day' && !blank_(l.trip) && isFinite(Number(l.trip)) ? { tr: r2_(Number(l.trip)) } : {}));
+    if (rt) Object.keys(rt.x).forEach(nm => { other[nm] = r2_((other[nm] || 0) + rt.x[nm]); });
+    else Object.keys(its).forEach(k0 => { if (k0.charAt(0) === '_') return; const it = find(k0), v = Number(its[k0]); if (it && itemKind_(it.basis) !== 'day' && itemKind_(it.basis) !== kind && v > 0) other[it.name] = r2_((other[it.name] || 0) + v); });
+    if (!day && !blank_(its._day)) day = its._day;
+  });
+  // rows by trips with their in / out time: in the order of the shift, never at the same time as another
+  let ordered = parts, gT = g;
+  if (kind === 'trip' && parts.every(x => x.ti)) {
+    const sp = parts.map((x, i) => ({ i: i, s: timeSpans_(x.ti, sh) })).sort((a, b) => a.s[0][0] - b.s[0][0] || a.i - b.i), say = i => row(i) + ' (' + parts[i].ti.replace('-', ' – ') + ')';
+    for (let a = 0; a < sp.length; a++) for (let b = a + 1; b < sp.length; b++)
+      if (sp[a].s.some(u => sp[b].s.some(v => u[0] < v[1] && v[0] < u[1]))) { const hi = Math.max(sp[a].i, sp[b].i), lo = Math.min(sp[a].i, sp[b].i); fail(hi, say(hi) + ' is at the same time as ' + say(lo) + ' – a machinery does one work at a time: correct the in / out time of one of them.'); }
+    ordered = sp.map(o => parts[o.i]); gT = sp.map(o => g[o.i]);
+  }
+  const joinTxt = f => { const seen = []; gT.forEach(p => { const v = clean_(p.x.l[f]); if (v && seen.indexOf(v) === -1) seen.push(v); }); return seen.join(' / '); };
+  const first = g[0].x.l;
+  const l = Object.assign({}, first, { work: joinTxt('work'), challan: joinTxt('challan'), remark: joinTxt('remark'),
+    chFrom: (gT.map(p => p.x.l).find(x => clean_(x.chFrom)) || {}).chFrom || '', chTo: (gT.map(p => p.x.l).reverse().find(x => clean_(x.chTo)) || {}).chTo || '',
+    items: Object.assign(day ? { _day: day } : {}, other, { _parts: ordered }) });
+  if (kind === 'day' && anyTrip) l.trip = r2_(trips);      // (review: Format B)
+  if (kind === 'trip') { l.trip = r2_(trips); const ins = ordered.filter(x => x.ti); l.tStart = ins.length === ordered.length ? ins[0].ti.split('-')[0] : ''; l.tEnd = ins.length === ordered.length ? ins[ins.length - 1].ti.split('-')[1] : ''; }
+  return { x: { l: l, i: g[0].x.i }, m: m, dk: dk, shift: sh, join: { kind: kind, count: true, firstClose: null, firstIdx: -1, typed0: null, rows: g.length, names: '' } };
 }
 /* update-143 (asked 23-10-2026: "1 day madhe multiple entry ghet nahi, shift change kel ki ghete … multiple entry hou de; jar same
  * data bharat asel tr te duplicate hoil ani jr same data nasel tr duplicate honar nahi – hydra farana water tanker excavater je
@@ -7679,10 +7868,14 @@ function logEntryRows_(lt, i, m) {
   // its rows (update-71 / 77 / 78): each row's Start / Close worked out from the entry's Start, as Edit Log Book does
   if (!itemPartsOf_(items, its, tot)) return { why: 'has rows that no longer match its total (it was changed elsewhere) – open it in Edit Log Book first' };
   const firstR = ps.find(p => !partIsTime_(p)), it0 = firstR && str_(firstR.n) ? items.find(x => x.name === str_(firstR.n)) : null;
-  const k = it0 ? itemKind_(it0.basis) : 'hr';
+  const k = it0 ? itemKind_(it0.basis) : firstR ? partKindOf_(firstR) : 'hr';      // (update-146: a plain row says its measure – KM, trips, the day)
   let at = Number(k === 'hr' ? base.openingHr : base.openingKm) || 0;
   const lastR = ps.map((p, j) => partIsTime_(p) ? -1 : j).filter(j => j > -1).pop();
   const plain = ps.every(p => !str_(p.n));      // (rows of a machinery on hours without works to pick: its typed items stay with the entry, on its first row – review 23-10-2026)
+  // update-146: a machinery read in KM + Hrs – the other meter of each row (o), while they add up to the entry's
+  const two = hasKm_(mode) && hasHr_(mode) && (k === 'km' || k === 'hr'), rd = ps.filter(p => !partIsTime_(p));
+  const oOk = two && rd.every(p => !blank_(p.o) && isFinite(Number(p.o))) && Math.abs(r2_(rd.reduce((a, p) => a + Number(p.o), 0)) - Math.max(0, Number(k === 'km' ? tot.hr : tot.km) || 0)) <= 0.005 * rd.length + 1e-9;
+  let at2 = Number(k === 'km' ? base.openingHr : base.openingKm) || 0;
   const rows = ps.map((p, j) => {
     const y = Object.assign({}, base, { challan: str_(p.c), remark: str_(p.p), chFrom: str_(p.f), chTo: str_(p.t), work: str_(p.w) });
     if (j) Object.assign(y, { trip: '', half: false, debitTo: '', debitRate: '' });      // (what belongs to the entry as a whole stands on its first row)
@@ -7690,30 +7883,50 @@ function logEntryRows_(lt, i, m) {
     if (partIsTime_(p)) {      // a row by Time (From – To) of a machinery on hours (update-78)
       let ts = null; try { ts = timeSlots_(p.ts, ''); } catch (e) { ts = null; }
       Object.assign(y, { mode: 'Time', openingHr: '', closingHr: '', openingKm: '', closingKm: '', tSlots: str_(p.ts), tStart: ts ? ts.start : '', tEnd: ts ? ts.end : '', tBreak: num0_(p.tb) > 0 ? num0_(p.tb) : '' });
+    } else if (k === 'trip' || k === 'day') {      // update-146: a row by trips (its in / out time) or by the day – no meter
+      const ti = str_(p.ti).split('-');
+      Object.assign(y, { mode: base.mode, openingHr: '', closingHr: '', openingKm: '', closingKm: '', trip: k === 'trip' ? r2_(Number(p.q)) : '', tStart: k === 'trip' && ti.length === 2 ? ti[0] : '', tEnd: k === 'trip' && ti.length === 2 ? ti[1] : '' });
+      q = k === 'trip' ? r2_(Number(p.q)) : 1;
     } else {
       const a = r2_(at + (Number(p.g) || 0)), b = j === lastR ? Number(k === 'hr' ? base.closingHr : base.closingKm) : r2_(a + Number(p.q)); at = b; q = r2_(b - a);
       if (k === 'hr') { y.openingHr = a; y.closingHr = b; if (j) { y.openingKm = base.closingKm; y.closingKm = base.closingKm; } }
       else { y.openingKm = a; y.closingKm = b; if (j) { y.openingHr = base.closingHr; y.closingHr = base.closingHr; } }
+      if (oOk) { const a2 = at2, b2 = j === lastR ? Number(k === 'km' ? base.closingHr : base.closingKm) : r2_(a2 + Number(p.o)); at2 = b2;      // (each row its own other meter)
+        if (k === 'km') { y.openingHr = a2; y.closingHr = b2; } else { y.openingKm = a2; y.closingKm = b2; } }
       y.mode = base.mode;
     }
     const it = items.find(x => x.name === str_(p.n)) || {}, others = {};
     if (!j) Object.keys(items0).forEach(n => { if (n.charAt(0) === '_') return; const o = items.find(x => x.name === n); if (o && itemKind_(o.basis) !== k) others[n] = items0[n]; });      // (typed items of another kind ride on the first row)
-    y.items = plain ? (j ? {} : Object.assign({}, items0)) : Object.assign(items0._day ? { _day: items0._day } : {}, others, !str_(p.n) || it.qty === 'rest' ? {} : { [str_(p.n)]: partIsTime_(p) ? r2_(Number(p.q)) : q });
+    // (update-146 review) a plain row gives back what was typed on it (x) when the rows have it; else the entry's typed items stay on its first row
+    const hasX = plain && ps.some(z => z && z.x && typeof z.x === 'object'), share = plain && !hasX ? partsShare_(ps, items0, items) : null;      // (review: rows saved before they kept their own share – shared out, as Edit Log Book does)
+    y.items = plain ? Object.assign(!j && items0._day ? { _day: items0._day } : {}, hasX ? (p.x || {}) : share[j]) : Object.assign(items0._day ? { _day: items0._day } : {}, others, !str_(p.n) || it.qty === 'rest' ? {} : { [str_(p.n)]: partIsTime_(p) ? r2_(Number(p.q)) : q });
+    if (k !== 'trip' && ps.some(z => z && !blank_(z.tr))) y.trip = blank_(p.tr) ? '' : r2_(Number(p.tr));      // (its own trips – Format B)
     return y;
   });
   return { rows: rows };
 }
 // update-143: the same work twice – the same Start and Close of the meter it is read on, or the same From – To
 function logSameWork_(a, b) {
-  const way = l => { const w = str_(l.mode).toUpperCase().replace(/\s+/g, ''); return w === 'TIME' ? 'T' : w === 'HRS' || w === 'KM+HRS' ? 'H' : w === 'KM' ? 'K' : ''; };
+  const way = l => { const w = str_(l.mode).toUpperCase().replace(/\s+/g, ''); return w === 'TIME' ? 'T' : w === 'HRS' ? 'H' : w === 'KM+HRS' ? 'B' : w === 'KM' ? 'K' : w === 'TRIP' ? 'P' : w === 'DAY' ? 'D' : ''; };
   const w = way(a); if (!w || w !== way(b)) return false;
   const eq = (x, y) => !blank_(x) && !blank_(y) && Math.abs(Number(x) - Number(y)) < 0.005;
   if (w === 'H') return eq(a.openingHr, b.openingHr) && eq(a.closingHr, b.closingHr);
+  // (update-146 review) read in KM + Hrs: the same only when BOTH meters read the same (a row may read 0 hours or 0 KM)
+  if (w === 'B') { const both = (o, c) => !blank_(a[o]) && !blank_(b[o]) && !blank_(a[c]) && !blank_(b[c]), km = both('openingKm', 'closingKm'), hr = both('openingHr', 'closingHr');
+    return (km || hr) && (!km || (eq(a.openingKm, b.openingKm) && eq(a.closingKm, b.closingKm))) && (!hr || (eq(a.openingHr, b.openingHr) && eq(a.closingHr, b.closingHr))); }
   if (w === 'K') return eq(a.openingKm, b.openingKm) && eq(a.closingKm, b.closingKm);
   // the same From – To, or times that overlap (a machine works at one place at a time)
   const spans = l => { let ts = null; try { ts = timeSlots_(l.tSlots !== undefined && l.tSlots !== '' ? l.tSlots : [[l.tStart, l.tEnd]], ''); } catch (e) { ts = null; }
     return ts ? ts.text.split(',').map(x => { const t = x.split('-'), f = hhmm_(t[0]); let e = hhmm_(t[1]); if (e <= f) e += 1440; return [f, e]; }) : []; };
   const A = spans(a), B = spans(b);
+  // update-146: by trips / by the day (no meter) – the same row: the same trips, challan, chainage, work and remark (and, by trips with
+  // their in / out time, times that meet); anything different is another work of the shift
+  if (w === 'P' || w === 'D') {
+    const t = v => clean_(v).toUpperCase();
+    if (!['challan', 'chFrom', 'chTo', 'work', 'remark'].every(f => t(a[f]) === t(b[f]))) return false;
+    if (!(blank_(a.trip) && blank_(b.trip)) && !eq(a.trip, b.trip)) return false;      // (by the day too: its trips – Format B)
+    return !A.length || !B.length || A.some(x => B.some(y => x[0] < y[1] && y[0] < x[1]));
+  }
   return A.some(x => B.some(y => x[0] < y[1] && y[0] < x[1]));
 }
 // update-143: the saved entry of this machinery, date and shift (-1 = none)
@@ -7754,21 +7967,22 @@ function saveLogRowsInner_(b) {
     const todo = [], was = []; let joined = 0, added = 0;      // (was: the saved entries that took new rows, as they were – for the Activity Log)
     slots.forEach(g => {
       // update-143: this machinery, date and shift is already saved – the new rows become the next rows of that entry (see logEntryRows_)
-      const si = b.tanker || !g.every(p => !!p.x.l.add) ? -1 : logSavedIdx_(lt, g[0].m.id, g[0].dk, g[0].shift);      // (only rows sent as "add to the saved entry" – the page / app that shows it; an older app keeps the old refusal)
+      const si = b.tanker || !g.every(p => !!p.x.l.add || !!FLOW_RUN_ID_) ? -1 : logSavedIdx_(lt, g[0].m.id, g[0].dk, g[0].shift);      // (update-146 review: an entry approved in verification after another of its shift – added to it)      // (only rows sent as "add to the saved entry" – the page / app that shows it; an older app keeps the old refusal)
       if (si > -1) {
         const at = LOG_ADD_TO_(g[0].m, g[0].dk, g[0].shift), sv = logEntryRows_(lt, si, g[0].m);
         if (!sv.rows) { errors.push({ row: g[0].x.i + 1, msg: at + 'this shift is already saved, and another work cannot be added to it: the saved entry ' + sv.why + '.' }); return; }
-        const dup = g.find(p => sv.rows.some(s => logSameWork_(s, p.x.l)));
-        if (dup) { errors.push({ row: dup.x.i + 1, msg: at + 'this work is already in the saved entry of this shift (the same Start and Close, or From – To times that overlap) – the same work is not saved twice.' }); return; }
+        const dup = g.find(p => { let w = ''; try { w = logModeFor_(p.m, p.x.l.mode); } catch (e) { w = str_(p.x.l.mode); } return sv.rows.some(s => logSameWork_(s, Object.assign({}, p.x.l, { mode: w }))); });      // (update-146: the way it is measured, as the machinery has it)
+        if (dup) { errors.push({ row: dup.x.i + 1, msg: at + 'this work is already in the saved entry of this shift (the same Start and Close, From – To times that overlap, or the same trips, challan and work) – the same work is not saved twice.' }); return; }
         const all = sv.rows.map(l => ({ x: { l: l, i: g[0].x.i, saved: true }, m: g[0].m, dk: g[0].dk, shift: g[0].shift })).concat(g);
         const kind = logRowsKind_(all);
-        if (!kind) { errors.push({ row: g[0].x.i + 1, msg: g[0].m.id + ' already saved for ' + dmy_(g[0].dk) + ' (' + g[0].shift + '). Another work of the same shift is added to a saved entry only for a machinery on hours, or one whose BOQ has two or more works of this kind – change the saved entry in Edit Log Book.' }); return; }
+        if (!kind) { errors.push({ row: g[0].x.i + 1, msg: logRowsWhyNot_(all) || at + 'this shift is already saved, and another work cannot be added to it: the saved entry is measured in a way this machinery no longer has – change the saved entry in Edit Log Book.' }); return; }      // (update-146: why, in words)
         try { const p = logRowsJoin_(all, kind); p.replace = si; todo.push(p); joined += g.length; added += g.length;
           const r0 = lt.rows[si], c0 = lt.c; was.push({ no: g[0].m.id, date: g[0].dk, shift: g[0].shift, rows: sv.rows.length, okm: numOrBlank_(r0[c0[H.OKM]]), ckm: numOrBlank_(r0[c0[H.CKM]]), ohr: numOrBlank_(r0[c0[H.OHR]]), chr: numOrBlank_(r0[c0[H.CHR]]), work: str_(r0[c0[H.WORK]]) }); }
         catch (e) { errors.push({ row: (e.rowI !== undefined ? e.rowI : g[0].x.i) + 1, msg: e.message }); }
         return;
       }
-      const kind = g.length > 1 ? logRowsKind_(g) : ''; if (!kind) { g.forEach(p => todo.push(p)); return; }
+      const kind = g.length > 1 && !b.tanker ? logRowsKind_(g) : '';
+      if (!kind) { const why = g.length > 1 && !b.tanker ? logRowsWhyNot_(g) : ''; if (why) { errors.push({ row: g[1].x.i + 1, msg: why }); return; } g.forEach(p => todo.push(p)); return; }      // (update-146: rows that cannot be one entry – why, not "already saved")
       try { todo.push(logRowsJoin_(g, kind)); joined += g.length; } catch (e) { errors.push({ row: (e.rowI !== undefined ? e.rowI : g[0].x.i) + 1, msg: e.message }); } });
     const chain = {}; // machinery -> entries (sheet + this batch)
     todo.forEach(p => {
@@ -7820,10 +8034,13 @@ function saveLogRowsInner_(b) {
         const mS = p.replace === undefined ? m : (r0 => { const ks = numOrBlank_(r0[lt.c[H.KMSTD]]), hs = numOrBlank_(r0[lt.c[H.HRSTD]]); return Object.assign({}, m, ks !== '' ? { kmStd: ks } : {}, hs !== '' ? { hrStd: hs } : {}); })(lt.rows[p.replace]);
         const cal = logCalc_(mS, ds.qty, okm, ckm, ohr, chr, mode, ex.tHrs, est, l.items && hasHr_(mode) ? partsGap_(l.items._parts) : 0);
         const closing = r2_(odsl + ds.qty - cal.tot);
-        if (p.join && !p.join.allT) {      // (the first row of the shift: its work is from the entry's Start to its own Close – update-144: not for rows all by Time, each has its own From – To)
+        if (p.join && !p.join.allT && !p.join.count) {      // (the first row of the shift: its work is from the entry's Start to its own Close – update-144: not for rows all by Time, each has its own From – To; update-146: nor by trips / the day)
           const q0 = r2_(p.join.firstClose - num0_(p.join.kind === 'hr' ? ohr : okm));
+          if (p.join.firstCloseO !== null && p.join.firstCloseO !== undefined) l.items._parts[p.join.firstIdx || 0].o = r2_(Math.max(0, p.join.firstCloseO - num0_(p.join.kind === 'hr' ? okm : ohr)));      // (update-146: its other meter too – KM + Hrs)
           if (p.join.typed0 !== null && Math.abs(p.join.typed0 - q0) > 0.005) throw new Error(m.id + ' (' + dmy_(dk) + ', ' + shift + '): row ' + ((p.join.firstIdx || 0) + 1) + ' of ' + dmy_(dk) + ' – each row of one shift is ONE work: press ' + p.join.names + ' (not Split).');
           l.items._parts[p.join.firstIdx || 0].q = q0;
+          // (update-146 review) the first row's Excel "Work type" takes its whole quantity, now known – on the row (x) and on the entry
+          l.items._parts.forEach(pt => { if (!pt) return; [['a', 'q'], ['ao', 'o']].forEach(([f, qf]) => { if (!pt[f]) return; const v = num0_(pt[qf]); pt.x = Object.assign({}, pt.x || {}); pt.x[pt[f]] = r2_((pt.x[pt[f]] || 0) + v); l.items[pt[f]] = r2_(num0_(l.items[pt[f]]) + v); delete pt[f]; }); });
         }
         const itemWork = b.tanker ? '' : logItemWork_(m, dk, mode, l, { hr: cal.whr, km: cal.wkm, trip: ex.trip });
         const row = p.replace !== undefined ? logRowAgain_(lt, p.replace) : newRow_(lt);
@@ -8446,10 +8663,11 @@ function updateLogRow_(key, l) {
     if (H.CHTO in c) me[c[H.CHTO]] = clean_(l.chTo);
     me[c[H.WORK]] = clean_(l.work);
     // Item-wise BOQ: the typed items, checked against this entry's totals as they now are
+    const n2 = h => numOrBlank_(me[c[h]]);
+    const totNow = () => ({ km: hasKm_(unit) && n2(H.CKM) !== '' ? r2_(n2(H.CKM) - num0_(me[c[H.OKM]])) : 0,
+      hr: hasHr_(unit) && n2(H.CHR) !== '' ? r2_(n2(H.CHR) - num0_(me[c[H.OHR]]) - gap0) : unit === 'Time' && H.THRS in c ? num0_(me[c[H.THRS]]) : 0, trip: H.TRIP in c ? num0_(me[c[H.TRIP]]) : 0 });
     if (l.items !== undefined && H.ITEMS in c) {
-      const n2 = h => numOrBlank_(me[c[h]]);
-      const tot = { km: hasKm_(unit) && n2(H.CKM) !== '' ? r2_(n2(H.CKM) - num0_(me[c[H.OKM]])) : 0,
-        hr: hasHr_(unit) && n2(H.CHR) !== '' ? r2_(n2(H.CHR) - num0_(me[c[H.OHR]]) - gap0) : unit === 'Time' && H.THRS in c ? num0_(me[c[H.THRS]]) : 0, trip: H.TRIP in c ? num0_(me[c[H.TRIP]]) : 0 };
+      const tot = totNow();
       // (the works of the shift kept as rows stay only when this edit changed neither the readings, the items nor the texts they hold)
       if (sp0 && !partsTxtSame_(lt, lt.rows[i], l)) throw new Error(no + ' (' + dmy_(dk) + ') has rows in this shift that are kept row by row (hours not worked between them, or a row by Time) – change its work / challan / remark in Edit Log Book (each row there). Nothing was saved.');
       me[c[H.ITEMS]] = logItemWork_(mm, dk, unit, l, tot, partsTxtSame_(lt, lt.rows[i], l) ? { json: str_(lt.rows[i][c[H.ITEMS]]) } : null);
@@ -8459,6 +8677,7 @@ function updateLogRow_(key, l) {
       if (sp0) throw new Error(no + ' (' + dmy_(dk) + ') has rows in this shift that are kept row by row (hours not worked between them, or a row by Time) – change its work / challan / remark in Edit Log Book (each row there). Nothing was saved.');
       me[c[H.ITEMS]] = itemPartsStrip_(me[c[H.ITEMS]]);
     }      // (no items sent, a text changed: the rows of the shift no longer say the same)
+    else if (H.ITEMS in c && /"_parts"/.test(str_(me[c[H.ITEMS]])) && !sp0 && !itemPartsOf_(boqItemsOn_(mm, dk), itemWorkParse_(me[c[H.ITEMS]]), totNow())) me[c[H.ITEMS]] = itemPartsStrip_(me[c[H.ITEMS]]);      // (update-146: no items sent, its readings / trips changed: its rows no longer add up – they go, the entry stays one row)
     // an entry after it whose Start would follow the new Close: not when that entry is in a submitted bill
     (nextChanged ? [nextI] : []).concat(Object.keys(moved).map(Number)).forEach(j => billLock_(no, dkey_(lt.rows[j][c[H.DATE]]), 'The Log Book entry after it (its Start would follow the new Close)'));
     stampEdit_(me, lt);
@@ -8523,7 +8742,7 @@ function getLogEditData_(no, fromStr, toStr) {
   if (itemNos_()[noKey_(m.id)]) { let d = from; for (let k = 0; k < 100 && d <= to; k++) { const it = boqItemsOn_(m, d); if (it.length) boqItems[d] = itemBrief_(it); d = addDays_(d, 1); } }
   // submitted bills that hold this machinery in these dates: their dates are locked in the grid
   const locks = billLocksOfNo_(m.id).filter(b => b.from <= to && b.to >= from).map(billLockTag_);
-  const partsOut = o => { const it = boqItems[o.date] ? boqItemsOn_(m, o.date) : [], ps = itemPartsOf_(it, o.itemWork, { hr: o.whr, km: o.wkm }); if (ps) o.itemParts = ps; return o; };
+  const partsOut = o => { const it = boqItems[o.date] ? boqItemsOn_(m, o.date) : [], ps = itemPartsOf_(it, o.itemWork, { hr: o.whr, km: o.wkm, trip: o.trip }); if (ps) o.itemParts = ps; return o; };
   return { machine: m, from: from, to: to, boqItems: boqItems, rows: rows.map(i => partsOut(Object.assign(logRowOut_(lt, lt.rows[i]), { key: logKeyOf_(lt, lt.rows[i]), ver: rowVer_(lt, lt.rows[i], LOG_VER_H_()) }))),
     prev: brief(before[before.length - 1]), next: brief(after[0]), diesel: diesel, prevKm: lastRead(H.CKM), prevHr: lastRead(H.CHR), locks: locks,
     // update-77: a machinery on hours – the next entry that reads the hour meter (its Start is never changed from here: a Close above it is refused)
@@ -8709,6 +8928,8 @@ function saveLogBulk_(b) {
       row[c[H.WORK]] = clean_(l.work); if (H.REMARK in c && l.remark !== undefined) row[c[H.REMARK]] = clean_(l.remark);
       if (p.od !== undefined && H.ODSET in c) row[c[H.ODSET]] = p.od;
       if (v.itemWork !== undefined && H.ITEMS in c) row[c[H.ITEMS]] = v.itemWork;
+      else if (H.ITEMS in c && /"_parts"/.test(str_(row[c[H.ITEMS]])) && !specialOfJson_(row[c[H.ITEMS]]) && !itemPartsOf_(boqItemsOn_(m, p.dk), itemWorkParse_(row[c[H.ITEMS]]),
+        { km: v.km ? r2_(v.ckm - v.okm) : 0, hr: v.hr ? r2_(v.chr - v.ohr - (v.gap || 0)) : v.mode === 'Time' ? num0_(v.ex.tHrs) : 0, trip: num0_(v.ex.trip) })) row[c[H.ITEMS]] = itemPartsStrip_(row[c[H.ITEMS]]);      // (update-146: its rows were not sent and no longer add up – they go)
       if (l.half !== undefined && (l.half || H.DAYPART in c)) { halfCheck_(l, v.mode, dmy_(dkey_(r[c[H.DATE]])) + ': '); if (l.half) halfReady_(c); if (H.DAYPART in c) row[c[H.DAYPART]] = l.half ? 0.5 : ''; }      // "½ day"
       if (row.some((v, k) => String(v) !== String(r[k]))) { stampEdit_(row, lt); lt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); changed++; }
     });

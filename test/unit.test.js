@@ -1455,7 +1455,7 @@ test('Log Book entry: rows of one machinery on the same date and shift are joine
   no([J('2026-06-03', { closingHr: 8, items: {} }), J('2026-06-03', { closingHr: 9, items: { _all: 'Breaker' }, half: true })], /the ½ tick belongs to the first row of the shift/, 2);
   // (update-143, asked 23-10-2026) a shift that is ALREADY saved takes a new entry as its next row: Breaker 7 → 8 after Bucket – Breaker – Bucket
   // (an older app that does not show it – no "add" mark – is refused as before)
-  no([J('2026-06-02', { closingHr: 8, items: { _all: 'Breaker' } })], /already saved for 02-06-2026 \(Day\)\. To add another work to this saved shift \(Bucket \/ Breaker\): Edit Log Book → "\+ work in this shift"/);
+  no([J('2026-06-02', { closingHr: 8, items: { _all: 'Breaker' } })], /already saved for 02-06-2026 \(Day\)\. To add another work to this saved shift: Edit Log Book → "\+ work in this shift"/);
   r = save([J('2026-06-02', { closingHr: 8, items: { _all: 'Breaker' }, work: 'SECOND SITE', add: 1 })]);
   assert.ok(r.ok && r.count === 1 && r.added === 1 && r.into === 1, JSON.stringify(r).slice(0, 300));
   s = stored('E71-JCB');
@@ -1466,14 +1466,17 @@ test('Log Book entry: rows of one machinery on the same date and shift are joine
   // … the same work again is a duplicate (refused, nothing saved); a work before the saved Close is refused
   no([J('2026-06-02', { openingHr: 7, closingHr: 8, items: { _all: 'Breaker' }, add: 1 })], /E71-JCB \(02-06-2026, Day\): this work is already in the saved entry of this shift/, 1);
   no([J('2026-06-02', { openingHr: 6, closingHr: 9, items: { _all: 'Breaker' }, add: 1 })], /starts at 6, below the Close 8 of the row before it/);
-  // a machinery with ONE kind of work keeps the old rule: the second row of a shift is refused, nothing is joined
+  // update-146 (23-10-2026, "sagle machinery la ha rule ghe"): a machinery with ONE kind of work too – the rows of a shift are ONE entry
+  // (before: "already saved"); a vehicle's KM follow each other, row 2 starts where row 1 closed
   r = save([{ date: '2026-06-03', shift: 'Day', no: 'E71-TIP', mode: 'KM', closingKm: 200 }, { date: '2026-06-03', shift: 'Day', no: 'E71-TIP', mode: 'KM', closingKm: 240 }]);
-  assert.ok(r.ok === false && /E71-TIP already saved for 03-06-2026 \(Day\)/.test(r.errors.map(e => e.msg).join(' ')) && r.errors[0].row === 2, JSON.stringify(r).slice(0, 300));
-  assert.strictEqual(stored('E71-TIP').length, 1);
-  // (update-143) … and a later entry of its saved shift is still refused for it, with the reason
-  r = save([{ date: '2026-06-02', shift: 'Day', no: 'E71-TIP', mode: 'KM', closingKm: 200, add: 1 }]);
-  assert.ok(r.ok === false && /E71-TIP already saved for 02-06-2026 \(Day\)\. Another work of the same shift is added to a saved entry only for a machinery on hours/.test(r.errors.map(e => e.msg).join(' ')), JSON.stringify(r).slice(0, 300));
-  assert.strictEqual(stored('E71-TIP').length, 1);
+  assert.ok(r.ok && r.count === 1 && r.joined === 2, JSON.stringify(r).slice(0, 300));
+  assert.strictEqual(stored('E71-TIP').length, 2);
+  assert.deepStrictEqual(JSON.parse(stored('E71-TIP')[1].items)._parts.map(x => [x.n, x.k, x.q > 0].join(' ')), [' km true', ' km true']);
+  assert.strictEqual(JSON.parse(stored('E71-TIP')[1].items)._parts[1].q, 40);
+  // (update-143) … and a work added to the saved 02-06 that would pass the Start of 03-06: refused, nothing changed
+  r = save([{ date: '2026-06-02', shift: 'Day', no: 'E71-TIP', mode: 'KM', closingKm: 210, add: 1 }]);
+  assert.ok(r.ok === false && /adding a work never changes another entry/.test(r.errors.map(e => e.msg).join(' ')), JSON.stringify(r).slice(0, 300));
+  assert.strictEqual(stored('E71-TIP').length, 2);
   // the Excel sheet that is imported: two lines of the machinery on the same date and shift, each with its "Work type" → one entry with two rows too
   const imp = run('x => { try { return importLogBook_(x); } catch (e) { return { thrown: String(e.message) }; } }', { rows: [
     { line: 2, date: '2026-06-04', shift: 'Day', no: 'E71-JCB', mode: 'Hrs', closingHr: 9, items: { _all: 'Bucket' }, work: 'DRAIN' }, { line: 3, date: '2026-06-04', shift: 'Day', no: 'E71-JCB', mode: 'Hrs', closingHr: 10.5, items: { _all: 'Breaker' }, work: 'ROCK' }] });
@@ -4365,12 +4368,12 @@ test('update-143: a new entry for a shift that is already saved is added to that
   assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
   p = pre('R143-HYD', '2026-06-02', 'Day');
   assert.deepStrictEqual([p.problem, p.addTo.kind, p.addTo.lastWork, p.openingHr, p.openingKm], ['', 'hr', 'HYDRA', 103, 5010]);
-  no([{ date: '2026-06-02', shift: 'Day', no: 'R143-HYD', mode: 'KM + Hrs', openingKm: 5010, closingKm: 5014, openingHr: 104, closingHr: 106, items: { _all: 'FARANA' }, add: 1 }], /starts at 104 but the row before it closed at 103/);
+  no([{ date: '2026-06-02', shift: 'Day', no: 'R143-HYD', mode: 'KM + Hrs', openingKm: 5010, closingKm: 5014, openingHr: 104, closingHr: 106, items: { _all: 'FARANA' }, add: 1 }], /starts at 104 Hrs but the row before it closed at 103/);
   r = save([{ date: '2026-06-02', shift: 'Day', no: 'R143-HYD', mode: 'KM + Hrs', openingKm: 5010, closingKm: 5014, openingHr: 103, closingHr: 105, items: { _all: 'FARANA' }, work: 'PICK AND CARRY', add: 1 }]);
   assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
   const h = stored('R143-HYD')[0];
   assert.deepStrictEqual([h.okm, h.ckm, h.ohr, h.chr, h.whr, h.wkm], [5000, 5014, 100, 105, 5, 14]);
-  assert.deepStrictEqual(JSON.parse(h.items), { FARANA: 2, _parts: [{ n: 'HYDRA', q: 3, w: 'LIFT' }, { n: 'FARANA', q: 2, w: 'PICK AND CARRY' }] });
+  assert.deepStrictEqual(JSON.parse(h.items), { FARANA: 2, _parts: [{ n: 'HYDRA', q: 3, w: 'LIFT', o: 10 }, { n: 'FARANA', q: 2, w: 'PICK AND CARRY', o: 4 }] });      // (update-146: each row keeps its KM too – read in KM + Hrs)
   // HYDRA 3 hr = 1,700 + 2 × 1,400; FARANA 2 hr = 2,200 + 1 × 1,700 (each work's first hour of the day at its first rate)
   assert.strictEqual(amount('R143-HYD', '2026-06-02', '2026-06-02'), (1700 + 2 * 1400) + (2200 + 1700));
   // a saved entry split between the two works (typed) cannot take a row: the reason says what to do
@@ -4403,11 +4406,11 @@ test('update-143: a new entry for a shift that is already saved is added to that
   p = pre('R143-TM', '2026-06-06');
   assert.ok(p.addTo && p.addTo.kind === 'hr' && p.problem === '', JSON.stringify(p).slice(0, 300));
   r = save([E('R143-TM', '2026-06-06', { openingHr: 200, closingHr: 203 })]); assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
-  no([E('R143-TM', '2026-06-06', { mode: 'time', tSlots: [['10:00', '12:00']], tStart: '10:00', tEnd: '12:00' })], /R143-TM \(06-06-2026, Full Day\): this work is already in the saved entry of this shift \(the same Start and Close, or From – To times that overlap\)/);
+  no([E('R143-TM', '2026-06-06', { mode: 'time', tSlots: [['10:00', '12:00']], tStart: '10:00', tEnd: '12:00' })], /R143-TM \(06-06-2026, Full Day\): this work is already in the saved entry of this shift \(the same Start and Close, From – To times that overlap, or the same trips, challan and work\)/);
   assert.strictEqual(stored('R143-TM')[0].whr, 5, '2 hr by Time + 3 hr by Hrs');
   // the server code that does it
   const code = fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8');
-  assert.match(code, /const si = b\.tanker \|\| !g\.every\(p => !!p\.x\.l\.add\) \? -1 : logSavedIdx_\(lt, g\[0\]\.m\.id, g\[0\]\.dk, g\[0\]\.shift\);/, 'only rows marked "add" are merged');
+  assert.match(code, /const si = b\.tanker \|\| !g\.every\(p => !!p\.x\.l\.add \|\| !!FLOW_RUN_ID_\) \? -1 : logSavedIdx_\(lt, g\[0\]\.m\.id, g\[0\]\.dk, g\[0\]\.shift\);/, 'only rows marked "add" are merged (update-146: or approved in verification)');
   assert.match(code, /if \(p\.replace !== undefined\) \{      \/\/ \(update-143, review 23-10-2026\) adding a work never changes another entry/);
   assert.match(code, /again\.forEach\(o => lt\.sh\.getRange\(o\.replace \+ 2, 1, 1, o\.row\.length\)\.setValues\(\[o\.row\]\)\);/);
   assert.match(code, /again\.forEach\(o => \{ if \(!done\[o\.id\]\) \{ done\[o\.id\] = true; recalcChain_\(o\.id\); \} \}\);/);
@@ -4630,6 +4633,242 @@ test('update-145: two people changing the same entry – a Log Book or Diesel Is
     assert.strictEqual(entry('2026-06-01').work, 'BILLED, CHANGED BY THE SUPER ADMIN', 'the billed entry is not written');
     assert.strictEqual(entry('2026-06-03').work, 'GRID');
   } finally { run('() => { billLockOf_ = globalThis.__blo145; }'); }
+});
+
+test('update-146: EVERY machinery – rows of one shift by KM, Hrs, KM + Hrs, trips or the day are ONE entry (its rows kept); the same data is a duplicate; rows that cannot stand together say why', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => run('(f, a) => { try { return eval("(" + f + ")").apply(null, a); } catch (e) { return { thrown: String(e.message) }; } }', fn, a);
+  run('(x, m) => saveVendor_(x, m)', { name: 'R146 Transport', gstReg: 'No', pan: 'ABCDE1246R', bank: 'SBI', account: '12345146', ifsc: 'SBIN0000001' }, 'add');
+  const M = (no, o) => run('(x, m) => saveMaster_(x, m)', Object.assign({ no: no, owner: 'R146 Transport', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01' }, o), 'add');
+  M('R146-TIP', { name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4 });
+  M('R146-TIP2', { name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4 });
+  M('R146-TM', { name: 'Transit Mixer', type: 'Transit Mixer', unit: 'KM + Hrs', worksOn: ['KM', 'Hrs'], kmStd: 3, hrStd: 4 });
+  M('R146-LDR', { name: 'Loader', type: 'Loader', unit: 'Hrs', worksOn: ['KM', 'Hrs'], kmStd: 3, hrStd: 5 });
+  M('R146-TRP', { name: 'Tipper', type: 'Tipper', unit: 'Trip', worksOn: ['Trip'] });
+  M('R146-DAY', { name: 'Grader', type: 'Grader', unit: 'Day', worksOn: ['Day'] });
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'R146 Transport', from: '2026-09-01', tdsPct: 2, woNo: 'WO-R146', lines: [
+    { no: 'R146-TIP', basis: 'Per KM', rate: 40, diesel: 'Company' },
+    { no: 'R146-TIP2', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'LOADED', basis: 'Per KM', rate: 50, qty: 'typed' }, { name: 'EMPTY', basis: 'Per KM', rate: 30, qty: 'rest' }] },
+    { no: 'R146-TM', basis: 'Per Hour', rate: 500, diesel: 'Company' }, { no: 'R146-LDR', basis: 'Per Hour', rate: 800, diesel: 'Company' },
+    { no: 'R146-TRP', basis: 'Per Trip', rate: 600, nightRate: 600, diesel: 'Company' }, { no: 'R146-DAY', basis: 'Per Day', rate: 3000, diesel: 'Company' }] });
+  const save = rows => run('x => { try { return saveLogRowsInner_(x); } catch (e) { return { thrown: String(e.message) }; } }', { rows: rows });
+  const no = (x, re) => assert.ok(x.ok === false && x.errors.some(e => re.test(e.msg)), JSON.stringify(x).slice(0, 500));
+  const stored = n => run(`no => { const lt = table_(APP.SHEET_LOG), c = lt.c, g = (x, h) => h in c ? x[c[h]] : ''; return lt.rows.filter(x => str_(x[c[H.NO]]) === no).map(x => ({ d: dkey_(x[c[H.DATE]]), unit: str_(x[c[H.UNIT]]), okm: numOrBlank_(x[c[H.OKM]]), ckm: numOrBlank_(x[c[H.CKM]]), wkm: numOrBlank_(x[c[H.WKM]]), ohr: numOrBlank_(x[c[H.OHR]]), chr: numOrBlank_(x[c[H.CHR]]), whr: numOrBlank_(x[c[H.WHR]]), trip: numOrBlank_(g(x, H.TRIP)), tot: numOrBlank_(x[c[H.TOT]]), ts: tStr_(g(x, H.TSTART)), te: tStr_(g(x, H.TEND)), items: str_(g(x, H.ITEMS)), work: str_(x[c[H.WORK]]), challan: str_(g(x, H.CHALLAN)), chFrom: str_(g(x, H.CHFROM)), chTo: str_(g(x, H.CHTO)) })).sort((a, b) => a.d < b.d ? -1 : 1); }`, n);
+  const on = (n, d) => stored(n).find(x => x.d === d), parts = (n, d) => { const x = on(n, d); return x && x.items ? JSON.parse(x.items)._parts : null; };
+  const amount = (n, f, t) => run('(no, f, t) => billMachineCalc_(findMachine_(no), getLogBookList_({ from: f, to: t, no: no, all: true }).rows, logPrintExtra_({ from: f, to: t, nos: [no] }), f, t, undefined, true).amount', n, f, t || f);
+  const E = (n, d, o) => Object.assign({ date: d, shift: 'Full Day', no: n }, o);
+  // ---- A TIPPER ON KM (one work in its BOQ – before: the second row of a shift was "already saved"): two works of one day = ONE entry ----
+  assert.ok(save([E('R146-TIP', '2026-09-01', { mode: 'KM', openingKm: 1000, closingKm: 1100, openingDiesel: 100 })]).ok);
+  let r = save([E('R146-TIP', '2026-09-02', { mode: 'KM', closingKm: 1150, challan: 'C1', work: 'LOADING', chFrom: '10+000' }), E('R146-TIP', '2026-09-02', { mode: 'KM', closingKm: 1220, challan: 'C2', work: 'CARTING', chTo: '12+000' })]);
+  assert.ok(r.ok && r.count === 1 && r.joined === 2, JSON.stringify(r).slice(0, 300));
+  let x = on('R146-TIP', '2026-09-02');
+  assert.deepStrictEqual([x.unit, x.okm, x.ckm, x.wkm, x.tot, x.work, x.challan, x.chFrom, x.chTo], ['KM', 1100, 1220, 120, 30, 'LOADING / CARTING', 'C1 / C2', '10+000', '12+000']);
+  assert.deepStrictEqual(parts('R146-TIP', '2026-09-02'), [{ n: '', q: 50, k: 'km', c: 'C1', f: '10+000', w: 'LOADING' }, { n: '', q: 70, k: 'km', c: 'C2', t: '12+000', w: 'CARTING' }]);
+  assert.strictEqual(amount('R146-TIP', '2026-09-02'), 120 * 40, 'the bill: the day\'s 120 KM × 40');
+  const g = run('() => getLogEditData_("R146-TIP", "2026-09-01", "2026-09-30")');
+  assert.deepStrictEqual(g.rows[1].itemParts.map(p => [p.k, p.q, p.w].join(' ')), ['km 50 LOADING', 'km 70 CARTING'], 'Edit Log Book reads it back as its two rows');
+  // a gap between the rows (a vehicle's KM follow each other) – refused with the way out; the same row twice – a duplicate
+  no(save([E('R146-TIP', '2026-09-03', { mode: 'KM', closingKm: 1250 }), E('R146-TIP', '2026-09-03', { mode: 'KM', openingKm: 1280, closingKm: 1300 })]),
+    /R146-TIP \(03-09-2026, Full Day\): row 2 of 03-09-2026 starts at 1280 KM but the row before it closed at 1250 – every row must start where the row before it closed \(a vehicle's KM follow each other: the 30 KM between are part of a row – start it at 1250\)\./);
+  no(save([E('R146-TIP', '2026-09-03', { mode: 'KM', openingKm: 1220, closingKm: 1250 }), E('R146-TIP', '2026-09-03', { mode: 'KM', openingKm: 1220, closingKm: 1250 })]), /row 2 of 03-09-2026 is the same as row 1 of 03-09-2026 \(the same Start and Close\) – the same work is not saved twice/);
+  assert.ok(!on('R146-TIP', '2026-09-03'), 'nothing saved');
+  // added to a saved shift (update-143): the prefill offers it; the work after its Close is added; the same work again is a duplicate
+  assert.ok(save([E('R146-TIP', '2026-09-03', { mode: 'KM', closingKm: 1250, work: 'A' })]).ok);
+  let p = run('(n, d, s, o) => getLogRowPrefill_(n, d, s, o)', 'R146-TIP', '2026-09-03', 'Full Day', { add: 1 });
+  assert.deepStrictEqual([p.problem, p.addTo.kind, p.addTo.sameOk, p.openingKm], ['', 'km', true, 1250]);
+  no(save([E('R146-TIP', '2026-09-03', { mode: 'KM', openingKm: 1220, closingKm: 1250, add: 1 })]), /this work is already in the saved entry of this shift/);
+  r = save([E('R146-TIP', '2026-09-03', { mode: 'KM', closingKm: 1290, work: 'B', add: 1 })]);
+  assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
+  x = on('R146-TIP', '2026-09-03');
+  assert.deepStrictEqual([x.okm, x.ckm, x.wkm, x.work], [1220, 1290, 70, 'A / B']);
+  assert.deepStrictEqual(parts('R146-TIP', '2026-09-03').map(q => [q.q, q.k, q.w].join(' ')), ['30 km A', '40 km B']);
+  // Edit Log Book's save (the page sends the shift as one entry with its rows): kept; rows that do not add up – refused
+  const sv = run('() => getLogEditData_("R146-TIP", "2026-09-03", "2026-09-03")').rows[0];
+  const B = (ps, ck) => ({ no: 'R146-TIP', from: '2026-09-03', to: '2026-09-03', deleted: [], openingDiesel: '', rows: [{ key: sv.key, same: false, half: false, date: '2026-09-03', shift: 'Full Day', mode: 'KM', openingKm: 1220, closingKm: ck, openingHr: '', closingHr: '', tStart: '', tEnd: '', tBreak: '', remark: '', trip: '', challan: '', chFrom: '', chTo: '', work: 'A / B', items: { _parts: ps } }] });
+  x = tryRun('b => saveLogBulk_(b)', B([{ n: '', q: 30, k: 'km', w: 'A' }, { n: '', q: 40, k: 'km', w: 'B' }], 1290));
+  assert.ok(x.ok, JSON.stringify(x).slice(0, 300));
+  assert.deepStrictEqual(parts('R146-TIP', '2026-09-03').map(q => q.q), [30, 40]);
+  x = tryRun('b => saveLogBulk_(b)', B([{ n: '', q: 30, k: 'km', w: 'A' }, { n: '', q: 40, k: 'km', w: 'B' }], 1300));
+  assert.ok(x.ok === false && /the rows of this shift make 70 KM but the entry has 80 KM/.test(JSON.stringify(x)), JSON.stringify(x).slice(0, 300));
+  // ---- A TIPPER WITH TWO KM WORKS (LOADED / EMPTY): the same work may come again in a row of its own (before: "both LOADED – make them one row") ----
+  r = save([E('R146-TIP2', '2026-09-01', { mode: 'KM', openingKm: 1000, closingKm: 1050, openingDiesel: 50, items: { _all: 'LOADED' }, challan: 'L1' }), E('R146-TIP2', '2026-09-01', { mode: 'KM', closingKm: 1080, items: { _all: 'LOADED' }, challan: 'L2' }),
+    E('R146-TIP2', '2026-09-01', { mode: 'KM', closingKm: 1100, items: {} })]);
+  assert.ok(r.ok && r.joined === 3, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual(parts('R146-TIP2', '2026-09-01').map(q => [q.n, q.q].join(' ')), ['LOADED 50', 'LOADED 30', 'EMPTY 20']);
+  assert.strictEqual(amount('R146-TIP2', '2026-09-01'), 80 * 50 + 20 * 30);
+  // ---- A TRANSIT MIXER READ IN KM + Hrs: each row keeps both meters (o: its hours) ----
+  r = save([E('R146-TM', '2026-09-01', { mode: 'KM + Hrs', openingKm: 5000, closingKm: 5010, openingHr: 100, closingHr: 103, openingDiesel: 50, work: 'POUR 1' }), E('R146-TM', '2026-09-01', { mode: 'KM + Hrs', closingKm: 5030, closingHr: 107, work: 'POUR 2' })]);
+  assert.ok(r.ok && r.joined === 2, JSON.stringify(r).slice(0, 300));
+  x = on('R146-TM', '2026-09-01');
+  assert.deepStrictEqual([x.okm, x.ckm, x.wkm, x.ohr, x.chr, x.whr, x.tot], [5000, 5030, 30, 100, 107, 7, 10 + 28]);
+  assert.deepStrictEqual(parts('R146-TM', '2026-09-01'), [{ n: '', q: 10, k: 'km', o: 3, w: 'POUR 1' }, { n: '', q: 20, k: 'km', o: 4, w: 'POUR 2' }]);
+  assert.strictEqual(amount('R146-TM', '2026-09-01'), 7 * 500);
+  const back = run('(no, d) => { const lt = table_(APP.SHEET_LOG, logHeaders_()); return logEntryRows_(lt, logSavedIdx_(lt, no, d, "Full Day"), findMachine_(no)); }', 'R146-TM', '2026-09-01');
+  assert.deepStrictEqual(back.rows.map(y => [y.openingKm, y.closingKm, y.openingHr, y.closingHr].join('-')), ['5000-5010-100-103', '5010-5030-103-107'], 'read back as its rows, each with its own hours');
+  assert.deepStrictEqual(run('() => getLogEditData_("R146-TM", "2026-09-01", "2026-09-01")').rows[0].itemParts.map(q => q.o), [3, 4]);
+  no(save([E('R146-TM', '2026-09-02', { mode: 'KM + Hrs', closingKm: 5040, closingHr: 109 }), E('R146-TM', '2026-09-02', { mode: 'KM + Hrs', closingKm: 5050, openingHr: 110, closingHr: 112 })]), /row 2 of 02-09-2026 starts at 110 Hrs but the row before it closed at 109 Hrs – every row must start where the row before it closed/);
+  // ---- A LOADER WITH A KM METER, BY Hrs (not "on hours only"): its rows follow each other ----
+  r = save([E('R146-LDR', '2026-09-01', { mode: 'Hrs', openingHr: 300, closingHr: 304, openingDiesel: 40, work: 'A' }), E('R146-LDR', '2026-09-01', { mode: 'Hrs', closingHr: 306, work: 'B' })]);
+  assert.ok(r.ok && r.joined === 2, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual([on('R146-LDR', '2026-09-01').whr, parts('R146-LDR', '2026-09-01').map(q => q.q)], [6, [4, 2]]);
+  no(save([E('R146-LDR', '2026-09-02', { mode: 'Hrs', closingHr: 307 }), E('R146-LDR', '2026-09-02', { mode: 'Hrs', openingHr: 308, closingHr: 309 })]), /starts at 308 Hrs but the row before it closed at 307 – every row must start where the row before it closed \(the 1 Hrs between are part of a row – start it at 307\)/);
+  // rows measured in different ways / a day without work beside a work: why, not "already saved"
+  no(save([E('R146-LDR', '2026-09-03', { mode: 'KM', openingKm: 10, closingKm: 20 }), E('R146-LDR', '2026-09-03', { mode: 'Hrs', closingHr: 310 })]), /R146-LDR \(03-09-2026, Full Day\): the rows of one shift must be measured the same way \(row 1 by KM, row 2 by Hrs\)/);
+  no(save([E('R146-TIP', '2026-09-05', { mode: 'Idle' }), E('R146-TIP', '2026-09-05', { mode: 'KM', closingKm: 1300 })]), /R146-TIP \(05-09-2026, Full Day\): Idle is the whole shift – it cannot be one of two rows of the same shift/);
+  // ---- A TIPPER BY TRIPS: the trips of each row are added; each row its own challan and work ----
+  r = save([E('R146-TRP', '2026-09-01', { mode: 'Trip', trip: 5, challan: 'T1', work: 'SOIL', openingDiesel: 30 }), E('R146-TRP', '2026-09-01', { mode: 'Trip', trip: 3, challan: 'T2', work: 'MURUM' })]);
+  assert.ok(r.ok && r.joined === 2, JSON.stringify(r).slice(0, 300));
+  x = on('R146-TRP', '2026-09-01');
+  assert.deepStrictEqual([x.unit, x.trip, x.work, x.challan], ['Trip', 8, 'SOIL / MURUM', 'T1 / T2']);
+  assert.deepStrictEqual(parts('R146-TRP', '2026-09-01'), [{ n: '', q: 5, k: 'trip', c: 'T1', w: 'SOIL' }, { n: '', q: 3, k: 'trip', c: 'T2', w: 'MURUM' }]);
+  assert.strictEqual(amount('R146-TRP', '2026-09-01'), 8 * 600);
+  no(save([E('R146-TRP', '2026-09-02', { mode: 'Trip', trip: 5, challan: 'T1', work: 'SOIL' }), E('R146-TRP', '2026-09-02', { mode: 'Trip', trip: 5, challan: 'T1', work: 'SOIL' })]), /row 2 of 02-09-2026 is the same as row 1 \(the same trips, challan, chainage and work\) – the same work is not saved twice/);
+  no(save([E('R146-TRP', '2026-09-02', { mode: 'Trip', trip: 5, work: 'SOIL' }), E('R146-TRP', '2026-09-02', { mode: 'Trip', trip: '', work: 'SAND' })]), /enter the number of trips/);
+  p = run('(n, d, s, o) => getLogRowPrefill_(n, d, s, o)', 'R146-TRP', '2026-09-01', 'Full Day', { add: 1 });
+  assert.deepStrictEqual([p.problem, p.addTo.kind], ['', 'trip']);
+  no(save([E('R146-TRP', '2026-09-01', { mode: 'Trip', trip: 5, challan: 'T1', work: 'SOIL', add: 1 })]), /this work is already in the saved entry of this shift/);
+  r = save([E('R146-TRP', '2026-09-01', { mode: 'Trip', trip: 2, challan: 'T3', work: 'SAND', add: 1 })]);
+  assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual([on('R146-TRP', '2026-09-01').trip, parts('R146-TRP', '2026-09-01').map(q => q.q)], [10, [5, 3, 2]]);
+  assert.strictEqual(amount('R146-TRP', '2026-09-01'), 10 * 600);
+  // … with their in / out time: in the order of the day; at the same time – refused
+  no(save([E('R146-TRP', '2026-09-03', { mode: 'Trip', trip: 2, tStart: '09:00', tEnd: '11:00', work: 'X' }), E('R146-TRP', '2026-09-03', { mode: 'Trip', trip: 2, tStart: '10:30', tEnd: '12:00', work: 'Y' })]), /row 2 of 03-09-2026 \(10:30 – 12:00\) is at the same time as row 1 of 03-09-2026 \(09:00 – 11:00\)/);
+  r = save([E('R146-TRP', '2026-09-03', { mode: 'Trip', trip: 2, tStart: '13:00', tEnd: '15:00', work: 'Y' }), E('R146-TRP', '2026-09-03', { mode: 'Trip', trip: 3, tStart: '09:00', tEnd: '11:00', work: 'X' })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  x = on('R146-TRP', '2026-09-03');
+  assert.deepStrictEqual([x.trip, x.ts, x.te, x.work, parts('R146-TRP', '2026-09-03').map(q => q.ti + ' ' + q.w)], [5, '09:00', '15:00', 'X / Y', ['09:00-11:00 X', '13:00-15:00 Y']]);
+  // the edit window: the same trips and texts – its rows stay; other trips – its rows no longer add up and go (the entry stays)
+  const K = d => 'R146-TRP|' + d + '|Full Day', ent = run('k => getLogEntry_(k)', K('2026-09-01'));
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-09-01'), { trip: 10, challan: ent.challan, chFrom: ent.chFrom, chTo: ent.chTo, work: ent.work }).thrown);
+  assert.strictEqual(parts('R146-TRP', '2026-09-01').length, 3);
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-09-01'), { trip: 11, challan: ent.challan, chFrom: ent.chFrom, chTo: ent.chTo, work: ent.work }).thrown);
+  assert.deepStrictEqual([on('R146-TRP', '2026-09-01').trip, parts('R146-TRP', '2026-09-01') || null], [11, null]);
+  // Edit Log Book: a shift by trips sent with its rows
+  const BT = ps => ({ no: 'R146-TRP', from: '2026-09-04', to: '2026-09-04', deleted: [], openingDiesel: '', rows: [{ key: '', half: false, date: '2026-09-04', shift: 'Full Day', mode: 'Trip', openingKm: '', closingKm: '', openingHr: '', closingHr: '', tStart: '', tEnd: '', tBreak: '', remark: '', trip: 7, challan: 'B1 / B2', chFrom: '', chTo: '', work: 'W1 / W2', items: { _parts: ps } }] });
+  x = tryRun('b => saveLogBulk_(b)', BT([{ n: '', q: 4, k: 'trip', c: 'B1', w: 'W1' }, { n: '', q: 2, k: 'trip', c: 'B2', w: 'W2' }]));
+  assert.ok(x.ok === false && /the rows of this shift make 6 trips but the entry has 7 trips/.test(JSON.stringify(x)), JSON.stringify(x).slice(0, 300));
+  x = tryRun('b => saveLogBulk_(b)', BT([{ n: '', q: 4, k: 'trip', c: 'B1', w: 'W1' }, { n: '', q: 3, k: 'trip', c: 'B2', w: 'W2' }]));
+  assert.ok(x.ok, JSON.stringify(x).slice(0, 300));
+  assert.deepStrictEqual(run('() => getLogEditData_("R146-TRP", "2026-09-04", "2026-09-04")').rows[0].itemParts.map(q => [q.k, q.q, q.c].join(' ')), ['trip 4 B1', 'trip 3 B2']);
+  // ---- A MACHINERY BY THE DAY: two works of one day – ONE day, paid once ----
+  r = save([E('R146-DAY', '2026-09-01', { mode: 'Day', work: 'SITE A', openingDiesel: 20 }), E('R146-DAY', '2026-09-01', { mode: 'Day', work: 'SITE B' })]);
+  assert.ok(r.ok && r.joined === 2, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual([on('R146-DAY', '2026-09-01').work, parts('R146-DAY', '2026-09-01')], ['SITE A / SITE B', [{ n: '', q: 1, k: 'day', w: 'SITE A' }, { n: '', q: 1, k: 'day', w: 'SITE B' }]]);
+  assert.strictEqual(amount('R146-DAY', '2026-09-01'), 3000, 'one day');
+  no(save([E('R146-DAY', '2026-09-02', { mode: 'Day', work: 'SITE A' }), E('R146-DAY', '2026-09-02', { mode: 'Day', work: 'SITE A' })]), /row 2 of 02-09-2026 is the same as row 1 \(the same challan, chainage and work\)/);
+  // the code that decides
+  const code = fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8');
+  assert.match(code, /if \(hasKm_\(mode\)\) return 'km';\n  if \(hasHr_\(mode\)\) return 'hr';\n  if \(mode === 'Trip'\) return 'trip';\n  if \(mode === 'Day'\) return 'day';/);
+  assert.ok(!/two rows one after the other are both/.test(code), 'the same work twice in a row is no longer refused');
+});
+
+test('update-146 (after the review): rows keep what was typed on them and their Excel work type; trips with two works row by row; KM + Hrs duplicates on both meters; trips on rows by the day; a work approved in verification', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => run('(f, a) => { try { return eval("(" + f + ")").apply(null, a); } catch (e) { return { thrown: String(e.message) }; } }', fn, a);
+  run('(x, m) => saveVendor_(x, m)', { name: 'R146B Hire', gstReg: 'No', pan: 'ABCDE1247R', bank: 'SBI', account: '12345147', ifsc: 'SBIN0000001' }, 'add');
+  const M = (no, o) => run('(x, m) => saveMaster_(x, m)', Object.assign({ no: no, owner: 'R146B Hire', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01' }, o), 'add');
+  M('R146B-HYD', { name: 'Hydra', type: 'Hydra', unit: 'KM + Hrs', worksOn: ['KM', 'Hrs'], kmStd: 3, hrStd: 4 });
+  M('R146B-TRP', { name: 'Tipper', type: 'Tipper', unit: 'Trip', worksOn: ['Trip'] });
+  M('R146B-TIP', { name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4 });
+  M('R146B-TM', { name: 'Transit Mixer', type: 'Transit Mixer', unit: 'KM + Hrs', worksOn: ['KM', 'Hrs'], kmStd: 3, hrStd: 4 });
+  M('R146B-GR', { name: 'Grader', type: 'Grader', unit: 'Day', worksOn: ['Day'] });
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'R146B Hire', from: '2026-09-01', tdsPct: 2, woNo: 'WO-R146B', lines: [
+    { no: 'R146B-HYD', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'LIFT', basis: 'Per Hour', rate: 1000, qty: 'rest' }, { name: 'SHIFTING', basis: 'Per KM', rate: 50, qty: 'typed' }] },
+    { no: 'R146B-TRP', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'SOIL', basis: 'Per Trip', rate: 600, qty: 'typed' }, { name: 'MURUM', basis: 'Per Trip', rate: 400, qty: 'rest' }] },
+    { no: 'R146B-TIP', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'CARTING', basis: 'Per KM', rate: 40, qty: 'typed' }] },
+    { no: 'R146B-TM', basis: 'Per Hour', rate: 500, diesel: 'Company' },
+    { no: 'R146B-GR', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'DAY-A', basis: 'Per Day', rate: 3000 }, { name: 'DAY-B', basis: 'Per Day', rate: 4000 }] }] });
+  const save = rows => run('x => { try { return saveLogRowsInner_(x); } catch (e) { return { thrown: String(e.message) }; } }', { rows: rows });
+  const no = (x, re) => assert.ok(x.ok === false && x.errors.some(e => re.test(e.msg)), JSON.stringify(x).slice(0, 500));
+  const item = (n, d) => run(`(no, d) => { const lt = table_(APP.SHEET_LOG), c = lt.c; const r = lt.rows.find(x => str_(x[c[H.NO]]) === no && dkey_(x[c[H.DATE]]) === d); return r ? { items: str_(r[c[H.ITEMS]]), trip: numOrBlank_(r[c[H.TRIP]]), work: str_(r[c[H.WORK]]) } : null; }`, n, d);
+  const J = (n, d) => JSON.parse(item(n, d).items || '{}');
+  const amount = (n, d) => run('(no, f, t) => billMachineCalc_(findMachine_(no), getLogBookList_({ from: f, to: t, no: no, all: true }).rows, logPrintExtra_({ from: f, to: t, nos: [no] }), f, t, undefined, true).amount', n, d, d);
+  const back = (n, d, sh) => run('(no, d, s) => { const lt = table_(APP.SHEET_LOG, logHeaders_()); return logEntryRows_(lt, logSavedIdx_(lt, no, d, s), findMachine_(no)); }', n, d, sh || 'Full Day');
+  const E = (n, d, o) => Object.assign({ date: d, shift: 'Full Day', no: n }, o);
+  // 1. a typed item on rows without a work picked (SHIFTING per KM beside LIFT per hour): kept on each row and on the entry – read back as they were
+  let r = save([E('R146B-HYD', '2026-09-01', { mode: 'KM + Hrs', openingKm: 100, closingKm: 110, openingHr: 50, closingHr: 53, openingDiesel: 50, items: { SHIFTING: 10 }, challan: 'A' }),
+    E('R146B-HYD', '2026-09-01', { mode: 'KM + Hrs', closingKm: 130, closingHr: 57, items: { SHIFTING: 20 }, challan: 'B' })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  let j = J('R146B-HYD', '2026-09-01');
+  assert.strictEqual(j.SHIFTING, 30);
+  assert.deepStrictEqual(j._parts.map(p => [p.q, p.o, (p.x || {}).SHIFTING]), [[10, 3, 10], [20, 4, 20]]);
+  assert.strictEqual(amount('R146B-HYD', '2026-09-01'), 7 * 1000 + 30 * 50);
+  assert.deepStrictEqual(back('R146B-HYD', '2026-09-01').rows.map(y => y.items.SHIFTING), [10, 20], 'each row gets back what was typed on it');
+  assert.deepStrictEqual(run('() => getLogEditData_("R146B-HYD", "2026-09-01", "2026-09-01")').rows[0].itemParts.map(p => (p.x || {}).SHIFTING), [10, 20]);
+  // … Edit Log Book changes a challan only (the page sends the rows as it read them): SHIFTING stays, the bill too
+  const g1 = run('() => getLogEditData_("R146B-HYD", "2026-09-01", "2026-09-01")').rows[0];
+  let x = tryRun('b => saveLogBulk_(b)', { no: 'R146B-HYD', from: '2026-09-01', to: '2026-09-01', deleted: [], openingDiesel: '', rows: [{ key: g1.key, half: false, date: '2026-09-01', shift: 'Full Day', mode: 'KM + Hrs', openingKm: 100, closingKm: 130, openingHr: 50, closingHr: 57,
+    tStart: '', tEnd: '', tBreak: '', remark: '', trip: '', challan: 'A / C', chFrom: '', chTo: '', work: '', items: { SHIFTING: 30, _parts: [{ n: '', q: 10, k: 'km', o: 3, x: { SHIFTING: 10 }, c: 'A' }, { n: '', q: 20, k: 'km', o: 4, x: { SHIFTING: 20 }, c: 'C' }] } }] });
+  assert.ok(x.ok, JSON.stringify(x).slice(0, 300));
+  assert.deepStrictEqual([J('R146B-HYD', '2026-09-01').SHIFTING, amount('R146B-HYD', '2026-09-01')], [30, 7 * 1000 + 30 * 50]);
+  // 2. the Excel "Work type" of rows without a work picked (a tipper with one typed KM item): its whole KM go to it – also on the first row
+  r = save([E('R146B-TIP', '2026-09-01', { mode: 'KM', openingKm: 1000, closingKm: 1040, openingDiesel: 40, items: { _all: 'CARTING' } }), E('R146B-TIP', '2026-09-01', { mode: 'KM', closingKm: 1100, items: { _all: 'CARTING' } })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  j = J('R146B-TIP', '2026-09-01');
+  assert.deepStrictEqual([j.CARTING, j._parts.map(p => (p.x || {}).CARTING)], [100, [40, 60]]);
+  assert.strictEqual(amount('R146B-TIP', '2026-09-01'), 100 * 40, 'before the review: ₹0');
+  r = save([E('R146B-TIP', '2026-09-02', { mode: 'KM', closingKm: 1110 }), E('R146B-TIP', '2026-09-02', { mode: 'KM', closingKm: 1120, items: { _all: 'LIFT' } })]);
+  no(r, /"LIFT" is not an item of its BOQ/);
+  // 3. trips with two works (SOIL typed, MURUM the rest): each row ONE of them – by its Work type, its typed trips, or the rest
+  r = save([E('R146B-TRP', '2026-09-01', { mode: 'Trip', trip: 5, items: { _all: 'SOIL' }, openingDiesel: 20, challan: 'S1' }), E('R146B-TRP', '2026-09-01', { mode: 'Trip', trip: 3, items: { _all: 'SOIL' }, challan: 'S2' })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  j = J('R146B-TRP', '2026-09-01');
+  assert.deepStrictEqual([j.SOIL, j._parts.map(p => [p.n, p.q, p.k])], [8, [['SOIL', 5, 'trip'], ['SOIL', 3, 'trip']]]);
+  assert.strictEqual(amount('R146B-TRP', '2026-09-01'), 8 * 600, 'before the review: 8 × 400');
+  r = save([E('R146B-TRP', '2026-09-02', { mode: 'Trip', trip: 5, items: { SOIL: 5 }, challan: 'S3' }), E('R146B-TRP', '2026-09-02', { mode: 'Trip', trip: 3, items: {}, challan: 'M1' })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual(J('R146B-TRP', '2026-09-02')._parts.map(p => p.n + ' ' + p.q), ['SOIL 5', 'MURUM 3']);
+  assert.strictEqual(amount('R146B-TRP', '2026-09-02'), 5 * 600 + 3 * 400);
+  assert.deepStrictEqual(run('() => getLogEditData_("R146B-TRP", "2026-09-02", "2026-09-02")').rows[0].itemParts.map(p => [p.n, p.q, p.k]), [['SOIL', 5, 'trip'], ['MURUM', 3, 'trip']]);
+  no(save([E('R146B-TRP', '2026-09-03', { mode: 'Trip', trip: 5, items: { SOIL: 2 } }), E('R146B-TRP', '2026-09-03', { mode: 'Trip', trip: 3 })]), /each row of one shift is ONE work: press SOIL \/ MURUM \(not Split\)/);
+  r = save([E('R146B-TRP', '2026-09-02', { mode: 'Trip', trip: 2, items: { SOIL: 2 }, challan: 'S4', add: 1 })]);
+  assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
+  assert.strictEqual(amount('R146B-TRP', '2026-09-02'), 7 * 600 + 3 * 400, 'added to the saved shift as its third work');
+  // 4. KM + Hrs: a duplicate only when BOTH meters read the same
+  r = save([E('R146B-TM', '2026-09-01', { mode: 'KM + Hrs', openingKm: 5000, closingKm: 5010, openingHr: 100, closingHr: 100, openingDiesel: 30 }), E('R146B-TM', '2026-09-01', { mode: 'KM + Hrs', openingKm: 5010, closingKm: 5030, openingHr: 100, closingHr: 100 })]);
+  assert.ok(r.ok, 'the same hours, other KM: two works – ' + JSON.stringify(r).slice(0, 300));
+  no(save([E('R146B-TM', '2026-09-01', { mode: 'KM + Hrs', openingKm: 5010, closingKm: 5030, openingHr: 100, closingHr: 100, add: 1 })]), /this work is already in the saved entry of this shift/);
+  r = save([E('R146B-TM', '2026-09-01', { mode: 'KM + Hrs', closingKm: 5040, closingHr: 102, add: 1 })]);
+  assert.ok(r.ok && r.added === 1, 'a new work beside saved rows of 0 hours – ' + JSON.stringify(r).slice(0, 300));
+  // 5. rows by the day with trips (Format B): the trips of the rows are added and each row keeps its own; a Work type naming a day item picks it
+  r = save([E('R146B-GR', '2026-09-01', { mode: 'Day', trip: 4, work: 'A', openingDiesel: 10, items: { _all: 'DAY-B' } }), E('R146B-GR', '2026-09-01', { mode: 'Day', trip: 3, work: 'B' })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual([item('R146B-GR', '2026-09-01').trip, J('R146B-GR', '2026-09-01')._day, J('R146B-GR', '2026-09-01')._parts.map(p => p.tr)], [7, 'DAY-B', [4, 3]]);
+  assert.deepStrictEqual(back('R146B-GR', '2026-09-01').rows.map(y => y.trip), [4, 3]);
+  // 6. an entry approved in verification after another of its shift was saved: added to it (it had no "add" mark – sent before)
+  r = run('x => { FLOW_RUN_ID_ = "VF-146"; try { return saveLogRowsInner_(x); } catch (e) { return { thrown: String(e.message) }; } finally { FLOW_RUN_ID_ = ""; } }', { rows: [E('R146B-TIP', '2026-09-01', { mode: 'KM', closingKm: 1130, work: 'APPROVED LATER' })] });
+  assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
+  no(save([E('R146B-TIP', '2026-09-01', { mode: 'KM', closingKm: 1150 })]), /already saved for 01-09-2026 \(Full Day\)/);      // (without the mark and not from verification: an older app – as before)
+  // 7. (second review) a Work type of the OTHER meter on rows read in KM + Hrs: that meter's quantity of each row
+  M('R146B-HY2', { name: 'Hydra', type: 'Hydra', unit: 'KM + Hrs', worksOn: ['KM', 'Hrs'], kmStd: 3, hrStd: 4 });
+  M('R146B-ROL', { name: 'Roller', type: 'Roller', unit: 'Hrs', worksOn: ['Hrs', 'Time'], hrStd: 5 });
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'R146B Hire', from: '2026-09-01', tdsPct: 2, woNo: 'WO-R146C', lines: [
+    { no: 'R146B-HY2', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'PICK', basis: 'Per Hour', rate: 1200, qty: 'typed' }, { name: 'MOVE', basis: 'Per KM', rate: 30, qty: 'rest' }] },
+    { no: 'R146B-ROL', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'ROLLING', basis: 'Per Hour', rate: 1000, qty: 'typed' }] }] });
+  r = save([E('R146B-HY2', '2026-09-01', { mode: 'KM + Hrs', openingKm: 10, closingKm: 20, openingHr: 5, closingHr: 7, openingDiesel: 20, items: { _all: 'PICK' } }), E('R146B-HY2', '2026-09-01', { mode: 'KM + Hrs', closingKm: 25, closingHr: 10, items: { _all: 'PICK' } })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  j = J('R146B-HY2', '2026-09-01');
+  assert.deepStrictEqual([j.PICK, j._parts.map(p => (p.x || {}).PICK)], [5, [2, 3]]);
+  assert.strictEqual(amount('R146B-HY2', '2026-09-01'), 5 * 1200 + 15 * 30);
+  r = save([E('R146B-HY2', '2026-09-02', { mode: 'KM + Hrs', closingKm: 30, closingHr: 11, items: { _all: 'PICK' } }), E('R146B-HY2', '2026-09-02', { mode: 'KM + Hrs', closingKm: 40, closingHr: 14, items: { _all: 'PICK' } })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  j = J('R146B-HY2', '2026-09-02');
+  assert.deepStrictEqual([j.PICK, j._parts.map(p => [p.q, p.o, (p.x || {}).PICK])], [4, [[5, 1, 1], [10, 3, 3]]], 'the first row\'s Start from the day before: its hours known on save');
+  // 8. (second review) a row by Time keeps what was typed on it too; an old shift (rows without their share) takes a work – shared out, not all on row 1
+  r = save([E('R146B-ROL', '2026-09-01', { mode: 'Hrs', openingHr: 100, closingHr: 102, openingDiesel: 20, items: { ROLLING: 2 } }), E('R146B-ROL', '2026-09-01', { mode: 'Time', tStart: '14:00', tEnd: '16:00', items: { ROLLING: 2 } })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual(J('R146B-ROL', '2026-09-01')._parts.map(p => (p.x || {}).ROLLING), [2, 2]);
+  r = save([E('R146B-ROL', '2026-09-02', { mode: 'Hrs', closingHr: 104, items: { ROLLING: 2 } }), E('R146B-ROL', '2026-09-02', { mode: 'Hrs', closingHr: 105, items: { ROLLING: 1 } })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  run(`() => { const lt = table_(APP.SHEET_LOG), c = lt.c, i = lt.rows.findIndex(x => str_(x[c[H.NO]]) === 'R146B-ROL' && dkey_(x[c[H.DATE]]) === '2026-09-02'), row = lt.rows[i].slice();
+    row[c[H.ITEMS]] = JSON.stringify({ ROLLING: 3, _parts: [{ n: '', q: 2 }, { n: '', q: 1 }] }); lt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); }`);      // (as saved before the review: no share on its rows)
+  r = save([E('R146B-ROL', '2026-09-02', { mode: 'Hrs', closingHr: 107, items: { ROLLING: 2 }, add: 1 })]);
+  assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
+  j = J('R146B-ROL', '2026-09-02');
+  assert.deepStrictEqual([j.ROLLING, j._parts.map(p => (p.x || {}).ROLLING)], [5, [2, 1, 2]], 'row 1 keeps 2 (its hours), not all 3');
+  assert.strictEqual(amount('R146B-ROL', '2026-09-02'), 5 * 1000);
 });
 
 test('update-141: the Google Sheet backup ONCE A DAY (the nightly job; the first open page of the day if it did not run); the logs only their new rows', () => {

@@ -1849,6 +1849,22 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   it; VER_CTX_ 'approve' / 'flow' / 'resend' (crDecide_, flowDecide_, flowResendOne_) words for a request replayed later (+1
   FIX_RULE); saveLogBulk_ skips the check of a billed row for a user (it is kept out); updateDieselIssue_ returns ver, deleteDiesel
   uses the row's ver.
+- 23-10-2026 (update-146, with App 3.31.2). Report: `UPDATE_146.md`. EVERY MACHINERY – A ROW FOR EACH WORK OF A SHIFT ("sagle machinery
+  la ha rule ghe … same data asel tr duplicate"): `logRowsKind_` → 'km' / 'hr' / 'trip' / 'day' for any machinery (ways must agree,
+  else `logRowsWhyNot_`: a day status / No reading beside a work, different ways); `logRowsJoin_` plainRows = fewer than 2 BOQ works of
+  the kind, non-hours-only rows follow each other exactly (a gap refused with the way out), KM + Hrs rows keep `o` (the other meter;
+  first row's o set on save from join.firstCloseO), a duplicate (logSameWork_) refused; `logRowsJoinCount_` (trips added, `ti` in / out,
+  overlap refused; the day once); parts: `k` 'km'|'trip'|'day' (no k = hours), `o`, `ti` (partKindOf_, partExtra_, partsOtherOk_);
+  partsGap_ only hours rows; `logItemWork_` plain path for every measure; `itemPartsOf_` every measure (callers pass trip);
+  `logEntryRows_` rebuilds them (add path); `updateLogRow_` / `saveLogBulk_` drop `_parts` that no longer add up; "two rows one after
+  the other are both" removed; logSameWork_ Trip / Day. App.html: lxPartKind / lxPlain / lxRowQty / lxSameRow / lxPartsProblem (reasons),
+  lxMoreSay, "+ work" under KM / time-trip-day cells, lxLoad (trip / day rows, o), lx_save (k, o, ti, trips Σ, items {} when the rows
+  go), lgPartKind / lgWhyNot / lgSame, edit-window note, lbWorkRows (day, o, ti), partsGapP; FIX_RULES +1 (+2 changed); guides log /
+  logedit; mr / hi. Unit update-146 (update-71 / 143 checks follow the new rule); browser/rows146.js; entry71 / works69 / nightrow
+  / add143 checks follow the new rule. Review: plain rows keep `x` (typed items of the row; rowTyped_, `a` = Excel Work type resolved
+  on save), `tr` (Format B trips); lxLoad / phone share old entries' typed items over the rows (dist); itemized trip rows (≥2 trip
+  works, logItemWork_ / itemPartsOf_ allow 'trip'); logSameWork_ 'B' = KM + Hrs both meters, saved rows not compared; LX.pk (o / x /
+  tr sent only for a changed entry); tmCol for Day; FLOW_RUN_ID_ counts as "add"; logSlotHint_ / fallback / help words.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

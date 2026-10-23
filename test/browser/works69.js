@@ -173,12 +173,12 @@ const entry = d => sql("select opening_hrs || '>' || closing_hrs || '=' || worki
   // ---------- 5. a machinery without such works keeps the old rule ----------
   await open('W69-TIP');
   g = await grid();
-  ok('a machinery with one kind of work (Tipper per KM) has no "+ work in this shift"', g.length === 2 && g.every(r => !r.more), g.map(r => r.date.slice(8) + ' more:' + r.more));
+  ok('(update-146) a machinery with one kind of work (Tipper per KM) has "+ work in this shift" too', g.length === 2 && g.every(r => r.more), g.map(r => r.date.slice(8) + ' more:' + r.more));
   await f.evaluate(() => { LX.rows.forEach(r => { r._sel = r.date === '2026-09-24'; }); document.getElementById('lx_add').click(); }); await wait(600);
   g = await grid(); const ni = g.findIndex(r => /NEW/.test(r.tag));
   await f.evaluate(i => { const el = document.querySelector('#lx_rows tr[data-i="' + i + '"] [data-f=shift]'); el.value = 'Day'; el.dispatchEvent(new Event('change', { bubbles: true })); }, ni); await wait(600);
   g = await grid(); s0 = await sum();
-  ok('   two rows on the same shift are still refused for it: "two entries on Day – make one Day and the other Night", Save off', g.filter(r => /two entries on Day/.test(r.notes)).length === 2 && /\(off\)/.test(s0.save), { notes: g.map(r => r.notes).filter(Boolean), save: s0.save });
+  ok('   (update-146) a second row on the same shift is its next work, not "two entries on Day": with no work of its own yet it is red "this row has no work yet", Save off', !g.some(r => /two entries on Day/.test(r.notes)) && g.some(r => /this row has no work yet/.test(r.notes)) && /\(off\)/.test(s0.save), { notes: g.map(r => r.notes).filter(Boolean), save: s0.save });
   await f.evaluate(() => { S.formDirty = false; LX.rows = []; LX.deleted = []; LX.cut = {}; });
 
   ok('no script error', errs.length === 0, errs.join(' | '));
