@@ -59,14 +59,17 @@ other ways: rows by the readings of a machinery that is not on hours only, by tr
   day before; a row by Time keeps its ROLLING; a work added to an old shift → ROLLING 2 / 1 / 2 on its rows (bill 5 × 1,000).
   The update-71 and update-143 checks changed where they held the OLD rule (the tipper's second row is now its next work; a work
   added to 02-06 that passes the Start of 03-06 is refused; the Hydra's rows keep their KM).
-* `test/browser/rows146.js` **22 / 22** – the real pages: Edit Log Book (a tipper on KM: "+ work in this shift", its Close, a gap red,
+* `test/browser/rows146.js` **29 / 29** – the real pages (after the review: an entry saved before it with CARTING 50 typed on two
+  rows opens as 20 / 30 and keeps them when saved; trips with two works – red until the work is pressed, saved SOIL 5 / MURUM 3; a
+  grader by the day has "+ work in this shift"): Edit Log Book (a tipper on KM: "+ work in this shift", its Close, a gap red,
   saved as one entry and opened again as its rows; by trips: a duplicate red, saved 8 trips, opened again; KM + Hrs: each row its own
   hours, saved and opened again), the entry page (two rows of the tipper → one entry; Idle beside a work → red with the reason; a third
   work added to the saved trips; the same work again refused), the edit window (its rows said), the print (three rows of trips with
   their challans, payable ₹6,000); no page error.
 * The Log Book browser tests of the page on this update – see "Regression".
-* The phone app (App 3.31.2, its own pull request): its GitHub build – analyze, the tests (new: a tipper on KM, by trips, KM + Hrs;
-  the print of rows of every way the same as the web's own print), the screens.
+* The phone app (App 3.31.2, rcl-mobile #60): its GitHub build **passed** (7c2831c) – analyze, the tests (new: a tipper on KM, by
+  trips, KM + Hrs; typed items given back to rows, untouched entries sent back as loaded; trips with two works; the print of rows of
+  every way the same as the web's own print – fixture case parts146), the screens, the Android file.
 
 ## After an independent review (fixed, each with a check)
 1. **A typed item on rows without a work picked was lost when Edit Log Book saved the shift again** (e.g. SHIFTING per KM typed 10 + 20
@@ -96,7 +99,14 @@ before this update, the share-out of its typed items over its rows is worked out
 totals and the bill are the entry's and do not change.
 
 ## Regression
-(filled in after the sweep)
+All the Log Book browser tests of the page, on the test copy with the location shim, from a clean copy each, on this update (after
+the first review's fixes) compared with main: **the 30 tests of main give exactly the same result** – billlock 16, entry71 20, gap77
+20, lbbasis 9, lbpage 13, lxlook 10, shift109 8, splittime 18, tanker97 16, tanker103 11, tanker105 7, tanker107 8, time76 10, time78
+10, timefmt70 6, works69 34 pass on both; lg2 and tanker104 fail the same line on both; group72, half, idle, item2, lgrows, meter,
+meter2, nightrow, xls, xls2 stop before their first check on both (they need the Portal or the old code on :3002); debit and tmbill
+print no PASS line on either. entry71, works69 and nightrow hold checks of the OLD rule (a tipper's second row refused, "two entries on
+Day") – changed to the new rule. Also: add143 18 / 18 (3 checks of the old rule changed), time144 17 / 17, same145 10 / 10, rows146
+29 / 29.
 
 ## Not verified
 * Not on Vercel, not against the live database.
