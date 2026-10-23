@@ -6275,5 +6275,11 @@
 "{0} Nothing was saved.": "{0} काहीही सेव्ह झाले नाही.",
 "Reload the list.": "यादी पुन्हा लोड करा.",
 "another user": "दुसरा user",
-"Diesel issue {0} ({1}, {2})": "डिझेल इश्यू {0} ({1}, {2})"
+"Diesel issue {0} ({1}, {2})": "डिझेल इश्यू {0} ({1}, {2})",
+"{0} was changed by {1} after this request was made – reject it: the person who asked makes the change again on the entry as it is now. Nothing was saved.": "ही विनंती केल्यानंतर {0} {1} यांनी बदलली – विनंती नाकारा: ज्याने विनंती केली तो आत्ताच्या entry वर बदल पुन्हा करेल. काहीही सेव्ह झाले नाही.",
+"{0} was changed by {1} after this entry was sent – it goes back to the person who sent it: he makes the change again on the entry as it is now. Nothing was saved.": "ही entry पाठवल्यानंतर {0} {1} यांनी बदलली – ती पाठवणाऱ्याकडे परत जाते: तो आत्ताच्या entry वर बदल पुन्हा करेल. काहीही सेव्ह झाले नाही.",
+"{0} was changed by {1} after this entry was sent – it cannot be sent again: take it back and make the change again on the entry as it is now. Nothing was saved.": "ही entry पाठवल्यानंतर {0} {1} यांनी बदलली – ती पुन्हा पाठवता येणार नाही: ती परत घ्या आणि आत्ताच्या entry वर बदल पुन्हा करा. काहीही सेव्ह झाले नाही.",
+"after this request was made – reject it: the person who asked makes the change again on the entry as it is now. Nothing was saved.": "ही विनंती केल्यानंतर बदलली – विनंती नाकारा: ज्याने विनंती केली तो आत्ताच्या entry वर बदल पुन्हा करेल. काहीही सेव्ह झाले नाही.",
+"after this entry was sent – it goes back to the person who sent it: he makes the change again on the entry as it is now. Nothing was saved.": "ही entry पाठवल्यानंतर बदलली – ती पाठवणाऱ्याकडे परत जाते: तो आत्ताच्या entry वर बदल पुन्हा करेल. काहीही सेव्ह झाले नाही.",
+"after this entry was sent – it cannot be sent again: take it back and make the change again on the entry as it is now. Nothing was saved.": "ही entry पाठवल्यानंतर बदलली – ती पुन्हा पाठवता येणार नाही: ती परत घ्या आणि आत्ताच्या entry वर बदल पुन्हा करा. काहीही सेव्ह झाले नाही."
 }

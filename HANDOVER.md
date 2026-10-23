@@ -1845,7 +1845,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   rows[].ver. In: updateLogRow_ l.ver, deleteLogRow_(key, ver), saveLogBulk_ b.vers {key: ver} (before anything; ok:false),
   updateDieselIssue_ d.ver, deleteDieselIssue_(id, ver); no ver = as before. App.html: x.ver (edit window), deleteLogRow e.ver,
   lx save vers, S.editDieselVer (kept at editDiesel – the list refreshes), deleteDiesel ver; FIX_RULES +1; mr / hi. Unit
-  update-145 (update-130's line check follows), browser/same145.js 10.
+  update-145 (update-130's line check follows), browser/same145.js 10. Review: a moved Start is stamped (stampEdit_) with who moved
+  it; VER_CTX_ 'approve' / 'flow' / 'resend' (crDecide_, flowDecide_, flowResendOne_) words for a request replayed later (+1
+  FIX_RULE); saveLogBulk_ skips the check of a billed row for a user (it is kept out); updateDieselIssue_ returns ver, deleteDiesel
+  uses the row's ver.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
