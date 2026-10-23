@@ -71,14 +71,14 @@ const parts = (no, d) => sql("select coalesce(item_work::text,'') from log_book 
   ok('   an older app (its row without the "add" mark) is refused as before: "already saved", nothing saved', old && old.ok === false && /already saved for 06-10-2026 \(Full Day\)/.test(JSON.stringify(old)) && entry('N143-EXC', '2026-10-06') === '06 Full Day 100>108=5', old);
   ok('   the same work sent again (e.g. from a phone that was offline): "already in the saved entry of this shift", nothing saved', dup && dup.ok === false && /this work is already in the saved entry of this shift/.test(JSON.stringify(dup)) && entry('N143-EXC', '2026-10-06') === '06 Full Day 100>108=5', dup);
   const fix = await f.evaluate(m => fixRules(m).map(r => r.en[0] + ' ' + r.mr[0]).join(' || '), String(dup && dup.errors && dup.errors[0] && dup.errors[0].msg));
-  ok('   its help (English / मराठी): the work is already there', /already in the Log Book entry of that shift/.test(fix) && /आधीच आहे/.test(fix), fix);
+  ok('   its help (English / मराठी): the work is already there', /This work is already there/.test(fix) && /आधीच आहे/.test(fix), fix);      // (update-146: the help also names trips / day)
 
   // ---------- 2. the Hydra: HYDRA saved, then FARANA from its Close ----------
   await start('2026-10-06'); await setRow(0, 'N143-HYD', 'Day'); g = await rows();
   ok('Hydra (KM + Hrs, two hour works): the row starts at the saved Close (103 hr, 5010 km) as work 2', !(/already saved for/.test(g[0].note)) && g[0].start === '103' && g[0].okm === '5010' && /work 2 of this day/.test(g[0].label), g[0]);
   await setF(0, 'closingKm', '5014'); await setF(0, 'closingHr', '105');
   await pick(0, 'HYDRA'); g = await rows();
-  ok('   the same work as the saved last one (HYDRA) is red: one row for each work', g[0].red && /Same work as the row above \(HYDRA\)/.test(g[0].note), g[0]);
+  ok('   (update-146) the same work as the saved last one (HYDRA) in a row of its own: not red (its own readings – different data)', !g[0].red && !/Same work as the row above/.test(g[0].note), g[0]);
   await pick(0, 'FARANA'); g = await rows();
   ok('   FARANA: nothing red', !g[0].red, g[0]);
   sv = await save();
@@ -89,7 +89,8 @@ const parts = (no, d) => sql("select coalesce(item_work::text,'') from log_book 
 
   // ---------- 3. a vehicle on KM keeps one entry per shift ----------
   await start('2026-10-06'); await setRow(0, 'N143-TIP', 'Full Day'); g = await rows();
-  ok('a tipper on KM (one kind of work): the saved day is still refused, with the reason and where to change it', g[0].red && /already saved for 06-10-2026 \(Full Day\)\. Another work of the same shift is added to a saved entry only for a machinery on hours/.test(g[0].note), g[0]);
+  // update-146 (23-10-2026, "sagle machinery la ha rule ghe"): a vehicle on KM takes another work of a saved shift too
+  ok('(update-146) a tipper on KM (one kind of work): the saved day takes this row as its work 2 – it starts at the saved Close', !g[0].red && /already saved – this row is added to it as work 2/.test(g[0].note) && /work 2 of this day/.test(g[0].label), g[0]);
 
   // ---------- 4. Edit Log Book shows the excavator's day as its rows ----------
   const ed = await api('getLogEditData', 'N143-EXC', '2026-10-06', '2026-10-06');

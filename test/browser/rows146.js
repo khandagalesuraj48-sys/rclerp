@@ -25,8 +25,20 @@ const count = no => sql("select count(*) from log_book where machinery = '" + no
   await M({ no: 'N146-TIP', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4 });
   await M({ no: 'N146-TRP', name: 'Tipper', type: 'Tipper', unit: 'Trip', worksOn: ['Trip'] });
   await M({ no: 'N146-TM', name: 'Transit Mixer', type: 'Transit Mixer', unit: 'KM + Hrs', worksOn: ['KM', 'Hrs'], kmStd: 3, hrStd: 4 });
+  // (after the review) a tipper with one typed KM work; a tipper with two trip works; a grader by the day
+  await M({ no: 'N146-TIP2', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4 });
+  await M({ no: 'N146-TRP2', name: 'Tipper', type: 'Tipper', unit: 'Trip', worksOn: ['Trip'] });
+  await M({ no: 'N146-GRD', name: 'Grader', type: 'Grader', unit: 'Day', worksOn: ['Day'] });
   E(await api('saveBoq', { vendor: 'N146 Vendor', from: '2026-09-01', tdsPct: 2, woNo: 'WO-N146', lines: [{ no: 'N146-TIP', basis: 'Per KM', rate: 40, diesel: 'Company' },
-    { no: 'N146-TRP', basis: 'Per Trip', rate: 600, nightRate: 600, diesel: 'Company' }, { no: 'N146-TM', basis: 'Per Hour', rate: 500, diesel: 'Company' }] }));
+    { no: 'N146-TRP', basis: 'Per Trip', rate: 600, nightRate: 600, diesel: 'Company' }, { no: 'N146-TM', basis: 'Per Hour', rate: 500, diesel: 'Company' },
+    { no: 'N146-TIP2', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'CARTING', basis: 'Per KM', rate: 40, qty: 'typed' }] },
+    { no: 'N146-TRP2', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'SOIL', basis: 'Per Trip', rate: 600, qty: 'typed' }, { name: 'MURUM', basis: 'Per Trip', rate: 400, qty: 'rest' }] },
+    { no: 'N146-GRD', basis: 'Per Day', rate: 3000, diesel: 'Company' }] }));
+  E(await api('saveLogRows', { rows: [{ no: 'N146-TIP2', date: '2026-09-01', shift: 'Full Day', mode: 'KM', openingKm: 1000, closingKm: 1050, openingDiesel: 40, items: { CARTING: 50 } }] }));
+  // (an entry saved BEFORE the review: its two rows without what was typed on each)
+  sql("update log_book set item_work = '{\"CARTING\":50,\"_parts\":[{\"n\":\"\",\"q\":20,\"k\":\"km\",\"w\":\"A\"},{\"n\":\"\",\"q\":30,\"k\":\"km\",\"w\":\"B\"}]}' where machinery = 'N146-TIP2' and date = '2026-09-01'");
+  E(await api('saveLogRows', { rows: [{ no: 'N146-TRP2', date: '2026-09-01', shift: 'Full Day', mode: 'Trip', trip: 5, challan: 'S1', items: { SOIL: 5 }, openingDiesel: 20 }] }));
+  E(await api('saveLogRows', { rows: [{ no: 'N146-GRD', date: '2026-09-01', shift: 'Full Day', mode: 'Day', work: 'SITE A', openingDiesel: 10 }] }));
   E(await api('saveLogRows', { rows: [{ no: 'N146-TIP', date: '2026-09-01', shift: 'Full Day', mode: 'KM', openingKm: 1000, closingKm: 1100, openingDiesel: 100 }] }));
   E(await api('saveLogRows', { rows: [{ no: 'N146-TIP', date: '2026-09-02', shift: 'Full Day', mode: 'KM', closingKm: 1150, challan: 'C1', work: 'LOADING' }] }));
   E(await api('saveLogRows', { rows: [{ no: 'N146-TRP', date: '2026-09-01', shift: 'Full Day', mode: 'Trip', trip: 5, challan: 'T1', work: 'SOIL', openingDiesel: 30 }] }));
@@ -88,6 +100,26 @@ const count = no => sql("select count(*) from log_book where machinery = '" + no
   ok('   saved: ONE entry 5000 → 5030 / 100 → 107; its rows keep their hours (3 and 4)', /^KM \+ Hrs 5000>5030 100>107 /.test(ent('N146-TM', '01')) && /"o":\s*3.*"o":\s*4/.test(ent('N146-TM', '01')), [ent('N146-TM', '01'), sv.slice(0, 300)]);
   await open('N146-TM', '2026-09-01', '2026-09-01'); x = await grid();
   ok('   opened again: row 1 5000 > 5010 / 100 > 103, row 2 5010 > 5030 / 103 > 107', /^01 KM \+ Hrs 5000>5010 100>103 /.test(x.rows[0]) && /^01 KM \+ Hrs 5010>5030 103>107 /.test(x.rows[1]), x);
+
+  // ---------- (after the review) what was typed on rows; trips with two works; a machinery by the day ----------
+  const boxes = () => f.evaluate(() => [...document.querySelectorAll('#lx_rows tr[data-i]')].map(tr => { const i = tr.querySelector('.lx-itm input[data-item="CARTING"]'); return i ? i.value : '-'; }));
+  await open('N146-TIP2', '2026-09-01', '2026-09-01'); x = await grid();
+  const bx = await boxes();
+  ok('(review) Edit Log Book, an entry saved before the review with CARTING 50 typed on two rows (20 + 30 km): each row gets its share back – 20 and 30; nothing red', x.rows.length === 2 && bx.join() === '20,30' && !/RED/.test(x.rows.join()), [bx, x.rows]);
+  await lxSet(1, 'work', 'B2'); sv = await lxSave();
+  ok('   a text changed and saved: CARTING still 50 – and now each row keeps its own (20, 30)', /"CARTING":\s*50/.test(ent('N146-TIP2', '01')) && /"x":\s*\{"CARTING":\s*20\}.*"x":\s*\{"CARTING":\s*30\}/.test(ent('N146-TIP2', '01')), [ent('N146-TIP2', '01'), sv.slice(0, 200)]);
+  await open('N146-TRP2', '2026-09-01', '2026-09-01');
+  await more(0); await lxSet(1, 'trip', '3'); await lxSet(1, 'challan', 'M1'); x = await grid();
+  ok('(review) trips with two works (SOIL / MURUM): the row added is red until its work is pressed', /RED/.test(x.rows[1]) && /ONE work – press SOIL \/ MURUM|Pick the work/.test(x.rows.join()) && x.save === 'off', x);
+  await f.evaluate(() => { [...document.querySelectorAll('#lx_rows tr[data-i="1"] .itm-chip')].find(c => c.dataset.pick === 'MURUM').click(); }); await wait(400); x = await grid();
+  ok('   MURUM pressed: nothing red', !/RED/.test(x.rows.join()) && x.save === 'on', x);
+  sv = await lxSave();
+  ok('   saved: 8 trips, its rows SOIL 5 and MURUM 3', /^Trip > > t8 /.test(ent('N146-TRP2', '01')) && /"n":\s*"SOIL",\s*"q":\s*5.*"n":\s*"MURUM",\s*"q":\s*3/.test(ent('N146-TRP2', '01')), [ent('N146-TRP2', '01'), sv.slice(0, 200)]);
+  await open('N146-GRD', '2026-09-01', '2026-09-01');
+  const mg = await more(0); await lxSet(1, 'work', 'SITE B'); x = await grid();
+  ok('(review) a grader by the day (no item column): "+ work in this shift" is there; SITE A + SITE B – nothing red', mg && x.rows.length === 2 && !/RED/.test(x.rows.join()), [mg, x]);
+  sv = await lxSave();
+  ok('   saved: ONE day, two works', /^Day .*\[SITE A \/ SITE B\]/.test(ent('N146-GRD', '01')) && /"k":\s*"day".*"k":\s*"day"/.test(ent('N146-GRD', '01')) && count('N146-GRD') === '1', [ent('N146-GRD', '01'), sv.slice(0, 200)]);
 
   // ---------- the Log Book entry page ----------
   await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} S.formDirty = false; LX.rows = []; showTab('log'); }); await wait(2500); await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} });

@@ -5924,9 +5924,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['Idle, Holiday आणि Breakdown म्हणजे पूर्ण shift, आणि meter reading नसलेला दिवस पूर्ण shift च्या अंदाजे कामाने भरला जातो – अशी ओळ त्याच date आणि shift च्या दुसऱ्या ओळीसोबत राहू शकत नाही.', 'त्या shift साठी एकच प्रकार ठेवा: एकतर दिवसाची स्थिती, किंवा shift ची कामे (प्रत्येक कामाची स्वतंत्र ओळ). machinery ने shift चा काही भाग काम केले असेल तर फक्त कामे भरा. दोन वेगळ्या shift असतील तर एक Day आणि दुसरी Night करा.'],
       hi: ['Idle, Holiday और Breakdown पूरी shift होते हैं, और बिना meter reading का दिन पूरी shift के अनुमानित काम से भरा जाता है – ऐसी पंक्ति उसी date और shift की दूसरी पंक्ति के साथ नहीं रह सकती।', 'उस shift के लिए एक ही रखें: या तो दिन की स्थिति, या shift के काम (हर काम की अलग पंक्ति)। machinery ने shift का कुछ हिस्सा काम किया हो तो सिर्फ काम भरें। दो अलग shift हों तो एक Day और दूसरी Night करें।'] },
     { re: /another work cannot be added to it|Another work of the same shift is added to a saved entry only/i,
-      en: ['That shift is already saved, and this kind of entry cannot take a second work: a vehicle on KM, a day saved as Idle / Holiday / Breakdown, without a reading or with a new meter, or an entry split between two works.', 'Open that date in Edit Log Book and change the saved entry there (add the work to it, or correct it) – or pick the other shift if the work was in the other shift.'],
-      mr: ['ती shift आधीच save झाली आहे, आणि अशा entry मध्ये दुसरे काम जोडता येत नाही: KM वर चालणारे वाहन, Idle / Holiday / Breakdown म्हणून save झालेला दिवस, reading शिवाय किंवा नवीन meter असलेली entry, किंवा दोन कामांत विभागलेली entry.', 'तो दिवस Edit Log Book मध्ये उघडा आणि save झालेली entry तिथेच बदला (काम जोडा किंवा दुरुस्त करा); काम दुसऱ्या shift मध्ये झाले असेल तर ती shift निवडा.'],
-      hi: ['वह shift पहले से save है, और ऐसी entry में दूसरा काम नहीं जुड़ सकता: KM पर चलने वाला वाहन, Idle / Holiday / Breakdown के रूप में save हुआ दिन, reading के बिना या नए meter वाली entry, या दो कामों में बँटी entry।', 'वह दिन Edit Log Book में खोलें और save हुई entry वहीं बदलें (काम जोड़ें या ठीक करें); काम दूसरी shift में हुआ हो तो वह shift चुनें।'] },
+      en: ['That shift is already saved, and this saved entry cannot take a second work: a day saved as Idle / Holiday / Breakdown, without a reading or with a new meter, an entry split between two works, or one saved in a way this machinery is no longer measured by.', 'Open that date in Edit Log Book and change the saved entry there (add the work to it, or correct it) – or pick the other shift if the work was in the other shift.'],
+      mr: ['ती shift आधीच save झाली आहे, आणि या save झालेल्या entry मध्ये दुसरे काम जोडता येत नाही: Idle / Holiday / Breakdown म्हणून save झालेला दिवस, reading शिवाय किंवा नवीन meter असलेली entry, दोन कामांत विभागलेली entry, किंवा ही machinery आता ज्या प्रकाराने मोजली जात नाही त्या प्रकारात save झालेली entry.', 'तो दिवस Edit Log Book मध्ये उघडा आणि save झालेली entry तिथेच बदला (काम जोडा किंवा दुरुस्त करा); काम दुसऱ्या shift मध्ये झाले असेल तर ती shift निवडा.'],
+      hi: ['वह shift पहले से save है, और इस save हुई entry में दूसरा काम नहीं जुड़ सकता: Idle / Holiday / Breakdown के रूप में save हुआ दिन, reading के बिना या नए meter वाली entry, दो कामों में बँटी entry, या उस तरीके से save हुई entry जिससे यह machinery अब नहीं मापी जाती।', 'वह दिन Edit Log Book में खोलें और save हुई entry वहीं बदलें (काम जोड़ें या ठीक करें); काम दूसरी shift में हुआ हो तो वह shift चुनें।'] },
     { re: /already (saved|exists|entered|in Master|a user|has)|more than once|is repeated|is twice|use Edit/i,
       en: ['The same entry (same machinery, date and shift – or the same name / number) is already there.', 'Do not add it again. Find it in the list and use Edit to change it; or correct the date, shift or number if this is really a different entry.'],
       mr: ['तीच entry (तीच machinery, तारीख आणि shift, किंवा तेच नाव / नंबर) आधीच आहे.', 'ती पुन्हा जोडू नका. यादीत शोधून Edit ने बदला; किंवा ही खरोखर वेगळी entry असेल तर तारीख, shift किंवा नंबर दुरुस्त करा.'],
@@ -8997,7 +8997,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   /* ================= EDIT LOG BOOK (many entries of one machinery) =================
      Load → edit in the grid (everything re-calculates live) → Save changes (one save for the whole grid). */
-  const LX = { d: null, rows: [], deleted: [], odsl: '', cut: {}, pc: {} };
+  const LX = { d: null, rows: [], deleted: [], odsl: '', cut: {}, pc: {}, pk: {} };      // (pk: what the loaded rows of an entry carry – update-146 review)
   /* SEVERAL WORKS IN ONE SHIFT (asked 10-10-2026): a machinery whose BOQ has two or more hour (or KM) works – Bucket and
    * Breaker – may have MORE THAN ONE ROW on the same date and shift, one row for each work, each with its own Start / Close,
    * challan and description. The rows follow each other (a row starts where the row above it closed). They are saved as ONE
@@ -9010,7 +9010,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const lxHO = () => hrsOnlyM(((LX || {}).d || {}).machine);
   // its rows need no work picked when the BOQ has fewer than two hour works ("plain" rows: just its times of work)
   // (update-144: rows by Time of any machinery; update-146: any machinery whose BOQ has fewer than two works of the row's measure – by trips / by the day always)
-  const lxPlain = r => { const k = lxPartKind(r); return !!k && (k === 'trip' || k === 'day' || (((LX.d || {}).boqItems || {})[r.date] || []).filter(it => itemKind(it.basis) === k).length < 2); };
+  const lxPlain = r => { const k = lxPartKind(r); return !!k && (k === 'day' || (((LX.d || {}).boqItems || {})[r.date] || []).filter(it => itemKind(it.basis) === k).length < 2); };      // (review: trips with two works – each row ONE of them)
   // "+ work in this shift" under a row (in the item column; a machinery without an item-wise BOQ: under its Close – update-77)
   const lxMoreBtn = r => (lxPartKind(r) && !r.lock && DAY_STATUS.indexOf(lxWay(r)) === -1 ? '<button type="button" class="lx-more" title="' + (lxHO() ? 'The machinery worked once more in this same shift (e.g. Breaker 100 → 102, then again 110 → 113): adds a row under this one – same date, same shift. Its Start may be higher than the Close above; the hours between are not counted.' : 'The machinery did another work in this same shift (e.g. Breaker after Bucket): adds a row for it under this one – same date, same shift, starting where this work closed.') + '">+ work in this shift</button>' : '');
   const lxMoreSay = r => { const k = lxPartKind(r), w = lxWay(r), at = showDate(r.date) + ' (' + r.shift + ')';      // (update-146) what to type in the row just added
@@ -9043,6 +9043,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const typed = its.filter(it => it.qty !== 'rest' && Number((r.items || {})[it.name]) > 0), rest = its.find(it => it.qty === 'rest'), tot = lxRowQty(r, k);
     return !typed.length ? (rest ? rest.name : '') : typed.length === 1 && Math.abs(Number(r.items[typed[0].name]) - tot) < 0.005 ? typed[0].name : ''; };
   // what was typed, on any row of a shift, for items of ANOTHER kind than its works (a per-KM item beside the hour works): they stay with the entry
+  // (update-146 review) what was typed on a row (its own share of the entry's typed items) – kept on the row
+  const lxRowX = r => { const its = ((LX.d || {}).boqItems || {})[r.date] || [], o = {}; Object.keys(r.items || {}).forEach(n => { const it = its.find(q => q.name === n), v = Number(r.items[n]); if (it && itemKind(it.basis) !== 'day' && v > 0) o[n] = v; }); return o; };
   const lxOtherItems = (g, kind) => { const its = ((LX.d || {}).boqItems || {})[g[0].date] || [], o = {}; g.forEach(x => Object.keys(x.items || {}).forEach(n => { const it = its.find(q => q.name === n), v = Number(x.items[n]); if (it && itemKind(it.basis) !== kind && itemKind(it.basis) !== 'day' && v > 0) o[n] = r2((o[n] || 0) + v); })); return o; };
   const lxSig = r => { const k = lxPartKind(r); return itemSig(((LX.d || {}).boqItems || {})[r.date], r.items || {}) + (k ? '|' + lxPickOf(r, k) : ''); };
   // what is wrong with this row as one of several rows of its shift: null = this machinery cannot have several rows a shift, '' = fine
@@ -9091,7 +9093,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (m.lbFormat === 'I') { await ltLoad(m); return; }      // (update-104) a water tanker: its trips, one row each
     $('lt_panel').hidden = true; S.lt = null;
     const d = await call('getLogEditData', m.id, $('lx_from').value, $('lx_to').value);
-    LX.d = d; LX.deleted = []; LX.odsl = ''; LX.locks = d.locks || []; LX.cut = {}; LX.pc = {};
+    LX.d = d; LX.deleted = []; LX.odsl = ''; LX.locks = d.locks || []; LX.cut = {}; LX.pc = {}; LX.pk = {};
     const md0 = modesOf(d.machine).concat(DAY_STATUS);
     // (an entry is shown the way it was SAVED – also a way the machinery's Log Book format, set afterwards, no longer offers:
     //  entries made by clock Time and the format then set to one read from the hour meter. Before: such rows came up as the format's way, EMPTY and red.)
@@ -9107,6 +9109,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const lastR = ps.map((p, j) => partIsTimeP(p) ? -1 : j).filter(j => j > -1).pop();
       const two = ps.some(p => p.o !== undefined);      // (update-146: read in KM + Hrs – each row its other meter too)
       let at2 = Number(ps[0].k === 'km' ? r.ohr : r.okm) || 0;
+      /* (update-146 review) rows without a work picked: each row gets back what was typed on it (x); rows saved before it had that: the
+       * entry's typed items are shared out over its rows in order (each up to its own quantity), so every row's box adds up and none is lost */
+      const plainP = ps.every(p => !p.n), hasX = plainP && ps.some(p => p.x), hasTr = ps.some(p => p.tr !== undefined), dist = ps.map(() => ({}));
+      LX.pk[x.key] = { o: two, x: hasX, tr: hasTr };
+      if (plainP && !hasX) { const used = ps.map(() => ({}));
+        Object.keys(x.items).filter(n => n.charAt(0) !== '_' && Number(x.items[n]) > 0).forEach(n => { const o = its.find(q => q.name === n), ik = o ? itemKind(o.basis) : '';
+          let left = Number(x.items[n]); ps.forEach((p, j) => { const pk = partIsTimeP(p) ? 'hr' : (p.k || 'hr'); if (left <= 0.005 || pk !== ik) return; const take = r2(Math.min(left, Math.max(0, (Number(p.q) || 0) - (used[j][ik] || 0))));
+            if (take > 0) { dist[j][n] = r2((dist[j][n] || 0) + take); used[j][ik] = r2((used[j][ik] || 0) + take); left = r2(left - take); } });
+          if (left > 0.005) { const jj = ik && ps.some(p => (partIsTimeP(p) ? 'hr' : (p.k || 'hr')) === ik) ? ps.length - 1 : 0; dist[jj][n] = r2((dist[jj][n] || 0) + left); } }); }
       return ps.map((p, j) => { const y = Object.assign({}, x), it = its.find(q => q.name === p.n) || {};
         if (partIsTimeP(p)) {      // update-78: a row by Time – its From / To and break, no reading
           const sl = slotsParse(String(p.ts || '').replace(/,/g, ', ')); y.mode = 'Time'; y.ohr = ''; y.chr = ''; y.okm = ''; y.ckm = '';
@@ -9120,9 +9131,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (two) { const a2 = at2, b2 = j === lastR ? Number(p.k === 'km' ? r.chr : r.ckm) : r2(a2 + (Number(p.o) || 0)); at2 = b2; if (p.k === 'km') { y.ohr = a2; y.chr = b2; } else { y.okm = a2; y.ckm = b2; } }
         }
         const others = {}; if (!j) Object.keys(x.items).forEach(n => { const o = its.find(q => q.name === n); if (o && itemKind(o.basis) !== p.k) others[n] = x.items[n]; });      // (typed items of another kind – e.g. a per-KM item beside the hour works – ride on the first row)
-        y.items = Object.assign(x.items._day ? { _day: x.items._day } : {}, others, !p.n || it.qty === 'rest' ? {} : { [p.n]: p.q }); y._pick = { [p.k]: p.n };
+        y.items = plainP ? Object.assign(x.items._day ? { _day: x.items._day } : {}, hasX ? Object.assign({}, p.x || {}) : dist[j]) : Object.assign(x.items._day ? { _day: x.items._day } : {}, others, !p.n || it.qty === 'rest' ? {} : { [p.n]: p.q }); y._pick = { [p.k]: p.n };
         y.itemSig = lxSig(y); y.challan = p.c || ''; y.remark = p.p || ''; y.chFrom = p.f || ''; y.chTo = p.t || ''; y.work = p.w || '';
-        if (j && p.k !== 'trip') y.trip = '';      // (what belongs to the entry as a whole is on its first row; the opening diesel of the 1st stays with every row so that it is not lost when the first row goes)
+        if (p.k !== 'trip' && hasTr) y.trip = p.tr === undefined ? '' : p.tr;      // (update-146 review: each row its own trips – Format B)
+        else if (j && p.k !== 'trip') y.trip = '';      // (what belongs to the entry as a whole is on its first row; the opening diesel of the 1st stays with every row so that it is not lost when the first row goes)
         y.orig = Object.assign({}, y); y.lock = lxLockOf(y.date); return y; });
     }));
     $('lx_no').value = d.machine.id;
@@ -9136,7 +9148,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const d = (LX.d.diesel || {})[r.date] || { Day: 0, Night: 0 }; return r.shift === 'Full Day' ? r2(d.Day + d.Night) : r.shift === 'Night' ? d.Night : d.Day; };
   function lxRender() {
     const d = LX.d, m = d.machine, modes = modesOf(m).concat(DAY_STATUS), km = meterKm(m) || LX.rows.some(r => hasKm(lxWay(r))), hr = meterHr(m) || LX.rows.some(r => hasHr(lxWay(r)));
-    const tmCol = modes.indexOf('Time') > -1 || modes.indexOf('Trip') > -1 || (m.lbFormat === 'H' || m.lbFormat === 'B') || LX.rows.some(r => r.mode === 'Time' || r.mode === 'Trip' || DAY_STATUS.indexOf(r.mode) > -1), wayCol = modes.length > 1;
+    const tmCol = modes.indexOf('Time') > -1 || modes.indexOf('Trip') > -1 || modes.indexOf('Day') > -1 || (m.lbFormat === 'H' || m.lbFormat === 'B') || LX.rows.some(r => r.mode === 'Time' || r.mode === 'Trip' || r.mode === 'Day' || DAY_STATUS.indexOf(r.mode) > -1), wayCol = modes.length > 1;      // (update-146 review: a machinery by the day – its "+ work in this shift" is in this column)
     const itemCol = Object.keys(d.boqItems || {}).length > 0; // Item-wise BOQ in these dates
     LX.cols = { km: km, hr: hr, tmCol: tmCol, wayCol: wayCol };      // the columns drawn – the total line below must have the same ones
     lxSort();
@@ -9450,7 +9462,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const G = allT ? g.slice().sort((a, b) => at0(a) - at0(b)) : allTi ? g.slice().sort((a, b) => ti0(a) - ti0(b)) : g, tB = allT ? r2(G.reduce((a, x) => a + (Number(tp(x).tb) || 0), 0)) : 0;
       // (every time of every row in the order of the shift – a row with "+ time" may hold times around another row's)
       const tSl = allT ? [].concat(...G.map(x => { const sl = slotsParse(tp(x).ts), sp = timeSpansP(sl, x.shift); return sl.map((t, j) => ({ at: (sp[j] || sp[0] || [0])[0], t: t })); })).sort((a, b) => a.at - b.at).map(o => o.t) : [];
-      if (g.length > 1) { const kind = lxPartKind(r);
+      if (g.length > 1) { const kind = lxPartKind(r), pk = LX.pk[own] || {}, fresh = g.some(x => x.isNew || lxChanged(x)) || (LX.pc[own] || 1) !== g.length;      // (review: an entry not touched is sent back as it was loaded)
         return { key: own, same: g.every(x => !x.isNew && !lxChanged(x) && x.key === own) && LX.pc[own] === g.length, half: !!r.half, date: r.date, shift: r.shift, mode: w, openingKm: k ? R.okm : '', closingKm: k ? z.ckm : '', openingHr: h ? R.ohr : '', closingHr: h ? z.chr : '',
           tStart: allT ? tSl[0][0] : allTi ? G[0].tStart : '', tEnd: allT ? tSl[tSl.length - 1][1] : allTi ? G[G.length - 1].tEnd : '', tBreak: allT && tB > 0 ? tB : '', tSlots: allT ? tSl : undefined, remark: joinTxt(G.map(x => x.remark)), trip: m.lbFormat === 'B' || w === 'Trip' ? (g.reduce((a, x) => a + (Number(x.trip) || 0), 0) || '') : '', challan: joinTxt(G.map(x => x.challan)), chFrom: (G.find(x => String(x.chFrom || '').trim()) || {}).chFrom || '', chTo: (G.slice().reverse().find(x => String(x.chTo || '').trim()) || {}).chTo || '',
           work: joinTxt(G.map(x => x.work)), odSet: /-01$/.test(r.date) ? (r.odSet ?? '') : '',
@@ -9458,8 +9470,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             return Object.assign({ n: lxPlain(x) ? '' : lxPickOf(x, kind), q: lxRowQty(x, kind), c: x.challan || '', p: x.remark || '', f: x.chFrom || '', t: x.chTo || '', w: x.work || '' },
               lxWay(x) === 'Time' ? lxTimePart(x) : ph && kind === 'hr' && lxHO() && Number(x.ohr) > Number(ph.chr) ? { g: r2(Number(x.ohr) - Number(ph.chr)) } : {},
               // update-146: a plain row says its measure (KM, trips, the day); a row read in KM + Hrs keeps its other meter (o); a row by trips its in / out time
-              lxWay(x) !== 'Time' && lxPlain(x) && kind !== 'hr' ? { k: kind } : {}, k && h && (kind === 'km' || kind === 'hr') && lxWay(x) !== 'Time' ? { o: lxRowQty(x, kind === 'km' ? 'hr' : 'km') } : {},
-              kind === 'trip' && x.tStart && x.tEnd ? { ti: x.tStart + '-' + x.tEnd } : {}); }) }) }; }
+              lxWay(x) !== 'Time' && ((lxPlain(x) && kind !== 'hr') || kind === 'trip') ? { k: kind } : {}, k && h && (kind === 'km' || kind === 'hr') && lxWay(x) !== 'Time' && (fresh || pk.o) ? { o: lxRowQty(x, kind === 'km' ? 'hr' : 'km') } : {},
+              kind === 'trip' && x.tStart && x.tEnd ? { ti: x.tStart + '-' + x.tEnd } : {},
+              // (review) a plain row keeps what was typed on it; a row of Format B its trips
+              lxPlain(x) && (fresh || pk.x) && Object.keys(lxRowX(x)).length ? { x: lxRowX(x) } : {}, kind !== 'trip' && m.lbFormat === 'B' && String(x.trip ?? '') !== '' && (fresh || pk.tr) ? { tr: Number(x.trip) || 0 } : {}); }) }) }; }
       return { key: own, joinRows: (LX.pc[own] || 1) > 1 || undefined, same: !r.isNew && !lxChanged(r) && r.key === own && (LX.pc[own] || 1) === 1, half: !!r.half, date: r.date, shift: r.shift, mode: w, openingKm: k ? r.okm : '', closingKm: k ? r.ckm : '', openingHr: h ? r.ohr : '', closingHr: h ? r.chr : '',
         tStart: w === 'Time' || w === 'Trip' ? r.tStart || '' : '', tEnd: w === 'Time' || w === 'Trip' ? r.tEnd || '' : '', tBreak: w === 'Time' ? r.tBrk : '', remark: r.remark || '', trip: w === 'Trip' || (m.lbFormat === 'B' && DAY_STATUS.indexOf(w) === -1) ? r.trip : '', challan: w === 'Trip' || w === 'Time' ? (r.challan || '') : (r.challan || ''),
         chFrom: r.chFrom || '', chTo: r.chTo || '', work: r.work || '', odSet: /-01$/.test(r.date) ? (r.odSet ?? '') : '',
@@ -13540,6 +13554,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       else if (k === 'hr') y._grossLess = later;
       if (two && !isT(p)) { const a2 = at2, b2 = j === lastR ? Number(r[O[1]]) : r2(a2 + (Number(p.o) || 0)); at2 = b2; y[O[0]] = a2; y[O[1]] = b2; y[O[2]] = r2(b2 - a2); }
       if (k === 'trip' && p.ti) { const ti = String(p.ti).split('-'); y.tStart = ti[0] || ''; y.tEnd = ti[1] || ''; }
+      if (kept && k !== 'trip' && ws.some(z => z.tr !== undefined)) y.trip = p.tr === undefined ? '' : p.tr;      // (update-146 review: each row its own trips – Format B)
       if (kept) { y.challan = p.c || ''; y.remark = p.p || ''; y.chFrom = p.f || ''; y.chTo = p.t || ''; y.work = p.w || ''; if (j || p.f || p.t) y.chainage = ''; }
       if (isT(p)) { const sl = slotsParse(p.ts); y.mode = 'Time'; y.tStart = sl.length ? sl[0][0] : ''; y.tEnd = sl.length ? sl[sl.length - 1][1] : ''; y.tSlots = sl.length > 1 ? p.ts : ''; y.tBrk = r2((Number(p.tb) || 0) + slotsGap(sl)) || ''; y._gross = p.q; delete y._grossLess; }      // update-78: a row by Time prints its From – To
       return y;
@@ -16554,7 +16569,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if ((me.grp || add) && !itemBad) { const kd = me.grp ? me.kind : add.kind, box = tr.querySelector('.lg-itm'), pick = box ? box.dataset['pick' + kd] : '', q = kd === 'hr' ? whr : kd === 'km' ? wkm : kd === 'trip' ? (Number(lgf(tr, 'trip').value) || 0) : 1, up = me.grp && me.j ? me.grp[me.j - 1].querySelector('.lg-itm') : null;
         const upPick = up ? up.dataset['pick' + kd] : add ? add.lastWork || '' : '';      // (update-143: the last work of the saved entry is the row above)
         const names = (p.boqItems || []).filter(it => itemKind(it.basis) === kd).map(it => it.name).join(' / ');
-        const plain = kd === 'trip' || kd === 'day' || (p.boqItems || []).filter(it => itemKind(it.basis) === kd).length < 2;      // (update-77: no work to pick – update-144: nor on rows by Time; update-146: any machinery)
+        const plain = kd === 'day' || (p.boqItems || []).filter(it => itemKind(it.basis) === kd).length < 2;      // (update-77: no work to pick – update-144: nor on rows by Time; update-146: any machinery; trips with two works: each row ONE)
         if (!plain && (pick === '_split' || !pick)) itemBad = 'Each row of this shift is ONE work – press ' + names + ' (not Split).';
         else if (kd === 'trip' && !(q > 0)) itemBad = 'This row has no trips yet – type its trips.';
         else if (q !== '' && !(q > 0)) itemBad = 'This row has no work yet – its Close must be more than its Start.';
