@@ -25,7 +25,7 @@ const ent = d => sql("select coalesce(string_agg(to_char(date,'DD') || ' ' || sh
   E(await api('saveBoq', { vendor: 'N144 Vendor', from: '2026-09-01', tdsPct: 2, woNo: 'WO-N144', lines: [{ no: 'N144-JCB', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'BUCKET', basis: 'Per Hour', rate: 1200, qty: 'rest' }, { name: 'BREAKER', basis: 'Per Hour', rate: 1700, qty: 'typed' }] }] }));
   E(await api('saveLogRows', { rows: [{ no: 'N144-JCB', date: '2026-09-27', shift: 'Day', mode: 'Hrs', openingHr: 3710, closingHr: 3714.5, items: {} }] }));
   E(await api('saveLogRows', { rows: [{ no: 'N144-JCB', date: '2026-09-28', shift: 'Day', mode: 'Time', tStart: '14:00', tEnd: '18:00', items: { _all: 'BUCKET' }, work: 'LOADING' }] }));
-  ok('the test machinery: a JCB on hours (format D), BUCKET ₹1,200 / BREAKER ₹1,700 per hour; 27-09 3710 → 3714.5; 28-09 Day saved: BUCKET by Time 14:00 – 18:00', !seedErr.length && /^28 Day Time 4h /.test(ent('28')), seedErr.join(' // ') || ent('28'));
+  ok('the test machinery: a JCB on hours (format D), BUCKET ₹1,200 / BREAKER ₹1,700 per hour; 27-09 3710 → 3714.5; 28-09 Day saved: BUCKET by Time 14:00 – 18:00', !seedErr.length && /^28 Day Time 4h\b/.test(ent('28')), seedErr.join(' // ') || ent('28'));
 
   const b = await puppeteer.launch({ executablePath: await chromium.executablePath(), args: [...chromium.args, '--no-sandbox'], headless: 'shell', protocolTimeout: 120000 });
   const p = await b.newPage(); await p.setViewport({ width: 1920, height: 1000 });
@@ -63,7 +63,7 @@ const ent = d => sql("select coalesce(string_agg(to_char(date,'DD') || ' ' || sh
   ok('   Breaker To → 15:00 (into Bucket 14:00 – 18:00): red "is at the same time as row 2 … a machinery does one work at a time"; Save off',
     /RED/.test(x.rows[0]) && /this row \(09:00 – 15:00\) is at the same time as row 2 of this shift \(14:00 – 18:00\) – a machinery does one work at a time/.test(x.rows.join()) && x.save === 'off', x);
   await lxSet(0, 'tEnd', '13:00'); x = await grid();
-  ok('   back to 13:00: nothing red, Save on', !/RED/.test(x.rows.join()) && x.save === 'on', x);
+  ok('   back to 13:00: nothing red; total 8 hr (the grid is as saved again – nothing to save)', !/RED/.test(x.rows.join()) && /8 hr/.test(x.foot), x);
 
   // ---------- 2. the Log Book entry page ----------
   await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} S.formDirty = false; LX.rows = []; showTab('log'); }); await wait(2500); await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} });
