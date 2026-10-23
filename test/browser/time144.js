@@ -25,6 +25,10 @@ const ent = d => sql("select coalesce(string_agg(to_char(date,'DD') || ' ' || sh
   E(await api('saveBoq', { vendor: 'N144 Vendor', from: '2026-09-01', tdsPct: 2, woNo: 'WO-N144', lines: [{ no: 'N144-JCB', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'BUCKET', basis: 'Per Hour', rate: 1200, qty: 'rest' }, { name: 'BREAKER', basis: 'Per Hour', rate: 1700, qty: 'typed' }] }] }));
   E(await api('saveLogRows', { rows: [{ no: 'N144-JCB', date: '2026-09-27', shift: 'Day', mode: 'Hrs', openingHr: 3710, closingHr: 3714.5, items: {} }] }));
   E(await api('saveLogRows', { rows: [{ no: 'N144-JCB', date: '2026-09-28', shift: 'Day', mode: 'Time', tStart: '14:00', tEnd: '18:00', items: { _all: 'BUCKET' }, work: 'LOADING' }] }));
+  // (his second screen, 23-10-2026: MH-46-B-0651 – a Hydra on Time only, no hour meter; HYDRA / FARANA per hour)
+  E(await api('saveMaster', { no: 'N144-HYD', name: 'Hydra', type: 'Hydra', unit: 'Time', worksOn: ['Time'], hrStd: 3, tankCap: 200, owner: 'N144 Vendor', ownership: 'Rental', status: 'Active', activeFrom: '2026-09-01' }, 'add'));
+  E(await api('saveBoq', { vendor: 'N144 Vendor', from: '2026-09-01', tdsPct: 2, woNo: 'WO-N144H', lines: [{ no: 'N144-HYD', basis: 'Item-wise', diesel: 'Company', items: [{ name: 'HYDRA', basis: 'Per Hour', rate: 1700, qty: 'rest' }, { name: 'FARANA', basis: 'Per Hour', rate: 2200, qty: 'typed' }] }] }));
+  E(await api('saveLogRows', { rows: [{ no: 'N144-HYD', date: '2026-09-01', shift: 'Day', mode: 'Time', tStart: '10:00', tEnd: '18:00', tSlots: [['10:00', '13:00'], ['14:00', '18:00']], items: { _all: 'HYDRA' }, work: 'LIFTING' }] }));
   ok('the test machinery: a JCB on hours (format D), BUCKET ₹1,200 / BREAKER ₹1,700 per hour; 27-09 3710 → 3714.5; 28-09 Day saved: BUCKET by Time 14:00 – 18:00', !seedErr.length && /^28 Day Time 4h\b/.test(ent('28')), seedErr.join(' // ') || ent('28'));
 
   const b = await puppeteer.launch({ executablePath: await chromium.executablePath(), args: [...chromium.args, '--no-sandbox'], headless: 'shell', protocolTimeout: 120000 });
@@ -64,6 +68,17 @@ const ent = d => sql("select coalesce(string_agg(to_char(date,'DD') || ' ' || sh
     /RED/.test(x.rows[0]) && /this row \(09:00 – 15:00\) is at the same time as row 2 of this shift \(14:00 – 18:00\) – a machinery does one work at a time/.test(x.rows.join()) && x.save === 'off', x);
   await lxSet(0, 'tEnd', '13:00'); x = await grid();
   ok('   back to 13:00: nothing red; total 8 hr (the grid is as saved again – nothing to save)', !/RED/.test(x.rows.join()) && /8 hr/.test(x.foot), x);
+
+  // ---------- 1b. his second screen: a Hydra on Time ONLY (no hour meter) – Edit Log Book, + work in this shift ----------
+  await f.evaluate(async () => { try { closeConfirm(false); } catch (e) {} S.formDirty = false; LX.rows = []; LX.deleted = []; showTab('logedit'); document.getElementById('lx_from').value = '2026-09-01'; document.getElementById('lx_to').value = '2026-09-01'; const n = document.getElementById('lx_no'); n.value = 'N144-HYD'; n.dispatchEvent(new Event('change', { bubbles: true })); await lxLoad(); }); await wait(1200);
+  const moreH = await f.evaluate(() => { const b0 = document.querySelector('#lx_rows tr[data-i="0"] .lx-more'); if (!b0) return false; b0.click(); return true; }); await wait(700);
+  await lxSet(1, 'tStart', '19:00'); await lxSet(1, 'tEnd', '22:00'); await chip(1, 'FARANA');
+  x = await grid();
+  ok('Edit Log Book, a Hydra on Time only (his MH-46-B-0651): 10:00 – 18:00 (split) HYDRA + 19:00 – 22:00 FARANA the same Day – no "two entries on Day", nothing red; 10 hr; Save on',
+    moreH && x.rows.length === 2 && !/RED/.test(x.rows.join()) && !/two entries on/.test(x.all) && /10 hr/.test(x.foot) && x.save === 'on', x);
+  sv = await lxSave();
+  const entH = sql("select unit || ' ' || working_hrs || 'h ' || coalesce(time_slots, '') || ' ' || coalesce(item_work::text, '') from log_book where machinery = 'N144-HYD' and date = '2026-09-01'");
+  ok('   saved as ONE entry by Time: 10 h, 10:00-13:00,14:00-18:00,19:00-22:00, HYDRA 7 (its split kept) / FARANA 3', /^Time 10(\.0+)?h 10:00-13:00,14:00-18:00,19:00-22:00 /.test(entH) && /"FARANA":\s*3/.test(entH) && /"ts":\s*"10:00-13:00,14:00-18:00"/.test(entH), [entH, sv.slice(0, 300)]);
 
   // ---------- 2. the Log Book entry page ----------
   await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} S.formDirty = false; LX.rows = []; showTab('log'); }); await wait(2500); await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} });

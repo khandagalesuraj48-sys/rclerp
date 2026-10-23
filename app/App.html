@@ -5951,6 +5951,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The time or the trips of this entry are missing or come to zero.', 'For a time sheet: type From and To (e.g. 08:00 and 17:00) and the break. For trips: type the number of trips.'],
       mr: ['या entry ची वेळ किंवा trips भरलेल्या नाहीत किंवा शून्य येतात.', 'Time sheet साठी: From आणि To (उदा. 08:00 आणि 17:00) आणि break भरा. Trips साठी: trips ची संख्या भरा.'],
       hi: ['इस entry का समय या trips भरे नहीं हैं या शून्य आ रहे हैं।', 'Time sheet के लिए: From और To (जैसे 08:00 और 17:00) और break भरें। Trips के लिए: trips की संख्या भरें।'] },
+    { re: /was changed by .* after you opened it/i,
+      en: ['Someone else changed this entry after you opened it. Your change was not saved, so that his change is not lost.', 'Open the entry again (or press Load / reload the list) – it shows his change – and make your change there. Then save.'],
+      mr: ['तुम्ही ही entry उघडल्यानंतर दुसऱ्या कोणीतरी ती बदलली. त्याचा बदल पुसला जाऊ नये म्हणून तुमचा बदल save झाला नाही.', 'Entry पुन्हा उघडा (किंवा Load / यादी पुन्हा लोड करा) – त्यात त्याचा बदल दिसेल – आणि तिथे तुमचा बदल करा. मग save करा.'],
+      hi: ['आपके खोलने के बाद किसी और ने यह entry बदली। उसका बदलाव न मिटे इसलिए आपका बदलाव save नहीं हुआ।', 'Entry फिर से खोलें (या Load / सूची दोबारा लोड करें) – उसमें उसका बदलाव दिखेगा – और वहाँ अपना बदलाव करें। फिर save करें।'] },
+    { re: /was changed by .* after this (request was made|entry was sent)/i,
+      en: ['The entry was changed by someone after this request was made (or after it was sent for verification). Saving the request now would wipe that change, so nothing was saved.', 'A change request: reject it – the person who asked makes the change again on the entry as it is now. A verification: it goes back to the person who sent it – he takes it back and makes the change again on the entry as it is now.'],
+      mr: ['ही विनंती केल्यानंतर (किंवा verification ला पाठवल्यानंतर) कोणीतरी ती entry बदलली. आता ही विनंती save केली तर तो बदल पुसला जाईल, म्हणून काहीही save झाले नाही.', 'बदलाची विनंती: ती नाकारा – ज्याने विनंती केली तो आत्ताच्या entry वर बदल पुन्हा करेल. Verification: ती पाठवणाऱ्याकडे परत जाते – तो ती परत घेऊन आत्ताच्या entry वर बदल पुन्हा करेल.'],
+      hi: ['यह अनुरोध करने के बाद (या verification के लिए भेजने के बाद) किसी ने वह entry बदली। अब यह अनुरोध save करने से वह बदलाव मिट जाता, इसलिए कुछ भी save नहीं हुआ।', 'बदलाव का अनुरोध: उसे अस्वीकार करें – अनुरोध करने वाला अभी की entry पर बदलाव फिर से करेगा। Verification: वह भेजने वाले के पास वापस जाता है – वह उसे वापस लेकर अभी की entry पर बदलाव फिर से करेगा।'] },
     { re: /is at the same time as row|does one work at a time/i,
       en: ['Two rows of this shift are by Time and their From – To overlap. One machinery does one work at a time.', 'Correct the From – To of one of the two rows so that the times do not overlap (for example Breaker 09:00 – 13:00 and Bucket 14:00 – 18:00), then save again.'],
       mr: ['या shift च्या दोन ओळी Time वर आहेत आणि त्यांच्या From – To वेळा एकमेकांत येतात. एक machinery एका वेळी एकच काम करते.', 'दोनपैकी एका ओळीची From – To अशी दुरुस्त करा की वेळा एकमेकांत येणार नाहीत (उदा. Breaker 09:00 – 13:00 आणि Bucket 14:00 – 18:00), मग पुन्हा save करा.'],
@@ -8997,7 +9005,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Close above the Start of the entry after it). */
   const lxHO = () => hrsOnlyM(((LX || {}).d || {}).machine);
   // its rows need no work picked when the BOQ has fewer than two hour works ("plain" rows: just its times of work)
-  const lxPlain = r => lxHO() && (((LX.d || {}).boqItems || {})[r.date] || []).filter(it => itemKind(it.basis) === 'hr').length < 2;
+  const lxPlain = r => (lxHO() || lxWay(r) === 'Time') && (((LX.d || {}).boqItems || {})[r.date] || []).filter(it => itemKind(it.basis) === 'hr').length < 2;      // (update-144: rows by Time of any machinery)
   // "+ work in this shift" under a row (in the item column; a machinery without an item-wise BOQ: under its Close – update-77)
   const lxMoreBtn = r => (lxPartKind(r) && !r.lock && DAY_STATUS.indexOf(lxWay(r)) === -1 ? '<button type="button" class="lx-more" title="' + (lxHO() ? 'The machinery worked once more in this same shift (e.g. Breaker 100 → 102, then again 110 → 113): adds a row under this one – same date, same shift. Its Start may be higher than the Close above; the hours between are not counted.' : 'The machinery did another work in this same shift (e.g. Breaker after Bucket): adds a row for it under this one – same date, same shift, starting where this work closed.') + '">+ work in this shift</button>' : '');
   // update-78: a row by Time of a shift with rows by Hrs: its times (a split kept while From, To and Break are as loaded) and the break typed
@@ -9008,6 +9016,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // the kind of work that can have a row each on this row's date ('hr' / 'km'), '' = this machinery / way has no such works
   const lxPartKind = r => { const its = ((LX.d || {}).boqItems || {})[r.date] || [], w = lxWay(r), n = k => its.filter(it => itemKind(it.basis) === k).length;
     if (lxHO() && (hasHr(w) || w === 'Time')) return 'hr';      // (update-78: a row by Time among the rows by Hrs)
+    if (w === 'Time') return 'hr';      // (update-144, 23-10-2026 "sagle machinery la ha rule ghe": every machinery – a row by Time for each work / each time it worked)
     return hasHr(w) && n('hr') > 1 ? 'hr' : hasKm(w) && n('km') > 1 ? 'km' : ''; };
   // a later row of its shift (only a machinery whose shift can have a row for each work has such rows – for every other one this is never true)
   const lxLater = r => !!lxPartKind(r) && lxSlotRows(r)[0] !== r;
@@ -9024,16 +9033,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function lxPartsProblem(grp, r) {
     const k = lxPartKind(grp[0]); if (!k || grp.some(x => DAY_STATUS.indexOf(lxWay(x)) > -1 || lxWay(x) === METER_OFF)) return null;
     const mixOk = lxHO() && grp.every(x => hasHr(lxWay(x)) || lxWay(x) === 'Time');      // update-78: Hrs and Time rows in one shift
+    const allTime = grp.every(x => lxWay(x) === 'Time');      // update-144: every row by Time (any machinery)
     if (!mixOk && grp.some(x => lxWay(x) !== lxWay(grp[0]))) return 'the rows of one shift must be measured the same way (' + lxWay(grp[0]) + ').';
     const j = grp.indexOf(r), names = ((LX.d.boqItems || {})[r.date] || []).filter(it => itemKind(it.basis) === k).map(it => it.name).join(' / ');
     if (!(lxRowQty(r, k) > 0)) return 'this row has no work yet – type its ' + (lxWay(r) === 'Time' ? 'From and To' : 'Close') + ' (or delete the row).';
     // update-144: every row of the shift by Time (no row by Hrs) – each row its own From – To, never at the same time as another row
-    if (mixOk && !grp.some(x => hasHr(lxWay(x)))) { const sl = x => slotsParse(lxTimePart(x).ts), mine = timeSpansP(sl(r), r.shift), o = grp.find(x => x !== r && lxRowQty(x, k) > 0 && spansMeet(mine, timeSpansP(sl(x), x.shift)));
+    if (allTime) { const sl = x => slotsParse(lxTimePart(x).ts), mine = timeSpansP(sl(r), r.shift), o = grp.find(x => x !== r && lxRowQty(x, k) > 0 && spansMeet(mine, timeSpansP(sl(x), x.shift)));
       if (o) return 'this row (' + slotsSay(sl(r)) + ') is at the same time as row ' + (grp.indexOf(o) + 1) + ' of this shift (' + slotsSay(sl(o)) + ') – a machinery does one work at a time: correct the From – To.'; }
     if (lxPlain(r)) return '';
     const pick = lxPickOf(r, k);
     if (!pick) return 'each row of this shift is ONE work – press ' + names + ' (not Split).';
-    if (j > 0 && !lxHO() && lxPickOf(grp[j - 1], k) === pick) return 'same work as the row above (' + pick + ') – make them one row, or press the other work.';
+    if (j > 0 && !lxHO() && !allTime && lxPickOf(grp[j - 1], k) === pick) return 'same work as the row above (' + pick + ') – make them one row, or press the other work.';
     return '';
   }
   const lxOrd = { 'Day': 0, 'Full Day': 0, 'Night': 1 };
@@ -9408,7 +9418,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const R = mix ? hg[0] : r, z = mix ? hg[hg.length - 1] : g[g.length - 1], w = lxWay(R), k = hasKm(w), h = hasHr(w);      // (update-78: Start from its first row by Hrs, Close from its last)
       /* update-144: every row of the shift by Time – ONE entry by Time: its times are the rows' times in the order of the shift, its break
        * the breaks typed on the rows; the rows go in that order too */
-      const allT = g.length > 1 && lxHO() && !hg.length && g.every(x => lxWay(x) === 'Time'), tp = x => lxTimePart(x), at0 = x => (timeSpansP(slotsParse(tp(x).ts), x.shift)[0] || [0])[0];
+      const allT = g.length > 1 && !hg.length && g.every(x => lxWay(x) === 'Time'), tp = x => lxTimePart(x), at0 = x => (timeSpansP(slotsParse(tp(x).ts), x.shift)[0] || [0])[0];
       const G = allT ? g.slice().sort((a, b) => at0(a) - at0(b)) : g, tB = allT ? r2(G.reduce((a, x) => a + (Number(tp(x).tb) || 0), 0)) : 0;
       // (every time of every row in the order of the shift – a row with "+ time" may hold times around another row's)
       const tSl = allT ? [].concat(...G.map(x => { const sl = slotsParse(tp(x).ts), sp = timeSpansP(sl, x.shift); return sl.map((t, j) => ({ at: (sp[j] || sp[0] || [0])[0], t: t })); })).sort((a, b) => a.at - b.at).map(o => o.t) : [];
@@ -9423,7 +9433,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         tStart: w === 'Time' || w === 'Trip' ? r.tStart || '' : '', tEnd: w === 'Time' || w === 'Trip' ? r.tEnd || '' : '', tBreak: w === 'Time' ? r.tBrk : '', remark: r.remark || '', trip: w === 'Trip' || (m.lbFormat === 'B' && DAY_STATUS.indexOf(w) === -1) ? r.trip : '', challan: w === 'Trip' || w === 'Time' ? (r.challan || '') : (r.challan || ''),
         chFrom: r.chFrom || '', chTo: r.chTo || '', work: r.work || '', odSet: /-01$/.test(r.date) ? (r.odSet ?? '') : '',
         items: ((d.boqItems || {})[r.date] || []).length ? (r.items || {}) : d.hrsOnly && (LX.pc[own] || 1) > 1 ? {} : undefined }; });      // (an entry that had rows and has one now: its rows go)
-    const res = await call('saveLogBulk', { no: m.id, from: d.from, to: d.to, rows: rows, deleted: deleted, openingDiesel: LX.odsl });
+    const vers = {}; (d.rows || []).forEach(r => { if (r.key && r.ver) vers[r.key] = r.ver; });      // (update-145) every entry of the grid as it was opened
+    const res = await call('saveLogBulk', { no: m.id, from: d.from, to: d.to, rows: rows, deleted: deleted, openingDiesel: LX.odsl, vers: vers });
     if (res.ok === false) throw new Error('Nothing saved: ' + res.errors.map(x => x.msg).join(' | '));
     toast('Log Book saved – ' + res.changed + ' changed, ' + res.added + ' added, ' + res.deleted + ' deleted.');
     LX.rows = []; LX.deleted = []; LX.cut = {};
@@ -15418,7 +15429,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     flowFixEnd();      // (update-130)
     if (r.lk && await lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
     setDieselMode('one');
-    S.editDieselId = r.id; phClear();
+    S.editDieselId = r.id; S.editDieselVer = r.ver || ''; phClear();      // (update-145: the version as it was opened – the list itself is refreshed every few seconds)
     $('d_date').value = r.date; $('d_shift').value = r.shift; $('d_src').value = r.source || S.locations[0];
     $('d_no').value = r.no; dieselMachineChanged();
     $('d_qty').value = r.qty; $('d_km').value = r.kmReading; $('d_hr').value = r.hrReading; 
@@ -15432,7 +15443,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (r.lk && await lockStop((S.dieselLocks || {})[r.lk], r.no, r.date, 'Diesel issue')) return;
     if (!(await askConfirm({ title: 'Delete ' + r.id + '?', danger: true, ok: 'Delete',
       html: listHtml([r.no + ' – ' + fmt(r.qty) + ' Ltr from ' + r.source, showDate(r.date) + ', ' + r.shift + ' shift', 'Driver: ' + (r.driver || '–')]) + '<p>This cannot be undone. The Log Book for this date and shift will be recalculated.</p>' }))) return;
-    await call('deleteDieselIssue', r.id);
+    await call('deleteDieselIssue', r.id, r.ver || '');      // (update-145: the version of what the confirm showed – changed by someone else since → refused)
     if (S.editDieselId === r.id) clearDiesel();
     toast(r.id + ' deleted.');
     loadDiesel(); loadLog();
@@ -15575,7 +15586,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (!changes.length) { toast('Nothing changed.'); return; }
       if (!(await askConfirm({ title: 'Update ' + editing + '?', html: 'These details will change:' + changeTable(changes), ok: 'Update' }))) return;
     }
-    const res = fixing ? await flowFixCall([d]) : editing ? await call('updateDieselIssue', editing, d) : await call('saveDieselIssue', d);
+    const res = fixing ? await flowFixCall([d]) : editing ? await call('updateDieselIssue', editing, Object.assign({}, d, { ver: S.editDieselVer || '' })) : await call('saveDieselIssue', d);      // (update-145: changed by someone else since it was opened → refused)
     if (!res) return;      // (no remark written: nothing sent)
     if (res.warning) {
       if (fixing) { await showAlert('Please check the reading', String(res.warning).replace(/\s*Save anyway\?\s*$/, '')); return; }      // (update-131) for approval: corrected first
@@ -15583,6 +15594,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       return;
     }
     if (fixing) { flowFixDone(res); clearDiesel(); return; }
+    if (editing && res.ver) { const was = (S.dieselRows || []).find(x => x.id === editing); if (was) was.ver = res.ver; }      // (review of update-145: its version now, until the list is read again)
     if (PHONE) savedPop(editing ? 'Diesel issue updated' : 'Diesel issue saved', [['Issue ID', res.id], ['Machinery', m.id], ['Diesel', fmt(d.qty) + ' L'],
       ['Reading', [d.kmReading !== '' ? fmt(d.kmReading) + ' km' : '', d.hrReading !== '' ? fmt(d.hrReading) + ' hr' : ''].filter(Boolean).join(' · ')], ['Photos', (d.photos || []).length ? d.photos.length + ' of 4' : '']]);
     else toast(editing ? 'Diesel issue ' + res.id + ' updated.' : 'Diesel issue saved: ' + res.id);
@@ -16304,6 +16316,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // 'hr' / 'km' when this row's machinery has two or more hour (KM) works in its BOQ on the row's date and the row is measured that way – its shift can then have a row for each work ('' = one row a shift, as always)
   const lgPartKind = tr => { const its = (tr._p && tr._p.boqItems) || [], u = lgWay(tr), n = k => its.filter(it => itemKind(it.basis) === k).length;
     if (tr._p && hrsOnlyM(tr._p.machine) && (hasHr(u) || u === 'Time')) return 'hr';      // update-77: a machinery on hours – several rows of a shift, whatever its BOQ (update-78: a row by Time among them)
+    if (tr._p && u === 'Time') return 'hr';      // update-144 (23-10-2026 "sagle machinery la ha rule ghe"): every machinery – rows by Time
     return hasHr(u) && n('hr') > 1 ? 'hr' : hasKm(u) && n('km') > 1 ? 'km' : ''; };
   const isHol = r => ['Holiday', 'Breakdown'].indexOf(r.mode || r.unit) > -1; // not paid
   /* SPLIT TIMING of an entry measured by Time (asked 07-10-2026: "11 to 1 and then 2 to 5 = 5 hours – let me enter it that way; the
@@ -16493,10 +16506,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if ((me.grp || add) && !itemBad) { const kd = me.grp ? me.kind : add.kind, box = tr.querySelector('.lg-itm'), pick = box ? box.dataset['pick' + kd] : '', q = kd === 'hr' ? whr : wkm, up = me.grp && me.j ? me.grp[me.j - 1].querySelector('.lg-itm') : null;
         const upPick = up ? up.dataset['pick' + kd] : add ? add.lastWork || '' : '';      // (update-143: the last work of the saved entry is the row above)
         const names = (p.boqItems || []).filter(it => itemKind(it.basis) === kd).map(it => it.name).join(' / ');
-        const plain = ho && (p.boqItems || []).filter(it => itemKind(it.basis) === 'hr').length < 2;      // (update-77: no work to pick)
+        const plain = (ho || tm) && (p.boqItems || []).filter(it => itemKind(it.basis) === 'hr').length < 2;      // (update-77: no work to pick – update-144: nor on rows by Time)
         if (!plain && (pick === '_split' || !pick)) itemBad = 'Each row of this shift is ONE work – press ' + names + ' (not Split).';
         else if (q !== '' && !(q > 0)) itemBad = 'This row has no work yet – its Close must be more than its Start.';
-        else if (!ho && upPick && upPick === pick) itemBad = 'Same work as the row above (' + pick + ') – make them one row, or press the other work.'; }
+        else if (!ho && !tm && upPick && upPick === pick) itemBad = 'Same work as the row above (' + pick + ') – make them one row, or press the other work.'; }      // (update-144: by Time the same work may come again at another time)
       // update-144: every row of the shift by Time – each its own From – To, never at the same time as another row (a machinery does one work at a time)
       if (me.grp && tm && !itemBad && me.grp.every(o => info.get(o).u === 'Time')) { const sl = o => lgSlots(o).filter(x => x[0] && x[1]), mine = timeSpansP(sl(tr), shift);
         const o = mine.length ? me.grp.find(o => o !== tr && spansMeet(mine, timeSpansP(sl(o), shift))) : null;
@@ -16730,6 +16743,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!(await askConfirm({ title: 'Update ' + e.no + ' – ' + showDate(e.date) + '?', ok: 'Update',
       html: 'These details will change:' + changeTable(changes) +
         (e.next && (x.closingKm !== before.closingKm || x.closingHr !== before.closingHr) ? (hrsOnlyM(findMachine(e.no)) ? '<p>The next entry (' + esc(showDate(e.next.date)) + ') is not changed – its Start stays ' + esc(fmt(e.next.ohr)) + '. Nothing else changes.</p>' : '<p>The next entry (' + esc(showDate(e.next.date)) + ') will start at the new Close. Nothing else changes.</p>') : '') }))) return;
+    x.ver = e.ver || '';      // (update-145) the entry as it was opened: changed by someone else since → refused
     try { await call('updateLogRow', e.key, x); } catch (er) { if (errMsg(er) === CR_SENT) { leClose(); toast(CR_SENT); return; } throw er; }      // (update-108) sent to the Super Admin: the window closes
     toast('Log Book of ' + e.no + ' (' + showDate(e.date) + ') updated' + (e.next && (x.closingKm !== before.closingKm || x.closingHr !== before.closingHr) ? ' – next entry\'s Start updated.' : '.'));
     leClose(); loadLog(); lgRefreshAll();
@@ -16742,7 +16756,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ', and all later entries update automatically.</p>' : '';
     if (!(await askConfirm({ title: 'Delete Log Book entry?', danger: true, ok: 'Delete',
       html: listHtml([e.no + ' – ' + showDate(e.date) + ' (' + e.shift + ')', 'Start ' + lg2(e.okm, e.ohr) + '  →  Close ' + lg2(e.ckm, e.chr), 'Diesel issued ' + fmt(e.qty || 0) + ' L']) + hint + '<p>This cannot be undone.</p>' }))) return;
-    await call('deleteLogRow', key);
+    await call('deleteLogRow', key, e.ver || '');      // (update-145)
     toast('Log Book entry deleted' + (e.next ? ' – later entries updated.' : '.'));
     loadLog(); lgRefreshAll();
   }

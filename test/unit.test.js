@@ -4003,7 +4003,7 @@ test('update-130: Open & correct – the sender opens his returned / rejected Di
     assert.match(app, /approvals: \{ saves: \[[^\]]*'openFlow', 'editFlow', 'resendFlow'\]/);
     assert.match(app, /r\.canFix \? '<button class="btn small" type="button" data-fvfix="' \+ esc\(r\.id\) \+ '">Open &amp; correct<\/button> ' : ''/);
     assert.match(app, /\(r\.canFix \? '<button class="btn small" type="button" data-crfix="' \+ esc\(r\.id\) \+ '">Open &amp; correct<\/button> ' : ''\)/);
-    assert.match(app, /const res = fixing \? await flowFixCall\(\[d\]\) : editing \? await call\('updateDieselIssue', editing, d\) : await call\('saveDieselIssue', d\);/);
+    assert.match(app, /const res = fixing \? await flowFixCall\(\[d\]\) : editing \? await call\('updateDieselIssue', editing, Object\.assign\(\{\}, d, \{ ver: S\.editDieselVer \|\| '' \}\)\) : await call\('saveDieselIssue', d\);/);
     assert.match(app, /const res = fixing \? await flowFixCall\(\[b\]\) : await call\('saveDieselBulk', b\);/);
     assert.match(app, /const res = fixing \? await flowFixCall\(\[out\]\) : await call\('importDiesel', out\);/);
     assert.match(app, /return call\('editFlow', \{ id: fx\.id, note: fx\.note, args: args \}\);/);
@@ -4512,10 +4512,124 @@ test('update-144: a shift of a machinery on hours whose rows are ALL by Time is 
   // 4) Edit Log Book: a break on the rows that is not the entry's break – refused
   x = bulk([C({ date: '2026-10-01', items: { _parts: [{ n: 'BREAKER', q: 3.5, m: 'T', ts: '09:00-13:00', tb: 30 }, { n: 'BUCKET', q: 4, m: 'T', ts: '14:00-18:00', tb: 0 }] } })]);
   assert.ok(x.ok === false && /are not the From – To of the entry/.test(JSON.stringify(x)), JSON.stringify(x).slice(0, 400));
+  // (23-10-2026, his screen of MH-46-B-0651 – a Hydra on Time only, no hour meter: "sagle machinery la ha rule ghe") EVERY machinery:
+  // 10:00 – 18:00 (13:00 – 14:00 off) HYDRA and 19:00 – 22:00 FARANA the same Day – ONE entry by Time, 10 h; the same in Edit Log Book and added
+  run('(x, m) => saveMaster_(x, m)', { no: 'R144-HT', name: 'Hydra', type: 'Hydra', unit: 'Time', worksOn: ['Time'], hrStd: 3, owner: 'R144 Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01' }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: 'R144-HU', name: 'Hydra', type: 'Hydra', unit: 'Time', worksOn: ['Time'], hrStd: 3, owner: 'R144 Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'R144 Earthmovers', from: '2026-09-01', tdsPct: 2, woNo: 'WO-R144H', lines: ['R144-HT', 'R144-HU'].map(no => ({ no: no, basis: 'Item-wise', diesel: 'Company', items: [
+    { name: 'HYDRA', basis: 'Per Hour', rate: 1700, qty: 'rest' }, { name: 'FARANA', basis: 'Per Hour', rate: 2200, qty: 'typed' }] })) });
+  const H1 = (no, o) => Object.assign({ date: '2026-09-01', shift: 'Day', no: no, mode: 'Time' }, o);
+  r = save([H1('R144-HT', { tStart: '10:00', tEnd: '18:00', tSlots: [['10:00', '13:00'], ['14:00', '18:00']], items: { _all: 'HYDRA' }, work: 'LIFTING' }), H1('R144-HT', { tStart: '19:00', tEnd: '22:00', items: { _all: 'FARANA' }, work: 'PICK AND CARRY' })]);
+  assert.ok(r.ok && r.joined === 2 && r.count === 1, JSON.stringify(r).slice(0, 300));
+  const ht = stored('R144-HT')[0];
+  assert.deepStrictEqual([ht.unit, ht.whr, ht.slots, ht.tb, JSON.parse(ht.items)], ['Time', 10, '10:00-13:00,14:00-18:00,19:00-22:00', 120,
+    { FARANA: 3, _parts: [{ n: 'HYDRA', q: 7, m: 'T', ts: '10:00-13:00,14:00-18:00', w: 'LIFTING' }, { n: 'FARANA', q: 3, m: 'T', ts: '19:00-22:00', w: 'PICK AND CARRY' }] }]);
+  assert.strictEqual(run('(no, f, t) => billMachineCalc_(findMachine_(no), getLogBookList_({ from: f, to: t, no: no, all: true }).rows, logPrintExtra_({ from: f, to: t, nos: [no] }), f, t, undefined, true).amount', 'R144-HT', '2026-09-01', '2026-09-01'), 7 * 1700 + 3 * 2200);
+  r = save([H1('R144-HU', { tStart: '10:00', tEnd: '18:00', tSlots: [['10:00', '13:00'], ['14:00', '18:00']], items: { _all: 'HYDRA' }, work: 'LIFTING' })]); assert.ok(r.ok);
+  let hp = run('(n, d, s, o) => getLogRowPrefill_(n, d, s, o)', 'R144-HU', '2026-09-01', 'Day', { add: 1 });
+  assert.deepStrictEqual([hp.problem, hp.addTo && hp.addTo.mode, hp.addTo && hp.addTo.sameOk], ['', 'Time', true], 'a Time-only machinery: the saved Day takes another work (the same work at another time too)');
+  r = save([H1('R144-HU', { tStart: '19:00', tEnd: '22:00', items: { _all: 'FARANA' }, work: 'PICK AND CARRY', add: 1 })]);
+  assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
+  assert.deepStrictEqual(Object.assign({}, stored('R144-HU')[0], { work: '' }), Object.assign({}, ht, { work: '' }), 'added = one save');
+  no(save([H1('R144-HU', { tStart: '21:00', tEnd: '23:00', items: { _all: 'HYDRA' }, add: 1 })]), /this work is already in the saved entry of this shift/);
+  no(save([H1('R144-HU', { date: '2026-09-02', tStart: '09:00', tEnd: '12:00', items: { _all: 'HYDRA' } }), H1('R144-HU', { date: '2026-09-02', tStart: '11:00', tEnd: '13:00', items: { _all: 'FARANA' } })]), /is at the same time as row 1/);
   // a machinery on hours keeps its rule for rows by Hrs and by Time together (update-78) – unchanged
   r = save([E('R144-C', { date: '2026-09-29', tStart: '09:00', tEnd: '11:00', items: { _all: 'BUCKET' } }), E('R144-C', { date: '2026-09-29', mode: 'Hrs', openingHr: 1008, closingHr: 1011, items: { _all: 'BREAKER' } })]);
   assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
   assert.deepStrictEqual((s => [s.unit, s.ohr, s.chr, s.whr])(stored('R144-C')[2]), ['Hrs', 1008, 1011, 5]);
+});
+
+test('update-145: two people changing the same entry – a Log Book or Diesel Issue entry changed by someone else after it was opened is not overwritten (the edit window, Edit Log Book, deletes)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => run('(f, a) => { try { return eval("(" + f + ")").apply(null, a); } catch (e) { return { thrown: String(e.message) }; } }', fn, a);
+  run('(x, m) => saveVendor_(x, m)', { name: 'R145 Transport', gstReg: 'No', pan: 'ABCDE1245R', bank: 'SBI', account: '12345145', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: 'R145-TIP', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'R145 Transport', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  run('x => saveInward_(x)', { date: '2026-06-01', location: 'Dispenser', pump: 'Pump', qty: 2000, rate: 90, billNo: 'R145', billDate: '2026-06-01' });
+  const save = rows => run('x => { try { return saveLogRowsInner_(x); } catch (e) { return { thrown: String(e.message) }; } }', { rows: rows });
+  const L = (d, o) => Object.assign({ date: d, shift: 'Full Day', no: 'R145-TIP', mode: 'KM' }, o);
+  assert.ok(save([L('2026-06-01', { openingKm: 1000, closingKm: 1100, openingDiesel: 50 }), L('2026-06-02', { closingKm: 1180 }), L('2026-06-03', { closingKm: 1250 })]).ok);
+  const K = d => 'R145-TIP|' + d + '|Full Day', entry = d => run('k => getLogEntry_(k)', K(d)), NOW = /was changed by .* after you opened it – open it again and make your change there\. Nothing was saved\./;
+  // the edit window: opened by two people; the first saves; the second's save (with what he opened) is refused – nothing overwritten
+  const a = entry('2026-06-02'), b = entry('2026-06-02');
+  assert.ok(a.ver && a.ver === b.ver, 'the same entry: the same version');
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-02'), { closingKm: 1180, work: 'CARTING A', chFrom: '', chTo: '', ver: a.ver }).thrown, 'the first one saves');
+  let x = tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-02'), { closingKm: 1180, work: 'CARTING B', chFrom: '', chTo: '', ver: b.ver });
+  assert.match(x.thrown || '', /^R145-TIP \(02-06-2026, Full Day\) was changed by/); assert.match(x.thrown, NOW);
+  assert.strictEqual(entry('2026-06-02').work, 'CARTING A', 'his change stays');
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-02'), { closingKm: 1180, work: 'CARTING A', chFrom: '', chTo: '' }).thrown, 'an older page or app (no version): taken as before');
+  // what the app works out by itself (a diesel issue of that day changes the diesel and the tank) does not stop a save
+  const c = entry('2026-06-02');
+  run('x => saveDieselIssue_(x)', { date: '2026-06-02', shift: 'Day', source: 'Dispenser', no: 'R145-TIP', qty: 40, kmReading: 1120, force: true });
+  assert.notStrictEqual(entry('2026-06-02').qty, c.qty, 'its diesel changed');
+  assert.strictEqual(entry('2026-06-02').ver, c.ver, '… its version did not');
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-02'), { closingKm: 1180, work: 'CARTING C', chFrom: '', chTo: '', ver: c.ver }).thrown);
+  // a KM vehicle: a Close of the 2nd moves the Start of the 3rd – the 3rd opened before that is not saved over it
+  const d3 = entry('2026-06-03');
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-02'), { closingKm: 1190, work: 'CARTING C', chFrom: '', chTo: '', ver: entry('2026-06-02').ver }).thrown);
+  assert.strictEqual(entry('2026-06-03').okm, 1190, 'the 3rd starts at the new Close');
+  assert.match(tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-03'), { openingKm: 1180, closingKm: 1250, work: 'X', chFrom: '', chTo: '', ver: d3.ver }).thrown || '', NOW);
+  assert.strictEqual(entry('2026-06-03').okm, 1190, 'not put back to 1180');
+  // a delete with what was opened
+  const d1 = entry('2026-06-01');
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-01'), { closingKm: 1100, work: 'FIRST', chFrom: '', chTo: '', ver: d1.ver }).thrown);
+  assert.match(tryRun('(k, v) => deleteLogRow_(k, v)', K('2026-06-01'), d1.ver).thrown || '', NOW);
+  assert.ok(entry('2026-06-01'), 'not deleted');
+  // Edit Log Book: the grid sends every entry with its version – one changed since: nothing saved
+  const g = run('() => getLogEditData_("R145-TIP", "2026-06-01", "2026-06-03")');
+  assert.ok(g.rows.every(r => r.ver), 'each row has its version');
+  const vers = {}; g.rows.forEach(r => { vers[r.key] = r.ver; });
+  const R = r => ({ key: r.key, same: false, half: false, date: r.date, shift: r.shift, mode: 'KM', openingKm: r.okm, closingKm: r.ckm, openingHr: '', closingHr: '', tStart: '', tEnd: '', tBreak: '', remark: '', trip: '', challan: '', chFrom: '', chTo: '', work: r.work });
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-03'), { closingKm: 1260, work: 'SOMEONE ELSE', chFrom: '', chTo: '', ver: entry('2026-06-03').ver }).thrown, 'someone else changes the 3rd meanwhile');
+  x = tryRun('p => saveLogBulk_(p)', { no: 'R145-TIP', from: '2026-06-01', to: '2026-06-03', deleted: [], openingDiesel: '', vers: vers, rows: g.rows.map(R) });
+  assert.ok(x.ok === false && x.errors.some(e => /R145-TIP \(03-06-2026, Full Day\) was changed by .* after you opened it/.test(e.msg)), JSON.stringify(x).slice(0, 400));
+  assert.strictEqual(entry('2026-06-03').ckm, 1260, 'his 1260 stays (the grid had 1250)');
+  const g2 = run('() => getLogEditData_("R145-TIP", "2026-06-01", "2026-06-03")'), vers2 = {}; g2.rows.forEach(r => { vers2[r.key] = r.ver; });
+  x = tryRun('p => saveLogBulk_(p)', { no: 'R145-TIP', from: '2026-06-01', to: '2026-06-03', deleted: [], openingDiesel: '', vers: vers2, rows: g2.rows.map(R) });
+  assert.ok(x.ok, JSON.stringify(x).slice(0, 300));
+  // DIESEL ISSUE: the list's rows carry their version; a change / a delete with an old one is refused
+  const issues = () => run('() => getDieselIssues_({ from: "2026-06-02", to: "2026-06-02", all: true })').rows.filter(r => r.no === 'R145-TIP');
+  const i0 = issues()[0]; assert.ok(i0 && i0.ver);
+  const D = o => Object.assign({ date: '2026-06-02', shift: 'Day', source: 'Dispenser', no: 'R145-TIP', qty: 40, kmReading: 1120, force: true }, o);
+  assert.ok(run('(id, x) => updateDieselIssue_(id, x)', i0.id, D({ qty: 45, ver: i0.ver })).ok);
+  assert.match(tryRun('(id, x) => updateDieselIssue_(id, x)', i0.id, D({ qty: 50, ver: i0.ver })).thrown || '', new RegExp('^Diesel issue ' + i0.id + ' \\(R145-TIP, 02-06-2026\\) was changed by .* after you opened it'));
+  assert.strictEqual(issues()[0].qty, 45, 'his 45 stays');
+  assert.match(tryRun('(id, v) => deleteDieselIssue_(id, v)', i0.id, i0.ver).thrown || '', NOW);
+  assert.ok(run('(id, v) => deleteDieselIssue_(id, v)', i0.id, issues()[0].ver).ok, 'with the version it has now: deleted');
+  // the version reads a value the same however it was read (JSON with its keys in another order – the database reorders them)
+  assert.strictEqual(run('() => verVal_(H.ITEMS, \'{"_parts":[{"n":"A","q":2}],"B":1}\') === verVal_(H.ITEMS, \'{"B":1,"_parts":[{"q":2,"n":"A"}]}\')'), true);
+  assert.strictEqual(run('() => verVal_(H.OKM, "100.50") === verVal_(H.OKM, 100.5)'), true);
+  // (review) an update returns the version the entry has now (the page keeps it – a delete right after it is not refused)
+  const i1 = run('x => saveDieselIssue_(x)', D({ qty: 30 })), i1v = issues().find(r => r.id === i1.id).ver;
+  const up = run('(id, x) => updateDieselIssue_(id, x)', i1.id, D({ qty: 31, ver: i1v }));
+  assert.ok(up.ok && up.ver && up.ver === issues().find(r => r.id === i1.id).ver, JSON.stringify(up));
+  // (review) an entry whose Start followed someone's change carries his name – the refusal names him, not the one refused
+  run('() => { ACTOR_ = "Ravi"; }');
+  const e3 = entry('2026-06-03');
+  run('() => { ACTOR_ = "Shyam"; }');
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-02'), { closingKm: 1200, work: 'BY SHYAM', chFrom: '', chTo: '', ver: entry('2026-06-02').ver }).thrown);
+  assert.strictEqual(entry('2026-06-03').okm, 1200);
+  run('() => { ACTOR_ = "Ravi"; }');
+  assert.match(tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-03'), { closingKm: 1260, work: 'BY RAVI', chFrom: '', chTo: '', ver: e3.ver }).thrown || '', /^R145-TIP \(03-06-2026, Full Day\) was changed by Shyam after you opened it/);
+  // (review) a request replayed later (approved by the Super Admin, a verification's last approval, "Send again"): the words say what to do there
+  const e3b = entry('2026-06-03');
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-03'), { closingKm: 1265, work: 'MEANWHILE', chFrom: '', chTo: '', ver: e3b.ver }).thrown);
+  [['approve', /after this request was made – reject it: the person who asked makes the change again on the entry as it is now\. Nothing was saved\.$/], ['flow', /after this entry was sent – it goes back to the person who sent it/], ['resend', /after this entry was sent – it cannot be sent again: take it back/]].forEach(([cx, re]) => {
+    const t = run('(k, l, cx) => { VER_CTX_ = cx; try { updateLogRow_(k, l); return ""; } catch (e) { return String(e.message); } finally { VER_CTX_ = ""; } }', K('2026-06-03'), { closingKm: 1270, work: 'REQUEST', chFrom: '', chTo: '', ver: e3b.ver }, cx);
+    assert.match(t, re, cx); });
+  assert.strictEqual(entry('2026-06-03').work, 'MEANWHILE');
+  assert.ok(/VER_CTX_ = 'approve';/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8')) && /VER_CTX_ = 'flow';/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8')) && /VER_CTX_ = 'resend';/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8')));
+  // (review) Edit Log Book of a user who is not the Super Admin: an entry of a submitted bill is kept out of the save – a change to it meanwhile does not stop the grid
+  const g3 = run('() => getLogEditData_("R145-TIP", "2026-06-01", "2026-06-03")'), vers3 = {}; g3.rows.forEach(r => { vers3[r.key] = r.ver; });
+  run('() => { ACTOR_SUPER_ = true; }');
+  assert.ok(!tryRun('(k, l) => updateLogRow_(k, l)', K('2026-06-01'), { closingKm: 1100, work: 'BILLED, CHANGED BY THE SUPER ADMIN', chFrom: '', chTo: '', ver: entry('2026-06-01').ver }).thrown);
+  run('() => { ACTOR_SUPER_ = false; globalThis.__blo145 = billLockOf_; billLockOf_ = (no, dk) => dk === "2026-06-01" ? { no: "B-145", vendor: "R145 Transport", from: "2026-06-01", to: "2026-06-01" } : null; }');
+  try {
+    x = tryRun('p => saveLogBulk_(p)', { no: 'R145-TIP', from: '2026-06-01', to: '2026-06-03', deleted: [], openingDiesel: '', vers: vers3, rows: g3.rows.map(r => Object.assign(R(r), { same: true })).map((r, n) => n === 2 ? Object.assign(r, { same: false, work: 'GRID' }) : r) });
+    assert.ok(x.ok, JSON.stringify(x).slice(0, 400));
+    assert.strictEqual(entry('2026-06-01').work, 'BILLED, CHANGED BY THE SUPER ADMIN', 'the billed entry is not written');
+    assert.strictEqual(entry('2026-06-03').work, 'GRID');
+  } finally { run('() => { billLockOf_ = globalThis.__blo145; }'); }
 });
 
 test('update-141: the Google Sheet backup ONCE A DAY (the nightly job; the first open page of the day if it did not run); the logs only their new rows', () => {

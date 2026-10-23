@@ -3741,7 +3741,7 @@ const itemPartsStrip_ = json => { const o = itemWorkParse_(json); if (!('_parts'
 function logItemWork_(m, dk, mode, l, tot, prev) {
   const items = boqItemsOn_(m, dk);
   const hOnly = hrsOnly_(m) && hasHr_(mode), hrItems = items.filter(it => itemKind_(it.basis) === 'hr');
-  const tOnly = hrsOnly_(m) && mode === 'Time';      // update-144: a shift of such a machinery whose rows are ALL by Time (the entry is by Time)
+  const tOnly = mode === 'Time';      // update-144: a shift whose rows are ALL by Time (the entry is by Time) – of ANY machinery ("sagle machinery la ha rule ghe", 23-10-2026)
   /* update-144: such an entry's From – To are its rows' times – the same times, nothing more, nothing less (none can be at the same
    * time as another: the entry's times are checked as one list, timeSlots_) */
   const sameWay = (who, i) => new Error(who + 'row ' + (i + 1) + ' of ' + dmy_(dk) + ' – the rows of one shift must be measured the same way (Time).');
@@ -4388,6 +4388,7 @@ function updateDieselIssue_(id, d) {
     if (i === -1) throw new Error('Diesel issue ' + id + ' was not found.');
     const old = t.rows[i];
     const oldNo = str_(old[t.c[H.NO]]), oldDk = dkey_(old[t.c[H.IDATE]]), oldShift = str_(old[t.c[H.SHIFT]]);
+    verCheck_(t, old, DIESEL_VER_H_(), d && d.ver, 'Diesel issue ' + str_(id) + ' (' + oldNo + ', ' + dmy_(oldDk) + ')');      // (update-145)
     booksOpen_(oldDk, 'Diesel issue');
     billLock_(oldNo, oldDk, 'Diesel issue');
     const created = old[t.c[H.CREATED]] instanceof Date ? old[t.c[H.CREATED]] : new Date();
@@ -4414,16 +4415,17 @@ function updateDieselIssue_(id, d) {
     syncLogFromDiesel_(m.id, dk, shift);
     if (!same_(oldNo, m.id) || oldDk !== dk || oldShift !== shift) syncLogFromDiesel_(oldNo, oldDk, oldShift);
     recalcBalances_();
-    return { ok: true, id: str_(id), stock: getStock_() };
+    return { ok: true, id: str_(id), stock: getStock_(), ver: rowVer_(t, row, DIESEL_VER_H_()) };      // (review of update-145: the version it has now – a delete right after it is not refused)
   });
 }
 
-function deleteDieselIssue_(id) {
+function deleteDieselIssue_(id, ver) {
   return withLock_(() => {
     const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_);
     const i = t.rows.findIndex(r => str_(r[t.c[H.ID]]) === str_(id));
     if (i === -1) throw new Error('Diesel issue ' + id + ' was not found.');
     const old = t.rows[i];
+    verCheck_(t, old, DIESEL_VER_H_(), ver, 'Diesel issue ' + str_(id) + ' (' + str_(old[t.c[H.NO]]) + ', ' + dmy_(dkey_(old[t.c[H.IDATE]])) + ')');      // (update-145)
     booksOpen_(dkey_(old[t.c[H.IDATE]]), 'Diesel issue');
     billLock_(str_(old[t.c[H.NO]]), dkey_(old[t.c[H.IDATE]]), 'Diesel issue');
     t.sh.deleteRow(i + 2);
@@ -4712,6 +4714,7 @@ function getDieselIssues_(f) {
       meter: H.DMETER in c ? numOrBlank_(r[c[H.DMETER]]) : '', meterCheck: checks[str_(r[c[H.ID]])] || null,
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
       ph: H.PHOTOS in c ? photoList_(r[c[H.PHOTOS]]).length : 0,      // how many photos it has (update-85)
+      ver: rowVer_(t, r, DIESEL_VER_H_()),      // (update-145) sent back with a change / a delete
     })),
   };
 }
@@ -7390,7 +7393,7 @@ function getLogRowPrefill_(no, dateStr, shiftIn, opt) {
       const r0 = lt.rows[si], c = lt.c, its = H.ITEMS in c ? itemWorkParse_(r0[c[H.ITEMS]]) : {}, items = boqItemsOn_(m, dk);
       const ps0 = Array.isArray(its._parts) && its._parts.length > 1 ? its._parts : null, ps = ps0 && ps0.some(p => !partIsTime_(p)) ? ps0.filter(p => !partIsTime_(p)) : ps0;      // (update-144: rows all by Time – the last of them)
       const last = ps ? str_((ps[ps.length - 1] || {}).n) : ((itemQtyOf_(items, { mode: str_(r0[c[H.UNIT]]), whr: numOrBlank_(r0[c[H.WHR]]), wkm: numOrBlank_(r0[c[H.WKM]]), trip: numOrBlank_(r0[c[H.TRIP]]), work: its }).list.find(x => x.k === kind && x.q > 0) || {}).n || '');
-      addTo = { rows: sv.rows.length, kind: kind, mode: str_(r0[c[H.UNIT]]), closeKm: numOrBlank_(r0[c[H.CKM]]), closeHr: numOrBlank_(r0[c[H.CHR]]), stock: num0_(r0[c[H.STOCK]]), lastWork: last, sameOk: hrsOnly_(m) && kind === 'hr' };      // (sameOk: on hours the same work may come again – update-77)
+      addTo = { rows: sv.rows.length, kind: kind, mode: str_(r0[c[H.UNIT]]), closeKm: numOrBlank_(r0[c[H.CKM]]), closeHr: numOrBlank_(r0[c[H.CHR]]), stock: num0_(r0[c[H.STOCK]]), lastWork: last, sameOk: kind === 'hr' && (hrsOnly_(m) || str_(r0[c[H.UNIT]]) === 'Time') };      // (update-144: rows by Time – the same work at another time too)      // (sameOk: on hours the same work may come again – update-77)
       slot = ''; slotSay = '';
     }
   }
@@ -7540,6 +7543,8 @@ function logRowsKind_(g) {
   if (hrsOnly_(m) && hasHr_(mode)) return 'hr';      // update-77: any hours machinery may have several rows in one shift
   // update-78: … also when its first row is by Time and another row of the shift is by Hrs – update-144: or when every row is by Time
   if (hrsOnly_(m) && mode === 'Time') return 'hr';
+  // update-144 (23-10-2026: "sagle machinery la ha rule ghe"): EVERY machinery – rows that are all by Time (From – To) are the works of the shift
+  if (mode === 'Time') { let allT = false; try { allT = g.every(p => logModeFor_(m, p.x.l.mode) === 'Time'); } catch (e) { allT = false; } if (allT) return 'hr'; }
   return ['hr', 'km'].find(k => (k === 'hr' ? hasHr_(mode) : hasKm_(mode)) && items.filter(it => itemKind_(it.basis) === k).length > 1) || '';
 }
 function logRowsJoin_(g, kind) {
@@ -7551,11 +7556,12 @@ function logRowsJoin_(g, kind) {
   const mode = hOnly0 && g.some(p => hasHr_(modeOf(p))) ? modeOf(g.find(p => hasHr_(modeOf(p)))) : modeOf(g[0]);
   const F = kind === 'hr' ? ['openingHr', 'closingHr', 'Hrs'] : ['openingKm', 'closingKm', 'KM'];
   const kindItems = items.filter(it => itemKind_(it.basis) === kind), rest = kindItems.find(it => it.qty === 'rest'), names = kindItems.map(it => it.name).join(' / ');
-  const hOnly = hrsOnly_(m) && kind === 'hr', plainRows = hOnly && kindItems.length < 2;      // update-77: gaps between rows; no work to pick when it has no separate works
+  let tAll = false; try { tAll = kind === 'hr' && g.every(p => modeOf(p) === 'Time'); } catch (e) { tAll = false; }      // (update-144: rows all by Time – any machinery)
+  const hOnly = hrsOnly_(m) && kind === 'hr', plainRows = (hOnly || tAll) && kindItems.length < 2;      // update-77: gaps between rows; no work to pick when it has no separate works
   const find = n => items.find(it => it.name.toUpperCase() === clean_(n).toUpperCase());
   const parts = [], other = {}; let day = '', trips = 0, anyTrip = false, lastClose = null, typed0 = null, fh = -1, lh = -1;
   g.forEach((p, i) => {
-    const l = p.x.l, isT = hOnly && modeOf(p) === 'Time';      // update-78: a row by Time (From – To) among the rows by Hrs
+    const l = p.x.l, isT = (hOnly || tAll) && modeOf(p) === 'Time';      // update-78: a row by Time (From – To) among the rows by Hrs (update-144: or all of them, any machinery)
     if (!isT && modeOf(p) !== mode) fail(i, 'the rows of one shift must be measured the same way (' + mode + (hOnly ? (mode === 'Time' ? ' or Hrs' : ' or Time') : '') + ').');
     let tx = null;
     if (isT) { const ex = logExtra_(m, 'Time', l, dmy_(dk) + ' row ' + (i + 1)); tx = { ts: ex.tSlots || (ex.tStart + '-' + ex.tEnd), tb: blank_(l.tBreak) ? 0 : Math.max(0, num0_(l.tBreak)), q: ex.tHrs }; }
@@ -7600,7 +7606,7 @@ function logRowsJoin_(g, kind) {
    * "ase error nko n yeyla"): EVERY row of the shift by Time (From – To) – the entry is ONE entry by Time whose times are the rows'
    * times in the order of the shift (a Night's times after midnight come last), its break the breaks typed on the rows; each row
    * keeps its own work and times. Two rows at the same time: refused (a machinery does one work at a time). */
-  const allT = fh === -1;      // (only a machinery on hours has rows by Time – logRowsKind_: so here every row is by Time)
+  const allT = fh === -1;      // (a row is by Time only on hours or when all of them are – so here every row is by Time)
   let ordered = parts, tsAll = null, gT = g;
   if (allT) {
     const sp = parts.map((x, i) => ({ i: i, s: timeSpans_(x.ts, sh) })).sort((a, b) => a.s[0][0] - b.s[0][0] || a.i - b.i), say = i => row(i) + ' (' + str_(parts[i].ts).replace(/-/g, ' – ').replace(/,/g, ', ') + ')';
@@ -8292,11 +8298,47 @@ function recalcChain_(no) {
     // a negative total (Start above Close, waiting to be corrected) uses no diesel
     const ckmc = (km || off) && wkm !== '' && ks > 0 ? r2_(Math.max(0, wkm) / ks) : '', chrc = (hr || tm || off) && whr !== '' && hs > 0 ? r2_(Math.max(0, whr) * hs) : '';
     row[c[H.WKM]] = wkm; row[c[H.WHR]] = whr; row[c[H.CKMC]] = ckmc; row[c[H.CHRC]] = chrc; row[c[H.TOT]] = r2_(num0_(ckmc) + num0_(chrc));
+    if (String(row[c[H.OKM]]) !== String(r[c[H.OKM]]) || String(row[c[H.OHR]]) !== String(r[c[H.OHR]])) stampEdit_(row, lt);      // (its Start followed the Close before it)
     if (row.some((v, k) => String(v) !== String(r[k]))) lt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
   });
   recalcStock_(no); // tank opening / closing and fill-to-fill average
 }
 // one entry with the entries just before and after it (for the edit window)
+/* update-145 (asked 23-10-2026: two people changing the same entry – "Log Book + Diesel Issue first"): an entry opened for a change
+ * carries its VERSION ("ver" – a short fingerprint of what a person can change in it); the save sends it back. If someone else changed
+ * the entry in between, nothing is saved: "… was changed by <who> after you opened it – open it again and make your change there."
+ * A save without a version (an older page or app) is taken as before. What the app works out by itself (diesel, tank, averages,
+ * the driver from the Diesel Issue) is not part of it, so a change elsewhere that only moves those figures never stops a save. */
+const LOG_VER_H_ = () => [H.DATE, H.SHIFT, H.UNIT, H.OKM, H.CKM, H.OHR, H.CHR, H.TSTART, H.TEND, H.TBRK, H.TSLOTS, H.TRIP, H.CHALLAN, H.CHFROM, H.CHTO, H.WORK, H.REMARK, H.ITEMS, H.DAYPART, H.DEBITTO, H.DEBITRATE, H.METER, H.ODSET];
+const DIESEL_VER_H_ = () => [H.IDATE, H.SHIFT, H.NO, H.QTY, H.KMR, H.HRR, H.REMARK, H.DRIVER, H.SOURCE, H.DMETER];
+const VER_NUM_ = h => [H.OKM, H.CKM, H.OHR, H.CHR, H.TBRK, H.TRIP, H.DAYPART, H.DEBITRATE, H.ODSET, H.QTY, H.KMR, H.HRR, H.DMETER].indexOf(h) > -1;
+// a value as the same text however it was read (a date or a number in any form; JSON with its keys in order – the database reorders them)
+function verVal_(h, x) {
+  if (h === H.DATE || h === H.IDATE) return dkey_(x) || str_(x);
+  if (h === H.TSTART || h === H.TEND) return tStr_(x);
+  if (VER_NUM_(h)) return String(numOrBlank_(x));
+  const v = x !== null && typeof x === 'object' && !(x instanceof Date) ? JSON.stringify(x) : str_(x);
+  if (/^[{[]/.test(v)) { try { const canon = o => Array.isArray(o) ? '[' + o.map(canon).join(',') + ']' : o && typeof o === 'object' ? '{' + Object.keys(o).sort().map(k => JSON.stringify(k) + ':' + canon(o[k])).join(',') + '}' : JSON.stringify(o); return canon(JSON.parse(v)); } catch (e) { return v; } }
+  return v;
+}
+function rowVer_(t, row, hs) {
+  const v = hs.filter(h => h in t.c).map(h => verVal_(h, row[t.c[h]])).join('\u0001');
+  let a = 0x811c9dc5; for (let k = 0; k < v.length; k++) { a ^= v.charCodeAt(k); a = Math.imul(a, 0x01000193) >>> 0; }
+  return a.toString(36);
+}
+// the version sent with a save is not the entry's now: someone changed it after it was opened → nothing is saved
+/* review of update-145: a save that is a REQUEST replayed later (a change of a billed period approved by the Super Admin, a verification's
+ * last approval, "Send again") carries the version of the moment it was asked – the words say what to do there (VER_CTX_). */
+let VER_CTX_ = '';
+function verCheck_(t, row, hs, ver, what) {
+  if (blank_(ver) || rowVer_(t, row, hs) === str_(ver)) return;
+  const who = (H.UBY in t.c && str_(row[t.c[H.UBY]])) || (H.EBY in t.c && str_(row[t.c[H.EBY]])) || 'another user';
+  if (VER_CTX_ === 'approve') throw new Error(what + ' was changed by ' + who + ' after this request was made – reject it: the person who asked makes the change again on the entry as it is now. Nothing was saved.');
+  if (VER_CTX_ === 'flow') throw new Error(what + ' was changed by ' + who + ' after this entry was sent – it goes back to the person who sent it: he makes the change again on the entry as it is now. Nothing was saved.');
+  if (VER_CTX_ === 'resend') throw new Error(what + ' was changed by ' + who + ' after this entry was sent – it cannot be sent again: take it back and make the change again on the entry as it is now. Nothing was saved.');
+  throw new Error(what + ' was changed by ' + who + ' after you opened it – open it again and make your change there. Nothing was saved.');
+}
+const logWhat_ = (lt, r) => str_(r[lt.c[H.NO]]) + ' (' + dmy_(dkey_(r[lt.c[H.DATE]])) + ', ' + (str_(r[lt.c[H.SHIFT]]) || 'Full Day') + ')';
 function getLogEntry_(key) {
   const lt = table_(APP.SHEET_LOG, logHeaders_());
   const i = findLogIdx_(lt, key);
@@ -8313,6 +8355,7 @@ function getLogEntry_(key) {
   let mm = null; try { mm = findMachine_(no); } catch (e) { mm = null; }
   out.boqItems = mm ? itemBrief_(boqItemsOn_(mm, out.date)) : [];
   out.lock = billLockTag_(billLockOf_(no, out.date));      // in a submitted bill: the page says so instead of opening the edit window
+  out.ver = rowVer_(lt, lt.rows[i], LOG_VER_H_());      // (update-145) sent back with the change
   return out;
 }
 /* Edit a Log Book entry (Start / Close reading, Chainage, Work description; Opening diesel on the first entry).
@@ -8330,6 +8373,7 @@ function updateLogRow_(key, l) {
     const c = lt.c;
     const i = findLogIdx_(lt, key);
     const r = lt.rows[i], no = str_(r[c[H.NO]]), unit = str_(r[c[H.UNIT]]);
+    verCheck_(lt, r, LOG_VER_H_(), l && l.ver, logWhat_(lt, r));      // (update-145) changed by someone else after it was opened: nothing saved
     booksOpen_(dkey_(r[c[H.DATE]]), 'Log Book entry');
     billLock_(no, dkey_(r[c[H.DATE]]), 'Log Book entry');
     const idx = machineLogIdx_(lt, no), pos = idx.indexOf(i);
@@ -8419,8 +8463,9 @@ function updateLogRow_(key, l) {
     (nextChanged ? [nextI] : []).concat(Object.keys(moved).map(Number)).forEach(j => billLock_(no, dkey_(lt.rows[j][c[H.DATE]]), 'The Log Book entry after it (its Start would follow the new Close)'));
     stampEdit_(me, lt);
     lt.sh.getRange(i + 2, 1, 1, me.length).setValues([me]);
-    if (nextChanged) lt.sh.getRange(nextI + 2, 1, 1, next.length).setValues([next]);
-    Object.keys(moved).forEach(j => { lt.sh.getRange(Number(j) + 2, 1, 1, moved[j].length).setValues([moved[j]]); });
+    // (review of update-145: an entry whose Start followed this change is changed by this person – the name a later refusal shows)
+    if (nextChanged) { stampEdit_(next, lt); lt.sh.getRange(nextI + 2, 1, 1, next.length).setValues([next]); }
+    Object.keys(moved).forEach(j => { stampEdit_(moved[j], lt); lt.sh.getRange(Number(j) + 2, 1, 1, moved[j].length).setValues([moved[j]]); });
     recalcChain_(no);
     return { ok: true, key: str_(key), date: dk, nextChanged: nextChanged || Object.keys(moved).length > 0 };
   });
@@ -8442,7 +8487,7 @@ function linkAfterInsert_(no, newRows) {
     const nxNew = meterNew_(nx, c);     // the first entry of a new meter keeps the Start that was typed
     if (hasKm_(unit) && !nxNew && r[c[H.CKM]] !== '' && num0_(nx[c[H.OKM]]) < num0_(r[c[H.CKM]])) { nx[c[H.OKM]] = num0_(r[c[H.CKM]]); changed = true; }
     if (hasHr_(unit) && !nxNew && r[c[H.CHR]] !== '' && num0_(nx[c[H.OHR]]) < num0_(r[c[H.CHR]])) { nx[c[H.OHR]] = num0_(r[c[H.CHR]]); changed = true; }
-    if (changed) lt.sh.getRange(j + 2, 1, 1, nx.length).setValues([nx]);
+    if (changed) { stampEdit_(nx, lt); lt.sh.getRange(j + 2, 1, 1, nx.length).setValues([nx]); }
   });
   recalcChain_(no);
 }
@@ -8479,7 +8524,7 @@ function getLogEditData_(no, fromStr, toStr) {
   // submitted bills that hold this machinery in these dates: their dates are locked in the grid
   const locks = billLocksOfNo_(m.id).filter(b => b.from <= to && b.to >= from).map(billLockTag_);
   const partsOut = o => { const it = boqItems[o.date] ? boqItemsOn_(m, o.date) : [], ps = itemPartsOf_(it, o.itemWork, { hr: o.whr, km: o.wkm }); if (ps) o.itemParts = ps; return o; };
-  return { machine: m, from: from, to: to, boqItems: boqItems, rows: rows.map(i => partsOut(Object.assign(logRowOut_(lt, lt.rows[i]), { key: logKeyOf_(lt, lt.rows[i]) }))),
+  return { machine: m, from: from, to: to, boqItems: boqItems, rows: rows.map(i => partsOut(Object.assign(logRowOut_(lt, lt.rows[i]), { key: logKeyOf_(lt, lt.rows[i]), ver: rowVer_(lt, lt.rows[i], LOG_VER_H_()) }))),
     prev: brief(before[before.length - 1]), next: brief(after[0]), diesel: diesel, prevKm: lastRead(H.CKM), prevHr: lastRead(H.CHR), locks: locks,
     // update-77: a machinery on hours – the next entry that reads the hour meter (its Start is never changed from here: a Close above it is refused)
     nextHr: hrsOnly_(m) ? (j => j === undefined || meterNew_(lt.rows[j], c) ? null : brief(j))(after.find(i => hasHr_(str_(lt.rows[i][c[H.UNIT]])) && numOrBlank_(lt.rows[i][c[H.OHR]]) !== '')) : null, hrsOnly: hrsOnly_(m) };
@@ -8523,6 +8568,12 @@ function saveLogBulk_(b) {
     const idx = machineLogIdx_(lt, m.id);
     const byKey = {}; idx.forEach(i => { byKey[logKeyOf_(lt, lt.rows[i])] = i; });
     const deleted = (b.deleted || []).map(str_).filter(k => k in byKey);
+    // (update-145) an entry of the grid that someone else changed after the grid was opened: nothing is saved
+    if (b.vers && typeof b.vers === 'object') { const changedBy = [];
+      Object.keys(b.vers).forEach(k => { if (!(k in byKey)) return;
+        if (!ACTOR_SUPER_ && billLockOf_(m.id, dkey_(lt.rows[byKey[k]][c[H.DATE]]))) return;      // (review: an entry of a submitted bill is never written from here – kept out of the save)
+        try { verCheck_(lt, lt.rows[byKey[k]], LOG_VER_H_(), b.vers[k], logWhat_(lt, lt.rows[byKey[k]])); } catch (e) { changedBy.push({ row: 0, msg: e.message.replace(' Nothing was saved.', '') + (changedBy.length || VER_CTX_ ? '' : ' Reload the list.') }); } });
+      if (changedBy.length) return { ok: false, errors: changedBy.map(x => ({ row: x.row, msg: x.msg + ' Nothing was saved.' })) }; }
     deleted.forEach(k => booksOpen_(dkey_(lt.rows[byKey[k]][c[H.DATE]]), 'Log Book entry'));
     deleted.forEach(k => billLock_(m.id, dkey_(lt.rows[byKey[k]][c[H.DATE]]), 'Log Book entry'));
     const odOf = l => blank_(l.odSet) ? '' : (() => { const v = Number(l.odSet); if (!isFinite(v) || v < 0) throw new Error('Opening diesel must be 0 or more.'); return r2_(v); })();
@@ -8661,8 +8712,8 @@ function saveLogBulk_(b) {
       if (l.half !== undefined && (l.half || H.DAYPART in c)) { halfCheck_(l, v.mode, dmy_(dkey_(r[c[H.DATE]])) + ': '); if (l.half) halfReady_(c); if (H.DAYPART in c) row[c[H.DAYPART]] = l.half ? 0.5 : ''; }      // "½ day"
       if (row.some((v, k) => String(v) !== String(r[k]))) { stampEdit_(row, lt); lt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]); changed++; }
     });
-    if (nextWrite) lt.sh.getRange(nextWrite.i + 2, 1, 1, nextWrite.row.length).setValues([nextWrite.row]);
-    nextWrites.forEach(w => lt.sh.getRange(w.i + 2, 1, 1, w.row.length).setValues([w.row]));
+    if (nextWrite) { stampEdit_(nextWrite.row, lt); lt.sh.getRange(nextWrite.i + 2, 1, 1, nextWrite.row.length).setValues([nextWrite.row]); }
+    nextWrites.forEach(w => { stampEdit_(w.row, lt); lt.sh.getRange(w.i + 2, 1, 1, w.row.length).setValues([w.row]); });
     // opening diesel of the machinery's very first entry
     if (!blank_(b.openingDiesel) && H.ODSL in c && sorted.length && !idx.some(i => dkey_(lt.rows[i][c[H.DATE]]) < sorted[0].dk && deleted.indexOf(logKeyOf_(lt, lt.rows[i])) === -1)) {
       const f = sorted[0];
@@ -8819,11 +8870,12 @@ function rptTank_(f) {
     total: { checks: checks.length, diff: r2_(checks.reduce((a, x) => a + x.diff, 0)), over: current.filter(x => x.over).length, bigDiff: checks.filter(x => Math.abs(x.diff) > Math.max(5, Math.abs(x.system) * 0.1)).length } });
 }
 
-function deleteLogRow_(key) {
+function deleteLogRow_(key, ver) {
   return withLock_(() => {
     const lt = table_(APP.SHEET_LOG, logHeaders_());
     const i = findLogIdx_(lt, key);
     const c = lt.c, no = str_(lt.rows[i][c[H.NO]]);
+    verCheck_(lt, lt.rows[i], LOG_VER_H_(), ver, logWhat_(lt, lt.rows[i]));      // (update-145)
     booksOpen_(dkey_(lt.rows[i][c[H.DATE]]), 'Log Book entry');
     billLock_(no, dkey_(lt.rows[i][c[H.DATE]]), 'Log Book entry');
     const idx = machineLogIdx_(lt, no), pos = idx.indexOf(i);
@@ -8836,7 +8888,7 @@ function deleteLogRow_(key) {
       const j = readerAfter(k[0]); if (prevI < 0 || j === undefined || j === nextI) return;      // (the very next entry: done below, as before)
       const gone = lt.rows[i], n = lt.rows[j].slice();
       if (k[0](str_(gone[c[H.UNIT]])) && !meterNew_(n, c) && numOrBlank_(gone[c[k[2]]]) !== '' && numOrBlank_(gone[c[k[1]]]) !== '' && num0_(n[c[k[1]]]) === num0_(gone[c[k[2]]])) {
-        n[c[k[1]]] = num0_(gone[c[k[1]]]); billLock_(no, dkey_(n[c[H.DATE]]), 'The Log Book entry after it (its Start would move)'); lt.sh.getRange(j + 2, 1, 1, n.length).setValues([n]); lt.rows[j] = n; }
+        n[c[k[1]]] = num0_(gone[c[k[1]]]); billLock_(no, dkey_(n[c[H.DATE]]), 'The Log Book entry after it (its Start would move)'); stampEdit_(n, lt); lt.sh.getRange(j + 2, 1, 1, n.length).setValues([n]); lt.rows[j] = n; }
     });
     if (prevI > -1 && nextI > -1 && !keepOthers) {
       const p = lt.rows[prevI], n = lt.rows[nextI].slice(), unit = str_(n[c[H.UNIT]]);
@@ -8846,7 +8898,7 @@ function deleteLogRow_(key) {
       const gone = lt.rows[i];
       if (hasKm_(unit) && !meterNew_(n, c) && numOrBlank_(gone[c[H.CKM]]) !== '' && numOrBlank_(gone[c[H.OKM]]) !== '' && num0_(n[c[H.OKM]]) === num0_(gone[c[H.CKM]])) n[c[H.OKM]] = num0_(gone[c[H.OKM]]);
       if (hasHr_(unit) && !meterNew_(n, c) && numOrBlank_(gone[c[H.CHR]]) !== '' && numOrBlank_(gone[c[H.OHR]]) !== '' && num0_(n[c[H.OHR]]) === num0_(gone[c[H.CHR]])) n[c[H.OHR]] = num0_(gone[c[H.OHR]]);
-      if (n.some((v, k) => String(v) !== String(lt.rows[nextI][k]))) billLock_(no, dkey_(n[c[H.DATE]]), 'The Log Book entry after it (its Start would move)');
+      if (n.some((v, k) => String(v) !== String(lt.rows[nextI][k]))) { billLock_(no, dkey_(n[c[H.DATE]]), 'The Log Book entry after it (its Start would move)'); stampEdit_(n, lt); }
       lt.sh.getRange(nextI + 2, 1, 1, n.length).setValues([n]);
     }
     lt.sh.deleteRow(i + 2);
@@ -9797,7 +9849,7 @@ function crDecide_(u, x) {
       let args = []; try { args = JSON.parse(r0.args || '[]'); } catch (e) { args = []; }
       // the save runs as the user's change; the bill lock lets it through (as for the Super Admin). A refusal stops it all: nothing saved, the request waits
       const actor0 = ACTOR_, admin0 = ACTOR_ADMIN_;
-      ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = true;
+      ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = true; VER_CTX_ = 'approve';
       try {
         const before = spec.log ? logBefore_(spec, args) : null;
         billBaselines_(r0.fn, args);      // the "before" of the bills it may change (saved with it, or not at all)
@@ -9805,7 +9857,7 @@ function crDecide_(u, x) {
         const errs = res && typeof res === 'object' ? (res.errors || []) : [];
         if (res && (res.ok === false || errs.length)) throw new Error('It could not be saved: ' + (errs.length ? errs.slice(0, 5).map(e => (e.row ? 'Line ' + e.row + ': ' : '') + (e.msg || e)).join(' | ') : (res.error || res.warning || 'refused')) + ' – nothing was saved; the request still waits.');
         if (spec.log) { try { logAfter_(ru, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ } }
-      } finally { ACTOR_ = actor0; ACTOR_ADMIN_ = admin0; }
+      } finally { ACTOR_ = actor0; ACTOR_ADMIN_ = admin0; VER_CTX_ = ''; }
       bump_(SYNC_GROUPS_[spec.m] || []);
     }
     TABLE_MEMO_ = {};
@@ -10041,7 +10093,7 @@ function flowDecide_(u, x) {
       try {
         withLock_(() => {
           r0 = look(); f = r0.flow;
-          ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = f.photos && typeof f.photos === 'object' ? f.photos : null;      // (update-120) its photos, as noted when it was sent
+          ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; VER_CTX_ = 'flow'; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = f.photos && typeof f.photos === 'object' ? f.photos : null;      // (update-120) its photos, as noted when it was sent
           const before = spec.log ? logBefore_(spec, args) : null;
           const res = spec.withUser ? spec.f.apply(null, [ru].concat(args)) : spec.f.apply(null, args);
           const errs = res && typeof res === 'object' ? (res.errors || []) : [];
@@ -10056,7 +10108,7 @@ function flowDecide_(u, x) {
       } catch (e) {
         if (/^(This request (was not found|is already|is not waiting)|You cannot approve)/.test(String(e && e.message)) || faultKind_(e)) throw e;
         why = String((e && e.message) || e).slice(0, 1000);      // (update-129: room for the warnings' lines)
-      } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
+      } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; VER_CTX_ = ''; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
     }
     if (why) {
       withLock_(() => {
@@ -10174,14 +10226,14 @@ function flowResendOne_(u, id, note) {
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
   let res = null;
-  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = held;
+  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = held; VER_CTX_ = 'resend';
   try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); throw FLOW_DRY_; }); }
   catch (e) {
     if (e !== FLOW_DRY_) {
       if (faultKind_(e)) throw e;
       throw flowRefused_(id, String((e && e.message) || e).replace(/^Error:\s*/, '').slice(0, 1500));
     }
-  } finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
+  } finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; VER_CTX_ = ''; }
   TABLE_MEMO_ = {};
   const errs = res && typeof res === 'object' ? (res.errors || []) : [];
   if (res && typeof res === 'object' && (res.ok === false || errs.length)) throw flowRefused_(id, flowRefusal_(res, 100).text);

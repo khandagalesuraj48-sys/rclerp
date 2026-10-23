@@ -1834,7 +1834,21 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   edit window locks le_ts / le_te / le_tb / "+ time"; FIX_RULES +1, help texts; i18n keys + mr / hi (also update-143's). Review:
   `partsTol_` (rows all by Time: the rounding of each row, also in itemPartsOf_), the entry's slots = every slot of every row sorted
   by `timeSpans_` (server, page, phone), texts in the order of the day (`gT` / `G` / `gg`), the rows' breaks = the entry's (timesOk).
-  Tests: unit update-144 (+ update-78 changed to the new rule), browser/time144.js 15.
+  Then (his Hydra on Time only, "sagle machinery la ha rule ghe"): for EVERY machinery – logRowsKind_ (all Time → 'hr'), join
+  `tAll` (isT / plainRows), logItemWork_ tOnly = mode Time, prefill sameOk also for a saved Time entry; page lxPartKind / lgPartKind
+  'hr' for a Time row, lxPlain / plain with Time, no "same work" on Time rows, allT payload without lxHO; phone partKind / plain.
+  Tests: unit update-144 (+ update-78 changed to the new rule), browser/time144.js.
+- 23-10-2026 (update-145, with App 3.31.2). Report: `UPDATE_145.md`. TWO PEOPLE CHANGING THE SAME ENTRY (Log Book + Diesel Issue
+  first, his choice): `rowVer_` (FNV-1a of `verVal_` of LOG_VER_H_ / DIESEL_VER_H_ – what a person can change; dates by dkey_, times
+  tStr_, numbers numOrBlank_, JSON with sorted keys), `verCheck_` → "<what> was changed by <UBY|EBY> after you opened it – open it
+  again and make your change there. Nothing was saved." Out: getLogEntry_.ver, getLogEditData_ rows[].ver, getDieselIssues_
+  rows[].ver. In: updateLogRow_ l.ver, deleteLogRow_(key, ver), saveLogBulk_ b.vers {key: ver} (before anything; ok:false),
+  updateDieselIssue_ d.ver, deleteDieselIssue_(id, ver); no ver = as before. App.html: x.ver (edit window), deleteLogRow e.ver,
+  lx save vers, S.editDieselVer (kept at editDiesel – the list refreshes), deleteDiesel ver; FIX_RULES +1; mr / hi. Unit
+  update-145 (update-130's line check follows), browser/same145.js 10. Review: a moved Start is stamped (stampEdit_) with who moved
+  it; VER_CTX_ 'approve' / 'flow' / 'resend' (crDecide_, flowDecide_, flowResendOne_) words for a request replayed later (+1
+  FIX_RULE); saveLogBulk_ skips the check of a billed row for a user (it is kept out); updateDieselIssue_ returns ver, deleteDiesel
+  uses the row's ver.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

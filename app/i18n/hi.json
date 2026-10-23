@@ -6270,5 +6270,16 @@
 "was saved with a new meter": "नए मीटर के साथ सेव हुई थी",
 "was saved without a meter reading": "मीटर रीडिंग के बिना सेव हुई थी",
 "was not found": "नहीं मिली",
-"Less data from the database – settings and users only when changed (step 2b)": "डेटाबेस से कम डेटा – सेटिंग्स और यूज़र्स सिर्फ़ बदलने पर (step 2b)"
+"Less data from the database – settings and users only when changed (step 2b)": "डेटाबेस से कम डेटा – सेटिंग्स और यूज़र्स सिर्फ़ बदलने पर (step 2b)",
+"{0} was changed by {1} after you opened it – open it again and make your change there. Nothing was saved.": "{0} आपके खोलने के बाद {1} ने बदली – उसे फिर से खोलें और वहाँ अपना बदलाव करें। कुछ भी सेव नहीं हुआ।",
+"{0} Nothing was saved.": "{0} कुछ भी सेव नहीं हुआ।",
+"Reload the list.": "सूची दोबारा लोड करें।",
+"another user": "दूसरा user",
+"Diesel issue {0} ({1}, {2})": "डीज़ल इश्यू {0} ({1}, {2})",
+"{0} was changed by {1} after this request was made – reject it: the person who asked makes the change again on the entry as it is now. Nothing was saved.": "यह अनुरोध करने के बाद {0} को {1} ने बदला – अनुरोध अस्वीकार करें: अनुरोध करने वाला अभी की entry पर बदलाव फिर से करेगा। कुछ भी save नहीं हुआ।",
+"{0} was changed by {1} after this entry was sent – it goes back to the person who sent it: he makes the change again on the entry as it is now. Nothing was saved.": "यह entry भेजने के बाद {0} को {1} ने बदला – यह भेजने वाले के पास वापस जाती है: वह अभी की entry पर बदलाव फिर से करेगा। कुछ भी save नहीं हुआ।",
+"{0} was changed by {1} after this entry was sent – it cannot be sent again: take it back and make the change again on the entry as it is now. Nothing was saved.": "यह entry भेजने के बाद {0} को {1} ने बदला – इसे फिर से नहीं भेजा जा सकता: इसे वापस लें और अभी की entry पर बदलाव फिर से करें। कुछ भी save नहीं हुआ।",
+"after this request was made – reject it: the person who asked makes the change again on the entry as it is now. Nothing was saved.": "यह अनुरोध करने के बाद बदला गया – अनुरोध अस्वीकार करें: अनुरोध करने वाला अभी की entry पर बदलाव फिर से करेगा। कुछ भी save नहीं हुआ।",
+"after this entry was sent – it goes back to the person who sent it: he makes the change again on the entry as it is now. Nothing was saved.": "यह entry भेजने के बाद बदला गया – यह भेजने वाले के पास वापस जाती है: वह अभी की entry पर बदलाव फिर से करेगा। कुछ भी save नहीं हुआ।",
+"after this entry was sent – it cannot be sent again: take it back and make the change again on the entry as it is now. Nothing was saved.": "यह entry भेजने के बाद बदला गया – इसे फिर से नहीं भेजा जा सकता: इसे वापस लें और अभी की entry पर बदलाव फिर से करें। कुछ भी save नहीं हुआ।"
 }
