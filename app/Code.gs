@@ -3697,6 +3697,10 @@ function timeSpans_(ts, shift) {
     cur = at + d; out.push([at, at + d]); });
   return out.length ? out : [[0, 0]];
 }
+/* update-144 (review 23-10-2026): rows ALL by Time – each row's hours are rounded on their own (2 h 20 = 2.33), the entry's are worked
+ * out from all its minutes (4 h 40 = 4.67): their sum may differ from the entry's hours by the rounding of each row and of the total.
+ * The rows are the entry's very times (timesOk), so the minutes agree exactly; only the rounding is allowed for. */
+const partsTol_ = ps => Array.isArray(ps) && ps.length > 1 && ps.every(p => partIsTime_(p)) ? 0.005 * (ps.length + 1) + 1e-9 : 0.005;
 // update-144: the times of an entry by Time, each "HH:MM-HH:MM", sorted (to compare the rows of a shift with the entry's own times)
 const slotsSorted_ = v => { let ts = null; try { ts = timeSlots_(v, ''); } catch (e) { ts = null; } return ts ? ts.text.split(',').sort() : []; };
 function itemPartsOf_(items, work, tot) {
@@ -3706,7 +3710,7 @@ function itemPartsOf_(items, work, tot) {
   if (ps.every(p => p && str_(p.n) === '')) {
     const out = ps.map(p => Object.assign({ n: '', q: r2_(Number(p.q)), k: 'hr', c: str_(p.c), p: str_(p.p), f: str_(p.f), t: str_(p.t), w: str_(p.w) }, partExtra_(p)));
     if (out.some(x => !(x.q > 0))) return null;
-    if (tot && Math.abs(r2_(out.reduce((a, x) => a + x.q, 0)) - Math.max(0, Number(tot.hr) || 0)) > 0.005) return null;
+    if (tot && Math.abs(r2_(out.reduce((a, x) => a + x.q, 0)) - Math.max(0, Number(tot.hr) || 0)) > partsTol_(ps)) return null;
     return out;
   }
   if (!items || !items.length) return null;
@@ -3719,7 +3723,7 @@ function itemPartsOf_(items, work, tot) {
     out.push(Object.assign({ n: it.name, q: r2_(q), k: kind, c: str_(p.c), p: str_(p.p), f: str_(p.f), t: str_(p.t), w: str_(p.w) }, partExtra_(p)));
   }
   const sum = r2_(out.reduce((a, x) => a + x.q, 0));
-  if (tot && Math.abs(sum - Math.max(0, Number(tot[k]) || 0)) > 0.005) return null;      // the entry's total is no longer the sum of its works
+  if (tot && Math.abs(sum - Math.max(0, Number(tot[k]) || 0)) > partsTol_(ps)) return null;      // the entry's total is no longer the sum of its works (update-144: rows all by Time – their rounding)
   // the typed quantities kept for the bill must be the same figures
   if (items.filter(it => itemKind_(it.basis) === k && it.qty !== 'rest').some(it => Math.abs((by[it.name] || 0) - Math.max(0, Number(work[it.name]) || 0)) > 0.005)) return null;
   return out;
@@ -3744,7 +3748,8 @@ function logItemWork_(m, dk, mode, l, tot, prev) {
   const timesOk = (ps, who) => { if (!tOnly) return;
     const want = slotsSorted_(l && Array.isArray(l.tSlots) && l.tSlots.length ? l.tSlots : l && str_(l.tSlots) && !Array.isArray(l.tSlots) ? l.tSlots : [[l && l.tStart, l && l.tEnd]]);
     const have = [].concat(...ps.map(p => slotsSorted_(p.ts))).sort();
-    if (!want.length || want.join(',') !== have.join(',')) throw new Error(who + 'the rows of this shift by Time (' + have.join(', ') + ') are not the From – To of the entry (' + (want.join(', ') || 'none') + ') – the times of the entry are the times of its rows. Reload the page and save the rows again.'); };
+    const bRows = r2_(ps.reduce((a, p) => a + num0_(p.tb), 0)), bEnt = r2_(num0_(l && l.tBreak));
+    if (!want.length || want.join(',') !== have.join(',') || Math.abs(bRows - bEnt) > 0.005) throw new Error(who + 'the rows of this shift by Time (' + have.join(', ') + (bRows ? ', break ' + bRows + ' min' : '') + ') are not the From – To of the entry (' + (want.join(', ') || 'none') + (bEnt ? ', break ' + bEnt + ' min' : '') + ') – the times of the entry are the times of its rows. Reload the page and save the rows again.'); };
   // update-77: the rows of one shift of an hours machinery WITHOUT separate hour works (plain rows: its times of work, with gaps)
   let plain = null;
   if ((hOnly || tOnly) && hrItems.length < 2 && l && l.items && Array.isArray(l.items._parts) && l.items._parts.length > 1) {
@@ -3765,7 +3770,7 @@ function logItemWork_(m, dk, mode, l, tot, prev) {
     if (!seenHr && !tOnly) throw new Error(when0 + 'the rows of this shift are all by Time – keep one row and give it its times with "+ time" (or one row of the shift by Hrs).');
     timesOk(plain, when0);
     const sum = r2_(plain.reduce((a, x) => a + x.q, 0)), total = Math.max(0, num0_(tot.hr));
-    if (Math.abs(sum - total) > 0.005) throw new Error(when0 + 'the rows of this shift make ' + fmtVal_(sum) + ' hours but the entry has ' + fmtVal_(r2_(total)) + ' hours.');
+    if (Math.abs(sum - total) > partsTol_(plain)) throw new Error(when0 + 'the rows of this shift make ' + fmtVal_(sum) + ' hours but the entry has ' + fmtVal_(r2_(total)) + ' hours.');
     if (!items.length) return JSON.stringify({ _parts: plain });
     l = Object.assign({}, l, { items: Object.assign({}, l.items) }); delete l.items._parts;      // (the items of the entry are worked out from its total, as for one row)
   }
@@ -3805,7 +3810,7 @@ function logItemWork_(m, dk, mode, l, tot, prev) {
     if (!seenHr && !tOnly) throw new Error(when + 'the rows of this shift are all by Time – keep one row and give it its times with "+ time" (or one row of the shift by Hrs).');
     timesOk(parts, when);
     const sum = r2_(parts.reduce((a, x) => a + x.q, 0)), total = Math.max(0, num0_(tot[kind])), w = ITEM_KIND_WORD_[kind];
-    if (Math.abs(sum - total) > 0.005) throw new Error(when + 'the rows of this shift make ' + fmtVal_(sum) + ' ' + w + ' but the entry has ' + fmtVal_(r2_(total)) + ' ' + w + ' – every row must start where the row before it closed.');
+    if (Math.abs(sum - total) > partsTol_(parts)) throw new Error(when + 'the rows of this shift make ' + fmtVal_(sum) + ' ' + w + ' but the entry has ' + fmtVal_(r2_(total)) + ' ' + w + ' – every row must start where the row before it closed.');
     // the quantities of the items of this kind come from the rows alone – whatever was sent for them (in any spelling) is not used
     Object.keys(inp).forEach(n => { if (n.charAt(0) === '_') return; const it = find(n); if (it && itemKind_(it.basis) === kind) delete inp[n]; });
     items.filter(it => itemKind_(it.basis) === kind && it.qty !== 'rest').forEach(it => { if (by[it.name]) inp[it.name] = by[it.name]; });
@@ -7551,7 +7556,7 @@ function logRowsJoin_(g, kind) {
   const parts = [], other = {}; let day = '', trips = 0, anyTrip = false, lastClose = null, typed0 = null, fh = -1, lh = -1;
   g.forEach((p, i) => {
     const l = p.x.l, isT = hOnly && modeOf(p) === 'Time';      // update-78: a row by Time (From – To) among the rows by Hrs
-    if (!isT && modeOf(p) !== mode) fail(i, 'the rows of one shift must be measured the same way (' + mode + (hOnly ? ' or Time' : '') + ').');
+    if (!isT && modeOf(p) !== mode) fail(i, 'the rows of one shift must be measured the same way (' + mode + (hOnly ? (mode === 'Time' ? ' or Hrs' : ' or Time') : '') + ').');
     let tx = null;
     if (isT) { const ex = logExtra_(m, 'Time', l, dmy_(dk) + ' row ' + (i + 1)); tx = { ts: ex.tSlots || (ex.tStart + '-' + ex.tEnd), tb: blank_(l.tBreak) ? 0 : Math.max(0, num0_(l.tBreak)), q: ex.tHrs }; }
     else if (blank_(l[F[1]]) || !isFinite(Number(l[F[1]]))) fail(i, row(i) + ' has no Close ' + F[2] + ' – every row of one shift needs its Close.');
@@ -7590,23 +7595,26 @@ function logRowsJoin_(g, kind) {
     if (!day && !blank_(its._day)) day = its._day;
     if (!blank_(l.trip)) { anyTrip = true; trips += num0_(l.trip); }
   });
-  const joinTxt = f => { const seen = []; g.forEach(p => { const v = clean_(p.x.l[f]); if (v && seen.indexOf(v) === -1) seen.push(v); }); return seen.join(' / '); };
+  const joinTxt = f => { const seen = []; gT.forEach(p => { const v = clean_(p.x.l[f]); if (v && seen.indexOf(v) === -1) seen.push(v); }); return seen.join(' / '); };
   /* update-144 (asked 23-10-2026, his screen of a JCB: Bucket 14:00 – 18:00 and Breaker 09:00 – 13:00, the same Day, both by Time –
    * "ase error nko n yeyla"): EVERY row of the shift by Time (From – To) – the entry is ONE entry by Time whose times are the rows'
    * times in the order of the shift (a Night's times after midnight come last), its break the breaks typed on the rows; each row
    * keeps its own work and times. Two rows at the same time: refused (a machinery does one work at a time). */
   const allT = fh === -1;      // (only a machinery on hours has rows by Time – logRowsKind_: so here every row is by Time)
-  let ordered = parts, tsAll = null;
+  let ordered = parts, tsAll = null, gT = g;
   if (allT) {
     const sp = parts.map((x, i) => ({ i: i, s: timeSpans_(x.ts, sh) })).sort((a, b) => a.s[0][0] - b.s[0][0] || a.i - b.i), say = i => row(i) + ' (' + str_(parts[i].ts).replace(/-/g, ' – ').replace(/,/g, ', ') + ')';
     for (let a = 0; a < sp.length; a++) for (let b = a + 1; b < sp.length; b++)
       if (sp[a].s.some(u => sp[b].s.some(v => u[0] < v[1] && v[0] < u[1]))) { const hi = Math.max(sp[a].i, sp[b].i), lo = Math.min(sp[a].i, sp[b].i); fail(hi, say(hi) + ' is at the same time as ' + say(lo) + ' – a machinery does one work at a time: correct the From – To of one of them.'); }
     ordered = sp.map(o => parts[o.i]);
-    tsAll = timeSlots_(ordered.map(x => x.ts).join(','), when);      // (all of them within 24 hours)
+    // the entry's times: EVERY time of every row in the order of the shift (a row with "+ time" may hold times around another row's) – review 23-10-2026
+    const each = [].concat(...sp.map(o => slotsParse_(parts[o.i].ts).map((x, j) => ({ at: (o.s[j] || o.s[0])[0], t: x[0] + '-' + x[1] })))).sort((a, b) => a.at - b.at);
+    tsAll = timeSlots_(each.map(x => x.t).join(','), when);      // (all of them within 24 hours)
+    gT = sp.map(o => g[o.i]);      // (the entry's texts – work, chainage – in the order of the day too)
   }
   const first = g[0].x.l, last = allT ? null : g[lh].x.l, O = kind === 'hr' ? 'closingKm' : 'closingHr';
   const l = Object.assign({}, first, { work: joinTxt('work'), challan: joinTxt('challan'), remark: joinTxt('remark'),
-    chFrom: (g.map(p => p.x.l).find(x => clean_(x.chFrom)) || {}).chFrom || '', chTo: (g.map(p => p.x.l).reverse().find(x => clean_(x.chTo)) || {}).chTo || '',
+    chFrom: (gT.map(p => p.x.l).find(x => clean_(x.chFrom)) || {}).chFrom || '', chTo: (gT.map(p => p.x.l).reverse().find(x => clean_(x.chTo)) || {}).chTo || '',
     items: Object.assign(day ? { _day: day } : {}, other, { _parts: ordered }) });
   if (allT) {
     const tb = r2_(ordered.reduce((a, x) => a + num0_(x.tb), 0));

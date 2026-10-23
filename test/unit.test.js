@@ -4425,7 +4425,7 @@ test('update-144: a shift of a machinery on hours whose rows are ALL by Time is 
     { name: 'BUCKET', basis: 'Per Hour', rate: 1200, qty: 'rest' }, { name: 'BREAKER', basis: 'Per Hour', rate: 1700, qty: 'typed' }] })) });
   const save = rows => run('x => { try { return saveLogRowsInner_(x); } catch (e) { return { thrown: String(e.message) }; } }', { rows: rows });
   const no = (x, re) => assert.ok(x.ok === false && x.errors.some(e => re.test(e.msg)), JSON.stringify(x).slice(0, 500));
-  const stored = n => run(`no => { const lt = table_(APP.SHEET_LOG), c = lt.c, g = (x, h) => h in c ? x[c[h]] : ''; return lt.rows.filter(x => str_(x[c[H.NO]]) === no).map(x => ({ d: dkey_(x[c[H.DATE]]), sh: str_(x[c[H.SHIFT]]), unit: str_(x[c[H.UNIT]]), ohr: numOrBlank_(x[c[H.OHR]]), chr: numOrBlank_(x[c[H.CHR]]), whr: numOrBlank_(x[c[H.WHR]]), tot: numOrBlank_(x[c[H.TOT]]), stock: numOrBlank_(x[c[H.STOCK]]), ts: tStr_(g(x, H.TSTART)), te: tStr_(g(x, H.TEND)), tb: numOrBlank_(g(x, H.TBRK)), th: numOrBlank_(g(x, H.THRS)), slots: str_(g(x, H.TSLOTS)), items: str_(x[c[H.ITEMS]]), work: str_(x[c[H.WORK]]) })).sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0); }`, n);
+  const stored = n => run(`no => { const lt = table_(APP.SHEET_LOG), c = lt.c, g = (x, h) => h in c ? x[c[h]] : ''; return lt.rows.filter(x => str_(x[c[H.NO]]) === no).map(x => ({ d: dkey_(x[c[H.DATE]]), sh: str_(x[c[H.SHIFT]]), unit: str_(x[c[H.UNIT]]), ohr: numOrBlank_(x[c[H.OHR]]), chr: numOrBlank_(x[c[H.CHR]]), whr: numOrBlank_(x[c[H.WHR]]), tot: numOrBlank_(x[c[H.TOT]]), stock: numOrBlank_(x[c[H.STOCK]]), ts: tStr_(g(x, H.TSTART)), te: tStr_(g(x, H.TEND)), tb: numOrBlank_(g(x, H.TBRK)), th: numOrBlank_(g(x, H.THRS)), slots: str_(g(x, H.TSLOTS)), items: str_(x[c[H.ITEMS]]), work: str_(x[c[H.WORK]]), chf: str_(x[c[H.CHFROM]]), cht: str_(x[c[H.CHTO]]) })).sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0); }`, n);
   const E = (n, o) => Object.assign({ date: '2026-09-28', shift: 'Day', no: n, mode: 'Time' }, o);
   const amount = n => run('(no, f, t) => billMachineCalc_(findMachine_(no), getLogBookList_({ from: f, to: t, no: no, all: true }).rows, logPrintExtra_({ from: f, to: t, nos: [no] }), f, t, undefined, true).amount', n, '2026-09-28', '2026-09-28');
   // 27-09: the first entries, by the hour meter (opening diesel 100)
@@ -4488,6 +4488,30 @@ test('update-144: a shift of a machinery on hours whose rows are ALL by Time is 
   assert.deepStrictEqual(same(stored('R144-B')[1]), same(b), 'nothing changed');
   // the Excel import: such an entry is changed in Edit Log Book, not by a file
   assert.match(JSON.stringify(tryRun('x => importLogBook_(x)', { check: true, rows: [{ line: 2, date: '2026-09-28', shift: 'Day', no: 'R144-B', mode: 'Time', work: 'OTHER WORK' }] })), /kept row by row .* not by Excel/);
+  // (review 23-10-2026) 1) times whose hours are rounded: 09:00 – 11:20 + 13:00 – 15:20 = 4 h 40 = 4.67 h (each row 2.33) – saved, in one save and added
+  const D30 = o => E(o.no, Object.assign({ date: '2026-09-30' }, o));
+  r = save([D30({ no: 'R144-N', tStart: '09:00', tEnd: '11:20', items: { _all: 'BUCKET' } }), D30({ no: 'R144-N', tStart: '13:00', tEnd: '15:20', items: { _all: 'BREAKER' } })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  r = save([D30({ no: 'R144-A', tStart: '09:00', tEnd: '11:20', items: { _all: 'BUCKET' } })]); assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  r = save([D30({ no: 'R144-A', tStart: '13:00', tEnd: '15:20', items: { _all: 'BREAKER' }, add: 1 })]); assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
+  const rn = stored('R144-N').find(q => q.d === '2026-09-30'), ra = stored('R144-A').find(q => q.d === '2026-09-30');
+  assert.deepStrictEqual([rn.whr, rn.slots, JSON.parse(rn.items).BREAKER, JSON.parse(rn.items)._parts.map(q => q.q)], [4.67, '09:00-11:20,13:00-15:20', 2.33, [2.33, 2.33]]);
+  assert.deepStrictEqual([ra.whr, ra.slots, ra.items], [rn.whr, rn.slots, rn.items], 'added = one save');
+  assert.strictEqual(run('() => getLogEditData_("R144-N", "2026-09-30", "2026-09-30")').rows[0].itemParts.length, 2, 'its rows are read back (not dropped for the rounding)');
+  // 2) a saved entry with "+ time" (09:00 – 11:00 and 14:00 – 16:00) takes a work 12:00 – 13:00 between its times
+  r = save([D30({ no: 'R144-C', tStart: '09:00', tEnd: '16:00', tSlots: [['09:00', '11:00'], ['14:00', '16:00']], items: { _all: 'BUCKET' } })]); assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  r = save([D30({ no: 'R144-C', tStart: '12:00', tEnd: '13:00', items: { _all: 'BREAKER' }, add: 1 })]);
+  assert.ok(r.ok && r.added === 1, JSON.stringify(r).slice(0, 300));
+  const rc = stored('R144-C').find(q => q.d === '2026-09-30');
+  assert.deepStrictEqual([rc.whr, rc.slots, rc.tb, JSON.parse(rc.items)._parts.map(q => q.n + ' ' + q.ts)], [5, '09:00-11:00,12:00-13:00,14:00-16:00', 120, ['BUCKET 09:00-11:00,14:00-16:00', 'BREAKER 12:00-13:00']]);
+  // 3) the entry's chainage and work in the order of the day (the Bucket row typed first, 14:00 – 18:00)
+  r = save([D30({ no: 'R144-B', tStart: '14:00', tEnd: '18:00', items: { _all: 'BUCKET' }, chFrom: '10+000', chTo: '10+500', work: 'LOADING' }), D30({ no: 'R144-B', tStart: '09:00', tEnd: '13:00', items: { _all: 'BREAKER' }, chFrom: '9+000', chTo: '9+500', work: 'BREAKING' })]);
+  assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+  const rb = stored('R144-B').find(q => q.d === '2026-09-30');
+  assert.deepStrictEqual([rb.chf, rb.cht, rb.work], ['9+000', '10+500', 'BREAKING / LOADING']);
+  // 4) Edit Log Book: a break on the rows that is not the entry's break – refused
+  x = bulk([C({ date: '2026-10-01', items: { _parts: [{ n: 'BREAKER', q: 3.5, m: 'T', ts: '09:00-13:00', tb: 30 }, { n: 'BUCKET', q: 4, m: 'T', ts: '14:00-18:00', tb: 0 }] } })]);
+  assert.ok(x.ok === false && /are not the From – To of the entry/.test(JSON.stringify(x)), JSON.stringify(x).slice(0, 400));
   // a machinery on hours keeps its rule for rows by Hrs and by Time together (update-78) – unchanged
   r = save([E('R144-C', { date: '2026-09-29', tStart: '09:00', tEnd: '11:00', items: { _all: 'BUCKET' } }), E('R144-C', { date: '2026-09-29', mode: 'Hrs', openingHr: 1008, closingHr: 1011, items: { _all: 'BREAKER' } })]);
   assert.ok(r.ok, JSON.stringify(r).slice(0, 300));

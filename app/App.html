@@ -9409,11 +9409,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       /* update-144: every row of the shift by Time – ONE entry by Time: its times are the rows' times in the order of the shift, its break
        * the breaks typed on the rows; the rows go in that order too */
       const allT = g.length > 1 && lxHO() && !hg.length && g.every(x => lxWay(x) === 'Time'), tp = x => lxTimePart(x), at0 = x => (timeSpansP(slotsParse(tp(x).ts), x.shift)[0] || [0])[0];
-      const G = allT ? g.slice().sort((a, b) => at0(a) - at0(b)) : g, tSl = allT ? [].concat(...G.map(x => slotsParse(tp(x).ts))) : [], tB = allT ? r2(G.reduce((a, x) => a + (Number(tp(x).tb) || 0), 0)) : 0;
+      const G = allT ? g.slice().sort((a, b) => at0(a) - at0(b)) : g, tB = allT ? r2(G.reduce((a, x) => a + (Number(tp(x).tb) || 0), 0)) : 0;
+      // (every time of every row in the order of the shift – a row with "+ time" may hold times around another row's)
+      const tSl = allT ? [].concat(...G.map(x => { const sl = slotsParse(tp(x).ts), sp = timeSpansP(sl, x.shift); return sl.map((t, j) => ({ at: (sp[j] || sp[0] || [0])[0], t: t })); })).sort((a, b) => a.at - b.at).map(o => o.t) : [];
       if (g.length > 1) { const kind = lxPartKind(r);
         return { key: own, same: g.every(x => !x.isNew && !lxChanged(x) && x.key === own) && LX.pc[own] === g.length, half: !!r.half, date: r.date, shift: r.shift, mode: w, openingKm: k ? R.okm : '', closingKm: k ? z.ckm : '', openingHr: h ? R.ohr : '', closingHr: h ? z.chr : '',
-          tStart: allT ? tSl[0][0] : '', tEnd: allT ? tSl[tSl.length - 1][1] : '', tBreak: allT && tB > 0 ? tB : '', tSlots: allT ? tSl : undefined, remark: joinTxt(g.map(x => x.remark)), trip: m.lbFormat === 'B' ? (g.reduce((a, x) => a + (Number(x.trip) || 0), 0) || '') : '', challan: joinTxt(g.map(x => x.challan)), chFrom: (g.find(x => String(x.chFrom || '').trim()) || {}).chFrom || '', chTo: (g.slice().reverse().find(x => String(x.chTo || '').trim()) || {}).chTo || '',
-          work: joinTxt(g.map(x => x.work)), odSet: /-01$/.test(r.date) ? (r.odSet ?? '') : '',
+          tStart: allT ? tSl[0][0] : '', tEnd: allT ? tSl[tSl.length - 1][1] : '', tBreak: allT && tB > 0 ? tB : '', tSlots: allT ? tSl : undefined, remark: joinTxt(G.map(x => x.remark)), trip: m.lbFormat === 'B' ? (g.reduce((a, x) => a + (Number(x.trip) || 0), 0) || '') : '', challan: joinTxt(G.map(x => x.challan)), chFrom: (G.find(x => String(x.chFrom || '').trim()) || {}).chFrom || '', chTo: (G.slice().reverse().find(x => String(x.chTo || '').trim()) || {}).chTo || '',
+          work: joinTxt(G.map(x => x.work)), odSet: /-01$/.test(r.date) ? (r.odSet ?? '') : '',
           items: Object.assign(r.items && r.items._day ? { _day: r.items._day } : {}, lxOtherItems(g, lxPlain(r) ? '' : kind), { _parts: G.map((x, j) => { const ph = G.slice(0, j).filter(y => hasHr(lxWay(y))).pop();      // (the row by Hrs before it in this shift)
             return Object.assign({ n: lxPlain(x) ? '' : lxPickOf(x, kind), q: lxRowQty(x, kind), c: x.challan || '', p: x.remark || '', f: x.chFrom || '', t: x.chTo || '', w: x.work || '' },
               lxWay(x) === 'Time' ? lxTimePart(x) : ph && kind === 'hr' && lxHO() && Number(x.ohr) > Number(ph.chr) ? { g: r2(Number(x.ohr) - Number(ph.chr)) } : {}); }) }) }; }
