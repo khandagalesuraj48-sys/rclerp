@@ -865,6 +865,7 @@ const API_ = {
   getFlowRules:      { m: '', withUser: true, f: u => getFlowRules_(u) },
   answerFlow:        { m: '', withUser: true, f: (u, x) => flowAnswer_(u, x), log: 'flowAnswer' },
   resendFlow:        { m: '', withUser: true, f: (u, x) => flowResend_(u, x), log: 'flowResend' },      // (update-128) the sender sends his rejected / returned entry again, as it was
+  approvalDetails:   { m: '', withUser: true, f: (u, x) => approvalDetails_(u, x) },      // (update-147) an entry in Approvals in full – for the people who approve it (one or several)
   openFlow:          { m: '', withUser: true, f: (u, x) => flowOpen_(u, x) },      // (update-130) the sender opens his rejected / returned entry in its form, what is wrong marked
   editFlow:          { m: '', withUser: true, f: (u, x) => flowEdit_(u, x), log: 'flowEdit' },      // (update-130) …corrected: to verification again
   remindFlow:        { m: '', withUser: true, f: (u, x) => flowRemindMine_(u, x), log: 'flowRemindMine' },      // (update-118) the sender reminds the approvers of his waiting entries      // (update-116) the sender answers an entry sent back to him, or takes it back      // (update-114) the Super Admin's verification rules
@@ -10548,6 +10549,85 @@ function flowOpen_(u, x) {
   const check = dry.error ? { ok: false, error: dry.error } : flowRefusing_(dry.res)
     ? ['errors', 'warnings', 'warning', 'error', 'used', 'duplicates'].reduce((o, k) => { if (dry.res[k] !== undefined) o[k] = dry.res[k]; return o; }, { ok: false }) : { ok: true };
   return { ok: true, id: r0.id, fn: r0.fn, form: fx.form, args: fx.args0, status: r0.status, result: r0.result || '', decidedBy: r0.decidedBy || '', note: r0.note || '', check: check, summary: r0.summary };
+}
+/* (update-147, asked 23-10-2026: "diesel issu verify sathi pathwale jate n approval detna details madhe sagle bghta yaw ki entry mdhe ky
+ * ahe fkt diesel nhi sagle approval mdhe … jo aproval krnar aahe tyala detail mdhe samjel entry wise mg bulk approval asel tri ani to
+ * proper verify krun approval deu shakel") DETAILS: an entry in Approvals as it was sent – every field with its name, its rows as a
+ * table (every column), the machinery's name and type, its photos / bill copies counted – and, for a change or a delete of a saved
+ * entry, the entry as it is saved now. For the Super Admin, the person who sent it and the people of its levels (the same people
+ * who see it in the list). It only reads: nothing is written, nothing is decided. Several at once (bulk approval: each entry). */
+const DET_LABEL_ = Object.assign({}, CR_FIELDS_, FLOW_FIELD_, { no: 'Machinery', machinery: 'Machinery', date: 'Date', shift: 'Shift', source: 'Diesel source',
+  name: 'Name', vendor: 'Vendor', id: 'Entry', code: 'Code', billNo: 'Bill No', billDate: 'Bill date', from: 'From', to: 'To', amount: 'Amount', rate: 'Rate',
+  type: 'Type', owner: 'Owner', reference: 'Reference', location: 'Place', pump: 'Pump', toLocation: 'To place', fromLocation: 'From place', meter: 'Meter',
+  tanker: 'Tanker', company: 'Company', site: 'Site', gstReg: 'GST registered', gst: 'GST Number', pan: 'PAN', bank: 'Bank', account: 'Account No', ifsc: 'IFSC',
+  phone: 'Phone', email: 'Email', address: 'Address', make: 'Make', model: 'Model', year: 'Year', regNo: 'Registration No', km: 'KM', hrs: 'Hrs',
+  openingKm: 'Start KM', closingKm: 'Close KM', openingHr: 'Start Hrs', closingHr: 'Close Hrs', add: 'Added to the saved entry', note: 'Note', reason: 'Reason' });
+const DET_HIDE_ = ['force', 'line', 'rid', 'ver', 'rows', '__proto__'];
+// what the entry does, in plain words (others: "New" / "Change" / "Delete" + the action's name)
+const DET_ACT_ = { saveDieselIssue: 'New diesel issue – one entry', saveDieselBulk: 'New diesel issue – multiple entries', importDiesel: 'Diesel issue – imported from Excel',
+  updateDieselIssue: 'Change of a saved diesel issue', deleteDieselIssue: 'Delete of a saved diesel issue', saveInward: 'New diesel inward', updateInward: 'Change of a saved diesel inward',
+  deleteInward: 'Delete of a saved diesel inward', saveTransfer: 'New diesel transfer', saveTransferBulk: 'New diesel transfers – multiple entries', updateTransfer: 'Change of a saved diesel transfer',
+  deleteTransfer: 'Delete of a saved diesel transfer', saveLogRows: 'New Log Book entry', saveLogBulk: 'Log Book – multiple entries', updateLogRow: 'Change of a saved Log Book entry',
+  deleteLogRow: 'Delete of a saved Log Book entry', saveVendor: 'Vendor', saveMaster: 'Machinery (Asset Master)' };
+const detAct_ = fn => DET_ACT_[fn] || flowLabel_(fn).replace(/^Save /, 'New: ').replace(/^Update /, 'Change: ').replace(/^Delete /, 'Delete: ');
+const DET_PHOTO_ = ['photos', 'billPhotos', 'copies'];
+function detVal_(k, v) {
+  if (v === null || v === undefined || v === '') return '';
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  if (typeof v === 'number') return String(v);
+  if (Array.isArray(v)) return v.every(x => x === null || typeof x !== 'object') ? v.map(x => detVal_(k, x)).filter(Boolean).join(', ') : v.length + ' item(s)';
+  if (typeof v === 'object') return Object.keys(v).filter(j => !blank_(v[j]) && typeof v[j] !== 'object').map(j => (DET_LABEL_[j] || j) + ' ' + clean_(v[j]).slice(0, 60)).join(', ');
+  const t = clean_(v).slice(0, 300);
+  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? dmy_(t) : t;
+}
+function approvalDetails_(u, x) {
+  x = x || {};
+  const ids = [...new Set((Array.isArray(x.ids) ? x.ids : [x.id]).map(v => str_(v)).filter(Boolean))].slice(0, 60);
+  if (!ids.length) throw new Error('Choose an entry to see its details.');
+  let t = null; try { t = crTable_(false); } catch (e) { return { details: [], missing: CR_SQL_MSG_ }; }
+  const me = str_(u.email).toLowerCase(), rows = t ? t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.id && (r.kind === 'Request' || r.kind === 'Flow')) : [];
+  let mach = null;
+  const machOf = no => { if (!mach) { mach = {}; try { getMaster_().forEach(m => { const v = [m.name, m.type].filter(Boolean).join(' · '); mach[noKey_(m.id)] = v; if (m.no) mach[noKey_(m.no)] = v; }); } catch (e) { /* the numbers alone */ } }
+    return mach[noKey_(no)] || ''; };
+  const labelOf = k => DET_LABEL_[k] || String(k).replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
+  const one = r => {
+    let fl = {}; try { fl = JSON.parse(r.data || '{}') || {}; } catch (e) { fl = {}; }
+    const seen = u.super || r.email === me || (r.kind === 'Flow' && (fl.levels || []).some(l => l.indexOf(me) > -1));
+    if (!seen) return null;
+    let args = []; try { args = JSON.parse(r.args || '[]'); } catch (e) { args = []; }
+    const fields = [], tables = [];
+    let photos = 0;
+    const put = (label, val) => { if (val !== '') fields.push([label, val]); };
+    const field = (k, v) => {
+      if (DET_HIDE_.indexOf(k) > -1 || blank_(v)) return;
+      if (DET_PHOTO_.indexOf(k) > -1) { photos += Array.isArray(v) ? v.length : 1; return; }
+      let val = detVal_(k, v); if (!val) return;
+      if ((k === 'no' || k === 'machinery') && machOf(v)) val += ' – ' + machOf(v);
+      put(labelOf(k), val);
+    };
+    const table = (title, list) => {
+      const objs = list.filter(o => o && typeof o === 'object' && !Array.isArray(o)); if (!objs.length) return;
+      const keys = []; objs.forEach(o => Object.keys(o).forEach(k => { if (DET_HIDE_.indexOf(k) === -1 && keys.indexOf(k) === -1 && objs.some(p => !blank_(p[k]))) keys.push(k); }));
+      const cols = keys.filter(k => DET_PHOTO_.indexOf(k) === -1);
+      const hasPh = keys.some(k => DET_PHOTO_.indexOf(k) > -1);
+      tables.push({ title: title, cols: ['#'].concat(cols.map(labelOf), hasPh ? ['Photos'] : []), rows: objs.slice(0, 300).map((o, i) => [String(i + 1)].concat(cols.map(k => {
+        let v = detVal_(k, o[k]); if ((k === 'no' || k === 'machinery') && v && machOf(o[k])) v += ' – ' + machOf(o[k]); return v; }), hasPh ? [String(DET_PHOTO_.reduce((n, k) => n + (Array.isArray(o[k]) ? o[k].length : blank_(o[k]) ? 0 : 1), 0) || '')] : [])),
+        more: Math.max(0, objs.length - 300) });
+      objs.forEach(o => DET_PHOTO_.forEach(k => { photos += Array.isArray(o[k]) ? o[k].length : blank_(o[k]) ? 0 : 1; }));
+    };
+    (Array.isArray(args) ? args : [args]).forEach((a, i) => {
+      if (a === null || a === undefined || a === '') return;
+      if (Array.isArray(a)) { table('Rows', a); return; }
+      if (typeof a !== 'object') { put(i === 0 && /^(update|delete)/.test(r.fn) ? 'Entry' : 'Sent as', detVal_('', a)); return; }
+      Object.keys(a).forEach(k => { const v = a[k];
+        if (Array.isArray(v) && v.some(o => o && typeof o === 'object' && !Array.isArray(o))) table(labelOf(k), v);
+        else field(k, v); });
+    });
+    const now = (crDescribe_(r.fn, args).lines || []).filter(l => / \(saved now: /.test(l)).map(l => l.replace(/^.*\(saved now: /, '').replace(/\)$/, ''));
+    return { id: r.id, kind: r.kind, task: r.kind === 'Flow' ? (MODULE_LABEL_[fl.m] || fl.m || '') : 'Change of a billed period', action: detAct_(r.fn), by: r.by, at: r.at, status: r.status,
+      reason: r.kind === 'Flow' ? '' : r.reason, fields: fields, tables: tables, photos: photos, savedNow: now };
+  };
+  return { details: ids.map(id => { const r = rows.find(z => z.id === id), d = r ? one(r) : null; return d || { id: id, error: 'This request was not found – refresh the list.' }; }) };
 }
 // CORRECTED: checked as a save – what it refuses is said on the form, as for a save (nothing changes); else it goes again
 function flowEdit_(u, x) {
