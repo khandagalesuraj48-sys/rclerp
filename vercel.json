@@ -35,6 +35,46 @@
   "rewrites": [
     {
       "source": "/store/",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-staging-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-store-git-staging-pk12356843.vercel.app/index.html"
+    },
+    {
+      "source": "/portal/",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-staging-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-portal-git-staging-pk12356843.vercel.app/index.html"
+    },
+    {
+      "source": "/store/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-staging-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-store-git-staging-pk12356843.vercel.app/:path*"
+    },
+    {
+      "source": "/portal/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-staging-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-portal-git-staging-pk12356843.vercel.app/:path*"
+    },
+    {
+      "source": "/store/",
       "destination": "https://rcl-store.vercel.app/index.html"
     },
     {

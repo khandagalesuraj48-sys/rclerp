@@ -24,7 +24,7 @@ srv.listen(0, '127.0.0.1', () => parentPort.postMessage(srv.address().port));
 `;
 const startServer = () => new Promise(ok => { const w = new Worker(SERVER, { eval: true }); w.once('message', port => ok({ w, port })); });
 
-test('database helper: a dead connection does not hang a read; a helper unused for a while is replaced; a write is not repeated', async () => {
+test('database helper: a dead connection does not hang a read; a helper unused for a while gets fresh connections (the same helper, update-142); a write is not repeated', async () => {
   process.env.RCL_FETCH_IDLE_MS = '700'; process.env.RCL_FETCH_READ_MS = '900'; process.env.RCL_FETCH_WRITE_MS = '900';
   delete require.cache[require.resolve(path.join(__dirname, '..', 'server', 'syncfetch.js'))];
   const sf = require(path.join(__dirname, '..', 'server', 'syncfetch.js'));
@@ -37,14 +37,19 @@ test('database helper: a dead connection does not hang a read; a helper unused f
     let t = Date.now(); r = get(); const took = Date.now() - t;
     assert.strictEqual(r.code, 200, 'second read: ' + JSON.stringify(r)); assert.strictEqual(r.retried, true);
     assert.ok(took >= 800 && took < 4000, 'the dead connection cost ' + took + ' ms (limit 900 ms), not the 55-second limit');
-    // 3. after a pause longer than the idle limit: a fresh helper, so the read is answered at once (no waiting for a limit)
-    const before = sf.helpersMade(); sf.sleepSync(900);
+    // 3. after a pause longer than the idle limit: fresh connections, so the read is answered at once (no waiting for a limit).
+    //    (update-142) the SAME helper is kept – only its connections are new (starting a helper cost ~100–150 ms of CPU each time)
+    const before = sf.helpersMade(), renewedBefore = sf.renewals(); sf.sleepSync(900);
     t = Date.now(); r = get(); const took2 = Date.now() - t;
-    assert.strictEqual(r.code, 200); assert.ok(!r.retried, 'no retry needed'); assert.strictEqual(sf.helpersMade(), before + 1, 'a fresh helper was started');
+    assert.strictEqual(r.code, 200); assert.ok(!r.retried, 'no retry needed');
+    assert.strictEqual(sf.renewals(), renewedBefore + 1, 'its connections were renewed'); assert.strictEqual(sf.helpersMade(), before, 'no new helper was started');
     assert.ok(took2 < 700, 'answered in ' + took2 + ' ms');
+    // the same again and again: each pause renews the connections, still one helper; a request soon after uses the open connection
+    for (let i = 0; i < 3; i++) { sf.sleepSync(900); r = get(); assert.strictEqual(r.code, 200); assert.ok(!r.retried, 'pause ' + i + ': no retry'); }
+    assert.strictEqual(sf.renewals(), renewedBefore + 4); assert.strictEqual(sf.helpersMade(), before, 'still the same helper');
     // 4. a WRITE on a dead connection: reported after its limit, never sent a second time
     const hungBefore = JSON.parse(sf.fetchAllSync([{ url: 'http://127.0.0.1:' + port + '/stats', method: 'GET', headers: { connection: 'close' } }])[0].text).hung;
-    sf.sleepSync(900); get();                                 // fresh helper, its connection has now been used once
+    sf.sleepSync(900); get();                                 // fresh connections, the new one has now been used once
     t = Date.now(); r = sf.fetchAllSync([{ url: url, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"a":1}' }])[0];
     assert.ok(r.error && /did not answer in time/.test(r.error), JSON.stringify(r)); assert.ok(Date.now() - t < 4000);
     sf.sleepSync(900);

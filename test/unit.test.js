@@ -2029,7 +2029,7 @@ test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the 
   // the same 4 photos on the page and in the server, in the same order
   const app = fs.readFileSync(path.join(__dirname, '..', 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8');
   const pageKinds = [...(/const PH_KINDS = \[(.*)\];/.exec(app) || ['', ''])[1].matchAll(/\['(\w+)'/g)].map(m => m[1]);
-  assert.deepStrictEqual(pageKinds, ['dash', 'veh', 'pump', 'reg']);
+  assert.deepStrictEqual(pageKinds, ['dash', 'hrs', 'veh', 'pump', 'reg']);      // (update-139: the Hour meter photo)
   assert.deepStrictEqual(run('() => Object.keys(PHOTO_KINDS_)'), pageKinds);
   // a photo that this user did not send (or a copy where photos cannot be kept): the save is refused, nothing is saved; without photos as before
   run('() => saveMaster_({ no: "PH-1", name: "Tipper", type: "Tipper", unit: "KM", worksOn: ["KM"], kmStd: 3, owner: "RCL", ownership: "Own", status: "Active", activeFrom: "2026-01-01" }, "add")');
@@ -2040,7 +2040,7 @@ test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the 
   assert.ok(ok.ok && ok.id, 'an entry without photos is saved as before');
   // the AI reads the dashboard photo AFTER it is kept, as its own question (a slow AI never holds up the photo or the Save);
   // not for a Debit Basis machinery (it has no reading); a photo belongs to one machinery and goes with one entry
-  assert.match(app, /if \(\(k === 'dash' && m\.supply !== 'Debit Basis'\) \|\| k === 'pump'\) phAsk\(k, m\.id, pic\.small\);/);      // (update-87: dashboard and dispenser, while the photo is sent)
+  assert.match(app, /if \(\(\(k === 'dash' \|\| k === 'hrs'\) && m\.supply !== 'Debit Basis'\) \|\| k === 'pump'\) phAsk\(k, m\.id, pic\.small\);/);      // (update-87: dashboard and dispenser, while the photo is sent; update-139: the hour meter)
   assert.match(code, /getMeterReading:\s+\{ m: 'Diesel Issue', withUser: true, f: \(u, x\) => meterReading_\(u, x\) \}/);
   assert.ok(!/aiReadMeter_/.test(code.slice(code.indexOf('function uploadDieselPhoto_'), code.indexOf('function meterReading_'))), 'the upload does not wait for the AI');
   assert.match(code, /rec\.no !== mId/); assert.match(code, /photosTaken_\(photos\.map\(x => x\.p\)\)/); assert.match(code, /pc\.remove\('PH_' \+ p\)/);      // (update-120: photosTaken_)
@@ -2495,7 +2495,8 @@ test('update-99: one address – the Store and the Portal under this address, th
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   // (live 13-10-2026: /store/menu.json came through, the bare /store/ and /portal/ gave 404 – the first page has its own rule)
   // (update-127 adds Engineering after these – checked in its own test)
-  assert.deepStrictEqual(v.rewrites.filter(r => !/^\/engineering/.test(r.source)), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
+  // (update-138) the staging copy's own rules come first and match ONLY the staging address; the live rules are as before
+  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/engineering/.test(r.source)), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
     { source: '/store/:path*', destination: 'https://rcl-store.vercel.app/:path*' }, { source: '/portal/:path*', destination: 'https://rcl-portal-flame.vercel.app/:path*' }]);
   assert.deepStrictEqual(v.redirects.filter(r => !/^\/engineering/.test(r.source)).map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
   assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
@@ -3072,7 +3073,7 @@ test('update-116: "Send to verification" for the works under a rule; sent back w
     // ---- the page: the buttons, the diesel way ----
     const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
     ['d_save', 'bd_save', 'bm_save', 'i_save', 't_save', 'tb_save', 'l_save', 'm_save', 'v_save', 'boq_save', 'py_save'].forEach(b => assert.ok(new RegExp('\\b' + b + ': \\{ m: ').test(app), b));
-    assert.match(app, /const want = flowWill\(id\) \? 'Send to verification' : x\.dataset\.flowOrig;/);
+    assert.match(app, /const want = S\.flowFix && FIX_BTN\[S\.flowFix\.form\] === id \? 'Send again \(' \+ S\.flowFix\.id \+ '\)' : flowWill\(id\) \? 'Send to verification' : x\.dataset\.flowOrig;/);      // (update-130: correcting a returned entry)
     assert.match(app, /S\.flowMine = d\.flow \|\| \{\}/);
     // the page's dieselWay (taken from the page) on machinery of the Asset Master
     const src = app.slice(app.indexOf('  function dieselWay(m) {'), app.indexOf('  function dieselWayMount('));
@@ -3138,7 +3139,10 @@ test('update-117: every site its own diesel places (18B: Camp Pump + 2 dispenser
     const u = run(`pw => { const o = {}; MODULES.forEach(m => { o[m] = 'Edit'; }); return { email: 'm117@rcl.test', name: 'Maker 117', password: pw, active: true, admin: true, perms: o }; }`, PW);
     run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', [u]);
     run('(e, pw) => CacheService.getScriptCache().put("S_tok117", sessionMake_(e, pw, 3600000, false), 3600)', u.email, PW);
-    const api = (fn, ...a) => run('(f, a) => api("tok117", f, a)', fn, a);
+    // (21-10-2026) two saves in the SAME millisecond have the same "created" time, and the stock then orders them by kind, not by
+    // which came first – a transfer out could come before the transfer in that it needs (this test failed about 1 run in 7).
+    // People never save twice in one millisecond; the test waits for the next one.
+    const api = (fn, ...a) => { const t0 = Date.now(); while (Date.now() === t0) { /* the next millisecond */ } return run('(f, a) => api("tok117", f, a)', fn, a); };
     assert.deepStrictEqual(api('getInit').locations, ['Camp Pump', 'MH12ZE1739', 'MH12WJ1381']);
     assert.deepStrictEqual(api('getLookups').locations, ['Camp Pump', 'MH12ZE1739', 'MH12WJ1381']);
     // ---- the diesel of 18B: inward at any of the 3, transfers pump → dispenser and dispenser → dispenser, issue from any ----
@@ -3290,7 +3294,7 @@ test('update-118: the sender sees his entries in verification where he made them
     assert.match(app, /fvDraw\(\);\n  \}\n  \/\* =+ MY ENTRIES IN VERIFICATION/);
     assert.match(app, /put\('sec-dash', 'fv_dash', fvMine\('', 1\), '', true\);/);
     assert.match(app, /fvRemindSeen\(was, S\.cr\); crDraw\(\);/);
-    assert.match(app, /approvals: \{ saves: \[[^\]]*'remindFlow'\]/);
+    assert.match(app, /approvals: \{ saves: \[[^\]]*'remindFlow'[^\]]*\]/);      // (update-128 adds resendFlow after it)
     assert.match(app, /const offWith = Object\.keys\(tasks\)\.filter\(m => !tasks\[m\]\.on && tasks\[m\]\.levels\.some\(l => l\.length\)\);/, 'people picked but not ticked: asked before saving');
     const src = app.slice(app.indexOf('  const FV_DAYS = 7;'), app.indexOf('  function fvDraw() {'));
     const F = new Function('S', 'esc', 'crWhen', src + '; return { fvMine, fvHtml };');
@@ -3698,4 +3702,686 @@ test('update-126: every number of the Diesel dashboard opens one big box with it
   assert.match(app, /click केले की त्याच्या entries एका मोठ्या box मध्ये दिसतात – फक्त पाहण्यासाठी\./);
   assert.match(app, /click करने पर उसकी entries एक बड़े box में दिखती हैं – केवल देखने के लिए।/);
   function getDashSrc(c) { const i = c.indexOf('function getDashboard_('); return c.slice(i, c.indexOf('\n}\n', i)); }
+});
+
+test('update-128: the sender sends his rejected / returned entry again – as it was, with his remark; checked as a save first; nothing lost', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  vm.runInContext(`globalThis.__k128 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_ };
+    globalThis.DB128 = {};
+    globalThis.__fill128 = s => { const d = DB128[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep128 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill128(s); if (s.loaded) DB128[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    SB_BOOK_ = null;
+    SbBook_.prototype.flush = function () { __keep128(this); __k128.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill128(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill128(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    globalThis.__sent = []; rtcPush_ = function (ids, msg) { __sent.push({ ids: ids, msg: msg }); };
+    kvWrite_("FLOW_RULES", "{}"); kvWrite_("CR_SUPERS", JSON.stringify(["sa128@rcl.test"]));`, ctx);
+  try {
+    const PW = 'sha256$0123456789abcdef$' + 'd'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('mahesh128@rcl.test', 'Mahesh Jadhav', false, { 'Vendor Master': 'Edit' }), mk('shubham128@rcl.test', 'Shubham', false, { 'Vendor Master': 'Edit' }), mk('sa128@rcl.test', 'Super C', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok128_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa128@rcl.test'); });
+    const api = (who, fn, ...a) => run('(t, f, a) => api(t, f, a)', tok[who], fn, a);
+    const V = n => ({ name: n, gstReg: 'No', pan: 'ABCPV1128A', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' });
+    const M = 'mahesh128@rcl.test', S = 'shubham128@rcl.test', SA = 'sa128@rcl.test';
+    assert.ok(api(SA, 'saveFlowRules', { tasks: { 'Vendor Master': { on: true, levels: [[S]] } } }).ok);
+    const sent = n => (api(M, 'saveVendor', V(n), 'add').THROWN || '').match(/VF-\d{5}/)[0];
+    const has = n => run('n => getVendors_().some(v => v.name === n)', n);
+    const req = (who, id) => api(who, 'getChangeRequests', {}).requests.find(x => x.id === id);
+    // ---- REJECTED: he sends it again with his remark – the same request, back to level 1, every step kept ----
+    const a = sent('Again 128 A');
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: a, approve: false, note: 'PAN?' }).status, 'Rejected');
+    assert.deepStrictEqual([req(M, a).canResend, req(S, a).canResend], [true, false], 'only the sender sends it again');
+    assert.match(api(M, 'resendFlow', { id: a }).THROWN, /^Write why it is sent again/);
+    assert.match(api(S, 'resendFlow', { id: a, note: 'x' }).THROWN, new RegExp('^Only the person who sent entry ' + a + ' sends it again\\.$'));
+    assert.match(api(M, 'resendFlow', { id: 'VF-99999', note: 'x' }).THROWN, /^Entry VF-99999 was not found/);
+    run('() => { __sent.length = 0; }');
+    let r = api(M, 'resendFlow', { id: a, note: 'PAN checked with the card' });
+    assert.deepStrictEqual([r.ok, r.id, r.status, r.level, r.levels, r.to], [true, a, 'Pending', 1, 1, ['Shubham']], JSON.stringify(r).slice(0, 300));
+    let ra = r.list.requests.find(x => x.id === a);
+    assert.deepStrictEqual([ra.status, ra.canResend, ra.canRemind, ra.resent, ra.waitingFor], ['Pending', false, true, 1, ['Shubham']]);
+    assert.deepStrictEqual(ra.history.map(h => h.step), ['Sent', 'Rejected', 'Sent again'], 'every step kept');
+    assert.strictEqual(ra.history[2].note, 'PAN checked with the card');
+    assert.deepStrictEqual(run('() => __sent.map(p => [p.ids, p.msg.id, p.msg.title])'), [[run('() => [rtcUid_("shubham128@rcl.test")]'), a, 'Sent again for verification – ' + MODULE_LABEL('Vendor Master') + ' by Mahesh Jadhav']]);
+    assert.ok(run('() => table_(LOG_SHEET, []).rows.some(x => x.join("|").indexOf("Verification – sent again by the sender") > -1)'), 'the Activity Log');
+    assert.match(api(M, 'resendFlow', { id: a, note: 'again' }).THROWN, new RegExp('^Entry ' + a + ' is waiting for verification already – only a rejected or returned entry is sent again\\.$'));
+    assert.ok(!has('Again 128 A'), 'nothing saved while it waits');
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: a, approve: true }).status, 'Approved');
+    assert.ok(has('Again 128 A'), 'approved: saved – as it was sent, nothing typed again');
+    // ---- RETURNED (approved, but the save refused it): the reason is with it; sent again only when the save would take it ----
+    const b = sent('Again 128 B');
+    assert.ok(api(SA, 'saveVendor', V('Again 128 B'), 'add').ok !== false && has('Again 128 B'), 'meanwhile the Super Admin saved the same vendor');
+    r = api(S, 'decideChangeRequest', { id: b, approve: true });
+    assert.deepStrictEqual([r.status, /^Not saved: Again 128 B is already saved/.test(r.result)], ['Returned', true], JSON.stringify(r));
+    const rb = req(M, b);
+    assert.ok(rb.canResend && /^Not saved: /.test(rb.result), 'he sees why, and may send it again');
+    r = api(M, 'resendFlow', { id: b, note: 'try again' });      // (update-129) a refusal comes back in "failed" – for one entry as for several
+    assert.deepStrictEqual([r.ok, r.done.length, r.failed.length, r.failed[0].id], [true, 0, 1, b], JSON.stringify(r).slice(0, 300));
+    assert.match(r.failed[0].error, new RegExp('^Not sent again: Again 128 B is already saved – use Edit\\. – entry ' + b + ' stays as it is \\(nothing is lost\\); send it again when this is put right\\.$'));
+    assert.deepStrictEqual([req(M, b).status, req(M, b).canResend, req(M, b).history.length], ['Returned', true, rb.history.length], 'refused again by the save: nothing changed');
+    assert.ok(api(SA, 'deleteVendor', 'Again 128 B').ok !== false && !has('Again 128 B'));
+    r = api(M, 'resendFlow', { id: b, note: 'the other one is deleted' });
+    assert.deepStrictEqual([r.status, r.list.requests.find(x => x.id === b).result || ''], ['Pending', ''], JSON.stringify(r).slice(0, 300));
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: b, approve: true }).status, 'Approved');
+    assert.ok(has('Again 128 B'));
+    // ---- the same entry sent anew meanwhile: the old one is not sent twice ----
+    const c = sent('Again 128 C');
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: c, approve: false, note: 'no' }).status, 'Rejected');
+    const c2 = sent('Again 128 C');
+    assert.match(api(M, 'resendFlow', { id: c, note: 'x' }).THROWN, new RegExp('already waiting for verification as ' + c2 + ' – it is not sent twice'));
+    // ---- several at once: each on its own ----
+    const d = sent('Again 128 D'), e = sent('Again 128 E');
+    api(S, 'decideChangeRequests', { ids: [d, e], approve: false, note: 'later' });
+    r = api(M, 'resendFlow', { ids: [d, e, 'VF-99999'], note: 'now' });
+    assert.deepStrictEqual([r.done.map(x => x.id), r.failed.map(x => x.id)], [[d, e], ['VF-99999']], JSON.stringify(r).slice(0, 300));
+    assert.ok([d, e].every(id => r.list.requests.find(x => x.id === id).status === 'Pending'));
+    assert.match(api(M, 'resendFlow', { ids: [], note: 'x' }).THROWN, /^Pick the entries to send again/);
+    // ---- the page: why it was not saved is in the box; "Send again" one or all; the Approvals page too ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.match(app, /approvals: \{ saves: \[[^\]]*'resendFlow'\]/);
+    assert.match(app, /data-cragain="' \+ esc\(r\.id\) \+ '">Send again<\/button>/);
+    assert.match(app, /const r = await call\('resendFlow', rs\.length > 1 \? \{ ids: rs\.map\(x => x\.id\), note: note \} : \{ id: rs\[0\]\.id, note: note \}\);/);
+    const src = app.slice(app.indexOf('  const FV_DAYS = 7;'), app.indexOf('  function fvDraw() {'));
+    const F = new Function('S', 'esc', 'crWhen', src + '; return { fvMine, fvHtml };');
+    const now = new Date().toISOString();
+    const SS = { cr: { requests: [
+      { kind: 'Flow', mine: true, m: 'Diesel Issue', id: 'VF-00011', task: 'Diesel Issue', status: 'Returned', at: now, decidedAt: now, decidedBy: 'suraj', note: 'approved', result: 'Not saved: KM reading 48409.3 is less than the last one', canResend: true, summary: ['Add: MH-25-AJ-5091'] },
+      { kind: 'Flow', mine: true, m: 'Diesel Issue', id: 'VF-00010', task: 'Diesel Issue', status: 'Rejected', at: now, decidedAt: now, decidedBy: 'suraj', note: 'wrong litres', canResend: true, resent: 1, summary: ['Add: MH-25-AJ-5091'] }] } };
+    const h = F(SS, x => String(x), x => String(x)).fvHtml(F(SS, x => String(x), x => String(x)).fvMine('Diesel Issue'), 'Diesel Issue', false);
+    assert.ok(/class="fv-why">Not saved: KM reading 48409\.3 is less than the last one</.test(h), 'why it was not saved');
+    assert.ok(/data-fvagain="VF-00011">Send again<\/button>/.test(h) && /data-fvagain="VF-00010">Send again<\/button><br><small>sent again 1× before/.test(h) && /data-fvagainall="Diesel Issue">Send all again \(2\)/.test(h), h);
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k128.flush; SbBook_.prototype.loadMany = __k128.loadMany; SbSheet_.prototype.load_ = __k128.load_; sbDiscard_ = __k128.discard; rtcPush_ = __k128.push;
+      CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
+  }
+  function MODULE_LABEL(m) { return vm.runInContext('MODULE_LABEL_', ctx)[m] || m; }
+});
+
+test('update-129 / 131: Send again and the approval say what the save refuses in words (warnings and mistakes); no "Send again anyway" – it is corrected first', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // a save that answers as the saves do: warnings (several), one warning ("Save anyway?") or mistakes – by W129
+  vm.runInContext(`globalThis.__k129 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_ };
+    globalThis.DB129 = {};
+    globalThis.__fill129 = s => { const d = DB129[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep129 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill129(s); if (s.loaded) DB129[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    SB_BOOK_ = null;
+    SbBook_.prototype.flush = function () { __keep129(this); __k129.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill129(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill129(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    rtcPush_ = function () {};
+    globalThis.W129 = 'clean'; globalThis.SAVED129 = [];
+    API_.test129 = { m: 'Vendor Master', edit: true, f: o => {
+      if (W129 === 'errors') return { ok: false, errors: [{ row: 3, msg: '"MH-X" is not in Master.' }] };
+      if (W129 === 'warns' && !o.force) return { ok: false, warnings: [{ row: 2, msg: 'MH-1: KM Reading 5 is less than the earlier KM Reading 9.' }, { row: 4, msg: 'MH-2: Hrs Reading 1 is less than the earlier Hrs Reading 2.' }] };
+      if (W129 === 'warn' && !o.force) return { ok: false, warning: 'MH-1: the next entry has a lower reading. Save anyway?' };
+      if (W129 === 'many' && !o.force) return { ok: false, warnings: Array.from({ length: 12 }, (x, i) => ({ row: i + 1, msg: 'MH-' + (i + 1) + ': KM Reading 5 is less than the earlier KM Reading 9.' })) };
+      if (!FLOW_DRY_ON_) SAVED129.push(o.n);
+      return { ok: true }; } };
+    kvWrite_("FLOW_RULES", "{}"); kvWrite_("CR_SUPERS", JSON.stringify(["sa129@rcl.test"]));`, ctx);
+  try {
+    const PW = 'sha256$0123456789abcdef$' + 'd'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('mahesh129@rcl.test', 'Mahesh Jadhav', false, { 'Vendor Master': 'Edit' }), mk('shubham129@rcl.test', 'Shubham', false, { 'Vendor Master': 'Edit' }), mk('sa129@rcl.test', 'Super C', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok129_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa129@rcl.test'); });
+    const api = (who, fn, ...a) => run('(t, f, a) => api(t, f, a)', tok[who], fn, a);
+    const M = 'mahesh129@rcl.test', S = 'shubham129@rcl.test', SA = 'sa129@rcl.test';
+    const W = w => run('w => { W129 = w; }', w);
+    assert.ok(api(SA, 'saveFlowRules', { tasks: { 'Vendor Master': { on: true, levels: [[S]] } } }).ok);
+    const sent = n => { W('clean'); const t = api(M, 'test129', { n: n }).THROWN || ''; assert.match(t, /^Sent for verification/, t); return t.match(/VF-\d{5}/)[0]; };
+    const req = id => api(M, 'getChangeRequests', {}).requests.find(x => x.id === id);
+    const argsOf = id => JSON.parse(run('id => flowAll_().find(r => r.id === id).args', id));
+    // ---- warnings at the approval: said in full (not "refused") ----
+    const a = sent('A');
+    W('warns');
+    let r = api(S, 'decideChangeRequest', { id: a, approve: true });
+    assert.deepStrictEqual([r.status, r.result], ['Returned', 'Not saved: To check (warnings, not mistakes): Line 2: MH-1: KM Reading 5 is less than the earlier KM Reading 9. | Line 4: MH-2: Hrs Reading 1 is less than the earlier Hrs Reading 2.'], JSON.stringify(r));
+    const h0 = req(a).history.length;
+    // sent again: the same reason; (update-131) "anyway" (force) is not read – nothing changes until it is corrected
+    for (const force of [false, true]) {
+      r = api(M, 'resendFlow', { id: a, note: 'try', force: force });
+      assert.deepStrictEqual([r.done.length, r.failed.length, r.failed[0].error], [0, 1, 'Not sent again: To check (warnings, not mistakes): Line 2: MH-1: KM Reading 5 is less than the earlier KM Reading 9. | Line 4: MH-2: Hrs Reading 1 is less than the earlier Hrs Reading 2. – entry ' + a + ' stays as it is (nothing is lost); send it again when this is put right.'], 'force ' + force);
+    }
+    assert.deepStrictEqual([req(a).status, req(a).history.length, argsOf(a)], ['Returned', h0, [{ n: 'A' }]], 'nothing changed');
+    assert.deepStrictEqual(run('() => SAVED129.slice()'), []);
+    // ---- mistakes: line by line ----
+    const b = sent('B');
+    W('errors');
+    r = api(S, 'decideChangeRequest', { id: b, approve: true });
+    assert.deepStrictEqual([r.status, r.result], ['Returned', 'Not saved: Line 3: "MH-X" is not in Master.']);
+    // ---- one warning ("… Save anyway?"): said without the page's question ----
+    const c = sent('C');
+    W('warn');
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: c, approve: true }).result, 'Not saved: To check (a warning, not a mistake): MH-1: the next entry has a lower reading.');
+    // ---- many lines: the approval says 8 and how many more; Send again lists them all ----
+    const e = sent('E');
+    W('many');
+    r = api(S, 'decideChangeRequest', { id: e, approve: true });
+    assert.ok(/^Not saved: To check \(warnings, not mistakes\): Line 1: MH-1: .* \| Line 8: MH-8: [^|]* \| … 4 more$/.test(r.result), r.result);
+    r = api(M, 'resendFlow', { id: e, note: 'x' });
+    assert.strictEqual(r.failed[0].error.split(' | ').length, 12, r.failed[0].error);
+    // ---- every answer in words ----
+    assert.deepStrictEqual(run(`() => [flowRefusal_({ ok: false, used: [{ id: 'JCB-1', diesel: 2, log: 0 }] }), flowRefusal_({ ok: false, duplicates: [{ vendor: 'V1', existing: [{ billNo: '4', rev: 1 }] }] }), flowRefusal_({ ok: false, warning: 'X. Delete anyway?' }), flowRefusal_({ ok: false, error: 'E1' }), flowRefusal_({ ok: false })]`),
+      [{ warn: true, text: 'To check (a warning, not a mistake): JCB-1 has 2 Diesel Issue and 0 Log Book entries (they stay)' },
+        { warn: true, text: 'To check (a warning, not a mistake): V1: a bill for the same period is already submitted (RA Bill 4 rev 1) – the new one is saved with the same bill number as its revision and the older one is marked Superseded' },
+        { warn: true, text: 'To check (a warning, not a mistake): X.' }, { warn: false, text: 'E1' }, { warn: false, text: 'the save refuses it – open the entry\'s page to see why' }]);
+    // ---- the page: no "Send again anyway" (update-131); the words in Marathi and Hindi ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.ok(app.indexOf('Send again anyway\'') === -1 && app.indexOf('warnLines') === -1);
+    ['mr', 'hi'].forEach(l => { const d = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8'));
+      ['To check (warnings, not mistakes): {0}', 'To check (a warning, not a mistake): {0}'].forEach(k => assert.ok(d[k], l + ': ' + k)); });
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k129.flush; SbBook_.prototype.loadMany = __k129.loadMany; SbSheet_.prototype.load_ = __k129.load_; sbDiscard_ = __k129.discard; rtcPush_ = __k129.push; delete API_.test129;
+      CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
+  }
+});
+
+test('update-130: Open & correct – the sender opens his returned / rejected Diesel Issue entry in its form, what is wrong marked; corrected, it goes to verification again (what changed in its steps)', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // the three Diesel Issue saves answer as theirs do (a KM reading under 100 is a mistake in "strict"; one entry: a warning unless force)
+  vm.runInContext(`globalThis.__k130 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_,
+      one: API_.saveDieselIssue, bulk: API_.saveDieselBulk, imp: API_.importDiesel };
+    globalThis.DB130 = {};
+    globalThis.__fill130 = s => { const d = DB130[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep130 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill130(s); if (s.loaded) DB130[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    SB_BOOK_ = null;
+    SbBook_.prototype.flush = function () { __keep130(this); __k130.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill130(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill130(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    globalThis.SENT130 = []; rtcPush_ = function (ids, msg) { SENT130.push(msg); };
+    globalThis.W130 = 'clean'; globalThis.SAVED130 = [];
+    const bad = (rows, k) => rows.map((r, i) => ({ row: (k ? r.line : i + 1), r: r })).filter(x => W130 === 'strict' && x.r && x.r.kmReading !== '' && x.r.kmReading !== undefined && Number(x.r.kmReading) < 100)
+      .map(x => ({ row: x.row, msg: x.r.no + ': KM Reading ' + x.r.kmReading + ' is less than the last KM Reading 100.' }));
+    API_.saveDieselBulk = { m: 'Diesel Issue', edit: true, f: b => { const e = bad(b.rows || []); if (e.length) return { ok: false, errors: e }; if (!FLOW_DRY_ON_) SAVED130.push(['bulk', b]); return { ok: true, count: b.rows.length }; } };
+    API_.importDiesel = { m: 'Diesel Issue', edit: true, f: rows => { const e = bad(rows, true); if (e.length) return { ok: false, errors: e }; if (!FLOW_DRY_ON_) SAVED130.push(['imp', rows]); return { ok: true, count: rows.length }; } };
+    API_.saveDieselIssue = { m: 'Diesel Issue', edit: true, withUser: true, f: (u, d) => { if (W130 === 'strict' && !d.force) return { ok: false, warning: d.no + ': the next fill has a lower reading. Save anyway?' }; if (!FLOW_DRY_ON_) SAVED130.push(['one', d]); return { ok: true, id: 'DI-1' }; } };
+    kvWrite_("FLOW_RULES", "{}"); kvWrite_("CR_SUPERS", JSON.stringify(["sa130@rcl.test"]));`, ctx);
+  try {
+    const PW = 'sha256$0123456789abcdef$' + 'd'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('mahesh130@rcl.test', 'Mahesh Jadhav', false, { 'Diesel Issue': 'Edit' }), mk('shubham130@rcl.test', 'Shubham', false, { 'Diesel Issue': 'Edit' }), mk('sa130@rcl.test', 'Super C', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok130_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa130@rcl.test'); });
+    const api = (who, fn, ...a) => run('(t, f, a) => api(t, f, a)', tok[who], fn, a);
+    const M = 'mahesh130@rcl.test', S = 'shubham130@rcl.test', SA = 'sa130@rcl.test';
+    const W = w => run('w => { W130 = w; }', w);
+    assert.ok(api(SA, 'saveFlowRules', { tasks: { 'Diesel Issue': { on: true, levels: [[S]] } } }).ok);
+    const sent = (fn, ...a) => { W('clean'); const t = api(M, fn, ...a).THROWN || ''; assert.match(t, /^Sent for verification/, t); return t.match(/VF-\d{5}/)[0]; };
+    const req = (who, id) => api(who, 'getChangeRequests', {}).requests.find(x => x.id === id);
+    const argsOf = id => JSON.parse(run('id => flowAll_().find(r => r.id === id).args', id));
+    const saved = () => run('() => SAVED130.slice()');
+    // ---- MULTIPLE ENTRIES (one date): returned with a mistake on row 1 ----
+    const B = { date: '2026-10-18', shift: 'Day', source: 'Dispenser', rows: [{ no: 'MH-1', qty: '10', kmReading: '50', hrReading: '', driver: 'Ravi', remark: '' }, { no: 'MH-2', qty: '5', kmReading: '500', hrReading: '', driver: '', remark: '' }, { no: '', qty: '', kmReading: '', hrReading: '', driver: '', remark: '' }], force: false };
+    const a = sent('saveDieselBulk', B);
+    W('strict');
+    let r = api(S, 'decideChangeRequest', { id: a, approve: true });
+    assert.deepStrictEqual([r.status, r.result], ['Returned', 'Not saved: Line 1: MH-1: KM Reading 50 is less than the last KM Reading 100.']);
+    assert.deepStrictEqual([req(M, a).canFix, req(M, a).canResend, !!req(S, a).canFix], [true, true, false], 'only the sender may open it');
+    // only the sender opens it; it opens as it was sent, with what is wrong NOW
+    assert.strictEqual(api(S, 'openFlow', { id: a }).THROWN, 'Only the person who sent entry ' + a + ' opens and corrects it.');
+    r = api(M, 'openFlow', { id: a });
+    assert.deepStrictEqual([r.form, r.fn, r.status, r.args, r.check], ['date', 'saveDieselBulk', 'Returned', [B], { ok: false, errors: [{ row: 1, msg: 'MH-1: KM Reading 50 is less than the last KM Reading 100.' }] }], JSON.stringify(r).slice(0, 500));
+    assert.deepStrictEqual(saved(), [], 'opening saves nothing');
+    // a remark is needed; still wrong → said on its rows (as the save says it), nothing changes
+    assert.strictEqual(api(M, 'editFlow', { id: a, args: [B] }).THROWN, 'Write what you corrected – your remark goes with the entry to the people who approve it.');
+    const B2 = JSON.parse(JSON.stringify(B)); B2.rows[1].kmReading = '550';
+    r = api(M, 'editFlow', { id: a, note: 'row 2 reading', args: [B2] });
+    assert.deepStrictEqual([r.ok, r.notSent, r.errors], [false, true, [{ row: 1, msg: 'MH-1: KM Reading 50 is less than the last KM Reading 100.' }]]);
+    assert.deepStrictEqual([req(M, a).status, argsOf(a)], ['Returned', [B]], 'not sent: nothing changed');
+    assert.match(api(M, 'editFlow', { id: a, note: 'x', args: [{ rows: 'x' }] }).THROWN, /cannot be sent like this – open it again and correct it in its form\.$/);
+    // corrected → the same request waits again at level 1, corrected; its steps say what changed; the approver is told
+    B2.rows[0].kmReading = '150'; B2.rows[0].driver = 'Ravi Patil';
+    run('() => { SENT130.length = 0; }');
+    r = api(M, 'editFlow', { id: a, note: 'Reading corrected from the meter photo', args: [B2] });
+    assert.deepStrictEqual([r.ok, r.id, r.status, r.level, r.levels, r.to], [true, a, 'Pending', 1, 1, ['Shubham']], JSON.stringify(r).slice(0, 400));
+    assert.deepStrictEqual(r.changes, ['Row 1 – KM reading: 50 → 150', 'Row 1 – Driver: Ravi → Ravi Patil', 'Row 2 – KM reading: 500 → 550']);
+    const ra = r.list.requests.find(x => x.id === a), last = ra.history.slice(-1)[0];
+    assert.deepStrictEqual([ra.status, ra.canFix, ra.canResend, last.step, last.note, last.changes], ['Pending', undefined, false, 'Corrected and sent again', 'Reading corrected from the meter photo', r.changes]);
+    assert.deepStrictEqual(argsOf(a), [B2], 'the corrected entry is what waits');
+    assert.deepStrictEqual(run('() => SENT130.map(m => m.title)'), ['Corrected and sent again – ' + run("() => MODULE_LABEL_['Diesel Issue'] || 'Diesel Issue'") + ' by Mahesh Jadhav']);
+    assert.ok(run('() => table_(LOG_SHEET, []).rows.some(x => x.join("|").indexOf("Verification – corrected and sent again by the sender") > -1 && x.join("|").indexOf("Row 1 – KM reading: 50 → 150") > -1)'), 'the Activity Log');
+    assert.match(api(M, 'openFlow', { id: a }).THROWN, new RegExp('^Entry ' + a + ' is waiting for verification already – only a rejected or returned entry is opened to correct\\.$'));
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: a, approve: true }).status, 'Approved');
+    assert.deepStrictEqual(saved(), [['bulk', B2]], 'approved: the corrected entry is saved');
+    // ---- ONE ENTRY: a warning ("Save anyway?") – sent with it confirmed; its photos stay with it ----
+    const D = { date: '2026-10-18', shift: 'Day', source: 'Dispenser', no: 'MH-3', qty: 20, kmReading: 900, hrReading: '', driver: '', remark: '', force: false, mode: 'KM', photos: [{ k: 'dash', p: 'p/dash.jpg' }, { k: 'pump', p: 'p/pump.jpg' }] };
+    const b = sent('saveDieselIssue', D);
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: b, approve: false, note: 'litres?' }).status, 'Rejected');
+    assert.strictEqual(req(M, b).canFix, true, 'a rejected entry too');
+    W('strict');
+    r = api(M, 'openFlow', { id: b });
+    assert.deepStrictEqual([r.form, r.check], ['one', { ok: false, warning: 'MH-3: the next fill has a lower reading. Save anyway?' }]);
+    const D2 = Object.assign({}, D, { qty: 18, photos: [{ k: 'pump', p: 'p/pump2.jpg' }] });      // a new Dispenser photo taken in the form
+    r = api(M, 'editFlow', { id: b, note: 'litres 18', args: [D2] });
+    assert.deepStrictEqual([r.ok, r.notSent, r.warning], [false, true, 'MH-3: the next fill has a lower reading. Save anyway?']);
+    r = api(M, 'editFlow', { id: b, note: 'litres 18', args: [Object.assign({}, D2, { force: true })] });
+    assert.deepStrictEqual([r.status, r.changes], ['Pending', ['Litres: 20 → 18']], 'force is not a change; the photos: as many as before');
+    assert.deepStrictEqual(argsOf(b)[0].photos, [{ k: 'dash', p: 'p/dash.jpg' }, { k: 'pump', p: 'p/pump2.jpg' }], 'the photos sent with it stay; the new one of its kind takes its place');
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: b, approve: true }).status, 'Approved');
+    assert.deepStrictEqual(saved().slice(-1)[0][1].qty, 18);
+    // ---- MULTIPLE ENTRIES (one machinery): opens; several machinery → not here (Send again only) ----
+    const R = [{ line: 1, date: '2026-10-17', shift: 'Day', source: 'Dispenser', no: 'MH-4', qty: 10, kmReading: 40, hrReading: '', driver: '', remark: '' }, { line: 2, date: '2026-10-18', shift: 'Day', source: 'Dispenser', no: 'MH-4', qty: 12, kmReading: 160, hrReading: '', driver: '', remark: '' }];
+    const c = sent('importDiesel', R);
+    W('strict');
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: c, approve: true }).status, 'Returned');
+    r = api(M, 'openFlow', { id: c });
+    assert.deepStrictEqual([r.form, r.check.errors], ['mach', [{ row: 1, msg: 'MH-4: KM Reading 40 is less than the last KM Reading 100.' }]]);
+    const R2 = [Object.assign({}, R[0], { kmReading: 140 }), R[1], Object.assign({}, R[1], { line: 3, date: '2026-10-19', kmReading: 170 })];
+    r = api(M, 'editFlow', { id: c, note: 'ok', args: [R2] });
+    assert.deepStrictEqual(r.changes, ['Row 1 – KM reading: 40 → 140', 'Row 3: added']);
+    const d = sent('importDiesel', [R[0], Object.assign({}, R[1], { no: 'MH-5' })]);
+    api(S, 'decideChangeRequest', { id: d, approve: false, note: 'no' });
+    assert.deepStrictEqual([req(M, d).canResend, req(M, d).canFix], [true, false]);
+    assert.match(api(M, 'openFlow', { id: d }).THROWN, /cannot be opened to correct here \(Diesel Issue – one entry and Multiple entries – only, for now\) – use "Send again", or enter it again\.$/);
+    // ---- the words of what changed ----
+    assert.deepStrictEqual(run(`() => flowChanges_([{ date: '2026-10-01', shift: 'Day', rows: [{ no: 'A', qty: '1' }, { no: 'B', qty: '2' }] }], [{ date: '2026-10-02', shift: 'Day', rows: [{ no: 'A', qty: '1' }] }])`), ['Date: 2026-10-01 → 2026-10-02', 'Row 2: taken out']);
+    assert.deepStrictEqual(run(`() => flowChanges_([{ rows: [{ no: 'A' }, { no: 'B', mode: 'KM' }] }], [{ rows: [{ no: 'A', mode: 'KM' }, { no: 'B', mode: 'Meter not working' }] }])`), ['Row 2 – Measured by: KM → Meter not working'], '"Measured by" put by the page is not a change');
+    // ---- the page ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.match(app, /approvals: \{ saves: \[[^\]]*'openFlow', 'editFlow', 'resendFlow'\]/);
+    assert.match(app, /r\.canFix \? '<button class="btn small" type="button" data-fvfix="' \+ esc\(r\.id\) \+ '">Open &amp; correct<\/button> ' : ''/);
+    assert.match(app, /\(r\.canFix \? '<button class="btn small" type="button" data-crfix="' \+ esc\(r\.id\) \+ '">Open &amp; correct<\/button> ' : ''\)/);
+    assert.match(app, /const res = fixing \? await flowFixCall\(\[d\]\) : editing \? await call\('updateDieselIssue', editing, d\) : await call\('saveDieselIssue', d\);/);
+    assert.match(app, /const res = fixing \? await flowFixCall\(\[b\]\) : await call\('saveDieselBulk', b\);/);
+    assert.match(app, /const res = fixing \? await flowFixCall\(\[out\]\) : await call\('importDiesel', out\);/);
+    assert.match(app, /return call\('editFlow', \{ id: fx\.id, note: fx\.note, args: args \}\);/);
+    assert.match(app, /<div class="fixbar" id="d_fixbar" hidden><\/div>/);
+    ['mr', 'hi'].forEach(l => { const dd = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8'));
+      ['Open & correct', 'Stop correcting', 'Write what you corrected.', 'Only the person who sent entry {0} opens and corrects it.', '{0} corrected and sent again for verification (level 1{1}) – saved when approved.'].forEach(k => assert.ok(dd[k], l + ': ' + k)); });
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k130.flush; SbBook_.prototype.loadMany = __k130.loadMany; SbSheet_.prototype.load_ = __k130.load_; sbDiscard_ = __k130.discard; rtcPush_ = __k130.push;
+      API_.saveDieselIssue = __k130.one; API_.saveDieselBulk = __k130.bulk; API_.importDiesel = __k130.imp;
+      CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
+  }
+});
+
+test('update-134: the Super Admin deletes Diesel Issue entries – saved, waiting, rejected – of a date or a period (ticked; all or none; not one of a submitted bill or a closed month), and brings them back from Deleted entries', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  vm.runInContext(`globalThis.__k134 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_, blo: billLockOf_ };
+    globalThis.DB134 = {};
+    globalThis.__fill134 = s => { const d = DB134[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep134 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill134(s); if (s.loaded) DB134[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    SB_BOOK_ = null;
+    SbBook_.prototype.flush = function () { __keep134(this); __k134.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill134(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill134(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    rtcPush_ = function () {};
+    kvWrite_("FLOW_RULES", "{}"); kvWrite_("CR_SUPERS", JSON.stringify(["sa134@rcl.test"])); PropertiesService.getScriptProperties().deleteProperty("BOOKS_CLOSED_UPTO");`, ctx);
+  try {
+    const mach = (no, unit) => run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Tipper', type: 'Tipper', unit: unit, worksOn: [unit], kmStd: 4, hrStd: 5, owner: 'Rachana Construction Limited', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-08-01' }, 'add');
+    assert.ok(mach('SD-1', 'KM').ok && mach('SD-2', 'Hrs').ok);
+    assert.ok(run('x => saveInward_(x)', { date: '2026-07-31', location: 'Dispenser', pump: 'Pump', qty: 100, rate: 92, billNo: 'SD134', billDate: '2026-07-31' }).ok);
+    const one = (date, no, x) => run('x => saveDieselIssue_(x)', Object.assign({ date: date, shift: 'Day', source: 'Dispenser', no: no, qty: 10 }, x || {}));
+    run('() => { ACTOR_ = "Store Keeper"; }');      // who entered them (the earlier tests leave their own)
+    const d1 = one('2026-08-01', 'SD-1', { kmReading: 1000 }).id, d2 = one('2026-08-02', 'SD-1', { kmReading: 1100 }).id, d3 = one('2026-08-02', 'SD-2', { hrReading: 50 }).id;
+    assert.ok(d1 && d2 && d3);
+    const PW = 'sha256$0123456789abcdef$' + 'd'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('mahesh134@rcl.test', 'Mahesh Jadhav', false, { 'Diesel Issue': 'Edit' }), mk('shubham134@rcl.test', 'Shubham', false, { 'Diesel Issue': 'Edit' }), mk('admin134@rcl.test', 'Admin D', true), mk('sa134@rcl.test', 'Super D', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok134_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa134@rcl.test'); });
+    const api = (who, fn, ...a) => run('(t, f, a) => api(t, f, a)', tok[who], fn, a);
+    const M = 'mahesh134@rcl.test', S = 'shubham134@rcl.test', AD = 'admin134@rcl.test', SA = 'sa134@rcl.test';
+    assert.ok(api(SA, 'saveFlowRules', { tasks: { 'Diesel Issue': { on: true, levels: [[S]] } } }).ok);
+    const bulk = (date, km) => ({ date: date, shift: 'Day', source: 'Dispenser', rows: [{ no: 'SD-1', qty: '5', kmReading: String(km), hrReading: '', driver: '', remark: '' }] });
+    const v1 = (api(M, 'saveDieselBulk', bulk('2026-08-03', 1200)).THROWN || '').match(/VF-\d{5}/)[0], v2 = (api(M, 'saveDieselBulk', bulk('2026-08-04', 1300)).THROWN || '').match(/VF-\d{5}/)[0];
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: v2, approve: false, note: 'wrong litres' }).status, 'Rejected');
+    const rows = () => run('() => { const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_); return t.rows.map(r => [r[t.c[H.ID]], r[t.c[H.NO]], dkey_(r[t.c[H.IDATE]]), Number(r[t.c[H.QTY]]), r[t.c[H.KMR]], r[t.c[H.HRR]], r[t.c[H.EBY]] || "", r[t.c[H.CREATED]] instanceof Date ? r[t.c[H.CREATED]].toISOString() : String(r[t.c[H.CREATED]])]); }');
+    const before = rows();
+    // ---- only the Super Admin (an Admin who is not the Super Admin, a user: refused) ----
+    for (const who of [M, AD]) for (const fn of ['superDelList', 'superDelete', 'superRestore'])
+      assert.strictEqual(api(who, fn, { from: '2026-08-01', ids: [d1] }).THROWN, 'Only the Super Admin deletes or brings back entries here (signed in through the Portal).', who + ' ' + fn);
+    // ---- the list: a date or a period; who entered it; the machinery ----
+    assert.strictEqual(api(SA, 'superDelList', {}).THROWN, 'Pick the date (or From and To).');
+    let L = api(SA, 'superDelList', { from: '2026-08-01', to: '2026-08-04' });
+    assert.deepStrictEqual([L.saved.map(r => r.id), L.waiting.map(r => [r.id, r.label, r.dates.join()]), L.deleted.length], [[d1, d2, d3], [[v1, 'Waiting for verification', '2026-08-03'], [v2, 'Rejected', '2026-08-04']], 0]);
+    assert.deepStrictEqual(api(SA, 'superDelList', { from: '2026-08-02' }).saved.map(r => r.id), [d2, d3], 'one date');
+    assert.deepStrictEqual(api(SA, 'superDelList', { from: '2026-08-01', to: '2026-08-04', no: 'SD-2' }).saved.map(r => r.id), [d3], 'one machinery');
+    assert.deepStrictEqual(api(SA, 'superDelList', { from: '2026-08-01', to: '2026-08-04', by: 'Mahesh Jadhav' }).waiting.map(r => r.id), [v1, v2], 'who sent it');
+    // ---- all together or none: one wrong → nothing deleted ----
+    let r = api(SA, 'superDelete', { ids: [d1, 'DI-999999'] });
+    assert.deepStrictEqual(r, { ok: false, errors: ['DI-999999: not found – deleted or changed meanwhile. Show the list again.'] });
+    assert.deepStrictEqual(rows(), before, 'nothing deleted');
+    assert.strictEqual(api(SA, 'superDelete', {}).THROWN, 'Tick the entries to delete first.');
+    // a closed month; an entry of a submitted bill (his choice: not deleted – the bill first)
+    run('() => PropertiesService.getScriptProperties().setProperty("BOOKS_CLOSED_UPTO", "2026-08-01")');
+    assert.match(api(SA, 'superDelete', { ids: [d1] }).errors[0], /entries up to 01-08-2026 are closed/);
+    run('() => PropertiesService.getScriptProperties().deleteProperty("BOOKS_CLOSED_UPTO")');
+    run('() => { billLockOf_ = (no, dk) => noKey_(no) === "SD2" ? { id: "BL-7", billNo: "RA-7", vendor: "V Seven", company: "RCL", from: dk, to: dk } : null; }');
+    assert.strictEqual(api(SA, 'superDelList', { from: '2026-08-02' }).saved.find(x => x.id === d3).bill, 'RA-7', 'the list says it (no tick)');
+    assert.deepStrictEqual(api(SA, 'superDelete', { ids: [d2, d3] }), { ok: false, errors: [d3 + ' (SD-2, 02-08-2026): it is in the submitted RA Bill RA-7 of V Seven – an entry of a submitted bill is not deleted (delete that bill first).'] });
+    run('() => { billLockOf_ = __k134.blo; }');
+    assert.deepStrictEqual(rows(), before, 'still nothing deleted');
+    // ---- deleted: two saved, one waiting, one rejected – each kept whole ----
+    r = api(SA, 'superDelete', { ids: [d1, d2], flows: [v1, v2] });
+    assert.deepStrictEqual([r.ok, r.deleted, r.saved, r.requests, r.kept.map(k => k.del + '=' + k.entry)], [true, 4, 2, 2, ['DEL-00001=' + d1, 'DEL-00002=' + d2, 'DEL-00003=' + v1, 'DEL-00004=' + v2]]);
+    assert.deepStrictEqual(rows().map(x => x[0]), [d3], 'out of the diesel');
+    const cr = api(SA, 'getChangeRequests', {}).requests.map(x => x.id);
+    assert.ok(cr.indexOf(v1) === -1 && cr.indexOf(v2) === -1, 'out of Approvals: ' + cr);
+    L = api(SA, 'superDelList', { from: '2026-08-01', to: '2026-08-04' });
+    assert.deepStrictEqual([L.saved.map(x => x.id), L.waiting.length, L.deleted.map(x => [x.id, x.entry, x.was, x.by, x.deletedBy])],
+      [[d3], 0, [['DEL-00001', d1, 'Saved', 'Store Keeper', 'Super D'], ['DEL-00002', d2, 'Saved', 'Store Keeper', 'Super D'], ['DEL-00003', v1, 'Waiting for verification', 'Mahesh Jadhav', 'Super D'], ['DEL-00004', v2, 'Rejected', 'Mahesh Jadhav', 'Super D']]]);
+    // a new request does not take the number of a deleted one
+    assert.match(api(M, 'saveDieselBulk', bulk('2026-08-05', 1400)).THROWN, /VF-00003/);
+    // ---- brought back: the same entry (ID, values, time, who entered it) and the request as it was ----
+    r = api(SA, 'superRestore', { ids: ['DEL-00001', 'DEL-00003'] });
+    assert.deepStrictEqual([r.ok, r.restored, r.ids], [true, 2, [d1, v1]]);
+    assert.deepStrictEqual(rows().find(x => x[0] === d1), before.find(x => x[0] === d1), 'the same row');
+    const back = api(SA, 'getChangeRequests', {}).requests.find(x => x.id === v1);
+    assert.strictEqual(back && back.status, 'Pending', 'waiting again');
+    assert.deepStrictEqual(api(SA, 'superDelList', { from: '2026-08-01', to: '2026-08-04' }).deleted.map(x => x.id), ['DEL-00002', 'DEL-00004']);
+    assert.deepStrictEqual(api(SA, 'superRestore', { ids: ['DEL-00001'] }), { ok: false, errors: ['DEL-00001: not in Deleted entries – brought back meanwhile. Show the list again.'] });
+    // ---- brought back only when the diesel is there on its date: after the stock was used meanwhile → nothing brought back ----
+    const fill = one('2026-08-01', 'SD-2', { qty: 60, hrReading: 40 }); assert.ok(fill.ok, 'the stock used meanwhile: ' + JSON.stringify(fill));
+    assert.match(api(M, 'saveDieselBulk', bulk('2026-08-06', 1500)).THROWN, /VF-00004/, 'and 5 Ltr more waits for verification');
+    r = api(SA, 'superRestore', { ids: ['DEL-00002', 'DEL-00004'] });
+    assert.ok(r.ok === false && r.errors.length === 1 && r.errors[0].indexOf(d2 + ' (SD-1, 02-08-2026): ') === 0, JSON.stringify(r));
+    assert.deepStrictEqual(api(SA, 'superDelList', { from: '2026-08-01', to: '2026-08-04' }).deleted.map(x => x.id), ['DEL-00002', 'DEL-00004'], 'nothing brought back');
+    assert.deepStrictEqual(api(SA, 'superRestore', { ids: ['DEL-00004'] }).ids, [v2], 'the rejected request alone');
+    // the Activity Log has every delete and restore
+    const acts = run('() => { const t = table_(LOG_SHEET, ["Record ID"]); return t.rows.map(r => r[t.c["Record ID"]] + " " + r[t.c["Summary"]]); }');
+    assert.ok([d1, d2, v1, v2].every(id => acts.some(a => a.indexOf(id + ' Deleted by the Super Admin') === 0)), JSON.stringify(acts.slice(-8)));
+    assert.ok(acts.some(a => a.indexOf(d1 + ' Brought back by the Super Admin from Deleted entries (DEL-00001)') === 0));
+    // ---- the page: the panel for the Super Admin only; its help in 3 languages ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.ok(app.indexOf('<div class="panel" id="sx_panel" hidden>') > -1 && app.indexOf("if ($('sx_panel')) { $('sx_panel').hidden = !u.super;") > -1);
+    assert.ok(["call('superDelList'", "call('superDelete'", "call('superRestore'"].every(x => app.indexOf(x) > -1));
+    const H2 = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules };')();
+    for (const [m, want] of [['Only the Super Admin deletes or brings back entries here (signed in through the Portal).', /Only the Super Admin/],
+      [d3 + ' (SD-2, 02-08-2026): it is in the submitted RA Bill RA-7 of V Seven – an entry of a submitted bill is not deleted (delete that bill first).', /Delete that bill first/],
+      ['DEL-00001: not in Deleted entries – brought back meanwhile. Show the list again.', /Show entries/], ['Tick the entries to delete first.', /Nothing is picked/]])
+      assert.match(H2.fixRules(m)[0].en.join(' '), want, m);
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k134.flush; SbBook_.prototype.loadMany = __k134.loadMany; SbSheet_.prototype.load_ = __k134.load_; sbDiscard_ = __k134.discard; rtcPush_ = __k134.push; billLockOf_ = __k134.blo;
+      CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); PropertiesService.getScriptProperties().deleteProperty("BOOKS_CLOSED_UPTO"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
+  }
+});
+
+test('update-131: a diesel reading is checked BY ITS DATE (the fills before and after it); an entry for approval with a reading that does not fit is a MISTAKE – no "anyway", corrected first', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  vm.runInContext(`globalThis.__k131 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_ };
+    globalThis.DB131 = {};
+    globalThis.__fill131 = s => { const d = DB131[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep131 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill131(s); if (s.loaded) DB131[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    SB_BOOK_ = null;
+    SbBook_.prototype.flush = function () { __keep131(this); __k131.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill131(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill131(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    rtcPush_ = function () {};
+    kvWrite_("FLOW_RULES", "{}"); kvWrite_("CR_SUPERS", JSON.stringify(["sa131@rcl.test"]));`, ctx);
+  try {
+    const mach = (no, unit) => run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Tipper', type: 'Tipper', unit: unit, worksOn: [unit], kmStd: 4, hrStd: 5, owner: 'Rachana Construction Limited', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-08-01' }, 'add');
+    assert.ok(mach('RD-1', 'KM').ok && mach('RD-2', 'Hrs').ok);
+    assert.ok(run('x => saveInward_(x)', { date: '2026-07-31', location: 'Dispenser', pump: 'Pump', qty: 2000, rate: 92, billNo: 'RD131', billDate: '2026-07-31' }).ok);
+    const one = (date, km, x) => run('x => saveDieselIssue_(x)', Object.assign({ date: date, shift: 'Day', source: 'Dispenser', no: 'RD-1', qty: 10, kmReading: km }, x || {}));
+    assert.ok(one('2026-08-01', 1000).ok && one('2026-08-05', 1500).ok);
+    // ---- a save that waits for no one: by its date; "Save anyway" stays ----
+    assert.ok(one('2026-08-03', 1200).ok, 'between the fill before (1000) and after (1500): fits – until update-131 "less than the last 1500"');
+    assert.strictEqual(one('2026-08-04', 900).warning, 'RD-1: KM Reading 900 is less than the earlier KM Reading 1200 (fill of 03-08-2026, Day). Save anyway?');
+    assert.strictEqual(one('2026-08-04', 1600).warning, 'RD-1: KM Reading 1600 is more than the later KM Reading 1500 (fill of 05-08-2026, Day). Save anyway?');
+    const B = rows => ({ date: '2026-08-04', shift: 'Day', source: 'Dispenser', rows: rows });
+    const r1 = { no: 'RD-1', qty: '5', kmReading: '1300', hrReading: '', driver: '', remark: '' }, r2 = { no: 'RD-1', qty: '5', kmReading: '1250', hrReading: '', driver: '', remark: '' };
+    assert.deepStrictEqual(run('x => saveDieselBulk_(x)', B([r1, r2])), { ok: false, warnings: [{ row: 2, msg: 'RD-1: KM Reading 1250 is less than the earlier KM Reading 1300 (row 1 of this entry).' }] }, 'the rows above it count too');
+    // ---- for approval (checked when sent / sent again / corrected, or saved at the approval): a mistake – "force" does not pass it ----
+    const strict = (fn, x) => run('(f, x) => { FLOW_DRY_ON_ = true; try { return globalThis[f](x); } finally { FLOW_DRY_ON_ = false; } }', fn, x);
+    assert.deepStrictEqual(strict('saveDieselBulk_', Object.assign(B([r1, r2]), { force: true })), { ok: false, errors: [{ row: 2, msg: 'RD-1: KM Reading 1250 is less than the earlier KM Reading 1300 (row 1 of this entry).' }] });
+    assert.strictEqual(strict('saveDieselIssue_', { date: '2026-08-04', shift: 'Day', source: 'Dispenser', no: 'RD-1', qty: 10, kmReading: 900, force: true }).THROWN,
+      'RD-1: KM Reading 900 is less than the earlier KM Reading 1200 (fill of 03-08-2026, Day). Correct the reading – an entry for approval goes only when its readings fit.');
+    assert.deepStrictEqual(strict('importDiesel_', [{ line: 1, date: '2026-08-06', shift: 'Day', source: 'Dispenser', no: 'RD-1', qty: 5, kmReading: 1400 }, { line: 2, date: '2026-08-07', shift: 'Day', source: 'Dispenser', no: 'RD-1', qty: 5, kmReading: 1350 }]),
+      { ok: false, errors: [{ row: 1, msg: 'RD-1: KM Reading 1400 is less than the earlier KM Reading 1500 (fill of 05-08-2026, Day).' }, { row: 2, msg: 'RD-1: KM Reading 1350 is less than the earlier KM Reading 1400 (row 1 of this entry).' }] }, 'one machinery – many dates: checked for approval too (row 2: the nearest fill before it is row 1)');
+    // ---- through the app: the rule on; the maker cannot send a reading that does not fit, even "anyway" ----
+    const PW = 'sha256$0123456789abcdef$' + 'd'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('mahesh131@rcl.test', 'Mahesh Jadhav', false, { 'Diesel Issue': 'Edit' }), mk('shubham131@rcl.test', 'Shubham', false, { 'Diesel Issue': 'Edit' }), mk('sa131@rcl.test', 'Super C', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok131_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa131@rcl.test'); });
+    const api = (who, fn, ...a) => run('(t, f, a) => api(t, f, a)', tok[who], fn, a);
+    const M = 'mahesh131@rcl.test', S = 'shubham131@rcl.test', SA = 'sa131@rcl.test';
+    assert.ok(api(SA, 'saveFlowRules', { tasks: { 'Diesel Issue': { on: true, levels: [[S]] } } }).ok);
+    const rowNow = km => ({ no: 'RD-1', qty: '5', kmReading: String(km), hrReading: '', driver: '', remark: '' });
+    const D6 = (km, force) => ({ date: '2026-08-06', shift: 'Day', source: 'Dispenser', rows: [rowNow(km)], force: !!force });
+    let r = api(M, 'saveDieselBulk', D6(1400, true));
+    assert.deepStrictEqual(r, { ok: false, errors: [{ row: 1, msg: 'RD-1: KM Reading 1400 is less than the earlier KM Reading 1500 (fill of 05-08-2026, Day).' }] }, 'not sent – "Save all anyway" does not send it');
+    const sent = api(M, 'saveDieselBulk', D6(1600)).THROWN || '';
+    assert.match(sent, /^Sent for verification/);
+    const a = sent.match(/VF-\d{5}/)[0];
+    // meanwhile a later fill with a lower reading is saved (a save that waits for no one) – at the approval it does not fit: Returned
+    assert.ok(run('x => saveDieselIssue_(x)', { date: '2026-08-06', shift: 'Night', source: 'Dispenser', no: 'RD-1', qty: 10, kmReading: 1550, force: true }).ok);
+    r = api(S, 'decideChangeRequest', { id: a, approve: true });
+    assert.deepStrictEqual([r.status, r.result], ['Returned', 'Not saved: Line 1: RD-1: KM Reading 1600 is more than the later KM Reading 1550 (fill of 06-08-2026, Night).'], JSON.stringify(r));
+    // "Send again anyway" is gone: force is not read; the reason is said in full
+    r = api(M, 'resendFlow', { id: a, note: 'anyway', force: true });
+    assert.deepStrictEqual([r.done.length, r.failed[0].error, 'warn' in r.failed[0]], [0, 'Not sent again: Line 1: RD-1: KM Reading 1600 is more than the later KM Reading 1550 (fill of 06-08-2026, Night). – entry ' + a + ' stays as it is (nothing is lost); send it again when this is put right.', false]);
+    // Open & correct: the wrong row marked; corrected → sent; approved → saved
+    r = api(M, 'openFlow', { id: a });
+    assert.deepStrictEqual(r.check, { ok: false, errors: [{ row: 1, msg: 'RD-1: KM Reading 1600 is more than the later KM Reading 1550 (fill of 06-08-2026, Day).'.replace('Day).', 'Night).') }] });
+    r = api(M, 'editFlow', { id: a, note: 'reading 1530', args: [D6(1530, true)] });
+    assert.deepStrictEqual([r.ok, r.status, r.changes], [true, 'Pending', ['Row 1 – KM reading: 1600 → 1530']], JSON.stringify(r).slice(0, 300));
+    assert.strictEqual(api(S, 'decideChangeRequest', { id: a, approve: true }).status, 'Approved');
+    assert.ok(run('() => table_(APP.SHEET_DIESEL, DIESEL_COLS_).rows.some(r => r[table_(APP.SHEET_DIESEL, DIESEL_COLS_).c[H.NO]] === "RD-1" && Number(r[table_(APP.SHEET_DIESEL, DIESEL_COLS_).c[H.KMR]]) === 1530)'), 'saved as corrected');
+    // ---- the page: no "Send again anyway"; the help for a reading by its date ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.ok(app.indexOf("ok: 'Send again anyway'") === -1 && app.indexOf("'Please check – warnings, not mistakes'") === -1);
+    assert.match(app, /if \(fixing\) \{ toast\('Not sent\. Correct the rows marked\.', true\); return; \}/);
+    assert.match(app, /\{ re: \/is less than the earlier \(KM\|Hrs\) Reading\|is more than the later \(KM\|Hrs\) Reading\|an entry for approval goes only when its readings fit\/i,/);
+    const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+    assert.ok(!/readingWarnings_\(|lastReadings_\(|flowForce_\(/.test(code), 'the check against the newest fill and the "anyway" of Send again are gone');
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k131.flush; SbBook_.prototype.loadMany = __k131.loadMany; SbSheet_.prototype.load_ = __k131.load_; sbDiscard_ = __k131.discard; rtcPush_ = __k131.push;
+      CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); SB_BOOK_ = null; TABLE_MEMO_ = {};`, ctx);
+  }
+});
+
+test('update-132: a BOQ amendment changes only its machinery, from any date on or after the BOQ start (also after its end); the rate history machinery-wise = what the bills take', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  assert.ok(run('(x, m) => saveVendor_(x, m)', { name: 'Hist Vendor', gstReg: 'No', pan: 'ABCDE1234H', bank: 'SBI', account: '12345670', ifsc: 'SBIN0000001' }, 'add').ok !== false);
+  const mach = no => run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Tanker', type: 'Water Tanker', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Hist Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add');
+  assert.ok(mach('HV-1').ok && mach('HV-2').ok);
+  const line = (no, rate) => ({ no: no, basis: 'Per Trip', rate: rate, diesel: 'Company' });
+  const b1 = run('(x, m) => saveBoq_(x, m)', { vendor: 'Hist Vendor', from: '2026-01-01', to: '2026-08-31', tdsPct: 2, woNo: 'WO-HIST', lines: [line('HV-1', 100), line('HV-2', 300)] }, 'add');
+  assert.ok(b1.ok, JSON.stringify(b1));
+  // amendment 1: only HV-1, from 01-02 (open); amendment 2: only HV-2, from 01-09 – after BOQ 1 ends (until update-132: refused)
+  const a1 = run('(x, m) => saveBoq_(x, m)', { vendor: 'Hist Vendor', amendOf: b1.id, from: '2026-02-01', to: '', tdsPct: 2, woNo: 'WO-HIST', lines: [line('HV-1', 200)] }, 'add');
+  const a2 = run('(x, m) => saveBoq_(x, m)', { vendor: 'Hist Vendor', amendOf: b1.id, from: '2026-09-01', to: '2026-09-30', tdsPct: 2, woNo: 'WO-HIST', lines: [line('HV-2', 350)] }, 'add');
+  assert.ok(a1.ok && a2.ok, JSON.stringify([a1, a2]));
+  assert.deepStrictEqual([a1.amendNo, a2.amendNo], [1, 2]);
+  assert.strictEqual(run('(x, m) => saveBoq_(x, m)', { vendor: 'Hist Vendor', amendOf: b1.id, from: '2025-12-01', tdsPct: 2, lines: [line('HV-1', 50)] }, 'add').THROWN,
+    'The amendment must start on or after the start of BOQ ' + b1.no + ' (01-01-2026).');
+  // the history: period by period, which BOQ / amendment
+  const h = run('() => getBoqs_({ vendor: "Hist Vendor" }).history');
+  const simple = h.map(x => [x.no, x.periods.map(p => [p.from, p.to, p.amendNo ? 'A' + p.amendNo + ' of ' + p.of : 'BOQ ' + p.boqNo, p.line.rate, p.woNo])]);
+  assert.deepStrictEqual(simple, [
+    ['HV-1', [['2026-01-01', '2026-01-31', 'BOQ ' + b1.no, 100, 'WO-HIST'], ['2026-02-01', '', 'A1 of ' + b1.no, 200, 'WO-HIST']]],
+    ['HV-2', [['2026-01-01', '2026-08-31', 'BOQ ' + b1.no, 300, 'WO-HIST'], ['2026-09-01', '2026-09-30', 'A2 of ' + b1.no, 350, 'WO-HIST']]],
+  ], JSON.stringify(simple));
+  // = what the bills take, every day of the year (boqRateFor_)
+  const days = run(`() => { const out = []; let d = '2025-12-30'; while (d <= '2027-01-02') { ['HV-1', 'HV-2'].forEach(no => { const r = boqRateFor_('Hist Vendor', no, d); out.push([no, d, r ? r.line.rate : null]); }); d = addDays_(d, 1); } return out; }`);
+  const fromHist = (no, d) => { const p = h.find(x => x.no === no).periods.find(p => p.from <= d && (!p.to || p.to >= d)); return p && !p.none ? p.line.rate : null; };
+  const diff = days.filter(([no, d, r]) => fromHist(no, d) !== r);
+  assert.deepStrictEqual(diff, [], 'the history says exactly the bills\' rate on every day');
+  assert.deepStrictEqual(['2026-01-31', '2026-02-01', '2026-10-05'].map(d => days.find(x => x[0] === 'HV-1' && x[1] === d)[2]), [100, 200, 200]);
+  assert.deepStrictEqual(['2026-08-31', '2026-09-15', '2026-10-01'].map(d => days.find(x => x[0] === 'HV-2' && x[1] === d)[2]), [300, 350, null]);
+  // a time with no BOQ between two periods is said
+  assert.deepStrictEqual(run(`() => boqHistory_([{ id: 'X1', no: '1', vendor: 'V', from: '2026-01-01', to: '2026-01-31', amendOf: '', amendNo: 0, created: '1', lines: [{ no: 'M', rate: 1 }] },
+    { id: 'X2', no: '2', vendor: 'V', from: '2026-03-01', to: '', amendOf: 'X1', amendNo: 1, created: '2', lines: [{ no: 'M', rate: 2 }] }])[0].periods.map(p => [p.from, p.to, p.none ? 'none' : p.line.rate])`),
+    [['2026-01-01', '2026-01-31', 1], ['2026-02-01', '2026-02-28', 'none'], ['2026-03-01', '', 2]]);
+  // the page: the history under the BOQ list; the amendment's words
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /<div id="bh_box" hidden><\/div>/);
+  assert.match(app, /const list = \(S\.boqHist \|\| \[\]\)\.filter\(h => h\.vendor === v\);/);
+  assert.match(app, /Keep only the machinery whose rate changes/);
+  ['mr', 'hi'].forEach(l => { const d = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8'));
+    ['Rate history – machinery-wise', 'The amendment must start on or after the start of BOQ {0} ({1}).'].forEach(k => assert.ok(d[k], l + ': ' + k)); });
+});
+
+test('update-138: the staging (test) database – a Preview works only with a database marked as the test one; the one SQL file for it', () => {
+  // the servers: a Preview checks the mark before anything is read or written; the Sheet backup never runs on a Preview; the band
+  const sf = require('../server/syncfetch.js'), was = process.env.VERCEL_ENV;
+  try {
+    process.env.VERCEL_ENV = 'preview';
+    assert.strictEqual(sf.isPreview(), true);
+    assert.ok(/^This is a Preview/.test(require('../server/google.js').config().error), 'no backup on a Preview');
+    assert.ok(/id="rcl_preview_band"/.test(require('../server/page.js').shell()), 'the TEST band on a Preview');
+    process.env.VERCEL_ENV = 'production';
+    assert.strictEqual(sf.isPreview(), false);
+    assert.ok(!/id="rcl_preview_band"/.test(require('../server/page.js').shell()), 'no band live');
+  } finally { if (was === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = was; }
+  const src = fs.readFileSync(path.join(root, 'server', 'syncfetch.js'), 'utf8');
+  assert.ok(/function fetchAllSync\(reqs, timeoutMs\) \{[^}]*previewGuard\(reqs\);/.test(src), 'every database call goes through the guard');
+  assert.ok(src.indexOf("app_settings?id=eq.THIS_IS_A_TEST_DATABASE") > -1);
+  // the message: 503 and the page's help in three languages
+  const rpc = fs.readFileSync(path.join(root, 'api', 'rpc.js'), 'utf8');
+  assert.ok(/This is a Preview \\\(a test copy of the app\\\)\/\.test\(msg\)\) return 503/.test(rpc));
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  const r = H.fixRules(sf.PREVIEW_NO)[0];
+  assert.ok(r !== H.FIX_ANY && /staging|test/i.test(r.en.join(' ')) && r.mr && r.hi, 'help for the Preview message');
+  // the one SQL file: up to date with the steps (when the Store and Portal repositories are next to this one)
+  const mk = require('../staging/make_staging_sql.js'), sql = fs.readFileSync(path.join(root, 'staging', 'rcl_staging_all.sql'), 'utf8');
+  const store = path.join(root, '..', 'rcl-store'), portal = path.join(root, '..', 'rcl-portal');
+  if (fs.existsSync(path.join(store, 'sql')) && fs.existsSync(path.join(portal, 'sql'))) assert.strictEqual(sql, mk.build(store, portal).sql, 'staging/rcl_staging_all.sql is not up to date – run node staging/make_staging_sql.js');
+  // nothing runs before the typed values and the guard; every step of Read Me except keep-awake (it calls the LIVE address)
+  const guard = sql.indexOf('STOPPED – nothing was run: this database already has tables'), first = sql.search(/create table/i);
+  assert.ok(guard > 0 && first > guard && sql.indexOf("'TYPE-YOUR-EMAIL-HERE'") > 0 && sql.indexOf("'TYPE-YOUR-EMAIL-HERE'") < guard);
+  const rd = fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8'), names = (rd.match(/"name": "supabase_step[^"]+"/g) || []).map(s => s.slice(9, -1));
+  assert.ok(names.length > 30);
+  names.forEach(n => assert.strictEqual(sql.split('MECHANICAL: ' + n + ' ').length - 1, /step6_keep_awake/.test(n) ? 0 : 1, n));
+  assert.ok(!/cron\.schedule|net\.http_get/.test(sql), 'no timer that calls an address');
+  const mark = sql.indexOf("('THIS_IS_A_TEST_DATABASE', 'yes')");
+  assert.ok(mark > sql.indexOf('MECHANICAL: supabase_step1.sql') && mark < sql.indexOf('MECHANICAL: supabase_step1b_grants.sql'), 'the mark right after step 1');
+  assert.ok(sql.indexOf("'ORG_SETTINGS'") < sql.indexOf('MECHANICAL: supabase_step7_sites.sql') && sql.indexOf("'ORG_SETTINGS'") > sql.indexOf('MECHANICAL: supabase_step2_web.sql'));
+  ['STORE: store_step1_items.sql', 'PORTAL: portal_step1.sql', 'PORTAL: portal_step2_start.sql', 'PORTAL: portal_step3_pages.sql'].forEach(k => assert.ok(sql.indexOf(k) > -1, k));
+  // the test entries: made-up names only, the staging addresses, nothing live
+  assert.ok(!/rcl-portal-flame|rcl-store\.vercel\.app|oneclicksolution-erp|rclerp\.vercel\.app/.test(sql), 'no live address in the staging SQL');
+  assert.ok(sql.indexOf("'" + mk.MECH + "'") > -1 && sql.indexOf("'" + mk.MECH + "/store'") > -1);
+  // vercel.json: the staging rules match ONLY the staging address and send to the staging Portal / Store
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')), st = v.rewrites.filter(x => x.has);
+  assert.strictEqual(st.length, 4);
+  st.forEach(x => { assert.deepStrictEqual(x.has, [{ type: 'host', value: mk.HOST }]); assert.ok(/^https:\/\/rcl-(store|portal)-git-staging-pk12356843\.vercel\.app\//.test(x.destination), x.destination); });
+  assert.ok(v.rewrites.indexOf(st[3]) < v.rewrites.findIndex(x => !x.has), 'the staging rules come before the live ones');
+});
+
+test('update-141: the Google Sheet backup ONCE A DAY (the nightly job; the first open page of the day if it did not run); the logs only their new rows', () => {
+  const root = path.join(__dirname, '..');
+  const bk = require('../server/backup.vm.js'), rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8'), pg = fs.readFileSync(path.join(root, 'server', 'page.js'), 'utf8');
+  // an open page: nothing when a backup ended today (India date); 4 minutes after a failed try; the nightly job (full) always runs
+  assert.ok(/const doneToday = st => !!ms\(st\.lastCheck\) && dayOf\(ms\(st\.lastCheck\)\) === dayOf\(nowMs\)/.test(bk) && /'Asia\/Kolkata', 'yyyy-MM-dd'/.test(bk));
+  assert.ok(/if \(opt\.auto && !opt\.full && !unfinished && \(doneToday\(state\) \|\| \(ms\(state\.lastTry\) && nowMs - ms\(state\.lastTry\) < 4 \* 60000\)\)\) return \{ skipped: true \};/.test(bk));
+  assert.ok(/!\(state\.todo && state\.todo\.length\) && doneToday\(state\)\) \{ __unlockNamed\('backup'\); return \{ skipped: true \}; \}/.test(bk), 'checked again with the lock');
+  assert.ok(!/nowMs - Math\.max\(ms\(state\.lastCheck\), ms\(state\.lastTry\)\) < 4 \* 60000/.test(bk), 'no backup every 4 minutes any more');
+  // the logs: only the new rows, when the tab and the notes agree; else (and once in 30 days) whole
+  assert.ok(/const APPEND_ = \{ activity_log: 'id', store_activity: 'id' \};/.test(bk) && /MONTH = 30 \* day/.test(bk));
+  // (review 21-10-2026) read by key page by page, each key once; same columns; never into a tab made again in the same run
+  assert.ok(/const add = byKey\(t, kcol, a\.last\);/.test(bk) && /if \(!distinct\(add, kcol\)\) return null;/.test(bk) && /list = kcol \? byKey\(t, kcol, ''\) :/.test(bk));
+  assert.ok(/if \(a\.cols !== colsOf\(t\)\) return null;/.test(bk) && /if \(missing\.indexOf\(sbTabName_\(t\)\) > -1\) return null;/.test(bk));
+  assert.ok(/Number\(tab\.gridProperties\.rowCount\) !== Number\(a\.n\) \+ 1\) return null;/.test(bk) && /return countUpTo\(t, kcol, top\) === Number\(a\.n\) \+ add\.length \? add : null;/.test(bk));
+  assert.ok(/rowCount: x\.total \|\| x\.data\.length/.test(bk) && /'!A' \+ \(\(x\.from \|\| 0\) \+ i \+ 1\)/.test(bk) && /if \(!jobs\.length\) return;/.test(bk));
+  assert.ok(/keep\(\{ sig: old, fullRun: fullRun, todo: changed\.filter\(t => !doneNow\[t\]\), lastRun: nowIso, app: apps \}\)/.test(bk), 'the notes of the logs are kept with each group');
+  // the page asks every 30 minutes; a minute later while something is left (the answer says "pending")
+  assert.ok(/setInterval\(tick, 1800000\)/.test(pg) && !/setInterval\(tick, 300000\)/.test(pg) && /j\.pending > 0\) \{ clearTimeout\(soon\); soon = setTimeout\(tick, 60000\)/.test(pg));
+  assert.ok(/pending: Number\(r\.pending\) \|\| 0 \}; \}/.test(rt));
+  // the page's script still parses
+  const { shell } = require('../server/page.js'); const sh = shell(); const scripts = sh.match(/<script>([\s\S]*?)<\/script>/g) || [];
+  scripts.forEach(s => { new Function(s.replace(/^<script>|<\/script>$/g, '')); });
+  // the nightly job is still in vercel.json (02:00 India time) and still needs its secret
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  assert.deepStrictEqual(v.crons, [{ path: '/api/backup?full=1', schedule: '30 20 * * *' }]);
+  assert.ok(/if \(!secret \|\| !same\(got, 'Bearer ' \+ secret\)\) return send\(401/.test(fs.readFileSync(path.join(root, 'api', 'backup.js'), 'utf8')));
+  // the Admin's pill: the time when today's, else the date
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.ok(/'<\/svg><span>Backup ' \+ \(bad \? '!' : \(t \? bkWhen\(t\) : ''\)\)/.test(app) && /const bkWhen = iso =>/.test(app));
+  const bkWhen = new Function('const hhmm = iso => "T"; ' + app.slice(app.indexOf('const bkWhen = iso =>'), app.indexOf('\n', app.indexOf('const bkWhen = iso =>'))) + ' return bkWhen;')();
+  assert.strictEqual(bkWhen(new Date().toISOString()), 'T');
+  assert.ok(/^\d{2} [A-Z][a-z]{2}$/.test(bkWhen(new Date(Date.now() - 3 * 86400000).toISOString())), bkWhen(new Date(Date.now() - 3 * 86400000).toISOString()));
+});
+
+test('update-140: step 2b (web_boot2 – the settings and the users list only when changed) is listed word for word, only ADDS one function, is checked by the Admin\'s database page, and the server uses it with a way back', () => {
+  const file = fs.readFileSync(path.join(root, 'sql', 'supabase_step2b_light_boot.sql'), 'utf8');
+  const list = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')();
+  const i = list.findIndex(x => x.name === 'supabase_step2b_light_boot.sql');
+  assert.ok(i > -1, 'step 2b is listed in Read Me (so a new site and the staging database get it too)');
+  assert.strictEqual(list[i].sql, file, 'the text shown in the app is the file, word for word');
+  assert.strictEqual(list[i - 1].name, 'supabase_step2_web.sql', 'right after step 2 (it needs web.props / web.cache)');
+  const code = file.split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
+  assert.ok(!/\b(drop|truncate|delete|insert|update|alter)\b/i.test(code), 'nothing is dropped, emptied, changed or written – one function is added');
+  assert.match(code, /^\s*begin;/m); assert.match(code, /commit;/);
+  const fns = [...code.matchAll(/create or replace function public\.(\w+)\(/g)].map(m => m[1]);
+  assert.deepStrictEqual(fns, ['web_boot2'], 'exactly one function');
+  assert.match(code, /returns jsonb language plpgsql stable security definer set search_path = '' as/, 'a fixed, EMPTY search_path');
+  assert.match(code, /revoke all on function public\.web_boot2\(text\[\], text, jsonb, text\) from public, anon, authenticated;/);
+  assert.match(code, /grant execute on function public\.web_boot2\(text\[\], text, jsonb, text\) to service_role;/);
+  const fnBody = (code.match(/as \$\$([\s\S]*?)\$\$;/) || [])[1] || '';
+  assert.ok(fnBody && !/from\s+(?!web\.|c\b|v\b)\w+/i.test(fnBody), 'every table it reads is named with its schema (web.props, web.cache)');
+  assert.match(fnBody, /if p_stamp is null or p_stamp = '' or p_stamp <> v_sh then v_out := v_out \|\| v_st; end if;/, 'the stamp only when the server does not have it');
+  assert.match(fnBody, /'same',\s+coalesce\(\(select jsonb_agg\(c\.key\) from c where p_have is not null and \(p_have ->> c\.key\) = c\.h\)/, 'an unchanged entry: only its name');
+  // the Admin's database page knows the step; the staging file has it
+  const cg = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  assert.match(cg, /add\('Less data from the database[^']*\(step 2b\)', fn\('web_boot2'\), 'supabase_step2b_light_boot\.sql'\)/);
+  assert.ok(fs.readFileSync(path.join(root, 'staging', 'rcl_staging_all.sql'), 'utf8').indexOf(file) > -1, 'the staging database gets step 2b');
+  // the server: web_boot2 first, web_boot when it is missing (404); the light 15-minute check; one read shared by the threads
+  const gas = fs.readFileSync(path.join(root, 'server', 'gas.js'), 'utf8'), pool = fs.readFileSync(path.join(root, 'server', 'pool.js'), 'utf8'), rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8');
+  assert.match(gas, /rpc\('web_boot2', \{ p_keys: keys, p_ver: [^}]+p_have: have, p_stamp: BEAT\.st \? BEAT\.sh : '' \}\)/);
+  assert.match(gas, /if \(!BOOT_NOT_THERE\(e\)\) throw e; BEAT\.boot2 = Date\.now\(\);/, 'a missing step 2b → web_boot, as before (any other error is not hidden)');
+  assert.match(gas, /if \(BEAT\.boot2 === true \|\| Date\.now\(\) - Number\(BEAT\.boot2\) > 600000\)/, 'asked again 10 minutes later (the step may have been run since)');
+  assert.match(gas, /if \(whole \|\| lost \|\| stampLost\) \{ BEAT\.pall = null; BEAT\.kept\.clear\(\); BEAT\.st = null; BEAT\.sh = ''; return bootAsk\(keys\); \}/, 'anything that does not fit: everything again');
+  assert.match(gas, /throw new Error\('404 web_boot2 is not installed/);
+  assert.match(gas, /else if \(Date\.now\(\) - s\.loadedAt > WARM_REFRESH\) due\.push\(t\);/, 'after 15 minutes: the light check, not a whole read');
+  assert.match(gas, /Date\.now\(\) - \(s\.wholeAt \|\| 0\) > WARM_WHOLE\) cold\.push\(t\)/, 'a whole read once in 6 hours still');
+  assert.match(gas, /WARM_DIFF_MAX = 300/);
+  assert.match(pool, /workerData: \{ rclWorker: true, seed: \[\.\.\.SNAP\.values\(\)\] \}/, 'a new thread starts with the tables the server already read');
+  assert.match(gas, /if \(ON_TABLE && rows\.length < WARM_MAX\) ON_TABLE\(site\(\), t, WARM\.tables\.get\(t\)\);/, 'a very big table is not passed between threads');
+  assert.match(rt, /return \['S_' \+ String\(args\[0\] \|\| ''\), 'USERS_LIST', 'RTCN', 'FLOW_REMIND'\];/, 'the reminder mark comes with the start of the request');
+});
+
+test('update-142: a database helper unused for a while keeps running – only its connections are renewed (a new helper only when that cannot be done)', async () => {
+  const root = path.join(__dirname, '..'), src = fs.readFileSync(path.join(root, 'server', 'syncfetch.js'), 'utf8');
+  assert.match(src, /if \(worker && Date\.now\(\) - lastUsed > IDLE_MS && !renew\(worker\)\) \{ const old = worker; worker = null; try \{ old\.terminate\(\); \} catch \(e\) \{\} \}/, 'renewed first; replaced only when that fails');
+  assert.match(src, /const POOL_KEY = Symbol\.for\('undici\.globalDispatcher\.1'\);/);
+  assert.match(src, /if \(m && m\.renew\) \{ let ok = false; try \{ ok = renewPool\(used\); \} catch \(e\) \{ ok = false; \} m\.port\.postMessage\(ok === true\);/);
+  // (review 22-10-2026) the renewal itself, on every layout: only Node 20 / 22's (one pool, under '.1') is renewed; anything else → false
+  const block = /\/\/ <renewPool>([\s\S]*?)\/\/ <\/renewPool>/.exec(src)[1], vm = require('vm');
+  const tryIt = body => JSON.parse(vm.runInNewContext(block + '\nglobalThis.destroyed = 0; class Pool { dispatch() {} destroy() { globalThis.destroyed++; return Promise.resolve(); } }\nJSON.stringify((() => { ' + body + ' })());'));      // (plain values: the answer comes from another realm)
+  const K1 = "Symbol.for('undici.globalDispatcher.1')", K2 = "Symbol.for('undici.globalDispatcher.2')", put = (k, w) => 'Object.defineProperty(globalThis, ' + k + ', { value: ' + w + ', writable: true });';
+  assert.strictEqual(tryIt('return renewPool(false);'), true, 'no request yet: nothing to renew');
+  assert.strictEqual(tryIt('return renewPool(true);'), false, 'used, but no pool under the known name (another Node): replaced as before');
+  assert.deepStrictEqual(tryIt('const o = new Pool(); ' + put(K1, 'o') + ' const r = renewPool(true); return [r, globalThis[' + K1 + '] !== o, globalThis.destroyed];'), [true, true, 1], 'Node 20 / 22: a new pool, the old one closed');
+  assert.deepStrictEqual(tryIt(put(K1, 'new Pool()') + put(K2, 'new Pool()') + ' return [renewPool(true), globalThis.destroyed];'), [false, 0], 'a newer Node (undici 8 keeps its pool under .2): not renewed, nothing closed');
+  assert.deepStrictEqual(tryIt(put(K2, 'new Pool()') + ' return [renewPool(true), globalThis.destroyed];'), [false, 0]);
+  assert.deepStrictEqual(tryIt('const o = new Pool(); Object.defineProperty(globalThis, ' + K1 + ', { value: o, writable: false }); return [renewPool(true), globalThis[' + K1 + '] === o, globalThis.destroyed];'), [false, true, 0], 'cannot be replaced: the pool in use is left open');
+  const helper = /const WORKER_SRC = `([\s\S]*?)`;/.exec(src); assert.ok(helper); new Function('require', helper[1]);      // the helper's own code parses
+  // in use: a pause longer than the idle limit renews the connections of the same helper, and the next request is answered
+  const { Worker } = require('worker_threads');
+  const srv = new Worker("const http = require('http'); const { parentPort } = require('worker_threads'); http.createServer((q, s) => s.end('ok')).listen(0, '127.0.0.1', function () { parentPort.postMessage(this.address().port); });", { eval: true });
+  const port = await new Promise(ok => srv.once('message', ok));
+  process.env.RCL_FETCH_IDLE_MS = '600';
+  const file = path.join(root, 'server', 'syncfetch.js'); delete require.cache[require.resolve(file)];
+  const sf = require(file), url = 'http://127.0.0.1:' + port + '/';
+  try {
+    assert.strictEqual(sf.fetchAllSync([{ url: url }])[0].code, 200);
+    const made = sf.helpersMade(), renewed = sf.renewals();
+    for (let i = 0; i < 3; i++) { sf.sleepSync(700); assert.strictEqual(sf.fetchAllSync([{ url: url }])[0].code, 200); }
+    assert.strictEqual(sf.renewals(), renewed + 3, 'renewed after each pause'); assert.strictEqual(sf.helpersMade(), made, 'no new helper');
+  } finally { await srv.terminate(); delete process.env.RCL_FETCH_IDLE_MS; delete require.cache[require.resolve(file)]; }
 });

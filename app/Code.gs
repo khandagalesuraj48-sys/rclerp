@@ -548,7 +548,8 @@ function rtcSend_(u, x) {
     // the ones rung: on their list of calls (missed until they answer), and a notification to their devices (the app may be closed)
     const help = dj.help && typeof dj.help === 'object' ? clean_(dj.help.title || '').slice(0, 40) : '';
     fresh.forEach(id => { try { rtcMissEdit_(id, l => { l.unshift({ call: call, from: me, name: myName, at: Date.now(), st: 'r' }); return l; }); } catch (e) { /* the list is a help, never in the way of the ring */ } });
-    rtcPush_(fresh.filter(id => !cache.get('RTCPU_' + me + '_' + id) && (cache.put('RTCPU_' + me + '_' + id, '1', 20), true)), { t: 'ring', call: call, name: myName, help: help ? 1 : 0, page: help });      // (one notification per caller and person in 20 s)
+    const mode = dj.mode === 'voice' || dj.mode === 'video' ? dj.mode : '';      // (update-137) a call of the phone app: "is calling you" on the notification
+    rtcPush_(fresh.filter(id => !cache.get('RTCPU_' + me + '_' + id) && (cache.put('RTCPU_' + me + '_' + id, '1', 20), true)), { t: 'ring', call: call, name: myName, help: help ? 1 : 0, page: help, mode: mode });      // (one notification per caller and person in 20 s)
   }
   if ((t === 'answer' || t === 'decline') && !cache.get('RTCA_' + call + '_' + me) && !cache.get('RTCD_' + call + '_' + me)) rtcPush_([me], { t: 'done', call: call, name: nameOf(to[0]) }, str_(dj.ep));      // his other devices: "answered on another device"
   if (t === 'answer' && !cache.get('RTCA_' + call + '_' + me)) { cache.put('RTCA_' + call + '_' + me, '1', 21600); rtcPendDrop_(me, call); try { rtcMissEdit_(me, l => rtcMissMark_(l, call, 'a')); } catch (e) { /* see above */ } writeLog_(u, 'Screen share', 'Screen Share', call, myName + ' joined the screen share of ' + to.map(nameOf).join(', '), ''); }
@@ -863,6 +864,9 @@ const API_ = {
   decideChangeRequests: { m: '', withUser: true, f: (u, x) => flowDecideMany_(u, x), log: 'flowDecideMany' },      // (update-114) several verification requests at once
   getFlowRules:      { m: '', withUser: true, f: u => getFlowRules_(u) },
   answerFlow:        { m: '', withUser: true, f: (u, x) => flowAnswer_(u, x), log: 'flowAnswer' },
+  resendFlow:        { m: '', withUser: true, f: (u, x) => flowResend_(u, x), log: 'flowResend' },      // (update-128) the sender sends his rejected / returned entry again, as it was
+  openFlow:          { m: '', withUser: true, f: (u, x) => flowOpen_(u, x) },      // (update-130) the sender opens his rejected / returned entry in its form, what is wrong marked
+  editFlow:          { m: '', withUser: true, f: (u, x) => flowEdit_(u, x), log: 'flowEdit' },      // (update-130) …corrected: to verification again
   remindFlow:        { m: '', withUser: true, f: (u, x) => flowRemindMine_(u, x), log: 'flowRemindMine' },      // (update-118) the sender reminds the approvers of his waiting entries      // (update-116) the sender answers an entry sent back to him, or takes it back      // (update-114) the Super Admin's verification rules
   saveFlowRules:     { m: '', withUser: true, f: (u, x) => saveFlowRules_(u, x), log: 'flowRules' },
   saveDebitNote:     { m: 'Machinery Billing', edit: true, f: saveDebitNote_, log: 'debitNote' },
@@ -897,6 +901,10 @@ const API_ = {
   importDiesel:      { m: 'Diesel Issue', edit: true, f: importDiesel_, log: 'diImport' },
   updateDieselIssue: { m: 'Diesel Issue', edit: true, f: updateDieselIssue_, log: 'edit', sheet: 'SHEET_DIESEL', idh: 'ID' },
   deleteDieselIssue: { m: 'Diesel Issue', edit: true, f: deleteDieselIssue_, log: 'delete', sheet: 'SHEET_DIESEL', idh: 'ID' },
+  // (update-134) the Super Admin deletes entries (saved / waiting / returned / rejected) and brings them back – checked inside (sdelSuper_)
+  superDelList: { m: '', withUser: true, f: (u, x) => sdelList_(u, x) },
+  superDelete: { m: '', withUser: true, f: (u, x) => sdelDelete_(u, x) },
+  superRestore: { m: '', withUser: true, f: (u, x) => sdelRestore_(u, x) },
   getLogBook:        { m: 'Log Book', f: getLogBook_ },
   getLogBookList:    { m: 'Log Book', any: ['Log Book', 'Machinery Billing', 'Saved Bills'], f: getLogBookList_ },
   logPrintExtra:     { m: 'Log Book', any: ['Log Book', 'Machinery Billing', 'Saved Bills'], f: logPrintExtra_ },
@@ -1191,6 +1199,12 @@ function logAfter_(u, spec, args, res, before) {
       break;
     case 'flowRemindMine':      // (update-118)
       if ((res.reminded || []).length) writeLog_(u, 'Edit', 'Approvals', res.reminded.join(', ').slice(0, 120), 'Verification – reminder sent by the sender', res.reminded.join(', ').slice(0, 900));
+      break;
+    case 'flowResend':      // (update-128)
+      if ((res.done || []).length) writeLog_(u, 'Edit', 'Approvals', res.done.map(d => d.id).join(', ').slice(0, 120), 'Verification – sent again by the sender', clean_((args[0] || {}).note).slice(0, 300) + ((res.failed || []).length ? ' | not sent: ' + res.failed.map(f => f.id).join(', ') : ''));
+      break;
+    case 'flowEdit':      // (update-130)
+      if (res && res.ok === true) writeLog_(u, 'Edit', 'Approvals', res.id, 'Verification – corrected and sent again by the sender', (clean_((args[0] || {}).note).slice(0, 300) + ' | ' + (res.changes || []).join('; ')).slice(0, 900));
       break;
     case 'flowAnswer':      // (update-116)
       writeLog_(u, res.status === 'Withdrawn' ? 'Delete' : 'Edit', 'Approvals', res.id, res.status === 'Withdrawn' ? 'Verification – taken back by the sender' : 'Verification – answered and sent again', clean_((args[0] || {}).note).slice(0, 300));
@@ -3420,7 +3434,35 @@ function getBoqs_(f) {
   const out = [];
   roots.forEach(r => { out.push(r); list.filter(b => b.amendOf === r.id).sort((a, b) => a.amendNo - b.amendNo).forEach(a => out.push(a)); });
   list.filter(b => b.amendOf && !roots.some(r => r.id === b.amendOf)).forEach(b => out.push(b));
-  return { boqs: out, vendors: getVendors_() };
+  return { boqs: out, vendors: getVendors_(), history: boqHistory_(list) };
+}
+/* (update-132, asked 19-10-2026: "mala disayla haw old kay hot nantr amendment zali kadhi … boq period wise ani vehicle wise …
+ * jewa tya party war jail mi tewa mala disel 01 month sathi yacha ha rate hot … second month la ha rate … ani hi rate change zal tya
+ * sathi amendment pn dili aahe") THE RATE HISTORY of each machinery of a vendor – period by period, exactly as the bills take it
+ * (boqRateFor_: on each date the newest version that covers it): from – to, the rate, and which BOQ / amendment gave it. The old
+ * rate ends the day before an amendment starts; a time with no BOQ between two periods is said too. */
+const boqNewer_ = (x, y) => (x.from < y.from ? 1 : x.from > y.from ? -1 : 0) || (y.amendNo - x.amendNo) || (y.created > x.created ? 1 : y.created < x.created ? -1 : 0);
+function boqHistory_(list) {
+  const byVM = {}, byId = {};
+  list.forEach(b => { byId[b.id] = b; (b.lines || []).forEach(l => { const k = vKey_(b.vendor) + '|' + noKey_(l.no); (byVM[k] = byVM[k] || { vendor: b.vendor, no: l.no, vs: [] }).vs.push({ b: b, l: l }); }); });
+  return Object.keys(byVM).map(k => {
+    const g = byVM[k], vs = g.vs;
+    const at = d => vs.filter(v => v.b.from <= d && (!v.b.to || v.b.to >= d)).sort((x, y) => boqNewer_(x.b, y.b))[0] || null;
+    const bounds = [...new Set(vs.map(v => v.b.from).concat(vs.filter(v => v.b.to).map(v => addDays_(v.b.to, 1))))].filter(Boolean).sort();
+    const segs = [];
+    bounds.forEach((d, i) => {
+      const v = at(d), end = i + 1 < bounds.length ? addDays_(bounds[i + 1], -1) : (v ? v.b.to : '');
+      const last = segs[segs.length - 1];
+      if (last && (last.v && v ? last.v.b.id === v.b.id : !last.v && !v)) { last.to = end; return; }
+      segs.push({ from: d, to: end, v: v });
+    });
+    while (segs.length && !segs[segs.length - 1].v) segs.pop();
+    while (segs.length && !segs[0].v) segs.shift();
+    return { vendor: g.vendor, no: g.no, periods: segs.map(x => {
+      if (!x.v) return { from: x.from, to: x.to, none: true };
+      const b = x.v.b, root = b.amendOf ? byId[b.amendOf] : null;
+      return { from: x.from, to: x.to, boq: b.id, boqNo: b.no, amendNo: b.amendOf ? b.amendNo : 0, of: root ? root.no : (b.amendOf || ''), line: x.v.l, woNo: b.woNo || (root ? root.woNo : '') }; }) };
+  }).sort((a, b) => a.vendor.localeCompare(b.vendor) || String(a.no).localeCompare(String(b.no)));
 }
 // hour slabs of a Per Hour rate (2 or more): [{ upTo, rate }], the last one open ("after that")
 function boqSlabs_(l, basis, at) {
@@ -3507,7 +3549,9 @@ function saveBoq_(b, mode, id) {
     if (amendOf) {
       const root = all.find(x => x.id === amendOf); if (!root) throw new Error('The BOQ being amended (' + amendOf + ') was not found.');
       if (vKey_(root.vendor) !== vKey_(vendor)) throw new Error('An amendment must be for the same vendor (' + root.vendor + ').');
-      if (from < root.from || (root.to && from > root.to)) throw new Error('The amendment must start inside the BOQ period (' + dmy_(root.from) + ' to ' + (root.to ? dmy_(root.to) : 'open') + ').');
+      // (update-132) from the date the new rate starts – on or after the BOQ's start, also after its end (that machinery goes on at
+      // the new rate; the others of the BOQ stay as they are)
+      if (from < root.from) throw new Error('The amendment must start on or after the start of BOQ ' + (root.no || root.id) + ' (' + dmy_(root.from) + ').');
       if (mode !== 'edit') amendNo = all.filter(x => x.amendOf === amendOf).reduce((mx, x) => Math.max(mx, x.amendNo), 0) + 1;
     } else {
       // two BOQs (not amendments) of one vendor may not give the same machinery for the same dates
@@ -3812,7 +3856,7 @@ function boqRateFor_(vendor, no, dk) {
     const l = b.lines.find(x => same_(x.no, no)); if (l) hits.push({ b: b, l: l });
   });
   if (!hits.length) return null;
-  hits.sort((x, y) => (x.b.from < y.b.from ? 1 : x.b.from > y.b.from ? -1 : 0) || (y.b.amendNo - x.b.amendNo) || (y.b.created > x.b.created ? 1 : -1));
+  hits.sort((x, y) => boqNewer_(x.b, y.b));      // (update-132: the same order as the rate history)
   const h = hits[0];
   const root = h.b.amendOf ? allBoqs_().find(x => x.id === h.b.amendOf) : null;
   return { boq: h.b.id, boqNo: h.b.no, amendNo: h.b.amendNo, from: h.b.from, to: h.b.to, line: h.l, gstPct: h.b.gstPct, tdsPct: h.b.tdsPct,
@@ -4128,12 +4172,6 @@ function nextDieselNo_(t) {
 }
 function markDieselNo_(n) { PropertiesService.getScriptProperties().setProperty('DIESEL_LAST_NO', String(n)); }
 
-function readingWarnings_(no, v, last) {
-  const w = [];
-  if (last && v.km !== '' && last.km !== '' && v.km < last.km) w.push(no + ': KM Reading ' + v.km + ' is less than the last KM Reading ' + last.km + '.');
-  if (last && v.hr !== '' && last.hr !== '' && v.hr < last.hr) w.push(no + ': Hrs Reading ' + v.hr + ' is less than the last Hrs Reading ' + last.hr + '.');
-  return w;
-}
 
 /* Diesel given to one machinery before / on a date (newest first): shown while issuing diesel,
  * so the person knows when it was last filled, how much, and the last reading. */
@@ -4164,9 +4202,10 @@ function saveDieselIssue_(d, u) {
     const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_);
     requireStockAt_(v.source, dk, shift, '', v.qty);
 
-    if (!d.force) {
-      const warn = readingWarnings_(m.id, v, lastReadings_(t, m.id));
-      if (warn.length) return { ok: false, warning: warn.join(' ') + ' Save anyway?' };
+    if (!d.force || flowStrict_()) {      // (update-131) by its date – the fills before and after it; for approval: a mistake
+      const warn = fitWarnings_(dieselPts_(t, dieselIdxs_(t, m.id), -1), [dk, shiftOrder_(shift), Date.now()], v);
+      if (warn.length && flowStrict_()) throw new Error(m.id + ': ' + warn.join(' ') + ' ' + FLOW_FIT_MSG_);
+      if (warn.length) return { ok: false, warning: m.id + ': ' + warn.join(' ') + ' Save anyway?' };
     }
 
     const n = nextDieselNo_(t);
@@ -4196,6 +4235,7 @@ function importDiesel_(rows) {
     getMaster_().forEach(m => { byKey[noKey_(m.id)] = m; });
     const T = stockTables_(), t = T.dt;
     const errors = [], items = [];
+    const strict = flowStrict_(), idxOf = strict ? dieselIdxsAll_(t) : {}, seen = {}, now0 = Date.now();      // (update-131)
     rows.forEach((d, i) => {
       const line = Number((d && d.line) || i + 1);
       try {
@@ -4206,6 +4246,12 @@ function importDiesel_(rows) {
         if (m.ownership !== 'Debit' && APP.UNITS.indexOf(m.unit) === -1) throw new Error('Set the Unit for ' + m.id + ' in Master first.');
         assertActive_(m, dk);
         const v = validateDiesel_(d, m);
+        if (strict) {      // (update-131) going to approval: a reading that does not fit its date is a mistake (the rows above it count too)
+          const k = noKey_(m.id), me = [dk, shiftOrder_(shift), now0 + i];
+          const warn = fitWarnings_(dieselPts_(t, idxOf[k] || [], -1).concat(seen[k] || []), me, v);
+          (seen[k] = seen[k] || []).push({ key: me, km: v.km, hr: v.hr, at: 'row ' + line + ' of this entry' });
+          if (warn.length) throw new Error(m.id + ': ' + warn.join(' '));
+        }
         items.push({ line: line, dk: dk, shift: shift, m: m, v: v });
       } catch (e) { errors.push({ row: line, msg: e.message }); }
     });
@@ -4247,16 +4293,9 @@ function saveDieselBulk_(b) {
     getMaster_().forEach(m => { byKey[noKey_(m.id)] = m; });
     const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_);
 
-    // last readings of every machine, read once
-    const last = {}, lastRow = {};
-    t.rows.forEach(r => {
-      const k = noKey_(r[t.c[H.NO]]);
-      if (!k) return;
-      if (!lastRow[k] || cmpDiesel_(r, lastRow[k], t.c) >= 0) {
-        lastRow[k] = r;
-        last[k] = { km: numOrBlank_(r[t.c[H.KMR]]), hr: numOrBlank_(r[t.c[H.HRR]]) };
-      }
-    });
+    // (update-131) each machinery's fills, read once – a row's readings are checked by its date (the fills before and after it,
+    // and the rows above it in this entry); for an entry going to approval a reading that does not fit is a mistake
+    const idxOf = dieselIdxsAll_(t), now = Date.now(), strict = flowStrict_();
 
     const errors = [], warnings = [], items = [], seen = {};
     (b.rows || []).forEach((d, i) => {
@@ -4271,9 +4310,9 @@ function saveDieselBulk_(b) {
         const v = validateDiesel_(d, m);
         const k = noKey_(m.id);
         // the same machinery more than once in a day is normal (several fills) – only its readings are checked in order
-        readingWarnings_(m.id, v, seen[k] || last[k]).forEach(msg => warnings.push({ row: i + 1, msg: msg }));
-        const prev = seen[k] || last[k] || { km: '', hr: '' };
-        seen[k] = { km: v.km !== '' ? v.km : prev.km, hr: v.hr !== '' ? v.hr : prev.hr };
+        const pts = dieselPts_(t, idxOf[k] || [], -1).concat(seen[k] || []);
+        fitWarnings_(pts, [dk, shiftOrder_(shift), now + i], v).forEach(msg => (strict ? errors : warnings).push({ row: i + 1, msg: m.id + ': ' + msg }));
+        (seen[k] = seen[k] || []).push({ key: [dk, shiftOrder_(shift), now + i], km: v.km, hr: v.hr, at: 'row ' + (i + 1) + ' of this entry' });
         items.push({ m: m, v: v });
       } catch (e) { errors.push({ row: i + 1, msg: e.message }); }
     });
@@ -4330,8 +4369,9 @@ function updateDieselIssue_(id, d) {
     const v = validateDiesel_(d, m);
     requireStockAt_(v.source, dk, shift, str_(id), v.qty); // the entry being edited is left out first
 
-    if (!d.force) {
+    if (!d.force || flowStrict_()) {      // (update-131) for approval: a mistake
       const warn = neighbourWarnings_(t, i, m.id, dk, shift, created, v);
+      if (warn.length && flowStrict_()) throw new Error(m.id + ': ' + warn.join(' ') + ' ' + FLOW_FIT_MSG_);
       if (warn.length) return { ok: false, warning: warn.join(' ') + ' Save anyway?' };
     }
 
@@ -4362,30 +4402,221 @@ function deleteDieselIssue_(id) {
   });
 }
 
-// For an edited entry: reading should not be below the entry before it or above the entry after it.
-function neighbourWarnings_(t, skip, no, dk, shift, created, v) {
-  const key = r => [dkey_(r[t.c[H.IDATE]]), shiftOrder_(str_(r[t.c[H.SHIFT]])),
-    r[t.c[H.CREATED]] instanceof Date ? r[t.c[H.CREATED]].getTime() : 0];
-  const cmp = (a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : (a[1] - b[1]) || (a[2] - b[2]));
-  const me = [dk, shiftOrder_(shift), created.getTime()];
-  let prev = null, next = null;
-  t.rows.forEach((r, k) => {
-    if (k === skip || !same_(r[t.c[H.NO]], no)) return;
-    const kk = key(r);
-    if (cmp(kk, me) < 0) { if (!prev || cmp(kk, key(prev)) > 0) prev = r; }
-    else if (!next || cmp(kk, key(next)) < 0) next = r;
+/* (update-134, asked 19-10-2026: "super admin user ni kelelI konti hi entry mg ti save aso approval madhe aso ki retuen aso ki
+ * reject aso konti hi entry delet kru shakel jas ki koni diesel issue kel aasel super admin ti entry delet kru shakel single date or
+ * ya period wise"; his choices: Diesel Issue first, an entry in a submitted bill is NOT deleted, a deleted entry can be brought back,
+ * picked from a list with ticks) THE SUPER ADMIN DELETES ENTRIES – Diesel Issue: the saved ones and the ones waiting for
+ * verification, returned or rejected, of one date or a period (also: who entered it, which machinery).
+ *   – The ticked entries are deleted together or none (each refusal said): an entry in a submitted RA Bill (the bill is deleted
+ *     first) or of a closed month is not deleted. An approved request is not listed: its entries are saved, they are deleted.
+ *   – Each deleted entry is KEPT WHOLE in "Deleted entries" (the table billed_changes, kind "Deleted" – no new table): a saved
+ *     entry with every column of its row (its ID, photos, who entered it), a request with its kind set to "Flow Deleted" (all of it
+ *     stays). The Super Admin brings it back from there: the same entry, checked again – the month open, not in a bill now, the
+ *     diesel in stock on its date, its ID not taken; a request goes back as it was (waiting / returned / rejected).
+ *   – Every delete and restore is in the Activity Log. */
+const SDEL_M_ = 'Diesel Issue';
+function sdelSuper_(u) { if (!u || !u.super) throw new Error('Only the Super Admin deletes or brings back entries here (signed in through the Portal).'); }
+const sdelIsFlow_ = r => !!(API_[r.fn] && API_[r.fn].m === SDEL_M_);
+// the dates of a request: those in what it saves, and those it names (an edit / delete of a saved entry)
+function sdelFlowDates_(r) {
+  let a = []; try { a = JSON.parse(r.args || '[]'); } catch (e) { a = []; }
+  const o = {}; flowFacts_(r.fn, a).dates.forEach(d => { o[d] = true; });
+  (str_(r.dates).match(/\d{2}-\d{2}-\d{4}/g) || []).forEach(x => { o[x.split('-').reverse().join('-')] = true; });
+  return Object.keys(o).sort();
+}
+function sdelRange_(f) {
+  f = f || {};
+  const from = str_(f.from) ? checkDate_(f.from) : str_(f.to) ? checkDate_(f.to) : '';
+  if (!from) throw new Error('Pick the date (or From and To).');
+  const to = str_(f.to) ? checkDate_(f.to) : from;
+  if (from > to) throw new Error('From date is after To date.');
+  return { from: from, to: to };
+}
+const sdelStatus_ = s => s === 'Pending' ? 'Waiting for verification' : s;
+function sdelDeleted_(t) { return t ? t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.id && r.kind === 'Deleted') : []; }
+function sdelList_(u, f) {
+  sdelSuper_(u); f = f || {};
+  const R = sdelRange_(f), by = clean_(f.by).toUpperCase(), noK = noKey_(f.no);
+  const inR = ds => ds.some(d => d >= R.from && d <= R.to);
+  const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, LK = lockMarker_(), closed = booksClosed_(), users = {};
+  const saved = [];
+  t.rows.forEach(r => {
+    const dk = dkey_(r[c[H.IDATE]]); if (!dk || dk < R.from || dk > R.to) return;
+    const eby = H.EBY in c ? str_(r[c[H.EBY]]) : '', no = str_(r[c[H.NO]]);
+    if (eby) users[eby] = true;
+    if (noK && noKey_(no).indexOf(noK) === -1) return;
+    if (by && eby.toUpperCase() !== by) return;
+    const bid = LK.of(no, dk);
+    saved.push({ id: str_(r[c[H.ID]]), date: dk, shift: str_(r[c[H.SHIFT]]), no: no, type: str_(r[c[H.TYPE]]), qty: numOrBlank_(r[c[H.QTY]]), kmReading: numOrBlank_(r[c[H.KMR]]),
+      hrReading: numOrBlank_(r[c[H.HRR]]), source: loc_(r[c[H.SOURCE]]), by: eby, bill: bid ? (LK.locks[bid] || {}).billNo || bid : '', closed: !!(closed && dk <= closed) });
   });
+  saved.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || (shiftOrder_(a.shift) - shiftOrder_(b.shift)) || a.id.localeCompare(b.id));
+  const waiting = flowAll_().filter(r => sdelIsFlow_(r) && r.status !== 'Approved').map(r => Object.assign(r, { ds: sdelFlowDates_(r) })).filter(r => {
+    if (r.by) users[r.by] = true;
+    return inR(r.ds) && (!noK || noKey_(r.nos).indexOf(noK) > -1) && (!by || str_(r.by).toUpperCase() === by);
+  }).map(r => ({ id: r.id, status: r.status, label: sdelStatus_(r.status), what: flowLabel_(r.fn), dates: r.ds, nos: r.nos, qty: (r.flow || {}).qty || '', by: r.by, at: r.at,
+    lines: (r.summary || []).slice(0, 5), more: Math.max(0, (r.summary || []).length - 5) }));
+  let ct = null; try { ct = crTable_(false); } catch (e) { ct = null; }
+  const deleted = sdelDeleted_(ct).filter(r => r.status === 'Deleted').map(r => { let a = {}; try { a = JSON.parse(r.args || '{}') || {}; } catch (e) { a = {}; } return Object.assign(r, { a: a, ds: (str_(r.dates).match(/\d{4}-\d{2}-\d{2}/g) || []) }); })
+    .filter(r => inR(r.ds) && (!noK || noKey_(r.nos).indexOf(noK) > -1) && (!by || str_(r.a.by).toUpperCase() === by))
+    .map(r => ({ id: r.id, entry: r.result, kind: r.a.flow ? 'request' : 'saved', was: r.a.flow ? sdelStatus_(r.a.status) : 'Saved', dates: r.ds, nos: r.nos, qty: r.a.qty === undefined ? '' : r.a.qty,
+      by: r.a.by || '', deletedBy: r.by, deletedAt: r.at, lines: (r.summary || []).slice(0, 5) }));
+  return { from: R.from, to: R.to, closedUpto: closed, saved: saved, waiting: waiting, deleted: deleted, users: Object.keys(users).sort((a, b) => a.localeCompare(b)) };
+}
+// the next DEL-00001 … (never taken again: the rows stay)
+const sdelNextNo_ = ct => ct.rows.reduce((mx, r) => { const m = str_(r[ct.c['Request ID']]).match(/^DEL-(\d+)$/); return m ? Math.max(mx, Number(m[1])) : mx; }, 0) + 1;
+const sdelKeep_ = v => v instanceof Date ? { d: v.toISOString() } : v;
+const sdelBack_ = v => v && typeof v === 'object' && typeof v.d === 'string' ? new Date(v.d) : v;
+function sdelDelete_(u, x) {
+  sdelSuper_(u); x = x || {};
+  const uniq = a => [...new Set((Array.isArray(a) ? a : []).map(str_).filter(Boolean))];
+  const ids = uniq(x.ids), flows = uniq(x.flows);
+  if (!ids.length && !flows.length) throw new Error('Tick the entries to delete first.');
+  if (ids.length + flows.length > 500) throw new Error('Delete up to 500 entries at a time.');
+  const out = withLock_(() => {
+    TABLE_MEMO_ = {};
+    const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, all = flowAll_(), bad = [], rows = [], fl = [];
+    ids.forEach(id => {
+      const i = t.rows.findIndex(r => str_(r[c[H.ID]]) === id);
+      if (i === -1) { bad.push(id + ': not found – deleted or changed meanwhile. Show the list again.'); return; }
+      const r = t.rows[i], no = str_(r[c[H.NO]]), dk = dkey_(r[c[H.IDATE]]);
+      try { booksOpen_(dk, 'Diesel issue ' + id + ' (' + no + ')'); } catch (e) { bad.push(e.message); return; }
+      const b = billLockOf_(no, dk);
+      if (b) { bad.push(id + ' (' + no + ', ' + dmy_(dk) + '): it is in the submitted RA Bill ' + b.billNo + ' of ' + b.vendor + ' – an entry of a submitted bill is not deleted (delete that bill first).'); return; }
+      rows.push({ i: i, r: r, id: id, no: no, dk: dk, shift: str_(r[c[H.SHIFT]]) });
+    });
+    flows.forEach(id => {
+      const f = all.find(r => r.id === id);
+      if (!f || !sdelIsFlow_(f)) { bad.push(id + ': not found – deleted or decided meanwhile. Show the list again.'); return; }
+      if (f.status === 'Approved') { bad.push(id + ': approved – its entries are saved; delete those.'); return; }
+      fl.push(f);
+    });
+    if (bad.length) return { ok: false, errors: bad };      // nothing is deleted
+    const ct = crTable_(true), now = new Date();
+    let n = sdelNextNo_(ct);
+    const kept = [];
+    const keepRow = (entry, dates, nos, summary, args) => {
+      const id = 'DEL-' + String(n++).padStart(5, '0'), row = newRow_(ct);
+      set_(row, ct, 'Request ID', id); set_(row, ct, 'Kind', 'Deleted'); set_(row, ct, 'Requested At', now); set_(row, ct, 'Requested By', u.name || u.email);
+      set_(row, ct, 'Requester Email', str_(u.email).toLowerCase()); set_(row, ct, 'Action', SDEL_M_); set_(row, ct, 'Args', JSON.stringify(args)); set_(row, ct, 'Summary', JSON.stringify(summary));
+      set_(row, ct, 'Machinery', str_(nos).slice(0, 300)); set_(row, ct, 'Dates', dates.join(', ').slice(0, 300)); set_(row, ct, 'Status', 'Deleted'); set_(row, ct, 'Result', entry); set_(row, ct, 'Created At', now);
+      ct.sh.appendRow(row); kept.push({ del: id, entry: entry });
+      return id;
+    };
+    const logs = [];
+    rows.forEach(e => {
+      const keep = {}; Object.keys(c).forEach(h => { keep[h] = sdelKeep_(e.r[c[h]]); });
+      const words = e.no + ' – ' + dmy_(e.dk) + ', ' + e.shift + ': ' + fmtVal_(e.r[c[H.QTY]]) + ' Ltr' + (str_(e.r[c[H.KMR]]) ? ', KM ' + str_(e.r[c[H.KMR]]) : '') + (str_(e.r[c[H.HRR]]) ? ', Hrs ' + str_(e.r[c[H.HRR]]) : '') + ' from ' + loc_(e.r[c[H.SOURCE]]);
+      const del = keepRow(e.id, [e.dk], e.no, [words], { row: keep, by: H.EBY in c ? str_(e.r[c[H.EBY]]) : '', qty: numOrBlank_(e.r[c[H.QTY]]) });
+      logs.push([e.id, 'Deleted by the Super Admin – kept as ' + del + ' (Deleted entries)', 'Deleted values – ' + describe_(Object.keys(c).reduce((o, h) => { o[h] = e.r[c[h]]; return o; }, {}))]);
+    });
+    rows.slice().sort((a, b) => b.i - a.i).forEach(e => t.sh.deleteRow(e.i + 2));
+    fl.forEach(f => {
+      const r1 = ct.rows.map((r, i) => crOut_(ct, r, i)).find(r => r.id === f.id && r.kind === 'Flow'), row = ct.rows[r1.i].slice();
+      set_(row, ct, 'Kind', 'Flow Deleted'); stampEdit_(row, ct);
+      ct.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]);
+      const del = keepRow(f.id, sdelFlowDates_(f), f.nos, f.summary || [], { flow: f.id, status: f.status, by: f.by, qty: (f.flow || {}).qty || '' });
+      logs.push([f.id, 'Deleted by the Super Admin (' + sdelStatus_(f.status) + ') – kept as ' + del + ' (Deleted entries)', (f.summary || []).join('; ').slice(0, 900)]);
+    });
+    TABLE_MEMO_ = {};
+    const done = {}; rows.forEach(e => { const k = e.no + '|' + e.dk + '|' + e.shift; if (!done[k]) { done[k] = true; syncLogFromDiesel_(e.no, e.dk, e.shift); } });
+    if (rows.length) recalcBalances_();
+    logs.forEach(l => writeLog_(u, 'Delete', l[0].indexOf('VF-') === 0 ? 'Approvals' : SDEL_M_, l[0], l[1], l[2]));
+    return { ok: true, deleted: rows.length + fl.length, saved: rows.length, requests: fl.length, kept: kept, stock: getStock_() };
+  });
+  if (out && out.ok) bump_(['stock', 'log', 'flow', 'activity']);
+  return out;
+}
+function sdelRestore_(u, x) {
+  sdelSuper_(u); x = x || {};
+  const ids = [...new Set((Array.isArray(x.ids) ? x.ids : []).map(str_).filter(Boolean))];
+  if (!ids.length) throw new Error('Tick the deleted entries to bring back first.');
+  if (ids.length > 500) throw new Error('Bring back up to 500 entries at a time.');
+  const out = withLock_(() => {
+    TABLE_MEMO_ = {};
+    const ct = crTable_(true), dl = sdelDeleted_(ct), t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, bad = [], todo = [];
+    const need = {};      // the diesel taken out of stock again, per place (in date order), checked together
+    ids.forEach(id => {
+      const d = dl.find(r => r.id === id);
+      if (!d || d.status !== 'Deleted') { bad.push(id + ': not in Deleted entries – brought back meanwhile. Show the list again.'); return; }
+      let a = {}; try { a = JSON.parse(d.args || '{}') || {}; } catch (e) { a = {}; }
+      if (a.flow) {
+        const r1 = ct.rows.map((r, i) => crOut_(ct, r, i)).find(r => r.id === a.flow && r.kind === 'Flow Deleted');
+        if (!r1) { bad.push(id + ': its request ' + a.flow + ' is not there any more.'); return; }
+        todo.push({ d: d, a: a, flowAt: r1.i }); return;
+      }
+      const row = a.row || {}, eid = str_(row[H.ID]), dk = dkey_(sdelBack_(row[H.IDATE])), no = str_(row[H.NO]);
+      if (!eid || !dk) { bad.push(id + ': the kept entry is not complete – it cannot be brought back.'); return; }
+      if (t.rows.some(r => str_(r[c[H.ID]]) === eid)) { bad.push(id + ': an entry ' + eid + ' is saved already.'); return; }
+      try { booksOpen_(dk, 'Diesel issue ' + eid + ' (' + no + ')'); } catch (e) { bad.push(e.message); return; }
+      const b = billLockOf_(no, dk);
+      if (b) { bad.push(eid + ' (' + no + ', ' + dmy_(dk) + '): that date is now in the submitted RA Bill ' + b.billNo + ' of ' + b.vendor + ' – it is not brought back into a submitted bill.'); return; }
+      todo.push({ d: d, a: a, row: row, eid: eid, dk: dk, no: no, shift: str_(row[H.SHIFT]) });
+    });
+    // the diesel goes out of stock again on its date: there must be that much (all brought back together)
+    todo.filter(x => x.row).sort((p, q) => (p.dk < q.dk ? -1 : p.dk > q.dk ? 1 : 0)).forEach(x => {
+      const loc = loc_(sdelBack_(x.row[H.SOURCE])), q = num0_(x.row[H.QTY]);
+      need[loc] = r2_((need[loc] || 0) + q);      // the earlier ones brought back with it count too
+      try { requireStockAt_(loc, x.dk, x.shift, '', need[loc]); } catch (e) { bad.push(x.eid + ' (' + x.no + ', ' + dmy_(x.dk) + '): ' + e.message); }
+    });
+    if (bad.length) return { ok: false, errors: bad };      // nothing is brought back
+    const now = new Date(), logs = [];
+    todo.forEach(x => {
+      if (x.a.flow) {
+        const row = ct.rows[x.flowAt].slice(); set_(row, ct, 'Kind', 'Flow'); stampEdit_(row, ct);
+        ct.sh.getRange(x.flowAt + 2, 1, 1, row.length).setValues([row]);
+        logs.push(['Approvals', x.a.flow, 'Brought back by the Super Admin from Deleted entries (' + x.d.id + ') – ' + sdelStatus_(x.a.status), (x.d.summary || []).join('; ').slice(0, 900)]);
+      } else {
+        const row = new Array(t.headers.length).fill('');
+        Object.keys(x.row).forEach(h => { if (h in c) row[c[h]] = sdelBack_(x.row[h]); });
+        t.sh.appendRow(row);
+        logs.push([SDEL_M_, x.eid, 'Brought back by the Super Admin from Deleted entries (' + x.d.id + ')', (x.d.summary || []).join('; ').slice(0, 900)]);
+      }
+      const dr = ct.rows[x.d.i].slice();
+      set_(dr, ct, 'Status', 'Restored'); set_(dr, ct, 'Decided By', u.name || u.email); set_(dr, ct, 'Decided At', now); stampEdit_(dr, ct);
+      ct.sh.getRange(x.d.i + 2, 1, 1, dr.length).setValues([dr]);
+    });
+    TABLE_MEMO_ = {};
+    const done = {}; todo.filter(x => x.row).forEach(x => { const k = x.no + '|' + x.dk + '|' + x.shift; if (!done[k]) { done[k] = true; syncLogFromDiesel_(x.no, x.dk, x.shift); } });
+    if (todo.some(x => x.row)) recalcBalances_();
+    logs.forEach(l => writeLog_(u, 'Add', l[0], l[1], l[2], l[3]));
+    return { ok: true, restored: todo.length, ids: todo.map(x => x.eid || x.a.flow), stock: getStock_() };
+  });
+  if (out && out.ok) bump_(['stock', 'log', 'flow', 'activity']);
+  return out;
+}
+
+// For an edited entry: reading should not be below the entry before it or above the entry after it.
+/* (update-131, 19-10-2026: "send any way he option nko aahe chukicha data approval sathi gelach nahi pahije kay chukey te user la
+ * patkan samjle pahije user correct krel tya nantr correct hoil mg te send hou shakel") A FILL'S READINGS BY ITS DATE – not lower
+ * than the nearest fill BEFORE it that has that reading (by date, shift, time) and not higher than the nearest fill AFTER it; the
+ * message names that fill's date, so the person sees at once what does not fit. (Until update-131 a new fill was checked against
+ * the machinery's NEWEST fill: an entry of an earlier date – e.g. one approved days later – was "less than the last" on every
+ * line. Edit already checked the fills before and after.) For an entry going to approval (flowStrict_) it is a mistake: it is
+ * corrected first – no "Save anyway"; a save that waits for no one keeps "Save anyway". */
+const FLOW_FIT_MSG_ = 'Correct the reading – an entry for approval goes only when its readings fit.';
+// an entry is being checked or saved for approval (sent, sent again, corrected, approved)
+const flowStrict_ = () => !!(FLOW_DRY_ON_ || FLOW_RUN_ID_);
+const dieselIdxs_ = (t, no) => { const k = noKey_(no), out = []; t.rows.forEach((r, i) => { if (noKey_(r[t.c[H.NO]]) === k) out.push(i); }); return out; };
+const dieselIdxsAll_ = t => { const o = {}; t.rows.forEach((r, i) => { const k = noKey_(r[t.c[H.NO]]); if (k) (o[k] = o[k] || []).push(i); }); return o; };
+// the saved fills (rows idxs, but skip) as points: [date, shift order, time], the readings, and the fill's date in words
+const dieselPts_ = (t, idxs, skip) => idxs.filter(i => i !== skip).map(i => { const r = t.rows[i], dk = dkey_(r[t.c[H.IDATE]]);
+  return { key: [dk, shiftOrder_(str_(r[t.c[H.SHIFT]])), r[t.c[H.CREATED]] instanceof Date ? r[t.c[H.CREATED]].getTime() : 0], km: numOrBlank_(r[t.c[H.KMR]]), hr: numOrBlank_(r[t.c[H.HRR]]), at: 'fill of ' + dmy_(dk) + ', ' + str_(r[t.c[H.SHIFT]]) }; });
+function fitWarnings_(pts, me, v) {
+  const cmp = (a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : (a[1] - b[1]) || (a[2] - b[2]));
   const w = [];
-  const chk = (val, col, label) => {
-    if (val === '') return;
-    const p = prev ? numOrBlank_(prev[t.c[col]]) : '';
-    const n = next ? numOrBlank_(next[t.c[col]]) : '';
-    if (p !== '' && val < p) w.push(label + ' ' + val + ' is less than the earlier ' + label + ' ' + p + '.');
-    if (n !== '' && val > n) w.push(label + ' ' + val + ' is more than the later ' + label + ' ' + n + '.');
-  };
-  chk(v.km, H.KMR, 'KM Reading');
-  chk(v.hr, H.HRR, 'Hrs Reading');
+  [['km', 'KM Reading'], ['hr', 'Hrs Reading']].forEach(([f, L]) => {
+    const val = v[f]; if (val === '' || val === null || val === undefined) return;
+    let prev = null, next = null;
+    pts.forEach(p => { if (p[f] === '' || p[f] === null || p[f] === undefined) return; const c = cmp(p.key, me);
+      if (c < 0) { if (!prev || cmp(p.key, prev.key) > 0) prev = p; } else if (c > 0 && (!next || cmp(p.key, next.key) < 0)) next = p; });
+    if (prev && val < prev[f]) w.push(L + ' ' + val + ' is less than the earlier ' + L + ' ' + prev[f] + ' (' + prev.at + ').');
+    if (next && val > next[f]) w.push(L + ' ' + val + ' is more than the later ' + L + ' ' + next[f] + ' (' + next.at + ').');
+  });
   return w;
+}
+function neighbourWarnings_(t, skip, no, dk, shift, created, v) {
+  return fitWarnings_(dieselPts_(t, dieselIdxs_(t, no), skip), [dk, shiftOrder_(shift), created.getTime()], v);
 }
 
 // Filtered list of diesel issues, newest first.
@@ -4467,7 +4698,11 @@ function getDieselIssues_(f) {
  * The dashboard photo is also read by the AI (the same service as the assistant): the KM / hour-meter reading it shows is put in
  * the form, where the person checks it and may change it – ONE reading is saved. */
 const PHOTO_BUCKET_ = 'diesel-photos';
-const PHOTO_KINDS_ = { dash: 'Dashboard', veh: 'Vehicle and driver', pump: 'Dispenser litres', reg: 'Register' };
+const PHOTO_KINDS_ = { dash: 'Dashboard', hrs: 'Hour meter', veh: 'Vehicle and driver', pump: 'Dispenser litres', reg: 'Register' };
+// (update-139, asked 20-10-2026: "jya gadich 2 engine yet tith 2 reading takayla lahtat ek km ani ek hrs tr ase 2 photo weg wegle
+// gheta yawet") the Hour meter photo: for a machinery measured by KM and Hrs, whose hour meter is not on the dashboard
+const PHOTO_ORDER_ = ['dash', 'hrs', 'veh', 'pump', 'reg'];
+const PHOTO_NAMES_ = 'Dashboard, Hour meter, Vehicle and driver, Dispenser litres, Register';
 const PHOTO_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1x_diesel_photos.sql once in Supabase → SQL Editor.';
 const PHOTO_PATH_ = /^\d{4}-\d{2}\/[0-9a-f-]{36}\.jpg$/;
 function photosReady_() { photoColReady_(APP.SHEET_DIESEL, DIESEL_COLS_, 'diesel_issue', 'Photos of a diesel issue cannot be kept yet. ' + PHOTO_SQL_MSG_); }
@@ -4496,7 +4731,7 @@ function uploadDieselPhoto_(u, x) {
   x = x || {};
   if (!canEdit_(u, 'Diesel Issue')) throw new Error('You have View access only for Diesel Issue. Ask Admin for Edit access.');
   const k = str_(x.kind);
-  if (!PHOTO_KINDS_[k]) throw new Error('This is not one of the 4 photos of a diesel issue (Dashboard, Vehicle and driver, Dispenser litres, Register).');
+  if (!PHOTO_KINDS_[k]) throw new Error('This is not one of the photos of a diesel issue (' + PHOTO_NAMES_ + ').');
   const lat = photoNum_(x.lat, -90, 90), lng = photoNum_(x.lng, -180, 180), acc = photoNum_(x.acc, 0, 1e6);
   if (lat === null || lng === null) throw new Error('The photo has no location – turn on the location of the phone and take the photo again.');
   const mt = /^data:image\/jpeg;base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
@@ -4517,13 +4752,13 @@ function uploadDieselPhoto_(u, x) {
 // the photos sent with a new entry → the list kept with it (time and place as the server noted them when each was sent)
 function photosOf_(list, u, no) {
   if (!Array.isArray(list) || !list.length) return null;
-  if (list.length > 4) throw new Error('A diesel issue keeps at most the 4 photos (Dashboard, Vehicle and driver, Dispenser litres, Register).');
+  if (list.length > PHOTO_ORDER_.length) throw new Error('A diesel issue keeps at most these photos: ' + PHOTO_NAMES_ + '.');
   photosReady_();
   let mId = ''; try { mId = findMachine_(no).id; } catch (e) { mId = ''; }      // (a machinery that is not in Master is refused by the save itself)
   const recs = photoRecs_(list.map(x => str_(x && x.p))), seen = {};
   return list.map((x, i) => {
     const k = str_(x && x.k), p = str_(x && x.p);
-    if (!PHOTO_KINDS_[k] || seen[k]) throw new Error('Each of the 4 photos (Dashboard, Vehicle and driver, Dispenser litres, Register) can be given once.');
+    if (!PHOTO_KINDS_[k] || seen[k]) throw new Error('Each of the photos (' + PHOTO_NAMES_ + ') can be given once.');
     seen[k] = true;
     const rec = PHOTO_PATH_.test(p) ? recs[i] : null;
     if (!rec || !u || rec.e !== u.email || rec.k !== k) throw new Error('The ' + PHOTO_KINDS_[k] + ' photo was not taken by you in the last 6 hours, or it is already with another entry – take the photo again.');
@@ -4566,7 +4801,7 @@ function dieselPhotos_(id) {
   if (code < 200 || code >= 300) throw new Error('The photos could not be opened (' + code + ') – try again in a moment.');
   let signed = []; try { signed = JSON.parse(res.getContentText()) || []; } catch (e) { signed = []; }
   const urlOf = {}; (Array.isArray(signed) ? signed : []).forEach(x => { if (x && x.path && x.signedURL) urlOf[x.path] = sb.url + '/storage/v1' + x.signedURL; });
-  out.photos = ['dash', 'veh', 'pump', 'reg'].map(k => list.find(x => x.k === k)).filter(Boolean)
+  out.photos = PHOTO_ORDER_.map(k => list.find(x => x.k === k)).filter(Boolean)
     .map(x => ({ k: x.k, label: PHOTO_KINDS_[x.k], at: str_(x.at), lat: x.lat, lng: x.lng, acc: x.acc, url: urlOf[x.p] || '' }));
   return out;
 }
@@ -4647,8 +4882,9 @@ function inwardPhotos_(id) {
     photos: list.map(x => ({ p: x.p, at: str_(x.at), url: urlOf[x.p] || '' })) };
 }
 /* THE AI READS A PHOTO (update-85 / 87) – its own question, sent by the page AT THE SAME TIME as the photo is kept (a slow AI
- * never holds up the photo or the Save), with a smaller copy of the picture. Nothing is saved here. Two photos are read:
+ * never holds up the photo or the Save), with a smaller copy of the picture. Nothing is saved here. These photos are read:
  *   dash – the machinery's KM / hour meter (only the reading(s) it is measured by; a Debit Basis machinery has none: not asked)
+ *   hrs  – (update-139) the Hour meter photo of a machinery measured by KM and Hrs: the hours only
  *   pump – the litres given, on the dispenser's display
  * Answer: dash { km, hr, check } · pump { litres, check } (null = not read clearly; check = a reason to look again, or '')
  * or { off: true } when the AI is not set up on this site. */
@@ -4660,7 +4896,8 @@ function meterReading_(u, x) {
   if (mt[1].length > 2000000) throw new Error('The photo is too big (more than 1.5 MB) – take the photo again.');
   const m = findMachine_(x.no);
   if (!aiInfo_().on) return { off: true };
-  return str_(x.kind) === 'pump' ? aiReadPump_(mt[1], m) : aiReadMeter_(mt[1], m.id);
+  // (update-139) the Hour meter photo: the hour meter only
+  return str_(x.kind) === 'pump' ? aiReadPump_(mt[1], m) : aiReadMeter_(mt[1], m.id, str_(x.kind) === 'hrs' ? 'hr' : '');
 }
 // one question with a picture to the AI (the same models and order as the assistant; a busy model → the next); → its text
 function aiAskPhoto_(b64, ask) {
@@ -4713,9 +4950,10 @@ function pickReading_(v, seen, last, today, kind) {
   if (v === null) return { v: null, check: '' };
   return { v: v, check: (v < last.value ? 'less than' : 'much more than') + ' the last reading ' + last.value + ' (' + dmy_(last.date) + ')' };
 }
-function aiReadMeter_(b64, no) {
+function aiReadMeter_(b64, no, only) {
   let m = null; try { m = no ? findMachine_(no) : null; } catch (e) { m = null; }
-  const wantKm = m ? (m.meterKm !== undefined ? !!m.meterKm : hasKm_(m.unit)) : true, wantHr = m ? (m.meterHr !== undefined ? !!m.meterHr : hasHr_(m.unit)) : true;
+  const wantKm = only !== 'hr' && (m ? (m.meterKm !== undefined ? !!m.meterKm : hasKm_(m.unit)) : true), wantHr = m ? (m.meterHr !== undefined ? !!m.meterHr : hasHr_(m.unit)) : true;
+  if (!wantKm && !wantHr) return { km: null, hr: null, check: '' };
   const last = m ? lastKnownReading_(m.id) : { km: null, hr: null }, today = today_();
   const hint = [wantKm && last.km ? 'the odometer showed ' + last.km.value + ' km on ' + dmy_(last.km.date) : '', wantHr && last.hr ? 'the hour meter showed ' + last.hr.value + ' hours on ' + dmy_(last.hr.date) : ''].filter(Boolean);
   const ask = 'This photo shows the dashboard / meter of a vehicle or machine' + (m ? ' (' + m.id + (m.type ? ', ' + m.type : '') + ')' : '') + '. Read the TOTAL ' +
@@ -8514,15 +8752,6 @@ function previousLog_(lt, no, dk, shift) {
   return best;
 }
 
-function lastReadings_(t, no) {
-  let best = null;
-  t.rows.forEach(r => {
-    if (!same_(r[t.c[H.NO]], no)) return;
-    if (!best || cmpDiesel_(r, best, t.c) >= 0) best = r;
-  });
-  return best ? { km: numOrBlank_(best[t.c[H.KMR]]), hr: numOrBlank_(best[t.c[H.HRR]]) } : { km: '', hr: '' };
-}
-
 function cmpKey_(a, b, c) {
   const da = dkey_(a[c[H.DATE]]), db = dkey_(b[c[H.DATE]]);
   if (da !== db) return da < db ? -1 : 1;
@@ -9100,6 +9329,7 @@ function dbHealth_() {
   const fn = n => !!(api && api.paths && api.paths['/rpc/' + n]);
   if (api) {
     add('Faster server (step 2)', ['web_boot', 'web_flush', 'web_lock', 'web_unlock', 'web_stamp'].every(fn), 'supabase_step2_web.sql', ['web_boot', 'web_flush', 'web_lock', 'web_unlock', 'web_stamp'].filter(n => !fn(n)).join(', '));
+    add('Less data from the database – settings and users only when changed (step 2b)', fn('web_boot2'), 'supabase_step2b_light_boot.sql');      // (update-140)
     add('Safe saving – all or nothing (step 3)', fn('web_write'), 'supabase_step3_safety.sql');
     { const s5 = ['web_op_begin', 'web_op_mark', 'web_write2', 'web_op_end', 'web_ops_cleanup'];
       add('A save is saved once – decided in the database (step 5)', s5.every(fn), 'supabase_step5_save_once.sql', s5.filter(n => !fn(n)).join(', ')); }
@@ -9346,7 +9576,9 @@ function crList_(u, f) {
         o.task = MODULE_LABEL_[fl.m] || fl.m || ''; o.level = (fl.level || 0) + 1; o.levels = (fl.levels || []).length; o.waitingFor = r.status === 'Pending' ? lv.map(e => names[e] || e) : [];
         o.waitSince = fl.waitSince || r.at; o.history = (fl.history || []).slice(-20); o.canDecide = flowCan_(u, r); o.qty = fl.qty || 0;
         if (r.status === 'Reverted') { o.reverted = { by: (fl.reverted || {}).by || '', note: (fl.reverted || {}).note || '', at: (fl.reverted || {}).at || '' }; o.canAnswer = r.email === me; }
-        o.m = fl.m || ''; o.remindedAt = fl.remindedAt || ''; o.reminds = Number(fl.reminds) || 0; o.canRemind = r.email === me && r.status === 'Pending'; }      // (update-118) the sender's reminders
+        o.m = fl.m || ''; o.remindedAt = fl.remindedAt || ''; o.reminds = Number(fl.reminds) || 0; o.canRemind = r.email === me && r.status === 'Pending';      // (update-118) the sender's reminders
+        o.canResend = r.email === me && FLOW_AGAIN_.indexOf(r.status) > -1; o.resent = Number(fl.resent) || 0;      // (update-128) his rejected / returned entry: Send again
+        if (o.canResend && FLOW_FIX_.indexOf(r.fn) > -1) { let a = []; try { a = JSON.parse(r.args || '[]'); } catch (e) { a = []; } o.canFix = !!flowFixForm_(r.fn, a); } }      // (update-130) …or open it and correct it
       else o.canDecide = !!u.super && r.status === 'Pending';
       o.mine = r.email === me; return o; });
   return { mine: flowMine_(u), requests: list, pending: list.filter(r => r.status === 'Pending' || r.canAnswer).length, forMe: list.filter(r => r.canDecide || r.canAnswer).length, backToMe: list.filter(r => r.canAnswer).length, superAdmin: !!u.super };
@@ -9517,7 +9749,7 @@ function flowSend_(u, spec, fn, args, rule) {
   const out = withLock_(() => {
     const t = crTable_(true), all = flowAll_();
     if (all.some(r => r.status === 'Pending' && r.email === me && r.fn === fn && r.args === json)) throw new Error('This same entry is already waiting for verification – it is saved when it is approved.');
-    const id = 'VF-' + String(all.reduce((mx, r) => Math.max(mx, Number(r.id.replace(/\D/g, '')) || 0), 0) + 1).padStart(5, '0');
+    const id = 'VF-' + String(t.rows.reduce((mx, r) => { const m = str_(r[t.c['Request ID']]).match(/^VF-(\d+)$/); return m ? Math.max(mx, Number(m[1])) : mx; }, 0) + 1).padStart(5, '0');      // (update-134) every request ever made counts – a deleted one ("Flow Deleted") keeps its number
     const now = new Date(), data = { m: spec.m, levels: levels, level: 0, history: [{ step: 'Sent', by: u.name || u.email, email: me, at: now.toISOString() }], byLoc: facts.byLoc, qty: facts.qty, waitSince: now.toISOString(), reminded: {} };
     if (Object.keys(held).length) {      // (update-120) its photos: kept for the approval; no other entry takes them meanwhile
       data.photos = held;
@@ -9618,7 +9850,7 @@ function flowDecide_(u, x) {
           const before = spec.log ? logBefore_(spec, args) : null;
           const res = spec.withUser ? spec.f.apply(null, [ru].concat(args)) : spec.f.apply(null, args);
           const errs = res && typeof res === 'object' ? (res.errors || []) : [];
-          if (res && typeof res === 'object' && (res.ok === false || errs.length)) throw new Error(errs.length ? errs.slice(0, 5).map(e => (e.row ? 'Line ' + e.row + ': ' : '') + (e.msg || e)).join(' | ') : (res.error || res.warning || 'refused'));
+          if (res && typeof res === 'object' && (res.ok === false || errs.length)) { throw new Error(flowRefusal_(res).text); }      // (update-129: the reason in words; update-131: no "anyway" – the sender corrects it)
           if (spec.log) { try { logAfter_(ru, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ } }
           ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0;
           f.history.push({ step: 'Approved', level: f.level + 1, by: u.name || u.email, email: me, at: new Date().toISOString(), note: note });
@@ -9628,7 +9860,7 @@ function flowDecide_(u, x) {
         status = 'Approved'; result = 'Saved';
       } catch (e) {
         if (/^(This request (was not found|is already|is not waiting)|You cannot approve)/.test(String(e && e.message)) || faultKind_(e)) throw e;
-        why = String((e && e.message) || e).slice(0, 400);
+        why = String((e && e.message) || e).slice(0, 1000);      // (update-129: room for the warnings' lines)
       } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
     }
     if (why) {
@@ -9680,6 +9912,213 @@ function flowAnswer_(u, x) {
   bump_(['flow']);
   if (!back) crNotify_(to.length ? to : crSupers_(), { id: r0.id, title: 'Answered – verification of ' + r0.by, body: note });
   return { ok: true, id: r0.id, status: back ? 'Withdrawn' : 'Pending', list: crList_(u, {}) };
+}
+/* (update-128, asked 19-10-2026: "ata user prt tya entry krt basnar nahi ata je return reject zal tech reason deun return krta
+ * yeil as banaw ata jyana return zaley tith tyana option asel send to approval or verification data loss nko karu") SEND AGAIN –
+ * the sender's own entry that was REJECTED, or RETURNED (approved, but the save refused it), goes to verification again exactly
+ * as it was sent (the same lines, the same photos), with his remark: nothing is typed again, nothing is lost. It is the same
+ * request (VF-…): back to level 1 of its levels, every earlier step kept in its steps. First it is checked as a save (nothing
+ * written), as when it was sent: if the save would refuse it again, that is said now and the entry stays as it is. Several at
+ * once (ids): each on its own; one that cannot go does not stop the others. */
+const FLOW_AGAIN_ = ['Rejected', 'Returned'];
+/* (update-129, 19-10-2026: live, "Not saved: refused" / "Not sent again: the save refuses it" on entries of "Multiple entries")
+ * WHAT A SAVE'S REFUSAL SAYS – a save answers "not saved" in its own answer (not an error): mistakes (errors – each line), or
+ * WARNINGS that the person confirms on the page with "Save anyway" (warning / warnings – e.g. a reading lower than the last one).
+ * Until update-129 only the mistakes and one warning were read; the warnings of "Multiple entries" were said as "refused". */
+function flowRefusal_(res, n) {      // n: how many lines (Send again shows them all, to check before "Send again anyway")
+  const line = e => (e && e.row ? 'Line ' + e.row + ': ' : '') + String((e && typeof e === 'object' ? (e.msg || e.message) : e) || '').replace(/^Error:\s*/, '');
+  const list = (l, n) => l.slice(0, n).map(line).join(' | ') + (l.length > n ? ' | … ' + (l.length - n) + ' more' : '');
+  if ((res.errors || []).length) return { warn: false, text: list(res.errors, n || 5) };
+  if ((res.warnings || []).length) return { warn: true, text: 'To check (warnings, not mistakes): ' + list(res.warnings, n || 8) };
+  if (res.warning) return { warn: true, text: 'To check (a warning, not a mistake): ' + String(res.warning).replace(/\s*(Save|Delete) anyway\?\s*$/, '') };
+  if ((res.used || []).length) return { warn: true, text: 'To check (a warning, not a mistake): ' + list(res.used.map(x => x.id + ' has ' + (x.diesel || 0) + ' Diesel Issue and ' + (x.log || 0) + ' Log Book entries (they stay)'), n || 8) };      // deleteMasterMany
+  if ((res.duplicates || []).length) return { warn: true, text: 'To check (a warning, not a mistake): ' + list(res.duplicates.map(d => d.vendor + ': a bill for the same period is already submitted (' + (d.existing || []).map(x => 'RA Bill ' + x.billNo + (x.rev ? ' rev ' + x.rev : '')).join('; ') + ') – the new one is saved with the same bill number as its revision and the older one is marked Superseded'), n || 8) };      // submitBills
+  if (res.error) return { warn: false, text: String(res.error) };
+  return { warn: false, text: 'the save refuses it – open the entry\'s page to see why' };
+}
+function flowResend_(u, x) {
+  x = x || {};
+  const note = clean_(x.note).slice(0, 300);
+  if (!note) throw new Error('Write why it is sent again – your remark goes with the entry to the people who approve it.');
+  // (update-131: "send any way he option nko aahe" – no "Send again anyway": what the save refuses is corrected first – Open & correct)
+  if (Array.isArray(x.ids)) {
+    const ids = [...new Set(x.ids.map(str_).filter(Boolean))].slice(0, 100);
+    if (!ids.length) throw new Error('Pick the entries to send again.');
+    const done = [], failed = [];
+    ids.forEach(id => { try { const r = flowResendOne_(u, id, note); done.push({ id: r.id, level: r.level, levels: r.levels }); } catch (e) { if (faultKind_(e)) throw e; failed.push({ id: id, error: String((e && e.message) || e).slice(0, 9000) }); } });
+    return { ok: true, done: done, failed: failed, list: crList_(u, {}) };
+  }
+  let r;
+  try { r = flowResendOne_(u, str_(x.id), note); }
+  catch (e) { if (e && e.flowRefused) return { ok: true, done: [], failed: [{ id: str_(x.id), error: String(e.message).slice(0, 9000) }], list: crList_(u, {}) }; throw e; }
+  return Object.assign(r, { done: [{ id: r.id, level: r.level, levels: r.levels }], failed: [], list: crList_(u, {}) });
+}
+// the save refuses it again (nothing changed): said with what the save says – corrected first (Open & correct), then sent
+function flowRefused_(id, text) {
+  const e = new Error('Not sent again: ' + text + ' – entry ' + id + ' stays as it is (nothing is lost); send it again when this is put right.');
+  e.flowRefused = true; return e;
+}
+function flowResendOne_(u, id, note) {
+  const me = str_(u.email).toLowerCase();
+  const look = () => {
+    const r0 = flowAll_().find(r => r.id === id);
+    if (!r0) throw new Error('Entry ' + id + ' was not found – refresh the list.');
+    if (r0.email !== me) throw new Error('Only the person who sent entry ' + id + ' sends it again.');
+    if (FLOW_AGAIN_.indexOf(r0.status) === -1) throw new Error('Entry ' + id + ' is ' + (r0.status === 'Pending' ? 'waiting for verification already' : r0.status === 'Reverted' ? 'sent back to you – answer it and send it again' : r0.status.toLowerCase()) + ' – only a rejected or returned entry is sent again.');
+    return r0;
+  };
+  let r0 = look();
+  const spec = API_[r0.fn];
+  if (!spec) throw new Error('Entry ' + id + ' cannot be sent again: the action ' + r0.fn + ' is not in the app any more.');
+  if (spec.m && !canEdit_(u, spec.m)) throw new Error('Entry ' + id + ' cannot be sent again: you have no Edit access to ' + (MODULE_LABEL_[spec.m] || spec.m) + ' any more.');
+  const levels = ((r0.flow || {}).levels || []).filter(l => Array.isArray(l) && l.length);
+  if (!levels.length) throw new Error('Entry ' + id + ' cannot be sent again: it has no verification levels.');
+  let args = []; try { args = JSON.parse(r0.args || '[]'); } catch (e) { args = []; }
+  // checked as a save, as the sender's own (nothing written) – with the photos noted with it when it was first sent
+  const f0 = r0.flow || {}, held = f0.photos && typeof f0.photos === 'object' ? JSON.parse(JSON.stringify(f0.photos)) : {};
+  TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
+  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
+  let res = null;
+  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = held;
+  try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); throw FLOW_DRY_; }); }
+  catch (e) {
+    if (e !== FLOW_DRY_) {
+      if (faultKind_(e)) throw e;
+      throw flowRefused_(id, String((e && e.message) || e).replace(/^Error:\s*/, '').slice(0, 1500));
+    }
+  } finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
+  TABLE_MEMO_ = {};
+  const errs = res && typeof res === 'object' ? (res.errors || []) : [];
+  if (res && typeof res === 'object' && (res.ok === false || errs.length)) throw flowRefused_(id, flowRefusal_(res, 100).text);
+  let to = [];
+  withLock_(() => {
+    r0 = look();
+    const dup = flowAll_().find(r => r.id !== r0.id && r.status === 'Pending' && r.email === me && r.fn === r0.fn && r.args === r0.args);
+    if (dup) throw new Error('This same entry is already waiting for verification as ' + dup.id + ' – it is not sent twice.');
+    const f = r0.flow || {}, now = new Date().toISOString();
+    f.levels = levels; f.level = 0; f.waitSince = now; f.reminded = {}; f.resent = (Number(f.resent) || 0) + 1;
+    delete f.reverted; delete f.remindedAt; f.reminds = 0;
+    if (Object.keys(held).length) f.photos = held;
+    f.history = (f.history || []).concat([{ step: 'Sent again', level: 1, by: u.name || u.email, email: me, at: now, note: note }]);
+    TABLE_MEMO_ = {};
+    const t2 = crTable_(false), r1 = t2.rows.map((r, i) => crOut_(t2, r, i)).find(r => r.id === r0.id), row = t2.rows[r1.i].slice();
+    set_(row, t2, 'Status', 'Pending'); set_(row, t2, 'Data', JSON.stringify(f)); set_(row, t2, 'Result', ''); stampEdit_(row, t2);
+    t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
+    if (Object.keys(held).length) { const pc = CacheService.getScriptCache(); Object.keys(held).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: r0.id })), 21600); } catch (e) { /* the request keeps them */ } }); }
+    to = levels[0].filter(e => e !== me);
+  });
+  bump_(['flow']);
+  crNotify_(to.length ? to : crSupers_(), { id: r0.id, title: 'Sent again for verification – ' + (MODULE_LABEL_[spec.m] || spec.m) + ' by ' + (u.name || u.email), body: (r0.summary[0] || r0.id).slice(0, 80) + ' – ' + note });
+  return { ok: true, id: r0.id, status: 'Pending', level: 1, levels: levels.length, to: flowNames_(to), summary: r0.summary };
+}
+/* (update-130, asked 19-10-2026: "jy entry pathwale hote te mala open krun edit pn krta yaw kay kuth chukley te pn samjayla haw";
+ * his choices: only the sender; corrected → to verification again; Diesel Issue first) OPEN & CORRECT – the sender's own Rejected /
+ * Returned entry opens in the form it was made in (Diesel Issue: one entry; Multiple entries by date or by machinery) with what is
+ * wrong NOW marked – the save checked as his own (nothing written). He corrects it and sends it again: the same request (VF-…), the
+ * corrected entry, from level 1; its steps say what changed (before → after), shown to the people who approve it. */
+const FLOW_FIX_ = ['saveDieselIssue', 'saveDieselBulk', 'importDiesel'];
+// the form an entry opens in: one / date (Multiple entries, one date) / mach (Multiple entries, one machinery) – '' = it does not open
+function flowFixForm_(fn, args) {
+  const a = (args || [])[0];
+  if (FLOW_FIX_.indexOf(fn) === -1) return '';
+  if (fn === 'saveDieselIssue') return a && typeof a === 'object' && !Array.isArray(a) ? 'one' : '';
+  if (fn === 'saveDieselBulk') return a && typeof a === 'object' && Array.isArray(a.rows) ? 'date' : '';
+  const rows = Array.isArray(a) ? a.filter(r => r && typeof r === 'object') : [], nos = [...new Set(rows.map(r => noKey_(r.no)))];
+  return rows.length && nos.length === 1 && nos[0] ? 'mach' : '';
+}
+function flowFixOf_(u, id) {
+  const me = str_(u.email).toLowerCase(), r0 = flowAll_().find(r => r.id === id);
+  if (!r0) throw new Error('Entry ' + id + ' was not found – refresh the list.');
+  if (r0.email !== me) throw new Error('Only the person who sent entry ' + id + ' opens and corrects it.');
+  if (FLOW_AGAIN_.indexOf(r0.status) === -1) throw new Error('Entry ' + id + ' is ' + (r0.status === 'Pending' ? 'waiting for verification already' : r0.status === 'Reverted' ? 'sent back to you – answer it and send it again' : r0.status.toLowerCase()) + ' – only a rejected or returned entry is opened to correct.');
+  const spec = API_[r0.fn];
+  if (!spec) throw new Error('Entry ' + id + ' cannot be corrected: the action ' + r0.fn + ' is not in the app any more.');
+  if (spec.m && !canEdit_(u, spec.m)) throw new Error('Entry ' + id + ' cannot be corrected: you have no Edit access to ' + (MODULE_LABEL_[spec.m] || spec.m) + ' any more.');
+  let args0 = []; try { args0 = JSON.parse(r0.args || '[]'); } catch (e) { args0 = []; }
+  const form = flowFixForm_(r0.fn, args0);
+  if (!form) throw new Error('Entry ' + id + ' cannot be opened to correct here (Diesel Issue – one entry and Multiple entries – only, for now) – use "Send again", or enter it again.');
+  const levels = ((r0.flow || {}).levels || []).filter(l => Array.isArray(l) && l.length);
+  if (!levels.length) throw new Error('Entry ' + id + ' cannot be sent again: it has no verification levels.');
+  return { r0: r0, spec: spec, form: form, args0: args0, levels: levels };
+}
+// the save run as his own, nothing written (as flowSend_): { res } – its answer – or { error } – what it said, as for a save
+function flowDry_(u, spec, args, id, held) {
+  TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
+  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
+  let res = null;
+  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = id; FLOW_PHOTOS_ = held;
+  try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); throw FLOW_DRY_; }); }
+  catch (e) { if (e !== FLOW_DRY_) { if (faultKind_(e)) throw e; return { error: String((e && e.message) || e).replace(/^Error:\s*/, '') }; } }
+  finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; TABLE_MEMO_ = {}; }
+  return { res: res };
+}
+const flowHeld_ = r0 => { const f0 = r0.flow || {}; return f0.photos && typeof f0.photos === 'object' ? JSON.parse(JSON.stringify(f0.photos)) : {}; };
+const flowRefusing_ = res => !!(res && typeof res === 'object' && (res.ok === false || (res.errors || []).length));
+// what changed, in words: "Row 3 – KM reading: 48409.3 → 48509.3", "Date: … → …", "Row 5: added" (up to 30)
+const FLOW_FIELD_ = { no: 'Machinery', qty: 'Litres', kmReading: 'KM reading', hrReading: 'Hrs reading', meter: 'Meter', driver: 'Driver', remark: 'Remark', date: 'Date', shift: 'Shift', source: 'Diesel source', mode: 'Measured by', photos: 'Photos' };
+function flowChanges_(a0, a1) {
+  const A = (a0 || [])[0] || {}, B = (a1 || [])[0] || {}, out = [];
+  const val = v => v === null || v === undefined ? '' : Array.isArray(v) ? String(v.length) : typeof v === 'object' ? JSON.stringify(v) : String(v).trim();
+  const cmp = (x, y, pre) => [...new Set(Object.keys(x || {}).concat(Object.keys(y || {})))].forEach(k => {
+    if (['force', 'line', 'rows'].indexOf(k) > -1) return;
+    const p = val((x || {})[k]), q = val((y || {})[k]);
+    if (k === 'mode' && (!p || !q)) return;      // "Measured by" is put by the page from the Master – only a real change (e.g. "Meter not working") is said
+    if (p !== q) out.push(pre + (FLOW_FIELD_[k] || k) + ': ' + (p || '–') + ' → ' + (q || '–'));
+  });
+  const ra = Array.isArray(A) ? A : Array.isArray(A.rows) ? A.rows : null, rb = Array.isArray(B) ? B : Array.isArray(B.rows) ? B.rows : null;
+  if (!Array.isArray(A)) cmp(A, B, '');
+  if (ra || rb) for (let i = 0; i < Math.max((ra || []).length, (rb || []).length); i++) {
+    const x = (ra || [])[i], y = (rb || [])[i], line = 'Row ' + (i + 1);
+    if (!x) out.push(line + ': added'); else if (!y) out.push(line + ': taken out'); else cmp(x, y, line + ' – ');
+  }
+  return out.length > 30 ? out.slice(0, 30).concat(['… ' + (out.length - 30) + ' more']) : out;
+}
+// OPEN: the entry as it was sent, and what the save says of it now
+function flowOpen_(u, x) {
+  const id = str_((x || {}).id), fx = flowFixOf_(u, id), r0 = fx.r0;
+  const dry = flowDry_(u, fx.spec, JSON.parse(JSON.stringify(fx.args0)), r0.id, flowHeld_(r0));
+  const check = dry.error ? { ok: false, error: dry.error } : flowRefusing_(dry.res)
+    ? ['errors', 'warnings', 'warning', 'error', 'used', 'duplicates'].reduce((o, k) => { if (dry.res[k] !== undefined) o[k] = dry.res[k]; return o; }, { ok: false }) : { ok: true };
+  return { ok: true, id: r0.id, fn: r0.fn, form: fx.form, args: fx.args0, status: r0.status, result: r0.result || '', decidedBy: r0.decidedBy || '', note: r0.note || '', check: check, summary: r0.summary };
+}
+// CORRECTED: checked as a save – what it refuses is said on the form, as for a save (nothing changes); else it goes again
+function flowEdit_(u, x) {
+  x = x || {};
+  const id = str_(x.id), note = clean_(x.note).slice(0, 300), me = str_(u.email).toLowerCase();
+  if (!note) throw new Error('Write what you corrected – your remark goes with the entry to the people who approve it.');
+  const fx = flowFixOf_(u, id), fn = fx.r0.fn, spec = fx.spec, levels = fx.levels;
+  const args = Array.isArray(x.args) ? JSON.parse(JSON.stringify(x.args)) : null;
+  if (!args || flowFixForm_(fn, args) === '') throw new Error('Entry ' + id + ' cannot be sent like this – open it again and correct it in its form.');
+  // one entry: the photos sent with it stay with it; a photo of the same kind taken now in the form takes its place
+  if (fn === 'saveDieselIssue') { const p0 = (fx.args0[0] || {}).photos; if (Array.isArray(p0) && p0.length) { const byK = {};
+    p0.concat(Array.isArray(args[0].photos) ? args[0].photos : []).forEach(x => { if (x && typeof x === 'object' && x.k) byK[x.k] = x; }); args[0].photos = Object.keys(byK).map(k => byK[k]).slice(0, 4); } }
+  const json = JSON.stringify(args);
+  if (json.length > 400000) throw new Error('This entry is too big to send for verification at once – send it in parts (fewer rows).');
+  const held = flowHeld_(fx.r0), dry = flowDry_(u, spec, args, fx.r0.id, held);
+  if (dry.error) throw new Error(dry.error);      // the save's own words (e.g. not enough diesel) – nothing changed
+  if (flowRefusing_(dry.res)) return Object.assign({}, dry.res, { ok: false, id: id, notSent: true });      // its lines marked on the form; warnings: "anyway"
+  const changes = flowChanges_(fx.args0, args), facts = flowFacts_(fn, args), d = flowDescribe_(fn, args);
+  let to = [], r0 = fx.r0;
+  withLock_(() => {
+    r0 = flowFixOf_(u, id).r0;
+    const dup = flowAll_().find(r => r.id !== r0.id && r.status === 'Pending' && r.email === me && r.fn === fn && r.args === json);
+    if (dup) throw new Error('This same entry is already waiting for verification as ' + dup.id + ' – it is not sent twice.');
+    const f = r0.flow || {}, now = new Date().toISOString();
+    f.levels = levels; f.level = 0; f.waitSince = now; f.reminded = {}; f.resent = (Number(f.resent) || 0) + 1; f.corrected = (Number(f.corrected) || 0) + 1;
+    delete f.reverted; delete f.remindedAt; f.reminds = 0; f.byLoc = facts.byLoc; f.qty = facts.qty;
+    if (Object.keys(held).length) f.photos = held;
+    f.history = (f.history || []).concat([{ step: 'Corrected and sent again', level: 1, by: u.name || u.email, email: me, at: now, note: note, changes: changes }]);
+    TABLE_MEMO_ = {};
+    const t2 = crTable_(false), r1 = t2.rows.map((r, i) => crOut_(t2, r, i)).find(r => r.id === r0.id), row = t2.rows[r1.i].slice();
+    set_(row, t2, 'Status', 'Pending'); set_(row, t2, 'Data', JSON.stringify(f)); set_(row, t2, 'Result', ''); set_(row, t2, 'Args', json);
+    set_(row, t2, 'Summary', JSON.stringify(d.lines)); set_(row, t2, 'Machinery', d.nos.slice(0, 300)); set_(row, t2, 'Dates', d.dates.slice(0, 300)); stampEdit_(row, t2);
+    t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
+    if (Object.keys(held).length) { const pc = CacheService.getScriptCache(); Object.keys(held).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: r0.id })), 21600); } catch (e) { /* the request keeps them */ } }); }
+    to = levels[0].filter(e => e !== me);
+  });
+  bump_(['flow']);
+  crNotify_(to.length ? to : crSupers_(), { id: r0.id, title: 'Corrected and sent again – ' + (MODULE_LABEL_[spec.m] || spec.m) + ' by ' + (u.name || u.email), body: (d.lines[0] || r0.id).slice(0, 80) + ' – ' + note });
+  return { ok: true, id: r0.id, status: 'Pending', level: 1, levels: levels.length, to: flowNames_(to), changes: changes, summary: d.lines, list: crList_(u, {}) };
 }
 /* (update-118, asked 16-10-2026: "jya pending aahe tyach reminder pn to pathau shakel … entry wise or all send reminder dable ki
  * verification pending aslele entry la tya user hard push notification app la send krel jene krun jo koni approval krnar aahe

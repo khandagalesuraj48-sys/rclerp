@@ -1729,6 +1729,88 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 - 19-10-2026 (update-127). Report: `UPDATE_127.md`. `vercel.json`: `/engineering` → `/engineering/`, `/engineering/` and
   `/engineering/:path*` → `https://rcl-engineering.vercel.app` (the Engineering module – repo `rcl-engineering`, its own Supabase
   for every site – opens inside this screen like the Store). Unit "update-127"; rig `rcl-engineering/test/inmech.test.js` 7.
+- 19-10-2026 (update-128). Report: `UPDATE_128.md`. SEND AGAIN: the sender's Rejected / Returned verification entry goes again
+  exactly as it was sent (same args and photos), with his remark (needed), from level 1 – the same request (`flowResend_` /
+  `flowResendOne_`, action `resendFlow` { id | ids, note }); checked as a save first (`FLOW_DRY_ON_`, `FLOW_RUN_ID_`, its photos):
+  refused again → "Not sent again: …", nothing changed. `canResend` / `resent` in the list; the box shows a returned entry's
+  reason; "Send again" / "Send all again (n)" (`flowAgain`), Approvals too. Unit "update-128"; rig `test/browser/again128.js` 11.
+- 19-10-2026 (update-129). Report: `UPDATE_129.md`. Live fix of update-128: a save's WARNINGS ("Multiple entries" `warnings`, `warning`,
+  `used`, `duplicates`) were said as "refused". `flowRefusal_` gives the reason in words (warning or mistake) at the approval and
+  on Send again; `resendFlow` { …, force: true } = "Send again anyway" (`flowForce_`: `force` on the entry / `confirm` for
+  `submitBills` / the 2nd value of the master deletes), stored in Args; one refused entry comes back in `failed` (`warn`). Page:
+  "Please check – warnings, not mistakes" box. Unit "update-129"; rig `test/browser/again129.js` 9.
+- 19-10-2026 (update-130). Report: `UPDATE_130.md`. OPEN & CORRECT: the sender's Rejected / Returned Diesel Issue entry
+  (`saveDieselIssue`, `saveDieselBulk`, `importDiesel` of one machinery – `FLOW_FIX_`, `flowFixForm_`) opens in its form as sent
+  (`openFlow` → args + the save's check now, `flowDry_`); the page (`flowFix`, `S.flowFix`, `#d_fixbar`, `FIX_BTN`) marks the rows;
+  the form's button "Send again (VF-…)" → `editFlow` { id, note, args } (`flowFixCall`): refused → the save's own answer; else the
+  same request at level 1 with the new Args / Summary and a step "Corrected and sent again" with `changes` (`flowChanges_`);
+  Approvals shows "Corrected by …" (`fixd`). `canFix` in the list. Unit "update-130"; rig `test/browser/fix130.js` 12.
+- 19-10-2026 (update-131). Report: `UPDATE_131.md`. NOTHING WRONG GOES FOR APPROVAL: a diesel reading is checked BY ITS DATE (the
+  nearest fill before and after – `fitWarnings_`, `dieselPts_`; was: against the newest fill) in One entry, Multiple entries, Edit
+  and, for approval, `importDiesel_`; for an entry going to approval (`flowStrict_`: FLOW_DRY_ON_ or FLOW_RUN_ID_) it is a mistake
+  (errors / thrown, force not read). "Send again anyway" (update-129 `flowForce_`, `resendFlow` force) removed. Unit "update-131";
+  rig `test/browser/fit131.js` 8 (replaces again129.js).
+- 19-10-2026 (update-132). Report: `UPDATE_132.md`. BOQ: an amendment from any date on or after its BOQ's start (also after the
+  BOQ ends – only its machinery go on at the new rate); `getBoqs` gives `history` (`boqHistory_`: per vendor + machinery, the
+  periods from – to with the BOQ / amendment that gave the rate, the same order as the bills – `boqNewer_`, also in `boqRateFor_`);
+  page: "Rate history – machinery-wise" under the BOQ list for the picked vendor (`renderBoqHistory`, `#bh_box`). Unit "update-132";
+  rig `test/browser/boqhist132.js` 4.
+- 19-10-2026 (update-133). Report: `UPDATE_133.md`. BOQ print (`boqPrint`): the work order number and date on top of every BOQ;
+  an amendment prints as an amendment letter (To / Subject / Reference – the work order, of its BOQ when it has none of its own /
+  "with effect from" / Annexure-I with the earlier rate from `S.boqHist` and the new rate / vendor's details / all versions / "For and
+  on behalf of" / ACCEPTED BY VENDOR); print styles `.bl-to`, `.bl-p`, `.bl-for`. No server change. Rig `test/browser/boqprint133.js` 4.
+- 19-10-2026 (update-134). Report: `UPDATE_134.md`. The Super Admin deletes Diesel Issue entries (saved / waiting / returned /
+  rejected) of a date or a period and brings them back: `superDelList` / `superDelete` / `superRestore` (`sdelList_`, `sdelDelete_`,
+  `sdelRestore_`, `sdelSuper_`); a deleted entry kept in `billed_changes` kind "Deleted" (DEL-…, every column of the row), a deleted
+  request keeps its row as kind "Flow Deleted"; all ticked together or none; not one of a submitted bill or a closed month; a new
+  VF- number counts every request ever made. Page: Diesel Issue → `#sx_panel` (`sxLoad`, `sxRender`). Unit "update-134"; rig
+  `test/browser/sdel134.js` 6.
+- 19-10-2026 (update-135). Report: `UPDATE_135.md`. The call as in Google Meet (page only): `#rtc_bar` round buttons (`.rtc-b`, icons
+  `.rtc-i` by CSS mask, the word in `.lb` – set with `rtcLab`), the camera in the bar, `#rtc_hide` → `C.mini` (the pill; body
+  `rtc-mini`), my bar hides itself while my screen is shown (`C.autoMini`, in `rtcUseScreen`; back in `rtcStopMine`); a screen shown
+  to me starts big (`size: 'l'`). Camera of a computer: `rtcCamRank` (own camera → other real → camera app, by name), `rtcGetCam`
+  asks the front camera / the best by id, `rtcFlip` goes to the next camera. Rig `test/browser/call135.js` 9.
+- 19-10-2026 (update-136). Report: `UPDATE_136.md`. Screen share: `C.screen` (sender `P.scr`) and `C.cam` (sender `P.camS`) each on
+  its own (`rtcShowMine` / `rtcStopMine(…, kind)`); a share has `face` (a camera of a face – `rtcMyFace`); faces at the side
+  (`#rtc_faces`, `rtcFaces`, mine "You"), the big picture a screen or a phone's back camera (`rtcViewPick0`; a tapped face `C.pin`);
+  quality in `rtcLowApply` (screen 2.5 Mbit/s maintain-resolution, camera 1.2 Mbit/s 24/s, voice 64 kbit/s high), capture up to
+  1080p / camera 24–30/s / microphone speech 48 kHz. Rig `test/browser/both136.js` 12.
+- 19-10-2026 (update-137, with App 3.26.0). Report: `UPDATE_137.md`. Calls between the phone app and the web: the app speaks the same
+  screen-share notes / heartbeat / data-channel messages (rcl-mobile `lib/core/rtc.dart`); the web's ring and the notification say a
+  call of mode `voice` / `video` as a call (`rtcIncoming`, `rtcSend_` → `rtcPush_` mode, `app/sw.js`). Rig `test/browser/app137.js` 16
+  (a page that speaks as the app).
+- 20-10-2026 (update-138, with rcl-portal and rcl-store PRs "staging-guard"). Report: `UPDATE_138.md`. THE STAGING (TEST) DATABASE:
+  a Vercel Preview (VERCEL_ENV=preview) works only with a database that has the row app_settings THIS_IS_A_TEST_DATABASE = yes
+  (server/syncfetch.js `previewGuard` before every fetch – 503 "This is a Preview …", FIX_RULES; the Portal lib/preview.js in
+  lib/db.js `call`; the Store lib/preview.js in lib/sites.js `rest`); no Google Sheet backup on a Preview (server/google.js); the
+  orange TEST band on every page (server/page.js shell, Portal and Store pages, not inside Mechanical's frame). One SQL file for a
+  new Supabase project "rcl-staging" with Mechanical + Store + Portal: `staging/rcl_staging_all.sql` (made by
+  `staging/make_staging_sql.js` – Read Me's steps without step 6, the mark, TEST entries, him as Super Admin typed at the top; it
+  refuses a database that has the ERP's tables without the mark). vercel.json: /portal and /store of the staging address only
+  (`has` host) go to the staging Portal / Store. Guide: `staging/STAGING_SETUP.md`. Rig: `rig/stg_up.sh`, `test/browser/staging138.js` 30.
+- 20-10-2026 (update-139, with App 3.29.0). Report: `UPDATE_139.md`. The Hour meter photo: PHOTO_KINDS_ hrs ('Hour meter'),
+  PHOTO_ORDER_ / PHOTO_NAMES_, at most 5 photos; meterReading_ kind hrs → aiReadMeter_(…, 'hr') (the hours only). App.html PH_KINDS
+  + hrs, phKindsOf (only a KM + Hrs machinery, not Debit Basis), phApplyRead R.hrs fills d_hr (wins over the dashboard's hours),
+  .dph-grid.five. Rig `test/browser/photo139.js` 11.
+- 21-10-2026 (update-141). Report: `UPDATE_141.md`. THE GOOGLE SHEET BACKUP ONCE A DAY (egress): webBackup_ auto (an open page)
+  only when no backup ended today (India date, `doneToday`) – the nightly cron (vercel.json 30 20 * * *, full) as before; 4 min
+  after a failed try; the button at once. Logs only their new rows (`APPEND_` activity_log / store_activity by id; `BK_STATE.app`
+  { n, last, whole }; whole when the tab rows ≠ n, the count up to the last key ≠ n + new, or 30 days). page.js tick every 30 min,
+  60 s while `pending` (runtime backup answer). App.html `bkWhen` (time today, else date). test/backup.js: sections daily, logs;
+  fixtures fixed (user via SQL, one Super Admin, "Billed Changes"); RIG_DB / RIG_DOOR. Measured run: 9.16 MB → 0.08 MB.
+- 21-10-2026 (update-140, SQL step 2b). Report: `UPDATE_140.md`. LESS DATA FROM THE DATABASE PER REQUEST (egress): gas.js
+  `bootAsk` → `web_boot2(p_keys, p_ver, p_have, p_stamp)` (sql/supabase_step2b_light_boot.sql): settings by md5 "ver", cache
+  entries by md5 (`same` = names only), the stamp by md5 "sh"; BEAT.pver/pall/kept/st/sh; without step 2b → web_boot (asked again
+  after 10 min, BEAT.boot2 = time). makeWarm `check`: 15-min light check (id,updated_at; rows by id via `inList`; > 300 diffs or
+  every 6 h (`wholeAt`, RCL_WARM_WHOLE_MS) whole). pool.js SNAP + gas.seed/onTable: one copy per server, given to every thread.
+  bootKeys + FLOW_REMIND; flush updates BEAT.shared. load-site sends {r}. Tests: unit, browser/egress140.js 8, boot140.js 4.
+  Measured (20 min, 15 people): 49.12 → 23.44 MiB. A two-step "what changed" read was measured (no better) and taken out.
+- 22-10-2026 (update-142). Report: `UPDATE_142.md`. LESS CPU ON VERCEL (Hobby's 4 h of Fluid Active CPU in 30 days were used up,
+  94 % rclerp): syncfetch.js – a helper unused for IDLE_MS is no longer terminated and restarted; `renew` asks it to replace
+  Node's connection pool (`Symbol.for('undici.globalDispatcher.1')`, new pool of the same kind, old one destroyed) and answers
+  true / false; false or no answer in 2 s → replaced as before. `renewals()` next to `helpersMade()`. test/net.test.js updated
+  (4 pauses → 4 renewals, 1 helper, no retry), unit check update-142. Measured per heartbeat of an idle page 156 → 13 ms CPU,
+  of a background tab 162 → 20 ms; 15 people 10 min 89.6 → 78.9 s.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

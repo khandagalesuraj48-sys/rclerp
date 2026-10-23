@@ -30,7 +30,8 @@ self.addEventListener('push', e => {
       .then(() => new Promise(ok => setTimeout(ok, 4000))).then(() => self.registration.getNotifications({ tag: tag })).then(l => l.forEach(n => n.close())));
     return;
   }
-  const title = d.t === 'ring' ? name + ' wants to show you a screen' : d.t === 'missed' ? 'Missed: ' + name + ' wanted to show you a screen' : 'Fleet ERP';
+  const call = d.mode === 'voice' ? 'voice call' : d.mode === 'video' ? 'video call' : '';      // (update-137) a call of the phone app
+  const title = d.t === 'ring' ? (call ? name + ' is calling you – ' + call : name + ' wants to show you a screen') : d.t === 'missed' ? 'Missed: ' + name + ' wanted to show you a screen' : 'Fleet ERP';
   e.waitUntil(self.registration.showNotification(title, opt));
 });
 self.addEventListener('notificationclick', e => {
