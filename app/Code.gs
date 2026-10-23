@@ -10595,12 +10595,14 @@ function approvalDetails_(u, x) {
     const seen = u.super || r.email === me || (r.kind === 'Flow' && (fl.levels || []).some(l => l.indexOf(me) > -1));
     if (!seen) return null;
     let args = []; try { args = JSON.parse(r.args || '[]'); } catch (e) { args = []; }
-    const fields = [], tables = [];
-    let photos = 0;
+    const fields = [], tables = [], pics = [];
     const put = (label, val) => { if (val !== '') fields.push([label, val]); };
+    // (update-148) its photos / bill copies: the pictures themselves (links below), never their file names
+    const addPics = (v, pre) => (Array.isArray(v) ? v : [v]).forEach(z => { const ph = str_(z && typeof z === 'object' ? z.p : z); if (!ph) return; const k = z && typeof z === 'object' ? str_(z.k) : '';
+      pics.push({ p: ph, label: (pre || '') + (k ? (PHOTO_KINDS_[k] || k) : /Inward$/.test(r.fn) ? 'Bill copy' : 'Photo'), at: z && typeof z === 'object' ? str_(z.at) : '' }); });
     const field = (k, v) => {
       if (DET_HIDE_.indexOf(k) > -1 || blank_(v)) return;
-      if (DET_PHOTO_.indexOf(k) > -1) { photos += Array.isArray(v) ? v.length : 1; return; }
+      if (DET_PHOTO_.indexOf(k) > -1) { addPics(v, ''); return; }
       let val = detVal_(k, v); if (!val) return;
       if ((k === 'no' || k === 'machinery') && machOf(v)) val += ' – ' + machOf(v);
       put(labelOf(k), val);
@@ -10613,21 +10615,28 @@ function approvalDetails_(u, x) {
       tables.push({ title: title, cols: ['#'].concat(cols.map(labelOf), hasPh ? ['Photos'] : []), rows: objs.slice(0, 300).map((o, i) => [String(i + 1)].concat(cols.map(k => {
         let v = detVal_(k, o[k]); if ((k === 'no' || k === 'machinery') && v && machOf(o[k])) v += ' – ' + machOf(o[k]); return v; }), hasPh ? [String(DET_PHOTO_.reduce((n, k) => n + (Array.isArray(o[k]) ? o[k].length : blank_(o[k]) ? 0 : 1), 0) || '')] : [])),
         more: Math.max(0, objs.length - 300) });
-      objs.forEach(o => DET_PHOTO_.forEach(k => { photos += Array.isArray(o[k]) ? o[k].length : blank_(o[k]) ? 0 : 1; }));
+      objs.forEach((o, i) => DET_PHOTO_.forEach(k => { if (!blank_(o[k])) addPics(o[k], 'Row ' + (i + 1) + ' – '); }));
     };
     (Array.isArray(args) ? args : [args]).forEach((a, i) => {
       if (a === null || a === undefined || a === '') return;
       if (Array.isArray(a)) { table('Rows', a); return; }
       if (typeof a !== 'object') { put(i === 0 && /^(update|delete)/.test(r.fn) ? 'Entry' : 'Sent as', detVal_('', a)); return; }
       Object.keys(a).forEach(k => { const v = a[k];
+        if (DET_PHOTO_.indexOf(k) > -1) { if (!blank_(v)) addPics(v, ''); return; }      // (update-148: before a list of objects is taken for rows)
         if (Array.isArray(v) && v.some(o => o && typeof o === 'object' && !Array.isArray(o))) table(labelOf(k), v);
         else field(k, v); });
     });
     const now = (crDescribe_(r.fn, args).lines || []).filter(l => / \(saved now: /.test(l)).map(l => l.replace(/^.*\(saved now: /, '').replace(/\)$/, ''));
     return { id: r.id, kind: r.kind, task: r.kind === 'Flow' ? (MODULE_LABEL_[fl.m] || fl.m || '') : 'Change of a billed period', action: detAct_(r.fn), by: r.by, at: r.at, status: r.status,
-      reason: r.kind === 'Flow' ? '' : r.reason, fields: fields, tables: tables, photos: photos, savedNow: now };
+      reason: r.kind === 'Flow' ? '' : r.reason, fields: fields, tables: tables, photos: pics.length, pics: pics, savedNow: now };
   };
-  return { details: ids.map(id => { const r = rows.find(z => z.id === id), d = r ? one(r) : null; return d || { id: id, error: 'This request was not found – refresh the list.' }; }) };
+  const out = ids.map(id => { const r = rows.find(z => z.id === id), d = r ? one(r) : null; return d || { id: id, error: 'This request was not found – refresh the list.' }; });
+  // (update-148) the pictures: links that open each one for 15 minutes (one call for all the entries asked); the file names stay here
+  const paths = [...new Set([].concat(...out.map(d => (d.pics || []).map(z => z.p))))];
+  let urlOf = {}, picErr = '';
+  if (paths.length) { try { urlOf = photoLinks_(paths); } catch (e) { picErr = String((e && e.message) || e); } }
+  out.forEach(d => { if (!d.pics) return; d.pics = d.pics.map(z => ({ label: z.label, at: z.at, url: urlOf[z.p] || '' })); if (picErr) d.picErr = picErr; });
+  return { details: out };
 }
 // CORRECTED: checked as a save – what it refuses is said on the form, as for a save (nothing changes); else it goes again
 function flowEdit_(u, x) {
