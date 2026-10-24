@@ -371,9 +371,15 @@ function runPlain(fn, args, meta) {
     if (id && !bkAllowed().has(id)) throw new Error('This Sheet is not the backup Sheet of this site.');
     return JSON.stringify(google.call(String(method), String(p2), body ? String(body) : '', ms, id || sheetOf())); };
   // a Sheet the Super Admin gives (not on the list yet): only looked at (its tabs) and its status tab made – nothing else
-  g.__gNew = (what, id) => { id = String(id || ''); if (!/^[A-Za-z0-9_-]{20,}$/.test(id)) throw new Error('This is not a Google Sheet link.');
+  g.__gNew = function (what, id) { id = String(id || ''); if (!/^[A-Za-z0-9_-]{20,}$/.test(id)) throw new Error('This is not a Google Sheet link.');
     if (what === 'look') return JSON.stringify(google.call('GET', '/v4/spreadsheets/' + id + '?fields=' + encodeURIComponent('properties.title,sheets.properties.title'), '', 20000, id));
-    if (what === 'claim') return JSON.stringify(google.call('POST', '/v4/spreadsheets/' + id + ':batchUpdate', JSON.stringify({ requests: [{ addSheet: { properties: { title: 'Backup Status', gridProperties: { rowCount: 2, columnCount: 2, frozenRowCount: 1 } } } }] }), 20000, id));
+    // (second review) the status tab is made with a mark in A1 – "given to <site>, waiting for its first copy": a try that did not
+    // finish can give the same Sheet again (to the same site only); any other Sheet with a status tab is refused
+    if (what === 'peek') return JSON.stringify(google.call('GET', '/v4/spreadsheets/' + id + '/values/' + encodeURIComponent("'Backup Status'!A1:A2"), '', 20000, id));
+    if (what === 'claim') { const mark = String(arguments[2] || '').slice(0, 200);
+      const a = google.call('POST', '/v4/spreadsheets/' + id + ':batchUpdate', JSON.stringify({ requests: [{ addSheet: { properties: { title: 'Backup Status', gridProperties: { rowCount: 2, columnCount: 2, frozenRowCount: 1 } } } }] }), 20000, id);
+      if (a.code >= 300) return JSON.stringify(a);
+      return JSON.stringify(google.call('POST', '/v4/spreadsheets/' + id + '/values:batchUpdate', JSON.stringify({ valueInputOption: 'RAW', data: [{ range: "'Backup Status'!A1", values: [[mark]] }] }), 20000, id)); }
     throw new Error('Unknown action.'); };
   g.__bkRemoteOn = () => JSON.stringify(bkexport.on());
   g.__bkRemote = (source, bodyJson, ms) => JSON.stringify(bkexport.call(String(source), String(bodyJson), Number(ms) || 25000));

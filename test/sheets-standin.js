@@ -67,6 +67,12 @@ http.createServer((req, res) => {
       }
       return send(res, 200, { replies: replies });
     }
+    // (second review, 25-10-2026) read the first cells of a tab: GET …/values/'Title'!A1:A2
+    if (req.method === 'GET' && /^\/v4\/spreadsheets\/[^/:]+\/values\//.test(p)) {
+      const rg = decodeURIComponent(p.split('/values/')[1] || ''), title = rg.split('!')[0].replace(/^'|'$/g, '').replace(/''/g, "'"), t = tabsOf.find(x => x.title === title);
+      if (!t) return send(res, 400, { error: { message: 'Unable to parse range: ' + rg } });
+      return send(res, 200, { range: rg, values: t.values.slice(0, 2).map(r => r.slice(0, 1)).filter(r => r.length) });
+    }
     if (req.method === 'POST' && /^\/v4\/spreadsheets\/[^/:]+\/values:batchUpdate$/.test(p)) {
       const go = () => { let cells = 0;
         for (const d of j.data || []) { m = /^'((?:[^']|'')+)'!([A-Z]+)(\d+)$/.exec(d.range); if (!m) return send(res, 400, { error: { message: 'Unable to parse range: ' + d.range } });

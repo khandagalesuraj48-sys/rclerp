@@ -72,6 +72,13 @@ A separate review of this change (security and data-safety) found 3 high, 2 medi
 * The Portal's users go out with a **list of columns** (a column added later never leaves by itself); passwords and recovery
   codes stay "(hidden)".
 * A link like `…/spreadsheets/u/1/d/…` (a second Google account in the browser) is taken.
+**A second review of the fixes** (25-10-2026) found four more, fixed: a big table of another module (e.g. 30,000 rows of activity) is
+now copied **in pieces** – each run goes on where the one before stopped (before, it started again every run and never finished);
+the status tab made when a Sheet is given carries the mark "given to site …", so a giving that did not finish can be done again by the
+same site only (before, the Sheet was then refused for good); a table not copied because the other module failed is tried again at
+the next backup and named in "Still to copy"; a short "Backup now" that ran out of time says "press Backup now again". "New site"'s
+Sheet check is under the same lock; a closed site brought back with its own Sheet is not refused. Two settings for tests only:
+`BK_HARD_MS` (a shorter run) and `BK_REMOTE_ROWS` (smaller pages) – normally not set.
 Not changed (noted): another module's table is read by position, so a row saved in the same second may come twice or be missed in
 that one copy (the next copy has it); a row deleted in Engineering, the Portal or the bill evidence is not listed in "Deleted Rows"
 (those have no delete log); after an Instant Rollback the old code keeps the notes of the new Sheet – the old Sheet catches up at its
@@ -84,7 +91,9 @@ daily full copy.
   must be named, every question names it, never the sign-ins, the "since" filter of a plan or report). `node --check` on every
   server file; the pages' script blocks parse; no secret in the change.
 * **`test/backup157.js`** (the Sheets stand-in now keeps several spreadsheets, can refuse one, act as a Viewer share and be full):
-  **52 / 52** on a fresh rig – the 43 below and 9 for the review: its own Sheet of before and another site's refused; a Sheet that
+  **55 / 55** on a fresh rig – the 43 below, 9 for the review and 3 for the second review (a Sheet marked "given to site T2"
+  refused for S1 and taken for T2; Engineering's activity of 30,000 new rows copied in 4 pieces – "… rows so far" – then exactly its
+  rows, each once). The 9 of the review: its own Sheet of before and another site's refused; a Sheet that
   holds a backup refused; a Viewer share refused ("cannot write it"), the site's Sheet unchanged; Engineering failing on one table
   (a fault at its database): the site's own backup written (a new machinery in Master), not failed, the status names the table, the
   next backup copies it; Sheet 3 added while Sheet 2 was not complete: the Log Book keeps its start of Sheet 2, the Activity Log
@@ -106,8 +115,9 @@ daily full copy.
   "TEXT stays text" cell, the several-sites tables) and fail on main too. Differences seen only in the details: the nightly job now
   says `sites: 3` (every ready site and the Portal) instead of 1; the status tab has the lines "Site", "This Sheet", "It holds"; the
   Admin's answer carries `sheetN`, `sheets`, `cells`.
-* The Portal's own tests on this branch: `api.test.js` 111 / 111, `browser.test.js` 34 / 34 in 4 of 5 runs (one run: the New site
-  step sent an empty site code and the 4 checks after it failed – not seen in the 2 runs after it; main 34 / 34 in its run);
+* The Portal's own tests on this branch: `api.test.js` 111 / 111, `browser.test.js` 34 / 34 in 7 of 9 runs (two runs: the New site
+  step sent an empty site code and the 4 checks after it failed); on main the same test is not steady either: 34 / 34 in 2 of 3 runs
+  (one stopped at its line 58, waiting 20 s for a screen) – a timing of this rig's browser, not of this change;
   Engineering's `api.test.js` 81 / 82 (the same check fails on main – a name on the rig's list of people).
 
 ## Not verified

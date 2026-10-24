@@ -4920,7 +4920,7 @@ test('update-141: the Google Sheet backup ONCE A DAY (the nightly job; the first
   assert.ok(/if \(a\.cols !== colsOf\(t\)\) return null;/.test(bk) && /if \(missing\.indexOf\((?:sbTabName_|tabOf)\(t\)\) > -1\) return null;/.test(bk));
   assert.ok(/Number\(tab\.gridProperties\.rowCount\) !== Number\(a\.n\) \+ 1\) return null;/.test(bk) && /return countUpTo\(t, kcol, top\) === Number\(a\.n\) \+ add\.length \? add : null;/.test(bk));
   assert.ok(/rowCount: x\.total \|\| x\.data\.length/.test(bk) && /'!A' \+ \(\(x\.from \|\| 0\) \+ i \+ 1\)/.test(bk) && /if \(!jobs\.length\) return;/.test(bk));
-  assert.ok(/keep\(\{ sig: old, fullRun: fullRun, todo: changed\.filter\(t => !doneNow\[t\]\), lastRun: nowIso, app: apps(, copied: copied)? \}\)/.test(bk), 'the notes of the logs are kept with each group');
+  assert.ok(/keep\(\{ sig: old, fullRun: fullRun, todo: changed\.filter\(t => !doneNow\[t\]\), lastRun: nowIso, app: apps(, copied: copied(, remPos: remPos, retry: Object\.keys\(remBad\))?)? \}\)/.test(bk), 'the notes of the logs are kept with each group');
   // the page asks every 30 minutes; a minute later while something is left (the answer says "pending")
   assert.ok(/setInterval\(tick, 1800000\)/.test(pg) && !/setInterval\(tick, 300000\)/.test(pg) && /j\.pending > 0\) \{ clearTimeout\(soon\); soon = setTimeout\(tick, 60000\)/.test(pg));
   assert.ok(/pending: Number\(r\.pending\) \|\| 0 \}; \}/.test(rt));
