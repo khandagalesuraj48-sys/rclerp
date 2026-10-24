@@ -7411,7 +7411,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   setInwType(inwType());
   function clearInward() {
     ['i_pump', 'i_qty', 'i_rate', 'i_amount', 'i_billno', 'i_billdate'].forEach(id => $(id).value = '');
-    S.editInwardId = null;
+    S.editInwardId = null; S.editInwardVer = '';
     $('i_title').textContent = 'Diesel inward'; $('i_save').textContent = 'Save inward'; $('i_cancel').hidden = true;
     setInwType(inwType());
     inwardAfterLine();
@@ -7419,7 +7419,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function editInward(id) {
     const r = (S.inwardRows || []).find(x => x.id === id); if (!r) return;
-    S.editInwardId = r.id;
+    S.editInwardId = r.id; S.editInwardVer = r.ver || '';      // (update-156) the version it had when opened: sent with the change
     setInwType(r.open ? 'opening' : r.extra ? 'extra' : 'inward');
     $('i_date').value = r.date; $('i_loc').value = r.location; $('i_pump').value = r.open || r.extra ? '' : r.pump; $('i_qty').value = r.qty; $('i_rate').value = r.rate;
     $('i_billno').value = r.billNo; $('i_billdate').value = r.billDate;
@@ -7449,6 +7449,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (!changes.length) { toast('Nothing changed.'); return; }
       if (!(await askConfirm({ title: 'Update ' + editing + '?', html: 'These details will change:' + changeTable(changes), ok: 'Update' }))) return;
     }
+    if (editing) x.ver = S.editInwardVer || '';      // (update-156) changed by someone else meanwhile: refused, nothing saved
     const res = editing ? await call('updateInward', editing, x) : await call('saveInward', x);
     if (x.pump && !x.type && S.pumps.indexOf(x.pump) === -1) setPumps(S.pumps.concat(x.pump).sort());
     toast(editing ? 'Inward ' + res.id + ' updated.' : (x.type === 'opening' ? 'Opening stock saved: ' + res.id : x.type === 'extra' ? 'Extra diesel saved: ' + res.id : 'Inward saved: ' + res.id));
@@ -7458,7 +7459,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const r = (S.inwardRows || []).find(x => x.id === id); if (!r) return;
     if (!(await askConfirm({ title: 'Delete ' + r.id + '?', danger: true, ok: 'Delete',
       html: listHtml([showDate(r.date) + ' – ' + r.pump, fmt(r.qty) + ' Ltr at ₹' + money(r.rate) + ' = ₹' + money(r.amount), 'Bill: ' + (r.billNo || '–')]) + '<p>This cannot be undone. Stock will go down by ' + fmt(r.qty) + ' Ltr.</p>' }))) return;
-    await call('deleteInward', r.id);
+    await call('deleteInward', r.id, r.ver || '');      // (update-156) the version shown
     if (S.editInwardId === r.id) clearInward();
     toast(r.id + ' deleted.');
     loadInward();
@@ -7614,14 +7615,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('t_qty').addEventListener('input', transferLive);
   function clearTransfer() {
     ['t_qty', 't_remark'].forEach(id => $(id).value = '');
-    S.editTransferId = null;
+    S.editTransferId = null; S.editTransferVer = '';
     $('t_title').textContent = 'Diesel transfer'; $('t_save').textContent = 'Save transfer'; $('t_cancel').hidden = true;
     refreshTransferBal();
   }
   function editTransfer(id) {
     trMode(false);
     const r = (S.transferRows || []).find(x => x.id === id); if (!r) return;
-    S.editTransferId = r.id;
+    S.editTransferId = r.id; S.editTransferVer = r.ver || '';      // (update-156) the version it had when opened: sent with the change
     $('t_date').value = r.date; $('t_shift').value = r.shift; $('t_from').value = r.from; $('t_to').value = r.to;
     $('t_qty').value = r.qty; $('t_remark').value = r.remark;
     $('t_title').textContent = 'Edit ' + r.id; $('t_save').textContent = 'Update transfer'; $('t_cancel').hidden = false;
@@ -7641,6 +7642,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (!changes.length) { toast('Nothing changed.'); return; }
       if (!(await askConfirm({ title: 'Update ' + editing + '?', html: 'These details will change:' + changeTable(changes), ok: 'Update' }))) return;
     }
+    if (editing) x.ver = S.editTransferVer || '';      // (update-156) changed by someone else meanwhile: refused, nothing saved
     const res = editing ? await call('updateTransfer', editing, x) : await call('saveTransfer', x);
     toast(editing ? 'Transfer ' + res.id + ' updated.' : 'Transfer saved: ' + res.id + ' (' + fmt(x.qty) + ' Ltr ' + x.from + ' → ' + x.to + ')');
     clearTransfer(); loadTransfers();
@@ -7649,7 +7651,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const r = (S.transferRows || []).find(x => x.id === id); if (!r) return;
     if (!(await askConfirm({ title: 'Delete ' + r.id + '?', danger: true, ok: 'Delete',
       html: listHtml([showDate(r.date) + ', ' + r.shift + ' shift', fmt(r.qty) + ' Ltr ' + r.from + ' → ' + r.to]) + '<p>This cannot be undone. ' + esc(r.from) + ' gets the diesel back and ' + esc(r.to) + ' loses it.</p>' }))) return;
-    await call('deleteTransfer', r.id);
+    await call('deleteTransfer', r.id, r.ver || '');      // (update-156) the version shown
     if (S.editTransferId === r.id) clearTransfer();
     toast(r.id + ' deleted.');
     loadTransfers();
@@ -11042,7 +11044,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (ch.status === 'Active' && !ch.activeFrom && wereOff.length && !(await askConfirm({ title: 'They never left the site?', ok: 'They never left', wide: true,
       html: '<p>' + wereOff.map(m => esc(m.id) + ' (inactive from ' + esc(showDate(mDay(m.inactiveFrom))) + ')').join(', ') + '</p><p>If they <b>came back</b>, press Cancel and put the day they came back in <b>Active From</b> – their time on site until they left is kept as an earlier period.</p><p>"They never left": the Inactive was a mistake – every day counts as on site.</p>' }))) return;
     if (!Object.keys(ch).length) { toast('Nothing changed.'); return; }
-    const res = await call('editMasterMany', list.map(m => m.id), ch);
+    const res = await call('editMasterMany', list.map(m => m.id), ch, Object.fromEntries(list.map(m => [m.id, m.ver || ''])));      // (update-156) the versions shown
     if (!res.ok) { await askConfirm({ title: 'Nothing saved', ok: 'OK', alertOnly: true, wide: true, html: listHtml(res.errors.map(e => e.id + ': ' + e.msg)) }); return; }
     setMaster(res.master); S.mSel.clear(); renderMaster();
     toast(res.count + ' machinery updated.');
@@ -11050,13 +11052,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // Delete selected
   $('m_seldel').addEventListener('click', async () => {
     const ids = [...S.mSel]; if (!ids.length) return;
+    const vers = Object.fromEntries(ids.map(id => [id, ((S.master || []).find(x => x.id === id) || {}).ver || '']));      // (update-156) the versions shown
     if (!(await askConfirm({ title: 'Delete ' + ids.length + ' machinery from Master?', ok: 'Delete', danger: true,
       html: '<p>' + ids.slice(0, 30).map(esc).join(', ') + (ids.length > 30 ? ' …' : '') + '</p>' }))) return;
-    let res = await call('deleteMasterMany', ids, false);
+    let res = await call('deleteMasterMany', ids, false, vers);
     if (!res.ok && res.used) {
       if (!(await askConfirm({ title: res.used.length + ' of them already have entries', ok: 'Delete anyway', danger: true, wide: true,
         html: listHtml(res.used.map(u => u.id + ' – ' + u.diesel + ' Diesel Issue, ' + u.log + ' Log Book entries')) + '<p>Their entries stay, but the machinery will be removed from Master.</p>' }))) return;
-      res = await call('deleteMasterMany', ids, true);
+      res = await call('deleteMasterMany', ids, true, vers);
     }
     setMaster(res.master); S.mSel.clear(); renderMaster();
     toast(res.count + ' machinery deleted.');
@@ -11201,14 +11204,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         'its BOQs, bills, payments, debit notes, and the owner / "Debit to" on Log Book entries and diesel issues.</p><p class="muted">Bills and debit notes already submitted keep the name printed on their papers; they stay in this vendor\'s ledger.</p>' }))) return;
     }
     const res = await call('saveVendor', { oldName: renaming ? was : '', name: g('v_name'), gstReg: g('v_gstreg'), gst: g('v_gst'), gstPct: g('v_gstpct'), pan: g('v_pan'), tds: g('v_tds'), bank: g('v_bank'),
-      branch: g('v_branch'), account: g('v_acc'), ifsc: g('v_ifsc'), phone: g('v_phone'), address: g('v_addr'), remark: g('v_remark'), aadhaar: g('v_aadhaar'), email: g('v_email')}, S.vEdit && S.vEdit.saved ? 'edit' : 'add');
+      branch: g('v_branch'), account: g('v_acc'), ifsc: g('v_ifsc'), phone: g('v_phone'), address: g('v_addr'), remark: g('v_remark'), aadhaar: g('v_aadhaar'), email: g('v_email'),
+      ver: S.vEdit && S.vEdit.saved ? S.vEdit.ver || '' : '' }, S.vEdit && S.vEdit.saved ? 'edit' : 'add');      // (update-156) the version it had when opened
     S.vendors = res.vendors; renderVendors(); $('v_form').hidden = true;
     toast(res.renamed ? 'Vendor renamed: ' + res.renamed.from + ' → ' + res.renamed.to + (res.renamed.text ? ' (' + res.renamed.text + ' moved with it)' : '') : 'Vendor saved: ' + res.name);
     loadVendors(); if (res.renamed) { S.stale = S.stale || {}; ['master', 'boq', 'log', 'diesel', 'bills', 'pay', 'vled', 'vout'].forEach(t => { S.stale[t] = true; }); refreshLookups(true); }
   }));
   $('v_del').addEventListener('click', async () => {
     if (!S.vEdit || !(await askConfirm({ title: 'Delete vendor ' + S.vEdit.name + '?', ok: 'Delete', danger: true, html: '<p>A vendor that still has assets in Asset Master, or BOQs, cannot be deleted – give the assets another vendor / delete the BOQs first.</p>' }))) return;
-    try { const res = await call('deleteVendor', S.vEdit.name); $('v_form').hidden = true; toast('Vendor details deleted.'); loadVendors(); } catch (e) { toast(errMsg(e), true); }
+    try { const res = await call('deleteVendor', S.vEdit.name, S.vEdit.ver || ''); $('v_form').hidden = true; toast('Vendor details deleted.'); loadVendors(); } catch (e) { toast(errMsg(e), true); }
   });
   /* ---------- BOQ list ---------- */
   const boqDieselText = l => l.diesel === 'Debit Basis' ? ' · diesel: debit basis' : ' · diesel: company paid';
@@ -11284,7 +11288,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     else if (t.dataset.bdel) {
       const b = find(t.dataset.bdel);
       if (!(await askConfirm({ title: 'Delete ' + b.id + (b.amendOf ? ' (amendment ' + b.amendNo + ')' : '') + '?', ok: 'Delete', danger: true, html: '<p>' + esc(b.vendor) + ' – ' + esc(showDate(b.from)) + ' to ' + (b.to ? esc(showDate(b.to)) : 'open') + '</p>' }))) return;
-      try { await call('deleteBoq', b.id); toast(b.id + ' deleted.'); loadVendors(); } catch (err) { toast(errMsg(err), true); }
+      try { await call('deleteBoq', b.id, b.ver || ''); toast(b.id + ' deleted.'); loadVendors(); } catch (err) { toast(errMsg(err), true); }
     }
   });
   /* ---------- BOQ form ---------- */
@@ -11578,7 +11582,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     const body = { vendor: $('b_vendor').value, no: $('b_no').value.trim(), from: $('b_from').value, to: $('b_to').value, remark: $('b_remark').value.trim(), lines: lines, gstPct: $('b_gst').value, tdsPct: $('b_tds').value, woNo: $('b_wono').value.trim(), woDate: $('b_wodate').value };
     let res;
-    if (S.bMode === 'edit') res = await call('saveBoq', body, 'edit', S.bRec.id);
+    if (S.bMode === 'edit') { body.ver = S.bRec.ver || ''; res = await call('saveBoq', body, 'edit', S.bRec.id); }      // (update-156) the version it had when opened
     else { if (S.bMode === 'amend') body.amendOf = S.bRec.id; res = await call('saveBoq', body, 'add'); }
     $('b_form').hidden = true; S.formDirty = false;
     toast(S.bMode === 'amend' ? 'Saved as BOQ ' + res.no + ' – amendment ' + res.amendNo + ' of BOQ ' + S.bRec.no : 'BOQ ' + res.no + ' saved for ' + $('b_vendor').value);
@@ -13871,13 +13875,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   $('py_vendor').addEventListener('change', pyVendorInfo);
   function pyClear() {
-    S.py.editId = null; ['py_amount', 'py_ref', 'py_remark'].forEach(id => { $(id).value = ''; }); $('py_mode').value = ''; $('py_bill').value = ''; $('py_side').value = 'Payable';
+    S.py.editId = null; S.py.editVer = ''; ['py_amount', 'py_ref', 'py_remark'].forEach(id => { $(id).value = ''; }); $('py_mode').value = ''; $('py_bill').value = ''; $('py_side').value = 'Payable';
     $('py_date').value = S.today || ''; document.querySelector('input[name=py_type][value=Payment]').checked = true; pyShowType();
   }
   $('py_clear').addEventListener('click', pyClear);
   $('py_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
     const x = { id: S.py.editId, type: pyType(), date: $('py_date').value, vendor: $('py_vendor').value, amount: $('py_amount').value, side: $('py_side').value, mode: $('py_mode').value, ref: $('py_ref').value, bill: $('py_bill').value, remark: $('py_remark').value };
     if (S.py.editId && !(await askConfirm({ title: 'Save the changes?', ok: 'Save changes', message: 'Entry ' + S.py.editId + ' of ' + x.vendor + ' will be changed.' }))) return;
+    if (S.py.editId) x.ver = S.py.editVer || '';      // (update-156) changed by someone else meanwhile: refused, nothing saved
     const r = await call('savePayment', x, S.py.editId ? 'edit' : 'add');
     toast((x.type === 'Opening' ? 'Opening balance' : 'Payment') + ' saved: ' + x.vendor + ' – ₹ ' + mbN2(r.amount));
     const v = x.vendor; pyClear(); $('py_vendor').value = v; await pyLoad(); pyVendorInfo();
@@ -13886,13 +13891,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const ed = e.target.closest('[data-pye]'), dl = e.target.closest('[data-pyd]');
     const p = S.py.list.find(x => x.id === (ed || dl || {}).dataset?.[ed ? 'pye' : 'pyd']); if (!p) return;
     if (ed) {
-      S.py.editId = p.id; document.querySelector('input[name=py_type][value=' + p.type + ']').checked = true;
+      S.py.editId = p.id; S.py.editVer = p.ver || ''; document.querySelector('input[name=py_type][value=' + p.type + ']').checked = true;      // (update-156) the version it had when opened
       $('py_date').value = p.date; $('py_vendor').value = p.vendor; $('py_amount').value = p.amount; $('py_side').value = p.side; $('py_mode').value = p.mode; $('py_ref').value = p.ref; $('py_remark').value = p.remark;
       await pyVendorInfo(); $('py_bill').value = p.bill; if (p.bill && $('py_bill').value !== p.bill) { const o = document.createElement('option'); o.value = p.bill; o.textContent = p.bill; $('py_bill').appendChild(o); $('py_bill').value = p.bill; }
       pyShowType(); if ($('py_title').scrollIntoView) $('py_title').scrollIntoView({ behavior: 'smooth', block: 'start' }); return;
     }
     if (!(await askConfirm({ title: 'Delete this entry?', ok: 'Delete', danger: true, message: (p.type === 'Opening' ? 'Opening balance' : 'Payment') + ' of ' + p.vendor + ' – ₹ ' + mbN2(p.amount) + ' on ' + showDate(p.date) + '. The vendor balance will change.' }))) return;
-    try { await call('deletePayment', p.id); toast('Deleted.'); if (S.py.editId === p.id) pyClear(); await pyLoad(); pyVendorInfo(); } catch (err) { toast(errMsg(err), true); }
+    try { await call('deletePayment', p.id, p.ver || ''); toast('Deleted.'); if (S.py.editId === p.id) pyClear(); await pyLoad(); pyVendorInfo(); } catch (err) { toast(errMsg(err), true); }
   });
 
   /* ---------- Vendor Ledger ---------- */
@@ -15530,7 +15535,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function editMaster(no) {
     const m = findMachine(no); if (!m) return;
-    S.editNo = m.id;
+    S.editNo = m.id; S.editMasterVer = m.ver || '';      // (update-156) the version it had when opened: sent with the change
     // (06-10-2026: the Number – and, for a machinery without one, the Name – can be changed; everything entered for the machinery follows, see the save below)
     $('m_no').value = m.no; $('m_no').readOnly = false; $('m_name').readOnly = false;
     $('m_name').value = m.name; $('m_type').value = m.type; $('m_make').value = m.make;
@@ -15626,7 +15631,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   });
   async function deleteMachine(no, force) {
     if (!force && !(await askConfirm({ title: 'Delete machinery?', message: 'Delete ' + no + ' from Master? This cannot be undone.', ok: 'Delete', danger: true }))) return;
-    const res = await call('deleteMaster', no, force);
+    const res = await call('deleteMaster', no, force, ((findMachine(no) || {}).ver) || '');      // (update-156) the version shown
     if (res.warning) {
       if (await askConfirm({ title: 'This machinery has entries', message: res.warning, ok: 'Delete anyway', danger: true })) return deleteMachine(no, true);
       return;
@@ -15771,6 +15776,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           'A QR label printed with the old number will not open this machinery any more – print its label again.']) : '';
       if (!(await askConfirm({ title: 'Update ' + S.editNo + '?', html: idNote + 'These details will change:' + changeTable(changes), ok: idChange ? 'Change the number' : 'Update' }))) return;
     }
+    if (mode === 'edit') m.ver = S.editMasterVer || '';      // (update-156) changed by someone else meanwhile: refused, nothing saved
     const res = await call('saveMaster', m, mode, S.editNo);
     setMaster(res.master);
     toast(mode === 'edit' ? (res.renamed ? 'Machinery updated – ' + res.renamed.from + ' is now ' + res.renamed.to + (res.renamed.text ? ' (moved with it: ' + res.renamed.text + ')' : '') + '.' : 'Machinery updated.') : 'Machinery saved.');

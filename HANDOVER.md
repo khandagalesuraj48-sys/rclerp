@@ -1966,6 +1966,18 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (`server/usage.js`; `syncfetch.meter`, the worker's `threadCpuUsage` in `pool.js` → `meta.use`): `[usage]` log line every 10 min,
   `GET /api/rpc?usage=1` only with `RCL_USAGE=on`. Tests: unit (delta, the bridge in a vm, rpc with a stub pool), browser `sync155`,
   `poll` (5 s / 60 s), `test/traffic155.js` (one page phase by phase, main vs branch).
+- 24-10-2026 (update-156, with App 3.36.0). Report: `UPDATE_156.md`. VERSION CHECKS ON EVERY EDIT SCREEN (no database step, no
+  calculation changed). As update-145 did for Log Book and Diesel Issue: `rowVer_` over the fields each screen can change –
+  `INWARD_VER_H_`, `TRANSFER_VER_H_`, `PAY_VER_H_`, `VENDOR_VER_H_` (not "Ownership"), `BOQ_VER_H_`, `MASTER_VER_H_` (not the Log
+  Book format or a reading) – goes out as `ver` with each row (`getInwards_`, `getTransfers_`, `payOut_`, `vendorOut_`, `boqOut_`,
+  `buildMaster_`; `updateInward_` / `updateTransfer_` answer the new one) and is checked under the lock with `verCheck_` in
+  `updateInward_`, `deleteInward_`, `updateTransfer_`, `deleteTransfer_`, `savePayment_` (edit), `deletePayment_`, `saveVendor_` (before
+  a rename), `deleteVendor_`, `saveBoq_` (edit), `deleteBoq_`, `saveMaster_` (before a rename), `deleteMaster_`, `editMasterMany_`
+  and `deleteMasterMany_` (`vers` – one per machinery). `verVal_` compares these dates and amounts as values (`VER_DATE2_`,
+  `VER_NUM2_` – none of them is a Log Book or Diesel Issue field, so their versions are unchanged). `leastOut_` drops a
+  machinery's `ver` for a person who may not see every field. The page keeps the version an entry had when it was OPENED
+  (`S.editInwardVer`, `S.editTransferVer`, `S.py.editVer`, `S.editMasterVer`, `S.vEdit.ver`, `S.bRec.ver`) and the list's for a delete.
+  Not compulsory: no version = accepted as before (older pages, the app before 3.36.0). Tests: unit (update-156), browser `ver156`.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
