@@ -9,6 +9,7 @@
  * R = { runIn(site, fn, args) } – runs one of the app's own functions inside a site (runtime.js), its answer parsed. */
 'use strict';
 const sites = require('./sites');
+const crypto = require('crypto');
 const portal = require('./portal');
 const { fetchAllSync } = require('./syncfetch');
 
@@ -97,12 +98,46 @@ function portalAdmin(R, args) {
   if (c.act === 'siteSql') return R.runIn('', 'sysNewSiteSql', [c]);
   if (c.act === 'siteSetup') return siteSetup(R, c);
   if (c.act === 'siteOff') return siteOff(c);
+  if (c.act === 'bkGet' || c.act === 'bkSet' || c.act === 'bkNow') return backupAdmin(R, c);      // (update-157)
   const reg = sites.registry();
   let at = '';
   if (reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
   const r = R.runIn(at, 'sysPortalAdmin', [c]);
   if (c.act === 'pages' && reg) { try { keepMembership(c.email, c.site, true, r.admin); } catch (e) { console.error('[portal pages: site list] ' + String((e && e.message) || e)); } }
   return r;
+}
+/* ---- (update-157) Sites → Backup in the Portal: a site's numbered Google Sheets (the Portal's are kept at the first site). A Sheet
+ * given here must not be the Sheet of another site or of the Portal: every site is asked which it uses, first (a site that cannot
+ * be asked stops the change – never two sites writing into one Sheet). ---- */
+function backupAdmin(R, c) {
+  const reg = sites.registry();
+  let at = '';
+  if (c.target !== 'portal' && reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
+  if (c.act !== 'bkSet') return R.runIn(at, 'sysPortalAdmin', [c]);
+  // (review 25-10-2026) ONE change of a backup Sheet at a time, for every site (two tabs of the Portal pressing at the same moment
+  // could otherwise give one Sheet to two sites): a lock in the first site's database while the Sheets are gathered and set
+  const holder = 'bkset-' + crypto.randomBytes(8).toString('hex');
+  let got = null; try { got = sites.homeRest('POST', 'rpc/web_lock', { p_name: 'backup_admin', p_holder: holder, p_ttl: 90 }); } catch (e) { got = null; }
+  if (!got || !got.ok) throw new Error('Another backup Sheet is being given right now – try again in a minute.');
+  try {
+    c = Object.assign({}, c, { taken: bkTaken(R, c.target === 'portal' ? null : at) });
+    return R.runIn(at, 'sysPortalAdmin', [c]);
+  } finally { try { sites.homeRest('POST', 'rpc/web_unlock', { p_name: 'backup_admin', p_holder: holder }); } catch (e) { /* frees itself in 90 s */ } }
+}
+// every backup Sheet in use or used before – by every ready site (and the Portal's at the first site), and the Sheet each site of
+// the list was given at "New site" (a closed site too). me: the site that is being given a Sheet (it checks its own list itself);
+// null: the Portal's Sheets are being given (then every site's counts, and the Portal checks its own)
+function bkTaken(R, me) {
+  const reg = sites.registry(), taken = [];
+  (reg || [{ code: sites.homeCode(), home: true, status: 'ready' }]).forEach(x => {
+    const run = x.home ? '' : x.code;
+    if (x.status !== 'ready') { const m = /\/d\/([A-Za-z0-9_-]{20,})/.exec(String(x.sheet || '')) || /^([A-Za-z0-9_-]{20,})$/.exec(String(x.sheet || '').trim()); if (m) taken.push(m[1]); return; }
+    let ids = null;
+    try { ids = R.runIn(run, 'sysBkIds', []) || {}; } catch (e) { throw new Error('Site ' + x.code + ' could not be asked which backup Sheets it uses (' + String((e && e.message) || e).slice(0, 120) + ') – try again in a minute.'); }
+    if (!(me !== null && run === me)) (ids.site || []).forEach(id => taken.push(id));      // another site's (the site itself checks its own)
+    if (me !== null) (ids.portal || []).forEach(id => taken.push(id));      // the Portal's
+  });
+  return taken;
 }
 /* ---- (update-95, asked 13-10-2026) "New site" – the Super Admin fills a form in the Portal, the system checks and sets up ----
  * Mechanical is one app for every site; a site is its own database. The Super Admin makes the Supabase project himself and
@@ -146,6 +181,12 @@ function siteSetup(R, c) {
   try { sites.setupWith(conf); pl = R.runIn(code, 'sysPlacesSetup', [{ places: Array.isArray(c.places) ? c.places.slice(0, 20) : [], by: c.by, keep: same }]); }
   catch (e) { pl = { ok: false, note: String((e && e.message) || e).slice(0, 200) }; } finally { sites.setupWith(null); }
   if (!add('places', pl && pl.ok, (pl && pl.note) || '')) return out();
+  // (review 25-10-2026) the Sheet given in the form must not be a Sheet of another site or of the Portal (a new, empty one)
+  if (c.sheet) { const sm = /\/spreadsheets\/(?:u\/\d+\/)?d\/([A-Za-z0-9_-]{20,})/.exec(c.sheet) || /^([A-Za-z0-9_-]{20,})$/.exec(String(c.sheet).trim());
+    let taken = []; try { taken = bkTaken(R, code); } catch (e) { taken = null; }
+    const why = !sm ? 'The backup Sheet link is not a Google Sheet link – leave it empty and give it later in Sites → Backup.' : !taken ? 'The other sites could not be asked which backup Sheets they use – try again in a minute.'
+      : taken.indexOf(sm[1]) > -1 ? 'This Google Sheet is already the backup Sheet of another site (or of the Portal) – leave it empty and give a new, empty Sheet later in Sites → Backup.' : '';
+    if (why) { add('ready', false, why); return out(); } }
   // in the list of sites: Ready (its key stays in Vercel – nothing locked here)
   const comp = c.company && c.company.id ? c.company : null;
   if (comp && !(sites.homeRest('GET', 'rcl_companies?select=id&id=eq.' + encodeURIComponent(comp.id)) || []).length && comp.name)

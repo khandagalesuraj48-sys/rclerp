@@ -4911,16 +4911,16 @@ test('update-141: the Google Sheet backup ONCE A DAY (the nightly job; the first
   // an open page: nothing when a backup ended today (India date); 4 minutes after a failed try; the nightly job (full) always runs
   assert.ok(/const doneToday = st => !!ms\(st\.lastCheck\) && dayOf\(ms\(st\.lastCheck\)\) === dayOf\(nowMs\)/.test(bk) && /'Asia\/Kolkata', 'yyyy-MM-dd'/.test(bk));
   assert.ok(/if \(opt\.auto && !opt\.full && !unfinished && \(doneToday\(state\) \|\| \(ms\(state\.lastTry\) && nowMs - ms\(state\.lastTry\) < 4 \* 60000\)\)\) return \{ skipped: true \};/.test(bk));
-  assert.ok(/!\(state\.todo && state\.todo\.length\) && doneToday\(state\)\) \{ __unlockNamed\('backup'\); return \{ skipped: true \}; \}/.test(bk), 'checked again with the lock');
+  assert.ok(/!\(state\.todo && state\.todo\.length\) && doneToday\(state\)\) \{ __unlockNamed\((?:'backup'|T\.lock)\); return \{ skipped: true \}; \}/.test(bk), 'checked again with the lock');      // (update-157: the lock of this backup – the site's "backup" or the Portal's)
   assert.ok(!/nowMs - Math\.max\(ms\(state\.lastCheck\), ms\(state\.lastTry\)\) < 4 \* 60000/.test(bk), 'no backup every 4 minutes any more');
   // the logs: only the new rows, when the tab and the notes agree; else (and once in 30 days) whole
   assert.ok(/const APPEND_ = \{ activity_log: 'id', store_activity: 'id' \};/.test(bk) && /MONTH = 30 \* day/.test(bk));
   // (review 21-10-2026) read by key page by page, each key once; same columns; never into a tab made again in the same run
   assert.ok(/const add = byKey\(t, kcol, a\.last\);/.test(bk) && /if \(!distinct\(add, kcol\)\) return null;/.test(bk) && /list = kcol \? byKey\(t, kcol, ''\) :/.test(bk));
-  assert.ok(/if \(a\.cols !== colsOf\(t\)\) return null;/.test(bk) && /if \(missing\.indexOf\(sbTabName_\(t\)\) > -1\) return null;/.test(bk));
+  assert.ok(/if \(a\.cols !== colsOf\(t\)\) return null;/.test(bk) && /if \(missing\.indexOf\((?:sbTabName_|tabOf)\(t\)\) > -1\) return null;/.test(bk));
   assert.ok(/Number\(tab\.gridProperties\.rowCount\) !== Number\(a\.n\) \+ 1\) return null;/.test(bk) && /return countUpTo\(t, kcol, top\) === Number\(a\.n\) \+ add\.length \? add : null;/.test(bk));
   assert.ok(/rowCount: x\.total \|\| x\.data\.length/.test(bk) && /'!A' \+ \(\(x\.from \|\| 0\) \+ i \+ 1\)/.test(bk) && /if \(!jobs\.length\) return;/.test(bk));
-  assert.ok(/keep\(\{ sig: old, fullRun: fullRun, todo: changed\.filter\(t => !doneNow\[t\]\), lastRun: nowIso, app: apps \}\)/.test(bk), 'the notes of the logs are kept with each group');
+  assert.ok(/keep\(\{ sig: old, fullRun: fullRun, todo: changed\.filter\(t => !doneNow\[t\]\), lastRun: nowIso, app: apps(, copied: copied)? \}\)/.test(bk), 'the notes of the logs are kept with each group');
   // the page asks every 30 minutes; a minute later while something is left (the answer says "pending")
   assert.ok(/setInterval\(tick, 1800000\)/.test(pg) && !/setInterval\(tick, 300000\)/.test(pg) && /j\.pending > 0\) \{ clearTimeout\(soon\); soon = setTimeout\(tick, 60000\)/.test(pg));
   assert.ok(/pending: Number\(r\.pending\) \|\| 0 \}; \}/.test(rt));

@@ -1978,6 +1978,17 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   machinery's `ver` for a person who may not see every field. The page keeps the version an entry had when it was OPENED
   (`S.editInwardVer`, `S.editTransferVer`, `S.py.editVer`, `S.editMasterVer`, `S.vEdit.ver`, `S.bRec.ver`) and the list's for a delete.
   Not compulsory: no version = accepted as before (older pages, the app before 3.36.0). Tests: unit (update-156), browser `ver156`.
+- 24-10-2026 (update-157, with rcl-portal and rcl-engineering "backup export"). Report: `UPDATE_157.md`. NUMBERED BACKUP SHEETS
+  (no database step). `server/backup.vm.js`: `bkTarget_` (the site: lock "backup", `BK_STATE`, `SB_INFO`, `BK_SHEETS`; the Portal at
+  the first site: "backup_portal", `BK_PORTAL_STATE`, `SB_PORTAL_INFO`, `BK_PORTAL_SHEETS`), `bkSheets_` (the list; none → the Sheet
+  of before as Sheet 1, `legacy`), the last = in use; Sheet 2+ (`from`): tables of entries filtered `updated_at|created_at|at|
+  deleted_at >= from`, masters whole (`BK_REF_`), the logs' append notes with the same filter; cells read after each copy
+  (`bkCellsKeep_`, `info.cells / cellsPct`); a full Sheet said plainly. `bkSheetSet_` (change / add – an hour before the last complete
+  copy; the robot can open it; not another site's: `system.js backupAdmin` asks every site `sysBkIds`), `bkSheetsInfo_`, `bkNow_`
+  (a short run for the Portal's 25 s). Engineering / Portal rows: `server/bkexport.js` → their `api/backup-export.js` with
+  `BACKUP_EXPORT_SECRET` (`bkRemoteCatalog_`, `bkRemoteRows_`; tabs "Engineering – …" of this site, "Portal – …"). The nightly job:
+  every ready site + the Portal. Portal: Sites → Backup, Portal backup. Tests: `test/backup157.js` (stand-in with several
+  spreadsheets, `/deny`, `/cap`), `test/backup.js` as before.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

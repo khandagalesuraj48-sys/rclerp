@@ -10,6 +10,7 @@ const sites = require('./sites');
 const system = require('./system');
 const portal = require('./portal');
 const google = require('./google');
+const bkexport = require('./bkexport');      // (update-157) the Engineering and Portal rows for the backup
 
 const FILES = ['SupabaseSync.gs', 'SupabaseData.gs', 'Code.gs', 'ReadMe.gs', 'Sites.gs'];      // Sites.gs: several sites (update-90)
 // added after the app's own code (same scope): the door for the calls, and the two things that differ outside Apps Script
@@ -22,12 +23,14 @@ const TAIL = `
     backup: o => { o = o || {}; if (!o.cron && !sessionUser_(o.token)) throw new Error('SESSION_EXPIRED');
       // the nightly job also forgets old save numbers (step-5 SQL: web_ops_cleanup). Never in the way of the backup; nothing to do where step 5 is not installed.
       if (o.cron) { try { __opsCleanup(); } catch (e) { /* tried again with the next saves and the next night */ } }
-      const r = webBackup_({ auto: true, full: !!o.cron && !!o.full }); return { ok: r.ok !== false, skipped: !!r.skipped, busy: !!r.busy, off: !!r.off, pending: Number(r.pending) || 0 }; },      // (update-141) pending: the page asks again a minute later
+      const r = webBackup_({ auto: true, full: !!o.cron && !!o.full, target: o.cron && o.target === 'portal' ? 'portal' : '' }); return { ok: r.ok !== false, skipped: !!r.skipped, busy: !!r.busy, off: !!r.off, pending: Number(r.pending) || 0 }; },      // (update-141) pending: the page asks again a minute later
     // only from this server itself (runOnce): the entry is in, what follows a save was never finished
     saved: (token, fn, args, kept) => savedAfterAll_(token, fn, args, kept),
     // (update-90) several sites – only from this server itself (system.js), never from the page (see run: OUTSIDE)
     saLogin: saLogin_, saWho: saWho_, saLogout: saLogout_, saChangePassword: saChangePassword_, saRecover: saRecover_,
     sysWho: sysWho_, sysSession: sysSession_, sysSso: sysSso_, sysPortalAdmin: sysPortalAdmin_, sysNewSiteSql: sysNewSiteSql_, sysSiteHealth: sysSiteHealth_, sysPlacesSetup: sysPlacesSetup_, sysOrgSet: sysOrgSet_, sysUserRow: sysUserRow_, sysSetPw: sysSetPw_, sysUsers: sysUsers_, sysSaveUser: sysSaveUser_, sysAccessReport: sysAccessReport_,
+    // (update-157) the backup Sheets this site uses (so none is given to two) – only from this server itself (system.js)
+    sysBkIds: () => bkIds_(),
     // (update-112) the person's language at his other sites (only from __runOthers below)
     sysPrefLang: sysPrefLang_ }[fn];
   if (!f) throw new Error('Unknown action.');
@@ -357,8 +360,23 @@ function runPlain(fn, args, meta) {
     });
     return JSON.stringify(out);
   };
-  g.__backupConfig = () => { const c = google.config(sheetOf()); return JSON.stringify(c.ok ? { ok: true, sheetId: c.sheetId, email: c.email } : c); };
-  g.__g = (method, p2, body, ms) => JSON.stringify(google.call(String(method), String(p2), body ? String(body) : '', ms, sheetOf()));
+  // (update-157) the backup robot (set up or not, its e-mail) and the Sheet this site had before its numbered Sheets (fallback);
+  // each call names the Sheet it writes (the numbered Sheet in use) – Google's answer is only ever about that Sheet
+  g.__backupConfig = () => { const a = google.sa(), c = google.config(sheetOf()); return JSON.stringify({ ok: a.ok, email: a.email || '', error: a.ok ? '' : a.error, fallback: c.ok ? c.sheetId : '' }); };
+  // (review 25-10-2026) a site writes only to ITS Sheets: the one named must be on this site's list (at the first site also the
+  // Portal's), or the Sheet it had before its list – checked here, outside the app's code
+  const bkAllowed = () => { const ids = new Set(), add = v => { try { (JSON.parse(v || '[]') || []).forEach(x => { if (x && x.id) ids.add(String(x.id)); }); } catch (e) { /* none */ } };
+    add(st.props.BK_SHEETS); if (gas.site() === '') add(st.props.BK_PORTAL_SHEETS); const f = google.config(sheetOf()); if (f.ok) ids.add(f.sheetId); return ids; };
+  g.__g = (method, p2, body, ms, sheet) => { const id = sheet ? String(sheet) : '';
+    if (id && !bkAllowed().has(id)) throw new Error('This Sheet is not the backup Sheet of this site.');
+    return JSON.stringify(google.call(String(method), String(p2), body ? String(body) : '', ms, id || sheetOf())); };
+  // a Sheet the Super Admin gives (not on the list yet): only looked at (its tabs) and its status tab made – nothing else
+  g.__gNew = (what, id) => { id = String(id || ''); if (!/^[A-Za-z0-9_-]{20,}$/.test(id)) throw new Error('This is not a Google Sheet link.');
+    if (what === 'look') return JSON.stringify(google.call('GET', '/v4/spreadsheets/' + id + '?fields=' + encodeURIComponent('properties.title,sheets.properties.title'), '', 20000, id));
+    if (what === 'claim') return JSON.stringify(google.call('POST', '/v4/spreadsheets/' + id + ':batchUpdate', JSON.stringify({ requests: [{ addSheet: { properties: { title: 'Backup Status', gridProperties: { rowCount: 2, columnCount: 2, frozenRowCount: 1 } } } }] }), 20000, id));
+    throw new Error('Unknown action.'); };
+  g.__bkRemoteOn = () => JSON.stringify(bkexport.on());
+  g.__bkRemote = (source, bodyJson, ms) => JSON.stringify(bkexport.call(String(source), String(bodyJson), Number(ms) || 25000));
   // the settings as the database has them NOW (the backup looks again once it holds its lock – another server may just have finished one)
   g.__propFresh = key => { const b = gas.rpc('web_boot', { p_keys: [] }) || {}; st.props = Object.assign({}, b.props || {}, st.propQueue); return key in st.props ? st.props[key] : null; };
   g.__lockNamed = (name, ttl) => { const r = gas.rpc('web_lock', { p_name: String(name), p_holder: st.holder, p_ttl: Number(ttl) || 110 }); if (r && r.ok) { st.named = (st.named || []).concat(String(name)); return true; } return false; };
