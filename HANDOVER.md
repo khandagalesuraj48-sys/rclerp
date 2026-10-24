@@ -1932,7 +1932,13 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   📎 (`lgAttOpen`, paste and drop on a row), the edit window (`leAttDraw`), the list and Edit Log Book chips, "Attach to selected",
   `capArrive` (the phone: ?cap= kept in sessionStorage through the sign-in, `capPhone` id in localStorage), Site rules `rule_att`,
   `billAttHtml` (the annex in viewSavedBillIn), `billFilesZip` (`zipMake`, CRC-32, each file checked by SHA-256, FINGERPRINTS.txt).
-  Unit 108 (new: update-153), browser att153 36.
+  After the independent security review: `crAtts_` (a change request's files checked when asked, their records in its Data) and
+  `CR_ATT_` at its approval (attOf_'s "in the store" fallback only for VER_CTX_ 'flow'); `crDescribe_` says "Attachments n → m"
+  and "Attach n files to"; Scan with Mobile records CAP_ (session) / CAPX_ (end) / CAPF_ (the phone's files) + the claim counted
+  by `__count('CAPC_'…)`; capStart / capClaim / capAdd / capCancel are questions (page.js, runtime.js); uploads at most
+  ATT_DAY_N_ 300 / ATT_DAY_MB_ 150 a person a day (ATN_ counter, ATB_ bytes); AT_ notes no longer "held"; getBillAttachments
+  withUser (a legacy bill's files only with Log Book / Machinery Billing / Saved Bills); step 1ze `do update set public = false`.
+  Unit 108, browser att153 39; the regression set the same as main. Storage measured: about 0.33 – 0.45 MB a photo by default.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

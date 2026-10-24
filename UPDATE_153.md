@@ -120,24 +120,57 @@ needed.
 * Tests: `test/unit.test.js` (new test update-153), `test/browser/att153.js` (new).
 
 ## Evidence (local test rig – never live)
-* `node --test test/unit.test.js` – **108 / 108**. New: real file types by their bytes; kept once by SHA-256 (a stand-in store);
-  only one's own / the entry's / another entry's files; at most the site's number; two people at one entry; a new row's files
-  added to the entry it joins; Scan with Mobile – only the token's fingerprint kept, wrong token, another person, another site,
-  second phone, the 5 and 15 minutes, cancel, a new QR ends the old, the computer's poll only for its owner; step 1ze only adds,
-  word for word in Read Me.
+* `node --test test/unit.test.js` – **108 / 108**. The test update-153: real file types by their bytes; kept once by SHA-256 (a
+  stand-in store); only one's own / the entry's / another entry's files; at most the site's number; two people at one entry; a new
+  row's files added to the entry it joins; Scan with Mobile – only the token's fingerprint kept, wrong token, another person,
+  another site, second phone, the 5 and 15 minutes, cancel, a new QR ends the old, the computer's poll only for its owner; step 1ze
+  only adds, word for word in Read Me. After the security review also: a write of the phone landing after the computer closed the
+  QR (stays closed); two phones at the same moment (only the first); the daily limit (300 files / 150 MB; the same file again not
+  counted); a change request's files checked when asked and kept with it, its line "Attachments n → m (…)"; at its approval a file
+  only "in the store" refused, the kept record taken; "Attach n files to" (not "Delete").
 * `test/browser/att153.js` (real pages: the maker's, a second browser as his phone, the Admin's, the Super Admin's through the
-  Portal; real database with steps 1zc + 1zd + 1ze; the rig's stand-in of the file store) – **36 / 36**, every case asked for:
+  Portal; real database with steps 1zc + 1zd + 1ze; the rig's stand-in of the file store) – **39 / 39**, every case asked for:
   Ctrl + V; drag-and-drop of a photo and a PDF; several files on one entry; one photo for two shifts (one file in the store);
   Upload files; Camera (a stand-in camera); the correction (turned, suggested cut, the stored file turned and cut); the network
-  failing while sending and Done again; two people at one entry; the laptop's QR code → the phone signs in, sends a photo → the
-  laptop shows it → saved; the QR code: another person, a wrong token, single use, ran out, cancelled, a new one ends the old, a
-  code that is not valid on the phone; an approved entry (the maker refused; the Super Admin with his reason, in the history); a
-  billed entry (the same); the bill keeps its files as submitted after the Super Admin's change; the bill's annex and its ZIP
-  checked by fingerprint; the bill revised by the Super Admin – the superseded one keeps its files, the new one its own; no script
-  error.
-* The regression set (clean and Super Admin snapshots) on this branch: see the end of this file.
+  failing while sending and Done again; two people at one entry; an entry under a verification rule saved with its files at the
+  approval; the laptop's QR code → the phone signs in, sends a photo → the laptop shows it → saved; the QR code: another person, a
+  wrong token, single use, ran out, cancelled, a new one ends the old, a code that is not valid on the phone; an approved entry
+  (the maker refused; the Super Admin with his reason, in the history); a billed entry (the same); the bill keeps its files as
+  submitted after the Super Admin's change; the bill's annex and its ZIP checked by fingerprint; the bill revised by the Super
+  Admin – the superseded one keeps its files, the new one its own; a billed entry's files sent to the Super Admin as a change
+  request ("Attachments 2 → 3 (1 added)"), approved – exactly those files, the history names the request, the bill unchanged; no
+  script error.
+* **The regression set, the same snapshots on main and on this branch** (steps 1zc + 1zd + 1ze for the branch):
+  * clean snapshot: `billlock` 16 / 16, `viewbill` 23 / 23, `bills120` 17 / 17, `gstdecl` 11 / 11, `lbpage` 13 / 13, `rows146`
+    29 / 29, `same145` 10 / 10, `entry71` 20 / 20, `again128` 11 / 11, `time144` 17 / 17, `tanker105` 7 / 7, `gap77` 20 / 20 – and
+    `fix130` 7 / 3, `splittime` 12 / 6, `group72` 8 / 5, `lg2` 4 / 4, `meter`, `dnui`, `dn`, `ldebit149api`, `saveonce` (they need
+    data or servers this snapshot does not have) – **exactly the same numbers on main and on this branch**.
+  * Super Admin snapshot (Portal): `flow114` 12 / 12, `flow116` 18 / 18, `billed108` 25 / 25, `ev151` 12 / 12, `sdel134` 6 / 6,
+    `remind118` 13 / 13, `ldebit149` 14 / 14, `flow114api` 30 / 30, `lock152` 17 / 17, `att153` 39 / 39.
+  * Said plainly: in one run of the whole chain BEFORE the review's changes, `att153` stopped at the phone's sign-in (the phone did
+    not open its capture screen; 19 passed, 3 failed). It did not come again in four later runs (alone twice, after `lock152`, the
+    whole chain); the test now writes down what the phone shows if it ever does.
 * `node --check` on `server/*.js`, `api/*.js`; the page's script blocks parse; no secret in the change.
-* App 3.34.0: see the end of this file.
+* App 3.34.0 (`rcl-mobile` 892aacb): the build – analyze, every test, the screens drawn, Android, iPhone, Windows – passed.
+
+## Storage (Phase F) – measured on the rig with the page's own settings
+A drawn 12-megapixel photo of a log book page with a camera's grain (not a real phone's photo):
+
+| | the camera's own file | sent by default (1600 px, JPEG 0.82) | "Original quality" (3000 px, 0.92) |
+|---|---|---|---|
+| little grain | 2.0 MB | **0.33 MB** | 1.2 MB |
+| more grain | 3.0 MB | **0.39 MB** | 1.7 MB |
+| much grain | 4.1 MB | **0.45 MB** | 2.2 MB |
+
+* "Use the original file": at most 3 MB (bigger is made smaller). A PDF: at most 3 MB. The phone app uses the same settings.
+* The same file is kept once, for every entry and every person; nothing is kept twice by the correction (one copy only); no
+  thumbnails (a tile shows the file itself through its 15-minute link – each look downloads it once).
+* For a site: 50 entries a day with one photo each ≈ **20 MB a day, about 0.6 GB a month**. Supabase's Free plan has **1 GB of
+  files and 5 GB of downloads a month for the whole organization** (every project of it together – the sites, if they are in one
+  organization – and the diesel photos already use it); the Pro plan 100 GB of files (then $0.021 a GB) and 250 GB of downloads
+  (then $0.09 a GB) – Supabase's billing page, read 24-10-2026. So on the Free plan the files of one busy site fill it in under two
+  months. A smaller photo (1280 px, JPEG 0.75 – measured 0.21 – 0.26 MB) would make it last about twice as long; fewer files per
+  entry is the Admin's site rule. That is his choice – nothing of it is changed here.
 
 ## Not verified
 * The live sites; Supabase Storage itself (the rig's stand-in keeps files by name with the same rules: private, x-upsert false →
