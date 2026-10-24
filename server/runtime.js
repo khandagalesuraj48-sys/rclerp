@@ -363,7 +363,18 @@ function runPlain(fn, args, meta) {
   // (update-157) the backup robot (set up or not, its e-mail) and the Sheet this site had before its numbered Sheets (fallback);
   // each call names the Sheet it writes (the numbered Sheet in use) – Google's answer is only ever about that Sheet
   g.__backupConfig = () => { const a = google.sa(), c = google.config(sheetOf()); return JSON.stringify({ ok: a.ok, email: a.email || '', error: a.ok ? '' : a.error, fallback: c.ok ? c.sheetId : '' }); };
-  g.__g = (method, p2, body, ms, sheet) => JSON.stringify(google.call(String(method), String(p2), body ? String(body) : '', ms, sheet ? String(sheet) : sheetOf()));
+  // (review 25-10-2026) a site writes only to ITS Sheets: the one named must be on this site's list (at the first site also the
+  // Portal's), or the Sheet it had before its list – checked here, outside the app's code
+  const bkAllowed = () => { const ids = new Set(), add = v => { try { (JSON.parse(v || '[]') || []).forEach(x => { if (x && x.id) ids.add(String(x.id)); }); } catch (e) { /* none */ } };
+    add(st.props.BK_SHEETS); if (gas.site() === '') add(st.props.BK_PORTAL_SHEETS); const f = google.config(sheetOf()); if (f.ok) ids.add(f.sheetId); return ids; };
+  g.__g = (method, p2, body, ms, sheet) => { const id = sheet ? String(sheet) : '';
+    if (id && !bkAllowed().has(id)) throw new Error('This Sheet is not the backup Sheet of this site.');
+    return JSON.stringify(google.call(String(method), String(p2), body ? String(body) : '', ms, id || sheetOf())); };
+  // a Sheet the Super Admin gives (not on the list yet): only looked at (its tabs) and its status tab made – nothing else
+  g.__gNew = (what, id) => { id = String(id || ''); if (!/^[A-Za-z0-9_-]{20,}$/.test(id)) throw new Error('This is not a Google Sheet link.');
+    if (what === 'look') return JSON.stringify(google.call('GET', '/v4/spreadsheets/' + id + '?fields=' + encodeURIComponent('properties.title,sheets.properties.title'), '', 20000, id));
+    if (what === 'claim') return JSON.stringify(google.call('POST', '/v4/spreadsheets/' + id + ':batchUpdate', JSON.stringify({ requests: [{ addSheet: { properties: { title: 'Backup Status', gridProperties: { rowCount: 2, columnCount: 2, frozenRowCount: 1 } } } }] }), 20000, id));
+    throw new Error('Unknown action.'); };
   g.__bkRemoteOn = () => JSON.stringify(bkexport.on());
   g.__bkRemote = (source, bodyJson, ms) => JSON.stringify(bkexport.call(String(source), String(bodyJson), Number(ms) || 25000));
   // the settings as the database has them NOW (the backup looks again once it holds its lock – another server may just have finished one)

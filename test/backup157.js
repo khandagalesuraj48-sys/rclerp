@@ -14,7 +14,8 @@ let pass = 0, fail = 0; const out = [];
 const ok = (n, c, x) => { c ? pass++ : fail++; out.push((c ? 'PASS ' : 'FAIL ') + n + (x !== undefined ? '  → ' + String(typeof x === 'string' ? x : JSON.stringify(x)).slice(0, 600) : '')); };
 const G = 'http://127.0.0.1:3997', g = async p => (await fetch(G + p)).json();
 const SECRET = 'rig-backup-export-secret-0123456789abcdef', LEGACY = 'rigSheet0123456789abcdefghijklmn';
-const IDS = { t2: 'rigT2sheet1abcdefghijklmnopq', s1a: 'rigS1sheet1abcdefghijklmnopq', s1b: 'rigS1sheet2abcdefghijklmnopq', deny: 'rigDENYsheetabcdefghijklmnop', portal: 'rigPORTALsheetabcdefghijklmn' };
+const IDS = { t2: 'rigT2sheet1abcdefghijklmnopq', s1a: 'rigS1sheet1abcdefghijklmnopq', s1b: 'rigS1sheet2abcdefghijklmnopq', deny: 'rigDENYsheetabcdefghijklmnop', portal: 'rigPORTALsheetabcdefghijklmn',
+  s1c: 'rigS1sheet3abcdefghijklmnopq', old: 'rigOLDbackupabcdefghijklmnop', ro: 'rigROsheetabcdefghijklmnopqr' };
 const key = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs8', format: 'pem' });
 const GOOGLE = { GOOGLE_SERVICE_ACCOUNT_JSON: JSON.stringify({ client_email: 'backup-robot@rig.test', private_key: key }), BACKUP_SHEET_ID: LEGACY, GOOGLE_SHEETS_URL: G, GOOGLE_TOKEN_URL: G + '/token', CRON_SECRET: 'local-cron-secret' };
 const MECH_ENV = Object.assign({}, process.env, GOOGLE, { RCL_SITES_KEY: 'rig-sites-key-0123456789-abcdefghij', PORTAL_URL: 'http://127.0.0.1:3010', ENGINEERING_URL: 'http://127.0.0.1:3040', BACKUP_EXPORT_SECRET: SECRET });
@@ -166,6 +167,46 @@ const dump = id => g('/dump?id=' + id);
     ok('a full Sheet (Google\'s 10 million cells): "Sheet 2 of this site is full … the Super Admin adds Sheet 3"', info.ok === false && /Sheet 2 of this site is full/.test(info.error || '') && /adds Sheet 3/.test(info.error || ''), info.error);
     await cronDone(3005);
 
+    // ---- 5b. (review 25-10-2026) a Sheet used before, a Sheet that holds a backup, a Sheet shared as Viewer: refused ----
+    r = await P('/api/admin', { action: 'bkSet', site: 'S1', mode: 'change', link: LEGACY });
+    ok('(review) S1: its own Sheet of before (replaced by Change link): refused – never given again', r.status >= 400 && /before/.test(r.j.error || ''), r.j);
+    r = await P('/api/admin', { action: 'bkSet', site: 'T2', mode: 'change', link: LEGACY });
+    ok('(review)    T2: S1\'s Sheet of before: refused (another site\'s)', r.status >= 400 && /another site/.test(r.j.error || ''), r.j);
+    await fetch(G + '/v4/spreadsheets/' + IDS.old + ':batchUpdate', { method: 'POST', headers: { Authorization: 'Bearer x', 'Content-Type': 'application/json' }, body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'Backup Status' } } }] }) });
+    r = await P('/api/admin', { action: 'bkSet', site: 'T2', mode: 'change', link: IDS.old });
+    ok('(review)    a Sheet that already holds a backup (a "Backup Status" tab – of any site): refused', r.status >= 400 && /already holds a backup/.test(r.j.error || ''), r.j);
+    await g('/ro?id=' + IDS.ro);
+    r = await P('/api/admin', { action: 'bkSet', site: 'T2', mode: 'change', link: 'https://docs.google.com/spreadsheets/u/1/d/' + IDS.ro + '/edit' });
+    ok('(review)    a Sheet shared as Viewer (not Editor): refused – "cannot write it"', r.status >= 400 && /cannot write it/.test(r.j.error || ''), r.j);
+    await g('/ro?id=');
+    r = await P('/api/admin', { action: 'bkGet', site: 'T2' });
+    ok('(review)    T2 still has its own Sheet 1 (nothing changed by the refusals)', r.status === 200 && r.j.sheets.length === 1 && /rigT2sheet1/.test(r.j.sheets[0].url), r.j.sheets);
+
+    // ---- 5c. (review) Engineering fails while its rows are read: the site's own backup goes on; the next backup takes it ----
+    const fault = body => fetch('http://127.0.0.1:3108/__fault', { method: 'POST', body: JSON.stringify(body) });
+    await fault({ match: 'GET /rest/v1/eng_days\\?select=\\*', code: 500, n: 1000 });
+    sql('rcl', "insert into master (id, machinery_number, machinery_name, type, unit, make) values ('B157-8', 'B157-8', 'Tipper', 'Tipper', 'KM', 'Test')");
+    await cronDone(3005);      // (until the round reaches Engineering's tables – they come last)
+    let inf = JSON.parse(sql('rcl', "select value from web.props where key = 'SB_INFO'") || '{}'), s2m = await tab(IDS.s1b, 'Master');
+    ok('(review) Engineering fails while its rows are read: S1\'s own backup is written (Master with the new machinery), not failed; the status names what was not copied', inf.ok !== false && /Plans and reports/.test(inf.engNote || '') && s2m && s2m.length - 1 === Number(sql('rcl', 'select count(*) from master')), { ok: inf.ok, error: inf.error, engNote: inf.engNote, master: s2m && s2m.length - 1 });
+    await fault({});
+    await cron(3005); await cronDone(3005);
+    inf = JSON.parse(sql('rcl', "select value from web.props where key = 'SB_INFO'") || '{}');
+    ok('(review)    the next backup copies it (nothing left out any more)', inf.ok !== false && !/not copied now/i.test(inf.engNote || '') && !!(await tab(IDS.s1b, 'Engineering – Plans and reports')), { engNote: inf.engNote });
+
+    // ---- 5d. (review) Sheet 2 was not complete when Sheet 3 is added (its Log Book not copied yet): each table from ITS last copy ----
+    const vol2 = JSON.parse(sql('rcl', "select value from web.props where key = 'BK_SHEETS'"))[1] || {}, cutAct = new Date(Date.now() + 3600000).toISOString();
+    sql('rcl', "update web.props set value = ((value::jsonb - 'todo') || jsonb_build_object('todo', jsonb_build_array('log_book'), 'copied', ((value::jsonb -> 'copied') - 'log_book') || jsonb_build_object('activity_log', '" + cutAct + "')))::text where key = 'BK_STATE'");
+    const tCut = Date.now();
+    r = await P('/api/admin', { action: 'bkSet', site: 'S1', mode: 'add', link: IDS.s1c });
+    const vol3 = (JSON.parse(sql('rcl', "select value from web.props where key = 'BK_SHEETS'")) || [])[2] || {}, cuts3 = vol3.cuts || {};
+    ok('(review) S1: Add Sheet 3 while Sheet 2 is not complete: the Log Book keeps its cut of Sheet 2 (from its copy into Sheet 1), the Activity Log from its own copy into Sheet 2', r.status === 200 && vol3.n === 3 && cuts3.log_book && cuts3.log_book === (vol2.cuts || {}).log_book && Math.abs(new Date(cuts3.activity_log).getTime() - tCut) < 120000, { log: cuts3.log_book, logBefore: (vol2.cuts || {}).log_book, act: cuts3.activity_log });
+    await cronDone(3005);
+    const s3Log = await tab(IDS.s1c, 'Log Book'), s3Act = await tab(IDS.s1c, 'Activity Log'), c3 = s3Log ? s3Log[0].indexOf('Log Book Key') : -1;
+    const s3ids = s3Log ? s3Log.slice(1).map(x => String(x[c3]).replace(/^'/, '')) : [];
+    const wantAct = Number(sql('rcl', "select count(*) from activity_log where updated_at >= '" + cuts3.activity_log + "'"));
+    ok('(review)    Sheet 3: the Log Book row changed since its copy into Sheet 1 is there (nothing lost), the old ones not; the Activity Log only from its cut', s3ids.indexOf(oldId) > -1 && s3ids.indexOf(keepId) === -1 && s3Act && s3Act.length - 1 === wantAct, { log: s3ids.slice(0, 4), act: s3Act && s3Act.length - 1, wantAct: wantAct });
+
     // ---- 6. the Portal's own backup ----
     r = await P('/api/admin', { action: 'bkSet', target: 'portal', mode: 'change', link: IDS.t2 });
     ok('the Portal: T2\'s Sheet refused (every one its own)', r.status >= 400 && /another site/.test(r.j.error || ''), r.j);
@@ -180,7 +221,7 @@ const dump = id => g('/dump?id=' + id);
 
     // ---- 7. the page of the first site: its Backup status names the Sheet in use ----
     r = await P('/api/admin', { action: 'bkGet', site: 'S1' });
-    ok('S1 → Backup: Sheet 1 (kept) and Sheet 2 (in use), each with how full it is; the last backup', r.status === 200 && r.j.sheets.length === 2 && r.j.sheets[1].active && r.j.sheets[1].cells === (await dump(IDS.s1b)).cells && r.j.last && r.j.last.lastRun, r.j);
+    ok('S1 → Backup: Sheets 1 and 2 (kept) and Sheet 3 (in use), each with how full it is; the last backup', r.status === 200 && r.j.sheets.length === 3 && !r.j.sheets[1].active && r.j.sheets[1].frozen && r.j.sheets[2].active && r.j.sheets[2].cells === (await dump(IDS.s1c)).cells && r.j.last && r.j.last.lastRun, r.j);
     // ---- 8. the real page of the Portal: Sites → Backup (the Super Admin sees the Sheets, how full each is, and the buttons) ----
     try {
       const chromium = require('@sparticuz/chromium').default || require('@sparticuz/chromium'), puppeteer = require('puppeteer-core');
@@ -194,7 +235,7 @@ const dump = id => g('/dump?id=' + id);
         await pg.waitForSelector('#bk_panel table', { timeout: 30000 });
         const txt = await pg.$eval('#bk_panel', x => x.innerText);
         if (process.env.SHOT_DIR) await pg.screenshot({ path: path.join(process.env.SHOT_DIR, 'bk157-sites-backup.png'), fullPage: true });
-        ok('the Portal page: Sites → Backup of S1 – Sheet 1 kept, Sheet 2 in use, how full each is, the robot to share with, the buttons', /Sheet 1/.test(txt) && /Sheet 2/.test(txt) && /In use/.test(txt) && /Kept as it is/.test(txt) && /\d+ %/.test(txt) && /backup-robot@rig\.test/.test(txt) && /Change link of Sheet 2/.test(txt) && /Add Sheet 3/.test(txt) && /Backup now/.test(txt), txt.slice(0, 600));
+        ok('the Portal page: Sites → Backup of S1 – Sheets 1 and 2 kept, Sheet 3 in use, how full each is, the robot to share with, the buttons', /Sheet 1/.test(txt) && /Sheet 2/.test(txt) && /Sheet 3/.test(txt) && /In use/.test(txt) && /Kept as it is/.test(txt) && /\d+ %/.test(txt) && /backup-robot@rig\.test/.test(txt) && /Change link of Sheet 3/.test(txt) && /Add Sheet 4/.test(txt) && /Backup now/.test(txt), txt.slice(0, 600));
         await pg.click('#bk_close'); await pg.click('#st_pbk'); await pg.waitForFunction(() => /Portal backup/.test((document.getElementById('bk_panel') || {}).innerText || '') && !!document.querySelector('#bk_panel table'), { timeout: 30000 });
         ok('   Portal backup: its own Sheet 1', /Sheet 1/.test(await pg.$eval('#bk_panel', x => x.innerText)));
         ok('   no script error on the page', !errs.length, errs);

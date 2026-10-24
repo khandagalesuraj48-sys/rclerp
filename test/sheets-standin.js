@@ -11,12 +11,13 @@
 //   GET /dump?id=…, /tab?id=…&title=…       one spreadsheet;   GET /books → the ids there are, with their cells
 //   GET /deny?id=…                          that spreadsheet answers 403 (not shared with the robot); /deny?id= → none
 //   GET /cap?cells=N                        a spreadsheet grows past N cells → 400 "… above the limit of 10000000 cells" (0 = off)
+//   GET /ro?id=…                            (review 25-10-2026) that spreadsheet is shared as Viewer: it can be read, a write answers 403
 const http = require('http');
 const DEFAULT = 'rigSheet0123456789abcdefghijklmn';
-let books = {}, tabs, calls, nextId, slow = 0, fail = { n: 0, code: 500 }, prot = true, writes = [], denied = {}, cap = 0;
+let books = {}, tabs, calls, nextId, slow = 0, fail = { n: 0, code: 500 }, prot = true, writes = [], denied = {}, cap = 0, ro = {};
 const bookOf = id => { if (!books[id]) books[id] = []; return books[id]; };
 const cellsOf = list => list.reduce((n, t) => n + t.rowCount * t.columnCount, 0);
-const reset = bare => { calls = 0; nextId = 100; slow = 0; fail = { n: 0, code: 500 }; writes = []; prot = !bare; books = {}; denied = {}; cap = 0;
+const reset = bare => { calls = 0; nextId = 100; slow = 0; fail = { n: 0, code: 500 }; writes = []; prot = !bare; books = {}; denied = {}; cap = 0; ro = {};
   tabs = books[DEFAULT] = bare ? [] : [{ id: 1, title: 'Master', rowCount: 1, columnCount: 3, values: [['Machinery', 'Name', 'Type']] }, { id: 2, title: 'Log Book', rowCount: 1, columnCount: 3, values: [['Log Book Key', 'Date', 'Shift']] }]; };
 reset(false);
 const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
@@ -29,6 +30,7 @@ http.createServer((req, res) => {
     if (p === '/books') return send(res, 200, Object.keys(books).map(id => ({ id: id, tabs: books[id].length, cells: cellsOf(books[id]) })));
     if (p === '/deny') { denied = {}; String(u.searchParams.get('id') || '').split(',').filter(Boolean).forEach(x => { denied[x] = true; }); return send(res, 200, { denied: Object.keys(denied) }); }
     if (p === '/cap') { cap = Number(u.searchParams.get('cells')) || 0; return send(res, 200, { cap: cap }); }
+    if (p === '/ro') { ro = {}; String(u.searchParams.get('id') || '').split(',').filter(Boolean).forEach(x => { ro[x] = true; }); return send(res, 200, { ro: Object.keys(ro) }); }
     const bk = u.searchParams.get('id') ? bookOf(u.searchParams.get('id')) : tabs;
     if (p === '/dump') return send(res, 200, { calls: calls, writes: writes.length, cells: cellsOf(bk), tabs: bk.map(t => ({ title: t.title, rows: t.values.length, grid: { rowCount: t.rowCount, columnCount: t.columnCount }, head: t.values[0] || [], second: t.values[1] || [], protected: prot && t.id < 100 })) });
     if (p === '/tab') { const t = bk.find(x => x.title === u.searchParams.get('title')); return send(res, t ? 200 : 404, t ? { title: t.title, values: t.values } : {}); }
@@ -45,6 +47,7 @@ http.createServer((req, res) => {
     let m;
     const sid = (/^\/v4\/spreadsheets\/([^/:]+)/.exec(p) || [])[1] || '';
     if (sid && denied[sid]) return send(res, 403, { error: { code: 403, message: 'The caller does not have permission' } });
+    if (sid && ro[sid] && req.method !== 'GET') return send(res, 403, { error: { code: 403, message: 'The caller does not have permission' } });
     const tabsOf = sid ? bookOf(sid) : tabs;
     const over = () => cap && cellsOf(tabsOf) > cap;
     const full = () => send(res, 400, { error: { code: 400, message: 'This action would increase the number of cells in the workbook above the limit of 10000000 cells.' } });

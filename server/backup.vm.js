@@ -65,25 +65,35 @@ function bkCellsKeep_(T, vol, cells, at) {
  * their rows come through their own "backup export" (api/backup-export.js there – asked with BACKUP_EXPORT_SECRET, the same
  * value in the three Vercel projects). They keep their own database keys; a password, a key or a sign-in never leaves them.
  * Engineering's rows of THIS site only go into this site's Sheet ("Engineering – …" tabs); the Portal's into the Portal's own. */
-function bkRemote_(source, body) {
-  const r = JSON.parse(__bkRemote(source, JSON.stringify(body), 25000)), who = source === 'eng' ? 'Engineering' : 'The Portal';
+function bkRemote_(source, body, ms) {
+  const r = JSON.parse(__bkRemote(source, JSON.stringify(body), Math.max(3000, Math.min(25000, Number(ms) || 25000)))), who = source === 'eng' ? 'Engineering' : 'The Portal';
   if (r.code === 401 || r.code === 403) throw new Error(who + ' refused the backup (BACKUP_EXPORT_SECRET must be the same value in Vercel for rclerp, rcl-portal and rcl-engineering).');
   if (r.code >= 300 || !r.code) throw new Error(who + ' did not give its data for the backup (' + r.code + '): ' + String(r.text || '').slice(0, 200));
   return bkJson_(r.text, {});
 }
+// (review 25-10-2026) the catalog is asked with a short wait (10 s – it must not eat the time of this site's own tables); when the
+// secret or Engineering's address is missing the status says so (before, Engineering was left out without a word)
 function bkRemoteCatalog_(T, siteCode) {
   const on = bkJson_(__bkRemoteOn(), {}), out = {};
   const add = (src, list, prefix) => (list || []).forEach(x => { if (!x || !x.name || !Array.isArray(x.cols)) return;
     out[src + ':' + x.name] = { src: src, name: x.name, title: prefix + (x.title || x.name), cols: x.cols.map(n => ({ name: String(n) })), count: Number(x.count) || 0, newest: String(x.newest || '') }; });
-  if (T.kind === 'site' && on.secret && on.eng && siteCode) add('eng', bkRemote_('eng', { action: 'catalog', site: siteCode }).tables, 'Engineering – ');
-  if (T.kind === 'portal' && on.secret && on.portal) add('portal', bkRemote_('portal', { action: 'catalog' }).tables, 'Portal – ');
-  return out;
+  let note = '';
+  if (T.kind === 'site' && siteCode) {
+    if (!on.secret) note = 'Engineering\'s data is not in this backup: BACKUP_EXPORT_SECRET is not set in Vercel (the same value in rclerp, rcl-portal and rcl-engineering).';
+    else if (!on.eng) note = 'Engineering\'s data is not in this backup: its address is not known – set ENGINEERING_URL in Vercel (rclerp).';
+    else add('eng', bkRemote_('eng', { action: 'catalog', site: siteCode }, 10000).tables, 'Engineering – ');
+  }
+  if (T.kind === 'portal' && on.secret && on.portal) add('portal', bkRemote_('portal', { action: 'catalog' }, 10000).tables, 'Portal – ');
+  return { out: out, note: note };
 }
-function bkRemoteRows_(x, siteCode, since) {
+// a table of another module, page by page (300 rows – a page stays far below what a Vercel answer may carry); never past the
+// time this run has left (it is then taken up by the next run, as a table of this site)
+function bkRemoteRows_(x, siteCode, since, left) {
   const out = [];
-  for (let off = 0; off < 5000000; off += 1000) {
-    const page = bkRemote_(x.src, { action: 'rows', table: x.name, site: siteCode || '', since: since || '', offset: off, limit: 1000 }).rows || [];
-    out.push.apply(out, page); if (page.length < 1000) break;
+  for (let off = 0; off < 5000000; off += 300) {
+    if (left() < 9000) throw new Error('BK_OUT_OF_TIME');
+    const page = bkRemote_(x.src, { action: 'rows', table: x.name, site: siteCode || '', since: since || '', offset: off, limit: 300 }, left() - 5000).rows || [];
+    out.push.apply(out, page); if (page.length < 300) break;
   }
   return out;
 }
@@ -94,21 +104,22 @@ function bkSheetsInfo_(c) {
   const vols = bkSheets_(T, cfg.fallback), st = bkJson_(P.getProperty(T.state), {}) || {}, info = bkJson_(P.getProperty(T.info), {}) || {};
   const act = vols[vols.length - 1];
   return { target: T.kind, email: cfg.email || '', ready: !!cfg.ok, error: cfg.ok ? '' : String(cfg.error || ''), limit: BK_CELLS_,
-    sheets: vols.map(v => ({ n: Number(v.n) || 1, url: bkUrl_(v.id), from: v.from || '', added: v.added || '', by: v.by || '', frozen: v.frozen || '', legacy: !!v.legacy, active: v === act,
+    sheets: vols.map(v => ({ n: Number(v.n) || 1, url: bkUrl_(v.id), from: v.since || v.from || '', added: v.added || '', by: v.by || '', frozen: v.frozen || '', legacy: !!v.legacy, active: v === act,
       cells: Number(v === act ? (info.cells || st.cells || v.cells) : v.cells) || 0 })),
     last: { ok: info.ok !== false, error: info.error || '', lastRun: info.lastRun || st.lastRun || '', lastCheck: info.lastCheck || st.lastCheck || '', pending: Number(info.pending) || (st.todo || []).length || 0, engNote: info.engNote || '' } };
 }
 // the Sheets this site uses (and, at the first site, the Portal's) – so no Sheet is given to two of them
 function bkIds_() {
-  const cfg = bkJson_(__backupConfig(), {});
-  const own = bkSheets_(bkTarget_({}), cfg.fallback).map(v => v.id);
-  const portal = typeof __siteIsHome === 'function' && __siteIsHome() ? bkSheets_(bkTarget_({ target: 'portal' }), '').map(v => v.id) : [];
-  return { site: own, portal: portal };
+  const cfg = bkJson_(__backupConfig(), {}), ids = v => [v.id].concat(Array.isArray(v.was) ? v.was : []);
+  // (review 25-10-2026) also the Sheets used before (a link changed) and the Sheet this site had before its list – never given to another
+  const own = [].concat(...bkSheets_(bkTarget_({}), cfg.fallback).map(ids)).concat(cfg.fallback ? [cfg.fallback] : []);
+  const portal = typeof __siteIsHome === 'function' && __siteIsHome() ? [].concat(...bkSheets_(bkTarget_({ target: 'portal' }), '').map(ids)) : [];
+  return { site: [...new Set(own.filter(Boolean))], portal: [...new Set(portal.filter(Boolean))] };
 }
 function bkSheetSet_(c) {
   const T = bkTarget_(c), cfg = bkJson_(__backupConfig(), {}), P = PropertiesService.getScriptProperties();
   if (!cfg.ok) throw new Error(cfg.error || 'The Google Sheet backup is not set up (GOOGLE_SERVICE_ACCOUNT_JSON in Vercel).');
-  const link = String(c.link || '').trim(), m = /\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})/.exec(link) || /^([A-Za-z0-9_-]{20,})$/.exec(link);
+  const link = String(c.link || '').trim(), m = /\/spreadsheets\/(?:u\/\d+\/)?d\/([A-Za-z0-9_-]{20,})/.exec(link) || /^([A-Za-z0-9_-]{20,})$/.exec(link);
   if (!m) throw new Error('The Google Sheet link: open the Sheet and copy the address from the browser (…/spreadsheets/d/…).');
   const id = m[1], mode = c.mode === 'add' ? 'add' : 'change';
   if ((c.taken || []).map(String).indexOf(id) > -1) throw new Error('This Sheet is already the backup Sheet of another site (or of the Portal) – every site needs its own Sheet.');
@@ -119,21 +130,38 @@ function bkSheetSet_(c) {
     vols = vols.map(v => Object.assign({}, v));
     const act = vols.length ? vols[vols.length - 1] : null;
     if (mode === 'add' && !act) throw new Error('Give the link of Sheet 1 first (Change link).');
-    const twin = vols.find(v => v.id === id);
+    const twin = vols.find(v => v.id === id), used = vols.find(v => Array.isArray(v.was) && v.was.indexOf(id) > -1);
     if (twin && (mode === 'add' || twin !== act)) throw new Error('This Sheet is already Sheet ' + twin.n + ' of ' + T.name + ' – give a new, empty Sheet.');
+    if (used || (cfg.fallback && cfg.fallback === id && !(act && act.legacy && act.id === id))) throw new Error('This Sheet was a backup Sheet of ' + T.name + ' before – give a new, empty Sheet.');
     if (mode === 'change' && act && act.id === id && !act.legacy) return bkSheetsInfo_(c);      // the same link again: nothing to change
-    // the backup robot can open this Sheet (it is shared with it as Editor)
-    const r = bkJson_(__g('GET', '/v4/spreadsheets/' + id + '?fields=properties.title', '', 20000, id), {});
+    // (review 25-10-2026) the Sheet must be NEW: one that already holds a backup (its "Backup Status" tab – of this or any other
+    // site, a Sheet of before) is refused; and the robot must be able to WRITE it (Editor, not Viewer): its status tab is made now
+    const r = bkJson_(__gNew('look', id), {});
     if (r.code === 403 || r.code === 404) throw new Error('The backup cannot open this Sheet: share it with ' + cfg.email + ' as Editor (Share → add that address → Editor), then give the link again.');
     if (!(r.code < 300)) throw new Error('Google did not answer about this Sheet (' + r.code + ') – try again in a minute.');
+    const tabs = ((bkJson_(r.text, {}).sheets) || []).map(x => String((x.properties || {}).title || ''));
+    if (tabs.indexOf('Backup Status') > -1) throw new Error('This Sheet already holds a backup (it has a "Backup Status" tab) – give a new, empty Sheet.');
+    const w = bkJson_(__gNew('claim', id), {});
+    if (w.code === 403) throw new Error('The backup can open this Sheet but cannot write it: share it with ' + cfg.email + ' as Editor (not Viewer), then give the link again.');
+    if (!(w.code < 300)) throw new Error('Google did not answer about this Sheet (' + w.code + ') – try again in a minute.');
     const now = new Date().toISOString(), by = String(c.by || ''), st = bkJson_(bkFresh_(T.state), {}) || {}, ms = x => (x ? new Date(x).getTime() || 0 : 0);
     if (mode === 'add') {
-      // the next Sheet starts an hour before the last COMPLETE copy of this one (nothing left out); none yet: from where this one started
+      /* (review 25-10-2026) EACH TABLE FROM ITS OWN LAST COPY: a Sheet fills up in the middle of a copy, when some tables are copied
+       * and others not yet. The next Sheet holds, table by table, every row new or changed since an hour before that table's last
+       * copy into this Sheet (state.copied); a table not copied into it yet: everything this Sheet was to hold (its own "from").
+       * (Before, the next Sheet then got everything – and was full too.) A list of before without these notes: the old rule. */
+      // (a table not copied into this Sheet at all keeps the cut it had for this Sheet – nothing of it is left out either)
+      const copied = st.copied || {}, cuts = Object.assign({}, act.cuts && typeof act.cuts === 'object' ? act.cuts : {}), anyCopied = Object.keys(copied).some(t => ms(copied[t]));
+      Object.keys(copied).forEach(t => { if (ms(copied[t])) cuts[t] = new Date(ms(copied[t]) - 3600000).toISOString(); });
       const complete = !(st.todo && st.todo.length) && ms(st.lastCheck) && !st.running;
-      const cut = complete ? new Date(ms(st.lastCheck) - 3600000).toISOString() : String(act.from || '');
+      const base = anyCopied ? String(act.from || '') : complete ? new Date(ms(st.lastCheck) - 3600000).toISOString() : String(act.from || '');
+      const since = Object.keys(cuts).length ? Object.keys(cuts).map(t => cuts[t]).sort()[0] : base;
       act.frozen = now; act.cells = Number(st.cells || act.cells) || 0; delete act.legacy;
-      vols.push({ n: (Number(act.n) || vols.length) + 1, id: id, from: cut, added: now, by: by });
-    } else if (act) { act.id = id; act.added = now; act.by = by; act.cells = 0; delete act.legacy; delete act.frozen; delete act.cellsAt; }
+      const nv = { n: (Number(act.n) || vols.length) + 1, id: id, from: base, since: since, added: now, by: by };
+      if (Object.keys(cuts).length) nv.cuts = cuts;
+      vols.push(nv);
+    } else if (act) { if (act.id !== id) act.was = (Array.isArray(act.was) ? act.was : []).concat([act.id]).slice(-20);
+      act.id = id; act.added = now; act.by = by; act.cells = 0; delete act.legacy; delete act.frozen; delete act.cellsAt; }
     else vols = [{ n: 1, id: id, from: '', added: now, by: by }];
     const top = vols[vols.length - 1];
     P.setProperty(T.sheets, JSON.stringify(vols));
@@ -158,7 +186,10 @@ function webBackup_(opt) {
   const T = bkTarget_(opt), vols = bkSheets_(T, cfg.fallback), vol = vols.length ? vols[vols.length - 1] : null;
   if (!vol) { if (opt.auto) return { off: true };
     throw new Error(T.kind === 'portal' ? 'The Google Sheet backup of the Portal is not set up yet – the Super Admin gives its Sheet link (Portal → Sites → Portal backup).' : 'The Google Sheet backup of this site is not set up yet – the Super Admin gives its Sheet link (Portal → Sites → Backup).'); }
-  const sheetId = String(vol.id), from = Number(vol.n) > 1 ? String(vol.from || '') : '';      // from: Sheet 2 and after hold what is new or changed since then
+  const sheetId = String(vol.id), later = Number(vol.n) > 1, from = later ? String(vol.from || '') : '';      // from: Sheet 2 and after hold what is new or changed since then
+  // (review 25-10-2026) … table by table: since an hour before that table's last copy into the Sheet before (vol.cuts)
+  const cuts = later && vol.cuts && typeof vol.cuts === 'object' ? vol.cuts : {}, fromOf = t => (later ? String(cuts[t] !== undefined ? cuts[t] : from) : '');
+  const sinceTxt = later ? String(vol.since || from || '') : '';
   const url = bkUrl_(sheetId);
   const readState = () => { try { return JSON.parse(P.getProperty(T.state) || '{}') || {}; } catch (e) { return {}; } };
   let state = readState();
@@ -174,6 +205,10 @@ function webBackup_(opt) {
   if (!__lockNamed(T.lock, 110)) return { busy: true, info: T.kind === 'portal' ? bkInfoOf_(T) : sbBackupInfo_() };
   // with the lock: the notes as they are NOW (while this request waited, another server may have finished a backup)
   try { if (typeof __propFresh === 'function') { const now = __propFresh(T.state); state = now ? (JSON.parse(now) || {}) : {}; } } catch (e) { /* the notes read at the start are used */ }
+  // (review 25-10-2026) the Super Admin may have given another Sheet while this request waited: the next run takes that one
+  { const v2 = bkJson_(PropertiesService.getScriptProperties().getProperty(T.sheets), null);
+    if (Array.isArray(v2) && v2.length && String(v2[v2.length - 1].id) !== sheetId) { __unlockNamed(T.lock); return { busy: true, info: bkInfoOf_(T) || {} }; } }
+  if (state.sheet && state.sheet !== sheetId) state = {};      // the notes of another Sheet (a link changed): this Sheet gets its whole copy
   if (opt.auto && !opt.full && !(state.todo && state.todo.length) && doneToday(state)) { __unlockNamed(T.lock); return { skipped: true }; }      // another server has just done it
   // how long one run works before it stops by itself, and how many rows go into one group – the app's settings may change
   // them (BK_BUDGET_MS, BK_GROUP_ROWS in web.props: for tests, or to tune a very big site); normally 36 s and 6,000 rows
@@ -185,7 +220,7 @@ function webBackup_(opt) {
   const died = state.running ? (Number(state.died) || 0) + 1 : 0;
   const keep = o => { state = Object.assign({}, state, o); P.setProperty(T.state, JSON.stringify(state)); };      // written to the database at once
   try {
-    keep({ running: nowIso, died: died });
+    keep({ running: nowIso, died: died, sheet: sheetId });
     if (died >= 2) P.setProperty(T.info, JSON.stringify({ ok: false, error: 'The backup was cut off ' + died + ' times in a row before it could finish (a request may run 58 seconds). It is trying again now; if this stays, a table has become too big to copy in one go – tell the developer.', lastCheck: state.lastCheck || '', lastRun: state.lastRun || '', url: url }));
     const G = (method, path, body) => {
       if (left() < 6000) throw new Error('BK_OUT_OF_TIME');
@@ -201,13 +236,13 @@ function webBackup_(opt) {
     const cat = T.kind === 'site' ? sbCatalog_() : {}, c = sbConf_();
     // (update-157) the Engineering module's rows of this site (the Portal's for the Portal's backup), read through their own export
     let rem = {}, remNote = '';
-    try { rem = bkRemoteCatalog_(T, siteCode); } catch (e) { if (T.kind === 'portal') throw e; remNote = String((e && e.message) || e).slice(0, 300); rem = {}; }
+    try { const rc = bkRemoteCatalog_(T, siteCode); rem = rc.out; remNote = rc.note; } catch (e) { if (T.kind === 'portal') throw e; remNote = String((e && e.message) || e).slice(0, 300); rem = {}; }
     if (T.kind === 'portal' && !Object.keys(rem).length) throw new Error('The Portal backup needs the same BACKUP_EXPORT_SECRET in Vercel for the Mechanical (rclerp) and the Portal (rcl-portal) projects, and PORTAL_URL in rclerp.');
     const local = Object.keys(cat).sort(), tables = local.concat(Object.keys(rem).sort());
     const tabOf = t => rem[t] ? rem[t].title : sbTabName_(t);
     // (update-157) Sheet 2 and after: a table of entries holds only its rows new or changed since "from" (a master stays whole)
-    const sinceCol = t => { if (!from || BK_REF_.indexOf(t) > -1 || !cat[t]) return ''; const names = cat[t].map(x => x.name); return BK_SINCE_COLS_.find(x => names.indexOf(x) > -1) || ''; };
-    const volFilter = t => { const col = sinceCol(t); return col ? '&' + col + '=gte.' + encodeURIComponent(from) : ''; };
+    const sinceCol = t => { if (!fromOf(t) || BK_REF_.indexOf(t) > -1 || !cat[t]) return ''; const names = cat[t].map(x => x.name); return BK_SINCE_COLS_.find(x => names.indexOf(x) > -1) || ''; };
+    const volFilter = t => { const col = sinceCol(t); return col ? '&' + col + '=gte.' + encodeURIComponent(fromOf(t)) : ''; };
     // what every table looks like now: number of rows + newest change
     const res = UrlFetchApp.fetchAll(local.map(t => { const has = cat[t].some(x => x.name === 'updated_at');
       return { url: c.url + '/rest/v1/' + t + '?select=' + (has ? 'updated_at&order=updated_at.desc' : cat[t][0].name) + '&limit=1', method: 'get', muteHttpExceptions: true, headers: { apikey: c.key, Prefer: 'count=exact' } }; }));
@@ -305,8 +340,10 @@ function webBackup_(opt) {
         const top = add.length ? String(add[add.length - 1][kcol]) : String(a.last);
         return countUpTo(t, kcol, top) === Number(a.n) + add.length ? add : null;
       };
-      // the smallest tables first: whatever happens later, most of the copy is up to date
-      changed.sort((a, b) => rowsOf(a) - rowsOf(b) || (a < b ? -1 : 1));
+      // the smallest tables first: whatever happens later, most of the copy is up to date; (review 25-10-2026) this site's own
+      // tables before the other modules' – a slow or failing Engineering never holds back the site's own data
+      changed.sort((a, b) => (rem[a] ? 1 : 0) - (rem[b] ? 1 : 0) || rowsOf(a) - rowsOf(b) || (a < b ? -1 : 1));
+      const copied = Object.assign({}, state.copied || {}), remBad = {};
       let k = 0;
       while (k < changed.length) {
         if (Date.now() - T0 > BUDGET) { stopped = true; break; }
@@ -315,7 +352,9 @@ function webBackup_(opt) {
         try {
           // (read with a filter that leaves nothing out, so that this is asked from the database itself and not answered from the server's memory)
           const jobs = group.map(t => {
-            if (rem[t]) { const x = rem[t], hdr = x.cols.map(y => y.name), list = bkRemoteRows_(x, siteCode, from);
+            if (rem[t]) { const x = rem[t], hdr = x.cols.map(y => y.name); let list;
+              // (review 25-10-2026) another module that fails here is noted and left for the next run – never stops this site's backup
+              try { list = bkRemoteRows_(x, siteCode, fromOf(t), left); } catch (e) { if (/BK_OUT_OF_TIME/.test(String(e && e.message))) throw e; remBad[t] = String((e && e.message) || e).slice(0, 200); return null; }
               const data = [hdr].concat(list.map(r => x.cols.map(y => cell(t, y.name, r[y.name])))); if (data.length < 2) data.push(hdr.map(() => ''));
               return { table: t, title: x.title, data: data, cols: hdr.length, n: list.length, app: null }; }
             const cols = cat[t], hdr = cols.map(x => sbHeader_(t, x.name)), kcol = APPEND_[t];
@@ -326,27 +365,30 @@ function webBackup_(opt) {
             const data = [hdr].concat(list.map(r => cols.map(x => cell(t, x.name, r[x.name])))); if (data.length < 2) data.push(hdr.map(() => ''));
             // a log's notes start from this whole copy – only when its keys came each once (else the next run writes it whole again)
             return { table: t, title: tabOf(t), data: data, cols: hdr.length, n: list.length, app: kcol ? (distinct(list, kcol) ? { n: list.length, last: list.length ? String(list[list.length - 1][kcol]) : '', whole: nowIso, cols: colsOf(t) } : 'none') : null }; });
-          writeTabs(jobs.filter(x => !(x.added === 0)));      // a log with no new row: its tab is already right
-          jobs.forEach(x => { old[x.table] = sig[x.table]; doneNow[x.table] = 1; if (fullRun) fullRun.done[x.table] = 1; if (x.app === 'none') delete apps[x.table]; else if (x.app) apps[x.table] = x.app;
+          group.filter(t => remBad[t]).forEach(t => { doneNow[t] = 1; if (fullRun) fullRun.done[t] = 1; lines.push([tabOf(t), 'not copied now – ' + remBad[t]]); });      // (its signature is kept old: the next run tries it again)
+          const ok = jobs.filter(Boolean);
+          writeTabs(ok.filter(x => !(x.added === 0)));      // a log with no new row: its tab is already right
+          ok.forEach(x => { old[x.table] = sig[x.table]; doneNow[x.table] = 1; copied[x.table] = nowIso; if (fullRun) fullRun.done[x.table] = 1; if (x.app === 'none') delete apps[x.table]; else if (x.app) apps[x.table] = x.app;
             lines.push([x.title, x.added !== undefined ? '+' + x.added + ' new rows (' + x.n + ' in all)' : x.n + ' rows']); });
-          keep({ sig: old, fullRun: fullRun, todo: changed.filter(t => !doneNow[t]), lastRun: nowIso, app: apps });      // noted at once: a run that is cut off after this loses nothing of it
+          keep({ sig: old, fullRun: fullRun, todo: changed.filter(t => !doneNow[t]), lastRun: nowIso, app: apps, copied: copied });      // noted at once: a run that is cut off after this loses nothing of it
         } catch (e) { if (/BK_OUT_OF_TIME/.test(String(e && e.message))) { stopped = true; break; } throw e; }
       }
       const todo = changed.filter(t => !doneNow[t]);
       if (lines.length) {
         info.lastRun = nowIso;
         const when = Utilities.formatDate(new Date(nowMs), 'Asia/Kolkata', 'dd-MM-yyyy HH:mm:ss');
-        const fromTxt = from ? Utilities.formatDate(new Date(from), 'Asia/Kolkata', 'dd-MM-yyyy HH:mm') : '';
+        const fromTxt = sinceTxt ? Utilities.formatDate(new Date(sinceTxt), 'Asia/Kolkata', 'dd-MM-yyyy HH:mm') : '';
         const st = [[T.kind === 'portal' ? 'RCL ERP Portal – copy of the Portal database (made by the app, do not edit)' : 'RCL Fleet ERP – copy of the Supabase database (made by the app, do not edit)', ''],
           [T.kind === 'portal' ? 'Backup of' : 'Site', T.kind === 'portal' ? 'the Portal (users, access, sites, companies, modules, the Super Admin\'s record)' : (siteCode || 'this site')],
           ['This Sheet', 'Sheet ' + vol.n + (vols.length > 1 ? ' of ' + vols.length : '')],
-          ['It holds', from ? 'every row new or changed since ' + fromTxt + ' (India time), the deletions since then (Deleted Rows), and the masters whole – together with Sheet 1' + (Number(vol.n) > 2 ? ' … ' + (Number(vol.n) - 1) : '') + ' it is the whole data' : 'everything, from the first day'],
+          ['It holds', later ? 'every row new or changed since ' + (sinceTxt ? fromTxt : 'the first day') + (Object.keys(cuts).length ? ' at the earliest (each table from an hour before its last copy into Sheet ' + (Number(vol.n) - 1) + ')' : '') + ' (India time), the deletions since then (Deleted Rows), and the masters whole – together with Sheet 1' + (Number(vol.n) > 2 ? ' … ' + (Number(vol.n) - 1) : '') + ' it is the whole data' : 'everything, from the first day'],
           ['Last backup (India time)', when], ['Kind', full ? 'Full – every table' : 'Changed tables only'],
           ['Still to copy (goes on by itself in a few minutes)', todo.length ? todo.map(tabOf).join(', ') : 'nothing – complete'],
           ['Cells too long for a Sheet (cut)', cut ? cut + ' – the database has them whole' : 'none'], ['', ''], ['Table', 'Rows copied now']].concat(lines);
         try { writeTabs([{ title: 'Backup Status', data: st, cols: 2 }]); } catch (e) { if (!/BK_OUT_OF_TIME/.test(String(e && e.message))) throw e; stopped = true; }
       }
       if (todo.length) info.pending = todo.length;
+      if (Object.keys(remBad).length) info.engNote = ((info.engNote ? info.engNote + ' ' : '') + 'Not copied now (tried again at the next backup): ' + Object.keys(remBad).map(t => tabOf(t) + ' – ' + remBad[t]).join('; ')).slice(0, 600);
     }
     // (update-157) how full the Sheet is (Google allows 10 million cells in one): read after it was written, and by "Backup now"
     if (changed.length || opt.manual) {
@@ -365,6 +407,8 @@ function webBackup_(opt) {
     if (!changed.length) return { upToDate: true, info: info };
     return { full: fullDone, lines: lines, info: info, pending: todo.length, ok: true };
   } catch (e) {
+    // (review 25-10-2026) out of time before the first group (a short "Backup now"): not a failure – the rest goes on by itself
+    if (/BK_OUT_OF_TIME/.test(String(e && e.message))) { try { keep({ running: '', died: 0, lastTry: nowIso }); } catch (e2) { /* noted next time */ } return { ok: true, pending: Math.max(1, (state.todo || []).length), info: bkInfoOf_(T) || {} }; }
     const bad = { ok: false, error: String((e && e.message) || e), lastCheck: state.lastCheck || '', lastTry: nowIso, lastRun: state.lastRun || '', url: url, sheetN: Number(vol.n) || 1, sheets: vols.length, cells: Number(state.cells) || 0 };
     try { keep({ lastTry: nowIso, running: '', died: 0 }); P.setProperty(T.info, JSON.stringify(bad)); } catch (e2) { /* shown next time */ }
     if (opt.auto) return { ok: false };

@@ -7,7 +7,7 @@
 'use strict';
 const path = require('path');
 const { fetchAllSync } = require('./syncfetch');
-const secret = () => String(process.env.BACKUP_EXPORT_SECRET || '');
+const secret = () => String(process.env.BACKUP_EXPORT_SECRET || '').trim();      // (a newline pasted with the value in Vercel is not part of it)
 function base(source) {
   if (source === 'portal') return String(process.env.PORTAL_URL || '').trim().replace(/\/+$/, '');
   if (source !== 'eng') return '';
