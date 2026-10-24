@@ -1917,6 +1917,22 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   bills; bill_machines (trigger) keeps every bill's machinery and dates. Only the Super Admin revises a submitted bill's dates.
   Step 1zd's helpers revoked from the public roles (found by the rig's Database health). Unit 107, browser lock152 17; the
   regression set the same as main (billed108 / ev151 changed for the new rules).
+- 24-10-2026 (update-153, with App 3.34.0). Report: `UPDATE_153.md`. ATTACHMENTS OF A LOG BOOK ENTRY, SCAN WITH MOBILE, PHOTO
+  CORRECTION, A BILL'S FILES AS SUBMITTED (Phases C, D, E). Server: `uploadAttachment_` (data URL, ≤ 3 MB, real type by its bytes
+  `attSniff_`, SHA-256 → private bucket erp-files `log/<2>/<sha>.<ext>`, x-upsert false – "Duplicate" = the same file, reused; the
+  sender noted 6 h in AT_<sha>, several senders `es`), `attOf_` (the list a save gives: the entry's own, the saver's – or at an
+  approval the sender's FLOW_SENDER_ –, or a file already with another entry; at most siteRules_().attachMax, default 10),
+  `attSet_` ('add' for saveLogRows rows, 'set' + `attWas` for updateLogRow), wrappers `saveLogRowsA_` / `updateLogRowA_` (one lock,
+  one write), `linkLogAttachments_`, `getLogAttachments_` / `attLinks_` (signed 15 min), Scan with Mobile `capStart_` (id + 256-bit
+  token, only sha_(token) kept in CAP_<id>), `capClaim_` (same email, same site __siteCode, 5 min, one phone id), `capAdd_` (list,
+  own files only), `capPoll_` (owner only, a question), `capCancel_`; `getBillAttachments_` (from the bill's evidence rows' `att`,
+  deduped). Column log_book.attachments (step 1ze), `logRowOut_` att, LB_GUARD_ has Attachments (update-152's guard covers it).
+  Page: `atOpen` (the box: paste / drop / upload / camera `atCamera` / `atQr` / `atOther`, sent on Done), `atMake` / `atBase` /
+  `atWarp` (perspective by homography) / `atSuggest` (Otsu + largest bright part), `atEdit` (the correction), `atView`, the row's
+  📎 (`lgAttOpen`, paste and drop on a row), the edit window (`leAttDraw`), the list and Edit Log Book chips, "Attach to selected",
+  `capArrive` (the phone: ?cap= kept in sessionStorage through the sign-in, `capPhone` id in localStorage), Site rules `rule_att`,
+  `billAttHtml` (the annex in viewSavedBillIn), `billFilesZip` (`zipMake`, CRC-32, each file checked by SHA-256, FINGERPRINTS.txt).
+  Unit 108 (new: update-153), browser att153 36.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

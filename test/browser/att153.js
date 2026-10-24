@@ -34,7 +34,7 @@ const dir = path.join(os.tmpdir(), 'att153'); fs.mkdirSync(dir, { recursive: tru
     sql("alter table public.log_book_history disable trigger log_book_history_fixed; delete from public.log_book_history where entry_key like 'AT153-%'; alter table public.log_book_history enable trigger log_book_history_fixed;" +      // (LOCAL RIG ONLY)
       "delete from public.bill_machines where bill_id in (select id from bills where vendor_name = 'AT153 Vendor'); delete from bills where vendor_name = 'AT153 Vendor'; delete from log_book where machinery like 'AT153-%'; delete from boq where vendor_name = 'AT153 Vendor';" +
       "delete from master where id like 'AT153-%'; delete from vendors where vendor_name = 'AT153 Vendor'; delete from billed_changes where args like '%AT153-%'; delete from app_users where email in ('mk153@rcl.test', 'ot153@rcl.test');" +
-      "delete from web.cache where key like 'SB%' or key like 'VB_%' or key like 'CAP_%' or key like 'AT_%' or key in ('USERS_LIST');");
+      "delete from app_settings where id = 'FLOW_RULES' and value like '%ot153%'; delete from web.cache where key like 'SB%' or key like 'VB_%' or key like 'CAP_%' or key like 'AT_%' or key in ('USERS_LIST');");
     fault({});
   };
   const errs = { a: [], m: [], p: [], s: [] }; let b = null;
@@ -87,7 +87,7 @@ const dir = path.join(os.tmpdir(), 'att153'); fs.mkdirSync(dir, { recursive: tru
     const pdfU = await M('uploadAttachment', { data: 'data:application/pdf;base64,' + PDF.toString('base64'), name: 'challan.pdf' });
     const onDisk = u1 && u1.path ? fs.readFileSync(STORE + u1.path) : Buffer.alloc(0);
     ok('A. a photo kept under its SHA-256 (log/<2>/<sha>.jpg) – exactly the bytes sent; the same photo by another person: the same file (dup), not kept twice', u1 && u1.sha === shaHex(bytesOf(pics.jpg)) && u1.path === 'log/' + u1.sha.slice(0, 2) + '/' + u1.sha + '.jpg' && onDisk.equals(bytesOf(pics.jpg)) && u1b && u1b.dup === true && u1b.path === u1.path, { u1, u1b });
-    ok('   a web page sent as a "photo": refused ("not what its name says"); a PDF: kept (.pdf); the store has 2 new files', /^This file is not what its name says \(image\/jpeg\)/.test(fake.ERROR || '') && pdfU && /\.pdf$/.test(pdfU.path || '') && stored() === st0 + 2, { fake, pdfU, n: stored() - st0 });
+    ok('   a web page sent as a "photo": refused ("not what its name says"); a PDF: kept (.pdf); the store has one file each (a file kept by an earlier run is not kept again)', /^This file is not what its name says \(image\/jpeg\)/.test(fake.ERROR || '') && pdfU && /\.pdf$/.test(pdfU.path || '') && stored() === st0 + (u1.dup ? 0 : 1) + (pdfU.dup ? 0 : 1), { fake, pdfU, n: stored() - st0 });
     const K1 = 'AT153-1|2026-10-01|Day';
     const sv = await M('saveLogRows', { rows: [{ date: '2026-10-01', shift: 'Day', no: 'AT153-1', mode: 'KM', openingKm: 1000, closingKm: 1010, work: 'A', attachments: [{ sha: u1.sha }, { sha: pdfU.sha }] }] });
     const svO = await O('saveLogRows', { rows: [{ date: '2026-10-02', shift: 'Day', no: 'AT153-1', mode: 'KM', closingKm: 1020, work: 'A', attachments: [{ sha: pdfU.sha }, { sha: 'f'.repeat(64) }] }] });
@@ -100,6 +100,16 @@ const dir = path.join(os.tmpdir(), 'att153'); fs.mkdirSync(dir, { recursive: tru
     const upA = await M('updateLogRow', K1, { ver: e1.ver, attWas: [u1.sha, pdfU.sha], attachments: [{ sha: u1.sha }] });
     const upB = await O('updateLogRow', K1, { ver: e2.ver, attWas: [u1.sha, pdfU.sha], attachments: [{ sha: u1.sha }, { sha: pdfU.sha }, { sha: (await O('uploadAttachment', { data: pics.jpg2, name: 'o.jpg' })).sha }] });
     ok('   two people at one entry (both opened it with 2 files): the first saves (PDF taken out); the second is refused – "changed by someone else … open it again"', upA && upA.ok !== false && !upA.ERROR && /^The attachments of this entry were changed by someone else after you opened it/.test(upB.ERROR || '') && JSON.stringify(shas(K1)) === JSON.stringify([u1.sha]), { upA, upB, now: shas(K1) });
+
+    // ---------- A2. under a verification rule: the files go with the request; saved with the entry when the checker approves ----------
+    must('flow on', await S_('saveFlowRules', { tasks: { 'Log Book': { on: true, levels: [['ot153@rcl.test']] } } }));
+    const vfPic = await M('uploadAttachment', { data: pics.jpg4, name: 'vf.jpg' });
+    const vfS = await M('saveLogRows', { rows: [{ date: '2026-10-03', shift: 'Day', no: 'AT153-1', mode: 'KM', closingKm: 1030, work: 'A', attachments: [{ sha: vfPic.sha }, { sha: pdfU.sha }] }] });
+    const vfId = ((vfS.ERROR || '').match(/VF-\d+/) || [''])[0];
+    const kVf = 'AT153-1|2026-10-03|Day', vfBefore = sql("select count(*) from log_book where id = '" + kVf + "'");
+    const vfD = vfId ? await O('decideChangeRequest', { id: vfId, approve: true }) : null;
+    must('flow off', await S_('saveFlowRules', { tasks: {} }));
+    ok('A2. under a verification rule: sent (' + vfId + ') – nothing saved yet; the checker approves – the entry is saved WITH its 2 files (the sender\'s, as noted with the request), approved', !!vfId && vfBefore === '0' && vfD && vfD.status === 'Approved' && JSON.stringify(shas(kVf)) === JSON.stringify([vfPic.sha, pdfU.sha]) && sql("select approval_ref from log_book where id = '" + kVf + "'") === vfId, { vfS, vfD: vfD && (vfD.status || vfD.ERROR), now: shas(kVf) });
 
     // ---------- B. the entry page: Ctrl + V ----------
     const pa = await b.newPage(); await pa.setViewport({ width: 1440, height: 900 }); pa.on('pageerror', e => errs.m.push(String(e.message).slice(0, 200)));
@@ -293,7 +303,25 @@ const dir = path.join(os.tmpdir(), 'att153'); fs.mkdirSync(dir, { recursive: tru
     ok('   Saved Bills → 📎 Files: one ZIP (a good ZIP), every file + FINGERPRINTS.txt – each "checked ✔" against its SHA-256, none ✗', !!zipF && zp[0] === 'None' && zp[1] === String(want.length + 1) && zp[2] === String(want.length) && zp[3] === '0', { zipF, zl: zl.slice(0, 300) });
     const toastZ = await toastOf(FA);
     ok('   …and the page says so ("each matches its fingerprint ✔")', /each matches its fingerprint ✔/.test(toastZ), toastZ);
-    ok('G. no script error on the pages (the maker\'s, the phone\'s, the Admin\'s)', !errs.m.length && !errs.p.length && !errs.a.length, errs);
+    // ---------- superseded: the Super Admin revises the bill – the old one keeps its files as billed, the new one its own ----------
+    const pS = await b.newPage(); await pS.setViewport({ width: 1440, height: 900 }); pS.on('pageerror', e => errs.s.push(String(e.message).slice(0, 200)));
+    await pS.goto(SA + '/#sso=' + await ticketNow(), { waitUntil: 'load' }); await wait(7000);
+    const FS = await frameOf(pS, () => typeof S === 'object' && !!S.user && S.user.super === true);
+    const yesS = () => FS.evaluate(() => { const c = document.getElementById('cf_back'); if (c && !c.hidden) { const t = document.getElementById('cf_title').textContent; const r = document.getElementById('sa_reason'); if (r && !r.value) r.value = 'Revised – a photo was wrong'; document.getElementById('cf_ok').click(); return t; } return ''; });
+    await FS.evaluate(() => { try { closeConfirm(false); } catch (e) {} S.formDirty = false; showTab('bill'); }); await wait(1500);
+    await FS.evaluate(async co => { await mbLoadInit(); document.querySelectorAll('#mb_vlist input.mb-vck').forEach(x => { x.checked = x.closest('label, tr, div').textContent.indexOf('AT153 Vendor') > -1; x.dispatchEvent(new Event('change', { bubbles: true })); });
+      document.getElementById('mb_from').value = '2026-09-01'; document.getElementById('mb_to').value = '2026-09-30'; document.getElementById('mb_date').value = '2026-10-06'; document.getElementById('mb_co').value = co; document.getElementById('mb_build').click(); }, co);
+    for (let i = 0; i < 40; i++) { await wait(500); await yesS(); if (await FS.evaluate(() => (S.mb.bills || []).length >= 1)) break; }
+    await wait(1200); await FS.evaluate(() => { document.querySelectorAll('#mb_rows tr').forEach(tr => { const x = tr.querySelector('.mb-no'); if (x && !x.value) { x.value = '153'; x.dispatchEvent(new Event('input', { bubbles: true })); } }); }); await wait(800);
+    await FS.evaluate(() => document.getElementById('mb_abstract').click());
+    for (let i = 0; i < 60; i++) { await wait(500); await yesS(); if (sql("select count(*) from bills where vendor_name = 'AT153 Vendor'") === '2') break; }
+    for (const pg of await b.pages()) { if (pg !== pa && pg !== pb && pg !== pS) await pg.close().catch(() => {}); }
+    const oldId = sql("select id from bills where vendor_name = 'AT153 Vendor' and status = 'Superseded'"), newId = sql("select id from bills where vendor_name = 'AT153 Vendor' and status = 'Active'");
+    const bo = oldId ? await A('getBillAttachments', { id: oldId }) : null, bn = newId ? await A('getBillAttachments', { id: newId }) : null;
+    const nightOf = r => r && r.files ? r.files.filter(f => (f.entries || []).some(e => e.key === kn)).map(f => f.sha).sort() : null;
+    ok('   superseded: the Super Admin revises the bill – the old one (Superseded) still has the Night\'s 3 files as billed; the new one (rev 1) has its 2 – each bill from its own evidence', !!oldId && !!newId && JSON.stringify(nightOf(bo)) === JSON.stringify([...kept].sort()) && JSON.stringify(nightOf(bn)) === JSON.stringify([...shas(kn)].sort()) && bo.fixed && bn.fixed,
+      { oldId, newId, old: nightOf(bo), neu: nightOf(bn), rev: sql("select string_agg(bill_no || ' rev ' || rev || ' ' || status, ', ') from bills where vendor_name = 'AT153 Vendor'") });
+    ok('G. no script error on the pages (the maker\'s, the phone\'s, the Admin\'s, the Super Admin\'s)', !errs.m.length && !errs.p.length && !errs.a.length && !errs.s.length, errs);
   } catch (e) { ok('run', false, String(e && e.stack || e).slice(0, 900)); }
   finally { try { if (b) await b.close(); } catch (e) {} try { cleanup(); } catch (e) { out.push('cleanup: ' + String(e.message).slice(0, 200)); } }
   console.log(out.join('\n')); console.log('\n' + pass + ' passed, ' + fail + ' failed'); process.exit(fail ? 1 : 0);
