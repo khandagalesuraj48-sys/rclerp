@@ -1445,6 +1445,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .bk-pill.ok:hover { background: #DBEAFE; }
   .bk-pill.bad { background: #FEF2F2; color: #B91C1C; box-shadow: 0 0 0 1px #FECACA; }
   .bk-pill.busy { background: #F1F5F9; color: #475569; box-shadow: 0 0 0 1px #E2E8F0; cursor: wait; }
+  /* (update-158) Storage in the Admin's Backup window: green; yellow from 80 %; red from 90 % */
+  table.sto { width: 100%; border-collapse: collapse; margin: 6px 0 4px; font-size: 13px; }
+  table.sto td { padding: 6px 6px; border-top: 1px solid var(--line, #E2E8F0); vertical-align: top; }
+  table.sto td:first-child { font-weight: 600; white-space: nowrap; }
+  .sto-lvl { display: inline-block; min-width: 46px; text-align: center; padding: 1px 8px; border-radius: 10px; font-weight: 700; font-size: 12px; }
+  .sto-lvl.g { background: #ECFDF3; color: #067647; } .sto-lvl.y { background: #FFFAEB; color: #B54708; } .sto-lvl.r { background: #FEF3F2; color: #B42318; }
   .bk-pill .spin { width: 12px; height: 12px; border: 2px solid #CBD5E1; border-top-color: #475569; border-radius: 50%; animation: bkspin .8s linear infinite; }
   @keyframes bkspin { to { transform: rotate(360deg); } }
   @media (max-width: 760px) { .bk-pill span:not(.spin) { display: none; } .bk-pill { padding: 6px; } }
@@ -5944,6 +5950,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The backup could not get the data of another module (Engineering or the Portal).', 'This site\'s own data is backed up as usual. The Super Admin checks that BACKUP_EXPORT_SECRET has the same value in Vercel for rclerp, rcl-portal and rcl-engineering (then Redeploy); the next backup takes them again.'],
       mr: ['Backup ला दुसऱ्या module चा data (Engineering किंवा Portal) मिळाला नाही.', 'या site चा स्वतःचा data नेहमीप्रमाणे backup होतो. Super Admin ने Vercel मध्ये rclerp, rcl-portal आणि rcl-engineering तिन्हींत BACKUP_EXPORT_SECRET एकच आहे का ते पाहावे (मग Redeploy); पुढच्या backup मध्ये तो पुन्हा घेतला जाईल.'],
       hi: ['Backup को दूसरे module का data (Engineering या Portal) नहीं मिला।', 'इस site का अपना data हमेशा की तरह backup होता है। Super Admin देखें कि Vercel में rclerp, rcl-portal और rcl-engineering तीनों में BACKUP_EXPORT_SECRET एक ही है (फिर Redeploy); अगले backup में वह फिर लिया जाएगा।'] },
+    // (update-158) the copy of the photos and files to Google Drive
+    { re: /Google Drive is full|connects Google Drive again|copy to Google Drive is not set up|GOOGLE_OAUTH_CLIENT|Google Drive \(\d+\)|Google Drive did not answer|Google did not give the access|Drive did not receive the file whole|connected at the first site only/i,
+      en: ['The copy of the photos and files to Google Drive could not be made.', 'Every photo and file is still safe in the app. The Super Admin opens Portal → Sites → Storage: if Drive is full, makes room or buys more Google storage; if the access stopped, presses "Connect Google Drive" again. The copy then goes on by itself.'],
+      mr: ['Photos आणि files ची Google Drive मध्ये copy होऊ शकली नाही.', 'प्रत्येक photo आणि file app मध्ये सुरक्षित आहे. Super Admin ने Portal → Sites → Storage उघडावे: Drive भरला असेल तर जागा करावी किंवा Google storage वाढवावे; access थांबला असेल तर पुन्हा "Connect Google Drive" दाबावे. मग copy आपोआप पुढे चालते.'],
+      hi: ['Photos और files की Google Drive में copy नहीं हो सकी।', 'हर photo और file app में सुरक्षित है। Super Admin Portal → Sites → Storage खोलें: Drive भर गया हो तो जगह बनाएँ या Google storage बढ़ाएँ; access रुक गया हो तो फिर से "Connect Google Drive" दबाएँ। फिर copy अपने आप आगे चलती है।'] },
     { re: /This site is not set up|backup of this site is not set up|not the backup Sheet of this site/i,      // stage 1 of "new site": a site the server does not know (yet), or its Sheet
       en: ['This site is not set up on the server yet (or its backup Sheet is not).', 'Nothing was read or saved. Ask the Super Admin to finish setting up this site (its backup Sheet: Portal → Sites → Backup), then open the app again.'],
       mr: ['ही site अजून server वर set up झालेली नाही (किंवा तिची backup Sheet नाही).', 'काहीही वाचले किंवा save झाले नाही. Super Admin ला ही site set up पूर्ण करायला सांगा (तिची backup Sheet: Portal → Sites → Backup), मग app पुन्हा उघडा.'],
@@ -7354,11 +7365,28 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       else if (r && r.full) html = '<p>✓ <b>Full backup done.</b> Every table was copied to the Google Sheet.</p>';
       else html = '<p>✓ <b>New data copied to the Google Sheet now.</b></p>' + listHtml(((r && r.lines) || []).map(x => x[0] + ': ' + x[1])) +
         (r && r.pending ? '<p><b>' + esc(r.pending) + ' table(s) are still to be copied</b> – one run may take about half a minute; the rest goes on by itself in a few minutes (or press Backup again).</p>' : '');
-      await askConfirm({ title: 'Backup to Google Sheet', ok: 'OK', alertOnly: true, html: html + link });
+      await askConfirm({ title: 'Backup to Google Sheet', ok: 'OK', alertOnly: true, html: html + link + storageHtml(r && r.storage) });
       setBackupInfo(info);
     } catch (e) { toast(errMsg(e), true); }
     finally { delete b.dataset.busy; setBackupInfo(S.backup); }
   });
+  /* (update-158) STORAGE of this site (the Admin's Backup window): the database (of 8 GB), the photos and attachments (the 100 GB
+   * are for every site together), the backup Sheet in use (of 1 crore cells), the copy of the files in Google Drive */
+  function stoSize(b) { b = Number(b) || 0; return b >= 1073741824 ? (b / 1073741824).toFixed(2) + ' GB' : b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(0, Math.round(b / 1024)) + ' KB'; }
+  function stoLvl(p) { p = Number(p) || 0; return '<span class="sto-lvl ' + (p >= 90 ? 'r' : p >= 80 ? 'y' : 'g') + '">' + esc(p) + ' %</span>'; }
+  function storageHtml(s) {
+    if (!s) return '';
+    const rows = [], d = s.drive || {};
+    rows.push(['Database', s.db ? stoLvl(s.db.pct) + ' ' + esc(stoSize(s.db.bytes)) + ' of ' + esc(stoSize(s.db.limit)) : esc(s.error || '–')]);
+    rows.push(['Photos and files', s.files ? stoLvl(s.files.pct) + ' ' + esc(stoSize(s.files.bytes)) + ' (' + esc(Number(s.files.n || 0).toLocaleString('en-IN')) + ' files) of ' + esc(stoSize(s.files.limit)) + ' <span class="muted">– the ' + esc(stoSize(s.files.limit)) + ' are for every site together</span>' : '–']);
+    rows.push(['Backup Sheet', s.sheet ? stoLvl(s.sheet.pct) + ' Sheet ' + esc(s.sheet.n) + ': ' + esc(Number(s.sheet.cells || 0).toLocaleString('en-IN')) + ' of ' + esc(Number(s.sheet.limit || 0).toLocaleString('en-IN')) + ' cells' : 'not given yet (Super Admin: Portal → Sites → Backup)']);
+    rows.push(['Google Drive copy', !d.connected ? 'not connected yet (Super Admin: Portal → Sites → Storage)' : d.needSql ? esc(d.error || 'needs step 1zf') :
+      esc(Number(d.copied || 0).toLocaleString('en-IN')) + ' files copied (' + esc(stoSize(d.bytes)) + ')' + (d.lastRun ? ', last ' + esc(dtFull(d.lastRun)) : '') + (d.pending ? ' – more goes on by itself' : '') + (d.error ? '<br><span class="muted">' + esc(d.error) + '</span>' : '') +
+      (d.skipped ? '<br><span class="muted">' + esc(d.skipped) + (Number(d.skipped) === 1 ? ' file' : ' files') + ' not copied yet – tried again by itself</span>' : '') + (d.note ? '<br><span class="muted">' + esc(d.note) + '</span>' : '')]);
+    const warn = [s.db, s.files, s.sheet].some(x => x && Number(x.pct) >= 80);
+    return '<h4 style="margin:14px 0 2px">Storage</h4><table class="sto">' + rows.map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</table>' +
+      (warn ? '<p><b>Something is 80 % full or more</b> – tell the Super Admin before adding much more (a new Sheet, more Supabase space or Google storage).</p>' : '');
+  }
   function setLocations(list) {
     S.locations = list && list.length ? list : ['Dispenser', 'VTR Store'];
     document.querySelectorAll('select.loc-select').forEach(sel => {

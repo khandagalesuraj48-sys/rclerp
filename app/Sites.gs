@@ -204,6 +204,11 @@ function sysPortalAdmin_(c) {
   if (c.act === 'bkGet') return bkSheetsInfo_(c);
   if (c.act === 'bkSet') return bkSheetSet_(c);
   if (c.act === 'bkNow') return bkNow_(c);
+  // (update-158) Sites → Storage: the first site's storage with the Drive connection; "Connect Google Drive"; "Copy files now"
+  if (c.act === 'stoHome') { const cl = JSON.parse(__drvClient()), q = drvQuota_();
+    return { storage: storageOf_(), drive: { ready: !!cl.ok, error: cl.ok ? '' : cl.error, redirect: cl.redirect || '', quota: q } }; }
+  if (c.act === 'drvStart') return drvStart_({ by: c.by });
+  if (c.act === 'drvNow') return drvNow_();
   if (c.act !== 'pages') throw new Error('Unknown action.');
   const email = str_(c.email).toLowerCase(), perms = {};
   MODULES.forEach(m => { const v = (c.perms || {})[m]; if (v === 'Edit' || v === 'View' || v === 'None') perms[m] = v; });

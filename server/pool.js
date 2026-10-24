@@ -67,7 +67,7 @@ if (!isMainThread && workerData && workerData.rclWorker) {
       if (left < 8000) { job.reject(new Error(BUSY)); continue; }      // waited too long in line to still finish in time: not started
       s.job = job;
       job.timer = setTimeout(() => fail(s, 'This took too long – please try again (or pick a shorter period).'), left);
-      s.w.postMessage({ id: job.id, fn: job.fn, args: job.args, meta: job.meta });
+      s.w.postMessage({ id: job.id, fn: job.fn, args: job.args, meta: Object.assign({}, job.meta || {}, { until: job.at + LIMIT_MS }) });      // (update-158: the server code knows its last moment)
     }
   }
   module.exports = {

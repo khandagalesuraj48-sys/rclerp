@@ -11,6 +11,7 @@ const system = require('./system');
 const portal = require('./portal');
 const google = require('./google');
 const bkexport = require('./bkexport');      // (update-157) the Engineering and Portal rows for the backup
+const drive = require('./drive');      // (update-158) the copy of the files to Google Drive
 
 const FILES = ['SupabaseSync.gs', 'SupabaseData.gs', 'Code.gs', 'ReadMe.gs', 'Sites.gs'];      // Sites.gs: several sites (update-90)
 // added after the app's own code (same scope): the door for the calls, and the two things that differ outside Apps Script
@@ -20,10 +21,13 @@ const TAIL = `
     // the sign-in screen: the product name, whose copy this is, its site, logo and opening film (nothing else is given without a sign-in)
     orgInfo: () => orgPublic_(),
     // backup check: only for someone signed in (the open app), or the nightly job (which proved itself to api/backup.js)
-    backup: o => { o = o || {}; if (!o.cron && !sessionUser_(o.token)) throw new Error('SESSION_EXPIRED');
+    backup: o => { o = o || {}; const t0 = Date.now(); if (!o.cron && !sessionUser_(o.token)) throw new Error('SESSION_EXPIRED');
       // the nightly job also forgets old save numbers (step-5 SQL: web_ops_cleanup). Never in the way of the backup; nothing to do where step 5 is not installed.
       if (o.cron) { try { __opsCleanup(); } catch (e) { /* tried again with the next saves and the next night */ } }
-      const r = webBackup_({ auto: true, full: !!o.cron && !!o.full, target: o.cron && o.target === 'portal' ? 'portal' : '' }); return { ok: r.ok !== false, skipped: !!r.skipped, busy: !!r.busy, off: !!r.off, pending: Number(r.pending) || 0 }; },      // (update-141) pending: the page asks again a minute later
+      const r = webBackup_({ auto: true, full: !!o.cron && !!o.full, target: o.cron && o.target === 'portal' ? 'portal' : '' });
+      // (update-158) then the copy of the files to Google Drive, in the time that is left (a site's backup only; the Portal has no files)
+      let d = null; if (!(o.cron && o.target === 'portal') && Date.now() - t0 < 30000) { try { d = driveBackup_({ budget: 42000 - (Date.now() - t0), nightly: !!o.cron, until: __until() }); } catch (e) { d = { ok: false, error: String((e && e.message) || e) }; } }
+      return { ok: r.ok !== false, skipped: !!r.skipped, busy: !!r.busy, off: !!r.off, pending: (Number(r.pending) || 0) + (d && d.pending ? 1 : 0) }; },      // (a Drive problem is shown in Storage; the answer of the Sheet backup stays as it was)      // (update-141) pending: the page asks again a minute later
     // only from this server itself (runOnce): the entry is in, what follows a save was never finished
     saved: (token, fn, args, kept) => savedAfterAll_(token, fn, args, kept),
     // (update-90) several sites – only from this server itself (system.js), never from the page (see run: OUTSIDE)
@@ -31,6 +35,10 @@ const TAIL = `
     sysWho: sysWho_, sysSession: sysSession_, sysSso: sysSso_, sysPortalAdmin: sysPortalAdmin_, sysNewSiteSql: sysNewSiteSql_, sysSiteHealth: sysSiteHealth_, sysPlacesSetup: sysPlacesSetup_, sysOrgSet: sysOrgSet_, sysUserRow: sysUserRow_, sysSetPw: sysSetPw_, sysUsers: sysUsers_, sysSaveUser: sysSaveUser_, sysAccessReport: sysAccessReport_,
     // (update-157) the backup Sheets this site uses (so none is given to two) – only from this server itself (system.js)
     sysBkIds: () => bkIds_(),
+    // (update-158) Storage and the Google Drive copy – only from this server itself (system.js): this site's storage; the
+    // connection to Drive as the first site keeps it (locked); Google's answer after "Allow" (api/drive.js, its one-time state)
+    sysStorage: () => storageOf_(), sysDrvAuth: () => drvJ_(PropertiesService.getScriptProperties().getProperty('DRIVE_AUTH'), null), sysDrvQuota: () => drvQuota_(),
+    driveOauth: x => drvOauth_(x),
     // (update-112) the person's language at his other sites (only from __runOthers below)
     sysPrefLang: sysPrefLang_ }[fn];
   if (!f) throw new Error('Unknown action.');
@@ -58,7 +66,7 @@ function useSite(code) {
 const NOT_INSTALLED = e => /^404 /.test(String((e && e.message) || e).replace(/^Error:\s*/, ''));
 let script = null;
 function compiled() {
-  if (!script) script = new vm.Script(FILES.map(read).join('\n;\n') + '\n;\n' + require('./backup.vm.js') + TAIL, { filename: 'app-server.gs' });
+  if (!script) script = new vm.Script(FILES.map(read).join('\n;\n') + '\n;\n' + require('./backup.vm.js') + '\n;\n' + require('./drive.vm.js') + TAIL, { filename: 'app-server.gs' });
   return script;
 }
 // the cache keys a call will surely ask for (read together with the settings, in the first database call)
@@ -68,7 +76,7 @@ function bootKeys(fn, args) {
   if (fn === 'api' || fn === 'saved') return ['S_' + String(args[0] || ''), 'USERS_LIST', 'RTCN', 'FLOW_REMIND'];      // RTCN: the counter of screen-share notes (Code.gs rtcBeat_) – loaded with the rest, so the heartbeat asks nothing extra
   if (fn === 'login') { const e = String(args[0] || '').trim().toLowerCase().slice(0, 120); return ['USERS_LIST', 'F_' + e, 'LG_' + Math.floor(Date.now() / 60000)]; }
   if (fn === 'changePassword' || fn === 'logout') return ['S_' + String(args[0] || ''), 'USERS_LIST'];
-  if (fn === 'backup') return ['S_' + String((args[0] && args[0].token) || ''), 'USERS_LIST'];
+  if (fn === 'backup') return ['S_' + String((args[0] && args[0].token) || ''), 'USERS_LIST', 'DRV_NEXT', 'DRV_OFF'];      // (update-158) is a Drive copy due – read with the first call
   return [];
 }
 /* ---------- A SAVE THAT IS SENT AGAIN IS SAVED ONCE (03-10-2026) ----------
@@ -168,7 +176,7 @@ function runOnce(fn, args, meta, rid) {
 }
 /* (update-90) what may be asked from OUTSIDE (the page, the backup door): the server's own functions of Sites.gs are reached
  * only from here (system.js) – a name that is not on this list is refused before anything runs. */
-const OUTSIDE = new Set(['api', 'login', 'changePassword', 'logout', 'orgInfo', 'backup', 'switchSite', 'setDefaultSite', 'super', 'ssoLogin', 'portalAdmin']);      // ssoLogin: a ticket of the Portal (update-91)
+const OUTSIDE = new Set(['api', 'login', 'changePassword', 'logout', 'orgInfo', 'backup', 'switchSite', 'setDefaultSite', 'super', 'ssoLogin', 'portalAdmin', 'driveOauth']);      // ssoLogin: a ticket of the Portal (update-91)
 // one of the app's own functions run inside another site (its database, its memory), its answer parsed; the site of this request is set back after it
 const OTHERS_ = new Set(['sysPrefLang']);      // what one site may ask the others: the person's language (update-112) – nothing else (update-111: every site its own vendors)
 const R = { runIn(site, fn, args) {
@@ -313,6 +321,7 @@ function runPlain(fn, args, meta) {
   gas.boot(st, bootKeys(fn, args), fn === 'api' && String(args[1]) === 'sync');      // the heartbeat may be answered from memory (see gas.boot)
   const g = gas.makeGlobals(st, page());
   g.__BUILD = page().build;
+  g.__until = () => Number(meta && meta.until) || 0;      // (update-158) the last moment this request may still answer (the pool's 58 s, from when it arrived)
   // an exact counter (step-3 SQL). -1 = not installed → the app's code falls back to its old way of counting
   g.__count = (key, ttl) => { if (COUNTER.off) return -1;
     if (!key) { if (COUNTER.ok) return 0; try { gas.rpc('web_uncount', { p_key: '__probe' }); COUNTER.ok = true; return 0; } catch (e) { if (NOT_INSTALLED(e)) { COUNTER.off = true; return -1; } throw e; } }
@@ -383,6 +392,15 @@ function runPlain(fn, args, meta) {
     throw new Error('Unknown action.'); };
   g.__bkRemoteOn = () => JSON.stringify(bkexport.on());
   g.__bkRemote = (source, bodyJson, ms) => JSON.stringify(bkexport.call(String(source), String(bodyJson), Number(ms) || 25000));
+  /* (update-158) Google Drive (drive.js): the connection is kept at the first site – another site asks it there; what Google gives
+   * back after "Allow" is locked (RCL_SITES_KEY) before the app's code sees it; a file goes from the file store to Drive in the
+   * helper thread (never through this code); the address of this site's file store and its key never reach the app's code. */
+  g.__drvHome = () => JSON.stringify(R.runIn('', 'sysDrvAuth', []));
+  g.__drvClient = () => { const c = drive.client(); return JSON.stringify({ ok: c.ok, error: c.ok ? '' : c.error, redirect: c.redirect || drive.redirect(), account: c.account || '' }); };
+  g.__drvAuthUrl = state => drive.authUrl(String(state));
+  g.__drvExchange = code => { try { return JSON.stringify({ sealed: drive.exchange(String(code)).sealed }); } catch (e) { return JSON.stringify({ error: String((e && e.message) || e).slice(0, 300) }); } };
+  g.__drvCall = (sealed, method, p2, body, ms) => { try { return JSON.stringify(drive.call(String(sealed), String(method), String(p2), body ? String(body) : '', Number(ms) || 25000)); } catch (e) { return JSON.stringify({ error: String((e && e.message) || e).slice(0, 300) }); } };
+  g.__drvPipe = (sealed, jobsJson, ms) => { try { return JSON.stringify(drive.pipe(String(sealed), gas.conf(), JSON.parse(String(jobsJson)), Number(ms) || 25000)); } catch (e) { const m = String((e && e.message) || e).slice(0, 300); return JSON.stringify(JSON.parse(String(jobsJson)).map(() => ({ error: m }))); } };
   // the settings as the database has them NOW (the backup looks again once it holds its lock – another server may just have finished one)
   g.__propFresh = key => { const b = gas.rpc('web_boot', { p_keys: [] }) || {}; st.props = Object.assign({}, b.props || {}, st.propQueue); return key in st.props ? st.props[key] : null; };
   g.__lockNamed = (name, ttl) => { const r = gas.rpc('web_lock', { p_name: String(name), p_holder: st.holder, p_ttl: Number(ttl) || 110 }); if (r && r.ok) { st.named = (st.named || []).concat(String(name)); return true; } return false; };

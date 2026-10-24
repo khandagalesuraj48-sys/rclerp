@@ -13,6 +13,10 @@
     "api/backup.js": {
       "maxDuration": 60,
       "includeFiles": "app/**"
+    },
+    "api/drive.js": {
+      "maxDuration": 60,
+      "includeFiles": "app/**"
     }
   },
   "redirects": [

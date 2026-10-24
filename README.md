@@ -39,6 +39,10 @@ App तेच आहे: तेच screens, तेच नियम, तेच pr
 | `CRON_SECRET` | कोणताही लांब, गुप्त शब्द (उदा. 30 अक्षरे). रात्रीच्या backup साठी Vercel हा शब्द स्वतः पाठवते; त्याशिवाय रात्रीचा backup नाकारला जातो. |
 | `BACKUP_EXPORT_SECRET` | (update-157) कोणताही लांब, गुप्त शब्द (किमान 24 अक्षरे-अंक) – **हाच शब्द** rcl-portal आणि rcl-engineering मध्ये पण. रात्रीचा backup त्याने Engineering आणि Portal चा data घेतो (त्यांचे passwords / keys कधीच नाहीत). `ENGINEERING_URL` ऐच्छिक – नसेल तर `vercel.json` मधला /engineering चा पत्ता. |
 | `ENGINEERING_URL` | (update-157) Engineering module चा पत्ता, उदा. `https://rcl-engineering.vercel.app` – backup त्यातून Engineering चा data घेतो. नसेल तर `vercel.json` मधला /engineering चा पत्ता वापरला जातो; तरी इथे लिहिणे सुरक्षित. |
+| `GOOGLE_OAUTH_CLIENT_ID` | (update-158) Photos / files ची Google Drive मध्ये copy: Google Cloud → APIs & Services → Credentials → **OAuth client ID** (Web application) चा Client ID. |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | (update-158) त्याच OAuth client चा Client secret (गुप्त – फक्त इथे). |
+| `DRIVE_REDIRECT_URL` | (update-158, ऐच्छिक) Google "Allow" नंतर परत येण्याचा पत्ता = या app चा पत्ता + `/api/drive` (उदा. `https://rclerp.vercel.app/api/drive`). नसेल तर Vercel चा production पत्ता वापरला जातो. हाच पत्ता OAuth client च्या "Authorized redirect URIs" मध्ये टाका (Portal → Sites → Storage मध्ये दिसतो). |
+| `DRIVE_ACCOUNT` | (update-158, ऐच्छिक – सुचवलेले) फक्त हे Google account जोडता येईल, (backup साठी निवडलेले कंपनीचे account) – दुसऱ्या account ने "Allow" केले तरी जोडले जात नाही. |
 
 Keys कधीही code मध्ये किंवा git मध्ये टाकू नका.
 

@@ -1052,6 +1052,8 @@ function apiRun_(u, spec, fn, args) {
     if (fn === 'sync') { try { const rb = rtcBeat_(u, args[0]); if (rb) res.rtc = rb; } catch (e) { /* a screen-share note must never stop the heartbeat */ }
       try { flowRemind_(); } catch (e) { /* (update-114) a reminder never stops the heartbeat */ } } }
   if (fn === 'backupNow' && res && res.info) res.info = backupInfoFor_(u, res.info);
+  // (update-158) the Admin's Backup window also shows how full this site's storage is (database, files, backup Sheet, Drive copy)
+  if (fn === 'backupNow' && res && typeof res === 'object' && u.admin && typeof storageOf_ === 'function') { try { res.storage = storageOf_(); } catch (e) { res.storage = { error: String((e && e.message) || e).slice(0, 200) }; } }
   if (spec.log) {
     try { logAfter_(u, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ }
   }
@@ -10451,6 +10453,8 @@ function dbHealth_() {
     add('Safe saving – all or nothing (step 3)', fn('web_write'), 'supabase_step3_safety.sql');
     { const s5 = ['web_op_begin', 'web_op_mark', 'web_write2', 'web_op_end', 'web_ops_cleanup'];
       add('A save is saved once – decided in the database (step 5)', s5.every(fn), 'supabase_step5_save_once.sql', s5.filter(n => !fn(n)).join(', ')); }
+    { const tb = n => !!(api.paths && api.paths['/' + n]), z = ['web_usage', 'web_files'].filter(n => !fn(n)).concat(['backup_drive', 'backup_drive_state'].filter(n => !tb(n)));
+      add('Storage and the copy of the files to Google Drive (step 1zf)', !z.length, 'supabase_step1zf_storage_drive.sql', z.join(', ')); }      // (update-158)
     if (fn('web_health')) {
       let h = null; try { h = sbFetch_('POST', '/rest/v1/rpc/web_health', {}); } catch (e) { h = null; }
       const look = h && Array.isArray(h.findings) ? h.findings.filter(x => !/^ok/.test(String(x))) : null;
