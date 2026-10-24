@@ -129,8 +129,11 @@ function rawFetch(reqs, timeoutMs) {
   const msg = receiveMessageOnPort(port1);
   port1.close(); lastUsed = Date.now();
   if (r === 'timed-out' || !msg) { try { worker && worker.terminate(); } catch (e) {} worker = null; return reqs.map(() => ({ error: 'The database did not answer in time.' })); }
+  // (update-155) counted: the calls to the database (tables, functions, files) and the bytes it sent back
+  try { reqs.forEach((q, i) => { if (dbBase(q && q.url)) { METER.n++; const x = msg.message[i]; METER.b += x && typeof x.text === 'string' ? x.text.length : 0; } }); } catch (e) { /* not counted */ }
   return msg.message;
 }
+const METER = { n: 0, b: 0 };      // (update-155) database calls and bytes of this thread
 const SLEEP = new Int32Array(new SharedArrayBuffer(4));
 function sleepSync(ms) { if (ms > 0) Atomics.wait(SLEEP, 0, 0, ms); }
-module.exports = { fetchAllSync, sleepSync, helpersMade: () => made, renewals: () => renewed, isPreview, PREVIEW_NO };
+module.exports = { fetchAllSync, sleepSync, helpersMade: () => made, renewals: () => renewed, isPreview, PREVIEW_NO, meter: () => ({ n: METER.n, b: METER.b }) };

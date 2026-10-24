@@ -1,4 +1,4 @@
-// the "anything changed?" check: overlap, slow network, failures, hidden tab, sign-out
+// the "anything changed?" check: overlap, slow network, failures, hidden tab, sign-out (update-155: a report page 5 s, hidden 60 s)
 const chromium = require('@sparticuz/chromium').default || require('@sparticuz/chromium'); const puppeteer = require('puppeteer-core');
 const wait = ms => new Promise(r => setTimeout(r, ms));
 let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') + n + (x !== undefined ? '  → ' + String(x).slice(0, 200) : '')); };
@@ -22,6 +22,9 @@ let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : fail++; console.l
   const live = () => f.evaluate(() => document.getElementById('live_dot').textContent.trim());
   let n = await count(20000, true); ok('working: about one check every 2 seconds', n >= 8 && n <= 13, n + ' checks in 20 s');
   ok('never two checks at the same time', maxOpen <= 1, 'most at once: ' + maxOpen);
+  // (update-155) a page that others' entries do not change (a report): one check every 5 seconds; back on a live page: every 2
+  await f.evaluate(() => showTab('rmonthly')); await wait(1500); n = await count(20000, true); ok('working on a report page: about one check every 5 seconds', n >= 3 && n <= 6, n + ' checks in 20 s');
+  await f.evaluate(() => showTab('dash')); await wait(1500); n = await count(10000, true); ok('   back on the Dashboard: every 2 seconds again', n >= 4 && n <= 7, n + ' checks in 10 s');
   // many "window came to the front" signals at once must not start many loops
   await f.evaluate(() => { for (let i = 0; i < 25; i++) window.dispatchEvent(new Event('focus')); }); n = await count(10000, true);
   ok('25 focus signals at once do not multiply the checks', n <= 8 && maxOpen <= 1, n + ' checks in 10 s, most at once ' + maxOpen);
@@ -35,7 +38,8 @@ let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : fail++; console.l
   mode = 'pass'; await count(5000, true); ok('network back: "Live" again by itself', /Live/.test(await live()), await live());
   // tab in the background
   await f.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); });
-  await wait(1000); n = await count(40000, false); ok('tab in the background: about one check in 30 seconds', n >= 1 && n <= 2, n + ' checks in 40 s');
+  // (update-155: once a minute in the background, was every 30 seconds)
+  await wait(1000); n = await count(65000, false); ok('tab in the background: about one check a minute', n >= 1 && n <= 2, n + ' checks in 65 s');
   await f.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); document.dispatchEvent(new Event('visibilitychange')); });
   await wait(900); const back = sent.length; await wait(100); ok('coming back to the tab asks at once', sent.length >= back && Date.now() - sent[sent.length - 1] < 1500, 'last check ' + (Date.now() - sent[sent.length - 1]) + ' ms ago');
   // sign out

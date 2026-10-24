@@ -5450,3 +5450,134 @@ test('update-153: attachments of a Log Book entry – real file types only, kept
   assert.ok(!/\b(drop|delete|truncate|update)\b/i.test(sqlFile.replace(/--[^\n]*/g, '').replace(/on conflict[^;]*/gi, '')), 'only adds');
   assert.match(sqlFile, /values \('erp-files', 'erp-files', false,/, 'the bucket is private');
 });
+
+test('update-155: "the same as you have" / only what changed – the rebuilt answer is always exactly the server\'s answer of now', () => {
+  const d = require('../server/delta.js');
+  // 1. the pieces and the patch: hundreds of list changes (new row on top, a row changed, deleted, the order turned, many changed)
+  const rows = n => Array.from({ length: n }, (_, i) => ({ id: 'D' + i, date: '2026-10-' + String(1 + i % 28).padStart(2, '0'), no: 'AU-' + (i % 60), qty: (i * 7) % 300, note: 'x'.repeat(i % 40) }));
+  let t0 = JSON.stringify({ rows: rows(400), total: 400 }), small = 0;
+  for (let k = 0; k < 250; k++) {
+    const r = JSON.parse(t0), ch = k % 5;
+    if (ch === 0) r.rows.unshift({ id: 'N' + k, date: '2026-10-24', no: 'AU-1', qty: k, note: 'new' });
+    if (ch === 1) r.rows[k % r.rows.length].qty = 999 + k;
+    if (ch === 2) r.rows.splice(k % r.rows.length, 1);
+    if (ch === 3) r.rows.reverse();
+    if (ch === 4) for (let q = 0; q < 20; q++) r.rows[(q * 37 + k) % r.rows.length].note = 'chg' + q;
+    r.total = r.rows.length;
+    const t1 = JSON.stringify(r), ops = d.diff(t0, t1);
+    assert.strictEqual(d.rclPatch(t0, ops), t1, 'change ' + k);
+    if (ch < 3 && JSON.stringify(ops).length < t1.length / 20) small++;
+    if (ch === 4) assert.ok(JSON.stringify(ops).length < t1.length / 5, '20 rows changed: still a part of the list');
+    t0 = t1;
+  }
+  assert.strictEqual(small, 150, 'a new, changed or deleted row sends a small part of the list (' + small + ' of 150)');
+  // random text with the cut marks in it, and a bad patch is refused (never a half answer)
+  for (let k = 0; k < 1500; k++) { const g = () => Array.from({ length: Math.floor(Math.random() * 60) }, () => '{}[],"ab'[Math.floor(Math.random() * 8)]).join(''); const a = g(), b = Math.random() < 0.5 ? a + g() : g() + a.slice(Math.floor(Math.random() * (a.length + 1))); assert.strictEqual(d.rclPatch(a, d.diff(a, b)), b); }
+  assert.strictEqual(d.rclPatch('[{"a":1},{"b":2}]', [[5, 1]]), null);
+  assert.strictEqual(d.rclPatch('[{"a":1},{"b":2}]', [[0, 0]]), null);
+  assert.strictEqual(d.rclPatch('[{"a":1},{"b":2}]', 'x'), null);
+  // 2. the answer: whole the first time; "same" for the same fingerprint; only the change when this server has the base
+  d.clearKept();
+  const list = n => JSON.stringify({ rows: rows(n) });
+  const k1 = d.keyOf('vtr', 'api', ['tokA', 'getDieselIssues', {}]), k2 = d.keyOf('vtr', 'api', ['tokB', 'getDieselIssues', {}]), k3 = d.keyOf('18b', 'api', ['tokA', 'getDieselIssues', {}]);
+  assert.ok(k1 !== k2 && k1 !== k3, 'one key per sign-in and per site');
+  const a1 = d.answer(k1, list(300), '', true); assert.strictEqual(a1.kind, 'full'); const j1 = JSON.parse(a1.text); assert.deepStrictEqual(j1.result, JSON.parse(list(300)));
+  const a2 = d.answer(k1, list(300), j1.h, true); assert.deepStrictEqual(JSON.parse(a2.text), { h: j1.h, same: 1 }); assert.ok(a2.text.length < 60);
+  const a3 = d.answer(k1, list(301), j1.h, true), j3 = JSON.parse(a3.text); assert.strictEqual(a3.kind, 'delta'); assert.strictEqual(j3.base, j1.h);
+  assert.strictEqual(d.rclPatch(list(300), j3.delta), list(301)); assert.strictEqual(d.hash(list(301)), j3.h); assert.ok(a3.text.length < list(301).length / 20);
+  assert.strictEqual(d.answer(k1, list(302), j3.h, false).kind, 'full', 'a page that cannot check a rebuilt answer gets it whole');
+  // another sign-in that sends someone else's fingerprint: never a delta from the other's answer; "same" only if its OWN answer is identical
+  const b1 = d.answer(k2, list(10), d.hash(list(302)), true); assert.strictEqual(b1.kind, 'full'); assert.deepStrictEqual(JSON.parse(b1.text).result, JSON.parse(list(10)));
+  assert.strictEqual(d.answer(k2, list(11), 'not-a-fingerprint', true).kind, 'full');
+  assert.strictEqual(d.answer(k1, '[1]', JSON.parse(a1.text).h, true).kind, 'full', 'small answers are sent whole');
+  // the memory has an end: the oldest answers go first; an answer above 2 million characters is not kept (it still gets "same")
+  const big = JSON.stringify({ x: 'y'.repeat(2100000) }), hb = d.hash(big);
+  d.answer('big', big, '', true); assert.strictEqual(d.answer('big', big, hb, true).kind, 'same'); assert.strictEqual(d.answer('big', big + ' ', hb, true).kind, 'full');
+  d.clearKept(); assert.deepStrictEqual(d.kept(), { answers: 0, chars: 0 });
+  // 3. the page and the server run the SAME two functions (one text, put into the page's bridge)
+  const { shell } = require('../server/page.js');
+  assert.ok(shell().indexOf(d.CLIENT) > -1, 'the bridge carries delta.CLIENT word for word');
+  assert.ok(d.CLIENT.indexOf('\\') === -1 && d.CLIENT.indexOf('${') === -1, 'no character the page\'s template would change');
+});
+
+test('update-155: the page\'s bridge keeps answers in memory only, rebuilds them, checks them, and asks again on any doubt', async () => {
+  const vm = require('vm'), d = require('../server/delta.js'), { shell } = require('../server/page.js');
+  const html = shell(), i = html.indexOf('<script>'), bridge = html.slice(i + 8, html.indexOf('</script>', i));
+  d.clearKept();
+  // a stand-in for the server: works out the answer of NOW (state) and sends it the update-155 way when the page asks so
+  const state = { list: JSON.stringify({ rows: Array.from({ length: 200 }, (_, k) => ({ id: k, qty: k * 3, no: 'AU-' + (k % 9) })) }), refuse: false, breakDelta: false };
+  const sent = [], stored = {}; let calls = 0;
+  const fetchStub = async (url, o) => { calls++; const b = JSON.parse(o.body); sent.push(b);
+    let text;
+    if (b.fn === 'logout') text = '{"result":true}';
+    else if (state.refuse) text = JSON.stringify({ error: 'You do not have access to Diesel Issue.' });
+    else if (b.m === 1) { const a = d.answer(d.keyOf(b.site || '', b.fn, b.args), state.list, b.have, b.dx === 1); text = a.text;
+      if (state.breakDelta && a.kind === 'delta') { const j = JSON.parse(text); j.delta = j.delta.map(x => typeof x === 'string' ? x.replace(/\d/, '7') : x); text = JSON.stringify(j); } }
+    else text = '{"result":' + state.list + '}';
+    return { status: 200, text: async () => text }; };
+  const store = { getItem: k => (k in stored ? stored[k] : null), setItem: (k, v) => { stored[k] = String(v); }, removeItem: k => { delete stored[k]; } };
+  const win = { fetch: fetchStub, localStorage: store, sessionStorage: store, crypto: globalThis.crypto, TextEncoder, addEventListener() {}, location: { origin: 'http://x' }, setTimeout, clearTimeout, setInterval() {}, Promise, JSON, Map, Uint8Array, Math, Date, Error, Array, Object, String, Number, RegExp, Proxy };
+  win.window = win; win.parent = win; win.document = { getElementById: () => null, addEventListener() {}, body: null, readyState: 'complete' };
+  vm.createContext(win); vm.runInContext(bridge, win);
+  const ask = () => new Promise((res, rej) => win.google.script.run.withSuccessHandler(res).withFailureHandler(rej).api('tokA', 'getDieselIssues', { from: '2026-10-01' }));
+  const now = () => JSON.parse(state.list);
+  assert.deepStrictEqual(await ask(), now()); assert.strictEqual(sent[0].m, 1); assert.ok(!('have' in sent[0]), 'the first time: no fingerprint, the whole answer');
+  assert.deepStrictEqual(await ask(), now()); assert.ok(/^[0-9a-f]{32}$/.test(sent[1].have) && sent[1].dx === 1, 'asked again with the fingerprint it has');
+  assert.strictEqual(win.__rclMemo().same, 1);
+  for (let k = 0; k < 12; k++) { const o = now(); if (k % 3 === 0) o.rows.unshift({ id: 'n' + k, qty: k, no: 'AU-X' }); else if (k % 3 === 1) o.rows[k * 5].qty = -k; else o.rows.splice(k, 2); state.list = JSON.stringify(o);
+    assert.deepStrictEqual(await ask(), o, 'change ' + k + ': the page has exactly the server\'s answer'); }
+  assert.ok(win.__rclMemo().delta >= 12, 'only the changes travelled');
+  // each asker gets its own copy (changing one never changes the kept answer)
+  const x = await ask(); x.rows[0].qty = 'changed by the page'; assert.deepStrictEqual(await ask(), now());
+  // a delta that does not rebuild the server's answer (fingerprint differs) → asked again for the whole answer: still exact
+  const o2 = now(); o2.rows[3].qty = 12345; state.list = JSON.stringify(o2); state.breakDelta = true;
+  const before = win.__rclMemo().mismatch; assert.deepStrictEqual(await ask(), o2); assert.strictEqual(win.__rclMemo().mismatch, before + 1); assert.ok(!('have' in sent[sent.length - 1]));
+  state.breakDelta = false;
+  // a refusal (access taken away) reaches the page as before and drops what was kept for that question
+  state.refuse = true; await assert.rejects(ask(), /do not have access/); state.refuse = false;
+  const n0 = sent.length; await ask(); assert.ok(!('have' in sent[n0]), 'after a refusal nothing kept is offered');
+  // sign-out, another site: nothing kept is offered any more
+  await ask(); assert.ok(win.__rclMemo().answers >= 1);
+  await new Promise(r => win.google.script.run.withSuccessHandler(r).logout('tokA')); assert.strictEqual(win.__rclMemo().answers, 0);
+  await ask(); stored.rcl_site = 'n2'; const n1 = sent.length; await ask(); assert.ok(!('have' in sent[n1]) && sent[n1].site === 'n2', 'another site: asked whole, with that site');
+  // a save never goes this way: no fingerprint, no "m", its own number as before
+  await new Promise(r => win.google.script.run.withSuccessHandler(r).withFailureHandler(r).api('tokA', 'saveDieselIssue', { qty: 1 }));
+  const sv = sent[sent.length - 1]; assert.ok(!('m' in sv) && !('have' in sv) && /^s/.test(sv.rid));
+  // nothing of the answers is in the browser's storage
+  assert.ok(Object.keys(stored).every(k => k === 'rcl_site'), 'storage holds only the site: ' + Object.keys(stored).join(','));
+});
+
+test('update-155: /api/rpc answers "same" / delta only to a page that asks for it, never to a save; counts each action', () => {
+  const { execFileSync } = require('child_process');
+  const prog = `
+    const path = require('path'), root = ${JSON.stringify(root)};
+    const poolPath = require.resolve(path.join(root, 'server/pool.js'));
+    let answer = JSON.stringify({ rows: Array.from({ length: 300 }, (_, k) => ({ id: k, v: 'r' + k })) });
+    require.cache[poolPath] = { id: poolPath, filename: poolPath, loaded: true, exports: { call: async (fn, args, meta) => { meta.use = { db: 2, dbBytes: 900, cpu: 3 }; if (args[1] === 'boom') throw new Error('You do not have access to Diesel Issue.'); return answer; } } };
+    process.env.RCL_USAGE = 'on';
+    const rpc = require(path.join(root, 'api/rpc.js'));
+    const call = (body, method, url) => new Promise(res => { const out = { headers: {} }; const r = { statusCode: 0, setHeader: (k, v) => { out.headers[k] = v; }, end: t => res({ code: r.statusCode, text: t }) };
+      rpc({ method: method || 'POST', url: url || '/api/rpc', headers: { host: 'x' }, body: body }, r); });
+    (async () => {
+      const q = { fn: 'api', args: ['tk', 'getDieselIssues', {}], site: 'vtr' };
+      const r0 = await call(q); const old = JSON.parse(r0.text);
+      const r1 = await call(Object.assign({ m: 1 }, q)); const j1 = JSON.parse(r1.text);
+      const r2 = await call(Object.assign({ m: 1, have: j1.h, dx: 1 }, q));
+      answer = answer.replace('"r5"', '"CHANGED"');
+      const r3 = await call(Object.assign({ m: 1, have: j1.h, dx: 1 }, q));
+      const sv = await call({ fn: 'api', args: ['tk', 'saveDieselIssue', {}], rid: 's1', m: 1, have: j1.h, dx: 1, site: 'vtr' });
+      const er = await call({ fn: 'api', args: ['tk', 'boom', {}], m: 1, site: 'vtr' });
+      const u = await call(null, 'GET', '/api/rpc?usage=1');
+      console.log(JSON.stringify({ old: Object.keys(old), j1: Object.keys(j1), r2: JSON.parse(r2.text), r3: Object.keys(JSON.parse(r3.text)), sv: Object.keys(JSON.parse(sv.text)), er: [er.code, JSON.parse(er.text)], usage: JSON.parse(u.text) }));
+    })();`;
+  const r = JSON.parse(execFileSync(process.execPath, ['-e', prog], { timeout: 30000 }).toString().trim().split('\n').pop());
+  assert.deepStrictEqual(r.old, ['result'], 'a caller that does not ask (an older page, the phone app): { result } exactly as before');
+  assert.deepStrictEqual(r.j1, ['h', 'result']);
+  assert.deepStrictEqual(Object.keys(r.r2), ['h', 'same']);
+  assert.deepStrictEqual(r.r3, ['h', 'base', 'delta']);
+  assert.deepStrictEqual(r.sv, ['result'], 'a save (it carries its number) is always answered whole');
+  assert.strictEqual(r.er[0], 403); assert.ok(/do not have access/.test(r.er[1].error));
+  const g = r.usage.top.find(x => x.key === 'vtr|getDieselIssues');
+  assert.ok(g && g.n === 4 && g.same === 1 && g.delta === 1 && g.db === 8 && g.dbBytes === 3600 && g.cpu === 12 && g.full > g.out, JSON.stringify(g));
+  assert.ok(r.usage.top.find(x => x.key === 'vtr|boom' && x.err === 1) && r.usage.top.find(x => x.key === 'vtr|saveDieselIssue' && x.n === 1));
+});

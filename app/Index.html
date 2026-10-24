@@ -64,14 +64,18 @@
   function found(b) { if (!b || b === current) { live = null; banner(false); return false; } if (live !== b) { live = b; since = Date.now(); later = 0; } if (Date.now() >= later) banner(true); tellApp('update'); return true; }
   function check(cb) { google.script.run.withSuccessHandler(function (b) { var newer = found(b); if (cb) cb({ current: current, live: b || current, newer: newer }); }).withFailureHandler(function () { if (cb) cb({ current: current, live: current, newer: false, failed: true }); }).getAppBuild(); }
   // every minute: is a newer version live? shown at once; applied by itself after 3 minutes (10 after "Later") when nothing is half typed
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+  // (update-155) while the app's heartbeat answers (signed in), the version comes with every heartbeat and the app tells the shell
+  // (rclApp.check): the shell does not ask the server itself then – one call a minute less per open page
+  function beating() { try { var w = frameWin(); return !!(w && w.rclSyncAt && Date.now() - w.rclSyncAt < 90000); } catch (e) { return false; } }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && !beating()) check(); });
   setInterval(function () {
     if (document.hidden) return;      // a page nobody is looking at does not ask (07-10-2026) – it asks the moment it is looked at again
-    check(function () {
+    var after = function () {
       if (!live) return;
       var w = frameWin(), busy = false; try { busy = w && w.rclBusy ? w.rclBusy() : false; } catch (e) {}
       if (!busy && Date.now() - since > 180000 && Date.now() >= later) window.rclSwap();
-    });
+    };
+    if (beating()) after(); else check(after);
   }, 60000);
   document.getElementById('upd_go').onclick = function () {
     var w = frameWin(), busy = false, why = '', L = LANG(); try { busy = w && w.rclBusy ? w.rclBusy() : false; why = busy && w.rclBusyWhy ? w.rclBusyWhy() : ''; } catch (e) {}
