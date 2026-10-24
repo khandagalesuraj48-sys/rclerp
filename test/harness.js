@@ -26,9 +26,17 @@ vm.createContext(ctx);
 vm.runInContext(src + `
 ;SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) s.fill([]); }); };
 SbSheet_.prototype.load_ = function () { if (!this.loaded) this.fill([]); };
-SbBook_.prototype.flush = function () { Object.keys(this.sheets).forEach(t => this.sheets[t].saved()); };
+SbBook_.prototype.flush = function () {
+  // (update-152) the entry guard runs as before a real write; refused = nothing of the save stays (as the database's one transaction)
+  try { if (typeof entryGuard_ === 'function') entryGuard_(this); }
+  catch (e) { Object.keys(this.sheets).forEach(t => { const s = this.sheets[t];
+      s.orig.forEach((o, r) => { o.forEach((v, i) => { r[i] = v; }); });
+      const keep = s.data.map((r, i) => !(s.dirty.has(r) && !s.ids[i])); s.data = s.data.filter((r, i) => keep[i]); s.ids = s.ids.filter((x, i) => keep[i]);
+      s.goneRows.forEach(r => { s.data.push(r); s.ids.push(s.rowId_(r)); });
+      s.dirty.clear(); s.orig.clear(); s.goneRows = []; s.gone = []; s.appended = []; }); TABLE_MEMO_ = {}; throw e; }
+  Object.keys(this.sheets).forEach(t => this.sheets[t].saved()); };
 sbDiscard_ = function () {};
 this.T = { saveMaster_, saveBoq_, getBoqs_, saveLogRowsInner_, saveLogRows_, getLogBookList_, logPrintExtra_, billMachineCalc_, verifyBills_, getLogRowPrefill_, getLogEntry_, updateLogRow_, getLogEditData_, saveLogBulk_, importLogBook_, findMachine_, getMaster_, boqRateFor_, itemQtyOf_, logItemWork_, boqItemsOn_, billInit_, getVendors_, saveVendor_, today_, logDashboard_, deleteBoq_,
-  reset: () => { TABLE_MEMO_ = {}; ITEM_NOS_ = null; ITEM_ON_ = {}; }, SS: () => SS_(), setActor: a => { ACTOR_ = a; } };
+  reset: () => { TABLE_MEMO_ = {}; ITEM_NOS_ = null; ITEM_ON_ = {}; /* (update-152) each call of a test is one request: what it wrote outside a save counts as saved, as before */ if (SB_BOOK_) Object.keys(SB_BOOK_.sheets).forEach(t => { if (SB_BOOK_.sheets[t].loaded) SB_BOOK_.sheets[t].saved(); }); }, SS: () => SS_(), setActor: a => { ACTOR_ = a; } };
 `, ctx);
 module.exports = { T: ctx.T, ctx };

@@ -90,7 +90,11 @@ const post = async (base, body) => (await fetch(base + '/api/rpc', { method: 'PO
     const key5 = 'EV151-1|2026-09-06|Full Day';      // (the last entry: nothing after it follows its Close)
     const before5 = sql("select closing_km from log_book where id = '" + key5 + "'");
     const lr5 = await S_('getLogEntry', key5).catch(() => null);
-    const up = await S_('updateLogRow', key5, Object.assign({}, { closingKm: Number(before5) + 7, work: 'Corrected by the Super Admin' }, lr5 && lr5.ver ? { ver: lr5.ver } : {}));
+    // (update-152) a billed entry: the Super Admin's change goes with his reason (asked first – SA_REASON)
+    const upNo = await S_('updateLogRow', key5, Object.assign({}, { closingKm: Number(before5) + 7, work: 'Corrected by the Super Admin' }, lr5 && lr5.ver ? { ver: lr5.ver } : {}));
+    const upR = await post(SA, { fn: 'api', args: [sat, 'updateLogRow', [key5, Object.assign({}, { closingKm: Number(before5) + 7, work: 'Corrected by the Super Admin' }, lr5 && lr5.ver ? { ver: lr5.ver } : {})], { reason: 'Close KM typed wrong' }] });
+    const up = upR.error ? { ERROR: upR.error } : upR.result;
+    ok('   (update-152) asked for his reason first ("SA_REASON: Super Admin – this save changes 1 locked Log Book entry …")', /^SA_REASON: Super Admin – this save changes 1 locked Log Book entry/.test(upNo.ERROR || ''), upNo);
     ok('3. the Super Admin corrects an entry of the submitted bill (06-09 Close ' + before5 + ' → ' + (Number(before5) + 7) + '): saved in the live Log Book', up && !up.ERROR && sql("select closing_km from log_book where id = '" + key5 + "'") === String(Number(before5) + 7), up);
     await quiet(); await F.evaluate(() => showTab('bills')); await wait(1200);
     await F.evaluate(() => { document.getElementById('sb_from').value = '2026-09-01'; document.getElementById('sb_to').value = '2026-09-30'; return sbLoad(); }); await wait(1500);

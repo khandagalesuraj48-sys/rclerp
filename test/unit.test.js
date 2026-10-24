@@ -965,10 +965,10 @@ test('every print has "Excel" in its window; a saved bill opens with its Log Boo
   assert.match(app, /\.billsheet \+ \.lbsheet, \.lbsheet \+ \.billsheet \{ break-before: page; \}/);
 });
 
-test('a submitted bill locks the Log Book and diesel entries of its machinery for its dates – for everyone, until the bill is deleted; the refusal says the way out', () => {
+test('a submitted bill locks the Log Book and diesel entries of its machinery for its dates – for everyone but the Super Admin, also after it is deleted (update-152); the refusal says the way out', () => {
   const { T, ctx } = require('./harness.js');
   const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
-  const LOCK = /this machinery is in the submitted RA Bill 9 of Lock Vendor \(.+, 01-07-2026 to 31-07-2026\) – its Log Book and diesel entries of those dates cannot be added, changed or deleted without the Super Admin\. To correct them: change the entry and send it to the Super Admin for approval .* or the Admin deletes that bill/;      // (update-108: the Super Admin's approval is the way out)
+  const LOCK = /this machinery is in the submitted RA Bill 9 of Lock Vendor \(.+, 01-07-2026 to 31-07-2026\) – its Log Book and diesel entries of those dates cannot be added, changed or deleted without the Super Admin \(a bill replaced or deleted keeps them locked\)\. To correct them: change the entry and send it to the Super Admin for approval \(the page asks\) – approved, it is saved and the difference is taken in the next bill of this vendor\./;      // (update-108: the Super Admin's approval is the way out; update-152: the only one – a deleted bill keeps them locked)
   const refused = r => LOCK.test(String((r && r.THROWN) || '') + ' ' + ((r && r.errors) || []).map(e => e.msg).join(' '));
   for (const no of ['BLK-1', 'BLK-2']) run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: no === 'BLK-1' ? 'Lock Vendor' : 'Other Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
   for (const v of ['Lock Vendor', 'Other Vendor']) run('(x, m) => saveVendor_(x, m)', { name: v, gstReg: 'No', pan: 'ABCPE1234L', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
@@ -1029,13 +1029,30 @@ test('a submitted bill locks the Log Book and diesel entries of its machinery fo
   assert.ok(log('BLK-2', '2026-07-02', 580).ok, 'another machinery (not in the bill) on the same dates');
   r = run('x => saveDieselIssue_(x)', { date: '2026-08-01', shift: 'Day', source: 'Dispenser', no: 'BLK-1', qty: 7, kmReading: 1200, force: true }); assert.ok(r && !r.THROWN, 'diesel after the bill: ' + JSON.stringify(r).slice(0, 200));
   r = run('x => saveDieselIssue_(x)', { date: '2026-07-02', shift: 'Day', source: 'Dispenser', no: 'BLK-2', qty: 7, kmReading: 540, force: true }); assert.ok(r && !r.THROWN, 'diesel of another machinery: ' + JSON.stringify(r).slice(0, 200));
-  // ---------- the bill is deleted: everything is open again ----------
+  // ---------- (update-152) the bill is deleted – by the Super Admin only, kept as "Deleted": its entries stay locked ----------
   const billId = run('() => { const t = billTable_(); return billOut_(t, t.rows.find(r => billOut_(t, r, false).vendor === "Lock Vendor"), false).id; }');
-  r = run('(id, why) => deleteBill_(id, why)', billId, 'correction of the Log Book'); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 200));
-  assert.strictEqual(run('() => billLockOf_("BLK-1", "2026-07-02")'), null);
-  r = run('(k, l) => updateLogRow_(k, l)', key('2026-07-02'), { closingKm: 1125, work: 'corrected after the bill was deleted' }); assert.ok(r && r.ok, 'after the bill is deleted the entry can be changed: ' + JSON.stringify(r).slice(0, 300));
-  r = run('id => deleteDieselIssue_(id)', dId); assert.ok(r && !r.THROWN, 'and the diesel issue deleted: ' + JSON.stringify(r).slice(0, 200));
-  assert.strictEqual(run('() => getLogBookList_({ from: "2026-06-01", to: "2026-08-31", no: "BLK-1", all: true }).rows.filter(r => r.lk).length'), 0);
+  r = run('(id, why) => deleteBill_(id, why)', billId, 'correction of the Log Book');
+  assert.match(r.THROWN || '', /^Only the Super Admin deletes a submitted bill \(signed in through the Portal\)/, 'the Admin cannot delete it: ' + JSON.stringify(r).slice(0, 200));
+  r = run('(id, why) => { ACTOR_SUPER_ = true; ACTOR_ = "Super Admin"; try { return deleteBill_(id, why); } finally { ACTOR_SUPER_ = false; } }', billId, '');
+  assert.match(r.THROWN || '', /Give the reason for deleting this bill/);
+  r = run('(id, why) => { ACTOR_SUPER_ = true; ACTOR_ = "Super Admin"; try { return deleteBill_(id, why); } finally { ACTOR_SUPER_ = false; } }', billId, 'correction of the Log Book'); assert.ok(r && r.ok && r.bill.status === 'Deleted', JSON.stringify(r).slice(0, 200));
+  const gone = run('id => getBills_({ id: id }).bills[0]', billId);
+  assert.ok(gone && gone.status === 'Deleted' && gone.deletedBy === 'Super Admin' && gone.deleteReason === 'correction of the Log Book' && /^\d{4}-\d{2}-\d{2}T/.test(gone.deletedAt), 'kept, marked Deleted – who, when, why: ' + JSON.stringify(gone).slice(0, 300));
+  assert.ok(run('() => billLockOf_("BLK-1", "2026-07-02")'), 'its entries stay locked');
+  assert.strictEqual(run('() => billLockOf_("BLK-1", "2026-07-02").status'), 'Deleted');
+  r = run('(k, l) => updateLogRow_(k, l)', key('2026-07-02'), { closingKm: 1125, work: 'corrected after the bill was deleted' });
+  assert.match(r.THROWN || '', /this machinery is in the submitted RA Bill 9 \(deleted\) of Lock Vendor .*\(a bill replaced or deleted keeps them locked\)/, 'a deleted bill does not unlock: ' + JSON.stringify(r).slice(0, 300));
+  r = run('id => deleteDieselIssue_(id)', dId); assert.ok(refused(r) || /RA Bill 9 \(deleted\)/.test(r.THROWN || ''), 'nor its diesel issue: ' + JSON.stringify(r).slice(0, 200));
+  assert.strictEqual(run('() => getLogBookList_({ from: "2026-06-01", to: "2026-08-31", no: "BLK-1", all: true }).rows.filter(r => r.lk).length'), 3, 'the list still marks them');
+  r = run('(id, why) => { ACTOR_SUPER_ = true; try { return deleteBill_(id, why); } finally { ACTOR_SUPER_ = false; } }', billId, 'again'); assert.match(r.THROWN || '', /is already deleted/);
+  // the Super Admin corrects the entry – with his reason (asked by the page; without it: SA_REASON)
+  r = run('(k, l) => { ACTOR_SUPER_ = true; try { return updateLogRow_(k, l); } finally { ACTOR_SUPER_ = false; } }', key('2026-07-02'), { closingKm: 1125, work: 'corrected' });
+  assert.match(r.THROWN || '', /^SA_REASON: Super Admin – this save changes 2 locked Log Book entries \(BLK-1 02-07-2026 – changed, in RA Bill 9; BLK-1 03-07-2026 – changed, in RA Bill 9\)\. Give the reason: it is kept with the entry's history\.$/);
+  r = run('(k, l) => { ACTOR_SUPER_ = true; SA_REASON_ = "the meter photo shows 1125"; try { return updateLogRow_(k, l); } finally { ACTOR_SUPER_ = false; SA_REASON_ = ""; } }', key('2026-07-02'), { closingKm: 1125, work: 'corrected' });
+  assert.ok(r && r.ok, JSON.stringify(r).slice(0, 300));
+  // a new bill of these dates after the delete is a NEW bill (not a revision): allowed for the Billing user
+  const ver2 = run('b => verifyBills_({ bills: [b] })', Object.assign({}, bill, { billNo: '10' }));
+  assert.ok(ver2 && !(((ver2.bills || [])[0] || {}).checks || []).some(c => c.s === 'bad' && /only the Super Admin can revise/.test(c.t)), JSON.stringify(ver2).slice(0, 400));
 });
 
 test('split timing of a Time entry: several From – To in one entry, hours as decimal numbers, the hour columns stay true, the bill takes the total', () => {
@@ -2625,7 +2642,7 @@ test('update-108: the Super Admin changes a billed entry; a user\'s change waits
   const key = d => run('d => { const lt = table_(APP.SHEET_LOG), c = lt.c; return logKeyOf_(lt, lt.rows.find(r => str_(r[c[H.NO]]) === "CRU-1" && dkey_(r[c[H.DATE]]) === d)); }', d);
   // a user is refused as before; the refusal names the way out
   const refused = run('(k) => { ACTOR_SUPER_ = false; return updateLogRow_(k, { closingKm: 1100 }); }', key('2026-09-02'));
-  assert.match(refused.THROWN || '', /is in the submitted RA Bill 81 .* without the Super Admin\. To correct them: change the entry and send it to the Super Admin for approval/);
+  assert.match(refused.THROWN || '', /is in the submitted RA Bill 81 .* without the Super Admin \(a bill replaced or deleted keeps them locked\)\. To correct them: change the entry and send it to the Super Admin for approval/);
   // he sends it; nothing is saved; another user (not the Super Admin) cannot approve
   const user = { email: 'u@rcl.test', name: 'User U', admin: false, perms: { 'Log Book': 'Edit' }, active: true };
   const sent = run('(u, k) => crRequest_(u, { fn: "updateLogRow", args: [k, { closingKm: 1100 }], reason: "typed wrong" })', user, key('2026-09-02'));
@@ -2641,7 +2658,7 @@ test('update-108: the Super Admin changes a billed entry; a user\'s change waits
   const rej = run('(u, x) => crDecide_(u, x)', sa, { id: sent.id, approve: false, note: 'not needed' });
   assert.ok(rej.ok && rej.status === 'Rejected' && rej.list.requests[0].status === 'Rejected');
   // the Super Admin changes the entry himself: allowed; the bill's "before" is kept first (120 → 80 km here: 40 + 40)
-  const saSave = run('(k) => { ACTOR_SUPER_ = true; try { billBaselines_("updateLogRow", [k, { closingKm: 1100 }]); return updateLogRow_(k, { closingKm: 1100 }); } finally { ACTOR_SUPER_ = false; } }', key('2026-09-02'));
+  const saSave = run('(k) => { ACTOR_SUPER_ = true; SA_REASON_ = "the meter shows 1100"; try { billBaselines_("updateLogRow", [k, { closingKm: 1100 }]); return updateLogRow_(k, { closingKm: 1100 }); } finally { ACTOR_SUPER_ = false; SA_REASON_ = ""; } }', key('2026-09-02'));      // (update-152: with his reason)
   assert.ok(saSave && !saSave.THROWN, JSON.stringify(saSave));
   const base = run('() => { const t = crTable_(false); return t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.kind === "Baseline").map(r => ({ id: r.id, data: JSON.parse(r.data) })); }');
   assert.strictEqual(base.length, 1); assert.strictEqual(base[0].data.units.KM.qty, 80); assert.strictEqual(base[0].data.amount, 4000);
@@ -2669,7 +2686,7 @@ test('update-108: the Super Admin changes a billed entry; a user\'s change waits
   assert.ok(run('() => ledgerLines_().filter(l => l.vendor === "Corr Unit V" && l.kind === "cn").map(l => l.bill)').includes(980));
   assert.match(run('co => nextDnNo_(co)', co), /DN-\d{3}$/);
   // the bill deleted: its note is cancelled and the difference comes back
-  assert.ok(run('id => deleteBill_(id, "test")', s2.saved[0].id).ok);
+  assert.ok(run('id => { ACTOR_SUPER_ = true; try { return deleteBill_(id, "test"); } finally { ACTOR_SUPER_ = false; } }', s2.saved[0].id).ok);      // (update-152: the Super Admin's; kept as Deleted)
   assert.deepStrictEqual(run('() => dnList_().filter(d => d.vendor === "Corr Unit V").map(d => d.status)'), ['Cancelled']);
   assert.strictEqual(run('co => billCorrections_({ vendor: "Corr Unit V", company: co, bills: [] }).items.length', co), 1);
   // the page: the Super Admin's lock is no lock; a user may send the refused save; Approvals is his page; the bill shows the calculation
@@ -5040,7 +5057,7 @@ test('update-151: a submitted bill keeps its Log Book as evidence – the same a
     assert.deepStrictEqual(e.machines.map(m => m.id), ['EVX-1']); assert.strictEqual(e.extra.idlePaid, true);
     // 3. the Super Admin corrects a billed entry afterwards: the live Log Book changes, the bill's evidence does not
     const k3 = run('() => { const lt = table_(APP.SHEET_LOG), c = lt.c; return logKeyOf_(lt, lt.rows.find(r => str_(r[c[H.NO]]) === "EVX-1" && dkey_(r[c[H.DATE]]) === "2026-05-02")); }');
-    const upd = run('(k) => { ACTOR_SUPER_ = true; try { return updateLogRow_(k, { closingKm: 1125 }); } finally { ACTOR_SUPER_ = false; } }', k3);
+    const upd = run('(k) => { ACTOR_SUPER_ = true; SA_REASON_ = "the meter photo shows 1125"; try { return updateLogRow_(k, { closingKm: 1125 }); } finally { ACTOR_SUPER_ = false; SA_REASON_ = ""; } }', k3);      // (update-152: with his reason)
     assert.ok(upd && !upd.THROWN, JSON.stringify(upd).slice(0, 300));
     assert.strictEqual(run('() => getLogBookList_({ from: "2026-05-02", to: "2026-05-02", no: "EVX-1", all: true }).rows[0].ckm'), 1125, 'the live entry is corrected');
     e = run('id => getBillEvidence_({ id: id })', s1.saved[0].id);
@@ -5086,4 +5103,121 @@ test('update-151: a submitted bill keeps its Log Book as evidence – the same a
     const s4 = sub(july); assert.ok(s4 && s4.ok, JSON.stringify(s4).slice(0, 300)); assert.strictEqual(run('() => EV_STORE.snap.length'), 2, 'no evidence without its tables');
     assert.strictEqual(run('id => getBillEvidence_({ id: id }).kind', s4.saved[0].id), 'off');
   } finally { vm.runInContext('evReady_ = __evReady0; evAppend_ = __evAppend0; evRead_ = __evRead0;', ctx); }
+});
+
+test('update-152: an approved or billed Log Book entry is locked – only the Super Admin changes it, with his reason; a bill is deleted / revised only by him, kept as Deleted, still locking', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // a database for this test (as update-114's): what a save writes stays; a save that is refused – or only checked – leaves nothing.
+  // The guard runs first, as in the real write; the database here "has" every column of step 1zd (dbCols).
+  vm.runInContext(`globalThis.__k152 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_ };
+    globalThis.DB152 = {};
+    globalThis.__fill152 = s => { const d = DB152[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; s.dbCols = s.def.cols.map(c => c[1]); };
+    globalThis.__keep152 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill152(s); if (s.loaded) DB152[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    if (SB_BOOK_) __keep152(SB_BOOK_);
+    SbBook_.prototype.flush = function () { entryGuard_(this); __keep152(this); Object.keys(this.sheets).forEach(t => this.sheets[t].saved()); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill152(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill152(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    rtcPush_ = function () {};`, ctx);
+  try {
+    const PW = 'sha256$0123456789abcdef$' + 'b'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('lb152@rcl.test', 'Log User', false, { 'Log Book': 'Edit', 'Diesel Issue': 'Edit', 'Diesel Inward': 'Edit', 'Machinery Billing': 'Edit', 'Saved Bills': 'Edit' }), mk('ck152@rcl.test', 'Checker C', false, { 'Log Book': 'View' }),
+        mk('ad152@rcl.test', 'Admin A', true), mk('sa152@rcl.test', 'Super S', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok152_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa152@rcl.test'); });
+    const api = (who, fn, ...a) => run('(t, f, a) => api(t, f, a)', tok[who], fn, a);
+    const apiR = (who, reason, fn, ...a) => run('(t, f, a, m) => api(t, f, a, m)', tok[who], fn, a, { reason: reason });
+    const U = 'lb152@rcl.test', CK = 'ck152@rcl.test', AD = 'ad152@rcl.test', SA = 'sa152@rcl.test';
+    assert.ok(api(AD, 'saveVendor', { name: 'AP152 Vendor', gstReg: 'No', pan: 'ABCPA1152A', bank: 'SBI', account: '15215215', ifsc: 'SBIN0000152' }, 'add').ok);
+    assert.ok(api(AD, 'saveMaster', { no: 'AP152-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'AP152 Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add').ok);
+    assert.ok(api(AD, 'saveBoq', { vendor: 'AP152 Vendor', from: '2026-01-01', tdsPct: 2, woNo: 'WO-152', lines: [{ no: 'AP152-1', basis: 'Per KM', rate: 50, diesel: 'Company' }] }, 'add').ok);
+    const row = r => run('k => { const lt = table_(APP.SHEET_LOG), c = lt.c, i = lt.rows.findIndex(x => logKeyOf_(lt, x) === k); return i < 0 ? null : logRowOut_(lt, lt.rows[i]); }', r);
+    const K = (d, sh) => 'AP152-1|' + d + '|' + (sh || 'Full Day');
+    const lr = (d, close, ex) => ({ rows: [Object.assign({ date: d, shift: 'Full Day', no: 'AP152-1', mode: 'KM', closingKm: close, work: 'Carting' }, ex || {})] });
+    // ---------- 1. under a verification rule: sent, approved – saved AND marked approved ----------
+    const fr = api(SA, 'saveFlowRules', { tasks: { 'Log Book': { on: true, levels: [[CK]] } } }); assert.ok(fr.ok, JSON.stringify(fr).slice(0, 300));
+    const sent1 = api(U, 'saveLogRows', lr('2026-05-01', 1040, { openingKm: 1000 }));
+    assert.match(sent1.THROWN || JSON.stringify(sent1), /^Sent for verification to Checker C – VF-00001\./);
+    assert.strictEqual(row(K('2026-05-01')), null, 'not saved yet');
+    let r = api(CK, 'decideChangeRequest', { id: 'VF-00001', approve: true });
+    assert.ok(r.ok && r.status === 'Approved', JSON.stringify(r).slice(0, 300));
+    let e = row(K('2026-05-01'));
+    assert.ok(e && e.ckm === 1040 && e.ap && e.ap.by === 'Checker C' && e.ap.ref === 'VF-00001' && /^\d{4}-\d{2}-\d{2}T/.test(e.ap.at), 'saved and marked: ' + JSON.stringify(e && e.ap));
+    assert.deepStrictEqual(run('() => getLogBookList_({ from: "2026-05-01", to: "2026-05-31", no: "AP152-1", all: true }).rows.map(x => !!x.ap)'), [true], 'the lists say so');
+    // a change of the approved entry, sent under the rule: refused already when it is sent (nothing waits)
+    const msgA = /^Log Book entry of AP152-1 on 01-05-2026: it was approved on \d\d-\d\d-\d{4} by Checker C \(VF-00001\) – an approved entry cannot be changed or deleted without the Super Admin\. To correct it: change the entry and send it to the Super Admin for approval \(the page asks\) – it is saved only when he approves\.$/;
+    assert.match(api(U, 'updateLogRow', K('2026-05-01'), { closingKm: 1045, work: 'Carting' }).THROWN, msgA);
+    assert.strictEqual(run('() => flowAll_().filter(r => r.status === "Pending").length'), 0, 'nothing was sent');
+    // ---------- 2. without the rule: the approved entry is still locked for everyone but the Super Admin ----------
+    assert.ok(api(SA, 'saveFlowRules', { tasks: {} }).ok);
+    const before = JSON.stringify(row(K('2026-05-01')));
+    assert.match(api(U, 'updateLogRow', K('2026-05-01'), { closingKm: 1045, work: 'Carting' }).THROWN, msgA, 'a change');
+    assert.match(api(U, 'deleteLogRow', K('2026-05-01')).THROWN, msgA, 'a delete');
+    assert.match(api(AD, 'updateLogRow', K('2026-05-01'), { closingKm: 1045, work: 'Carting' }).THROWN, msgA, 'the Admin too');
+    assert.strictEqual(JSON.stringify(row(K('2026-05-01'))), before, 'nothing changed');
+    // a new entry after it (not approved – its Start follows the approved Close, which is not changed): saved, not marked
+    r = api(U, 'saveLogRows', lr('2026-05-02', 1080)); assert.ok(r.ok, JSON.stringify(r).slice(0, 300));
+    assert.ok(row(K('2026-05-02')) && !row(K('2026-05-02')).ap, 'not approved');
+    assert.ok(api(U, 'updateLogRow', K('2026-05-02'), { closingKm: 1090, work: 'Carting more' }).ok, 'an entry that is not approved is changed as before');
+    // diesel issued on the approved day: allowed (the diesel it puts into the entry is not what was approved)
+    assert.ok(api(U, 'saveInward', { date: '2026-05-01', location: 'Dispenser', pump: 'Pump', qty: 500, rate: 92, billNo: 'IN152', billDate: '2026-05-01' }).ok);
+    r = api(U, 'saveDieselIssue', { date: '2026-05-01', shift: 'Day', source: 'Dispenser', no: 'AP152-1', qty: 10, kmReading: 1040, force: true });
+    assert.ok(r && !r.THROWN, 'diesel on the approved day: ' + JSON.stringify(r).slice(0, 300));
+    assert.strictEqual(row(K('2026-05-01')).qty, 10); assert.ok(row(K('2026-05-01')).ap, 'still approved');
+    // ---------- 3. the Super Admin: with his reason only ----------
+    assert.match(api(SA, 'updateLogRow', K('2026-05-01'), { closingKm: 1042, work: 'Carting' }).THROWN, /^SA_REASON: Super Admin – this save changes 1 locked Log Book entry \(AP152-1 01-05-2026 – changed, approved\)\. Give the reason: it is kept with the entry's history\.$/);
+    r = apiR(SA, 'Close KM typed wrong – the meter photo shows 1042', 'updateLogRow', K('2026-05-01'), { closingKm: 1042, work: 'Carting' });
+    assert.ok(r && r.ok, JSON.stringify(r).slice(0, 300));
+    assert.ok(row(K('2026-05-01')).ckm === 1042 && row(K('2026-05-01')).ap.ref === 'VF-00001', 'saved; still approved (the mark stays)');
+    assert.deepStrictEqual(run('() => { ACTOR_ = "Super S"; ACTOR_SUPER_ = true; SA_REASON_ = "why"; CUR_FN_ = "updateLogRow"; try { return saveCtx_(); } finally { ACTOR_SUPER_ = false; SA_REASON_ = ""; CUR_FN_ = ""; } }'),
+      { actor: 'Super S', super: true, reason: 'why', fn: 'updateLogRow', flow: '', ctx: '', op: '' }, 'what goes to the database with the save');
+    // ---------- 4. a machinery number changed in Asset Master: its approved entries follow (only the number) ----------
+    const m = run('() => findMachine_("AP152-1")');
+    r = api(AD, 'saveMaster', Object.assign({}, m, { no: 'AP152-9' }), 'edit', 'AP152-1'); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 300));
+    assert.ok(row('AP152-9|2026-05-01|Full Day') && row('AP152-9|2026-05-01|Full Day').ap && !row(K('2026-05-01')), 'moved with its mark');
+    r = api(AD, 'saveMaster', Object.assign({}, m, { no: 'AP152-1' }), 'edit', 'AP152-9'); assert.ok(r && r.ok, 'and back: ' + JSON.stringify(r).slice(0, 300));
+    // ---------- 5. bills: revise / delete only by the Super Admin; a Superseded or Deleted bill still locks ----------
+    const co = run('() => billCompanies_()')[0];
+    const mk = no => run(`(a) => { const m = findMachine_('AP152-1'), from = '2026-05-01', to = '2026-05-31';
+      const c = billMachineCalc_(m, getLogBookList_({ from: from, to: to, no: 'AP152-1', all: true }).rows, logPrintExtra_({ from: from, to: to, nos: ['AP152-1'] }), from, to, undefined, true);
+      const A = r2_(c.amount), B = r2_(c.excessAmt), D = r2_(A - B), H2 = D > 0 ? r2_(D * c.tdsPct / 100) : 0;
+      return { company: a[1], vendor: { name: 'AP152 Vendor' }, from: from, to: to, billDate: to, billNo: a[0], picked: ['AP152-1'], partial: false, edited: false, idlePaid: true,
+        machines: [{ no: 'AP152-1', workDays: c.workDays, nights: c.nights, issued: c.issued, amount: c.amount, excessAmt: c.excessAmt, lines: [] }], A: A, B: B, C: 0, D: D, E: 0, F: 0, G: D, H: H2, I: r2_(D - H2), gstPct: c.gstPct, tdsPct: c.tdsPct }; }`, [no, co]);
+    const pack = (b, confirm) => ({ bills: [{ vendor: 'AP152 Vendor', company: co, billNo: b.billNo, from: b.from, to: b.to, billDate: b.billDate, net: b.I, data: b }], confirm: confirm });
+    let bill = mk('521');
+    assert.ok(api(U, 'verifyBills', { bills: [bill] }).ok);
+    const s1 = api(U, 'submitBills', pack(bill)); assert.ok(s1 && s1.ok, 'the Billing user submits a new bill: ' + JSON.stringify(s1).slice(0, 300));
+    // the same vendor and period again: a revision – the Billing user cannot
+    const v2 = api(U, 'verifyBills', { bills: [bill] });
+    assert.ok((((v2.bills || [])[0] || {}).checks || []).some(c => c.s === 'bad' && /^A bill of this vendor for the same period and machinery is already submitted \(RA Bill 521\) – only the Super Admin can revise a submitted bill/.test(c.t)), JSON.stringify(v2).slice(0, 500));
+    r = api(U, 'submitBills', pack(bill, true));
+    assert.ok(r.ok === false && /^AP152 Vendor: a bill of this vendor for the same period and machinery is already submitted \(RA Bill 521\) – only the Super Admin can revise/.test((r.errors || []).join(' ')), JSON.stringify(r).slice(0, 400));
+    assert.strictEqual(run('() => getBills_({ vendor: "AP152 Vendor" }).bills.length'), 1, 'nothing saved');
+    // the Super Admin revises it: the first is Superseded – and still locks
+    assert.ok(api(SA, 'verifyBills', { bills: [bill] }).ok);
+    r = api(SA, 'submitBills', pack(bill, true)); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 300));
+    assert.deepStrictEqual(run('() => getBills_({ vendor: "AP152 Vendor" }).bills.map(b => b.rev + " " + b.status).sort()'), ['0 Superseded', '1 Active']);
+    const msgB = /^Log Book entry of AP152-1 on 02-05-2026: this machinery is in the submitted RA Bill 521 rev 1 of AP152 Vendor/;
+    assert.match(api(U, 'updateLogRow', K('2026-05-02'), { closingKm: 1095, work: 'Carting more' }).THROWN, msgB, 'billed: locked (it was not approved)');
+    // deleted – by the Super Admin, with a reason: kept as Deleted; the entries stay locked (by the Superseded one and the Deleted one)
+    const ids = run('() => getBills_({ vendor: "AP152 Vendor" }).bills.map(b => b.id + " " + b.status)');
+    const activeId = ids.find(x => / Active$/.test(x)).split(' ')[0];
+    assert.match(api(AD, 'deleteBill', activeId, 'wrong').THROWN, /^Only the Super Admin deletes a submitted bill/);
+    r = api(SA, 'deleteBill', activeId, 'built on a wrong BOQ'); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 300));
+    assert.deepStrictEqual(run('() => getBills_({ vendor: "AP152 Vendor" }).bills.map(b => b.rev + " " + b.status + " " + (b.deleteReason || "")).sort()'), ['0 Superseded ', '1 Deleted built on a wrong BOQ']);
+    assert.match(api(U, 'updateLogRow', K('2026-05-02'), { closingKm: 1095, work: 'Carting more' }).THROWN, /is in the submitted RA Bill 521 \((superseded|deleted)\) of AP152 Vendor .*\(a bill replaced or deleted keeps them locked\)/, 'never unlocked by itself');
+    // the money: a deleted bill is in no list or ledger total (Active only, as before)
+    assert.strictEqual(run('() => ledgerLines_().filter(l => l.vendor === "AP152 Vendor" && l.kind === "bill").length'), 0);
+    // the user's correction goes to the Super Admin (Approvals), saved when he approves – with the request's reason kept
+    const cr = api(U, 'sendChangeRequest', { fn: 'updateLogRow', args: [K('2026-05-02'), { closingKm: 1095, work: 'Carting more' }], reason: 'the meter shows 1095' });
+    assert.ok(cr && cr.ok && /^CR-/.test(cr.id), JSON.stringify(cr).slice(0, 300));
+    r = api(SA, 'decideChangeRequest', { id: cr.id, approve: true }); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 300));
+    assert.strictEqual(row(K('2026-05-02')).ckm, 1095, 'saved at his approval');
+  } finally {
+    vm.runInContext('SbBook_.prototype.flush = __k152.flush; SbBook_.prototype.loadMany = __k152.loadMany; SbSheet_.prototype.load_ = __k152.load_; sbDiscard_ = __k152.discard; rtcPush_ = __k152.push; SB_BOOK_ = null;', ctx);
+  }
 });

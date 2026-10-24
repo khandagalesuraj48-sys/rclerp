@@ -120,22 +120,20 @@ const snap = () => sql("select coalesce((select string_agg(id || ' ' || opening_
     'diesel issue of 03-09 changed': await api('updateDieselIssue', dId, { date: '2026-09-03', shift: 'Day', source: 'Dispenser', no: 'KLX-1', qty: 99, kmReading: 1080, force: true }),
     'diesel issue of 03-09 deleted': await api('deleteDieselIssue', dId),
   };
-  const notRefused = Object.keys(tries).filter(k => !/is in the submitted RA Bill 61 of Lock Vendor P/.test(JSON.stringify(tries[k])) || !/send it to the Super Admin for approval .* or the Admin deletes that bill/.test(JSON.stringify(tries[k])));      // (update-108: the way out names the Super Admin)
+  const notRefused = Object.keys(tries).filter(k => !/is in the submitted RA Bill 61 of Lock Vendor P/.test(JSON.stringify(tries[k])) || !/send it to the Super Admin for approval \(the page asks\)/.test(JSON.stringify(tries[k])) || /the Admin deletes that bill/.test(JSON.stringify(tries[k])));      // (update-108: the way out names the Super Admin; update-152: the only way – a deleted bill keeps its entries locked)
   ok('4. the server (asked directly, as the Admin): all ' + Object.keys(tries).length + ' ways of adding / changing / deleting inside the bill are refused with the way out', notRefused.length === 0, notRefused.length ? notRefused.map(k => k + ' → ' + JSON.stringify(tries[k]).slice(0, 160)) : Object.keys(tries));
   ok('   …and the database is exactly as before those tries', snap() === base, snap() === base ? 'identical' : snap());
   const free = [await api('saveLogRows', { rows: [{ date: '2026-10-02', shift: 'Full Day', no: 'KLX-1', mode: 'KM', closingKm: 1290 }] }), await api('saveLogRows', { rows: [{ date: '2026-10-02', shift: 'Full Day', no: 'KLX-2', mode: 'KM', closingKm: 580 }] }), await api('saveDieselIssue', { date: '2026-10-02', shift: 'Day', source: 'Dispenser', no: 'KLX-1', qty: 6, kmReading: 1250, force: true })];
   ok('   outside the bill everything works: KLX-1 on 02-10, KLX-2 (not in this bill\'s dates), diesel on 02-10', free.every(r => r && !r.ERROR && r.ok !== false), free.map(r => r && r.ERROR ? r.ERROR.slice(0, 80) : 'saved'));
 
-  // ---------- 5. the Admin deletes the bill: the entry can be corrected ----------
+  // ---------- 5. (update-152) the Admin cannot delete the bill any more (only the Super Admin – kept as Deleted, still locking) ----------
   const billId = sql("select id from bills where vendor_name = 'Lock Vendor P'");
-  must('delete bill', await api('deleteBill', billId, 'Log Book of 03-09 to be corrected'));
+  const del = await api('deleteBill', billId, 'Log Book of 03-09 to be corrected');
   await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} S.formDirty = false; showTab('log'); }); await wait(1500);
   await f.evaluate(() => { document.getElementById('lf_from').value = '2026-08-01'; document.getElementById('lf_to').value = '2026-10-31'; const n = document.getElementById('lf_no'); n.value = 'KLX-1'; n.dispatchEvent(new Event('change', { bubbles: true })); return loadLog(); }); await wait(3000);
   const marks2 = await f.evaluate(() => document.querySelectorAll('#l_rows .tag.lk').length);
-  await f.evaluate(() => { const tr = [...document.querySelectorAll('#l_rows tr')].find(r => /^05-09-2026/.test(r.textContent.trim())); tr.querySelector('[data-ledit]').click(); }); await wait(2500);
-  const open2 = await f.evaluate(() => !document.getElementById('le_back').hidden);
-  await f.evaluate(() => { const c = document.getElementById('le_ckm'); c.value = '1205'; c.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('le_save').click(); }); for (let i = 0; i < 20; i++) { await wait(500); await yes(); if (/KLX-1\|2026-09-05\|Full Day 1160>1205/.test(snap())) break; }
-  ok('5. the bill deleted by the Admin: the marks are gone, Edit opens, the correction of 05-09 is saved', marks2 === 0 && open2 && /KLX-1\|2026-09-05\|Full Day 1160>1205/.test(snap()), { marks: marks2, edit_window: open2, database: (snap().match(/KLX-1\|2026-09-05[^|]*\|[^|]*/) || [''])[0] });
+  const sbDel = await f.evaluate(async () => { showTab('bills'); await new Promise(r => setTimeout(r, 1500)); return document.querySelectorAll('#sb_rows [data-sbd]').length; });
+  ok('5. the Admin cannot delete the bill (only the Super Admin); no Delete button for him; the bill and its 5 marks stay', /^Only the Super Admin deletes a submitted bill/.test(del.ERROR || '') && sql("select status from bills where id = '" + billId + "'") === 'Active' && marks2 === 5 && sbDel === 0, { del: del, marks: marks2, deleteButtons: sbDel });
   ok('no script error', errs.length === 0, errs.join(' | '));
   await b.close();
   try { clean(); } catch (e) { out.push('clean after: ' + String(e.message).slice(0, 200)); }

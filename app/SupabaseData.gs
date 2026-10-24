@@ -89,6 +89,7 @@ let OP_SENT_ = false, OP_RESULT_ = null;      // this request's save number has 
 function opResult_(v) { try { const s = JSON.stringify(v === undefined ? null : v); return s.length <= 200000 ? s : JSON.stringify({ ok: true, _resent: true }); } catch (e) { return null; } }
 const SB_NO_WRITE_FN_ = 'Saving is switched off – nothing was saved. The database is missing its "all or nothing" save function (web_write), so an entry could be written only in part. The Admin must run sql/supabase_step3_safety.sql in Supabase → SQL Editor; saving works again at once after that.';
 SbBook_.prototype.flush = function () {
+  if (typeof entryGuard_ === 'function') entryGuard_(this);      // (update-152) an approved / billed Log Book entry: only the Super Admin changes it (and says why)
   const c = sbConf_(), calls = [], after = [];
   Object.keys(this.sheets).forEach(t => {
     const s = this.sheets[t], w = s.pending();
@@ -114,8 +115,16 @@ SbBook_.prototype.flush = function () {
      * answer known so far) and writes the rows in ONE transaction. A copy of the same save can then never write again –
      * see runOnce in server/runtime.js. Later writes of the same request (the Activity Log line) go the plain way. */
     const op = !OP_SENT_ && typeof __op === 'function' ? __op() : null;
-    const r = UrlFetchApp.fetch(c.url + '/rest/v1/rpc/' + (op ? 'web_write2' : 'web_write'), { method: 'post', muteHttpExceptions: true, headers: { apikey: c.key, 'Content-Type': 'application/json' },
-      payload: JSON.stringify(op ? { p: p, p_rid: op.rid, p_holder: op.holder, p_result: OP_RESULT_ } : { p: p }) });
+    /* (update-152, step 1zd) WHO IS SAVING AND WHY goes in with the save: web_write3 sets it for this one database transaction, and the
+     * database's guard of the Log Book reads it (the Super Admin's change of a locked entry and his reason; everybody else's is
+     * written down – or refused once the guard is switched to "enforce"). Without step 1zd: web_write / web_write2 as before. */
+    const ctx = typeof saveCtx_ === 'function' ? saveCtx_() : null, cache = CacheService.getScriptCache();
+    let w3 = !!ctx && cache.get('SBFN_web_write3') !== '0';
+    const send = () => UrlFetchApp.fetch(c.url + '/rest/v1/rpc/' + (w3 ? 'web_write3' : op ? 'web_write2' : 'web_write'), { method: 'post', muteHttpExceptions: true, headers: { apikey: c.key, 'Content-Type': 'application/json' },
+      payload: JSON.stringify(w3 ? { p: p, p_ctx: ctx, p_rid: op ? op.rid : null, p_holder: op ? op.holder : null, p_result: op ? OP_RESULT_ : null } : op ? { p: p, p_rid: op.rid, p_holder: op.holder, p_result: OP_RESULT_ } : { p: p }) });
+    let r = send();
+    if (w3 && r.getResponseCode() === 404 && /web_write3|PGRST202/.test(r.getContentText())) { cache.put('SBFN_web_write3', '0', 600); w3 = false; r = send(); }      // (step 1zd not run: nothing was written – the same save the old way)
+    else if (w3 && r.getResponseCode() < 300) cache.put('SBFN_web_write3', '1', 3600);
     const code = r.getResponseCode();
     if (code >= 200 && code < 300) { done = true; if (op) OP_SENT_ = true; }
     else if (op && /OP_NOT_MINE/.test(r.getContentText())) { SB_BOOK_ = null; throw new Error('OP_NOT_MINE: this save is already being finished by another copy of it – nothing was written twice.'); }
@@ -143,6 +152,7 @@ function SbSheet_(book, def) {
   this.hdr = (this.idh ? [this.idh] : []).concat(def.cols.map(x => x[0]));
   this.type = {}; def.cols.forEach(x => { this.type[x[0]] = x[2]; });
   this.data = []; this.ids = []; this.dirty = new Set(); this.gone = []; this.appended = [];
+  this.orig = new Map(); this.goneRows = [];      // (update-152) a saved row as it was before this save changed it / the rows it deletes – for the entry guard (entryGuard_)
 }
 SbSheet_.prototype.load_ = function () {
   if (this.loaded) return;
@@ -229,6 +239,7 @@ SbSheet_.prototype.pending = function () {
 SbSheet_.prototype.saved = function () {
   if (this.loaded) this.data.forEach((row, i) => { if (this.dirty.has(row)) this.ids[i] = this.rowId_(row); });
   this.dirty.clear(); this.gone = []; if (!this.loaded) this.appended = [];
+  this.orig.clear(); this.goneRows = [];
 };
 SbSheet_.prototype.getName = function () { return this.def.tab; };
 SbSheet_.prototype.getLastRow = function () { this.load_(); return this.data.length + 1; };
@@ -243,6 +254,7 @@ SbSheet_.prototype.deleteRow = function (n) {
   const k = n - 2; if (k < 0 || k >= this.data.length) return;
   const row = this.data[k], id = this.ids[k] || this.rowId_(row);
   if (id) this.gone.push(id);
+  if (this.ids[k]) this.goneRows.push(this.orig.get(row) || row.slice());
   this.dirty.delete(row); this.data.splice(k, 1); this.ids.splice(k, 1);
 };
 SbSheet_.prototype.getRange = function (r, c, nr, nc) {
@@ -256,6 +268,7 @@ SbSheet_.prototype.getRange = function (r, c, nr, nc) {
         const rr = r + i; if (rr === 1) return;          // header row: the columns already exist in Supabase
         while (s.data.length < rr - 1) { const blank = s.hdr.map(() => ''); s.data.push(blank); s.ids.push(null); }
         const row = s.data[rr - 2];
+        if (s.ids[rr - 2] && !s.orig.has(row) && vals.some((x, j) => { const ci = c - 1 + j; return ci < s.hdr.length && !same(row[ci], x); })) s.orig.set(row, row.slice());      // (update-152) as it was saved
         vals.forEach((x, j) => { const ci = c - 1 + j; if (ci < s.hdr.length && !same(row[ci], x)) { row[ci] = x; s.dirty.add(row); } });
       });
       return range;
