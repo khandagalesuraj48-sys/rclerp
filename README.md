@@ -37,6 +37,7 @@ App तेच आहे: तेच screens, तेच नियम, तेच pr
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Google ने दिलेल्या key file चा पूर्ण मजकूर (खाली पहा) |
 | `BACKUP_SHEET_ID` | Backup Google Sheet ची link |
 | `CRON_SECRET` | कोणताही लांब, गुप्त शब्द (उदा. 30 अक्षरे). रात्रीच्या backup साठी Vercel हा शब्द स्वतः पाठवते; त्याशिवाय रात्रीचा backup नाकारला जातो. |
+| `BACKUP_EXPORT_SECRET` | (update-157) कोणताही लांब, गुप्त शब्द (किमान 24 अक्षरे-अंक) – **हाच शब्द** rcl-portal आणि rcl-engineering मध्ये पण. रात्रीचा backup त्याने Engineering आणि Portal चा data घेतो (त्यांचे passwords / keys कधीच नाहीत). `ENGINEERING_URL` ऐच्छिक – नसेल तर `vercel.json` मधला /engineering चा पत्ता. |
 
 Keys कधीही code मध्ये किंवा git मध्ये टाकू नका.
 

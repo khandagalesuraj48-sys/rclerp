@@ -5934,10 +5934,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The first site cannot be deleted.', 'Nothing was changed. The first site keeps the list of all sites; it can only stay.'],
       mr: ['पहिली site delete करता येत नाही.', 'काहीही बदलले नाही. सर्व sites ची यादी पहिल्या site मध्ये असते; ती राहतेच.'],
       hi: ['पहली site delete नहीं की जा सकती।', 'कुछ भी नहीं बदला। सभी sites की सूची पहली site में होती है; वह रहती ही है।'] },
+    // (update-157) a backup Sheet holds 10 million cells at most: the next one is added by the Super Admin
+    { re: /of (this site|the Portal) is full – Google allows 10 million cells/i,
+      en: ['The backup Google Sheet in use is full: Google allows 10 million cells in one Sheet.', 'Nothing already copied is lost and every entry is safe in the database. Ask the Super Admin to add the next Sheet: Portal → Sites → Backup → a new, empty Google Sheet shared with the backup robot → Add Sheet.'],
+      mr: ['वापरात असलेली backup Google Sheet भरली आहे: एका Sheet मध्ये Google फक्त 1 कोटी cells ठेवू देते.', 'आधी copy झालेले काहीही हरवले नाही, आणि प्रत्येक entry database मध्ये सुरक्षित आहे. Super Admin ला पुढची Sheet जोडायला सांगा: Portal → Sites → Backup → नवीन, रिकामी Google Sheet (backup robot ला share केलेली) → Add Sheet.'],
+      hi: ['इस्तेमाल में backup Google Sheet भर गई है: एक Sheet में Google सिर्फ 1 करोड़ cells रखने देता है।', 'पहले copy हुआ कुछ भी नहीं खोया, और हर entry database में सुरक्षित है। Super Admin से अगली Sheet जोड़ने को कहें: Portal → Sites → Backup → नई, खाली Google Sheet (backup robot को share की हुई) → Add Sheet.'] },
+    // (update-157) the other modules' rows for the backup (Engineering, the Portal) – their export
+    { re: /BACKUP_EXPORT_SECRET|did not give its data for the backup|refused the backup/i,
+      en: ['The backup could not get the data of another module (Engineering or the Portal).', 'This site\'s own data is backed up as usual. The Super Admin checks that BACKUP_EXPORT_SECRET has the same value in Vercel for rclerp, rcl-portal and rcl-engineering (then Redeploy); the next backup takes them again.'],
+      mr: ['Backup ला दुसऱ्या module चा data (Engineering किंवा Portal) मिळाला नाही.', 'या site चा स्वतःचा data नेहमीप्रमाणे backup होतो. Super Admin ने Vercel मध्ये rclerp, rcl-portal आणि rcl-engineering तिन्हींत BACKUP_EXPORT_SECRET एकच आहे का ते पाहावे (मग Redeploy); पुढच्या backup मध्ये तो पुन्हा घेतला जाईल.'],
+      hi: ['Backup को दूसरे module का data (Engineering या Portal) नहीं मिला।', 'इस site का अपना data हमेशा की तरह backup होता है। Super Admin देखें कि Vercel में rclerp, rcl-portal और rcl-engineering तीनों में BACKUP_EXPORT_SECRET एक ही है (फिर Redeploy); अगले backup में वह फिर लिया जाएगा।'] },
     { re: /This site is not set up|backup of this site is not set up|not the backup Sheet of this site/i,      // stage 1 of "new site": a site the server does not know (yet), or its Sheet
-      en: ['This site is not set up on the server yet (or its backup Sheet is not).', 'Nothing was read or saved. Ask the Super Admin to finish setting up this site, then open the app again.'],
-      mr: ['ही site अजून server वर set up झालेली नाही (किंवा तिची backup Sheet नाही).', 'काहीही वाचले किंवा save झाले नाही. Super Admin ला ही site set up पूर्ण करायला सांगा, मग app पुन्हा उघडा.'],
-      hi: ['यह site अभी server पर set up नहीं हुई है (या उसकी backup Sheet नहीं है)।', 'कुछ भी पढ़ा या save नहीं हुआ। Super Admin से इस site का set up पूरा करने को कहें, फिर app दोबारा खोलें।'] },
+      en: ['This site is not set up on the server yet (or its backup Sheet is not).', 'Nothing was read or saved. Ask the Super Admin to finish setting up this site (its backup Sheet: Portal → Sites → Backup), then open the app again.'],
+      mr: ['ही site अजून server वर set up झालेली नाही (किंवा तिची backup Sheet नाही).', 'काहीही वाचले किंवा save झाले नाही. Super Admin ला ही site set up पूर्ण करायला सांगा (तिची backup Sheet: Portal → Sites → Backup), मग app पुन्हा उघडा.'],
+      hi: ['यह site अभी server पर set up नहीं हुई है (या उसकी backup Sheet नहीं है)।', 'कुछ भी पढ़ा या save नहीं हुआ। Super Admin से इस site का set up पूरा करने को कहें (उसकी backup Sheet: Portal → Sites → Backup), फिर app दोबारा खोलें।'] },
     { re: /no location|location of the phone|location could not be found/i,      // update-85: a photo without the place it was taken
       en: ['The photo has no location, so it was not kept.', 'Every photo of a diesel issue carries the place it was taken. Turn on the location (GPS) of the phone, allow Location for this site in the browser, and take the photo again.'],
       mr: ['Photo ला location नाही, म्हणून तो ठेवला गेला नाही.', 'Diesel issue च्या प्रत्येक photo सोबत तो कुठे काढला ते ठिकाण लागते. Phone चे Location (GPS) चालू करा, browser मध्ये या site ला Location ची परवानगी द्या, आणि photo पुन्हा काढा.'],
@@ -7334,7 +7344,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try {
       const r = await call('backupNow');
       const info = (r && r.info) || S.backup || {};
-      const link = info.url ? '<p><a href="' + esc(info.url) + '" target="_blank" rel="noopener">Open the backup Google Sheet</a></p>' : '';
+      // (update-157) the numbered Sheets: which one is in use, and how full it is (Google allows 10 million cells in one)
+      const pct = Number(info.cellsPct) || 0, fill = info.sheetN ? ' – Sheet ' + esc(info.sheetN) + (info.cells ? ', ' + esc(pct) + ' % full' : '') : '';
+      const link = info.url ? '<p><a href="' + esc(info.url) + '" target="_blank" rel="noopener">Open the backup Google Sheet' + fill + '</a></p>' + (pct >= 80 ? '<p><b>The Sheet is ' + esc(pct) + ' % full</b> – ask the Super Admin to add the next Sheet (Portal → Sites → Backup).</p>' : '') : '';
       let html;
       if (r && r.off) html = '<p>Backup is not set up in this app.</p>';
       else if (r && r.busy) html = '<p>The automatic backup is running right now. Try again in a minute.</p>';

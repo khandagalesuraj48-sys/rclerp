@@ -97,12 +97,32 @@ function portalAdmin(R, args) {
   if (c.act === 'siteSql') return R.runIn('', 'sysNewSiteSql', [c]);
   if (c.act === 'siteSetup') return siteSetup(R, c);
   if (c.act === 'siteOff') return siteOff(c);
+  if (c.act === 'bkGet' || c.act === 'bkSet' || c.act === 'bkNow') return backupAdmin(R, c);      // (update-157)
   const reg = sites.registry();
   let at = '';
   if (reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
   const r = R.runIn(at, 'sysPortalAdmin', [c]);
   if (c.act === 'pages' && reg) { try { keepMembership(c.email, c.site, true, r.admin); } catch (e) { console.error('[portal pages: site list] ' + String((e && e.message) || e)); } }
   return r;
+}
+/* ---- (update-157) Sites → Backup in the Portal: a site's numbered Google Sheets (the Portal's are kept at the first site). A Sheet
+ * given here must not be the Sheet of another site or of the Portal: every site is asked which it uses, first (a site that cannot
+ * be asked stops the change – never two sites writing into one Sheet). ---- */
+function backupAdmin(R, c) {
+  const reg = sites.registry();
+  let at = '';
+  if (c.target !== 'portal' && reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
+  if (c.act === 'bkSet') {
+    const taken = [];
+    (reg || [{ code: sites.homeCode(), home: true, status: 'ready' }]).filter(x => x.status === 'ready').forEach(x => {
+      const run = x.home ? '' : x.code; let ids = null;
+      try { ids = R.runIn(run, 'sysBkIds', []) || {}; } catch (e) { throw new Error('Site ' + x.code + ' could not be asked which backup Sheets it uses (' + String((e && e.message) || e).slice(0, 120) + ') – try again in a minute.'); }
+      if (!(c.target !== 'portal' && run === at)) (ids.site || []).forEach(id => taken.push(id));      // another site's (the site itself checks its own)
+      if (c.target !== 'portal') (ids.portal || []).forEach(id => taken.push(id));      // the Portal's
+    });
+    c = Object.assign({}, c, { taken: taken });
+  }
+  return R.runIn(at, 'sysPortalAdmin', [c]);
 }
 /* ---- (update-95, asked 13-10-2026) "New site" – the Super Admin fills a form in the Portal, the system checks and sets up ----
  * Mechanical is one app for every site; a site is its own database. The Super Admin makes the Supabase project himself and

@@ -20,6 +20,15 @@ function config(sheetOf) {
   const m = /\/d\/([A-Za-z0-9_-]{20,})/.exec(sheet);         // the whole link of the Sheet may be pasted
   return { ok: true, sheetId: m ? m[1] : sheet, email: key.client_email, key: key };
 }
+// (update-157) the backup robot alone – set up or not, its e-mail address – whether or not a Sheet is given yet
+function sa() {
+  if (String(process.env.VERCEL_ENV || '') === 'preview') return { ok: false, error: 'This is a Preview (a test copy): it makes no Google Sheet backup.' };
+  const raw = String(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '').trim();
+  if (!raw) return { ok: false, error: 'The Google Sheet backup is not set up yet: add GOOGLE_SERVICE_ACCOUNT_JSON in Vercel → Settings → Environment Variables, then Redeploy (see README).' };
+  let key = null; try { key = JSON.parse(raw); } catch (e) { return { ok: false, error: 'GOOGLE_SERVICE_ACCOUNT_JSON is not the complete key file – paste the whole content of the .json file Google gave, from { to }.' }; }
+  if (!key.client_email || !key.private_key) return { ok: false, error: 'GOOGLE_SERVICE_ACCOUNT_JSON has no client_email / private_key – it must be a service-account key file.' };
+  return { ok: true, email: key.client_email };
+}
 const b64 = x => Buffer.from(x).toString('base64url');
 let tok = { value: '', exp: 0, email: '' };
 function token(cfg) {
@@ -58,4 +67,4 @@ function call(method, path, bodyJson, ms, sheetOf) {
   }
   return { code: last.code, text: last.text || '' };
 }
-module.exports = { config, call };
+module.exports = { config, call, sa };

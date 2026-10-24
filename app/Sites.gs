@@ -200,6 +200,10 @@ function sysPortalAdmin_(c) {
   if (c.act === 'users') { const d = usersAdmin_(); return { users: d.users.map(pub), pages: d.modules }; }
   if (c.act === 'places') return placesInfo_();      // (update-117) Sites → Diesel places
   if (c.act === 'placesSave') return sysPlacesSave_(c.places, c.by);
+  // (update-157) Sites → Backup: the site's (or the Portal's) numbered Google Sheets – see backup.vm.js
+  if (c.act === 'bkGet') return bkSheetsInfo_(c);
+  if (c.act === 'bkSet') return bkSheetSet_(c);
+  if (c.act === 'bkNow') return bkNow_(c);
   if (c.act !== 'pages') throw new Error('Unknown action.');
   const email = str_(c.email).toLowerCase(), perms = {};
   MODULES.forEach(m => { const v = (c.perms || {})[m]; if (v === 'Edit' || v === 'View' || v === 'None') perms[m] = v; });

@@ -100,6 +100,9 @@ function verifyAdmin(ticket, now) {
       sheet: String(c.sheet || '').trim().slice(0, 200), company: { id: String(comp.id || '').slice(0, 40), name: String(comp.name || '').replace(/\s+/g, ' ').trim().slice(0, 80) }, places: placesOf(c.places) });
   }
   if (c.act === 'placesSave') return Object.assign(out, { places: placesOf(c.places) });      // (update-117) Sites → Diesel places
+  // (update-157) Sites → Backup: a site's (or the Portal's) numbered backup Sheets – look, give a link (change / add), back up now
+  if (c.act === 'bkGet' || c.act === 'bkNow') return Object.assign(out, { target: c.target === 'portal' ? 'portal' : '' });
+  if (c.act === 'bkSet') return Object.assign(out, { target: c.target === 'portal' ? 'portal' : '', mode: c.mode === 'add' ? 'add' : 'change', link: String(c.link || '').trim().slice(0, 300) });
   if (c.act !== 'pages') throw bad('not a known request');
   const email = String(c.email || '').trim().toLowerCase();
   if (!EMAIL.test(email) || email.length > 120) throw bad('no proper email of the user');
