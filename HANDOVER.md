@@ -1951,6 +1951,21 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   "(update-154 …)" before the first `</style>`, all under `.lg-panel` / `.lg-wrap.lgc` / `#wt_form` (container queries ≤ 1080 two
   parts side by side, ≤ 640 the phone). Labels are real text (the page's i18n reads text, not CSS). 9 new texts (mr / hi).
   Tests: half / mob / dnui / splittime / att153 read the card instead of the old cells.
+- 24-10-2026 (update-155, with App 3.35.0 and the Store / Engineering / Portal changes of the same day). Report: `UPDATE_155.md`.
+  SMART CACHE AND SYNC AT A LOWER COST (no database step, no action's own code changed). `server/delta.js` (new – the same file in
+  the Store and Engineering as `lib/delta.js`): a page that keeps its answers sends `m: 1` and, asked again, `have` (the fingerprint
+  – SHA-256, 32 hex – of the answer it has); `api/rpc.js` answers `{ h, same: 1 }`, `{ h, base, delta }` (copies of runs of the old
+  pieces – cut after `},` / `],` – and new text) or `{ h, result }`; never for a save (a rid); everyone else gets `{ result }`. Kept
+  per site and whole question (with the token) on both sides; server memory ≤ 32 M chars (an answer > 2 M not kept), page ≤ 12 M.
+  The bridge (`server/page.js`, `delta.CLIENT` put in word for word) rebuilds, checks with `crypto.subtle`, asks whole on any doubt;
+  only `sync`, `get…` / `rpt…` and the other reads (`memoable`); emptied at login / logout / ssoLogin / switchSite /
+  setDefaultSite / changePassword / super / portalAdmin, at another site, and for a question that was refused; `window.__rclMemo()`.
+  Heartbeat (`App.html` `syncGap`): `LIVE_TABS` (dash, log, diesel, inward, transfer, approvals, master, activity) 2 s, other pages
+  5 s (`SYNC_OTHER_MS`), 15 s after 5 idle minutes, background 60 s (was 30); `window.rclSyncAt`. Shell (`Index.html` `beating()`):
+  no own `getAppBuild` while the heartbeat answers; `checkBuild` asks the shell once a minute at most. Counters
+  (`server/usage.js`; `syncfetch.meter`, the worker's `threadCpuUsage` in `pool.js` → `meta.use`): `[usage]` log line every 10 min,
+  `GET /api/rpc?usage=1` only with `RCL_USAGE=on`. Tests: unit (delta, the bridge in a vm, rpc with a stub pool), browser `sync155`,
+  `poll` (5 s / 60 s), `test/traffic155.js` (one page phase by phase, main vs branch).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
