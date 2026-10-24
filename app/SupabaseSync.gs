@@ -90,6 +90,14 @@ const SB_TABLES_ = [
     ['Args', 'args', 'text'], ['Summary', 'summary', 'text'], ['Machinery', 'machinery', 'text'], ['Dates', 'dates', 'text'], ['Reason', 'reason', 'text'], ['Status', 'status', 'text'],
     ['Decided By', 'decided_by', 'text'], ['Decided At', 'decided_at', 'timestamptz'], ['Decision Note', 'decision_note', 'text'], ['Result', 'result', 'text'],
     ['Bill ID', 'bill_id', 'text'], ['Data', 'data', 'text'], ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
+  // (update-151, step 1zc) THE FIXED EVIDENCE OF A SUBMITTED BILL – written once with the bill, never changed (the database refuses it)
+  { table: 'bill_snapshots', tab: 'Bill Snapshots', title: 'Bill Snapshots', pk: 'id', key: r => sbStr_(r['Bill ID']), cols: [
+    ['Bill No', 'bill_no', 'text'], ['Rev', 'rev', 'numeric'], ['Vendor Name', 'vendor_name', 'text'], ['Company', 'company', 'text'], ['Period From', 'period_from', 'date'], ['Period To', 'period_to', 'date'],
+    ['Kind', 'kind', 'text'], ['Bill Data', 'bill_data', 'text'], ['Machines', 'machines', 'text'], ['Extra', 'extra', 'text'], ['Rows Count', 'rows_count', 'numeric'],
+    ['Snapshot SHA256', 'snapshot_sha256', 'text'], ['Submitted By', 'submitted_by', 'text'], ['Submitted At', 'submitted_at', 'timestamptz']] },
+  { table: 'bill_log_rows', tab: 'Bill Log Rows', title: 'Bill Log Rows', pk: 'id', key: r => sbStr_(r['Row ID']), cols: [
+    ['Bill ID', 'bill_id', 'text'], ['Entry Key', 'entry_key', 'text'], ['Machinery', 'machinery', 'text'], ['Date', 'entry_date', 'date'], ['Shift', 'shift', 'text'],
+    ['Data', 'data', 'text'], ['Row SHA256', 'row_sha256', 'text']] },
   { table: 'breakdowns', tab: 'Breakdowns', title: 'Breakdowns', pk: 'id', key: r => sbStr_(r['Breakdown ID']), cols: [
     ['Machinery No', 'machinery_no', 'text'], ['From Date', 'from_date', 'date'], ['Reason', 'reason', 'text'], ['Remark', 'remark', 'text'], ['Status', 'status', 'text'],
     ['Back On', 'back_on', 'date'], ['Closing Remark', 'closing_remark', 'text'], ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },

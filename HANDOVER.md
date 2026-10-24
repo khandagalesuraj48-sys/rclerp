@@ -1893,6 +1893,16 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   its machinery), Find, the ticked list (`#qr_list [data-qr]`, Tick / Untick all shown), "n ticked – p pages", Make off when nothing
   is ticked; `qrLabelsHtml` (pages of `QR_PER_PAGE` = 8, `.qrs` grid 2 columns × 62 mm rows, the code 50 mm left of the text),
   `qrSub`. Page only. Browser qr150 12 (PDF pages counted), new3 changed to the ticks.
+- 24-10-2026 (update-151, with App 3.32.0). Report: `UPDATE_151.md`. A SUBMITTED BILL KEEPS ITS LOG BOOK AS EVIDENCE ("bill final
+  zalyawar nantar kuni logbook photo badalla tari june bill badalta kama naye"; Phase A of the final attachments / bill security
+  update): `billEvidence_` (the bill's Log Book rows as getLogBookList_ gives them, the Asset Master of its machinery, logPrintExtra_
+  input, idle / diesel rate – canonical JSON `canon_`, SHA-256 `sha_` per entry and `evHash_` for all); verifyBills_ keeps 'S:<hash>'
+  as the verified mark; submitBills_ builds it again inside its lock – another hash → "changed after it was verified", nothing saved;
+  the same → `evSave_` appends tabs Bill Snapshots + Bill Log Rows (step 1zc tables bill_snapshots, bill_log_rows) in the SAME write
+  as the bill. The database refuses UPDATE / DELETE / TRUNCATE (trigger rcl_evidence_fixed, no delete right). `getBillEvidence_`
+  (kind submission + evCheck_ | legacy + evLegacyChanges_ by updated_at / created_at / deleted_rows | off before 1zc); page
+  `billLogOf` – every saved-bill view / print / after-submit print from it (`.ev-note` above the Log Book). evReady_ false → as
+  before. Unit 106 (new: update-151), browser ev151 11.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

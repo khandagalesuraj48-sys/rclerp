@@ -5551,6 +5551,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Shown: under every red message (a card at the bottom right), inside every "Nothing saved / Not submitted" box, and next
    * to warnings on the billing page. The language is remembered on this device (rcl_lang). To cover a new message: add a rule. */
   const FIX_RULES = [
+    // (update-151) the bill's Log Book evidence – what was verified is what is submitted
+    { re: /the Log Book of this bill changed after it was verified|Log Book evidence of this bill could not be made/i,
+      en: ['Something in this bill\'s Log Book (an entry, a machinery or its diesel / BOQ) changed after the bill was verified, so the Log Book kept with the bill would not be the one that was checked. Nothing was submitted.', 'Press "Build bills" again, then "Verify & Submit" – the bill is checked and kept with its Log Book as it is now.'],
+      mr: ['Bill verify झाल्यानंतर त्याच्या Log Book मध्ये काहीतरी बदलले (एखादी entry, machinery किंवा तिचे diesel / BOQ), त्यामुळे bill सोबत ठेवले जाणारे Log Book तपासलेले Log Book राहिले नसते. काहीही submit झाले नाही.', 'पुन्हा "Build bills" दाबा, मग "Verify & Submit" – bill तपासले जाईल आणि आत्ताच्या Log Book सह ठेवले जाईल.'],
+      hi: ['Bill verify होने के बाद उसकी Log Book में कुछ बदला (कोई entry, machinery या उसका diesel / BOQ), इसलिए bill के साथ रखी जाने वाली Log Book जाँची गई Log Book नहीं रहती। कुछ भी submit नहीं हुआ।', 'फिर से "Build bills" दबाएँ, फिर "Verify & Submit" – bill जाँचा जाएगा और अभी की Log Book के साथ रखा जाएगा।'] },
+    { re: /^The evidence of bills cannot be kept|holds the evidence of a submitted bill – it is never changed or deleted|RCL_EVIDENCE_FIXED/i,
+      en: ['The record kept with a submitted bill (its Log Book as submitted) can never be changed or deleted – the database refuses it. Or the database step for it has not been run yet.', 'Nothing needs to be done for an old bill: correct the Log Book entry itself (Super Admin) – the next bill takes the difference. If the message names a SQL file, the Admin runs it once in Supabase → SQL Editor, in every site.'],
+      mr: ['Submit झालेल्या bill सोबत ठेवलेली नोंद (submit वेळचे त्याचे Log Book) कधीच बदलता किंवा delete करता येत नाही – database ते नाकारते. किंवा त्यासाठीची database step अजून चालवलेली नाही.', 'जुन्या bill साठी काही करायचे नाही: Log Book ची entry स्वतः दुरुस्त करा (Super Admin) – फरक पुढच्या bill मध्ये येतो. Message मध्ये SQL file चे नाव असेल तर Admin ती Supabase → SQL Editor मध्ये प्रत्येक site मध्ये एकदा चालवतो.'],
+      hi: ['Submit हुए bill के साथ रखा गया रिकॉर्ड (submit के समय की उसकी Log Book) कभी बदला या delete नहीं किया जा सकता – database उसे मना करता है। या उसके लिए database step अभी चलाया नहीं गया।', 'पुराने bill के लिए कुछ नहीं करना है: Log Book की entry ख़ुद ठीक करें (Super Admin) – फ़र्क अगले bill में आता है। Message में SQL file का नाम हो तो Admin उसे Supabase → SQL Editor में हर site में एक बार चलाता है।'] },
     // (update-149) Log Book Debit Statement – the rates and parties of the entries (one, all shown, or from Excel)
     { re: /^Nothing to save – change a rate or a party first/i,
       en: ['No rate or party was changed, so there was nothing to save.', 'Type a new rate in the Rate column (or a rate in "Rate for all shown" and press "Put on all shown"), then press "Save changed rates".'],
@@ -6176,13 +6185,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['रोजचा breakdown अहवाल: कोणती machinery चालू आहे आणि कोणती breakdown मध्ये आहे, कारणासह.', 'प्रत्येक machinery साठी Working किंवा Breakdown निवडावे लागते; breakdown ला कारण लागते. एका तारखेला एकच अहवाल. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
       hi: ['रोज़ की breakdown रिपोर्ट: कौन सी machinery चालू है और कौन सी breakdown में है, कारण के साथ।', 'हर machinery के लिए Working या Breakdown चुनना होता है; breakdown का कारण ज़रूरी है। एक तारीख को एक ही रिपोर्ट। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है।'] },
     bill: { saves: ['saveBillSettings', 'verifyBills', 'submitBills', 'saveBooksLock', 'billCorrections'],
-      en: ['Makes the vendor bills of a period from the Log Book, the diesel issues and the BOQ: the Abstract, the party\'s Tax Invoice and the diesel Debit Note.', 'A = work done at BOQ rates; B = diesel deducted (debit basis in full, otherwise only above the standard average, at the higher of the average and last diesel rate; what is left of the LAST fill of the period – its litres less the standard need of the run after it – is taken as still in the tank and not debited); D = A − B − C; GST and TDS on D; I = net payable; ticked debit notes come off after I. Before submit the server builds every bill again and compares it. Diesel issued on a day without a Log Book entry is counted and pointed out. The diesel rate of a bill can be typed by hand in the box "₹/L" under its diesel deduction (empty = the automatic rate): the Abstract, the Debit Note and the Log Book of that bill follow it, and the saved bill keeps it.'],
-      mr: ['Log Book, diesel issues आणि BOQ वरून एका कालावधीची vendor bills बनवते: Abstract, party चा Tax Invoice आणि diesel ची Debit Note.', 'A = BOQ दराने झालेले काम; B = कापलेले diesel (debit basis असेल तर पूर्ण, नाहीतर फक्त standard average पेक्षा जास्तीचे; दर = सरासरी आणि शेवटच्या diesel दरातला मोठा; कालावधीतल्या शेवटच्या भरण्यातले उरलेले diesel, म्हणजे त्याचे लिटर वजा त्यानंतरच्या चालण्याला standard प्रमाणे लागणारे, tank मध्ये धरले जाते आणि debit होत नाही); D = A − B − C; GST आणि TDS D वर; I = निव्वळ देय; tick केलेल्या debit notes I नंतर वजा होतात. Submit आधी server प्रत्येक bill पुन्हा बनवून तुलना करतो. Log Book entry नसलेल्या दिवशी दिलेले diesel मोजले जाते आणि दाखवले जाते. एखाद्या bill चा diesel rate त्याच्या diesel कपातीखालील "₹/L" box मध्ये हाताने टाकता येतो (रिकामा = आपोआप rate): त्या bill चे Abstract, Debit Note आणि Log Book त्याच rate ने होतात, आणि save झालेले bill तो rate ठेवते.'],
-      hi: ['Log Book, diesel issues और BOQ से एक अवधि के vendor bills बनाता है: Abstract, party का Tax Invoice और diesel की Debit Note।', 'A = BOQ दर से हुआ काम; B = काटा गया diesel (debit basis हो तो पूरा, वरना केवल standard average से ऊपर का; दर = औसत और आख़िरी diesel दर में से बड़ी; अवधि की आख़िरी भराई का बचा हुआ diesel, यानी उसके लीटर घटा उसके बाद की चाल को standard से लगने वाला, tank में माना जाता है और debit नहीं होता); D = A − B − C; GST और TDS D पर; I = शुद्ध देय; tick की गई debit notes I के बाद घटती हैं। Submit से पहले server हर bill फिर बनाकर मिलाता है। बिना Log Book entry वाले दिन दिया गया diesel गिना और दिखाया जाता है। किसी bill का diesel rate उसकी diesel कटौती के नीचे "₹/L" box में हाथ से डाला जा सकता है (खाली = अपने आप rate): उस bill का Abstract, Debit Note और Log Book उसी rate से बनते हैं, और save हुआ bill वह rate रखता है।'] },
+      en: ['Makes the vendor bills of a period from the Log Book, the diesel issues and the BOQ: the Abstract, the party\'s Tax Invoice and the diesel Debit Note. On submit the bill\'s Log Book is kept with it exactly as verified; anything changed after Verify means verify again.', 'A = work done at BOQ rates; B = diesel deducted (debit basis in full, otherwise only above the standard average, at the higher of the average and last diesel rate; what is left of the LAST fill of the period – its litres less the standard need of the run after it – is taken as still in the tank and not debited); D = A − B − C; GST and TDS on D; I = net payable; ticked debit notes come off after I. Before submit the server builds every bill again and compares it. Diesel issued on a day without a Log Book entry is counted and pointed out. The diesel rate of a bill can be typed by hand in the box "₹/L" under its diesel deduction (empty = the automatic rate): the Abstract, the Debit Note and the Log Book of that bill follow it, and the saved bill keeps it.'],
+      mr: ['Log Book, diesel issues आणि BOQ वरून एका कालावधीची vendor bills बनवते: Abstract, party चा Tax Invoice आणि diesel ची Debit Note. Submit करताना bill चे Log Book verify झाले तसेच bill सोबत पक्के ठेवले जाते; Verify नंतर काही बदलले तर पुन्हा verify करावे लागते.', 'A = BOQ दराने झालेले काम; B = कापलेले diesel (debit basis असेल तर पूर्ण, नाहीतर फक्त standard average पेक्षा जास्तीचे; दर = सरासरी आणि शेवटच्या diesel दरातला मोठा; कालावधीतल्या शेवटच्या भरण्यातले उरलेले diesel, म्हणजे त्याचे लिटर वजा त्यानंतरच्या चालण्याला standard प्रमाणे लागणारे, tank मध्ये धरले जाते आणि debit होत नाही); D = A − B − C; GST आणि TDS D वर; I = निव्वळ देय; tick केलेल्या debit notes I नंतर वजा होतात. Submit आधी server प्रत्येक bill पुन्हा बनवून तुलना करतो. Log Book entry नसलेल्या दिवशी दिलेले diesel मोजले जाते आणि दाखवले जाते. एखाद्या bill चा diesel rate त्याच्या diesel कपातीखालील "₹/L" box मध्ये हाताने टाकता येतो (रिकामा = आपोआप rate): त्या bill चे Abstract, Debit Note आणि Log Book त्याच rate ने होतात, आणि save झालेले bill तो rate ठेवते.'],
+      hi: ['Log Book, diesel issues और BOQ से एक अवधि के vendor bills बनाता है: Abstract, party का Tax Invoice और diesel की Debit Note। Submit पर bill की Log Book जैसी verify हुई वैसी ही bill के साथ पक्की रखी जाती है; Verify के बाद कुछ बदला तो फिर से verify करना होता है।', 'A = BOQ दर से हुआ काम; B = काटा गया diesel (debit basis हो तो पूरा, वरना केवल standard average से ऊपर का; दर = औसत और आख़िरी diesel दर में से बड़ी; अवधि की आख़िरी भराई का बचा हुआ diesel, यानी उसके लीटर घटा उसके बाद की चाल को standard से लगने वाला, tank में माना जाता है और debit नहीं होता); D = A − B − C; GST और TDS D पर; I = शुद्ध देय; tick की गई debit notes I के बाद घटती हैं। Submit से पहले server हर bill फिर बनाकर मिलाता है। बिना Log Book entry वाले दिन दिया गया diesel गिना और दिखाया जाता है। किसी bill का diesel rate उसकी diesel कटौती के नीचे "₹/L" box में हाथ से डाला जा सकता है (खाली = अपने आप rate): उस bill का Abstract, Debit Note और Log Book उसी rate से बनते हैं, और save हुआ bill वह rate रखता है।'] },
     bills: { saves: ['deleteBill', 'saveDebitNote', 'cancelDebitNote'],
-      en: ['RCL Drive: every submitted bill with its three papers, and every debit note – exactly as saved.', 'A saved bill cannot be changed; building the same vendor and period again replaces it (the old one stays as "Superseded"). A debit note is made from the Log Book entries marked "Debit to"; one entry goes into one note only; a note lowers the party\'s balance in the Vendor Ledger. Only Admin can delete a bill or cancel a note.'],
-      mr: ['RCL Drive: submit झालेले प्रत्येक bill त्याच्या तीन कागदांसह, आणि प्रत्येक debit note; जसे save झाले तसेच.', 'Save झालेले bill बदलता येत नाही; तोच vendor आणि कालावधी पुन्हा Build केल्यास ते बदलले जाते (जुने "Superseded" म्हणून राहते). Debit note "Debit to" लावलेल्या Log Book entries वरून बनते; एक entry एकाच note मध्ये जाते; note मुळे Vendor Ledger मधली party ची बाकी कमी होते. Bill delete करणे किंवा note रद्द करणे फक्त Admin करू शकतो.'],
-      hi: ['RCL Drive: submit हुआ हर bill उसके तीन काग़ज़ों के साथ, और हर debit note; जैसा save हुआ वैसा ही।', 'Save हुआ bill बदला नहीं जा सकता; वही vendor और अवधि फिर Build करने से वह बदल जाता है (पुराना "Superseded" रहता है)। Debit note "Debit to" लगी Log Book entries से बनती है; एक entry एक ही note में जाती है; note से Vendor Ledger में party की बाकी घटती है। Bill delete या note रद्द केवल Admin कर सकता है।'] },
+      en: ['RCL Drive: every submitted bill with its three papers and its Log Book as submitted (kept with the bill, never changed afterwards; a bill from before that shows today\'s Log Book and says so), and every debit note – exactly as saved.', 'A saved bill cannot be changed; building the same vendor and period again replaces it (the old one stays as "Superseded"). A debit note is made from the Log Book entries marked "Debit to"; one entry goes into one note only; a note lowers the party\'s balance in the Vendor Ledger. Only Admin can delete a bill or cancel a note.'],
+      mr: ['RCL Drive: submit झालेले प्रत्येक bill त्याच्या तीन कागदांसह आणि submit वेळच्या Log Book सह (bill सोबत पक्के ठेवलेले, नंतर कधीच बदलत नाही; त्याआधीचे bill आजचे Log Book दाखवते आणि तसे लिहिते), आणि प्रत्येक debit note; जसे save झाले तसेच.', 'Save झालेले bill बदलता येत नाही; तोच vendor आणि कालावधी पुन्हा Build केल्यास ते बदलले जाते (जुने "Superseded" म्हणून राहते). Debit note "Debit to" लावलेल्या Log Book entries वरून बनते; एक entry एकाच note मध्ये जाते; note मुळे Vendor Ledger मधली party ची बाकी कमी होते. Bill delete करणे किंवा note रद्द करणे फक्त Admin करू शकतो.'],
+      hi: ['RCL Drive: submit हुआ हर bill उसके तीन काग़ज़ों और submit के समय की Log Book के साथ (bill के साथ पक्की रखी, बाद में कभी नहीं बदलती; उससे पहले का bill आज की Log Book दिखाता है और ऐसा लिखता है), और हर debit note; जैसा save हुआ वैसा ही।', 'Save हुआ bill बदला नहीं जा सकता; वही vendor और अवधि फिर Build करने से वह बदल जाता है (पुराना "Superseded" रहता है)। Debit note "Debit to" लगी Log Book entries से बनती है; एक entry एक ही note में जाती है; note से Vendor Ledger में party की बाकी घटती है। Bill delete या note रद्द केवल Admin कर सकता है।'] },
     breg: { saves: [],
       en: ['Bill Summary: all submitted bills month by month and vendor by vendor – basic, diesel, GST, TDS and net.', 'Nothing is entered here; the figures are those of the saved bills. A superseded or deleted bill is not counted.'],
       mr: ['Bill Summary: submit झालेली सगळी bills महिन्यानुसार आणि vendor नुसार: basic, diesel, GST, TDS आणि निव्वळ.', 'इथे काहीही भरले जात नाही; आकडे save झालेल्या bills चे आहेत. Superseded किंवा delete झालेले bill मोजले जात नाही.'],
@@ -7989,6 +7998,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     .p-brand > div { border-left: 1px solid #C9CFD4; padding-left: 14px; }
     /* Log Book print – the site's monthly log book + bill */
     body.rep-lb { font-family: Arial, sans-serif; }
+    /* (update-151) above a saved bill's Log Book: as submitted (its evidence), or – a bill submitted before – today's Log Book, said so */
+    .ev-note { font: 9pt/1.35 Arial, sans-serif; color: #111; border: 1px solid #64748B; border-left-width: 4px; padding: 4px 8px; margin: 0 0 6px; break-inside: avoid; }
+    .ev-note.legacy { border-color: #B45309; } .ev-note.bad { border-color: #B91C1C; font-weight: 700; }
     .lbsheet + .lbsheet, .billsheet + .lbsheet, .lbsheet + .billsheet { break-before: page; }
     /* each machinery fills its page; the signatures sit at the bottom with all the free space above them to sign */
     .lbsheet { display: flex; flex-direction: column; min-height: 263mm; break-inside: avoid; }
@@ -11738,8 +11750,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // open the submitted bills exactly as saved – with Print
     const got = await Promise.all(res.saved.map(x => call('getBills', { id: x.id }).then(r => r.bills[0]).catch(() => null)));
     let anyLb = false;
-    const pages = got.filter(Boolean).map(b => { const lb = mbLogSheets(Object.assign({}, b.data, { company: b.company })); if (lb) anyLb = true;
-      return billSheets(Object.assign({ dnNo: b.dnNo }, b.data, { billNo: b.billNo, rev: b.rev }), '') + lb; }).join('');   // every bill with its papers: Abstract, Tax Invoice, GST Declaration, diesel Debit Note, Log Book
+    const parts = await Promise.all(got.filter(Boolean).map(async b => {      // (update-151) each bill's Log Book from the evidence saved with it
+      let lb = ''; try { const x = await billLogOf(b); if (x.kind === 'submission' && x.L.rows.length) lb = x.note + logSheetsBuild(x.L, b.company, x.L.extra).sheets; } catch (e) { lb = ''; }
+      if (!lb) lb = mbLogSheets(Object.assign({}, b.data, { company: b.company }));
+      if (lb) anyLb = true;
+      return billSheets(Object.assign({ dnNo: b.dnNo }, b.data, { billNo: b.billNo, rev: b.rev }), '') + lb; }));
+    const pages = parts.join('');   // every bill with its papers: Abstract, Tax Invoice, GST Declaration, diesel Debit Note, Log Book
     if (pages) printDoc('Submitted bill' + (got.length === 1 ? '' : 's') + ' – ' + showDate($('mb_from').value) + ' to ' + showDate($('mb_to').value), pages, 'rep rep-bill' + (anyLb ? ' rep-lb' : ''), true, $('mb_co').value);
   }));
   // the bill page (Abstract of Bill) – used for the preview, the print and the saved bills
@@ -11978,17 +11994,40 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     let w0 = null; try { w0 = window.open('', '_blank'); if (w0) w0.document.write('<title>Bill</title><p style="font:15px Arial,sans-serif;padding:24px;color:#334155">Reading the bill and its Log Book…</p>'); } catch (e) { w0 = null; }
     try { await viewSavedBillIn(id, w0); } catch (e) { try { if (w0) w0.close(); } catch (x) {} throw e; }
   }
+  /* (update-151) A SAVED BILL'S LOG BOOK – from the bill's fixed evidence (its entries, machinery and Log Book sheet input as they
+   * were when it was submitted), never from the Log Book of today. A bill submitted before the evidence was kept (legacy), or a
+   * site without step 1zc: today's Log Book, and the paper says so – with what changed after the bill, by the database's times.
+   * → { L (the sheets' input), note (printed above the Log Book), kind } */
+  async function billLogOf(b) {
+    let ev = null; try { ev = await call('getBillEvidence', { id: b.id }); } catch (e) { ev = null; }
+    const k = n => String(n).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (ev && ev.kind === 'submission') {
+      const ms = {}; (ev.machines || []).forEach(m => { if (m && m.id) ms[k(m.id)] = m; });
+      const idle = {}; Object.keys(ms).forEach(x => { idle[x] = (ev.extra || {}).idlePaid !== false; });
+      const c = ev.check || {}, t0 = new Date(ev.submittedAt || ''), when = isNaN(t0) ? '' : showDate(isoDate(t0)) + ' ' + String(t0.getHours()).padStart(2, '0') + ':' + String(t0.getMinutes()).padStart(2, '0');      // (the database keeps the time in UTC – shown in this computer's time)
+      const note = '<div class="ev-note' + (c.ok ? '' : ' bad') + '">Log Book as submitted with RA Bill ' + esc(ev.billNoThen || b.billNo) + (ev.revThen ? ' rev ' + esc(ev.revThen) : '') +
+        (when ? ' on ' + esc(when) : '') + (ev.submittedBy ? ' by ' + esc(ev.submittedBy) : '') + ' – kept with the bill, never changed afterwards. ' +
+        (c.ok ? 'Evidence check ✔ (' + ev.count + ' entr' + (ev.count === 1 ? 'y' : 'ies') + ', SHA-256 ' + esc(String(ev.hash || '').slice(0, 16)) + '…).'
+          : 'EVIDENCE CHECK FAILED – ' + ((c.bad || []).length ? (c.bad || []).length + ' entr' + ((c.bad || []).length === 1 ? 'y does not match its record' : 'ies do not match their records') : 'the record does not match its fingerprint') + '. Tell the Super Admin.') + '</div>';
+      return { kind: 'submission', note: note, L: { rows: ev.rows || [], f: { from: ev.from, to: ev.to }, summary: [], idle: idle, dieselRate: Number((ev.extra || {}).dieselRate) > 0 ? ev.extra.dieselRate : '', machines: ms, extra: ev.extra || { debit: {} }, note: note } };
+    }
+    const nos = new Set(((b.data || {}).machines || []).map(m => String(m.noNow || m.no).toUpperCase()));      // (noNow: the number it has today, if it was changed after the bill)
+    const logs = await call('getLogBookList', { from: b.from, to: b.to, all: true });
+    const rows = (logs.rows || []).filter(x => nos.has(String(x.no).toUpperCase()));
+    const idle = {}; nos.forEach(n => { idle[k(n)] = (b.data || {}).idlePaid !== false; });
+    const ch = ev && ev.changes, now = new Date(), stamp = showDate(isoDate(now)) + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    const note = '<div class="ev-note legacy">This bill was submitted before the Log Book was kept with bills. The Log Book below is TODAY\'S Log Book (' + esc(stamp) + '), not a record of the time of submission.' +
+      (ch ? ' Since the bill was saved: ' + (ch.changed || ch.added || ch.deleted ? ch.changed + ' entr' + (ch.changed === 1 ? 'y' : 'ies') + ' changed, ' + ch.added + ' added, ' + ch.deleted + ' deleted' : 'no entry of its machinery and dates was changed, added or deleted') + ' (by the database\'s own times).' : '') + '</div>';
+    return { kind: ev ? ev.kind : 'off', note: note, L: { rows: rows, f: { from: b.from, to: b.to }, summary: [], idle: idle, dieselRate: Number((b.data || {}).dieselRate) > 0 ? b.data.dieselRate : '', note: note } };
+  }
   async function viewSavedBillIn(id, w0) {
     const r = await call('getBills', { id: id }); const b = r.bills[0]; if (!b) { try { if (w0) w0.close(); } catch (x) {} return; }
     const data = Object.assign({ dnNo: b.dnNo }, b.data, { billNo: b.billNo, rev: b.rev });
     let lb = '';
     try {
-      const nos = new Set(((b.data || {}).machines || []).map(m => String(m.noNow || m.no).toUpperCase()));      // (noNow: the number it has today, if it was changed after the bill)
-      const logs = await call('getLogBookList', { from: b.from, to: b.to, all: true });
-      const rows = (logs.rows || []).filter(x => nos.has(String(x.no).toUpperCase()));
-      const idle = {}; nos.forEach(n => { idle[n.replace(/[^A-Z0-9]/g, '')] = (b.data || {}).idlePaid !== false; });
-      if (rows.length) lb = (await logSheetsOf({ rows: rows, f: { from: b.from, to: b.to }, summary: [], idle: idle, dieselRate: Number((b.data || {}).dieselRate) > 0 ? b.data.dieselRate : '' }, b.company)).sheets;
-      else toast('No Log Book entries now for this bill\'s machinery in its dates – the bill papers are shown without the Log Book.', true);
+      const x = await billLogOf(b);
+      if (x.L.rows.length) lb = x.note + (await logSheetsOf(x.L, b.company)).sheets;
+      else toast('No Log Book entries ' + (x.kind === 'submission' ? 'were kept with this bill' : 'now for this bill\'s machinery in its dates') + ' – the bill papers are shown without the Log Book.', true);
     } catch (e) { lb = ''; toast('The Log Book could not be read (' + errMsg(e) + ') – the bill papers are shown without it.', true); }
     printDoc('Abstract of Bill – ' + b.vendor + ' – RA Bill ' + b.billNo, billSheets(data, b.status === 'Superseded' ? ' superseded' : '') + lb, 'rep rep-bill' + (lb ? ' rep-lb' : ''), true, b.company, w0);
   }
@@ -13201,12 +13240,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (lb) {
       try {
         const r = await call('getBills', { id: lb.dataset.sbl }); const b = r.bills[0]; if (!b) return;
-        const nos = new Set(((b.data || {}).machines || []).map(m => String(m.noNow || m.no).toUpperCase()));      // (noNow: the number it has today, if it was changed after the bill)
-        const logs = await call('getLogBookList', { from: b.from, to: b.to, all: true });
-        const rows = (logs.rows || []).filter(x => nos.has(String(x.no).toUpperCase()));
-        if (!rows.length) { toast('No Log Book entries for this bill\'s machinery in its dates.', true); return; }
-        const idle = {}; nos.forEach(n => { idle[n.replace(/[^A-Z0-9]/g, '')] = (b.data || {}).idlePaid !== false; });
-        printLogRows({ rows: rows, f: { from: b.from, to: b.to }, summary: [], idle: idle, dieselRate: Number((b.data || {}).dieselRate) > 0 ? b.data.dieselRate : '' });      // (a bill made at a rate typed by hand: its Log Book opens at that rate)
+        const x = await billLogOf(b);      // (update-151) as submitted – its evidence; a legacy bill: today's Log Book, said so
+        if (!x.L.rows.length) { toast('No Log Book entries for this bill\'s machinery in its dates.', true); return; }
+        printLogRows(x.L);      // (a bill made at a rate typed by hand: its Log Book opens at that rate)
       } catch (err) { toast(errMsg(err), true); }
       return;
     }
@@ -17118,16 +17154,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   async function printLogRows(L) {
     if (!L || !L.rows.length) { toast('No Log Book entries to print – pick a Machinery and dates first.', true); return; }
-    const opt = { rate: !L.sample, value: L.dieselRate, byBill: !(Number(L.dieselRate) > 0) && !!L.rateBy && Object.keys(L.rateBy).length > 0 };
+    const opt = { rate: !L.sample && !L.extra, value: L.dieselRate, byBill: !(Number(L.dieselRate) > 0) && !!L.rateBy && Object.keys(L.rateBy).length > 0 };      // (update-151: a saved bill's evidence keeps the bill's own rate)
     const headName = await askPrintName('Print Log Book', opt); if (!headName) return;
     if (opt.bad) { toast('Diesel rate: type ₹ per litre (for example 95.50), or leave it empty for the automatic rate. Nothing was printed.', true); return; }
     // typed here = the rate of this print; a rate that stood in the box and was emptied = automatic; left empty for several bills = each bill's own rate
     if (opt.rate) L = Object.assign({}, L, Number(opt.typed) > 0 ? { dieselRate: r2(Number(opt.typed)), rateBy: null } : { dieselRate: '', rateBy: Number(opt.value) > 0 ? null : L.rateBy });
     const x = await logSheetsOf(L, headName);
-    printDoc(x.title, x.sheets, 'rep rep-lb', true, headName);
+    printDoc(x.title, (L.note || '') + x.sheets, 'rep rep-lb', true, headName);
   }
   // the Log Book sheets (one per machinery) of some entries, under a company name: { title, sheets } – for the Log Book print and for a saved bill's papers
   async function logSheetsOf(L, headName) {
+    if (L.extra) return logSheetsBuild(L, headName, L.extra);      // (update-151) a saved bill's evidence: its own BOQ / diesel / rates, as submitted
     const dates = L.rows.map(r => r.date).sort(), from = L.f.from || dates[0], to = L.f.to || S.today;
     let extra = { debit: {} };
     try { extra = await call('logPrintExtra', { from: from, to: to, nos: [...new Set(L.rows.map(r => r.no))] }) || extra; } catch (e) { /* bill part without debit / BOQ */ }
@@ -17137,6 +17174,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function logSheetsBuild(L, headName, extra0) {
     const LBOPT = { fmt: L && L.fmt, sample: L && L.sample }; // "View format": a format to show, and a SAMPLE mark
     const IDLE_BY = (L && L.idle) || null; // from a bill: { machinery: Idle days paid? } – as chosen in that bill
+    const MACH_THEN = (L && L.machines) || null; // (update-151) a saved bill's evidence: { machinery key: its Asset Master as it was when submitted }
     const ord = { 'Day': 0, 'Full Day': 0, 'Night': 1 };
     const nc = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true });
     const rows = L.rows.slice().sort((a, b) => nc(a.no, b.no) || (a.date < b.date ? -1 : a.date > b.date ? 1 : (ord[a.shift] || 0) - (ord[b.shift] || 0)));
@@ -17161,7 +17199,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       : /sketchline/i.test(headName) ? '<span class="lb-logo-s"><img src="' + SKETCHLINE_LOGO + '" alt="" onerror="this.parentNode.remove()"></span>' : '';
     const machines = Object.keys(by);
     const sheets = machines.map(no => {
-      const list = by[no], m = findMachine(no) || {}, u = m.unit || list[0].unit || 'KM';
+      const list = by[no], m = (MACH_THEN && MACH_THEN[String(no).toUpperCase().replace(/[^A-Z0-9]/g, '')]) || findMachine(no) || {}, u = m.unit || list[0].unit || 'KM';      // (update-151: a saved bill – its machinery as it was when submitted)
       const isHr = u === 'Hrs', dual = u === 'KM + Hrs';
       const wk = r => isHr ? (Number(r.whr) || 0) : (Number(r.wkm) || 0);            // the work that the average is on
       const rd = (a, b) => dual ? [a !== '' ? plain(a) : '', b !== '' ? plain(b) : ''].filter(Boolean).join('<br>') : plain(isHr ? b : a);
