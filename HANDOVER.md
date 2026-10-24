@@ -1903,6 +1903,20 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (kind submission + evCheck_ | legacy + evLegacyChanges_ by updated_at / created_at / deleted_rows | off before 1zc); page
   `billLogOf` – every saved-bill view / print / after-submit print from it (`.ev-note` above the Log Book). evReady_ false → as
   before. Unit 106 (new: update-151), browser ev151 11.
+- 24-10-2026 (update-152, with App 3.33.0). Report: `UPDATE_152.md`. AN APPROVED OR BILLED LOG BOOK ENTRY IS LOCKED – ONLY THE
+  SUPER ADMIN CHANGES IT, WITH HIS REASON (Phase B of the final attachments / bill security update). The last approval of a
+  verification marks the rows it writes (approved_by / approved_at / approval_ref – `entryGuard_`, VER_CTX_ 'flow', APPROVER_).
+  `billLocks_` counts Active, Superseded AND Deleted bills. `entryGuard_` runs in SbBook_.flush before EVERY database write: each
+  log_book row against `orig` (as loaded) / `goneRows`, the entered columns `LB_GUARD_`; locked (approval / bill) and not the
+  Super Admin → refused (apprLockMsg_ / billLockMsg_ – the page offers it to him as a request); the Super Admin without a reason →
+  'SA_REASON: …' (the page asks, sends again with meta.reason → SA_REASON_). The write goes as `web_write3(p, p_ctx …)`: the
+  context (actor, super, reason, fn, flow) is set for the transaction; the database guard (step 1zd trigger rcl_entry_guard,
+  invoker) writes every change of a locked entry to log_book_history (never changed – rcl_history_fixed) and, with ENTRY_GUARD =
+  enforce, refuses one not by the Super Admin (RCL_ENTRY_LOCKED); "warn" first, Database health counts them. `deleteBill_`: Super
+  Admin only, logical (status Deleted, deleted_by / at / delete_reason), its entries stay locked; the app's key has no DELETE on
+  bills; bill_machines (trigger) keeps every bill's machinery and dates. Only the Super Admin revises a submitted bill's dates.
+  Step 1zd's helpers revoked from the public roles (found by the rig's Database health). Unit 107, browser lock152 17; the
+  regression set the same as main (billed108 / ev151 changed for the new rules).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

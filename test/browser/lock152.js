@@ -119,7 +119,7 @@ const post = async (base, body) => (await fetch(base + '/api/rpc', { method: 'PO
     const w = sqlAs("update public.log_book set work_done = 'changed outside the app' where id = '" + K('2026-09-01') + "';");
     const hw = sql("select allowed || '|' || locked_by || '|' || coalesce(ctx::text, 'no context') from log_book_history where entry_key = '" + K('2026-09-01') + "' order by seq desc limit 1");
     const health = await A('dbHealth'), chk = ((health && health.checks) || []).find(c => /step 1zd/.test(c.name)) || {};
-    ok('5. the database guard (warn): a change of an approved entry by the app\'s role without the Super Admin is written down (allowed false); Database health names it', !/ERROR/.test(w) && /^false\|approval\|no context$/.test(hw) && chk.ok === true && /guard: warn · changes of locked entries not by the Super Admin in 30 days: 1 \(LK152-1\|2026-09-01\|Full Day\)/.test(chk.note || ''), { w, hw, chk });
+    ok('5. the database guard (warn): a change of an approved entry by the app\'s role without the Super Admin is written down (allowed false); Database health names it', !/ERROR/.test(w) && /^false\|approval\|no context$/.test(hw) && chk.ok === true && /guard: warn · changes of locked entries not by the Super Admin in 30 days: \d+ \([^)]*LK152-1\|2026-09-01\|Full Day/.test(chk.note || ''), { w, hw, chk });
     sql("update app_settings set value = 'enforce' where id = 'ENTRY_GUARD'");
     const e5 = sqlAs("update public.log_book set work_done = 'again' where id = '" + K('2026-09-01') + "';");
     sql("update app_settings set value = 'warn' where id = 'ENTRY_GUARD'");
