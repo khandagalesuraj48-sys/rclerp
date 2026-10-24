@@ -8102,19 +8102,28 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ================= LIVE SYNC =================
      Every few seconds the app asks the server what changed (by anyone, in the app or directly in the Google Sheet).
      Only the changed parts reload, and the user's access (View / Edit / Active) is applied at once. */
-  // about every second while the app is on screen (the next check starts when the previous one finishes),
-  // every 8 seconds while the tab is in the background, so the data is already current when you come back
-  /* How often the page asks the server "has anything changed?" (one small call each time).
-   * Before: once a second, always. Now it follows what the person is doing:
-   *   working (mouse / keyboard used in the last 30 seconds)  → every 2 seconds
-   *   page open but nobody touching it                        → every 5 seconds, after 5 minutes every 15 seconds
-   *   tab in the background                                   → every 30 seconds
-   * The first touch after a quiet spell asks at once, and so does coming back to the tab and every save –
+  /* How often the page asks the server "has anything changed?" (one small call each time; the next check starts when the
+   * previous one finishes). It follows what the person is doing (update-155 – before: 2 s on every page, 30 s in the background):
+   *   a page that shows others' entries (LIVE_TABS), working or just looking   → every 2 seconds (asked 02-10-2026)
+   *   any other page on screen                                               → every 5 seconds
+   *   nobody touching the page for 5 minutes                                 → every 15 seconds
+   *   tab in the background                                                  → every 60 seconds
+   *   a screen share being set up                                            → every 1.5 seconds
+   * The first touch after a quiet spell asks at once, and so does coming back to the tab, opening a page and every save –
    * so what is on screen is fresh before anyone acts on it. */
-  const SYNC_ACTIVE_MS = 2000, SYNC_IDLE_MS = 2000 /* asked 02-10-2026: other people's entries within 2 seconds */, SYNC_LONG_IDLE_MS = 15000, SYNC_BG_MS = 30000, SYNC_QUIET_AFTER = 30000;
+  /* (update-155, asked 24-10-2026: "Active Critical Screens साठी Fast Sync … Hidden/Inactive Screens साठी कमी खर्चिक Sync आणि पुन्हा
+   * Active झाल्यावर Catch-up") – the pages that show other people's entries as they come (LIVE_TABS: the Dashboard, Log Book,
+   * Diesel Issue / Inward / Transfer, Approvals, Asset Master, Activity Log) keep the 2 seconds; any other page on screen asks
+   * every 5 seconds (nothing on it is redrawn by others' entries); a tab in the background every 60 seconds (was 30). Coming
+   * back to the tab, the window, a first touch after a quiet spell, opening a page and every save ask at once (catch-up), and
+   * every answer of the heartbeat is "the same" in a few bytes when nothing changed (server/delta.js). */
+  const SYNC_ACTIVE_MS = 2000, SYNC_IDLE_MS = 2000 /* asked 02-10-2026: other people's entries within 2 seconds */, SYNC_LONG_IDLE_MS = 15000, SYNC_BG_MS = 60000, SYNC_QUIET_AFTER = 30000, SYNC_OTHER_MS = 5000;
+  const LIVE_TABS = ['dash', 'log', 'diesel', 'inward', 'transfer', 'approvals', 'master', 'activity'];
   let lastInput = Date.now();
   const syncGap = () => { try { if (rtcFast()) return 1500; } catch (e) { /* not there yet */ }      // a screen share is being set up: the ring and the answer travel with the heartbeat
-    if (document.hidden) return SYNC_BG_MS; const idle = Date.now() - lastInput; return idle < SYNC_QUIET_AFTER ? SYNC_ACTIVE_MS : idle < 300000 ? SYNC_IDLE_MS : SYNC_LONG_IDLE_MS; };
+    if (document.hidden) return SYNC_BG_MS; const idle = Date.now() - lastInput;
+    const gap = idle < SYNC_QUIET_AFTER ? SYNC_ACTIVE_MS : idle < 300000 ? SYNC_IDLE_MS : SYNC_LONG_IDLE_MS;
+    return LIVE_TABS.indexOf(S.curTab || 'dash') > -1 ? gap : Math.max(gap, SYNC_OTHER_MS); };
   let syncTimer = null, syncBusy = false, syncOn = false;
   function startSync() {
     if (syncOn) return;
@@ -8149,7 +8158,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         document.querySelectorAll('#lg_in [data-f=date]').forEach(i => { i.max = r.today; });
         if (visible('dash')) dashToday();
       }
-      setLive(true);
+      setLive(true); window.rclSyncAt = Date.now();      // (update-155) the shell does not ask for the version itself while the heartbeat runs
       if (accessKey(r.user) !== accessKey(S.user)) { // only when something really changed
         const wasAdmin = S.user.admin;
         S.user = r.user; applyPerms(); refreshAccessViews(); setClosed(S.closedUpto);
@@ -9300,7 +9309,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     S.newBuild = b;
     // the shell SHOWS it ("a new version is ready – Update now / Later") and applies it by itself after a few minutes when nothing is
     // half typed; the person updates from inside the app. (Until 05-10-2026 the new version was swapped in here silently.)
-    try { const A = window.top && window.top.rclApp; if (A && A.check) { A.check(); return; } } catch (e) { /* no shell: the old way below */ }
+    // (update-155) the shell is asked once for this version, then at most once a minute (every heartbeat carries the version:
+    //  until now each one – every 2 seconds – made the shell ask the server again while the new version waited)
+    try { const A = window.top && window.top.rclApp; if (A && A.check) { if (S.buildAsked !== b || Date.now() - (S.buildAskedAt || 0) > 60000) { S.buildAsked = b; S.buildAskedAt = Date.now(); A.check(); } return; } } catch (e) { /* no shell: the old way below */ }
     if (!window.rclBusy() && swapNow()) return;          // nothing unsaved: the new version opens by itself, right here
     $('upd_msg').textContent = formDirty() ? '✨ A new version of the app is ready – save your entry, then click Update now.' : '✨ A new version of the app is ready – it opens with your next click on the menu.';
     $('upd_bar').hidden = false;

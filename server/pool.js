@@ -7,6 +7,8 @@ const { Worker, isMainThread, parentPort, workerData } = require('worker_threads
 
 if (!isMainThread && workerData && workerData.rclWorker) {
   const { run, warm } = require('./runtime');
+  const { meter } = require('./syncfetch');
+  const cpuMs = () => { try { if (typeof process.threadCpuUsage === 'function') { const u = process.threadCpuUsage(); return (u.user + u.system) / 1000; } } catch (e) { /* older Node */ } return 0; };
   // (update-140) the tables this server already read (another thread's copy) – and every copy this thread makes is handed on
   const gas = require('./gas');
   try { (workerData.seed || []).forEach(x => gas.seed(x.site, x.table, x.state)); } catch (e) { /* this thread reads for itself */ }
@@ -15,7 +17,10 @@ if (!isMainThread && workerData && workerData.rclWorker) {
   parentPort.on('message', m => {
     if (m && m.seed) { try { m.seed.forEach(x => gas.seed(x.site, x.table, x.state)); } catch (e) { /* kept as it is */ } return; }
     let out;
+    // (update-155) what this request cost: database calls and bytes (syncfetch's meter) and this thread's CPU time
+    const d0 = meter(), c0 = cpuMs();
     try { out = { id: m.id, ok: run(m.fn, m.args, m.meta) }; } catch (e) { out = { id: m.id, err: String((e && e.message) || e) }; }
+    try { const d1 = meter(); out.use = { db: d1.n - d0.n, dbBytes: d1.b - d0.b, cpu: Math.round((cpuMs() - c0) * 10) / 10 }; } catch (e) { /* not counted */ }
     parentPort.postMessage(out);
   });
 } else {
@@ -45,7 +50,7 @@ if (!isMainThread && workerData && workerData.rclWorker) {
   const fail = (s, msg) => { const job = s.job; s.job = null; drop(s); try { s.w.terminate(); } catch (e) {} if (job) { clearTimeout(job.timer); job.reject(new Error(msg)); } next(); };
   function spawn() {
     const s = { w: new Worker(__filename, { workerData: { rclWorker: true, seed: [...SNAP.values()] } }), job: null };
-    s.w.on('message', m => { if (m && m.warmTable) { shared(s, m.warmTable); return; } const job = s.job; if (!job || m.id !== job.id) return; s.job = null; clearTimeout(job.timer); if (m.err !== undefined) job.reject(new Error(m.err)); else job.resolve(m.ok); next(); });
+    s.w.on('message', m => { if (m && m.warmTable) { shared(s, m.warmTable); return; } const job = s.job; if (!job || m.id !== job.id) return; s.job = null; clearTimeout(job.timer); if (m.use && job.meta && typeof job.meta === 'object') job.meta.use = m.use; if (m.err !== undefined) job.reject(new Error(m.err)); else job.resolve(m.ok); next(); });
     s.w.on('error', e => fail(s, 'The server had a problem: ' + String((e && e.message) || e)));
     s.w.on('exit', () => { if (workers.indexOf(s) > -1) fail(s, 'The server had a problem – please try again.'); });
     s.w.unref();

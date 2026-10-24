@@ -4,6 +4,8 @@
 'use strict';
 const pool = require('../server/pool');            // each request in its own helper thread
 const { page } = require('../server/page');
+const delta = require('../server/delta');          // (update-155) "the same as you have" / only what changed
+const usage = require('../server/usage');          // (update-155) what each action costs (counted in memory)
 const ALLOWED = ['api', 'login', 'changePassword', 'logout', 'orgInfo', 'switchSite', 'setDefaultSite', 'super', 'ssoLogin', 'portalAdmin'];   // ssoLogin (update-91): a ticket of the Portal   // (update-90) another of my sites / my default site / the Super Admin   // orgInfo: what the sign-in screen shows (brand, customer, site) – nothing else is given without a sign-in
 
 function readBody(req) {
@@ -36,27 +38,43 @@ module.exports = async (req, res) => {
    * 3 minutes (sql/supabase_step6_keep_awake.sql): this runs the same light step as the sign-in screen (orgInfo) in a helper
    * thread – the server, its threads and its connection to the database stay awake – and answers only "ok", no data. */
   if (req.method === 'GET' && /[?&]warm=1(&|$)/.test(String(req.url || ''))) {
-    const t0 = Date.now(); let ok = true;
-    try { await pool.call('orgInfo', [], { url: '', rid: '' }); } catch (e) { ok = false; }      // (even a refusal has woken it)
+    const t0 = Date.now(); let ok = true; const wm = { url: '', rid: '' };
+    try { await pool.call('orgInfo', [], wm); } catch (e) { ok = false; }      // (even a refusal has woken it)
     res.setHeader('Cache-Control', 'no-store');
-    return send(200, JSON.stringify({ ok: ok, ms: Date.now() - t0 }));
+    const wt = JSON.stringify({ ok: ok, ms: Date.now() - t0 });
+    usage.add('', 'warm', Object.assign({ ms: Date.now() - t0, out: wt.length, err: !ok }, wm.use || {}));
+    return send(200, wt);
+  }
+  // (update-155) the counts of this server – only on the local test rig (RCL_USAGE=on is never set on the live site)
+  if (req.method === 'GET' && process.env.RCL_USAGE === 'on' && /[?&]usage=(1|reset)(&|$)/.test(String(req.url || ''))) {
+    if (/usage=reset/.test(String(req.url))) { usage.reset(); delta.clearKept(); }
+    return send(200, JSON.stringify(Object.assign(usage.summary(200), { kept: delta.kept() })));
   }
   if (req.method !== 'POST') return send(405, JSON.stringify({ error: 'POST only.' }));
   let body;
   try { body = await readBody(req); } catch (e) { return send(400, JSON.stringify({ error: 'Bad request.' })); }
+  if (!body || typeof body !== 'object') body = {};
   const fn = String((body && body.fn) || ''), args = Array.isArray(body && body.args) ? body.args : [];
+  const t0 = Date.now(), site = typeof body.site === 'string' ? body.site.slice(0, 20) : '', action = fn === 'api' ? String(args[1] || '') : fn;
+  const meta = { url: '', rid: typeof body.rid === 'string' ? body.rid.slice(0, 64) : '', site: site };
+  const counted = (text, x) => { try { usage.add(site, action, Object.assign({ ms: Date.now() - t0, out: text.length }, meta.use || {}, x || {})); } catch (e) { /* only a count */ } return text; };
   try {
-    if (fn === 'getAppBuild') return send(200, JSON.stringify({ result: page().build }));
-    if (fn === 'getAppHtml') { const p = page(); return send(200, JSON.stringify({ result: { build: p.build, html: p.html } })); }
-    if (ALLOWED.indexOf(fn) === -1) return send(404, JSON.stringify({ error: 'Unknown action.' }));
+    if (fn === 'getAppBuild') return send(200, counted(JSON.stringify({ result: page().build })));
+    if (fn === 'getAppHtml') { const p = page(); return send(200, counted(JSON.stringify({ result: { build: p.build, html: p.html } }))); }
+    if (ALLOWED.indexOf(fn) === -1) return send(404, counted(JSON.stringify({ error: 'Unknown action.' }), { err: 1 }));
     const host = req.headers['x-forwarded-host'] || req.headers.host || '';
     // site: which site's database (stage 1 of "new site" – not sent = the first site, as before; a site that is not set up is refused)
-    const out = await pool.call(fn, args, { url: host ? 'https://' + host + '/' : '', rid: typeof body.rid === 'string' ? body.rid.slice(0, 64) : '', site: typeof body.site === 'string' ? body.site.slice(0, 20) : '' });   // rid: the number of a save (a save sent again is saved once – runtime.js)
+    meta.url = host ? 'https://' + host + '/' : '';
+    const out = await pool.call(fn, args, meta);   // rid: the number of a save (a save sent again is saved once – runtime.js)
     // Vercel does not send an answer bigger than about 4.5 MB
-    if (Buffer.byteLength(out, 'utf8') > 4200000) return send(200, JSON.stringify({ error: 'Too much data in one go – pick a shorter period (or fewer machinery) and try again.' }));
-    return send(200, '{"result":' + out + '}');
+    if (Buffer.byteLength(out, 'utf8') > 4200000) return send(200, counted(JSON.stringify({ error: 'Too much data in one go – pick a shorter period (or fewer machinery) and try again.' }), { err: 1 }));
+    /* (update-155) a question from a page that keeps its answers (m: 1, never a save): "the same", only what changed, or whole –
+     * worked out from this answer of NOW (server/delta.js). Everyone else gets { result } exactly as before. */
+    if (body.m === 1 && fn === 'api' && !meta.rid) { const a = delta.answer(delta.keyOf(site, fn, args), out, body.have, body.dx === 1); return send(200, counted(a.text, { kind: a.kind, full: a.full + 11 })); }
+    return send(200, counted('{"result":' + out + '}'));
   } catch (e) {
     const msg = String((e && e.message) || e).replace(/^Error:\s*/, '');
+    try { usage.add(site, action, Object.assign({ ms: Date.now() - t0, out: msg.length + 12, err: 1 }, meta.use || {})); } catch (x) { /* only a count */ }
     if (!/SESSION_EXPIRED|Wrong email|View access|do not have access|Only Admin|^The Portal sign-in could not be accepted \((it ran out|this ticket was already used)/.test(msg)) console.error('[' + fn + (fn === 'api' ? ':' + args[1] : '') + '] ' + msg);
     return send(statusOf(msg), JSON.stringify({ error: msg }));
   }

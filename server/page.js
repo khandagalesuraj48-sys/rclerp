@@ -6,6 +6,7 @@ const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const APP_DIR = path.join(__dirname, '..', 'app');
 const read = f => fs.readFileSync(path.join(APP_DIR, f), 'utf8');
 
+const DELTA_CLIENT = require('./delta').CLIENT;      // (update-155) the same two functions as the server's
 const BRIDGE = `
 (function () {
   var base = '';
@@ -34,6 +35,20 @@ const BRIDGE = `
   var inFlight = {}, flightNo = 0, lastAnswer = '';
   window.__rclNet = function () { var now = Date.now(), w = Object.keys(inFlight).map(function (k) { return inFlight[k].fn + ' ' + ((now - inFlight[k].t0) / 1000).toFixed(1) + ' s'; });
     return { waiting: w.slice(0, 4).join(', '), last: lastAnswer }; };
+  /* (update-155) the page's memory of answers (see send): per site and whole question (with the sign-in), at most about 12 million
+   * characters, the oldest dropped first; emptied at sign-in, sign-out, a change of site or password and the Super Admin's work */
+  var MEMO_ON = true, memo = new Map(), memoChars = 0, memoSite = null, memoN = { same: 0, delta: 0, full: 0, mismatch: 0, bytes: 0 };
+  var CAN_PATCH = false; try { CAN_PATCH = !!(window.crypto && window.crypto.subtle && window.TextEncoder); } catch (e) { CAN_PATCH = false; }
+  ${DELTA_CLIENT}
+  function sha(t) { return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)).then(function (b) { var a = new Uint8Array(b), s = ''; for (var i = 0; i < 16; i++) s += ('0' + a[i].toString(16)).slice(-2); return s; }); }
+  function memoable(f) { return f === 'sync' || /^(get|rpt)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1; }
+  function memoClear() { memo.clear(); memoChars = 0; }
+  function memoKeep(k, h, text) { var had = memo.get(k); if (had) { memo.delete(k); memoChars -= had.text.length; }
+    if (text.length > 4000000) return; memo.set(k, { h: h, text: text }); memoChars += text.length;
+    memo.forEach(function (v, kk) { if (memoChars > 12000000 && kk !== k) { memo.delete(kk); memoChars -= v.text.length; } }); }
+  function memoTouch(k, v) { memo.delete(k); memo.set(k, v); }
+  function memoCount(kind, bytes) { memoN[kind] = (memoN[kind] || 0) + 1; memoN.bytes += bytes; }
+  window.__rclMemo = function () { return { answers: memo.size, chars: memoChars, same: memoN.same, delta: memoN.delta, full: memoN.full, mismatch: memoN.mismatch, bytes: memoN.bytes }; };
   function send(name, args, ok, fail) {
     try { if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('→ ' + (name === 'api' ? args[1] : name)); } catch (e) {}
     if (isQuestion(name, args)) {
@@ -50,6 +65,7 @@ const BRIDGE = `
         try { if (fail0) fail0(e); } finally { others.forEach(function (w) { try { if (w.fail) w.fail(e); } catch (x) {} }); } };
     }
     var isQ = isQuestion(name, args) || (name === 'api' && args[1] === 'sync') || name === 'getAppBuild' || name === 'getAppHtml';
+    if (['login', 'logout', 'ssoLogin', 'switchSite', 'setDefaultSite', 'changePassword', 'super', 'portalAdmin'].indexOf(name) > -1) memoClear();      // (update-155) another person, site or access: nothing kept
     if (!isQ) saveNo++;
     var t0 = Date.now(), fid = ++flightNo, fnName = name === 'api' ? String(args[1]) : name;
     inFlight[fid] = { fn: fnName, t0: t0 };
@@ -67,6 +83,19 @@ const BRIDGE = `
     var site = ''; try { site = localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site') || ''; } catch (e) { site = ''; }
     var msg = rid ? { fn: name, args: args, rid: rid } : { fn: name, args: args }; if (site) msg.site = site;
     var body = JSON.stringify(msg), tries = 0;
+    /* (update-155) THE LAST ANSWER OF A QUESTION IS KEPT IN THIS PAGE'S MEMORY (never in the browser's storage) with its
+     * fingerprint. Asked again, the page says which one it has; the server works the answer out as always (with the person's
+     * access) and says "the same" (a few bytes), sends only what changed, or sends it whole (server/delta.js). What is rebuilt
+     * here is checked against the server's fingerprint; anything that does not match asks again for the whole answer. */
+    var mkey = '', noHave = false, rawText = '';
+    if (name === 'api' && isQ && MEMO_ON && memoable(fnName)) { mkey = site + '|' + JSON.stringify(args); if (mkey.length > 20000) mkey = ''; }
+    if (mkey && memoSite !== site) { memoClear(); memoSite = site; }
+    var bodyNow = function () {
+      if (!mkey) return body;
+      var m2 = { fn: name, args: args, m: 1 }; if (site) m2.site = site;
+      var b = noHave ? null : memo.get(mkey); if (b) { m2.have = b.h; if (CAN_PATCH) m2.dx = 1; }
+      return JSON.stringify(m2);
+    };
     var again = function (why) {
       if (/Too much data/.test(why)) return false;
       if (name !== 'api' || fnName === 'sync') return false;
@@ -74,16 +103,37 @@ const BRIDGE = `
       waiting[fid] = { fn: fnName, n: tries }; retryNote();
       setTimeout(attempt, Math.min(10000, Math.round(1200 * Math.pow(1.6, tries - 1)))); return true;
     };
+    // the answer as the page always had it: { result } or { error }
+    var finish = function (j, value) {
+      if (j.error !== undefined && j.error !== null && TRANSIENT.test(String(j.error)) && again(String(j.error))) return;       // the server could not do it NOW: again
+      if (mkey && j.error !== undefined && j.error !== null) memo.delete(mkey);      // a refusal (no access any more …): nothing of it is kept
+      var was = waiting[fid]; if (was) { delete waiting[fid]; retryNote(true); }
+      landed(false); if (!isQ) saveNo++; try { took(name, args, Date.now() - t0); if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('← ' + (name === 'api' ? args[1] : name) + ' ' + (Date.now() - t0) + ' ms' + (tries > 1 ? ' (try ' + tries + ')' : '') + (j && j.error ? ' ERROR' : '')); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(value); };
+    var whole = function () { noHave = true; tries--; attempt(); };      // ask once more, for the whole answer
     var attempt = function () {
       tries++;
-      fetch(base + '/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, cache: 'no-store' })
+      fetch(base + '/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: bodyNow(), cache: 'no-store' })
         .then(function (r) { return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; }
           if (!j) throw new Error(r.status === 413 ? 'Too much data in one go – pick a shorter period.' : 'The server did not answer properly (' + r.status + '). Try again.');
-          return j; }); })
+          rawText = mkey ? t : ''; return j; }); })
         .then(function (j) {
-          if (j.error !== undefined && j.error !== null && TRANSIENT.test(String(j.error)) && again(String(j.error))) return;       // the server could not do it NOW: again
-          var was = waiting[fid]; if (was) { delete waiting[fid]; retryNote(true); }
-          landed(false); if (!isQ) saveNo++; try { took(name, args, Date.now() - t0); if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('← ' + (name === 'api' ? args[1] : name) + ' ' + (Date.now() - t0) + ' ms' + (tries > 1 ? ' (try ' + tries + ')' : '') + (j && j.error ? ' ERROR' : '')); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(j.result); },
+          if (mkey && (j.error === undefined || j.error === null) && typeof j.h === 'string') {
+            var have = memo.get(mkey); memoCount(j.same ? 'same' : j.delta ? 'delta' : 'full', rawText.length);
+            if (j.same) { if (have && have.h === j.h) { memoTouch(mkey, have); finish(j, JSON.parse(have.text)); return; } if (!noHave) { whole(); return; } }
+            else if (j.delta) {
+              if (have && have.h === j.base && !noHave) {
+                var txt = null; try { txt = rclPatch(have.text, j.delta); } catch (e) { txt = null; }
+                if (txt === null) { memo.delete(mkey); whole(); return; }
+                sha(txt).then(function (h2) { if (h2 !== j.h) { memo.delete(mkey); memoCount('mismatch', 0); whole(); return; }
+                  var v; try { v = JSON.parse(txt); } catch (e) { memo.delete(mkey); whole(); return; }
+                  memoKeep(mkey, j.h, txt); finish(j, v); }, function () { memo.delete(mkey); whole(); });
+                return;
+              }
+              if (!noHave) { whole(); return; }
+            }
+            else if ('result' in j) { var p = rawText.indexOf('"result":'); if (rawText.slice(0, 6) === '{"h":"' && p > 0) memoKeep(mkey, j.h, rawText.slice(p + 9, rawText.length - 1)); }
+          }
+          finish(j, j.result); },
               function (e) {
                 if (again(String((e && e.message) || e))) return;
                 landed(true); if (fail) fail(new Error(e && /did not answer|Too much data/.test(e.message) ? e.message : 'No connection to the server – check the internet and try again.')); });
