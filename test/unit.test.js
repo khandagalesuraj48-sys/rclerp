@@ -5182,7 +5182,8 @@ test('update-152: an approved or billed Log Book entry is locked – only the Su
     const m = run('() => findMachine_("AP152-1")');
     r = api(AD, 'saveMaster', Object.assign({}, m, { no: 'AP152-9' }), 'edit', 'AP152-1'); assert.ok(r && r.ok, JSON.stringify(r).slice(0, 300));
     assert.ok(row('AP152-9|2026-05-01|Full Day') && row('AP152-9|2026-05-01|Full Day').ap && !row(K('2026-05-01')), 'moved with its mark');
-    r = api(AD, 'saveMaster', Object.assign({}, m, { no: 'AP152-1' }), 'edit', 'AP152-9'); assert.ok(r && r.ok, 'and back: ' + JSON.stringify(r).slice(0, 300));
+    // (update-156: the machinery as it is now – its version after the first change; the old one would be refused, as any stale edit)
+    r = api(AD, 'saveMaster', Object.assign({}, run('() => findMachine_("AP152-9")'), { no: 'AP152-1' }), 'edit', 'AP152-9'); assert.ok(r && r.ok, 'and back: ' + JSON.stringify(r).slice(0, 300));
     // ---------- 5. bills: revise / delete only by the Super Admin; a Superseded or Deleted bill still locks ----------
     const co = run('() => billCompanies_()')[0];
     const mk = no => run(`(a) => { const m = findMachine_('AP152-1'), from = '2026-05-01', to = '2026-05-31';
@@ -5580,4 +5581,90 @@ test('update-155: /api/rpc answers "same" / delta only to a page that asks for i
   const g = r.usage.top.find(x => x.key === 'vtr|getDieselIssues');
   assert.ok(g && g.n === 4 && g.same === 1 && g.delta === 1 && g.db === 8 && g.dbBytes === 3600 && g.cpu === 12 && g.full > g.out, JSON.stringify(g));
   assert.ok(r.usage.top.find(x => x.key === 'vtr|boom' && x.err === 1) && r.usage.top.find(x => x.key === 'vtr|saveDieselIssue' && x.n === 1));
+});
+
+test('update-156: every edit screen carries the version it opened – Inward, Transfer, Payments, Vendor, BOQ, Asset Master (one, many, delete): changed by someone else meanwhile = refused, nothing saved', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => run('(f, a) => { try { return eval("(" + f + ")").apply(null, a); } catch (e) { return { thrown: String(e.message) }; } }', fn, a);
+  const NOW = /was changed by .* after you opened it – open it again and make your change there\. Nothing was saved\./;
+  // ---- the start ----
+  run('(x, m) => saveVendor_(x, m)', { name: 'R156 Transport', gstReg: 'No', pan: 'ABCDE1256R', bank: 'SBI', account: '12345156', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: 'R156-TIP', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'R156 Transport', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01', monthlyRate: 45000 }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: 'R156-JCB', name: 'JCB', type: 'Excavator', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 6, owner: 'R156 Transport', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  const inw = run('x => saveInward_(x)', { date: '2026-06-01', location: 'Dispenser', pump: 'Pump 156', qty: 2000, rate: 90, billNo: 'R156-A', billDate: '2026-06-01' });
+  // ---- Inward ----
+  const iRow = () => run('() => getInwards_({ from: "2026-06-01", to: "2026-06-01" })').rows.find(r => r.id === inw.id);
+  const i1 = iRow(), I = o => Object.assign({ date: '2026-06-01', location: 'Dispenser', pump: 'Pump 156', qty: 2000, rate: 90, billNo: 'R156-A', billDate: '2026-06-01' }, o);
+  assert.ok(i1.ver && i1.ver === iRow().ver, 'the same inward: the same version');
+  assert.ok(!tryRun('(id, x) => updateInward_(id, x)', inw.id, I({ rate: 91, ver: i1.ver })).thrown, 'the first change is saved');
+  let x = tryRun('(id, x) => updateInward_(id, x)', inw.id, I({ rate: 95, ver: i1.ver }));
+  assert.match(x.thrown || '', new RegExp('^Inward ' + inw.id + ' was changed by')); assert.match(x.thrown, NOW);
+  assert.strictEqual(iRow().rate, 91, 'his 91 stays');
+  assert.match(tryRun('(id, v) => deleteInward_(id, v)', inw.id, i1.ver).thrown || '', NOW); assert.ok(iRow(), 'not deleted');
+  assert.ok(!tryRun('(id, x) => updateInward_(id, x)', inw.id, I({ rate: 92 })).thrown, 'an older page or app (no version): taken as before');
+  run('x => saveDieselIssue_(x)', { date: '2026-06-01', shift: 'Day', source: 'Dispenser', no: 'R156-TIP', qty: 40, kmReading: 1120, force: true });
+  const i2 = iRow();
+  assert.ok(!tryRun('(id, x) => updateInward_(id, x)', inw.id, I({ rate: 93, ver: i2.ver })).thrown, 'diesel issued from it meanwhile does not stop the change');
+  // ---- Transfer ----
+  run('x => saveInward_(x)', { date: '2026-06-01', location: 'VTR Store', pump: 'Pump 156', qty: 500, rate: 90, billNo: 'R156-B', billDate: '2026-06-01' });
+  const tr = run('x => saveTransfer_(x)', { date: '2026-06-02', shift: 'Day', from: 'VTR Store', to: 'Dispenser', qty: 100, remark: 'R156' });
+  const tRow = () => run('() => getTransfers_({ from: "2026-06-02", to: "2026-06-02" })').rows.find(r => r.id === tr.id), t1 = tRow();
+  const TR = o => Object.assign({ date: '2026-06-02', shift: 'Day', from: 'VTR Store', to: 'Dispenser', qty: 100, remark: 'R156' }, o);
+  assert.ok(t1.ver && !tryRun('(id, x) => updateTransfer_(id, x)', tr.id, TR({ qty: 120, ver: t1.ver })).thrown);
+  assert.match(tryRun('(id, x) => updateTransfer_(id, x)', tr.id, TR({ qty: 150, ver: t1.ver })).thrown || '', NOW);
+  assert.match(tryRun('(id, v) => deleteTransfer_(id, v)', tr.id, t1.ver).thrown || '', NOW);
+  assert.strictEqual(tRow().qty, 120);
+  // ---- Payments ----
+  run('(x, m) => savePayment_(x, m)', { type: 'Payment', date: '2026-06-03', vendor: 'R156 Transport', amount: 10000, mode: 'NEFT', ref: 'UTR156' }, 'add');
+  const pRow = () => run('() => getPayments_({ vendor: "R156 Transport" })').payments[0], p1 = pRow();
+  const PY = o => Object.assign({ id: p1.id, type: 'Payment', date: '2026-06-03', vendor: 'R156 Transport', amount: 10000, mode: 'NEFT', ref: 'UTR156' }, o);
+  assert.ok(p1.ver && !tryRun('(x, m) => savePayment_(x, m)', PY({ amount: 12000, ver: p1.ver }), 'edit').thrown);
+  x = tryRun('(x, m) => savePayment_(x, m)', PY({ amount: 15000, ver: p1.ver }), 'edit');
+  assert.match(x.thrown || '', /^Payment PAY-\d+ \(R156 Transport\) was changed by/); assert.strictEqual(pRow().amount, 12000, 'the ledger keeps 12,000');
+  assert.match(tryRun('(id, v) => deletePayment_(id, v)', p1.id, p1.ver).thrown || '', NOW); assert.ok(pRow(), 'not deleted');
+  assert.ok(!tryRun('(id, v) => deletePayment_(id, v)', p1.id, pRow().ver).thrown, 'deleted with the version of now');
+  // ---- Vendor (also a rename: refused before anything moves) ----
+  const vRow = () => run('() => getVendors_()').find(v => v.name === 'R156 Transport'), v1 = vRow();
+  const VD = o => Object.assign({ name: 'R156 Transport', gstReg: 'No', pan: 'ABCDE1256R', bank: 'SBI', account: '12345156', ifsc: 'SBIN0000001' }, o);
+  assert.ok(v1.ver && !tryRun('(x, m) => saveVendor_(x, m)', VD({ bank: 'HDFC', ver: v1.ver }), 'edit').thrown);
+  x = tryRun('(x, m) => saveVendor_(x, m)', VD({ oldName: 'R156 Transport', name: 'R156 Movers', bank: 'SBI', ver: v1.ver }), 'edit');
+  assert.match(x.thrown || '', /^Vendor R156 Transport was changed by/);
+  assert.ok(vRow() && vRow().bank === 'HDFC' && run('() => getMaster_()').find(m => m.id === 'R156-TIP').owner === 'R156 Transport', 'not renamed, the machinery still his');
+  run('(x, m) => saveMaster_(x, m)', { no: 'R156-NEW', name: 'Roller', type: 'Roller', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 5, owner: 'R156 Transport', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+  assert.strictEqual(vRow().ver, run('() => getVendors_()').find(v => v.name === 'R156 Transport').ver, 'a machinery given to him meanwhile does not change his version');
+  // ---- BOQ ----
+  const bq = run('(b, m) => saveBoq_(b, m)', { vendor: 'R156 Transport', no: 'BOQ-156', from: '2026-06-01', to: '', lines: [{ no: 'R156-TIP', basis: 'Monthly', rate: 45000, diesel: 'Company' }], gstPct: '', tdsPct: 1, woNo: 'WO-156' }, 'add');
+  const bRow = () => run('() => getBoqs_({})').boqs.find(b => b.id === bq.id), b1 = bRow();
+  const BQ = o => Object.assign({ vendor: 'R156 Transport', no: 'BOQ-156', from: '2026-06-01', to: '', lines: [{ no: 'R156-TIP', basis: 'Monthly', rate: 45000, diesel: 'Company' }], gstPct: '', tdsPct: 1, woNo: 'WO-156' }, o);
+  assert.ok(b1 && b1.ver, JSON.stringify(b1 || bq).slice(0, 300));
+  assert.ok(!tryRun('(b, m, id) => saveBoq_(b, m, id)', BQ({ remark: 'first', ver: b1.ver }), 'edit', bq.id).thrown);
+  assert.match(tryRun('(b, m, id) => saveBoq_(b, m, id)', BQ({ lines: [{ no: 'R156-TIP', basis: 'Monthly', rate: 50000, diesel: 'Company' }], ver: b1.ver }), 'edit', bq.id).thrown || '', /^BOQ BOQ-156 \(R156 Transport\) was changed by/);
+  assert.match(tryRun('(id, v) => deleteBoq_(id, v)', bq.id, b1.ver).thrown || '', NOW);
+  assert.strictEqual(bRow().lines[0].rate, 45000, 'the rate stays');
+  // ---- Asset Master: one, many, delete ----
+  const mRow = id => run('() => getMaster_()').find(m => m.id === id), m1 = mRow('R156-JCB');
+  const M = o => Object.assign({ no: 'R156-JCB', name: 'JCB', type: 'Excavator', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 6, owner: 'R156 Transport', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, o);
+  assert.ok(m1.ver && !tryRun('(x, m, o) => saveMaster_(x, m, o)', M({ hrStd: 7, ver: m1.ver }), 'edit', 'R156-JCB').thrown);
+  x = tryRun('(x, m, o) => saveMaster_(x, m, o)', M({ no: 'R156-JCB2', hrStd: 6, ver: m1.ver }), 'edit', 'R156-JCB');
+  assert.match(x.thrown || '', /^Machinery R156-JCB was changed by/); assert.ok(mRow('R156-JCB') && !mRow('R156-JCB2') && mRow('R156-JCB').hrStd === 7, 'not renamed, 7 stays');
+  const m2 = mRow('R156-JCB');
+  run('x => saveDieselIssue_(x)', { date: '2026-06-02', shift: 'Day', source: 'Dispenser', no: 'R156-JCB', qty: 30, hrReading: 500, force: true });
+  assert.strictEqual(mRow('R156-JCB').ver, m2.ver, 'a diesel issue of it does not change its version');
+  x = tryRun('(i, c, v) => editMasterMany_(i, c, v)', ['R156-JCB', 'R156-TIP'], { kmStd: 5 }, { 'R156-JCB': m1.ver, 'R156-TIP': mRow('R156-TIP').ver });
+  assert.ok(x.ok === false && x.errors.length === 1 && /R156-JCB was changed by/.test(x.errors[0].msg), JSON.stringify(x).slice(0, 300));
+  assert.ok(!tryRun('(i, c, v) => editMasterMany_(i, c, v)', ['R156-JCB'], { make: 'JCB 3DX' }, { 'R156-JCB': m2.ver }).thrown);
+  assert.match(tryRun('(id, f, v) => deleteMaster_(id, f, v)', 'R156-JCB', true, m2.ver).thrown || '', NOW);
+  assert.match(tryRun('(i, f, v) => deleteMasterMany_(i, f, v)', ['R156-NEW', 'R156-JCB'], true, { 'R156-NEW': mRow('R156-NEW').ver, 'R156-JCB': m2.ver }).thrown || '', NOW);
+  assert.ok(mRow('R156-JCB') && mRow('R156-NEW'), 'neither deleted');
+  // a person who may not see the rates does not get the fingerprint of them
+  const out = run('u => leastOut_(u, { master: getMaster_() })', { email: 'd@x', admin: false, perms: { 'Diesel Issue': 'Edit' } });
+  const full = run('u => leastOut_(u, { master: getMaster_() })', { email: 'a@x', admin: true });
+  assert.ok(out.master.every(m => !('ver' in m) && !('monthlyRate' in m)) && full.master.every(m => m.ver), 'only those who see every field get the version');
+  // the page sends what it opened, on every screen
+  const page = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  ["call('updateInward', editing, x)", "call('deleteInward', r.id, r.ver", "call('updateTransfer', editing, x)", "call('deleteTransfer', r.id, r.ver", "x.ver = S.py.editVer", "call('deletePayment', p.id, p.ver",
+    "ver: S.vEdit && S.vEdit.saved ? S.vEdit.ver", "call('deleteVendor', S.vEdit.name, S.vEdit.ver", "body.ver = S.bRec.ver", "call('deleteBoq', b.id, b.ver", "m.ver = S.editMasterVer", "call('deleteMaster', no, force, (",
+    "call('editMasterMany', list.map(m => m.id), ch, Object.fromEntries", "call('deleteMasterMany', ids, false, vers)", "S.editInwardVer = r.ver", "S.editTransferVer = r.ver", "S.py.editVer = p.ver", "S.editMasterVer = m.ver"]
+    .forEach(k => assert.ok(page.indexOf(k) > -1, 'the page: ' + k));
 });

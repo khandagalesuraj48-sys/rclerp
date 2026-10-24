@@ -156,7 +156,9 @@ function leastOut_(u, res) {
   if (!u || u.admin || !res || typeof res !== 'object') return res;
   const rate = seesAny_(u, FOR_RATE_), full = seesAny_(u, FOR_FULL_);
   if (rate && full) return res;
-  const drop = (rate ? [] : MACH_RATE_F_).concat(full ? [] : MACH_FULL_F_);
+  // (update-156) and the version: it is worked out from every field of the machinery, the left-out ones too – a person who may not see
+  // a rate does not get its fingerprint either (he cannot change a machinery: whoever can, sees every field and gets the version)
+  const drop = (rate ? [] : MACH_RATE_F_).concat(full ? [] : MACH_FULL_F_).concat(['ver']);
   const walk = (v, depth) => {
     if (Array.isArray(v)) { let out = null; for (let i = 0; i < v.length; i++) { const x = v[i]; if (x && typeof x === 'object') { const y = walk(x, depth + 1); if (y !== x) { if (!out) out = v.slice(); out[i] = y; } } } return out || v; }
     if (isMachItem_(v)) { const o = Object.assign({}, v); drop.forEach(k => { delete o[k]; }); return o; }
@@ -1492,6 +1494,7 @@ function buildMaster_() {
       fitnessUpto: H.FITV in t.c ? docVal_(r[t.c[H.FITV]]) : '', insuranceUpto: H.INSV in t.c ? docVal_(r[t.c[H.INSV]]) : '',
       tdsRate: H.TDS in t.c ? numOrBlank_(r[t.c[H.TDS]]) : '',
       enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '',
+      ver: rowVer_(t, r, MASTER_VER_H_()),      // (update-156) sent back with a change / a delete
     }));
 }
 
@@ -1733,6 +1736,7 @@ function saveMaster_(m, mode, origId) {
     } else {
       const i = t.rows.findIndex(r => same_(rowId_(r, t), origId));
       if (i === -1) throw new Error(clean_(origId) + ' was not found in Master.');
+      verCheck_(t, t.rows[i], MASTER_VER_H_(), m && m.ver, 'Machinery ' + rowId_(t.rows[i], t));      // (update-156) before anything moves
       // the Number (or the Name of a machinery without a number) was changed in the form: everything of the machinery follows first
       const realId = rowId_(t.rows[i], t);
       if (v.id !== realId) {
@@ -1779,7 +1783,7 @@ function saveMasterBulk_(list) {
  * changes: only the fields to change, e.g. { ownership: 'Rental', monthlyRate: 45000 }. Every machinery is checked
  * with the same rules as a single save; if any one fails nothing is saved. */
 const MASTER_BULK_FIELDS_ = ['type', 'make', 'unit', 'kmStd', 'hrStd', 'tankCap', 'owner', 'ownership', 'supply', 'status', 'activeFrom', 'inactiveFrom', 'monthlyRate', 'tdsRate'];
-function editMasterMany_(ids, changes) {
+function editMasterMany_(ids, changes, vers) {      // vers (update-156): { id: the version it had when the list was shown }
   return withLock_(() => {
     ids = (ids || []).map(str_).filter(Boolean);
     changes = changes || {};
@@ -1797,6 +1801,7 @@ function editMasterMany_(ids, changes) {
       try {
         const i = t.rows.findIndex(r => same_(rowId_(r, t), id));
         if (i === -1) throw new Error(clean_(id) + ' was not found in Master.');
+        verCheck_(t, t.rows[i], MASTER_VER_H_(), vers && typeof vers === 'object' ? vers[id] : '', 'Machinery ' + rowId_(t.rows[i], t));      // (update-156)
         const m = getMaster_().find(x => same_(x.id, id)) || {};
         const cur = { no: m.no, name: m.name, type: m.type, make: m.make, unit: m.unit, worksOn: keys.indexOf('unit') > -1 ? '' : m.worksOn, kmStd: m.kmStd, hrStd: m.hrStd, tankCap: m.tankCap, owner: m.owner,
           ownership: m.ownership, supply: m.supply, status: m.status, activeFrom: m.activeFrom, inactiveFrom: m.inactiveFrom, monthlyRate: m.monthlyRate, tdsRate: m.tdsRate };
@@ -1816,7 +1821,7 @@ function editMasterMany_(ids, changes) {
 }
 /* Delete many machinery at once. Machinery that already have Diesel Issue / Log Book entries are listed first
  * (their entries stay); they are deleted only when force is true. */
-function deleteMasterMany_(ids, force) {
+function deleteMasterMany_(ids, force, vers) {      // vers (update-156): { id: the version it had when the list was shown }
   return withLock_(() => {
     ids = (ids || []).map(str_).filter(Boolean);
     if (!ids.length) throw new Error('Select at least one machinery.');
@@ -1825,6 +1830,7 @@ function deleteMasterMany_(ids, force) {
     const found = ids.map(id => { const i = t.rows.findIndex(r => same_(rowId_(r, t), id)); return { id: id, i: i }; });
     const missing = found.filter(x => x.i === -1).map(x => x.id);
     if (missing.length) throw new Error('Not found in Master: ' + missing.join(', ') + ' – reload the list.');
+    if (vers && typeof vers === 'object') found.forEach(x => verCheck_(t, t.rows[x.i], MASTER_VER_H_(), vers[x.id], 'Machinery ' + rowId_(t.rows[x.i], t)));      // (update-156)
     const used = [];
     found.forEach(x => {
       const real = rowId_(t.rows[x.i], t);
@@ -1912,7 +1918,8 @@ function vendorOut_(t, r) {
   return { name: clean_(g('Vendor Name')), ownership: str_(g('Ownership')), gstReg: str_(g('GST Registered')) || 'No', gst: str_(g('GST Number')), gstPct: numOrBlank_(g('GST %')),
     pan: str_(g('PAN Number')), tds: numOrBlank_(g('TDS %')), bank: str_(g('Bank Name')), branch: str_(g('Branch')), account: str_(g('Account Number')), ifsc: str_(g('IFSC Code')),
     address: str_(g('Address')), phone: str_(g('Phone')), remark: str_(g('Remark')), aadhaar: str_(g('Aadhaar Number')), email: str_(g('Email')),
-    enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '' };
+    enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '',
+    ver: rowVer_(t, r, VENDOR_VER_H_) };      // (update-156) sent back with a change / a delete
 }
 // machinery of each vendor (Owner Name in Master), Rental / Hired / Debit only
 function vendorMachines_() {
@@ -2016,6 +2023,9 @@ function saveVendor_(v, mode) {
     // (update-111) only this site's vendors: one that is only another site's copy here is not changed – a NEW vendor of that name is this site's own
     const hid = vendorHidden_(), was0 = clean_((v || {}).oldName);
     if (was0 && hid[vKey_(was0)]) throw new Error(was0 + ' is not a vendor of this site.');
+    // (update-156) changed by someone else after it was opened: nothing saved (checked before a rename moves anything)
+    if (mode !== 'add') { const t0 = vendorTable_(), k0 = vKey_(was0 || x.name), j0 = t0 ? t0.rows.findIndex(r => vKey_(r[t0.c['Vendor Name']]) === k0) : -1;
+      if (j0 > -1) verCheck_(t0, t0.rows[j0], VENDOR_VER_H_, (v || {}).ver, 'Vendor ' + clean_(t0.rows[j0][t0.c['Vendor Name']])); }
     // the name was changed in the form: everything of the vendor follows to the new name first
     const was = clean_((v || {}).oldName), renamed = was && was !== x.name ? renameVendor_(was, x.name) : null;
     const mach = vendorMachines_()[vKey_(x.name)];
@@ -2665,7 +2675,8 @@ function payOut_(t, r) {
   const g = h => h in t.c ? r[t.c[h]] : '';
   return { id: str_(g('Payment ID')), type: str_(g('Type')) === 'Opening' ? 'Opening' : 'Payment', date: dkey_(g('Date')), vendor: clean_(g('Vendor Name')), amount: r2_(num0_(g('Amount'))),
     side: str_(g('Side')) === 'Advance' ? 'Advance' : 'Payable', mode: str_(g('Mode')), ref: str_(g('Reference')), bill: str_(g('Against Bill')), remark: str_(g('Remark')),
-    enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '' };
+    enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '',
+    ver: rowVer_(t, r, PAY_VER_H_) };      // (update-156) sent back with a change / a delete
 }
 function payList_() { const t = payTable_(); return t ? t.rows.map(r => payOut_(t, r)).filter(p => p.id) : []; }
 function getPayments_(f) {
@@ -2690,6 +2701,7 @@ function savePayment_(x, mode) {
     const all = t.rows.map((r, i) => Object.assign(payOut_(t, r), { i: i }));
     const cur = mode === 'edit' ? all.find(p => p.id === str_(x.id)) : null;
     if (mode === 'edit' && !cur) throw new Error('This entry was not found – it may have been deleted.');
+    if (cur) verCheck_(t, t.rows[cur.i], PAY_VER_H_, x.ver, 'Payment ' + cur.id + ' (' + cur.vendor + ')');      // (update-156)
     // one opening balance per vendor
     if (type === 'Opening' && all.some(p => p.type === 'Opening' && vKey_(p.vendor) === vKey_(vendor) && (!cur || p.id !== cur.id)))
       throw new Error('The opening balance of ' + vendor + ' is already entered. Edit that entry instead.');
@@ -2709,12 +2721,13 @@ function savePayment_(x, mode) {
     return { ok: true, id: id, added: !cur, type: type, vendor: vendor, amount: amount, changes: changes };
   });
 }
-function deletePayment_(id) {
+function deletePayment_(id, ver) {
   return withLock_(() => {
     const t = payTable_(); if (!t) throw new Error('Entry not found.');
     const i = t.rows.findIndex(r => str_(r[t.c['Payment ID']]) === str_(id));
     if (i === -1) throw new Error('This entry was not found – it may have been deleted already.');
     const p = payOut_(t, t.rows[i]);
+    verCheck_(t, t.rows[i], PAY_VER_H_, ver, 'Payment ' + p.id + ' (' + p.vendor + ')');      // (update-156)
     t.sh.deleteRow(i + 2);
     return { ok: true, id: p.id, type: p.type, vendor: p.vendor, amount: p.amount, date: p.date };
   });
@@ -3635,11 +3648,12 @@ function getBillAttachments_(f, u) {
   let urlOf = {}; if (files.length && sbDataOn_()) urlOf = attLinks_(files.map(x => x.p));
   return { id: ev.id, billNo: ev.billNo, rev: ev.rev, kind: kind, fixed: kind === 'submission', count: files.length, files: files.map(x => Object.assign(x, { url: urlOf[x.p] || '' })) };
 }
-function deleteVendor_(name) {
+function deleteVendor_(name, ver) {
   return withLock_(() => {
     const t = vendorTable_(); if (!t) throw new Error('Vendor not found.');
     const i = t.rows.findIndex(r => vKey_(r[t.c['Vendor Name']]) === vKey_(name));
     if (i === -1 || vendorHidden_()[vKey_(name)]) throw new Error(clean_(name) + ' has no saved details.');      // (update-111) another site's copy: not this site's
+    verCheck_(t, t.rows[i], VENDOR_VER_H_, ver, 'Vendor ' + clean_(name));      // (update-156)
     const b = boqTable_();
     const n = b ? b.rows.filter(r => vKey_(r[b.c['Vendor Name']]) === vKey_(name)).length : 0;
     if (n) throw new Error(clean_(name) + ' has ' + n + ' BOQ(s). Delete them first.');
@@ -3705,7 +3719,8 @@ function boqOut_(t, r) {
   return { id: str_(g('BOQ ID')), no: str_(g('BOQ No')), vendor: clean_(g('Vendor Name')), from: dkey_(g('Valid From')), to: dkey_(g('Valid To')),
     amendOf: str_(g('Amendment Of')), amendNo: num0_(g('Amendment No')), lines: lines, gstPct: gstPct, tdsPct: tdsPct, woNo: woNo, woDate: woDate, remark: str_(g('Remark')),
     created: g('Created At') instanceof Date ? g('Created At').toISOString() : str_(g('Created At')),
-    enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '' };
+    enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '',
+    ver: rowVer_(t, r, BOQ_VER_H_) };      // (update-156) sent back with a change / a delete
 }
 function allBoqs_() { const t = boqTable_(); return t ? t.rows.map(r => boqOut_(t, r)).filter(b => b.id) : []; }
 function getBoqs_(f) {
@@ -3828,7 +3843,9 @@ function saveBoq_(b, mode, id) {
     if (gstReg && gstPct === '') throw new Error(vendor + ' is GST registered – enter the GST % for this BOQ.');
     const all = allBoqs_().filter(x => x.id !== str_(id));
     let amendOf = str_(b.amendOf), amendNo = 0;
-    if (mode === 'edit') { const me = allBoqs_().find(x => x.id === str_(id)); if (!me) throw new Error('BOQ ' + id + ' was not found.'); amendOf = me.amendOf; amendNo = me.amendNo; }
+    if (mode === 'edit') { const me = allBoqs_().find(x => x.id === str_(id)); if (!me) throw new Error('BOQ ' + id + ' was not found.'); amendOf = me.amendOf; amendNo = me.amendNo;
+      const bt = boqTable_(), bi = bt ? bt.rows.findIndex(r => str_(r[bt.c['BOQ ID']]) === str_(id)) : -1;
+      if (bi > -1) verCheck_(bt, bt.rows[bi], BOQ_VER_H_, b.ver, 'BOQ ' + (me.no || me.id) + ' (' + me.vendor + ')'); }      // (update-156)
     if (amendOf) {
       const root = all.find(x => x.id === amendOf); if (!root) throw new Error('The BOQ being amended (' + amendOf + ') was not found.');
       if (vKey_(root.vendor) !== vKey_(vendor)) throw new Error('An amendment must be for the same vendor (' + root.vendor + ').');
@@ -3864,11 +3881,12 @@ function saveBoq_(b, mode, id) {
   });
 }
 function entryDateAny_(v, label) { const dk = dkey_(v); if (!dk) throw new Error('Enter the ' + label + '.'); return dk; }
-function deleteBoq_(id) {
+function deleteBoq_(id, ver) {
   return withLock_(() => {
     const t = boqTable_(); if (!t) throw new Error('BOQ not found.');
     const i = t.rows.findIndex(r => str_(r[t.c['BOQ ID']]) === str_(id));
     if (i === -1) throw new Error('BOQ ' + id + ' was not found.');
+    verCheck_(t, t.rows[i], BOQ_VER_H_, ver, 'BOQ ' + (str_(t.rows[i][t.c['BOQ No']]) || str_(id)));      // (update-156)
     const kids = t.rows.filter(r => str_(r[t.c['Amendment Of']]) === str_(id)).length;
     if (kids) throw new Error('This BOQ has ' + kids + ' amendment(s). Delete the amendments first.');
     const gone = boqOut_(t, t.rows[i]);
@@ -4264,11 +4282,12 @@ function boqRateCheck_(f) {
   const m = findMachine_(f.no), dk = entryDateAny_(f.date, 'date');
   return { no: m.id, vendor: m.owner, date: dk, hit: boqRateFor_(m.owner, m.id, dk) };
 }
-function deleteMaster_(id, force) {
+function deleteMaster_(id, force, ver) {
   return withLock_(() => {
     const t = table_(APP.SHEET_MASTER, MASTER_COLS_);
     const i = t.rows.findIndex(r => same_(rowId_(r, t), id));
     if (i === -1) throw new Error(clean_(id) + ' was not found in Master.');
+    verCheck_(t, t.rows[i], MASTER_VER_H_(), ver, 'Machinery ' + rowId_(t.rows[i], t));      // (update-156)
     const realId = rowId_(t.rows[i], t);
     if (!force) {
       const dt = table_(APP.SHEET_DIESEL, [H.NO]);
@@ -6051,6 +6070,7 @@ function updateInward_(id, x, u) {
     const i = T.it.rows.findIndex(r => str_(r[T.it.c[H.IN_ID]]) === str_(id));
     if (i === -1) throw new Error('Inward ' + id + ' was not found.');
     const old = T.it.rows[i];
+    verCheck_(T.it, old, INWARD_VER_H_(), x && x.ver, 'Inward ' + str_(id));      // (update-156)
     booksOpen_(dkey_(old[T.it.c[H.DATE]]), 'Diesel inward');
     const had = H.PHOTOS in T.it.c ? billList_(old[T.it.c[H.PHOTOS]]) : [];
     const bills = billsOf_(x && x.photos, u, had);      // (update-120) not given: the inward keeps its bill copies
@@ -6067,14 +6087,15 @@ function updateInward_(id, x, u) {
     T.it.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
     if (bills) photosTaken_(bills.filter(b => !had.some(h => h.p === b.p)).map(b => b.p));
     recalcBalances_();
-    return { ok: true, id: str_(id), stock: getStock_() };
+    return { ok: true, id: str_(id), stock: getStock_(), ver: rowVer_(T.it, row, INWARD_VER_H_()) };
   });
 }
-function deleteInward_(id) {
+function deleteInward_(id, ver) {
   return withLock_(() => {
     const T = stockTables_();
     const i = T.it.rows.findIndex(r => str_(r[T.it.c[H.IN_ID]]) === str_(id));
     if (i === -1) throw new Error('Inward ' + id + ' was not found.');
+    verCheck_(T.it, T.it.rows[i], INWARD_VER_H_(), ver, 'Inward ' + str_(id));      // (update-156)
     booksOpen_(dkey_(T.it.rows[i][T.it.c[H.DATE]]), 'Diesel inward');
     assertNoNegative_(T, withRows_(T, 'it', T.it.rows.filter((r, k) => k !== i)));
     T.it.sh.deleteRow(i + 2);
@@ -6115,6 +6136,7 @@ function getInwards_(f) {
       balance: H.BAL in c ? numOrBlank_(r[c[H.BAL]]) : '', open: isOpeningPump_(r[c[H.PUMP]]), extra: isExtraPump_(r[c[H.PUMP]]),
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
       ph: H.PHOTOS in c ? billList_(r[c[H.PHOTOS]]).length : 0,      // (update-120) how many bill copies
+      ver: rowVer_(t, r, INWARD_VER_H_()),      // (update-156) sent back with a change / a delete
     })),
   };
 }
@@ -6214,6 +6236,7 @@ function updateTransfer_(id, x) {
     const T = stockTables_();
     const i = T.tt.rows.findIndex(r => str_(r[T.tt.c[H.TR_ID]]) === str_(id));
     if (i === -1) throw new Error('Transfer ' + id + ' was not found.');
+    verCheck_(T.tt, T.tt.rows[i], TRANSFER_VER_H_(), x && x.ver, 'Transfer ' + str_(id));      // (update-156)
     booksOpen_(dkey_(T.tt.rows[i][T.tt.c[H.DATE]]), 'Diesel transfer');
     transferMessage_(T, v, i);
     const old = T.tt.rows[i];
@@ -6222,14 +6245,15 @@ function updateTransfer_(id, x) {
     assertNoNegative_(T, withRows_(T, 'tt', rows));
     T.tt.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
     recalcBalances_();
-    return { ok: true, id: str_(id), stock: getStock_() };
+    return { ok: true, id: str_(id), stock: getStock_(), ver: rowVer_(T.tt, row, TRANSFER_VER_H_()) };
   });
 }
-function deleteTransfer_(id) {
+function deleteTransfer_(id, ver) {
   return withLock_(() => {
     const T = stockTables_();
     const i = T.tt.rows.findIndex(r => str_(r[T.tt.c[H.TR_ID]]) === str_(id));
     if (i === -1) throw new Error('Transfer ' + id + ' was not found.');
+    verCheck_(T.tt, T.tt.rows[i], TRANSFER_VER_H_(), ver, 'Transfer ' + str_(id));      // (update-156)
     booksOpen_(dkey_(T.tt.rows[i][T.tt.c[H.DATE]]), 'Diesel transfer');
     assertNoNegative_(T, withRows_(T, 'tt', T.tt.rows.filter((r, k) => k !== i)));
     T.tt.sh.deleteRow(i + 2);
@@ -6279,6 +6303,7 @@ function getTransfers_(f) {
       qty: numOrBlank_(r[c[H.IN_QTY]]), remark: str_(r[c[H.REMARK]]),
       fromBal: H.FROMBAL in c ? numOrBlank_(r[c[H.FROMBAL]]) : '', toBal: H.TOBAL in c ? numOrBlank_(r[c[H.TOBAL]]) : '',
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
+      ver: rowVer_(t, r, TRANSFER_VER_H_()),      // (update-156) sent back with a change / a delete
     })),
   };
 }
@@ -9120,12 +9145,30 @@ function recalcChain_(no) {
  * the entry in between, nothing is saved: "… was changed by <who> after you opened it – open it again and make your change there."
  * A save without a version (an older page or app) is taken as before. What the app works out by itself (diesel, tank, averages,
  * the driver from the Diesel Issue) is not part of it, so a change elsewhere that only moves those figures never stops a save. */
+/* (update-156, asked 24-10-2026: "Concurrent Updates साठी Version Checks आणि Conflict Detection अनिवार्य ठेव") EVERY EDIT SCREEN
+ * CARRIES THE VERSION IT OPENED, as Log Book and Diesel Issue do since update-145: a change or a delete of an entry that someone
+ * else changed after it was opened is refused with who changed it – nothing is saved. The version is a fingerprint of the fields the
+ * screen can change (rowVer_); a field another save fills by itself (a running balance, the vendor's "ownership" from the machinery)
+ * is not in it. Inward, Transfer, Payments, Vendor Master, Vendor BOQ, Asset Master (one, many, delete). A save that sends no
+ * version is not refused (a page or a phone app of before this update still open) – the web page sends it always, the app from
+ * 3.36.0; making it compulsory is the owner's call once every phone runs that version. */
+const INWARD_VER_H_ = () => [H.DATE, H.IN_QTY, H.PUMP, H.RATE, H.AMOUNT, H.BILLNO, H.BILLDATE, H.LOC, H.PHOTOS];
+const TRANSFER_VER_H_ = () => [H.DATE, H.SHIFT, H.FROM, H.TO, H.IN_QTY, H.REMARK];
+const PAY_VER_H_ = ['Type', 'Date', 'Vendor Name', 'Amount', 'Side', 'Mode', 'Reference', 'Against Bill', 'Remark'];
+const VENDOR_VER_H_ = ['Vendor Name', 'GST Registered', 'GST Number', 'GST %', 'PAN Number', 'TDS %', 'Bank Name', 'Branch', 'Account Number', 'IFSC Code', 'Address', 'Phone', 'Remark', 'Aadhaar Number', 'Email'];
+const BOQ_VER_H_ = ['BOQ No', 'Vendor Name', 'Valid From', 'Valid To', 'Amendment Of', 'Amendment No', 'Lines', 'Remark'];
+const MASTER_VER_H_ = () => [H.NO, H.NAME, H.TYPE, H.MAKE, H.UNIT, H.WORKS, H.KMSTD, H.HRSTD, H.OWNER, H.OWNTYPE, H.SUPPLY, H.STATUS, H.AFROM, H.IFROM, H.SPER, H.TCAP, H.MRATE, H.TDS]
+  .concat(ASSET_TEXT_.concat(ASSET_DOCS_).map(x => H[x[1]]));
+// (update-156) the dates and amounts of these screens, compared as values (a date as its day, a number as its number)
+const VER_DATE2_ = h => [H.BILLDATE, H.AFROM, H.IFROM, 'Valid From', 'Valid To', 'Period From', 'Period To', H.TAXV, H.PUCV, H.PERMITV, H.FITV, H.INSV].indexOf(h) > -1;
+const VER_NUM2_ = h => [H.IN_QTY, H.RATE, H.AMOUNT, 'Amount', H.KMSTD, H.HRSTD, H.TCAP, H.MRATE, H.TDS, 'GST %', 'TDS %', 'GST Amount', 'TDS Amount', 'Total', 'Amendment No'].indexOf(h) > -1;
 const LOG_VER_H_ = () => [H.DATE, H.SHIFT, H.UNIT, H.OKM, H.CKM, H.OHR, H.CHR, H.TSTART, H.TEND, H.TBRK, H.TSLOTS, H.TRIP, H.CHALLAN, H.CHFROM, H.CHTO, H.WORK, H.REMARK, H.ITEMS, H.DAYPART, H.DEBITTO, H.DEBITRATE, H.METER, H.ODSET];
 const DIESEL_VER_H_ = () => [H.IDATE, H.SHIFT, H.NO, H.QTY, H.KMR, H.HRR, H.REMARK, H.DRIVER, H.SOURCE, H.DMETER];
 const VER_NUM_ = h => [H.OKM, H.CKM, H.OHR, H.CHR, H.TBRK, H.TRIP, H.DAYPART, H.DEBITRATE, H.ODSET, H.QTY, H.KMR, H.HRR, H.DMETER].indexOf(h) > -1;
 // a value as the same text however it was read (a date or a number in any form; JSON with its keys in order – the database reorders them)
 function verVal_(h, x) {
-  if (h === H.DATE || h === H.IDATE) return dkey_(x) || str_(x);
+  if (h === H.DATE || h === H.IDATE || VER_DATE2_(h)) return dkey_(x) || str_(x);
+  if (VER_NUM2_(h)) return String(numOrBlank_(x));      // (update-156)
   if (h === H.TSTART || h === H.TEND) return tStr_(x);
   if (VER_NUM_(h)) return String(numOrBlank_(x));
   const v = x !== null && typeof x === 'object' && !(x instanceof Date) ? JSON.stringify(x) : str_(x);
