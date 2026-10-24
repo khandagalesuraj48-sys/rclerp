@@ -146,9 +146,12 @@ const logOf = (dk) => sql("select coalesce(opening_km::float::text, '') || '>' |
     ok('   vendor ledger: the note is a line of its own', (led.rows || []).some(l => (l.kind === 'dn' || l.kind === 'cn') && Math.abs((l.paid || l.bill) - tot) < 0.01), (led.rows || []).map(l => l.kind + ' ' + l.bill + '/' + l.paid));
 
     // ---------- 6. the bill that took it is deleted: its note is cancelled, the difference comes back ----------
-    const del = await api('deleteBill', id72, 'test – taken back');
+    // (update-152) only the Super Admin deletes a submitted bill (kept, marked Deleted, with the reason) – the Admin is refused
+    const delA = await api('deleteBill', id72, 'test – taken back');
+    const del = await sapi('deleteBill', id72, 'test – taken back');
     const back = await api('billCorrections', { vendor: V, company: co, bills: [] });
-    ok('6. RA Bill 72 deleted: its note is Cancelled and the difference of RA Bill 71 shows again', del && del.ok && sql("select status from debit_notes where vendor_name = '" + V + "'") === 'Cancelled' && (back.items || []).length === 1 && Math.abs(back.items[0].total - tot) < 0.01, { del, back: (back.items || []).map(x => x.total) });
+    ok('   (update-152) the Admin cannot delete it: "Only the Super Admin deletes a submitted bill"', /^Only the Super Admin deletes a submitted bill/.test(delA.ERROR || ''), delA);
+    ok('6. RA Bill 72 deleted (by the Super Admin): its note is Cancelled and the difference of RA Bill 71 shows again', del && del.ok && sql("select status from debit_notes where vendor_name = '" + V + "'") === 'Cancelled' && (back.items || []).length === 1 && Math.abs(back.items[0].total - tot) < 0.01, { del, back: (back.items || []).map(x => x.total) });
     ok('no page error', !errs.length, errs);
   } catch (e) { ok('run', false, String(e && e.stack || e).slice(0, 800)); }
   finally { await b.close(); try { clean(); } catch (e) {} }

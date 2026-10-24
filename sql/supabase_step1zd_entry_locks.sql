@@ -169,6 +169,11 @@ grant execute on function public.web_write3(jsonb, jsonb, text, text, text) to s
 revoke all on function public.rcl_entry_guard() from public, anon, authenticated;
 revoke all on function public.rcl_bill_machines() from public, anon, authenticated;
 revoke all on function public.rcl_history_fixed() from public, anon, authenticated;
+-- the helpers the guard and the bill trigger use: not callable without the secret key (the app's own role only)
+revoke all on function public.rcl_no_key(text) from public, anon, authenticated;
+revoke all on function public.rcl_bill_keys(text, text) from public, anon, authenticated;
+revoke all on function public.rcl_billed(text, date) from public, anon, authenticated;
+grant execute on function public.rcl_no_key(text), public.rcl_bill_keys(text, text), public.rcl_billed(text, date) to service_role;
 
 notify pgrst, 'reload schema';
 commit;
