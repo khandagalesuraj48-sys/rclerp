@@ -2722,6 +2722,187 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   @media (max-width: 700px) { #rtc_view, #rtc_view[data-size=m] { left: 6px; right: 6px; width: auto; } #rtc_bar:not(.mini) { left: 6px; right: 6px; width: auto; margin: 0; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 8px 8px 6px; } #rtc_bar:not(.mini) .rtc-left { flex: 1 1 100%; } #rtc_bar .rtc-txt { max-width: none; } #rtc_bar:not(.mini) .rtc-btns { flex: 1 1 auto; justify-content: space-between; gap: 0; } #rtc_bar:not(.mini) .rtc-b { min-width: 0; flex: 1 1 0; } #rtc_bar .rtc-b .lb { max-width: 62px; font-size: 10.5px; } #rtc_bar .rtc-b .rtc-i { width: 42px; height: 42px; } #rtc_bar #rtc_end .rtc-i { width: 50px; } #rtc_bar:not(.mini) .rtc-hide { position: absolute; top: 6px; right: 8px; } #rtc_bar:not(.mini) .rtc-hide .lb { display: none; } #rtc_bar:not(.mini) .rtc-hide .rtc-i { width: 32px; height: 32px; margin: 0; } }
   @media print { #rtc_note, #rtc_in, #rtc_bar, #rtc_view, #rtc_chat, #rtc_faces { display: none !important; } }
   @media (max-width: 700px) { #rtc_chat { left: 6px; right: 6px; width: auto; bottom: 128px; } #rtc_menu { right: 0; left: 0; } }
+  /* ================= (update-154, asked 24-10-2026: "log book entry madhe 3 type aahet tya 3 ni type sathi perfect ui banaw")
+   * THE LOG BOOK ENTRY – the three ways of entering, as the design he approved: a head that says which way is open, the three
+   * ways as cards, ONE CARD PER ROW (machinery or date, shift, ½ day and the row's buttons on top; "Measured by"; then Reading,
+   * Diesel (Ltr) and Work), the machinery's facts on top of "one machinery – many dates", the water tanker's trips in boxes with
+   * its totals as tiles. Only the look: every field, figure and check of the page is the same. ================= */
+  .lg-panel .lg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+  .lg-panel .lg-hic { width: 44px; height: 44px; border-radius: 12px; background: #E6F6F4; color: #0F766E; display: grid; place-items: center; flex: 0 0 44px; }
+  .lg-panel .lg-hic svg { width: 24px; height: 24px; }
+  .lg-panel .lg-ht { flex: 1 1 320px; min-width: 0; }
+  .lg-panel .lg-ht h2 { margin: 0; }
+  .lg-panel .lg-mt { display: none; margin: 3px 0 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+  .lg-panel .lg-mt b { color: var(--ink); font-size: 15px; margin-right: 6px; }
+  .lg-panel[data-lgmode=date] .lg-mt[data-mt=date], .lg-panel[data-lgmode=mach] .lg-mt[data-mt=mach], .lg-panel[data-lgmode=tanker] .lg-mt[data-mt=tanker] { display: block; }
+  .lg-panel #lg_change { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 14px; }
+  .lg-panel #lg_change[hidden] { display: none; }
+  /* the three ways */
+  .lg-choose .lg-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .lg-choose .lg-opt { width: auto; margin: 0; display: flex; flex-direction: column; gap: 8px; padding: 18px; min-height: 168px; border: 1.5px solid #E2E8F0; border-radius: 14px; background: #fff; transition: border-color .15s, box-shadow .15s; }
+  .lg-choose .lg-opt:hover { border-color: #1D4ED8; background: #fff; box-shadow: 0 6px 18px rgba(29, 78, 216, .12); }
+  .lg-choose .lg-opt b { font-size: 16.5px; }
+  .lg-choose .lg-opt span { font-size: 13px; line-height: 1.45; }
+  .lg-choose .lg-oi { width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center; font-style: normal; }
+  .lg-choose .lg-oi svg { width: 26px; height: 26px; }
+  .lg-opt[data-lgmode=date] .lg-oi { background: #EFF6FF; color: #1D4ED8; }
+  .lg-opt[data-lgmode=mach] .lg-oi { background: #E6F6F4; color: #0F766E; }
+  .lg-opt[data-lgmode=tanker] .lg-oi { background: #ECFEFF; color: #0E7490; }
+  .lg-choose .lg-imp { margin-top: 16px; }
+  /* on top: the date (one date) or the machinery and what it is (one machinery) */
+  #lg_form .lg-top { align-items: flex-end; gap: 12px 16px; padding: 2px 0 10px; }
+  #lg_form .lg-top .field input, #wt_form .wt-top .field :is(input, select) { min-height: 44px; font-size: 15.5px; font-weight: 600; }
+  #lg_top_info:not(:empty) { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; padding: 12px 16px; border: 1px solid #D5EDE9; background: #F5FBFA; border-radius: 12px; font-size: 13px; color: var(--muted); }
+  #lg_top_info .lg-mid b { display: block; font: 800 19px/1.15 var(--ui); color: var(--ink); }
+  #lg_top_info .lg-mid small { font-size: 12.5px; color: var(--muted); }
+  #lg_top_info .lg-fact small { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #64748B; }
+  #lg_top_info .lg-fact b { font-size: 13.5px; color: var(--ink); }
+  .lg-panel .lg-pend { padding: 12px 16px; border-radius: 12px; }
+  .lg-panel .lg-pend .lp-chips button { padding: 6px 13px; border-radius: 9px; font-size: 13px; }
+  /* ONE CARD PER ROW (the row keeps its one cell: the card) */
+  .lg-wrap.lgc { overflow: visible; max-height: none; border: 0; background: transparent; border-radius: 0; box-shadow: none; container-type: inline-size; }
+  .lg-wrap.lgc table.lgt, .lg-wrap.lgc table.lgt tbody { display: block; width: 100%; }
+  .lg-wrap.lgc table.lgt thead { display: none; }
+  .lg-wrap.lgc tr.lrow, .lg-wrap.lgc tr.lrow:first-child, .lg-wrap.lgc tr.lrow:focus-within { display: block; margin: 0 0 14px; padding: 0; border: 0; background: none; position: relative; }
+  .lg-wrap.lgc tr.lrow > td.lcard { display: flex !important; flex-direction: row; justify-content: flex-start; align-items: flex-start; gap: 14px; padding: 16px 18px; border: 1px solid #E2E8F0 !important; border-radius: 14px; background: #fff !important; box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 4px 14px rgba(15, 23, 42, .05); font-size: 13.5px; font-weight: 400; color: var(--ink); text-align: left; white-space: normal; width: auto; vertical-align: top; position: relative; }
+  .lg-wrap.lgc tr.lrow > td::before, .lg-wrap.lgc tr.lrow > td::after { content: none !important; }
+  .lg-wrap.lgc tr.lrow.err > td.lcard { border-color: #F1B5AF !important; background: #FFF8F7 !important; }
+  .lg-wrap.lgc tr.lrow:focus-within > td.lcard { border-color: #93C5FD !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, .12); }
+  .lg-wrap.lgc tr.lrow.at-drag > td.lcard { background: #EEF3FF !important; }
+  .lg-wrap.lgc tr.lrow .lcard > .c-no { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 10px; background: #1E3A8A; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; text-align: center; }
+  .lg-wrap.lgc table.lgt.m-mach tr.lrow .lcard > .c-no { background: #0F766E; }
+  .lg-wrap.lgc tr.lrow .l-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+  .lg-wrap.lgc tr.lrow .lgl { display: block; font: 600 12px/1.2 var(--ui); color: #334155; margin: 0 0 4px; white-space: nowrap; }
+  .lg-wrap.lgc tr.lrow .l-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 12px; }
+  .lg-wrap.lgc tr.lrow .l-head > label:not(.lg-half) { display: flex; flex-direction: column; min-width: 0; margin: 0; }
+  .lg-wrap.lgc tr.lrow .l-head .c-m { flex: 1 1 260px; max-width: 380px; }
+  .lg-wrap.lgc tr.lrow .l-head .c-date { flex: 0 0 180px; }
+  .lg-wrap.lgc table.lgt.m-mach tr.lrow .l-head .c-date { flex: 0 1 260px; }
+  .lg-wrap.lgc tr.lrow .l-head .c-shift { flex: 0 0 140px; }
+  .lg-wrap.lgc table.lgt.m-date .c-date, .lg-wrap.lgc table.lgt.m-mach .c-m { display: none !important; }
+  .lg-wrap.lgc tr.lrow .l-head :is(input[data-f=no], input[data-f=date]) { width: 100%; min-width: 0; min-height: 44px !important; height: 44px; font-size: 15.5px !important; font-weight: 600; }
+  .lg-wrap.lgc tr.lrow .l-head select[data-f=shift] { width: 100%; min-width: 0; min-height: 44px !important; height: 44px; font-size: 14px !important; }
+  .lg-wrap.lgc tr.lrow .l-head .lg-half { margin: 18px 0 0; min-height: 44px; }
+  .lg-wrap.lgc tr.lrow .lminfo { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.3; }
+  .lg-wrap.lgc tr.lrow .lminfo:empty, .lg-wrap.lgc tr.lrow .lnote:empty { display: none; }
+  .lg-wrap.lgc tr.lrow .lnote { display: block; max-width: none; font-size: 12px; line-height: 1.3; color: #B45309; font-weight: 600; margin-top: 3px; white-space: normal; }
+  .lg-wrap.lgc tr.lrow.err .lnote { color: var(--bad); }
+  .lg-wrap.lgc tr.lrow .c-act { display: flex; flex-wrap: wrap; gap: 8px; margin: 21px 0 0 auto; }
+  .lg-wrap.lgc tr.lrow .c-act button { min-height: 38px; height: 38px; width: auto; margin: 0; padding: 0 12px; border-radius: 9px; border: 1px solid #CBD5E1; background: #fff; font: 600 13px var(--ui); color: #334155; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .lg-wrap.lgc tr.lrow .c-act .att-btn.on { border-color: #93C5FD; background: #EFF6FF; color: #1D4ED8; }
+  .lg-wrap.lgc tr.lrow .c-act .att-btn i { font-style: normal; background: #1D4ED8; color: #fff; border-radius: 10px; font-size: 11px; line-height: 18px; padding: 0 7px; margin: 0; }
+  .lg-wrap.lgc tr.lrow .c-act .att-btn i:empty { display: none; }
+  .lg-wrap.lgc tr.lrow.dbt-open .c-act .dbt-btn { background: #9A3412; color: #fff; border-color: #9A3412; }
+  .lg-wrap.lgc tr.lrow .c-act .del { width: 38px; padding: 0; justify-content: center; color: #B91C1C; border-color: #FECACA; font-size: 20px; }
+  .lg-wrap.lgc tr.lrow .c-act .del:hover { background: #FEF2F2; }
+  /* Measured by */
+  .lg-wrap.lgc tr.lrow .c-unit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+  .lg-wrap.lgc tr.lrow .c-unit > .lgl { margin: 0; }
+  .lg-wrap.lgc tr.lrow .c-unit .unitcell { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; max-width: none; font-size: 12.5px; color: var(--muted); white-space: normal; }
+  .lg-wrap.lgc tr.lrow .c-unit .way { display: flex; flex-wrap: wrap; gap: 6px; max-width: none; width: auto; }
+  .lg-wrap.lgc tr.lrow .c-unit .way .wy { min-height: 32px; padding: 4px 13px; font-size: 13px; border-radius: 8px; }
+  .lg-wrap.lgc tr.lrow .c-unit .way .wy.dis { display: none; }
+  .lg-wrap.lgc tr.lrow .c-unit .lg-fmt { display: inline-block; margin: 0; padding: 2px 8px; border-radius: 6px; background: #E0F2FE; }
+  /* the three parts */
+  .lg-wrap.lgc tr.lrow .l-secs { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.2fr) minmax(0, 1.15fr); gap: 12px; }
+  .lg-wrap.lgc tr.lrow.w-time .l-secs { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.1fr) minmax(0, 1fr); }      /* (by Time: the From – To need the room) */
+  @container (max-width: 1080px) { .lg-wrap.lgc tr.lrow .l-secs, .lg-wrap.lgc tr.lrow.w-time .l-secs { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .lg-wrap.lgc tr.lrow .l-work { grid-column: 1 / -1; } .lg-wrap.lgc tr.lrow.w-time .l-read { grid-column: 1 / -1; } }
+  .lg-wrap.lgc tr.lrow .l-sec { margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid #E9EEF4; border-radius: 12px; background: #F8FAFC; }
+  .lg-wrap.lgc tr.lrow .lsh { margin: 0; display: flex; align-items: center; gap: 8px; font: 700 11px/1 var(--ui); letter-spacing: .08em; text-transform: uppercase; color: #475569; }
+  .lg-wrap.lgc tr.lrow .lsh svg { width: 15px; height: 15px; flex: 0 0 15px; }
+  .lg-wrap.lgc tr.lrow .l-pick { display: none; margin: 0; font-size: 13px; color: var(--muted); }
+  .lg-wrap.lgc tr.lrow:is([data-way=""], :not([data-way])) .l-pick-m, .lg-wrap.lgc tr.lrow[data-way="?"] .l-pick-w { display: block; }
+  .lg-wrap.lgc tr.lrow:is([data-way=""], [data-way="?"], :not([data-way])) .l-rg { display: none; }
+  /* Reading: Start | Close | Total – or From / To, trips, the status of the day, the estimate of a day without a reading */
+  .lg-wrap.lgc tr.lrow .l-rg { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 92px; gap: 8px; align-items: start; }
+  .lg-wrap.lgc tr.lrow.w-time .l-rg { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) 78px; }
+  .lg-wrap.lgc tr.lrow[data-way="No reading"] .l-rg { grid-template-columns: minmax(0, 1fr) 92px; }      /* no reading: the estimate and its total, the reason under them */
+  .lg-wrap.lgc tr.lrow[data-way="No reading"] .l-rg > .c-end { grid-column: 1 / -1; grid-row: 2; }
+  .lg-wrap.lgc tr.lrow .rd.tm small { min-width: 0; padding: 0 6px; font-size: 10px; }
+  .lg-wrap.lgc tr.lrow .rd.tm input[type=time] { font-size: 14px !important; padding-left: 7px !important; padding-right: 3px !important; }
+  .lg-wrap.lgc tr.lrow .l-rg > div { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .lg-wrap.lgc tr.lrow .l-rg .lgl { margin: 0 0 -2px; }
+  .lg-wrap.lgc tr.lrow:not([data-way="KM"]):not([data-way="Hrs"]):not([data-way="KM + Hrs"]) .l-rg > :is(.c-start, .c-end) > .lgl:not(.lgl-t) { display: none; }
+  .lg-wrap.lgc tr.lrow:not([data-way="KM"]):not([data-way="Hrs"]):not([data-way="KM + Hrs"]):not([data-way=Time]) .l-rg > .c-tot > .lgl { display: none; }
+  .lg-wrap.lgc tr.lrow .l-rg > div > .lgl-t { display: none; }
+  .lg-wrap.lgc tr.lrow[data-way=Time] .l-rg > div > .lgl-t { display: block; }      /* by Time: From / To on top of the columns … */
+  .lg-wrap.lgc tr.lrow[data-way=Time] .rd.tm:not(.brk) > small { display: none !important; }      /* … not on every line */
+  .lg-wrap.lgc tr.lrow:is([data-way=Idle], [data-way=Holiday], [data-way=Breakdown], [data-way=Day]) .l-rg > :is(.c-start, .c-tot) { display: none; }
+  .lg-wrap.lgc tr.lrow:is([data-way=Idle], [data-way=Holiday], [data-way=Breakdown], [data-way=Day]) .l-rg > .c-end { grid-column: 1 / -1; }
+  .lg-wrap.lgc tr.lrow[data-way=Trip] .l-rg > .c-start:not(:has(.rd.tm:not([hidden]):not(.addt))) { display: none; }
+  .lg-wrap.lgc tr.lrow[data-way=Trip] .l-rg > .c-start:not(:has(.rd.tm:not([hidden]):not(.addt))) + .c-end { grid-column: 1 / span 2; }
+  .lg-wrap.lgc tr.lrow .rd { min-width: 0; display: flex; align-items: center; gap: 6px; margin: 0 !important; position: static !important; }
+  .lg-wrap.lgc tr.lrow .rd small { flex: 0 0 auto; width: auto !important; min-width: 30px; height: 40px; display: grid; place-items: center; padding: 0 6px; margin: 0 !important; border-radius: 8px; background: #E2E8F0; color: #334155; font: 700 11px/1 var(--ui); text-transform: uppercase; visibility: visible !important; }
+  .lg-wrap.lgc tr.lrow .rd input { flex: 1 1 auto !important; width: auto !important; min-width: 0 !important; min-height: 40px !important; height: 40px; font-size: 14.5px !important; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; padding-left: 9px !important; padding-right: 9px !important; }
+  .lg-wrap.lgc tr.lrow .rd.tm input[type=time], .lg-wrap.lgc tr.lrow .rd.tp.ch input, .lg-wrap.lgc tr.lrow .rd.nrn input { text-align: left; }
+  .lg-wrap.lgc tr.lrow .rd.tm .tm-h { position: static !important; width: auto !important; height: auto !important; flex: 0 0 auto; display: inline; font: 700 12.5px var(--ui) !important; color: #0F766E !important; border: 0 !important; white-space: nowrap; }
+  .lg-wrap.lgc tr.lrow .rd.tm .tm-h:empty, .lg-wrap.lgc tr.lrow .tm-t { display: none !important; }
+  .lg-wrap.lgc tr.lrow :is(.tm-xa, .tm-xb) { margin: 0 !important; display: flex; flex-direction: column; gap: 6px; }
+  .lg-wrap.lgc tr.lrow :is(.tm-xa, .tm-xb):empty { display: none; }
+  .lg-wrap.lgc tr.lrow .rd.tm.addt { min-height: 40px; gap: 6px; flex-wrap: wrap; }
+  .lg-wrap.lgc tr.lrow .rd.tm.addt :is(.tm-add, .tm-rem) { min-height: 34px; padding: 4px 12px; }
+  .lg-wrap.lgc tr.lrow .lg-day { font-size: 13px; color: var(--muted); }
+  .lg-wrap.lgc tr.lrow .lg-hol:not([hidden]) { display: block; padding: 12px 14px; border-radius: 10px; font: 700 13.5px/1.3 var(--ui); background: #F1F5F9; color: #334155; border: 1px solid #E2E8F0; }
+  .lg-wrap.lgc tr.lrow[data-way=Holiday] .lg-hol { background: #F5F3FF; color: #5B21B6; border-color: #DDD6FE; }
+  .lg-wrap.lgc tr.lrow[data-way=Breakdown] .lg-hol { background: #FEF2F2; color: #991B1B; border-color: #FECACA; }
+  .lg-wrap.lgc tr.lrow .c-tot { align-items: stretch; }
+  .lg-wrap.lgc tr.lrow .c-tot [data-o] { display: flex; align-items: center; justify-content: flex-end; height: 40px; padding: 0 10px; border: 1px dashed #CBD5E1; border-radius: 9px; background: #fff; font: 700 14.5px var(--ui); font-variant-numeric: tabular-nums; white-space: nowrap; box-sizing: border-box; }
+  .lg-wrap.lgc tr.lrow .c-tot [data-o][hidden] { display: none; }
+  .lg-wrap.lgc tr.lrow .c-tot .neg { color: var(--bad); }
+  /* Diesel (Ltr): Opening | Issued | Consumed | Closing, the Standard and the average */
+  .lg-wrap.lgc tr.lrow .l-dg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  @container (max-width: 400px) { .lg-wrap.lgc tr.lrow .l-dg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .lg-wrap.lgc tr.lrow .dv { min-width: 0; min-height: 58px; padding: 7px 10px; border: 1px solid #E2E8F0; border-radius: 9px; background: #fff; box-sizing: border-box; }
+  .lg-wrap.lgc tr.lrow .dv .lgl { font-size: 11px; color: #64748B; margin: 0 0 2px; }
+  .lg-wrap.lgc tr.lrow .dv :is(b, [data-o=odslCell] span) { font: 700 16px/1.25 var(--ui); font-variant-numeric: tabular-nums; }
+  .lg-wrap.lgc tr.lrow .dv small[data-o=reads] { display: block; font-size: 11px; color: #475569; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
+  .lg-wrap.lgc tr.lrow .dv [data-o=odslCell] input { width: 100% !important; min-width: 0 !important; min-height: 32px !important; height: 32px; padding: 2px 8px !important; font: 700 14px var(--ui) !important; text-align: right; }
+  .lg-wrap.lgc tr.lrow .dv:has([data-o=odslCell] input) { border-color: #93C5FD; background: #EFF6FF; }
+  .lg-wrap.lgc tr.lrow .dv .neg, .lg-wrap.lgc tr.lrow .dv b.neg { color: var(--bad); }
+  .lg-wrap.lgc tr.lrow .l-std { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); }
+  .lg-wrap.lgc tr.lrow .l-std .lgl { display: inline; margin: 0; font-size: 12.5px; color: #475569; }
+  .lg-wrap.lgc tr.lrow .l-std b { color: var(--ink); font-weight: 700; }
+  .lg-wrap.lgc tr.lrow .l-std .help { cursor: help; }
+  .lg-wrap.lgc tr.lrow .l-std .dot:not(:empty)::after { content: " ⓘ"; color: #8795A0; font-size: 11px; font-weight: 400; }
+  /* Work: Chainage From – To, Work done (Particular), Debit to – party and rate */
+  .lg-wrap.lgc tr.lrow .l-wg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .lg-wrap.lgc tr.lrow .l-work label, .lg-wrap.lgc tr.lrow .l-wd { display: flex; flex-direction: column; min-width: 0; margin: 0; }
+  .lg-wrap.lgc tr.lrow .l-work input { width: 100% !important; min-width: 0 !important; min-height: 40px !important; height: 40px; font-size: 14px !important; padding: 6px 10px !important; }
+  .lg-wrap.lgc tr.lrow .l-wg > label:has(> input[hidden]) { display: none; }
+  .lg-wrap.lgc tr.lrow .l-wg:not(:has(> label > input:not([hidden]))) { display: none; }
+  .lg-wrap.lgc tr.lrow .l-wd .lg-part:not([hidden]) { margin-bottom: 6px; }
+  .lg-wrap.lgc tr.lrow .c-debit { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 8px; padding: 10px; border: 1px solid #FED7AA; background: #FFF7ED; border-radius: 10px; }
+  .lg-wrap.lgc tr.lrow:not(.dbt-open) .c-debit { display: none; }
+  .lg-wrap.lgc tr.lrow .c-debit .lgl { color: #9A3412; }
+  @container (max-width: 640px) {      /* a phone: the number on top, every part the full width */
+    .lg-wrap.lgc tr.lrow .l-secs, .lg-wrap.lgc tr.lrow.w-time .l-secs { grid-template-columns: minmax(0, 1fr); }
+    .lg-wrap.lgc tr.lrow.w-time .l-read, .lg-wrap.lgc tr.lrow .l-work { grid-column: auto; }
+    .lg-wrap.lgc tr.lrow > td.lcard { flex-direction: column; padding: 12px; gap: 10px; }
+    .lg-wrap.lgc tr.lrow .l-main { width: 100%; }
+    .lg-wrap.lgc tr.lrow .l-head .c-m, .lg-wrap.lgc tr.lrow .l-head .c-date, .lg-wrap.lgc table.lgt.m-mach tr.lrow .l-head .c-date { flex: 1 1 100%; max-width: none; }
+    .lg-wrap.lgc tr.lrow .l-head .c-shift { flex: 1 1 140px; }
+    .lg-wrap.lgc tr.lrow .c-act { margin: 0; }
+    .lg-wrap.lgc tr.lrow .l-rg, .lg-wrap.lgc tr.lrow.w-time .l-rg, .lg-wrap.lgc tr.lrow[data-way="No reading"] .l-rg { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .lg-wrap.lgc tr.lrow .l-rg > .c-tot { grid-column: 1 / -1; }
+  }
+  /* the water tanker – trip by trip */
+  #wt_form .wt-top { align-items: flex-start; gap: 12px 16px; padding: 2px 0 6px; }
+  #wt_form .wt-nof { min-width: 260px; }
+  #wt_form .wt-nof .lg-top-info { padding: 4px 0 0; }
+  #wt_form .wt-tot { margin: 0 0 0 auto; display: flex; flex-wrap: wrap; gap: 10px; font-weight: 400; }
+  #wt_form .wt-tot:empty { display: none; }
+  #wt_form .wt-tot span { margin: 0; min-width: 116px; padding: 9px 14px; border: 1px solid #E2E8F0; border-radius: 12px; background: #F8FAFC; display: flex; flex-direction: column; }
+  #wt_form .wt-tot small { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #64748B; }
+  #wt_form .wt-tot b { font: 800 24px/1.1 var(--ui); color: var(--ink); }
+  #wt_form .wt-tot span.all { background: #ECFEFF; border-color: #A5F3FC; }
+  #wt_form .wt-tot span.all b { color: #0E7490; }
+  #wt_form .wt-box { margin-top: 14px; padding: 14px 16px; border: 1px solid #E2E8F0; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+  #wt_form .wt-h { margin: 0 0 10px; font-size: 16px; }
+  #wt_form .wt-h small { margin-left: 10px; font-size: 12.5px; font-weight: 400; color: var(--muted); }
+  #wt_form table.wtt input { min-height: 40px; }
+  #wt_form .wt-rule { font-size: 12.5px; color: var(--muted); }
+  #wt_form .wt-sh { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 20px; font-size: 12px; font-weight: 700; background: #FEF3C7; color: #92400E; }
+  #wt_form .wt-sh.n { background: #E0E7FF; color: #3730A3; }
 </style>
 </head>
 <body class="locked">
@@ -4263,13 +4444,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   <!-- ================= LOG BOOK ================= -->
   <section id="sec-log" role="tabpanel" aria-labelledby="tab-log" hidden>
     <div class="viewonly" data-viewonly="Log Book" hidden>View only – you can see and print entries here, but you cannot add, change or delete. Ask Admin for Edit access.</div>
-    <div class="panel" data-perm="Log Book">
-      <div class="panel-head"><h2>Log Book entry</h2><button class="btn ghost small" id="lg_change" hidden>Change entry type</button></div>
+    <div class="panel lg-panel" data-perm="Log Book">
+      <!-- (update-154) the head of the entry: which way of entering is open, and "Change entry type" -->
+      <div class="panel-head lg-head">
+        <span class="lg-hic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"></path><path d="M4 19V5"></path><path d="M9 7h6M9 11h6"></path></svg></span>
+        <div class="lg-ht">
+          <h2>Log Book entry</h2>
+          <p class="lg-mt" data-mt="date"><b>One date – many machinery</b> <span>Pick the date once, then add a row for each machinery.</span></p>
+          <p class="lg-mt" data-mt="mach"><b>One machinery – many dates</b> <span>Pick the machinery once, then add a row for each date.</span></p>
+          <p class="lg-mt" data-mt="tanker"><b>Water tanker – trip by trip</b> <span>A water tanker (Log Book Format I): one line per trip. Add trips any time of the day.</span></p>
+        </div>
+        <button class="btn ghost small" id="lg_change" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3"></path></svg>Change entry type</button>
+      </div>
       <div class="lg-choose" id="lg_choose">
         <p>How do you want to fill the Log Book?</p>
-        <button class="lg-opt" data-lgmode="date"><b>One date – many machinery</b><span>Pick the date once, then add a row for each machinery (e.g. all machinery of 03-06-2026).</span></button>
-        <button class="lg-opt" data-lgmode="mach"><b>One machinery – many dates</b><span>Pick the machinery once, then add a row for each date (e.g. MH-25-AJ-3232 from 1st to 10th).</span></button>
-        <button class="lg-opt" data-lgmode="tanker"><b>Water tanker – trip by trip</b><span>A water tanker (Log Book Format I): one line per trip – challan no, dispatch and unload time, chainage, use for. Add trips any time of the day.</span></button>
+        <div class="lg-opts">
+        <button class="lg-opt" data-lgmode="date"><i class="lg-oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h10"></path></svg></i><b>One date – many machinery</b><span>Pick the date once, then add a row for each machinery (e.g. all machinery of 03-06-2026).</span></button>
+        <button class="lg-opt" data-lgmode="mach"><i class="lg-oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 17h10V9H6z"></path><path d="M12 13h4l3 4"></path><circle cx="6" cy="18" r="2"></circle><circle cx="15" cy="18" r="2"></circle><path d="M14 4l6 4"></path></svg></i><b>One machinery – many dates</b><span>Pick the machinery once, then add a row for each date (e.g. MH-25-AJ-3232 from 1st to 10th).</span></button>
+        <button class="lg-opt" data-lgmode="tanker"><i class="lg-oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3 4 6 7 6 11a6 6 0 0 1-12 0c0-4 3-7 6-11z"></path></svg></i><b>Water tanker – trip by trip</b><span>A water tanker (Log Book Format I): one line per trip – challan no, dispatch and unload time, chainage, use for. Add trips any time of the day.</span></button>
+        </div>
         <div class="lg-imp" data-perm-edit="Log Book">
           <span>Or from Excel:</span>
           <button class="btn ghost" id="lg_import" title="Add many Log Book entries from an Excel / CSV file (either layout)">Import from Excel</button>
@@ -4280,27 +4473,32 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       </div>
       <!-- (update-97) WATER TANKER – trip by trip -->
       <div id="wt_form" hidden>
-        <div class="lg-top">
+        <div class="lg-top wt-top">
           <div class="field"><label for="wt_date">Date *</label><input id="wt_date" type="date"></div>
           <div class="field"><label for="wt_shift">Shift *</label><select id="wt_shift"><option>Day</option><option>Night</option></select></div>
-          <div class="field"><label for="wt_no">Tanker No *</label><input id="wt_no" list="dl_tankers" autocomplete="off" placeholder="Type or pick"></div>
-          <div class="lg-top-info" id="wt_info"></div>
+          <div class="field wt-nof"><label for="wt_no">Tanker No *</label><input id="wt_no" list="dl_tankers" autocomplete="off" placeholder="Type or pick"><div class="lg-top-info" id="wt_info"></div></div>
+          <div class="wt-tot" id="wt_tot"></div>
         </div>
         <datalist id="dl_tankers"></datalist>
-        <div class="wt-edit" id="wt_edit" hidden></div>
-        <div class="table-wrap"><table class="wtt">
-          <thead><tr><th>#</th><th>Challan No *</th><th>Dispatch Time *</th><th>Unload Time *</th><th>Trip</th><th>Chainage No</th><th>Use For</th><th></th></tr></thead>
-          <tbody id="wt_in"></tbody></table></div>
-        <div class="errlist" id="wt_err" hidden></div>
-        <div class="actions">
-          <button class="btn ghost" id="wt_add" type="button">+ Add trip</button>
-          <button class="btn primary" id="wt_save" type="button">Save trips</button>
+        <div class="wt-box">
+          <h3 class="wt-h">New trips <small>One line per trip – Trip is 1 on every line.</small></h3>
+          <div class="wt-edit" id="wt_edit" hidden></div>
+          <div class="table-wrap"><table class="wtt">
+            <thead><tr><th>#</th><th>Challan No *</th><th>Dispatch Time *</th><th>Unload Time *</th><th>Trip</th><th>Chainage No</th><th>Use For</th><th></th></tr></thead>
+            <tbody id="wt_in"></tbody></table></div>
+          <div class="errlist" id="wt_err" hidden></div>
+          <div class="actions">
+            <button class="btn ghost" id="wt_add" type="button">+ Add trip</button>
+            <button class="btn primary" id="wt_save" type="button">Save trips</button>
+            <span class="wt-rule">The same challan, or a time that falls on another trip, is refused.</span>
+          </div>
         </div>
-        <h3 class="wt-h" id="wt_saved_h">Saved trips</h3>
-        <div class="table-wrap"><table class="wtt">
-          <thead><tr><th>#</th><th>Shift</th><th>Challan No</th><th>Dispatch Time</th><th>Unload Time</th><th>Trip</th><th>Chainage No</th><th>Use For</th><th></th></tr></thead>
-          <tbody id="wt_saved"></tbody></table></div>
-        <div class="wt-tot" id="wt_tot"></div>
+        <div class="wt-box">
+          <h3 class="wt-h" id="wt_saved_h">Saved trips</h3>
+          <div class="table-wrap"><table class="wtt">
+            <thead><tr><th>#</th><th>Shift</th><th>Challan No</th><th>Dispatch Time</th><th>Unload Time</th><th>Trip</th><th>Chainage No</th><th>Use For</th><th></th></tr></thead>
+            <tbody id="wt_saved"></tbody></table></div>
+        </div>
       </div>
       <div id="lg_form" hidden>
       <div class="lg-top">
@@ -4315,7 +4513,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <span><b>Consumed</b> = as per Standard Average</span>
         <span><b>Closing</b> = diesel left in the machinery</span>
       </div>
-      <div class="table-wrap lg-wrap"><table class="lgt">
+      <div class="table-wrap lg-wrap lgc"><table class="lgt">
         <thead>
           <tr><th rowspan="2" class="c-no">#</th><th rowspan="2" class="c-date">Date</th><th rowspan="2">Shift</th><th rowspan="2" class="c-m">Machinery</th><th rowspan="2" class="c-unit">Measured by</th>
             <th colspan="3" class="grp">Reading</th><th colspan="4" class="grp">Diesel (Ltr)</th>
@@ -16322,6 +16520,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   let lgMode = '';                       // 'date' = one date, many machinery; 'mach' = one machinery, many dates
   function setLgMode(mode) {
     lgMode = mode;
+    $('lg_choose').closest('.panel').dataset.lgmode = mode || '';      // (update-154) the head says which way of entering is open
     $('lg_choose').hidden = !!mode; $('lg_form').hidden = !mode || mode === 'tanker'; $('lg_change').hidden = !mode; $('wt_form').hidden = mode !== 'tanker';
     if (!mode) return;
     if (mode === 'tanker') { wtOpen(); return; }      // (update-97) water tanker – trip by trip
@@ -16373,10 +16572,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const w = S.wt, can = canEdit('Log Book'), list = (w && w.trips) || [];
     $('wt_saved_h').textContent = w ? 'Saved trips – ' + w.machine.id + ', ' + showDate(w.date) : 'Saved trips';
     // (update-103) a trip of an entry made before trip by trip: marked; its time is blank when that entry had more trips than one
-    $('wt_saved').innerHTML = list.length ? list.map((t, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(t.shift) + '</td><td><b>' + (esc(t.c) || '–') + '</b>' + (t.old ? ' <small class="muted">(entered before trip by trip)</small>' : '') + '</td><td>' + (esc(t.a) || '–') + '</td><td>' + (esc(t.b) || '–') + '</td><td class="c">1</td><td>' + esc(t.ch) + '</td><td>' + esc(t.u) + '</td>' +
+    $('wt_saved').innerHTML = list.length ? list.map((t, i) => '<tr><td>' + (i + 1) + '</td><td><span class="wt-sh' + (t.shift === 'Night' ? ' n' : '') + '">' + esc(t.shift) + '</span></td><td><b>' + (esc(t.c) || '–') + '</b>' + (t.old ? ' <small class="muted">(entered before trip by trip)</small>' : '') + '</td><td>' + (esc(t.a) || '–') + '</td><td>' + (esc(t.b) || '–') + '</td><td class="c">1</td><td>' + esc(t.ch) + '</td><td>' + esc(t.u) + '</td>' +
       '<td>' + (can ? '<button class="link" type="button" data-wtedit="' + i + '" title="Change this trip">Edit</button><button class="del" type="button" data-wtdel="' + i + '" title="Delete this trip" aria-label="Delete this trip">×</button>' : '') + '</td></tr>').join('') : '<tr><td colspan="9" class="none">' + (w ? 'No trip saved for this date yet.' : 'Pick the date and the tanker.') + '</td></tr>';
     const nD = list.filter(t => t.shift !== 'Night').length, nN = list.length - nD;
-    $('wt_tot').innerHTML = list.length ? '<span>Day trips: ' + nD + '</span><span>Night trips: ' + nN + '</span><span>Total trips: ' + list.length + '</span>' : '';
+    $('wt_tot').innerHTML = list.length ? '<span><small>Day trips:</small> <b>' + nD + '</b></span><span><small>Night trips:</small> <b>' + nN + '</b></span><span class="all"><small>Total trips:</small> <b>' + list.length + '</b></span>' : '';      // (update-154: shown as three tiles beside the tanker)
   }
   // what is wrong with the trips typed (before anything is sent): empty boxes, the same challan twice, a time on another trip
   function wtProblems(trips, sh) {
@@ -16697,33 +16896,59 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try {
       const p = await call('getLogRowPrefill', m.id, S.today, 'Full Day');
       const start = p.lastDate ? addDay(p.lastDate, 1) : S.today;
-      $('lg_top_info').textContent = 'Works on ' + (worksOf(m).join(', ') || '–') + '  |  ' + (p.lastDate ? 'Last Log Book entry: ' + showDate(p.lastDate) + (p.lastShift && p.lastShift !== 'Full Day' ? ' (' + p.lastShift + ')' : '') : 'No Log Book entry yet');
+      // (update-154) what the machinery is – the same facts as before (works on, its last entry) with its name, owner and standard
+      const fact = (k, v) => '<span class="lg-fact"><small>' + esc(k) + '</small><b>' + esc(v) + '</b></span>';
+      $('lg_top_info').innerHTML = '<span class="lg-mid"><b>' + esc(m.id) + '</b><small>' + esc([m.type, m.name && m.name !== m.id && m.name !== m.type ? m.name : ''].filter(Boolean).join(' · ')) + '</small></span>' +
+        fact('Owner', (m.owner || '–') + (m.ownership ? ' (' + m.ownership + ')' : '')) + fact('Works on', worksOf(m).join(', ') || '–') +
+        fact('Standard', [hasKm(m.unit) && m.kmStd ? m.kmStd + ' km/L' : '', hasHr(m.unit) && m.hrStd ? m.hrStd + ' L/hr' : ''].filter(Boolean).join(' + ') || 'Not set') +
+        fact('Last Log Book entry', p.lastDate ? showDate(p.lastDate) + (p.lastShift && p.lastShift !== 'Full Day' ? ' (' + p.lastShift + ')' : '') : 'No Log Book entry yet');
       lgRows().forEach((tr, i) => { lgf(tr, 'no').value = m.id; if (!tr._p || i === 0) lgf(tr, 'date').value = addDay(start, i); lgFill(tr); });
     } catch (e) { toast(errMsg(e), true); }
   });
+  /* (update-154, asked 24-10-2026: "log book entry madhe 3 type aahet tya 3 ni type sathi perfect ui banaw") ONE ROW = ONE CARD:
+   * on top the machinery (one date) or the date (one machinery), the shift, ½ day and the row's buttons; then "Measured by"; then
+   * three parts – Reading, Diesel (Ltr), Work. Every field, figure and button of the row is the same as before (the same data-f /
+   * data-o, the same classes the code reads) – only where they stand changed. The card is one cell of the table's row. */
+  const LG_IC = { read: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>',
+    dsl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h14M15 9h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0V8l-3-3"></path></svg>',
+    work: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>' };
   function lgRowHtml(date, shift) {
     const rd = (f, u) => '<div class="rd ' + u + '"><small>' + u + '</small><input data-f="' + f + '" type="number" step="0.01" min="0"></div>';
-    return '<tr class="lrow"><td class="c-no idx"></td>' +
-      '<td class="c-date"><input data-f="date" type="date" max="' + esc(S.today || '') + '" value="' + esc(date || S.today || '') + '"><small class="lnote dnote"></small></td>' +
-      '<td><select data-f="shift">' + LOG_SHIFTS.map(x => '<option' + (x === (shift || 'Full Day') ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' +
-        '<label class="lg-half" title="Half day: the machinery was on the job for half of this shift. The bill pays this entry as half a day (monthly and per-day rates). Pay by hour, KM or trip is not changed."><input type="checkbox" data-f="half"> ½ day</label></td>' +
-      '<td class="c-m"><input data-f="no" list="dl_mach_on" data-on="row" autocomplete="off" placeholder="Type or pick"><small class="lnote"></small></td>' +
-      '<td class="unitcell c-unit"></td>' +
-      '<td>' + rd('openingKm', 'km') + rd('openingHr', 'hr') + '<small class="gaphint" hidden></small><div class="rd tm"><small>from</small><input data-f="tStart" type="time"></div><div class="tm-xa"></div><div class="rd tm addt"><button type="button" class="tm-add" title="This machinery worked in parts (e.g. 11 to 1 and 2 to 5): add another From – To. The hours of all the times are added up.">+ time</button><button type="button" class="tm-rem" hidden title="Remove the last From – To of this entry" aria-label="Remove the last time">− time</button></div><span class="lg-day">—</span>' +
-        '<div class="rd nr nrk" hidden><small title="Estimated KM of the day (the app proposes this machinery\'s own average)">est km</small><input data-f="estKm" type="number" step="0.01" min="0"></div><div class="rd nr nrh" hidden><small title="Estimated hours of the day">est hr</small><input data-f="estHr" type="number" step="0.01" min="0"></div><small class="nrhint" hidden></small>' +
-        '<label class="nm" hidden title="Tick when a NEW meter was fitted: its Start is typed here and is not taken from the old meter"><input type="checkbox" data-f="newMeter"> new meter</label></td>' +
-      '<td>' + rd('closingKm', 'km') + rd('closingHr', 'hr') + '<div class="rd tm"><small>to</small><input data-f="tEnd" type="time"><b class="tm-h" title="Hours of this From – To"></b></div><div class="tm-xb"></div><div class="rd tm brk"><small>break</small><input data-f="tBreak" type="number" min="0" step="5" placeholder="min"><b class="tm-t" title="Total hours of this entry"></b></div>' +
-        '<div class="rd tp"><small>trips</small><input data-f="trip" type="number" min="0" step="1"></div><div class="rd tp ch"><small>challan</small><input data-f="challan" autocomplete="off" placeholder="Challan No"></div><span class="lg-day">worked</span><span class="lg-hol"></span><div class="rd nr nrn" hidden><input data-f="meterNote" autocomplete="off" placeholder="Why? e.g. meter not working" title="The reason is printed with the entry"></div><div class="itm lg-itm" hidden></div></td>' +
-      '<td class="o"><span data-o="wkm"></span><span data-o="whr"></span></td>' +
-      '<td class="o" data-o="odslCell"></td>' +
-      '<td class="o help" data-o="dieselCell"><b data-o="diesel"></b><small data-o="reads"></small></td>' +
-      '<td class="o" data-o="need"></td><td class="o"><b data-o="closing"></b></td>' +
-      '<td class="t muted" data-o="std"></td>' +
-      '<td class="t help" data-o="avgCell"><span class="dot" data-o="avg"></span></td>' +
-      '<td><input data-f="chFrom" autocomplete="off" placeholder="From"></td><td><input data-f="chTo" autocomplete="off" placeholder="To"></td>' +
-      '<td><input data-f="remark" class="lg-part" autocomplete="off" placeholder="Particular" hidden><input data-f="work" autocomplete="off" placeholder="Work done"></td>' +
-      '<td><button type="button" class="att-btn" title="Attachments of this entry – photos or PDF (paste with Ctrl + V, drop, upload, camera or Scan with Mobile)" aria-label="Attachments">📎<i></i></button><button type="button" class="dbt-btn" title="Debit to – charge the work of this entry to a party (opens two fields: party and rate)">Debit</button><button class="del" title="Delete row" aria-label="Delete row">×</button></td>' +
-      '<td class="c-debit"><input data-f="debitTo" list="dl_dnparty" autocomplete="off" placeholder="Debit to (party) – leave empty if none" title="The party this work is charged to. Leave empty when the work is not charged to anyone."><input data-f="debitRate" type="number" step="0.01" min="0" placeholder="Rate" title="Rate for the debit note (per hour / KM / trip / day, as this entry is measured)"></td></tr>';
+    return '<tr class="lrow"><td class="lcard" colspan="20"><span class="c-no idx"></span><div class="l-main">' +
+      '<div class="l-head">' +
+        '<label class="c-date"><span class="lgl">Date *</span><input data-f="date" type="date" max="' + esc(S.today || '') + '" value="' + esc(date || S.today || '') + '"><small class="lnote dnote"></small></label>' +
+        '<label class="c-m"><span class="lgl">Machinery *</span><input data-f="no" list="dl_mach_on" data-on="row" autocomplete="off" placeholder="Type or pick"><small class="lminfo"></small><small class="lnote"></small></label>' +
+        '<label class="c-shift"><span class="lgl">Shift *</span><select data-f="shift">' + LOG_SHIFTS.map(x => '<option' + (x === (shift || 'Full Day') ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label>' +
+        '<label class="lg-half" title="Half day: the machinery was on the job for half of this shift. The bill pays this entry as half a day (monthly and per-day rates). Pay by hour, KM or trip is not changed."><input type="checkbox" data-f="half"> ½ day</label>' +
+        '<div class="c-act"><button type="button" class="att-btn" title="Attachments of this entry – photos or PDF (paste with Ctrl + V, drop, upload, camera or Scan with Mobile)" aria-label="Attachments">📎 <span class="att-l">Attachments</span><i></i></button><button type="button" class="dbt-btn" title="Debit to – charge the work of this entry to a party (opens two fields: party and rate)">Debit</button><button class="del" title="Delete row" aria-label="Delete row">×</button></div>' +
+      '</div>' +
+      '<div class="c-unit"><span class="lgl">Measured by *</span><div class="unitcell"></div></div>' +
+      '<div class="l-secs">' +
+        '<section class="l-sec l-read"><h4 class="lsh">' + LG_IC.read + '<span>Reading</span></h4>' +
+          '<p class="l-pick l-pick-m">Pick the machinery first.</p><p class="l-pick l-pick-w">Pick “Measured by” above.</p>' +
+          '<div class="l-rg">' +
+            '<div class="c-start"><span class="lgl">Start</span><span class="lgl lgl-t">From</span>' + rd('openingKm', 'km') + rd('openingHr', 'hr') + '<small class="gaphint" hidden></small><div class="rd tm"><small>from</small><input data-f="tStart" type="time"></div><div class="tm-xa"></div><div class="rd tm addt"><button type="button" class="tm-add" title="This machinery worked in parts (e.g. 11 to 1 and 2 to 5): add another From – To. The hours of all the times are added up.">+ time</button><button type="button" class="tm-rem" hidden title="Remove the last From – To of this entry" aria-label="Remove the last time">− time</button></div><span class="lg-day">—</span>' +
+              '<div class="rd nr nrk" hidden><small title="Estimated KM of the day (the app proposes this machinery\'s own average)">est km</small><input data-f="estKm" type="number" step="0.01" min="0"></div><div class="rd nr nrh" hidden><small title="Estimated hours of the day">est hr</small><input data-f="estHr" type="number" step="0.01" min="0"></div><small class="nrhint" hidden></small>' +
+              '<label class="nm" hidden title="Tick when a NEW meter was fitted: its Start is typed here and is not taken from the old meter"><input type="checkbox" data-f="newMeter"> new meter</label></div>' +
+            '<div class="c-end"><span class="lgl">Close *</span><span class="lgl lgl-t">To</span>' + rd('closingKm', 'km') + rd('closingHr', 'hr') + '<div class="rd tm"><small>to</small><input data-f="tEnd" type="time"><b class="tm-h" title="Hours of this From – To"></b></div><div class="tm-xb"></div><div class="rd tm brk"><small>break</small><input data-f="tBreak" type="number" min="0" step="5" placeholder="min"><b class="tm-t" title="Total hours of this entry"></b></div>' +
+              '<div class="rd tp"><small>trips</small><input data-f="trip" type="number" min="0" step="1"></div><div class="rd tp ch"><small>challan</small><input data-f="challan" autocomplete="off" placeholder="Challan No"></div><span class="lg-day">worked</span><span class="lg-hol"></span><div class="rd nr nrn" hidden><input data-f="meterNote" autocomplete="off" placeholder="Why? e.g. meter not working" title="The reason is printed with the entry"></div><div class="itm lg-itm" hidden></div></div>' +
+            '<div class="c-tot o"><span class="lgl">Total</span><span data-o="wkm"></span><span data-o="whr"></span></div>' +
+          '</div></section>' +
+        '<section class="l-sec l-dsl"><h4 class="lsh">' + LG_IC.dsl + '<span>Diesel (Ltr)</span></h4>' +
+          '<div class="l-dg">' +
+            '<div class="dv"><span class="lgl">Opening</span><div class="o" data-o="odslCell"></div></div>' +
+            '<div class="dv"><span class="lgl">Issued</span><div class="o help" data-o="dieselCell"><b data-o="diesel"></b><small data-o="reads"></small></div></div>' +
+            '<div class="dv o"><span class="lgl">Consumed</span><b data-o="need"></b></div>' +
+            '<div class="dv o"><span class="lgl">Closing</span><b data-o="closing"></b></div>' +
+          '</div>' +
+          '<div class="l-std"><span><span class="lgl">Standard</span> <b data-o="std"></b></span><span class="help" data-o="avgCell"><span class="lgl">Average (fill to fill)</span> <b class="dot" data-o="avg"></b></span></div>' +
+        '</section>' +
+        '<section class="l-sec l-work"><h4 class="lsh">' + LG_IC.work + '<span>Work</span></h4>' +
+          '<div class="l-wg"><label><span class="lgl">Chainage From</span><input data-f="chFrom" autocomplete="off" placeholder="From"></label><label><span class="lgl">Chainage To</span><input data-f="chTo" autocomplete="off" placeholder="To"></label></div>' +
+          '<div class="l-wd"><span class="lgl">Work done</span><input data-f="remark" class="lg-part" autocomplete="off" placeholder="Particular" hidden><input data-f="work" autocomplete="off" placeholder="Work done"></div>' +
+          '<div class="c-debit"><label><span class="lgl">Debit to (party)</span><input data-f="debitTo" list="dl_dnparty" autocomplete="off" placeholder="Debit to (party) – leave empty if none" title="The party this work is charged to. Leave empty when the work is not charged to anyone."></label><label><span class="lgl">Rate</span><input data-f="debitRate" type="number" step="0.01" min="0" placeholder="Rate" title="Rate for the debit note (per hour / KM / trip / day, as this entry is measured)"></label></div>' +
+        '</section>' +
+      '</div></div></td></tr>';
   }
   const lgRows = () => [...$('lg_in').querySelectorAll('.lrow')];
   const lgf = (tr, f) => tr.querySelector('[data-f=' + f + ']');
@@ -16751,6 +16976,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // the fields of the way this entry is measured: KM / Hrs readings, Time (from – to, break), Trips, or Day (nothing to type)
   function lgShowUnit(tr, u) {
     const km = hasKm(u), hr = hasHr(u), tm = u === 'Time', tp = u === 'Trip', dy = u === 'Day';
+    tr.dataset.way = u || (tr._p ? '?' : '');      // (update-154) the card shows the labels of this way ('' = no machinery yet, '?' = Measured by not picked)
     tr.querySelectorAll('.rd.km').forEach(d => { d.hidden = !km; }); tr.querySelectorAll('.rd.hr').forEach(d => { d.hidden = !hr; });
     tr.querySelectorAll('.rd.tm').forEach(d => { d.hidden = !tm; }); tr.querySelectorAll('.rd.tp').forEach(d => { d.hidden = !tp; });
     tr.classList.toggle('w-time', tm); if (!tm) tr.classList.remove('w-split');
@@ -16860,6 +17086,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const tt = tr.querySelector('.tm-t'); if (tt) { const t = sl.length > 1 ? slotsHrs(sl, lgf(tr, 'tBreak').value) : ''; tt.textContent = t === '' ? '' : fmt(t) + ' hr'; } }
   function lgBlank(tr) {
     tr._p = null; tr._key = null; tr.classList.remove('err'); lgSlotsClear(tr);
+    { const mi = tr.querySelector('.lminfo'); if (mi) mi.textContent = ''; }
     lgShowUnit(tr, '');
     ['wkm', 'whr', 'diesel', 'reads', 'need', 'closing', 'std', 'avg'].forEach(o => { lgo(tr, o).textContent = ''; });
     const ib = tr.querySelector('.lg-itm'); if (ib) { ib.innerHTML = ''; ib.hidden = true; ib.dataset.sig = ''; ib.dataset.key = ''; }
@@ -16876,6 +17103,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       lgCalcSoon(); return;
     }
     inp.value = m.id;
+    { const mi = tr.querySelector('.lminfo'); if (mi) mi.textContent = [m.type, m.name && m.name !== m.id && m.name !== m.type ? m.name : '', m.owner ? m.owner + (m.ownership ? ' (' + m.ownership + ')' : '') : ''].filter(Boolean).join(' · '); }      // (update-154) what the machinery is, under its number
     if (m.lbFormat === 'I') { lgShowUnit(tr, ''); tr.querySelector('.unitcell').textContent = 'Water tanker'; lgRowNote(tr, m.id + ' is a water tanker – enter its trips with "Change entry type" → "Water tanker – trip by trip".'); tr.classList.add('err'); return; }      // (update-97)
     const modes = modesOf(m);
     if (!modes.length) { tr.querySelector('.unitcell').textContent = 'Tick "Works on" in Asset Master'; lgShowUnit(tr, ''); lgRowNote(tr, 'Tick what ' + m.id + ' works on in Asset Master.'); tr.classList.add('err'); return; }

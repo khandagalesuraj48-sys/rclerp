@@ -27,7 +27,7 @@ const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : f
   // ---------- 2. a row of the Log Book (made later) ----------
   await f.evaluate(() => { showTab('log'); }); await wait(2500);
   await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} setLgMode('date'); }); await wait(900);
-  const sel = await f.evaluate(() => { const i = document.querySelector('#sec-log td.c-m input[data-f="no"]'); if (!i) return ''; i.id = i.id || 'lgtest_no'; return '#' + i.id; });
+  const sel = await f.evaluate(() => { const i = document.querySelector('#sec-log .c-m input[data-f="no"]'); if (!i) return ''; i.id = i.id || 'lgtest_no'; return '#' + i.id; });
   await tapEl(sel); await p.keyboard.type('0002'); await wait(500); l = await list();
   const before = await f.evaluate(s => document.querySelector(s).value, sel);
   await tapEl('#pk_list .pk-row'); await wait(1800);

@@ -2129,8 +2129,6 @@
 "Last 3 months": "मागील 3 महिने",
 "Last 30 days": "मागील 30 दिवस",
 "Last 7 days": "मागील 7 दिवस",
-"Last Log Book entry:": "शेवटची लॉग बुक एन्ट्री:",
-"Last Log Book entry: {0}": "शेवटची लॉग बुक एन्ट्री: {0}",
 "Last check": "शेवटची तपासणी",
 "Last fill": "शेवटचा फिल",
 "Last issue": "शेवटचा इश्यू",
@@ -4382,7 +4380,6 @@
 "Works On": "कोणती कामे",
 "Works on": "कोणती कामे",
 "Works on {0} | Standard {1} | {2} to {3}": "कामे {0} | स्टँडर्ड {1} | {2} ते {3}",
-"Works on {0} | {1}": "कामे {0} | {1}",
 "Write the reason for:": "याचे कारण लिहा:",
 "Write the reason for: {0}.": "याचे कारण लिहा: {0}.",
 "Write the remark or question for the person who sent it – he answers it and sends the entry again.": "पाठवणाऱ्यासाठी remark किंवा प्रश्न लिहा – तो उत्तर देऊन एन्ट्री पुन्हा पाठवेल.",
@@ -6592,5 +6589,14 @@
 "(the same)": "(तेच)",
 "{0} taken off": "{0} काढले",
 "Attach {0} file{1} to": "{0} file{1} जोडा:",
-"· {0} attachment{1}": "· {0} attachment{1} जोडले"
+"· {0} attachment{1}": "· {0} attachment{1} जोडले",
+"A water tanker (Log Book Format I): one line per trip. Add trips any time of the day.": "वॉटर टँकर (लॉग बुक फॉरमॅट I): प्रत्येक ट्रिपची एक ओळ. दिवसात कधीही ट्रिप जोडा.",
+"Last Log Book entry": "शेवटची लॉग बुक एन्ट्री",
+"Measured by *": "मोजणीची पद्धत *",
+"New trips": "नवीन ट्रिप",
+"One line per trip – Trip is 1 on every line.": "प्रत्येक ट्रिपची एक ओळ – प्रत्येक ओळीत ट्रिप 1.",
+"Pick the date once, then add a row for each machinery.": "तारीख एकदाच निवडा, मग प्रत्येक मशिनरीसाठी एक ओळ जोडा.",
+"Pick the machinery once, then add a row for each date.": "मशिनरी एकदाच निवडा, मग प्रत्येक तारखेसाठी एक ओळ जोडा.",
+"Pick “Measured by” above.": "वर “मोजणीची पद्धत” निवडा.",
+"The same challan, or a time that falls on another trip, is refused.": "तोच चलन, किंवा दुसऱ्या ट्रिपच्या वेळेत येणारी वेळ, स्वीकारली जात नाही."
 }
