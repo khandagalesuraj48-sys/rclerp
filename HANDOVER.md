@@ -1939,6 +1939,18 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   ATT_DAY_N_ 300 / ATT_DAY_MB_ 150 a person a day (ATN_ counter, ATB_ bytes); AT_ notes no longer "held"; getBillAttachments
   withUser (a legacy bill's files only with Log Book / Machinery Billing / Saved Bills); step 1ze `do update set public = false`.
   Unit 108, browser att153 39; the regression set the same as main. Storage measured: about 0.33 – 0.45 MB a photo by default.
+- 24-10-2026 (update-154, web only – no app change). Report: `UPDATE_154.md`. THE LOG BOOK ENTRY'S NEW LOOK FOR ITS THREE WAYS
+  (only the look – no server, database or rule change). Page: the head `.lg-head` (`.lg-mt[data-mt]` shown by the panel's
+  `data-lgmode`, set in `setLgMode`), the ways as cards with icons (`.lg-opts`); `lgRowHtml` – ONE CARD PER ROW: the row is one cell
+  `td.lcard` (colspan 20) with `.l-head` (c-date / c-m with `.lminfo` (type · name · owner, set in `lgFill`, cleared in `lgBlank`) /
+  c-shift / lg-half / `.c-act` 📎 Debit ×), `.c-unit` (`tr.dataset.way` set in `lgShowUnit`, '?' before it is picked) and
+  `.l-secs` – `.l-read` (`.l-rg`: `.c-start` / `.c-end` (was `c-close`: the KPI tile's class clashed) / `.c-tot`), `.l-dsl`
+  (`.l-dg`), `.l-work` (`.l-wg`, `.l-wd`, `.c-debit`); every data-f / data-o / class the code reads kept. "One machinery": the
+  machinery's facts in `#lg_top_info` (`.lg-mid`, `.lg-fact`: Owner, Works on, Standard, Last Log Book entry). Water tanker:
+  `.wt-top` (`#wt_tot` tiles beside the tanker), `.wt-box` New / Saved trips, `.wt-rule`, `.wt-sh` chip. Styles: one block
+  "(update-154 …)" before the first `</style>`, all under `.lg-panel` / `.lg-wrap.lgc` / `#wt_form` (container queries ≤ 1080 two
+  parts side by side, ≤ 640 the phone). Labels are real text (the page's i18n reads text, not CSS). 9 new texts (mr / hi).
+  Tests: half / mob / dnui / splittime / att153 read the card instead of the old cells.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

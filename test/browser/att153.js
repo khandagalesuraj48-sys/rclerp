@@ -132,8 +132,8 @@ const dir = path.join(os.tmpdir(), 'att153'); fs.mkdirSync(dir, { recursive: tru
     await paste(0, pics.png, 'image.png', 'image/png');
     const tb = await waitTiles(1, 'st-new');
     ok('B. Ctrl + V of a copied photo (a PNG from WhatsApp Web) in a row: its box opens with the photo, made ready here (not sent yet)', tb.length === 1 && /^st-new:image\.png · \d+ KB$/.test(tb[0]), tb);
-    const closed = await done(), badge = await F.evaluate(() => { const b = lgRows()[0].querySelector('.att-btn'); return b.className + '|' + b.textContent; });
-    ok('   Done: sent (the store keeps it), the box closes, the row\'s 📎 shows 1', closed && badge === 'att-btn on|📎1', { closed, badge });
+    const closed = await done(), badge = await F.evaluate(() => { const b = lgRows()[0].querySelector('.att-btn'); return b.className + '|' + b.querySelector('i').textContent; });      // (update-154: the button also says "Attachments"; its count is its <i>)
+    ok('   Done: sent (the store keeps it), the box closes, the row\'s 📎 shows 1', closed && badge === 'att-btn on|1', { closed, badge });
     const k2d = 'AT153-2|2026-09-01|Day';
 
     // ---------- C. drop a photo and a PDF on the Night row, + "From another entry" ----------
