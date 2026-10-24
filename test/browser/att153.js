@@ -207,8 +207,9 @@ const dir = path.join(os.tmpdir(), 'att153'); fs.mkdirSync(dir, { recursive: tru
     await pp.goto(U + '/?cap=' + cap.code, { waitUntil: 'load' });
     let Fp = await frameOf(pp, () => !!document.getElementById('lg_email') && document.getElementById('lg_email').offsetParent !== null);
     await Fp.type('#lg_email', 'mk153@rcl.test'); await Fp.type('#lg_pass', PW); await Fp.click('#lg_btn');
-    Fp = await frameOf(pp, () => !!document.getElementById('cap_sheet'));
+    const Fp0 = Fp; Fp = await frameOf(pp, () => !!document.getElementById('cap_sheet'));
     const sheet = Fp ? await Fp.evaluate(() => document.querySelector('#cap_sheet h3').textContent) : '';
+    if (!Fp) { try { await pp.screenshot({ path: path.join(dir, 'phone-no-sheet.png') }); } catch (e) {} const fr = await frameOf(pp, () => typeof S === 'object').catch(() => null) || Fp0; out.push('   (the phone: ' + JSON.stringify(await fr.evaluate(() => ({ box: (document.getElementById('cf_back') && !document.getElementById('cf_back').hidden) ? document.getElementById('cf_title').textContent + ' :: ' + document.getElementById('cf_msg').textContent : '', user: !!(window.S && S.user), cap: sessionStorage.getItem('rcl_cap'), url: location.href, top: (() => { try { return parent.location.href; } catch (e) { return '?'; } })() })).catch(e => 'not readable: ' + e.message)).slice(0, 600) + ')'); }
     const claimedSt = await (async () => { for (let i = 0; i < 20; i++) { await wait(500); const t = await F.evaluate(() => (document.getElementById('at_qr_st') || {}).textContent || ''); if (/Phone connected/.test(t)) return t; } return await F.evaluate(() => (document.getElementById('at_qr_st') || {}).textContent || ''); })();
     ok('   the phone opens the link → signs in (the QR code is kept through the sign-in) → "Scan with Mobile" for that entry; the laptop: "📱 Phone connected"', /^AT153-2 · 02-09-2026 · Day$/.test(sheet) && /^📱 Phone connected/.test(claimedSt), { sheet, claimedSt });
     const second = await call(U, ot, 'capClaim', [{ code: cap.code, phone: 'p-second-001' }]);
@@ -321,6 +322,18 @@ const dir = path.join(os.tmpdir(), 'att153'); fs.mkdirSync(dir, { recursive: tru
     const nightOf = r => r && r.files ? r.files.filter(f => (f.entries || []).some(e => e.key === kn)).map(f => f.sha).sort() : null;
     ok('   superseded: the Super Admin revises the bill – the old one (Superseded) still has the Night\'s 3 files as billed; the new one (rev 1) has its 2 – each bill from its own evidence', !!oldId && !!newId && JSON.stringify(nightOf(bo)) === JSON.stringify([...kept].sort()) && JSON.stringify(nightOf(bn)) === JSON.stringify([...shas(kn)].sort()) && bo.fixed && bn.fixed,
       { oldId, newId, old: nightOf(bo), neu: nightOf(bn), rev: sql("select string_agg(bill_no || ' rev ' || rev || ' ' || status, ', ') from bills where vendor_name = 'AT153 Vendor'") });
+    // ---------- (security review) a change request with files: the Super Admin sees what it does to them; approved, exactly those are saved ----------
+    const crPic = await M('uploadAttachment', { data: 'data:image/jpeg;base64,' + Buffer.concat([bytesOf(pics.jpg3), Buffer.from('cr153')]).toString('base64'), name: 'challan-cr.jpg' });
+    const eC = await M('getLogEntry', kn), hadC = shas(kn), wantC = hadC.map(h => ({ sha: h })).concat([{ sha: crPic.sha }]);
+    const refC = await M('updateLogRow', kn, { ver: eC.ver, attWas: hadC, attachments: wantC });
+    const crS = await M('sendChangeRequest', { fn: 'updateLogRow', args: [kn, { ver: eC.ver, attWas: hadC, attachments: wantC }], reason: 'The challan photo was missing' });
+    const crL = await S_('getChangeRequests', {}), crRow = crS && (crL.requests || []).find(r => r.id === crS.id);
+    const crData = crS && crS.id ? sql("select data from billed_changes where id = '" + crS.id + "'") : '';
+    ok('H. a billed entry\'s files changed by the maker: refused and sent to the Super Admin – the request says "Attachments ' + hadC.length + ' → ' + (hadC.length + 1) + ' (1 added)" and keeps the file\'s record (checked when asked)', /submitted RA Bill \d+/.test(refC.ERROR || '') && crS && /^CR-\d{5}$/.test(crS.id || '') && crRow && new RegExp('· Attachments ' + hadC.length + ' → ' + (hadC.length + 1) + ' \\(1 added\\)').test(crRow.summary[0]) && crData.indexOf(crPic.sha) > -1 && shas(kn).length === hadC.length, { refC: (refC.ERROR || '').slice(0, 100), crS, line: crRow && crRow.summary[0], data: crData.slice(0, 160) });
+    const crD = await S_('decideChangeRequest', { id: crS.id, approve: true, note: 'seen the challan' });
+    const bn2 = newId ? await A('getBillAttachments', { id: newId }) : null;
+    const hC = sql("select (ctx->>'super') || '|' || coalesce(ctx->>'reason', '') from log_book_history where entry_key = '" + kn + "' order by seq desc limit 1");
+    ok('   approved by the Super Admin: the entry has exactly the files asked for (' + (hadC.length + 1) + '); the history names the request; the bill (rev 1) still has the files as billed', crD && !crD.ERROR && JSON.stringify(shas(kn).slice().sort()) === JSON.stringify(wantC.map(x => x.sha).sort()) && /^true\|Change request CR-\d{5} of .* approved: The challan photo was missing/.test(hC) && JSON.stringify(nightOf(bn2)) === JSON.stringify(nightOf(bn)), { crD: crD && (crD.ERROR || crD.status), now: shas(kn).length, hC, bill: nightOf(bn2) });
     ok('G. no script error on the pages (the maker\'s, the phone\'s, the Admin\'s, the Super Admin\'s)', !errs.m.length && !errs.p.length && !errs.a.length && !errs.s.length, errs);
   } catch (e) { ok('run', false, String(e && e.stack || e).slice(0, 900)); }
   finally { try { if (b) await b.close(); } catch (e) {} try { cleanup(); } catch (e) { out.push('cleanup: ' + String(e.message).slice(0, 200)); } }

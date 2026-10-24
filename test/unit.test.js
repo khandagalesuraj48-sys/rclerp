@@ -2089,7 +2089,7 @@ test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the 
   assert.match(code, /rec\.no !== mId/); assert.match(code, /photosTaken_\(photos\.map\(x => x\.p\)\)/); assert.match(code, /pc\.remove\('PH_' \+ p\)/);      // (update-120: photosTaken_)
   // a photo being sent is tried again 3 times (a question), not for ever (a save) – the page's shell and the server agree
   const shell = fs.readFileSync(path.join(__dirname, '..', 'server', 'page.js'), 'utf8'), rt = fs.readFileSync(path.join(__dirname, '..', 'server', 'runtime.js'), 'utf8');
-  assert.match(shell, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'capPoll'\]/); assert.match(rt, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'capPoll'\]/);      // (update-120: and a bill copy; update-153: an attachment, and the computer asking about Scan with Mobile)
+  assert.match(shell, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel'\]/); assert.match(rt, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel'\]/);      // (update-120: and a bill copy; update-153: an attachment, and Scan with Mobile – they write no table; its QR's token is never kept with a save's answer)
   // the database step of this update: shown in the app's Read Me word for word; it only ADDS (a column, a private bucket)
   const sqlFile = fs.readFileSync(path.join(__dirname, '..', 'sql', 'supabase_step1x_diesel_photos.sql'), 'utf8');
   const listed = new Function(fs.readFileSync(path.join(__dirname, '..', 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1x_diesel_photos.sql');
@@ -5383,7 +5383,60 @@ test('update-153: attachments of a Log Book entry – real file types only, kept
     age(st4.id, 'ends'); assert.match(claim(me, st4.code, 'phone-0003').THROWN, /^This QR code ran out \(15 minutes\)/);
     assert.match(add(me, ph.sha, 'phone-0003', st4.code).THROWN, /ran out \(15 minutes\)/);
     assert.strictEqual(run('(u, x) => capPoll_(u, x)', me, { id: 'nonsense' }).state, 'gone');
+    // ---- (security review) each side writes its own record: the phone's write landing just after the computer closed it does not open it again ----
+    const st6 = run('(u, x) => capStart_(u, x)', me, { key: 'K6' });
+    assert.strictEqual(claim(me, st6.code, 'phone-0006').ok, true);
+    const o6 = run('id => capGet_(id)', st6.id);      // the phone read it (claimed) …
+    run('(u, x) => capCancel_(u, x)', me, { id: st6.id });      // … the computer closes it …
+    run('(id, o, h) => { o.files.push({ sha: h, at: "x" }); capFiles_(id, o); }', st6.id, o6, ph.sha);      // … and the phone's write lands after that
+    assert.deepStrictEqual([run('id => capGet_(id).state', st6.id), run('id => capGet_(id).files.length', st6.id), run('(u, x) => capPoll_(u, x)', me, { id: st6.id }).state], ['cancelled', 1, 'cancelled'], 'closed stays closed');
+    assert.ok(!/"state":"claimed"/.test(run('id => CacheService.getScriptCache().get("CAPX_" + id) || ""', st6.id)) && run('id => CacheService.getScriptCache().get("CAPX_" + id)', st6.id) === 'cancelled');
+    // two phones at the same moment (both read it "waiting"): the database's counter lets only the first one hold it
+    const cnt = {}; ctx.__count = k => (cnt[k] = (cnt[k] || 0) + 1);
+    try {
+      const st7 = run('(u, x) => capStart_(u, x)', me, { key: 'K7' });
+      assert.strictEqual(claim(me, st7.code, 'phone-0007').ok, true);
+      run('id => { const c = CacheService.getScriptCache(), o = JSON.parse(c.get("CAP_" + id)); o.state = "waiting"; delete o.phone; c.put("CAP_" + id, JSON.stringify(o), 600); }', st7.id);      // (as the second phone saw it)
+      assert.match(claim(me, st7.code, 'phone-0008').THROWN, /^This QR code is already being used by another phone/);
+      // at most 300 files and 150 MB one person sends in a day (a stolen sign-in cannot fill the store); the same file again uses no room
+      const day = run('() => today_()'), kn = 'ATN_' + day + '_op153@rcl.test';
+      cnt[kn] = 300;
+      assert.match(up(me, 'image/jpeg', Buffer.concat([jpg, Buffer.from('301')])).THROWN, /^You sent too many attachments today \(at most 300 files, 150 MB a person in a day\) – send the rest tomorrow/);
+      cnt[kn] = 0;
+      run('k => CacheService.getScriptCache().put(k, String(150 * 1048576 - 10), 600)', 'ATB_' + day + '_op153@rcl.test');
+      assert.match(up(me, 'image/jpeg', Buffer.concat([jpg, Buffer.from('a little more than 10 bytes')])).THROWN, /^You sent too many attachments today/);
+      run('k => CacheService.getScriptCache().put(k, "0", 600)', 'ATB_' + day + '_op153@rcl.test');
+      const big = up(me, 'image/jpeg', Buffer.concat([jpg, Buffer.from('counted')]));
+      assert.strictEqual(run('k => Number(CacheService.getScriptCache().get(k))', 'ATB_' + day + '_op153@rcl.test'), big.size, 'the bytes kept are counted');
+      assert.strictEqual(up(me, 'image/jpeg', Buffer.concat([jpg, Buffer.from('counted')])).dup, true);
+      assert.strictEqual(run('k => Number(CacheService.getScriptCache().get(k))', 'ATB_' + day + '_op153@rcl.test'), big.size, 'the same file again: no room used, not counted');
+    } finally { delete ctx.__count; }
+    // ---- (security review) a change request's files: checked when it is ASKED and kept with it; its approval takes only those ----
+    const night = 'AT-1|2026-08-01|Night', hadN = run('k => getLogAttachments_({ key: k }).files.map(f => f.sha)', night);
+    const cr = run('(u, k, h) => crRequest_(u, { fn: "updateLogRow", args: [k, { ver: "x", attachments: [{ sha: h }] }], reason: "the right photo" })', me, night, g.sha);
+    assert.ok(cr && cr.ok, JSON.stringify(cr));
+    assert.match(cr.summary[0], new RegExp('^Change Log Book entry: AT-1 · 01-08-2026 · Night · Attachments ' + hadN.length + ' → 1 \\(' + (hadN.length - 1) + ' taken off\\)'), 'the Super Admin sees what it does to the files');
+    const crRow = run('id => { const t = crTable_(false); return crOut_(t, t.rows.find(r => str_(r[t.c["Request ID"]]) === id), 0).data; }', cr.id);
+    assert.deepStrictEqual(Object.keys(JSON.parse(crRow).att), [g.sha], 'its files, as checked now, kept with the request');
+    assert.strictEqual(JSON.parse(crRow).att[g.sha].e, 'op153@rcl.test');
+    assert.match(run('(u, k, h) => crRequest_(u, { fn: "updateLogRow", args: [k, { ver: "x", attachments: [{ sha: h }] }], reason: "not mine" })', other, night, lone.sha).THROWN, /^A file was not added by you in the last 6 hours/, 'another person\'s file: refused when it is asked');
+    assert.match(run('(u, k) => crRequest_(u, { fn: "updateLogRow", args: [k, { ver: "x", attachments: [{ sha: "../x" }] }], reason: "x" })', me, night).THROWN, /^An attachment was not sent right/);
+    // at the approval: a file of the store that is not the requester's (and not with an entry) is refused – unless the request kept its record
+    const atAppr = (l, e, ca) => run('(l, e, ca) => { VER_CTX_ = "approve"; FLOW_SENDER_ = e; CR_ATT_ = ca; try { return attOf_(l, [], { c: {}, rows: [] }).map(x => x.sha); } finally { VER_CTX_ = ""; FLOW_SENDER_ = ""; CR_ATT_ = null; } }', l, e, ca);
+    assert.match(atAppr([{ sha: lone.sha }], 'xx153@rcl.test', null).THROWN, /^A file was not added by you/, 'only being in the store is not enough');
+    assert.deepStrictEqual(atAppr([{ sha: lone.sha }], 'xx153@rcl.test', { [lone.sha]: { e: 'xx153@rcl.test', es: ['xx153@rcl.test'], mime: 'image/jpeg', size: 1, name: 'n', at: 'a' } }), [lone.sha], 'the record kept with the request');
+    assert.deepStrictEqual(run('(l, e) => { VER_CTX_ = "flow"; FLOW_SENDER_ = e; try { return attOf_(l, [], { c: {}, rows: [] }).map(x => x.sha); } finally { VER_CTX_ = ""; FLOW_SENDER_ = ""; } }', [{ sha: lone.sha }], 'xx153@rcl.test'), [lone.sha], 'a verification (checked when it was sent): the file in the store');
+    // in words: the same files on several entries; a new row with its files
+    assert.deepStrictEqual(run('a => crDescribe_("linkLogAttachments", a).lines', [{ keys: ['AT-1|2026-08-01|Day', 'AT-1|2026-08-01|Night'], files: [g.sha, p.sha] }]), ['Attach 2 files to: AT-1 · 01-08-2026 · Day', 'Attach 2 files to: AT-1 · 01-08-2026 · Night'], 'not "Delete"');
+    assert.match(run('a => crDescribe_("saveLogRows", a).lines[0]', [{ rows: [{ date: '2026-08-03', shift: 'Day', no: 'AT-1', mode: 'KM', closingKm: 210, attachments: [{ sha: a.sha }] }] }]), /^Add: AT-1 · 03-08-2026 · Day – .*Close KM 210.* · 1 attachment$/);
   } finally { vm.runInContext('attReady_ = __k153.ready; sbConf_ = __k153.conf;', ctx); ctx.Utilities = U0; ctx.UrlFetchApp = F0; }
+  // (security review) an attachment is not held by a verification (one file may be with several entries); a legacy bill's files only for who may see the Log Book;
+  // the preview of a dropped file has the type its bytes say; the bucket is made private even if it was there before
+  assert.strictEqual((code.match(/Object\.keys\(held\)\.filter\(p => !\/\^AT_\/\.test\(p\)\)/g) || []).length, 3);
+  assert.match(code, /getBillAttachments: \{ m: 'Saved Bills', any: \['Saved Bills', 'Machinery Billing', 'Bill Summary', 'Vendor Ledger'\], withUser: true, f: \(u, f\) => getBillAttachments_\(f, u\) \}/);
+  assert.match(code, /\(ev\.kind === 'legacy' \|\| ev\.kind === 'off'\) && \(!u \|\| seesAny_\(u, \['Log Book', 'Machinery Billing', 'Saved Bills'\]\)\)/);
+  assert.match(fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), /it\.url = URL\.createObjectURL\(new Blob\(\[u8\], \{ type: k \}\)\)/);
+  assert.match(fs.readFileSync(path.join(root, 'sql', 'supabase_step1ze_attachments.sql'), 'utf8'), /on conflict \(id\) do update set public = false;/);
   // ---- the actions and their access ----
   assert.match(code, /uploadAttachment: +\{ m: 'Log Book', withUser: true, f: \(u, x\) => uploadAttachment_\(u, x\) \}/);
   assert.match(code, /linkLogAttachments: \{ m: 'Log Book', edit: true, f: linkLogAttachments_, log: 'logAttach' \}/);

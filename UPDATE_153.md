@@ -65,6 +65,44 @@ The same in the app's own screens: Attachments in the Log Book entry (Camera, Ga
 card, the app's scanner opens Scan with Mobile's capture screen, the bill annex and the ZIP in RCL Drive, the number in Rules of
 this site; the web's help and words taken again.
 
+## The independent security review (24-10-2026) – what it found and what was done
+A separate reviewer read the code of update-152 and update-153 (it did not see this report). No high finding; one medium, seven
+low. Done in this update:
+* **Medium – a change request could change a locked entry's files unseen.** A billed / approved entry's attachments changed by a
+  user go to the Super Admin as a change request; the request did not check the files, its summary did not mention them, and its
+  approval took any file of the store. Now: the request **checks the files when it is asked** (the person's own of the last 6 hours,
+  or one already with an entry) and **keeps their records with the request** (`crAtts_`); its approval takes exactly those
+  (`CR_ATT_`) – a file only "in the store" is refused (that fallback is left only for a verification, whose save was checked when it
+  was sent). The Approvals line says **"Attachments 2 → 3 (1 added)"** / "(1 taken off)"; "Attach to selected" under a
+  verification reads "Attach 2 files to: …" (it read "Delete: …").
+* **The QR code's token was kept with a save's answer** (the "saved once" record, up to 24 hours). Now every Scan with Mobile call
+  is a "question" (they write no table): no save number, nothing of its answer is kept. Only the token's SHA-256 is kept.
+* **Two at the same moment** (the phone's photo told just as the computer closes the QR; two phones claiming at once): each side now
+  writes its own record (the session, its end, the phone's files), so a late write never opens a closed session again; the claim
+  is counted by the database – only the first phone holds it.
+* **No limit on uploads:** at most **300 files and 150 MB a person in a day** (the same file again uses no room and is not counted);
+  over it: "You sent too many attachments today … tell the Admin at once" (help in English / मराठी / हिंदी).
+* **A legacy bill's files** (a bill from before step 1zc: today's files) were given to users who may not see the Log Book; now only
+  to those with Log Book, Machinery Billing or Saved Bills access (as the Log Book list).
+* **The preview of a dropped PDF** used the type the file claimed; now the type its bytes say.
+* **Step 1ze** makes the bucket private even if a bucket of that name was made by hand before, and its last line says
+  "private".
+* "Held" attachments of a verification: the marking did nothing (it wrote under the wrong name); attachments are now not held at
+  all (one file may be with several entries – the request keeps their records).
+
+Looked at and **not changed** (said plainly):
+* The database guard trusts the context the app's save sets (Super Admin / rename). Whoever holds the app's secret key could set it
+  too – the guard is a record and a check against changes made outside the app, not against the key's holder. The key lives only in
+  Vercel. A rename lets the guard through for the whole entry (the app itself lets only the number change).
+* The database does not stop the app's key from deleting a file in the store: the app never deletes or overwrites (x-upsert false),
+  the bucket is private, and the ZIP checks every file against its SHA-256 (a changed file shows ✗).
+* A file is checked by its first bytes only (a JPG / PNG / PDF header); the store serves it with that type from Supabase's own
+  address, never from the app's – it cannot run as a page of the app. A file sent but never saved with an entry stays in the store
+  (nothing is deleted – financial evidence); it is not written to the Activity Log (the save that links it is).
+* Two people sending the same file at the same second may leave only one of them in the 6-hour note – the other gets "not added
+  by you … add it again", and adding it again fixes it.
+* A "days back" verification rule does not catch an attachments-only edit (the same as for every edit of an entry before).
+
 ## The database step – needs his approval, he runs it
 `sql/supabase_step1ze_attachments.sql` – **in every site's Supabase**, after step 1zd. It only **adds**: one empty column
 `log_book.attachments` and one **private** Storage bucket `erp-files` (JPG, PNG, PDF; 10 MB a file at most – the app sends 3 MB at

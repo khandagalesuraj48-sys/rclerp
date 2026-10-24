@@ -27,8 +27,9 @@ const BRIDGE = `
     // (update-85: dieselPhoto – a photo being sent – is tried again 3 times like a question, not for ever like a save: on a weak
     //  connection the person must be able to take it again or save without it. A copy that arrived twice is only a spare file.
     //  update-120: inwardPhoto – a bill copy of a diesel inward – the same; update-153: uploadAttachment – an attachment, kept once
-    //  under its fingerprint – and capPoll – the computer asking every 3 s what the phone sent: a question, never counted as a save)
-    return /^(get|rpt|rtc)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'capPoll'].indexOf(f) > -1; }
+    //  under its fingerprint – and Scan with Mobile (capStart … capCancel; capPoll – the computer asking every 3 s what the phone
+    //  sent): they write no table, so they are questions, never counted as a save – and the QR's token is never kept with a save's answer)
+    return /^(get|rpt|rtc)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel'].indexOf(f) > -1; }
   // calls on their way (for the freeze note: which answer the page was waiting for, and for how long) and the last answer
   var inFlight = {}, flightNo = 0, lastAnswer = '';
   window.__rclNet = function () { var now = Date.now(), w = Object.keys(inFlight).map(function (k) { return inFlight[k].fn + ' ' + ((now - inFlight[k].t0) / 1000).toFixed(1) + ' s'; });

@@ -17,8 +17,9 @@ alter table public.log_book add column if not exists attachments text;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('erp-files', 'erp-files', false, 10485760, array['image/jpeg', 'image/png', 'application/pdf'])
-on conflict (id) do nothing;
+on conflict (id) do update set public = false;      -- (a place of this name made by hand before: it is made private – its files open only through the app)
 
 notify pgrst, 'reload schema';
 select 'Step 1ze done · log_book.attachments ' || (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'log_book' and column_name = 'attachments')
-  || ' · bucket erp-files ' || (select count(*) from storage.buckets where id = 'erp-files') as done;
+  || ' · bucket erp-files ' || (select count(*) from storage.buckets where id = 'erp-files')
+  || ' · ' || coalesce((select case when public then 'PUBLIC – run this file again' else 'private' end from storage.buckets where id = 'erp-files'), 'missing') as done;

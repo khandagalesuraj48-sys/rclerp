@@ -837,7 +837,7 @@ const API_ = {
   saveBillSettings:  { m: 'Machinery Billing', edit: true, f: saveBillSettings_, log: 'billSettings' },
   getBills:          { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Bill Summary', 'Vendor Ledger'], f: getBills_ },
   getBillEvidence:   { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Bill Summary', 'Vendor Ledger'], f: getBillEvidence_ },      // update-151: a saved bill's Log Book as submitted (its fixed evidence), checked
-  getBillAttachments: { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Bill Summary', 'Vendor Ledger'], f: getBillAttachments_ },      // update-153: the files of a saved bill's Log Book (as submitted)
+  getBillAttachments: { m: 'Saved Bills', any: ['Saved Bills', 'Machinery Billing', 'Bill Summary', 'Vendor Ledger'], withUser: true, f: (u, f) => getBillAttachments_(f, u) },      // update-153: the files of a saved bill's Log Book (as submitted)
   billSummary:       { m: 'Bill Summary', f: billSummary_ },
   getPayments:       { m: 'Machinery Payments', f: getPayments_ },
   savePayment:       { m: 'Machinery Payments', edit: true, f: savePayment_, log: 'payment' },
@@ -3618,12 +3618,12 @@ function getBillEvidence_(f) {
  * with its evidence: the files each entry had AT SUBMISSION (the evidence keeps every entry's list – its fingerprints and places); a file
  * is kept under its own fingerprint and never overwritten or deleted, so the place names exactly the bytes that were billed. A file on
  * several entries is listed once, with all its entries. A legacy bill (no evidence): today's files, said so. Links open each for 15 min. */
-function getBillAttachments_(f) {
+function getBillAttachments_(f, u) {
   f = f || {};
   const ev = getBillEvidence_({ id: f.id });
   let rows = [], kind = ev.kind;
   if (ev.kind === 'submission') rows = ev.rows || [];
-  else if (ev.kind === 'legacy' || ev.kind === 'off') {
+  else if ((ev.kind === 'legacy' || ev.kind === 'off') && (!u || seesAny_(u, ['Log Book', 'Machinery Billing', 'Saved Bills']))) {      // (update-153 review: today's Log Book only for who may see it – as getLogBookList)
     const t = billTable_(), b = t ? t.rows.map(r => billOut_(t, r, true)).find(x => x.id === str_(f.id)) : null;
     const nos = {}; billMachKeys_(b && b.data).forEach(k => { nos[k] = true; });
     rows = b && b.from && b.to ? (getLogBookList_({ from: b.from, to: b.to, all: true }).rows || []).filter(r => nos[noKey_(r.no)]) : [];
@@ -5214,6 +5214,7 @@ function dieselPhotos_(id) {
  *     (not given = the entry keeps what it has). linkLogAttachments puts the same files on several entries in one save.
  *   – Looking at them (getLogAttachments): links that open a file for 15 minutes, for a user who may see the Log Book. */
 const ATT_BUCKET_ = 'erp-files', ATT_MAX_DEFAULT_ = 10, ATT_RAW_MAX_ = 3 * 1024 * 1024;
+const ATT_DAY_N_ = 300, ATT_DAY_MB_ = 150;      // (update-153 review) the most one person sends in a day – a stolen sign-in cannot fill the store
 const ATT_TYPES_ = { 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' };
 const ATT_PATH_ = /^log\/[0-9a-f]{2}\/[0-9a-f]{64}\.(jpg|png|pdf)$/;
 const ATT_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1ze_attachments.sql once in Supabase → SQL Editor, in every site.';
@@ -5254,6 +5255,9 @@ function uploadAttachment_(u, x) {
   const real = attSniff_(bytes);
   if (real !== mt[1]) throw new Error('This file is not what its name says (' + mt[1] + ') – only real photos (JPG, PNG) and PDFs can be attached.');
   attReady_();
+  const cch = CacheService.getScriptCache(), me = str_(u.email).toLowerCase(), myName = u.name || u.email;
+  const kB = 'ATB_' + today_() + '_' + me, nNow = typeof __count === 'function' ? __count('ATN_' + today_() + '_' + me, 90000) : -1, bNow = Number(cch.get(kB)) || 0;
+  if (nNow > ATT_DAY_N_ || bNow + bytes.length > ATT_DAY_MB_ * 1048576) throw new Error('You sent too many attachments today (at most ' + ATT_DAY_N_ + ' files, ' + ATT_DAY_MB_ + ' MB a person in a day) – send the rest tomorrow. If you did not send them, tell the Admin at once.');
   const sha = hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes)), path = attPathOf_(sha, real);
   const c = sbConf_();
   const res = UrlFetchApp.fetch(c.url + '/storage/v1/object/' + ATT_BUCKET_ + '/' + path, { method: 'post', headers: { apikey: c.key, 'x-upsert': 'false' }, contentType: real,
@@ -5262,13 +5266,13 @@ function uploadAttachment_(u, x) {
   const dup = /Duplicate|already exists|"409"/i.test(text);      // (the same file was kept before – by anybody: it is not kept twice)
   if (/bucket not found/i.test(text)) throw new Error('Attachments cannot be kept yet – the place for them is missing. ' + ATT_SQL_MSG_);
   if (!dup && (code < 200 || code >= 300)) throw new Error('The file store did not keep the file (' + code + ') – add it again.' + (u.admin ? ' It said: ' + str_(text).slice(0, 160) : ''));
+  if (!dup) cch.put(kB, String(bNow + bytes.length), 90000);
   // who sent it (6 hours): the same file sent by two people is the file of both (one sender does not take it from the other)
-  const cch = CacheService.getScriptCache(), me = str_(u.email).toLowerCase(), myName = u.name || u.email;
   let prev = null; try { prev = JSON.parse(cch.get('AT_' + sha) || 'null'); } catch (e) { prev = null; }
-  const rec = prev && !prev.held && prev.mime === real && prev.e
+  const rec = prev && prev.mime === real && prev.e
     ? Object.assign({}, prev, { es: [...new Set((Array.isArray(prev.es) ? prev.es : [prev.e]).concat([me]))].slice(-20), n: Object.assign({}, prev.n || {}, { [me]: myName }) })
     : { e: me, es: [me], n: { [me]: myName }, by: myName, mime: real, size: bytes.length, name: clean_(x.name).slice(0, 120), at: new Date().toISOString() };
-  if (!(prev && prev.held)) cch.put('AT_' + sha, JSON.stringify(rec), 21600);
+  cch.put('AT_' + sha, JSON.stringify(rec), 21600);
   return { ok: true, sha: sha, path: path, mime: real, size: bytes.length, name: rec.name, dup: dup };
 }
 // what the server noted for each file sent (null = not sent in the last 6 hours, or held by an entry that waits for verification)
@@ -5278,9 +5282,11 @@ function attRecs_(shas) {
   return shas.map((h, i) => {
     let rec = null; try { rec = JSON.parse(got[keys[i]] || 'null'); } catch (e) { rec = null; }
     if (FLOW_RUN_ID_ && FLOW_PHOTOS_ && FLOW_PHOTOS_['AT_' + h] && typeof FLOW_PHOTOS_['AT_' + h] === 'object') rec = Object.assign({}, FLOW_PHOTOS_['AT_' + h], { held: FLOW_RUN_ID_ });      // being approved: as noted when it was sent
+    else if (CR_ATT_ && CR_ATT_[h] && typeof CR_ATT_[h] === 'object') rec = Object.assign({}, CR_ATT_[h]);      // a change request approved: as checked when it was asked
     return rec && rec.held && rec.held !== FLOW_RUN_ID_ ? null : rec;
   });
 }
+let CR_ATT_ = null;      // (update-153 review) the files of the change request being approved (sha → its record, kept with the request)
 // every file already kept with a Log Book entry (sha → its record), for linking one file to several entries
 function attKept_(lt) {
   const out = {}; if (!('Attachments' in lt.c)) return out;
@@ -5298,7 +5304,7 @@ function attOf_(list, had, lt) {
   const old = {}; (had || []).forEach(x => { old[x.sha] = x; });
   if (!shas.length) return [];
   attReady_();
-  const run = VER_CTX_ === 'flow' || VER_CTX_ === 'approve';      // (run at an approval: the files are the sender's, maybe sent days ago)
+  const run = VER_CTX_ === 'flow' || VER_CTX_ === 'approve';      // (run at an approval: the files are the sender's, maybe sent days ago – noted with the request)
   const me = run ? str_(FLOW_SENDER_).toLowerCase() : str_(OUT_FOR_ && OUT_FOR_.email).toLowerCase();
   const recs = attRecs_(shas), seen = {}; let kept = null;
   const outL = shas.map((h, i) => {
@@ -5310,8 +5316,8 @@ function attOf_(list, had, lt) {
     if (attMine_(rec, me) && ATT_TYPES_[rec.mime]) return { sha: h, p: attPathOf_(h, rec.mime), mime: rec.mime, size: num0_(rec.size), name: clean_(rec.name).slice(0, 120), at: str_(rec.at), by: str_((rec.n && rec.n[me]) || rec.by) };
     if (!kept) kept = attKept_(lt);
     if (kept[h]) return Object.assign({}, kept[h]);      // (the same file as on another entry – one photo for two shifts)
-    if (run) { const urls = attLinks_(Object.keys(ATT_TYPES_).map(mt => attPathOf_(h, mt))), mt = Object.keys(ATT_TYPES_).find(m2 => urls[attPathOf_(h, m2)]);      // (its note of 6 hours is gone: the file is in the store – it was sent with the request)
-      if (mt) return { sha: h, p: attPathOf_(h, mt), mime: mt, size: 0, name: '', at: new Date().toISOString(), by: '' }; }
+    if (VER_CTX_ === 'flow') { const urls = attLinks_(Object.keys(ATT_TYPES_).map(mt => attPathOf_(h, mt))), mt = Object.keys(ATT_TYPES_).find(m2 => urls[attPathOf_(h, m2)]);      // (its note of 6 hours is gone: the file is in the store – it was sent with the request)
+      if (mt) return { sha: h, p: attPathOf_(h, mt), mime: mt, size: 0, name: '', at: new Date().toISOString(), by: '' }; }      // (only a verification: its save was checked when it was sent; a change request keeps its files' records – CR_ATT_)
     throw new Error('A file was not added by you in the last 6 hours (and is not with another Log Book entry) – add it again.');
   });
   // only checked before it is sent for verification: the files are noted with the request (its approval days later still takes them)
@@ -5414,8 +5420,23 @@ function attMineLinks_(u, shas) {
  *   – Cancel (capCancel) or a new QR ends the session; it ends by itself 15 minutes after it was made (unclaimed: after 5). */
 const CAP_CLAIM_S_ = 300, CAP_LIFE_S_ = 900;
 const capKey_ = id => 'CAP_' + id;
-function capGet_(id) { if (!/^[0-9a-f]{32}$/.test(str_(id))) return null; let o = null; try { o = JSON.parse(CacheService.getScriptCache().get(capKey_(id)) || 'null'); } catch (e) { o = null; } return o; }
-function capPut_(id, o) { const left = Math.max(30, Math.round((new Date(o.ends).getTime() - Date.now()) / 1000)); CacheService.getScriptCache().put(capKey_(id), JSON.stringify(o), left); }
+/* (update-153 review) each side writes its own record, so two at the same moment never undo each other: the session (CAP_ – made by the
+ * computer, claimed once by the phone), its end (CAPX_ – closed on the computer: nothing the phone does opens it again) and the files
+ * the phone told it (CAPF_ – only the phone). */
+function capGet_(id) {
+  if (!/^[0-9a-f]{32}$/.test(str_(id))) return null;
+  const got = CacheService.getScriptCache().getAll([capKey_(id), 'CAPX_' + id, 'CAPF_' + id]) || {};
+  let o = null; try { o = JSON.parse(got[capKey_(id)] || 'null'); } catch (e) { o = null; }
+  if (!o || typeof o !== 'object') return null;
+  const end = str_(got['CAPX_' + id]); if (end === 'cancelled' || end === 'done') o.state = end;
+  let f = null; try { f = JSON.parse(got['CAPF_' + id] || 'null'); } catch (e) { f = null; }
+  o.files = Array.isArray(f) ? f : Array.isArray(o.files) ? o.files : [];
+  return o;
+}
+const capLeft_ = o => Math.max(30, Math.round((new Date(o.ends).getTime() - Date.now()) / 1000));
+function capPut_(id, o) { CacheService.getScriptCache().put(capKey_(id), JSON.stringify(Object.assign({}, o, { files: [] })), capLeft_(o)); }
+const capEnd_ = (id, o, state) => CacheService.getScriptCache().put('CAPX_' + id, state, capLeft_(o));
+const capFiles_ = (id, o) => CacheService.getScriptCache().put('CAPF_' + id, JSON.stringify(o.files), capLeft_(o));
 const capRand_ = () => hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, Utilities.getUuid() + '|' + Utilities.getUuid() + '|' + Date.now() + '|' + Math.random(), Utilities.Charset.UTF_8));
 const capSite_ = () => (typeof __siteCode === 'function' ? str_(__siteCode()) : '');
 function capStart_(u, x) {
@@ -5424,7 +5445,7 @@ function capStart_(u, x) {
   attReady_();
   const forKey = str_(x.key).slice(0, 120), draft = str_(x.draft).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40), label = clean_(x.label).slice(0, 120);
   if (!forKey && !draft) throw new Error('Scan with Mobile: open an entry (or a new entry) first.');
-  if (x.prev) { const o = capGet_(x.prev); if (o && o.e === str_(u.email).toLowerCase()) { o.state = 'cancelled'; capPut_(x.prev, o); } }      // a new QR ends the one before
+  if (x.prev) { const o = capGet_(x.prev); if (o && o.e === str_(u.email).toLowerCase()) capEnd_(str_(x.prev), o, 'cancelled'); }      // a new QR ends the one before
   const id = capRand_().slice(0, 32), token = capRand_(), now = Date.now();
   const o = { e: str_(u.email).toLowerCase(), by: u.name || u.email, site: capSite_(), key: forKey, draft: draft, label: label, th: sha_(token), state: 'waiting', files: [],
     made: new Date(now).toISOString(), claimBy: new Date(now + CAP_CLAIM_S_ * 1000).toISOString(), ends: new Date(now + CAP_LIFE_S_ * 1000).toISOString(), max: siteRules_().attachMax || ATT_MAX_DEFAULT_ };
@@ -5446,7 +5467,12 @@ function capOpen_(u, x, claim) {
   if (claim) {
     if (o.state === 'claimed' && o.phone !== str_(x.phone).slice(0, 40)) throw new Error('This QR code is already being used by another phone – make a new one on the computer.');
     if (o.state === 'waiting' && Date.now() > new Date(o.claimBy).getTime()) throw new Error('This QR code ran out (5 minutes) – make a new one on the computer.');
-    if (o.state === 'waiting') { o.state = 'claimed'; o.phone = str_(x.phone).slice(0, 40); o.claimed = new Date().toISOString(); capPut_(id, o); }
+    if (o.state === 'waiting') {
+      // (update-153 review) two phones at the same moment: the database counts – only the first one holds it
+      const n = typeof __count === 'function' ? __count('CAPC_' + id, CAP_LIFE_S_) : -1;
+      if (n > 1) throw new Error('This QR code is already being used by another phone – make a new one on the computer.');
+      o.state = 'claimed'; o.phone = str_(x.phone).slice(0, 40); o.claimed = new Date().toISOString(); capPut_(id, o);
+    }
   } else if (o.state !== 'claimed' || o.phone !== str_(x.phone).slice(0, 40)) throw new Error('Scan the QR code again – this phone does not hold it.');
   return { id: id, o: o };
 }
@@ -5460,7 +5486,7 @@ function capAdd_(u, x) {
   const fresh = shas.filter(h => !o.files.some(f => f.sha === h));      // (the same photo again: once)
   if (!fresh.length) return { ok: true, have: o.files.length, same: true };
   if (o.files.length + fresh.length > o.max) throw new Error('At most ' + o.max + ' files for one entry.');
-  fresh.forEach(h => o.files.push({ sha: h, at: new Date().toISOString() })); capPut_(s0.id, o);
+  fresh.forEach(h => o.files.push({ sha: h, at: new Date().toISOString() })); capFiles_(s0.id, o);      // (only the files: the session's state is not written by the phone here)
   return { ok: true, have: o.files.length };
 }
 function capPoll_(u, x) {
@@ -5474,7 +5500,7 @@ function capPoll_(u, x) {
 }
 function capCancel_(u, x) {
   const o = capGet_(x && x.id);
-  if (o && o.e === str_(u.email).toLowerCase()) { o.state = x && x.done ? 'done' : 'cancelled'; capPut_(x.id, o); }
+  if (o && o.e === str_(u.email).toLowerCase()) capEnd_(str_(x.id), o, x && x.done ? 'done' : 'cancelled');
   return { ok: true };
 }
 
@@ -10538,10 +10564,18 @@ function crDescribe_(fn, args) {
   const lines = [], nos = {}, dates = {}, pairs = [];
   const vals = o => Object.keys(CR_FIELDS_).filter(k => o && !blank_(o[k]) && typeof o[k] !== 'object').map(k => CR_FIELDS_[k] + ' ' + clean_(o[k]).slice(0, 40)).join(', ');
   const one = (no, dk, sh, o, what) => { if (!no) return; nos[noKey_(no)] = clean_(no); if (/^\d{4}-\d{2}-\d{2}$/.test(dk)) { dates[dk] = true; pairs.push({ no: clean_(no), dk: dk }); } if (lines.length < 60) lines.push((what ? what + ': ' : '') + clean_(no) + ' · ' + dmy_(dk) + (sh ? ' · ' + sh : '') + (o ? (vals(o) ? ' – ' + vals(o) : '') : '')); };
-  const logRow = key => { try { const lt = table_(APP.SHEET_LOG, logHeaders_()), r = lt.rows[findLogIdx_(lt, key)], c = lt.c; return { no: str_(r[c[H.NO]]), date: dkey_(r[c[H.DATE]]), shift: str_(r[c[H.SHIFT]]) || 'Full Day', saved: 'saved now: ' + [[H.UNIT, 'Measured by'], [H.OKM, 'Start KM'], [H.CKM, 'Close KM'], [H.OHR, 'Start Hrs'], [H.CHR, 'Close Hrs'], [H.TRIP, 'Trips']].filter(x => x[0] in c && !blank_(r[c[x[0]]])).map(x => x[1] + ' ' + str_(r[c[x[0]]])).join(', ') }; } catch (e) { return null; } };
+  const logRow = key => { try { const lt = table_(APP.SHEET_LOG, logHeaders_()), r = lt.rows[findLogIdx_(lt, key)], c = lt.c; return { no: str_(r[c[H.NO]]), date: dkey_(r[c[H.DATE]]), shift: str_(r[c[H.SHIFT]]) || 'Full Day', att: 'Attachments' in c ? attList_(r[c['Attachments']]).map(x => x.sha) : [], saved: 'saved now: ' + [[H.UNIT, 'Measured by'], [H.OKM, 'Start KM'], [H.CKM, 'Close KM'], [H.OHR, 'Start Hrs'], [H.CHR, 'Close Hrs'], [H.TRIP, 'Trips']].filter(x => x[0] in c && !blank_(r[c[x[0]]])).map(x => x[1] + ' ' + str_(r[c[x[0]]])).join(', ') }; } catch (e) { return null; } };
   const diesel = id => { try { const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), r = t.rows.find(x => str_(x[t.c[H.ID]]) === str_(id)); if (!r) return null; return { no: str_(r[t.c[H.NO]]), date: dkey_(r[t.c[H.IDATE]]), shift: str_(r[t.c[H.SHIFT]]), saved: 'saved now: Litres ' + str_(r[t.c[H.QTY]]) }; } catch (e) { return null; } };
   const a = args || [];
-  if (fn === 'updateLogRow' || fn === 'deleteLogRow') { const r = logRow(a[0]); const k = str_(a[0]).split('|'); one(r ? r.no : k[0], r ? r.date : k[1], r ? r.shift : k[2], fn === 'updateLogRow' ? a[1] : null, fn === 'deleteLogRow' ? 'Delete Log Book entry' : 'Change Log Book entry'); if (r && r.saved && lines.length) lines[lines.length - 1] += ' (' + r.saved + ')'; }
+  // (update-153 review) the files: how many the entry has and will have – what is added and what is taken off
+  const shasOf = l => (Array.isArray(l) ? l : []).map(x => str_(x && typeof x === 'object' ? x.sha : x).toLowerCase());
+  const attWords = (had, next) => { const add = next.filter(h => had.indexOf(h) === -1).length, off = had.filter(h => next.indexOf(h) === -1).length;
+    return 'Attachments ' + had.length + ' → ' + next.length + (add || off ? ' (' + [add ? add + ' added' : '', off ? off + ' taken off' : ''].filter(Boolean).join(', ') + ')' : ' (the same)'); };
+  if (fn === 'updateLogRow' || fn === 'deleteLogRow') { const r = logRow(a[0]); const k = str_(a[0]).split('|'); one(r ? r.no : k[0], r ? r.date : k[1], r ? r.shift : k[2], fn === 'updateLogRow' ? a[1] : null, fn === 'deleteLogRow' ? 'Delete Log Book entry' : 'Change Log Book entry');
+    if (fn === 'updateLogRow' && a[1] && Array.isArray(a[1].attachments) && lines.length) lines[lines.length - 1] += ' · ' + attWords(r ? r.att : [], shasOf(a[1].attachments));
+    if (r && r.saved && lines.length) lines[lines.length - 1] += ' (' + r.saved + ')'; }
+  else if (fn === 'linkLogAttachments') { const x0 = a[0] || {}, n = shasOf(x0.files).length;
+    (Array.isArray(x0.keys) ? x0.keys : []).slice(0, 60).forEach(k => { const r = logRow(k), q = str_(k).split('|'); one(r ? r.no : q[0], r ? r.date : q[1], r ? r.shift : q[2], null, 'Attach ' + n + ' file' + (n === 1 ? '' : 's') + ' to'); }); }
   else if (fn === 'updateDieselIssue' || fn === 'deleteDieselIssue') { const r = diesel(a[0]); one(r ? r.no : str_(a[0]), r ? r.date : '', r ? r.shift : '', fn === 'updateDieselIssue' ? a[1] : null, (fn === 'deleteDieselIssue' ? 'Delete diesel issue ' : 'Change diesel issue ') + str_(a[0])); if (r && r.saved && lines.length) lines[lines.length - 1] += ' (' + r.saved + ')'; }
   else {
     const what = /^delete/.test(fn) ? 'Delete' : /^(update|saveTankerRange|saveLogBulk)/.test(fn) ? 'Change' : 'Add';
@@ -10551,13 +10585,33 @@ function crDescribe_(fn, args) {
       if (typeof v === 'string') { const q = /^(.+)\|(\d{4}-\d{2}-\d{2})\|(Full Day|Day|Night)$/.exec(v); if (q) one(q[1], q[2], q[3], null, 'Delete'); return; }
       if (typeof v !== 'object') return;
       const no = clean_(v.no || v.machinery || '') || no0, dk = /^\d{4}-\d{2}-\d{2}$/.test(str_(v.date)) ? str_(v.date) : '';
-      if (no && (dk || dk0) && (dk || vals(v))) one(no, dk || dk0, str_(v.shift), v, what);
+      if (no && (dk || dk0) && (dk || vals(v))) { const n0 = lines.length; one(no, dk || dk0, str_(v.shift), v, what); if (Array.isArray(v.attachments) && v.attachments.length && lines.length > n0) lines[lines.length - 1] += ' · ' + v.attachments.length + ' attachment' + (v.attachments.length === 1 ? '' : 's'); }
       Object.keys(v).forEach(k => { if (v[k] && typeof v[k] === 'object') walk(v[k], d + 1, no, dk || dk0); else if (k === 'key' || k === 'deleted') walk(v[k], d + 1, no, dk || dk0); });
     };
     walk(a, 0, '', '');
     const b0 = a[0] || {}; if (b0 && typeof b0 === 'object' && b0.no && /^\d{4}-\d{2}-\d{2}$/.test(str_(b0.from))) pairs.push({ no: clean_(b0.no), dk: str_(b0.from) });      // (Edit Log Book: its whole range)
   }
   return { lines: lines.length ? lines : ['(' + fn + ')'], nos: Object.values(nos).join(', '), dates: Object.keys(dates).sort().map(dmy_).join(', '), pairs: pairs };
+}
+/* (update-153 review) the files a change request gives a Log Book entry: checked when it is ASKED – each one the person sent in the last
+ * 6 hours, or one already kept with a Log Book entry – and their records kept with the request (sha → record): its approval days later
+ * takes exactly these, nothing else. null = it gives no files. */
+function crAtts_(u, fn, args) {
+  const lists = [], a = args || [];
+  if (fn === 'updateLogRow' && a[1] && Array.isArray(a[1].attachments)) lists.push(a[1].attachments);
+  if (fn === 'saveLogRows') ((a[0] && a[0].rows) || []).forEach(l => { if (l && Array.isArray(l.attachments)) lists.push(l.attachments); });
+  const shas = [...new Set([].concat(...lists).map(x => str_(x && typeof x === 'object' ? x.sha : x).toLowerCase()))];
+  if (!shas.length) return null;
+  attReady_();
+  if (shas.some(h => !/^[0-9a-f]{64}$/.test(h))) throw new Error('An attachment was not sent right – add it again.');
+  const me = str_(u.email).toLowerCase(), recs = attRecs_(shas), out = {}; let kept = null;
+  shas.forEach((h, i) => {
+    const r = recs[i];
+    if (attMine_(r, me) && ATT_TYPES_[r.mime]) { out[h] = { e: me, es: [me], n: { [me]: (r.n && r.n[me]) || r.by || me }, by: (r.n && r.n[me]) || r.by || '', mime: r.mime, size: num0_(r.size), name: clean_(r.name).slice(0, 120), at: str_(r.at) }; return; }
+    if (!kept) kept = attKept_(table_(APP.SHEET_LOG, logHeaders_()));
+    if (!kept[h]) throw new Error('A file was not added by you in the last 6 hours (and is not with another Log Book entry) – add it again.');
+  });
+  return out;
 }
 function crRequest_(u, x) {
   const out = withLock_(() => {
@@ -10571,12 +10625,13 @@ function crRequest_(u, x) {
     const reason = clean_(x.reason).slice(0, 300); if (!reason) throw new Error('Write why this change is needed – the Super Admin reads it.');
     const t = crTable_(true), all = t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.id && r.kind === 'Request');
     if (all.some(r => r.status === 'Pending' && r.email === str_(u.email).toLowerCase() && r.fn === fn && r.args === json)) throw new Error('This same change is already waiting for the Super Admin\'s approval.');
-    const d = crDescribe_(fn, args);
+    const d = crDescribe_(fn, args), att = crAtts_(u, fn, args);
     const id = 'CR-' + String(all.reduce((mx, r) => Math.max(mx, Number(r.id.replace(/\D/g, '')) || 0), 0) + 1).padStart(5, '0');
     const row = newRow_(t);
     set_(row, t, 'Request ID', id); set_(row, t, 'Kind', 'Request'); set_(row, t, 'Requested At', new Date()); set_(row, t, 'Requested By', u.name || u.email); set_(row, t, 'Requester Email', str_(u.email).toLowerCase());
     set_(row, t, 'Action', fn); set_(row, t, 'Args', json); set_(row, t, 'Summary', JSON.stringify(d.lines)); set_(row, t, 'Machinery', d.nos.slice(0, 300)); set_(row, t, 'Dates', d.dates.slice(0, 300));
     set_(row, t, 'Reason', reason); set_(row, t, 'Status', 'Pending'); set_(row, t, 'Created At', new Date());
+    if (att) set_(row, t, 'Data', JSON.stringify({ att: att }));      // (update-153 review) its files, as checked now – the approval takes exactly these
     t.sh.appendRow(row); TABLE_MEMO_ = {};
     return { ok: true, id: id, summary: d.lines };
   });
@@ -10727,6 +10782,7 @@ function crDecide_(u, x) {
       const actor0 = ACTOR_, admin0 = ACTOR_ADMIN_;
       SA_REASON_ = ('Change request ' + r0.id + ' of ' + r0.by + ' approved: ' + r0.reason + (note ? ' – ' + note : '')).slice(0, 300);      // (update-152) the reason kept with a locked entry's history
       FLOW_SENDER_ = ru.email;      // (update-153) the files it takes are the user's
+      { let d0 = {}; try { d0 = JSON.parse(r0.data || '{}') || {}; } catch (e) { d0 = {}; } CR_ATT_ = d0.att && typeof d0.att === 'object' ? d0.att : null; }      // (update-153 review) …the ones checked when he asked
       ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = true; VER_CTX_ = 'approve';
       try {
         const before = spec.log ? logBefore_(spec, args) : null;
@@ -10735,7 +10791,7 @@ function crDecide_(u, x) {
         const errs = res && typeof res === 'object' ? (res.errors || []) : [];
         if (res && (res.ok === false || errs.length)) throw new Error('It could not be saved: ' + (errs.length ? errs.slice(0, 5).map(e => (e.row ? 'Line ' + e.row + ': ' : '') + (e.msg || e)).join(' | ') : (res.error || res.warning || 'refused')) + ' – nothing was saved; the request still waits.');
         if (spec.log) { try { logAfter_(ru, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ } }
-      } finally { ACTOR_ = actor0; ACTOR_ADMIN_ = admin0; VER_CTX_ = ''; }
+      } finally { ACTOR_ = actor0; ACTOR_ADMIN_ = admin0; VER_CTX_ = ''; CR_ATT_ = null; }
       bump_(SYNC_GROUPS_[spec.m] || []);
     }
     TABLE_MEMO_ = {};
@@ -10878,7 +10934,7 @@ function flowSend_(u, spec, fn, args, rule) {
     const now = new Date(), data = { m: spec.m, levels: levels, level: 0, history: [{ step: 'Sent', by: u.name || u.email, email: me, at: now.toISOString() }], byLoc: facts.byLoc, qty: facts.qty, waitSince: now.toISOString(), reminded: {} };
     if (Object.keys(held).length) {      // (update-120) its photos: kept for the approval; no other entry takes them meanwhile
       data.photos = held;
-      const pc = CacheService.getScriptCache(); Object.keys(held).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: id })), 21600); } catch (e) { /* the request keeps them */ } });
+      const pc = CacheService.getScriptCache(); Object.keys(held).filter(p => !/^AT_/.test(p)).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: id })), 21600); } catch (e) { /* the request keeps them */ } });      // (update-153 review: an attachment is not held – one file may be with several entries; the request keeps its record)
     }
     const row = newRow_(t);
     set_(row, t, 'Request ID', id); set_(row, t, 'Kind', 'Flow'); set_(row, t, 'Requested At', now); set_(row, t, 'Requested By', u.name || u.email); set_(row, t, 'Requester Email', me);
@@ -11131,7 +11187,7 @@ function flowResendOne_(u, id, note) {
     const t2 = crTable_(false), r1 = t2.rows.map((r, i) => crOut_(t2, r, i)).find(r => r.id === r0.id), row = t2.rows[r1.i].slice();
     set_(row, t2, 'Status', 'Pending'); set_(row, t2, 'Data', JSON.stringify(f)); set_(row, t2, 'Result', ''); stampEdit_(row, t2);
     t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
-    if (Object.keys(held).length) { const pc = CacheService.getScriptCache(); Object.keys(held).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: r0.id })), 21600); } catch (e) { /* the request keeps them */ } }); }
+    if (Object.keys(held).length) { const pc = CacheService.getScriptCache(); Object.keys(held).filter(p => !/^AT_/.test(p)).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: r0.id })), 21600); } catch (e) { /* the request keeps them */ } }); }
     to = levels[0].filter(e => e !== me);
   });
   bump_(['flow']);
@@ -11328,7 +11384,7 @@ function flowEdit_(u, x) {
     set_(row, t2, 'Status', 'Pending'); set_(row, t2, 'Data', JSON.stringify(f)); set_(row, t2, 'Result', ''); set_(row, t2, 'Args', json);
     set_(row, t2, 'Summary', JSON.stringify(d.lines)); set_(row, t2, 'Machinery', d.nos.slice(0, 300)); set_(row, t2, 'Dates', d.dates.slice(0, 300)); stampEdit_(row, t2);
     t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
-    if (Object.keys(held).length) { const pc = CacheService.getScriptCache(); Object.keys(held).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: r0.id })), 21600); } catch (e) { /* the request keeps them */ } }); }
+    if (Object.keys(held).length) { const pc = CacheService.getScriptCache(); Object.keys(held).filter(p => !/^AT_/.test(p)).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: r0.id })), 21600); } catch (e) { /* the request keeps them */ } }); }
     to = levels[0].filter(e => e !== me);
   });
   bump_(['flow']);
