@@ -2543,6 +2543,55 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #qr_sheet small { font: 700 10.5px var(--ui); letter-spacing: .14em; text-transform: uppercase; color: #5B6B80; } #qr_sheet h3 { margin: 4px 0 2px; font: 800 24px var(--disp2, var(--ui)); } #qr_sheet p { margin: 0 0 12px; color: #475569; font-size: 14px; }
   #qr_sheet #qr_go .btn { display: block; width: 100%; margin: 9px 0 0; padding: 15px; font-size: 16.5px; }
   #qr_sheet .qr-x { position: absolute; right: 10px; top: 8px; border: 0; background: transparent; font-size: 26px; line-height: 1; color: #64748B; cursor: pointer; padding: 6px 10px; }
+  /* ---------- (update-153) ATTACHMENTS OF A LOG BOOK ENTRY: the box, the correction of a photo, the viewer, Scan with Mobile ---------- */
+  .at-back { position: fixed; inset: 0; z-index: 19; background: rgba(15, 23, 42, .55); display: flex; align-items: center; justify-content: center; padding: 14px; }
+  .at-back.drag .at-card { outline: 3px dashed #1D55E2; outline-offset: -8px; }
+  .at-card { position: relative; width: min(760px, 100%); max-height: calc(100vh - 28px); overflow: auto; background: #fff; border-radius: 16px; padding: 16px 18px; box-shadow: 0 24px 60px rgba(0,0,0,.35); box-sizing: border-box; }
+  .at-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .at-head small { font: 700 10.5px var(--ui); letter-spacing: .12em; text-transform: uppercase; color: #5B6B80; } .at-head h3 { margin: 2px 0; font: 700 19px var(--ui); color: #0F172A; } .at-head p { margin: 0; color: #475569; font-size: 13px; }
+  .at-x { border: 0; background: transparent; font-size: 26px; line-height: 1; color: #64748B; cursor: pointer; padding: 2px 8px; }
+  .at-drop { margin: 12px 0 8px; border: 2px dashed #B6C3D4; border-radius: 12px; padding: 14px; text-align: center; color: #334155; font-size: 14px; background: #F8FAFC; cursor: text; }
+  .at-drop:focus { outline: none; border-color: #1D55E2; background: #EEF3FF; }
+  .at-btns { display: flex; flex-wrap: wrap; gap: 8px; } .at-btns .btn { flex: 1 1 140px; } .at-btns.big .btn { padding: 16px; font-size: 16px; }
+  .at-msg { min-height: 18px; margin: 8px 0 4px; font-size: 13px; color: #334155; } .at-msg.bad, .at-qr .bad { color: var(--bad); }
+  .at-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; margin: 6px 0 10px; }
+  .at-tile { position: relative; border: 1px solid #D5DCE6; border-radius: 10px; padding: 6px; background: #fff; }
+  .at-tile.st-err { border-color: var(--bad); background: #FFF5F5; } .at-tile.st-ok { border-color: #9ED7B5; }
+  .at-th { display: block; width: 100%; height: 92px; padding: 0; border: 0; background: #F1F5F9; border-radius: 7px; overflow: hidden; cursor: zoom-in; }
+  .at-th img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .at-pdf { display: grid; place-items: center; width: 100%; height: 100%; font: 800 20px var(--ui); color: #B42318; background: #FEF3F2; }
+  .at-st { position: absolute; left: 10px; top: 10px; min-width: 20px; height: 20px; border-radius: 10px; background: #fff; font: 700 13px/20px var(--ui); text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .at-tile.st-ok .at-st { color: #12805A; } .at-tile.st-err .at-st { color: var(--bad); } .at-tile .at-st:empty { display: none; }
+  .at-rm, .at-fix { position: absolute; top: 9px; width: 26px; height: 26px; border-radius: 13px; border: 0; background: rgba(15,23,42,.72); color: #fff; font-size: 15px; line-height: 26px; cursor: pointer; padding: 0; }
+  .at-rm { right: 9px; } .at-fix { right: 39px; }
+  .at-tile small { display: block; margin-top: 5px; font-size: 11.5px; color: #475569; word-break: break-word; } .at-tile small b { display: block; color: var(--bad); font-weight: 600; } .at-tile small i { display: block; color: #7A5200; }
+  .at-foot { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; } .at-foot > span { margin-right: auto; color: #475569; font-size: 13px; }
+  .at-qr, .at-other { margin: 10px 0 0; padding: 12px; border: 1px solid #D5DCE6; border-radius: 12px; background: #F8FAFC; }
+  .at-qr { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; } .at-qr-code { width: 190px; height: 190px; background: #fff; padding: 6px; border-radius: 8px; flex: none; } .at-qr-code svg { width: 100%; height: 100%; }
+  .at-qr-txt { flex: 1 1 240px; font-size: 13.5px; } .at-qr-txt ol { margin: 6px 0; padding-left: 18px; } .at-qr-st { font-weight: 600; color: #1543B8; }
+  .at-og { margin-bottom: 8px; } .at-og > div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .at-op { display: flex; flex-direction: column; gap: 4px; width: 110px; font-size: 11.5px; } .at-op img, .at-op .at-pdf { width: 110px; height: 72px; object-fit: cover; border-radius: 6px; }
+  .at-viewer { flex-direction: column; padding: 0; background: rgba(2, 6, 23, .92); }
+  .at-vtop { position: absolute; top: 0; left: 0; right: 0; display: flex; gap: 14px; align-items: center; padding: 10px 14px; color: #fff; font-size: 14px; z-index: 2; }
+  .at-vtop a { color: #BFD3FF; margin-left: auto; } .at-vtop button { border: 0; background: transparent; color: #fff; font-size: 30px; cursor: pointer; }
+  .at-vbody { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 54px 50px 16px; box-sizing: border-box; }
+  .at-vbody img { max-width: 100%; max-height: 100%; object-fit: contain; } .at-vbody iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+  .at-vnav { position: absolute; top: 50%; left: 6px; transform: translateY(-50%); border: 0; background: rgba(255,255,255,.14); color: #fff; font-size: 34px; width: 40px; height: 64px; border-radius: 8px; cursor: pointer; } .at-vnav.r { left: auto; right: 6px; }
+  .at-editor .at-card { width: min(940px, 100%); }
+  .at-stage { position: relative; display: flex; justify-content: center; margin: 10px 0; touch-action: none; user-select: none; }
+  .at-stage canvas { display: block; border-radius: 6px; background: #F1F5F9; } .at-stage.off canvas { opacity: .55; }
+  .at-quad { position: absolute; pointer-events: none; } .at-quad polygon { fill: rgba(29,85,226,.10); stroke: #1D55E2; stroke-width: 2; }
+  .at-stage.off .at-h, .at-stage.off .at-quad { display: none; }
+  .at-h { position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; background: #fff; border: 3px solid #1D55E2; box-shadow: 0 1px 4px rgba(0,0,0,.4); cursor: grab; z-index: 2; touch-action: none; }
+  .at-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; font-size: 13.5px; } .at-tools label { display: inline-flex; gap: 6px; align-items: center; }
+  .at-cam video { width: 100%; max-height: 65vh; background: #000; border-radius: 10px; }
+  .at-phone { align-items: flex-start; } .at-phone .at-card { width: 100%; max-height: none; min-height: calc(100vh - 28px); }
+  .att-btn { border: 1px solid #D5DCE6; background: #fff; border-radius: 7px; padding: 2px 6px; cursor: pointer; font-size: 13px; margin-right: 4px; }
+  .att-btn.on { border-color: #1D55E2; background: #EEF3FF; } .att-btn i { font-style: normal; font-weight: 700; color: #1543B8; margin-left: 2px; }
+  .att-chip { border: 1px solid #B6C8F5; background: #EEF3FF; color: #1543B8; border-radius: 9px; padding: 0 6px; font: 600 11.5px var(--ui); cursor: pointer; margin-left: 4px; }
+  tr.lrow.at-drag td { background: #EEF3FF !important; }
+  .le-att-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .le-att-list { display: flex; gap: 6px; flex-wrap: wrap; font-size: 13px; color: #475569; }
+  html[data-theme=dark] .at-stage canvas, html[data-theme=dark] .at-qr-code { filter: invert(1) hue-rotate(180deg); }
   html[data-theme=dark] { filter: invert(1) hue-rotate(180deg); background: #fff; }
   html[data-theme=dark] img, html[data-theme=dark] video, html[data-theme=dark] #side, html[data-theme=dark] .lp-left { filter: invert(1) hue-rotate(180deg); }
   html[data-theme=dark] #side img, html[data-theme=dark] .lp-left img { filter: none; }
@@ -2985,6 +3034,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <button class="btn primary" id="lx_save" disabled>Save changes</button>
         <button class="btn ghost" id="lx_reload">Undo all (reload)</button>
         <button class="btn danger" id="lx_delsel" hidden>Delete selected</button>
+        <button class="btn ghost" id="lx_attsel" hidden title="Put the same photos / PDF on every ticked entry (added to what each has) – saved at once">📎 Attach to selected</button>
         <button class="btn primary" id="lx_print" title="Print this machinery's Log Book for these dates (saved entries)">Print Log Book</button>
         <span class="sum" id="lx_sum" style="margin-left:auto"></span>
       </div>
@@ -3810,6 +3860,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field wide"><label for="rule_note">Notice shown to everybody at the top (empty = none)</label><input id="rule_note" maxlength="200" autocomplete="off"></div>
         <div class="field"><label for="rule_day">Day shift starts at</label><input id="rule_day" type="time" step="60"></div>
         <div class="field"><label for="rule_night">Night shift starts at</label><input id="rule_night" type="time" step="60"></div>
+        <div class="field"><label for="rule_att">Attachments of one Log Book entry (photos / PDF), at most</label><input id="rule_att" inputmode="numeric" maxlength="2" placeholder="10" autocomplete="off" title="A whole number from 1 to 20 (10 unless the Admin sets another number)"></div>
         <div class="field" style="align-self:end"><button class="btn primary" type="button" id="rule_save">Save the rules</button></div>
       </div>
       <div class="set-links"><b>More settings of the site:</b> <button class="link" type="button" data-go="users">Company &amp; site, users</button> · <button class="link" type="button" data-go="bill">Month close, company details for bills</button> · <button class="link" type="button" id="set_db">Database check</button> · <button class="link" type="button" data-go="readme">Read Me</button></div>
@@ -4485,6 +4536,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="field"><label for="le_dto">Debit to (party)</label><input id="le_dto" list="dl_dnparty" autocomplete="off" placeholder="empty = not charged to anyone"></div>
       <div class="field"><label for="le_drate">Debit rate</label><input id="le_drate" type="number" step="0.01" min="0"></div>
       <div class="field le-wide" id="le_itm_w" hidden><label>Items of the BOQ (work of this entry)</label><div class="itm" id="le_itm"></div></div>
+      <div class="field le-wide"><label>Attachments (photos / PDF)</label><div class="le-att-row"><div class="le-att-list" id="le_att"></div><button type="button" class="btn ghost small" id="le_att_btn">📎 Add / change</button></div></div>
     </div>
     <p class="le-note" id="le_note"></p>
     <div class="actions"><button class="btn primary" id="le_save">Save changes</button><button class="btn ghost" id="le_cancel">Cancel</button></div>
@@ -5591,6 +5643,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['Submit झालेल्या bill सोबत ठेवलेली नोंद (submit वेळचे त्याचे Log Book) कधीच बदलता किंवा delete करता येत नाही – database ते नाकारते. किंवा त्यासाठीची database step अजून चालवलेली नाही.', 'जुन्या bill साठी काही करायचे नाही: Log Book ची entry स्वतः दुरुस्त करा (Super Admin) – फरक पुढच्या bill मध्ये येतो. Message मध्ये SQL file चे नाव असेल तर Admin ती Supabase → SQL Editor मध्ये प्रत्येक site मध्ये एकदा चालवतो.'],
       hi: ['Submit हुए bill के साथ रखा गया रिकॉर्ड (submit के समय की उसकी Log Book) कभी बदला या delete नहीं किया जा सकता – database उसे मना करता है। या उसके लिए database step अभी चलाया नहीं गया।', 'पुराने bill के लिए कुछ नहीं करना है: Log Book की entry ख़ुद ठीक करें (Super Admin) – फ़र्क अगले bill में आता है। Message में SQL file का नाम हो तो Admin उसे Supabase → SQL Editor में हर site में एक बार चलाता है।'] },
     // (update-149) Log Book Debit Statement – the rates and parties of the entries (one, all shown, or from Excel)
+    // (update-153) the attachments of a Log Book entry and "Scan with Mobile"
+    { re: /^The attachments of this entry were changed by someone else after you opened it/i,
+      en: ['Someone else changed the attachments of this entry after you opened it. Nothing was saved, so neither change is lost.', 'Close the window and open the entry again: you see the files it has now. Then add or remove yours and save.'],
+      mr: ['तुम्ही ही entry उघडल्यानंतर दुसऱ्या कोणी तिचे attachments बदलले. काहीही save झाले नाही, त्यामुळे कोणाचाही बदल हरवला नाही.', 'Window बंद करा आणि entry पुन्हा उघडा: आता तिच्याकडे असलेल्या files दिसतील. मग तुमच्या files जोडा किंवा काढा आणि save करा.'],
+      hi: ['आपके यह entry खोलने के बाद किसी और ने इसके attachments बदले। कुछ भी save नहीं हुआ, इसलिए किसी का बदलाव खोया नहीं।', 'Window बंद करें और entry फिर से खोलें: अब उसकी files दिखेंगी। फिर अपनी files जोड़ें या हटाएँ और save करें।'] },
+    { re: /QR code (is not valid|was made by another person|is for another site|was closed on the computer|ran out|is already being used)|^Scan with Mobile: open an entry|this phone (does not hold it|did not say who it is)|This photo was not sent from this phone|files for one entry/i,
+      en: ['"Scan with Mobile" did not work for this QR code. Nothing was attached.', 'On the computer press "Scan with Mobile" again for a new QR code (it works for 5 minutes, and once). On the phone sign in as the SAME person, at the same site, and scan it with the app or the phone\'s camera; the phone may be on any network. Then wait for the photos to show on the computer and save the entry.'],
+      mr: ['या QR code ने "Scan with Mobile" चालले नाही. काहीही attach झाले नाही.', 'Computer वर पुन्हा "Scan with Mobile" दाबा, नवा QR code येईल (तो 5 मिनिटे आणि एकदाच चालतो). Phone वर त्याच व्यक्तीने, त्याच site वर sign in करा आणि app ने किंवा phone च्या camera ने scan करा; phone कोणत्याही network वर असू शकतो. नंतर photos computer वर दिसेपर्यंत थांबा आणि entry save करा.'],
+      hi: ['इस QR code से "Scan with Mobile" नहीं चला। कुछ भी attach नहीं हुआ।', 'Computer पर फिर से "Scan with Mobile" दबाएँ, नया QR code आएगा (वह 5 मिनट और एक ही बार चलता है)। Phone पर उसी व्यक्ति से, उसी site पर sign in करें और app से या phone के camera से scan करें; phone किसी भी network पर हो सकता है। फिर photos computer पर दिखने तक रुकें और entry save करें।'] },
+    { re: /^You sent too many attachments today/i,
+      en: ['You have sent the most files one person can send in one day. Nothing more was kept today.', 'Send the rest tomorrow. If you did not send that many files, someone may be using your sign-in: tell the Admin at once and change your password.'],
+      mr: ['एका व्यक्तीने एका दिवसात पाठवायच्या जास्तीत जास्त files तुम्ही पाठवल्या आहेत. आज यापुढे काहीही ठेवले गेले नाही.', 'उरलेल्या files उद्या पाठवा. एवढ्या files तुम्ही पाठवल्या नसतील तर दुसरे कोणी तुमचे sign-in वापरत असेल: लगेच Admin ला सांगा आणि password बदला.'],
+      hi: ['एक व्यक्ति एक दिन में जितनी files भेज सकता है, उतनी आपने भेज दी हैं। आज इसके आगे कुछ भी नहीं रखा गया।', 'बाकी files कल भेजें। अगर इतनी files आपने नहीं भेजीं तो कोई और आपका sign-in इस्तेमाल कर रहा हो सकता है: तुरंत Admin को बताएँ और password बदलें।'] },
+    { re: /attachment|This file is (empty|too big|not what its name says)|file store did not keep the file|same file is attached twice|A file was not added by you|^Pick the entries and the files to attach|^At most 31 entries at once/i,
+      en: ['The attachment (photo or PDF) could not be used. Nothing of this save was kept.', 'Add the file again (paste, drag it in, "Upload", "Camera" or "Scan with Mobile") and wait for the ✓ on its tile before saving. Only JPG / PNG photos and PDFs, at most 3 MB each, at most the number of the site per entry; a file goes with an entry only if you added it in the last 6 hours or it is already with another entry. If it says a database step is needed, tell the Admin.'],
+      mr: ['हे attachment (photo किंवा PDF) वापरता आले नाही. या save मधले काहीही ठेवले गेले नाही.', 'File पुन्हा जोडा (paste, ओढून आणा, "Upload", "Camera" किंवा "Scan with Mobile") आणि save करण्यापूर्वी तिच्या tile वर ✓ येईपर्यंत थांबा. फक्त JPG / PNG photos आणि PDF, प्रत्येकी जास्तीत जास्त 3 MB, एका entry ला site ने ठरवलेल्या संख्येपर्यंत; तुम्ही गेल्या 6 तासांत जोडलेली किंवा आधीच दुसऱ्या entry सोबत असलेली file च entry सोबत जाते. Database step लागेल असे लिहिले असेल तर Admin ला सांगा.'],
+      hi: ['यह attachment (photo या PDF) इस्तेमाल नहीं हो सका। इस save का कुछ भी नहीं रखा गया।', 'File फिर से जोड़ें (paste, खींचकर लाएँ, "Upload", "Camera" या "Scan with Mobile") और save करने से पहले उसकी tile पर ✓ आने तक रुकें। केवल JPG / PNG photos और PDF, हर एक ज़्यादा से ज़्यादा 3 MB, एक entry में site की तय संख्या तक; आपकी पिछले 6 घंटों में जोड़ी गई या पहले से दूसरी entry के साथ वाली file ही entry के साथ जाती है। Database step चाहिए लिखा हो तो Admin को बताएँ।'] },
     { re: /^Nothing to save – change a rate or a party first/i,
       en: ['No rate or party was changed, so there was nothing to save.', 'Type a new rate in the Rate column (or a rate in "Rate for all shown" and press "Put on all shown"), then press "Save changed rates".'],
       mr: ['कोणताही rate किंवा party बदलली नाही, म्हणून save करायला काही नव्हते.', 'Rate column मध्ये नवा rate टाका (किंवा "Rate for all shown" मध्ये rate टाकून "Put on all shown" दाबा), मग "Save changed rates" दाबा.'],
@@ -5900,10 +5969,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         'आधी machinery आणि तारीख तपासा – entry दुसऱ्या तारखेची असेल तर तारीख दुरुस्त करा. Bill च्या तारखेची entry खरोखर बदलायची असेल तर: बदल करून Save दाबा – page "Send for approval" विचारते; कारण लिहा. Super Admin ने (Approvals पानावर) मंजूर केले की तो बदल save होतो; bill बदलत नाही – फरक vendor च्या पुढच्या bill मध्ये Credit / Debit Note ने येतो.'],
       hi: ['यह machinery इन तारीखों के लिए पहले से submit हुए bill में है। उन तारीखों की Log Book और diesel entries lock होती हैं – ताकि save हुआ bill और entries हमेशा मेल खाएँ; इन्हें सिर्फ Super Admin बदल सकता है।',
         'पहले machinery और तारीख जाँचें – entry दूसरी तारीख की हो तो तारीख ठीक करें। Bill की तारीख की entry सच में बदलनी हो तो: बदलाव करके Save दबाएँ – page "Send for approval" पूछता है; कारण लिखें। Super Admin (Approvals पेज पर) मंज़ूर करे तो बदलाव save होता है; bill नहीं बदलता – फर्क vendor के अगले bill में Credit / Debit Note से आता है।'] },
-    { re: /^Shift times:|Days back must be a whole number/i,      // (update-109) Settings → Rules of the site
-      en: ['A rule of the site (Settings → Rules of the site) was not saved: a value is not in the right form.', 'Days back: a whole number 0 to 365, or empty for no limit. Shift times: the hour the Day shift starts and the hour the Night shift starts, as HH:MM (08:00 and 20:00) – they cannot be the same. New entries take Day or Night by these times; a person can still change the shift by hand.'],
-      mr: ['Site चा नियम (Settings → Rules of the site) save झाला नाही: एखादी किंमत योग्य स्वरूपात नाही.', 'Days back: 0 ते 365 मधला पूर्ण आकडा, किंवा मर्यादा नसेल तर रिकामे. Shift ची वेळ: Day shift कधी सुरू होते आणि Night shift कधी सुरू होते – HH:MM (08:00 आणि 20:00); दोन्ही सारख्या असू शकत नाहीत. नव्या entries मध्ये या वेळेनुसार Day / Night आपोआप येते; shift हाताने बदलता येते.'],
-      hi: ['Site का नियम (Settings → Rules of the site) save नहीं हुआ: कोई मान सही रूप में नहीं है।', 'Days back: 0 से 365 तक पूरा अंक, या कोई सीमा न हो तो खाली। Shift का समय: Day shift कब शुरू होती है और Night shift कब – HH:MM (08:00 और 20:00); दोनों एक जैसे नहीं हो सकते। नई entries में इस समय के अनुसार Day / Night अपने आप आता है; shift हाथ से बदली जा सकती है।'] },
+    { re: /^Shift times:|Days back must be a whole number|^Attachments of a Log Book entry: a whole number/i,      // (update-109) Settings → Rules of the site
+      en: ['A rule of the site (Settings → Rules of the site) was not saved: a value is not in the right form.', 'Days back: a whole number 0 to 365, or empty for no limit. Shift times: the hour the Day shift starts and the hour the Night shift starts, as HH:MM (08:00 and 20:00) – they cannot be the same. New entries take Day or Night by these times; a person can still change the shift by hand. Attachments of a Log Book entry: a whole number 1 to 20 (10 when empty).'],
+      mr: ['Site चा नियम (Settings → Rules of the site) save झाला नाही: एखादी किंमत योग्य स्वरूपात नाही.', 'Days back: 0 ते 365 मधला पूर्ण आकडा, किंवा मर्यादा नसेल तर रिकामे. Shift ची वेळ: Day shift कधी सुरू होते आणि Night shift कधी सुरू होते – HH:MM (08:00 आणि 20:00); दोन्ही सारख्या असू शकत नाहीत. नव्या entries मध्ये या वेळेनुसार Day / Night आपोआप येते; shift हाताने बदलता येते. Log Book entry चे attachments: 1 ते 20 मधला पूर्ण आकडा (रिकामे ठेवल्यास 10).'],
+      hi: ['Site का नियम (Settings → Rules of the site) save नहीं हुआ: कोई मान सही रूप में नहीं है।', 'Days back: 0 से 365 तक पूरा अंक, या कोई सीमा न हो तो खाली। Shift का समय: Day shift कब शुरू होती है और Night shift कब – HH:MM (08:00 और 20:00); दोनों एक जैसे नहीं हो सकते। नई entries में इस समय के अनुसार Day / Night अपने आप आता है; shift हाथ से बदली जा सकती है। Log Book entry के attachments: 1 से 20 तक पूरा अंक (खाली हो तो 10)।'] },
     { re: /cannot be sent to the Super Admin yet|supabase_step1z/i,      // (update-108)
       en: ['A change of a billed period needs one database step first (step 1z) – it has not been run in this site\'s database yet.', 'Nothing was saved or sent. The Super Admin runs sql/supabase_step1z_billed_changes.sql in Supabase → SQL Editor, in every site (Read Me lists it word for word; it only adds one empty table). Then send the change again.'],
       mr: ['Bill झालेल्या तारखेच्या बदलासाठी database मध्ये एक step लागते (step 1z) – ती या site च्या database मध्ये अजून run झालेली नाही.', 'काहीही save किंवा पाठवले गेले नाही. Super Admin ने sql/supabase_step1z_billed_changes.sql Supabase → SQL Editor मध्ये प्रत्येक site ला run करावे (Read Me मध्ये शब्दशः आहे; ते फक्त एक रिकामी table जोडते). मग बदल पुन्हा पाठवा.'],
@@ -6198,10 +6267,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period. Photos (One entry, after picking the machinery): Dashboard, Vehicle + driver, Dispenser litres and Register – each taken with the camera there and then (not from the gallery), with the date, time and place printed on it; the AI reads the reading on the dashboard photo (it is told the last reading of the machinery, to pick the right number) and the litres on the dispenser photo, and puts them in the boxes (blue) – check them, type over them if wrong. The Driver box gets the driver of the last fill of the machinery (a typed name stays). 📷 in the list opens the photos of an entry. On a phone a saved entry shows a green "saved" box for 3 seconds (× closes it at once) and the form is empty for the next machinery; the keyboard opens only when a box is tapped. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. The Super Admin: "Delete entries – Super Admin" at the end of the page – any entry of a date or a period (saved, waiting for verification, returned, rejected): tick and delete; an entry of a submitted bill or a closed month is not deleted; deleted entries are kept there and can be brought back.'],
       mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते. Photos (One entry मध्ये, machinery निवडल्यावर): Dashboard, गाडी + driver, Dispenser वरचे लिटर आणि Register – प्रत्येक त्याच वेळी camera ने काढायचा (gallery मधून नाही); त्यावर तारीख, वेळ आणि ठिकाण छापले जाते. Dashboard च्या photo वरचे reading (योग्य आकडा निवडायला AI ला गाडीचे मागचे reading सांगितले जाते) आणि dispenser च्या photo वरचे लिटर AI वाचून box मध्ये (निळ्या रंगात) भरते – ते तपासा, चुकले तर बदला. Driver box मध्ये त्या गाडीच्या मागच्या fill चा driver आपोआप येतो (टाइप केलेले नाव तसेच राहते). यादीतले 📷 दाबले की त्या entry चे photo दिसतात. Phone वर entry save झाली की 3 सेकंद हिरवा "saved" box दिसतो (× ने लगेच बंद) आणि पुढच्या गाडीसाठी form रिकामा होतो; keyboard फक्त box वर दाबल्यावर उघडतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. Super Admin: पानाच्या शेवटी "Delete entries – Super Admin" – एका तारखेची किंवा काळाची कोणतीही entry (save झालेली, verification ला थांबलेली, returned, rejected): tick करून delete; submit झालेल्या bill ची किंवा बंद महिन्याची entry delete होत नाही; delete केलेल्या entries तिथेच राहतात आणि परत आणता येतात.'],
       hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है। Photos (One entry में, machinery चुनने के बाद): Dashboard, गाड़ी + driver, Dispenser के लीटर और Register – हर एक उसी समय camera से लेना है (gallery से नहीं); उस पर तारीख, समय और जगह छपती है। Dashboard की photo पर की reading (सही अंक चुनने के लिए AI को गाड़ी की पिछली reading बताई जाती है) और dispenser की photo पर के लीटर AI पढ़कर box में (नीले रंग में) भरता है – उन्हें जाँचें, गलत हों तो बदलें। Driver box में उस गाड़ी की पिछली fill का driver अपने-आप आता है (टाइप किया नाम वैसा ही रहता है)। सूची का 📷 दबाने पर उस entry की photos दिखती हैं। Phone पर entry save होते ही 3 सेकंड हरा "saved" box दिखता है (× से तुरंत बंद) और अगली गाड़ी के लिए form खाली हो जाता है; keyboard केवल box पर दबाने से खुलता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। Super Admin: पेज के अंत में "Delete entries – Super Admin" – एक तारीख या अवधि की कोई भी entry (save हुई, verification के लिए रुकी, returned, rejected): tick करके delete; submit हुए bill की या बंद महीने की entry delete नहीं होती; delete की गई entries वहीं रहती हैं और वापस लाई जा सकती हैं।'] },
-    log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'saveLogDebits', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip', 'updateTankerTrip', 'importTankerTrips', 'sendChangeRequest'],
-      en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic). A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) that worked TWO OR MORE TIMES in one shift (e.g. Breaker 100 → 102, then 110 → 113): add a second row for the same machinery, date and shift and type its own Start and Close – it may start higher than the row above; the hours in between (102 → 110) are not counted, so that day is 5 hours (bill and diesel). For such a machinery, changing or deleting an entry never changes another date: if a Close comes above the Start of the next entry, the app says so and saves nothing. In such a shift a row may also be by Time (e.g. Bucket 09:00 – 11:00 when the meter gave no reading, then Breaker 3714.5 → 3717.5): its hours are added (2 + 3 = 5 hours); the Start and Close of the entry come from its rows by Hrs, and the next day starts at the last Close. Every row of the shift may be by Time too (e.g. Breaker 09:00 – 13:00 and Bucket 14:00 – 18:00): each row keeps its own From – To and work, the hours of the entry are their sum (4 + 4 = 8 hours); two rows at the same time are refused. Any other machinery (a vehicle on KM, a machinery on KM + Hrs, by trips or by the day) may also have a row for each work of a shift: add a second row for the same machinery, date and shift – on KM / Hrs it starts where the row above closed (the KM between belong to a row); by trips each row has its trips (they are added); by the day the shift stays one day. The same work may come again in a row of its own; the same row twice (the same readings, or the same trips, challan and work) is a duplicate and is refused. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. A WATER TANKER (Log Book Format I) is entered with "Water tanker – trip by trip": one line per trip (challan no, dispatch and unload time, chainage, use for), Day or Night, trips can be added any time of the day; the same challan of the agency or a time on another trip is refused. An entry approved in verification (marked ✔ Approved) or in a submitted bill is locked: only the Super Admin changes or deletes it, with a reason; anybody else\'s change is sent to him for approval.'],
-      mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप). Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ने (JCB, excavator, breaker) एकाच shift मध्ये दोन किंवा जास्त वेळा काम केले असेल (उदा. Breaker 100 → 102, मग 110 → 113): त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा आणि तिचे स्वतःचे Start आणि Close टाका – ते वरच्या ओळीच्या Close पेक्षा जास्त असू शकते; मधले तास (102 → 110) धरले जात नाहीत, म्हणून तो दिवस 5 तासांचा (bill आणि diesel). अशा machinery ची entry बदलली किंवा delete केली तरी दुसरी तारीख कधीच बदलत नाही: Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर app तसे सांगते आणि काहीही save करत नाही. अशा shift मध्ये एखादी ओळ Time वर पण असू शकते (उदा. meter ने reading दिले नाही तेव्हा Bucket 09:00 – 11:00, मग Breaker 3714.5 → 3717.5): त्या ओळीचे तास जोडले जातात (2 + 3 = 5 तास); entry चे Start आणि Close तिच्या Hrs ओळींवरून येतात, आणि पुढचा दिवस शेवटच्या Close पासून सुरू होतो. Shift च्या सगळ्या ओळी पण Time वर असू शकतात (उदा. Breaker 09:00 – 13:00 आणि Bucket 14:00 – 18:00): प्रत्येक ओळ आपली From – To आणि काम ठेवते, entry चे तास त्यांची बेरीज (4 + 4 = 8 तास); एकाच वेळेतल्या दोन ओळी save होत नाहीत. इतर कोणत्याही machinery ला (KM वरची गाडी, KM + Hrs वरची machinery, trips वर किंवा दिवसावर) पण shift च्या प्रत्येक कामाची वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा – KM / Hrs वर ती वरच्या ओळीच्या Close पासून सुरू होते (मधले KM एखाद्या ओळीतच येतात); trips वर प्रत्येक ओळीचे trips (ते जोडले जातात); दिवसावर shift एकच दिवस राहते. तेच काम वेगळ्या ओळीत पुन्हा येऊ शकते; अगदी तीच ओळ दोनदा (तीच readings, किंवा तेच trips, challan आणि काम) म्हणजे duplicate – save होत नाही. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. WATER TANKER (Log Book Format I) ची entry "Water tanker – trip by trip" मधून: प्रत्येक trip ची एक ओळ (challan no, dispatch आणि unload वेळ, chainage, use for), Day किंवा Night; दिवसभरात कधीही trips जोडता येतात; agency चा तोच challan किंवा दुसऱ्या trip च्या वेळेवरची वेळ save होत नाही. Verification मध्ये approve झालेली (✔ Approved) किंवा submit झालेल्या bill मधली entry locked असते: फक्त Super Admin ती कारणासह बदलतो किंवा delete करतो; इतर कोणी केलेला बदल त्याच्याकडे approval साठी जातो.'],
-      hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। Meter बंद हो तो "No reading" चुनें: दिन भरा जाता है और उसका काम अनुमान से लिया जाता है (app machinery का औसत सुझाता है), कारण के साथ; नए meter की पहली entry पर "new meter" tick करें। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं। जिस machinery के BOQ में घंटे के (या KM के) दो या ज़्यादा काम हैं – Bucket और Breaker – उसे यहाँ उसी तारीख और उसी shift में हर काम की अलग पंक्ति दी जा सकती है: उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें, उसका काम दबाएँ; उसका Start ऊपर वाली पंक्ति का Close है। वह एक ही entry के रूप में save होती है और उसकी पंक्तियाँ याद रहती हैं। Print Log Book: दो काम वाली entry (Bucket और Breaker) print में हर काम की अलग पंक्ति में आती है, और diesel debit का rate print के box में हाथ से डाला जा सकता है (खाली = अपने आप)। Hours पर चलने वाली machine (JCB, excavator) का hour meter किसी दिन reading न दे तो: उस दिन के लिए Time चुनें और From – To डालें – वे घंटे, घंटे ही गिने जाते हैं (bill, diesel average); अगले hours दिन का Start आख़िरी hour reading से आता है। सिर्फ़ घंटों पर चलने वाली machinery ने (JCB, excavator, breaker) एक ही shift में दो या ज़्यादा बार काम किया हो (जैसे Breaker 100 → 102, फिर 110 → 113): उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें और उसका अपना Start और Close डालें – वह ऊपर वाली पंक्ति के Close से ज़्यादा हो सकता है; बीच के घंटे (102 → 110) नहीं गिने जाते, इसलिए वह दिन 5 घंटे का (bill और diesel)। ऐसी machinery की entry बदलने या delete करने पर दूसरी तारीख कभी नहीं बदलती: Close अगली entry के Start से ज़्यादा हो जाए तो app बताता है और कुछ भी save नहीं करता। ऐसी shift में कोई पंक्ति Time पर भी हो सकती है (जैसे meter ने reading नहीं दी तब Bucket 09:00 – 11:00, फिर Breaker 3714.5 → 3717.5): उस पंक्ति के घंटे जोड़े जाते हैं (2 + 3 = 5 घंटे); entry का Start और Close उसकी Hrs पंक्तियों से आता है, और अगला दिन आख़िरी Close से शुरू होता है। Shift की सारी पंक्तियाँ भी Time पर हो सकती हैं (जैसे Breaker 09:00 – 13:00 और Bucket 14:00 – 18:00): हर पंक्ति अपना From – To और काम रखती है, entry के घंटे उनका जोड़ (4 + 4 = 8 घंटे); एक ही समय की दो पंक्तियाँ save नहीं होतीं। किसी भी दूसरी machinery को (KM पर गाड़ी, KM + Hrs पर machinery, trips पर या दिन पर) भी shift के हर काम की अलग पंक्ति दी जा सकती है: उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें – KM / Hrs पर वह ऊपर वाली पंक्ति के Close से शुरू होती है (बीच के KM किसी पंक्ति में ही आते हैं); trips पर हर पंक्ति के अपने trips (वे जोड़े जाते हैं); दिन पर shift एक ही दिन रहती है। वही काम अलग पंक्ति में फिर आ सकता है; बिल्कुल वही पंक्ति दो बार (वही readings, या वही trips, challan और काम) यानी duplicate – save नहीं होती। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। WATER TANKER (Log Book Format I) की entry "Water tanker – trip by trip" से: हर trip की एक पंक्ति (challan no, dispatch और unload समय, chainage, use for), Day या Night; दिन में कभी भी trips जोड़ी जा सकती हैं; agency का वही challan या दूसरी trip के समय पर का समय save नहीं होता। Verification में approve हुई (✔ Approved) या submit हुए bill वाली entry locked होती है: केवल Super Admin उसे कारण के साथ बदलता या delete करता है; किसी और का बदलाव उसके पास approval के लिए जाता है।'] },
+    log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'saveLogDebits', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip', 'updateTankerTrip', 'importTankerTrips', 'sendChangeRequest', 'linkLogAttachments'],
+      en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic). A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) that worked TWO OR MORE TIMES in one shift (e.g. Breaker 100 → 102, then 110 → 113): add a second row for the same machinery, date and shift and type its own Start and Close – it may start higher than the row above; the hours in between (102 → 110) are not counted, so that day is 5 hours (bill and diesel). For such a machinery, changing or deleting an entry never changes another date: if a Close comes above the Start of the next entry, the app says so and saves nothing. In such a shift a row may also be by Time (e.g. Bucket 09:00 – 11:00 when the meter gave no reading, then Breaker 3714.5 → 3717.5): its hours are added (2 + 3 = 5 hours); the Start and Close of the entry come from its rows by Hrs, and the next day starts at the last Close. Every row of the shift may be by Time too (e.g. Breaker 09:00 – 13:00 and Bucket 14:00 – 18:00): each row keeps its own From – To and work, the hours of the entry are their sum (4 + 4 = 8 hours); two rows at the same time are refused. Any other machinery (a vehicle on KM, a machinery on KM + Hrs, by trips or by the day) may also have a row for each work of a shift: add a second row for the same machinery, date and shift – on KM / Hrs it starts where the row above closed (the KM between belong to a row); by trips each row has its trips (they are added); by the day the shift stays one day. The same work may come again in a row of its own; the same row twice (the same readings, or the same trips, challan and work) is a duplicate and is refused. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. A WATER TANKER (Log Book Format I) is entered with "Water tanker – trip by trip": one line per trip (challan no, dispatch and unload time, chainage, use for), Day or Night, trips can be added any time of the day; the same challan of the agency or a time on another trip is refused. An entry approved in verification (marked ✔ Approved) or in a submitted bill is locked: only the Super Admin changes or deletes it, with a reason; anybody else\'s change is sent to him for approval. Attachments (📎 of a row, the edit window, "Attach to selected" in Edit Log Book): photos or PDF of the entry – paste with Ctrl + V, drop, upload, the camera or "Scan with Mobile" (a QR code: the phone of the same person sends the photos); ✎ corrects a photo before it is sent; at most the site\'s number; each file kept once and never changed – an approved or billed entry\'s files are changed only by the Super Admin.'],
+      mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप). Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ने (JCB, excavator, breaker) एकाच shift मध्ये दोन किंवा जास्त वेळा काम केले असेल (उदा. Breaker 100 → 102, मग 110 → 113): त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा आणि तिचे स्वतःचे Start आणि Close टाका – ते वरच्या ओळीच्या Close पेक्षा जास्त असू शकते; मधले तास (102 → 110) धरले जात नाहीत, म्हणून तो दिवस 5 तासांचा (bill आणि diesel). अशा machinery ची entry बदलली किंवा delete केली तरी दुसरी तारीख कधीच बदलत नाही: Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर app तसे सांगते आणि काहीही save करत नाही. अशा shift मध्ये एखादी ओळ Time वर पण असू शकते (उदा. meter ने reading दिले नाही तेव्हा Bucket 09:00 – 11:00, मग Breaker 3714.5 → 3717.5): त्या ओळीचे तास जोडले जातात (2 + 3 = 5 तास); entry चे Start आणि Close तिच्या Hrs ओळींवरून येतात, आणि पुढचा दिवस शेवटच्या Close पासून सुरू होतो. Shift च्या सगळ्या ओळी पण Time वर असू शकतात (उदा. Breaker 09:00 – 13:00 आणि Bucket 14:00 – 18:00): प्रत्येक ओळ आपली From – To आणि काम ठेवते, entry चे तास त्यांची बेरीज (4 + 4 = 8 तास); एकाच वेळेतल्या दोन ओळी save होत नाहीत. इतर कोणत्याही machinery ला (KM वरची गाडी, KM + Hrs वरची machinery, trips वर किंवा दिवसावर) पण shift च्या प्रत्येक कामाची वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा – KM / Hrs वर ती वरच्या ओळीच्या Close पासून सुरू होते (मधले KM एखाद्या ओळीतच येतात); trips वर प्रत्येक ओळीचे trips (ते जोडले जातात); दिवसावर shift एकच दिवस राहते. तेच काम वेगळ्या ओळीत पुन्हा येऊ शकते; अगदी तीच ओळ दोनदा (तीच readings, किंवा तेच trips, challan आणि काम) म्हणजे duplicate – save होत नाही. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. WATER TANKER (Log Book Format I) ची entry "Water tanker – trip by trip" मधून: प्रत्येक trip ची एक ओळ (challan no, dispatch आणि unload वेळ, chainage, use for), Day किंवा Night; दिवसभरात कधीही trips जोडता येतात; agency चा तोच challan किंवा दुसऱ्या trip च्या वेळेवरची वेळ save होत नाही. Verification मध्ये approve झालेली (✔ Approved) किंवा submit झालेल्या bill मधली entry locked असते: फक्त Super Admin ती कारणासह बदलतो किंवा delete करतो; इतर कोणी केलेला बदल त्याच्याकडे approval साठी जातो. Attachments (row चा 📎, edit window, Edit Log Book मध्ये "Attach to selected"): entry चे फोटो किंवा PDF – Ctrl + V ने paste, ओढून आणा, upload, camera किंवा "Scan with Mobile" (QR code: त्याच व्यक्तीचा phone फोटो पाठवतो); पाठवण्यापूर्वी ✎ ने फोटो दुरुस्त करता येतो; site ने ठरवलेल्या संख्येपर्यंत; प्रत्येक file एकदाच ठेवली जाते आणि कधी बदलत नाही – approve किंवा bill झालेल्या entry च्या files फक्त Super Admin बदलतो.'],
+      hi: ['हर machinery का रोज़ का काम: Start और Close reading (KM / घंटे), trips या दिन की स्थिति, diesel, chainage और किया गया काम; और काम किसी party पर लगाना हो तो "Debit to"।', 'Start उस machinery का पिछला Close है। Close, Start से कम नहीं हो सकता; एक machinery, तारीख और shift के लिए एक ही entry। Idle, Holiday और Breakdown दिन की स्थितियाँ हैं। Meter बंद हो तो "No reading" चुनें: दिन भरा जाता है और उसका काम अनुमान से लिया जाता है (app machinery का औसत सुझाता है), कारण के साथ; नए meter की पहली entry पर "new meter" tick करें। नीचे की सूची पिछले 2 दिनों से खुलती है। Bills इन्हीं entries से बनते हैं। जिस machinery के BOQ में घंटे के (या KM के) दो या ज़्यादा काम हैं – Bucket और Breaker – उसे यहाँ उसी तारीख और उसी shift में हर काम की अलग पंक्ति दी जा सकती है: उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें, उसका काम दबाएँ; उसका Start ऊपर वाली पंक्ति का Close है। वह एक ही entry के रूप में save होती है और उसकी पंक्तियाँ याद रहती हैं। Print Log Book: दो काम वाली entry (Bucket और Breaker) print में हर काम की अलग पंक्ति में आती है, और diesel debit का rate print के box में हाथ से डाला जा सकता है (खाली = अपने आप)। Hours पर चलने वाली machine (JCB, excavator) का hour meter किसी दिन reading न दे तो: उस दिन के लिए Time चुनें और From – To डालें – वे घंटे, घंटे ही गिने जाते हैं (bill, diesel average); अगले hours दिन का Start आख़िरी hour reading से आता है। सिर्फ़ घंटों पर चलने वाली machinery ने (JCB, excavator, breaker) एक ही shift में दो या ज़्यादा बार काम किया हो (जैसे Breaker 100 → 102, फिर 110 → 113): उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें और उसका अपना Start और Close डालें – वह ऊपर वाली पंक्ति के Close से ज़्यादा हो सकता है; बीच के घंटे (102 → 110) नहीं गिने जाते, इसलिए वह दिन 5 घंटे का (bill और diesel)। ऐसी machinery की entry बदलने या delete करने पर दूसरी तारीख कभी नहीं बदलती: Close अगली entry के Start से ज़्यादा हो जाए तो app बताता है और कुछ भी save नहीं करता। ऐसी shift में कोई पंक्ति Time पर भी हो सकती है (जैसे meter ने reading नहीं दी तब Bucket 09:00 – 11:00, फिर Breaker 3714.5 → 3717.5): उस पंक्ति के घंटे जोड़े जाते हैं (2 + 3 = 5 घंटे); entry का Start और Close उसकी Hrs पंक्तियों से आता है, और अगला दिन आख़िरी Close से शुरू होता है। Shift की सारी पंक्तियाँ भी Time पर हो सकती हैं (जैसे Breaker 09:00 – 13:00 और Bucket 14:00 – 18:00): हर पंक्ति अपना From – To और काम रखती है, entry के घंटे उनका जोड़ (4 + 4 = 8 घंटे); एक ही समय की दो पंक्तियाँ save नहीं होतीं। किसी भी दूसरी machinery को (KM पर गाड़ी, KM + Hrs पर machinery, trips पर या दिन पर) भी shift के हर काम की अलग पंक्ति दी जा सकती है: उसी machinery, तारीख और shift की दूसरी पंक्ति जोड़ें – KM / Hrs पर वह ऊपर वाली पंक्ति के Close से शुरू होती है (बीच के KM किसी पंक्ति में ही आते हैं); trips पर हर पंक्ति के अपने trips (वे जोड़े जाते हैं); दिन पर shift एक ही दिन रहती है। वही काम अलग पंक्ति में फिर आ सकता है; बिल्कुल वही पंक्ति दो बार (वही readings, या वही trips, challan और काम) यानी duplicate – save नहीं होती। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। WATER TANKER (Log Book Format I) की entry "Water tanker – trip by trip" से: हर trip की एक पंक्ति (challan no, dispatch और unload समय, chainage, use for), Day या Night; दिन में कभी भी trips जोड़ी जा सकती हैं; agency का वही challan या दूसरी trip के समय पर का समय save नहीं होता। Verification में approve हुई (✔ Approved) या submit हुए bill वाली entry locked होती है: केवल Super Admin उसे कारण के साथ बदलता या delete करता है; किसी और का बदलाव उसके पास approval के लिए जाता है। Attachments (row का 📎, edit window, Edit Log Book में "Attach to selected"): entry की फ़ोटो या PDF – Ctrl + V से paste, खींचकर लाएँ, upload, camera या "Scan with Mobile" (QR code: उसी व्यक्ति का phone फ़ोटो भेजता है); भेजने से पहले ✎ से फ़ोटो ठीक कर सकते हैं; site की तय संख्या तक; हर file एक बार रखी जाती है और कभी नहीं बदलती – approve या bill हुई entry की files केवल Super Admin बदलता है।'] },
     tankcheck: { saves: ['saveTankCheck', 'deleteTankCheck'],
       en: ['A physical check of the diesel in a machinery\'s tank against what the app calculates.', 'One check per machinery and date. When the difference is not zero a reason must be written. "Filled to full" needs the tank capacity in Asset Master. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed.'],
       mr: ['Machinery च्या tank मधल्या diesel ची प्रत्यक्ष तपासणी, app च्या हिशोबाशी तुलना करून.', 'एका machinery चा एका तारखेला एकच check. फरक शून्य नसेल तर कारण लिहावे लागते. "Filled to full" साठी Asset Master मध्ये tank ची क्षमता लागते. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
@@ -8031,6 +8100,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     /* (update-151) above a saved bill's Log Book: as submitted (its evidence), or – a bill submitted before – today's Log Book, said so */
     .ev-note { font: 9pt/1.35 Arial, sans-serif; color: #111; border: 1px solid #64748B; border-left-width: 4px; padding: 4px 8px; margin: 0 0 6px; break-inside: avoid; }
     .ev-note.legacy { border-color: #B45309; } .ev-note.bad { border-color: #B91C1C; font-weight: 700; }
+    .bill-att h2 { font: 700 12pt Arial, sans-serif; margin: 0 0 4px; } .ba-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+    .ba-grid figure { margin: 0; border: 1px solid #94A3B8; padding: 2mm; break-inside: avoid; font: 8pt/1.3 Arial, sans-serif; }
+    .ba-grid img { width: 100%; height: 48mm; object-fit: contain; background: #F8FAFC; display: block; } .ba-pdf { height: 20mm; display: grid; place-items: center; font: 700 14pt Arial, sans-serif; color: #B42318; background: #FEF3F2; }
     .lbsheet + .lbsheet, .billsheet + .lbsheet, .lbsheet + .billsheet { break-before: page; }
     /* each machinery fills its page; the signatures sit at the bottom with all the free space above them to sign */
     .lbsheet { display: flex; flex-direction: column; min-height: 263mm; break-inside: avoid; }
@@ -9415,7 +9487,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ') – ' + (S.user && S.user.super ? 'you are the Super Admin: you can change them here; the difference is taken in the next bill of the vendor.' : 'the entries of those dates are shown but cannot be changed here. <b>To correct one:</b> Log Book list → Edit / Delete on that entry – the change goes to the Super Admin for approval.')).join('<br>') + (LX.rows.some(r => r.lock && r.lock.ap) ? (LX.locks && LX.locks.length ? '<br>' : '') + '<b>Entries marked ✔ Approved</b> were approved in verification – they are shown but cannot be changed here. <b>To correct one:</b> Log Book list → Edit / Delete on that entry – the change goes to the Super Admin for approval.' : '');      // (update-152)
     $('lx_head').innerHTML = '<tr><th class="sel"><input type="checkbox" id="lx_selall" title="Select all rows" aria-label="Select all rows"></th><th>#</th><th>Date</th><th>Shift</th>' + (wayCol ? '<th>Measured by</th>' : '') + (km ? '<th class="n">Start KM</th><th class="n">Close KM</th>' : '') + (hr ? '<th class="n">Start Hrs</th><th class="n">Close Hrs</th>' : '') + (tmCol ? '<th>Time / Trips</th>' : '') +
       '<th class="n">Total</th>' + (itemCol ? '<th>Items (BOQ)</th>' : '') + '<th class="n lx-dx">Opening diesel</th><th class="n lx-di">Issued</th><th class="n lx-dx">Consumed</th><th class="n lx-dx" title="Diesel left in the machinery, worked out with the Standard Average (not measured)">Closing diesel (est.)</th><th class="lx-chn">Challan No</th><th class="lx-prt">Particular</th><th class="lx-chc">Chainage From</th><th class="lx-chc">To</th><th>Work description</th><th></th></tr>';
-    $('lx_rows').innerHTML = LX.rows.map((r, i) => '<tr data-i="' + i + '"><td class="sel"><input type="checkbox" class="lx-sel" aria-label="Select row"' + (r._sel ? ' checked' : '') + '></td><td>' + (i + 1) + (r.isNew ? '<span class="tag n">NEW</span>' : '') + '</td>' +
+    $('lx_rows').innerHTML = LX.rows.map((r, i) => '<tr data-i="' + i + '"><td class="sel"><input type="checkbox" class="lx-sel" aria-label="Select row"' + (r._sel ? ' checked' : '') + '></td><td>' + (i + 1) + (r.isNew ? '<span class="tag n">NEW</span>' : '') + ((r.att || []).length && !lxLater(r) ? '<button type="button" class="att-chip" data-lxatt="' + esc(r.key) + '" title="Attachments of this entry – click to look at them">📎 ' + r.att.length + '</button>' : '') + '</td>' +
       '<td>' + (r.isNew ? '<input type="date" data-f="date" value="' + esc(r.date) + '" min="' + esc(d.from) + '" max="' + esc(d.to < S.today ? d.to : S.today) + '">' : esc(showDate(r.date))) + '</td>' +
       '<td><select data-f="shift" title="Full Day = the only entry of the date. Day and Night = two entries of one date.">' + ['Full Day', 'Day', 'Night'].map(x => '<option' + (x === r.shift ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' +
         (!lxLater(r) ? '<label class="lg-half" title="Half day / half night: the bill pays this entry as half (monthly and per-day rates)."><input type="checkbox" data-f="half"' + (r.half ? ' checked' : '') + '> ½ ' + (r.shift === 'Night' ? 'night' : 'day') + '</label>'
@@ -9589,6 +9661,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function lxSelSum() {
     const n = LX.rows.filter(r => r._sel).length;
     $('lx_delsel').hidden = !n; $('lx_delsel').textContent = 'Delete selected (' + n + ')';
+    const na = LX.rows.filter(r => r._sel && !r.isNew && r.key && !r.lock).length; $('lx_attsel').hidden = !na; $('lx_attsel').textContent = '📎 Attach to selected (' + na + ')';      // (update-153)
     const all = $('lx_selall'); if (all) { all.checked = n > 0 && n === LX.rows.length; all.indeterminate = n > 0 && n < LX.rows.length; }
     document.querySelectorAll('#lx_rows tr[data-i]').forEach(tr => tr.classList.toggle('picked', !!(LX.rows[Number(tr.dataset.i)] || {})._sel));
   }
@@ -9601,6 +9674,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     LX.rows.forEach(r => { r._sel = e.target.checked && !r.lock; });      // (entries of a submitted bill are not picked)
     document.querySelectorAll('#lx_rows .lx-sel').forEach(x => { x.checked = e.target.checked; }); lxSelSum();
   });
+  // (update-153) the same files on several saved entries at once (one photo for two shifts, a challan for a week …): saved at once
+  $('lx_rows').addEventListener('click', e => { const b = e.target.closest('[data-lxatt]'); if (!b) return; e.stopPropagation();
+    busy(b, '…', async () => { const list = await atOfEntry(b.dataset.lxatt); if (list.length) atView(list, 0); else toast('This entry has no attachments now.'); }).catch(er => toast(errMsg(er), true)); });
+  $('lx_attsel').addEventListener('click', ev => busy(ev.target, 'Opening…', async () => {
+    const list = LX.rows.filter(r => r._sel && !r.isNew && r.key && !r.lock); if (!list.length) return;
+    const m = LX.d && LX.d.machine, who = (m && m.id) || '', label = who + ' · ' + list.length + ' entr' + (list.length === 1 ? 'y' : 'ies');
+    const res = await atOpen({ title: 'Attach to ' + label, sub: list.map(r => showDate(r.date) + ' ' + r.shift).slice(0, 8).join(', ') + (list.length > 8 ? ' …' : '') + ' – the files are added to what each entry has.', files: [], key: list[0].key, label: label });
+    if (!res || !res.length) return;
+    const r = await call('linkLogAttachments', { keys: list.map(x => x.key), files: res.map(f => ({ sha: f.sha })) });
+    (r.entries || []).forEach(en => { const row = LX.rows.find(x => x.key === en.key); if (row) row.att = en.attachments || row.att; });
+    toast('Attachments put on ' + (r.entries || []).length + ' Log Book entr' + ((r.entries || []).length === 1 ? 'y' : 'ies') + '.');
+    lxRender();
+  }).catch(er => toast(errMsg(er), true)));
   $('lx_delsel').addEventListener('click', async () => {
     const list = LX.rows.filter(r => r._sel); if (!list.length) return;
     const saved = list.filter(r => !r.isNew).length;
@@ -12061,7 +12147,48 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (x.L.rows.length) lb = x.note + (await logSheetsOf(x.L, b.company)).sheets;
       else toast('No Log Book entries ' + (x.kind === 'submission' ? 'were kept with this bill' : 'now for this bill\'s machinery in its dates') + ' – the bill papers are shown without the Log Book.', true);
     } catch (e) { lb = ''; toast('The Log Book could not be read (' + errMsg(e) + ') – the bill papers are shown without it.', true); }
-    printDoc('Abstract of Bill – ' + b.vendor + ' – RA Bill ' + b.billNo, billSheets(data, b.status === 'Superseded' ? ' superseded' : b.status === 'Deleted' ? ' deleted' : '') + lb, 'rep rep-bill' + (lb ? ' rep-lb' : ''), true, b.company, w0);
+    let ann = ''; try { ann = billAttHtml(await call('getBillAttachments', { id: b.id })); } catch (e) { ann = ''; }      // (update-153) its files, as submitted
+    printDoc('Abstract of Bill – ' + b.vendor + ' – RA Bill ' + b.billNo, billSheets(data, b.status === 'Superseded' ? ' superseded' : b.status === 'Deleted' ? ' deleted' : '') + lb + ann, 'rep rep-bill' + (lb ? ' rep-lb' : ''), true, b.company, w0);
+  }
+  /* (update-153) THE FILES OF A SAVED BILL'S LOG BOOK – as submitted (its evidence; a legacy bill: today's, said so): an annex after its
+   * Log Book (each file once, with its entries and fingerprint; photos shown), and "📎 Files" in Saved Bills: one ZIP of every file,
+   * named by date, machinery and shift, with FINGERPRINTS.txt – each file checked here against its SHA-256 as it is put in. */
+  function billAttHtml(r) {
+    if (!r || !(r.files || []).length) return '';
+    return '<section class="billsheet bill-att"><h2>Attachments of the Log Book – RA Bill ' + esc(r.billNo) + (r.rev ? ' rev ' + esc(r.rev) : '') + ' (' + r.files.length + ' file' + (r.files.length === 1 ? '' : 's') + ')</h2>' +
+      '<div class="ev-note' + (r.fixed ? '' : ' legacy') + '">' + (r.fixed ? 'The files each entry had when the bill was submitted – kept with the bill; a file is kept under its fingerprint (SHA-256) and never changed.' : 'This bill was submitted before files were kept with bills: these are the files the entries have TODAY.') + '</div>' +
+      '<div class="ba-grid">' + r.files.map((f, i) => '<figure>' + (f.mime === 'application/pdf' ? '<div class="ba-pdf">PDF</div>' : f.url ? '<img alt="" src="' + esc(f.url) + '">' : '') +
+        '<figcaption><b>' + (i + 1) + '.</b> ' + esc(f.name || (f.mime === 'application/pdf' ? 'document.pdf' : 'photo')) + '<br>' + (f.entries || []).map(e => esc(e.no + ' · ' + showDate(e.date) + ' · ' + e.shift)).join('<br>') + '<br>SHA-256 ' + esc(String(f.sha).slice(0, 20)) + '…</figcaption></figure>').join('') + '</div></section>';
+  }
+  const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = u8 => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  // a ZIP of files as they are (stored – photos and PDFs are already compressed): [{ name, data: Uint8Array }] → Blob
+  function zipMake(files) {
+    const enc = new TextEncoder(), parts = [], cen = []; let off = 0;
+    const d = new Date(), dt = (((d.getFullYear() - 1980) << 25) | ((d.getMonth() + 1) << 21) | (d.getDate() << 16) | (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) >>> 0;
+    files.forEach(f => { const nm = enc.encode(f.name), crc = crc32(f.data), sz = f.data.length;
+      const h = new DataView(new ArrayBuffer(30)); h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint32(10, dt, true); h.setUint32(14, crc, true); h.setUint32(18, sz, true); h.setUint32(22, sz, true); h.setUint16(26, nm.length, true);
+      parts.push(h.buffer, nm, f.data);
+      const c = new DataView(new ArrayBuffer(46)); c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint32(12, dt, true); c.setUint32(16, crc, true); c.setUint32(20, sz, true); c.setUint32(24, sz, true); c.setUint16(28, nm.length, true); c.setUint32(42, off, true);
+      cen.push(c.buffer, nm); off += 30 + nm.length + sz; });
+    const cs = cen.reduce((a, x) => a + x.byteLength, 0), e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cs, true); e.setUint32(16, off, true);
+    return new Blob(parts.concat(cen, [e.buffer]), { type: 'application/zip' });
+  }
+  async function billFilesZip(id) {
+    const r = await call('getBillAttachments', { id: id });
+    if (!(r.files || []).length) { toast('This bill\'s Log Book has no attachments' + (r.fixed ? ' (as submitted).' : '.')); return; }
+    const out = [], lines = ['Attachments of the Log Book – RA Bill ' + r.billNo + (r.rev ? ' rev ' + r.rev : ''), r.fixed ? 'As submitted with the bill (its evidence). Each file is checked against its SHA-256.' : 'Legacy bill: the files the entries have TODAY.', ''];
+    let bad = 0;
+    for (let i = 0; i < r.files.length; i++) { const f = r.files[i], e0 = (f.entries || [])[0] || {};
+      const ext = f.mime === 'application/pdf' ? 'pdf' : f.mime === 'image/png' ? 'png' : 'jpg', nm = (String(i + 1).padStart(2, '0') + '_' + (e0.date || '') + '_' + (e0.no || '') + '_' + (e0.shift || '')).replace(/[^A-Za-z0-9._-]+/g, '-') + '.' + ext;
+      let u8 = null; try { const res = await fetch(f.url); if (!res.ok) throw new Error(String(res.status)); u8 = new Uint8Array(await res.arrayBuffer()); } catch (er) { u8 = null; }
+      const same = u8 ? (await atSha(u8)) === f.sha : false; if (!same) bad++;
+      if (u8) out.push({ name: nm, data: u8 });
+      lines.push(nm + '  SHA-256 ' + f.sha + '  ' + (u8 ? (same ? 'checked ✔' : 'DOES NOT MATCH ✗') : 'could not be read ✗') + '  ' + (f.entries || []).map(x => x.no + ' ' + x.date + ' ' + x.shift).join(', ')); }
+    out.push({ name: 'FINGERPRINTS.txt', data: new TextEncoder().encode(lines.join('\r\n') + '\r\n') });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(zipMake(out)); a.download = ('RA-Bill-' + r.billNo + (r.rev ? '-rev' + r.rev : '') + '-attachments.zip').replace(/[^A-Za-z0-9._-]+/g, '-'); document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    toast(bad ? bad + ' file' + (bad === 1 ? '' : 's') + ' could not be read or did not match – see FINGERPRINTS.txt in the ZIP.' : r.files.length + ' file' + (r.files.length === 1 ? '' : 's') + ' in the ZIP – each matches its fingerprint ✔.', !!bad);
   }
   /* ---------- saved bills ---------- */
   async function sbLoad() {
@@ -12070,7 +12197,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       S.mb.saved = d.bills; const admin = S.user && S.user.admin, sup = S.user && S.user.super;      // (update-152) only the Super Admin deletes a submitted bill (kept, marked Deleted)
       $('sb_rows').innerHTML = d.bills.length ? d.bills.map(b => '<tr' + (b.status === 'Superseded' || b.status === 'Deleted' ? ' class="old"' : '') + '><td><b>' + esc(b.billNo) + (b.rev ? ' <small>rev ' + esc(b.rev) + '</small>' : '') + '</b></td><td>' + esc(b.vendor) + '</td><td>' + esc(b.company) + '</td><td>' + esc(showDate(b.from)) + ' – ' + esc(showDate(b.to)) +
         '</td><td>' + esc(showDate(b.billDate)) + '</td><td class="n"><b>' + mbN2(b.net) + '</b></td><td>' + (b.status === 'Superseded' ? '<span class="st low">Superseded</span>' : b.status === 'Deleted' ? '<span class="st bad" title="' + esc('Deleted by ' + (b.deletedBy || '–') + (b.deletedAt ? ' on ' + showDate(String(b.deletedAt).slice(0, 10)) : '') + ' – ' + (b.deleteReason || '')) + '">Deleted</span><br><small>' + esc(b.deleteReason || '') + '</small>' : '<span class="st ok">Active</span>') + '</td><td>' + esc(b.enteredBy || '–') +
-        '</td><td class="nowrap"><button class="link" data-sbv="' + esc(b.id) + '">View / Print</button> <button class="link" data-sbl="' + esc(b.id) + '" title="Log Book of this vendor\'s machinery for the bill period (as the Log Book is now)">Log Book</button>' + (sup && b.status !== 'Deleted' ? ' <button class="link danger" data-sbd="' + esc(b.id) + '">Delete</button>' : '') + '</td></tr>').join('')
+        '</td><td class="nowrap"><button class="link" data-sbv="' + esc(b.id) + '">View / Print</button> <button class="link" data-sbl="' + esc(b.id) + '" title="Log Book of this vendor\'s machinery for the bill period (as the Log Book is now)">Log Book</button> <button class="link" data-sbz="' + esc(b.id) + '" title="The photos / PDF of this bill\'s Log Book as submitted – one ZIP, each file checked against its fingerprint">📎 Files</button>' + (sup && b.status !== 'Deleted' ? ' <button class="link danger" data-sbd="' + esc(b.id) + '">Delete</button>' : '') + '</td></tr>').join('')
         : '<tr><td colspan="9" class="none">No submitted bills for these filters.</td></tr>';
       const dn = d.bills.filter(b => Number(b.dnAmt) > 0);
       // the notes made from the Log Book (an empty list until their table is there)
@@ -13057,7 +13184,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * this device per e-mail (oc_prefs_<email>) so the look is right at once after sign-in; the server's copy then replaces it.
    * applyPrefs puts them to work; every change on the Settings page is applied at once and saved by itself. */
   const PREF_DEFAULT = { theme: 'light', text: 'normal', density: 'normal', lang: 'mr', appLang: '', lbMode: '', lbDays: '2', shift: '', menu: 'open', enterNext: false, sound: false, lessMotion: false, intro: true, brief: true, voiceOut: true, start: '', loc: '', fav: [], mobile: '', photo: '' };
-  S.prefs = Object.assign({}, PREF_DEFAULT); S.rules = { backDays: '', announce: '', dayFrom: '08:00', nightFrom: '20:00' };
+  S.prefs = Object.assign({}, PREF_DEFAULT); S.rules = { backDays: '', announce: '', dayFrom: '08:00', nightFrom: '20:00', attachMax: 10 };
   const prefKey = () => 'oc_prefs_' + String((S.user && S.user.email) || '').toLowerCase();
   const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
   function avaDraw() { ['u_ava', 'set_ava'].forEach(id => { const el = $(id); if (!el) return; const p = S.prefs.photo;
@@ -13121,7 +13248,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('set_loc').innerHTML = '<option value="">No usual location</option>' + (S.locations || []).map(l => '<option>' + esc(l) + '</option>').join(''); $('set_loc').value = (S.locations || []).indexOf(p.loc) > -1 ? p.loc : '';
     $('set_fav').innerHTML = pages.map(x => '<label class="bp' + (p.fav.indexOf(x.t) > -1 ? ' on' : '') + '"><input type="checkbox" data-favpick="' + x.t + '"' + (p.fav.indexOf(x.t) > -1 ? ' checked' : '') + '> ' + esc(x.n) + '</label>').join('');
     $('set_admin').hidden = !u.admin;
-    if (u.admin && ['rule_back', 'rule_note', 'rule_day', 'rule_night'].indexOf((document.activeElement || {}).id) === -1) { $('rule_back').value = S.rules.backDays === '' ? '' : S.rules.backDays; $('rule_note').value = S.rules.announce || ''; $('rule_day').value = S.rules.dayFrom || '08:00'; $('rule_night').value = S.rules.nightFrom || '20:00'; }
+    if (u.admin && ['rule_back', 'rule_note', 'rule_day', 'rule_night', 'rule_att'].indexOf((document.activeElement || {}).id) === -1) { $('rule_back').value = S.rules.backDays === '' ? '' : S.rules.backDays; $('rule_note').value = S.rules.announce || ''; $('rule_day').value = S.rules.dayFrom || '08:00'; $('rule_night').value = S.rules.nightFrom || '20:00'; $('rule_att').value = S.rules.attachMax || 10; }
   }
   // one change: applied at once, kept on this device, and saved with the account a moment later (several quick changes = one save)
   let prefTimer = null, prefDirty = {}, prefBusy = 0;      // prefBusy: saves on their way – an older copy from the server must not come over a change that is being saved
@@ -13149,7 +13276,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   // the rules of the site (Admin's): the notice line, and the day limit for the on-the-spot check
   function setRules(r) {
-    S.rules = { backDays: r && r.backDays !== '' && r.backDays !== undefined && r.backDays !== null ? Number(r.backDays) : '', announce: (r && r.announce) || '', dayFrom: (r && r.dayFrom) || '08:00', nightFrom: (r && r.nightFrom) || '20:00' };
+    S.rules = { backDays: r && r.backDays !== '' && r.backDays !== undefined && r.backDays !== null ? Number(r.backDays) : '', announce: (r && r.announce) || '', dayFrom: (r && r.dayFrom) || '08:00', nightFrom: (r && r.nightFrom) || '20:00', attachMax: (r && Number(r.attachMax)) || 10 };      // (update-153: attachments of an entry)
     shiftAuto();
     const a = $('announce'); if (a) { a.hidden = !S.rules.announce || !S.user; a.textContent = S.rules.announce; }
     if ($('sec-settings') && !$('sec-settings').hidden) setDraw();
@@ -13186,7 +13313,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('set_reset').addEventListener('click', async () => { if (!(await askConfirm({ title: 'Back to the usual settings?', ok: 'Reset', message: 'Theme, text size, language, first page, usual shift / location and favourites go back to how the app comes. Your photo and mobile number stay.' }))) return;
     const keep = { photo: S.prefs.photo, mobile: S.prefs.mobile }; prefSet(Object.assign({}, PREF_DEFAULT, keep)); });
   $('rule_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
-    const r = await call('saveSiteRules', { backDays: $('rule_back').value.trim(), announce: $('rule_note').value.trim(), dayFrom: $('rule_day').value, nightFrom: $('rule_night').value }); setRules(r.rules); toast('Rules of the site saved.');
+    const r = await call('saveSiteRules', { backDays: $('rule_back').value.trim(), announce: $('rule_note').value.trim(), dayFrom: $('rule_day').value, nightFrom: $('rule_night').value, attachMax: $('rule_att').value.trim() }); setRules(r.rules); toast('Rules of the site saved.');
   }).catch(er => toast(errMsg(er), true)));
   // "Enter moves to the next box" (own setting): Enter in a box of a page goes on to the next box, as Tab does
   document.addEventListener('keydown', e => {
@@ -13268,7 +13395,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }));
   $('sb_clear').addEventListener('click', () => { ['sb_from', 'sb_to'].forEach(id => { $(id).value = ''; }); $('sb_vendor').value = ''; $('sb_co').value = ''; sbLoad(); });
   $('sb_rows').addEventListener('click', async e => {
-    const v = e.target.closest('[data-sbv]'), d = e.target.closest('[data-sbd]'), lb = e.target.closest('[data-sbl]');
+    const v = e.target.closest('[data-sbv]'), d = e.target.closest('[data-sbd]'), lb = e.target.closest('[data-sbl]'), z = e.target.closest('[data-sbz]');
+    if (z) { busy(z, 'Making the ZIP…', () => billFilesZip(z.dataset.sbz)).catch(err => toast(errMsg(err), true)); return; }      // (update-153)
     if (lb) {
       try {
         const r = await call('getBills', { id: lb.dataset.sbl }); const b = r.bills[0]; if (!b) return;
@@ -15080,6 +15208,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       aiBoot(d.ai);
       setTimeout(aiBriefAuto, 3500);      // the daily summary, once a day (after the start-up notices have had their turn)
       qrArrive().catch(() => { /* a label that cannot be opened must not stop the app */ });
+      capArrive().catch(() => { /* (update-153) a QR code of Scan with Mobile that cannot be opened must not stop the app */ });
     } catch (e) {
       showBoot(false);
       const m = errMsg(e);
@@ -16593,7 +16722,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<td class="t help" data-o="avgCell"><span class="dot" data-o="avg"></span></td>' +
       '<td><input data-f="chFrom" autocomplete="off" placeholder="From"></td><td><input data-f="chTo" autocomplete="off" placeholder="To"></td>' +
       '<td><input data-f="remark" class="lg-part" autocomplete="off" placeholder="Particular" hidden><input data-f="work" autocomplete="off" placeholder="Work done"></td>' +
-      '<td><button type="button" class="dbt-btn" title="Debit to – charge the work of this entry to a party (opens two fields: party and rate)">Debit</button><button class="del" title="Delete row" aria-label="Delete row">×</button></td>' +
+      '<td><button type="button" class="att-btn" title="Attachments of this entry – photos or PDF (paste with Ctrl + V, drop, upload, camera or Scan with Mobile)" aria-label="Attachments">📎<i></i></button><button type="button" class="dbt-btn" title="Debit to – charge the work of this entry to a party (opens two fields: party and rate)">Debit</button><button class="del" title="Delete row" aria-label="Delete row">×</button></td>' +
       '<td class="c-debit"><input data-f="debitTo" list="dl_dnparty" autocomplete="off" placeholder="Debit to (party) – leave empty if none" title="The party this work is charged to. Leave empty when the work is not charged to anyone."><input data-f="debitRate" type="number" step="0.01" min="0" placeholder="Rate" title="Rate for the debit note (per hour / KM / trip / day, as this entry is measured)"></td></tr>';
   }
   const lgRows = () => [...$('lg_in').querySelectorAll('.lrow')];
@@ -16999,7 +17128,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       openingHr: hasHr(lgWay(tr)) ? v(tr, 'openingHr') : '', closingHr: hasHr(lgWay(tr)) ? v(tr, 'closingHr') : '', tStart: v(tr, 'tStart'), tEnd: lgWay(tr) === 'Time' ? lgSlots(tr).slice(-1)[0][1] : v(tr, 'tEnd'), tSlots: lgWay(tr) === 'Time' ? lgSlots(tr) : undefined, tBreak: v(tr, 'tBreak'), trip: lgWay(tr) === 'Trip' || (tr._p && tr._p.machine && tr._p.machine.lbFormat === 'B' && DAY_STATUS.indexOf(lgWay(tr)) === -1) ? v(tr, 'trip') : '', challan: lgWay(tr) && DAY_STATUS.indexOf(lgWay(tr)) === -1 ? v(tr, 'challan').trim() : '', remark: v(tr, 'remark').trim(),
       openingDiesel: v(tr, 'openingDiesel'), chFrom: v(tr, 'chFrom'), chTo: v(tr, 'chTo'), work: v(tr, 'work'), debitTo: v(tr, 'debitTo').trim(), debitRate: v(tr, 'debitRate'),
       estKm: v(tr, 'estKm'), estHr: v(tr, 'estHr'), meterNote: v(tr, 'meterNote').trim(), meter: lgf(tr, 'newMeter') && lgf(tr, 'newMeter').checked ? 'new' : '',
-      items: tr._p && tr._p.boqItems && tr._p.boqItems.length ? itemBoxRead(tr.querySelector('.lg-itm')) : undefined, add: tr._p && tr._p.addTo ? 1 : '' }))      // (update-143: shown as added to the saved entry)
+      items: tr._p && tr._p.boqItems && tr._p.boqItems.length ? itemBoxRead(tr.querySelector('.lg-itm')) : undefined, add: tr._p && tr._p.addTo ? 1 : '',      // (update-143: shown as added to the saved entry)
+      attachments: (tr._att || []).length ? tr._att.map(x => ({ sha: x.sha })) : undefined }))      // (update-153: its photos / PDF – added to what the entry has)
       .map(r => { ['openingKm', 'closingKm', 'openingHr', 'closingHr', 'openingDiesel', 'trip', 'tBreak'].forEach(k => { r[k] = r[k] === '' ? '' : Number(r[k]); }); return r; });
     const res = await call('saveLogRows', { rows: rows });
     lgPendAt = 0; setTimeout(() => lgPendLoad(true), 300);      // what was pending has changed
@@ -17014,6 +17144,436 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     clearLogGrid();
     if (lgMode === 'mach') $('lg_top_no').dispatchEvent(new Event('change')); // next dates follow on
   }));
+
+  /* ================= ATTACHMENTS OF A LOG BOOK ENTRY (update-153, asked 24-10-2026: "Universal Smart Attachment … Ctrl+V (WhatsApp
+   * Web), drag-and-drop, upload files, open camera, scan with mobile … PDFs supported … multi-entry linking, no duplicate uploads …
+   * up to 10 per entry (configurable), optional"; photo correction: "orientation, straighten, suggested crop with confirmation,
+   * perspective, rotate, reset, original quality, use original, default compression, no duplicate originals") =================
+   * ONE box for every place a Log Book entry gets its files (atOpen): the entry page (📎 of a row), the edit window and – on a phone –
+   * the page a QR code of "Scan with Mobile" opens (capArrive). Files come in by
+   *   Ctrl + V (a photo copied in WhatsApp Web, a screenshot), dropping them on the box (or on a row of the entry page), "Upload
+   *   files" (photos and PDFs), "Camera" (the phone's camera; on a computer its webcam) and "Scan with Mobile" (a QR code: the phone
+   *   – any network – takes the photos and they show here while the box is open; nothing is linked until the entry is SAVED).
+   * A photo is made ready on this device: turned upright, at most 1600 px, JPEG (about 0.2 – 0.7 MB). ✎ on its tile opens the
+   * correction (atEdit): turn, straighten, a suggested cut of the paper (shown – used only when "Use this" is pressed), the four
+   * corners for a photo taken at an angle, Reset; "Original quality" (bigger) or "Use the original file" (sent as it is, up to
+   * 3 MB). Only ONE copy of each photo is ever sent – the corrected one or the original, never both.
+   * Each file's fingerprint (SHA-256) is worked out here: the same file twice in one entry is refused at once. Files are sent when
+   * "Done" is pressed (one after the other, each tried 3 times); the server keeps each file once under its fingerprint, so a photo
+   * put on two shifts ("From another entry") is not sent or kept twice. At most the site's number (Settings → Rules of the site). */
+  const AT_MIME = { 'image/jpeg': 'JPG', 'image/png': 'PNG', 'application/pdf': 'PDF' }, AT_RAW = 3 * 1024 * 1024;
+  const atMax = () => Math.max(1, Math.min(20, Number(S.rules && S.rules.attachMax) || 10));
+  const atHex = buf => Array.prototype.map.call(new Uint8Array(buf), b => b.toString(16).padStart(2, '0')).join('');
+  async function atSha(u8) { try { if (window.crypto && crypto.subtle) return atHex(await crypto.subtle.digest('SHA-256', u8)); } catch (e) { /* not a secure page: the server still keeps a file once */ } return ''; }
+  function atKind(u8) {      // (as the server: the first bytes say what a file really is)
+    if (u8[0] === 0xFF && u8[1] === 0xD8 && u8[2] === 0xFF) return 'image/jpeg';
+    if (u8[0] === 0x89 && u8[1] === 0x50 && u8[2] === 0x4E && u8[3] === 0x47) return 'image/png';
+    if (u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46 && u8[4] === 0x2D) return 'application/pdf';
+    return '';
+  }
+  function atB64(u8) { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
+  const atSize = n => !n ? '' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  const atBytes = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(new Uint8Array(r.result)); r.onerror = () => no(new Error('This file cannot be read – add it again.')); r.readAsArrayBuffer(blob); });
+  // a photo, turned upright as the camera wrote it (the phone's own orientation note)
+  async function atPic(blob) {
+    const apple = /Apple/.test(navigator.vendor || '');
+    try { if (apple || typeof createImageBitmap !== 'function') throw new Error('img'); return await createImageBitmap(blob, { imageOrientation: 'from-image' }); }
+    catch (e) { const u = URL.createObjectURL(blob);
+      try { return await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => no(new Error('This photo cannot be read – add it again.')); im.src = u; }); }
+      finally { setTimeout(() => URL.revokeObjectURL(u), 4000); } }
+  }
+  const atW = im => im.width || im.naturalWidth, atH = im => im.height || im.naturalHeight;
+  // the photo turned (0 / 90 / 180 / 270) and straightened (a few degrees – the corners are filled white), at most `lim` px
+  function atBase(im, ed, lim) {
+    const W = atW(im), Hh = atH(im), sc = Math.min(1, lim / Math.max(W, Hh)), w = W * sc, h = Hh * sc;
+    const turn = ((ed.rot || 0) % 360 + 360) % 360, a = (turn + (ed.ang || 0)) * Math.PI / 180;
+    const cw = Math.round(Math.abs(w * Math.cos(a)) + Math.abs(h * Math.sin(a))), ch = Math.round(Math.abs(w * Math.sin(a)) + Math.abs(h * Math.cos(a)));
+    const cv = document.createElement('canvas'); cv.width = Math.max(1, cw); cv.height = Math.max(1, ch);
+    const g = cv.getContext('2d'); g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, cv.width, cv.height); g.imageSmoothingQuality = 'high';
+    g.translate(cv.width / 2, cv.height / 2); g.rotate(a); g.drawImage(im, -w / 2, -h / 2, w, h);
+    return cv;
+  }
+  // the four corners (0..1 of the turned photo: top-left, top-right, bottom-right, bottom-left) → a straight picture of what they hold
+  const AT_FULL = [[0, 0], [1, 0], [1, 1], [0, 1]];
+  const atIsFull = q => !q || q.every((p, i) => Math.abs(p[0] - AT_FULL[i][0]) < 0.002 && Math.abs(p[1] - AT_FULL[i][1]) < 0.002);
+  const atIsRect = q => Math.abs(q[0][1] - q[1][1]) < 0.002 && Math.abs(q[3][1] - q[2][1]) < 0.002 && Math.abs(q[0][0] - q[3][0]) < 0.002 && Math.abs(q[1][0] - q[2][0]) < 0.002;
+  function atSolve(A, b) {      // 8 × 8, Gauss with the largest pivot
+    const n = b.length, M = A.map((r, i) => r.concat([b[i]]));
+    for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+      const t = M[c]; M[c] = M[p]; M[p] = t; if (Math.abs(M[c][c]) < 1e-12) return null;
+      for (let r = 0; r < n; r++) if (r !== c) { const f = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k]; } }
+    return M.map((r, i) => r[n] / r[i]);
+  }
+  function atWarp(src, q, max) {
+    const sw = src.width, sh = src.height, P = q.map(p => [p[0] * sw, p[1] * sh]);
+    const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    let w = Math.max(d(P[0], P[1]), d(P[3], P[2])), h = Math.max(d(P[0], P[3]), d(P[1], P[2]));
+    const sc = Math.min(1, max / Math.max(w, h)); w = Math.max(8, Math.round(w * sc)); h = Math.max(8, Math.round(h * sc));
+    const out = document.createElement('canvas'); out.width = w; out.height = h; const g = out.getContext('2d');
+    if (atIsRect(q)) { g.imageSmoothingQuality = 'high'; g.drawImage(src, P[0][0], P[0][1], P[1][0] - P[0][0], P[3][1] - P[0][1], 0, 0, w, h); return out; }
+    // a photo taken at an angle: every point of the straight picture is looked up in the photo (the corners' perspective)
+    const D = [[0, 0], [w, 0], [w, h], [0, h]], A = [], b = [];
+    for (let i = 0; i < 4; i++) { const [x, y] = D[i], [u, v] = P[i]; A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u); A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v); }
+    const H = atSolve(A, b); if (!H) { g.drawImage(src, 0, 0, w, h); return out; }
+    const sd = src.getContext('2d').getImageData(0, 0, sw, sh).data, od = g.createImageData(w, h), o = od.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const z = H[6] * x + H[7] * y + 1, u = (H[0] * x + H[1] * y + H[2]) / z, v = (H[3] * x + H[4] * y + H[5]) / z, k = (y * w + x) * 4;
+      const x0 = Math.floor(u), y0 = Math.floor(v), fx = u - x0, fy = v - y0;
+      if (x0 < 0 || y0 < 0 || x0 >= sw - 1 || y0 >= sh - 1) { o[k] = o[k + 1] = o[k + 2] = 255; o[k + 3] = 255; continue; }
+      const i00 = (y0 * sw + x0) * 4, i10 = i00 + 4, i01 = i00 + sw * 4, i11 = i01 + 4;
+      for (let c = 0; c < 3; c++) o[k + c] = (sd[i00 + c] * (1 - fx) + sd[i10 + c] * fx) * (1 - fy) + (sd[i01 + c] * (1 - fx) + sd[i11 + c] * fx) * fy;
+      o[k + 3] = 255;
+    }
+    g.putImageData(od, 0, 0); return out;
+  }
+  /* a suggested cut: the paper (or the screen) in the photo – the largest bright part of it, its four farthest corners. Only a
+   * suggestion: the box shows it and nothing is cut until "Use this" is pressed. null = nothing clear enough to suggest. */
+  function atSuggest(cv) {
+    const n = 160, sc = n / Math.max(cv.width, cv.height), w = Math.max(8, Math.round(cv.width * sc)), h = Math.max(8, Math.round(cv.height * sc));
+    const t = document.createElement('canvas'); t.width = w; t.height = h; const g = t.getContext('2d'); g.drawImage(cv, 0, 0, w, h);
+    const px = g.getImageData(0, 0, w, h).data, L = new Float32Array(w * h), hist = new Array(256).fill(0);
+    for (let i = 0; i < w * h; i++) { const v = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]; L[i] = v; hist[Math.min(255, v | 0)]++; }
+    // Otsu: the brightness that best splits the photo in two
+    let sum = 0; for (let i = 0; i < 256; i++) sum += i * hist[i];
+    let sB = 0, wB = 0, best = 0, th = 128; for (let i = 0; i < 256; i++) { wB += hist[i]; if (!wB) continue; const wF = w * h - wB; if (!wF) break; sB += i * hist[i];
+      const mB = sB / wB, mF = (sum - sB) / wF, v = wB * wF * (mB - mF) * (mB - mF); if (v > best) { best = v; th = i; } }
+    const seen = new Uint8Array(w * h); let bestN = 0, bestPts = null;
+    for (let s0 = 0; s0 < w * h; s0++) { if (seen[s0] || L[s0] <= th) continue;
+      const st = [s0], pts = []; seen[s0] = 1;
+      while (st.length) { const p = st.pop(), x = p % w, y = (p - x) / w; pts.push(p);
+        for (const q of [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, y > 0 ? p - w : -1, y < h - 1 ? p + w : -1]) if (q > -1 && !seen[q] && L[q] > th) { seen[q] = 1; st.push(q); } }
+      if (pts.length > bestN) { bestN = pts.length; bestPts = pts; } }
+    if (!bestPts || bestN < w * h * 0.12 || bestN > w * h * 0.93) return null;
+    let tl = null, tr = null, br = null, bl = null;
+    bestPts.forEach(p => { const x = p % w, y = (p - x) / w;
+      if (!tl || x + y < tl[0] + tl[1]) tl = [x, y]; if (!br || x + y > br[0] + br[1]) br = [x, y];
+      if (!tr || x - y > tr[0] - tr[1]) tr = [x, y]; if (!bl || x - y < bl[0] - bl[1]) bl = [x, y]; });
+    const q = [tl, tr, br, bl].map(p => [Math.min(1, Math.max(0, p[0] / (w - 1))), Math.min(1, Math.max(0, p[1] / (h - 1)))]);
+    const area = Math.abs((q[0][0] * q[1][1] - q[1][0] * q[0][1]) + (q[1][0] * q[2][1] - q[2][0] * q[1][1]) + (q[2][0] * q[3][1] - q[3][0] * q[2][1]) + (q[3][0] * q[0][1] - q[0][0] * q[3][1])) / 2;
+    return area > 0.1 && area < 0.95 ? q : null;
+  }
+  const atJpeg = (cv, qu) => new Promise(ok => cv.toBlob(ok, 'image/jpeg', qu));
+  /* an item of the box: { name, mime, src (the file as it came), ed (the correction), bytes (what is sent), url (to look at), sha,
+   * state: 'new' (made ready here, not sent yet) / 'send' / 'ok' (kept by the server: p) / 'err' } */
+  async function atMake(it) {
+    const ed = it.ed || {};
+    if (it.mime === 'application/pdf' || ed.orig) {      // a PDF, or a photo sent as it is: the file itself
+      const u8 = await atBytes(it.src);
+      if (u8.length > AT_RAW) { if (ed.orig) { ed.orig = false; it.note = 'The original is bigger than 3 MB – it is sent made smaller.'; return atMake(it); } throw new Error('This file is too big (more than 3 MB) – a photo is made smaller by the page; make the PDF smaller (or send it in parts).'); }
+      const k = atKind(u8); if (!k) throw new Error('An attachment must be a photo (JPG or PNG) or a PDF.');
+      it.bytes = u8; it.mime = k; if (it.url && it.urlMine) URL.revokeObjectURL(it.url); it.url = URL.createObjectURL(new Blob([u8], { type: k })); it.urlMine = true;      // (the type its bytes say, never the name's)
+    } else {
+      const im = await atPic(it.src);
+      try {
+        const hq = !!ed.hq, base = atBase(im, ed, hq ? 3000 : 2200);
+        const out = atIsFull(ed.q) ? (Math.max(base.width, base.height) > (hq ? 3000 : 1600) ? atWarp(base, AT_FULL, hq ? 3000 : 1600) : base) : atWarp(base, ed.q, hq ? 3000 : 1600);
+        let blob = await atJpeg(out, hq ? 0.92 : 0.82);
+        if (blob && !hq && blob.size > 700 * 1024) blob = await atJpeg(out, 0.7);
+        if (blob && blob.size > AT_RAW) blob = await atJpeg(out, 0.6);
+        if (!blob) throw new Error('This photo cannot be made ready – add it again.');
+        it.bytes = await atBytes(blob); it.mime = 'image/jpeg';
+        if (it.url && it.urlMine) URL.revokeObjectURL(it.url); it.url = URL.createObjectURL(blob); it.urlMine = true;
+      } finally { if (im && im.close) im.close(); }
+    }
+    it.sha = await atSha(it.bytes); it.size = it.bytes.length; it.state = 'new'; it.err = '';
+    return it;
+  }
+  // files that came in (paste, drop, upload, camera) → items of the box (a file the box cannot take: said, and left out)
+  async function atTake(files, AB) {
+    const out = [];
+    for (const f of [...files]) {
+      const type = String(f.type || '').toLowerCase(), pdf = type === 'application/pdf' || /\.pdf$/i.test(f.name || '');
+      if (!pdf && !/^image\//.test(type)) { AB.say('“' + (f.name || 'file') + '” is not a photo or a PDF – left out.', true); continue; }
+      if (pdf && f.size > AT_RAW) { AB.say('“' + (f.name || 'file') + '” is bigger than 3 MB – make the PDF smaller (or send it in parts).', true); continue; }
+      const it = { name: String(f.name || (pdf ? 'document.pdf' : 'photo.jpg')).slice(0, 120), mime: pdf ? 'application/pdf' : 'image/jpeg', src: f, ed: {}, state: 'make' };
+      out.push(it);
+    }
+    return out;
+  }
+  function atThumb(it) {
+    if (it.mime === 'application/pdf') return '<span class="at-pdf">PDF</span>';
+    return it.url ? '<img alt="" src="' + esc(it.url) + '" loading="lazy">' : '<span class="at-pdf">…</span>';
+  }
+  /* THE BOX. o = { title, sub, files: the entry's list now [{ sha, p, mime, size, name, url? }], key (a saved entry) / draft (a new
+   * row), label (for the phone), pick: () => [{ label, files }] (other rows of the page), near: [{ key, label }] (saved entries of
+   * the same machinery), add: files to take at once (pasted / dropped on a row) }  →  the list to save, or null (Cancel) */
+  function atOpen(o) {
+    o = o || {};
+    const max = atMax();
+    return new Promise(done => {
+      const AB = { items: (o.files || []).map(f => Object.assign({ state: 'ok' }, f)), cap: null, poll: 0, closed: false };
+      const old = $('at_back'); if (old) old.remove();
+      document.body.insertAdjacentHTML('beforeend', '<div id="at_back" class="at-back" role="dialog" aria-modal="true" aria-label="Attachments"><div class="at-card">' +
+        '<div class="at-head"><div><small>Attachments · photos or PDF</small><h3>' + esc(o.title || 'Attachments') + '</h3>' + (o.sub ? '<p>' + esc(o.sub) + '</p>' : '') + '</div><button type="button" class="at-x" data-at="cancel" aria-label="Close">×</button></div>' +
+        '<div class="at-drop" tabindex="0" title="Click here and press Ctrl + V to paste a photo copied in WhatsApp Web, or drop files here">📋 <b>Ctrl + V</b> to paste a copied photo · or <b>drop</b> photos / PDF here</div>' +
+        '<div class="at-btns"><button type="button" class="btn ghost" data-at="file">⬆ Upload files</button><button type="button" class="btn ghost" data-at="cam">📷 Camera</button>' +
+          '<button type="button" class="btn ghost" data-at="qr">📱 Scan with Mobile</button>' + ((o.pick && o.pick().length) || (o.near && o.near.length) ? '<button type="button" class="btn ghost" data-at="other">🔗 From another entry</button>' : '') + '</div>' +
+        '<input type="file" id="at_file" hidden multiple accept="image/jpeg,image/png,image/*,application/pdf,.pdf"><input type="file" id="at_cam" hidden accept="image/*" capture="environment">' +
+        '<div class="at-qr" id="at_qr" hidden></div><div class="at-other" id="at_other" hidden></div>' +
+        '<div class="at-msg" id="at_msg" role="status"></div><div class="at-tiles" id="at_tiles"></div>' +
+        '<div class="at-foot"><span id="at_count"></span><button type="button" class="btn ghost" data-at="cancel">Cancel</button><button type="button" class="btn primary" data-at="ok">Done</button></div></div></div>');
+      const back = $('at_back');
+      AB.say = (t, bad) => { const m = $('at_msg'); if (!m) return; m.textContent = t || ''; m.classList.toggle('bad', !!bad); };
+      const draw = () => {
+        const n = AB.items.length;
+        $('at_count').textContent = n + ' of ' + max + (n ? ' · ' + atSize(AB.items.reduce((a, x) => a + (Number(x.size) || 0), 0)) : '');
+        $('at_tiles').innerHTML = AB.items.map((it, i) => '<div class="at-tile st-' + it.state + '" data-i="' + i + '"><button type="button" class="at-th" data-at="view" title="Look at it">' + atThumb(it) + '</button>' +
+          '<span class="at-st">' + (it.state === 'ok' ? '✓' : it.state === 'send' || it.state === 'make' ? '…' : it.state === 'err' ? '!' : '') + '</span>' +
+          '<button type="button" class="at-rm" data-at="rm" title="Take it out of this entry" aria-label="Remove">×</button>' +
+          (it.mime !== 'application/pdf' && it.src && (it.state === 'new' || it.state === 'err') ? '<button type="button" class="at-fix" data-at="fix" title="Correct the photo: turn, straighten, cut, corners">✎</button>' : '') +
+          '<small>' + esc(it.name || AT_MIME[it.mime] || 'file') + (it.size ? ' · ' + atSize(it.size) : '') + (it.err ? '<b>' + esc(it.err) + '</b>' : it.note ? '<i>' + esc(it.note) + '</i>' : '') + '</small></div>').join('');
+      };
+      const add = async list => {
+        const room = max - AB.items.length; if (!list.length) return;
+        if (room <= 0) { AB.say('An entry keeps at most ' + max + ' attachments – remove one first.', true); return; }
+        if (list.length > room) AB.say('Only ' + room + ' more can be added (at most ' + max + ' with one entry).', true);
+        list = list.slice(0, Math.max(0, room));
+        AB.items.push(...list); draw();
+        for (const it of list) { try { await atMake(it); } catch (e) { it.state = 'err'; it.err = errMsg(e); }
+          if (it.sha && AB.items.some(x => x !== it && x.sha === it.sha)) { AB.items.splice(AB.items.indexOf(it), 1); AB.say('“' + it.name + '” is already attached – it is not added twice.'); }
+          draw(); }
+      };
+      AB.add = add; AB.draw = draw;
+      const capStop = (dn) => { if (AB.poll) { clearTimeout(AB.poll); AB.poll = 0; } if (AB.cap) { const id = AB.cap.id; AB.cap = null; call('capCancel', { id: id, done: !!dn }).catch(() => { /* it ends by itself */ }); } };
+      const close = v => { if (AB.closed) return; AB.closed = true; capStop(v !== null); document.removeEventListener('paste', onPaste, true); document.removeEventListener('keydown', onKey, true); back.remove(); done(v); };
+      const onPaste = e => { const fs = e.clipboardData && e.clipboardData.files; if (!fs || !fs.length || !$('at_back') || !$('cf_back').hidden || $('at_ed')) return; e.preventDefault(); atTake(fs, AB).then(add); };
+      const onKey = e => { if (e.key === 'Escape' && $('cf_back').hidden && !$('at_ed') && !$('at_view')) { e.stopPropagation(); close(null); } };
+      document.addEventListener('paste', onPaste, true); document.addEventListener('keydown', onKey, true);
+      back.addEventListener('dragover', e => { e.preventDefault(); back.classList.add('drag'); });
+      back.addEventListener('dragleave', e => { if (e.target === back) back.classList.remove('drag'); });
+      back.addEventListener('drop', e => { e.preventDefault(); back.classList.remove('drag'); const fs = e.dataTransfer && e.dataTransfer.files; if (fs && fs.length) atTake(fs, AB).then(add); });
+      $('at_file').addEventListener('change', e => { const fs = [...e.target.files]; e.target.value = ''; atTake(fs, AB).then(add); });
+      $('at_cam').addEventListener('change', e => { const fs = [...e.target.files]; e.target.value = ''; atTake(fs, AB).then(add); });
+      // sending: one after the other, each tried 3 times (a question to the server); the box closes when every file is kept
+      const send = async () => {
+        const todo = AB.items.filter(it => it.state === 'new' || it.state === 'err');
+        if (AB.items.some(it => it.state === 'make')) { AB.say('Wait a moment – a photo is being made ready.'); return; }
+        for (const it of todo) {
+          if (!it.bytes) { it.state = 'err'; continue; }
+          it.state = 'send'; it.err = ''; draw();
+          try { const r = await call('uploadAttachment', { data: 'data:' + it.mime + ';base64,' + atB64(it.bytes), name: it.name });
+            if (it.sha && r.sha !== it.sha) throw new Error('The file did not arrive as it was sent – add it again.');
+            Object.assign(it, { sha: r.sha, p: r.path, mime: r.mime, size: r.size, state: 'ok' }); }
+          catch (e) { it.state = 'err'; it.err = errMsg(e); }
+          draw();
+        }
+        const bad = AB.items.filter(it => it.state !== 'ok');
+        if (bad.length) { AB.say(bad.length + ' file' + (bad.length === 1 ? ' was' : 's were') + ' not sent (marked !) – press Done to try again, or remove ' + (bad.length === 1 ? 'it' : 'them') + '.', true); return; }
+        close(AB.items.map(it => ({ sha: it.sha, p: it.p, mime: it.mime, size: it.size, name: it.name, url: it.url, at: it.at, by: it.by })));
+      };
+      back.addEventListener('click', async e => {
+        const b = e.target.closest('[data-at]'); if (!b) { if (e.target === back) close(null); return; }
+        const k = b.dataset.at, tile = b.closest('.at-tile'), it = tile ? AB.items[Number(tile.dataset.i)] : null;
+        if (k === 'cancel') close(null);
+        else if (k === 'ok') { b.disabled = true; try { await send(); } finally { if ($('at_back')) b.disabled = false; } }
+        else if (k === 'file') $('at_file').click();
+        else if (k === 'cam') { const blob = await atCamera(); if (blob === false) $('at_cam').click(); else if (blob) add(await atTake([new File([blob], 'camera-' + Date.now() + '.jpg', { type: 'image/jpeg' })], AB)); }
+        else if (k === 'rm' && it) { AB.items.splice(AB.items.indexOf(it), 1); draw(); AB.say(it.state === 'ok' && it.p ? 'Taken out of this entry when it is saved (the file itself is kept – nothing is deleted).' : ''); }
+        else if (k === 'view' && it) atView(AB.items, AB.items.indexOf(it));
+        else if (k === 'fix' && it) { const ed = await atEdit(it); if (ed) { it.ed = ed; it.state = 'make'; it.p = ''; draw(); try { await atMake(it); } catch (er) { it.state = 'err'; it.err = errMsg(er); }
+            if (it.sha && AB.items.some(x => x !== it && x.sha === it.sha)) { AB.items.splice(AB.items.indexOf(it), 1); AB.say('This photo is already attached – it is not added twice.'); } draw(); } }
+        else if (k === 'qr') atQr(AB, o, max);
+        else if (k === 'qrnew') atQr(AB, o, max);
+        else if (k === 'qrstop') { capStop(false); $('at_qr').hidden = true; }
+        else if (k === 'other') atOther(AB, o);
+        else if (k === 'take') { const f = (AB.offer || [])[Number(b.dataset.n)]; if (!f) return;
+          if (AB.items.some(x => x.sha === f.sha)) { AB.say('“' + (f.name || 'This file') + '” is already attached.'); return; }
+          if (AB.items.length >= max) { AB.say('An entry keeps at most ' + max + ' attachments – remove one first.', true); return; }
+          AB.items.push(Object.assign({}, f, { state: f.p ? 'ok' : f.state === 'ok' ? 'ok' : 'new', src: f.src })); b.disabled = true; b.textContent = '✓ Added'; draw(); }
+      });
+      draw();
+      if (o.add && o.add.length) atTake(o.add, AB).then(add);
+      setTimeout(() => { const d = back.querySelector('.at-drop'); if (d) d.focus(); }, 30);
+    });
+  }
+  // the computer's camera (a live picture, "Take photo"); false = none here – the phone's own camera is used instead
+  async function atCamera() {
+    if (matchMedia('(pointer: coarse)').matches || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return false;
+    let stream = null;
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }); }
+    catch (e) { return false; }
+    return new Promise(res => {
+      document.body.insertAdjacentHTML('beforeend', '<div id="at_camv" class="at-back at-cam"><div class="at-card"><video autoplay playsinline muted></video><div class="at-foot"><button type="button" class="btn ghost" data-c="no">Cancel</button><button type="button" class="btn primary" data-c="yes">📷 Take photo</button></div></div></div>');
+      const box = $('at_camv'), v = box.querySelector('video'); v.srcObject = stream;
+      const end = r => { stream.getTracks().forEach(t => t.stop()); box.remove(); res(r); };
+      box.addEventListener('click', async e => { const b = e.target.closest('[data-c]'); if (!b) return; if (b.dataset.c === 'no') return end(null);
+        const cv = document.createElement('canvas'); cv.width = v.videoWidth || 1280; cv.height = v.videoHeight || 720; cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height);
+        end(await atJpeg(cv, 0.92)); });
+    });
+  }
+  /* SCAN WITH MOBILE: a QR code for 5 minutes (it is taken by ONE phone of the same person, the same site); the photos the phone
+   * sends show here while this box is open – asked every 3 seconds (every 5 after two minutes, never while the page is hidden). */
+  async function atQr(AB, o, max) {
+    const box = $('at_qr'); box.hidden = false; box.innerHTML = '<p>Making the QR code…</p>';
+    const prev = AB.cap ? AB.cap.id : '';
+    if (AB.poll) { clearTimeout(AB.poll); AB.poll = 0; }
+    let r; try { r = await call('capStart', { key: o.key || '', draft: o.key ? '' : (o.draft || 'new'), label: o.label || o.title || '', prev: prev }); }
+    catch (e) { box.innerHTML = '<p class="bad">' + esc(errMsg(e)) + '</p>'; return; }
+    if (AB.closed) { call('capCancel', { id: r.id }).catch(() => {}); return; }
+    let base = ''; try { base = window.top.location.origin + window.top.location.pathname; } catch (e) { base = location.origin + '/'; }
+    AB.cap = { id: r.id, t0: Date.now(), ends: new Date(r.ends).getTime(), claimBy: new Date(r.claimBy).getTime(), seen: AB.items.map(x => x.sha).filter(Boolean), state: 'waiting' };
+    box.innerHTML = '<div class="at-qr-code">' + qrSvg(base + '?cap=' + r.code) + '</div><div class="at-qr-txt"><b>Scan with the phone</b><ol><li>Open the RCL app → <b>Scan</b> (or the phone\'s camera).</li><li>Sign in as <b>' + esc((S.user && S.user.name) || 'you') + '</b> at this site – the same person as here.</li><li>Take the photos and send them – they come here. Then press <b>Done</b> and save the entry.</li></ol>' +
+      '<p class="at-qr-st" id="at_qr_st">Waiting for the phone…</p><button type="button" class="btn ghost small" data-at="qrnew">New QR code</button> <button type="button" class="btn ghost small" data-at="qrstop">Stop</button></div>';
+    const st = (t, bad) => { const el = $('at_qr_st'); if (el) { el.textContent = t; el.classList.toggle('bad', !!bad); } };
+    const tick = async () => {
+      AB.poll = 0; const c = AB.cap; if (!c || AB.closed) return;
+      const left = Math.round(((c.state === 'waiting' ? c.claimBy : c.ends) - Date.now()) / 1000);
+      if (left <= 0) { st(c.state === 'waiting' ? 'This QR code ran out (5 minutes) – press New QR code.' : 'Scan with Mobile ended (15 minutes) – press New QR code for more photos.', true); AB.cap = null; return; }
+      if (!document.hidden) {
+        try { const p = await call('capPoll', { id: c.id, have: c.seen });
+          if (AB.cap !== c) return;
+          if (p.state === 'gone' || p.state === 'expired' || p.state === 'cancelled' || p.state === 'done') { st(p.state === 'expired' ? 'This QR code ran out – press New QR code.' : 'This QR code was closed – press New QR code.', true); AB.cap = null; return; }
+          if (p.state === 'claimed' && c.state === 'waiting') c.state = 'claimed';
+          (p.files || []).forEach(f => { c.seen.push(f.sha);
+            if (AB.items.some(x => x.sha === f.sha)) return;
+            if (AB.items.length >= max) { AB.say('A photo from the phone was left out – an entry keeps at most ' + max + ' attachments.', true); return; }
+            AB.items.push({ sha: f.sha, p: f.p, mime: f.mime, size: f.size, name: f.name || 'phone photo', url: f.url, state: 'ok', fromPhone: true }); });
+          if ((p.files || []).length && AB.draw) AB.draw();
+          st(c.state === 'claimed' ? '📱 Phone connected' + (p.count ? ' · ' + p.count + ' photo' + (p.count === 1 ? '' : 's') + ' received' : ' – take the photos on the phone') + ' · ' + Math.max(0, Math.ceil(left / 60)) + ' min left' : 'Waiting for the phone… (' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0') + ')'); }
+        catch (e) { st('Could not ask the server – trying again…', true); }
+      }
+      if (AB.cap === c && !AB.closed) AB.poll = setTimeout(tick, Date.now() - c.t0 > 120000 ? 5000 : 3000);
+    };
+    AB.poll = setTimeout(tick, 1500);
+  }
+  // FROM ANOTHER ENTRY: a file already with another entry (or another row of this page) – put on this one too, not sent again
+  async function atOther(AB, o) {
+    const box = $('at_other'); box.hidden = false; box.innerHTML = '<p>Looking…</p>';
+    const groups = (o.pick ? o.pick() : []).filter(g => g.files && g.files.length);
+    for (const n of (o.near || [])) { try { const r = await call('getLogAttachments', { key: n.key }); if ((r.files || []).length) groups.push({ label: n.label, files: r.files.map(f => Object.assign({ state: 'ok' }, f)) }); } catch (e) { /* that entry is not shown */ } }
+    AB.offer = [];
+    box.innerHTML = groups.length ? groups.map(g => '<div class="at-og"><b>' + esc(g.label) + '</b><div>' + g.files.map(f => { const n = AB.offer.push(f) - 1;
+      return '<span class="at-op">' + atThumb(f) + '<small>' + esc(f.name || AT_MIME[f.mime] || 'file') + '</small><button type="button" class="btn ghost small" data-at="take" data-n="' + n + '"' + (AB.items.some(x => x.sha === f.sha) ? ' disabled>✓ Added' : '>Add') + '</button></span>'; }).join('') + '</div></div>').join('')
+      : '<p>No other entry nearby has attachments.</p>';
+  }
+  // LOOKING AT THE FILES: big, one by one (← →); a PDF opens in the box (or in a new tab)
+  function atView(list, i) {
+    const old = $('at_view'); if (old) old.remove();
+    document.body.insertAdjacentHTML('beforeend', '<div id="at_view" class="at-back at-viewer" role="dialog" aria-label="Attachment"><div class="at-vtop"><span id="at_vname"></span><a id="at_vopen" target="_blank" rel="noopener">Open in a new tab</a><button type="button" data-v="x" aria-label="Close">×</button></div><button type="button" class="at-vnav" data-v="-1" aria-label="Previous">‹</button><div class="at-vbody" id="at_vbody"></div><button type="button" class="at-vnav r" data-v="1" aria-label="Next">›</button></div>');
+    const v = $('at_view');
+    const show = () => { const it = list[i]; if (!it) return; $('at_vname').textContent = (i + 1) + ' / ' + list.length + ' · ' + (it.name || AT_MIME[it.mime] || 'file') + (it.by ? ' · ' + it.by : '');
+      $('at_vopen').href = it.url || '#'; $('at_vopen').hidden = !it.url;
+      $('at_vbody').innerHTML = !it.url ? '<p>This file cannot be shown here.</p>' : it.mime === 'application/pdf' ? '<iframe title="PDF" src="' + esc(it.url) + '"></iframe>' : '<img alt="" src="' + esc(it.url) + '">';
+      v.querySelectorAll('.at-vnav').forEach(b => { b.hidden = list.length < 2; }); };
+    const key = e => { if (e.key === 'Escape') { e.stopPropagation(); end(); } else if (e.key === 'ArrowRight') { i = (i + 1) % list.length; show(); } else if (e.key === 'ArrowLeft') { i = (i - 1 + list.length) % list.length; show(); } };
+    const end = () => { document.removeEventListener('keydown', key, true); v.remove(); };
+    document.addEventListener('keydown', key, true);
+    v.addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) { if (e.target === v) end(); return; } if (b.dataset.v === 'x') end(); else { i = (i + Number(b.dataset.v) + list.length) % list.length; show(); } });
+    show();
+  }
+  // the files of a saved entry, with links that open them for 15 minutes (the list and the edit window)
+  async function atOfEntry(key) { const r = await call('getLogAttachments', { key: key }); return (r.files || []).map(f => Object.assign({ state: 'ok' }, f)); }
+  /* CORRECTING A PHOTO: turn, straighten, the four corners (a cut, or a photo taken at an angle made straight), a suggested cut of the
+   * paper (only shown – "Use this" uses it), Reset; "Original quality" / "Use the original file". → the correction, or null */
+  function atEdit(it) {
+    return new Promise(async res => {
+      let im; try { im = await atPic(it.src); } catch (e) { toast(errMsg(e), true); res(null); return; }
+      const ed = Object.assign({ rot: 0, ang: 0, q: AT_FULL.map(p => p.slice()), hq: false, orig: false }, JSON.parse(JSON.stringify(it.ed || {})));
+      if (!ed.q) ed.q = AT_FULL.map(p => p.slice());
+      document.body.insertAdjacentHTML('beforeend', '<div id="at_ed" class="at-back at-editor" role="dialog" aria-label="Correct the photo"><div class="at-card">' +
+        '<div class="at-head"><div><small>Correct the photo</small><h3>' + esc(it.name || 'Photo') + '</h3><p>Drag the 4 corners to the edges of the paper (a photo taken at an angle becomes straight).</p></div><button type="button" class="at-x" data-e="no" aria-label="Close">×</button></div>' +
+        '<div class="at-stage" id="at_stage"><canvas id="at_ecv"></canvas>' + [0, 1, 2, 3].map(k => '<i class="at-h" data-h="' + k + '"></i>').join('') + '<svg class="at-quad" id="at_quad"><polygon></polygon></svg></div>' +
+        '<div class="at-tools"><button type="button" class="btn ghost small" data-e="l" title="Turn left">⟲</button><button type="button" class="btn ghost small" data-e="r" title="Turn right">⟳</button>' +
+          '<label class="at-ang">Straighten <input type="range" id="at_ang" min="-15" max="15" step="0.5" value="' + (ed.ang || 0) + '"> <span id="at_angv"></span></label>' +
+          '<button type="button" class="btn ghost small" data-e="auto">✂ Suggest cut</button><button type="button" class="btn ghost small" data-e="full">Whole photo</button><button type="button" class="btn ghost small" data-e="reset">Reset</button></div>' +
+        '<div class="at-tools"><label><input type="checkbox" id="at_hq"' + (ed.hq ? ' checked' : '') + '> Original quality (sharper, bigger file)</label><label><input type="checkbox" id="at_orig"' + (ed.orig ? ' checked' : '') + '> Use the original file as it is (no correction)</label></div>' +
+        '<p class="at-msg" id="at_emsg"></p><div class="at-foot"><button type="button" class="btn ghost" data-e="no">Cancel</button><button type="button" class="btn primary" data-e="yes">Use this</button></div></div></div>');
+      const box = $('at_ed'), cv = $('at_ecv'), stage = $('at_stage');
+      let base = null;
+      const redraw = () => { base = atBase(im, ed, 1100); const room = Math.min(stage.clientWidth || 600, 900), hMax = Math.max(220, Math.min(window.innerHeight * 0.5, 560));
+        const sc = Math.min(room / base.width, hMax / base.height); cv.width = base.width; cv.height = base.height; cv.style.width = Math.round(base.width * sc) + 'px'; cv.style.height = Math.round(base.height * sc) + 'px';
+        cv.getContext('2d').drawImage(base, 0, 0); handles(); $('at_angv').textContent = (ed.ang > 0 ? '+' : '') + ed.ang + '°'; stage.classList.toggle('off', !!ed.orig); };
+      const handles = () => { const w = cv.offsetWidth, h = cv.offsetHeight, ox = cv.offsetLeft, oy = cv.offsetTop;
+        box.querySelectorAll('.at-h').forEach(el => { const p = ed.q[Number(el.dataset.h)]; el.style.left = (ox + p[0] * w) + 'px'; el.style.top = (oy + p[1] * h) + 'px'; });
+        const sv = $('at_quad'); sv.setAttribute('width', stage.clientWidth); sv.setAttribute('height', stage.clientHeight); sv.style.left = '0'; sv.style.top = '0';
+        sv.querySelector('polygon').setAttribute('points', ed.q.map(p => (ox + p[0] * w) + ',' + (oy + p[1] * h)).join(' ')); };
+      let drag = -1;
+      box.addEventListener('pointerdown', e => { const hd = e.target.closest('.at-h'); if (!hd) return; drag = Number(hd.dataset.h); hd.setPointerCapture(e.pointerId); e.preventDefault(); });
+      box.addEventListener('pointermove', e => { if (drag < 0) return; const r = cv.getBoundingClientRect();
+        ed.q[drag] = [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))]; handles(); $('at_emsg').textContent = ''; });
+      box.addEventListener('pointerup', () => { drag = -1; });
+      $('at_ang').addEventListener('input', e => { ed.ang = Number(e.target.value) || 0; redraw(); });
+      $('at_hq').addEventListener('change', e => { ed.hq = e.target.checked; });
+      $('at_orig').addEventListener('change', e => { ed.orig = e.target.checked; stage.classList.toggle('off', ed.orig); $('at_emsg').textContent = ed.orig ? 'The file is sent exactly as it is (up to 3 MB) – turning and cutting are not used.' : ''; });
+      const end = v => { window.removeEventListener('resize', redraw); box.remove(); if (im && im.close) im.close(); res(v); };
+      box.addEventListener('click', e => { const b = e.target.closest('[data-e]'); if (!b) return; const k = b.dataset.e;
+        if (k === 'no') end(null);
+        else if (k === 'yes') end({ rot: ed.rot, ang: ed.ang, q: atIsFull(ed.q) ? null : ed.q, hq: ed.hq, orig: ed.orig });
+        else if (k === 'l' || k === 'r') { ed.rot = ((ed.rot || 0) + (k === 'l' ? -90 : 90) + 360) % 360; ed.q = AT_FULL.map(p => p.slice()); redraw(); }
+        else if (k === 'full') { ed.q = AT_FULL.map(p => p.slice()); handles(); }
+        else if (k === 'reset') { ed.rot = 0; ed.ang = 0; ed.q = AT_FULL.map(p => p.slice()); ed.hq = false; ed.orig = false; $('at_ang').value = 0; $('at_hq').checked = false; $('at_orig').checked = false; redraw(); $('at_emsg').textContent = ''; }
+        else if (k === 'auto') { const q = atSuggest(base); if (q) { ed.q = q; handles(); $('at_emsg').textContent = 'Suggested cut shown – move a corner if needed, then press "Use this" (or "Whole photo").'; } else $('at_emsg').textContent = 'No clear edge of a paper was found – drag the corners yourself.'; } });
+      window.addEventListener('resize', redraw);
+      requestAnimationFrame(redraw);
+    });
+  }
+  /* SCAN WITH MOBILE – THE PHONE: the page opened from the QR code (?cap=…, kept through the sign-in). The same person, the same
+   * site; the phone takes the photos (✎ to correct them) and sends them – they show on the computer, which saves them with the
+   * entry. The phone keeps its own random name on this device (which phone holds the QR code). */
+  const CAP_RE = /^[0-9a-f]{32}\.[0-9a-f]{64}$/;
+  try { const m = /[?&]cap=([0-9a-f]{32}\.[0-9a-f]{64})(&|$)/.exec(window.top.location.search || ''); if (m) { sessionStorage.setItem('rcl_cap', JSON.stringify({ code: m[1], at: Date.now() })); window.top.history.replaceState(null, '', window.top.location.pathname); } }
+  catch (e) { /* another origin: no QR code */ }
+  function capPhone() { let id = ''; try { id = localStorage.getItem('rcl_phone_id') || ''; if (!/^[A-Za-z0-9-]{8,40}$/.test(id)) { id = 'p-' + atHex(crypto.getRandomValues(new Uint8Array(12))); localStorage.setItem('rcl_phone_id', id); } } catch (e) { id = id || 'p-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); } return id; }
+  async function capArrive() {
+    let c = null; try { c = JSON.parse(sessionStorage.getItem('rcl_cap') || 'null'); sessionStorage.removeItem('rcl_cap'); } catch (e) { c = null; }
+    if (!c || !CAP_RE.test(String(c.code || '')) || Date.now() - Number(c.at) > 20 * 60000) return;
+    const phone = capPhone();
+    let s;
+    try { s = await call('capClaim', { code: c.code, phone: phone }); } catch (e) { showAlert('Scan with Mobile', errMsg(e)); return; }
+    const items = [], AB = { items: items, say: (t, bad) => { const m = $('cap_msg'); if (m) { m.textContent = t || ''; m.classList.toggle('bad', !!bad); } } };
+    let sent = 0;
+    document.body.insertAdjacentHTML('beforeend', '<div id="cap_sheet" class="at-back at-phone" role="dialog" aria-label="Scan with Mobile"><div class="at-card">' +
+      '<div class="at-head"><div><small>Scan with Mobile · photos for the computer</small><h3>' + esc(s.label || 'Log Book entry') + '</h3><p>Take the photos and press Send – they show on the computer, which saves them with the entry.</p></div><button type="button" class="at-x" data-c="close" aria-label="Close">×</button></div>' +
+      '<div class="at-btns big"><button type="button" class="btn primary" data-c="cam">📷 Take photo</button><button type="button" class="btn ghost" data-c="file">🖼 Photos / PDF</button></div>' +
+      '<input type="file" id="cap_cam" hidden accept="image/*" capture="environment"><input type="file" id="cap_file" hidden multiple accept="image/*,application/pdf,.pdf">' +
+      '<div class="at-msg" id="cap_msg" role="status"></div><div class="at-tiles" id="cap_tiles"></div>' +
+      '<div class="at-foot"><span id="cap_count"></span><button type="button" class="btn primary" data-c="send">Send to the computer</button></div></div></div>');
+    const sh = $('cap_sheet'), max = Number(s.max) || atMax();
+    const draw = () => { $('cap_count').textContent = (s.have + items.filter(x => x.state !== 'ok').length) + ' of ' + max + (sent ? ' · ' + sent + ' sent ✓' : '');
+      $('cap_tiles').innerHTML = items.map((it, i) => '<div class="at-tile st-' + it.state + '" data-i="' + i + '"><span class="at-th">' + atThumb(it) + '</span><span class="at-st">' + (it.state === 'ok' ? '✓' : it.state === 'err' ? '!' : it.state === 'new' ? '' : '…') + '</span>' +
+        (it.state !== 'ok' ? '<button type="button" class="at-rm" data-c="rm" aria-label="Remove">×</button>' : '') + (it.mime !== 'application/pdf' && it.state === 'new' ? '<button type="button" class="at-fix" data-c="fix" title="Correct the photo">✎</button>' : '') +
+        '<small>' + esc(it.name) + (it.size ? ' · ' + atSize(it.size) : '') + (it.err ? '<b>' + esc(it.err) + '</b>' : '') + '</small></div>').join(''); };
+    const add = async list => { for (const it of list) { if (s.have + items.filter(x => x.state !== 'ok').length >= max) { AB.say('At most ' + max + ' files for one entry.', true); break; }
+      items.push(it); draw(); try { await atMake(it); } catch (e) { it.state = 'err'; it.err = errMsg(e); } if (it.sha && items.some(x => x !== it && x.sha === it.sha)) { items.splice(items.indexOf(it), 1); AB.say('This photo is already there.'); } draw(); } };
+    ['cap_cam', 'cap_file'].forEach(id => $(id).addEventListener('change', e => { const fs = [...e.target.files]; e.target.value = ''; atTake(fs, AB).then(add); }));
+    sh.addEventListener('click', async e => { const b = e.target.closest('[data-c]'); if (!b) return; const k = b.dataset.c, tile = b.closest('.at-tile'), it = tile ? items[Number(tile.dataset.i)] : null;
+      if (k === 'close') sh.remove();
+      else if (k === 'cam') $('cap_cam').click(); else if (k === 'file') $('cap_file').click();
+      else if (k === 'rm' && it) { items.splice(items.indexOf(it), 1); draw(); }
+      else if (k === 'fix' && it) { const ed = await atEdit(it); if (ed) { it.ed = ed; it.state = 'make'; draw(); try { await atMake(it); } catch (er) { it.state = 'err'; it.err = errMsg(er); } draw(); } }
+      else if (k === 'send') { const todo = items.filter(x => x.state === 'new' || x.state === 'err'); if (!todo.length) { AB.say(items.length ? 'Everything is sent ✓ – save the entry on the computer.' : 'Take a photo first.'); return; }
+        b.disabled = true; const ok = [];
+        try { for (const x of todo) { x.state = 'send'; x.err = ''; draw();
+            try { const r = await call('uploadAttachment', { data: 'data:' + x.mime + ';base64,' + atB64(x.bytes), name: x.name }); x.sha = r.sha; ok.push(x); } catch (er) { x.state = 'err'; x.err = errMsg(er); } draw(); }
+          if (ok.length) { const r = await call('capAdd', { code: c.code, phone: phone, shas: ok.map(x => x.sha) }); ok.forEach(x => { x.state = 'ok'; }); sent += ok.length; s.have = r.have; }
+          AB.say(items.some(x => x.state === 'err') ? 'Some were not sent (marked !) – press Send again.' : sent + ' sent ✓ – they show on the computer. Save the entry there.', items.some(x => x.state === 'err'));
+        } catch (er) { ok.forEach(x => { x.state = 'err'; x.err = errMsg(er); }); AB.say(errMsg(er), true); }
+        finally { b.disabled = false; draw(); } } });
+    draw();
+  }
+
+  /* (update-153) 📎 of a row on the entry page: its files stay with the row and are saved with it. Ctrl + V in a row (a photo copied
+   * in WhatsApp Web) or a photo / PDF dropped on a row opens its box with them. "From another entry": the other rows of this page
+   * and the saved entries of the same machinery (the day before / after) – one photo for two shifts, sent once. */
+  const lgAttLabel = tr => [lgf(tr, 'no').value.trim() || 'New row', showDate(lgf(tr, 'date').value || S.today), lgf(tr, 'shift').value].join(' · ');
+  function lgAttDraw(tr) { const b = tr.querySelector('.att-btn'); if (!b) return; const n = (tr._att || []).length; b.querySelector('i').textContent = n ? String(n) : ''; b.classList.toggle('on', n > 0); }
+  const nearOf = (no, date, but) => { const m = findMachine(no); if (!m || !date || !S.logList) return [];
+    const t0 = new Date(date + 'T00:00:00').getTime();
+    return (S.logList.rows || []).filter(r => r.no === m.id && r.key !== but && (r.att || []).length && Math.abs(new Date(r.date + 'T00:00:00').getTime() - t0) <= 86400000 * 1.5)
+      .slice(0, 6).map(r => ({ key: r.key, label: 'Saved: ' + r.no + ' · ' + showDate(r.date) + ' · ' + r.shift })); };
+  async function lgAttOpen(tr, add) {
+    if (!tr._draft) tr._draft = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    const res = await atOpen({ title: lgAttLabel(tr), sub: 'Kept with this row – saved with it when you press Save.', files: tr._att || [], draft: tr._draft, label: lgAttLabel(tr), add: add,
+      pick: () => lgRows().filter(x => x !== tr && (x._att || []).length).map(x => ({ label: 'Row ' + x.querySelector('.idx').textContent + ': ' + lgAttLabel(x), files: x._att })),
+      near: nearOf(lgf(tr, 'no').value.trim(), lgf(tr, 'date').value, '') });
+    if (res) { tr._att = res; lgAttDraw(tr); S.formDirty = true; }
+  }
+  $('lg_in').addEventListener('click', e => { const b = e.target.closest('.att-btn'); if (!b) return; lgAttOpen(b.closest('.lrow')).catch(er => toast(errMsg(er), true)); });
+  $('lg_in').addEventListener('paste', e => { const fs = e.clipboardData && e.clipboardData.files; if (!fs || !fs.length || $('at_back')) return; const tr = e.target.closest('.lrow'); if (!tr) return; e.preventDefault(); lgAttOpen(tr, [...fs]).catch(er => toast(errMsg(er), true)); });
+  const hasFiles = e => !!(e.dataTransfer && [...(e.dataTransfer.types || [])].indexOf('Files') > -1);
+  $('lg_in').addEventListener('dragover', e => { if (!hasFiles(e)) return; e.preventDefault(); const tr = e.target.closest('.lrow'); lgRows().forEach(x => x.classList.toggle('at-drag', x === tr)); });
+  $('lg_in').addEventListener('dragleave', e => { const tr = e.target.closest('.lrow'); if (tr && !tr.contains(e.relatedTarget)) tr.classList.remove('at-drag'); });
+  $('lg_in').addEventListener('drop', e => { if (!hasFiles(e)) return; const tr = e.target.closest('.lrow'); lgRows().forEach(x => x.classList.remove('at-drag')); if (!tr) return; e.preventDefault(); lgAttOpen(tr, [...e.dataTransfer.files]).catch(er => toast(errMsg(er), true)); });
 
   /* ---------- Log Book: edit / delete (later entries of the machinery update themselves) ---------- */
   let leCur = null;
@@ -17088,12 +17648,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (w) w.remove();
       // (update-146: rows by KM, by trips, by the day too – a reading, the trips or a text changed here joins them into one row, as for any entry with rows)
       if (ps && !$('le_itm').innerHTML) $('le_note').insertAdjacentHTML('beforebegin', '<small class="le-parts" id="le_rows77">This shift has ' + ps.length + ' rows: ' + ps.map(p => (p.k === 'day' ? esc(p.w || 'work') : fmt(p.q) + ' ' + (ITEM_WORD[p.k] || 'hr') + (p.w ? ' ' + esc(p.w) : '')) + (partIsTimeP(p) ? ' (by Time ' + esc(partTimeText(p)) + ')' : p.ti ? ' (' + esc(String(p.ti).replace('-', ' – ')) + ')' : p.g ? ' (after ' + fmt(p.g) + ' hr not worked)' : '')).join(', then ') + '. ' + (partsSpecialP(ps) ? 'Its Start / Close and texts are changed in <b>Edit Log Book</b>, row by row.' : 'To change those rows use <b>Edit Log Book</b> – if a reading, the trips or a text is changed here, the rows are joined into one entry.') + '</small>'); }
+    e.att0 = (e.att || []).map(x => x.sha); e.attNow = null; leAttDraw();      // (update-153) its attachments
     leNote();
     $('le_back').hidden = false;
     setTimeout(() => (km ? $('le_ckm') : hr ? $('le_chr') : e.unit === 'Time' ? $('le_ts') : e.unit === 'Trip' ? $('le_trip') : $('le_work')).focus(), 30);
   }
   ['le_okm', 'le_ckm', 'le_ohr', 'le_chr', 'le_ts', 'le_te', 'le_tb', 'le_trip'].forEach(id => $(id).addEventListener('input', leNote));
   $('le_itm').addEventListener('input', leNote);
+  // (update-153) the attachments of the entry being edited: changed in the box, saved with "Save changes"
+  function leAttDraw() { const e = leCur; if (!e) return; const list = e.attNow || e.att || [];
+    $('le_att').innerHTML = list.length ? list.map((f, i) => '<button type="button" class="att-chip" data-lei="' + i + '">' + (f.mime === 'application/pdf' ? '📄 ' : '🖼 ') + esc(f.name || 'file') + '</button>').join('') + (e.attNow ? ' <b>(changed – saved with Save changes)</b>' : '') : '<span>None</span>'; }
+  $('le_att').addEventListener('click', ev => { const b = ev.target.closest('[data-lei]'), e = leCur; if (!b || !e) return;
+    busy(b, '…', async () => { const list = e.attNow || (e.attFull = e.attFull || await atOfEntry(e.key)); atView(list, Number(b.dataset.lei)); }).catch(er => toast(errMsg(er), true)); });
+  $('le_att_btn').addEventListener('click', ev => busy(ev.target, 'Opening…', async () => { const e = leCur; if (!e) return;
+    const files = e.attNow || (e.attFull = e.attFull || await atOfEntry(e.key));
+    const res = await atOpen({ title: e.no + ' · ' + showDate(e.date) + ' · ' + e.shift, sub: 'Saved with this entry when you press "Save changes".', files: files, key: e.key, label: e.no + ' · ' + showDate(e.date) + ' · ' + e.shift, near: nearOf(e.no, e.date, e.key) });
+    if (res && leCur === e) { e.attNow = res.map(x => x.sha).join(',') === (e.att0 || []).join(',') ? null : res; leAttDraw(); } }).catch(er => toast(errMsg(er), true)));
   const leClose = () => { $('le_back').hidden = true; leCur = null; };
   $('le_cancel').addEventListener('click', leClose);
   $('le_back').addEventListener('click', e => { if (e.target === $('le_back')) leClose(); });
@@ -17120,12 +17690,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (hasItems) before.itemText = itemSig(e.boqItems, e.itemWork || {});
     const changes = diff([['itemText', 'Items'], ['openingKm', 'Start KM'], ['closingKm', 'Close KM'], ['openingHr', 'Start Hrs'], ['closingHr', 'Close Hrs'], ['tTimes', 'Time (From – To)'], ['tBreak', 'Break (min)'], ['trip', 'Trips'], ['challan', 'Challan No'], ['openingDiesel', 'Opening diesel'], ['debitTo', 'Debit to'], ['debitRate', 'Debit rate'], ['estKm', 'Estimated KM'], ['estHr', 'Estimated Hrs'], ['meterNote', 'Why no reading'],
       ['chFrom', 'Chainage From'], ['chTo', 'Chainage To'], ['work', 'Work description']], before, x);
+    const attCh = !!e.attNow, onlyAtt = attCh && !changes.length;      // (update-153) the attachments changed: the list, and what it was when the window opened
+    if (attCh) { const was = e.att0 || [], now = e.attNow.map(f => f.sha), plus = now.filter(h => was.indexOf(h) < 0).length, minus = was.filter(h => now.indexOf(h) < 0).length;
+      changes.push(['Attachments', was.length + ' file' + (was.length === 1 ? '' : 's'), now.length + ' file' + (now.length === 1 ? '' : 's') + (plus ? ' (+' + plus + ')' : '') + (minus ? ' (−' + minus + ')' : '')]); }
     if (!changes.length) { toast('Nothing changed.'); leClose(); return; }
     if (!(await askConfirm({ title: 'Update ' + e.no + ' – ' + showDate(e.date) + '?', ok: 'Update',
       html: 'These details will change:' + changeTable(changes) +
         (e.next && (x.closingKm !== before.closingKm || x.closingHr !== before.closingHr) ? (hrsOnlyM(findMachine(e.no)) ? '<p>The next entry (' + esc(showDate(e.next.date)) + ') is not changed – its Start stays ' + esc(fmt(e.next.ohr)) + '. Nothing else changes.</p>' : '<p>The next entry (' + esc(showDate(e.next.date)) + ') will start at the new Close. Nothing else changes.</p>') : '') }))) return;
     x.ver = e.ver || '';      // (update-145) the entry as it was opened: changed by someone else since → refused
-    try { await call('updateLogRow', e.key, x); } catch (er) { if (errMsg(er) === CR_SENT) { leClose(); toast(CR_SENT); return; } throw er; }      // (update-108) sent to the Super Admin: the window closes
+    const sendX = onlyAtt ? { ver: x.ver } : x;      // (update-153) only the files changed: only they are sent
+    if (attCh) { sendX.attachments = e.attNow.map(f => ({ sha: f.sha })); sendX.attWas = e.att0 || []; }
+    try { await call('updateLogRow', e.key, sendX); } catch (er) { if (errMsg(er) === CR_SENT) { leClose(); toast(CR_SENT); return; } throw er; }      // (update-108) sent to the Super Admin: the window closes
     toast('Log Book of ' + e.no + ' (' + showDate(e.date) + ') updated' + (e.next && (x.closingKm !== before.closingKm || x.closingHr !== before.closingHr) ? ' – next entry\'s Start updated.' : '.'));
     leClose(); loadLog(); lgRefreshAll();
   }));
@@ -17146,6 +17721,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const te = e.target.closest('[data-tedit]'); if (te) { busy(te, 'Opening…', () => tripEditFromList((S.logView || [])[Number(te.dataset.tedit)])); return; }
     const td = e.target.closest('[data-tdel]'); if (td) { busy(td, 'Deleting…', () => tripDelFromList((S.logView || [])[Number(td.dataset.tdel)])); return; }
     const ed = e.target.closest('[data-ledit]'); if (ed) { busy(ed, 'Opening…', () => openLogEdit(ed.dataset.ledit)); return; }
+    const at = e.target.closest('[data-latt]'); if (at) { busy(at, '…', async () => { const list = await atOfEntry(at.dataset.latt); if (list.length) atView(list, 0); else toast('This entry has no attachments now.'); }).catch(er => toast(errMsg(er), true)); return; }      // (update-153)
     const dl = e.target.closest('[data-ldel]'); if (dl) busy(dl, 'Deleting…', () => deleteLogEntry(dl.dataset.ldel));
   });
 
@@ -17533,7 +18109,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const view = S.logView = [].concat(...rows.map(r => { const ts = tripsOfRow(r); if (!ts) return [r];
         return ts.map((t, i) => Object.assign({}, r, { _t: t, _n: i + 1 }, i ? { odsl: '', qty: '', stdUse: '', stock: '', avg: '', cycle: '', dread: '' } : {})); }));
       $('l_rows').innerHTML = view.length ? view.map((r, vi) =>
-        '<tr><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + (r.half ? ' <span class="tag half" title="Half day – the bill pays this entry as half a day">½ day</span>' : '') + '</td><td><b>' + esc(r.no) + '</b>' + (r.type ? ' <small>' + esc(r.type) + '</small>' : '') + (r.lk ? lockTag(((S.logList || {}).locks || {})[r.lk]) : '') + (r.ap ? apTag(r.ap) : '') + '</td><td>' + esc(r.unit) + '</td>' +
+        '<tr><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + (r.half ? ' <span class="tag half" title="Half day – the bill pays this entry as half a day">½ day</span>' : '') + '</td><td><b>' + esc(r.no) + '</b>' + (r.type ? ' <small>' + esc(r.type) + '</small>' : '') + (r.lk ? lockTag(((S.logList || {}).locks || {})[r.lk]) : '') + (r.ap ? apTag(r.ap) : '') + ((r.att || []).length && !(r._t && r._n > 1) ? '<button type="button" class="att-chip" data-latt="' + esc(r.key) + '" title="Attachments of this entry – click to look at them">📎 ' + r.att.length + '</button>' : '') + '</td><td>' + esc(r.unit) + '</td>' +
         (r.unit === 'Time' ? (() => { const sl = slotsOf(r), br = slotsBreak(r); return '<td class="n">' + sl.map(x => esc(x[0])).join('<br>') + '</td><td class="n">' + sl.map(x => esc(x[1]) + (sl.length > 1 ? ' <small>(' + fmt(slotHrs(x[0], x[1])) + ' hr)</small>' : '')).join('<br>') + (br ? '<br><small>break ' + fmt(br) + ' min</small>' : '') + '</td>'; })()
           : DAY_STATUS.indexOf(r.unit) > -1 ? '<td class="n">–</td><td class="n"><span class="lg-hol">' + r.unit + '</span></td>'
           : r._t ? '<td class="n">' + (r._t.a ? esc(r._t.a) + '–' + esc(r._t.b) : '–') + '</td><td class="n">Trip ' + r._n + (r._t.c ? '<br><small>Challan ' + esc(r._t.c) + '</small>' : '') + (r._t.old ? '<br><small class="muted">entered before trip by trip</small>' : '') + '</td>'
