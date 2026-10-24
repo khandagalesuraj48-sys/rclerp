@@ -54,6 +54,7 @@ const SB_TABLES_ = [
     ['Actual Average', 'actual_average', 'text'], ['Extra / Short Diesel', 'extra_short', 'numeric'], ['Fill Cycle', 'fill_cycle', 'text'],
     ['Opening Diesel Set', 'opening_diesel_set', 'numeric'],
     ['Approved By', 'approved_by', 'text'], ['Approved At', 'approved_at', 'timestamptz'], ['Approval Ref', 'approval_ref', 'text'],      // (update-152, step 1zd) saved through a verification rule
+    ['Attachments', 'attachments', 'text'],      // (update-153, step 1ze) its photos / PDFs: [{ sha, p, mime, size, name, at, by }]
     ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
   { table: 'tank_check', tab: 'Tank Check', title: 'Tank Check', pk: 'id', key: r => sbStr_(r['Check ID']), cols: [
     ['Date', 'date', 'date'], ['Machinery Number', 'machinery', 'text'], ['System Diesel (Ltr)', 'system_diesel', 'numeric'], ['Physical Diesel (Ltr)', 'physical_diesel', 'numeric'],

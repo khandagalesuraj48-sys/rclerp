@@ -538,8 +538,8 @@ test('settings: every user has own settings (checked, kept apart); the site rule
   const today = run('() => today_()'), day = n => run('(d, n) => addDays_(d, n)', today, n), closed = /older than 3 days can be made or changed only by the Admin/;
   run('(x, m) => saveMaster_(x, m)', { no: 'RL-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Rule Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: day(-40) }, 'add');
   assert.match(tryIt(() => run('x => saveSiteRules_(x)', { backDays: 'many' })).err, /whole number/);
-  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '3', announce: '  Fill every entry by the 30th  ' }).rules, { backDays: 3, announce: 'Fill every entry by the 30th', dayFrom: '08:00', nightFrom: '20:00' });
-  assert.deepStrictEqual(run('() => getInit_().rules'), { backDays: 3, announce: 'Fill every entry by the 30th', dayFrom: '08:00', nightFrom: '20:00' });
+  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '3', announce: '  Fill every entry by the 30th  ' }).rules, { backDays: 3, announce: 'Fill every entry by the 30th', dayFrom: '08:00', nightFrom: '20:00', attachMax: 10 });
+  assert.deepStrictEqual(run('() => getInit_().rules'), { backDays: 3, announce: 'Fill every entry by the 30th', dayFrom: '08:00', nightFrom: '20:00', attachMax: 10 });
   const asUser = (admin, f) => { run('a => { ACTOR_ADMIN_ = a; }', admin); try { return f(); } finally { run('() => { ACTOR_ADMIN_ = true; }'); } };
   const entry = d => ({ rows: [{ date: d, shift: 'Full Day', no: 'RL-1', mode: 'KM', openingKm: 100, closingKm: 150 }] });
   assert.match(asUser(false, () => tryIt(() => run('x => saveLogRowsInner_(x)', entry(day(-10))))).err, closed);          // 10 days back: refused for a user
@@ -547,7 +547,7 @@ test('settings: every user has own settings (checked, kept apart); the site rule
   assert.match(asUser(false, () => tryIt(() => run('k => deleteLogRow_(k)', 'RL-1|' + day(-10) + '|Full Day'))).err, closed);   // … and the user cannot delete it either
   assert.strictEqual(asUser(false, () => tryIt(() => run('x => saveLogRowsInner_(x)', { rows: [{ date: day(-3), shift: 'Full Day', no: 'RL-1', mode: 'KM', closingKm: 200 }] }))).ok, true);   // 3 days back: inside the rule
   // no limit again
-  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '', announce: '' }).rules, { backDays: '', announce: '', dayFrom: '08:00', nightFrom: '20:00' });      // (update-109: the shift times, 8 AM / 8 PM unless set)
+  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '', announce: '' }).rules, { backDays: '', announce: '', dayFrom: '08:00', nightFrom: '20:00', attachMax: 10 });      // (update-153: 10 attachments unless set; update-109: the shift times, 8 AM / 8 PM unless set)
   assert.strictEqual(asUser(false, () => tryIt(() => run('k => deleteLogRow_(k)', 'RL-1|' + day(-10) + '|Full Day'))).ok, true);
 });
 
@@ -957,7 +957,7 @@ test('every print has "Excel" in its window; a saved bill opens with its Log Boo
   // one way to open a saved bill
   assert.strictEqual((app.match(/await viewSavedBill\(/g) || []).length, 4, 'RCL Drive (bills and debit notes), Bill Summary, Vendor Ledger');
   const vs = app.slice(app.indexOf('async function viewSavedBill('), app.indexOf('/* ---------- saved bills ---------- */'));
-  assert.match(vs, /window\.open\('', '_blank'\)/); assert.match(vs, /billSheets\(data, [^)]*\) \+ lb, 'rep rep-bill' \+ \(lb \? ' rep-lb' : ''\)/);
+  assert.match(vs, /window\.open\('', '_blank'\)/); assert.match(vs, /billSheets\(data, [^)]*\) \+ lb \+ ann, 'rep rep-bill' \+ \(lb \? ' rep-lb' : ''\)/);      // (update-153: and the annex of its files)
   // (update-151) its Log Book from the bill's evidence (as submitted); a legacy bill: today's Log Book with the note that says so
   assert.match(vs, /const x = await billLogOf\(b\);\s+if \(x\.L\.rows\.length\) lb = x\.note \+ \(await logSheetsOf\(x\.L, b\.company\)\)\.sheets;/);
   assert.match(vs, /call\('getBillEvidence', \{ id: b\.id \}\)/); assert.match(vs, /logs = await call\('getLogBookList', \{ from: b\.from, to: b\.to, all: true \}\)/);
@@ -2089,7 +2089,7 @@ test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the 
   assert.match(code, /rec\.no !== mId/); assert.match(code, /photosTaken_\(photos\.map\(x => x\.p\)\)/); assert.match(code, /pc\.remove\('PH_' \+ p\)/);      // (update-120: photosTaken_)
   // a photo being sent is tried again 3 times (a question), not for ever (a save) – the page's shell and the server agree
   const shell = fs.readFileSync(path.join(__dirname, '..', 'server', 'page.js'), 'utf8'), rt = fs.readFileSync(path.join(__dirname, '..', 'server', 'runtime.js'), 'utf8');
-  assert.match(shell, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto'\]/); assert.match(rt, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto'\]/);      // (update-120: and a bill copy)
+  assert.match(shell, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'capPoll'\]/); assert.match(rt, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'capPoll'\]/);      // (update-120: and a bill copy; update-153: an attachment, and the computer asking about Scan with Mobile)
   // the database step of this update: shown in the app's Read Me word for word; it only ADDS (a column, a private bucket)
   const sqlFile = fs.readFileSync(path.join(__dirname, '..', 'sql', 'supabase_step1x_diesel_photos.sql'), 'utf8');
   const listed = new Function(fs.readFileSync(path.join(__dirname, '..', 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1x_diesel_photos.sql');
@@ -2741,10 +2741,13 @@ test('update-109: a request notifies the Super Admin\'s devices, a decision the 
 test('update-109: Day / Night by the time – the site\'s hours (8 AM / 8 PM unless set), checked when saved; the page picks the shift of a new entry', () => {
   const { T, ctx } = require('./harness.js');
   const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
-  assert.deepStrictEqual(run('x => saveSiteRules_(x).rules', { backDays: '', announce: '', dayFrom: '7:30', nightFrom: '19:30' }), { backDays: '', announce: '', dayFrom: '07:30', nightFrom: '19:30' });
+  assert.deepStrictEqual(run('x => saveSiteRules_(x).rules', { backDays: '', announce: '', dayFrom: '7:30', nightFrom: '19:30' }), { backDays: '', announce: '', dayFrom: '07:30', nightFrom: '19:30', attachMax: 10 });
   assert.match(run('x => saveSiteRules_(x)', { backDays: '', dayFrom: '25:00', nightFrom: '19:30' }).THROWN, /^Shift times: type the hour as HH:MM/);
   assert.match(run('x => saveSiteRules_(x)', { backDays: '', dayFrom: '08:00', nightFrom: '08:00' }).THROWN, /cannot start at the same time/);
-  assert.deepStrictEqual(run('x => saveSiteRules_(x).rules', { backDays: '2', announce: 'x' }), { backDays: 2, announce: 'x', dayFrom: '07:30', nightFrom: '19:30' }, 'not sent = kept');
+  assert.deepStrictEqual(run('x => saveSiteRules_(x).rules', { backDays: '2', announce: 'x' }), { backDays: 2, announce: 'x', dayFrom: '07:30', nightFrom: '19:30', attachMax: 10 }, 'not sent = kept');
+  assert.strictEqual(run('x => saveSiteRules_(x).rules.attachMax', { backDays: '', attachMax: 6 }), 6, '(update-153) attachments of an entry: set by the Admin');
+  assert.match(run('x => saveSiteRules_(x)', { backDays: '', attachMax: 30 }).THROWN, /^Attachments of a Log Book entry: a whole number from 1 to 20\.$/);
+  assert.strictEqual(run('x => saveSiteRules_(x).rules.attachMax', { backDays: '', attachMax: 10 }), 10);
   run('x => saveSiteRules_(x)', { backDays: '', announce: '', dayFrom: '08:00', nightFrom: '20:00' });
   // the page's rule, worked on its own
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
@@ -5220,4 +5223,177 @@ test('update-152: an approved or billed Log Book entry is locked – only the Su
   } finally {
     vm.runInContext('SbBook_.prototype.flush = __k152.flush; SbBook_.prototype.loadMany = __k152.loadMany; SbSheet_.prototype.load_ = __k152.load_; sbDiscard_ = __k152.discard; rtcPush_ = __k152.push; SB_BOOK_ = null;', ctx);
   }
+});
+
+test('update-153: attachments of a Log Book entry – real file types only, kept once by fingerprint, only the sender\'s own (or another entry\'s), at most the site\'s number; Scan with Mobile – hashed one-time token, same person and site, 5 / 15 minutes', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm'), gas = require('../server/gas.js');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  // a stand-in of the private file store (Supabase Storage): kept by name, never overwritten; signed links only for files it has
+  const store = {}, calls = [];
+  const resp = (c, t) => ({ getResponseCode: () => c, getContentText: () => t });
+  const U0 = ctx.Utilities, F0 = ctx.UrlFetchApp;
+  ctx.Utilities = gas.Utilities;
+  ctx.UrlFetchApp = { fetch: (url, o) => { calls.push({ url, o });
+    const up = /\/storage\/v1\/object\/erp-files\/(.+)$/.exec(url), sign = /\/storage\/v1\/object\/sign\/erp-files$/.test(url);
+    if (up) { if (o.headers['x-upsert'] !== 'false') return resp(400, 'upsert not allowed in this test'); if (store[up[1]]) return resp(400, '{"statusCode":"409","error":"Duplicate","message":"The resource already exists"}');
+      store[up[1]] = Buffer.from(o.payload.getBytes().map(b => (b + 256) % 256)); return resp(200, '{"Key":"erp-files/' + up[1] + '"}'); }
+    if (sign) return resp(200, JSON.stringify(JSON.parse(o.payload).paths.map(p => store[p] ? { path: p, signedURL: '/object/sign/erp-files/' + p + '?token=t' } : { path: p, error: 'not found', signedURL: null })));
+    throw new Error('no network'); } };
+  vm.runInContext('globalThis.__k153 = { ready: attReady_, conf: sbConf_ }; attReady_ = function () {}; sbConf_ = function () { return { url: "https://store.test", key: "unit-test" }; };', ctx);
+  const jpg = Buffer.concat([Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]), Buffer.from('a photo of the meter 1125')]);
+  const pdf = Buffer.from('%PDF-1.4\n1 0 obj << >> endobj\n%%EOF');
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), Buffer.from('png bytes')]);
+  const url = (mime, b) => 'data:' + mime + ';base64,' + b.toString('base64');
+  const shaOf = b => crypto.createHash('sha256').update(b).digest('hex');
+  const me = { email: 'Op153@rcl.test', name: 'Operator', perms: { 'Log Book': 'Edit' } }, other = { email: 'xx153@rcl.test', name: 'Other', perms: { 'Log Book': 'Edit' } }, viewer = { email: 'v153@rcl.test', name: 'V', perms: { 'Log Book': 'View' } };
+  const up = (u, mime, b, name) => run('(u, x) => uploadAttachment_(u, x)', u, { data: url(mime, b), name: name || 'file' });
+  try {
+    // ---- what a file really is: its first bytes (a web page cannot be sent as a "photo") ----
+    assert.strictEqual(run('b => attSniff_(b)', [...jpg]), 'image/jpeg'); assert.strictEqual(run('b => attSniff_(b)', [...png]), 'image/png'); assert.strictEqual(run('b => attSniff_(b)', [...pdf]), 'application/pdf');
+    assert.strictEqual(run('b => attSniff_(b)', [...Buffer.from('<html><script>')]), '');
+    assert.match(up(me, 'image/jpeg', Buffer.from('<html><script>alert(1)</script>')).THROWN, /^This file is not what its name says \(image\/jpeg\)/);
+    assert.match(up(me, 'image/jpeg', pdf).THROWN, /not what its name says/, 'a PDF called a photo');
+    assert.match(run('(u, x) => uploadAttachment_(u, x)', me, { data: 'data:text/html;base64,PGh0bWw+' }).THROWN, /^An attachment must be a photo \(JPG or PNG\) or a PDF\.$/);
+    assert.match(run('(u, x) => uploadAttachment_(u, x)', me, { data: url('application/pdf', Buffer.alloc(3 * 1024 * 1024 + 10, 0x25)) }).THROWN, /^This file is too big \(more than 3 MB\)/);
+    assert.match(up(viewer, 'image/jpeg', jpg).THROWN, /View access only for Log Book/);
+    assert.strictEqual(calls.length, 0, 'nothing refused reached the store');
+    // ---- kept once, under its fingerprint ----
+    const a = up(me, 'image/jpeg', jpg, 'meter.jpg');
+    assert.deepStrictEqual([a.ok, a.sha, a.path, a.mime, a.size, a.dup], [true, shaOf(jpg), 'log/' + shaOf(jpg).slice(0, 2) + '/' + shaOf(jpg) + '.jpg', 'image/jpeg', jpg.length, false]);
+    assert.ok(store[a.path].equals(jpg), 'the store has exactly the bytes sent');
+    const a2 = up(other, 'image/jpeg', jpg, 'same.jpg');
+    assert.deepStrictEqual([a2.sha, a2.dup], [a.sha, true], 'the same file again (anybody): the same object – not stored twice, not overwritten');
+    assert.strictEqual(Object.keys(store).length, 1);
+    const p = up(me, 'application/pdf', pdf, 'challan.pdf'); assert.match(p.path, /^log\/[0-9a-f]{2}\/[0-9a-f]{64}\.pdf$/);
+    const g = up(me, 'image/png', png, 'screenshot.png'); assert.match(g.path, /\.png$/);
+    const rec = run('h => JSON.parse(CacheService.getScriptCache().get("AT_" + h))', p.sha);
+    assert.deepStrictEqual([rec.e, rec.mime, rec.name], ['op153@rcl.test', 'application/pdf', 'challan.pdf'], 'the server noted who sent it (6 hours)');
+    // ---- the list an entry is to have ----
+    const lt = { c: { Attachments: 0 }, rows: [[JSON.stringify([{ sha: g.sha, p: g.path, mime: 'image/png', size: 9, name: 'kept', at: 'x', by: 'Someone' }])]] };
+    const of = (list, u, had, lt0) => run('(l, u, h, lt) => { OUT_FOR_ = u; try { return attOf_(l, h, lt); } finally { OUT_FOR_ = null; } }', list, u, had, lt0 || { c: {}, rows: [] });
+    assert.strictEqual(of(undefined, me, []), null, 'not given: the entry keeps what it has');
+    assert.deepStrictEqual(of([], me, [{ sha: a.sha }]), [], 'an empty list: none');
+    const mine = of([{ sha: a.sha }, p.sha], me, []); assert.ok(Array.isArray(mine), JSON.stringify(mine));
+    assert.deepStrictEqual(mine.map(x => [x.p, x.mime, x.by]), [[a.path, 'image/jpeg', 'Operator'], [p.path, 'application/pdf', 'Operator']], 'his own files, as the server noted them');
+    assert.deepStrictEqual(of([{ sha: a.sha }], other, []).map(x => x.by), ['Other'], 'the same file sent by the other person too: his own as well');
+    const lone = up(me, 'image/jpeg', Buffer.concat([jpg, Buffer.from('2')]));
+    assert.match(of([{ sha: lone.sha }], other, []).THROWN, /^A file was not added by you in the last 6 hours/, 'another person\'s file (not with an entry)');
+    assert.match(of([{ sha: 'f'.repeat(64) }], me, []).THROWN, /was not added by you/, 'never sent');
+    assert.deepStrictEqual(of([{ sha: g.sha }], other, [], lt).map(x => [x.p, x.name, x.by]), [[g.path, 'kept', 'Someone']], 'kept with another entry: one photo for two shifts');
+    assert.deepStrictEqual(of([{ sha: 'e'.repeat(64) }], other, [{ sha: 'e'.repeat(64), p: 'log/ee/' + 'e'.repeat(64) + '.jpg', mime: 'image/jpeg', size: 1, name: 'n', at: 'a', by: 'b' }]).length, 1, 'an edit: a file the entry has stays (whoever edits)');
+    assert.match(of([{ sha: a.sha }, { sha: a.sha }], me, []).THROWN, /^The same file is attached twice/);
+    assert.match(of([{ sha: '../../x' }], me, []).THROWN, /^An attachment was not sent right/);
+    assert.match(of('x', me, []).THROWN, /^The attachments were not sent right/);
+    assert.match(of(Array.from({ length: 11 }, (_, i) => ({ sha: String(i).padStart(64, 'a') })), me, []).THROWN, /^A Log Book entry keeps at most 10 attachments/);
+    // the list kept with an entry: only names of the folder log/ with a fingerprint
+    assert.strictEqual(run('v => attList_(v).length', JSON.stringify([{ sha: a.sha, p: a.path }, { sha: a.sha, p: '../../etc/passwd' }, { sha: 'x', p: a.path }, null])), 1);
+    assert.strictEqual(run('v => attList_(v).length', 'not a list'), 0);
+    // ---- in a save: the entry, then its files – all or nothing ----
+    run('(x, m) => saveMaster_(x, m)', { no: 'AT-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'At Co', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-08-01' }, 'add');
+    const save = (rows, u) => run('(b, u) => { OUT_FOR_ = u; try { return saveLogRowsA_(b); } finally { OUT_FOR_ = null; } }', { rows: rows }, u);
+    const s1 = save([{ date: '2026-08-01', shift: 'Day', no: 'AT-1', mode: 'KM', openingKm: 100, closingKm: 150, attachments: [{ sha: a.sha }, { sha: p.sha }] }], me);
+    assert.ok(s1.ok !== false && !(s1.errors || []).length, JSON.stringify(s1));
+    const seen = run('k => getLogAttachments_({ key: k })', 'AT-1|2026-08-01|Day');
+    assert.deepStrictEqual(seen.files.map(f => [f.sha, f.mime, !!f.url]), [[a.sha, 'image/jpeg', true], [p.sha, 'application/pdf', true]], 'kept with the entry, each with a 15-minute link');
+    assert.strictEqual(seen.max, 10);
+    // one photo for two shifts: the Night entry takes the Day's photo – the other person too (it is already with an entry)
+    const s2 = save([{ date: '2026-08-01', shift: 'Night', no: 'AT-1', mode: 'KM', openingKm: 150, closingKm: 180, attachments: [{ sha: a.sha }] }], other);
+    assert.ok(s2.ok !== false && !(s2.errors || []).length, JSON.stringify(s2));
+    assert.deepStrictEqual(run('k => getLogAttachments_({ key: k }).files.map(f => f.p)', 'AT-1|2026-08-01|Night'), [a.path]);
+    assert.strictEqual(Object.keys(store).length, 4, 'the store still has each file once');
+    // refused: nothing of the save stays
+    const s3 = save([{ date: '2026-08-02', shift: 'Day', no: 'AT-1', mode: 'KM', openingKm: 180, closingKm: 200, attachments: [{ sha: lone.sha }] }], other);
+    assert.match(String(s3.THROWN), /was not added by you/);
+    assert.strictEqual(run('() => getLogBookList_ ? 1 : 1'), 1);
+    assert.match(String(run('k => getLogAttachments_({ key: k })', 'AT-1|2026-08-02|Day').THROWN), /./, 'the refused entry was not saved');
+    // the same files on several entries in one save
+    const ln = run('(x, u) => { OUT_FOR_ = u; try { return linkLogAttachments_(x); } finally { OUT_FOR_ = null; } }', { keys: ['AT-1|2026-08-01|Day', 'AT-1|2026-08-01|Night'], files: [g.sha] }, me);
+    assert.deepStrictEqual(ln.entries.map(e => e.attachments.length), [3, 2], 'added to what each has');
+    // an edit that changes only the attachments: a file taken out leaves the list only (the store keeps it)
+    const ver = run('k => getLogEntry_(k)', 'AT-1|2026-08-01|Night');
+    const ed = run('(k, l, u) => { OUT_FOR_ = u; try { return updateLogRowA_(k, l); } finally { OUT_FOR_ = null; } }', 'AT-1|2026-08-01|Night', { ver: ver && ver.ver, attachments: [{ sha: g.sha }] }, me);
+    assert.ok(ed.ok !== false, JSON.stringify(ed));
+    assert.deepStrictEqual(run('k => getLogAttachments_({ key: k }).files.map(f => f.sha)', 'AT-1|2026-08-01|Night'), [g.sha]);
+    assert.ok(store[a.path], 'nothing is deleted from the store');
+    // two people at the same entry: the second edit (opened before the first was saved) is refused – nothing lost
+    const ed2 = run('(k, l, u) => { OUT_FOR_ = u; try { return updateLogRowA_(k, l); } finally { OUT_FOR_ = null; } }', 'AT-1|2026-08-01|Night', { ver: ver && ver.ver, attWas: [a.sha], attachments: [{ sha: a.sha }, { sha: p.sha }] }, me);
+    assert.match(String(ed2.THROWN), /^The attachments of this entry were changed by someone else after you opened it/);
+    assert.deepStrictEqual(run('k => getLogAttachments_({ key: k }).files.map(f => f.sha)', 'AT-1|2026-08-01|Night'), [g.sha], 'unchanged');
+    const ed3 = run('(k, l, u) => { OUT_FOR_ = u; try { return updateLogRowA_(k, l); } finally { OUT_FOR_ = null; } }', 'AT-1|2026-08-01|Night', { ver: ver && ver.ver, attWas: [g.sha], attachments: [{ sha: g.sha }, { sha: p.sha }] }, me);
+    assert.deepStrictEqual(ed3.attachments.map(f => f.sha), [g.sha, p.sha], 'opened as it is now: saved');
+    // a row of the entry page that joins an entry already saved: its files are ADDED to what the entry has
+    assert.deepStrictEqual(run('(k, l, u) => { OUT_FOR_ = u; try { return withLock_(() => attSet_(k, l, "add")).map(f => f.sha); } finally { OUT_FOR_ = null; } }', 'AT-1|2026-08-01|Night', [{ sha: a.sha }, { sha: g.sha }], me), [g.sha, p.sha, a.sha]);
+    // ---- Scan with Mobile ----
+    const st = run('(u, x) => capStart_(u, x)', me, { key: 'AT-1|2026-08-01|Day', label: 'AT-1 · 01-08-2026 · Day' });
+    assert.match(st.id, /^[0-9a-f]{32}$/); assert.match(st.token, /^[0-9a-f]{64}$/); assert.strictEqual(st.code, st.id + '.' + st.token);
+    const kept = run('id => CacheService.getScriptCache().get("CAP_" + id)', st.id);
+    assert.ok(!kept.includes(st.token), 'the server keeps only the token\'s fingerprint');
+    assert.strictEqual(JSON.parse(kept).th, crypto.createHash('sha256').update(st.token).digest('hex'));
+    const st2 = run('(u, x) => capStart_(u, x)', me, { key: 'K' }); assert.notStrictEqual(st2.token, st.token, 'a new token every time');
+    assert.match(run('(u, x) => capStart_(u, x)', me, {}).THROWN, /^Scan with Mobile: open an entry/);
+    assert.match(run('(u, x) => capStart_(u, x)', viewer, { key: 'K' }).THROWN, /View access only/);
+    const claim = (u, code, phone) => run('(u, x) => capClaim_(u, x)', u, { code: code, phone: phone });
+    assert.match(claim(me, st.id + '.' + 'a'.repeat(64), 'phone-0001').THROWN, /^This QR code is not valid/, 'a wrong token');
+    assert.match(claim(me, 'b'.repeat(32) + '.' + st.token, 'phone-0001').THROWN, /^This QR code is not valid/, 'a made-up session');
+    assert.match(claim(me, st.id, 'phone-0001').THROWN, /^This QR code is not valid/, 'no token');
+    assert.match(claim(other, st.code, 'phone-0001').THROWN, /^This QR code was made by another person/, 'another person on the phone');
+    ctx.__siteCode = () => 'ZZ'; try { assert.match(claim(me, st.code, 'phone-0001').THROWN, /^This QR code is for another site/); } finally { delete ctx.__siteCode; }
+    assert.match(claim(me, st.code, 'x').THROWN, /did not say who it is/);
+    const c1 = claim(me, st.code, 'phone-0001'); assert.deepStrictEqual([c1.ok, c1.key, c1.max, c1.have], [true, 'AT-1|2026-08-01|Day', 10, 0]);
+    assert.strictEqual(claim(me, st.code, 'phone-0001').ok, true, 'the same phone again (a retry): fine');
+    assert.match(claim(me, st.code, 'phone-0002').THROWN, /^This QR code is already being used by another phone/, 'single use: a second phone');
+    // the phone sends a photo (as any attachment), then tells the session
+    const ph = up(me, 'image/jpeg', Buffer.concat([jpg, Buffer.from('from the phone')]), 'cam.jpg');
+    const add = (u, sha, phone, code0) => run('(u, x) => capAdd_(u, x)', u, { code: code0 || st.code, phone: phone || 'phone-0001', sha: sha });
+    assert.strictEqual(add(me, ph.sha).have, 1);
+    assert.deepStrictEqual(add(me, ph.sha), { ok: true, have: 1, same: true }, 'the same photo twice: once');
+    assert.match(add(me, lone.sha + 'x').THROWN, /was not sent from this phone/);
+    assert.match(add(me, ph.sha, 'phone-0002').THROWN, /^Scan the QR code again – this phone does not hold it/);
+    const otherPic = up(other, 'image/jpeg', Buffer.concat([jpg, Buffer.from('other')]));
+    assert.match(add(other, otherPic.sha).THROWN, /made by another person/, 'injection: another person cannot add to it');
+    // the computer asks: only its owner sees what came; each file once
+    const poll = (u, have) => run('(u, x) => capPoll_(u, x)', u, { id: st.id, have: have || [] });
+    const p1 = poll(me); assert.deepStrictEqual([p1.state, p1.count, p1.files.map(f => [f.sha, !!f.url])], ['claimed', 1, [[ph.sha, true]]]);
+    assert.deepStrictEqual(poll(me, [ph.sha]).files, [], 'already shown: not sent again');
+    assert.deepStrictEqual([poll(other).state, poll(other).files], ['gone', []], 'another person learns nothing');
+    // nothing is linked by this: the files are with the entry only when it is saved
+    assert.deepStrictEqual(run('k => getLogAttachments_({ key: k }).files.length', 'AT-1|2026-08-01|Day'), 3);
+    // at most the site's number
+    run('id => { const o = JSON.parse(CacheService.getScriptCache().get("CAP_" + id)); o.max = 1; CacheService.getScriptCache().put("CAP_" + id, JSON.stringify(o), 600); }', st.id);
+    assert.match(add(me, a.sha).THROWN, /^At most 1 files for one entry/);
+    run('id => { const o = JSON.parse(CacheService.getScriptCache().get("CAP_" + id)); o.max = 10; CacheService.getScriptCache().put("CAP_" + id, JSON.stringify(o), 600); }', st.id);
+    assert.strictEqual(run('(u, x) => capAdd_(u, x)', me, { code: st.code, phone: 'phone-0001', shas: [a.sha, p.sha, ph.sha] }).have, 3, 'several in one call, each once');
+    assert.match(run('(u, x) => capAdd_(u, x)', me, { code: st.code, phone: 'phone-0001', shas: [g.sha, otherPic.sha] }).THROWN, /was not sent from this phone/, 'one of them not his: none taken');
+    assert.strictEqual(poll(me, [ph.sha]).count, 3);
+    // cancel / done / a new QR: closed
+    run('(u, x) => capCancel_(u, x)', other, { id: st.id }); assert.strictEqual(claim(me, st.code, 'phone-0001').ok, true, 'another person cannot close it');
+    run('(u, x) => capCancel_(u, x)', me, { id: st.id });
+    assert.match(claim(me, st.code, 'phone-0001').THROWN, /^This QR code was closed on the computer/);
+    assert.match(add(me, ph.sha).THROWN, /closed on the computer/);
+    const st3 = run('(u, x) => capStart_(u, x)', me, { key: 'K3' }), st4 = run('(u, x) => capStart_(u, x)', me, { key: 'K3', prev: st3.id });
+    assert.match(claim(me, st3.code, 'phone-0003').THROWN, /closed on the computer/, 'a new QR ends the one before');
+    assert.strictEqual(claim(me, st4.code, 'phone-0003').ok, true);
+    // the times: unclaimed after 5 minutes, any after 15
+    const age = (id, f) => run('(id, f) => { const o = JSON.parse(CacheService.getScriptCache().get("CAP_" + id)); o[f] = new Date(Date.now() - 1000).toISOString(); CacheService.getScriptCache().put("CAP_" + id, JSON.stringify(o), 600); }', id, f);
+    const st5 = run('(u, x) => capStart_(u, x)', me, { key: 'K5' }); age(st5.id, 'claimBy');
+    assert.match(claim(me, st5.code, 'phone-0005').THROWN, /^This QR code ran out \(5 minutes\)/);
+    assert.strictEqual(run('(u, x) => capPoll_(u, x)', me, { id: st5.id }).state, 'expired');
+    age(st4.id, 'ends'); assert.match(claim(me, st4.code, 'phone-0003').THROWN, /^This QR code ran out \(15 minutes\)/);
+    assert.match(add(me, ph.sha, 'phone-0003', st4.code).THROWN, /ran out \(15 minutes\)/);
+    assert.strictEqual(run('(u, x) => capPoll_(u, x)', me, { id: 'nonsense' }).state, 'gone');
+  } finally { vm.runInContext('attReady_ = __k153.ready; sbConf_ = __k153.conf;', ctx); ctx.Utilities = U0; ctx.UrlFetchApp = F0; }
+  // ---- the actions and their access ----
+  assert.match(code, /uploadAttachment: +\{ m: 'Log Book', withUser: true, f: \(u, x\) => uploadAttachment_\(u, x\) \}/);
+  assert.match(code, /linkLogAttachments: \{ m: 'Log Book', edit: true, f: linkLogAttachments_, log: 'logAttach' \}/);
+  assert.match(code, /saveLogRows: +\{ m: 'Log Book', edit: true, f: saveLogRowsA_, log: 'logrows' \}/);
+  assert.match(code, /updateLogRow: +\{ m: 'Log Book', edit: true, f: updateLogRowA_, log: 'logEdit' \}/);
+  for (const f of ['capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel']) assert.match(code, new RegExp(f + ': +\\{ m: \'Log Book\', withUser: true, f: \\(u, x\\) => ' + f + '_\\(u, x\\) \\}'));
+  // the database step: it only ADDS (a column, a private bucket) and is listed word for word
+  const sqlFile = fs.readFileSync(path.join(root, 'sql', 'supabase_step1ze_attachments.sql'), 'utf8');
+  const listed = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1ze_attachments.sql');
+  assert.ok(listed, 'in the Read Me'); assert.strictEqual(listed.sql.trim(), sqlFile.trim());
+  assert.ok(!/\b(drop|delete|truncate|update)\b/i.test(sqlFile.replace(/--[^\n]*/g, '').replace(/on conflict[^;]*/gi, '')), 'only adds');
+  assert.match(sqlFile, /values \('erp-files', 'erp-files', false,/, 'the bucket is private');
 });
