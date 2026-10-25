@@ -2543,7 +2543,8 @@ test('update-99: one address – the Store and the Portal under this address, th
   // (live 13-10-2026: /store/menu.json came through, the bare /store/ and /portal/ gave 404 – the first page has its own rule)
   // (update-127 adds Engineering after these – checked in its own test)
   // (update-138) the staging copy's own rules come first and match ONLY the staging address; the live rules are as before
-  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/engineering/.test(r.source)), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
+  // (update-160) /scan – the page itself (a Scan with Mobile QR code); checked in its own test
+  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/engineering/.test(r.source) && r.source !== '/scan'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
     { source: '/store/:path*', destination: 'https://rcl-store.vercel.app/:path*' }, { source: '/portal/:path*', destination: 'https://rcl-portal-flame.vercel.app/:path*' }]);
   assert.deepStrictEqual(v.redirects.filter(r => !/^\/engineering/.test(r.source)).map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
   assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
@@ -2563,6 +2564,21 @@ test('update-99: one address – the Store and the Portal under this address, th
   assert.match(app, /if \(\/\^\[a-z0-9_-\]\{1,64\}\$\/\.test\(arg\('page'\)\)\) S\.wantTab = arg\('page'\);/);
   assert.match(app, /wantTabGo\(\);      \/\/ \(13-10-2026\)/); assert.match(app, /modBase\(m\) \+ '\/menu\.json'/);
   assert.strictEqual((app.match(/id="grp_mods"/g) || []).length, 1);
+});
+test('update-160: a Scan with Mobile QR code opens in the RCL ERP app – /scan is the page, /.well-known/assetlinks.json names the app', () => {
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  assert.deepStrictEqual(v.rewrites.filter(r => r.source === '/scan'), [{ source: '/scan', destination: '/index.html' }]);
+  assert.ok(v.headers.some(h => h.source === '/.well-known/assetlinks.json' && h.headers.some(x => x.key === 'Content-Type' && x.value === 'application/json')));
+  const al = JSON.parse(fs.readFileSync(path.join(root, 'app', 'well-known', 'assetlinks.json'), 'utf8'));
+  assert.strictEqual(al[0].target.package_name, 'in.rachana.rcl.rcl_mobile');
+  assert.deepStrictEqual(al[0].relation, ['delegate_permission/common.handle_all_urls']);
+  assert.match(al[0].target.sha256_cert_fingerprints[0], /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/, 'the PUBLIC fingerprint of the signing key (never the key)');
+  assert.match(fs.readFileSync(path.join(root, 'build.js'), 'utf8'), /'\.well-known', 'assetlinks\.json'/);
+  const dev = fs.readFileSync(path.join(root, 'dev.js'), 'utf8');
+  assert.match(dev, /'\/\.well-known\/assetlinks\.json'/); assert.match(dev, /=== '\/scan'\)/);
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /qrSvg\(base \+ '\/scan\?cap=' \+ r\.code \+ \(r\.site \? '&site=' \+ encodeURIComponent\(r\.site\) : ''\)\)/);
+  assert.match(app, /call\('capClaim', \{ code: c\.code, phone: phone, site: String\(c\.site \|\| ''\) \}\)/);
 });
 test('update-127: the Engineering module under this address (/engineering/ – its own Vercel project), like the Store', () => {
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
@@ -5361,6 +5377,15 @@ test('update-153: attachments of a Log Book entry – real file types only, kept
     assert.match(claim(me, st.id, 'phone-0001').THROWN, /^This QR code is not valid/, 'no token');
     assert.match(claim(other, st.code, 'phone-0001').THROWN, /^This QR code was made by another person/, 'another person on the phone');
     ctx.__siteCode = () => 'ZZ'; try { assert.match(claim(me, st.code, 'phone-0001').THROWN, /^This QR code is for another site/); } finally { delete ctx.__siteCode; }
+    // (update-160) the QR carries its site (…/scan?cap=…&site=…): capStart gives it; a phone at another site is told WHICH one (before:
+    // "not valid" – the session is not found in another site's database)
+    ctx.__siteCode = () => 'S1'; try {
+      const sq = run('(u, x) => capStart_(u, x)', me, { key: 'KQ' });
+      assert.strictEqual(sq.site, 'S1');
+      assert.match(run('(u, x) => capClaim_(u, x)', me, { code: sq.code, phone: 'phone-0009', site: 'T2' }).THROWN, /^This QR code is for another site \(T2\) – open that site on the phone and scan it again\.$/);
+      assert.strictEqual(run('(u, x) => capClaim_(u, x)', me, { code: sq.code, phone: 'phone-0009', site: 'S1' }).ok, true, 'its own site: fine');
+      assert.strictEqual(run('(u, x) => capClaim_(u, x)', me, { code: sq.code, phone: 'phone-0009' }).ok, true, 'an older QR (no site in it): as before');
+    } finally { delete ctx.__siteCode; }
     assert.match(claim(me, st.code, 'x').THROWN, /did not say who it is/);
     const c1 = claim(me, st.code, 'phone-0001'); assert.deepStrictEqual([c1.ok, c1.key, c1.max, c1.have], [true, 'AT-1|2026-08-01|Day', 10, 0]);
     assert.strictEqual(claim(me, st.code, 'phone-0001').ok, true, 'the same phone again (a retry): fine');

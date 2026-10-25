@@ -25,5 +25,10 @@ fs.mkdirSync(path.join(out, 'i18n'), { recursive: true });
 ['mr', 'hi'].forEach(l => fs.copyFileSync(path.join(__dirname, 'app', 'i18n', l + '.json'), path.join(out, 'i18n', l + '.json')));
 // (13-10-2026, one address) this module's pages for the other modules' menus (server/page.js menu)
 fs.writeFileSync(path.join(out, 'menu.json'), JSON.stringify(menu()));
+// (update-160, asked 25-10-2026: "google scanner mobile scanner madhun jari scan kel adhi app kade jaw app nasel tr browser kade")
+// the phone's own camera / Google Lens open a "Scan with Mobile" QR (/scan?cap=…) in the RCL ERP app: Android checks this file (the
+// app's name and the PUBLIC fingerprint of its signing key – not a secret) – /.well-known/assetlinks.json
+fs.mkdirSync(path.join(out, '.well-known'), { recursive: true });
+fs.copyFileSync(path.join(__dirname, 'app', 'well-known', 'assetlinks.json'), path.join(out, '.well-known', 'assetlinks.json'));
 fs.writeFileSync(path.join(out, 'sw.js'), fs.readFileSync(path.join(__dirname, 'app', 'sw.js'), 'utf8').replace('/*BUILD*/', build));
 console.log('Built public/index.html – app version ' + build);

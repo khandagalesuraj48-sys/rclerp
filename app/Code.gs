@@ -5471,12 +5471,16 @@ function capStart_(u, x) {
   const o = { e: str_(u.email).toLowerCase(), by: u.name || u.email, site: capSite_(), key: forKey, draft: draft, label: label, th: sha_(token), state: 'waiting', files: [],
     made: new Date(now).toISOString(), claimBy: new Date(now + CAP_CLAIM_S_ * 1000).toISOString(), ends: new Date(now + CAP_LIFE_S_ * 1000).toISOString(), max: siteRules_().attachMax || ATT_MAX_DEFAULT_ };
   capPut_(id, o);
-  return { ok: true, id: id, token: token, code: id + '.' + token, claimBy: o.claimBy, ends: o.ends, max: o.max };
+  // (update-160) site: the QR code carries it (…/scan?cap=…&site=…) – the phone opens THIS site by itself (the app), or says which one
+  return { ok: true, id: id, token: token, code: id + '.' + token, site: o.site, claimBy: o.claimBy, ends: o.ends, max: o.max };
 }
 // the phone: the session it scanned, checked – the same person, the same site, its token, in time, once
 function capOpen_(u, x, claim) {
   x = x || {};
   const parts = str_(x.code).split('.'), id = parts[0], token = parts[1] || '';
+  // (update-160) a QR code of another site (its site is written in it): said plainly – before, "not valid" (it is not found here)
+  const qs = str_(x.site).slice(0, 20);
+  if (qs && capSite_() && qs !== capSite_()) throw new Error('This QR code is for another site (' + qs + ') – open that site on the phone and scan it again.');
   const o = capGet_(id);
   const bad = 'This QR code is not valid (any more) – make a new one on the computer ("Scan with Mobile").';
   if (!o || !/^[0-9a-f]{64}$/.test(token) || sha_(token) !== o.th) throw new Error(bad);

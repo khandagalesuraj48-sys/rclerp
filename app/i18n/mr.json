@@ -6506,8 +6506,6 @@
 "Scan with Mobile": "मोबाइलने स्कॅन",
 "Making the QR code…": "QR code तयार होत आहे…",
 "Scan with the phone": "Phone ने scan करा",
-"Open the RCL app →": "RCL app उघडा →",
-"(or the phone's camera).": "(किंवा phone चा camera).",
 "Sign in as": "यांच्या नावाने sign in करा:",
 "at this site – the same person as here.": "याच site वर – इथलीच व्यक्ती.",
 "Take the photos and send them – they come here. Then press": "फोटो काढा आणि पाठवा – ते इथे येतात. मग दाबा",
@@ -6596,5 +6594,10 @@
 "Pick the date once, then add a row for each machinery.": "तारीख एकदाच निवडा, मग प्रत्येक मशिनरीसाठी एक ओळ जोडा.",
 "Pick the machinery once, then add a row for each date.": "मशिनरी एकदाच निवडा, मग प्रत्येक तारखेसाठी एक ओळ जोडा.",
 "Pick “Measured by” above.": "वर “मोजणीची पद्धत” निवडा.",
-"The same challan, or a time that falls on another trip, is refused.": "तोच चलन, किंवा दुसऱ्या ट्रिपच्या वेळेत येणारी वेळ, स्वीकारली जात नाही."
+"The same challan, or a time that falls on another trip, is refused.": "तोच चलन, किंवा दुसऱ्या ट्रिपच्या वेळेत येणारी वेळ, स्वीकारली जात नाही.",
+"– it opens in the RCL app (in the browser when the app is not on the phone).": "– तो RCL app मध्ये उघडतो (phone वर app नसेल तर browser मध्ये).",
+"Scan it with the phone's camera, Google Lens or the RCL app →": "Phone च्या कॅमेऱ्याने, Google Lens ने किंवा RCL app →",
+"This QR code is for another site ({0}) – open that site on the phone and scan it again.": "हा QR code दुसऱ्या साइटचा आहे ({0}) – phone वर ती साइट उघडा आणि पुन्हा scan करा.",
+"This QR code is for another site (": "हा QR code दुसऱ्या साइटचा आहे (",
+") – open that site on the phone and scan it again.": ") – phone वर ती साइट उघडा आणि पुन्हा scan करा."
 }
