@@ -78,6 +78,10 @@
       "destination": "https://rcl-portal-git-staging-pk12356843.vercel.app/:path*"
     },
     {
+      "source": "/scan",
+      "destination": "/index.html"
+    },
+    {
       "source": "/store/",
       "destination": "https://rcl-store.vercel.app/index.html"
     },
@@ -192,6 +196,28 @@
     },
     {
       "source": "/menu.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    },
+    {
+      "source": "/scan",
       "headers": [
         {
           "key": "Cache-Control",

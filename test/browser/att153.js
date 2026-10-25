@@ -204,14 +204,18 @@ const dir = path.join(os.tmpdir(), 'att153'); fs.mkdirSync(dir, { recursive: tru
     ok('   another person scanning it: refused ("made by another person"); a wrong token: refused ("not valid")', /^This QR code was made by another person/.test(byOther.ERROR || '') && /^This QR code is not valid/.test(badTok.ERROR || ''), { byOther, badTok });
     // the phone: another browser (a phone's size), the same person; it opens the QR's link, signs in, takes a photo, sends it
     const pp = await b.newPage(); await pp.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true }); pp.on('pageerror', e => errs.p.push(String(e.message).slice(0, 200)));
-    await pp.goto(U + '/?cap=' + cap.code, { waitUntil: 'load' });
+    // (update-160) the QR's own address: …/scan?cap=…&site=… (the page itself; the phone's camera / Google Lens open it in the app)
+    const al = await (await fetch(U + '/.well-known/assetlinks.json')).json().catch(() => null), oSite = await M2('capClaim', { code: cap.code, phone: 'p-site-0001', site: 'ZZ9' });
+    ok('   (update-160) the QR carries its site (' + (cap && cap.site) + '); a phone at another site is told which one; /.well-known/assetlinks.json names the RCL ERP app',
+      !!(cap && cap.site) && /^This QR code is for another site \(ZZ9\) – open that site on the phone and scan it again\.$/.test(oSite.ERROR || '') && !!al && al[0].target.package_name === 'in.rachana.rcl.rcl_mobile', { site: cap && cap.site, oSite, al });
+    await pp.goto(U + '/scan?cap=' + cap.code + '&site=' + encodeURIComponent((cap && cap.site) || ''), { waitUntil: 'load' });
     let Fp = await frameOf(pp, () => !!document.getElementById('lg_email') && document.getElementById('lg_email').offsetParent !== null);
     await Fp.type('#lg_email', 'mk153@rcl.test'); await Fp.type('#lg_pass', PW); await Fp.click('#lg_btn');
     const Fp0 = Fp; Fp = await frameOf(pp, () => !!document.getElementById('cap_sheet'));
     const sheet = Fp ? await Fp.evaluate(() => document.querySelector('#cap_sheet h3').textContent) : '';
     if (!Fp) { try { await pp.screenshot({ path: path.join(dir, 'phone-no-sheet.png') }); } catch (e) {} const fr = await frameOf(pp, () => typeof S === 'object').catch(() => null) || Fp0; out.push('   (the phone: ' + JSON.stringify(await fr.evaluate(() => ({ box: (document.getElementById('cf_back') && !document.getElementById('cf_back').hidden) ? document.getElementById('cf_title').textContent + ' :: ' + document.getElementById('cf_msg').textContent : '', user: !!(window.S && S.user), cap: sessionStorage.getItem('rcl_cap'), url: location.href, top: (() => { try { return parent.location.href; } catch (e) { return '?'; } })() })).catch(e => 'not readable: ' + e.message)).slice(0, 600) + ')'); }
     const claimedSt = await (async () => { for (let i = 0; i < 20; i++) { await wait(500); const t = await F.evaluate(() => (document.getElementById('at_qr_st') || {}).textContent || ''); if (/Phone connected/.test(t)) return t; } return await F.evaluate(() => (document.getElementById('at_qr_st') || {}).textContent || ''); })();
-    ok('   the phone opens the link → signs in (the QR code is kept through the sign-in) → "Scan with Mobile" for that entry; the laptop: "📱 Phone connected"', /^AT153-2 · 02-09-2026 · Day$/.test(sheet) && /^📱 Phone connected/.test(claimedSt), { sheet, claimedSt });
+    ok('   the phone opens the link (…/scan?cap=…&site=…) → signs in (the QR code is kept through the sign-in) → "Scan with Mobile" for that entry; the laptop: "📱 Phone connected"', /^AT153-2 · 02-09-2026 · Day$/.test(sheet) && /^📱 Phone connected/.test(claimedSt), { sheet, claimedSt });
     const second = await call(U, ot, 'capClaim', [{ code: cap.code, phone: 'p-second-001' }]);
     const phoneTwo = await M('capClaim', { code: cap.code, phone: 'p-second-001' });
     ok('   single use: a second phone of the same person is refused ("already being used by another phone")', /^This QR code is already being used by another phone/.test(phoneTwo.ERROR || ''), { phoneTwo, second });

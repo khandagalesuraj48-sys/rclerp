@@ -17703,9 +17703,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     let r; try { r = await call('capStart', { key: o.key || '', draft: o.key ? '' : (o.draft || 'new'), label: o.label || o.title || '', prev: prev }); }
     catch (e) { box.innerHTML = '<p class="bad">' + esc(errMsg(e)) + '</p>'; return; }
     if (AB.closed) { call('capCancel', { id: r.id }).catch(() => {}); return; }
-    let base = ''; try { base = window.top.location.origin + window.top.location.pathname; } catch (e) { base = location.origin + '/'; }
+    // (update-160, asked 25-10-2026: "google scanner mobile scanner madhun jari scan kel adhi app kade jaw app nasel tr browser kade") the
+    // QR is <this address>/scan?cap=…&site=…: the phone's camera or Google Lens opens it in the RCL ERP app (Android knows /scan is the
+    // app's – /.well-known/assetlinks.json); without the app, in the browser as before. The site in it: the app opens that site itself.
+    let base = ''; try { base = window.top.location.origin; } catch (e) { base = location.origin; }
     AB.cap = { id: r.id, t0: Date.now(), ends: new Date(r.ends).getTime(), claimBy: new Date(r.claimBy).getTime(), seen: AB.items.map(x => x.sha).filter(Boolean), state: 'waiting' };
-    box.innerHTML = '<div class="at-qr-code">' + qrSvg(base + '?cap=' + r.code) + '</div><div class="at-qr-txt"><b>Scan with the phone</b><ol><li>Open the RCL app → <b>Scan</b> (or the phone\'s camera).</li><li>Sign in as <b>' + esc((S.user && S.user.name) || 'you') + '</b> at this site – the same person as here.</li><li>Take the photos and send them – they come here. Then press <b>Done</b> and save the entry.</li></ol>' +
+    box.innerHTML = '<div class="at-qr-code">' + qrSvg(base + '/scan?cap=' + r.code + (r.site ? '&site=' + encodeURIComponent(r.site) : '')) + '</div><div class="at-qr-txt"><b>Scan with the phone</b><ol><li>Scan it with the phone\'s camera, Google Lens or the RCL app → <b>Scan</b> – it opens in the RCL app (in the browser when the app is not on the phone).</li><li>Sign in as <b>' + esc((S.user && S.user.name) || 'you') + '</b> at this site – the same person as here.</li><li>Take the photos and send them – they come here. Then press <b>Done</b> and save the entry.</li></ol>' +
       '<p class="at-qr-st" id="at_qr_st">Waiting for the phone…</p><button type="button" class="btn ghost small" data-at="qrnew">New QR code</button> <button type="button" class="btn ghost small" data-at="qrstop">Stop</button></div>';
     const st = (t, bad) => { const el = $('at_qr_st'); if (el) { el.textContent = t; el.classList.toggle('bad', !!bad); } };
     const tick = async () => {
@@ -17804,7 +17807,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * site; the phone takes the photos (✎ to correct them) and sends them – they show on the computer, which saves them with the
    * entry. The phone keeps its own random name on this device (which phone holds the QR code). */
   const CAP_RE = /^[0-9a-f]{32}\.[0-9a-f]{64}$/;
-  try { const m = /[?&]cap=([0-9a-f]{32}\.[0-9a-f]{64})(&|$)/.exec(window.top.location.search || ''); if (m) { sessionStorage.setItem('rcl_cap', JSON.stringify({ code: m[1], at: Date.now() })); window.top.history.replaceState(null, '', window.top.location.pathname); } }
+  try { const q = window.top.location.search || '', m = /[?&]cap=([0-9a-f]{32}\.[0-9a-f]{64})(&|$)/.exec(q), st = /[?&]site=([A-Za-z0-9_-]{1,20})(&|$)/.exec(q);      // (update-160) …/scan?cap=…&site=…
+    if (m) { sessionStorage.setItem('rcl_cap', JSON.stringify({ code: m[1], site: st ? st[1] : '', at: Date.now() })); window.top.history.replaceState(null, '', window.top.location.pathname === '/scan' ? '/' : window.top.location.pathname); } }
   catch (e) { /* another origin: no QR code */ }
   function capPhone() { let id = ''; try { id = localStorage.getItem('rcl_phone_id') || ''; if (!/^[A-Za-z0-9-]{8,40}$/.test(id)) { id = 'p-' + atHex(crypto.getRandomValues(new Uint8Array(12))); localStorage.setItem('rcl_phone_id', id); } } catch (e) { id = id || 'p-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); } return id; }
   async function capArrive() {
@@ -17812,7 +17816,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!c || !CAP_RE.test(String(c.code || '')) || Date.now() - Number(c.at) > 20 * 60000) return;
     const phone = capPhone();
     let s;
-    try { s = await call('capClaim', { code: c.code, phone: phone }); } catch (e) { showAlert('Scan with Mobile', errMsg(e)); return; }
+    try { s = await call('capClaim', { code: c.code, phone: phone, site: String(c.site || '') }); } catch (e) { showAlert('Scan with Mobile', errMsg(e)); return; }
     const items = [], AB = { items: items, say: (t, bad) => { const m = $('cap_msg'); if (m) { m.textContent = t || ''; m.classList.toggle('bad', !!bad); } } };
     let sent = 0;
     document.body.insertAdjacentHTML('beforeend', '<div id="cap_sheet" class="at-back at-phone" role="dialog" aria-label="Scan with Mobile"><div class="at-card">' +

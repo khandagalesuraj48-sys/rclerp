@@ -2018,6 +2018,14 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   diesel stock (`loadLedger`: columns `tin:<p>` / `tout:<p>`), the stock cards (`renderLocations`), the daily report (`rdTableHtml`,
   its Excel) – a "Received from" and a "Sent to" column for each other stock point, always. `getTransfers_`: the location = From
   only; the filter is labelled "From (stock point)". Test: `test/browser/transfer159.js` (T2 with the 18B names; S1 as before).
+- 25-10-2026 (update-160, with rcl-mobile 3.41.0). Report: `UPDATE_160.md`. THE "SCAN WITH MOBILE" QR OPENS IN THE APP (asked:
+  "google scanner mobile scanner madhun jari scann kel adhi app kade jaw app nasel tr browser kade … madhech cut hou naye"; the
+  "not valid" was a phone at another site – the session is in the computer's site database). No SQL. The QR is
+  `<origin>/scan?cap=<code>&site=<site>` (atQr); `/scan` = the page (`vercel.json` rewrite after the staging rules, `dev.js`); the
+  page's cap reader keeps `site` and sends it with `capClaim`. `capStart_` answers `site`; `capOpen_`: a `site` not this one → "This
+  QR code is for another site (…)" (none sent: as before). `app/well-known/assetlinks.json` → `public/.well-known/` (`build.js`):
+  Android App Links for `in.rachana.rcl.rcl_mobile` (public signing fingerprint) – live BEFORE the app 3.41.0 is installed. Test:
+  `test/browser/att153.js` (the site, the other-site message, assetlinks, the phone through `/scan`).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
