@@ -15,7 +15,7 @@ const ok = (n, c, x) => { c ? pass++ : fail++; out.push((c ? 'PASS ' : 'FAIL ') 
 const G = 'http://127.0.0.1:3997', g = async p => (await fetch(G + p)).json();
 const SECRET = 'rig-backup-export-secret-0123456789abcdef', LEGACY = 'rigSheet0123456789abcdefghijklmn';
 const IDS = { t2: 'rigT2sheet1abcdefghijklmnopq', s1a: 'rigS1sheet1abcdefghijklmnopq', s1b: 'rigS1sheet2abcdefghijklmnopq', deny: 'rigDENYsheetabcdefghijklmnop', portal: 'rigPORTALsheetabcdefghijklmn',
-  s1c: 'rigS1sheet3abcdefghijklmnopq', old: 'rigOLDbackupabcdefghijklmnop', ro: 'rigROsheetabcdefghijklmnopqr' };
+  s1c: 'rigS1sheet3abcdefghijklmnopq', old: 'rigOLDbackupabcdefghijklmnop', ro: 'rigROsheetabcdefghijklmnopqr', t2b: 'rigT2sheetBabcdefghijklmnopq' };
 const key = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs8', format: 'pem' });
 const GOOGLE = { GOOGLE_SERVICE_ACCOUNT_JSON: JSON.stringify({ client_email: 'backup-robot@rig.test', private_key: key }), BACKUP_SHEET_ID: LEGACY, GOOGLE_SHEETS_URL: G, GOOGLE_TOKEN_URL: G + '/token', CRON_SECRET: 'local-cron-secret' };
 const MECH_ENV = Object.assign({}, process.env, GOOGLE, { RCL_SITES_KEY: 'rig-sites-key-0123456789-abcdefghij', PORTAL_URL: 'http://127.0.0.1:3010', ENGINEERING_URL: 'http://127.0.0.1:3040', BACKUP_EXPORT_SECRET: SECRET });
@@ -181,6 +181,14 @@ const dump = id => g('/dump?id=' + id);
     await g('/ro?id=');
     r = await P('/api/admin', { action: 'bkGet', site: 'T2' });
     ok('(review)    T2 still has its own Sheet 1 (nothing changed by the refusals)', r.status === 200 && r.j.sheets.length === 1 && /rigT2sheet1/.test(r.j.sheets[0].url), r.j.sheets);
+    // (second review) a Sheet given to T2 whose giving did not finish (its status tab has only T2's mark): T2 can give it again; nobody else
+    const gput = (id, body, tail) => fetch(G + '/v4/spreadsheets/' + id + (tail || ':batchUpdate'), { method: 'POST', headers: { Authorization: 'Bearer x', 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    await gput(IDS.t2b, { requests: [{ addSheet: { properties: { title: 'Backup Status' } } }] });
+    await gput(IDS.t2b, { valueInputOption: 'RAW', data: [{ range: "'Backup Status'!A1", values: [['RCL ERP backup – given to site T2, waiting for its first copy']] }] }, '/values:batchUpdate');
+    r = await P('/api/admin', { action: 'bkSet', site: 'S1', mode: 'change', link: IDS.t2b });
+    ok('(second review) a Sheet marked "given to site T2" (a giving that did not finish): refused for S1', r.status >= 400 && /already holds a backup/.test(r.j.error || ''), r.j);
+    r = await P('/api/admin', { action: 'bkSet', site: 'T2', mode: 'change', link: IDS.t2b });
+    ok('(second review)    … and taken for T2 (its Sheet 1 now; the Sheet of before kept as used)', r.status === 200 && r.j.sheets.length === 1 && /rigT2sheetB/.test(r.j.sheets[0].url), r.j.error || r.j.sheets);
 
     // ---- 5c. (review) Engineering fails while its rows are read: the site's own backup goes on; the next backup takes it ----
     const fault = body => fetch('http://127.0.0.1:3108/__fault', { method: 'POST', body: JSON.stringify(body) });
@@ -206,6 +214,20 @@ const dump = id => g('/dump?id=' + id);
     const s3ids = s3Log ? s3Log.slice(1).map(x => String(x[c3]).replace(/^'/, '')) : [];
     const wantAct = Number(sql('rcl', "select count(*) from activity_log where updated_at >= '" + cuts3.activity_log + "'"));
     ok('(review)    Sheet 3: the Log Book row changed since its copy into Sheet 1 is there (nothing lost), the old ones not; the Activity Log only from its cut', s3ids.indexOf(oldId) > -1 && s3ids.indexOf(keepId) === -1 && s3Act && s3Act.length - 1 === wantAct, { log: s3ids.slice(0, 4), act: s3Act && s3Act.length - 1, wantAct: wantAct });
+
+    // ---- 5e. (second review) a big table of another module is copied in pieces: each run goes on where the one before stopped ----
+    sql('rcl_eng', "insert into eng_activity (site, email, action, target) select 'S1', 'b157@rcl.test', 'B157 test', 'row ' || g from generate_series(1, 30000) g");
+    sql('rcl', "insert into web.props (key, value) values ('BK_HARD_MS', '12000'), ('BK_REMOTE_ROWS', '20') on conflict (key) do update set value = excluded.value");      // (a short run and small pages: it must stop in the middle of the table)
+    let runs = 0, partSeen = false, nowR = null;
+    for (; runs < 15; runs++) { nowR = await P('/api/admin', { action: 'bkNow', site: 'S1' }); const stt = await tab(IDS.s1c, 'Backup Status') || [];
+      if (stt.some(x => /Activity/.test(String(x[0])) && /so far/.test(String(x[1])))) partSeen = true;
+      if (nowR.status === 200 && !(nowR.j.last && nowR.j.last.pending) && !(nowR.j.ran && (nowR.j.ran.pending || nowR.j.ran.busy || nowR.j.ran.timedOut))) break; }
+    sql('rcl', "delete from web.props where key in ('BK_HARD_MS', 'BK_REMOTE_ROWS')");
+    await cronDone(3005);
+    const engAct = await tab(IDS.s1c, 'Engineering – Activity'), cutE = ((JSON.parse(sql('rcl', "select value from web.props where key = 'BK_SHEETS'")) || [])[2] || {}).cuts || {};
+    const wantE = Number(sql('rcl_eng', "select count(*) from eng_activity where site = 'S1'" + (cutE['eng:eng_activity'] ? " and at >= '" + cutE['eng:eng_activity'] + "'" : '')));
+    ok('(second review) Engineering\'s activity of 30,000 new rows: copied in pieces ("… rows so far" in the status, several presses), then exactly its rows – each once', partSeen && runs >= 2 && engAct && engAct.length - 1 === wantE && new Set(engAct.slice(1).map(x => x[0])).size === wantE, { runs: runs + 1, partSeen: partSeen, rows: engAct && engAct.length - 1, want: wantE });
+    sql('rcl_eng', "delete from eng_activity where action = 'B157 test'"); sql('rcl', "delete from web.props where key in ('BK_HARD_MS', 'BK_REMOTE_ROWS')");
 
     // ---- 6. the Portal's own backup ----
     r = await P('/api/admin', { action: 'bkSet', target: 'portal', mode: 'change', link: IDS.t2 });

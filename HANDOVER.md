@@ -1983,8 +1983,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   the first site: "backup_portal", `BK_PORTAL_STATE`, `SB_PORTAL_INFO`, `BK_PORTAL_SHEETS`), `bkSheets_` (the list; none → the Sheet
   of before as Sheet 1, `legacy`), the last = in use; Sheet 2+ (`from`): tables of entries filtered `updated_at|created_at|at|
   deleted_at >= from`, masters whole (`BK_REF_`), the logs' append notes with the same filter; cells read after each copy
-  (`bkCellsKeep_`, `info.cells / cellsPct`); a full Sheet said plainly. `bkSheetSet_` (change / add – an hour before the last complete
-  copy; the robot can open it; not another site's: `system.js backupAdmin` asks every site `sysBkIds`), `bkSheetsInfo_`, `bkNow_`
+  (`bkCellsKeep_`, `info.cells / cellsPct`); a full Sheet said plainly. `bkSheetSet_` (change / add – each table from an hour before its last
+  copy, `state.copied` → `vol.cuts`; a used Sheet in `was`; the Sheet must have no "Backup Status" tab but our mark, and be writable –
+  `__gNew` look / peek / claim; not another site's: `system.js backupAdmin` asks every site `sysBkIds`, under the lock "backup_admin"
+  of the first site), `bkSheetsInfo_`, `bkNow_`
   (a short run for the Portal's 25 s). Engineering / Portal rows: `server/bkexport.js` → their `api/backup-export.js` with
   `BACKUP_EXPORT_SECRET` (`bkRemoteCatalog_`, `bkRemoteRows_`; tabs "Engineering – …" of this site, "Portal – …"). The nightly job:
   every ready site + the Portal. Portal: Sites → Backup, Portal backup. Tests: `test/backup157.js` (stand-in with several

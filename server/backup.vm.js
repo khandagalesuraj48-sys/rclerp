@@ -86,16 +86,17 @@ function bkRemoteCatalog_(T, siteCode) {
   if (T.kind === 'portal' && on.secret && on.portal) add('portal', bkRemote_('portal', { action: 'catalog' }, 10000).tables, 'Portal – ');
   return { out: out, note: note };
 }
-// a table of another module, page by page (300 rows – a page stays far below what a Vercel answer may carry); never past the
-// time this run has left (it is then taken up by the next run, as a table of this site)
-function bkRemoteRows_(x, siteCode, since, left) {
-  const out = [];
-  for (let off = 0; off < 5000000; off += 300) {
-    if (left() < 9000) throw new Error('BK_OUT_OF_TIME');
-    const page = bkRemote_(x.src, { action: 'rows', table: x.name, site: siteCode || '', since: since || '', offset: off, limit: 300 }, left() - 5000).rows || [];
-    out.push.apply(out, page); if (page.length < 300) break;
+// a table of another module, page by page (300 rows – a page stays far below what a Vercel answer may carry), from row "start";
+// never past the time this run has left: → { list, done, next } – a big table is written in pieces and the next run goes on from
+// "next" (second review, 25-10-2026: before, a table bigger than one run could read was started again, and again, every run)
+function bkRemoteRows_(x, siteCode, since, left, start, per) {
+  const out = [], n = Math.max(20, Math.min(300, Number(per) || 300)); let off = Math.max(0, Number(start) || 0);
+  for (let k = 0; k < 50000; k++) {
+    if (left() < 9000) { if (out.length) return { list: out, done: false, next: off }; throw new Error('BK_OUT_OF_TIME'); }
+    const page = bkRemote_(x.src, { action: 'rows', table: x.name, site: siteCode || '', since: since || '', offset: off, limit: n }, left() - 5000).rows || [];
+    out.push.apply(out, page); off += page.length; if (page.length < n) return { list: out, done: true, next: off };
   }
-  return out;
+  return { list: out, done: false, next: off };
 }
 /* (update-157) the Super Admin in the Portal (Sites → Backup): this site's (or the Portal's) numbered Sheets, how full each is,
  * the last backup; the e-mail address of the backup robot (each Sheet is shared with it as Editor) */
@@ -140,10 +141,16 @@ function bkSheetSet_(c) {
     if (r.code === 403 || r.code === 404) throw new Error('The backup cannot open this Sheet: share it with ' + cfg.email + ' as Editor (Share → add that address → Editor), then give the link again.');
     if (!(r.code < 300)) throw new Error('Google did not answer about this Sheet (' + r.code + ') – try again in a minute.');
     const tabs = ((bkJson_(r.text, {}).sheets) || []).map(x => String((x.properties || {}).title || ''));
-    if (tabs.indexOf('Backup Status') > -1) throw new Error('This Sheet already holds a backup (it has a "Backup Status" tab) – give a new, empty Sheet.');
-    const w = bkJson_(__gNew('claim', id), {});
-    if (w.code === 403) throw new Error('The backup can open this Sheet but cannot write it: share it with ' + cfg.email + ' as Editor (not Viewer), then give the link again.');
-    if (!(w.code < 300)) throw new Error('Google did not answer about this Sheet (' + w.code + ') – try again in a minute.');
+    const mark = 'RCL ERP backup – given to ' + (T.kind === 'portal' ? 'the Portal' : 'site ' + (typeof __siteCode === 'function' ? __siteCode() : '')) + ', waiting for its first copy';
+    if (tabs.indexOf('Backup Status') > -1) {
+      // a status tab with only this site's mark: a try of before that did not finish – the same Sheet is taken now; anything else: refused
+      const pk = bkJson_(__gNew('peek', id), {}), a1 = String((((bkJson_(pk.text, {}).values) || [])[0] || [])[0] || '');
+      if (!(pk.code < 300) || a1 !== mark) throw new Error('This Sheet already holds a backup (it has a "Backup Status" tab) – give a new, empty Sheet.');
+    } else {
+      const w = bkJson_(__gNew('claim', id, mark), {});
+      if (w.code === 403) throw new Error('The backup can open this Sheet but cannot write it: share it with ' + cfg.email + ' as Editor (not Viewer), then give the link again.');
+      if (!(w.code < 300)) throw new Error('Google did not answer about this Sheet (' + w.code + ') – try again in a minute.');
+    }
     const now = new Date().toISOString(), by = String(c.by || ''), st = bkJson_(bkFresh_(T.state), {}) || {}, ms = x => (x ? new Date(x).getTime() || 0 : 0);
     if (mode === 'add') {
       /* (review 25-10-2026) EACH TABLE FROM ITS OWN LAST COPY: a Sheet fills up in the middle of a copy, when some tables are copied
@@ -175,7 +182,7 @@ function bkSheetSet_(c) {
 function bkNow_(c) {
   let r = null, err = '';
   try { r = webBackup_({ manual: true, target: c && c.target === 'portal' ? 'portal' : '', budget: 14000, hard: 20000 }); } catch (e) { err = String((e && e.message) || e); }
-  return Object.assign(bkSheetsInfo_(c), { ran: r ? { busy: !!r.busy, pending: Number(r.pending) || 0, upToDate: !!r.upToDate } : null, runError: err });
+  return Object.assign(bkSheetsInfo_(c), { ran: r ? { busy: !!r.busy, pending: Number(r.pending) || 0, upToDate: !!r.upToDate, timedOut: !!r.timedOut } : null, runError: err });
 }
 function webBackup_(opt) {
   opt = opt || {};
@@ -214,7 +221,8 @@ function webBackup_(opt) {
   // them (BK_BUDGET_MS, BK_GROUP_ROWS in web.props: for tests, or to tune a very big site); normally 36 s and 6,000 rows
   const knob = (k, d, lo, hi) => { const v = Number(P.getProperty(k)); return isFinite(v) && v >= lo && v <= hi ? v : d; };
   // (update-157) "Backup now" from the Portal waits at most 25 s for the answer: that run works shorter (opt.budget / opt.hard)
-  const T0 = Date.now(), BUDGET = Math.min(knob('BK_BUDGET_MS', 36000, 1000, 40000), Number(opt.budget) || 40000), HARD = Math.min(52000, Number(opt.hard) || 52000), GROUP_ROWS = knob('BK_GROUP_ROWS', 6000, 1, 100000);
+  // (BK_HARD_MS: the last moment a run may still write – for tests of a run that is cut in the middle; normally 52 s)
+  const T0 = Date.now(), BUDGET = Math.min(knob('BK_BUDGET_MS', 36000, 1000, 40000), Number(opt.budget) || 40000), HARD = Math.min(knob('BK_HARD_MS', 52000, 12000, 52000), Number(opt.hard) || 52000), GROUP_ROWS = knob('BK_GROUP_ROWS', 6000, 1, 100000);
   const left = () => HARD - (Date.now() - T0);
   // the lock is ours and the mark of the run before is still there: that run did not end (it was cut off)
   const died = state.running ? (Number(state.died) || 0) + 1 : 0;
@@ -259,7 +267,7 @@ function webBackup_(opt) {
     if (!fullRun && (!!opt.full || !state.lastFull || nowMs - ms(state.lastFull) > day)) fullRun = { at: nowIso, done: {} };
     const full = !!fullRun;
     const old = Object.assign({}, state.sig || {});
-    let changed = tables.filter(t => (fullRun && !fullRun.done[t]) || old[t] !== sig[t] || /\?\|/.test(sig[t]) || (state.todo || []).indexOf(t) > -1);
+    let changed = tables.filter(t => (fullRun && !fullRun.done[t]) || old[t] !== sig[t] || /\?\|/.test(sig[t]) || (state.todo || []).indexOf(t) > -1 || (state.retry || []).indexOf(t) > -1);      // retry: another module's table not copied the last time
     // the "Backup" button also LOOKS at the Sheet: a tab that is missing, or does not have exactly the rows of its table
     // (someone deleted or cleared it), is written again even though the table itself did not change
     let meta0 = null;
@@ -343,7 +351,7 @@ function webBackup_(opt) {
       // the smallest tables first: whatever happens later, most of the copy is up to date; (review 25-10-2026) this site's own
       // tables before the other modules' – a slow or failing Engineering never holds back the site's own data
       changed.sort((a, b) => (rem[a] ? 1 : 0) - (rem[b] ? 1 : 0) || rowsOf(a) - rowsOf(b) || (a < b ? -1 : 1));
-      const copied = Object.assign({}, state.copied || {}), remBad = {};
+      const copied = Object.assign({}, state.copied || {}), remBad = {}, remPos = Object.assign({}, state.remPos || {});
       let k = 0;
       while (k < changed.length) {
         if (Date.now() - T0 > BUDGET) { stopped = true; break; }
@@ -352,11 +360,15 @@ function webBackup_(opt) {
         try {
           // (read with a filter that leaves nothing out, so that this is asked from the database itself and not answered from the server's memory)
           const jobs = group.map(t => {
-            if (rem[t]) { const x = rem[t], hdr = x.cols.map(y => y.name); let list;
+            if (rem[t]) { const x = rem[t], hdr = x.cols.map(y => y.name); let got;
+              // where a big table stopped in the run before (the same table, the same rows, the same start) – else from its first row
+              const was = remPos[t], pos = was && was.sig === sig[t] && was.since === fromOf(t) && was.sheet === sheetId && missing.indexOf(x.title) === -1 ? Number(was.off) || 0 : 0;
               // (review 25-10-2026) another module that fails here is noted and left for the next run – never stops this site's backup
-              try { list = bkRemoteRows_(x, siteCode, fromOf(t), left); } catch (e) { if (/BK_OUT_OF_TIME/.test(String(e && e.message))) throw e; remBad[t] = String((e && e.message) || e).slice(0, 200); return null; }
-              const data = [hdr].concat(list.map(r => x.cols.map(y => cell(t, y.name, r[y.name])))); if (data.length < 2) data.push(hdr.map(() => ''));
-              return { table: t, title: x.title, data: data, cols: hdr.length, n: list.length, app: null }; }
+              try { got = bkRemoteRows_(x, siteCode, fromOf(t), left, pos, knob('BK_REMOTE_ROWS', 300, 20, 300)); } catch (e) { if (/BK_OUT_OF_TIME/.test(String(e && e.message))) throw e; remBad[t] = String((e && e.message) || e).slice(0, 200); return null; }
+              const body = got.list.map(r => x.cols.map(y => cell(t, y.name, r[y.name])));
+              if (!pos) { const data = [hdr].concat(body); if (data.length < 2) data.push(hdr.map(() => ''));
+                return { table: t, title: x.title, data: data, cols: hdr.length, n: got.list.length, app: null, part: got.done ? null : got.next }; }
+              return { table: t, title: x.title, data: body, cols: hdr.length, from: 1 + pos, total: Math.max(2, 1 + pos + got.list.length), n: pos + got.list.length, app: null, part: got.done ? null : got.next }; }
             const cols = cat[t], hdr = cols.map(x => sbHeader_(t, x.name)), kcol = APPEND_[t];
             const add = newRowsOf(t);
             if (add) { const a = apps[t]; return { table: t, title: tabOf(t), data: add.map(r => cols.map(x => cell(t, x.name, r[x.name]))), cols: hdr.length, from: Number(a.n) + 1, total: Number(a.n) + 1 + add.length, added: add.length,
@@ -368,9 +380,14 @@ function webBackup_(opt) {
           group.filter(t => remBad[t]).forEach(t => { doneNow[t] = 1; if (fullRun) fullRun.done[t] = 1; lines.push([tabOf(t), 'not copied now – ' + remBad[t]]); });      // (its signature is kept old: the next run tries it again)
           const ok = jobs.filter(Boolean);
           writeTabs(ok.filter(x => !(x.added === 0)));      // a log with no new row: its tab is already right
-          ok.forEach(x => { old[x.table] = sig[x.table]; doneNow[x.table] = 1; copied[x.table] = nowIso; if (fullRun) fullRun.done[x.table] = 1; if (x.app === 'none') delete apps[x.table]; else if (x.app) apps[x.table] = x.app;
+          ok.forEach(x => {
+            if (x.part !== null && x.part !== undefined) { remPos[x.table] = { off: x.part, sig: sig[x.table], since: fromOf(x.table), sheet: sheetId, at: remPos[x.table] && remPos[x.table].off ? remPos[x.table].at : nowIso }; stopped = true;
+              lines.push([x.title, x.n + ' rows so far – the rest goes on by itself']); return; }      // (a big table of another module: the next run goes on from here)
+            delete remPos[x.table];
+            old[x.table] = sig[x.table]; doneNow[x.table] = 1; copied[x.table] = (rem[x.table] && state.remPos && state.remPos[x.table] && state.remPos[x.table].at) || nowIso; if (fullRun) fullRun.done[x.table] = 1; if (x.app === 'none') delete apps[x.table]; else if (x.app) apps[x.table] = x.app;
             lines.push([x.title, x.added !== undefined ? '+' + x.added + ' new rows (' + x.n + ' in all)' : x.n + ' rows']); });
-          keep({ sig: old, fullRun: fullRun, todo: changed.filter(t => !doneNow[t]), lastRun: nowIso, app: apps, copied: copied });      // noted at once: a run that is cut off after this loses nothing of it
+          keep({ sig: old, fullRun: fullRun, todo: changed.filter(t => !doneNow[t]), lastRun: nowIso, app: apps, copied: copied, remPos: remPos, retry: Object.keys(remBad) });      // noted at once: a run that is cut off after this loses nothing of it
+          if (stopped) break;
         } catch (e) { if (/BK_OUT_OF_TIME/.test(String(e && e.message))) { stopped = true; break; } throw e; }
       }
       const todo = changed.filter(t => !doneNow[t]);
@@ -383,7 +400,7 @@ function webBackup_(opt) {
           ['This Sheet', 'Sheet ' + vol.n + (vols.length > 1 ? ' of ' + vols.length : '')],
           ['It holds', later ? 'every row new or changed since ' + (sinceTxt ? fromTxt : 'the first day') + (Object.keys(cuts).length ? ' at the earliest (each table from an hour before its last copy into Sheet ' + (Number(vol.n) - 1) + ')' : '') + ' (India time), the deletions since then (Deleted Rows), and the masters whole – together with Sheet 1' + (Number(vol.n) > 2 ? ' … ' + (Number(vol.n) - 1) : '') + ' it is the whole data' : 'everything, from the first day'],
           ['Last backup (India time)', when], ['Kind', full ? 'Full – every table' : 'Changed tables only'],
-          ['Still to copy (goes on by itself in a few minutes)', todo.length ? todo.map(tabOf).join(', ') : 'nothing – complete'],
+          ['Still to copy (goes on by itself in a few minutes)', todo.length ? todo.map(tabOf).join(', ') : Object.keys(remBad).length ? 'nothing of this site; not copied now (tried again at the next backup): ' + Object.keys(remBad).map(tabOf).join(', ') : 'nothing – complete'],
           ['Cells too long for a Sheet (cut)', cut ? cut + ' – the database has them whole' : 'none'], ['', ''], ['Table', 'Rows copied now']].concat(lines);
         try { writeTabs([{ title: 'Backup Status', data: st, cols: 2 }]); } catch (e) { if (!/BK_OUT_OF_TIME/.test(String(e && e.message))) throw e; stopped = true; }
       }
@@ -408,7 +425,7 @@ function webBackup_(opt) {
     return { full: fullDone, lines: lines, info: info, pending: todo.length, ok: true };
   } catch (e) {
     // (review 25-10-2026) out of time before the first group (a short "Backup now"): not a failure – the rest goes on by itself
-    if (/BK_OUT_OF_TIME/.test(String(e && e.message))) { try { keep({ running: '', died: 0, lastTry: nowIso }); } catch (e2) { /* noted next time */ } return { ok: true, pending: Math.max(1, (state.todo || []).length), info: bkInfoOf_(T) || {} }; }
+    if (/BK_OUT_OF_TIME/.test(String(e && e.message))) { try { keep({ running: '', died: 0, lastTry: nowIso }); } catch (e2) { /* noted next time */ } return { ok: true, timedOut: true, pending: (state.todo || []).length, info: bkInfoOf_(T) || {} }; }
     const bad = { ok: false, error: String((e && e.message) || e), lastCheck: state.lastCheck || '', lastTry: nowIso, lastRun: state.lastRun || '', url: url, sheetN: Number(vol.n) || 1, sheets: vols.length, cells: Number(state.cells) || 0 };
     try { keep({ lastTry: nowIso, running: '', died: 0 }); P.setProperty(T.info, JSON.stringify(bad)); } catch (e2) { /* shown next time */ }
     if (opt.auto) return { ok: false };
