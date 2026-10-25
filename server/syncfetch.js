@@ -30,7 +30,41 @@ async function once(q, ms) {
   } catch (e) { return { error: ac.signal.aborted ? 'The database did not answer in time.' : String((e && e.cause && e.cause.message) || (e && e.message) || e), net: true }; }
   finally { clearTimeout(t); }
 }
+/* (update-158) ONE FILE FROM THE SITE'S FILE STORE INTO GOOGLE DRIVE, in this helper: read, its MD5 and SHA-256 worked out, sent
+ * to Drive (multipart up to 5 MB, else resumable) – the file never goes through the server code. Never repeated by itself (a write). */
+async function pipe(q) {
+  const crypto = require('crypto'), p = q.pipe, ac = new AbortController(), t = setTimeout(() => ac.abort(), Math.max(1000, Number(q.ms) || 45000));
+  const words = r => r.text().then(x => String(x || '').slice(0, 400)).catch(() => ''), NL = String.fromCharCode(13, 10);      // (no backslash in this text: it is a template)
+  try {
+    used = true;
+    const d = await fetch(p.src.url, { method: 'GET', headers: p.src.headers || {}, redirect: 'error', signal: ac.signal });      // (the key is never sent on to another address)
+    if (d.status !== 200) return { code: d.status, text: await words(d), stage: 'read' };
+    const buf = Buffer.from(await d.arrayBuffer());
+    if (p.max && buf.length > p.max) return { code: 413, text: 'The file is bigger than ' + p.max + ' bytes.', stage: 'read' };
+    const md5 = crypto.createHash('md5').update(buf).digest('hex'), sha256 = crypto.createHash('sha256').update(buf).digest('hex');
+    const meta = JSON.stringify(p.up.meta || {}), mime = String(p.up.mime || 'application/octet-stream'), F = 'fields=' + encodeURIComponent(p.up.fields || 'id,md5Checksum,size');
+    let r;
+    if (buf.length <= 5 * 1048576) {
+      const b = 'rcl' + crypto.randomBytes(12).toString('hex');
+      const body = Buffer.concat([Buffer.from('--' + b + NL + 'Content-Type: application/json; charset=UTF-8' + NL + NL + meta + NL + '--' + b + NL + 'Content-Type: ' + mime + NL + NL, 'utf8'), buf, Buffer.from(NL + '--' + b + '--' + NL, 'utf8')]);
+      r = await fetch(p.up.url + '?uploadType=multipart&' + F, { method: 'POST', headers: Object.assign({}, p.up.headers || {}, { 'Content-Type': 'multipart/related; boundary=' + b }), body: body, signal: ac.signal });
+    } else {
+      const s = await fetch(p.up.url + '?uploadType=resumable&' + F, { method: 'POST', headers: Object.assign({}, p.up.headers || {}, { 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': mime, 'X-Upload-Content-Length': String(buf.length) }), body: meta, signal: ac.signal });
+      const loc = s.headers.get('location');
+      if (s.status !== 200 || !loc) return { code: s.status, text: await words(s), stage: 'start', md5: md5, sha256: sha256, size: buf.length };
+      r = await fetch(loc, { method: 'PUT', headers: { 'Content-Type': mime }, body: buf, signal: ac.signal });
+      // (review) the answer of the last piece may not carry the MD5 Drive counted: it is asked for (files.get)
+      if (r.status >= 200 && r.status < 300) { const t = await words(r); let j = null; try { j = JSON.parse(t); } catch (e) { j = null; }
+        if (j && j.id && !j.md5Checksum) { const g = await fetch(p.up.url.replace('/upload/drive/v3/files', '/drive/v3/files') + '/' + encodeURIComponent(j.id) + '?' + F, { headers: { Authorization: (p.up.headers || {}).Authorization || '' }, signal: ac.signal });
+          return { code: g.status, text: await words(g), md5: md5, sha256: sha256, size: buf.length, stage: 'send' }; }
+        return { code: r.status, text: t, md5: md5, sha256: sha256, size: buf.length, stage: 'send' }; }
+    }
+    return { code: r.status, text: await words(r), md5: md5, sha256: sha256, size: buf.length, stage: 'send' };
+  } catch (e) { return { error: ac.signal.aborted ? 'Google Drive or the file store did not answer in time.' : String((e && e.cause && e.cause.message) || (e && e.message) || e) }; }
+  finally { clearTimeout(t); }
+}
 async function one(q) {
+  if (q && q.pipe) return pipe(q);
   const read = /^(GET|HEAD)$/i.test(q.method || 'GET');
   let r = await once(q, read ? workerData.readMs : workerData.writeMs);
   if (r.net && read) { await new Promise(ok => setTimeout(ok, 120)); r = await once(q, workerData.readMs); if (!r.net) r.retried = true; }
@@ -136,4 +170,12 @@ function rawFetch(reqs, timeoutMs) {
 const METER = { n: 0, b: 0 };      // (update-155) database calls and bytes of this thread
 const SLEEP = new Int32Array(new SharedArrayBuffer(4));
 function sleepSync(ms) { if (ms > 0) Atomics.wait(SLEEP, 0, 0, ms); }
-module.exports = { fetchAllSync, sleepSync, helpersMade: () => made, renewals: () => renewed, isPreview, PREVIEW_NO, meter: () => ({ n: METER.n, b: METER.b }) };
+// (update-158) files from the site's file store into Google Drive (see pipe in the helper): jobs [{ src, up, max }] → answers in order.
+// Never in a Preview (a test copy never writes to the live Drive).
+function pipeSync(jobs, timeoutMs) {
+  if (!jobs.length) return [];
+  if (isPreview()) throw new Error(PREVIEW_NO);
+  const ms = Math.max(2000, Number(timeoutMs) || 45000);
+  return rawFetch(jobs.map(j => ({ pipe: j, ms: ms })), ms + 3000);
+}
+module.exports = { fetchAllSync, pipeSync, sleepSync, helpersMade: () => made, renewals: () => renewed, isPreview, PREVIEW_NO, meter: () => ({ n: METER.n, b: METER.b }) };

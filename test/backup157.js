@@ -250,7 +250,7 @@ const dump = id => g('/dump?id=' + id);
       const b = await puppeteer.launch({ executablePath: await chromium.executablePath(), args: [...chromium.args, '--no-sandbox'], headless: 'shell', protocolTimeout: 120000 });
       try {
         const pg = await b.newPage(); await pg.setViewport({ width: 1440, height: 1000 }); const errs = []; pg.on('pageerror', x => errs.push(String(x.message).slice(0, 200)));
-        await pg.goto('http://127.0.0.1:3010/', { waitUntil: 'load' }); await pg.waitForSelector('#l_email', { visible: true });
+        await pg.goto('http://127.0.0.1:3010/', { waitUntil: 'networkidle0' });      // (the page's first calls done before typing: typed earlier, the sign-in form could be reset under it) await pg.waitForSelector('#l_email', { visible: true });
         await pg.type('#l_email', 'sa@rcl.test'); await pg.type('#l_pass', 'Super#Admin2040'); await pg.click('#l_btn');
         await pg.waitForSelector('#sa_tabs button[data-t="sites"]', { visible: true, timeout: 20000 }); await pg.click('#sa_tabs button[data-t="sites"]'); await pg.waitForSelector('#t_sites:not([hidden])');
         await pg.waitForSelector('#st_rows tr[data-code="S1"] .st-backup'); await pg.click('#st_rows tr[data-code="S1"] .st-backup');

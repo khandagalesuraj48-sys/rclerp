@@ -1991,6 +1991,26 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `BACKUP_EXPORT_SECRET` (`bkRemoteCatalog_`, `bkRemoteRows_`; tabs "Engineering – …" of this site, "Portal – …"). The nightly job:
   every ready site + the Portal. Portal: Sites → Backup, Portal backup. Tests: `test/backup157.js` (stand-in with several
   spreadsheets, `/deny`, `/cap`), `test/backup.js` as before.
+- 25-10-2026 (update-158, with rcl-portal "Sites → Storage" + step 4 and rcl-engineering step 2). Report: `UPDATE_158.md`. STORAGE
+  AND THE DRIVE COPY. SQL step 1zf (every site): `web_usage()`, `web_files(after, id, n)` (read only), table `backup_drive` (root,
+  src, kind file|folder|link, drive_id, parent, md5 – insert only), table `backup_drive_state` (id 'drive', value: the copy's notes);
+  both in `SB_SKIP_` (not in the backup Sheet). `server/drive.vm.js`: `storageOf_` (database of 8 GB, files of 100 GB, the Sheet in
+  use, `drvInfo_`) → the Admin's backupNow answer (`res.storage`) and the Portal (`system.js storageAdmin`: every ready site
+  `sysStorage`, the first site's `stoHome` with `drvQuota_`, the Portal's / Engineering's `usage` through their backup export).
+  Google Drive: `drvStart_` (DRIVE_STATE, hashed, 15 min) → Google → `api/drive.js` → `drvOauth_` (lock "drive_oauth", DRIVE_ACCOUNT
+  checked, `server/drive.js exchange`, the refresh token `sites.seal`ed into DRIVE_AUTH with the root folder "RCL ERP – Files
+  (backup)"; scope drive.file). `driveBackup_` (opt budget / until (the pool's deadline, `__until`) / manual / nightly; cache gate
+  DRV_NEXT (3 min while pending, 30 min idle) and DRV_OFF; lock "drive"; notes in `backup_drive_state` via `drvStateRead_/Write_`,
+  saved after a page and at the end: cursors per kind by (updated_at, id) of rows older than a minute, storage objects by
+  (created_at, id), `bad` (try-again list: 1 h / 6 h / daily, `up` ≥ 3 → only "Copy files now"), `dead` / `moved` / `gen` / `tag`
+  (folders deleted by hand: `drvRepair_` – the entry's folder made again under `folder:<path>#n`; a bigger one → `gen` + 1, root key
+  `<root>#g<gen>`, the whole copy again in "<site> – made again <date>"), `drvCheck_` daily); `drvEntries_` issue / inward / log,
+  `drvBills_`, `drvLoose_` (a day old); `drvFolder_`, shortcuts for a file on a second entry and for a bill; `drvCopy_` (≥ 12 s
+  left) → `__drvPipe` → `syncfetch pipe` in the helper thread: read with the site's key (no redirect), MD5 + SHA-256, multipart
+  ≤ 5 MB else resumable (the MD5 asked after the last piece); noted only when Drive's MD5 = the file's; a file's own fault → the
+  try-again list, an entry refused 3 runs → `drvStuck_`, anything else stops the run). Runs in the backup door after the Sheet
+  backup (42 s in all), "Copy files now" (`drvNow_`, 17 s). Tests: `test/storage158.js` (with `test/drive-standin.js` – `/gone`,
+  `/trash`; the rig's door keeps storage.objects rows and serves files to the key).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

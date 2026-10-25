@@ -302,7 +302,9 @@ function sbBackup_() {
  * Mechanical's). The backup copies them too – except a module's sign-ins and used tickets (SB_SKIP_: not data, never in a
  * Sheet). A table without an "id" column is read in the order of its own key (SB_KEYS_), or of its first column: the Store's
  * "items" (key: code) stopped the whole backup with 400 "column items.id does not exist" on 13-10-2026. */
-const SB_SKIP_ = ['store_sessions', 'store_tickets'];
+// (update-158 review) backup_drive (step 1zf) is the Drive copy's own index – where each file is in Drive; it only grows and has no
+// time of change, so the Sheet would write it whole every day. Drive keeps the same keys on each file (appProperties "rcl").
+const SB_SKIP_ = ['store_sessions', 'store_tickets', 'backup_drive', 'backup_drive_state'];
 let SB_CAT_MEMO_ = null;
 function sbCatalog_() {
   const cat = sbFetch_('POST', '/rest/v1/rpc/backup_catalog', {});

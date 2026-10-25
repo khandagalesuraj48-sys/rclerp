@@ -103,6 +103,8 @@ function verifyAdmin(ticket, now) {
   // (update-157) Sites → Backup: a site's (or the Portal's) numbered backup Sheets – look, give a link (change / add), back up now
   if (c.act === 'bkGet' || c.act === 'bkNow') return Object.assign(out, { target: c.target === 'portal' ? 'portal' : '' });
   if (c.act === 'bkSet') return Object.assign(out, { target: c.target === 'portal' ? 'portal' : '', mode: c.mode === 'add' ? 'add' : 'change', link: String(c.link || '').trim().slice(0, 300) });
+  // (update-158) Sites → Storage: every site's storage and the Drive copy; "Connect Google Drive" (the first site); "Copy files now" (one site)
+  if (c.act === 'stoGet' || c.act === 'drvStart' || c.act === 'drvNow') return out;
   if (c.act !== 'pages') throw bad('not a known request');
   const email = String(c.email || '').trim().toLowerCase();
   if (!EMAIL.test(email) || email.length > 120) throw bad('no proper email of the user');

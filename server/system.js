@@ -12,6 +12,7 @@ const sites = require('./sites');
 const crypto = require('crypto');
 const portal = require('./portal');
 const { fetchAllSync } = require('./syncfetch');
+const bkexport = require('./bkexport');      // (update-158) Engineering's database size (its backup export)
 
 const lc = s => String(s || '').trim().toLowerCase();
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -99,6 +100,8 @@ function portalAdmin(R, args) {
   if (c.act === 'siteSetup') return siteSetup(R, c);
   if (c.act === 'siteOff') return siteOff(c);
   if (c.act === 'bkGet' || c.act === 'bkSet' || c.act === 'bkNow') return backupAdmin(R, c);      // (update-157)
+  if (c.act === 'stoGet') return storageAdmin(R, c);      // (update-158) Sites → Storage
+  if (c.act === 'drvStart') return R.runIn('', 'sysPortalAdmin', [c]);      // (update-158) "Connect Google Drive" – kept at the first site
   const reg = sites.registry();
   let at = '';
   if (reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
@@ -140,6 +143,23 @@ function bkTaken(R, me) {
     if (me !== null) (ids.portal || []).forEach(id => taken.push(id));      // the Portal's
   });
   return taken;
+}
+/* ---- (update-158) Sites → Storage in the Portal: every ready site's database, files, backup Sheet and Drive copy; how full
+ * the Google Drive is; Engineering's database (asked through its backup export). The ticket is used once, at the first site. ---- */
+function storageAdmin(R, c) {
+  const home = R.runIn('', 'sysPortalAdmin', [Object.assign({}, c, { act: 'stoHome' })]);
+  const reg = sites.registry();
+  const rows = (reg || [{ code: sites.homeCode(), name: '', home: true, status: 'ready' }]).filter(x => x.status === 'ready').map(x => {
+    const head = { code: x.code, name: String(x.name || '').trim() || x.code };
+    if (x.home) return Object.assign(head, home.storage);
+    try { return Object.assign(head, R.runIn(x.code, 'sysStorage', [])); } catch (e) { return Object.assign(head, { error: 'This site could not be asked: ' + String((e && e.message) || e).slice(0, 160) }); }
+  });
+  // the Portal's and Engineering's own databases (each its own Supabase project), asked through their backup export
+  const other = (src, who) => { const r = bkexport.call(src, JSON.stringify({ action: 'usage' }), 8000);      // (the Portal waits 25 s for all of this)
+    let j = null; try { j = JSON.parse(r.text); } catch (e) { j = null; }
+    if (r.code === 200 && j) return j;
+    return { error: r.code === 0 ? String(r.text) : who + ' answered ' + r.code + (j && j.error ? ': ' + String(j.error).slice(0, 200) : '') }; };
+  return { sites: rows, drive: home.drive, portal: other('portal', 'The Portal'), eng: other('eng', 'Engineering') };
 }
 /* ---- (update-95, asked 13-10-2026) "New site" – the Super Admin fills a form in the Portal, the system checks and sets up ----
  * Mechanical is one app for every site; a site is its own database. The Super Admin makes the Supabase project himself and

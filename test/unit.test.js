@@ -1254,7 +1254,11 @@ test('update-68 (D1): no code can open the backup Sheet to "anyone with the link
   // the server's backup talks to Google's Sheets API only, with a right that covers spreadsheets only: sharing (a Drive right) is out of its reach
   const g = fs.readFileSync(path.join(root, 'server', 'google.js'), 'utf8');
   assert.deepStrictEqual([...g.matchAll(/googleapis\.com\/auth\/([a-z.]+)/g)].map(m => m[1]), ['spreadsheets']);
-  assert.ok(!/auth\/drive/.test(all), 'no Drive right is asked for anywhere');
+  // (update-158, asked 24-10-2026: the photos and files copied into the company's Google Drive) ONE place asks a Drive right –
+  // server/drive.js – and only "drive.file" (the app's own files and folders there, nothing else of that Drive); nothing shares a file
+  const asks = files.filter(f => /auth\/drive/.test(fs.readFileSync(f, 'utf8'))).map(f => path.relative(root, f).split(path.sep).join('/'));
+  assert.deepStrictEqual(asks, ['server/drive.js'], 'a Drive right is asked only by the Drive copy');
+  assert.deepStrictEqual([...fs.readFileSync(path.join(root, 'server', 'drive.js'), 'utf8').matchAll(/googleapis\.com\/auth\/([a-z.]+)/g)].map(m => m[1]), ['drive.file']);
   assert.ok(!/drive\/v[23]\/files\/[^'"]*permissions|permissions\.create|ANYONE_WITH_LINK|Access\.ANYONE|anyoneWithLink|role:\s*'reader',\s*type:\s*'anyone'/.test(all), 'nothing shares a file with "anyone"');
   // the one place that sets sharing at all (the old Apps Script backup) sets it to PRIVATE
   assert.deepStrictEqual([...all.matchAll(/\.setSharing\(([^)]*)\)/g)].map(m => m[1].replace(/\s+/g, ' ')), ['DriveApp.Access.PRIVATE, DriveApp.Permission.NONE']);
@@ -4923,7 +4927,7 @@ test('update-141: the Google Sheet backup ONCE A DAY (the nightly job; the first
   assert.ok(/keep\(\{ sig: old, fullRun: fullRun, todo: changed\.filter\(t => !doneNow\[t\]\), lastRun: nowIso, app: apps(, copied: copied(, remPos: remPos, retry: Object\.keys\(remBad\))?)? \}\)/.test(bk), 'the notes of the logs are kept with each group');
   // the page asks every 30 minutes; a minute later while something is left (the answer says "pending")
   assert.ok(/setInterval\(tick, 1800000\)/.test(pg) && !/setInterval\(tick, 300000\)/.test(pg) && /j\.pending > 0\) \{ clearTimeout\(soon\); soon = setTimeout\(tick, 60000\)/.test(pg));
-  assert.ok(/pending: Number\(r\.pending\) \|\| 0 \}; \}/.test(rt));
+  assert.ok(/pending: Number\(r\.pending\) \|\| 0 \}; \}|pending: \(Number\(r\.pending\) \|\| 0\) \+ \(d && d\.pending \? 1 : 0\) \}; \}/.test(rt))      // (update-158) + the files still to copy to Drive;
   // the page's script still parses
   const { shell } = require('../server/page.js'); const sh = shell(); const scripts = sh.match(/<script>([\s\S]*?)<\/script>/g) || [];
   scripts.forEach(s => { new Function(s.replace(/^<script>|<\/script>$/g, '')); });
