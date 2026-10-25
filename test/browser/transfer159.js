@@ -46,8 +46,11 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const mp = await b.newPage(); await mp.setViewport({ width: 1920, height: 1080 }); mp.on('pageerror', e => errs.push('T2: ' + String(e.message).slice(0, 200)));
     await mp.goto(SA + '/#sso=' + await ticket('T2'), { waitUntil: 'load' });
     const F = await find(mp, () => typeof S === 'object' && !!S.user && !!S.today && Array.isArray(S.locations));
-    const calm = () => F.evaluate(() => { try { closeConfirm(false); } catch (e) {} try { $('ai_panel').hidden = true; } catch (e) {} ['fixbox', 'toast'].forEach(id => { const x = document.getElementById(id); if (x) x.hidden = true; }); });
-    const shot = async (sel, file) => { await calm(); await F.evaluate(q => document.querySelector(q).scrollIntoView({ block: 'center' }), sel); await wait(1200); const el = await F.$(sel); if (el) await el.screenshot({ path: SHOT + '/' + file }); };
+    const calm = () => F.evaluate(() => { try { closeConfirm(false); } catch (e) {} try { $('ai_panel').hidden = true; $('ai_panel').style.display = 'none'; } catch (e) {} ['fixbox', 'toast'].forEach(id => { const x = document.getElementById(id); if (x) x.hidden = true; }); });
+    const shot = async (sel, file) => { await calm(); await F.evaluate(q => document.querySelector(q).scrollIntoView({ block: 'start' }), sel); await wait(1200);
+      const r = await F.evaluate(q => { const x = document.querySelector(q).getBoundingClientRect(); return { x: x.left, y: Math.max(0, x.top), w: x.width, h: Math.min(x.bottom, window.innerHeight) - Math.max(0, x.top) }; }, sel);
+      const fr = await (await F.frameElement()).boundingBox();
+      if (r.w > 0 && r.h > 0) await mp.screenshot({ path: SHOT + '/' + file, clip: { x: fr.x + r.x, y: fr.y + r.y, width: r.w, height: r.h } }); };
     // the panel around an element, for its picture
     const panelOf = (sel, id) => F.evaluate((q, i) => { const p = document.querySelector(q).closest('.panel, section'); p.id = p.id || i; return '#' + p.id; }, sel, id);
     // ---- 2. the Transfer list: From only ----
