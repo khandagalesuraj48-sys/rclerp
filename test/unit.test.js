@@ -3214,6 +3214,22 @@ test('update-117: every site its own diesel places (18B: Camp Pump + 2 dispenser
     assert.deepStrictEqual([st.byLoc, st.stock, st.inward, st.issued], [{ 'Camp Pump': 3940, MH12ZE1739: 700, MH12WJ1381: 250 }, 4890, 5100, 210]);
     const sum = run('d => stockSummary_(events_(stockTables_()), d, d)', today).map(x => [x.loc, x.inward, x.tin, x.tout, x.issued, x.closing]);
     assert.deepStrictEqual(sum, [['Camp Pump', 5000, 0, 1000, 60, 3940], ['MH12ZE1739', 0, 1000, 300, 0, 700], ['MH12WJ1381', 100, 300, 0, 150, 250]]);
+    // (update-159, asked 25-10-2026) each other stock point on its own – "Received from" / "Sent to" never "A / B" together
+    const by = run('d => stockSummary_(events_(stockTables_()), d, d)', today).map(x => [x.loc, x.tinBy, x.toutBy, x.others]);
+    assert.deepStrictEqual(by, [['Camp Pump', {}, { MH12ZE1739: 1000 }, ['MH12ZE1739', 'MH12WJ1381']], ['MH12ZE1739', { 'Camp Pump': 1000 }, { MH12WJ1381: 300 }, ['Camp Pump', 'MH12WJ1381']],
+      ['MH12WJ1381', { MH12ZE1739: 300 }, {}, ['Camp Pump', 'MH12ZE1739']]]);
+    const lg = run('f => getStockLedger_(f)', { from: today, to: today, location: 'MH12ZE1739' }), lg0 = lg.rows[0];
+    assert.deepStrictEqual([lg.others, lg0.tinBy, lg0.toutBy, lg0.tin, lg0.tout, lg0.closing], [['Camp Pump', 'MH12WJ1381'], { 'Camp Pump': 1000 }, { MH12WJ1381: 300 }, 1000, 300, 700], 'the totals as before');
+    const rdy = run('f => getDailyInwardIssueReport_(f)', { from: today, to: today, location: 'Camp Pump' });
+    assert.deepStrictEqual([rdy.otherLocations, rdy.rows[0].toutBy, rdy.totals.toutBy, rdy.totals.tinBy, rdy.totals.tout, rdy.totals.closing], [['MH12ZE1739', 'MH12WJ1381'], { MH12ZE1739: 1000 }, { MH12ZE1739: 1000 }, {}, 1000, 3940]);
+    const rdw = run('f => getDailyInwardIssueReport_(f)', { from: today, to: today, location: 'MH12WJ1381' });
+    assert.deepStrictEqual([rdw.otherLocations, rdw.totals.tinBy, rdw.totals.tin, rdw.totals.closing], [['Camp Pump', 'MH12ZE1739'], { MH12ZE1739: 300 }, 300, 250]);
+    // the Transfer list's stock point is the FROM only ("jo stock point asel tithun transfer asel trch")
+    const tl = l => run('f => getTransfers_(f)', { from: today, to: today, location: l }).rows.map(r => r.from + ' > ' + r.to);
+    assert.deepStrictEqual(tl('Camp Pump'), ['Camp Pump > MH12ZE1739']);
+    assert.deepStrictEqual(tl('MH12ZE1739'), ['MH12ZE1739 > MH12WJ1381'], 'not the transfer that came TO it');
+    assert.deepStrictEqual(tl('MH12WJ1381'), [], 'nothing was sent from it');
+    assert.strictEqual(tl('').length, 2, 'All: every transfer');
     // the pump counter reading: only where the place has one (the first site's Dispenser) – none at 18B
     assert.strictEqual(run('() => validateDiesel_({ qty: 5, source: "Camp Pump", meter: 12345 }, findMachine_("TP-117")).meter'), '');
     // ---- a place with entries keeps its name; it is not taken away; new places and tank sizes can change ----

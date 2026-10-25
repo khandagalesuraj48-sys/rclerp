@@ -2011,6 +2011,13 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   try-again list, an entry refused 3 runs → `drvStuck_`, anything else stops the run). Runs in the backup door after the Sheet
   backup (42 s in all), "Copy files now" (`drvNow_`, 17 s). Tests: `test/storage158.js` (with `test/drive-standin.js` – `/gone`,
   `/trash`; the rig's door keeps storage.objects rows and serves files to the key).
+- 25-10-2026 (update-159, with rcl-mobile 3.38.0). Report: `UPDATE_159.md`. A COLUMN FOR EACH STOCK POINT (asked at 18B: "/ nko …
+  jyach tyach seprate ale gel transfer"; the Transfer list "jo stock point asel tithun"). No SQL. `events_`: a transfer's events
+  carry `peer`; `addPeer_`, `peersOf_`; `stockSummary_` / `getStockLedger_` / `getDailyInwardIssueReport_` also give `tinBy`,
+  `toutBy` (Ltr by the other stock point) and `others` / `otherLocations` (`tin` / `tout` stay the totals). The page: Day-wise
+  diesel stock (`loadLedger`: columns `tin:<p>` / `tout:<p>`), the stock cards (`renderLocations`), the daily report (`rdTableHtml`,
+  its Excel) – a "Received from" and a "Sent to" column for each other stock point, always. `getTransfers_`: the location = From
+  only; the filter is labelled "From (stock point)". Test: `test/browser/transfer159.js` (T2 with the 18B names; S1 as before).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
