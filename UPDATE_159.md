@@ -54,8 +54,9 @@ total (`tin`, `tout`, opening, closing) is the same number as before; the new fi
   T2 with the 18B names (CAMP PUMP, DISPENSER - MH12ZE-1739, DISPENSER - MH12WJ-1381), 12,000 in, CAMP PUMP → ZE 2,000, → WJ 1,500,
   ZE → WJ 300, issued ZE 100, WJ 150: the Transfer filter (2 / 1 / 0 / 3), the Day-wise table of each place (headers and every figure,
   the whole-period line), the cards, the daily report on screen and in the Excel file, All locations as before, **S1 (VTR) the same
-  words as before**, no page error; the test data taken out. `test/browser/places117.js` **13 / 13**, `test/browser/ver156.js`,
-  `test/places117api.js` – see the PR for their numbers. The Portal's `test/api.test.js` 111 (set-up of the rig).
+  words as before**, no page error; the test data taken out. `test/browser/places117.js` **13 / 13**, `test/browser/ver156.js`
+  **12 / 12** (main 12 / 12, without the Portal). `test/places117api.js` stops at the same set-up step on main and here (a sign-in
+  of the rig's second server) – not from this change. The Portal's `test/api.test.js` 111 (set-up of the rig).
 * `node --check` on `server/*.js`, `api/*.js`; the page's 6 script blocks parse; no secret in the change.
 
 ## Not verified
