@@ -5833,8 +5833,9 @@ function events_(T) {
   tt.rows.forEach((r, i) => {
     const dk = dkey_(r[tt.c[H.DATE]]); if (!dk) return;
     const ord = 2 + 2 * shiftOrder_(str_(r[tt.c[H.SHIFT]])), c = ct(r[tt.c[H.CREATED]]), q = num0_(r[tt.c[H.IN_QTY]]);
-    ev.push({ key: 'TO' + i, kind: 'tout', idx: i, loc: loc_(r[tt.c[H.FROM]]), dk: dk, ord: ord, ct: c, q: -q });
-    ev.push({ key: 'TI' + i, kind: 'tin', idx: i, loc: loc_(r[tt.c[H.TO]]), dk: dk, ord: ord, ct: c, q: q });
+    // (update-159) peer = the other stock point of the transfer – its own column in the day-wise stock and the reports
+    ev.push({ key: 'TO' + i, kind: 'tout', idx: i, loc: loc_(r[tt.c[H.FROM]]), peer: loc_(r[tt.c[H.TO]]), dk: dk, ord: ord, ct: c, q: -q });
+    ev.push({ key: 'TI' + i, kind: 'tin', idx: i, loc: loc_(r[tt.c[H.TO]]), peer: loc_(r[tt.c[H.FROM]]), dk: dk, ord: ord, ct: c, q: q });
   });
   dt.rows.forEach((r, i) => {
     const dk = dkey_(r[dt.c[H.IDATE]]); if (!dk) return;
@@ -5847,6 +5848,15 @@ function events_(T) {
   ev.forEach(e => { run[e.loc] = r2_((run[e.loc] || 0) + e.q); e.bal = run[e.loc]; tot = r2_(tot + e.q); e.tot = tot; });
   ev.run = run;
   return ev;
+}
+/* (update-159, asked 25-10-2026: "jyach tyach seprate ale gel transfer") The diesel received from and sent to EACH other stock
+ * point on its own – never "A / B" together: tinBy / toutBy = { <the other stock point>: Ltr }. tin / tout stay the totals. */
+function addPeer_(by, e, q) { if (e.peer) by[e.peer] = r2_((by[e.peer] || 0) + q); }
+// the other stock points of [loc], in the site's order – and one no longer a place that still has a transfer with it
+function peersOf_(loc, ev) {
+  const out = placeNames_().filter(l => l !== loc);
+  ev.forEach(e => { if (e.peer && e.loc === loc && e.peer !== loc && out.indexOf(e.peer) === -1) out.push(e.peer); });
+  return out;
 }
 function cmpEvent_(a, b) {
   if (a.dk !== b.dk) return a.dk < b.dk ? -1 : 1;
@@ -6288,7 +6298,8 @@ function getTransfers_(f) {
   t.rows.forEach(r => {
     const dk = dkey_(r[c[H.DATE]]);
     if (!dk || (from && dk < from) || (to && dk > to)) return;
-    if (loc && loc_(r[c[H.FROM]]) !== loc && loc_(r[c[H.TO]]) !== loc) return;
+    // (update-159, asked 25-10-2026: "jo stock point asel tithun transfer asel trch khali dakhwel") the stock point = From only
+    if (loc && loc_(r[c[H.FROM]]) !== loc) return;
     if (q && (str_(r[c[H.TR_ID]]) + ' ' + str_(r[c[H.REMARK]])).toUpperCase().indexOf(q) === -1) return;
     qty += num0_(r[c[H.IN_QTY]]);
     hits.push(r);
@@ -6313,19 +6324,21 @@ function getTransfers_(f) {
 /* ---------- Stock position per location for a period, and day-wise ledger ---------- */
 function stockSummary_(ev, from, to) {
   const out = {};
-  placeNames_().forEach(l => { out[l] = { loc: l, opening: 0, inward: 0, tin: 0, tout: 0, issued: 0, closing: 0 }; });
+  const blank = l => ({ loc: l, opening: 0, inward: 0, tin: 0, tout: 0, issued: 0, closing: 0, tinBy: {}, toutBy: {} });
+  placeNames_().forEach(l => { out[l] = blank(l); });
   ev.forEach(e => {
-    const x = out[e.loc] || (out[e.loc] = { loc: e.loc, opening: 0, inward: 0, tin: 0, tout: 0, issued: 0, closing: 0 });
+    const x = out[e.loc] || (out[e.loc] = blank(e.loc));
     if ((from && e.dk < from) || isOpenBefore_(e, from)) { x.opening = e.bal; x.closing = e.bal; return; }
     if (to && e.dk > to) return;
-    if (e.kind === 'inward') x.inward += e.q; else if (e.kind === 'tin') x.tin += e.q;
-    else if (e.kind === 'tout') x.tout -= e.q; else x.issued -= e.q;
+    if (e.kind === 'inward') x.inward += e.q; else if (e.kind === 'tin') { x.tin += e.q; addPeer_(x.tinBy, e, e.q); }
+    else if (e.kind === 'tout') { x.tout -= e.q; addPeer_(x.toutBy, e, -e.q); } else x.issued -= e.q;
     x.closing = e.bal;
   });
   return Object.keys(out).map(k => {
     const x = out[k];
     ['opening', 'inward', 'tin', 'tout', 'issued', 'closing'].forEach(f => { x[f] = r2_(x[f]); });
     x.current = r2_(ev.run[k] || 0);
+    x.others = peersOf_(k, ev);      // (update-159) the other stock points – one line each
     return x;
   });
 }
@@ -6340,15 +6353,15 @@ function getStockLedger_(f) {
   const loc = str_(f.location);
   const ev = events_(stockTables_()).filter(e => !loc || e.loc === loc);
   const days = {};
-  for (let d = from; d <= to; d = addDays_(d, 1)) days[d] = { date: d, opening: 0, inward: 0, tin: 0, tout: 0, issued: 0, closing: 0 };
+  for (let d = from; d <= to; d = addDays_(d, 1)) days[d] = { date: d, opening: 0, inward: 0, tin: 0, tout: 0, issued: 0, closing: 0, tinBy: {}, toutBy: {} };
   let run = 0;
   const bal = e => loc ? e.bal : e.tot;
   ev.forEach(e => {
     if (e.dk < from || isOpenBefore_(e, from)) { run = bal(e); return; }
     if (e.dk > to) return;
     const x = days[e.dk];
-    if (e.kind === 'inward') x.inward += e.q; else if (e.kind === 'tin') x.tin += e.q;
-    else if (e.kind === 'tout') x.tout -= e.q; else x.issued -= e.q;
+    if (e.kind === 'inward') x.inward += e.q; else if (e.kind === 'tin') { x.tin += e.q; addPeer_(x.tinBy, e, e.q); }
+    else if (e.kind === 'tout') { x.tout -= e.q; addPeer_(x.toutBy, e, -e.q); } else x.issued -= e.q;
   });
   const rows = Object.keys(days).sort().map(d => {
     const x = days[d];
@@ -6359,7 +6372,8 @@ function getStockLedger_(f) {
     ['inward', 'tin', 'tout', 'issued'].forEach(k => { x[k] = r2_(x[k]); });
     return x;
   });
-  return { location: loc || 'All', from: from, to: to, rows: rows };
+  // (update-159) others: the other stock points of [loc] – a "Received from" and a "Sent to" column for each
+  return { location: loc || 'All', from: from, to: to, rows: rows, others: loc ? peersOf_(loc, ev) : [] };
 }
 
 /* ================= DASHBOARD ================= */
@@ -6902,7 +6916,7 @@ function getDailyInwardIssueReport_(f) {
   const ownOf = idx => own[noKey_(T.dt.rows[idx][T.dt.c[H.NO]])] || 'Not in Master';
 
   const days = {}, order = [];
-  for (let d = from; d <= to; d = addDays_(d, 1)) { days[d] = { date: d, opening: 0, inward: 0, tin: 0, tout: 0, issue: {}, issued: 0, closing: 0 }; order.push(d); }
+  for (let d = from; d <= to; d = addDays_(d, 1)) { days[d] = { date: d, opening: 0, inward: 0, tin: 0, tout: 0, tinBy: {}, toutBy: {}, issue: {}, issued: 0, closing: 0 }; order.push(d); }
   let run = 0;
   const bal = e => loc ? e.bal : e.tot;
   const groupsSeen = {};
@@ -6911,8 +6925,8 @@ function getDailyInwardIssueReport_(f) {
     if (e.dk > to) return;
     const x = days[e.dk];
     if (e.kind === 'inward') x.inward += e.q;
-    else if (e.kind === 'tin') x.tin += e.q;
-    else if (e.kind === 'tout') x.tout -= e.q;
+    else if (e.kind === 'tin') { x.tin += e.q; addPeer_(x.tinBy, e, e.q); }
+    else if (e.kind === 'tout') { x.tout -= e.q; addPeer_(x.toutBy, e, -e.q); }
     else { const g = ownOf(e.idx); x.issue[g] = r2_((x.issue[g] || 0) - e.q); x.issued -= e.q; groupsSeen[g] = true; }
   });
   const rows = order.map(d => {
@@ -6926,16 +6940,18 @@ function getDailyInwardIssueReport_(f) {
   // Own, Rental, (Hired, Other when used), Debit – same order as every report
   const groups = ['Own', 'Rental', 'Hired', 'Other', 'Debit', 'Not in Master']
     .filter(g => ['Own', 'Rental', 'Debit'].indexOf(g) > -1 || groupsSeen[g]);
-  const tot = { inward: 0, tin: 0, tout: 0, issued: 0, issue: {} };
+  const tot = { inward: 0, tin: 0, tout: 0, tinBy: {}, toutBy: {}, issued: 0, issue: {} };
   rows.forEach(x => {
     ['inward', 'tin', 'tout', 'issued'].forEach(k => { tot[k] = r2_(tot[k] + x[k]); });
+    ['tinBy', 'toutBy'].forEach(k => Object.keys(x[k]).forEach(p => { tot[k][p] = r2_((tot[k][p] || 0) + x[k][p]); }));
     groups.forEach(g => { tot.issue[g] = r2_((tot.issue[g] || 0) + (x.issue[g] || 0)); });
   });
   tot.opening = rows.length ? rows[0].opening : 0;
   tot.closing = rows.length ? rows[rows.length - 1].closing : 0;
   return {
     company: orgSettings_().customer, from: from, to: to, location: loc || 'All locations', byLocation: !!loc,
-    otherLocations: loc ? placeNames_().filter(l => l !== loc) : [],
+    otherLocations: loc ? peersOf_(loc, ev) : [],      // (update-159) a "Received from" and a "Sent to" column for each
+
     groups: groups, rows: rows, totals: tot,
     generated: Utilities.formatDate(new Date(), tz_(), 'dd-MM-yyyy HH:mm'),
   };
