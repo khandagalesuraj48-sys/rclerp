@@ -2034,6 +2034,15 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (scope firebase.messaging, cached an hour). `rtcPush_` calls `__fcmSend` (runtime.js) for every notification of the web – before
   the web push, also without it; the ring carries `from`. Off in a Preview; `FCM_TEST_URL` (the rig's stand-in
   `test/fcm-standin.js`) refused on production. Tests: unit `update-161`, rig `test/fcm161api.js` (two sites, one phone).
+- 26-10-2026 (update-162, with the Portal and rcl-mobile 3.43.0). Report: `UPDATE_162.md`. DIESEL SOURCES PER PERSON (asked: "user wise
+  konala konte source cha access deycha … jya user la jyacha access asel to tyach madhun issue kru shakel same transfer la pn … inward
+  la nko"). No SQL. `DIESEL_SOURCES` in the site's `web.props` (`{email: {'Diesel Issue': [...], 'Diesel Transfer': [...]}}`; a page
+  not there = every source; Admin / Super Admin always every source). `dsrcMay_(page, place)` with `DSRC_U_` (set in `api()`; the
+  requester at both approval places) in `validateDiesel_` / `validateTransfer_` (From only) and the update / delete of both; Inward
+  free. `publicUser_` → `user.dsrc`. The Portal: `sysPortalAdmin_` `users` (+ `dsrc`, `places`), `pages` + `sources` → `dsrcSet_`
+  (the script lock only – `withLock_` there dropped the pages saved before it); `server/portal.js` `verifyAdmin` passes `sources`.
+  Page: `mySources(page)`, `data-own` on `d_src` / `bd_src` / `bm_src` / `t_from`, the rows (`trRowHtml`, `bmRowHtml`), the Excel
+  checks, `aiOwnSource_`. Tests: unit `update-162`, rig `test/browser/dsrc162.js` (the Portal's screen → Mechanical, T2 as 18B).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

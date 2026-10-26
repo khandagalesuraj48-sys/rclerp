@@ -110,7 +110,15 @@ function verifyAdmin(ticket, now) {
   if (!EMAIL.test(email) || email.length > 120) throw bad('no proper email of the user');
   const perms = {};
   Object.keys(c.perms && typeof c.perms === 'object' ? c.perms : {}).slice(0, 60).forEach(k => { const v = c.perms[k]; if (/^[A-Za-z &]{2,40}$/.test(k) && ACCESS.indexOf(v) > -1) perms[k] = v; });
-  return Object.assign(out, { email: email, name: String(c.name || email).slice(0, 80), admin: c.admin === true, perms: perms });
+  // (update-162) his diesel sources, when the Portal sends them: { 'Diesel Issue': [places] | null, 'Diesel Transfer': … } (null = every source)
+  let sources = null;
+  if (c.sources && typeof c.sources === 'object' && !Array.isArray(c.sources)) {
+    sources = {};
+    ['Diesel Issue', 'Diesel Transfer'].forEach(pg => { if (!Object.prototype.hasOwnProperty.call(c.sources, pg)) return; const l = c.sources[pg];
+      sources[pg] = Array.isArray(l) ? l.slice(0, 20).map(n => String(n === null || n === undefined ? '' : n).replace(/\s+/g, ' ').trim().slice(0, 60)).filter(Boolean) : null; });
+    if (!Object.keys(sources).length) sources = null;
+  }
+  return Object.assign(out, { email: email, name: String(c.name || email).slice(0, 80), admin: c.admin === true, perms: perms }, sources ? { sources: sources } : {});
 }
 function forget() { KEYS = { at: 0, from: '', keys: [] }; }
 module.exports = { url, verify, verifyAdmin, forget, AUD, ADMIN_AUD };
