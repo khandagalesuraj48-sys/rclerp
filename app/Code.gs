@@ -433,7 +433,7 @@ function accessReport_() {
   });
   return { at: new Date().toISOString(), users: data.filter(r => str_(r[col('Email')])).length, modules: MODULES.length, rows: rows, count: count };
 }
-function publicUser_(u) { return { email: u.email, name: u.name, admin: u.admin, perms: u.perms, super: !!u.super }; }
+function publicUser_(u) { const o = { email: u.email, name: u.name, admin: u.admin, perms: u.perms, super: !!u.super }; const ds = dsrcMine_(u); if (ds) o.dsrc = ds; return o; }      // (update-162) dsrc: his diesel sources, when chosen
 
 /* ================= SCREEN SHARE WITH VOICE (update-72, asked 10-10-2026) =================
  * "User A has a difficulty on a screen: he shares his screen with user B and they talk – live, picked from a list of users."
@@ -1012,6 +1012,7 @@ function api(token, fn, args, meta) {
   const spec = Object.prototype.hasOwnProperty.call(API_, String(fn)) ? API_[fn] : null;      // only the app's own list ("constructor", "__proto__" … are not actions)
   if (!spec) throw new Error('Unknown action: ' + String(fn).slice(0, 60));
   if (spec.admin && !u.admin) throw new Error(fn === 'backupNow' ? 'Only Admin can start a backup.' : fn === 'getActivity' ? 'Only Admin can open the Activity Log.' : 'Only Admin can open this.');
+  DSRC_U_ = u;      // (update-162) whose diesel sources count in this request (verification's dry run too)
   const label = m => MODULE_LABEL_[m] || m;
   if (spec.any) { if (!spec.any.some(m => u.perms[m] && u.perms[m] !== 'None')) throw new Error('You do not have access to ' + spec.any.map(label).join(' / ') + '. Ask Admin.'); }
   else if (spec.m && u.perms[spec.m] === 'None') throw new Error('You do not have access to ' + label(spec.m) + '. Ask Admin.');
@@ -4534,6 +4535,7 @@ function validateDiesel_(d, m) {
   const driver = clean_(d.driver);
   // reading on the pump's total-litres counter after this fill (optional; only at a place with a counter – the first site's Dispenser)
   const src0 = checkLoc_(d.source || mainPlace_(), 'Diesel Source');
+  dsrcMay_('Diesel Issue', src0);      // (update-162) only a source given to him
   const meter = meterPlaces_()[src0] && !blank_(d.meter) ? reqReading_(d.meter, 'Current diesel issue reading') : '';
   return { qty: qty, km: km, hr: hr, driver: driver, remark: clean_(d.remark), source: src0, meter: meter };
 }
@@ -4787,6 +4789,7 @@ function updateDieselIssue_(id, d) {
     const i = t.rows.findIndex(r => str_(r[t.c[H.ID]]) === str_(id));
     if (i === -1) throw new Error('Diesel issue ' + id + ' was not found.');
     const old = t.rows[i];
+    dsrcMay_('Diesel Issue', loc_(old[t.c[H.SOURCE]]));      // (update-162) an issue of another source is not his to change
     const oldNo = str_(old[t.c[H.NO]]), oldDk = dkey_(old[t.c[H.IDATE]]), oldShift = str_(old[t.c[H.SHIFT]]);
     verCheck_(t, old, DIESEL_VER_H_(), d && d.ver, 'Diesel issue ' + str_(id) + ' (' + oldNo + ', ' + dmy_(oldDk) + ')');      // (update-145)
     booksOpen_(oldDk, 'Diesel issue');
@@ -4825,6 +4828,7 @@ function deleteDieselIssue_(id, ver) {
     const i = t.rows.findIndex(r => str_(r[t.c[H.ID]]) === str_(id));
     if (i === -1) throw new Error('Diesel issue ' + id + ' was not found.');
     const old = t.rows[i];
+    dsrcMay_('Diesel Issue', loc_(old[t.c[H.SOURCE]]));      // (update-162) an issue of another source is not his to delete
     verCheck_(t, old, DIESEL_VER_H_(), ver, 'Diesel issue ' + str_(id) + ' (' + str_(old[t.c[H.NO]]) + ', ' + dmy_(dkey_(old[t.c[H.IDATE]])) + ')');      // (update-145)
     booksOpen_(dkey_(old[t.c[H.IDATE]]), 'Diesel issue');
     billLock_(str_(old[t.c[H.NO]]), dkey_(old[t.c[H.IDATE]]), 'Diesel issue');
@@ -5828,6 +5832,50 @@ function checkLoc_(v, label) {
   if (!f) throw new Error('Select ' + label + ' (' + names.join(' / ') + ').');
   return f;
 }
+/* ---------- THE DIESEL SOURCES OF A PERSON (update-162, asked 26-10-2026: "diesel issue access user la deto … user wise konala
+ * konte source cha access deycha ki nahi … jya user la jyacha access asel to tyach madhun issue kru shakel same transfer la pn …
+ * inward la nko") – his answers: Transfer = FROM only; a person not given any yet = every source (as before); lists and reports as
+ * before; given by the Super Admin in the Portal (Users & Access → Pages).
+ *   Kept in the site's own settings: DIESEL_SOURCES = { "<email>": { "Diesel Issue": [places], "Diesel Transfer": [places] } };
+ *   a page not in it (or every place ticked) = every source. The Admin and the Super Admin: every source, always.
+ *   A Diesel Issue (new, many at once, Excel import, a change – also of the entry it was) and a Diesel Transfer FROM another source
+ *   are refused by the server (web, phone, kept on the phone, verification – the same check); Inward is free. The person whose
+ *   sources count is the one who makes the entry (DSRC_U_: set for each request – and, when an entry waiting for verification is
+ *   saved, its sender). */
+const DSRC_KEY_ = 'DIESEL_SOURCES', DSRC_PAGES_ = ['Diesel Issue', 'Diesel Transfer'];
+let DSRC_U_ = null;
+function dsrcAll_() { let j = {}; try { j = JSON.parse(str_(PropertiesService.getScriptProperties().getProperty(DSRC_KEY_)) || '{}'); } catch (e) { j = {}; } return j && typeof j === 'object' && !Array.isArray(j) ? j : {}; }
+// the sources this person may use for that page – null = every source
+function dsrcOf_(u, page) {
+  if (!u || u.admin || u.super) return null;
+  const o = dsrcAll_()[str_(u.email).toLowerCase()], l = o && Array.isArray(o[page]) ? o[page].map(str_).filter(Boolean) : null;
+  return l ? placeNames_().filter(n => l.indexOf(n) > -1) : null;
+}
+// what the page and the phone app are told (only when something is chosen for him – otherwise nothing, as before)
+function dsrcMine_(u) { const o = {}; DSRC_PAGES_.forEach(pg => { const l = dsrcOf_(u, pg); if (l) o[pg] = l; }); return Object.keys(o).length ? o : null; }
+function dsrcMay_(page, place) {
+  const u = DSRC_U_, l = dsrcOf_(u, page);
+  if (!l || l.indexOf(place) > -1) return;
+  throw new Error('Diesel source ' + place + ' is not given to ' + (u.name || u.email) + ' for ' + page + (l.length ? ' (given: ' + l.join(', ') + ')' : ' (none is given)') + ' – the Super Admin gives the diesel sources in the Portal (Users & Access → Pages).');
+}
+// the Portal (Super Admin): one person's sources – null / every place = every source; unknown names are left out
+function dsrcSet_(email, given, by) {
+  email = str_(email).toLowerCase();
+  if (!email || !given || typeof given !== 'object') return '';
+  const names = placeNames_(), all = dsrcAll_(), was = JSON.stringify(all[email] || {}), mine = Object.assign({}, all[email] || {});
+  DSRC_PAGES_.forEach(pg => {
+    if (!Object.prototype.hasOwnProperty.call(given, pg)) return;
+    const v = given[pg];
+    if (v === null || !Array.isArray(v)) { delete mine[pg]; return; }
+    const l = names.filter(n => v.map(str_).some(x => x.toUpperCase() === n.toUpperCase()));
+    if (l.length === names.length) delete mine[pg]; else mine[pg] = l;
+  });
+  if (Object.keys(mine).length) all[email] = mine; else delete all[email];
+  if (JSON.stringify(all[email] || {}) === was) return '';
+  PropertiesService.getScriptProperties().setProperty(DSRC_KEY_, JSON.stringify(all));
+  const say = pg => pg + ': ' + (mine[pg] ? (mine[pg].length ? mine[pg].join(', ') : 'none') : 'every source');
+  return 'Diesel sources of ' + email + ' – ' + DSRC_PAGES_.map(say).join('; ');
+}
 
 function stockTables_() {
   return {
@@ -6189,6 +6237,7 @@ function validateTransfer_(x) {
   const dk = entryOpen_(x.date, 'Diesel transfer');
   const shift = checkShift_(x.shift);
   const from = checkLoc_(x.from, 'From');
+  dsrcMay_('Diesel Transfer', from);      // (update-162) sent only FROM a source given to him (To: any)
   const to = checkLoc_(x.to, 'To');
   if (from === to) throw new Error('From and To cannot be the same.');
   const qty = numOrBlank_(x.qty);
@@ -6273,6 +6322,7 @@ function updateTransfer_(id, x) {
     const T = stockTables_();
     const i = T.tt.rows.findIndex(r => str_(r[T.tt.c[H.TR_ID]]) === str_(id));
     if (i === -1) throw new Error('Transfer ' + id + ' was not found.');
+    dsrcMay_('Diesel Transfer', loc_(T.tt.rows[i][T.tt.c[H.FROM]]));      // (update-162) a transfer from another source is not his to change
     verCheck_(T.tt, T.tt.rows[i], TRANSFER_VER_H_(), x && x.ver, 'Transfer ' + str_(id));      // (update-156)
     booksOpen_(dkey_(T.tt.rows[i][T.tt.c[H.DATE]]), 'Diesel transfer');
     transferMessage_(T, v, i);
@@ -6290,6 +6340,7 @@ function deleteTransfer_(id, ver) {
     const T = stockTables_();
     const i = T.tt.rows.findIndex(r => str_(r[T.tt.c[H.TR_ID]]) === str_(id));
     if (i === -1) throw new Error('Transfer ' + id + ' was not found.');
+    dsrcMay_('Diesel Transfer', loc_(T.tt.rows[i][T.tt.c[H.FROM]]));      // (update-162) …nor to delete
     verCheck_(T.tt, T.tt.rows[i], TRANSFER_VER_H_(), ver, 'Transfer ' + str_(id));      // (update-156)
     booksOpen_(dkey_(T.tt.rows[i][T.tt.c[H.DATE]]), 'Diesel transfer');
     assertNoNegative_(T, withRows_(T, 'tt', T.tt.rows.filter((r, k) => k !== i)));
@@ -10872,6 +10923,7 @@ function crDecide_(u, x) {
       FLOW_SENDER_ = ru.email;      // (update-153) the files it takes are the user's
       { let d0 = {}; try { d0 = JSON.parse(r0.data || '{}') || {}; } catch (e) { d0 = {}; } CR_ATT_ = d0.att && typeof d0.att === 'object' ? d0.att : null; }      // (update-153 review) …the ones checked when he asked
       ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = true; VER_CTX_ = 'approve';
+      const dsu0 = DSRC_U_; DSRC_U_ = ru;      // (update-162) the diesel sources of the one who asked count
       try {
         const before = spec.log ? logBefore_(spec, args) : null;
         billBaselines_(r0.fn, args);      // the "before" of the bills it may change (saved with it, or not at all)
@@ -10879,7 +10931,7 @@ function crDecide_(u, x) {
         const errs = res && typeof res === 'object' ? (res.errors || []) : [];
         if (res && (res.ok === false || errs.length)) throw new Error('It could not be saved: ' + (errs.length ? errs.slice(0, 5).map(e => (e.row ? 'Line ' + e.row + ': ' : '') + (e.msg || e)).join(' | ') : (res.error || res.warning || 'refused')) + ' – nothing was saved; the request still waits.');
         if (spec.log) { try { logAfter_(ru, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ } }
-      } finally { ACTOR_ = actor0; ACTOR_ADMIN_ = admin0; VER_CTX_ = ''; CR_ATT_ = null; }
+      } finally { ACTOR_ = actor0; ACTOR_ADMIN_ = admin0; VER_CTX_ = ''; CR_ATT_ = null; DSRC_U_ = dsu0; }
       bump_(SYNC_GROUPS_[spec.m] || []);
     }
     TABLE_MEMO_ = {};
@@ -11111,10 +11163,11 @@ function flowDecide_(u, x) {
     else if (spec.m && !canEdit_(ru, spec.m)) why = r0.by + ' has no Edit access to ' + (MODULE_LABEL_[spec.m] || spec.m) + ' any more';
     if (!why) {
       let args = []; try { args = JSON.parse(r0.args || '[]'); } catch (e) { args = []; }
-      const a0 = ACTOR_, ad0 = ACTOR_ADMIN_, su0 = ACTOR_SUPER_;
+      const a0 = ACTOR_, ad0 = ACTOR_ADMIN_, su0 = ACTOR_SUPER_, dsu0 = DSRC_U_;
       try {
         withLock_(() => {
           r0 = look(); f = r0.flow;
+          DSRC_U_ = ru;      // (update-162) the sender's diesel sources count (not the approver's)
           ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; VER_CTX_ = 'flow'; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = f.photos && typeof f.photos === 'object' ? f.photos : null;      // (update-120) its photos, as noted when it was sent
           APPROVER_ = u.name || u.email;      // (update-152) the Log Book rows it writes are marked approved by him
           FLOW_SENDER_ = ru.email;      // (update-153) the files it takes are the sender's
@@ -11132,7 +11185,7 @@ function flowDecide_(u, x) {
       } catch (e) {
         if (/^(This request (was not found|is already|is not waiting)|You cannot approve)/.test(String(e && e.message)) || faultKind_(e)) throw e;
         why = String((e && e.message) || e).slice(0, 1000);      // (update-129: room for the warnings' lines)
-      } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; VER_CTX_ = ''; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
+      } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; VER_CTX_ = ''; DSRC_U_ = dsu0; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
     }
     if (why) {
       withLock_(() => {

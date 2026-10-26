@@ -5812,3 +5812,78 @@ test('update-161: the phone app\'s notifications (Firebase) – kept at the firs
     }
   } finally { sp.kill(); }
 });
+
+// update-162 (26-10-2026): "diesel issue access user la deto … user wise konala konte source cha access deycha … jya user la jyacha
+// access asel to tyach madhun issue kru shakel same transfer la pn … inward la nko" – his answers: Transfer = FROM only; nothing
+// chosen = every source; lists as before; given by the Super Admin in the Portal.
+test('update-162: diesel sources per person – Issue and the From of a Transfer only from his own (also a change / delete of another source\'s entry); Inward free; Admin and nothing chosen = every source; the Portal sets them', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const CP = 'CAMP PUMP', ZE = 'DISPENSER - MH12ZE-1739', WJ = 'DISPENSER - MH12WJ-1381';
+  run('p => { PropertiesService.getScriptProperties().setProperty("DIESEL_PLACES", p); PropertiesService.getScriptProperties().deleteProperty("DIESEL_SOURCES"); DSRC_U_ = null; }', JSON.stringify([{ name: CP }, { name: ZE }, { name: WJ }]));
+  const BALA = { email: 'bala162@site.test', name: 'Bala 162', admin: false, perms: { 'Diesel Issue': 'Edit', 'Diesel Transfer': 'Edit', 'Diesel Inward': 'Edit' } };
+  const ADMIN = { email: 'admin162@site.test', name: 'Admin 162', admin: true, perms: {} };
+  try {
+    run('(x, m) => saveMaster_(x, m)', { no: 'DS-162', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'DS Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-06-01' }, 'add');
+    run('x => saveInward_(x)', { date: '2026-06-01', location: CP, pump: 'Pump', qty: 5000, rate: 100, billNo: 'DS1', billDate: '2026-06-01' });
+    const t0 = run('x => saveTransfer_(x)', { date: '2026-06-01', shift: 'Day', from: CP, to: ZE, qty: 1000 });      // (nobody's sources yet: every source)
+    assert.strictEqual(t0.ok, true, JSON.stringify(t0));
+    // nothing chosen for him: every source, nothing told to the page (as before)
+    assert.strictEqual(run('u => dsrcMine_(u)', BALA), null);
+    assert.strictEqual(run('u => publicUser_(u).dsrc', BALA), null);
+    // ---- the Super Admin gives him ZE for Diesel Issue and ZE for Diesel Transfer (the Portal – Sites.gs pages → dsrcSet_)
+    assert.match(run('(e, g) => dsrcSet_(e, g, "sa@rcl.test")', BALA.email, { 'Diesel Issue': [ZE.toLowerCase(), 'NOT A PLACE'], 'Diesel Transfer': [ZE] }), /Diesel Issue: DISPENSER - MH12ZE-1739; Diesel Transfer: DISPENSER - MH12ZE-1739/);
+    assert.deepStrictEqual(run('u => dsrcMine_(u)', BALA), { 'Diesel Issue': [ZE], 'Diesel Transfer': [ZE] }, 'the name as the site writes it; an unknown name left out');
+    assert.deepStrictEqual(run('u => publicUser_(u).dsrc', BALA), { 'Diesel Issue': [ZE], 'Diesel Transfer': [ZE] }, 'the page and the phone are told');
+    assert.strictEqual(run('u => dsrcMine_(u)', ADMIN), null, 'the Admin: every source');
+    assert.strictEqual(run('(e, g) => dsrcSet_(e, g, "sa")', BALA.email, { 'Diesel Issue': [ZE], 'Diesel Transfer': [ZE] }), '', 'nothing changed: nothing written');
+    run('u => { DSRC_U_ = u; }', BALA);
+    // ---- Diesel Issue: another source refused (one entry, many at once, Excel import); his own saved
+    const iss = src => ({ date: '2026-06-02', shift: 'Day', no: 'DS-162', qty: 50, kmReading: 1000, source: src, mode: 'KM' });
+    assert.match(tryRun('(d, u) => saveDieselIssue_(d, u)', iss(CP), BALA).thrown, /^Diesel source CAMP PUMP is not given to Bala 162 for Diesel Issue \(given: DISPENSER - MH12ZE-1739\) – the Super Admin gives the diesel sources in the Portal/);
+    const ok1 = run('(d, u) => saveDieselIssue_(d, u)', iss(ZE), BALA);
+    assert.strictEqual(ok1.ok, true, JSON.stringify(ok1));
+    const imp = tryRun('r => importDiesel_(r)', [Object.assign(iss(WJ), { line: 1, kmReading: 1100 })]);
+    assert.ok(/not given to Bala 162 for Diesel Issue/.test(JSON.stringify(imp)), JSON.stringify(imp));
+    // ---- Diesel Transfer: FROM his own only; TO any
+    assert.match(tryRun('x => saveTransfer_(x)', { date: '2026-06-02', shift: 'Day', from: CP, to: WJ, qty: 10 }).thrown, /^Diesel source CAMP PUMP is not given to Bala 162 for Diesel Transfer/);
+    assert.strictEqual(run('x => saveTransfer_(x)', { date: '2026-06-02', shift: 'Day', from: ZE, to: CP, qty: 10 }).ok, true, 'from his own to any');
+    const bulk = tryRun('r => saveTransferBulk_(r)', [{ line: 1, date: '2026-06-02', shift: 'Day', from: WJ, to: ZE, qty: 1 }]);
+    assert.ok(/not given to Bala 162 for Diesel Transfer/.test(JSON.stringify(bulk)), JSON.stringify(bulk));
+    // ---- the transfer made from CAMP PUMP (before): not his to change or delete
+    assert.match(tryRun('(id, x) => updateTransfer_(id, x)', t0.id, { date: '2026-06-01', shift: 'Day', from: ZE, to: WJ, qty: 5 }).thrown, /CAMP PUMP is not given to Bala 162 for Diesel Transfer/);
+    assert.match(tryRun('id => deleteTransfer_(id)', t0.id).thrown, /CAMP PUMP is not given to Bala 162 for Diesel Transfer/);
+    // ---- Inward: free
+    assert.strictEqual(run('(x, u) => saveInward_(x, u)', { date: '2026-06-02', location: WJ, pump: 'Pump', qty: 100, rate: 100, billNo: 'DS2', billDate: '2026-06-02' }, BALA).ok, true);
+    // ---- an issue of CAMP PUMP made by the Admin: not Bala's to change or delete
+    run('() => { DSRC_U_ = null; }');
+    const cpIss = run('(d, u) => saveDieselIssue_(d, u)', Object.assign(iss(CP), { date: '2026-06-03', kmReading: 1200 }), ADMIN);
+    assert.strictEqual(cpIss.ok, true, JSON.stringify(cpIss));
+    run('u => { DSRC_U_ = u; }', BALA);
+    assert.match(tryRun('(id, d) => updateDieselIssue_(id, d)', cpIss.id, Object.assign(iss(ZE), { date: '2026-06-03', kmReading: 1200 })).thrown, /CAMP PUMP is not given to Bala 162 for Diesel Issue/);
+    assert.match(tryRun('id => deleteDieselIssue_(id)', cpIss.id).thrown, /CAMP PUMP is not given to Bala 162 for Diesel Issue/);
+    // ---- every place ticked = every source again; none ticked = none
+    run('(e, g) => dsrcSet_(e, g, "sa")', BALA.email, { 'Diesel Issue': [CP, ZE, WJ], 'Diesel Transfer': [] });
+    assert.deepStrictEqual(run('u => dsrcMine_(u)', BALA), { 'Diesel Transfer': [] });
+    assert.match(tryRun('x => saveTransfer_(x)', { date: '2026-06-04', shift: 'Day', from: ZE, to: CP, qty: 1 }).thrown, /for Diesel Transfer \(none is given\)/);
+    run('(e, g) => dsrcSet_(e, g, "sa")', BALA.email, { 'Diesel Issue': null, 'Diesel Transfer': null });
+    assert.strictEqual(run('u => dsrcMine_(u)', BALA), null, 'back to every source');
+    // ---- an approval runs the change with the REQUESTER's sources (both places a change is run on approval); every request: its person
+    const codeGs = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+    assert.strictEqual((codeGs.match(/DSRC_U_ = ru;/g) || []).length, 2, 'the change-request approval and the flow approval');
+    assert.ok(codeGs.indexOf('  DSRC_U_ = u;') > -1, 'api(): the person of the request');
+    // ---- the Portal's door (Sites.gs): the users with their sources and the site's places; pages saves them
+    const sitesGs = fs.readFileSync(path.join(root, 'app', 'Sites.gs'), 'utf8');
+    assert.match(sitesGs, /return \{ users: d\.users\.map\(pub\), pages: d\.modules, places: placeNames_\(\) \};/);
+    assert.match(sitesGs, /if \(c\.sources && typeof c\.sources === 'object'\) \{ const lk = LockService\.getScriptLock\(\); lk\.waitLock\(30000\); try \{ dsTxt = dsrcSet_\(email, c\.sources, c\.by\); \}/);
+    assert.ok(!/withLock_\(\(\) => \{ dsTxt/.test(sitesGs), 'not withLock_: it would drop the pages saved just before (found on the rig)');
+    // ---- the page: his own sources on the entry forms only
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    ['<select id="d_src" class="loc-select src-select" data-default="first" data-own="Diesel Issue">', '<select id="t_from" class="loc-select" data-default="first" data-own="Diesel Transfer">',
+      "const keep = sel.value, all = sel.dataset.all, locs = sel.dataset.own ? mySources(sel.dataset.own) : S.locations;"].forEach(k => assert.ok(app.indexOf(k) > -1, k));
+    assert.ok(!/id="df_src"[^>]*data-own/.test(app) && !/id="rm_src"[^>]*data-own/.test(app), 'the filters of the lists and reports: every source');
+  } finally {
+    run('() => { PropertiesService.getScriptProperties().deleteProperty("DIESEL_PLACES"); PropertiesService.getScriptProperties().deleteProperty("DIESEL_SOURCES"); DSRC_U_ = null; }');
+  }
+});

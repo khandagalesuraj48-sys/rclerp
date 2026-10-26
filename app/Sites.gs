@@ -196,8 +196,9 @@ function sysSso_(x) {
 function sysPortalAdmin_(c) {
   c = c || {};
   portalOnce_(c.jti);
-  const pub = u => ({ email: u.email, name: u.name, active: u.active, admin: u.admin, perms: u.perms });
-  if (c.act === 'users') { const d = usersAdmin_(); return { users: d.users.map(pub), pages: d.modules }; }
+  // (update-162) with each person his diesel sources (Diesel Issue / Diesel Transfer – none = every source) and the site's places
+  const ds = dsrcAll_(), pub = u => Object.assign({ email: u.email, name: u.name, active: u.active, admin: u.admin, perms: u.perms }, ds[str_(u.email).toLowerCase()] ? { dsrc: ds[str_(u.email).toLowerCase()] } : {});
+  if (c.act === 'users') { const d = usersAdmin_(); return { users: d.users.map(pub), pages: d.modules, places: placeNames_() }; }
   if (c.act === 'places') return placesInfo_();      // (update-117) Sites → Diesel places
   if (c.act === 'placesSave') return sysPlacesSave_(c.places, c.by);
   // (update-157) Sites → Backup: the site's (or the Portal's) numbered Google Sheets – see backup.vm.js
@@ -219,10 +220,17 @@ function sysPortalAdmin_(c) {
     res = saveUserAdmin_({ isNew: true, email: email, name: clean_(c.name) || email, active: true, admin: !!c.admin, perms: perms, newPassword: 'Tmp' + Utilities.getUuid().replace(/-/g, '').slice(0, 16) }, null);
     storePw_(email, portalUnknownPw_());
   } else res = saveUserAdmin_({ email: email, name: u.name, active: u.active, admin: u.admin, perms: perms }, null);
-  writeLog_(who, res.added ? 'Add' : 'Edit', 'Users', email, (res.added ? 'User added by the Super Admin in the Portal: ' : 'Pages set by the Super Admin in the Portal: ') + email, res.changes || '');
+  // (update-162) his diesel sources, when the Portal sends them (a Portal before update-162 does not: they stay as they were)
+  let dsTxt = '';
+  // (the script lock only – NOT withLock_: that starts a fresh save and would drop the page change above, not yet written)
+  if (c.sources && typeof c.sources === 'object') { const lk = LockService.getScriptLock(); lk.waitLock(30000); try { dsTxt = dsrcSet_(email, c.sources, c.by); } finally { try { lk.releaseLock(); } catch (e) { /* frees itself */ } } }
+  const ch = [res.changes || '', dsTxt].filter(Boolean).join(' | ');
+  writeLog_(who, res.added ? 'Add' : 'Edit', 'Users', email, (res.added ? 'User added by the Super Admin in the Portal: ' : 'Pages set by the Super Admin in the Portal: ') + email, ch);
   sbFlush_();
   u = readUsersSheet_().find(w => w.email === email) || {};
-  return { ok: true, added: !!res.added, changes: res.changes || '', admin: !!u.admin, user: u.email ? pub(u) : null };
+  const ds2 = dsrcAll_(), out = u.email ? Object.assign(pub(u), ds2[email] ? { dsrc: ds2[email] } : {}) : null;
+  if (out && !ds2[email]) delete out.dsrc;
+  return { ok: true, added: !!res.added, changes: ch, admin: !!u.admin, user: out };
 }
 /* ---- (update-117, asked 16-10-2026) the diesel places of a site, set by the Super Admin in the Portal: when he makes the site
  * (New site) and later under Sites → Diesel places (Code.gs "DIESEL PLACES OF THIS SITE"). The Activity Log keeps the places
