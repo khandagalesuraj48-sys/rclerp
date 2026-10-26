@@ -551,7 +551,7 @@ function rtcSend_(u, x) {
     const help = dj.help && typeof dj.help === 'object' ? clean_(dj.help.title || '').slice(0, 40) : '';
     fresh.forEach(id => { try { rtcMissEdit_(id, l => { l.unshift({ call: call, from: me, name: myName, at: Date.now(), st: 'r' }); return l; }); } catch (e) { /* the list is a help, never in the way of the ring */ } });
     const mode = dj.mode === 'voice' || dj.mode === 'video' ? dj.mode : '';      // (update-137) a call of the phone app: "is calling you" on the notification
-    rtcPush_(fresh.filter(id => !cache.get('RTCPU_' + me + '_' + id) && (cache.put('RTCPU_' + me + '_' + id, '1', 20), true)), { t: 'ring', call: call, name: myName, help: help ? 1 : 0, page: help, mode: mode });      // (one notification per caller and person in 20 s)
+    rtcPush_(fresh.filter(id => !cache.get('RTCPU_' + me + '_' + id) && (cache.put('RTCPU_' + me + '_' + id, '1', 20), true)), { t: 'ring', call: call, name: myName, from: me, help: help ? 1 : 0, page: help, mode: mode });      // (one notification per caller and person in 20 s; update-161: from = who rings – the phone app's "Decline" on the notification answers him)
   }
   if ((t === 'answer' || t === 'decline') && !cache.get('RTCA_' + call + '_' + me) && !cache.get('RTCD_' + call + '_' + me)) rtcPush_([me], { t: 'done', call: call, name: nameOf(to[0]) }, str_(dj.ep));      // his other devices: "answered on another device"
   if (t === 'answer' && !cache.get('RTCA_' + call + '_' + me)) { cache.put('RTCA_' + call + '_' + me, '1', 21600); rtcPendDrop_(me, call); try { rtcMissEdit_(me, l => rtcMissMark_(l, call, 'a')); } catch (e) { /* see above */ } writeLog_(u, 'Screen share', 'Screen Share', call, myName + ' joined the screen share of ' + to.map(nameOf).join(', '), ''); }
@@ -647,9 +647,28 @@ function rtcPushSave_(u, x) {
   kvWrite_(rtcSubKey_(me), JSON.stringify(l)); if (was !== me) kvWrite_(idx, me);
   return { ok: true, devices: l.length };
 }
+/* (update-161, asked 26-10-2026: "app war pratek gostich realtime notification jayla haw app band aso ki chalu") THE PHONE APP:
+ * this phone's Firebase address is his – every notification the web gets (rtcPush_) reaches it too, from every site, also when
+ * the app is closed. Kept at the first site (server/fcm.js); one phone = one person; signing out takes it off. */
+const FCM_TOKEN_RE_ = /^[A-Za-z0-9_:-]{100,400}$/;
+function fcmSave_(u, x) {
+  const t = str_(x && x.token).slice(0, 500), me = rtcUid_(u.email);
+  if (!FCM_TOKEN_RE_.test(t)) throw new Error('Notifications: the address of this phone for notifications is not valid – close the app and open it again.');
+  if (typeof __fcmKeep !== 'function') return { ok: false, off: true };
+  if (typeof __count === 'function' && __count('FCMS_' + me + '_' + Math.floor(Date.now() / 3600000), 3700) > 30) throw new Error('Notifications: this phone was registered too often in the last hour – try again later.');
+  return JSON.parse(__fcmKeep(me, t, true));
+}
+function fcmOff_(u, x) {
+  const t = str_(x && x.token).slice(0, 500);
+  if (!FCM_TOKEN_RE_.test(t) || typeof __fcmKeep !== 'function') return { ok: true };
+  return JSON.parse(__fcmKeep(rtcUid_(u.email), t, false));
+}
 function rtcPushOff_(u, x) { const e = str_(x && x.endpoint), me = rtcUid_(u.email), l = rtcSubs_(me), k = l.filter(s => s.e !== e); if (k.length !== l.length) kvWrite_(rtcSubKey_(me), JSON.stringify(k)); return { ok: true }; }
 // a notification to every device of these users; a device the push service says is gone (404 / 410) is forgotten. Never throws.
+// (update-161) and to their phones with the app (Firebase – server/fcm.js), also when no browser of theirs has notifications on
 function rtcPush_(ids, msg, but) {
+  try { if (ids.length && typeof __fcmSend === 'function') __fcmSend(JSON.stringify(ids), JSON.stringify(msg), msg.t === 'ring' ? 60 : msg.t === 'done' ? 120 : 86400); }
+  catch (e) { if (typeof console !== 'undefined') console.warn('phone notification: ' + String(e && e.message || e).slice(0, 120)); }
   try {
     if (!ids.length || typeof __pushSend !== 'function' || !(typeof __pushKey === 'function' && __pushKey())) return;
     const all = []; ids.forEach(id => rtcSubs_(id).forEach(s => { if (s.e !== but) all.push({ id: id, s: s }); }));
@@ -793,6 +812,8 @@ const API_ = {
   rtcPushKey:        { m: '', withUser: true, f: () => rtcPushKey_() },          // screen share: notifications – the site's public key
   rtcPushSave:       { m: '', withUser: true, f: (u, x) => rtcPushSave_(u, x) },  // screen share: notifications – this device of mine
   rtcPushOff:        { m: '', withUser: true, f: (u, x) => rtcPushOff_(u, x) },   // screen share: notifications – not on this device any more
+  fcmSave:           { m: '', withUser: true, f: (u, x) => fcmSave_(u, x) },      // (update-161) the phone app: this phone gets his notifications (Firebase)
+  fcmOff:            { m: '', withUser: true, f: (u, x) => fcmOff_(u, x) },       // (update-161) the phone app: not on this phone any more (signed out)
   rtcRights:         { m: '', admin: true, f: () => rtcRights_() },               // screen share: who may use it (Admin)
   rtcRightsSave:     { m: '', admin: true, withUser: true, f: (u, x) => rtcRightsSave_(x, u) },
   getLookups:        { m: '', withUser: true, f: u => getLookups_(u) },

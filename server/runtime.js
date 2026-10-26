@@ -7,6 +7,7 @@ const vm = require('vm');
 const gas = require('./gas');
 const { page, read } = require('./page');
 const sites = require('./sites');
+const fcm = require('./fcm');      // (update-161) the phone app's notifications through Firebase
 const system = require('./system');
 const portal = require('./portal');
 const google = require('./google');
@@ -341,6 +342,11 @@ function runPlain(fn, args, meta) {
   g.__pushKey = () => { const k = pushKey(); return k ? k.pub : ''; };
   g.__pushOk = url => pushOk(url);
   g.__pushSend = (subsJson, text, ttl) => JSON.stringify(pushSend(JSON.parse(String(subsJson)), String(text), Number(ttl) || 60));
+  /* (update-161) THE PHONE APP'S NOTIFICATIONS (Firebase – server/fcm.js): this phone is his / not his any more (kept at the first
+   * site, so every site reaches it); and what the web is told also goes to these people's phones, with the site it is from */
+  g.__fcmKeep = (id, token, put) => JSON.stringify(fcm.keep(String(id), String(token), !!put));
+  g.__fcmSend = (idsJson, msgJson, ttl) => { let ids = [], msg = null; try { ids = JSON.parse(String(idsJson)); msg = JSON.parse(String(msgJson)); } catch (e) { return '{"sent":0}'; }
+    const c = gas.site(); return JSON.stringify(fcm.send(ids, msg, Number(ttl) || 3600, c === '' ? (sites.homeCode() || '') : c)); };
   g.__oldWrites = () => String(process.env.RCL_OLD_WRITES || '').toLowerCase() === 'on';      // may a save be written table by table when web_write is missing? (default: no – see SupabaseData.gs)
   g.__saved = () => { st.saved = true; };
   g.__opsCleanup = () => gas.rpc('web_ops_cleanup', {});      // old save numbers are forgotten (3 days; long answers 24 hours) – see the step-5 SQL

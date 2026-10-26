@@ -5713,3 +5713,102 @@ test('update-156: every edit screen carries the version it opened – Inward, Tr
     "call('editMasterMany', list.map(m => m.id), ch, Object.fromEntries", "call('deleteMasterMany', ids, false, vers)", "S.editInwardVer = r.ver", "S.editTransferVer = r.ver", "S.py.editVer = p.ver", "S.editMasterVer = m.ver"]
     .forEach(k => assert.ok(page.indexOf(k) > -1, 'the page: ' + k));
 });
+
+// update-161 (26-10-2026): "mala app war pratek gostich realtime notification jayla haw app band aso ki chalu" – the phone app's
+// notifications through Firebase: a phone of a person is kept at the first site (one phone = one person, at most 6, signed out =
+// off); whatever the web is told (rtcPush_) also goes to his phones as a data message with the site it is from; a phone Firebase
+// says is gone is forgotten; only Google's addresses (the stand-in only off the live site); nothing without the key; never throws.
+test('update-161: the phone app\'s notifications (Firebase) – kept at the first site, sent with every web notification, gone phones forgotten', async () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tok = c => c + 'f'.repeat(20) + ':APA91b' + 'x'.repeat(140);
+  // ---- the server code (Code.gs): the actions and what rtcPush_ hands on
+  // (earlier tests put their own rtcPush_ in its place: the real one from Code.gs again, for this test)
+  const code161 = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), p0 = code161.indexOf('function rtcPush_(ids, msg, but) {');
+  require('vm').runInContext('this.__rtcPush161 = rtcPush_; ' + code161.slice(p0, code161.indexOf('\n}\n', p0) + 3), ctx);
+  run(`() => { this.FCM161 = { keep: [], send: [] }; this.__keep161 = { pk: this.__pushKey, ps: this.__pushSend };
+    __fcmKeep = (id, t, put) => { FCM161.keep.push([id, t.slice(0, 1), put]); return JSON.stringify({ ok: true, phones: 1, sending: true }); };
+    __fcmSend = (ids, msg, ttl) => { FCM161.send.push({ ids: JSON.parse(ids), msg: JSON.parse(msg), ttl: ttl }); return '{"sent":1}'; };
+    __pushKey = () => ''; }`);      // (no web push at all: the phones still get it)
+  const U = { email: 'phone161@site.test', name: 'Phone 161', active: true, admin: false, perms: {} };
+  const api = (f, u, x) => run('(f, u, x) => { try { return this[f](u, x); } catch (e) { return { thrown: String(e.message) }; } }', f, u, x);
+  const me = run('e => rtcUid_(e)', U.email);
+  assert.match(api('fcmSave_', U, { token: 'short' }).thrown, /^Notifications: the address of this phone for notifications is not valid/);
+  assert.match(api('fcmSave_', U, { token: tok('a') + '<script>' }).thrown, /not valid/);
+  assert.deepStrictEqual(api('fcmSave_', U, { token: tok('a') }), { ok: true, phones: 1, sending: true });
+  assert.deepStrictEqual(api('fcmOff_', U, { token: 'bad' }), { ok: true }, 'signing out never fails on it');
+  api('fcmOff_', U, { token: tok('a') });
+  assert.deepStrictEqual(run('() => FCM161.keep'), [[me, 'a', true], [me, 'a', false]]);
+  const A = run('() => ({ save: API_.fcmSave.m, su: API_.fcmSave.withUser, off: API_.fcmOff.m, ou: API_.fcmOff.withUser })');
+  assert.deepStrictEqual(A, { save: '', su: true, off: '', ou: true }, 'any signed-in person, for his own phone');
+  run('() => rtcPush_(["0123456789abcdef"], { t: "ring", call: "c1", name: "Asha", mode: "voice" })');
+  run('() => crNotify_(["phone161@site.test"], { id: "VF-1", title: "Verification – Diesel Issue by Bala", body: "MH-12 50 L" })');
+  const S = run('() => FCM161.send');
+  assert.deepStrictEqual([S.length, S[0].ids, S[0].msg.t, S[0].ttl, S[1].ids, S[1].msg.t, S[1].msg.id, S[1].ttl], [2, ['0123456789abcdef'], 'ring', 60, [me], 'cr', 'VF-1', 86400]);
+  run('() => { __fcmSend = () => { throw new Error("down"); }; }');
+  assert.doesNotThrow(() => run('() => crNotify_(["phone161@site.test"], { id: "VF-2", title: "x", body: "y" })'), 'a notification never stops a save');
+  run('() => { __pushKey = __keep161.pk; __pushSend = __keep161.ps; delete this.__fcmKeep; delete this.__fcmSend; rtcPush_ = __rtcPush161; }');
+  assert.deepStrictEqual(api('fcmSave_', U, { token: tok('a') }), { ok: false, off: true }, 'a server without it: nothing, no error');
+
+  // ---- server/fcm.js against a stand-in for Google (its own process – the calls wait for their answers)
+  const { spawn } = require('child_process');
+  const kp = crypto.generateKeyPairSync('rsa', { modulusLength: 2048, publicKeyEncoding: { type: 'spki', format: 'pem' }, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
+  const sp = spawn(process.execPath, [path.join(__dirname, 'fcm-standin.js'), '0'], { env: Object.assign({}, process.env, { FCM_STANDIN_PUB: kp.publicKey }), stdio: ['ignore', 'pipe', 'inherit'] });
+  try {
+    const port = await new Promise((ok, no) => { const t = setTimeout(() => no(new Error('stand-in did not start')), 8000); sp.stdout.on('data', d => { const m = /fcm stand-in (\d+)/.exec(String(d)); if (m) { clearTimeout(t); ok(Number(m[1])); } }); });
+    const base = 'http://127.0.0.1:' + port, env0 = { u: process.env.FCM_TEST_URL, k: process.env.FCM_SERVICE_ACCOUNT_JSON, v: process.env.VERCEL_ENV };
+    const fcm = require('../server/fcm.js'), store = {};
+    fcm._io.read = ids => { const o = {}; ids.forEach(i => { if (store[i] !== undefined) o[i] = store[i]; }); return o; };
+    fcm._io.write = (id, v) => { store[id] = String(v); };
+    const sent = async () => (await (await fetch(base + '/sent')).json());
+    try {
+      process.env.FCM_TEST_URL = base; delete process.env.VERCEL_ENV;
+      delete process.env.FCM_SERVICE_ACCOUNT_JSON;
+      assert.deepStrictEqual(fcm.send(['0123456789abcdef'], { t: 'cr' }, 60, 'S1'), { sent: 0, gone: 0 }, 'no key: nothing sent');
+      process.env.FCM_SERVICE_ACCOUNT_JSON = 'not json';
+      assert.match(fcm.send(['0123456789abcdef'], { t: 'cr' }, 60, 'S1').error, /not the complete key file/);
+      process.env.FCM_SERVICE_ACCOUNT_JSON = JSON.stringify({ type: 'service_account', project_id: 'rclerp-test', client_email: 'fcm@rclerp-test.iam.gserviceaccount.com', private_key: kp.privateKey });
+      const a = '0123456789abcdef', b = 'fedcba9876543210';
+      assert.throws(() => fcm.keep(a, 'short', true), /^Error: Notifications: the address of this phone/);
+      assert.throws(() => fcm.keep('not-a-person', tok('p'), true), /who this phone belongs to/);
+      // Asha's phone and a shared phone; Bala signs in on the shared one: it is his now (not Asha's any more)
+      assert.deepStrictEqual(fcm.keep(a, tok('p'), true), { ok: true, phones: 1, sending: true });
+      fcm.keep(a, tok('s'), true);
+      assert.strictEqual(fcm.keep(b, tok('s'), true).phones, 1);
+      assert.deepStrictEqual(JSON.parse(store['FCM|' + a]).map(p => p.t[0]), ['p']);
+      assert.deepStrictEqual(JSON.parse(store['FCM|' + b]).map(p => p.t[0]), ['s']);
+      for (let i = 0; i < 8; i++) fcm.keep(a, tok('m' + i), true);
+      assert.strictEqual(JSON.parse(store['FCM|' + a]).length, 6, 'at most 6 phones – the oldest goes');
+      // a ring to Asha and Bala: one message per phone, a DATA message (the app shows it), with the site, HIGH, 60 s, one per call
+      fcm.keep(a, tok('gone'), true);      // (Firebase says this one is not there any more)
+      let r = fcm.send([a, b, a, 'bad'], { t: 'ring', call: 'k1', name: 'Chitra', mode: 'voice', other: 'not sent' }, 60, 'T2');
+      assert.deepStrictEqual(r, { sent: 6, gone: 1 });
+      let s = await sent();
+      assert.strictEqual(s.tokens, 1, 'one permission of Google for all of them');
+      const m0 = s.sent[0].message;
+      assert.deepStrictEqual([s.sent[0].project, m0.notification, m0.data.t, m0.data.call, m0.data.name, m0.data.mode, m0.data.site, m0.data.other, m0.android.priority, m0.android.ttl, m0.android.collapse_key],
+        ['rclerp-test', undefined, 'ring', 'k1', 'Chitra', 'voice', 'T2', undefined, 'HIGH', '60s', 'call-k1']);
+      assert.ok(Object.values(m0.data).every(v => typeof v === 'string'), 'Firebase takes only text in a data message');
+      assert.ok(!JSON.parse(store['FCM|' + a]).some(p => /^gone/.test(p.t)), 'the phone that is gone is forgotten');
+      assert.strictEqual(JSON.parse(store['FCM|' + a]).length, 5);
+      // signed out on a phone: off; nothing is sent to it any more
+      fcm.keep(b, tok('s'), false);
+      await fetch(base + '/reset');
+      r = fcm.send([b], { t: 'cr', id: 'VF-9', title: 'Approved – saved: Diesel Issue', body: 'x'.repeat(900) }, 86400, 'S1');
+      assert.deepStrictEqual(r, { sent: 0, gone: 0 });
+      r = fcm.send([a], { t: 'cr', id: 'VF-9', title: 'Approved – saved: Diesel Issue', body: 'x'.repeat(900) }, 86400, 'S1');
+      s = await sent();
+      assert.deepStrictEqual([r.sent, s.sent[0].message.data.id, s.sent[0].message.data.body.length, s.sent[0].message.android.ttl, s.sent[0].message.android.collapse_key], [5, 'VF-9', 400, '86400s', undefined]);
+      // the live site: the stand-in is never used there (Google's own addresses only) – nothing reaches it
+      process.env.VERCEL_ENV = 'production'; fcm._forget(); await fetch(base + '/reset');
+      r = fcm.send([a], { t: 'cr', id: 'VF-10' }, 60, 'S1');
+      assert.strictEqual((await sent()).sent.length, 0);
+      assert.strictEqual(r.sent, 0);
+      // a Preview (a test copy on the live database) never sends to real phones
+      process.env.VERCEL_ENV = 'preview';
+      assert.deepStrictEqual(fcm.send([a], { t: 'cr' }, 60, 'S1'), { sent: 0, gone: 0 });
+    } finally {
+      for (const [k, v] of [['FCM_TEST_URL', env0.u], ['FCM_SERVICE_ACCOUNT_JSON', env0.k], ['VERCEL_ENV', env0.v]]) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+    }
+  } finally { sp.kill(); }
+});

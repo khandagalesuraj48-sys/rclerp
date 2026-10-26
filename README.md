@@ -43,6 +43,7 @@ App तेच आहे: तेच screens, तेच नियम, तेच pr
 | `GOOGLE_OAUTH_CLIENT_SECRET` | (update-158) त्याच OAuth client चा Client secret (गुप्त – फक्त इथे). |
 | `DRIVE_REDIRECT_URL` | (update-158, ऐच्छिक) Google "Allow" नंतर परत येण्याचा पत्ता = या app चा पत्ता + `/api/drive` (उदा. `https://rclerp.vercel.app/api/drive`). नसेल तर Vercel चा production पत्ता वापरला जातो. हाच पत्ता OAuth client च्या "Authorized redirect URIs" मध्ये टाका (Portal → Sites → Storage मध्ये दिसतो). |
 | `DRIVE_ACCOUNT` | (update-158, ऐच्छिक – सुचवलेले) फक्त हे Google account जोडता येईल, (backup साठी निवडलेले कंपनीचे account) – दुसऱ्या account ने "Allow" केले तरी जोडले जात नाही. |
+| `FCM_SERVICE_ACCOUNT_JSON` | (update-161) Phone app चे notifications (app बंद असले तरी): Firebase → Project settings → **Service accounts** → **Generate new private key** ने मिळालेल्या `.json` file चा पूर्ण मजकूर (`{` पासून `}` पर्यंत). नसेल तर phone ला काही पाठवले जात नाही (आधीसारखे). Preview कधीच पाठवत नाही. |
 
 Keys कधीही code मध्ये किंवा git मध्ये टाकू नका.
 
