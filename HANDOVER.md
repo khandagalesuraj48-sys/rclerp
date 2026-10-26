@@ -2043,6 +2043,21 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (the script lock only – `withLock_` there dropped the pages saved before it); `server/portal.js` `verifyAdmin` passes `sources`.
   Page: `mySources(page)`, `data-own` on `d_src` / `bd_src` / `bm_src` / `t_from`, the rows (`trRowHtml`, `bmRowHtml`), the Excel
   checks, `aiOwnSource_`. Tests: unit `update-162`, rig `test/browser/dsrc162.js` (the Portal's screen → Mechanical, T2 as 18B).
+- 26-10-2026 (update-163, with the Portal and rcl-mobile 3.44.0). Report: `UPDATE_163.md`. FUEL – Diesel / Petrol / CNG / Electric (asked:
+  "prtrol cng he field banaw ani ha electric ha pn thew future madhe ya gadya pn yenar aahet"; HO has one fuel card each). SQL step
+  `sql/supabase_step1zg_fuel.sql` (`master.fuel`, empty = Diesel) – EVERY site. Machinery: `H.FUEL`, `fuelOf_`, `machineFuel_`
+  (`buildMaster_` `fuel`, `validateMaster_` – Electric: no standard average, CNG: KM/kg). Places: `DIESEL_PLACES` `[{name, meter,
+  fuel?}]` (fuel only when not Diesel), `placeFuel_`, `placeFuels_()` (to the page in getInit / getLookups), `savePlaces_` (a place
+  with entries keeps its fuel). Checks: `fuelMay_` in `validateDiesel_` (also "many at once": the rows are now checked with the
+  batch's source – before, with the first place, so a person's own sources (update-162) were checked wrong there), the transfer
+  only within one fuel, "Not enough CNG … kg". Views: `FUEL_VIEW_` (`apiRun_`, only Reports / Dashboard, never in a save;
+  `table_` → `fuelView_` filters Diesel Issue / Inward / Transfer by the place, Master / Log Book by the machinery; `getMaster_` memo
+  per view; `fuelViewOff_` for the pending Log Book). Lists: `fuelFilter_` (`{fuel}`), `fuelTotals_` (`byFuel` only on a site with more
+  than one). Page: `S.placeFuels`, `placeFuel` / `machFuel` / `fuelText` / `fuelNodes` / `fuelHtml` / `fuelLabel`, `data-fuel-by` on the
+  place boxes (`fillLoc`, `fuelFollow`), `.fuel-select` (hidden with one fuel) on the dashboard (`k_fuel`), every diesel report
+  (not the Log Book Debit Statement) and rd / rm / ra; `fuelForms`; the daily report per fuel; Asset Master `m_fuel`, the grid's
+  Fuel (last column), import `fuel`. Portal: `server/portal.js` `placesOf` passes `fuel`; `Sites.gs` logs it. Tests: unit
+  `update-163`, rig `test/browser/fuel163.js` (T2 as HO with step 1zg, S1 as VTR without it).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

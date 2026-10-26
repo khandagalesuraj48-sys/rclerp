@@ -20,6 +20,7 @@ const SB_TABLES_ = [
     ['Active From', 'active_from', 'date'], ['Inactive From', 'inactive_from', 'date'], ['Tank Capacity (Ltr)', 'tank_capacity', 'numeric'],
     ['Monthly Rate', 'monthly_rate', 'numeric'], ['TDS Rate (%)', 'tds_rate', 'numeric'],
     ['Engine Number', 'engine_number', 'text'], ['Chassis Number', 'chassis_number', 'text'], ['Engine Make', 'engine_make', 'text'],
+    ['Fuel', 'fuel', 'text'],      // (update-163, step 1zg) Diesel (empty) / Petrol / CNG / Electric
     ['Tax Valid Upto', 'tax_valid_upto', 'text'], ['PUC Valid Upto', 'puc_valid_upto', 'text'], ['Permit Valid Upto', 'permit_valid_upto', 'text'],
     ['Fitness Valid Upto', 'fitness_valid_upto', 'text'], ['Insurance Valid Upto', 'insurance_valid_upto', 'text'],
     ['Site Periods', 'site_periods', 'text'],      // (update-119, step 1za) its earlier periods on site: [{ from, until }]

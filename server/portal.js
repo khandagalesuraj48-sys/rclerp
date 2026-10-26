@@ -90,7 +90,10 @@ function verify(ticket, now) {
  * The pages and their access travel INSIDE the signed ticket, so nothing can be changed on the way. */
 const ADMIN_AUD = 'mechanical-admin', ACCESS = ['Edit', 'View', 'None'];
 // (update-117) a site's diesel places in the ticket: [{ name, cap }] – Mechanical checks them again (Code.gs savePlaces_)
-const placesOf = v => (Array.isArray(v) ? v : []).slice(0, 20).map(p => ({ name: String((p && p.name) || '').replace(/\s+/g, ' ').trim().slice(0, 60), cap: Number(p && p.cap) || 0 }));
+// (update-163) and the fuel each one holds (Diesel / Petrol / CNG; none = Diesel, as a Portal before it sends)
+const FUELS = ['Diesel', 'Petrol', 'CNG'];
+const placesOf = v => (Array.isArray(v) ? v : []).slice(0, 20).map(p => Object.assign({ name: String((p && p.name) || '').replace(/\s+/g, ' ').trim().slice(0, 60), cap: Number(p && p.cap) || 0 },
+  p && FUELS.indexOf(String(p.fuel || '')) > 0 ? { fuel: String(p.fuel) } : {}));
 function verifyAdmin(ticket, now) {
   const c = check(ticket, ADMIN_AUD, now), out = { by: String(c.sub).trim().toLowerCase(), act: c.act, site: c.site, jti: c.jti };
   if (c.act === 'users' || c.act === 'siteSql' || c.act === 'siteOff' || c.act === 'places') return out;      // siteOff: (asked 13-10-2026) the Super Admin deleted the site in the Portal; places: (update-117) the site's diesel places

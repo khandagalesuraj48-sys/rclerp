@@ -236,10 +236,11 @@ function sysPortalAdmin_(c) {
  * (New site) and later under Sites → Diesel places (Code.gs "DIESEL PLACES OF THIS SITE"). The Activity Log keeps the places
  * before and after. ---- */
 function sysPlacesSave_(list, by) {
-  const caps0 = tankSettings_().caps, before = placeNames_().map(n => n + ' ' + caps0[n] + ' Ltr').join(', ');
+  const fw = f => f && f !== 'Diesel' ? ' ' + f : '';      // (update-163) a Petrol / CNG place says so in the Activity Log
+  const caps0 = tankSettings_().caps, before = placeNames_().map(n => n + ' ' + caps0[n] + ' Ltr' + fw(placeFuel_(n))).join(', ');
   let res = null;
   withLock_(() => { res = savePlaces_(list); });
-  const after = res.places.map(p => p.name + ' ' + p.cap + ' Ltr').join(', ');
+  const after = res.places.map(p => p.name + ' ' + p.cap + ' Ltr' + fw(p.fuel)).join(', ');
   writeLog_({ email: str_(by), name: 'Super Admin (Portal)' }, 'Edit', 'Settings', 'Diesel places', 'Diesel places set by the Super Admin in the Portal: ' + after, before === after ? '' : 'Before: ' + before);
   sbFlush_();
   return Object.assign({ ok: true }, res);
