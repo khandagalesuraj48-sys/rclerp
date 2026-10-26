@@ -13223,6 +13223,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const date = /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') ? a.date : S.today;
     if (date > S.today) return { error: T({ en: 'An entry cannot be made for a date after today.', mr: 'आजच्या नंतरच्या तारखेची entry करता येत नाही.', hi: 'आज के बाद की तारीख की entry नहीं हो सकती।' }) };
     if (kind === 'diesel') {
+      // (update-163) an Electric machinery gets no fuel (the server refuses it too)
+      if (machFuel(m) === 'Electric') return { error: T({ en: m.id + ' runs on Electric – no fuel is issued to it (Asset Master → Fuel).', mr: m.id + ' Electric वर चालते – तिला इंधन दिले जात नाही (Asset Master → Fuel).', hi: m.id + ' Electric पर चलती है – उसे ईंधन नहीं दिया जाता (Asset Master → Fuel)।' }) };
       const qty = aiN(a.litres); if (!(qty > 0)) return { need: T({ en: 'How many litres for ' + m.id + '?', mr: m.id + ' ला किती लिटर?', hi: m.id + ' को कितने लीटर?' }), partial: { kind: kind, a: Object.assign({}, a, { machinery: m.id }) } };
       const shift = /night/i.test(a.shift || '') ? 'Night' : 'Day', source = (S.locations || []).find(l => String(l).toLowerCase() === String(a.source || '').toLowerCase()) || aiOwnSource_(m) || (S.locations || [])[0] || 'Dispenser';
       const km = aiN(a.km_reading), hr = aiN(a.hr_reading), debit = m.supply === 'Debit Basis', notes = [];

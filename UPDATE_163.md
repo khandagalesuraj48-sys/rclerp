@@ -36,7 +36,8 @@ there (the app says this file must be run first).
   ("Petrol summary – all locations", "CNG tank", "In (kg)"), on the screen, the print and Excel. The Log Book still pending stays every
   machinery. The **Daily report** of the Dashboard shows the stock, received and issued of **each fuel** one after another.
 * The entry forms follow the fuel of the place: "Petrol Qty (Ltr)", "CNG Qty (kg)", the stock chips "CNG CARD 32 kg", the fill
-  history of a CNG car in kg.
+  history of a CNG car in kg. The assistant's diesel entry takes a place of the machinery's fuel (an Electric machinery: "no fuel is
+  issued to it").
 * **A site whose places are all Diesel (VTR, 18B) looks exactly as before:** no Fuel box anywhere, the same words, the same lists.
 ### With it
 * **The Portal** (its own pull request): Sites → Diesel places (and New site) – a **Fuel** box in each row.
