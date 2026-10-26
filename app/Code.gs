@@ -6631,6 +6631,8 @@ function saveTankSettings_(t) {
   t = t || {};
   const out = {};
   placeNames_().forEach(l => {
+    // (update-163) the dashboard of one fuel sends only the tanks it shows: the others keep their size
+    if (!Object.prototype.hasOwnProperty.call(t.caps || {}, l)) return;
     const v = Number((t.caps || {})[l]);
     if (!(v > 0)) throw new Error('Enter the tank size (Ltr) for ' + l + '.');
     out['TANK_CAP_' + l] = String(Math.round(v));

@@ -5981,6 +5981,10 @@ test('update-163: fuel – Diesel / Petrol / CNG / Electric machinery (Asset Mas
     assert.strictEqual(mP.total, 35, 'the monthly report of Petrol: its machinery only');
     assert.ok(JSON.stringify(mP.groups).indexOf('HO-D163') === -1);
     assert.strictEqual(run('() => FUEL_VIEW_'), '', 'the view ends with the action');
+    // the Tank size box of a fuel's dashboard sends only its tanks: the others keep their size
+    const ts = run('() => saveTankSettings_({ caps: { "PETROL CARD": 600, "PETROL CAN": 120 }, low: 50 })');
+    assert.deepStrictEqual([ts.caps[PC], ts.caps[PK], ts.caps[DC], ts.caps[CC]], [600, 120, 500, 300]);
+    assert.match(tryRun('() => saveTankSettings_({ caps: { "PETROL CARD": 0 }, low: 50 })').thrown, /^Enter the tank size \(Ltr\) for PETROL CARD\.$/, 'a size sent must be a size');
     // ---- apiRun_: the view only for Reports / Dashboard and never for a save
     const codeGs = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
     assert.ok(codeGs.indexOf("const fv = !spec.edit && (spec.m === 'Reports' || spec.m === 'Dashboard') ? fuelViewOf_(args) : '';") > -1);

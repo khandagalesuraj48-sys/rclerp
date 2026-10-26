@@ -34,7 +34,8 @@ there (the app says this file must be run first).
 * **The Dashboard** and **every diesel report** (and Daily Inward & Issue, Monthly Diesel, Monthly Diesel & Average): a **Fuel** box
   (only on a site with more than one fuel). Each fuel on its own – its places, entries, machinery, tanks and stock – in its own words
   ("Petrol summary – all locations", "CNG tank", "In (kg)"), on the screen, the print and Excel. The Log Book still pending stays every
-  machinery. The **Daily report** of the Dashboard shows the stock, received and issued of **each fuel** one after another.
+  machinery. The **Daily report** of the Dashboard shows the stock, received and issued of **each fuel** one after another. The
+  **Tank size** box of a fuel's dashboard changes only its own tanks (the others keep their size).
 * The entry forms follow the fuel of the place: "Petrol Qty (Ltr)", "CNG Qty (kg)", the stock chips "CNG CARD 32 kg", the fill
   history of a CNG car in kg. The assistant's diesel entry takes a place of the machinery's fuel (an Electric machinery: "no fuel is
   issued to it").
@@ -53,7 +54,8 @@ there (the app says this file must be run first).
   the Diesel car refused for that row; **a person's own source (update-162) in many at once: his own non-first place saved, another
   refused**; Petrol → Diesel transfer refused, Petrol → Petrol saved; PETROL CARD with entries cannot become Diesel; the lists' totals
   per fuel and a list of one fuel; the dashboard and the monthly report of Petrol / CNG (only their places, entries, machinery; the
-  pending Log Book of every machinery); the view ends with the action; the SQL step only adds; the page's boxes.
+  pending Log Book of every machinery); the view ends with the action; the Tank size of a fuel's dashboard keeps the other tanks;
+  the SQL step only adds; the page's boxes.
   Two older tests (update-117, update-162) check the page's code word for word: their strings follow the new code (same meaning).
 * **The local rig** (Postgres + PostgREST + the door; the Portal from its branch; Mechanical :3000 / :3001), the whole way
   `test/browser/fuel163.js` → **41 / 41**: T2 (step 1zg run) as HO: the Super Admin in the **Portal's own screen** (Sites → Diesel
