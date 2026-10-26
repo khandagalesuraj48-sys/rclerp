@@ -2026,6 +2026,14 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   QR code is for another site (…)" (none sent: as before). `app/well-known/assetlinks.json` → `public/.well-known/` (`build.js`):
   Android App Links for `in.rachana.rcl.rcl_mobile` (public signing fingerprint) – live BEFORE the app 3.41.0 is installed. Test:
   `test/browser/att153.js` (the site, the other-site message, assetlinks, the phone through `/scan`).
+- 26-10-2026 (update-161, with rcl-mobile 3.42.0). Report: `UPDATE_161.md`. THE PHONE APP'S NOTIFICATIONS THROUGH FIREBASE (asked:
+  "app war pratek gostich realtime notification jayla haw app band aso ki chalu app updet pasun te sagle kahi"). No SQL. Actions
+  `fcmSave` / `fcmOff` (`m: ''`, his own phone); `server/fcm.js`: kept at the FIRST site's `app_settings` (`FCM|<rtcUid>` – at most 6,
+  `FCMT|<sha of the token, 24>` – whose phone; one phone = one person), `send` = FCM HTTP v1 data messages (`site`, HIGH, ttl, one
+  per call), gone phones (404 / UNREGISTERED) forgotten, never throws; Google's permission: RS256 JWT of `FCM_SERVICE_ACCOUNT_JSON`
+  (scope firebase.messaging, cached an hour). `rtcPush_` calls `__fcmSend` (runtime.js) for every notification of the web – before
+  the web push, also without it; the ring carries `from`. Off in a Preview; `FCM_TEST_URL` (the rig's stand-in
+  `test/fcm-standin.js`) refused on production. Tests: unit `update-161`, rig `test/fcm161api.js` (two sites, one phone).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
