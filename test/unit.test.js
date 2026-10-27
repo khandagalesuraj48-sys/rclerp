@@ -6163,3 +6163,15 @@ test('update-164: fuel cards – a site without diesel stock (HO): the cards and
     run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); DSRC_U_ = null; }');
   }
 });
+
+test('update-164 fix: the sign-in starts the live sync again (a note had been put in the middle of the line – everything after it was a comment)', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /S\.fuelMode = d\.fuelMode \|\| ''; siteBoot\(d\.siteInfo\); applyPerms\(\); startSync\(\); setClosed\(S\.closedUpto\); dbCheckDaily\(\); try \{ rtcAfterLogin\(\); \}/);
+  // each of them runs: on its line no "//" comes before it
+  ['startSync();', 'dbCheckDaily();', 'rtcAfterLogin();'].forEach(c => {
+    const lines = app.split('\n').filter(l => l.indexOf(c) > -1 && !/function /.test(l));
+    assert.ok(lines.length >= 1, c + ' is called');
+    lines.forEach(l => { const before = l.slice(0, l.indexOf(c)); assert.ok(!/(^|[^:'"\/])\/\/(?![^']*'[^']*$)/.test(before), c + ' is not inside a comment: ' + l.trim().slice(0, 160)); });
+  });
+});
+

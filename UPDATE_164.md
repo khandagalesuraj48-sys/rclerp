@@ -82,3 +82,22 @@ VTR and 18B do not use any of it; until it is run at HO, HO cannot be put on fue
   cards: the Super Admin's setting `FUEL_MODE` is ignored by the update before – HO would show its (empty) diesel places again, and the
   fills paid by a card would show their card's name as the Diesel Source. If wanted (the payments are lost):
   `drop table public.card_payments; alter table public.diesel_issue drop column rate, drop column amount; alter table public.app_users drop column perm_fuel_cards;`
+
+## Fix after release (27-10-2026, branch `update-164-sync-fix`)
+**Seen live (his screenshot 08:52, VTR):** the web page stayed **"Connecting…"** ("data base connect hoina gela").
+**Cause – a mistake of this update:** on the page's sign-in line (`App.html`, after `getInit`) the note
+`// (update-164: the menu of a site on fuel cards)` was put in the MIDDLE of the line, so everything after it on that line was a
+comment and never ran: `startSync()` (the live sync / heartbeat), `setClosed(S.closedUpto)`, `dbCheckDaily()` and `rtcAfterLogin()`.
+**What it did on the live web page since the deploy (08:24 IST):** no heartbeat – other people's entries and access changes did not
+reach an open page until it was opened again, no "new version" notice, the month-close pill / panel and the Admin's daily database
+check were not set at sign-in, and the calls / screen share of the web were not set up. **Not affected:** every save (the server
+checks and keeps them exactly as before – the database itself was reachable all the time: `/api/rpc?warm=1` answered in 80–260 ms
+at 08:55), the stock, bills and reports, the phone app (its own code).
+**Fix:** the line is as before update-164 with `S.fuelMode` set before `applyPerms()`; the note is on its own lines.
+**Checked:** every call of the page counted before / after (acorn): no call is missing any more (before the fix: `startSync`,
+`dbCheckDaily`, `rtcAfterLogin` 1 → 0, `setClosed` 5 → 4); the same count over the server files, the Portal and the app's 3.45.0
+change: nothing else lost (`ACCESS_` 4 → 3 in Code.gs is meant – `permOf_`). New unit test `update-164 fix` (fails on the broken page,
+passes now; 118 / 118). Rig `test/browser/sync164.js`: S1 and T2 – after the sign-in the dot says "Live", the heartbeat goes on, the
+page knows the versions of now; `cards164` again.
+**Going back:** Vercel → Instant Rollback to update-163 (the deploy before update-164), or to this fix's previous deploy.
+
