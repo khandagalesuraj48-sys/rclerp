@@ -624,7 +624,7 @@
 "\"garage\": the name of the shop / garage / service centre that issued it or null,",
 "\"GST registered\" is No – remove the GST Number or set it to Yes.",
 "\"insurancePaid\": the insurance liability in ₹ if it is shown else null, \"customerPaid\": the customer liability in ₹, or the amount of the customer's payment receipt in the file, else null,",
-"\"insurer\": the insurance company when it is an insurance claim (billed to an insurance company, or an insurance / customer liability is shown) else null, \"claimNo\": its claim number or null,",
+"\"insurer\": the insurance company ONLY when this bill is an insurance claim – it is billed to an insurance company, or it shows the insurance liability / the customer liability; a vehicle detail \"Insurance Co\" alone is NOT a claim – else null, \"claimNo\": its claim number or null,",
 "\"It never left\": the Inactive was a mistake – it counts as on site for every day.",
 "\"Lifetime\" is only for Tax.",
 "\"Multiple entries\" of diesel issues",

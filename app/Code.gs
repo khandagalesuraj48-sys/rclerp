@@ -6559,7 +6559,7 @@ function maintRead_(u, x) {
     'Give the taxes (CGST, SGST, IGST), the round-off / adjustment and other charges as their own "Paid" lines with qty and rate null, and a discount on the whole bill as a minus "Paid" line – ' +
     'the "Paid" amounts together must make the grand total. ' +
     '"total": the grand total in ₹ (more than one invoice: all their grand totals together) or null, ' +
-    '"insurer": the insurance company when it is an insurance claim (billed to an insurance company, or an insurance / customer liability is shown) else null, "claimNo": its claim number or null, ' +
+    '"insurer": the insurance company ONLY when this bill is an insurance claim – it is billed to an insurance company, or it shows the insurance liability / the customer liability; a vehicle detail "Insurance Co" alone is NOT a claim – else null, "claimNo": its claim number or null, ' +
     '"insurancePaid": the insurance liability in ₹ if it is shown else null, "customerPaid": the customer liability in ₹, or the amount of the customer\'s payment receipt in the file, else null, ' +
     '"service": true if it is a periodic / scheduled / free / paid service of the vehicle, else false}. ' +
     'Copy the numbers exactly as printed; never invent a value – what is not clearly printed is null.';
@@ -6584,7 +6584,9 @@ function maintAnswer_(j) {
   // an insurance claim: what the insurance paid – said on the bill, or the bill less what we paid
   const insurer = clean_(j.insurer).slice(0, 80), insPaid = aiNum_(j.insurancePaid), ourPaid = aiNum_(j.customerPaid), bill = total !== null ? total : sum;
   const paid = insPaid !== null && insPaid > 0 ? insPaid : ourPaid !== null && bill > ourPaid ? r2_(bill - ourPaid) : null;
-  const insurance = insurer ? { company: insurer, claimNo: clean_(j.claimNo).slice(0, 40), paid: paid !== null && paid <= bill ? paid : null } : null;
+  // (update-169: a service bill showed "Insurance Co: Others" and was taken as a claim – the save then asked for the insurance's ₹) an insurance
+  // claim only with what the insurance paid (said, or the bill less what we paid) – a company alone is not one
+  const insurance = insurer && paid !== null && paid > 0 && paid <= bill ? { company: insurer, claimNo: clean_(j.claimNo).slice(0, 40), paid: paid } : null;
   const check = total !== null && lines.length && Math.abs(sum - total) > 1 ? 'the lines read add up to ₹' + sum + ' – the bill says ₹' + total : !lines.length ? 'no line of the bill could be read' : '';
   return { date: date, billNo: clean_(j.billNo).slice(0, 80), garage: clean_(j.garage).slice(0, 80), vehicle: clean_(j.vehicle).slice(0, 30), km: aiNum_(j.km), lines: lines, total: total,
     insurance: insurance, service: j.service === true, check: check };
