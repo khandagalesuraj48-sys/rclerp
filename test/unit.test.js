@@ -6176,6 +6176,62 @@ test('update-164 fix: the sign-in starts the live sync again (a note had been pu
 });
 
 
+test('update-166: a fuel card\'s details – its bank / company, the name on it, its expiry (month / year, marked when it ends within 30 days or has ended), the customer / account ID; the number stays only its last 4 digits', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const C = 'HDFC FLEET 166';
+  try {
+    run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); }');
+    const places = run('() => places_().map(p => ({ name: p.name, cap: tankSettings_().caps[p.name] || 100, fuel: p.fuel }))');
+    run('(l, m) => savePlaces_(l, m)', places, 'card');
+    const card = x => Object.assign({ name: C, type: 'Fuel card', last4: '4321', opening: 5000, openDate: '2026-07-01', cars: [] }, x);
+    // a card of before (no details): as it was
+    const old = run('x => saveCard_(x)', card({}));
+    assert.ok(old.ok && old.added);
+    const c0 = run('() => cardBalances_()[0]');
+    assert.deepStrictEqual([c0.issuer, c0.holder, c0.expiry, c0.custId, c0.expDays], ['', '', '', '', null], 'no details: nothing shown, no expiry mark');
+    // the details kept and given back (the page and the phone alike)
+    const sv = run('x => saveCard_(x)', card({ was: C, issuer: '  HDFC  Bank ', holder: 'Rachana Construction Ltd', expiry: '2029-08', custId: 'CUST 778899' }));
+    assert.ok(sv.ok && !sv.added);
+    const c1 = run('() => cardBalances_()[0]');
+    assert.deepStrictEqual([c1.issuer, c1.holder, c1.expiry, c1.custId, c1.last4, c1.balance], ['HDFC Bank', 'Rachana Construction Ltd', '2029-08', 'CUST 778899', '4321', 5000]);
+    assert.ok(c1.expDays > 30, 'a far expiry: no mark');
+    assert.match(sv.summary, /HDFC Bank, in the name of Rachana Construction Ltd, expiry 08\/2029, customer ID CUST 778899/, 'the Activity Log says the details');
+    assert.match(sv.changes, /^Before: HDFC FLEET 166 – Fuel card, …4321, opening/, 'and how it was before');
+    // the expiry typed as the page's month box gives it, or as it is printed on a card
+    ['2029-08', '08/2029', '8/29', '08-29', '08.2029'].forEach(v => { run('x => saveCard_(x)', card({ was: C, expiry: v })); assert.strictEqual(run('() => cards_()[0].expiry'), '2029-08', v); });
+    run('x => saveCard_(x)', card({ was: C, expiry: '' }));
+    assert.strictEqual(run('() => cards_()[0].expiry'), '', 'the expiry taken out');
+    ['13/2029', '00/2029', 'aug 2029', '2029-8-1', '08/1999'].forEach(v => assert.strictEqual(tryRun('x => saveCard_(x)', card({ was: C, expiry: v })).thrown, 'Card ' + C + ': the expiry is its month and year (e.g. 08/2029).', v));
+    // the days to its last good day: this month = till its last day; last month = ended (below 0)
+    const t = run('() => today_()'), y = +t.slice(0, 4), m = +t.slice(5, 7), end = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    run('x => saveCard_(x)', card({ was: C, expiry: t.slice(0, 7) }));
+    assert.strictEqual(run('() => cardBalances_()[0].expDays'), end - +t.slice(8, 10), 'ends this month: the days till its last day');
+    const pm = m === 1 ? (y - 1) + '-12' : y + '-' + String(m - 1).padStart(2, '0');
+    run('x => saveCard_(x)', card({ was: C, expiry: pm }));
+    assert.ok(run('() => cardBalances_()[0].expDays') < 0, 'ended last month: below 0 (Expired)');
+    // the whole card number is never kept – not in another box either
+    const whole = 'Card ' + C + ': that is the whole card number – it is never kept. Type only its LAST 4 digits (and the customer / account ID of the card programme, not the card number).';
+    assert.strictEqual(tryRun('x => saveCard_(x)', card({ was: C, custId: '4111 1111 1111 1111' })).thrown, whole);
+    assert.strictEqual(tryRun('x => saveCard_(x)', card({ was: C, holder: '5500-0000-0000-0004' })).thrown, whole);
+    assert.strictEqual(tryRun('x => saveCard_(x)', card({ was: C, last4: '4111111111111111' })).thrown, 'Card ' + C + ': type only the LAST 4 digits of the card number (never the whole number).');
+    run('x => saveCard_(x)', card({ was: C, custId: '1234567890' }));
+    assert.strictEqual(run('() => cards_()[0].custId'), '1234567890', 'a customer ID of 10 digits is kept');
+    run('x => saveCard_(x)', card({ was: C, custId: '4111111111111112' }));
+    assert.strictEqual(run('() => cards_()[0].custId'), '4111111111111112', '16 digits that are no card number (the card check) are kept');
+    assert.strictEqual(tryRun('x => saveCard_(x)', card({ was: C, issuer: 'B'.repeat(61) })).thrown, 'Card ' + C + ': the bank / company is up to 60 letters.');
+    assert.strictEqual(tryRun('x => saveCard_(x)', card({ was: C, holder: 'H'.repeat(61) })).thrown, 'Card ' + C + ': the name on the card is up to 60 letters.');
+    assert.strictEqual(tryRun('x => saveCard_(x)', card({ was: C, custId: 'C'.repeat(41) })).thrown, 'Card ' + C + ': the customer / account ID is up to 40 letters.');
+    assert.ok(run('() => JSON.stringify(cards_())').indexOf('4111 1111') === -1, 'nothing of a refused number is kept');
+    // the page: the boxes, sent with the card, shown in the list and on the tile
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    ['id="cd_issuer"', 'id="cd_holder"', 'id="cd_exp" type="month"', 'id="cd_cust"', "issuer: val('cd_issuer'), holder: val('cd_holder'), expiry: $('cd_exp').value, custId: val('cd_cust')", '<th>Last 4</th><th>Expiry</th>', "c.expDays < 0 ? { cls: 'cd-exp bad', text: 'Expired '"].forEach(x => assert.ok(app.indexOf(x) > -1, x));
+  } finally {
+    run('() => { const P = PropertiesService.getScriptProperties(); ["FUEL_MODE", "FUEL_CARDS", "DIESEL_PLACES"].forEach(k => P.deleteProperty(k)); }');
+  }
+});
+
 test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill with its lines (work / part and ₹), a Service mark with its KM, the checks; the list and the words typed before; the AI\'s reading of a bill; a car\'s log book (its fills and bills, the costs, the last service); a car\'s new number; a site not on cards as before', () => {
   const { T, ctx } = require('./harness.js');
   const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };

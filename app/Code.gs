@@ -5992,7 +5992,8 @@ function cards_() {
   let list = [];
   try { const j = raw ? JSON.parse(raw) : []; if (Array.isArray(j)) list = j.filter(x => x && clean_(x.name)).map(x => ({ name: clean_(x.name), last4: /^\d{4}$/.test(str_(x.last4)) ? str_(x.last4) : '',
     type: CARD_TYPES_.indexOf(x.type) > -1 ? x.type : CARD_TYPES_[0], cars: Array.isArray(x.cars) ? x.cars.map(str_).filter(Boolean) : [], opening: num0_(x.opening),
-    openDate: /^\d{4}-\d{2}-\d{2}$/.test(str_(x.openDate)) ? str_(x.openDate) : '', active: x.active !== false })); }
+    openDate: /^\d{4}-\d{2}-\d{2}$/.test(str_(x.openDate)) ? str_(x.openDate) : '', active: x.active !== false,
+    issuer: clean_(x.issuer).slice(0, 60), holder: clean_(x.holder).slice(0, 60), expiry: /^\d{4}-(0[1-9]|1[0-2])$/.test(str_(x.expiry)) ? str_(x.expiry) : '', custId: clean_(x.custId).slice(0, 40) })); }      // (update-166) its details
   catch (e) { list = []; }
   CARDS_MEMO_ = { raw: raw, list: list };
   return list;
@@ -6042,10 +6043,36 @@ function cardMoves_(upto) {
   return by;
 }
 // every card with its balance now – for the page and the phone app (also inside getStock_ at a site on fuel cards)
+/* (update-166, asked 27-10-2026: "fuel card number / details takayla option nahiye te baanaw" – his answers: the number stays only its
+ * LAST 4 digits; the details: the bank / company that gave it, whose name it is in, its expiry (month / year), the customer / account
+ * ID of the card programme). The expiry is the month it ends (a card is good till the last day of that month): kept as yyyy-MM. */
+function cardExpiry_(v, name) {
+  const s = str_(v).replace(/\s+/g, '');
+  if (!s) return '';
+  let y = 0, m = 0, mt;
+  if ((mt = /^(\d{4})-(\d{1,2})$/.exec(s))) { y = +mt[1]; m = +mt[2]; }
+  else if ((mt = /^(\d{1,2})[\/.-](\d{2}|\d{4})$/.exec(s))) { m = +mt[1]; y = +mt[2]; if (y < 100) y += 2000; }
+  if (!(m >= 1 && m <= 12 && y >= 2000 && y <= 2100)) throw new Error('Card ' + name + ': the expiry is its month and year (e.g. 08/2029).');
+  return y + '-' + String(m).padStart(2, '0');
+}
+// the days from today to the card's last good day (the end of its expiry month); null = no expiry given; below 0 = expired
+function cardExpDays_(exp) {
+  const mt = /^(\d{4})-(\d{2})$/.exec(str_(exp)); if (!mt) return null;
+  const end = Date.UTC(+mt[1], +mt[2], 0), t = today_(), now = Date.UTC(+t.slice(0, 4), +t.slice(5, 7) - 1, +t.slice(8, 10));
+  return Math.round((end - now) / 86400000);
+}
+// a whole card number typed into another box (13 to 19 digits that pass the card check) – never kept
+function looksCardNo_(v) {
+  const d = str_(v).replace(/[\s-]/g, '');
+  if (!/^\d{13,19}$/.test(d)) return false;
+  let sum = 0; for (let i = 0; i < d.length; i++) { let n = +d[d.length - 1 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9; } sum += n; }
+  return sum % 10 === 0;
+}
 function cardBalances_(upto) {
   const mv = cardMoves_(upto);
   return cards_().map(c => { const x = mv[c.name.toUpperCase()];
     return { name: c.name, last4: c.last4, type: c.type, cars: c.cars.slice(), opening: c.opening, openDate: c.openDate, active: c.active,
+      issuer: c.issuer, holder: c.holder, expiry: c.expiry, custId: c.custId, expDays: cardExpDays_(c.expiry),      // (update-166)
       paid: x.paid, spent: x.spent, balance: r2_(c.opening + x.paid - x.spent), fills: x.fills, payments: x.payments, lastFill: x.lastFill, used: !!x.first }; });
 }
 // Fuel Cards: the cards, their balances and the kinds
@@ -6071,13 +6098,20 @@ function saveCard_(x) {
     const opening = numOrBlank_(x.opening);
     if (opening === '' || opening < 0 || opening > 100000000) throw new Error('Card ' + name + ': enter its opening balance (₹, 0 or more).');
     const openDate = entryDate_(x.openDate);
+    // (update-166) its details – none is needed; the number itself is never kept (only its last 4 digits)
+    const issuer = clean_(x.issuer), holder = clean_(x.holder), custId = clean_(x.custId), expiry = cardExpiry_(x.expiry, name);
+    if (issuer.length > 60) throw new Error('Card ' + name + ': the bank / company is up to 60 letters.');
+    if (holder.length > 60) throw new Error('Card ' + name + ': the name on the card is up to 60 letters.');
+    if (custId.length > 40) throw new Error('Card ' + name + ': the customer / account ID is up to 40 letters.');
+    if ([issuer, holder, custId].some(looksCardNo_)) throw new Error('Card ' + name + ': that is the whole card number – it is never kept. Type only its LAST 4 digits (and the customer / account ID of the card programme, not the card number).');
     if (i > -1) {
       const used = cardMoves_('')[list[i].name.toUpperCase()];
       if (used.first && k !== list[i].name.toUpperCase()) throw new Error('Card ' + list[i].name + ' has entries – its name stays (it can be made Inactive).');
       if (used.first && openDate > used.first) throw new Error('Card ' + name + ' has entries from ' + dmy_(used.first) + ' – its opening date can be at most that day.');
     }
-    const card = { name: name, last4: last4, type: type, cars: cars, opening: r2_(opening), openDate: openDate, active: x.active !== false };
-    const show = c => [c.type, c.last4 ? '…' + c.last4 : '', 'opening ₹' + c.opening + ' on ' + dmy_(c.openDate), c.cars.length ? 'cars ' + c.cars.join(', ') : 'every car', c.active ? 'Active' : 'Inactive'].filter(Boolean).join(', ');
+    const card = { name: name, last4: last4, type: type, cars: cars, opening: r2_(opening), openDate: openDate, active: x.active !== false, issuer: issuer, holder: holder, expiry: expiry, custId: custId };
+    const show = c => [c.type, c.last4 ? '…' + c.last4 : '', c.issuer || '', c.holder ? 'in the name of ' + c.holder : '', c.expiry ? 'expiry ' + c.expiry.slice(5) + '/' + c.expiry.slice(0, 4) : '', c.custId ? 'customer ID ' + c.custId : '',
+      'opening ₹' + c.opening + ' on ' + dmy_(c.openDate), c.cars.length ? 'cars ' + c.cars.join(', ') : 'every car', c.active ? 'Active' : 'Inactive'].filter(Boolean).join(', ');
     const before = i > -1 ? list[i] : null;
     if (i > -1) list[i] = card; else list.push(card);
     PropertiesService.getScriptProperties().setProperty(CARDS_KEY_, JSON.stringify(list));

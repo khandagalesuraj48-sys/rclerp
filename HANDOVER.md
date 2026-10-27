@@ -2090,6 +2090,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Page: `sec-mnt` (`mtOpen` / `mtLoad` / `mtSave` / `mtRead` – the AI fills empty boxes and the date while not chosen,
   `S.mt.dateTyped`; `mlogRender` / `mlogShow`, print / Excel `rpPrint` / `rpExcel` key `mlog`); `atOpen` takes `up` / `max` / `noQr`.
   Tests: unit `update-165`, rig `test/browser/mnt165.js` (T2 as HO with steps 1zg + 1zh + 1zi, S1 as VTR without 1zi).
+- 27-10-2026 (update-166, with rcl-mobile 3.47.0). Report: `UPDATE_166.md`. A FUEL CARD'S DETAILS – `issuer`, `holder`, `expiry`
+  (yyyy-MM; `cardExpiry_` reads 2029-08 / 08/2029 / 8/29 …), `custId` in `FUEL_CARDS` (`cards_`, `saveCard_`); `cardBalances_` gives
+  them and `expDays` (`cardExpDays_` – days to the end of the expiry month); `looksCardNo_` (Luhn, 13–19 digits) refuses a whole card
+  number in any box – the number stays only its last 4 digits. Page: `cd_issuer` / `cd_holder` / `cd_exp` (month) / `cd_cust`,
+  `cardExpNote` / `cardExpEnd` / `cardDetails`, the Expiry column, the tile's mark. No SQL. Tests: unit `update-166`, rig
+  `test/browser/card166.js`.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
