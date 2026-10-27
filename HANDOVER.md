@@ -2132,3 +2132,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Party name / Current reading, the Uom column (`dl_muom`), `mlogRender` in his 12 columns (`MT_TAX` – the tax lines in GST Amount,
   rowspan per bill), the fills apart. No SQL. Tests: unit `update-170`; rig `test/browser/mnt170.js` 16 (S1, RCLSTEPS=1), mnt165 32,
   mnt168 29.
+- 27-10-2026 (update-171, with rcl-mobile 3.51.0). Report: `UPDATE_171.md`. EACH ITEM ITS GST, THE RATES IN THE HEADING, WHO PAID
+  IT: a line's `gst` (one %, CGST and SGST half each, `maintGstOf_` – each rounded), the kind "By Insurance" (`MNT_TYPES_`,
+  `MNT_CHARGED_`, `MNT_PAIDBY_` – shown RCL / Insurance), `maintLineTotal_` (the bill with GST), `maintIns_(…, byIns)` (the
+  insurance's ₹ from its lines), the old-app guard in `updateMaint_`, the AI's 8-value lines. Page: Paid by · GST % · GST ₹ · With
+  GST (`mtGst`, `mtRowShow`, the claim ticked by the lines), `mlogRender` – a CGST / SGST pair per rate in the heading, "GST 18%" /
+  GST Amount, Paid by · Insurance claim · Service on every line (the tax lines of before into their columns). No SQL. Tests: unit
+  `update-171`; rig mnt170 18 (S1, RCLSTEPS=1), mnt168 29, mnt165 32.

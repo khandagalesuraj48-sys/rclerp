@@ -6346,7 +6346,20 @@ function cardEntries_() {
 const MNT_COLS_ = [H.MT_ID, H.DATE, H.NO, H.GARAGE, H.BILLNO, H.KMR, H.AMOUNT, H.WLINES, H.SERVICE, H.REMARK, H.CREATED];
 const MNT_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1zi_maintenance.sql once in Supabase → SQL Editor.';
 const MNT_FILES_MAX_ = 10, MNT_LINES_MAX_ = 150;      // (update-168: an accident bill of parts and labour had 65 lines)
-const MNT_TYPES_ = ['Paid', 'Warranty', 'FOC', 'Service Plan'], MNT_INS_ = 'Insurance';
+const MNT_TYPES_ = ['Paid', 'By Insurance', 'Warranty', 'FOC', 'Service Plan'], MNT_INS_ = 'Insurance';
+/* (update-171, asked 27-10-2026 with the print of his bill 04590: "gst asa ekdam nahi dakhwaycha item wise gst asel … gst row madhe nko
+ * heading madhe ghe 9 9 18 … koni paid kel insurance claim aahe nahi service ch bill ahe ka as sagle haway … entry krtana pn ani log
+ * print madhe pn"; his answers: each line its GST % (one number, e.g. 18 – CGST and SGST half each); each line "Paid by" – RCL (we
+ * paid: 'Paid'), Insurance ('By Insurance'), Warranty, FOC, Service Plan; the bill's insurance claim / service shown on every line of
+ * the log book) a line keeps its GST %: its total = its amount (taxable, after its discount) + its GST. The taxes are no longer lines of
+ * their own (a bill of before keeps its tax lines – their ₹ as they are). A line paid by the insurance is in the bill but not our cost:
+ * the insurance part of the bill is then those lines (with their GST). */
+const MNT_CHARGED_ = t => t === 'Paid' || t === 'By Insurance';      // in the bill's total (the others are free – ₹ 0)
+const MNT_PAIDBY_ = { 'RCL': 'Paid', 'INSURANCE': 'By Insurance' };      // the words of the page / phone for these two
+// a line's GST: its CGST and its SGST, each half of its GST % and each rounded – as the bills print them (5610.42 at 18 %: 504.94 + 504.94)
+const maintGstOf_ = l => 2 * r2_(num0_(l.amount) * num0_(l.gst) / 200);
+// a line's total: its amount and its GST (a free line: 0)
+const maintLineTotal_ = l => MNT_CHARGED_(l.type) ? r2_(num0_(l.amount) + maintGstOf_(l)) : 0;
 function maintTable_(need) {
   try { return table_(APP.SHEET_MAINT, MNT_COLS_); }
   catch (e) { if (need) throw new Error('Maintenance bills cannot be kept yet. ' + MNT_SQL_MSG_); return null; }
@@ -6356,7 +6369,7 @@ const maintAllLinesOf_ = v => { let a = null; try { a = typeof v === 'string' ? 
   return Array.isArray(a) ? a.filter(l => l && clean_(l.work)).map(l => {
     const ty = clean_(l.type), type = ty === MNT_INS_ ? MNT_INS_ : (MNT_TYPES_.find(t => t.toUpperCase() === ty.toUpperCase()) || 'Paid');
     const o = { work: clean_(l.work).slice(0, 120), type: type, amount: r2_(num0_(l.amount)) };
-    ['qty', 'rate', 'disc'].forEach(k => { const n = numOrBlank_(l[k]); if (n !== '') o[k] = n; });
+    ['qty', 'rate', 'disc', 'gst'].forEach(k => { const n = numOrBlank_(l[k]); if (n !== '') o[k] = n; });      // (update-171: gst)
     if (clean_(l.uom)) o.uom = clean_(l.uom).slice(0, 12);      // (update-170) its unit (Nos, Ltr, Kg …)
     if (type === MNT_INS_ && clean_(l.claim)) o.claim = clean_(l.claim).slice(0, 40);
     return o;
@@ -6366,7 +6379,7 @@ const maintLinesOf_ = v => maintAllLinesOf_(v).filter(l => l.type !== MNT_INS_);
 // the insurance of a bill: { company, claimNo, paid } or null
 const maintInsOf_ = v => { const l = maintAllLinesOf_(v).find(x => x.type === MNT_INS_); return l ? { company: l.work, claimNo: l.claim || '', paid: r2_(-l.amount) } : null; };
 // what a free line (Warranty / FOC / Service Plan) is worth: Qty × Rate (as the bill prints them)
-const maintWorth_ = l => l.type === 'Paid' || l.type === MNT_INS_ ? 0 : r2_((l.qty === undefined || l.qty === '' ? 1 : num0_(l.qty)) * num0_(l.rate));
+const maintWorth_ = l => MNT_CHARGED_(l.type) || l.type === MNT_INS_ ? 0 : r2_((l.qty === undefined || l.qty === '' ? 1 : num0_(l.qty)) * num0_(l.rate));
 const maintFilesList_ = (t, r) => H.BFILES in t.c ? attList_(r[t.c[H.BFILES]]) : [];
 // the lines a save gives: each its work / part, its kind, Qty, Rate, Discount % and its ₹ (an empty line is left out).
 // (update-168) a Paid line needs its ₹; a Warranty / FOC / Service Plan line is ₹ 0 charged (whatever ₹ came with it)
@@ -6375,30 +6388,34 @@ function maintLines_(list) {
   const out = [];
   list.forEach((l, i) => {
     const work = clean_(l && l.work).slice(0, 120), a = numOrBlank_(l && l.amount), ty = clean_(l && l.type);
-    const qty = numOrBlank_(l && l.qty), rate = numOrBlank_(l && l.rate), disc = numOrBlank_(l && l.disc), uom = clean_(l && l.uom).slice(0, 12);
+    const qty = numOrBlank_(l && l.qty), rate = numOrBlank_(l && l.rate), disc = numOrBlank_(l && l.disc), uom = clean_(l && l.uom).slice(0, 12), gst = numOrBlank_(l && l.gst);
     if (!work && (a === '' || a === 0) && qty === '' && rate === '' && !uom) return;
     if (!work) throw new Error('Bill line ' + (i + 1) + ': type the work / part (e.g. Engine oil, Labour).');
-    const type = !ty ? 'Paid' : MNT_TYPES_.find(t => t.toUpperCase() === ty.toUpperCase());
-    if (!type) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): its kind is Paid, Warranty, FOC or Service Plan.');
+    const type = !ty ? 'Paid' : MNT_PAIDBY_[ty.toUpperCase()] || MNT_TYPES_.find(t => t.toUpperCase() === ty.toUpperCase());
+    if (!type) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): Paid by is RCL, Insurance, Warranty, FOC or Service Plan.');
     if (qty !== '' && (qty < 0 || qty > 1000000)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): the quantity is not right.');
     if (rate !== '' && (rate < 0 || rate > 100000000)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): the rate is not right.');
     if (disc !== '' && (disc < 0 || disc > 100)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): the discount is 0 to 100 %.');
-    if (type === 'Paid' && (a === '' || a === 0 || Math.abs(a) > 100000000)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): enter its amount (₹).');
-    const o = { work: work, type: type, amount: type === 'Paid' ? r2_(a) : 0 };
+    if (gst !== '' && (gst < 0 || gst > 100)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): the GST is 0 to 100 %.');
+    if (MNT_CHARGED_(type) && (a === '' || a === 0 || Math.abs(a) > 100000000)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): enter its amount (₹).');
+    const o = { work: work, type: type, amount: MNT_CHARGED_(type) ? r2_(a) : 0 };
     if (qty !== '') o.qty = r2_(qty);
     if (uom) o.uom = uom;
     if (rate !== '') o.rate = r2_(rate);
     if (disc !== '') o.disc = r2_(disc);
+    if (gst !== '' && gst > 0) o.gst = r2_(gst);      // (update-171) its GST %
     out.push(o);
   });
   if (!out.length) throw new Error('Add the work / parts of the bill, each with its amount (₹).');
   if (out.length > MNT_LINES_MAX_) throw new Error('A bill keeps at most ' + MNT_LINES_MAX_ + ' lines.');
   return out;
 }
-// (update-168) the insurance part of a bill (an insurance claim): { company, claimNo, paid } – paid by the insurance, not more than the bill
-function maintIns_(x, total) {
-  if (!x || typeof x !== 'object') return null;
-  const company = clean_(x.company).slice(0, 80), claim = clean_(x.claimNo).slice(0, 40), paid = numOrBlank_(x.paid);
+// (update-168) the insurance part of a bill (an insurance claim): { company, claimNo, paid } – paid by the insurance, not more than the bill.
+// (update-171) lines "paid by: Insurance" – the insurance paid those (with their GST): its part is theirs, whatever ₹ was typed
+function maintIns_(x, total, byIns) {
+  if (!(x && typeof x === 'object') && !(byIns > 0)) return null;
+  x = x && typeof x === 'object' ? x : {};
+  const company = clean_(x.company).slice(0, 80), claim = clean_(x.claimNo).slice(0, 40), paid = byIns > 0 ? r2_(byIns) : numOrBlank_(x.paid);
   if (!company && !claim && (paid === '' || paid === 0)) return null;
   if (!company) throw new Error('The insurance part of the bill: type the insurance company.');
   if (paid === '' || !(paid > 0)) throw new Error('The insurance part of the bill: enter what the insurance paid (₹).');
@@ -6410,10 +6427,10 @@ function maintVals_(x) {
   const dk = entryOpen_(x.date, 'Maintenance bill');
   const m = findMachine_(x.no);
   assertActive_(m, dk);
-  const lines = maintLines_(x.lines), total = r2_(lines.reduce((s, l) => s + l.amount, 0));
+  const lines = maintLines_(x.lines), total = r2_(lines.reduce((s, l) => s + maintLineTotal_(l), 0));      // (update-171) with each line's GST
   // (update-168) a bill only of free lines (warranty …) is kept too; below 0: a discount bigger than the bill
   if (total < 0) throw new Error('The total of the bill cannot be below 0 – check the amounts (a discount is a minus line).');
-  const ins = maintIns_(x.insurance, total), paid = r2_(total + (ins ? ins.amount : 0));
+  const ins = maintIns_(x.insurance, total, lines.filter(l => l.type === 'By Insurance').reduce((s, l) => s + maintLineTotal_(l), 0)), paid = r2_(total + (ins ? ins.amount : 0));
   const km = blank_(x.km) ? '' : reqReading_(x.km, m.id + ' Reading');      // (update-170) its meter: KM or Hrs
   const service = x.service === true || /^(yes|y|true|1)$/i.test(str_(x.service));
   if (service && km === '') throw new Error(m.id + ': a service needs its reading (KM / Hrs) – the next service is counted from it.');
@@ -6486,6 +6503,9 @@ function updateMaint_(id, x) {
     const was = maintAllLinesOf_(old[t.c[H.WLINES]]);
     if (Array.isArray(x.lines) && x.lines.length && x.lines.every(l => !l || typeof l !== 'object' || !('type' in l)) && x.insurance === undefined && was.some(l => l.type !== 'Paid'))
       throw new Error('Bill ' + str_(id) + ' has free lines (Warranty / FOC / Service Plan) or an insurance part – update the app to change it.');
+    // (update-171) an app of before 3.51.0 (its lines have no GST): it may not change a bill with the GST of its lines or a line paid by the insurance
+    if (Array.isArray(x.lines) && x.lines.length && x.lines.every(l => !l || typeof l !== 'object' || !('gst' in l)) && was.some(l => num0_(l.gst) > 0 || l.type === 'By Insurance'))
+      throw new Error('Bill ' + str_(id) + ' has the GST of its lines or lines paid by the insurance – update the app to change it.');
     const v = maintVals_(x), files = maintFilesOf_(x.files, maintFilesList_(t, old));
     const twice = maintTwice_(t, v, id);
     if (twice && !x.force) return { ok: false, warning: 'Bill ' + v.billNo + (v.garage ? ' of ' + v.garage : '') + ' for ' + v.m.id + ' is already saved (' + twice + '). Save it again?' };
@@ -6509,7 +6529,7 @@ function deleteMaint_(id) {
 // what the free lines (warranty, FOC, service plan) were worth
 const maintOut_ = (t, r) => { const lines = maintLinesOf_(r[t.c[H.WLINES]]), ins = maintInsOf_(r[t.c[H.WLINES]]);
   return { id: str_(r[t.c[H.MT_ID]]), date: dkey_(r[t.c[H.DATE]]), no: str_(r[t.c[H.NO]]), garage: str_(r[t.c[H.GARAGE]]), billNo: str_(r[t.c[H.BILLNO]]),
-    km: numOrBlank_(r[t.c[H.KMR]]), total: num0_(r[t.c[H.AMOUNT]]), lines: lines, billTotal: r2_(lines.reduce((s, l) => s + l.amount, 0)), insurance: ins,
+    km: numOrBlank_(r[t.c[H.KMR]]), total: num0_(r[t.c[H.AMOUNT]]), lines: lines, billTotal: r2_(lines.reduce((s, l) => s + maintLineTotal_(l), 0)), insurance: ins,
     free: r2_(lines.reduce((s, l) => s + maintWorth_(l), 0)), service: /^yes$/i.test(str_(r[t.c[H.SERVICE]])), remark: str_(r[t.c[H.REMARK]]),
     files: maintFilesList_(t, r).map(attOut_), enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '' }; };
 // the bills of the dates (and of one car), newest first; the words typed before (works, garages) to suggest
@@ -6553,12 +6573,12 @@ function maintRead_(u, x) {
     'Answer with JSON only: {"date": the bill date as "yyyy-mm-dd" or null, "billNo": the bill / invoice number (more than one invoice: all their numbers joined with ", ") or null, ' +
     '"garage": the name of the shop / garage / service centre that issued it or null, ' +
     '"vehicle": the vehicle registration number printed on it (e.g. MH12AB1234) or null, "km": the odometer / KM or hour meter reading printed on it or null, ' +
-    '"lines": [[work, type, qty, uom, rate, discount, amount], …] – ONE array for EVERY item of every invoice, also the free ones: work = the work, part or item in a few words; ' +
+    '"lines": [[work, type, qty, uom, rate, discount, gst, amount], …] – ONE array for EVERY item of every invoice, also the free ones: work = the work, part or item in a few words; ' +
     'type = exactly "Paid", "Warranty", "FOC" or "Service Plan" as its Type column says (no Type column: "Paid"; free of charge: "FOC"; covered by a service / AMC plan, often 100 % discount: "Service Plan"); ' +
     'qty and rate = its quantity and rate / price as printed (null when not printed); uom = its unit as printed (Nos, Ltr, Kg, Set …) or null; discount = its discount % as printed (0 when none); ' +
-    'amount = what is charged for it in ₹: its taxable amount after its own discount (0 for Warranty, FOC and Service Plan). ' +
-    'Give the taxes (CGST, SGST, IGST), the round-off / adjustment and other charges as their own "Paid" lines with qty and rate null, and a discount on the whole bill as a minus "Paid" line – ' +
-    'the "Paid" amounts together must make the grand total. ' +
+    'gst = the GST % of that item (CGST % + SGST %, or its IGST %, e.g. 18; 0 when none); amount = what is charged for it in ₹: its taxable amount after its own discount, WITHOUT its GST (0 for Warranty, FOC and Service Plan). ' +
+    'Do NOT give the taxes (CGST, SGST, IGST) as lines of their own – each item carries its gst; give the round-off / adjustment and other charges as their own "Paid" lines with qty and rate null and gst 0, and a discount on the whole bill as a minus "Paid" line – ' +
+    'the "Paid" amounts with their gst together must make the grand total. ' +
     '"total": the grand total in ₹ (more than one invoice: all their grand totals together) or null, ' +
     '"insurer": the insurance company ONLY when this bill is an insurance claim – it is billed to an insurance company, or it shows the insurance liability / the customer liability; a vehicle detail "Insurance Co" alone is NOT a claim – else null, "claimNo": its claim number or null, ' +
     '"insurancePaid": the insurance liability in ₹ if it is shown else null, "customerPaid": the customer liability in ₹, or the amount of the customer\'s payment receipt in the file, else null, ' +
@@ -6569,11 +6589,11 @@ function maintRead_(u, x) {
 function maintAnswer_(j) {
   const sn = v => { const n = typeof v === 'string' && v.trim() !== '' ? Number(v.replace(/[, ₹%]/g, '')) : v; return typeof n === 'number' && isFinite(n) ? r2_(n) : null; };
   const d = str_(j.date), date = /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= today_() && d >= '2000-01-01' && dkey_(d) === d ? d : '';
-  // (update-168) a line in the short form [work, type, qty, uom, rate, discount, amount] (update-170; before: no uom – 6 values) or as
-  // { work, type, qty, uom, rate, discount, amount }
+  // (update-168) a line in the short form [work, type, qty, uom, rate, discount, gst, amount] (update-171; update-170: no gst – 7 values;
+  // before: no uom – 6) or as { work, type, qty, uom, rate, discount, gst, amount }
   const lines = (Array.isArray(j.lines) ? j.lines : []).map(l => {
-    const a = Array.isArray(l) ? (l.length >= 7 ? { work: l[0], type: l[1], qty: l[2], uom: l[3], rate: l[4], disc: l[5], amount: l[6] } : { work: l[0], type: l[1], qty: l[2], rate: l[3], disc: l[4], amount: l[5] })
-      : l && typeof l === 'object' ? { work: l.work || l.item || l.description, type: l.type, qty: l.qty, uom: l.uom || l.unit, rate: l.rate, disc: l.disc !== undefined ? l.disc : l.discount, amount: l.amount } : {};
+    const a = Array.isArray(l) ? (l.length >= 8 ? { work: l[0], type: l[1], qty: l[2], uom: l[3], rate: l[4], disc: l[5], gst: l[6], amount: l[7] } : l.length >= 7 ? { work: l[0], type: l[1], qty: l[2], uom: l[3], rate: l[4], disc: l[5], amount: l[6] } : { work: l[0], type: l[1], qty: l[2], rate: l[3], disc: l[4], amount: l[5] })
+      : l && typeof l === 'object' ? { work: l.work || l.item || l.description, type: l.type, qty: l.qty, uom: l.uom || l.unit, rate: l.rate, disc: l.disc !== undefined ? l.disc : l.discount, gst: l.gst, amount: l.amount } : {};
     const ty = clean_(a.type).toUpperCase(), amount = sn(a.amount), qty = sn(a.qty), rate = sn(a.rate), disc = sn(a.disc);
     let type = /WARRANT/.test(ty) ? 'Warranty' : /^FOC|FREE/.test(ty) ? 'FOC' : /SERVICE ?PLAN|AMC/.test(ty) ? 'Service Plan' : 'Paid';
     if (type === 'Paid' && amount === 0) type = 'FOC';      // a line charged nothing is a free one
@@ -6582,9 +6602,10 @@ function maintAnswer_(j) {
     const uom = typeof a.uom === 'string' || typeof a.uom === 'number' ? clean_(a.uom).slice(0, 12) : ''; if (uom && !/^null$/i.test(uom)) o.uom = uom;
     if (rate !== null && rate >= 0) o.rate = rate;
     if (disc !== null && disc >= 0 && disc <= 100) o.disc = disc;
+    const gst = sn(a.gst); if (gst !== null && gst > 0 && gst <= 100) o.gst = gst;      // (update-171) its GST %
     return o;
   }).filter(l => l.work && (l.type !== 'Paid' || l.amount !== null)).slice(0, MNT_LINES_MAX_);
-  const total = aiNum_(j.total), sum = r2_(lines.reduce((s, l) => s + (l.amount || 0), 0));
+  const total = aiNum_(j.total), sum = r2_(lines.reduce((s, l) => s + (l.amount || 0) + maintGstOf_(l), 0));      // (update-171: with each line's GST)
   // an insurance claim: what the insurance paid – said on the bill, or the bill less what we paid
   const insurer = clean_(j.insurer).slice(0, 80), insPaid = aiNum_(j.insurancePaid), ourPaid = aiNum_(j.customerPaid), bill = total !== null ? total : sum;
   const paid = insPaid !== null && insPaid > 0 ? insPaid : ourPaid !== null && bill > ourPaid ? r2_(bill - ourPaid) : null;
@@ -6626,7 +6647,7 @@ function maintLog_(f) {
     if (x.date < from || x.date > to) return;
     mn.amount = r2_(mn.amount + x.total); mn.bills++;
     mn.billTotal = r2_(mn.billTotal + x.billTotal); mn.insurance = r2_(mn.insurance + (x.insurance ? x.insurance.paid : 0)); mn.free = r2_(mn.free + x.free);      // (update-168)
-    x.lines.filter(l => l.type === 'Paid' && l.amount).forEach(l => { const k = l.work.toUpperCase(); byWork[k] = byWork[k] || { work: l.work, amount: 0, n: 0 }; byWork[k].amount = r2_(byWork[k].amount + l.amount); byWork[k].n++; });
+    x.lines.filter(l => l.type === 'Paid' && l.amount).forEach(l => { const k = l.work.toUpperCase(); byWork[k] = byWork[k] || { work: l.work, amount: 0, n: 0 }; byWork[k].amount = r2_(byWork[k].amount + maintLineTotal_(l)); byWork[k].n++; });      // (update-171: with its GST)
     lines.push(Object.assign({ kind: 'Maintenance', amount: x.total, ord: ct(r[mt.c[H.CREATED]]) }, x, { party: x.garage, files: x.files.length }));
   });
   maintStoreLines_(m, from, to).forEach(x => { mn.amount = r2_(mn.amount + num0_(x.total)); mn.billTotal = r2_(mn.billTotal + num0_(x.total)); mn.bills++;
