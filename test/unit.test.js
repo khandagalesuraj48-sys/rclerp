@@ -6321,7 +6321,7 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
     assert.deepStrictEqual(g.total.fuel, { qty: 30, amount: 3160, card: 2100, cash: 1060, fills: 2 });
     assert.deepStrictEqual(g.total.maint, { amount: 9260, bills: 2, billTotal: 9260, insurance: 0, free: 0 });      // (update-168: the bills' total, what the insurance paid, what the free lines were worth)
     assert.strictEqual(g.total.all, 12420);
-    assert.deepStrictEqual(g.total.byWork.slice(0, 2), [{ work: 'Tyre', amount: 6000, n: 1 }, { work: 'Engine oil', amount: 1600, n: 2 }]);
+    assert.deepStrictEqual(g.total.byWork.slice(0, 2), [{ work: 'Tyre', amount: 6000, n: 1 }, { work: 'Engine oil', amount: 1816, n: 2 }]);      // (update-172: its bill's "GST 18%" line on its items – 1,200 + 18 %)
     assert.deepStrictEqual([g.total.km, g.total.perKm], [0, null], 'no Log Book KM yet: no ₹ per KM');
     assert.deepStrictEqual(g.lastService, { date: '2026-07-05', km: 45210, id: 'MT-000001' });
     assert.deepStrictEqual(run('x => maintLog_(x)', { no: C2, from: '2026-07-01', to: '2026-07-31' }).lines, [], 'the other car: nothing of this car');
@@ -6695,11 +6695,72 @@ test('update-171: each line its GST % (one number – CGST and SGST half each) a
     assert.match(code, /Do NOT give the taxes \(CGST, SGST, IGST\) as lines of their own – each item carries its gst/);
     // the page: Paid by, GST % / GST ₹ / With GST in the lines; the log book: the GST rates in its heading, Paid by, Insurance claim, Service
     const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
-    assert.match(app, /<th style="width:150px">Paid by<\/th>/);
-    assert.match(app, /<th class="n" style="width:70px">GST %<\/th><th class="n" style="width:100px">GST ₹<\/th><th class="n" style="width:120px">With GST<\/th>/);
+    assert.match(app, /<th style="width:132px">Paid by<\/th>/);      // (update-172: the compact widths)
+    assert.match(app, /<th class="n" style="width:66px">GST %<\/th><th class="n" style="width:96px">GST ₹<\/th><th class="n" style="width:114px">With GST<\/th>/);
     assert.match(app, /'<th class="n">CGST ' \+ fmt\(r \/ 2\) \+ '%<\/th><th class="n">SGST ' \+ fmt\(r \/ 2\) \+ '%<\/th>'/);
     assert.match(app, /<th>Paid by<\/th><th>Insurance claim<\/th><th>Service<\/th>/);
   } finally {
     run('() => { const P = PropertiesService.getScriptProperties(); ["FUEL_MODE", "FUEL_CARDS"].forEach(k => P.deleteProperty(k)); }');
   }
+});
+
+test('update-172: the log book of a bill of before – its tax lines (CGST / SGST / IGST of one rate) go onto its items, no GST row; the lines of a bill one compact row each, the note under the table', () => {
+  const vm = require('vm'), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), L = app.split('\n');
+  // the page's own code: its lines from where a name is given until they parse (as the page runs them)
+  const take = re => { const i = L.findIndex(l => re.test(l)); assert.ok(i > -1, String(re)); for (let k = i; k < i + 80; k++) { const t = L.slice(i, k + 1).join('\n'); try { new vm.Script(t); return t; } catch (e) { /* more lines */ } } throw new Error('not parsed: ' + re); };
+  const ctx = vm.createContext({});
+  vm.runInContext([take(/^\s*const r2 = /), take(/^\s*const mtCharged = /), take(/^\s*const MT_TAX = /), take(/^\s*const mtTaxPct = /), take(/^\s*function mlogSpread\(/), 'globalThis.S = mlogSpread;'].join('\n'), ctx);
+  const spread = ls => JSON.parse(JSON.stringify(ctx.S(ls)));
+  // his bill 04590 as it was saved (update-170): two items of RCL, CGST @ 9% and SGST @ 9% as lines, the adjustment, the free lines
+  const b = [
+    { work: 'Filter – engine oil element', type: 'Service Plan', qty: 1, rate: 1966.56, amount: 0 },
+    { work: 'Fluid – diesel exhaust', type: 'Paid', qty: 1, rate: 5610.42, amount: 5610.42 },
+    { work: 'Battery – additional, L', type: 'Paid', qty: 1, rate: 724.59, amount: 724.59 },
+    { work: 'CGST @ 9%', type: 'Paid', amount: 570.15 }, { work: 'SGST @ 9%', type: 'Paid', amount: 570.15 },
+    { work: 'Adjustment', type: 'Paid', amount: -0.31 }];
+  const s = spread(b);
+  assert.deepStrictEqual(s.map(l => l.work), ['Filter – engine oil element', 'Fluid – diesel exhaust', 'Battery – additional, L', 'Adjustment'], 'no CGST / SGST row');
+  assert.deepStrictEqual([s[1].tax, s[2].tax, s[1].taxRate], [{ c: 504.94, s: 504.94, i: 0 }, { c: 65.21, s: 65.21, i: 0 }, 18], 'each item its 9 % + 9 % – the bill\'s ₹570.15 + ₹570.15');
+  assert.ok(!s[0].tax && !s[3].tax, 'a free line and the adjustment carry no tax');
+  const sum = s.reduce((t, l) => t + (mtChargedJs(l.type) ? l.amount + (l.tax ? l.tax.c + l.tax.s + l.tax.i : 0) : 0), 0);
+  function mtChargedJs(t) { return !t || t === 'Paid' || t === 'By Insurance'; }
+  assert.strictEqual(Math.round(sum * 100) / 100, 7475, 'the bill stays ₹7,475');
+  // a tax that does not fit its % (an item without GST on the bill): in the items' proportion, the paisa on the biggest – the tax kept
+  const p = spread([{ work: 'Part A', type: 'Paid', amount: 1000 }, { work: 'Part B', type: 'Paid', amount: 333 }, { work: 'CGST 9%', type: 'Paid', amount: 60 }, { work: 'SGST 9%', type: 'Paid', amount: 60 }]);
+  assert.deepStrictEqual(p.map(l => l.tax), [{ c: 45.01, s: 45.01, i: 0 }, { c: 14.99, s: 14.99, i: 0 }]);
+  // IGST of one rate: on the items (the GST column only)
+  assert.deepStrictEqual(spread([{ work: 'Tyre', type: 'Paid', amount: 10000 }, { work: 'IGST 28%', type: 'Paid', amount: 2800 }]).map(l => [l.work, l.tax, l.taxRate]), [['Tyre', { c: 0, s: 0, i: 2800 }, 28]]);
+  // one "GST 18%" line (CGST and SGST together): on the items, half CGST and half SGST (the update-165 bills of the app's tests)
+  assert.deepStrictEqual(spread([{ work: 'Engine oil', amount: 1200 }, { work: 'Oil filter', amount: 300 }, { work: 'Labour', amount: 500 }, { work: 'GST 18%', amount: 360 }]).map(l => [l.work, l.tax, l.taxRate]),
+    [['Engine oil', { c: 108, s: 108, i: 0 }, 18], ['Oil filter', { c: 27, s: 27, i: 0 }, 18], ['Labour', { c: 45, s: 45, i: 0 }, 18]]);
+  // as saved: two rates, a cess, a tax without its %, no item to carry it, a bill of the new way (GST % on its lines)
+  const same = ls => assert.deepStrictEqual(spread(ls).map(l => l.work), ls.map(l => l.work));
+  same([{ work: 'Oil', type: 'Paid', amount: 1000 }, { work: 'CGST 9%', type: 'Paid', amount: 90 }, { work: 'CGST 14%', type: 'Paid', amount: 28 }]);
+  same([{ work: 'Oil', type: 'Paid', amount: 1000 }, { work: 'Cess 1%', type: 'Paid', amount: 10 }]);
+  same([{ work: 'Oil', type: 'Paid', amount: 1000 }, { work: 'CGST', type: 'Paid', amount: 90 }]);
+  same([{ work: 'Oil', type: 'Warranty', amount: 0 }, { work: 'CGST 9%', type: 'Paid', amount: 90 }]);
+  assert.ok(!spread([{ work: 'Oil', type: 'Paid', amount: 1000, gst: 18 }])[0].tax, 'a line with its own GST % keeps it');
+  // the server, the same: the log book's "by work / part" of a bill of before – no CGST / SGST work, each item with its tax; the totals as saved
+  const { T, ctx: sctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = vm.runInContext('(' + fn + ')', sctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const C = 'DD-01-G-0172';
+  run('(x, m) => saveMaster_(x, m)', { no: C, name: 'Fortuner', type: 'Car', unit: 'KM', worksOn: ['KM'], kmStd: 9, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2025-09-01', fuel: 'Diesel' }, 'add');
+  const sb = run('x => saveMaint_(x)', { date: '2025-09-12', no: C, garage: 'Navnit Motors Pvt Ltd', billNo: 'S2526NMM2-04590', km: 13153, service: true, lines: b });
+  assert.deepStrictEqual([sb.ok, sb.total], [true, 7475], 'saved as it was (update-170): the tax lines its own');
+  assert.deepStrictEqual(run('a => maintSpread_(a)', b).map(l => l.work + ':' + (l.taxAdd || 0)), ['Filter – engine oil element:0', 'Fluid – diesel exhaust:1009.88', 'Battery – additional, L:130.42', 'Adjustment:0']);
+  const lg = run('x => maintLog_(x)', { no: C, from: '2025-09-01', to: '2025-09-30' });
+  assert.deepStrictEqual(lg.total.byWork.map(w => w.work + ':' + w.amount), ['Fluid – diesel exhaust:6620.3', 'Battery – additional, L:855.01', 'Adjustment:-0.31'], 'by work: no CGST / SGST – the items with their tax');
+  assert.deepStrictEqual([lg.total.maint.amount, lg.lines[0].lines.length], [7475, 6], 'the totals and the bill\'s own lines as saved');
+  // the log book uses it; the name of a line without its kind after it (Paid by is its column)
+  assert.match(app, /spread = bills\.map\(x => mlogSpread\(x\.lines\)\)/);
+  assert.match(app, /return \{ part: l\.work \|\| '', qty: l\.qty,/);
+  // the form as his picture: a head with the service switch, the details' card (each box its icon), the lines one compact row each
+  // (fixed columns, every one on the page; the note under the table, not in its foot), the totals' box, the buttons at the foot
+  assert.match(app, /table\.mt-lines \{ table-layout: fixed; min-width: 1040px; \}/);
+  assert.match(app, /<label class="mt-svc mt-switch">[^\n]*<input type="checkbox" id="mt_service"><span class="mt-sw" aria-hidden="true"><\/span><\/label>/);
+  assert.match(app, /<\/table><\/div>\n\s*<div class="mt-bottom">\n\s*<div class="mt-bl">\n\s*<p class="mt-how">Amount = Qty × Rate − Discount, before GST\./);
+  assert.match(app, /<div class="mt-tbox"><div><span>Subtotal<\/span><b id="mt_sub">0\.00<\/b><\/div><div><span id="mt_gstl">GST<\/span><b id="mt_gstt">0\.00<\/b><\/div><div class="mt-grand"><span>Bill total<\/span><b id="mt_total">0\.00<\/b><\/div><\/div>/);
+  assert.doesNotMatch(app, /<td colspan="9"><button class="btn ghost small" id="mt_addl"/);
+  assert.match(app, /document\.addEventListener\('dblclick', e => \{ const el = e\.target; if \(back\.hidden && okEl\(el\)\) \{ e\.preventDefault\(\); open\(el\); \} \}\);/, 'a double-click opens any box big (the app\'s big box)');
+  assert.match(app, /\$\('mt_addf'\)\.querySelector\('span'\)\.textContent = /, 'the files button keeps its icon');
 });

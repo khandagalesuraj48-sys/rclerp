@@ -74,6 +74,38 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
       gv: [...document.querySelectorAll('#mt_lines tr')].slice(0, 2).map(tr => tr.querySelector('.mt-gv').textContent + '|' + tr.querySelector('.mt-wv').textContent) }));
     ok('   typed: the ₹ from Qty × Rate (1 × 1425, 15 × 278), the Uom and GST 18 % kept; GST ₹ (CGST + SGST each rounded) and With GST shown; Bill total ₹6,602.10', same(typed.lines, ['Main fuel filter (602269641)|1|Nos|1425|1425|18', 'Powerol Engine oil (507339)|15|Ltr|278|4170|18']) &&
       same(typed.gv, ['256.50|1,681.50', '750.60|4,920.60']) && typed.total === '6,602.10', typed);
+    // (update-172, his picture) the totals' box: Subtotal (before GST) · GST (18%) · Bill total; every number and name seen whole in its box
+    const tb = await F.evaluate(() => { const trs = [...document.querySelectorAll('#mt_lines tr')].slice(0, 2), cut = x => x.scrollWidth > x.clientWidth + 1;
+      return { sub: $('mt_sub').textContent, gl: $('mt_gstl').textContent, gst: $('mt_gstt').textContent, total: $('mt_total').textContent,
+        cut: trs.flatMap(tr => [...tr.querySelectorAll('input, select, td.mt-gv, td.mt-wv')].filter(cut).map(x => x.className || x.tagName)), sw: !!document.querySelector('label.mt-switch #mt_service') }; });
+    ok('   (update-172) the totals\' box: Subtotal ₹5,595.00 · GST (18%) ₹1,007.10 · Bill total ₹6,602.10; no number or name cut in its box; the service a switch in the head', tb.sub === '5,595.00' && tb.gl === 'GST (18%)' && tb.gst === '1,007.10' && tb.total === '6,602.10' && tb.cut.length === 0 && tb.sw, tb);
+    // (update-172) a double-click opens a box big – the app's own big box: all its text (Esc closes it, nothing changed); on Rate a number
+    // saved there goes into the line – its ₹ and the Bill total worked out again
+    await F.evaluate(() => document.querySelector('#sec-mnt .mt-lcard').scrollIntoView({ block: 'start' })); await wait(500);
+    const big = async (sel, i, synth) => { await F.evaluate(() => { try { closeConfirm(false); } catch (e) {} }); await wait(200);      // (the app's "Vehicle papers need attention" of the test's roller may come up meanwhile)
+      if (synth) await F.evaluate((sel, i) => document.querySelectorAll(sel)[i].dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true })), sel, i); else { const hs = await F.$$(sel); await hs[i].click({ clickCount: 2 }); } await wait(400);
+      return F.evaluate(() => { const bk = $('bigbox'), ed = bk && bk.querySelector('#bb_field input, #bb_field textarea'), c = bk && bk.querySelector('.bb-card');
+        return bk && !bk.hidden && ed ? { title: $('bb_title').textContent, val: ed.value, type: ed.type, w: Math.round(c.getBoundingClientRect().width), fs: getComputedStyle(ed).fontSize, focus: document.activeElement === ed } : null; }); };
+    const key = k => F.evaluate(k => document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true })), k);
+    const bg1 = await big('#mt_lines tr .mt-w', 0, true); await key('Escape'); await wait(300);      // (its pick-list: the test's quick clicks open the list – the double-click itself sent to the box)
+    const after1 = await F.evaluate(() => ({ hidden: $('bigbox').hidden, w: [...document.querySelectorAll('#mt_lines tr')][0].querySelector('.mt-w').value }));
+    await F.evaluate(() => document.activeElement && document.activeElement.blur()); await wait(400);      // (the Work box's pick-list closed first)
+    const bg2 = await big('#mt_lines tr .mt-r', 1);
+    const mid = bg2 && await F.evaluate(() => { const ed = $('bigbox').querySelector('#bb_field input'); ed.value = '280'; ed.dispatchEvent(new Event('input', { bubbles: true })); return true; }) && (await key('Enter'), await wait(300),
+      await F.evaluate(() => { const tr = [...document.querySelectorAll('#mt_lines tr')][1]; return { hidden: $('bigbox').hidden, rate: tr.querySelector('.mt-r').value, amt: tr.querySelector('.mt-a').value, total: $('mt_total').textContent }; }));
+    await F.evaluate(() => document.activeElement && document.activeElement.blur()); await wait(400);
+    await big('#mt_lines tr .mt-r', 1); await F.evaluate(() => { const ed = $('bigbox').querySelector('#bb_field input'); ed.value = '278'; ed.dispatchEvent(new Event('input', { bubbles: true })); }); await key('Enter'); await wait(300);
+    const back = await F.evaluate(() => { const tr = [...document.querySelectorAll('#mt_lines tr')][1]; return { hidden: $('bigbox').hidden, amt: tr.querySelector('.mt-a').value, total: $('mt_total').textContent }; });
+    ok('   (update-172) a double-click on a box opens it big (the app\'s big box, ' + (bg1 && bg1.w) + ' px, its letters ' + (bg1 && bg1.fs) + '): "Work / part" with all its text – Esc, nothing changed; on Rate: 278 → 280 saved there makes the line ₹4,200 and the Bill total ₹6,637.50, back to 278 – ₹4,170',
+      !!bg1 && /Work \/ part/.test(bg1.title) && bg1.val === 'Main fuel filter (602269641)' && bg1.w >= 480 && bg1.focus && after1.hidden && after1.w === 'Main fuel filter (602269641)' &&
+      !!bg2 && bg2.val === '278' && bg2.type === 'number' && !!mid && mid.hidden && mid.rate === '280' && mid.amt === '4200' && mid.total === '6,637.50' && back.hidden && back.amt === '4170' && back.total === '6,602.10', [bg1, after1, bg2, mid, back]);
+    // (update-172) the icons of the boxes do not cover what is written in them
+    const icw = await F.evaluate(() => [...document.querySelectorAll('#sec-mnt .mt-ic')].map(w => { const i = w.querySelector('.mt-i').getBoundingClientRect(), x = w.querySelector('input'); return Math.round(x.getBoundingClientRect().left + parseFloat(getComputedStyle(x).paddingLeft) - i.right); }));
+    ok('   (update-172) each box its icon, the writing after it (never under it)', icw.length === 6 && icw.every(d => d >= 4), icw);
+    await tidy(); await F.evaluate(() => { document.querySelector('#sec-mnt .mt-form').scrollIntoView({ block: 'start' }); const m = document.querySelector('main'); (m && m.scrollHeight > m.clientHeight + 5 ? m : document.scrollingElement).scrollBy(0, -70); }); await wait(300);
+    await mp.screenshot({ path: path.join(SHOT, 'mnt172_form.png') });
+    await F.evaluate(() => document.querySelector('#sec-mnt .mt-lcard').scrollIntoView({ block: 'start' })); await wait(300);
+    await mp.screenshot({ path: path.join(SHOT, 'mnt172_lines.png') });
     await F.evaluate(() => $('mt_save').click());
     for (let i = 0; i < 40 && sql('rcl', "select count(*) from maintenance where bill_no = 'RKP-77'") === '0'; i++) await wait(500);
     const l2 = linesOf('MT-000002');
@@ -97,11 +129,13 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     ok('   the log book: "Maintenance Log Book – ' + R + '", his columns – the GST rates in the heading (update-171: CGST 9% · SGST 9% · GST 18%), Paid by, Insurance claim, Service', lb.title === 'Maintenance Log Book – ' + R &&
       same(lb.head, ['Sr No', 'Date', 'Party Name', 'Current Reading', 'Particulars', 'Qty', 'Uom', 'Basic Rate', 'Amount', 'CGST 9%', 'SGST 9%', 'GST 18%', 'Amount With GST', 'Paid by', 'Insurance claim', 'Service', 'Total']), lb);
     const dmy = d => d.split('-').reverse().join('-');
-    ok('   a row a line (4 + 2); Date, Party and Reading once for a bill; a bill of before: its CGST / SGST lines in their columns; a new one: each item\'s CGST and SGST; Paid by RCL, no claim, service Yes / No', lb.rows.length === 6 && lb.spans[0] === 4 && lb.spans[4] === 2 &&
-      same(lb.rows[0], ['1', dmy(d1), 'ARS GroupBill ARS-11', '1,903', 'Air Filter Safety', '1', 'Nos', '584.00', '584.00', '', '', '', '584.00', 'RCL', 'No', 'Yes', '584.00']) &&
-      same(lb.rows[2], ['3', 'CGST 9%', '', '', '', '', '2,122.65', '', '2,122.65', '2,122.65', 'RCL', 'No', 'Yes', '2,122.65']) && same(lb.rows[3], ['4', 'SGST 9%', '', '', '', '', '', '2,122.65', '2,122.65', '2,122.65', 'RCL', 'No', 'Yes', '2,122.65']) &&
-      same(lb.rows[4], ['5', dmy(d2), 'RK PowerBill RKP-77', '1,915', 'Main fuel filter (602269641)', '1', 'Nos', '1,425.00', '1,425.00', '128.25', '128.25', '256.50', '1,681.50', 'RCL', 'No', 'No', '1,681.50']) &&
-      same(lb.rows[5], ['6', 'Powerol Engine oil (507339)', '15', 'Ltr', '278.00', '4,170.00', '375.30', '375.30', '750.60', '4,920.60', 'RCL', 'No', 'No', '4,920.60']), lb.rows);
+    // (update-172) the bill of before: its CGST 9% / SGST 9% lines are not rows – on its two items by 9 % + 9 % (₹2,122.65 each, as the bill)
+    ok('   a row a line (2 + 2); Date, Party and Reading once for a bill; a bill of before: no GST row – its CGST / SGST on its items (9 % + 9 %); a new one: each item\'s CGST and SGST; Paid by RCL, no claim, service Yes / No', lb.rows.length === 4 && lb.spans[0] === 2 && lb.spans[2] === 2 &&
+      same(lb.rows[0], ['1', dmy(d1), 'ARS GroupBill ARS-11', '1,903', 'Air Filter Safety', '1', 'Nos', '584.00', '584.00', '52.56', '52.56', '105.12', '689.12', 'RCL', 'No', 'Yes', '689.12']) &&
+      same(lb.rows[1], ['2', 'Hydraulic oil (29 Ltr)', '3', 'Bkt', '7,667.00', '23,001.00', '2,070.09', '2,070.09', '4,140.18', '27,141.18', 'RCL', 'No', 'Yes', '27,141.18']) &&
+      same(lb.rows[2], ['3', dmy(d2), 'RK PowerBill RKP-77', '1,915', 'Main fuel filter (602269641)', '1', 'Nos', '1,425.00', '1,425.00', '128.25', '128.25', '256.50', '1,681.50', 'RCL', 'No', 'No', '1,681.50']) &&
+      same(lb.rows[3], ['4', 'Powerol Engine oil (507339)', '15', 'Ltr', '278.00', '4,170.00', '375.30', '375.30', '750.60', '4,920.60', 'RCL', 'No', 'No', '4,920.60']) &&
+      lb.rows.every(r => !/CGST|SGST/.test(r.join('|'))), lb.rows);
     ok('   Total – 2 bills: Amount ₹29,180.00, CGST ₹2,626.20, SGST ₹2,626.20, GST ₹5,252.40, With GST ₹34,432.40; no fuel table at a site with stock; Maintenance / Last service (1,903 hrs)', same(lb.foot[0], ['Total – 2 bill(s)', '29,180.00', '2,626.20', '2,626.20', '5,252.40', '34,432.40', '', '', '', '34,432.40']) &&
       same(lb.sheets, ['Log Book', 'By work']) && same(lb.kp, ['Maintenance₹34,432.40', 'Last service' + dmy(d1) + ' · 1,903 hrs']), [lb.foot, lb.sheets, lb.kp]);
     await tidy(); await F.evaluate(() => $('rpmlog_out').scrollIntoView({ block: 'start' })); await wait(300);

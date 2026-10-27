@@ -128,6 +128,13 @@ const say = async j => fetch(AI + '/__meter?say=' + encodeURIComponent(JSON.stri
       same(fr.amt.slice(2, 5), ['0', '0', '0']) && same(fr.worth, ['worth ₹2,340.00', 'worth ₹350.00', 'worth ₹250.00']), fr);
     ok('   the totals: Bill total ₹2,761.00, free lines worth ₹2,940.00; the insurance part ticked and filled – the company, claim no., ₹2000; We paid ₹761.00', fr.total === '2,761.00' && fr.freeRow && fr.freeSum === '2,940.00' && fr.ins && fr.insBox &&
       fr.insco === INS && fr.claim === 'CLM-168' && fr.paid === '2000' && fr.wepaid === '761.00', fr);
+    // (update-172) the lines' table: every column on the page (nothing to scroll sideways at 1600 px), one compact row a line, the note under it
+    const lfit = await F.evaluate(() => { const w = document.querySelector('#sec-mnt .mt-wrap'), tr = [...document.querySelectorAll('#mt_lines tr')], inp = tr[0].querySelector('.mt-w');
+      return { sw: w.scrollWidth, cw: w.clientWidth, rowH: Math.round(tr[0].getBoundingClientRect().height), boxH: Math.round(inp.getBoundingClientRect().height), how: !!document.querySelector('#sec-mnt .mt-wrap + .mt-bottom p.mt-how'),
+        lastTh: document.querySelector('#sec-mnt .mt-lines thead th:nth-child(11)').getBoundingClientRect().right <= w.getBoundingClientRect().right + 1,
+        freeBg: getComputedStyle(tr[2].querySelector('.mt-a')).backgroundColor };
+    });
+    ok('   (update-172) the lines fit the page – every column seen (With GST too), no sideways scroll; a row ' + lfit.rowH + ' px, a box ' + lfit.boxH + ' px (was 40 + its frame); the note under the table', lfit.sw <= lfit.cw + 1 && lfit.lastTh && lfit.rowH <= 44 && lfit.boxH <= 34 && lfit.how && lfit.freeBg === 'rgb(241, 245, 249)', lfit);      // (a free line's ₹ 0 greyed)
     await tidy(); await F.evaluate(() => $('mt_lines').scrollIntoView({ block: 'center' })); await wait(300);
     await mp.screenshot({ path: path.join(SHOT, 'mnt168_form.png') });
     await F.evaluate(() => document.querySelector('#sec-mnt .mt-ins').scrollIntoView({ block: 'center' })); await wait(300);
@@ -177,10 +184,15 @@ const say = async j => fetch(AI + '/__meter?say=' + encodeURIComponent(JSON.stri
       return { rows: [...t0.tBodies[0].rows].map(r => [...r.cells].map(c => c.textContent)), foot: [...t0.tFoot.rows].map(r => [...r.cells].map(c => c.textContent)), date: t0.tBodies[0].rows[0].cells[1].rowSpan,
         byfoot: [...document.querySelectorAll('#rpmlog_body tfoot tr')].map(r => r.textContent) }; });
     // (update-170) his format: a row a line; Date / Party / Reading once for the bill (rowspan 9); the tax lines in GST Amount; the insurance's row minus
-    ok('   the car\'s log book (update-171 format): the bill\'s 8 lines and the insurance\'s row; its CGST / SGST lines (a bill of before) in CGST 9% / SGST 9%; the free lines (their kind) at ₹ 0; Paid by, Insurance claim Yes, Service Yes; Total – 1 bill: Amount ₹2,399.80, CGST ₹210.60, SGST ₹210.60, GST ₹421.20, With GST ₹821.00; free worth ₹2,940.00; by work: Paid lines of the bills ₹2,821.00, Paid by the insurance −₹2,000.00, We paid ₹821.00',
-      lb.rows.length === 9 && lb.date === 9 && lb.rows[0].slice(1, 4).join('|') === d2.split('-').reverse().join('-') + '|Test ToyotaBill 07668, 02040|61,234' &&
-      same(lb.rows[0].slice(4), ['Periodic maintenance labour', '1', '', '1,800.00', '1,800.00', '', '', '', '1,800.00', 'RCL', 'Yes', 'Yes', '1,800.00']) && same(lb.rows[2].slice(1), ['Engine oil (Service Plan)', '4.5', '', '520.00', '0.00', '', '', '', '0.00', 'Service Plan', 'Yes', 'Yes', '0.00']) &&
-      same(lb.rows[5].slice(1), ['CGST 9%', '', '', '', '', '210.60', '', '210.60', '210.60', 'RCL', 'Yes', 'Yes', '210.60']) && same(lb.rows[8].slice(1), ['Paid by the insurance – ' + INS + ' (claim no. CLM-168)', '', '', '', '', '', '', '', '-2,000.00', 'Insurance', 'Yes', 'Yes', '-2,000.00']) &&
+    // (update-172) its CGST / SGST lines (a bill of before, its discount typed away – the tax no longer 9 % of the items) are not rows: on its
+    // two items in their proportion (1,800 : 600 → ₹157.95 + ₹52.65 each); the name without its kind (Paid by is its column)
+    ok('   the car\'s log book: the bill\'s 6 lines and the insurance\'s row – no CGST / SGST row, their ₹ on the items (₹157.95 / ₹52.65 each); the free lines at ₹ 0, the name without its kind; Paid by, Insurance claim Yes, Service Yes; Total – 1 bill: Amount ₹2,399.80, CGST ₹210.60, SGST ₹210.60, GST ₹421.20, With GST ₹821.00; free worth ₹2,940.00; by work: Paid lines of the bills ₹2,821.00, Paid by the insurance −₹2,000.00, We paid ₹821.00',
+      lb.rows.length === 7 && lb.date === 7 && lb.rows[0].slice(1, 4).join('|') === d2.split('-').reverse().join('-') + '|Test ToyotaBill 07668, 02040|61,234' &&
+      same(lb.rows[0].slice(4), ['Periodic maintenance labour', '1', '', '1,800.00', '1,800.00', '157.95', '157.95', '315.90', '2,115.90', 'RCL', 'Yes', 'Yes', '2,115.90']) &&
+      same(lb.rows[1].slice(1), ['Wheel alignment', '1', '', '600.00', '600.00', '52.65', '52.65', '105.30', '705.30', 'RCL', 'Yes', 'Yes', '705.30']) &&
+      same(lb.rows[2].slice(1), ['Engine oil', '4.5', '', '520.00', '0.00', '', '', '', '0.00', 'Service Plan', 'Yes', 'Yes', '0.00']) &&
+      same(lb.rows[5].slice(1), ['Round off', '', '', '', '-0.20', '', '', '', '-0.20', 'RCL', 'Yes', 'Yes', '-0.20']) && same(lb.rows[6].slice(1), ['Paid by the insurance – ' + INS + ' (claim no. CLM-168)', '', '', '', '', '', '', '', '-2,000.00', 'Insurance', 'Yes', 'Yes', '-2,000.00']) &&
+      lb.rows.every(r => !/CGST|SGST/.test(r.join('|'))) &&
       same(lb.foot[0], ['Total – 1 bill(s)', '2,399.80', '210.60', '210.60', '421.20', '821.00', '', '', '', '821.00']) && same(lb.foot[1], ['Free lines (warranty / FOC / service plan) – not paid, worth', '2,940.00']) &&
       same(lb.byfoot.slice(-3), ['Paid lines of the bills2,821.00', 'Paid by the insurance−2,000.00', 'We paid821.00']), lb);
     await tidy(); await F.evaluate(() => $('rpmlog_out').scrollIntoView({ block: 'start' })); await wait(300);
