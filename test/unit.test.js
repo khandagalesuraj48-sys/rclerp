@@ -2093,7 +2093,7 @@ test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the 
   assert.match(code, /rec\.no !== mId/); assert.match(code, /photosTaken_\(photos\.map\(x => x\.p\)\)/); assert.match(code, /pc\.remove\('PH_' \+ p\)/);      // (update-120: photosTaken_)
   // a photo being sent is tried again 3 times (a question), not for ever (a save) – the page's shell and the server agree
   const shell = fs.readFileSync(path.join(__dirname, '..', 'server', 'page.js'), 'utf8'), rt = fs.readFileSync(path.join(__dirname, '..', 'server', 'runtime.js'), 'utf8');
-  assert.match(shell, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel'\]/); assert.match(rt, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel'\]/);      // (update-120: and a bill copy; update-153: an attachment, and Scan with Mobile – they write no table; its QR's token is never kept with a save's answer)
+  assert.match(shell, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel'\]/); assert.match(rt, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel'\]/);      // (update-120: and a bill copy; update-153: an attachment, and Scan with Mobile – they write no table; its QR's token is never kept with a save's answer)
   // the database step of this update: shown in the app's Read Me word for word; it only ADDS (a column, a private bucket)
   const sqlFile = fs.readFileSync(path.join(__dirname, '..', 'sql', 'supabase_step1x_diesel_photos.sql'), 'utf8');
   const listed = new Function(fs.readFileSync(path.join(__dirname, '..', 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1x_diesel_photos.sql');
@@ -6175,3 +6175,122 @@ test('update-164 fix: the sign-in starts the live sync again (a note had been pu
   });
 });
 
+
+test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill with its lines (work / part and ₹), a Service mark with its KM, the checks; the list and the words typed before; the AI\'s reading of a bill; a car\'s log book (its fills and bills, the costs, the last service); a car\'s new number; a site not on cards as before', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const car = no => ({ no: no, name: 'Car ' + no, type: 'Car', unit: 'KM', worksOn: ['KM'], kmStd: 12, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-07-01', fuel: 'Petrol' });
+  const C1 = 'HO-1-165', C2 = 'HO-2-165', CARD = 'HDFC MNT 165';
+  try {
+    // ---- a site that is not on fuel cards: no Maintenance page, nothing of it is read
+    run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); }');
+    assert.strictEqual(run('() => usersAdmin_().modules.some(m => m.key === "Maintenance")'), false, 'the Portal does not list Maintenance at a site with stock');
+    assert.strictEqual(tryRun('x => getMaint_(x)', {}).thrown, 'This site is not on fuel cards – the Super Admin sets that in the Portal (Sites → Diesel places → Fuel cards).');
+    assert.strictEqual(tryRun('x => saveMaint_(x)', { no: C1 }).thrown, 'This site is not on fuel cards – the Super Admin sets that in the Portal (Sites → Diesel places → Fuel cards).');
+    // ---- HO: on fuel cards; two cars; the page listed; an empty access cell is No access
+    const places = run('() => places_().map(p => ({ name: p.name, cap: tankSettings_().caps[p.name] || 100, fuel: p.fuel }))');
+    run('(l, m) => savePlaces_(l, m)', places, 'card');
+    assert.ok(run('() => usersAdmin_().modules.some(m => m.key === "Maintenance")'), 'the Portal lists Maintenance at a site on fuel cards');
+    assert.strictEqual(run('() => MODULE_BLANK_NONE_.Maintenance'), true);
+    run('(x, m) => saveMaster_(x, m)', car(C1), 'add');
+    run('(x, m) => saveMaster_(x, m)', car(C2), 'add');
+    // ---- the checks of a bill
+    const bill = x => Object.assign({ date: '2026-07-05', no: C1, garage: 'Toyota Service', billNo: 'TS-101', km: 45210, service: true, remark: '',
+      lines: [{ work: 'Engine oil', amount: 1200 }, { work: 'Oil filter', amount: 300 }, { work: 'Labour', amount: 500 }, { work: 'GST 18%', amount: 360 }] }, x);
+    const bad = x => tryRun('x => saveMaint_(x)', bill(x)).thrown;
+    assert.strictEqual(bad({ lines: [] }), 'Add the work / parts of the bill, each with its amount (₹).');
+    assert.strictEqual(bad({ lines: [{ work: '', amount: '' }, { work: '  ', amount: 0 }] }), 'Add the work / parts of the bill, each with its amount (₹).', 'empty lines are left out');
+    assert.strictEqual(bad({ lines: [{ work: '', amount: 500 }] }), 'Bill line 1: type the work / part (e.g. Engine oil, Labour).');
+    assert.strictEqual(bad({ lines: [{ work: 'Wiper', amount: '' }] }), 'Bill line 1 (Wiper): enter its amount (₹).');
+    assert.strictEqual(bad({ lines: [{ work: 'Wiper', amount: 100 }, { work: 'Discount', amount: -150 }] }), 'The total of the bill must be more than 0 – check the amounts (a discount is a minus line).');
+    assert.strictEqual(bad({ km: '' }), C1 + ': a service needs its KM reading – the next service is counted from it.');
+    assert.match(bad({ date: '2026-06-30' }), /is active only from 01-07-2026/, 'the car must be on site that day');
+    assert.match(bad({ no: 'NOT-A-CAR' }), /is not in Master/);
+    assert.match(bad({ date: '2099-01-01' }), /after today|future/i);
+    assert.strictEqual(bad({ lines: Array.from({ length: 61 }, (_, i) => ({ work: 'Part ' + i, amount: 1 })) }), 'A bill keeps at most 60 lines.');
+    // ---- two bills; the same bill number of the same garage again: asked first
+    const b1 = run('x => saveMaint_(x)', bill({}));
+    assert.deepStrictEqual([b1.ok, b1.id, b1.total], [true, 'MT-000001', 2360]);
+    const b2 = run('x => saveMaint_(x)', bill({ date: '2026-07-20', billNo: 'TS-140', service: false, km: '', garage: 'Tyre House',
+      lines: [{ work: 'Tyre', amount: 6000 }, { work: 'Wheel alignment', amount: 600 }, { work: 'Discount', amount: -100 }, { work: 'engine oil', amount: 400 }] }));
+    assert.deepStrictEqual([b2.id, b2.total], ['MT-000002', 6900]);
+    const tw = run('x => saveMaint_(x)', bill({}));
+    assert.strictEqual(tw.ok, false);
+    assert.strictEqual(tw.warning, 'Bill TS-101 of Toyota Service for ' + C1 + ' is already saved (MT-000001). Save it again?');
+    const b3 = run('x => saveMaint_(x)', bill({ force: true, no: C2, billNo: 'X-9', service: false, km: '' }));
+    assert.strictEqual(b3.id, 'MT-000003');
+    // ---- a change: the lines and the total; a delete
+    const u = run('(id, x) => updateMaint_(id, x)', 'MT-000003', bill({ no: C2, billNo: 'X-9', service: false, km: 1200, lines: [{ work: 'Battery', amount: 5200 }] }));
+    assert.deepStrictEqual([u.ok, u.total], [true, 5200]);
+    assert.strictEqual(tryRun('id => deleteMaint_(id)', 'MT-000099').thrown, 'Maintenance bill MT-000099 was not found.');
+    // ---- the list: newest first; the words typed before, the most used first
+    const l = run('x => getMaint_(x)', { from: '2026-07-01', to: '2026-07-31' });
+    assert.deepStrictEqual([l.count, l.total, l.rows.map(r => r.id)], [3, 14460, ['MT-000002', 'MT-000003', 'MT-000001']]);
+    assert.deepStrictEqual(l.rows[2].lines, [{ work: 'Engine oil', amount: 1200 }, { work: 'Oil filter', amount: 300 }, { work: 'Labour', amount: 500 }, { work: 'GST 18%', amount: 360 }]);
+    assert.deepStrictEqual([l.rows[2].service, l.rows[2].km, l.rows[2].garage, l.rows[2].billNo], [true, 45210, 'Toyota Service', 'TS-101']);
+    assert.strictEqual(l.works[0], 'Engine oil', '"Engine oil" / "engine oil" – one word, used twice');
+    assert.deepStrictEqual(l.garages.slice().sort(), ['Toyota Service', 'Tyre House']);
+    assert.strictEqual(run('x => getMaint_(x)', { no: C2 }).count, 1, 'one car');
+    run('id => deleteMaint_(id)', 'MT-000003');
+    assert.strictEqual(run('x => getMaint_(x)', {}).count, 2);
+    // ---- files: only one this person sent (as the Log Book's attachments); the store is Supabase only
+    assert.strictEqual(tryRun('x => saveMaint_(x)', bill({ billNo: 'F-1', files: [{ sha: 'a'.repeat(64) }] })).thrown, 'A bill file was not added by you in the last 6 hours – add it again.');
+    assert.strictEqual(tryRun('x => saveMaint_(x)', bill({ billNo: 'F-2', files: 'x' })).thrown, 'The bill files were not sent right – add them again.');
+    assert.strictEqual(tryRun('(u, x) => uploadAttachment_(u, x, "Maintenance")', { email: 'sa@x', admin: true, perms: { Maintenance: 'Edit' } }, { data: 'data:text/html;base64,PGI+' }).thrown, 'An attachment must be a photo (JPG or PNG) or a PDF.');      // (a real upload: the rig – this test's Utilities cannot decode)
+    assert.strictEqual(tryRun('(u, x) => uploadAttachment_(u, x, "Maintenance")', { email: 'v@x', admin: false, perms: { Maintenance: 'View' } }, { data: 'data:application/pdf;base64,JVBERi0xLjQK' }).thrown, 'You have View access only for Maintenance. Ask Admin for Edit access.');
+    // ---- the AI's reading of a bill (its answer → the form's values); a PDF goes as a PDF
+    const ans = j => run('j => maintAnswer_(j)', j);
+    const a1 = ans({ date: '2026-07-05', billNo: 'TS-101', garage: 'Toyota Service', vehicle: 'MH12HO1165', km: '45,210', service: true, total: '2,360.00',
+      lines: [{ work: 'Engine oil', amount: '1,200' }, { item: 'Oil filter', amount: 300 }, { work: 'Labour', amount: 500 }, { work: 'CGST 9%', amount: 180 }, { work: 'SGST 9%', amount: 180 }, { work: 'Nothing', amount: 0 }] });
+    assert.deepStrictEqual([a1.date, a1.billNo, a1.garage, a1.km, a1.total, a1.service, a1.check, a1.lines.length], ['2026-07-05', 'TS-101', 'Toyota Service', 45210, 2360, true, '', 5]);
+    const a2 = ans({ date: '2099-01-01', lines: [{ work: 'Tyre', amount: 6000 }, { work: 'Discount', amount: '-100' }], total: 6000 });
+    assert.deepStrictEqual([a2.date, a2.lines[1].amount, a2.check], ['', -100, 'the lines read add up to ₹5900 – the bill says ₹6000']);
+    assert.strictEqual(ans({}).check, 'no line of the bill could be read');
+    assert.deepStrictEqual(run('() => maintRead_({ email: "e@x", admin: true, perms: { Maintenance: "Edit" } }, { data: "data:application/pdf;base64,JVBERi0xLjQK" })'), { off: true }, 'the AI is not set up here');
+    assert.strictEqual(tryRun('() => maintRead_({ email: "e@x", admin: true, perms: { Maintenance: "Edit" } }, { data: "data:text/html;base64,PGI+" })').thrown, 'A bill must be a photo (JPG or PNG) or a PDF.');
+    const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+    assert.match(code, /return maintAnswer_\(aiJson_\(aiAskPhoto_\(mt\[2\], ask, mt\[1\], 'the bill'\)\) \|\| \{\}\);/, 'a PDF goes to the AI as a PDF (its own type)');
+    assert.match(code, /parts: \[\{ inlineData: \{ mimeType: mime \|\| 'image\/jpeg', data: b64 \} \}, \{ text: ask \}\]/, 'the meter photos as before (JPG)');
+    // ---- the car's log book: its fills (card / Cash) and bills by date, the costs, the last service
+    run('x => saveCard_(x)', { name: CARD, last4: '1165', type: 'Fuel card', cars: [], opening: 10000, openDate: '2026-07-01' });
+    run('x => saveDieselIssue_(x)', { date: '2026-07-04', shift: 'Day', source: CARD, no: C1, qty: 20, kmReading: 45000, amount: 2100, force: true });
+    run('x => saveDieselIssue_(x)', { date: '2026-07-22', shift: 'Day', source: 'Cash', no: C1, qty: 10, kmReading: 45600, amount: 1060, force: true });
+    run('x => saveDieselIssue_(x)', { date: '2026-08-02', shift: 'Day', source: 'Cash', no: C1, qty: 10, kmReading: 46000, amount: 1070, force: true });
+    const g = run('x => maintLog_(x)', { no: C1, from: '2026-07-01', to: '2026-07-31' });
+    assert.strictEqual(g.title, 'Maintenance Log Book – ' + C1);
+    assert.deepStrictEqual(g.lines.map(x => x.date + ' ' + x.kind + ' ' + x.amount), ['2026-07-04 Fuel 2100', '2026-07-05 Maintenance 2360', '2026-07-20 Maintenance 6900', '2026-07-22 Fuel 1060'], 'by date, the August fill not in July');
+    assert.deepStrictEqual([g.lines[0].paidBy, g.lines[0].qty, g.lines[0].unit, g.lines[3].paidBy], [CARD, 20, 'Ltr', 'Cash']);
+    assert.deepStrictEqual(g.total.fuel, { qty: 30, amount: 3160, card: 2100, cash: 1060, fills: 2 });
+    assert.deepStrictEqual(g.total.maint, { amount: 9260, bills: 2 });
+    assert.strictEqual(g.total.all, 12420);
+    assert.deepStrictEqual(g.total.byWork.slice(0, 2), [{ work: 'Tyre', amount: 6000, n: 1 }, { work: 'Engine oil', amount: 1600, n: 2 }]);
+    assert.deepStrictEqual([g.total.km, g.total.perKm], [0, null], 'no Log Book KM yet: no ₹ per KM');
+    assert.deepStrictEqual(g.lastService, { date: '2026-07-05', km: 45210, id: 'MT-000001' });
+    assert.deepStrictEqual(run('x => maintLog_(x)', { no: C2, from: '2026-07-01', to: '2026-07-31' }).lines, [], 'the other car: nothing of this car');
+    // ---- a new number of the car: its bills follow
+    run('(a, b) => renameMachine_(a, b)', C1, 'HO-9-165');
+    assert.strictEqual(run('x => getMaint_(x)', { no: 'HO-9-165' }).count, 2);
+    assert.strictEqual(run('x => getMaint_(x)', { no: C1 }).count, 0);
+    // ---- the access and the actions; the database step only adds; Read Me lists it; the database check knows it
+    const api = run('() => { const o = {}; Object.keys(API_).forEach(k => { o[k] = { m: API_[k].m, edit: !!API_[k].edit, any: API_[k].any || null }; }); return o; }');
+    ['saveMaint', 'updateMaint', 'deleteMaint'].forEach(n => assert.ok(api[n].edit && api[n].m === 'Maintenance', n));
+    ['getMaint', 'getMaintFiles', 'maintFile', 'readMaintBill'].forEach(n => assert.ok(!api[n].edit && api[n].m === 'Maintenance', n));
+    assert.deepStrictEqual(api.maintLog.any, ['Maintenance', 'Reports']);
+    const sql = fs.readFileSync(path.join(root, 'sql', 'supabase_step1zi_maintenance.sql'), 'utf8');
+    const sqlCode = sql.replace(/--.*$/gm, '');
+    assert.ok(!/\b(delete\s+from|truncate|update\s+public\.)/i.test(sqlCode) && !/drop (table|column)/i.test(sqlCode), 'nothing removed or changed (the triggers only note a change / a delete)');
+    assert.ok(fs.readFileSync(path.join(root, 'staging', 'rcl_staging_all.sql'), 'utf8').indexOf(sql) > -1, 'the test database has it');
+    assert.match(sql, /create table if not exists public\.maintenance \(/);
+    assert.match(sql, /alter table public\.app_users add column if not exists perm_maintenance text;/);
+    const listed = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1zi_maintenance.sql');
+    assert.ok(listed && listed.sql === sql, 'Read Me lists the step word for word');
+    assert.ok(code.indexOf("'supabase_step1zi_maintenance.sql');      // (update-165)") > -1);
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.match(app, /mnt: \{ saves: \['saveMaint', 'updateMaint', 'deleteMaint', 'maintFile', 'readMaintBill'\],/);
+    assert.match(app, /if \(\$\('tab-mnt'\) && !cm\) \$\('tab-mnt'\)\.hidden = true;/);
+    assert.match(app, /try \{ const r = await call\(o\.up \|\| 'uploadAttachment', \{ data: 'data:' \+ it\.mime/, 'the bill files use the attachments\' own box');
+  } finally {
+    run('() => { const P = PropertiesService.getScriptProperties(); ["FUEL_MODE", "FUEL_CARDS", "MNT_LAST_NO", "CARDPAY_LAST_NO"].forEach(k => P.deleteProperty(k)); }');
+  }
+});

@@ -2078,6 +2078,18 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `setClosed`, `dbCheckDaily()` and `rtcAfterLogin()` – the live page stayed "Connecting…". Line restored; unit `update-164 fix`
   (no `//` before those calls), rig `test/browser/sync164.js`. Lesson: never put a `//` note in the middle of a line of code – a
   call count before / after (acorn) catches it.
+- 27-10-2026 (update-165, with rcl-mobile 3.46.0). Report: `UPDATE_165.md`. MAINTENANCE LOG BOOK of a site on fuel cards (HO; step 2
+  of 3 – the service schedule next). SQL step `sql/supabase_step1zi_maintenance.sql` (table `maintenance`, `app_users.perm_maintenance`)
+  – EVERY site. Page `Maintenance` (`MODULES`, `MODULE_BLANK_NONE_`, `sitePage_` – only at a card site; `cardSiteOnly_()` in every
+  action): `getMaint_` (rows, total, works / garages by use, `missing`), `saveMaint_` / `updateMaint_` / `deleteMaint_` (`maintVals_`,
+  `maintLines_` – lines JSON in `lines`, total in `amount`, `service` Yes, KM required for a service; `maintTwice_` – the same bill no.
+  of the same garage for the car asks first, `force`; ids `MT-000001`, `MNT_LAST_NO`), files `maintFilesOf_` (the Log Book's
+  attachment rules: kept or sent by this person in 6 h; flow-aware) uploaded by `maintFile` → `uploadAttachment_(u, x, 'Maintenance')`,
+  `getMaintFiles_` (15-minute links), the AI `maintRead_` (`aiAskPhoto_(b64, ask, mime, what)` – a PDF as `application/pdf`) and
+  `maintAnswer_`, the car's log book `maintLog_` (fills by card / Cash + bills by date, totals, Log Book KM, ₹ per KM, last service).
+  Page: `sec-mnt` (`mtOpen` / `mtLoad` / `mtSave` / `mtRead` – the AI fills empty boxes and the date while not chosen,
+  `S.mt.dateTyped`; `mlogRender` / `mlogShow`, print / Excel `rpPrint` / `rpExcel` key `mlog`); `atOpen` takes `up` / `max` / `noQr`.
+  Tests: unit `update-165`, rig `test/browser/mnt165.js` (T2 as HO with steps 1zg + 1zh + 1zi, S1 as VTR without 1zi).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this
