@@ -6259,12 +6259,12 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
     assert.strictEqual(bad({ lines: [{ work: '', amount: '' }, { work: '  ', amount: 0 }] }), 'Add the work / parts of the bill, each with its amount (₹).', 'empty lines are left out');
     assert.strictEqual(bad({ lines: [{ work: '', amount: 500 }] }), 'Bill line 1: type the work / part (e.g. Engine oil, Labour).');
     assert.strictEqual(bad({ lines: [{ work: 'Wiper', amount: '' }] }), 'Bill line 1 (Wiper): enter its amount (₹).');
-    assert.strictEqual(bad({ lines: [{ work: 'Wiper', amount: 100 }, { work: 'Discount', amount: -150 }] }), 'The total of the bill must be more than 0 – check the amounts (a discount is a minus line).');
+    assert.strictEqual(bad({ lines: [{ work: 'Wiper', amount: 100 }, { work: 'Discount', amount: -150 }] }), 'The total of the bill cannot be below 0 – check the amounts (a discount is a minus line).');      // (update-168: a bill of only free lines – ₹ 0 – is kept; below 0 is not)
     assert.strictEqual(bad({ km: '' }), C1 + ': a service needs its KM reading – the next service is counted from it.');
     assert.match(bad({ date: '2026-06-30' }), /is active only from 01-07-2026/, 'the car must be on site that day');
     assert.match(bad({ no: 'NOT-A-CAR' }), /is not in Master/);
     assert.match(bad({ date: '2099-01-01' }), /after today|future/i);
-    assert.strictEqual(bad({ lines: Array.from({ length: 61 }, (_, i) => ({ work: 'Part ' + i, amount: 1 })) }), 'A bill keeps at most 60 lines.');
+    assert.strictEqual(bad({ lines: Array.from({ length: 151 }, (_, i) => ({ work: 'Part ' + i, amount: 1 })) }), 'A bill keeps at most 150 lines.');      // (update-168: 150 – an accident bill had 65)
     // ---- two bills; the same bill number of the same garage again: asked first
     const b1 = run('x => saveMaint_(x)', bill({}));
     assert.deepStrictEqual([b1.ok, b1.id, b1.total], [true, 'MT-000001', 2360]);
@@ -6283,7 +6283,7 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
     // ---- the list: newest first; the words typed before, the most used first
     const l = run('x => getMaint_(x)', { from: '2026-07-01', to: '2026-07-31' });
     assert.deepStrictEqual([l.count, l.total, l.rows.map(r => r.id)], [3, 14460, ['MT-000002', 'MT-000003', 'MT-000001']]);
-    assert.deepStrictEqual(l.rows[2].lines, [{ work: 'Engine oil', amount: 1200 }, { work: 'Oil filter', amount: 300 }, { work: 'Labour', amount: 500 }, { work: 'GST 18%', amount: 360 }]);
+    assert.deepStrictEqual(l.rows[2].lines, [{ work: 'Engine oil', type: 'Paid', amount: 1200 }, { work: 'Oil filter', type: 'Paid', amount: 300 }, { work: 'Labour', type: 'Paid', amount: 500 }, { work: 'GST 18%', type: 'Paid', amount: 360 }]);      // (update-168: each line its kind – none given = Paid)
     assert.deepStrictEqual([l.rows[2].service, l.rows[2].km, l.rows[2].garage, l.rows[2].billNo], [true, 45210, 'Toyota Service', 'TS-101']);
     assert.strictEqual(l.works[0], 'Engine oil', '"Engine oil" / "engine oil" – one word, used twice');
     assert.deepStrictEqual(l.garages.slice().sort(), ['Toyota Service', 'Tyre House']);
@@ -6299,7 +6299,8 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
     const ans = j => run('j => maintAnswer_(j)', j);
     const a1 = ans({ date: '2026-07-05', billNo: 'TS-101', garage: 'Toyota Service', vehicle: 'MH12HO1165', km: '45,210', service: true, total: '2,360.00',
       lines: [{ work: 'Engine oil', amount: '1,200' }, { item: 'Oil filter', amount: 300 }, { work: 'Labour', amount: 500 }, { work: 'CGST 9%', amount: 180 }, { work: 'SGST 9%', amount: 180 }, { work: 'Nothing', amount: 0 }] });
-    assert.deepStrictEqual([a1.date, a1.billNo, a1.garage, a1.km, a1.total, a1.service, a1.check, a1.lines.length], ['2026-07-05', 'TS-101', 'Toyota Service', 45210, 2360, true, '', 5]);
+    assert.deepStrictEqual([a1.date, a1.billNo, a1.garage, a1.km, a1.total, a1.service, a1.check, a1.lines.length], ['2026-07-05', 'TS-101', 'Toyota Service', 45210, 2360, true, '', 6]);
+    assert.deepStrictEqual(a1.lines[5], { work: 'Nothing', type: 'FOC', amount: 0 }, '(update-168) a line charged nothing is kept – as a free one');
     const a2 = ans({ date: '2099-01-01', lines: [{ work: 'Tyre', amount: 6000 }, { work: 'Discount', amount: '-100' }], total: 6000 });
     assert.deepStrictEqual([a2.date, a2.lines[1].amount, a2.check], ['', -100, 'the lines read add up to ₹5900 – the bill says ₹6000']);
     assert.strictEqual(ans({}).check, 'no line of the bill could be read');
@@ -6318,7 +6319,7 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
     assert.deepStrictEqual(g.lines.map(x => x.date + ' ' + x.kind + ' ' + x.amount), ['2026-07-04 Fuel 2100', '2026-07-05 Maintenance 2360', '2026-07-20 Maintenance 6900', '2026-07-22 Fuel 1060'], 'by date, the August fill not in July');
     assert.deepStrictEqual([g.lines[0].paidBy, g.lines[0].qty, g.lines[0].unit, g.lines[3].paidBy], [CARD, 20, 'Ltr', 'Cash']);
     assert.deepStrictEqual(g.total.fuel, { qty: 30, amount: 3160, card: 2100, cash: 1060, fills: 2 });
-    assert.deepStrictEqual(g.total.maint, { amount: 9260, bills: 2 });
+    assert.deepStrictEqual(g.total.maint, { amount: 9260, bills: 2, billTotal: 9260, insurance: 0, free: 0 });      // (update-168: the bills' total, what the insurance paid, what the free lines were worth)
     assert.strictEqual(g.total.all, 12420);
     assert.deepStrictEqual(g.total.byWork.slice(0, 2), [{ work: 'Tyre', amount: 6000, n: 1 }, { work: 'Engine oil', amount: 1600, n: 2 }]);
     assert.deepStrictEqual([g.total.km, g.total.perKm], [0, null], 'no Log Book KM yet: no ₹ per KM');
@@ -6451,7 +6452,7 @@ test('update-167: Claude – with ANTHROPIC_API_KEY every AI question goes to Cl
     answers.push(msg([{ type: 'text', text: '{"date": "2026-10-20", "total": 1200, "lines": [{"work": "Oil change", "amount": 1200}]}' }]));
     assert.strictEqual(run('() => aiAskPhoto_("JVBERi0x", "Read the bill.", "application/pdf", "the bill")'), '{"date": "2026-10-20", "total": 1200, "lines": [{"work": "Oil change", "amount": 1200}]}');
     assert.deepStrictEqual([sent[1].body.messages[0].content[0].type, sent[1].body.messages[0].content[0].source.media_type, sent[1].body.max_tokens], ['document', 'application/pdf', 8192]);
-    assert.ok(sent[1].ms > 25000 && sent[1].ms <= 40000, 'a bill gets more time');
+    assert.ok(sent[1].ms > 25000 && sent[1].ms <= 50000, 'a bill gets more time');      // (update-168: 50 s)
     answers.push(reply(400, { type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API.' } }));
     assert.throws(() => run('() => aiAskPhoto_("QUJD", "Read it.")'), /The AI could not read the meter now \(no credit left in Claude Console\) – type the reading\./);
     answers.push(reply(529, {}), reply(529, {}), reply(529, {}));
@@ -6509,4 +6510,99 @@ test('update-167: Claude – with ANTHROPIC_API_KEY every AI question goes to Cl
     assert.ok(got[0] !== H.FIX_ANY && want.test(got.map(x => x.en.join(' ')).join(' ')), m);
   }
   assert.ok(H.fixRules('The AI could not read the meter now (no credit left in Claude Console) – type the reading.').some(x => /has no credit left, or the key/.test(x.en[0])), 'the photo\'s message also says what to do about the credit');
+});
+
+test('update-168: every line of a maintenance bill – its kind (Paid / Warranty / FOC / Service Plan), Qty, Rate, Discount % and ₹; free lines kept at ₹ 0 with their worth; an insurance claim (company, claim no., what it paid) – the car\'s cost is only what we paid; the AI\'s short lines, several invoices and the insurance; an app of before cannot lose them', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const C1 = 'DD-01-G-0168';
+  try {
+    const places = run('() => places_().map(p => ({ name: p.name, cap: tankSettings_().caps[p.name] || 100, fuel: p.fuel }))');
+    run('(l, m) => savePlaces_(l, m)', places, 'card');
+    run('(x, m) => saveMaster_(x, m)', { no: C1, name: 'Range Rover Sport', type: 'Car', unit: 'KM', worksOn: ['KM'], kmStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2025-09-01', fuel: 'Diesel' }, 'add');
+    // ---- his labour bill S2526NMM2-07668: FOC, Paid and Warranty lines; the taxes as their own lines
+    const labour = [
+      { work: 'Carried out EVHC', type: 'FOC', qty: 1, rate: 0, disc: '', amount: '' },
+      { work: 'Read and clear fault code', type: 'Paid', qty: 1, rate: 620, amount: 620 },
+      { work: 'Wheel alignment', type: 'Paid', qty: 1, rate: 1860, amount: 1860 },
+      { work: 'DEF tank level check and top up', type: 'paid', qty: 1, rate: 620, amount: 620 },
+      { work: 'Armrest lid locking arm – renew', type: 'Warranty', qty: 1, rate: 280, amount: 280 },      // (a ₹ typed on a free line is not charged)
+      { work: 'Steering column coupling – renew', type: 'Warranty', qty: 1, rate: 840 },
+      { work: 'CGST 9%', type: 'Paid', amount: 279 }, { work: 'SGST 9%', amount: 279 }];
+    const b1 = run('x => saveMaint_(x)', { date: '2025-12-25', no: C1, garage: 'Navnit Motors Pvt. Ltd.', billNo: 'S2526NMM2-07668', km: 19566, service: false, lines: labour });
+    assert.deepStrictEqual([b1.ok, b1.total, b1.billTotal], [true, 3658, 3658], 'the bill\'s grand total ₹3,658 – what we paid');
+    let l = run('x => getMaint_(x)', { no: C1 });
+    let r = l.rows.find(x => x.id === b1.id);
+    assert.deepStrictEqual(r.lines.map(x => x.type + ':' + x.amount), ['FOC:0', 'Paid:620', 'Paid:1860', 'Paid:620', 'Warranty:0', 'Warranty:0', 'Paid:279', 'Paid:279'], 'every line kept with its kind; a free line charged ₹ 0');
+    assert.deepStrictEqual(r.lines[1], { work: 'Read and clear fault code', type: 'Paid', amount: 620, qty: 1, rate: 620 });
+    assert.deepStrictEqual(r.lines[6], { work: 'CGST 9%', type: 'Paid', amount: 279 }, 'a tax line: no Qty / Rate');
+    assert.deepStrictEqual([r.total, r.billTotal, r.free, r.insurance], [3658, 3658, 1120, null], 'the free lines were worth ₹1,120 (warranty 280 + 840)');
+    // ---- his parts bill S2627NMM2-02040: Paid lines at a 5 % discount, Service Plan lines at 100 %
+    const b2 = run('x => saveMaint_(x)', { date: '2026-06-15', no: C1, garage: 'Navnit Motors Pvt. Ltd.', billNo: 'S2627NMM2-02040', km: 31758, service: true, lines: [
+      { work: 'Plug – oil drain', type: 'Paid', qty: 1, rate: 863.01, disc: 5, amount: 819.86 },
+      { work: 'Engine oil 0W30 (ml)', type: 'Service Plan', qty: 1050, rate: 1.65, disc: 100, amount: 0 },
+      { work: 'Filter – engine oil element', type: 'Service Plan', qty: 1, rate: 2060.95, disc: 100 },
+      { work: 'CGST 9%', amount: 73.79 }, { work: 'SGST 9%', amount: 73.79 }, { work: 'Round-off', amount: -0.44 }] });
+    r = run('x => getMaint_(x)', { no: C1 }).rows.find(x => x.id === b2.id);
+    assert.deepStrictEqual([b2.total, r.lines[0].disc, r.lines[1].qty, r.free], [967, 5, 1050, 3793.45], 'the discount kept; the service plan lines worth 1050 × 1.65 + 2060.95');
+    // ---- the checks of a line
+    const bad = lines => tryRun('x => saveMaint_(x)', { date: '2026-06-15', no: C1, garage: 'X', billNo: 'B-' + Math.random(), lines: lines }).thrown;
+    assert.strictEqual(bad([{ work: 'Bolt', type: 'Free', amount: 0 }]), 'Bill line 1 (Bolt): its kind is Paid, Warranty, FOC or Service Plan.');
+    assert.strictEqual(bad([{ work: 'Bolt', type: 'Paid', qty: -1, rate: 10, amount: 10 }]), 'Bill line 1 (Bolt): the quantity is not right.');
+    assert.strictEqual(bad([{ work: 'Bolt', type: 'Paid', qty: 1, rate: -10, amount: 10 }]), 'Bill line 1 (Bolt): the rate is not right.');
+    assert.strictEqual(bad([{ work: 'Bolt', type: 'Paid', qty: 1, rate: 10, disc: 120, amount: 10 }]), 'Bill line 1 (Bolt): the discount is 0 to 100 %.');
+    assert.strictEqual(bad([{ work: 'Bolt', type: 'Paid', qty: 1, rate: 10 }]), 'Bill line 1 (Bolt): enter its amount (₹).', 'a Paid line needs its ₹');
+    assert.strictEqual(bad([{ work: '', type: 'Warranty', qty: 1, rate: 10 }]), 'Bill line 1: type the work / part (e.g. Engine oil, Labour).');
+    // a bill of only free lines (all under warranty): kept, ₹ 0
+    const b3 = run('x => saveMaint_(x)', { date: '2025-12-25', no: C1, garage: 'Navnit Motors Pvt. Ltd.', billNo: 'W-ONLY', lines: [{ work: 'Retainer – seat duct', type: 'Warranty', qty: 1, rate: 5717.88 }, { work: 'Joint – double cruciform', type: 'Warranty', qty: 1, rate: 38890.92 }] });
+    assert.deepStrictEqual([b3.ok, b3.total, b3.billTotal], [true, 0, 0]);
+    // ---- an insurance claim (his accident bill S2627NMM2-01629: ₹2,16,499; we paid ₹10,856 – the receipt)
+    const acc = { date: '2026-06-03', no: C1, garage: 'Navnit Motors Pvt. Ltd.', billNo: 'S2627NMM2-01629', km: 31061, lines: [{ work: 'Repair wiring harness', type: 'Paid', qty: 1, rate: 65000, amount: 65000 },
+      { work: 'Other labour', amount: 118474 }, { work: 'CGST 9%', amount: 16512.66 }, { work: 'SGST 9%', amount: 16512.66 }, { work: 'Round-off', amount: -0.32 }] };
+    const badI = ins => tryRun('x => saveMaint_(x)', Object.assign({}, acc, { billNo: 'I-' + Math.random(), insurance: ins })).thrown;
+    assert.strictEqual(badI({ company: '', paid: 100 }), 'The insurance part of the bill: type the insurance company.');
+    assert.strictEqual(badI({ company: 'Tata AIG', paid: '' }), 'The insurance part of the bill: enter what the insurance paid (₹).');
+    assert.strictEqual(badI({ company: 'Tata AIG', paid: 300000 }), 'The insurance part of the bill: the insurance paid ₹300000 – more than the bill (₹216499).');
+    const b4 = run('x => saveMaint_(x)', Object.assign({}, acc, { insurance: { company: 'Tata AIG General Insurance', claimNo: 'CLM-1', paid: 205643 } }));
+    assert.deepStrictEqual([b4.ok, b4.total, b4.billTotal], [true, 10856, 216499], 'we paid ₹10,856 of ₹2,16,499');
+    r = run('x => getMaint_(x)', { no: C1 }).rows.find(x => x.id === b4.id);
+    assert.deepStrictEqual([r.total, r.billTotal, r.insurance, r.lines.some(x => x.type === 'Insurance')], [10856, 216499, { company: 'Tata AIG General Insurance', claimNo: 'CLM-1', paid: 205643 }, false], 'the insurance apart from the lines');
+    const raw = run('id => { const t = maintTable_(true); return t.rows.find(r => str_(r[t.c[H.MT_ID]]) === id)[t.c[H.AMOUNT]]; }', b4.id);
+    assert.strictEqual(raw, 10856, 'the Amount kept = what we paid');
+    assert.strictEqual(run('x => getMaint_(x)', { no: C1, from: '2026-06-03', to: '2026-06-03' }).total, 10856, 'the list\'s total: what we paid');
+    // ---- the car's log book: the cost = what we paid; the bills' total, the insurance and the free lines told apart; by work only what was paid
+    const g = run('x => maintLog_(x)', { no: C1, from: '2025-12-01', to: '2026-06-30' });
+    assert.deepStrictEqual(g.total.maint, { amount: 3658 + 967 + 0 + 10856, bills: 4, billTotal: 3658 + 967 + 0 + 216499, insurance: 205643, free: 1120 + 3793.45 + 44608.8 });
+    assert.ok(!g.total.byWork.some(w => /Retainer|Armrest|EVHC|Engine oil 0W30|Tata AIG/.test(w.work)), 'free lines and the insurance are not costs by work');
+    assert.strictEqual(r2(g.total.byWork.reduce((s, w) => s + w.amount, 0)), r2(3658 + 967 + 216499), 'by work: the paid lines');
+    // ---- an app of before (its lines have no kind) may not change a bill with free lines or an insurance part; a plain one: as before
+    assert.strictEqual(tryRun('(id, x) => updateMaint_(id, x)', b1.id, { date: '2025-12-25', no: C1, garage: 'Navnit Motors Pvt. Ltd.', billNo: 'S2526NMM2-07668', lines: [{ work: 'Wheel alignment', amount: 1860 }] }).thrown,
+      'Bill ' + b1.id + ' has free lines (Warranty / FOC / Service Plan) or an insurance part – update the app to change it.');
+    const plain = run('x => saveMaint_(x)', { date: '2026-01-10', no: C1, garage: 'Tyre House', billNo: 'T-9', lines: [{ work: 'Tyre', amount: 6000 }] });
+    assert.deepStrictEqual(run('(id, x) => updateMaint_(id, x)', plain.id, { date: '2026-01-10', no: C1, garage: 'Tyre House', billNo: 'T-9', lines: [{ work: 'Tyre', amount: 6200 }] }).total, 6200);
+    // …the new app keeps the insurance when it sends it, and takes it out when it sends none
+    assert.strictEqual(run('(id, x) => updateMaint_(id, x)', b4.id, Object.assign({}, acc, { lines: acc.lines.map(x => Object.assign({ type: 'Paid' }, x)), insurance: { company: 'Tata AIG General Insurance', claimNo: 'CLM-1', paid: 205643 } })).total, 10856);
+    assert.strictEqual(run('(id, x) => updateMaint_(id, x)', b4.id, Object.assign({}, acc, { lines: acc.lines.map(x => Object.assign({ type: 'Paid' }, x)), insurance: null })).total, 216499);
+    // a line of before (no kind) is read as Paid
+    assert.deepStrictEqual(run('() => maintLinesOf_(JSON.stringify([{ work: "Engine oil", amount: 1200 }]))'), [{ work: 'Engine oil', type: 'Paid', amount: 1200 }]);
+    // ---- the AI's answer: the short lines [work, type, qty, rate, discount, amount]; several invoices; an insurance claim
+    const ans = j => run('j => maintAnswer_(j)', j);
+    const a1 = ans({ date: '2025-12-25', billNo: 'S2526NMM2-07667, S2526NMM2-07668', garage: 'Navnit Motors Pvt. Ltd.', vehicle: 'DD01G0169', km: 19566, total: 10278,
+      lines: [['Retainer – seat duct', 'Warranty', 1, 5717.88, 0, 0], ['Fluid – diesel exhaust', 'Paid', 1, 5610.42, 0, 5610.42], ['Carried out EVHC', 'FOC', 1, 0, 0, 0],
+        ['Service 8000 miles', 'Service Plan', 1, 5580, 100, 0], ['Wheel alignment', 'Paid', 1, 1860, null, 1860], ['Drive in / out', 'Paid', 1, 0, 0, 0], ['CGST 9%', 'Paid', null, null, 0, 1404], ['SGST 9%', 'Paid', null, null, 0, 1404], ['Round-off', 'Paid', null, null, 0, -0.42]] });
+    assert.deepStrictEqual(a1.lines.map(x => x.type + ':' + x.amount), ['Warranty:0', 'Paid:5610.42', 'FOC:0', 'Service Plan:0', 'Paid:1860', 'FOC:0', 'Paid:1404', 'Paid:1404', 'Paid:-0.42'], 'every line, a Paid one charged nothing → FOC');
+    assert.deepStrictEqual([a1.lines[0], a1.lines[6], a1.billNo, a1.check, a1.insurance], [{ work: 'Retainer – seat duct', type: 'Warranty', amount: 0, qty: 1, rate: 5717.88, disc: 0 }, { work: 'CGST 9%', type: 'Paid', amount: 1404, disc: 0 }, 'S2526NMM2-07667, S2526NMM2-07668', '', null]);
+    const a2 = ans({ billNo: 'S2627NMM2-01629, S2627NMM2-01630', total: '12,30,893', insurer: 'Tata AIG General Insurance Co Ltd', claimNo: null, insurancePaid: null, customerPaid: '10,856', lines: [['Repair', 'Paid', 1, 1230893, 0, 1230893]] });
+    assert.deepStrictEqual(a2.insurance, { company: 'Tata AIG General Insurance Co Ltd', claimNo: '', paid: 1220037 }, 'the insurance paid = the bill less what we paid (the receipt)');
+    assert.deepStrictEqual(ans({ total: 1000, insurer: 'ICICI Lombard', insurancePaid: 900, lines: [['X', 'Paid', 1, 1000, 0, 1000]] }).insurance, { company: 'ICICI Lombard', claimNo: '', paid: 900 });
+    assert.deepStrictEqual(ans({ total: 1000, insurer: 'ICICI Lombard', insurancePaid: 5000, lines: [['X', 'Paid', 1, 1000, 0, 1000]] }).insurance.paid, null, 'more than the bill: not taken');
+    assert.deepStrictEqual(ans({ lines: [{ work: 'Old style', amount: 500 }] }).lines, [{ work: 'Old style', type: 'Paid', amount: 500 }], 'the long form still read');
+    const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+    assert.match(code, /"lines": \[\[work, type, qty, rate, discount, amount\], …\] – ONE array for EVERY item of every invoice, also the free ones/);
+    assert.match(code, /read them all as ONE bill/);
+  } finally {
+    run('() => { const P = PropertiesService.getScriptProperties(); ["FUEL_MODE", "FUEL_CARDS"].forEach(k => P.deleteProperty(k)); }');
+  }
+  function r2(n) { return Math.round(n * 100) / 100; }
 });
