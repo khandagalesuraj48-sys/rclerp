@@ -5727,6 +5727,7 @@ function meterReading_(u, x) {
 }
 // one question with a picture to the AI (the same models and order as the assistant; a busy model → the next); → its text
 function aiAskPhoto_(b64, ask, mime, what) {      // (update-165) mime: a PDF too; what: the words of its failure ('the bill' – else the meter's)
+  if (aiClaude_()) return aiAskPhotoC_(b64, ask, mime, what);      // (update-167) Claude, in its own words
   const body = { contents: [{ role: 'user', parts: [{ inlineData: { mimeType: mime || 'image/jpeg', data: b64 } }, { text: ask }] }], generationConfig: { maxOutputTokens: what ? 8192 : 2048, responseMimeType: 'application/json' } };
   const models = aiModels_(), seq = aiTries_(models), t0 = Date.now();
   let last = '';
@@ -10934,7 +10935,168 @@ function aiRules_(u) {
     '8. "Why" questions: explain from the figures of the look-ups (work done, diesel taken, the standard, the dates of the readings). If readings are missing or too few, say that this is the reason.',
   ].join('\n');
 }
-function aiInfo_() { return { on: typeof __ai === 'object' && !!__ai && __ai.on() }; }
+function aiInfo_() { const on = typeof __ai === 'object' && !!__ai && __ai.on(); return on ? { on: true, service: aiClaude_() ? 'Claude' : 'Gemini' } : { on: false }; }      // (update-167) which service
+/* ---------- CLAUDE (update-167, asked 27-10-2026: "Claude API lawaychi aahe … all app madhla AI perfect chalayla hawa") ----------
+ * With ANTHROPIC_API_KEY in the server's settings (server/gas.js) every AI question of the app goes to Claude, in Claude's own
+ * words (the Messages API): the assistant (getAiReply – its rules, its look-ups, the conversation), the meter / pump photos and
+ * the maintenance bills (aiAskPhoto_ – a PDF as a document), "Test the AI service" (getAiCheck). Without it: Gemini as before.
+ * The page and the phone app are NOT changed for it: they send and get the conversation as always (role user / model, parts
+ * text / functionCall / functionResponse) – it is put into Claude's words here, and Claude's answer back into those parts. The
+ * FIGURES still never come from the model: only from the look-ups, which run with the person's own sign-in.
+ * THE MODELS: the one fixed in ANTHROPIC_MODEL; else from the service's own list, kept for a day: the newest Sonnet first (reads
+ * a bill or a meter carefully and answers in seconds), then the newest Haiku (the fastest – asked when Sonnet is busy); if the
+ * list cannot be read, these two by their names (tried again in an hour).
+ * THE COST: the rules and the look-ups are the same in every step of a question – Claude keeps them (prompt caching, 5 minutes):
+ * the second and later steps pay about a tenth for them. The limits of the assistant (150 an hour a person, 5,000 a day a site)
+ * are the same as before. */
+const AI_CLAUDE_ = ['claude-sonnet-5-5', 'claude-haiku-5-5'];
+function aiClaude_() { return typeof __ai === 'object' && !!__ai && typeof __ai.service === 'function' && __ai.service() === 'claude'; }
+function aiModelsC_() {
+  const fixed = __ai.model(); if (fixed) return [fixed];
+  const pr = PropertiesService.getScriptProperties();
+  let kept = null; try { kept = JSON.parse(pr.getProperty('AI_MODEL_C') || 'null'); } catch (e) { kept = null; }
+  if (kept && Array.isArray(kept.list) && kept.list.length && Date.now() - Number(kept.at) < 86400000) return kept.list;
+  const r = __ai.call('GET', '/v1/models?limit=1000', null, 15000);
+  if (r.code === 401 || r.code === 403) throw new Error(aiKeyMsgC_(r.code));
+  let list = []; try { list = JSON.parse(r.text).data || []; } catch (e) { list = []; }
+  const ids = list.filter(m => m && /^claude-/.test(String(m.id))).sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))).map(m => String(m.id));
+  const pick = k => ids.find(n => n.indexOf('-' + k + '-') > -1 || n.slice(-k.length - 1) === '-' + k);
+  const order = [pick('sonnet'), pick('haiku')].filter(Boolean);
+  // a list that could not be read: the two by name, asked for the list again in an hour (not before every question)
+  pr.setProperty('AI_MODEL_C', JSON.stringify({ list: order.length ? order : AI_CLAUDE_, at: order.length ? Date.now() : Date.now() - 86400000 + 3600000 }));
+  return order.length ? order : AI_CLAUDE_;
+}
+// what Claude's answers mean: a key it did not take (401 / 403); no credit left (a 400 saying so); busy – asked again: no
+// connection, 429 (too many at once), 500 / 502 / 503 / 504, 529 (overloaded)
+const aiKeyMsgC_ = code => 'The AI service did not accept its key (' + code + '): the Admin has to check ANTHROPIC_API_KEY in the server\'s settings (Vercel → Environment Variables) and Redeploy.';
+const AI_NO_CREDIT_ = 'The AI service has no credit left (Claude): the Admin has to add funds in Claude Console → Billing. The rest of the app works as always.';
+const aiNoCreditC_ = r => !!r && r.code === 400 && /credit balance|purchase credits|billing/i.test(String(r.text || ''));
+const aiBusyC_ = r => !!r.error || [429, 500, 502, 503, 504, 529].indexOf(r.code) > -1;
+// the text of Claude's answer (its text blocks, one after the other)
+function aiTextC_(text) { try { return (JSON.parse(text).content || []).filter(b => b && b.type === 'text').map(b => String(b.text || '')).join(''); } catch (e) { return ''; } }
+// the look-ups in Claude's words: JSON Schema ("object", "string" … in small letters); one that takes nothing takes an empty object
+function aiSchemaC_(x) {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return x;
+  const o = {};
+  Object.keys(x).forEach(k => {
+    const v = x[k];
+    o[k] = k === 'type' && typeof v === 'string' ? v.toLowerCase() : k === 'items' ? aiSchemaC_(v)
+      : k === 'properties' && v && typeof v === 'object' ? Object.keys(v).reduce((a, n) => { a[n] = aiSchemaC_(v[n]); return a; }, {}) : v;
+  });
+  return o;
+}
+function aiToolsC_() { return AI_TOOLS_.map(t => ({ name: t.name, description: t.description, input_schema: t.parameters ? aiSchemaC_(t.parameters) : { type: 'object', properties: {} } })); }
+/* The conversation of the page (role user / model, parts text / functionCall / functionResponse) in Claude's words: user /
+ * assistant, blocks text / tool_use / tool_result. A look-up the model asked for gets a number here (the same every time the
+ * conversation is sent, so the pairs always match); its result in the next turn is matched to it by its name, in order. Claude
+ * wants a result for EVERY look-up, first in the next turn: one without its result (the page stopped half-way) gets "no
+ * result". A result without its look-up becomes plain text. Two turns of the same side in a row become one. */
+function aiToClaude_(turns) {
+  const msgs = []; let n = 0, open = [];
+  const push = (role, blocks) => { if (!blocks.length) return; const last = msgs[msgs.length - 1]; if (last && last.role === role) last.content = last.content.concat(blocks); else msgs.push({ role: role, content: blocks }); };
+  const noResult = () => { const b = open.map(o => ({ type: 'tool_result', tool_use_id: o.id, content: 'No result (the look-up was not run).', is_error: true })); open = []; return b; };
+  const json = v => { try { return JSON.stringify(v === undefined ? null : v); } catch (e) { return 'null'; } };
+  (turns || []).forEach(t => {
+    const parts = Array.isArray(t && t.parts) ? t.parts : [];
+    if (t.role === 'model') {
+      push('user', noResult());
+      const blocks = [];
+      parts.forEach(p => {
+        if (p && p.functionCall && p.functionCall.name) {
+          const id = 'toolu_' + String(++n).padStart(4, '0'), args = p.functionCall.args;
+          open.push({ id: id, name: String(p.functionCall.name) });
+          blocks.push({ type: 'tool_use', id: id, name: String(p.functionCall.name), input: args && typeof args === 'object' && !Array.isArray(args) ? args : {} });
+        } else if (p && typeof p.text === 'string' && p.text.trim()) blocks.push({ type: 'text', text: p.text });
+      });
+      push('assistant', blocks);
+    } else {
+      const results = [], texts = [];
+      parts.forEach(p => {
+        if (p && p.functionResponse) {
+          const name = String(p.functionResponse.name || ''), k = open.findIndex(o => o.name === name);
+          if (k > -1) { results.push({ type: 'tool_result', tool_use_id: open[k].id, content: json(p.functionResponse.response) }); open.splice(k, 1); }
+          else texts.push({ type: 'text', text: 'Result of the look-up ' + name + ': ' + json(p.functionResponse.response) });
+        } else if (p && typeof p.text === 'string' && p.text.trim()) texts.push({ type: 'text', text: p.text });
+      });
+      push('user', results.concat(noResult(), texts));
+    }
+  });
+  return msgs;
+}
+// Claude's answer back in the page's words: its text and its look-ups (functionCall), in its order
+function aiFromClaude_(content) {
+  return (Array.isArray(content) ? content : []).map(b => b && b.type === 'text' && String(b.text || '').trim() ? { text: String(b.text) }
+    : b && b.type === 'tool_use' && b.name ? { functionCall: { name: String(b.name), args: b.input && typeof b.input === 'object' ? b.input : {} } } : null).filter(Boolean);
+}
+// the assistant's one step with Claude (getAiReply_ has already checked the person, the limits and the conversation)
+function aiReplyC_(u, turns, rules, extra) {
+  const messages = aiToClaude_(turns);
+  if (!messages.length || messages[0].role !== 'user' || messages[messages.length - 1].role !== 'user') throw new Error('Type a question for the assistant.');
+  const body = { max_tokens: 4096, tools: aiToolsC_(), messages: messages,
+    system: [{ type: 'text', text: rules, cache_control: { type: 'ephemeral' } }].concat(extra ? [{ type: 'text', text: extra }] : []) };      // (the snapshot changes with every question: after the kept part)
+  const models = aiModelsC_(), seq = aiTries_(models), t0 = Date.now(), pr = PropertiesService.getScriptProperties();
+  let last = null, tried = 0; const gone = {};
+  for (let i = 0; i < seq.length; i++) {
+    const model = seq[i]; if (gone[model] || Date.now() - t0 > 35000) continue;
+    if (i === 1) __ai.wait(1500);
+    const r = __ai.call('POST', '/v1/messages', Object.assign({ model: model }, body), 40000); tried++;
+    if (!r.error && r.code < 300) {
+      let j = {}; try { j = JSON.parse(r.text); } catch (e) { throw new Error('The AI service sent an answer that cannot be read. Try again.'); }
+      const parts = aiFromClaude_(j.content);
+      if (!parts.length) throw new Error('The AI service gave no answer' + (j.stop_reason ? ' (' + j.stop_reason + ')' : '') + '. Ask in other words.');
+      if (model !== models[0] && !__ai.model()) pr.setProperty('AI_MODEL_C', JSON.stringify({ list: [model].concat(models.filter(x => x !== model)), at: Date.now() }));
+      const us = j.usage || {};
+      return { parts: parts, model: model, used: ['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens'].reduce((a, k) => a + (Number(us[k]) || 0), 0), tries: tried, ms: Date.now() - t0 };
+    }
+    last = { code: r.code, error: r.error, said: aiSaid_(r.text), model: model };
+    if (aiNoCreditC_(r)) throw new Error(AI_NO_CREDIT_);
+    if (r.code === 401 || r.code === 403) throw new Error(aiKeyMsgC_(r.code));
+    if (r.code === 404) { pr.deleteProperty('AI_MODEL_C'); gone[model] = true; continue; }      // the service no longer has this model
+    if (!aiBusyC_(r)) throw new Error('The AI service refused the question (' + r.code + ').' + (u.admin ? ' Model ' + model + '. It said: ' + last.said : ' Tell the Admin.'));
+    if (r.code === 429) gone[model] = true;
+  }
+  throw new Error(aiBusyMsg_(u, last, tried));
+}
+// one question with a photo / a PDF to Claude (as aiAskPhoto_): a bill gets 40 seconds, a meter or a pump 25
+function aiAskPhotoC_(b64, ask, mime, what) {
+  const media = mime || 'image/jpeg', room = what ? 40000 : 25000;
+  const file = media === 'application/pdf' ? { type: 'document', source: { type: 'base64', media_type: media, data: b64 } } : { type: 'image', source: { type: 'base64', media_type: media, data: b64 } };
+  const body = { max_tokens: what ? 8192 : 2048, messages: [{ role: 'user', content: [file, { type: 'text', text: ask }] }] };
+  const seq = aiTries_(aiModelsC_()), t0 = Date.now();
+  let last = '';
+  for (let i = 0; i < seq.length; i++) {
+    const left = room - (Date.now() - t0); if (left < 3000) break;
+    if (i === 1 && seq[1] === seq[0]) __ai.wait(1000);
+    const r = __ai.call('POST', '/v1/messages', Object.assign({ model: seq[i] }, body), left);
+    if (!r.error && r.code < 300) return aiTextC_(r.text);
+    last = aiNoCreditC_(r) ? 'no credit left in Claude Console' : r.code === 401 || r.code === 403 ? 'its key ANTHROPIC_API_KEY was not accepted' : (r.error || String(r.code));
+    if (r.code !== 404 && !aiBusyC_(r)) break;      // a refusal: asking again would fail the same way
+  }
+  if (what) throw new Error('The AI could not read ' + what + ' now (' + last + ') – type it in, or try again.');
+  throw new Error('The AI could not read the meter now (' + last + ') – type the reading.');
+}
+// "Test the AI service" with Claude: its list of models, one tiny question to each (see getAiCheck_)
+function aiCheckC_(out) {
+  const pr = PropertiesService.getScriptProperties();
+  try { pr.deleteProperty('AI_MODEL_C'); out.models = aiModelsC_(); } catch (e) { out.listError = String(e.message || e); return out; }
+  out.order = aiTries_(out.models);
+  out.models.slice(0, 5).forEach(m => {
+    const t0 = Date.now(), r = __ai.call('POST', '/v1/messages', { model: m, max_tokens: 16, messages: [{ role: 'user', content: 'Reply with the word OK.' }] }, 15000), ok = !r.error && r.code < 300;
+    out.tests.push({ model: m, ok: ok, code: r.code || 0, ms: Date.now() - t0, said: ok ? aiTextC_(r.text).trim().slice(0, 40) : aiNoCreditC_(r) ? 'no credit left – add funds in Claude Console → Billing' : (r.error || aiSaid_(r.text)) });
+  });
+  // the models that answered are asked first, in their order (Sonnet before Haiku); those that did not, last
+  if (!out.fixedModel && out.tests.some(t => t.ok)) {
+    const bad = out.tests.filter(t => !t.ok).map(t => t.model), list = out.models.filter(n => bad.indexOf(n) < 0).concat(bad);
+    pr.setProperty('AI_MODEL_C', JSON.stringify({ list: list, at: Date.now() }));
+    out.models = list; out.order = aiTries_(list);
+  }
+  return out;
+}
+// (update-167) the words of "busy" – the same for Claude and Gemini
+function aiBusyMsg_(u, last, tried) {
+  return 'The AI service is busy right now' + (last && last.code ? ' (' + last.code + ')' : '') + ' – that is on its side, not in the app. It was asked ' + tried + ' time(s). Please ask again in a minute.' +
+    (u.admin && last ? ' Admin: model ' + last.model + (last.said ? ' said: ' + last.said : last.error ? ': ' + last.error : '') : '');
+}
 /* THE MODELS, in the order they are tried. The one fixed in the server's settings (GEMINI_MODEL) if there is one; else from the
  * service's own list (names change often), kept for a day: the NUMBERED "flash" models first, the highest version first; then
  * the "…-latest" names; then the previews; then the "flash-lite" ones. A model that is BUSY is not the end: the next is tried.
@@ -10962,7 +11124,7 @@ function aiModels_() {
 function aiSaid_(text) { try { const j = JSON.parse(text); return str_((j.error && j.error.message) || text).slice(0, 300); } catch (e) { return str_(text).slice(0, 300); } }
 function getAiReply_(u, x) {
   x = x || {};
-  if (!aiInfo_().on) throw new Error('The assistant is not set up yet: the Admin has to put the AI key (GEMINI_API_KEY) in the server\'s settings.');
+  if (!aiInfo_().on) throw new Error('The assistant is not set up yet: the Admin has to put the AI key (ANTHROPIC_API_KEY – Claude) in the server\'s settings.');
   // how much one user and the whole site may ask
   const ch = CacheService.getScriptCache(), hour = Math.floor(Date.now() / 3600000), day = today_();
   const kU = 'AIU_' + hour + '_' + hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, str_(u.email).toLowerCase(), Utilities.Charset.UTF_8)).slice(0, 16), kS = 'AIS_' + day;
@@ -10995,7 +11157,9 @@ function getAiReply_(u, x) {
    * model can answer the everyday questions in ONE step, without asking for a look-up first. It is the user's own view of the
    * data (read with his sign-in). Cut to 7,000 characters. */
   let snap = ''; try { snap = x.context ? JSON.stringify(x.context).slice(0, 7000) : ''; } catch (e) { snap = ''; }
-  const rules = aiRules_(u) + (snap ? '\n9. SNAPSHOT – figures the app read for this person a moment ago. When the snapshot answers the question exactly (same dates, same machinery), answer from it at once, WITHOUT a look-up, and say "as of now". For anything else use a look-up. "page" is where the person is working – a question like "this page", "this machinery", "why this error" is about that.\nSNAPSHOT = ' + snap : '');
+  const extra = snap ? '9. SNAPSHOT – figures the app read for this person a moment ago. When the snapshot answers the question exactly (same dates, same machinery), answer from it at once, WITHOUT a look-up, and say "as of now". For anything else use a look-up. "page" is where the person is working – a question like "this page", "this machinery", "why this error" is about that.\nSNAPSHOT = ' + snap : '';
+  if (aiClaude_()) return aiReplyC_(u, turns, aiRules_(u), extra);      // (update-167) Claude, in its own words
+  const rules = aiRules_(u) + (extra ? '\n' + extra : '');
   const body = { system_instruction: { parts: [{ text: rules }] }, contents: turns, tools: [{ functionDeclarations: AI_TOOLS_ }],
     // no temperature (the newer models are meant to run at their own default); room for the model's thinking AND the answer –
     // with a small limit a thinking model can use it all up and send an empty answer
@@ -11038,8 +11202,7 @@ function getAiReply_(u, x) {
     if (!busy) throw new Error('The AI service refused the question (' + r.code + ').' + (u.admin ? ' Model ' + model + '. It said: ' + last.said : ' Tell the Admin.'));
     if (r.code === 429) gone[model] = true;                                                    // this model's limit is used up: not asked again now
   }
-  throw new Error('The AI service is busy right now' + (last && last.code ? ' (' + last.code + ')' : '') + ' – that is on its side, not in the app. It was asked ' + tried + ' time(s). Please ask again in a minute.' +
-    (u.admin && last ? ' Admin: model ' + last.model + (last.said ? ' said: ' + last.said : last.error ? ': ' + last.error : '') : ''));
+  throw new Error(aiBusyMsg_(u, last, tried));
 }
 // the order in which the models are asked for one question (see above)
 function aiTries_(models) {
@@ -11051,9 +11214,10 @@ function aiTries_(models) {
  * service for its list of models and puts one tiny question ("Reply with the word OK") to each of the first five, and reports
  * for each: answered or not, the time, and what the service said. Nothing of the app's data is sent. */
 function getAiCheck_() {
-  const out = { key: aiInfo_().on, fixedModel: '', models: [], tests: [], listError: '' };
+  const out = { key: aiInfo_().on, service: aiInfo_().service || '', fixedModel: '', models: [], tests: [], listError: '' };
   if (!out.key) return out;
   out.fixedModel = __ai.model();
+  if (aiClaude_()) return aiCheckC_(out);      // (update-167)
   try { PropertiesService.getScriptProperties().deleteProperty('AI_MODEL'); out.models = aiModels_(); } catch (e) { out.listError = String(e.message || e); return out; }
   out.order = aiTries_(out.models);
   out.models.slice(0, 5).forEach(m => {

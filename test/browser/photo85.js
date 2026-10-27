@@ -94,7 +94,7 @@ const kids = [];
   const ai = await f.evaluate(() => ({ hr: $('d_hr').value, blue: $('d_hr').classList.contains('ai-read'), note: $('d_ai_note').hidden ? '' : $('d_ai_note').textContent }));
   const sent = (await (await fetch(AI + '/__log')).json()).filter(x => x.image);
   ok('AI: the dashboard photo was read – Hrs Reading filled with 4517.3, shown blue, "check it with the photo"', ai.hr === '4517.3' && ai.blue && /AI read on the photos: 4,?517\.3 hr/.test(ai.note), ai);
-  ok('   the AI got a smaller copy (JPG, ' + Math.round(((sent[0] || {}).bytes || 0) / 1024) + ' KB < ' + dash.kb + ' KB) and was asked for JSON', sent.length === 1 && sent[0].image === 'image/jpeg' && sent[0].bytes < dash.kb * 1024 && sent[0].json === 'application/json', sent.map(x => ({ bytes: x.bytes, json: x.json })));
+  ok('   the AI got a smaller copy (JPG, ' + Math.round(((sent[0] || {}).bytes || 0) / 1024) + ' KB < ' + dash.kb + ' KB) and was asked for JSON', sent.length === 1 && sent[0].image === 'image/jpeg' && sent[0].bytes < dash.kb * 1024 && (sent[0].service === 'claude' ? sent[0].jsonAsked && sent[0].kind === 'image' : sent[0].json === 'application/json'), sent.map(x => ({ service: x.service || 'gemini', bytes: x.bytes, json: x.json || x.jsonAsked })));      // (update-167: Claude is asked for JSON in the words of the question)
   ok('   (update-87) the AI was told the last reading of this machinery (4500 hours on its date) and asked for every other number too', /the hour meter showed 4500 hours on \d\d-\d\d-\d{4}/.test(sent[0].ask) && /"numbers"/.test(sent[0].ask), sent[0].ask);
   await f.evaluate(() => window.scrollBy(0, $('d_ai_note').getBoundingClientRect().top - 420)); await wait(300);
   await p.screenshot({ path: SHOTS + '/photo85_ai.png' });

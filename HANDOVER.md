@@ -2107,3 +2107,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `S.dashStale`), `setMaster` skips an unchanged list (`S.masterSig`), "Show all" 50 rows per frame, Excel tool loads in the
   background (`rclLoadXlsx`). Bug fixed: `openTabData` – Tank Check / report pages did not load after the first data change.
   Freeze recorder (server/page.js): page, last action, waited call, memory; `rclDiag()` in the console.
+- 27-10-2026 (update-167, with rcl-mobile 3.48.0). Report: `UPDATE_167.md`. CLAUDE FOR EVERY AI OF THE APP – `ANTHROPIC_API_KEY`
+  in Vercel → server/gas.js `makeAi` asks Claude (`AI_BASE_C`, `x-api-key`, `anthropic-version`), else Gemini as before; Code.gs
+  Claude block after `aiInfo_`: `aiClaude_`, `aiModelsC_` (newest Sonnet, then Haiku; `AI_MODEL_C`), `aiToolsC_` / `aiSchemaC_`,
+  `aiToClaude_` / `aiFromClaude_` (the page's Gemini-shaped conversation unchanged), `aiReplyC_` (rules with `cache_control`),
+  `aiAskPhotoC_` (image / PDF document), `aiCheckC_`, `aiBusyMsg_`; `AI_NO_CREDIT_`, `aiKeyMsgC_`. FIX_RULES +1 (no credit / key),
+  two rules name Claude Console. No SQL. Tests: unit `update-167`; rig `test/claude-standin.js` + `test/browser/claude167.js` 14;
+  photo85 / photo139 / mnt165 / aido with Claude and with Gemini (main the same).

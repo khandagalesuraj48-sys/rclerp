@@ -455,16 +455,25 @@ function makeWarm(st) {
 /* ---------- THE ASSISTANT'S LINE TO THE AI SERVICE (Gemini) – 04-10-2026 ----------
  * The key never leaves the server: it is read here from the server's settings (GEMINI_API_KEY in Vercel) and put on the
  * request; the app's code only says what to ask. GEMINI_API_BASE is for tests (a stand-in service); GEMINI_MODEL fixes the
- * model, otherwise the app picks one from the service's own list. One call may take a while: 50 seconds are allowed. */
+ * model, otherwise the app picks one from the service's own list. One call may take a while: 50 seconds are allowed.
+ * (update-167, asked 27-10-2026: "Claude API lawaychi aahe … all app madhla AI perfect chalayla hawa") CLAUDE (Anthropic): with
+ * ANTHROPIC_API_KEY in the server's settings every AI question of the app goes to Claude – the assistant, the meter / pump
+ * photos, the maintenance bills (app/Code.gs says it in Claude's own words); without it, Gemini as before. ANTHROPIC_MODEL
+ * fixes the model; ANTHROPIC_API_BASE is for tests (test/claude-standin.js). A key is used without the spaces / new line a
+ * copy-paste can bring. */
 const AI_BASE = () => String(process.env.GEMINI_API_BASE || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+const AI_BASE_C = () => String(process.env.ANTHROPIC_API_BASE || 'https://api.anthropic.com').replace(/\/+$/, '');
+const AI_KEY_C = () => String(process.env.ANTHROPIC_API_KEY || '').trim();
 function makeAi() {
   return {
-    on: () => !!process.env.GEMINI_API_KEY,
-    model: () => String(process.env.GEMINI_MODEL || ''),
+    on: () => !!AI_KEY_C() || !!process.env.GEMINI_API_KEY,
+    service: () => AI_KEY_C() ? 'claude' : process.env.GEMINI_API_KEY ? 'gemini' : '',
+    model: () => String((AI_KEY_C() ? process.env.ANTHROPIC_MODEL : process.env.GEMINI_MODEL) || '').trim(),
     wait: ms => sleepSync(Math.max(0, Math.min(5000, Number(ms) || 0))),      // a short pause before asking a busy service again
     call: (method, path, body, ms) => {
-      const key = String(process.env.GEMINI_API_KEY || ''); if (!key) return { code: 0, text: '', error: 'no key' };
-      const r = fetchAllSync([{ url: AI_BASE() + path, method: method, headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: body === undefined || body === null ? undefined : JSON.stringify(body) }], Math.max(3000, Math.min(50000, Number(ms) || 50000)))[0] || {};
+      const c = AI_KEY_C(), key = c || String(process.env.GEMINI_API_KEY || '').trim(); if (!key) return { code: 0, text: '', error: 'no key' };
+      const headers = c ? { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' } : { 'x-goog-api-key': key, 'Content-Type': 'application/json' };
+      const r = fetchAllSync([{ url: (c ? AI_BASE_C() : AI_BASE()) + path, method: method, headers: headers, body: body === undefined || body === null ? undefined : JSON.stringify(body) }], Math.max(3000, Math.min(50000, Number(ms) || 50000)))[0] || {};
       // (update-104) the line to the AI is not the database: a call that ran out of time is said as the AI's slowness – before it read
       // "The database did not answer in time", so the page asked again (a database pause is asked again by itself) and the Admin's
       // fault list took it as a fault of the database. A slow AI is no fault of the app: the person types the reading.
