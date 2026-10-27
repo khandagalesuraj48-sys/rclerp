@@ -303,7 +303,7 @@ const MODULE_LABEL_ = { 'Master': 'Asset Master' };
 const MODULE_BLANK_NONE_ = { 'Fuel Cards': true, 'Maintenance': true };      // (update-165: Maintenance too)
 const permOf_ = (m, raw) => MODULE_BLANK_NONE_[m] && str_(raw) === '' ? 'None' : ACCESS_(raw);
 // (update-164) the pages of THIS site: Fuel Cards only at a site on fuel cards; there no Diesel Inward / Transfer (no stock)
-const sitePage_ = m => cardSite_() ? m !== 'Diesel Inward' && m !== 'Diesel Transfer' : m !== 'Fuel Cards' && m !== 'Maintenance';      // (update-165) Maintenance: only at a site on fuel cards
+const sitePage_ = m => cardSite_() ? m !== 'Diesel Inward' && m !== 'Diesel Transfer' : m !== 'Fuel Cards';      // (update-170) Maintenance at every site (update-165: only on fuel cards)
 // a column that is not in Users yet takes the access of the column it came out of
 const MODULE_FROM_ = { 'Vendor Master': 'Master', 'Vendor BOQ': 'Master', 'Machinery Billing': 'Master', 'Saved Bills': 'Reports' };
 const ACCESS_ = v => { const k = str_(v).toUpperCase().replace(/[^A-Z]/g, ''); return k === 'EDIT' ? 'Edit' : (k === 'NOACCESS' || k === 'NONE' || k === 'NO' || k === 'HIDE') ? 'None' : 'View'; };
@@ -953,7 +953,7 @@ const API_ = {
   saveMaint:         { m: 'Maintenance', edit: true, f: saveMaint_, log: 'add', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
   updateMaint:       { m: 'Maintenance', edit: true, f: updateMaint_, log: 'edit', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
   deleteMaint:       { m: 'Maintenance', edit: true, f: deleteMaint_, log: 'delete', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
-  maintFile:         { m: 'Maintenance', withUser: true, f: (u, x) => (cardSiteOnly_(), uploadAttachment_(u, x, 'Maintenance')) },      // one file of a bill (PDF / photo), kept once in the private store (Edit checked inside)
+  maintFile:         { m: 'Maintenance', withUser: true, f: (u, x) => uploadAttachment_(u, x, 'Maintenance') },      // one file of a bill (PDF / photo), kept once in the private store (Edit checked inside)
   getMaintFiles:     { m: 'Maintenance', f: getMaintFiles_ },
   readMaintBill:     { m: 'Maintenance', withUser: true, f: (u, x) => maintRead_(u, x) },      // the AI reads a bill – nothing is saved (Edit checked inside)
   maintLog:          { m: 'Maintenance', any: ['Maintenance', 'Reports'], f: maintLog_ },
@@ -6328,7 +6328,11 @@ function cardEntries_() {
  *   – THE CAR'S LOG BOOK (maintLog): for a car and dates – every fill (Diesel Issue: fuel, qty, ₹, card / Cash, KM) and every bill,
  *     by date; the totals: fuel ₹ (by card / in cash), maintenance ₹ and by work, all together, the KM of its Log Book, ₹ per KM;
  *     the last service.
- * Only at a site on fuel cards (sitePage_ / cardSiteOnly_); at every other site nothing of this is read.
+ * (update-170, asked 27-10-2026 with the Maintenance Log Book of Roller No-03: "mala log book as hawa aahe ya format madhe") AT EVERY SITE,
+ * for every machinery (update-165: only at a site on fuel cards); the reading of a bill is its machinery's meter (KM or Hrs); a line
+ * keeps its Uom; the log book is drawn in his format (Sr, Date, Party Name, Current Reading, Particulars, Qty, Uom, Basic Rate,
+ * Amount, GST Amount, Amount With GST, Total – the tax lines in the GST column). Party Name = the garage / party of a direct bill;
+ * material issued from the RCL Store will come in from the Store module (maintStoreLines_) once it has its Issue.
  * (update-168, asked 27-10-2026 with 9 of his bills: "kahi material warranty madhe aste kahi paid aste kahi discount deun aste tr
  *  sagle kahi yeyla hawa ok and type pn krta yayla hawa"; his answers: the car's cost = only what WE paid; each line its work /
  *  part, KIND (Paid / Warranty / FOC / Service Plan), Qty, Rate, Discount % and ₹; an insurance claim = one bill with the whole
@@ -6353,6 +6357,7 @@ const maintAllLinesOf_ = v => { let a = null; try { a = typeof v === 'string' ? 
     const ty = clean_(l.type), type = ty === MNT_INS_ ? MNT_INS_ : (MNT_TYPES_.find(t => t.toUpperCase() === ty.toUpperCase()) || 'Paid');
     const o = { work: clean_(l.work).slice(0, 120), type: type, amount: r2_(num0_(l.amount)) };
     ['qty', 'rate', 'disc'].forEach(k => { const n = numOrBlank_(l[k]); if (n !== '') o[k] = n; });
+    if (clean_(l.uom)) o.uom = clean_(l.uom).slice(0, 12);      // (update-170) its unit (Nos, Ltr, Kg …)
     if (type === MNT_INS_ && clean_(l.claim)) o.claim = clean_(l.claim).slice(0, 40);
     return o;
   }) : []; };
@@ -6370,8 +6375,8 @@ function maintLines_(list) {
   const out = [];
   list.forEach((l, i) => {
     const work = clean_(l && l.work).slice(0, 120), a = numOrBlank_(l && l.amount), ty = clean_(l && l.type);
-    const qty = numOrBlank_(l && l.qty), rate = numOrBlank_(l && l.rate), disc = numOrBlank_(l && l.disc);
-    if (!work && (a === '' || a === 0) && qty === '' && rate === '') return;
+    const qty = numOrBlank_(l && l.qty), rate = numOrBlank_(l && l.rate), disc = numOrBlank_(l && l.disc), uom = clean_(l && l.uom).slice(0, 12);
+    if (!work && (a === '' || a === 0) && qty === '' && rate === '' && !uom) return;
     if (!work) throw new Error('Bill line ' + (i + 1) + ': type the work / part (e.g. Engine oil, Labour).');
     const type = !ty ? 'Paid' : MNT_TYPES_.find(t => t.toUpperCase() === ty.toUpperCase());
     if (!type) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): its kind is Paid, Warranty, FOC or Service Plan.');
@@ -6381,6 +6386,7 @@ function maintLines_(list) {
     if (type === 'Paid' && (a === '' || a === 0 || Math.abs(a) > 100000000)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): enter its amount (₹).');
     const o = { work: work, type: type, amount: type === 'Paid' ? r2_(a) : 0 };
     if (qty !== '') o.qty = r2_(qty);
+    if (uom) o.uom = uom;
     if (rate !== '') o.rate = r2_(rate);
     if (disc !== '') o.disc = r2_(disc);
     out.push(o);
@@ -6408,9 +6414,9 @@ function maintVals_(x) {
   // (update-168) a bill only of free lines (warranty …) is kept too; below 0: a discount bigger than the bill
   if (total < 0) throw new Error('The total of the bill cannot be below 0 – check the amounts (a discount is a minus line).');
   const ins = maintIns_(x.insurance, total), paid = r2_(total + (ins ? ins.amount : 0));
-  const km = blank_(x.km) ? '' : reqReading_(x.km, m.id + ' KM Reading');
+  const km = blank_(x.km) ? '' : reqReading_(x.km, m.id + ' Reading');      // (update-170) its meter: KM or Hrs
   const service = x.service === true || /^(yes|y|true|1)$/i.test(str_(x.service));
-  if (service && km === '') throw new Error(m.id + ': a service needs its KM reading – the next service is counted from it.');
+  if (service && km === '') throw new Error(m.id + ': a service needs its reading (KM / Hrs) – the next service is counted from it.');
   return { dk: dk, m: m, garage: clean_(x.garage).slice(0, 80), billNo: clean_(x.billNo).slice(0, 80), km: km, lines: ins ? lines.concat([ins]) : lines, billTotal: total, total: paid,
     service: service, remark: clean_(x.remark).slice(0, 200) };
 }
@@ -6459,7 +6465,6 @@ function maintTwice_(t, v, selfId) {
 }
 function saveMaint_(x) {
   x = x || {};
-  cardSiteOnly_();
   return withLock_(() => {
     const t = maintTable_(true), v = maintVals_(x), files = maintFilesOf_(x.files, null);
     const twice = maintTwice_(t, v, '');
@@ -6472,7 +6477,6 @@ function saveMaint_(x) {
 }
 function updateMaint_(id, x) {
   x = x || {};
-  cardSiteOnly_();
   return withLock_(() => {
     const t = maintTable_(true), i = t.rows.findIndex(r => str_(r[t.c[H.MT_ID]]) === str_(id));
     if (i === -1) throw new Error('Maintenance bill ' + str_(id) + ' was not found.');
@@ -6493,7 +6497,6 @@ function updateMaint_(id, x) {
   });
 }
 function deleteMaint_(id) {
-  cardSiteOnly_();
   return withLock_(() => {
     const t = maintTable_(true), i = t.rows.findIndex(r => str_(r[t.c[H.MT_ID]]) === str_(id));
     if (i === -1) throw new Error('Maintenance bill ' + str_(id) + ' was not found.');
@@ -6512,7 +6515,6 @@ const maintOut_ = (t, r) => { const lines = maintLinesOf_(r[t.c[H.WLINES]]), ins
 // the bills of the dates (and of one car), newest first; the words typed before (works, garages) to suggest
 function getMaint_(f) {
   f = f || {};
-  cardSiteOnly_();
   const from = str_(f.from) ? checkDate_(f.from) : '', to = str_(f.to) ? checkDate_(f.to) : '';
   if (from && to && from > to) throw new Error('From date is after To date.');
   const t = maintTable_(false); if (!t) return { rows: [], total: 0, count: 0, works: [], garages: [], missing: true };
@@ -6542,7 +6544,6 @@ function getMaintFiles_(id) {
 function maintRead_(u, x) {
   x = x || {};
   if (!canEdit_(u, 'Maintenance')) throw new Error('You have View access only for Maintenance. Ask Admin for Edit access.');
-  cardSiteOnly_();
   const mt = /^data:(image\/jpeg|image\/png|application\/pdf);base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
   if (!mt) throw new Error('A bill must be a photo (JPG or PNG) or a PDF.');
   if (mt[2].length > Math.ceil(ATT_RAW_MAX_ * 4 / 3) + 4) throw new Error('This bill file is too big (more than 3 MB) – make the PDF smaller (or read one page photo).');
@@ -6551,10 +6552,10 @@ function maintRead_(u, x) {
     'The file may hold more than one invoice of the same vehicle and job (for example a parts invoice and a labour invoice) and a payment receipt: read them all as ONE bill. ' +
     'Answer with JSON only: {"date": the bill date as "yyyy-mm-dd" or null, "billNo": the bill / invoice number (more than one invoice: all their numbers joined with ", ") or null, ' +
     '"garage": the name of the shop / garage / service centre that issued it or null, ' +
-    '"vehicle": the vehicle registration number printed on it (e.g. MH12AB1234) or null, "km": the odometer / KM reading printed on it or null, ' +
-    '"lines": [[work, type, qty, rate, discount, amount], …] – ONE array for EVERY item of every invoice, also the free ones: work = the work, part or item in a few words; ' +
+    '"vehicle": the vehicle registration number printed on it (e.g. MH12AB1234) or null, "km": the odometer / KM or hour meter reading printed on it or null, ' +
+    '"lines": [[work, type, qty, uom, rate, discount, amount], …] – ONE array for EVERY item of every invoice, also the free ones: work = the work, part or item in a few words; ' +
     'type = exactly "Paid", "Warranty", "FOC" or "Service Plan" as its Type column says (no Type column: "Paid"; free of charge: "FOC"; covered by a service / AMC plan, often 100 % discount: "Service Plan"); ' +
-    'qty and rate = its quantity and rate / price as printed (null when not printed); discount = its discount % as printed (0 when none); ' +
+    'qty and rate = its quantity and rate / price as printed (null when not printed); uom = its unit as printed (Nos, Ltr, Kg, Set …) or null; discount = its discount % as printed (0 when none); ' +
     'amount = what is charged for it in ₹: its taxable amount after its own discount (0 for Warranty, FOC and Service Plan). ' +
     'Give the taxes (CGST, SGST, IGST), the round-off / adjustment and other charges as their own "Paid" lines with qty and rate null, and a discount on the whole bill as a minus "Paid" line – ' +
     'the "Paid" amounts together must make the grand total. ' +
@@ -6568,14 +6569,17 @@ function maintRead_(u, x) {
 function maintAnswer_(j) {
   const sn = v => { const n = typeof v === 'string' && v.trim() !== '' ? Number(v.replace(/[, ₹%]/g, '')) : v; return typeof n === 'number' && isFinite(n) ? r2_(n) : null; };
   const d = str_(j.date), date = /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= today_() && d >= '2000-01-01' && dkey_(d) === d ? d : '';
-  // (update-168) a line in the short form [work, type, qty, rate, discount, amount] or as { work, type, qty, rate, discount, amount }
+  // (update-168) a line in the short form [work, type, qty, uom, rate, discount, amount] (update-170; before: no uom – 6 values) or as
+  // { work, type, qty, uom, rate, discount, amount }
   const lines = (Array.isArray(j.lines) ? j.lines : []).map(l => {
-    const a = Array.isArray(l) ? { work: l[0], type: l[1], qty: l[2], rate: l[3], disc: l[4], amount: l[5] } : l && typeof l === 'object' ? { work: l.work || l.item || l.description, type: l.type, qty: l.qty, rate: l.rate, disc: l.disc !== undefined ? l.disc : l.discount, amount: l.amount } : {};
+    const a = Array.isArray(l) ? (l.length >= 7 ? { work: l[0], type: l[1], qty: l[2], uom: l[3], rate: l[4], disc: l[5], amount: l[6] } : { work: l[0], type: l[1], qty: l[2], rate: l[3], disc: l[4], amount: l[5] })
+      : l && typeof l === 'object' ? { work: l.work || l.item || l.description, type: l.type, qty: l.qty, uom: l.uom || l.unit, rate: l.rate, disc: l.disc !== undefined ? l.disc : l.discount, amount: l.amount } : {};
     const ty = clean_(a.type).toUpperCase(), amount = sn(a.amount), qty = sn(a.qty), rate = sn(a.rate), disc = sn(a.disc);
     let type = /WARRANT/.test(ty) ? 'Warranty' : /^FOC|FREE/.test(ty) ? 'FOC' : /SERVICE ?PLAN|AMC/.test(ty) ? 'Service Plan' : 'Paid';
     if (type === 'Paid' && amount === 0) type = 'FOC';      // a line charged nothing is a free one
     const o = { work: clean_(a.work).slice(0, 120), type: type, amount: type === 'Paid' ? amount : 0 };
     if (qty !== null && qty >= 0) o.qty = qty;
+    const uom = typeof a.uom === 'string' || typeof a.uom === 'number' ? clean_(a.uom).slice(0, 12) : ''; if (uom && !/^null$/i.test(uom)) o.uom = uom;
     if (rate !== null && rate >= 0) o.rate = rate;
     if (disc !== null && disc >= 0 && disc <= 100) o.disc = disc;
     return o;
@@ -6591,16 +6595,22 @@ function maintAnswer_(j) {
   return { date: date, billNo: clean_(j.billNo).slice(0, 80), garage: clean_(j.garage).slice(0, 80), vehicle: clean_(j.vehicle).slice(0, 30), km: aiNum_(j.km), lines: lines, total: total,
     insurance: insurance, service: j.service === true, check: check };
 }
-/* THE CAR'S MAINTENANCE LOG BOOK: every fill and every bill of one car in the dates, by date, and the totals */
+/* THE MAINTENANCE LOG BOOK of one machinery: every bill in the dates (each line), by date, and the totals; at a site on fuel cards also
+ * its fills (with their ₹ – update-165). (update-170) At every site; each bill its Party (the garage / party of a direct bill); the
+ * machinery's meter for its readings. */
+// (update-170) PROVISION for the Store module (asked: "store module pn banwanar aahe … tyach provision attach krun thew, sadhya direct
+// bill marel"): the material the RCL Store issues to this machinery will join the log book here – each as a bill of the Party
+// "RCL Store" with its lines ({ date, id, party, km, lines: [{ work, type: 'Paid', qty, uom, rate, amount }], total }). Nothing yet: the
+// Store has only its Item Master.
+function maintStoreLines_(m, from, to) { return []; }
 function maintLog_(f) {
   f = f || {};
-  cardSiteOnly_();
   const m = findMachine_(f.no), r0 = rptRange_({ from: str_(f.from) || today_().slice(0, 8) + '01', to: str_(f.to) || today_() }, 1100);
   const from = r0.from, to = r0.to, K = noKey_(m.id), fuel = machineFuel_(m), unit = fuelUnit_(fuel);
   const lines = [], ct = v => v instanceof Date ? v.getTime() : 0;
   const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, amt = H.AMOUNT in c;
-  const fu = { qty: 0, amount: 0, card: 0, cash: 0, fills: 0 };
-  t.rows.forEach(r => {
+  const fu = { qty: 0, amount: 0, card: 0, cash: 0, fills: 0 }, card = cardSite_();      // (update-170) the fills only at a site on fuel cards (their ₹)
+  if (card) t.rows.forEach(r => {
     if (noKey_(r[c[H.NO]]) !== K) return;
     const dk = dkey_(r[c[H.IDATE]]); if (!dk || dk < from || dk > to) return;
     const src = clean_(r[c[H.SOURCE]]), a = amt ? num0_(r[c[H.AMOUNT]]) : 0, q = num0_(r[c[H.QTY]]), cash = isCash_(src);
@@ -6617,8 +6627,10 @@ function maintLog_(f) {
     mn.amount = r2_(mn.amount + x.total); mn.bills++;
     mn.billTotal = r2_(mn.billTotal + x.billTotal); mn.insurance = r2_(mn.insurance + (x.insurance ? x.insurance.paid : 0)); mn.free = r2_(mn.free + x.free);      // (update-168)
     x.lines.filter(l => l.type === 'Paid' && l.amount).forEach(l => { const k = l.work.toUpperCase(); byWork[k] = byWork[k] || { work: l.work, amount: 0, n: 0 }; byWork[k].amount = r2_(byWork[k].amount + l.amount); byWork[k].n++; });
-    lines.push(Object.assign({ kind: 'Maintenance', amount: x.total, ord: ct(r[mt.c[H.CREATED]]) }, x, { files: x.files.length }));
+    lines.push(Object.assign({ kind: 'Maintenance', amount: x.total, ord: ct(r[mt.c[H.CREATED]]) }, x, { party: x.garage, files: x.files.length }));
   });
+  maintStoreLines_(m, from, to).forEach(x => { mn.amount = r2_(mn.amount + num0_(x.total)); mn.billTotal = r2_(mn.billTotal + num0_(x.total)); mn.bills++;
+    lines.push(Object.assign({ kind: 'Store', amount: num0_(x.total), billTotal: num0_(x.total), insurance: null, free: 0, ord: 0 }, x)); });      // (update-170 – none yet)
   lines.sort((a, b) => a.date.localeCompare(b.date) || a.ord - b.ord);
   lines.forEach(l => { delete l.ord; });
   let km = 0;
@@ -6626,7 +6638,7 @@ function maintLog_(f) {
   if (H.WKM in lc) lt.rows.forEach(r => { const dk = dkey_(r[lc[H.DATE]]); if (noKey_(r[lc[H.NO]]) === K && dk && dk >= from && dk <= to) km = r2_(km + num0_(r[lc[H.WKM]])); });
   const all = r2_(fu.amount + mn.amount);
   return Object.assign(rptBase_('Maintenance Log Book – ' + m.id, { from: from, to: to }), {
-    machine: { id: m.id, name: m.name, type: m.type, fuel: fuel, unit: unit }, lines: lines,
+    machine: { id: m.id, name: m.name, type: m.type, fuel: fuel, unit: unit, meter: str_(m.unit) }, card: card, lines: lines,
     total: { fuel: fu, maint: mn, byWork: Object.keys(byWork).map(k => byWork[k]).sort((a, b) => b.amount - a.amount || a.work.localeCompare(b.work)), all: all, km: km, perKm: km > 0 ? r2_(all / km) : null },
     lastService: last });
 }

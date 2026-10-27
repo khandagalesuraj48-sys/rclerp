@@ -2125,3 +2125,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 - 27-10-2026 (update-169). Report: `UPDATE_169.md`. His bill 04590 (vehicle detail "Insurance Co : Others") was read as an
   insurance claim with no amount – the save asked for the insurance's ₹. `maintAnswer_`: an insurance part only with what the
   insurance paid (> 0, ≤ the bill); the question says the vehicle's "Insurance Co" alone is not a claim. No SQL; the app unchanged.
+- 27-10-2026 (update-170, with rcl-mobile 3.50.0). Report: `UPDATE_170.md`. MAINTENANCE AT EVERY SITE, the log book in his
+  format (Roller No-03): `sitePage_` lists Maintenance at every site; `cardSiteOnly_` out of the Maintenance actions; a line's `uom`;
+  the reading KM / Hrs (`m.id + ' Reading'`, the service message); the AI's 7-value lines; `maintLog_` – fills only on fuel cards
+  (`card`), `party`, `machine.meter`, `maintStoreLines_` (the Store's provision, empty). Page: the menu at every site, Machinery /
+  Party name / Current reading, the Uom column (`dl_muom`), `mlogRender` in his 12 columns (`MT_TAX` – the tax lines in GST Amount,
+  rowspan per bill), the fills apart. No SQL. Tests: unit `update-170`; rig `test/browser/mnt170.js` 16 (S1, RCLSTEPS=1), mnt165 32,
+  mnt168 29.

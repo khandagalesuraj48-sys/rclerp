@@ -41,7 +41,7 @@ const say = async j => fetch(GEM + '/__meter?say=' + encodeURIComponent(JSON.str
     ok('1. the Portal: T2 put on fuel cards', put.status === 200 && sql('rcl_s2', "select value from web.props where key = 'FUEL_MODE'") === 'card', put);
     const pagesOf = async site => { const r = await preq('/api/admin', { action: 'mechPages', site: site }); return (r.pages || r.modules || []).map(x => x.key || x); };
     const p2 = await pagesOf('T2'), p1 = await pagesOf('S1');
-    ok('   the Portal\'s Users & Access → Pages: T2 lists Maintenance (and Fuel Cards); S1 does not', p2.indexOf('Maintenance') > -1 && p2.indexOf('Fuel Cards') > -1 && p1.indexOf('Maintenance') === -1, [p2, p1]);
+    ok('   the Portal\'s Users & Access → Pages: T2 lists Maintenance and Fuel Cards; S1 Maintenance too (update-170), not Fuel Cards', p2.indexOf('Maintenance') > -1 && p2.indexOf('Fuel Cards') > -1 && p1.indexOf('Maintenance') > -1 && p1.indexOf('Fuel Cards') === -1, [p2, p1]);
     // ---- 2. the server at T2 ----
     const sa = await post(SA, { fn: 'ssoLogin', args: [await ticket('T2')] });
     const J = async (fn, ...a) => { const r = await post(SA, { fn: 'api', args: [sa.result.token, fn, a], site: 'T2' }); return r.error ? { ERROR: r.error } : r.result; };
@@ -85,7 +85,7 @@ const say = async j => fetch(GEM + '/__meter?say=' + encodeURIComponent(JSON.str
     ok('   the same bill number of the same garage for the car again: asked first ("already saved (MT-000001)")', again.ok === false && /is already saved \(MT-000001\)\. Save it again\?$/.test(again.warning || ''), again);
     const noKm = await J('saveMaint', bill({ billNo: 'TS-102', km: '' })), noLine = await J('saveMaint', bill({ billNo: 'TS-103', lines: [{ work: 'Wiper', amount: '' }] }));
     const other = await J('saveMaint', bill({ billNo: 'TS-104', files: [{ sha: 'b'.repeat(64) }] }));
-    ok('   the checks: a service without its KM; a line without its ₹; a file not sent by this person', noKm.ERROR === C1 + ': a service needs its KM reading – the next service is counted from it.' && noLine.ERROR === 'Bill line 1 (Wiper): enter its amount (₹).' && other.ERROR === 'A bill file was not added by you in the last 6 hours – add it again.', [noKm, noLine, other]);
+    ok('   the checks: a service without its KM; a line without its ₹; a file not sent by this person', noKm.ERROR === C1 + ': a service needs its reading (KM / Hrs) – the next service is counted from it.' && noLine.ERROR === 'Bill line 1 (Wiper): enter its amount (₹).' && other.ERROR === 'A bill file was not added by you in the last 6 hours – add it again.', [noKm, noLine, other]);
     const s2 = await J('saveMaint', { date: d2, no: C1, garage: 'Tyre House', billNo: 'TH-9', km: '', service: false, lines: [{ work: 'Tyre', amount: 6000 }, { work: 'Discount', amount: -100 }, { work: 'engine oil', amount: 400 }] });
     const ls = await J('getMaint', { from: d1, to: today });
     ok('   the list: newest first, ₹8660 in all; the words typed before – "Engine oil" first (twice), the garages', s2.id === 'MT-000002' && same(ls.rows.map(r => r.id), ['MT-000002', 'MT-000001']) && ls.total === 8660 && ls.works[0] === 'Engine oil' && ls.garages.indexOf('Tyre House') > -1, ls);
@@ -152,26 +152,28 @@ const say = async j => fetch(GEM + '/__meter?say=' + encodeURIComponent(JSON.str
     // the car's log book on the screen and in Excel
     await F.evaluate((no, a, z) => { $('ml_no').value = no; $('ml_from').value = a; $('ml_to').value = z; $('ml_go').click(); }, C1, d1, today);
     for (let i = 0; i < 30 && !(await F.evaluate(() => !$('rpmlog_out').hidden)); i++) await wait(400);
-    const lb = await F.evaluate(() => ({ t: $('rpmlog_title').textContent, kp: [...document.querySelectorAll('#rpmlog_kpis div')].map(x => x.textContent), rows: document.querySelectorAll('#rpmlog_body table')[0].tBodies[0].rows.length, pr: !$('ml_print').disabled,
-      fits: [...document.querySelectorAll('#rpmlog_body table')[0].tBodies[0].rows[0].cells].slice(0, 3).every(c => c.scrollWidth <= c.clientWidth + 1), head: [...document.querySelectorAll('#rpmlog_body table')[0].tHead.rows[0].cells].map(c => c.textContent) }));
-    ok('   the car\'s log book on the screen: its title, 4 lines (2 fills, 2 bills) – Sr, Date, Entry, What (each fits its column), Fuel / Maintenance / All costs / Last service', lb.t === 'Maintenance Log Book – ' + 'MNT-1-165' && lb.rows === 4 && lb.fits && lb.head.slice(0, 4).join('|') === 'Sr|Date|Entry|What' && lb.kp.some(x => /All costs₹11,810\.00/.test(x)) && lb.kp.some(x => /Last service/.test(x)) && lb.pr, lb);
+    const lb = await F.evaluate(() => { const tb = [...document.querySelectorAll('#rpmlog_body table')]; return { t: $('rpmlog_title').textContent, kp: [...document.querySelectorAll('#rpmlog_kpis div')].map(x => x.textContent), rows: tb[0].tBodies[0].rows.length, pr: !$('ml_print').disabled,
+      fits: [...tb[0].tBodies[0].rows[0].cells].slice(0, 3).every(c => c.scrollWidth <= c.clientWidth + 1), head: [...tb[0].tHead.rows[0].cells].map(c => c.textContent), sheets: tb.map(x => x.dataset.sheet), fills: tb[1].tBodies[0].rows.length }; });
+    // (update-170) his format: a row a line of the 2 bills (4 + 3), the fills in their own table (a site on fuel cards)
+    ok('   the car\'s log book on the screen (update-170 format): its title; the 7 lines of its 2 bills – Sr No, Date, Party Name, Current Reading … (each fits its column); its 2 fills apart; Fuel / Maintenance / All costs / Last service', lb.t === 'Maintenance Log Book – ' + 'MNT-1-165' && lb.rows === 7 && lb.fits && lb.head.slice(0, 4).join('|') === 'Sr No|Date|Party Name|Current Reading' &&
+      same(lb.sheets, ['Log Book', 'Fuel', 'By work']) && lb.fills === 2 && lb.kp.some(x => /All costs₹11,810\.00/.test(x)) && lb.kp.some(x => /Last service/.test(x)) && lb.pr, lb);
     await F.evaluate(() => { try { closeConfirm(false); } catch (e) {} try { $('ai_panel').hidden = true; $('ai_panel').style.display = 'none'; } catch (e) {} ['fixbox', 'toast'].forEach(id => { const y = document.getElementById(id); if (y) y.hidden = true; }); }); await wait(300);
     await F.evaluate(() => $('rpmlog_out').scrollIntoView({ block: 'start' })); await wait(300);
     await mp.screenshot({ path: path.join(SHOT, 'mnt165_logbook.png') });
     for (let i = 0; i < 30 && !(await F.evaluate(() => typeof XLSX !== 'undefined')); i++) await wait(500);
     const xl = await F.evaluate(() => { let got = null; const w = XLSX.writeFile; XLSX.writeFile = (wb, name) => { got = { name: name, sheets: wb.SheetNames, a1: wb.Sheets[wb.SheetNames[0]]['A3'] && wb.Sheets[wb.SheetNames[0]]['A3'].v }; }; try { rpExcel({ key: 'mlog' }); } finally { XLSX.writeFile = w; } return got; });
-    ok('   … and in Excel: the sheets "Log Book" and "By work", its title on top', !!xl && same(xl.sheets, ['Log Book', 'By work']) && /^RCL_Maintenance_Log_Book_MNT_1_165_/.test(xl.name) && /Maintenance Log Book/.test(xl.a1 || ''), xl);
+    ok('   … and in Excel: the sheets "Log Book", "Fuel" and "By work", its title on top', !!xl && same(xl.sheets, ['Log Book', 'Fuel', 'By work']) && /^RCL_Maintenance_Log_Book_MNT_1_165_/.test(xl.name) && /Maintenance Log Book/.test(xl.a1 || ''), xl);
     // ---- 4. S1: as before ----
     const s1t = await post(SA, { fn: 'ssoLogin', args: [await ticket('S1')] });
     const J1 = async (fn, ...a) => { const r = await post(SA, { fn: 'api', args: [s1t.result.token, fn, a], site: 'S1' }); return r.error ? { ERROR: r.error } : r.result; };
     const x1 = await J1('getMaint', {});
-    ok('4. S1: Maintenance refused – "This site is not on fuel cards …"', /^This site is not on fuel cards/.test(x1.ERROR || ''), x1);
+    ok('4. S1 (update-170: Maintenance at every site): its bills asked – step 1zi not run there: "missing"', x1 && !x1.ERROR && x1.missing === true && same(x1.rows, []), x1);
     const sp = await b.newPage(); await sp.setViewport({ width: 1440, height: 950 }); sp.on('pageerror', e => errs.push('S1: ' + String(e.message).slice(0, 200)));
     await sp.goto(SA + '/#sso=' + await ticket('S1'), { waitUntil: 'load' });
     const F1 = await find(sp, () => typeof S === 'object' && !!S.user && !!S.today);
     let live1 = ''; for (let i = 0; i < 30; i++) { live1 = await F1.evaluate(() => document.getElementById('live_dot').textContent.trim()); if (live1 === 'Live') break; await wait(500); }
-    const v1 = await F1.evaluate(() => ({ mnt: !$('tab-mnt').hidden, inward: !$('tab-inward').hidden }));
-    ok('   S1\'s page: no Maintenance in the menu, Diesel Inward there, "Live"', !v1.mnt && v1.inward && live1 === 'Live', [v1, live1]);
+    const v1 = await F1.evaluate(() => ({ mnt: !$('tab-mnt').hidden, inward: !$('tab-inward').hidden, cards: !$('tab-cards').hidden }));
+    ok('   S1\'s page (update-170): Maintenance in the menu, Diesel Inward there, no Fuel Cards, "Live"', v1.mnt && v1.inward && !v1.cards && live1 === 'Live', [v1, live1]);
     const dh1 = await F1.evaluate(async () => (await rawCall('dbHealth')).checks.filter(x => /Maintenance Log Book/.test(x.name)).map(x => ({ ok: x.ok, fix: x.fix || '' })));
     ok('   the database check at S1 (step 1zi not run there): asks for supabase_step1zi_maintenance.sql', dh1.length === 1 && !dh1[0].ok && dh1[0].fix === 'supabase_step1zi_maintenance.sql', dh1);
     ok('no error on the pages', errs.length === 0, errs);

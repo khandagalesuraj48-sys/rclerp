@@ -103,7 +103,7 @@ const say = async j => fetch(AI + '/__meter?say=' + encodeURIComponent(JSON.stri
     const tidy = async () => { await F.evaluate(() => { try { closeConfirm(false); } catch (e) {} try { $('ai_panel').hidden = true; $('ai_panel').style.display = 'none'; } catch (e) {} ['fixbox', 'toast'].forEach(id => { const y = document.getElementById(id); if (y) { y.hidden = true; y.style.display = 'none'; } }); }); await wait(300); };      // (only for the pictures; the toast's words are still read)
     await F.evaluate(() => showTab('mnt')); await wait(2500);
     const head = await F.evaluate(() => [...document.querySelectorAll('#sec-mnt .mt-lines thead th')].map(t => t.textContent.trim()));
-    ok('3. the page: the lines have # | Work / part | Kind | Qty | Rate (₹) | Disc % | Amount (₹)', same(head.slice(0, 7), ['#', 'Work / part', 'Kind', 'Qty', 'Rate (₹)', 'Disc %', 'Amount (₹)']), head);
+    ok('3. the page: the lines have # | Work / part | Kind | Qty | Uom | Rate (₹) | Disc % | Amount (₹) (update-170: Uom)', same(head.slice(0, 8), ['#', 'Work / part', 'Kind', 'Qty', 'Uom', 'Rate (₹)', 'Disc %', 'Amount (₹)']), head);
     // the car box left EMPTY: the AI's vehicle number puts it
     await F.evaluate(() => $('mt_addf').click()); for (let i = 0; i < 20 && !(await F.evaluate(() => !!document.getElementById('at_back'))); i++) await wait(300);
     const inp = await F.$('#at_file'); await inp.uploadFile(path.join(dir, 'bill168.pdf'));
@@ -173,9 +173,16 @@ const say = async j => fetch(AI + '/__meter?say=' + encodeURIComponent(JSON.stri
     await F.evaluate(() => mtClear());
     await F.evaluate((no, a, z) => { $('ml_no').value = no; $('ml_from').value = a; $('ml_to').value = z; $('ml_go').click(); }, C2, d1, today);
     for (let i = 0; i < 30 && !(await F.evaluate(() => !$('rpmlog_out').hidden)); i++) await wait(400);
-    const lb = await F.evaluate(() => ({ body: $('rpmlog_body').textContent, foot: [...document.querySelectorAll('#rpmlog_body tfoot tr')].map(r => r.textContent) }));
-    ok('   the car\'s log book: the bill "– we paid (bills ₹2,821.00, insurance ₹2,000.00)", "free lines worth ₹2,940.00"; by work: Paid lines of the bills ₹2,821.00, Paid by the insurance −₹2,000.00, We paid ₹821.00',
-      /Maintenance – 1 bill\(s\) – we paid \(bills ₹2,821\.00, insurance ₹2,000\.00\) · free lines worth ₹2,940\.00821\.00/.test(lb.body) && same(lb.foot.slice(-3), ['Paid lines of the bills2,821.00', 'Paid by the insurance−2,000.00', 'We paid821.00']), lb);
+    const lb = await F.evaluate(() => { const tb = [...document.querySelectorAll('#rpmlog_body table')], t0 = tb[0];
+      return { rows: [...t0.tBodies[0].rows].map(r => [...r.cells].map(c => c.textContent)), foot: [...t0.tFoot.rows].map(r => [...r.cells].map(c => c.textContent)), date: t0.tBodies[0].rows[0].cells[1].rowSpan,
+        byfoot: [...document.querySelectorAll('#rpmlog_body tfoot tr')].map(r => r.textContent) }; });
+    // (update-170) his format: a row a line; Date / Party / Reading once for the bill (rowspan 9); the tax lines in GST Amount; the insurance's row minus
+    ok('   the car\'s log book (update-170 format): the bill\'s 8 lines and the insurance\'s row; the tax lines in GST Amount; the free lines (their kind) at ₹ 0; Total – 1 bill: Amount ₹2,399.80, GST ₹421.20, With GST ₹821.00; free worth ₹2,940.00; by work: Paid lines of the bills ₹2,821.00, Paid by the insurance −₹2,000.00, We paid ₹821.00',
+      lb.rows.length === 9 && lb.date === 9 && lb.rows[0].slice(1, 4).join('|') === d2.split('-').reverse().join('-') + '|Test ToyotaBill 07668, 02040|61,234' &&
+      same(lb.rows[0].slice(4), ['Periodic maintenance labour', '1', '', '1,800.00', '1,800.00', '', '1,800.00', '1,800.00']) && same(lb.rows[2].slice(1), ['Engine oil (Service Plan)', '4.5', '', '520.00', '0.00', '', '0.00', '0.00']) &&
+      same(lb.rows[5].slice(1), ['CGST 9%', '', '', '', '', '210.60', '210.60', '210.60']) && same(lb.rows[8].slice(1), ['Paid by the insurance – ' + INS + ' (claim no. CLM-168)', '', '', '', '', '', '-2,000.00', '-2,000.00']) &&
+      same(lb.foot[0], ['Total – 1 bill(s)', '2,399.80', '421.20', '821.00', '821.00']) && same(lb.foot[1], ['Free lines (warranty / FOC / service plan) – not paid, worth', '2,940.00']) &&
+      same(lb.byfoot.slice(-3), ['Paid lines of the bills2,821.00', 'Paid by the insurance−2,000.00', 'We paid821.00']), lb);
     await tidy(); await F.evaluate(() => $('rpmlog_out').scrollIntoView({ block: 'start' })); await wait(300);
     await mp.screenshot({ path: path.join(SHOT, 'mnt168_logbook.png') });
     // ---- 4. मराठी ----
