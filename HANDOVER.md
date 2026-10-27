@@ -2058,6 +2058,22 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (not the Log Book Debit Statement) and rd / rm / ra; `fuelForms`; the daily report per fuel; Asset Master `m_fuel`, the grid's
   Fuel (last column), import `fuel`. Portal: `server/portal.js` `placesOf` passes `fuel`; `Sites.gs` logs it. Tests: unit
   `update-163`, rig `test/browser/fuel163.js` (T2 as HO with step 1zg, S1 as VTR without it).
+- 27-10-2026 (update-164, with the Portal and rcl-mobile 3.45.0). Report: `UPDATE_164.md`. FUEL CARDS – a site without diesel
+  stock (HO; asked: "ho madhe diesel stock hot nahi ek card dilelel aahet … card cha opening balance takel nantr apli system auto
+  amount debit dakhwel"; step 1 of 3 – the Maintenance Log Book and the service schedule later). SQL step
+  `sql/supabase_step1zh_fuel_cards.sql` (`diesel_issue.rate` / `amount`, table `card_payments`, `app_users.perm_fuel_cards`) – EVERY
+  site. The mode: settings `FUEL_MODE` (`MODE_KEY_`; `cardSite_()`), set by the Super Admin in the Portal (`savePlaces_(list, mode)`,
+  `sysPlacesSave_(…, mode)`, `placesInfo_` `mode` / `cardEntries`; back to stock refused once `cardEntries_()`). Cards: settings
+  `FUEL_CARDS` (`cards_`, `saveCard_` – last 4 digits only), payments `card_payments` (`saveCardPayment_` / `updateCardPayment_` /
+  `deleteCardPayment_`, receipt photos `uploadCardPhoto_` / `cardPayPhotos_`), `cardMoves_` / `cardBalances_` (opening + payments −
+  fills from the opening date; in `getStock_().cards` at a card site), `cardStatement_`, `cardDash_` (`getCardDash`). A fill:
+  `validateDiesel_` card branch (`cardPick_`: a card of the car or `Cash` in `source`; `amount` required, `rate` = amount ÷ qty when
+  empty; Electric refused); `noStockHere_` refuses Inward / Transfer / many / imports; `getDieselIssues_` `byPay` / `totalAmount`;
+  `sitePage_` (Fuel Cards only at a card site, no Inward / Transfer there), `dsrcMine_` none. Page: `cardMode()`, `applyFuelMode`,
+  `cardsChanged`, `cardFill` (Paid by), `cardAfterLine`, page `cards` (`cdOpen` / `cdRender`, payments `cp_*`, statement `cs_*`),
+  the dashboard `hdLoad` (`dash_card`), no Register photo (`phKindsOf`), the menu hides inward / transfer / rdaily / rp-stock /
+  rp-purchase; the assistant (`aiDraft` sends a fill to the form, `diesel_stock` gives the cards). Portal: `server/portal.js`
+  `placesSave` passes `mode`. Tests: unit `update-164`, rig `test/browser/cards164.js` (T2 as HO with steps 1zg + 1zh, S1 as VTR).
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

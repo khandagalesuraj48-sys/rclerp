@@ -228,6 +228,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   tbody tr:hover { background: #FAFBFC; }
   td .link { appearance: none; border: 0; background: none; color: var(--steel); font: 600 13px var(--ui); text-decoration: underline; cursor: pointer; padding: 0; }
   .neg { color: var(--bad); }
+  .cm-off { display: none !important; }      /* (update-164) not at a site on fuel cards */
+  /* (update-164) fuel cards */
+  .cd-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin: 10px 0; }
+  .cd-card { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: #fff; }
+  .cd-card span { color: var(--muted); font-size: 12.5px; display: block; }
+  .cd-card b { display: block; font-size: 22px; margin: 4px 0 2px; }
+  .cd-card.neg b { color: var(--bad); }
+  .cd-card.off { opacity: .6; }
+  .cd-tot { color: var(--muted); margin: 4px 0 2px; }
+  .cd-tot b { color: var(--ink); }
+  .cd-cars { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .cd-cars label { font-weight: 400; }
+  .cp-ph { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .cp-ph img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
   tfoot td { background: #FFF6DA; font-weight: 600; border-top: 2px solid var(--hivis); border-bottom: 0; }
   tfoot td.n { font-size: 15px; }
   .none { padding: 18px; color: var(--muted); }
@@ -3053,6 +3067,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           <button class="navbtn" role="tab" id="tab-inward" aria-controls="sec-inward" aria-selected="false" title="Diesel Inward"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg><span class="label">Diesel Inward</span></button>
           <button class="navbtn" role="tab" id="tab-transfer" aria-controls="sec-transfer" aria-selected="false" title="Diesel Transfer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg><span class="label">Diesel Transfer</span></button>
           <button class="navbtn" role="tab" id="tab-diesel" aria-controls="sec-diesel" aria-selected="false" title="Diesel Issue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/></svg><span class="label">Diesel Issue</span></button>
+          <button class="navbtn" role="tab" id="tab-cards" aria-controls="sec-cards" aria-selected="false" title="Fuel Cards" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/><line x1="6" x2="10" y1="15" y2="15"/></svg><span class="label">Fuel Cards</span></button>
           </div>
         </div>
         <div class="subgrp" data-sg="log">
@@ -3231,6 +3246,35 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   <!-- ================= DASHBOARD ================= -->
   <section id="sec-dash" role="tabpanel" aria-labelledby="tab-dash">
+    <!-- (update-164) a site on fuel cards (HO): every card's balance; each car – KM, fuel and its ₹, average, the last fill -->
+    <div id="dash_card" role="tabpanel" aria-labelledby="dtab-diesel" hidden>
+      <div class="dsum">
+        <div class="dsum-head">
+          <h2>Fuel cards and cars <em id="hd_range" class="dpill">This month</em></h2>
+          <div class="ledger-filter">
+            <div class="lf-dates">
+              <div class="field"><label for="hd_from">From</label><input id="hd_from" type="date"></div>
+              <div class="field"><label for="hd_to">To</label><input id="hd_to" type="date"></div>
+            </div>
+            <div class="lf-quick">
+              <button class="qchip" data-hdrange="today">Today</button>
+              <button class="qchip" data-hdrange="month">This month</button>
+              <button class="qchip" data-hdrange="lastmonth">Last month</button>
+            </div>
+          </div>
+        </div>
+        <h3 class="rsub">Card balance now</h3>
+        <div class="cd-cards" id="hd_cards"></div>
+        <div class="cd-tot" id="hd_tot"></div>
+      </div>
+      <div class="panel">
+        <h2>Cars</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Car</th><th>Fuel</th><th class="n">KM (Log Book)</th><th class="n">Fuel filled</th><th class="n">Amount (₹)</th><th class="n">By card (₹)</th><th class="n">Cash (₹)</th><th class="n">Fills</th><th class="n">Average</th><th>Last fill</th></tr></thead>
+          <tbody id="hd_rows"></tbody>
+        </table></div>
+      </div>
+    </div>
     <div id="dash_diesel" role="tabpanel" aria-labelledby="dtab-diesel">
     <!-- ================= Diesel summary (cards) ================= -->
     <div class="dsum">
@@ -4315,7 +4359,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="d_date">Issue Date <span class="req">*</span></label><input id="d_date" type="date"></div>
         <div class="field"><label for="d_shift">Shift <span class="req">*</span></label>
           <select id="d_shift"><option>Day</option><option>Night</option></select></div>
-        <div class="field"><label for="d_src">Diesel Source <span class="req">*</span></label><select id="d_src" class="loc-select src-select" data-default="first" data-own="Diesel Issue" data-fuel-by="d_no"></select></div>
+        <div class="field"><label for="d_src" id="d_src_lbl">Diesel Source <span class="req">*</span></label><select id="d_src" class="loc-select src-select" data-default="first" data-own="Diesel Issue" data-fuel-by="d_no"></select></div>
         <div class="field wide"><label for="d_no">Machinery Number / Name <span class="req">*</span></label><input id="d_no" list="dl_mach_on" data-on="d_date" autocomplete="off" placeholder="Type or pick a number or name"></div>
       </div>
       <div class="facts" id="d_facts" hidden>
@@ -4334,12 +4378,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       </div>
       <div class="grid" style="margin-top:14px">
         <div class="field"><label for="d_qty">Diesel Qty (Ltr) <span class="req">*</span></label><input id="d_qty" type="number" step="0.01" min="0"></div>
+        <!-- (update-164) a site on fuel cards: the ₹ of the fill (its card or Cash is the "Paid by" above) -->
+        <div class="field card-f" hidden><label for="d_amt">Amount (₹) <span class="req">*</span></label><input id="d_amt" type="number" step="0.01" min="0"></div>
+        <div class="field card-f" hidden><label for="d_rate" id="d_rate_lbl">Rate (₹ per Ltr)</label><input id="d_rate" type="number" step="0.01" min="0" placeholder="Amount ÷ Qty"></div>
         <div class="field d-way-f" id="d_way_w" hidden><label>Measured by <span class="req">*</span></label><div id="d_way"></div></div>
         <div class="field" id="d_km_wrap" hidden><label for="d_km">KM Reading <span class="req">*</span></label><input id="d_km" type="number" step="0.01" min="0"></div>
         <div class="field" id="d_hr_wrap" hidden><label for="d_hr">Hrs Reading <span class="req">*</span></label><input id="d_hr" type="number" step="0.01" min="0"></div>
         <p class="field wide d-ainote" id="d_ai_note" hidden></p>
         <div class="field"><label for="d_driver">Driver Name</label><input id="d_driver" list="dl_drivers" autocomplete="off"></div>
-        <div class="field"><label for="d_balance">Balance (Ltr)</label><input id="d_balance" class="balbox" readonly tabindex="-1"></div>
+        <div class="field"><label for="d_balance" id="d_bal_lbl">Balance (Ltr)</label><input id="d_balance" class="balbox" readonly tabindex="-1"></div>
         <div class="field wide"><label for="d_remark">Remark</label><input id="d_remark" autocomplete="off"></div>
       </div>
       <p class="stockline" id="d_after"></p>
@@ -4413,7 +4460,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="df_no">Machinery Number / Name</label><input id="df_no" list="dl_machines" autocomplete="off" placeholder="e.g. 3232"></div>
         <div class="field"><label for="df_shift">Shift</label>
           <select id="df_shift"><option value="">All</option><option>Day</option><option>Night</option></select></div>
-        <div class="field"><label for="df_src">Diesel Source</label><select id="df_src" class="loc-select" data-all="All"></select></div>
+        <div class="field"><label for="df_src" id="df_src_lbl">Diesel Source</label><select id="df_src" class="loc-select" data-all="All"></select></div>
         <div class="field"><label for="df_owner">Owner Name</label><input id="df_owner" list="dl_owner" autocomplete="off"></div>
         <div class="field"><label for="df_driver">Driver Name</label><input id="df_driver" list="dl_drivers" autocomplete="off"></div>
         <div class="field"><label for="df_q">Issue ID / Remark</label><input id="df_q" autocomplete="off" placeholder="e.g. DI-000123"></div>
@@ -4430,7 +4477,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="sum" id="d_sum"></div>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Issue ID</th><th>Date</th><th>Shift</th><th>Source</th><th>Machinery Number</th><th>Type of Machinery</th><th>Owner Name</th><th>Driver Name</th><th class="n">Diesel Qty (Ltr)</th><th class="n">Reading</th><th class="n">Balance (Ltr)</th><th>Remark</th><th class="n" title="Share of the diesel of these dates / filters">% of total</th><th class="by">Entered by</th><th></th></tr></thead>
+        <thead><tr><th>Issue ID</th><th>Date</th><th>Shift</th><th id="d_th_src">Source</th><th>Machinery Number</th><th>Type of Machinery</th><th>Owner Name</th><th>Driver Name</th><th class="n">Diesel Qty (Ltr)</th><th class="n">Reading</th><th class="n" id="d_th_bal">Balance (Ltr)</th><th>Remark</th><th class="n" title="Share of the diesel of these dates / filters">% of total</th><th class="by">Entered by</th><th></th></tr></thead>
         <tbody id="d_rows"></tbody>
         <tfoot id="d_foot"></tfoot>
       </table></div>
@@ -4451,6 +4498,68 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       </div>
       <div class="actions"><button class="btn primary" id="sx_show" type="button">Show entries</button></div>
       <div id="sx_out"></div>
+    </div>
+  </section>
+
+  <!-- ================= FUEL CARDS (update-164) – a site on fuel cards: the cards, the payments onto them, a card's statement ================= -->
+  <section id="sec-cards" role="tabpanel" aria-labelledby="tab-cards" hidden>
+    <div class="viewonly" data-viewonly="Fuel Cards" hidden>View only – you can see the cards, their balance and statements here, but you cannot add or change them. Ask Admin for Edit access.</div>
+    <div class="panel">
+      <div class="panel-head"><h2>Fuel cards</h2><span class="chart-note">Balance = opening + payments onto the card − the fills paid by it (from its opening date). A fill is entered in Diesel Issue with its card and ₹.</span>
+        <button class="btn primary small" id="cd_add" type="button" data-perm="Fuel Cards" style="margin-left:auto">+ Add card</button></div>
+      <div class="cd-cards" id="cd_tiles"></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Card</th><th>Kind</th><th>Last 4</th><th>Cars</th><th class="n">Opening (₹)</th><th>From</th><th class="n">Paid in (₹)</th><th class="n">Fuel (₹)</th><th class="n">Balance (₹)</th><th>Last fill</th><th></th></tr></thead>
+        <tbody id="cd_rows"></tbody>
+      </table></div>
+      <div class="cd-form" id="cd_form" hidden>
+        <h3 class="rsub" id="cd_form_t">New card</h3>
+        <div class="grid">
+          <div class="field"><label for="cd_name">Card name <span class="req">*</span></label><input id="cd_name" maxlength="40" autocomplete="off" placeholder="e.g. HDFC Fuel Card 1"></div>
+          <div class="field"><label for="cd_type">Kind <span class="req">*</span></label><select id="cd_type"><option>Fuel card</option><option>Credit card</option><option>Debit card</option></select></div>
+          <div class="field"><label for="cd_last4">Last 4 digits</label><input id="cd_last4" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="never the whole number"></div>
+          <div class="field"><label for="cd_open">Opening balance (₹) <span class="req">*</span></label><input id="cd_open" type="number" step="0.01" min="0"></div>
+          <div class="field"><label for="cd_date">Opening balance on <span class="req">*</span></label><input id="cd_date" type="date"></div>
+          <div class="field"><label><input type="checkbox" id="cd_active" checked> Active</label></div>
+          <div class="field wide"><label>Cars that use it <span style="font-weight:400">(none ticked = every car)</span></label><div class="cd-cars" id="cd_cars"></div></div>
+        </div>
+        <div class="actions"><button class="btn primary" id="cd_save" type="button">Save card</button><button class="btn ghost" id="cd_cancel" type="button">Cancel</button></div>
+      </div>
+    </div>
+    <div class="panel" data-perm="Fuel Cards">
+      <h2 id="cp_title">Payment onto a card</h2>
+      <div class="grid">
+        <div class="field"><label for="cp_date">Date <span class="req">*</span></label><input id="cp_date" type="date"></div>
+        <div class="field"><label for="cp_card">Card <span class="req">*</span></label><select id="cp_card"></select></div>
+        <div class="field"><label for="cp_amount">Amount (₹) <span class="req">*</span></label><input id="cp_amount" type="number" step="0.01" min="0"></div>
+        <div class="field"><label for="cp_ref">Reference</label><input id="cp_ref" maxlength="80" autocomplete="off" placeholder="e.g. NEFT / UTR no."></div>
+        <div class="field wide"><label for="cp_remark">Remark</label><input id="cp_remark" maxlength="200" autocomplete="off"></div>
+        <div class="field wide"><label>Receipt photos</label><div class="cp-ph" id="cp_ph"></div><input type="file" id="cp_ph_in" accept="image/*" hidden></div>
+      </div>
+      <div class="actions"><button class="btn primary" id="cp_save" type="button">Save payment</button><button class="btn ghost" id="cp_clear" type="button">Clear</button><button class="btn ghost" id="cp_cancel" type="button" hidden>Cancel edit</button></div>
+    </div>
+    <div class="panel">
+      <h2>Payments onto the cards</h2>
+      <div class="filters">
+        <div class="field"><label for="cpf_from">From</label><input id="cpf_from" type="date"></div>
+        <div class="field"><label for="cpf_to">To</label><input id="cpf_to" type="date"></div>
+        <div class="field"><label for="cpf_card">Card</label><select id="cpf_card"></select></div>
+      </div>
+      <div class="toolbar"><div class="sum" id="cp_sum"></div></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Payment ID</th><th>Date</th><th>Card</th><th class="n">Amount (₹)</th><th>Reference</th><th>Remark</th><th>By</th><th></th></tr></thead>
+        <tbody id="cp_rows"></tbody>
+      </table></div>
+    </div>
+    <div class="panel">
+      <h2>Statement of a card</h2>
+      <div class="filters">
+        <div class="field"><label for="cs_card">Card</label><select id="cs_card"></select></div>
+        <div class="field"><label for="cs_from">From <span style="font-weight:400">(blank = its opening)</span></label><input id="cs_from" type="date"></div>
+        <div class="field"><label for="cs_to">To <span style="font-weight:400">(blank = today)</span></label><input id="cs_to" type="date"></div>
+        <div class="field"><label>&nbsp;</label><button class="btn primary small" id="cs_show" type="button">Show statement</button></div>
+      </div>
+      <div id="cs_out"></div>
     </div>
   </section>
 
@@ -4999,7 +5108,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const fmt = v => (v === '' || v === null || v === undefined) ? '' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 });
   const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  const CHANGES_DATA = ['saveTransfer', 'updateTransfer', 'deleteTransfer', 'saveInward', 'updateInward', 'deleteInward', 'saveDieselIssue', 'saveDieselBulk', 'updateDieselIssue', 'deleteDieselIssue', 'saveLogBook',
+  const CHANGES_DATA = ['saveTransfer', 'updateTransfer', 'deleteTransfer', 'saveInward', 'updateInward', 'deleteInward', 'saveDieselIssue', 'saveDieselBulk', 'updateDieselIssue', 'deleteDieselIssue', 'saveCard', 'saveCardPayment', 'updateCardPayment', 'deleteCardPayment', 'saveLogBook',
     'saveLogDay', 'saveLogRows', 'updateLogRow', 'deleteLogRow', 'saveMaster', 'saveMasterBulk', 'deleteMaster', 'importMaster'];
   /* (update-108) A SAVE THE BILL LOCK REFUSED (an entry of a submitted bill): the user may send exactly that save to the Super Admin for
    * approval (with a reason). It is saved only when he approves (Approvals). The caller then gets CR_SENT – nothing was saved here. */
@@ -5106,7 +5215,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     getStockLedger: 'lg_rows', getOwnershipDetail: 'dlg_rows', getDashboard: 'sec-dash', getMonthlyDieselReport: 'rm_out', getMonthlyAvgReport: 'ra_out', getDailyInwardIssueReport: 'rd_out' };
   // the top bar only shows for things the user clicked (save, reports, sign-in); background refreshes stay invisible
   const BAR_FNS = ['getInit', 'getMonthlyDieselReport', 'getDailyInwardIssueReport', 'getOwnershipDetail', 'saveInward', 'updateInward', 'deleteInward',
-    'saveTransfer', 'updateTransfer', 'deleteTransfer', 'saveDieselIssue', 'saveDieselBulk', 'updateDieselIssue', 'deleteDieselIssue', 'saveLogBook',
+    'saveTransfer', 'updateTransfer', 'deleteTransfer', 'saveDieselIssue', 'saveDieselBulk', 'updateDieselIssue', 'deleteDieselIssue', 'saveCard', 'saveCardPayment', 'updateCardPayment', 'deleteCardPayment', 'saveLogBook',
     'saveLogRows', 'updateLogRow', 'deleteLogRow', 'saveMaster', 'saveMasterBulk', 'deleteMaster', 'importMaster', 'exportMaster'];
   const QUIET = { has: fn => BAR_FNS.indexOf(fn) === -1 };
   let pending = 0, barTimer = null;
@@ -5789,6 +5898,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // pages the user has no access to are not shown; a section with nothing left in it is hidden too
     Object.keys(TAB_MODULE).forEach(t => { const b = $('tab-' + t); if (b) b.hidden = (u.perms || {})[TAB_MODULE[t]] === 'None'; });
     document.querySelectorAll('.navbtn[id^="tab-rp-"]').forEach(b => { b.hidden = (u.perms || {}).Reports === 'None'; });
+    // (update-164) a site on fuel cards: no stock pages (Inward, Transfer, the stock reports); the page Fuel Cards only there
+    const cm = cardMode();
+    ['inward', 'transfer', 'rdaily', 'rp-stock', 'rp-purchase'].forEach(t => { const b = $('tab-' + t); if (b && cm) b.hidden = true; });
+    if ($('tab-cards') && !cm) $('tab-cards').hidden = true;
     document.querySelectorAll('.subgrp').forEach(g => { g.hidden = ![...g.querySelectorAll('.navbtn')].some(b => !b.hidden); });
     // the page on screen is one he may not open (also the Dashboard shown at sign-in): to his first page – a Machinery page if he
     // has one, else any page of his menu (update-84: a user with Diesel Issue only was left on the Dashboard with "no access")
@@ -5800,7 +5913,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
   }
   // which access column each page follows
-  const TAB_MODULE = { dash: 'Dashboard', vendors: 'Vendor Master', master: 'Master', boq: 'Vendor BOQ', comp: 'Vehicle Compliance', lbf: 'Master', brk: 'Breakdown', inward: 'Diesel Inward', transfer: 'Diesel Transfer', diesel: 'Diesel Issue',
+  const TAB_MODULE = { dash: 'Dashboard', vendors: 'Vendor Master', master: 'Master', boq: 'Vendor BOQ', comp: 'Vehicle Compliance', lbf: 'Master', brk: 'Breakdown', inward: 'Diesel Inward', transfer: 'Diesel Transfer', diesel: 'Diesel Issue', cards: 'Fuel Cards',
     log: 'Log Book', tankcheck: 'Log Book', logedit: 'Log Book', bill: 'Machinery Billing', bills: 'Saved Bills', breg: 'Bill Summary', pay: 'Machinery Payments', vled: 'Vendor Ledger', vout: 'Vendor Outstanding', rmonthly: 'Reports', ravg: 'Reports', rdaily: 'Reports' };
   // Edit / Delete links for a list row, only when the user may edit that module
   // who entered an entry (and who changed it last) – shown in the lists only
@@ -5831,6 +5944,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Shown: under every red message (a card at the bottom right), inside every "Nothing saved / Not submitted" box, and next
    * to warnings on the billing page. The language is remembered on this device (rcl_lang). To cover a new message: add a rule. */
   const FIX_RULES = [
+    // (update-164) a site on fuel cards (HO)
+    { re: /is not a fuel card of this site|pick how the fuel was paid|is not for this car \(Fuel Cards|card [^:]+ is Inactive \(Fuel Cards\)|starts on [^(]{0,24}\(its opening balance\)|enter the Amount \(₹\) of this fill|the Rate \(₹ per|Pick the card the payment was made onto|Enter the amount paid onto card|Pick a fuel card\./i,
+      en: ['The fill (or the payment) does not fit the fuel cards of this site: each fill is paid by a card of that car or in Cash, with its Amount (₹), on or after the card\'s opening date. Nothing was saved.', 'Pick the car\'s own card (Fuel Cards shows which cars each card is for, and whether it is Active) or Cash, and type the Amount (₹). For a date before the card\'s opening balance, that amount is already in the opening – change the opening date in Fuel Cards if it is wrong.'],
+      mr: ['हा fill (किंवा payment) या site च्या fuel cards मध्ये बसत नाही: प्रत्येक fill त्या गाडीच्या card ने किंवा Cash ने, Amount (₹) सह, card च्या opening तारखेपासून भरला जातो. काहीही save झाले नाही.', 'गाडीचे स्वतःचे card (कोणते card कोणत्या गाडीसाठी आहे आणि ते Active आहे का हे Fuel Cards मध्ये दिसते) किंवा Cash निवडा, आणि Amount (₹) टाका. Card च्या opening balance च्या आधीच्या तारखेचे पैसे opening मध्येच आहेत – opening तारीख चुकली असेल तर Fuel Cards मध्ये बदला.'],
+      hi: ['यह fill (या payment) इस site के fuel cards में नहीं बैठता: हर fill उस गाड़ी के card से या Cash से, Amount (₹) के साथ, card की opening तारीख से भरा जाता है। कुछ भी save नहीं हुआ।', 'गाड़ी का अपना card (कौन सा card किस गाड़ी के लिए है और Active है या नहीं, यह Fuel Cards में दिखता है) या Cash चुनें, और Amount (₹) डालें। Card के opening balance से पहले की तारीख के पैसे opening में ही हैं – opening तारीख गलत हो तो Fuel Cards में बदलें।'] },
+    { re: /This site is on fuel cards – it keeps no diesel stock|This site is not on fuel cards|it stays on fuel cards|Card payments cannot be kept yet|Receipt photos cannot be kept yet/i,
+      en: ['This site is on fuel cards (no diesel stock) – or not – and this entry belongs to the other way. A site on fuel cards has no Diesel Inward, Transfer or "Multiple entries": each fill is entered one by one with its card or Cash. Or the database step for the cards has not been run yet.', 'Enter the fill in Diesel Issue with its card or Cash. The Super Admin chooses the way of the site in the Portal (Sites → Diesel places); once a fill was paid by a card the site stays on fuel cards. If the message names a SQL file, the Admin runs it once in Supabase → SQL Editor.'],
+      mr: ['ही site fuel cards वर आहे (diesel stock नाही) – किंवा नाही – आणि ही entry दुसऱ्या पद्धतीची आहे. Fuel cards वरच्या site मध्ये Diesel Inward, Transfer किंवा "Multiple entries" नसतात: प्रत्येक fill त्याच्या card किंवा Cash सह एक-एक करून टाकला जातो. किंवा cards चा database step अजून चालवलेला नाही.', 'Fill Diesel Issue मध्ये त्याच्या card किंवा Cash सह टाका. Site ची पद्धत Super Admin Portal मध्ये ठरवतो (Sites → Diesel places); एकदा card ने fill भरला की site fuel cards वरच राहते. Message मध्ये SQL file चे नाव असेल तर Admin ती Supabase → SQL Editor मध्ये एकदा चालवतो.'],
+      hi: ['यह site fuel cards पर है (diesel stock नहीं) – या नहीं – और यह entry दूसरे तरीके की है। Fuel cards वाली site में Diesel Inward, Transfer या "Multiple entries" नहीं होते: हर fill उसके card या Cash के साथ एक-एक करके डाला जाता है। या cards का database step अभी चलाया नहीं गया है।', 'Fill Diesel Issue में उसके card या Cash के साथ डालें। Site का तरीका Super Admin Portal में तय करता है (Sites → Diesel places); एक बार card से fill भरा गया तो site fuel cards पर ही रहती है। Message में SQL file का नाम हो तो Admin उसे Supabase → SQL Editor में एक बार चलाता है।'] },
+    { re: /Card [^:"]+: (type only the LAST 4|pick its kind|enter its opening balance)|Card "[^"]+": use letters|was not found – open Fuel Cards again|Card payment [^ ]+ was not found|"Cash" is how a fill is paid|Card [^:"]+ is already there|has entries – its name stays|its opening date can be at most|Up to \d+ fuel cards| fuel cards\.$|receipt (photo|must be)|A payment keeps at most|The same receipt photo|A receipt photo was not added/i,
+      en: ['A detail of the fuel card (or its receipt photo) is not right: the name (letters and digits, not "Cash", not twice), its kind, only the LAST 4 digits, the opening balance (₹) and its date (not after today). A card that has entries keeps its name and an opening date not after its first entry.', 'Put the detail right in Fuel Cards and save again. To stop using a card, make it Inactive – its entries stay. Add the receipt photo again if it says so.'],
+      mr: ['Fuel card ची (किंवा receipt photo ची) एखादी माहिती बरोबर नाही: नाव (अक्षरे आणि अंक, "Cash" नाही, दोनदा नाही), त्याचा प्रकार, फक्त शेवटचे 4 अंक, opening balance (₹) आणि त्याची तारीख (आजनंतरची नाही). ज्या card च्या entries आहेत त्याचे नाव तेच राहते आणि opening तारीख पहिल्या entry नंतरची नसते.', 'Fuel Cards मध्ये ती माहिती बरोबर करा आणि पुन्हा save करा. Card वापरणे थांबवायचे असेल तर ते Inactive करा – त्याच्या entries राहतात. सांगितले असेल तर receipt photo पुन्हा जोडा.'],
+      hi: ['Fuel card की (या receipt photo की) कोई जानकारी सही नहीं है: नाम (अक्षर और अंक, "Cash" नहीं, दो बार नहीं), उसका प्रकार, केवल आखिरी 4 अंक, opening balance (₹) और उसकी तारीख (आज के बाद की नहीं)। जिस card की entries हैं उसका नाम वही रहता है और opening तारीख पहली entry के बाद की नहीं होती।', 'Fuel Cards में वह जानकारी सही करें और फिर save करें। Card इस्तेमाल करना बंद करना हो तो उसे Inactive करें – उसकी entries रहती हैं। कहा गया हो तो receipt photo फिर जोड़ें।'] },
     // (update-152) an approved or billed Log Book entry: only the Super Admin changes it
     { re: /it was approved( on [^:]+)? – an approved entry cannot be changed or deleted without the Super Admin|RCL_ENTRY_LOCKED/i,
       en: ['This Log Book entry was approved in verification, so it is locked: only the Super Admin can change or delete it. Nothing was saved.', 'Make the change and send it to the Super Admin for approval (the page asks for the reason) – it is saved only when he approves it on Approvals.'],
@@ -6508,6 +6634,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period. Photos (One entry, after picking the machinery): Dashboard, Vehicle + driver, Dispenser litres and Register – each taken with the camera there and then (not from the gallery), with the date, time and place printed on it; the AI reads the reading on the dashboard photo (it is told the last reading of the machinery, to pick the right number) and the litres on the dispenser photo, and puts them in the boxes (blue) – check them, type over them if wrong. The Driver box gets the driver of the last fill of the machinery (a typed name stays). 📷 in the list opens the photos of an entry. On a phone a saved entry shows a green "saved" box for 3 seconds (× closes it at once) and the form is empty for the next machinery; the keyboard opens only when a box is tapped. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. The Super Admin: "Delete entries – Super Admin" at the end of the page – any entry of a date or a period (saved, waiting for verification, returned, rejected): tick and delete; an entry of a submitted bill or a closed month is not deleted; deleted entries are kept there and can be brought back. Only the diesel sources the Super Admin gave you (Portal → Users & Access) are offered; an issue of another source cannot be changed or deleted by you. Fuel: only the places of the fuel of the machinery are offered (Asset Master → Fuel – Diesel, Petrol, CNG); CNG is in kg. An Electric machinery gets no fuel entry.'],
       mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते. Photos (One entry मध्ये, machinery निवडल्यावर): Dashboard, गाडी + driver, Dispenser वरचे लिटर आणि Register – प्रत्येक त्याच वेळी camera ने काढायचा (gallery मधून नाही); त्यावर तारीख, वेळ आणि ठिकाण छापले जाते. Dashboard च्या photo वरचे reading (योग्य आकडा निवडायला AI ला गाडीचे मागचे reading सांगितले जाते) आणि dispenser च्या photo वरचे लिटर AI वाचून box मध्ये (निळ्या रंगात) भरते – ते तपासा, चुकले तर बदला. Driver box मध्ये त्या गाडीच्या मागच्या fill चा driver आपोआप येतो (टाइप केलेले नाव तसेच राहते). यादीतले 📷 दाबले की त्या entry चे photo दिसतात. Phone वर entry save झाली की 3 सेकंद हिरवा "saved" box दिसतो (× ने लगेच बंद) आणि पुढच्या गाडीसाठी form रिकामा होतो; keyboard फक्त box वर दाबल्यावर उघडतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. Super Admin: पानाच्या शेवटी "Delete entries – Super Admin" – एका तारखेची किंवा काळाची कोणतीही entry (save झालेली, verification ला थांबलेली, returned, rejected): tick करून delete; submit झालेल्या bill ची किंवा बंद महिन्याची entry delete होत नाही; delete केलेल्या entries तिथेच राहतात आणि परत आणता येतात. फक्त Super Admin ने तुम्हाला दिलेले diesel source येतात (Portal → Users & Access); दुसऱ्या source चे issue तुम्ही बदलू किंवा delete करू शकत नाही. Fuel: machinery च्या fuel च्याच जागा दिसतात (Asset Master → Fuel – Diesel, Petrol, CNG); CNG kg मध्ये. Electric machinery ला fuel ची entry नसते.'],
       hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है। Photos (One entry में, machinery चुनने के बाद): Dashboard, गाड़ी + driver, Dispenser के लीटर और Register – हर एक उसी समय camera से लेना है (gallery से नहीं); उस पर तारीख, समय और जगह छपती है। Dashboard की photo पर की reading (सही अंक चुनने के लिए AI को गाड़ी की पिछली reading बताई जाती है) और dispenser की photo पर के लीटर AI पढ़कर box में (नीले रंग में) भरता है – उन्हें जाँचें, गलत हों तो बदलें। Driver box में उस गाड़ी की पिछली fill का driver अपने-आप आता है (टाइप किया नाम वैसा ही रहता है)। सूची का 📷 दबाने पर उस entry की photos दिखती हैं। Phone पर entry save होते ही 3 सेकंड हरा "saved" box दिखता है (× से तुरंत बंद) और अगली गाड़ी के लिए form खाली हो जाता है; keyboard केवल box पर दबाने से खुलता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। Super Admin: पेज के अंत में "Delete entries – Super Admin" – एक तारीख या अवधि की कोई भी entry (save हुई, verification के लिए रुकी, returned, rejected): tick करके delete; submit हुए bill की या बंद महीने की entry delete नहीं होती; delete की गई entries वहीं रहती हैं और वापस लाई जा सकती हैं। सिर्फ़ Super Admin के दिए हुए diesel source आते हैं (Portal → Users & Access); दूसरे source का issue आप बदल या delete नहीं कर सकते। Fuel: machinery के fuel की ही जगहें दिखती हैं (Asset Master → Fuel – Diesel, Petrol, CNG); CNG kg में। Electric machinery की fuel entry नहीं होती।'] },
+    // (update-164) a site on fuel cards (HO)
+    cards: { saves: ['saveCard', 'saveCardPayment', 'updateCardPayment', 'deleteCardPayment', 'cardPhoto'],
+      en: ['The fuel cards of a site without diesel stock (HO): each card with its kind, the last 4 digits, the cars that use it, its opening balance – and the payments / recharges onto it, and the statement of a card.', 'Balance = opening + payments onto the card − the fills paid by it (Diesel Issue, from its opening date). A fill is saved even when the balance is short – it shows red. A card that has entries keeps its name (it can be made Inactive). Only the last 4 digits are kept, never the whole number. The Super Admin puts the site on fuel cards (Portal → Sites → Diesel places).'],
+      mr: ['Diesel stock नसलेल्या site (HO) चे fuel cards: प्रत्येक card – त्याचा प्रकार, शेवटचे 4 अंक, कोणत्या गाड्या वापरतात, opening balance – आणि card वर भरलेले पैसे / recharge, आणि card चे statement.', 'Balance = opening + card वर भरलेले पैसे − त्या card ने भरलेले fuel (Diesel Issue, opening तारखेपासून). Balance कमी असला तरी fill save होतो – तो लाल दिसतो. ज्या card च्या entries आहेत त्याचे नाव बदलत नाही (Inactive करता येते). फक्त शेवटचे 4 अंक ठेवले जातात, पूर्ण नंबर कधीच नाही. Site fuel cards वर Super Admin ठेवतो (Portal → Sites → Diesel places).'],
+      hi: ['Diesel stock न रखने वाली site (HO) के fuel cards: हर card – उसका प्रकार, आखिरी 4 अंक, कौन सी गाड़ियाँ उसे इस्तेमाल करती हैं, opening balance – और card पर भरे गए पैसे / recharge, और card का statement।', 'Balance = opening + card पर भरे पैसे − उस card से भरा गया fuel (Diesel Issue, opening तारीख से)। Balance कम हो तब भी fill save होता है – वह लाल दिखता है। जिस card की entries हैं उसका नाम नहीं बदलता (Inactive किया जा सकता है)। केवल आखिरी 4 अंक रखे जाते हैं, पूरा नंबर कभी नहीं। Site को fuel cards पर Super Admin रखता है (Portal → Sites → Diesel places)।'] },
     log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'saveLogDebits', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip', 'updateTankerTrip', 'importTankerTrips', 'sendChangeRequest', 'linkLogAttachments'],
       en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic). A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) that worked TWO OR MORE TIMES in one shift (e.g. Breaker 100 → 102, then 110 → 113): add a second row for the same machinery, date and shift and type its own Start and Close – it may start higher than the row above; the hours in between (102 → 110) are not counted, so that day is 5 hours (bill and diesel). For such a machinery, changing or deleting an entry never changes another date: if a Close comes above the Start of the next entry, the app says so and saves nothing. In such a shift a row may also be by Time (e.g. Bucket 09:00 – 11:00 when the meter gave no reading, then Breaker 3714.5 → 3717.5): its hours are added (2 + 3 = 5 hours); the Start and Close of the entry come from its rows by Hrs, and the next day starts at the last Close. Every row of the shift may be by Time too (e.g. Breaker 09:00 – 13:00 and Bucket 14:00 – 18:00): each row keeps its own From – To and work, the hours of the entry are their sum (4 + 4 = 8 hours); two rows at the same time are refused. Any other machinery (a vehicle on KM, a machinery on KM + Hrs, by trips or by the day) may also have a row for each work of a shift: add a second row for the same machinery, date and shift – on KM / Hrs it starts where the row above closed (the KM between belong to a row); by trips each row has its trips (they are added); by the day the shift stays one day. The same work may come again in a row of its own; the same row twice (the same readings, or the same trips, challan and work) is a duplicate and is refused. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. A WATER TANKER (Log Book Format I) is entered with "Water tanker – trip by trip": one line per trip (challan no, dispatch and unload time, chainage, use for), Day or Night, trips can be added any time of the day; the same challan of the agency or a time on another trip is refused. An entry approved in verification (marked ✔ Approved) or in a submitted bill is locked: only the Super Admin changes or deletes it, with a reason; anybody else\'s change is sent to him for approval. Attachments (📎 of a row, the edit window, "Attach to selected" in Edit Log Book): photos or PDF of the entry – paste with Ctrl + V, drop, upload, the camera or "Scan with Mobile" (a QR code: the phone of the same person sends the photos); ✎ corrects a photo before it is sent; at most the site\'s number; each file kept once and never changed – an approved or billed entry\'s files are changed only by the Super Admin.'],
       mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप). Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ने (JCB, excavator, breaker) एकाच shift मध्ये दोन किंवा जास्त वेळा काम केले असेल (उदा. Breaker 100 → 102, मग 110 → 113): त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा आणि तिचे स्वतःचे Start आणि Close टाका – ते वरच्या ओळीच्या Close पेक्षा जास्त असू शकते; मधले तास (102 → 110) धरले जात नाहीत, म्हणून तो दिवस 5 तासांचा (bill आणि diesel). अशा machinery ची entry बदलली किंवा delete केली तरी दुसरी तारीख कधीच बदलत नाही: Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर app तसे सांगते आणि काहीही save करत नाही. अशा shift मध्ये एखादी ओळ Time वर पण असू शकते (उदा. meter ने reading दिले नाही तेव्हा Bucket 09:00 – 11:00, मग Breaker 3714.5 → 3717.5): त्या ओळीचे तास जोडले जातात (2 + 3 = 5 तास); entry चे Start आणि Close तिच्या Hrs ओळींवरून येतात, आणि पुढचा दिवस शेवटच्या Close पासून सुरू होतो. Shift च्या सगळ्या ओळी पण Time वर असू शकतात (उदा. Breaker 09:00 – 13:00 आणि Bucket 14:00 – 18:00): प्रत्येक ओळ आपली From – To आणि काम ठेवते, entry चे तास त्यांची बेरीज (4 + 4 = 8 तास); एकाच वेळेतल्या दोन ओळी save होत नाहीत. इतर कोणत्याही machinery ला (KM वरची गाडी, KM + Hrs वरची machinery, trips वर किंवा दिवसावर) पण shift च्या प्रत्येक कामाची वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा – KM / Hrs वर ती वरच्या ओळीच्या Close पासून सुरू होते (मधले KM एखाद्या ओळीतच येतात); trips वर प्रत्येक ओळीचे trips (ते जोडले जातात); दिवसावर shift एकच दिवस राहते. तेच काम वेगळ्या ओळीत पुन्हा येऊ शकते; अगदी तीच ओळ दोनदा (तीच readings, किंवा तेच trips, challan आणि काम) म्हणजे duplicate – save होत नाही. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. WATER TANKER (Log Book Format I) ची entry "Water tanker – trip by trip" मधून: प्रत्येक trip ची एक ओळ (challan no, dispatch आणि unload वेळ, chainage, use for), Day किंवा Night; दिवसभरात कधीही trips जोडता येतात; agency चा तोच challan किंवा दुसऱ्या trip च्या वेळेवरची वेळ save होत नाही. Verification मध्ये approve झालेली (✔ Approved) किंवा submit झालेल्या bill मधली entry locked असते: फक्त Super Admin ती कारणासह बदलतो किंवा delete करतो; इतर कोणी केलेला बदल त्याच्याकडे approval साठी जातो. Attachments (row चा 📎, edit window, Edit Log Book मध्ये "Attach to selected"): entry चे फोटो किंवा PDF – Ctrl + V ने paste, ओढून आणा, upload, camera किंवा "Scan with Mobile" (QR code: त्याच व्यक्तीचा phone फोटो पाठवतो); पाठवण्यापूर्वी ✎ ने फोटो दुरुस्त करता येतो; site ने ठरवलेल्या संख्येपर्यंत; प्रत्येक file एकदाच ठेवली जाते आणि कधी बदलत नाही – approve किंवा bill झालेल्या entry च्या files फक्त Super Admin बदलतो.'],
@@ -7195,7 +7326,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     XLSX.writeFile(wb, 'RCL_' + d.title.replace(/[^A-Za-z0-9]+/g, '_') + (d.from ? '_' + d.from + '_to_' + d.to : '') + '.xlsx');
   }
 
-  const TABS = ['dash', 'vendors', 'master', 'boq', 'comp', 'lbf', 'brk', 'bill', 'bills', 'breg', 'pay', 'vled', 'vout', 'users', 'readme', 'settings', 'inward', 'transfer', 'diesel', 'log', 'activity', 'approvals', 'rmonthly', 'ravg', 'rdaily', 'logedit', 'tankcheck'].concat(buildReports());
+  const TABS = ['dash', 'vendors', 'master', 'boq', 'comp', 'lbf', 'brk', 'bill', 'bills', 'breg', 'pay', 'vled', 'vout', 'users', 'readme', 'settings', 'inward', 'transfer', 'diesel', 'cards', 'log', 'activity', 'approvals', 'rmonthly', 'ravg', 'rdaily', 'logedit', 'tankcheck'].concat(buildReports());
   document.querySelectorAll('.navbtn').forEach(b => { const l = b.querySelector('.label'); if (l) b.title = l.textContent.trim(); });
   document.querySelectorAll('.rhead h2').forEach(h => { h.dataset.site = SITE_NAME; });
   // Reports menu: a second section "Head Office Reports" with the Owner / Vendor-wise Summary and Monthly Diesel & Average
@@ -7287,6 +7418,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function setStock(st) {
     if (!st) return;
     S.stock = st;
+    if (Array.isArray(st.cards)) { S.cards = st.cards; if (typeof cardsChanged === 'function') cardsChanged(); }      // (update-164) a site on fuel cards: the cards' balances
     const by = st.byLoc || {};
     document.querySelectorAll('.stock_multi').forEach(el => {
       el.innerHTML = (S.locations || Object.keys(by)).map(l => '<span class="locpill' + ((by[l] || 0) <= 0 ? ' low' : '') + '" title="Current stock">' +
@@ -7320,6 +7452,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     else if (name === 'vled') vlInit();
     else if (name === 'vout') voLoad();
     else if (name === 'diesel') { if (first) loadDiesel(); refreshStock(); refreshLookups(); }
+    else if (name === 'cards') { cdOpen(first); refreshStock(); }      // (update-164) Fuel Cards
     else if (name === 'inward') { if (first) loadInward(); refreshStock(); }
     else if (name === 'transfer') { if (first) loadTransfers(); refreshStock(); }
     else if (name === 'log') { if (first) { lfTwoDays(); loadLog(); } else lgRefreshAll();  refreshLookups(); }
@@ -7339,7 +7472,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try { const L = await rawCall('getLookups'); setMaster(L.master); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors); if ('closedUpto' in L) setClosed(L.closedUpto); if (L.rules) setRules(L.rules); } catch (e) { /* keep the lists we have */ }
   }
   // the diesel stock is asked only for a user with a page that shows it (the server gives it to nobody else)
-  const seesStock = () => { const u = S.user, p = (u && u.perms) || {}; return !!(u && (u.admin || ['Dashboard', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Reports'].some(m => p[m] && p[m] !== 'None'))); };
+  const seesStock = () => { const u = S.user, p = (u && u.perms) || {}; return !!(u && (u.admin || ['Dashboard', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Fuel Cards', 'Reports'].some(m => p[m] && p[m] !== 'None'))); };      // (update-164: Fuel Cards – the balances)
   async function refreshStock() { if (!seesStock()) return; try { setStock(await call('getStock')); } catch (e) { /* keep last value */ } }
   // Fill every location dropdown (class loc-select); data-default = the option picked first
   // which database the app is working on – shown next to "Live", updated with every sync (about every second)
@@ -7432,7 +7565,30 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const machFuel = m => (m && FUEL_LIST.indexOf(m.fuel) > -1 ? m.fuel : 'Diesel');
   const fuelUnit = f => f === 'CNG' ? 'kg' : 'Ltr';
   const placeUnit = n => fuelUnit(placeFuel(n));
-  function siteFuels() { const o = []; (S.locations || []).forEach(n => { const f = placeFuel(n); if (o.indexOf(f) < 0) o.push(f); }); return o; }
+  function siteFuels() {
+    if (cardMode() && Array.isArray(S.siteFuels) && S.siteFuels.length) return S.siteFuels.slice();      // (update-164) a site on fuel cards: its machinery's fuels
+    const o = []; (S.locations || []).forEach(n => { const f = placeFuel(n); if (o.indexOf(f) < 0) o.push(f); }); return o;
+  }
+  /* (update-164, asked 27-10-2026) A SITE ON FUEL CARDS (HO – the Super Admin, Portal → Sites → Diesel places → "Fuel cards – no stock"):
+   * no diesel stock (no Inward, Transfer, tanks); a fill (Diesel Issue) is paid by a CARD or in CASH, with its ₹; the cards (page Fuel
+   * Cards) and their balance – opening + payments onto the card − the fills paid by it – come with the stock (S.cards), so the driver
+   * sees the balance before he fills. A short balance does not stop a fill (the fuel is already in the car): it shows red. */
+  const cardMode = () => S.fuelMode === 'card';
+  const cardList = () => S.cards || [];
+  const cardByName = n => cardList().find(c => c.name.toUpperCase() === String(n || '').trim().toUpperCase()) || null;
+  const cardsForCar = m => cardList().filter(c => c.active && (!c.cars.length || (!!m && c.cars.some(x => noKey(x) === noKey(m.id)))));
+  // a fill's fuel at a site on fuel cards: its machinery's
+  const rowFuel = r => { if (!cardMode()) return placeFuel(r.source); const m = findMachine(r.no); return m ? machFuel(m) : 'Diesel'; };
+  // the "Paid by" box of a fill (d_src) and of its list's filter (df_src): the cards for the car (with the balance) and Cash
+  function cardFill(sel, fire) {
+    const keep = sel.value, all = sel.id === 'df_src', m = all ? null : findMachine(val('d_no'));
+    const names = (all ? cardList() : cardsForCar(m)).map(c => c.name).concat(['Cash']);
+    if (keep && names.indexOf(keep) < 0 && !all && S.editDieselId) names.unshift(keep);      // a fill being changed keeps its card on the list
+    sel.innerHTML = (all ? '<option value="">All</option>' : '') + names.map(n => { const c = cardByName(n);
+      return '<option value="' + esc(n) + '">' + esc(n) + (c && !all ? ' – ₹' + esc(money(c.balance)) : '') + '</option>'; }).join('');
+    sel.value = names.indexOf(keep) > -1 ? keep : (all ? '' : names[0]);
+    if (fire && sel.value !== keep) sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
   const multiFuel = () => siteFuels().length > 1;
   // a fill of [m] from [place]: '' = fine; otherwise what is wrong (the server says the same)
   function fuelProblem(m, place) {
@@ -7483,6 +7639,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return f === 'Electric' ? '' : f;
   }
   function fillLoc(sel, fire) {
+    if (cardMode() && (sel.id === 'd_src' || sel.id === 'df_src')) { cardFill(sel, fire); return; }      // (update-164)
     const keep = sel.value, all = sel.dataset.all, base = sel.dataset.own ? mySources(sel.dataset.own) : S.locations, fu = locFuelOf(sel);
     let locs = fu ? base.filter(l => placeFuel(l) === fu) : base;
     if (!locs.length) locs = base;      // none of that fuel: every place (the server then says what is wrong)
@@ -7508,6 +7665,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if ($('i_rate_lbl')) $('i_rate_lbl').innerHTML = $('i_rate_lbl').innerHTML.replace(/₹\/(Ltr|kg)/, '₹/' + placeUnit($('i_loc').value));
     const m = findMachine(val('d_no')), fw = $('d_f_fuel_w');
     if (fw) { fw.hidden = !m || !multiFuelAny(); if (m) $('d_f_fuel').textContent = machFuel(m); }
+    if (cardMode()) { const f = m ? machFuel(m) : 'Diesel'; fuelLabel(lab('d_qty'), f); if ($('d_rate_lbl')) $('d_rate_lbl').textContent = 'Rate (₹ per ' + fuelUnit(f) + ')'; }      // (update-164) the car's fuel
   }
   function setLocations(list) {
     S.locations = list && list.length ? list : ['Dispenser', 'VTR Store'];
@@ -8430,7 +8588,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const lookups = async quiet => { try { const L = await rawCall('getLookups'); S.quietMaster = !!quiet; setMaster(L.master); setTimeout(() => { S.quietMaster = false; }, 50); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors);
       const pf = JSON.stringify(L.placeFuels || {}), pfChanged = !!L.placeFuels && pf !== JSON.stringify(S.placeFuels || {});      // (update-163) a place's fuel set in the Portal
       if (pfChanged) S.placeFuels = L.placeFuels;
-      if (L.locations && L.locations.length && (pfChanged || L.locations.join('|') !== (S.locations || []).join('|'))) setLocations(L.locations); } catch (e) {} };      // (update-117) the diesel places changed in the Portal
+      const fmChanged = 'fuelMode' in L && (L.fuelMode || '') !== (S.fuelMode || '');      // (update-164) put on fuel cards in the Portal
+      if ('siteFuels' in L) S.siteFuels = L.siteFuels; if (fmChanged) { S.fuelMode = L.fuelMode || ''; applyFuelMode(); applyPerms(); }
+      if (L.locations && L.locations.length && (fmChanged || pfChanged || L.locations.join('|') !== (S.locations || []).join('|'))) setLocations(L.locations); } catch (e) {} };      // (update-117) the diesel places changed in the Portal
     if (has('flow')) crLoad(true);      // (update-114) a verification request sent or decided: the Approvals list and its number
     if (has('master')) await lookups(false);
     else if (has('stock') || has('log')) { const wait = Math.max(0, 15000 - (Date.now() - (S.lookAt || 0))); clearTimeout(S.lookT); S.lookT = setTimeout(() => { S.lookAt = Date.now(); lookups(true); }, wait); }
@@ -12983,7 +13143,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (no) { const l = items.filter(x => noKey(x[0]) === noKey(no)).map(x => x[1]).sort(); return { machinery: no, datesWithoutLogBook: l.length, dates: l.slice(0, 120), page: 'log' }; }
       const by = {}; items.forEach(x => { by[x[1]] = (by[x[1]] || 0) + 1; }); const days = Object.keys(by).sort().slice(-10);
       return { from: d.from, upTo: d.asOf, pendingDaysInAll: d.total, lastTenDays: days.map(k => ({ date: k, machinery: by[k] })), page: 'log' }; },
-    diesel_stock: async () => { const d = await rawCall('getStock'); return { litresInStockNow: d.stock, byLocation: d.byLoc, receivedInAll: d.inward, issuedInAll: d.issued, page: 'dash' }; },
+    diesel_stock: async () => { const d = await rawCall('getStock');
+      if (cardMode()) return { onFuelCards: true, noDieselStock: true, cards: (d.cards || []).map(c => ({ card: c.name, balanceRupees: c.balance, active: c.active, lastFill: c.lastFill || '' })), page: 'cards' };      // (update-164) a site on fuel cards: the cards' balances, no stock
+      return { litresInStockNow: d.stock, byLocation: d.byLoc, receivedInAll: d.inward, issuedInAll: d.issued, page: 'dash' }; },
     machinery: async a => { const q = String(a.query || '').trim().toUpperCase(), all = S.master || [];
       if (!q) { const c = {}, t = {}; all.forEach(m => { c[m.ownership || 'Other'] = (c[m.ownership || 'Other'] || 0) + 1; t[m.type || '(no type)'] = (t[m.type || '(no type)'] || 0) + 1; }); return { machineryInAll: all.length, active: all.filter(m => onSiteOn(m, S.today)).length, byOwnership: c, byType: t, page: 'master' }; }
       const hit = all.filter(m => [m.id, m.name, m.type, m.owner].some(v => String(v || '').toUpperCase().indexOf(q) > -1));
@@ -13038,8 +13200,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       run: () => aiDieselDay(addDay(S.today, -1)) },
     { id: 'dieselT', pages: ['diesel', 'dash'], q: () => aiL({ en: 'How much diesel was issued today, and to whom?', mr: 'आज किती diesel दिले आणि कोणाला?', hi: 'आज कितना diesel दिया और किसे?' }),
       run: () => aiDieselDay(S.today) },
-    { id: 'stock', pages: ['dash', 'diesel', 'inward', 'transfer'], q: () => aiL({ en: 'How much diesel is in stock now?', mr: 'आत्ता diesel stock किती आहे?', hi: 'अभी diesel stock कितना है?' }),
+    { id: 'stock', pages: ['dash', 'diesel', 'inward', 'transfer', 'cards'], q: () => cardMode() ? aiL({ en: 'How much is on the fuel cards now?', mr: 'आत्ता fuel cards वर किती शिल्लक आहे?', hi: 'अभी fuel cards पर कितना बकाया है?' }) : aiL({ en: 'How much diesel is in stock now?', mr: 'आत्ता diesel stock किती आहे?', hi: 'अभी diesel stock कितना है?' }),
       run: async () => { const r = await AI_RUN.diesel_stock(), by = Object.keys(r.byLocation || {}).map(k => k + ' ' + fmt(r.byLocation[k]) + ' L').join(', ');
+        if (r.onFuelCards) return aiL({ en: 'This site is on fuel cards – no diesel stock. The cards now:', mr: 'ही site fuel cards वर आहे – diesel stock नाही. Cards ची शिल्लक:', hi: 'यह site fuel cards पर है – diesel stock नहीं। Cards का बकाया:' }) + '\n' + (r.cards.filter(c => c.active).map(c => c.card + ' ₹' + money(c.balanceRupees)).join(', ') || '–') + '\n[[open:cards|Fuel Cards]]';      // (update-164)
         return aiL({ en: 'Diesel in stock now: **' + fmt(r.litresInStockNow) + ' L**', mr: 'आत्ता diesel stock: **' + fmt(r.litresInStockNow) + ' L**', hi: 'अभी diesel stock: **' + fmt(r.litresInStockNow) + ' L**' }) + (by ? '\n' + by : '') + '\n[[open:dash|Dashboard]]'; } },
     { id: 'bad', pages: ['dash', 'rp-avg', 'ravg', 'rp-watch'], q: () => aiL({ en: 'Which machinery took more diesel than the standard this month?', mr: 'या महिन्यात कोणत्या गाड्यांनी standard पेक्षा जास्त diesel घेतले?', hi: 'इस महीने किन गाड़ियों ने standard से ज़्यादा diesel लिया?' }),
       run: async () => { const from = S.today.slice(0, 8) + '01', r = await AI_RUN.diesel_average({ from: from, to: S.today }), l = r.mostDieselOverTheStandard || [];
@@ -13072,7 +13235,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const slim = d => d && !d.notAllowed ? { entries: d.entries, totalLitres: d.totalLitres, byMachinery: (d.byMachinery || []).slice(0, 15), byOwner: (d.byOwner || []).slice(0, 10) } : d;
     const [dT, dY, pn, st] = await Promise.all([pick(() => AI_RUN.diesel_issues({ from: today, to: today })), pick(() => AI_RUN.diesel_issues({ from: yest, to: yest })), pick(() => AI_RUN.pending_log_book({ date: today })), pick(() => AI_RUN.diesel_stock())]);
     AI.snap = { asOf: new Date().toLocaleTimeString('en-GB'), today: today, yesterday: yest, dieselIssuedToday: slim(dT), dieselIssuedYesterday: slim(dY),
-      pendingLogBookToday: pn && !pn.notAllowed ? { machinery: pn.machineryWithoutLogBook, names: (pn.machinery || []).slice(0, 40) } : pn, dieselStockNow: st && !st.notAllowed ? { litres: st.litresInStockNow, byLocation: st.byLocation } : st };
+      pendingLogBookToday: pn && !pn.notAllowed ? { machinery: pn.machineryWithoutLogBook, names: (pn.machinery || []).slice(0, 40) } : pn, dieselStockNow: st && !st.notAllowed ? (st.onFuelCards ? { onFuelCards: true, cards: st.cards } : { litres: st.litresInStockNow, byLocation: st.byLocation }) : st };
     AI.snapAt = Date.now();
   }
   function aiSnap() { if (AI.snap && Date.now() - AI.snapAt < 30000) return Promise.resolve(AI.snap); AI.snapJob = AI.snapJob || aiSnapBuild().catch(() => {}).then(() => { AI.snapJob = null; }); return AI.snapJob.then(() => AI.snap); }
@@ -13223,6 +13386,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const date = /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') ? a.date : S.today;
     if (date > S.today) return { error: T({ en: 'An entry cannot be made for a date after today.', mr: 'आजच्या नंतरच्या तारखेची entry करता येत नाही.', hi: 'आज के बाद की तारीख की entry नहीं हो सकती।' }) };
     if (kind === 'diesel') {
+      // (update-164) a site on fuel cards: a fill needs its card or Cash, its ₹ and the photos – made in the form
+      if (cardMode()) return { error: T({ en: 'At this site a fill is entered in the Diesel Issue form – with its card or Cash, the Amount (₹) and the photos.', mr: 'या site वर fill Diesel Issue form मध्ये भरा – card किंवा Cash, Amount (₹) आणि photos सह.', hi: 'इस site पर fill Diesel Issue form में भरें – card या Cash, Amount (₹) और photos के साथ।' }) + ' [[open:diesel|Diesel Issue]]' };
       // (update-163) an Electric machinery gets no fuel (the server refuses it too)
       if (machFuel(m) === 'Electric') return { error: T({ en: m.id + ' runs on Electric – no fuel is issued to it (Asset Master → Fuel).', mr: m.id + ' Electric वर चालते – तिला इंधन दिले जात नाही (Asset Master → Fuel).', hi: m.id + ' Electric पर चलती है – उसे ईंधन नहीं दिया जाता (Asset Master → Fuel)।' }) };
       const qty = aiN(a.litres); if (!(qty > 0)) return { need: T({ en: 'How many litres for ' + m.id + '?', mr: m.id + ' ला किती लिटर?', hi: m.id + ' को कितने लीटर?' }), partial: { kind: kind, a: Object.assign({}, a, { machinery: m.id }) } };
@@ -14976,6 +15141,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // Two dashboard views: Diesel and Log Book (remembered on this device)
   function setDashTab(t) {
     ['diesel', 'log'].forEach(k => { $('dtab-' + k).setAttribute('aria-selected', String(k === t)); $('dash_' + k).hidden = k !== t; });
+    // (update-164) a site on fuel cards: its own dashboard in place of the diesel stock
+    if (cardMode()) { $('dash_diesel').hidden = true; $('dash_card').hidden = t !== 'diesel'; } else $('dash_card').hidden = true;
     try { localStorage.setItem('rcl_dash_tab', t); } catch (e) {}
     if (t === 'log' && S.lb && !S.lb.d) setTimeout(lbLoad, 0);
   }
@@ -14994,6 +15161,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return from ? 'From ' + showDate(from) : 'Up to ' + showDate(to);
   }
   async function loadDash() {
+    if (cardMode()) return hdLoad();      // (update-164) a site on fuel cards: its cards and cars
     const seq = ++dashSeq;
     S.dashStale = false;
     try {
@@ -15277,6 +15445,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // put the Dashboard on Today (on sign-in and every time the Dashboard is opened)
   function dashToday() {
     if (!S.today) return;
+    if (cardMode()) { if (!$('hd_from').value) hdRange('month'); else hdLoad(); return; }      // (update-164) this month to start with
     const changed = $('k_from').value !== S.today || $('k_to').value !== S.today;
     $('k_from').value = S.today; $('k_to').value = S.today;
     if (changed || !S.loaded.dash || S.dashStale) loadDash();
@@ -15632,7 +15801,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (d.faults) setFaults(d.faults);
       showBoot(false);
       $('login_screen').hidden = true; document.body.classList.remove('locked');
-      S.user = d.user; S.ver = d.versions || null; siteBoot(d.siteInfo); applyPerms(); startSync(); setClosed(S.closedUpto); dbCheckDaily(); try { rtcAfterLogin(); } catch (e) { /* the screen share's extras never stop a sign-in */ }
+      S.user = d.user; S.ver = d.versions || null; S.fuelMode = d.fuelMode || ''; siteBoot(d.siteInfo); applyPerms();      // (update-164: the menu of a site on fuel cards) startSync(); setClosed(S.closedUpto); dbCheckDaily(); try { rtcAfterLogin(); } catch (e) { /* the screen share's extras never stop a sign-in */ }
       setBackupInfo(S.backup);
       S.today = d.today; $('company').textContent = d.company; if (d.org) applyOrg(d.org);
       S.flowMine = d.flow || {}; setTimeout(flowLabels, 0);      // (update-116) his works under verification
@@ -15642,6 +15811,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       meterBoxes();
       lgRows().forEach(tr => { if (!lgf(tr, 'date').value) lgf(tr, 'date').value = d.today; }); // Diesel list From / To stay blank = all entries
       S.placeFuels = d.placeFuels || {};      // (update-163) each diesel place and its fuel
+      S.fuelMode = d.fuelMode || ''; S.siteFuels = d.siteFuels || null; if (d.stock && Array.isArray(d.stock.cards)) S.cards = d.stock.cards;      // (update-164) a site on fuel cards
+      applyFuelMode();
       setLocations(d.locations); S.masterSig = null; setMaster(d.master); setDrivers(d.drivers); setPumps(d.pumps); setStock(d.stock);
       S.loaded = {};
       $('rm_from').value = d.today.slice(0, 8) + '01'; $('rm_to').value = d.today;
@@ -16190,12 +16361,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* (update-139, asked 20-10-2026: "jya gadich 2 engine yet tith 2 reading takayla lahtat ek km ani ek hrs tr ase 2 photo weg wegle
    * gheta yawet") the Hour meter photo – only for a machinery measured by KM and Hrs (its hour meter is often not on the dashboard);
    * it fills the Hrs box (the dashboard's KM box as before) */
-  const phKindsOf = m => PH_KINDS.filter(x => x[0] !== 'hrs' || (!!m && m.supply !== 'Debit Basis' && meterKm(m) && meterHr(m)));
+  const phKindsOf = m => PH_KINDS.filter(x => (x[0] !== 'hrs' || (!!m && m.supply !== 'Debit Basis' && meterKm(m) && meterHr(m))) && !(x[0] === 'reg' && cardMode()));      // (update-164) no register at a site on fuel cards
   const PH = { no: null, items: {}, busy: {}, read: null, cur: null, tok: {} };
   function phClear() {
     Object.keys(PH.items).forEach(k => { try { URL.revokeObjectURL(PH.items[k].url); } catch (e) { /* already gone */ } });
     PH.items = {}; PH.busy = {}; PH.read = null; PH.no = null; Object.keys(PH.tok).forEach(k => { PH.tok[k]++; });      // (an AI answer still on its way is not used)
-    ['d_km', 'd_hr', 'd_qty'].forEach(id => { $(id).classList.remove('ai-read'); delete $(id).dataset.ai; });
+    ['d_km', 'd_hr', 'd_qty', 'd_amt'].forEach(id => { $(id).classList.remove('ai-read'); delete $(id).dataset.ai; });
     $('d_ai_note').hidden = true; phPaint();
   }
   function phSending() { return Object.keys(PH.busy).some(k => PH.busy[k]); }
@@ -16317,6 +16488,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (p && p.error) warn.push('the litres could not be read now – type the Diesel Qty');
     else if (p && !p.wait) {
       fill('d_qty', null, p.litres, v => fmt(v) + ' L');
+      if (cardMode()) fill('d_amt', null, p.amount, v => '₹' + money(v));      // (update-164) the ₹ on the dispenser
       if (p.check) warn.push('litres: ' + p.check);
       if (fresh === 'pump' && (p.litres === null || p.litres === undefined)) warn.push('the litres could not be read clearly – type the Diesel Qty');
     }
@@ -16379,7 +16551,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       html: '<p>' + esc(apText(a, no, dk, shift)) + '</p><p><b>You can make the change:</b> when you save it, it goes to the <b>Super Admin</b> for approval and is saved only when he approves.</p>' })); };
   function clearDiesel() {
     flowFixEnd('one');      // (update-130) correcting a returned entry: stopped
-    ['d_no', 'd_qty', 'd_km', 'd_hr', 'd_driver', 'd_remark'].forEach(id => $(id).value = '');
+    ['d_no', 'd_qty', 'd_km', 'd_hr', 'd_driver', 'd_remark', 'd_amt', 'd_rate'].forEach(id => $(id).value = '');      // (update-164: the ₹ too)
+    delete $('d_amt').dataset.auto;
     S.editDieselId = null; phClear();
     $('d_title').textContent = 'Issue diesel'; $('d_save').textContent = 'Save diesel issue'; $('d_cancel').hidden = true;
     dieselMachineChanged(); dieselAfterLine(); refreshIssueBal(); $('d_no').focus();
@@ -16394,6 +16567,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('d_no').value = r.no; dieselMachineChanged();
     $('d_qty').value = r.qty; $('d_km').value = r.kmReading; $('d_hr').value = r.hrReading; 
     $('d_driver').value = r.driver; $('d_remark').value = r.remark;
+    if (cardMode()) { $('d_src').value = r.source; $('d_amt').value = r.amount === undefined ? '' : r.amount; $('d_rate').value = r.rate === undefined ? '' : r.rate; delete $('d_amt').dataset.auto; }      // (update-164)
     $('d_title').textContent = 'Edit ' + r.id; $('d_save').textContent = 'Update diesel issue'; $('d_cancel').hidden = false;
     S.bal = null; dieselAfterLine(); refreshIssueBal();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -16482,6 +16656,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function refreshIssueBal() {
     if (!S.today) return;
     const seq = ++balSeq;
+    if (cardMode()) { S.bal = { card: true }; S.bbal = null; dieselAfterLine(); return; }      // (update-164) no stock: the card's balance (S.cards)
     try {
       const [one, many] = await Promise.all([
         rawCall('getIssueBalance', $('d_date').value, $('d_shift').value, S.editDieselId || '', $('d_src').value),
@@ -16495,6 +16670,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function dieselAvailable() { return S.bal ? S.bal.available : Infinity; }
   // Top pill: opening stock of the date + shift being entered (one or multiple mode)
   function updateDieselPill() {
+    $('d_pill').hidden = cardMode();      // (update-164) no stock at a site on fuel cards
+    if (cardMode()) return;
     const many = !$('d_multi').hidden;
     if (many && dMType() === 'mach') { bmPill(); return; }
     const b = many ? S.bbal : S.bal;
@@ -16506,6 +16683,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function dieselAfterLine() {
     updateDieselPill();
+    if (cardMode()) { cardAfterLine(); return; }      // (update-164) the card's balance
     const q = numv('d_qty'); const a = dieselAvailable();
     const el = $('d_after');
     if (!S.bal) { $('d_balance').value = ''; el.className = 'stockline'; el.innerHTML = 'Loading stock…'; return; }
@@ -16521,6 +16699,27 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       : 'Stock on ' + esc(when) + ': <b>' + fmt(start) + ' ' + U + '</b> → after this issue <b>' + fmt(bal) + ' ' + U + '</b>';
   }
   $('d_qty').addEventListener('input', dieselAfterLine);
+  /* (update-164) a fill at a site on fuel cards: the card's balance before it (the fill being changed added back) and after it – red
+   * when short (the fill is still saved: the fuel is in the car); Cash: no card changes */
+  function cardAfterLine() {
+    const src = $('d_src').value, c = cardByName(src), a = numv('d_amt'), el = $('d_after');
+    if (!c) { $('d_balance').value = ''; $('d_balance').classList.remove('neg'); el.className = 'stockline'; el.innerHTML = src === 'Cash' ? 'Paid in <b>Cash</b> – no card balance changes.' : ''; return; }
+    let base = Number(c.balance) || 0;
+    if (S.editDieselId) { const r = (S.dieselRows || []).find(x => x.id === S.editDieselId); if (r && String(r.source).toUpperCase() === c.name.toUpperCase() && (!c.openDate || r.date >= c.openDate)) base = r2(base + (Number(r.amount) || 0)); }
+    const after = r2(base - (a === '' ? 0 : a));
+    $('d_balance').value = money(after); $('d_balance').classList.toggle('neg', after < 0);
+    el.className = 'stockline' + (after < 0 ? ' bad' : '');
+    el.innerHTML = 'Card <b>' + esc(c.name) + '</b> – balance now <b>₹' + esc(money(base)) + '</b>' + (a === '' ? '' : ' → after this fill <b>₹' + esc(money(after)) + '</b>' + (after < 0 ? ' – not enough on the card (the fill is still saved)' : ''));
+  }
+  // the Amount from the Rate (or the other way round, shown only as the hint): Amount is what the card pays
+  function cardAmountAuto() {
+    const q = numv('d_qty'), r = numv('d_rate'), am = $('d_amt');
+    if (q !== '' && r !== '' && (am.value === '' || am.dataset.auto === '1')) { am.value = r2(q * r); am.dataset.auto = '1'; }
+    $('d_rate').placeholder = q !== '' && numv('d_amt') !== '' && q > 0 ? 'Amount ÷ Qty = ' + fmt(r2(numv('d_amt') / q)) : 'Amount ÷ Qty';
+    cardAfterLine();
+  }
+  ['d_qty', 'd_rate'].forEach(id => $(id).addEventListener('input', () => { if (cardMode()) cardAmountAuto(); }));
+  $('d_amt').addEventListener('input', () => { delete $('d_amt').dataset.auto; if ($('d_amt').dataset.ai === '1') { $('d_amt').dataset.ai = '0'; $('d_amt').classList.remove('ai-read'); phApplyRead(); } cardAmountAuto(); });
   $('bd_date').addEventListener('change', () => [...$('bd_rows').children].forEach(tr => { if (tr.querySelector('[data-f=no]').value.trim()) dieselRowMachine(tr); }));
   ['d_date', 'd_shift', 'd_src', 'bd_date', 'bd_shift', 'bd_src'].forEach(id => $(id).addEventListener('change', () => { S.bal = null; S.bbal = null; dieselAfterLine(); dieselBulkSum(); refreshIssueBal(); }));
   async function saveDiesel(force) {
@@ -16531,18 +16730,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (prob) { await showAlert('Machinery is not active', prob); return; }
     const d = { date: $('d_date').value, shift: $('d_shift').value, no: m.id, qty: numv('d_qty'),
       kmReading: numv('d_km'), hrReading: numv('d_hr'), driver: val('d_driver'), remark: val('d_remark'), source: $('d_src').value, force: !!force, mode: wayOf($('d_way')) };
+    if (cardMode()) { d.amount = numv('d_amt'); d.rate = numv('d_rate'); if (d.amount === '') throw new Error('Enter the Amount (₹) of this fill.'); }      // (update-164) its card or Cash, its ₹
     if (!S.editDieselId) { const ph = phList(m.id); if (ph.length) d.photos = ph; }      // (update-85) the photos taken for this fill
     if (!(await confirmReadings([{ m: m, way: d.mode, km: d.kmReading, hr: d.hrReading, source: d.source }]))) return;
-    if (S.bal && d.qty !== '' && d.qty > dieselAvailable()) {
+    if (S.bal && !cardMode() && d.qty !== '' && d.qty > dieselAvailable()) {
       await showAlert('Not enough diesel in stock', 'At ' + d.source + ' for ' + showDate(d.date) + ' (' + d.shift + ') you can issue up to ' + fmt(dieselAvailable()) + ' Ltr, and you are issuing ' + fmt(d.qty) + ' Ltr. Add a Diesel Inward entry first or reduce the quantity.');
       return;
     }
     const editing = S.editDieselId, fixing = !!(S.flowFix && S.flowFix.form === 'one');      // (update-130) correcting a returned entry
     if (editing && !force) {
       const r = (S.dieselRows || []).find(x => x.id === editing) || {};
-      const before = { date: r.date, shift: r.shift, source: r.source, no: r.no, qty: r.qty, kmReading: r.kmReading, hrReading: r.hrReading, driver: r.driver, remark: r.remark };
-      const changes = diff([['date', 'Issue Date'], ['shift', 'Shift'], ['source', 'Diesel Source'], ['no', 'Machinery'], ['qty', 'Diesel Qty (Ltr)'],
-        ['kmReading', 'KM Reading'], ['hrReading', 'Hrs Reading'], ['driver', 'Driver Name'], ['remark', 'Remark']], before, d);
+      const before = { date: r.date, shift: r.shift, source: r.source, no: r.no, qty: r.qty, kmReading: r.kmReading, hrReading: r.hrReading, driver: r.driver, remark: r.remark, amount: r.amount, rate: r.rate };
+      const changes = diff([['date', 'Issue Date'], ['shift', 'Shift'], ['source', cardMode() ? 'Paid by' : 'Diesel Source'], ['no', 'Machinery'], ['qty', 'Diesel Qty (Ltr)'],
+        ['kmReading', 'KM Reading'], ['hrReading', 'Hrs Reading'], ['driver', 'Driver Name'], ['remark', 'Remark']].concat(cardMode() ? [['amount', 'Amount (₹)'], ['rate', 'Rate']] : []), before, d);
       if (!changes.length) { toast('Nothing changed.'); return; }
       if (!(await askConfirm({ title: 'Update ' + editing + '?', html: 'These details will change:' + changeTable(changes), ok: 'Update' }))) return;
     }
@@ -16555,7 +16755,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     if (fixing) { flowFixDone(res); clearDiesel(); return; }
     if (editing && res.ver) { const was = (S.dieselRows || []).find(x => x.id === editing); if (was) was.ver = res.ver; }      // (review of update-145: its version now, until the list is read again)
-    if (PHONE) savedPop(editing ? 'Diesel issue updated' : 'Diesel issue saved', [['Issue ID', res.id], ['Machinery', m.id], ['Diesel', fmt(d.qty) + ' L'],
+    if (PHONE) savedPop(editing ? 'Diesel issue updated' : 'Diesel issue saved', [['Issue ID', res.id], ['Machinery', m.id], ['Diesel', fmt(d.qty) + ' L'], ['Paid by', cardMode() ? d.source + ' – ₹' + money(d.amount) : ''],
       ['Reading', [d.kmReading !== '' ? fmt(d.kmReading) + ' km' : '', d.hrReading !== '' ? fmt(d.hrReading) + ' hr' : ''].filter(Boolean).join(' · ')], ['Photos', (d.photos || []).length ? d.photos.length + ' of 4' : '']]);
     else toast(editing ? 'Diesel issue ' + res.id + ' updated.' : 'Diesel issue saved: ' + res.id);
     if (editing) { loadDiesel(); loadLog(); }
@@ -16582,13 +16782,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         (res.count > rows.length ? ' &nbsp; (showing latest ' + rows.length + ' – narrow the filter to see the rest)' : '');
       $('d_rows').innerHTML = rows.length ? rows.map(r =>
         '<tr><td>' + esc(r.id) + (r.lk ? lockTag(S.dieselLocks[r.lk]) : '') + (r.ph ? ' <button type="button" class="link d-phbtn" data-dph="' + esc(r.id) + '" title="Photos of this fill">📷 ' + r.ph + '</button>' : '') + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + '</td><td>' + esc(r.source) + '</td><td>' + esc(r.no) + '</td><td>' + esc(r.type) + '</td><td>' + esc(r.owner) + '</td><td>' + esc(r.driver) +
-        '</td><td class="n">' + fmt(r.qty) + kgOf(r.source) + '</td><td class="n">' + [r.kmReading !== '' ? fmt(r.kmReading) + ' km' : '', r.hrReading !== '' ? fmt(r.hrReading) + ' hr' : ''].filter(Boolean).join('<br>') +
-        '</td><td class="n' + (r.balance !== '' && r.balance < 0 ? ' neg' : '') + '"><b>' + fmt(r.balance) + '</b></td><td>' + esc(r.remark) +
+        '</td><td class="n">' + fmt(r.qty) + (cardMode() ? (rowFuel(r) === 'CNG' && multiFuel() ? ' kg' : '') : kgOf(r.source)) + '</td><td class="n">' + [r.kmReading !== '' ? fmt(r.kmReading) + ' km' : '', r.hrReading !== '' ? fmt(r.hrReading) + ' hr' : ''].filter(Boolean).join('<br>') +
+        (cardMode() ? '</td><td class="n">' + (r.amount !== '' && r.amount !== undefined ? money(r.amount) : '') + '</td><td>' + esc(r.remark) :      // (update-164) the ₹ of the fill, no stock balance
+        '</td><td class="n' + (r.balance !== '' && r.balance < 0 ? ' neg' : '') + '"><b>' + fmt(r.balance) + '</b></td><td>' + esc(r.remark)) +
         '</td><td class="n">' + (S.dTotal > 0 ? fmt(r2((Number(r.qty) || 0) / S.dTotal * 100)) + '%' : '–') + '</td>' + byCell(r) + '<td>' + rowActions('Diesel Issue', 'data-dedit', 'data-ddel', r.id) + '</td></tr>').join('')
         : '<tr><td colspan="15" class="none">No diesel issues match this filter.</td></tr>';
       // Total of every entry that matches the filter (also those beyond the 500 shown)
       $('d_foot').innerHTML = res.count ? '<tr><td colspan="8">Total – ' + res.count + ' entries</td><td class="n">' + fuelTotal(res.totalQty, res.byFuel) +
-        '</td><td colspan="7"></td></tr>' : '';
+        (cardMode() ? '</td><td></td><td class="n">₹' + money(res.totalAmount) + '</td><td colspan="5">' + esc(Object.keys(res.byPay || {}).map(k => k + ' ₹' + money(res.byPay[k])).join(' · ')) + '</td></tr>' : '</td><td colspan="7"></td></tr>') : '';      // (update-164) the ₹ of each card / Cash
       renderDieselShare();
     } catch (e) { toast(errMsg(e), true); }
   }
@@ -16623,6 +16824,204 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const dl = e.target.closest('[data-ddel]'); if (dl) busy(dl, 'Deleting…', () => deleteDiesel(dl.dataset.ddel));
   });
   $('d_save').addEventListener('click', e => busy(e.target, 'Saving…', () => saveDiesel(false)));
+
+  /* ================= FUEL CARDS (update-164, asked 27-10-2026) – a site on fuel cards (HO) =================
+   * The Super Admin puts a site on fuel cards in the Portal (Sites → Diesel places). Then the page: the Diesel Issue's "Paid by" is a
+   * card of the car (with its balance) or Cash, with the Amount (₹); no stock pages; the Dashboard shows every card's balance and each
+   * car (its KM, fuel, ₹, average, last fill); the page Fuel Cards keeps the cards, the payments onto them and a card's statement. */
+  function applyFuelMode() {
+    const cm = cardMode();
+    document.querySelectorAll('.card-f').forEach(el => { el.hidden = !cm; });
+    $('d_src_lbl').innerHTML = cm ? 'Paid by <span class="req">*</span>' : 'Diesel Source <span class="req">*</span>';
+    $('df_src_lbl').textContent = cm ? 'Paid by' : 'Diesel Source';
+    $('d_bal_lbl').textContent = cm ? 'Card balance after (₹)' : 'Balance (Ltr)';
+    $('d_th_src').textContent = cm ? 'Paid by' : 'Source';
+    $('d_th_bal').textContent = cm ? 'Amount (₹)' : 'Balance (Ltr)';
+    $('d_pill').hidden = cm;
+    const sw = $('dmode_many').closest('.switch'); if (sw) sw.classList.toggle('cm-off', cm);      // one fill at a time (its card and ₹)
+    if (cm && !$('d_multi').hidden) setDieselMode('one');
+    const imp = $('d_import').closest('.imp-btns'); if (imp) imp.classList.toggle('cm-off', cm);
+    $('dtab-diesel').textContent = cm ? 'Fuel cards & cars' : 'Diesel';
+    setDashTab($('dtab-log').getAttribute('aria-selected') === 'true' ? 'log' : 'diesel');
+    if (S.locations) ['d_src', 'df_src'].forEach(id => fillLoc($(id)));      // (at sign-in setLocations fills them next)
+    phPaint(); dieselAfterLine();
+  }
+  // the cards' balances came (with the stock, a save, the dashboard): every place that shows them
+  function cardsChanged() {
+    if (!cardMode()) return;
+    const sel = (id, all) => { const el = $(id); if (!el) return; const keep = el.value;
+      el.innerHTML = (all ? '<option value="">' + esc(all) + '</option>' : '') + cardList().map(c => '<option value="' + esc(c.name) + '">' + esc(c.name) + (c.active ? '' : ' (Inactive)') + '</option>').join('');
+      if ([...el.options].some(o => o.value === keep)) el.value = keep; };
+    sel('cp_card'); sel('cpf_card', 'All cards'); sel('cs_card');
+    fillLoc($('d_src')); fillLoc($('df_src')); dieselAfterLine();
+    if (visible('cards')) cdRender();
+    if (visible('dash') && !$('dash_card').hidden) $('hd_cards').innerHTML = cardList().map(cardTile).join('') || '<p class="muted">No fuel card yet – add them in Fuel Cards.</p>';
+  }
+  const cardTile = c => '<div class="cd-card' + (c.balance < 0 ? ' neg' : '') + (c.active ? '' : ' off') + '"><span>' + esc(c.type) + (c.last4 ? ' ···· ' + esc(c.last4) : '') + (c.active ? '' : ' · Inactive') + '</span>' +
+    '<b>₹' + esc(money(c.balance)) + '</b><span><b style="font-size:13px;display:inline;color:var(--ink)">' + esc(c.name) + '</b>' + (c.lastFill ? ' · last fill ' + esc(showDate(c.lastFill)) : '') + '</span></div>';
+  // ---------- the page Fuel Cards ----------
+  S.cp = { items: [], tok: 0, edit: null };
+  function cdOpen(first) {
+    if (first) {
+      const t = S.today; $('cp_date').value = t; $('cp_date').max = t; $('cd_date').max = t;
+      $('cpf_from').value = t.slice(0, 8) + '01'; $('cpf_to').value = t;
+    }
+    cardsChanged(); cdRender(); cpLoad();
+  }
+  function cdRender() {
+    const list = cardList(), ed = canEdit('Fuel Cards');
+    $('cd_tiles').innerHTML = list.map(cardTile).join('');
+    $('cd_rows').innerHTML = list.length ? list.map(c => '<tr' + (c.active ? '' : ' class="muted"') + '><td><b>' + esc(c.name) + '</b>' + (c.active ? '' : ' <small>(Inactive)</small>') + '</td><td>' + esc(c.type) + '</td><td>' + (c.last4 ? '···· ' + esc(c.last4) : '–') + '</td><td>' + esc(c.cars.length ? c.cars.join(', ') : 'every car') + '</td>' +
+      '<td class="n">' + money(c.opening) + '</td><td class="nowrap">' + esc(showDate(c.openDate)) + '</td><td class="n">' + money(c.paid) + '</td><td class="n">' + money(c.spent) + '</td><td class="n' + (c.balance < 0 ? ' neg' : '') + '"><b>' + money(c.balance) + '</b></td><td class="nowrap">' + (c.lastFill ? esc(showDate(c.lastFill)) : '–') + '</td>' +
+      '<td class="nowrap"><button type="button" class="link" data-cdst="' + esc(c.name) + '">Statement</button>' + (ed ? ' · <button type="button" class="link" data-cded="' + esc(c.name) + '">Edit</button>' : '') + '</td></tr>').join('')
+      : '<tr><td colspan="11" class="none">No fuel card yet' + (ed ? ' – press "+ Add card".' : '.') + '</td></tr>';
+  }
+  function cdForm(c) {
+    S.cdWas = c ? c.name : '';
+    $('cd_form_t').textContent = c ? 'Change card ' + c.name : 'New card';
+    $('cd_name').value = c ? c.name : ''; $('cd_type').value = c ? c.type : 'Fuel card'; $('cd_last4').value = c ? c.last4 : '';
+    $('cd_open').value = c ? c.opening : ''; $('cd_date').value = c ? c.openDate : S.today; $('cd_active').checked = c ? c.active : true;
+    const cars = (S.master || []).filter(m => machFuel(m) !== 'Electric').map(m => m.id).sort(), on = c ? c.cars.map(noKey) : [];
+    $('cd_cars').innerHTML = cars.map(n => '<label><input type="checkbox" class="cd-car" value="' + esc(n) + '"' + (on.indexOf(noKey(n)) > -1 ? ' checked' : '') + '> ' + esc(n) + '</label>').join('') || '<span class="muted">No machinery in the Asset Master yet.</span>';
+    $('cd_form').hidden = false; $('cd_name').focus();
+  }
+  async function cdSave() {
+    const x = { was: S.cdWas || '', name: val('cd_name'), type: $('cd_type').value, last4: val('cd_last4'), opening: numv('cd_open'), openDate: $('cd_date').value, active: $('cd_active').checked,
+      cars: [...document.querySelectorAll('#cd_cars .cd-car:checked')].map(i => i.value) };
+    const res = await call('saveCard', x);
+    if (!res || !res.ok) return;
+    S.cards = res.cards; $('cd_form').hidden = true; cardsChanged(); cdRender();
+    toast(res.added ? 'Fuel card ' + res.name + ' added.' : 'Fuel card ' + res.name + ' saved.');
+  }
+  $('cd_add').addEventListener('click', () => cdForm(null));
+  $('cd_cancel').addEventListener('click', () => { $('cd_form').hidden = true; });
+  $('cd_save').addEventListener('click', e => busy(e.target, 'Saving…', cdSave));
+  $('cd_rows').addEventListener('click', e => {
+    const ed = e.target.closest('[data-cded]'); if (ed) { cdForm(cardByName(ed.dataset.cded)); return; }
+    const st = e.target.closest('[data-cdst]'); if (st) { $('cs_card').value = st.dataset.cdst; $('cs_from').value = ''; $('cs_to').value = ''; busy($('cs_show'), 'Showing…', csShow); $('cs_card').scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  });
+  // ---------- a payment onto a card (with photos of its receipt) ----------
+  function cpPaint() {
+    $('cp_ph').innerHTML = S.cp.items.map((it, i) => '<span>' + (it.url ? '<img src="' + esc(it.url) + '" alt="">' : '<span class="muted">sending…</span>') + ' <button type="button" class="link del" data-cpx="' + i + '" title="Take it out">×</button></span>').join('') +
+      '<button type="button" class="btn ghost small" id="cp_ph_add">+ Add photo</button>';
+  }
+  function cpClear() {
+    S.cp.items.forEach(it => { if (it.blob) try { URL.revokeObjectURL(it.url); } catch (e) { /* gone */ } });
+    S.cp = { items: [], tok: S.cp.tok + 1, edit: null };
+    ['cp_amount', 'cp_ref', 'cp_remark'].forEach(id => { $(id).value = ''; });
+    $('cp_date').value = S.today; $('cp_title').textContent = 'Payment onto a card'; $('cp_save').textContent = 'Save payment'; $('cp_cancel').hidden = true;
+    cpPaint();
+  }
+  $('cp_ph').addEventListener('click', e => {
+    if (e.target.id === 'cp_ph_add') { const i = $('cp_ph_in'); i.value = ''; i.multiple = true; i.click(); return; }
+    const x = e.target.closest('[data-cpx]'); if (x) { S.cp.items.splice(Number(x.dataset.cpx), 1); cpPaint(); }
+  });
+  $('cp_ph_in').addEventListener('change', async () => {
+    const files = [...($('cp_ph_in').files || [])], tok = S.cp.tok;
+    for (const f of files) {
+      if (S.cp.items.length >= 5) { toast('Up to 5 receipt photos with one payment.'); break; }
+      const it = { p: '', url: '' }; S.cp.items.push(it); cpPaint();
+      try {
+        if (f.type && !/^image\//.test(f.type)) throw new Error('This file is not a photo – pick a photo of the receipt.');
+        const pic = await phMake(f, null, 2000), res = await call('cardPhoto', { data: pic.data });
+        if (tok !== S.cp.tok) { URL.revokeObjectURL(pic.url); return; }
+        it.p = res.path; it.url = pic.url; it.blob = true;
+      } catch (e) { const i = S.cp.items.indexOf(it); if (i > -1) S.cp.items.splice(i, 1); toast(errMsg(e), true); }
+      cpPaint();
+    }
+  });
+  async function cpSave() {
+    if (S.cp.items.some(it => !it.p)) { toast('A photo is still being sent – wait a moment, then save.', true); return; }
+    const x = { date: $('cp_date').value, card: $('cp_card').value, amount: numv('cp_amount'), ref: val('cp_ref'), remark: val('cp_remark'), photos: S.cp.items.map(it => it.p) };
+    const ed = S.cp.edit, res = ed ? await call('updateCardPayment', ed, x) : await call('saveCardPayment', x);
+    if (!res || !res.ok) return;
+    S.cards = res.cards; cardsChanged();
+    toast(ed ? 'Payment ' + res.id + ' saved.' : 'Payment ' + res.id + ' saved onto ' + x.card + '.');
+    cpClear(); cpLoad();
+  }
+  $('cp_save').addEventListener('click', e => busy(e.target, 'Saving…', cpSave));
+  $('cp_clear').addEventListener('click', cpClear);
+  $('cp_cancel').addEventListener('click', cpClear);
+  let cpSeq = 0;
+  async function cpLoad() {
+    const seq = ++cpSeq;
+    try {
+      const d = await call('getCardPayments', { from: $('cpf_from').value, to: $('cpf_to').value, card: $('cpf_card').value });
+      if (seq !== cpSeq) return;
+      S.cpRows = d.rows || [];
+      const ed = canEdit('Fuel Cards');
+      $('cp_sum').innerHTML = 'Payments: <b>' + (d.count || 0) + '</b> &nbsp; Total: <b>₹' + money(d.total || 0) + '</b>';
+      $('cp_rows').innerHTML = S.cpRows.length ? S.cpRows.map(r => '<tr><td>' + esc(r.id) + (r.photos ? ' <button type="button" class="link" data-cpv="' + esc(r.id) + '" title="Receipt photos">📷 ' + r.photos + '</button>' : '') + '</td><td class="nowrap">' + esc(showDate(r.date)) + '</td><td>' + esc(r.card) + '</td><td class="n"><b>' + money(r.amount) + '</b></td><td>' + esc(r.ref) + '</td><td>' + esc(r.remark) + '</td><td><small>' + esc(r.enteredBy || '') + '</small></td>' +
+        '<td class="nowrap">' + (ed ? '<button type="button" class="link" data-cpe="' + esc(r.id) + '">Edit</button> · <button type="button" class="link del" data-cpd="' + esc(r.id) + '">Delete</button>' : '') + '</td></tr>').join('')
+        : '<tr><td colspan="8" class="none">No payment onto a card in these dates.</td></tr>';
+    } catch (e) { toast(errMsg(e), true); }
+  }
+  ['cpf_from', 'cpf_to', 'cpf_card'].forEach(id => $(id).addEventListener('change', cpLoad));
+  async function cpPhotos(id) {
+    const d = await call('getCardPayPhotos', id);
+    if (!d.photos || !d.photos.length) { toast('This payment has no photos.'); return []; }
+    return d.photos;
+  }
+  $('cp_rows').addEventListener('click', e => {
+    const v = e.target.closest('[data-cpv]');
+    if (v) { busy(v, '…', async () => { const ph = await cpPhotos(v.dataset.cpv); if (!ph.length) return;
+      await askConfirm({ title: 'Receipt photos – ' + v.dataset.cpv, alertOnly: true, wide: true, ok: 'Close', html: '<div class="phv-grid">' + ph.map(x => '<figure>' + (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener"><img src="' + esc(x.url) + '" alt="" loading="lazy"></a>' : '<div class="none">The picture was not found.</div>') + '</figure>').join('') + '</div><p class="muted small">The links work for 15 minutes.</p>' }); }); return; }
+    const ed = e.target.closest('[data-cpe]');
+    if (ed) { busy(ed, '…', async () => { const r = (S.cpRows || []).find(x => x.id === ed.dataset.cpe); if (!r) return;
+      cpClear(); S.cp.edit = r.id; $('cp_date').value = r.date; $('cp_card').value = r.card; $('cp_amount').value = r.amount; $('cp_ref').value = r.ref; $('cp_remark').value = r.remark;
+      $('cp_title').textContent = 'Change payment ' + r.id; $('cp_save').textContent = 'Save changes'; $('cp_cancel').hidden = false;
+      if (r.photos) { const ph = await cpPhotos(r.id); S.cp.items = ph.map(x => ({ p: x.p, url: x.url })); }
+      cpPaint(); $('cp_title').scrollIntoView({ block: 'start', behavior: 'smooth' }); }); return; }
+    const dl = e.target.closest('[data-cpd]');
+    if (dl) busy(dl, 'Deleting…', async () => { const r = (S.cpRows || []).find(x => x.id === dl.dataset.cpd); if (!r) return;
+      if (!(await askConfirm({ title: 'Delete ' + r.id + '?', danger: true, ok: 'Delete', html: listHtml([r.card + ' – ₹' + money(r.amount), showDate(r.date) + (r.ref ? ' · ' + r.ref : '')]) + '<p>The balance of ' + esc(r.card) + ' goes down by this amount.</p>' }))) return;
+      const res = await call('deleteCardPayment', r.id); S.cards = res.cards; cardsChanged(); toast(r.id + ' deleted.'); if (S.cp.edit === r.id) cpClear(); cpLoad(); });
+  });
+  // ---------- the statement of a card ----------
+  async function csShow() {
+    const d = await call('cardStatement', { card: $('cs_card').value, from: $('cs_from').value, to: $('cs_to').value });
+    const what = x => x.kind === 'Payment' ? 'Payment' + (x.note ? ' – ' + x.note : '') : 'Fill ' + x.no + ' · ' + fmt(x.qty) + ' ' + x.unit + (x.driver ? ' · ' + x.driver : '') + (x.km !== '' && x.km !== undefined ? ' · ' + fmt(x.km) + ' km' : '');
+    $('cs_out').innerHTML = '<p>' + esc(d.card) + ' (' + esc(d.type) + (d.last4 ? ' ···· ' + esc(d.last4) : '') + ') · ' + esc(showDate(d.from)) + ' to ' + esc(showDate(d.to)) + '</p>' +
+      '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Entry</th><th>What</th><th class="n">In (₹)</th><th class="n">Out (₹)</th><th class="n">Balance (₹)</th></tr></thead><tbody>' +
+      '<tr><td>' + esc(showDate(d.from)) + '</td><td></td><td><b>Opening balance</b></td><td></td><td></td><td class="n' + (d.opening < 0 ? ' neg' : '') + '"><b>' + money(d.opening) + '</b></td></tr>' +
+      d.lines.map(x => '<tr><td class="nowrap">' + esc(showDate(x.date)) + '</td><td>' + esc(x.id) + '</td><td>' + esc(what(x)) + '</td><td class="n">' + (x.in ? money(x.in) : '') + '</td><td class="n">' + (x.out ? money(x.out) : '') + '</td><td class="n' + (x.balance < 0 ? ' neg' : '') + '">' + money(x.balance) + '</td></tr>').join('') +
+      '</tbody><tfoot><tr><td colspan="3">Closing balance</td><td class="n">' + money(d.paid) + '</td><td class="n">' + money(d.spent) + '</td><td class="n' + (d.closing < 0 ? ' neg' : '') + '"><b>' + money(d.closing) + '</b></td></tr></tfoot></table></div>';
+  }
+  $('cs_show').addEventListener('click', e => busy(e.target, 'Showing…', csShow));
+  cpPaint();
+  // ---------- the Dashboard of a site on fuel cards ----------
+  let hdSeq = 0;
+  function hdRange(kind) {
+    const t = new Date(S.today + 'T00:00:00'), m1 = isoDate(new Date(t.getFullYear(), t.getMonth(), 1));
+    if (kind === 'today') { $('hd_from').value = S.today; $('hd_to').value = S.today; }
+    else if (kind === 'lastmonth') { $('hd_from').value = isoDate(new Date(t.getFullYear(), t.getMonth() - 1, 1)); $('hd_to').value = isoDate(new Date(t.getFullYear(), t.getMonth(), 0)); }
+    else { $('hd_from').value = m1; $('hd_to').value = S.today; }
+    hdLoad();
+  }
+  document.querySelectorAll('[data-hdrange]').forEach(b => b.addEventListener('click', () => hdRange(b.dataset.hdrange)));
+  ['hd_from', 'hd_to'].forEach(id => $(id).addEventListener('change', hdLoad));
+  async function hdLoad() {
+    if (!S.today) return;
+    if (!$('hd_from').value) { $('hd_from').value = S.today.slice(0, 8) + '01'; $('hd_to').value = S.today; }
+    const seq = ++hdSeq;
+    try {
+      const d = await call('getCardDash', { from: $('hd_from').value, to: $('hd_to').value });
+      if (seq !== hdSeq) return;
+      S.cards = d.cards; cardsChanged();
+      $('hd_range').textContent = rangeText(d.from, d.to);
+      document.querySelectorAll('[data-hdrange]').forEach(b => { const t = new Date(S.today + 'T00:00:00');
+        const want = b.dataset.hdrange === 'today' ? [S.today, S.today] : b.dataset.hdrange === 'month' ? [S.today.slice(0, 8) + '01', S.today] : [isoDate(new Date(t.getFullYear(), t.getMonth() - 1, 1)), isoDate(new Date(t.getFullYear(), t.getMonth(), 0))];
+        b.classList.toggle('on', want[0] === d.from && want[1] === d.to); });
+      $('hd_cards').innerHTML = d.cards.map(cardTile).join('') || '<p class="muted">No fuel card yet – add them in Fuel Cards.</p>';
+      const T = d.total || {}, fu = Object.keys(T.byFuel || {});
+      $('hd_tot').innerHTML = 'In these dates: fuel <b>' + (fu.length ? fu.map(f => esc(f) + ' ' + fmt(T.byFuel[f]) + ' ' + fuelUnit(f)).join(' · ') : '0') + '</b> · <b>₹' + money(T.amount) + '</b> (by card ₹' + money(T.card) + ', cash ₹' + money(T.cash) + ') · ' + fmt(T.fills) + ' fills · ' + fmt(T.cars) + ' cars · ' + fmt(T.km) + ' km';
+      $('hd_rows').innerHTML = d.cars.length ? d.cars.map(x => '<tr><td><b>' + esc(x.no) + '</b><br><small class="muted">' + esc(x.name || x.type || '') + '</small></td><td>' + esc(x.fuel) + '</td><td class="n">' + fmt(x.km) + '</td><td class="n">' + (x.qty ? fmt(x.qty) + ' ' + x.unit : '–') + '</td>' +
+        '<td class="n"><b>' + (x.amount ? money(x.amount) : '–') + '</b></td><td class="n">' + (x.card ? money(x.card) : '') + '</td><td class="n">' + (x.cash ? money(x.cash) : '') + '</td><td class="n">' + fmt(x.fills) + '</td>' +
+        '<td class="n">' + (x.avg !== null ? fmt(x.avg) + ' km/' + x.unit.replace('Ltr', 'L') + (x.std ? '<br><small class="muted">standard ' + fmt(x.std) + '</small>' : '') : '–') + '</td>' +
+        '<td class="nowrap">' + (x.last ? esc(showDate(x.last.date)) + ' · ' + fmt(x.last.qty) + ' ' + x.unit + ' · ₹' + money(x.last.amount) + '<br><small class="muted">' + esc(x.last.paidBy) + (x.last.km !== '' ? ' · ' + fmt(x.last.km) + ' km' : '') + '</small>' : '–') + '</td></tr>').join('')
+        : '<tr><td colspan="10" class="none">No car on this site in these dates.</td></tr>';
+    } catch (e) { toast(errMsg(e), true); }
+  }
 
 
   /* ---------- diesel: one / multiple ---------- */

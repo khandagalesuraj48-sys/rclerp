@@ -20,6 +20,7 @@ const APP = {
   SHEET_BDREPORT: 'Breakdown Reports',
   SHEET_INWARD: 'Diesel Inward',
   SHEET_TRANSFER: 'Diesel Transfer',
+  SHEET_CARDPAY: 'Card Payments',      // (update-164) the payments / recharges onto the fuel cards of a site on fuel cards (HO)
   // (update-117) the diesel places are the SITE's own: places_() / placeNames_() / mainPlace_() (block "DIESEL PLACES OF THIS SITE")
   UNITS: ['KM', 'Hrs', 'KM + Hrs', 'Day'],
   OWNERSHIP: ['Own', 'Rental', 'Hired', 'Debit', 'Other'],
@@ -44,7 +45,7 @@ const H = {
   CHFROM: 'Chainage From', CHTO: 'Chainage To', AVG: 'Actual Average', EXTRA: 'Extra / Short Diesel', DREAD: 'Diesel Readings',
   STATUS: 'Status', AFROM: 'Active From', IFROM: 'Inactive From', SPER: 'Site Periods', SUPPLY: 'Diesel Supply',
   BAL: 'Balance', SOURCE: 'Diesel Source', LOC: 'Location', TR_ID: 'Transfer ID', FROM: 'From', TO: 'To',
-  FROMBAL: 'From Balance', TOBAL: 'To Balance', IN_ID: 'Inward ID', IN_QTY: 'Qty (Ltr)', PUMP: 'Pump Name', RATE: 'Rate', AMOUNT: 'Amount', BILLNO: 'Bill Number', BILLDATE: 'Bill Date',
+  FROMBAL: 'From Balance', TOBAL: 'To Balance', CP_ID: 'Card Payment ID', CARD: 'Card', REF: 'Reference', IN_ID: 'Inward ID', IN_QTY: 'Qty (Ltr)', PUMP: 'Pump Name', RATE: 'Rate', AMOUNT: 'Amount', BILLNO: 'Bill Number', BILLDATE: 'Bill Date',
 };
 
 /* ================= WHERE THE DATA LIVES =================
@@ -146,7 +147,7 @@ function doGet(e) {
 const seesAny_ = (u, mods) => !!(u && (u.admin || mods.some(m => u.perms && u.perms[m] && u.perms[m] !== 'None')));
 const FOR_RATE_ = ['Master', 'Machinery Billing', 'Saved Bills', 'Log Book'], FOR_FULL_ = ['Master'];
 const FOR_DRIVERS_ = ['Diesel Issue'], FOR_PUMPS_ = ['Diesel Inward', 'Reports'], FOR_PARTIES_ = ['Log Book', 'Machinery Billing', 'Saved Bills'];
-const FOR_STOCK_ = ['Dashboard', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Reports'];
+const FOR_STOCK_ = ['Dashboard', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Fuel Cards', 'Reports'];      // (update-164: at a site on fuel cards the stock carries the cards' balances)
 const MACH_RATE_F_ = ['monthlyRate', 'tdsRate'];
 const MACH_FULL_F_ = ['engineNo', 'chassisNo', 'engineMake', 'taxUpto', 'pucUpto', 'permitUpto', 'fitnessUpto', 'insuranceUpto', 'enteredBy', 'updatedBy'];
 const isMachItem_ = o => 'lbFormat' in o && 'worksOn' in o && 'ownership' in o && 'activeFrom' in o && 'supply' in o;
@@ -171,7 +172,8 @@ function getInit_(u) {
   const all = !u;      // (called without a user only by the code itself)
   return { company: orgSettings_().customer, org: orgPublic_(), rules: siteRules_(), ai: aiInfo_(), today: today_(), master: getMaster_(),
     drivers: all || seesAny_(u, FOR_DRIVERS_) ? getDrivers_() : [], stock: all || seesAny_(u, FOR_STOCK_) ? getStock_() : null,
-    pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [], locations: placeNames_(), placeFuels: placeFuels_(), closedUpto: booksClosed_(), flow: all ? {} : flowMine_(u) };
+    pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [], locations: placeNames_(), placeFuels: placeFuels_(), closedUpto: booksClosed_(), flow: all ? {} : flowMine_(u),
+    fuelMode: cardSite_() ? 'card' : '', siteFuels: siteFuels_() };      // (update-164) a site on fuel cards; the fuels of its machinery there
 }
 
 /* ================= LOGIN, ACCESS AND ACTIVITY LOG ================= *
@@ -293,8 +295,14 @@ const USERS_SHEET = 'Users';
 const LOG_SHEET = 'Activity Log';
 /* Every page of the app has its own access, one column each in Users: Edit / View / No access.
  * A new page is added HERE (and gets its column in Users by itself); "Master" is the Asset Master. */
-const MODULES = ['Dashboard', 'Vendor Master', 'Master', 'Vendor BOQ', 'Vehicle Compliance', 'Breakdown', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Log Book', 'Machinery Billing', 'Saved Bills', 'Bill Summary', 'Machinery Payments', 'Vendor Ledger', 'Vendor Outstanding', 'Reports'];
+const MODULES = ['Dashboard', 'Vendor Master', 'Master', 'Vendor BOQ', 'Vehicle Compliance', 'Breakdown', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Fuel Cards', 'Log Book', 'Machinery Billing', 'Saved Bills', 'Bill Summary', 'Machinery Payments', 'Vendor Ledger', 'Vendor Outstanding', 'Reports'];
 const MODULE_LABEL_ = { 'Master': 'Asset Master' };
+// (update-164) a page added after the site was set up: its empty cell is No access (not View) – nobody sees it until it is given;
+// No access is kept as an empty cell, so a site whose database step for the page is not run yet saves its users as before
+const MODULE_BLANK_NONE_ = { 'Fuel Cards': true };
+const permOf_ = (m, raw) => MODULE_BLANK_NONE_[m] && str_(raw) === '' ? 'None' : ACCESS_(raw);
+// (update-164) the pages of THIS site: Fuel Cards only at a site on fuel cards; there no Diesel Inward / Transfer (no stock)
+const sitePage_ = m => cardSite_() ? m !== 'Diesel Inward' && m !== 'Diesel Transfer' : m !== 'Fuel Cards';
 // a column that is not in Users yet takes the access of the column it came out of
 const MODULE_FROM_ = { 'Vendor Master': 'Master', 'Vendor BOQ': 'Master', 'Machinery Billing': 'Master', 'Saved Bills': 'Reports' };
 const ACCESS_ = v => { const k = str_(v).toUpperCase().replace(/[^A-Z]/g, ''); return k === 'EDIT' ? 'Edit' : (k === 'NOACCESS' || k === 'NONE' || k === 'NO' || k === 'HIDE') ? 'None' : 'View'; };
@@ -331,7 +339,7 @@ function readUsersSheet_() {
   return sh.getRange(2, 1, lastRow - 1, lastCol).getValues().map(r => {
     const perms = {};
     const admin = col('Admin') > -1 && str_(r[col('Admin')]).toUpperCase() === 'YES';
-    MODULES.forEach(m => { let i = col(m); if (i === -1 && MODULE_FROM_[m]) i = col(MODULE_FROM_[m]); perms[m] = admin ? 'Edit' : i > -1 ? ACCESS_(r[i]) : 'None'; }); // a brand-new page stays hidden until Admin gives access
+    MODULES.forEach(m => { let i = col(m); if (i === -1 && MODULE_FROM_[m]) i = col(MODULE_FROM_[m]); perms[m] = admin ? 'Edit' : i > -1 ? permOf_(m, r[i]) : 'None'; }); // a brand-new page stays hidden until Admin gives access
     return {
       email: str_(r[col('Email')]).toLowerCase(), password: String(r[col('Password')] === undefined ? '' : r[col('Password')]),
       name: str_(r[col('Name')]) || str_(r[col('Email')]), active: str_(r[col('Active')]).toUpperCase() !== 'NO', admin: admin, perms: perms,
@@ -364,8 +372,8 @@ function usersAdmin_() {
   const users = rows.filter(r => str_(r[col('Email')])).map(r => ({
     email: str_(r[col('Email')]).toLowerCase(), name: str_(r[col('Name')]), active: str_(r[col('Active')]).toUpperCase() !== 'NO',
     admin: col('Admin') > -1 && str_(r[col('Admin')]).toUpperCase() === 'YES', mustChange: !isHashed_(r[col('Password')]),
-    perms: MODULES.reduce((o, m) => { o[m] = col(m) > -1 ? ACCESS_(r[col(m)]) : 'None'; return o; }, {}) }));
-  return { users: users, modules: MODULES.map(m => ({ key: m, label: MODULE_LABEL_[m] || m })),
+    perms: MODULES.reduce((o, m) => { o[m] = col(m) > -1 ? permOf_(m, r[col(m)]) : 'None'; return o; }, {}) }));
+  return { users: users, modules: MODULES.filter(sitePage_).map(m => ({ key: m, label: MODULE_LABEL_[m] || m })),
     // (update-90) given by the Super Admin? may this Admin make the Super Admin (the first site, step-7 SQL run, none yet)?
     managedBySuper: superAdminOn_(), canCreateSuper: typeof __siteIsHome === 'function' && __siteIsHome() && typeof __sitesOn === 'function' && __sitesOn() && !superAdminOn_() };
 }
@@ -388,7 +396,8 @@ function saveUserAdmin_(x, me) {
   put('Email', email); put('Name', clean_(x.name) || email);
   put('Active', x.active === false ? 'No' : 'Yes'); put('Admin', x.admin ? 'Yes' : 'No');
   // (update-84) a new user gets only the pages Admin gave: a page not sent is "No access" (not View)
-  MODULES.forEach(m => { const v = (x.perms || {})[m]; if (v) put(m, v === 'None' ? 'No access' : v === 'Edit' ? 'Edit' : 'View'); else if (adding) put(m, x.admin ? 'Edit' : 'No access'); });
+  const noAcc = m => MODULE_BLANK_NONE_[m] ? '' : 'No access';      // (update-164)
+  MODULES.forEach(m => { const v = (x.perms || {})[m]; if (v) put(m, v === 'None' ? noAcc(m) : v === 'Edit' ? 'Edit' : 'View'); else if (adding) put(m, x.admin ? (MODULE_BLANK_NONE_[m] ? '' : 'Edit') : noAcc(m)); });
   // Admin cannot lock himself out
   if (!adding && me && me.email === email && (x.active === false || !x.admin)) throw new Error('You cannot remove your own Admin access or deactivate yourself.');
   if (adding || x.newPassword) {
@@ -927,6 +936,17 @@ const API_ = {
   importDiesel:      { m: 'Diesel Issue', edit: true, f: importDiesel_, log: 'diImport' },
   updateDieselIssue: { m: 'Diesel Issue', edit: true, f: updateDieselIssue_, log: 'edit', sheet: 'SHEET_DIESEL', idh: 'ID' },
   deleteDieselIssue: { m: 'Diesel Issue', edit: true, f: deleteDieselIssue_, log: 'delete', sheet: 'SHEET_DIESEL', idh: 'ID' },
+  // (update-164) a site on fuel cards (HO): the cards, the payments onto them, a card's statement, the dashboard of cards and cars
+  getCards:          { m: 'Fuel Cards', any: ['Fuel Cards', 'Diesel Issue', 'Dashboard'], f: cardsInfo_ },
+  saveCard:          { m: 'Fuel Cards', edit: true, f: saveCard_, log: 'cardSave' },
+  getCardPayments:   { m: 'Fuel Cards', f: getCardPayments_ },
+  saveCardPayment:   { m: 'Fuel Cards', edit: true, withUser: true, f: (u, x) => saveCardPayment_(x, u), log: 'add', sheet: 'SHEET_CARDPAY', idh: 'CP_ID' },
+  updateCardPayment: { m: 'Fuel Cards', edit: true, withUser: true, f: (u, id, x) => updateCardPayment_(id, x, u), log: 'edit', sheet: 'SHEET_CARDPAY', idh: 'CP_ID' },
+  deleteCardPayment: { m: 'Fuel Cards', edit: true, f: deleteCardPayment_, log: 'delete', sheet: 'SHEET_CARDPAY', idh: 'CP_ID' },
+  cardPhoto:         { m: 'Fuel Cards', withUser: true, f: (u, x) => uploadCardPhoto_(u, x) },      // one photo of a payment's receipt, sent the moment it is added (Edit checked inside)
+  getCardPayPhotos:  { m: 'Fuel Cards', f: cardPayPhotos_ },
+  cardStatement:     { m: 'Fuel Cards', f: cardStatement_ },
+  getCardDash:       { m: 'Dashboard', f: cardDash_ },
   // (update-134) the Super Admin deletes entries (saved / waiting / returned / rejected) and brings them back – checked inside (sdelSuper_)
   superDelList: { m: '', withUser: true, f: (u, x) => sdelList_(u, x) },
   superDelete: { m: '', withUser: true, f: (u, x) => sdelDelete_(u, x) },
@@ -1103,6 +1123,7 @@ function apiRun_(u, spec, fn, args) {
 const SYNC_GROUPS_ = {
   'Master': ['master'], 'Diesel Inward': ['stock'], 'Diesel Transfer': ['stock'],
   'Diesel Issue': ['stock', 'log'], 'Log Book': ['log'],
+  'Fuel Cards': ['stock'],      // (update-164) a card or a payment onto it: the balances on every open page
 };
 const SHEET_GROUPS_ = {
   'Master': ['master'], 'Diesel Inward': ['stock'], 'Diesel Transfer': ['stock'], 'Diesel Issue': ['stock', 'log'],
@@ -1135,7 +1156,8 @@ function getVersions_() {
 }
 function getLookups_(u) { const all = !u;      // each list only for a user who has a page that uses it (see getInit_)
   return { master: getMaster_(), drivers: all || seesAny_(u, FOR_DRIVERS_) ? getDrivers_() : [], pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [],
-    vendors: all || seesAny_(u, FOR_PARTIES_) ? vendorNames_() : [], closedUpto: booksClosed_(), rules: siteRules_(), locations: placeNames_(), placeFuels: placeFuels_() }; }      // (update-117) the site's diesel places: a change by the Super Admin reaches every open page
+    vendors: all || seesAny_(u, FOR_PARTIES_) ? vendorNames_() : [], closedUpto: booksClosed_(), rules: siteRules_(), locations: placeNames_(), placeFuels: placeFuels_(),
+    fuelMode: cardSite_() ? 'card' : '', siteFuels: siteFuels_() }; }      // (update-164) switched by the Super Admin: every open page takes it      // (update-117) the site's diesel places: a change by the Super Admin reaches every open page
 
 // Simple trigger: runs by itself whenever someone types in the Google Sheet
 function onEdit(e) {
@@ -1232,6 +1254,9 @@ function logAfter_(u, spec, args, res, before) {
     }
     case 'delete':
       writeLog_(u, 'Delete', m, str_(args[0]), 'Deleted ' + str_(args[0]), 'Deleted values – ' + describe_(before));
+      break;
+    case 'cardSave':      // (update-164) a fuel card added / changed
+      writeLog_(u, res.added ? 'Add' : 'Edit', 'Fuel Cards', res.name, res.summary, res.changes || '');
       break;
     case 'crSend':      // (update-108)
       writeLog_(u, 'Add', 'Approvals', res.id, 'Change of a billed period sent to the Super Admin: ' + clean_((args[0] || {}).fn), (res.summary || []).join('; ').slice(0, 900) + ' | Reason: ' + clean_((args[0] || {}).reason));
@@ -4548,6 +4573,16 @@ function validateDiesel_(d, m) {
   const km = !debit && useKm && !blank_(d.kmReading) ? reqReading_(d.kmReading, m.id + ' KM Reading') : '';
   const hr = !debit && useHr && !blank_(d.hrReading) ? reqReading_(d.hrReading, m.id + ' Hrs Reading') : '';
   const driver = clean_(d.driver);
+  // (update-164) a site on fuel cards: paid by a card or in Cash, with its amount (₹) – no place, no stock
+  if (cardSite_()) {
+    if (machineFuel_(m) === 'Electric') throw new Error(m.id + ' runs on Electric – no fuel is issued to it (Asset Master → Fuel).');
+    const src = cardPick_(d.source, m, dkey_(d.date));
+    const amount = numOrBlank_(d.amount);
+    if (!(amount > 0) || amount > 10000000) throw new Error(m.id + ': enter the Amount (₹) of this fill.');
+    const rate = blank_(d.rate) ? r2_(amount / qty) : numOrBlank_(d.rate);
+    if (!(rate > 0)) throw new Error(m.id + ': the Rate (₹ per ' + fuelUnit_(machineFuel_(m)) + ') must be more than 0 – or leave it empty (Amount ÷ Qty).');
+    return { qty: qty, km: km, hr: hr, driver: driver, remark: clean_(d.remark), source: src, meter: '', amount: r2_(amount), rate: r2_(rate) };
+  }
   // reading on the pump's total-litres counter after this fill (optional; only at a place with a counter – the first site's Dispenser)
   const src0 = checkLoc_(d.source || mainPlace_(), 'Diesel Source');
   dsrcMay_('Diesel Issue', src0);      // (update-162) only a source given to him
@@ -4610,6 +4645,7 @@ function buildDieselRow_(t, id, dk, shift, m, v, created) {
   set_(row, t, H.SOURCE, v.source);
   set_(row, t, H.SUPPLY, supplyOn_(m, dk)); // how this machinery got diesel on that day (BOQ of that date, else Asset Master) – for Debit reports
   set_(row, t, H.DMETER, v.meter === undefined ? '' : v.meter);
+  if (v.amount !== undefined) { set_(row, t, H.AMOUNT, v.amount); set_(row, t, H.RATE, v.rate); }      // (update-164) a site on fuel cards: the ₹ of the fill
   return row;
 }
 
@@ -4630,7 +4666,7 @@ function dieselHistory_(f) {
   const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c;
   const mine = t.rows.filter(r => same_(r[c[H.NO]], m.id) && dkey_(r[c[H.IDATE]]) && dkey_(r[c[H.IDATE]]) <= dk).sort((a, b) => cmpDiesel_(b, a, c));
   const out = r => ({ id: str_(r[c[H.ID]]), date: dkey_(r[c[H.IDATE]]), shift: str_(r[c[H.SHIFT]]), qty: num0_(r[c[H.QTY]]),
-    km: numOrBlank_(r[c[H.KMR]]), hr: numOrBlank_(r[c[H.HRR]]), source: loc_(r[c[H.SOURCE]]), driver: str_(r[c[H.DRIVER]]) });
+    km: numOrBlank_(r[c[H.KMR]]), hr: numOrBlank_(r[c[H.HRR]]), source: loc_(r[c[H.SOURCE]]), driver: str_(r[c[H.DRIVER]]), amount: H.AMOUNT in c ? numOrBlank_(r[c[H.AMOUNT]]) : '' });      // (update-164: its ₹)
   const withKm = mine.find(r => numOrBlank_(r[c[H.KMR]]) !== ''), withHr = mine.find(r => numOrBlank_(r[c[H.HRR]]) !== '');
   const month = dk.slice(0, 7), inMonth = mine.filter(r => dkey_(r[c[H.IDATE]]).slice(0, 7) === month);
   return { no: m.id, unit: m.unit, date: dk, rows: mine.slice(0, lim).map(out), total: mine.length,
@@ -4676,6 +4712,7 @@ function saveDieselIssue_(d, u) {
  * every location is checked with all rows together in date order. Anything wrong → nothing saved, every problem listed. */
 function importDiesel_(rows) {
   return withLock_(() => {
+    noStockHere_('an Excel import of diesel issues');      // (update-164)
     rows = Array.isArray(rows) ? rows : [];
     if (!rows.length) throw new Error('The file has no rows to import.');
     if (rows.length > 1000) throw new Error('Import up to 1,000 rows at a time.');
@@ -4735,6 +4772,7 @@ function importDiesel_(rows) {
 }
 function saveDieselBulk_(b) {
   return withLock_(() => {
+    noStockHere_('"Multiple entries" of diesel issues');      // (update-164)
     if ((b.rows || []).some(r => !blank_(r.meter))) ensureMeterCol_();
     const dk = entryOpen_(b.date, 'Diesel issue');
     const shift = checkShift_(b.shift);
@@ -4829,7 +4867,7 @@ function updateDieselIssue_(id, d) {
     }
 
     const row = buildDieselRow_(t, str_(id), dk, shift, m, v, created);
-    t.headers.forEach((h, k) => { if (DIESEL_COLS_.indexOf(h) === -1 && h !== H.DMETER) row[k] = old[k]; }); // keep any extra columns (who entered it too)
+    t.headers.forEach((h, k) => { if (DIESEL_COLS_.indexOf(h) === -1 && h !== H.DMETER && !(v.amount !== undefined && (h === H.AMOUNT || h === H.RATE))) row[k] = old[k]; }); // keep any extra columns (who entered it too; update-164: not the ₹ of a card fill, set again)
     stampEdit_(row, t);                                                                                        // who changed it
     t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
 
@@ -5094,18 +5132,23 @@ function getDieselIssues_(f) {
   const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_);
   const c = t.c;
   const hits = [], ft = fuelTotals_();
-  let totalQty = 0;
+  // (update-164) a site on fuel cards: a fill's fuel is its machinery's; its ₹ – by card / in cash
+  const card = cardSite_(), amt = H.AMOUNT in c, mf = {}, byPay = {};
+  if (card) getMaster_().forEach(m => { mf[noKey_(m.id)] = machineFuel_(m); });
+  const fuelOfRow = r => card ? mf[noKey_(r[c[H.NO]])] || 'Diesel' : placeFuel_(r[c[H.SOURCE]]);
+  let totalQty = 0, totalAmt = 0;
   t.rows.forEach(r => {
     const dk = dkey_(r[c[H.IDATE]]);
     if (!dk || (from && dk < from) || (to && dk > to)) return;
     if (noK && noKey_(r[c[H.NO]]).indexOf(noK) === -1) return;
     if (shift && str_(r[c[H.SHIFT]]) !== shift) return;
     if (src && loc_(r[c[H.SOURCE]]) !== src) return;
-    if (fu && placeFuel_(r[c[H.SOURCE]]) !== fu) return;
+    if (fu && fuelOfRow(r) !== fu) return;
     if (owner && str_(r[c[H.OWNER]]).toUpperCase().indexOf(owner) === -1) return;
     if (driver && str_(r[c[H.DRIVER]]).toUpperCase().indexOf(driver) === -1) return;
     if (q && (str_(r[c[H.ID]]) + ' ' + str_(r[c[H.REMARK]])).toUpperCase().indexOf(q) === -1) return;
-    totalQty += num0_(r[c[H.QTY]]); ft.add(r[c[H.SOURCE]], num0_(r[c[H.QTY]]));
+    totalQty += num0_(r[c[H.QTY]]); ft.add(r[c[H.SOURCE]], num0_(r[c[H.QTY]]), r[c[H.NO]]);
+    if (card && amt) { const a = num0_(r[c[H.AMOUNT]]), k = isCash_(r[c[H.SOURCE]]) ? CASH_ : loc_(r[c[H.SOURCE]]); totalAmt += a; byPay[k] = r2_((byPay[k] || 0) + a); }
     hits.push(r);
   });
   hits.sort((a, b) => {
@@ -5123,7 +5166,7 @@ function getDieselIssues_(f) {
     x.qty = r2_(x.qty + num0_(r[c[H.QTY]])); x.entries++;
   });
   const LK = lockMarker_();
-  return ft.put({
+  return ft.put(Object.assign(card ? { totalAmount: r2_(totalAmt), byPay: byPay } : {}, {
     count: hits.length,
     totalQty: r2_(totalQty),
     share: Object.keys(share).map(k => share[k]).sort((a, b) => b.qty - a.qty),
@@ -5138,8 +5181,9 @@ function getDieselIssues_(f) {
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
       ph: H.PHOTOS in c ? photoList_(r[c[H.PHOTOS]]).length : 0,      // how many photos it has (update-85)
       ver: rowVer_(t, r, DIESEL_VER_H_()),      // (update-145) sent back with a change / a delete
+      amount: amt ? numOrBlank_(r[c[H.AMOUNT]]) : '', rate: H.RATE in c ? numOrBlank_(r[c[H.RATE]]) : '',      // (update-164) the ₹ of a card / cash fill
     })),
-  });
+  }));
 }
 
 /* ---------- THE PHOTOS OF A DIESEL ISSUE (update-85, asked 12-10-2026) ----------
@@ -5749,7 +5793,7 @@ function pumpAnswer_(j) {
   if (litres === null && amount && rate) litres = r2_(amount / rate);
   else if (litres && amount && rate && Math.abs(litres * rate - amount) > amount * 0.03) check = litres + ' L × ₹' + rate + ' is not the amount ₹' + amount;
   if (litres !== null && (litres <= 0 || litres > 2000)) { check = litres + ' L is not a normal fill'; }
-  return { litres: litres, check: check };
+  return { litres: litres, check: check, amount: amount, rate: rate };      // (update-164) a site on fuel cards puts the amount in its box
 }
 // (kept for the tests of update-85: the AI's answer → { km, hr }, numbers ≥ 0 only)
 function meterAnswer_(txt, wantKm, wantHr) {
@@ -5783,14 +5827,18 @@ const fuelWord_ = f => f === 'Diesel' || !f ? 'diesel' : f;      // "Not enough 
 function placeFuel_(name) { const s = clean_(name), k = (s || mainPlace_()).toUpperCase(), p = places_().find(x => x.name.toUpperCase() === k); return p ? p.fuel : 'Diesel'; }
 const placeUnit_ = name => fuelUnit_(placeFuel_(name));
 // the fuels of this site's places, in the places' order (one: a site as before)
-function siteFuels_() { const o = []; places_().forEach(p => { if (o.indexOf(p.fuel) === -1) o.push(p.fuel); }); return o; }
+function siteFuels_() {
+  if (cardSite_()) { const has = {}; getMaster_().forEach(m => { has[machineFuel_(m)] = true; }); const o = PLACE_FUELS_.filter(f => has[f]); return o.length ? o : ['Diesel']; }      // (update-164) a site on fuel cards: its machinery's fuels
+  const o = []; places_().forEach(p => { if (o.indexOf(p.fuel) === -1) o.push(p.fuel); }); return o;
+}
 function machineFuel_(m) { return (m && fuelOf_(m.fuel)) || 'Diesel'; }
 // a list of one fuel (the Dashboard's numbers of a fuel): { fuel: 'Petrol' } – blank / anything else = every fuel
 const fuelFilter_ = f => PLACE_FUELS_.indexOf(str_(f && f.fuel)) > -1 ? str_(f.fuel) : '';
 // a list's quantity of each fuel (Diesel Issue, Inward, Transfer) – only on a site with more than one: the page never adds them together
 function fuelTotals_() {
-  const many = siteFuels_().length > 1, o = {};
-  return { add: (place, q) => { if (many) { const f = placeFuel_(place); o[f] = r2_((o[f] || 0) + q); } }, put: res => many ? Object.assign(res, { byFuel: o }) : res };
+  const many = siteFuels_().length > 1, o = {}, card = cardSite_(), fm = {};
+  if (card && many) getMaster_().forEach(m => { fm[noKey_(m.id)] = machineFuel_(m); });      // (update-164) a site on fuel cards: the fuel of the machinery
+  return { add: (place, q, no) => { if (many) { const f = card ? fm[noKey_(no)] || 'Diesel' : placeFuel_(place); o[f] = r2_((o[f] || 0) + q); } }, put: res => many ? Object.assign(res, { byFuel: o }) : res };
 }
 // a fill of [m] from [place]: the place must hold the machinery's fuel; an Electric machinery gets no fuel
 function fuelMay_(m, place) {
@@ -5811,7 +5859,8 @@ function fuelViewOff_(fn) { const F = FUEL_VIEW_; FUEL_VIEW_ = ''; try { return 
 function fuelView_(name, t) {
   const F = FUEL_VIEW_, c = t.c;
   let keep = null;
-  if (name === APP.SHEET_DIESEL && H.SOURCE in c) keep = r => placeFuel_(r[c[H.SOURCE]]) === F;
+  if (name === APP.SHEET_DIESEL && cardSite_() && H.NO in c) { const fm = {}; fuelViewOff_(() => getMaster_().forEach(m => { fm[noKey_(m.id)] = machineFuel_(m); })); keep = r => (fm[noKey_(r[c[H.NO]])] || 'Diesel') === F; }      // (update-164)
+  else if (name === APP.SHEET_DIESEL && H.SOURCE in c) keep = r => placeFuel_(r[c[H.SOURCE]]) === F;
   else if (name === APP.SHEET_INWARD && H.LOC in c) keep = r => placeFuel_(r[c[H.LOC]]) === F;
   else if (name === APP.SHEET_TRANSFER && H.FROM in c) keep = r => placeFuel_(r[c[H.FROM]]) === F;
   else if (name === APP.SHEET_MASTER) keep = r => (H.FUEL in c ? fuelOf_(r[c[H.FUEL]]) || 'Diesel' : 'Diesel') === F;
@@ -5854,10 +5903,13 @@ function placesUsed_(T) {
 function placesInfo_() {
   const T = stockTables_(), used = placesUsed_(T), ev = events_(T), caps = tankSettings_().caps;
   return { set: !!str_(PropertiesService.getScriptProperties().getProperty('DIESEL_PLACES')), entries: used.any, firstFixed: used.blank,
+    mode: cardSite_() ? 'card' : 'stock', cardEntries: cardSite_() ? cardEntries_() : false,      // (update-164) on fuel cards (no stock); may it go back?
     places: places_().map(p => ({ name: p.name, cap: caps[p.name], meter: p.meter, fuel: p.fuel, used: !!used.at[p.name.toUpperCase()] || (used.blank && p.name === mainPlace_()), stock: r2_(ev.run[p.name] || 0) })) };
 }
-function savePlaces_(list) {
+function savePlaces_(list, mode) {
   if (!Array.isArray(list) || !list.length) throw new Error('Add at least one diesel place (its name and tank size).');
+  // (update-164) the Super Admin puts the site on fuel cards (no stock) – or back on its diesel places while no card fill is saved
+  if (mode === 'stock' && cardSite_() && cardEntries_()) throw new Error('This site has fills paid by a fuel card or in Cash (or payments onto a card) – it stays on fuel cards.');
   if (list.length > PLACES_MAX_) throw new Error('Up to ' + PLACES_MAX_ + ' diesel places.');
   const cur = places_(), curOf = {}, seen = {}, out = [], caps = {};
   cur.forEach(p => { curOf[p.name.toUpperCase()] = p; });
@@ -5886,9 +5938,330 @@ function savePlaces_(list) {
   if (used.blank && out[0].name.toUpperCase() !== cur[0].name.toUpperCase()) throw new Error(cur[0].name + ' must stay the first diesel place: old entries without a place count there.');
   const props = { DIESEL_PLACES: JSON.stringify(out) };
   out.forEach(p => { props['TANK_CAP_' + p.name] = String(caps[p.name]); });
+  if (mode === 'card' || mode === 'stock') props[MODE_KEY_] = mode === 'card' ? 'card' : '';      // (update-164) not sent (a Portal before it): as it is
   PropertiesService.getScriptProperties().setProperties(props);
   bump_(['master', 'stock']);      // every open page takes the new places (getLookups) and its stock
   return placesInfo_();
+}
+
+/* ================= FUEL CARDS – A SITE WITHOUT DIESEL STOCK (update-164, asked 27-10-2026) ================= *
+ * "ho madhe diesel stock hot nahi ek card dilelel aahet tya card warun payment kel jat swipe krun ani gadi madhe fuel bharle jat
+ *  … stock ha option nassel … mi card cha opening balance takel nantr apli system auto amount debit dakhwel mhanje app madhe card
+ *  balance kiti ahe he pn disel app madhe mhanje driver la adhich samjel … jr card war payment kel tri detail madhe payment entry
+ *  card war add krta yawi … other site la kahi nahi fkt ho site". His answers: a fill is paid by a Card or in Cash; the card only
+ *  for fuel (a maintenance bill never touches it); this step first: the cards, the fills, HO's own dashboard.
+ * The Super Admin puts a site on fuel cards (Portal → Sites → Diesel places → "Fuel cards – no stock"): FUEL_MODE = card in the
+ * site's own settings. Then, at that site only:
+ *   – NO DIESEL STOCK: no Inward, no Transfer, no stock check, no tanks – the diesel places are not used;
+ *   – a FILL (Diesel Issue) is paid by a CARD or in CASH, with its amount (₹): the card's name (or "Cash") is kept in its
+ *     "Diesel Source", the ₹ in Amount and Rate (step 1zh). Its fuel is its machinery's fuel (update-163) – never added together;
+ *   – the CARDS (page Fuel Cards): a name, the last 4 digits (never the whole number), Fuel / Credit / Debit card, the cars that use
+ *     it (none = every car), the opening balance (₹) and its date, Active / Inactive – kept in the site's settings: FUEL_CARDS;
+ *   – a PAYMENT / recharge onto a card: an entry of its own (table card_payments, step 1zh), with photos of the receipt if wanted;
+ *   – BALANCE of a card = its opening + the payments onto it − the fills paid by it, each from its opening date on. A fill is
+ *     saved even when the balance is short (the fuel is already in the car) – the balance then shows red.
+ * A site that is not on fuel cards (VTR, 18B) works exactly as before: nothing of this is read there. */
+const MODE_KEY_ = 'FUEL_MODE', CARDS_KEY_ = 'FUEL_CARDS', CASH_ = 'Cash', CARDS_MAX_ = 40;
+const CARD_TYPES_ = ['Fuel card', 'Credit card', 'Debit card'];
+const CARDPAY_COLS_ = [H.CP_ID, H.DATE, H.CARD, H.AMOUNT, H.REF, H.REMARK, H.CREATED];
+const CARD_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1zh_fuel_cards.sql once in Supabase → SQL Editor.';
+const NOT_CARD_SITE_ = 'This site is not on fuel cards – the Super Admin sets that in the Portal (Sites → Diesel places → Fuel cards).';
+function cardSite_() { return str_(PropertiesService.getScriptProperties().getProperty(MODE_KEY_)).toLowerCase() === 'card'; }
+function cardSiteOnly_() { if (!cardSite_()) throw new Error(NOT_CARD_SITE_); }
+// a stock entry (Inward, Transfer, many issues at once …) at a site on fuel cards
+function noStockHere_(what) { if (cardSite_()) throw new Error('This site is on fuel cards – it keeps no diesel stock, so ' + what + ' is not made here (a fill is entered one by one, with its card or Cash).'); }
+let CARDS_MEMO_ = { raw: null, list: null };
+function cards_() {
+  const raw = str_(PropertiesService.getScriptProperties().getProperty(CARDS_KEY_));
+  if (CARDS_MEMO_.list && CARDS_MEMO_.raw === raw) return CARDS_MEMO_.list;
+  let list = [];
+  try { const j = raw ? JSON.parse(raw) : []; if (Array.isArray(j)) list = j.filter(x => x && clean_(x.name)).map(x => ({ name: clean_(x.name), last4: /^\d{4}$/.test(str_(x.last4)) ? str_(x.last4) : '',
+    type: CARD_TYPES_.indexOf(x.type) > -1 ? x.type : CARD_TYPES_[0], cars: Array.isArray(x.cars) ? x.cars.map(str_).filter(Boolean) : [], opening: num0_(x.opening),
+    openDate: /^\d{4}-\d{2}-\d{2}$/.test(str_(x.openDate)) ? str_(x.openDate) : '', active: x.active !== false })); }
+  catch (e) { list = []; }
+  CARDS_MEMO_ = { raw: raw, list: list };
+  return list;
+}
+const cardOf_ = name => { const k = clean_(name).toUpperCase(); return k ? cards_().find(c => c.name.toUpperCase() === k) || null : null; };
+const isCash_ = v => clean_(v).toUpperCase() === 'CASH';
+// may this card pay for machinery [m]? (its cars: none = every car)
+const cardFor_ = (c, m) => !c.cars.length || c.cars.some(n => same_(n, m.id));
+// the card (or Cash) of a fill of [m] on [dk] – the checks of the server, for the web and the phone alike
+function cardPick_(v, m, dk) {
+  if (isCash_(v)) return CASH_;
+  const s = clean_(v);
+  if (!s) throw new Error(m.id + ': pick how the fuel was paid – a fuel card or Cash.');
+  const c = cardOf_(s);
+  if (!c) throw new Error(m.id + ': "' + s + '" is not a fuel card of this site (Fuel Cards) – pick a card or Cash.');
+  if (!c.active) throw new Error(m.id + ': card ' + c.name + ' is Inactive (Fuel Cards) – pick another card or Cash.');
+  if (!cardFor_(c, m)) throw new Error(m.id + ': card ' + c.name + ' is not for this car (Fuel Cards → its cars) – pick its own card or Cash.');
+  if (dk && c.openDate && dk < c.openDate) throw new Error(m.id + ': card ' + c.name + ' starts on ' + dmy_(c.openDate) + ' (its opening balance) – a fill of ' + dmy_(dk) + ' cannot be on it.');
+  return c.name;
+}
+// the table of the payments onto the cards (need: a save – said plainly when its SQL step was not run; a read: none yet)
+function cardPayTable_(need) {
+  try { return table_(APP.SHEET_CARDPAY, CARDPAY_COLS_); }
+  catch (e) { if (need) throw new Error('Card payments cannot be kept yet. ' + CARD_SQL_MSG_); return null; }
+}
+// what each card has: { NAME: { paid, spent, fills, payments, first, lastFill } } – entries from its opening date (to [upto])
+function cardMoves_(upto) {
+  const list = cards_(), by = {};
+  list.forEach(c => { by[c.name.toUpperCase()] = { c: c, paid: 0, spent: 0, fills: 0, payments: 0, first: '', lastFill: '' }; });
+  if (!list.length) return by;
+  const first = (x, dk) => { if (!x.first || dk < x.first) x.first = dk; };
+  const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, amt = H.AMOUNT in c;
+  t.rows.forEach(r => {
+    const x = by[clean_(r[c[H.SOURCE]]).toUpperCase()], dk = dkey_(r[c[H.IDATE]]); if (!x || !dk) return;
+    first(x, dk);
+    if ((x.c.openDate && dk < x.c.openDate) || (upto && dk > upto)) return;
+    x.spent = r2_(x.spent + (amt ? num0_(r[c[H.AMOUNT]]) : 0)); x.fills++;
+    if (dk > x.lastFill) x.lastFill = dk;
+  });
+  const p = cardPayTable_(false);
+  if (p) p.rows.forEach(r => {
+    const x = by[clean_(r[p.c[H.CARD]]).toUpperCase()], dk = dkey_(r[p.c[H.DATE]]); if (!x || !dk) return;
+    first(x, dk);
+    if ((x.c.openDate && dk < x.c.openDate) || (upto && dk > upto)) return;
+    x.paid = r2_(x.paid + num0_(r[p.c[H.AMOUNT]])); x.payments++;
+  });
+  return by;
+}
+// every card with its balance now – for the page and the phone app (also inside getStock_ at a site on fuel cards)
+function cardBalances_(upto) {
+  const mv = cardMoves_(upto);
+  return cards_().map(c => { const x = mv[c.name.toUpperCase()];
+    return { name: c.name, last4: c.last4, type: c.type, cars: c.cars.slice(), opening: c.opening, openDate: c.openDate, active: c.active,
+      paid: x.paid, spent: x.spent, balance: r2_(c.opening + x.paid - x.spent), fills: x.fills, payments: x.payments, lastFill: x.lastFill, used: !!x.first }; });
+}
+// Fuel Cards: the cards, their balances and the kinds
+function cardsInfo_() { return { mode: cardSite_() ? 'card' : 'stock', types: CARD_TYPES_.slice(), cards: cardSite_() ? cardBalances_() : [] }; }
+// a card added or changed (x.was = its name before; none = a new card)
+function saveCard_(x) {
+  x = x || {};
+  cardSiteOnly_();
+  return withLock_(() => {
+    const list = cards_().map(c => Object.assign({}, c, { cars: c.cars.slice() })), was = clean_(x.was), i = was ? list.findIndex(c => c.name.toUpperCase() === was.toUpperCase()) : -1;
+    if (was && i === -1) throw new Error('Card ' + was + ' was not found – open Fuel Cards again.');
+    const name = clean_(x.name), k = name.toUpperCase();
+    if (!name) throw new Error('Enter the card\'s name (e.g. HDFC Fuel Card 1).');
+    if (name.length > 40 || !PLACE_RE_.test(name)) throw new Error('Card "' + name.slice(0, 40) + '": use letters, digits, spaces and - . / ( ) & only (up to 40).');
+    if (k === 'CASH') throw new Error('"Cash" is how a fill is paid without a card – give the card another name.');
+    if (list.some((c, j) => j !== i && c.name.toUpperCase() === k)) throw new Error('Card ' + name + ' is already there.');
+    if (i === -1 && list.length >= CARDS_MAX_) throw new Error('Up to ' + CARDS_MAX_ + ' fuel cards.');
+    const last4 = str_(x.last4);
+    if (last4 && !/^\d{4}$/.test(last4)) throw new Error('Card ' + name + ': type only the LAST 4 digits of the card number (never the whole number).');
+    const type = CARD_TYPES_.find(t => t.toUpperCase() === str_(x.type).toUpperCase());
+    if (!type) throw new Error('Card ' + name + ': pick its kind (' + CARD_TYPES_.join(' / ') + ').');
+    const cars = []; (Array.isArray(x.cars) ? x.cars : []).forEach(n => { if (!str_(n)) return; const m = findMachine_(n); if (cars.indexOf(m.id) === -1) cars.push(m.id); });
+    const opening = numOrBlank_(x.opening);
+    if (opening === '' || opening < 0 || opening > 100000000) throw new Error('Card ' + name + ': enter its opening balance (₹, 0 or more).');
+    const openDate = entryDate_(x.openDate);
+    if (i > -1) {
+      const used = cardMoves_('')[list[i].name.toUpperCase()];
+      if (used.first && k !== list[i].name.toUpperCase()) throw new Error('Card ' + list[i].name + ' has entries – its name stays (it can be made Inactive).');
+      if (used.first && openDate > used.first) throw new Error('Card ' + name + ' has entries from ' + dmy_(used.first) + ' – its opening date can be at most that day.');
+    }
+    const card = { name: name, last4: last4, type: type, cars: cars, opening: r2_(opening), openDate: openDate, active: x.active !== false };
+    const show = c => [c.type, c.last4 ? '…' + c.last4 : '', 'opening ₹' + c.opening + ' on ' + dmy_(c.openDate), c.cars.length ? 'cars ' + c.cars.join(', ') : 'every car', c.active ? 'Active' : 'Inactive'].filter(Boolean).join(', ');
+    const before = i > -1 ? list[i] : null;
+    if (i > -1) list[i] = card; else list.push(card);
+    PropertiesService.getScriptProperties().setProperty(CARDS_KEY_, JSON.stringify(list));
+    return { ok: true, added: i === -1, name: name, summary: (i === -1 ? 'Fuel card added: ' : 'Fuel card changed: ') + name + ' – ' + show(card), changes: before ? 'Before: ' + before.name + ' – ' + show(before) : '', cards: cardBalances_(), stock: getStock_() };
+  });
+}
+// ---------- payments / recharges onto a card ----------
+const CARDPH_PATH_ = /^cards\/\d{4}-\d{2}\/[0-9a-f-]{36}\.jpg$/, CARDPH_MAX_ = 5;
+function cardPhotoList_(v) { let a = null; try { a = JSON.parse(str_(v) || '[]'); } catch (e) { a = null; } return Array.isArray(a) ? a.filter(x => x && CARDPH_PATH_.test(str_(x.p))) : []; }
+// one photo of a payment's receipt, as it is added: kept in the private store (as the bill copy of an inward)
+function uploadCardPhoto_(u, x) {
+  x = x || {};
+  if (!canEdit_(u, 'Fuel Cards')) throw new Error('You have View access only for Fuel Cards. Ask Admin for Edit access.');
+  cardSiteOnly_();
+  const mt = /^data:image\/jpeg;base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
+  if (!mt) throw new Error('The receipt must be a JPG picture.');
+  if (mt[1].length > 2000000) throw new Error('The receipt photo is too big (more than 1.5 MB) – add it again.');
+  if (!sbDataOn_()) throw new Error('Photos are kept in Supabase only – this copy of the app runs on the Google Sheet.');
+  const c = sbConf_(), path = 'cards/' + Utilities.formatDate(new Date(), tz_(), 'yyyy-MM') + '/' + Utilities.getUuid() + '.jpg';
+  const res = UrlFetchApp.fetch(c.url + '/storage/v1/object/' + PHOTO_BUCKET_ + '/' + path, { method: 'post', headers: { apikey: c.key, 'x-upsert': 'false' }, contentType: 'image/jpeg',
+    payload: Utilities.newBlob(Utilities.base64Decode(mt[1]), 'image/jpeg', path.split('/')[2]), muteHttpExceptions: true });
+  const code = res.getResponseCode(), text = res.getContentText();
+  if (/bucket not found/i.test(text)) throw new Error('Receipt photos cannot be kept yet – the place for the photos is missing. ' + PHOTO_SQL_MSG_);
+  if (code < 200 || code >= 300) throw new Error('The photo store did not keep the receipt (' + code + ') – add it again.' + (u.admin ? ' It said: ' + str_(text).slice(0, 160) : ''));
+  CacheService.getScriptCache().put('PH_' + path, JSON.stringify({ e: u.email, k: 'card', at: new Date().toISOString() }), 21600);
+  return { ok: true, path: path };
+}
+// the receipt photos a save gives → the list kept with the payment (not given: it keeps what it has)
+function cardPhotosOf_(list, u, had) {
+  if (list === undefined || list === null) return null;
+  if (!Array.isArray(list)) throw new Error('The receipt photos were not sent right – add them again.');
+  const paths = list.map(x => str_(x && typeof x === 'object' ? x.p : x));
+  if (paths.length > CARDPH_MAX_) throw new Error('A payment keeps at most ' + CARDPH_MAX_ + ' receipt photos – remove some.');
+  const old = {}; (had || []).forEach(x => { old[x.p] = x; });
+  const recs = photoRecs_(paths), seen = {};
+  return paths.map((p, i) => {
+    if (seen[p]) throw new Error('The same receipt photo is given twice – remove one.');
+    seen[p] = true;
+    if (old[p]) return { p: p, at: str_(old[p].at) };
+    const rec = CARDPH_PATH_.test(p) ? recs[i] : null;
+    if (!rec || !u || rec.e !== u.email || rec.k !== 'card') throw new Error('A receipt photo was not added by you in the last 6 hours, or it is already with another entry – add it again.');
+    return { p: p, at: str_(rec.at) };
+  });
+}
+function nextCardPayNo_(t) {
+  let max = Number(PropertiesService.getScriptProperties().getProperty('CARDPAY_LAST_NO') || 0);
+  t.rows.forEach(r => { const mt = String(r[t.c[H.CP_ID]]).match(/(\d+)$/); if (mt) max = Math.max(max, Number(mt[1])); });
+  return max + 1;
+}
+// the checked values of a payment
+function cardPayVals_(x) {
+  const dk = entryOpen_(x.date, 'Card payment');
+  const c = cardOf_(x.card);
+  if (!c) throw new Error(clean_(x.card) ? '"' + clean_(x.card) + '" is not a fuel card of this site (Fuel Cards).' : 'Pick the card the payment was made onto.');
+  if (c.openDate && dk < c.openDate) throw new Error('Card ' + c.name + ' starts on ' + dmy_(c.openDate) + ' (its opening balance) – a payment of ' + dmy_(dk) + ' is already in that balance.');
+  const amount = numOrBlank_(x.amount);
+  if (!(amount > 0) || amount > 100000000) throw new Error('Enter the amount paid onto card ' + c.name + ' (₹).');
+  return { dk: dk, card: c.name, amount: r2_(amount), ref: clean_(x.ref).slice(0, 80), remark: clean_(x.remark).slice(0, 200) };
+}
+function putCardPay_(row, t, id, v, created, photos) {
+  set_(row, t, H.CP_ID, id); set_(row, t, H.DATE, toDate_(v.dk)); set_(row, t, H.CARD, v.card); set_(row, t, H.AMOUNT, v.amount);
+  set_(row, t, H.REF, v.ref); set_(row, t, H.REMARK, v.remark); set_(row, t, H.CREATED, created);
+  if (photos) set_(row, t, H.PHOTOS, JSON.stringify(photos));
+  return row;
+}
+function saveCardPayment_(x, u) {
+  x = x || {};
+  cardSiteOnly_();
+  return withLock_(() => {
+    const t = cardPayTable_(true), v = cardPayVals_(x), photos = cardPhotosOf_(x.photos, u, null);
+    const n = nextCardPayNo_(t), id = 'CP-' + String(n).padStart(6, '0');
+    t.sh.appendRow(putCardPay_(newRow_(t), t, id, v, new Date(), photos && photos.length ? photos : null));
+    if (photos && photos.length) photosTaken_(photos.map(p => p.p));
+    PropertiesService.getScriptProperties().setProperty('CARDPAY_LAST_NO', String(n));
+    return { ok: true, id: id, cards: cardBalances_(), stock: getStock_() };
+  });
+}
+function updateCardPayment_(id, x, u) {
+  x = x || {};
+  cardSiteOnly_();
+  return withLock_(() => {
+    const t = cardPayTable_(true), i = t.rows.findIndex(r => str_(r[t.c[H.CP_ID]]) === str_(id));
+    if (i === -1) throw new Error('Card payment ' + str_(id) + ' was not found.');
+    const old = t.rows[i];
+    booksOpen_(dkey_(old[t.c[H.DATE]]), 'Card payment');
+    const v = cardPayVals_(x), had = H.PHOTOS in t.c ? cardPhotoList_(old[t.c[H.PHOTOS]]) : [];
+    const photos = cardPhotosOf_(x.photos, u, had);
+    const row = old.slice();
+    putCardPay_(row, t, str_(id), v, old[t.c[H.CREATED]] instanceof Date ? old[t.c[H.CREATED]] : new Date(), null);
+    if (photos) set_(row, t, H.PHOTOS, photos.length ? JSON.stringify(photos) : '');
+    stampEdit_(row, t);
+    t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
+    if (photos) { const was = {}; had.forEach(p => { was[p.p] = 1; }); const fresh = photos.filter(p => !was[p.p]).map(p => p.p); if (fresh.length) photosTaken_(fresh); }
+    return { ok: true, id: str_(id), cards: cardBalances_(), stock: getStock_() };
+  });
+}
+function deleteCardPayment_(id) {
+  cardSiteOnly_();
+  return withLock_(() => {
+    const t = cardPayTable_(true), i = t.rows.findIndex(r => str_(r[t.c[H.CP_ID]]) === str_(id));
+    if (i === -1) throw new Error('Card payment ' + str_(id) + ' was not found.');
+    booksOpen_(dkey_(t.rows[i][t.c[H.DATE]]), 'Card payment');
+    t.sh.deleteRow(i + 2);
+    return { ok: true, cards: cardBalances_(), stock: getStock_() };
+  });
+}
+// the payments in the dates (and of one card)
+function getCardPayments_(f) {
+  f = f || {};
+  const from = str_(f.from) ? checkDate_(f.from) : '', to = str_(f.to) ? checkDate_(f.to) : '';
+  if (from && to && from > to) throw new Error('From date is after To date.');
+  const t = cardPayTable_(false); if (!t) return { rows: [], total: 0, count: 0, missing: true };
+  const c = t.c, card = clean_(f.card).toUpperCase();
+  const rows = t.rows.filter(r => { const dk = dkey_(r[c[H.DATE]]); return dk && (!from || dk >= from) && (!to || dk <= to) && (!card || clean_(r[c[H.CARD]]).toUpperCase() === card); })
+    .sort((a, b) => dkey_(b[c[H.DATE]]).localeCompare(dkey_(a[c[H.DATE]])) || str_(b[c[H.CP_ID]]).localeCompare(str_(a[c[H.CP_ID]])));
+  return { count: rows.length, total: r2_(rows.reduce((s, r) => s + num0_(r[c[H.AMOUNT]]), 0)),
+    rows: rows.slice(0, 500).map(r => ({ id: str_(r[c[H.CP_ID]]), date: dkey_(r[c[H.DATE]]), card: str_(r[c[H.CARD]]), amount: num0_(r[c[H.AMOUNT]]), ref: str_(r[c[H.REF]]), remark: str_(r[c[H.REMARK]]),
+      photos: H.PHOTOS in c ? cardPhotoList_(r[c[H.PHOTOS]]).length : 0, enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '' })) };
+}
+// the receipt photos of a payment, with links that open each picture for 15 minutes
+function cardPayPhotos_(id) {
+  const t = cardPayTable_(true), r = t.rows.find(x => str_(x[t.c[H.CP_ID]]) === str_(id));
+  if (!r) throw new Error('Card payment ' + str_(id) + ' was not found.');
+  const list = H.PHOTOS in t.c ? cardPhotoList_(r[t.c[H.PHOTOS]]) : [], urlOf = photoLinks_(list.map(x => x.p));
+  return { id: str_(id), photos: list.map(x => ({ p: x.p, at: str_(x.at), url: urlOf[x.p] || '' })) };
+}
+/* THE STATEMENT OF A CARD: its balance at the start of the dates, every payment (+) and fill (−) in them in date order with the
+ * balance after it, and the balance at the end. Dates before its opening date start at the opening. */
+function cardStatement_(f) {
+  f = f || {};
+  const c = cardOf_(f.card);
+  if (!c) throw new Error('Pick a fuel card.');
+  const to = str_(f.to) ? checkDate_(f.to) : today_();
+  let from = str_(f.from) ? checkDate_(f.from) : c.openDate;
+  if (c.openDate && from < c.openDate) from = c.openDate;
+  if (from > to) throw new Error('From date is after To date.');
+  const K = c.name.toUpperCase(), lines = [];
+  let before = c.opening;
+  const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), d = t.c, amt = H.AMOUNT in d, ct = v => v instanceof Date ? v.getTime() : 0;
+  const unitOf = {}; getMaster_().forEach(m => { unitOf[noKey_(m.id)] = fuelUnit_(machineFuel_(m)); });
+  t.rows.forEach(r => {
+    if (clean_(r[d[H.SOURCE]]).toUpperCase() !== K) return;
+    const dk = dkey_(r[d[H.IDATE]]); if (!dk || (c.openDate && dk < c.openDate) || dk > to) return;
+    const a = amt ? num0_(r[d[H.AMOUNT]]) : 0;
+    if (dk < from) { before = r2_(before - a); return; }
+    lines.push({ date: dk, ord: ct(r[d[H.CREATED]]), kind: 'Fill', id: str_(r[d[H.ID]]), no: str_(r[d[H.NO]]), qty: num0_(r[d[H.QTY]]), unit: unitOf[noKey_(r[d[H.NO]])] || 'Ltr',
+      driver: str_(r[d[H.DRIVER]]), km: numOrBlank_(r[d[H.KMR]]), out: a, in: 0, note: str_(r[d[H.REMARK]]) });
+  });
+  const p = cardPayTable_(false);
+  if (p) p.rows.forEach(r => {
+    if (clean_(r[p.c[H.CARD]]).toUpperCase() !== K) return;
+    const dk = dkey_(r[p.c[H.DATE]]); if (!dk || (c.openDate && dk < c.openDate) || dk > to) return;
+    const a = num0_(r[p.c[H.AMOUNT]]);
+    if (dk < from) { before = r2_(before + a); return; }
+    lines.push({ date: dk, ord: ct(r[p.c[H.CREATED]]), kind: 'Payment', id: str_(r[p.c[H.CP_ID]]), in: a, out: 0, note: [str_(r[p.c[H.REF]]), str_(r[p.c[H.REMARK]])].filter(Boolean).join(' – ') });
+  });
+  lines.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === b.kind ? 0 : a.kind === 'Payment' ? -1 : 1) || a.ord - b.ord);
+  let bal = before;
+  lines.forEach(x => { bal = r2_(bal + x.in - x.out); x.balance = bal; delete x.ord; });
+  return { card: c.name, type: c.type, last4: c.last4, openDate: c.openDate, from: from, to: to, opening: r2_(before), lines: lines,
+    paid: r2_(lines.reduce((s, x) => s + x.in, 0)), spent: r2_(lines.reduce((s, x) => s + x.out, 0)), closing: r2_(bal) };
+}
+/* THE DASHBOARD OF A SITE ON FUEL CARDS (HO): every card's balance now, and for the dates (this month to start with) each car –
+ * the KM of its Log Book, the fuel filled (Ltr / kg, never added together) and its ₹ (by card / in cash), the average, the last
+ * fill – and the totals of each fuel. */
+function cardDash_(f) {
+  f = f || {};
+  cardSiteOnly_();
+  const today = today_(), to = str_(f.to) ? checkDate_(f.to) : today, from = str_(f.from) ? checkDate_(f.from) : to.slice(0, 8) + '01';
+  if (from > to) throw new Error('From date is after To date.');
+  const master = getMaster_(), byNo = {};
+  const onSite = m => periodsOf_(m).some(p => (!p.from || p.from <= to) && (!p.until || from < p.until));
+  master.forEach(m => { byNo[noKey_(m.id)] = { no: m.id, name: m.name, type: m.type, fuel: machineFuel_(m), unit: fuelUnit_(machineFuel_(m)), std: m.kmStd === '' || m.kmStd === undefined ? null : num0_(m.kmStd) || null,
+    km: 0, qty: 0, amount: 0, card: 0, cash: 0, fills: 0, avg: null, last: null, show: onSite(m) }; });
+  const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, amt = H.AMOUNT in c, ct = v => v instanceof Date ? v.getTime() : 0;
+  t.rows.forEach(r => {
+    const x = byNo[noKey_(r[c[H.NO]])], dk = dkey_(r[c[H.IDATE]]); if (!x || !dk || dk > to) return;
+    const a = amt ? num0_(r[c[H.AMOUNT]]) : 0, src = clean_(r[c[H.SOURCE]]), q = num0_(r[c[H.QTY]]);
+    const L = { date: dk, qty: q, amount: a, km: numOrBlank_(r[c[H.KMR]]), paidBy: isCash_(src) ? CASH_ : src, ct: ct(r[c[H.CREATED]]) };
+    if (!x.last || dk > x.last.date || (dk === x.last.date && L.ct > x.last.ct)) x.last = L;
+    if (dk < from) return;
+    x.show = true; x.qty = r2_(x.qty + q); x.amount = r2_(x.amount + a); x.fills++;
+    if (isCash_(src)) x.cash = r2_(x.cash + a); else x.card = r2_(x.card + a);
+  });
+  const lt = table_(APP.SHEET_LOG, logHeaders_()), lc = lt.c;
+  if (H.WKM in lc) lt.rows.forEach(r => { const x = byNo[noKey_(r[lc[H.NO]])], dk = dkey_(r[lc[H.DATE]]); if (x && dk && dk >= from && dk <= to) x.km = r2_(x.km + num0_(r[lc[H.WKM]])); });
+  const cars = Object.keys(byNo).map(k => byNo[k]).filter(x => x.show).map(x => { if (x.last) delete x.last.ct; delete x.show; x.avg = x.km > 0 && x.qty > 0 ? r2_(x.km / x.qty) : null; return x; })
+    .sort((a, b) => b.amount - a.amount || a.no.localeCompare(b.no));
+  const byFuel = {}; cars.forEach(x => { if (x.qty) byFuel[x.fuel] = r2_((byFuel[x.fuel] || 0) + x.qty); });
+  const sum = k => r2_(cars.reduce((s, x) => s + x[k], 0));
+  return { from: from, to: to, today: today, cards: cardBalances_(), cars: cars,
+    total: { byFuel: byFuel, amount: sum('amount'), card: sum('card'), cash: sum('cash'), fills: cars.reduce((s, x) => s + x.fills, 0), km: sum('km'), cars: cars.filter(x => x.fills).length } };
+}
+// for the Portal (Sites → Diesel places): may the site go back to diesel stock? Not once a fill was paid by a card or in Cash
+function cardEntries_() {
+  const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, names = {};
+  cards_().forEach(x => { names[x.name.toUpperCase()] = true; });
+  const p = cardPayTable_(false);
+  return t.rows.some(r => { const s = clean_(r[c[H.SOURCE]]).toUpperCase(); return s === 'CASH' || names[s]; }) || !!(p && p.rows.length);
 }
 
 /* ================= DIESEL STOCK: locations, inward, transfer ================= *
@@ -5934,8 +6307,9 @@ function dsrcOf_(u, page) {
   return l ? placeNames_().filter(n => l.indexOf(n) > -1) : null;
 }
 // what the page and the phone app are told (only when something is chosen for him – otherwise nothing, as before)
-function dsrcMine_(u) { const o = {}; DSRC_PAGES_.forEach(pg => { const l = dsrcOf_(u, pg); if (l) o[pg] = l; }); return Object.keys(o).length ? o : null; }
+function dsrcMine_(u) { if (cardSite_()) return null; const o = {}; DSRC_PAGES_.forEach(pg => { const l = dsrcOf_(u, pg); if (l) o[pg] = l; }); return Object.keys(o).length ? o : null; }
 function dsrcMay_(page, place) {
+  if (cardSite_()) return;      // (update-164) a site on fuel cards: the cards are not diesel places
   const u = DSRC_U_, l = dsrcOf_(u, page);
   if (!l || l.indexOf(place) > -1) return;
   throw new Error('Diesel source ' + place + ' is not given to ' + (u.name || u.email) + ' for ' + page + (l.length ? ' (given: ' + l.join(', ') + ')' : ' (none is given)') + ' – the Super Admin gives the diesel sources in the Portal (Users & Access → Pages).');
@@ -5978,6 +6352,7 @@ const isExtraPump_ = p => str_(p).toUpperCase().replace(/\s+/g, ' ') === 'EXTRA 
 const isOpenBefore_ = (e, from) => !!e.open && (!from || e.dk <= from);
 function events_(T) {
   const ev = [];
+  if (cardSite_()) { ev.run = {}; return ev; }      // (update-164) a site on fuel cards keeps no diesel stock
   const ct = v => v instanceof Date ? v.getTime() : 0;
   const it = T.it, tt = T.tt, dt = T.dt;
   it.rows.forEach((r, i) => {
@@ -6054,7 +6429,7 @@ function stockFrom_(T, ev) {
   const byFuel = {}; Object.keys(ev.run).forEach(k => { const f = placeFuel_(k); byFuel[f] = r2_((byFuel[f] || 0) + ev.run[k]); });      // (update-163) never added together on the page
   return { stock: total, byLoc: byLoc, byFuel: byFuel, inward: r2_(inward), issued: r2_(issued) };
 }
-function getStock_() { return stockFrom_(stockTables_()); }
+function getStock_() { const s = stockFrom_(stockTables_()); if (cardSite_()) s.cards = cardBalances_(); return s; }      // (update-164) a site on fuel cards: the cards' balances (no stock)
 
 function issuePoint_(dk, shift, ct) { return { dk: dk, ord: 2 + 2 * shiftOrder_(shift), ct: ct, kind: 'issue', idx: Number.MAX_SAFE_INTEGER }; }
 
@@ -6089,6 +6464,7 @@ function getStockPoints_(points) {
   });
 }
 function requireStockAt_(loc, dk, shift, excludeId, qty) {
+  if (cardSite_()) return;      // (update-164) no stock: a card fill is never refused for its balance
   const b = getIssueBalance_(dk, shift, excludeId, loc);
   const held = flowReserved_(loc);      // (update-114) diesel of entries waiting for verification is held back
   if (qty > r2_(b.available - held)) {
@@ -6175,6 +6551,7 @@ function buildInwardRow_(t, id, v, created, base) {
  * so the same file cannot be imported twice by mistake. */
 function importInward_(rows) {
   return withLock_(() => {
+    noStockHere_('a Diesel Inward');      // (update-164)
     rows = Array.isArray(rows) ? rows : [];
     if (!rows.length) throw new Error('The file has no rows to import.');
     if (rows.length > 1000) throw new Error('Import up to 1,000 rows at a time.');
@@ -6216,6 +6593,7 @@ function checkOpening_(T, v, selfId) {
 }
 function saveInward_(x, u) {
   return withLock_(() => {
+    noStockHere_('a Diesel Inward');      // (update-164)
     const v = validateInward_(x);
     const T = stockTables_();
     checkOpening_(T, v, '');
@@ -6233,6 +6611,7 @@ function saveInward_(x, u) {
 }
 function updateInward_(id, x, u) {
   return withLock_(() => {
+    noStockHere_('a Diesel Inward');      // (update-164)
     const v = validateInward_(x);
     const T = stockTables_();
     checkOpening_(T, v, id);
@@ -6357,6 +6736,7 @@ function transferMessage_(T, v, excludeIdx) {
  * no location may go below zero at any moment. If anything is wrong nothing is saved and every problem is listed. */
 function saveTransferBulk_(rows) {
   return withLock_(() => {
+    noStockHere_('a Diesel Transfer');      // (update-164)
     rows = Array.isArray(rows) ? rows : [];
     if (!rows.length) throw new Error('No rows to save.');
     if (rows.length > 1000) throw new Error('Save up to 1,000 rows at a time.');
@@ -6390,6 +6770,7 @@ function saveTransferBulk_(rows) {
 }
 function saveTransfer_(x) {
   return withLock_(() => {
+    noStockHere_('a Diesel Transfer');      // (update-164)
     const v = validateTransfer_(x);
     const T = stockTables_();
     transferMessage_(T, v);
@@ -6405,6 +6786,7 @@ function saveTransfer_(x) {
 }
 function updateTransfer_(id, x) {
   return withLock_(() => {
+    noStockHere_('a Diesel Transfer');      // (update-164)
     const v = validateTransfer_(x);
     const T = stockTables_();
     const i = T.tt.rows.findIndex(r => str_(r[T.tt.c[H.TR_ID]]) === str_(id));
@@ -10623,9 +11005,10 @@ function dbHealth_() {
         note = 'guard: ' + ((g[0] && g[0].value) || 'warn') + ' · changes of locked entries not by the Super Admin in 30 days: ' + w.length + (w.length ? ' (' + [...new Set(w.map(x => x.entry_key))].slice(0, 5).join(', ') + ')' : ''); } catch (e) { note = ''; } }
       add('Approved / billed Log Book entries locked – only the Super Admin changes them (step 1zd)', z, 'supabase_step1zd_entry_locks.sql', note); }
     add('The fuel of each machinery – Diesel / Petrol / CNG / Electric (step 1zg)', has('master', 'fuel'), 'supabase_step1zg_fuel.sql');      // (update-163)
+    add('Fuel cards – a site without diesel stock: the ₹ of a fill, the payments onto a card, the page Fuel Cards (step 1zh)', has('diesel_issue', 'amount') && has('diesel_issue', 'rate') && has('card_payments') && has('app_users', 'perm_fuel_cards'), 'supabase_step1zh_fuel_cards.sql');      // (update-164)
     // (update-90) the list of sites, the Super Admin and who has which site – in the FIRST site's database only
     if (typeof __siteIsHome === 'function' && __siteIsHome()) add('Several sites and the Super Admin (step 7 – the first site only)', typeof __sitesOn === 'function' && __sitesOn(), 'supabase_step7_sites.sql');
-    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason)|master\.fuel)/.test(x));
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason)|master\.fuel|diesel_issue\.(rate|amount)|card_payments|app_users\.perm_fuel_cards)/.test(x));
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }
   let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }

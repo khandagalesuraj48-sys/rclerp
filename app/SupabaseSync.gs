@@ -39,7 +39,12 @@ const SB_TABLES_ = [
     ['Type of Machinery', 'type', 'text'], ['Owner Name', 'owner_name', 'text'], ['Diesel Qty (Ltr)', 'qty', 'numeric'], ['KM Reading', 'km_reading', 'numeric'],
     ['Hrs Reading', 'hrs_reading', 'numeric'], ['Driver Name', 'driver_name', 'text'], ['Remark', 'remark', 'text'], ['Diesel Supply', 'diesel_supply', 'text'],
     ['Debit Rate', 'debit_rate', 'numeric'], ['Balance', 'balance', 'numeric'], ['Current Diesel Issue Reading', 'dispenser_reading', 'numeric'], ['Created At', 'entered_at', 'timestamptz'],
-    ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text'], ['Photos', 'photos', 'text']] },
+    ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text'], ['Photos', 'photos', 'text'],
+    ['Rate', 'rate', 'numeric'], ['Amount', 'amount', 'numeric']] },      // (update-164, step 1zh) a site on fuel cards: the ₹ of a fill (its card or Cash in Diesel Source)
+  // (update-164, step 1zh) the payments / recharges onto the fuel cards of a site on fuel cards
+  { table: 'card_payments', tab: 'Card Payments', title: 'Card Payments', pk: 'id', key: r => sbStr_(r['Card Payment ID']), cols: [
+    ['Date', 'date', 'date'], ['Card', 'card', 'text'], ['Amount', 'amount', 'numeric'], ['Reference', 'reference', 'text'], ['Remark', 'remark', 'text'],
+    ['Photos', 'photos', 'text'], ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
   { table: 'log_book', tab: 'Log Book', title: 'Log Book', pk: 'id',
     key: r => [sbStr_(r['Machinery Number']), sbDate_(r['Date']), sbStr_(r['Shift']) || 'Full Day'].join('|'), cols: [
     ['Date', 'date', 'date'], ['Machinery Number', 'machinery', 'text'], ['Shift', 'shift', 'text'], ['Owner Name', 'owner_name', 'text'], ['Type of Machinery', 'type', 'text'], ['Unit', 'unit', 'text'],
@@ -117,7 +122,8 @@ const SB_TABLES_ = [
     ['Diesel Issue', 'perm_diesel_issue', 'text'], ['Log Book', 'perm_log_book', 'text'], ['Reports', 'perm_reports', 'text'],
     ['Vendor Master', 'perm_vendor_master', 'text'], ['Vendor BOQ', 'perm_vendor_boq', 'text'], ['Machinery Billing', 'perm_machinery_billing', 'text'], ['Saved Bills', 'perm_saved_bills', 'text'],
     ['Bill Summary', 'perm_bill_summary', 'text'], ['Machinery Payments', 'perm_machinery_payments', 'text'], ['Vendor Ledger', 'perm_vendor_ledger', 'text'],
-    ['Vendor Outstanding', 'perm_vendor_outstanding', 'text'], ['Vehicle Compliance', 'perm_vehicle_compliance', 'text'], ['Breakdown', 'perm_breakdown', 'text']] },
+    ['Vendor Outstanding', 'perm_vendor_outstanding', 'text'], ['Vehicle Compliance', 'perm_vehicle_compliance', 'text'], ['Breakdown', 'perm_breakdown', 'text'],
+    ['Fuel Cards', 'perm_fuel_cards', 'text']] },      // (update-164, step 1zh) empty = No access
   { table: 'activity_log', tab: 'Activity Log', title: 'Activity Log', pk: 'id', key: r => sbStr_(r['Log ID']), cols: [
     ['Date & Time', 'at', 'timestamptz'], ['User Email', 'email', 'text'], ['User Name', 'name', 'text'], ['Action', 'action', 'text'], ['Module', 'module', 'text'],
     ['Record ID', 'record_id', 'text'], ['Summary', 'summary', 'text'], ['Changes', 'changes', 'text']] },
@@ -319,7 +325,7 @@ function sbTabName_(table) { const d = SB_TABLES_.find(x => x.table === table); 
 // header shown in the backup: the app's own column names where known, the database name otherwise
 function sbHeader_(table, col) {
   const d = SB_TABLES_.find(x => x.table === table);
-  if (col === 'id') return d ? ({ master: 'Machinery', diesel_inward: 'Inward ID', diesel_transfer: 'Transfer ID', diesel_issue: 'Issue ID', boq: 'BOQ ID', bills: 'Bill ID', vendors: 'Vendor', log_book: 'Log Book Key', tank_check: 'Check ID', app_users: 'User', activity_log: 'Log ID', billed_changes: 'Request ID' }[table] || 'ID') : 'id';
+  if (col === 'id') return d ? ({ master: 'Machinery', diesel_inward: 'Inward ID', diesel_transfer: 'Transfer ID', diesel_issue: 'Issue ID', card_payments: 'Card Payment ID', boq: 'BOQ ID', bills: 'Bill ID', vendors: 'Vendor', log_book: 'Log Book Key', tank_check: 'Check ID', app_users: 'User', activity_log: 'Log ID', billed_changes: 'Request ID' }[table] || 'ID') : 'id';
   const c = d && d.cols.find(x => x[1] === col);
   return c ? c[0] : col;
 }

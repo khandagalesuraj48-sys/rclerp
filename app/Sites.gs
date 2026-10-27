@@ -198,9 +198,9 @@ function sysPortalAdmin_(c) {
   portalOnce_(c.jti);
   // (update-162) with each person his diesel sources (Diesel Issue / Diesel Transfer – none = every source) and the site's places
   const ds = dsrcAll_(), pub = u => Object.assign({ email: u.email, name: u.name, active: u.active, admin: u.admin, perms: u.perms }, ds[str_(u.email).toLowerCase()] ? { dsrc: ds[str_(u.email).toLowerCase()] } : {});
-  if (c.act === 'users') { const d = usersAdmin_(); return { users: d.users.map(pub), pages: d.modules, places: placeNames_() }; }
+  if (c.act === 'users') { const d = usersAdmin_(); return { users: d.users.map(pub), pages: d.modules, places: cardSite_() ? [] : placeNames_() }; }      // (update-164) on fuel cards: no diesel sources
   if (c.act === 'places') return placesInfo_();      // (update-117) Sites → Diesel places
-  if (c.act === 'placesSave') return sysPlacesSave_(c.places, c.by);
+  if (c.act === 'placesSave') return sysPlacesSave_(c.places, c.by, c.mode);
   // (update-157) Sites → Backup: the site's (or the Portal's) numbered Google Sheets – see backup.vm.js
   if (c.act === 'bkGet') return bkSheetsInfo_(c);
   if (c.act === 'bkSet') return bkSheetSet_(c);
@@ -235,12 +235,13 @@ function sysPortalAdmin_(c) {
 /* ---- (update-117, asked 16-10-2026) the diesel places of a site, set by the Super Admin in the Portal: when he makes the site
  * (New site) and later under Sites → Diesel places (Code.gs "DIESEL PLACES OF THIS SITE"). The Activity Log keeps the places
  * before and after. ---- */
-function sysPlacesSave_(list, by) {
+function sysPlacesSave_(list, by, mode) {
   const fw = f => f && f !== 'Diesel' ? ' ' + f : '';      // (update-163) a Petrol / CNG place says so in the Activity Log
-  const caps0 = tankSettings_().caps, before = placeNames_().map(n => n + ' ' + caps0[n] + ' Ltr' + fw(placeFuel_(n))).join(', ');
+  const mw = () => cardSite_() ? ' – fuel cards, no stock' : '';      // (update-164)
+  const caps0 = tankSettings_().caps, before = placeNames_().map(n => n + ' ' + caps0[n] + ' Ltr' + fw(placeFuel_(n))).join(', ') + mw();
   let res = null;
-  withLock_(() => { res = savePlaces_(list); });
-  const after = res.places.map(p => p.name + ' ' + p.cap + ' Ltr' + fw(p.fuel)).join(', ');
+  withLock_(() => { res = savePlaces_(list, mode); });
+  const after = res.places.map(p => p.name + ' ' + p.cap + ' Ltr' + fw(p.fuel)).join(', ') + mw();
   writeLog_({ email: str_(by), name: 'Super Admin (Portal)' }, 'Edit', 'Settings', 'Diesel places', 'Diesel places set by the Super Admin in the Portal: ' + after, before === after ? '' : 'Before: ' + before);
   sbFlush_();
   return Object.assign({ ok: true }, res);
