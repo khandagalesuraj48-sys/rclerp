@@ -9,7 +9,7 @@
  * The backup Google Sheet (SupabaseSync.gs) keeps a copy of Supabase automatically.
  * ===================================================================== */
 // switch, SS_(), sbFlush_(), sbDiscard_() live in WebApp.gs (they work without this file when the app runs on the Sheet)
-const SB_ID_HEADER_ = { diesel_inward: 'Inward ID', diesel_transfer: 'Transfer ID', diesel_issue: 'Issue ID', card_payments: 'Card Payment ID', tank_check: 'Check ID', activity_log: 'Log ID', boq: 'BOQ ID', bills: 'Bill ID', payments: 'Payment ID', debit_notes: 'Note ID', billed_changes: 'Request ID', compliance_history: 'History ID', breakdowns: 'Breakdown ID', breakdown_reports: 'Report ID' , bill_snapshots: 'Bill ID', bill_log_rows: 'Row ID'};
+const SB_ID_HEADER_ = { diesel_inward: 'Inward ID', diesel_transfer: 'Transfer ID', diesel_issue: 'Issue ID', card_payments: 'Card Payment ID', maintenance: 'Maintenance ID', tank_check: 'Check ID', activity_log: 'Log ID', boq: 'BOQ ID', bills: 'Bill ID', payments: 'Payment ID', debit_notes: 'Note ID', billed_changes: 'Request ID', compliance_history: 'History ID', breakdowns: 'Breakdown ID', breakdown_reports: 'Report ID' , bill_snapshots: 'Bill ID', bill_log_rows: 'Row ID'};
 // tables read together in one go (they are nearly always needed together)
 const SB_GROUP_ = ['master', 'diesel_inward', 'diesel_transfer', 'diesel_issue', 'log_book', 'tank_check'];
 

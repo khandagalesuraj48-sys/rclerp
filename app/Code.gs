@@ -21,6 +21,7 @@ const APP = {
   SHEET_INWARD: 'Diesel Inward',
   SHEET_TRANSFER: 'Diesel Transfer',
   SHEET_CARDPAY: 'Card Payments',      // (update-164) the payments / recharges onto the fuel cards of a site on fuel cards (HO)
+  SHEET_MAINT: 'Maintenance',      // (update-165) the maintenance bills of the cars of a site on fuel cards (HO)
   // (update-117) the diesel places are the SITE's own: places_() / placeNames_() / mainPlace_() (block "DIESEL PLACES OF THIS SITE")
   UNITS: ['KM', 'Hrs', 'KM + Hrs', 'Day'],
   OWNERSHIP: ['Own', 'Rental', 'Hired', 'Debit', 'Other'],
@@ -45,7 +46,7 @@ const H = {
   CHFROM: 'Chainage From', CHTO: 'Chainage To', AVG: 'Actual Average', EXTRA: 'Extra / Short Diesel', DREAD: 'Diesel Readings',
   STATUS: 'Status', AFROM: 'Active From', IFROM: 'Inactive From', SPER: 'Site Periods', SUPPLY: 'Diesel Supply',
   BAL: 'Balance', SOURCE: 'Diesel Source', LOC: 'Location', TR_ID: 'Transfer ID', FROM: 'From', TO: 'To',
-  FROMBAL: 'From Balance', TOBAL: 'To Balance', CP_ID: 'Card Payment ID', CARD: 'Card', REF: 'Reference', IN_ID: 'Inward ID', IN_QTY: 'Qty (Ltr)', PUMP: 'Pump Name', RATE: 'Rate', AMOUNT: 'Amount', BILLNO: 'Bill Number', BILLDATE: 'Bill Date',
+  FROMBAL: 'From Balance', TOBAL: 'To Balance', CP_ID: 'Card Payment ID', CARD: 'Card', REF: 'Reference', MT_ID: 'Maintenance ID', GARAGE: 'Garage', WLINES: 'Work Lines', SERVICE: 'Service', BFILES: 'Bill Files', IN_ID: 'Inward ID', IN_QTY: 'Qty (Ltr)', PUMP: 'Pump Name', RATE: 'Rate', AMOUNT: 'Amount', BILLNO: 'Bill Number', BILLDATE: 'Bill Date',
 };
 
 /* ================= WHERE THE DATA LIVES =================
@@ -295,14 +296,14 @@ const USERS_SHEET = 'Users';
 const LOG_SHEET = 'Activity Log';
 /* Every page of the app has its own access, one column each in Users: Edit / View / No access.
  * A new page is added HERE (and gets its column in Users by itself); "Master" is the Asset Master. */
-const MODULES = ['Dashboard', 'Vendor Master', 'Master', 'Vendor BOQ', 'Vehicle Compliance', 'Breakdown', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Fuel Cards', 'Log Book', 'Machinery Billing', 'Saved Bills', 'Bill Summary', 'Machinery Payments', 'Vendor Ledger', 'Vendor Outstanding', 'Reports'];
+const MODULES = ['Dashboard', 'Vendor Master', 'Master', 'Vendor BOQ', 'Vehicle Compliance', 'Breakdown', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Fuel Cards', 'Maintenance', 'Log Book', 'Machinery Billing', 'Saved Bills', 'Bill Summary', 'Machinery Payments', 'Vendor Ledger', 'Vendor Outstanding', 'Reports'];
 const MODULE_LABEL_ = { 'Master': 'Asset Master' };
 // (update-164) a page added after the site was set up: its empty cell is No access (not View) – nobody sees it until it is given;
 // No access is kept as an empty cell, so a site whose database step for the page is not run yet saves its users as before
-const MODULE_BLANK_NONE_ = { 'Fuel Cards': true };
+const MODULE_BLANK_NONE_ = { 'Fuel Cards': true, 'Maintenance': true };      // (update-165: Maintenance too)
 const permOf_ = (m, raw) => MODULE_BLANK_NONE_[m] && str_(raw) === '' ? 'None' : ACCESS_(raw);
 // (update-164) the pages of THIS site: Fuel Cards only at a site on fuel cards; there no Diesel Inward / Transfer (no stock)
-const sitePage_ = m => cardSite_() ? m !== 'Diesel Inward' && m !== 'Diesel Transfer' : m !== 'Fuel Cards';
+const sitePage_ = m => cardSite_() ? m !== 'Diesel Inward' && m !== 'Diesel Transfer' : m !== 'Fuel Cards' && m !== 'Maintenance';      // (update-165) Maintenance: only at a site on fuel cards
 // a column that is not in Users yet takes the access of the column it came out of
 const MODULE_FROM_ = { 'Vendor Master': 'Master', 'Vendor BOQ': 'Master', 'Machinery Billing': 'Master', 'Saved Bills': 'Reports' };
 const ACCESS_ = v => { const k = str_(v).toUpperCase().replace(/[^A-Z]/g, ''); return k === 'EDIT' ? 'Edit' : (k === 'NOACCESS' || k === 'NONE' || k === 'NO' || k === 'HIDE') ? 'None' : 'View'; };
@@ -947,6 +948,15 @@ const API_ = {
   getCardPayPhotos:  { m: 'Fuel Cards', f: cardPayPhotos_ },
   cardStatement:     { m: 'Fuel Cards', f: cardStatement_ },
   getCardDash:       { m: 'Dashboard', f: cardDash_ },
+  // (update-165) the Maintenance Log Book of a site on fuel cards (HO): the bills of the cars, their files, the AI reading a bill, a car's log book
+  getMaint:          { m: 'Maintenance', f: getMaint_ },
+  saveMaint:         { m: 'Maintenance', edit: true, f: saveMaint_, log: 'add', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
+  updateMaint:       { m: 'Maintenance', edit: true, f: updateMaint_, log: 'edit', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
+  deleteMaint:       { m: 'Maintenance', edit: true, f: deleteMaint_, log: 'delete', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
+  maintFile:         { m: 'Maintenance', withUser: true, f: (u, x) => (cardSiteOnly_(), uploadAttachment_(u, x, 'Maintenance')) },      // one file of a bill (PDF / photo), kept once in the private store (Edit checked inside)
+  getMaintFiles:     { m: 'Maintenance', f: getMaintFiles_ },
+  readMaintBill:     { m: 'Maintenance', withUser: true, f: (u, x) => maintRead_(u, x) },      // the AI reads a bill – nothing is saved (Edit checked inside)
+  maintLog:          { m: 'Maintenance', any: ['Maintenance', 'Reports'], f: maintLog_ },
   // (update-134) the Super Admin deletes entries (saved / waiting / returned / rejected) and brings them back – checked inside (sdelSuper_)
   superDelList: { m: '', withUser: true, f: (u, x) => sdelList_(u, x) },
   superDelete: { m: '', withUser: true, f: (u, x) => sdelDelete_(u, x) },
@@ -1124,6 +1134,7 @@ const SYNC_GROUPS_ = {
   'Master': ['master'], 'Diesel Inward': ['stock'], 'Diesel Transfer': ['stock'],
   'Diesel Issue': ['stock', 'log'], 'Log Book': ['log'],
   'Fuel Cards': ['stock'],      // (update-164) a card or a payment onto it: the balances on every open page
+  'Maintenance': ['log'],      // (update-165) a maintenance bill: the open Maintenance pages and car log books ask again
 };
 const SHEET_GROUPS_ = {
   'Master': ['master'], 'Diesel Inward': ['stock'], 'Diesel Transfer': ['stock'], 'Diesel Issue': ['stock', 'log'],
@@ -1739,6 +1750,8 @@ function renameMachine_(oldId, newId) {
   const logId = id => { const m = /^(.*)\|(\d{4}-\d{2}-\d{2}\|[^|]*)$/.exec(str_(id)); return m && noKey_(m[1]) === kf ? to + '|' + m[2] : null; };      // "number|date|shift"
   const plain = [[APP.SHEET_DIESEL, H.NO, 'diesel issues'], [APP.SHEET_LOG, H.NO, 'Log Book entries'], [APP.SHEET_TANK, 'Machinery Number', 'tank checks'],
     [APP.SHEET_BREAKDOWN, 'Machinery No', 'breakdown records'], [APP.SHEET_COMPLIANCE, 'Machinery No', 'renewals of papers']];
+  // (update-165) the maintenance bills of a site on fuel cards follow the number too (a site without the table: nothing)
+  if (maintTable_(false)) plain.push([APP.SHEET_MAINT, H.NO, 'maintenance bills']);
   const boqT = tab(APP.SHEET_BOQ, 'Lines'), billT = tab(APP.SHEET_BILLS, 'Data'), dnT = tab(DN_SHEET_, 'Log IDs'), bdrT = tab(APP.SHEET_BDREPORT, 'Details');
   // 1. the new number must be free everywhere – not only in Asset Master
   if (kf !== kt) {
@@ -5353,9 +5366,10 @@ function attSniff_(bytes) {
   return '';
 }
 // one file, as it is added: its fingerprint, kept once in the private store
-function uploadAttachment_(u, x) {
+function uploadAttachment_(u, x, mod) {      // (update-165) mod 'Maintenance': a file of a maintenance bill – the same store, its own access
   x = x || {};
-  if (!canEdit_(u, 'Log Book')) throw new Error('You have View access only for Log Book. Ask Admin for Edit access.');
+  const pg = mod === 'Maintenance' ? 'Maintenance' : 'Log Book';
+  if (!canEdit_(u, pg)) throw new Error('You have View access only for ' + pg + '. Ask Admin for Edit access.');
   const mt = /^data:(image\/jpeg|image\/png|application\/pdf);base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
   if (!mt) throw new Error('An attachment must be a photo (JPG or PNG) or a PDF.');
   if (mt[2].length > Math.ceil(ATT_RAW_MAX_ * 4 / 3) + 4) throw new Error('This file is too big (more than 3 MB) – a photo is made smaller by the page; make the PDF smaller (or send it in parts).');
@@ -5363,7 +5377,7 @@ function uploadAttachment_(u, x) {
   if (!bytes.length) throw new Error('This file is empty – add it again.');
   const real = attSniff_(bytes);
   if (real !== mt[1]) throw new Error('This file is not what its name says (' + mt[1] + ') – only real photos (JPG, PNG) and PDFs can be attached.');
-  attReady_();
+  if (pg === 'Maintenance') { if (!sbDataOn_()) throw new Error('Attachments are kept in Supabase only – this copy of the app runs on the Google Sheet.'); maintTable_(true); } else attReady_();
   const cch = CacheService.getScriptCache(), me = str_(u.email).toLowerCase(), myName = u.name || u.email;
   const kB = 'ATB_' + today_() + '_' + me, nNow = typeof __count === 'function' ? __count('ATN_' + today_() + '_' + me, 90000) : -1, bNow = Number(cch.get(kB)) || 0;
   if (nNow > ATT_DAY_N_ || bNow + bytes.length > ATT_DAY_MB_ * 1048576) throw new Error('You sent too many attachments today (at most ' + ATT_DAY_N_ + ' files, ' + ATT_DAY_MB_ + ' MB a person in a day) – send the rest tomorrow. If you did not send them, tell the Admin at once.');
@@ -5712,8 +5726,8 @@ function meterReading_(u, x) {
   return str_(x.kind) === 'pump' ? aiReadPump_(mt[1], m) : aiReadMeter_(mt[1], m.id, str_(x.kind) === 'hrs' ? 'hr' : '');
 }
 // one question with a picture to the AI (the same models and order as the assistant; a busy model → the next); → its text
-function aiAskPhoto_(b64, ask) {
-  const body = { contents: [{ role: 'user', parts: [{ inlineData: { mimeType: 'image/jpeg', data: b64 } }, { text: ask }] }], generationConfig: { maxOutputTokens: 2048, responseMimeType: 'application/json' } };
+function aiAskPhoto_(b64, ask, mime, what) {      // (update-165) mime: a PDF too; what: the words of its failure ('the bill' – else the meter's)
+  const body = { contents: [{ role: 'user', parts: [{ inlineData: { mimeType: mime || 'image/jpeg', data: b64 } }, { text: ask }] }], generationConfig: { maxOutputTokens: what ? 8192 : 2048, responseMimeType: 'application/json' } };
   const models = aiModels_(), seq = aiTries_(models), t0 = Date.now();
   let last = '';
   for (let i = 0; i < seq.length; i++) {
@@ -5728,6 +5742,7 @@ function aiAskPhoto_(b64, ask) {
     last = r.error || String(r.code);
     if (!(r.error || r.code === 503 || r.code === 500 || r.code === 429 || r.code === 404)) break;      // a refusal: asking again would fail the same way
   }
+  if (what) throw new Error('The AI could not read ' + what + ' now (' + last + ') – type it in, or try again.');
   throw new Error('The AI could not read the meter now (' + last + ') – type the reading.');
 }
 // the AI's text → its JSON (also when it put words or ``` around it)
@@ -6262,6 +6277,237 @@ function cardEntries_() {
   cards_().forEach(x => { names[x.name.toUpperCase()] = true; });
   const p = cardPayTable_(false);
   return t.rows.some(r => { const s = clean_(r[c[H.SOURCE]]).toUpperCase(); return s === 'CASH' || names[s]; }) || !!(p && p.rows.length);
+}
+
+/* ================= MAINTENANCE LOG BOOK – a site on fuel cards (HO) (update-165, asked 27-10-2026) ================= *
+ * "mala pratek gadi sathi mainnantanace log book banwaych aahe tyat disel pasun baki etar kharach gadi;a kiti zala he samjel fuel
+ *  entry auto yetil … mala pdf readder haway ok ocr cha pn chalel … je bill yetil maintanance aso ki baki gadi ch konte hi tr te
+ *  upload krta yawit entry sobat". His answers (27-10-2026): one entry = ONE BILL with several lines (each work / part and its ₹ –
+ *  typed freely, the words typed before are suggested); a "Service" mark with its KM (step 3, the service schedule, takes the last
+ *  service from it); the car's log book on the screen, in Excel and printed.
+ *   – A BILL (table maintenance, step 1zi): MT-000001 · date · car (Asset Master, on site that day) · garage / vendor · bill number ·
+ *     KM reading · lines [{ work, amount }] (₹; a discount is a minus line) · total = their sum · Service (Yes / '') · remark · the
+ *     bill's files (PDF / photos, kept once in the private store like the Log Book's attachments – uploadAttachment, Maintenance).
+ *   – THE AI READS A BILL (readMaintBill): a PDF or a photo → date, bill no., garage, car number, KM, every line with its ₹, the
+ *     total, whether it is a service. Nothing is saved: the page puts it in the form, the person checks it and saves.
+ *   – THE CAR'S LOG BOOK (maintLog): for a car and dates – every fill (Diesel Issue: fuel, qty, ₹, card / Cash, KM) and every bill,
+ *     by date; the totals: fuel ₹ (by card / in cash), maintenance ₹ and by work, all together, the KM of its Log Book, ₹ per KM;
+ *     the last service.
+ * Only at a site on fuel cards (sitePage_ / cardSiteOnly_); at every other site nothing of this is read. */
+const MNT_COLS_ = [H.MT_ID, H.DATE, H.NO, H.GARAGE, H.BILLNO, H.KMR, H.AMOUNT, H.WLINES, H.SERVICE, H.REMARK, H.CREATED];
+const MNT_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1zi_maintenance.sql once in Supabase → SQL Editor.';
+const MNT_FILES_MAX_ = 10, MNT_LINES_MAX_ = 60;
+function maintTable_(need) {
+  try { return table_(APP.SHEET_MAINT, MNT_COLS_); }
+  catch (e) { if (need) throw new Error('Maintenance bills cannot be kept yet. ' + MNT_SQL_MSG_); return null; }
+}
+const maintLinesOf_ = v => { let a = null; try { a = typeof v === 'string' ? JSON.parse(v || '[]') : v; } catch (e) { a = null; }
+  return Array.isArray(a) ? a.filter(l => l && clean_(l.work)).map(l => ({ work: clean_(l.work).slice(0, 120), amount: r2_(num0_(l.amount)) })) : []; };
+const maintFilesList_ = (t, r) => H.BFILES in t.c ? attList_(r[t.c[H.BFILES]]) : [];
+// the lines a save gives: each its work / part and its ₹ (an empty line is left out)
+function maintLines_(list) {
+  if (!Array.isArray(list)) throw new Error('Add the work / parts of the bill, each with its amount (₹).');
+  const out = [];
+  list.forEach((l, i) => {
+    const work = clean_(l && l.work).slice(0, 120), a = numOrBlank_(l && l.amount);
+    if (!work && (a === '' || a === 0)) return;
+    if (!work) throw new Error('Bill line ' + (i + 1) + ': type the work / part (e.g. Engine oil, Labour).');
+    if (a === '' || a === 0 || Math.abs(a) > 100000000) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): enter its amount (₹).');
+    out.push({ work: work, amount: r2_(a) });
+  });
+  if (!out.length) throw new Error('Add the work / parts of the bill, each with its amount (₹).');
+  if (out.length > MNT_LINES_MAX_) throw new Error('A bill keeps at most ' + MNT_LINES_MAX_ + ' lines.');
+  return out;
+}
+// the checked values of a bill
+function maintVals_(x) {
+  const dk = entryOpen_(x.date, 'Maintenance bill');
+  const m = findMachine_(x.no);
+  assertActive_(m, dk);
+  const lines = maintLines_(x.lines), total = r2_(lines.reduce((s, l) => s + l.amount, 0));
+  if (!(total > 0)) throw new Error('The total of the bill must be more than 0 – check the amounts (a discount is a minus line).');
+  const km = blank_(x.km) ? '' : reqReading_(x.km, m.id + ' KM Reading');
+  const service = x.service === true || /^(yes|y|true|1)$/i.test(str_(x.service));
+  if (service && km === '') throw new Error(m.id + ': a service needs its KM reading – the next service is counted from it.');
+  return { dk: dk, m: m, garage: clean_(x.garage).slice(0, 80), billNo: clean_(x.billNo).slice(0, 40), km: km, lines: lines, total: total, service: service, remark: clean_(x.remark).slice(0, 200) };
+}
+/* the bill's files a save gives ([{ sha } …] or shas): each one the bill has, or one this person sent in the last 6 hours (as the Log
+ * Book's attachments – at an approval: the sender's, noted with the request). Not given = the bill keeps what it has. */
+function maintFilesOf_(list, had) {
+  if (list === undefined || list === null) return null;
+  if (!Array.isArray(list)) throw new Error('The bill files were not sent right – add them again.');
+  const shas = list.map(x => str_(x && typeof x === 'object' ? x.sha : x).toLowerCase());
+  if (shas.length > MNT_FILES_MAX_) throw new Error('A bill keeps at most ' + MNT_FILES_MAX_ + ' files – remove some.');
+  const old = {}; (had || []).forEach(x => { old[x.sha] = x; });
+  if (!shas.length) return [];
+  const run = VER_CTX_ === 'flow' || VER_CTX_ === 'approve';
+  const me = run ? str_(FLOW_SENDER_).toLowerCase() : str_(OUT_FOR_ && OUT_FOR_.email).toLowerCase();
+  const recs = attRecs_(shas), seen = {};
+  const out = shas.map((h, i) => {
+    if (!/^[0-9a-f]{64}$/.test(h)) throw new Error('A bill file was not sent right – add it again.');
+    if (seen[h]) throw new Error('The same file is given twice – remove one.');
+    seen[h] = true;
+    if (old[h]) return attOut_(old[h]);
+    const rec = recs[i];
+    if (attMine_(rec, me) && ATT_TYPES_[rec.mime]) return { sha: h, p: attPathOf_(h, rec.mime), mime: rec.mime, size: num0_(rec.size), name: clean_(rec.name).slice(0, 120), at: str_(rec.at), by: str_((rec.n && rec.n[me]) || rec.by) };
+    throw new Error('A bill file was not added by you in the last 6 hours – add it again.');
+  });
+  if (FLOW_DRY_ON_ && FLOW_PHOTOS_) shas.forEach((h, i) => { if (!old[h] && recs[i]) FLOW_PHOTOS_['AT_' + h] = recs[i]; });
+  return out;
+}
+function putMaint_(row, t, id, v, created, files) {
+  set_(row, t, H.MT_ID, id); set_(row, t, H.DATE, toDate_(v.dk)); set_(row, t, H.NO, v.m.id); set_(row, t, H.GARAGE, v.garage); set_(row, t, H.BILLNO, v.billNo);
+  set_(row, t, H.KMR, v.km); set_(row, t, H.AMOUNT, v.total); set_(row, t, H.WLINES, JSON.stringify(v.lines)); set_(row, t, H.SERVICE, v.service ? 'Yes' : '');
+  set_(row, t, H.REMARK, v.remark); set_(row, t, H.CREATED, created);
+  if (files) set_(row, t, H.BFILES, files.length ? JSON.stringify(files) : '');
+  return row;
+}
+function nextMaintNo_(t) {
+  let max = Number(PropertiesService.getScriptProperties().getProperty('MNT_LAST_NO') || 0);
+  t.rows.forEach(r => { const mt = String(r[t.c[H.MT_ID]]).match(/(\d+)$/); if (mt) max = Math.max(max, Number(mt[1])); });
+  return max + 1;
+}
+// the same bill number of the same garage for the same car, already saved (not this one) – asked before it is saved twice
+function maintTwice_(t, v, selfId) {
+  if (!v.billNo) return null;
+  const r = t.rows.find(x => str_(x[t.c[H.MT_ID]]) !== str_(selfId) && same_(x[t.c[H.NO]], v.m.id) && clean_(x[t.c[H.BILLNO]]).toUpperCase() === v.billNo.toUpperCase() &&
+    clean_(x[t.c[H.GARAGE]]).toUpperCase() === v.garage.toUpperCase());
+  return r ? str_(r[t.c[H.MT_ID]]) : null;
+}
+function saveMaint_(x) {
+  x = x || {};
+  cardSiteOnly_();
+  return withLock_(() => {
+    const t = maintTable_(true), v = maintVals_(x), files = maintFilesOf_(x.files, null);
+    const twice = maintTwice_(t, v, '');
+    if (twice && !x.force) return { ok: false, warning: 'Bill ' + v.billNo + (v.garage ? ' of ' + v.garage : '') + ' for ' + v.m.id + ' is already saved (' + twice + '). Save it again?' };
+    const n = nextMaintNo_(t), id = 'MT-' + String(n).padStart(6, '0');
+    t.sh.appendRow(putMaint_(newRow_(t), t, id, v, new Date(), files && files.length ? files : null));
+    PropertiesService.getScriptProperties().setProperty('MNT_LAST_NO', String(n));
+    return { ok: true, id: id, total: v.total };
+  });
+}
+function updateMaint_(id, x) {
+  x = x || {};
+  cardSiteOnly_();
+  return withLock_(() => {
+    const t = maintTable_(true), i = t.rows.findIndex(r => str_(r[t.c[H.MT_ID]]) === str_(id));
+    if (i === -1) throw new Error('Maintenance bill ' + str_(id) + ' was not found.');
+    const old = t.rows[i];
+    booksOpen_(dkey_(old[t.c[H.DATE]]), 'Maintenance bill');
+    const v = maintVals_(x), files = maintFilesOf_(x.files, maintFilesList_(t, old));
+    const twice = maintTwice_(t, v, id);
+    if (twice && !x.force) return { ok: false, warning: 'Bill ' + v.billNo + (v.garage ? ' of ' + v.garage : '') + ' for ' + v.m.id + ' is already saved (' + twice + '). Save it again?' };
+    const row = old.slice();
+    putMaint_(row, t, str_(id), v, old[t.c[H.CREATED]] instanceof Date ? old[t.c[H.CREATED]] : new Date(), files);
+    stampEdit_(row, t);
+    t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
+    return { ok: true, id: str_(id), total: v.total };
+  });
+}
+function deleteMaint_(id) {
+  cardSiteOnly_();
+  return withLock_(() => {
+    const t = maintTable_(true), i = t.rows.findIndex(r => str_(r[t.c[H.MT_ID]]) === str_(id));
+    if (i === -1) throw new Error('Maintenance bill ' + str_(id) + ' was not found.');
+    booksOpen_(dkey_(t.rows[i][t.c[H.DATE]]), 'Maintenance bill');
+    t.sh.deleteRow(i + 2);      // (its files stay in the store – a stored file is never deleted)
+    return { ok: true };
+  });
+}
+const maintOut_ = (t, r) => ({ id: str_(r[t.c[H.MT_ID]]), date: dkey_(r[t.c[H.DATE]]), no: str_(r[t.c[H.NO]]), garage: str_(r[t.c[H.GARAGE]]), billNo: str_(r[t.c[H.BILLNO]]),
+  km: numOrBlank_(r[t.c[H.KMR]]), total: num0_(r[t.c[H.AMOUNT]]), lines: maintLinesOf_(r[t.c[H.WLINES]]), service: /^yes$/i.test(str_(r[t.c[H.SERVICE]])), remark: str_(r[t.c[H.REMARK]]),
+  files: maintFilesList_(t, r).map(attOut_), enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '' });
+// the bills of the dates (and of one car), newest first; the words typed before (works, garages) to suggest
+function getMaint_(f) {
+  f = f || {};
+  cardSiteOnly_();
+  const from = str_(f.from) ? checkDate_(f.from) : '', to = str_(f.to) ? checkDate_(f.to) : '';
+  if (from && to && from > to) throw new Error('From date is after To date.');
+  const t = maintTable_(false); if (!t) return { rows: [], total: 0, count: 0, works: [], garages: [], missing: true };
+  const no = clean_(f.no), works = {}, garages = {};
+  t.rows.forEach(r => { maintLinesOf_(r[t.c[H.WLINES]]).forEach(l => { const k = l.work.toUpperCase(); works[k] = works[k] || { w: l.work, n: 0 }; works[k].n++; });
+    const g = clean_(r[t.c[H.GARAGE]]); if (g) { const k = g.toUpperCase(); garages[k] = garages[k] || { w: g, n: 0 }; garages[k].n++; } });
+  const rows = t.rows.filter(r => { const dk = dkey_(r[t.c[H.DATE]]); return dk && (!from || dk >= from) && (!to || dk <= to) && (!no || same_(r[t.c[H.NO]], no)); })
+    .sort((a, b) => dkey_(b[t.c[H.DATE]]).localeCompare(dkey_(a[t.c[H.DATE]])) || str_(b[t.c[H.MT_ID]]).localeCompare(str_(a[t.c[H.MT_ID]])));
+  const top = o => Object.keys(o).map(k => o[k]).sort((a, b) => b.n - a.n || a.w.localeCompare(b.w)).map(x => x.w);
+  return { count: rows.length, total: r2_(rows.reduce((s, r) => s + num0_(r[t.c[H.AMOUNT]]), 0)), rows: rows.slice(0, 500).map(r => maintOut_(t, r)),
+    works: top(works).slice(0, 300), garages: top(garages).slice(0, 200) };
+}
+// the files of one bill, with links that open each for 15 minutes
+function getMaintFiles_(id) {
+  const t = maintTable_(true), r = t.rows.find(x => str_(x[t.c[H.MT_ID]]) === str_(id));
+  if (!r) throw new Error('Maintenance bill ' + str_(id) + ' was not found.');
+  const list = maintFilesList_(t, r), urlOf = attLinks_(list.map(x => x.p));
+  return { id: str_(id), files: list.map(x => Object.assign(attOut_(x), { url: urlOf[x.p] || '' })) };
+}
+/* THE AI READS A BILL – a PDF or a photo (the page sends a smaller copy of a photo), nothing is saved. Answer: { date, billNo, garage,
+ * vehicle, km, lines: [{ work, amount }], total, service, check } (a value not read = '' / null; check = a reason to look again) or
+ * { off: true } when the AI is not set up. */
+function maintRead_(u, x) {
+  x = x || {};
+  if (!canEdit_(u, 'Maintenance')) throw new Error('You have View access only for Maintenance. Ask Admin for Edit access.');
+  cardSiteOnly_();
+  const mt = /^data:(image\/jpeg|image\/png|application\/pdf);base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
+  if (!mt) throw new Error('A bill must be a photo (JPG or PNG) or a PDF.');
+  if (mt[2].length > Math.ceil(ATT_RAW_MAX_ * 4 / 3) + 4) throw new Error('This bill file is too big (more than 3 MB) – make the PDF smaller (or read one page photo).');
+  if (!aiInfo_().on) return { off: true };
+  const ask = 'This is a bill / invoice / estimate from a garage, service centre or parts shop for a vehicle, in India (₹). Read it. ' +
+    'Answer with JSON only: {"date": the bill date as "yyyy-mm-dd" or null, "billNo": the bill / invoice number or null, "garage": the name of the shop / garage / service centre that issued it or null, ' +
+    '"vehicle": the vehicle registration number printed on it (e.g. MH12AB1234) or null, "km": the odometer / KM reading printed on it or null, ' +
+    '"lines": [{"work": the work, part or item in a few words, "amount": its amount in ₹ as a number}], "total": the grand total in ₹ or null, ' +
+    '"service": true if it is a periodic / scheduled / free / paid service of the vehicle, else false}. ' +
+    'Rules: the lines together must make the grand total – give taxes (CGST, SGST, IGST), round-off and other charges as their own lines and a discount as a minus amount; ' +
+    'for each item take its final amount (after its own discount, before the tax lines of the bill); copy the numbers exactly as printed; never invent a value – what is not clearly printed is null.';
+  return maintAnswer_(aiJson_(aiAskPhoto_(mt[2], ask, mt[1], 'the bill')) || {});
+}
+function maintAnswer_(j) {
+  const sn = v => { const n = typeof v === 'string' && v.trim() !== '' ? Number(v.replace(/[, ₹]/g, '')) : v; return typeof n === 'number' && isFinite(n) ? r2_(n) : null; };
+  const d = str_(j.date), date = /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= today_() && d >= '2000-01-01' && dkey_(d) === d ? d : '';
+  const lines = (Array.isArray(j.lines) ? j.lines : []).map(l => ({ work: clean_(l && (l.work || l.item || l.description)).slice(0, 120), amount: sn(l && l.amount) }))
+    .filter(l => l.work && l.amount !== null && l.amount !== 0).slice(0, MNT_LINES_MAX_);
+  const total = aiNum_(j.total), sum = r2_(lines.reduce((s, l) => s + l.amount, 0));
+  const check = total !== null && lines.length && Math.abs(sum - total) > 1 ? 'the lines read add up to ₹' + sum + ' – the bill says ₹' + total : !lines.length ? 'no line of the bill could be read' : '';
+  return { date: date, billNo: clean_(j.billNo).slice(0, 40), garage: clean_(j.garage).slice(0, 80), vehicle: clean_(j.vehicle).slice(0, 30), km: aiNum_(j.km), lines: lines, total: total,
+    service: j.service === true, check: check };
+}
+/* THE CAR'S MAINTENANCE LOG BOOK: every fill and every bill of one car in the dates, by date, and the totals */
+function maintLog_(f) {
+  f = f || {};
+  cardSiteOnly_();
+  const m = findMachine_(f.no), r0 = rptRange_({ from: str_(f.from) || today_().slice(0, 8) + '01', to: str_(f.to) || today_() }, 1100);
+  const from = r0.from, to = r0.to, K = noKey_(m.id), fuel = machineFuel_(m), unit = fuelUnit_(fuel);
+  const lines = [], ct = v => v instanceof Date ? v.getTime() : 0;
+  const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, amt = H.AMOUNT in c;
+  const fu = { qty: 0, amount: 0, card: 0, cash: 0, fills: 0 };
+  t.rows.forEach(r => {
+    if (noKey_(r[c[H.NO]]) !== K) return;
+    const dk = dkey_(r[c[H.IDATE]]); if (!dk || dk < from || dk > to) return;
+    const src = clean_(r[c[H.SOURCE]]), a = amt ? num0_(r[c[H.AMOUNT]]) : 0, q = num0_(r[c[H.QTY]]), cash = isCash_(src);
+    fu.qty = r2_(fu.qty + q); fu.amount = r2_(fu.amount + a); fu.fills++; if (cash) fu.cash = r2_(fu.cash + a); else fu.card = r2_(fu.card + a);
+    lines.push({ date: dk, kind: 'Fuel', id: str_(r[c[H.ID]]), qty: q, unit: unit, amount: a, paidBy: cash ? CASH_ : src, km: numOrBlank_(r[c[H.KMR]]), driver: str_(r[c[H.DRIVER]]), ord: ct(r[c[H.CREATED]]) });
+  });
+  const mt = maintTable_(false), mn = { amount: 0, bills: 0 }, byWork = {};
+  let last = null;
+  if (mt) mt.rows.forEach(r => {
+    if (noKey_(r[mt.c[H.NO]]) !== K) return;
+    const x = maintOut_(mt, r); if (!x.date) return;
+    if (x.service && x.date <= to && (!last || x.date > last.date)) last = { date: x.date, km: x.km, id: x.id };
+    if (x.date < from || x.date > to) return;
+    mn.amount = r2_(mn.amount + x.total); mn.bills++;
+    x.lines.forEach(l => { const k = l.work.toUpperCase(); byWork[k] = byWork[k] || { work: l.work, amount: 0, n: 0 }; byWork[k].amount = r2_(byWork[k].amount + l.amount); byWork[k].n++; });
+    lines.push(Object.assign({ kind: 'Maintenance', amount: x.total, ord: ct(r[mt.c[H.CREATED]]) }, x, { files: x.files.length }));
+  });
+  lines.sort((a, b) => a.date.localeCompare(b.date) || a.ord - b.ord);
+  lines.forEach(l => { delete l.ord; });
+  let km = 0;
+  const lt = table_(APP.SHEET_LOG, logHeaders_()), lc = lt.c;
+  if (H.WKM in lc) lt.rows.forEach(r => { const dk = dkey_(r[lc[H.DATE]]); if (noKey_(r[lc[H.NO]]) === K && dk && dk >= from && dk <= to) km = r2_(km + num0_(r[lc[H.WKM]])); });
+  const all = r2_(fu.amount + mn.amount);
+  return Object.assign(rptBase_('Maintenance Log Book – ' + m.id, { from: from, to: to }), {
+    machine: { id: m.id, name: m.name, type: m.type, fuel: fuel, unit: unit }, lines: lines,
+    total: { fuel: fu, maint: mn, byWork: Object.keys(byWork).map(k => byWork[k]).sort((a, b) => b.amount - a.amount || a.work.localeCompare(b.work)), all: all, km: km, perKm: km > 0 ? r2_(all / km) : null },
+    lastService: last });
 }
 
 /* ================= DIESEL STOCK: locations, inward, transfer ================= *
@@ -11006,9 +11252,10 @@ function dbHealth_() {
       add('Approved / billed Log Book entries locked – only the Super Admin changes them (step 1zd)', z, 'supabase_step1zd_entry_locks.sql', note); }
     add('The fuel of each machinery – Diesel / Petrol / CNG / Electric (step 1zg)', has('master', 'fuel'), 'supabase_step1zg_fuel.sql');      // (update-163)
     add('Fuel cards – a site without diesel stock: the ₹ of a fill, the payments onto a card, the page Fuel Cards (step 1zh)', has('diesel_issue', 'amount') && has('diesel_issue', 'rate') && has('card_payments') && has('app_users', 'perm_fuel_cards'), 'supabase_step1zh_fuel_cards.sql');      // (update-164)
+    add('Maintenance Log Book – the bills of the cars, their files, a car\'s log book (step 1zi)', has('maintenance') && has('app_users', 'perm_maintenance'), 'supabase_step1zi_maintenance.sql');      // (update-165)
     // (update-90) the list of sites, the Super Admin and who has which site – in the FIRST site's database only
     if (typeof __siteIsHome === 'function' && __siteIsHome()) add('Several sites and the Super Admin (step 7 – the first site only)', typeof __sitesOn === 'function' && __sitesOn(), 'supabase_step7_sites.sql');
-    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason)|master\.fuel|diesel_issue\.(rate|amount)|card_payments|app_users\.perm_fuel_cards)/.test(x));
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason)|master\.fuel|diesel_issue\.(rate|amount)|card_payments|app_users\.perm_fuel_cards|maintenance|app_users\.perm_maintenance)/.test(x));
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }
   let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }

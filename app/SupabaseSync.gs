@@ -45,6 +45,11 @@ const SB_TABLES_ = [
   { table: 'card_payments', tab: 'Card Payments', title: 'Card Payments', pk: 'id', key: r => sbStr_(r['Card Payment ID']), cols: [
     ['Date', 'date', 'date'], ['Card', 'card', 'text'], ['Amount', 'amount', 'numeric'], ['Reference', 'reference', 'text'], ['Remark', 'remark', 'text'],
     ['Photos', 'photos', 'text'], ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
+  // (update-165, step 1zi) the maintenance bills of the cars of a site on fuel cards (HO)
+  { table: 'maintenance', tab: 'Maintenance', title: 'Maintenance', pk: 'id', key: r => sbStr_(r['Maintenance ID']), cols: [
+    ['Date', 'date', 'date'], ['Machinery Number', 'machinery', 'text'], ['Garage', 'garage', 'text'], ['Bill Number', 'bill_no', 'text'], ['KM Reading', 'km_reading', 'numeric'],
+    ['Amount', 'amount', 'numeric'], ['Work Lines', 'lines', 'text'], ['Service', 'service', 'text'], ['Remark', 'remark', 'text'], ['Bill Files', 'files', 'text'],
+    ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text']] },
   { table: 'log_book', tab: 'Log Book', title: 'Log Book', pk: 'id',
     key: r => [sbStr_(r['Machinery Number']), sbDate_(r['Date']), sbStr_(r['Shift']) || 'Full Day'].join('|'), cols: [
     ['Date', 'date', 'date'], ['Machinery Number', 'machinery', 'text'], ['Shift', 'shift', 'text'], ['Owner Name', 'owner_name', 'text'], ['Type of Machinery', 'type', 'text'], ['Unit', 'unit', 'text'],
@@ -123,7 +128,8 @@ const SB_TABLES_ = [
     ['Vendor Master', 'perm_vendor_master', 'text'], ['Vendor BOQ', 'perm_vendor_boq', 'text'], ['Machinery Billing', 'perm_machinery_billing', 'text'], ['Saved Bills', 'perm_saved_bills', 'text'],
     ['Bill Summary', 'perm_bill_summary', 'text'], ['Machinery Payments', 'perm_machinery_payments', 'text'], ['Vendor Ledger', 'perm_vendor_ledger', 'text'],
     ['Vendor Outstanding', 'perm_vendor_outstanding', 'text'], ['Vehicle Compliance', 'perm_vehicle_compliance', 'text'], ['Breakdown', 'perm_breakdown', 'text'],
-    ['Fuel Cards', 'perm_fuel_cards', 'text']] },      // (update-164, step 1zh) empty = No access
+    ['Fuel Cards', 'perm_fuel_cards', 'text'],      // (update-164, step 1zh) empty = No access
+    ['Maintenance', 'perm_maintenance', 'text']] },      // (update-165, step 1zi) empty = No access
   { table: 'activity_log', tab: 'Activity Log', title: 'Activity Log', pk: 'id', key: r => sbStr_(r['Log ID']), cols: [
     ['Date & Time', 'at', 'timestamptz'], ['User Email', 'email', 'text'], ['User Name', 'name', 'text'], ['Action', 'action', 'text'], ['Module', 'module', 'text'],
     ['Record ID', 'record_id', 'text'], ['Summary', 'summary', 'text'], ['Changes', 'changes', 'text']] },
@@ -325,7 +331,7 @@ function sbTabName_(table) { const d = SB_TABLES_.find(x => x.table === table); 
 // header shown in the backup: the app's own column names where known, the database name otherwise
 function sbHeader_(table, col) {
   const d = SB_TABLES_.find(x => x.table === table);
-  if (col === 'id') return d ? ({ master: 'Machinery', diesel_inward: 'Inward ID', diesel_transfer: 'Transfer ID', diesel_issue: 'Issue ID', card_payments: 'Card Payment ID', boq: 'BOQ ID', bills: 'Bill ID', vendors: 'Vendor', log_book: 'Log Book Key', tank_check: 'Check ID', app_users: 'User', activity_log: 'Log ID', billed_changes: 'Request ID' }[table] || 'ID') : 'id';
+  if (col === 'id') return d ? ({ master: 'Machinery', diesel_inward: 'Inward ID', diesel_transfer: 'Transfer ID', diesel_issue: 'Issue ID', card_payments: 'Card Payment ID', maintenance: 'Maintenance ID', boq: 'BOQ ID', bills: 'Bill ID', vendors: 'Vendor', log_book: 'Log Book Key', tank_check: 'Check ID', app_users: 'User', activity_log: 'Log ID', billed_changes: 'Request ID' }[table] || 'ID') : 'id';
   const c = d && d.cols.find(x => x[1] === col);
   return c ? c[0] : col;
 }
