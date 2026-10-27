@@ -47,7 +47,7 @@ page says so, as before. **No secret in any file.**
 * **The Store's provision (`maintStoreLines_`):** where the material the RCL Store issues to a machinery joins the log book – each
   as a bill of the Party "RCL Store" with its lines. It gives nothing yet, because the Store has only its Item Master.
 * **Help and words** (English / मराठी / हिंदी): the maintenance help rule knows the new service message; the page's guide names
-  every site, the party, the reading, the Uom and the log book's columns; `app/i18n`: 29 new texts, the old ones out.
+  every site, the party, the reading, the Uom and the log book's columns; `app/i18n`: 28 new texts in Marathi and Hindi, the old ones out.
 * **The phone app 3.50.0** (its own pull request), the same:
   * Maintenance at every site (Entries, the start page, Help);
   * Party name, Current reading (KM / Hrs), each line its Uom (Qty · Uom, Rate · Disc %, Amount);
