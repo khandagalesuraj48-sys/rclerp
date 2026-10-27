@@ -6308,7 +6308,7 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
     assert.strictEqual(tryRun('() => maintRead_({ email: "e@x", admin: true, perms: { Maintenance: "Edit" } }, { data: "data:text/html;base64,PGI+" })').thrown, 'A bill must be a photo (JPG or PNG) or a PDF.');
     const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
     assert.match(code, /return maintAnswer_\(aiJson_\(aiAskPhoto_\(mt\[2\], ask, mt\[1\], 'the bill'\)\) \|\| \{\}\);/, 'a PDF goes to the AI as a PDF (its own type)');
-    assert.match(code, /parts: \[\{ inlineData: \{ mimeType: mime \|\| 'image\/jpeg', data: b64 \} \}, \{ text: ask \}\]/, 'the meter photos as before (JPG)');
+    assert.match(code, /parts: \(b64 \? \[\{ inlineData: \{ mimeType: mime \|\| 'image\/jpeg', data: b64 \} \}\] : \[\]\)\.concat\(\[\{ text: ask \}\]\)/, 'the meter photos as before (JPG); (update-173) a text alone too');
     // ---- the car's log book: its fills (card / Cash) and bills by date, the costs, the last service
     run('x => saveCard_(x)', { name: CARD, last4: '1165', type: 'Fuel card', cars: [], opening: 10000, openDate: '2026-07-01' });
     run('x => saveDieselIssue_(x)', { date: '2026-07-04', shift: 'Day', source: CARD, no: C1, qty: 20, kmReading: 45000, amount: 2100, force: true });
@@ -6344,7 +6344,7 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
     assert.ok(listed && listed.sql === sql, 'Read Me lists the step word for word');
     assert.ok(code.indexOf("'supabase_step1zi_maintenance.sql');      // (update-165)") > -1);
     const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
-    assert.match(app, /mnt: \{ saves: \['saveMaint', 'updateMaint', 'deleteMaint', 'maintFile', 'readMaintBill'(, 'importMaint', 'checkMaintImport')?\],/);
+    assert.match(app, /mnt: \{ saves: \['saveMaint', 'updateMaint', 'deleteMaint', 'maintFile', 'readMaintBill'(, 'importMaint', 'checkMaintImport'(, 'readMaintLog', 'maintImportNames')?)?\],/);
     assert.ok(!/if \(\$\('tab-mnt'\) && !cm\) \$\('tab-mnt'\)\.hidden = true;/.test(app), 'update-170: the menu has Maintenance at every site (was: only on fuel cards)');
     assert.match(app, /try \{ const r = await call\(o\.up \|\| 'uploadAttachment', \{ data: 'data:' \+ it\.mime/, 'the bill files use the attachments\' own box');
   } finally {
@@ -6807,7 +6807,71 @@ test('update-173: the old Maintenance Log Book of a machinery imported as it is 
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   assert.match(app, /<div class="panel" id="mti_panel" hidden>/);
   assert.match(app, /\$\('mti_panel'\)\.hidden = !\(S\.user && S\.user\.admin\) \|\| !!d\.missing;/);
-  assert.match(app, /call\('checkMaintImport', \{ no: x\.no, bills: x\.bills \}\)/);
-  assert.match(app, /call\('importMaint', \{ no: x\.no, bills: x\.bills \}\)/);
-  assert.match(app, /re: \/is not an Own machinery on this site now\|The file has no bill for\|bills in one import – split the file\/i/);
+  assert.match(app, /call\('checkMaintImport', \{ no: x\.no, bills: mliBills\(x\) \}\)/);
+  assert.match(app, /call\('importMaint', \{ no: x\.no, bills: mliBills\(x\) \}\)/);
+  assert.match(app, /re: \/is not an Own machinery on this site now\|The file has no bill for\|bills in one import – split the file\|No Own machinery is on this site today\/i/);
+  // (28-10-2026, "duplicate entry import nahi honar") already there whatever the party is called: the same date and total within ₹1 –
+  // "STOR" for "Store"; a ₹0 bill only by its lines
+  const nm2 = run('b => importMaint_(b)', { no: R, check: true, bills: [{ rows: 'Line 5', date: '2022-12-02', garage: 'STOR', lines: [{ work: 'AD BLUE', qty: 20, uom: 'Ltr', rate: 59, amount: 1180, gst: 18 }] },
+    { rows: 'Line 9', date: '2024-01-29', garage: 'Store', lines: [{ work: 'COOLANT', qty: 1, uom: 'Ltr', rate: 0, amount: 0 }] }] });
+  assert.deepStrictEqual([nm2.fresh, nm2.same, nm2.sameList.map(z => z.rows + ':' + z.id)], [1, 1, ['Line 5:' + got.find(r => r.date === '2022-12-02').id]], 'the party written another way is the same bill; a ₹0 bill with other lines is new');
+  // (his answers 28-10-2026: "PDF import – Claude AI वाचेल", "यादी दाखव, मी पाहून ✓ करेन") the AI: the pages of a PDF of the old log
+  // book, 2 at a time, the file kept by Claude; a cut answer – fewer pages; the names written in more than one way
+  const sent = [], answers = [];
+  const reply = (code, obj) => ({ code: code, text: typeof obj === 'string' ? obj : JSON.stringify(obj) });
+  const say = t => reply(200, { id: 'msg_1', type: 'message', role: 'assistant', content: [{ type: 'text', text: t }], stop_reason: 'end_turn', usage: {} });
+  ctx.__ai = { on: () => true, service: () => 'claude', model: () => 'claude-sonnet-5-5', wait: () => {},
+    call: (method, p, body, ms) => { sent.push({ path: p, body: JSON.parse(JSON.stringify(body)), ms: ms }); return answers.shift() || reply(500, { type: 'error' }); } };
+  try {
+    const pdf = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4 old log book').toString('base64');
+    answers.push(say(JSON.stringify({ pages: 3, tables: [{ machinery: 'ROLLER NO-03', rows: [[1, '2022-12-02', 'Store', null, 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, null],
+      [2, null, null, null, '', 1, 'Nos', 1, 1, 0, 1, null], ['null', null, 'SURJ', 500, 'FUEL  FILTER', '1', 'Nos', '650', '650', 117, 767]] }, { machinery: null, rows: [] }] })));
+    const p1 = run('x => readMaintLog_(x)', { data: pdf, from: 1, n: 2 });
+    assert.deepStrictEqual(p1, { from: 1, to: 2, pages: 3, tables: [{ machinery: 'ROLLER NO-03', rows: [[1, '2022-12-02', 'Store', '', 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, ''], ['', '', 'SURJ', 500, 'FUEL FILTER', '1', 'Nos', '650', '650', 117, 767, '']] }] },
+      'every row in the 12 columns as printed ("null" = empty); a row without its particulars and an empty table left out');
+    const q1 = sent[0].body;
+    assert.deepStrictEqual([sent[0].path, q1.model, q1.max_tokens, q1.messages[0].content[0].type, q1.messages[0].content[0].cache_control, q1.messages[0].content[0].source.media_type], ['/v1/messages', 'claude-sonnet-5-5', 16000, 'document', { type: 'ephemeral' }, 'application/pdf'], 'the PDF as a document, kept (prompt caching), a long answer');
+    assert.match(q1.messages[0].content[1].text, /Read ONLY pages 1 to 2 of this PDF/);
+    assert.match(q1.messages[0].content[1].text, /Copy every name and number EXACTLY as printed – do not correct a spelling/);
+    answers.push(say('{"pages": 3, "tables": [{"machinery": "ROLLER NO-03", "rows": [[1, "2022-'));
+    assert.deepStrictEqual(run('x => readMaintLog_(x)', { data: pdf, from: 3, n: 2 }), { from: 3, to: 4, pages: 0, tables: [], again: true }, 'a cut answer: the page asks one page');
+    answers.push(say(JSON.stringify({ pages: 1, tables: [{ machinery: 'MH12XW0169', rows: [[1, '2026-02-10', 'Navnit Motors', 13153, 'Wiper blade', 1, 'Nos', 310, 310, 55.8, 365.8, 365.8]] }] })));
+    const ph = run('x => readMaintLog_(x)', { data: 'data:image/jpeg;base64,' + Buffer.from('jpeg').toString('base64'), from: 7, n: 3 });
+    assert.deepStrictEqual([ph.from, ph.to, ph.pages, ph.tables[0].rows.length], [1, 1, 1, 1], 'a photo: its one page');
+    assert.match(sent[sent.length - 1].body.messages[0].content[1].text, /Read this photo \(one page\)/);
+    assert.strictEqual(tryRun('x => readMaintLog_(x)', { data: 'data:text/plain;base64,QQ==' }).thrown, 'An old log book must be a PDF or a photo (JPG or PNG).');
+    assert.strictEqual(tryRun('x => readMaintLog_(x)', { data: 'data:application/pdf;base64,' + 'A'.repeat(4200000) }).thrown, 'This log book file is too big (more than 3 MB) – give it in parts (a PDF of fewer pages).');
+    const n0 = sent.length; answers.push(reply(529, { type: 'error', error: { type: 'overloaded_error' } }), reply(529, { type: 'error' }), reply(529, { type: 'error' }), reply(529, { type: 'error' }));
+    assert.match(tryRun('x => readMaintLog_(x)', { data: pdf, from: 1, n: 2 }).thrown, /^The AI could not read the log book now \(529\) – try again in a minute\.$/);
+    assert.ok(sent.length - n0 >= 2, 'busy: asked again');
+    answers.length = 0;
+    // the names: the file's (with their rows) and the ones saved here; only a real change of a name of the file is kept
+    answers.push(say(JSON.stringify({ fixes: [['party', 'SURJ', 'SURAJ'], ['party', 'SARAJ', 'SURAJ'], ['party', 'Suraaj', 'SURAJ'], ['work', 'ENGIN OIL', 'ENGINE OIL'], ['work', 'NOT IN THE FILE', 'X'], ['uom', 'LTR', 'LTR'], ['oil', 'A', 'B'], ['uom', 'Ltrs', 'Ltr'], ['party', 'SURJ', 'SURAJJ']] })));
+    const nm = run('x => maintImportNames_(x)', { party: [['SURAJ', 4], ['SURJ', 2], ['SARAJ', 1], ['Suraaj', 1], ['Store', 9]], work: [['ENGINE OIL', 3], ['ENGIN OIL', 1]], uom: [['Ltr', 5], ['Ltrs', 2], ['LTR', 1]] });
+    assert.deepStrictEqual(nm, { fixes: [['party', 'SURJ', 'SURAJ'], ['party', 'SARAJ', 'SURAJ'], ['party', 'Suraaj', 'SURAJ'], ['work', 'ENGIN OIL', 'ENGINE OIL'], ['uom', 'Ltrs', 'Ltr']] }, 'only a name of the file, a real change, once, a known list');
+    const q2 = sent[sent.length - 1].body.messages[0].content;
+    assert.deepStrictEqual(q2.map(b => b.type), ['text'], 'the names alone – no file');
+    assert.match(q2[0].text, /^NAMES OF AN OLD MAINTENANCE LOG BOOK/);
+    assert.match(q2[0].text, /party – the Party Name \(the garage, shop or supplier\) – in the file, \[name, rows\]: \[\["SURAJ",4\],\["SURJ",2\],\["SARAJ",1\],\["Suraaj",1\],\["Store",9\]\]\n   already saved: \[[^\]]*"Store"/, 'with the names saved at this site');
+    assert.match(q2[0].text, /already saved: \[[^\]]*"HYDROLIC OIL L&T"/);
+    assert.deepStrictEqual(run('x => maintImportNames_(x)', {}), { fixes: [] }, 'no name: nothing asked');
+    ctx.__ai.on = () => false;
+    assert.deepStrictEqual([run('x => readMaintLog_(x)', { data: pdf }), run('x => maintImportNames_(x)', { party: [['A', 1]] })], [{ off: true }, { off: true }], 'no AI: said so, nothing asked');
+  } finally { delete ctx.__ai; run('() => PropertiesService.getScriptProperties().deleteProperty("AI_MODEL_C")'); }
+  // the page's own reader: the lines that do not add up (Qty × Rate, Amount + GST, an odd GST %); a sheet of the AI numbered by its rows;
+  // the names ticked go with the bills, the rest as in the file
+  const vm = require('vm'), L = app.split('\n');
+  const take = re => { const i = L.findIndex(l => re.test(l)); assert.ok(i > -1, String(re)); for (let k = i; k < i + 80; k++) { const t = L.slice(i, k + 1).join('\n'); try { new vm.Script(t); return t; } catch (e) { /* more lines */ } } throw new Error(String(re)); };
+  const pc = vm.createContext({ S: { master: [{ id: 'RL-173', name: 'Roller No.03', ownership: 'Own', status: 'Active' }], today: '2026-10-27' } }); pc.window = pc;
+  vm.runInContext(['const isoDate = d => d.toISOString().slice(0, 10);', take(/^\s*const r2 = /), take(/^\s*const mtGst = /), take(/^\s*function xlDate\(/), take(/^\s*const mDay = |^\s*function mDay\(/), take(/^\s*function mPeriods\(|^\s*const mPeriods = /), take(/^\s*const onSiteOn = /),
+    take(/^\s*const MLI_COLS = /), take(/^\s*const mliNorm = /), take(/^\s*const mliKey = /), take(/^\s*const mliOwn = /), take(/^\s*const mliNum = /), take(/^\s*const mliGst = /), take(/^\s*function mliMatch\(/), take(/^\s*function mliSheet\(/),
+    take(/^\s*const MLI_HEAD = /), take(/^\s*function mliBills\(/), take(/^\s*function mliNamesOf\(/), 'globalThis.T = { mliSheet, mliBills, mliNamesOf, MLI_HEAD };'].join('\n'), pc);
+  const sh = pc.T.mliSheet('ROLLER NO-03', [['ROLLER NO-03'], pc.T.MLI_HEAD, [1, '2022-12-02', 'SURJ', '', 'AD BLUE', 20, 'Ltr', 59, 1000, 212.4, 1392.4, ''], [2, '', '', '', 'GREASE', 2, 'Kg', 180, 360, 64.8, 430, ''], [3, '', '', '', 'BULB', 1, 'Nos', 40, 40, 2, 42, '']], true);
+  assert.deepStrictEqual([sh.no, sh.bills.length, sh.bills[0].rows, JSON.parse(JSON.stringify(sh.warn))], ['RL-173', 1, 'Line 1–3', [{ line: 1, work: 'AD BLUE', k: 'qr', a: 1180, b: 1000 }, { line: 1, work: 'AD BLUE', k: 'ag', a: 1212.4, b: 1392.4 }, { line: 1, work: 'AD BLUE', k: 'gp', a: 21.24, b: '' }, { line: 2, work: 'GREASE', k: 'ag', a: 424.8, b: 430 }, { line: 3, work: 'BULB', k: 'gp', a: 5, b: '' }].filter(w => !(w.k === 'gp' && w.a === 5))],
+    'Qty × Rate ≠ Amount, Amount + GST ≠ With GST, GST 21.24 % – each line to look at (a usual 5 % is not); its rows numbered 1, 2, 3');
+  pc.S.mli = { fix: { list: [{ f: 'party', from: 'SURJ', to: 'SURAJ', on: true }, { f: 'work', from: 'GREASE', to: 'GREASE MP3', on: false }, { f: 'uom', from: 'Kg', to: '  ', on: true }] } };
+  const sent2 = JSON.parse(JSON.stringify(pc.T.mliBills(sh)));
+  assert.deepStrictEqual([sent2[0].garage, sent2[0].lines.map(l => l.work + ':' + l.uom)], ['SURAJ', ['AD BLUE:Ltr', 'GREASE:Kg', 'BULB:Nos']], 'only the ticked name (with a name) is changed');
+  assert.strictEqual(sh.bills[0].garage, 'SURJ', 'the file as it is stays');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(pc.T.mliNamesOf([sh]))), { party: { SURJ: 3 }, work: { 'AD BLUE': 1, GREASE: 1, BULB: 1 }, uom: { Ltr: 1, Kg: 1, Nos: 1 } });
 });

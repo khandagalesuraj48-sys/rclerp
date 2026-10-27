@@ -2147,9 +2147,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `mt_gstt`, `mt_total`), the foot. A double-click opens a box big: the app's own bigBox (02-10-2026). No SQL. Tests: unit `update-172`;
   rig mnt170 21 (S1, RCLSTEPS=1), mnt168 30, mnt165 32.
 - 28-10-2026 (update-173, with rcl-mobile 3.53.0). Report: `UPDATE_173.md`. THE OLD MAINTENANCE LOG BOOK IMPORTED AS IT IS (the Admin):
-  page panel `mti_panel` (Maintenance), reader `mliSheet` / `mliRead` (heading found by its words, a bill = rows of one date and party,
-  a merged date the row's above, GST % from the GST Amount to ₹1, the machinery by `mliKey` among `mliOwn` – Own and on the site today);
-  server `importMaint_` (`checkMaintImport` = the same with nothing saved): Own + on the site now, ≤ 3000 bills, entryOpen_ per bill
-  (closed months stay closed), maintLines_, a ₹0 untyped line FOC, a bill already there (machinery + date + party, same lines or total to
-  ₹1) left out, all or nothing per machinery. No SQL. Tests: unit `update-173`; rig mnt173 10 (S1, RCLSTEPS=1), mnt170 21, mnt168 30,
-  mnt165 32. His real Excel not seen yet.
+  page panel `mti_panel` (Maintenance): Excel (`mliRead`), a PDF / photo read by the AI (`mliReadAi` → server `readMaintLog_`, 2 pages
+  a call, `again` → 1, the file kept – cache_control; `mliAiSheets` – each machinery's table a sheet), the format (`mliFormat` – a sheet a
+  Own machinery); the reader `mliSheet` (heading by its words, a bill = rows of one date and party, GST % from the GST Amount to ₹1, the
+  lines to look at – `warn`); the names (`mliNames` → `maintImportNames_`, the list ticked by him, `mliBills` sends the ticked); server
+  `importMaint_` (`checkMaintImport` = nothing saved): Own + on the site now, ≤ 3000 bills, entryOpen_ per bill (closed months stay
+  closed), maintLines_, a ₹0 untyped line FOC, already there = same machinery + date and same lines or total to ₹1 above ₹0 (the party
+  ignored), all or nothing per machinery, `sameList` ≤ 500. `aiAskPhoto_(…, opt)`: keep / tokens / text alone / fail words. The stand-in
+  `test/claude-standin.js`: `/__next`, `/__names`. No SQL. Tests: unit `update-173`; rig mnt173 15 (S1, RCLSTEPS=1, claude), mnt170 21,
+  mnt168 30, mnt165 32. His real files not seen yet.
