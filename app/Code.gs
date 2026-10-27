@@ -957,6 +957,9 @@ const API_ = {
   getMaintFiles:     { m: 'Maintenance', f: getMaintFiles_ },
   readMaintBill:     { m: 'Maintenance', withUser: true, f: (u, x) => maintRead_(u, x) },      // the AI reads a bill – nothing is saved (Edit checked inside)
   maintLog:          { m: 'Maintenance', any: ['Maintenance', 'Reports'], f: maintLog_ },
+  // (update-173) the old Maintenance Log Book of a machinery imported as it is (his Excel) – checked first, then one machinery a call (Admin)
+  checkMaintImport:  { m: 'Maintenance', admin: true, f: b => importMaint_(Object.assign({}, b, { check: true })) },
+  importMaint:       { m: 'Maintenance', edit: true, admin: true, f: importMaint_, log: 'maintImport' },
   // (update-134) the Super Admin deletes entries (saved / waiting / returned / rejected) and brings them back – checked inside (sdelSuper_)
   superDelList: { m: '', withUser: true, f: (u, x) => sdelList_(u, x) },
   superDelete: { m: '', withUser: true, f: (u, x) => sdelDelete_(u, x) },
@@ -6346,6 +6349,7 @@ function cardEntries_() {
 const MNT_COLS_ = [H.MT_ID, H.DATE, H.NO, H.GARAGE, H.BILLNO, H.KMR, H.AMOUNT, H.WLINES, H.SERVICE, H.REMARK, H.CREATED];
 const MNT_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1zi_maintenance.sql once in Supabase → SQL Editor.';
 const MNT_FILES_MAX_ = 10, MNT_LINES_MAX_ = 150;      // (update-168: an accident bill of parts and labour had 65 lines)
+const MNT_IMPORT_MAX_ = 3000;      // (update-173) the bills of one machinery's old log book in one import
 const MNT_TYPES_ = ['Paid', 'By Insurance', 'Warranty', 'FOC', 'Service Plan'], MNT_INS_ = 'Insurance';
 /* (update-171, asked 27-10-2026 with the print of his bill 04590: "gst asa ekdam nahi dakhwaycha item wise gst asel … gst row madhe nko
  * heading madhe ghe 9 9 18 … koni paid kel insurance claim aahe nahi service ch bill ahe ka as sagle haway … entry krtana pn ani log
@@ -6516,6 +6520,54 @@ function saveMaint_(x) {
     PropertiesService.getScriptProperties().setProperty('MNT_LAST_NO', String(n));
     return { ok: true, id: id, total: v.total, billTotal: v.billTotal };
   });
+}
+/* (update-173, "jewde active aahet own rachana vehicle te mala import karaych aahe as it is jas asel tr – duplicate ekhi hou deu nko") the old
+ * Maintenance Log Book of ONE machinery, as it is (his Excel "All Machinery Maintenance Logbook"; the page puts its rows into bills): b =
+ * { no, bills: [{ date, garage, km, billNo, rows: 'Sr 1–6' (for the messages), lines: [{ work, qty, uom, rate, amount, gst }] }], check }.
+ * * each bill checked as a bill typed (maintLines_; a line of ₹0 is FOC – "Drum oil" given free); its date as any entry (not after today; a
+ *   month closed by the Admin stays closed);
+ * * history: the machinery need not have been on the site then (its Active From) – it must be in the Asset Master, Own and on the site now;
+ * * NEVER twice: a bill already there – the same machinery, date and party with the same lines, or its total within ₹1 – is left out (also
+ *   the same bill twice in the file);
+ * * [check]: nothing saved – what would be added, what is already there, the mistakes; else all of it or nothing (one write). */
+function importMaint_(b) {
+  b = b || {};
+  const run = () => {
+    const t = maintTable_(true), m = findMachine_(b.no), bills = Array.isArray(b.bills) ? b.bills : [];
+    if (normOwnership_(m.ownership) !== 'Own' || !onSiteOn_(m, today_())) throw new Error(m.id + ' is not an Own machinery on this site now (Asset Master) – the old log book is imported only for those.');
+    if (!bills.length) throw new Error('The file has no bill for ' + m.id + '.');
+    if (bills.length > MNT_IMPORT_MAX_) throw new Error(m.id + ': at most ' + MNT_IMPORT_MAX_ + ' bills in one import – split the file.');
+    const K = noKey_(m.id), lsig = ls => ls.map(l => clean_(l.work).toUpperCase() + ':' + r2_(num0_(l.amount)) + ':' + (l.qty === undefined ? '' : r2_(l.qty))).sort().join(';');
+    const have = [];      // the bills of this machinery already saved: { date, garage, total, sig, id }
+    t.rows.forEach(r => { if (noKey_(r[t.c[H.NO]]) !== K) return; const x = maintOut_(t, r);
+      have.push({ date: x.date, garage: x.garage.toUpperCase(), total: x.billTotal, sig: lsig(x.lines), id: x.id }); });
+    const twice = v => have.find(h => h.date === v.dk && h.garage === v.garage.toUpperCase() && (h.sig === v.sig || Math.abs(h.total - v.billTotal) <= 1));
+    const errors = [], fresh = [], same = [];
+    bills.forEach((x, n) => {
+      const where = clean_(x && x.rows) || 'Bill ' + (n + 1);
+      try {
+        const dk = entryOpen_(x.date, 'Maintenance bill');
+        const lines = maintLines_((Array.isArray(x.lines) ? x.lines : []).map(l => Object.assign({}, l, !clean_(l && l.type) && !num0_(l && l.amount) ? { type: 'FOC', amount: 0 } : {})));
+        const km = blank_(x.km) ? '' : reqReading_(x.km, m.id + ' Reading');
+        const total = r2_(lines.reduce((s, l) => s + maintLineTotal_(l), 0));
+        if (total < 0) throw new Error('The total of the bill cannot be below 0 – check the amounts (a discount is a minus line).');
+        const v = { dk: dk, m: m, garage: clean_(x.garage).slice(0, 80), billNo: clean_(x.billNo).slice(0, 80), km: km, lines: lines, billTotal: total, total: total, service: false, remark: clean_(x.remark).slice(0, 200), sig: lsig(lines) };
+        const h = twice(v);
+        if (h) { same.push({ rows: where, date: dk, total: total, id: h.id }); return; }
+        have.push({ date: dk, garage: v.garage.toUpperCase(), total: total, sig: v.sig, id: '(' + where + ')' });      // (the same bill twice in the file: once)
+        fresh.push(Object.assign(v, { rows: where }));
+      } catch (e) { errors.push({ rows: where, msg: e.message }); }
+    });
+    const report = { ok: !errors.length, no: m.id, errors: errors.slice(0, 200), errorCount: errors.length, fresh: fresh.length, same: same.length, sameList: same.slice(0, 100),
+      lines: fresh.reduce((s, v) => s + v.lines.length, 0), total: r2_(fresh.reduce((s, v) => s + v.total, 0)), from: fresh.length ? fresh.reduce((a, v) => v.dk < a ? v.dk : a, fresh[0].dk) : '', to: fresh.reduce((a, v) => v.dk > a ? v.dk : a, '') };
+    if (errors.length || b.check) return report;
+    let n = nextMaintNo_(t);
+    const now = new Date(), ids = [];
+    fresh.forEach(v => { const id = 'MT-' + String(n).padStart(6, '0'); t.sh.appendRow(putMaint_(newRow_(t), t, id, v, now, null)); ids.push(id); n++; });
+    if (ids.length) PropertiesService.getScriptProperties().setProperty('MNT_LAST_NO', String(n - 1));
+    return Object.assign(report, { added: ids.length, first: ids[0] || '', last: ids[ids.length - 1] || '' });
+  };
+  return b.check ? run() : withLock_(run);
 }
 function updateMaint_(id, x) {
   x = x || {};

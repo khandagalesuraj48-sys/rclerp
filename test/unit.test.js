@@ -6344,7 +6344,7 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
     assert.ok(listed && listed.sql === sql, 'Read Me lists the step word for word');
     assert.ok(code.indexOf("'supabase_step1zi_maintenance.sql');      // (update-165)") > -1);
     const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
-    assert.match(app, /mnt: \{ saves: \['saveMaint', 'updateMaint', 'deleteMaint', 'maintFile', 'readMaintBill'\],/);
+    assert.match(app, /mnt: \{ saves: \['saveMaint', 'updateMaint', 'deleteMaint', 'maintFile', 'readMaintBill'(, 'importMaint', 'checkMaintImport')?\],/);
     assert.ok(!/if \(\$\('tab-mnt'\) && !cm\) \$\('tab-mnt'\)\.hidden = true;/.test(app), 'update-170: the menu has Maintenance at every site (was: only on fuel cards)');
     assert.match(app, /try \{ const r = await call\(o\.up \|\| 'uploadAttachment', \{ data: 'data:' \+ it\.mime/, 'the bill files use the attachments\' own box');
   } finally {
@@ -6763,4 +6763,51 @@ test('update-172: the log book of a bill of before – its tax lines (CGST / SGS
   assert.doesNotMatch(app, /<td colspan="9"><button class="btn ghost small" id="mt_addl"/);
   assert.match(app, /document\.addEventListener\('dblclick', e => \{ const el = e\.target; if \(back\.hidden && okEl\(el\)\) \{ e\.preventDefault\(\); open\(el\); \} \}\);/, 'a double-click opens any box big (the app\'s big box)');
   assert.match(app, /\$\('mt_addf'\)\.querySelector\('span'\)\.textContent = /, 'the files button keeps its icon');
+});
+
+test('update-173: the old Maintenance Log Book of a machinery imported as it is – checked first, history before its Active From, a ₹0 line FOC, never twice (the same lines, or the total within ₹1), only an Own machinery on the site, all or nothing', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const R = 'ROLLER-173', H2 = 'JCB-173';
+  run('(x, m) => saveMaster_(x, m)', { no: R, name: 'Soil Compactor No.03', type: 'Soil Compactor', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2025-09-01' }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: H2, name: 'JCB', type: 'JCB', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'Patil Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2025-09-01' }, 'add');
+  // his Roller No-03 sheet, as the page puts its rows into bills: 2022 – before the roller's Active From (history); a ₹0 "Drum oil"
+  const bills = [
+    { rows: 'Line 5', date: '2022-12-02', garage: 'Store', km: '', lines: [{ work: 'AD BLUE', qty: 20, uom: 'Ltr', rate: 59, amount: 1180, gst: 18 }] },
+    { rows: 'Line 6–8', date: '2023-01-05', garage: 'Store', km: 500, lines: [{ work: 'FUEL FILTER', qty: 1, uom: 'Nos', rate: 650, amount: 650, gst: 18 }, { work: 'FUEL WATER SEPRETOR', qty: 1, uom: 'Nos', rate: 425, amount: 425, gst: 18 }, { work: 'ENGINE OIL FILTER', qty: 1, uom: 'Nos', rate: 930, amount: 930, gst: 18 }] },
+    { rows: 'Line 9–10', date: '2024-01-29', garage: 'Store', km: 1745, lines: [{ work: 'DRUM OIL', qty: 25, uom: 'Ltr', rate: 0, amount: 0 }, { work: 'HYDROLIC OIL L&T', qty: 78, uom: 'Ltr', rate: 133, amount: 10374, gst: 18 }] }];
+  const c1 = run('b => importMaint_(b)', { no: R, bills: bills, check: true });
+  assert.deepStrictEqual([c1.ok, c1.fresh, c1.same, c1.lines, c1.total, c1.from, c1.to], [true, 3, 0, 6, 15999.62, '2022-12-02', '2024-01-29'], 'checked: 3 bills, 6 lines, ₹15,999.62 with 18 % (1,392.40 + 2,365.90 + 12,241.32)');
+  assert.strictEqual(run('() => getMaint_({ no: "' + R + '", from: "2022-01-01", to: "2026-12-31" }).rows.length'), 0, 'a check saves nothing');
+  const i1 = run('b => importMaint_(b)', { no: R, bills: bills });
+  assert.deepStrictEqual([i1.ok, i1.added, i1.same, /^MT-\d{6}$/.test(i1.first)], [true, 3, 0, true]);
+  const got = run('() => getMaint_({ no: "' + R + '", from: "2022-01-01", to: "2026-12-31" }).rows');
+  assert.strictEqual(got.length, 3);
+  const b3 = got.find(r => r.date === '2024-01-29');
+  assert.deepStrictEqual([b3.garage, b3.km, b3.lines.map(l => l.work + ':' + l.type + ':' + l.amount + ':' + (l.gst || 0)), b3.total, b3.service], ['Store', 1745, ['DRUM OIL:FOC:0:0', 'HYDROLIC OIL L&T:Paid:10374:18'], 12241.32, false], 'as it is; the ₹0 line kept as FOC');
+  // never twice: the same file again – every bill left out; a bill of the same date and party with its total within ₹1 – left out too
+  const i2 = run('b => importMaint_(b)', { no: R, bills: bills });
+  assert.deepStrictEqual([i2.ok, i2.added, i2.same], [true, 0, 3]);
+  const near = run('b => importMaint_(b)', { no: R, check: true, bills: [{ rows: 'Line 5', date: '2022-12-02', garage: 'STORE', lines: [{ work: 'Ad Blue (Gulf)', qty: 20, uom: 'Ltr', rate: 59, amount: 1180.5, gst: 18 }] }] });
+  assert.deepStrictEqual([near.fresh, near.same, near.sameList[0].id], [0, 1, got.find(r => r.date === '2022-12-02').id], 'the same date and party, ₹0.59 apart: already there');
+  const dbl = run('b => importMaint_(b)', { no: R, check: true, bills: [{ rows: 'Line 30', date: '2023-12-30', garage: 'Store', lines: [{ work: 'AD Blue', amount: 1180, gst: 18 }] }, { rows: 'Line 31', date: '2023-12-30', garage: 'Store', lines: [{ work: 'AD Blue', amount: 1180, gst: 18 }] }] });
+  assert.deepStrictEqual([dbl.fresh, dbl.same], [1, 1], 'the same bill twice in the file: once');
+  // the checks: all or nothing; a rented machinery; no bill; a date after today; a line without its work
+  const bad = run('b => importMaint_(b)', { no: R, bills: [{ rows: 'Line 40', date: '2023-02-02', garage: 'Store', lines: [{ work: 'Bulb', amount: 40 }] }, { rows: 'Line 41', date: '2099-01-01', garage: 'Store', lines: [{ work: 'Bulb', amount: 40 }] }, { rows: 'Line 42', date: '2023-02-03', garage: 'Store', lines: [{ work: '', qty: 1, amount: 50 }] }] });
+  assert.deepStrictEqual([bad.ok, bad.added, bad.errorCount, bad.errors.map(e => e.rows)], [false, undefined, 2, ['Line 41', 'Line 42']]);
+  assert.match(bad.errors[0].msg, /is after today/);
+  assert.strictEqual(run('() => getMaint_({ no: "' + R + '", from: "2023-02-01", to: "2023-02-28" }).rows.length'), 0, 'nothing of it saved');
+  assert.strictEqual(tryRun('b => importMaint_(b)', { no: H2, bills: bills.slice(0, 1) }).thrown, H2 + ' is not an Own machinery on this site now (Asset Master) – the old log book is imported only for those.');
+  assert.strictEqual(tryRun('b => importMaint_(b)', { no: R, bills: [] }).thrown, 'The file has no bill for ' + R + '.');
+  // the log book shows them
+  const lg = run('x => maintLog_(x)', { no: R, from: '2022-01-01', to: '2024-12-31' });
+  assert.deepStrictEqual([lg.total.maint.bills, lg.total.maint.amount], [3, 15999.62]);
+  // the page: the Admin's import, its reader and its two actions; the help of its messages
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /<div class="panel" id="mti_panel" hidden>/);
+  assert.match(app, /\$\('mti_panel'\)\.hidden = !\(S\.user && S\.user\.admin\) \|\| !!d\.missing;/);
+  assert.match(app, /call\('checkMaintImport', \{ no: x\.no, bills: x\.bills \}\)/);
+  assert.match(app, /call\('importMaint', \{ no: x\.no, bills: x\.bills \}\)/);
+  assert.match(app, /re: \/is not an Own machinery on this site now\|The file has no bill for\|bills in one import – split the file\/i/);
 });
