@@ -6596,7 +6596,11 @@ test('update-168: every line of a maintenance bill – its kind (Paid / Warranty
     const a2 = ans({ billNo: 'S2627NMM2-01629, S2627NMM2-01630', total: '12,30,893', insurer: 'Tata AIG General Insurance Co Ltd', claimNo: null, insurancePaid: null, customerPaid: '10,856', lines: [['Repair', 'Paid', 1, 1230893, 0, 1230893]] });
     assert.deepStrictEqual(a2.insurance, { company: 'Tata AIG General Insurance Co Ltd', claimNo: '', paid: 1220037 }, 'the insurance paid = the bill less what we paid (the receipt)');
     assert.deepStrictEqual(ans({ total: 1000, insurer: 'ICICI Lombard', insurancePaid: 900, lines: [['X', 'Paid', 1, 1000, 0, 1000]] }).insurance, { company: 'ICICI Lombard', claimNo: '', paid: 900 });
-    assert.deepStrictEqual(ans({ total: 1000, insurer: 'ICICI Lombard', insurancePaid: 5000, lines: [['X', 'Paid', 1, 1000, 0, 1000]] }).insurance.paid, null, 'more than the bill: not taken');
+    assert.strictEqual(ans({ total: 1000, insurer: 'ICICI Lombard', insurancePaid: 5000, lines: [['X', 'Paid', 1, 1000, 0, 1000]] }).insurance, null, 'more than the bill: not taken (update-169: no claim then)');
+    // update-169 (his bill 04590 on the live page: "Insurance Co : Others", a general repair paid in cash – read as a claim, the save asked for the insurance's ₹)
+    assert.strictEqual(ans({ total: 7475, insurer: 'Others', claimNo: null, insurancePaid: null, customerPaid: null, lines: [['Fluid – diesel exhaust', 'Paid', 1, 5610.42, 0, 5610.42]] }).insurance, null, 'a company without what the insurance paid: not a claim');
+    assert.strictEqual(ans({ total: 7475, insurer: 'Tata AIG General Insurance Co Ltd', insurancePaid: null, customerPaid: 7475, lines: [['X', 'Paid', 1, 7475, 0, 7475]] }).insurance, null, 'we paid the whole bill: not a claim');
+    assert.match(fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), /a vehicle detail "Insurance Co" alone is NOT a claim/);
     assert.deepStrictEqual(ans({ lines: [{ work: 'Old style', amount: 500 }] }).lines, [{ work: 'Old style', type: 'Paid', amount: 500 }], 'the long form still read');
     const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
     assert.match(code, /"lines": \[\[work, type, qty, rate, discount, amount\], …\] – ONE array for EVERY item of every invoice, also the free ones/);

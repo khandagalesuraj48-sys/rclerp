@@ -2122,3 +2122,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   as one bill, the insurer / customer part (`maintAnswer_`); Claude 50 s for a bill. Page: `MT_KINDS`, `mtLineRow`, `mtRowCalc`,
   `mtTotal`, `mtInsPut`, `mtBillNote`, `mtLinesText`, list `.mt-wl` / `.mt-clamp`, log book footers. No SQL. Tests: unit
   `update-168`; rig `test/browser/mnt168.js` 29 (Claude and Gemini), mnt165 32.
+- 27-10-2026 (update-169). Report: `UPDATE_169.md`. His bill 04590 (vehicle detail "Insurance Co : Others") was read as an
+  insurance claim with no amount – the save asked for the insurance's ₹. `maintAnswer_`: an insurance part only with what the
+  insurance paid (> 0, ≤ the bill); the question says the vehicle's "Insurance Co" alone is not a claim. No SQL; the app unchanged.
