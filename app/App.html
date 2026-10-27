@@ -406,6 +406,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #dlg .body { padding: 12px 16px; overflow: auto; }
   #dlg footer { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--line); }
   /* (update-126) the Dashboard's numbers open the entries behind them – one big box, only shown */
+  .fuel-tag { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 8px; background: #E0F2FE; color: #075985; font: 600 11px var(--ui); vertical-align: 1px; }      /* (update-163) Petrol / CNG / Electric in the Asset Master list */
   .kcards .kc[data-kd], .kmini .km[data-kd] { cursor: pointer; }
   .kcards .kc[data-kd]:focus-visible, .kmini .km[data-kd]:focus-visible { outline: 3px solid #1D55E2; outline-offset: 3px; }
   .kc[data-kd] .kd-hint, .km[data-kd] .kd-hint { display: block; margin-top: 3px; font: 600 11.5px var(--ui); color: #1D55E2; opacity: 0; transition: opacity .2s; }
@@ -3234,9 +3235,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     <!-- ================= Diesel summary (cards) ================= -->
     <div class="dsum">
       <div class="dsum-head">
-        <h2>Diesel summary – all locations <em id="k_range" class="dpill">All dates</em></h2>
+        <h2><span id="k_head" class="fuel-word">Diesel summary – all locations</span> <em id="k_range" class="dpill">All dates</em></h2>
         <div class="ledger-filter">
           <div class="lf-dates">
+            <div class="field fuel-f" hidden><label for="k_fuel">Fuel</label><select id="k_fuel" class="fuel-select"></select></div>
             <div class="field"><label for="k_from">From</label><input id="k_from" type="date"></div>
             <div class="field"><label for="k_to">To</label><input id="k_to" type="date"></div>
           </div>
@@ -3293,31 +3295,31 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     </div>
 
     <div class="panel">
-      <div class="panel-head"><h2>Diesel stock – combined and by location</h2></div>
+      <div class="panel-head"><h2 class="fuel-word">Diesel stock – combined and by location</h2></div>
       <p class="empty-note" id="loc_note" style="margin:-4px 0 10px"></p>
       <div class="locgrid" id="loc_cards"></div>
     </div>
 
     <div class="dash-row">
       <div class="panel chart-panel">
-        <div class="panel-head"><h2>Diesel in &amp; out by day</h2>
+        <div class="panel-head"><h2 class="fuel-word">Diesel in &amp; out by day</h2>
           <span class="legend"><i class="lg-in"></i>Inward <i class="lg-out"></i>Issued <i class="lg-today"></i>Today</span></div>
         <div class="chart-note" id="c_note" style="margin:-4px 0 6px"></div>
         <div class="bars" id="c_bars"></div>
         <div class="bars-axis" id="c_axis"></div>
       </div>
       <div class="panel">
-        <div class="panel-head"><h2>Top machines</h2><span class="chart-note">by diesel in this period</span></div>
+        <div class="panel-head"><h2>Top machines</h2><span class="chart-note fuel-word">by diesel in this period</span></div>
         <ol class="toplist" id="top_list"></ol>
       </div>
     </div>
 
     <div class="panel">
       <div class="panel-head">
-        <h2>Day-wise diesel stock</h2>
+        <h2 class="fuel-word">Day-wise diesel stock</h2>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <span class="chart-note" id="lg_note"></span>
-          <select id="lg_loc" class="loc-select" data-all="All locations" style="width:auto"></select>
+          <select id="lg_loc" class="loc-select" data-all="All locations" data-fuel-by="k_fuel" style="width:auto"></select>
         </div>
       </div>
       <p class="empty-note" id="lg_help" style="margin:-4px 0 8px"></p>
@@ -3364,7 +3366,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="rfilters rd-filters">
         <div class="field"><label for="rd_from">From</label><input id="rd_from" type="date"></div>
         <div class="field"><label for="rd_to">To</label><input id="rd_to" type="date"></div>
-        <div class="field"><label for="rd_loc">Stock location</label><select id="rd_loc" class="loc-select" data-all="All locations"></select></div>
+        <div class="field fuel-f" hidden><label for="rd_fuel">Fuel</label><select id="rd_fuel" class="fuel-select"></select></div>
+        <div class="field"><label for="rd_loc">Stock location</label><select id="rd_loc" class="loc-select" data-all="All locations" data-fuel-by="rd_fuel"></select></div>
         <div class="rquick" style="align-self:end">
           <button class="btn ghost small" data-yday="rd_from|rd_to|">Yesterday</button>
           <button class="btn ghost small" data-rdrange="this">This month</button>
@@ -3395,7 +3398,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="rfilters">
         <div class="field"><label for="rm_from">From</label><input id="rm_from" type="date"></div>
         <div class="field"><label for="rm_to">To</label><input id="rm_to" type="date"></div>
-        <div class="field"><label for="rm_src">Diesel Source</label><select id="rm_src" class="loc-select" data-all="All"></select></div>
+        <div class="field fuel-f" hidden><label for="rm_fuel">Fuel</label><select id="rm_fuel" class="fuel-select"></select></div>
+        <div class="field"><label for="rm_src">Diesel Source</label><select id="rm_src" class="loc-select" data-all="All" data-fuel-by="rm_fuel"></select></div>
         <div class="field"><label for="rm_shift">Shift</label><select id="rm_shift"><option value="">All</option><option>Day</option><option>Night</option></select></div>
         <div class="field"><label for="rm_supply">Diesel Supply</label><select id="rm_supply"><option value="">All</option><option>Company</option><option>Debit Basis</option><option>Other</option></select></div>
         <div class="field rf-own"><span class="flabel">Ownership</span>
@@ -3454,7 +3458,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="rfilters">
         <div class="field"><label for="ra_from">From</label><input id="ra_from" type="date"></div>
         <div class="field"><label for="ra_to">To</label><input id="ra_to" type="date"></div>
-        <div class="field"><label for="ra_src">Diesel Source</label><select id="ra_src" class="loc-select" data-all="All"></select></div>
+        <div class="field fuel-f" hidden><label for="ra_fuel">Fuel</label><select id="ra_fuel" class="fuel-select"></select></div>
+        <div class="field"><label for="ra_src">Diesel Source</label><select id="ra_src" class="loc-select" data-all="All" data-fuel-by="ra_fuel"></select></div>
         <div class="field"><label for="ra_shift">Shift</label><select id="ra_shift"><option value="">All</option><option>Day</option><option>Night</option></select></div>
         <div class="field"><label for="ra_supply">Diesel Supply</label><select id="ra_supply"><option value="">All</option><option>Company</option><option>Debit Basis</option><option>Other</option></select></div>
         <div class="field rf-own"><span class="flabel">Ownership</span>
@@ -3578,6 +3583,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="m_name">Machinery Name <span style="font-weight:400">(needed if there is no number)</span></label><input id="m_name" autocomplete="off"></div>
         <div class="field"><label for="m_type">Type of Machinery</label><input id="m_type" list="dl_type" autocomplete="off"></div>
         <div class="field"><label for="m_make">Make</label><input id="m_make" list="dl_make" autocomplete="off"></div>
+        <div class="field"><label for="m_fuel">Fuel <span class="req">*</span></label><select id="m_fuel" title="The fuel it runs on – diesel / petrol / CNG is issued to it only from a place of that fuel; Electric: no fuel entry"><option>Diesel</option><option>Petrol</option><option>CNG</option><option>Electric</option></select></div>
         <div class="field m-works"><label>Works on <span class="req" id="m_unit_req">*</span> <small>(tick all that apply)</small></label>
           <div class="m-wk" id="m_works"><label><input type="checkbox" value="Day"> Day</label><label><input type="checkbox" value="Trip"> Trip</label><label><input type="checkbox" value="KM"> KM</label><label><input type="checkbox" value="Hrs"> Hrs <small>(hour meter)</small></label><label><input type="checkbox" value="KM + Hrs"> KM + Hrs <small>(both readings)</small></label><label><input type="checkbox" value="Time"> Time <small>(from – to)</small></label></div>
           <input type="hidden" id="m_unit"></div>
@@ -3613,7 +3619,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div id="m_multi" hidden>
         <p class="empty-note" style="margin-top:0">For Debit machinery only Number or Name is needed. Type in the rows, or copy rows from Excel / Google Sheet (same column order) and paste into the first cell.</p>
         <div class="table-wrap"><table class="bulk">
-          <thead><tr><th></th><th>Machinery Number</th><th>Machinery Name</th><th>Type of Machinery</th><th>Make</th><th>Unit</th><th>Std Avg (KM/Ltr)</th><th>Std Avg (Ltr/Hr)</th><th>Owner Name</th><th>Ownership *</th><th>Diesel Supply</th><th></th></tr></thead>
+          <thead><tr><th></th><th>Machinery Number</th><th>Machinery Name</th><th>Type of Machinery</th><th>Make</th><th>Unit</th><th>Std Avg (KM/Ltr)</th><th>Std Avg (Ltr/Hr)</th><th>Owner Name</th><th>Ownership *</th><th>Diesel Supply</th><th>Fuel</th><th></th></tr></thead>
           <tbody id="b_rows"></tbody>
         </table></div>
         <ul class="errlist" id="b_errors" hidden></ul>
@@ -4233,7 +4239,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="t_date">Date <span class="req">*</span></label><input id="t_date" type="date"></div>
         <div class="field"><label for="t_shift">Shift <span class="req">*</span></label><select id="t_shift"><option>Day</option><option>Night</option></select></div>
         <div class="field"><label for="t_from">From <span class="req">*</span></label><select id="t_from" class="loc-select" data-default="first" data-own="Diesel Transfer"></select></div>
-        <div class="field"><label for="t_to">To <span class="req">*</span></label><select id="t_to" class="loc-select" data-default="second"></select></div>
+        <div class="field"><label for="t_to">To <span class="req">*</span></label><select id="t_to" class="loc-select" data-default="second" data-fuel-by="t_from"></select></div>
         <div class="field"><label for="t_qty">Qty (Ltr) <span class="req">*</span></label><input id="t_qty" type="number" step="0.01" min="0"></div>
         <div class="field wide"><label for="t_remark">Remark</label><input id="t_remark" autocomplete="off"></div>
       </div>
@@ -4297,7 +4303,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     <div class="panel" data-perm="Diesel Issue">
       <div class="panel-head">
         <h2 id="d_title">Issue diesel</h2>
-        <div class="stockpill" id="d_pill" style="margin-left:auto"><span id="d_pill_lbl">Opening stock</span> <b id="d_pill_val">–</b> Ltr</div>
+        <div class="stockpill" id="d_pill" style="margin-left:auto"><span id="d_pill_lbl">Opening stock</span> <b id="d_pill_val">–</b> <span id="d_pill_u">Ltr</span></div>
         <div class="switch" role="group" aria-label="Entry mode">
           <button id="dmode_one" aria-pressed="true">One entry</button>
           <button id="dmode_many" aria-pressed="false">Multiple entries</button>
@@ -4309,7 +4315,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="d_date">Issue Date <span class="req">*</span></label><input id="d_date" type="date"></div>
         <div class="field"><label for="d_shift">Shift <span class="req">*</span></label>
           <select id="d_shift"><option>Day</option><option>Night</option></select></div>
-        <div class="field"><label for="d_src">Diesel Source <span class="req">*</span></label><select id="d_src" class="loc-select src-select" data-default="first" data-own="Diesel Issue"></select></div>
+        <div class="field"><label for="d_src">Diesel Source <span class="req">*</span></label><select id="d_src" class="loc-select src-select" data-default="first" data-own="Diesel Issue" data-fuel-by="d_no"></select></div>
         <div class="field wide"><label for="d_no">Machinery Number / Name <span class="req">*</span></label><input id="d_no" list="dl_mach_on" data-on="d_date" autocomplete="off" placeholder="Type or pick a number or name"></div>
       </div>
       <div class="facts" id="d_facts" hidden>
@@ -4317,6 +4323,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="fact"><span>Owner Name</span><b id="d_f_owner"></b></div>
         <div class="fact"><span>Works on</span><b id="d_f_unit"></b></div>
         <div class="fact"><span>Diesel (as per BOQ)</span><b id="d_f_supply"></b></div>
+        <div class="fact" id="d_f_fuel_w" hidden><span>Fuel</span><b id="d_f_fuel"></b></div>
       </div>
       <div class="d-debit" id="d_debit" hidden>Debit Basis – no reading needed. All diesel given to this machinery is debited to the vendor (as per BOQ).</div>
       <div class="dhist" id="d_hist" hidden></div>
@@ -4378,7 +4385,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div id="d_many_mach" hidden>
           <div class="grid">
             <div class="field wide"><label for="bm_no">Machinery Number / Name <span class="req">*</span></label><input id="bm_no" list="dl_machines" autocomplete="off" placeholder="Type or pick a number or name"></div>
-            <div class="field"><label for="bm_src">Diesel Source (new rows) </label><select id="bm_src" class="loc-select" data-default="first" data-own="Diesel Issue"></select></div>
+            <div class="field"><label for="bm_src">Diesel Source (new rows) </label><select id="bm_src" class="loc-select" data-default="first" data-own="Diesel Issue" data-fuel-by="bm_no"></select></div>
           </div>
           <div class="dhist" id="bm_hist" hidden></div>
           <p class="empty-note" id="bm_info">Pick the machinery and the first date – then “+ Add row” gives the next date (with the shift and source of the row above).</p>
@@ -5856,6 +5863,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['"Scan with Mobile" did not work for this QR code. Nothing was attached.', 'On the computer press "Scan with Mobile" again for a new QR code (it works for 5 minutes, and once). On the phone sign in as the SAME person, at the same site, and scan it with the app or the phone\'s camera; the phone may be on any network. Then wait for the photos to show on the computer and save the entry.'],
       mr: ['या QR code ने "Scan with Mobile" चालले नाही. काहीही attach झाले नाही.', 'Computer वर पुन्हा "Scan with Mobile" दाबा, नवा QR code येईल (तो 5 मिनिटे आणि एकदाच चालतो). Phone वर त्याच व्यक्तीने, त्याच site वर sign in करा आणि app ने किंवा phone च्या camera ने scan करा; phone कोणत्याही network वर असू शकतो. नंतर photos computer वर दिसेपर्यंत थांबा आणि entry save करा.'],
       hi: ['इस QR code से "Scan with Mobile" नहीं चला। कुछ भी attach नहीं हुआ।', 'Computer पर फिर से "Scan with Mobile" दबाएँ, नया QR code आएगा (वह 5 मिनट और एक ही बार चलता है)। Phone पर उसी व्यक्ति से, उसी site पर sign in करें और app से या phone के camera से scan करें; phone किसी भी network पर हो सकता है। फिर photos computer पर दिखने तक रुकें और entry save करें।'] },
+    // (update-163) the fuel of a machinery and of a diesel place (Diesel / Petrol / CNG / Electric)
+    { re: /holds (Diesel|Petrol|CNG) and .+ runs on|runs on Electric – no fuel|only between places of the same fuel|select Fuel \(Diesel|its fuel is Diesel, Petrol or CNG|its fuel cannot be changed/i,
+      en: ['Every machinery has one fuel (Asset Master → Fuel) and every diesel place holds one fuel (Diesel, Petrol or CNG). A fill is given only from a place of the machinery\'s fuel, a transfer goes only between places of the same fuel, and an Electric machinery gets no fuel. A place that already has entries keeps its fuel.', 'Pick a place of the right fuel (the form offers only those), or correct the Fuel of the machinery in Asset Master. A wrong fuel of a place: the Super Admin changes it in the Portal (Sites → Diesel places) – only while no entry uses that place.'],
+      mr: ['प्रत्येक machinery चे एक इंधन असते (Asset Master → Fuel) आणि प्रत्येक diesel जागेत एकच इंधन असते (Diesel, Petrol किंवा CNG). Machinery ला फक्त तिच्या इंधनाच्या जागेमधूनच fill देता येते, transfer फक्त एकाच इंधनाच्या जागांमध्येच होतो, आणि Electric machinery ला इंधन दिले जात नाही. ज्या जागेवर entries आहेत तिचे इंधन बदलत नाही.', 'योग्य इंधनाची जागा निवडा (form मध्ये फक्त त्याच दिसतात), किंवा Asset Master मध्ये machinery चे Fuel दुरुस्त करा. जागेचे इंधन चुकले असेल तर Super Admin Portal मध्ये (Sites → Diesel places) ते बदलतो – फक्त त्या जागेवर एकही entry नसताना.'],
+      hi: ['हर machinery का एक ईंधन होता है (Asset Master → Fuel) और हर diesel जगह में एक ही ईंधन होता है (Diesel, Petrol या CNG)। Machinery को सिर्फ़ उसके ईंधन की जगह से ही fill दिया जाता है, transfer सिर्फ़ एक ही ईंधन की जगहों के बीच होता है, और Electric machinery को ईंधन नहीं दिया जाता। जिस जगह पर entries हैं उसका ईंधन नहीं बदलता।', 'सही ईंधन की जगह चुनें (form में सिर्फ़ वही दिखती हैं), या Asset Master में machinery का Fuel ठीक करें। जगह का ईंधन गलत हो तो Super Admin Portal में (Sites → Diesel places) उसे बदलता है – सिर्फ़ तब जब उस जगह पर कोई entry न हो।'] },
     // (update-162) a diesel source not given to this person (Diesel Issue / the From of a transfer)
     { re: /^Diesel source .+ is not given to /i,
       en: ['This diesel source is not given to you, so the entry was not saved. Each person may issue (or send a transfer) only from the diesel sources the Super Admin gave him.', 'Pick one of your own diesel sources (the message names them) and save again. If you must use this source, ask the Super Admin: Portal → Users & Access → your name → Pages → the sources under Diesel Issue / Diesel Transfer.'],
@@ -6308,7 +6320,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The same entry (same machinery, date and shift – or the same name / number) is already there.', 'Do not add it again. Find it in the list and use Edit to change it; or correct the date, shift or number if this is really a different entry.'],
       mr: ['तीच entry (तीच machinery, तारीख आणि shift, किंवा तेच नाव / नंबर) आधीच आहे.', 'ती पुन्हा जोडू नका. यादीत शोधून Edit ने बदला; किंवा ही खरोखर वेगळी entry असेल तर तारीख, shift किंवा नंबर दुरुस्त करा.'],
       hi: ['वही entry (वही machinery, तारीख और shift, या वही नाम / नंबर) पहले से है।', 'उसे दोबारा न जोड़ें। सूची में ढूँढकर Edit से बदलें; या यह सच में अलग entry हो तो तारीख, shift या नंबर ठीक करें।'] },
-    { re: /Not enough diesel/i,
+    { re: /Not enough (diesel|petrol|cng)|^Not enough\s/i,      // (update-163) also a Petrol / CNG place
       en: ['The diesel source does not have this much diesel on that date (stock would go below zero).', '1) Check the quantity and the date. 2) If diesel was received but not entered: enter the Diesel Inward (or Transfer) of that date first. 3) Then save this issue again.'],
       mr: ['त्या तारखेला त्या diesel source मध्ये एवढे diesel नाही (stock शून्याखाली जाईल).', '1) Quantity आणि तारीख तपासा. 2) Diesel आले आहे पण नोंदवले नसेल: आधी त्या तारखेचा Diesel Inward (किंवा Transfer) भरा. 3) मग हा issue पुन्हा save करा.'],
       hi: ['उस तारीख को उस diesel source में इतना diesel नहीं है (stock शून्य से नीचे चला जाएगा)।', '1) Quantity और तारीख जाँचें। 2) Diesel आया है पर दर्ज नहीं हुआ: पहले उस तारीख का Diesel Inward (या Transfer) भरें। 3) फिर यह issue दोबारा save करें।'] },
@@ -6461,17 +6473,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * So: adding a page, a report or a save action without describing it here cannot go live unnoticed. */
   const PAGE_GUIDE = {
     dash: { saves: ['saveTankSettings'],
-      en: ['The day at a glance: diesel stock, diesel received and issued, the tanks, and the Log Book of the day.', 'Nothing is entered here. Every figure comes from the entries of the other pages for the dates chosen at the top; "Stock now" is always the live stock. Only the tank size can be set here. A click on a number (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) opens a big box with its entries – only shown. The search at the top (Ctrl + K) finds anything in the app – machinery, names, drivers, a reading (also one that lies between the Start and Close of a Log Book entry), challan or bill number, vendor, date, page – even with a spelling mistake (it then asks "did you mean …"); a result opens its page. With one stock point chosen, "Day-wise diesel stock" and its card show "Received from" and "Sent to" for EACH other stock point on its own.'],
-      mr: ['एका नजरेत दिवस: diesel stock, आलेले आणि दिलेले diesel, tanks, आणि दिवसाची Log Book.', 'इथे काहीही भरले जात नाही. प्रत्येक आकडा वर निवडलेल्या तारखांसाठी इतर pages च्या entries वरून येतो; "Stock now" नेहमी सध्याचा stock असतो. इथे फक्त tank चा आकार सेट करता येतो. कोणत्याही आकड्यावर (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) click केले की त्याच्या entries एका मोठ्या box मध्ये दिसतात – फक्त पाहण्यासाठी. वरचा search (Ctrl + K) app मधले काहीही शोधतो – machinery, नावे, driver, reading (Log Book entry च्या Start आणि Close च्या मधले reading सुद्धा), challan किंवा bill नंबर, vendor, तारीख, page – स्पेलिंग चुकले तरी (मग तो "did you mean …" विचारतो); result वर क्लिक केले की त्याचे page उघडते. एक stock point निवडला की "Day-wise diesel stock" आणि त्याच्या card मध्ये प्रत्येक दुसऱ्या stock point चे "Received from" आणि "Sent to" वेगवेगळे दिसते.'],
-      hi: ['एक नज़र में दिन: diesel stock, आया और दिया गया diesel, tanks, और दिन की Log Book।', 'यहाँ कुछ भरा नहीं जाता। हर आँकड़ा ऊपर चुनी तारीखों के लिए दूसरे pages की entries से आता है; "Stock now" हमेशा अभी का stock है। यहाँ केवल tank का आकार सेट होता है। किसी भी आँकड़े पर (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) click करने पर उसकी entries एक बड़े box में दिखती हैं – केवल देखने के लिए। ऊपर का search (Ctrl + K) app में कुछ भी ढूँढता है – machinery, नाम, driver, reading (Log Book entry के Start और Close के बीच की reading भी), challan या bill नंबर, vendor, तारीख, page – spelling गलत हो तब भी (तब वह "did you mean …" पूछता है); result पर क्लिक करने से उसका page खुलता है। एक stock point चुनने पर "Day-wise diesel stock" और उसके card में हर दूसरे stock point का "Received from" और "Sent to" अलग-अलग दिखता है।'] },
+      en: ['The day at a glance: diesel stock, diesel received and issued, the tanks, and the Log Book of the day.', 'Nothing is entered here. Every figure comes from the entries of the other pages for the dates chosen at the top; "Stock now" is always the live stock. Only the tank size can be set here. A click on a number (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) opens a big box with its entries – only shown. The search at the top (Ctrl + K) finds anything in the app – machinery, names, drivers, a reading (also one that lies between the Start and Close of a Log Book entry), challan or bill number, vendor, date, page – even with a spelling mistake (it then asks "did you mean …"); a result opens its page. With one stock point chosen, "Day-wise diesel stock" and its card show "Received from" and "Sent to" for EACH other stock point on its own. A site with more than one fuel: pick the Fuel at the top – every number, tank and list is of that fuel only (never added together).'],
+      mr: ['एका नजरेत दिवस: diesel stock, आलेले आणि दिलेले diesel, tanks, आणि दिवसाची Log Book.', 'इथे काहीही भरले जात नाही. प्रत्येक आकडा वर निवडलेल्या तारखांसाठी इतर pages च्या entries वरून येतो; "Stock now" नेहमी सध्याचा stock असतो. इथे फक्त tank चा आकार सेट करता येतो. कोणत्याही आकड्यावर (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) click केले की त्याच्या entries एका मोठ्या box मध्ये दिसतात – फक्त पाहण्यासाठी. वरचा search (Ctrl + K) app मधले काहीही शोधतो – machinery, नावे, driver, reading (Log Book entry च्या Start आणि Close च्या मधले reading सुद्धा), challan किंवा bill नंबर, vendor, तारीख, page – स्पेलिंग चुकले तरी (मग तो "did you mean …" विचारतो); result वर क्लिक केले की त्याचे page उघडते. एक stock point निवडला की "Day-wise diesel stock" आणि त्याच्या card मध्ये प्रत्येक दुसऱ्या stock point चे "Received from" आणि "Sent to" वेगवेगळे दिसते. एकापेक्षा जास्त fuel असलेली site: वर Fuel निवडा – सगळे आकडे, tank आणि यादी फक्त त्या fuel ची (कधीही एकत्र बेरीज नाही).'],
+      hi: ['एक नज़र में दिन: diesel stock, आया और दिया गया diesel, tanks, और दिन की Log Book।', 'यहाँ कुछ भरा नहीं जाता। हर आँकड़ा ऊपर चुनी तारीखों के लिए दूसरे pages की entries से आता है; "Stock now" हमेशा अभी का stock है। यहाँ केवल tank का आकार सेट होता है। किसी भी आँकड़े पर (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) click करने पर उसकी entries एक बड़े box में दिखती हैं – केवल देखने के लिए। ऊपर का search (Ctrl + K) app में कुछ भी ढूँढता है – machinery, नाम, driver, reading (Log Book entry के Start और Close के बीच की reading भी), challan या bill नंबर, vendor, तारीख, page – spelling गलत हो तब भी (तब वह "did you mean …" पूछता है); result पर क्लिक करने से उसका page खुलता है। एक stock point चुनने पर "Day-wise diesel stock" और उसके card में हर दूसरे stock point का "Received from" और "Sent to" अलग-अलग दिखता है। एक से ज़्यादा fuel वाली site: ऊपर Fuel चुनें – सभी आंकड़े, tank और सूची सिर्फ उस fuel की (कभी एक साथ नहीं जोड़े जाते)।'] },
     vendors: { saves: ['saveVendor', 'deleteVendor', 'vendorsFromOwners'],
       en: ['The parties: vendors and owners of machinery, with address, PAN, GST and bank details.', 'The app checks the format of PAN, GST, IFSC and mobile, and does not allow the same name twice. The name can be changed: the vendor\'s assets, BOQs, bills, payments, debit notes and Log Book entries follow to the new name. A vendor with assets or BOQs cannot be deleted. These details print on bills, tax invoices and debit notes.'],
       mr: ['Parties: machinery चे vendors आणि मालक, पत्ता, PAN, GST आणि bank तपशीलासह.', 'App PAN, GST, IFSC आणि mobile चे स्वरूप तपासते, आणि तेच नाव दोनदा घेत नाही. नाव बदलता येते: vendor चे assets, BOQ, bills, payments, debit notes आणि Log Book entries नवीन नावाकडे जातात. ज्या vendor कडे assets किंवा BOQ आहेत तो delete होत नाही. हा तपशील bills, tax invoice आणि debit notes वर छापला जातो.'],
       hi: ['Parties: machinery के vendors और मालिक, पता, PAN, GST और bank विवरण के साथ।', 'App PAN, GST, IFSC और mobile का रूप जाँचता है, और वही नाम दो बार नहीं लेता। नाम बदला जा सकता है: vendor के assets, BOQ, bills, भुगतान, debit notes और Log Book entries नए नाम पर चले जाते हैं। जिस vendor के assets या BOQ हैं वह delete नहीं होता। यह विवरण bills, tax invoice और debit notes पर छपता है।'] },
     master: { saves: ['saveMaster', 'saveMasterBulk', 'deleteMaster', 'editMasterMany', 'deleteMasterMany', 'importMaster', 'assignVendors'],
-      en: ['Every machinery and vehicle: number, type, owner, ownership, what it works on (KM / Hrs / Trip / Day / Time), standard average and tank capacity.', 'Every other page reads this list. The number of a machinery can be changed here (Edit): everything entered for it moves to the new number, while bills and debit notes already saved keep the number they were issued with; "Active From / Inactive From" decide on which dates entries are allowed; the standard average decides the excess diesel in bills. QR labels (Machinery list): by owner, or the machinery ticked – one or many; 8 on an A4 page (2 × 4). A scan with a phone opens the app on that machinery.'],
-      mr: ['प्रत्येक machinery आणि गाडी: नंबर, प्रकार, मालक, ownership, कशावर चालते (KM / Hrs / Trip / Day / Time), standard average आणि tank ची क्षमता.', 'बाकी सगळी pages ही यादी वाचतात. Machinery चा नंबर इथे (Edit) बदलता येतो: तिच्यासाठी भरलेले सगळे नवीन नंबरखाली जाते, आणि आधी save झालेली bills व debit notes ज्या नंबरने निघाली तोच ठेवतात; "Active From / Inactive From" वरून कोणत्या तारखांना entry करता येते ते ठरते; standard average वरून bill मधले जास्तीचे diesel ठरते. QR labels (Machinery list): मालकानुसार, किंवा tick केलेल्या machinery – एक किंवा अनेक; एका A4 पानावर 8 (2 × 4). Phone ने scan केल्यावर app त्या machinery वर उघडते.'],
-      hi: ['हर machinery और गाड़ी: नंबर, प्रकार, मालिक, ownership, किस पर चलती है (KM / Hrs / Trip / Day / Time), standard average और tank की क्षमता।', 'बाकी सभी pages यह सूची पढ़ते हैं। Machinery का नंबर यहाँ (Edit) बदला जा सकता है: उसके लिए भरा हुआ सब नए नंबर के नीचे चला जाता है, और पहले save हुए bills व debit notes उसी नंबर को रखते हैं जिससे वे निकले थे; "Active From / Inactive From" से तय होता है किन तारीखों को entry हो सकती है; standard average से bill का अतिरिक्त diesel तय होता है। QR labels (Machinery list): मालिक के अनुसार, या tick की गई machinery – एक या कई; एक A4 पेज पर 8 (2 × 4)। Phone से scan करने पर app उस machinery पर खुलता है।'] },
+      en: ['Every machinery and vehicle: number, type, owner, ownership, what it works on (KM / Hrs / Trip / Day / Time), standard average and tank capacity.', 'Every other page reads this list. The number of a machinery can be changed here (Edit): everything entered for it moves to the new number, while bills and debit notes already saved keep the number they were issued with; "Active From / Inactive From" decide on which dates entries are allowed; the standard average decides the excess diesel in bills. QR labels (Machinery list): by owner, or the machinery ticked – one or many; 8 on an A4 page (2 × 4). A scan with a phone opens the app on that machinery. Fuel: Diesel, Petrol, CNG or Electric – fuel is issued to it only from a place of that fuel; for CNG the standard average is KM/kg; Electric needs no standard average.'],
+      mr: ['प्रत्येक machinery आणि गाडी: नंबर, प्रकार, मालक, ownership, कशावर चालते (KM / Hrs / Trip / Day / Time), standard average आणि tank ची क्षमता.', 'बाकी सगळी pages ही यादी वाचतात. Machinery चा नंबर इथे (Edit) बदलता येतो: तिच्यासाठी भरलेले सगळे नवीन नंबरखाली जाते, आणि आधी save झालेली bills व debit notes ज्या नंबरने निघाली तोच ठेवतात; "Active From / Inactive From" वरून कोणत्या तारखांना entry करता येते ते ठरते; standard average वरून bill मधले जास्तीचे diesel ठरते. QR labels (Machinery list): मालकानुसार, किंवा tick केलेल्या machinery – एक किंवा अनेक; एका A4 पानावर 8 (2 × 4). Phone ने scan केल्यावर app त्या machinery वर उघडते. Fuel: Diesel, Petrol, CNG किंवा Electric – त्याला त्याच fuel च्या जागेतूनच fuel दिले जाते; CNG चा standard average KM/kg; Electric ला standard average लागत नाही.'],
+      hi: ['हर machinery और गाड़ी: नंबर, प्रकार, मालिक, ownership, किस पर चलती है (KM / Hrs / Trip / Day / Time), standard average और tank की क्षमता।', 'बाकी सभी pages यह सूची पढ़ते हैं। Machinery का नंबर यहाँ (Edit) बदला जा सकता है: उसके लिए भरा हुआ सब नए नंबर के नीचे चला जाता है, और पहले save हुए bills व debit notes उसी नंबर को रखते हैं जिससे वे निकले थे; "Active From / Inactive From" से तय होता है किन तारीखों को entry हो सकती है; standard average से bill का अतिरिक्त diesel तय होता है। QR labels (Machinery list): मालिक के अनुसार, या tick की गई machinery – एक या कई; एक A4 पेज पर 8 (2 × 4)। Phone से scan करने पर app उस machinery पर खुलता है। Fuel: Diesel, Petrol, CNG या Electric – उसे उसी fuel की जगह से ही fuel दिया जाता है; CNG का standard average KM/kg; Electric को standard average नहीं चाहिए।'] },
     boq: { saves: ['saveBoq', 'deleteBoq'],
       en: ['The rate agreement with each vendor: which machinery, on what basis (monthly, per day, per hour, per KM, per trip, slabs or item-wise), at what rate, and who pays the diesel.', 'A machinery can be in one BOQ for a date; a change of rate is an "Amend" with its own start date. Bills take the rate of the BOQ that is valid on each day. GST % is needed when the vendor is GST registered.'],
       mr: ['प्रत्येक vendor सोबतचा दराचा करार: कोणती machinery, कोणत्या basis वर (monthly, per day, per hour, per KM, per trip, slabs किंवा item-wise), कोणत्या दराने, आणि diesel कोण देणार.', 'एका तारखेला एक machinery एकाच BOQ मध्ये असते; दर बदलायचा असेल तर स्वतःच्या सुरुवातीच्या तारखेसह "Amend". Bill प्रत्येक दिवशी लागू असलेल्या BOQ चा दर घेते. Vendor GST registered असेल तर GST % लागतो.'],
@@ -6485,17 +6497,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['प्रत्येक machinery कोणता Log Book format (A ते H) वापरते: त्यावरून entry मध्ये कोणते fields विचारले जातात आणि छापलेल्या Log Book ची मांडणी ठरते.', 'Format मुळे bill बदलत नाही; bill BOQ प्रमाणे चालते. Format चे नाव बदलता येते; "View format" नमुना print दाखवते.'],
       hi: ['हर machinery कौन सा Log Book format (A से H) इस्तेमाल करती है: उससे entry में कौन से fields पूछे जाते हैं और छपी Log Book का रूप तय होता है।', 'Format से bill नहीं बदलता; bill BOQ के अनुसार चलता है। Format का नाम बदला जा सकता है; "View format" नमूना print दिखाता है।'] },
     inward: { saves: ['saveInward', 'importInward', 'updateInward', 'deleteInward', 'inwardPhoto', 'getInwardPhotos'],
-      en: ['Diesel received: from which pump, how many litres, at what rate, bill number and date – it adds to the stock of the location.', 'The same pump bill cannot be entered twice. Opening stock is entered once, before the other entries of a location. An inward whose diesel is already issued cannot be deleted or reduced below that. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. Bill copy: photos of the bill – with the camera one after another, or several at once from the gallery (up to 10); 📷 in the list opens them.'],
-      mr: ['आलेले diesel: कोणत्या pump कडून, किती लिटर, कोणत्या दराने, bill नंबर आणि तारीख; ते त्या location च्या stock मध्ये जमा होते.', 'तेच pump bill दोनदा भरता येत नाही. Opening stock एकदाच, त्या location च्या इतर entries च्या आधी भरतात. ज्या inward चे diesel आधीच दिले गेले आहे तो delete करता येत नाही किंवा त्यापेक्षा कमी करता येत नाही. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. Bill copy: bill चे photos – camera ने एकामागून एक, किंवा gallery मधून एकदम अनेक (10 पर्यंत); यादीतील 📷 दाबले की ते दिसतात.'],
-      hi: ['आया हुआ diesel: किस pump से, कितने लीटर, किस दर पर, bill नंबर और तारीख; यह उस location के stock में जुड़ता है।', 'वही pump bill दो बार नहीं भरा जा सकता। Opening stock एक ही बार, उस location की बाकी entries से पहले भरते हैं। जिस inward का diesel पहले ही दिया जा चुका है वह delete या उससे कम नहीं हो सकता। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। Bill copy: bill की photos – camera से एक के बाद एक, या gallery से एक साथ कई (10 तक); सूची में 📷 दबाने पर वे दिखती हैं।'] },
+      en: ['Diesel received: from which pump, how many litres, at what rate, bill number and date – it adds to the stock of the location.', 'The same pump bill cannot be entered twice. Opening stock is entered once, before the other entries of a location. An inward whose diesel is already issued cannot be deleted or reduced below that. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. Bill copy: photos of the bill – with the camera one after another, or several at once from the gallery (up to 10); 📷 in the list opens them. The fuel received is the fuel of the place (Portal → Sites → Diesel places); CNG is in kg.'],
+      mr: ['आलेले diesel: कोणत्या pump कडून, किती लिटर, कोणत्या दराने, bill नंबर आणि तारीख; ते त्या location च्या stock मध्ये जमा होते.', 'तेच pump bill दोनदा भरता येत नाही. Opening stock एकदाच, त्या location च्या इतर entries च्या आधी भरतात. ज्या inward चे diesel आधीच दिले गेले आहे तो delete करता येत नाही किंवा त्यापेक्षा कमी करता येत नाही. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. Bill copy: bill चे photos – camera ने एकामागून एक, किंवा gallery मधून एकदम अनेक (10 पर्यंत); यादीतील 📷 दाबले की ते दिसतात. आलेले fuel हे त्या जागेचे fuel असते (Portal → Sites → Diesel places); CNG kg मध्ये.'],
+      hi: ['आया हुआ diesel: किस pump से, कितने लीटर, किस दर पर, bill नंबर और तारीख; यह उस location के stock में जुड़ता है।', 'वही pump bill दो बार नहीं भरा जा सकता। Opening stock एक ही बार, उस location की बाकी entries से पहले भरते हैं। जिस inward का diesel पहले ही दिया जा चुका है वह delete या उससे कम नहीं हो सकता। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। Bill copy: bill की photos – camera से एक के बाद एक, या gallery से एक साथ कई (10 तक); सूची में 📷 दबाने पर वे दिखती हैं। आया हुआ fuel उस जगह का fuel होता है (Portal → Sites → Diesel places); CNG kg में।'] },
     transfer: { saves: ['saveTransfer', 'saveTransferBulk', 'updateTransfer', 'deleteTransfer'],
-      en: ['Diesel moved from one location to another (for example Dispenser to VTR Store).', 'The source must have that much diesel on that date; From and To cannot be the same. Stock goes down at the source and up at the destination. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. In the list, "From (stock point)" shows only the transfers sent FROM that stock point. Only the diesel sources the Super Admin gave you (Portal → Users & Access) can be the From; To can be any.'],
-      mr: ['एका location वरून दुसऱ्या location ला हलवलेले diesel (उदा. Dispenser वरून VTR Store).', 'त्या तारखेला source मध्ये तेवढे diesel असले पाहिजे; From आणि To सारखे असू शकत नाहीत. Source चा stock कमी होतो आणि destination चा वाढतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. यादीत "From (stock point)" निवडले की फक्त त्या stock point मधून पाठवलेले transfers दिसतात. From मध्ये फक्त Super Admin ने तुम्हाला दिलेले diesel source येतात (Portal → Users & Access); To कोणताही असू शकतो.'],
-      hi: ['एक location से दूसरे location को भेजा गया diesel (जैसे Dispenser से VTR Store)।', 'उस तारीख को source में उतना diesel होना चाहिए; From और To एक जैसे नहीं हो सकते। Source का stock घटता है और destination का बढ़ता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। सूची में "From (stock point)" चुनने पर सिर्फ उस stock point से भेजे गए transfers दिखते हैं। From में सिर्फ़ Super Admin के दिए हुए diesel source आते हैं (Portal → Users & Access); To कोई भी हो सकता है।'] },
+      en: ['Diesel moved from one location to another (for example Dispenser to VTR Store).', 'The source must have that much diesel on that date; From and To cannot be the same. Stock goes down at the source and up at the destination. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. In the list, "From (stock point)" shows only the transfers sent FROM that stock point. Only the diesel sources the Super Admin gave you (Portal → Users & Access) can be the From; To can be any. A transfer goes only between places of the same fuel (Diesel to Diesel, Petrol to Petrol, CNG to CNG).'],
+      mr: ['एका location वरून दुसऱ्या location ला हलवलेले diesel (उदा. Dispenser वरून VTR Store).', 'त्या तारखेला source मध्ये तेवढे diesel असले पाहिजे; From आणि To सारखे असू शकत नाहीत. Source चा stock कमी होतो आणि destination चा वाढतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. यादीत "From (stock point)" निवडले की फक्त त्या stock point मधून पाठवलेले transfers दिसतात. From मध्ये फक्त Super Admin ने तुम्हाला दिलेले diesel source येतात (Portal → Users & Access); To कोणताही असू शकतो. Transfer फक्त एकाच fuel च्या जागांमध्ये होतो (Diesel ते Diesel, Petrol ते Petrol, CNG ते CNG).'],
+      hi: ['एक location से दूसरे location को भेजा गया diesel (जैसे Dispenser से VTR Store)।', 'उस तारीख को source में उतना diesel होना चाहिए; From और To एक जैसे नहीं हो सकते। Source का stock घटता है और destination का बढ़ता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। सूची में "From (stock point)" चुनने पर सिर्फ उस stock point से भेजे गए transfers दिखते हैं। From में सिर्फ़ Super Admin के दिए हुए diesel source आते हैं (Portal → Users & Access); To कोई भी हो सकता है। Transfer सिर्फ एक ही fuel की जगहों के बीच होता है (Diesel से Diesel, Petrol से Petrol, CNG से CNG)।'] },
     diesel: { saves: ['saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'updateDieselIssue', 'deleteDieselIssue', 'saveDebitRates', 'dieselPhoto', 'getMeterReading', 'getDieselPhotos', 'superDelList', 'superDelete', 'superRestore'],
-      en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period. Photos (One entry, after picking the machinery): Dashboard, Vehicle + driver, Dispenser litres and Register – each taken with the camera there and then (not from the gallery), with the date, time and place printed on it; the AI reads the reading on the dashboard photo (it is told the last reading of the machinery, to pick the right number) and the litres on the dispenser photo, and puts them in the boxes (blue) – check them, type over them if wrong. The Driver box gets the driver of the last fill of the machinery (a typed name stays). 📷 in the list opens the photos of an entry. On a phone a saved entry shows a green "saved" box for 3 seconds (× closes it at once) and the form is empty for the next machinery; the keyboard opens only when a box is tapped. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. The Super Admin: "Delete entries – Super Admin" at the end of the page – any entry of a date or a period (saved, waiting for verification, returned, rejected): tick and delete; an entry of a submitted bill or a closed month is not deleted; deleted entries are kept there and can be brought back. Only the diesel sources the Super Admin gave you (Portal → Users & Access) are offered; an issue of another source cannot be changed or deleted by you.'],
-      mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते. Photos (One entry मध्ये, machinery निवडल्यावर): Dashboard, गाडी + driver, Dispenser वरचे लिटर आणि Register – प्रत्येक त्याच वेळी camera ने काढायचा (gallery मधून नाही); त्यावर तारीख, वेळ आणि ठिकाण छापले जाते. Dashboard च्या photo वरचे reading (योग्य आकडा निवडायला AI ला गाडीचे मागचे reading सांगितले जाते) आणि dispenser च्या photo वरचे लिटर AI वाचून box मध्ये (निळ्या रंगात) भरते – ते तपासा, चुकले तर बदला. Driver box मध्ये त्या गाडीच्या मागच्या fill चा driver आपोआप येतो (टाइप केलेले नाव तसेच राहते). यादीतले 📷 दाबले की त्या entry चे photo दिसतात. Phone वर entry save झाली की 3 सेकंद हिरवा "saved" box दिसतो (× ने लगेच बंद) आणि पुढच्या गाडीसाठी form रिकामा होतो; keyboard फक्त box वर दाबल्यावर उघडतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. Super Admin: पानाच्या शेवटी "Delete entries – Super Admin" – एका तारखेची किंवा काळाची कोणतीही entry (save झालेली, verification ला थांबलेली, returned, rejected): tick करून delete; submit झालेल्या bill ची किंवा बंद महिन्याची entry delete होत नाही; delete केलेल्या entries तिथेच राहतात आणि परत आणता येतात. फक्त Super Admin ने तुम्हाला दिलेले diesel source येतात (Portal → Users & Access); दुसऱ्या source चे issue तुम्ही बदलू किंवा delete करू शकत नाही.'],
-      hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है। Photos (One entry में, machinery चुनने के बाद): Dashboard, गाड़ी + driver, Dispenser के लीटर और Register – हर एक उसी समय camera से लेना है (gallery से नहीं); उस पर तारीख, समय और जगह छपती है। Dashboard की photo पर की reading (सही अंक चुनने के लिए AI को गाड़ी की पिछली reading बताई जाती है) और dispenser की photo पर के लीटर AI पढ़कर box में (नीले रंग में) भरता है – उन्हें जाँचें, गलत हों तो बदलें। Driver box में उस गाड़ी की पिछली fill का driver अपने-आप आता है (टाइप किया नाम वैसा ही रहता है)। सूची का 📷 दबाने पर उस entry की photos दिखती हैं। Phone पर entry save होते ही 3 सेकंड हरा "saved" box दिखता है (× से तुरंत बंद) और अगली गाड़ी के लिए form खाली हो जाता है; keyboard केवल box पर दबाने से खुलता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। Super Admin: पेज के अंत में "Delete entries – Super Admin" – एक तारीख या अवधि की कोई भी entry (save हुई, verification के लिए रुकी, returned, rejected): tick करके delete; submit हुए bill की या बंद महीने की entry delete नहीं होती; delete की गई entries वहीं रहती हैं और वापस लाई जा सकती हैं। सिर्फ़ Super Admin के दिए हुए diesel source आते हैं (Portal → Users & Access); दूसरे source का issue आप बदल या delete नहीं कर सकते।'] },
+      en: ['Diesel given to a machinery: date, shift, source, litres and the meter reading at the fill.', 'The app checks that the source has the diesel, that the machinery is active on that date, and compares the reading with the last one. The diesel shows in the Log Book of that date and shift, and bills count every issue of the period. Photos (One entry, after picking the machinery): Dashboard, Vehicle + driver, Dispenser litres and Register – each taken with the camera there and then (not from the gallery), with the date, time and place printed on it; the AI reads the reading on the dashboard photo (it is told the last reading of the machinery, to pick the right number) and the litres on the dispenser photo, and puts them in the boxes (blue) – check them, type over them if wrong. The Driver box gets the driver of the last fill of the machinery (a typed name stays). 📷 in the list opens the photos of an entry. On a phone a saved entry shows a green "saved" box for 3 seconds (× closes it at once) and the form is empty for the next machinery; the keyboard opens only when a box is tapped. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. The Super Admin: "Delete entries – Super Admin" at the end of the page – any entry of a date or a period (saved, waiting for verification, returned, rejected): tick and delete; an entry of a submitted bill or a closed month is not deleted; deleted entries are kept there and can be brought back. Only the diesel sources the Super Admin gave you (Portal → Users & Access) are offered; an issue of another source cannot be changed or deleted by you. Fuel: only the places of the fuel of the machinery are offered (Asset Master → Fuel – Diesel, Petrol, CNG); CNG is in kg. An Electric machinery gets no fuel entry.'],
+      mr: ['Machinery ला दिलेले diesel: तारीख, shift, source, लिटर आणि भरतानाचे meter reading.', 'App तपासते की source मध्ये diesel आहे, machinery त्या तारखेला active आहे, आणि reading ची मागच्या reading शी तुलना करते. हे diesel त्या तारखेच्या आणि shift च्या Log Book मध्ये दिसते, आणि bill कालावधीतला प्रत्येक issue मोजते. Photos (One entry मध्ये, machinery निवडल्यावर): Dashboard, गाडी + driver, Dispenser वरचे लिटर आणि Register – प्रत्येक त्याच वेळी camera ने काढायचा (gallery मधून नाही); त्यावर तारीख, वेळ आणि ठिकाण छापले जाते. Dashboard च्या photo वरचे reading (योग्य आकडा निवडायला AI ला गाडीचे मागचे reading सांगितले जाते) आणि dispenser च्या photo वरचे लिटर AI वाचून box मध्ये (निळ्या रंगात) भरते – ते तपासा, चुकले तर बदला. Driver box मध्ये त्या गाडीच्या मागच्या fill चा driver आपोआप येतो (टाइप केलेले नाव तसेच राहते). यादीतले 📷 दाबले की त्या entry चे photo दिसतात. Phone वर entry save झाली की 3 सेकंद हिरवा "saved" box दिसतो (× ने लगेच बंद) आणि पुढच्या गाडीसाठी form रिकामा होतो; keyboard फक्त box वर दाबल्यावर उघडतो. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. Super Admin: पानाच्या शेवटी "Delete entries – Super Admin" – एका तारखेची किंवा काळाची कोणतीही entry (save झालेली, verification ला थांबलेली, returned, rejected): tick करून delete; submit झालेल्या bill ची किंवा बंद महिन्याची entry delete होत नाही; delete केलेल्या entries तिथेच राहतात आणि परत आणता येतात. फक्त Super Admin ने तुम्हाला दिलेले diesel source येतात (Portal → Users & Access); दुसऱ्या source चे issue तुम्ही बदलू किंवा delete करू शकत नाही. Fuel: machinery च्या fuel च्याच जागा दिसतात (Asset Master → Fuel – Diesel, Petrol, CNG); CNG kg मध्ये. Electric machinery ला fuel ची entry नसते.'],
+      hi: ['Machinery को दिया गया diesel: तारीख, shift, source, लीटर और भरते समय की meter reading।', 'App जाँचता है कि source में diesel है, machinery उस तारीख को active है, और reading की पिछली reading से तुलना करता है। यह diesel उस तारीख और shift की Log Book में दिखता है, और bill अवधि का हर issue गिनता है। Photos (One entry में, machinery चुनने के बाद): Dashboard, गाड़ी + driver, Dispenser के लीटर और Register – हर एक उसी समय camera से लेना है (gallery से नहीं); उस पर तारीख, समय और जगह छपती है। Dashboard की photo पर की reading (सही अंक चुनने के लिए AI को गाड़ी की पिछली reading बताई जाती है) और dispenser की photo पर के लीटर AI पढ़कर box में (नीले रंग में) भरता है – उन्हें जाँचें, गलत हों तो बदलें। Driver box में उस गाड़ी की पिछली fill का driver अपने-आप आता है (टाइप किया नाम वैसा ही रहता है)। सूची का 📷 दबाने पर उस entry की photos दिखती हैं। Phone पर entry save होते ही 3 सेकंड हरा "saved" box दिखता है (× से तुरंत बंद) और अगली गाड़ी के लिए form खाली हो जाता है; keyboard केवल box पर दबाने से खुलता है। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। Super Admin: पेज के अंत में "Delete entries – Super Admin" – एक तारीख या अवधि की कोई भी entry (save हुई, verification के लिए रुकी, returned, rejected): tick करके delete; submit हुए bill की या बंद महीने की entry delete नहीं होती; delete की गई entries वहीं रहती हैं और वापस लाई जा सकती हैं। सिर्फ़ Super Admin के दिए हुए diesel source आते हैं (Portal → Users & Access); दूसरे source का issue आप बदल या delete नहीं कर सकते। Fuel: machinery के fuel की ही जगहें दिखती हैं (Asset Master → Fuel – Diesel, Petrol, CNG); CNG kg में। Electric machinery की fuel entry नहीं होती।'] },
     log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'saveLogDebits', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip', 'updateTankerTrip', 'importTankerTrips', 'sendChangeRequest', 'linkLogAttachments'],
       en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic). A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) that worked TWO OR MORE TIMES in one shift (e.g. Breaker 100 → 102, then 110 → 113): add a second row for the same machinery, date and shift and type its own Start and Close – it may start higher than the row above; the hours in between (102 → 110) are not counted, so that day is 5 hours (bill and diesel). For such a machinery, changing or deleting an entry never changes another date: if a Close comes above the Start of the next entry, the app says so and saves nothing. In such a shift a row may also be by Time (e.g. Bucket 09:00 – 11:00 when the meter gave no reading, then Breaker 3714.5 → 3717.5): its hours are added (2 + 3 = 5 hours); the Start and Close of the entry come from its rows by Hrs, and the next day starts at the last Close. Every row of the shift may be by Time too (e.g. Breaker 09:00 – 13:00 and Bucket 14:00 – 18:00): each row keeps its own From – To and work, the hours of the entry are their sum (4 + 4 = 8 hours); two rows at the same time are refused. Any other machinery (a vehicle on KM, a machinery on KM + Hrs, by trips or by the day) may also have a row for each work of a shift: add a second row for the same machinery, date and shift – on KM / Hrs it starts where the row above closed (the KM between belong to a row); by trips each row has its trips (they are added); by the day the shift stays one day. The same work may come again in a row of its own; the same row twice (the same readings, or the same trips, challan and work) is a duplicate and is refused. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. A WATER TANKER (Log Book Format I) is entered with "Water tanker – trip by trip": one line per trip (challan no, dispatch and unload time, chainage, use for), Day or Night, trips can be added any time of the day; the same challan of the agency or a time on another trip is refused. An entry approved in verification (marked ✔ Approved) or in a submitted bill is locked: only the Super Admin changes or deletes it, with a reason; anybody else\'s change is sent to him for approval. Attachments (📎 of a row, the edit window, "Attach to selected" in Edit Log Book): photos or PDF of the entry – paste with Ctrl + V, drop, upload, the camera or "Scan with Mobile" (a QR code: the phone of the same person sends the photos); ✎ corrects a photo before it is sent; at most the site\'s number; each file kept once and never changed – an approved or billed entry\'s files are changed only by the Super Admin.'],
       mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप). Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ने (JCB, excavator, breaker) एकाच shift मध्ये दोन किंवा जास्त वेळा काम केले असेल (उदा. Breaker 100 → 102, मग 110 → 113): त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा आणि तिचे स्वतःचे Start आणि Close टाका – ते वरच्या ओळीच्या Close पेक्षा जास्त असू शकते; मधले तास (102 → 110) धरले जात नाहीत, म्हणून तो दिवस 5 तासांचा (bill आणि diesel). अशा machinery ची entry बदलली किंवा delete केली तरी दुसरी तारीख कधीच बदलत नाही: Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर app तसे सांगते आणि काहीही save करत नाही. अशा shift मध्ये एखादी ओळ Time वर पण असू शकते (उदा. meter ने reading दिले नाही तेव्हा Bucket 09:00 – 11:00, मग Breaker 3714.5 → 3717.5): त्या ओळीचे तास जोडले जातात (2 + 3 = 5 तास); entry चे Start आणि Close तिच्या Hrs ओळींवरून येतात, आणि पुढचा दिवस शेवटच्या Close पासून सुरू होतो. Shift च्या सगळ्या ओळी पण Time वर असू शकतात (उदा. Breaker 09:00 – 13:00 आणि Bucket 14:00 – 18:00): प्रत्येक ओळ आपली From – To आणि काम ठेवते, entry चे तास त्यांची बेरीज (4 + 4 = 8 तास); एकाच वेळेतल्या दोन ओळी save होत नाहीत. इतर कोणत्याही machinery ला (KM वरची गाडी, KM + Hrs वरची machinery, trips वर किंवा दिवसावर) पण shift च्या प्रत्येक कामाची वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा – KM / Hrs वर ती वरच्या ओळीच्या Close पासून सुरू होते (मधले KM एखाद्या ओळीतच येतात); trips वर प्रत्येक ओळीचे trips (ते जोडले जातात); दिवसावर shift एकच दिवस राहते. तेच काम वेगळ्या ओळीत पुन्हा येऊ शकते; अगदी तीच ओळ दोनदा (तीच readings, किंवा तेच trips, challan आणि काम) म्हणजे duplicate – save होत नाही. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. WATER TANKER (Log Book Format I) ची entry "Water tanker – trip by trip" मधून: प्रत्येक trip ची एक ओळ (challan no, dispatch आणि unload वेळ, chainage, use for), Day किंवा Night; दिवसभरात कधीही trips जोडता येतात; agency चा तोच challan किंवा दुसऱ्या trip च्या वेळेवरची वेळ save होत नाही. Verification मध्ये approve झालेली (✔ Approved) किंवा submit झालेल्या bill मधली entry locked असते: फक्त Super Admin ती कारणासह बदलतो किंवा delete करतो; इतर कोणी केलेला बदल त्याच्याकडे approval साठी जातो. Attachments (row चा 📎, edit window, Edit Log Book मध्ये "Attach to selected"): entry चे फोटो किंवा PDF – Ctrl + V ने paste, ओढून आणा, upload, camera किंवा "Scan with Mobile" (QR code: त्याच व्यक्तीचा phone फोटो पाठवतो); पाठवण्यापूर्वी ✎ ने फोटो दुरुस्त करता येतो; site ने ठरवलेल्या संख्येपर्यंत; प्रत्येक file एकदाच ठेवली जाते आणि कधी बदलत नाही – approve किंवा bill झालेल्या entry च्या files फक्त Super Admin बदलतो.'],
@@ -6967,8 +6979,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       owns: k => '<div class="field rf-own" style="grid-column:1 / -1"><span class="flabel">Ownership</span><div class="chkrow" id="' + k + '_owns">' +
         ['Own', 'Rental', 'Hired', 'Other', 'Debit'].map(o => '<label><input type="checkbox" value="' + o + '" checked> ' + o + '</label>').join('') + '</div></div>',
       pump: k => '<div class="field"><label for="' + k + '_pump">Pump</label><input id="' + k + '_pump" list="dl_pumps" placeholder="Blank = all pumps" autocomplete="off"></div>',
-      location: k => '<div class="field"><label for="' + k + '_loc">Location</label><select id="' + k + '_loc" class="loc-select" data-all="All locations"></select></div>',
-      location1: k => '<div class="field"><label for="' + k + '_loc">Location</label><select id="' + k + '_loc" class="loc-select" data-default="first"></select></div>',
+      location: k => '<div class="field"><label for="' + k + '_loc">Location</label><select id="' + k + '_loc" class="loc-select" data-all="All locations" data-fuel-by="' + k + '_fuel"></select></div>',
+      location1: k => '<div class="field"><label for="' + k + '_loc">Location</label><select id="' + k + '_loc" class="loc-select" data-default="first" data-fuel-by="' + k + '_fuel"></select></div>',
+      // (update-163) a site with more than one fuel: the report of one fuel (hidden – and not sent – on a site with one)
+      fuel: k => '<div class="field fuel-f" hidden><label for="' + k + '_fuel">Fuel</label><select id="' + k + '_fuel" class="fuel-select"></select></div>',
       machine: k => '<div class="field wide"><label for="' + k + '_no">Machinery Number / Name <span class="req">*</span></label><input id="' + k + '_no" list="dl_machines" placeholder="Type or pick" autocomplete="off"></div>',
       months: k => '<div class="field"><label for="' + k + '_ma">First month</label><input id="' + k + '_ma" type="month"></div><div class="field"><label for="' + k + '_mb">Second month</label><input id="' + k + '_mb" type="month"></div>',
     };
@@ -6979,7 +6993,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         '<section id="sec-' + tab + '" role="tabpanel" aria-labelledby="tab-' + tab + '" hidden><div class="panel">' +
         '<div class="panel-head"><h2>' + esc(r.label) + '</h2><span class="chart-note">Read only – ' + (r.portrait ? 'A4 portrait' : 'A4 landscape') + '</span></div>' +
         '<p class="empty-note" style="margin:-4px 0 10px">' + esc(r.note) + '</p>' +
-        '<div class="rfilters rp-filters">' + r.filters.map(f => F[f](k)).join('') + '</div>' +
+        '<div class="rfilters rp-filters">' + (r.key === 'ldebit' ? r.filters : ['fuel'].concat(r.filters)).map(f => F[f](k)).join('') + '</div>' +
         '<div class="actions"><button class="btn primary" id="' + k + '_go">Generate report</button><button class="btn ghost" id="' + k + '_clear" title="Empty the form and the report">Clear</button>' +
         '<button class="btn ghost" id="' + k + '_print" disabled>Print (' + (r.portrait ? 'A4 portrait' : 'A4 landscape') + ')</button><button class="btn ghost" id="' + k + '_xlsx" disabled>Export to Excel</button></div></div>' +
         '<div class="panel" id="' + k + '_out" hidden><div class="rhead"><div><h2 id="' + k + '_title"></h2><p class="chart-note" id="' + k + '_meta"></p></div><div class="rkpis" id="' + k + '_kpis"></div></div>' +
@@ -7018,14 +7032,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (f.ownerships && !f.ownerships.length) throw new Error('Tick at least one Ownership.');
     if (r.filters.indexOf('machine') > -1) { const m = findMachine(f.no); if (!m) throw new Error('Pick a machinery from Master.'); f.no = m.id; }
     if (r.filters.indexOf('machine0') > -1) { const t = v('_mno').trim(); if (t) { const m = findMachine(t); if (!m) throw new Error('"' + t + '" is not in the Master.'); f.no = m.id; } else f.no = ''; }      // (update-149) blank = all
+    if ($(k + '_fuel') && multiFuel()) f.fuel = v('_fuel');      // (update-163) the report of one fuel
     return f;
+  }
+  // (update-163) a report of Petrol / CNG: its words and units are of that fuel (the server sent only that fuel's entries)
+  function fuelReport(d, v, fu) {
+    if (!fu || fu === 'Diesel') return [d, v];
+    return [Object.assign({}, d, { title: fuelText(d.title, fu) }),
+      Object.assign({}, v, { html: fuelHtml(v.html, fu), meta: fuelText(v.meta, fu), kpis: (v.kpis || []).map(x => [fuelText(x[0], fu), fuelText(x[1], fu)]) })];
   }
   async function rpGenerate(r) {
     const k = 'rp' + r.key;
     const f = rpFilters(r);
     if (!S.rp[r.key]) { $(k + '_out').hidden = false; $(k + '_title').textContent = 'Preparing report…'; $(k + '_body').innerHTML = '<table class="rtable"><tbody>' + Array.from({ length: 6 }, () => '<tr class="skel">' + '<td><i></i></td>'.repeat(8) + '</tr>').join('') + '</tbody></table>'; }
-    const d = await call(r.fn, f);
-    const v = r.render(d);
+    const d0 = await call(r.fn, f);
+    const [d, v] = fuelReport(d0, r.render(d0), f.fuel);
     S.rp[r.key] = { d: d, v: v };
     $(k + '_out').hidden = false;
     $(k + '_title').textContent = d.title;
@@ -7269,7 +7290,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const by = st.byLoc || {};
     document.querySelectorAll('.stock_multi').forEach(el => {
       el.innerHTML = (S.locations || Object.keys(by)).map(l => '<span class="locpill' + ((by[l] || 0) <= 0 ? ' low' : '') + '" title="Current stock">' +
-        esc(l) + ' <b>' + fmt(by[l] || 0) + '</b> Ltr</span>').join('');
+        esc(l) + ' <b>' + fmt(by[l] || 0) + '</b> ' + placeUnit(l) + '</span>').join('');      // (update-163) kg for CNG
     });
     dieselAfterLine(); dieselBulkSum(); inwardAfterLine();
     stockSoon();
@@ -7401,15 +7422,107 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * transfer offer only them (one = chosen by itself); nothing chosen for him / the Admin = every source, as before. The server
    * refuses another source whatever the page sends. Lists, filters and reports: every source, as before. */
   function mySources(page) { const d = S.user && S.user.dsrc, l = d && Array.isArray(d[page]) ? d[page] : null, all = S.locations || ['Dispenser', 'VTR Store']; return l ? all.filter(x => l.indexOf(x) > -1) : all; }
+  /* (update-163, asked 26-10-2026) FUEL: every machinery has one fuel (Asset Master → Fuel: Diesel / Petrol / CNG / Electric) and
+   * every diesel place holds one (Diesel / Petrol / CNG – the Super Admin, Portal → Sites → Diesel places). A fill is given only
+   * from a place of the machinery's fuel, a transfer only between places of one fuel (the server refuses anything else); an
+   * Electric machinery gets no fuel. A site whose places are all Diesel (VTR, 18B) looks exactly as before. A site with more than
+   * one fuel picks the fuel in its reports and the dashboard – the fuels are never added together. CNG in kg, the others in Ltr. */
+  const FUEL_LIST = ['Diesel', 'Petrol', 'CNG', 'Electric'];
+  const placeFuel = n => (S.placeFuels && S.placeFuels[n]) || 'Diesel';
+  const machFuel = m => (m && FUEL_LIST.indexOf(m.fuel) > -1 ? m.fuel : 'Diesel');
+  const fuelUnit = f => f === 'CNG' ? 'kg' : 'Ltr';
+  const placeUnit = n => fuelUnit(placeFuel(n));
+  function siteFuels() { const o = []; (S.locations || []).forEach(n => { const f = placeFuel(n); if (o.indexOf(f) < 0) o.push(f); }); return o; }
+  const multiFuel = () => siteFuels().length > 1;
+  // a fill of [m] from [place]: '' = fine; otherwise what is wrong (the server says the same)
+  function fuelProblem(m, place) {
+    if (!m || !multiFuelAny()) return '';
+    const mf = machFuel(m), pf = placeFuel(place);
+    if (mf === 'Electric') return m.id + ' runs on Electric – no fuel is issued to it';
+    return mf !== pf ? place + ' holds ' + pf + ' and ' + m.id + ' runs on ' + mf + ' – pick a ' + mf + ' place' : '';
+  }
+  // a site with one fuel but a Petrol / CNG / Electric machinery is checked too
+  const multiFuelAny = () => multiFuel() || (S.master || []).some(m => machFuel(m) !== 'Diesel');
+  // the text of a report / the dashboard of one fuel: "Diesel" → its name; for CNG also "Ltr" → "kg"
+  function fuelText(s, f) {
+    if (!f || f === 'Diesel' || s === null || s === undefined) return s;
+    s = String(s).replace(/\bDiesel\b/g, f).replace(/\bdiesel\b/g, f === 'CNG' ? 'CNG' : f.toLowerCase());
+    return f === 'CNG' ? s.replace(/\b(Ltr|ltr|Litres?|litres?|Liters?|liters?)\b/g, 'kg') : s;
+  }
+  function fuelNodes(root, f) {
+    if (!root || !f || f === 'Diesel') return root;
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), list = [];
+    while (w.nextNode()) list.push(w.currentNode);
+    list.forEach(t => { const v = fuelText(t.nodeValue, f); if (v !== t.nodeValue) t.nodeValue = v; });
+    if (root.querySelectorAll) root.querySelectorAll('[title]').forEach(el => { el.title = fuelText(el.title, f); });
+    return root;
+  }
+  // a quantity of [[place, qty]]: one fuel = "120 Ltr" as before; more than one = "Diesel 120 Ltr · CNG 8 kg" (never added together)
+  function fuelQty(pairs) {
+    const by = {}; pairs.forEach(p => { const f = placeFuel(p[0]); by[f] = r2((by[f] || 0) + (Number(p[1]) || 0)); });
+    const fs = Object.keys(by);
+    if (fs.length <= 1 && !multiFuel()) return fmt(by[fs[0]] || 0) + ' Ltr';
+    return fs.length ? fs.map(f => (fs.length > 1 || multiFuel() ? f + ' ' : '') + fmt(by[f]) + ' ' + fuelUnit(f)).join(' · ') : '0 Ltr';
+  }
+  // a CNG row of a list (its column says Ltr): " kg"
+  const kgOf = place => multiFuel() && placeFuel(place) === 'CNG' ? ' kg' : '';
+  // a list's total from the server: byFuel on a site with more than one fuel
+  const fuelTotal = (qty, byFuel) => byFuel && Object.keys(byFuel).length ? Object.keys(byFuel).map(f => f + ' ' + fmt(byFuel[f]) + ' ' + fuelUnit(f)).join(' · ') : fmt(qty) + ' Ltr';
+  // an Excel sheet's rows of one fuel
+  const fuelAoa = (aoa, f) => !f || f === 'Diesel' ? aoa : aoa.map(r => r.map(c => typeof c === 'string' ? fuelText(c, f) : c));
+  function fuelHtml(html, f) { if (!f || f === 'Diesel') return html; const t = document.createElement('template'); t.innerHTML = html; fuelNodes(t.content, f); return t.innerHTML; }
+  // a label that follows a fuel: its first text is kept, so going back to Diesel shows it as it was
+  function fuelLabel(el, f) { if (!el) return; if (el.dataset.t0 === undefined) el.dataset.t0 = el.innerHTML; el.innerHTML = fuelHtml(el.dataset.t0, f); }
+  // the place a box is limited to: data-fuel-by = a fuel select, a place select (the To of a transfer) or a machinery box
+  function locFuelOf(sel) {
+    const by = sel.dataset.fuelBy, el = by && $(by);
+    if (!el || !multiFuel()) return '';
+    if (el.classList.contains('fuel-select')) return el.value;
+    if (el.tagName === 'SELECT') return el.value ? placeFuel(el.value) : '';
+    const m = findMachine(el.value), f = m ? machFuel(m) : '';
+    return f === 'Electric' ? '' : f;
+  }
+  function fillLoc(sel, fire) {
+    const keep = sel.value, all = sel.dataset.all, base = sel.dataset.own ? mySources(sel.dataset.own) : S.locations, fu = locFuelOf(sel);
+    let locs = fu ? base.filter(l => placeFuel(l) === fu) : base;
+    if (!locs.length) locs = base;      // none of that fuel: every place (the server then says what is wrong)
+    sel.innerHTML = (all ? '<option value="">' + esc(all) + '</option>' : '') + locs.map(l => '<option>' + esc(l) + '</option>').join('');
+    // 'second' (the To of a transfer): the first place that is not the From (update-162: his From can be any of his own sources)
+    const def = sel.dataset.default === 'second' ? (locs.find(l => !$('t_from') || l !== $('t_from').value) || locs[1]) : sel.dataset.default === 'first' ? locs[0] : '';
+    sel.value = keep && locs.indexOf(keep) > -1 ? keep : (def || (all ? '' : locs[0] || ''));
+    if (fire && sel.value !== keep) sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  // the boxes whose places follow [id] (a fuel select, the From of a transfer, a machinery box) – after a change of it
+  function fuelFollow(id, quiet) { document.querySelectorAll('select.loc-select[data-fuel-by="' + id + '"]').forEach(sel => fillLoc(sel, !quiet)); }
+  document.addEventListener('change', e => { const t = e.target; if (t && t.id && t.tagName === 'SELECT' && (t.classList.contains('fuel-select') || t.classList.contains('loc-select'))) fuelFollow(t.id); });
+  // the places a row of a grid offers for machinery [m] (only those of its fuel; none of that fuel: all, the check says why)
+  function fuelPlaces(list, m) { const f = m && multiFuel() ? machFuel(m) : ''; const l = f && f !== 'Electric' ? list.filter(x => placeFuel(x) === f) : list; return l.length ? l : list; }
+  // the words of the entry forms follow the fuel of the place picked (Petrol Qty (Ltr), CNG Qty (kg)); all Diesel: as before
+  function fuelForms() {
+    const at = id => placeFuel(($(id) || {}).value), lab = id => document.querySelector('label[for="' + id + '"]');
+    fuelLabel(lab('d_qty'), at('d_src')); fuelLabel(lab('d_balance'), at('d_src'));
+    const bdT = $('bd_rows') && $('bd_rows').closest('table'); if (bdT) bdT.querySelectorAll('thead th').forEach(th => fuelLabel(th, at('bd_src')));
+    const bmM = $('bm_no') ? findMachine(val('bm_no')) : null, bmT = $('bm_rows') && $('bm_rows').closest('table');
+    if (bmT) bmT.querySelectorAll('thead th').forEach(th => fuelLabel(th, bmM ? machFuel(bmM) : 'Diesel'));
+    fuelLabel(lab('t_qty'), at('t_from')); fuelLabel(lab('i_qty'), at('i_loc'));
+    if ($('i_rate_lbl')) $('i_rate_lbl').innerHTML = $('i_rate_lbl').innerHTML.replace(/₹\/(Ltr|kg)/, '₹/' + placeUnit($('i_loc').value));
+    const m = findMachine(val('d_no')), fw = $('d_f_fuel_w');
+    if (fw) { fw.hidden = !m || !multiFuelAny(); if (m) $('d_f_fuel').textContent = machFuel(m); }
+  }
   function setLocations(list) {
     S.locations = list && list.length ? list : ['Dispenser', 'VTR Store'];
-    document.querySelectorAll('select.loc-select').forEach(sel => {
-      const keep = sel.value, all = sel.dataset.all, locs = sel.dataset.own ? mySources(sel.dataset.own) : S.locations;
-      sel.innerHTML = (all ? '<option value="">' + esc(all) + '</option>' : '') + locs.map(l => '<option>' + esc(l) + '</option>').join('');
-      // 'second' (the To of a transfer): the first place that is not the From (update-162: his From can be any of his own sources)
-      const def = sel.dataset.default === 'second' ? (locs.find(l => !$('t_from') || l !== $('t_from').value) || locs[1]) : sel.dataset.default === 'first' ? locs[0] : '';
-      sel.value = keep && locs.indexOf(keep) > -1 ? keep : (def || (all ? '' : locs[0] || ''));
+    // (update-163) the fuel boxes of the reports and the dashboard: only on a site with more than one fuel
+    const fuels = siteFuels(), many = fuels.length > 1;
+    document.querySelectorAll('select.fuel-select').forEach(sel => {
+      const keep = sel.value;
+      sel.innerHTML = fuels.map(f => '<option>' + esc(f) + '</option>').join('');
+      sel.value = fuels.indexOf(keep) > -1 ? keep : fuels[0];
+      const w = sel.closest('.fuel-f'); if (w) w.hidden = !many;
     });
+    const dep = sel => { const el = sel.dataset.fuelBy && $(sel.dataset.fuelBy); return !!(el && el.tagName === 'SELECT' && el.classList.contains('loc-select')); };
+    const boxes = [...document.querySelectorAll('select.loc-select')];
+    boxes.filter(b => !dep(b)).concat(boxes.filter(dep)).forEach(b => fillLoc(b));      // (the To of a transfer after its From)
+    if (typeof fuelForms === 'function') fuelForms();
     if (typeof meterBoxes === 'function') meterBoxes(); // meter box only for the Dispenser
     // (update-117) a site with its own diesel places (Portal → Sites → Diesel places): no text names the first site's two places
     const sn = document.querySelector('#sec-rp-stock .empty-note');
@@ -7443,13 +7556,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     let base = cur;
     if (S.editInwardId) { const r = (S.inwardRows || []).find(x => x.id === S.editInwardId); if (r && r.location === loc) base -= Number(r.qty) || 0; }
     const el = $('i_after');
-    if (q === '') { el.className = 'stockline'; el.innerHTML = esc(loc) + ' stock now: <b>' + fmt(cur) + ' Ltr</b>'; return; }
+    const U = placeUnit(loc);      // (update-163) kg for CNG
+    if (q === '') { el.className = 'stockline'; el.innerHTML = esc(loc) + ' stock now: <b>' + fmt(cur) + ' ' + U + '</b>'; return; }
     const after = r2(base + q);
     el.className = 'stockline' + (after < 0 ? ' bad' : '');
-    el.innerHTML = after < 0 ? 'This change leaves ' + esc(loc) + ' at <b>' + fmt(after) + ' Ltr</b> – more diesel is already issued.' : esc(loc) + ' stock after this inward: <b>' + fmt(after) + ' Ltr</b>';
+    el.innerHTML = after < 0 ? 'This change leaves ' + esc(loc) + ' at <b>' + fmt(after) + ' ' + U + '</b> – more ' + fuelText('diesel', placeFuel(loc)) + ' is already issued.' : esc(loc) + ' stock after this inward: <b>' + fmt(after) + ' ' + U + '</b>';
   }
   ['i_qty', 'i_rate'].forEach(id => $(id).addEventListener('input', inwardAmount));
   $('i_loc').addEventListener('change', inwardAfterLine);
+  ['d_src', 't_from', 'i_loc'].forEach(id => $(id).addEventListener('change', () => fuelForms()));      // (update-163) the words follow the fuel of the place
   // Opening stock: diesel already in the Dispenser / VTR Store on the start date (one per location)
   const inwType = () => (document.querySelector('input[name=i_type]:checked') || {}).value || 'inward';
   function setInwType(t) {
@@ -7458,7 +7573,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     document.querySelectorAll('#sec-inward .inw-only').forEach(el => { el.hidden = special; });
     $('sec-inward').dataset.type = special ? 'opening' : 'inward'; // import buttons are for pump inward only
     $('i_loc_lbl').innerHTML = (special ? 'Location' : 'Received at') + ' <span class="req">*</span>';
-    $('i_rate_lbl').innerHTML = special ? 'Rate (₹/Ltr) <small>optional</small>' : 'Rate (₹/Ltr) <span class="req">*</span>';
+    $('i_rate_lbl').innerHTML = (special ? 'Rate (₹/Ltr) <small>optional</small>' : 'Rate (₹/Ltr) <span class="req">*</span>').replace('Ltr', placeUnit($('i_loc').value));      // (update-163) ₹/kg for CNG
     $('i_date_lbl').innerHTML = (open ? 'Opening on date' : 'Date') + ' <span class="req">*</span>';
     if (!S.editInwardId) $('i_save').textContent = open ? 'Save opening stock' : extra ? 'Save extra diesel' : 'Save inward';
   }
@@ -7527,14 +7642,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const res = await call('getInwards', f);
       if (seq !== inwardSeq) return;
       S.inwardRows = res.rows;
-      $('i_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Qty: <b>' + fmt(res.qty) + ' Ltr</b> &nbsp; Amount: <b>₹' + money(res.amount) + '</b>' +
+      $('i_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Qty: <b>' + fuelTotal(res.qty, res.byFuel) + '</b> &nbsp; Amount: <b>₹' + money(res.amount) + '</b>' +
         (res.count > res.rows.length ? ' &nbsp; (showing latest ' + res.rows.length + ')' : '');
       $('i_rows').innerHTML = res.rows.length ? res.rows.map(r =>
         '<tr' + (r.open ? ' class="open-row"' : '') + '><td>' + esc(r.id) + (r.ph ? ' <button type="button" class="link d-phbtn" data-iph="' + esc(r.id) + '" title="Bill copies of this inward">📷 ' + r.ph + '</button>' : '') + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.location) + '</td><td>' + (r.open ? '<span class="open-chip">Opening stock</span>' : r.extra ? '<span class="open-chip extra">Extra diesel</span>' : esc(r.pump)) + '</td><td class="n">' + fmt(r.qty) +
         '</td><td class="n">' + money(r.rate) + '</td><td class="n">' + money(r.amount) + '</td><td>' + esc(r.billNo) + '</td><td>' + esc(showDate(r.billDate)) +
         '</td><td class="n"><b>' + fmt(r.balance) + '</b></td>' + byCell(r) + '<td>' + rowActions('Diesel Inward', 'data-iedit', 'data-idel', r.id) + '</td></tr>').join('')
         : '<tr><td colspan="12" class="none">No inward entries match this filter.</td></tr>';
-      $('i_foot').innerHTML = res.count ? '<tr><td colspan="4">Total – ' + res.count + ' entries</td><td class="n">' + fmt(res.qty) + ' Ltr</td><td></td><td class="n">₹' + money(res.amount) + '</td><td colspan="5"></td></tr>' : '';      // 12 columns, as the heading (was 11: the line stopped one cell short)
+      $('i_foot').innerHTML = res.count ? '<tr><td colspan="4">Total – ' + res.count + ' entries</td><td class="n">' + fuelTotal(res.qty, res.byFuel) + '</td><td></td><td class="n">₹' + money(res.amount) + '</td><td colspan="5"></td></tr>' : '';      // 12 columns, as the heading (was 11: the line stopped one cell short)
     } catch (e) { toast(errMsg(e), true); }
   }
   $('i_save').addEventListener('click', e => busy(e.target, 'Saving…', saveInwardEntry));
@@ -7658,13 +7773,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (from === to) { $('t_live').innerHTML = '<div class="stockline bad">From and To cannot be the same.</div>'; return; }
     const b = S.tbal;
     if (!b) { $('t_live').innerHTML = '<div class="stockline">Loading stock…</div>'; return; }
-    const fAfter = r2(b.from.balance - q), tAfter = r2(b.to.balance + q);
+    if (placeFuel(from) !== placeFuel(to)) { $('t_live').innerHTML = '<div class="stockline bad">' + esc(from) + ' holds ' + esc(placeFuel(from)) + ', ' + esc(to) + ' holds ' + esc(placeFuel(to)) + ' – a transfer goes only between places of the same fuel.</div>'; return; }      // (update-163)
+    const fAfter = r2(b.from.balance - q), tAfter = r2(b.to.balance + q), U = placeUnit(from);
     const short = q > b.from.available;
     $('t_live').innerHTML =
       '<div class="side-box' + (short ? ' bad' : '') + '"><span>' + esc(from) + ' – opening ' + esc(showDate($('t_date').value)) + ' ' + esc($('t_shift').value) + '</span>' +
-        '<b>' + fmt(b.from.balance) + '</b><em>→ after ' + fmt(fAfter) + ' Ltr</em>' + (short ? '<span>Can transfer up to ' + fmt(b.from.available) + ' Ltr</span>' : '') + '</div>' +
+        '<b>' + fmt(b.from.balance) + '</b><em>→ after ' + fmt(fAfter) + ' ' + U + '</em>' + (short ? '<span>Can transfer up to ' + fmt(b.from.available) + ' ' + U + '</span>' : '') + '</div>' +
       '<div class="arrow" aria-hidden="true">→</div>' +
-      '<div class="side-box"><span>' + esc(to) + ' – opening</span><b>' + fmt(b.to.balance) + '</b><em>→ after ' + fmt(tAfter) + ' Ltr</em></div>';
+      '<div class="side-box"><span>' + esc(to) + ' – opening</span><b>' + fmt(b.to.balance) + '</b><em>→ after ' + fmt(tAfter) + ' ' + U + '</em></div>';
   }
   ['t_date', 't_shift', 't_from', 't_to'].forEach(id => $(id).addEventListener('change', () => { S.tbal = null; transferLive(); refreshTransferBal(); }));
   $('t_qty').addEventListener('input', transferLive);
@@ -7678,7 +7794,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     trMode(false);
     const r = (S.transferRows || []).find(x => x.id === id); if (!r) return;
     S.editTransferId = r.id; S.editTransferVer = r.ver || '';      // (update-156) the version it had when opened: sent with the change
-    $('t_date').value = r.date; $('t_shift').value = r.shift; $('t_from').value = r.from; $('t_to').value = r.to;
+    $('t_date').value = r.date; $('t_shift').value = r.shift; $('t_from').value = r.from; fuelFollow('t_from', true); $('t_to').value = r.to; fuelForms();      // (update-163) the To of its fuel first
     $('t_qty').value = r.qty; $('t_remark').value = r.remark;
     $('t_title').textContent = 'Edit ' + r.id; $('t_save').textContent = 'Update transfer'; $('t_cancel').hidden = false;
     S.tbal = null; transferLive(); refreshTransferBal();
@@ -7719,13 +7835,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const res = await call('getTransfers', f);
       if (seq !== trSeq) return;
       S.transferRows = res.rows;
-      $('t_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Qty: <b>' + fmt(res.qty) + ' Ltr</b>' + (res.count > res.rows.length ? ' &nbsp; (showing latest ' + res.rows.length + ')' : '');
+      $('t_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Qty: <b>' + fuelTotal(res.qty, res.byFuel) + '</b>' + (res.count > res.rows.length ? ' &nbsp; (showing latest ' + res.rows.length + ')' : '');
       $('t_rows').innerHTML = res.rows.length ? res.rows.map(r =>
         '<tr><td>' + esc(r.id) + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + '</td><td>' + esc(r.from) + '</td><td>' + esc(r.to) +
         '</td><td class="n">' + fmt(r.qty) + '</td><td class="n"><b>' + fmt(r.fromBal) + '</b></td><td class="n"><b>' + fmt(r.toBal) + '</b></td><td>' + esc(r.remark) +
         '</td>' + byCell(r) + '<td>' + rowActions('Diesel Transfer', 'data-tedit', 'data-tdel', r.id) + '</td></tr>').join('')
         : '<tr><td colspan="10" class="none">No transfers match this filter.</td></tr>';
-      $('t_foot').innerHTML = res.count ? '<tr><td colspan="5">Total – ' + res.count + ' transfers</td><td class="n">' + fmt(res.qty) + ' Ltr</td><td colspan="4"></td></tr>' : '';
+      $('t_foot').innerHTML = res.count ? '<tr><td colspan="5">Total – ' + res.count + ' transfers</td><td class="n">' + fuelTotal(res.qty, res.byFuel) + '</td><td colspan="4"></td></tr>' : '';
     } catch (e) { toast(errMsg(e), true); }
   }
   $('t_save').addEventListener('click', e => busy(e.target, 'Saving…', saveTransferEntry));
@@ -8312,7 +8428,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
      * diesel / Log Book entries at most once in 15 seconds (they only add a new driver name or a last reading) –
      * and without asking for the vehicle-papers badge again, which those entries cannot change. */
     const lookups = async quiet => { try { const L = await rawCall('getLookups'); S.quietMaster = !!quiet; setMaster(L.master); setTimeout(() => { S.quietMaster = false; }, 50); setDrivers(L.drivers); setPumps(L.pumps); setParties(L.vendors);
-      if (L.locations && L.locations.length && L.locations.join('|') !== (S.locations || []).join('|')) setLocations(L.locations); } catch (e) {} };      // (update-117) the diesel places changed in the Portal
+      const pf = JSON.stringify(L.placeFuels || {}), pfChanged = !!L.placeFuels && pf !== JSON.stringify(S.placeFuels || {});      // (update-163) a place's fuel set in the Portal
+      if (pfChanged) S.placeFuels = L.placeFuels;
+      if (L.locations && L.locations.length && (pfChanged || L.locations.join('|') !== (S.locations || []).join('|'))) setLocations(L.locations); } catch (e) {} };      // (update-117) the diesel places changed in the Portal
     if (has('flow')) crLoad(true);      // (update-114) a verification request sent or decided: the Approvals list and its number
     if (has('master')) await lookups(false);
     else if (has('stock') || has('log')) { const wait = Math.max(0, 15000 - (Date.now() - (S.lookAt || 0))); clearTimeout(S.lookT); S.lookT = setTimeout(() => { S.lookAt = Date.now(); lookups(true); }, wait); }
@@ -8913,9 +9031,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     ' − Issued ' + fmt(d.totals.issued) + ' = Closing ' + fmt(d.totals.closing);
   async function rdGenerate() {
     const f = { from: $('rd_from').value, to: $('rd_to').value, location: $('rd_loc').value };
+    if (multiFuel()) f.fuel = $('rd_fuel').value;      // (update-163) the report of one fuel
     if (!f.from || !f.to) throw new Error('Select From and To dates.');
     if (!rdData) { $('rd_out').hidden = false; $('rd_title').textContent = 'Preparing report…'; $('rd_table').innerHTML = '<tbody>' + Array.from({ length: 8 }, () => '<tr class="skel">' + Array.from({ length: 9 }, () => '<td><i></i></td>').join('') + '</tr>').join('') + '</tbody>'; }
     const d = await call('getDailyInwardIssueReport', f);
+    d.fuelShown = f.fuel || '';
     rdData = d;
     $('rd_out').hidden = false;
     $('rd_title').textContent = 'Daily Diesel Inward & Issue Summary';
@@ -8924,6 +9044,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       d.groups.map(g => '<div><span>' + esc(g) + '</span><b>' + fmt(d.totals.issue[g] || 0) + '</b></div>').join('') +
       '<div><span>Total issued</span><b>' + fmt(d.totals.issued) + '</b></div><div><span>Closing</span><b>' + fmt(d.totals.closing) + '</b></div>';
     $('rd_table').innerHTML = rdTableHtml(d);
+    ['rd_title', 'rd_meta', 'rd_kpis', 'rd_table'].forEach(id => fuelNodes($(id), d.fuelShown));
     $('rd_print').disabled = false; $('rd_xlsx').disabled = false;
   }
   $('rd_go').addEventListener('click', e => busy(e.target, 'Generating…', rdGenerate));
@@ -8935,9 +9056,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('rd_print').addEventListener('click', async () => {
     const d = rdData; if (!d) return;
     const headName = await askPrintName('Print – Daily Diesel Inward & Issue Summary'); if (!headName) return;
-    printDoc('Daily Diesel Inward & Issue Summary',
-      printHead(headName, 'Daily Diesel Inward & Issue Summary', 'Period: <b>' + esc(showDate(d.from)) + ' to ' + esc(showDate(d.to)) + '</b><br>' + (d.byLocation ? esc(d.location) + '<br>' : '') + 'Printed: ' + esc(d.generated)) +
-      '<table>' + rdTableHtml(d) + '</table>' + signBlock(), 'dreport', true, headName);
+    const fu = d.fuelShown;
+    printDoc(fuelText('Daily Diesel Inward & Issue Summary', fu),
+      fuelHtml(printHead(headName, 'Daily Diesel Inward & Issue Summary', 'Period: <b>' + esc(showDate(d.from)) + ' to ' + esc(showDate(d.to)) + '</b><br>' + (d.byLocation ? esc(d.location) + '<br>' : '') + 'Printed: ' + esc(d.generated)) +
+      '<table>' + rdTableHtml(d) + '</table>', fu) + signBlock(), 'dreport', true, headName);
   });
   $('rd_xlsx').addEventListener('click', e => busy(e.target, 'Exporting…', async () => {
     needXlsx();
@@ -8950,7 +9072,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     d.rows.forEach(x => aoa.push([showDate(x.date), x.opening, x.inward].concat(tr(x, 'tinBy', 'toutBy')).concat(d.groups.map(g => x.issue[g] || 0)).concat([x.issued, x.closing])));
     const t = d.totals;
     aoa.push(['Total', t.opening, t.inward].concat(tr(t, 'tinBy', 'toutBy')).concat(d.groups.map(g => t.issue[g] || 0)).concat([t.issued, t.closing]));
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const ws = XLSX.utils.aoa_to_sheet(fuelAoa(aoa, d.fuelShown));
     ws['!cols'] = head.map((h, i) => ({ wch: i === 0 ? 12 : 14 }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Daily Inward & Issue');
@@ -8969,13 +9091,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     let data = null;
     const owns = () => [...document.querySelectorAll('#' + P + '_owns input:checked')].map(i => i.value);
     const mode = () => document.querySelector('input[name=' + P + '_mode]:checked').value;
-    const filters = () => ({ from: $p('from').value, to: $p('to').value, source: $p('src').value, shift: $p('shift').value, supply: $p('supply').value,
-      ownerships: owns(), machines: mode() === 'sel' ? Object.keys(pick) : [], includeZero: $p('zero').checked, withReadings: withAvg });
+    const filters = () => Object.assign({ from: $p('from').value, to: $p('to').value, source: $p('src').value, shift: $p('shift').value, supply: $p('supply').value,
+      ownerships: owns(), machines: mode() === 'sel' ? Object.keys(pick) : [], includeZero: $p('zero').checked, withReadings: withAvg }, multiFuel() ? { fuel: $p('fuel').value } : {});      // (update-163) one fuel
+    const fuelOk = m => !multiFuel() || machFuel(m) === $p('fuel').value;
     function renderPicker() {
       const q = $p('search').value.trim().toUpperCase(), o = owns();
       const okOwn = m => o.indexOf(APP_OWN.indexOf(m.ownership) > -1 ? m.ownership : 'Other') > -1;
-      Object.keys(pick).forEach(id => { const m = findMachine(id); if (!m || !okOwn(m)) delete pick[id]; });
-      const list = S.master.filter(m => okOwn(m) && (!q || [m.id, m.name, m.type, m.owner, m.ownership].join(' ').toUpperCase().includes(q)));
+      Object.keys(pick).forEach(id => { const m = findMachine(id); if (!m || !okOwn(m) || !fuelOk(m)) delete pick[id]; });
+      const list = S.master.filter(m => okOwn(m) && fuelOk(m) && (!q || [m.id, m.name, m.type, m.owner, m.ownership].join(' ').toUpperCase().includes(q)));
       $p('list').innerHTML = (o.length ? '' : '<span class="empty-note">Tick at least one Ownership above.</span>') + list.map(m => '<label><input type="checkbox" value="' + esc(m.id) + '"' + (pick[m.id] ? ' checked' : '') + '> <span>' + esc(m.id) +
         ' <small>' + esc([m.type, m.ownership].filter(Boolean).join(', ')) + '</small></span></label>').join('') || '<span class="empty-note">No machinery found.</span>';
       const n = Object.keys(pick).length; $p('selcount').textContent = n ? '(' + n + ')' : '';
@@ -8983,6 +9106,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     document.querySelectorAll('#' + P + '_owns input').forEach(i => i.addEventListener('change', renderPicker));
     document.querySelectorAll('input[name=' + P + '_mode]').forEach(r => r.addEventListener('change', () => { $p('picker').hidden = mode() !== 'sel'; renderPicker(); }));
     $p('search').addEventListener('input', renderPicker);
+    $p('fuel').addEventListener('change', renderPicker);
     $p('list').addEventListener('change', e => { const i = e.target; if (i.type !== 'checkbox') return; if (i.checked) pick[i.value] = true; else delete pick[i.value]; renderPicker(); });
     $p('all').addEventListener('click', () => { $p('list').querySelectorAll('input').forEach(i => { pick[i.value] = true; }); renderPicker(); });
     $p('none').addEventListener('click', () => { Object.keys(pick).forEach(k => delete pick[k]); renderPicker(); });
@@ -9040,6 +9164,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         $p('table').innerHTML = '<tbody>' + Array.from({ length: 6 }, () => '<tr class="skel">' + Array.from({ length: 14 }, () => '<td><i></i></td>').join('') + '</tr>').join('') + '</tbody>';
       }
       const d = await call(withAvg ? 'getMonthlyAvgReport' : 'getMonthlyDieselReport', f);
+      d.fuelShown = f.fuel || '';
       data = d;
       $p('out').hidden = false;
       $p('title').textContent = TITLE + ' – ' + d.monthName;
@@ -9051,6 +9176,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           '<div class="k-check"><span>Check reading</span><b>' + cnt('check') + '</b></div><div><span>No status (no readings)</span><b>' + cnt('na') + '</b></div>'
           : '<div><span>Entries</span><b>' + d.entries + '</b></div>' + d.groups.map(g => '<div><span>' + esc(g.ownership) + '</span><b>' + fmt(g.total) + '</b></div>').join(''));
       $p('table').innerHTML = tableHtml(d, false);
+      ['title', 'meta', 'kpis', 'table'].forEach(id => fuelNodes($p(id), d.fuelShown));
       $p('print').disabled = false; $p('xlsx').disabled = false;
     }
     $p('go').addEventListener('click', e => busy(e.target, 'Generating…', generate));
@@ -9062,9 +9188,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $p('print').addEventListener('click', async () => {
       const d = data; if (!d) return;
       const headName = await askPrintName('Print – ' + TITLE); if (!headName) return;
-      printDoc(TITLE + ' – ' + d.monthName,
-        printHead(headName, TITLE, 'Period: <b>' + esc(showDate(d.from)) + ' to ' + esc(showDate(d.to)) + '</b><br>Printed: ' + esc(d.generated)) +
-        (chosen(d) ? '<p class="p-filters">' + esc(chosen(d)) + '</p>' : '') + '<table>' + tableHtml(d, true) + '</table>' + signBlock(), 'mreport' + (withAvg ? ' mavg' : ''), false, headName);
+      const fu = d.fuelShown;
+      printDoc(fuelText(TITLE + ' – ' + d.monthName, fu),
+        fuelHtml(printHead(headName, TITLE, 'Period: <b>' + esc(showDate(d.from)) + ' to ' + esc(showDate(d.to)) + '</b><br>Printed: ' + esc(d.generated)) +
+        (chosen(d) ? '<p class="p-filters">' + esc(chosen(d)) + '</p>' : '') + '<table>' + tableHtml(d, true) + '</table>', fu) + signBlock(), 'mreport' + (withAvg ? ' mavg' : ''), false, headName);
     });
     $p('xlsx').addEventListener('click', e => busy(e.target, 'Exporting…', async () => {
       needXlsx();
@@ -9083,7 +9210,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         aoa.push(['', g.ownership + ' total', '', '', ''].concat(blankR).concat(g.dayTotals.map(v => v || '')).concat([g.total]).concat(blankA));
       });
       aoa.push(['', 'Day total – all machinery', '', '', ''].concat(blankR).concat(d.dayTotals.map(v => v || '')).concat([d.total]).concat(blankA));
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const ws = XLSX.utils.aoa_to_sheet(fuelAoa(aoa, d.fuelShown));
       ws['!cols'] = [{ wch: 5 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 10 }].concat(withAvg ? [{ wch: 9 }, { wch: 14 }, { wch: 14 }, { wch: 14 }] : [])
         .concat(d.days.map(() => ({ wch: 6 }))).concat([{ wch: 11 }]).concat(withAvg ? [{ wch: 16 }, { wch: 22 }, { wch: 20 }, { wch: 14 }, { wch: 12 }, { wch: 8 }] : []);
       const wb = XLSX.utils.book_new();
@@ -10302,6 +10429,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date)) p.push('date'); else if (r.date > S.today) p.push('date after today');
     if ((S.locations || []).indexOf(r.from) === -1) p.push('From'); else if (mySources('Diesel Transfer').indexOf(r.from) === -1) p.push('From – not your diesel source'); if ((S.locations || []).indexOf(r.to) === -1) p.push('To');
     if (r.from && r.from === r.to) p.push('From = To'); if (!(Number(r.qty) > 0)) p.push('qty');
+    if (r.from && r.to && r.from !== r.to && placeFuel(r.from) !== placeFuel(r.to)) p.push('From ' + placeFuel(r.from) + ', To ' + placeFuel(r.to) + ' – not the same fuel');      // (update-163)
     return p;
   }
   // ---------- One entry / Multiple entries ----------
@@ -10310,9 +10438,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('t_one').hidden = many; $('t_many').hidden = !many;
     if (many && !$('tb_rows').children.length) { trAddRow(); trAddRow(); }
   }
+  // (update-163) the To of a row: the places of the From's fuel
+  const trTos = from => { const all = S.locations || ['Dispenser', 'VTR Store'], l = multiFuel() && from ? all.filter(x => placeFuel(x) === placeFuel(from)) : all; return l.length ? l : all; };
   function trRowHtml(v) {
     v = v || {};
-    const locs = S.locations || ['Dispenser', 'VTR Store'], mine = mySources('Diesel Transfer');      // (update-162) From: only his sources
+    const mine = mySources('Diesel Transfer'), locs = trTos(v.from || mine[0]);      // (update-162) From: only his sources
     const opt = (list, sel) => list.map(x => '<option' + (x === sel ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
     return '<td class="rn"></td><td><input data-f="date" type="date" max="' + esc(S.today) + '" value="' + esc(v.date || S.today) + '"></td>' +
       '<td><select data-f="shift">' + opt(['Day', 'Night'], v.shift || 'Day') + '</select></td>' +
@@ -10333,12 +10463,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const rows = trRows();
     rows.forEach(r => { r.tr.children[0].textContent = r.line; const p = r.qty === '' ? [] : trProblems(r); r.tr.classList.toggle('err', p.length > 0); r.tr.querySelector('.lnote').textContent = p.length ? '✗ ' + p.join(', ') : ''; });
     const filled = rows.filter(r => r.qty !== '');
-    $('tb_sum').innerHTML = 'Rows: <b>' + filled.length + '</b>  Qty: <b>' + fmt(r2(filled.reduce((a, r) => a + (Number(r.qty) || 0), 0))) + ' Ltr</b>';
+    $('tb_sum').innerHTML = 'Rows: <b>' + filled.length + '</b>  Qty: <b>' + fuelQty(filled.map(r => [r.from, r.qty])) + '</b>';
   }
   $('tmode_one').addEventListener('click', () => trMode(false));
   $('tmode_many').addEventListener('click', () => trMode(true));
   $('tb_add').addEventListener('click', () => { const tr = trAddRow(); tr.querySelector('[data-f=qty]').focus(); });
-  $('tb_rows').addEventListener('input', trSum); $('tb_rows').addEventListener('change', trSum);
+  $('tb_rows').addEventListener('input', trSum);
+  $('tb_rows').addEventListener('change', e => {
+    if (e.target.dataset.f === 'from' && multiFuel()) {      // (update-163) the To follows the From's fuel
+      const to = e.target.closest('tr').querySelector('[data-f=to]'), keep = to.value, l = trTos(e.target.value);
+      to.innerHTML = l.map(x => '<option>' + esc(x) + '</option>').join('');
+      to.value = l.indexOf(keep) > -1 && keep !== e.target.value ? keep : (l.find(x => x !== e.target.value) || l[0]);
+    }
+    trSum();
+  });
   $('tb_rows').addEventListener('click', e => { const b = e.target.closest('.del'); if (!b) return; b.closest('tr').remove(); if (!$('tb_rows').children.length) trAddRow(); trSum(); });
   $('tb_clear').addEventListener('click', () => { $('tb_rows').innerHTML = ''; trAddRow(); trAddRow(); $('tb_errors').hidden = true; });
   async function trSaveMany(rows, fromFile) {
@@ -10414,6 +10552,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date)) p.push('date'); else if (r.date > S.today) p.push('date after today');
     if ((S.locations || []).indexOf(r.source) === -1) p.push('Diesel Source'); else if (mySources('Diesel Issue').indexOf(r.source) === -1) p.push('Diesel Source – not your diesel source');
     const m = findMachine(r.no); if (!m) p.push('machinery not in Master'); else if (activeProblem(m, r.date)) p.push('machinery not active on that date');
+    else if (fuelProblem(m, r.source)) p.push(machFuel(m) === 'Electric' ? 'runs on Electric – no fuel' : 'runs on ' + machFuel(m) + ' – not at ' + r.source);      // (update-163)
     if (!(Number(r.qty) > 0)) p.push('qty');
     return p;
   }
@@ -10424,7 +10563,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const raw = await readExcelRows(f, DI_COLS, ['date', 'no', 'qty']);
       if (!raw.length) throw new Error('No rows found under the heading row.');
       const num = v => v === '' || v === null || v === undefined ? '' : Number(String(v).replace(/,/g, ''));
-      const rows = raw.map(x => { const m = findMachine(String(x.no).trim()); return { line: x.line, date: xlDate(x.date), shift: shiftName(x.shift), source: locName(x.source) || mySources('Diesel Issue')[0] || (S.locations || ['Dispenser'])[0],
+      const rows = raw.map(x => { const m = findMachine(String(x.no).trim()); return { line: x.line, date: xlDate(x.date), shift: shiftName(x.shift), source: locName(x.source) || fuelPlaces(mySources('Diesel Issue'), m)[0] || (S.locations || ['Dispenser'])[0],
         no: m ? m.id : String(x.no).trim(), qty: num(x.qty), kmReading: num(x.km), hrReading: num(x.hr), driver: String(x.driver || '').trim(), remark: String(x.remark || '').trim() }; });
       const bad = rows.filter(r => diProblems(r).length);
       const table = '<div class="imp-wrap"><table class="imp-t"><thead><tr><th>Line</th><th>Date</th><th>Shift</th><th>Source</th><th>Machinery</th><th class="n">Qty</th><th class="n">KM</th><th class="n">Hrs</th><th>Driver</th><th>Check</th></tr></thead><tbody>' +
@@ -10479,7 +10618,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<label class="rdg rd-hr" hidden><small>HR</small><input data-f="hrReading" type="number" step="0.01" min="0" placeholder="Hrs"></label></td>';
   }
   function bmRowHtml(v) {
-    const locs = mySources('Diesel Issue');      // (update-162) only his sources
+    const locs = fuelPlaces(mySources('Diesel Issue'), bmMachine());      // (update-162) only his sources; (update-163) of the machinery's fuel
     const opt = (list, sel) => list.map(x => '<option' + (x === sel ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
     return '<td class="rn"></td><td><input data-f="date" type="date" max="' + esc(S.today) + '" value="' + esc(v.date) + '"></td>' +
       '<td><select data-f="shift">' + opt(['Day', 'Night'], v.shift || 'Day') + '</select></td>' +
@@ -10560,7 +10699,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const rows = bmRows(), r = rows.find(x => x.tr === bmFocus && x.date) || rows.find(x => x.date);
     if (!r) { $('d_pill_lbl').textContent = 'Pick a date'; $('d_pill_val').textContent = '–'; return; }
     const o = r.tr.dataset.open;
-    $('d_pill_lbl').textContent = r.source + ' opening ' + showDate(r.date) + ' ' + r.shift;
+    $('d_pill_lbl').textContent = r.source + ' opening ' + showDate(r.date) + ' ' + r.shift; $('d_pill_u').textContent = placeUnit(r.source);
     $('d_pill_val').textContent = o !== undefined && o !== '' ? fmt(Number(o)) : '…';
     $('d_pill').classList.toggle('low', o !== undefined && o !== '' ? Number(o) <= 0 : false);
   }
@@ -10575,12 +10714,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date)) p.push('pick the date'); else if (r.date > S.today) p.push('date after today');
         if (!(r.qty > 0)) p.push('qty');
         if (m && r.date && activeProblem(m, r.date)) p.push('not active on that date');
+        if (m && fuelProblem(m, r.source)) p.push(machFuel(m) === 'Electric' ? 'runs on Electric' : 'not a ' + machFuel(m) + ' source');      // (update-163)
         // several fills on the same date / shift are allowed (they are added up in the reports)
       }
       r.tr.classList.toggle('err', p.length > 0); r.tr.querySelector('.lnote').textContent = p.length ? '✗ ' + p.join(', ') : '';
     });
     const filled = rows.filter(r => r.qty !== '');
-    $('bm_sum').innerHTML = 'Rows: <b>' + filled.length + '</b>  Diesel: <b>' + fmt(r2(filled.reduce((a, r) => a + (Number(r.qty) || 0), 0))) + ' Ltr</b>';
+    $('bm_sum').innerHTML = 'Rows: <b>' + filled.length + '</b>  ' + (m && machFuel(m) !== 'Diesel' && machFuel(m) !== 'Electric' ? machFuel(m) : 'Diesel') + ': <b>' + fmt(r2(filled.reduce((a, r) => a + (Number(r.qty) || 0), 0))) + ' ' + (m && machFuel(m) === 'CNG' ? 'kg' : 'Ltr') + '</b>';
     bmBalances(); bmStockSoon();
   }
   $('bm_no').addEventListener('change', () => {
@@ -10588,6 +10728,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (m) $('bm_no').value = m.id;
     $('bm_info').innerHTML = m ? '<b>' + esc(m.id) + '</b>' + (m.type ? ' · ' + esc(m.type) : '') + (m.owner ? ' · ' + esc(m.owner) : '') + ' · Unit <b>' + esc(m.unit || '–') + '</b>' + (m.supply === 'Debit Basis' ? ' · Debit Basis (no reading)' : '') + ' – one row per date.'
       : (val('bm_no') ? '<span style="color:var(--bad)">Not in Master.</span>' : 'Pick the machinery – then one row per date.');
+    fuelFollow('bm_no', true);      // (update-163) the sources of its fuel – also in every row
+    const own = fuelPlaces(mySources('Diesel Issue'), m);
+    [...$('bm_rows').children].forEach(tr => { const sel = tr.querySelector('[data-f=source]'), keep = sel.value; sel.innerHTML = own.map(x => '<option>' + esc(x) + '</option>').join(''); sel.value = own.indexOf(keep) > -1 ? keep : ($('bm_src').value || own[0]); });
+    fuelForms();
     [...$('bm_rows').children].forEach(bmApplyUnit); bmSum();
     dhShow('bm_hist', val('bm_no'), S.today);
   });
@@ -12726,25 +12870,33 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function dailyReport(btn) {
     await busy(btn, 'Making…', async () => {
       const f0 = dashFilter(), day = f0.from && f0.to && f0.from === f0.to ? f0.to : S.today;
-      const [ds, di, inw, lg, bk] = await Promise.all([call('getDashboard', { from: day, to: day }), call('getDieselIssues', { from: day, to: day, all: true }), call('getInwards', { from: day, to: day }),
+      // (update-163) a site with more than one fuel: the stock, received and issued of EACH fuel on its own (never added together)
+      const fuels = multiFuel() ? siteFuels() : [''];
+      const [dss, di, inw, lg, bk] = await Promise.all([Promise.all(fuels.map(fu => call('getDashboard', Object.assign({ from: day, to: day }, fu ? { fuel: fu } : {})))), call('getDieselIssues', { from: day, to: day, all: true }), call('getInwards', { from: day, to: day, all: true }),
         call('getLogBookList', { from: day, to: day, all: true }), call('getBreakdowns', { date: day }).catch(() => ({}))]);
       const n = v => v === '' || v === undefined || v === null ? '' : fmt(v), sum = (a, k) => r2(a.reduce((t, x) => t + (Number(x[k]) || 0), 0));
-      const issues = (di.rows || []).slice().sort((a, b) => String(a.no).localeCompare(String(b.no))), inwards = inw.rows || [], logs = (lg.rows || []).slice().sort((a, b) => String(a.no).localeCompare(String(b.no)));
+      const issues = (di.rows || []).slice().sort((a, b) => String(a.no).localeCompare(String(b.no))), logs = (lg.rows || []).slice().sort((a, b) => String(a.no).localeCompare(String(b.no)));
       const th = a => '<tr>' + a.map(x => '<th' + (x[1] ? ' class="n"' : '') + '>' + x[0] + '</th>').join('') + '</tr>', td = (v, num) => '<td' + (num ? ' class="n"' : '') + '>' + v + '</td>';
       const sec = (title, body, note) => '<div class="dr-sec"><h3>' + title + (note ? ' <small>' + note + '</small>' : '') + '</h3>' + body + '</div>';
       const none = t => '<p class="dr-none">' + t + '</p>';
-      // 1. diesel stock
-      const locs = (ds.locations || []).filter(x => x.opening || x.inward || x.tin || x.tout || x.issued || x.closing);
-      const stock = locs.length ? '<table>' + th([['Location'], ['Opening', 1], ['Received', 1], ['Transfer in', 1], ['Transfer out', 1], ['Issued', 1], ['Closing', 1]]) +
-        locs.map(x => '<tr>' + td(esc(x.loc)) + td(n(x.opening), 1) + td(n(x.inward) || '–', 1) + td(n(x.tin) || '–', 1) + td(n(x.tout) || '–', 1) + td(n(x.issued) || '–', 1) + td('<b>' + n(x.closing) + '</b>', 1) + '</tr>').join('') +
-        '<tr class="tot">' + td('Total') + td(n(sum(locs, 'opening')), 1) + td(n(sum(locs, 'inward')), 1) + td(n(sum(locs, 'tin')), 1) + td(n(sum(locs, 'tout')), 1) + td(n(sum(locs, 'issued')), 1) + td(n(sum(locs, 'closing')), 1) + '</tr></table>' : none('No diesel stock.');
-      // 2. received
-      const rec = inwards.length ? '<table>' + th([['Received at'], ['Pump'], ['Bill No'], ['Qty (L)', 1], ['Rate', 1], ['Amount (₹)', 1]]) + inwards.map(x => '<tr>' + td(esc(x.location)) + td(esc(x.pump || (x.open ? 'Opening stock' : ''))) + td(esc(x.billNo || '')) + td(n(x.qty), 1) + td(n(x.rate), 1) + td(n(x.amount), 1) + '</tr>').join('') +
-        '<tr class="tot">' + td('Total') + td('') + td('') + td(n(sum(inwards, 'qty')), 1) + td('') + td(n(sum(inwards, 'amount')), 1) + '</tr></table>' : none('No diesel received.');
-      // 3. issued
-      const iss = issues.length ? '<table>' + th([['#'], ['Machinery'], ['Type'], ['Owner'], ['Shift'], ['From'], ['Qty (L)', 1], ['Reading', 1], ['Driver']]) + issues.map((x, i) => '<tr>' + td(i + 1) + td('<b>' + esc(x.no) + '</b>') + td(esc(x.type || '')) + td(esc(x.owner || '')) + td(esc(x.shift || '')) + td(esc(x.source || '')) + td(n(x.qty), 1) +
-          td([x.kmReading !== '' && x.kmReading !== undefined ? n(x.kmReading) + ' km' : '', x.hrReading !== '' && x.hrReading !== undefined ? n(x.hrReading) + ' hr' : ''].filter(Boolean).join(' / ') || (x.meter ? esc(x.meter) : '–'), 1) + td(esc(x.driver || '')) + '</tr>').join('') +
-        '<tr class="tot">' + td('') + td('Total – ' + issues.length + ' issue(s), ' + new Set(issues.map(x => x.no)).size + ' machinery') + td('') + td('') + td('') + td('') + td(n(sum(issues, 'qty')), 1) + td('') + td('') + '</tr></table>' : none('No diesel issued.');
+      const kp = (v, l) => '<div><b>' + v + '</b><span>' + l + '</span></div>';
+      // 1. diesel stock, 2. received, 3. issued – of each fuel (one fuel: exactly as before)
+      const parts = fuels.map((fu, fi) => {
+        const ds = dss[fi], U = fu === 'CNG' ? 'kg' : 'L', w = t => fuelText(t, fu);
+        const inwards = (inw.rows || []).filter(x => !fu || placeFuel(x.location) === fu), iss0 = issues.filter(x => !fu || placeFuel(x.source) === fu);
+        const locs = (ds.locations || []).filter(x => x.opening || x.inward || x.tin || x.tout || x.issued || x.closing);
+        const stock = locs.length ? '<table>' + th([['Location'], ['Opening', 1], ['Received', 1], ['Transfer in', 1], ['Transfer out', 1], ['Issued', 1], ['Closing', 1]]) +
+          locs.map(x => '<tr>' + td(esc(x.loc)) + td(n(x.opening), 1) + td(n(x.inward) || '–', 1) + td(n(x.tin) || '–', 1) + td(n(x.tout) || '–', 1) + td(n(x.issued) || '–', 1) + td('<b>' + n(x.closing) + '</b>', 1) + '</tr>').join('') +
+          '<tr class="tot">' + td('Total') + td(n(sum(locs, 'opening')), 1) + td(n(sum(locs, 'inward')), 1) + td(n(sum(locs, 'tin')), 1) + td(n(sum(locs, 'tout')), 1) + td(n(sum(locs, 'issued')), 1) + td(n(sum(locs, 'closing')), 1) + '</tr></table>' : none(w('No diesel stock.'));
+        const rec = inwards.length ? '<table>' + th([['Received at'], ['Pump'], ['Bill No'], ['Qty (' + U + ')', 1], ['Rate', 1], ['Amount (₹)', 1]]) + inwards.map(x => '<tr>' + td(esc(x.location)) + td(esc(x.pump || (x.open ? 'Opening stock' : ''))) + td(esc(x.billNo || '')) + td(n(x.qty), 1) + td(n(x.rate), 1) + td(n(x.amount), 1) + '</tr>').join('') +
+          '<tr class="tot">' + td('Total') + td('') + td('') + td(n(sum(inwards, 'qty')), 1) + td('') + td(n(sum(inwards, 'amount')), 1) + '</tr></table>' : none(w('No diesel received.'));
+        const iss = iss0.length ? '<table>' + th([['#'], ['Machinery'], ['Type'], ['Owner'], ['Shift'], ['From'], ['Qty (' + U + ')', 1], ['Reading', 1], ['Driver']]) + iss0.map((x, i) => '<tr>' + td(i + 1) + td('<b>' + esc(x.no) + '</b>') + td(esc(x.type || '')) + td(esc(x.owner || '')) + td(esc(x.shift || '')) + td(esc(x.source || '')) + td(n(x.qty), 1) +
+            td([x.kmReading !== '' && x.kmReading !== undefined ? n(x.kmReading) + ' km' : '', x.hrReading !== '' && x.hrReading !== undefined ? n(x.hrReading) + ' hr' : ''].filter(Boolean).join(' / ') || (x.meter ? esc(x.meter) : '–'), 1) + td(esc(x.driver || '')) + '</tr>').join('') +
+          '<tr class="tot">' + td('') + td('Total – ' + iss0.length + ' issue(s), ' + new Set(iss0.map(x => x.no)).size + ' machinery') + td('') + td('') + td('') + td('') + td(n(sum(iss0, 'qty')), 1) + td('') + td('') + '</tr></table>' : none(w('No diesel issued.'));
+        const kpis = kp(n(sum(locs, 'closing')) + ' ' + U, w('Diesel stock at close')) + kp(n(sum(inwards, 'qty')) + ' ' + U, w('Diesel received')) + kp(n(sum(iss0, 'qty')) + ' ' + U, w('Diesel issued') + ' (' + iss0.length + ')');
+        return { fu: fu, stock: stock, rec: rec, iss: iss, kpis: kpis };
+      });
+      const each = k => parts.map(p => (p.fu ? '<h4 class="dr-fuel">' + esc(p.fu) + '</h4>' : '') + p[k]).join(''), fw = t => fuels[0] ? t.replace('Diesel', 'Fuel') : t;
       // 4. Log Book
       const st = r => r.mode || r.unit, isSt = r => DAY_STATUS.indexOf(st(r)) > -1;
       const work = r => isSt(r) ? '<b>' + esc(st(r)) + '</b>' : [r.wkm !== '' && r.wkm !== undefined ? n(r.wkm) + ' km' : '', r.whr !== '' && r.whr !== undefined ? n(r.whr) + ' hr' : '', Number(r.trip) > 0 ? n(r.trip) + ' trips' : '', st(r) === 'Day' ? 'day' : ''].filter(Boolean).join(' / ') + (st(r) === METER_OFF ? ' <small>(est.)</small>' : '');
@@ -12766,10 +12918,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const css = '<style>.dr h2{margin:0 0 2px;font-size:17px}.dr .dr-sub{color:#555;font-size:11.5px;margin-bottom:8px}.dr-kpi{display:flex;gap:8px;margin:8px 0 4px}.dr-kpi div{flex:1;border:1px solid #bbb;border-radius:6px;padding:6px 8px}.dr-kpi b{display:block;font-size:15px}.dr-kpi span{font-size:10.5px;color:#555}' +
         '.dr-sec{margin-top:10px;break-inside:auto}.dr-sec h3{font-size:12.5px;margin:0 0 4px;border-bottom:1.5px solid #222;padding-bottom:2px}.dr-sec h3 small{font-weight:400;color:#555}.dr table{width:100%;border-collapse:collapse;font-size:10.5px}.dr th,.dr td{border:1px solid #999;padding:2.5px 5px;text-align:left;vertical-align:top}' +
         '.dr th{background:#eee}.dr .n{text-align:right;white-space:nowrap}.dr td:nth-child(2),.dr td:nth-child(5){white-space:nowrap}.dr tr.tot td{font-weight:700;background:#f4f4f4}.dr-none{color:#666;font-size:11px;margin:2px 0}.dr-look{margin:2px 0 0 16px;padding:0;font-size:11px}.dr-look li{margin:2px 0}.dr-sign{display:flex;justify-content:space-between;margin-top:34px;font-size:11px}.dr-sign span{border-top:1px solid #333;padding-top:3px;min-width:150px;text-align:center}</style>';
-      const kp = (v, l) => '<div><b>' + v + '</b><span>' + l + '</span></div>';
-      const html = css + '<div class="dr"><h2>' + esc(S.company || 'Rachana Construction Limited') + ' – Daily Report</h2><div class="dr-sub">' + esc(showDate(day)) + ' · VTR Site – NH 848 · made ' + esc(new Date().toLocaleString('en-GB')) + ' by ' + esc((S.user && S.user.name) || '') + '</div>' +
-        '<div class="dr-kpi">' + kp(n(sum(locs, 'closing')) + ' L', 'Diesel stock at close') + kp(n(sum(inwards, 'qty')) + ' L', 'Diesel received') + kp(n(sum(issues, 'qty')) + ' L', 'Diesel issued (' + issues.length + ')') + kp(worked + ' / ' + logs.length, 'Machinery worked / entries') + kp(noLog.length + noEntry.length, 'To look at') + '</div>' +
-        sec('1. Diesel stock', stock) + sec('2. Diesel received', rec) + sec('3. Diesel issued', iss) + sec('4. Log Book', lb, lbNote) + sec('5. To look at', look) +
+      const html = css + '<style>.dr h4.dr-fuel{font-size:11.5px;margin:6px 0 2px}</style><div class="dr"><h2>' + esc(S.company || 'Rachana Construction Limited') + ' – Daily Report</h2><div class="dr-sub">' + esc(showDate(day)) + ' · VTR Site – NH 848 · made ' + esc(new Date().toLocaleString('en-GB')) + ' by ' + esc((S.user && S.user.name) || '') + '</div>' +
+        (fuels[0] ? parts.map(p => '<div class="dr-kpi">' + p.kpis + '</div>').join('') + '<div class="dr-kpi">' : '<div class="dr-kpi">' + parts[0].kpis) + kp(worked + ' / ' + logs.length, 'Machinery worked / entries') + kp(noLog.length + noEntry.length, 'To look at') + '</div>' +
+        sec(fw('1. Diesel stock'), each('stock')) + sec(fw('2. Diesel received'), each('rec')) + sec(fw('3. Diesel issued'), each('iss')) + sec('4. Log Book', lb, lbNote) + sec('5. To look at', look) +
         '<div class="dr-sign"><span>Prepared by</span><span>Site In-charge</span><span>Project Manager</span></div></div>';
       printDoc('Daily Report ' + showDate(day), html, 'rep-daily', true, S.company || '');
     }).catch(e => toast(errMsg(e), true));
@@ -13059,7 +13210,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // the entry as it would be saved, or what is still missing
   // (update-162) the source when he names none: his usual place – of his own diesel sources when the Super Admin gave him some (a
   // source he names stays as he said: the server then says it is not his)
-  function aiOwnSource_() { const p = (S.prefs || {}).loc, d = S.user && S.user.dsrc; if (!d || !Array.isArray(d['Diesel Issue'])) return p; const own = mySources('Diesel Issue'); return own.indexOf(p) > -1 ? p : own[0]; }
+  function aiOwnSource_(m) {      // (update-162) his own sources; (update-163) of the machinery's fuel
+    const p = (S.prefs || {}).loc, d = S.user && S.user.dsrc, own = fuelPlaces(mySources('Diesel Issue'), m);
+    if ((!d || !Array.isArray(d['Diesel Issue'])) && !multiFuelAny()) return p;
+    return own.indexOf(p) > -1 ? p : own[0];
+  }
   async function aiDraft(kind, a) {
     const L = AI.lang || fixLang, T = o => o[L] || o.en, mod = kind === 'diesel' ? 'Diesel Issue' : 'Log Book';
     if (!canEdit(mod)) return { error: T({ en: 'You have no permission to make a ' + mod + ' entry.', mr: mod + ' entry करण्याची परवानगी तुम्हाला नाही.', hi: mod + ' entry करने की अनुमति आपको नहीं है।' }) };
@@ -13068,8 +13223,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const date = /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') ? a.date : S.today;
     if (date > S.today) return { error: T({ en: 'An entry cannot be made for a date after today.', mr: 'आजच्या नंतरच्या तारखेची entry करता येत नाही.', hi: 'आज के बाद की तारीख की entry नहीं हो सकती।' }) };
     if (kind === 'diesel') {
+      // (update-163) an Electric machinery gets no fuel (the server refuses it too)
+      if (machFuel(m) === 'Electric') return { error: T({ en: m.id + ' runs on Electric – no fuel is issued to it (Asset Master → Fuel).', mr: m.id + ' Electric वर चालते – तिला इंधन दिले जात नाही (Asset Master → Fuel).', hi: m.id + ' Electric पर चलती है – उसे ईंधन नहीं दिया जाता (Asset Master → Fuel)।' }) };
       const qty = aiN(a.litres); if (!(qty > 0)) return { need: T({ en: 'How many litres for ' + m.id + '?', mr: m.id + ' ला किती लिटर?', hi: m.id + ' को कितने लीटर?' }), partial: { kind: kind, a: Object.assign({}, a, { machinery: m.id }) } };
-      const shift = /night/i.test(a.shift || '') ? 'Night' : 'Day', source = (S.locations || []).find(l => String(l).toLowerCase() === String(a.source || '').toLowerCase()) || aiOwnSource_() || (S.locations || [])[0] || 'Dispenser';
+      const shift = /night/i.test(a.shift || '') ? 'Night' : 'Day', source = (S.locations || []).find(l => String(l).toLowerCase() === String(a.source || '').toLowerCase()) || aiOwnSource_(m) || (S.locations || [])[0] || 'Dispenser';
       const km = aiN(a.km_reading), hr = aiN(a.hr_reading), debit = m.supply === 'Debit Basis', notes = [];
       let stock = ''; try { stock = ((await rawCall('getStock')).byLoc || {})[source]; } catch (e) { stock = ''; }
       if (stock !== '' && stock !== undefined && qty > stock) notes.push(T({ en: '⚠ Only ' + fmt(stock) + ' L in stock at ' + source + '.', mr: '⚠ ' + source + ' मध्ये फक्त ' + fmt(stock) + ' L stock आहे.', hi: '⚠ ' + source + ' में सिर्फ ' + fmt(stock) + ' L stock है।' }));
@@ -14830,7 +14987,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // keep the dashboard up to date even while another page is open, so it is ready the moment it is opened
   // (speed 02-10-2026: only when the Dashboard is on screen; otherwise it is marked and loaded once when it is opened)
   function dashSoon() { if (!S.loaded || !S.loaded.dash) return; if (!visible('dash')) { S.dashStale = true; return; } clearTimeout(dashTimer); dashTimer = setTimeout(loadDash, 250); }
-  function dashFilter() { return { from: $('k_from').value, to: $('k_to').value }; }
+  function dashFilter() { const f = { from: $('k_from').value, to: $('k_to').value }; if (multiFuel() && $('k_fuel')) f.fuel = $('k_fuel').value; return f; }      // (update-163) a site with more than one fuel: one fuel at a time
   function rangeText(from, to) {
     if (!from && !to) return 'All dates';
     if (from && to) return from === to ? showDate(from) : showDate(from) + ' to ' + showDate(to);
@@ -14850,30 +15007,34 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       S.dashD = d; S.dashF = f;      // (update-126) what the numbers' box shows
       markQuick(f);
       $('k_range').textContent = rangeText(f.from, f.to);
+      // (update-163) the numbers of one fuel: its words and its unit (kg for CNG); the headings go back when Diesel is picked again
+      const fu = f.fuel || '', U = fuelUnit(fu || 'Diesel');
+      S.dashFuel = fu;
+      document.querySelectorAll('#dash_diesel .fuel-word').forEach(el => fuelLabel(el, fu));
       const L = d.locations || [];
       const sumL = k => r2(L.reduce((s, x) => s + (Number(x[k]) || 0), 0));
       const endLabel = f.to ? showDate(f.to) : 'today';
-      $('k_open').innerHTML = fmt(sumL('opening')) + '<small>Ltr</small>';
+      $('k_open').innerHTML = fmt(sumL('opening')) + '<small>' + U + '</small>';
       $('k_open_d').textContent = f.from ? 'as on start of ' + showDate(f.from) : 'at the very start';
-      $('k_total').innerHTML = fmt(d.total.qty) + '<small>Ltr</small>';
+      $('k_total').innerHTML = fmt(d.total.qty) + '<small>' + U + '</small>';
       $('k_isssub').textContent = fmt(d.total.entries) + ' entries';
-      $('k_close').innerHTML = fmt(sumL('closing')) + '<small>Ltr</small>';
+      $('k_close').innerHTML = fmt(sumL('closing')) + '<small>' + U + '</small>';
       $('k_close_d').textContent = 'as on end of ' + endLabel;
-      $('k_avg').textContent = d.total.entries ? fmt(r2(d.total.qty / d.total.entries)) + ' Ltr' : '–';
+      $('k_avg').textContent = d.total.entries ? fmt(r2(d.total.qty / d.total.entries)) + ' ' + U : '–';
       $('k_entries').textContent = fmt(d.total.entries);
       $('k_machines').textContent = fmt(d.total.machines);
-      $('k_todayqty').textContent = fmt(d.total.todayQty) + ' Ltr';
-      if (d.inward) { $('k_inqty').innerHTML = fmt(d.inward.qty) + '<small>Ltr</small>'; $('k_inamt').textContent = '₹' + money(d.inward.amount) + ', ' + d.inward.entries + ' bills'; }
-      if (d.stock) { $('k_stock').innerHTML = fmt(d.stock.stock) + '<small>Ltr</small>'; setStock(d.stock); }
+      $('k_todayqty').textContent = fmt(d.total.todayQty) + ' ' + U;
+      if (d.inward) { $('k_inqty').innerHTML = fmt(d.inward.qty) + '<small>' + U + '</small>'; $('k_inamt').textContent = '₹' + money(d.inward.amount) + ', ' + d.inward.entries + ' bills'; }
+      if (d.stock) { $('k_stock').innerHTML = fmt(d.stock.stock) + '<small>' + U + '</small>'; if (!fu) setStock(d.stock); }      // (a fuel's stock is not the whole site's)
       const groups = d.byOwnership.slice().sort((a, b) => b.qty - a.qty);
       const tone = o => OWN_TONE[o] || '#7A8791';
       // tank
       const filled = groups.filter(g => g.qty > 0);
       $('k_tank').innerHTML = filled.length ? filled.map(g => {
         const pct = g.qty / d.total.qty * 100;
-        return '<button data-own="' + esc(g.ownership) + '" style="flex:' + pct + ' 1 0;--tone:' + tone(g.ownership) + '" title="' + esc(g.ownership) + ': ' + fmt(g.qty) + ' Ltr (' + Math.round(pct) + '%)">' +
+        return '<button data-own="' + esc(g.ownership) + '" style="flex:' + pct + ' 1 0;--tone:' + tone(g.ownership) + '" title="' + esc(g.ownership) + ': ' + fmt(g.qty) + ' ' + U + ' (' + Math.round(pct) + '%)">' +
           (pct >= 9 ? '<span>' + esc(g.ownership) + ' ' + Math.round(pct) + '%</span>' : '') + '</button>';
-      }).join('') : '<div class="tank-empty">No diesel issued in this period</div>';
+      }).join('') : '<div class="tank-empty">' + esc(fuelText('No diesel issued in this period', fu)) + '</div>';
       // ledger rows
       $('own_ledger').innerHTML = d.byOwnership.map(g => {
         const pct = d.total.qty ? Math.round(g.qty / d.total.qty * 100) : 0;
@@ -14881,7 +15042,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         return '<button class="own-row' + (g.qty ? '' : ' zero') + '" data-own="' + esc(g.ownership) + '" style="--tone:' + tone(g.ownership) + '" title="Show machine-wise list">' +
           '<svg class="ring" viewBox="0 0 38 38" aria-hidden="true"><circle cx="19" cy="19" r="15" stroke="#E2E8F0"/><circle cx="19" cy="19" r="15" stroke="' + tone(g.ownership) + '" stroke-linecap="round" stroke-dasharray="' + (C * pct / 100).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 19 19)"/><text x="19" y="22.5" text-anchor="middle">' + pct + '%</text></svg>' +
           '<span class="nm"><i></i>' + esc(g.ownership) + '<em>' + pct + '%</em></span>' +
-          '<b>' + fmt(g.qty) + '<small>Ltr</small></b>' +
+          '<b>' + fmt(g.qty) + '<small>' + U + '</small></b>' +
           '<span class="mt">' + g.machines + ' machines, ' + g.entries + ' entries</span></button>';
       }).join('');
       renderDonut(d.byOwnership, d.total.qty, tone);
@@ -14889,9 +15050,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const endsToday = !f.to || f.to >= S.today;
       const L0 = d.locations || [];
       const asOn = endsToday ? d.stock : { stock: r2(L0.reduce((a, x) => a + (Number(x.closing) || 0), 0)), byLoc: L0.reduce((o, x) => { o[x.loc] = Number(x.closing) || 0; return o; }, {}) };
-      $('tank_title').textContent = endsToday ? 'Diesel tank – live stock (today)' : 'Diesel tank – closing stock on ' + showDate(f.to) + ' (end of day)';
+      $('tank_title').textContent = fuelText(endsToday ? 'Diesel tank – live stock (today)' : 'Diesel tank – closing stock on ' + showDate(f.to) + ' (end of day)', fu);
       renderTanks(asOn, d.tanks);
-      $('tank_note').innerHTML = endsToday ? '' : 'Live now: <b>' + fmt(d.stock.stock) + ' Ltr</b>';
+      $('tank_note').innerHTML = endsToday ? '' : 'Live now: <b>' + fmt(d.stock.stock) + ' ' + U + '</b>';
       renderLocations(d.locations || [], f);
       if (d.stock && d.stock.byLoc) $('k_stock_loc').textContent = Object.keys(d.stock.byLoc).map(k => k + ' ' + fmt(d.stock.byLoc[k])).join(', ');
       loadLedger();
@@ -14899,6 +15060,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       rollNumbers($('sec-dash'));
       renderTop(d.top);
       renderPending(d.pending);
+      if (fu) ['tanks', 'loc_cards', 'loc_note', 'top_list', 'c_note', 'c_bars', 'own_ledger', 'k_tank'].forEach(id => fuelNodes($(id), fu));      // (what these draw is of the fuel shown)
     } catch (e) { toast(errMsg(e), true); }
   }
   // Ownership donut: each slice grows into place
@@ -14921,7 +15083,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     TANKS = tanks || TANKS || { caps: {}, low: 1000 };
     if (!stock) return;
     const caps = TANKS.caps || {}, low = Number(TANKS.low) || 0, by = stock.byLoc || {};
-    const locs = S.locations && S.locations.length ? S.locations : Object.keys(caps);
+    const locs = (S.locations && S.locations.length ? S.locations : Object.keys(caps)).filter(l => !S.dashFuel || placeFuel(l) === S.dashFuel);      // (update-163) the tanks of the fuel shown
     const box = $('tanks');
     const head = (card, qty, cap, isLow) => {
       const p = cap > 0 ? Math.max(0, Math.min(1, qty / cap)) : 0;
@@ -15086,10 +15248,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function loadLedger() {
     const seq = ++lgSeq;
     try {
-      const loc = $('lg_loc').value;
-      const L = await rawCall('getStockLedger', { from: $('k_from').value, to: $('k_to').value, location: loc });
+      const loc = $('lg_loc').value, fu = dashFilter().fuel || '';      // (update-163) the stock of the fuel shown
+      const L = await rawCall('getStockLedger', Object.assign({ from: $('k_from').value, to: $('k_to').value, location: loc }, fu ? { fuel: fu } : {}));
       if (seq !== lgSeq) return;
-      const sig = JSON.stringify([loc, L]); if (sig === S.ledgerSig) return; S.ledgerSig = sig;   // unchanged: nothing to redraw
+      const sig = JSON.stringify([loc, fu, L]); if (sig === S.ledgerSig) return; S.ledgerSig = sig;   // unchanged: nothing to redraw
       $('lg_note').textContent = showDate(L.from) + ' to ' + showDate(L.to);
       // (update-159, asked 25-10-2026: "/ nko … jyach tyach seprate ale gel transfer") one "Received from" and one "Sent to" column
       // for EACH other stock point – a transfer with one of them is never shown under the others too
@@ -15108,6 +15270,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('lg_rows').innerHTML = L.rows.slice().reverse().map(x => '<tr><td>' + esc(showDate(x.date)) + '</td>' + cols.map(c => cell(x, c[0])).join('') + '</tr>').join('');
       const tot = k => k === 'opening' ? (L.rows.length ? L.rows[0].opening : 0) : k === 'closing' ? (L.rows.length ? L.rows[L.rows.length - 1].closing : 0) : r2(L.rows.reduce((s, x) => s + val(x, k), 0));
       $('lg_foot').innerHTML = L.rows.length ? '<tr><td>Whole period</td>' + cols.map(c => '<td class="n">' + fmt(tot(c[0])) + '</td>').join('') + '</tr>' : '';
+      ['lg_help', 'lg_head'].forEach(id => fuelNodes($(id), fu));
     } catch (e) { toast(errMsg(e), true); }
   }
   $('lg_loc').addEventListener('change', loadLedger);
@@ -15182,6 +15345,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   document.querySelectorAll('[data-krange]').forEach(b => b.addEventListener('click', () => setDashRange(b.dataset.krange)));
   let dashDateT = 0;
+  $('k_fuel').addEventListener('change', () => { S.ledgerSig = null; loadDash(); });      // (update-163) the dashboard of another fuel
   ['k_from', 'k_to'].forEach(id => $(id).addEventListener('change', () => {
     const f = dashFilter();
     $('k_range').textContent = rangeText(f.from, f.to); markQuick(f); // the chosen dates show immediately
@@ -15192,7 +15356,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ---------- ownership pop-up + A4 landscape print ---------- */
   let dlgData = null;
   async function openOwnership(own) {
-    const d = await call('getOwnershipDetail', own, dashFilter());
+    const df = dashFilter(), d = await call('getOwnershipDetail', own, df);
+    d.fuelShown = df.fuel || '';      // (update-163) the dashboard's fuel
     dlgData = d;
     $('dlg_title').textContent = own + ' – Diesel issued';
     $('dlg_sub').textContent = rangeText(d.from, d.to) + ', ' + d.rows.length + ' machines, ' + d.total.entries + ' entries';
@@ -15201,6 +15366,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '</td><td>' + esc(showDate(r.first)) + '</td><td>' + esc(showDate(r.last)) + '</td><td class="n">' + fmt(r.qty) + '</td></tr>').join('')
       : '<tr><td colspan="8" class="none">No diesel issued to ' + esc(own) + ' machinery in this period.</td></tr>';
     $('dlg_foot').innerHTML = d.rows.length ? '<tr><td colspan="4">Total</td><td class="n">' + d.total.entries + '</td><td colspan="2"></td><td class="n">' + fmt(d.total.qty) + ' Ltr</td></tr>' : '';
+    ['dlg_title', 'dlg_rows', 'dlg_foot'].forEach(id => fuelNodes($(id), d.fuelShown));
+    $('dlg_rows').closest('table').querySelectorAll('thead th').forEach(th => fuelLabel(th, d.fuelShown));
     $('dlg_print').disabled = !d.rows.length;
     $('dlg_back').hidden = false;
     setTimeout(() => $('dlg_close').focus(), 0);
@@ -15250,6 +15417,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (seq !== kdSeq || $('kd_back').hidden) return;
       $('kd_big').textContent = out.big; $('kd_big_s').textContent = out.bigSub || '';
       $('kd_body').innerHTML = out.html;
+      ['kd_title', 'kd_big', 'kd_big_s', 'kd_body'].forEach(id => fuelNodes($(id), f.fuel));      // (update-163) the words and unit of the fuel shown
       kdLabels();
       $('kd_body').scrollTop = 0;
     } catch (e) {
@@ -15275,7 +15443,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           (names.length ? kdTable([['Diesel place'], ['Stock now (Ltr)', 1], ['Tank size (Ltr)', 1], ['Full', 1]], rows, kdTd('All places') + kdTd(fmt(kdN(st.stock)), true, true) + kdTd('', true) + kdTd('', true)) : '<div class="kd-none">No diesel place yet.</div>') };
     }
     if (kind === 'in') {
-      const r = await call('getInwards', { from: f.from, to: f.to, all: true });
+      const r = await call('getInwards', Object.assign({ from: f.from, to: f.to, all: true }, f.fuel ? { fuel: f.fuel } : {}));      // (update-163) of the fuel shown
       const list = (r.rows || []).filter(x => !(x.open && (!f.from || x.date <= f.from)));      // as getDashboard: an opening stock on or before the start is the opening
       const qty = r2(list.reduce((a, x) => a + kdN(x.qty), 0)), amt = r2(list.reduce((a, x) => a + kdN(x.amount), 0));
       const what = x => x.open ? 'Opening stock' : x.extra ? 'Extra diesel' : (x.pump || '');
@@ -15286,7 +15454,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           kdTd('Total – ' + list.length + ' bills', false, false, 7) + kdTd(fmt(qty), true, true) + kdTd('', true) + kdTd(money(amt), true) + kdTd('')) : '<div class="kd-none">No diesel received in this period.</div>' };
     }
     // the Diesel Issue entries: of today, or of the Dashboard's dates
-    const r = await call('getDieselIssues', kind === 'today' ? { from: S.today, to: S.today } : { from: f.from, to: f.to });
+    const r = await call('getDieselIssues', Object.assign(kind === 'today' ? { from: S.today, to: S.today } : { from: f.from, to: f.to }, f.fuel ? { fuel: f.fuel } : {}));
     const n = kdN(r.count), tq = kdN(r.totalQty);
     if (kind === 'machines') {
       const sh = r.share || [];
@@ -15321,13 +15489,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('dlg_print').addEventListener('click', async () => {
     const d = dlgData; if (!d) return;
     const headName = await askPrintName('Print – Diesel Issue Report'); if (!headName) return;
-    const now = new Date();
-    printDoc('Diesel Issue Report – ' + d.ownership,
-      printHead(headName, 'Diesel Issue Report – ' + d.ownership, 'Period: <b>' + esc(rangeText(d.from, d.to)) + '</b><br>Printed: ' + esc(showDate(isoDate(now))) + ' ' + now.toTimeString().slice(0, 5)) +
+    const now = new Date(), fu = d.fuelShown;
+    printDoc(fuelText('Diesel Issue Report – ' + d.ownership, fu),
+      fuelHtml(printHead(headName, 'Diesel Issue Report – ' + d.ownership, 'Period: <b>' + esc(rangeText(d.from, d.to)) + '</b><br>Printed: ' + esc(showDate(isoDate(now))) + ' ' + now.toTimeString().slice(0, 5)) +
       '<table><thead><tr><th class="n">Sr</th><th>Machinery Number / Name</th><th>Type of Machinery</th><th>Owner Name</th><th class="n">Entries</th><th>First issue</th><th>Last issue</th><th class="n">Diesel (Ltr)</th></tr></thead><tbody>' +
       d.rows.map((r, i) => '<tr><td class="n">' + (i + 1) + '</td><td>' + esc(r.no) + '</td><td>' + esc(r.type) + '</td><td>' + esc(r.owner) + '</td><td class="n">' + r.entries +
         '</td><td>' + esc(showDate(r.first)) + '</td><td>' + esc(showDate(r.last)) + '</td><td class="n">' + fmt(r.qty) + '</td></tr>').join('') +
-      '</tbody><tfoot><tr><td colspan="4">Total – ' + d.rows.length + ' machines</td><td class="n">' + d.total.entries + '</td><td colspan="2"></td><td class="n">' + fmt(d.total.qty) + ' Ltr</td></tr></tfoot></table>' +
+      '</tbody><tfoot><tr><td colspan="4">Total – ' + d.rows.length + ' machines</td><td class="n">' + d.total.entries + '</td><td colspan="2"></td><td class="n">' + fmt(d.total.qty) + ' Ltr</td></tr></tfoot></table>', fu) +
       signBlock(), undefined, false, headName);
   });
   window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
@@ -15473,6 +15641,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ['d_date', 'bd_date', 'i_date', 't_date', 'lg_top_date'].forEach(id => { if ($(id)) $(id).max = d.today; });
       meterBoxes();
       lgRows().forEach(tr => { if (!lgf(tr, 'date').value) lgf(tr, 'date').value = d.today; }); // Diesel list From / To stay blank = all entries
+      S.placeFuels = d.placeFuels || {};      // (update-163) each diesel place and its fuel
       setLocations(d.locations); S.masterSig = null; setMaster(d.master); setDrivers(d.drivers); setPumps(d.pumps); setStock(d.stock);
       S.loaded = {};
       $('rm_from').value = d.today.slice(0, 8) + '01'; $('rm_to').value = d.today;
@@ -15550,7 +15719,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       (fa || fb ? ' · on site ' + (fa === fb ? 'on ' + esc(showDate(fa)) : (fa ? 'from ' + esc(showDate(fa)) + ' ' : '') + (fb ? 'to ' + esc(showDate(fb)) : '')) : '');
     $('m_selth').hidden = !can;
     $('m_rows').innerHTML = rows.length ? rows.map(m =>
-      '<tr' + (S.mSel.has(m.id) ? ' class="picked"' : '') + '>' + (can ? '<td class="sel"><input type="checkbox" class="m-sel" data-id="' + esc(m.id) + '" aria-label="Select ' + esc(m.id) + '"' + (S.mSel.has(m.id) ? ' checked' : '') + '></td>' : '') + '<td>' + esc(m.no) + '</td><td>' + esc(m.name) + '</td><td>' + esc(m.type) + '</td><td>' + esc(m.make) + '</td><td>' + esc(worksOf(m).join(', ') || m.unit || '') +
+      '<tr' + (S.mSel.has(m.id) ? ' class="picked"' : '') + '>' + (can ? '<td class="sel"><input type="checkbox" class="m-sel" data-id="' + esc(m.id) + '" aria-label="Select ' + esc(m.id) + '"' + (S.mSel.has(m.id) ? ' checked' : '') + '></td>' : '') + '<td>' + esc(m.no) + '</td><td>' + esc(m.name) + '</td><td>' + esc(m.type) + (machFuel(m) !== 'Diesel' ? ' <span class="fuel-tag" title="Fuel (Asset Master)">' + esc(machFuel(m)) + '</span>' : '') + '</td><td>' + esc(m.make) + '</td><td>' + esc(worksOf(m).join(', ') || m.unit || '') +
       '</td><td class="n">' + fmt(m.kmStd) + '</td><td class="n">' + fmt(m.hrStd) + '</td><td class="n">' + (m.tankCap ? fmt(m.tankCap) : '–') + '</td><td>' + esc(m.owner) +
       '</td><td>' + esc(m.ownership) + '</td><td>' + esc(m.supply) + '</td><td>' + statusBadge(m) + '</td><td>' + docBadge(m) + '</td>' + byCell(m) + '<td>' + rowActions('Master', 'data-edit', 'data-del', m.id) + '</td></tr>').join('')
       : '<tr><td colspan="16" class="none">' + (S.master.length ? 'No machinery matches these filters.' : 'No machinery yet. Add the first one above.') + '</td></tr>';
@@ -15588,11 +15757,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const u = unitFromWorks(worksTicked()); $('m_unit').value = u;
     $('m_kmstd').disabled = !hasKm(u); if (!hasKm(u)) $('m_kmstd').value = '';
     $('m_hrstd').disabled = !hasHr(u); if (!hasHr(u)) $('m_hrstd').value = '';
+    masterFuelChanged();
   }
+  // (update-163) the standard average in its fuel's unit: KM/kg and kg/Hr for CNG; Electric: none is asked
+  function masterFuelChanged() {
+    const f = $('m_fuel').value, ev = f === 'Electric', U = f === 'CNG' ? 'kg' : 'Ltr';
+    document.querySelector('label[for="m_kmstd"]').textContent = 'Standard Average (KM/' + U + ')' + (ev ? ' – not for Electric' : '');
+    document.querySelector('label[for="m_hrstd"]').textContent = 'Standard Average (' + U + '/Hr)' + (ev ? ' – not for Electric' : '');
+  }
+  $('m_fuel').addEventListener('change', masterFuelChanged);
   function clearMaster() {
     S.editNo = null;
     ['m_no', 'm_name', 'm_type', 'm_make', 'm_kmstd', 'm_hrstd', 'm_tcap', 'm_mrate', 'm_tds', 'm_owner', 'm_afrom', 'm_ifrom', 'm_engno', 'm_chassis', 'm_engmake'].forEach(id => $(id).value = '');
-    docFill({});
+    docFill({}); $('m_fuel').value = 'Diesel';
     $('m_supply').value = 'Company'; $('m_supply').dataset.touched = ''; $('m_status').value = 'Active'; masterStatusChanged();
     $('m_unit').value = ''; document.querySelectorAll('#m_works input').forEach(x => { x.checked = false; }); $('m_ownership').value = ''; $('m_no').readOnly = false; $('m_name').readOnly = false;
     masterOwnershipChanged();
@@ -15605,7 +15782,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     S.editNo = m.id; S.editMasterVer = m.ver || '';      // (update-156) the version it had when opened: sent with the change
     // (06-10-2026: the Number – and, for a machinery without one, the Name – can be changed; everything entered for the machinery follows, see the save below)
     $('m_no').value = m.no; $('m_no').readOnly = false; $('m_name').readOnly = false;
-    $('m_name').value = m.name; $('m_type').value = m.type; $('m_make').value = m.make;
+    $('m_name').value = m.name; $('m_type').value = m.type; $('m_make').value = m.make; $('m_fuel').value = machFuel(m);
     const wk = worksOf(m); document.querySelectorAll('#m_works input').forEach(x => { x.checked = wk.indexOf(x.value) > -1; }); masterUnitChanged();
     $('m_engno').value = m.engineNo || ''; $('m_chassis').value = m.chassisNo || ''; $('m_engmake').value = m.engineMake || ''; docFill(m);
     $('m_kmstd').value = m.kmStd; $('m_hrstd').value = m.hrStd; $('m_tcap').value = m.tankCap === undefined ? '' : m.tankCap; $('m_mrate').value = m.monthlyRate === undefined ? '' : m.monthlyRate; $('m_tds').value = m.tdsRate === undefined ? '' : m.tdsRate; $('m_owner').value = m.owner;
@@ -15721,7 +15898,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('mode_many').addEventListener('click', () => setMode('many'));
 
   /* ---------- bulk grid ---------- */
-  const B_FIELDS = ['no', 'name', 'type', 'make', 'unit', 'kmStd', 'hrStd', 'owner', 'ownership', 'supply'];
+  const B_FIELDS = ['no', 'name', 'type', 'make', 'unit', 'kmStd', 'hrStd', 'owner', 'ownership', 'supply', 'fuel'];      // (update-163) Fuel last: the columns pasted before stay where they were
   function ownNorm(v) { const k = String(v || '').trim().toUpperCase(); return ['Own', 'Rental', 'Hired', 'Debit', 'Other'].find(o => o.toUpperCase() === k) || ''; }
   function unitNorm(u) {
     const k = String(u || '').toUpperCase().replace(/\s+/g, '');
@@ -15742,6 +15919,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<td><input data-f="owner" list="dl_owner" autocomplete="off"></td>' +
       '<td><select data-f="ownership"><option value=""></option><option>Own</option><option>Rental</option><option>Hired</option><option>Debit</option><option>Other</option></select></td>' +
       '<td><select data-f="supply"><option value="">Auto</option><option>Company</option><option>Debit Basis</option><option>Other</option></select></td>' +
+      '<td><select data-f="fuel"><option>Diesel</option><option>Petrol</option><option>CNG</option><option>Electric</option></select></td>' +
       '<td><button class="del" title="Remove row" aria-label="Remove row">×</button></td>';
   }
   function renumberBulk() { [...$('b_rows').children].forEach((tr, i) => { tr.querySelector('.idx').textContent = i + 1; }); }
@@ -15761,6 +15939,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     else if (f === 'ownership') el.value = ownNorm(v);
     else if (f === 'supply') { const k = String(v || '').toUpperCase().replace(/[^A-Z]/g, ''); el.value = k === 'COMPANY' ? 'Company' : (k === 'DEBIT' || k === 'DEBITBASIS') ? 'Debit Basis' : k === 'OTHER' ? 'Other' : ''; }
     else if (f === 'no') el.value = formatNo(v);
+    else if (f === 'fuel') { const k = String(v || '').trim().toUpperCase(); el.value = FUEL_LIST.find(x => x.toUpperCase() === k) || 'Diesel'; }
     else el.value = String(v).trim();
   }
   $('b_rows').addEventListener('change', e => {
@@ -15813,7 +15992,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('m_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
     const m = { no: val('m_no'), name: val('m_name'), type: val('m_type'), make: val('m_make'), unit: unitFromWorks(worksTicked()), worksOn: worksTicked().join(', '),
       kmStd: numv('m_kmstd'), hrStd: numv('m_hrstd'), tankCap: numv('m_tcap'), owner: val('m_owner'), ownership: $('m_ownership').value,
-      engineNo: val('m_engno'), chassisNo: val('m_chassis'), engineMake: val('m_engmake'),
+      engineNo: val('m_engno'), chassisNo: val('m_chassis'), engineMake: val('m_engmake'), fuel: $('m_fuel').value,
       taxUpto: $('m_na_tax').checked ? 'NA' : $('m_lt_tax').checked ? 'LIFETIME' : $('m_doc_tax').value,
       pucUpto: $('m_na_puc').checked ? 'NA' : $('m_doc_puc').value,
       permitUpto: $('m_na_permit').checked ? 'NA' : $('m_doc_permit').value,
@@ -15825,7 +16004,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const mode = S.editNo ? 'edit' : 'add';
     if (mode === 'edit') {
       const before = Object.assign({}, findMachine(S.editNo) || {}); before.worksOn = worksOf(before).join(', ');
-      const changes = diff([['no', 'Machinery Number'], ['name', 'Machinery Name'], ['type', 'Type of Machinery'], ['make', 'Make'], ['worksOn', 'Works on'],
+      before.fuel = machFuel(before);
+      const changes = diff([['no', 'Machinery Number'], ['name', 'Machinery Name'], ['type', 'Type of Machinery'], ['make', 'Make'], ['fuel', 'Fuel'], ['worksOn', 'Works on'],
         ['kmStd', 'Standard Average (KM/Ltr)'], ['hrStd', 'Standard Average (Ltr/Hr)'], ['owner', 'Owner Name'], ['ownership', 'Ownership'],
         ['supply', 'Diesel Supply'], ['status', 'Status'], ['activeFrom', 'Active From'], ['inactiveFrom', 'Inactive From']], before, m);
       { const pt = l => (l || []).map(p => mPerText({ from: p.from, until: p.until || p.from })).join('; ') || 'none', a0 = pt(before.earlier), a1 = pt(m.earlier);      // (update-119)
@@ -15858,6 +16038,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     dieselsupply: 'supply', status: 'status', activefrom: 'activeFrom', inactivefrom: 'inactiveFrom',
     ownernamevendor: 'owner', vendor: 'owner', vendorname: 'owner',
     enginenumber: 'engineNo', engineno: 'engineNo', chassisnumber: 'chassisNo', chassisno: 'chassisNo', enginemake: 'engineMake',
+    fuel: 'fuel', fueltype: 'fuel',      // (update-163) Diesel / Petrol / CNG / Electric
     taxvalidupto: 'taxUpto', pucvalidupto: 'pucUpto', permitvalidupto: 'permitUpto', fitnessvalidupto: 'fitnessUpto', insurancevalidupto: 'insuranceUpto',
   };
   const hdrKey = h => String(h || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -15922,20 +16103,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   const dhAgo = d => { const n = Math.round((new Date(S.today + 'T00:00:00') - new Date(d + 'T00:00:00')) / 86400000); return n <= 0 ? 'today' : n === 1 ? 'yesterday' : n + ' days ago'; };
   const dhRead = x => [x.km !== '' ? fmt(x.km) + ' km' : '', x.hr !== '' ? fmt(x.hr) + ' hr' : ''].filter(Boolean).join(' · ') || '–';
+  // (update-163) the history of a Petrol / CNG machinery in its own words and unit (kg for CNG)
+  const dhUnit = h => h && machFuel(findMachine(h.no)) === 'CNG' ? 'kg' : 'L';
+  const dhFuel = (h, html) => h ? fuelHtml(html, machFuel(findMachine(h.no))) : html;
   function dhLine(h) {
     if (!h) return '';
-    if (!h.rows.length) return '<span class="muted">No diesel given before</span>';
+    if (!h.rows.length) return dhFuel(h, '<span class="muted">No diesel given before</span>');
     const x = h.rows[0];
-    return 'Last: <b>' + esc(showDate(x.date)) + '</b> (' + dhAgo(x.date) + ') · <b>' + fmt(x.qty) + ' L</b> · ' + esc(dhRead(x));
+    return 'Last: <b>' + esc(showDate(x.date)) + '</b> (' + dhAgo(x.date) + ') · <b>' + fmt(x.qty) + ' ' + dhUnit(h) + '</b> · ' + esc(dhRead(x));
   }
-  function dhCard(h) {
+  function dhCard(h) { return dhFuel(h, dhCard0(h)); }
+  function dhCard0(h) {
     if (!h) return '';
+    const U = dhUnit(h);
     const last = h.rows[0];
     const lastRd = [h.lastKm ? 'KM ' + fmt(h.lastKm.value) + ' <small>(' + esc(showDate(h.lastKm.date)) + ')</small>' : '', h.lastHr ? 'Hrs ' + fmt(h.lastHr.value) + ' <small>(' + esc(showDate(h.lastHr.date)) + ')</small>' : ''].filter(Boolean).join(' · ');
     return '<div class="dh-head"><b>Diesel history – ' + esc(h.no) + '</b><span>' +
-      (last ? 'Last fill <b>' + esc(showDate(last.date)) + '</b> (' + dhAgo(last.date) + ') · <b>' + fmt(last.qty) + ' L</b>' : 'No diesel given before') +
-      (lastRd ? ' · Last reading <b>' + lastRd + '</b>' : '') + ' · This month <b>' + fmt(h.month.qty) + ' L</b> in ' + h.month.count + ' fill' + (h.month.count === 1 ? '' : 's') + '</span></div>' +
-      (h.rows.length ? '<table class="dh-t"><thead><tr><th>Date</th><th>Shift</th><th class="n">Diesel (L)</th><th class="n">Reading</th><th>Source</th><th>Driver</th><th>Issue ID</th></tr></thead><tbody>' +
+      (last ? 'Last fill <b>' + esc(showDate(last.date)) + '</b> (' + dhAgo(last.date) + ') · <b>' + fmt(last.qty) + ' ' + U + '</b>' : 'No diesel given before') +
+      (lastRd ? ' · Last reading <b>' + lastRd + '</b>' : '') + ' · This month <b>' + fmt(h.month.qty) + ' ' + U + '</b> in ' + h.month.count + ' fill' + (h.month.count === 1 ? '' : 's') + '</span></div>' +
+      (h.rows.length ? '<table class="dh-t"><thead><tr><th>Date</th><th>Shift</th><th class="n">Diesel (' + U + ')</th><th class="n">Reading</th><th>Source</th><th>Driver</th><th>Issue ID</th></tr></thead><tbody>' +
         h.rows.map(x => '<tr><td>' + esc(showDate(x.date)) + '</td><td>' + esc(x.shift) + '</td><td class="n"><b>' + fmt(x.qty) + '</b></td><td class="n">' + esc(dhRead(x)) + '</td><td>' + esc(x.source) + '</td><td>' + esc(x.driver || '–') + '</td><td class="muted">' + esc(x.id) + '</td></tr>').join('') +
         '</tbody></table>' + (h.total > h.rows.length ? '<p class="muted small">Last ' + h.rows.length + ' of ' + h.total + ' fills.</p>' : '') : '');
   }
@@ -15969,6 +16155,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function dieselMachineChanged() {
     const m = findMachine(val('d_no'));
     if (m && document.activeElement !== $('d_no') && val('d_no') !== m.id) $('d_no').value = m.id;
+    fuelFollow('d_no'); fuelForms();      // (update-163) only the places of its fuel
     $('d_facts').hidden = !m;
     // Debit Basis machinery: no KM / Hrs reading is asked
     const debit = !!(m && m.supply === 'Debit Basis');
@@ -15979,7 +16166,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (m) { $('d_f_type').textContent = m.type || '–'; $('d_f_owner').textContent = m.owner || '–'; $('d_f_unit').textContent = worksOf(m).join(', ') || '–';
       $('d_f_supply').innerHTML = debit ? '<span class="d-deb">Debit Basis</span>' : 'Company'; }
     $('d_debit').hidden = !debit;
-    const prob = activeProblem(m, $('d_date').value);
+    const prob = activeProblem(m, $('d_date').value) || (m && machFuel(m) === 'Electric' ? m.id + ' runs on Electric – no fuel is issued to it (Asset Master → Fuel).' : '');
     $('d_inactive').hidden = !prob; $('d_inactive').textContent = prob;
     dhShow('d_hist', val('d_no'), $('d_date').value);
     phShow();      // (update-85) the photos of this fill
@@ -16313,9 +16500,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const b = many ? S.bbal : S.bal;
     const date = $(many ? 'bd_date' : 'd_date').value, shift = $(many ? 'bd_shift' : 'd_shift').value, src = $(many ? 'bd_src' : 'd_src').value;
     $('d_pill_lbl').textContent = src + ' opening ' + showDate(date) + ' ' + shift;
-    $('d_pill_val').textContent = b ? fmt(b.balance) : '…';
+    $('d_pill_val').textContent = b ? fmt(b.balance) : '…'; $('d_pill_u').textContent = placeUnit(src);      // (update-163) kg for CNG
     $('d_pill').classList.toggle('low', b ? b.balance <= 0 : false);
-    $('d_pill').title = S.stock && S.stock.byLoc ? 'Current stock: ' + Object.keys(S.stock.byLoc).map(k => k + ' ' + fmt(S.stock.byLoc[k]) + ' Ltr').join(', ') : '';
+    $('d_pill').title = S.stock && S.stock.byLoc ? 'Current stock: ' + Object.keys(S.stock.byLoc).map(k => k + ' ' + fmt(S.stock.byLoc[k]) + ' ' + placeUnit(k)).join(', ') : '';
   }
   function dieselAfterLine() {
     updateDieselPill();
@@ -16326,12 +16513,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const bal = r2(start - (q === '' ? 0 : q));
     $('d_balance').value = fmt(bal);
     $('d_balance').classList.toggle('neg', bal < 0);
-    const when = $('d_src').value + ', ' + showDate($('d_date').value) + ' (' + $('d_shift').value + ')';
-    if (q === '') { el.className = 'stockline'; el.innerHTML = 'Stock on ' + esc(when) + ': <b>' + fmt(start) + ' Ltr</b>'; return; }
+    const when = $('d_src').value + ', ' + showDate($('d_date').value) + ' (' + $('d_shift').value + ')', U = placeUnit($('d_src').value);
+    if (q === '') { el.className = 'stockline'; el.innerHTML = 'Stock on ' + esc(when) + ': <b>' + fmt(start) + ' ' + U + '</b>'; return; }
     const short = q > a;
     el.className = 'stockline' + (short ? ' bad' : '');
-    el.innerHTML = short ? 'Not enough stock for ' + esc(when) + ': you can issue up to <b>' + fmt(a) + ' Ltr</b>'
-      : 'Stock on ' + esc(when) + ': <b>' + fmt(start) + ' Ltr</b> → after this issue <b>' + fmt(bal) + ' Ltr</b>';
+    el.innerHTML = short ? 'Not enough stock for ' + esc(when) + ': you can issue up to <b>' + fmt(a) + ' ' + U + '</b>'
+      : 'Stock on ' + esc(when) + ': <b>' + fmt(start) + ' ' + U + '</b> → after this issue <b>' + fmt(bal) + ' ' + U + '</b>';
   }
   $('d_qty').addEventListener('input', dieselAfterLine);
   $('bd_date').addEventListener('change', () => [...$('bd_rows').children].forEach(tr => { if (tr.querySelector('[data-f=no]').value.trim()) dieselRowMachine(tr); }));
@@ -16391,17 +16578,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (seq !== dieselSeq) return; // a newer filter is loading
       const rows = res.rows;
       S.dieselRows = rows; S.dieselLocks = res.locks || {};
-      $('d_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Total diesel: <b>' + fmt(res.totalQty) + ' Ltr</b>' +
+      $('d_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Total ' + (res.byFuel ? 'fuel' : 'diesel') + ': <b>' + fuelTotal(res.totalQty, res.byFuel) + '</b>' +      // (update-163) each fuel on its own
         (res.count > rows.length ? ' &nbsp; (showing latest ' + rows.length + ' – narrow the filter to see the rest)' : '');
       $('d_rows').innerHTML = rows.length ? rows.map(r =>
         '<tr><td>' + esc(r.id) + (r.lk ? lockTag(S.dieselLocks[r.lk]) : '') + (r.ph ? ' <button type="button" class="link d-phbtn" data-dph="' + esc(r.id) + '" title="Photos of this fill">📷 ' + r.ph + '</button>' : '') + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + '</td><td>' + esc(r.source) + '</td><td>' + esc(r.no) + '</td><td>' + esc(r.type) + '</td><td>' + esc(r.owner) + '</td><td>' + esc(r.driver) +
-        '</td><td class="n">' + fmt(r.qty) + '</td><td class="n">' + [r.kmReading !== '' ? fmt(r.kmReading) + ' km' : '', r.hrReading !== '' ? fmt(r.hrReading) + ' hr' : ''].filter(Boolean).join('<br>') +
+        '</td><td class="n">' + fmt(r.qty) + kgOf(r.source) + '</td><td class="n">' + [r.kmReading !== '' ? fmt(r.kmReading) + ' km' : '', r.hrReading !== '' ? fmt(r.hrReading) + ' hr' : ''].filter(Boolean).join('<br>') +
         '</td><td class="n' + (r.balance !== '' && r.balance < 0 ? ' neg' : '') + '"><b>' + fmt(r.balance) + '</b></td><td>' + esc(r.remark) +
         '</td><td class="n">' + (S.dTotal > 0 ? fmt(r2((Number(r.qty) || 0) / S.dTotal * 100)) + '%' : '–') + '</td>' + byCell(r) + '<td>' + rowActions('Diesel Issue', 'data-dedit', 'data-ddel', r.id) + '</td></tr>').join('')
         : '<tr><td colspan="15" class="none">No diesel issues match this filter.</td></tr>';
       // Total of every entry that matches the filter (also those beyond the 500 shown)
-      $('d_foot').innerHTML = res.count ? '<tr><td colspan="8">Total – ' + res.count + ' entries</td><td class="n">' + fmt(res.totalQty) +
-        ' Ltr</td><td colspan="7"></td></tr>' : '';
+      $('d_foot').innerHTML = res.count ? '<tr><td colspan="8">Total – ' + res.count + ' entries</td><td class="n">' + fuelTotal(res.totalQty, res.byFuel) +
+        '</td><td colspan="7"></td></tr>' : '';
       renderDieselShare();
     } catch (e) { toast(errMsg(e), true); }
   }
@@ -16479,10 +16666,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const inp = tr.querySelector('[data-f=no]');
     const m = findMachine(inp.value);
     if (m) inp.value = m.id;
-    const prob = activeProblem(m, $('bd_date').value);
-    tr.querySelector('.unitcell').textContent = m ? (prob ? 'Inactive' : (m.unit || '–')) : (inp.value.trim() ? 'Not in Master' : '');
-    tr.querySelector('.unitcell').classList.toggle('bad', !!prob);
-    tr.title = prob;
+    const prob = activeProblem(m, $('bd_date').value), fp = fuelProblem(m, $('bd_src').value);      // (update-163) its fuel at this source
+    tr.querySelector('.unitcell').textContent = m ? (prob ? 'Inactive' : fp ? machFuel(m) + ' ✗' : (m.unit || '–')) : (inp.value.trim() ? 'Not in Master' : '');
+    tr.querySelector('.unitcell').classList.toggle('bad', !!(prob || fp));
+    tr.title = prob || fp;
     tr.querySelector('.ownercell').textContent = m ? (m.owner || '–') : '';
     const km = tr.querySelector('[data-f=kmReading]'), hr = tr.querySelector('[data-f=hrReading]');
     const debit = !!(m && m.supply === 'Debit Basis'); // Debit Basis: no readings
@@ -16515,11 +16702,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     });
     const short = total > avail;
     $('bd_sum').className = 'sum' + (short ? ' bad' : '');
-    if (!S.bbal) { $('bd_sum').innerHTML = 'Loading ' + esc($('bd_src').value) + ' stock… &nbsp; Rows: <b>' + filled.length + '</b> &nbsp; Total: <b>' + fmt(total) + ' Ltr</b>'; return; }
-    $('bd_sum').innerHTML = esc($('bd_src').value) + ' stock on this date: <b>' + fmt(start) + ' Ltr</b> &nbsp; Rows: <b>' + filled.length + '</b> &nbsp; Total: <b>' + fmt(total) +
-      ' Ltr</b> &nbsp; Closing: <b>' + fmt(r2(start - total)) + ' Ltr</b>' + (short ? ' &nbsp; (can issue up to ' + fmt(avail) + ' Ltr)' : '');
+    const U = placeUnit($('bd_src').value);      // (update-163) kg for CNG
+    if (!S.bbal) { $('bd_sum').innerHTML = 'Loading ' + esc($('bd_src').value) + ' stock… &nbsp; Rows: <b>' + filled.length + '</b> &nbsp; Total: <b>' + fmt(total) + ' ' + U + '</b>'; return; }
+    $('bd_sum').innerHTML = esc($('bd_src').value) + ' stock on this date: <b>' + fmt(start) + ' ' + U + '</b> &nbsp; Rows: <b>' + filled.length + '</b> &nbsp; Total: <b>' + fmt(total) +
+      ' ' + U + '</b> &nbsp; Closing: <b>' + fmt(r2(start - total)) + ' ' + U + '</b>' + (short ? ' &nbsp; (can issue up to ' + fmt(avail) + ' ' + U + ')' : '');
   }
   $('bd_rows').addEventListener('change', e => { if (e.target.dataset.f === 'no') dieselRowMachine(e.target.closest('tr')); dieselBulkSum(); });
+  $('bd_src').addEventListener('change', () => { fuelForms(); [...$('bd_rows').children].forEach(tr => { if (tr.querySelector('[data-f=no]').value.trim()) dieselRowMachine(tr); }); });      // (update-163) its fuel
   $('bd_rows').addEventListener('input', dieselBulkSum);
   $('bd_rows').addEventListener('focusin', e => { const tr = e.target.closest('tr'); if (!tr) return; const no = tr.querySelector('[data-f=no]').value; if (findMachine(no)) dhShow('bd_hist', no, $('bd_date').value); });
   $('bd_rows').addEventListener('click', e => {

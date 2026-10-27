@@ -39,7 +39,7 @@ const H = {
   STOCK: 'Stock Balance', AKM: 'Actual KM Avg', AHR: 'Actual Hrs Avg', XS: 'Extra/Short Diesel',
   TRIP: 'Trip', CH: 'Chainage No.', WORK: 'Work Done', DRIVER: 'Driver Name',
   CYCLE: 'Fill Cycle', ODSL: 'Opening Diesel', DRATE: 'Debit Rate', TCAP: 'Tank Capacity (Ltr)', ODSET: 'Opening Diesel Set', MRATE: 'Monthly Rate', TDS: 'TDS Rate (%)',
-  ENGNO: 'Engine Number', CHASSIS: 'Chassis Number', ENGMAKE: 'Engine Make',
+  ENGNO: 'Engine Number', CHASSIS: 'Chassis Number', ENGMAKE: 'Engine Make', FUEL: 'Fuel',      // (update-163) Diesel / Petrol / CNG / Electric – empty = Diesel
   TAXV: 'Tax Valid Upto', PUCV: 'PUC Valid Upto', PERMITV: 'Permit Valid Upto', FITV: 'Fitness Valid Upto', INSV: 'Insurance Valid Upto', EBY: 'Entered By', UBY: 'Updated By', DMETER: 'Current Diesel Issue Reading', PHOTOS: 'Photos',
   CHFROM: 'Chainage From', CHTO: 'Chainage To', AVG: 'Actual Average', EXTRA: 'Extra / Short Diesel', DREAD: 'Diesel Readings',
   STATUS: 'Status', AFROM: 'Active From', IFROM: 'Inactive From', SPER: 'Site Periods', SUPPLY: 'Diesel Supply',
@@ -171,7 +171,7 @@ function getInit_(u) {
   const all = !u;      // (called without a user only by the code itself)
   return { company: orgSettings_().customer, org: orgPublic_(), rules: siteRules_(), ai: aiInfo_(), today: today_(), master: getMaster_(),
     drivers: all || seesAny_(u, FOR_DRIVERS_) ? getDrivers_() : [], stock: all || seesAny_(u, FOR_STOCK_) ? getStock_() : null,
-    pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [], locations: placeNames_(), closedUpto: booksClosed_(), flow: all ? {} : flowMine_(u) };
+    pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [], locations: placeNames_(), placeFuels: placeFuels_(), closedUpto: booksClosed_(), flow: all ? {} : flowMine_(u) };
 }
 
 /* ================= LOGIN, ACCESS AND ACTIVITY LOG ================= *
@@ -1065,7 +1065,9 @@ function apiRun_(u, spec, fn, args) {
   const before = spec.log ? logBefore_(spec, args) : null;
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = !!u.super;
   OUT_FOR_ = u;      // (the answer kept with a save – step 5 – is cut the same way: see withLock_)
-  const run = () => spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args);
+  // (update-163) a report / the dashboard of one fuel (a site with more than one): only around an action that saves nothing
+  const fv = !spec.edit && (spec.m === 'Reports' || spec.m === 'Dashboard') ? fuelViewOf_(args) : '';
+  const run = () => { FUEL_VIEW_ = fv; try { return spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); } finally { FUEL_VIEW_ = ''; } };
   // (update-108) the Super Admin's save of Log Book / diesel: first the "before" of every submitted bill it may change (billBaselines_) – both saved together, or neither
   const res = leastOut_(u, u.super && CR_FNS_.indexOf(fn) > -1 ? withLock_(() => { billBaselines_(fn, args); return run(); }) : run());      // machinery details only for users with a page that uses them (D4)
   if (fn === 'getInit' || fn === 'sync') { res.user = publicUser_(u); res.versions = getVersions_(); res.today = today_(); res.source = sbDataOn_() ? 'supabase' : 'sheet'; res.build = appBuild_();
@@ -1133,7 +1135,7 @@ function getVersions_() {
 }
 function getLookups_(u) { const all = !u;      // each list only for a user who has a page that uses it (see getInit_)
   return { master: getMaster_(), drivers: all || seesAny_(u, FOR_DRIVERS_) ? getDrivers_() : [], pumps: all || seesAny_(u, FOR_PUMPS_) ? getPumps_() : [],
-    vendors: all || seesAny_(u, FOR_PARTIES_) ? vendorNames_() : [], closedUpto: booksClosed_(), rules: siteRules_(), locations: placeNames_() }; }      // (update-117) the site's diesel places: a change by the Super Admin reaches every open page
+    vendors: all || seesAny_(u, FOR_PARTIES_) ? vendorNames_() : [], closedUpto: booksClosed_(), rules: siteRules_(), locations: placeNames_(), placeFuels: placeFuels_() }; }      // (update-117) the site's diesel places: a change by the Super Admin reaches every open page
 
 // Simple trigger: runs by itself whenever someone types in the Google Sheet
 function onEdit(e) {
@@ -1489,9 +1491,10 @@ function getActivity_(f) {
 function rowId_(r, t) { return str_(r[t.c[H.NO]]) || str_(r[t.c[H.NAME]]); }
 
 function getMaster_() {
-  if (TABLE_MEMO_ && TABLE_MEMO_.__master) return TABLE_MEMO_.__master;
+  const mk = FUEL_VIEW_ && SB_DEPTH_ === 0 ? '__master|' + FUEL_VIEW_ : '__master';      // (update-163) a fuel's report: its machinery
+  if (TABLE_MEMO_ && TABLE_MEMO_[mk]) return TABLE_MEMO_[mk];
   const list = buildMaster_();
-  if (TABLE_MEMO_) TABLE_MEMO_.__master = list;
+  if (TABLE_MEMO_) TABLE_MEMO_[mk] = list;
   return list;
 }
 function buildMaster_() {
@@ -1514,6 +1517,7 @@ function buildMaster_() {
       tankCap: H.TCAP in t.c ? numOrBlank_(r[t.c[H.TCAP]]) : '', // optional, reference only
       monthlyRate: H.MRATE in t.c ? numOrBlank_(r[t.c[H.MRATE]]) : '', // Rental / Hired only
       engineNo: H.ENGNO in t.c ? str_(r[t.c[H.ENGNO]]) : '', chassisNo: H.CHASSIS in t.c ? str_(r[t.c[H.CHASSIS]]) : '', engineMake: H.ENGMAKE in t.c ? str_(r[t.c[H.ENGMAKE]]) : '',
+      fuel: H.FUEL in t.c ? fuelOf_(r[t.c[H.FUEL]]) || 'Diesel' : 'Diesel',      // (update-163)
       taxUpto: H.TAXV in t.c ? docVal_(r[t.c[H.TAXV]]) : '', pucUpto: H.PUCV in t.c ? docVal_(r[t.c[H.PUCV]]) : '', permitUpto: H.PERMITV in t.c ? docVal_(r[t.c[H.PERMITV]]) : '',
       fitnessUpto: H.FITV in t.c ? docVal_(r[t.c[H.FITV]]) : '', insuranceUpto: H.INSV in t.c ? docVal_(r[t.c[H.INSV]]) : '',
       tdsRate: H.TDS in t.c ? numOrBlank_(r[t.c[H.TDS]]) : '',
@@ -1635,8 +1639,12 @@ function validateMaster_(m) {
   const unit = unitFromWorks_(works);
   if (!debit && !works.length) throw new Error(id + ': tick what it works on (Day / Trip / KM / Hrs / Time).');
   const kmStd = numOrBlank_(m.kmStd), hrStd = numOrBlank_(m.hrStd);
-  if (!debit && hasKm_(unit) && !(kmStd > 0)) throw new Error(id + ': enter Standard Average (KM/Ltr).');
-  if (!debit && hasHr_(unit) && !(hrStd > 0)) throw new Error(id + ': enter Standard Average (Ltr/Hr).');
+  // (update-163) its fuel – not sent (an import without the column, a page of before): it keeps the one it has
+  const fuel = m.fuel === undefined ? undefined : fuelOf_(m.fuel);
+  if (fuel === '') throw new Error(id + ': select Fuel (Diesel / Petrol / CNG / Electric).');
+  const ev = fuel === 'Electric';      // no fuel is issued to it: no standard average is asked
+  if (!debit && !ev && hasKm_(unit) && !(kmStd > 0)) throw new Error(id + ': enter Standard Average (KM/' + (fuel === 'CNG' ? 'kg' : 'Ltr') + ').');
+  if (!debit && !ev && hasHr_(unit) && !(hrStd > 0)) throw new Error(id + ': enter Standard Average (Ltr/Hr).');
   // Ownership Debit = diesel on Debit Basis, always; a machinery that is no longer Debit goes back to what is sent (Company unless said)
   const supply = debit ? 'Debit Basis' : normSupply_(m.supply, ownership);
   const status = str_(m.status).toUpperCase() === 'INACTIVE' ? 'Inactive' : 'Active';
@@ -1655,6 +1663,7 @@ function validateMaster_(m) {
     engineNo: m.engineNo === undefined ? undefined : clean_(m.engineNo).toUpperCase(),
     chassisNo: m.chassisNo === undefined ? undefined : clean_(m.chassisNo).toUpperCase(),
     engineMake: m.engineMake === undefined ? undefined : clean_(m.engineMake),
+    fuel: fuel,      // (update-163) undefined = as it is
     taxUpto: m.taxUpto === undefined ? undefined : docCheck_(id, 'Tax', m.taxUpto),
     pucUpto: m.pucUpto === undefined ? undefined : docCheck_(id, 'PUC', m.pucUpto),
     permitUpto: m.permitUpto === undefined ? undefined : docCheck_(id, 'Permit', m.permitUpto),
@@ -1677,6 +1686,7 @@ function buildMasterRow_(t, base, v) {
   if (v.monthlyRate !== undefined) set_(row, t, H.MRATE, v.monthlyRate);
   if (v.tdsRate !== undefined) set_(row, t, H.TDS, v.tdsRate);
   ASSET_TEXT_.concat(ASSET_DOCS_).forEach(x => { if (v[x[0]] !== undefined) set_(row, t, H[x[1]], v[x[0]]); });
+  if (v.fuel !== undefined) set_(row, t, H.FUEL, v.fuel === 'Diesel' ? '' : v.fuel);      // (update-163)
   return row;
 }
 
@@ -1751,6 +1761,7 @@ function saveMaster_(m, mode, origId) {
     if (v.monthlyRate !== undefined && v.monthlyRate !== '') addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.MRATE);
     if (v.tdsRate !== undefined && v.tdsRate !== '') addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.TDS);
     ASSET_TEXT_.concat(ASSET_DOCS_).forEach(x => { if (v[x[0]] !== undefined && v[x[0]] !== '') addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H[x[1]]); });
+    if (v.fuel && v.fuel !== 'Diesel') addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.FUEL);      // (update-163)
     const t = table_(APP.SHEET_MASTER, MASTER_COLS_);
     const clash = t.rows.findIndex(r => same_(rowId_(r, t), v.id));
     let renamed = null;
@@ -1780,6 +1791,7 @@ function saveMaster_(m, mode, origId) {
 // Add many machinery at once. Nothing is saved if any row has a problem.
 function saveMasterBulk_(list) {
   return withLock_(() => {
+    if ((list || []).some(m => m && (fuelOf_(m.fuel) || 'Diesel') !== 'Diesel')) addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.FUEL);      // (update-163)
     const t = table_(APP.SHEET_MASTER, MASTER_COLS_);
     const existing = {};
     t.rows.forEach(r => { const k = noKey_(rowId_(r, t)); if (k) existing[k] = true; });
@@ -4330,7 +4342,7 @@ function deleteMaster_(id, force, ver) {
 
 /* ---------- Master export / import ---------- */
 const MASTER_FIELDS_ = ['no', 'name', 'type', 'make', 'unit', 'kmStd', 'hrStd', 'owner', 'ownership', 'supply', 'status', 'activeFrom', 'inactiveFrom',
-  'engineNo', 'chassisNo', 'engineMake', 'taxUpto', 'pucUpto', 'permitUpto', 'fitnessUpto', 'insuranceUpto'];
+  'engineNo', 'chassisNo', 'engineMake', 'taxUpto', 'pucUpto', 'permitUpto', 'fitnessUpto', 'insuranceUpto', 'fuel'];      // (update-163) fuel
 // Asset Master extras: engine / chassis details and the validity of papers (a date, or NA = not applicable)
 const ASSET_TEXT_ = [['engineNo', 'ENGNO'], ['chassisNo', 'CHASSIS'], ['engineMake', 'ENGMAKE']];
 const ASSET_DOCS_ = [['taxUpto', 'TAXV', 'Tax'], ['pucUpto', 'PUCV', 'PUC'], ['permitUpto', 'PERMITV', 'Permit'], ['fitnessUpto', 'FITV', 'Fitness'], ['insuranceUpto', 'INSV', 'Insurance']];
@@ -4341,7 +4353,7 @@ const docShow_ = v => v === 'NA' ? 'N/A' : v === 'LIFETIME' ? 'Lifetime' : v ? d
 // All Master rows, in the same column order as the Master sheet.
 function exportMaster_() {
   const t = table_(APP.SHEET_MASTER, MASTER_COLS_);
-  const extra = [H.WORKS, H.TCAP, H.ENGNO, H.CHASSIS, H.ENGMAKE, H.TAXV, H.PUCV, H.PERMITV, H.FITV, H.INSV];
+  const extra = [H.WORKS, H.TCAP, H.ENGNO, H.CHASSIS, H.ENGMAKE, H.FUEL, H.TAXV, H.PUCV, H.PERMITV, H.FITV, H.INSV];      // (update-163) Fuel
   const heads = MASTER_COLS_.concat(extra);
   return {
     headers: heads,
@@ -4354,7 +4366,9 @@ function exportMaster_() {
 // apply = false only checks and counts; apply = true saves. Nothing is saved if any row has a problem.
 function importMaster_(rows, apply) {
   return withLock_(() => {
-    if (apply) { addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.WORKS); addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.SPER); TABLE_MEMO_ = {}; }
+    if (apply) { addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.WORKS); addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.SPER);
+      if ((rows || []).some(r => (fuelOf_(r.fuel) || 'Diesel') !== 'Diesel')) addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, H.FUEL);      // (update-163) before the rows are built
+      TABLE_MEMO_ = {}; }
     const t = table_(APP.SHEET_MASTER, MASTER_COLS_);
     const index = {};
     t.rows.forEach((r, i) => { const k = noKey_(rowId_(r, t)); if (k) index[k] = i; });
@@ -4377,6 +4391,7 @@ function importMaster_(rows, apply) {
             supply: cur[t.c[H.SUPPLY]], status: cur[t.c[H.STATUS]], activeFrom: cur[t.c[H.AFROM]], inactiveFrom: cur[t.c[H.IFROM]] };
           ASSET_TEXT_.concat(ASSET_DOCS_).forEach(x => { curObj[x[0]] = H[x[1]] in t.c ? cur[t.c[H[x[1]]]] : undefined; });
           curObj.worksOn = H.WORKS in t.c ? cur[t.c[H.WORKS]] : '';
+          curObj.fuel = H.FUEL in t.c ? cur[t.c[H.FUEL]] : undefined;      // (update-163) a file without the column: as it is
           MASTER_FIELDS_.forEach(f => { merged[f] = x[f] !== undefined ? x[f] : curObj[f]; });
           // a new Unit in the file without "Works On" = the ticks follow that Unit; "Works On" in the file wins
           merged.worksOn = !blank_(x.worksOn) ? x.worksOn : !blank_(x.unit) && normUnit_(x.unit) !== normUnit_(curObj.unit) ? '' : curObj.worksOn;
@@ -4536,6 +4551,7 @@ function validateDiesel_(d, m) {
   // reading on the pump's total-litres counter after this fill (optional; only at a place with a counter – the first site's Dispenser)
   const src0 = checkLoc_(d.source || mainPlace_(), 'Diesel Source');
   dsrcMay_('Diesel Issue', src0);      // (update-162) only a source given to him
+  fuelMay_(m, src0);      // (update-163) only from a place of its fuel
   const meter = meterPlaces_()[src0] && !blank_(d.meter) ? reqReading_(d.meter, 'Current diesel issue reading') : '';
   return { qty: qty, km: km, hr: hr, driver: driver, remark: clean_(d.remark), source: src0, meter: meter };
 }
@@ -4740,7 +4756,9 @@ function saveDieselBulk_(b) {
         if (m.ownership !== 'Debit' && APP.UNITS.indexOf(m.unit) === -1) throw new Error('Set the Unit for ' + m.id + ' in Master first.');
         assertActive_(m, dk);
         billLock_(m.id, dk, 'Diesel issue');
-        const v = validateDiesel_(d, m);
+        // (update-163) each row is checked with the batch's source (the rows carry none): its fuel, and – update-162 – that the
+        // source is his (before this, the rows were checked with the first place)
+        const v = validateDiesel_(Object.assign({}, d, { source: b.source }), m);
         const k = noKey_(m.id);
         // the same machinery more than once in a day is normal (several fills) – only its readings are checked in order
         const pts = dieselPts_(t, idxOf[k] || [], -1).concat(seen[k] || []);
@@ -5070,12 +5088,12 @@ function getDieselIssues_(f) {
   const owner = clean_(f.owner).toUpperCase();
   const driver = clean_(f.driver).toUpperCase();
   const q = clean_(f.q).toUpperCase();
-  const src = str_(f.source);
+  const src = str_(f.source), fu = fuelFilter_(f);
   const LIMIT = 500;
 
   const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_);
   const c = t.c;
-  const hits = [];
+  const hits = [], ft = fuelTotals_();
   let totalQty = 0;
   t.rows.forEach(r => {
     const dk = dkey_(r[c[H.IDATE]]);
@@ -5083,10 +5101,11 @@ function getDieselIssues_(f) {
     if (noK && noKey_(r[c[H.NO]]).indexOf(noK) === -1) return;
     if (shift && str_(r[c[H.SHIFT]]) !== shift) return;
     if (src && loc_(r[c[H.SOURCE]]) !== src) return;
+    if (fu && placeFuel_(r[c[H.SOURCE]]) !== fu) return;
     if (owner && str_(r[c[H.OWNER]]).toUpperCase().indexOf(owner) === -1) return;
     if (driver && str_(r[c[H.DRIVER]]).toUpperCase().indexOf(driver) === -1) return;
     if (q && (str_(r[c[H.ID]]) + ' ' + str_(r[c[H.REMARK]])).toUpperCase().indexOf(q) === -1) return;
-    totalQty += num0_(r[c[H.QTY]]);
+    totalQty += num0_(r[c[H.QTY]]); ft.add(r[c[H.SOURCE]], num0_(r[c[H.QTY]]));
     hits.push(r);
   });
   hits.sort((a, b) => {
@@ -5104,7 +5123,7 @@ function getDieselIssues_(f) {
     x.qty = r2_(x.qty + num0_(r[c[H.QTY]])); x.entries++;
   });
   const LK = lockMarker_();
-  return {
+  return ft.put({
     count: hits.length,
     totalQty: r2_(totalQty),
     share: Object.keys(share).map(k => share[k]).sort((a, b) => b.qty - a.qty),
@@ -5120,7 +5139,7 @@ function getDieselIssues_(f) {
       ph: H.PHOTOS in c ? photoList_(r[c[H.PHOTOS]]).length : 0,      // how many photos it has (update-85)
       ver: rowVer_(t, r, DIESEL_VER_H_()),      // (update-145) sent back with a change / a delete
     })),
-  };
+  });
 }
 
 /* ---------- THE PHOTOS OF A DIESEL ISSUE (update-85, asked 12-10-2026) ----------
@@ -5749,19 +5768,74 @@ function meterAnswer_(txt, wantKm, wantHr) {
  * the first while old entries without a place count there – the stock of every entry stays where it is. Places can be added
  * at any time; the tank sizes changed at any time. */
 const PLACES_DEFAULT_ = [{ name: 'Dispenser', meter: true }, { name: 'VTR Store', meter: false }];
+/* (update-163, asked 26-10-2026: "prtrol cng he field banaw ani ha electric ha pn thew future madhe ya gadya pn yenar aahet") FUEL.
+ * Every machinery has ONE fuel (Asset Master → Fuel: Diesel / Petrol / CNG / Electric – empty = Diesel, so every machinery of
+ * before is Diesel) and every diesel place holds ONE fuel (Diesel / Petrol / CNG – a place of before is Diesel; at HO each fuel
+ * card is a place of its own). A fill is given only from a place of the machinery's fuel; a transfer only between places of the
+ * same fuel; an Electric machinery gets no fuel entry (only marked for now). So the stock of each fuel stays apart. A site whose
+ * places are all Diesel reads exactly as before; a site with more than one fuel picks the fuel in its reports and dashboard
+ * (FUEL_VIEW_ – the fuels are never added together). CNG is counted in kg, the others in Ltr. */
+const FUELS_ = ['Diesel', 'Petrol', 'CNG', 'Electric'], PLACE_FUELS_ = ['Diesel', 'Petrol', 'CNG'];
+// a fuel as written (any case; blank = Diesel) – '' when it is no fuel of the list
+function fuelOf_(v) { const s = str_(v).toUpperCase(); if (!s) return 'Diesel'; return FUELS_.find(f => f.toUpperCase() === s) || ''; }
+const fuelUnit_ = f => f === 'CNG' ? 'kg' : f === 'Electric' ? 'kWh' : 'Ltr';
+const fuelWord_ = f => f === 'Diesel' || !f ? 'diesel' : f;      // "Not enough diesel at …" stays as it was for Diesel
+function placeFuel_(name) { const s = clean_(name), k = (s || mainPlace_()).toUpperCase(), p = places_().find(x => x.name.toUpperCase() === k); return p ? p.fuel : 'Diesel'; }
+const placeUnit_ = name => fuelUnit_(placeFuel_(name));
+// the fuels of this site's places, in the places' order (one: a site as before)
+function siteFuels_() { const o = []; places_().forEach(p => { if (o.indexOf(p.fuel) === -1) o.push(p.fuel); }); return o; }
+function machineFuel_(m) { return (m && fuelOf_(m.fuel)) || 'Diesel'; }
+// a list of one fuel (the Dashboard's numbers of a fuel): { fuel: 'Petrol' } – blank / anything else = every fuel
+const fuelFilter_ = f => PLACE_FUELS_.indexOf(str_(f && f.fuel)) > -1 ? str_(f.fuel) : '';
+// a list's quantity of each fuel (Diesel Issue, Inward, Transfer) – only on a site with more than one: the page never adds them together
+function fuelTotals_() {
+  const many = siteFuels_().length > 1, o = {};
+  return { add: (place, q) => { if (many) { const f = placeFuel_(place); o[f] = r2_((o[f] || 0) + q); } }, put: res => many ? Object.assign(res, { byFuel: o }) : res };
+}
+// a fill of [m] from [place]: the place must hold the machinery's fuel; an Electric machinery gets no fuel
+function fuelMay_(m, place) {
+  const mf = machineFuel_(m), pf = placeFuel_(place);
+  if (mf === 'Electric') throw new Error(m.id + ' runs on Electric – no fuel is issued to it (Asset Master → Fuel).');
+  if (mf !== pf) throw new Error(place + ' holds ' + pf + ' and ' + m.id + ' runs on ' + mf + ' – pick a ' + mf + ' place (Asset Master → Fuel).');
+}
+/* THE FUEL VIEW: a report or the dashboard of ONE fuel (a site with more than one). Set only around an action that saves nothing
+ * (apiRun_); the tables read then hold only the rows of that fuel – the issues, inward and transfers of its places, the Log Book and
+ * the Master of its machinery – and the site's places are only its places. Never inside a save (SB_DEPTH_). */
+let FUEL_VIEW_ = '';
+function fuelViewOf_(args) {      // the filter of the action (getOwnershipDetail sends it second)
+  const o = (Array.isArray(args) ? args : []).find(a => a && typeof a === 'object' && !Array.isArray(a) && a.fuel !== undefined), f = o ? str_(o.fuel) : '';
+  return PLACE_FUELS_.indexOf(f) > -1 && siteFuels_().length > 1 ? f : '';
+}
+// [fn] run with every fuel (inside a fuel's view)
+function fuelViewOff_(fn) { const F = FUEL_VIEW_; FUEL_VIEW_ = ''; try { return fn(); } finally { FUEL_VIEW_ = F; } }
+function fuelView_(name, t) {
+  const F = FUEL_VIEW_, c = t.c;
+  let keep = null;
+  if (name === APP.SHEET_DIESEL && H.SOURCE in c) keep = r => placeFuel_(r[c[H.SOURCE]]) === F;
+  else if (name === APP.SHEET_INWARD && H.LOC in c) keep = r => placeFuel_(r[c[H.LOC]]) === F;
+  else if (name === APP.SHEET_TRANSFER && H.FROM in c) keep = r => placeFuel_(r[c[H.FROM]]) === F;
+  else if (name === APP.SHEET_MASTER) keep = r => (H.FUEL in c ? fuelOf_(r[c[H.FUEL]]) || 'Diesel' : 'Diesel') === F;
+  else if (name === APP.SHEET_LOG && H.NO in c) {
+    const fm = {}; fuelViewOff_(() => getMaster_().forEach(m => { fm[noKey_(m.id)] = machineFuel_(m); }));
+    keep = r => (fm[noKey_(r[c[H.NO]])] || 'Diesel') === F;
+  }
+  return keep ? Object.assign({}, t, { rows: t.rows.filter(keep) }) : t;
+}
 const PLACES_MAX_ = 12, PLACE_RE_ = /^[A-Za-z0-9][A-Za-z0-9 .\/()&-]*$/;
 let PLACES_MEMO_ = { raw: null, list: null };
 function places_() {
   const raw = str_(PropertiesService.getScriptProperties().getProperty('DIESEL_PLACES'));
   if (PLACES_MEMO_.list && PLACES_MEMO_.raw === raw) return PLACES_MEMO_.list;
   let list = [];
-  try { const j = raw ? JSON.parse(raw) : null; if (Array.isArray(j)) list = j.map(p => ({ name: clean_(p && p.name), meter: !!(p && p.meter) })).filter(p => p.name); }
+  try { const j = raw ? JSON.parse(raw) : null; if (Array.isArray(j)) list = j.map(p => ({ name: clean_(p && p.name), meter: !!(p && p.meter), fuel: PLACE_FUELS_.indexOf(str_(p && p.fuel)) > -1 ? str_(p.fuel) : 'Diesel' })).filter(p => p.name); }
   catch (e) { list = []; }
-  if (!list.length) list = PLACES_DEFAULT_.map(p => ({ name: p.name, meter: p.meter }));
+  if (!list.length) list = PLACES_DEFAULT_.map(p => ({ name: p.name, meter: p.meter, fuel: 'Diesel' }));
   PLACES_MEMO_ = { raw: raw, list: list };
   return list;
 }
-function placeNames_() { return places_().map(p => p.name); }
+function placeNames_() { return (FUEL_VIEW_ ? places_().filter(p => p.fuel === FUEL_VIEW_) : places_()).map(p => p.name); }      // (update-163) a fuel's report: its places
+// (update-163) each place and its fuel – for the page and the phone app (every place, whatever the view)
+function placeFuels_() { const o = {}; places_().forEach(p => { o[p.name] = p.fuel; }); return o; }
 function mainPlace_() { return places_()[0].name; }
 // the places whose pump counter reading is kept with a diesel issue ("Current Diesel Issue Reading"): the first site's Dispenser
 function meterPlaces_() { const o = {}; places_().forEach(p => { if (p.meter) o[p.name] = true; }); return o; }
@@ -5780,7 +5854,7 @@ function placesUsed_(T) {
 function placesInfo_() {
   const T = stockTables_(), used = placesUsed_(T), ev = events_(T), caps = tankSettings_().caps;
   return { set: !!str_(PropertiesService.getScriptProperties().getProperty('DIESEL_PLACES')), entries: used.any, firstFixed: used.blank,
-    places: places_().map(p => ({ name: p.name, cap: caps[p.name], meter: p.meter, used: !!used.at[p.name.toUpperCase()] || (used.blank && p.name === mainPlace_()), stock: r2_(ev.run[p.name] || 0) })) };
+    places: places_().map(p => ({ name: p.name, cap: caps[p.name], meter: p.meter, fuel: p.fuel, used: !!used.at[p.name.toUpperCase()] || (used.blank && p.name === mainPlace_()), stock: r2_(ev.run[p.name] || 0) })) };
 }
 function savePlaces_(list) {
   if (!Array.isArray(list) || !list.length) throw new Error('Add at least one diesel place (its name and tank size).');
@@ -5795,10 +5869,18 @@ function savePlaces_(list) {
     seen[k] = true;
     const cap = Number(p && p.cap);
     if (!(cap > 0) || cap > 1000000) throw new Error('Enter the tank size (Ltr) for ' + name + '.');
-    out.push({ name: name, meter: curOf[k] ? curOf[k].meter : false });      // the pump counter reading stays as the place had it
+    const fuel = str_(p && p.fuel) ? PLACE_FUELS_.find(f => f.toUpperCase() === str_(p.fuel).toUpperCase()) : 'Diesel';      // (update-163) blank = Diesel
+    if (!fuel) throw new Error('Diesel place "' + name + '": its fuel is Diesel, Petrol or CNG.');
+    const o = { name: name, meter: curOf[k] ? curOf[k].meter : false };      // the pump counter reading stays as the place had it
+    if (fuel !== 'Diesel') o.fuel = fuel;
+    out.push(o);
     caps[name] = Math.round(cap);
   });
   const used = placesUsed_(stockTables_());
+  // (update-163) a place that entries use keeps its fuel – its stock is of that fuel
+  const inUse = n => !!used.at[n.toUpperCase()] || (used.blank && n.toUpperCase() === cur[0].name.toUpperCase());      // (an old entry without a place counts at the first)
+  const refuel = out.filter(p => curOf[p.name.toUpperCase()] && inUse(p.name) && (p.fuel || 'Diesel') !== curOf[p.name.toUpperCase()].fuel).map(p => p.name + ' (' + curOf[p.name.toUpperCase()].fuel + ')');
+  if (refuel.length) throw new Error('Diesel place ' + refuel.join(', ') + (refuel.length > 1 ? ' have' : ' has') + ' entries – its fuel cannot be changed.');
   const gone = cur.filter(p => used.at[p.name.toUpperCase()] && !seen[p.name.toUpperCase()]).map(p => p.name);
   if (gone.length) throw new Error('Diesel place ' + gone.join(', ') + (gone.length > 1 ? ' have' : ' has') + ' entries – it cannot be renamed or taken away.');
   if (used.blank && out[0].name.toUpperCase() !== cur[0].name.toUpperCase()) throw new Error(cur[0].name + ' must stay the first diesel place: old entries without a place count there.');
@@ -5959,7 +6041,7 @@ function assertNoNegative_(T, T2) {
       if (bad.kind === 'issue') { const r = T2.dt.rows[bad.idx], c = T2.dt.c; what = ' – at diesel issue ' + str_(r[c[H.ID]]) + ' (' + str_(r[c[H.NO]]) + ', ' + num0_(r[c[H.QTY]]) + ' Ltr, ' + str_(r[c[H.SHIFT]]) + ' shift)'; }
       else if (bad.kind === 'tout') { const r = T2.tt.rows[bad.idx], c = T2.tt.c; what = ' – at transfer ' + str_(r[c[H.TR_ID]]) + ' (' + num0_(r[c[H.IN_QTY]]) + ' Ltr to ' + loc_(r[c[H.TO]]) + ')'; }
     } catch (e) { what = ''; }
-    throw new Error('Not enough diesel at ' + bad.loc + ': on ' + p[2] + '-' + p[1] + '-' + p[0] + ' the balance would become ' + bad.bal + ' Ltr' + what + '.');
+    throw new Error('Not enough ' + fuelWord_(placeFuel_(bad.loc)) + ' at ' + bad.loc + ': on ' + p[2] + '-' + p[1] + '-' + p[0] + ' the balance would become ' + bad.bal + ' ' + placeUnit_(bad.loc) + what + '.');
   }
 }
 function stockFrom_(T, ev) {
@@ -5969,7 +6051,8 @@ function stockFrom_(T, ev) {
   let inward = 0, issued = 0;
   ev.forEach(e => { if (e.kind === 'inward') inward += e.q; if (e.kind === 'issue') issued -= e.q; });
   const total = r2_(Object.keys(ev.run).reduce((s, k) => s + ev.run[k], 0));
-  return { stock: total, byLoc: byLoc, inward: r2_(inward), issued: r2_(issued) };
+  const byFuel = {}; Object.keys(ev.run).forEach(k => { const f = placeFuel_(k); byFuel[f] = r2_((byFuel[f] || 0) + ev.run[k]); });      // (update-163) never added together on the page
+  return { stock: total, byLoc: byLoc, byFuel: byFuel, inward: r2_(inward), issued: r2_(issued) };
 }
 function getStock_() { return stockFrom_(stockTables_()); }
 
@@ -6010,8 +6093,9 @@ function requireStockAt_(loc, dk, shift, excludeId, qty) {
   const held = flowReserved_(loc);      // (update-114) diesel of entries waiting for verification is held back
   if (qty > r2_(b.available - held)) {
     const p = dk.split('-');
-    throw new Error('Not enough diesel at ' + loc + ' for ' + p[2] + '-' + p[1] + '-' + p[0] + ' (' + shift + '). Available: ' +
-      r2_(Math.max(0, b.available - held)) + ' Ltr' + (held ? ' (' + held + ' Ltr more waits for verification)' : '') + ', you are issuing: ' + r2_(qty) + ' Ltr.');
+    const u = placeUnit_(loc);      // (update-163) kg for CNG
+    throw new Error('Not enough ' + fuelWord_(placeFuel_(loc)) + ' at ' + loc + ' for ' + p[2] + '-' + p[1] + '-' + p[0] + ' (' + shift + '). Available: ' +
+      r2_(Math.max(0, b.available - held)) + ' ' + u + (held ? ' (' + held + ' ' + u + ' more waits for verification)' : '') + ', you are issuing: ' + r2_(qty) + ' ' + u + '.');
   }
 }
 
@@ -6194,25 +6278,26 @@ function getInwards_(f) {
   const from = str_(f.from) ? checkDate_(f.from) : '';
   const to = str_(f.to) ? checkDate_(f.to) : '';
   if (from && to && from > to) throw new Error('From date is after To date.');
-  const pump = clean_(f.pump).toUpperCase(), bill = clean_(f.bill).toUpperCase(), loc = str_(f.location);
+  const pump = clean_(f.pump).toUpperCase(), bill = clean_(f.bill).toUpperCase(), loc = str_(f.location), fu = fuelFilter_(f);
   const t = table_(APP.SHEET_INWARD, INWARD_COLS_);
   const c = t.c;
-  const hits = [];
+  const hits = [], ft = fuelTotals_();
   let qty = 0, amount = 0;
   t.rows.forEach(r => {
     const dk = dkey_(r[c[H.DATE]]);
     if (!dk || (from && dk < from) || (to && dk > to)) return;
     if (loc && loc_(r[c[H.LOC]]) !== loc) return;
+    if (fu && placeFuel_(r[c[H.LOC]]) !== fu) return;
     if (pump && str_(r[c[H.PUMP]]).toUpperCase().indexOf(pump) === -1) return;
     if (bill && (str_(r[c[H.BILLNO]]) + ' ' + str_(r[c[H.IN_ID]])).toUpperCase().indexOf(bill) === -1) return;
-    qty += num0_(r[c[H.IN_QTY]]); amount += num0_(r[c[H.AMOUNT]]);
+    qty += num0_(r[c[H.IN_QTY]]); amount += num0_(r[c[H.AMOUNT]]); ft.add(r[c[H.LOC]], num0_(r[c[H.IN_QTY]]));
     hits.push(r);
   });
   hits.sort((a, b) => {
     const da = dkey_(a[c[H.DATE]]), db = dkey_(b[c[H.DATE]]);
     return da !== db ? (da < db ? 1 : -1) : str_(b[c[H.IN_ID]]).localeCompare(str_(a[c[H.IN_ID]]));
   });
-  return {
+  return ft.put({
     count: hits.length, qty: r2_(qty), amount: r2_(amount), stock: getStock_(),
     rows: (f.all ? hits : hits.slice(0, 500)).map(r => ({
       id: str_(r[c[H.IN_ID]]), date: dkey_(r[c[H.DATE]]), qty: numOrBlank_(r[c[H.IN_QTY]]), pump: str_(r[c[H.PUMP]]),
@@ -6223,7 +6308,7 @@ function getInwards_(f) {
       ph: H.PHOTOS in c ? billList_(r[c[H.PHOTOS]]).length : 0,      // (update-120) how many bill copies
       ver: rowVer_(t, r, INWARD_VER_H_()),      // (update-156) sent back with a change / a delete
     })),
-  };
+  });
 }
 function getPumps_() {
   const t = table_(APP.SHEET_INWARD, [H.PUMP]);
@@ -6240,6 +6325,7 @@ function validateTransfer_(x) {
   dsrcMay_('Diesel Transfer', from);      // (update-162) sent only FROM a source given to him (To: any)
   const to = checkLoc_(x.to, 'To');
   if (from === to) throw new Error('From and To cannot be the same.');
+  if (placeFuel_(from) !== placeFuel_(to)) throw new Error('A transfer goes only between places of the same fuel: ' + from + ' holds ' + placeFuel_(from) + ', ' + to + ' holds ' + placeFuel_(to) + '.');      // (update-163)
   const qty = numOrBlank_(x.qty);
   if (!(qty > 0)) throw new Error('Enter Qty (Ltr).');
   return { dk: dk, shift: shift, from: from, to: to, qty: qty, remark: clean_(x.remark) };
@@ -6261,8 +6347,9 @@ function transferMessage_(T, v, excludeIdx) {
   const b = availableAt_(events_(T2), v.from, { dk: v.dk, ord: 2 + 2 * shiftOrder_(v.shift), ct: Number.MAX_SAFE_INTEGER, kind: 'tout', idx: Number.MAX_SAFE_INTEGER });
   if (v.qty > b.available) {
     const p = v.dk.split('-');
-    throw new Error('Not enough diesel at ' + v.from + ' for ' + p[2] + '-' + p[1] + '-' + p[0] + ' (' + v.shift + '). Available: ' +
-      b.available + ' Ltr, you are transferring: ' + v.qty + ' Ltr.');
+    const u = placeUnit_(v.from);
+    throw new Error('Not enough ' + fuelWord_(placeFuel_(v.from)) + ' at ' + v.from + ' for ' + p[2] + '-' + p[1] + '-' + p[0] + ' (' + v.shift + '). Available: ' +
+      b.available + ' ' + u + ', you are transferring: ' + v.qty + ' ' + u + '.');
   }
 }
 /* Many transfers at once – the "Multiple entries" grid and Import from Excel.
@@ -6366,18 +6453,19 @@ function getTransfers_(f) {
   const from = str_(f.from) ? checkDate_(f.from) : '';
   const to = str_(f.to) ? checkDate_(f.to) : '';
   if (from && to && from > to) throw new Error('From date is after To date.');
-  const loc = str_(f.location), q = clean_(f.q).toUpperCase();
+  const loc = str_(f.location), q = clean_(f.q).toUpperCase(), fu = fuelFilter_(f);
   const t = table_(APP.SHEET_TRANSFER, TRANSFER_COLS_);
   const c = t.c;
-  const hits = [];
+  const hits = [], ft = fuelTotals_();
   let qty = 0;
   t.rows.forEach(r => {
     const dk = dkey_(r[c[H.DATE]]);
     if (!dk || (from && dk < from) || (to && dk > to)) return;
     // (update-159, asked 25-10-2026: "jo stock point asel tithun transfer asel trch khali dakhwel") the stock point = From only
     if (loc && loc_(r[c[H.FROM]]) !== loc) return;
+    if (fu && placeFuel_(r[c[H.FROM]]) !== fu) return;
     if (q && (str_(r[c[H.TR_ID]]) + ' ' + str_(r[c[H.REMARK]])).toUpperCase().indexOf(q) === -1) return;
-    qty += num0_(r[c[H.IN_QTY]]);
+    qty += num0_(r[c[H.IN_QTY]]); ft.add(r[c[H.FROM]], num0_(r[c[H.IN_QTY]]));
     hits.push(r);
   });
   hits.sort((a, b) => {
@@ -6385,7 +6473,7 @@ function getTransfers_(f) {
     if (da !== db) return da < db ? 1 : -1;
     return shiftOrder_(str_(b[c[H.SHIFT]])) - shiftOrder_(str_(a[c[H.SHIFT]])) || str_(b[c[H.TR_ID]]).localeCompare(str_(a[c[H.TR_ID]]));
   });
-  return {
+  return ft.put({
     count: hits.length, qty: r2_(qty), stock: getStock_(),
     rows: (f.all ? hits : hits.slice(0, 500)).map(r => ({
       id: str_(r[c[H.TR_ID]]), date: dkey_(r[c[H.DATE]]), shift: str_(r[c[H.SHIFT]]), from: loc_(r[c[H.FROM]]), to: loc_(r[c[H.TO]]),
@@ -6394,7 +6482,7 @@ function getTransfers_(f) {
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
       ver: rowVer_(t, r, TRANSFER_VER_H_()),      // (update-156) sent back with a change / a delete
     })),
-  };
+  });
 }
 
 /* ---------- Stock position per location for a period, and day-wise ledger ---------- */
@@ -6527,7 +6615,7 @@ function getDashboard_(f) {
       return { date: d, qty: r2_(daily[d]), inQty: r2_(inDay[d] || 0), closing: carry };
     }),
     top: top,
-    pending: pendingLogs_(),
+    pending: fuelViewOff_(pendingLogs_),      // (update-163) the Log Book still pending: every machinery, whatever the fuel shown
     tanks: tankSettings_(),
   };
 }
@@ -6543,6 +6631,8 @@ function saveTankSettings_(t) {
   t = t || {};
   const out = {};
   placeNames_().forEach(l => {
+    // (update-163) the dashboard of one fuel sends only the tanks it shows: the others keep their size
+    if (!Object.prototype.hasOwnProperty.call(t.caps || {}, l)) return;
     const v = Number((t.caps || {})[l]);
     if (!(v > 0)) throw new Error('Enter the tank size (Ltr) for ' + l + '.');
     out['TANK_CAP_' + l] = String(Math.round(v));
@@ -10018,7 +10108,7 @@ function table_(name, required) {
     if (TABLE_MEMO_) TABLE_MEMO_[name] = t;
   }
   (required || []).forEach(h => { if (!(h in t.c)) throw new Error('Column "' + h + '" not found in tab "' + name + '". Run setupDieselStock (Setup.gs) once.'); });
-  return t;
+  return FUEL_VIEW_ && SB_DEPTH_ === 0 ? fuelView_(name, t) : t;      // (update-163) a report / the dashboard of one fuel
 }
 
 function findMachine_(no) {
@@ -10532,9 +10622,10 @@ function dbHealth_() {
         const w = sbFetch_('GET', '/rest/v1/log_book_history?allowed=eq.false&at=gte.' + encodeURIComponent(since) + '&select=entry_key&order=seq.desc&limit=500') || [];
         note = 'guard: ' + ((g[0] && g[0].value) || 'warn') + ' · changes of locked entries not by the Super Admin in 30 days: ' + w.length + (w.length ? ' (' + [...new Set(w.map(x => x.entry_key))].slice(0, 5).join(', ') + ')' : ''); } catch (e) { note = ''; } }
       add('Approved / billed Log Book entries locked – only the Super Admin changes them (step 1zd)', z, 'supabase_step1zd_entry_locks.sql', note); }
+    add('The fuel of each machinery – Diesel / Petrol / CNG / Electric (step 1zg)', has('master', 'fuel'), 'supabase_step1zg_fuel.sql');      // (update-163)
     // (update-90) the list of sites, the Super Admin and who has which site – in the FIRST site's database only
     if (typeof __siteIsHome === 'function' && __siteIsHome()) add('Several sites and the Super Admin (step 7 – the first site only)', typeof __sitesOn === 'function' && __sitesOn(), 'supabase_step7_sites.sql');
-    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason))/.test(x));
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason)|master\.fuel)/.test(x));
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }
   let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }

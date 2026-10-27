@@ -3283,7 +3283,7 @@ test('update-117: every site its own diesel places (18B: Camp Pump + 2 dispenser
     assert.match(app, /if \(TANKS\.own\) \{[^\n]*\n      const key = locs\.map/);
     assert.match(app, /function vtrPlaces\(\) \{ return \(S\.locations \|\| \[\]\)\.join\('\|'\) === 'Dispenser\|VTR Store'; \}/);
     assert.match(app, /'Moved Dispenser ↔ VTR Store \(inside company, not added or removed\)' : 'Moved between the diesel places/);
-    assert.match(app, /if \(L\.locations && L\.locations\.length && L\.locations\.join\('\|'\) !== \(S\.locations \|\| \[\]\)\.join\('\|'\)\) setLocations\(L\.locations\);/);
+    assert.match(app, /if \(L\.locations && L\.locations\.length && \(pfChanged \|\| L\.locations\.join\('\|'\) !== \(S\.locations \|\| \[\]\)\.join\('\|'\)\)\) setLocations\(L\.locations\);/);      // (update-163: also when a place's fuel changed)
     const tk = app.slice(app.indexOf('  const DRUM_ICON = '), app.indexOf("  $('tank_set').addEventListener('click'"));
     const H2 = new Function('wavePath', 'esc', 'tkHead', tk + '; return { tankOwnHtml, tankBarrelsHtml };')(() => 'M0 0', x => x, (n, sub) => '[' + n + '|' + sub + ']');
     const own = H2.tankOwnHtml(['Camp Pump', 'MH12ZE1739', 'MH12WJ1381']);
@@ -5880,10 +5880,129 @@ test('update-162: diesel sources per person – Issue and the From of a Transfer
     assert.ok(!/withLock_\(\(\) => \{ dsTxt/.test(sitesGs), 'not withLock_: it would drop the pages saved just before (found on the rig)');
     // ---- the page: his own sources on the entry forms only
     const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
-    ['<select id="d_src" class="loc-select src-select" data-default="first" data-own="Diesel Issue">', '<select id="t_from" class="loc-select" data-default="first" data-own="Diesel Transfer">',
-      "const keep = sel.value, all = sel.dataset.all, locs = sel.dataset.own ? mySources(sel.dataset.own) : S.locations;"].forEach(k => assert.ok(app.indexOf(k) > -1, k));
+    ['<select id="d_src" class="loc-select src-select" data-default="first" data-own="Diesel Issue"', '<select id="t_from" class="loc-select" data-default="first" data-own="Diesel Transfer">',
+      "const keep = sel.value, all = sel.dataset.all, base = sel.dataset.own ? mySources(sel.dataset.own) : S.locations"].forEach(k => assert.ok(app.indexOf(k) > -1, k));      // (update-163: d_src also follows the machinery's fuel)
     assert.ok(!/id="df_src"[^>]*data-own/.test(app) && !/id="rm_src"[^>]*data-own/.test(app), 'the filters of the lists and reports: every source');
   } finally {
     run('() => { PropertiesService.getScriptProperties().deleteProperty("DIESEL_PLACES"); PropertiesService.getScriptProperties().deleteProperty("DIESEL_SOURCES"); DSRC_U_ = null; }');
+  }
+});
+
+test('update-163: fuel – Diesel / Petrol / CNG / Electric machinery (Asset Master → Fuel) and each diesel place its fuel; a fill only from a place of its fuel, a transfer only within one fuel; the fuels never added together; a site of Diesel only as before', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const DC = 'DIESEL CARD', PC = 'PETROL CARD', CC = 'CNG CARD', PK = 'PETROL CAN';
+  const car = (no, fuel, extra) => Object.assign({ no: no, name: 'Car ' + no, type: 'Car', unit: 'KM', worksOn: ['KM'], kmStd: 12, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-07-01' }, fuel === undefined ? {} : { fuel: fuel }, extra || {});
+  try {
+    // ---- a site of Diesel only (no places set = the first site's Dispenser + VTR Store): as before
+    run('() => { PropertiesService.getScriptProperties().deleteProperty("DIESEL_PLACES"); }');
+    assert.deepStrictEqual(run('() => siteFuels_()'), ['Diesel']);
+    assert.strictEqual(run('() => fuelViewOf_([{ fuel: "Petrol" }])'), '', 'one fuel: no fuel view, whatever is sent');
+    assert.strictEqual(run('() => "byFuel" in getDieselIssues_({})'), false, 'the lists: no totals per fuel');
+    // ---- HO: one place per fuel card (the Super Admin, Portal → Sites → Diesel places), and a second Petrol place
+    // (a new site: no entry anywhere yet – the other tests' entries at the first site's places are left aside for this save)
+    const info = run(`l => { const keep = stockTables_; stockTables_ = () => ({ it: { rows: [], c: { [H.LOC]: 0 } }, tt: { rows: [], c: { [H.FROM]: 0, [H.TO]: 1 } }, dt: { rows: [], c: { [H.SOURCE]: 0 } } });
+      try { return savePlaces_(l); } finally { stockTables_ = keep; } }`, [{ name: DC, cap: 500 }, { name: PC, cap: 500, fuel: 'petrol' }, { name: CC, cap: 300, fuel: 'CNG' }, { name: PK, cap: 100, fuel: 'Petrol' }]);
+    assert.deepStrictEqual(info.places.map(p => p.name + ':' + p.fuel), [DC + ':Diesel', PC + ':Petrol', CC + ':CNG', PK + ':Petrol']);
+    assert.deepStrictEqual(JSON.parse(run('() => PropertiesService.getScriptProperties().getProperty("DIESEL_PLACES")')).map(p => p.fuel || ''), ['', 'Petrol', 'CNG', 'Petrol'], 'Diesel is kept as nothing (a place of before)');
+    assert.deepStrictEqual(run('() => placeFuels_()'), { [DC]: 'Diesel', [PC]: 'Petrol', [CC]: 'CNG', [PK]: 'Petrol' });
+    assert.deepStrictEqual(run('() => siteFuels_()'), ['Diesel', 'Petrol', 'CNG']);
+    assert.match(tryRun('l => savePlaces_(l)', [{ name: DC, cap: 500, fuel: 'Kerosene' }]).thrown, /^Diesel place "DIESEL CARD": its fuel is Diesel, Petrol or CNG\.$/);
+    // ---- the Asset Master: Fuel (empty / not sent = Diesel; unknown = refused); Electric needs no standard average; CNG's is KM/kg
+    run('(x, m) => saveMaster_(x, m)', car('HO-D163', undefined), 'add');
+    run('(x, m) => saveMaster_(x, m)', car('HO-P163', 'Petrol'), 'add');
+    run('(x, m) => saveMaster_(x, m)', car('HO-C163', 'cng'), 'add');
+    run('(x, m) => saveMaster_(x, m)', car('HO-E163', 'Electric', { kmStd: '' }), 'add');
+    assert.match(tryRun('(x, m) => saveMaster_(x, m)', car('HO-X163', 'Gas'), 'add').thrown, /^HO-X163: select Fuel \(Diesel \/ Petrol \/ CNG \/ Electric\)\.$/);
+    assert.match(tryRun('(x, m) => saveMaster_(x, m)', car('HO-Y163', 'CNG', { kmStd: '' }), 'add').thrown, /^HO-Y163: enter Standard Average \(KM\/kg\)\.$/);
+    const fuelOf = no => run('n => (getMaster_().find(m => m.id === n) || {}).fuel', no);
+    assert.deepStrictEqual(['HO-D163', 'HO-P163', 'HO-C163', 'HO-E163'].map(fuelOf), ['Diesel', 'Petrol', 'CNG', 'Electric']);
+    run('(x, m, o) => saveMaster_(x, m, o)', Object.assign(car('HO-P163'), { name: 'Car HO-P163 (renamed)' }), 'edit', 'HO-P163');
+    assert.strictEqual(fuelOf('HO-P163'), 'Petrol', 'a change that does not send Fuel keeps it');
+    const ex = run('() => exportMaster_()');
+    const fi = ex.headers.indexOf('Fuel');
+    assert.ok(fi > -1, 'Export has a Fuel column');
+    assert.deepStrictEqual(['HO-D163', 'HO-P163'].map(n => ex.rows.find(r => r.indexOf(n) > -1)[fi]), ['', 'Petrol'], 'Diesel = empty, as it is kept');
+    const imp = run('(r, a) => importMaster_(r, a)', [{ line: 2, no: 'HO-D163', fuel: 'CNG' }], true);
+    assert.ok(imp.ok !== false, JSON.stringify(imp));
+    assert.strictEqual(fuelOf('HO-D163'), 'CNG', 'the Excel import sets the Fuel');
+    run('(r, a) => importMaster_(r, a)', [{ line: 2, no: 'HO-D163', fuel: 'Diesel' }], true);
+    assert.strictEqual(fuelOf('HO-D163'), 'Diesel');
+    // ---- stock: each card its own fuel
+    [[DC, 200], [PC, 150], [CC, 40]].forEach((x, i) => assert.strictEqual(run('x => saveInward_(x)', { date: '2026-07-01', location: x[0], pump: 'Card', qty: x[1], rate: 100, billNo: 'F163-' + i, billDate: '2026-07-01' }).ok, true));
+    // ---- a fill only from a place of its fuel; an Electric machinery gets none
+    const iss = (no, src, qty, km) => ({ date: '2026-07-02', shift: 'Day', no: no, qty: qty, kmReading: km, source: src, mode: 'KM' });
+    assert.strictEqual(tryRun('d => saveDieselIssue_(d)', iss('HO-P163', DC, 10, 1000)).thrown, 'DIESEL CARD holds Diesel and HO-P163 runs on Petrol – pick a Petrol place (Asset Master → Fuel).');
+    assert.strictEqual(tryRun('d => saveDieselIssue_(d)', iss('HO-D163', PC, 10, 1000)).thrown, 'PETROL CARD holds Petrol and HO-D163 runs on Diesel – pick a Diesel place (Asset Master → Fuel).');
+    assert.strictEqual(tryRun('d => saveDieselIssue_(d)', iss('HO-E163', DC, 10, 1000)).thrown, 'HO-E163 runs on Electric – no fuel is issued to it (Asset Master → Fuel).');
+    assert.strictEqual(run('d => saveDieselIssue_(d)', iss('HO-P163', PC, 30, 1000)).ok, true);
+    assert.strictEqual(run('d => saveDieselIssue_(d)', iss('HO-D163', DC, 50, 2000)).ok, true);
+    assert.strictEqual(run('d => saveDieselIssue_(d)', iss('HO-C163', CC, 8, 3000)).ok, true);
+    assert.match(tryRun('d => saveDieselIssue_(d)', Object.assign(iss('HO-C163', CC, 100, 3100), { date: '2026-07-03' })).thrown, /^Not enough CNG at CNG CARD for 03-07-2026 \(Day\)\. Available: 32 kg, you are issuing: 100 kg\.$/, 'CNG in kg');
+    const bulk = run('b => saveDieselBulk_(b)', { date: '2026-07-03', shift: 'Day', source: PC, rows: [{ no: 'HO-D163', qty: 5, kmReading: 2100, mode: 'KM' }] });
+    assert.ok(/PETROL CARD holds Petrol and HO-D163 runs on Diesel/.test(JSON.stringify(bulk)), 'many at once: the same check ' + JSON.stringify(bulk));
+    // (found here) the rows of "many at once" are checked with the batch's source – also his own diesel sources (update-162)
+    const RAVI = { email: 'ravi163@site.test', name: 'Ravi 163', admin: false, perms: { 'Diesel Issue': 'Edit' } };
+    run('(e, g) => dsrcSet_(e, g, "sa")', RAVI.email, { 'Diesel Issue': [PC] });
+    run('u => { DSRC_U_ = u; }', RAVI);
+    assert.strictEqual(run('b => saveDieselBulk_(b)', { date: '2026-07-03', shift: 'Day', source: PC, rows: [{ no: 'HO-P163', qty: 5, kmReading: 1100, mode: 'KM' }] }).ok, true, 'his own source, not the first place');
+    const notHis = run('b => saveDieselBulk_(b)', { date: '2026-07-03', shift: 'Day', source: PK, rows: [{ no: 'HO-P163', qty: 1, kmReading: 1200, mode: 'KM' }] });
+    assert.ok(/Diesel source PETROL CAN is not given to Ravi 163 for Diesel Issue/.test(JSON.stringify(notHis)), JSON.stringify(notHis));
+    run('(e) => { DSRC_U_ = null; dsrcSet_(e, { "Diesel Issue": null }, "sa"); }', RAVI.email);
+    // ---- a transfer only between places of one fuel
+    assert.strictEqual(tryRun('x => saveTransfer_(x)', { date: '2026-07-02', shift: 'Day', from: PC, to: DC, qty: 5 }).thrown, 'A transfer goes only between places of the same fuel: PETROL CARD holds Petrol, DIESEL CARD holds Diesel.');
+    assert.strictEqual(run('x => saveTransfer_(x)', { date: '2026-07-02', shift: 'Day', from: PC, to: PK, qty: 20 }).ok, true, 'Petrol → Petrol');
+    // ---- a place with entries keeps its fuel
+    assert.strictEqual(tryRun('l => savePlaces_(l)', [{ name: DC, cap: 500 }, { name: PC, cap: 500, fuel: 'Diesel' }, { name: CC, cap: 300, fuel: 'CNG' }, { name: PK, cap: 100, fuel: 'Petrol' }]).thrown, 'Diesel place PETROL CARD (Petrol) has entries – its fuel cannot be changed.');
+    // ---- the lists: the total of each fuel (the page never adds them together); a list of one fuel
+    const li = run('() => getDieselIssues_({ from: "2026-07-01", to: "2026-07-31" })');
+    assert.deepStrictEqual(li.byFuel, { Diesel: 50, Petrol: 35, CNG: 8 });
+    assert.deepStrictEqual(run('() => getDieselIssues_({ from: "2026-07-01", to: "2026-07-31", fuel: "Petrol" })').rows.map(r => r.no), ['HO-P163', 'HO-P163']);
+    assert.deepStrictEqual(run('() => getInwards_({ from: "2026-07-01", to: "2026-07-31" })').byFuel, { Diesel: 200, Petrol: 150, CNG: 40 });
+    assert.deepStrictEqual(run('() => getTransfers_({ from: "2026-07-01", to: "2026-07-31" })').byFuel, { Petrol: 20 });
+    // ---- the dashboard / a report of ONE fuel (FUEL_VIEW_, only around an action that saves nothing): only its places, entries and machinery
+    assert.strictEqual(run('() => fuelViewOf_([{ from: "", fuel: "Petrol" }])'), 'Petrol');
+    assert.strictEqual(run('() => fuelViewOf_(["Own", { fuel: "CNG" }])'), 'CNG', 'getOwnershipDetail sends the filter second');
+    assert.strictEqual(run('() => fuelViewOf_([{ fuel: "Electric" }])'), '', 'no place holds Electric');
+    const view = (fu, fn) => run('(fu, src) => { FUEL_VIEW_ = fu; try { return eval(src)(); } finally { FUEL_VIEW_ = ""; } }', fu, fn);
+    const dP = view('Petrol', '() => getDashboard_({ from: "2026-07-02", to: "2026-07-02" })');
+    assert.strictEqual(dP.total.qty, 30, 'Petrol issued only');
+    assert.deepStrictEqual(Object.keys(dP.stock.byLoc), [PC, PK]);
+    assert.deepStrictEqual(dP.stock.byLoc, { [PC]: 95, [PK]: 20 }, 'the live stock of the Petrol places');
+    assert.deepStrictEqual(dP.locations.map(x => x.loc), [PC, PK]);
+    assert.deepStrictEqual(Object.keys(dP.tanks.caps), [PC, PK]);
+    const dC = view('CNG', '() => getDashboard_({ from: "2026-07-02", to: "2026-07-02" })');
+    assert.strictEqual(dC.total.qty, 8); assert.deepStrictEqual(dC.stock.byLoc, { [CC]: 32 });
+    const dAll = run('() => getDashboard_({ from: "2026-07-02", to: "2026-07-02" })');
+    assert.strictEqual(dAll.pending.total, dP.pending.total, 'the Log Book still pending: every machinery, whatever the fuel shown');
+    assert.deepStrictEqual(run('() => getStock_().byFuel'), Object.assign({ Petrol: 115, CNG: 32 }, { Diesel: run('() => getStock_().byFuel.Diesel') }));
+    const mP = view('Petrol', '() => getMonthlyDieselReport_({ from: "2026-07-01", to: "2026-07-31", source: "", shift: "", supply: "", ownerships: ["Own", "Rental", "Hired", "Debit", "Other"], machines: [] })');
+    assert.strictEqual(mP.total, 35, 'the monthly report of Petrol: its machinery only');
+    assert.ok(JSON.stringify(mP.groups).indexOf('HO-D163') === -1);
+    assert.strictEqual(run('() => FUEL_VIEW_'), '', 'the view ends with the action');
+    // the Tank size box of a fuel's dashboard sends only its tanks: the others keep their size
+    const ts = run('() => saveTankSettings_({ caps: { "PETROL CARD": 600, "PETROL CAN": 120 }, low: 50 })');
+    assert.deepStrictEqual([ts.caps[PC], ts.caps[PK], ts.caps[DC], ts.caps[CC]], [600, 120, 500, 300]);
+    assert.match(tryRun('() => saveTankSettings_({ caps: { "PETROL CARD": 0 }, low: 50 })').thrown, /^Enter the tank size \(Ltr\) for PETROL CARD\.$/, 'a size sent must be a size');
+    // ---- apiRun_: the view only for Reports / Dashboard and never for a save
+    const codeGs = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+    assert.ok(codeGs.indexOf("const fv = !spec.edit && (spec.m === 'Reports' || spec.m === 'Dashboard') ? fuelViewOf_(args) : '';") > -1);
+    assert.ok(codeGs.indexOf('return FUEL_VIEW_ && SB_DEPTH_ === 0 ? fuelView_(name, t) : t;') > -1, 'never inside a save');
+    // ---- the database step, Read Me and the check
+    const sql = fs.readFileSync(path.join(root, 'sql', 'supabase_step1zg_fuel.sql'), 'utf8');
+    assert.match(sql, /alter table public\.master add column if not exists fuel text;/);
+    assert.ok(!/\b(drop|delete|truncate|update)\b/i.test(sql.replace(/--.*$/gm, '')), 'nothing removed or changed');
+    assert.ok(codeGs.indexOf("add('The fuel of each machinery – Diesel / Petrol / CNG / Electric (step 1zg)', has('master', 'fuel'), 'supabase_step1zg_fuel.sql');") > -1);
+    // ---- the Portal's door passes each place's fuel (a Portal before it sends none = Diesel)
+    const portal = require(path.join(root, 'server', 'portal.js'));
+    assert.ok(/fuel: String\(p\.fuel\)/.test(fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8')) && typeof portal.verifyAdmin === 'function');
+    // ---- the page
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    ['<select id="m_fuel"', 'data-fuel-by="d_no"', 'data-fuel-by="bm_no"', 'data-fuel-by="t_from"', 'data-fuel-by="k_fuel"', 'data-fuel-by="rd_fuel"', 'data-fuel-by="rm_fuel"', 'data-fuel-by="ra_fuel"',
+      '<select id="k_fuel" class="fuel-select">', "fuel: 'fuel', fueltype: 'fuel'", "const B_FIELDS = ['no', 'name', 'type', 'make', 'unit', 'kmStd', 'hrStd', 'owner', 'ownership', 'supply', 'fuel'];",
+      "if (!fu) setStock(d.stock); }", "S.placeFuels = d.placeFuels || {};"].forEach(k => assert.ok(app.indexOf(k) > -1, k));
+  } finally {
+    run('() => { PropertiesService.getScriptProperties().deleteProperty("DIESEL_PLACES"); FUEL_VIEW_ = ""; }');
   }
 });
