@@ -259,6 +259,75 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .mt-lines td { padding-left: 4px; padding-right: 4px; } .mt-lines input.mt-q, .mt-lines input.mt-r, .mt-lines input.mt-d, .mt-lines input.mt-a { padding-left: 6px; padding-right: 6px; } .mt-lines select { padding-left: 6px; padding-right: 2px; }
   .mt-lines input[type=number]::-webkit-inner-spin-button, .mt-lines input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; } .mt-lines input[type=number] { -moz-appearance: textfield; }      /* (the numbers fit their boxes: 100 %, 4.5, 18000) */
   .mt-wepaid { font-size: 18px; font-weight: 800; padding: 8px 0; }
+  /* (update-172, his picture of the form: "asa banaw") the Maintenance bill: a head with its icon and the service switch; cards; the boxes
+     with their icons; the lines one compact row each – every column on the page, no number or word hidden (a double-click opens a box
+     big); the totals' box; the buttons at the foot – blue, as the picture. Only this form: the other pages stay as they are. */
+  #sec-mnt .mt-form { --mtb: #2563EB; --mtbd: #1D4ED8; --mtbs: #EFF6FF; --mtl: #E2E8F0; --mtk: #0F172A; --mtm: #64748B; background: #F3F6FA; }
+  #sec-mnt .mt-i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  #sec-mnt .mt-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 0 0 14px; padding: 0; border: 0; }
+  #sec-mnt .mt-hicon { width: 52px; height: 52px; border-radius: 14px; background: var(--mtb); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 16px rgba(37,99,235,.28); flex: none; }
+  #sec-mnt .mt-hicon .mt-i { width: 26px; height: 26px; }
+  #sec-mnt .mt-htext { flex: 1 1 320px; min-width: 0; } #sec-mnt .mt-form .mt-htext h2 { margin: 0; font-size: 24px; font-weight: 800; color: var(--mtk); line-height: 1.2; }
+  #sec-mnt .mt-htext .chart-note { display: block; margin: 3px 0 0; font-size: 13px; color: var(--mtm); white-space: normal; }
+  #sec-mnt label.mt-switch { margin: 0; display: inline-flex; align-items: center; gap: 12px; padding: 10px 14px; background: #fff; border: 1px solid var(--mtl); border-radius: 12px; cursor: pointer; font-size: 13.5px; color: var(--mtk); font-weight: 500; position: relative; }
+  #sec-mnt label.mt-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+  #sec-mnt .mt-sw { width: 42px; height: 24px; border-radius: 12px; background: #CBD5E1; position: relative; transition: background .2s; flex: none; }
+  #sec-mnt .mt-sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: left .2s; }
+  #sec-mnt label.mt-switch input:checked + .mt-sw { background: var(--mtb); } #sec-mnt label.mt-switch input:checked + .mt-sw::after { left: 21px; }
+  #sec-mnt label.mt-switch input:focus-visible + .mt-sw { outline: 2px solid var(--mtb); outline-offset: 2px; }
+  #sec-mnt .mt-card { background: #fff; border: 1px solid var(--mtl); border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+  #sec-mnt .mt-g5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px 16px; }
+  #sec-mnt .mt-g2 { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.25fr); gap: 14px 16px; margin-top: 14px; align-items: start; }
+  #sec-mnt .mt-g4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; margin-top: 10px; }
+  #sec-mnt .mt-form .field > label { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 5px; display: block; }
+  #sec-mnt .mt-form :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea) { min-height: 40px; height: 40px; font-size: 14px; padding: 7px 11px; border-radius: 9px; border: 1px solid #D5DCE4; background-color: #fff; color: var(--mtk); box-shadow: none; }
+  #sec-mnt .mt-form :is(input, select, textarea):focus { outline: 1px solid var(--mtb); border-color: var(--mtb); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+  #sec-mnt .mt-ic { position: relative; } #sec-mnt .mt-ic > .mt-i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 17px; height: 17px; color: #64748B; pointer-events: none; z-index: 1; }
+  #sec-mnt .mt-form .mt-ic > :is(input:not([type=checkbox]):not([type=radio]):not([type=file])) { padding-left: 38px; }      /* (the icon's room – the stronger rule of the boxes above set 11 px) */
+  #sec-mnt .mt-filerow { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
+  #sec-mnt .mt-files { flex: 1 1 220px; display: flex; flex-direction: column; gap: 6px; min-height: 40px; justify-content: center; padding: 6px 10px; border: 1px dashed #CBD5E1; border-radius: 10px; background: #F8FAFC; margin: 0; }
+  #sec-mnt .mt-file { display: flex; align-items: center; gap: 9px; font-size: 13px; min-width: 0; } #sec-mnt .mt-file > .mt-i { color: #64748B; width: 22px; height: 22px; } #sec-mnt .mt-file.pdf > .mt-i { color: #DC2626; }
+  #sec-mnt .mt-fn { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; } #sec-mnt .mt-fn a { color: var(--mtbd); overflow-wrap: anywhere; } #sec-mnt .mt-fn small { color: var(--mtm); font-size: 11.5px; }
+  #sec-mnt .mt-fx { border: 0; background: none; color: #64748B; font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px; } #sec-mnt .mt-fx:hover { background: #FEE2E2; color: #B91C1C; }
+  #sec-mnt .mt-fbtns { display: flex; gap: 8px; margin: 0; flex-wrap: wrap; align-items: stretch; }
+  #sec-mnt .mt-form .btn { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; border-radius: 10px; min-height: 40px; padding: 8px 16px; font-size: 14px; }
+  #sec-mnt .mt-form .btn.mt-blue { background: var(--mtb); border: 1px solid var(--mtb); color: #fff; box-shadow: 0 2px 8px rgba(37,99,235,.25); } #sec-mnt .mt-form .btn.mt-blue:hover { background: var(--mtbd); }
+  #sec-mnt .mt-form .btn.mt-soft { background: #F1F5FF; border: 1px solid #C7D7FE; color: #3730A3; box-shadow: none; } #sec-mnt .mt-form .btn.mt-soft .mt-i { color: #7C3AED; }
+  #sec-mnt .mt-form .btn.mt-soft:disabled { opacity: .55; }
+  #sec-mnt .mt-readmsg { font-size: 12.5px; margin-top: 8px; }
+  #sec-mnt .mt-lhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  #sec-mnt .mt-lhead h3 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 17px; font-weight: 700; color: var(--mtk); } #sec-mnt .mt-lhead h3 .mt-i { color: var(--mtb); width: 24px; height: 24px; }
+  #sec-mnt .mt-wrap { border: 1px solid var(--mtl); border-radius: 10px; box-shadow: none; }
+  table.mt-lines { table-layout: fixed; min-width: 1040px; }
+  #sec-mnt table.mt-lines :is(th, td) { white-space: normal; padding: 4px 4px; vertical-align: middle; font-size: 13.5px; }
+  #sec-mnt table.mt-lines thead th { padding: 9px 6px; font-size: 12.5px; font-weight: 600; line-height: 1.2; background: #F8FAFC; color: #334155; border-bottom: 1px solid var(--mtl); }
+  #sec-mnt table.mt-lines tbody td { border-bottom: 1px solid #EEF1F4; } #sec-mnt table.mt-lines tbody tr:last-child td { border-bottom: 0; }
+  #sec-mnt table.mt-lines tbody td:first-child { color: var(--mtm); text-align: center; font-size: 12.5px; font-weight: 600; }
+  #sec-mnt .mt-form table.mt-lines :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea) { min-height: 34px; height: 34px; font-size: 13.5px; padding: 4px 8px; border-radius: 7px; }
+  #sec-mnt .mt-form table.mt-lines input[type=number] { text-align: right; } #sec-mnt .mt-form table.mt-lines select { padding-right: 2px; }
+  #sec-mnt .mt-form table.mt-lines :is(input:not([type=checkbox]):not([type=radio]):not([type=file])):disabled { background-color: #F1F5F9; color: #94A3B8; border-color: #E2E8F0; }      /* (a free line's ₹ 0 – not typed) */
+  #sec-mnt .mt-form table.mt-lines :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select).ai-read { outline: none; background-color: var(--mtbs); border-color: #93C5FD; }
+  #sec-mnt table.mt-lines input.mt-u::-webkit-calendar-picker-indicator { display: none !important; }      /* (its units are offered as it is typed – the arrow took the room of "Each") */
+  #sec-mnt table.mt-lines td.mt-gv { text-align: right; padding-right: 10px; color: #334155; font-variant-numeric: tabular-nums; }
+  #sec-mnt table.mt-lines td.mt-wv { text-align: right; padding-right: 10px; font-weight: 700; color: var(--mtk); background: var(--mtbs); font-variant-numeric: tabular-nums; }
+  #sec-mnt table.mt-lines tr.mt-free td { background: #F0FDF4; } #sec-mnt table.mt-lines tr.mt-free td.mt-wv { background: #E3F7EA; }
+  #sec-mnt table.mt-lines tr.mt-insl td { background: #EFF6FF; } #sec-mnt table.mt-lines tr.mt-insl td.mt-wv { background: #DBEAFE; }
+  #sec-mnt table.mt-lines .mt-worth { font-size: 11px; line-height: 1.1; margin-top: 2px; }
+  #sec-mnt table.mt-lines .mt-del { display: inline-grid; place-items: center; width: 32px; height: 32px; border: 1px solid #FECACA; border-radius: 8px; color: #DC2626; background: #fff; padding: 0; text-decoration: none; }
+  #sec-mnt table.mt-lines .mt-del:hover { background: #FEF2F2; } #sec-mnt table.mt-lines .mt-del .mt-i { width: 16px; height: 16px; }
+  #sec-mnt .mt-bottom { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; margin-top: 14px; }
+  #sec-mnt .mt-bl { flex: 1 1 420px; min-width: 0; } #sec-mnt .mt-how { font-size: 12px; color: var(--mtm); margin: 0 0 6px; line-height: 1.45; }
+  #sec-mnt .mt-ins { margin: 10px 0 0; } #sec-mnt .mt-ins label.mt-svc { display: inline-flex; gap: 9px; align-items: center; padding: 8px 12px; border: 1px solid var(--mtl); border-radius: 10px; background: #fff; cursor: pointer; font-size: 13.5px; margin: 0; }
+  #sec-mnt .mt-ins label.mt-svc > .mt-i { color: var(--mtb); }
+  #sec-mnt .mt-totals { flex: 0 1 520px; display: flex; flex-direction: column; gap: 8px; }
+  #sec-mnt .mt-tbox { display: grid; grid-template-columns: 1fr 1fr 1.25fr; border: 1px solid var(--mtl); border-radius: 12px; overflow: hidden; background: #fff; }
+  #sec-mnt .mt-tbox > div { padding: 12px 14px; display: flex; flex-direction: column; align-items: center; gap: 3px; border-right: 1px solid var(--mtl); text-align: center; }
+  #sec-mnt .mt-tbox > div:last-child { border-right: 0; } #sec-mnt .mt-tbox span { font-size: 12.5px; color: var(--mtm); } #sec-mnt .mt-tbox b { font-size: 17px; color: var(--mtk); font-variant-numeric: tabular-nums; }
+  #sec-mnt .mt-tbox > div.mt-grand { background: var(--mtbs); } #sec-mnt .mt-tbox .mt-grand span { color: var(--mtbd); font-weight: 600; } #sec-mnt .mt-tbox .mt-grand b { font-size: 22px; color: var(--mtbd); font-weight: 800; }
+  #sec-mnt .mt-freeline { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: #15803D; padding: 0 4px; } #sec-mnt .mt-freeline[hidden] { display: none; }
+  #sec-mnt .mt-foot { display: flex; align-items: center; gap: 10px; margin: 0; padding: 12px 16px; background: #fff; border: 1px solid var(--mtl); border-radius: 14px; }
+  #sec-mnt .mt-foot .mt-sp { flex: 1; } #sec-mnt .mt-form .mt-foot #mt_save { min-width: 160px; justify-content: center; font-size: 15px; }
+  @media (max-width: 760px) { #sec-mnt .mt-g2 { grid-template-columns: 1fr; } #sec-mnt .mt-tbox { grid-template-columns: 1fr; } #sec-mnt .mt-tbox > div { border-right: 0; border-bottom: 1px solid var(--mtl); flex-direction: row; justify-content: space-between; } }
   label.ai-read { outline: 2px solid #60A5FA; outline-offset: 1px; background: #EFF6FF; border-radius: 6px; }
   .cp-ph { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .cp-ph img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
@@ -4591,36 +4660,56 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   <!-- ================= MAINTENANCE LOG BOOK (update-165) – a site on fuel cards (HO) ================= -->
   <section id="sec-mnt" role="tabpanel" aria-labelledby="tab-mnt" hidden>
     <div class="viewonly" data-viewonly="Maintenance" hidden>View only – you can see the bills, their files and the car log books here, but you cannot add or change them. Ask Admin for Edit access.</div>
-    <div class="panel" data-perm="Maintenance">
-      <div class="panel-head"><h2 id="mt_title">Maintenance bill</h2><span class="chart-note">One bill of a machinery: each work / part with who paid it, Qty, Uom, Rate, Discount, ₹ and GST %. Add the bill (PDF or photo) – the AI can read it for you; check every value, then save.</span></div>
-      <div class="grid">
-        <div class="field"><label for="mt_date">Bill date <span class="req">*</span></label><input id="mt_date" type="date"></div>
-        <div class="field"><label for="mt_no">Machinery <span class="req">*</span></label><input id="mt_no" list="dl_machines" placeholder="Type or pick" autocomplete="off"></div>
-        <div class="field"><label for="mt_garage">Party name <span style="font-weight:400">(garage / shop of the bill)</span></label><input id="mt_garage" list="dl_mgarage" maxlength="80" autocomplete="off" placeholder="e.g. East West Energy Systems"></div>
-        <div class="field"><label for="mt_billno">Bill number</label><input id="mt_billno" maxlength="80" autocomplete="off"></div>
-        <div class="field"><label for="mt_km">Current reading <span style="font-weight:400">(KM / Hrs)</span></label><input id="mt_km" type="number" step="0.1" min="0"></div>
-        <div class="field"><label class="mt-svc"><input type="checkbox" id="mt_service"> <span>This bill is a <b>service</b> <span style="font-weight:400">(its reading is needed)</span></span></label></div>
-        <div class="field wide"><label for="mt_remark">Remark</label><input id="mt_remark" maxlength="200" autocomplete="off"></div>
-        <div class="field wide"><label>Bill files <span style="font-weight:400">(PDF / photos)</span></label><div class="mt-files" id="mt_files"></div>
-          <div class="mt-fbtns"><button class="btn ghost small" id="mt_addf" type="button">+ Add bill (PDF / photo)</button><button class="btn ghost small" id="mt_read" type="button" disabled>📄 Read the bill (AI)</button></div>
-          <div class="mt-readmsg" id="mt_readmsg" role="status"></div></div>
+    <!-- (update-172, asked with a picture of the form he wants: "asa banaw … box war double click kel ki box motha hoil ani number box madhe hide
+         nahi honar") the bill in three cards – its details, its lines (one compact row each, every column on the page), its totals – and
+         the buttons at the foot; the same boxes, ids and server actions as before -->
+    <div class="panel mt-form" data-perm="Maintenance">
+      <div class="panel-head mt-head"><div class="mt-hicon"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+        <div class="mt-htext"><h2 id="mt_title">Maintenance bill</h2><span class="chart-note">One bill of a machinery: each work / part with who paid it, Qty, Uom, Rate, Discount, ₹ and GST %. Add the bill (PDF or photo) – the AI can read it for you; check every value, then save.</span></div>
+        <label class="mt-svc mt-switch"><span class="mt-swt">This bill is a <b>service</b> <span style="font-weight:400">(its reading is needed)</span></span><input type="checkbox" id="mt_service"><span class="mt-sw" aria-hidden="true"></span></label>
       </div>
-      <h3 class="rsub">Work / parts of the bill</h3>
-      <div class="table-wrap"><table class="mt-lines">
-        <thead><tr><th style="width:36px">#</th><th>Work / part</th><th style="width:150px">Paid by</th><th class="n" style="width:84px">Qty</th><th style="width:76px">Uom</th><th class="n" style="width:116px">Rate (₹)</th><th class="n" style="width:80px">Disc %</th><th class="n" style="width:136px">Amount (₹)</th><th class="n" style="width:70px">GST %</th><th class="n" style="width:100px">GST ₹</th><th class="n" style="width:120px">With GST</th><th style="width:40px"></th></tr></thead>
-        <tbody id="mt_lines"></tbody>
-        <tfoot><tr><td></td><td colspan="9"><button class="btn ghost small" id="mt_addl" type="button">+ Line</button> <small class="muted">Amount = Qty × Rate − Discount, before GST. GST % of each item (CGST and SGST half each) – no tax lines; the round-off is a line of its own; a discount on the whole bill is a minus amount. Paid by: RCL (we paid), Insurance (the insurance paid it), Warranty / FOC / Service Plan (not paid, ₹ 0).</small></td><td class="n"><span class="muted" style="font-size:12px">Bill total</span><br><b id="mt_total">0.00</b></td><td></td></tr>
-          <tr class="mt-sumrow" id="mt_freerow" hidden><td></td><td colspan="9" class="muted">Free lines (warranty / FOC / service plan) – not paid, worth</td><td class="n" id="mt_free">0.00</td><td></td></tr></tfoot>
-      </table></div>
-      <div class="mt-ins"><label class="mt-svc" style="margin-top:0"><input type="checkbox" id="mt_ins"> <span><b>Insurance claim</b> – the insurance paid part of this bill</span></label>
-        <div class="grid" id="mt_insbox" hidden>
-          <div class="field"><label for="mt_insco">Insurance company <span class="req">*</span></label><input id="mt_insco" maxlength="80" autocomplete="off" placeholder="e.g. Tata AIG General Insurance"></div>
-          <div class="field"><label for="mt_insclaim">Claim no.</label><input id="mt_insclaim" maxlength="40" autocomplete="off"></div>
-          <div class="field"><label for="mt_inspaid">Paid by the insurance (₹) <span class="req">*</span></label><input id="mt_inspaid" type="number" step="0.01" min="0"></div>
-          <div class="field"><label>We paid (₹) <span style="font-weight:400">– the car's cost</span></label><div class="mt-wepaid" id="mt_wepaid">0.00</div></div>
-        </div></div>
+      <div class="mt-card">
+        <div class="mt-g5">
+          <div class="field"><label for="mt_date">Bill date <span class="req">*</span></label><div class="mt-ic"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><input id="mt_date" type="date"></div></div>
+          <div class="field"><label for="mt_no">Machinery <span class="req">*</span></label><div class="mt-ic"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2M15 18H9M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg><input id="mt_no" list="dl_machines" placeholder="Type or pick" autocomplete="off"></div></div>
+          <div class="field"><label for="mt_garage">Party name <span style="font-weight:400">(garage / shop of the bill)</span></label><div class="mt-ic"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/></svg><input id="mt_garage" list="dl_mgarage" maxlength="80" autocomplete="off" placeholder="e.g. East West Energy Systems"></div></div>
+          <div class="field"><label for="mt_billno">Bill number</label><div class="mt-ic"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/></svg><input id="mt_billno" maxlength="80" autocomplete="off"></div></div>
+          <div class="field"><label for="mt_km">Current reading <span style="font-weight:400">(KM / Hrs)</span></label><div class="mt-ic"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg><input id="mt_km" type="number" step="0.1" min="0"></div></div>
+        </div>
+        <div class="mt-g2">
+          <div class="field"><label for="mt_remark">Remark</label><div class="mt-ic"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><input id="mt_remark" maxlength="200" autocomplete="off"></div></div>
+          <div class="field"><label>Bill files <span style="font-weight:400">(PDF / photos)</span></label>
+            <div class="mt-filerow"><div class="mt-files" id="mt_files"></div>
+              <div class="mt-fbtns"><button class="btn mt-blue small" id="mt_addf" type="button"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 13v8M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="m8 17 4-4 4 4"/></svg><span>+ Add bill (PDF / photo)</span></button><button class="btn mt-soft small" id="mt_read" type="button" disabled><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg><span>Read the bill (AI)</span></button></div></div>
+            <div class="mt-readmsg" id="mt_readmsg" role="status"></div></div>
+        </div>
+      </div>
+      <div class="mt-card mt-lcard">
+        <div class="mt-lhead"><h3 class="rsub"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Work / parts of the bill</span></h3><button class="btn mt-blue small" id="mt_addl" type="button"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>+ Line</span></button></div>
+        <div class="table-wrap mt-wrap"><table class="mt-lines">
+          <thead><tr><th style="width:34px">#</th><th>Work / part</th><th style="width:132px">Paid by</th><th class="n" style="width:66px">Qty</th><th style="width:76px">Uom</th><th class="n" style="width:98px">Rate (₹)</th><th class="n" style="width:66px">Disc %</th><th class="n" style="width:112px">Amount (₹)</th><th class="n" style="width:66px">GST %</th><th class="n" style="width:96px">GST ₹</th><th class="n" style="width:114px">With GST</th><th style="width:44px"></th></tr></thead>
+          <tbody id="mt_lines"></tbody>
+        </table></div>
+        <div class="mt-bottom">
+          <div class="mt-bl">
+            <p class="mt-how">Amount = Qty × Rate − Discount, before GST. GST % of each item (CGST and SGST half each) – no tax lines; the round-off is a line of its own; a discount on the whole bill is a minus amount. Paid by: RCL (we paid), Insurance (the insurance paid it), Warranty / FOC / Service Plan (not paid, ₹ 0).</p>
+            <p class="mt-how">Double-click a box to see and type all of it in a big box.</p>
+            <div class="mt-ins"><label class="mt-svc"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg><input type="checkbox" id="mt_ins"> <span><b>Insurance claim</b> – the insurance paid part of this bill</span></label>
+              <div class="mt-g4" id="mt_insbox" hidden>
+                <div class="field"><label for="mt_insco">Insurance company <span class="req">*</span></label><input id="mt_insco" maxlength="80" autocomplete="off" placeholder="e.g. Tata AIG General Insurance"></div>
+                <div class="field"><label for="mt_insclaim">Claim no.</label><input id="mt_insclaim" maxlength="40" autocomplete="off"></div>
+                <div class="field"><label for="mt_inspaid">Paid by the insurance (₹) <span class="req">*</span></label><input id="mt_inspaid" type="number" step="0.01" min="0"></div>
+                <div class="field"><label>We paid (₹) <span style="font-weight:400">– the car's cost</span></label><div class="mt-wepaid" id="mt_wepaid">0.00</div></div>
+              </div></div>
+          </div>
+          <div class="mt-totals">
+            <div class="mt-tbox"><div><span>Subtotal</span><b id="mt_sub">0.00</b></div><div><span id="mt_gstl">GST</span><b id="mt_gstt">0.00</b></div><div class="mt-grand"><span>Bill total</span><b id="mt_total">0.00</b></div></div>
+            <div class="mt-freeline" id="mt_freerow" hidden><span>Free lines (warranty / FOC / service plan) – not paid, worth</span><b id="mt_free">0.00</b></div>
+          </div>
+        </div>
+      </div>
       <datalist id="dl_mwork"></datalist><datalist id="dl_mgarage"></datalist><datalist id="dl_muom"><option value="Nos"><option value="Ltr"><option value="Kg"><option value="Set"><option value="Bkt"><option value="Mtr"><option value="Pair"><option value="Gram"><option value="Box"></datalist>
-      <div class="actions"><button class="btn primary" id="mt_save" type="button">Save bill</button><button class="btn ghost" id="mt_clear" type="button">Clear</button><button class="btn ghost" id="mt_cancel" type="button" hidden>Cancel edit</button></div>
+      <div class="actions mt-foot"><button class="btn ghost" id="mt_clear" type="button"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg><span>Clear</span></button><button class="btn ghost" id="mt_cancel" type="button" hidden>Cancel edit</button><span class="mt-sp"></span><button class="btn mt-blue" id="mt_save" type="button">Save bill</button></div>
     </div>
     <div class="panel">
       <h2>Maintenance bills</h2>
@@ -17134,6 +17223,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const mtGst = (a, g) => 2 * r2((Number(a) || 0) * (Number(g) || 0) / 200);
   const mtNum = v => v === undefined || v === null || v === '' ? '' : v;
   const mtWorth = l => !mtCharged(l.type) ? r2((l.qty === '' || l.qty === undefined || l.qty === null ? 1 : Number(l.qty)) * (Number(l.rate) || 0)) : 0;
+  const MT_TRASH = '<svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>';
   function mtLineRow(l, i) {
     const k = MT_KINDS.indexOf(l.type) > -1 ? l.type : 'Paid', free = !mtCharged(k), w = mtWorth(Object.assign({}, l, { type: k })), gv = free ? 0 : mtGst(l.amount, l.gst);
     return '<tr data-i="' + i + '"' + (free ? ' class="mt-free"' : k === 'By Insurance' ? ' class="mt-insl"' : '') + '><td class="muted">' + (i + 1) + '</td><td><input class="mt-w" list="dl_mwork" maxlength="120" autocomplete="off" placeholder="e.g. Engine oil, Air filter, Labour" value="' + esc(l.work || '') + '"></td>' +
@@ -17145,7 +17235,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<td class="n"><input class="mt-a" type="number" step="0.01" value="' + esc(free ? 0 : mtNum(l.amount)) + '" style="text-align:right"' + (free ? ' disabled title="Not paid"' : '') + '>' + (free ? '<small class="mt-worth">' + (w ? 'worth ₹' + money(w) : 'free') + '</small>' : '') + '</td>' +
       '<td class="n"><input class="mt-g" type="number" step="0.01" min="0" max="100" value="' + esc(mtNum(l.gst)) + '" style="text-align:right" aria-label="GST %"></td>' +      // (update-171) its GST %
       '<td class="n mt-gv">' + (gv ? money(gv) : '') + '</td><td class="n mt-wv">' + (free ? '0.00' : l.amount === '' || l.amount === undefined ? '' : money(r2((Number(l.amount) || 0) + gv))) + '</td>' +
-      '<td><button type="button" class="link del" data-mtx="' + i + '" title="Take this line out" aria-label="Remove">×</button></td></tr>';
+      '<td><button type="button" class="link del mt-del" data-mtx="' + i + '" title="Take this line out" aria-label="Remove">' + MT_TRASH + '</button></td></tr>';      // (update-172: a bin)
   }
   function mtLinesNow() { const n = (tr, c) => { const v = tr.querySelector(c).value; return v === '' ? '' : Number(v); };
     return [...document.querySelectorAll('#mt_lines tr')].map(tr => ({ work: tr.querySelector('.mt-w').value.trim(), type: tr.querySelector('.mt-t').value, qty: n(tr, '.mt-q'), uom: tr.querySelector('.mt-u').value.trim(), rate: n(tr, '.mt-r'), disc: n(tr, '.mt-d'), amount: n(tr, '.mt-a'), gst: n(tr, '.mt-g') })); }
@@ -17162,6 +17252,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (byIns > 0) { if (!$('mt_ins').checked) { $('mt_ins').checked = true; $('mt_insbox').hidden = false; } $('mt_inspaid').value = byIns; }
     $('mt_inspaid').readOnly = byIns > 0;
     $('mt_total').textContent = money(t); $('mt_free').textContent = money(free); $('mt_freerow').hidden = !(free > 0);
+    // (update-172) the totals' box: Subtotal (the amounts before GST) · GST (its % when the lines have one) · Bill total
+    const ch = ls.filter(l => mtCharged(l.type) && typeof l.amount === 'number' && isFinite(l.amount)), rs = [...new Set(ch.filter(l => Number(l.gst) > 0).map(l => Number(l.gst)))];
+    $('mt_sub').textContent = money(r2(ch.reduce((a, l) => a + l.amount, 0))); $('mt_gstt').textContent = money(r2(ch.reduce((a, l) => a + mtGst(l.amount, l.gst), 0)));
+    $('mt_gstl').textContent = rs.length === 1 ? 'GST (' + fmt(rs[0]) + '%)' : 'GST';
     const ins = $('mt_ins').checked ? (Number($('mt_inspaid').value) || 0) : 0; $('mt_wepaid').textContent = money(r2(t - ins));
   }
   // a Paid line: its ₹ from Qty × Rate − Discount % (when Qty and Rate are there); a free line: ₹ 0, its worth shown
@@ -17199,6 +17293,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('mt_ins').checked = !!ins; $('mt_insco').value = ins ? ins.company || '' : ''; $('mt_insclaim').value = ins ? ins.claimNo || '' : ''; $('mt_inspaid').value = ins && ins.paid !== null && ins.paid !== undefined ? ins.paid : '';
     ['mt_insco', 'mt_insclaim', 'mt_inspaid'].forEach(id => $(id).classList.remove('ai-read')); mtInsShow();
   }
+  // (update-172, "box war double click kel ki box motha hoil") a box of a line double-clicked (or F2) opens large – the app's own big box
+  // (bigBox, 02-10-2026, for every box of the app): its text put back as if typed here, the ₹ and the totals worked out the same way
   $('mt_lines').addEventListener('click', e => { const x = e.target.closest('[data-mtx]'); if (!x) return; const l = mtLinesNow(); l.splice(Number(x.dataset.mtx), 1); mtLines(l); });
   $('mt_addl').addEventListener('click', () => { const l = mtLinesNow().filter(x => !mtEmpty(x)); l.push({ work: '', type: 'Paid', qty: '', uom: '', rate: '', disc: '', amount: '' }); mtLines(l); const w = [...document.querySelectorAll('#mt_lines .mt-w')]; if (w.length) w[w.length - 1].focus(); });
   ['mt_date', 'mt_no', 'mt_garage', 'mt_billno', 'mt_km'].forEach(id => $(id).addEventListener('input', () => $(id).classList.remove('ai-read')));
@@ -17207,11 +17303,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // the bill's files (the same box as the Log Book's attachments – kept once in the private store)
   function mtFilesPaint() {
     const f = S.mt.files;
-    $('mt_files').innerHTML = f.length ? f.map((x, i) => '<span class="mt-file">' + (x.mime === 'application/pdf' ? '📄' : '🖼') + ' ' + (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(x.name || 'file ' + (i + 1)) + '</a>' : esc(x.name || 'file ' + (i + 1))) + '</span>').join(' ')
+    // (update-172) a chip a file: its kind, its name (it opens), its size, × takes it out of this bill (as in its box)
+    const kb = n => n >= 1048576 ? (Math.round(n / 104857.6) / 10) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+    $('mt_files').innerHTML = f.length ? f.map((x, i) => '<span class="mt-file' + (x.mime === 'application/pdf' ? ' pdf' : '') + '">' + (x.mime === 'application/pdf' ? '<svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/></svg>' : '<svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/></svg>') +
+        '<span class="mt-fn">' + (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(x.name || 'file ' + (i + 1)) + '</a>' : esc(x.name || 'file ' + (i + 1))) + (Number(x.size) > 0 ? '<small>' + kb(Number(x.size)) + '</small>' : '') + '</span>' +
+        '<button type="button" class="mt-fx" data-mtfx="' + i + '" title="Take this file out of the bill" aria-label="Remove">×</button></span>').join('')
       : '<span class="muted">No bill file yet.</span>';
     $('mt_read').disabled = !f.some(x => x.url && /^blob:/.test(x.url));      // the AI reads a file added now (it is on this computer)
-    $('mt_addf').textContent = f.length ? 'Bill files (' + f.length + ') – add / remove' : '+ Add bill (PDF / photo)';
+    $('mt_addf').querySelector('span').textContent = f.length ? 'Bill files (' + f.length + ') – add / remove' : '+ Add bill (PDF / photo)';
   }
+  $('mt_files').addEventListener('click', e => { const x = e.target.closest('[data-mtfx]'); if (!x) return; S.mt.files.splice(Number(x.dataset.mtfx), 1); mtFilesPaint(); });
   $('mt_addf').addEventListener('click', async () => {
     const no = val('mt_no');
     const list = await atOpen({ title: 'Bill files', sub: [no, $('mt_date').value ? showDate($('mt_date').value) : ''].filter(Boolean).join(' · ') || 'Maintenance bill', files: S.mt.files, up: 'maintFile', max: 10, noQr: true });
@@ -17326,24 +17427,49 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // Current Reading once for the bill's rows; a tax line's ₹ in GST Amount; the insurance's part of a claim its own row (minus); the free
   // lines at ₹ 0 with their kind. At a site on fuel cards its fills follow (update-165), then "by work / part".
   const MT_TAX = /^\s*(?:maharashtra\s+)?(?:cgst|sgst|igst|utgst|gst|cess|tax|vat)\b/i;
+  // (update-172, "gst raw madhe ka dakhawat aahe heading madhe aahet gst tr") a bill of before with its taxes as lines of their own
+  // ("CGST @ 9%", "SGST @ 9%", "GST 18%" – half CGST, half SGST – or "IGST 18%", one rate): no GST row – each tax goes onto the bill's items (its RCL / Insurance lines above
+  // ₹0, not a round-off / adjustment): by its % when that makes the bill's tax to ₹1, else in the items' proportion; the paisa left over
+  // on the biggest item – the bill's GST and its total stay what was saved. Another tax (cess, VAT …) or two rates: as it was saved.
+  const mtTaxPct = w => { const m = /(\d+(?:\.\d+)?)\s*%/.exec(w || ''); return m ? Number(m[1]) : 0; };
+  function mlogSpread(lines) {
+    const ls = (lines || []).map(l => Object.assign({}, l)), isTax = l => mtCharged(l.type) && !(Number(l.gst) > 0) && MT_TAX.test(l.work || '');
+    const kind = w => /^\s*(?:maharashtra\s+)?cgst\b/i.test(w) ? 'c' : /^\s*(?:maharashtra\s+)?sgst\b/i.test(w) ? 's' : /^\s*(?:maharashtra\s+)?igst\b/i.test(w) ? 'i' : /^\s*(?:maharashtra\s+)?gst\b/i.test(w) ? 'g' : '';
+    const tx = ls.filter(isTax), full = t => (/[ig]/.test(kind(t.work)) ? 1 : 2) * mtTaxPct(t.work);
+    if (!tx.length || tx.some(t => !kind(t.work) || !(mtTaxPct(t.work) > 0)) || new Set(tx.map(full)).size > 1) return ls;
+    const items = ls.filter(l => !isTax(l) && mtCharged(l.type) && !(Number(l.gst) > 0) && Number(l.amount) > 0 && !/round|adjust/i.test(l.work || ''));
+    if (!items.length) return ls;
+    const A = items.reduce((t, l) => t + Number(l.amount), 0), big = items.reduce((b, l) => Number(l.amount) > Number(b.amount) ? l : b, items[0]);
+    items.forEach(l => { l.tax = { c: 0, s: 0, i: 0 }; l.taxRate = full(tx[0]); });
+    tx.forEach(t => {
+      const T = Number(t.amount) || 0, p = mtTaxPct(t.work), k = kind(t.work);
+      let sh = items.map(l => r2(Number(l.amount) * p / 100));
+      if (Math.abs(sh.reduce((a, v) => a + v, 0) - T) > 1) sh = items.map(l => r2(T * Number(l.amount) / A));
+      const left = r2(T - sh.reduce((a, v) => a + v, 0));
+      items.forEach((l, i) => { const v = r2(sh[i] + (l === big ? left : 0)), h = r2(v / 2);
+        if (k === 'g') { l.tax.c = r2(l.tax.c + h); l.tax.s = r2(l.tax.s + v - h); } else l.tax[k] = r2(l.tax[k] + v); });      // ("GST 18%": half CGST, half SGST)
+    });
+    return ls.filter(l => !isTax(l));
+  }
   function mlogRender(d) {
     const t = d.total, u = d.machine.unit === 'kg' ? 'kg' : 'L', ru = hasKm(d.machine.meter) ? 'km' : hasHr(d.machine.meter) ? 'hrs' : '';
     const bills = d.lines.filter(x => x.kind !== 'Fuel'), fills = d.lines.filter(x => x.kind === 'Fuel'), has = v => v !== '' && v !== null && v !== undefined;
     // (update-171) "gst row madhe nko, heading madhe ghe 9 9 18": a column CGST and SGST for each GST % of the lines (CGST / SGST lines of a bill
     // of before go into theirs by the % in their name), then the GST of the line and its amount with GST; each line its Paid by; the
     // bill's Insurance claim and Service on each of its lines
-    const taxPct = w => { const m = /(\d+(?:\.\d+)?)\s*%/.exec(w || ''); return m ? Number(m[1]) : 0; }, rset = new Set();
-    bills.forEach(x => (x.lines || []).forEach(l => { if (mtCharged(l.type) && Number(l.gst) > 0) rset.add(Number(l.gst)); else if (mtCharged(l.type) && /^\s*(?:maharashtra\s+)?[cs]gst\b/i.test(l.work || '') && taxPct(l.work)) rset.add(2 * taxPct(l.work)); }));
+    const taxPct = mtTaxPct, rset = new Set(), spread = bills.map(x => mlogSpread(x.lines));      // (update-172: the taxes of a bill of before on its items)
+    spread.forEach(ls => ls.forEach(l => { if (mtCharged(l.type) && Number(l.gst) > 0) rset.add(Number(l.gst)); else if (l.tax && (l.tax.c || l.tax.s)) rset.add(l.taxRate); else if (mtCharged(l.type) && /^\s*(?:maharashtra\s+)?[cs]gst\b/i.test(l.work || '') && taxPct(l.work)) rset.add(2 * taxPct(l.work)); }));
     const rates = [...rset].sort((p, q) => p - q), nc = 15 + 2 * rates.length;
     let sr = 0, sa = 0, sg = 0, sw = 0, st = 0;
     const sc = rates.map(() => [0, 0]);
-    const rows = bills.map(x => {
-      const ls = (x.lines || []).map(l => {
+    const rows = bills.map((x, bi) => {
+      const ls = spread[bi].map(l => {
         const paid = mtCharged(l.type), tax = paid && !(Number(l.gst) > 0) && MT_TAX.test(l.work || ''), amt = paid ? Number(l.amount) || 0 : 0, cg = rates.map(() => ['', '']);
         let gst = '';
         if (tax) { gst = amt; const p = taxPct(l.work), side = /^\s*(?:maharashtra\s+)?sgst\b/i.test(l.work) ? 1 : /^\s*(?:maharashtra\s+)?cgst\b/i.test(l.work) ? 0 : -1, ri = rates.indexOf(2 * p); if (side > -1 && ri > -1) cg[ri][side] = amt; }
         else if (paid && Number(l.gst) > 0) { const half = r2(amt * Number(l.gst) / 200), ri = rates.indexOf(Number(l.gst)); gst = 2 * half; if (ri > -1) cg[ri] = [half, half]; }
-        return { part: (l.work || '') + (paid ? '' : ' (' + l.type + ')'), qty: l.qty, uom: l.uom || '', rate: l.rate, amount: tax ? '' : amt, cg: cg, gst: gst, withGst: r2(amt + (tax ? 0 : Number(gst) || 0)), by: mtPaidBy(l.type) };
+        else if (l.tax) { const ri = rates.indexOf(l.taxRate); gst = r2(l.tax.c + l.tax.s + l.tax.i); if (ri > -1) cg[ri] = [l.tax.c || '', l.tax.s || '']; }      // (update-172)
+        return { part: l.work || '', qty: l.qty, uom: l.uom || '', rate: l.rate, amount: tax ? '' : amt, cg: cg, gst: gst, withGst: r2(amt + (tax ? 0 : Number(gst) || 0)), by: mtPaidBy(l.type) };
       });
       if (x.insurance && x.insurance.paid > 0) ls.push({ part: 'Paid by the insurance' + (x.insurance.company ? ' – ' + x.insurance.company : '') + (x.insurance.claimNo ? ' (claim no. ' + x.insurance.claimNo + ')' : ''), uom: '', amount: '', cg: rates.map(() => ['', '']), gst: '', withGst: -x.insurance.paid, by: 'Insurance', ins: true });
       if (!ls.length) ls.push({ part: '', uom: '', amount: '', cg: rates.map(() => ['', '']), gst: '', withGst: Number(x.amount) || 0, by: '' });

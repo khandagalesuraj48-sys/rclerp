@@ -6360,6 +6360,31 @@ const MNT_PAIDBY_ = { 'RCL': 'Paid', 'INSURANCE': 'By Insurance' };      // the 
 const maintGstOf_ = l => 2 * r2_(num0_(l.amount) * num0_(l.gst) / 200);
 // a line's total: its amount and its GST (a free line: 0)
 const maintLineTotal_ = l => MNT_CHARGED_(l.type) ? r2_(num0_(l.amount) + maintGstOf_(l)) : 0;
+// (update-172, "gst raw madhe ka dakhawat aahe heading madhe aahet gst tr") a bill of before with its taxes as lines of their own (CGST /
+// SGST / GST / IGST of one rate): each tax onto the bill's items (its charged lines above ₹0, not a round-off / adjustment) – by its % when that
+// makes the bill's tax to ₹1, else in the items' proportion, the paisa left over on the biggest item; each item gets taxAdd (its ₹ of the
+// taxes) and the tax lines go. Another tax (cess, VAT …) or two rates: as saved. The same as the page's mlogSpread (the log book's rows);
+// here for its "by work / part" – no tax is a work there either. Nothing saved is changed.
+const MNT_TAX_ = /^\s*(?:maharashtra\s+)?(?:cgst|sgst|igst|utgst|gst|cess|tax|vat)\b/i;
+function maintSpread_(lines) {
+  const ls = (lines || []).map(l => Object.assign({}, l)), isTax = l => MNT_CHARGED_(l.type) && !(num0_(l.gst) > 0) && MNT_TAX_.test(l.work || '');
+  const pct = w => { const m = /(\d+(?:\.\d+)?)\s*%/.exec(w || ''); return m ? Number(m[1]) : 0; };
+  const kind = w => /^\s*(?:maharashtra\s+)?cgst\b/i.test(w) ? 'c' : /^\s*(?:maharashtra\s+)?sgst\b/i.test(w) ? 's' : /^\s*(?:maharashtra\s+)?igst\b/i.test(w) ? 'i' : /^\s*(?:maharashtra\s+)?gst\b/i.test(w) ? 'g' : '';
+  const tx = ls.filter(isTax), full = t => (/[ig]/.test(kind(t.work)) ? 1 : 2) * pct(t.work);
+  if (!tx.length || tx.some(t => !kind(t.work) || !(pct(t.work) > 0)) || new Set(tx.map(full)).size > 1) return ls;
+  const items = ls.filter(l => !isTax(l) && MNT_CHARGED_(l.type) && !(num0_(l.gst) > 0) && num0_(l.amount) > 0 && !/round|adjust/i.test(l.work || ''));
+  if (!items.length) return ls;
+  const A = items.reduce((a, l) => a + num0_(l.amount), 0), big = items.reduce((b, l) => num0_(l.amount) > num0_(b.amount) ? l : b, items[0]);
+  items.forEach(l => { l.taxAdd = 0; });
+  tx.forEach(t => {
+    const T = num0_(t.amount), p = pct(t.work);
+    let sh = items.map(l => r2_(num0_(l.amount) * p / 100));
+    if (Math.abs(sh.reduce((a, v) => a + v, 0) - T) > 1) sh = items.map(l => r2_(T * num0_(l.amount) / A));
+    const left = r2_(T - sh.reduce((a, v) => a + v, 0));
+    items.forEach((l, i) => { l.taxAdd = r2_(l.taxAdd + sh[i] + (l === big ? left : 0)); });
+  });
+  return ls.filter(l => !isTax(l));
+}
 function maintTable_(need) {
   try { return table_(APP.SHEET_MAINT, MNT_COLS_); }
   catch (e) { if (need) throw new Error('Maintenance bills cannot be kept yet. ' + MNT_SQL_MSG_); return null; }
@@ -6647,7 +6672,7 @@ function maintLog_(f) {
     if (x.date < from || x.date > to) return;
     mn.amount = r2_(mn.amount + x.total); mn.bills++;
     mn.billTotal = r2_(mn.billTotal + x.billTotal); mn.insurance = r2_(mn.insurance + (x.insurance ? x.insurance.paid : 0)); mn.free = r2_(mn.free + x.free);      // (update-168)
-    x.lines.filter(l => l.type === 'Paid' && l.amount).forEach(l => { const k = l.work.toUpperCase(); byWork[k] = byWork[k] || { work: l.work, amount: 0, n: 0 }; byWork[k].amount = r2_(byWork[k].amount + maintLineTotal_(l)); byWork[k].n++; });      // (update-171: with its GST)
+    maintSpread_(x.lines).filter(l => l.type === 'Paid' && l.amount).forEach(l => { const k = l.work.toUpperCase(); byWork[k] = byWork[k] || { work: l.work, amount: 0, n: 0 }; byWork[k].amount = r2_(byWork[k].amount + maintLineTotal_(l) + (l.taxAdd || 0)); byWork[k].n++; });      // (update-171: with its GST; update-172: a bill of before – its tax lines on its items, not works)
     lines.push(Object.assign({ kind: 'Maintenance', amount: x.total, ord: ct(r[mt.c[H.CREATED]]) }, x, { party: x.garage, files: x.files.length }));
   });
   maintStoreLines_(m, from, to).forEach(x => { mn.amount = r2_(mn.amount + num0_(x.total)); mn.billTotal = r2_(mn.billTotal + num0_(x.total)); mn.bills++;

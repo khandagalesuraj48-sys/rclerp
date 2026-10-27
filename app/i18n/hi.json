@@ -6745,7 +6745,6 @@
 "Saved before?": "पहले save किया है?",
 "Save again": "फिर से save करें",
 "Bill {0} for {1} is already saved ({2}). Save it again?": "{1} के लिए बिल {0} पहले से save है ({2}). फिर से save करें?",
-"📄 Read the bill (AI)": "📄 बिल पढ़ें (AI)",
 "Press \"Read the bill (AI)\" to fill the form from it – then check every value.": "उससे form भरने के लिए \"बिल पढ़ें (AI)\" दबाएँ – फिर हर value जाँचें.",
 "Read by the AI (blue) – check every value before saving.": "AI ने पढ़ा (नीला) – save करने से पहले हर value जाँचें.",
 "The AI is reading the bill…": "AI बिल पढ़ रहा है…",
@@ -6882,5 +6881,8 @@
 "By Insurance": "इंश्योरेंस से",
 "has the GST of its lines or lines paid by the insurance – update the app to change it.": "में लाइनों का GST या insurance से भरी लाइनें हैं – उसे बदलने के लिए app update करें.",
 "One bill of a machinery: each work / part with who paid it, Qty, Uom, Rate, Discount, ₹ and GST %. Add the bill (PDF or photo) – the AI can read it for you; check every value, then save.": "मशिनरी का एक बिल: हर काम / पार्ट – किसने भरा, Qty, Uom, Rate, छूट, ₹ और GST %. बिल (PDF या photo) जोड़ें – AI उसे पढ़ सकता है; हर value जाँचें, फिर save करें.",
-"With GST": "GST सहित"
+"With GST": "GST सहित",
+"Double-click a box to see and type all of it in a big box.": "किसी box पर double-click करें – वह बड़ा खुलता है, उसमें सब दिखता है और टाइप कर सकते हैं.",
+"Read the bill (AI)": "बिल पढ़ें (AI)",
+"Subtotal": "उप-योग"
 }

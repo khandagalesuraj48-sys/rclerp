@@ -2139,3 +2139,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   GST (`mtGst`, `mtRowShow`, the claim ticked by the lines), `mlogRender` – a CGST / SGST pair per rate in the heading, "GST 18%" /
   GST Amount, Paid by · Insurance claim · Service on every line (the tax lines of before into their columns). No SQL. Tests: unit
   `update-171`; rig mnt170 18 (S1, RCLSTEPS=1), mnt168 29, mnt165 32.
+- 27-10-2026 (update-172, with rcl-mobile 3.52.0). Report: `UPDATE_172.md`. THE MAINTENANCE BILL AS HIS PICTURE, NO GST ROW IN THE LOG
+  BOOK: page `mlogSpread` / server `maintSpread_` – a bill of before with CGST / SGST / GST / IGST lines of one rate: each tax on its items
+  (by its %, else in proportion, the paisa on the biggest), no tax row and no tax "work" in "by work"; a line's name without its kind.
+  The form (`#sec-mnt .mt-form`, scoped CSS): head with the service switch, cards, boxes with icons, the lines one compact row each
+  (table-layout fixed, the note out of the table's foot), the files as chips (× takes one out), the totals' box (`mt_sub`, `mt_gstl`,
+  `mt_gstt`, `mt_total`), the foot. A double-click opens a box big: the app's own bigBox (02-10-2026). No SQL. Tests: unit `update-172`;
+  rig mnt170 21 (S1, RCLSTEPS=1), mnt168 30, mnt165 32.
