@@ -102,7 +102,7 @@ function verifyAdmin(ticket, now) {
     return Object.assign(out, { name: String(c.name || '').replace(/\s+/g, ' ').trim().slice(0, 80), url: String(c.url || '').trim().replace(/\/+$/, '').slice(0, 200),
       sheet: String(c.sheet || '').trim().slice(0, 200), company: { id: String(comp.id || '').slice(0, 40), name: String(comp.name || '').replace(/\s+/g, ' ').trim().slice(0, 80) }, places: placesOf(c.places) });
   }
-  if (c.act === 'placesSave') return Object.assign(out, { places: placesOf(c.places) });      // (update-117) Sites → Diesel places
+  if (c.act === 'placesSave') return Object.assign(out, { places: placesOf(c.places) }, c.mode === 'card' || c.mode === 'stock' ? { mode: c.mode } : {});      // (update-117) Sites → Diesel places; (update-164) on fuel cards or not
   // (update-157) Sites → Backup: a site's (or the Portal's) numbered backup Sheets – look, give a link (change / add), back up now
   if (c.act === 'bkGet' || c.act === 'bkNow') return Object.assign(out, { target: c.target === 'portal' ? 'portal' : '' });
   if (c.act === 'bkSet') return Object.assign(out, { target: c.target === 'portal' ? 'portal' : '', mode: c.mode === 'add' ? 'add' : 'change', link: String(c.link || '').trim().slice(0, 300) });

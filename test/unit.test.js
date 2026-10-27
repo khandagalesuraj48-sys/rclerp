@@ -1244,7 +1244,7 @@ test('update-68: the step-5 SQL is in the project, shown in the app word for wor
   { const cg = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'); assert.match(cg, /if \(!good && !\(known && pwScrypt_\(u\.password\)\)\) pwDummy_\(password\);/, 'every refused sign-in costs one scrypt'); assert.ok(!/pwDummy_\(password\) \|\| true/.test(cg)); }
   assert.match(fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8'), /if \(o\.cron\) \{ try \{ __opsCleanup\(\); \}/);
   const api = require('vm').runInContext('API_', ctx);
-  assert.strictEqual(api.backupNow.admin, true); assert.strictEqual(api.accessReport.admin, true); assert.deepStrictEqual(Array.from(api.getStock.any), ['Dashboard', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Reports']);
+  assert.strictEqual(api.backupNow.admin, true); assert.strictEqual(api.accessReport.admin, true); assert.deepStrictEqual(Array.from(api.getStock.any), ['Dashboard', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Fuel Cards', 'Reports']);      // (update-164: Fuel Cards – the cards' balances)
 });
 
 test('update-68 (D1): no code can open the backup Sheet to "anyone with the link"', () => {
@@ -2123,10 +2123,10 @@ test('update-87 the AI reading checked against the last reading; the dispenser l
   assert.deepStrictEqual(pick(77, [], null, '2026-10-12', 'km'), { v: 77, check: '' });
   // the dispenser: litres; amount ÷ rate when the litres were not read; a mismatch → check
   const pump = j => run('j => pumpAnswer_(j)', j);
-  assert.deepStrictEqual(pump({ litres: 45, amount: 4140, rate: 92 }), { litres: 45, check: '' });
-  assert.deepStrictEqual(pump({ litres: null, amount: 4140, rate: 92 }), { litres: 45, check: '' });
+  assert.deepStrictEqual(pump({ litres: 45, amount: 4140, rate: 92 }), { litres: 45, check: '', amount: 4140, rate: 92 });      // (update-164: the amount and rate too – a site on fuel cards puts the amount in its box)
+  assert.deepStrictEqual(pump({ litres: null, amount: 4140, rate: 92 }), { litres: 45, check: '', amount: 4140, rate: 92 });
   assert.match(pump({ litres: 4140, amount: 4140, rate: 92 }).check, /not the amount|not a normal fill/);
-  assert.deepStrictEqual(pump({ litres: '45.50' }), { litres: 45.5, check: '' });
+  assert.deepStrictEqual(pump({ litres: '45.50' }), { litres: 45.5, check: '', amount: null, rate: null });
   // the page: the dispenser fills Diesel Qty, the driver of the last fill only into an empty box (or one filled the same way)
   const fs = require('fs'), path = require('path'), app = fs.readFileSync(path.join(__dirname, '..', 'app', 'App.html'), 'utf8');
   assert.match(app, /fill\('d_qty', null, p\.litres/);
@@ -3272,9 +3272,9 @@ test('update-117: every site its own diesel places (18B: Camp Pump + 2 dispenser
     assert.deepStrictEqual(run('() => sysPlacesSetup_({ places: [{ name: "Camp Pump", cap: 18000 }, { name: "Camp Pump", cap: 1 }] })'), { ok: false, note: 'Diesel place "Camp Pump" is there twice.' });
     assert.deepStrictEqual(run('() => sysPlacesSetup_({ places: [{ name: "Camp Pump", cap: 18000 }, { name: "MH12ZE1739", cap: 2650 }], by: "sa117@rcl.test" })'), { ok: true, note: 'Camp Pump (18000 Ltr), MH12ZE1739 (2650 Ltr)' });
     // ---- the Portal's door: two acts; the ticket carries the places; system.js has the step ----
-    assert.match(sitesGs, /if \(c\.act === 'places'\) return placesInfo_\(\);[^\n]*\n  if \(c\.act === 'placesSave'\) return sysPlacesSave_\(c\.places, c\.by\);/);
+    assert.match(sitesGs, /if \(c\.act === 'places'\) return placesInfo_\(\);[^\n]*\n  if \(c\.act === 'placesSave'\) return sysPlacesSave_\(c\.places, c\.by, c\.mode\);/);      // (update-164: with the fuel-card mode)
     const portalJs = fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8'), sysJs = fs.readFileSync(path.join(root, 'server', 'system.js'), 'utf8');
-    assert.match(portalJs, /if \(c\.act === 'placesSave'\) return Object\.assign\(out, \{ places: placesOf\(c\.places\) \}\);/);
+    assert.match(portalJs, /if \(c\.act === 'placesSave'\) return Object\.assign\(out, \{ places: placesOf\(c\.places\) \}, c\.mode === 'card' \|\| c\.mode === 'stock' \? \{ mode: c\.mode \} : \{\}\);/);
     assert.match(portalJs, /company: \{ id: [^\n]*\}, places: placesOf\(c\.places\) \}\);/);
     assert.match(sysJs, /pl = R\.runIn\(code, 'sysPlacesSetup', \[\{ places: [^\n]*, by: c\.by, keep: same \}\]\);[\s\S]*if \(!add\('places', pl && pl\.ok/);
     assert.match(fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8'), /sysPlacesSetup: sysPlacesSetup_,/);
@@ -3283,7 +3283,7 @@ test('update-117: every site its own diesel places (18B: Camp Pump + 2 dispenser
     assert.match(app, /if \(TANKS\.own\) \{[^\n]*\n      const key = locs\.map/);
     assert.match(app, /function vtrPlaces\(\) \{ return \(S\.locations \|\| \[\]\)\.join\('\|'\) === 'Dispenser\|VTR Store'; \}/);
     assert.match(app, /'Moved Dispenser ↔ VTR Store \(inside company, not added or removed\)' : 'Moved between the diesel places/);
-    assert.match(app, /if \(L\.locations && L\.locations\.length && \(pfChanged \|\| L\.locations\.join\('\|'\) !== \(S\.locations \|\| \[\]\)\.join\('\|'\)\)\) setLocations\(L\.locations\);/);      // (update-163: also when a place's fuel changed)
+    assert.match(app, /if \(L\.locations && L\.locations\.length && \(fmChanged \|\| pfChanged \|\| L\.locations\.join\('\|'\) !== \(S\.locations \|\| \[\]\)\.join\('\|'\)\)\) setLocations\(L\.locations\);/);      // (update-163: also when a place's fuel changed)
     const tk = app.slice(app.indexOf('  const DRUM_ICON = '), app.indexOf("  $('tank_set').addEventListener('click'"));
     const H2 = new Function('wavePath', 'esc', 'tkHead', tk + '; return { tankOwnHtml, tankBarrelsHtml };')(() => 'M0 0', x => x, (n, sub) => '[' + n + '|' + sub + ']');
     const own = H2.tankOwnHtml(['Camp Pump', 'MH12ZE1739', 'MH12WJ1381']);
@@ -5875,7 +5875,7 @@ test('update-162: diesel sources per person – Issue and the From of a Transfer
     assert.ok(codeGs.indexOf('  DSRC_U_ = u;') > -1, 'api(): the person of the request');
     // ---- the Portal's door (Sites.gs): the users with their sources and the site's places; pages saves them
     const sitesGs = fs.readFileSync(path.join(root, 'app', 'Sites.gs'), 'utf8');
-    assert.match(sitesGs, /return \{ users: d\.users\.map\(pub\), pages: d\.modules, places: placeNames_\(\) \};/);
+    assert.match(sitesGs, /return \{ users: d\.users\.map\(pub\), pages: d\.modules, places: cardSite_\(\) \? \[\] : placeNames_\(\) \};/);      // (update-164: a site on fuel cards has no diesel sources)
     assert.match(sitesGs, /if \(c\.sources && typeof c\.sources === 'object'\) \{ const lk = LockService\.getScriptLock\(\); lk\.waitLock\(30000\); try \{ dsTxt = dsrcSet_\(email, c\.sources, c\.by\); \}/);
     assert.ok(!/withLock_\(\(\) => \{ dsTxt/.test(sitesGs), 'not withLock_: it would drop the pages saved just before (found on the rig)');
     // ---- the page: his own sources on the entry forms only
@@ -6004,5 +6004,162 @@ test('update-163: fuel – Diesel / Petrol / CNG / Electric machinery (Asset Mas
       "if (!fu) setStock(d.stock); }", "S.placeFuels = d.placeFuels || {};"].forEach(k => assert.ok(app.indexOf(k) > -1, k));
   } finally {
     run('() => { PropertiesService.getScriptProperties().deleteProperty("DIESEL_PLACES"); FUEL_VIEW_ = ""; }');
+  }
+});
+
+test('update-164: fuel cards – a site without diesel stock (HO): the cards and their balance, a fill by a card or in Cash with its ₹, payments onto a card, a card\'s statement, the dashboard of cards and cars; a site that is not on cards as before', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const car = (no, fuel) => ({ no: no, name: 'Car ' + no, type: 'Car', unit: 'KM', worksOn: ['KM'], kmStd: 12, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-07-01', fuel: fuel });
+  const HD = 'HDFC FUEL 1', IC = 'ICICI CREDIT';
+  try {
+    // ---- a site that is not on fuel cards: as before (no cards, no Fuel Cards page, the stock is stock)
+    run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); }');
+    assert.strictEqual(run('() => cardSite_()'), false);
+    assert.strictEqual(run('() => "cards" in getStock_()'), false, 'no cards in the stock');
+    assert.strictEqual(run('() => getInit_(null).fuelMode'), '');
+    assert.strictEqual(run('() => usersAdmin_().modules.some(m => m.key === "Fuel Cards")'), false, 'the Portal does not list Fuel Cards at a site with stock');
+    assert.ok(run('() => usersAdmin_().modules.some(m => m.key === "Diesel Inward")'));
+    assert.strictEqual(tryRun('x => saveCard_(x)', { name: HD }).thrown, 'This site is not on fuel cards – the Super Admin sets that in the Portal (Sites → Diesel places → Fuel cards).');
+    // the new page: an empty cell is No access (never View); No access is kept as an empty cell
+    run('() => { this.__mh164 = makeHash_; makeHash_ = () => "sha256$0123456789abcdef$" + "0".repeat(64); }');      // (the test's Utilities has no hashing)
+    try { run('x => saveUserAdmin_(x, null)', { isNew: true, email: 'driver164@site.test', name: 'Driver 164', active: true, admin: false, perms: { 'Diesel Issue': 'Edit' }, newPassword: crypto.randomBytes(8).toString('hex') + 'Aa1' }); }
+    finally { run('() => { makeHash_ = this.__mh164; }'); }
+    const perm = () => run('() => readUsersSheet_().find(u => u.email === "driver164@site.test").perms["Fuel Cards"]');
+    assert.strictEqual(perm(), 'None');
+    run('x => saveUserAdmin_(x, null)', { email: 'driver164@site.test', name: 'Driver 164', active: true, admin: false, perms: { 'Fuel Cards': 'View' } });
+    assert.strictEqual(perm(), 'View');
+    run('x => saveUserAdmin_(x, null)', { email: 'driver164@site.test', name: 'Driver 164', active: true, admin: false, perms: { 'Fuel Cards': 'None' } });
+    assert.strictEqual(perm(), 'None');
+    assert.strictEqual(run('() => { const t = table_("Users", []); const r = t.rows.find(x => String(x[t.c.Email]) === "driver164@site.test"); return r[t.c["Fuel Cards"]]; }'), '', 'kept as an empty cell');
+    // ---- the Super Admin puts the site on fuel cards (Portal → Sites → Diesel places), its places as they are
+    const places = run('() => places_().map(p => ({ name: p.name, cap: tankSettings_().caps[p.name] || 100, fuel: p.fuel }))');
+    const info = run('(l, m) => savePlaces_(l, m)', places, 'card');
+    assert.strictEqual(info.mode, 'card');
+    assert.strictEqual(run('() => cardSite_()'), true);
+    assert.strictEqual(run('() => getInit_(null).fuelMode'), 'card');
+    assert.deepStrictEqual(run('() => usersAdmin_().modules.filter(m => /Fuel Cards|Diesel Inward|Diesel Transfer/.test(m.key)).map(m => m.key)'), ['Fuel Cards'], 'the Portal lists Fuel Cards, no Inward / Transfer');
+    run('(x, m) => saveMaster_(x, m)', car('HO-1-164', 'Petrol'), 'add');
+    run('(x, m) => saveMaster_(x, m)', car('HO-2-164', 'Diesel'), 'add');
+    run('(x, m) => saveMaster_(x, m)', Object.assign(car('HO-3-164', 'Electric'), { kmStd: '' }), 'add');
+    assert.ok(run('() => siteFuels_()').indexOf('Petrol') > -1, 'the fuels of the site: its machinery\'s');
+    // ---- the cards: every check, then two cards
+    const bad = x => tryRun('x => saveCard_(x)', Object.assign({ name: HD, last4: '4321', type: 'Fuel card', cars: [], opening: 5000, openDate: '2026-07-01' }, x)).thrown;
+    assert.strictEqual(bad({ name: '' }), 'Enter the card\'s name (e.g. HDFC Fuel Card 1).');
+    assert.strictEqual(bad({ name: 'cash' }), '"Cash" is how a fill is paid without a card – give the card another name.');
+    assert.strictEqual(bad({ last4: '1234567890123456' }), 'Card HDFC FUEL 1: type only the LAST 4 digits of the card number (never the whole number).');
+    assert.strictEqual(bad({ type: 'Gift card' }), 'Card HDFC FUEL 1: pick its kind (Fuel card / Credit card / Debit card).');
+    assert.strictEqual(bad({ opening: -1 }), 'Card HDFC FUEL 1: enter its opening balance (₹, 0 or more).');
+    assert.match(bad({ openDate: '2099-01-01' }), /is after today/);
+    assert.match(bad({ cars: ['NOT-A-CAR'] }), /is not in Master/);
+    const c1 = run('x => saveCard_(x)', { name: HD, last4: '4321', type: 'fuel card', cars: [], opening: 5000, openDate: '2026-07-01' });
+    assert.strictEqual(c1.ok, true); assert.strictEqual(c1.added, true);
+    assert.strictEqual(c1.summary, 'Fuel card added: HDFC FUEL 1 – Fuel card, …4321, opening ₹5000 on 01-07-2026, every car, Active');
+    run('x => saveCard_(x)', { name: IC, type: 'Credit card', cars: ['ho-1-164'], opening: 1000, openDate: '2026-07-05' });
+    assert.strictEqual(bad({ name: IC }), 'Card ICICI CREDIT is already there.');
+    assert.deepStrictEqual(run('() => getStock_().cards.map(c => c.name + ":" + c.balance + ":" + c.cars.join("|"))'), [HD + ':5000:', IC + ':1000:HO-1-164']);
+    // ---- a fill: a card or Cash, its ₹ – the checks of the server
+    const fill = (no, src, qty, amount, date, extra) => Object.assign({ date: date || '2026-07-06', shift: 'Day', no: no, qty: qty, kmReading: '', source: src, amount: amount }, extra || {});
+    const refused = d => tryRun('d => saveDieselIssue_(d)', d).thrown;
+    assert.strictEqual(refused(fill('HO-1-164', '', 10, 1050)), 'HO-1-164: pick how the fuel was paid – a fuel card or Cash.');
+    assert.strictEqual(refused(fill('HO-1-164', 'XYZ CARD', 10, 1050)), 'HO-1-164: "XYZ CARD" is not a fuel card of this site (Fuel Cards) – pick a card or Cash.');
+    assert.strictEqual(refused(fill('HO-1-164', HD, 10, '')), 'HO-1-164: enter the Amount (₹) of this fill.');
+    assert.strictEqual(refused(fill('HO-2-164', IC, 10, 900)), 'HO-2-164: card ICICI CREDIT is not for this car (Fuel Cards → its cars) – pick its own card or Cash.');
+    assert.strictEqual(refused(fill('HO-1-164', IC, 10, 900, '2026-07-04')), 'HO-1-164: card ICICI CREDIT starts on 05-07-2026 (its opening balance) – a fill of 04-07-2026 cannot be on it.');
+    assert.strictEqual(refused(fill('HO-3-164', 'Cash', 10, 900)), 'HO-3-164 runs on Electric – no fuel is issued to it (Asset Master → Fuel).');
+    // (update-162) a person's diesel sources are places – a site on fuel cards does not use them
+    const RAVI = { email: 'ravi164@site.test', name: 'Ravi 164', admin: false, perms: { 'Diesel Issue': 'Edit' } };
+    run('(e, g) => dsrcSet_(e, g, "sa")', RAVI.email, { 'Diesel Issue': [places[0].name] });
+    run('u => { DSRC_U_ = u; }', RAVI);
+    const f1 = run('d => saveDieselIssue_(d)', fill('HO-1-164', HD, 10, 1050));
+    assert.strictEqual(f1.ok, true, JSON.stringify(f1));
+    run('(e) => { DSRC_U_ = null; dsrcSet_(e, { "Diesel Issue": null }, "sa"); }', RAVI.email);
+    const row = id => run('id => { const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_); const r = t.rows.find(x => String(x[t.c[H.ID]]) === id); return { src: r[t.c[H.SOURCE]], amount: r[t.c[H.AMOUNT]], rate: r[t.c[H.RATE]] }; }', id);
+    assert.deepStrictEqual(row(f1.id), { src: HD, amount: 1050, rate: 105 }, 'the card in Diesel Source, the ₹ and the rate (Amount ÷ Qty)');
+    assert.strictEqual(f1.stock.cards.find(c => c.name === HD).balance, 3950, 'the balance after the fill comes back with the save');
+    const cash = run('d => saveDieselIssue_(d)', fill('HO-2-164', 'cash', 10, 900, '', { rate: 90 }));
+    assert.deepStrictEqual(row(cash.id), { src: 'Cash', amount: 900, rate: 90 });
+    // no stock: a fill is never refused for litres; a short balance is saved (the fuel is already in the car)
+    const big = run('d => saveDieselIssue_(d)', fill('HO-1-164', IC, 15, 1500));
+    assert.strictEqual(big.ok, true);
+    assert.strictEqual(big.stock.cards.find(c => c.name === IC).balance, -500, 'shown red on the page – not refused');
+    assert.strictEqual(run('() => getStock_().stock'), 0, 'no diesel stock');
+    // stock entries are not made at a site on fuel cards
+    assert.match(tryRun('x => saveInward_(x)', { date: '2026-07-06', location: places[0].name, pump: 'P', qty: 100, rate: 90, billNo: 'X1', billDate: '2026-07-06' }).thrown, /^This site is on fuel cards – it keeps no diesel stock, so a Diesel Inward is not made here/);
+    assert.match(tryRun('x => saveTransfer_(x)', { date: '2026-07-06', shift: 'Day', from: places[0].name, to: places[1] ? places[1].name : 'X', qty: 5 }).thrown, /so a Diesel Transfer is not made here/);
+    assert.match(tryRun('b => saveDieselBulk_(b)', { date: '2026-07-06', shift: 'Day', source: HD, rows: [{ no: 'HO-1-164', qty: 1 }] }).thrown, /"Multiple entries" of diesel issues is not made here/);
+    assert.match(tryRun('r => importDiesel_(r)', [{ line: 2, date: '2026-07-06', shift: 'Day', no: 'HO-1-164', qty: 1, source: HD }]).thrown, /an Excel import of diesel issues is not made here/);
+    // a change of a fill: its new ₹ (and Cash → the card's balance comes back)
+    const up = run('(id, d) => updateDieselIssue_(id, d)', big.id, fill('HO-1-164', 'Cash', 15, 1400));
+    assert.strictEqual(up.ok, true);
+    assert.deepStrictEqual(row(big.id), { src: 'Cash', amount: 1400, rate: 93.33 });
+    assert.strictEqual(up.stock.cards.find(c => c.name === IC).balance, 1000);
+    run('(id, d) => updateDieselIssue_(id, d)', big.id, fill('HO-1-164', IC, 15, 1500));
+    // inactive: no new fill on it
+    run('x => saveCard_(x)', { was: IC, name: IC, type: 'Credit card', cars: ['HO-1-164'], opening: 1000, openDate: '2026-07-05', active: false });
+    assert.strictEqual(refused(fill('HO-1-164', IC, 5, 500, '2026-07-07')), 'HO-1-164: card ICICI CREDIT is Inactive (Fuel Cards) – pick another card or Cash.');
+    run('x => saveCard_(x)', { was: IC, name: IC, type: 'Credit card', cars: ['HO-1-164'], opening: 1000, openDate: '2026-07-05' });
+    // a card with entries keeps its name; its opening date not after its first entry
+    assert.strictEqual(tryRun('x => saveCard_(x)', { was: IC, name: 'ICICI NEW', type: 'Credit card', opening: 1000, openDate: '2026-07-05' }).thrown, 'Card ICICI CREDIT has entries – its name stays (it can be made Inactive).');
+    assert.strictEqual(tryRun('x => saveCard_(x)', { was: IC, name: IC, type: 'Credit card', opening: 1000, openDate: '2026-07-07' }).thrown, 'Card ICICI CREDIT has entries from 06-07-2026 – its opening date can be at most that day.');
+    // ---- payments onto a card
+    const pBad = x => tryRun('x => saveCardPayment_(x)', Object.assign({ date: '2026-07-07', card: IC, amount: 2000, ref: 'NEFT 1' }, x)).thrown;
+    assert.strictEqual(pBad({ card: '' }), 'Pick the card the payment was made onto.');
+    assert.strictEqual(pBad({ amount: 0 }), 'Enter the amount paid onto card ICICI CREDIT (₹).');
+    assert.strictEqual(pBad({ date: '2026-07-04' }), 'Card ICICI CREDIT starts on 05-07-2026 (its opening balance) – a payment of 04-07-2026 is already in that balance.');
+    const p1 = run('x => saveCardPayment_(x)', { date: '2026-07-07', card: 'icici credit', amount: 2000, ref: 'NEFT 1' });
+    assert.strictEqual(p1.id, 'CP-000001');
+    assert.strictEqual(p1.stock.cards.find(c => c.name === IC).balance, 1500, '1000 − 1500 + 2000');
+    assert.strictEqual(run('(id, x) => updateCardPayment_(id, x)', p1.id, { date: '2026-07-07', card: IC, amount: 2500, ref: 'NEFT 1' }).cards.find(c => c.name === IC).balance, 2000);
+    const p2 = run('x => saveCardPayment_(x)', { date: '2026-07-08', card: HD, amount: 100, remark: 'top-up' });
+    assert.strictEqual(run('id => deleteCardPayment_(id)', p2.id).cards.find(c => c.name === HD).balance, 3950);
+    const pl = run('() => getCardPayments_({ from: "2026-07-01", to: "2026-07-31" })');
+    assert.deepStrictEqual([pl.count, pl.total, pl.rows[0].id, pl.rows[0].ref], [1, 2500, 'CP-000001', 'NEFT 1']);
+    // ---- the statement of a card
+    const st = run('() => cardStatement_({ card: "ICICI CREDIT", from: "2026-07-07", to: "2026-07-31" })');
+    assert.deepStrictEqual([st.opening, st.lines.length, st.lines[0].kind, st.lines[0].in, st.closing], [-500, 1, 'Payment', 2500, 2000], 'the fill of 06-07 is in the opening of 07-07');
+    const st2 = run('() => cardStatement_({ card: "ICICI CREDIT" })');
+    assert.deepStrictEqual([st2.from, st2.opening, st2.lines.map(x => x.kind + ':' + x.balance)], ['2026-07-05', 1000, ['Fill:-500', 'Payment:2000']]);
+    assert.strictEqual(st2.lines[0].no, 'HO-1-164');
+    // ---- the lists: the ₹ of each card / Cash; the fuels apart (a fill's fuel = its machinery's)
+    const li = run('() => getDieselIssues_({ from: "2026-07-06", to: "2026-07-06", no: "164" })');
+    assert.deepStrictEqual(li.byPay, { [HD]: 1050, Cash: 900, [IC]: 1500 });
+    assert.strictEqual(li.totalAmount, 3450);
+    assert.deepStrictEqual([li.byFuel.Petrol, li.byFuel.Diesel], [25, 10]);
+    assert.strictEqual(li.rows.find(r => r.id === f1.id).amount, 1050);
+    // ---- the dashboard of a site on fuel cards
+    run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-07-06', shift: 'Full Day', no: 'HO-1-164', mode: 'KM', openingKm: 1000, closingKm: 1250 }] });
+    const dd = run('() => cardDash_({ from: "2026-07-01", to: "2026-07-31" })');
+    const c164 = dd.cars.find(x => x.no === 'HO-1-164');
+    assert.deepStrictEqual([c164.fuel, c164.unit, c164.qty, c164.amount, c164.card, c164.cash, c164.fills, c164.km, c164.avg], ['Petrol', 'Ltr', 25, 2550, 2550, 0, 2, 250, 10]);
+    assert.deepStrictEqual([c164.last.date, c164.last.paidBy, c164.last.amount], ['2026-07-06', IC, 1500]);
+    assert.strictEqual(dd.cars.find(x => x.no === 'HO-2-164').cash, 900);
+    assert.deepStrictEqual(dd.cards.map(c => c.name + ':' + c.balance), [HD + ':3950', IC + ':2000']);
+    assert.strictEqual(dd.total.amount, Math.round(dd.cars.reduce((s, x) => s + x.amount, 0) * 100) / 100);
+    assert.strictEqual(tryRun('() => cardDash_({ from: "2026-07-31", to: "2026-07-01" })').thrown, 'From date is after To date.');
+    // ---- back to diesel stock: not once a fill was paid by a card or in Cash
+    assert.strictEqual(tryRun('(l, m) => savePlaces_(l, m)', places, 'stock').thrown, 'This site has fills paid by a fuel card or in Cash (or payments onto a card) – it stays on fuel cards.');
+    assert.strictEqual(run('() => placesInfo_().cardEntries'), true);
+    // ---- the actions and their access; the Portal's door passes the mode
+    const api = require('vm').runInContext('API_', ctx);
+    assert.deepStrictEqual(Array.from(api.getCards.any), ['Fuel Cards', 'Diesel Issue', 'Dashboard'], 'the driver sees the balances');
+    ['saveCard', 'saveCardPayment', 'updateCardPayment', 'deleteCardPayment'].forEach(n => assert.ok(api[n].edit && api[n].m === 'Fuel Cards', n));
+    assert.strictEqual(api.getCardDash.m, 'Dashboard');
+    assert.deepStrictEqual(run('() => SYNC_GROUPS_["Fuel Cards"]'), ['stock']);
+    const portalJs = fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8');
+    assert.ok(portalJs.indexOf("c.mode === 'card' || c.mode === 'stock' ? { mode: c.mode } : {}") > -1);
+    // ---- the database step: only adds; in Read Me word for word; the check names it
+    const sql = fs.readFileSync(path.join(root, 'sql', 'supabase_step1zh_fuel_cards.sql'), 'utf8');
+    const code = sql.replace(/--.*$/gm, '');
+    assert.ok(!/\b(delete\s+from|truncate|update\s+public\.)/i.test(code) && !/drop (table|column)/i.test(code), 'nothing removed or changed (the triggers only note a change / a delete)');
+    ['alter table public.diesel_issue add column if not exists rate numeric;', 'alter table public.diesel_issue add column if not exists amount numeric;', 'create table if not exists public.card_payments (', 'alter table public.app_users add column if not exists perm_fuel_cards text;']
+      .forEach(k => assert.ok(sql.indexOf(k) > -1, k));
+    const listed = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1zh_fuel_cards.sql');
+    assert.ok(listed && listed.sql === sql, 'Read Me shows the file word for word');
+    assert.ok(fs.readFileSync(path.join(root, 'staging', 'rcl_staging_all.sql'), 'utf8').indexOf(sql) > -1, 'the test database has it');
+    assert.ok(fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8').indexOf("'supabase_step1zh_fuel_cards.sql');      // (update-164)") > -1);
+  } finally {
+    run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); DSRC_U_ = null; }');
   }
 });
