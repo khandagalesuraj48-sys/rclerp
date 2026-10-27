@@ -58,7 +58,7 @@ const say = async j => fetch(AI + '/__meter?say=' + encodeURIComponent(JSON.stri
     const bad = async (l, ins) => (await J('saveMaint', { date: d1, no: C1, garage: 'Test Motors', billNo: 'TM-X', lines: l, insurance: ins })).ERROR || '';
     const e1 = await bad([{ work: 'Brake pad', type: 'Free', amount: 0 }]), e2 = await bad([{ work: 'Brake pad', type: 'Paid', qty: 1, rate: 900, disc: 150, amount: 900 }]);
     const e3 = await bad([{ work: 'Brake pad', type: 'Paid', qty: -1, rate: 900, amount: 900 }]), e4 = await bad([{ work: 'Discount', type: 'Paid', amount: -500 }, { work: 'Brake pad', amount: 400 }]);
-    ok('   the checks of a line: its kind, its discount, its Qty; a total below 0', e1 === 'Bill line 1 (Brake pad): its kind is Paid, Warranty, FOC or Service Plan.' && e2 === 'Bill line 1 (Brake pad): the discount is 0 to 100 %.' &&
+    ok('   the checks of a line: its kind, its discount, its Qty; a total below 0', e1 === 'Bill line 1 (Brake pad): Paid by is RCL, Insurance, Warranty, FOC or Service Plan.' && e2 === 'Bill line 1 (Brake pad): the discount is 0 to 100 %.' &&
       e3 === 'Bill line 1 (Brake pad): the quantity is not right.' && e4 === 'The total of the bill cannot be below 0 – check the amounts (a discount is a minus line).', [e1, e2, e3, e4]);
     // an insurance claim: the whole bill, what the insurance paid, we paid the rest
     const body = [{ work: 'Front bumper', type: 'Paid', qty: 1, rate: 18000, disc: 5, amount: 17100 }, { work: 'Body labour', type: 'Paid', amount: 4000 }, { work: 'GST', type: 'Paid', amount: 3798 }];
@@ -103,7 +103,7 @@ const say = async j => fetch(AI + '/__meter?say=' + encodeURIComponent(JSON.stri
     const tidy = async () => { await F.evaluate(() => { try { closeConfirm(false); } catch (e) {} try { $('ai_panel').hidden = true; $('ai_panel').style.display = 'none'; } catch (e) {} ['fixbox', 'toast'].forEach(id => { const y = document.getElementById(id); if (y) { y.hidden = true; y.style.display = 'none'; } }); }); await wait(300); };      // (only for the pictures; the toast's words are still read)
     await F.evaluate(() => showTab('mnt')); await wait(2500);
     const head = await F.evaluate(() => [...document.querySelectorAll('#sec-mnt .mt-lines thead th')].map(t => t.textContent.trim()));
-    ok('3. the page: the lines have # | Work / part | Kind | Qty | Uom | Rate (₹) | Disc % | Amount (₹) (update-170: Uom)', same(head.slice(0, 8), ['#', 'Work / part', 'Kind', 'Qty', 'Uom', 'Rate (₹)', 'Disc %', 'Amount (₹)']), head);
+    ok('3. the page: the lines have # | Work / part | Paid by | Qty | Uom | Rate (₹) | Disc % | Amount (₹) | GST % | GST ₹ | With GST (update-170: Uom; update-171: Paid by, GST)', same(head.slice(0, 11), ['#', 'Work / part', 'Paid by', 'Qty', 'Uom', 'Rate (₹)', 'Disc %', 'Amount (₹)', 'GST %', 'GST ₹', 'With GST']), head);
     // the car box left EMPTY: the AI's vehicle number puts it
     await F.evaluate(() => $('mt_addf').click()); for (let i = 0; i < 20 && !(await F.evaluate(() => !!document.getElementById('at_back'))); i++) await wait(300);
     const inp = await F.$('#at_file'); await inp.uploadFile(path.join(dir, 'bill168.pdf'));
@@ -177,11 +177,11 @@ const say = async j => fetch(AI + '/__meter?say=' + encodeURIComponent(JSON.stri
       return { rows: [...t0.tBodies[0].rows].map(r => [...r.cells].map(c => c.textContent)), foot: [...t0.tFoot.rows].map(r => [...r.cells].map(c => c.textContent)), date: t0.tBodies[0].rows[0].cells[1].rowSpan,
         byfoot: [...document.querySelectorAll('#rpmlog_body tfoot tr')].map(r => r.textContent) }; });
     // (update-170) his format: a row a line; Date / Party / Reading once for the bill (rowspan 9); the tax lines in GST Amount; the insurance's row minus
-    ok('   the car\'s log book (update-170 format): the bill\'s 8 lines and the insurance\'s row; the tax lines in GST Amount; the free lines (their kind) at ₹ 0; Total – 1 bill: Amount ₹2,399.80, GST ₹421.20, With GST ₹821.00; free worth ₹2,940.00; by work: Paid lines of the bills ₹2,821.00, Paid by the insurance −₹2,000.00, We paid ₹821.00',
+    ok('   the car\'s log book (update-171 format): the bill\'s 8 lines and the insurance\'s row; its CGST / SGST lines (a bill of before) in CGST 9% / SGST 9%; the free lines (their kind) at ₹ 0; Paid by, Insurance claim Yes, Service Yes; Total – 1 bill: Amount ₹2,399.80, CGST ₹210.60, SGST ₹210.60, GST ₹421.20, With GST ₹821.00; free worth ₹2,940.00; by work: Paid lines of the bills ₹2,821.00, Paid by the insurance −₹2,000.00, We paid ₹821.00',
       lb.rows.length === 9 && lb.date === 9 && lb.rows[0].slice(1, 4).join('|') === d2.split('-').reverse().join('-') + '|Test ToyotaBill 07668, 02040|61,234' &&
-      same(lb.rows[0].slice(4), ['Periodic maintenance labour', '1', '', '1,800.00', '1,800.00', '', '1,800.00', '1,800.00']) && same(lb.rows[2].slice(1), ['Engine oil (Service Plan)', '4.5', '', '520.00', '0.00', '', '0.00', '0.00']) &&
-      same(lb.rows[5].slice(1), ['CGST 9%', '', '', '', '', '210.60', '210.60', '210.60']) && same(lb.rows[8].slice(1), ['Paid by the insurance – ' + INS + ' (claim no. CLM-168)', '', '', '', '', '', '-2,000.00', '-2,000.00']) &&
-      same(lb.foot[0], ['Total – 1 bill(s)', '2,399.80', '421.20', '821.00', '821.00']) && same(lb.foot[1], ['Free lines (warranty / FOC / service plan) – not paid, worth', '2,940.00']) &&
+      same(lb.rows[0].slice(4), ['Periodic maintenance labour', '1', '', '1,800.00', '1,800.00', '', '', '', '1,800.00', 'RCL', 'Yes', 'Yes', '1,800.00']) && same(lb.rows[2].slice(1), ['Engine oil (Service Plan)', '4.5', '', '520.00', '0.00', '', '', '', '0.00', 'Service Plan', 'Yes', 'Yes', '0.00']) &&
+      same(lb.rows[5].slice(1), ['CGST 9%', '', '', '', '', '210.60', '', '210.60', '210.60', 'RCL', 'Yes', 'Yes', '210.60']) && same(lb.rows[8].slice(1), ['Paid by the insurance – ' + INS + ' (claim no. CLM-168)', '', '', '', '', '', '', '', '-2,000.00', 'Insurance', 'Yes', 'Yes', '-2,000.00']) &&
+      same(lb.foot[0], ['Total – 1 bill(s)', '2,399.80', '210.60', '210.60', '421.20', '821.00', '', '', '', '821.00']) && same(lb.foot[1], ['Free lines (warranty / FOC / service plan) – not paid, worth', '2,940.00']) &&
       same(lb.byfoot.slice(-3), ['Paid lines of the bills2,821.00', 'Paid by the insurance−2,000.00', 'We paid821.00']), lb);
     await tidy(); await F.evaluate(() => $('rpmlog_out').scrollIntoView({ block: 'start' })); await wait(300);
     await mp.screenshot({ path: path.join(SHOT, 'mnt168_logbook.png') });

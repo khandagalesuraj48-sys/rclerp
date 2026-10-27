@@ -61,23 +61,31 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     ok('2. S1\'s menu: Maintenance (update-170), Diesel Inward, no Fuel Cards', nav.mnt && nav.inward && !nav.cards, nav);
     await F.evaluate(() => showTab('mnt')); await wait(2500);
     const form = await F.evaluate(() => ({ no: document.querySelector('label[for="mt_no"]').textContent.trim(), party: document.querySelector('label[for="mt_garage"]').textContent.trim(), km: document.querySelector('label[for="mt_km"]').textContent.trim(),
-      head: [...document.querySelectorAll('#sec-mnt .mt-lines thead th')].map(t => t.textContent.trim()).slice(0, 8), list: $('mt_rows').rows.length }));
+      head: [...document.querySelectorAll('#sec-mnt .mt-lines thead th')].map(t => t.textContent.trim()).slice(0, 8), gh: [...document.querySelectorAll('#sec-mnt .mt-lines thead th')].map(t => t.textContent.trim()).slice(8, 11), list: $('mt_rows').rows.length }));
+    ok('   (update-171) each line its GST %, its GST ₹ and its amount with GST', same(form.gh, ['GST %', 'GST ₹', 'With GST']), form.gh);
     ok('   the form for any machinery: "Machinery", "Party name (garage / shop of the bill)", "Current reading (KM / Hrs)"; the lines with Uom; the list has the bill', /^Machinery/.test(form.no) && /^Party name/.test(form.party) && form.km === 'Current reading (KM / Hrs)' &&
-      same(form.head, ['#', 'Work / part', 'Kind', 'Qty', 'Uom', 'Rate (₹)', 'Disc %', 'Amount (₹)']) && form.list === 1, form);
-    // a bill typed by hand: RK Power, two parts and a tax line
+      same(form.head, ['#', 'Work / part', 'Paid by', 'Qty', 'Uom', 'Rate (₹)', 'Disc %', 'Amount (₹)']) && form.list === 1, form);      // (update-171: Paid by)
+    // a bill typed by hand: RK Power, two parts – each its GST % (update-171: no tax line)
     await F.evaluate((no, d) => { $('mt_no').value = no; $('mt_date').value = d; S.mt.dateTyped = true; $('mt_garage').value = 'RK Power'; $('mt_billno').value = 'RKP-77'; $('mt_km').value = '1915'; }, R, d2);
-    const typeLine = async (i, w, q, u, r) => F.evaluate((i, w, q, u, r) => { const tr = [...document.querySelectorAll('#mt_lines tr')][i], set = (c, v) => { const x = tr.querySelector(c); x.value = v; x.dispatchEvent(new Event('input', { bubbles: true })); };
-      set('.mt-w', w); if (q !== '') set('.mt-q', q); if (u) set('.mt-u', u); if (r !== '') set('.mt-r', r); }, i, w, q, u, r);
-    await typeLine(0, 'Main fuel filter (602269641)', '1', 'Nos', '1425'); await typeLine(1, 'Powerol Engine oil (507339)', '15', 'Ltr', '278');
-    await typeLine(2, 'CGST 9%', '', '', ''); await F.evaluate(() => { const a = [...document.querySelectorAll('#mt_lines tr')][2].querySelector('.mt-a'); a.value = '503.55'; a.dispatchEvent(new Event('input', { bubbles: true })); });
-    const typed = await F.evaluate(() => ({ lines: mtLinesNow().filter(l => !mtEmpty(l)).map(l => [l.work, l.qty, l.uom, l.rate, l.amount].join('|')), total: $('mt_total').textContent }));
-    ok('   typed: the ₹ from Qty × Rate (1 × 1425, 15 × 278), the Uom kept; Bill total ₹6,098.55', same(typed.lines, ['Main fuel filter (602269641)|1|Nos|1425|1425', 'Powerol Engine oil (507339)|15|Ltr|278|4170', 'CGST 9%|||' + '|503.55']) && typed.total === '6,098.55', typed);
+    const typeLine = async (i, w, q, u, r, g) => F.evaluate((i, w, q, u, r, g) => { const tr = [...document.querySelectorAll('#mt_lines tr')][i], set = (c, v) => { const x = tr.querySelector(c); x.value = v; x.dispatchEvent(new Event('input', { bubbles: true })); };
+      set('.mt-w', w); if (q !== '') set('.mt-q', q); if (u) set('.mt-u', u); if (r !== '') set('.mt-r', r); if (g !== '') set('.mt-g', g); }, i, w, q, u, r, g);
+    await typeLine(0, 'Main fuel filter (602269641)', '1', 'Nos', '1425', '18'); await typeLine(1, 'Powerol Engine oil (507339)', '15', 'Ltr', '278', '18');
+    const typed = await F.evaluate(() => ({ lines: mtLinesNow().filter(l => !mtEmpty(l)).map(l => [l.work, l.qty, l.uom, l.rate, l.amount, l.gst].join('|')), total: $('mt_total').textContent,
+      gv: [...document.querySelectorAll('#mt_lines tr')].slice(0, 2).map(tr => tr.querySelector('.mt-gv').textContent + '|' + tr.querySelector('.mt-wv').textContent) }));
+    ok('   typed: the ₹ from Qty × Rate (1 × 1425, 15 × 278), the Uom and GST 18 % kept; GST ₹ (CGST + SGST each rounded) and With GST shown; Bill total ₹6,602.10', same(typed.lines, ['Main fuel filter (602269641)|1|Nos|1425|1425|18', 'Powerol Engine oil (507339)|15|Ltr|278|4170|18']) &&
+      same(typed.gv, ['256.50|1,681.50', '750.60|4,920.60']) && typed.total === '6,602.10', typed);
     await F.evaluate(() => $('mt_save').click());
     for (let i = 0; i < 40 && sql('rcl', "select count(*) from maintenance where bill_no = 'RKP-77'") === '0'; i++) await wait(500);
     const l2 = linesOf('MT-000002');
-    ok('   saved from the page: MT-000002 – ₹6,098.55, reading 1915, the lines with their Uom', sql('rcl', "select amount || '|' || km_reading || '|' || garage from maintenance where id = 'MT-000002'") === '6098.55|1915|RK Power' &&
-      same(l2.map(l => l.work + ':' + (l.uom || '') + ':' + l.amount), ['Main fuel filter (602269641):Nos:1425', 'Powerol Engine oil (507339):Ltr:4170', 'CGST 9%::503.55']), l2);
+    ok('   saved from the page: MT-000002 – ₹6,602.10, reading 1915, the lines with their Uom and GST %', sql('rcl', "select amount || '|' || km_reading || '|' || garage from maintenance where id = 'MT-000002'") === '6602.1|1915|RK Power' &&
+      same(l2.map(l => l.work + ':' + (l.uom || '') + ':' + l.amount + ':' + (l.gst || '')), ['Main fuel filter (602269641):Nos:1425:18', 'Powerol Engine oil (507339):Ltr:4170:18']), l2);
     await wait(2000);
+    // (update-171) a line paid by the insurance: the claim ticked by itself, its ₹ = that line with its GST (not typed)
+    const ib = await F.evaluate(() => { mtClear(); const tr = document.querySelector('#mt_lines tr'), set = (c, v, ev) => { const x = tr.querySelector(c); x.value = v; x.dispatchEvent(new Event(ev || 'input', { bubbles: true })); };
+      set('.mt-w', 'Front bumper'); set('.mt-a', '10000'); set('.mt-g', '28'); set('.mt-t', 'By Insurance', 'change');
+      const r = { ins: $('mt_ins').checked, box: !$('mt_insbox').hidden, paid: $('mt_inspaid').value, ro: $('mt_inspaid').readOnly, total: $('mt_total').textContent, we: $('mt_wepaid').textContent, opt: tr.querySelector('.mt-t').selectedOptions[0].textContent, cls: tr.className };
+      mtClear(); return r; });
+    ok('   a line "Paid by: Insurance": the claim ticked by itself, Paid by the insurance ₹12,800 (10,000 + 28 % GST) – not typed; We paid ₹0.00', ib.ins && ib.box && ib.paid === '12800' && ib.ro && ib.total === '12,800.00' && ib.we === '0.00' && ib.opt === 'Insurance' && /mt-insl/.test(ib.cls), ib);
     const lhead = await F.evaluate(() => [...document.querySelector('#mt_rows').closest('table').tHead.rows[0].cells].map(c => c.textContent));
     ok('   the list: Machinery, Party, Reading', same(lhead.slice(0, 9), ['Bill ID', 'Date', 'Machinery', 'Party', 'Bill no.', 'Work / parts', 'Amount (₹)', 'Service', 'Reading']), lhead);
     // the log book in his format
@@ -86,14 +94,16 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const lb = await F.evaluate(() => { const tb = [...document.querySelectorAll('#rpmlog_body table')], t0 = tb[0];
       return { title: $('rpmlog_title').textContent, head: [...t0.tHead.rows[0].cells].map(c => c.textContent), rows: [...t0.tBodies[0].rows].map(r => [...r.cells].map(c => c.textContent)), spans: [...t0.tBodies[0].rows].map(r => r.cells[1].rowSpan),
         foot: [...t0.tFoot.rows].map(r => [...r.cells].map(c => c.textContent)), sheets: tb.map(x => x.dataset.sheet), kp: [...document.querySelectorAll('#rpmlog_kpis div')].map(x => x.textContent) }; });
-    ok('   the log book: "Maintenance Log Book – ' + R + '", his columns: Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total', lb.title === 'Maintenance Log Book – ' + R &&
-      same(lb.head, ['Sr No', 'Date', 'Party Name', 'Current Reading', 'Particulars', 'Qty', 'Uom', 'Basic Rate', 'Amount', 'GST Amount', 'Amount With GST', 'Total']), lb);
+    ok('   the log book: "Maintenance Log Book – ' + R + '", his columns – the GST rates in the heading (update-171: CGST 9% · SGST 9% · GST 18%), Paid by, Insurance claim, Service', lb.title === 'Maintenance Log Book – ' + R &&
+      same(lb.head, ['Sr No', 'Date', 'Party Name', 'Current Reading', 'Particulars', 'Qty', 'Uom', 'Basic Rate', 'Amount', 'CGST 9%', 'SGST 9%', 'GST 18%', 'Amount With GST', 'Paid by', 'Insurance claim', 'Service', 'Total']), lb);
     const dmy = d => d.split('-').reverse().join('-');
-    ok('   a row a line (4 + 3); Date, Party and Reading once for a bill (rowspan 4 and 3); the parts with Qty / Uom / Rate; the tax lines in GST Amount', lb.rows.length === 7 && lb.spans[0] === 4 && lb.spans[4] === 3 &&
-      same(lb.rows[0], ['1', dmy(d1), 'ARS GroupBill ARS-11', '1,903', 'Air Filter Safety', '1', 'Nos', '584.00', '584.00', '', '584.00', '584.00']) && same(lb.rows[1], ['2', 'Hydraulic oil (29 Ltr)', '3', 'Bkt', '7,667.00', '23,001.00', '', '23,001.00', '23,001.00']) &&
-      same(lb.rows[2], ['3', 'CGST 9%', '', '', '', '', '2,122.65', '2,122.65', '2,122.65']) && same(lb.rows[4].slice(0, 5), ['5', dmy(d2), 'RK PowerBill RKP-77', '1,915', 'Main fuel filter (602269641)']), lb.rows);
-    ok('   Total – 2 bills: Amount ₹29,180.00, GST ₹4,748.85, With GST ₹33,928.85; no fuel table at a site with stock; Maintenance / Last service (1,903 hrs)', same(lb.foot[0], ['Total – 2 bill(s)', '29,180.00', '4,748.85', '33,928.85', '33,928.85']) &&
-      same(lb.sheets, ['Log Book', 'By work']) && same(lb.kp, ['Maintenance₹33,928.85', 'Last service' + dmy(d1) + ' · 1,903 hrs']), [lb.foot, lb.sheets, lb.kp]);
+    ok('   a row a line (4 + 2); Date, Party and Reading once for a bill; a bill of before: its CGST / SGST lines in their columns; a new one: each item\'s CGST and SGST; Paid by RCL, no claim, service Yes / No', lb.rows.length === 6 && lb.spans[0] === 4 && lb.spans[4] === 2 &&
+      same(lb.rows[0], ['1', dmy(d1), 'ARS GroupBill ARS-11', '1,903', 'Air Filter Safety', '1', 'Nos', '584.00', '584.00', '', '', '', '584.00', 'RCL', 'No', 'Yes', '584.00']) &&
+      same(lb.rows[2], ['3', 'CGST 9%', '', '', '', '', '2,122.65', '', '2,122.65', '2,122.65', 'RCL', 'No', 'Yes', '2,122.65']) && same(lb.rows[3], ['4', 'SGST 9%', '', '', '', '', '', '2,122.65', '2,122.65', '2,122.65', 'RCL', 'No', 'Yes', '2,122.65']) &&
+      same(lb.rows[4], ['5', dmy(d2), 'RK PowerBill RKP-77', '1,915', 'Main fuel filter (602269641)', '1', 'Nos', '1,425.00', '1,425.00', '128.25', '128.25', '256.50', '1,681.50', 'RCL', 'No', 'No', '1,681.50']) &&
+      same(lb.rows[5], ['6', 'Powerol Engine oil (507339)', '15', 'Ltr', '278.00', '4,170.00', '375.30', '375.30', '750.60', '4,920.60', 'RCL', 'No', 'No', '4,920.60']), lb.rows);
+    ok('   Total – 2 bills: Amount ₹29,180.00, CGST ₹2,626.20, SGST ₹2,626.20, GST ₹5,252.40, With GST ₹34,432.40; no fuel table at a site with stock; Maintenance / Last service (1,903 hrs)', same(lb.foot[0], ['Total – 2 bill(s)', '29,180.00', '2,626.20', '2,626.20', '5,252.40', '34,432.40', '', '', '', '34,432.40']) &&
+      same(lb.sheets, ['Log Book', 'By work']) && same(lb.kp, ['Maintenance₹34,432.40', 'Last service' + dmy(d1) + ' · 1,903 hrs']), [lb.foot, lb.sheets, lb.kp]);
     await tidy(); await F.evaluate(() => $('rpmlog_out').scrollIntoView({ block: 'start' })); await wait(300);
     await mp.screenshot({ path: path.join(SHOT, 'mnt170_logbook.png') });
     for (let i = 0; i < 30 && !(await F.evaluate(() => typeof XLSX !== 'undefined')); i++) await wait(500);

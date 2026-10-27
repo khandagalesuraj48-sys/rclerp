@@ -6548,7 +6548,7 @@ test('update-168: every line of a maintenance bill – its kind (Paid / Warranty
     assert.deepStrictEqual([b2.total, r.lines[0].disc, r.lines[1].qty, r.free], [967, 5, 1050, 3793.45], 'the discount kept; the service plan lines worth 1050 × 1.65 + 2060.95');
     // ---- the checks of a line
     const bad = lines => tryRun('x => saveMaint_(x)', { date: '2026-06-15', no: C1, garage: 'X', billNo: 'B-' + Math.random(), lines: lines }).thrown;
-    assert.strictEqual(bad([{ work: 'Bolt', type: 'Free', amount: 0 }]), 'Bill line 1 (Bolt): its kind is Paid, Warranty, FOC or Service Plan.');
+    assert.strictEqual(bad([{ work: 'Bolt', type: 'Free', amount: 0 }]), 'Bill line 1 (Bolt): Paid by is RCL, Insurance, Warranty, FOC or Service Plan.');
     assert.strictEqual(bad([{ work: 'Bolt', type: 'Paid', qty: -1, rate: 10, amount: 10 }]), 'Bill line 1 (Bolt): the quantity is not right.');
     assert.strictEqual(bad([{ work: 'Bolt', type: 'Paid', qty: 1, rate: -10, amount: 10 }]), 'Bill line 1 (Bolt): the rate is not right.');
     assert.strictEqual(bad([{ work: 'Bolt', type: 'Paid', qty: 1, rate: 10, disc: 120, amount: 10 }]), 'Bill line 1 (Bolt): the discount is 0 to 100 %.');
@@ -6603,7 +6603,7 @@ test('update-168: every line of a maintenance bill – its kind (Paid / Warranty
     assert.match(fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), /a vehicle detail "Insurance Co" alone is NOT a claim/);
     assert.deepStrictEqual(ans({ lines: [{ work: 'Old style', amount: 500 }] }).lines, [{ work: 'Old style', type: 'Paid', amount: 500 }], 'the long form still read');
     const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
-    assert.match(code, /"lines": \[\[work, type, qty, uom, rate, discount, amount\], …\] – ONE array for EVERY item of every invoice, also the free ones/);      // (update-170: uom)
+    assert.match(code, /"lines": \[\[work, type, qty, uom, rate, discount, gst, amount\], …\] – ONE array for EVERY item of every invoice, also the free ones/);      // (update-170: uom; update-171: gst)
     assert.match(code, /read them all as ONE bill/);
   } finally {
     run('() => { const P = PropertiesService.getScriptProperties(); ["FUEL_MODE", "FUEL_CARDS"].forEach(k => P.deleteProperty(k)); }');
@@ -6647,7 +6647,58 @@ test('update-170: Maintenance at every site for every machinery – the reading 
     // the page: Maintenance in the menu at every site; the log book in his format
     const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
     assert.ok(!/if \(\$\('tab-mnt'\) && !cm\) \$\('tab-mnt'\)\.hidden = true;/.test(app), 'the menu shows Maintenance at every site');
-    assert.match(app, /<th style="white-space:nowrap">Sr No<\/th><th>Date<\/th><th>Party Name<\/th><th class="n">Current Reading<\/th><th>Particulars<\/th><th class="n">Qty<\/th><th>Uom<\/th><th class="n">Basic Rate<\/th><th class="n">Amount<\/th><th class="n">GST Amount<\/th><th class="n">Amount With GST<\/th><th class="n">Total<\/th>/);
+    assert.match(app, /<th style="white-space:nowrap;min-width:46px">Sr No<\/th><th>Date<\/th><th>Party Name<\/th><th class="n">Current Reading<\/th><th>Particulars<\/th><th class="n">Qty<\/th><th>Uom<\/th><th class="n">Basic Rate<\/th><th class="n">Amount<\/th>/);      // (update-171: then the GST of each rate …)
+  } finally {
+    run('() => { const P = PropertiesService.getScriptProperties(); ["FUEL_MODE", "FUEL_CARDS"].forEach(k => P.deleteProperty(k)); }');
+  }
+});
+
+test('update-171: each line its GST % (one number – CGST and SGST half each) and its "Paid by" (RCL, Insurance, Warranty, FOC, Service Plan); the bill\'s total with the GST of its lines; lines paid by the insurance are its part; an older app cannot lose them; the AI\'s lines with their GST', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const C = 'DD-01-G-0171';
+  try {
+    run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); }');
+    run('(x, m) => saveMaster_(x, m)', { no: C, name: 'Range Rover', type: 'Car', unit: 'KM', worksOn: ['KM'], kmStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2025-09-01', fuel: 'Diesel' }, 'add');
+    // his 04590: the items with their GST (18 %, a 28 % plug free), the free ones, the round-off – no tax lines
+    const b1 = run('x => saveMaint_(x)', { date: '2025-09-12', no: C, garage: 'Navnit Motors Pvt Ltd', billNo: 'S2526NMM2-04590', km: 13153, service: true, lines: [
+      { work: 'Engine oil', type: 'Service Plan', qty: 11000, uom: 'ML', rate: 1.48, disc: 100, gst: 18 }, { work: 'Plug – oil drain', type: 'FOC', qty: 1, uom: 'Nos', rate: 815.7, gst: 28 },
+      { work: 'Fluid – diesel exhaust', type: 'RCL', qty: 1, uom: 'Nos', rate: 5610.42, gst: 18, amount: 5610.42 }, { work: 'Battery – additional', type: 'Paid', qty: 1, uom: 'Nos', rate: 724.59, gst: 18, amount: 724.59 },
+      { work: 'Adjustment', amount: -0.31 }] });
+    assert.deepStrictEqual([b1.ok, b1.total, b1.billTotal], [true, 7475, 7475], 'the bill ₹7,475: 5610.42 × 1.18 + 724.59 × 1.18 − 0.31');
+    const r1 = run('x => getMaint_(x)', { no: C }).rows[0];
+    assert.deepStrictEqual(r1.lines.map(l => l.type + ':' + (l.gst || 0)), ['Service Plan:18', 'FOC:28', 'Paid:18', 'Paid:18', 'Paid:0'], '"RCL" kept as Paid; each line its GST %');
+    assert.deepStrictEqual([r1.billTotal, r1.total, r1.free], [7475, 7475, 17095.7]);
+    const bad = l => tryRun('x => saveMaint_(x)', { date: '2025-09-12', no: C, garage: 'X', billNo: 'B-' + Math.random(), lines: l }).thrown;
+    assert.strictEqual(bad([{ work: 'Bolt', type: 'Paid', amount: 10, gst: 120 }]), 'Bill line 1 (Bolt): the GST is 0 to 100 %.');
+    assert.strictEqual(bad([{ work: 'Bolt', type: 'Shop', amount: 10 }]), 'Bill line 1 (Bolt): Paid by is RCL, Insurance, Warranty, FOC or Service Plan.');
+    assert.strictEqual(bad([{ work: 'Bumper', type: 'Insurance', amount: 1000, gst: 18 }]), 'The insurance part of the bill: type the insurance company.', 'a line paid by the insurance: its company is needed');
+    // an accident bill: lines paid by the insurance, one by us – the insurance's part = those lines with their GST (the ₹ typed is not used)
+    const b2 = run('x => saveMaint_(x)', { date: '2026-06-03', no: C, garage: 'Navnit Motors Pvt Ltd', billNo: 'ACC-1', km: 31061, lines: [
+      { work: 'Front bumper', type: 'Insurance', qty: 1, rate: 10000, gst: 28, amount: 10000 }, { work: 'Paint labour', type: 'By Insurance', amount: 5000, gst: 18 }, { work: 'Depreciation', type: 'RCL', amount: 1000, gst: 18 }],
+      insurance: { company: 'Tata AIG', claimNo: 'CLM-9', paid: 99999 } });
+    assert.deepStrictEqual([b2.ok, b2.billTotal, b2.total], [true, 19880, 1180], 'bill 12,800 + 5,900 + 1,180; the insurance paid 18,700; we paid 1,180');
+    const r2 = run('x => getMaint_(x)', { no: C }).rows.find(r => r.id === b2.id);
+    assert.deepStrictEqual([r2.insurance, r2.lines.map(l => l.type)], [{ company: 'Tata AIG', claimNo: 'CLM-9', paid: 18700 }, ['By Insurance', 'By Insurance', 'Paid']]);
+    const lg = run('x => maintLog_(x)', { no: C, from: '2025-09-01', to: '2026-06-30' });
+    assert.deepStrictEqual([lg.total.maint.amount, lg.total.maint.billTotal, lg.total.maint.insurance], [8655, 27355, 18700]);
+    assert.deepStrictEqual(lg.total.byWork.map(w => w.work + ':' + w.amount), ['Fluid – diesel exhaust:6620.3', 'Depreciation:1180', 'Battery – additional:855.01', 'Adjustment:-0.31'], 'by work: our lines with their GST (CGST and SGST each rounded)');
+    // an app of before 3.51.0 (no gst in its lines) may not change it
+    const old = tryRun('(i, x) => updateMaint_(i, x)', b1.id, { date: '2025-09-12', no: C, garage: 'Navnit Motors Pvt Ltd', billNo: 'S2526NMM2-04590', km: 13153, service: true, lines: r1.lines.map(l => ({ work: l.work, type: l.type, amount: l.amount })) });
+    assert.strictEqual(old.thrown, 'Bill ' + b1.id + ' has the GST of its lines or lines paid by the insurance – update the app to change it.');
+    // the AI: 8 values a line, no tax lines; its check with the GST
+    const ans = j => run('j => maintAnswer_(j)', j);
+    const a = ans({ total: 7475, lines: [['Fluid – diesel exhaust', 'Paid', 1, 'Nos', 5610.42, 0, 18, 5610.42], ['Battery – additional', 'Paid', 1, 'Nos', 724.59, 0, 18, 724.59], ['Adjustment', 'Paid', null, null, null, 0, 0, -0.31]] });
+    assert.deepStrictEqual([a.lines[0], a.check], [{ work: 'Fluid – diesel exhaust', type: 'Paid', amount: 5610.42, qty: 1, uom: 'Nos', rate: 5610.42, disc: 0, gst: 18 }, ''], 'its GST %; the lines with their GST make the total');
+    const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+    assert.match(code, /Do NOT give the taxes \(CGST, SGST, IGST\) as lines of their own – each item carries its gst/);
+    // the page: Paid by, GST % / GST ₹ / With GST in the lines; the log book: the GST rates in its heading, Paid by, Insurance claim, Service
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.match(app, /<th style="width:150px">Paid by<\/th>/);
+    assert.match(app, /<th class="n" style="width:70px">GST %<\/th><th class="n" style="width:100px">GST ₹<\/th><th class="n" style="width:120px">With GST<\/th>/);
+    assert.match(app, /'<th class="n">CGST ' \+ fmt\(r \/ 2\) \+ '%<\/th><th class="n">SGST ' \+ fmt\(r \/ 2\) \+ '%<\/th>'/);
+    assert.match(app, /<th>Paid by<\/th><th>Insurance claim<\/th><th>Service<\/th>/);
   } finally {
     run('() => { const P = PropertiesService.getScriptProperties(); ["FUEL_MODE", "FUEL_CARDS"].forEach(k => P.deleteProperty(k)); }');
   }
