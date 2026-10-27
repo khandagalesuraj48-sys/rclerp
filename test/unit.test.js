@@ -6239,11 +6239,11 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
   const car = no => ({ no: no, name: 'Car ' + no, type: 'Car', unit: 'KM', worksOn: ['KM'], kmStd: 12, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-07-01', fuel: 'Petrol' });
   const C1 = 'HO-1-165', C2 = 'HO-2-165', CARD = 'HDFC MNT 165';
   try {
-    // ---- a site that is not on fuel cards: no Maintenance page, nothing of it is read
+    // ---- a site that is not on fuel cards: (update-170) Maintenance there too – listed, read (update-165: refused there)
     run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); }');
-    assert.strictEqual(run('() => usersAdmin_().modules.some(m => m.key === "Maintenance")'), false, 'the Portal does not list Maintenance at a site with stock');
-    assert.strictEqual(tryRun('x => getMaint_(x)', {}).thrown, 'This site is not on fuel cards – the Super Admin sets that in the Portal (Sites → Diesel places → Fuel cards).');
-    assert.strictEqual(tryRun('x => saveMaint_(x)', { no: C1 }).thrown, 'This site is not on fuel cards – the Super Admin sets that in the Portal (Sites → Diesel places → Fuel cards).');
+    assert.strictEqual(run('() => usersAdmin_().modules.some(m => m.key === "Maintenance")'), true, 'update-170: the Portal lists Maintenance at a site with stock too');
+    assert.ok(Array.isArray(run('x => getMaint_(x)', {}).rows), 'update-170: its bills are read there');
+    assert.strictEqual(run('() => usersAdmin_().modules.some(m => m.key === "Fuel Cards")'), false, 'Fuel Cards still only on fuel cards');
     // ---- HO: on fuel cards; two cars; the page listed; an empty access cell is No access
     const places = run('() => places_().map(p => ({ name: p.name, cap: tankSettings_().caps[p.name] || 100, fuel: p.fuel }))');
     run('(l, m) => savePlaces_(l, m)', places, 'card');
@@ -6260,7 +6260,7 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
     assert.strictEqual(bad({ lines: [{ work: '', amount: 500 }] }), 'Bill line 1: type the work / part (e.g. Engine oil, Labour).');
     assert.strictEqual(bad({ lines: [{ work: 'Wiper', amount: '' }] }), 'Bill line 1 (Wiper): enter its amount (₹).');
     assert.strictEqual(bad({ lines: [{ work: 'Wiper', amount: 100 }, { work: 'Discount', amount: -150 }] }), 'The total of the bill cannot be below 0 – check the amounts (a discount is a minus line).');      // (update-168: a bill of only free lines – ₹ 0 – is kept; below 0 is not)
-    assert.strictEqual(bad({ km: '' }), C1 + ': a service needs its KM reading – the next service is counted from it.');
+    assert.strictEqual(bad({ km: '' }), C1 + ': a service needs its reading (KM / Hrs) – the next service is counted from it.');      // (update-170: KM or Hrs)
     assert.match(bad({ date: '2026-06-30' }), /is active only from 01-07-2026/, 'the car must be on site that day');
     assert.match(bad({ no: 'NOT-A-CAR' }), /is not in Master/);
     assert.match(bad({ date: '2099-01-01' }), /after today|future/i);
@@ -6345,7 +6345,7 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
     assert.ok(code.indexOf("'supabase_step1zi_maintenance.sql');      // (update-165)") > -1);
     const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
     assert.match(app, /mnt: \{ saves: \['saveMaint', 'updateMaint', 'deleteMaint', 'maintFile', 'readMaintBill'\],/);
-    assert.match(app, /if \(\$\('tab-mnt'\) && !cm\) \$\('tab-mnt'\)\.hidden = true;/);
+    assert.ok(!/if \(\$\('tab-mnt'\) && !cm\) \$\('tab-mnt'\)\.hidden = true;/.test(app), 'update-170: the menu has Maintenance at every site (was: only on fuel cards)');
     assert.match(app, /try \{ const r = await call\(o\.up \|\| 'uploadAttachment', \{ data: 'data:' \+ it\.mime/, 'the bill files use the attachments\' own box');
   } finally {
     run('() => { const P = PropertiesService.getScriptProperties(); ["FUEL_MODE", "FUEL_CARDS", "MNT_LAST_NO", "CARDPAY_LAST_NO"].forEach(k => P.deleteProperty(k)); }');
@@ -6603,10 +6603,52 @@ test('update-168: every line of a maintenance bill – its kind (Paid / Warranty
     assert.match(fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), /a vehicle detail "Insurance Co" alone is NOT a claim/);
     assert.deepStrictEqual(ans({ lines: [{ work: 'Old style', amount: 500 }] }).lines, [{ work: 'Old style', type: 'Paid', amount: 500 }], 'the long form still read');
     const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
-    assert.match(code, /"lines": \[\[work, type, qty, rate, discount, amount\], …\] – ONE array for EVERY item of every invoice, also the free ones/);
+    assert.match(code, /"lines": \[\[work, type, qty, uom, rate, discount, amount\], …\] – ONE array for EVERY item of every invoice, also the free ones/);      // (update-170: uom)
     assert.match(code, /read them all as ONE bill/);
   } finally {
     run('() => { const P = PropertiesService.getScriptProperties(); ["FUEL_MODE", "FUEL_CARDS"].forEach(k => P.deleteProperty(k)); }');
   }
   function r2(n) { return Math.round(n * 100) / 100; }
+});
+
+test('update-170: Maintenance at every site for every machinery – the reading of its meter (KM / Hrs), a line\'s Uom, the Party of a bill; the log book (bills only at a site with stock, its fills too on fuel cards); the AI\'s lines with their Uom; the Store\'s provision', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const R = 'ROLLER-03-170';
+  try {
+    // a site with stock (VTR): a roller on hours, its bills, no fuel card anywhere
+    run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); }');
+    assert.strictEqual(run('() => cardSite_()'), false);
+    assert.ok(run('() => usersAdmin_().modules.some(m => m.key === "Maintenance")'), 'the page is given in the Portal at every site');
+    run('(x, m) => saveMaster_(x, m)', { no: R, name: 'Soil Compactor No.03', type: 'Soil Compactor', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2022-11-01' }, 'add');
+    // his log book: 30-09-2024 ARS Group 1903 – six lines; 05-10-2024 RK Power 1915 – with a tax line each
+    const b1 = run('x => saveMaint_(x)', { date: '2024-09-30', no: R, garage: 'ARS Group', billNo: 'ARS-11', km: 1903, service: true, lines: [
+      { work: 'Air Filter Safety', type: 'Paid', qty: 1, uom: 'Nos', rate: 584, amount: 584 }, { work: 'Hydraulic oil (29 Ltr)', type: 'Paid', qty: 3, uom: 'Bkt', rate: 7667, amount: 23000 },
+      { work: 'CGST 9%', amount: 2121 }, { work: 'SGST 9%', amount: 2121 }] });
+    assert.deepStrictEqual([b1.ok, b1.total], [true, 27826], 'a bill of a roller at a site with stock is kept');
+    const r1 = run('x => getMaint_(x)', { no: R }).rows[0];
+    assert.deepStrictEqual(r1.lines[1], { work: 'Hydraulic oil (29 Ltr)', type: 'Paid', amount: 23000, qty: 3, uom: 'Bkt', rate: 7667 }, 'its Uom kept with the line');
+    assert.deepStrictEqual([r1.km, r1.garage, r1.service], [1903, 'ARS Group', true], 'the reading of its meter (Hrs); the party');
+    assert.strictEqual(tryRun('x => saveMaint_(x)', { date: '2024-10-05', no: R, garage: 'RK Power', service: true, lines: [{ work: 'Nox Sensor', amount: 14505 }] }).thrown,
+      R + ': a service needs its reading (KM / Hrs) – the next service is counted from it.');
+    assert.strictEqual(tryRun('x => saveMaint_(x)', { date: '2024-10-05', no: R, garage: 'RK Power', km: -5, lines: [{ work: 'Nox Sensor', amount: 14505 }] }).thrown, 'Enter ' + R + ' Reading.');
+    // a fill of the roller (from the stock): not in its maintenance log book at a site with stock
+    const g = run('x => maintLog_(x)', { no: R, from: '2024-09-01', to: '2024-10-31' });
+    assert.deepStrictEqual([g.card, g.machine.meter, g.lines.length, g.lines[0].kind, g.lines[0].party, g.total.fuel.fills, g.total.maint.amount, g.total.all], [false, 'Hrs', 1, 'Maintenance', 'ARS Group', 0, 27826, 27826],
+      'the bills with their Party; no fuel at a site with stock');
+    assert.deepStrictEqual(g.lines[0].lines.map(l => l.work), ['Air Filter Safety', 'Hydraulic oil (29 Ltr)', 'CGST 9%', 'SGST 9%'], 'every line, the tax lines too (the page puts them in the GST column)');
+    assert.deepStrictEqual(run('() => maintStoreLines_(null, "2024-01-01", "2024-12-31")'), [], 'the Store\'s provision: nothing yet');
+    // the AI's lines with their Uom (7 values); 6 values as before
+    const ans = j => run('j => maintAnswer_(j)', j);
+    const a = ans({ total: 27141, lines: [['Hydraulic oil (29 Ltr)', 'Paid', 3, 'Bkt', 7667, 0, 23000], ['CGST 9%', 'Paid', null, null, null, 0, 2070.5], ['Old', 'Paid', 1, 50, 0, 50]] });
+    assert.deepStrictEqual(a.lines, [{ work: 'Hydraulic oil (29 Ltr)', type: 'Paid', amount: 23000, qty: 3, uom: 'Bkt', rate: 7667, disc: 0 }, { work: 'CGST 9%', type: 'Paid', amount: 2070.5, disc: 0 }, { work: 'Old', type: 'Paid', amount: 50, qty: 1, rate: 50, disc: 0 }]);
+    assert.deepStrictEqual(ans({ lines: [{ work: 'Coolant', qty: 2.5, unit: 'Ltr', rate: 165, amount: 412 }] }).lines[0].uom, 'Ltr', 'the long form: its unit');
+    // the page: Maintenance in the menu at every site; the log book in his format
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.ok(!/if \(\$\('tab-mnt'\) && !cm\) \$\('tab-mnt'\)\.hidden = true;/.test(app), 'the menu shows Maintenance at every site');
+    assert.match(app, /<th style="white-space:nowrap">Sr No<\/th><th>Date<\/th><th>Party Name<\/th><th class="n">Current Reading<\/th><th>Particulars<\/th><th class="n">Qty<\/th><th>Uom<\/th><th class="n">Basic Rate<\/th><th class="n">Amount<\/th><th class="n">GST Amount<\/th><th class="n">Amount With GST<\/th><th class="n">Total<\/th>/);
+  } finally {
+    run('() => { const P = PropertiesService.getScriptProperties(); ["FUEL_MODE", "FUEL_CARDS"].forEach(k => P.deleteProperty(k)); }');
+  }
 });
