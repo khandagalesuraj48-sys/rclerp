@@ -139,7 +139,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     ok('   the list: "Paid by" and "Amount (₹)"; the total ₹ of each card / Cash; HDFC FUEL 1 now ₹1850', lst.src === 'Paid by' && lst.bal === 'Amount (₹)' && /₹5,550\.00/.test(lst.foot) && /HDFC FUEL 1 ₹3,150\.00/.test(lst.foot) && lst.card === 1850, lst);
     // the page Fuel Cards
     await F.evaluate(() => showTab('cards')); await wait(2000);
-    const cp0 = await F.evaluate(() => ({ tiles: document.querySelectorAll('#cd_tiles .cd-card').length, rows: [...document.querySelectorAll('#cd_rows tr')].map(tr => tr.cells[0].textContent + '=' + tr.cells[8].textContent), neg: document.querySelectorAll('#cd_tiles .cd-card.neg').length }));
+    const cp0 = await F.evaluate(() => ({ tiles: document.querySelectorAll('#cd_tiles .cd-card').length, rows: [...document.querySelectorAll('#cd_rows tr')].map(tr => tr.cells[0].textContent + '=' + tr.cells[[...document.querySelectorAll('#sec-cards thead th')].findIndex(th => th.textContent === 'Balance (₹)')].textContent), neg: document.querySelectorAll('#cd_tiles .cd-card.neg').length }));
     ok('   Fuel Cards: a tile and a row for each card with its balance (HDFC FUEL 1 1,850.00 · ICICI CREDIT 1,500.00)', cp0.tiles === 2 && same(cp0.rows, [HD + '=1,850.00', IC + '=1,500.00']), cp0);
     await F.evaluate(() => $('cd_add').click()); await wait(400);
     await F.evaluate((bp, car) => { $('cd_name').value = bp; $('cd_type').value = 'Fuel card'; $('cd_last4').value = '9876'; $('cd_open').value = 3000; $('cd_date').value = S.today;
