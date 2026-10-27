@@ -2074,6 +2074,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   the dashboard `hdLoad` (`dash_card`), no Register photo (`phKindsOf`), the menu hides inward / transfer / rdaily / rp-stock /
   rp-purchase; the assistant (`aiDraft` sends a fill to the form, `diesel_stock` gives the cards). Portal: `server/portal.js`
   `placesSave` passes `mode`. Tests: unit `update-164`, rig `test/browser/cards164.js` (T2 as HO with steps 1zg + 1zh, S1 as VTR).
+- 27-10-2026 (update-164 fix). The page's sign-in line had the update-164 note in its middle, which commented out `startSync()`,
+  `setClosed`, `dbCheckDaily()` and `rtcAfterLogin()` – the live page stayed "Connecting…". Line restored; unit `update-164 fix`
+  (no `//` before those calls), rig `test/browser/sync164.js`. Lesson: never put a `//` note in the middle of a line of code – a
+  call count before / after (acorn) catches it.
 - Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
 
 ## Open after this

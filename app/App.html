@@ -15801,7 +15801,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (d.faults) setFaults(d.faults);
       showBoot(false);
       $('login_screen').hidden = true; document.body.classList.remove('locked');
-      S.user = d.user; S.ver = d.versions || null; S.fuelMode = d.fuelMode || ''; siteBoot(d.siteInfo); applyPerms();      // (update-164: the menu of a site on fuel cards) startSync(); setClosed(S.closedUpto); dbCheckDaily(); try { rtcAfterLogin(); } catch (e) { /* the screen share's extras never stop a sign-in */ }
+      S.user = d.user; S.ver = d.versions || null; S.fuelMode = d.fuelMode || ''; siteBoot(d.siteInfo); applyPerms(); startSync(); setClosed(S.closedUpto); dbCheckDaily(); try { rtcAfterLogin(); } catch (e) { /* the screen share's extras never stop a sign-in */ }
+      // (update-164: S.fuelMode before applyPerms – the menu of a site on fuel cards. Fixed 27-10-2026: that note had been put in the
+      //  middle of this line, so everything after it – the live sync (startSync), the closed months, the daily check and the
+      //  calls – was a comment and did not run since update-164: the page stayed "Connecting…".)
       setBackupInfo(S.backup);
       S.today = d.today; $('company').textContent = d.company; if (d.org) applyOrg(d.org);
       S.flowMine = d.flow || {}; setTimeout(flowLabels, 0);      // (update-116) his works under verification
