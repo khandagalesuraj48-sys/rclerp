@@ -6328,31 +6328,76 @@ function cardEntries_() {
  *   – THE CAR'S LOG BOOK (maintLog): for a car and dates – every fill (Diesel Issue: fuel, qty, ₹, card / Cash, KM) and every bill,
  *     by date; the totals: fuel ₹ (by card / in cash), maintenance ₹ and by work, all together, the KM of its Log Book, ₹ per KM;
  *     the last service.
- * Only at a site on fuel cards (sitePage_ / cardSiteOnly_); at every other site nothing of this is read. */
+ * Only at a site on fuel cards (sitePage_ / cardSiteOnly_); at every other site nothing of this is read.
+ * (update-168, asked 27-10-2026 with 9 of his bills: "kahi material warranty madhe aste kahi paid aste kahi discount deun aste tr
+ *  sagle kahi yeyla hawa ok and type pn krta yayla hawa"; his answers: the car's cost = only what WE paid; each line its work /
+ *  part, KIND (Paid / Warranty / FOC / Service Plan), Qty, Rate, Discount % and ₹; an insurance claim = one bill with the whole
+ *  amount, what the insurance paid and what we paid) EVERY LINE OF A BILL IS KEPT, also the free ones:
+ *   – a line { work, type, qty, rate, disc, amount }: Paid = its ₹ charged (Qty × Rate − Discount, as the bill says; taxes, the
+ *     round-off and a discount on the whole bill are Paid lines of their own); Warranty / FOC / Service Plan = ₹ 0 charged, its
+ *     worth (Qty × Rate) shown. A line of before (no kind) is Paid.
+ *   – the bill's total = its Paid lines; an insurance claim: the insurance company, the claim number and what it paid – kept as
+ *     a line of the kind Insurance (a minus ₹, so the lines still add up to what we paid). The bill's Amount = WHAT WE PAID: the
+ *     list, the totals, the car's log book, ₹ per KM count only that. Still no database step (the lines are one text column). */
 const MNT_COLS_ = [H.MT_ID, H.DATE, H.NO, H.GARAGE, H.BILLNO, H.KMR, H.AMOUNT, H.WLINES, H.SERVICE, H.REMARK, H.CREATED];
 const MNT_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1zi_maintenance.sql once in Supabase → SQL Editor.';
-const MNT_FILES_MAX_ = 10, MNT_LINES_MAX_ = 60;
+const MNT_FILES_MAX_ = 10, MNT_LINES_MAX_ = 150;      // (update-168: an accident bill of parts and labour had 65 lines)
+const MNT_TYPES_ = ['Paid', 'Warranty', 'FOC', 'Service Plan'], MNT_INS_ = 'Insurance';
 function maintTable_(need) {
   try { return table_(APP.SHEET_MAINT, MNT_COLS_); }
   catch (e) { if (need) throw new Error('Maintenance bills cannot be kept yet. ' + MNT_SQL_MSG_); return null; }
 }
-const maintLinesOf_ = v => { let a = null; try { a = typeof v === 'string' ? JSON.parse(v || '[]') : v; } catch (e) { a = null; }
-  return Array.isArray(a) ? a.filter(l => l && clean_(l.work)).map(l => ({ work: clean_(l.work).slice(0, 120), amount: r2_(num0_(l.amount)) })) : []; };
+// (update-168) every kept line with its kind (a line of before: Paid), Qty, Rate, Discount % when it has them – the insurance's line too
+const maintAllLinesOf_ = v => { let a = null; try { a = typeof v === 'string' ? JSON.parse(v || '[]') : v; } catch (e) { a = null; }
+  return Array.isArray(a) ? a.filter(l => l && clean_(l.work)).map(l => {
+    const ty = clean_(l.type), type = ty === MNT_INS_ ? MNT_INS_ : (MNT_TYPES_.find(t => t.toUpperCase() === ty.toUpperCase()) || 'Paid');
+    const o = { work: clean_(l.work).slice(0, 120), type: type, amount: r2_(num0_(l.amount)) };
+    ['qty', 'rate', 'disc'].forEach(k => { const n = numOrBlank_(l[k]); if (n !== '') o[k] = n; });
+    if (type === MNT_INS_ && clean_(l.claim)) o.claim = clean_(l.claim).slice(0, 40);
+    return o;
+  }) : []; };
+// the lines of the bill (the insurance's line apart – maintInsOf_)
+const maintLinesOf_ = v => maintAllLinesOf_(v).filter(l => l.type !== MNT_INS_);
+// the insurance of a bill: { company, claimNo, paid } or null
+const maintInsOf_ = v => { const l = maintAllLinesOf_(v).find(x => x.type === MNT_INS_); return l ? { company: l.work, claimNo: l.claim || '', paid: r2_(-l.amount) } : null; };
+// what a free line (Warranty / FOC / Service Plan) is worth: Qty × Rate (as the bill prints them)
+const maintWorth_ = l => l.type === 'Paid' || l.type === MNT_INS_ ? 0 : r2_((l.qty === undefined || l.qty === '' ? 1 : num0_(l.qty)) * num0_(l.rate));
 const maintFilesList_ = (t, r) => H.BFILES in t.c ? attList_(r[t.c[H.BFILES]]) : [];
-// the lines a save gives: each its work / part and its ₹ (an empty line is left out)
+// the lines a save gives: each its work / part, its kind, Qty, Rate, Discount % and its ₹ (an empty line is left out).
+// (update-168) a Paid line needs its ₹; a Warranty / FOC / Service Plan line is ₹ 0 charged (whatever ₹ came with it)
 function maintLines_(list) {
   if (!Array.isArray(list)) throw new Error('Add the work / parts of the bill, each with its amount (₹).');
   const out = [];
   list.forEach((l, i) => {
-    const work = clean_(l && l.work).slice(0, 120), a = numOrBlank_(l && l.amount);
-    if (!work && (a === '' || a === 0)) return;
+    const work = clean_(l && l.work).slice(0, 120), a = numOrBlank_(l && l.amount), ty = clean_(l && l.type);
+    const qty = numOrBlank_(l && l.qty), rate = numOrBlank_(l && l.rate), disc = numOrBlank_(l && l.disc);
+    if (!work && (a === '' || a === 0) && qty === '' && rate === '') return;
     if (!work) throw new Error('Bill line ' + (i + 1) + ': type the work / part (e.g. Engine oil, Labour).');
-    if (a === '' || a === 0 || Math.abs(a) > 100000000) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): enter its amount (₹).');
-    out.push({ work: work, amount: r2_(a) });
+    const type = !ty ? 'Paid' : MNT_TYPES_.find(t => t.toUpperCase() === ty.toUpperCase());
+    if (!type) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): its kind is Paid, Warranty, FOC or Service Plan.');
+    if (qty !== '' && (qty < 0 || qty > 1000000)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): the quantity is not right.');
+    if (rate !== '' && (rate < 0 || rate > 100000000)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): the rate is not right.');
+    if (disc !== '' && (disc < 0 || disc > 100)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): the discount is 0 to 100 %.');
+    if (type === 'Paid' && (a === '' || a === 0 || Math.abs(a) > 100000000)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): enter its amount (₹).');
+    const o = { work: work, type: type, amount: type === 'Paid' ? r2_(a) : 0 };
+    if (qty !== '') o.qty = r2_(qty);
+    if (rate !== '') o.rate = r2_(rate);
+    if (disc !== '') o.disc = r2_(disc);
+    out.push(o);
   });
   if (!out.length) throw new Error('Add the work / parts of the bill, each with its amount (₹).');
   if (out.length > MNT_LINES_MAX_) throw new Error('A bill keeps at most ' + MNT_LINES_MAX_ + ' lines.');
   return out;
+}
+// (update-168) the insurance part of a bill (an insurance claim): { company, claimNo, paid } – paid by the insurance, not more than the bill
+function maintIns_(x, total) {
+  if (!x || typeof x !== 'object') return null;
+  const company = clean_(x.company).slice(0, 80), claim = clean_(x.claimNo).slice(0, 40), paid = numOrBlank_(x.paid);
+  if (!company && !claim && (paid === '' || paid === 0)) return null;
+  if (!company) throw new Error('The insurance part of the bill: type the insurance company.');
+  if (paid === '' || !(paid > 0)) throw new Error('The insurance part of the bill: enter what the insurance paid (₹).');
+  if (r2_(paid) > total) throw new Error('The insurance part of the bill: the insurance paid ₹' + r2_(paid) + ' – more than the bill (₹' + total + ').');
+  return { work: company, type: MNT_INS_, claim: claim, amount: -r2_(paid) };
 }
 // the checked values of a bill
 function maintVals_(x) {
@@ -6360,11 +6405,14 @@ function maintVals_(x) {
   const m = findMachine_(x.no);
   assertActive_(m, dk);
   const lines = maintLines_(x.lines), total = r2_(lines.reduce((s, l) => s + l.amount, 0));
-  if (!(total > 0)) throw new Error('The total of the bill must be more than 0 – check the amounts (a discount is a minus line).');
+  // (update-168) a bill only of free lines (warranty …) is kept too; below 0: a discount bigger than the bill
+  if (total < 0) throw new Error('The total of the bill cannot be below 0 – check the amounts (a discount is a minus line).');
+  const ins = maintIns_(x.insurance, total), paid = r2_(total + (ins ? ins.amount : 0));
   const km = blank_(x.km) ? '' : reqReading_(x.km, m.id + ' KM Reading');
   const service = x.service === true || /^(yes|y|true|1)$/i.test(str_(x.service));
   if (service && km === '') throw new Error(m.id + ': a service needs its KM reading – the next service is counted from it.');
-  return { dk: dk, m: m, garage: clean_(x.garage).slice(0, 80), billNo: clean_(x.billNo).slice(0, 40), km: km, lines: lines, total: total, service: service, remark: clean_(x.remark).slice(0, 200) };
+  return { dk: dk, m: m, garage: clean_(x.garage).slice(0, 80), billNo: clean_(x.billNo).slice(0, 80), km: km, lines: ins ? lines.concat([ins]) : lines, billTotal: total, total: paid,
+    service: service, remark: clean_(x.remark).slice(0, 200) };
 }
 /* the bill's files a save gives ([{ sha } …] or shas): each one the bill has, or one this person sent in the last 6 hours (as the Log
  * Book's attachments – at an approval: the sender's, noted with the request). Not given = the bill keeps what it has. */
@@ -6419,7 +6467,7 @@ function saveMaint_(x) {
     const n = nextMaintNo_(t), id = 'MT-' + String(n).padStart(6, '0');
     t.sh.appendRow(putMaint_(newRow_(t), t, id, v, new Date(), files && files.length ? files : null));
     PropertiesService.getScriptProperties().setProperty('MNT_LAST_NO', String(n));
-    return { ok: true, id: id, total: v.total };
+    return { ok: true, id: id, total: v.total, billTotal: v.billTotal };
   });
 }
 function updateMaint_(id, x) {
@@ -6430,6 +6478,10 @@ function updateMaint_(id, x) {
     if (i === -1) throw new Error('Maintenance bill ' + str_(id) + ' was not found.');
     const old = t.rows[i];
     booksOpen_(dkey_(old[t.c[H.DATE]]), 'Maintenance bill');
+    // (update-168) an app of before (its lines have no kind): it may not change a bill with free lines or an insurance part – they would be lost
+    const was = maintAllLinesOf_(old[t.c[H.WLINES]]);
+    if (Array.isArray(x.lines) && x.lines.length && x.lines.every(l => !l || typeof l !== 'object' || !('type' in l)) && x.insurance === undefined && was.some(l => l.type !== 'Paid'))
+      throw new Error('Bill ' + str_(id) + ' has free lines (Warranty / FOC / Service Plan) or an insurance part – update the app to change it.');
     const v = maintVals_(x), files = maintFilesOf_(x.files, maintFilesList_(t, old));
     const twice = maintTwice_(t, v, id);
     if (twice && !x.force) return { ok: false, warning: 'Bill ' + v.billNo + (v.garage ? ' of ' + v.garage : '') + ' for ' + v.m.id + ' is already saved (' + twice + '). Save it again?' };
@@ -6437,7 +6489,7 @@ function updateMaint_(id, x) {
     putMaint_(row, t, str_(id), v, old[t.c[H.CREATED]] instanceof Date ? old[t.c[H.CREATED]] : new Date(), files);
     stampEdit_(row, t);
     t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
-    return { ok: true, id: str_(id), total: v.total };
+    return { ok: true, id: str_(id), total: v.total, billTotal: v.billTotal };
   });
 }
 function deleteMaint_(id) {
@@ -6450,9 +6502,13 @@ function deleteMaint_(id) {
     return { ok: true };
   });
 }
-const maintOut_ = (t, r) => ({ id: str_(r[t.c[H.MT_ID]]), date: dkey_(r[t.c[H.DATE]]), no: str_(r[t.c[H.NO]]), garage: str_(r[t.c[H.GARAGE]]), billNo: str_(r[t.c[H.BILLNO]]),
-  km: numOrBlank_(r[t.c[H.KMR]]), total: num0_(r[t.c[H.AMOUNT]]), lines: maintLinesOf_(r[t.c[H.WLINES]]), service: /^yes$/i.test(str_(r[t.c[H.SERVICE]])), remark: str_(r[t.c[H.REMARK]]),
-  files: maintFilesList_(t, r).map(attOut_), enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '' });
+// (update-168) total = what WE paid (the Amount column); billTotal = the bill's Paid lines; insurance = what the insurance paid; free =
+// what the free lines (warranty, FOC, service plan) were worth
+const maintOut_ = (t, r) => { const lines = maintLinesOf_(r[t.c[H.WLINES]]), ins = maintInsOf_(r[t.c[H.WLINES]]);
+  return { id: str_(r[t.c[H.MT_ID]]), date: dkey_(r[t.c[H.DATE]]), no: str_(r[t.c[H.NO]]), garage: str_(r[t.c[H.GARAGE]]), billNo: str_(r[t.c[H.BILLNO]]),
+    km: numOrBlank_(r[t.c[H.KMR]]), total: num0_(r[t.c[H.AMOUNT]]), lines: lines, billTotal: r2_(lines.reduce((s, l) => s + l.amount, 0)), insurance: ins,
+    free: r2_(lines.reduce((s, l) => s + maintWorth_(l), 0)), service: /^yes$/i.test(str_(r[t.c[H.SERVICE]])), remark: str_(r[t.c[H.REMARK]]),
+    files: maintFilesList_(t, r).map(attOut_), enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '' }; };
 // the bills of the dates (and of one car), newest first; the words typed before (works, garages) to suggest
 function getMaint_(f) {
   f = f || {};
@@ -6477,8 +6533,12 @@ function getMaintFiles_(id) {
   return { id: str_(id), files: list.map(x => Object.assign(attOut_(x), { url: urlOf[x.p] || '' })) };
 }
 /* THE AI READS A BILL – a PDF or a photo (the page sends a smaller copy of a photo), nothing is saved. Answer: { date, billNo, garage,
- * vehicle, km, lines: [{ work, amount }], total, service, check } (a value not read = '' / null; check = a reason to look again) or
- * { off: true } when the AI is not set up. */
+ * vehicle, km, lines: [{ work, type, qty, rate, disc, amount }], total, insurance: { company, claimNo, paid } | null, service, check }
+ * (a value not read = '' / null; check = a reason to look again) or { off: true } when the AI is not set up.
+ * (update-168) EVERY line, also the free ones (Warranty / FOC / Service Plan – its kind as the bill's Type column says), with Qty,
+ * Rate and Discount %; a file with more than one invoice of the job (parts and labour, a receipt) is read as one bill; an
+ * insurance claim: the insurer and what it paid (or what we paid). The lines come back in a short form (one array a line) so a
+ * bill of 60+ lines is read in time. */
 function maintRead_(u, x) {
   x = x || {};
   if (!canEdit_(u, 'Maintenance')) throw new Error('You have View access only for Maintenance. Ask Admin for Edit access.');
@@ -6488,23 +6548,46 @@ function maintRead_(u, x) {
   if (mt[2].length > Math.ceil(ATT_RAW_MAX_ * 4 / 3) + 4) throw new Error('This bill file is too big (more than 3 MB) – make the PDF smaller (or read one page photo).');
   if (!aiInfo_().on) return { off: true };
   const ask = 'This is a bill / invoice / estimate from a garage, service centre or parts shop for a vehicle, in India (₹). Read it. ' +
-    'Answer with JSON only: {"date": the bill date as "yyyy-mm-dd" or null, "billNo": the bill / invoice number or null, "garage": the name of the shop / garage / service centre that issued it or null, ' +
+    'The file may hold more than one invoice of the same vehicle and job (for example a parts invoice and a labour invoice) and a payment receipt: read them all as ONE bill. ' +
+    'Answer with JSON only: {"date": the bill date as "yyyy-mm-dd" or null, "billNo": the bill / invoice number (more than one invoice: all their numbers joined with ", ") or null, ' +
+    '"garage": the name of the shop / garage / service centre that issued it or null, ' +
     '"vehicle": the vehicle registration number printed on it (e.g. MH12AB1234) or null, "km": the odometer / KM reading printed on it or null, ' +
-    '"lines": [{"work": the work, part or item in a few words, "amount": its amount in ₹ as a number}], "total": the grand total in ₹ or null, ' +
+    '"lines": [[work, type, qty, rate, discount, amount], …] – ONE array for EVERY item of every invoice, also the free ones: work = the work, part or item in a few words; ' +
+    'type = exactly "Paid", "Warranty", "FOC" or "Service Plan" as its Type column says (no Type column: "Paid"; free of charge: "FOC"; covered by a service / AMC plan, often 100 % discount: "Service Plan"); ' +
+    'qty and rate = its quantity and rate / price as printed (null when not printed); discount = its discount % as printed (0 when none); ' +
+    'amount = what is charged for it in ₹: its taxable amount after its own discount (0 for Warranty, FOC and Service Plan). ' +
+    'Give the taxes (CGST, SGST, IGST), the round-off / adjustment and other charges as their own "Paid" lines with qty and rate null, and a discount on the whole bill as a minus "Paid" line – ' +
+    'the "Paid" amounts together must make the grand total. ' +
+    '"total": the grand total in ₹ (more than one invoice: all their grand totals together) or null, ' +
+    '"insurer": the insurance company when it is an insurance claim (billed to an insurance company, or an insurance / customer liability is shown) else null, "claimNo": its claim number or null, ' +
+    '"insurancePaid": the insurance liability in ₹ if it is shown else null, "customerPaid": the customer liability in ₹, or the amount of the customer\'s payment receipt in the file, else null, ' +
     '"service": true if it is a periodic / scheduled / free / paid service of the vehicle, else false}. ' +
-    'Rules: the lines together must make the grand total – give taxes (CGST, SGST, IGST), round-off and other charges as their own lines and a discount as a minus amount; ' +
-    'for each item take its final amount (after its own discount, before the tax lines of the bill); copy the numbers exactly as printed; never invent a value – what is not clearly printed is null.';
+    'Copy the numbers exactly as printed; never invent a value – what is not clearly printed is null.';
   return maintAnswer_(aiJson_(aiAskPhoto_(mt[2], ask, mt[1], 'the bill')) || {});
 }
 function maintAnswer_(j) {
-  const sn = v => { const n = typeof v === 'string' && v.trim() !== '' ? Number(v.replace(/[, ₹]/g, '')) : v; return typeof n === 'number' && isFinite(n) ? r2_(n) : null; };
+  const sn = v => { const n = typeof v === 'string' && v.trim() !== '' ? Number(v.replace(/[, ₹%]/g, '')) : v; return typeof n === 'number' && isFinite(n) ? r2_(n) : null; };
   const d = str_(j.date), date = /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= today_() && d >= '2000-01-01' && dkey_(d) === d ? d : '';
-  const lines = (Array.isArray(j.lines) ? j.lines : []).map(l => ({ work: clean_(l && (l.work || l.item || l.description)).slice(0, 120), amount: sn(l && l.amount) }))
-    .filter(l => l.work && l.amount !== null && l.amount !== 0).slice(0, MNT_LINES_MAX_);
-  const total = aiNum_(j.total), sum = r2_(lines.reduce((s, l) => s + l.amount, 0));
+  // (update-168) a line in the short form [work, type, qty, rate, discount, amount] or as { work, type, qty, rate, discount, amount }
+  const lines = (Array.isArray(j.lines) ? j.lines : []).map(l => {
+    const a = Array.isArray(l) ? { work: l[0], type: l[1], qty: l[2], rate: l[3], disc: l[4], amount: l[5] } : l && typeof l === 'object' ? { work: l.work || l.item || l.description, type: l.type, qty: l.qty, rate: l.rate, disc: l.disc !== undefined ? l.disc : l.discount, amount: l.amount } : {};
+    const ty = clean_(a.type).toUpperCase(), amount = sn(a.amount), qty = sn(a.qty), rate = sn(a.rate), disc = sn(a.disc);
+    let type = /WARRANT/.test(ty) ? 'Warranty' : /^FOC|FREE/.test(ty) ? 'FOC' : /SERVICE ?PLAN|AMC/.test(ty) ? 'Service Plan' : 'Paid';
+    if (type === 'Paid' && amount === 0) type = 'FOC';      // a line charged nothing is a free one
+    const o = { work: clean_(a.work).slice(0, 120), type: type, amount: type === 'Paid' ? amount : 0 };
+    if (qty !== null && qty >= 0) o.qty = qty;
+    if (rate !== null && rate >= 0) o.rate = rate;
+    if (disc !== null && disc >= 0 && disc <= 100) o.disc = disc;
+    return o;
+  }).filter(l => l.work && (l.type !== 'Paid' || l.amount !== null)).slice(0, MNT_LINES_MAX_);
+  const total = aiNum_(j.total), sum = r2_(lines.reduce((s, l) => s + (l.amount || 0), 0));
+  // an insurance claim: what the insurance paid – said on the bill, or the bill less what we paid
+  const insurer = clean_(j.insurer).slice(0, 80), insPaid = aiNum_(j.insurancePaid), ourPaid = aiNum_(j.customerPaid), bill = total !== null ? total : sum;
+  const paid = insPaid !== null && insPaid > 0 ? insPaid : ourPaid !== null && bill > ourPaid ? r2_(bill - ourPaid) : null;
+  const insurance = insurer ? { company: insurer, claimNo: clean_(j.claimNo).slice(0, 40), paid: paid !== null && paid <= bill ? paid : null } : null;
   const check = total !== null && lines.length && Math.abs(sum - total) > 1 ? 'the lines read add up to ₹' + sum + ' – the bill says ₹' + total : !lines.length ? 'no line of the bill could be read' : '';
-  return { date: date, billNo: clean_(j.billNo).slice(0, 40), garage: clean_(j.garage).slice(0, 80), vehicle: clean_(j.vehicle).slice(0, 30), km: aiNum_(j.km), lines: lines, total: total,
-    service: j.service === true, check: check };
+  return { date: date, billNo: clean_(j.billNo).slice(0, 80), garage: clean_(j.garage).slice(0, 80), vehicle: clean_(j.vehicle).slice(0, 30), km: aiNum_(j.km), lines: lines, total: total,
+    insurance: insurance, service: j.service === true, check: check };
 }
 /* THE CAR'S MAINTENANCE LOG BOOK: every fill and every bill of one car in the dates, by date, and the totals */
 function maintLog_(f) {
@@ -6522,7 +6605,7 @@ function maintLog_(f) {
     fu.qty = r2_(fu.qty + q); fu.amount = r2_(fu.amount + a); fu.fills++; if (cash) fu.cash = r2_(fu.cash + a); else fu.card = r2_(fu.card + a);
     lines.push({ date: dk, kind: 'Fuel', id: str_(r[c[H.ID]]), qty: q, unit: unit, amount: a, paidBy: cash ? CASH_ : src, km: numOrBlank_(r[c[H.KMR]]), driver: str_(r[c[H.DRIVER]]), ord: ct(r[c[H.CREATED]]) });
   });
-  const mt = maintTable_(false), mn = { amount: 0, bills: 0 }, byWork = {};
+  const mt = maintTable_(false), mn = { amount: 0, bills: 0, billTotal: 0, insurance: 0, free: 0 }, byWork = {};
   let last = null;
   if (mt) mt.rows.forEach(r => {
     if (noKey_(r[mt.c[H.NO]]) !== K) return;
@@ -6530,7 +6613,8 @@ function maintLog_(f) {
     if (x.service && x.date <= to && (!last || x.date > last.date)) last = { date: x.date, km: x.km, id: x.id };
     if (x.date < from || x.date > to) return;
     mn.amount = r2_(mn.amount + x.total); mn.bills++;
-    x.lines.forEach(l => { const k = l.work.toUpperCase(); byWork[k] = byWork[k] || { work: l.work, amount: 0, n: 0 }; byWork[k].amount = r2_(byWork[k].amount + l.amount); byWork[k].n++; });
+    mn.billTotal = r2_(mn.billTotal + x.billTotal); mn.insurance = r2_(mn.insurance + (x.insurance ? x.insurance.paid : 0)); mn.free = r2_(mn.free + x.free);      // (update-168)
+    x.lines.filter(l => l.type === 'Paid' && l.amount).forEach(l => { const k = l.work.toUpperCase(); byWork[k] = byWork[k] || { work: l.work, amount: 0, n: 0 }; byWork[k].amount = r2_(byWork[k].amount + l.amount); byWork[k].n++; });
     lines.push(Object.assign({ kind: 'Maintenance', amount: x.total, ord: ct(r[mt.c[H.CREATED]]) }, x, { files: x.files.length }));
   });
   lines.sort((a, b) => a.date.localeCompare(b.date) || a.ord - b.ord);
@@ -11057,9 +11141,9 @@ function aiReplyC_(u, turns, rules, extra) {
   }
   throw new Error(aiBusyMsg_(u, last, tried));
 }
-// one question with a photo / a PDF to Claude (as aiAskPhoto_): a bill gets 40 seconds, a meter or a pump 25
+// one question with a photo / a PDF to Claude (as aiAskPhoto_): a bill gets 50 seconds, a meter or a pump 25
 function aiAskPhotoC_(b64, ask, mime, what) {
-  const media = mime || 'image/jpeg', room = what ? 40000 : 25000;
+  const media = mime || 'image/jpeg', room = what ? 50000 : 25000;      // (update-168: a bill of several pages and 60+ lines: 50 s – the server has 60)
   const file = media === 'application/pdf' ? { type: 'document', source: { type: 'base64', media_type: media, data: b64 } } : { type: 'image', source: { type: 'base64', media_type: media, data: b64 } };
   const body = { max_tokens: what ? 8192 : 2048, messages: [{ role: 'user', content: [file, { type: 'text', text: ask }] }] };
   const seq = aiTries_(aiModelsC_()), t0 = Date.now();

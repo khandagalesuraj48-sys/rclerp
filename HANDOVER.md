@@ -2114,3 +2114,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `aiAskPhotoC_` (image / PDF document), `aiCheckC_`, `aiBusyMsg_`; `AI_NO_CREDIT_`, `aiKeyMsgC_`. FIX_RULES +1 (no credit / key),
   two rules name Claude Console. No SQL. Tests: unit `update-167`; rig `test/claude-standin.js` + `test/browser/claude167.js` 14;
   photo85 / photo139 / mnt165 / aido with Claude and with Gemini (main the same).
+- 27-10-2026 (update-168, with rcl-mobile 3.49.0). Report: `UPDATE_168.md`. A MAINTENANCE BILL AS THE GARAGE'S BILL – a line
+  `{ work, type, qty, rate, disc, amount }` (`MNT_TYPES_` Paid / Warranty / FOC / Service Plan; free = ₹ 0, worth Qty × Rate –
+  `maintWorth_`); an insurance claim = a line of type `Insurance` with a minus ₹ (`maintIns_`, `maintInsOf_`), so the Amount
+  column = what we paid; `maintAllLinesOf_` / `maintLinesOf_`; answers carry `billTotal`, `insurance`, `free`; `maintLog_` totals
+  too, "by work" only Paid; old-app guard in `updateMaint_`; `MNT_LINES_MAX_` 150; the AI asks short array lines, several invoices
+  as one bill, the insurer / customer part (`maintAnswer_`); Claude 50 s for a bill. Page: `MT_KINDS`, `mtLineRow`, `mtRowCalc`,
+  `mtTotal`, `mtInsPut`, `mtBillNote`, `mtLinesText`, list `.mt-wl` / `.mt-clamp`, log book footers. No SQL. Tests: unit
+  `update-168`; rig `test/browser/mnt168.js` 29 (Claude and Gemini), mnt165 32.
