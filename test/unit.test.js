@@ -6350,3 +6350,163 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
     run('() => { const P = PropertiesService.getScriptProperties(); ["FUEL_MODE", "FUEL_CARDS", "MNT_LAST_NO", "CARDPAY_LAST_NO"].forEach(k => P.deleteProperty(k)); }');
   }
 });
+
+test('update-167: Claude – with ANTHROPIC_API_KEY every AI question goes to Claude in its own words (the assistant, its look-ups, photos, PDF bills, the test); the page\'s conversation is unchanged; busy / no credit / a wrong key are said; Gemini stays as it was', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const sent = [], answers = []; let waited = 0, service = 'claude';
+  const reply = (code, obj) => ({ code: code, text: typeof obj === 'string' ? obj : JSON.stringify(obj) });
+  ctx.__ai = { on: () => true, service: () => service, model: () => '', wait: ms => { waited += ms; },
+    call: (method, p, body, ms) => { sent.push({ method: method, path: p, body: body === null || body === undefined ? null : JSON.parse(JSON.stringify(body)), ms: ms }); const a = answers.shift(); return a ? a : reply(500, { type: 'error', error: { type: 'api_error', message: 'nothing queued' } }); } };
+  const list = reply(200, { data: [{ id: 'claude-haiku-5-5', created_at: '2026-06-01T00:00:00Z' }, { id: 'claude-opus-5-5', created_at: '2026-06-02T00:00:00Z' }, { id: 'claude-sonnet-5-5', created_at: '2026-06-02T00:00:00Z' },
+    { id: 'claude-sonnet-4-5-20250929', created_at: '2025-09-29T00:00:00Z' }, { id: 'claude-haiku-4-5-20251001', created_at: '2025-10-01T00:00:00Z' }], has_more: false });
+  const msg = (content, stop) => reply(200, { id: 'msg_1', type: 'message', role: 'assistant', content: content, stop_reason: stop || 'end_turn', usage: { input_tokens: 900, output_tokens: 40, cache_read_input_tokens: 2100, cache_creation_input_tokens: 0 } });
+  const clean = () => run('() => { const P = PropertiesService.getScriptProperties(); ["AI_MODEL_C", "AI_MODEL", "AI_PLAIN"].forEach(k => P.deleteProperty(k)); }');
+  const u = { name: 'Sujit', email: 'sujit@x.test', admin: true };
+  try {
+    clean();
+    assert.deepStrictEqual(run('() => aiInfo_()'), { on: true, service: 'Claude' });
+    // the look-ups in Claude's words: JSON Schema in small letters, the same 11, one that takes nothing takes an empty object
+    const tools = run('() => aiToolsC_()');
+    assert.deepStrictEqual(tools.map(t => t.name), run('() => AI_TOOLS_.map(t => t.name)'));
+    assert.ok(tools.every(t => t.input_schema && t.input_schema.type === 'object' && t.description.length > 20) && !/"(OBJECT|STRING|NUMBER)"/.test(JSON.stringify(tools)));
+    assert.deepStrictEqual(tools.find(t => t.name === 'diesel_stock').input_schema, { type: 'object', properties: {} });
+    assert.deepStrictEqual(tools.find(t => t.name === 'diesel_issues').input_schema.properties.from, { type: 'string', description: 'first date, yyyy-mm-dd' });
+    assert.deepStrictEqual(tools.find(t => t.name === 'diesel_issues').input_schema.required, ['from', 'to']);
+    // the page's conversation → Claude's: pairs of look-up and result by number; a look-up the page never answered gets "no
+    // result" first in the next turn; a result without its look-up is plain text; the same side twice in a row is one turn
+    const conv = run('t => aiToClaude_(t)', [
+      { role: 'user', parts: [{ text: 'diesel yesterday?' }] },
+      { role: 'model', parts: [{ text: 'Looking.' }, { functionCall: { name: 'diesel_issues', args: { from: '2026-10-26', to: '2026-10-26' } } }, { functionCall: { name: 'diesel_stock', args: {} } }] },
+      { role: 'user', parts: [{ functionResponse: { name: 'diesel_stock', response: { litres: 813 } } }, { functionResponse: { name: 'diesel_issues', response: { totalLitres: 240 } } }] },
+      { role: 'model', parts: [{ text: '**240 L** yesterday.' }] },
+      { role: 'user', parts: [{ text: 'and pending?' }] },
+      { role: 'model', parts: [{ functionCall: { name: 'pending_log_book', args: { date: '2026-10-26' } }, thoughtSignature: 'sig' }] },
+      { role: 'user', parts: [{ text: 'never mind – who changed MH-12?' }, { functionResponse: { name: 'activity', response: { rows: [] } } }] },
+    ]);
+    assert.deepStrictEqual(conv.map(m => m.role), ['user', 'assistant', 'user', 'assistant', 'user', 'assistant', 'user']);
+    assert.deepStrictEqual(conv[1].content.map(b => b.type + ':' + (b.name || b.text)), ['text:Looking.', 'tool_use:diesel_issues', 'tool_use:diesel_stock']);
+    assert.deepStrictEqual(conv[2].content.map(b => b.type + ':' + b.tool_use_id + ':' + b.content), ['tool_result:' + conv[1].content[2].id + ':{"litres":813}', 'tool_result:' + conv[1].content[1].id + ':{"totalLitres":240}'], 'each result to its own look-up, by name');
+    assert.ok(/^toolu_\d{4}$/.test(conv[1].content[1].id) && conv[1].content[1].id !== conv[1].content[2].id);
+    assert.deepStrictEqual(conv[6].content.map(b => b.type + (b.is_error ? ':error' : '')), ['tool_result:error', 'text', 'text'], 'the unanswered look-up first (no result), then the question, then the stray result as text');
+    assert.strictEqual(conv[6].content[0].tool_use_id, conv[5].content[0].id);
+    assert.ok(!JSON.stringify(conv).includes('thoughtSignature'), 'Gemini\'s own marks are not sent to Claude');
+    assert.deepStrictEqual(run('t => aiToClaude_(t)', [{ role: 'user', parts: [{ text: 'a' }] }, { role: 'user', parts: [{ text: 'b' }] }]).map(m => m.content.length), [2]);
+    // Claude's answer → the page's parts (text, functionCall)
+    assert.deepStrictEqual(run('c => aiFromClaude_(c)', [{ type: 'text', text: 'Let me look.' }, { type: 'tool_use', id: 'toolu_x', name: 'diesel_issues', input: { from: '2026-10-26', to: '2026-10-26' } }, { type: 'text', text: '  ' }]),
+      [{ text: 'Let me look.' }, { functionCall: { name: 'diesel_issues', args: { from: '2026-10-26', to: '2026-10-26' } } }]);
+
+    // 1. a question: the list of models (the newest Sonnet first, then the newest Haiku), then Messages – the rules kept
+    // (cache_control), the snapshot after them, the 11 look-ups; the answer a look-up in the page's own words
+    answers.push(list, msg([{ type: 'tool_use', id: 'toolu_01', name: 'diesel_issues', input: { from: '2026-10-26', to: '2026-10-26' } }], 'tool_use'));
+    let r = run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'How much diesel yesterday?' }] }], context: { page: { tab: 'dash' }, dieselStockNow: { litres: 813 } } });
+    assert.deepStrictEqual(r.parts, [{ functionCall: { name: 'diesel_issues', args: { from: '2026-10-26', to: '2026-10-26' } } }]);
+    assert.deepStrictEqual([r.model, r.used, r.tries], ['claude-sonnet-5-5', 3040, 1]);
+    assert.deepStrictEqual(sent.map(x => x.method + ' ' + x.path), ['GET /v1/models?limit=1000', 'POST /v1/messages']);
+    const b = sent[1].body;
+    assert.strictEqual(b.model, 'claude-sonnet-5-5');
+    assert.ok(b.max_tokens >= 1024 && b.tools.length === 11 && b.messages.length === 1 && b.messages[0].role === 'user' && b.messages[0].content[0].text === 'How much diesel yesterday?');
+    assert.deepStrictEqual(b.system[0].cache_control, { type: 'ephemeral' });
+    assert.match(b.system[0].text, /Answer ONLY from this app/); assert.match(b.system[0].text, /The person asking is Sujit \(Admin\)\./);
+    assert.ok(!/SNAPSHOT/.test(b.system[0].text) && /^9\. SNAPSHOT/.test(b.system[1].text) && /"dieselStockNow":\{"litres":813\}/.test(b.system[1].text), 'the snapshot is after the kept part');
+    assert.strictEqual(b.temperature, undefined);
+    assert.deepStrictEqual(JSON.parse(run('() => PropertiesService.getScriptProperties().getProperty("AI_MODEL_C")')).list, ['claude-sonnet-5-5', 'claude-haiku-5-5'], 'the order is kept for a day');
+    // 2. the next step: the conversation with the look-up and its result; the answer text – the list is not asked again
+    sent.length = 0;
+    answers.push(msg([{ type: 'text', text: '**240 L** of diesel yesterday.' }]));
+    r = run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'How much diesel yesterday?' }] }, { role: 'model', parts: r.parts }, { role: 'user', parts: [{ functionResponse: { name: 'diesel_issues', response: { totalLitres: 240 } } }] }] });
+    assert.deepStrictEqual(r.parts, [{ text: '**240 L** of diesel yesterday.' }]);
+    assert.deepStrictEqual(sent.map(x => x.path), ['/v1/messages']);
+    assert.deepStrictEqual(sent[0].body.messages.map(m => m.role + ':' + m.content.map(c => c.type).join('+')), ['user:text', 'assistant:tool_use', 'user:tool_result']);
+    assert.strictEqual(sent[0].body.messages[2].content[0].tool_use_id, sent[0].body.messages[1].content[0].id);
+    // 3. busy (529 overloaded): Sonnet again after a short wait, then Haiku – and Haiku is asked first afterwards
+    sent.length = 0; waited = 0;
+    answers.push(reply(529, { type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' } }), reply(529, { type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' } }), msg([{ type: 'text', text: 'OK from Haiku.' }]));
+    r = run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'stock?' }] }] });
+    assert.deepStrictEqual([r.parts[0].text, r.model, r.tries, sent.map(x => x.body.model).join(',')], ['OK from Haiku.', 'claude-haiku-5-5', 3, 'claude-sonnet-5-5,claude-sonnet-5-5,claude-haiku-5-5']);
+    assert.ok(waited >= 1500);
+    assert.deepStrictEqual(JSON.parse(run('() => PropertiesService.getScriptProperties().getProperty("AI_MODEL_C")')).list, ['claude-haiku-5-5', 'claude-sonnet-5-5']);
+    run('() => PropertiesService.getScriptProperties().setProperty("AI_MODEL_C", JSON.stringify({ list: ["claude-sonnet-5-5", "claude-haiku-5-5"], at: Date.now() }))');
+    // every model busy: the words of "busy", the Admin sees what it said
+    answers.push(...[1, 2, 3].map(() => reply(529, { type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' } })));
+    assert.throws(() => run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'stock?' }] }] }), /The AI service is busy right now \(529\).*asked 3 time\(s\).*said: Overloaded/);
+    // 4. no credit left / a wrong key: said as it is (not asked again); a refusal: not asked again either
+    sent.length = 0;
+    answers.push(reply(400, { type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.' } }));
+    assert.throws(() => run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'stock?' }] }] }), /^Error: The AI service has no credit left \(Claude\): the Admin has to add funds in Claude Console → Billing\./);
+    assert.strictEqual(sent.length, 1);
+    answers.push(reply(401, { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }));
+    assert.throws(() => run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'stock?' }] }] }), /did not accept its key \(401\).*ANTHROPIC_API_KEY/);
+    answers.push(reply(400, { type: 'error', error: { type: 'invalid_request_error', message: 'messages: text content blocks must be non-empty' } }));
+    assert.throws(() => run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'stock?' }] }] }), /refused the question \(400\)\. Model claude-sonnet-5-5\. It said: messages: text content blocks/);
+    answers.push(msg([], 'max_tokens'));
+    assert.throws(() => run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'stock?' }] }] }), /gave no answer \(max_tokens\)/);
+
+    // 5. a photo (JPG) and a bill (PDF): an image / a document block with the question; JSON read from its answer
+    sent.length = 0;
+    answers.push(msg([{ type: 'text', text: '```json\n{"litres": 45.5, "amount": 4186, "rate": 92}\n```' }]));
+    assert.deepStrictEqual(run('() => pumpAnswer_(aiJson_(aiAskPhoto_("QUJD", "Read the litres. Answer with JSON only.")) || {})'), { litres: 45.5, check: '', amount: 4186, rate: 92 });
+    assert.deepStrictEqual(sent[0].body.messages[0].content.map(c => c.type + ':' + (c.source ? c.source.media_type + ':' + c.source.data : c.text)), ['image:image/jpeg:QUJD', 'text:Read the litres. Answer with JSON only.']);
+    assert.ok(sent[0].body.max_tokens === 2048 && sent[0].ms <= 25000 && !sent[0].body.tools);
+    answers.push(msg([{ type: 'text', text: '{"date": "2026-10-20", "total": 1200, "lines": [{"work": "Oil change", "amount": 1200}]}' }]));
+    assert.strictEqual(run('() => aiAskPhoto_("JVBERi0x", "Read the bill.", "application/pdf", "the bill")'), '{"date": "2026-10-20", "total": 1200, "lines": [{"work": "Oil change", "amount": 1200}]}');
+    assert.deepStrictEqual([sent[1].body.messages[0].content[0].type, sent[1].body.messages[0].content[0].source.media_type, sent[1].body.max_tokens], ['document', 'application/pdf', 8192]);
+    assert.ok(sent[1].ms > 25000 && sent[1].ms <= 40000, 'a bill gets more time');
+    answers.push(reply(400, { type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API.' } }));
+    assert.throws(() => run('() => aiAskPhoto_("QUJD", "Read it.")'), /The AI could not read the meter now \(no credit left in Claude Console\) – type the reading\./);
+    answers.push(reply(529, {}), reply(529, {}), reply(529, {}));
+    assert.throws(() => run('() => aiAskPhoto_("QUJD", "Read it.", "image/jpeg", "the bill")'), /The AI could not read the bill now \(529\) – type it in, or try again\./);
+
+    // 6. "Test the AI service": the service named, the list asked again, one tiny question to each model
+    sent.length = 0;
+    answers.push(list, msg([{ type: 'text', text: 'OK' }]), reply(400, { type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low' } }));
+    const chk = run('() => getAiCheck_()');
+    assert.deepStrictEqual([chk.key, chk.service, chk.models, chk.tests.map(t => t.model + ':' + t.ok + ':' + t.said)], [true, 'Claude', ['claude-sonnet-5-5', 'claude-haiku-5-5'], ['claude-sonnet-5-5:true:OK', 'claude-haiku-5-5:false:no credit left – add funds in Claude Console → Billing']]);
+    assert.deepStrictEqual(sent.slice(1).map(x => [x.body.model, x.body.max_tokens, x.body.messages[0].content]), [['claude-sonnet-5-5', 16, 'Reply with the word OK.'], ['claude-haiku-5-5', 16, 'Reply with the word OK.']]);
+    // a list that cannot be read (no connection): the two by name, and asked again in an hour – a wrong key: said at once
+    clean(); sent.length = 0;
+    answers.push({ code: 0, text: '', error: 'no connection' }, msg([{ type: 'text', text: 'fine' }]));
+    r = run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'stock?' }] }] });
+    assert.deepStrictEqual([r.model, sent.map(x => x.path).join(',')], ['claude-sonnet-5-5', '/v1/models?limit=1000,/v1/messages']);
+    const keptC = JSON.parse(run('() => PropertiesService.getScriptProperties().getProperty("AI_MODEL_C")'));
+    assert.ok(Date.now() - keptC.at > 86400000 - 3600000 - 60000 && Date.now() - keptC.at < 86400000, 'kept for an hour only');
+    clean();
+    answers.push(reply(401, { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }));
+    assert.throws(() => run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'stock?' }] }] }), /did not accept its key \(401\)/);
+
+    // 7. Gemini (no Claude key): exactly as before – its own address, its own words, its own kept order
+    clean(); service = 'gemini'; sent.length = 0;
+    assert.deepStrictEqual(run('() => aiInfo_()'), { on: true, service: 'Gemini' });
+    answers.push(reply(200, { models: [{ name: 'models/gemini-9.5-flash', supportedGenerationMethods: ['generateContent'] }] }), reply(200, { candidates: [{ content: { role: 'model', parts: [{ text: 'Gemini here.' }] } }], usageMetadata: { totalTokenCount: 12 } }));
+    r = run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'stock?' }] }], context: { page: { tab: 'dash' } } });
+    assert.deepStrictEqual([r.parts[0].text, r.model], ['Gemini here.', 'gemini-9.5-flash']);
+    assert.deepStrictEqual(sent.map(x => x.path), ['/v1beta/models?pageSize=1000', '/v1beta/models/gemini-9.5-flash:generateContent']);
+    assert.ok(sent[1].body.system_instruction && /\n9\. SNAPSHOT – /.test(sent[1].body.system_instruction.parts[0].text) && sent[1].body.tools[0].functionDeclarations.length === 11 && sent[1].body.contents[0].role === 'user');
+    assert.strictEqual(run('() => PropertiesService.getScriptProperties().getProperty("AI_MODEL_C")'), null, 'Claude\'s order is kept apart from Gemini\'s');
+  } finally {
+    delete ctx.__ai; clean();
+  }
+  // without any key: as before
+  assert.deepStrictEqual(run('() => aiInfo_()'), { on: false });
+  assert.throws(() => run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'hello' }] }] }), /assistant is not set up yet: the Admin has to put the AI key \(ANTHROPIC_API_KEY – Claude\)/);
+  // the server's line (server/gas.js): Claude with its key and its headers when ANTHROPIC_API_KEY is set, else Gemini
+  const gas = fs.readFileSync(path.join(root, 'server', 'gas.js'), 'utf8');
+  assert.match(gas, /const AI_KEY_C = \(\) => String\(process\.env\.ANTHROPIC_API_KEY \|\| ''\)\.trim\(\);/);
+  assert.match(gas, /\{ 'x-api-key': key, 'anthropic-version': '2023-06-01', 'Content-Type': 'application\/json' \}/);
+  assert.match(gas, /service: \(\) => AI_KEY_C\(\) \? 'claude' : process\.env\.GEMINI_API_KEY \? 'gemini' : ''/);
+  // the page: the not-set-up words name the Claude key; the test says the service; the help names Claude Console
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.ok(!/GEMINI_API_KEY|Google AI Studio in Gemini|Gemini in Google AI Studio/.test(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner('))), 'the help speaks of Claude');
+  assert.match(app, /No key on the server \(ANTHROPIC_API_KEY for Claude\)\./);
+  assert.match(app, /d\.service === 'Claude' \? 'No model answered\. Check in Claude Console/);
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  for (const [m, want] of [['The AI service has no credit left (Claude): the Admin has to add funds in Claude Console → Billing. The rest of the app works as always.', /has no credit left, or the key/],
+    ['The AI service did not accept its key (401): the Admin has to check ANTHROPIC_API_KEY in the server\'s settings (Vercel → Environment Variables) and Redeploy.', /has no credit left, or the key/],
+    ['The AI could not read the meter now (no credit left in Claude Console) – type the reading.', /./],
+    ['The AI service is busy right now (529) – that is on its side, not in the app.', /could not get an answer from the AI service \(Claude\)/],
+    ['The assistant is not set up yet: the Admin has to put the AI key (ANTHROPIC_API_KEY – Claude) in the server\'s settings.', /Claude Console \(platform\.claude\.com → API keys\)/]]) {
+    const got = H.fixRules(m);
+    assert.ok(got[0] !== H.FIX_ANY && want.test(got.map(x => x.en.join(' ')).join(' ')), m);
+  }
+  assert.ok(H.fixRules('The AI could not read the meter now (no credit left in Claude Console) – type the reading.').some(x => /has no credit left, or the key/.test(x.en[0])), 'the photo\'s message also says what to do about the credit');
+});

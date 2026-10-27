@@ -145,6 +145,18 @@ Server आता tables memory मध्ये ठेवतो आणि फक�
 एका site वर किती लोक सुरळीत चालतात ते TEST प्रतीवर मोजण्यासाठी: `node test/load-site.js <link> <e-mail> <password> 100 120` (live site वर चालवू नका).
 
 
+## AI – Claude (27-10-2026, update-167)
+
+App मधले सगळे AI (Assistant, meter / pump चे photo, maintenance bill वाचणे) **Claude** वर चालते, जेव्हा server वर Claude ची key असते:
+
+1. Claude Console (platform.claude.com) → **API keys** → Create key (नाव उदा. `rcl-erp`). Key फक्त एकदाच दिसते – ती chat मध्ये, email मध्ये किंवा कुठल्याही file मध्ये ठेवू नका.
+2. Vercel → Mechanical चा project → Settings → Environment Variables → नवीन: नाव `ANTHROPIC_API_KEY`, किंमत = ती key, Environment = **Production** → Save.
+3. Vercel → Deployments → शेवटच्या deployment वर **Redeploy**.
+4. App उघडा → Ask → (Admin) **Test the AI service**: "Service: Claude" आणि ✓ claude-sonnet… / ✓ claude-haiku… दिसले की झाले.
+
+Model आपोआप: Claude ची सगळ्यात नवी **Sonnet** आधी, ती व्यस्त असेल तर **Haiku**. ठराविक model हवा असेल तर `ANTHROPIC_MODEL` ठेवा. Claude Console → Billing मध्ये credit संपले तर app तसे सांगते ("no credit left"); बाकी app चालूच राहते.
+परत Gemini वर जायचे असेल तर Vercel मधून `ANTHROPIC_API_KEY` काढा (किंवा नाव बदला) आणि Redeploy – `GEMINI_API_KEY` असेल तर Gemini परत चालते.
+
 ## Assistant (chat) सुरू करणे (04-10-2026)
 
 1. Google AI Studio मध्ये Gemini ची API key बनवा.

@@ -6341,11 +6341,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         'यह केवल Admin कर सकता है: ऊपर "Database" दबाएँ; box में file का नाम है। Supabase → SQL Editor में वह file paste करें (उसका text Admin → Read Me में है) और Run करें। फिर "Check again now" दबाएँ।'] },
     { re: /assistant is not set up/i,
       en: ['The assistant needs an AI service, and this site has no key for it yet.',
-        'Admin: make an API key for Gemini in Google AI Studio, put it in Vercel → Settings → Environment Variables as GEMINI_API_KEY, and Redeploy. Until then the rest of the app works as always.'],
+        'Admin: make an API key in Claude Console (platform.claude.com → API keys), put it in Vercel → Settings → Environment Variables as ANTHROPIC_API_KEY, and Redeploy. Until then the rest of the app works as always.'],
       mr: ['Assistant ला AI सेवा लागते, आणि या site ला त्यासाठीची key अजून दिलेली नाही.',
-        'Admin: Google AI Studio मध्ये Gemini ची API key बनवा, ती Vercel → Settings → Environment Variables मध्ये GEMINI_API_KEY या नावाने ठेवा आणि Redeploy करा. तोपर्यंत बाकी app नेहमीसारखे चालते.'],
+        'Admin: Claude Console (platform.claude.com → API keys) मध्ये API key बनवा, ती Vercel → Settings → Environment Variables मध्ये ANTHROPIC_API_KEY या नावाने ठेवा आणि Redeploy करा. तोपर्यंत बाकी app नेहमीसारखे चालते.'],
       hi: ['Assistant को AI सेवा चाहिए, और इस site को उसकी key अभी नहीं दी गई है।',
-        'Admin: Google AI Studio में Gemini की API key बनाएँ, उसे Vercel → Settings → Environment Variables में GEMINI_API_KEY नाम से रखें और Redeploy करें। तब तक बाकी app हमेशा की तरह चलता है।'] },
+        'Admin: Claude Console (platform.claude.com → API keys) में API key बनाएँ, उसे Vercel → Settings → Environment Variables में ANTHROPIC_API_KEY नाम से रखें और Redeploy करें। तब तक बाकी app हमेशा की तरह चलता है।'] },
     { re: /asked the assistant a lot|assistant has reached its limit|conversation has become too long|Type a question for the assistant/i,
       en: ['The assistant has limits so that it stays fast and its cost stays small: so many questions an hour for one person, so many a day for the site, and a conversation that is not endless.',
         'A long conversation: press "New chat" and ask again. The hourly limit: wait a little. The daily limit: it works again tomorrow – the reports of the app answer the same questions meanwhile.'],
@@ -6353,13 +6353,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         'संभाषण लांब झाले: "New chat" दाबून पुन्हा विचारा. तासाची मर्यादा: थोडे थांबा. दिवसाची मर्यादा: उद्या पुन्हा चालेल; तोपर्यंत app चे reports तीच उत्तरे देतात.'],
       hi: ['Assistant की सीमाएँ हैं ताकि वह तेज़ रहे और खर्च कम रहे: एक व्यक्ति के लिए घंटे में तय सवाल, site के लिए दिन में तय, और बातचीत अंतहीन नहीं।',
         'बातचीत लंबी हो गई: "New chat" दबाकर फिर पूछें। घंटे की सीमा: थोड़ा रुकें। दिन की सीमा: कल फिर चलेगा; तब तक app की reports वही जवाब देती हैं।'] },
+    // (update-167) Claude: no credit left in the company's account, or a key it did not take – said as it is, with what to do
+    { re: /AI service has no credit left|AI service did not accept its key|no credit left in Claude Console|key ANTHROPIC_API_KEY was not accepted/i,
+      en: ['The AI service (Claude) did not take the question: the company\'s Claude account has no credit left, or the key in the server\'s settings is not right. The AI parts (the assistant, reading photos and bills) wait; everything else in the app works and none of its data is touched.',
+        'Admin: in Claude Console → Billing add funds (or turn on auto-reload) – the AI works again at once. For the key: make one in Claude Console → API keys and put the same key in Vercel → Settings → Environment Variables as ANTHROPIC_API_KEY, then Redeploy.'],
+      mr: ['AI सेवेने (Claude) प्रश्न घेतला नाही: कंपनीच्या Claude खात्यात credit शिल्लक नाही, किंवा server च्या settings मधली key बरोबर नाही. AI चे भाग (assistant, photo आणि bill वाचणे) थांबले आहेत; बाकी सगळे app चालते आणि त्याच्या data ला काहीही झालेले नाही.',
+        'Admin: Claude Console → Billing मध्ये funds टाका (किंवा auto-reload चालू करा) – AI लगेच पुन्हा चालू होते. Key साठी: Claude Console → API keys मध्ये key बनवा आणि तीच key Vercel → Settings → Environment Variables मध्ये ANTHROPIC_API_KEY या नावाने ठेवा, मग Redeploy करा.'],
+      hi: ['AI सेवा (Claude) ने सवाल नहीं लिया: कंपनी के Claude खाते में credit नहीं बचा, या server की settings वाली key सही नहीं है। AI के हिस्से (assistant, photo और bill पढ़ना) रुके हैं; बाकी पूरा app चलता है और उसके data को कुछ नहीं हुआ।',
+        'Admin: Claude Console → Billing में funds डालें (या auto-reload चालू करें) – AI तुरंत फिर चलता है। Key के लिए: Claude Console → API keys में key बनाएँ और वही key Vercel → Settings → Environment Variables में ANTHROPIC_API_KEY नाम से रखें, फिर Redeploy करें।'] },
     { re: /AI service/i,
-      en: ['The assistant could not get an answer from the AI service (Gemini): it was busy, its free limit was used up, it did not know the model, or it could not be reached. The app\'s own data is not affected.',
-        'Ask again in a minute. If it keeps coming: Admin – check in Google AI Studio that the key is active and has billing or free quota left, and that GEMINI_API_KEY in Vercel is that key.'],
-      mr: ['Assistant ला AI सेवेकडून (Gemini) उत्तर मिळाले नाही: ती व्यस्त होती, तिची मोफत मर्यादा संपली, model सापडला नाही, किंवा ती पोहोचली नाही. App च्या स्वतःच्या data ला काही झालेले नाही.',
-        'एका मिनिटाने पुन्हा विचारा. पुन्हा पुन्हा येत असेल तर Admin ने Google AI Studio मध्ये key चालू आहे आणि billing किंवा मोफत मर्यादा शिल्लक आहे ते पाहावे, आणि Vercel मधली GEMINI_API_KEY तीच key आहे ते तपासावे.'],
-      hi: ['Assistant को AI सेवा (Gemini) से जवाब नहीं मिला: वह व्यस्त थी, उसकी मुफ़्त सीमा खत्म हो गई, model नहीं मिला, या वह पहुँच में नहीं थी। App के अपने data पर कोई असर नहीं।',
-        'एक मिनट बाद फिर पूछें। बार-बार आए तो Admin Google AI Studio में देखे कि key चालू है और billing या मुफ़्त सीमा बची है, और Vercel की GEMINI_API_KEY वही key है।'] },
+      en: ['The assistant could not get an answer from the AI service (Claude): it was busy, it did not know the model, or it could not be reached. The app\'s own data is not affected.',
+        'Ask again in a minute. If it keeps coming: Admin – check in Claude Console (platform.claude.com) that the key is active and the account has credit left, and that ANTHROPIC_API_KEY in Vercel is that key.'],
+      mr: ['Assistant ला AI सेवेकडून (Claude) उत्तर मिळाले नाही: ती व्यस्त होती, model सापडला नाही, किंवा ती पोहोचली नाही. App च्या स्वतःच्या data ला काही झालेले नाही.',
+        'एका मिनिटाने पुन्हा विचारा. पुन्हा पुन्हा येत असेल तर Admin ने Claude Console (platform.claude.com) मध्ये key चालू आहे आणि खात्यात credit शिल्लक आहे ते पाहावे, आणि Vercel मधली ANTHROPIC_API_KEY तीच key आहे ते तपासावे.'],
+      hi: ['Assistant को AI सेवा (Claude) से जवाब नहीं मिला: वह व्यस्त थी, model नहीं मिला, या वह पहुँच में नहीं थी। App के अपने data पर कोई असर नहीं।',
+        'एक मिनट बाद फिर पूछें। बार-बार आए तो Admin Claude Console (platform.claude.com) में देखे कि key चालू है और खाते में credit बचा है, और Vercel की ANTHROPIC_API_KEY वही key है।'] },
     { re: /fault of the app was just reported/i,
       en: ['Just now the app failed somewhere – on a user\'s page, on the server, or the database did not answer. The app has written it down by itself.',
         'Press "Faults" at the top: it lists who was working, where, when and what failed. One fault once is usually nothing; if the same line keeps coming, send that line to the developer.'],
@@ -13567,7 +13575,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const sure = onlyAi ? null : aiLocal(text, false);            // (a question about an error message is always for the AI)
       if (sure) { const t = await sure.run(); wait.remove(); aiAdd('ai-src', '<span>⚡ ' + esc(byApp) + '</span>'); aiAdd('ai-m bot', aiHtml(t)); said(t); return; }
       // 2. the AI service
-      if (!AI.on) throw new Error('The assistant is not set up yet: the Admin has to put the AI key (GEMINI_API_KEY) in the server\'s settings.');
+      if (!AI.on) throw new Error('The assistant is not set up yet: the Admin has to put the AI key (ANTHROPIC_API_KEY – Claude) in the server\'s settings.');
       wait.textContent = 'Thinking…';
       const [snap, about] = await Promise.all([aiSnap(), aiAbout(text)]), ctx = Object.assign({ page: aiPage() }, snap || {}, about ? { aboutTheMachineryInTheQuestion: about } : {});
       for (let step = 0; step < 7; step++) {
@@ -13705,10 +13713,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function aiTest() {
     if (AI.busy) return; AI.busy = true; const wait = aiAdd('ai-wait', 'Testing the AI service – a tiny question to each model…');
     try { const d = await rawCall('getAiCheck'); wait.remove();
-      aiAdd('ai-m bot', '<b>AI service test</b>\n' + esc(!d.key ? 'No key on the server (GEMINI_API_KEY).' : d.listError ? d.listError
-        : (d.fixedModel ? 'Model fixed in the settings: ' + d.fixedModel + '\n' : 'Models offered to this key, in the order they are asked:\n') +
+      // (update-167) the service (Claude / Gemini) said, and what to look at when no model answers
+      aiAdd('ai-m bot', '<b>AI service test</b>\n' + esc(!d.key ? 'No key on the server (ANTHROPIC_API_KEY for Claude).' : d.listError ? d.listError
+        : (d.service ? 'Service: ' + d.service + '\n' : '') + (d.fixedModel ? 'Model fixed in the settings: ' + d.fixedModel + '\n' : 'Models offered to this key, in the order they are asked:\n') +
           d.tests.map(t => (t.ok ? '✓ ' : '✗ ') + t.model + ' – ' + (t.ok ? 'answered in ' + (Math.round(t.ms / 100) / 10) + ' s' : (t.code || 'no connection') + ': ' + t.said)).join('\n') +
-          '\n' + (d.tests.some(t => t.ok) ? 'At least one model answers: typed questions can work now.' : 'No model answered. If they all say "high demand" / 503 or 429, the free limit of this key is the cause: turn on billing in Google AI Studio.'))); }
+          '\n' + (d.tests.some(t => t.ok) ? 'At least one model answers: typed questions can work now.' : d.service === 'Claude' ? 'No model answered. Check in Claude Console that the key is active and the account has credit (Billing).'
+            : 'No model answered. If they all say "high demand" / 503 or 429, the free limit of this key is the cause: turn on billing in Google AI Studio.'))); }
     catch (e) { wait.remove(); aiAdd('ai-m err', esc(errMsg(e))); }
     finally { AI.busy = false; }
   }

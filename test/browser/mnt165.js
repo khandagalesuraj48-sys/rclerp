@@ -71,7 +71,7 @@ const say = async j => fetch(GEM + '/__meter?say=' + encodeURIComponent(JSON.str
       lines: [{ work: 'Engine oil', amount: 1200 }, { work: 'Oil filter', amount: 300 }, { work: 'Labour', amount: 500 }, { work: 'GST 18%', amount: 360 }] });
     const rd = await J('readMaintBill', { data: 'data:application/pdf;base64,' + PDF.toString('base64') });
     const glog = await (await fetch(GEM + '/__log')).json(), gl = glog.filter(x => x.image).pop() || {};
-    ok('   the AI reads the bill: sent as a PDF (application/pdf), asked for JSON; its answer → date, bill no., garage, KM, the 4 lines, the total, Service', gl.image === 'application/pdf' && gl.json === 'application/json' && /garage, service centre or parts shop/.test(gl.ask || '') &&
+    ok('   the AI reads the bill: sent as a PDF (application/pdf), asked for JSON; its answer → date, bill no., garage, KM, the 4 lines, the total, Service', gl.image === 'application/pdf' && (gl.service === 'claude' ? gl.jsonAsked && gl.kind === 'document' : gl.json === 'application/json') && /garage, service centre or parts shop/.test(gl.ask || '') &&
       rd.date === d1 && rd.billNo === 'TS-101' && rd.garage === 'Toyota Service' && rd.km === 45210 && rd.lines.length === 4 && rd.total === 2360 && rd.service === true && rd.check === '', [gl, rd]);
     // a bill with its files
     const bill = x => Object.assign({ date: d1, no: C1, garage: 'Toyota Service', billNo: 'TS-101', km: 45210, service: true, remark: 'first service',
