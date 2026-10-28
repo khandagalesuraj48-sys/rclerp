@@ -2204,6 +2204,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Delete, 📎; screen only, sticky); `deleteMaintLog` (`admin: true`) → `deleteMaintLog_` (the count shown checked, closed months refused,
   only maintenance bills) + `logAfter_` 'maintLogDelete' (a line a bill); page `#ml_delall` (the machinery number typed). No SQL. Tests:
   unit `update-182`; rig `mnt182.js`; mnt165 / 168 / 170 / 173 and mline180 moved to the new page.
+- 28-10-2026 (update-183, with rcl-mobile 3.59.0). Report: `UPDATE_183.md`. THE OLD LOG BOOK AS IT IS: a line's GST ₹ kept as read
+  (`gstAmt`; `maintHasGa_` / `maintGstOf_` – no GST % made; `maintSpread_` leaves it out; `updateMaint_` / `maintLineSave_` keep it);
+  `mlogRender` `asIs` ("GST Amount"); `readMaintLog_` `max` / `after` – a page in parts, page `mliReadAi` asks again by itself, stops with
+  "Continue reading" (`mliResume`); the names by the quicker model; `maintStatus` (Maintenance or Reports) → "Log book status"; "Hide log
+  book". No SQL. Tests: unit `update-183`; rig `mnt183.js`; mnt170 / 173 / 182 and mline180 moved to "as it is".
 - 28-10-2026 (update-178, with the Store's step 2 – rcl-store `store-work` – and rcl-mobile 3.55.0). Report: `UPDATE_178.md`. THE STORE'S
   OUTWARD IN THE MAINTENANCE LOG BOOK: `maintStoreLines_(m, from, to)` reads the site's `store_issue` / `store_issue_lines` (the same
   database; paged) – each issue a bill of the Party "RCL Store" (Outward <no>, the Store's average rate, the reading; on debit: "Debit",
