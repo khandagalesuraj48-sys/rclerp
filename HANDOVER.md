@@ -2160,3 +2160,9 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   ("he admin la fkt nahi user la pn disu de"): `API_` importMaint – Maintenance Edit (no `admin`); checkMaintImport / readMaintLog /
   maintImportNames – `withUser`, not saves, `maintEditOnly_(u)` inside; page `mti_panel` by `canEdit('Maintenance')`; an import sent
   for verification (FLOW_SENT_RE) kept as `done.sent` and said in green. No SQL. Tests: unit `update-174`; rig mnt173 (part 5).
+- 28-10-2026 (update-175, with rcl-mobile 3.53.0). Report: `UPDATE_175.md`. THE MAINTENANCE LOG BOOK START TO END, ITS BILLS CHANGED AND
+  DELETED, EVERY OWN MACHINERY IMPORTED, FETCH OUTWARD: `maintLog_` – `f.all` (`maintLogSpan_`: its first fill / bill to today), no days
+  limit (100,000), `store: { on: MAINT_STORE_ON_, lines }`; page `ml_all`, `mtf_all`, `ml_out`, each bill's Change / Delete (`data-mlb`,
+  `.no-print mlog-act` – screen only; `mtEdit`, `mtDelete`, `mtBillById`); `maintVals_(x, keepNo)` – a change on the same machinery not
+  checked against its Active dates; `importMaint_` – Own only (`mliOwn` the same); the names' list hidden once all is imported. No SQL.
+  Tests: unit `update-175`; rig mnt173 part 6, mnt170 / mnt168 read the log book as printed.

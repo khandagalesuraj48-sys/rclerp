@@ -6459,10 +6459,13 @@ function maintIns_(x, total, byIns) {
   return { work: company, type: MNT_INS_, claim: claim, amount: -r2_(paid) };
 }
 // the checked values of a bill
-function maintVals_(x) {
+// (update-175, "purn log book edit ani delete pn karta yeu shakel") keepNo: the machinery of the bill being changed – the same machinery is
+// not checked against its Active dates again (an old bill imported from before its Active From, or of a machinery no longer active,
+// can be changed); a new bill, or a bill moved to another machinery, is checked as always
+function maintVals_(x, keepNo) {
   const dk = entryOpen_(x.date, 'Maintenance bill');
   const m = findMachine_(x.no);
-  assertActive_(m, dk);
+  if (!(keepNo && noKey_(m.id) === noKey_(keepNo))) assertActive_(m, dk);
   const lines = maintLines_(x.lines), total = r2_(lines.reduce((s, l) => s + maintLineTotal_(l), 0));      // (update-171) with each line's GST
   // (update-168) a bill only of free lines (warranty …) is kept too; below 0: a discount bigger than the bill
   if (total < 0) throw new Error('The total of the bill cannot be below 0 – check the amounts (a discount is a minus line).');
@@ -6541,7 +6544,9 @@ function importMaint_(b) {
   b = b || {};
   const run = () => {
     const t = maintTable_(true), m = findMachine_(b.no), bills = Array.isArray(b.bills) ? b.bills : [];
-    if (normOwnership_(m.ownership) !== 'Own' || !onSiteOn_(m, today_())) throw new Error(m.id + ' is not an Own machinery on this site now (Asset Master) – the old log book is imported only for those.');
+    // (update-175, asked 28-10-2026: "machine active nasli pn systeam madhe aahe tri log book import hou shakel"; his answer: "फक्त Own –
+    // active असो वा नसो") every Own machinery of the Asset Master – on the site now or not (update-173: on the site now only)
+    if (normOwnership_(m.ownership) !== 'Own') throw new Error(m.id + ' is not an Own machinery (Asset Master: Ownership Own) – the old log book is imported only for those.');
     if (!bills.length) throw new Error('The file has no bill for ' + m.id + '.');
     if (bills.length > MNT_IMPORT_MAX_) throw new Error(m.id + ': at most ' + MNT_IMPORT_MAX_ + ' bills in one import – split the file.');
     const K = noKey_(m.id), lsig = ls => ls.map(l => clean_(l.work).toUpperCase() + ':' + r2_(num0_(l.amount)) + ':' + (l.qty === undefined ? '' : r2_(l.qty))).sort().join(';');
@@ -6657,7 +6662,7 @@ function updateMaint_(id, x) {
     // (update-171) an app of before 3.51.0 (its lines have no GST): it may not change a bill with the GST of its lines or a line paid by the insurance
     if (Array.isArray(x.lines) && x.lines.length && x.lines.every(l => !l || typeof l !== 'object' || !('gst' in l)) && was.some(l => num0_(l.gst) > 0 || l.type === 'By Insurance'))
       throw new Error('Bill ' + str_(id) + ' has the GST of its lines or lines paid by the insurance – update the app to change it.');
-    const v = maintVals_(x), files = maintFilesOf_(x.files, maintFilesList_(t, old));
+    const v = maintVals_(x, str_(old[t.c[H.NO]])), files = maintFilesOf_(x.files, maintFilesList_(t, old));
     const twice = maintTwice_(t, v, id);
     if (twice && !x.force) return { ok: false, warning: 'Bill ' + v.billNo + (v.garage ? ' of ' + v.garage : '') + ' for ' + v.m.id + ' is already saved (' + twice + '). Save it again?' };
     const row = old.slice();
@@ -6775,9 +6780,22 @@ function maintAnswer_(j) {
 // "RCL Store" with its lines ({ date, id, party, km, lines: [{ work, type: 'Paid', qty, uom, rate, amount }], total }). Nothing yet: the
 // Store has only its Item Master.
 function maintStoreLines_(m, from, to) { return []; }
+const MAINT_STORE_ON_ = false;      // (update-175, "fetch outward") true when the Store's Issue (material to a machinery) is built
+/* (update-175, asked 28-10-2026: "maintenance log book madhe date filter aahe but ajun ek banaw start to end … long period asa nko error")
+ * f.all: the whole log book – from its first fill / bill to today; no limit of days any more (update-170: 1,100 days). */
+function maintLogSpan_(m) {
+  const K = noKey_(m.id), today = today_();
+  let first = '';
+  const see = dk => { if (dk && dk <= today && (!first || dk < first)) first = dk; };
+  if (cardSite_()) { const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_); t.rows.forEach(r => { if (noKey_(r[t.c[H.NO]]) === K) see(dkey_(r[t.c[H.IDATE]])); }); }
+  const mt = maintTable_(false); if (mt) mt.rows.forEach(r => { if (noKey_(r[mt.c[H.NO]]) === K) see(dkey_(r[mt.c[H.DATE]])); });
+  maintStoreLines_(m, '2000-01-01', today).forEach(x => see(str_(x.date)));
+  return { from: first || today, to: today };
+}
 function maintLog_(f) {
   f = f || {};
-  const m = findMachine_(f.no), r0 = rptRange_({ from: str_(f.from) || today_().slice(0, 8) + '01', to: str_(f.to) || today_() }, 1100);
+  const m = findMachine_(f.no);
+  const r0 = f.all === true ? maintLogSpan_(m) : rptRange_({ from: str_(f.from) || today_().slice(0, 8) + '01', to: str_(f.to) || today_() }, 100000);
   const from = r0.from, to = r0.to, K = noKey_(m.id), fuel = machineFuel_(m), unit = fuelUnit_(fuel);
   const lines = [], ct = v => v instanceof Date ? v.getTime() : 0;
   const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, amt = H.AMOUNT in c;
@@ -6810,6 +6828,7 @@ function maintLog_(f) {
   if (H.WKM in lc) lt.rows.forEach(r => { const dk = dkey_(r[lc[H.DATE]]); if (noKey_(r[lc[H.NO]]) === K && dk && dk >= from && dk <= to) km = r2_(km + num0_(r[lc[H.WKM]])); });
   const all = r2_(fu.amount + mn.amount);
   return Object.assign(rptBase_('Maintenance Log Book – ' + m.id, { from: from, to: to }), {
+    all: f.all === true, store: { on: MAINT_STORE_ON_, lines: lines.filter(l => l.kind === 'Store').length },      // (update-175) start to end; the Store's outward
     machine: { id: m.id, name: m.name, type: m.type, fuel: fuel, unit: unit, meter: str_(m.unit) }, card: card, lines: lines,
     total: { fuel: fu, maint: mn, byWork: Object.keys(byWork).map(k => byWork[k]).sort((a, b) => b.amount - a.amount || a.work.localeCompare(b.work)), all: all, km: km, perKm: km > 0 ? r2_(all / km) : null },
     lastService: last });

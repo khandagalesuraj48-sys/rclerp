@@ -6798,7 +6798,7 @@ test('update-173: the old Maintenance Log Book of a machinery imported as it is 
   assert.deepStrictEqual([bad.ok, bad.added, bad.errorCount, bad.errors.map(e => e.rows)], [false, undefined, 2, ['Line 41', 'Line 42']]);
   assert.match(bad.errors[0].msg, /is after today/);
   assert.strictEqual(run('() => getMaint_({ no: "' + R + '", from: "2023-02-01", to: "2023-02-28" }).rows.length'), 0, 'nothing of it saved');
-  assert.strictEqual(tryRun('b => importMaint_(b)', { no: H2, bills: bills.slice(0, 1) }).thrown, H2 + ' is not an Own machinery on this site now (Asset Master) – the old log book is imported only for those.');
+  assert.strictEqual(tryRun('b => importMaint_(b)', { no: H2, bills: bills.slice(0, 1) }).thrown, H2 + ' is not an Own machinery (Asset Master: Ownership Own) – the old log book is imported only for those.');      // (update-175: on the site now or not)
   assert.strictEqual(tryRun('b => importMaint_(b)', { no: R, bills: [] }).thrown, 'The file has no bill for ' + R + '.');
   // the log book shows them
   const lg = run('x => maintLog_(x)', { no: R, from: '2022-01-01', to: '2024-12-31' });
@@ -6809,7 +6809,7 @@ test('update-173: the old Maintenance Log Book of a machinery imported as it is 
   assert.match(app, /\$\('mti_panel'\)\.hidden = !canEdit\('Maintenance'\) \|\| !!d\.missing;/);      // (update-174: everyone with Maintenance Edit)
   assert.match(app, /call\('checkMaintImport', \{ no: x\.no, bills: mliBills\(x\) \}\)/);
   assert.match(app, /call\('importMaint', \{ no: x\.no, bills: mliBills\(x\) \}\)/);
-  assert.match(app, /re: \/is not an Own machinery on this site now\|The file has no bill for\|bills in one import – split the file\|No Own machinery is on this site today\/i/);
+  assert.match(app, /re: \/is not an Own machinery\\b\|The file has no bill for\|bills in one import – split the file\|No Own machinery is on this site today\/i/);
   // (28-10-2026, "duplicate entry import nahi honar") already there whatever the party is called: the same date and total within ₹1 –
   // "STOR" for "Store"; a ₹0 bill only by its lines
   const nm2 = run('b => importMaint_(b)', { no: R, check: true, bills: [{ rows: 'Line 5', date: '2022-12-02', garage: 'STOR', lines: [{ work: 'AD BLUE', qty: 20, uom: 'Ltr', rate: 59, amount: 1180, gst: 18 }] },
@@ -6892,4 +6892,42 @@ test('update-174: the old log book\'s import for everyone with Maintenance Edit 
   assert.match(app, /\$\('mti_panel'\)\.hidden = !canEdit\('Maintenance'\) \|\| !!d\.missing;/);
   assert.match(app, /if \(FLOW_SENT_RE\.test\(m\)\) x\.done = \{ added: 0, same: 0, sent: m \}; else x\.res = \{ err: m \};/, 'sent for verification: said as sent');
   assert.match(app, /if \(x\.done && x\.done\.sent\) return '<span class="pos">' \+ esc\(x\.done\.sent\) \+ '<\/span>';/);
+});
+
+test('update-175: the Maintenance Log Book "Start to end" (from its first bill, no limit of days); an Own machinery not on the site imports its old log book; an old bill (before its Active From) changed and deleted; another machinery inactive on that date refused; "Fetch outward (Store)" – the Store\'s Issue not built yet; the names\' list goes once all is imported', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const R = 'OLD-175', N = 'NEW-175';
+  // an Own roller that left the site (Inactive from 2025-06-01) and an Own one active only from this year
+  run('(x, m) => saveMaster_(x, m)', { no: R, name: 'Old Roller 175', type: 'Soil Compactor', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Inactive', activeFrom: '2019-01-01', inactiveFrom: '2025-06-01' }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: N, name: 'New JCB 175', type: 'JCB', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add');
+  const B = (rows, date, work, amount) => ({ rows: rows, date: date, garage: 'Store', km: '', lines: [{ work: work, qty: 1, uom: 'Nos', rate: amount, amount: amount, gst: 18 }] });
+  const imp = run('b => importMaint_(b)', { no: R, bills: [B('Line 5', '2012-03-04', 'BEARING', 1000), B('Line 6', '2024-11-20', 'FILTER', 500)] });
+  assert.deepStrictEqual([imp.ok, imp.added], [true, 2], 'an Own machinery no longer on the site: its old log book imported (update-173: refused)');
+  // the log book: start to end – from 2012 to today, no "Select up to … days"; the Store's outward not built yet
+  const all = run('x => maintLog_(x)', { no: R, all: true });
+  assert.deepStrictEqual([all.all, all.from, all.to === run('() => today_()'), all.total.maint.bills, all.total.maint.amount, all.store], [true, '2012-03-04', true, 2, 1770, { on: false, lines: 0 }]);
+  const long = run('x => maintLog_(x)', { no: R, from: '2010-01-01', to: '2026-10-01' });
+  assert.strictEqual(long.total.maint.bills, 2, 'a long period: no error any more (update-170: at most 1,100 days)');
+  assert.deepStrictEqual(run('x => maintLog_(x)', { no: N, all: true }).total.maint.bills, 0);
+  // the whole log book can be changed and deleted: an old bill (before its Active From, of a machinery not active now) changed – the same machinery
+  const old = run('() => getMaint_({ no: "' + R + '", from: "2012-01-01", to: "2012-12-31" }).rows[0]');
+  const ch = run('(id, x) => updateMaint_(id, x)', old.id, { date: '2012-03-05', no: R, garage: 'Ganesh Motors', billNo: '', km: '', service: false, remark: 'date corrected', lines: [{ work: 'BEARING', type: 'Paid', qty: 1, uom: 'Nos', rate: 1000, amount: 1000, gst: 18 }], insurance: null });
+  assert.deepStrictEqual([ch.ok, run('() => getMaint_({ no: "' + R + '", from: "2012-03-05", to: "2012-03-05" }).rows[0].garage')], [true, 'Ganesh Motors'], 'changed – its date too');
+  const moved = tryRun('(id, x) => updateMaint_(id, x)', old.id, { date: '2012-03-05', no: N, garage: 'Ganesh Motors', km: '', service: false, lines: [{ work: 'BEARING', type: 'Paid', amount: 1000, gst: 18 }], insurance: null });
+  assert.match(String(moved.thrown), new RegExp(N + '.*(inactive|active only from)'), 'moved to another machinery: checked as a new bill (not active then)');
+  const fresh = tryRun('x => saveMaint_(x)', { date: '2012-04-01', no: R, garage: 'Store', km: '', service: false, lines: [{ work: 'X', type: 'Paid', amount: 10 }], insurance: null });
+  assert.match(String(fresh.thrown), /inactive|active only from/, 'a NEW bill typed for a date it was not active: refused as before');
+  assert.deepStrictEqual(run('id => deleteMaint_(id)', old.id), { ok: true });
+  assert.strictEqual(run('x => maintLog_(x)', { no: R, all: true }).total.maint.bills, 1, 'deleted');
+  // the page
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /<input type="checkbox" id="ml_all"> Start to end<\/label>/);
+  assert.match(app, /<input type="checkbox" id="mtf_all"> Start to end<\/label>/);
+  assert.match(app, /<button class="btn ghost" id="ml_out" type="button">Fetch outward \(Store\)<\/button>/);
+  assert.match(app, /call\('maintLog', \$\('ml_all'\)\.checked \? \{ no: m\.id, all: true \} : /);
+  assert.match(app, /querySelectorAll\('\[data-mlb\]'\)\.forEach\(td => td\.insertAdjacentHTML\('beforeend', '<span class="no-print mlog-act">/, 'Change / Delete on the screen only');
+  assert.match(app, /const mliOwn = \(\) => \(S\.master \|\| \[\]\)\.filter\(m => m\.ownership === 'Own'\);/);
+  assert.match(app, /const names = !d\.fix \|\| \(d\.sheets\.some\(x => x\.done\) && !d\.sheets\.some\(x => x\.no && !x\.done\)\) \? '' : /, 'the names\' list gone once everything is imported');
 });
