@@ -7180,11 +7180,11 @@ test('update-181: a Material Supplier (made by the Store\'s import of its old in
   assert.strictEqual(run('() => { const t = { c: { "Vendor Name": 0 } }; return vendorOut_(t, ["Om Hardware"]).type; }'), '', 'a site without the column: no type');
   // the database's column: vendors.vendor_type, only some sites have it ('opt': an empty one not sent while the columns are not known)
   const sync = fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8'), data = fs.readFileSync(path.join(root, 'app', 'SupabaseData.gs'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
-  assert.match(sync, /\['Vendor Type', 'vendor_type', 'text', 'opt'\]\] \},/);
+  assert.match(sync, /\['Vendor Type', 'vendor_type', 'text', 'opt'\],/);      // (update-184: the Owner Name and the documents after it)
   assert.match(data, /if \(!this\.dbCols && x\[3\] === 'opt'\) \{ const v0 = i > -1 \? sbVal_\(row\[i\], x\[2\]\) : null; if \(v0 === null \|\| v0 === ''\) return; \}/);
   assert.match(code, /if \(\(v \|\| \{\}\)\.type !== undefined && vendorTypeOn_\(\)\) put\('Vendor Type', x\.type\);/, 'saved only when the form sends it, where the column is');
   assert.match(code, /filter\(n => n && !hid\[vKey_\(n\)\] && !mat\[vKey_\(n\)\]\)/, 'the parties\' list without the material suppliers');
-  assert.match(code, /return \{ boqs: out, vendors: getVendors_\(\), history: boqHistory_\(list\), vtypeOn: vendorTypeOn_\(\) \};/);
+  assert.match(code, /return \{ boqs: out, vendors: getVendors_\(\), history: boqHistory_\(list\), vtypeOn: vendorTypeOn_\(\), vdocsOn: vendorColOn_\('owner_name'\) && vendorColOn_\('documents'\) \};/);
   // the page: marked, the Type filter, the type in the form; the lists of an asset's owner, a BOQ, a payment without them
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   assert.match(app, /const matOnly = v => !!v && v\.type === 'Material Supplier' && !\(v\.machines \|\| \[\]\)\.length && !v\.boqs;/);
@@ -7294,4 +7294,74 @@ test('update-183: the old log book as it is – each line its GST ₹ as in the 
   assert.match(app, /<button class="btn ghost" id="ml_hide" type="button" hidden>Hide log book<\/button>/);
   assert.match(app, /<button class="btn ghost small" id="ml_stbtn" type="button">Log book status<\/button>/);
   assert.match(app, /S\.mlst = await call\('maintStatus'\);/);
+});
+
+test('update-184: the vendor – its Company Name and Owner Name, its documents (Aadhaar, PAN, GST, Udyam, bank …) kept with it, seen, printed and downloaded; the papers of the Asset Master only of Own machinery', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  const me = { name: 'Sujit Test', email: 'sujit@x.test', admin: true, perms: {} };
+  const sha = c => c.repeat(64), put = (h, name, mime, who) => run('(h, r) => CacheService.getScriptCache().put("AT_" + h, JSON.stringify(r), 21600)', h, { e: who || me.email, es: [who || me.email], n: { [who || me.email]: me.name }, by: me.name, mime: mime || 'application/pdf', size: 1200, name: name, at: '2026-10-28T10:00:00Z' });
+  put(sha('a'), 'pan card.pdf'); put(sha('b'), 'aadhaar.jpg', 'image/jpeg'); put(sha('c'), 'udyam.pdf'); put(sha('d'), 'cheque.jpg', 'image/jpeg', 'other@x.test');
+  const save = (x, mode) => run('(x, m, u) => { OUT_FOR_ = u; try { const r = saveVendor_(x, m); return { ok: r.ok, v: r.vendors.find(v => v.name === x.name) }; } finally { OUT_FOR_ = null; } }', x, mode, me);
+  const saveT = (x, mode) => tryRun('(x, m, u) => { OUT_FOR_ = u; try { return saveVendor_(x, m).ok; } finally { OUT_FOR_ = null; } }', x, mode, me);
+  // the Company Name (the vendor's name, as before) – its words
+  assert.strictEqual(saveT({ name: '', gstReg: 'No' }, 'add').thrown, 'Enter the Company Name (the vendor\'s name).');
+  // a site before step 1zj (no such columns): an Owner Name / a document given is refused with what to run; empty – saved as before
+  const cols = on => run('o => { ["owner_name", "documents"].forEach(c => CacheService.getScriptCache().put("SBCOL_vendors." + c, o ? "1" : "0")); return true; }', on);
+  cols(false);
+  assert.strictEqual(saveT({ name: 'Before 1zj Traders', owner: 'Ramesh', gstReg: 'No' }, 'add').thrown, 'The Owner Name cannot be kept yet. This needs one database step first: the Admin runs sql/supabase_step1zj_vendor_papers.sql once in Supabase → SQL Editor (in every site).');
+  assert.strictEqual(saveT({ name: 'Before 1zj Traders', owner: '', gstReg: 'No', docs: [] }, 'add'), true, 'nothing given: saved as before');
+  assert.strictEqual(run('() => getBoqs_({}).vdocsOn'), false, 'the page is told (it shows what to run)');
+  cols(true);
+  // a new vendor with its Owner Name and two documents
+  const v1 = save({ name: 'Shri Ganesh Earthmovers', owner: 'Ganesh Patil', gstReg: 'No', docs: [{ sha: sha('a'), kind: 'PAN' }, { sha: sha('b'), kind: 'Aadhaar' }] }, 'add').v;
+  assert.deepStrictEqual([v1.owner, v1.docs.map(d => d.kind + ':' + d.name + ':' + d.mime + ':' + d.by)], ['Ganesh Patil', ['PAN:pan card.pdf:application/pdf:Sujit Test', 'Aadhaar:aadhaar.jpg:image/jpeg:Sujit Test']], 'its Owner Name and its documents, each its kind');
+  // a page / an app of before (no owner, no docs sent): both kept
+  const v2 = save({ name: 'Shri Ganesh Earthmovers', gstReg: 'No', phone: '9822000000' }, 'edit').v;
+  assert.deepStrictEqual([v2.owner, v2.docs.length, v2.phone], ['Ganesh Patil', 2, '9822000000'], 'a save without them keeps them');
+  // one more (Udyam), a kind not known → Other; the same documents kept
+  const v3 = save({ name: 'Shri Ganesh Earthmovers', owner: 'Ganesh Patil', gstReg: 'No', docs: [{ sha: sha('a'), kind: 'PAN' }, { sha: sha('b'), kind: 'Aadhaar' }, { sha: sha('c'), kind: 'Licence' }] }, 'edit').v;
+  assert.deepStrictEqual(v3.docs.map(d => d.kind), ['PAN', 'Aadhaar', 'Other']);
+  // a file another person sent: refused; twice the same: refused; nothing changed
+  assert.strictEqual(saveT({ name: 'Shri Ganesh Earthmovers', gstReg: 'No', docs: [{ sha: sha('d'), kind: 'Bank' }] }, 'edit').thrown, 'A vendor document was not added by you in the last 6 hours – add it again.');
+  assert.strictEqual(saveT({ name: 'Shri Ganesh Earthmovers', gstReg: 'No', docs: [{ sha: sha('a'), kind: 'PAN' }, { sha: sha('a'), kind: 'GST' }] }, 'edit').thrown, 'The same file is given twice – remove one.');
+  assert.strictEqual(saveT({ name: 'Shri Ganesh Earthmovers', gstReg: 'No', docs: 'x' }, 'edit').thrown || 'kept', 'kept', 'not a list: as not sent (a page of before)');
+  assert.match(saveT({ name: 'Shri Ganesh Earthmovers', gstReg: 'No', docs: Array.from({ length: 31 }, (x, i) => ({ sha: sha('a'), kind: 'PAN' })) }, 'edit').thrown, /^A vendor keeps at most 30 documents – remove some\.$/);
+  // all taken out (an empty list) – the files themselves stay in the store
+  assert.deepStrictEqual(save({ name: 'Shri Ganesh Earthmovers', gstReg: 'No', docs: [{ sha: sha('c'), kind: 'Udyam' }] }, 'edit').v.docs.map(d => d.kind + ':' + d.name), ['Udyam:udyam.pdf']);
+  // its documents to see, print, download – the Vendor Master only
+  run('() => { globalThis.__al = attLinks_; attLinks_ = ps => { const o = {}; ps.forEach(x => { o[x] = "https://store.test/" + x + "?token=t"; }); return o; }; return true; }');      // (the private store's links – not on this computer)
+  let d; try { d = run('n => getVendorDocs_(n)', 'shri ganesh earthmovers'); } finally { run('() => { attLinks_ = globalThis.__al; return true; }'); }
+  assert.deepStrictEqual([d.name, d.owner, d.docs.map(x => x.kind + ':' + x.name), /^https:\/\/store\.test\/log\/cc\/c{64}\.pdf\?token=t$/.test(d.docs[0].url), d.on], ['Shri Ganesh Earthmovers', 'Ganesh Patil', ['Udyam:udyam.pdf'], true, true], 'each with its link (15 minutes)');
+  assert.strictEqual(tryRun('n => getVendorDocs_(n)', 'Nobody Traders').thrown, 'Vendor Nobody Traders is not saved in the Vendor Master yet – save its details first.');
+  const spec = run('() => ({ u: Object.assign({}, API_.vendorDoc, { f: typeof API_.vendorDoc.f }), g: Object.assign({}, API_.getVendorDocs, { f: typeof API_.getVendorDocs.f }) })');
+  assert.deepStrictEqual(spec, { u: { m: 'Vendor Master', withUser: true, f: 'function' }, g: { m: 'Vendor Master', f: 'function' } }, 'its documents: only with the Vendor Master page (not with the billing pages)');
+  assert.ok(code.indexOf("const pg = mod === 'Maintenance' ? 'Maintenance' : mod === 'Vendor Master' ? 'Vendor Master' : 'Log Book';") > -1, 'a document sent with Vendor Master Edit');
+  // the database step: it only adds two columns; Read Me lists it word for word; the test database has it; the database check knows it
+  const sql = fs.readFileSync(path.join(root, 'sql', 'supabase_step1zj_vendor_papers.sql'), 'utf8'), sqlCode = sql.replace(/--.*$/gm, '');
+  assert.ok(!/\b(delete\s+from|truncate|update\s+public\.)/i.test(sqlCode) && !/drop (table|column)/i.test(sqlCode), 'nothing removed or changed');
+  assert.match(sql, /alter table public\.vendors add column if not exists owner_name text;\nalter table public\.vendors add column if not exists documents text;/);
+  const listed = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1zj_vendor_papers.sql');
+  assert.ok(listed && listed.sql === sql, 'Read Me lists the step word for word');
+  assert.ok(fs.readFileSync(path.join(root, 'staging', 'rcl_staging_all.sql'), 'utf8').indexOf(sql) > -1, 'the test database has it');
+  assert.ok(code.indexOf("'supabase_step1zj_vendor_papers.sql');      // (update-184)") > -1);
+  assert.match(fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8'), /\['Owner Name', 'owner_name', 'text', 'opt'\], \['Documents', 'documents', 'text', 'opt'\]\] \},/, 'a site without them saves as before');
+  // the papers: only Own machinery in Vehicle Compliance; an import's row of another one left out
+  for (const [no, own] of [['OWN-184', 'Own'], ['RENT-184', 'Rental'], ['DEB-184', 'Debit']]) run('(x, m) => saveMaster_(x, m)', { no: no, name: no, type: 'Car', unit: 'KM', worksOn: ['KM'], kmStd: 10, owner: own === 'Own' ? 'Rachana Construction Limited' : 'Patil Travels', ownership: own, supply: own === 'Debit' ? 'Debit Basis' : 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add');
+  const cp = run('() => getCompliance_().machines.map(m => m.no + ":" + m.ownership).filter(x => /184/.test(x))');
+  assert.deepStrictEqual(cp, ['OWN-184:Own'], 'only Own machinery');
+  const im = run('r => importCompliance_(r, false)', [{ line: 2, no: 'OWN-184', docs: { Insurance: '2027-03-31' } }, { line: 3, no: 'RENT-184', docs: { Insurance: '2027-01-31' } }]);
+  assert.deepStrictEqual([im.ok, im.changes, im.skipped], [true, 1, ['RENT-184']], 'the Rental one left out (said)');
+  // the page
+  assert.match(app, /<label for="v_name">Company Name <span class="req">\*<\/span><\/label>/);
+  assert.match(app, /<label for="v_owner">Owner Name<\/label><input id="v_owner" autocomplete="off" maxlength="80">/);
+  assert.match(app, /const V_DOC_KINDS = \[\['Aadhaar', 'Aadhaar'\], \['PAN', 'PAN'\], \['GST', 'GST certificate'\], \['Udyam', 'Udyam'\], \['Bank', 'Bank details \(cheque \/ passbook\)'\], \['Other', 'Other'\]\];/);
+  assert.match(app, /const got = await atOpen\(\{ title: label, sub: name, files: mine, up: 'vendorDoc', max: 10, noQr: true \}\);/, 'the attachments\' own box');
+  assert.match(app, /owner: S\.vdocsOn \? g\('v_owner'\) : undefined, docs: S\.vdocsOn \? \(S\.vDocs \|\| \[\]\)\.map\(x => \(\{ sha: x\.sha, kind: x\.kind \}\)\) : undefined,/);
+  assert.match(app, /'download=' \+ encodeURIComponent/, 'Download');
+  assert.match(app, /\$\('m_docs_box'\)\.hidden = \$\('m_ownership'\)\.value !== 'Own';/, 'the asset form: papers only for Own');
+  assert.match(app, /<select id="cp_own" aria-label="Ownership" hidden><option value="">Own<\/option><\/select>/);
+  assert.match(app, /vendors: \{ saves: \['saveVendor', 'deleteVendor', 'vendorsFromOwners', 'vendorDoc'\],/);
 });
