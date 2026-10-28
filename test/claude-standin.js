@@ -7,7 +7,10 @@
 // (update-185) a question "LOOKUP <name> <JSON>" asks for that look-up; the log keeps its result (resultJson).
 // (update-173) POST /__next (its body: the text of the next answer to a file – one a call, in order; then /__meter's) and POST /__names
 // (the answer to the names of an old log book).
-const http = require('http'); const log = [], busy = {}, meter = { say: '{"km": null, "hrs": null}' }, credit = { n: 0 }, next = [], names = { say: '{"fixes": []}' };
+// (update-186) "stream": true is answered as the real service does – server-sent events (message_start, ping, content_block_start /
+// _delta (text_delta, input_json_delta) / _stop, message_delta, message_stop), a few characters a piece, /__delay?ms= apart (15);
+// /__cut?n=1 cuts the next stream half-way with an "overloaded_error" event. "REMEMBER <note>" asks for the look-up remember.
+const http = require('http'); const log = [], busy = {}, meter = { say: '{"km": null, "hrs": null}' }, credit = { n: 0 }, next = [], names = { say: '{"fixes": []}' }, sx = { delay: 15, cut: 0 };
 const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
 const err = (res, code, type, message) => send(res, code, { type: 'error', error: { type: type, message: message } });
 const MODELS = [
@@ -57,7 +60,9 @@ http.createServer((req, res) => {
   let body = ''; req.on('data', c => { body += c; }); req.on('end', () => {
     if (req.url === '/__log') return send(res, 200, log);
     const mr = /^\/__meter\?say=(.*)$/.exec(req.url); if (mr) { meter.say = decodeURIComponent(mr[1]); return send(res, 200, meter); }
-    if (req.url === '/__clear') { log.length = 0; Object.keys(busy).forEach(k => delete busy[k]); credit.n = 0; next.length = 0; names.say = '{"fixes": []}'; return send(res, 200, {}); }
+    if (req.url === '/__clear') { log.length = 0; Object.keys(busy).forEach(k => delete busy[k]); credit.n = 0; next.length = 0; names.say = '{"fixes": []}'; sx.delay = 15; sx.cut = 0; return send(res, 200, {}); }
+    const dl = /^\/__delay\?ms=(\d+)/.exec(req.url); if (dl) { sx.delay = Number(dl[1]); return send(res, 200, sx); }
+    const ct = /^\/__cut\?n=(\d+)/.exec(req.url); if (ct) { sx.cut = Number(ct[1]); return send(res, 200, sx); }
     if (req.url === '/__next' && req.method === 'POST') { next.push(body); return send(res, 200, { queued: next.length }); }
     if (req.url === '/__names' && req.method === 'POST') { names.say = body; return send(res, 200, {}); }
     const bz = /^\/__busy\?model=([^&]+)&n=(\d+)/.exec(req.url); if (bz) { busy[decodeURIComponent(bz[1])] = Number(bz[2]); return send(res, 200, busy); }
@@ -78,8 +83,21 @@ http.createServer((req, res) => {
       cached: ((sysB[0] || {}).cache_control || {}).type || '', snapshotApart: sysB.length > 1 && /^9\. SNAPSHOT/.test(sysB[1].text || '') && !/SNAPSHOT/.test(sysB[0].text || ''), temperature: j.temperature, maxTokens: j.max_tokens };
     log.push(entry);
     const usage = { input_tokens: 1200, output_tokens: 60, cache_creation_input_tokens: ms.length === 1 ? 2300 : 0, cache_read_input_tokens: ms.length === 1 ? 0 : 2300 };
-    const text = say => send(res, 200, { id: 'msg_' + log.length, type: 'message', role: 'assistant', model: j.model, content: [{ type: 'text', text: say }], stop_reason: 'end_turn', usage: usage });
-    let nUse = 0; const callFn = (name, input) => send(res, 200, { id: 'msg_' + log.length, type: 'message', role: 'assistant', model: j.model, content: [{ type: 'text', text: 'Let me look that up.' }, { type: 'tool_use', id: 'toolu_s' + log.length + '_' + (++nUse), name: name, input: input }], stop_reason: 'tool_use', usage: usage });
+    entry.stream = j.stream === true;
+    // (update-186) the answer as one JSON message, or – asked with "stream" – as its events, piece by piece
+    const out = msg => { if (j.stream !== true) return send(res, 200, msg);
+      res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache' });
+      const ev = (type, d) => res.write('event: ' + type + '\ndata: ' + JSON.stringify(Object.assign({ type: type }, d)) + '\n\n'), steps = [];
+      steps.push(() => ev('message_start', { message: Object.assign({}, msg, { content: [], stop_reason: null, usage: Object.assign({}, msg.usage, { output_tokens: 1 }) }) }), () => ev('ping', {}));
+      msg.content.forEach((b, i) => {
+        if (b.type === 'text') { steps.push(() => ev('content_block_start', { index: i, content_block: { type: 'text', text: '' } })); (b.text.match(/[\s\S]{1,6}/g) || []).forEach(w => steps.push(() => ev('content_block_delta', { index: i, delta: { type: 'text_delta', text: w } }))); }
+        else { steps.push(() => ev('content_block_start', { index: i, content_block: { type: 'tool_use', id: b.id, name: b.name, input: {} } })); (JSON.stringify(b.input).match(/[\s\S]{1,5}/g) || []).forEach(w => steps.push(() => ev('content_block_delta', { index: i, delta: { type: 'input_json_delta', partial_json: w } }))); }
+        steps.push(() => ev('content_block_stop', { index: i })); });
+      steps.push(() => ev('message_delta', { delta: { stop_reason: msg.stop_reason, stop_sequence: null }, usage: { output_tokens: msg.usage.output_tokens } }), () => ev('message_stop', {}));
+      const cut = sx.cut > 0 ? (sx.cut--, Math.floor(steps.length / 2)) : -1; entry.cut = cut > -1;
+      let k = 0; const tick = () => { if (k === cut) { ev('error', { error: { type: 'overloaded_error', message: 'Overloaded' } }); return res.end(); } if (k >= steps.length) return res.end(); steps[k++](); setTimeout(tick, sx.delay); }; tick(); };
+    const text = say => out({ id: 'msg_' + log.length, type: 'message', role: 'assistant', model: j.model, content: [{ type: 'text', text: say }], stop_reason: 'end_turn', usage: usage });
+    let nUse = 0; const callFn = (name, input) => out({ id: 'msg_' + log.length, type: 'message', role: 'assistant', model: j.model, content: [{ type: 'text', text: 'Let me look that up.' }, { type: 'tool_use', id: 'toolu_s' + log.length + '_' + (++nUse), name: name, input: input }], stop_reason: 'tool_use', usage: usage });
     // a photo or a PDF bill: what /__meter says (what a model would read on it)
     const file = lb.find(b => b.type === 'image' || b.type === 'document');
     if (file) { const q = (lb.find(b => b.type === 'text') || {}).text || ''; Object.assign(entry, { image: file.source.media_type, kind: file.type, bytes: Math.round(String(file.source.data || '').length * 3 / 4), ask: q.slice(0, 600), jsonAsked: /Answer with JSON only/.test(q),
@@ -97,12 +115,18 @@ http.createServer((req, res) => {
       if (n === 'pending_log_book') return text(r.machineryWithoutLogBook + ' machinery have no Log Book for ' + r.date + '. [[open:log|Open Log Book]]');
       if (n === 'app_guide') return text('Use "' + ((r.pagesThatFit[0] || {}).title || '?') + '". [[open:' + ((r.pagesThatFit[0] || {}).tab || 'x') + '|Open it]]');
       if (n === 'activity') return text(r.entries + ' entries in the Activity Log; the last by ' + ((r.rows[0] || {}).name || '-') + '.');
+      if (n === 'remember') return text(r.remembered ? 'I will remember that (note #' + r.id + ').' : 'Not kept.');      // (update-186)
+      if (n === 'forget') return text(r.forgotten ? 'Note #' + r.id + ' is taken out of my memory.' : 'Not taken out.');
       return text('Result of ' + n + ': ' + JSON.stringify(r).slice(0, 200));
     }
     const q = String((lb.filter(b => b.type === 'text').pop() || {}).text || ''), d = q.match(/\d{4}-\d{2}-\d{2}/g) || [];
     if (/^NAMES OF AN OLD MAINTENANCE LOG BOOK/.test(q)) { Object.assign(entry, { names: true, ask: q.slice(q.indexOf('party – '), q.indexOf('party – ') + 1500) }); return text(names.say); }
     let snap = null; try { snap = JSON.parse(sys.split('SNAPSHOT = ')[1] || 'null'); } catch (e) { snap = null; }
     entry.snapshot = snap ? Object.keys(snap).join(',') : ''; entry.page = snap && snap.page ? snap.page.tab : '';
+    entry.memory = (/\n10\. MEMORY[^\n]*?(?::\n((?:#\d+ [^\n]*\n?)*)|: ([^\n]*))/.exec(sys) || [])[0] || ''; entry.site = (/\n11\. THIS SITE \(([^)]*)\)[^:]*: ([^\n]*)/.exec(sys) || []).slice(1).join(' | ');
+    const rm = /^REMEMBER (.+)$/.exec(q.trim()); if (rm) return callFn('remember', { note: rm[1] });
+    const fg = /^FORGET (\d+)$/.exec(q.trim()); if (fg) return callFn('forget', { id: Number(fg[1]) });
+    if (/^WHAT DO YOU REMEMBER/.test(q.trim())) return text('MEMORY: ' + (entry.memory.split(/\n/).slice(1).join(' / ') || entry.memory));
     // (update-185) "LOOKUP <name> <its JSON>": that look-up is asked for, as the AI would
     const lk = /^LOOKUP ([a-z_]+) (\{[\s\S]*\})$/.exec(q.trim()); if (lk) { let a = {}; try { a = JSON.parse(lk[2]); } catch (e) { a = {}; } return callFn(lk[1], a); }
     if (/stock/i.test(q) && snap && snap.dieselStockNow) return text('As of now (' + snap.asOf + ') the stock is **' + snap.dieselStockNow.litres + ' L**.');

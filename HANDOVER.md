@@ -2220,6 +2220,16 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   vendors without Aadhaar / PAN / account numbers); 9 `store_*` and 5 `eng_*` asked of the module itself (page `aiModLook` → its
   `aiLook`, its sign-in of this site, its page opened unseen when it has none). No SQL. Tests: unit `update-185`; rig `ai185.js`,
   `ai185gw.js` (gateway), claude167 / ai with 40 look-ups.
+- 28-10-2026 (update-186, with rcl-mobile 3.61.0). Report: `UPDATE_186.md`. THE ASSISTANT LIVE: its answer word by word – `api/ai.js`
+  (lines of JSON) asks the app's own `aiPrepare` (= `getAiReply`'s checks, limits and request: `aiReq_`) with his sign-in, then Claude
+  with `"stream": true` (`server/aistream.js`); the page's `aiStep` (bridge `google.script.aiStream`) shows the words as they come and,
+  in a talk, says each finished sentence at once (`AI_SQ`, `aiSayFeed`, `aiUtter`); the 🎙 while it speaks interrupts (`aiInterrupt`);
+  `getAiReply` stays the way back (older page / app, Gemini → `AI_NO_STREAM`, a lost line, a stream cut half-way). ITS OWN MEMORY and
+  HIS CHATS (step 1zk: `ai_memory`, `ai_chats` – only the person's, in the site's own database, not in the Sheet): look-ups `remember` /
+  `forget` (run in `aiLookup_`), rule 10 MEMORY and rule 11 THIS SITE (`aiKnows_` – the first / last dates of the registers, the
+  machinery) in the kept part of the rules; actions `aiMemory`, `aiMemoryDel`, `aiChats`, `aiChatGet`, `aiChatSave`, `aiModelFirst`;
+  the page's History / Memory (`aiHistory`, `aiChatOpen`, `aiMemoryShow`, `aiKeep` after every answer). SQL step 1zk. Tests: unit
+  `update-186`; rig `ai186.js` (claude mode), claude167 / ai (Gemini) with 42 look-ups.
 - 28-10-2026 (update-178, with the Store's step 2 – rcl-store `store-work` – and rcl-mobile 3.55.0). Report: `UPDATE_178.md`. THE STORE'S
   OUTWARD IN THE MAINTENANCE LOG BOOK: `maintStoreLines_(m, from, to)` reads the site's `store_issue` / `store_issue_lines` (the same
   database; paged) – each issue a bill of the Party "RCL Store" (Outward <no>, the Store's average rate, the reading; on debit: "Debit",
