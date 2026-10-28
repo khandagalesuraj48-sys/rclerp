@@ -860,6 +860,7 @@ const API_ = {
   dbHealth:          { m: '', admin: true, f: dbHealth_ },
   saveOrgSettings:   { m: '', admin: true, f: saveOrgSettings_, log: 'org' },
   getAiReply:        { m: '', withUser: true, f: (u, x) => getAiReply_(u, x) },
+  aiLookup:          { m: '', withUser: true, f: (u, x) => aiLookup_(u, x) },      // (update-185) the assistant's look-ups run here – each with his own access to the page it reads
   getAiCheck:        { m: '', admin: true, f: getAiCheck_ },
   getBrief:          { m: '', withUser: true, f: u => getBrief_(u) },
   reportError:       { m: '', withUser: true, f: (u, x) => reportError_(u, x) },
@@ -1055,12 +1056,8 @@ function api(token, fn, args, meta) {
   if (!isHashed_(u.password)) throw new Error('SESSION_EXPIRED');
   const spec = Object.prototype.hasOwnProperty.call(API_, String(fn)) ? API_[fn] : null;      // only the app's own list ("constructor", "__proto__" … are not actions)
   if (!spec) throw new Error('Unknown action: ' + String(fn).slice(0, 60));
-  if (spec.admin && !u.admin) throw new Error(fn === 'backupNow' ? 'Only Admin can start a backup.' : fn === 'getActivity' ? 'Only Admin can open the Activity Log.' : 'Only Admin can open this.');
   DSRC_U_ = u;      // (update-162) whose diesel sources count in this request (verification's dry run too)
-  const label = m => MODULE_LABEL_[m] || m;
-  if (spec.any) { if (!spec.any.some(m => u.perms[m] && u.perms[m] !== 'None')) throw new Error('You do not have access to ' + spec.any.map(label).join(' / ') + '. Ask Admin.'); }
-  else if (spec.m && u.perms[spec.m] === 'None') throw new Error('You do not have access to ' + label(spec.m) + '. Ask Admin.');
-  if (spec.edit && !canEdit_(u, spec.m)) throw new Error('You have View access only for ' + label(spec.m) + '. Ask Admin for Edit access.');
+  apiAccess_(u, spec, fn);
   args = args || [];
   /* The same NEW entry sent twice within a few seconds (double click, a retry on a weak connection, two tabs) is saved
    * once: the second copy is refused. Only for actions that ADD rows; a different entry, or the same one again later,
@@ -1089,6 +1086,15 @@ function api(token, fn, args, meta) {
     }
     throw err;
   }
+}
+// the person's access to an action – the same words everywhere it is checked (api; the assistant's look-ups – update-185)
+function apiAccess_(u, spec, fn) {
+  if (!spec) throw new Error('Unknown action: ' + String(fn).slice(0, 60));
+  if (spec.admin && !u.admin) throw new Error(fn === 'backupNow' ? 'Only Admin can start a backup.' : fn === 'getActivity' ? 'Only Admin can open the Activity Log.' : 'Only Admin can open this.');
+  const label = m => MODULE_LABEL_[m] || m;
+  if (spec.any) { if (!spec.any.some(m => u.perms[m] && u.perms[m] !== 'None')) throw new Error('You do not have access to ' + spec.any.map(label).join(' / ') + '. Ask Admin.'); }
+  else if (spec.m && u.perms[spec.m] === 'None') throw new Error('You do not have access to ' + label(spec.m) + '. Ask Admin.');
+  if (spec.edit && !canEdit_(u, spec.m)) throw new Error('You have View access only for ' + label(spec.m) + '. Ask Admin for Edit access.');
 }
 const ONCE_FNS_ = ['saveDebitNote', 'saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'saveInward', 'importInward', 'saveTransfer', 'saveTransferBulk', 'savePayment', 'saveTankCheck', 'submitBdReport'];
 /* THE BACKUP SHEET'S LINK IS FOR THE ADMIN (07-10-2026). The backup Google Sheet holds every table – vendors' bank account,
@@ -11527,9 +11533,215 @@ const AI_TOOLS_ = [
   { name: 'prepare_log_entry', description: 'Prepare a Log Book entry of one machinery for one day (its closing reading(s), or that it was Idle / on Holiday / under Breakdown) and SHOW it to the person for Save / Cancel. It is NOT saved by this. Use when the person asks to make / enter a Log Book entry.',
     parameters: { type: 'OBJECT', properties: { machinery: { type: 'STRING' }, date: { type: 'STRING', description: 'yyyy-mm-dd; leave out for today' }, shift: { type: 'STRING', description: 'Full Day, Day or Night; leave out for Full Day' }, status: { type: 'STRING', description: 'Idle, Holiday or Breakdown – only if the machinery did not work' },
       close_km: { type: 'NUMBER', description: 'closing KM reading' }, close_hr: { type: 'NUMBER', description: 'closing hour-meter reading' }, work: { type: 'STRING', description: 'work done, if said' } }, required: ['machinery'] } },
+  /* (update-185, "AI la app cha main brain" – the rest of Mechanical: maintenance, bills, payments, ledger, outstanding, vendors, BOQ,
+   * compliance, breakdowns, fuel cards, inward, transfer, machinery cost). These are run by the SERVER (action aiLookup → aiLookup_),
+   * each with the person's own access to the page it reads – the page and the phone app only pass them on. */
+  { name: 'maintenance_bills', description: 'Maintenance bills (repairs, parts, service, tyres, labour … of machinery / vehicles) between two dates, of all machinery or one: each bill (date, machinery, garage / party, bill no, reading, its lines with ₹, insurance, service) and the total ₹. Use for "what maintenance / repair was done", "how much was spent on repairs".',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, machinery: { type: 'STRING', description: 'machinery number or name; leave out for all' } }, required: ['from', 'to'] } },
+  { name: 'maintenance_log_book', description: 'The Maintenance Log Book of ONE machinery: its bills line by line by date, the ₹ by work / part, the last service, and its fuel and all costs (₹ per KM) – for two dates, or from the start to the end when no dates are given. Use for "maintenance history of …", "when was … last serviced", "what did … cost in repairs".',
+    parameters: { type: 'OBJECT', properties: { machinery: { type: 'STRING', description: 'machinery number or name' }, from: { type: 'STRING', description: 'yyyy-mm-dd; leave out (with to) for start to end' }, to: { type: 'STRING', description: 'yyyy-mm-dd' } }, required: ['machinery'] } },
+  { name: 'maintenance_status', description: 'Which Own machinery have their maintenance log book in the app and up to which date (bills, from, up to, ₹), and which are not added yet. Takes nothing.' },
+  { name: 'vendor_bills', description: 'The vendor bills made in the app (Saved Bills / RCL Drive): bill no, vendor, company, period, bill date, net payable ₹, status, its debit note. Use for "which bills were made", "the bill of a vendor for a month".',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd: bills whose period ends on or after it' }, to: { type: 'STRING', description: 'yyyy-mm-dd: bills whose period starts on or before it' }, vendor: { type: 'STRING', description: 'vendor name or part of it; leave out for all' } } } },
+  { name: 'payments', description: 'Payments made to vendors (Machinery Payments: date, vendor, ₹, mode, reference, type) between two dates, of all vendors or one, with the total.',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, vendor: { type: 'STRING', description: 'vendor name or part of it; leave out for all' } }, required: ['from', 'to'] } },
+  { name: 'vendor_ledger', description: 'The Vendor Ledger of ONE vendor: opening balance, each bill, payment, debit / credit note with the running balance, the totals and the closing balance (what is still to be paid to him).',
+    parameters: { type: 'OBJECT', properties: { vendor: { type: 'STRING', description: 'vendor name or part of it' }, from: { type: 'STRING', description: 'yyyy-mm-dd; leave out for the start' }, to: { type: 'STRING', description: 'yyyy-mm-dd; leave out for today' } }, required: ['vendor'] } },
+  { name: 'vendor_outstanding', description: 'What is still to be paid to each vendor (Vendor Outstanding): opening, bills, paid, closing for the months, the last payment. Use for "who is to be paid", "outstanding of …", "how much do we owe".',
+    parameters: { type: 'OBJECT', properties: { from_month: { type: 'STRING', description: 'yyyy-mm; leave out for this month' }, to_month: { type: 'STRING', description: 'yyyy-mm; leave out for this month' }, vendor: { type: 'STRING', description: 'vendor name or part of it; leave out for all' } } } },
+  { name: 'vendors', description: 'The Vendor Master: vendors by name – company and owner name, type, ownership, their machinery, mobile, email, GST, bank name / branch / IFSC, which details are missing (PAN, Aadhaar, bank account, IFSC, GST number) and their documents (Aadhaar, PAN, GST, Udyam, bank …). The Aadhaar, PAN and bank account NUMBERS are never given. Leave the query out for the vendors whose details are not complete.',
+    parameters: { type: 'OBJECT', properties: { query: { type: 'STRING', description: 'part of a vendor\'s company or owner name' } } } },
+  { name: 'vendor_boq', description: 'Vendor BOQs (the rates agreed with a vendor): BOQ no, vendor, valid from / to, work order, amendments, and its lines (machinery, work, basis, rate, slabs, GST / TDS %). Of one vendor or one machinery, or all.',
+    parameters: { type: 'OBJECT', properties: { vendor: { type: 'STRING', description: 'vendor name or part of it' }, machinery: { type: 'STRING', description: 'machinery number or name' } } } },
+  { name: 'compliance', description: 'Vehicle Compliance of the Own machinery on site: each paper (Tax, PUC, Permit, Fitness, Insurance …) that is expired, due soon or not entered, with its valid-upto date and days; the counts. Of one machinery or all.',
+    parameters: { type: 'OBJECT', properties: { machinery: { type: 'STRING', description: 'machinery number or name; leave out for all' } } } },
+  { name: 'breakdowns', description: 'The Breakdown register: the machinery under breakdown on a date (since when, days, reason), that day\'s report (by whom), and the last reports.',
+    parameters: { type: 'OBJECT', properties: { date: { type: 'STRING', description: 'yyyy-mm-dd; leave out for today' } } } },
+  { name: 'fuel_cards', description: 'Fuel cards (a site whose fuel is bought by cards): each card – balance ₹, paid in, spent, fills, last fill, cars, expiry; with a card given, its statement between two dates (opening, each top-up and fill, closing).',
+    parameters: { type: 'OBJECT', properties: { card: { type: 'STRING', description: 'card name or last 4 digits; leave out for all cards' }, from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' } } } },
+  { name: 'diesel_inward', description: 'Diesel received (Diesel Inward) between two dates: each inward (date, litres, rate, ₹, pump / supplier, bill no, location), the totals, by pump and by location.',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, location: { type: 'STRING', description: 'stock place; leave out for all' } }, required: ['from', 'to'] } },
+  { name: 'diesel_transfers', description: 'Diesel moved from one place to another (Diesel Transfer) between two dates: each transfer (date, shift, from, to, litres, remark), the totals by route.',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, location: { type: 'STRING', description: 'the place it was sent from; leave out for all' } }, required: ['from', 'to'] } },
+  { name: 'machinery_cost', description: 'The Machinery Cost Sheet between two dates: for each machinery its rent (as the bills work it out) + diesel issued × the diesel rate − diesel recovered from the party = net cost, with days worked, hours, KM, cost per hour / per KM; totals by ownership. Use for "cost of a machinery", "which machinery cost the most".',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, machinery: { type: 'STRING', description: 'machinery number or name; leave out for all' } }, required: ['from', 'to'] } },
+  /* (update-185) THE STORE AND ENGINEERING OF THIS SITE – asked of those modules themselves (their action aiLook), with the person's
+   * own access THERE (the Store's pages; Engineering's Admin / User): the page – or the phone app – passes them on. */
+  { name: 'store_stock', description: 'The RCL Store of this site: the stock of its items now (or on a date) – code, item, category, unit, stock, average rate, value ₹, min stock, "Below min"; the total value. Use for "how much … is in the store", "which items are below the minimum".',
+    parameters: { type: 'OBJECT', properties: { query: { type: 'STRING', description: 'words of the item, its code or category; leave out for all' }, below_min: { type: 'BOOLEAN', description: 'true = only the items below their min stock' }, date: { type: 'STRING', description: 'yyyy-mm-dd; leave out for now' } } } },
+  { name: 'store_statement', description: 'The Store\'s stock statement between two dates (its daily report): each item – opening, inward, return, issued, closing, rate, value.',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, query: { type: 'STRING', description: 'words of the item; leave out for all' } }, required: ['from', 'to'] } },
+  { name: 'store_item_ledger', description: 'The ledger of ONE item of the Store between two dates: opening, each GRN / outward / return with whom, the running stock, closing.',
+    parameters: { type: 'OBJECT', properties: { item: { type: 'STRING', description: 'the item\'s name (or words of it) or its code' }, from: { type: 'STRING', description: 'yyyy-mm-dd; leave out for this month' }, to: { type: 'STRING', description: 'yyyy-mm-dd; leave out for today' } }, required: ['item'] } },
+  { name: 'store_inward', description: 'The Store\'s Inward (GRN) register between two dates: each GRN line – GRN No, date, supplier, invoice, item, qty, rate, GST, amount; the total.',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, query: { type: 'STRING', description: 'words of the supplier, item or GRN No; leave out for all' } }, required: ['from', 'to'] } },
+  { name: 'store_outward', description: 'The Store\'s Issue (Outward) register between two dates: each item issued – outward no, date, to whom (site work, a machinery, a party, a location), use for, item, qty, rate, value, returned.',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, query: { type: 'STRING', description: 'words of the machinery, party, item or location; leave out for all' } }, required: ['from', 'to'] } },
+  { name: 'store_consumption', description: 'What the Store issued was used for, between two dates, added up by party, machinery, use for, location or item (quantity and value ₹, returns taken off).',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, by: { type: 'STRING', description: 'party, machinery, use_for, location or item' }, query: { type: 'STRING', description: 'words to keep only some rows' } }, required: ['from', 'to'] } },
+  { name: 'store_returnable', description: 'Returnable items the Store issued that are not back yet: party, item, issued, returned, still out.',
+    parameters: { type: 'OBJECT', properties: { query: { type: 'STRING', description: 'words of the party or item; leave out for all' } } } },
+  { name: 'store_requirements', description: 'Material requirements of the Store: req no, date, needed by, for what, item, brand, specification, asked, ordered, to order, state (Pending with its level, Approved …), asked by.',
+    parameters: { type: 'OBJECT', properties: { status: { type: 'STRING', description: 'Pending, Approved, Rejected, Cancelled, Closed or To order; leave out for all' }, from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, query: { type: 'STRING', description: 'words of the item or what it is for' } } } },
+  { name: 'store_purchase_orders', description: 'Purchase orders of the Store: PO no, date, vendor, item, ordered, rate, GST, total ₹, received, still to come, state.',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, pending: { type: 'BOOLEAN', description: 'true = only what is still to come' }, query: { type: 'STRING', description: 'words of the vendor or item' } } } },
+  { name: 'eng_my_work', description: 'Engineering: the person\'s OWN days – the works given to him, his plan of each day and his report (done, left and why, work outside the plan), and whether yesterday\'s report is still due.',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd; leave out for the last 7 days' }, to: { type: 'STRING', description: 'yyyy-mm-dd' } } } },
+  { name: 'eng_dashboard', description: 'Engineering\'s dashboard of a work day (the Admin and the Super Admin): each work – planned, done, outside the plan, % done, status, what is left and why; who reported and who not; what needs attention; the next day\'s program.',
+    parameters: { type: 'OBJECT', properties: { day: { type: 'STRING', description: 'the work day, yyyy-mm-dd; leave out for yesterday' } } } },
+  { name: 'eng_report', description: 'Engineering\'s report of a period (a day, a week, 15 days, a month – the Admin and the Super Admin): each work – planned, done, outside, % done, by person, the reasons things were left; reports sent of due.',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' } }, required: ['from', 'to'] } },
+  { name: 'eng_performance', description: 'Engineering\'s performance of each person over a period (the Admin and the Super Admin): reports due, sent, late, corrected, missing; planned against done (% ); the works he sent.',
+    parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' } }, required: ['from', 'to'] } },
+  { name: 'eng_progress', description: 'Engineering\'s strip chart in figures: how far each layer of the road has got up to a day – km on each side, this month, % of the length.',
+    parameters: { type: 'OBJECT', properties: { day: { type: 'STRING', description: 'yyyy-mm-dd; leave out for today' } } } },
   { name: 'app_guide', description: 'How the app works: the pages and reports, what each is for and how to use it, and what to do about an error message. Use for every "how do I", "where do I", "what is this page", "what does this message mean".',
     parameters: { type: 'OBJECT', properties: { topic: { type: 'STRING', description: 'what the person wants to do or the message he saw, in a few words' } }, required: ['topic'] } },
 ];
+/* ---------- THE ASSISTANT'S LOOK-UPS RUN BY THE SERVER (update-185) ----------
+ * The look-ups above from maintenance_bills on are run HERE (action aiLookup): the page / the phone app passes the name and what the
+ * AI asked for; this checks the person's OWN access to the page each one reads – the same check as when he opens that page
+ * (apiAccess_) – reads it, and gives back only what an answer needs (the totals, the first rows, short words). They only READ.
+ * Never given to the AI: the Aadhaar, PAN and bank account numbers, links, file names' store paths, version marks. */
+const AI_LOOK_MAX_ = 14000;      // the characters a look-up's answer may hold (more: its longest list is cut, and it says so)
+const aiDay_ = (v, d) => str_(v) ? checkDate_(str_(v)) : d;
+const aiMonth_ = (v, d) => { const s = str_(v); if (!s) return d; if (!/^\d{4}-\d{2}$/.test(s)) throw new Error('Give the month as yyyy-mm.'); return s; };
+const aiHas_ = v => v !== '' && v !== null && v !== undefined && !(Array.isArray(v) && !v.length);
+// a few fields of each row (only those that hold something); a long text cut; an object / list inside: its short words
+function aiPick_(rows, keys, max) {
+  return (rows || []).slice(0, max).map(r => { const o = {}; keys.forEach(k => { const v = r[k]; if (!aiHas_(v)) return;
+    o[k] = typeof v === 'string' ? (v.length > 200 ? v.slice(0, 200) + '…' : v) : v && typeof v === 'object' ? JSON.stringify(v).slice(0, 300) : v; }); return o; });
+}
+// the answer made to fit: while too long, the longest list is halved (the totals stay whole) – and it says so
+function aiFit_(o) {
+  for (let i = 0; i < 12 && JSON.stringify(o).length > AI_LOOK_MAX_; i++) {
+    let k = '', n = 0; Object.keys(o).forEach(x => { if (Array.isArray(o[x]) && o[x].length > n) { k = x; n = o[x].length; } });
+    if (!k || n < 2) break;
+    o[k] = o[k].slice(0, Math.floor(n / 2)); o.note = 'Only the first ' + o[k].length + ' of "' + k + '" are given here (the answer was too long); the totals cover all.';
+  }
+  return o;
+}
+// the machinery the AI named: its number, the same number written another way, or one machinery whose number / name holds the words
+function aiMachine_(q) {
+  q = clean_(q); if (!q) return null;
+  const all = getMaster_(), K = noKey_(q), U = q.toUpperCase();
+  const m = all.find(x => same_(x.id, q)) || all.find(x => noKey_(x.id) === K);
+  if (m) return m;
+  const hit = all.filter(x => [x.id, x.name].some(v => String(v || '').toUpperCase().indexOf(U) > -1));
+  if (hit.length === 1) return hit[0];
+  if (hit.length > 1) throw new Error('"' + q + '" fits ' + hit.length + ' machinery (' + hit.slice(0, 8).map(x => x.id).join(', ') + (hit.length > 8 ? ' …' : '') + ') – say which one.');
+  throw new Error('"' + q + '" is not in Master.');
+}
+// the vendor the AI named: the same name, else the one vendor whose name holds the words; '' = all
+function aiVendor_(q, names) {
+  q = clean_(q); if (!q) return '';
+  const K = vKey_(q), U = q.toUpperCase(), list = [...new Set(names.filter(Boolean))];
+  const same = list.find(n => vKey_(n) === K); if (same) return same;
+  const hit = list.filter(n => n.toUpperCase().indexOf(U) > -1);
+  if (hit.length === 1) return hit[0];
+  if (hit.length > 1) throw new Error('"' + q + '" fits ' + hit.length + ' vendors (' + hit.slice(0, 8).join(', ') + (hit.length > 8 ? ' …' : '') + ') – say which one.');
+  throw new Error('"' + q + '" is not a vendor of this site.');
+}
+const aiVendorNames_ = () => { const vt = vendorTable_(), m = {}; (vt ? vt.rows.map(r => clean_(r[vt.c['Vendor Name']])) : []).concat(getMaster_().map(x => clean_(x.owner))).forEach(n => { if (n) m[vKey_(n)] = m[vKey_(n)] || n; }); return Object.values(m); };
+const aiSum_ = (rows, k) => r2_((rows || []).reduce((s, r) => s + num0_(r[k]), 0));
+const aiBy_ = (rows, key, val, top) => { const m = {}; (rows || []).forEach(r => { const k = clean_(r[key]) || '(none)'; m[k] = r2_((m[k] || 0) + num0_(r[val])); }); return Object.keys(m).map(k => ({ name: k, total: m[k] })).sort((a, b) => b.total - a.total).slice(0, top); };
+const AI_LOOK_ = {
+  maintenance_bills: { fn: ['getMaint'], run: (a, run) => {
+    const to = aiDay_(a.to, today_()), from = aiDay_(a.from, to.slice(0, 8) + '01'), m = aiMachine_(a.machinery);
+    const d = run('getMaint', { from: from, to: to, no: m ? m.id : '' }), rows = d.rows || [];
+    return { from: from, to: to, machinery: m ? m.id : 'all', bills: d.count, totalRupees: d.total, byMachinery: aiBy_(rows, 'no', 'total', 20), byGarage: aiBy_(rows, 'garage', 'total', 15),
+      bills_: aiPick_(rows.map(b => Object.assign({}, b, { lines: (b.lines || []).slice(0, 15).map(l => l.work + (l.type && l.type !== 'Paid' ? ' (' + l.type + ')' : '') + ' ₹' + r2_(maintLineTotal_(l))).join('; '),
+        insurance: b.insurance && num0_(b.insurance.paid) ? (b.insurance.company || 'insurance') + ' paid ₹' + r2_(num0_(b.insurance.paid)) : '', service: b.service ? 'service' : '', files: (b.files || []).length })),
+        ['date', 'no', 'garage', 'billNo', 'km', 'total', 'lines', 'insurance', 'service', 'remark', 'files', 'enteredBy'], 60), page: 'mnt' }; } },
+  maintenance_log_book: { fn: ['maintLog'], run: (a, run) => {
+    const m = aiMachine_(a.machinery); if (!m) throw new Error('Say which machinery.');
+    const all = !str_(a.from) && !str_(a.to), to = aiDay_(a.to, today_()), d = run('maintLog', all ? { no: m.id, all: true } : { no: m.id, from: aiDay_(a.from, to.slice(0, 8) + '01'), to: to }), t = d.total || {};
+    const bills = (d.lines || []).filter(l => l.kind === 'Maintenance' || l.kind === 'Store');
+    return { machinery: m.id, name: m.name || '', type: m.type || '', from: d.from, to: d.to, startToEnd: !!d.all, maintenanceRupees: (t.maint || {}).amount, bills: (t.maint || {}).bills, insurancePaid: (t.maint || {}).insurance,
+      fuel: t.fuel, allCostsRupees: t.all, km: t.km, rupeesPerKm: t.perKm, lastService: d.lastService, byWork: aiPick_(t.byWork, ['work', 'n', 'amount'], 25),
+      entries: aiPick_(bills.map(b => Object.assign({}, b, { lines: (b.lines || []).slice(0, 15).map(l => (l.work || l.item || '') + (l.qty ? ' × ' + l.qty + (l.uom ? ' ' + l.uom : '') : '') + (num0_(l.amount) ? ' ₹' + r2_(maintLineTotal_(l)) : '')).join('; ') })),
+        ['date', 'kind', 'party', 'billNo', 'km', 'amount', 'lines', 'service', 'remark'], 60), page: 'mnt' }; } },
+  maintenance_status: { fn: ['maintStatus'], run: (a, run) => { const d = run('maintStatus', {}), rows = d.rows || [];
+    return { today: d.today, added: d.added, notAddedYet: d.none, notAdded: rows.filter(r => !r.bills).map(r => r.no), added_: aiPick_(rows.filter(r => r.bills), ['no', 'name', 'type', 'ownership', 'bills', 'from', 'upTo', 'amount'], 80), page: 'mnt' }; } },
+  vendor_bills: { fn: ['getBills'], run: (a, run) => {
+    const v = aiVendor_(a.vendor, aiVendorNames_()), d = run('getBills', { from: str_(a.from) ? checkDate_(a.from) : '', to: str_(a.to) ? checkDate_(a.to) : '', vendor: v }), rows = (d.bills || []).filter(b => b.status !== 'Deleted');
+    return { vendor: v || 'all', from: str_(a.from), to: str_(a.to), bills: rows.length, netPayableRupees: aiSum_(rows, 'net'), byVendor: aiBy_(rows, 'vendor', 'net', 20),
+      bills_: aiPick_(rows, ['billNo', 'rev', 'vendor', 'company', 'from', 'to', 'billDate', 'net', 'status', 'dnNo', 'dnAmt', 'remark', 'enteredBy'], 60), page: 'bills' }; } },
+  payments: { fn: ['getPayments'], run: (a, run) => {
+    const to = aiDay_(a.to, today_()), from = aiDay_(a.from, to.slice(0, 8) + '01'), v = aiVendor_(a.vendor, aiVendorNames_()), rows = (run('getPayments', { from: from, to: to, vendor: v }).payments || []).filter(p => p.type !== 'Opening');
+    return { from: from, to: to, vendor: v || 'all', payments: rows.length, totalRupees: aiSum_(rows, 'amount'), byVendor: aiBy_(rows, 'vendor', 'amount', 20), byMode: aiBy_(rows, 'mode', 'amount', 10),
+      payments_: aiPick_(rows, ['date', 'vendor', 'amount', 'mode', 'ref', 'type', 'bill', 'company', 'remark', 'enteredBy'], 60), page: 'pay' }; } },
+  vendor_ledger: { fn: ['vendorLedger'], run: (a, run) => {
+    const v = aiVendor_(a.vendor, aiVendorNames_()); if (!v) throw new Error('Say which vendor.');
+    const d = run('vendorLedger', { vendor: v, from: str_(a.from) ? checkDate_(a.from) : '', to: str_(a.to) ? checkDate_(a.to) : '' });
+    return { vendor: d.vendor, from: d.from, to: d.to || today_(), openingRupees: d.opening, billedRupees: d.totalBill, paidRupees: d.totalPaid, closingRupees: d.closing, meaning: 'closing = still to be paid to the vendor (a minus = paid more than billed)',
+      entries: aiPick_(d.rows, ['date', 'kind', 'billNo', 'dnNo', 'company', 'from', 'to', 'bill', 'paid', 'balance', 'mode', 'ref', 'remark'], 80), page: 'vled' }; } },
+  vendor_outstanding: { fn: ['vendorOutstanding'], run: (a, run) => {
+    const now = today_().slice(0, 7), tm = aiMonth_(a.to_month, now), fm = aiMonth_(a.from_month, tm), v = aiVendor_(a.vendor, aiVendorNames_());
+    const d = run('vendorOutstanding', { fromM: fm, toM: tm }), rows = (d.rows || []).filter(r => !v || vKey_(r.vendor) === vKey_(v));
+    return { fromMonth: fm, toMonth: tm, vendor: v || 'all', vendors: rows.length, closingRupees: aiSum_(rows, 'closing'), meaning: 'closing = still to be paid at the end of the last month (a minus = paid more than billed)',
+      rows: aiPick_(rows, ['vendor', 'opening', 'bills', 'paid', 'closing', 'lastPay'], 80), page: 'vout' }; } },
+  vendors: { fn: ['getVendors'], run: (a, run) => {
+    const q = clean_(a.query).toUpperCase(), all = run('getVendors', {}) || [];
+    const kinds = d => { const m = {}; (d || []).forEach(x => { m[x.kind] = (m[x.kind] || 0) + 1; }); return Object.keys(m).map(k => k + ' ' + m[k]).join(', '); };
+    const out = v => Object.assign({ company: v.name, owner: v.owner || '', type: v.type || '', ownership: v.ownership || '', saved: v.saved !== false, complete: !!v.complete,
+      machinery: (v.machines || []).map(m => m.id).slice(0, 30).join(', '), mobile: v.phone || '', email: v.email || '', gstRegistered: v.gstReg || '', gstNumber: v.gst || '', bank: [v.bank, v.branch].filter(Boolean).join(', '), ifsc: v.ifsc || '',
+      missing: [!v.pan && 'PAN', !v.aadhaar && 'Aadhaar', !v.account && 'bank account', !v.ifsc && 'IFSC', !v.bank && 'bank name', v.gstReg === 'Yes' && !v.gst && 'GST number', !v.phone && 'mobile'].filter(Boolean).join(', '),
+      documents: kinds(v.docs) }, {});
+    const hit = q ? all.filter(v => [v.name, v.owner].some(x => String(x || '').toUpperCase().indexOf(q) > -1)) : all.filter(v => !v.complete);
+    return { query: a.query || '', vendorsInAll: all.length, notComplete: all.filter(v => !v.complete).length, found: hit.length, vendors: aiPick_(hit.map(out), ['company', 'owner', 'type', 'ownership', 'saved', 'complete', 'machinery', 'mobile', 'email', 'gstRegistered', 'gstNumber', 'bank', 'ifsc', 'missing', 'documents'], 60),
+      never: 'the Aadhaar, PAN and bank account numbers are not given', page: 'vendors' }; } },
+  vendor_boq: { fn: ['getBoqs'], run: (a, run) => {
+    const v = aiVendor_(a.vendor, aiVendorNames_()), m = aiMachine_(a.machinery), d = run('getBoqs', { vendor: v }), K = m ? noKey_(m.id) : '';
+    const has = b => !K || JSON.stringify(b.lines || []).toUpperCase().replace(/[^A-Z0-9]/g, '').indexOf(K.replace(/[^A-Z0-9]/g, '')) > -1;
+    const rows = (d.boqs || []).filter(has).map(b => Object.assign({}, b, { lines: (b.lines || []).slice(0, 20).map(l => aiPick_([l], Object.keys(l).filter(k => !/^(id|ver|sha|url)$/i.test(k)), 1)[0]) }));
+    return { vendor: v || 'all', machinery: m ? m.id : '', boqs: rows.length, boqs_: aiPick_(rows, ['no', 'vendor', 'from', 'to', 'amendNo', 'woNo', 'woDate', 'gstPct', 'tdsPct', 'lines', 'remark'], 30), page: 'boq' }; } },
+  compliance: { fn: ['getCompliance'], run: (a, run) => {
+    const m = aiMachine_(a.machinery), d = run('getCompliance', {}), today = d.today, out = [], n = { expired: 0, due: 0, missing: 0 };
+    (d.machines || []).filter(x => !m || noKey_(x.no) === noKey_(m.id)).forEach(x => Object.keys(x.docs || {}).forEach(k => { const s = x.docs[k];
+      if (!s || ['expired', 'due', 'missing'].indexOf(s.s) === -1) return; n[s.s]++;
+      out.push({ no: x.no, type: x.type, paper: k, state: s.s === 'due' ? 'due within ' + d.soonDays + ' days' : s.s === 'missing' ? 'not entered' : 'expired', validUpto: s.v || '', days: s.days }); }));
+    out.sort((p, q) => (p.state === 'expired' ? 0 : p.state === 'not entered' ? 2 : 1) - (q.state === 'expired' ? 0 : q.state === 'not entered' ? 2 : 1) || String(p.validUpto).localeCompare(String(q.validUpto)));
+    return { today: today, machinery: m ? m.id : 'all Own machinery on site', machineryFollowed: (d.machines || []).length, counts: n, papers: aiPick_(out, ['no', 'type', 'paper', 'state', 'validUpto', 'days'], 120), meaning: 'days = days left (a minus = days since it expired)', page: 'comp' }; } },
+  breakdowns: { fn: ['getBreakdowns'], run: (a, run) => { const d = run('getBreakdowns', { date: aiDay_(a.date, today_()) });
+    return { date: d.date, underBreakdown: (d.onDate || []).length, machinery: aiPick_(d.onDate, ['no', 'type', 'owner', 'ownership', 'from', 'days', 'reason', 'remark'], 80),
+      reportOfTheDay: d.report ? { by: d.report.by, at: d.report.at, machineryInIt: (d.report.rows || []).length, breakdown: d.report.count } : 'no report submitted for this date' + (d.carried ? ' – the breakdowns of ' + d.carried + ' carry on' : ''),
+      lastReports: aiPick_(d.reports, ['date', 'by', 'total', 'count'], 10), page: 'brk' }; } },
+  fuel_cards: { fn: ['getCards', 'cardStatement'], run: (a, run) => {
+    const d = run('getCards', {}); if (d.mode !== 'card') return { onFuelCards: false, note: 'this site keeps diesel in stock – it has no fuel cards', page: 'dash' };
+    const cards = d.cards || [], q = clean_(a.card).toUpperCase();
+    if (!q) return { cards: cards.length, balanceRupees: aiSum_(cards, 'balance'), cards_: aiPick_(cards.map(c => Object.assign({}, c, { cars: (c.cars || []).join(', ') })), ['name', 'last4', 'type', 'active', 'balance', 'paid', 'spent', 'fills', 'lastFill', 'cars', 'expiry', 'expDays'], 40), page: 'cards' };
+    const c = cards.find(x => String(x.name).toUpperCase() === q || String(x.last4) === q) || (cards.filter(x => String(x.name).toUpperCase().indexOf(q) > -1).length === 1 ? cards.find(x => String(x.name).toUpperCase().indexOf(q) > -1) : null);
+    if (!c) throw new Error('"' + clean_(a.card) + '" is not a fuel card of this site (' + cards.map(x => x.name).slice(0, 10).join(', ') + ').');
+    const to = aiDay_(a.to, today_()), s = run('cardStatement', { card: c.name, from: aiDay_(a.from, to.slice(0, 8) + '01'), to: to });
+    return { card: s.card, type: s.type, from: s.from, to: s.to, openingRupees: s.opening, paidInRupees: s.paid, spentRupees: s.spent, closingRupees: s.closing, balanceNowRupees: c.balance,
+      lines: aiPick_(s.lines, ['date', 'kind', 'no', 'qty', 'unit', 'in', 'out', 'km', 'driver', 'note'], 80), page: 'cards' }; } },
+  diesel_inward: { fn: ['getInwards'], run: (a, run) => {
+    const to = aiDay_(a.to, today_()), from = aiDay_(a.from, to.slice(0, 8) + '01'), d = run('getInwards', { from: from, to: to, location: clean_(a.location), all: true }), rows = (d.rows || []).filter(r => !r.open);
+    return { from: from, to: to, location: clean_(a.location) || 'all', inwards: rows.length, litres: aiSum_(rows, 'qty'), rupees: aiSum_(rows, 'amount'), byPump: aiBy_(rows, 'pump', 'qty', 15), byLocation: aiBy_(rows, 'location', 'qty', 10),
+      inwards_: aiPick_(rows, ['date', 'qty', 'rate', 'amount', 'pump', 'billNo', 'billDate', 'location', 'enteredBy'], 60), meaning: 'byPump / byLocation totals are litres', page: 'inward' }; } },
+  diesel_transfers: { fn: ['getTransfers'], run: (a, run) => {
+    const to = aiDay_(a.to, today_()), from = aiDay_(a.from, to.slice(0, 8) + '01'), d = run('getTransfers', { from: from, to: to, location: clean_(a.location), all: true }), rows = d.rows || [];
+    return { from: from, to: to, location: clean_(a.location) || 'all', transfers: rows.length, litres: aiSum_(rows, 'qty'), byRoute: aiBy_(rows.map(r => Object.assign({ route: r.from + ' → ' + r.to }, r)), 'route', 'qty', 15),
+      transfers_: aiPick_(rows, ['date', 'shift', 'from', 'to', 'qty', 'remark', 'enteredBy'], 60), page: 'transfer' }; } },
+  machinery_cost: { fn: ['rptMachineCost'], run: (a, run) => {
+    const to = aiDay_(a.to, today_()), from = aiDay_(a.from, to.slice(0, 8) + '01'), m = aiMachine_(a.machinery), d = run('rptMachineCost', { from: from, to: to, ownerships: [] });
+    let rows = [].concat(...(d.groups || []).map(g => g.rows || [])); if (m) rows = rows.filter(r => noKey_(r.no) === noKey_(m.id));
+    rows.sort((p, q) => num0_(q.net) - num0_(p.net));
+    return { from: d.from || from, to: d.to || to, dieselRate: d.rate, machinery: m ? m.id : 'all', total: m ? undefined : d.total, byOwnership: m ? undefined : (d.groups || []).map(g => ({ ownership: g.ownership, machinery: (g.rows || []).length, rent: g.rent, dieselCost: g.dieselCost, recovered: g.recover, net: g.net })),
+      rows: aiPick_(rows, ['no', 'type', 'owner', 'ownership', 'workDays', 'hrs', 'km', 'rent', 'basis', 'issued', 'dieselCost', 'recover', 'net', 'perHr', 'perKm', 'actualAvg', 'stdAvg', 'avgUnit'], m ? 5 : 40),
+      meaning: 'net = rent + diesel issued × rate − diesel recovered; issued in litres; perHr / perKm = net ÷ hours / KM', page: 'rp-mcost' }; } },
+};
+// the action: the look-up's name and what the AI asked for → the answer (or the reason it cannot be given, as any refusal of the app)
+function aiLookup_(u, x) {
+  x = x || {};
+  const name = str_(x.name), L = Object.prototype.hasOwnProperty.call(AI_LOOK_, name) ? AI_LOOK_[name] : null;
+  if (!L) throw new Error('There is no such look-up.');
+  const a = x.args && typeof x.args === 'object' && !Array.isArray(x.args) ? x.args : {};
+  // each page it reads: the person's own access to it, checked first; then read as the page reads it
+  const run = (fn, args) => { const spec = API_[fn]; apiAccess_(u, spec, fn); return spec.withUser ? spec.f(u, args) : spec.f(args); };
+  return aiFit_(L.run(a, run));
+}
 function aiRules_(u) {
   const org = orgSettings_();
   return [

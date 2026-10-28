@@ -2214,6 +2214,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `vendorDocsOf_` (via `maintFilesOf_`), `saveVendor_` only when sent and the columns are there; `vendorDoc` (upload, Vendor Master Edit) /
   `getVendorDocs` (links); page `v_owner`, `#v_docs_box`, the list's Documents (`vDocsView`: Open / Print / Download); `#m_docs_box` only
   for Own; `getCompliance_` / `importCompliance_` Own only (`skipped`). Tests: unit `update-184`; rig `mnt184.js`, vtype181, att153.
+- 28-10-2026 (update-185, with rcl-store `store-ask`, rcl-engineering `eng-ask` and rcl-mobile 3.59.0). Report: `UPDATE_185.md`. THE
+  ASSISTANT READS THE REST OF THE ERP: `AI_TOOLS_` +29; 15 of Mechanical run by the server – `aiLookup` → `aiLookup_` / `AI_LOOK_` (each
+  through `apiAccess_` – the access check of `api()` now in one function; `aiMachine_` / `aiVendor_` – his own words; `aiFit_`; the
+  vendors without Aadhaar / PAN / account numbers); 9 `store_*` and 5 `eng_*` asked of the module itself (page `aiModLook` → its
+  `aiLook`, its sign-in of this site, its page opened unseen when it has none). No SQL. Tests: unit `update-185`; rig `ai185.js`,
+  `ai185gw.js` (gateway), claude167 / ai with 40 look-ups.
 - 28-10-2026 (update-178, with the Store's step 2 – rcl-store `store-work` – and rcl-mobile 3.55.0). Report: `UPDATE_178.md`. THE STORE'S
   OUTWARD IN THE MAINTENANCE LOG BOOK: `maintStoreLines_(m, from, to)` reads the site's `store_issue` / `store_issue_lines` (the same
   database; paged) – each issue a bill of the Party "RCL Store" (Outward <no>, the Store's average rate, the reading; on debit: "Debit",

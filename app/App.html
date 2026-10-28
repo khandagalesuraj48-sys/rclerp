@@ -6825,6 +6825,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The vendor was not saved: its Company Name is empty, a document was not sent right (or not added by you in the last 6 hours), it has more than 30 documents, the vendor is not saved yet, or this site\'s database cannot keep the Owner Name and documents yet. Nothing was saved.', 'Type the Company Name; add the document again (Add / change) and press Save vendor; take out some documents; save the vendor\'s details first. The Admin runs sql/supabase_step1zj_vendor_papers.sql once in Supabase → SQL Editor (in every site) to keep the Owner Name and the documents.'],
       mr: ['Vendor save झाला नाही: Company Name रिकामे आहे, एखादे document नीट पाठवले गेले नाही (किंवा गेल्या 6 तासांत तुम्ही जोडले नाही), 30 पेक्षा जास्त documents आहेत, vendor अजून save नाही, किंवा या site चा database अजून Owner Name आणि documents ठेवू शकत नाही. काहीही save झाले नाही.', 'Company Name टाइप करा; document पुन्हा जोडा (Add / change) आणि Save vendor दाबा; काही documents काढा; आधी vendor चे तपशील save करा. Owner Name आणि documents ठेवण्यासाठी Admin ने sql/supabase_step1zj_vendor_papers.sql एकदा Supabase → SQL Editor मध्ये चालवावा (प्रत्येक site मध्ये).'],
       hi: ['Vendor save नहीं हुआ: Company Name खाली है, कोई document ठीक से नहीं भेजा गया (या पिछले 6 घंटों में आपने नहीं जोड़ा), 30 से ज़्यादा documents हैं, vendor अभी save नहीं है, या इस site का database अभी Owner Name और documents नहीं रख सकता. कुछ भी save नहीं हुआ.', 'Company Name टाइप करें; document फिर से जोड़ें (Add / change) और Save vendor दबाएँ; कुछ documents हटाएँ; पहले vendor के विवरण save करें. Owner Name और documents रखने के लिए Admin sql/supabase_step1zj_vendor_papers.sql एक बार Supabase → SQL Editor में चलाएँ (हर site में).'] },
+    // (update-185) the assistant's look-ups run by the server, by the Store and by Engineering
+    { re: /There is no such look-up|fits \d+ (machinery|vendors|items) \(|\) – say which one\.|is not an item of this site's Store|You have no access to (the Store|Engineering) at this site|opens at another address – the assistant here cannot read it|could not be opened for this site – open it once from the menu|the sign-in ended – ask again|is not a vendor of this site|is not a fuel card of this site|Say which (machinery|vendor)\.|Give the month as yyyy-mm/i,
+      en: ['The assistant could not look this up: the machinery, vendor, item or fuel card named is not of this site, the words fit more than one, a month or date was not written as asked, or the Store / Engineering is not given to you or could not be opened here.', 'Ask again with the full number or name (one of those the answer lists); a month as 2026-10, a date as 2026-10-28. For the Store / Engineering: open it once from the menu (the Super Admin gives it in the Portal) and ask again.'],
+      mr: ['Assistant ला हे शोधता आले नाही: सांगितलेली गाडी, vendor, item किंवा fuel card या site चे नाही, शब्द एकापेक्षा जास्त नावांना लागतात, महिना / तारीख सांगितल्याप्रमाणे लिहिलेली नाही, किंवा Store / Engineering तुम्हाला दिलेले नाही किंवा इथे उघडता आले नाही.', 'पूर्ण नंबर किंवा नाव (उत्तरात दिलेल्या यादीतले एक) सांगून पुन्हा विचारा; महिना 2026-10, तारीख 2026-10-28 असा. Store / Engineering साठी: menu मधून एकदा उघडा (Super Admin Portal मध्ये देतात) आणि पुन्हा विचारा.'],
+      hi: ['Assistant यह नहीं खोज सका: बताई गई गाड़ी, vendor, item या fuel card इस site का नहीं है, शब्द एक से ज़्यादा नामों पर लागू होते हैं, महीना / तारीख बताए अनुसार नहीं लिखी है, या Store / Engineering आपको दिया नहीं है या यहाँ खुल नहीं सका.', 'पूरा नंबर या नाम (जवाब में दी गई सूची में से एक) बताकर फिर पूछें; महीना 2026-10, तारीख 2026-10-28 ऐसे. Store / Engineering के लिए: menu से एक बार खोलें (Super Admin Portal में देते हैं) और फिर पूछें.'] },
   ];
   const FIX_ANY = { en: ['The app could not accept this. The line above says which field or value is the problem.', 'Correct that field and try again. If it is not clear, take a photo of this box and send it to the Admin.'],
     mr: ['App ला हे स्वीकारता आले नाही. वरच्या ओळीत कोणता field किंवा किंमत अडचणीची आहे ते दिले आहे.', 'तो field दुरुस्त करून पुन्हा प्रयत्न करा. समजले नाही तर या चौकटीचा फोटो काढून Admin ला पाठवा.'],
@@ -13489,8 +13494,36 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const errs = FIX_RULES.filter(r => r.re.test(String(a.topic || ''))).slice(0, 3).map(r => ({ whatWentWrong: r.en[0], whatToDo: r.en[1] }));
       return { pagesThatFit: scored.map(x => ({ tab: x.t.tab, title: x.t.title, whatItIsFor: x.g ? x.g.en[0] : '', howToUseIt: x.g ? x.g.en[1] : '' })), helpForThisMessage: errs, allPagesThisUserCanOpen: tabs, keys: 'Ctrl + K = search, Ctrl + S = save the page, Alt + B = back, the ? button on every page = its guide' }; },
   };
-  const AI_NAMES = { prepare_diesel_issue: 'Diesel Issue – prepared', prepare_log_entry: 'Log Book entry – prepared', diesel_issues: 'Diesel issues', log_book: 'Log Book', pending_log_book: 'Pending Log Book', diesel_stock: 'Diesel stock', machinery: 'Asset Master', diesel_average: 'Actual vs standard average', diesel_watch: 'Diesel Watch', activity: 'Activity Log', app_guide: 'The app\'s guide' };
-  const aiWhat = (name, a) => (AI_NAMES[name] || name) + (a && a.from ? ' ' + showDate(a.from) + (a.to && a.to !== a.from ? ' to ' + showDate(a.to) : '') : a && a.date ? ' ' + showDate(a.date) : '') + (a && (a.machinery || a.query || a.text) ? ' · ' + (a.machinery || a.query || a.text) : '');
+  /* (update-185) A LOOK-UP OF THE STORE / ENGINEERING OF THIS SITE: asked of that module itself (its action aiLook), with the person's
+   * own sign-in THERE – so he gets only what that module lets him see. A module of this address only (the same screen); its sign-in
+   * is the one of its page here: when it has none (or of another site), its page is opened unseen (it signs in by itself, as when
+   * he opens it from the menu) and the look-up is asked again. */
+  async function aiModLook(key, path, name, args) {
+    const m = (PT.mods || []).find(x => x.key === key), label = key === 'store' ? 'the Store' : 'Engineering';
+    if (!m) throw new Error('You have no access to ' + label + ' at this site – the Super Admin gives it in the Portal.');
+    if (!inHere(m)) throw new Error(label.charAt(0).toUpperCase() + label.slice(1) + ' opens at another address – the assistant here cannot read it.');
+    const cur = (S.siteInfo && S.siteInfo.site) || ptSite(), base = modBase(m), email = String((S.user && S.user.email) || '').toLowerCase();
+    const me = async () => { try { const r = await fetch(base + '/api/me', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(8000) }); const j = await r.json(); return !!(j && j.signedIn && j.site === cur); } catch (e) { return false; } };
+    if (!(await me())) {
+      const hash = '#site=' + encodeURIComponent(cur) + (EXT.on && EXT.on.key === m.key ? '&page=' + encodeURIComponent(EXT.on.page) : '') + '&u=' + encodeURIComponent(email), fr = document.getElementById('ext_' + m.key);      // (the page he looks at, if it is this module's, stays)
+      if (fr) fr.src = base + '/?embed=1' + hash; else extFrame(m, hash);
+      let ok = false; for (let i = 0; i < 30 && !ok; i++) { await new Promise(r => setTimeout(r, 500)); ok = await me(); }
+      if (!ok) throw new Error(label.charAt(0).toUpperCase() + label.slice(1) + ' could not be opened for this site – open it once from the menu and ask again.');
+    }
+    const r = await fetch(base + '/api/' + path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: JSON.stringify({ action: 'aiLook', name: name, args: args || {} }), signal: AbortSignal.timeout(28000) });
+    let j = {}; try { j = await r.json(); } catch (e) { j = {}; }
+    if (!r.ok || j.error) throw new Error(j.error === 'SESSION_EXPIRED' ? label + ': the sign-in ended – ask again.' : j.error || label + ' did not answer (' + r.status + ').');
+    delete j.ok; return j;
+  }
+  const AI_NAMES = { prepare_diesel_issue: 'Diesel Issue – prepared', prepare_log_entry: 'Log Book entry – prepared', diesel_issues: 'Diesel issues', log_book: 'Log Book', pending_log_book: 'Pending Log Book', diesel_stock: 'Diesel stock', machinery: 'Asset Master', diesel_average: 'Actual vs standard average', diesel_watch: 'Diesel Watch', activity: 'Activity Log', app_guide: 'The app\'s guide',
+    // (update-185) the look-ups the server runs
+    maintenance_bills: 'Maintenance bills', maintenance_log_book: 'Maintenance Log Book', maintenance_status: 'Log book status', vendor_bills: 'Saved Bills', payments: 'Machinery Payments', vendor_ledger: 'Vendor Ledger',
+    vendor_outstanding: 'Vendor Outstanding', vendors: 'Vendor Master', vendor_boq: 'Vendor BOQ', compliance: 'Vehicle Compliance', breakdowns: 'Breakdown', fuel_cards: 'Fuel Cards', diesel_inward: 'Diesel Inward',
+    diesel_transfers: 'Diesel Transfer', machinery_cost: 'Machinery Cost Sheet',
+    store_stock: 'Store – stock', store_statement: 'Store – stock statement', store_item_ledger: 'Store – item ledger', store_inward: 'Store – Inward (GRN)', store_outward: 'Store – Issue (Outward)',
+    store_consumption: 'Store – consumption', store_returnable: 'Store – returnable items', store_requirements: 'Store – requirements', store_purchase_orders: 'Store – purchase orders',
+    eng_my_work: 'Engineering – my work', eng_dashboard: 'Engineering – dashboard', eng_report: 'Engineering – report', eng_performance: 'Engineering – performance', eng_progress: 'Engineering – progress' };
+  const aiWhat = (name, a) => (AI_NAMES[name] || name) + (a && a.from ? ' ' + showDate(a.from) + (a.to && a.to !== a.from ? ' to ' + showDate(a.to) : '') : a && a.date ? ' ' + showDate(a.date) : '') + (a && (a.machinery || a.vendor || a.card || a.item || a.query || a.text) ? ' · ' + (a.machinery || a.vendor || a.card || a.item || a.query || a.text) : '');
   // the answer as it is shown: plain text, **bold**, and [[open:tab|Label]] as a button to that page
   function aiHtml(text) {
     return esc(String(text || '').trim()).replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/\[\[open:([a-z0-9-]+)\|([^\]\n]{1,60})\]\]/gi, (m, tab, label) => $('tab-' + tab) && !$('tab-' + tab).hidden ? '<button type="button" class="ai-go" data-aigo="' + tab + '">' + label + ' →</button>' : label);
@@ -13823,7 +13856,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         // the look-ups it asks for run side by side
         wait.textContent = 'Looking up: ' + calls.map(c => aiWhat(c.functionCall.name, c.functionCall.args || {})).join(', ') + '…';
         const outs = await Promise.all(calls.map(async c => { const name = c.functionCall.name, args = c.functionCall.args || {}; used.push(aiWhat(name, args));
-          let res; try { res = AI_RUN[name] ? await AI_RUN[name](args) : { error: 'There is no such look-up.' }; } catch (e) { res = { error: errMsg(e) }; }
+          // (update-185) a look-up the page does not run itself: the server runs it (aiLookup) – with his own access to that page
+          let res; try { res = AI_RUN[name] ? await AI_RUN[name](args) : /^store_/.test(name) ? await aiModLook('store', 'work', name, args) : /^eng_/.test(name) ? await aiModLook('engineering', 'eng', name, args) : await rawCall('aiLookup', { name: name, args: args }); } catch (e) { res = { error: errMsg(e) }; }
           return { functionResponse: { name: name, response: res } }; }));
         AI.turns.push({ role: 'user', parts: outs }); wait.textContent = 'Writing the answer…';
       }
