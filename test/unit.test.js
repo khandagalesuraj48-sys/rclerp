@@ -6931,3 +6931,50 @@ test('update-175: the Maintenance Log Book "Start to end" (from its first bill, 
   assert.match(app, /const mliOwn = \(\) => \(S\.master \|\| \[\]\)\.filter\(m => m\.ownership === 'Own'\);/);
   assert.match(app, /const names = !d\.fix \|\| \(d\.sheets\.some\(x => x\.done\) && !d\.sheets\.some\(x => x\.no && !x\.done\)\) \? '' : /, 'the names\' list gone once everything is imported');
 });
+
+test('update-176: the old log book\'s PDF read a page at a time – only that page goes to the AI (taken out of the PDF on the page and on the server); too slow once: the same page asked again of the quicker model', async () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // the server's helper: a real PDF of 5 pages → a PDF of page 3 alone (pdf-lib, app/vendor), the file's own number of pages
+  const L = require('../app/vendor/pdf-lib-1.17.1.min.js'), d = await L.PDFDocument.create();
+  for (let i = 1; i <= 5; i++) d.addPage([842, 595]);
+  const b64 = Buffer.from(await d.save()).toString('base64'), { pdfPartSync } = require('../server/syncfetch');
+  const p3 = pdfPartSync(b64, 3, 1);
+  assert.deepStrictEqual([p3.pages, p3.from, p3.to, (await L.PDFDocument.load(Buffer.from(p3.data, 'base64'))).getPageCount()], [5, 3, 3, 1]);
+  assert.deepStrictEqual(pdfPartSync(b64, 9, 1), { pages: 5, from: 9, to: 8, data: '' }, 'after the last page: nothing');
+  assert.match(pdfPartSync(Buffer.from('not a pdf').toString('base64'), 1, 1).error, /No PDF header/);
+  assert.match(fs.readFileSync(path.join(root, 'server', 'gas.js'), 'utf8'), /__pdf: \{ part: \(b64, from, n\) => pdfPartSync\(String\(b64 \|\| ''\), from, n\) \}/);
+  assert.match(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'), /"api\/rpc\.js": \{\s*"maxDuration": 60,\s*"includeFiles": "app\/\*\*"/, 'the PDF tool (app/vendor) goes with the server');
+  // the server's reading: one page alone, not kept (no other call reads it), its page told; the quicker model when asked "fast"
+  const sent = [], answers = [], reply = (code, obj) => ({ code: code, text: typeof obj === 'string' ? obj : JSON.stringify(obj) });
+  const say = t => reply(200, { id: 'm', type: 'message', role: 'assistant', content: [{ type: 'text', text: t }], stop_reason: 'end_turn', usage: {} });
+  ctx.__ai = { on: () => true, service: () => 'claude', model: () => '', wait: () => {}, call: (m, p, body, ms) => { sent.push({ body: JSON.parse(JSON.stringify(body)), ms: ms }); return answers.shift() || reply(500, { type: 'error' }); } };
+  const parts = []; ctx.__pdf = { part: (b, from, n) => { parts.push([from, n]); return b === 'BAD' ? { error: 'no' } : { pages: 5, from: from, to: from, data: 'UEFHRQ==' }; } };
+  run('() => PropertiesService.getScriptProperties().setProperty("AI_MODEL_C", JSON.stringify({ list: ["claude-sonnet-5-5", "claude-haiku-5-5"], at: Date.now() }))');
+  const pdf = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4 the whole log book').toString('base64'), one = { pages: 1, tables: [{ machinery: 'ROLLER NO-03', rows: [[1, '2022-12-02', 'Store', null, 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, null]] }] };
+  try {
+    answers.push(say(JSON.stringify(one)));
+    const r = run('x => readMaintLog_(x)', { data: pdf, from: 3, n: 1, fast: 0 }), q = sent[0].body, doc = q.messages[0].content[0];
+    assert.deepStrictEqual([r.from, r.to, r.pages, r.tables[0].rows.length], [3, 3, 5, 1], 'page 3 of the file\'s 5');
+    assert.deepStrictEqual([doc.source.data, doc.cache_control, q.model, parts[0]], ['UEFHRQ==', undefined, 'claude-sonnet-5-5', [3, 1]], 'only that page, not kept; Sonnet first');
+    assert.match(q.messages[0].content[1].text, /Read this page \(page 3 of the 5 pages of the log book – the only page given\)\./);
+    assert.deepStrictEqual(run('x => readMaintLog_(x)', { data: pdf, from: 6, n: 1, fast: 0 }), { from: 6, to: 5, pages: 5, tables: [] }, 'after the last page: nothing asked');
+    assert.strictEqual(sent.length, 1);
+    answers.push(say(JSON.stringify(one))); run('x => readMaintLog_(x)', { data: pdf, from: 2, n: 1, fast: 1 });
+    assert.strictEqual(sent[1].body.model, 'claude-haiku-5-5', 'fast: the quicker model first');
+    answers.push(say(JSON.stringify(one))); run('x => readMaintLog_(x)', { data: pdf, from: 2, n: 1 });
+    assert.strictEqual(sent[2].body.model, 'claude-haiku-5-5', 'a phone app of before: its second try (n 1, no "fast") – the quicker model');
+    answers.push(say(JSON.stringify(one))); const r2 = run('x => readMaintLog_(x)', { data: pdf, from: 4, n: 2 });
+    assert.deepStrictEqual([sent[3].body.model, r2.from, r2.to], ['claude-sonnet-5-5', 4, 4], 'its first try (n 2): Sonnet, one page – it goes on from the page after');
+    answers.push(say(JSON.stringify(one))); run('x => readMaintLog_(x)', { data: 'data:application/pdf;base64,BAD', from: 1, n: 2 });
+    assert.deepStrictEqual([sent[4].body.messages[0].content[0].source.data, sent[4].body.messages[0].content[0].cache_control], ['BAD', { type: 'ephemeral' }], 'a PDF that cannot be taken apart: whole, kept – as before');
+    assert.match(sent[4].body.messages[0].content[1].text, /Read ONLY pages 1 to 2 of this PDF/);
+  } finally { delete ctx.__ai; delete ctx.__pdf; run('() => PropertiesService.getScriptProperties().deleteProperty("AI_MODEL_C")'); }
+  // the page: the PDF taken apart with the app's own file, a page sent alone; asked again "fast" after a failure
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /sc\.src = window\.rclVendor\('pdf-lib-1\.17\.1\.min\.js'\)/);
+  assert.match(app, /const one = await L\.PDFDocument\.create\(\); \(await one\.copyPages\(src, \[p - 1\]\)\)\.forEach\(x => one\.addPage\(x\)\);/);
+  assert.match(app, /for \(const fast of \[0, 1\]\) \{\s*try \{ r = await call\('readMaintLog', Object\.assign\(\{\}, args, \{ n: 1, fast: fast \}\)\);/);
+  assert.match(fs.readFileSync(path.join(root, 'app', 'vendor', 'README.txt'), 'utf8'), /pdf-lib-1\.17\.1\.min\.js +pdf-lib 1\.17\.1/);
+  assert.strictEqual(require('crypto').createHash('sha256').update(fs.readFileSync(path.join(root, 'app', 'vendor', 'pdf-lib-1.17.1.min.js'))).digest('hex'), '0f9a5cad07941f0826586c94e089d89b918c46e5c17cf2d5a3c6f666e3bc694f', 'the published file, unchanged');
+});

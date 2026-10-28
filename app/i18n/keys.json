@@ -9224,4 +9224,12 @@
 "yyyy-MM-dd",
 "yyyy-mm-dd; leave out for today",
 "zero",
-"Zero"]
+"Zero",
+"Could not read the page.",
+"pages of the log book – the only page given)",
+"Reading with the AI… page {0} of {1}",
+"The PDF tool could not be loaded.",
+"The PDF tool did not load.",
+"this page (one page of the log book)",
+"this page (page",
+"this page (page {0} of the {1} pages of the log book – the only page given)"]

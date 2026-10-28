@@ -10,7 +10,7 @@
 //   1. the names: the AI's list (GANESH MOTERS → Ganesh Motors, FUEL WATER SEPRETOR → …), nothing ticked; one ticked goes with its bill;
 //      a line whose Qty × Rate is not its Amount shown to look at
 //   2. the duplicates listed (rows, date, ₹, the bill it is) – also a bill whose party is written another way
-//   3. a PDF read by the AI 2 pages a call (a cut answer: one page), the file kept; two machinery in it; Check, Import
+//   3. a PDF read by the AI a page a call (update-176: each page taken out and sent alone; a cut answer: the quicker model); two machinery in it; Check, Import
 //   4. "Download the format (Excel)": a sheet for each Own machinery on the site, its number in row 3, the heading
 //   5. (update-174) a user with Maintenance Edit sees the import, View only does not
 //   6. (update-175) an Own machinery no longer on the site offered too; the names' list gone after the import; the log book "Start to end"
@@ -135,22 +135,26 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     ok('2. the same file again (its names unticked now): "✓ 0 new bill(s) … 4 bill(s) already there – left out" – each listed: its rows, date, ₹ and the bill it is (GANESH MOTERS = the saved Ganesh Motors bill); still 4 bills – nothing twice',
       /✓ 0 new bill\(s\)/.test(again.st) && /4 bill\(s\) already there – left out/.test(again.st) && sql('rcl', 'select count(*) from maintenance') === '4' &&
       JSON.stringify(again.list) === JSON.stringify(['Line 5 · 02-12-2022 · ₹1,392.40 – already saved as MT-000001', 'Line 6–8 · 05-01-2023 · ₹2,365.90 – already saved as MT-000002', 'Line 9–10 · 29-01-2024 · ₹12,241.32 – already saved as MT-000003', 'Line 11 · 30-12-2023 · ₹17.70 – already saved as MT-000004']), again);
-    // ---- 3. a PDF of the old log book, read by the AI (the stand-in answers as Claude: pages 1–2; 3–4 cut off; page 3) ----
+    // ---- 3. a PDF of the old log book, read by the AI (the stand-in answers as Claude) – (update-176) a real PDF of 3 pages: each page
+    //      taken out on the page and sent ALONE; page 1; page 2 cut off – asked again of the quicker model (Haiku); page 3 ----
     await aiSay('/__clear');
-    await aiSay('/__next', JSON.stringify({ pages: 3, tables: [{ machinery: 'ROLLER NO-03', rows: [[1, '2022-12-02', 'Store', null, 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, 1392.4], [2, '2025-02-10', 'Store', 620, 'GREASE', 2, 'Kg', 180, 360, 64.8, 424.8, 424.8]] },
-      { machinery: null, rows: [[3, null, null, null, 'BULB', 1, 'Nos', 40, 40, 7.2, 47.2, 47.2]] }] }));
-    await aiSay('/__next', '{"pages": 3, "tables": [{"machinery": "MH12XW0169", "rows": [[1, "2026-');
-    await aiSay('/__next', JSON.stringify({ pages: 3, tables: [{ machinery: 'MH12XW0169', rows: [[1, '2026-02-10', 'Navnit Motors', 13153, 'Wiper blade', 1, 'Nos', 310, 310, 55.8, 365.8, 365.8]] }] }));
-    const pdfFile = path.join(dir, 'Old log book.pdf'); fs.writeFileSync(pdfFile, '%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n');
+    await aiSay('/__next', JSON.stringify({ pages: 1, tables: [{ machinery: 'ROLLER NO-03', rows: [[1, '2022-12-02', 'Store', null, 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, 1392.4], [2, '2025-02-10', 'Store', 620, 'GREASE', 2, 'Kg', 180, 360, 64.8, 424.8, 424.8]] }] }));
+    await aiSay('/__next', '{"pages": 1, "tables": [{"machinery": null, "rows": [[3, null, null, null, "BU');
+    await aiSay('/__next', JSON.stringify({ pages: 1, tables: [{ machinery: null, rows: [[3, null, null, null, 'BULB', 1, 'Nos', 40, 40, 7.2, 47.2, 47.2]] }] }));
+    await aiSay('/__next', JSON.stringify({ pages: 1, tables: [{ machinery: 'MH12XW0169', rows: [[1, '2026-02-10', 'Navnit Motors', 13153, 'Wiper blade', 1, 'Nos', 310, 310, 55.8, 365.8, 365.8]] }] }));
+    const PL = require(path.join(__dirname, '..', '..', 'app', 'vendor', 'pdf-lib-1.17.1.min.js')), pd = await PL.PDFDocument.create(), pf = await pd.embedFont(PL.StandardFonts.Helvetica);
+    for (let i = 1; i <= 3; i++) pd.addPage([842, 595]).drawText('MAINTENANCE LOG BOOK – page ' + i, { x: 40, y: 540, size: 18, font: pf });
+    const pdfFile = path.join(dir, 'Old log book.pdf'); fs.writeFileSync(pdfFile, Buffer.from(await pd.save()));
     await F.evaluate(() => { $('mti_file').value = ''; }); await inp.uploadFile(pdfFile);
     for (let i = 0; i < 60 && !(await F.evaluate(() => !!(S.mli && S.mli.name === 'Old log book.pdf' && S.mli.fix && !S.mli.fix.busy))); i++) await wait(400);
     const pr = await F.evaluate(() => ({ name: $('mti_name').textContent, sheets: S.mli.sheets.map(x => [x.sheet, x.label, x.no, x.rows, x.bills.map(b => b.rows + ':' + b.date + ':' + b.garage + ':' + b.km + ':' + b.lines.map(l => l.work).join('+')).join(' | ')]),
       names: (document.querySelector('#mti_out .mli-names p') || {}).textContent }));
     const lg3 = (await aiSay('/__log')).filter(x => x.kind === 'document');
-    ok('3. a PDF: read by the AI 2 pages a call – pages 1–2, 3–4 (cut off) then page 3 alone – the file kept by Claude every time; 2 machinery: ROLLER NO-03 (a page going on without its name joined to it) put to ' + R + ', MH12XW0169 not on this site – not imported; the names: none to change',
+    ok('3. (update-176) a PDF of 3 pages: read by the AI a page a call, each page taken out of the file and sent ALONE (one page, not kept) – page 1, page 2 cut off and asked again of the quicker model (Haiku), page 3; 2 machinery: ROLLER NO-03 (a page going on without its name joined to it) put to ' + R + ', MH12XW0169 not on this site – not imported; the names: none to change',
       /Old log book\.pdf – 2 sheet\(s\)/.test(pr.name) && JSON.stringify(pr.sheets) === JSON.stringify([['ROLLER NO-03', 'ROLLER NO-03', R, 3, 'Line 1:2022-12-02:Store::AD BLUE | Line 2–3:2025-02-10:Store:620:GREASE+BULB'], ['MH12XW0169', 'MH12XW0169', '', 1, 'Line 1:2026-02-10:Navnit Motors:13153:Wiper blade']]) &&
-      lg3.length === 3 && lg3.every(x => x.kept === 'ephemeral' && x.image === 'application/pdf' && x.jsonAsked) && /^ONLY pages 1 to 2/.test(lg3[0].read) && /^ONLY pages 3 to 4/.test(lg3[1].read) && /^ONLY page 3/.test(lg3[2].read) &&
-      pr.names === '✓ The AI found no name written in more than one way.', [pr, lg3.map(x => [x.read, x.kept, x.maxTokens])]);
+      lg3.length === 4 && lg3.every(x => !x.kept && x.image === 'application/pdf' && x.jsonAsked && x.read === 'this page (one page of the log book)') &&
+      JSON.stringify(lg3.map(x => x.model)) === JSON.stringify(['claude-sonnet-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-sonnet-5-5']) &&
+      pr.names === '✓ The AI found no name written in more than one way.', [pr, lg3.map(x => [x.read, x.kept, x.model, x.maxTokens])]);
     await F.evaluate(() => $('mti_check').click());
     for (let i = 0; i < 40 && !(await F.evaluate(() => S.mli.sheets[0].res)); i++) await wait(400);
     await wait(300);

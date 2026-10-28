@@ -17472,8 +17472,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return { sheet: name, label: label, no: mliMatch(label, name), bills: bills, rows: nrows, fileTotal: r2(ftotal), total: total, bad: bad, warn: warn, res: null, done: null };
   }
   const MLI_HEAD = ['Sr No', 'Date', 'Party Name', 'Current Reading', 'Particulars', 'Qty', 'Uom', 'Basic Rate', 'Amount', 'GST Amount', 'Amount With GST', 'Total'];
-  /* (update-173, "PDF import – Claude AI वाचेल") a PDF (or a photo of a page) of the old log book read by the AI, 2 pages a call (one
-   * when its answer was too long or too slow): each machinery's table a sheet (a page without a name goes on with the one before),
+  /* (update-173, "PDF import – Claude AI वाचेल") a PDF (or a photo of a page) of the old log book read by the AI, a page a call (update-176:
+   * only that page sent): each machinery's table a sheet (a page without a name goes on with the one before),
    * its rows under the log book's heading – then read as a sheet of the Excel (mliSheet). Nothing is saved. */
   async function mliReadAi(f, say) {
     if (f.size > 3 * 1024 * 1024) throw new Error('This log book file is too big (more than 3 MB) – give it in parts (a PDF of fewer pages).');
@@ -17481,14 +17481,37 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const data = (await new Promise((res, rej) => { const fr = new FileReader(); fr.onerror = () => rej(new Error('Could not read the file.')); fr.onload = () => res(fr.result); fr.readAsDataURL(f); }))
       .replace(/^data:[^;,]*;base64,/, 'data:' + kind + ';base64,');      // (a file without its type: by its name)
     const pdf = /^data:application\/pdf/.test(data), tables = [];
+    /* (update-176, his picture: "the AI service was too slow to answer" at page 1) ONE PAGE AT A TIME, AND ONLY THAT PAGE IS SENT: the page
+     * is taken out of the PDF here (pdf-lib, the app's own file) – before, the whole file went at every call and the AI worked through
+     * all its pages. Too slow (or busy) once: the same page asked again of the quicker model. A PDF that cannot be taken apart here goes
+     * whole, and the server takes the page out. */
+    const ask = async (args, page) => {
+      let r = null, err = null;
+      for (const fast of [0, 1]) {
+        try { r = await call('readMaintLog', Object.assign({}, args, { n: 1, fast: fast })); err = null; if (!r.again && !r.off) break; } catch (er) { err = er; r = null; }
+        if (r && r.off) break;
+      }
+      if (err) throw err;
+      if (r.off) throw new Error('The AI is not set up – a PDF or a photo cannot be read now; import the Excel instead.');
+      if (r.again) throw new Error('The AI could not read page ' + page + ' of the log book – try again, or give a PDF of fewer pages.');
+      return r;
+    };
+    let L = null, src = null;
+    if (pdf) { try { L = await mliPdfLib(); src = await L.PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true, updateMetadata: false }); } catch (e) { src = null; } }
+    if (src) {
+      const pages = src.getPageCount();
+      for (let p = 1; p <= Math.min(pages, 500); p++) {
+        say('Reading with the AI… page ' + p + ' of ' + pages);
+        const one = await L.PDFDocument.create(); (await one.copyPages(src, [p - 1])).forEach(x => one.addPage(x));
+        const r = await ask({ data: 'data:application/pdf;base64,' + await mliB64(await one.save()), from: 1 }, p);
+        tables.push(...(r.tables || []));
+      }
+      return mliAiSheets(f.name, tables);
+    }
     let from = 1, pages = 0;
     for (let guard = 0; guard < 500; guard++) {
       say(pdf ? 'Reading with the AI… page ' + from + (pages ? ' of ' + pages : '') : 'Reading with the AI…');
-      let r = null;
-      if (pdf) { try { r = await call('readMaintLog', { data: data, from: from, n: 2 }); } catch (er) { r = null; } }      // (too slow: one page)
-      if (!r || r.again) r = await call('readMaintLog', { data: data, from: from, n: 1 });
-      if (r.off) throw new Error('The AI is not set up – a PDF or a photo cannot be read now; import the Excel instead.');
-      if (r.again) throw new Error('The AI could not read page ' + from + ' of the log book – try again, or give a PDF of fewer pages.');
+      const r = await ask({ data: data, from: from }, from);
       tables.push(...(r.tables || []));
       pages = r.pages || pages;
       if (!pdf || !(pages ? r.to < pages : (r.tables || []).length)) break;
@@ -17496,6 +17519,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     return mliAiSheets(f.name, tables);
   }
+  // (update-176) the PDF tool (pdf-lib 1.17.1 – the app's own file, /vendor/) and a PDF's bytes as base64
+  let MLI_PDFL = null;
+  function mliPdfLib() {
+    if (window.PDFLib) return Promise.resolve(window.PDFLib);
+    return MLI_PDFL = MLI_PDFL || new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = window.rclVendor('pdf-lib-1.17.1.min.js'); sc.async = true;
+      sc.onload = () => (window.PDFLib ? res(window.PDFLib) : rej(new Error('The PDF tool did not load.'))); sc.onerror = () => { MLI_PDFL = null; rej(new Error('The PDF tool could not be loaded.')); }; document.head.appendChild(sc); });
+  }
+  const mliB64 = u8 => new Promise((res, rej) => { const fr = new FileReader(); fr.onerror = () => rej(new Error('Could not read the page.')); fr.onload = () => res(String(fr.result).replace(/^data:[^,]*,/, '')); fr.readAsDataURL(new Blob([u8], { type: 'application/pdf' })); });
   // the AI's tables (page after page) as sheets: a table without its machinery goes on with the one before
   function mliAiSheets(fname, tables) {
     const groups = [];
