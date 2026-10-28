@@ -163,14 +163,9 @@ const say = async j => fetch(AI + '/__meter?say=' + encodeURIComponent(JSON.stri
       same(l3[2], { work: 'Engine oil', type: 'Service Plan', amount: 0, qty: 4.5, rate: 520, disc: 100 }) && same(l3[1], { work: 'Wheel alignment', type: 'Paid', amount: 600, qty: 1, rate: 600, disc: 0 }), [id3, amountOf(id3), l3]);
     ok('   the message: "… saved – ₹821.00. (We paid ₹821.00 of ₹2,821.00.)"', /saved – ₹821\.00\. \(We paid ₹821\.00 of ₹2,821\.00\.\)/.test(toastTxt), toastTxt);
     await wait(2500);
-    const lst = await F.evaluate(() => { const tr = [...document.querySelectorAll('#mt_rows tr')].find(t => t.cells[0] && t.cells[0].textContent === 'MT-000003'); return tr ? [...tr.cells].map(c => c.innerText.trim()) : null; });
-    const fit = await F.evaluate(() => { const w = document.querySelector('#mt_rows').closest('.table-wrap'); return { sw: w.scrollWidth, cw: w.clientWidth }; });
-    ok('   the list: ₹821.00 with "bill ₹2,821.00", "insurance ₹2,000.00 (' + INS + ')", "free worth ₹2,940.00" one under the other; the free lines named with their kind; the list fits the page (no scrolling sideways)', !!lst &&
-      lst.some(c => c === '821.00\nbill ₹2,821.00\ninsurance ₹2,000.00 (Test General Insurance)\nfree worth ₹2,940.00') && lst.some(c => /Engine oil \(Service Plan\); Oil filter \(Warranty\); Car wash \(FOC\)/.test(c)) && fit.sw <= fit.cw + 1, [lst, fit]);
-    await tidy(); await F.evaluate(() => $('mt_rows').scrollIntoView({ block: 'start' })); await wait(300);
-    await mp.screenshot({ path: path.join(SHOT, 'mnt168_list.png') });
+    // (update-182) the bills list is taken out ("Maintenance bills ha section remove kr") – the bill is seen in the car's log book below
     // Edit: everything back
-    await F.evaluate(() => document.querySelector('[data-mte="MT-000003"]').click()); await wait(2500);
+    await F.evaluate((no, d) => mtBillById('MT-000003', no, d).then(mtEdit), C2, d2); await wait(2500);      // (update-182: from the log book – "Change the whole bill")
     const ed = await F.evaluate(() => { const trs = [...document.querySelectorAll('#mt_lines tr')];
       return { t: $('mt_title').textContent, kinds: trs.map(tr => tr.querySelector('.mt-t').value), free: trs.filter(tr => tr.classList.contains('mt-free')).length, ins: $('mt_ins').checked, insBox: !$('mt_insbox').hidden,
         insco: $('mt_insco').value, claim: $('mt_insclaim').value, paid: $('mt_inspaid').value, total: $('mt_total').textContent, we: $('mt_wepaid').textContent }; });
@@ -199,7 +194,7 @@ const say = async j => fetch(AI + '/__meter?say=' + encodeURIComponent(JSON.stri
     await tidy(); await F.evaluate(() => $('rpmlog_out').scrollIntoView({ block: 'start' })); await wait(300);
     await mp.screenshot({ path: path.join(SHOT, 'mnt168_logbook.png') });
     // ---- 4. मराठी ----
-    await F.evaluate(() => document.querySelector('[data-mte="MT-000003"]').click()); await wait(2500);
+    await F.evaluate((no, d) => mtBillById('MT-000003', no, d).then(mtEdit), C2, d2); await wait(2500);      // (update-182: from the log book – "Change the whole bill")
     await F.evaluate(() => i18nSet('mr')); await wait(2500);
     const mr = await F.evaluate(() => { const s = [...document.querySelectorAll('#mt_lines tr')][2].querySelector('.mt-t');
       return { opt: [...s.options].map(o => o.textContent + '=' + o.value), val: s.value, head: [...document.querySelectorAll('#sec-mnt .mt-lines thead th')].map(t => t.textContent.trim()).slice(2, 7), ins: document.querySelector('#sec-mnt .mt-ins b').textContent }; });

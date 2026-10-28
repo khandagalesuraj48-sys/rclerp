@@ -106,11 +106,12 @@ const R = 'RL-180';
     await F.evaluate(r => { $('ml_no').value = r; $('ml_all').checked = true; $('ml_all').dispatchEvent(new Event('change')); $('ml_go').click(); }, R);
     for (let i = 0; i < 30 && !(await F.evaluate(() => !$('rpmlog_out').hidden && S.rp && S.rp.mlog && S.rp.mlog.d.all)); i++) await wait(400);
     await wait(600);
-    const lk = await F.evaluate(() => ({ lines: [...document.querySelectorAll('#rpmlog_body [data-mll]')].map(td => td.dataset.mlid + '#' + td.dataset.mll + ' ' + td.firstChild.textContent + ' [' + [...td.querySelectorAll('.mlog-lact button')].map(x => x.textContent).join('/') + ']'),
-      bills: document.querySelectorAll('#rpmlog_body .mlog-act').length, html: /mlog-lact|>Edit</.test(S.rp.mlog.v.html) }));
-    ok('3. the log book of ' + R + ': each of its 5 lines has its own Edit · Delete (beside the bill\'s Change / Delete); not in the print / Excel',
+    // (update-182) Edit · Delete in the Action column at the end of each entry – no buttons under the Party Name / the Particulars
+    const lk = await F.evaluate(() => ({ lines: [...document.querySelectorAll('#rpmlog_body tr[data-mll]')].map(tr => tr.dataset.mlid + '#' + tr.dataset.mll + ' ' + [...tr.querySelectorAll('td.mc')].pop().textContent + ' [' + [...tr.querySelectorAll('.mlog-actd button')].filter(x => !x.dataset.mlfv).map(x => x.textContent).join('/') + ']'),
+      bills: document.querySelectorAll('#rpmlog_body .mlog-act, #rpmlog_body .mlog-lact').length, th: [...document.querySelectorAll('#rpmlog_body table[data-sheet="Log Book"] thead th')].pop().textContent, html: /mlog-actd|>Edit</.test(S.rp.mlog.v.html) }));
+    ok('3. the log book of ' + R + ': each of its 5 lines has its own Edit · Delete in the Action column at its end (update-182 – none under the Party Name or the Particulars); not in the print / Excel',
       JSON.stringify(lk.lines) === JSON.stringify(['MT-000001#0 AD BLUE [Edit/Delete]', 'MT-000002#0 FUEL FILTER [Edit/Delete]', 'MT-000002#1 ENGINE OIL FILTER [Edit/Delete]', 'MT-000003#0 HYDROLIC OIL [Edit/Delete]', 'MT-000003#1 GREASE [Edit/Delete]']) &&
-      lk.bills === 3 && lk.html === false, lk);
+      lk.bills === 0 && lk.th === 'Action' && lk.html === false, lk);
     await F.evaluate(() => $('rpmlog_out').scrollIntoView({ block: 'start' })); await wait(400);
     await mp.screenshot({ path: path.join(SHOT, 'mline180_logbook.png') });
     const line = (id, i) => '#rpmlog_body [data-mlid="' + id + '"][data-mll="' + i + '"]';
@@ -136,7 +137,7 @@ const R = 'RL-180';
     // a line changed by someone else meanwhile: refused in its box (nothing saved)
     const other = await J('updateMaintLine', 'MT-000003', { i: 1, date: '2024-01-29', was: { work: 'GREASE', amount: 360 }, line: { work: 'GREASE MP3', type: 'Paid', qty: 2, uom: 'Kg', rate: 180, amount: 360, gst: 18 } });
     await wait(1500);
-    const stillOld = await F.evaluate(s => (document.querySelector(s) || {}).firstChild ? document.querySelector(s).firstChild.textContent : '', line('MT-000003', 1));
+    const stillOld = await F.evaluate(s => document.querySelector(s) ? [...document.querySelector(s).querySelectorAll('td.mc')].pop().textContent : '', line('MT-000003', 1));
     await tidy();
     await F.evaluate(s => document.querySelector(s + ' [data-mlle]').click(), line('MT-000003', 1)); await wait(900);
     await F.evaluate(() => { const r = $('mll_r'); r.value = '200'; r.dispatchEvent(new Event('input', { bubbles: true })); $('cf_ok').click(); }); await wait(2500);
@@ -168,7 +169,7 @@ const R = 'RL-180';
       oq.title === 'Delete bill MT-000001?' && oq.ok === 'Delete the bill' && oq.p === '"AD BLUE" is the only line of this bill – the whole bill is deleted.' && !bill('MT-000001') && left.bills === 2 && left.lines === 3, [oq, left]);
     // View only: no Edit / Delete
     const vo = await F.evaluate(async () => { const u = S.user, keep = { admin: u.admin, perms: u.perms }; u.admin = false; u.perms = Object.assign({}, u.perms, { Maintenance: 'View' });
-      try { await mlogShow(); return { lact: document.querySelectorAll('#rpmlog_body .mlog-lact').length, act: document.querySelectorAll('#rpmlog_body .mlog-act').length, lines: document.querySelectorAll('#rpmlog_body [data-mll]').length }; }
+      try { await mlogShow(); return { lact: document.querySelectorAll('#rpmlog_body .mlog-actd').length, act: document.querySelectorAll('#rpmlog_body .mlog-acth').length, lines: document.querySelectorAll('#rpmlog_body [data-mll]').length }; }
       finally { u.admin = keep.admin; u.perms = keep.perms; await mlogShow(); } });
     ok('   a user with Maintenance View only: the log book without any Edit / Delete', vo.lact === 0 && vo.act === 0 && vo.lines === 3, vo);
     ok('no error on the page', errs.length === 0, errs);

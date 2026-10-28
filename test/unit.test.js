@@ -6344,7 +6344,7 @@ test('update-165: the Maintenance Log Book of a site on fuel cards (HO): a bill 
     assert.ok(listed && listed.sql === sql, 'Read Me lists the step word for word');
     assert.ok(code.indexOf("'supabase_step1zi_maintenance.sql');      // (update-165)") > -1);
     const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
-    assert.match(app, /mnt: \{ saves: \['saveMaint', 'updateMaint', 'deleteMaint', 'maintFile', 'readMaintBill'(, 'importMaint', 'checkMaintImport'(, 'readMaintLog', 'maintImportNames'(, 'updateMaintLine', 'deleteMaintLine')?)?)?\],/);
+    assert.match(app, /mnt: \{ saves: \['saveMaint', 'updateMaint', 'deleteMaint', 'maintFile', 'readMaintBill'(, 'importMaint', 'checkMaintImport'(, 'readMaintLog', 'maintImportNames'(, 'updateMaintLine', 'deleteMaintLine'(, 'deleteMaintLog')?)?)?)?\],/);
     assert.ok(!/if \(\$\('tab-mnt'\) && !cm\) \$\('tab-mnt'\)\.hidden = true;/.test(app), 'update-170: the menu has Maintenance at every site (was: only on fuel cards)');
     assert.match(app, /try \{ const r = await call\(o\.up \|\| 'uploadAttachment', \{ data: 'data:' \+ it\.mime/, 'the bill files use the attachments\' own box');
   } finally {
@@ -6758,7 +6758,7 @@ test('update-172: the log book of a bill of before – its tax lines (CGST / SGS
   // (fixed columns, every one on the page; the note under the table, not in its foot), the totals' box, the buttons at the foot
   assert.match(app, /table\.mt-lines \{ table-layout: fixed; min-width: 1040px; \}/);
   assert.match(app, /<label class="mt-svc mt-switch">[^\n]*<input type="checkbox" id="mt_service"><span class="mt-sw" aria-hidden="true"><\/span><\/label>/);
-  assert.match(app, /<\/table><\/div>\n\s*<div class="mt-bottom">\n\s*<div class="mt-bl">\n\s*<p class="mt-how">Amount = Qty × Rate − Discount, before GST\./);
+  assert.match(app, /<\/table><\/div>\n\s*<div class="mt-bottom">\n\s*<div class="mt-bl">\n\s*(<details class="mt-howd"><summary>How the amounts work<\/summary>)?<p class="mt-how">Amount = Qty × Rate − Discount, before GST\./);      // (update-182: folded)
   assert.match(app, /<div class="mt-tbox"><div><span>Subtotal<\/span><b id="mt_sub">0\.00<\/b><\/div><div><span id="mt_gstl">GST<\/span><b id="mt_gstt">0\.00<\/b><\/div><div class="mt-grand"><span>Bill total<\/span><b id="mt_total">0\.00<\/b><\/div><\/div>/);
   assert.doesNotMatch(app, /<td colspan="9"><button class="btn ghost small" id="mt_addl"/);
   assert.match(app, /document\.addEventListener\('dblclick', e => \{ const el = e\.target; if \(back\.hidden && okEl\(el\)\) \{ e\.preventDefault\(\); open\(el\); \} \}\);/, 'a double-click opens any box big (the app\'s big box)');
@@ -6805,8 +6805,8 @@ test('update-173: the old Maintenance Log Book of a machinery imported as it is 
   assert.deepStrictEqual([lg.total.maint.bills, lg.total.maint.amount], [3, 15999.62]);
   // the page: the Admin's import, its reader and its two actions; the help of its messages
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
-  assert.match(app, /<div class="panel" id="mti_panel" hidden>/);
-  assert.match(app, /\$\('mti_panel'\)\.hidden = !canEdit\('Maintenance'\) \|\| !!d\.missing;/);      // (update-174: everyone with Maintenance Edit)
+  assert.match(app, /<div class="mti-box" id="mti_panel" hidden>/);      // (update-182: a small box in the log book's card, opened by its button)
+  assert.match(app, /\$\('ml_imp'\)\.hidden = !canEdit\('Maintenance'\) \|\| !!d\.missing;/);      // (update-174: everyone with Maintenance Edit)
   assert.match(app, /call\('checkMaintImport', \{ no: x\.no, bills: mliBills\(x\) \}\)/);
   assert.match(app, /call\('importMaint', \{ no: x\.no, bills: mliBills\(x\) \}\)/);
   assert.match(app, /re: \/is not an Own machinery\\b\|The file has no bill for\|bills in one import – split the file\|No Own machinery is on this site today\/i/);
@@ -6889,7 +6889,7 @@ test('update-174: the old log book\'s import for everyone with Maintenance Edit 
   assert.deepStrictEqual(JSON.parse(JSON.stringify(spec.n.f(edit, {}))), { fixes: [] }, 'Maintenance Edit: let in');
   assert.strictEqual(tryF(() => spec.r.f(edit, { data: 'x' })).err, 'An old log book must be a PDF or a photo (JPG or PNG).', 'Maintenance Edit: the reading itself runs');
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
-  assert.match(app, /\$\('mti_panel'\)\.hidden = !canEdit\('Maintenance'\) \|\| !!d\.missing;/);
+  assert.match(app, /\$\('ml_imp'\)\.hidden = !canEdit\('Maintenance'\) \|\| !!d\.missing;/);      // (update-182: the import's button)
   assert.match(app, /if \(FLOW_SENT_RE\.test\(m\)\) x\.done = \{ added: 0, same: 0, sent: m \}; else x\.res = \{ err: m \};/, 'sent for verification: said as sent');
   assert.match(app, /if \(x\.done && x\.done\.sent\) return '<span class="pos">' \+ esc\(x\.done\.sent\) \+ '<\/span>';/);
 });
@@ -6924,10 +6924,10 @@ test('update-175: the Maintenance Log Book "Start to end" (from its first bill, 
   // the page
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   assert.match(app, /<input type="checkbox" id="ml_all"> Start to end<\/label>/);
-  assert.match(app, /<input type="checkbox" id="mtf_all"> Start to end<\/label>/);
+  assert.doesNotMatch(app, /id="mtf_all"/, '(update-182) the bills list is taken out – its Start to end with it');
   assert.match(app, /<button class="btn ghost" id="ml_out" type="button">Fetch outward \(Store\)<\/button>/);
   assert.match(app, /call\('maintLog', \$\('ml_all'\)\.checked \? \{ no: m\.id, all: true \} : /);
-  assert.match(app, /querySelectorAll\('\[data-mlb\]'\)\.forEach\(td => td\.insertAdjacentHTML\('beforeend', '<span class="no-print mlog-act">/, 'Change / Delete on the screen only');
+  assert.match(app, /tb\.querySelectorAll\('thead tr'\)\.forEach\(tr => tr\.insertAdjacentHTML\('beforeend', '<th class="no-print mlog-acth">Action<\/th>'\)\);/, '(update-182) Edit · Delete in the Action column, on the screen only');
   assert.match(app, /const mliOwn = \(\) => \(S\.master \|\| \[\]\)\.filter\(m => m\.ownership === 'Own'\);/);
   assert.match(app, /const names = !d\.fix \|\| \(d\.sheets\.some\(x => x\.done\) && !d\.sheets\.some\(x => x\.no && !x\.done\)\) \? '' : /, 'the names\' list gone once everything is imported');
 });
@@ -7155,8 +7155,8 @@ test('update-180: the old log book\'s headings in any order (a PDF read by the A
   assert.deepStrictEqual([spec.u, spec.d], [{ m: 'Maintenance', edit: true, f: 0, log: 'edit', sheet: 'SHEET_MAINT', idh: 'MT_ID' }, { m: 'Maintenance', edit: true, f: 0, log: 'edit', sheet: 'SHEET_MAINT', idh: 'MT_ID' }]);
   assert.ok(run('() => flowTasks_().find(t => t.m === "Maintenance").fns').indexOf('updateMaintLine') > -1, 'a person whose Maintenance is verified: sent for verification');
   // the page: each line of a bill its Edit · Delete on the screen (not printed), for Maintenance Edit; the box; the only line – the bill
-  assert.match(app, /'<td class="mc"' \+ \(mark && l\.li !== undefined \? ' data-mll="' \+ l\.li \+ '" data-mlid="' \+ esc\(x\.id\) \+ '"' : ''\) \+ '>' \+ esc\(l\.part\) \+ '<\/td>/);
-  assert.match(app, /if \(canEdit\('Maintenance'\)\) \$\('rpmlog_body'\)\.querySelectorAll\('\[data-mll\]'\)\.forEach\(td => td\.insertAdjacentHTML\('beforeend', '<span class="no-print mlog-lact"><button type="button" class="link" data-mlle="1">Edit<\/button> · <button type="button" class="link del" data-mlld="1">Delete<\/button><\/span>'\)\);/);
+  assert.match(app, /\(mine && l\.li !== undefined \? ' data-mll="' \+ l\.li \+ '" data-mlid="' \+ esc\(x\.id\) \+ '"' : ''\)/);      // (update-182: on the row – its Edit · Delete at the row's end)
+  assert.match(app, /'<td class="no-print mlog-actd">' \+ \(tr\.dataset\.mll !== undefined \? '<button type="button" class="link" data-mlle="1">Edit<\/button> · <button type="button" class="link del" data-mlld="1">Delete<\/button>' : ''\)/);      // (update-182: in the Action column)
   assert.match(app, /const r = await call\('updateMaintLine', id, \{ i: i, date: b\.date, was: \{ work: l0\.work, amount: l0\.amount \}, line: v \}\);/);
   assert.match(app, /const r = await call\('deleteMaintLine', id, \{ i: i, date: b\.date, was: \{ work: l0\.work, amount: l0\.amount \} \}\);/);
   assert.match(app, /if \(b\.lines\.length === 1\) \{\n\s*if \(!\(await askConfirm\(\{ title: 'Delete bill ' \+ id \+ '\?', danger: true, ok: 'Delete the bill',/);
@@ -7186,4 +7186,47 @@ test('update-181: a Material Supplier (made by the Store\'s import of its old in
   for (const re of [/\$\('dl_vendornames'\)\.innerHTML = billVendors\(\)/, /sel\.innerHTML = '<option value="">All vendors<\/option>' \+ billVendors\(\)/, /const saved = billVendors\(\);/, /const vs = \[\.\.\.new Set\(billVendors\(\)\.map/, /S\.py\.vendors = \(await call\('getVendors'\)\)\.filter\(v => !matOnly\(v\)\)/,
     /<select id="vf_ty"><option value="">All<\/option><option value="bill">Machinery &amp; billing<\/option><option value="mat">Material suppliers \(Store\)<\/option><\/select>/,
     /<select id="v_type"><option value="">Machinery \/ billing vendor<\/option><option value="Material Supplier">Material Supplier \(Store\)<\/option><\/select>/, /type: \$\('v_type_f'\)\.hidden \? undefined : g\('v_type'\),/]) assert.match(app, re);
+});
+
+test('update-182: the Maintenance page tidy – no bills list (the bills by machinery in the log book), the old log book\'s import a small box of the log book, each entry its Edit · Delete at its end, the bill form compact; the Admin / Super Admin deletes a machinery\'s whole log book', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  // the server: the Admin only; each bill in the Activity Log
+  const spec = run('() => Object.assign({}, API_.deleteMaintLog, { f: typeof API_.deleteMaintLog.f })');
+  assert.deepStrictEqual(spec, { m: 'Maintenance', admin: true, f: 'function', log: 'maintLogDelete' });
+  const M = 'RL-182', O = 'RL-182B';
+  for (const no of [M, O]) run('(x, m) => saveMaster_(x, m)', { no: no, name: 'Roller ' + no, type: 'Soil Compactor', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add');
+  const mk = (no, date, w, a) => run('x => saveMaint_(x)', { date: date, no: no, garage: 'Shri Motors', billNo: 'B-' + date + w, km: '', service: false, remark: '', lines: [{ work: w, type: 'Paid', qty: 1, uom: 'Nos', rate: a, amount: a, gst: 18 }] });
+  const b1 = mk(M, '2026-10-05', 'OIL FILTER', 500), b2 = mk(M, '2026-10-20', 'AIR FILTER', 900), b3 = mk(M, '2026-09-10', 'GREASE', 200), b4 = mk(O, '2026-10-06', 'BULB', 40);
+  assert.ok([b1, b2, b3, b4].every(b => b.ok && b.id), 'four bills');
+  const left = no => run('no => getMaint_({ no: no }).rows.map(r => r.id).sort()', no);
+  assert.match(tryRun('x => deleteMaintLog_(x)', { no: M, from: '2026-10-01', to: '2026-10-31', count: 3 }).thrown, /^The log book of RL-182 was changed meanwhile \(2 bill\(s\) now, 3 shown\) – show it again, then delete\. Nothing was deleted\.$/, 'another number than the page showed: refused');
+  assert.deepStrictEqual(left(M), [b1.id, b2.id, b3.id].sort(), '   nothing deleted');
+  assert.strictEqual(tryRun('x => deleteMaintLog_(x)', { no: M }).thrown, 'Pick the dates of the log book to delete (or Start to end).');
+  assert.strictEqual(tryRun('x => deleteMaintLog_(x)', { from: '2026-10-01', to: '2026-10-31' }).thrown, 'Pick the machinery whose log book is to be deleted.');
+  assert.strictEqual(tryRun('x => deleteMaintLog_(x)', { no: M, from: '2026-08-01', to: '2026-08-31' }).thrown, 'No maintenance bill of RL-182 in these dates – nothing to delete.');
+  const r = run('x => { const r = deleteMaintLog_(x); return Object.assign({ hidden: (r.deleted || []).map(d => d.id + "|" + Object.keys(d.values).length), keys: Object.keys(r) }, r); }', { no: M, from: '2026-10-01', to: '2026-10-31', count: 2 });
+  assert.deepStrictEqual([r.ok, r.no, r.n, r.total, r.ids.slice().sort(), r.from, r.to, r.all], [true, M, 2, 1652, [b1.id, b2.id].sort(), '2026-10-01', '2026-10-31', false], 'the dates shown: its 2 October bills');
+  assert.ok(r.keys.indexOf('deleted') === -1 && r.hidden.length === 2 && r.hidden.every(h => Number(h.split('|')[1]) > 5), 'the deleted values (each bill\'s every column) go to the Activity Log only – not sent to the page');
+  assert.deepStrictEqual([left(M), left(O)], [[b3.id], [b4.id]], 'its September bill and the other machinery\'s bill stay');
+  const all = run('x => deleteMaintLog_(x)', { no: M, all: true, count: 1 });
+  assert.deepStrictEqual([all.n, all.all, left(M)], [1, true, []], 'Start to end: every bill of it');
+  // the page
+  assert.doesNotMatch(app, /<h2>Maintenance bills<\/h2>|id="mt_rows"|id="mtf_no"/, 'the bills list taken out');
+  assert.match(app, /<div class="mlb-head"><div><h2>Maintenance Log Book<\/h2>/);
+  assert.match(app, /<button class="btn ghost small" id="ml_imp" type="button" hidden>.*<span>Import old log book \(Excel \/ PDF\)<\/span><\/button>/, 'the import: a small button of the log book');
+  assert.match(app, /<details class="mti-how"><summary>How the file is read<\/summary>/, 'its long words folded');
+  assert.match(app, /\$\('ml_imp'\)\.addEventListener\('click', \(\) => \{ \$\('mti_panel'\)\.hidden = !\$\('mti_panel'\)\.hidden;/);
+  assert.match(app, /tb\.querySelectorAll\('tbody tr'\)\.forEach\(tr => tr\.insertAdjacentHTML\('beforeend', '<td class="no-print mlog-actd">'/, 'Edit · Delete at the end of each entry (the screen only)');
+  assert.doesNotMatch(app, /'<span class="no-print mlog-act"><button class="btn ghost small" type="button" data-mle=/, 'no Change / Delete under the Party Name');
+  assert.doesNotMatch(app, /'<span class="no-print mlog-lact">/, 'no Edit / Delete under the Particulars');
+  assert.match(app, /id="mll_bill">Change the whole bill \(date, party, reading, files…\)<\/button>/, 'the whole bill from a line\'s Edit');
+  assert.match(app, /data-mlfv="1" title="The bill\\'s files">📎 /, 'the bill\'s files on its first row');
+  assert.match(app, /\$\('ml_delall'\)\.hidden = !\(S\.user && S\.user\.admin\) \|\| /, 'Delete this log book: the Admin / Super Admin only');
+  assert.match(app, /if \(key\(val\('mld_t'\)\) !== key\(m\.id\)\) \{ toast\('Not deleted – type the machinery number as it is/, 'the machinery\'s number typed to confirm');
+  assert.match(app, /call\('deleteMaintLog', d\.all \? \{ no: m\.id, all: true, count: bills\.length \} : \{ no: m\.id, from: d\.from, to: d\.to, count: bills\.length \}\)/);
+  assert.match(app, /<details class="mt-howd"><summary>How the amounts work<\/summary>/, 'the bill form: the help folded');
+  assert.match(app, /#sec-mnt \.mt-hicon \{ width: 38px; height: 38px;/, 'its head slim');
 });

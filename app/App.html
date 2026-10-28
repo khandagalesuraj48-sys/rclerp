@@ -230,6 +230,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .neg { color: var(--bad); } #mti_out .pos { color: #15803D; font-weight: 600; } #mti_out ul { margin: 4px 0 0 16px; padding: 0; font-size: 12.5px; color: var(--bad); }      /* (update-173) the import's check */
   #rpmlog_body .mlog-act { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; } #rpmlog_body .mlog-act .btn { padding: 2px 8px; min-height: 0; font-size: 12px; } #rpmlog_body .mlog-del { color: var(--bad); }      /* (update-175) */
   #rpmlog_body .mlog-lact { display: block; margin-top: 2px; font-size: 11.5px; white-space: nowrap; }      /* (update-180) a line's Edit · Delete */
+  /* (update-182) the log book's Action column (the screen only), its head with the import's button, the import's small box, the Admin's Delete */
+  #rpmlog_body .mlog-acth, #rpmlog_body .mlog-actd { white-space: nowrap; text-align: center; } #rpmlog_body .mlog-actd { font-size: 12.5px; }
+  #rpmlog_body .mlog-acth, #rpmlog_body .mlog-actd { position: sticky; right: 0; z-index: 1; background: #fff; box-shadow: inset 1px 0 0 var(--line); }      /* a wide log book: Edit · Delete stay in view at the row's end */
+  #rpmlog_body .mlog-acth { z-index: 3; background: #F4F6F7; } #rpmlog_body tbody tr:hover .mlog-actd { background: #FAFBFC; } #rpmlog_body .mlog-actf { position: sticky; right: 0; z-index: 1; }
+  #rpmlog_body .mlog-actd .link { font-size: 12.5px; }
+  .mlb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; } .mlb-head h2 { margin: 0 0 2px; } .mlb-head .empty-note { margin: 0 0 10px; }
+  .mlb-head #ml_imp { display: inline-flex; align-items: center; gap: 6px; } .mlb-head #ml_imp .mt-i { width: 16px; height: 16px; } .mlb-head #ml_imp[hidden] { display: none; }
+  .mti-box { border: 1px solid var(--line); border-radius: 10px; background: #F8FAFC; padding: 10px 12px; margin: 0 0 12px; }
+  .mti-row { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; font-size: 13.5px; } .mti-row .muted { flex: 1 1 300px; } .mti-row #mti_x { font-size: 15px; text-decoration: none; }
+  .mti-how { margin-top: 4px; font-size: 12.5px; color: var(--muted); } .mti-how summary { cursor: pointer; } .mti-how p { margin: 4px 0 0; }
   #mti_out details.mli-more { margin-top: 4px; } #mti_out details.mli-more summary { cursor: pointer; font-size: 12.5px; color: var(--muted); } #mti_out details.mli-more ul { color: var(--ink, #1f2937); max-height: 260px; overflow: auto; }
   #mti_out .mli-names { margin-top: 12px; } #mti_out .mli-names h3 { font-size: 15px; margin: 0 0 4px; } #mti_out .mli-names input[data-mlt] { width: 100%; min-width: 140px; } #mti_out .mli-names td { vertical-align: middle; }
   .cm-off { display: none !important; }      /* (update-164) not at a site on fuel cards */
@@ -268,10 +278,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
      big); the totals' box; the buttons at the foot – blue, as the picture. Only this form: the other pages stay as they are. */
   #sec-mnt .mt-form { --mtb: #2563EB; --mtbd: #1D4ED8; --mtbs: #EFF6FF; --mtl: #E2E8F0; --mtk: #0F172A; --mtm: #64748B; background: #F3F6FA; }
   #sec-mnt .mt-i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-  #sec-mnt .mt-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 0 0 14px; padding: 0; border: 0; }
-  #sec-mnt .mt-hicon { width: 52px; height: 52px; border-radius: 14px; background: var(--mtb); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 16px rgba(37,99,235,.28); flex: none; }
-  #sec-mnt .mt-hicon .mt-i { width: 26px; height: 26px; }
-  #sec-mnt .mt-htext { flex: 1 1 320px; min-width: 0; } #sec-mnt .mt-form .mt-htext h2 { margin: 0; font-size: 24px; font-weight: 800; color: var(--mtk); line-height: 1.2; }
+  #sec-mnt .mt-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 10px; padding: 0; border: 0; }
+  #sec-mnt .mt-hicon { width: 38px; height: 38px; border-radius: 11px; background: var(--mtb); color: #fff; display: grid; place-items: center; box-shadow: 0 3px 10px rgba(37,99,235,.25); flex: none; }
+  #sec-mnt .mt-hicon .mt-i { width: 20px; height: 20px; }      /* (update-182) the head slim */
+  #sec-mnt .mt-htext { flex: 1 1 320px; min-width: 0; } #sec-mnt .mt-form .mt-htext h2 { margin: 0; font-size: 19px; font-weight: 800; color: var(--mtk); line-height: 1.2; }
   #sec-mnt .mt-htext .chart-note { display: block; margin: 3px 0 0; font-size: 13px; color: var(--mtm); white-space: normal; }
   #sec-mnt label.mt-switch { margin: 0; display: inline-flex; align-items: center; gap: 12px; padding: 10px 14px; background: #fff; border: 1px solid var(--mtl); border-radius: 12px; cursor: pointer; font-size: 13.5px; color: var(--mtk); font-weight: 500; position: relative; }
   #sec-mnt label.mt-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
@@ -279,9 +289,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #sec-mnt .mt-sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: left .2s; }
   #sec-mnt label.mt-switch input:checked + .mt-sw { background: var(--mtb); } #sec-mnt label.mt-switch input:checked + .mt-sw::after { left: 21px; }
   #sec-mnt label.mt-switch input:focus-visible + .mt-sw { outline: 2px solid var(--mtb); outline-offset: 2px; }
-  #sec-mnt .mt-card { background: #fff; border: 1px solid var(--mtl); border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
-  #sec-mnt .mt-g5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px 16px; }
-  #sec-mnt .mt-g2 { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.25fr); gap: 14px 16px; margin-top: 14px; align-items: start; }
+  #sec-mnt .mt-card { background: #fff; border: 1px solid var(--mtl); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+  #sec-mnt .mt-g5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 12px; }
+  #sec-mnt .mt-g2 { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(320px, 1.25fr); gap: 10px 12px; margin-top: 10px; align-items: start; }
+  #sec-mnt .mt-miss { margin: 0 0 10px; }
   #sec-mnt .mt-g4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; margin-top: 10px; }
   #sec-mnt .mt-form .field > label { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 5px; display: block; }
   #sec-mnt .mt-form :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea) { min-height: 40px; height: 40px; font-size: 14px; padding: 7px 11px; border-radius: 9px; border: 1px solid #D5DCE4; background-color: #fff; color: var(--mtk); box-shadow: none; }
@@ -299,8 +310,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #sec-mnt .mt-form .btn.mt-soft { background: #F1F5FF; border: 1px solid #C7D7FE; color: #3730A3; box-shadow: none; } #sec-mnt .mt-form .btn.mt-soft .mt-i { color: #7C3AED; }
   #sec-mnt .mt-form .btn.mt-soft:disabled { opacity: .55; }
   #sec-mnt .mt-readmsg { font-size: 12.5px; margin-top: 8px; }
-  #sec-mnt .mt-lhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-  #sec-mnt .mt-lhead h3 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 17px; font-weight: 700; color: var(--mtk); } #sec-mnt .mt-lhead h3 .mt-i { color: var(--mtb); width: 24px; height: 24px; }
+  #sec-mnt .mt-lhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  #sec-mnt .mt-lhead h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15.5px; font-weight: 700; color: var(--mtk); } #sec-mnt .mt-lhead h3 .mt-i { color: var(--mtb); width: 20px; height: 20px; }
   #sec-mnt .mt-wrap { border: 1px solid var(--mtl); border-radius: 10px; box-shadow: none; }
   table.mt-lines { table-layout: fixed; min-width: 1040px; }
   #sec-mnt table.mt-lines :is(th, td) { white-space: normal; padding: 4px 4px; vertical-align: middle; font-size: 13.5px; }
@@ -319,17 +330,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #sec-mnt table.mt-lines .mt-worth { font-size: 11px; line-height: 1.1; margin-top: 2px; }
   #sec-mnt table.mt-lines .mt-del { display: inline-grid; place-items: center; width: 32px; height: 32px; border: 1px solid #FECACA; border-radius: 8px; color: #DC2626; background: #fff; padding: 0; text-decoration: none; }
   #sec-mnt table.mt-lines .mt-del:hover { background: #FEF2F2; } #sec-mnt table.mt-lines .mt-del .mt-i { width: 16px; height: 16px; }
-  #sec-mnt .mt-bottom { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; margin-top: 14px; }
+  #sec-mnt .mt-bottom { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; margin-top: 10px; }
   #sec-mnt .mt-bl { flex: 1 1 420px; min-width: 0; } #sec-mnt .mt-how { font-size: 12px; color: var(--mtm); margin: 0 0 6px; line-height: 1.45; }
+  #sec-mnt details.mt-howd { margin: 0 0 6px; } #sec-mnt details.mt-howd summary { cursor: pointer; font-size: 12.5px; color: var(--mtm); font-weight: 600; } #sec-mnt details.mt-howd .mt-how { margin: 4px 0 0; }
   #sec-mnt .mt-ins { margin: 10px 0 0; } #sec-mnt .mt-ins label.mt-svc { display: inline-flex; gap: 9px; align-items: center; padding: 8px 12px; border: 1px solid var(--mtl); border-radius: 10px; background: #fff; cursor: pointer; font-size: 13.5px; margin: 0; }
   #sec-mnt .mt-ins label.mt-svc > .mt-i { color: var(--mtb); }
   #sec-mnt .mt-totals { flex: 0 1 520px; display: flex; flex-direction: column; gap: 8px; }
   #sec-mnt .mt-tbox { display: grid; grid-template-columns: 1fr 1fr 1.25fr; border: 1px solid var(--mtl); border-radius: 12px; overflow: hidden; background: #fff; }
-  #sec-mnt .mt-tbox > div { padding: 12px 14px; display: flex; flex-direction: column; align-items: center; gap: 3px; border-right: 1px solid var(--mtl); text-align: center; }
+  #sec-mnt .mt-tbox > div { padding: 8px 12px; display: flex; flex-direction: column; align-items: center; gap: 2px; border-right: 1px solid var(--mtl); text-align: center; }
   #sec-mnt .mt-tbox > div:last-child { border-right: 0; } #sec-mnt .mt-tbox span { font-size: 12.5px; color: var(--mtm); } #sec-mnt .mt-tbox b { font-size: 17px; color: var(--mtk); font-variant-numeric: tabular-nums; }
-  #sec-mnt .mt-tbox > div.mt-grand { background: var(--mtbs); } #sec-mnt .mt-tbox .mt-grand span { color: var(--mtbd); font-weight: 600; } #sec-mnt .mt-tbox .mt-grand b { font-size: 22px; color: var(--mtbd); font-weight: 800; }
+  #sec-mnt .mt-tbox > div.mt-grand { background: var(--mtbs); } #sec-mnt .mt-tbox .mt-grand span { color: var(--mtbd); font-weight: 600; } #sec-mnt .mt-tbox .mt-grand b { font-size: 19px; color: var(--mtbd); font-weight: 800; }
   #sec-mnt .mt-freeline { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: #15803D; padding: 0 4px; } #sec-mnt .mt-freeline[hidden] { display: none; }
-  #sec-mnt .mt-foot { display: flex; align-items: center; gap: 10px; margin: 0; padding: 12px 16px; background: #fff; border: 1px solid var(--mtl); border-radius: 14px; }
+  #sec-mnt .mt-foot { display: flex; align-items: center; gap: 10px; margin: 0; padding: 8px 12px; background: #fff; border: 1px solid var(--mtl); border-radius: 12px; }
   #sec-mnt .mt-foot .mt-sp { flex: 1; } #sec-mnt .mt-form .mt-foot #mt_save { min-width: 160px; justify-content: center; font-size: 15px; }
   @media (max-width: 760px) { #sec-mnt .mt-g2 { grid-template-columns: 1fr; } #sec-mnt .mt-tbox { grid-template-columns: 1fr; } #sec-mnt .mt-tbox > div { border-right: 0; border-bottom: 1px solid var(--mtl); flex-direction: row; justify-content: space-between; } }
   label.ai-read { outline: 2px solid #60A5FA; outline-offset: 1px; background: #EFF6FF; border-radius: 6px; }
@@ -4670,10 +4682,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
          nahi honar") the bill in three cards – its details, its lines (one compact row each, every column on the page), its totals – and
          the buttons at the foot; the same boxes, ids and server actions as before -->
     <div class="panel mt-form" data-perm="Maintenance">
+      <!-- (update-182, "ughach ase moth e mothe section nko … sagle kahi perfect haway") the bill compact: a slim head, the boxes closer, the
+           help folded, the totals and the buttons in one bar under the lines -->
       <div class="panel-head mt-head"><div class="mt-hicon"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
-        <div class="mt-htext"><h2 id="mt_title">Maintenance bill</h2><span class="chart-note">One bill of a machinery: each work / part with who paid it, Qty, Uom, Rate, Discount, ₹ and GST %. Add the bill (PDF or photo) – the AI can read it for you; check every value, then save.</span></div>
+        <div class="mt-htext"><h2 id="mt_title">Maintenance bill</h2><span class="chart-note">Add the bill (PDF / photo) – the AI reads it; check each line, then Save.</span></div>
         <label class="mt-svc mt-switch"><span class="mt-swt">This bill is a <b>service</b> <span style="font-weight:400">(its reading is needed)</span></span><input type="checkbox" id="mt_service"><span class="mt-sw" aria-hidden="true"></span></label>
       </div>
+      <div class="mt-miss" id="mt_sum" hidden></div>
       <div class="mt-card">
         <div class="mt-g5">
           <div class="field"><label for="mt_date">Bill date <span class="req">*</span></label><div class="mt-ic"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><input id="mt_date" type="date"></div></div>
@@ -4698,8 +4713,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         </table></div>
         <div class="mt-bottom">
           <div class="mt-bl">
-            <p class="mt-how">Amount = Qty × Rate − Discount, before GST. GST % of each item (CGST and SGST half each) – no tax lines; the round-off is a line of its own; a discount on the whole bill is a minus amount. Paid by: RCL (we paid), Insurance (the insurance paid it), Warranty / FOC / Service Plan (not paid, ₹ 0).</p>
-            <p class="mt-how">Double-click a box to see and type all of it in a big box.</p>
+            <details class="mt-howd"><summary>How the amounts work</summary><p class="mt-how">Amount = Qty × Rate − Discount, before GST. GST % of each item (CGST and SGST half each) – no tax lines; the round-off is a line of its own; a discount on the whole bill is a minus amount. Paid by: RCL (we paid), Insurance (the insurance paid it), Warranty / FOC / Service Plan (not paid, ₹ 0).</p>
+            <p class="mt-how">Double-click a box to see and type all of it in a big box.</p></details>
             <div class="mt-ins"><label class="mt-svc"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg><input type="checkbox" id="mt_ins"> <span><b>Insurance claim</b> – the insurance paid part of this bill</span></label>
               <div class="mt-g4" id="mt_insbox" hidden>
                 <div class="field"><label for="mt_insco">Insurance company <span class="req">*</span></label><input id="mt_insco" maxlength="80" autocomplete="off" placeholder="e.g. Tata AIG General Insurance"></div>
@@ -4717,37 +4732,26 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <datalist id="dl_mwork"></datalist><datalist id="dl_mgarage"></datalist><datalist id="dl_muom"><option value="Nos"><option value="Ltr"><option value="Kg"><option value="Set"><option value="Bkt"><option value="Mtr"><option value="Pair"><option value="Gram"><option value="Box"></datalist>
       <div class="actions mt-foot"><button class="btn ghost" id="mt_clear" type="button"><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg><span>Clear</span></button><button class="btn ghost" id="mt_cancel" type="button" hidden>Cancel edit</button><span class="mt-sp"></span><button class="btn mt-blue" id="mt_save" type="button">Save bill</button></div>
     </div>
-    <div class="panel">
-      <h2>Maintenance bills</h2>
-      <div class="filters">
-        <div class="field"><label for="mtf_from">From</label><input id="mtf_from" type="date"></div>
-        <div class="field"><label for="mtf_to">To</label><input id="mtf_to" type="date"></div>
-        <div class="field"><label><input type="checkbox" id="mtf_all"> Start to end</label></div>
-        <div class="field"><label for="mtf_no">Machinery</label><input id="mtf_no" list="dl_machines" placeholder="Blank = all machinery" autocomplete="off"></div>
+    <div class="panel mlb-panel">
+      <!-- (update-182, "Maintenance bills ha section remove kr … Import the old log book he etk moth nko he pn perfect thikani gheun ja") the
+           bills are seen here, machinery by machinery; the old log book's import a small button of this card, its box opened under it -->
+      <div class="mlb-head"><div><h2>Maintenance Log Book</h2><p class="empty-note">Every maintenance bill of a machinery, line by line, by date. Each entry: Edit · Delete at its end.</p></div>
+        <button class="btn ghost small" id="ml_imp" type="button" hidden><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span>Import old log book (Excel / PDF)</span></button></div>
+      <!-- (update-173, "jewde active aahet own rachana vehicle te mala import karaych aahe as it is jas asel tr") the old log book – (update-174) everyone with Maintenance Edit -->
+      <div class="mti-box" id="mti_panel" hidden>
+        <div class="mti-row"><b>Import the old log book</b><span class="muted">Excel (a sheet a machinery) or its PDF / a photo – read row by row; Check, then Import (a bill already there is left out).</span>
+          <button class="link" id="mti_x" type="button" aria-label="Close the import">✕</button></div>
+        <details class="mti-how"><summary>How the file is read</summary><p>The old Maintenance Log Book – the Excel (a sheet a machinery: Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total), or its PDF / a photo of a page, read row by row by the AI. Each sheet is put to its machinery (Own – on the site now or not) – check it; a bill = the rows of one date and party; every line as it is. The AI lists the names written in more than one way – tick what is to be changed. Check, then Import – a bill already there is left out (and shown), never twice.</p></details>
+        <div class="actions" style="margin-top:6px"><button class="btn primary small" id="mti_pick" type="button">Choose the file (Excel / PDF / photo)</button><button class="btn ghost small" id="mti_fmt" type="button">Download the format (Excel)</button><input type="file" id="mti_file" accept=".xlsx,.xls,.pdf,.jpg,.jpeg,.png" hidden><span class="muted" id="mti_name"></span></div>
+        <div id="mti_out"></div>
       </div>
-      <div class="toolbar"><div class="sum" id="mt_sum"></div></div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Bill ID</th><th>Date</th><th>Machinery</th><th>Party</th><th>Bill no.</th><th>Work / parts</th><th class="n">Amount (₹)</th><th>Service</th><th class="n">Reading</th><th>Files</th><th>By</th><th></th></tr></thead>
-        <tbody id="mt_rows"></tbody>
-      </table></div>
-    </div>
-    <!-- (update-173, "jewde active aahet own rachana vehicle te mala import karaych aahe as it is jas asel tr") the old log book – (update-174) everyone with Maintenance Edit -->
-    <div class="panel" id="mti_panel" hidden>
-      <h2>Import the old log book (Excel or PDF)</h2>
-      <p class="empty-note" style="margin:-4px 0 10px">The old Maintenance Log Book – the Excel (a sheet a machinery: Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total), or its PDF / a photo of a page, read row by row by the AI. Each sheet is put to its machinery (Own – on the site now or not) – check it; a bill = the rows of one date and party; every line as it is. The AI lists the names written in more than one way – tick what is to be changed. Check, then Import – a bill already there is left out (and shown), never twice.</p>
-      <div class="actions" style="margin-top:0"><button class="btn primary small" id="mti_pick" type="button">Choose the file (Excel / PDF / photo)</button><button class="btn ghost small" id="mti_fmt" type="button">Download the format (Excel)</button><input type="file" id="mti_file" accept=".xlsx,.xls,.pdf,.jpg,.jpeg,.png" hidden><span class="muted" id="mti_name"></span></div>
-      <div id="mti_out"></div>
-    </div>
-    <div class="panel">
-      <h2>Maintenance Log Book</h2>
-      <p class="empty-note" style="margin:-4px 0 10px">Every maintenance bill of a machinery, line by line, by date – the party, its reading, each part with its Qty, Uom, rate, amount and GST. At a site on fuel cards also its fills, the costs and ₹ per KM.</p>
       <div class="filters">
         <div class="field wide"><label for="ml_no">Machinery <span class="req">*</span></label><input id="ml_no" list="dl_machines" placeholder="Type or pick" autocomplete="off"></div>
         <div class="field"><label for="ml_from">From</label><input id="ml_from" type="date"></div>
         <div class="field"><label for="ml_to">To</label><input id="ml_to" type="date"></div>
         <div class="field"><label><input type="checkbox" id="ml_all"> Start to end</label></div>
       </div>
-      <div class="actions"><button class="btn primary" id="ml_go" type="button">Show log book</button><button class="btn ghost" id="ml_out" type="button">Fetch outward (Store)</button><button class="btn ghost" id="ml_print" type="button" disabled>Print (A4 landscape)</button><button class="btn ghost" id="ml_xlsx" type="button" disabled>Export to Excel</button></div>
+      <div class="actions"><button class="btn primary" id="ml_go" type="button">Show log book</button><button class="btn ghost" id="ml_out" type="button">Fetch outward (Store)</button><button class="btn ghost" id="ml_print" type="button" disabled>Print (A4 landscape)</button><button class="btn ghost" id="ml_xlsx" type="button" disabled>Export to Excel</button><button class="btn danger ml-delall" id="ml_delall" type="button" hidden>Delete this log book</button></div>
       <div id="rpmlog_out" hidden><div class="rhead"><div><h2 id="rpmlog_title"></h2><p class="chart-note" id="rpmlog_meta"></p></div><div class="rkpis" id="rpmlog_kpis"></div></div>
         <div class="table-wrap rtable-wrap rp-body" id="rpmlog_body"></div></div>
     </div>
@@ -6778,9 +6782,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       hi: ['जो field भरना ज़रूरी है वह खाली है या उसमें ऐसी value है जो मान्य नहीं।', 'संदेश में बताया field भरें (* वाले fields ज़रूरी हैं) और फिर save करें।'] },
     // (update-180) one line of a bill changed or deleted from the Maintenance Log Book
     { re: /was changed meanwhile – show the log book again|is the only line of bill\b.* – delete the whole bill/i,
-      en: ['This line of the maintenance bill was not changed: the bill was changed by someone else after the log book was shown, or it is the only line of its bill (a bill keeps at least one line). Nothing was saved.', 'Press Show again to read the log book as it is saved now, then change or delete the line. To take out the only line of a bill, delete the whole bill (Delete on its Party Name).'],
-      mr: ['Maintenance bill ची ही ओळ बदलली नाही: log book दाखवल्यानंतर दुसऱ्या कोणीतरी bill बदलले, किंवा ही त्या bill ची एकमेव ओळ आहे (bill मध्ये किमान एक ओळ राहते). काहीही save झाले नाही.', 'Show पुन्हा दाबा म्हणजे आत्ता save असलेली log book दिसेल, मग ओळ बदला किंवा delete करा. Bill ची एकमेव ओळ काढायची असेल तर पूर्ण bill delete करा (त्याच्या Party Name वरचे Delete).'],
-      hi: ['Maintenance bill की यह पंक्ति नहीं बदली: log book दिखाने के बाद किसी और ने bill बदल दिया, या यह उस bill की इकलौती पंक्ति है (bill में कम से कम एक पंक्ति रहती है). कुछ भी save नहीं हुआ.', 'Show फिर से दबाएँ ताकि अभी save log book दिखे, फिर पंक्ति बदलें या delete करें. Bill की इकलौती पंक्ति हटानी हो तो पूरा bill delete करें (उसके Party Name पर Delete).'] },
+      en: ['This line of the maintenance bill was not changed: the bill was changed by someone else after the log book was shown, or it is the only line of its bill (a bill keeps at least one line). Nothing was saved.', 'Press Show again to read the log book as it is saved now, then change or delete the line. To take out the only line of a bill, press its Delete – the whole bill is deleted (it is said first).'],
+      mr: ['Maintenance bill ची ही ओळ बदलली नाही: log book दाखवल्यानंतर दुसऱ्या कोणीतरी bill बदलले, किंवा ही त्या bill ची एकमेव ओळ आहे (bill मध्ये किमान एक ओळ राहते). काहीही save झाले नाही.', 'Show पुन्हा दाबा म्हणजे आत्ता save असलेली log book दिसेल, मग ओळ बदला किंवा delete करा. Bill ची एकमेव ओळ काढायची असेल तर त्या ओळीचे Delete दाबा – पूर्ण bill delete होते (आधी विचारले जाते).'],
+      hi: ['Maintenance bill की यह पंक्ति नहीं बदली: log book दिखाने के बाद किसी और ने bill बदल दिया, या यह उस bill की इकलौती पंक्ति है (bill में कम से कम एक पंक्ति रहती है). कुछ भी save नहीं हुआ.', 'Show फिर से दबाएँ ताकि अभी save log book दिखे, फिर पंक्ति बदलें या delete करें. Bill की इकलौती पंक्ति हटानी हो तो उस पंक्ति का Delete दबाएँ – पूरा bill delete होता है (पहले पूछा जाता है).'] },
+    // (update-182) a machinery's whole Maintenance Log Book deleted by the Admin / Super Admin
+    { re: /log book is to be deleted|dates of the log book to delete|No maintenance bill of .* in these dates – nothing to delete|The log book of .* was changed meanwhile|Not deleted – type the machinery number/i,
+      en: ['The log book was not deleted: no machinery or no dates were given, it has no maintenance bill in these dates, a bill was added or deleted after it was shown, or the number typed to confirm was not the machinery\'s number. Nothing was deleted.', 'Pick the machinery and its dates (or tick Start to end), press Show log book, check the bills shown, then press "Delete this log book" again and type the machinery number.'],
+      mr: ['Log book delete झाली नाही: मशिनरी किंवा तारखा दिल्या नाहीत, त्या तारखांत तिचे maintenance bill नाही, log book दाखवल्यानंतर एखादे bill जोडले / delete झाले, किंवा खात्रीसाठी टाइप केलेला नंबर त्या मशिनरीचा नाही. काहीही delete झाले नाही.', 'मशिनरी आणि तारखा निवडा (किंवा Start to end ✓ करा), Show log book दाबा, दिसणारी bills तपासा, मग पुन्हा "Delete this log book" दाबा आणि मशिनरीचा नंबर टाइप करा.'],
+      hi: ['Log book delete नहीं हुई: मशीनरी या तारीखें नहीं दीं, उन तारीखों में उसका कोई maintenance bill नहीं, log book दिखाने के बाद कोई bill जुड़ा / delete हुआ, या पुष्टि के लिए टाइप किया नंबर उस मशीनरी का नहीं. कुछ भी delete नहीं हुआ.', 'मशीनरी और तारीखें चुनें (या Start to end ✓ करें), Show log book दबाएँ, दिखे bills जाँचें, फिर से "Delete this log book" दबाएँ और मशीनरी का नंबर टाइप करें.'] },
   ];
   const FIX_ANY = { en: ['The app could not accept this. The line above says which field or value is the problem.', 'Correct that field and try again. If it is not clear, take a photo of this box and send it to the Admin.'],
     mr: ['App ला हे स्वीकारता आले नाही. वरच्या ओळीत कोणता field किंवा किंमत अडचणीची आहे ते दिले आहे.', 'तो field दुरुस्त करून पुन्हा प्रयत्न करा. समजले नाही तर या चौकटीचा फोटो काढून Admin ला पाठवा.'],
@@ -6862,10 +6871,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The fuel cards of a site without diesel stock (HO): each card with its kind, the last 4 digits, its bank / company, the name on it, its expiry (a red / amber mark when it has expired or ends within 30 days), the customer ID, the cars that use it, its opening balance – and the payments / recharges onto it, and the statement of a card.', 'Balance = opening + payments onto the card − the fills paid by it (Diesel Issue, from its opening date). A fill is saved even when the balance is short – it shows red. A card that has entries keeps its name (it can be made Inactive). Only the last 4 digits are kept, never the whole number. The Super Admin puts the site on fuel cards (Portal → Sites → Diesel places).'],
       mr: ['Diesel stock नसलेल्या site (HO) चे fuel cards: प्रत्येक card – त्याचा प्रकार, शेवटचे 4 अंक, bank / कंपनी, card वरचे नाव, expiry (संपले किंवा 30 दिवसांत संपणार असेल तर लाल / पिवळी खूण), customer ID, कोणत्या गाड्या वापरतात, opening balance – आणि card वर भरलेले पैसे / recharge, आणि card चे statement.', 'Balance = opening + card वर भरलेले पैसे − त्या card ने भरलेले fuel (Diesel Issue, opening तारखेपासून). Balance कमी असला तरी fill save होतो – तो लाल दिसतो. ज्या card च्या entries आहेत त्याचे नाव बदलत नाही (Inactive करता येते). फक्त शेवटचे 4 अंक ठेवले जातात, पूर्ण नंबर कधीच नाही. Site fuel cards वर Super Admin ठेवतो (Portal → Sites → Diesel places).'],
       hi: ['Diesel stock न रखने वाली site (HO) के fuel cards: हर card – उसका प्रकार, आखिरी 4 अंक, bank / कंपनी, card पर नाम, expiry (खत्म हो गया हो या 30 दिनों में खत्म होगा तो लाल / पीला निशान), customer ID, कौन सी गाड़ियाँ उसे इस्तेमाल करती हैं, opening balance – और card पर भरे गए पैसे / recharge, और card का statement।', 'Balance = opening + card पर भरे पैसे − उस card से भरा गया fuel (Diesel Issue, opening तारीख से)। Balance कम हो तब भी fill save होता है – वह लाल दिखता है। जिस card की entries हैं उसका नाम नहीं बदलता (Inactive किया जा सकता है)। केवल आखिरी 4 अंक रखे जाते हैं, पूरा नंबर कभी नहीं। Site को fuel cards पर Super Admin रखता है (Portal → Sites → Diesel places)।'] },
-    mnt: { saves: ['saveMaint', 'updateMaint', 'deleteMaint', 'maintFile', 'readMaintBill', 'importMaint', 'checkMaintImport', 'readMaintLog', 'maintImportNames', 'updateMaintLine', 'deleteMaintLine'],
-      en: ['The Maintenance Log Book of every machinery, at every site: each bill – date, party (the garage / shop of a direct bill), bill number, its current reading (KM / Hrs), every work / part with who paid it (RCL, Insurance, Warranty, FOC, Service Plan), Qty, Uom, Rate, Discount %, its ₹ and its GST %, a Service mark, an insurance claim (the company, what it paid) – with its PDF / photos; the AI can read a bill for you, all its lines.', 'Only what WE paid is the cost: free lines (warranty, FOC, service plan) are ₹ 0 with their worth shown, the insurance\'s part is taken out. The log book of a machinery shows every line of its bills by date – Party Name, Current Reading, Particulars, Qty, Uom, Basic Rate, Amount, the CGST and SGST of each GST rate (in the heading – 9 % · 9 % · 18 %), Amount With GST, Paid by, Insurance claim, Service, Total – on the screen, printed or in Excel – for chosen dates or "Start to end" (from its first bill), each bill with Change and Delete on the screen; at a site on fuel cards also its fills, all costs and ₹ per KM. What the RCL Store issues to the machinery comes in by itself – Party "RCL Store", each item at the Store\'s average basic rate, the reading written on the issue (an issue on debit to its owner is shown at ₹ 0 – not our cost); "Fetch outward (Store)" shows the log book with it. Whoever has Maintenance Edit can import the old log book as it is – its Excel (a sheet a machinery; "Download the format (Excel)" gives one for each Own machinery) or its PDF / a photo, read row by row by the AI: the AI lists the names written in more than one way (tick what is to be changed), the lines that do not add up are shown, Check first, a bill already there is left out and listed.'],
-      mr: ['प्रत्येक site वरच्या प्रत्येक मशिनरीची Maintenance Log Book: प्रत्येक bill – तारीख, party (direct bill चे garage / दुकान), bill नंबर, त्याचे current reading (KM / Hrs), प्रत्येक काम / part कोणी भरले (RCL, Insurance, Warranty, FOC, Service Plan), Qty, Uom, Rate, Discount %, त्याचे ₹ आणि GST %, Service ची खूण, insurance claim (company, तिने भरलेले) – त्याच्या PDF / photos सह; AI तुमच्यासाठी bill च्या सगळ्या ओळी वाचू शकतो.', 'खर्चात फक्त आपण भरलेले: मोफत ओळी (warranty, FOC, service plan) ₹ 0, त्यांची किंमत दिसते; insurance चा भाग वजा होतो. मशिनरीच्या log book मध्ये तिच्या bills ची प्रत्येक ओळ तारखेनुसार – Party Name, Current Reading, Particulars, Qty, Uom, Basic Rate, Amount, प्रत्येक GST दराचे CGST आणि SGST (heading मध्ये – 9 % · 9 % · 18 %), Amount With GST, Paid by, Insurance claim, Service, Total – screen वर, print किंवा Excel मध्ये; निवडलेल्या तारखांची किंवा "Start to end" (पहिल्या bill पासून), screen वर प्रत्येक bill ला Change आणि Delete; fuel cards वरच्या site वर त्याचे fuel, सगळा खर्च आणि ₹ प्रति KM पण. RCL Store मशिनरीला जे देते (Issue) ते आपोआप येते – Party "RCL Store", प्रत्येक item Store च्या सरासरी basic rate ने, issue वर लिहिलेले reading (मालकाला debit ने दिलेले ₹ 0 ने दिसते – आपला खर्च नाही); "Fetch outward (Store)" ते घेऊन log book दाखवते. Maintenance चा Edit access असलेला कोणीही जुनी log book जशीच्या तशी import करू शकतो – तिची Excel (प्रत्येक मशिनरीची एक sheet; "Download the format (Excel)" प्रत्येक Own मशिनरीची sheet देते) किंवा तिची PDF / पानाचा photo, AI ओळ-न-ओळ वाचतो: एकापेक्षा जास्त प्रकारे लिहिलेली नावे AI दाखवतो (बदलायचे ते ✓ करा), न जुळणाऱ्या ओळी दिसतात, आधी Check, आधीच असलेले bill सोडले जाते आणि त्याची यादी दिसते.'],
-      hi: ['हर site की हर मशिनरी की Maintenance Log Book: हर bill – तारीख, party (direct bill का garage / दुकान), bill नंबर, उसका current reading (KM / Hrs), हर काम / part किसने भरा (RCL, Insurance, Warranty, FOC, Service Plan), Qty, Uom, Rate, Discount %, उसके ₹ और GST %, Service का निशान, insurance claim (company, उसने भरा) – उसकी PDF / photos के साथ; AI आपके लिए bill की सारी पंक्तियाँ पढ़ सकता है।', 'खर्च में सिर्फ़ हमने जो भरा: मुफ़्त पंक्तियाँ (warranty, FOC, service plan) ₹ 0, उनकी क़ीमत दिखती है; insurance का हिस्सा घट जाता है। मशिनरी की log book में उसके bills की हर पंक्ति तारीख के अनुसार – Party Name, Current Reading, Particulars, Qty, Uom, Basic Rate, Amount, हर GST दर का CGST और SGST (heading में – 9 % · 9 % · 18 %), Amount With GST, Paid by, Insurance claim, Service, Total – screen पर, print या Excel में; चुनी तारीखों की या "Start to end" (पहले bill से), screen पर हर bill के साथ Change और Delete; fuel cards वाली site पर उसका fuel, सारा खर्च और ₹ प्रति KM भी। RCL Store मशिनरी को जो देता है (Issue) वह अपने-आप आता है – Party "RCL Store", हर item Store के औसत basic rate से, issue पर लिखा reading (मालिक को debit पर दिया ₹ 0 पर दिखता है – हमारा खर्च नहीं); "Fetch outward (Store)" उसके साथ log book दिखाता है। Maintenance का Edit access रखने वाला कोई भी पुरानी log book जैसी है वैसी import कर सकता है – उसकी Excel (हर मशीनरी की एक sheet; "Download the format (Excel)" हर Own मशीनरी की sheet देता है) या उसकी PDF / पन्ने का photo, AI पंक्ति-दर-पंक्ति पढ़ता है: एक से ज़्यादा तरह से लिखे नाम AI दिखाता है (जो बदलना है उसे ✓ करें), न मिलने वाली पंक्तियाँ दिखती हैं, पहले Check, पहले से मौजूद bill छोड़ दिया जाता है और उसकी सूची दिखती है.'] },
+    mnt: { saves: ['saveMaint', 'updateMaint', 'deleteMaint', 'maintFile', 'readMaintBill', 'importMaint', 'checkMaintImport', 'readMaintLog', 'maintImportNames', 'updateMaintLine', 'deleteMaintLine', 'deleteMaintLog'],
+      en: ['The Maintenance Log Book of every machinery, at every site: each bill – date, party (the garage / shop of a direct bill), bill number, its current reading (KM / Hrs), every work / part with who paid it (RCL, Insurance, Warranty, FOC, Service Plan), Qty, Uom, Rate, Discount %, its ₹ and its GST %, a Service mark, an insurance claim (the company, what it paid) – with its PDF / photos; the AI can read a bill for you, all its lines.', 'Only what WE paid is the cost: free lines (warranty, FOC, service plan) are ₹ 0 with their worth shown, the insurance\'s part is taken out. The log book of a machinery shows every line of its bills by date – Party Name, Current Reading, Particulars, Qty, Uom, Basic Rate, Amount, the CGST and SGST of each GST rate (in the heading – 9 % · 9 % · 18 %), Amount With GST, Paid by, Insurance claim, Service, Total – on the screen, printed or in Excel – for chosen dates or "Start to end" (from its first bill); on the screen each entry has Edit · Delete at its end (Edit: that line, or "Change the whole bill" – its date, party, reading, files) and 📎 its bill files; the Admin / Super Admin can delete the whole log book of a machinery (the dates shown – typed to confirm, each bill kept in the Activity Log); at a site on fuel cards also its fills, all costs and ₹ per KM. What the RCL Store issues to the machinery comes in by itself – Party "RCL Store", each item at the Store\'s average basic rate, the reading written on the issue (an issue on debit to its owner is shown at ₹ 0 – not our cost); "Fetch outward (Store)" shows the log book with it. Whoever has Maintenance Edit can import the old log book as it is – its Excel (a sheet a machinery; "Download the format (Excel)" gives one for each Own machinery) or its PDF / a photo, read row by row by the AI: the AI lists the names written in more than one way (tick what is to be changed), the lines that do not add up are shown, Check first, a bill already there is left out and listed.'],
+      mr: ['प्रत्येक site वरच्या प्रत्येक मशिनरीची Maintenance Log Book: प्रत्येक bill – तारीख, party (direct bill चे garage / दुकान), bill नंबर, त्याचे current reading (KM / Hrs), प्रत्येक काम / part कोणी भरले (RCL, Insurance, Warranty, FOC, Service Plan), Qty, Uom, Rate, Discount %, त्याचे ₹ आणि GST %, Service ची खूण, insurance claim (company, तिने भरलेले) – त्याच्या PDF / photos सह; AI तुमच्यासाठी bill च्या सगळ्या ओळी वाचू शकतो.', 'खर्चात फक्त आपण भरलेले: मोफत ओळी (warranty, FOC, service plan) ₹ 0, त्यांची किंमत दिसते; insurance चा भाग वजा होतो. मशिनरीच्या log book मध्ये तिच्या bills ची प्रत्येक ओळ तारखेनुसार – Party Name, Current Reading, Particulars, Qty, Uom, Basic Rate, Amount, प्रत्येक GST दराचे CGST आणि SGST (heading मध्ये – 9 % · 9 % · 18 %), Amount With GST, Paid by, Insurance claim, Service, Total – screen वर, print किंवा Excel मध्ये; निवडलेल्या तारखांची किंवा "Start to end" (पहिल्या bill पासून); screen वर प्रत्येक entry च्या शेवटी Edit · Delete (Edit: ती ओळ, किंवा "Change the whole bill" – तारीख, party, reading, files) आणि 📎 bill च्या files; Admin / Super Admin एका मशिनरीची पूर्ण log book delete करू शकतो (दाखवलेल्या तारखांची – नंबर टाइप करून, प्रत्येक bill Activity Log मध्ये राहते); fuel cards वरच्या site वर त्याचे fuel, सगळा खर्च आणि ₹ प्रति KM पण. RCL Store मशिनरीला जे देते (Issue) ते आपोआप येते – Party "RCL Store", प्रत्येक item Store च्या सरासरी basic rate ने, issue वर लिहिलेले reading (मालकाला debit ने दिलेले ₹ 0 ने दिसते – आपला खर्च नाही); "Fetch outward (Store)" ते घेऊन log book दाखवते. Maintenance चा Edit access असलेला कोणीही जुनी log book जशीच्या तशी import करू शकतो – तिची Excel (प्रत्येक मशिनरीची एक sheet; "Download the format (Excel)" प्रत्येक Own मशिनरीची sheet देते) किंवा तिची PDF / पानाचा photo, AI ओळ-न-ओळ वाचतो: एकापेक्षा जास्त प्रकारे लिहिलेली नावे AI दाखवतो (बदलायचे ते ✓ करा), न जुळणाऱ्या ओळी दिसतात, आधी Check, आधीच असलेले bill सोडले जाते आणि त्याची यादी दिसते.'],
+      hi: ['हर site की हर मशिनरी की Maintenance Log Book: हर bill – तारीख, party (direct bill का garage / दुकान), bill नंबर, उसका current reading (KM / Hrs), हर काम / part किसने भरा (RCL, Insurance, Warranty, FOC, Service Plan), Qty, Uom, Rate, Discount %, उसके ₹ और GST %, Service का निशान, insurance claim (company, उसने भरा) – उसकी PDF / photos के साथ; AI आपके लिए bill की सारी पंक्तियाँ पढ़ सकता है।', 'खर्च में सिर्फ़ हमने जो भरा: मुफ़्त पंक्तियाँ (warranty, FOC, service plan) ₹ 0, उनकी क़ीमत दिखती है; insurance का हिस्सा घट जाता है। मशिनरी की log book में उसके bills की हर पंक्ति तारीख के अनुसार – Party Name, Current Reading, Particulars, Qty, Uom, Basic Rate, Amount, हर GST दर का CGST और SGST (heading में – 9 % · 9 % · 18 %), Amount With GST, Paid by, Insurance claim, Service, Total – screen पर, print या Excel में; चुनी तारीखों की या "Start to end" (पहले bill से); screen पर हर entry के अंत में Edit · Delete (Edit: वह पंक्ति, या "Change the whole bill" – तारीख, party, reading, files) और 📎 bill की files; Admin / Super Admin एक मशीनरी की पूरी log book delete कर सकता है (दिखाई तारीखों की – नंबर टाइप करके, हर bill Activity Log में रहता है); fuel cards वाली site पर उसका fuel, सारा खर्च और ₹ प्रति KM भी। RCL Store मशिनरी को जो देता है (Issue) वह अपने-आप आता है – Party "RCL Store", हर item Store के औसत basic rate से, issue पर लिखा reading (मालिक को debit पर दिया ₹ 0 पर दिखता है – हमारा खर्च नहीं); "Fetch outward (Store)" उसके साथ log book दिखाता है। Maintenance का Edit access रखने वाला कोई भी पुरानी log book जैसी है वैसी import कर सकता है – उसकी Excel (हर मशीनरी की एक sheet; "Download the format (Excel)" हर Own मशीनरी की sheet देता है) या उसकी PDF / पन्ने का photo, AI पंक्ति-दर-पंक्ति पढ़ता है: एक से ज़्यादा तरह से लिखे नाम AI दिखाता है (जो बदलना है उसे ✓ करें), न मिलने वाली पंक्तियाँ दिखती हैं, पहले Check, पहले से मौजूद bill छोड़ दिया जाता है और उसकी सूची दिखती है.'] },
     log: { saves: ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'saveLogDebits', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip', 'updateTankerTrip', 'importTankerTrips', 'sendChangeRequest', 'linkLogAttachments'],
       en: ['The daily work of every machinery: start and close reading (KM / hours), trips or day status, diesel, chainage and work done; and "Debit to" when the work is charged to a party.', 'Start is the last Close of the machinery. Close cannot be below Start; one entry per machinery, date and shift. Idle, Holiday and Breakdown are day statuses. When the meter is not working choose "No reading": the day is paid and its work is an estimate (the app proposes the machinery\'s average) with a reason; a new meter\'s first entry is ticked "new meter". The list below opens with the last 2 days. Bills are made from these entries. A machinery whose BOQ has two or more hour (or KM) works – Bucket and Breaker – may have a row for each work on the same date and shift here: add a second row for the same machinery, date and shift, press its work; its Start is the Close of the row above. It is saved as one entry that keeps its rows. Print Log Book: an entry with two works (Bucket and Breaker) is printed as a row for each work, and the diesel debit rate can be typed in the print box (empty = automatic). A machinery measured by hours (JCB, excavator) whose hour meter gave no reading on a day: pick Time for that day and type From – To – its hours count as hours (bill, diesel average); the next hours day starts at the last hour reading. A machinery measured by hours only (JCB, excavator, breaker) that worked TWO OR MORE TIMES in one shift (e.g. Breaker 100 → 102, then 110 → 113): add a second row for the same machinery, date and shift and type its own Start and Close – it may start higher than the row above; the hours in between (102 → 110) are not counted, so that day is 5 hours (bill and diesel). For such a machinery, changing or deleting an entry never changes another date: if a Close comes above the Start of the next entry, the app says so and saves nothing. In such a shift a row may also be by Time (e.g. Bucket 09:00 – 11:00 when the meter gave no reading, then Breaker 3714.5 → 3717.5): its hours are added (2 + 3 = 5 hours); the Start and Close of the entry come from its rows by Hrs, and the next day starts at the last Close. Every row of the shift may be by Time too (e.g. Breaker 09:00 – 13:00 and Bucket 14:00 – 18:00): each row keeps its own From – To and work, the hours of the entry are their sum (4 + 4 = 8 hours); two rows at the same time are refused. Any other machinery (a vehicle on KM, a machinery on KM + Hrs, by trips or by the day) may also have a row for each work of a shift: add a second row for the same machinery, date and shift – on KM / Hrs it starts where the row above closed (the KM between belong to a row); by trips each row has its trips (they are added); by the day the shift stays one day. The same work may come again in a row of its own; the same row twice (the same readings, or the same trips, challan and work) is a duplicate and is refused. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. A WATER TANKER (Log Book Format I) is entered with "Water tanker – trip by trip": one line per trip (challan no, dispatch and unload time, chainage, use for), Day or Night, trips can be added any time of the day; the same challan of the agency or a time on another trip is refused. An entry approved in verification (marked ✔ Approved) or in a submitted bill is locked: only the Super Admin changes or deletes it, with a reason; anybody else\'s change is sent to him for approval. Attachments (📎 of a row, the edit window, "Attach to selected" in Edit Log Book): photos or PDF of the entry – paste with Ctrl + V, drop, upload, the camera or "Scan with Mobile" (a QR code: the phone of the same person sends the photos); ✎ corrects a photo before it is sent; at most the site\'s number; each file kept once and never changed – an approved or billed entry\'s files are changed only by the Super Admin.'],
       mr: ['प्रत्येक machinery चे रोजचे काम: Start आणि Close reading (KM / तास), trips किंवा दिवसाची स्थिती, diesel, chainage आणि केलेले काम; आणि काम एखाद्या party ला लावायचे असेल तर "Debit to".', 'Start म्हणजे त्या machinery चे मागचे Close. Close हे Start पेक्षा कमी असू शकत नाही; एका machinery, तारीख आणि shift साठी एकच entry. Idle, Holiday आणि Breakdown या दिवसाच्या स्थिती आहेत. Meter बंद असेल तर "No reading" निवडा: दिवस भरला जातो आणि त्याचे काम अंदाजे धरले जाते (app machinery ची सरासरी सुचवते), कारणासह; नवीन meter च्या पहिल्या entry ला "new meter" tick करा. खालची यादी शेवटच्या 2 दिवसांनी उघडते. Bills या entries वरून बनतात. ज्या machinery च्या BOQ मध्ये तासाची (किंवा KM ची) दोन किंवा जास्त कामे आहेत – Bucket आणि Breaker – तिला इथे त्याच तारखेला, त्याच shift ला प्रत्येक कामासाठी वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा, तिचे काम दाबा; तिचा Start म्हणजे वरच्या ओळीचा Close. ती एकच entry म्हणून save होते आणि तिच्या ओळी लक्षात राहतात. Print Log Book: दोन कामे असलेली entry (Bucket आणि Breaker) print मध्ये प्रत्येक कामाच्या वेगळ्या ओळीत येते, आणि diesel debit चा rate print च्या box मध्ये हाताने टाकता येतो (रिकामा = आपोआप). Hours वर चालणाऱ्या machine चे (JCB, excavator) hour meter एखाद्या दिवशी reading देत नसेल तर: त्या दिवसासाठी Time निवडा आणि From – To टाका – ते तास, तास म्हणूनच धरले जातात (bill, diesel average); पुढच्या hours दिवसाचे Start शेवटच्या hour reading पासून येते. फक्त तासावर चालणाऱ्या machinery ने (JCB, excavator, breaker) एकाच shift मध्ये दोन किंवा जास्त वेळा काम केले असेल (उदा. Breaker 100 → 102, मग 110 → 113): त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा आणि तिचे स्वतःचे Start आणि Close टाका – ते वरच्या ओळीच्या Close पेक्षा जास्त असू शकते; मधले तास (102 → 110) धरले जात नाहीत, म्हणून तो दिवस 5 तासांचा (bill आणि diesel). अशा machinery ची entry बदलली किंवा delete केली तरी दुसरी तारीख कधीच बदलत नाही: Close पुढच्या entry च्या Start पेक्षा जास्त झाले तर app तसे सांगते आणि काहीही save करत नाही. अशा shift मध्ये एखादी ओळ Time वर पण असू शकते (उदा. meter ने reading दिले नाही तेव्हा Bucket 09:00 – 11:00, मग Breaker 3714.5 → 3717.5): त्या ओळीचे तास जोडले जातात (2 + 3 = 5 तास); entry चे Start आणि Close तिच्या Hrs ओळींवरून येतात, आणि पुढचा दिवस शेवटच्या Close पासून सुरू होतो. Shift च्या सगळ्या ओळी पण Time वर असू शकतात (उदा. Breaker 09:00 – 13:00 आणि Bucket 14:00 – 18:00): प्रत्येक ओळ आपली From – To आणि काम ठेवते, entry चे तास त्यांची बेरीज (4 + 4 = 8 तास); एकाच वेळेतल्या दोन ओळी save होत नाहीत. इतर कोणत्याही machinery ला (KM वरची गाडी, KM + Hrs वरची machinery, trips वर किंवा दिवसावर) पण shift च्या प्रत्येक कामाची वेगळी ओळ देता येते: त्याच machinery, तारीख आणि shift ची दुसरी ओळ जोडा – KM / Hrs वर ती वरच्या ओळीच्या Close पासून सुरू होते (मधले KM एखाद्या ओळीतच येतात); trips वर प्रत्येक ओळीचे trips (ते जोडले जातात); दिवसावर shift एकच दिवस राहते. तेच काम वेगळ्या ओळीत पुन्हा येऊ शकते; अगदी तीच ओळ दोनदा (तीच readings, किंवा तेच trips, challan आणि काम) म्हणजे duplicate – save होत नाही. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. WATER TANKER (Log Book Format I) ची entry "Water tanker – trip by trip" मधून: प्रत्येक trip ची एक ओळ (challan no, dispatch आणि unload वेळ, chainage, use for), Day किंवा Night; दिवसभरात कधीही trips जोडता येतात; agency चा तोच challan किंवा दुसऱ्या trip च्या वेळेवरची वेळ save होत नाही. Verification मध्ये approve झालेली (✔ Approved) किंवा submit झालेल्या bill मधली entry locked असते: फक्त Super Admin ती कारणासह बदलतो किंवा delete करतो; इतर कोणी केलेला बदल त्याच्याकडे approval साठी जातो. Attachments (row चा 📎, edit window, Edit Log Book मध्ये "Attach to selected"): entry चे फोटो किंवा PDF – Ctrl + V ने paste, ओढून आणा, upload, camera किंवा "Scan with Mobile" (QR code: त्याच व्यक्तीचा phone फोटो पाठवतो); पाठवण्यापूर्वी ✎ ने फोटो दुरुस्त करता येतो; site ने ठरवलेल्या संख्येपर्यंत; प्रत्येक file एकदाच ठेवली जाते आणि कधी बदलत नाही – approve किंवा bill झालेल्या entry च्या files फक्त Super Admin बदलतो.'],
@@ -17311,8 +17320,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   S.mt = { rows: [], files: [], edit: null, ai: {} };
   function mtOpen(first) {
     if (first) {
-      const t = S.today; ['mt_date', 'mtf_to', 'ml_to'].forEach(id => { $(id).value = t; $(id).max = t; }); $('mtf_from').value = t.slice(0, 8) + '01'; $('ml_from').value = t.slice(0, 8) + '01';
-      $('ml_from').max = t; $('mtf_from').max = t;
+      const t = S.today; ['mt_date', 'ml_to'].forEach(id => { $(id).value = t; $(id).max = t; }); $('ml_from').value = t.slice(0, 8) + '01';
+      $('ml_from').max = t;
       mtLines([]); mtFilesPaint();
     }
     mtLoad();
@@ -17481,27 +17490,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('mt_clear').addEventListener('click', mtClear);
   $('mt_cancel').addEventListener('click', mtClear);
   let mtSeq = 0;
+  // (update-182) the bills list is taken out ("Maintenance bills ha section remove kr"): this reads only the names the boxes offer (works,
+  // parties – of every bill), whether the database step is there, and shows the import's button to those with Maintenance Edit
   async function mtLoad() {
     const seq = ++mtSeq;
     try {
-      const fno = val('mtf_no'), fm = fno ? findMachine(fno) : null;
-      const all = $('mtf_all').checked, d = await call('getMaint', { from: all ? '' : $('mtf_from').value, to: all ? '' : $('mtf_to').value, no: fm ? fm.id : fno });
+      const d = await call('getMaint', { from: S.today, to: S.today });
       if (seq !== mtSeq) return;
       S.mt.rows = d.rows || [];
-      $('mti_panel').hidden = !canEdit('Maintenance') || !!d.missing;      // (update-173) the old log book's import; (update-174: "user la pn disu de") everyone with Maintenance Edit
+      $('ml_imp').hidden = !canEdit('Maintenance') || !!d.missing;      // (update-173) the old log book's import; (update-174: "user la pn disu de") everyone with Maintenance Edit
+      if (d.missing) $('mti_panel').hidden = true;
       $('dl_mwork').innerHTML = (d.works || []).map(w => '<option value="' + esc(w) + '">').join('');
       $('dl_mgarage').innerHTML = (d.garages || []).map(w => '<option value="' + esc(w) + '">').join('');
-      const ed = canEdit('Maintenance');
-      $('mt_sum').innerHTML = d.missing ? '<span class="neg">' + esc('Maintenance bills cannot be kept yet. This needs one database step first: the Admin runs sql/supabase_step1zi_maintenance.sql once in Supabase → SQL Editor.') + '</span>'
-        : 'Bills: <b>' + (d.count || 0) + '</b> &nbsp; Total: <b>₹' + money(d.total || 0) + '</b>';
-      $('mt_rows').innerHTML = S.mt.rows.length ? S.mt.rows.map(r => '<tr><td>' + esc(r.id) + '</td><td class="nowrap">' + esc(showDate(r.date)) + '</td><td><b>' + esc(r.no) + '</b></td><td>' + esc(r.garage) + '</td><td>' + esc(r.billNo) + '</td>' +
-        '<td class="mt-wl"><div class="mt-clamp" title="' + esc(mtLinesText(r.lines)) + '">' + esc(mtLinesText(r.lines)) + '</div>' + (r.remark ? '<small class="muted">' + esc(r.remark) + '</small>' : '') + '</td><td class="n"><b>' + money(r.total) + '</b>' + mtBillNote(r) + '</td><td>' + (r.service ? '✔ Service' : '') + '</td>' +
-        '<td class="n">' + (r.km !== '' && r.km !== null ? fmt(r.km) : '') + '</td><td>' + (r.files.length ? '<button type="button" class="link" data-mtv="' + esc(r.id) + '">📎 ' + r.files.length + '</button>' : '') + '</td>' + byCell(r) +
-        '<td class="nowrap">' + (ed ? '<button type="button" class="link" data-mte="' + esc(r.id) + '">Edit</button> · <button type="button" class="link del" data-mtd="' + esc(r.id) + '">Delete</button>' : '') + '</td></tr>').join('')
-        : '<tr><td colspan="12" class="none">No maintenance bill in these dates.</td></tr>';
+      $('mt_sum').hidden = !d.missing;
+      $('mt_sum').innerHTML = d.missing ? '<span class="neg">' + esc('Maintenance bills cannot be kept yet. This needs one database step first: the Admin runs sql/supabase_step1zi_maintenance.sql once in Supabase → SQL Editor.') + '</span>' : '';
     } catch (e) { toast(errMsg(e), true); }
   }
-  ['mtf_from', 'mtf_to', 'mtf_no'].forEach(id => $(id).addEventListener('change', mtLoad));
+  $('ml_imp').addEventListener('click', () => { $('mti_panel').hidden = !$('mti_panel').hidden; if (!$('mti_panel').hidden) $('mti_panel').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+  $('mti_x').addEventListener('click', () => { $('mti_panel').hidden = true; });
+
   // (update-168) a bill's lines in words: the paid ones with their ₹, the free ones with their kind; under its ₹: the bill, the insurance, the free worth
   /* ================= (update-173) THE OLD MAINTENANCE LOG BOOK, IMPORTED AS IT IS =================
    * His Excel "All Machinery Maintenance Logbook" – a sheet a machinery, its name above the heading (ROLLER NO-03). Every sheet read: its
@@ -17827,17 +17834,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (r.free > 0) p.push('free worth ₹' + money(r.free));
     return p.length ? '<small class="muted mt-note">' + p.map(esc).join('<br>') + '</small>' : '';      // (one a line – the list stays narrow)
   }
-  $('mt_rows').addEventListener('click', e => {
-    const v = e.target.closest('[data-mtv]');
-    if (v) { busy(v, '…', async () => { const d = await call('getMaintFiles', v.dataset.mtv);
-      await askConfirm({ title: 'Bill files – ' + v.dataset.mtv, alertOnly: true, wide: true, ok: 'Close', html: '<div class="phv-grid">' + d.files.map(x => '<figure>' + (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener">' +
-        (x.mime === 'application/pdf' ? '<span class="at-pdf">PDF</span>' : '<img src="' + esc(x.url) + '" alt="">') + '</a>' : '') + '<figcaption>' + esc(x.name || '') + '</figcaption></figure>').join('') + '</div><p class="muted">The links work for 15 minutes.</p>' }); }); return; }
-    const ed = e.target.closest('[data-mte]');
-    if (ed) { busy(ed, '…', async () => { const r = S.mt.rows.find(x => x.id === ed.dataset.mte); if (r) await mtEdit(r); }); return; }
-    const dl = e.target.closest('[data-mtd]');
-    if (dl) busy(dl, 'Deleting…', async () => { const r = S.mt.rows.find(x => x.id === dl.dataset.mtd); if (r) await mtDelete(r); });
-  });
-  // a bill into the form to be changed (the list's ✎, the log book's Change)
+  // a bill's files (PDF / photos) in a window – (update-182) from the log book's 📎
+  async function mtFilesView(id) {
+    const d = await call('getMaintFiles', id);
+    await askConfirm({ title: 'Bill files – ' + id, alertOnly: true, wide: true, ok: 'Close', html: '<div class="phv-grid">' + d.files.map(x => '<figure>' + (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener">' +
+      (x.mime === 'application/pdf' ? '<span class="at-pdf">PDF</span>' : '<img src="' + esc(x.url) + '" alt="">') + '</a>' : '') + '<figcaption>' + esc(x.name || '') + '</figcaption></figure>').join('') + '</div><p class="muted">The links work for 15 minutes.</p>' });
+  }
+  // a bill into the form to be changed (the log book's "Change the whole bill")
   async function mtEdit(r) {
     mtClear(); S.mt.edit = r.id; S.mt.dateTyped = true;
     $('mt_date').value = r.date; $('mt_no').value = r.no; $('mt_garage').value = r.garage; $('mt_billno').value = r.billNo; $('mt_km').value = r.km === null ? '' : r.km; $('mt_service').checked = r.service; $('mt_remark').value = r.remark;
@@ -17859,7 +17862,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return r;
   }
   // (update-175) the bills of every date: "Start to end"
-  $('mtf_all').addEventListener('change', () => { ['mtf_from', 'mtf_to'].forEach(id => { $(id).disabled = $('mtf_all').checked; }); mtLoad(); });
   // the car's Maintenance Log Book – on the screen, printed and in Excel (the reports' own print and Excel)
   // (update-170) the log book in his format (the Maintenance Log Book of Roller No-03): a row for each line of a bill – Date, Party Name and
   // Current Reading once for the bill's rows; a tax line's ₹ in GST Amount; the insurance's part of a claim its own row (minus); the free
@@ -17913,10 +17915,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (x.insurance && x.insurance.paid > 0) ls.push({ part: 'Paid by the insurance' + (x.insurance.company ? ' – ' + x.insurance.company : '') + (x.insurance.claimNo ? ' (claim no. ' + x.insurance.claimNo + ')' : ''), uom: '', amount: '', cg: rates.map(() => ['', '']), gst: '', withGst: -x.insurance.paid, by: 'Insurance', ins: true });
       if (!ls.length) ls.push({ part: '', uom: '', amount: '', cg: rates.map(() => ['', '']), gst: '', withGst: Number(x.amount) || 0, by: '' });
       const n = ls.length, party = esc(x.party || x.garage || '') + (x.billNo ? '<br><small class="muted">Bill ' + esc(x.billNo) + '</small>' : ''), claim = x.insurance ? 'Yes' : 'No', svc = x.service ? 'Yes' : 'No';
-      const mark = x.kind === 'Maintenance' && x.id ? ' data-mlb="' + esc(x.id) + '" data-mlbd="' + esc(x.date) + '"' : '';      // (update-175: its Change / Delete on the screen)
+      const mine = x.kind === 'Maintenance' && !!x.id;      // (update-182) a bill of this page: each of its lines Edit · Delete at the row's end (on the screen)
       return ls.map((l, j) => { sr++; if (l.amount !== '') sa += l.amount; if (l.gst !== '') sg += l.gst; sw += l.withGst; st += l.withGst; l.cg.forEach((c, i) => { if (c[0] !== '') sc[i][0] += c[0]; if (c[1] !== '') sc[i][1] += c[1]; });
-        return '<tr' + (l.ins ? ' class="mt-insrow"' : '') + '><td>' + sr + '</td>' + (j ? '' : '<td rowspan="' + n + '">' + esc(showDate(x.date)) + '</td><td rowspan="' + n + '" class="mc"' + mark + '>' + party + '</td><td rowspan="' + n + '" class="n">' + (has(x.km) ? fmt(x.km) : '') + '</td>') +
-          '<td class="mc"' + (mark && l.li !== undefined ? ' data-mll="' + l.li + '" data-mlid="' + esc(x.id) + '"' : '') + '>' + esc(l.part) + '</td><td class="n">' + (has(l.qty) ? fmt(l.qty) : '') + '</td><td>' + esc(l.uom) + '</td><td class="n">' + (has(l.rate) ? money(l.rate) : '') + '</td>' +
+        return '<tr' + (l.ins ? ' class="mt-insrow"' : '') + (mine && l.li !== undefined ? ' data-mll="' + l.li + '" data-mlid="' + esc(x.id) + '"' : '') + (mine && !j ? ' data-mlb="' + esc(x.id) + '" data-mlbd="' + esc(x.date) + '" data-mlf="' + (Number(x.files) || 0) + '"' : '') + '><td>' + sr + '</td>' +
+          (j ? '' : '<td rowspan="' + n + '">' + esc(showDate(x.date)) + '</td><td rowspan="' + n + '" class="mc">' + party + '</td><td rowspan="' + n + '" class="n">' + (has(x.km) ? fmt(x.km) : '') + '</td>') +
+          '<td class="mc">' + esc(l.part) + '</td><td class="n">' + (has(l.qty) ? fmt(l.qty) : '') + '</td><td>' + esc(l.uom) + '</td><td class="n">' + (has(l.rate) ? money(l.rate) : '') + '</td>' +
           '<td class="n">' + (l.amount === '' ? '' : money(l.amount)) + '</td>' + l.cg.map(c => '<td class="n">' + (c[0] === '' ? '' : money(c[0])) + '</td><td class="n">' + (c[1] === '' ? '' : money(c[1])) + '</td>').join('') +
           '<td class="n">' + (l.gst === '' ? '' : money(l.gst)) + '</td><td class="n">' + money(l.withGst) + '</td><td>' + esc(l.by) + '</td><td>' + claim + '</td><td>' + svc + '</td><td class="n">' + money(l.withGst) + '</td></tr>'; }).join('');
     }).join('');
@@ -17947,10 +17950,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('rpmlog_meta').textContent = (d.all ? 'Start to end: ' : '') + showDate(d.from) + ' to ' + showDate(d.to) + '  |  ' + v.meta + '  |  Generated ' + d.generated;
     $('rpmlog_kpis').innerHTML = v.kpis.map(x => '<div><span>' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b></div>').join('');
     $('rpmlog_body').innerHTML = v.html;
-    // (update-175) on the screen only (not printed, not in the Excel): each bill its Change and Delete – for those with Maintenance Edit
-    if (canEdit('Maintenance')) $('rpmlog_body').querySelectorAll('[data-mlb]').forEach(td => td.insertAdjacentHTML('beforeend', '<span class="no-print mlog-act"><button class="btn ghost small" type="button" data-mle="' + esc(td.dataset.mlb) + '">Change</button><button class="btn ghost small mlog-del" type="button" data-mld="' + esc(td.dataset.mlb) + '">Delete</button></span>'));
-    // (update-180, "ek ek entry mala edit or delet krta yawi") each line of a bill its own Edit and Delete (the rest of the bill as it is)
-    if (canEdit('Maintenance')) $('rpmlog_body').querySelectorAll('[data-mll]').forEach(td => td.insertAdjacentHTML('beforeend', '<span class="no-print mlog-lact"><button type="button" class="link" data-mlle="1">Edit</button> · <button type="button" class="link del" data-mlld="1">Delete</button></span>'));
+    // (update-182, "party name che khali chande delet nko natr particular che khali edit delet nko pratek entry che last la edit delet asa
+    // option de") on the screen only (not printed, not in the Excel): an Action column at the end – each line of a bill its Edit · Delete,
+    // the bill's files (📎) on its first row; the whole bill is changed from a line's Edit ("Change the whole bill")
+    if (canEdit('Maintenance')) { const tb = $('rpmlog_body').querySelector('table[data-sheet="Log Book"]');
+      if (tb) {
+        tb.querySelectorAll('thead tr').forEach(tr => tr.insertAdjacentHTML('beforeend', '<th class="no-print mlog-acth">Action</th>'));
+        tb.querySelectorAll('tfoot tr').forEach(tr => tr.insertAdjacentHTML('beforeend', '<td class="no-print mlog-actf"></td>'));
+        tb.querySelectorAll('tbody tr').forEach(tr => tr.insertAdjacentHTML('beforeend', '<td class="no-print mlog-actd">' + (tr.dataset.mll !== undefined ? '<button type="button" class="link" data-mlle="1">Edit</button> · <button type="button" class="link del" data-mlld="1">Delete</button>' : '') +
+          (Number(tr.dataset.mlf) > 0 ? ' <button type="button" class="link" data-mlfv="1" title="The bill\'s files">📎 ' + Number(tr.dataset.mlf) + '</button>' : '') + '</td>'));
+      } }
+    $('ml_delall').hidden = !(S.user && S.user.admin) || !(d.lines || []).some(x => x.kind === 'Maintenance' && x.id);      // (update-182) the Admin / Super Admin only
     $('ml_print').disabled = false; $('ml_xlsx').disabled = false;
     return d;
   }
@@ -17958,11 +17968,27 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('ml_all').addEventListener('change', () => { ['ml_from', 'ml_to'].forEach(id => { $(id).disabled = $('ml_all').checked; }); });
   $('rpmlog_body').addEventListener('click', e => {
     const lb = e.target.closest('[data-mlle], [data-mlld]');
-    if (lb) { const td = lb.closest('[data-mll]'); busy(lb, '…', () => (lb.dataset.mlle ? mlLineEdit : mlLineDelete)(td.dataset.mlid, Number(td.dataset.mll))); return; }
-    const b = e.target.closest('[data-mle], [data-mld]'); if (!b) return;
-    const td = b.closest('[data-mlb]'), m = S.rp && S.rp.mlog ? S.rp.mlog.d.machine.id : '';
-    busy(b, '…', async () => { const r = await mtBillById(td.dataset.mlb, m, td.dataset.mlbd); if (b.dataset.mle) await mtEdit(r); else await mtDelete(r); });
+    if (lb) { const tr = lb.closest('[data-mll]'); busy(lb, '…', () => (lb.dataset.mlle ? mlLineEdit : mlLineDelete)(tr.dataset.mlid, Number(tr.dataset.mll))); return; }
+    const fv = e.target.closest('[data-mlfv]');      // (update-182) the bill's files
+    if (fv) { const tr = fv.closest('[data-mlb]'); busy(fv, '…', () => mtFilesView(tr.dataset.mlb)); }
   });
+  // (update-182, "admin or super admin gadich log book maintanace ch delet pn karu shakel as de") THE WHOLE MAINTENANCE LOG BOOK of this
+  // machinery – the dates shown, or Start to end – deleted by the Admin / Super Admin: said first with its bills and ₹, the machinery's
+  // number typed to confirm; what the RCL Store issued and the fuel stay; each bill written in the Activity Log (the server: deleteMaintLog)
+  $('ml_delall').addEventListener('click', e => busy(e.target, 'Deleting…', async () => {
+    const x = S.rp && S.rp.mlog; if (!x) return;
+    const d = x.d, m = d.machine, bills = (d.lines || []).filter(l => l.kind === 'Maintenance' && l.id), key = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!bills.length) { toast('No maintenance bill of ' + m.id + ' in these dates – nothing to delete.', true); return; }
+    const sum = r2(bills.reduce((a, b) => a + (Number(b.amount) || 0), 0));
+    const html = '<p>All <b>' + bills.length + '</b> maintenance bill(s) of <b>' + esc(m.id) + '</b> ' + (d.all ? 'from its first bill to today' : esc(showDate(d.from)) + ' to ' + esc(showDate(d.to))) + ' – ₹' + money(sum) + ' – are deleted. What the RCL Store issued and the fuel stay. Each bill is written in the Activity Log.</p>' +
+      '<p class="neg">This cannot be undone – press "Export to Excel" first to keep a copy.</p><label style="display:block;margin-top:8px">Type <b>' + esc(m.id) + '</b> to confirm<input id="mld_t" autocomplete="off" style="width:100%;margin-top:4px"></label>';
+    if (!(await askConfirm({ title: 'Delete the log book of ' + m.id + '?', danger: true, ok: 'Delete ' + bills.length + ' bill(s)', html: html }))) return;
+    if (key(val('mld_t')) !== key(m.id)) { toast('Not deleted – type the machinery number as it is (' + m.id + ').', true); return; }
+    const r = await call('deleteMaintLog', d.all ? { no: m.id, all: true, count: bills.length } : { no: m.id, from: d.from, to: d.to, count: bills.length });
+    toast(r.n + ' bill(s) of ' + m.id + ' deleted.');
+    if (S.mt && S.mt.edit && bills.some(b => b.id === S.mt.edit)) mtClear();
+    mtLoad(); await mlogShow();
+  }));
   /* (update-180, asked 28-10-2026: "kontya hi gadichi log book maintanace wala ek ek entry mala edit or delet krta yawi"; his answer: each
    * line on its own) ONE LINE OF A BILL from the log book on the screen: its box (Particulars, Paid by, Qty, Uom, Rate, Discount %, Amount,
    * GST % – as a line of the bill's form: a Paid line's ₹ from Qty × Rate − Discount, a free line ₹ 0) → updateMaintLine; Delete →
@@ -17984,7 +18010,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         '<label>Disc %<input id="mll_d" type="number" step="0.01" min="0" max="100" value="' + esc(v.disc) + '"></label>' +
         '<label>Amount (₹)<input id="mll_a" type="number" step="0.01" value="' + esc(v.amount) + '"></label>' +
         '<label>GST %<input id="mll_g" type="number" step="0.01" min="0" max="100" value="' + esc(v.gst) + '"></label>' +
-        '<p id="mll_sum" class="muted" style="grid-column:1 / -1;margin:0"></p></div>' + (err ? '<p class="neg" style="margin:8px 0 0">' + esc(err) + '</p>' : '');
+        '<p id="mll_sum" class="muted" style="grid-column:1 / -1;margin:0"></p></div>' + (err ? '<p class="neg" style="margin:8px 0 0">' + esc(err) + '</p>' : '') +
+        '<p style="margin:10px 0 0"><button type="button" class="btn ghost small" id="mll_bill">Change the whole bill (date, party, reading, files…)</button></p>';      // (update-182) the bill's own Change
       setTimeout(() => {
         const box = $('mll_w') && $('mll_w').closest('.cp-form'); if (!box) return;
         const show = () => { const k = $('mll_t').value, free = !mtCharged(k), a = $('mll_a').value, gv = free || a === '' ? 0 : mtGst(a, $('mll_g').value);
@@ -17994,6 +18021,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             if (!mtCharged(k)) $('mll_a').value = 0; else if (q !== '' && rt !== '') $('mll_a').value = r2(Number(q) * Number(rt) * (1 - (Number(d) || 0) / 100)); else if ($('mll_a').value === '0') $('mll_a').value = ''; }
           show(); });
         show(); $('mll_w').focus();
+        $('mll_bill').onclick = () => { closeConfirm(false); mtBillById(id, b.no, b.date).then(mtEdit).catch(e2 => toast(errMsg(e2), true)); };
       }, 0);
       if (!(await askConfirm({ title: 'Change this line – ' + b.no, ok: 'Save', wide: true, html: html }))) return;
       const num = id2 => { const t = $(id2).value; return t === '' ? '' : Number(t); };

@@ -74,8 +74,9 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     await F.evaluate(() => { try { closeConfirm(false); } catch (e) {} }); await wait(4500);
     const tidy = async () => { await F.evaluate(() => { try { closeConfirm(false); } catch (e) {} try { $('ai_panel').hidden = true; $('ai_panel').style.display = 'none'; } catch (e) {} ['fixbox', 'toast'].forEach(id => { const y = document.getElementById(id); if (y) { y.hidden = true; y.style.display = 'none'; } }); }); await wait(300); };
     await F.evaluate(() => showTab('mnt')); await wait(2500);
-    const pv = await F.evaluate(() => ({ shown: !$('mti_panel').hidden, admin: !!(S.user && S.user.admin), title: document.querySelector('#mti_panel h2').textContent }));
-    ok('1. the Super Admin sees "Import the old log book (Excel or PDF)" under the bills, "Download the format (Excel)" beside it', pv.shown && pv.admin && pv.title === 'Import the old log book (Excel or PDF)' && await F.evaluate(() => $('mti_fmt').textContent === 'Download the format (Excel)'), pv);
+    const pv = await F.evaluate(() => ({ shown: !$('ml_imp').hidden, admin: !!(S.user && S.user.admin), title: $('ml_imp').textContent }));
+    await F.evaluate(() => $('ml_imp').click()); await wait(400);      // (update-182) a small button of the log book's card opens the import's box
+    ok('1. the Super Admin sees "Import old log book (Excel / PDF)" (update-182: a small button of the log book); its box: "Download the format (Excel)" beside "Choose the file"', pv.shown && pv.admin && pv.title === 'Import old log book (Excel / PDF)' && await F.evaluate(() => !$('mti_panel').hidden && $('mti_fmt').textContent === 'Download the format (Excel)'), pv);
     for (let i = 0; i < 30 && !(await F.evaluate(() => typeof XLSX !== 'undefined')); i++) await wait(500);
     await aiSay('/__clear');
     await aiSay('/__names', JSON.stringify({ fixes: [['party', 'GANESH MOTERS', 'Ganesh Motors'], ['work', 'FUEL WATER SEPRETOR', 'FUEL WATER SEPARATOR']] }));
@@ -175,7 +176,7 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
       fmt && fmt.file === 'Old Maintenance Log Book – format.xlsx' && fmt.first === 'How to fill' && fmt.has && !fmt.jcb && fmt.title === 'Maintenance Log Book – Roller No.03' && fmt.no === R &&
       fmt.head === 'Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total', fmt);
     // ---- 5. (update-174, "he admin la fkt nahi user la pn disu de") a user with Maintenance Edit sees the import; View only does not ----
-    const seen = async (admin, perm) => { await F.evaluate((a, p) => { S.user.admin = a; S.user.perms = Object.assign({}, S.user.perms, { Maintenance: p }); mtLoad(); }, admin, perm); await wait(1500); return F.evaluate(() => !$('mti_panel').hidden); };
+    const seen = async (admin, perm) => { await F.evaluate((a, p) => { S.user.admin = a; S.user.perms = Object.assign({}, S.user.perms, { Maintenance: p }); mtLoad(); }, admin, perm); await wait(1500); return F.evaluate(() => !$('ml_imp').hidden); };
     const vis = [await seen(false, 'Edit'), await seen(false, 'View'), await seen(true, 'Edit')];
     ok('5. the import: a user (not Admin) with Maintenance Edit sees it; with View only not; the Admin sees it', JSON.stringify(vis) === JSON.stringify([true, false, true]), vis);
     // the log book of the roller shows them (history)
@@ -185,9 +186,11 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     await F.evaluate(r => { $('ml_no').value = r; $('ml_all').checked = true; $('ml_all').dispatchEvent(new Event('change')); $('ml_go').click(); }, R);
     for (let i = 0; i < 30 && !(await F.evaluate(() => !$('rpmlog_out').hidden && S.rp && S.rp.mlog && S.rp.mlog.d.all)); i++) await wait(400);
     await wait(500);
-    const lb = await F.evaluate(() => ({ meta: $('rpmlog_meta').textContent, dis: $('ml_from').disabled && $('ml_to').disabled, bills: S.rp.mlog.d.total.maint.bills, acts: [...document.querySelectorAll('#rpmlog_body .mlog-act')].map(x => x.closest('[data-mlb]').dataset.mlb),
-      excel: /mlog-act|>Change</.test(S.rp.mlog.v.html), store: S.rp.mlog.d.store }));
-    ok('6. the log book "Start to end": from its first bill (02-12-2022) to today – the dates greyed; 5 bills, each with Change / Delete on the screen (not in the Excel); the Store\'s outward: not set up at this site (no Store step 2 here)',
+    const acts = () => F.evaluate(() => [...document.querySelectorAll('#rpmlog_body tr[data-mlb]')].filter(tr => /Edit · Delete/.test(tr.lastElementChild.textContent)).map(tr => tr.dataset.mlb));      // (update-182) the Action column: each line Edit · Delete
+    const lb = await F.evaluate(() => ({ meta: $('rpmlog_meta').textContent, dis: $('ml_from').disabled && $('ml_to').disabled, bills: S.rp.mlog.d.total.maint.bills,
+      excel: /mlog-actd|>Action</.test(S.rp.mlog.v.html), store: S.rp.mlog.d.store }));
+    lb.acts = await acts();
+    ok('6. the log book "Start to end": from its first bill (02-12-2022) to today – the dates greyed; 5 bills, each line Edit · Delete at its end (update-182; on the screen, not in the Excel); the Store\'s outward: not set up at this site (no Store step 2 here)',
       new RegExp('^Start to end: 02-12-2022 to ' + today.split('-').reverse().join('-')).test(lb.meta) && lb.dis && lb.bills === 5 && JSON.stringify(lb.acts.slice().sort()) === JSON.stringify(['MT-000001', 'MT-000002', 'MT-000003', 'MT-000004', 'MT-000005']) && !lb.excel && lb.store && lb.store.on === false, lb);
     await tidy(); await F.evaluate(() => $('rpmlog_out').scrollIntoView({ block: 'start' })); await wait(400);
     await mp.screenshot({ path: path.join(SHOT, 'mnt175_logbook.png') });
@@ -195,19 +198,22 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     const outT = await F.evaluate(() => { const t = document.getElementById('toast'); return t ? t.textContent : ''; });
     ok('   "Fetch outward (Store)": the log book read again; (update-178) a site whose database has no Store step 2: "The Store\'s work is not set up at this site yet … no outward to fetch …"', /The Store's work is not set up at this site yet \(its database step 2\) – there is no outward to fetch/.test(outT), outT);
     await tidy();
-    await F.evaluate(() => document.querySelector('#rpmlog_body [data-mle="MT-000005"]').click()); await wait(2500);
+    await F.evaluate(() => document.querySelector('#rpmlog_body tr[data-mlid="MT-000005"] [data-mlle]').click()); await wait(900);      // (update-182) a line's Edit → "Change the whole bill"
+    await F.evaluate(() => $('mll_bill').click()); await wait(2500);
     const ed = await F.evaluate(() => ({ title: $('mt_title').textContent, no: $('mt_no').value, date: $('mt_date').value, edit: S.mt.edit }));
     ok('   Change of a bill in the log book: MT-000005 in the form (its machinery, its date)', ed.title === 'Change bill MT-000005' && ed.no === R && ed.date === '2025-02-10' && ed.edit === 'MT-000005', ed);
     await F.evaluate(() => mtClear());
-    await F.evaluate(() => document.querySelector('#rpmlog_body [data-mld="MT-000004"]').click()); await wait(800);
-    await F.evaluate(() => { const okb = document.getElementById('cf_ok'); if (okb) okb.click(); });
-    for (let i = 0; i < 30 && sql('rcl', 'select count(*) from maintenance') !== '4'; i++) await wait(400);
-    await wait(2500);
-    const del = await F.evaluate(() => ({ bills: S.rp.mlog.d.total.maint.bills, acts: document.querySelectorAll('#rpmlog_body .mlog-act').length }));
-    ok('   Delete of a bill in the log book: MT-000004 deleted – 4 bills left, the log book shown again', sql('rcl', "select count(*) from maintenance where id = 'MT-000004'") === '0' && del.bills === 4 && del.acts === 4, del);
-    await F.evaluate(() => { $('mtf_no').value = ''; $('mtf_all').checked = true; $('mtf_all').dispatchEvent(new Event('change')); }); await wait(2500);
-    const bl = await F.evaluate(() => ({ n: S.mt.rows.length, dis: $('mtf_from').disabled }));
-    ok('   the bills "Start to end": every bill (4 – from 2022), the dates greyed', bl.n === 4 && bl.dis, bl);
+    // (update-182) a bill deleted from the log book line by line (its last line: "the whole bill is deleted")
+    for (let k = 0; k < 12 && sql('rcl', "select count(*) from maintenance where id = 'MT-000004'") !== '0'; k++) {
+      await tidy(); await F.evaluate(() => document.querySelector('#rpmlog_body tr[data-mlid="MT-000004"] [data-mlld]').click()); await wait(800);
+      await F.evaluate(() => { const okb = document.getElementById('cf_ok'); if (okb) okb.click(); });
+      for (let i = 0; i < 20 && await F.evaluate(() => !$('cf_back').hidden); i++) await wait(300);
+      await wait(2500);
+    }
+    const del = await F.evaluate(() => ({ bills: S.rp.mlog.d.total.maint.bills })); del.acts = (await acts()).length;
+    ok('   Delete in the log book: MT-000004 deleted (its lines; its last line the whole bill) – 4 bills left, the log book shown again', sql('rcl', "select count(*) from maintenance where id = 'MT-000004'") === '0' && del.bills === 4 && del.acts === 4, del);
+    const bl = await F.evaluate(() => ({ list: !!document.getElementById('mt_rows') || !!document.getElementById('mtf_all') }));
+    ok('   (update-182) no bills list on the page any more (its "Start to end" with it) – the log book shows them', bl.list === false, bl);
     // ---- 7. (update-177, "pdf size cha issue yeu naye ani eka pdf madhe multiple pages pn ashu shaktat") a PDF of 4.6 MB (2 pages) and a
     //      photo of a page bigger than 3 MB – read: each PDF page sent alone (small); the photo made smaller on the page ----
     await aiSay('/__clear');
