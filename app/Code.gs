@@ -846,6 +846,8 @@ const API_ = {
   saveMasterBulk:    { m: 'Master', edit: true, f: saveMasterBulk_, log: 'masterBulk' },
   deleteMaster:      { m: 'Master', edit: true, f: deleteMaster_, log: 'masterDelete' },
   getVendors:        { m: 'Vendor Master', any: ['Vendor Master', 'Master', 'Vendor BOQ', 'Machinery Billing', 'Machinery Payments', 'Vendor Ledger', 'Vendor Outstanding'], f: getVendors_ },
+  vendorDoc:         { m: 'Vendor Master', withUser: true, f: (u, x) => uploadAttachment_(u, x, 'Vendor Master') },      // (update-184) one document of a vendor (PDF / photo), kept once in the private store (Edit checked inside)
+  getVendorDocs:     { m: 'Vendor Master', f: getVendorDocs_ },      // (update-184) a vendor's documents with their links – to see, print, download
   saveVendor:        { m: 'Vendor Master', edit: true, f: saveVendor_, log: 'vendor' },
   deleteVendor:      { m: 'Vendor Master', edit: true, f: deleteVendor_, log: 'vendorDel' },
   getBoqs:           { m: 'Vendor BOQ', any: ['Vendor BOQ', 'Vendor Master', 'Master'], f: getBoqs_ },
@@ -1964,7 +1966,16 @@ function fillEnteredByFromActivity() {
  * An amendment is a new version of a BOQ from a date inside its period. For any date the rate is taken from the newest
  * version in force on that date (latest "from" date; then the higher amendment number). */
 const VENDOR_COLS_ = ['Vendor Name', 'Ownership', 'GST Registered', 'GST Number', 'GST %', 'PAN Number', 'TDS %', 'Bank Name', 'Branch', 'Account Number', 'IFSC Code', 'Address', 'Phone', 'Remark', 'Created At'];
-const VENDOR_MORE_ = ['Aadhaar Number', 'Email', 'Vendor Type'];
+const VENDOR_MORE_ = ['Aadhaar Number', 'Email', 'Vendor Type', 'Owner Name', 'Documents'];
+/* (update-184, asked 28-10-2026: "new vendor banwanatana sadhya ekach aahe vendor name tr tith company name as banaw ani ajun ek fild kr owner
+ * name … vendor che attachment add option de je pratek vendor che distil mg tyanch adhar pan gst asel tr te hi nante udyam bank details as je
+ * company la lagtat te vendor warun kadhi pn mi bgu shaku print or download kru shaku … attchment pratek vendor sathi lagel supplir aso ki
+ * mechinery aso") THE VENDOR'S OWN PAPERS: the Company Name (the vendor's name, as before) and its Owner Name; its documents – Aadhaar, PAN,
+ * GST, Udyam, bank details (a cheque / passbook), other – each a PDF or a photo, kept once in the private file store (as a bill's files),
+ * seen, printed and downloaded from the vendor at any time. Where this site's database has the two columns (step 1zj); without them the
+ * vendor is saved as before and the page says what to run. */
+const VENDOR_DOC_KINDS_ = ['Aadhaar', 'PAN', 'GST', 'Udyam', 'Bank', 'Other'], VENDOR_DOCS_MAX_ = 30;
+const VENDOR_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1zj_vendor_papers.sql once in Supabase → SQL Editor (in every site).';
 /* (update-181, 28-10-2026) A MATERIAL SUPPLIER: a vendor the Store's import of its old inward register made ("Vendor Type" = Material
  * Supplier – his answer: the suppliers in the Vendor Master, kept out of the machinery and billing lists). Shown in the Vendor
  * Master (marked, its own filter), its details filled as any vendor's. It is not offered for an asset's owner, a BOQ, a bill, a
@@ -2015,6 +2026,7 @@ function vendorOut_(t, r) {
     pan: str_(g('PAN Number')), tds: numOrBlank_(g('TDS %')), bank: str_(g('Bank Name')), branch: str_(g('Branch')), account: str_(g('Account Number')), ifsc: str_(g('IFSC Code')),
     address: str_(g('Address')), phone: str_(g('Phone')), remark: str_(g('Remark')), aadhaar: str_(g('Aadhaar Number')), email: str_(g('Email')),
     type: str_(g('Vendor Type')) === MAT_SUP_ ? MAT_SUP_ : '',      // (update-181)
+    owner: str_(g('Owner Name')), docs: 'Documents' in t.c ? vendorDocsList_(g('Documents')).map(x => ({ kind: x.kind, name: x.name, mime: x.mime, size: x.size, at: x.at, by: x.by, sha: x.sha })) : [],      // (update-184)
     enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '',
     ver: rowVer_(t, r, VENDOR_VER_H_) };      // (update-156) sent back with a change / a delete
 }
@@ -2047,7 +2059,7 @@ function getVendors_() {
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 function validateVendor_(v) {
-  const name = clean_(v.name); if (!name) throw new Error('Enter the Vendor Name.');
+  const name = clean_(v.name); if (!name) throw new Error('Enter the Company Name (the vendor\'s name).');      // (update-184: the Company Name)
   const up = x => clean_(x).toUpperCase().replace(/\s+/g, '');
   const gstReg = str_(v.gstReg) === 'Yes' ? 'Yes' : 'No';
   const gst = up(v.gst), ifsc = up(v.ifsc);
@@ -2071,7 +2083,7 @@ function validateVendor_(v) {
   const pct = (x, label, max) => blank_(x) ? '' : (() => { const n = Number(x); if (!isFinite(n) || n < 0 || n > max) throw new Error(label + ' must be between 0 and ' + max + '.'); return r2_(n); })();
   return { name: name, gstReg: gstReg, gst: gst, gstPct: gstReg === 'Yes' ? pct(v.gstPct, 'GST %', 28) : '', pan: pan, tds: pct(v.tds, 'TDS %', 100),
     bank: clean_(v.bank), branch: clean_(v.branch), account: account, ifsc: ifsc, address: clean_(v.address), phone: mobile, remark: clean_(v.remark), aadhaar: aadhaar, email: email,
-    type: str_(v.type) === MAT_SUP_ ? MAT_SUP_ : '' };
+    type: str_(v.type) === MAT_SUP_ ? MAT_SUP_ : '', owner: clean_(v.owner).slice(0, 80) };
 }
 /* ---------- RENAMING A VENDOR (asked 02-10-2026) ----------
  * The NAME is what ties a vendor to everything: its assets (Asset Master → Owner Name), its BOQs, bills, payments and
@@ -2140,6 +2152,13 @@ function saveVendor_(v, mode) {
     put('IFSC Code', x.ifsc); put('Address', x.address); put('Phone', x.phone); put('Remark', x.remark); put('Aadhaar Number', x.aadhaar); put('Email', x.email);
     if (vendorOwnOn_()) put('Owner Site', siteHere_());      // (update-111) saved here = this site's own (nothing is copied to another site)
     if ((v || {}).type !== undefined && vendorTypeOn_()) put('Vendor Type', x.type);      // (update-181) only when the form sends it (a page of before keeps it)
+    // (update-184) the Owner Name and the documents – only when the form sends them (a page / an app of before keeps them); a site whose
+    // database has no such column: an Owner Name / a document given is refused with what to run (an empty one: as before)
+    if ((v || {}).owner !== undefined) { if (vendorColOn_('owner_name')) put('Owner Name', x.owner); else if (x.owner) throw new Error('The Owner Name cannot be kept yet. ' + VENDOR_SQL_MSG_); }
+    if (Array.isArray((v || {}).docs)) {
+      if (!vendorColOn_('documents')) { if (v.docs.length) throw new Error('The documents of the vendor cannot be kept yet. ' + VENDOR_SQL_MSG_); }
+      else { const docs = vendorDocsOf_(v.docs, i > -1 && 'Documents' in t.c ? vendorDocsList_(t.rows[i][t.c['Documents']]) : []); put('Documents', docs.length ? JSON.stringify(docs) : ''); }
+    }
     if (i === -1) { put('Created At', new Date()); t.sh.appendRow(row); } else t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
     TABLE_MEMO_ = {};
     return { ok: true, name: x.name, renamed: renamed, vendors: getVendors_() };
@@ -2494,12 +2513,13 @@ function realDate_(v) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v)); i
 function importCompliance_(rows, apply) {
   return withLock_(() => {
     const docs = cmpDocs_(), master = getMaster_(), byKey = {}; master.forEach(m => { byKey[noKey_(m.id)] = m; });
-    const errors = [], changes = [], seen = {};
+    const errors = [], changes = [], seen = {}, skipped = [];
     (rows || []).forEach(r => {
       const vals = docs.map(d => str_((r.docs || {})[d.name])).filter(v => v && !/^NOT NEEDED$/i.test(v));
       if (!clean_(r.no) && !vals.length) return;
       const m = byKey[noKey_(r.no)];
       if (!m) { errors.push({ row: r.line, msg: '"' + clean_(r.no) + '" is not in Asset Master.' }); return; }
+      if (normOwnership_(m.ownership) !== 'Own') { skipped.push(m.id); return; }      // (update-184) papers only of Own machinery – the others left out
       if (seen[noKey_(m.id)]) { errors.push({ row: r.line, msg: m.id + ' is also on row ' + seen[noKey_(m.id)] + ' of the file.' }); return; }
       seen[noKey_(m.id)] = r.line;
       docs.forEach(d => {
@@ -2513,8 +2533,8 @@ function importCompliance_(rows, apply) {
       });
     });
     const machines = [...new Set(changes.map(c => c.i))].length;
-    if (errors.length || !apply) return { ok: !errors.length, errors: errors, changes: changes.length, machines: machines, preview: changes.slice(0, 30).map(c => c.i + ' – ' + c.doc.name + ': ' + docShow_(c.from) + ' → ' + docShow_(c.to)) };
-    if (!changes.length) return { ok: true, applied: true, changes: 0, machines: 0, errors: [] };
+    if (errors.length || !apply) return { ok: !errors.length, errors: errors, changes: changes.length, machines: machines, preview: changes.slice(0, 30).map(c => c.i + ' – ' + c.doc.name + ': ' + docShow_(c.from) + ' → ' + docShow_(c.to)), skipped: skipped };
+    if (!changes.length) return { ok: true, applied: true, changes: 0, machines: 0, errors: [], skipped: skipped };
     docs.forEach(d => addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, d.col)); TABLE_MEMO_ = {};
     const t = table_(APP.SHEET_MASTER, MASTER_COLS_), idx = {}; t.rows.forEach((r, i) => { idx[noKey_(rowId_(r, t))] = i; });
     const touched = {};
@@ -2522,7 +2542,7 @@ function importCompliance_(rows, apply) {
     Object.keys(touched).forEach(i => { stampEdit_(touched[i], t); t.sh.getRange(Number(i) + 2, 1, 1, touched[i].length).setValues([touched[i]]); });
     cmpHistAdd_(changes.map(c => ({ no: c.i, doc: c.doc.name, from: c.from, to: c.to, on: today_(), source: 'Excel import' })));
     bump_(['master']);
-    return { ok: true, applied: true, changes: changes.length, machines: machines, errors: [], list: changes.slice(0, 60).map(c => c.i + ' ' + c.doc.name + ' → ' + docShow_(c.to)).join('; ') };
+    return { ok: true, applied: true, changes: changes.length, machines: machines, errors: [], list: changes.slice(0, 60).map(c => c.i + ' ' + c.doc.name + ' → ' + docShow_(c.to)).join('; '), skipped: skipped };
   });
 }
 /* Which papers each machinery TYPE needs. Road vehicles need all five; registered construction vehicles (JCB, Hydra, crane,
@@ -2555,7 +2575,9 @@ function saveCmpRules_(rules) {
 }
 function getCompliance_() {
   const today = today_(), docs = cmpDocs_(), rules = cmpRules_();
-  const active = getMaster_().filter(m => onSiteOn_(m, today) && ['Own', 'Rental', 'Hired'].indexOf(m.ownership) > -1);      // (update-115) on site today
+  // (update-115) on site today; (update-184, asked 28-10-2026: "asset master madhe papers fkt own mhanje rachana che ghenar mi je rental debit or
+  // other aahet tyanche atatchment nko aaht mala") only Own – Rachana's own machinery (a Rental / Hired / Debit one's papers are not followed)
+  const active = getMaster_().filter(m => onSiteOn_(m, today) && normOwnership_(m.ownership) === 'Own');
   // papers needed by each type (the list for "Papers per type")
   const typeMap = {};
   active.forEach(m => { const k = String(m.type || '').trim().toUpperCase() || '(NO TYPE)'; const x = typeMap[k] = typeMap[k] || { type: m.type || '(no type)', key: k, count: 0 }; x.count++; });
@@ -2896,6 +2918,36 @@ function vendorMatOnly_() {
   });
 }
 // (update-181) does this site's database have vendors.vendor_type? (as vendorOwnOn_: asked once in a while, not at every look)
+// (update-184) a column of the vendors' table that a later step adds (owner_name, documents): there or not (kept 15 minutes)
+function vendorColOn_(col) {
+  if (!sbDataOn_()) return true;      // (the Google Sheet: the column is added when a vendor is saved)
+  let sh = null, cols = null; try { vendorTable_(); sh = SS_().getSheetByName(APP.SHEET_VENDORS); cols = sh && sh.dbCols; } catch (e) { cols = null; }
+  if (cols && cols.indexOf(col) > -1) return true;
+  const c = CacheService.getScriptCache(), was = c.get('SBCOL_vendors.' + col);
+  if (was === '0') return false;
+  let there = was === '1';
+  if (!there) { try { sbFetch_('GET', '/rest/v1/vendors?select=' + col + '&limit=1'); there = true; } catch (e) { there = false; } c.put('SBCOL_vendors.' + col, there ? '1' : '0', there ? 900 : 60); }
+  if (there && cols) cols.push(col);
+  return there;
+}
+// (update-184) a vendor's documents as kept: each its kind (Aadhaar, PAN …) and the file's own record (as a bill's files)
+function vendorDocsList_(v) { let a = null; try { a = typeof v === 'string' ? JSON.parse(v || '[]') : v; } catch (e) { a = null; }
+  return attList_(a).map(x => Object.assign(attOut_(x), { kind: VENDOR_DOC_KINDS_.indexOf(str_(x.kind)) > -1 ? str_(x.kind) : 'Other' })); }
+// the documents a save gives: [{ sha, kind }] – a file kept before stays as it was; a new one must have been sent by this person (6 hours)
+function vendorDocsOf_(list, had) {
+  if (list === undefined || list === null) return null;
+  if (!Array.isArray(list)) throw new Error('The documents of the vendor were not sent right – add them again.');
+  if (list.length > VENDOR_DOCS_MAX_) throw new Error('A vendor keeps at most ' + VENDOR_DOCS_MAX_ + ' documents – remove some.');
+  const kinds = list.map(x => str_(x && x.kind)), files = maintFilesOf_(list.map(x => x && typeof x === 'object' ? { sha: x.sha } : x), had, 'document');
+  return files.map((f, i) => Object.assign(f, { kind: VENDOR_DOC_KINDS_.indexOf(kinds[i]) > -1 ? kinds[i] : 'Other' }));
+}
+// (update-184) a vendor's documents with their links (for 15 minutes) – to see, print and download
+function getVendorDocs_(name) {
+  const t = vendorTable_(), k = vKey_(name), r = t ? t.rows.find(x => vKey_(x[t.c['Vendor Name']]) === k) : null;
+  if (!r) throw new Error('Vendor ' + clean_(name) + ' is not saved in the Vendor Master yet – save its details first.');
+  const list = 'Documents' in t.c ? vendorDocsList_(r[t.c['Documents']]) : [], urlOf = attLinks_(list.map(x => x.p));
+  return { name: clean_(r[t.c['Vendor Name']]), owner: 'Owner Name' in t.c ? str_(r[t.c['Owner Name']]) : '', docs: list.map(x => Object.assign(x, { url: urlOf[x.p] || '' })), on: vendorColOn_('documents') };
+}
 function vendorTypeOn_() {
   if (!sbDataOn_()) return true;      // (the Google Sheet: the column is added when a vendor is saved)
   let sh = null, cols = null; try { vendorTable_(); sh = SS_().getSheetByName(APP.SHEET_VENDORS); cols = sh && sh.dbCols; } catch (e) { cols = null; }
@@ -3854,7 +3906,7 @@ function getBoqs_(f) {
   const out = [];
   roots.forEach(r => { out.push(r); list.filter(b => b.amendOf === r.id).sort((a, b) => a.amendNo - b.amendNo).forEach(a => out.push(a)); });
   list.filter(b => b.amendOf && !roots.some(r => r.id === b.amendOf)).forEach(b => out.push(b));
-  return { boqs: out, vendors: getVendors_(), history: boqHistory_(list), vtypeOn: vendorTypeOn_() };      // (update-181) the vendor's type can be kept here
+  return { boqs: out, vendors: getVendors_(), history: boqHistory_(list), vtypeOn: vendorTypeOn_(), vdocsOn: vendorColOn_('owner_name') && vendorColOn_('documents') };      // (update-181) the vendor's type can be kept here; (update-184) the Owner Name and the documents
 }
 /* (update-132, asked 19-10-2026: "mala disayla haw old kay hot nantr amendment zali kadhi … boq period wise ani vehicle wise …
  * jewa tya party war jail mi tewa mala disel 01 month sathi yacha ha rate hot … second month la ha rate … ani hi rate change zal tya
@@ -5416,7 +5468,7 @@ function attSniff_(bytes) {
 // one file, as it is added: its fingerprint, kept once in the private store
 function uploadAttachment_(u, x, mod) {      // (update-165) mod 'Maintenance': a file of a maintenance bill – the same store, its own access
   x = x || {};
-  const pg = mod === 'Maintenance' ? 'Maintenance' : 'Log Book';
+  const pg = mod === 'Maintenance' ? 'Maintenance' : mod === 'Vendor Master' ? 'Vendor Master' : 'Log Book';      // (update-184) a vendor's document
   if (!canEdit_(u, pg)) throw new Error('You have View access only for ' + pg + '. Ask Admin for Edit access.');
   const mt = /^data:(image\/jpeg|image\/png|application\/pdf);base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
   if (!mt) throw new Error('An attachment must be a photo (JPG or PNG) or a PDF.');
@@ -5425,7 +5477,9 @@ function uploadAttachment_(u, x, mod) {      // (update-165) mod 'Maintenance': 
   if (!bytes.length) throw new Error('This file is empty – add it again.');
   const real = attSniff_(bytes);
   if (real !== mt[1]) throw new Error('This file is not what its name says (' + mt[1] + ') – only real photos (JPG, PNG) and PDFs can be attached.');
-  if (pg === 'Maintenance') { if (!sbDataOn_()) throw new Error('Attachments are kept in Supabase only – this copy of the app runs on the Google Sheet.'); maintTable_(true); } else attReady_();
+  if (pg === 'Maintenance') { if (!sbDataOn_()) throw new Error('Attachments are kept in Supabase only – this copy of the app runs on the Google Sheet.'); maintTable_(true); }
+  else if (pg === 'Vendor Master') { if (!sbDataOn_()) throw new Error('Attachments are kept in Supabase only – this copy of the app runs on the Google Sheet.'); if (!vendorColOn_('documents')) throw new Error('The documents of the vendor cannot be kept yet. ' + VENDOR_SQL_MSG_); }
+  else attReady_();
   const cch = CacheService.getScriptCache(), me = str_(u.email).toLowerCase(), myName = u.name || u.email;
   const kB = 'ATB_' + today_() + '_' + me, nNow = typeof __count === 'function' ? __count('ATN_' + today_() + '_' + me, 90000) : -1, bNow = Number(cch.get(kB)) || 0;
   if (nNow > ATT_DAY_N_ || bNow + bytes.length > ATT_DAY_MB_ * 1048576) throw new Error('You sent too many attachments today (at most ' + ATT_DAY_N_ + ' files, ' + ATT_DAY_MB_ + ' MB a person in a day) – send the rest tomorrow. If you did not send them, tell the Admin at once.');
@@ -6525,24 +6579,25 @@ function maintVals_(x, keepNo) {
 }
 /* the bill's files a save gives ([{ sha } …] or shas): each one the bill has, or one this person sent in the last 6 hours (as the Log
  * Book's attachments – at an approval: the sender's, noted with the request). Not given = the bill keeps what it has. */
-function maintFilesOf_(list, had) {
+function maintFilesOf_(list, had, what) {      // (update-184) what 'document': a vendor's documents (the same checks, their own words)
+  const doc = what === 'document';
   if (list === undefined || list === null) return null;
-  if (!Array.isArray(list)) throw new Error('The bill files were not sent right – add them again.');
+  if (!Array.isArray(list)) throw new Error(doc ? 'The documents of the vendor were not sent right – add them again.' : 'The bill files were not sent right – add them again.');
   const shas = list.map(x => str_(x && typeof x === 'object' ? x.sha : x).toLowerCase());
-  if (shas.length > MNT_FILES_MAX_) throw new Error('A bill keeps at most ' + MNT_FILES_MAX_ + ' files – remove some.');
+  if (!doc && shas.length > MNT_FILES_MAX_) throw new Error('A bill keeps at most ' + MNT_FILES_MAX_ + ' files – remove some.');
   const old = {}; (had || []).forEach(x => { old[x.sha] = x; });
   if (!shas.length) return [];
   const run = VER_CTX_ === 'flow' || VER_CTX_ === 'approve';
   const me = run ? str_(FLOW_SENDER_).toLowerCase() : str_(OUT_FOR_ && OUT_FOR_.email).toLowerCase();
   const recs = attRecs_(shas), seen = {};
   const out = shas.map((h, i) => {
-    if (!/^[0-9a-f]{64}$/.test(h)) throw new Error('A bill file was not sent right – add it again.');
+    if (!/^[0-9a-f]{64}$/.test(h)) throw new Error(doc ? 'A vendor document was not sent right – add it again.' : 'A bill file was not sent right – add it again.');
     if (seen[h]) throw new Error('The same file is given twice – remove one.');
     seen[h] = true;
     if (old[h]) return attOut_(old[h]);
     const rec = recs[i];
     if (attMine_(rec, me) && ATT_TYPES_[rec.mime]) return { sha: h, p: attPathOf_(h, rec.mime), mime: rec.mime, size: num0_(rec.size), name: clean_(rec.name).slice(0, 120), at: str_(rec.at), by: str_((rec.n && rec.n[me]) || rec.by) };
-    throw new Error('A bill file was not added by you in the last 6 hours – add it again.');
+    throw new Error(doc ? 'A vendor document was not added by you in the last 6 hours – add it again.' : 'A bill file was not added by you in the last 6 hours – add it again.');
   });
   if (FLOW_DRY_ON_ && FLOW_PHOTOS_) shas.forEach((h, i) => { if (!old[h] && recs[i]) FLOW_PHOTOS_['AT_' + h] = recs[i]; });
   return out;
@@ -12009,9 +12064,10 @@ function dbHealth_() {
     add('The fuel of each machinery – Diesel / Petrol / CNG / Electric (step 1zg)', has('master', 'fuel'), 'supabase_step1zg_fuel.sql');      // (update-163)
     add('Fuel cards – a site without diesel stock: the ₹ of a fill, the payments onto a card, the page Fuel Cards (step 1zh)', has('diesel_issue', 'amount') && has('diesel_issue', 'rate') && has('card_payments') && has('app_users', 'perm_fuel_cards'), 'supabase_step1zh_fuel_cards.sql');      // (update-164)
     add('Maintenance Log Book – the bills of the cars, their files, a car\'s log book (step 1zi)', has('maintenance') && has('app_users', 'perm_maintenance'), 'supabase_step1zi_maintenance.sql');      // (update-165)
+    add('Vendor Master – the Owner Name and the vendor\'s documents (step 1zj)', has('vendors', 'owner_name') && has('vendors', 'documents'), 'supabase_step1zj_vendor_papers.sql');      // (update-184)
     // (update-90) the list of sites, the Super Admin and who has which site – in the FIRST site's database only
     if (typeof __siteIsHome === 'function' && __siteIsHome()) add('Several sites and the Super Admin (step 7 – the first site only)', typeof __sitesOn === 'function' && __sitesOn(), 'supabase_step7_sites.sql');
-    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason)|master\.fuel|diesel_issue\.(rate|amount)|card_payments|app_users\.perm_fuel_cards|maintenance|app_users\.perm_maintenance)/.test(x));
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason)|master\.fuel|diesel_issue\.(rate|amount)|card_payments|app_users\.perm_fuel_cards|maintenance|app_users\.perm_maintenance|vendors\.(owner_name|documents))/.test(x));
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }
   let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }

@@ -1545,6 +1545,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .vchip b { margin-left: 6px; } .vchip.warn b { color: #B3261E; } .vchip.ok b { color: #047857; }
   .vchip.on { background: #0F172A; color: #fff; border-color: #0F172A; } .vchip.on b { color: #FBBF24; }
   .docs-box { margin: 10px 0 4px; padding: 10px 12px; border: 1px dashed #CBD5E1; border-radius: 12px; background: #FAFBFC; }
+  /* (update-184) a vendor's documents: a row a kind – its files, View, Add / change */
+  .v-docs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px 12px; margin-top: 6px; }
+  .v-doc { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 13.5px; }
+  .v-doc b { min-width: 64px; } .v-doc .muted { flex: 1; } .v-doc .link { font-size: 13px; }
+  .vdv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; } .vdv-grid figure { margin: 0; border: 1px solid var(--line); border-radius: 10px; padding: 8px; text-align: center; }
+  .vdv-grid .at-pdf, .phv-grid .at-pdf { height: 120px; border-radius: 6px; }      /* (update-184) a PDF's sign its own height – not the whole box (its name and buttons stay inside) */
+  .vdv-grid img { max-width: 100%; max-height: 150px; } .vdv-grid figcaption { font-size: 12.5px; margin-top: 4px; } .vdv-grid .vdv-act { display: flex; gap: 10px; justify-content: center; margin-top: 4px; font-size: 13px; }
   .docs-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 6px; }
   .doc-row { display: flex; align-items: center; gap: 8px; } .doc-row input[type=date] { flex: 1; min-width: 0; }
   .doc-row .na { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; white-space: nowrap; font-weight: 600; }
@@ -3757,7 +3764,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="m_chassis">Chassis Number</label><input id="m_chassis" autocomplete="off" style="text-transform:uppercase"></div>
         <div class="field"><label for="m_engmake">Engine Make (company)</label><input id="m_engmake" list="dl_engmake" autocomplete="off" placeholder="e.g. Cummins, Tata"></div>
       </div>
-      <div class="docs-box">
+      <div class="docs-box" id="m_docs_box">      <!-- (update-184, "asset master madhe papers fkt own mhanje rachana che ghenar") only for Own machinery -->
         <div class="flabel">Papers – valid upto <span class="muted">(tick N/A where it does not apply to this asset)</span></div>
         <div class="docs-grid"><div class="field doc"><label for="m_doc_tax">Tax</label><div class="doc-row"><input id="m_doc_tax" type="date"><label class="na"><input type="checkbox" id="m_lt_tax" data-lt="tax"> Lifetime</label><label class="na"><input type="checkbox" id="m_na_tax" data-na="tax"> N/A</label></div></div><div class="field doc"><label for="m_doc_puc">PUC</label><div class="doc-row"><input id="m_doc_puc" type="date"><label class="na"><input type="checkbox" id="m_na_puc" data-na="puc"> N/A</label></div></div><div class="field doc"><label for="m_doc_permit">Permit</label><div class="doc-row"><input id="m_doc_permit" type="date"><label class="na"><input type="checkbox" id="m_na_permit" data-na="permit"> N/A</label></div></div><div class="field doc"><label for="m_doc_fitness">Fitness</label><div class="doc-row"><input id="m_doc_fitness" type="date"><label class="na"><input type="checkbox" id="m_na_fitness" data-na="fitness"> N/A</label></div></div><div class="field doc"><label for="m_doc_ins">Insurance</label><div class="doc-row"><input id="m_doc_ins" type="date"><label class="na"><input type="checkbox" id="m_na_ins" data-na="ins"> N/A</label></div></div></div>
       </div>
@@ -3837,14 +3844,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="sum" id="vf_sum"></div>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Vendor</th><th>Ownership</th><th>Assets</th><th>Mobile</th><th>GST Number</th><th>PAN</th><th>Bank</th><th class="n">BOQs</th><th>Details</th><th></th></tr></thead>
+        <thead><tr><th>Vendor</th><th>Ownership</th><th>Assets</th><th>Mobile</th><th>GST Number</th><th>PAN</th><th>Bank</th><th class="n">BOQs</th><th>Documents</th><th>Details</th><th></th></tr></thead>
         <tbody id="v_rows"></tbody>
       </table></div>
     </div>
     <div class="panel" id="v_form" hidden>
       <div class="panel-head"><h2 id="v_title">Vendor details</h2><span class="chart-note" id="v_mach"></span></div>
       <div class="grid v-grid">
-        <div class="field wide"><label for="v_name">Vendor Name <span class="req">*</span></label><input id="v_name" autocomplete="off"></div>
+        <div class="field wide"><label for="v_name">Company Name <span class="req">*</span></label><input id="v_name" autocomplete="off" placeholder="the vendor's company / firm name"></div>
+        <div class="field" id="v_owner_f"><label for="v_owner">Owner Name</label><input id="v_owner" autocomplete="off" maxlength="80"></div>      <!-- (update-184) -->
         <div class="field"><label for="v_phone">Mobile Number</label><input id="v_phone" inputmode="tel" maxlength="14"></div>
         <div class="field"><label for="v_email">Email</label><input id="v_email" type="email"></div>
         <div class="field"><label for="v_aadhaar">Aadhaar Number</label><input id="v_aadhaar" inputmode="numeric" maxlength="14" placeholder="12 digits"></div>
@@ -3860,6 +3868,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field wide"><label for="v_addr">Address</label><input id="v_addr"></div>
         <div class="field wide"><label for="v_remark">Remark</label><input id="v_remark"></div>
         <div class="field" id="v_type_f" hidden><label for="v_type">Vendor type</label><select id="v_type"><option value="">Machinery / billing vendor</option><option value="Material Supplier">Material Supplier (Store)</option></select></div>
+      </div>
+      <!-- (update-184, "vendor che attachment add option de … adhar pan gst … udyam bank details … kadhi pn mi bgu shaku print or download kru shaku") -->
+      <div class="docs-box v-docs" id="v_docs_box">
+        <div class="flabel">Documents <span class="muted">(PDF or photo – seen, printed and downloaded from the vendor at any time; kept when you press Save vendor)</span></div>
+        <div class="v-docs-grid" id="v_docs"></div>
+        <p class="muted" id="v_docs_note" hidden></p>
       </div>
       <div class="actions" data-perm="Vendor Master"><button class="btn primary" id="v_save">Save vendor</button><button class="btn ghost" id="v_cancel">Close</button><button class="btn ghost" id="v_del" hidden>Delete details</button></div>
     </div>
@@ -4228,7 +4242,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="cp-cards" id="cp_cards"></div>
       <div class="cp-bar">
         <div class="lbd-chips" id="cp_chips"></div>
-        <select id="cp_own" aria-label="Ownership"><option value="">Own + Rental + Hired</option><option value="Own">Own only</option><option value="Rental,Hired">Rental + Hired</option></select>
+        <select id="cp_own" aria-label="Ownership" hidden><option value="">Own</option></select>      <!-- (update-184) the papers only of Own machinery -->
         <input id="cp_q" type="search" placeholder="Search machinery / owner…" autocomplete="off">
         <button class="btn ghost small" id="cp_rules" type="button" data-perm="Vehicle Compliance">Papers per type</button>
         <button class="btn ghost small" id="cp_export" type="button">Export Excel</button>
@@ -6806,6 +6820,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['A line of the old log book keeps its GST amount (₹) as it was in the file – an older page or app cannot change it without losing that GST; or the GST amount typed is not a number; or the AI could not finish a page of the old log book now (it was too slow or busy, even when asked again). Nothing was saved.', 'Update the app (or reload the page) and change the line again; type the GST amount in ₹. For the old log book: press "Continue reading" – the pages already read are kept and it goes on from the page it stopped at.'],
       mr: ['जुन्या log book ची ओळ तिचा GST (₹) फाइलमध्ये होता तसाच ठेवते – जुने page किंवा app तो GST न गमावता ती बदलू शकत नाही; किंवा टाइप केलेला GST (₹) नंबर नाही; किंवा AI ला जुन्या log book चे एक page आत्ता पूर्ण वाचता आले नाही (पुन्हा विचारूनही ते slow / busy होते). काहीही save झाले नाही.', 'App update करा (किंवा page reload करा) आणि ओळ पुन्हा बदला; GST ₹ मध्ये टाइप करा. जुन्या log book साठी: "Continue reading" दाबा – वाचलेली pages राहतात आणि जिथे थांबले तिथून पुढे वाचते.'],
       hi: ['पुरानी log book की पंक्ति अपना GST (₹) फ़ाइल में जैसा था वैसा ही रखती है – पुराना page या app उस GST को खोए बिना उसे नहीं बदल सकता; या टाइप किया GST (₹) नंबर नहीं है; या AI पुरानी log book का एक page अभी पूरा नहीं पढ़ सका (फिर से पूछने पर भी वह slow / busy था). कुछ भी save नहीं हुआ.', 'App update करें (या page reload करें) और पंक्ति फिर से बदलें; GST ₹ में टाइप करें. पुरानी log book के लिए: "Continue reading" दबाएँ – पढ़े हुए pages रहते हैं और जहाँ रुका वहीं से आगे पढ़ता है.'] },
+    // (update-184) the vendor's Company Name, Owner Name and documents
+    { re: /Enter the Company Name|documents of the vendor (were not sent right|cannot be kept yet)|The Owner Name cannot be kept yet|A vendor document was not|A vendor keeps at most|is not saved in the Vendor Master yet – save its details first|supabase_step1zj_vendor_papers/i,
+      en: ['The vendor was not saved: its Company Name is empty, a document was not sent right (or not added by you in the last 6 hours), it has more than 30 documents, the vendor is not saved yet, or this site\'s database cannot keep the Owner Name and documents yet. Nothing was saved.', 'Type the Company Name; add the document again (Add / change) and press Save vendor; take out some documents; save the vendor\'s details first. The Admin runs sql/supabase_step1zj_vendor_papers.sql once in Supabase → SQL Editor (in every site) to keep the Owner Name and the documents.'],
+      mr: ['Vendor save झाला नाही: Company Name रिकामे आहे, एखादे document नीट पाठवले गेले नाही (किंवा गेल्या 6 तासांत तुम्ही जोडले नाही), 30 पेक्षा जास्त documents आहेत, vendor अजून save नाही, किंवा या site चा database अजून Owner Name आणि documents ठेवू शकत नाही. काहीही save झाले नाही.', 'Company Name टाइप करा; document पुन्हा जोडा (Add / change) आणि Save vendor दाबा; काही documents काढा; आधी vendor चे तपशील save करा. Owner Name आणि documents ठेवण्यासाठी Admin ने sql/supabase_step1zj_vendor_papers.sql एकदा Supabase → SQL Editor मध्ये चालवावा (प्रत्येक site मध्ये).'],
+      hi: ['Vendor save नहीं हुआ: Company Name खाली है, कोई document ठीक से नहीं भेजा गया (या पिछले 6 घंटों में आपने नहीं जोड़ा), 30 से ज़्यादा documents हैं, vendor अभी save नहीं है, या इस site का database अभी Owner Name और documents नहीं रख सकता. कुछ भी save नहीं हुआ.', 'Company Name टाइप करें; document फिर से जोड़ें (Add / change) और Save vendor दबाएँ; कुछ documents हटाएँ; पहले vendor के विवरण save करें. Owner Name और documents रखने के लिए Admin sql/supabase_step1zj_vendor_papers.sql एक बार Supabase → SQL Editor में चलाएँ (हर site में).'] },
   ];
   const FIX_ANY = { en: ['The app could not accept this. The line above says which field or value is the problem.', 'Correct that field and try again. If it is not clear, take a photo of this box and send it to the Admin.'],
     mr: ['App ला हे स्वीकारता आले नाही. वरच्या ओळीत कोणता field किंवा किंमत अडचणीची आहे ते दिले आहे.', 'तो field दुरुस्त करून पुन्हा प्रयत्न करा. समजले नाही तर या चौकटीचा फोटो काढून Admin ला पाठवा.'],
@@ -6850,10 +6869,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The day at a glance: diesel stock, diesel received and issued, the tanks, and the Log Book of the day.', 'Nothing is entered here. Every figure comes from the entries of the other pages for the dates chosen at the top; "Stock now" is always the live stock. Only the tank size can be set here. A click on a number (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) opens a big box with its entries – only shown. The search at the top (Ctrl + K) finds anything in the app – machinery, names, drivers, a reading (also one that lies between the Start and Close of a Log Book entry), challan or bill number, vendor, date, page – even with a spelling mistake (it then asks "did you mean …"); a result opens its page. With one stock point chosen, "Day-wise diesel stock" and its card show "Received from" and "Sent to" for EACH other stock point on its own. A site with more than one fuel: pick the Fuel at the top – every number, tank and list is of that fuel only (never added together).'],
       mr: ['एका नजरेत दिवस: diesel stock, आलेले आणि दिलेले diesel, tanks, आणि दिवसाची Log Book.', 'इथे काहीही भरले जात नाही. प्रत्येक आकडा वर निवडलेल्या तारखांसाठी इतर pages च्या entries वरून येतो; "Stock now" नेहमी सध्याचा stock असतो. इथे फक्त tank चा आकार सेट करता येतो. कोणत्याही आकड्यावर (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) click केले की त्याच्या entries एका मोठ्या box मध्ये दिसतात – फक्त पाहण्यासाठी. वरचा search (Ctrl + K) app मधले काहीही शोधतो – machinery, नावे, driver, reading (Log Book entry च्या Start आणि Close च्या मधले reading सुद्धा), challan किंवा bill नंबर, vendor, तारीख, page – स्पेलिंग चुकले तरी (मग तो "did you mean …" विचारतो); result वर क्लिक केले की त्याचे page उघडते. एक stock point निवडला की "Day-wise diesel stock" आणि त्याच्या card मध्ये प्रत्येक दुसऱ्या stock point चे "Received from" आणि "Sent to" वेगवेगळे दिसते. एकापेक्षा जास्त fuel असलेली site: वर Fuel निवडा – सगळे आकडे, tank आणि यादी फक्त त्या fuel ची (कधीही एकत्र बेरीज नाही).'],
       hi: ['एक नज़र में दिन: diesel stock, आया और दिया गया diesel, tanks, और दिन की Log Book।', 'यहाँ कुछ भरा नहीं जाता। हर आँकड़ा ऊपर चुनी तारीखों के लिए दूसरे pages की entries से आता है; "Stock now" हमेशा अभी का stock है। यहाँ केवल tank का आकार सेट होता है। किसी भी आँकड़े पर (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) click करने पर उसकी entries एक बड़े box में दिखती हैं – केवल देखने के लिए। ऊपर का search (Ctrl + K) app में कुछ भी ढूँढता है – machinery, नाम, driver, reading (Log Book entry के Start और Close के बीच की reading भी), challan या bill नंबर, vendor, तारीख, page – spelling गलत हो तब भी (तब वह "did you mean …" पूछता है); result पर क्लिक करने से उसका page खुलता है। एक stock point चुनने पर "Day-wise diesel stock" और उसके card में हर दूसरे stock point का "Received from" और "Sent to" अलग-अलग दिखता है। एक से ज़्यादा fuel वाली site: ऊपर Fuel चुनें – सभी आंकड़े, tank और सूची सिर्फ उस fuel की (कभी एक साथ नहीं जोड़े जाते)।'] },
-    vendors: { saves: ['saveVendor', 'deleteVendor', 'vendorsFromOwners'],
-      en: ['The parties: vendors and owners of machinery, with address, PAN, GST and bank details.', 'The app checks the format of PAN, GST, IFSC and mobile, and does not allow the same name twice. The name can be changed: the vendor\'s assets, BOQs, bills, payments, debit notes and Log Book entries follow to the new name. A vendor with assets or BOQs cannot be deleted. These details print on bills, tax invoices and debit notes.'],
-      mr: ['Parties: machinery चे vendors आणि मालक, पत्ता, PAN, GST आणि bank तपशीलासह.', 'App PAN, GST, IFSC आणि mobile चे स्वरूप तपासते, आणि तेच नाव दोनदा घेत नाही. नाव बदलता येते: vendor चे assets, BOQ, bills, payments, debit notes आणि Log Book entries नवीन नावाकडे जातात. ज्या vendor कडे assets किंवा BOQ आहेत तो delete होत नाही. हा तपशील bills, tax invoice आणि debit notes वर छापला जातो.'],
-      hi: ['Parties: machinery के vendors और मालिक, पता, PAN, GST और bank विवरण के साथ।', 'App PAN, GST, IFSC और mobile का रूप जाँचता है, और वही नाम दो बार नहीं लेता। नाम बदला जा सकता है: vendor के assets, BOQ, bills, भुगतान, debit notes और Log Book entries नए नाम पर चले जाते हैं। जिस vendor के assets या BOQ हैं वह delete नहीं होता। यह विवरण bills, tax invoice और debit notes पर छपता है।'] },
+    vendors: { saves: ['saveVendor', 'deleteVendor', 'vendorsFromOwners', 'vendorDoc'],
+      en: ['The parties: vendors and owners of machinery – the Company Name and the Owner Name, with address, PAN, GST and bank details, and each vendor\'s documents (Aadhaar, PAN, GST, Udyam, bank details …) to see, print or download at any time (📎 in the list).', 'The app checks the format of PAN, GST, IFSC and mobile, and does not allow the same name twice. The name can be changed: the vendor\'s assets, BOQs, bills, payments, debit notes and Log Book entries follow to the new name. A vendor with assets or BOQs cannot be deleted. These details print on bills, tax invoices and debit notes.'],
+      mr: ['Parties: machinery चे vendors आणि मालक – Company Name आणि Owner Name, पत्ता, PAN, GST आणि bank तपशीलासह, आणि प्रत्येक vendor ची कागदपत्रे (Aadhaar, PAN, GST, Udyam, bank details …) – कधीही पाहा, print किंवा download करा (यादीत 📎).', 'App PAN, GST, IFSC आणि mobile चे स्वरूप तपासते, आणि तेच नाव दोनदा घेत नाही. नाव बदलता येते: vendor चे assets, BOQ, bills, payments, debit notes आणि Log Book entries नवीन नावाकडे जातात. ज्या vendor कडे assets किंवा BOQ आहेत तो delete होत नाही. हा तपशील bills, tax invoice आणि debit notes वर छापला जातो.'],
+      hi: ['Parties: machinery के vendors और मालिक – Company Name और Owner Name, पता, PAN, GST और bank विवरण के साथ, और हर vendor के दस्तावेज़ (Aadhaar, PAN, GST, Udyam, bank details …) – कभी भी देखें, print या download करें (सूची में 📎)।', 'App PAN, GST, IFSC और mobile का रूप जाँचता है, और वही नाम दो बार नहीं लेता। नाम बदला जा सकता है: vendor के assets, BOQ, bills, भुगतान, debit notes और Log Book entries नए नाम पर चले जाते हैं। जिस vendor के assets या BOQ हैं वह delete नहीं होता। यह विवरण bills, tax invoice और debit notes पर छपता है।'] },
     master: { saves: ['saveMaster', 'saveMasterBulk', 'deleteMaster', 'editMasterMany', 'deleteMasterMany', 'importMaster', 'assignVendors'],
       en: ['Every machinery and vehicle: number, type, owner, ownership, what it works on (KM / Hrs / Trip / Day / Time), standard average and tank capacity.', 'Every other page reads this list. The number of a machinery can be changed here (Edit): everything entered for it moves to the new number, while bills and debit notes already saved keep the number they were issued with; "Active From / Inactive From" decide on which dates entries are allowed; the standard average decides the excess diesel in bills. QR labels (Machinery list): by owner, or the machinery ticked – one or many; 8 on an A4 page (2 × 4). A scan with a phone opens the app on that machinery. Fuel: Diesel, Petrol, CNG or Electric – fuel is issued to it only from a place of that fuel; for CNG the standard average is KM/kg; Electric needs no standard average.'],
       mr: ['प्रत्येक machinery आणि गाडी: नंबर, प्रकार, मालक, ownership, कशावर चालते (KM / Hrs / Trip / Day / Time), standard average आणि tank ची क्षमता.', 'बाकी सगळी pages ही यादी वाचतात. Machinery चा नंबर इथे (Edit) बदलता येतो: तिच्यासाठी भरलेले सगळे नवीन नंबरखाली जाते, आणि आधी save झालेली bills व debit notes ज्या नंबरने निघाली तोच ठेवतात; "Active From / Inactive From" वरून कोणत्या तारखांना entry करता येते ते ठरते; standard average वरून bill मधले जास्तीचे diesel ठरते. QR labels (Machinery list): मालकानुसार, किंवा tick केलेल्या machinery – एक किंवा अनेक; एका A4 पानावर 8 (2 × 4). Phone ने scan केल्यावर app त्या machinery वर उघडते. Fuel: Diesel, Petrol, CNG किंवा Electric – त्याला त्याच fuel च्या जागेतूनच fuel दिले जाते; CNG चा standard average KM/kg; Electric ला standard average लागत नाही.'],
@@ -11694,7 +11713,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function loadVendors() {
     try {
       const d = await call('getBoqs', {});
-      S.vendors = d.vendors || []; S.boqs = d.boqs || []; S.boqHist = d.history || []; S.vtypeOn = !!d.vtypeOn;
+      S.vendors = d.vendors || []; S.boqs = d.boqs || []; S.boqHist = d.history || []; S.vtypeOn = !!d.vtypeOn; S.vdocsOn = !!d.vdocsOn;      // (update-184) the Owner Name and the documents can be kept here
       renderVendors(); renderBoqs(); if (S.master) renderMaster();
       const sel = $('bf_vendor'), cur = sel.value;
       sel.innerHTML = '<option value="">All vendors</option>' + billVendors().map(v => '<option>' + esc(v.name) + '</option>').join('');
@@ -11717,14 +11736,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<small class="muted"> ' + esc((v.machines || []).map(m => m.id).slice(0, 3).join(', ')) + ((v.machines || []).length > 3 ? '…' : '') + '</small></td><td>' + esc(v.phone || '–') + '</td><td>' + esc(v.gst ? v.gst : (v.saved && v.gstReg !== 'Yes' ? 'Not registered' : '–')) +
       '</td><td>' + esc(v.pan || '–') +
       '</td><td>' + esc(v.bank ? v.bank + (v.account ? ' · ' + String(v.account).slice(-4).padStart(8, '•') : '') : '–') + '</td><td class="n">' + (v.boqs || 0) +
+      '</td><td>' + ((v.docs || []).length ? '<button class="link" data-vdocs="' + esc(v.name) + '" title="' + esc([...new Set(v.docs.map(x => x.kind))].join(', ')) + '">📎 ' + v.docs.length + '</button>' : '<span class="muted">–</span>') +      // (update-184)
       '</td><td>' + ((v.machines || []).length && (v.machines || []).every(m => m.ownership === 'Own') && !v.saved ? '<span class="st ok">Own company</span>' : v.complete ? '<span class="st ok">Complete</span>' : v.saved ? '<span class="st low">Incomplete</span>' : '<span class="st bad">Not filled</span>') +
       '</td><td class="nowrap">' + (can ? '<button class="link" data-vedit="' + esc(v.name) + '">' + (v.saved ? 'Edit' : 'Fill details') + '</button>' +
         ' <button class="link" data-vboq="' + esc(v.name) + '">' + (v.boqs ? 'BOQs' : 'Make BOQ') + '</button>' + (v.saved ? ' <button class="link danger" data-vdel="' + esc(v.name) + '">Delete</button>' : '') : '') + '</td></tr>').join('')
-      : '<tr><td colspan="10" class="none">No vendors yet – press "+ New vendor".</td></tr>';
+      : '<tr><td colspan="11" class="none">No vendors yet – press "+ New vendor".</td></tr>';
   }
   ['vf_q'].forEach(id => $(id).addEventListener('input', renderVendors)); $('vf_st').addEventListener('change', renderVendors); $('vf_ty').addEventListener('change', renderVendors);
   $('v_rows').addEventListener('click', e => {
     const b = e.target.closest('[data-vedit]'); if (b) { const v = S.vendors.find(x => x.name === b.dataset.vedit); vOpen(b.dataset.vedit); return; }
+    const vd = e.target.closest('[data-vdocs]'); if (vd) { busy(vd, '…', () => vDocsView(vd.dataset.vdocs)); return; }      // (update-184) its documents
     const dl = e.target.closest('[data-vdel]'); if (dl) { S.vEdit = S.vendors.find(x => x.name === dl.dataset.vdel); $('v_del').click(); return; }
     const q = e.target.closest('[data-vboq]'); if (!q) return;
     showTab('boq'); $('bf_vendor').value = q.dataset.vboq; renderBoqs();
@@ -11747,11 +11768,53 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     set('v_name', v.name); set('v_gstreg', v.gstReg === 'Yes' ? 'Yes' : 'No'); set('v_gst', v.gst); set('v_gstpct', v.gstPct); set('v_pan', v.pan); set('v_tds', v.tds);
     set('v_bank', v.bank); set('v_branch', v.branch); set('v_acc', v.account); set('v_ifsc', v.ifsc); set('v_phone', v.phone); set('v_addr', v.address); set('v_remark', v.remark);
     set('v_aadhaar', v.aadhaar); set('v_email', v.email); set('v_type', v.type === 'Material Supplier' ? 'Material Supplier' : '');
+    set('v_owner', v.owner); S.vDocs = (v.docs || []).map(x => Object.assign({}, x)); S.vDocUrl = {}; vDocsPaint();      // (update-184)
+    if (S.vDocs.length && v.saved) call('getVendorDocs', v.name).then(d => { if (S.vEdit !== v) return; (d.docs || []).forEach(x => { S.vDocUrl[x.sha] = x.url; S.vDocs.forEach(y => { if (y.sha === x.sha) y.p = x.p; }); }); }).catch(() => {});
     $('v_type_f').hidden = !(S.vtypeOn || v.type);      // (update-181) the type – where this site's database keeps it
     vGstBoxes(); $('v_del').hidden = !v.saved; $('v_form').hidden = false;
     if ($('v_form').scrollIntoView) $('v_form').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   $('v_cancel').addEventListener('click', () => { $('v_form').hidden = true; S.formDirty = false; });
+  /* (update-184, "vendor che attachment add option de je pratek vendor che distil mg tyanch adhar pan gst asel tr te hi nante udyam bank details
+   * … te vendor warun kadhi pn mi bgu shaku print or download kru shaku … jya vendor ch nasel tyana blank rahude") THE VENDOR'S DOCUMENTS: a row
+   * a kind – its files, View, Add / change (the attachments' box: upload, camera, paste, correct a photo); kept with "Save vendor". From
+   * the list: 📎 – each file opened, printed or downloaded (links for 15 minutes). */
+  const V_DOC_KINDS = [['Aadhaar', 'Aadhaar'], ['PAN', 'PAN'], ['GST', 'GST certificate'], ['Udyam', 'Udyam'], ['Bank', 'Bank details (cheque / passbook)'], ['Other', 'Other']];
+  function vDocsPaint() {
+    const on = !!S.vdocsOn, can = canEdit('Vendor Master'), list = S.vDocs || [];
+    $('v_owner_f').hidden = !on && !(S.vEdit && S.vEdit.owner);
+    $('v_docs_note').hidden = on; $('v_docs_note').textContent = on ? '' : 'The Owner Name and the documents cannot be kept yet at this site – the Admin runs sql/supabase_step1zj_vendor_papers.sql once in Supabase → SQL Editor (in every site).';
+    $('v_docs').innerHTML = V_DOC_KINDS.map(k => { const n = list.filter(x => x.kind === k[0]).length;
+      return '<div class="v-doc"><b>' + esc(k[1]) + '</b><span class="muted">' + (n ? n + ' file(s)' : 'none') + '</span>' + (n ? '<button type="button" class="link" data-vdv="' + k[0] + '">View</button>' : '') +
+        (on && can ? '<button type="button" class="link" data-vda="' + k[0] + '">' + (n ? 'Add / change' : 'Add') + '</button>' : '') + '</div>'; }).join('');
+  }
+  $('v_docs').addEventListener('click', async e => {
+    const a = e.target.closest('[data-vda]'), v = e.target.closest('[data-vdv]'), kind = (a || v || {}).dataset ? (a || v).dataset.vda || (a || v).dataset.vdv : '';
+    if (!kind) return;
+    const label = (V_DOC_KINDS.find(k => k[0] === kind) || [kind, kind])[1], name = val('v_name') || 'New vendor';
+    const mine = (S.vDocs || []).filter(x => x.kind === kind).map(x => Object.assign({}, x, { url: S.vDocUrl[x.sha] || x.url || '' }));
+    if (v) { atView(mine, 0); return; }
+    const got = await atOpen({ title: label, sub: name, files: mine, up: 'vendorDoc', max: 10, noQr: true });
+    if (!got) return;
+    got.forEach(x => { if (x.url) S.vDocUrl[x.sha] = x.url; });
+    S.vDocs = (S.vDocs || []).filter(x => x.kind !== kind).concat(got.map(x => ({ sha: x.sha, p: x.p, mime: x.mime, size: x.size, name: x.name, at: x.at, by: x.by, kind: kind })));
+    S.formDirty = true; vDocsPaint();
+  });
+  // a vendor's documents from the list: each to open (and print there), print, download – the links last 15 minutes
+  async function vDocsView(name) {
+    const d = await call('getVendorDocs', name), dl = x => x.url + (x.url.indexOf('?') > -1 ? '&' : '?') + 'download=' + encodeURIComponent(x.name || (x.kind + (x.mime === 'application/pdf' ? '.pdf' : '.jpg')));
+    const by = V_DOC_KINDS.map(k => [k, d.docs.filter(x => x.kind === k[0])]).filter(z => z[1].length);
+    await askConfirm({ title: 'Documents – ' + d.name, alertOnly: true, wide: true, ok: 'Close', html: (d.owner ? '<p>Owner: <b>' + esc(d.owner) + '</b></p>' : '') + (by.length ? by.map(z => '<h3 class="rsub">' + esc(z[0][1]) + '</h3><div class="vdv-grid">' +
+      z[1].map((x, i) => '<figure>' + (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener">' + (x.mime === 'application/pdf' ? '<span class="at-pdf">PDF</span>' : '<img src="' + esc(x.url) + '" alt="">') + '</a>' : '') +
+        '<figcaption>' + esc(x.name || '') + (x.by ? '<br><small class="muted">' + esc(x.by) + (x.at ? ' · ' + esc(showDate(String(x.at).slice(0, 10))) : '') + '</small>' : '') + '</figcaption>' +
+        (x.url ? '<div class="vdv-act"><a href="' + esc(x.url) + '" target="_blank" rel="noopener">Open</a><button type="button" class="link" data-vdp="' + esc(x.url) + '" data-vdm="' + esc(x.mime) + '">Print</button><a href="' + esc(dl(x)) + '">Download</a></div>' : '') + '</figure>').join('') + '</div>').join('')
+        : '<p class="muted">No document of this vendor yet – open it with Edit and add them.</p>') + '<p class="muted">The links work for 15 minutes – open this again after that.</p>' });
+  }
+  // print one document: a photo in a window of its own; a PDF opened in a new tab (print it there)
+  document.addEventListener('click', e => { const b = e.target.closest('[data-vdp]'); if (!b) return;
+    if (b.dataset.vdm === 'application/pdf') { window.open(b.dataset.vdp, '_blank', 'noopener'); return; }
+    const w = window.open('', '_blank'); if (!w) { toast('The browser did not open the print window – allow pop-ups for this site.', true); return; }
+    w.document.write('<!doctype html><title>Print</title><style>body{margin:0}img{max-width:100%;}</style><img src="' + esc(b.dataset.vdp) + '" onload="setTimeout(function(){window.print()},300)">'); w.document.close(); });
   /* ---------- Vendor form: what a GST number and an IFSC already say (asked 03-10-2026) ----------
    * GST number (typed in full): its last letter is a check letter – a mistyped number is caught at once; the PAN is inside it
    * (characters 3–12) and is filled in; the first two digits are the State; the 4th letter of the PAN tells the kind of party.
@@ -11830,6 +11893,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     const res = await call('saveVendor', { oldName: renaming ? was : '', name: g('v_name'), gstReg: g('v_gstreg'), gst: g('v_gst'), gstPct: g('v_gstpct'), pan: g('v_pan'), tds: g('v_tds'), bank: g('v_bank'),
       branch: g('v_branch'), account: g('v_acc'), ifsc: g('v_ifsc'), phone: g('v_phone'), address: g('v_addr'), remark: g('v_remark'), aadhaar: g('v_aadhaar'), email: g('v_email'), type: $('v_type_f').hidden ? undefined : g('v_type'),
+      owner: S.vdocsOn ? g('v_owner') : undefined, docs: S.vdocsOn ? (S.vDocs || []).map(x => ({ sha: x.sha, kind: x.kind })) : undefined,      // (update-184)
       ver: S.vEdit && S.vEdit.saved ? S.vEdit.ver || '' : '' }, S.vEdit && S.vEdit.saved ? 'edit' : 'add');      // (update-156) the version it had when opened
     S.vendors = res.vendors; renderVendors(); $('v_form').hidden = true;
     toast(res.renamed ? 'Vendor renamed: ' + res.renamed.from + ' → ' + res.renamed.to + (res.renamed.text ? ' (' + res.renamed.text + ' moved with it)' : '') : 'Vendor saved: ' + res.name);
@@ -14773,9 +14837,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         return o; }).filter(o => o.no || Object.values(o.docs).some(Boolean));
       const chk = await call('importCompliance', rows, false);
       if (chk.errors.length) { await askConfirm({ title: 'Nothing imported – please correct the file', ok: 'OK', alertOnly: true, wide: true, html: '<ul class="cp-nl">' + chk.errors.slice(0, 40).map(x => '<li class="expired">Excel row ' + x.row + ': ' + esc(x.msg) + '</li>').join('') + '</ul>' + (chk.errors.length > 40 ? '<p>… and ' + (chk.errors.length - 40) + ' more.</p>' : '') }); return; }
-      if (!chk.changes) { toast('Nothing to import – the file matches Asset Master.'); return; }
+      // (update-184) papers only of Own machinery – the others of the file left out (said)
+      const skip = (chk.skipped || []).length ? '<p class="muted">' + esc((chk.skipped || []).length + ' machinery left out – not Own (papers are kept only for Own machinery): ' + chk.skipped.slice(0, 12).join(', ') + (chk.skipped.length > 12 ? ' …' : '')) + '</p>' : '';
+      if (!chk.changes) { toast('Nothing to import – the file matches Asset Master.' + ((chk.skipped || []).length ? ' (' + chk.skipped.length + ' machinery left out – not Own.)' : '')); return; }
       if (!(await askConfirm({ title: 'Import ' + chk.changes + ' date' + (chk.changes === 1 ? '' : 's') + '?', ok: 'Import', wide: true,
-        html: '<p>' + chk.changes + ' paper date(s) on ' + chk.machines + ' machinery will be saved in Asset Master; the old dates go into the history.</p><ul class="cp-nl">' + chk.preview.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' + (chk.changes > chk.preview.length ? '<p>… and ' + (chk.changes - chk.preview.length) + ' more.</p>' : '') }))) return;
+        html: '<p>' + chk.changes + ' paper date(s) on ' + chk.machines + ' machinery will be saved in Asset Master; the old dates go into the history.</p>' + skip + '<ul class="cp-nl">' + chk.preview.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' + (chk.changes > chk.preview.length ? '<p>… and ' + (chk.changes - chk.preview.length) + ' more.</p>' : '') }))) return;
       const res = await call('importCompliance', rows, true);
       toast('Imported: ' + res.changes + ' date(s) on ' + res.machines + ' machinery.');
       await cpLoad();
@@ -16310,6 +16376,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('m_ownership').addEventListener('change', () => { $('m_ownership').dataset.auto = ''; });
   function masterOwnershipChanged() {
     $('m_unit_req').hidden = $('m_ownership').value === 'Debit';
+    // (update-184, "papers fkt own mhanje rachana che ghenar mi je rental debit or other aahet tyanche nko") the papers only of Own machinery –
+    // another one's dates stay as they were (not shown, not changed)
+    $('m_docs_box').hidden = $('m_ownership').value !== 'Own';
     // Monthly Rate and TDS Rate: only for Rental and Hired machinery
     const rent = ['Rental', 'Hired'].indexOf($('m_ownership').value) > -1;
     document.querySelectorAll('#sec-master .rent-only').forEach(el => { el.hidden = !rent; });

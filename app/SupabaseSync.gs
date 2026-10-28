@@ -79,7 +79,8 @@ const SB_TABLES_ = [
     ['Aadhaar Number', 'aadhaar_number', 'text'], ['Email', 'email', 'text'],
     ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'], ['Updated By', 'updated_by', 'text'],
     ['Owner Site', 'owner_site', 'text'],      // (update-106, step 1y) the site that made the vendor – only it changes / deletes it
-    ['Vendor Type', 'vendor_type', 'text', 'opt']] },      // (update-181) "Material Supplier" – made by the Store's import of its old inward register
+    ['Vendor Type', 'vendor_type', 'text', 'opt'],      // (update-181) "Material Supplier" – made by the Store's import of its old inward register
+    ['Owner Name', 'owner_name', 'text', 'opt'], ['Documents', 'documents', 'text', 'opt']] },      // (update-184, step 1zj) the Owner Name; the vendor's documents (a list of its files)
   { table: 'boq', tab: 'BOQ', title: 'BOQ', pk: 'id', key: r => sbStr_(r['BOQ ID']), cols: [
     ['BOQ No', 'boq_no', 'text'], ['Vendor Name', 'vendor_name', 'text'], ['Valid From', 'valid_from', 'date'], ['Valid To', 'valid_to', 'date'],
     ['Amendment Of', 'amendment_of', 'text'], ['Amendment No', 'amendment_no', 'numeric'], ['Lines', 'lines', 'text'], ['Remark', 'remark', 'text'],

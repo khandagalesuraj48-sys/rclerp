@@ -2209,6 +2209,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `mlogRender` `asIs` ("GST Amount"); `readMaintLog_` `max` / `after` – a page in parts, page `mliReadAi` asks again by itself, stops with
   "Continue reading" (`mliResume`); the names by the quicker model; `maintStatus` (Maintenance or Reports) → "Log book status"; "Hide log
   book". No SQL. Tests: unit `update-183`; rig `mnt183.js`; mnt170 / 173 / 182 and mline180 moved to "as it is".
+- 28-10-2026 (update-184, with rcl-mobile 3.59.0). Report: `UPDATE_184.md`. THE VENDOR'S COMPANY NAME, OWNER NAME AND DOCUMENTS; THE
+  PAPERS ONLY FOR OWN: SQL step 1zj (`vendors.owner_name`, `vendors.documents`, both `'opt'`); `VENDOR_DOC_KINDS_`, `vendorColOn_`,
+  `vendorDocsOf_` (via `maintFilesOf_`), `saveVendor_` only when sent and the columns are there; `vendorDoc` (upload, Vendor Master Edit) /
+  `getVendorDocs` (links); page `v_owner`, `#v_docs_box`, the list's Documents (`vDocsView`: Open / Print / Download); `#m_docs_box` only
+  for Own; `getCompliance_` / `importCompliance_` Own only (`skipped`). Tests: unit `update-184`; rig `mnt184.js`, vtype181, att153.
 - 28-10-2026 (update-178, with the Store's step 2 – rcl-store `store-work` – and rcl-mobile 3.55.0). Report: `UPDATE_178.md`. THE STORE'S
   OUTWARD IN THE MAINTENANCE LOG BOOK: `maintStoreLines_(m, from, to)` reads the site's `store_issue` / `store_issue_lines` (the same
   database; paged) – each issue a bill of the Party "RCL Store" (Outward <no>, the Store's average rate, the reading; on debit: "Debit",
