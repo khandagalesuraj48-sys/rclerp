@@ -317,6 +317,7 @@ function pushSend(subs, text, ttl) {
   if (reqs.length) fetchAllSync(reqs, 5000).forEach((r, j) => { out[at[j]] = r && r.error ? { code: 0, error: String(r.error).slice(0, 80) } : { code: r.code }; });
   return out;
 }
+const AI_KEEP = new Map();      // (update-186) see g.__aiKeep
 function runPlain(fn, args, meta) {
   const st = gas.newState(meta);
   gas.boot(st, bootKeys(fn, args), fn === 'api' && String(args[1]) === 'sync');      // the heartbeat may be answered from memory (see gas.boot)
@@ -363,6 +364,11 @@ function runPlain(fn, args, meta) {
    * is ready – run there (its database, its lock, its own save) and answered here, site by site (a site that cannot be reached
    * says so; the others still answer). Only the functions named in OTHERS_ may be asked, never anything from the page. */
   g.__siteCode = () => { const c = gas.site(); return c === '' ? (sites.homeCode() || '') : c; };
+  // (update-186) the assistant's small memory of this site between requests (what the site holds, is its step there): per site, per
+  // helper thread, with its time; no value given = read (null when not kept or run out)
+  g.__aiKeep = (key, ms, val) => { const k = gas.site() + '|' + String(key);
+    if (val === undefined) { const x = AI_KEEP.get(k); if (!x) return null; if (Date.now() > x.until) { AI_KEEP.delete(k); return null; } return x.v; }
+    if (AI_KEEP.size > 500) AI_KEEP.clear(); AI_KEEP.set(k, { v: String(val), until: Date.now() + Math.max(0, Math.min(3600000, Number(ms) || 0)) }); return null; };
   g.__siteNames = () => { let reg = null; try { reg = sites.registry(); } catch (e) { reg = null; } const o = {}; (reg || []).forEach(x => { o[x.code] = String(x.name || '').trim() || x.code; }); return JSON.stringify(o); };
   g.__runOthers = (fn, argsJson) => {
     if (!OTHERS_.has(String(fn))) throw new Error('Unknown action.');

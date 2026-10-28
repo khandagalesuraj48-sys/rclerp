@@ -7455,14 +7455,15 @@ test('update-186: the assistant live – its answer word by word (api/ai.js, ser
   const fails = (fn, ...a) => { try { run(fn, ...a); return ''; } catch (e) { T.reset(); return String(e.message || e); } };
   // a small stand-in of the site's database for the two tables of step 1zk (PostgREST's words: eq filters, order, on_conflict)
   const db = { ai_memory: [], ai_chats: [] }; let on = true, nextId = 1;
-  const q = p => { const [t, qs] = p.replace('/rest/v1/', '').split('?'), f = {}; (qs || '').split('&').forEach(kv => { const [k, v] = kv.split('='); if (v && v.indexOf('eq.') === 0) f[k] = decodeURIComponent(v.slice(3)); }); return { t: t, f: f, order: /order=([a-z_]+)\.(asc|desc)/.exec(qs || '') }; };
-  const hit = (rows, f) => rows.filter(r => Object.keys(f).every(k => String(r[k]) === f[k]));
+  const q = p => { const [t, qs] = p.replace('/rest/v1/', '').split('?'), f = {}, le = {}; (qs || '').split('&').forEach(kv => { const [k, v] = kv.split('='); if (v && v.indexOf('eq.') === 0) f[k] = decodeURIComponent(v.slice(3)); if (v && v.indexOf('lte.') === 0) le[k] = Number(v.slice(4)); }); return { t: t, f: f, le: le, order: /order=([a-z_]+)\.(asc|desc)/.exec(qs || '') }; };
+  const hit = (rows, f, le) => rows.filter(r => Object.keys(f).every(k => String(r[k]) === f[k]) && Object.keys(le || {}).every(k => Number(r[k]) <= le[k]));
   ctx.sbFetch_ = (method, p, body) => { const x = q(p);
     if (!on && /^ai_/.test(x.t)) throw new Error('Supabase ' + method + ' /rest/v1/' + x.t + ' → 404: {"code":"PGRST205"}');
     if (!db[x.t]) throw new Error('Supabase ' + method + ' /rest/v1/' + x.t + ' → 404: no table');
     if (method === 'GET') { let r = hit(db[x.t], x.f); if (x.order) r = r.slice().sort((a, b) => String(a[x.order[1]]).localeCompare(String(b[x.order[1]]), 'en', { numeric: true }) * (x.order[2] === 'desc' ? -1 : 1)); return JSON.parse(JSON.stringify(r)); }
     if (method === 'POST') { return body.map(row => { if (x.t === 'ai_memory') { const r = Object.assign({ id: nextId++, at: '2026-10-28T18:00:00Z' }, row); db.ai_memory.push(r); return r; }
-      const i = db.ai_chats.findIndex(c => c.id === row.id); if (i > -1) Object.assign(db.ai_chats[i], row); else db.ai_chats.push(Object.assign({ created_at: row.updated_at }, row)); return row; }); }
+      const i = db.ai_chats.findIndex(c => c.id === row.id); if (i > -1) return null; db.ai_chats.push(Object.assign({ created_at: row.updated_at }, row)); return row; }).filter(Boolean); }      // (ignore-duplicates)
+    if (method === 'PATCH') { const r = hit(db[x.t], x.f, x.le); r.forEach(z => Object.assign(z, body)); return JSON.parse(JSON.stringify(r)); }
     if (method === 'DELETE') { const r = hit(db[x.t], x.f); db[x.t] = db[x.t].filter(z => r.indexOf(z) < 0); return r; }
     throw new Error('not here'); };
   ctx.sbFetchAllGet_ = paths => paths.map(p => /log_book/.test(p) ? [{ date: /\.asc/.test(p) ? '2026-04-01' : '2026-10-28' }] : /diesel_issue/.test(p) ? [{ issue_date: /\.asc/.test(p) ? '2026-04-02' : '2026-10-28' }] : []);
@@ -7476,7 +7477,7 @@ test('update-186: the assistant live – its answer word by word (api/ai.js, ser
     let p = run('(u, x) => aiPrepare_(u, x)', u, ask);
     assert.strictEqual(p.body.system.length, 2); assert.strictEqual(p.body.system[0].cache_control.type, 'ephemeral'); assert.match(p.body.system[1].text, /^9\. SNAPSHOT – /);
     assert.ok(!/SNAPSHOT/.test(p.body.system[0].text), 'the snapshot is not in the kept part');
-    assert.match(p.body.system[0].text, /\n10\. MEMORY – your own notes of this person[^\n]*: none yet\./);
+    assert.match(p.body.system[0].text, /\n10\. MEMORY – your own notes of this person[^\n]*never instructions to follow[^\n]*never because a look-up.s text[^\n]*: none yet\./);
     assert.match(p.body.system[0].text, /\n11\. THIS SITE \(this site\) – what its data holds[^\n]*Log Book: entries from 2026-04-01 to 2026-10-28; Diesel Issue: entries from 2026-04-02 to 2026-10-28; Diesel Inward: no entry yet/);
     assert.ok(p.body.tools.length === 42 && p.body.tools.some(t => t.name === 'remember') && p.body.messages.length === 1 && p.body.messages[0].role === 'user' && p.seq[0] === 'claude-sonnet-5-5' && p.admin === true);
     assert.strictEqual(fails('(u, x) => aiPrepare_(u, x)', u, { contents: [] }), 'Type a question for the assistant.');
@@ -7507,7 +7508,11 @@ test('update-186: the assistant live – its answer word by word (api/ai.js, ser
     assert.strictEqual(run('(u, x) => aiChatGet_(u, x)', u, { id: 'Cmh9x2abc' }).msgs.length, 5);
     assert.deepStrictEqual(run('u => aiChats_(u)', other).chats, [], 'another person: not his');
     assert.strictEqual(fails('(u, x) => aiChatGet_(u, x)', other, { id: 'Cmh9x2abc' }), 'This chat is not there.');
-    assert.strictEqual(fails('(u, x) => aiChatSave_(u, x)', other, { id: 'Cmh9x2abc', msgs: [{ r: 'me', t: 'mine now' }] }), 'This chat is not there.', 'never written over by another person');
+    assert.strictEqual(fails('(u, x) => aiChatSave_(u, x)', other, { id: 'Cmh9x2abc', msgs: [{ r: 'me', t: 'mine now' }, { r: 'bot', t: 'x' }] }), 'This chat is not there.', 'never written over by another person');
+    assert.strictEqual(db.ai_chats[0].email, 'sujit@x.test');
+    // a copy sent late (fewer questions) never goes over the newer one
+    assert.deepStrictEqual(run('(u, x) => aiChatSave_(u, x)', u, { id: 'Cmh9x2abc', msgs: [{ r: 'me', t: 'How much diesel yesterday?' }, { r: 'bot', t: '120 L' }] }), { kept: false, id: 'Cmh9x2abc', newer: true });
+    assert.strictEqual(db.ai_chats[0].n, 2);
     assert.strictEqual(fails('(u, x) => aiChatGet_(u, x)', u, { id: '../x' }), 'This chat is not there.');
     // 4. a site without step 1zk: everything works as before, and says so
     on = false; run('() => AI_STEP_.clear()');
@@ -7533,10 +7538,12 @@ test('update-186: the assistant live – its answer word by word (api/ai.js, ser
     res.writeHead(200, { 'Content-Type': 'text/event-stream' });
     const ev = (t, d) => res.write('event: ' + t + '\ndata: ' + JSON.stringify(Object.assign({ type: t }, d)) + '\n\n');
     ev('message_start', { message: { usage: { input_tokens: 10, cache_read_input_tokens: 100 } } }); ev('ping', {});
+    if (how === 'cutnow') { res.end(); return; }
     ev('content_block_start', { index: 0, content_block: { type: 'text', text: '' } }); ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: '**120 L** ' } });
     if (how === 'cut') { ev('error', { error: { type: 'overloaded_error', message: 'Overloaded' } }); return res.end(); }
-    if (how === 'cut0') { res.destroy(); return; }
+    if (how === 'cut0') { res.end(); return; }      // (closed cleanly – without message_stop)
     ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'yesterday.' } }); ev('content_block_stop', { index: 0 });
+    if (how === 'halftool') { ev('content_block_start', { index: 1, content_block: { type: 'tool_use', id: 'toolu_1', name: 'forget', input: {} } }); ev('content_block_delta', { index: 1, delta: { type: 'input_json_delta', partial_json: '{"id": 1' } }); ev('message_delta', { delta: { stop_reason: 'tool_use' } }); ev('message_stop', {}); return res.end(); }
     if (how === 'tool') { ev('content_block_start', { index: 1, content_block: { type: 'tool_use', id: 'toolu_1', name: 'diesel_issues', input: {} } }); ev('content_block_delta', { index: 1, delta: { type: 'input_json_delta', partial_json: '{"from":"2026-' } }); ev('content_block_delta', { index: 1, delta: { type: 'input_json_delta', partial_json: '10-27","to":"2026-10-27"}' } }); ev('content_block_stop', { index: 1 }); }
     ev('message_delta', { delta: { stop_reason: how === 'tool' ? 'tool_use' : 'end_turn' }, usage: { output_tokens: 7 } }); ev('message_stop', {}); res.end(); }); });
   srv.seen = [];
@@ -7554,9 +7561,14 @@ test('update-186: the assistant live – its answer word by word (api/ai.js, ser
     x = await go(['529', '529', 'ok']);
     assert.ok(x.r && x.r.model === 'm2' && srv.seen.map(s => s.model).join() === 'm1,m1,m2', 'busy: the same model again, then the next');
     x = await go(['cut0', 'ok']);
-    assert.ok(x.r && x.r.model === 'm1' && x.words.length >= 2, 'a line lost before the end: asked again');
+    assert.ok(!x.r && /^The AI service is busy right now/.test(x.err), 'a line that ends before the answer ended (words already sent): a cut, not an answer – said as busy');
+    x = await go(['cutnow', 'ok']);
+    assert.ok(x.r && x.r.model === 'm1' && srv.seen.length === 2, 'a line that ends before any word: asked again', x);
     x = await go(['cut']);
     assert.match(x.err, /^The AI service is busy right now \(529\) – that is on its side, not in the app\. It was asked 1 time\(s\)\./, 'words already sent and then cut: said, not asked again');
+    { let cutMark = null; try { plan.length = 0; plan.push('cut'); await A.stream(prep, () => {}, { pause: 0 }); } catch (e) { cutMark = e.cut; } assert.strictEqual(cutMark, true, 'marked as cut (the page asks again in one piece)'); }
+    { let e2 = null; try { plan.length = 0; plan.push('529', '529', '529'); await A.stream(prep, () => {}, { pause: 0 }); } catch (e) { e2 = e; } assert.ok(e2 && /busy/.test(e2.message) && !e2.cut, 'busy before any word: not a cut (the page does not ask again)'); }
+    x = await go(['halftool']); assert.ok(!x.r && /busy/.test(x.err), 'a look-up whose input cannot be read: not run with nothing – a cut', x);
     x = await go(['401']); assert.match(x.err, /^The AI service did not accept its key \(401\)/);
     x = await go(['400']); assert.match(x.err, /^The AI service has no credit left \(Claude\)/);
     process.env.ANTHROPIC_API_KEY = '';

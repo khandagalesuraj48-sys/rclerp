@@ -31,12 +31,16 @@ module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8'); res.setHeader('Cache-Control', 'no-store, no-transform'); res.setHeader('X-Accel-Buffering', 'no');
   if (typeof res.flushHeaders === 'function') res.flushHeaders();
   let out = 0; const line = o => { const t = JSON.stringify(o) + '\n'; out += t.length; res.write(t); };
+  // the page went away (closed, another question): Claude is not asked further
+  const gone = new AbortController(); res.on('close', () => { if (!res.writableEnded) gone.abort(); });
+  let r = null;
   try {
-    const r = await stream(prep, words => line({ t: 'd', x: words }));
-    // the first model was busy and another answered: that one is asked first next time (kept by the app, as for the answer in one piece)
-    if (r.model && Array.isArray(prep.seq) && r.model !== prep.seq[0]) { try { await pool.call('api', [String(body.token || ''), 'aiModelFirst', [{ model: r.model }]], meta); } catch (e) { /* only the order of asking */ } }
+    r = await stream(prep, words => line({ t: 'd', x: words }), { until: t0 + 55000, signal: gone.signal });      // (the server has 60 s for all of it)
     line({ t: 'end', parts: r.parts, model: r.model, used: r.used, ms: r.ms });
-  } catch (e) { line({ t: 'err', e: String((e && e.message) || e).replace(/^Error:\s*/, '') }); }
+  } catch (e) { line({ t: 'err', e: String((e && e.message) || e).replace(/^Error:\s*/, ''), cut: !!(e && e.cut) }); }      // cut: words were sent – the page asks again in one piece
+  // the first model was busy and another answered: that one is asked first next time (kept by the app, as for the answer in one piece) –
+  // after the answer's last line, so the page does not wait for it
+  if (r && r.model && Array.isArray(prep.seq) && r.model !== prep.seq[0]) { try { await pool.call('api', [String(body.token || ''), 'aiModelFirst', [{ model: r.model }]], meta); } catch (e) { /* only the order of asking */ } }
   try { usage.add(site, 'aiStream', { ms: Date.now() - t0, out: out }); } catch (x) { /* only a count */ }
   res.end();
 };

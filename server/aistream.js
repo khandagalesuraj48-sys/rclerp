@@ -62,22 +62,29 @@ function message() {
     },
     used: () => ['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens'].reduce((a, k) => a + (Number(usage[k]) || 0), 0),
     stop: () => stop,
+    // (the review) a message is whole only when the service said it ended – and every look-up's input it wrote can be read
+    whole: () => !!stop && blocks.filter(Boolean).every(b => { if (b.type !== 'tool_use' || !b.json) return true; try { JSON.parse(b.json); return true; } catch (e) { return false; } }),
   };
 }
-/* one step: prep = { body, seq, admin } (aiPrepare); onText(words) as they come → { parts, model, used, tries, ms } */
+/* one step: prep = { body, seq, admin } (aiPrepare); onText(words) as they come → { parts, model, used, tries, ms }.
+ * opt.until: the last moment (ms since 1970) an answer may still come – each try gets only what is left (the server has 60 s);
+ * opt.signal: the page went away – the asking stops. An error after words were sent has .cut (the page asks again in one piece). */
+const cutErr = m => Object.assign(new Error(m), { cut: true });
 async function stream(prep, onText, opt) {
   opt = opt || {};
   const key = KEY(); if (!key) throw new Error(MSG.off);
-  const seq = Array.isArray(prep && prep.seq) ? prep.seq : [], t0 = Date.now(), gone = {}, admin = !!(prep && prep.admin);
+  const seq = Array.isArray(prep && prep.seq) ? prep.seq : [], t0 = Date.now(), gone = {}, admin = !!(prep && prep.admin), until = Number(opt.until) || t0 + 50000;
   let last = null, tried = 0;
   for (let i = 0; i < seq.length; i++) {
-    const model = seq[i]; if (gone[model] || Date.now() - t0 > (opt.within || 35000)) continue;
+    const model = seq[i]; if (gone[model] || Date.now() - t0 > (opt.within || 35000) || until - Date.now() < 5000) continue;
     if (i === 1) await wait(opt.pause === undefined ? 1500 : opt.pause);
+    if (opt.signal && opt.signal.aborted) break;
     tried++;
     let r;
     try {
+      const left = AbortSignal.timeout(Math.max(3000, until - Date.now()));
       r = await fetch(BASE() + '/v1/messages', { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.assign({ model: model, stream: true }, prep.body)), signal: AbortSignal.timeout(opt.ms || 45000) });
+        body: JSON.stringify(Object.assign({ model: model, stream: true }, prep.body)), signal: opt.signal && AbortSignal.any ? AbortSignal.any([left, opt.signal]) : left });
     } catch (e) { last = { code: 0, error: 'no connection (' + String((e && e.message) || e).slice(0, 80) + ')', model: model }; continue; }
     if (!r.ok) {
       const text = await r.text().catch(() => '');
@@ -95,9 +102,10 @@ async function stream(prep, onText, opt) {
       const dec = new TextDecoder();
       for await (const chunk of r.body) { feed(dec.decode(chunk, { stream: true })); if (failed) break; }
     } catch (e) { failed = { type: 'connection', message: String((e && e.message) || e).slice(0, 120) }; }
+    if (!failed && !m.whole()) failed = { type: 'cut', message: 'the answer ended before its end' };      // (a line closed half-way)
     if (failed) {
       last = { code: failed.type === 'overloaded_error' ? 529 : 0, said: String(failed.message || failed.type || ''), model: model };
-      if (sent) throw new Error(MSG.busy(admin, last, tried));      // words were already on the screen: not asked again here
+      if (sent) throw cutErr(MSG.busy(admin, last, tried));      // words were already on the screen: not asked again here
       continue;
     }
     const parts = m.parts();

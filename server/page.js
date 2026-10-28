@@ -199,9 +199,12 @@ const BRIDGE = `
     return fetch(base + '/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(msg), cache: 'no-store' }).then(function (r) {
       if ((r.headers.get('Content-Type') || '').indexOf('ndjson') < 0 || !r.body || !r.body.getReader) return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; } throw new Error(j && j.error ? j.error : 'AI_NO_STREAM'); });
       var rd = r.body.getReader(), dec = new TextDecoder(), buf = '', last = null;
-      var line = function (l) { if (!l || !l.trim()) return; var j = null; try { j = JSON.parse(l); } catch (e) { return; } if (j.t === 'end' || j.t === 'err') last = j; try { onLine(j); } catch (e) { /* the page's own drawing */ } };
-      var pump = function () { return rd.read().then(function (c) { if (c.done) { line(buf); buf = ''; return last; } buf += dec.decode(c.value, { stream: true }); var i; while ((i = buf.indexOf('\\n')) > -1) { line(buf.slice(0, i)); buf = buf.slice(i + 1); } return pump(); }); };
-      return pump();
+      // (the review) the answer is there with its last line – what the server still does after it (or a line lost then) is not waited for
+      return new Promise(function (resolve, reject) {
+        var line = function (l) { if (!l || !l.trim() || last) return; var j = null; try { j = JSON.parse(l); } catch (e) { return; } try { onLine(j); } catch (e) { /* the page's own drawing */ } if (j.t === 'end' || j.t === 'err') { last = j; resolve(j); } };
+        var pump = function () { rd.read().then(function (c) { if (c.done) { line(buf); buf = ''; if (!last) resolve(null); return; } buf += dec.decode(c.value, { stream: true }); var i; while ((i = buf.indexOf('\\n')) > -1) { line(buf.slice(0, i)); buf = buf.slice(i + 1); } if (!last) pump(); else { try { rd.cancel(); } catch (e) {} } }, function (e) { if (!last) reject(e); }); };
+        pump();
+      });
     });
   };
   /* A small recorder for "the page stopped answering" (asked for after a freeze nobody could explain).

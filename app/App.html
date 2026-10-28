@@ -13640,10 +13640,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           if (!first) { first = Date.now() - t0; wait.className = 'ai-m bot ai-stream'; }
           text += j.x; wait.innerHTML = aiHtml(text); aiSayFeed(text, false); const box = $('ai_msgs'); box.scrollTop = box.scrollHeight; });
         if (end && end.t === 'end') return Object.assign({ first: first }, end);
-        if (end && end.t === 'err') { const e = new Error(end.e); e.aiSaid = true; throw e; }
+        if (end && end.t === 'err') { const e = new Error(end.e); e.aiSaid = true; e.cut = !!end.cut; throw e; }
       } catch (e) {
-        // the AI service's own answer (no credit, a key it did not take …) – as getAiReply says it; busy (a stream cut half-way): asked once more in one piece
-        if (e.aiSaid && !/^The AI service is busy right now/.test(errMsg(e))) { aiStreamOff(wait); aiSayCut(); throw e; }
+        // the AI service's own answer (busy before a word, no credit, a key it did not take …) – as getAiReply says it; a stream cut
+        // after words were already on the screen: asked once more in one piece
+        if (e.aiSaid && !e.cut) { aiStreamOff(wait); aiSayCut(); throw e; }
         if (/AI_NO_STREAM/.test(errMsg(e))) AI.stream = false;                     // Gemini / an older server: the answer in one piece from now on
       }
       aiStreamOff(wait); aiSayCut();
@@ -13653,11 +13654,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function aiStreamOff(wait) { if (wait && wait.classList.contains('ai-stream')) { wait.className = 'ai-wait'; wait.textContent = '…'; } }
   // the answer said while it is written (a talk only): each finished sentence once, about the first 650 characters, then "the rest is on the screen"
   const AI_SQ = { on: false, said: 0, n: 0, left: 0, cut: false, done: null, L: 'en' };
-  function aiSayStart() { aiSayCut(); AI_SQ.on = !!AI.live && aiCanSay() && !(S.prefs && S.prefs.voiceOut === false); AI_SQ.said = 0; AI_SQ.n = 0; AI_SQ.cut = false; AI_SQ.L = AI.lastLang || fixLang; }
-  function aiSayCut() { const had = AI_SQ.left; AI_SQ.left = 0; AI_SQ.on = false; AI_SQ.done = null; AI.saying = false; if (had) { try { speechSynthesis.cancel(); } catch (e) { /* nothing was being said */ } } }
+  function aiSayStart() { aiSayCut(); AI_SQ.on = !!AI.live && !AI.hush && aiCanSay() && !(S.prefs && S.prefs.voiceOut === false); AI_SQ.said = 0; AI_SQ.n = 0; AI_SQ.cut = false; AI_SQ.L = AI.lastLang || fixLang; }
+  // (the review) what was waiting for the end of the speech (the talk listening again) is not lost when the speech is cut
+  function aiSayCut() { const had = AI_SQ.left, d = AI_SQ.done; AI_SQ.left = 0; AI_SQ.on = false; AI_SQ.done = null; AI.saying = false; if (had) { try { speechSynthesis.cancel(); } catch (e) { /* nothing was being said */ } }
+    if (d && AI.live) setTimeout(aiResume, 200); }
+  // a talk goes on: listening again when nothing is being asked or said
+  function aiResume() { if (AI.live && !AI.busy && !AI.saying && !AI.rec) { aiLiveShow('hear'); setTimeout(aiListen, 150); } }
   function aiSayFeed(text, last) {
     if (!AI_SQ.on) return;
-    const t = String(text || '').replace(/\[\[open:[^\]]*\]\]/g, '').replace(/\[\[[^\]]*$/, '');
+    const t = String(text || '').replace(/^\s+/, '').replace(/\[\[open:[^\]]*\]\]/g, '').replace(/\[\[[^\]]*$/, '');      // (the same text whether streamed or whole)
     let upto = t.length;
     if (!last) { const m = [...t.matchAll(/[.!?।](?=\s)|\n/g)].pop(); upto = m ? m.index + m[0].length : 0; }
     if (upto <= AI_SQ.said) return;
@@ -13679,7 +13684,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function aiSayAfter(done) { if (!AI_SQ.left) { AI.saying = false; done(); } else AI_SQ.done = done; }
   // the person speaks while it speaks: it stops and listens at once (the talk goes on)
-  function aiInterrupt() { AI.hush = AI.busy; aiSayCut(); try { if (aiCanSay()) speechSynthesis.cancel(); } catch (e) { /* not speaking */ } if (!AI.busy) { aiLiveShow('hear'); setTimeout(aiListen, 150); } }
+  function aiInterrupt() { AI.hush = AI.busy; aiSayCut(); try { if (aiCanSay()) speechSynthesis.cancel(); } catch (e) { /* not speaking */ } if (!AI.busy) { aiLiveShow('hear'); setTimeout(aiListen, 150); } else aiLiveShow('think'); }
   // the chat kept after every answer – as he saw it (only his; nothing is kept while the database step is not run)
   function aiKeep() {
     if (!S.token || !AI.chatId) return;
@@ -13699,7 +13704,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const aiOnly = () => '<p class="ai-empty">' + esc(aiL({ en: 'Only you see this – and only at this site.', mr: 'हे फक्त तुम्हालाच दिसते – आणि फक्त या site चे.', hi: 'यह सिर्फ़ आपको दिखता है – और सिर्फ़ इस site का।' })) + '</p>';
   async function aiHistory() {
     if (AI.busy) return; aiSide('<p class="ai-empty">…</p>');
-    try { const r = await rawCall('aiChats');
+    try { const r = await rawCall('aiChats'); if (AI.busy) { aiSideOff(); return; }
       aiSide('<h4><span>' + esc(aiL({ en: 'Your chats', mr: 'तुमच्या chats', hi: 'आपकी chats' })) + '</span>' + aiBackBtn() + '</h4>' + aiOnly() +
         (!r.on ? '<p class="ai-empty">' + esc(r.msg || '') + '</p>' : r.chats.length ? r.chats.map(c => '<button type="button" class="ai-row" data-aichat="' + esc(c.id) + '"><span><b>' + esc(c.title || '–') + '</b><small>' + esc(aiWhen(c.at)) + ' · ' + c.n + ' ' + esc(aiL({ en: 'question(s)', mr: 'प्रश्न', hi: 'सवाल' })) + '</small></span></button>').join('')
           : '<p class="ai-empty">' + esc(aiL({ en: 'No chat kept yet.', mr: 'अजून कोणतीही chat नाही.', hi: 'अभी कोई chat नहीं।' })) + '</p>'));
@@ -13707,7 +13712,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   async function aiChatOpen(id) {
     if (AI.busy) return;
-    try { const c = await rawCall('aiChatGet', { id: id });
+    try { const c = await rawCall('aiChatGet', { id: id }); if (AI.busy) return;      // (a question asked meanwhile: not mixed up)
       aiSideOff(); aiSayCut(); AI.chatId = c.id; AI.turns = []; AI.pending = null; AI.partial = null; $('ai_msgs').innerHTML = '';
       (c.msgs || []).forEach(m => { const t = String(m.t || '');
         if (m.r === 'me') { aiAdd('ai-m me', esc(t)); AI.turns.push({ role: 'user', parts: [{ text: t }] }); }
@@ -13719,7 +13724,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   async function aiMemoryShow() {
     if (AI.busy) return; aiSide('<p class="ai-empty">…</p>');
-    try { const r = await rawCall('aiMemory');
+    try { const r = await rawCall('aiMemory'); if (AI.busy) { aiSideOff(); return; }
       aiSide('<h4><span>' + esc(aiL({ en: 'What the assistant remembers about you', mr: 'Assistant ला तुमच्याबद्दल काय लक्षात आहे', hi: 'Assistant को आपके बारे में क्या याद है' })) + '</span>' + aiBackBtn() + '</h4>' + aiOnly() +
         '<p class="ai-empty">' + esc(aiL({ en: 'Tell it "remember …" to add a note; × takes one out.', mr: 'नवीन नोंदीसाठी "लक्षात ठेव …" असे सांगा; × ने काढा.', hi: 'नई बात के लिए "याद रखो …" कहें; × से हटाएँ।' })) + '</p>' +
         (!r.on ? '<p class="ai-empty">' + esc(r.msg || '') + '</p>' : r.notes.length ? r.notes.map(n => '<div class="ai-row"><span>' + esc(n.note) + '</span><button type="button" class="ai-rowx" data-aiforget="' + Number(n.id) + '" title="Take this out" aria-label="Take this out">×</button></div>').join('')
@@ -13945,7 +13950,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     AI.busy = true; $('ai_send').disabled = true; $('ai_sugg').innerHTML = ''; AI.lang = aiLangOf(text); aiSayCut(); aiSideOff();      // (update-186) a new question: what was being said stops
     const keep = AI.turns.length, t0 = Date.now(), byApp = aiL({ en: 'from the app itself, now', mr: 'app कडून थेट, आत्ता', hi: 'app से सीधे, अभी' });
     aiAdd('ai-m me', esc(text)); AI.turns.push({ role: 'user', parts: [{ text: text }] });
-    const wait = aiAdd('ai-wait', '…'), used = [];
+    const wait = aiAdd('ai-wait', '…'), used = [], kept = [];      // (update-186) kept: the notes it put in its memory in this question
     const said = t => { AI.turns.push({ role: 'model', parts: [{ text: t }] }); };
     try {
       // 0. an entry is waiting for its yes / no; or these words are a command (or complete one that was half said)
@@ -13973,13 +13978,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (!calls.length) { const t = (r.parts || []).map(p => p.text || '').join('').trim(); wait.remove(); aiSayFeed(t, true);
           aiAdd('ai-src', '<span>' + (used.length ? 'Looked up:' : esc(aiL({ en: 'From the figures of ' + ((snap || {}).asOf || 'now'), mr: ((snap || {}).asOf || 'आत्ता') + ' च्या आकड्यांवरून', hi: ((snap || {}).asOf || 'अभी') + ' के आँकड़ों से' }))) + '</span>' + used.map(u => '<span>' + esc(u) + '</span>').join('') +
             (S.user && S.user.admin ? '<span title="the AI model that answered, how long it took (and when its first words came)">' + esc(r.model || '') + ' · ' + (Math.round((Date.now() - t0) / 100) / 10) + ' s' + (r.first ? ' · first words ' + (Math.round(r.first / 100) / 10) + ' s' : '') + '</span>' : ''));
-          aiAdd('ai-m bot', aiHtml(t || '–')); return; }
+          aiAdd('ai-m bot', aiHtml(t || '–'));
+          // (the review) what it just kept in its memory is shown, with "Take it out" – a note is never kept unseen
+          kept.forEach(k => aiAdd('ai-src ai-note', '<span>' + esc(aiL({ en: 'Kept in memory: ', mr: 'Memory मध्ये ठेवले: ', hi: 'Memory में रखा: ' }) + k.note) + '</span><button type="button" class="ai-go" data-aiunkeep="' + Number(k.id) + '">' + esc(aiL({ en: 'Take it out', mr: 'काढा', hi: 'हटाएँ' })) + '</button>'));
+          return; }
         // the look-ups it asks for run side by side (what it wrote before asking for them is not the answer: taken away, not said)
         aiSayCut(); aiStreamOff(wait);
         wait.textContent = 'Looking up: ' + calls.map(c => aiWhat(c.functionCall.name, c.functionCall.args || {})).join(', ') + '…';
         const outs = await Promise.all(calls.map(async c => { const name = c.functionCall.name, args = c.functionCall.args || {}; used.push(aiWhat(name, args));
           // (update-185) a look-up the page does not run itself: the server runs it (aiLookup) – with his own access to that page
           let res; try { res = AI_RUN[name] ? await AI_RUN[name](args) : /^store_/.test(name) ? await aiModLook('store', 'work', name, args) : /^eng_/.test(name) ? await aiModLook('engineering', 'eng', name, args) : await rawCall('aiLookup', { name: name, args: args }); } catch (e) { res = { error: errMsg(e) }; }
+          if (name === 'remember' && res && res.remembered && !res.already) kept.push(res);
           return { functionResponse: { name: name, response: res } }; }));
         AI.turns.push({ role: 'user', parts: outs }); wait.textContent = 'Writing the answer…';
       }
@@ -13999,7 +14008,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       else if (S.user && S.user.admin && !/not set up/i.test(why)) aiAdd('ai-src', '<span title="' + esc(why) + '">Admin: ' + esc(why.slice(0, 110)) + '</span>');
     }
     finally { AI.lang = ''; AI.busy = false; $('ai_send').disabled = false; if (!AI.live) $('ai_in').focus(); aiSuggest();
-      const b = [...document.querySelectorAll('#ai_msgs .ai-m.bot, #ai_msgs .ai-m.err')].pop(); AI.lastAnswer = b ? b.dataset.say || b.textContent : ''; aiKeep(); }
+      const b = [...document.querySelectorAll('#ai_msgs .ai-m.bot, #ai_msgs .ai-m.err')].pop(); AI.lastAnswer = b ? b.dataset.say || b.textContent : ''; aiKeep();
+      if (AI.live && !AI.talkAsk) { AI.hush = false; aiSayAfter(() => setTimeout(aiResume, 100)); } }      // (a question typed during a talk: the talk goes on after it)
   }
   /* ---------- THE DAILY SUMMARY (asked 04-10-2026) ----------
    * One answer made by the app itself (server: getBrief – every part within the user's own permissions): yesterday's diesel and
@@ -14092,7 +14102,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (!said) { AI.silent = (AI.silent || 0) + 1; if (AI.silent >= 3) { aiLiveStop(); return; } setTimeout(aiListen, 250); return; }
       AI.silent = 0;
       if (/^(stop|थांब|थांबा|बस|बंद कर|बंद करा|रुको|रुक जाओ|thamb|bas)[.!।\s]*$/i.test(said)) { aiLiveStop(); return; }
-      aiLiveShow('think'); await aiAsk(said);
+      aiLiveShow('think'); AI.talkAsk = true; try { await aiAsk(said); } finally { AI.talkAsk = false; }
       if (!AI.live) return;
       if (AI.hush) { AI.hush = false; aiSayCut(); aiLiveShow('hear'); setTimeout(aiListen, 150); return; }      // (update-186) he spoke while it spoke: listening
       if (S.prefs && S.prefs.voiceOut === false) { aiLiveShow('hear'); setTimeout(aiListen, 300); return; }
@@ -14132,6 +14142,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const f = e.target.closest('[data-aiforget]'); if (f) { f.disabled = true; rawCall('aiMemoryDel', { id: Number(f.dataset.aiforget) }).then(() => aiMemoryShow()).catch(er => { f.disabled = false; toast(errMsg(er), true); }); } });
   $('ai_msgs').addEventListener('click', e => { const doit = e.target.closest('[data-aido]'); if (doit) { const w = doit.dataset.aido; aiDo(w === 'force' ? 'save' : w, w === 'force'); return; }
     const sp = e.target.closest('[data-aisay]'); if (sp) { const m = sp.closest('.ai-m'), t = m.textContent; if (AI.saying) { speechSynthesis.cancel(); AI.saying = false; } else aiSay(t, /[\u0900-\u097F]/.test(t) ? (fixLang === 'hi' ? 'hi' : 'mr') : 'en'); return; }
+    const unk = e.target.closest('[data-aiunkeep]'); if (unk) { unk.disabled = true; rawCall('aiMemoryDel', { id: Number(unk.dataset.aiunkeep) }).then(() => { unk.parentNode.innerHTML = '<span>' + esc(aiL({ en: 'Taken out of the memory.', mr: 'Memory मधून काढले.', hi: 'Memory से हटाया।' })) + '</span>'; }).catch(er => { unk.disabled = false; toast(errMsg(er), true); }); return; }
     const again = e.target.closest('[data-airetry]'); if (again) { if (!AI.busy) { const q = again.dataset.airetry; again.closest('.ai-m').remove(); aiAsk(q); } return; }
     const b = e.target.closest('[data-aigo]'); if (b) { showTab(b.dataset.aigo); if (window.innerWidth < 900) aiOpen(false); } });
 

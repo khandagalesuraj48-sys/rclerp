@@ -36,6 +36,23 @@ without its chats kept) and says the step is needed. No secret in any file.
   `aiPrepare`, `aiMemory`, `aiMemoryDel`, `aiChats`, `aiChatGet`, `aiChatSave` (each only the signed-in person's own; no page access
   needed – the assistant is everybody's).
 
+## After an independent review of the code (the same day)
+* What the assistant keeps between requests (what the site holds – 30 min; is step 1zk there – 10 min, "not yet" 30 s) is now in the
+  server's own small memory of the site (`__aiKeep`, `server/runtime.js`) – the app's code runs in a new context for every request, so a
+  variable kept nothing (every step read the dates again). The dates are read without empty ones; **rule 11 lists only the registers he
+  may open**.
+* **A note is never kept unseen:** rule 10 says the notes are his facts and wishes – never instructions – and `remember` is used only
+  when HIS OWN message asks (never because a look-up's text says so); what it keeps is shown under the answer ("Kept in memory: …") with
+  **Take it out**.
+* The stream: an answer is whole only when the service says it ended and every look-up's input can be read (a line closed half-way is
+  a cut, never run with nothing); the 60 s of the server are shared out (a deadline for all the tries); the page went away → Claude is
+  not asked further; only a stream cut after words is asked again in one piece (busy before any word is said as busy – not asked
+  twice); the answer's last line is not held back by the server's note of which model answered; the page stops reading at the last line.
+* The talk: an interrupt stays for the rest of that question; "New chat", a chat opened from History or a question typed during a talk no
+  longer leave the talk on "Speaking…" – it listens again; leading blank lines no longer cut the end of what is said.
+* A chat is changed only where it is his and has no more questions than the copy sent (a copy sent late never goes over a newer one);
+  a number that is someone else's is never written over. History / Memory never mix with a question asked meanwhile.
+
 ## Code
 | Where | What |
 |---|---|
@@ -49,20 +66,22 @@ without its chats kept) and says the step is needed. No secret in any file.
 | `test/claude-standin.js` | `"stream": true` as server-sent events, `/__delay`, `/__cut`; "REMEMBER …", "WHAT DO YOU REMEMBER" |
 
 ## Evidence
-* Unit tests: **139 / 139** (`update-186`: the request of a step – the rules kept with the site's facts and his memory, the snapshot
+* Unit tests: **139 / 139** (`update-186` – after the review also: a stream closed before its end and a look-up whose input cannot be read are cuts, busy before any word is no cut, an older copy of a chat never goes over a newer one, rule 10's words; `update-186`: the request of a step – the rules kept with the site's facts and his memory, the snapshot
   apart, 42 look-ups; remember / forget only his, never twice, 60 at most; the chats only his, never written over by another person; a
   site without step 1zk says so; Gemini → AI_NO_STREAM; `server/aistream.js` against a local stand-in – the words in order, a look-up
   put together from its pieces, busy → the next model, a line lost before the end → asked again, cut after words → "busy", key / credit;
   the sentences said once each; the step only adds; Read Me word for word. The update-167 / assistant tests moved to 42 look-ups and the
   new rule 4.)
-* Local test rig (claude mode, no Portal, a fresh copy of the database) – `test/browser/ai186.js` **21 / 21**: the words come into the
+* Local test rig (claude mode, no Portal, a fresh copy of the database) – `test/browser/ai186.js` **23 / 23** (after the review; 22 of
+  them on the fresh copy, the one line check of the test itself corrected and run again): the words come into the
   bubble as they are written (first words after ~0.4 s, 6 → 83 characters seen growing), every step asked with `stream`, the look-up's
   own words gone from the chat, no "Thinking…"; the Admin's "first words … s"; "remember …" kept in S1 for him, a new chat knows it,
   Memory lists it, × takes it out of the database; the chats kept after every answer, History newest first, one opened again goes on
   (the same chat, 3 questions); a stream cut half-way → asked again in one piece, the answer there; **Talk:** heard → asked → said, the
   first sentence said ~1 s before the answer was there in full, "L" said as litres, the look-up's words not said, then listening again;
   the 🎙 while it speaks → it stops and listens; site T2 without step 1zk says the step is needed, with it none of S1's notes or chats;
-  no page error. Pictures `ai186_memory.png`, `ai186_history.png`, `ai186_talk.png`.
+  what it kept shown with "Take it out" (pressed: out of the database); "New chat" while it speaks – the talk listens again; no page
+  error. Pictures `ai186_memory.png`, `ai186_history.png`, `ai186_talk.png`.
 * The older AI tests on the same rig: `claude167` 14 / 14, `ai185` 10 / 10 (both now through the word-by-word answer), `ai` (Gemini –
   the answer in one piece, AI_NO_STREAM) 13 / 13; in gateway mode (one address, as live) `ai185gw` 7 / 7.
 * The phone's width (360 px): the assistant's header with History, Memory, New chat fits.

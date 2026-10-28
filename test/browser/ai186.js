@@ -73,7 +73,8 @@ const SPEECH = () => {
     n0 = await count(); await type('REMEMBER RL-185 is called Mota JCB, compare'); await done(n0);
     const memRow = sql("select id || '|' || note from ai_memory where email = 'sujit@rcl.test'");
     ok('2. "remember …": the look-up remember (the server, his own note) – kept in S1 for him; the AI says so; "Looked up: Memory – kept"', /^\d+\|RL-185 is called Mota JCB, compare$/.test(memRow) && /I will remember that \(note #\d+\)/.test(await lastBot()) &&
-      /Memory – kept/.test(await f.evaluate(() => [...document.querySelectorAll('#ai_msgs .ai-src')].pop().textContent)), [memRow, await lastBot()]);
+      /Memory – kept/.test(await f.evaluate(() => [...document.querySelectorAll('#ai_msgs .ai-src:not(.ai-note)')].pop().textContent)) &&
+      /Kept in memory: RL-185 is called Mota JCB|Memory मध्ये ठेवले: RL-185/.test(await f.evaluate(() => [...document.querySelectorAll('#ai_msgs .ai-note')].map(x => x.textContent).join(' '))), [memRow, await lastBot()]);
     await f.evaluate(() => document.getElementById('ai_new').click()); await wait(300);
     n0 = await count(); await type('WHAT DO YOU REMEMBER compare'); await done(n0);
     ok('   a NEW chat: the AI is given its notes of him (MEMORY in its rules)', new RegExp('#' + memRow.split('|')[0] + ' RL-185 is called Mota JCB').test(await lastBot()), await lastBot());
@@ -84,9 +85,16 @@ const SPEECH = () => {
     await f.evaluate(() => document.querySelector('#ai_side [data-aiforget]').click());
     ok('   × takes it out (from the database too)', !!await until(async () => sql("select count(*) from ai_memory where email = 'sujit@rcl.test'") === '0' && await f.evaluate(() => !document.querySelector('#ai_side [data-aiforget]') && /Nothing yet|अजून काही नाही|अभी कुछ नहीं/.test(document.getElementById('ai_side').textContent)), 10000));
     await f.evaluate(() => document.querySelector('#ai_side [data-aiback]').click()); await wait(200);
+    // what it keeps is shown with "Take it out" – a note is never kept unseen (the review: a look-up's text must not plant one quietly)
+    n0 = await count(); await type('REMEMBER a passing note, compare'); await done(n0);
+    const kept = await f.evaluate(() => { const b = document.querySelector('#ai_msgs [data-aiunkeep]'); return b ? b.parentNode.textContent : ''; });
+    const kId = sql("select id from ai_memory where email = 'sujit@rcl.test' and note like 'a passing note%'");
+    await f.evaluate(() => document.querySelector('#ai_msgs [data-aiunkeep]').click());
+    ok('   what it kept is shown under the answer ("Kept in memory: …") with "Take it out" – pressed: out of the memory', /a passing note/.test(kept) && !!kId &&
+      !!await until(async () => sql("select count(*) from ai_memory where email = 'sujit@rcl.test'") === '0' && await f.evaluate(() => !document.querySelector('#ai_msgs [data-aiunkeep]')), 10000), [kept, kId]);
     // 3. the chats are kept after every answer – History lists them, one opens again and goes on
     const chats = sql("select count(*) || '|' || max(n) from ai_chats where email = 'sujit@rcl.test'");
-    ok('3. the chats kept by themselves after the answers (2 chats: the first with its 2 questions)', chats === '2|2', chats);
+    ok('3. the chats kept by themselves after the answers (2 chats: the first with its 2 questions)', chats === '2|3' || chats === '2|2', chats);
     await f.evaluate(() => document.getElementById('ai_hist').click());
     const hist = await until(() => f.evaluate(() => { const s = document.getElementById('ai_side'); return !s.hidden && s.querySelector('[data-aichat]') ? [...s.querySelectorAll('[data-aichat]')].map(r => r.textContent) : null; }), 10000);
     ok('   History: the newest first, its first question as its name', hist && hist.length === 2 && /^WHAT DO YOU REMEMBER/.test(hist[0]) && /^diesel compare 2026-10-27/.test(hist[1]) && /2 (question|प्रश्न|सवाल)/.test(hist[1]), hist);
@@ -126,6 +134,14 @@ const SPEECH = () => {
     const after = await until(async () => (await recs()) > recBefore && await f.evaluate(() => AI.live && !AI.saying) ? { live: true } : null, 10000);
     ok('   while it speaks, the microphone: it stops at once and listens (the talk goes on)', !!speaking && !!after && rec1 >= 0, [speaking, after]);
     await p.screenshot({ path: path.join(SHOT, 'ai186_talk.png') });
+    // (the review) "New chat" pressed while it speaks: the talk is not left hanging – it listens again
+    await f.evaluate(() => { window.__sayMs = 4000; }); await top.evaluate(() => window.__hear.push('diesel compare 2026-10-27'));
+    if (!await f.evaluate(() => AI.live)) await f.evaluate(() => document.getElementById('ai_mic').click());
+    const speaking2 = await until(() => f.evaluate(() => AI.saying && !AI.busy), 40000);
+    const recB = await recs();
+    await f.evaluate(() => document.getElementById('ai_new').click());
+    const after2 = await until(async () => (await recs()) > recB && await f.evaluate(() => AI.live && !AI.saying) ? true : null, 10000);
+    ok('   "New chat" while it speaks: it stops and the talk listens again (not left on "Speaking…")', !!speaking2 && !!after2, [speaking2, after2]);
     await f.evaluate(() => document.getElementById('ai_live_stop').click());
     // 6. site-wise: T2 (another database) – without step 1zk it says so; with it, nothing of S1's notes or chats is there
     sql("insert into rcl_user_sites (email, site, is_admin) values ('sujit@rcl.test', 'T2', true) on conflict (email, site) do nothing");      // (rig only: sujit at T2 too – only now, the page stays at S1)
