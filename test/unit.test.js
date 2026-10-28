@@ -663,8 +663,12 @@ test('the assistant: without a key it says so; the rules and the look-ups are th
   assert.match(rules, /The person asking is Ramesh \(User\)\./);
   assert.match(rules, /Answer ONLY from this app/); assert.match(rules, /You never save, change or delete anything yourself/); assert.match(rules, /never say that it is saved/); assert.match(rules, /Devanagari/); assert.match(rules, /Today is \d{4}-\d{2}-\d{2}/);
   const tools = run('() => AI_TOOLS_.map(t => t.name)');
-  assert.deepStrictEqual(tools, ['diesel_issues', 'log_book', 'pending_log_book', 'diesel_stock', 'machinery', 'diesel_average', 'diesel_watch', 'activity', 'prepare_diesel_issue', 'prepare_log_entry', 'app_guide']);
-  // nothing the AI can call saves, changes or deletes: nine only read, two only PREPARE an entry for the person's own Save
+  assert.deepStrictEqual(tools, ['diesel_issues', 'log_book', 'pending_log_book', 'diesel_stock', 'machinery', 'diesel_average', 'diesel_watch', 'activity', 'prepare_diesel_issue', 'prepare_log_entry',
+    'maintenance_bills', 'maintenance_log_book', 'maintenance_status', 'vendor_bills', 'payments', 'vendor_ledger', 'vendor_outstanding', 'vendors', 'vendor_boq', 'compliance', 'breakdowns', 'fuel_cards', 'diesel_inward', 'diesel_transfers', 'machinery_cost',      // (update-185)
+    'store_stock', 'store_statement', 'store_item_ledger', 'store_inward', 'store_outward', 'store_consumption', 'store_returnable', 'store_requirements', 'store_purchase_orders',      // (update-185: asked of the Store)
+    'eng_my_work', 'eng_dashboard', 'eng_report', 'eng_performance', 'eng_progress',      // (update-185: asked of Engineering)
+    'app_guide']);
+  // nothing the AI can call saves, changes or deletes: they only read, two only PREPARE an entry for the person's own Save
   assert.ok(!/save|delete|update|add /i.test(tools.join(' ')));
   assert.ok(run('() => AI_TOOLS_.filter(t => /^prepare_/.test(t.name)).every(t => /It is NOT saved by this/.test(t.description))'));
 });
@@ -6406,7 +6410,7 @@ test('update-167: Claude – with ANTHROPIC_API_KEY every AI question goes to Cl
     assert.deepStrictEqual(sent.map(x => x.method + ' ' + x.path), ['GET /v1/models?limit=1000', 'POST /v1/messages']);
     const b = sent[1].body;
     assert.strictEqual(b.model, 'claude-sonnet-5-5');
-    assert.ok(b.max_tokens >= 1024 && b.tools.length === 11 && b.messages.length === 1 && b.messages[0].role === 'user' && b.messages[0].content[0].text === 'How much diesel yesterday?');
+    assert.ok(b.max_tokens >= 1024 && b.tools.length === 40 && b.messages.length === 1 && b.messages[0].role === 'user' && b.messages[0].content[0].text === 'How much diesel yesterday?');
     assert.deepStrictEqual(b.system[0].cache_control, { type: 'ephemeral' });
     assert.match(b.system[0].text, /Answer ONLY from this app/); assert.match(b.system[0].text, /The person asking is Sujit \(Admin\)\./);
     assert.ok(!/SNAPSHOT/.test(b.system[0].text) && /^9\. SNAPSHOT/.test(b.system[1].text) && /"dieselStockNow":\{"litres":813\}/.test(b.system[1].text), 'the snapshot is after the kept part');
@@ -6482,7 +6486,7 @@ test('update-167: Claude – with ANTHROPIC_API_KEY every AI question goes to Cl
     r = run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'stock?' }] }], context: { page: { tab: 'dash' } } });
     assert.deepStrictEqual([r.parts[0].text, r.model], ['Gemini here.', 'gemini-9.5-flash']);
     assert.deepStrictEqual(sent.map(x => x.path), ['/v1beta/models?pageSize=1000', '/v1beta/models/gemini-9.5-flash:generateContent']);
-    assert.ok(sent[1].body.system_instruction && /\n9\. SNAPSHOT – /.test(sent[1].body.system_instruction.parts[0].text) && sent[1].body.tools[0].functionDeclarations.length === 11 && sent[1].body.contents[0].role === 'user');
+    assert.ok(sent[1].body.system_instruction && /\n9\. SNAPSHOT – /.test(sent[1].body.system_instruction.parts[0].text) && sent[1].body.tools[0].functionDeclarations.length === 40 && sent[1].body.contents[0].role === 'user');
     assert.strictEqual(run('() => PropertiesService.getScriptProperties().getProperty("AI_MODEL_C")'), null, 'Claude\'s order is kept apart from Gemini\'s');
   } finally {
     delete ctx.__ai; clean();
@@ -7364,4 +7368,83 @@ test('update-184: the vendor – its Company Name and Owner Name, its documents 
   assert.match(app, /\$\('m_docs_box'\)\.hidden = \$\('m_ownership'\)\.value !== 'Own';/, 'the asset form: papers only for Own');
   assert.match(app, /<select id="cp_own" aria-label="Ownership" hidden><option value="">Own<\/option><\/select>/);
   assert.match(app, /vendors: \{ saves: \['saveVendor', 'deleteVendor', 'vendorsFromOwners', 'vendorDoc'\],/);
+});
+
+test('update-185: the assistant reads the rest of Mechanical (maintenance, bills, payments, ledger, outstanding, vendors, BOQ, compliance, breakdowns, fuel cards, inward, transfer, machinery cost) – run by the server, each with the person\'s own access; never an Aadhaar, PAN or account number', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  const MODS = run('() => MODULES'), all = v => MODS.reduce((o, m) => { o[m] = v; return o; }, {});
+  const md = { name: 'MD', email: 'md185@x.test', admin: true, perms: all('Edit') };
+  const look = (u, name, args) => tryRun('(u, x) => aiLookup_(u, x)', u, { name: name, args: args || {} });
+  // the list: each look-up the server runs is a tool of the AI; it reads only pages' read actions (no edit / Admin-only); what it reads is declared
+  const NEW = ['maintenance_bills', 'maintenance_log_book', 'maintenance_status', 'vendor_bills', 'payments', 'vendor_ledger', 'vendor_outstanding', 'vendors', 'vendor_boq', 'compliance', 'breakdowns', 'fuel_cards', 'diesel_inward', 'diesel_transfers', 'machinery_cost'];
+  assert.deepStrictEqual(run('() => Object.keys(AI_LOOK_)'), NEW);
+  const tools = run('() => AI_TOOLS_.map(t => t.name)'); NEW.forEach(n => assert.ok(tools.indexOf(n) > -1, n + ' is a tool'));
+  const decl = run('() => Object.keys(AI_LOOK_).map(k => [k, AI_LOOK_[k].fn, [...String(AI_LOOK_[k].run).matchAll(/run\\(\'([a-zA-Z]+)\'/g)].map(m => m[1])])');
+  decl.forEach(([k, fn, used]) => { assert.ok(used.length && used.every(f => fn.indexOf(f) > -1), k + ': reads only what it declares ' + JSON.stringify([fn, used])); });
+  assert.strictEqual(run('fs => fs.every(f => API_[f] && !API_[f].edit && !API_[f].admin)', [].concat(...decl.map(d => d[1]))), true, 'only read actions, none Admin-only');
+  assert.deepStrictEqual(run('() => ({ m: API_.aiLookup.m, w: API_.aiLookup.withUser, e: !!API_.aiLookup.edit })'), { m: '', w: true, e: false });
+  assert.strictEqual(look(md, 'delete_everything').thrown, 'There is no such look-up.');
+  // the access check is ONE function – the same words for a page and for a look-up
+  assert.strictEqual((code.match(/^function apiAccess_\(/gm) || []).length, 1);
+  assert.match(code, /DSRC_U_ = u;[^\n]*\n  apiAccess_\(u, spec, fn\);/);
+  // test data (this computer only): an Own roller with a maintenance bill, a Rental excavator of a vendor, two vendors
+  const day = run('() => today_()'), d1 = day.slice(0, 8) + '01';
+  run('(x, m) => saveMaster_(x, m)', { no: 'RL-185', name: 'Roller 185', type: 'Soil Compactor', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2020-01-01' }, 'add');
+  run('(x, m) => saveMaster_(x, m)', { no: 'EX-185', name: 'Excavator 185', type: 'Excavator', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 12, owner: 'Test Vendor 185', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2020-01-01' }, 'add');
+  run('b => importMaint_(b)', { no: 'RL-185', bills: [{ rows: 'Line 1', date: d1, garage: 'Patil Garage', km: 900, lines: [{ work: 'FUEL FILTER', qty: 1, uom: 'Nos', rate: 650, amount: 650, gstAmt: 117 }] }] });
+  run('() => { ["owner_name", "documents"].forEach(c => CacheService.getScriptCache().put("SBCOL_vendors." + c, "1")); return true; }');      // (a site with step 1zj)
+  run('(x, u) => { OUT_FOR_ = u; try { return saveVendor_(x, "add").ok; } finally { OUT_FOR_ = null; } }', { name: 'Test Vendor 185', owner: 'Owner 185', gstReg: 'No', pan: 'ABCDE1234F', aadhaar: '234523452345', bank: 'Test Bank', branch: 'Pune', account: '000111222333', ifsc: 'SBIN0001234', phone: '9822001850' }, md);
+  run('(x, u) => { OUT_FOR_ = u; try { return saveVendor_(x, "add").ok; } finally { OUT_FOR_ = null; } }', { name: 'Second Vendor 185', gstReg: 'No' }, md);
+  // maintenance: the machinery as typed another way ("rl 185"); the bill with its lines and ₹ (its GST ₹ as in the old log book)
+  const mb = look(md, 'maintenance_bills', { from: d1, to: day, machinery: 'rl 185' });
+  assert.deepStrictEqual([mb.machinery, mb.bills, mb.totalRupees, mb.bills_[0].garage, mb.bills_[0].lines, mb.page], ['RL-185', 1, 767, 'Patil Garage', 'FUEL FILTER ₹767', 'mnt'], JSON.stringify(mb));
+  const ml = look(md, 'maintenance_log_book', { machinery: 'Roller 185' });
+  assert.deepStrictEqual([ml.machinery, ml.startToEnd, ml.maintenanceRupees, ml.bills, ml.byWork[0].work], ['RL-185', true, 767, 1, 'FUEL FILTER'], JSON.stringify(ml).slice(0, 600));
+  const ms = look(md, 'maintenance_status');
+  assert.ok(ms.added_.some(r => r.no === 'RL-185' && r.bills === 1 && r.upTo === d1) && ms.notAdded.indexOf('EX-185') === -1, JSON.stringify(ms).slice(0, 400));
+  assert.strictEqual(look(md, 'maintenance_bills', { from: d1, to: day, machinery: 'ZZ-9' }).thrown, '"ZZ-9" is not in Master.');
+  assert.match(look(md, 'maintenance_bills', { from: d1, to: day, machinery: '185' }).thrown, /^"185" fits 2 machinery \(RL-185, EX-185\) – say which one\.$|^"185" fits 2 machinery \(EX-185, RL-185\) – say which one\.$/);
+  // the person's own access – the same words as when he opens that page; View is enough (it only reads)
+  const pump = { name: 'Pump', email: 'pump185@x.test', admin: false, perms: Object.assign(all('None'), { 'Diesel Issue': 'Edit' }) };
+  assert.strictEqual(look(pump, 'maintenance_bills', { from: d1, to: day }).thrown, 'You do not have access to Maintenance. Ask Admin.');
+  assert.strictEqual(look(pump, 'machinery_cost', { from: d1, to: day }).thrown, 'You do not have access to Reports. Ask Admin.');
+  assert.match(look(pump, 'vendors').thrown, /^You do not have access to Vendor Master \/ /);
+  assert.strictEqual(look(pump, 'vendor_ledger', { vendor: 'Test Vendor 185' }).thrown, 'You do not have access to Vendor Ledger / Vendor Outstanding / Machinery Payments. Ask Admin.');
+  const viewer = { name: 'Viewer', email: 'view185@x.test', admin: false, perms: Object.assign(all('None'), { Maintenance: 'View', 'Vendor Master': 'View' }) };
+  assert.strictEqual(look(viewer, 'maintenance_bills', { from: d1, to: day, machinery: 'RL-185' }).bills, 1);
+  // vendors: what is missing – never the Aadhaar, PAN or account number itself
+  const vs = look(viewer, 'vendors', { query: 'vendor 185' }), txt = JSON.stringify(vs);
+  assert.ok(!/234523452345|ABCDE1234F|000111222333/.test(txt), 'no Aadhaar / PAN / account number: ' + txt.slice(0, 300));
+  const one = vs.vendors.find(v => v.company === 'Test Vendor 185'), two = vs.vendors.find(v => v.company === 'Second Vendor 185');
+  assert.deepStrictEqual([vs.found, one.owner, one.missing || '', one.machinery, one.mobile, one.bank, two.missing], [2, 'Owner 185', '', 'EX-185', '9822001850', 'Test Bank, Pune', 'PAN, Aadhaar, bank account, IFSC, bank name, mobile'], txt.slice(0, 500));
+  // a vendor by part of the name; two that fit – say which
+  assert.match(look(md, 'vendor_ledger', { vendor: 'vendor 185' }).thrown, /^"vendor 185" fits 2 vendors \(.+\) – say which one\.$/);
+  const vl = look(md, 'vendor_ledger', { vendor: 'test vendor' });
+  assert.deepStrictEqual([vl.vendor, vl.closingRupees, vl.page], ['Test Vendor 185', 0, 'vled']);
+  assert.strictEqual(look(md, 'vendor_ledger', { vendor: 'Nobody 185' }).thrown, '"Nobody 185" is not a vendor of this site.');
+  assert.strictEqual(look(md, 'vendor_ledger', {}).thrown, 'Say which vendor.');
+  assert.strictEqual(look(md, 'vendor_outstanding', { from_month: 'Oct' }).thrown, 'Give the month as yyyy-mm.');
+  assert.deepStrictEqual(Object.keys(look(md, 'vendor_outstanding')).slice(0, 3), ['fromMonth', 'toMonth', 'vendor']);
+  // compliance: the Own roller's papers not entered – the Rental excavator not followed
+  const cp = look(md, 'compliance');
+  assert.ok(cp.papers.some(p => p.no === 'RL-185' && p.state === 'not entered') && !cp.papers.some(p => p.no === 'EX-185'), JSON.stringify(cp).slice(0, 400));
+  // each answers (an empty site too) – nothing is thrown for an Admin
+  ['vendor_bills', 'payments', 'vendor_boq', 'breakdowns', 'fuel_cards', 'diesel_inward', 'diesel_transfers', 'machinery_cost'].forEach(n => { const r = look(md, n, { from: d1, to: day }); assert.ok(r && !r.thrown, n + ': ' + JSON.stringify(r).slice(0, 200)); });
+  assert.strictEqual(look(md, 'fuel_cards').onFuelCards, false, 'a site with diesel stock: it says it has no fuel cards');
+  // an answer too long: its longest list cut, the totals whole, and it says so
+  const big = run('() => aiFit_({ total: 5, rows: Array.from({ length: 400 }, (x, i) => ({ text: "x".repeat(100), i: i })) })');
+  assert.ok(JSON.stringify(big).length <= 14000 && big.total === 5 && big.rows.length < 400 && /^Only the first \d+ of "rows" are given here/.test(big.note), JSON.stringify(big).length + ' ' + big.note);
+  // the page passes a look-up it does not run itself to the server; the words of "Looked up"; the help of their refusals
+  assert.match(app, /res = AI_RUN\[name\] \? await AI_RUN\[name\]\(args\) : [^;]*: await rawCall\('aiLookup', \{ name: name, args: args \}\); \}/);
+  NEW.forEach(n => assert.match(app, new RegExp('\\b' + n + ": '")));
+  assert.match(app, /\(update-185\) the assistant's look-ups run by the server/);
+  // the Store's and Engineering's: asked of those modules (their aiLook, with the person's own sign-in there) – the server here has none of them
+  const mods = tools.filter(n => /^(store|eng)_/.test(n));
+  assert.strictEqual(mods.length, 14); mods.forEach(n => { assert.ok(!run('n => Object.prototype.hasOwnProperty.call(AI_LOOK_, n)', n), n + ' is not run here'); assert.match(app, new RegExp('\\b' + n + ": '")); });
+  assert.match(app, /\/\^store_\/\.test\(name\) \? await aiModLook\('store', 'work', name, args\) : \/\^eng_\/\.test\(name\) \? await aiModLook\('engineering', 'eng', name, args\)/);
+  const mlk = app.slice(app.indexOf('async function aiModLook('), app.indexOf('const AI_NAMES = {'));
+  assert.ok(/inHere\(m\)/.test(mlk) && /j\.site === cur/.test(mlk) && /action: 'aiLook'/.test(mlk) && /credentials: 'same-origin'/.test(mlk) && !/method: 'POST'[^\n]*action: '(?!aiLook)/.test(mlk), 'a module of this address, its sign-in of THIS site, only aiLook');
 });

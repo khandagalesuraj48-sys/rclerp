@@ -4,6 +4,7 @@
 // text, the look-ups' JSON Schema – and answers the way the real one does: a tool_use, then a text made from its tool_result.
 // Same controls as test/gemini-standin.js: /__log, /__clear, /__meter?say=, /__busy?model=NAME&n=3 (529 overloaded) and
 // /__credit?n=1 (400 "credit balance is too low").
+// (update-185) a question "LOOKUP <name> <JSON>" asks for that look-up; the log keeps its result (resultJson).
 // (update-173) POST /__next (its body: the text of the next answer to a file – one a call, in order; then /__meter's) and POST /__names
 // (the answer to the names of an old log book).
 const http = require('http'); const log = [], busy = {}, meter = { say: '{"km": null, "hrs": null}' }, credit = { n: 0 }, next = [], names = { say: '{"fixes": []}' };
@@ -89,7 +90,7 @@ http.createServer((req, res) => {
     if (tr) {
       const prev = blocks(ms[ms.length - 2].content), use = prev.find(b => b.type === 'tool_use' && b.id === tr.tool_use_id) || {}, n = use.name;
       let r = {}; try { r = JSON.parse(typeof tr.content === 'string' ? tr.content : JSON.stringify(tr.content)) || {}; } catch (e) { r = {}; }
-      entry.result = n;
+      entry.result = n; entry.resultJson = JSON.stringify(r).slice(0, 8000);      // (update-185) what the look-up gave back – the test checks it
       if (r.error) return text('You cannot see this: ' + r.error);
       if (/^prepare_/.test(n)) return text(r.shownToThePersonForSaveOrCancel ? 'The entry is on the screen – check it and press Save.' : r.askedThePersonFor ? 'I asked for what is missing.' : 'Not prepared.');
       if (n === 'diesel_issues') return text('**' + r.totalLitres + ' L** of diesel in ' + r.entries + ' entries (' + r.from + ' to ' + r.to + '). Most: ' + ((r.byMachinery[0] || {}).name || '-') + '.\n[[open:diesel|Open Diesel Issue]]');
@@ -102,6 +103,8 @@ http.createServer((req, res) => {
     if (/^NAMES OF AN OLD MAINTENANCE LOG BOOK/.test(q)) { Object.assign(entry, { names: true, ask: q.slice(q.indexOf('party – '), q.indexOf('party – ') + 1500) }); return text(names.say); }
     let snap = null; try { snap = JSON.parse(sys.split('SNAPSHOT = ')[1] || 'null'); } catch (e) { snap = null; }
     entry.snapshot = snap ? Object.keys(snap).join(',') : ''; entry.page = snap && snap.page ? snap.page.tab : '';
+    // (update-185) "LOOKUP <name> <its JSON>": that look-up is asked for, as the AI would
+    const lk = /^LOOKUP ([a-z_]+) (\{[\s\S]*\})$/.exec(q.trim()); if (lk) { let a = {}; try { a = JSON.parse(lk[2]); } catch (e) { a = {}; } return callFn(lk[1], a); }
     if (/stock/i.test(q) && snap && snap.dieselStockNow) return text('As of now (' + snap.asOf + ') the stock is **' + snap.dieselStockNow.litres + ' L**.');
     if (/this message|हा संदेश/i.test(q)) return callFn('app_guide', { topic: q });
     const pm = /please put (\d+) for (\S+)/i.exec(q); if (pm) return callFn('prepare_diesel_issue', { machinery: pm[2], litres: Number(pm[1]) });
