@@ -13,6 +13,8 @@
 //   3. a PDF read by the AI 2 pages a call (a cut answer: one page), the file kept; two machinery in it; Check, Import
 //   4. "Download the format (Excel)": a sheet for each Own machinery on the site, its number in row 3, the heading
 //   5. (update-174) a user with Maintenance Edit sees the import, View only does not
+//   6. (update-175) an Own machinery no longer on the site offered too; the names' list gone after the import; the log book "Start to end"
+//      (no limit of days), each bill Change / Delete on the screen (not in the Excel), "Fetch outward (Store)"; the bills "Start to end"
 //   NODE_PATH=<folder with puppeteer-core, @sparticuz/chromium, xlsx> NODE_OPTIONS="--require <path>/geo-shim.js" node mnt173.js
 const chromium = require('@sparticuz/chromium').default || require('@sparticuz/chromium'); const puppeteer = require('puppeteer-core');
 const XLSX = require('xlsx');
@@ -22,7 +24,7 @@ const sql = (db, q) => execSync('timeout 60 su postgres -c "psql -d ' + db + ' -
 const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : fail++; out.push((c ? 'PASS ' : 'FAIL ') + n + (x !== undefined && !c ? '  → ' + String(typeof x === 'string' ? x : JSON.stringify(x)).slice(0, 1200) : '')); };
 const SA = 'http://127.0.0.1:3000', P = 'http://127.0.0.1:3010', SHOT = process.env.SHOTS || '/tmp', AI = 'http://127.0.0.1:3998';
 const aiSay = async (p, body) => (await fetch(AI + p, { method: p === '/__log' || p === '/__clear' ? 'GET' : 'POST', body: p === '/__log' || p === '/__clear' ? undefined : body, signal: AbortSignal.timeout(10000) })).json();
-const R = 'RL-173', J2 = 'JCB-173';      // (the roller found by its name in the Asset Master – Roller No.03 = ROLLER NO-03)
+const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by its name in the Asset Master – Roller No.03 = ROLLER NO-03)
 (async () => {
   const errs = []; let b = null, cookie = '';
   const post = async (base, body) => (await fetch(base + '/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json', Connection: 'close' }, body: JSON.stringify(body), signal: AbortSignal.timeout(90000) })).json();
@@ -43,7 +45,8 @@ const R = 'RL-173', J2 = 'JCB-173';      // (the roller found by its name in the
     const init = await J('getInit'), today = init.today, d1 = today.slice(0, 8) + '01';
     const m1 = await J('saveMaster', { no: R, name: 'Roller No.03', type: 'Soil Compactor', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: d1 }, 'add');
     const m2 = await J('saveMaster', { no: J2, name: 'JCB 3DX', type: 'JCB', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'Patil Earthmovers', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: d1 }, 'add');
-    ok('the roller (Own, Active from this month) and a rented JCB in the Asset Master', !m1.ERROR && !m2.ERROR, [m1, m2]);
+    const m3 = await J('saveMaster', { no: O3, name: 'Old Roller 173', type: 'Soil Compactor', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Inactive', activeFrom: '2019-01-01', inactiveFrom: '2025-06-01' }, 'add');
+    ok('the roller (Own, Active from this month), a rented JCB and an Own roller no longer on the site in the Asset Master', !m1.ERROR && !m2.ERROR && !m3.ERROR, [m1, m2, m3]);
     // his layout (the PDF of Roller No-03): 3 title rows, a heading of wrapped names, the reading only on a bill's first row, a date left
     // empty under a merged cell, a ₹0 "Drum oil", the total line; dates of 2022–2024 (before the roller's Active From – history)
     const head = ['Sr\nNo', 'Date', 'Party Name', 'Current\nReading', 'Particulars', 'Qty', 'Uom', 'Basic Rate', 'Amount', 'GST Amount', 'Amount\nWith GST', 'Total'];
@@ -80,12 +83,13 @@ const R = 'RL-173', J2 = 'JCB-173';      // (the roller found by its name in the
     for (let i = 0; i < 40 && !(await namesDone()); i++) await wait(400);
     const rd = await F.evaluate(() => ({ name: $('mti_name').textContent, rows: [...document.querySelectorAll('#mti_out tbody tr')].map(tr => [...tr.cells].map(c => c.querySelector('select') ? c.querySelector('select').value : c.textContent.trim())),
       opts: [...document.querySelectorAll('#mti_out tbody tr select')][0] ? [...[...document.querySelectorAll('#mti_out tbody tr select')][0].options].map(o => o.value) : [],
+      optOld: [...document.querySelectorAll('#mti_out tbody tr select')][0] ? ([...[...document.querySelectorAll('#mti_out tbody tr select')][0].options].find(o => o.value === 'OLD-173') || {}).textContent || '' : '',
       bills: S.mli.sheets[0].bills.map(x => [x.rows, x.date, x.garage, x.km, x.lines.map(l => l.work + ':' + l.amount + ':' + l.gst).join(', ')]) }));
     const rows0 = await F.evaluate(() => [...document.querySelectorAll('#mti_out .table-wrap')].pop().querySelectorAll('tbody tr').length);
     rd.rows = rd.rows.slice(rd.rows.length - rows0);      // (the sheets' table – after the names' table)
     ok('   the file read: 2 sheets with the heading (the "Summary" left out); "Roller 03" – its name in the file ROLLER NO-03, put to ' + R + ' (Own, its name Roller No.03); 7 rows, 4 bills, ₹16,017.32 (the file ₹16,017.62); the JCB: not imported (Rental – not offered)',
       /All Machinery Maintenance Logbook\.xlsx – 2 sheet\(s\)/.test(rd.name) && rd.rows.length === 2 && JSON.stringify(rd.rows[0].slice(0, 7)) === JSON.stringify(['Roller 03', 'ROLLER NO-03', R, '7', '4', '16,017.62', '16,017.32']) &&
-      rd.rows[1][0] === 'JCB' && rd.rows[1][2] === '' && rd.opts.indexOf(J2) === -1 && rd.opts.indexOf(R) > -1, rd);
+      rd.rows[1][0] === 'JCB' && rd.rows[1][2] === '' && rd.opts.indexOf(J2) === -1 && rd.opts.indexOf(R) > -1 && rd.optOld === 'OLD-173 · Old Roller 173 (not on the site now)', rd);
     ok('   a bill = the rows of one date and party (the reading of its first row; a date under a merged cell = the row above); each line as it is – GST 18 % from its GST Amount, "Drum oil" ₹0',
       JSON.stringify(rd.bills) === JSON.stringify([['Line 5', '2022-12-02', 'Store', '', 'AD BLUE:1180:18'], ['Line 6–8', '2023-01-05', 'Store', 500, 'FUEL FILTER:650:18, FUEL WATER SEPRETOR:425:18, ENGINE OIL FILTER:930:18'],
         ['Line 9–10', '2024-01-29', 'Ganesh Motors', 1745, 'DRUM OIL:0:, HYDROLIC OIL L&T:10374:18'], ['Line 11', '2023-12-30', 'GANESH MOTERS', '', 'Cotton West:15:18']]), rd.bills);
@@ -112,6 +116,8 @@ const R = 'RL-173', J2 = 'JCB-173';      // (the roller found by its name in the
     await wait(1500);
     const rows = sql('rcl', "select id || '|' || to_char(date, 'YYYY-MM-DD') || '|' || garage || '|' || coalesce(km_reading::text, '') || '|' || amount from maintenance order by id").split('\n');
     const st2 = await F.evaluate(() => [...[...document.querySelectorAll('#mti_out .table-wrap')].pop().querySelectorAll('tbody tr')][0].cells[7].textContent);
+    const namesAfter = await F.evaluate(() => !!document.querySelector('#mti_out .mli-names'));
+    ok('   (update-175) after the import: the names\' list is gone (nothing left to import)', namesAfter === false, namesAfter);
     const l3 = JSON.parse(sql('rcl', "select lines from maintenance where id = 'MT-000003'") || '[]'), l2 = JSON.parse(sql('rcl', "select lines from maintenance where id = 'MT-000002'") || '[]');
     ok('   Import: 4 bills saved as they are – MT-000001 … MT-000004 (dates of 2022–2024, the party, the reading, ₹1,392.40 / ₹2,365.90 / ₹12,241.32 / ₹17.70); "Drum oil" kept as FOC; the ticked name: "Ganesh Motors"; the unticked one as in the file; "✓ 4 bill(s) imported"',
       JSON.stringify(rows) === JSON.stringify(['MT-000001|2022-12-02|Store||1392.4', 'MT-000002|2023-01-05|Store|500|2365.9', 'MT-000003|2024-01-29|Ganesh Motors|1745|12241.32', 'MT-000004|2023-12-30|Ganesh Motors||17.7']) &&
@@ -170,13 +176,40 @@ const R = 'RL-173', J2 = 'JCB-173';      // (the roller found by its name in the
     // the log book of the roller shows them (history)
     const lg = await J('maintLog', { no: R, from: '2022-12-01', to: '2025-11-30' });      // (a log book of at most 1,100 days)
     ok('   the roller\'s log book: the 5 old bills, ₹16,489.32', lg && lg.total && lg.total.maint.bills === 5 && lg.total.maint.amount === 16489.32, lg && (lg.total || lg));
+    // ---- 6. (update-175) the log book: Start to end; Change / Delete; Fetch outward; the bills: Start to end ----
+    await F.evaluate(r => { $('ml_no').value = r; $('ml_all').checked = true; $('ml_all').dispatchEvent(new Event('change')); $('ml_go').click(); }, R);
+    for (let i = 0; i < 30 && !(await F.evaluate(() => !$('rpmlog_out').hidden && S.rp && S.rp.mlog && S.rp.mlog.d.all)); i++) await wait(400);
+    await wait(500);
+    const lb = await F.evaluate(() => ({ meta: $('rpmlog_meta').textContent, dis: $('ml_from').disabled && $('ml_to').disabled, bills: S.rp.mlog.d.total.maint.bills, acts: [...document.querySelectorAll('#rpmlog_body .mlog-act')].map(x => x.closest('[data-mlb]').dataset.mlb),
+      excel: /mlog-act|>Change</.test(S.rp.mlog.v.html), store: S.rp.mlog.d.store }));
+    ok('6. the log book "Start to end": from its first bill (02-12-2022) to today – the dates greyed; 5 bills, each with Change / Delete on the screen (not in the Excel); the Store\'s outward: not built yet',
+      new RegExp('^Start to end: 02-12-2022 to ' + today.split('-').reverse().join('-')).test(lb.meta) && lb.dis && lb.bills === 5 && JSON.stringify(lb.acts.slice().sort()) === JSON.stringify(['MT-000001', 'MT-000002', 'MT-000003', 'MT-000004', 'MT-000005']) && !lb.excel && lb.store && lb.store.on === false, lb);
+    await tidy(); await F.evaluate(() => $('rpmlog_out').scrollIntoView({ block: 'start' })); await wait(400);
+    await mp.screenshot({ path: path.join(SHOT, 'mnt175_logbook.png') });
+    await F.evaluate(() => $('ml_out').click()); await wait(2500);
+    const outT = await F.evaluate(() => { const t = document.getElementById('toast'); return t ? t.textContent : ''; });
+    ok('   "Fetch outward (Store)": the log book read again; "The Store\'s Issue … is not built yet – there is no outward to fetch …"', /The Store's Issue \(material given to a machinery\) is not built yet – there is no outward to fetch/.test(outT), outT);
+    await tidy();
+    await F.evaluate(() => document.querySelector('#rpmlog_body [data-mle="MT-000005"]').click()); await wait(2500);
+    const ed = await F.evaluate(() => ({ title: $('mt_title').textContent, no: $('mt_no').value, date: $('mt_date').value, edit: S.mt.edit }));
+    ok('   Change of a bill in the log book: MT-000005 in the form (its machinery, its date)', ed.title === 'Change bill MT-000005' && ed.no === R && ed.date === '2025-02-10' && ed.edit === 'MT-000005', ed);
+    await F.evaluate(() => mtClear());
+    await F.evaluate(() => document.querySelector('#rpmlog_body [data-mld="MT-000004"]').click()); await wait(800);
+    await F.evaluate(() => { const okb = document.getElementById('cf_ok'); if (okb) okb.click(); });
+    for (let i = 0; i < 30 && sql('rcl', 'select count(*) from maintenance') !== '4'; i++) await wait(400);
+    await wait(2500);
+    const del = await F.evaluate(() => ({ bills: S.rp.mlog.d.total.maint.bills, acts: document.querySelectorAll('#rpmlog_body .mlog-act').length }));
+    ok('   Delete of a bill in the log book: MT-000004 deleted – 4 bills left, the log book shown again', sql('rcl', "select count(*) from maintenance where id = 'MT-000004'") === '0' && del.bills === 4 && del.acts === 4, del);
+    await F.evaluate(() => { $('mtf_no').value = ''; $('mtf_all').checked = true; $('mtf_all').dispatchEvent(new Event('change')); }); await wait(2500);
+    const bl = await F.evaluate(() => ({ n: S.mt.rows.length, dis: $('mtf_from').disabled }));
+    ok('   the bills "Start to end": every bill (4 – from 2022), the dates greyed', bl.n === 4 && bl.dis, bl);
     ok('no error on the page', errs.length === 0, errs);
   } catch (e) { ok('no error in the test itself', false, String(e && e.stack || e)); }
   finally {
     if (b) await b.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
     try {      // the test's own data out again (rig only)
-      if (n0 === '0') sql('rcl', "delete from maintenance; delete from master where id in ('" + R + "', '" + J2 + "'); delete from web.props where key = 'MNT_LAST_NO'; delete from web.cache where key like 'SB%'");
+      if (n0 === '0') sql('rcl', "delete from maintenance; delete from master where id in ('" + R + "', '" + J2 + "', '" + O3 + "'); delete from web.props where key = 'MNT_LAST_NO'; delete from web.cache where key like 'SB%'");
       out.push('cleanup: S1 back to ' + sql('rcl', 'select count(*) from maintenance') + ' bills');
     } catch (e) { out.push('cleanup: ' + e.message); }
   }

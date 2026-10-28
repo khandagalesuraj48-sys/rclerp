@@ -180,7 +180,8 @@ const say = async j => fetch(AI + '/__meter?say=' + encodeURIComponent(JSON.stri
     await F.evaluate(() => mtClear());
     await F.evaluate((no, a, z) => { $('ml_no').value = no; $('ml_from').value = a; $('ml_to').value = z; $('ml_go').click(); }, C2, d1, today);
     for (let i = 0; i < 30 && !(await F.evaluate(() => !$('rpmlog_out').hidden)); i++) await wait(400);
-    const lb = await F.evaluate(() => { const tb = [...document.querySelectorAll('#rpmlog_body table')], t0 = tb[0];
+    const lb = await F.evaluate(() => { const bd = $('rpmlog_body').cloneNode(true); bd.querySelectorAll('.no-print').forEach(x => x.remove());      // (update-175: each bill's Change / Delete – on the screen only, as printed)
+      const tb = [...bd.querySelectorAll('table')], t0 = tb[0];
       return { rows: [...t0.tBodies[0].rows].map(r => [...r.cells].map(c => c.textContent)), foot: [...t0.tFoot.rows].map(r => [...r.cells].map(c => c.textContent)), date: t0.tBodies[0].rows[0].cells[1].rowSpan,
         byfoot: [...document.querySelectorAll('#rpmlog_body tfoot tr')].map(r => r.textContent) }; });
     // (update-170) his format: a row a line; Date / Party / Reading once for the bill (rowspan 9); the tax lines in GST Amount; the insurance's row minus

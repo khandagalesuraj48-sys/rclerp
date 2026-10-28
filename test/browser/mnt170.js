@@ -123,7 +123,8 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     // the log book in his format
     await F.evaluate((no, a, z) => { $('ml_no').value = no; $('ml_from').value = a; $('ml_to').value = z; $('ml_go').click(); }, R, d1, today);
     for (let i = 0; i < 30 && !(await F.evaluate(() => !$('rpmlog_out').hidden)); i++) await wait(400);
-    const lb = await F.evaluate(() => { const tb = [...document.querySelectorAll('#rpmlog_body table')], t0 = tb[0];
+    const lb = await F.evaluate(() => { const bd = $('rpmlog_body').cloneNode(true); bd.querySelectorAll('.no-print').forEach(x => x.remove());      // (update-175: each bill's Change / Delete – on the screen only, as printed)
+      const tb = [...bd.querySelectorAll('table')], t0 = tb[0];
       return { title: $('rpmlog_title').textContent, head: [...t0.tHead.rows[0].cells].map(c => c.textContent), rows: [...t0.tBodies[0].rows].map(r => [...r.cells].map(c => c.textContent)), spans: [...t0.tBodies[0].rows].map(r => r.cells[1].rowSpan),
         foot: [...t0.tFoot.rows].map(r => [...r.cells].map(c => c.textContent)), sheets: tb.map(x => x.dataset.sheet), kp: [...document.querySelectorAll('#rpmlog_kpis div')].map(x => x.textContent) }; });
     ok('   the log book: "Maintenance Log Book – ' + R + '", his columns – the GST rates in the heading (update-171: CGST 9% · SGST 9% · GST 18%), Paid by, Insurance claim, Service', lb.title === 'Maintenance Log Book – ' + R &&
