@@ -7024,3 +7024,36 @@ test('update-179: the Pending Log Book printed for a period – from the Dashboa
   const runs2 = new Function('from', 'upTo', 'showDate', runsSrc + '; return runs;')('2026-12-30', '2027-01-02', d => d.slice(8, 10) + '-' + d.slice(5, 7) + '-' + d.slice(0, 4));
   assert.strictEqual(runs2(['2026-12-31', '2027-01-01']), '31-12-2026 → 01-01-2027 (2)', 'over the year end: with the year');
 });
+
+test('update-178: the Store\'s outward in the Maintenance Log Book – each issue of the RCL Store to the machinery (the same site\'s database) a bill of the Party "RCL Store"; an issue on debit ₹ 0 (not our cost); no Store step 2 at a site: none, said so', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return r; };
+  const asked = [], f0 = ctx.UrlFetchApp;
+  let answer = () => ({ code: 200, text: '[]' });
+  ctx.UrlFetchApp = { fetch: (u, o) => { asked.push({ u: u, o: o }); const a = answer(u); return { getResponseCode: () => a.code, getContentText: () => a.text, getHeaders: () => ({}) }; }, fetchAll: () => { throw new Error('no network'); } };
+  run('() => { const P = PropertiesService.getScriptProperties(); P.setProperty("SUPABASE_URL", "https://db.test"); P.setProperty("SUPABASE_SECRET_KEY", "sb_secret_unit"); }');
+  try {
+    answer = () => ({ code: 200, text: JSON.stringify([
+      { no: 7, date: '2026-10-20', reading: 1234.5, party: 'Rachana Construction Limited', debit: false, use_for: 'Consumable', store_issue_lines: [{ line: 2, name: 'Grease', qty: 2, unit: 'Kg', rate: 180, amount: 360, gst_pct: null }, { line: 1, name: 'Engine Oil 15W40', qty: 5, unit: 'Ltr', rate: 302.5, amount: 1512.5, gst_pct: null }] },
+      { no: 9, date: '2026-10-22', reading: null, party: 'AK Roadways', debit: true, use_for: '', store_issue_lines: [{ line: 1, name: 'Hydraulic Oil 68', qty: 10, unit: 'Ltr', rate: 133, amount: 1330, gst_pct: 18 }] }]) });
+    const out = run('() => { const o = maintStoreLines_({ id: "RL STORE/1" }, "2026-10-01", "2026-10-31"); return JSON.parse(JSON.stringify({ on: o.on, list: o })); }');
+    assert.strictEqual(out.on, true);
+    assert.deepStrictEqual(out.list.map(x => [x.id, x.billNo, x.party, x.km, x.total, x.lines.map(l => l.work + ':' + l.type + ':' + l.qty + ' ' + l.uom + ' @' + l.rate + '=' + l.amount + ':' + l.gst).join(' | ')]), [
+      ['OUT-7', 'Outward 7', 'RCL Store', 1234.5, 1872.5, 'Engine Oil 15W40:Paid:5 Ltr @302.5=1512.5:0 | Grease:Paid:2 Kg @180=360:0'],
+      ['OUT-9', 'Outward 9', 'RCL Store – debit to AK Roadways', '', 0, 'Hydraulic Oil 68:Debit:10 Ltr @133=1330:18']], 'each issue a bill of "RCL Store", its lines in order, its reading; a debit: ₹ 0, its lines "Debit"');
+    assert.match(asked[0].u, /^https:\/\/db\.test\/rest\/v1\/store_issue\?select=no,date,reading,party,debit,use_for,store_issue_lines\(line,name,qty,unit,rate,amount,gst_pct\)&machinery=eq\.RL%20STORE%2F1&date=gte\.2026-10-01&date=lte\.2026-10-31&order=no\.asc$/, 'only this machinery, these dates – from the same site\'s database');
+    assert.strictEqual(asked[0].o.headers.apikey, 'sb_secret_unit');
+    answer = () => ({ code: 404, text: '{"code":"PGRST205","message":"Could not find the table \'public.store_issue\' in the schema cache"}' });
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(run('() => { const o = maintStoreLines_({ id: "X" }, "2026-10-01", "2026-10-31"); return [o.on, o.length]; }'))), [false, 0], 'no Store step 2 in this site\'s database: none, "on" false');
+    answer = () => ({ code: 400, text: '{"code":"42703","message":"column x does not exist"}' });
+    assert.throws(() => run('() => maintStoreLines_({ id: "X" }, "2026-10-01", "2026-10-31")'), /Supabase GET \/rest\/v1\/store_issue → 400/, 'another fault of the database: said (the log book is not shown without it)');
+  } finally {
+    ctx.UrlFetchApp = f0;
+    run('() => { const P = PropertiesService.getScriptProperties(); P.setProperty("SUPABASE_URL", "x"); P.setProperty("SUPABASE_SECRET_KEY", "k"); }');
+  }
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(run('() => { const o = maintStoreLines_({ id: "X" }, "2026-10-01", "2026-10-31"); return [o.on, o.length]; }'))), [false, 0], 'a server without the database key (this test\'s own): none');
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(code, /all: f\.all === true, store: \{ on: sto\.on, lines: sto\.length \},/);
+  assert.match(app, /: d\.store\.lines \? d\.store\.lines \+ ' issue\(s\) of the RCL Store to this machinery are in this log book \(Party "RCL Store"\)\.' : 'No issue of the RCL Store to this machinery in these dates\.'\);/);
+  assert.match(app, /What the RCL Store issues to the machinery comes in by itself – Party "RCL Store"/);
+});
