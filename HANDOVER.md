@@ -2156,3 +2156,7 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   ignored), all or nothing per machinery, `sameList` ≤ 500. `aiAskPhoto_(…, opt)`: keep / tokens / text alone / fail words. The stand-in
   `test/claude-standin.js`: `/__next`, `/__names`. No SQL. Tests: unit `update-173`; rig mnt173 15 (S1, RCLSTEPS=1, claude), mnt170 21,
   mnt168 30, mnt165 32. His real files not seen yet.
+- 28-10-2026 (update-174, with rcl-mobile 3.53.0). Report: `UPDATE_174.md`. THE OLD LOG BOOK'S IMPORT FOR EVERYONE WITH MAINTENANCE EDIT
+  ("he admin la fkt nahi user la pn disu de"): `API_` importMaint – Maintenance Edit (no `admin`); checkMaintImport / readMaintLog /
+  maintImportNames – `withUser`, not saves, `maintEditOnly_(u)` inside; page `mti_panel` by `canEdit('Maintenance')`; an import sent
+  for verification (FLOW_SENT_RE) kept as `done.sent` and said in green. No SQL. Tests: unit `update-174`; rig mnt173 (part 5).

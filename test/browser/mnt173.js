@@ -12,6 +12,7 @@
 //   2. the duplicates listed (rows, date, ₹, the bill it is) – also a bill whose party is written another way
 //   3. a PDF read by the AI 2 pages a call (a cut answer: one page), the file kept; two machinery in it; Check, Import
 //   4. "Download the format (Excel)": a sheet for each Own machinery on the site, its number in row 3, the heading
+//   5. (update-174) a user with Maintenance Edit sees the import, View only does not
 //   NODE_PATH=<folder with puppeteer-core, @sparticuz/chromium, xlsx> NODE_OPTIONS="--require <path>/geo-shim.js" node mnt173.js
 const chromium = require('@sparticuz/chromium').default || require('@sparticuz/chromium'); const puppeteer = require('puppeteer-core');
 const XLSX = require('xlsx');
@@ -162,6 +163,10 @@ const R = 'RL-173', J2 = 'JCB-173';      // (the roller found by its name in the
     ok('4. "Download the format (Excel)": "Old Maintenance Log Book – format.xlsx" – "How to fill" first, a sheet for ' + R + ' (row 3 its number, the heading), none for the rented JCB',
       fmt && fmt.file === 'Old Maintenance Log Book – format.xlsx' && fmt.first === 'How to fill' && fmt.has && !fmt.jcb && fmt.title === 'Maintenance Log Book – Roller No.03' && fmt.no === R &&
       fmt.head === 'Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total', fmt);
+    // ---- 5. (update-174, "he admin la fkt nahi user la pn disu de") a user with Maintenance Edit sees the import; View only does not ----
+    const seen = async (admin, perm) => { await F.evaluate((a, p) => { S.user.admin = a; S.user.perms = Object.assign({}, S.user.perms, { Maintenance: p }); mtLoad(); }, admin, perm); await wait(1500); return F.evaluate(() => !$('mti_panel').hidden); };
+    const vis = [await seen(false, 'Edit'), await seen(false, 'View'), await seen(true, 'Edit')];
+    ok('5. the import: a user (not Admin) with Maintenance Edit sees it; with View only not; the Admin sees it', JSON.stringify(vis) === JSON.stringify([true, false, true]), vis);
     // the log book of the roller shows them (history)
     const lg = await J('maintLog', { no: R, from: '2022-12-01', to: '2025-11-30' });      // (a log book of at most 1,100 days)
     ok('   the roller\'s log book: the 5 old bills, ₹16,489.32', lg && lg.total && lg.total.maint.bills === 5 && lg.total.maint.amount === 16489.32, lg && (lg.total || lg));
