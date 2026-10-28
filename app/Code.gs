@@ -1959,7 +1959,14 @@ function fillEnteredByFromActivity() {
  * An amendment is a new version of a BOQ from a date inside its period. For any date the rate is taken from the newest
  * version in force on that date (latest "from" date; then the higher amendment number). */
 const VENDOR_COLS_ = ['Vendor Name', 'Ownership', 'GST Registered', 'GST Number', 'GST %', 'PAN Number', 'TDS %', 'Bank Name', 'Branch', 'Account Number', 'IFSC Code', 'Address', 'Phone', 'Remark', 'Created At'];
-const VENDOR_MORE_ = ['Aadhaar Number', 'Email'];
+const VENDOR_MORE_ = ['Aadhaar Number', 'Email', 'Vendor Type'];
+/* (update-181, 28-10-2026) A MATERIAL SUPPLIER: a vendor the Store's import of its old inward register made ("Vendor Type" = Material
+ * Supplier – his answer: the suppliers in the Vendor Master, kept out of the machinery and billing lists). Shown in the Vendor
+ * Master (marked, its own filter), its details filled as any vendor's. It is not offered for an asset's owner, a BOQ, a bill, a
+ * payment or a Log Book "Debit to" – unless it already has machinery or a BOQ here (then it is used as any vendor). The type can be
+ * changed in the vendor's form. A site whose database has no vendors.vendor_type (Mechanical's step 1p or the Store's step 3 not
+ * run): no type – every vendor as before. */
+const MAT_SUP_ = 'Material Supplier';
 /* Diesel of a machinery on a day is debited or company – decided MACHINE-WISE (a vendor can have both):
  * the BOQ line of that machinery in force that day (Diesel: Debit basis = ALL diesel debited; Company = only the diesel above the
  * standard average), else its Diesel Supply in Asset Master (Debit Basis = a full-debit machinery, no rent, all diesel debited).
@@ -2002,6 +2009,7 @@ function vendorOut_(t, r) {
   return { name: clean_(g('Vendor Name')), ownership: str_(g('Ownership')), gstReg: str_(g('GST Registered')) || 'No', gst: str_(g('GST Number')), gstPct: numOrBlank_(g('GST %')),
     pan: str_(g('PAN Number')), tds: numOrBlank_(g('TDS %')), bank: str_(g('Bank Name')), branch: str_(g('Branch')), account: str_(g('Account Number')), ifsc: str_(g('IFSC Code')),
     address: str_(g('Address')), phone: str_(g('Phone')), remark: str_(g('Remark')), aadhaar: str_(g('Aadhaar Number')), email: str_(g('Email')),
+    type: str_(g('Vendor Type')) === MAT_SUP_ ? MAT_SUP_ : '',      // (update-181)
     enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '',
     ver: rowVer_(t, r, VENDOR_VER_H_) };      // (update-156) sent back with a change / a delete
 }
@@ -2057,7 +2065,8 @@ function validateVendor_(v) {
   if (account && !/^[0-9A-Za-z]{6,20}$/.test(account)) throw new Error('Account Number should be 6 to 20 digits / letters.');
   const pct = (x, label, max) => blank_(x) ? '' : (() => { const n = Number(x); if (!isFinite(n) || n < 0 || n > max) throw new Error(label + ' must be between 0 and ' + max + '.'); return r2_(n); })();
   return { name: name, gstReg: gstReg, gst: gst, gstPct: gstReg === 'Yes' ? pct(v.gstPct, 'GST %', 28) : '', pan: pan, tds: pct(v.tds, 'TDS %', 100),
-    bank: clean_(v.bank), branch: clean_(v.branch), account: account, ifsc: ifsc, address: clean_(v.address), phone: mobile, remark: clean_(v.remark), aadhaar: aadhaar, email: email };
+    bank: clean_(v.bank), branch: clean_(v.branch), account: account, ifsc: ifsc, address: clean_(v.address), phone: mobile, remark: clean_(v.remark), aadhaar: aadhaar, email: email,
+    type: str_(v.type) === MAT_SUP_ ? MAT_SUP_ : '' };
 }
 /* ---------- RENAMING A VENDOR (asked 02-10-2026) ----------
  * The NAME is what ties a vendor to everything: its assets (Asset Master → Owner Name), its BOQs, bills, payments and
@@ -2125,6 +2134,7 @@ function saveVendor_(v, mode) {
     put('GST %', x.gstPct); put('PAN Number', x.pan); put('TDS %', x.tds); put('Bank Name', x.bank); put('Branch', x.branch); put('Account Number', x.account);
     put('IFSC Code', x.ifsc); put('Address', x.address); put('Phone', x.phone); put('Remark', x.remark); put('Aadhaar Number', x.aadhaar); put('Email', x.email);
     if (vendorOwnOn_()) put('Owner Site', siteHere_());      // (update-111) saved here = this site's own (nothing is copied to another site)
+    if ((v || {}).type !== undefined && vendorTypeOn_()) put('Vendor Type', x.type);      // (update-181) only when the form sends it (a page of before keeps it)
     if (i === -1) { put('Created At', new Date()); t.sh.appendRow(row); } else t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
     TABLE_MEMO_ = {};
     return { ok: true, name: x.name, renamed: renamed, vendors: getVendors_() };
@@ -2868,7 +2878,30 @@ function logDebit_(l, when) {
 // the database must have the two "Debit to" columns (step-1t SQL); if not, say so instead of dropping what was typed
 const DN_SQL_MSG_ = 'This needs one database step first: run sql/supabase_step1t_debit_notes.sql in Supabase → SQL Editor (it only adds; nothing is changed).';
 function debitReady_() { let cols = null; try { cols = SS_().getSheetByName(APP.SHEET_LOG).dbCols; } catch (e) { cols = null; } if (cols && cols.indexOf('debit_to') === -1) throw new Error('"Debit to" cannot be saved yet. ' + DN_SQL_MSG_); }
-function vendorNames_() { const vt = vendorTable_(), hid = vendorHidden_(); return vt ? [...new Set(vt.rows.map(r => clean_(r[vt.c['Vendor Name']])).filter(n => n && !hid[vKey_(n)]))].sort((a, b) => a.localeCompare(b)) : []; }
+function vendorNames_() { const vt = vendorTable_(), hid = vendorHidden_(), mat = vendorMatOnly_(); return vt ? [...new Set(vt.rows.map(r => clean_(r[vt.c['Vendor Name']])).filter(n => n && !hid[vKey_(n)] && !mat[vKey_(n)]))].sort((a, b) => a.localeCompare(b)) : []; }
+// (update-181) the material suppliers not used here for machinery: { KEY: true } – no machinery of theirs in Asset Master, no BOQ
+function vendorMatOnly_() {
+  return memoGet_('__vmat', () => {
+    const t = vendorTable_(), out = {}; if (!t || !('Vendor Type' in t.c)) return out;
+    t.rows.forEach(r => { if (str_(r[t.c['Vendor Type']]) === MAT_SUP_) out[vKey_(r[t.c['Vendor Name']])] = true; });
+    if (!Object.keys(out).length) return out;
+    Object.keys(vendorMachines_()).forEach(k => { delete out[k]; });
+    const b = boqTable_(); if (b) b.rows.forEach(r => { delete out[vKey_(r[b.c['Vendor Name']])]; });
+    return out;
+  });
+}
+// (update-181) does this site's database have vendors.vendor_type? (as vendorOwnOn_: asked once in a while, not at every look)
+function vendorTypeOn_() {
+  if (!sbDataOn_()) return true;      // (the Google Sheet: the column is added when a vendor is saved)
+  let sh = null, cols = null; try { vendorTable_(); sh = SS_().getSheetByName(APP.SHEET_VENDORS); cols = sh && sh.dbCols; } catch (e) { cols = null; }
+  if (cols && cols.indexOf('vendor_type') > -1) return true;
+  const c = CacheService.getScriptCache(), was = c.get('SBCOL_vendors.vendor_type');
+  if (was === '0') return false;
+  let there = was === '1';
+  if (!there) { try { sbFetch_('GET', '/rest/v1/vendors?select=vendor_type&limit=1'); there = true; } catch (e) { there = false; } c.put('SBCOL_vendors.vendor_type', there ? '1' : '0', there ? 900 : 60); }
+  if (there && cols) cols.push('vendor_type');
+  return there;
+}
 // Log Book entries charged to a party in a period that are not in a debit note yet
 function debitPending_(f) {
   f = f || {};
@@ -3816,7 +3849,7 @@ function getBoqs_(f) {
   const out = [];
   roots.forEach(r => { out.push(r); list.filter(b => b.amendOf === r.id).sort((a, b) => a.amendNo - b.amendNo).forEach(a => out.push(a)); });
   list.filter(b => b.amendOf && !roots.some(r => r.id === b.amendOf)).forEach(b => out.push(b));
-  return { boqs: out, vendors: getVendors_(), history: boqHistory_(list) };
+  return { boqs: out, vendors: getVendors_(), history: boqHistory_(list), vtypeOn: vendorTypeOn_() };      // (update-181) the vendor's type can be kept here
 }
 /* (update-132, asked 19-10-2026: "mala disayla haw old kay hot nantr amendment zali kadhi … boq period wise ani vehicle wise …
  * jewa tya party war jail mi tewa mala disel 01 month sathi yacha ha rate hot … second month la ha rate … ani hi rate change zal tya

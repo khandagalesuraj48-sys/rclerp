@@ -7162,3 +7162,28 @@ test('update-180: the old log book\'s headings in any order (a PDF read by the A
   assert.match(app, /if \(b\.lines\.length === 1\) \{\n\s*if \(!\(await askConfirm\(\{ title: 'Delete bill ' \+ id \+ '\?', danger: true, ok: 'Delete the bill',/);
   assert.match(app, /'saveMaint', 'updateMaint', 'deleteMaint', 'updateMaintLine', 'deleteMaintLine', 'saveLogBook',[^\n]*\n[^\n]*\];\n\s*\/\* \(update-108\)/, 'its saves refresh the data like the bill\'s');
 });
+
+test('update-181: a Material Supplier (made by the Store\'s import of its old inward register) – its type kept (where the site\'s database has the column), shown in the Vendor Master, kept out of the machinery and billing lists unless it has machinery or a BOQ', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // the form's type: "Material Supplier" or none
+  assert.strictEqual(run('() => validateVendor_({ name: "Om Hardware", gstReg: "No", type: "Material Supplier" }).type'), 'Material Supplier');
+  assert.strictEqual(run('() => validateVendor_({ name: "Om Hardware", gstReg: "No", type: "Anything" }).type'), '');
+  assert.strictEqual(run('() => validateVendor_({ name: "Om Hardware", gstReg: "No" }).type'), '');
+  // a vendor's row: its type
+  assert.strictEqual(run('() => { const t = { c: { "Vendor Name": 0, "Vendor Type": 1 } }; return vendorOut_(t, ["Om Hardware", "Material Supplier"]).type; }'), 'Material Supplier');
+  assert.strictEqual(run('() => { const t = { c: { "Vendor Name": 0 } }; return vendorOut_(t, ["Om Hardware"]).type; }'), '', 'a site without the column: no type');
+  // the database's column: vendors.vendor_type, only some sites have it ('opt': an empty one not sent while the columns are not known)
+  const sync = fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8'), data = fs.readFileSync(path.join(root, 'app', 'SupabaseData.gs'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  assert.match(sync, /\['Vendor Type', 'vendor_type', 'text', 'opt'\]\] \},/);
+  assert.match(data, /if \(!this\.dbCols && x\[3\] === 'opt'\) \{ const v0 = i > -1 \? sbVal_\(row\[i\], x\[2\]\) : null; if \(v0 === null \|\| v0 === ''\) return; \}/);
+  assert.match(code, /if \(\(v \|\| \{\}\)\.type !== undefined && vendorTypeOn_\(\)\) put\('Vendor Type', x\.type\);/, 'saved only when the form sends it, where the column is');
+  assert.match(code, /filter\(n => n && !hid\[vKey_\(n\)\] && !mat\[vKey_\(n\)\]\)/, 'the parties\' list without the material suppliers');
+  assert.match(code, /return \{ boqs: out, vendors: getVendors_\(\), history: boqHistory_\(list\), vtypeOn: vendorTypeOn_\(\) \};/);
+  // the page: marked, the Type filter, the type in the form; the lists of an asset's owner, a BOQ, a payment without them
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /const matOnly = v => !!v && v\.type === 'Material Supplier' && !\(v\.machines \|\| \[\]\)\.length && !v\.boqs;/);
+  for (const re of [/\$\('dl_vendornames'\)\.innerHTML = billVendors\(\)/, /sel\.innerHTML = '<option value="">All vendors<\/option>' \+ billVendors\(\)/, /const saved = billVendors\(\);/, /const vs = \[\.\.\.new Set\(billVendors\(\)\.map/, /S\.py\.vendors = \(await call\('getVendors'\)\)\.filter\(v => !matOnly\(v\)\)/,
+    /<select id="vf_ty"><option value="">All<\/option><option value="bill">Machinery &amp; billing<\/option><option value="mat">Material suppliers \(Store\)<\/option><\/select>/,
+    /<select id="v_type"><option value="">Machinery \/ billing vendor<\/option><option value="Material Supplier">Material Supplier \(Store\)<\/option><\/select>/, /type: \$\('v_type_f'\)\.hidden \? undefined : g\('v_type'\),/]) assert.match(app, re);
+});

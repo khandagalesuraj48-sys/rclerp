@@ -2192,6 +2192,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `deleteMaintLine` (`{ i, date, was, line }`, the rest of the bill as it is, `maintVals_` keepNo, files kept; the only line refused);
   page `mlogRender` `_i` / `data-mll`, `mlLineEdit` / `mlLineDelete`. No SQL. Tests: unit `update-180`; rig `mline180.js`, again mnt173,
   mnt170, mnt168, mnt165, pendprint179.
+- 28-10-2026 (update-181, with the Store's import of the old inward register – rcl-store `grn-import-register` – and rcl-mobile 3.57.0,
+  not released). Report: `UPDATE_181.md`. A MATERIAL SUPPLIER IN THE VENDOR MASTER: `vendors.vendor_type` ('Vendor Type', `'opt'` – an
+  empty one not sent while the columns are not known; the column comes with the Store's step 3); `vendorOut_` / `validateVendor_` `type`;
+  `saveVendor_` only when sent and `vendorTypeOn_()`; `vendorMatOnly_()` – `vendorNames_()` without them; page `matOnly` / `billVendors`
+  (owner, BOQ, payments, ledger lists), Vendor Master tag, `vf_ty`, form `v_type`. No SQL of Mechanical. Tests: unit `update-181`; rig
+  `vtype181.js`.
 - 28-10-2026 (update-178, with the Store's step 2 – rcl-store `store-work` – and rcl-mobile 3.55.0). Report: `UPDATE_178.md`. THE STORE'S
   OUTWARD IN THE MAINTENANCE LOG BOOK: `maintStoreLines_(m, from, to)` reads the site's `store_issue` / `store_issue_lines` (the same
   database; paged) – each issue a bill of the Party "RCL Store" (Outward <no>, the Store's average rate, the reading; on debit: "Debit",
