@@ -2178,3 +2178,8 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   smaller on the page (`mliPhoto`: JPEG, long side 2,600 px, then smaller). Server unchanged (3 MB a call). No SQL. Tests: unit
   `update-177`; rig mnt173 part 7 (a PDF of 4.4 MB, a photo of 21.7 MB). The phone app 3.53.0 still sends the whole file (3 MB) – its
   next version takes the pages apart too.
+- 28-10-2026 (update-179, with rcl-mobile 3.54.0). Report: `UPDATE_179.md`. THE PENDING LOG BOOK PRINTED FOR A PERIOD (asked: "pending log
+  book je aahet te mala period wise print krta yawet dashboard warun pn ani log book netry madhun jith diste pending tithun pn"): page
+  `pendPrint(o)` (one date / a month / a period; Ownership, Owner / Vendor, one machinery; `askPrintName` → `printDoc` 'rep-pend'),
+  `lb_pprint` on the Dashboard's list, `data-lpprint` in the entry page's list (`lg_pend`); server `logPending_(f)` takes `{ from, to }`
+  (none: as before) and gives `to`. No SQL. Tests: unit `update-179`; rig `pendprint179.js` (its own test machinery, taken out).

@@ -6970,5 +6970,18 @@
 "This PDF could not be taken apart into its pages here, and it is too big to send whole (more than 3 MB) – save it again as a PDF (Print → Save as PDF) and choose it again.": "यह PDF यहाँ पन्नों में अलग नहीं की जा सकी, और पूरी भेजने के लिए बहुत बड़ी है (3 MB से ज़्यादा) – इसे फिर से PDF के रूप में save करें (Print → Save as PDF) और फिर चुनें।",
 "This photo could not be made smaller here, and it is too big (more than 3 MB) – take it again at a lower size.": "यह photo यहाँ छोटा नहीं किया जा सका, और यह बहुत बड़ा है (3 MB से ज़्यादा) – इसे कम size से फिर लें।",
 "This photo could not be opened.": "यह photo खुल नहीं सका।",
-"This photo is too big even made smaller.": "यह photo छोटा करने पर भी बहुत बड़ा है।"
+"This photo is too big even made smaller.": "यह photo छोटा करने पर भी बहुत बड़ा है।",
+"Active machinery with no Log Book entry (in any shift) for a day it was on the site. Debit-basis parties and Ownership \"Other\" need no Log Book.": "साइट पर रहे दिन (किसी भी shift में) Log Book entry न होने वाली चालू मशिनरी. Debit-basis पार्टी और Ownership \"Other\" को Log Book नहीं चाहिए.",
+"Active machinery with no Log Book entry (in any shift) for a day it was on the site. Debit-basis parties and Ownership \"Other\" need no Log Book.{0}": "साइट पर रहे दिन (किसी भी shift में) Log Book entry न होने वाली चालू मशिनरी. Debit-basis पार्टी और Ownership \"Other\" को Log Book नहीं चाहिए.{0}",
+"Counted up to today ({0}).": "आज तक ({0}) गिना गया.",
+"Dates pending": "बाकी तारीखें",
+"No such machinery: {0}": "ऐसी मशिनरी नहीं है: {0}",
+"Nothing is pending after today – pick dates up to today.": "आज के बाद कुछ बाकी नहीं होता – आज तक की तारीखें चुनें.",
+"Pending Log Book – {0}": "बाकी लॉग बुक – {0}",
+"Pending Log Book – {0} to {1}": "बाकी लॉग बुक – {0} से {1}",
+"Pending days": "बाकी दिन",
+"Pick the month.": "महीना चुनें.",
+"Print – Pending Log Book": "Print – बाकी लॉग बुक",
+"{0} machinery · {1} day{2} pending{3}": "{0} मशिनरी · {1} दिन{2} बाकी{3}",
+"✔ Nothing pending{0} in these dates.": "✔ इन तारीखों में{0} कुछ बाकी नहीं."
 }
