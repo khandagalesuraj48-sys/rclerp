@@ -63,8 +63,22 @@ async function pipe(q) {
   } catch (e) { return { error: ac.signal.aborted ? 'Google Drive or the file store did not answer in time.' : String((e && e.cause && e.cause.message) || (e && e.message) || e) }; }
   finally { clearTimeout(t); }
 }
+/* (update-176) THE PAGES OF A PDF ASKED, AS A PDF OF THEIR OWN (pdf-lib – app/vendor): the old log book's PDF is read by the AI a page at a
+ * time; sent whole, the AI worked through EVERY page of the file at every call and ran out of time ("too slow to answer"). Only reads. */
+async function pdfPart(q) {
+  try {
+    const L = require(workerData.pdfLib), x = q.pdf;
+    const src = await L.PDFDocument.load(Buffer.from(String(x.data || ''), 'base64'), { ignoreEncryption: true, updateMetadata: false });
+    const count = src.getPageCount(), from = Math.max(1, Math.floor(Number(x.from)) || 1);
+    if (from > count) return { pages: count, from: from, to: from - 1, data: '' };
+    const to = Math.min(count, from + Math.max(1, Math.floor(Number(x.n)) || 1) - 1), out = await L.PDFDocument.create();
+    (await out.copyPages(src, Array.from({ length: to - from + 1 }, (v, i) => from - 1 + i))).forEach(p => out.addPage(p));
+    return { pages: count, from: from, to: to, data: Buffer.from(await out.save()).toString('base64') };
+  } catch (e) { return { error: String((e && e.message) || e).slice(0, 300) }; }
+}
 async function one(q) {
   if (q && q.pipe) return pipe(q);
+  if (q && q.pdf) return pdfPart(q);
   const read = /^(GET|HEAD)$/i.test(q.method || 'GET');
   let r = await once(q, read ? workerData.readMs : workerData.writeMs);
   if (r.net && read) { await new Promise(ok => setTimeout(ok, 120)); r = await once(q, workerData.readMs); if (!r.net) r.retried = true; }
@@ -106,7 +120,7 @@ function getWorker() {
   // not used for a while: its open connections cannot be trusted any more – fresh connections (update-142: in the SAME helper;
   // a new helper only when that cannot be done)
   if (worker && Date.now() - lastUsed > IDLE_MS && !renew(worker)) { const old = worker; worker = null; try { old.terminate(); } catch (e) {} }
-  if (!worker) { const w = new Worker(WORKER_SRC, { eval: true, workerData: { readMs: READ_MS, writeMs: WRITE_MS } }); made++; w.unref(); w.on('error', () => { if (worker === w) worker = null; }); w.on('exit', () => { if (worker === w) worker = null; }); worker = w; }
+  if (!worker) { const w = new Worker(WORKER_SRC, { eval: true, workerData: { readMs: READ_MS, writeMs: WRITE_MS, pdfLib: PDF_LIB } }); made++; w.unref(); w.on('error', () => { if (worker === w) worker = null; }); w.on('exit', () => { if (worker === w) worker = null; }); worker = w; }
   return worker;
 }
 /* FRESH CONNECTIONS WITHOUT A NEW HELPER (update-142, 21-10-2026: Vercel's free CPU was used up – 94 % by this app).
@@ -149,6 +163,10 @@ function previewGuard(reqs) {
     if (!ok) throw new Error(PREVIEW_NO);
   }
 }
+// (update-176) the PDF tool, in the app's own files (app/** goes with the server – vercel.json includeFiles)
+const PDF_LIB = require('path').join(__dirname, '..', 'app', 'vendor', 'pdf-lib-1.17.1.min.js');
+// pages from … of a PDF (base64) → { pages, from, to, data } (data: a PDF of only those pages) | { error }
+function pdfPartSync(b64, from, n, timeoutMs) { return rawFetch([{ pdf: { data: b64, from: from, n: n } }], timeoutMs || 20000)[0] || { error: 'no answer' }; }
 // reqs: [{ url, method, headers, body }] → [{ code, text, headers } | { error }] (all at the same time, in order)
 function fetchAllSync(reqs, timeoutMs) {
   if (!reqs.length) return [];
@@ -178,4 +196,4 @@ function pipeSync(jobs, timeoutMs) {
   const ms = Math.max(2000, Number(timeoutMs) || 45000);
   return rawFetch(jobs.map(j => ({ pipe: j, ms: ms })), ms + 3000);
 }
-module.exports = { fetchAllSync, pipeSync, sleepSync, helpersMade: () => made, renewals: () => renewed, isPreview, PREVIEW_NO, meter: () => ({ n: METER.n, b: METER.b }) };
+module.exports = { fetchAllSync, pipeSync, pdfPartSync, sleepSync, helpersMade: () => made, renewals: () => renewed, isPreview, PREVIEW_NO, meter: () => ({ n: METER.n, b: METER.b }) };

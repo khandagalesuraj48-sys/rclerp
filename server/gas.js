@@ -9,7 +9,7 @@
  * One "state" is made for every request (st) and thrown away after it, as in Apps Script. */
 'use strict';
 const crypto = require('crypto');
-const { fetchAllSync, sleepSync } = require('./syncfetch');
+const { fetchAllSync, sleepSync, pdfPartSync } = require('./syncfetch');
 const sites = require('./sites');
 
 const TZ = 'Asia/Kolkata';
@@ -550,6 +550,7 @@ function makeGlobals(st, page) {
     __warm: makeWarm(st),       // the tables kept in this server's memory (see makeWarm)
     __ai: makeAi(),             // the assistant's line to the AI service (see makeAi)
     __scrypt: scryptHex,        // passwords are kept with scrypt (see "PASSWORDS" in Code.gs)
+    __pdf: { part: (b64, from, n) => pdfPartSync(String(b64 || ''), from, n) },      // (update-176) pages of a PDF as a PDF of their own
   };
 }
 module.exports = { newState, boot, flush, forceUnlock, makeGlobals, rpc, conf, useSite, site, current, restore, Utilities, TZ, scryptHex, onTable, seed, warmStats: () => WARM.stats };

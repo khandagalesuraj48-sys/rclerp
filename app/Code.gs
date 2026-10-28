@@ -6602,8 +6602,22 @@ function readMaintLog_(x) {
   if (!mt) throw new Error('An old log book must be a PDF or a photo (JPG or PNG).');
   if (mt[2].length > Math.ceil(ATT_RAW_MAX_ * 4 / 3) + 4) throw new Error('This log book file is too big (more than 3 MB) – give it in parts (a PDF of fewer pages).');
   if (!aiInfo_().on) return { off: true };
-  const pdf = mt[1] === 'application/pdf', from = !pdf ? 1 : Math.min(MLR_PAGES_, Math.max(1, Math.floor(num0_(x.from)) || 1)), n = pdf ? Math.min(4, Math.max(1, Math.floor(num0_(x.n)) || 2)) : 1, to = from + n - 1;
-  const where = pdf ? (n === 1 ? 'ONLY page ' + from : 'ONLY pages ' + from + ' to ' + to) + ' of this PDF (a page that is not in the file: nothing)' : 'this photo (one page)';
+  /* (update-176, his picture of 28-10-2026: "The AI could not read the log book now (the AI service was too slow to answer)" at page 1)
+   * ONE PAGE A CALL, AND ONLY THAT PAGE GOES TO THE AI: sent whole, the AI worked through every page of the file at every call (a PDF
+   * of many pages) and ran out of its 50 seconds. Now the page asked is taken out of the PDF here (pdf-lib, __pdf) and sent alone – the
+   * number of pages is the file's own. A PDF that cannot be taken apart goes whole, as before. FAST (asked again after "too slow"): the
+   * quicker model first (Haiku); a phone app of before asks its second try with n 1 and no "fast" – that is the same second try. */
+  const pdf = mt[1] === 'application/pdf', from = !pdf ? 1 : Math.min(MLR_PAGES_, Math.max(1, Math.floor(num0_(x.from)) || 1));
+  const fast = x.fast === true || x.fast === 1 || (x.fast === undefined && Math.floor(num0_(x.n)) === 1);
+  let data = mt[2], n = pdf ? Math.min(4, Math.max(1, Math.floor(num0_(x.n)) || 2)) : 1, to = from + n - 1, part = null;
+  if (pdf && typeof __pdf !== 'undefined') {
+    const p = __pdf.part(data, from, 1);
+    if (p && !p.error && p.pages > 0) {
+      if (from > p.pages) return { from: from, to: p.pages, pages: p.pages, tables: [] };
+      part = p; data = p.data; n = 1; to = from;
+    }
+  }
+  const where = part ? (part.pages === 1 ? 'this page (one page of the log book)' : 'this page (page ' + from + ' of the ' + part.pages + ' pages of the log book – the only page given)') : pdf ? (n === 1 ? 'ONLY page ' + from : 'ONLY pages ' + from + ' to ' + to) + ' of this PDF (a page that is not in the file: nothing)' : 'this photo (one page)';
   const ask = 'This is an OLD MAINTENANCE LOG BOOK of a construction company in India (₹): for each machinery / vehicle a table with the columns Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total (some may be missing or named a little differently). ' +
     'Read ' + where + '. Answer with JSON only: {"pages": the number of pages of the whole file, ' +
     '"tables": [{"machinery": the machinery / vehicle name or number written above this table (e.g. "ROLLER NO-03", "MH12AB1234") – null when the table goes on from the page before without one, ' +
@@ -6611,10 +6625,10 @@ function readMaintLog_(x) {
     'sr = its Sr No or null; date = its date as "yyyy-mm-dd", null when the row has no date of its own (one date written for several rows); party = its Party Name as printed, null when it is written only once for several rows; ' +
     'reading = its Current Reading (KM / Hrs) or null; particulars = the work / part / material as printed; qty, uom, rate, amount, gstAmount, withGst, total = as printed, null when empty. ' +
     'Leave out the heading rows, a total row of a page or of a table and a row brought forward. Copy every name and number EXACTLY as printed – do not correct a spelling, do not invent a value; what is not clearly printed is null.';
-  const j = aiJson_(aiAskPhoto_(mt[2], ask, mt[1], 'the log book', { keep: true, tokens: 16000, fail: ' – try again in a minute.' }));
-  if (!j || typeof j !== 'object' || !Array.isArray(j.tables)) return { from: from, to: to, pages: 0, tables: [], again: true };      // (cut off or not JSON – the page asks fewer pages)
+  const j = aiJson_(aiAskPhoto_(data, ask, mt[1], 'the log book', { keep: !part, fast: fast, tokens: 16000, fail: ' – try again in a minute.' }));
+  if (!j || typeof j !== 'object' || !Array.isArray(j.tables)) return { from: from, to: to, pages: part ? part.pages : 0, tables: [], again: true };      // (cut off or not JSON – the page asks fewer pages)
   const cell = v => v === null || v === undefined ? '' : typeof v === 'number' ? (isFinite(v) ? v : '') : /^null$/i.test(clean_(v)) ? '' : clean_(v).slice(0, 160);
-  const pages = Math.min(MLR_PAGES_, Math.max(0, Math.floor(Number(j.pages)) || 0));
+  const pages = part ? Math.min(MLR_PAGES_, part.pages) : Math.min(MLR_PAGES_, Math.max(0, Math.floor(Number(j.pages)) || 0));
   const tables = j.tables.slice(0, 60).map(t => ({ machinery: cell(t && t.machinery).toString().slice(0, 80),
     rows: (Array.isArray(t && t.rows) ? t.rows : []).filter(Array.isArray).slice(0, 800).map(r => { const a = r.slice(0, 12).map(cell); while (a.length < 12) a.push(''); return a; }).filter(r => r[4] !== '') }))
     .filter(t => t.rows.length || t.machinery);
@@ -11353,7 +11367,7 @@ function aiAskPhotoC_(b64, ask, mime, what, opt) {
   const file = !b64 ? null : Object.assign(media === 'application/pdf' ? { type: 'document', source: { type: 'base64', media_type: media, data: b64 } } : { type: 'image', source: { type: 'base64', media_type: media, data: b64 } },
     opt.keep ? { cache_control: { type: 'ephemeral' } } : {});      // (update-173) the old log book's pages: the same file at every call – kept
   const body = { max_tokens: opt.tokens || (what ? 8192 : 2048), messages: [{ role: 'user', content: (file ? [file] : []).concat([{ type: 'text', text: ask }]) }] };
-  const seq = aiTries_(aiModelsC_()), t0 = Date.now();
+  const ms = aiModelsC_(), seq = aiTries_(opt.fast && ms.length > 1 ? ms.slice().reverse() : ms), t0 = Date.now();      // (update-176) fast: the quicker model first
   let last = '';
   for (let i = 0; i < seq.length; i++) {
     const left = room - (Date.now() - t0); if (left < 3000) break;

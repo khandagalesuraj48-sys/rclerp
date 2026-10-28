@@ -2166,3 +2166,9 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `.no-print mlog-act` – screen only; `mtEdit`, `mtDelete`, `mtBillById`); `maintVals_(x, keepNo)` – a change on the same machinery not
   checked against its Active dates; `importMaint_` – Own only (`mliOwn` the same); the names' list hidden once all is imported. No SQL.
   Tests: unit `update-175`; rig mnt173 part 6, mnt170 / mnt168 read the log book as printed.
+- 28-10-2026 (update-176). Report: `UPDATE_176.md`. THE OLD LOG BOOK'S PDF READ A PAGE AT A TIME – ONLY THAT PAGE TO THE AI (his picture:
+  "the AI service was too slow to answer" at page 1): `app/vendor/pdf-lib-1.17.1.min.js` (pdf-lib, MIT – also served at /vendor/);
+  server `syncfetch.js` helper job `pdf` (`pdfPartSync` → `__pdf.part` in `gas.js`); `readMaintLog_` takes the page out of the PDF and
+  sends it alone (not kept – `keep: !part`), the file's own page count, `fast` (the quicker model first – `aiAskPhotoC_ opt.fast`; an app
+  of before: its second try n 1 without "fast"); page `mliReadAi` takes each page out itself (`mliPdfLib`, `mliB64`) and asks again
+  "fast" after a failure. No SQL. Tests: unit `update-176`; rig mnt173 part 3 (a real PDF of 3 pages), stand-in `read` "this page (…)".
