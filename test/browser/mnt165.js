@@ -109,8 +109,8 @@ const say = async j => fetch(GEM + '/__meter?say=' + encodeURIComponent(JSON.str
     const nav = await F.evaluate(() => ({ mnt: !$('tab-mnt').hidden, cards: !$('tab-cards').hidden }));
     ok('   the menu has Maintenance (and Fuel Cards)', nav.mnt && nav.cards, nav);
     await F.evaluate(() => showTab('mnt')); await wait(2500);
-    const l0 = await F.evaluate(() => ({ rows: [...document.querySelectorAll('#mt_rows tr')].map(t => t.cells[0] && t.cells[0].textContent), sum: $('mt_sum').textContent, works: [...document.querySelectorAll('#dl_mwork option')].map(o => o.value) }));
-    ok('   Maintenance: the bills of this month (2), the total, the words typed before offered', same(l0.rows, ['MT-000002', 'MT-000001']) && /8,660\.00/.test(l0.sum) && l0.works[0] === 'Engine oil', l0);
+    const l0 = await F.evaluate(() => ({ rows: !!document.getElementById('mt_rows'), works: [...document.querySelectorAll('#dl_mwork option')].map(o => o.value) }));
+    ok('   Maintenance: the words typed before offered (update-182: no bills list – the log book shows the bills)', !l0.rows && l0.works[0] === 'Engine oil', l0);
     // a new bill: the car, then its files in the attachments' box, then "Read the bill (AI)"
     await F.evaluate(no => { $('mt_no').value = no; }, C2);      // (the date box keeps today – the AI's date of the bill goes in)
     await F.evaluate(() => $('mt_addf').click()); for (let i = 0; i < 20 && !(await F.evaluate(() => !!document.getElementById('at_back'))); i++) await wait(300);
@@ -140,10 +140,10 @@ const say = async j => fetch(GEM + '/__meter?say=' + encodeURIComponent(JSON.str
     const r3 = sql('rcl_s2', "select id || '|' || machinery || '|' || amount || '|' || service || '|' || km_reading from maintenance where bill_no = 'MS-77'"), f3 = JSON.parse(sql('rcl_s2', "select files from maintenance where bill_no = 'MS-77'") || '[]');
     ok('   saved from the page: MT-000003 – ' + C2 + ', ₹3640 (the line typed over), Service, 1200 km; its 2 files', t2 === '3,640.00' && r3 === 'MT-000003|' + C2 + '|3640|Yes|1200' && f3.length === 2, [t2, r3, f3]);
     await wait(2500);
-    const l1 = await F.evaluate(() => ({ rows: [...document.querySelectorAll('#mt_rows tr')].map(t => t.cells[0] && t.cells[0].textContent), clear: $('mt_no').value === '' && S.mt.files.length === 0 }));
-    ok('   the list has it at once; the form is empty again', l1.rows[0] === 'MT-000003' && l1.clear, l1);
-    // Edit: the form with its lines and files; a change saved
-    await F.evaluate(() => document.querySelector('[data-mte="MT-000003"]').click()); await wait(2500);
+    const l1 = await F.evaluate(() => ({ clear: $('mt_no').value === '' && S.mt.files.length === 0 }));
+    ok('   the form is empty again', l1.clear, l1);
+    // Edit (update-182: from the log book – "Change the whole bill"): the form with its lines and files; a change saved
+    await F.evaluate((no, d) => mtBillById('MT-000003', no, d).then(mtEdit), C2, d2); await wait(2500);
     const ed = await F.evaluate(() => ({ t: $('mt_title').textContent, no: $('mt_no').value, n: mtLinesNow().filter(l => l.work).length, files: S.mt.files.length, sv: $('mt_service').checked }));
     ok('   Edit: "Change bill MT-000003" – its car, 3 lines, Service and its 2 files back in the form', ed.t === 'Change bill MT-000003' && ed.no === C2 && ed.n === 3 && ed.files === 2 && ed.sv, ed);
     await F.evaluate(() => { $('mt_remark').value = 'checked'; $('mt_save').click(); });

@@ -2198,6 +2198,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `saveVendor_` only when sent and `vendorTypeOn_()`; `vendorMatOnly_()` – `vendorNames_()` without them; page `matOnly` / `billVendors`
   (owner, BOQ, payments, ledger lists), Vendor Master tag, `vf_ty`, form `v_type`. No SQL of Mechanical. Tests: unit `update-181`; rig
   `vtype181.js`.
+- 28-10-2026 (update-182, with rcl-mobile 3.58.0 – not released). Report: `UPDATE_182.md`. THE MAINTENANCE PAGE TIDIED; THE ADMIN
+  DELETES A MACHINERY'S LOG BOOK: the "Maintenance bills" list out (`mtLoad` reads only the boxes' names); the bill's head slim; the old
+  log book's import a small button of the log book's card (`#ml_imp` → `#mti_panel`); the log book's Action column at the end (Edit ·
+  Delete, 📎; screen only, sticky); `deleteMaintLog` (`admin: true`) → `deleteMaintLog_` (the count shown checked, closed months refused,
+  only maintenance bills) + `logAfter_` 'maintLogDelete' (a line a bill); page `#ml_delall` (the machinery number typed). No SQL. Tests:
+  unit `update-182`; rig `mnt182.js`; mnt165 / 168 / 170 / 173 and mline180 moved to the new page.
 - 28-10-2026 (update-178, with the Store's step 2 – rcl-store `store-work` – and rcl-mobile 3.55.0). Report: `UPDATE_178.md`. THE STORE'S
   OUTWARD IN THE MAINTENANCE LOG BOOK: `maintStoreLines_(m, from, to)` reads the site's `store_issue` / `store_issue_lines` (the same
   database; paged) – each issue a bill of the Party "RCL Store" (Outward <no>, the Store's average rate, the reading; on debit: "Debit",

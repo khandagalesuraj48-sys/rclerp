@@ -61,10 +61,10 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     ok('2. S1\'s menu: Maintenance (update-170), Diesel Inward, no Fuel Cards', nav.mnt && nav.inward && !nav.cards, nav);
     await F.evaluate(() => showTab('mnt')); await wait(2500);
     const form = await F.evaluate(() => ({ no: document.querySelector('label[for="mt_no"]').textContent.trim(), party: document.querySelector('label[for="mt_garage"]').textContent.trim(), km: document.querySelector('label[for="mt_km"]').textContent.trim(),
-      head: [...document.querySelectorAll('#sec-mnt .mt-lines thead th')].map(t => t.textContent.trim()).slice(0, 8), gh: [...document.querySelectorAll('#sec-mnt .mt-lines thead th')].map(t => t.textContent.trim()).slice(8, 11), list: $('mt_rows').rows.length }));
+      head: [...document.querySelectorAll('#sec-mnt .mt-lines thead th')].map(t => t.textContent.trim()).slice(0, 8), gh: [...document.querySelectorAll('#sec-mnt .mt-lines thead th')].map(t => t.textContent.trim()).slice(8, 11), list: !!document.getElementById('mt_rows') }));
     ok('   (update-171) each line its GST %, its GST ₹ and its amount with GST', same(form.gh, ['GST %', 'GST ₹', 'With GST']), form.gh);
-    ok('   the form for any machinery: "Machinery", "Party name (garage / shop of the bill)", "Current reading (KM / Hrs)"; the lines with Uom; the list has the bill', /^Machinery/.test(form.no) && /^Party name/.test(form.party) && form.km === 'Current reading (KM / Hrs)' &&
-      same(form.head, ['#', 'Work / part', 'Paid by', 'Qty', 'Uom', 'Rate (₹)', 'Disc %', 'Amount (₹)']) && form.list === 1, form);      // (update-171: Paid by)
+    ok('   the form for any machinery: "Machinery", "Party name (garage / shop of the bill)", "Current reading (KM / Hrs)"; the lines with Uom; no bills list (update-182)', /^Machinery/.test(form.no) && /^Party name/.test(form.party) && form.km === 'Current reading (KM / Hrs)' &&
+      same(form.head, ['#', 'Work / part', 'Paid by', 'Qty', 'Uom', 'Rate (₹)', 'Disc %', 'Amount (₹)']) && form.list === false, form);      // (update-171: Paid by)
     // a bill typed by hand: RK Power, two parts – each its GST % (update-171: no tax line)
     await F.evaluate((no, d) => { $('mt_no').value = no; $('mt_date').value = d; S.mt.dateTyped = true; $('mt_garage').value = 'RK Power'; $('mt_billno').value = 'RKP-77'; $('mt_km').value = '1915'; }, R, d2);
     const typeLine = async (i, w, q, u, r, g) => F.evaluate((i, w, q, u, r, g) => { const tr = [...document.querySelectorAll('#mt_lines tr')][i], set = (c, v) => { const x = tr.querySelector(c); x.value = v; x.dispatchEvent(new Event('input', { bubbles: true })); };
@@ -118,8 +118,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
       const r = { ins: $('mt_ins').checked, box: !$('mt_insbox').hidden, paid: $('mt_inspaid').value, ro: $('mt_inspaid').readOnly, total: $('mt_total').textContent, we: $('mt_wepaid').textContent, opt: tr.querySelector('.mt-t').selectedOptions[0].textContent, cls: tr.className };
       mtClear(); return r; });
     ok('   a line "Paid by: Insurance": the claim ticked by itself, Paid by the insurance ₹12,800 (10,000 + 28 % GST) – not typed; We paid ₹0.00', ib.ins && ib.box && ib.paid === '12800' && ib.ro && ib.total === '12,800.00' && ib.we === '0.00' && ib.opt === 'Insurance' && /mt-insl/.test(ib.cls), ib);
-    const lhead = await F.evaluate(() => [...document.querySelector('#mt_rows').closest('table').tHead.rows[0].cells].map(c => c.textContent));
-    ok('   the list: Machinery, Party, Reading', same(lhead.slice(0, 9), ['Bill ID', 'Date', 'Machinery', 'Party', 'Bill no.', 'Work / parts', 'Amount (₹)', 'Service', 'Reading']), lhead);
+    // (update-182) the bills list is taken out ("Maintenance bills ha section remove kr") – the log book shows the bills
     // the log book in his format
     await F.evaluate((no, a, z) => { $('ml_no').value = no; $('ml_from').value = a; $('ml_to').value = z; $('ml_go').click(); }, R, d1, today);
     for (let i = 0; i < 30 && !(await F.evaluate(() => !$('rpmlog_out').hidden)); i++) await wait(400);

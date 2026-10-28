@@ -956,6 +956,7 @@ const API_ = {
   // (update-180) one line of a bill changed or taken out from the Maintenance Log Book (the rest of the bill as it is)
   updateMaintLine:   { m: 'Maintenance', edit: true, f: (id, x) => maintLineSave_(id, x, false), log: 'edit', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
   deleteMaintLine:   { m: 'Maintenance', edit: true, f: (id, x) => maintLineSave_(id, x, true), log: 'edit', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
+  deleteMaintLog:    { m: 'Maintenance', admin: true, f: deleteMaintLog_, log: 'maintLogDelete' },      // (update-182) the Admin / Super Admin: a machinery's whole log book
   maintFile:         { m: 'Maintenance', withUser: true, f: (u, x) => uploadAttachment_(u, x, 'Maintenance') },      // one file of a bill (PDF / photo), kept once in the private store (Edit checked inside)
   getMaintFiles:     { m: 'Maintenance', f: getMaintFiles_ },
   readMaintBill:     { m: 'Maintenance', withUser: true, f: (u, x) => maintRead_(u, x) },      // the AI reads a bill – nothing is saved (Edit checked inside)
@@ -1275,6 +1276,9 @@ function logAfter_(u, spec, args, res, before) {
     }
     case 'delete':
       writeLog_(u, 'Delete', m, str_(args[0]), 'Deleted ' + str_(args[0]), 'Deleted values – ' + describe_(before));
+      break;
+    case 'maintLogDelete':      // (update-182) a machinery's whole Maintenance Log Book: each bill its own line, with its values
+      (res.deleted || []).forEach(g => writeLog_(u, 'Delete', m, g.id, 'Deleted ' + g.id + ' – the Maintenance Log Book of ' + res.no + ' deleted (' + res.n + ' bill(s), ' + (res.all ? 'start to end' : res.from + ' to ' + res.to) + ')', 'Deleted values – ' + describe_(g.values)));
       break;
     case 'cardSave':      // (update-164) a fuel card added / changed
       writeLog_(u, res.added ? 'Add' : 'Edit', 'Fuel Cards', res.name, res.summary, res.changes || '');
@@ -6814,6 +6818,33 @@ function deleteMaint_(id) {
     booksOpen_(dkey_(t.rows[i][t.c[H.DATE]]), 'Maintenance bill');
     t.sh.deleteRow(i + 2);      // (its files stay in the store – a stored file is never deleted)
     return { ok: true };
+  });
+}
+/* (update-182, asked 28-10-2026: "maintanace madhe je banwale log book pdf import karun tithe admin or super admin gadich log book
+ * maintanace ch delet pn karu shakel as de") THE WHOLE MAINTENANCE LOG BOOK OF A MACHINERY deleted – the Admin / Super Admin only (API_):
+ * x.no the machinery; x.from / x.to the dates shown (or x.all – from its first bill); x.count the bills the page showed – another number
+ * now (a bill added or deleted meanwhile): refused, nothing deleted. A bill of a closed month: refused before anything is deleted. Only
+ * its maintenance bills go (their stored files stay, as for one bill); what the RCL Store issued to it and its fuel are not touched.
+ * Each bill deleted is written in the Activity Log with its values (logAfter_ 'maintLogDelete'). */
+function deleteMaintLog_(x) {
+  x = x || {};
+  return withLock_(() => {
+    const t = maintTable_(true), no = clean_(x.no), all = x.all === true;
+    if (!no) throw new Error('Pick the machinery whose log book is to be deleted.');
+    const from = all ? '' : (str_(x.from) ? checkDate_(x.from) : ''), to = all ? '' : (str_(x.to) ? checkDate_(x.to) : '');
+    if (!all && (!from || !to)) throw new Error('Pick the dates of the log book to delete (or Start to end).');
+    if (from && to && from > to) throw new Error('From date is after To date.');
+    const hit = [];
+    t.rows.forEach((r, i) => { if (!same_(r[t.c[H.NO]], no)) return; const dk = dkey_(r[t.c[H.DATE]]); if (!dk || (from && dk < from) || (to && dk > to)) return; hit.push(i); });
+    if (!hit.length) throw new Error('No maintenance bill of ' + no + ' in these dates – nothing to delete.');
+    if (x.count !== undefined && Number(x.count) !== hit.length) throw new Error('The log book of ' + no + ' was changed meanwhile (' + hit.length + ' bill(s) now, ' + Number(x.count) + ' shown) – show it again, then delete. Nothing was deleted.');
+    hit.forEach(i => booksOpen_(dkey_(t.rows[i][t.c[H.DATE]]), 'Maintenance bill'));      // (a closed month: refused – nothing deleted)
+    const gone = hit.map(i => { const o = {}; t.headers.forEach((h, j) => { if (h) o[h] = t.rows[i][j]; }); return { id: str_(t.rows[i][t.c[H.MT_ID]]), values: o }; });
+    const total = r2_(hit.reduce((a, i) => a + num0_(t.rows[i][t.c[H.AMOUNT]]), 0));
+    hit.slice().sort((a, b) => b - a).forEach(i => t.sh.deleteRow(i + 2));      // (from the bottom: the rows above keep their place)
+    const res = { ok: true, no: no, n: gone.length, total: total, from: from, to: to, all: all, ids: gone.map(g => g.id) };
+    Object.defineProperty(res, 'deleted', { value: gone, enumerable: false });      // (for the Activity Log only – not sent to the page)
+    return res;
   });
 }
 /* (update-180, asked 28-10-2026: "kontya hi gadichi log book maintanace wala ek ek entry mala edit or delet krta yawi"; his answer: each
