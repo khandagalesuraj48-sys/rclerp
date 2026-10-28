@@ -6709,7 +6709,7 @@ test('update-172: the log book of a bill of before – its tax lines (CGST / SGS
   // the page's own code: its lines from where a name is given until they parse (as the page runs them)
   const take = re => { const i = L.findIndex(l => re.test(l)); assert.ok(i > -1, String(re)); for (let k = i; k < i + 80; k++) { const t = L.slice(i, k + 1).join('\n'); try { new vm.Script(t); return t; } catch (e) { /* more lines */ } } throw new Error('not parsed: ' + re); };
   const ctx = vm.createContext({});
-  vm.runInContext([take(/^\s*const r2 = /), take(/^\s*const mtCharged = /), take(/^\s*const MT_TAX = /), take(/^\s*const mtTaxPct = /), take(/^\s*function mlogSpread\(/), 'globalThis.S = mlogSpread;'].join('\n'), ctx);
+  vm.runInContext([take(/^\s*const r2 = /), take(/^\s*const mtCharged = /), take(/^\s*const mtHasGa = /), take(/^\s*const MT_TAX = /), take(/^\s*const mtTaxPct = /), take(/^\s*function mlogSpread\(/), 'globalThis.S = mlogSpread;'].join('\n'), ctx);
   const spread = ls => JSON.parse(JSON.stringify(ctx.S(ls)));
   // his bill 04590 as it was saved (update-170): two items of RCL, CGST @ 9% and SGST @ 9% as lines, the adjustment, the free lines
   const b = [
@@ -6863,12 +6863,15 @@ test('update-173: the old Maintenance Log Book of a machinery imported as it is 
   const vm = require('vm'), L = app.split('\n');
   const take = re => { const i = L.findIndex(l => re.test(l)); assert.ok(i > -1, String(re)); for (let k = i; k < i + 80; k++) { const t = L.slice(i, k + 1).join('\n'); try { new vm.Script(t); return t; } catch (e) { /* more lines */ } } throw new Error(String(re)); };
   const pc = vm.createContext({ S: { master: [{ id: 'RL-173', name: 'Roller No.03', ownership: 'Own', status: 'Active' }], today: '2026-10-27' } }); pc.window = pc;
-  vm.runInContext(['const isoDate = d => d.toISOString().slice(0, 10);', take(/^\s*const r2 = /), take(/^\s*const mtGst = /), take(/^\s*function xlDate\(/), take(/^\s*const mDay = |^\s*function mDay\(/), take(/^\s*function mPeriods\(|^\s*const mPeriods = /), take(/^\s*const onSiteOn = /),
-    take(/^\s*function mliField\(/), take(/^\s*function mliRows\(/), take(/^\s*const mliKey = /), take(/^\s*const mliOwn = /), take(/^\s*const mliNum = /), take(/^\s*const mliGst = /), take(/^\s*function mliMatch\(/), take(/^\s*function mliSheet\(/),
+  vm.runInContext(['const isoDate = d => d.toISOString().slice(0, 10);', take(/^\s*const r2 = /), take(/^\s*const mtGst = /), take(/^\s*const mtHasGa = /), take(/^\s*const mtLineGst = /), take(/^\s*function xlDate\(/), take(/^\s*const mDay = |^\s*function mDay\(/), take(/^\s*function mPeriods\(|^\s*const mPeriods = /), take(/^\s*const onSiteOn = /),
+    take(/^\s*function mliField\(/), take(/^\s*function mliRows\(/), take(/^\s*const mliKey = /), take(/^\s*const mliOwn = /), take(/^\s*const mliNum = /), take(/^\s*function mliMatch\(/), take(/^\s*function mliSheet\(/),
     take(/^\s*const MLI_HEAD = /), take(/^\s*function mliBills\(/), take(/^\s*function mliNamesOf\(/), 'globalThis.T = { mliSheet, mliBills, mliNamesOf, MLI_HEAD };'].join('\n'), pc);
   const sh = pc.T.mliSheet('ROLLER NO-03', [['ROLLER NO-03'], pc.T.MLI_HEAD, [1, '2022-12-02', 'SURJ', '', 'AD BLUE', 20, 'Ltr', 59, 1000, 212.4, 1392.4, ''], [2, '', '', '', 'GREASE', 2, 'Kg', 180, 360, 64.8, 430, ''], [3, '', '', '', 'BULB', 1, 'Nos', 40, 40, 2, 42, '']], true);
-  assert.deepStrictEqual([sh.no, sh.bills.length, sh.bills[0].rows, JSON.parse(JSON.stringify(sh.warn))], ['RL-173', 1, 'Line 1–3', [{ line: 1, work: 'AD BLUE', k: 'qr', a: 1180, b: 1000 }, { line: 1, work: 'AD BLUE', k: 'ag', a: 1212.4, b: 1392.4 }, { line: 1, work: 'AD BLUE', k: 'gp', a: 21.24, b: '' }, { line: 2, work: 'GREASE', k: 'ag', a: 424.8, b: 430 }, { line: 3, work: 'BULB', k: 'gp', a: 5, b: '' }].filter(w => !(w.k === 'gp' && w.a === 5))],
-    'Qty × Rate ≠ Amount, Amount + GST ≠ With GST, GST 21.24 % – each line to look at (a usual 5 % is not); its rows numbered 1, 2, 3');
+  assert.deepStrictEqual([sh.no, sh.bills.length, sh.bills[0].rows, JSON.parse(JSON.stringify(sh.warn))], ['RL-173', 1, 'Line 1–3', [{ line: 1, work: 'AD BLUE', k: 'qr', a: 1180, b: 1000 }, { line: 1, work: 'AD BLUE', k: 'ag', a: 1212.4, b: 1392.4 }, { line: 2, work: 'GREASE', k: 'ag', a: 424.8, b: 430 }]],
+    'Qty × Rate ≠ Amount, Amount + GST ≠ With GST – each line to look at; (update-183) no GST % made from the GST ₹ – nothing said of a rate; its rows numbered 1, 2, 3');
+  // (update-183, "old import tyat tr ajibat karu nko as it is rahude") each line its GST ₹ as in the file – no GST % made from it
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(sh.bills[0].lines.map(l => [l.work, l.amount, l.gst, l.gstAmt]))), [['AD BLUE', 1000, null, 212.4], ['GREASE', 360, null, 64.8], ['BULB', 40, null, 2]].map(x => x.map(v => v === null ? undefined : v)).map(x => JSON.parse(JSON.stringify(x))));
+  assert.strictEqual(sh.total, 1679.2, 'the total: the amounts with their GST ₹ as in the file (1000 + 212.40 + 360 + 64.80 + 40 + 2)');
   pc.S.mli = { fix: { list: [{ f: 'party', from: 'SURJ', to: 'SURAJ', on: true }, { f: 'work', from: 'GREASE', to: 'GREASE MP3', on: false }, { f: 'uom', from: 'Kg', to: '  ', on: true }] } };
   const sent2 = JSON.parse(JSON.stringify(pc.T.mliBills(sh)));
   assert.deepStrictEqual([sent2[0].garage, sent2[0].lines.map(l => l.work + ':' + l.uom)], ['SURAJ', ['AD BLUE:Ltr', 'GREASE:Kg', 'BULB:Nos']], 'only the ticked name (with a name) is changed');
@@ -6974,13 +6977,14 @@ test('update-176: the old log book\'s PDF read a page at a time – only that pa
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   assert.match(app, /sc\.src = window\.rclVendor\('pdf-lib-1\.17\.1\.min\.js'\)/);
   assert.match(app, /const one = await L\.PDFDocument\.create\(\); \(await one\.copyPages\(src, \[p - 1\]\)\)\.forEach\(x => one\.addPage\(x\)\);/);
-  assert.match(app, /for \(const fast of \[0, 1\]\) \{\s*try \{ r = await call\('readMaintLog', Object\.assign\(\{\}, args, \{ n: 1, fast: fast \}\)\);/);
+  // (update-183) asked again by itself: the quicker model, then after 8 s and 20 s; a part the AI could not finish: fewer rows
+  assert.match(app, /for \(const \[fast, wait\] of \[\[0, 0\], \[1, 0\], \[1, 8000\], \[1, 20000\]\]\) \{[\s\S]{0,260}try \{ r = await call\('readMaintLog', Object\.assign\(\{\}, args, \{ n: 1, fast: fast, max: max \}\)\);/);
   assert.match(fs.readFileSync(path.join(root, 'app', 'vendor', 'README.txt'), 'utf8'), /pdf-lib-1\.17\.1\.min\.js +pdf-lib 1\.17\.1/);
   assert.strictEqual(require('crypto').createHash('sha256').update(fs.readFileSync(path.join(root, 'app', 'vendor', 'pdf-lib-1.17.1.min.js'))).digest('hex'), '0f9a5cad07941f0826586c94e089d89b918c46e5c17cf2d5a3c6f666e3bc694f', 'the published file, unchanged');
 });
 
 test('update-177: the old log book – no limit of the file\'s size (a PDF of any size and pages: taken apart on the page, a page alone up to 3 MB; a bigger photo made smaller on the page)', () => {
-  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), f = app.slice(app.indexOf('  async function mliReadAi(f, say) {'), app.indexOf('  // the AI\'s tables (page after page) as sheets'));
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), f = app.slice(app.indexOf('  async function mliReadAi(f, say, resume) {'), app.indexOf('  // the AI\'s tables (page after page) as sheets'));
   assert.ok(f.length > 1000);
   assert.ok(!/if \(f\.size > 3 \* 1024 \* 1024\) throw/.test(f), 'no check of the whole file\'s size before it is taken apart');
   assert.match(f, /const whole = async \(\) => \{ if \(f\.size > BIG\) throw new Error\(pdf \? 'This PDF could not be taken apart into its pages here, and it is too big to send whole \(more than 3 MB\)/, 'only a PDF sent whole must be 3 MB or less');
@@ -7115,13 +7119,14 @@ test('update-180: the old log book\'s headings in any order (a PDF read by the A
   const vm = require('vm'), L = app.split('\n');
   const take = re => { const i = L.findIndex(l => re.test(l)); assert.ok(i > -1, String(re)); for (let k = i; k < i + 80; k++) { const t = L.slice(i, k + 1).join('\n'); try { new vm.Script(t); return t; } catch (e) { /* more lines */ } } throw new Error(String(re)); };
   const pc = vm.createContext({ S: { master: [{ id: 'RL-180', name: 'Roller No.03', ownership: 'Own', status: 'Active' }], today: '2026-10-28' } }); pc.window = pc;
-  vm.runInContext(['const isoDate = d => d.toISOString().slice(0, 10);', take(/^\s*const r2 = /), take(/^\s*const mtGst = /), take(/^\s*function xlDate\(/), take(/^\s*function mliField\(/), take(/^\s*function mliRows\(/),
-    take(/^\s*const mliKey = /), take(/^\s*const mliOwn = /), take(/^\s*const mliNum = /), take(/^\s*const mliGst = /), take(/^\s*function mliMatch\(/), take(/^\s*function mliSheet\(/), 'globalThis.T = { mliSheet };'].join('\n'), pc);
+  vm.runInContext(['const isoDate = d => d.toISOString().slice(0, 10);', take(/^\s*const r2 = /), take(/^\s*const mtGst = /), take(/^\s*const mtHasGa = /), take(/^\s*const mtLineGst = /), take(/^\s*function xlDate\(/), take(/^\s*function mliField\(/), take(/^\s*function mliRows\(/),
+    take(/^\s*const mliKey = /), take(/^\s*const mliOwn = /), take(/^\s*const mliNum = /), take(/^\s*function mliMatch\(/), take(/^\s*function mliSheet\(/), 'globalThis.T = { mliSheet };'].join('\n'), pc);
   const sh = JSON.parse(JSON.stringify(pc.T.mliSheet('Sheet1', [['RACHANA CONSTRUCTION LIMITED'], ['ROLLER NO-03'], ['Item Description', 'Bill Date', 'Supplier', 'Qty', 'Rate', 'Taxable Value', 'CGST 9%', 'SGST 9%', 'Net Amount'],
     ['ENGINE OIL', '2024-01-02', 'SURAJ', 10, 350, 3500, 315, 315, 4130], ['FILTER', '', '', 1, 500, 500, 45, 45, 590], ['AIR FILTER', '2024-03-05', 'GANESH', 1, 900, 900, 81, 81, 1062]], false)));
-  assert.deepStrictEqual([sh.no, sh.bills.length, sh.bills[0].garage, sh.bills[0].lines.map(l => l.work + ':' + l.amount + ':' + l.gst), sh.bills[0].rows, sh.bills[1].rows, sh.total, sh.fileTotal],
-    ['RL-180', 2, 'SURAJ', ['ENGINE OIL:3500:18', 'FILTER:500:18'], 'Line 4–5', 'Line 6', 5782, 5782], 'his Excel in another order: the same bills');
-  assert.match(app, /const r = await ask\(Object\.assign\(\{ data: 'data:application\/pdf;base64,' \+ await mliB64\(u8\), from: 1 \}, head \? \{ head: head \} : \{\}\), p\);\n\s*tables\.push\(\.\.\.\(r\.tables \|\| \[\]\)\); if \(Array\.isArray\(r\.head\) && r\.head\.length\) head = r\.head;/);
+  assert.deepStrictEqual([sh.no, sh.bills.length, sh.bills[0].garage, sh.bills[0].lines.map(l => l.work + ':' + l.amount + ':' + l.gstAmt), sh.bills[0].rows, sh.bills[1].rows, sh.total, sh.fileTotal],
+    ['RL-180', 2, 'SURAJ', ['ENGINE OIL:3500:630', 'FILTER:500:90'], 'Line 4–5', 'Line 6', 5782, 5782], 'his Excel in another order: the same bills (update-183: each line its GST ₹ – CGST + SGST – as in the file)');
+  // (update-183) each part of a page with the headings of the page before; the headings it gives kept for the next
+  assert.match(app, /r = await ask\(Object\.assign\(\{\}, args, after \? \{ after: after \} : \{\}, head \? \{ head: head \} : \{\}\), page\);\n\s*got\.push\(\.\.\.\(r\.tables \|\| \[\]\)\); if \(Array\.isArray\(r\.head\) && r\.head\.length\) head = r\.head;/);
   // (C) one line of a bill: changed, deleted; the rest of the bill, its insurance part and its files as they were
   const M = 'JCB-180';
   run('(x, m) => saveMaster_(x, m)', { no: M, name: 'JCB 180', type: 'JCB', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add');
@@ -7229,4 +7234,64 @@ test('update-182: the Maintenance page tidy – no bills list (the bills by mach
   assert.match(app, /call\('deleteMaintLog', d\.all \? \{ no: m\.id, all: true, count: bills\.length \} : \{ no: m\.id, from: d\.from, to: d\.to, count: bills\.length \}\)/);
   assert.match(app, /<details class="mt-howd"><summary>How the amounts work<\/summary>/, 'the bill form: the help folded');
   assert.match(app, /#sec-mnt \.mt-hicon \{ width: 38px; height: 38px;/, 'its head slim');
+});
+
+test('update-183: the old log book as it is – each line its GST ₹ as in the file (no GST % made from it, no rate column for it); a page read in parts and asked again by itself; the names by the quicker model; whose log book is in and up to when; Hide log book', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  // a line's GST: its ₹ as given (the old log book) – a GST % typed goes before it
+  const ls = run('x => maintLines_(x)', [{ work: 'AD BLUE', type: 'Paid', qty: 20, uom: 'Ltr', rate: 59, amount: 1180, gstAmt: 212.4 }, { work: 'GREASE', type: 'Paid', amount: 360, gst: 18, gstAmt: 99 }, { work: 'DRUM OIL', type: 'FOC', amount: 0, gstAmt: 5 }]);
+  const z = v => v === undefined || v === null ? '' : v;
+  assert.deepStrictEqual(ls.map(l => [l.work, z(l.gst), z(l.gstAmt)]), [['AD BLUE', '', 212.4], ['GREASE', 18, ''], ['DRUM OIL', '', '']], 'the ₹ kept as it is; a % typed takes its place; a free line has no GST');
+  assert.deepStrictEqual(run('x => x.map(maintLineTotal_)', ls), [1392.4, 424.8, 0]);
+  assert.match(tryRun('x => maintLines_(x)', [{ work: 'X', type: 'Paid', amount: 10, gstAmt: 'abc' }]).thrown || '', /^$/, 'a word for the GST ₹ is no number: left out (blank)');
+  assert.strictEqual(tryRun('x => maintLines_(x)', [{ work: 'X', type: 'Paid', amount: 10, gstAmt: 1e9 }]).thrown, 'Bill line 1 (X): the GST amount (₹) is not right.');
+  // the import: the bills with the file's GST ₹; the log book and its totals with them
+  const M = 'RL-183';
+  run('(x, m) => saveMaster_(x, m)', { no: M, name: 'Roller 183', type: 'Soil Compactor', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2020-01-01' }, 'add');
+  const imp = run('b => importMaint_(b)', { no: M, bills: [{ rows: 'Line 1–2', date: '2023-01-05', garage: 'Store', km: 500, lines: [{ work: 'FUEL FILTER', qty: 1, uom: 'Nos', rate: 650, amount: 650, gstAmt: 117 }, { work: 'ENGINE OIL', qty: 7, uom: 'Ltr', rate: 173, amount: 1211, gstAmt: 217.98 }] }] });
+  assert.deepStrictEqual([imp.ok, imp.added, imp.total], [true, 1, 2195.98], 'imported with its GST ₹ as in the file');
+  const lg = run('x => maintLog_(x)', { no: M, all: true }), b = lg.lines.find(x => x.kind === 'Maintenance');
+  assert.deepStrictEqual([b.lines.map(l => z(l.gstAmt)), b.lines.map(l => z(l.gst)), lg.total.maint.amount], [[117, 217.98], ['', ''], 2195.98], 'the log book: the file\'s GST ₹, no %');
+  // a page / an app of before may not change such a bill or line – its GST would be lost
+  assert.match(tryRun('(id, x) => updateMaint_(id, x)', b.id, { date: '2023-01-05', no: M, garage: 'Store', km: 500, service: false, lines: [{ work: 'FUEL FILTER', type: 'Paid', amount: 650, gst: '' }], insurance: null }).thrown, /keeps the GST amounts of the old log book as they are – update the app to change it\.$/);
+  assert.match(tryRun('(id, x) => maintLineSave_(id, x, false)', b.id, { i: 0, date: '2023-01-05', was: { work: 'FUEL FILTER', amount: 650 }, line: { work: 'FUEL FILTER', type: 'Paid', amount: 700, gst: '' } }).thrown, /this line keeps its GST amount as in the old log book – update the app to change it\.$/);
+  const ln = run('(id, x) => maintLineSave_(id, x, false)', b.id, { i: 0, date: '2023-01-05', was: { work: 'FUEL FILTER', amount: 650 }, line: { work: 'FUEL FILTER', type: 'Paid', amount: 700, gst: '', gstAmt: 126 } });
+  assert.deepStrictEqual([ln.ok, ln.total], [true, 2254.98], 'the page of now: its GST ₹ sent with it – kept');
+  // the state of every log book: the Own machinery without a bill first, then those with – up to their last bill
+  run('(x, m) => saveMaster_(x, m)', { no: 'JCB-183', name: 'JCB 183', type: 'JCB', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2020-01-01' }, 'add');
+  const spec = run('() => Object.assign({}, API_.maintStatus, { f: typeof API_.maintStatus.f })');
+  assert.deepStrictEqual(spec, { m: 'Maintenance', any: ['Maintenance', 'Reports'], f: 'function' }, 'only reads');
+  const st = run('() => maintStatus_()'), mine = st.rows.filter(r => /183$/.test(r.no));
+  assert.deepStrictEqual(mine.map(r => [r.no, r.bills, r.from, r.upTo]), [['JCB-183', 0, '', ''], [M, 1, '2023-01-05', '2023-01-05']], 'not added yet first; the roller up to 05-01-2023');
+  assert.ok(st.rows.every(r => r.ownership === 'Own' || r.bills > 0), 'Own machinery, or another with a bill');
+  // a page of the log book read in parts: "only a part of the rows", after the last row given; whether there are more
+  const sent = [], answers = [], say = t => ({ code: 200, text: JSON.stringify({ id: 'm', type: 'message', role: 'assistant', content: [{ type: 'text', text: t }], stop_reason: 'end_turn', usage: {} }) });
+  ctx.__ai = { on: () => true, service: () => 'claude', model: () => '', wait: () => {}, call: (m, p, body) => { sent.push(JSON.parse(JSON.stringify(body))); return answers.shift() || { code: 500, text: '{}' }; } };
+  run('() => PropertiesService.getScriptProperties().setProperty("AI_MODEL_C", JSON.stringify({ list: ["claude-sonnet-5-5", "claude-haiku-5-5"], at: Date.now() }))');
+  try {
+    answers.push(say(JSON.stringify({ pages: 1, more: true, tables: [{ machinery: 'ROLLER NO-03', head: ['Sr No', 'Date', 'Party Name', 'Current Reading', 'Particulars', 'Qty', 'Uom', 'Basic Rate', 'Amount', 'GST Amount', 'Amount With GST', 'Total'], rows: [[1, '2022-12-02', 'Store', null, 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, 1392.4]] }] })));
+    const p1 = run('x => readMaintLog_(x)', { data: 'data:image/jpeg;base64,QUJD', from: 1, n: 1, max: 25 });
+    assert.match(sent[0].messages[0].content[1].text, /THIS ANSWER HOLDS ONLY A PART OF THE ROWS: at most 25 rows in all \(counting the rows of every table of this page, top to bottom\), beginning with the first row of the page\./);
+    assert.deepStrictEqual([p1.more, p1.last], [true, [1, '2022-12-02', 'Store', '', 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, 1392.4]], 'more to come; its last row as the AI gave it');
+    answers.push(say(JSON.stringify({ pages: 1, more: false, tables: [{ machinery: 'ROLLER NO-03', head: null, rows: [[2, '2023-01-05', 'Store', 500, 'FUEL FILTER', 1, 'Nos', 650, 650, 117, 767, 767]] }] })));
+    const p2 = run('x => readMaintLog_(x)', { data: 'data:image/jpeg;base64,QUJD', from: 1, n: 1, max: 25, after: p1.last });
+    assert.match(sent[1].messages[0].content[1].text, /beginning with the row right AFTER this one, which was given before \(its cells as you gave them\): \[1,"2022-12-02","Store","","AD BLUE",20,"Ltr","59","1180","212\.4","1392\.4","1392\.4"\]|beginning with the row right AFTER this one/);
+    assert.deepStrictEqual([p2.more, sent[1].messages[0].content[0].cache_control], [false, { type: 'ephemeral' }], 'the last part; the same page kept (a part costs about a tenth)');
+    answers.push(say('{"pages": 1, "tables": []}')); const old = run('x => readMaintLog_(x)', { data: 'data:image/jpeg;base64,QUJD', from: 1, n: 1 });
+    assert.ok(!('more' in old) && !/ONLY A PART/.test(sent[2].messages[0].content[1].text), 'an app of before: the whole page, as before');
+    answers.push(say('{"fixes": []}')); run('x => maintImportNames_(x)', { party: [['SURJ', 2], ['SURAJ', 5]] });
+    assert.strictEqual(sent[3].model, 'claude-haiku-5-5', 'the names: the quicker model first');
+  } finally { delete ctx.__ai; run('() => PropertiesService.getScriptProperties().deleteProperty("AI_MODEL_C")'); }
+  // the page
+  assert.match(app, /const mtHasGa = l => !!l && l\.gstAmt !== undefined && l\.gstAmt !== null && l\.gstAmt !== '' && !\(Number\(l\.gst\) > 0\);/);
+  assert.doesNotMatch(app, /const mliGst = /, 'no GST % made from the file\'s GST ₹ any more');
+  assert.match(app, /if \(paid && mtHasGa\(l\)\) gst = r2\(Number\(l\.gstAmt\) \|\| 0\);/, 'the log book: its ₹ in GST Amount, no rate column');
+  assert.match(app, /\(rates\.length === 1 && !asIs \? 'GST ' \+ fmt\(rates\[0\]\) \+ '%' : 'GST Amount'\)/);
+  assert.match(app, /<button class="btn ghost small" id="mti_more" type="button" hidden>Continue reading<\/button>/);
+  assert.match(app, /<button class="btn ghost" id="ml_hide" type="button" hidden>Hide log book<\/button>/);
+  assert.match(app, /<button class="btn ghost small" id="ml_stbtn" type="button">Log book status<\/button>/);
+  assert.match(app, /S\.mlst = await call\('maintStatus'\);/);
 });

@@ -961,6 +961,7 @@ const API_ = {
   getMaintFiles:     { m: 'Maintenance', f: getMaintFiles_ },
   readMaintBill:     { m: 'Maintenance', withUser: true, f: (u, x) => maintRead_(u, x) },      // the AI reads a bill – nothing is saved (Edit checked inside)
   maintLog:          { m: 'Maintenance', any: ['Maintenance', 'Reports'], f: maintLog_ },
+  maintStatus:       { m: 'Maintenance', any: ['Maintenance', 'Reports'], f: maintStatus_ },      // (update-183) whose Maintenance Log Book is in, up to when
   // (update-173) the old Maintenance Log Book of a machinery imported as it is (his Excel) – checked first, then one machinery a call (Admin)
   // (update-174, asked 28-10-2026: "he admin la fkt nahi user la pn disu de") the old log book's import: everyone with Maintenance Edit
   // (update-173: the Admin only); the check and the AI's reading save nothing – Edit is checked inside (they are not saves)
@@ -6408,7 +6409,11 @@ const MNT_TYPES_ = ['Paid', 'By Insurance', 'Warranty', 'FOC', 'Service Plan'], 
 const MNT_CHARGED_ = t => t === 'Paid' || t === 'By Insurance';      // in the bill's total (the others are free – ₹ 0)
 const MNT_PAIDBY_ = { 'RCL': 'Paid', 'INSURANCE': 'By Insurance' };      // the words of the page / phone for these two
 // a line's GST: its CGST and its SGST, each half of its GST % and each rounded – as the bills print them (5610.42 at 18 %: 504.94 + 504.94)
-const maintGstOf_ = l => 2 * r2_(num0_(l.amount) * num0_(l.gst) / 200);
+// (update-183, asked 28-10-2026: "auto gst ka add krt aahet kuthe 6 kuth 2.5 tr kuthe 14 as nko … old import tyat tr ajibat karu nko as it
+// is rahude") a line of the old log book keeps its GST in ₹ AS IN THE FILE (gstAmt) – no GST % is made from it; a line typed with its
+// GST % (the bill's form) as before
+const maintHasGa_ = l => !!l && l.gstAmt !== undefined && l.gstAmt !== null && l.gstAmt !== '' && !(num0_(l.gst) > 0);
+const maintGstOf_ = l => maintHasGa_(l) ? r2_(num0_(l.gstAmt)) : 2 * r2_(num0_(l.amount) * num0_(l.gst) / 200);
 // a line's total: its amount and its GST (a free line: 0)
 const maintLineTotal_ = l => MNT_CHARGED_(l.type) ? r2_(num0_(l.amount) + maintGstOf_(l)) : 0;
 // (update-172, "gst raw madhe ka dakhawat aahe heading madhe aahet gst tr") a bill of before with its taxes as lines of their own (CGST /
@@ -6418,12 +6423,12 @@ const maintLineTotal_ = l => MNT_CHARGED_(l.type) ? r2_(num0_(l.amount) + maintG
 // here for its "by work / part" – no tax is a work there either. Nothing saved is changed.
 const MNT_TAX_ = /^\s*(?:maharashtra\s+)?(?:cgst|sgst|igst|utgst|gst|cess|tax|vat)\b/i;
 function maintSpread_(lines) {
-  const ls = (lines || []).map(l => Object.assign({}, l)), isTax = l => MNT_CHARGED_(l.type) && !(num0_(l.gst) > 0) && MNT_TAX_.test(l.work || '');
+  const ls = (lines || []).map(l => Object.assign({}, l)), isTax = l => MNT_CHARGED_(l.type) && !(num0_(l.gst) > 0) && !maintHasGa_(l) && MNT_TAX_.test(l.work || '');
   const pct = w => { const m = /(\d+(?:\.\d+)?)\s*%/.exec(w || ''); return m ? Number(m[1]) : 0; };
   const kind = w => /^\s*(?:maharashtra\s+)?cgst\b/i.test(w) ? 'c' : /^\s*(?:maharashtra\s+)?sgst\b/i.test(w) ? 's' : /^\s*(?:maharashtra\s+)?igst\b/i.test(w) ? 'i' : /^\s*(?:maharashtra\s+)?gst\b/i.test(w) ? 'g' : '';
   const tx = ls.filter(isTax), full = t => (/[ig]/.test(kind(t.work)) ? 1 : 2) * pct(t.work);
   if (!tx.length || tx.some(t => !kind(t.work) || !(pct(t.work) > 0)) || new Set(tx.map(full)).size > 1) return ls;
-  const items = ls.filter(l => !isTax(l) && MNT_CHARGED_(l.type) && !(num0_(l.gst) > 0) && num0_(l.amount) > 0 && !/round|adjust/i.test(l.work || ''));
+  const items = ls.filter(l => !isTax(l) && MNT_CHARGED_(l.type) && !(num0_(l.gst) > 0) && !maintHasGa_(l) && num0_(l.amount) > 0 && !/round|adjust/i.test(l.work || ''));
   if (!items.length) return ls;
   const A = items.reduce((a, l) => a + num0_(l.amount), 0), big = items.reduce((b, l) => num0_(l.amount) > num0_(b.amount) ? l : b, items[0]);
   items.forEach(l => { l.taxAdd = 0; });
@@ -6445,7 +6450,7 @@ const maintAllLinesOf_ = v => { let a = null; try { a = typeof v === 'string' ? 
   return Array.isArray(a) ? a.filter(l => l && clean_(l.work)).map(l => {
     const ty = clean_(l.type), type = ty === MNT_INS_ ? MNT_INS_ : (MNT_TYPES_.find(t => t.toUpperCase() === ty.toUpperCase()) || 'Paid');
     const o = { work: clean_(l.work).slice(0, 120), type: type, amount: r2_(num0_(l.amount)) };
-    ['qty', 'rate', 'disc', 'gst'].forEach(k => { const n = numOrBlank_(l[k]); if (n !== '') o[k] = n; });      // (update-171: gst)
+    ['qty', 'rate', 'disc', 'gst', 'gstAmt'].forEach(k => { const n = numOrBlank_(l[k]); if (n !== '') o[k] = n; });      // (update-171: gst; update-183: gstAmt – its GST ₹ as in the old log book)
     if (clean_(l.uom)) o.uom = clean_(l.uom).slice(0, 12);      // (update-170) its unit (Nos, Ltr, Kg …)
     if (type === MNT_INS_ && clean_(l.claim)) o.claim = clean_(l.claim).slice(0, 40);
     return o;
@@ -6464,7 +6469,7 @@ function maintLines_(list) {
   const out = [];
   list.forEach((l, i) => {
     const work = clean_(l && l.work).slice(0, 120), a = numOrBlank_(l && l.amount), ty = clean_(l && l.type);
-    const qty = numOrBlank_(l && l.qty), rate = numOrBlank_(l && l.rate), disc = numOrBlank_(l && l.disc), uom = clean_(l && l.uom).slice(0, 12), gst = numOrBlank_(l && l.gst);
+    const qty = numOrBlank_(l && l.qty), rate = numOrBlank_(l && l.rate), disc = numOrBlank_(l && l.disc), uom = clean_(l && l.uom).slice(0, 12), gst = numOrBlank_(l && l.gst), ga = numOrBlank_(l && l.gstAmt);
     if (!work && (a === '' || a === 0) && qty === '' && rate === '' && !uom) return;
     if (!work) throw new Error('Bill line ' + (i + 1) + ': type the work / part (e.g. Engine oil, Labour).');
     const type = !ty ? 'Paid' : MNT_PAIDBY_[ty.toUpperCase()] || MNT_TYPES_.find(t => t.toUpperCase() === ty.toUpperCase());
@@ -6473,6 +6478,7 @@ function maintLines_(list) {
     if (rate !== '' && (rate < 0 || rate > 100000000)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): the rate is not right.');
     if (disc !== '' && (disc < 0 || disc > 100)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): the discount is 0 to 100 %.');
     if (gst !== '' && (gst < 0 || gst > 100)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): the GST is 0 to 100 %.');
+    if (ga !== '' && Math.abs(ga) > 100000000) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): the GST amount (₹) is not right.');
     if (MNT_CHARGED_(type) && (a === '' || a === 0 || Math.abs(a) > 100000000)) throw new Error('Bill line ' + (i + 1) + ' (' + work + '): enter its amount (₹).');
     const o = { work: work, type: type, amount: MNT_CHARGED_(type) ? r2_(a) : 0 };
     if (qty !== '') o.qty = r2_(qty);
@@ -6480,6 +6486,7 @@ function maintLines_(list) {
     if (rate !== '') o.rate = r2_(rate);
     if (disc !== '') o.disc = r2_(disc);
     if (gst !== '' && gst > 0) o.gst = r2_(gst);      // (update-171) its GST %
+    else if (ga !== '' && ga !== 0 && MNT_CHARGED_(type)) o.gstAmt = r2_(ga);      // (update-183) its GST ₹ as given (the old log book) – a GST % typed goes before it
     out.push(o);
   });
   if (!out.length) throw new Error('Add the work / parts of the bill, each with its amount (₹).');
@@ -6730,6 +6737,11 @@ function readMaintLog_(x) {
    * read in the log book's own columns, as before. */
   const LOG12 = 'Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total';
   const head0 = (Array.isArray(x.head) ? x.head : []).slice(0, 40).map(h => clean_(h).slice(0, 80)), carry = head0.some(Boolean) ? head0 : null;
+  /* (update-183, asked 28-10-2026: "kadhi kadhi ai service slow asa pn error ywto te pn fix krun de") A PAGE IN PARTS: the AI's time goes
+   * on writing the rows out – a page full of rows did not fit in the server's 50 seconds ("too slow to answer"). The page now asks for a
+   * part of the rows at a time (x.max rows, from the top; then x.after = the last row it was given – the AI goes on right after it) and
+   * the AI says whether the page has more ("more"). An app of before asks for the whole page, as before. */
+  const max = Math.min(60, Math.max(0, Math.floor(num0_(x.max)) || 0)), after = Array.isArray(x.after) ? x.after.slice(0, 40).map(v => v === null || v === undefined ? null : clean_(v).slice(0, 80)) : null;
   const ask = 'This is an OLD MAINTENANCE LOG BOOK of a construction company in India (₹): for each machinery / vehicle a table of its bills, a row for each work / part / material. ' +
     'Its columns can be in ANY ORDER and named in many ways (e.g. ' + LOG12 + ', or Bill Date · Supplier · KM · Description · Rate · Taxable Value · CGST 9% · SGST 9% · Net Amount; some may be missing). ' +
     'Read ' + where + '. Answer with JSON only: {"pages": the number of pages of the whole file, ' +
@@ -6741,8 +6753,11 @@ function readMaintLog_(x) {
     (carry ? 'A table on this page without a heading row of its own goes on from the page before, whose columns were ' + JSON.stringify(carry) + ': give it "head": null and its rows in those columns. '
       : 'A table on this page without a heading row of its own (it goes on from the page before): give it "head": null and its rows in the columns ' + LOG12 + '. ') +
     'A date as "yyyy-mm-dd", null when the row has no date of its own (one date written for several rows); a cell written only once for several rows (a merged cell, e.g. the party) null in the rows under it; an empty cell null. ' +
-    'Leave out the heading rows, a total row of a page or of a table and a row brought forward. Copy every name and number EXACTLY as printed – do not correct a spelling, do not invent a value; what is not clearly printed is null.';
-  const j = aiJson_(aiAskPhoto_(data, ask, mt[1], 'the log book', { keep: !part, fast: fast, tokens: 16000, fail: ' – try again in a minute.' }));
+    'Leave out the heading rows, a total row of a page or of a table and a row brought forward. Copy every name and number EXACTLY as printed – do not correct a spelling, do not invent a value; what is not clearly printed is null.' +
+    (max ? ' THIS ANSWER HOLDS ONLY A PART OF THE ROWS: at most ' + max + ' rows in all (counting the rows of every table of this page, top to bottom), ' +
+      (after ? 'beginning with the row right AFTER this one, which was given before (its cells as you gave them): ' + JSON.stringify(after) + ' – leave out that row and every row above it. ' : 'beginning with the first row of the page. ') +
+      'For a table whose rows go on in this part give its machinery and its head again as printed on this page. Add "more": true when this page has rows after the last row you give, else "more": false.' : '');
+  const j = aiJson_(aiAskPhoto_(data, ask, mt[1], 'the log book', { keep: !part || !!max, fast: fast, tokens: max ? 8000 : 16000, fail: ' – try again in a minute.' }));
   if (!j || typeof j !== 'object' || !Array.isArray(j.tables)) return { from: from, to: to, pages: part ? part.pages : 0, tables: [], again: true };      // (cut off or not JSON – the page asks fewer pages)
   const cell = v => v === null || v === undefined ? '' : typeof v === 'number' ? (isFinite(v) ? v : '') : /^null$/i.test(clean_(v)) ? '' : clean_(v).slice(0, 160);
   const pages = part ? Math.min(MLR_PAGES_, part.pages) : Math.min(MLR_PAGES_, Math.max(0, Math.floor(Number(j.pages)) || 0));
@@ -6757,7 +6772,10 @@ function readMaintLog_(x) {
     if (mine) last = mine;
     return Object.assign({ machinery: cell(t && t.machinery).toString().slice(0, 80), rows: rows.filter(r => r[4] !== '') }, mine ? { head: own } : {});
   }).filter(t => t.rows.length || t.machinery);
-  return Object.assign({ from: from, to: pdf ? (pages ? Math.min(to, pages) : to) : 1, pages: pdf ? pages : 1, tables: tables }, last ? { head: last } : {});
+  // (update-183) a part of the page: whether it has more, and its last row as the AI gave it (the next part goes on after it)
+  const lastRow = (() => { const ts = j.tables.slice(0, 60).filter(t => Array.isArray(t && t.rows) && t.rows.some(Array.isArray)), t = ts[ts.length - 1]; if (!t) return null; const rs = t.rows.filter(Array.isArray); return rs[rs.length - 1].slice(0, 40).map(cell); })();
+  return Object.assign({ from: from, to: pdf ? (pages ? Math.min(to, pages) : to) : 1, pages: pdf ? pages : 1, tables: tables }, last ? { head: last } : {},
+    max ? { more: j.more === true && !!lastRow, last: lastRow } : {});
 }
 function maintImportNames_(x) {
   x = x || {};
@@ -6776,7 +6794,7 @@ function maintImportNames_(x) {
     'the name already saved at this site when it is one of them, else the spelling most rows use, or the correct one. Different things stay apart – never put together two different parts, works, oils, grades or sizes (ENGINE OIL and ENGINE OIL FILTER, 15W40 and 20W50, FRONT and REAR, 10 MM and 12 MM) or two different parties. ' +
     'A name already right is not given. Answer with JSON only: {"fixes": [[list, nameInTheFile, rightSpelling], …]} – list = "party", "work" or "uom"; nameInTheFile exactly as it is below.\n' +
     F.filter(f => got[f].length).map(f => what[f] + ' – in the file, [name, rows]: ' + JSON.stringify(got[f]) + '\n   already saved: ' + JSON.stringify(top(saved[f]))).join('\n');
-  const j = aiJson_(aiAskPhoto_('', ask, '', 'the names', { tokens: 12000, fail: ' – the names stay as in the file; try again in a minute.' })) || {};
+  const j = aiJson_(aiAskPhoto_('', ask, '', 'the names', { tokens: 12000, fast: x.fast !== false, fail: ' – the names stay as in the file; try again in a minute.' })) || {};      // (update-183) the quicker model first
   const has = {}; F.forEach(f => { has[f] = {}; got[f].forEach(a => { has[f][a[0]] = true; }); });
   const out = [], done = {};
   (Array.isArray(j.fixes) ? j.fixes : []).forEach(z => {
@@ -6801,6 +6819,9 @@ function updateMaint_(id, x) {
     // (update-171) an app of before 3.51.0 (its lines have no GST): it may not change a bill with the GST of its lines or a line paid by the insurance
     if (Array.isArray(x.lines) && x.lines.length && x.lines.every(l => !l || typeof l !== 'object' || !('gst' in l)) && was.some(l => num0_(l.gst) > 0 || l.type === 'By Insurance'))
       throw new Error('Bill ' + str_(id) + ' has the GST of its lines or lines paid by the insurance – update the app to change it.');
+    // (update-183) a page / an app of before (its lines have no gstAmt): it may not change a bill whose lines keep their GST ₹ as in the old log book
+    if (Array.isArray(x.lines) && x.lines.length && x.lines.every(l => !l || typeof l !== 'object' || !('gstAmt' in l)) && was.some(maintHasGa_))
+      throw new Error('Bill ' + str_(id) + ' keeps the GST amounts of the old log book as they are – update the app to change it.');
     const v = maintVals_(x, str_(old[t.c[H.NO]])), files = maintFilesOf_(x.files, maintFilesList_(t, old));
     const twice = maintTwice_(t, v, id);
     if (twice && !x.force) return { ok: false, warning: 'Bill ' + v.billNo + (v.garage ? ' of ' + v.garage : '') + ' for ' + v.m.id + ' is already saved (' + twice + '). Save it again?' };
@@ -6826,6 +6847,26 @@ function deleteMaint_(id) {
  * now (a bill added or deleted meanwhile): refused, nothing deleted. A bill of a closed month: refused before anything is deleted. Only
  * its maintenance bills go (their stored files stay, as for one bill); what the RCL Store issued to it and its fuel are not touched.
  * Each bill deleted is written in the Activity Log with its values (logAfter_ 'maintLogDelete'). */
+/* (update-183, asked 28-10-2026: "mala samjay la haw konte vichle / asset ch maintanace log book add aahe kadhi prynt updeted aahe konte ch
+ * baki aahe mhanje tas mi te kam karun ghein") THE STATE OF EVERY MAINTENANCE LOG BOOK: each Own machinery of the Asset Master (and any
+ * other machinery that has a bill) – its bills, its first bill, its last bill (the log book is filled up to that date), what we paid;
+ * none: "not added yet". Only reads. */
+function maintStatus_() {
+  const t = maintTable_(false), today = today_();
+  if (!t) return { today: today, rows: [], missing: true };
+  const by = {};
+  t.rows.forEach(r => { const k = noKey_(r[t.c[H.NO]]), dk = dkey_(r[t.c[H.DATE]]); if (!k || !dk) return;
+    const x = by[k] = by[k] || { bills: 0, from: dk, upTo: dk, amount: 0, no: str_(r[t.c[H.NO]]) };
+    x.bills++; if (dk < x.from) x.from = dk; if (dk > x.upTo) x.upTo = dk; x.amount = r2_(x.amount + num0_(r[t.c[H.AMOUNT]])); });
+  const seen = {}, rows = [];
+  getMaster_().forEach(m => { const k = noKey_(m.id); if (!k || seen[k]) return; const x = by[k];
+    if (normOwnership_(m.ownership) !== 'Own' && !x) return;
+    seen[k] = true;
+    rows.push({ no: m.id, name: m.name || '', type: m.type || '', ownership: normOwnership_(m.ownership) || m.ownership || '', onSite: onSiteOn_(m, today), bills: x ? x.bills : 0, from: x ? x.from : '', upTo: x ? x.upTo : '', amount: x ? x.amount : 0 }); });
+  Object.keys(by).forEach(k => { if (!seen[k]) rows.push({ no: by[k].no, name: '', type: '', ownership: '', onSite: false, bills: by[k].bills, from: by[k].from, upTo: by[k].upTo, amount: by[k].amount, notInMaster: true }); });
+  rows.sort((a, b) => (a.bills ? 1 : 0) - (b.bills ? 1 : 0) || natCmp_(a.no, b.no));      // not added yet first
+  return { today: today, rows: rows, added: rows.filter(r => r.bills).length, none: rows.filter(r => !r.bills).length };
+}
 function deleteMaintLog_(x) {
   x = x || {};
   return withLock_(() => {
@@ -6868,7 +6909,11 @@ function maintLineSave_(id, x, del) {
     if (del && lines.length === 1) throw new Error('This is the only line of bill ' + str_(id) + ' – delete the whole bill instead.');
     const next = lines.map(l => Object.assign({}, l)), n = x.line && typeof x.line === 'object' ? x.line : {};
     if (del) next.splice(i, 1);
-    else next[i] = { work: n.work, type: n.type, qty: n.qty, uom: n.uom, rate: n.rate, disc: n.disc, amount: n.amount, gst: n.gst };
+    else {
+      // (update-183) a line whose GST ₹ is kept as in the old log book: an app of before (no gstAmt sent) may not change it – its GST would be lost
+      if (maintHasGa_(l0) && !('gstAmt' in n) && !(num0_(n.gst) > 0)) throw new Error('Bill ' + str_(id) + ': this line keeps its GST amount as in the old log book – update the app to change it.');
+      next[i] = { work: n.work, type: n.type, qty: n.qty, uom: n.uom, rate: n.rate, disc: n.disc, amount: n.amount, gst: n.gst, gstAmt: n.gstAmt };
+    }
     const ins = maintInsOf_(old[t.c[H.WLINES]]);
     const v = maintVals_({ date: dk, no: no, garage: str_(old[t.c[H.GARAGE]]), billNo: str_(old[t.c[H.BILLNO]]), km: numOrBlank_(old[t.c[H.KMR]]), service: /^yes$/i.test(str_(old[t.c[H.SERVICE]])),
       remark: str_(old[t.c[H.REMARK]]), lines: next, insurance: ins ? { company: ins.company, claimNo: ins.claimNo, paid: ins.paid } : null }, no);
