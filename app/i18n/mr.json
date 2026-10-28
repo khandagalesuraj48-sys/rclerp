@@ -6954,13 +6954,11 @@
 "Untick all": "सर्वांवरचा टिक काढा",
 "(not on the site now)": "(आत्ता site वर नाही)",
 "{0} is not an Own machinery (Asset Master: Ownership Own) – the old log book is imported only for those.": "{0} ही Own मशिनरी नाही (Asset Master: Ownership Own) – जुनी log book फक्त अशांसाठीच import होते.",
-"{0} line(s) of the Store's outward in this log book.": "या log book मध्ये Store च्या outward च्या {0} ओळी.",
 "Fetch outward (Store)": "Outward आणा (Store)",
 "Fetching…": "आणत आहे…",
 "Machinery (Own)": "मशिनरी (Own)",
 "Start to end": "सुरुवातीपासून शेवटपर्यंत",
 "Start to end:": "सुरुवातीपासून शेवटपर्यंत:",
-"The Store's Issue (material given to a machinery) is not built yet – there is no outward to fetch. When it is, what the Store gives to this machinery comes into its log book by itself.": "Store चे Issue (मशिनरीला दिलेले material) अजून बनलेले नाही – आणायला outward नाही. ते बनल्यावर Store या मशिनरीला जे देईल ते तिच्या log book मध्ये आपोआप येईल.",
 "The old Maintenance Log Book – the Excel (a sheet a machinery: Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total), or its PDF / a photo of a page, read row by row by the AI. Each sheet is put to its machinery (Own – on the site now or not) – check it; a bill = the rows of one date and party; every line as it is. The AI lists the names written in more than one way – tick what is to be changed. Check, then Import – a bill already there is left out (and shown), never twice.": "जुनी Maintenance Log Book – Excel (प्रत्येक मशिनरीची एक sheet: Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total), किंवा तिची PDF / पानाचा photo, AI ओळ-न-ओळ वाचतो. प्रत्येक sheet तिच्या मशिनरीला (Own – आत्ता site वर असो वा नसो) लावली जाते – ती तपासा; एक bill = एका तारखेच्या आणि party च्या ओळी; प्रत्येक ओळ आहे तशी. एकापेक्षा जास्त प्रकारे लिहिलेली नावे AI दाखवतो – बदलायचे ते ✓ करा. आधी Check, मग Import – आधीच असलेले bill सोडले जाते (आणि दिसते), कधीही दोनदा नाही.",
 "Could not read the page.": "पान वाचता आले नाही.",
 "Reading with the AI… page {0} of {1}": "AI वाचत आहे… {1} पैकी पान {0}",
@@ -6983,5 +6981,8 @@
 "Pick the month.": "महिना निवडा.",
 "Print – Pending Log Book": "Print – बाकी लॉग बुक",
 "{0} machinery · {1} day{2} pending{3}": "{0} मशिनरी · {1} दिवस{2} बाकी{3}",
-"✔ Nothing pending{0} in these dates.": "✔ या तारखांमध्ये{0} काहीही बाकी नाही."
+"✔ Nothing pending{0} in these dates.": "✔ या तारखांमध्ये{0} काहीही बाकी नाही.",
+"{0} issue(s) of the RCL Store to this machinery are in this log book (Party \"RCL Store\").": "RCL Store ची या मशिनरीला दिलेली {0} issue(s) या log book मध्ये आहेत (Party \"RCL Store\").",
+"No issue of the RCL Store to this machinery in these dates.": "या तारखांमध्ये RCL Store ने या मशिनरीला काही दिलेले नाही.",
+"The Store's work is not set up at this site yet (its database step 2) – there is no outward to fetch. When it is, what the Store issues to this machinery comes into its log book by itself.": "या site वर Store चे काम अजून set up झालेले नाही (त्याची database step 2) – आणायला outward नाही. ते झाल्यावर Store या मशिनरीला जे देईल ते तिच्या log book मध्ये आपोआप येईल."
 }

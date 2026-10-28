@@ -6790,11 +6790,32 @@ function maintAnswer_(j) {
  * its fills (with their ₹ – update-165). (update-170) At every site; each bill its Party (the garage / party of a direct bill); the
  * machinery's meter for its readings. */
 // (update-170) PROVISION for the Store module (asked: "store module pn banwanar aahe … tyach provision attach krun thew, sadhya direct
-// bill marel"): the material the RCL Store issues to this machinery will join the log book here – each as a bill of the Party
-// "RCL Store" with its lines ({ date, id, party, km, lines: [{ work, type: 'Paid', qty, uom, rate, amount }], total }). Nothing yet: the
-// Store has only its Item Master.
-function maintStoreLines_(m, from, to) { return []; }
-const MAINT_STORE_ON_ = false;      // (update-175, "fetch outward") true when the Store's Issue (material to a machinery) is built
+// bill marel"): the material the RCL Store issues to this machinery joins the log book here – each as a bill of the Party
+// "RCL Store" with its lines ({ date, id, party, km, lines: [{ work, type: 'Paid', qty, uom, rate, amount }], total }).
+/* (update-178, with the Store's step 2 – its Issue) THE STORE'S OUTWARD TO THIS MACHINERY: every issue of the RCL Store to it (the same
+ * site's database – store_issue / store_issue_lines) in the dates, as a bill of the Party "RCL Store": each item its Qty, Uom, Basic Rate
+ * (the Store's average basic rate on the issue's date) and Amount; the reading written on the issue. An issue on DEBIT (to the machinery's
+ * owner) is not our cost (update-168: the cost = only what WE paid): its lines are shown as "Debit", ₹ 0 here. A site whose database has
+ * no Store step 2: none (on = false – "Fetch outward" says so). */
+function maintStoreLines_(m, from, to) {
+  const out = []; out.on = false;
+  if (!m || !sbDataOn_()) return out;      // (the data in a Google Sheet – no Store there)
+  try {
+    for (let page = 0; page < 200; page++) {
+      const rows = sbFetch_('GET', '/rest/v1/store_issue?select=no,date,reading,party,debit,use_for,store_issue_lines(line,name,qty,unit,rate,amount,gst_pct)&machinery=eq.' + encodeURIComponent(str_(m.id)) +
+        '&date=gte.' + from + '&date=lte.' + to + '&order=no.asc', undefined, { Range: (page * 1000) + '-' + (page * 1000 + 999), 'Range-Unit': 'items' }) || [];
+      rows.forEach(r => {
+        const debit = r.debit === true, ls = (r.store_issue_lines || []).slice().sort((a, b) => a.line - b.line).map(l => ({ work: str_(l.name), type: debit ? 'Debit' : 'Paid', qty: num0_(l.qty), uom: str_(l.unit),
+          rate: r2_(num0_(l.rate)), amount: r2_(num0_(l.amount)), gst: debit && num0_(l.gst_pct) > 0 ? num0_(l.gst_pct) : 0 }));
+        out.push({ date: str_(r.date).slice(0, 10), id: 'OUT-' + r.no, billNo: 'Outward ' + r.no, party: 'RCL Store' + (debit && r.party ? ' – debit to ' + str_(r.party) : ''), garage: 'RCL Store',
+          km: r.reading === null || r.reading === undefined ? '' : num0_(r.reading), lines: ls, total: debit ? 0 : r2_(ls.reduce((a, l) => a + l.amount, 0)), service: false, remark: str_(r.use_for) });
+      });
+      if (rows.length < 1000) break;
+    }
+    out.on = true;
+  } catch (e) { if (!/PGRST205|PGRST200|42P01|Could not find (the|a) (table|relationship)|→ 404|SUPABASE_SECRET_KEY/.test(String(e && e.message))) throw e; }      // (no Store's step 2 here: none; a database that does not answer: said)
+  return out;
+}
 /* (update-175, asked 28-10-2026: "maintenance log book madhe date filter aahe but ajun ek banaw start to end … long period asa nko error")
  * f.all: the whole log book – from its first fill / bill to today; no limit of days any more (update-170: 1,100 days). */
 function maintLogSpan_(m) {
@@ -6833,8 +6854,9 @@ function maintLog_(f) {
     maintSpread_(x.lines).filter(l => l.type === 'Paid' && l.amount).forEach(l => { const k = l.work.toUpperCase(); byWork[k] = byWork[k] || { work: l.work, amount: 0, n: 0 }; byWork[k].amount = r2_(byWork[k].amount + maintLineTotal_(l) + (l.taxAdd || 0)); byWork[k].n++; });      // (update-171: with its GST; update-172: a bill of before – its tax lines on its items, not works)
     lines.push(Object.assign({ kind: 'Maintenance', amount: x.total, ord: ct(r[mt.c[H.CREATED]]) }, x, { party: x.garage, files: x.files.length }));
   });
-  maintStoreLines_(m, from, to).forEach(x => { mn.amount = r2_(mn.amount + num0_(x.total)); mn.billTotal = r2_(mn.billTotal + num0_(x.total)); mn.bills++;
-    lines.push(Object.assign({ kind: 'Store', amount: num0_(x.total), billTotal: num0_(x.total), insurance: null, free: 0, ord: 0 }, x)); });      // (update-170 – none yet)
+  const sto = maintStoreLines_(m, from, to);      // (update-178) the Store's outward to this machinery
+  sto.forEach(x => { mn.amount = r2_(mn.amount + num0_(x.total)); mn.billTotal = r2_(mn.billTotal + num0_(x.total)); mn.bills++;
+    lines.push(Object.assign({ kind: 'Store', amount: num0_(x.total), billTotal: num0_(x.total), insurance: null, free: 0, ord: 0 }, x)); });
   lines.sort((a, b) => a.date.localeCompare(b.date) || a.ord - b.ord);
   lines.forEach(l => { delete l.ord; });
   let km = 0;
@@ -6842,7 +6864,7 @@ function maintLog_(f) {
   if (H.WKM in lc) lt.rows.forEach(r => { const dk = dkey_(r[lc[H.DATE]]); if (noKey_(r[lc[H.NO]]) === K && dk && dk >= from && dk <= to) km = r2_(km + num0_(r[lc[H.WKM]])); });
   const all = r2_(fu.amount + mn.amount);
   return Object.assign(rptBase_('Maintenance Log Book – ' + m.id, { from: from, to: to }), {
-    all: f.all === true, store: { on: MAINT_STORE_ON_, lines: lines.filter(l => l.kind === 'Store').length },      // (update-175) start to end; the Store's outward
+    all: f.all === true, store: { on: sto.on, lines: sto.length },      // (update-175) start to end; (update-178) the Store's outward: its issues to this machinery
     machine: { id: m.id, name: m.name, type: m.type, fuel: fuel, unit: unit, meter: str_(m.unit) }, card: card, lines: lines,
     total: { fuel: fu, maint: mn, byWork: Object.keys(byWork).map(k => byWork[k]).sort((a, b) => b.amount - a.amount || a.work.localeCompare(b.work)), all: all, km: km, perKm: km > 0 ? r2_(all / km) : null },
     lastService: last });

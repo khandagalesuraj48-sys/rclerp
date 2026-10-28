@@ -187,13 +187,13 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     await wait(500);
     const lb = await F.evaluate(() => ({ meta: $('rpmlog_meta').textContent, dis: $('ml_from').disabled && $('ml_to').disabled, bills: S.rp.mlog.d.total.maint.bills, acts: [...document.querySelectorAll('#rpmlog_body .mlog-act')].map(x => x.closest('[data-mlb]').dataset.mlb),
       excel: /mlog-act|>Change</.test(S.rp.mlog.v.html), store: S.rp.mlog.d.store }));
-    ok('6. the log book "Start to end": from its first bill (02-12-2022) to today – the dates greyed; 5 bills, each with Change / Delete on the screen (not in the Excel); the Store\'s outward: not built yet',
+    ok('6. the log book "Start to end": from its first bill (02-12-2022) to today – the dates greyed; 5 bills, each with Change / Delete on the screen (not in the Excel); the Store\'s outward: not set up at this site (no Store step 2 here)',
       new RegExp('^Start to end: 02-12-2022 to ' + today.split('-').reverse().join('-')).test(lb.meta) && lb.dis && lb.bills === 5 && JSON.stringify(lb.acts.slice().sort()) === JSON.stringify(['MT-000001', 'MT-000002', 'MT-000003', 'MT-000004', 'MT-000005']) && !lb.excel && lb.store && lb.store.on === false, lb);
     await tidy(); await F.evaluate(() => $('rpmlog_out').scrollIntoView({ block: 'start' })); await wait(400);
     await mp.screenshot({ path: path.join(SHOT, 'mnt175_logbook.png') });
     await F.evaluate(() => $('ml_out').click()); await wait(2500);
     const outT = await F.evaluate(() => { const t = document.getElementById('toast'); return t ? t.textContent : ''; });
-    ok('   "Fetch outward (Store)": the log book read again; "The Store\'s Issue … is not built yet – there is no outward to fetch …"', /The Store's Issue \(material given to a machinery\) is not built yet – there is no outward to fetch/.test(outT), outT);
+    ok('   "Fetch outward (Store)": the log book read again; (update-178) a site whose database has no Store step 2: "The Store\'s work is not set up at this site yet … no outward to fetch …"', /The Store's work is not set up at this site yet \(its database step 2\) – there is no outward to fetch/.test(outT), outT);
     await tidy();
     await F.evaluate(() => document.querySelector('#rpmlog_body [data-mle="MT-000005"]').click()); await wait(2500);
     const ed = await F.evaluate(() => ({ title: $('mt_title').textContent, no: $('mt_no').value, date: $('mt_date').value, edit: S.mt.edit }));
