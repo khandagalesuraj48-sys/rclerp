@@ -86,15 +86,15 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     const rd = await F.evaluate(() => ({ name: $('mti_name').textContent, rows: [...document.querySelectorAll('#mti_out tbody tr')].map(tr => [...tr.cells].map(c => c.querySelector('select') ? c.querySelector('select').value : c.textContent.trim())),
       opts: [...document.querySelectorAll('#mti_out tbody tr select')][0] ? [...[...document.querySelectorAll('#mti_out tbody tr select')][0].options].map(o => o.value) : [],
       optOld: [...document.querySelectorAll('#mti_out tbody tr select')][0] ? ([...[...document.querySelectorAll('#mti_out tbody tr select')][0].options].find(o => o.value === 'OLD-173') || {}).textContent || '' : '',
-      bills: S.mli.sheets[0].bills.map(x => [x.rows, x.date, x.garage, x.km, x.lines.map(l => l.work + ':' + l.amount + ':' + l.gst).join(', ')]) }));
+      bills: S.mli.sheets[0].bills.map(x => [x.rows, x.date, x.garage, x.km, x.lines.map(l => l.work + ':' + l.amount + ':' + (l.gstAmt === undefined ? '' : l.gstAmt)).join(', ')]) }));
     const rows0 = await F.evaluate(() => [...document.querySelectorAll('#mti_out .table-wrap')].pop().querySelectorAll('tbody tr').length);
     rd.rows = rd.rows.slice(rd.rows.length - rows0);      // (the sheets' table – after the names' table)
-    ok('   the file read: 2 sheets with the heading (the "Summary" left out); "Roller 03" – its name in the file ROLLER NO-03, put to ' + R + ' (Own, its name Roller No.03); 7 rows, 4 bills, ₹16,017.32 (the file ₹16,017.62); the JCB: not imported (Rental – not offered)',
-      /All Machinery Maintenance Logbook\.xlsx – 2 sheet\(s\)/.test(rd.name) && rd.rows.length === 2 && JSON.stringify(rd.rows[0].slice(0, 7)) === JSON.stringify(['Roller 03', 'ROLLER NO-03', R, '7', '4', '16,017.62', '16,017.32']) &&
+    ok('   the file read: 2 sheets with the heading (the "Summary" left out); "Roller 03" – its name in the file ROLLER NO-03, put to ' + R + ' (Own, its name Roller No.03); 7 rows, 4 bills, ₹16,017.62 (the file ₹16,017.62 – update-183: each line its GST ₹ as in the file); the JCB: not imported (Rental – not offered)',
+      /All Machinery Maintenance Logbook\.xlsx – 2 sheet\(s\)/.test(rd.name) && rd.rows.length === 2 && JSON.stringify(rd.rows[0].slice(0, 7)) === JSON.stringify(['Roller 03', 'ROLLER NO-03', R, '7', '4', '16,017.62', '16,017.62']) &&
       rd.rows[1][0] === 'JCB' && rd.rows[1][2] === '' && rd.opts.indexOf(J2) === -1 && rd.opts.indexOf(R) > -1 && rd.optOld === 'OLD-173 · Old Roller 173 (not on the site now)', rd);
-    ok('   a bill = the rows of one date and party (the reading of its first row; a date under a merged cell = the row above); each line as it is – GST 18 % from its GST Amount, "Drum oil" ₹0',
-      JSON.stringify(rd.bills) === JSON.stringify([['Line 5', '2022-12-02', 'Store', '', 'AD BLUE:1180:18'], ['Line 6–8', '2023-01-05', 'Store', 500, 'FUEL FILTER:650:18, FUEL WATER SEPRETOR:425:18, ENGINE OIL FILTER:930:18'],
-        ['Line 9–10', '2024-01-29', 'Ganesh Motors', 1745, 'DRUM OIL:0:, HYDROLIC OIL L&T:10374:18'], ['Line 11', '2023-12-30', 'GANESH MOTERS', '', 'Cotton West:15:18']]), rd.bills);
+    ok('   a bill = the rows of one date and party (the reading of its first row; a date under a merged cell = the row above); each line as it is – (update-183) its GST ₹ as in the file (no % made), "Drum oil" ₹0',
+      JSON.stringify(rd.bills) === JSON.stringify([['Line 5', '2022-12-02', 'Store', '', 'AD BLUE:1180:212.4'], ['Line 6–8', '2023-01-05', 'Store', 500, 'FUEL FILTER:650:117, FUEL WATER SEPRETOR:425:76.5, ENGINE OIL FILTER:930:167.4'],
+        ['Line 9–10', '2024-01-29', 'Ganesh Motors', 1745, 'DRUM OIL:0:, HYDROLIC OIL L&T:10374:1867.32'], ['Line 11', '2023-12-30', 'GANESH MOTERS', '', 'Cotton West:15:3']]), rd.bills);
     // the names: the AI's list, nothing ticked; the file's names and the saved ones went to the AI
     const nm = await F.evaluate(() => ({ head: (document.querySelector('#mti_out .mli-names h3') || {}).textContent, rows: [...document.querySelectorAll('#mti_out .mli-names tbody tr')].map(tr => [tr.cells[0].querySelector('input').checked, tr.cells[1].textContent, tr.cells[2].textContent, tr.cells[3].querySelector('input').value, tr.cells[4].textContent]),
       look: [...document.querySelectorAll('#mti_out details.mli-more')].map(d => d.querySelector('summary').textContent + ' | ' + d.querySelector('li').textContent) }));
@@ -109,7 +109,7 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     for (let i = 0; i < 40 && !(await F.evaluate(() => S.mli.sheets[0].res)); i++) await wait(400);
     await wait(300);
     const ck = await F.evaluate(() => ({ st: [...[...document.querySelectorAll('#mti_out .table-wrap')].pop().querySelectorAll('tbody tr')][0].cells[7].textContent, go: !$('mti_go').disabled, saved: S.mt.rows.length }));
-    ok('   Check: "✓ 4 new bill(s), 7 line(s), ₹16,017.32 (02-12-2022 – 29-01-2024)" – nothing saved yet; Import can be pressed', /✓ 4 new bill\(s\), 7 line\(s\), ₹16,017\.32 \(02-12-2022 – 29-01-2024\)/.test(ck.st) && ck.go && sql('rcl', 'select count(*) from maintenance') === '0', ck);
+    ok('   Check: "✓ 4 new bill(s), 7 line(s), ₹16,017.62 (02-12-2022 – 29-01-2024)" – nothing saved yet; Import can be pressed', /✓ 4 new bill\(s\), 7 line\(s\), ₹16,017\.62 \(02-12-2022 – 29-01-2024\)/.test(ck.st) && ck.go && sql('rcl', 'select count(*) from maintenance') === '0', ck);
     await tidy(); await F.evaluate(() => $('mti_panel').scrollIntoView({ block: 'center' })); await wait(300);
     await mp.screenshot({ path: path.join(SHOT, 'mnt173_check.png') });
     await F.evaluate(() => $('mti_go').click()); await wait(800);
@@ -121,9 +121,9 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     const namesAfter = await F.evaluate(() => !!document.querySelector('#mti_out .mli-names'));
     ok('   (update-175) after the import: the names\' list is gone (nothing left to import)', namesAfter === false, namesAfter);
     const l3 = JSON.parse(sql('rcl', "select lines from maintenance where id = 'MT-000003'") || '[]'), l2 = JSON.parse(sql('rcl', "select lines from maintenance where id = 'MT-000002'") || '[]');
-    ok('   Import: 4 bills saved as they are – MT-000001 … MT-000004 (dates of 2022–2024, the party, the reading, ₹1,392.40 / ₹2,365.90 / ₹12,241.32 / ₹17.70); "Drum oil" kept as FOC; the ticked name: "Ganesh Motors"; the unticked one as in the file; "✓ 4 bill(s) imported"',
-      JSON.stringify(rows) === JSON.stringify(['MT-000001|2022-12-02|Store||1392.4', 'MT-000002|2023-01-05|Store|500|2365.9', 'MT-000003|2024-01-29|Ganesh Motors|1745|12241.32', 'MT-000004|2023-12-30|Ganesh Motors||17.7']) &&
-      l3.map(l => l.work + ':' + l.type + ':' + (l.gst || 0)).join(', ') === 'DRUM OIL:FOC:0, HYDROLIC OIL L&T:Paid:18' && l2[1].work === 'FUEL WATER SEPRETOR' && /✓ 4 bill\(s\) imported \(MT-000001 – MT-000004\)/.test(st2), [rows, l3, l2, st2]);
+    ok('   Import: 4 bills saved as they are – MT-000001 … MT-000004 (dates of 2022–2024, the party, the reading, ₹1,392.40 / ₹2,365.90 / ₹12,241.32 / ₹18.00 – the file\'s GST ₹); "Drum oil" kept as FOC; the ticked name: "Ganesh Motors"; the unticked one as in the file; "✓ 4 bill(s) imported"',
+      JSON.stringify(rows) === JSON.stringify(['MT-000001|2022-12-02|Store||1392.4', 'MT-000002|2023-01-05|Store|500|2365.9', 'MT-000003|2024-01-29|Ganesh Motors|1745|12241.32', 'MT-000004|2023-12-30|Ganesh Motors||18']) &&
+      l3.map(l => l.work + ':' + l.type + ':' + (l.gstAmt || 0)).join(', ') === 'DRUM OIL:FOC:0, HYDROLIC OIL L&T:Paid:1867.32' && l3.every(l => !('gst' in l)) && l2[1].work === 'FUEL WATER SEPRETOR' && /✓ 4 bill\(s\) imported \(MT-000001 – MT-000004\)/.test(st2), [rows, l3, l2, st2]);
     // ---- 2. the same file again: nothing twice ----
     await F.evaluate(() => { $('mti_file').value = ''; }); await inp.uploadFile(file); await wait(1500);      // (as "Choose the file" does)
     for (let i = 0; i < 40 && !(await namesDone()); i++) await wait(400);
@@ -136,7 +136,7 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     await F.evaluate(() => { const okb = document.getElementById('cf_ok'); if (okb) okb.click(); }); await wait(2500);
     ok('2. the same file again (its names unticked now): "✓ 0 new bill(s) … 4 bill(s) already there – left out" – each listed: its rows, date, ₹ and the bill it is (GANESH MOTERS = the saved Ganesh Motors bill); still 4 bills – nothing twice',
       /✓ 0 new bill\(s\)/.test(again.st) && /4 bill\(s\) already there – left out/.test(again.st) && sql('rcl', 'select count(*) from maintenance') === '4' &&
-      JSON.stringify(again.list) === JSON.stringify(['Line 5 · 02-12-2022 · ₹1,392.40 – already saved as MT-000001', 'Line 6–8 · 05-01-2023 · ₹2,365.90 – already saved as MT-000002', 'Line 9–10 · 29-01-2024 · ₹12,241.32 – already saved as MT-000003', 'Line 11 · 30-12-2023 · ₹17.70 – already saved as MT-000004']), again);
+      JSON.stringify(again.list) === JSON.stringify(['Line 5 · 02-12-2022 · ₹1,392.40 – already saved as MT-000001', 'Line 6–8 · 05-01-2023 · ₹2,365.90 – already saved as MT-000002', 'Line 9–10 · 29-01-2024 · ₹12,241.32 – already saved as MT-000003', 'Line 11 · 30-12-2023 · ₹18.00 – already saved as MT-000004']), again);
     // ---- 3. a PDF of the old log book, read by the AI (the stand-in answers as Claude) – (update-176) a real PDF of 3 pages: each page
     //      taken out on the page and sent ALONE; page 1; page 2 cut off – asked again of the quicker model (Haiku); page 3 ----
     await aiSay('/__clear');
@@ -152,11 +152,11 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     const pr = await F.evaluate(() => ({ name: $('mti_name').textContent, sheets: S.mli.sheets.map(x => [x.sheet, x.label, x.no, x.rows, x.bills.map(b => b.rows + ':' + b.date + ':' + b.garage + ':' + b.km + ':' + b.lines.map(l => l.work).join('+')).join(' | ')]),
       names: (document.querySelector('#mti_out .mli-names p') || {}).textContent }));
     const lg3 = (await aiSay('/__log')).filter(x => x.kind === 'document');
-    ok('3. (update-176) a PDF of 3 pages: read by the AI a page a call, each page taken out of the file and sent ALONE (one page, not kept) – page 1, page 2 cut off and asked again of the quicker model (Haiku), page 3; 2 machinery: ROLLER NO-03 (a page going on without its name joined to it) put to ' + R + ', MH12XW0169 not on this site – not imported; the names: none to change',
+    ok('3. (update-176) a PDF of 3 pages: read by the AI a page a call, each page taken out of the file and sent ALONE – (update-183) in parts of at most 25 rows (the page kept for its parts) – page 1, page 2 cut off and asked again of the quicker model (Haiku) in fewer rows, page 3; 2 machinery: ROLLER NO-03 (a page going on without its name joined to it) put to ' + R + ', MH12XW0169 not on this site – not imported; the names: none to change',
       /Old log book\.pdf – 2 sheet\(s\)/.test(pr.name) && JSON.stringify(pr.sheets) === JSON.stringify([['ROLLER NO-03', 'ROLLER NO-03', R, 3, 'Line 1:2022-12-02:Store::AD BLUE | Line 2–3:2025-02-10:Store:620:GREASE+BULB'], ['MH12XW0169', 'MH12XW0169', '', 1, 'Line 1:2026-02-10:Navnit Motors:13153:Wiper blade']]) &&
-      lg3.length === 4 && lg3.every(x => !x.kept && x.image === 'application/pdf' && x.jsonAsked && x.read === 'this page (one page of the log book)') &&
+      lg3.length === 4 && lg3.every(x => x.kept === 'ephemeral' && x.image === 'application/pdf' && x.jsonAsked && x.read === 'this page (one page of the log book)') && JSON.stringify(lg3.map(x => x.part)) === JSON.stringify([25, 25, 13, 25]) &&
       JSON.stringify(lg3.map(x => x.model)) === JSON.stringify(['claude-sonnet-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-sonnet-5-5']) &&
-      pr.names === '✓ The AI found no name written in more than one way.', [pr, lg3.map(x => [x.read, x.kept, x.model, x.maxTokens])]);
+      pr.names === '✓ The AI found no name written in more than one way.', [pr, lg3.map(x => [x.read, x.kept, x.model, x.maxTokens, x.part])]);
     await F.evaluate(() => $('mti_check').click());
     for (let i = 0; i < 40 && !(await F.evaluate(() => S.mli.sheets[0].res)); i++) await wait(400);
     await wait(300);
@@ -181,7 +181,7 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     ok('5. the import: a user (not Admin) with Maintenance Edit sees it; with View only not; the Admin sees it', JSON.stringify(vis) === JSON.stringify([true, false, true]), vis);
     // the log book of the roller shows them (history)
     const lg = await J('maintLog', { no: R, from: '2022-12-01', to: '2025-11-30' });      // (a log book of at most 1,100 days)
-    ok('   the roller\'s log book: the 5 old bills, ₹16,489.32', lg && lg.total && lg.total.maint.bills === 5 && lg.total.maint.amount === 16489.32, lg && (lg.total || lg));
+    ok('   the roller\'s log book: the 5 old bills, ₹16,489.62 (each line its GST ₹ as in the file)', lg && lg.total && lg.total.maint.bills === 5 && lg.total.maint.amount === 16489.62, lg && (lg.total || lg));
     // ---- 6. (update-175) the log book: Start to end; Change / Delete; Fetch outward; the bills: Start to end ----
     await F.evaluate(r => { $('ml_no').value = r; $('ml_all').checked = true; $('ml_all').dispatchEvent(new Event('change')); $('ml_go').click(); }, R);
     for (let i = 0; i < 30 && !(await F.evaluate(() => !$('rpmlog_out').hidden && S.rp && S.rp.mlog && S.rp.mlog.d.all)); i++) await wait(400);

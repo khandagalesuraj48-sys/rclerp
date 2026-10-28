@@ -239,6 +239,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .mlb-head #ml_imp { display: inline-flex; align-items: center; gap: 6px; } .mlb-head #ml_imp .mt-i { width: 16px; height: 16px; } .mlb-head #ml_imp[hidden] { display: none; }
   .mti-box { border: 1px solid var(--line); border-radius: 10px; background: #F8FAFC; padding: 10px 12px; margin: 0 0 12px; }
   .mti-row { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; font-size: 13.5px; } .mti-row .muted { flex: 1 1 300px; } .mti-row #mti_x { font-size: 15px; text-decoration: none; }
+  .ml-stf { font-size: 12.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; } .ml-stf select { padding: 3px 6px; min-height: 0; }      /* (update-183) the log book status */
+  table.ml-st td, table.ml-st th { padding: 6px 8px; font-size: 13px; } table.ml-st .ml-none { color: var(--bad); font-weight: 600; } table.ml-st .ml-ok { color: #15803D; }
   .mti-how { margin-top: 4px; font-size: 12.5px; color: var(--muted); } .mti-how summary { cursor: pointer; } .mti-how p { margin: 4px 0 0; }
   #mti_out details.mli-more { margin-top: 4px; } #mti_out details.mli-more summary { cursor: pointer; font-size: 12.5px; color: var(--muted); } #mti_out details.mli-more ul { color: var(--ink, #1f2937); max-height: 260px; overflow: auto; }
   #mti_out .mli-names { margin-top: 12px; } #mti_out .mli-names h3 { font-size: 15px; margin: 0 0 4px; } #mti_out .mli-names input[data-mlt] { width: 100%; min-width: 140px; } #mti_out .mli-names td { vertical-align: middle; }
@@ -4736,13 +4738,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <!-- (update-182, "Maintenance bills ha section remove kr … Import the old log book he etk moth nko he pn perfect thikani gheun ja") the
            bills are seen here, machinery by machinery; the old log book's import a small button of this card, its box opened under it -->
       <div class="mlb-head"><div><h2>Maintenance Log Book</h2><p class="empty-note">Every maintenance bill of a machinery, line by line, by date. Each entry: Edit · Delete at its end.</p></div>
-        <button class="btn ghost small" id="ml_imp" type="button" hidden><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span>Import old log book (Excel / PDF)</span></button></div>
+        <button class="btn ghost small" id="ml_imp" type="button" hidden><svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span>Import old log book (Excel / PDF)</span></button>
+        <button class="btn ghost small" id="ml_stbtn" type="button">Log book status</button></div>
+      <!-- (update-183, "mala samjay la haw konte vichle / asset ch maintanace log book add aahe kadhi prynt updeted aahe konte ch baki aahe") whose
+           log book is in, up to which date – and whose is not added yet -->
+      <div class="mti-box" id="ml_stbox" hidden>
+        <div class="mti-row"><b>Log book status</b><span class="muted" id="ml_stsum"></span>
+          <label class="ml-stf">Show <select id="ml_stf"><option value="all">All</option><option value="none">Not added yet</option><option value="added">Added</option></select></label>
+          <button class="link" id="ml_stx" type="button" aria-label="Hide the log book status">✕</button></div>
+        <div class="table-wrap" style="margin-top:8px"><table class="ml-st"><thead><tr><th>Sr</th><th>Machinery</th><th>Name / type</th><th class="n">Bills</th><th>From</th><th>Up to</th><th class="n">We paid (₹)</th><th>Status</th><th></th></tr></thead><tbody id="ml_strows"></tbody></table></div>
+      </div>
       <!-- (update-173, "jewde active aahet own rachana vehicle te mala import karaych aahe as it is jas asel tr") the old log book – (update-174) everyone with Maintenance Edit -->
       <div class="mti-box" id="mti_panel" hidden>
         <div class="mti-row"><b>Import the old log book</b><span class="muted">Excel (a sheet a machinery) or its PDF / a photo – read row by row; Check, then Import (a bill already there is left out).</span>
           <button class="link" id="mti_x" type="button" aria-label="Close the import">✕</button></div>
         <details class="mti-how"><summary>How the file is read</summary><p>The old Maintenance Log Book – the Excel (a sheet a machinery: Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total), or its PDF / a photo of a page, read row by row by the AI. Each sheet is put to its machinery (Own – on the site now or not) – check it; a bill = the rows of one date and party; every line as it is. The AI lists the names written in more than one way – tick what is to be changed. Check, then Import – a bill already there is left out (and shown), never twice.</p></details>
-        <div class="actions" style="margin-top:6px"><button class="btn primary small" id="mti_pick" type="button">Choose the file (Excel / PDF / photo)</button><button class="btn ghost small" id="mti_fmt" type="button">Download the format (Excel)</button><input type="file" id="mti_file" accept=".xlsx,.xls,.pdf,.jpg,.jpeg,.png" hidden><span class="muted" id="mti_name"></span></div>
+        <div class="actions" style="margin-top:6px"><button class="btn primary small" id="mti_pick" type="button">Choose the file (Excel / PDF / photo)</button><button class="btn ghost small" id="mti_fmt" type="button">Download the format (Excel)</button><button class="btn ghost small" id="mti_more" type="button" hidden>Continue reading</button><input type="file" id="mti_file" accept=".xlsx,.xls,.pdf,.jpg,.jpeg,.png" hidden><span class="muted" id="mti_name"></span></div>
         <div id="mti_out"></div>
       </div>
       <div class="filters">
@@ -4751,7 +4762,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="ml_to">To</label><input id="ml_to" type="date"></div>
         <div class="field"><label><input type="checkbox" id="ml_all"> Start to end</label></div>
       </div>
-      <div class="actions"><button class="btn primary" id="ml_go" type="button">Show log book</button><button class="btn ghost" id="ml_out" type="button">Fetch outward (Store)</button><button class="btn ghost" id="ml_print" type="button" disabled>Print (A4 landscape)</button><button class="btn ghost" id="ml_xlsx" type="button" disabled>Export to Excel</button><button class="btn danger ml-delall" id="ml_delall" type="button" hidden>Delete this log book</button></div>
+      <div class="actions"><button class="btn primary" id="ml_go" type="button">Show log book</button><button class="btn ghost" id="ml_out" type="button">Fetch outward (Store)</button><button class="btn ghost" id="ml_print" type="button" disabled>Print (A4 landscape)</button><button class="btn ghost" id="ml_xlsx" type="button" disabled>Export to Excel</button><button class="btn danger ml-delall" id="ml_delall" type="button" hidden>Delete this log book</button><button class="btn ghost" id="ml_hide" type="button" hidden>Hide log book</button></div>
       <div id="rpmlog_out" hidden><div class="rhead"><div><h2 id="rpmlog_title"></h2><p class="chart-note" id="rpmlog_meta"></p></div><div class="rkpis" id="rpmlog_kpis"></div></div>
         <div class="table-wrap rtable-wrap rp-body" id="rpmlog_body"></div></div>
     </div>
@@ -6790,6 +6801,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The log book was not deleted: no machinery or no dates were given, it has no maintenance bill in these dates, a bill was added or deleted after it was shown, or the number typed to confirm was not the machinery\'s number. Nothing was deleted.', 'Pick the machinery and its dates (or tick Start to end), press Show log book, check the bills shown, then press "Delete this log book" again and type the machinery number.'],
       mr: ['Log book delete झाली नाही: मशिनरी किंवा तारखा दिल्या नाहीत, त्या तारखांत तिचे maintenance bill नाही, log book दाखवल्यानंतर एखादे bill जोडले / delete झाले, किंवा खात्रीसाठी टाइप केलेला नंबर त्या मशिनरीचा नाही. काहीही delete झाले नाही.', 'मशिनरी आणि तारखा निवडा (किंवा Start to end ✓ करा), Show log book दाबा, दिसणारी bills तपासा, मग पुन्हा "Delete this log book" दाबा आणि मशिनरीचा नंबर टाइप करा.'],
       hi: ['Log book delete नहीं हुई: मशीनरी या तारीखें नहीं दीं, उन तारीखों में उसका कोई maintenance bill नहीं, log book दिखाने के बाद कोई bill जुड़ा / delete हुआ, या पुष्टि के लिए टाइप किया नंबर उस मशीनरी का नहीं. कुछ भी delete नहीं हुआ.', 'मशीनरी और तारीखें चुनें (या Start to end ✓ करें), Show log book दबाएँ, दिखे bills जाँचें, फिर से "Delete this log book" दबाएँ और मशीनरी का नंबर टाइप करें.'] },
+    // (update-183) the GST ₹ of the old log book kept as it is; a page of the log book the AI could not finish now
+    { re: /GST amounts? (of|as in) the old log book|the GST amount \(₹\) is not right|press "Continue reading"/i,
+      en: ['A line of the old log book keeps its GST amount (₹) as it was in the file – an older page or app cannot change it without losing that GST; or the GST amount typed is not a number; or the AI could not finish a page of the old log book now (it was too slow or busy, even when asked again). Nothing was saved.', 'Update the app (or reload the page) and change the line again; type the GST amount in ₹. For the old log book: press "Continue reading" – the pages already read are kept and it goes on from the page it stopped at.'],
+      mr: ['जुन्या log book ची ओळ तिचा GST (₹) फाइलमध्ये होता तसाच ठेवते – जुने page किंवा app तो GST न गमावता ती बदलू शकत नाही; किंवा टाइप केलेला GST (₹) नंबर नाही; किंवा AI ला जुन्या log book चे एक page आत्ता पूर्ण वाचता आले नाही (पुन्हा विचारूनही ते slow / busy होते). काहीही save झाले नाही.', 'App update करा (किंवा page reload करा) आणि ओळ पुन्हा बदला; GST ₹ मध्ये टाइप करा. जुन्या log book साठी: "Continue reading" दाबा – वाचलेली pages राहतात आणि जिथे थांबले तिथून पुढे वाचते.'],
+      hi: ['पुरानी log book की पंक्ति अपना GST (₹) फ़ाइल में जैसा था वैसा ही रखती है – पुराना page या app उस GST को खोए बिना उसे नहीं बदल सकता; या टाइप किया GST (₹) नंबर नहीं है; या AI पुरानी log book का एक page अभी पूरा नहीं पढ़ सका (फिर से पूछने पर भी वह slow / busy था). कुछ भी save नहीं हुआ.', 'App update करें (या page reload करें) और पंक्ति फिर से बदलें; GST ₹ में टाइप करें. पुरानी log book के लिए: "Continue reading" दबाएँ – पढ़े हुए pages रहते हैं और जहाँ रुका वहीं से आगे पढ़ता है.'] },
   ];
   const FIX_ANY = { en: ['The app could not accept this. The line above says which field or value is the problem.', 'Correct that field and try again. If it is not clear, take a photo of this box and send it to the Admin.'],
     mr: ['App ला हे स्वीकारता आले नाही. वरच्या ओळीत कोणता field किंवा किंमत अडचणीची आहे ते दिले आहे.', 'तो field दुरुस्त करून पुन्हा प्रयत्न करा. समजले नाही तर या चौकटीचा फोटो काढून Admin ला पाठवा.'],
@@ -17334,12 +17350,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const MT_PAIDBY = { 'Paid': 'RCL', 'By Insurance': 'Insurance' }, mtPaidBy = t => MT_PAIDBY[t || 'Paid'] || t;
   const mtCharged = t => !t || t === 'Paid' || t === 'By Insurance';
   const mtGst = (a, g) => 2 * r2((Number(a) || 0) * (Number(g) || 0) / 200);
+  // (update-183, "auto gst ka add krt aahet kuthe 6 kuth 2.5 tr kuthe 14 as nko … old import tyat tr ajibat karu nko as it is rahude") a line of
+  // the old log book keeps its GST in ₹ as in the file (gstAmt) – no % is made from it; a line with its GST % typed: as before
+  const mtHasGa = l => !!l && l.gstAmt !== undefined && l.gstAmt !== null && l.gstAmt !== '' && !(Number(l.gst) > 0);
+  const mtLineGst = l => mtHasGa(l) ? r2(Number(l.gstAmt) || 0) : mtGst(l.amount, l.gst);
   const mtNum = v => v === undefined || v === null || v === '' ? '' : v;
   const mtWorth = l => !mtCharged(l.type) ? r2((l.qty === '' || l.qty === undefined || l.qty === null ? 1 : Number(l.qty)) * (Number(l.rate) || 0)) : 0;
   const MT_TRASH = '<svg class="mt-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>';
   function mtLineRow(l, i) {
-    const k = MT_KINDS.indexOf(l.type) > -1 ? l.type : 'Paid', free = !mtCharged(k), w = mtWorth(Object.assign({}, l, { type: k })), gv = free ? 0 : mtGst(l.amount, l.gst);
-    return '<tr data-i="' + i + '"' + (free ? ' class="mt-free"' : k === 'By Insurance' ? ' class="mt-insl"' : '') + '><td class="muted">' + (i + 1) + '</td><td><input class="mt-w" list="dl_mwork" maxlength="120" autocomplete="off" placeholder="e.g. Engine oil, Air filter, Labour" value="' + esc(l.work || '') + '"></td>' +
+    const k = MT_KINDS.indexOf(l.type) > -1 ? l.type : 'Paid', free = !mtCharged(k), w = mtWorth(Object.assign({}, l, { type: k })), gv = free ? 0 : mtLineGst(l);
+    return '<tr data-i="' + i + '"' + (mtHasGa(l) ? ' data-ga="' + esc(l.gstAmt) + '" title="GST ₹ as in the old log book – a GST % typed takes its place"' : '') + (free ? ' class="mt-free"' : k === 'By Insurance' ? ' class="mt-insl"' : '') + '><td class="muted">' + (i + 1) + '</td><td><input class="mt-w" list="dl_mwork" maxlength="120" autocomplete="off" placeholder="e.g. Engine oil, Air filter, Labour" value="' + esc(l.work || '') + '"></td>' +
       '<td><select class="mt-t" aria-label="Paid by">' + MT_KINDS.map(x => '<option value="' + esc(x) + '"' + (x === k ? ' selected' : '') + '>' + esc(mtPaidBy(x)) + '</option>').join('') + '</select></td>' +
       '<td class="n"><input class="mt-q" type="number" step="any" min="0" value="' + esc(mtNum(l.qty)) + '" style="text-align:right"></td>' +
       '<td><input class="mt-u" list="dl_muom" maxlength="12" autocomplete="off" aria-label="Uom" value="' + esc(l.uom || '') + '"></td>' +      // (update-170) its unit
@@ -17351,14 +17371,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<td><button type="button" class="link del mt-del" data-mtx="' + i + '" title="Take this line out" aria-label="Remove">' + MT_TRASH + '</button></td></tr>';      // (update-172: a bin)
   }
   function mtLinesNow() { const n = (tr, c) => { const v = tr.querySelector(c).value; return v === '' ? '' : Number(v); };
-    return [...document.querySelectorAll('#mt_lines tr')].map(tr => ({ work: tr.querySelector('.mt-w').value.trim(), type: tr.querySelector('.mt-t').value, qty: n(tr, '.mt-q'), uom: tr.querySelector('.mt-u').value.trim(), rate: n(tr, '.mt-r'), disc: n(tr, '.mt-d'), amount: n(tr, '.mt-a'), gst: n(tr, '.mt-g') })); }
+    return [...document.querySelectorAll('#mt_lines tr')].map(tr => ({ work: tr.querySelector('.mt-w').value.trim(), type: tr.querySelector('.mt-t').value, qty: n(tr, '.mt-q'), uom: tr.querySelector('.mt-u').value.trim(), rate: n(tr, '.mt-r'), disc: n(tr, '.mt-d'), amount: n(tr, '.mt-a'), gst: n(tr, '.mt-g'),
+      gstAmt: tr.dataset.ga !== undefined && tr.querySelector('.mt-g').value === '' ? Number(tr.dataset.ga) : '' })); }      // (update-183) its GST ₹ as in the old log book
   const mtEmpty = l => !l.work && l.amount === '' && l.qty === '' && l.rate === '' && !l.uom;
   function mtLines(list) {
     const l = (list || []).map(x => Object.assign({ type: 'Paid', qty: '', uom: '', rate: '', disc: '', gst: '' }, x)); if (!l.length || !mtEmpty(Object.assign({ amount: '' }, l[l.length - 1]))) l.push({ work: '', type: 'Paid', qty: '', uom: '', rate: '', disc: '', amount: '', gst: '' });
     $('mt_lines').innerHTML = l.map(mtLineRow).join(''); mtTotal();
   }
   function mtTotal() {
-    const withGst = l => mtCharged(l.type) && typeof l.amount === 'number' && isFinite(l.amount) ? l.amount + mtGst(l.amount, l.gst) : 0;      // (update-171) with its GST
+    const withGst = l => mtCharged(l.type) && typeof l.amount === 'number' && isFinite(l.amount) ? l.amount + mtLineGst(l) : 0;      // (update-171) with its GST (update-183: its ₹ as in the old log book)
     const ls = mtLinesNow(), t = r2(ls.reduce((s, l) => s + withGst(l), 0)), free = r2(ls.reduce((s, l) => s + (l.work ? mtWorth(l) : 0), 0));
     // (update-171) lines paid by the insurance: the insurance part of the bill is theirs (with their GST) – the claim ticked, its ₹ not typed
     const byIns = r2(ls.reduce((s, l) => s + (l.type === 'By Insurance' ? withGst(l) : 0), 0));
@@ -17367,7 +17388,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('mt_total').textContent = money(t); $('mt_free').textContent = money(free); $('mt_freerow').hidden = !(free > 0);
     // (update-172) the totals' box: Subtotal (the amounts before GST) · GST (its % when the lines have one) · Bill total
     const ch = ls.filter(l => mtCharged(l.type) && typeof l.amount === 'number' && isFinite(l.amount)), rs = [...new Set(ch.filter(l => Number(l.gst) > 0).map(l => Number(l.gst)))];
-    $('mt_sub').textContent = money(r2(ch.reduce((a, l) => a + l.amount, 0))); $('mt_gstt').textContent = money(r2(ch.reduce((a, l) => a + mtGst(l.amount, l.gst), 0)));
+    $('mt_sub').textContent = money(r2(ch.reduce((a, l) => a + l.amount, 0))); $('mt_gstt').textContent = money(r2(ch.reduce((a, l) => a + mtLineGst(l), 0)));
     $('mt_gstl').textContent = rs.length === 1 ? 'GST (' + fmt(rs[0]) + '%)' : 'GST';
     const ins = $('mt_ins').checked ? (Number($('mt_inspaid').value) || 0) : 0; $('mt_wepaid').textContent = money(r2(t - ins));
   }
@@ -17384,7 +17405,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   // (update-171) a line's GST ₹ and its amount with GST, from its amount and its GST %
   function mtRowShow(tr) {
-    const k = tr.querySelector('.mt-t').value, a = tr.querySelector('.mt-a').value, g = tr.querySelector('.mt-g').value, free = !mtCharged(k), gv = free || a === '' ? 0 : mtGst(a, g);
+    const k = tr.querySelector('.mt-t').value, a = tr.querySelector('.mt-a').value, g = tr.querySelector('.mt-g').value, free = !mtCharged(k);
+    if (g !== '' && tr.dataset.ga !== undefined) { delete tr.dataset.ga; tr.removeAttribute('title'); }      // (update-183) a GST % typed takes the place of the GST ₹ of the old log book
+    const gv = free || a === '' ? 0 : tr.dataset.ga !== undefined ? r2(Number(tr.dataset.ga) || 0) : mtGst(a, g);
     tr.querySelector('.mt-gv').textContent = gv ? money(gv) : '';
     tr.querySelector('.mt-wv').textContent = free ? '0.00' : a === '' ? '' : money(r2(Number(a) + gv));
   }
@@ -17504,6 +17527,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('dl_mgarage').innerHTML = (d.garages || []).map(w => '<option value="' + esc(w) + '">').join('');
       $('mt_sum').hidden = !d.missing;
       $('mt_sum').innerHTML = d.missing ? '<span class="neg">' + esc('Maintenance bills cannot be kept yet. This needs one database step first: the Admin runs sql/supabase_step1zi_maintenance.sql once in Supabase → SQL Editor.') + '</span>' : '';
+      if (!$('ml_stbox').hidden) mlStatusShow().catch(() => {});      // (update-183) the log book status shown: read again after a change
     } catch (e) { toast(errMsg(e), true); }
   }
   $('ml_imp').addEventListener('click', () => { $('mti_panel').hidden = !$('mti_panel').hidden; if (!$('mti_panel').hidden) $('mti_panel').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
@@ -17581,7 +17605,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // machinery of the Asset Master (update-173: on the site today only)
   const mliOwn = () => (S.master || []).filter(m => m.ownership === 'Own');
   const mliNum = v => { if (v === '' || v === null || v === undefined) return ''; const n = Number(String(v).replace(/[,₹\s]/g, '')); return isFinite(n) ? n : ''; };
-  const mliGst = (a, g) => !(Number(a)) || !(Number(g)) ? '' : [5, 12, 18, 28].find(r => Math.abs(mtGst(a, r) - g) <= 1) || r2(g / a * 100);
   function mliMatch(label, sheet) {
     const own = mliOwn();
     for (const k of [label, sheet].map(mliKey).filter(Boolean)) { const m = own.find(x => mliKey(x.id) === k || (x.name && mliKey(x.name) === k)); if (m) return m.id; }
@@ -17602,25 +17625,26 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const amount = mliNum(g('amount')), gstAmt = mliNum(g('gstAmt')), wt0 = mliNum(g('withGst')), wt = wt0 !== '' ? wt0 : mliNum(g('total'));
       nrows++; ftotal += wt !== '' ? Number(wt) : (Number(amount) || 0) + (Number(gstAmt) || 0);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) bad.push('Line ' + line + ': the date "' + String(g('date')) + '"');
-      const l = { work: work.slice(0, 120), qty: mliNum(g('qty')), uom: String(g('uom')).trim().slice(0, 12), rate: mliNum(g('rate')), amount: amount === '' ? 0 : amount, gst: mliGst(amount, gstAmt) };
+      // (update-183, "old import tyat tr ajibat karu nko as it is rahude") its GST ₹ as in the file – no GST % made from it
+      const l = Object.assign({ work: work.slice(0, 120), qty: mliNum(g('qty')), uom: String(g('uom')).trim().slice(0, 12), rate: mliNum(g('rate')), amount: amount === '' ? 0 : amount }, gstAmt !== '' && gstAmt !== 0 ? { gstAmt: gstAmt } : {});
       // (update-173, "full scan … sagle kahi find krun") what does not add up – shown to look at; the line is imported as it is
       if (warn.length < 300) { const w = work.slice(0, 40);
         if (l.qty !== '' && l.rate !== '' && amount !== '' && l.qty > 0 && l.rate > 0 && Math.abs(r2(l.qty * l.rate) - amount) > 1) warn.push({ line: line, work: w, k: 'qr', a: r2(l.qty * l.rate), b: amount });
         if (amount !== '' && gstAmt !== '' && wt0 !== '' && Math.abs(r2(amount + gstAmt) - wt0) > 1) warn.push({ line: line, work: w, k: 'ag', a: r2(amount + gstAmt), b: wt0 });
-        if (l.gst !== '' && [5, 12, 18, 28].indexOf(l.gst) < 0) warn.push({ line: line, work: w, k: 'gp', a: l.gst, b: '' }); }
+      }
       if (!(cur && cur.date === date && cur.garage.toUpperCase() === party.toUpperCase() && (km === '' || cur.km === '' || cur.km === km))) { cur = { date: date, garage: party, km: km, from: line, to: line, lines: [] }; bills.push(cur); }
       if (cur.km === '' && km !== '') cur.km = km;
       cur.to = line; cur.lines.push(l); last = { date: date, party: party, km: km };
     });
     bills.forEach(b => { b.rows = 'Line ' + b.from + (b.to > b.from ? '–' + b.to : ''); delete b.from; delete b.to; });
-    const total = r2(bills.reduce((s, b) => s + b.lines.reduce((a, l) => a + (Number(l.amount) || 0) + mtGst(l.amount, l.gst), 0), 0));
+    const total = r2(bills.reduce((s, b) => s + b.lines.reduce((a, l) => a + (Number(l.amount) || 0) + mtLineGst(l), 0), 0));
     return { sheet: name, label: label, no: mliMatch(label, name), bills: bills, rows: nrows, fileTotal: r2(ftotal), total: total, bad: bad, warn: warn, res: null, done: null };
   }
   const MLI_HEAD = ['Sr No', 'Date', 'Party Name', 'Current Reading', 'Particulars', 'Qty', 'Uom', 'Basic Rate', 'Amount', 'GST Amount', 'Amount With GST', 'Total'];
   /* (update-173, "PDF import – Claude AI वाचेल") a PDF (or a photo of a page) of the old log book read by the AI, a page a call (update-176:
    * only that page sent): each machinery's table a sheet (a page without a name goes on with the one before),
    * its rows under the log book's heading – then read as a sheet of the Excel (mliSheet). Nothing is saved. */
-  async function mliReadAi(f, say) {
+  async function mliReadAi(f, say, resume) {
     /* (update-177, asked 28-10-2026: "pdf size cha issue yeu naye ani eka pdf madhe multiple pages pn ashu shaktat") NO LIMIT OF THE FILE'S
      * SIZE: a PDF of any size and any number of pages – it is taken apart here and only one page at a time is sent (a page alone up to
      * 3 MB); a photo bigger than that is made smaller here (its long side 2,600 px – the rows stay readable). Only a PDF that cannot be
@@ -17634,37 +17658,56 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
      * is taken out of the PDF here (pdf-lib, the app's own file) – before, the whole file went at every call and the AI worked through
      * all its pages. Too slow (or busy) once: the same page asked again of the quicker model. A PDF that cannot be taken apart here goes
      * whole, and the server takes the page out. */
+    /* (update-183, asked 28-10-2026: "kadhi kadhi ai service slow asa pn error ywto te pn fix krun de") A PAGE IN PARTS, ASKED AGAIN BY ITSELF:
+     * the AI writes out at most 25 rows an answer (then the rows after the last one it gave), so an answer never runs out of the server's
+     * time; too slow or busy: the same part asked again of the quicker model, then again after a short wait (8 s, then 20 s), and a part
+     * the AI could not finish is asked in fewer rows. If a page still cannot be read now, what was read is kept: "Continue reading" goes
+     * on from that page. */
+    const pause = ms => new Promise(res => setTimeout(res, ms));
     const ask = async (args, page) => {
-      let r = null, err = null;
-      for (const fast of [0, 1]) {
-        try { r = await call('readMaintLog', Object.assign({}, args, { n: 1, fast: fast })); err = null; if (!r.again && !r.off) break; } catch (er) { err = er; r = null; }
-        if (r && r.off) break;
+      let r = null, err = null, max = 25;
+      for (const [fast, wait] of [[0, 0], [1, 0], [1, 8000], [1, 20000]]) {
+        if (wait) { say('The AI service is slow – page ' + page + ' asked again in ' + Math.round(wait / 1000) + ' s…'); await pause(wait); }
+        try { r = await call('readMaintLog', Object.assign({}, args, { n: 1, fast: fast, max: max })); err = null; if (r.off || !r.again) break; max = Math.max(8, Math.round(max / 2)); } catch (er) { err = er; r = null; }
       }
       if (err) throw err;
       if (r.off) throw new Error('The AI is not set up – a PDF or a photo cannot be read now; import the Excel instead.');
       if (r.again) throw new Error('The AI could not read page ' + page + ' of the log book – try again, or give a PDF of fewer pages.');
       return r;
     };
-    let L = null, src = null, head = null;      // (update-180) the headings of the page before: a table going on without its own heading is read in those
+    // one page, part after part (each answer at most 25 rows; the next goes on after the last row given)
+    const readPage = async (args, page, pages) => {
+      const got = []; let after = null, r = null;
+      for (let part = 1; part <= 40; part++) {
+        say('Reading with the AI… page ' + page + (pages ? ' of ' + pages : '') + (part > 1 ? ' (part ' + part + ')' : ''));
+        r = await ask(Object.assign({}, args, after ? { after: after } : {}, head ? { head: head } : {}), page);
+        got.push(...(r.tables || [])); if (Array.isArray(r.head) && r.head.length) head = r.head;
+        if (!r.more || !Array.isArray(r.last) || !r.last.length || JSON.stringify(r.last) === JSON.stringify(after)) break;
+        after = r.last;
+      }
+      return { tables: got, r: r };
+    };
+    const stop = (er, page) => { const e = new Error(errMsg(er) + ' – the pages before page ' + page + ' are read and kept: press "Continue reading" to go on from page ' + page + '.'); e.mliResume = { page: page, tables: tables.slice(), head: head }; return e; };
+    let L = null, src = null, head = resume ? resume.head : null;      // (update-180) the headings of the page before: a table going on without its own heading is read in those
+    if (resume) tables.push(...resume.tables);
     if (pdf) { try { L = await mliPdfLib(); src = await L.PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true, updateMetadata: false }); } catch (e) { src = null; } }
     if (src) {
       const pages = src.getPageCount();
-      for (let p = 1; p <= Math.min(pages, 500); p++) {
+      for (let p = resume ? resume.page : 1; p <= Math.min(pages, 500); p++) {
         say('Reading with the AI… page ' + p + ' of ' + pages);
         const one = await L.PDFDocument.create(); (await one.copyPages(src, [p - 1])).forEach(x => one.addPage(x));
         const u8 = await one.save();
         if (u8.length > BIG) throw new Error('Page ' + p + ' of this PDF is too big alone (more than 3 MB – a scan of very high quality) – scan it again at a lower quality, or give that page as a photo.');
-        const r = await ask(Object.assign({ data: 'data:application/pdf;base64,' + await mliB64(u8), from: 1 }, head ? { head: head } : {}), p);
-        tables.push(...(r.tables || [])); if (Array.isArray(r.head) && r.head.length) head = r.head;
+        let x; try { x = await readPage({ data: 'data:application/pdf;base64,' + await mliB64(u8), from: 1 }, p, pages); } catch (er) { throw stop(er, p); }
+        tables.push(...x.tables);
       }
       return mliAiSheets(f.name, tables);
     }
     const data = !pdf && f.size > BIG ? await mliPhoto(f).catch(() => whole()) : await whole();
-    let from = 1, pages = 0;
+    let from = resume ? resume.page : 1, pages = 0;
     for (let guard = 0; guard < 500; guard++) {
-      say(pdf ? 'Reading with the AI… page ' + from + (pages ? ' of ' + pages : '') : 'Reading with the AI…');
-      const r = await ask(Object.assign({ data: data, from: from }, head ? { head: head } : {}), from);
-      tables.push(...(r.tables || [])); if (Array.isArray(r.head) && r.head.length) head = r.head;
+      let x; try { x = await readPage({ data: data, from: from }, from, pages); } catch (er) { throw stop(er, from); }
+      const r = x.r; tables.push(...x.tables);
       pages = r.pages || pages;
       if (!pdf || !(pages ? r.to < pages : (r.tables || []).length)) break;
       from = r.to + 1;
@@ -17736,7 +17779,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const d = S.mli; if (!d) return;
     const o = mliNamesOf(d.sheets), q = {}; Object.keys(o).forEach(f => { q[f] = Object.keys(o[f]).map(k => [k, o[f][k]]); });
     d.fix = { busy: true, list: [] }; mliPaint();
-    try { const r = await call('maintImportNames', q);
+    // (update-183) the AI too slow or busy for the names: asked again by itself once, after a short wait
+    const names = async () => { try { return await call('maintImportNames', q); } catch (er) { if (!/too slow|busy|try again/i.test(errMsg(er))) throw er; await new Promise(res => setTimeout(res, 6000)); return call('maintImportNames', Object.assign({}, q, { fast: true })); } };
+    try { const r = await names();
       d.fix = r.off ? { off: true, list: [] } : { list: (r.fixes || []).map(z => ({ f: z[0], from: z[1], to: z[2], n: (o[z[0]] || {})[z[1]] || 0, on: false })) };
     } catch (er) { d.fix = { err: errMsg(er), list: [] }; }
     d.sheets.forEach(x => { if (!x.done) x.res = null; });
@@ -17754,7 +17799,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const l = (r.sameList || []).map(z => z.rows + ' · ' + showDate(z.date) + ' · ₹' + money(z.total) + ' – ' + (/^\(/.test(String(z.id)) ? 'twice in the file ' + z.id : 'already saved as ' + z.id));
     return '<details class="mli-more"><summary>' + r.same + ' bill(s) already there – left out</summary>' + listHtml(l) + (r.same > l.length ? '<small class="muted">… and ' + (r.same - l.length) + ' more</small>' : '') + '</details>';
   }
-  const mliWarnText = w => 'Line ' + w.line + ' (' + w.work + '): ' + (w.k === 'qr' ? 'Qty × Rate = ₹' + money(w.a) + ', Amount ₹' + money(w.b) : w.k === 'ag' ? 'Amount + GST = ₹' + money(w.a) + ', Amount With GST ₹' + money(w.b) : 'GST ' + w.a + ' % – not a usual rate');
+  const mliWarnText = w => 'Line ' + w.line + ' (' + w.work + '): ' + (w.k === 'qr' ? 'Qty × Rate = ₹' + money(w.a) + ', Amount ₹' + money(w.b) : 'Amount + GST = ₹' + money(w.a) + ', Amount With GST ₹' + money(w.b));
   const mliWarnHtml = x => !x.warn || !x.warn.length ? '' : '<details class="mli-more"><summary>' + x.warn.length + ' line(s) to look at – imported as they are</summary>' + listHtml(x.warn.map(mliWarnText)) + '</details>';
   function mliRead(file) {
     return new Promise((resolve, reject) => {
@@ -17796,15 +17841,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   $('mti_pick').addEventListener('click', () => { $('mti_file').value = ''; $('mti_file').click(); });
   $('mti_fmt').addEventListener('click', () => { try { mliFormat(); } catch (er) { toast(errMsg(er), true); } });
-  $('mti_file').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return;
+  // (update-183) a file read; a PDF / photo the AI could not finish now: "Continue reading" goes on from the page it stopped at
+  async function mliOpen(f, resume) {
     const ai = /\.(pdf|jpe?g|png)$/i.test(f.name) || /^(application\/pdf|image\/(jpeg|png))$/.test(f.type);
-    busy($('mti_pick'), 'Reading…', async () => {
-      S.mli = null; mliPaint();
-      if (!ai) needXlsx();
-      const sheets = ai ? await mliReadAi(f, t => { $('mti_name').textContent = t; }) : await mliRead(f);
-      if (!sheets.length) throw new Error(ai ? 'The AI found no table of a log book in this file.' : 'No sheet of this file has the log book\'s heading (Date · Particulars · Qty · Amount …).');
-      S.mli = { name: f.name, sheets: sheets, fix: null }; $('mti_name').textContent = f.name + ' – ' + sheets.length + ' sheet(s)'; mliPaint();
-      await mliNames(); }); });
+    S.mli = null; S.mliResume = null; mliMoreBtn(); mliPaint();
+    if (!ai) needXlsx();
+    let sheets;
+    try { sheets = ai ? await mliReadAi(f, t => { $('mti_name').textContent = t; }, resume) : await mliRead(f); }
+    catch (er) { if (er && er.mliResume) { S.mliResume = Object.assign({ f: f }, er.mliResume); mliMoreBtn(); $('mti_name').textContent = f.name + ' – stopped at page ' + er.mliResume.page; } throw er; }
+    if (!sheets.length) throw new Error(ai ? 'The AI found no table of a log book in this file.' : 'No sheet of this file has the log book\'s heading (Date · Particulars · Qty · Amount …).');
+    S.mli = { name: f.name, sheets: sheets, fix: null }; $('mti_name').textContent = f.name + ' – ' + sheets.length + ' sheet(s)'; mliPaint();
+    await mliNames();
+  }
+  function mliMoreBtn() { const r = S.mliResume, b = $('mti_more'); b.hidden = !r; if (r) b.textContent = 'Continue reading (from page ' + r.page + ')'; }
+  $('mti_file').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; busy($('mti_pick'), 'Reading…', () => mliOpen(f)); });
+  $('mti_more').addEventListener('click', () => { const r = S.mliResume; if (!r) return; busy($('mti_more'), 'Reading…', () => mliOpen(r.f, r)); });
   $('mti_out').addEventListener('change', e => { if (!S.mli) return;
     const sel = e.target.closest('[data-mli]'); if (sel) { const x = S.mli.sheets[Number(sel.dataset.mli)]; x.no = sel.value; x.res = null; mliPaint(); return; }
     const fl = (S.mli.fix && S.mli.fix.list) || [], tk = e.target.closest('[data-mlf]'), ty = e.target.closest('[data-mlt]');
@@ -17827,7 +17878,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       toast(sent ? sent.done.sent : todo.filter(x => x.done).reduce((s, x) => s + x.done.added, 0) + ' bill(s) imported.'); mtLoad();
     });
   });
-  function mtLinesText(lines) { return lines.map(l => !mtCharged(l.type) ? l.work + ' (' + l.type + ')' : l.work + ' ₹' + money(r2(Number(l.amount) + mtGst(l.amount, l.gst))) + (l.type === 'By Insurance' ? ' (Insurance)' : '')).join('; '); }
+  function mtLinesText(lines) { return lines.map(l => !mtCharged(l.type) ? l.work + ' (' + l.type + ')' : l.work + ' ₹' + money(r2(Number(l.amount) + mtLineGst(l))) + (l.type === 'By Insurance' ? ' (Insurance)' : '')).join('; '); }
   function mtBillNote(r) {
     const p = [];
     if (r.insurance) p.push('bill ₹' + money(r.billTotal), 'insurance ₹' + money(r.insurance.paid) + (r.insurance.company ? ' (' + r.insurance.company + ')' : ''));
@@ -17873,11 +17924,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // on the biggest item – the bill's GST and its total stay what was saved. Another tax (cess, VAT …) or two rates: as it was saved.
   const mtTaxPct = w => { const m = /(\d+(?:\.\d+)?)\s*%/.exec(w || ''); return m ? Number(m[1]) : 0; };
   function mlogSpread(lines) {
-    const ls = (lines || []).map(l => Object.assign({}, l)), isTax = l => mtCharged(l.type) && !(Number(l.gst) > 0) && MT_TAX.test(l.work || '');
+    const ls = (lines || []).map(l => Object.assign({}, l)), isTax = l => mtCharged(l.type) && !(Number(l.gst) > 0) && !mtHasGa(l) && MT_TAX.test(l.work || '');
     const kind = w => /^\s*(?:maharashtra\s+)?cgst\b/i.test(w) ? 'c' : /^\s*(?:maharashtra\s+)?sgst\b/i.test(w) ? 's' : /^\s*(?:maharashtra\s+)?igst\b/i.test(w) ? 'i' : /^\s*(?:maharashtra\s+)?gst\b/i.test(w) ? 'g' : '';
     const tx = ls.filter(isTax), full = t => (/[ig]/.test(kind(t.work)) ? 1 : 2) * mtTaxPct(t.work);
     if (!tx.length || tx.some(t => !kind(t.work) || !(mtTaxPct(t.work) > 0)) || new Set(tx.map(full)).size > 1) return ls;
-    const items = ls.filter(l => !isTax(l) && mtCharged(l.type) && !(Number(l.gst) > 0) && Number(l.amount) > 0 && !/round|adjust/i.test(l.work || ''));
+    const items = ls.filter(l => !isTax(l) && mtCharged(l.type) && !(Number(l.gst) > 0) && !mtHasGa(l) && Number(l.amount) > 0 && !/round|adjust/i.test(l.work || ''));
     if (!items.length) return ls;
     const A = items.reduce((t, l) => t + Number(l.amount), 0), big = items.reduce((b, l) => Number(l.amount) > Number(b.amount) ? l : b, items[0]);
     items.forEach(l => { l.tax = { c: 0, s: 0, i: 0 }; l.taxRate = full(tx[0]); });
@@ -17899,15 +17950,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // bill's Insurance claim and Service on each of its lines
     // (update-180) each line of a bill with its place among the bill's saved lines (_i) – its own Edit / Delete on the screen
     const taxPct = mtTaxPct, rset = new Set(), spread = bills.map(x => mlogSpread(x.kind === 'Maintenance' && x.id ? (x.lines || []).map((l, i) => Object.assign({}, l, { _i: i })) : x.lines));      // (update-172: the taxes of a bill of before on its items)
-    spread.forEach(ls => ls.forEach(l => { if (mtCharged(l.type) && Number(l.gst) > 0) rset.add(Number(l.gst)); else if (l.tax && (l.tax.c || l.tax.s)) rset.add(l.taxRate); else if (mtCharged(l.type) && /^\s*(?:maharashtra\s+)?[cs]gst\b/i.test(l.work || '') && taxPct(l.work)) rset.add(2 * taxPct(l.work)); }));
+    // (update-183) a line of the old log book (its GST ₹ as in the file): no rate column – its ₹ in "GST Amount" only
+    let asIs = false;
+    spread.forEach(ls => ls.forEach(l => { if (mtCharged(l.type) && mtHasGa(l)) asIs = true; else if (mtCharged(l.type) && Number(l.gst) > 0) rset.add(Number(l.gst)); else if (l.tax && (l.tax.c || l.tax.s)) rset.add(l.taxRate); else if (mtCharged(l.type) && /^\s*(?:maharashtra\s+)?[cs]gst\b/i.test(l.work || '') && taxPct(l.work)) rset.add(2 * taxPct(l.work)); }));
     const rates = [...rset].sort((p, q) => p - q), nc = 15 + 2 * rates.length;
     let sr = 0, sa = 0, sg = 0, sw = 0, st = 0;
     const sc = rates.map(() => [0, 0]);
     const rows = bills.map((x, bi) => {
       const ls = spread[bi].map(l => {
-        const paid = mtCharged(l.type), tax = paid && !(Number(l.gst) > 0) && MT_TAX.test(l.work || ''), amt = paid ? Number(l.amount) || 0 : 0, cg = rates.map(() => ['', '']);
+        const paid = mtCharged(l.type), tax = paid && !(Number(l.gst) > 0) && !mtHasGa(l) && MT_TAX.test(l.work || ''), amt = paid ? Number(l.amount) || 0 : 0, cg = rates.map(() => ['', '']);
         let gst = '';
-        if (tax) { gst = amt; const p = taxPct(l.work), side = /^\s*(?:maharashtra\s+)?sgst\b/i.test(l.work) ? 1 : /^\s*(?:maharashtra\s+)?cgst\b/i.test(l.work) ? 0 : -1, ri = rates.indexOf(2 * p); if (side > -1 && ri > -1) cg[ri][side] = amt; }
+        if (paid && mtHasGa(l)) gst = r2(Number(l.gstAmt) || 0);      // (update-183) as in the old log book
+        else if (tax) { gst = amt; const p = taxPct(l.work), side = /^\s*(?:maharashtra\s+)?sgst\b/i.test(l.work) ? 1 : /^\s*(?:maharashtra\s+)?cgst\b/i.test(l.work) ? 0 : -1, ri = rates.indexOf(2 * p); if (side > -1 && ri > -1) cg[ri][side] = amt; }
         else if (paid && Number(l.gst) > 0) { const half = r2(amt * Number(l.gst) / 200), ri = rates.indexOf(Number(l.gst)); gst = 2 * half; if (ri > -1) cg[ri] = [half, half]; }
         else if (l.tax) { const ri = rates.indexOf(l.taxRate); gst = r2(l.tax.c + l.tax.s + l.tax.i); if (ri > -1) cg[ri] = [l.tax.c || '', l.tax.s || '']; }      // (update-172)
         return { part: l.work || '', qty: l.qty, uom: l.uom || '', rate: l.rate, amount: tax ? '' : amt, cg: cg, gst: gst, withGst: r2(amt + (tax ? 0 : Number(gst) || 0)), by: mtPaidBy(l.type), li: l._i };
@@ -17924,7 +17978,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           '<td class="n">' + (l.gst === '' ? '' : money(l.gst)) + '</td><td class="n">' + money(l.withGst) + '</td><td>' + esc(l.by) + '</td><td>' + claim + '</td><td>' + svc + '</td><td class="n">' + money(l.withGst) + '</td></tr>'; }).join('');
     }).join('');
     let html = '<table class="rtable gtable" data-sheet="Log Book"><thead><tr><th style="white-space:nowrap;min-width:46px">Sr No</th><th>Date</th><th>Party Name</th><th class="n">Current Reading</th><th>Particulars</th><th class="n">Qty</th><th>Uom</th><th class="n">Basic Rate</th><th class="n">Amount</th>' +
-      rates.map(r => '<th class="n">CGST ' + fmt(r / 2) + '%</th><th class="n">SGST ' + fmt(r / 2) + '%</th>').join('') + '<th class="n">' + (rates.length === 1 ? 'GST ' + fmt(rates[0]) + '%' : 'GST Amount') + '</th><th class="n">Amount With GST</th><th>Paid by</th><th>Insurance claim</th><th>Service</th><th class="n">Total</th></tr></thead><tbody>' +
+      rates.map(r => '<th class="n">CGST ' + fmt(r / 2) + '%</th><th class="n">SGST ' + fmt(r / 2) + '%</th>').join('') + '<th class="n">' + (rates.length === 1 && !asIs ? 'GST ' + fmt(rates[0]) + '%' : 'GST Amount') + '</th><th class="n">Amount With GST</th><th>Paid by</th><th>Insurance claim</th><th>Service</th><th class="n">Total</th></tr></thead><tbody>' +
       (rows || '<tr><td colspan="' + nc + '" class="none">No maintenance bill of this machinery in these dates.</td></tr>') + '</tbody><tfoot>' +
       '<tr class="grand"><td colspan="8">Total – ' + t.maint.bills + ' bill(s)</td><td class="n">' + money(r2(sa)) + '</td>' + sc.map(c => '<td class="n">' + money(r2(c[0])) + '</td><td class="n">' + money(r2(c[1])) + '</td>').join('') +
       '<td class="n">' + money(r2(sg)) + '</td><td class="n">' + money(r2(sw)) + '</td><td></td><td></td><td></td><td class="n">' + money(r2(st)) + '</td></tr>' +
@@ -17961,10 +18015,30 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           (Number(tr.dataset.mlf) > 0 ? ' <button type="button" class="link" data-mlfv="1" title="The bill\'s files">📎 ' + Number(tr.dataset.mlf) + '</button>' : '') + '</td>'));
       } }
     $('ml_delall').hidden = !(S.user && S.user.admin) || !(d.lines || []).some(x => x.kind === 'Maintenance' && x.id);      // (update-182) the Admin / Super Admin only
-    $('ml_print').disabled = false; $('ml_xlsx').disabled = false;
+    $('ml_print').disabled = false; $('ml_xlsx').disabled = false; $('ml_hide').hidden = false;
     return d;
   }
   $('ml_go').addEventListener('click', e => busy(e.target, 'Showing…', mlogShow));
+  // (update-183, "show dable ki distey but prt hide pn krta yaw") the log book shown can be hidden again
+  $('ml_hide').addEventListener('click', () => { $('rpmlog_out').hidden = true; $('ml_hide').hidden = true; $('ml_delall').hidden = true; });
+  // (update-183) the log book status: each Own machinery (and any other with a bill) – its bills, from, up to; not added yet first
+  async function mlStatusShow() {
+    S.mlst = await call('maintStatus'); $('ml_stbox').hidden = false; $('ml_stbtn').textContent = 'Hide log book status'; mlStatusPaint();
+  }
+  function mlStatusPaint() {
+    const d = S.mlst; if (!d) return;
+    const f = $('ml_stf').value, rows = (d.rows || []).filter(r => f === 'all' || (f === 'none' ? !r.bills : r.bills > 0));
+    $('ml_stsum').textContent = d.missing ? 'Maintenance bills cannot be kept yet at this site (its database step).' : (d.added || 0) + ' added · ' + (d.none || 0) + ' not added yet (Own machinery of the Asset Master)';
+    $('ml_strows').innerHTML = rows.length ? rows.map((r, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(r.no) + '</b></td><td>' + esc([r.name !== r.no ? r.name : '', r.type].filter(Boolean).join(' · ')) + (r.onSite ? '' : ' <small class="muted">(not on the site now)</small>') + '</td>' +
+      '<td class="n">' + (r.bills || '') + '</td><td>' + (r.from ? esc(showDate(r.from)) : '') + '</td><td>' + (r.upTo ? '<b>' + esc(showDate(r.upTo)) + '</b>' : '') + '</td><td class="n">' + (r.bills ? money(r.amount) : '') + '</td>' +
+      '<td>' + (r.bills ? '<span class="ml-ok">✓ Up to ' + esc(showDate(r.upTo)) + '</span>' : '<span class="ml-none">Not added yet</span>') + '</td>' +
+      '<td>' + (r.bills ? '<button type="button" class="link" data-mlsn="' + esc(r.no) + '">Show</button>' : '') + '</td></tr>').join('') : '<tr><td colspan="9" class="none">Nothing to show.</td></tr>';
+  }
+  $('ml_stbtn').addEventListener('click', e => { if (!$('ml_stbox').hidden) { $('ml_stbox').hidden = true; e.target.textContent = 'Log book status'; return; } busy(e.target, 'Showing…', mlStatusShow); });
+  $('ml_stx').addEventListener('click', () => { $('ml_stbox').hidden = true; $('ml_stbtn').textContent = 'Log book status'; });
+  $('ml_stf').addEventListener('change', mlStatusPaint);
+  $('ml_strows').addEventListener('click', e => { const b = e.target.closest('[data-mlsn]'); if (!b) return;
+    $('ml_no').value = b.dataset.mlsn; $('ml_all').checked = true; $('ml_all').dispatchEvent(new Event('change')); $('ml_go').click(); setTimeout(() => $('rpmlog_out').scrollIntoView({ block: 'start', behavior: 'smooth' }), 900); });
   $('ml_all').addEventListener('change', () => { ['ml_from', 'ml_to'].forEach(id => { $(id).disabled = $('ml_all').checked; }); });
   $('rpmlog_body').addEventListener('click', e => {
     const lb = e.target.closest('[data-mlle], [data-mlld]');
@@ -17995,11 +18069,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * deleteMaintLine (the only line of a bill: the whole bill is deleted, said first). The server checks the line is still the one shown. */
   const mlBill = id => { const b = S.rp && S.rp.mlog ? (S.rp.mlog.d.lines || []).find(x => x.kind === 'Maintenance' && x.id === id) : null; if (!b) throw new Error('Maintenance bill ' + id + ' was not found.'); return b; };
   const mlWas = (b, i) => { const l = (b.lines || [])[i]; if (!l) throw new Error('Bill ' + b.id + ' was changed meanwhile – show the log book again, then change its line.'); return l; };
-  const mlLineSay = (l) => l.work + ' – ' + (mtCharged(l.type) ? '₹' + money(r2((Number(l.amount) || 0) + mtGst(l.amount, l.gst))) : mtPaidBy(l.type));
+  const mlLineSay = (l) => l.work + ' – ' + (mtCharged(l.type) ? '₹' + money(r2((Number(l.amount) || 0) + mtLineGst(l))) : mtPaidBy(l.type));
   const mlBillSay = b => 'Bill ' + b.id + ' · ' + showDate(b.date) + (b.garage ? ' · ' + b.garage : '') + (b.billNo ? ' · bill no. ' + b.billNo : '');
   async function mlLineEdit(id, i) {
     const b = mlBill(id), l0 = mlWas(b, i), n = v => v === undefined || v === null ? '' : v;
-    let v = { work: l0.work, type: MT_KINDS.indexOf(l0.type) > -1 ? l0.type : 'Paid', qty: n(l0.qty), uom: l0.uom || '', rate: n(l0.rate), disc: n(l0.disc), amount: mtCharged(l0.type) ? l0.amount : 0, gst: n(l0.gst) }, err = '';
+    let v = { work: l0.work, type: MT_KINDS.indexOf(l0.type) > -1 ? l0.type : 'Paid', qty: n(l0.qty), uom: l0.uom || '', rate: n(l0.rate), disc: n(l0.disc), amount: mtCharged(l0.type) ? l0.amount : 0, gst: n(l0.gst), gstAmt: mtHasGa(l0) ? l0.gstAmt : '' }, err = '', ga = mtHasGa(l0);      // (update-183) ga: its GST ₹ as in the old log book
     for (;;) {
       const html = '<p class="muted" style="margin:0 0 8px">' + esc(mlBillSay(b)) + ' – line ' + (i + 1) + ' of ' + b.lines.length + '. The other lines of the bill stay as they are.</p>' +
         '<div class="cp-form"><label style="grid-column:1 / -1">Particulars<input id="mll_w" list="dl_mwork" maxlength="120" autocomplete="off" value="' + esc(v.work) + '"></label>' +
@@ -18010,11 +18084,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         '<label>Disc %<input id="mll_d" type="number" step="0.01" min="0" max="100" value="' + esc(v.disc) + '"></label>' +
         '<label>Amount (₹)<input id="mll_a" type="number" step="0.01" value="' + esc(v.amount) + '"></label>' +
         '<label>GST %<input id="mll_g" type="number" step="0.01" min="0" max="100" value="' + esc(v.gst) + '"></label>' +
+        (ga ? '<label>GST ₹ (as in the old log book)<input id="mll_ga" type="number" step="0.01" value="' + esc(v.gstAmt) + '"></label>' : '') +
         '<p id="mll_sum" class="muted" style="grid-column:1 / -1;margin:0"></p></div>' + (err ? '<p class="neg" style="margin:8px 0 0">' + esc(err) + '</p>' : '') +
         '<p style="margin:10px 0 0"><button type="button" class="btn ghost small" id="mll_bill">Change the whole bill (date, party, reading, files…)</button></p>';      // (update-182) the bill's own Change
       setTimeout(() => {
         const box = $('mll_w') && $('mll_w').closest('.cp-form'); if (!box) return;
-        const show = () => { const k = $('mll_t').value, free = !mtCharged(k), a = $('mll_a').value, gv = free || a === '' ? 0 : mtGst(a, $('mll_g').value);
+        const show = () => { const k = $('mll_t').value, free = !mtCharged(k), a = $('mll_a').value, gv = free || a === '' ? 0 : $('mll_ga') && $('mll_g').value === '' ? r2(Number($('mll_ga').value) || 0) : mtGst(a, $('mll_g').value);
+          if ($('mll_ga')) $('mll_ga').disabled = free || $('mll_g').value !== '';      // (update-183) a GST % typed takes its place
           $('mll_a').disabled = free; $('mll_sum').textContent = free ? 'Not paid – ₹ 0 in the bill.' : a === '' ? '' : 'GST ₹' + money(gv) + ' · Amount with GST ₹' + money(r2(Number(a) + gv)); };
         box.addEventListener('input', e => {
           if (e.target.matches('#mll_q, #mll_r, #mll_d, #mll_t')) { const k = $('mll_t').value, q = $('mll_q').value, rt = $('mll_r').value, d = $('mll_d').value;
@@ -18025,7 +18101,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }, 0);
       if (!(await askConfirm({ title: 'Change this line – ' + b.no, ok: 'Save', wide: true, html: html }))) return;
       const num = id2 => { const t = $(id2).value; return t === '' ? '' : Number(t); };
-      v = { work: $('mll_w').value.replace(/\s+/g, ' ').trim(), type: $('mll_t').value, qty: num('mll_q'), uom: $('mll_u').value.trim(), rate: num('mll_r'), disc: num('mll_d'), amount: mtCharged($('mll_t').value) ? num('mll_a') : 0, gst: num('mll_g') };
+      v = { work: $('mll_w').value.replace(/\s+/g, ' ').trim(), type: $('mll_t').value, qty: num('mll_q'), uom: $('mll_u').value.trim(), rate: num('mll_r'), disc: num('mll_d'), amount: mtCharged($('mll_t').value) ? num('mll_a') : 0, gst: num('mll_g'), gstAmt: $('mll_ga') && $('mll_g').value === '' ? num('mll_ga') : '' };
       try {
         const r = await call('updateMaintLine', id, { i: i, date: b.date, was: { work: l0.work, amount: l0.amount }, line: v });
         toast('Line saved – bill ' + id + ' is now ₹' + money(r.total) + '.'); break;

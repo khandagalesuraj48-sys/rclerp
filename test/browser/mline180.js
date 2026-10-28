@@ -61,11 +61,11 @@ const R = 'RL-180';
     const inp = await F.$('#mti_file'); await inp.uploadFile(file);
     for (let i = 0; i < 40 && !(await namesDone()); i++) await wait(400);
     const rd = await F.evaluate(() => ({ name: $('mti_name').textContent, sheets: S.mli.sheets.map(x => [x.sheet, x.label, x.no, x.rows, x.fileTotal, x.total]),
-      bills: S.mli.sheets[0] ? S.mli.sheets[0].bills.map(x => [x.rows, x.date, x.garage, x.km, x.lines.map(l => l.work + ':' + l.qty + ':' + l.uom + ':' + l.rate + ':' + l.amount + ':' + l.gst).join(', ')]) : [] }));
+      bills: S.mli.sheets[0] ? S.mli.sheets[0].bills.map(x => [x.rows, x.date, x.garage, x.km, x.lines.map(l => l.work + ':' + l.qty + ':' + l.uom + ':' + l.rate + ':' + l.amount + ':' + l.gstAmt).join(', ')]) : [] }));
     ok('1. an Excel with its headings in another order (Item Description, Bill Date, Supplier, KM, Unit, Rate, Taxable Value, CGST 9%, SGST 9%, Net Amount, Remarks): read – the sheet put to ' + R + ', 3 rows, ₹3,256.80 (the file ₹3,256.80)',
       /Roller 18 old log book\.xlsx – 1 sheet\(s\)/.test(rd.name) && JSON.stringify(rd.sheets) === JSON.stringify([['Roller 18', 'ROLLER NO-18', R, 3, 3256.8, 3256.8]]), rd);
-    ok('   each column by its heading: a bill = the rows of one date and party (the empty date = the row above), the reading, Qty, Unit, Rate, the Taxable Value as the amount, GST 18 % from CGST + SGST; the remark left out',
-      JSON.stringify(rd.bills) === JSON.stringify([['Line 4', '2022-12-02', 'Store', '', 'AD BLUE:20:Ltr:59:1180:18'], ['Line 5–6', '2023-01-05', 'Store', 500, 'FUEL FILTER:1:Nos:650:650:18, ENGINE OIL FILTER:1:Nos:930:930:18']]), rd.bills);
+    ok('   each column by its heading: a bill = the rows of one date and party (the empty date = the row above), the reading, Qty, Unit, Rate, the Taxable Value as the amount, (update-183) the GST ₹ as in the file (CGST + SGST), no GST % made; the remark left out',
+      JSON.stringify(rd.bills) === JSON.stringify([['Line 4', '2022-12-02', 'Store', '', 'AD BLUE:20:Ltr:59:1180:212.4'], ['Line 5–6', '2023-01-05', 'Store', 500, 'FUEL FILTER:1:Nos:650:650:117, ENGINE OIL FILTER:1:Nos:930:930:167.4']]), rd.bills);
     await F.evaluate(() => $('mti_check').click());
     for (let i = 0; i < 40 && !(await F.evaluate(() => S.mli.sheets[0].res)); i++) await wait(400);
     await wait(300);
@@ -87,10 +87,10 @@ const R = 'RL-180';
     const pdfFile = path.join(dir, 'Roller 18 log book.pdf'); fs.writeFileSync(pdfFile, Buffer.from(await pd.save()));
     await F.evaluate(() => { $('mti_file').value = ''; }); await inp.uploadFile(pdfFile);
     for (let i = 0; i < 60 && !(await F.evaluate(() => !!(S.mli && S.mli.name === 'Roller 18 log book.pdf' && S.mli.fix && !S.mli.fix.busy))); i++) await wait(400);
-    const pr = await F.evaluate(() => ({ name: $('mti_name').textContent, sheets: S.mli.sheets.map(x => [x.sheet, x.no, x.rows, x.bills.map(b => b.rows + ':' + b.date + ':' + b.garage + ':' + b.km + ':' + b.lines.map(l => l.work + ':' + l.amount + ':' + l.gst).join('+')).join(' | ')]) }));
+    const pr = await F.evaluate(() => ({ name: $('mti_name').textContent, sheets: S.mli.sheets.map(x => [x.sheet, x.no, x.rows, x.bills.map(b => b.rows + ':' + b.date + ':' + b.garage + ':' + b.km + ':' + b.lines.map(l => l.work + ':' + l.amount + ':' + l.gstAmt).join('+')).join(' | ')]) }));
     const lg2 = (await aiSay('/__log')).filter(x => x.kind === 'document');
     ok('2. a PDF of 2 pages read by the AI a page a call: page 1 its headings in another order – "Kilometre" by the AI\'s word (the reading); page 2 going on without its heading – read in page 1\'s headings (sent with it); one bill of 2 lines, put to ' + R,
-      /Roller 18 log book\.pdf – 1 sheet\(s\)/.test(pr.name) && JSON.stringify(pr.sheets) === JSON.stringify([['ROLLER NO-18', R, 2, 'Line 1–2:2024-01-29:Ganesh Motors:1745:HYDROLIC OIL:10374:18+GREASE:360:18']]) &&
+      /Roller 18 log book\.pdf – 1 sheet\(s\)/.test(pr.name) && JSON.stringify(pr.sheets) === JSON.stringify([['ROLLER NO-18', R, 2, 'Line 1–2:2024-01-29:Ganesh Motors:1745:HYDROLIC OIL:10374:1867.32+GREASE:360:64.8']]) &&
       lg2.length === 2 && lg2[0].carry === '' && lg2[1].carry === JSON.stringify(['Bill Date', 'Supplier', 'Current Reading', 'Item Description', 'Qty', 'Uom', 'Rate', 'Taxable', 'CGST 9%', 'SGST 9%', 'Net Amount']) && /Its columns can be in ANY ORDER/.test(lg2[0].ask), [pr, lg2.map(x => [x.read, x.carry])]);
     await F.evaluate(() => $('mti_check').click());
     for (let i = 0; i < 40 && !(await F.evaluate(() => S.mli.sheets[0].res)); i++) await wait(400);
@@ -117,25 +117,25 @@ const R = 'RL-180';
     const line = (id, i) => '#rpmlog_body [data-mlid="' + id + '"][data-mll="' + i + '"]';
     // a line changed in its box: Qty 1 → 2 – its ₹ from Qty × Rate
     await F.evaluate(s => document.querySelector(s + ' [data-mlle]').click(), line('MT-000002', 0)); await wait(900);
-    const bx = await F.evaluate(() => ({ title: $('cf_title').textContent, v: ['mll_w', 'mll_t', 'mll_q', 'mll_u', 'mll_r', 'mll_d', 'mll_a', 'mll_g'].map(id => $(id).value), sum: $('mll_sum').textContent, note: document.querySelector('#cf_msg p').textContent }));
-    ok('   Edit of FUEL FILTER: its box – Particulars, Paid by, Qty, Uom, Rate, Disc %, Amount, GST % as saved; "line 1 of 2. The other lines of the bill stay as they are."',
-      bx.title === 'Change this line – ' + R && JSON.stringify(bx.v) === JSON.stringify(['FUEL FILTER', 'Paid', '1', 'Nos', '650', '', '650', '18']) && bx.sum === 'GST ₹117.00 · Amount with GST ₹767.00' &&
+    const bx = await F.evaluate(() => ({ title: $('cf_title').textContent, v: ['mll_w', 'mll_t', 'mll_q', 'mll_u', 'mll_r', 'mll_d', 'mll_a', 'mll_g', 'mll_ga'].map(id => $(id) ? $(id).value : null), sum: $('mll_sum').textContent, note: document.querySelector('#cf_msg p').textContent }));
+    ok('   Edit of FUEL FILTER: its box – Particulars, Paid by, Qty, Uom, Rate, Disc %, Amount as saved, (update-183) no GST %, its GST ₹ as in the old log book (117); "line 1 of 2. The other lines of the bill stay as they are."',
+      bx.title === 'Change this line – ' + R && JSON.stringify(bx.v) === JSON.stringify(['FUEL FILTER', 'Paid', '1', 'Nos', '650', '', '650', '', '117']) && bx.sum === 'GST ₹117.00 · Amount with GST ₹767.00' &&
       bx.note === 'Bill MT-000002 · 05-01-2023 · Store – line 1 of 2. The other lines of the bill stay as they are.', bx);
     await F.evaluate(() => { const q = $('mll_q'); q.value = '2'; q.dispatchEvent(new Event('input', { bubbles: true })); }); await wait(300);
     const bx2 = await F.evaluate(() => ({ a: $('mll_a').value, sum: $('mll_sum').textContent }));
     await mp.screenshot({ path: path.join(SHOT, 'mline180_edit.png') });
     await F.evaluate(() => $('cf_ok').click());
-    for (let i = 0; i < 30 && (bill('MT-000002') || {}).amount !== 2631.4; i++) await wait(400);
+    for (let i = 0; i < 30 && (bill('MT-000002') || {}).amount !== 2514.4; i++) await wait(400);
     await wait(300);
     const t1 = await toastNow(); await wait(2200);
     const b2 = bill('MT-000002');
     const shown = await F.evaluate(() => { const x = S.rp.mlog.d.lines.find(y => y.id === 'MT-000002'); return x ? [x.amount, x.lines.map(l => l.work + ':' + l.qty + ':' + l.amount).join(', ')] : null; });
-    ok('   Qty 2: its ₹ 1,300 (Qty × Rate) – GST ₹234, with GST ₹1,534; Save: "Line saved – bill MT-000002 is now ₹2,631.40."; only that line changed (the engine oil filter as it was); the log book shown again',
-      bx2.a === '1300' && bx2.sum === 'GST ₹234.00 · Amount with GST ₹1,534.00' && /Line saved – bill MT-000002 is now ₹2,631\.40\./.test(t1) && b2 && b2.amount === 2631.4 &&
-      JSON.stringify(b2.lines) === JSON.stringify([{ work: 'FUEL FILTER', type: 'Paid', amount: 1300, qty: 2, uom: 'Nos', rate: 650, gst: 18 }, { work: 'ENGINE OIL FILTER', type: 'Paid', amount: 930, qty: 1, uom: 'Nos', rate: 930, gst: 18 }]) &&
-      JSON.stringify(shown) === JSON.stringify([2631.4, 'FUEL FILTER:2:1300, ENGINE OIL FILTER:1:930']), [bx2, t1, b2, shown]);
+    ok('   Qty 2: its ₹ 1,300 (Qty × Rate) – (update-183) its GST ₹117 as in the old log book stays, with GST ₹1,417; Save: "Line saved – bill MT-000002 is now ₹2,514.40."; only that line changed (the engine oil filter as it was); the log book shown again',
+      bx2.a === '1300' && bx2.sum === 'GST ₹117.00 · Amount with GST ₹1,417.00' && /Line saved – bill MT-000002 is now ₹2,514\.40\./.test(t1) && b2 && b2.amount === 2514.4 &&
+      JSON.stringify(b2.lines) === JSON.stringify([{ work: 'FUEL FILTER', type: 'Paid', amount: 1300, qty: 2, uom: 'Nos', rate: 650, gstAmt: 117 }, { work: 'ENGINE OIL FILTER', type: 'Paid', amount: 930, qty: 1, uom: 'Nos', rate: 930, gstAmt: 167.4 }]) &&
+      JSON.stringify(shown) === JSON.stringify([2514.4, 'FUEL FILTER:2:1300, ENGINE OIL FILTER:1:930']), [bx2, t1, b2, shown]);
     // a line changed by someone else meanwhile: refused in its box (nothing saved)
-    const other = await J('updateMaintLine', 'MT-000003', { i: 1, date: '2024-01-29', was: { work: 'GREASE', amount: 360 }, line: { work: 'GREASE MP3', type: 'Paid', qty: 2, uom: 'Kg', rate: 180, amount: 360, gst: 18 } });
+    const other = await J('updateMaintLine', 'MT-000003', { i: 1, date: '2024-01-29', was: { work: 'GREASE', amount: 360 }, line: { work: 'GREASE MP3', type: 'Paid', qty: 2, uom: 'Kg', rate: 180, amount: 360, gst: '', gstAmt: 64.8 } });      // (update-183: an app of now sends its GST ₹ as in the old log book)
     await wait(1500);
     const stillOld = await F.evaluate(s => document.querySelector(s) ? [...document.querySelector(s).querySelectorAll('td.mc')].pop().textContent : '', line('MT-000003', 1));
     await tidy();
@@ -154,9 +154,9 @@ const R = 'RL-180';
     for (let i = 0; i < 30 && (bill('MT-000002') || { lines: [1, 2] }).lines.length !== 1; i++) await wait(400);
     await wait(300); const t2 = await toastNow(); await wait(2200);
     const b2b = bill('MT-000002');
-    ok('   Delete of ENGINE OIL FILTER: asked ("Delete this line?" – the line with its ₹, the bill, "The other lines of the bill stay as they are."); deleted – the bill ₹1,534 with its fuel filter; "Line deleted – bill MT-000002 is now ₹1,534.00."',
+    ok('   Delete of ENGINE OIL FILTER: asked ("Delete this line?" – the line with its ₹, the bill, "The other lines of the bill stay as they are."); deleted – the bill ₹1,417 with its fuel filter; "Line deleted – bill MT-000002 is now ₹1,417.00."',
       dq.title === 'Delete this line?' && dq.ok === 'Delete' && JSON.stringify(dq.items) === JSON.stringify(['ENGINE OIL FILTER – ₹1,097.40', 'Bill MT-000002 · 05-01-2023 · Store', 'The other lines of the bill stay as they are.']) &&
-      b2b && b2b.amount === 1534 && b2b.lines.map(l => l.work).join() === 'FUEL FILTER' && /Line deleted – bill MT-000002 is now ₹1,534\.00\./.test(t2), [dq, b2b, t2]);
+      b2b && b2b.amount === 1417 && b2b.lines.map(l => l.work).join() === 'FUEL FILTER' && /Line deleted – bill MT-000002 is now ₹1,417\.00\./.test(t2), [dq, b2b, t2]);
     // the only line of a bill: the whole bill (said first)
     await tidy();
     await F.evaluate(s => document.querySelector(s + ' [data-mlld]').click(), line('MT-000001', 0)); await wait(800);
@@ -168,9 +168,10 @@ const R = 'RL-180';
     ok('   Delete of the only line of MT-000001 (AD BLUE): "Delete bill MT-000001?" – "…is the only line of this bill – the whole bill is deleted."; the bill deleted; the log book: 2 bills, 3 lines',
       oq.title === 'Delete bill MT-000001?' && oq.ok === 'Delete the bill' && oq.p === '"AD BLUE" is the only line of this bill – the whole bill is deleted.' && !bill('MT-000001') && left.bills === 2 && left.lines === 3, [oq, left]);
     // View only: no Edit / Delete
-    const vo = await F.evaluate(async () => { const u = S.user, keep = { admin: u.admin, perms: u.perms }; u.admin = false; u.perms = Object.assign({}, u.perms, { Maintenance: 'View' });
-      try { await mlogShow(); return { lact: document.querySelectorAll('#rpmlog_body .mlog-actd').length, act: document.querySelectorAll('#rpmlog_body .mlog-acth').length, lines: document.querySelectorAll('#rpmlog_body [data-mll]').length }; }
-      finally { u.admin = keep.admin; u.perms = keep.perms; await mlogShow(); } });
+    // (the page's heartbeat may put the real access back while the log book is asked – then the check is made again)
+    const vo = await F.evaluate(async () => { for (let i = 0; i < 5; i++) { const u = S.user, keep = { admin: u.admin, perms: u.perms }; u.admin = false; u.perms = Object.assign({}, u.perms, { Maintenance: 'View' });
+      try { await mlogShow(); if (S.user !== u || u.perms.Maintenance !== 'View') continue; return { lact: document.querySelectorAll('#rpmlog_body .mlog-actd').length, act: document.querySelectorAll('#rpmlog_body .mlog-acth').length, lines: document.querySelectorAll('#rpmlog_body [data-mll]').length }; }
+      finally { u.admin = keep.admin; u.perms = keep.perms; await mlogShow(); } } return { again: 5 }; });
     ok('   a user with Maintenance View only: the log book without any Edit / Delete', vo.lact === 0 && vo.act === 0 && vo.lines === 3, vo);
     ok('no error on the page', errs.length === 0, errs);
   } catch (e) { ok('no error in the test itself', false, String(e && e.stack || e)); }
