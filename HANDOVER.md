@@ -2183,6 +2183,15 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `pendPrint(o)` (one date / a month / a period; Ownership, Owner / Vendor, one machinery; `askPrintName` → `printDoc` 'rep-pend'),
   `lb_pprint` on the Dashboard's list, `data-lpprint` in the entry page's list (`lg_pend`); server `logPending_(f)` takes `{ from, to }`
   (none: as before) and gives `to`. No SQL. Tests: unit `update-179`; rig `pendprint179.js` (its own test machinery, taken out).
+- 28-10-2026 (update-180, with rcl-mobile 3.56.0 – not released). Report: `UPDATE_180.md`. THE OLD LOG BOOK'S HEADINGS IN ANY ORDER; EACH
+  LINE OF THE MAINTENANCE LOG BOOK ITS OWN EDIT / DELETE (asked: "kahi pdf madhe heading maghe pudhe aahet tr … auto identify krun … ek ek
+  entry mala edit or delet krta yawi"; his answer: each line on its own): server `maintLogField_` / `maintLogRows_` (a heading by its
+  words → the 12 columns; CGST + SGST added; no Amount column: with GST less GST), `readMaintLog_` asks the AI for `head` / `fields` /
+  `rows` as printed, `x.head` = the page before's headings (`MLR_NAMES_` for a heading only the AI knew); page `mliField` / `mliRows` the
+  same word for word (`mliSheet`: any order), `mliReadAi` sends `head`; `maintLineSave_(id, x, del)` – `updateMaintLine` /
+  `deleteMaintLine` (`{ i, date, was, line }`, the rest of the bill as it is, `maintVals_` keepNo, files kept; the only line refused);
+  page `mlogRender` `_i` / `data-mll`, `mlLineEdit` / `mlLineDelete`. No SQL. Tests: unit `update-180`; rig `mline180.js`, again mnt173,
+  mnt170, mnt168, mnt165, pendprint179.
 - 28-10-2026 (update-178, with the Store's step 2 – rcl-store `store-work` – and rcl-mobile 3.55.0). Report: `UPDATE_178.md`. THE STORE'S
   OUTWARD IN THE MAINTENANCE LOG BOOK: `maintStoreLines_(m, from, to)` reads the site's `store_issue` / `store_issue_lines` (the same
   database; paged) – each issue a bill of the Party "RCL Store" (Outward <no>, the Store's average rate, the reading; on debit: "Debit",

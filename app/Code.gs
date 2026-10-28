@@ -953,6 +953,9 @@ const API_ = {
   saveMaint:         { m: 'Maintenance', edit: true, f: saveMaint_, log: 'add', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
   updateMaint:       { m: 'Maintenance', edit: true, f: updateMaint_, log: 'edit', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
   deleteMaint:       { m: 'Maintenance', edit: true, f: deleteMaint_, log: 'delete', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
+  // (update-180) one line of a bill changed or taken out from the Maintenance Log Book (the rest of the bill as it is)
+  updateMaintLine:   { m: 'Maintenance', edit: true, f: (id, x) => maintLineSave_(id, x, false), log: 'edit', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
+  deleteMaintLine:   { m: 'Maintenance', edit: true, f: (id, x) => maintLineSave_(id, x, true), log: 'edit', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
   maintFile:         { m: 'Maintenance', withUser: true, f: (u, x) => uploadAttachment_(u, x, 'Maintenance') },      // one file of a bill (PDF / photo), kept once in the private store (Edit checked inside)
   getMaintFiles:     { m: 'Maintenance', f: getMaintFiles_ },
   readMaintBill:     { m: 'Maintenance', withUser: true, f: (u, x) => maintRead_(u, x) },      // the AI reads a bill – nothing is saved (Edit checked inside)
@@ -6594,8 +6597,73 @@ function importMaint_(b) {
  *     AI says which are one name written in several ways (SURJ / SURAAJ / SARAJ – SURAJ) and its right spelling (a saved one first).
  *     The page lists them; the Admin ticks what is changed. Only names of the file are answered. */
 const MLR_PAGES_ = 500, MLN_MAX_ = 4000;
+// (update-180) what the AI may say a heading is → the log book's own heading for it
+const MLR_NAMES_ = { sr: 'Sr No', date: 'Date', party: 'Party Name', reading: 'Current Reading', particulars: 'Particulars', work: 'Particulars', qty: 'Qty', uom: 'Uom', rate: 'Basic Rate',
+  amount: 'Amount', gstpct: 'GST %', gstamount: 'GST Amount', gstamt: 'GST Amount', withgst: 'Amount With GST', total: 'Total' };
 // (update-174) the import's check and the AI's reading: for those who may import (Maintenance Edit – the Admin has it)
 function maintEditOnly_(u) { if (!canEdit_(u, 'Maintenance')) throw new Error('You have View access only for Maintenance. Ask Admin for Edit access.'); }
+/* (update-180, asked 28-10-2026: "kahi pdf madhe heading maghe pudhe aahet tr aple systeam ni auto identify krun te sagla banwayla haw")
+ * THE HEADINGS OF AN OLD LOG BOOK IN ANY ORDER, NAMED IN MANY WAYS: each column is found by the words of its heading (Bill Date,
+ * Supplier, KM, Item Description, Taxable Value, CGST 9%, SGST 9%, Net Amount …), not by its place. A heading no rule knows: what the
+ * AI said it is (a PDF / photo). A bill number, a remark, a discount, an HSN code: left out. Then every row in the log book's 12 columns
+ * (Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total):
+ * the GST of its parts (CGST + SGST + IGST in ₹) added; a GST % makes its GST ₹; a book without an Amount column: the amount with GST
+ * less its GST (or Qty × Rate when it has no amount at all). Every other cell as printed. The same rules as the page's mliField /
+ * mliRows (an Excel) – the unit test keeps the two the same, word for word. */
+function maintLogField_(h) {
+  const s = String(h === null || h === undefined ? '' : h).toLowerCase().replace(/₹/g, ' ').replace(/[^a-z0-9%+]+/g, ' ').replace(/\b(rs|inr)\b/g, ' ')
+    .replace(/\b([a-z]) (?=[a-z]\b)/g, '$1').replace(/\s+/g, ' ').trim();      // ("C.G.S.T" = cgst, "S. No." = sno, "U.O.M" = uom)
+  if (!s) return null;
+  const skip = { f: '-', p: '' }, is = f => ({ f: f, p: '' });
+  if (/\b(bill|invoice|inv|challan|voucher|job ?card|order|grn|ref|receipt|part|item)\b/.test(s) && /\b(no|nos|number|num|code)\b/.test(s)) return skip;
+  if (/\b(remarks?|notes?|comments?|narration|sign|signature|discount|disc|hsn|sac)\b/.test(s)) return skip;
+  const part = /\bcgst\b/.test(s) ? 'c' : /\b(sgst|utgst)\b/.test(s) ? 's' : /\bigst\b/.test(s) ? 'i' : '';
+  if (/\b(c|s|i|ut)?gst\b|\btax\b|\bvat\b/.test(s)) {
+    if (/\b(with|incl|including|inclusive|after|plus)\b( of)?( the)? (gst|tax|vat)\b|\+ ?(gst|tax|vat)\b|\b(gst|tax|vat) (incl|included|inclusive)\b/.test(s)) return is('withGst');
+    if (/%|\bpercent|\brate\b/.test(s) && !/\d ?%/.test(s)) return { f: 'gstPct', p: part };      // ("GST %", "CGST Rate" – a rate; "CGST 9%" – its ₹)
+    return { f: 'gstAmt', p: part };
+  }
+  if (/\bgross\b|\bnet (amount|amt|value|total|payable)\b|^net$|\b(bill|invoice) (amount|amt|value)\b|\btotal (amount|amt|value)\b|\bpayable\b|\bfinal (amount|amt)\b/.test(s)) return is('withGst');
+  if (/^sub ?total$/.test(s)) return is('amount');
+  if (/^(grand |bill |net )?total$/.test(s)) return is('total');
+  if (/\b(date|dt|dated)\b/.test(s)) return is('date');
+  if (/^(sr|s|sl|ser|serial)( no| number)?$|^(sno|srno|slno|no)$/.test(s)) return is('sr');
+  if (/reading|\b(km|kms|hmr|smr|hr|hrs|hours?|odometer|odo|meter)\b/.test(s)) return is('reading');
+  if (/\b(rate|price|mrp)\b|\bper (unit|no|nos|pc|pcs|piece|ltr|litre|kg)\b|\bunit cost\b/.test(s)) return is('rate');
+  if (/\b(qty|qnty|qnt|qtty|quantity|quantities)\b|^(nos|pcs)$|\bno of (nos|pcs|units|items|pieces)\b/.test(s)) return is('qty');
+  if (/\b(uom|units?)\b|\bmeasure/.test(s)) return is('uom');
+  if (/\b(amount|amt|value|taxable|cost|charges?|basic)\b/.test(s)) return is('amount');
+  if (/party|garage|supplier|vendor|dealer|workshop|\b(shop|mechanic|firm|agency|store|company|from|by|centre|center)\b/.test(s)) return is('party');
+  if (/particular|descri|\bworks?\b|\bparts?\b|\bspares?\b|material|\bitems?\b|detail|repair|\bjobs?\b|nature|\bservices?\b|product|\bgoods\b/.test(s)) return is('work');
+  return null;
+}
+function maintLogRows_(head, rows) {
+  const fs = (Array.isArray(head) ? head : []).map(maintLogField_);
+  const cols = f => fs.map((x, k) => x && x.f === f ? k : -1).filter(k => k > -1);
+  if (!cols('amount').length && cols('withGst').length > 1) fs[cols('withGst')[0]] = { f: 'amount', p: '' };      // (Total Amount · GST · Net Amount: the first is before GST)
+  const am = cols('amount').length > 0, wg = cols('withGst').length > 0, ga = cols('gstAmt'), gp = cols('gstPct');
+  const has = v => !(v === null || v === undefined || String(v).trim() === '' || /^null$/i.test(String(v).trim()));
+  const n = v => { if (!has(v)) return null; if (typeof v === 'number') return isFinite(v) ? v : null; const t = String(v).replace(/[,₹\s%]|rs\.?/gi, ''); return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : null; };
+  const r2 = v => Math.round(v * 100) / 100;
+  return (Array.isArray(rows) ? rows : []).map(r => {
+    r = Array.isArray(r) ? r : [];
+    const one = f => { const ks = cols(f); for (let i = 0; i < ks.length; i++) if (has(r[ks[i]])) return r[ks[i]]; return ''; };
+    const sum = ks => { let s = 0, any = false; ks.forEach(k => { const v = n(r[k]); if (v !== null) { s += v; any = true; } }); return any ? r2(s) : ''; };
+    // the GST (₹ or %) of a row: its "GST" column; else its parts added (CGST + SGST, IGST); two columns of no part: added
+    const tax = ks => { const p = ks.filter(k => fs[k].p === ''), q = ks.filter(k => fs[k].p !== '');
+      if (q.length) { const v = p.length ? sum(p.slice(0, 1)) : ''; return v !== '' ? v : sum(q); }
+      return p.length > 1 ? sum(p) : p.length && has(r[p[0]]) ? r[p[0]] : ''; };
+    let amount = one('amount'), gst = tax(ga);
+    const pct = n(tax(gp)), qty = one('qty'), rate = one('rate'), withGst = one('withGst');
+    if (!am) {      // a book without an Amount column
+      const w = n(withGst), g = n(gst);
+      if (wg && w !== null) { if (g !== null) amount = r2(w - g); else if (pct > 0) { amount = r2(w / (1 + pct / 100)); gst = r2(w - amount); } else amount = w; }
+      else if (!wg && n(qty) !== null && n(rate) !== null) amount = r2(n(qty) * n(rate));
+    }
+    if (gst === '' && pct > 0 && n(amount) !== null) gst = r2(n(amount) * pct / 100);
+    return [one('sr'), one('date'), one('party'), one('reading'), one('work'), qty, one('uom'), rate, amount, gst, withGst, one('total')];
+  });
+}
 function readMaintLog_(x) {
   x = x || {};
   const mt = /^data:(image\/jpeg|image\/png|application\/pdf);base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
@@ -6618,21 +6686,41 @@ function readMaintLog_(x) {
     }
   }
   const where = part ? (part.pages === 1 ? 'this page (one page of the log book)' : 'this page (page ' + from + ' of the ' + part.pages + ' pages of the log book – the only page given)') : pdf ? (n === 1 ? 'ONLY page ' + from : 'ONLY pages ' + from + ' to ' + to) + ' of this PDF (a page that is not in the file: nothing)' : 'this photo (one page)';
-  const ask = 'This is an OLD MAINTENANCE LOG BOOK of a construction company in India (₹): for each machinery / vehicle a table with the columns Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total (some may be missing or named a little differently). ' +
+  /* (update-180) THE COLUMNS AS PRINTED, IN ANY ORDER: the AI copies each table's headings (left to right) and every row under them, and
+   * says what each heading is; the columns are then found here by their headings (maintLogField_ – the AI's word only for a heading no
+   * rule knows) and every row put in the log book's 12 columns (maintLogRows_). A table that goes on from the page before without its
+   * heading: the heading of that page (head – the page sends back the last one it got); an app of before sends none: such a table is
+   * read in the log book's own columns, as before. */
+  const LOG12 = 'Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total';
+  const head0 = (Array.isArray(x.head) ? x.head : []).slice(0, 40).map(h => clean_(h).slice(0, 80)), carry = head0.some(Boolean) ? head0 : null;
+  const ask = 'This is an OLD MAINTENANCE LOG BOOK of a construction company in India (₹): for each machinery / vehicle a table of its bills, a row for each work / part / material. ' +
+    'Its columns can be in ANY ORDER and named in many ways (e.g. ' + LOG12 + ', or Bill Date · Supplier · KM · Description · Rate · Taxable Value · CGST 9% · SGST 9% · Net Amount; some may be missing). ' +
     'Read ' + where + '. Answer with JSON only: {"pages": the number of pages of the whole file, ' +
     '"tables": [{"machinery": the machinery / vehicle name or number written above this table (e.g. "ROLLER NO-03", "MH12AB1234") – null when the table goes on from the page before without one, ' +
-    '"rows": [[sr, date, party, reading, particulars, qty, uom, rate, amount, gstAmount, withGst, total], …]}, …] – a table for each machinery in the order printed, and ONE array for EVERY row of it, top to bottom: ' +
-    'sr = its Sr No or null; date = its date as "yyyy-mm-dd", null when the row has no date of its own (one date written for several rows); party = its Party Name as printed, null when it is written only once for several rows; ' +
-    'reading = its Current Reading (KM / Hrs) or null; particulars = the work / part / material as printed; qty, uom, rate, amount, gstAmount, withGst, total = as printed, null when empty. ' +
+    '"head": its column headings EXACTLY as printed, left to right, one for each column (a heading of two rows – e.g. GST over CGST and SGST – its words joined: "GST CGST"), ' +
+    '"fields": for each heading what it is – "sr", "date", "party" (the garage, shop or supplier), "reading" (KM / Hrs), "particulars" (the work / part / material), "qty", "uom", "rate", "amount" (before GST), ' +
+    '"gstPct" (a GST %), "gstAmount" (GST, CGST, SGST or IGST in ₹), "withGst" (the amount with GST), "total", or null (anything else: a bill no., a remark …), ' +
+    '"rows": [[its cells, left to right, ONE FOR EACH HEADING, in the same order], …]}, …] – a table for each machinery in the order printed, and ONE array for EVERY row of it, top to bottom. ' +
+    (carry ? 'A table on this page without a heading row of its own goes on from the page before, whose columns were ' + JSON.stringify(carry) + ': give it "head": null and its rows in those columns. '
+      : 'A table on this page without a heading row of its own (it goes on from the page before): give it "head": null and its rows in the columns ' + LOG12 + '. ') +
+    'A date as "yyyy-mm-dd", null when the row has no date of its own (one date written for several rows); a cell written only once for several rows (a merged cell, e.g. the party) null in the rows under it; an empty cell null. ' +
     'Leave out the heading rows, a total row of a page or of a table and a row brought forward. Copy every name and number EXACTLY as printed – do not correct a spelling, do not invent a value; what is not clearly printed is null.';
   const j = aiJson_(aiAskPhoto_(data, ask, mt[1], 'the log book', { keep: !part, fast: fast, tokens: 16000, fail: ' – try again in a minute.' }));
   if (!j || typeof j !== 'object' || !Array.isArray(j.tables)) return { from: from, to: to, pages: part ? part.pages : 0, tables: [], again: true };      // (cut off or not JSON – the page asks fewer pages)
   const cell = v => v === null || v === undefined ? '' : typeof v === 'number' ? (isFinite(v) ? v : '') : /^null$/i.test(clean_(v)) ? '' : clean_(v).slice(0, 160);
   const pages = part ? Math.min(MLR_PAGES_, part.pages) : Math.min(MLR_PAGES_, Math.max(0, Math.floor(Number(j.pages)) || 0));
-  const tables = j.tables.slice(0, 60).map(t => ({ machinery: cell(t && t.machinery).toString().slice(0, 80),
-    rows: (Array.isArray(t && t.rows) ? t.rows : []).filter(Array.isArray).slice(0, 800).map(r => { const a = r.slice(0, 12).map(cell); while (a.length < 12) a.push(''); return a; }).filter(r => r[4] !== '') }))
-    .filter(t => t.rows.length || t.machinery);
-  return { from: from, to: pdf ? (pages ? Math.min(to, pages) : to) : 1, pages: pdf ? pages : 1, tables: tables };
+  // a heading no rule knows: named by what the AI said it is (so it is known on the next page too)
+  const key = v => String(v || '').replace(/[^a-z]/gi, '').toLowerCase();
+  let last = carry;
+  const tables = j.tables.slice(0, 60).map(t => {
+    const own = (Array.isArray(t && t.head) ? t.head : []).slice(0, 40).map(h => clean_(cell(h)).slice(0, 80)), fl = Array.isArray(t && t.fields) ? t.fields : [];
+    const mine = own.some(Boolean) ? own.map((h, k) => maintLogField_(h) || !MLR_NAMES_[key(fl[k])] ? h : MLR_NAMES_[key(fl[k])]) : null, hd = mine || last;
+    const raw = (Array.isArray(t && t.rows) ? t.rows : []).filter(Array.isArray).slice(0, 800).map(r => r.slice(0, 40).map(cell));
+    const rows = (hd ? maintLogRows_(hd, raw) : raw).map(r => { const a = r.slice(0, 12).map(cell); while (a.length < 12) a.push(''); return a; });
+    if (mine) last = mine;
+    return Object.assign({ machinery: cell(t && t.machinery).toString().slice(0, 80), rows: rows.filter(r => r[4] !== '') }, mine ? { head: own } : {});
+  }).filter(t => t.rows.length || t.machinery);
+  return Object.assign({ from: from, to: pdf ? (pages ? Math.min(to, pages) : to) : 1, pages: pdf ? pages : 1, tables: tables }, last ? { head: last } : {});
 }
 function maintImportNames_(x) {
   x = x || {};
@@ -6693,6 +6781,38 @@ function deleteMaint_(id) {
     booksOpen_(dkey_(t.rows[i][t.c[H.DATE]]), 'Maintenance bill');
     t.sh.deleteRow(i + 2);      // (its files stay in the store – a stored file is never deleted)
     return { ok: true };
+  });
+}
+/* (update-180, asked 28-10-2026: "kontya hi gadichi log book maintanace wala ek ek entry mala edit or delet krta yawi"; his answer: each
+ * line of the log book on its own – the bill's Change / Delete stay) ONE LINE OF A BILL, changed or taken out, from the Maintenance Log
+ * Book of any machinery: x.i = its place among the bill's lines as the log book shows them (the insurance part apart); x.was = that line
+ * as it was shown (its work and ₹) and x.date the bill's date – the bill changed by someone meanwhile: refused (nothing saved). x.line =
+ * the line as it is now (Particulars, Paid by, Qty, Uom, Rate, Discount %, Amount, GST %). The rest of the bill stays as it is: its
+ * other lines, its insurance part, its files; and the bill is checked as a change of the whole bill (maintVals_ – every check of the
+ * bill's form; the same machinery is not checked against its Active dates again). The only line of a bill is not taken out – the bill
+ * is deleted instead (deleteMaint; the page asks). */
+function maintLineSave_(id, x, del) {
+  x = x || {};
+  return withLock_(() => {
+    const t = maintTable_(true), k = t.rows.findIndex(r => str_(r[t.c[H.MT_ID]]) === str_(id));
+    if (k === -1) throw new Error('Maintenance bill ' + str_(id) + ' was not found.');
+    const old = t.rows[k], dk = dkey_(old[t.c[H.DATE]]), no = str_(old[t.c[H.NO]]);
+    booksOpen_(dk, 'Maintenance bill');
+    const lines = maintLinesOf_(old[t.c[H.WLINES]]), i = Number(x.i), w = x.was && typeof x.was === 'object' ? x.was : {}, l0 = Number.isInteger(i) && i >= 0 ? lines[i] : null;
+    if (!l0 || clean_(w.work) !== l0.work || r2_(num0_(w.amount)) !== l0.amount || str_(x.date) !== dk)
+      throw new Error('Bill ' + str_(id) + ' was changed meanwhile – show the log book again, then change its line.');
+    if (del && lines.length === 1) throw new Error('This is the only line of bill ' + str_(id) + ' – delete the whole bill instead.');
+    const next = lines.map(l => Object.assign({}, l)), n = x.line && typeof x.line === 'object' ? x.line : {};
+    if (del) next.splice(i, 1);
+    else next[i] = { work: n.work, type: n.type, qty: n.qty, uom: n.uom, rate: n.rate, disc: n.disc, amount: n.amount, gst: n.gst };
+    const ins = maintInsOf_(old[t.c[H.WLINES]]);
+    const v = maintVals_({ date: dk, no: no, garage: str_(old[t.c[H.GARAGE]]), billNo: str_(old[t.c[H.BILLNO]]), km: numOrBlank_(old[t.c[H.KMR]]), service: /^yes$/i.test(str_(old[t.c[H.SERVICE]])),
+      remark: str_(old[t.c[H.REMARK]]), lines: next, insurance: ins ? { company: ins.company, claimNo: ins.claimNo, paid: ins.paid } : null }, no);
+    const row = old.slice();
+    putMaint_(row, t, str_(id), v, old[t.c[H.CREATED]] instanceof Date ? old[t.c[H.CREATED]] : new Date(), null);      // (its files: kept)
+    stampEdit_(row, t);
+    t.sh.getRange(k + 2, 1, 1, row.length).setValues([row]);
+    return { ok: true, id: str_(id), total: v.total, billTotal: v.billTotal, lines: next.length };
   });
 }
 // (update-168) total = what WE paid (the Amount column); billTotal = the bill's Paid lines; insurance = what the insurance paid; free =
