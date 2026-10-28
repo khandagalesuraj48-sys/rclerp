@@ -4,7 +4,9 @@
 // text, the look-ups' JSON Schema – and answers the way the real one does: a tool_use, then a text made from its tool_result.
 // Same controls as test/gemini-standin.js: /__log, /__clear, /__meter?say=, /__busy?model=NAME&n=3 (529 overloaded) and
 // /__credit?n=1 (400 "credit balance is too low").
-const http = require('http'); const log = [], busy = {}, meter = { say: '{"km": null, "hrs": null}' }, credit = { n: 0 };
+// (update-173) POST /__next (its body: the text of the next answer to a file – one a call, in order; then /__meter's) and POST /__names
+// (the answer to the names of an old log book).
+const http = require('http'); const log = [], busy = {}, meter = { say: '{"km": null, "hrs": null}' }, credit = { n: 0 }, next = [], names = { say: '{"fixes": []}' };
 const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
 const err = (res, code, type, message) => send(res, code, { type: 'error', error: { type: type, message: message } });
 const MODELS = [
@@ -54,7 +56,9 @@ http.createServer((req, res) => {
   let body = ''; req.on('data', c => { body += c; }); req.on('end', () => {
     if (req.url === '/__log') return send(res, 200, log);
     const mr = /^\/__meter\?say=(.*)$/.exec(req.url); if (mr) { meter.say = decodeURIComponent(mr[1]); return send(res, 200, meter); }
-    if (req.url === '/__clear') { log.length = 0; Object.keys(busy).forEach(k => delete busy[k]); credit.n = 0; return send(res, 200, {}); }
+    if (req.url === '/__clear') { log.length = 0; Object.keys(busy).forEach(k => delete busy[k]); credit.n = 0; next.length = 0; names.say = '{"fixes": []}'; return send(res, 200, {}); }
+    if (req.url === '/__next' && req.method === 'POST') { next.push(body); return send(res, 200, { queued: next.length }); }
+    if (req.url === '/__names' && req.method === 'POST') { names.say = body; return send(res, 200, {}); }
     const bz = /^\/__busy\?model=([^&]+)&n=(\d+)/.exec(req.url); if (bz) { busy[decodeURIComponent(bz[1])] = Number(bz[2]); return send(res, 200, busy); }
     const cr = /^\/__credit\?n=(\d+)/.exec(req.url); if (cr) { credit.n = Number(cr[1]); return send(res, 200, credit); }
     if (req.headers['x-api-key'] !== 'test-key-c') return err(res, 401, 'authentication_error', 'invalid x-api-key');
@@ -77,7 +81,8 @@ http.createServer((req, res) => {
     let nUse = 0; const callFn = (name, input) => send(res, 200, { id: 'msg_' + log.length, type: 'message', role: 'assistant', model: j.model, content: [{ type: 'text', text: 'Let me look that up.' }, { type: 'tool_use', id: 'toolu_s' + log.length + '_' + (++nUse), name: name, input: input }], stop_reason: 'tool_use', usage: usage });
     // a photo or a PDF bill: what /__meter says (what a model would read on it)
     const file = lb.find(b => b.type === 'image' || b.type === 'document');
-    if (file) { const q = (lb.find(b => b.type === 'text') || {}).text || ''; Object.assign(entry, { image: file.source.media_type, kind: file.type, bytes: Math.round(String(file.source.data || '').length * 3 / 4), ask: q.slice(0, 600), jsonAsked: /Answer with JSON only/.test(q) }); return text(meter.say); }
+    if (file) { const q = (lb.find(b => b.type === 'text') || {}).text || ''; Object.assign(entry, { image: file.source.media_type, kind: file.type, bytes: Math.round(String(file.source.data || '').length * 3 / 4), ask: q.slice(0, 600), jsonAsked: /Answer with JSON only/.test(q),
+      kept: (file.cache_control || {}).type || '', read: (/Read (ONLY pages? [\d to]+|this photo)/.exec(q) || [])[1] || '' }); return text(next.length ? next.shift() : meter.say); }
     // the result of a look-up: the answer made from it
     const tr = lb.find(b => b.type === 'tool_result');
     if (tr) {
@@ -93,6 +98,7 @@ http.createServer((req, res) => {
       return text('Result of ' + n + ': ' + JSON.stringify(r).slice(0, 200));
     }
     const q = String((lb.filter(b => b.type === 'text').pop() || {}).text || ''), d = q.match(/\d{4}-\d{2}-\d{2}/g) || [];
+    if (/^NAMES OF AN OLD MAINTENANCE LOG BOOK/.test(q)) { Object.assign(entry, { names: true, ask: q.slice(q.indexOf('party – '), q.indexOf('party – ') + 1500) }); return text(names.say); }
     let snap = null; try { snap = JSON.parse(sys.split('SNAPSHOT = ')[1] || 'null'); } catch (e) { snap = null; }
     entry.snapshot = snap ? Object.keys(snap).join(',') : ''; entry.page = snap && snap.page ? snap.page.tab : '';
     if (/stock/i.test(q) && snap && snap.dieselStockNow) return text('As of now (' + snap.asOf + ') the stock is **' + snap.dieselStockNow.litres + ' L**.');

@@ -957,6 +957,11 @@ const API_ = {
   getMaintFiles:     { m: 'Maintenance', f: getMaintFiles_ },
   readMaintBill:     { m: 'Maintenance', withUser: true, f: (u, x) => maintRead_(u, x) },      // the AI reads a bill – nothing is saved (Edit checked inside)
   maintLog:          { m: 'Maintenance', any: ['Maintenance', 'Reports'], f: maintLog_ },
+  // (update-173) the old Maintenance Log Book of a machinery imported as it is (his Excel) – checked first, then one machinery a call (Admin)
+  checkMaintImport:  { m: 'Maintenance', admin: true, f: b => importMaint_(Object.assign({}, b, { check: true })) },
+  importMaint:       { m: 'Maintenance', edit: true, admin: true, f: importMaint_, log: 'maintImport' },
+  readMaintLog:      { m: 'Maintenance', admin: true, f: readMaintLog_ },          // (update-173) the AI reads pages of an old log book (PDF / photo) – nothing saved
+  maintImportNames:  { m: 'Maintenance', admin: true, f: maintImportNames_ },      // (update-173) the AI finds the names written in more than one way – nothing saved
   // (update-134) the Super Admin deletes entries (saved / waiting / returned / rejected) and brings them back – checked inside (sdelSuper_)
   superDelList: { m: '', withUser: true, f: (u, x) => sdelList_(u, x) },
   superDelete: { m: '', withUser: true, f: (u, x) => sdelDelete_(u, x) },
@@ -5726,9 +5731,12 @@ function meterReading_(u, x) {
   return str_(x.kind) === 'pump' ? aiReadPump_(mt[1], m) : aiReadMeter_(mt[1], m.id, str_(x.kind) === 'hrs' ? 'hr' : '');
 }
 // one question with a picture to the AI (the same models and order as the assistant; a busy model → the next); → its text
-function aiAskPhoto_(b64, ask, mime, what) {      // (update-165) mime: a PDF too; what: the words of its failure ('the bill' – else the meter's)
-  if (aiClaude_()) return aiAskPhotoC_(b64, ask, mime, what);      // (update-167) Claude, in its own words
-  const body = { contents: [{ role: 'user', parts: [{ inlineData: { mimeType: mime || 'image/jpeg', data: b64 } }, { text: ask }] }], generationConfig: { maxOutputTokens: what ? 8192 : 2048, responseMimeType: 'application/json' } };
+// (update-173) opt: { keep: the file is kept by Claude for the next questions of the same file (prompt caching), tokens: the longest
+// answer, fail: the words after the reason of a failure } – b64 '' asks the text alone
+function aiAskPhoto_(b64, ask, mime, what, opt) {      // (update-165) mime: a PDF too; what: the words of its failure ('the bill' – else the meter's)
+  if (aiClaude_()) return aiAskPhotoC_(b64, ask, mime, what, opt);      // (update-167) Claude, in its own words
+  opt = opt || {};
+  const body = { contents: [{ role: 'user', parts: (b64 ? [{ inlineData: { mimeType: mime || 'image/jpeg', data: b64 } }] : []).concat([{ text: ask }]) }], generationConfig: { maxOutputTokens: opt.tokens || (what ? 8192 : 2048), responseMimeType: 'application/json' } };
   const models = aiModels_(), seq = aiTries_(models), t0 = Date.now();
   let last = '';
   for (let i = 0; i < seq.length; i++) {
@@ -5743,7 +5751,7 @@ function aiAskPhoto_(b64, ask, mime, what) {      // (update-165) mime: a PDF to
     last = r.error || String(r.code);
     if (!(r.error || r.code === 503 || r.code === 500 || r.code === 429 || r.code === 404)) break;      // a refusal: asking again would fail the same way
   }
-  if (what) throw new Error('The AI could not read ' + what + ' now (' + last + ') – type it in, or try again.');
+  if (what) throw new Error('The AI could not read ' + what + ' now (' + last + ')' + (opt.fail || ' – type it in, or try again.'));
   throw new Error('The AI could not read the meter now (' + last + ') – type the reading.');
 }
 // the AI's text → its JSON (also when it put words or ``` around it)
@@ -6346,6 +6354,7 @@ function cardEntries_() {
 const MNT_COLS_ = [H.MT_ID, H.DATE, H.NO, H.GARAGE, H.BILLNO, H.KMR, H.AMOUNT, H.WLINES, H.SERVICE, H.REMARK, H.CREATED];
 const MNT_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1zi_maintenance.sql once in Supabase → SQL Editor.';
 const MNT_FILES_MAX_ = 10, MNT_LINES_MAX_ = 150;      // (update-168: an accident bill of parts and labour had 65 lines)
+const MNT_IMPORT_MAX_ = 3000;      // (update-173) the bills of one machinery's old log book in one import
 const MNT_TYPES_ = ['Paid', 'By Insurance', 'Warranty', 'FOC', 'Service Plan'], MNT_INS_ = 'Insurance';
 /* (update-171, asked 27-10-2026 with the print of his bill 04590: "gst asa ekdam nahi dakhwaycha item wise gst asel … gst row madhe nko
  * heading madhe ghe 9 9 18 … koni paid kel insurance claim aahe nahi service ch bill ahe ka as sagle haway … entry krtana pn ani log
@@ -6516,6 +6525,119 @@ function saveMaint_(x) {
     PropertiesService.getScriptProperties().setProperty('MNT_LAST_NO', String(n));
     return { ok: true, id: id, total: v.total, billTotal: v.billTotal };
   });
+}
+/* (update-173, "jewde active aahet own rachana vehicle te mala import karaych aahe as it is jas asel tr – duplicate ekhi hou deu nko") the old
+ * Maintenance Log Book of ONE machinery, as it is (his Excel "All Machinery Maintenance Logbook"; the page puts its rows into bills): b =
+ * { no, bills: [{ date, garage, km, billNo, rows: 'Sr 1–6' (for the messages), lines: [{ work, qty, uom, rate, amount, gst }] }], check }.
+ * * each bill checked as a bill typed (maintLines_; a line of ₹0 is FOC – "Drum oil" given free); its date as any entry (not after today; a
+ *   month closed by the Admin stays closed);
+ * * history: the machinery need not have been on the site then (its Active From) – it must be in the Asset Master, Own and on the site now;
+ * * NEVER twice: a bill already there – the same machinery, date and party with the same lines, or its total within ₹1 – is left out (also
+ *   the same bill twice in the file);
+ * * [check]: nothing saved – what would be added, what is already there, the mistakes; else all of it or nothing (one write). */
+function importMaint_(b) {
+  b = b || {};
+  const run = () => {
+    const t = maintTable_(true), m = findMachine_(b.no), bills = Array.isArray(b.bills) ? b.bills : [];
+    if (normOwnership_(m.ownership) !== 'Own' || !onSiteOn_(m, today_())) throw new Error(m.id + ' is not an Own machinery on this site now (Asset Master) – the old log book is imported only for those.');
+    if (!bills.length) throw new Error('The file has no bill for ' + m.id + '.');
+    if (bills.length > MNT_IMPORT_MAX_) throw new Error(m.id + ': at most ' + MNT_IMPORT_MAX_ + ' bills in one import – split the file.');
+    const K = noKey_(m.id), lsig = ls => ls.map(l => clean_(l.work).toUpperCase() + ':' + r2_(num0_(l.amount)) + ':' + (l.qty === undefined ? '' : r2_(l.qty))).sort().join(';');
+    const have = [];      // the bills of this machinery already saved: { date, garage, total, sig, id }
+    t.rows.forEach(r => { if (noKey_(r[t.c[H.NO]]) !== K) return; const x = maintOut_(t, r);
+      have.push({ date: x.date, garage: x.garage.toUpperCase(), total: x.billTotal, sig: lsig(x.lines), id: x.id }); });
+    // (update-173, "duplicate entry import nahi honar") already there = the same machinery and date, and the same lines or its total to ₹1
+    // (above ₹0) – whatever its party is called (SURJ / SURAJ, a name ticked or not); the same bill twice in the file: once
+    const twice = v => have.find(h => h.date === v.dk && (h.sig === v.sig || (v.billTotal > 0 && Math.abs(h.total - v.billTotal) <= 1)));
+    const errors = [], fresh = [], same = [];
+    bills.forEach((x, n) => {
+      const where = clean_(x && x.rows) || 'Bill ' + (n + 1);
+      try {
+        const dk = entryOpen_(x.date, 'Maintenance bill');
+        const lines = maintLines_((Array.isArray(x.lines) ? x.lines : []).map(l => Object.assign({}, l, !clean_(l && l.type) && !num0_(l && l.amount) ? { type: 'FOC', amount: 0 } : {})));
+        const km = blank_(x.km) ? '' : reqReading_(x.km, m.id + ' Reading');
+        const total = r2_(lines.reduce((s, l) => s + maintLineTotal_(l), 0));
+        if (total < 0) throw new Error('The total of the bill cannot be below 0 – check the amounts (a discount is a minus line).');
+        const v = { dk: dk, m: m, garage: clean_(x.garage).slice(0, 80), billNo: clean_(x.billNo).slice(0, 80), km: km, lines: lines, billTotal: total, total: total, service: false, remark: clean_(x.remark).slice(0, 200), sig: lsig(lines) };
+        const h = twice(v);
+        if (h) { same.push({ rows: where, date: dk, total: total, id: h.id }); return; }
+        have.push({ date: dk, garage: v.garage.toUpperCase(), total: total, sig: v.sig, id: '(' + where + ')' });      // (the same bill twice in the file: once)
+        fresh.push(Object.assign(v, { rows: where }));
+      } catch (e) { errors.push({ rows: where, msg: e.message }); }
+    });
+    const report = { ok: !errors.length, no: m.id, errors: errors.slice(0, 200), errorCount: errors.length, fresh: fresh.length, same: same.length, sameList: same.slice(0, 500),
+      lines: fresh.reduce((s, v) => s + v.lines.length, 0), total: r2_(fresh.reduce((s, v) => s + v.total, 0)), from: fresh.length ? fresh.reduce((a, v) => v.dk < a ? v.dk : a, fresh[0].dk) : '', to: fresh.reduce((a, v) => v.dk > a ? v.dk : a, '') };
+    if (errors.length || b.check) return report;
+    let n = nextMaintNo_(t);
+    const now = new Date(), ids = [];
+    fresh.forEach(v => { const id = 'MT-' + String(n).padStart(6, '0'); t.sh.appendRow(putMaint_(newRow_(t), t, id, v, now, null)); ids.push(id); n++; });
+    if (ids.length) PropertiesService.getScriptProperties().setProperty('MNT_LAST_NO', String(n - 1));
+    return Object.assign(report, { added: ids.length, first: ids[0] || '', last: ids[ids.length - 1] || '' });
+  };
+  return b.check ? run() : withLock_(run);
+}
+/* (update-173, his answers 28-10-2026: "PDF import – Claude AI वाचेल", "यादी दाखव, मी पाहून ✓ करेन") THE OLD LOG BOOK READ BY THE AI
+ * – nothing is saved here:
+ *   readMaintLog – a PDF (or a photo of a page) of the old log book: the pages from .. from + n − 1 (2 at a time – an answer within the
+ *     server's 60 seconds; the page asks one at a time when the answer was too long), each table as printed: its machinery (the name
+ *     above it; a page that goes on without a name: null) and every row in the log book's columns, every name and number as printed.
+ *     The page puts the rows under the log book's heading and reads them as a sheet of the Excel (mliSheet): the same bills, the same
+ *     Check and Import. The file is the same at every call: Claude keeps it (prompt caching) – the next pages cost about a tenth.
+ *   maintImportNames – the Party names, Particulars and Uom of the file (each with its rows) and those already saved at this site: the
+ *     AI says which are one name written in several ways (SURJ / SURAAJ / SARAJ – SURAJ) and its right spelling (a saved one first).
+ *     The page lists them; the Admin ticks what is changed. Only names of the file are answered. */
+const MLR_PAGES_ = 500, MLN_MAX_ = 4000;
+function readMaintLog_(x) {
+  x = x || {};
+  const mt = /^data:(image\/jpeg|image\/png|application\/pdf);base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
+  if (!mt) throw new Error('An old log book must be a PDF or a photo (JPG or PNG).');
+  if (mt[2].length > Math.ceil(ATT_RAW_MAX_ * 4 / 3) + 4) throw new Error('This log book file is too big (more than 3 MB) – give it in parts (a PDF of fewer pages).');
+  if (!aiInfo_().on) return { off: true };
+  const pdf = mt[1] === 'application/pdf', from = !pdf ? 1 : Math.min(MLR_PAGES_, Math.max(1, Math.floor(num0_(x.from)) || 1)), n = pdf ? Math.min(4, Math.max(1, Math.floor(num0_(x.n)) || 2)) : 1, to = from + n - 1;
+  const where = pdf ? (n === 1 ? 'ONLY page ' + from : 'ONLY pages ' + from + ' to ' + to) + ' of this PDF (a page that is not in the file: nothing)' : 'this photo (one page)';
+  const ask = 'This is an OLD MAINTENANCE LOG BOOK of a construction company in India (₹): for each machinery / vehicle a table with the columns Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total (some may be missing or named a little differently). ' +
+    'Read ' + where + '. Answer with JSON only: {"pages": the number of pages of the whole file, ' +
+    '"tables": [{"machinery": the machinery / vehicle name or number written above this table (e.g. "ROLLER NO-03", "MH12AB1234") – null when the table goes on from the page before without one, ' +
+    '"rows": [[sr, date, party, reading, particulars, qty, uom, rate, amount, gstAmount, withGst, total], …]}, …] – a table for each machinery in the order printed, and ONE array for EVERY row of it, top to bottom: ' +
+    'sr = its Sr No or null; date = its date as "yyyy-mm-dd", null when the row has no date of its own (one date written for several rows); party = its Party Name as printed, null when it is written only once for several rows; ' +
+    'reading = its Current Reading (KM / Hrs) or null; particulars = the work / part / material as printed; qty, uom, rate, amount, gstAmount, withGst, total = as printed, null when empty. ' +
+    'Leave out the heading rows, a total row of a page or of a table and a row brought forward. Copy every name and number EXACTLY as printed – do not correct a spelling, do not invent a value; what is not clearly printed is null.';
+  const j = aiJson_(aiAskPhoto_(mt[2], ask, mt[1], 'the log book', { keep: true, tokens: 16000, fail: ' – try again in a minute.' }));
+  if (!j || typeof j !== 'object' || !Array.isArray(j.tables)) return { from: from, to: to, pages: 0, tables: [], again: true };      // (cut off or not JSON – the page asks fewer pages)
+  const cell = v => v === null || v === undefined ? '' : typeof v === 'number' ? (isFinite(v) ? v : '') : /^null$/i.test(clean_(v)) ? '' : clean_(v).slice(0, 160);
+  const pages = Math.min(MLR_PAGES_, Math.max(0, Math.floor(Number(j.pages)) || 0));
+  const tables = j.tables.slice(0, 60).map(t => ({ machinery: cell(t && t.machinery).toString().slice(0, 80),
+    rows: (Array.isArray(t && t.rows) ? t.rows : []).filter(Array.isArray).slice(0, 800).map(r => { const a = r.slice(0, 12).map(cell); while (a.length < 12) a.push(''); return a; }).filter(r => r[4] !== '') }))
+    .filter(t => t.rows.length || t.machinery);
+  return { from: from, to: pdf ? (pages ? Math.min(to, pages) : to) : 1, pages: pdf ? pages : 1, tables: tables };
+}
+function maintImportNames_(x) {
+  x = x || {};
+  const F = ['party', 'work', 'uom'], got = {};
+  F.forEach(f => { const seen = {}; got[f] = (Array.isArray(x[f]) ? x[f] : []).map(a => Array.isArray(a) ? [clean_(a[0]).slice(0, 120), Math.max(1, Math.floor(num0_(a[1])) || 1)] : [clean_(a).slice(0, 120), 1])
+    .filter(a => a[0] && !seen[a[0]] && (seen[a[0]] = true)).slice(0, MLN_MAX_); });
+  if (!F.some(f => got[f].length)) return { fixes: [] };
+  if (!aiInfo_().on) return { off: true };
+  // the names already saved at this site, the most used first
+  const saved = { party: {}, work: {}, uom: {} }, add = (o, v) => { const k = clean_(v); if (k) o[k] = (o[k] || 0) + 1; }, t = maintTable_(false);
+  if (t) t.rows.forEach(r => { const v = maintOut_(t, r); add(saved.party, v.garage); v.lines.forEach(l => { add(saved.work, l.work); add(saved.uom, l.uom); }); });
+  const top = o => Object.keys(o).sort((a, b) => o[b] - o[a]).slice(0, 1500);
+  const what = { party: 'party – the Party Name (the garage, shop or supplier)', work: 'work – the Particulars (the work, part or material)', uom: 'uom – the unit (Nos, Ltr, Kg …)' };
+  const ask = 'NAMES OF AN OLD MAINTENANCE LOG BOOK of the machinery of a construction company in India. The same name is often written in several ways: a letter missing or extra, another spelling, spaces or dots, a short form ' +
+    '(e.g. "SURJ", "SURAAJ", "SARAJ" for "SURAJ"; "ENGIN OIL" for "ENGINE OIL"; "LTR", "Ltrs", "Litre" for "Ltr"). In each list below find the names that are the SAME thing written differently, and give for each of them its right spelling: ' +
+    'the name already saved at this site when it is one of them, else the spelling most rows use, or the correct one. Different things stay apart – never put together two different parts, works, oils, grades or sizes (ENGINE OIL and ENGINE OIL FILTER, 15W40 and 20W50, FRONT and REAR, 10 MM and 12 MM) or two different parties. ' +
+    'A name already right is not given. Answer with JSON only: {"fixes": [[list, nameInTheFile, rightSpelling], …]} – list = "party", "work" or "uom"; nameInTheFile exactly as it is below.\n' +
+    F.filter(f => got[f].length).map(f => what[f] + ' – in the file, [name, rows]: ' + JSON.stringify(got[f]) + '\n   already saved: ' + JSON.stringify(top(saved[f]))).join('\n');
+  const j = aiJson_(aiAskPhoto_('', ask, '', 'the names', { tokens: 12000, fail: ' – the names stay as in the file; try again in a minute.' })) || {};
+  const has = {}; F.forEach(f => { has[f] = {}; got[f].forEach(a => { has[f][a[0]] = true; }); });
+  const out = [], done = {};
+  (Array.isArray(j.fixes) ? j.fixes : []).forEach(z => {
+    const a = Array.isArray(z) ? z : z && typeof z === 'object' ? [z.list, z.from || z.nameInTheFile, z.to || z.rightSpelling] : [];
+    const f = clean_(a[0]).toLowerCase(), from = clean_(a[1]), to = clean_(a[2]).slice(0, f === 'uom' ? 12 : f === 'party' ? 80 : 120);
+    if (F.indexOf(f) < 0 || !has[f][from] || !to || to === from || done[f + '|' + from]) return;
+    done[f + '|' + from] = true; out.push([f, from, to]);
+  });
+  return { fixes: out.slice(0, 3 * MLN_MAX_) };
 }
 function updateMaint_(id, x) {
   x = x || {};
@@ -11202,10 +11324,12 @@ function aiReplyC_(u, turns, rules, extra) {
   throw new Error(aiBusyMsg_(u, last, tried));
 }
 // one question with a photo / a PDF to Claude (as aiAskPhoto_): a bill gets 50 seconds, a meter or a pump 25
-function aiAskPhotoC_(b64, ask, mime, what) {
+function aiAskPhotoC_(b64, ask, mime, what, opt) {
+  opt = opt || {};
   const media = mime || 'image/jpeg', room = what ? 50000 : 25000;      // (update-168: a bill of several pages and 60+ lines: 50 s – the server has 60)
-  const file = media === 'application/pdf' ? { type: 'document', source: { type: 'base64', media_type: media, data: b64 } } : { type: 'image', source: { type: 'base64', media_type: media, data: b64 } };
-  const body = { max_tokens: what ? 8192 : 2048, messages: [{ role: 'user', content: [file, { type: 'text', text: ask }] }] };
+  const file = !b64 ? null : Object.assign(media === 'application/pdf' ? { type: 'document', source: { type: 'base64', media_type: media, data: b64 } } : { type: 'image', source: { type: 'base64', media_type: media, data: b64 } },
+    opt.keep ? { cache_control: { type: 'ephemeral' } } : {});      // (update-173) the old log book's pages: the same file at every call – kept
+  const body = { max_tokens: opt.tokens || (what ? 8192 : 2048), messages: [{ role: 'user', content: (file ? [file] : []).concat([{ type: 'text', text: ask }]) }] };
   const seq = aiTries_(aiModelsC_()), t0 = Date.now();
   let last = '';
   for (let i = 0; i < seq.length; i++) {
@@ -11216,7 +11340,7 @@ function aiAskPhotoC_(b64, ask, mime, what) {
     last = aiNoCreditC_(r) ? 'no credit left in Claude Console' : r.code === 401 || r.code === 403 ? 'its key ANTHROPIC_API_KEY was not accepted' : (r.error || String(r.code));
     if (r.code !== 404 && !aiBusyC_(r)) break;      // a refusal: asking again would fail the same way
   }
-  if (what) throw new Error('The AI could not read ' + what + ' now (' + last + ') – type it in, or try again.');
+  if (what) throw new Error('The AI could not read ' + what + ' now (' + last + ')' + (opt.fail || ' – type it in, or try again.'));
   throw new Error('The AI could not read the meter now (' + last + ') – type the reading.');
 }
 // "Test the AI service" with Claude: its list of models, one tiny question to each (see getAiCheck_)
