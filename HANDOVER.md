@@ -2172,3 +2172,9 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   sends it alone (not kept – `keep: !part`), the file's own page count, `fast` (the quicker model first – `aiAskPhotoC_ opt.fast`; an app
   of before: its second try n 1 without "fast"); page `mliReadAi` takes each page out itself (`mliPdfLib`, `mliB64`) and asks again
   "fast" after a failure. No SQL. Tests: unit `update-176`; rig mnt173 part 3 (a real PDF of 3 pages), stand-in `read` "this page (…)".
+- 28-10-2026 (update-177). Report: `UPDATE_177.md`. THE OLD LOG BOOK – NO LIMIT OF THE FILE'S SIZE (asked: "pdf size cha issue yeu naye ani
+  eka pdf madhe multiple pages pn ashu shaktat"): page `mliReadAi` – no 3 MB check of the whole file; a PDF is taken apart first (a page
+  alone up to 3 MB – `BIG`), only a PDF that cannot be taken apart is sent whole (`whole()` – 3 MB or less); a photo over 3 MB made
+  smaller on the page (`mliPhoto`: JPEG, long side 2,600 px, then smaller). Server unchanged (3 MB a call). No SQL. Tests: unit
+  `update-177`; rig mnt173 part 7 (a PDF of 4.4 MB, a photo of 21.7 MB). The phone app 3.53.0 still sends the whole file (3 MB) – its
+  next version takes the pages apart too.

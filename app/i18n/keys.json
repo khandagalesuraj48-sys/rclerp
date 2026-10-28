@@ -9232,4 +9232,10 @@
 "The PDF tool did not load.",
 "this page (one page of the log book)",
 "this page (page",
-"this page (page {0} of the {1} pages of the log book – the only page given)"]
+"this page (page {0} of the {1} pages of the log book – the only page given)",
+"of this PDF is too big alone (more than 3 MB – a scan of very high quality) – scan it again at a lower quality, or give that page as a photo.",
+"Page {0} of this PDF is too big alone (more than 3 MB – a scan of very high quality) – scan it again at a lower quality, or give that page as a photo.",
+"This PDF could not be taken apart into its pages here, and it is too big to send whole (more than 3 MB) – save it again as a PDF (Print → Save as PDF) and choose it again.",
+"This photo could not be made smaller here, and it is too big (more than 3 MB) – take it again at a lower size.",
+"This photo could not be opened.",
+"This photo is too big even made smaller."]

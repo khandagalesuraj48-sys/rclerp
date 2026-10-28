@@ -6965,5 +6965,10 @@
 "Could not read the page.": "पन्ना पढ़ा नहीं जा सका।",
 "Reading with the AI… page {0} of {1}": "AI पढ़ रहा है… {1} में से पन्ना {0}",
 "The PDF tool could not be loaded.": "PDF का साधन खुल नहीं सका।",
-"The PDF tool did not load.": "PDF का साधन नहीं खुला।"
+"The PDF tool did not load.": "PDF का साधन नहीं खुला।",
+"Page {0} of this PDF is too big alone (more than 3 MB – a scan of very high quality) – scan it again at a lower quality, or give that page as a photo.": "इस PDF का पन्ना {0} अकेला ही बहुत बड़ा है (3 MB से ज़्यादा – बहुत ऊँची quality का scan) – उसे कम quality से फिर scan करें, या वह पन्ना photo के रूप में दें।",
+"This PDF could not be taken apart into its pages here, and it is too big to send whole (more than 3 MB) – save it again as a PDF (Print → Save as PDF) and choose it again.": "यह PDF यहाँ पन्नों में अलग नहीं की जा सकी, और पूरी भेजने के लिए बहुत बड़ी है (3 MB से ज़्यादा) – इसे फिर से PDF के रूप में save करें (Print → Save as PDF) और फिर चुनें।",
+"This photo could not be made smaller here, and it is too big (more than 3 MB) – take it again at a lower size.": "यह photo यहाँ छोटा नहीं किया जा सका, और यह बहुत बड़ा है (3 MB से ज़्यादा) – इसे कम size से फिर लें।",
+"This photo could not be opened.": "यह photo खुल नहीं सका।",
+"This photo is too big even made smaller.": "यह photo छोटा करने पर भी बहुत बड़ा है।"
 }

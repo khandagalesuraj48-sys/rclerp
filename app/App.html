@@ -17476,11 +17476,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * only that page sent): each machinery's table a sheet (a page without a name goes on with the one before),
    * its rows under the log book's heading – then read as a sheet of the Excel (mliSheet). Nothing is saved. */
   async function mliReadAi(f, say) {
-    if (f.size > 3 * 1024 * 1024) throw new Error('This log book file is too big (more than 3 MB) – give it in parts (a PDF of fewer pages).');
+    /* (update-177, asked 28-10-2026: "pdf size cha issue yeu naye ani eka pdf madhe multiple pages pn ashu shaktat") NO LIMIT OF THE FILE'S
+     * SIZE: a PDF of any size and any number of pages – it is taken apart here and only one page at a time is sent (a page alone up to
+     * 3 MB); a photo bigger than that is made smaller here (its long side 2,600 px – the rows stay readable). Only a PDF that cannot be
+     * taken apart here (a damaged file) is sent whole, and then it must be 3 MB or less. */
     const kind = /\.pdf$/i.test(f.name) ? 'application/pdf' : /\.png$/i.test(f.name) ? 'image/png' : /\.jpe?g$/i.test(f.name) ? 'image/jpeg' : f.type;
-    const data = (await new Promise((res, rej) => { const fr = new FileReader(); fr.onerror = () => rej(new Error('Could not read the file.')); fr.onload = () => res(fr.result); fr.readAsDataURL(f); }))
-      .replace(/^data:[^;,]*;base64,/, 'data:' + kind + ';base64,');      // (a file without its type: by its name)
-    const pdf = /^data:application\/pdf/.test(data), tables = [];
+    const pdf = kind === 'application/pdf', tables = [], BIG = 3 * 1024 * 1024;
+    const whole = async () => { if (f.size > BIG) throw new Error(pdf ? 'This PDF could not be taken apart into its pages here, and it is too big to send whole (more than 3 MB) – save it again as a PDF (Print → Save as PDF) and choose it again.' : 'This photo could not be made smaller here, and it is too big (more than 3 MB) – take it again at a lower size.');
+      return (await new Promise((res, rej) => { const fr = new FileReader(); fr.onerror = () => rej(new Error('Could not read the file.')); fr.onload = () => res(fr.result); fr.readAsDataURL(f); }))
+        .replace(/^data:[^;,]*;base64,/, 'data:' + kind + ';base64,'); };      // (a file without its type: by its name)
     /* (update-176, his picture: "the AI service was too slow to answer" at page 1) ONE PAGE AT A TIME, AND ONLY THAT PAGE IS SENT: the page
      * is taken out of the PDF here (pdf-lib, the app's own file) – before, the whole file went at every call and the AI worked through
      * all its pages. Too slow (or busy) once: the same page asked again of the quicker model. A PDF that cannot be taken apart here goes
@@ -17503,11 +17507,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       for (let p = 1; p <= Math.min(pages, 500); p++) {
         say('Reading with the AI… page ' + p + ' of ' + pages);
         const one = await L.PDFDocument.create(); (await one.copyPages(src, [p - 1])).forEach(x => one.addPage(x));
-        const r = await ask({ data: 'data:application/pdf;base64,' + await mliB64(await one.save()), from: 1 }, p);
+        const u8 = await one.save();
+        if (u8.length > BIG) throw new Error('Page ' + p + ' of this PDF is too big alone (more than 3 MB – a scan of very high quality) – scan it again at a lower quality, or give that page as a photo.');
+        const r = await ask({ data: 'data:application/pdf;base64,' + await mliB64(u8), from: 1 }, p);
         tables.push(...(r.tables || []));
       }
       return mliAiSheets(f.name, tables);
     }
+    const data = !pdf && f.size > BIG ? await mliPhoto(f).catch(() => whole()) : await whole();
     let from = 1, pages = 0;
     for (let guard = 0; guard < 500; guard++) {
       say(pdf ? 'Reading with the AI… page ' + from + (pages ? ' of ' + pages : '') : 'Reading with the AI…');
@@ -17525,6 +17532,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (window.PDFLib) return Promise.resolve(window.PDFLib);
     return MLI_PDFL = MLI_PDFL || new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = window.rclVendor('pdf-lib-1.17.1.min.js'); sc.async = true;
       sc.onload = () => (window.PDFLib ? res(window.PDFLib) : rej(new Error('The PDF tool did not load.'))); sc.onerror = () => { MLI_PDFL = null; rej(new Error('The PDF tool could not be loaded.')); }; document.head.appendChild(sc); });
+  }
+  // (update-177) a photo of a log book page bigger than 3 MB, made smaller: JPEG, its long side 2,600 px (then smaller until it is 3 MB or less)
+  async function mliPhoto(f) {
+    const url = URL.createObjectURL(f);
+    try {
+      const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('This photo could not be opened.')); i.src = url; });
+      let side = 2600, out = '';
+      for (let k = 0; k < 6; k++) {
+        const sc = Math.min(1, side / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.naturalWidth * sc)); c.height = Math.max(1, Math.round(im.naturalHeight * sc));
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); out = c.toDataURL('image/jpeg', 0.88);
+        if (out.length <= Math.ceil(3 * 1024 * 1024 * 4 / 3)) return out;
+        side = Math.round(side * 0.8);
+      }
+      throw new Error('This photo is too big even made smaller.');
+    } finally { URL.revokeObjectURL(url); }
   }
   const mliB64 = u8 => new Promise((res, rej) => { const fr = new FileReader(); fr.onerror = () => rej(new Error('Could not read the page.')); fr.onload = () => res(String(fr.result).replace(/^data:[^,]*,/, '')); fr.readAsDataURL(new Blob([u8], { type: 'application/pdf' })); });
   // the AI's tables (page after page) as sheets: a table without its machinery goes on with the one before

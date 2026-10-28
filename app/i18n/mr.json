@@ -6965,5 +6965,10 @@
 "Could not read the page.": "पान वाचता आले नाही.",
 "Reading with the AI… page {0} of {1}": "AI वाचत आहे… {1} पैकी पान {0}",
 "The PDF tool could not be loaded.": "PDF चे साधन उघडता आले नाही.",
-"The PDF tool did not load.": "PDF चे साधन उघडले नाही."
+"The PDF tool did not load.": "PDF चे साधन उघडले नाही.",
+"Page {0} of this PDF is too big alone (more than 3 MB – a scan of very high quality) – scan it again at a lower quality, or give that page as a photo.": "या PDF चे पान {0} एकटेच खूप मोठे आहे (3 MB पेक्षा जास्त – खूप जास्त quality चा scan) – ते कमी quality ने पुन्हा scan करा, किंवा ते पान photo म्हणून द्या.",
+"This PDF could not be taken apart into its pages here, and it is too big to send whole (more than 3 MB) – save it again as a PDF (Print → Save as PDF) and choose it again.": "ही PDF इथे पानांमध्ये वेगळी करता आली नाही, आणि पूर्ण पाठवायला ती खूप मोठी आहे (3 MB पेक्षा जास्त) – ती पुन्हा PDF म्हणून save करा (Print → Save as PDF) आणि पुन्हा निवडा.",
+"This photo could not be made smaller here, and it is too big (more than 3 MB) – take it again at a lower size.": "हा photo इथे लहान करता आला नाही, आणि तो खूप मोठा आहे (3 MB पेक्षा जास्त) – तो कमी size ने पुन्हा काढा.",
+"This photo could not be opened.": "हा photo उघडता आला नाही.",
+"This photo is too big even made smaller.": "हा photo लहान करूनही खूप मोठा आहे."
 }
