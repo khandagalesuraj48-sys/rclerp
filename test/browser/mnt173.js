@@ -13,6 +13,7 @@
 //   3. a PDF read by the AI a page a call (update-176: each page taken out and sent alone; a cut answer: the quicker model); two machinery in it; Check, Import
 //   4. "Download the format (Excel)": a sheet for each Own machinery on the site, its number in row 3, the heading
 //   5. (update-174) a user with Maintenance Edit sees the import, View only does not
+//   7. (update-177) a PDF of 4.6 MB and a photo of more than 3 MB read (no size limit)
 //   6. (update-175) an Own machinery no longer on the site offered too; the names' list gone after the import; the log book "Start to end"
 //      (no limit of days), each bill Change / Delete on the screen (not in the Excel), "Fetch outward (Store)"; the bills "Start to end"
 //   NODE_PATH=<folder with puppeteer-core, @sparticuz/chromium, xlsx> NODE_OPTIONS="--require <path>/geo-shim.js" node mnt173.js
@@ -207,6 +208,30 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     await F.evaluate(() => { $('mtf_no').value = ''; $('mtf_all').checked = true; $('mtf_all').dispatchEvent(new Event('change')); }); await wait(2500);
     const bl = await F.evaluate(() => ({ n: S.mt.rows.length, dis: $('mtf_from').disabled }));
     ok('   the bills "Start to end": every bill (4 – from 2022), the dates greyed', bl.n === 4 && bl.dis, bl);
+    // ---- 7. (update-177, "pdf size cha issue yeu naye ani eka pdf madhe multiple pages pn ashu shaktat") a PDF of 4.6 MB (2 pages) and a
+    //      photo of a page bigger than 3 MB – read: each PDF page sent alone (small); the photo made smaller on the page ----
+    await aiSay('/__clear');
+    for (const m of ['RL-BIG-1', 'RL-BIG-2']) await aiSay('/__next', JSON.stringify({ pages: 1, tables: [{ machinery: m, rows: [[1, '2023-01-05', 'Store', null, 'GREASE', 1, 'Kg', 180, 180, 32.4, 212.4, 212.4]] }] }));
+    await aiSay('/__next', JSON.stringify({ pages: 1, tables: [{ machinery: 'RL-PHOTO', rows: [[1, '2023-01-06', 'Store', null, 'BULB', 1, 'Nos', 40, 40, 7.2, 47.2, 47.2]] }] }));
+    const bd = await PL.PDFDocument.create();
+    for (let i = 1; i <= 2; i++) bd.addPage([842, 595]).drawText('MAINTENANCE LOG BOOK – big file, page ' + i, { x: 40, y: 540, size: 18, font: await bd.embedFont(PL.StandardFonts.Helvetica) });
+    await bd.attach(require('crypto').randomBytes(4600000), 'scan-data.bin', { mimeType: 'application/octet-stream' });      // (a file of the document, on no page)
+    const bigFile = path.join(dir, 'Big log book.pdf'); fs.writeFileSync(bigFile, Buffer.from(await bd.save()));
+    await F.evaluate(() => { $('mti_file').value = ''; }); await inp.uploadFile(bigFile);
+    for (let i = 0; i < 60 && !(await F.evaluate(() => !!(S.mli && S.mli.name === 'Big log book.pdf' && S.mli.fix && !S.mli.fix.busy))); i++) await wait(400);
+    const bg = await F.evaluate(() => ({ sheets: (S.mli.sheets || []).map(x => x.sheet), err: (document.querySelector('#mti_out .err, #mti_out .bad') || {}).textContent || '' }));
+    const lb7 = (await aiSay('/__log')).filter(x => x.kind === 'document');
+    ok('7. a PDF of ' + (fs.statSync(bigFile).size / 1048576).toFixed(1) + ' MB (no limit of the size any more): its 2 pages read – each sent alone (under 100 KB)',
+      fs.statSync(bigFile).size > 4.5e6 && JSON.stringify(bg.sheets) === JSON.stringify(['RL-BIG-1', 'RL-BIG-2']) && lb7.length === 2 && lb7.every(x => x.bytes < 100000), [bg, lb7.map(x => x.bytes)]);
+    const ph = await F.evaluate(async () => {
+      const c = document.createElement('canvas'); c.width = 3000; c.height = 2200; const g = c.getContext('2d'), d = g.createImageData(3000, 2200);
+      for (let i = 0; i < d.data.length; i += 4) { d.data[i] = Math.random() * 255; d.data[i + 1] = Math.random() * 255; d.data[i + 2] = Math.random() * 255; d.data[i + 3] = 255; }
+      g.putImageData(d, 0, 0); const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+      const sheets = await mliReadAi(new File([blob], 'Page photo.png', { type: 'image/png' }), () => {});
+      return { size: blob.size, sheets: sheets.map(x => x.sheet) };
+    });
+    const im7 = (await aiSay('/__log')).filter(x => x.kind === 'image').pop() || {};
+    ok('   a photo of ' + (ph.size / 1048576).toFixed(1) + ' MB: made smaller on the page (a JPEG of 3 MB or less) and read', ph.size > 3 * 1048576 && JSON.stringify(ph.sheets) === JSON.stringify(['RL-PHOTO']) && im7.image === 'image/jpeg' && im7.bytes <= 3 * 1048576, [ph, im7.image, im7.bytes]);
     ok('no error on the page', errs.length === 0, errs);
   } catch (e) { ok('no error in the test itself', false, String(e && e.stack || e)); }
   finally {

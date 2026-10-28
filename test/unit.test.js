@@ -6978,3 +6978,14 @@ test('update-176: the old log book\'s PDF read a page at a time – only that pa
   assert.match(fs.readFileSync(path.join(root, 'app', 'vendor', 'README.txt'), 'utf8'), /pdf-lib-1\.17\.1\.min\.js +pdf-lib 1\.17\.1/);
   assert.strictEqual(require('crypto').createHash('sha256').update(fs.readFileSync(path.join(root, 'app', 'vendor', 'pdf-lib-1.17.1.min.js'))).digest('hex'), '0f9a5cad07941f0826586c94e089d89b918c46e5c17cf2d5a3c6f666e3bc694f', 'the published file, unchanged');
 });
+
+test('update-177: the old log book – no limit of the file\'s size (a PDF of any size and pages: taken apart on the page, a page alone up to 3 MB; a bigger photo made smaller on the page)', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), f = app.slice(app.indexOf('  async function mliReadAi(f, say) {'), app.indexOf('  // the AI\'s tables (page after page) as sheets'));
+  assert.ok(f.length > 1000);
+  assert.ok(!/if \(f\.size > 3 \* 1024 \* 1024\) throw/.test(f), 'no check of the whole file\'s size before it is taken apart');
+  assert.match(f, /const whole = async \(\) => \{ if \(f\.size > BIG\) throw new Error\(pdf \? 'This PDF could not be taken apart into its pages here, and it is too big to send whole \(more than 3 MB\)/, 'only a PDF sent whole must be 3 MB or less');
+  assert.match(f, /if \(u8\.length > BIG\) throw new Error\('Page ' \+ p \+ ' of this PDF is too big alone/, 'a page alone up to 3 MB');
+  assert.match(f, /const data = !pdf && f\.size > BIG \? await mliPhoto\(f\)\.catch\(\(\) => whole\(\)\) : await whole\(\);/, 'a bigger photo made smaller');
+  assert.match(f, /let side = 2600, out = '';[\s\S]*c\.toDataURL\('image\/jpeg', 0\.88\);[\s\S]*side = Math\.round\(side \* 0\.8\);/);
+  assert.ok(f.indexOf('L.PDFDocument.load(await f.arrayBuffer()') > -1 && f.indexOf('L.PDFDocument.load(await f.arrayBuffer()') < f.indexOf('const data = !pdf'), 'a PDF is taken apart before anything is read whole');
+});
