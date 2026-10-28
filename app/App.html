@@ -3817,6 +3817,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="toolbar">
         <div class="field"><label for="vf_q">Search</label><input id="vf_q" placeholder="Vendor, GST, PAN"></div>
         <div class="field"><label for="vf_st">Details</label><select id="vf_st"><option value="">All</option><option value="missing">Not filled / incomplete</option><option value="done">Complete</option></select></div>
+        <div class="field"><label for="vf_ty">Type</label><select id="vf_ty"><option value="">All</option><option value="bill">Machinery &amp; billing</option><option value="mat">Material suppliers (Store)</option></select></div>
         <button class="btn primary small" id="v_new" data-perm="Vendor Master">+ New vendor</button>
         <button class="btn ghost small" id="v_mkall" data-perm="Vendor Master" hidden></button>
         <div class="sum" id="vf_sum"></div>
@@ -3844,6 +3845,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="v_ifsc">IFSC Code</label><input id="v_ifsc" maxlength="11" placeholder="SBIN0001234" style="text-transform:uppercase"><small class="vhint" id="v_ifsc_hint" hidden></small></div>
         <div class="field wide"><label for="v_addr">Address</label><input id="v_addr"></div>
         <div class="field wide"><label for="v_remark">Remark</label><input id="v_remark"></div>
+        <div class="field" id="v_type_f" hidden><label for="v_type">Vendor type</label><select id="v_type"><option value="">Machinery / billing vendor</option><option value="Material Supplier">Material Supplier (Store)</option></select></div>
       </div>
       <div class="actions" data-perm="Vendor Master"><button class="btn primary" id="v_save">Save vendor</button><button class="btn ghost" id="v_cancel">Close</button><button class="btn ghost" id="v_del" hidden>Delete details</button></div>
     </div>
@@ -6152,11 +6154,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The maintenance bill is not complete: each line needs its work / part and its Paid by (RCL, Insurance, Warranty, FOC, Service Plan); a line paid by RCL or the insurance needs its amount (₹), its Qty and Rate cannot be below 0, its discount and its GST are 0 to 100 %; the total cannot be below 0; a service needs its reading (KM / Hrs); an insurance claim (also a line paid by the insurance) needs the insurance company and what it paid (not more than the bill). Nothing was saved.', 'Fill the line or the box named in the message (Warranty / FOC / Service Plan lines are ₹ 0; each line its GST % – no tax lines; a discount on the whole bill is a minus amount; an empty line is left out), then save again. "Already saved" means the same bill number of the same garage for this car is there – look at the list before saving it twice. "Update the app": this bill has free lines, an insurance part or the GST of its lines – change it on the web or in the newest app.'],
       mr: ['Maintenance bill पूर्ण नाही: प्रत्येक ओळीला काम / part आणि Paid by (RCL, Insurance, Warranty, FOC, Service Plan) हवे; RCL किंवा insurance ने भरलेल्या ओळीला तिची रक्कम (₹) हवी, Qty आणि Rate 0 पेक्षा कमी नको, discount आणि GST 0 ते 100 %; एकूण 0 पेक्षा कमी नको; service ला त्याची reading (KM / Hrs) हवी; insurance claim ला (insurance ने भरलेल्या ओळीला पण) insurance company आणि तिने भरलेली रक्कम (bill पेक्षा जास्त नाही) हवी. काहीही save झाले नाही.', 'Message मध्ये सांगितलेली ओळ किंवा box भरा (Warranty / FOC / Service Plan ओळी ₹ 0; प्रत्येक ओळीला तिचा GST % – tax च्या वेगळ्या ओळी नाहीत; पूर्ण bill वरचा discount म्हणजे minus रक्कम; रिकामी ओळ सोडली जाते), मग पुन्हा save करा. "Already saved" म्हणजे याच गाडीचा, याच garage चा तोच bill नंबर आधीच आहे – दोनदा save करण्याआधी यादी पहा. "Update the app": या bill मध्ये मोफत ओळी, insurance चा भाग किंवा ओळींचा GST आहे – तो web वर किंवा नव्या app मध्ये बदला.'],
       hi: ['Maintenance bill पूरा नहीं है: हर पंक्ति में काम / part और Paid by (RCL, Insurance, Warranty, FOC, Service Plan) चाहिए; RCL या insurance की पंक्ति में उसकी रक़म (₹) चाहिए, Qty और Rate 0 से कम नहीं, discount और GST 0 से 100 %; कुल 0 से कम नहीं; service के लिए उसकी reading (KM / Hrs) चाहिए; insurance claim में (insurance की पंक्ति में भी) insurance company और उसने भरी रक़म (bill से ज़्यादा नहीं) चाहिए। कुछ भी save नहीं हुआ।', 'Message में बताई गई पंक्ति या box भरें (Warranty / FOC / Service Plan पंक्तियाँ ₹ 0; हर पंक्ति का अपना GST % – tax की अलग पंक्तियाँ नहीं; पूरे bill पर discount यानी minus रक़म; खाली पंक्ति छोड़ दी जाती है), फिर से save करें। "Already saved" यानी इसी गाड़ी का, इसी garage का वही bill नंबर पहले से है – दो बार save करने से पहले सूची देखें। "Update the app": इस bill में मुफ़्त पंक्तियाँ, insurance का हिस्सा या पंक्तियों का GST है – उसे web पर या नए app में बदलें।'] },
-    // (update-180) one line of a bill changed or deleted from the Maintenance Log Book
-    { re: /was changed meanwhile – show the log book again|is the only line of bill\b.* – delete the whole bill/i,
-      en: ['This line of the maintenance bill was not changed: the bill was changed by someone else after the log book was shown, or it is the only line of its bill (a bill keeps at least one line). Nothing was saved.', 'Press Show again to read the log book as it is saved now, then change or delete the line. To take out the only line of a bill, delete the whole bill (Delete on its Party Name).'],
-      mr: ['Maintenance bill ची ही ओळ बदलली नाही: log book दाखवल्यानंतर दुसऱ्या कोणीतरी bill बदलले, किंवा ही त्या bill ची एकमेव ओळ आहे (bill मध्ये किमान एक ओळ राहते). काहीही save झाले नाही.', 'Show पुन्हा दाबा म्हणजे आत्ता save असलेली log book दिसेल, मग ओळ बदला किंवा delete करा. Bill ची एकमेव ओळ काढायची असेल तर पूर्ण bill delete करा (त्याच्या Party Name वरचे Delete).'],
-      hi: ['Maintenance bill की यह पंक्ति नहीं बदली: log book दिखाने के बाद किसी और ने bill बदल दिया, या यह उस bill की इकलौती पंक्ति है (bill में कम से कम एक पंक्ति रहती है). कुछ भी save नहीं हुआ.', 'Show फिर से दबाएँ ताकि अभी save log book दिखे, फिर पंक्ति बदलें या delete करें. Bill की इकलौती पंक्ति हटानी हो तो पूरा bill delete करें (उसके Party Name पर Delete).'] },
     // (update-173) the old log book's import
     { re: /is not an Own machinery\b|The file has no bill for|bills in one import – split the file|No Own machinery is on this site today/i,
       en: ['The old log book is imported only for an Own machinery (Asset Master: Ownership Own – on the site now or not), with at least one bill, up to 3,000 bills of one machinery at a time. Nothing was imported for it.', 'Pick the right machinery for that sheet (or "not imported"), or set its Ownership to Own in the Asset Master if it is yours; split a very big sheet into two files. Then Check and Import again – what was imported before is left out.'],
@@ -6779,6 +6776,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['A field that must be filled is empty or has a value that is not allowed.', 'Fill the field named in the message (fields with * are compulsory) and save again.'],
       mr: ['भरणे आवश्यक असलेला field रिकामा आहे किंवा त्यात चालत नसलेली किंमत आहे.', 'संदेशात दिलेला field भरा (* असलेले fields आवश्यक आहेत) आणि पुन्हा save करा.'],
       hi: ['जो field भरना ज़रूरी है वह खाली है या उसमें ऐसी value है जो मान्य नहीं।', 'संदेश में बताया field भरें (* वाले fields ज़रूरी हैं) और फिर save करें।'] },
+    // (update-180) one line of a bill changed or deleted from the Maintenance Log Book
+    { re: /was changed meanwhile – show the log book again|is the only line of bill\b.* – delete the whole bill/i,
+      en: ['This line of the maintenance bill was not changed: the bill was changed by someone else after the log book was shown, or it is the only line of its bill (a bill keeps at least one line). Nothing was saved.', 'Press Show again to read the log book as it is saved now, then change or delete the line. To take out the only line of a bill, delete the whole bill (Delete on its Party Name).'],
+      mr: ['Maintenance bill ची ही ओळ बदलली नाही: log book दाखवल्यानंतर दुसऱ्या कोणीतरी bill बदलले, किंवा ही त्या bill ची एकमेव ओळ आहे (bill मध्ये किमान एक ओळ राहते). काहीही save झाले नाही.', 'Show पुन्हा दाबा म्हणजे आत्ता save असलेली log book दिसेल, मग ओळ बदला किंवा delete करा. Bill ची एकमेव ओळ काढायची असेल तर पूर्ण bill delete करा (त्याच्या Party Name वरचे Delete).'],
+      hi: ['Maintenance bill की यह पंक्ति नहीं बदली: log book दिखाने के बाद किसी और ने bill बदल दिया, या यह उस bill की इकलौती पंक्ति है (bill में कम से कम एक पंक्ति रहती है). कुछ भी save नहीं हुआ.', 'Show फिर से दबाएँ ताकि अभी save log book दिखे, फिर पंक्ति बदलें या delete करें. Bill की इकलौती पंक्ति हटानी हो तो पूरा bill delete करें (उसके Party Name पर Delete).'] },
   ];
   const FIX_ANY = { en: ['The app could not accept this. The line above says which field or value is the problem.', 'Correct that field and try again. If it is not clear, take a photo of this box and send it to the Admin.'],
     mr: ['App ला हे स्वीकारता आले नाही. वरच्या ओळीत कोणता field किंवा किंमत अडचणीची आहे ते दिले आहे.', 'तो field दुरुस्त करून पुन्हा प्रयत्न करा. समजले नाही तर या चौकटीचा फोटो काढून Admin ला पाठवा.'],
@@ -11544,7 +11546,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // assign vendors to the selected assets – each row its own vendor, with "set all" to fill every row at once
   $('m_selassign').addEventListener('click', async () => {
     const list = [...S.mSel].map(id => S.master.find(m => m.id === id)).filter(Boolean); if (!list.length) return;
-    const vs = [...new Set((S.vendors || []).map(v => v.name))].sort((a, b) => a.localeCompare(b));   // every vendor in the Vendor Master list
+    const vs = [...new Set(billVendors().map(v => v.name))].sort((a, b) => a.localeCompare(b));   // every vendor in the Vendor Master list (not a material supplier – update-181)
     if (!vs.length) { toast('No vendors in Vendor Master yet – create them first (+ New vendor).', true); return; }
     const opt = cur => '<option value="">– pick –</option>' + vs.map(n => '<option' + (n.toUpperCase() === String(cur || '').trim().toUpperCase() ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
     const html = '<div class="as-all"><label>Set all rows to</label><select id="as_all">' + opt('') + '</select><button type="button" class="btn ghost small" id="as_apply">Apply to all</button></div>' +
@@ -11660,27 +11662,33 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ================= VENDORS & BOQ ================= */
   S.vendors = []; S.boqs = [];
   const vbMoney = v => '₹' + (Number(v) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  /* (update-181) a Material Supplier (made by the Store's import of its old inward register): in the Vendor Master, not in the lists
+   * of an asset's owner, a BOQ, a bill or a payment – unless it has machinery or a BOQ here (the server's parties list the same) */
+  const matOnly = v => !!v && v.type === 'Material Supplier' && !(v.machines || []).length && !v.boqs;
+  const billVendors = () => (S.vendors || []).filter(v => !matOnly(v));
   async function loadVendors() {
     try {
       const d = await call('getBoqs', {});
-      S.vendors = d.vendors || []; S.boqs = d.boqs || []; S.boqHist = d.history || [];
+      S.vendors = d.vendors || []; S.boqs = d.boqs || []; S.boqHist = d.history || []; S.vtypeOn = !!d.vtypeOn;
       renderVendors(); renderBoqs(); if (S.master) renderMaster();
       const sel = $('bf_vendor'), cur = sel.value;
-      sel.innerHTML = '<option value="">All vendors</option>' + S.vendors.map(v => '<option>' + esc(v.name) + '</option>').join('');
+      sel.innerHTML = '<option value="">All vendors</option>' + billVendors().map(v => '<option>' + esc(v.name) + '</option>').join('');
       sel.value = cur;
       $('dl_vmach').innerHTML = [].concat(...S.vendors.map(v => v.machines || [])).map(m => '<option value="' + esc(m.id) + '">').join('');
-      $('dl_vendornames').innerHTML = S.vendors.map(v => '<option value="' + esc(v.name) + '">').join('');
+      $('dl_vendornames').innerHTML = billVendors().map(v => '<option value="' + esc(v.name) + '">').join('');
       $('dl_engmake').innerHTML = [...new Set(S.master.map(m => m.engineMake).filter(Boolean))].map(x => '<option value="' + esc(x) + '">').join('');
     } catch (e) { toast(errMsg(e), true); }
   }
   function renderVendors() {
-    const q = val('vf_q').toUpperCase(), st = $('vf_st').value;
-    const list = S.vendors.filter(v => (!q || [v.name, v.gst, v.pan].join(' ').toUpperCase().includes(q)) && (!st || (st === 'done' ? v.complete : !v.complete)));
+    const q = val('vf_q').toUpperCase(), st = $('vf_st').value, ty = $('vf_ty').value;
+    const list = S.vendors.filter(v => (!q || [v.name, v.gst, v.pan].join(' ').toUpperCase().includes(q)) && (!st || (st === 'done' ? v.complete : !v.complete)) &&
+      (!ty || (ty === 'mat') === (v.type === 'Material Supplier')));
     const unsaved = S.vendors.filter(v => !v.saved).map(v => v.name);
     $('v_mkall').hidden = !unsaved.length || !canEdit('Vendor Master'); $('v_mkall').textContent = 'Save all ' + unsaved.length + ' owners as vendors';
-    $('vf_sum').innerHTML = 'Vendors: <b>' + list.length + '</b> · details complete: <b>' + S.vendors.filter(v => v.complete).length + '</b> of ' + S.vendors.length;
+    const nMat = S.vendors.filter(v => v.type === 'Material Supplier').length;
+    $('vf_sum').innerHTML = 'Vendors: <b>' + list.length + '</b> · details complete: <b>' + S.vendors.filter(v => v.complete).length + '</b> of ' + S.vendors.length + (nMat ? ' · material suppliers: <b>' + nMat + '</b>' : '');
     const can = canEdit('Vendor Master');      // (update-111) every site its own vendors – the server sends only this site's
-    $('v_rows').innerHTML = list.length ? list.map(v => '<tr><td><b>' + esc(v.name) + '</b></td><td>' + esc(v.ownership || '') + '</td><td>' + (v.machines || []).length +
+    $('v_rows').innerHTML = list.length ? list.map(v => '<tr><td><b>' + esc(v.name) + '</b>' + (v.type === 'Material Supplier' ? ' <span class="st na">Material Supplier</span>' : '') + '</td><td>' + esc(v.ownership || '') + '</td><td>' + (v.machines || []).length +
       '<small class="muted"> ' + esc((v.machines || []).map(m => m.id).slice(0, 3).join(', ')) + ((v.machines || []).length > 3 ? '…' : '') + '</small></td><td>' + esc(v.phone || '–') + '</td><td>' + esc(v.gst ? v.gst : (v.saved && v.gstReg !== 'Yes' ? 'Not registered' : '–')) +
       '</td><td>' + esc(v.pan || '–') +
       '</td><td>' + esc(v.bank ? v.bank + (v.account ? ' · ' + String(v.account).slice(-4).padStart(8, '•') : '') : '–') + '</td><td class="n">' + (v.boqs || 0) +
@@ -11689,7 +11697,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         ' <button class="link" data-vboq="' + esc(v.name) + '">' + (v.boqs ? 'BOQs' : 'Make BOQ') + '</button>' + (v.saved ? ' <button class="link danger" data-vdel="' + esc(v.name) + '">Delete</button>' : '') : '') + '</td></tr>').join('')
       : '<tr><td colspan="10" class="none">No vendors yet – press "+ New vendor".</td></tr>';
   }
-  ['vf_q'].forEach(id => $(id).addEventListener('input', renderVendors)); $('vf_st').addEventListener('change', renderVendors);
+  ['vf_q'].forEach(id => $(id).addEventListener('input', renderVendors)); $('vf_st').addEventListener('change', renderVendors); $('vf_ty').addEventListener('change', renderVendors);
   $('v_rows').addEventListener('click', e => {
     const b = e.target.closest('[data-vedit]'); if (b) { const v = S.vendors.find(x => x.name === b.dataset.vedit); vOpen(b.dataset.vedit); return; }
     const dl = e.target.closest('[data-vdel]'); if (dl) { S.vEdit = S.vendors.find(x => x.name === dl.dataset.vdel); $('v_del').click(); return; }
@@ -11713,7 +11721,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const set = (id, x) => { $(id).value = x === undefined || x === null ? '' : x; };
     set('v_name', v.name); set('v_gstreg', v.gstReg === 'Yes' ? 'Yes' : 'No'); set('v_gst', v.gst); set('v_gstpct', v.gstPct); set('v_pan', v.pan); set('v_tds', v.tds);
     set('v_bank', v.bank); set('v_branch', v.branch); set('v_acc', v.account); set('v_ifsc', v.ifsc); set('v_phone', v.phone); set('v_addr', v.address); set('v_remark', v.remark);
-    set('v_aadhaar', v.aadhaar); set('v_email', v.email);
+    set('v_aadhaar', v.aadhaar); set('v_email', v.email); set('v_type', v.type === 'Material Supplier' ? 'Material Supplier' : '');
+    $('v_type_f').hidden = !(S.vtypeOn || v.type);      // (update-181) the type – where this site's database keeps it
     vGstBoxes(); $('v_del').hidden = !v.saved; $('v_form').hidden = false;
     if ($('v_form').scrollIntoView) $('v_form').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -11795,7 +11804,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         'its BOQs, bills, payments, debit notes, and the owner / "Debit to" on Log Book entries and diesel issues.</p><p class="muted">Bills and debit notes already submitted keep the name printed on their papers; they stay in this vendor\'s ledger.</p>' }))) return;
     }
     const res = await call('saveVendor', { oldName: renaming ? was : '', name: g('v_name'), gstReg: g('v_gstreg'), gst: g('v_gst'), gstPct: g('v_gstpct'), pan: g('v_pan'), tds: g('v_tds'), bank: g('v_bank'),
-      branch: g('v_branch'), account: g('v_acc'), ifsc: g('v_ifsc'), phone: g('v_phone'), address: g('v_addr'), remark: g('v_remark'), aadhaar: g('v_aadhaar'), email: g('v_email'),
+      branch: g('v_branch'), account: g('v_acc'), ifsc: g('v_ifsc'), phone: g('v_phone'), address: g('v_addr'), remark: g('v_remark'), aadhaar: g('v_aadhaar'), email: g('v_email'), type: $('v_type_f').hidden ? undefined : g('v_type'),
       ver: S.vEdit && S.vEdit.saved ? S.vEdit.ver || '' : '' }, S.vEdit && S.vEdit.saved ? 'edit' : 'add');      // (update-156) the version it had when opened
     S.vendors = res.vendors; renderVendors(); $('v_form').hidden = true;
     toast(res.renamed ? 'Vendor renamed: ' + res.renamed.from + ' → ' + res.renamed.to + (res.renamed.text ? ' (' + res.renamed.text + ' moved with it)' : '') : 'Vendor saved: ' + res.name);
@@ -12078,7 +12087,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const bNextNo = vendor => String(S.boqs.filter(x => x.vendor === vendor).reduce((m, x) => Math.max(m, /^\d+$/.test(x.no) ? Number(x.no) : 0), 0) + 1);
   function bOpen(mode, b) {
     S.bMode = mode; S.bRec = b || null;
-    const saved = S.vendors;
+    const saved = billVendors();      // (update-181) not a material supplier
     $('b_vendor').innerHTML = '<option value="">Pick the vendor…</option>' + saved.map(v => '<option>' + esc(v.name) + '</option>').join('');
     $('b_vendor').disabled = mode !== 'new';
     if (mode === 'new') {
@@ -14442,7 +14451,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const balTxt = x => Math.abs(x) < 0.005 ? '0.00' : x > 0 ? mbN2(x) : mbN2(-x) + ' Adv';
   async function pyVendors() {
     if (S.py.vendors.length) return S.py.vendors;
-    try { S.py.vendors = (await call('getVendors')).map(v => v.name); } catch (e) { S.py.vendors = []; }
+    try { S.py.vendors = (await call('getVendors')).filter(v => !matOnly(v)).map(v => v.name); } catch (e) { S.py.vendors = []; }      // (update-181) not a material supplier
     return S.py.vendors;
   }
   const vendorOpts = (names, first, cur) => '<option value="">' + first + '</option>' + names.map(n => '<option' + (n === cur ? ' selected' : '') + '>' + esc(n) + '</option>').join('');

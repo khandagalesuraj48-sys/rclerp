@@ -207,6 +207,9 @@ SbSheet_.prototype.toRecord_ = function (row) {
   const o = { id: this.rowId_(row) };
   this.def.cols.forEach(x => {
     const i = this.hdr.indexOf(x[0]);
+    // (update-181) a column only some sites have ('opt' in SupabaseSync – vendors.vendor_type): while the table's columns are not known
+    // yet (nothing read – an empty table), it is sent only with a value – an empty one would be refused where the column is missing
+    if (!this.dbCols && x[3] === 'opt') { const v0 = i > -1 ? sbVal_(row[i], x[2]) : null; if (v0 === null || v0 === '') return; }
     if (this.dbCols && this.dbCols.indexOf(x[1]) === -1) {
       /* NOTHING TYPED IS EVER DROPPED SILENTLY (07-10-2026). The database does not have this column (its SQL step was not
        * run). Empty: left out, nothing is lost. A VALUE: until now it was left out too and the save said "saved" – the

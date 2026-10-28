@@ -9310,4 +9310,12 @@
 "This is an OLD MAINTENANCE LOG BOOK of a construction company in India (₹): for each machinery / vehicle a table of its bills, a row for each work / part / material.",
 "This is the only line of bill",
 "This is the only line of bill {0} – delete the whole bill instead.",
-"was changed meanwhile – show the log book again, then change its line."]
+"was changed meanwhile – show the log book again, then change its line.",
+"· material suppliers:",
+"Machinery / billing vendor",
+"Machinery & billing",
+"Material Supplier",
+"Material Supplier (Store)",
+"Material suppliers (Store)",
+"Vendor type",
+"Vendor Type"]
