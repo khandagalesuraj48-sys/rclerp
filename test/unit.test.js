@@ -6806,7 +6806,7 @@ test('update-173: the old Maintenance Log Book of a machinery imported as it is 
   // the page: the Admin's import, its reader and its two actions; the help of its messages
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   assert.match(app, /<div class="panel" id="mti_panel" hidden>/);
-  assert.match(app, /\$\('mti_panel'\)\.hidden = !\(S\.user && S\.user\.admin\) \|\| !!d\.missing;/);
+  assert.match(app, /\$\('mti_panel'\)\.hidden = !canEdit\('Maintenance'\) \|\| !!d\.missing;/);      // (update-174: everyone with Maintenance Edit)
   assert.match(app, /call\('checkMaintImport', \{ no: x\.no, bills: mliBills\(x\) \}\)/);
   assert.match(app, /call\('importMaint', \{ no: x\.no, bills: mliBills\(x\) \}\)/);
   assert.match(app, /re: \/is not an Own machinery on this site now\|The file has no bill for\|bills in one import – split the file\|No Own machinery is on this site today\/i/);
@@ -6874,4 +6874,22 @@ test('update-173: the old Maintenance Log Book of a machinery imported as it is 
   assert.deepStrictEqual([sent2[0].garage, sent2[0].lines.map(l => l.work + ':' + l.uom)], ['SURAJ', ['AD BLUE:Ltr', 'GREASE:Kg', 'BULB:Nos']], 'only the ticked name (with a name) is changed');
   assert.strictEqual(sh.bills[0].garage, 'SURJ', 'the file as it is stays');
   assert.deepStrictEqual(JSON.parse(JSON.stringify(pc.T.mliNamesOf([sh]))), { party: { SURJ: 3 }, work: { 'AD BLUE': 1, GREASE: 1, BULB: 1 }, uom: { Ltr: 1, Kg: 1, Nos: 1 } });
+});
+
+test('update-174: the old log book\'s import for everyone with Maintenance Edit (not only the Admin) – the check and the AI\'s reading save nothing, Edit checked inside; View only is refused; a user whose Maintenance is verified: his import is sent, said as sent', () => {
+  const { ctx } = require('./harness.js');
+  const run = (fn, ...a) => require('vm').runInContext('(' + fn + ')', ctx)(...a);
+  const spec = run('() => ({ c: API_.checkMaintImport, i: API_.importMaint, r: API_.readMaintLog, n: API_.maintImportNames })');
+  assert.deepStrictEqual([spec.i.m, spec.i.edit, spec.i.admin, spec.i.log], ['Maintenance', true, undefined, 'maintImport'], 'the import: Maintenance Edit, no more Admin only');
+  [spec.c, spec.r, spec.n].forEach(x => assert.deepStrictEqual([x.m, x.withUser, x.edit, x.admin], ['Maintenance', true, undefined, undefined], 'not a save: no Edit flag (no verification, no sync) – checked inside'));
+  const view = { name: 'Clerk', email: 'c@x.test', admin: false, perms: { Maintenance: 'View' } }, edit = { name: 'Mech', email: 'm@x.test', admin: false, perms: { Maintenance: 'Edit' } };
+  const tryF = f => { try { return { ok: f() }; } catch (e) { return { err: String(e.message) }; } };
+  const no = 'You have View access only for Maintenance. Ask Admin for Edit access.';
+  assert.deepStrictEqual([tryF(() => spec.c.f(view, { no: 'X', bills: [] })).err, tryF(() => spec.r.f(view, { data: '' })).err, tryF(() => spec.n.f(view, {})).err], [no, no, no], 'View only: refused');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(spec.n.f(edit, {}))), { fixes: [] }, 'Maintenance Edit: let in');
+  assert.strictEqual(tryF(() => spec.r.f(edit, { data: 'x' })).err, 'An old log book must be a PDF or a photo (JPG or PNG).', 'Maintenance Edit: the reading itself runs');
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /\$\('mti_panel'\)\.hidden = !canEdit\('Maintenance'\) \|\| !!d\.missing;/);
+  assert.match(app, /if \(FLOW_SENT_RE\.test\(m\)\) x\.done = \{ added: 0, same: 0, sent: m \}; else x\.res = \{ err: m \};/, 'sent for verification: said as sent');
+  assert.match(app, /if \(x\.done && x\.done\.sent\) return '<span class="pos">' \+ esc\(x\.done\.sent\) \+ '<\/span>';/);
 });

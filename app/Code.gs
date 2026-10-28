@@ -958,10 +958,12 @@ const API_ = {
   readMaintBill:     { m: 'Maintenance', withUser: true, f: (u, x) => maintRead_(u, x) },      // the AI reads a bill – nothing is saved (Edit checked inside)
   maintLog:          { m: 'Maintenance', any: ['Maintenance', 'Reports'], f: maintLog_ },
   // (update-173) the old Maintenance Log Book of a machinery imported as it is (his Excel) – checked first, then one machinery a call (Admin)
-  checkMaintImport:  { m: 'Maintenance', admin: true, f: b => importMaint_(Object.assign({}, b, { check: true })) },
-  importMaint:       { m: 'Maintenance', edit: true, admin: true, f: importMaint_, log: 'maintImport' },
-  readMaintLog:      { m: 'Maintenance', admin: true, f: readMaintLog_ },          // (update-173) the AI reads pages of an old log book (PDF / photo) – nothing saved
-  maintImportNames:  { m: 'Maintenance', admin: true, f: maintImportNames_ },      // (update-173) the AI finds the names written in more than one way – nothing saved
+  // (update-174, asked 28-10-2026: "he admin la fkt nahi user la pn disu de") the old log book's import: everyone with Maintenance Edit
+  // (update-173: the Admin only); the check and the AI's reading save nothing – Edit is checked inside (they are not saves)
+  checkMaintImport:  { m: 'Maintenance', withUser: true, f: (u, b) => { maintEditOnly_(u); return importMaint_(Object.assign({}, b, { check: true })); } },
+  importMaint:       { m: 'Maintenance', edit: true, f: importMaint_, log: 'maintImport' },
+  readMaintLog:      { m: 'Maintenance', withUser: true, f: (u, x) => { maintEditOnly_(u); return readMaintLog_(x); } },          // (update-173) the AI reads pages of an old log book (PDF / photo) – nothing saved
+  maintImportNames:  { m: 'Maintenance', withUser: true, f: (u, x) => { maintEditOnly_(u); return maintImportNames_(x); } },      // (update-173) the AI finds the names written in more than one way – nothing saved
   // (update-134) the Super Admin deletes entries (saved / waiting / returned / rejected) and brings them back – checked inside (sdelSuper_)
   superDelList: { m: '', withUser: true, f: (u, x) => sdelList_(u, x) },
   superDelete: { m: '', withUser: true, f: (u, x) => sdelDelete_(u, x) },
@@ -6587,6 +6589,8 @@ function importMaint_(b) {
  *     AI says which are one name written in several ways (SURJ / SURAAJ / SARAJ – SURAJ) and its right spelling (a saved one first).
  *     The page lists them; the Admin ticks what is changed. Only names of the file are answered. */
 const MLR_PAGES_ = 500, MLN_MAX_ = 4000;
+// (update-174) the import's check and the AI's reading: for those who may import (Maintenance Edit – the Admin has it)
+function maintEditOnly_(u) { if (!canEdit_(u, 'Maintenance')) throw new Error('You have View access only for Maintenance. Ask Admin for Edit access.'); }
 function readMaintLog_(x) {
   x = x || {};
   const mt = /^data:(image\/jpeg|image\/png|application\/pdf);base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
