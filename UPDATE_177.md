@@ -17,7 +17,7 @@
 ## Evidence
 * `timeout 300 node --test test/unit.test.js` → **130 / 130 pass** (new `update-177`: no check of the whole file's size; a page alone up
   to 3 MB; a bigger photo made smaller; the PDF taken apart before anything is read whole).
-* `node --check` on `server/*.js` and `api/*.js`; the page's script blocks parse; acorn: no call lost; no secret in the change.
+* `node --check` on `server/*.js` and `api/*.js`; the page's script blocks parse; acorn: one `.test` fewer on the page – on purpose (a PDF is known by its type, no more by its data); no secret in the change.
 * **The local rig** (Claude stand-in): `mnt173.js` **24 / 24** – new part 7: a PDF of 4.4 MB (2 pages) read, each page sent alone
   (under 100 KB); a photo of 21.7 MB made smaller on the page (a JPEG of 3 MB or less) and read; `mnt170.js` **21 / 21**.
 * **Not verified:** his real files; the real Claude service.
