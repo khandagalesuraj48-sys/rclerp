@@ -82,7 +82,7 @@ http.createServer((req, res) => {
     // a photo or a PDF bill: what /__meter says (what a model would read on it)
     const file = lb.find(b => b.type === 'image' || b.type === 'document');
     if (file) { const q = (lb.find(b => b.type === 'text') || {}).text || ''; Object.assign(entry, { image: file.source.media_type, kind: file.type, bytes: Math.round(String(file.source.data || '').length * 3 / 4), ask: q.slice(0, 600), jsonAsked: /Answer with JSON only/.test(q),
-      kept: (file.cache_control || {}).type || '', read: (/Read (ONLY pages? [\d to]+|this photo|this page \([^)]*\))/.exec(q) || [])[1] || '' }); return text(next.length ? next.shift() : meter.say); }
+      kept: (file.cache_control || {}).type || '', read: (/Read (ONLY pages? [\d to]+|this photo|this page \([^)]*\))/.exec(q) || [])[1] || '', carry: (/whose columns were (\[.*?\]): give it/.exec(q) || [])[1] || '' /* (update-180: the headings of the page before) */ }); return text(next.length ? next.shift() : meter.say); }
     // the result of a look-up: the answer made from it
     const tr = lb.find(b => b.type === 'tool_result');
     if (tr) {
