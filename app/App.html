@@ -3487,7 +3487,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       </div>
       <div class="panel lbd-p" id="lb_pend">
         <div class="panel-head"><h2>Pending Log Book</h2><span class="chart-note">Active machinery with no Log Book for the day. Tap a date to fill it. Debit-basis parties and Ownership "Other" are not counted – they need no Log Book.</span></div>
-        <div class="lbd-pf"><label>From <input id="lb_pfrom" type="date"></label><label>To <input id="lb_pto" type="date"></label><button class="btn ghost small" id="lb_preset" type="button">From 01-09-2026</button>
+        <div class="lbd-pf"><label>From <input id="lb_pfrom" type="date"></label><label>To <input id="lb_pto" type="date"></label><button class="btn ghost small" id="lb_preset" type="button">From 01-09-2026</button><button class="btn ghost small" id="lb_pprint" type="button">Print</button>
           <input id="lb_psearch" class="lbd-search" type="search" placeholder="Search machinery / owner…" autocomplete="off"></div>
         <div class="lbd-chips" id="lb_pchips"></div>
         <div class="lbd-plist" id="lb_plist"></div>
@@ -14340,6 +14340,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   ['lb_pfrom', 'lb_pto'].forEach(id => $(id).addEventListener('change', lbPendLoad));
   $('lb_preset').addEventListener('click', () => { $('lb_pfrom').value = LB_PFROM; $('lb_pto').value = S.today; lbPendLoad(); });
+  // (update-179) Print – the period of the list (its From / To), its Ownership and Vendor as picked on the Dashboard
+  $('lb_pprint').addEventListener('click', () => pendPrint({ kind: 'period', from: $('lb_pfrom').value || LB_PFROM, to: $('lb_pto').value || S.today, own: $('lb_own').value, vendor: $('lb_vendor').value }));
   $('lb_cards').addEventListener('click', e => { const g = e.target.closest('[data-lbgo]'); if (g) { const t = $(g.dataset.lbgo); if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
 
   /* ================= BILL SUMMARY ================= */
@@ -15131,6 +15133,71 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<table class="gtable"><thead>' + head + '</thead><tbody>' + (body || '<tr><td colspan="' + cols.length + '">No machinery on site.</td></tr>') + '</tbody></table>' + (ms.length ? sumTable : '') + signBlock(), 'rep', false, headName);
   }
 
+
+  /* ================= PENDING LOG BOOK – PRINT (update-179, asked 28-10-2026: "pending log book je aahet te mala period wise print
+   * krta yawet dashboard warun pn ani log book entry madhun jith diste pending tithun pn") =================
+   * One date, a month or a period (from – to); all machinery or an Ownership, an Owner / Vendor, one machinery. Each machinery
+   * with its pending days – the same list as the Dashboard's Pending Log Book: a day it was on the site with no Log Book entry in
+   * any shift (Debit-basis parties and Ownership "Other" need no Log Book). From the Dashboard (its list – Dashboard access) and
+   * from the Log Book entry page (logPending – Log Book access). */
+  async function pendPrint(o) {
+    o = o || {};
+    const t = S.today, ms = (S.master || []).filter(m => m.supply !== 'Debit Basis' && m.ownership !== 'Debit' && m.ownership !== 'Other');
+    const owners = [...new Set(ms.map(m => String(m.owner || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const opt = (v, label, cur) => '<option value="' + esc(v) + '"' + (String(v).toUpperCase() === String(cur || '').toUpperCase() ? ' selected' : '') + '>' + esc(label) + '</option>';
+    const k0 = o.kind === 'date' || o.kind === 'month' ? o.kind : 'period';
+    const html = '<div class="cp-form"><label>List for<select id="pp_kind">' + opt('date', 'One date', k0) + opt('month', 'A month', k0) + opt('period', 'A period (from – to)', k0) + '</select></label>' +
+      '<label id="pp_dw"' + (k0 === 'date' ? '' : ' hidden') + '>Date<input id="pp_date" type="date" value="' + esc(o.date || t) + '"></label>' +
+      '<label id="pp_mw"' + (k0 === 'month' ? '' : ' hidden') + '>Month<input id="pp_month" type="month" value="' + esc((o.date || t).slice(0, 7)) + '"></label>' +
+      '<label id="pp_fw"' + (k0 === 'period' ? '' : ' hidden') + '>From<input id="pp_from" type="date" value="' + esc(o.from || LB_PFROM) + '"></label>' +
+      '<label id="pp_tw"' + (k0 === 'period' ? '' : ' hidden') + '>To<input id="pp_to" type="date" value="' + esc(o.to || t) + '"></label>' +
+      '<label>Ownership<select id="pp_own">' + opt('', 'All machinery', o.own) + opt('Own', 'Own', o.own) + opt('Rental,Hired', 'Rental + Hired', o.own) + opt('Rental', 'Rental', o.own) + opt('Hired', 'Hired', o.own) + '</select></label>' +
+      '<label>Owner / Vendor<select id="pp_ven">' + opt('', 'All vendors', o.vendor) + owners.map(v => opt(v, v, o.vendor)).join('') + '</select></label>' +
+      '<label>Machinery<input id="pp_no" list="pp_nos" value="' + esc(o.no || '') + '" placeholder="All machinery" autocomplete="off"><datalist id="pp_nos">' + ms.map(m => '<option value="' + esc(m.id) + '">').join('') + '</datalist></label></div>';
+    setTimeout(() => { const k = $('pp_kind'); if (k) k.addEventListener('change', () => { $('pp_dw').hidden = k.value !== 'date'; $('pp_mw').hidden = k.value !== 'month'; $('pp_fw').hidden = $('pp_tw').hidden = k.value !== 'period'; }); }, 0);
+    if (!(await askConfirm({ title: 'Print – Pending Log Book', ok: 'Next', wide: true, html: html }))) return;
+    const kind = $('pp_kind').value, own = $('pp_own').value, ven = $('pp_ven').value, noT = $('pp_no').value.trim();
+    let from, to;
+    if (kind === 'date') { from = to = $('pp_date').value; }
+    else if (kind === 'month') { const ym = $('pp_month').value, y = Number(ym.slice(0, 4)), mo = Number(ym.slice(5, 7)); if (!y || !mo) { toast('Pick the month.', true); return; } from = ym + '-01'; to = isoDate(new Date(y, mo, 0)); }
+    else { from = $('pp_from').value; to = $('pp_to').value; }
+    if (!from || !to) { toast('Pick the dates.', true); return; }
+    if (from > to) { toast('From date is after To date.', true); return; }
+    if (from > t) { toast('Nothing is pending after today – pick dates up to today.', true); return; }
+    const one = noT ? findMachine(noT) : null;
+    if (noT && !one) { toast('No such machinery: ' + noT, true); return; }
+    const headName = await askPrintName('Print – Pending Log Book'); if (!headName) return;
+    let p; try { p = await call(o.entry ? 'logPending' : 'pendingLog', { from: from, to: to }); } catch (e) { toast(errMsg(e), true); return; }
+    const upTo = p.to || (to > t ? t : to), owns = own ? own.split(',') : [];
+    const by = {};
+    (p.items || []).forEach(x => {
+      const no = Array.isArray(x) ? x[0] : x.no, date = Array.isArray(x) ? x[1] : x.date, m = findMachine(no) || {};
+      const owner = String(m.owner || x.owner || '').trim(), ow = m.ownership || '';
+      if (owns.length && owns.indexOf(ow) < 0) return;
+      if (ven && owner.toUpperCase() !== ven.toUpperCase()) return;
+      if (one && noKey(no) !== noKey(one.id)) return;
+      const k = noKey(no);
+      (by[k] = by[k] || { no: m.id || no, name: m.name && m.name !== m.id ? m.name : '', type: m.type || x.type || '', owner: owner, own: ow, dates: [] }).dates.push(date);
+    });
+    const ORD = { Own: 0, Rental: 1, Hired: 2 }, ord = x => ORD[x.own] !== undefined ? ORD[x.own] : 9;
+    const L = Object.values(by).map(x => { x.dates.sort(); return x; }).sort((a, b) => ord(a) - ord(b) || a.owner.localeCompare(b.owner) || String(a.no).localeCompare(String(b.no), undefined, { numeric: true }));
+    // the dates as runs: 01-10 → 05-10 (5), 08-10 (the year when the period is in more than one)
+    const dU = d => Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, Number(d.slice(8, 10)));
+    const short = from.slice(0, 4) === upTo.slice(0, 4), dd = d => short ? showDate(d).slice(0, 5) : showDate(d);
+    const runs = ds => { const out = []; ds.forEach(d => { const r = out[out.length - 1]; if (r && dU(d) - dU(r[1]) === 86400000) r[1] = d; else out.push([d, d]); });
+      return out.map(r => r[0] === r[1] ? dd(r[0]) : dd(r[0]) + ' → ' + dd(r[1]) + ' (' + (Math.round((dU(r[1]) - dU(r[0])) / 86400000) + 1) + ')').join(', '); };
+    const days = L.reduce((a, x) => a + x.dates.length, 0);
+    const filt = [own ? own.replace(',', ' + ') : '', ven, one ? one.id : ''].filter(Boolean).join(' · ');
+    const title = kind === 'date' ? 'Pending Log Book – ' + showDate(from) : kind === 'month' ? 'Pending Log Book – ' + new Date(from + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : 'Pending Log Book – ' + showDate(from) + ' to ' + showDate(to);
+    const body = L.length ? L.map((x, i) => '<tr><td class="n">' + (i + 1) + '</td><td><b>' + esc(x.no) + '</b>' + (x.name ? '<small> ' + esc(x.name) + '</small>' : '') + '</td><td>' + esc(x.type) + '</td><td>' + esc(x.owner) + '</td><td>' + esc(x.own) + '</td>' +
+      '<td class="n"><b>' + x.dates.length + '</b></td><td>' + esc(runs(x.dates)) + '</td></tr>').join('')
+      : '<tr><td colspan="7" style="text-align:center;padding:14px">✔ Nothing pending' + (filt ? ' for ' + esc(filt) : '') + ' in these dates.</td></tr>';
+    printDoc(title, printHead(headName, title, (kind === 'date' ? 'Date: <b>' + esc(showDate(from)) + '</b>' : 'Period: <b>' + esc(showDate(from)) + ' to ' + esc(showDate(to)) + '</b>') +
+      '<br>' + L.length + ' machinery · ' + days + ' day' + (days === 1 ? '' : 's') + ' pending' + (filt ? '<br>' + esc(filt) : '')) +
+      '<p style="margin:2px 0 8px;font-size:11.5px;color:#555">Active machinery with no Log Book entry (in any shift) for a day it was on the site. Debit-basis parties and Ownership "Other" need no Log Book.' + (upTo < to ? ' Counted up to today (' + esc(showDate(upTo)) + ').' : '') + '</p>' +
+      '<table class="gtable"><thead><tr><th class="n">#</th><th>Machinery</th><th>Type</th><th>Owner / Vendor</th><th>Ownership</th><th class="n">Pending days</th><th>Dates pending</th></tr></thead><tbody>' + body + '</tbody>' +
+      (L.length ? '<tfoot><tr><td colspan="5">Total – ' + L.length + ' machinery</td><td class="n">' + days + '</td><td></td></tr></tfoot>' : '') + '</table>' + signBlock(), 'rep-pend', true, headName);
+  }
 
   /* ================= READ ME (Admin) ================= */
   S.rm = null;
@@ -18358,6 +18425,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     box.innerHTML = filt + '<div class="lp-head"><span>' + esc(L.head) + ': <b>' + L.items.length + ' ' + L.unit + '</b>' + (left < L.items.length ? ' <small>(' + (L.items.length - left) + ' already in the rows below)</small>' : '') + '</span>' +
       (left && canEdit('Log Book') ? '<button type="button" class="btn ghost small" data-lpall="1">Add ' + (left > 30 ? 'the next 30' : 'all ' + left) + ' to the rows</button>' : '') +
       (L.items.length > 12 ? '<button type="button" class="btn ghost small" data-lpopen="1">' + (box.classList.contains('open') ? 'Show less' : 'Show all') + '</button>' : '') +
+      '<button type="button" class="btn ghost small" data-lpprint="1">Print</button>' +
       '<small>Press a ' + (L.unit === 'dates' ? 'date' : 'name') + ' to put it in the rows.</small></div>' +
       '<div class="lp-chips">' + L.items.map(x => '<button type="button" class="' + (x.inn ? 'in' : '') + '" data-lp="' + esc(x.key) + '" title="' + esc(x.title) + '">' + esc(x.label) + '</button>').join('') + '</div>';
   }
@@ -18384,6 +18452,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('lg_pend').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.lpopen) { $('lg_pend').classList.toggle('open'); lgPendDraw(); return; }
+    // (update-179) Print: this date's pending machinery, or this machinery's pending dates (01-09-2026 to today) – the period can be changed
+    if (b.dataset.lpprint) { const m = lgMode === 'date' ? null : findMachine(val('lg_top_no')); pendPrint(m ? { entry: true, kind: 'period', from: LB_PFROM, to: S.today, no: m.id } : { entry: true, kind: 'date', date: $('lg_top_date').value || S.today }); return; }
     if ('lpm' in b.dataset) { lgPendMonth = b.dataset.lpm; lgPendDraw(); return; }
     if (!canEdit('Log Book')) return;
     const L = lgPendList(); if (!L) return;

@@ -7685,10 +7685,12 @@ function pendingLogs_(f) {
 
 /* The same pending list for the Log Book ENTRY page (asked 04-10-2026: "while entering I must see which machinery are pending –
  * without going to the pending page every time"). Open to everyone who can see the Log Book (the Dashboard's list needs the
- * Dashboard). Small on purpose: [machinery, date] pairs – the page knows the rest from the Master. */
-function logPending_() {
-  const p = pendingLogs_();
-  return { asOf: p.asOf, from: p.from, total: p.total, items: p.items.map(x => [x.no, x.date]) };
+ * Dashboard). Small on purpose: [machinery, date] pairs – the page knows the rest from the Master.
+ * (update-179, its Print: "period wise print … log book entry madhun jith diste pending tithun pn") { from, to } – another
+ * period, as the Dashboard's list; none: from 01-09-2026 to today, as before. */
+function logPending_(f) {
+  const p = pendingLogs_(f && (str_(f.from) || str_(f.to)) ? { from: f.from, to: f.to } : undefined);
+  return { asOf: p.asOf, from: p.from, to: p.to, total: p.total, items: p.items.map(x => [x.no, x.date]) };
 }
 
 function ownershipIndex_() {

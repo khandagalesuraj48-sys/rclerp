@@ -6989,3 +6989,38 @@ test('update-177: the old log book – no limit of the file\'s size (a PDF of an
   assert.match(f, /let side = 2600, out = '';[\s\S]*c\.toDataURL\('image\/jpeg', 0\.88\);[\s\S]*side = Math\.round\(side \* 0\.8\);/);
   assert.ok(f.indexOf('L.PDFDocument.load(await f.arrayBuffer()') > -1 && f.indexOf('L.PDFDocument.load(await f.arrayBuffer()') < f.indexOf('const data = !pdf'), 'a PDF is taken apart before anything is read whole');
 });
+
+test('update-179: the Pending Log Book printed for a period – from the Dashboard (its list) and from the Log Book entry page (logPending for any period)', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const today = run('() => today_()'), d3 = run('() => addDays_(today_(), -3)'), d1 = run('() => addDays_(today_(), -1)');
+  run('(x, m) => saveMaster_(x, m)', { no: 'PP-179', name: 'Bolero', type: 'Bolero', unit: 'KM', worksOn: ['KM'], kmStd: 10, owner: 'PP Vendor', ownership: 'Rental', status: 'Active', activeFrom: d3 }, 'add');
+  const mine = r => r.items.filter(x => (Array.isArray(x) ? x[0] : x.no) === 'PP-179').map(x => Array.isArray(x) ? x[1] : x.date);
+  // as before: no period – from 01-09-2026 (the machinery's first day here) to today
+  const all = run('() => logPending_()');
+  assert.deepStrictEqual(mine(all), [d3, run('() => addDays_(today_(), -2)'), d1, today]);
+  assert.strictEqual(all.to, today);
+  // a period: the same days as the Dashboard's list of that period
+  const p = run('x => logPending_(x)', { from: d3, to: d1 }), q = run('x => pendingLogs_(x)', { from: d3, to: d1 });
+  assert.deepStrictEqual(mine(p), [d3, run('() => addDays_(today_(), -2)'), d1]);
+  assert.deepStrictEqual(mine(p), mine(q));
+  assert.deepStrictEqual([p.from, p.to], [d3, d1]);
+  // a To date after today: counted up to today
+  assert.strictEqual(run('x => logPending_(x)', { from: d1, to: run('() => addDays_(today_(), 5)') }).to, today);
+  assert.throws(() => run('x => logPending_(x)', { from: today, to: d1 }), /From date is after To date/);
+  // the page: Print on the Dashboard's list and on the entry page's list – one print for both
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /<button class="btn ghost small" id="lb_pprint" type="button">Print<\/button>/);
+  assert.match(app, /\$\('lb_pprint'\)\.addEventListener\('click', \(\) => pendPrint\(\{ kind: 'period', from: \$\('lb_pfrom'\)\.value \|\| LB_PFROM, to: \$\('lb_pto'\)\.value \|\| S\.today, own: \$\('lb_own'\)\.value, vendor: \$\('lb_vendor'\)\.value \}\)\);/);
+  assert.match(app, /'<button type="button" class="btn ghost small" data-lpprint="1">Print<\/button>' \+/);
+  assert.match(app, /if \(b\.dataset\.lpprint\) \{ const m = lgMode === 'date' \? null : findMachine\(val\('lg_top_no'\)\); pendPrint\(m \? \{ entry: true, kind: 'period', from: LB_PFROM, to: S\.today, no: m\.id \} : \{ entry: true, kind: 'date', date: \$\('lg_top_date'\)\.value \|\| S\.today \}\); return; \}/);
+  const f = app.slice(app.indexOf('  async function pendPrint(o) {'), app.indexOf('  /* ================= READ ME (Admin) ================= */'));
+  assert.match(f, /p = await call\(o\.entry \? 'logPending' : 'pendingLog', \{ from: from, to: to \}\)/, 'the entry page: Log Book access is enough');
+  assert.ok(f.indexOf("if (!(await askConfirm({ title: 'Print – Pending Log Book'") > -1 && f.indexOf("askPrintName('Print – Pending Log Book')") > -1);
+  // the dates written as runs: 01-10 → 05-10 (5), 08-10
+  const runsSrc = f.slice(f.indexOf('    const dU = d =>'), f.indexOf('    const days = '));
+  const runs = new Function('from', 'upTo', 'showDate', runsSrc + '; return runs;')('2026-10-01', '2026-10-28', d => d.slice(8, 10) + '-' + d.slice(5, 7) + '-' + d.slice(0, 4));
+  assert.strictEqual(runs(['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05', '2026-10-08', '2026-10-10', '2026-10-11']), '01-10 → 05-10 (5), 08-10, 10-10 → 11-10 (2)');
+  const runs2 = new Function('from', 'upTo', 'showDate', runsSrc + '; return runs;')('2026-12-30', '2027-01-02', d => d.slice(8, 10) + '-' + d.slice(5, 7) + '-' + d.slice(0, 4));
+  assert.strictEqual(runs2(['2026-12-31', '2027-01-01']), '31-12-2026 → 01-01-2027 (2)', 'over the year end: with the year');
+});

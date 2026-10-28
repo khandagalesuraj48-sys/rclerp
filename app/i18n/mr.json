@@ -6970,5 +6970,18 @@
 "This PDF could not be taken apart into its pages here, and it is too big to send whole (more than 3 MB) – save it again as a PDF (Print → Save as PDF) and choose it again.": "ही PDF इथे पानांमध्ये वेगळी करता आली नाही, आणि पूर्ण पाठवायला ती खूप मोठी आहे (3 MB पेक्षा जास्त) – ती पुन्हा PDF म्हणून save करा (Print → Save as PDF) आणि पुन्हा निवडा.",
 "This photo could not be made smaller here, and it is too big (more than 3 MB) – take it again at a lower size.": "हा photo इथे लहान करता आला नाही, आणि तो खूप मोठा आहे (3 MB पेक्षा जास्त) – तो कमी size ने पुन्हा काढा.",
 "This photo could not be opened.": "हा photo उघडता आला नाही.",
-"This photo is too big even made smaller.": "हा photo लहान करूनही खूप मोठा आहे."
+"This photo is too big even made smaller.": "हा photo लहान करूनही खूप मोठा आहे.",
+"Active machinery with no Log Book entry (in any shift) for a day it was on the site. Debit-basis parties and Ownership \"Other\" need no Log Book.": "साइटवर असलेल्या दिवशी (कोणत्याही shift मध्ये) Log Book entry नसलेल्या चालू मशिनरी. Debit-basis पार्टी आणि Ownership \"Other\" ला Log Book लागत नाही.",
+"Active machinery with no Log Book entry (in any shift) for a day it was on the site. Debit-basis parties and Ownership \"Other\" need no Log Book.{0}": "साइटवर असलेल्या दिवशी (कोणत्याही shift मध्ये) Log Book entry नसलेल्या चालू मशिनरी. Debit-basis पार्टी आणि Ownership \"Other\" ला Log Book लागत नाही.{0}",
+"Counted up to today ({0}).": "आजपर्यंत ({0}) मोजले.",
+"Dates pending": "बाकी तारखा",
+"No such machinery: {0}": "अशी मशिनरी नाही: {0}",
+"Nothing is pending after today – pick dates up to today.": "आजनंतर काहीही बाकी नसते – आजपर्यंतच्या तारखा निवडा.",
+"Pending Log Book – {0}": "बाकी लॉग बुक – {0}",
+"Pending Log Book – {0} to {1}": "बाकी लॉग बुक – {0} ते {1}",
+"Pending days": "बाकी दिवस",
+"Pick the month.": "महिना निवडा.",
+"Print – Pending Log Book": "Print – बाकी लॉग बुक",
+"{0} machinery · {1} day{2} pending{3}": "{0} मशिनरी · {1} दिवस{2} बाकी{3}",
+"✔ Nothing pending{0} in these dates.": "✔ या तारखांमध्ये{0} काहीही बाकी नाही."
 }
