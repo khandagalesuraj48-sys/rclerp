@@ -9632,4 +9632,12 @@
 "this site",
 "What the assistant remembers about you – only you see it",
 "Your earlier chats with the assistant – only you see them",
-": not readable just now."]
+": not readable just now.",
+"– an entry of an earlier day is made, changed or deleted only by the Admin or the Super Admin. Ask the Admin.",
+"{0} of {1}: {2} – an entry of an earlier day is made, changed or deleted only by the Admin or the Super Admin. Ask the Admin.",
+"a user enters only the Log Book of today and yesterday",
+"a user enters only today's entries",
+"empty = as fixed",
+"Today – an earlier day only by the Admin.",
+"Today or yesterday – an earlier day only by the Admin.",
+"Users who are not Admin enter only today's entries, the Log Book also yesterday's (fixed) – 0 here: the Log Book too only today"]

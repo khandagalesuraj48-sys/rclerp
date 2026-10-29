@@ -2230,6 +2230,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   machinery) in the kept part of the rules; actions `aiMemory`, `aiMemoryDel`, `aiChats`, `aiChatGet`, `aiChatSave`, `aiModelFirst`;
   the page's History / Memory (`aiHistory`, `aiChatOpen`, `aiMemoryShow`, `aiKeep` after every answer). SQL step 1zk. Tests: unit
   `update-186`; rig `ai186.js` (claude mode), claude167 / ai (Gemini) with 42 look-ups.
+- 29-10-2026 (update-187, urgent, with rcl-mobile 3.62.1). Report: `UPDATE_187.md`. BACK-DATED ENTRIES ONLY BY THE ADMIN AND THE SUPER
+  ADMIN: `userDateRule_` (first in `booksOpen_` – every entry, its change and deletion): a user who is not the site's Admin – only today,
+  a Log Book entry also yesterday; the site's own rule (`backDays`) only stricter; a verification request from the day it was sent
+  (`REQ_DAY_` while it is saved at the last approval or sent again; one sent before 29-10-2026 not held); the Super Admin's approval
+  of a change is his. The page: the same check (`liveMsg`), a user's date boxes `min` / `max` (`userDateBox`), the help, the Rules
+  label. `USER_DATE_RULE_ON_` (off in the harness for the tests of before). No SQL. Tests: unit `update-187`; rig `today187.js`.
 - 28-10-2026 (update-178, with the Store's step 2 – rcl-store `store-work` – and rcl-mobile 3.55.0). Report: `UPDATE_178.md`. THE STORE'S
   OUTWARD IN THE MAINTENANCE LOG BOOK: `maintStoreLines_(m, from, to)` reads the site's `store_issue` / `store_issue_lines` (the same
   database; paged) – each issue a bill of the Party "RCL Store" (Outward <no>, the Store's average rate, the reading; on debit: "Debit",
