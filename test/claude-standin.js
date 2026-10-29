@@ -120,7 +120,8 @@ http.createServer((req, res) => {
       return text('Result of ' + n + ': ' + JSON.stringify(r).slice(0, 200));
     }
     const q = String((lb.filter(b => b.type === 'text').pop() || {}).text || ''), d = q.match(/\d{4}-\d{2}-\d{2}/g) || [];
-    if (/^NAMES OF AN OLD MAINTENANCE LOG BOOK/.test(q)) { Object.assign(entry, { names: true, ask: q.slice(q.indexOf('party – '), q.indexOf('party – ') + 1500) }); return text(names.say); }
+    // (update-192) "ITEM NAMES OF …" – the items only (the party / Uom no more asked)
+    if (/^(ITEM )?NAMES OF AN OLD MAINTENANCE LOG BOOK/.test(q)) { const at = q.indexOf('party – ') > -1 ? q.indexOf('party – ') : q.indexOf('work – '); Object.assign(entry, { names: true, ask: q.slice(at, at + 1500) }); return text(names.say); }
     let snap = null; try { snap = JSON.parse(sys.split('SNAPSHOT = ')[1] || 'null'); } catch (e) { snap = null; }
     entry.snapshot = snap ? Object.keys(snap).join(',') : ''; entry.page = snap && snap.page ? snap.page.tab : '';
     entry.memory = (/\n10\. MEMORY[^\n]*?(?::\n((?:#\d+ [^\n]*\n?)*)|: ([^\n]*))/.exec(sys) || [])[0] || ''; entry.site = (/\n11\. THIS SITE \(([^)]*)\)[^:]*: ([^\n]*)/.exec(sys) || []).slice(1).join(' | ');

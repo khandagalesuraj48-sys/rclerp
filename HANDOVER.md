@@ -2245,6 +2245,15 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   every page with a date; only that page's entries of an earlier day): `DATE_PAGES_`, kept as "Admin" in the page's cell, read as Edit
   with the page in `pageAdmin` (`ACTOR_PAGE_ADMIN_` → `userDateRule_`); the Portal and Users & Access offer it (`dateAdmin`). No SQL.
   Tests: unit `update-189`; rig `page189.js`.
+- 29-10-2026 (update-192, the web only – the app later, his word). Report: `UPDATE_192.md`. THE OLD LOG BOOK EXACTLY AS IT IS ("amount
+  madhe jara pn changes hoyla nko … fkt spelling … fkt iteam che"): an Excel's number as the sheet shows it (`mliShown`); numbers as
+  written ("1,250/-", "Rs. 500", "(150)" – `mliNum`, the rows' `n`; not a number: the sheet stops – `nums`); nothing dropped unseen (a
+  total row only by its words alone – `MLI_TOT`, "TOTAL QUARTZ" kept; a row with ₹ and no Particulars kept as "-" unless it is the bill's
+  total; a date / party row gives them to the lines under it); a row's own numbers only (`maintLogRows_` = `mliRows`: no Amount – With GST
+  less GST; no GST ₹ – the difference when 0–28 %; no GST made from a %); the bill no. (`billNo`, the 13th column; two bills of a day by
+  their nos.; `importMaint_` `twice`); the AI's names only the items (`maintImportNames_`, `mliNamesOf`, `mliBills`). LOG BOOK STATUS:
+  the Admin ticks log books (`#ml_stdel`, `S.mlsel`) → each deleted by `deleteMaintLog` (all, count), DELETE typed. No SQL. Tests: unit
+  `update-192`; rig `mnt192.js`, mnt183 / 173 / mline180 / 182.
 - 29-10-2026 (update-191, with rcl-store #24, rcl-engineering #8, rcl-portal #28, rcl-mobile 3.67.0). Report: `UPDATE_191.md`. 🎙 SPEAK
   INTO A BOX: the block "SPEAK INTO A BOX" before `</body>` of `app/App.html` (the same code as the Store's / Engineering's `voice.js`, the
   Portal's block): a 🎙 in the box in use (text / number / phone / note; not a password, a date, shown-only, `data-novoice` – `#ai_form`);

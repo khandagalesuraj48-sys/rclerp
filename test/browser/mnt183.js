@@ -108,13 +108,13 @@ const R = 'RL-183', J2 = 'JCB-183';
     await F.evaluate(() => $('ml_stbtn').click());
     for (let i = 0; i < 30 && await F.evaluate(() => $('ml_stbox').hidden); i++) await wait(300);
     await wait(500);
-    const st = await F.evaluate(() => ({ btn: $('ml_stbtn').textContent, sum: $('ml_stsum').textContent, rows: [...document.querySelectorAll('#ml_strows tr')].map(tr => [...tr.cells].map(c => c.textContent.trim())).filter(r => /183/.test(r[1])) }));
+    const st = await F.evaluate(() => ({ btn: $('ml_stbtn').textContent, sum: $('ml_stsum').textContent, rows: [...document.querySelectorAll('#ml_strows tr')].map(tr => [...tr.cells].map(c => c.textContent.trim()).slice(tr.querySelector('.ml-stck') ? 1 : 0)).filter(r => /183/.test(r[1])) }));      // (update-192: the Admin's ✓ column first – left out here)
     ok('3. "Log book status": the JCB first – "Not added yet"; the roller – 2 bills, 05-01-2023 to 18-01-2023, "✓ Up to 18-01-2023"; the button "Hide log book status"',
       st.btn === 'Hide log book status' && /\d+ added · \d+ not added yet/.test(st.sum) && st.rows.length === 2 && st.rows[0][1] === J2 && st.rows[0][7] === 'Not added yet' && st.rows[1][1] === R && st.rows[1][3] === '2' && st.rows[1][4] === '05-01-2023' && st.rows[1][5] === '18-01-2023' && st.rows[1][7] === '✓ Up to 18-01-2023', st);
     await F.evaluate(() => $('ml_stbox').scrollIntoView({ block: 'start' })); await wait(300);
     await mp.screenshot({ path: path.join(SHOT, 'mnt183_status.png') });
     await F.evaluate(() => { $('ml_stf').value = 'none'; $('ml_stf').dispatchEvent(new Event('change')); });
-    const only = await F.evaluate(() => [...document.querySelectorAll('#ml_strows tr')].map(tr => tr.cells[7] ? tr.cells[7].textContent.trim() : '').filter(Boolean));
+    const only = await F.evaluate(() => [...document.querySelectorAll('#ml_strows tr')].map(tr => { const k = tr.querySelector('.ml-stck') ? 8 : 7; return tr.cells[k] ? tr.cells[k].textContent.trim() : ''; }).filter(Boolean));
     ok('   Show "Not added yet": only those', only.length > 0 && only.every(t => t === 'Not added yet'), only);
     await F.evaluate(() => { $('ml_stf').value = 'all'; $('ml_stf').dispatchEvent(new Event('change')); });
     await F.evaluate(() => { $('rpmlog_out').hidden = true; [...document.querySelectorAll('#ml_strows [data-mlsn]')].find(x => x.dataset.mlsn === 'RL-183').click(); });

@@ -241,6 +241,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .mti-row { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; font-size: 13.5px; } .mti-row .muted { flex: 1 1 300px; } .mti-row #mti_x { font-size: 15px; text-decoration: none; }
   .ml-stf { font-size: 12.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; } .ml-stf select { padding: 3px 6px; min-height: 0; }      /* (update-183) the log book status */
   table.ml-st td, table.ml-st th { padding: 6px 8px; font-size: 13px; } table.ml-st .ml-none { color: var(--bad); font-weight: 600; } table.ml-st .ml-ok { color: #15803D; }
+  table.ml-st .ml-stck { width: 30px; text-align: center; } table.ml-st .ml-stck input { width: 17px; height: 17px; margin: 0; } #ml_stdel { margin-left: auto; }      /* (update-192) the log books ticked to be deleted together */
   .mti-how { margin-top: 4px; font-size: 12.5px; color: var(--muted); } .mti-how summary { cursor: pointer; } .mti-how p { margin: 4px 0 0; }
   #mti_out details.mli-more { margin-top: 4px; } #mti_out details.mli-more summary { cursor: pointer; font-size: 12.5px; color: var(--muted); } #mti_out details.mli-more ul { color: var(--ink, #1f2937); max-height: 260px; overflow: auto; }
   #mti_out .mli-names { margin-top: 12px; } #mti_out .mli-names h3 { font-size: 15px; margin: 0 0 4px; } #mti_out .mli-names input[data-mlt] { width: 100%; min-width: 140px; } #mti_out .mli-names td { vertical-align: middle; }
@@ -4767,14 +4768,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="mti-box" id="ml_stbox" hidden>
         <div class="mti-row"><b>Log book status</b><span class="muted" id="ml_stsum"></span>
           <label class="ml-stf">Show <select id="ml_stf"><option value="all">All</option><option value="none">Not added yet</option><option value="added">Added</option></select></label>
+          <button class="btn danger small" id="ml_stdel" type="button" hidden disabled>Delete selected</button>
           <button class="link" id="ml_stx" type="button" aria-label="Hide the log book status">✕</button></div>
-        <div class="table-wrap" style="margin-top:8px"><table class="ml-st"><thead><tr><th>Sr</th><th>Machinery</th><th>Name / type</th><th class="n">Bills</th><th>From</th><th>Up to</th><th class="n">We paid (₹)</th><th>Status</th><th></th></tr></thead><tbody id="ml_strows"></tbody></table></div>
+        <!-- (update-192, "status made multiple delet option pn de ek ek select krun ek sathi mi delet kru shaku") the Admin / Super Admin: ✓ the
+             log books, then "Delete selected" -->
+        <div class="table-wrap" style="margin-top:8px"><table class="ml-st"><thead><tr><th class="ml-stck" hidden><input type="checkbox" id="ml_stall" aria-label="Select every log book shown"></th><th>Sr</th><th>Machinery</th><th>Name / type</th><th class="n">Bills</th><th>From</th><th>Up to</th><th class="n">We paid (₹)</th><th>Status</th><th></th></tr></thead><tbody id="ml_strows"></tbody></table></div>
       </div>
       <!-- (update-173, "jewde active aahet own rachana vehicle te mala import karaych aahe as it is jas asel tr") the old log book – (update-174) everyone with Maintenance Edit -->
       <div class="mti-box" id="mti_panel" hidden>
         <div class="mti-row"><b>Import the old log book</b><span class="muted">Excel (a sheet a machinery) or its PDF / a photo – read row by row; Check, then Import (a bill already there is left out).</span>
           <button class="link" id="mti_x" type="button" aria-label="Close the import">✕</button></div>
-        <details class="mti-how"><summary>How the file is read</summary><p>The old Maintenance Log Book – the Excel (a sheet a machinery: Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total), or its PDF / a photo of a page, read row by row by the AI. Each sheet is put to its machinery (Own – on the site now or not) – check it; a bill = the rows of one date and party; every line as it is. The AI lists the names written in more than one way – tick what is to be changed. Check, then Import – a bill already there is left out (and shown), never twice.</p></details>
+        <details class="mti-how"><summary>How the file is read</summary><p>The old Maintenance Log Book – the Excel (a sheet a machinery: Sr No · Date · Party Name · Current Reading · Particulars · Qty · Uom · Basic Rate · Amount · GST Amount · Amount With GST · Total), or its PDF / a photo of a page, read row by row by the AI. Each sheet is put to its machinery (Own – on the site now or not) – check it; a bill = the rows of one date and party (and bill no.). <b>Everything as it is in the file</b>: the headings are matched in any order; every amount, GST, party and number is kept exactly as the file shows it – nothing is worked out or changed. Only the spelling of the items (Particulars): the AI lists the items written in more than one way – tick what is to be changed. A total row is left out, a row that cannot be read is shown. Check (File total = Total), then Import – a bill already there is left out (and shown), never twice.</p></details>
         <div class="actions" style="margin-top:6px"><button class="btn primary small" id="mti_pick" type="button">Choose the file (Excel / PDF / photo)</button><button class="btn ghost small" id="mti_fmt" type="button">Download the format (Excel)</button><button class="btn ghost small" id="mti_more" type="button" hidden>Continue reading</button><input type="file" id="mti_file" accept=".xlsx,.xls,.pdf,.jpg,.jpeg,.png" hidden><span class="muted" id="mti_name"></span></div>
         <div id="mti_out"></div>
       </div>
@@ -17825,6 +17829,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       .replace(/\b([a-z]) (?=[a-z]\b)/g, '$1').replace(/\s+/g, ' ').trim();      // ("C.G.S.T" = cgst, "S. No." = sno, "U.O.M" = uom)
     if (!s) return null;
     const skip = { f: '-', p: '' }, is = f => ({ f: f, p: '' });
+    // (update-192, "as it is sagle aahe as yeyla haw") the bill's own number kept – two bills of one day and party stay two
+    if (/\b(bill|invoice|inv|challan|voucher|receipt)\b/.test(s) && /\b(no|number|num)\b/.test(s) && !/\b(job ?card|order|grn|ref|part|item|date|dt)\b/.test(s)) return is('billNo');
     if (/\b(bill|invoice|inv|challan|voucher|job ?card|order|grn|ref|receipt|part|item)\b/.test(s) && /\b(no|nos|number|num|code)\b/.test(s)) return skip;
     if (/\b(remarks?|notes?|comments?|narration|sign|signature|discount|disc|hsn|sac)\b/.test(s)) return skip;
     const part = /\bcgst\b/.test(s) ? 'c' : /\b(sgst|utgst)\b/.test(s) ? 's' : /\bigst\b/.test(s) ? 'i' : '';
@@ -17853,7 +17859,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!cols('amount').length && cols('withGst').length > 1) fs[cols('withGst')[0]] = { f: 'amount', p: '' };      // (Total Amount · GST · Net Amount: the first is before GST)
     const am = cols('amount').length > 0, wg = cols('withGst').length > 0, ga = cols('gstAmt'), gp = cols('gstPct');
     const has = v => !(v === null || v === undefined || String(v).trim() === '' || /^null$/i.test(String(v).trim()));
-    const n = v => { if (!has(v)) return null; if (typeof v === 'number') return isFinite(v) ? v : null; const t = String(v).replace(/[,₹\s%]|rs\.?/gi, ''); return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : null; };
+    const nil = v => !has(v) || /^\s*(-+|–|—|nil)\s*$/i.test(String(v));
+    const n = v => { if (nil(v)) return null; if (typeof v === 'number') return isFinite(v) ? v : null;
+      let t = String(v).replace(/₹|rs\.?|inr|[,\s%]/gi, '').replace(/(\/-+|-\/-?|\/)$/, ''); const neg = /^\((.+)\)$/.exec(t); if (neg) t = '-' + neg[1];
+      return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : null; };
     const r2 = v => Math.round(v * 100) / 100;
     return (Array.isArray(rows) ? rows : []).map(r => {
       r = Array.isArray(r) ? r : [];
@@ -17864,21 +17873,33 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (q.length) { const v = p.length ? sum(p.slice(0, 1)) : ''; return v !== '' ? v : sum(q); }
         return p.length > 1 ? sum(p) : p.length && has(r[p[0]]) ? r[p[0]] : ''; };
       let amount = one('amount'), gst = tax(ga);
-      const pct = n(tax(gp)), qty = one('qty'), rate = one('rate'), withGst = one('withGst');
-      if (!am) {      // a book without an Amount column
-        const w = n(withGst), g = n(gst);
-        if (wg && w !== null) { if (g !== null) amount = r2(w - g); else if (pct > 0) { amount = r2(w / (1 + pct / 100)); gst = r2(w - amount); } else amount = w; }
-        else if (!wg && n(qty) !== null && n(rate) !== null) amount = r2(n(qty) * n(rate));
-      }
-      if (gst === '' && pct > 0 && n(amount) !== null) gst = r2(n(amount) * pct / 100);
-      return [one('sr'), one('date'), one('party'), one('reading'), one('work'), qty, one('uom'), rate, amount, gst, withGst, one('total')];
+      const pct = n(tax(gp)), qty = one('qty'), rate = one('rate'), withGst = one('withGst'), w = n(withGst);
+      if (nil(amount)) {      // no Amount written in this row (or no Amount column)
+        const g = n(gst);
+        if (w !== null) { if (g !== null) amount = r2(w - g); else if (pct > 0) { amount = r2(w / (1 + pct / 100)); gst = r2(w - amount); } else amount = w; }
+        else if (!am && !wg && n(qty) !== null && n(rate) !== null) amount = r2(n(qty) * n(rate));
+      } else if (nil(gst) && w !== null && n(amount) !== null && w > n(amount) && w - n(amount) <= n(amount) * 0.28 + 1) gst = r2(w - n(amount));      // (its GST: the file's own two numbers)
+      if (nil(gst) && pct > 0 && n(amount) !== null) gst = r2(n(amount) * pct / 100);
+      return [one('sr'), one('date'), one('party'), one('reading'), one('work'), qty, one('uom'), rate, amount, gst, withGst, one('total'), one('billNo')];
     });
   }
   const mliKey = v => String(v || '').toUpperCase().replace(/\bNO\b\.?\s*(?=[-\s.]*\d)/g, '').replace(/[^A-Z0-9]/g, '').replace(/(^|\D)0+(?=\d)/g, '$1');
   // (update-175, "machine active nasli pn systeam madhe aahe tri log book import hou shakel" – "फक्त Own – active असो वा नसो") every Own
   // machinery of the Asset Master (update-173: on the site today only)
   const mliOwn = () => (S.master || []).filter(m => m.ownership === 'Own');
-  const mliNum = v => { if (v === '' || v === null || v === undefined) return ''; const n = Number(String(v).replace(/[,₹\s]/g, '')); return isFinite(n) ? n : ''; };
+  /* (update-192, asked 29-10-2026: "amount madhe jara pn changes hoyla nko") a number as written in the file: "1,250/-", "Rs. 500", "₹ 75.50",
+   * "(150)" = −150 (the rows' own rules – mliRows); '', "-", "nil" = not written (''); a word that is not a number: NaN (shown, never 0) */
+  const mliNum = v => { if (v === '' || v === null || v === undefined || /^\s*(-+|–|—|nil|null)?\s*$/i.test(String(v))) return ''; if (typeof v === 'number') return isFinite(v) ? v : NaN;
+    let t = String(v).replace(/₹|rs\.?|inr|[,\s]/gi, '').replace(/(\/-+|-\/-?|\/)$/, ''); const neg = /^\((.+)\)$/.exec(t); if (neg) t = '-' + neg[1];
+    return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : NaN; };
+  // (update-192) a Qty or a reading written with its unit ("2 Nos", "12,345 KM"): its number and its unit
+  const mliLead = v => { const x = mliNum(v); if (x === '' || !isNaN(x)) return { n: x, u: '' }; const m = /^\s*([-+]?[\d,]*\.?\d+)\s*([A-Za-z][A-Za-z.]{0,9})\s*$/.exec(String(v)); return m ? { n: Number(m[1].replace(/,/g, '')), u: m[2].replace(/\.$/, '') } : { n: NaN, u: '' }; };
+  // (update-192) an Excel's number AS THE SHEET SHOWS IT – what is seen in the file (₹ 56.25 shown "56" is 56; a GST kept as 0.18 and shown
+  // "18%" is 18 %); a date stays the date it is
+  const mliShown = (raw, shown) => raw.map((r, i) => r.map((v, j) => { const w = (shown[i] || [])[j], t = typeof w === 'string' ? w.replace(/%\s*$/, '') : '';
+    return typeof v === 'number' && t.trim() && mliNum(t) !== '' && !isNaN(mliNum(t)) ? w : v; }));
+  // (update-192) a total row: the words alone – Total, Sub Total, Grand Total, Total Rs., B/F, C/F, carried / brought forward ("TOTAL QUARTZ" is an oil)
+  const MLI_TOT = /^\s*(?:(?:sub|grand|bill|net|page|g)\.?\s*-?\s*)?total\b[\s.:=\-]*(?:amount|amt|value|rs\.?|₹|inr)?[\s.:=\-/]*(?:\(?\s*[cb]\s*\/\s*f\s*\)?|carried forward|brought forward)?[\s.:=\-]*$|^\s*(?:[bc]\s*\/\s*f|brought forward|carried forward|bal(?:ance)?\.?\s*b\s*\/\s*f)\b/i;
   function mliMatch(label, sheet) {
     const own = mliOwn();
     for (const k of [label, sheet].map(mliKey).filter(Boolean)) { const m = own.find(x => mliKey(x.id) === k || (x.name && mliKey(x.name) === k)); if (m) return m.id; }
@@ -17888,33 +17909,58 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // (update-180) the heading row: the first with a Particulars column and an amount (or a rate) – by their words, in any order
     const hi = all.findIndex(r => { const f = r.map(h => (mliField(h) || {}).f); return f.indexOf('work') > -1 && ['amount', 'withGst', 'rate'].some(x => f.indexOf(x) > -1); });
     if (hi === -1) return null;
-    const rows = mliRows(all[hi], all.slice(hi + 1)), idx = { date: 1, party: 2, km: 3, work: 4, qty: 5, uom: 6, rate: 7, amount: 8, gstAmt: 9, withGst: 10, total: 11 };
+    const rows = mliRows(all[hi], all.slice(hi + 1)), idx = { date: 1, party: 2, km: 3, work: 4, qty: 5, uom: 6, rate: 7, amount: 8, gstAmt: 9, withGst: 10, total: 11, billNo: 12 };
     let label = ''; all.slice(0, hi).forEach(r => r.forEach(v => { const t = String(v).replace(/\s+/g, ' ').trim(); if (t && !/rachana|log\s*book|limited|maint[ae]n/i.test(t)) label = t; }));
-    const bills = [], bad = [], warn = []; let cur = null, last = { date: '', party: '', km: '' }, ftotal = 0, nrows = 0;
+    const bills = [], bad = [], nums = [], warn = []; let cur = null, last = { date: '', party: '', km: '', billNo: '' }, ftotal = 0, nrows = 0;
+    const W = o => { if (warn.length < 300) warn.push(o); }, num = v => v === '' || isNaN(v) ? '' : v;
+    /* (update-192, asked 29-10-2026: "as it is sagle aahe as yeyla haw app swtaat tewa kahich nahi akrnar … amount madhe jara pn changes
+     * hoyla nko") EVERY ROW AS IT IS – nothing dropped unseen: a total row (its words alone) is left out and shown; a row of only its date /
+     * party / reading gives them to the lines under it; a row with an amount but no Particulars is kept as "-" (shown) – unless its ₹ is
+     * the bill's lines above it (to ₹1): the bill's total row, left out and shown; an Amount, GST or Amount With GST that is not a number
+     * stops this sheet (put right in the file) – never 0; a Qty / Rate / reading that is not a number is left empty (shown). */
     rows.forEach((r, k) => {
-      const g = f => r[idx[f]] === undefined || r[idx[f]] === null ? '' : r[idx[f]], work = String(g('work')).replace(/\s+/g, ' ').trim(), line = ai ? k + 1 : hi + k + 2;
-      if (!work || (/^(grand )?total\b/i.test(work) && !String(g('date')).trim())) return;      // an empty line, the total line
-      let date = xlDate(g('date')), party = String(g('party')).replace(/\s+/g, ' ').trim(), km = mliNum(g('km'));
-      if (!date) { date = last.date; if (!party) party = last.party; if (km === '') km = last.km; } else if (!party && date === last.date) party = last.party;
-      const amount = mliNum(g('amount')), gstAmt = mliNum(g('gstAmt')), wt0 = mliNum(g('withGst')), wt = wt0 !== '' ? wt0 : mliNum(g('total'));
-      nrows++; ftotal += wt !== '' ? Number(wt) : (Number(amount) || 0) + (Number(gstAmt) || 0);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) bad.push('Line ' + line + ': the date "' + String(g('date')) + '"');
-      // (update-183, "old import tyat tr ajibat karu nko as it is rahude") its GST ₹ as in the file – no GST % made from it
-      const l = Object.assign({ work: work.slice(0, 120), qty: mliNum(g('qty')), uom: String(g('uom')).trim().slice(0, 12), rate: mliNum(g('rate')), amount: amount === '' ? 0 : amount }, gstAmt !== '' && gstAmt !== 0 ? { gstAmt: gstAmt } : {});
-      // (update-173, "full scan … sagle kahi find krun") what does not add up – shown to look at; the line is imported as it is
-      if (warn.length < 300) { const w = work.slice(0, 40);
-        if (l.qty !== '' && l.rate !== '' && amount !== '' && l.qty > 0 && l.rate > 0 && Math.abs(r2(l.qty * l.rate) - amount) > 1) warn.push({ line: line, work: w, k: 'qr', a: r2(l.qty * l.rate), b: amount });
-        if (amount !== '' && gstAmt !== '' && wt0 !== '' && Math.abs(r2(amount + gstAmt) - wt0) > 1) warn.push({ line: line, work: w, k: 'ag', a: r2(amount + gstAmt), b: wt0 });
+      const g = f => r[idx[f]] === undefined || r[idx[f]] === null ? '' : r[idx[f]], line = ai ? k + 1 : hi + k + 2;
+      let work = String(g('work')).replace(/\s+/g, ' ').trim();
+      const amount = mliNum(g('amount')), gstAmt = mliNum(g('gstAmt')), wt0 = mliNum(g('withGst')), q = mliLead(g('qty')), rt = mliNum(g('rate')), tot = mliNum(g('total'));
+      const money = [amount, gstAmt, wt0].some(v => v !== '' && !isNaN(v)), any = money || [amount, gstAmt, wt0, q.n, rt].some(v => v !== '');
+      const words = r.filter((v, j) => j !== idx.work && typeof v === 'string').map(v => v.replace(/\s+/g, ' ').trim()).filter(Boolean), tw = words.find(v => MLI_TOT.test(v));
+      const vOf = () => wt0 !== '' && !isNaN(wt0) ? wt0 : r2((Number(amount) || 0) + (Number(gstAmt) || 0));
+      if ((work && MLI_TOT.test(work) && q.n === '' && rt === '') || (!work && tw)) { if (money || (tot !== '' && !isNaN(tot))) W({ line: line, work: work || tw, k: 'tot', a: money ? vOf() : tot }); return; }
+      let date = xlDate(g('date')), party = String(g('party')).replace(/\s+/g, ' ').trim(), billNo = String(g('billNo')).replace(/\s+/g, ' ').trim().slice(0, 80);
+      const k0 = mliLead(g('km')); let km = num(k0.n);
+      if (!work && !any) {      // only its date / party / reading / bill no.: for the lines under it
+        if (date) last = { date: date, party: party, km: km, billNo: billNo }; else { if (party) last.party = party; if (km !== '') last.km = km; if (billNo) last.billNo = billNo; }
+        if (date || party || km !== '' || billNo) cur = null;
+        return;
       }
-      if (!(cur && cur.date === date && cur.garage.toUpperCase() === party.toUpperCase() && (km === '' || cur.km === '' || cur.km === km))) { cur = { date: date, garage: party, km: km, from: line, to: line, lines: [] }; bills.push(cur); }
+      if (!work) {
+        const v = vOf(), same = cur && (!date || date === cur.date) && cur.lines.length ? r2(cur.lines.reduce((s, l) => s + (Number(l.amount) || 0) + mtLineGst(l), 0)) : null;
+        if (money && same !== null && Math.abs(same - v) <= 1) { W({ line: line, work: '', k: 'tot', a: v }); return; }      // (the bill's total row)
+        work = '-'; W({ line: line, work: '-', k: 'np', a: v });
+      }
+      if (!date) { date = last.date; if (!party) party = last.party; if (km === '') km = last.km; if (!billNo) billNo = last.billNo; }
+      else { if (!party && date === last.date) party = last.party; if (!billNo && date === last.date && party.toUpperCase() === String(last.party).toUpperCase()) billNo = last.billNo; }
+      const wt = wt0 !== '' ? wt0 : tot; nrows++; ftotal += num(wt) !== '' ? Number(wt) : (num(amount) || 0) + (num(gstAmt) || 0);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) bad.push('Line ' + line + ': the date "' + String(g('date')) + '"');
+      const w = work.slice(0, 40);
+      [['Amount', 'amount', amount], ['GST Amount', 'gstAmt', gstAmt], ['Amount With GST', 'withGst', wt0]].forEach(([h, f, v]) => { if (typeof v === 'number' && isNaN(v)) nums.push('Line ' + line + ' (' + w + '): ' + h + ' "' + String(g(f)).slice(0, 30) + '" is not a number'); });
+      [['Qty', 'qty', q.n], ['Basic Rate', 'rate', rt], ['Current Reading', 'km', k0.n]].forEach(([h, f, v]) => { if (typeof v === 'number' && isNaN(v)) W({ line: line, work: w, k: 'nn', h: h, t: String(g(f)).slice(0, 30) }); });
+      // (update-183, "old import tyat tr ajibat karu nko as it is rahude") its GST ₹ as in the file – no GST % made from it
+      const ga = num(gstAmt), l = Object.assign({ work: work.slice(0, 120), qty: num(q.n), uom: (String(g('uom')).trim() || q.u).slice(0, 12), rate: num(rt), amount: num(amount) === '' ? 0 : amount }, ga !== '' && ga !== 0 ? { gstAmt: ga } : {});
+      // (update-173, "full scan … sagle kahi find krun") what does not add up – shown to look at; the line is imported as it is
+      if (l.qty !== '' && l.rate !== '' && num(amount) !== '' && l.qty > 0 && l.rate > 0 && Math.abs(r2(l.qty * l.rate) - amount) > 1) W({ line: line, work: w, k: 'qr', a: r2(l.qty * l.rate), b: amount });
+      if (num(amount) !== '' && ga !== '' && num(wt0) !== '' && Math.abs(r2(amount + ga) - wt0) > 1) W({ line: line, work: w, k: 'ag', a: r2(amount + ga), b: wt0 });
+      if (amount === '' && l.qty > 0 && l.rate > 0) W({ line: line, work: w, k: 'na', a: r2(l.qty * l.rate) });      // (update-192: no Amount in the file – kept ₹ 0, free)
+      if (!(cur && cur.date === date && cur.garage.toUpperCase() === party.toUpperCase() && (km === '' || cur.km === '' || cur.km === km) && !(billNo && cur.billNo && billNo.toUpperCase() !== cur.billNo.toUpperCase()))) { cur = { date: date, garage: party, km: km, billNo: billNo, from: line, to: line, lines: [] }; bills.push(cur); }
       if (cur.km === '' && km !== '') cur.km = km;
-      cur.to = line; cur.lines.push(l); last = { date: date, party: party, km: km };
+      if (!cur.billNo && billNo) cur.billNo = billNo;
+      cur.to = line; cur.lines.push(l); last = { date: date, party: party, km: km, billNo: billNo };
     });
     bills.forEach(b => { b.rows = 'Line ' + b.from + (b.to > b.from ? '–' + b.to : ''); delete b.from; delete b.to; });
     const total = r2(bills.reduce((s, b) => s + b.lines.reduce((a, l) => a + (Number(l.amount) || 0) + mtLineGst(l), 0), 0));
-    return { sheet: name, label: label, no: mliMatch(label, name), bills: bills, rows: nrows, fileTotal: r2(ftotal), total: total, bad: bad, warn: warn, res: null, done: null };
+    return { sheet: name, label: label, no: mliMatch(label, name), bills: bills, rows: nrows, fileTotal: r2(ftotal), total: total, bad: bad, nums: nums, warn: warn, res: null, done: null };
   }
-  const MLI_HEAD = ['Sr No', 'Date', 'Party Name', 'Current Reading', 'Particulars', 'Qty', 'Uom', 'Basic Rate', 'Amount', 'GST Amount', 'Amount With GST', 'Total'];
+  const MLI_HEAD = ['Sr No', 'Date', 'Party Name', 'Current Reading', 'Particulars', 'Qty', 'Uom', 'Basic Rate', 'Amount', 'GST Amount', 'Amount With GST', 'Total', 'Bill No'];      // (update-192: the bill no. the 13th – not in the format)
   /* (update-173, "PDF import – Claude AI वाचेल") a PDF (or a photo of a page) of the old log book read by the AI, a page a call (update-176:
    * only that page sent): each machinery's table a sheet (a page without a name goes on with the one before),
    * its rows under the log book's heading – then read as a sheet of the Excel (mliSheet). Nothing is saved. */
@@ -18034,19 +18080,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const base = String(m.id).replace(/[:\\\/?*\[\]]/g, '-').slice(0, 31) || 'Sheet'; let k = base, i = 2;
       while (used[k.toLowerCase()]) k = base.slice(0, 28) + '~' + i++;
       used[k.toLowerCase()] = true;
-      const ws = XLSX.utils.aoa_to_sheet([[S.company || 'Rachana Construction Limited'], ['Maintenance Log Book' + (m.name && m.name !== m.id ? ' – ' + m.name : '')], [m.id], MLI_HEAD]);
+      const ws = XLSX.utils.aoa_to_sheet([[S.company || 'Rachana Construction Limited'], ['Maintenance Log Book' + (m.name && m.name !== m.id ? ' – ' + m.name : '')], [m.id], MLI_HEAD.slice(0, 12)]);
       ws['!cols'] = [6, 11, 24, 10, 34, 7, 7, 10, 11, 11, 13, 11].map(w => ({ wch: w }));
       XLSX.utils.book_append_sheet(wb, ws, k);
     });
     XLSX.writeFile(wb, 'Old Maintenance Log Book – format.xlsx');
   }
-  /* (update-173, "name correction … SURJ SURAAJ SARAJ … AI verify karel"; "यादी दाखव, मी पाहून ✓ करेन") the names of the file – Party
-   * Name, Particulars, Uom, each with its rows – looked at by the AI; its list shown, nothing ticked: the bills are sent with the
-   * names ticked (the name typed in "Becomes"), the rest as in the file. */
-  const MLI_FN = { party: 'Party Name', work: 'Particulars', uom: 'Uom' };
+  /* (update-173, "name correction … SURJ SURAAJ SARAJ … AI verify karel"; "यादी दाखव, मी पाहून ✓ करेन") the names of the file, each with
+   * its rows – looked at by the AI; its list shown, nothing ticked: the bills are sent with the names ticked (the name typed in
+   * "Becomes"), the rest as in the file. (update-192, asked 29-10-2026: "fkt spelling crrect krel te hi fkt iteam che je material issue
+   * zalel asel tyach") ONLY THE ITEMS – the Particulars; the Party Name and the Uom stay as in the file. */
   function mliNamesOf(sheets) {
-    const o = { party: {}, work: {}, uom: {} }, add = (f, v, n) => { if (v) o[f][v] = (o[f][v] || 0) + n; };
-    sheets.forEach(x => x.bills.forEach(b => { add('party', b.garage, b.lines.length); b.lines.forEach(l => { add('work', l.work, 1); add('uom', l.uom, 1); }); }));
+    const o = { work: {} }, add = (f, v, n) => { if (v && v !== '-') o[f][v] = (o[f][v] || 0) + n; };
+    sheets.forEach(x => x.bills.forEach(b => { b.lines.forEach(l => { add('work', l.work, 1); }); }));
     return o;
   }
   async function mliNames() {
@@ -18056,16 +18102,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // (update-183) the AI too slow or busy for the names: asked again by itself once, after a short wait
     const names = async () => { try { return await call('maintImportNames', q); } catch (er) { if (!/too slow|busy|try again/i.test(errMsg(er))) throw er; await new Promise(res => setTimeout(res, 6000)); return call('maintImportNames', Object.assign({}, q, { fast: true })); } };
     try { const r = await names();
-      d.fix = r.off ? { off: true, list: [] } : { list: (r.fixes || []).map(z => ({ f: z[0], from: z[1], to: z[2], n: (o[z[0]] || {})[z[1]] || 0, on: false })) };
+      d.fix = r.off ? { off: true, list: [] } : { list: (r.fixes || []).filter(z => z[0] === 'work').map(z => ({ f: z[0], from: z[1], to: z[2], n: (o[z[0]] || {})[z[1]] || 0, on: false })) };
     } catch (er) { d.fix = { err: errMsg(er), list: [] }; }
     d.sheets.forEach(x => { if (!x.done) x.res = null; });
     mliPaint();
   }
   function mliBills(x) {
-    const on = ((S.mli && S.mli.fix && S.mli.fix.list) || []).filter(z => z.on && String(z.to).trim()), map = { party: {}, work: {}, uom: {} };
+    const on = ((S.mli && S.mli.fix && S.mli.fix.list) || []).filter(z => z.f === 'work' && z.on && String(z.to).trim()), map = {};      // (update-192: the items only)
     if (!on.length) return x.bills;
-    on.forEach(z => { map[z.f][z.from] = String(z.to).trim(); });
-    return x.bills.map(b => Object.assign({}, b, { garage: map.party[b.garage] || b.garage, lines: b.lines.map(l => Object.assign({}, l, { work: map.work[l.work] || l.work, uom: map.uom[l.uom] || l.uom })) }));
+    on.forEach(z => { map[z.from] = String(z.to).trim(); });
+    return x.bills.map(b => Object.assign({}, b, { lines: b.lines.map(l => Object.assign({}, l, { work: map[l.work] || l.work })) }));
   }
   // (update-173, "duplicate entry import nahi honar ts to show pn krel") the bills left out – each its rows, date, ₹ and the bill it is
   function mliSameHtml(r) {
@@ -18073,14 +18119,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const l = (r.sameList || []).map(z => z.rows + ' · ' + showDate(z.date) + ' · ₹' + money(z.total) + ' – ' + (/^\(/.test(String(z.id)) ? 'twice in the file ' + z.id : 'already saved as ' + z.id));
     return '<details class="mli-more"><summary>' + r.same + ' bill(s) already there – left out</summary>' + listHtml(l) + (r.same > l.length ? '<small class="muted">… and ' + (r.same - l.length) + ' more</small>' : '') + '</details>';
   }
-  const mliWarnText = w => 'Line ' + w.line + ' (' + w.work + '): ' + (w.k === 'qr' ? 'Qty × Rate = ₹' + money(w.a) + ', Amount ₹' + money(w.b) : 'Amount + GST = ₹' + money(w.a) + ', Amount With GST ₹' + money(w.b));
-  const mliWarnHtml = x => !x.warn || !x.warn.length ? '' : '<details class="mli-more"><summary>' + x.warn.length + ' line(s) to look at – imported as they are</summary>' + listHtml(x.warn.map(mliWarnText)) + '</details>';
+  // (update-192) also: a total row left out; a row without Particulars kept as "-"; no Amount in the file (₹ 0, free); a Qty / Rate / reading not a number
+  const mliWarnText = w => w.k === 'tot' ? 'Line ' + w.line + ': a total row' + (w.work ? ' (' + w.work + ')' : '') + ' ₹' + money(w.a) + ' – left out'
+    : w.k === 'np' ? 'Line ' + w.line + ': no Particulars in the file – kept as "-" with its ₹' + money(w.a)
+    : w.k === 'na' ? 'Line ' + w.line + ' (' + w.work + '): Qty × Rate = ₹' + money(w.a) + ' but no Amount in the file – kept as ₹0 (free)'
+    : w.k === 'nn' ? 'Line ' + w.line + ' (' + w.work + '): ' + w.h + ' "' + w.t + '" is not a number – left empty'
+    : 'Line ' + w.line + ' (' + w.work + '): ' + (w.k === 'qr' ? 'Qty × Rate = ₹' + money(w.a) + ', Amount ₹' + money(w.b) : 'Amount + GST = ₹' + money(w.a) + ', Amount With GST ₹' + money(w.b));
+  const mliWarnHtml = x => !x.warn || !x.warn.length ? '' : '<details class="mli-more"><summary>' + x.warn.length + ' line(s) to look at</summary>' + listHtml(x.warn.map(mliWarnText)) + '</details>';
   function mliRead(file) {
     return new Promise((resolve, reject) => {
       const fr = new FileReader();
       fr.onerror = () => reject(new Error('Could not read the file.'));
       fr.onload = () => { try { const wb = XLSX.read(fr.result, { type: 'array', cellDates: false });
-        resolve(wb.SheetNames.map(n => mliSheet(n, XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }))).filter(x => x && x.bills.length)); } catch (e) { reject(e); } };
+        // (update-192) each number as the sheet shows it (mliShown)
+        resolve(wb.SheetNames.map(n => mliSheet(n, mliShown(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }), XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' })))).filter(x => x && x.bills.length)); } catch (e) { reject(e); } };
       fr.readAsArrayBuffer(file);
     });
   }
@@ -18089,6 +18141,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (x.done) return '<span class="pos">✓ ' + x.done.added + ' bill(s) imported' + (x.done.added ? ' (' + esc(x.done.first) + (x.done.last !== x.done.first ? ' – ' + esc(x.done.last) : '') + ')' : '') + '</span>' + mliSameHtml(x.done);
     if (!x.no) return '<span class="muted">not imported</span>';
     if (x.twice) return '<span class="neg">' + esc('Two sheets for ' + x.no + ' – keep one.') + '</span>';
+    // (update-192, "amount madhe jara pn changes hoyla nko") an Amount / GST / Amount With GST that is not a number: put right in the file first
+    if (x.nums && x.nums.length) return '<span class="neg">✗ ' + x.nums.length + ' amount(s) are not a number – put them right in the file; nothing of this sheet is imported:</span>' + listHtml(x.nums.slice(0, 8));
     if (!x.res) return x.bad.length ? '<span class="neg">' + esc(x.bad.length + ' row(s) without a date – ' + x.bad.slice(0, 3).join('; ')) + '</span>' : '<span class="muted">Press Check</span>';
     if (x.res.err) return '<span class="neg">' + esc(x.res.err) + '</span>';
     if (!x.res.ok) return '<span class="neg">✗ ' + x.res.errorCount + ' mistake(s) – nothing of this sheet is imported:</span>' + listHtml(x.res.errors.slice(0, 8).map(e => e.rows + ': ' + e.msg));
@@ -18098,14 +18152,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const d = S.mli; if (!d) { $('mti_out').innerHTML = ''; return; }
     const seen = {}; d.sheets.forEach(x => { x.twice = !!(x.no && seen[x.no]); if (x.no) seen[x.no] = true; });
     const opts = no => '<option value="">– not imported –</option>' + mliOwn().map(m => '<option value="' + esc(m.id) + '"' + (m.id === no ? ' selected' : '') + '>' + esc(m.id + (m.name && m.name !== m.id ? ' · ' + m.name : '') + (onSiteOn(m, S.today) ? '' : ' (not on the site now)')) + '</option>').join('');
-    const ready = d.sheets.filter(x => x.no && !x.done), okAll = ready.length && ready.every(x => x.res && x.res.ok && !x.twice);
-    const fx = d.fix || { list: [] }, fl = fx.list || [], mx = z => z.f === 'uom' ? 12 : z.f === 'party' ? 80 : 120;
+    const ready = d.sheets.filter(x => x.no && !x.done && !(x.nums && x.nums.length)), okAll = ready.length && ready.every(x => x.res && x.res.ok && !x.twice);
+    const fx = d.fix || { list: [] }, fl = fx.list || [], mx = () => 120;
     // (update-175, "import zale nantr pn aahe as rahte") the names' list goes once everything is imported
-    const names = !d.fix || (d.sheets.some(x => x.done) && !d.sheets.some(x => x.no && !x.done)) ? '' : '<div class="mli-names"><h3>Names written in more than one way (AI)</h3>' + (fx.busy ? '<p class="muted">The AI is looking at every name of the file…</p>'
+    // (update-192) the spelling of the items (Particulars) only – nothing else of the file is changed
+    const names = !d.fix || (d.sheets.some(x => x.done) && !d.sheets.some(x => x.no && !x.done)) ? '' : '<div class="mli-names"><h3>Item names (Particulars) – spelling (AI)</h3>' + (fx.busy ? '<p class="muted">The AI is looking at the spelling of every item…</p>'
       : fx.off ? '<p class="muted">The AI is not set up – the names stay as in the file.</p>' : fx.err ? '<p class="neg">' + esc(fx.err) + '</p>'
-      : !fl.length ? '<p class="pos">✓ The AI found no name written in more than one way.</p>'
-      : '<p class="muted" style="font-size:12.5px;margin:0 0 6px">Tick what is to be changed (you may type another name in "Becomes") – the bills are checked and imported with the ticked names; the rest stay as in the file.</p><div class="table-wrap"><table><thead><tr><th>✓</th><th>Name of</th><th>In the file</th><th>Becomes</th><th class="n">Rows</th></tr></thead><tbody>' +
-        fl.map((z, i) => '<tr><td><input type="checkbox" data-mlf="' + i + '"' + (z.on ? ' checked' : '') + '></td><td>' + esc(MLI_FN[z.f] || z.f) + '</td><td>' + esc(z.from) + '</td><td><input data-mlt="' + i + '" value="' + esc(z.to) + '" maxlength="' + mx(z) + '"></td><td class="n">' + z.n + '</td></tr>').join('') +
+      : !fl.length ? '<p class="pos">✓ The AI found no item written in more than one way.</p>'
+      : '<p class="muted" style="font-size:12.5px;margin:0 0 6px">Only the spelling of the items. Tick what is to be changed (you may type another name in "Becomes"); the rest – the amounts, the party, everything else – stays as in the file.</p><div class="table-wrap"><table><thead><tr><th>✓</th><th>In the file</th><th>Becomes</th><th class="n">Rows</th></tr></thead><tbody>' +
+        fl.map((z, i) => '<tr><td><input type="checkbox" data-mlf="' + i + '"' + (z.on ? ' checked' : '') + '></td><td>' + esc(z.from) + '</td><td><input data-mlt="' + i + '" value="' + esc(z.to) + '" maxlength="' + mx(z) + '"></td><td class="n">' + z.n + '</td></tr>').join('') +
         '</tbody></table></div><div class="actions" style="margin-top:6px"><button class="btn ghost small" type="button" id="mti_all">Tick all</button><button class="btn ghost small" type="button" id="mti_none">Untick all</button></div>') +
       (fx.busy ? '' : '<div class="actions" style="margin-top:6px"><button class="btn ghost small" type="button" id="mti_names">Ask the AI again</button></div>') + '</div>';
     $('mti_out').innerHTML = names + '<div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>Sheet</th><th>Name in the file</th><th>Machinery (Own)</th><th class="n">Rows</th><th class="n">Bills</th><th class="n">File total (₹)</th><th class="n">Total (₹)</th><th>Check</th></tr></thead><tbody>' +
@@ -18134,14 +18189,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const sel = e.target.closest('[data-mli]'); if (sel) { const x = S.mli.sheets[Number(sel.dataset.mli)]; x.no = sel.value; x.res = null; mliPaint(); return; }
     const fl = (S.mli.fix && S.mli.fix.list) || [], tk = e.target.closest('[data-mlf]'), ty = e.target.closest('[data-mlt]');
     if (tk) fl[Number(tk.dataset.mlf)].on = tk.checked;
-    if (ty) { const z = fl[Number(ty.dataset.mlt)]; z.to = ty.value.replace(/\s+/g, ' ').trim().slice(0, z.f === 'uom' ? 12 : z.f === 'party' ? 80 : 120); if (!z.to) z.on = false; }
+    if (ty) { const z = fl[Number(ty.dataset.mlt)]; z.to = ty.value.replace(/\s+/g, ' ').trim().slice(0, 120); if (!z.to) z.on = false; }
     if (tk || ty) { S.mli.sheets.forEach(x => { if (!x.done) x.res = null; }); mliPaint(); } });
   $('mti_out').addEventListener('click', e => {
     if (!S.mli) return;
     if (e.target.id === 'mti_all' || e.target.id === 'mti_none') { ((S.mli.fix && S.mli.fix.list) || []).forEach(z => { z.on = e.target.id === 'mti_all' && !!String(z.to).trim(); }); S.mli.sheets.forEach(x => { if (!x.done) x.res = null; }); mliPaint(); return; }
     if (e.target.id === 'mti_names') { busy(e.target, 'Asking…', mliNames); return; }
     if (e.target.id === 'mti_check') busy(e.target, 'Checking…', async () => {
-      for (const x of S.mli.sheets) { if (!x.no || x.done || x.twice) continue; try { x.res = await call('checkMaintImport', { no: x.no, bills: mliBills(x) }); } catch (er) { x.res = { err: errMsg(er) }; } }
+      for (const x of S.mli.sheets) { if (!x.no || x.done || x.twice || (x.nums && x.nums.length)) continue; try { x.res = await call('checkMaintImport', { no: x.no, bills: mliBills(x) }); } catch (er) { x.res = { err: errMsg(er) }; } }
       mliPaint();
     });
     if (e.target.id === 'mti_go') busy(e.target, 'Importing…', async () => {
@@ -18299,18 +18354,61 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function mlStatusShow() {
     S.mlst = await call('maintStatus'); $('ml_stbox').hidden = false; $('ml_stbtn').textContent = 'Hide log book status'; mlStatusPaint();
   }
+  // (update-192) the log books ticked to be deleted together (the Admin / Super Admin): machinery no. → its bills as shown
+  const mlStAdmin = () => !!(S.user && S.user.admin);
   function mlStatusPaint() {
     const d = S.mlst; if (!d) return;
-    const f = $('ml_stf').value, rows = (d.rows || []).filter(r => f === 'all' || (f === 'none' ? !r.bills : r.bills > 0));
+    const f = $('ml_stf').value, rows = (d.rows || []).filter(r => f === 'all' || (f === 'none' ? !r.bills : r.bills > 0)), adm = mlStAdmin() && !d.missing;
+    const sel = S.mlsel = S.mlsel || {}; Object.keys(sel).forEach(no => { if (!(d.rows || []).some(r => r.no === no && r.bills > 0)) delete sel[no]; });
+    document.querySelectorAll('#ml_stbox .ml-stck').forEach(x => { x.hidden = !adm; });
     $('ml_stsum').textContent = d.missing ? 'Maintenance bills cannot be kept yet at this site (its database step).' : (d.added || 0) + ' added · ' + (d.none || 0) + ' not added yet (Own machinery of the Asset Master)';
-    $('ml_strows').innerHTML = rows.length ? rows.map((r, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(r.no) + '</b></td><td>' + esc([r.name !== r.no ? r.name : '', r.type].filter(Boolean).join(' · ')) + (r.onSite ? '' : ' <small class="muted">(not on the site now)</small>') + '</td>' +
+    $('ml_strows').innerHTML = rows.length ? rows.map((r, i) => '<tr>' + (adm ? '<td class="ml-stck">' + (r.bills ? '<input type="checkbox" data-mlsd="' + esc(r.no) + '"' + (sel[r.no] ? ' checked' : '') + ' aria-label="Select ' + esc(r.no) + '">' : '') + '</td>' : '') + '<td>' + (i + 1) + '</td><td><b>' + esc(r.no) + '</b></td><td>' + esc([r.name !== r.no ? r.name : '', r.type].filter(Boolean).join(' · ')) + (r.onSite ? '' : ' <small class="muted">(not on the site now)</small>') + '</td>' +
       '<td class="n">' + (r.bills || '') + '</td><td>' + (r.from ? esc(showDate(r.from)) : '') + '</td><td>' + (r.upTo ? '<b>' + esc(showDate(r.upTo)) + '</b>' : '') + '</td><td class="n">' + (r.bills ? money(r.amount) : '') + '</td>' +
       '<td>' + (r.bills ? '<span class="ml-ok">✓ Up to ' + esc(showDate(r.upTo)) + '</span>' : '<span class="ml-none">Not added yet</span>') + '</td>' +
-      '<td>' + (r.bills ? '<button type="button" class="link" data-mlsn="' + esc(r.no) + '">Show</button>' : '') + '</td></tr>').join('') : '<tr><td colspan="9" class="none">Nothing to show.</td></tr>';
+      '<td>' + (r.bills ? '<button type="button" class="link" data-mlsn="' + esc(r.no) + '">Show</button>' : '') + '</td></tr>').join('') : '<tr><td colspan="' + (adm ? 10 : 9) + '" class="none">Nothing to show.</td></tr>';
+    mlStatusSel();
+  }
+  // the "Delete selected" button and the ✓ of the heading: what is ticked now
+  function mlStatusSel() {
+    const adm = mlStAdmin() && S.mlst && !S.mlst.missing, n = Object.keys(S.mlsel || {}).length, shown = [...document.querySelectorAll('#ml_strows [data-mlsd]')];
+    $('ml_stdel').hidden = !adm; $('ml_stdel').disabled = !n; $('ml_stdel').textContent = n ? 'Delete selected (' + n + ')' : 'Delete selected';
+    $('ml_stall').checked = shown.length > 0 && shown.every(x => x.checked); $('ml_stall').disabled = !shown.length;
   }
   $('ml_stbtn').addEventListener('click', e => { if (!$('ml_stbox').hidden) { $('ml_stbox').hidden = true; e.target.textContent = 'Log book status'; return; } busy(e.target, 'Showing…', mlStatusShow); });
   $('ml_stx').addEventListener('click', () => { $('ml_stbox').hidden = true; $('ml_stbtn').textContent = 'Log book status'; });
   $('ml_stf').addEventListener('change', mlStatusPaint);
+  $('ml_strows').addEventListener('change', e => { const c = e.target.closest('[data-mlsd]'); if (!c) return; const r = ((S.mlst && S.mlst.rows) || []).find(x => x.no === c.dataset.mlsd);
+    S.mlsel = S.mlsel || {}; if (c.checked && r && r.bills > 0) S.mlsel[r.no] = r.bills; else delete S.mlsel[c.dataset.mlsd]; mlStatusSel(); });
+  $('ml_stall').addEventListener('change', e => { S.mlsel = S.mlsel || {}; const rows = (S.mlst && S.mlst.rows) || [];
+    document.querySelectorAll('#ml_strows [data-mlsd]').forEach(c => { const r = rows.find(x => x.no === c.dataset.mlsd); c.checked = e.target.checked; if (e.target.checked && r && r.bills > 0) S.mlsel[r.no] = r.bills; else delete S.mlsel[c.dataset.mlsd]; });
+    mlStatusSel(); });
+  /* (update-192, asked 29-10-2026: "maintanace log bokk je aahet status made multiple delet option pn de ek ek select krun ek sathi mi delet kru
+   * shaku") THE LOG BOOKS TICKED, DELETED TOGETHER – the Admin / Super Admin (as "Delete this log book"): said first, each with its bills,
+   * dates and ₹; DELETE typed to confirm; then each machinery's whole log book (deleteMaintLog – Start to end, the bills counted as shown: a
+   * log book changed meanwhile, or one with a closed month, is not deleted and is said). What the RCL Store issued and the fuel stay;
+   * each bill is written in the Activity Log. */
+  $('ml_stdel').addEventListener('click', e => busy(e.target, 'Deleting…', async () => {
+    const rows = ((S.mlst && S.mlst.rows) || []).filter(r => S.mlsel && S.mlsel[r.no] && r.bills > 0);
+    if (!rows.length) return;
+    const sum = r2(rows.reduce((a, r) => a + (Number(r.amount) || 0), 0)), bills = rows.reduce((a, r) => a + r.bills, 0);
+    const html = '<p>' + esc('The whole maintenance log book of these ' + rows.length + ' machinery – ' + bills + ' bill(s), ₹' + money(sum) + ' – is deleted:') + '</p>' +
+      listHtml(rows.map(r => r.no + ' – ' + r.bills + ' bill(s), ' + showDate(r.from) + ' to ' + showDate(r.upTo) + ', ₹' + money(r.amount))) +
+      '<p>What the RCL Store issued and the fuel stay. Each bill is written in the Activity Log.</p><p class="neg">This cannot be undone – "Show" a log book, then "Export to Excel" first to keep a copy.</p>' +
+      '<label style="display:block;margin-top:8px">Type <b>DELETE</b> to confirm<input id="mld_t" autocomplete="off" style="width:100%;margin-top:4px"></label>';
+    if (!(await askConfirm({ title: 'Delete ' + rows.length + ' log book(s)?', danger: true, ok: 'Delete ' + bills + ' bill(s)', html: html }))) return;
+    if (val('mld_t').trim().toUpperCase() !== 'DELETE') { toast('Not deleted – type DELETE to confirm.', true); return; }
+    const done = [], left = [];
+    for (const r of rows) {
+      try { const x = await call('deleteMaintLog', { no: r.no, all: true, count: r.bills }); done.push(r.no + ' – ' + x.n + ' bill(s)'); delete S.mlsel[r.no]; }
+      catch (er) { left.push(r.no + ': ' + errMsg(er)); }
+    }
+    if (left.length) await askConfirm({ title: done.length + ' deleted, ' + left.length + ' not deleted', alertOnly: true, ok: 'Close', html: (done.length ? '<p>Deleted:</p>' + listHtml(done) : '') + '<p class="neg">Not deleted:</p>' + listHtml(left) });
+    else toast(done.length + ' log book(s) deleted.');
+    if (S.mt && S.mt.edit) mtClear();
+    mtLoad(); await mlStatusShow();
+    const shown = S.rp && S.rp.mlog && S.rp.mlog.d && S.rp.mlog.d.machine ? S.rp.mlog.d.machine.id : '';
+    if (shown && !$('rpmlog_out').hidden && rows.some(r => noKey(r.no) === noKey(shown))) await mlogShow().catch(() => {});
+  }));
   $('ml_strows').addEventListener('click', e => { const b = e.target.closest('[data-mlsn]'); if (!b) return;
     $('ml_no').value = b.dataset.mlsn; $('ml_all').checked = true; $('ml_all').dispatchEvent(new Event('change')); $('ml_go').click(); setTimeout(() => $('rpmlog_out').scrollIntoView({ block: 'start', behavior: 'smooth' }), 900); });
   $('ml_all').addEventListener('change', () => { ['ml_from', 'ml_to'].forEach(id => { $(id).disabled = $('ml_all').checked; }); });
