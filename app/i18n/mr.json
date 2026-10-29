@@ -7149,5 +7149,13 @@
 "This chat is not there.": "ही chat नाही.",
 "The assistant's own memory and its chats (step 1zk)": "Assistant ची स्वतःची memory आणि chats (step 1zk)",
 "· first words {0} s": "· पहिले शब्द {0} s",
-"The rest is on the screen.": "बाकी screen वर आहे."
+"The rest is on the screen.": "बाकी screen वर आहे.",
+"– an entry of an earlier day is made, changed or deleted only by the Admin or the Super Admin. Ask the Admin.": "– मागच्या दिवसाची entry फक्त Admin किंवा Super Admin करतो, बदलतो किंवा delete करतो. Admin ला सांगा.",
+"{0} of {1}: {2} – an entry of an earlier day is made, changed or deleted only by the Admin or the Super Admin. Ask the Admin.": "{1} ची {0}: {2} – मागच्या दिवसाची entry फक्त Admin किंवा Super Admin करतो, बदलतो किंवा delete करतो. Admin ला सांगा.",
+"a user enters only the Log Book of today and yesterday": "user फक्त आजची आणि कालची Log Book भरतो",
+"a user enters only today's entries": "user फक्त आजच्या entries करतो",
+"empty = as fixed": "रिकामे = ठरल्याप्रमाणे",
+"Today – an earlier day only by the Admin.": "आजची – मागचा दिवस फक्त Admin.",
+"Today or yesterday – an earlier day only by the Admin.": "आज किंवा काल – त्याआधीचा दिवस फक्त Admin.",
+"Users who are not Admin enter only today's entries, the Log Book also yesterday's (fixed) – 0 here: the Log Book too only today": "Admin नसलेले users फक्त आजच्या entries करतात, Log Book कालची पण (ठरलेला नियम) – इथे 0: Log Book पण फक्त आजची"
 }

@@ -7609,3 +7609,66 @@ test('update-186: the assistant live – its answer word by word (api/ai.js, ser
   assert.match(code, /add\('The assistant\\'s own memory and its chats \(step 1zk\)', has\('ai_memory'\) && has\('ai_chats'\), 'supabase_step1zk_ai_memory\.sql'\);/);
   assert.match(fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8'), /const SB_SKIP_ = \[[^\]]*'ai_memory', 'ai_chats'\]/, 'only the person\'s: not in the Google Sheet');
 });
+
+test('update-187: back-dated entries only by the Admin and the Super Admin – a user only today (the Log Book also yesterday), the site\'s own rule only stricter; a verification request measured from the day it was sent; the page and the help', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryIt = f => { try { return { ok: true, v: f() }; } catch (e) { return { err: String(e.message) }; } };
+  const today = run('() => today_()'), day = n => run('(d, n) => addDays_(d, n)', today, n);
+  const as = (who, f) => {
+    run('w => { USER_DATE_RULE_ON_ = true; ACTOR_ADMIN_ = w.admin; ACTOR_SUPER_ = w.super; REQ_DAY_ = w.req || ""; }', who);
+    try { return f(); } finally { run('() => { USER_DATE_RULE_ON_ = false; ACTOR_ADMIN_ = true; ACTOR_SUPER_ = false; REQ_DAY_ = ""; }'); }
+  };
+  const rule = (who, d, what) => as(who, () => run('(d, w) => { try { userDateRule_(d, w); return "ok"; } catch (e) { return e.message; } }', d, what));
+  const USER = { admin: false, super: false }, ADMIN = { admin: true, super: false }, SUPER = { admin: false, super: true };
+  const onlyToday = /^Diesel issue of \d\d-\d\d-\d{4}: a user enters only today's entries – an entry of an earlier day is made, changed or deleted only by the Admin or the Super Admin\. Ask the Admin\.$/;
+  const logTwo = /^Log Book entry of \d\d-\d\d-\d{4}: a user enters only the Log Book of today and yesterday – an entry of an earlier day is made, changed or deleted only by the Admin or the Super Admin\. Ask the Admin\.$/;
+  run('x => saveSiteRules_(x)', { backDays: '', announce: '' });
+  // a user: every entry only of today; the Log Book also of yesterday
+  assert.strictEqual(rule(USER, today, 'Diesel issue'), 'ok');
+  assert.match(rule(USER, day(-1), 'Diesel issue'), onlyToday);
+  for (const w of ['Diesel inward', 'Diesel transfer', 'Maintenance bill', 'Card payment', 'Tank check', 'Breakdown report']) assert.match(rule(USER, day(-1), w), /: a user enters only today's entries – /, w);
+  assert.strictEqual(rule(USER, day(-1), 'Log Book entry'), 'ok');
+  assert.match(rule(USER, day(-2), 'Log Book entry'), logTwo);
+  // the Admin and the Super Admin: any day (the closed months as always)
+  assert.strictEqual(rule(ADMIN, day(-40), 'Diesel issue'), 'ok');
+  assert.strictEqual(rule(SUPER, day(-40), 'Log Book entry'), 'ok');
+  // the site's own rule (Settings → Rules of this site) only stricter: "0 days" – the Log Book too only today; "3 days" – as fixed
+  run('x => saveSiteRules_(x)', { backDays: '0', announce: '' });
+  assert.match(rule(USER, day(-1), 'Log Book entry'), /a user enters only today's entries/);
+  run('x => saveSiteRules_(x)', { backDays: '3', announce: '' });
+  assert.strictEqual(rule(USER, day(-1), 'Log Book entry'), 'ok');
+  assert.match(rule(USER, day(-2), 'Log Book entry'), logTwo);
+  assert.match(rule(USER, day(-1), 'Diesel issue'), onlyToday);
+  run('x => saveSiteRules_(x)', { backDays: '', announce: '' });
+  // a verification request: from the day it was SENT (approved, or sent again, days later); one sent before 29-10-2026 not held by it
+  run('() => { globalThis.__today187 = today_; today_ = () => "2026-11-05"; }');      // (a day after the request – approved 3 days later)
+  try {
+    assert.strictEqual(rule({ admin: false, super: false, req: '2026-11-02' }, '2026-11-02', 'Diesel issue'), 'ok');
+    assert.match(rule({ admin: false, super: false, req: '2026-11-02' }, '2026-11-01', 'Diesel issue'), onlyToday);
+    assert.strictEqual(rule({ admin: false, super: false, req: '2026-11-02' }, '2026-11-01', 'Log Book entry'), 'ok');
+    assert.match(rule(USER, '2026-11-02', 'Diesel issue'), onlyToday, 'a new entry: from today');
+    assert.strictEqual(rule({ admin: false, super: false, req: '2026-10-20' }, '2026-10-01', 'Diesel issue'), 'ok', 'sent before the rule');
+  } finally { run('() => { today_ = globalThis.__today187; delete globalThis.__today187; }'); }
+  // the real saves: a user's Log Book of yesterday saved, of 3 days back refused, its deletion refused; the Admin's saved
+  run('(x, m) => saveMaster_(x, m)', { no: 'U187-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Rule Vendor 187', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: day(-40) }, 'add');
+  const entry = (d, k) => ({ rows: [{ date: d, shift: 'Full Day', no: 'U187-1', mode: 'KM', openingKm: k, closingKm: k + 50 }] });
+  const save = (who, d, k) => as(who, () => tryIt(() => run('x => saveLogRowsInner_(x)', entry(d, k))));
+  assert.strictEqual(save(ADMIN, day(-3), 100).ok, true, 'the Admin: 3 days back');
+  const u3 = save(USER, day(-5), 10);
+  assert.match(JSON.stringify(u3.v || u3.err), /a user enters only the Log Book of today and yesterday/);
+  assert.strictEqual(save(USER, day(-1), 200).ok, true, 'a user: yesterday');
+  const del = as(USER, () => tryIt(() => run('k => deleteLogRow_(k)', 'U187-1|' + day(-3) + '|Full Day')));
+  assert.match(String(del.err || JSON.stringify(del.v)), /a user enters only the Log Book of today and yesterday/, 'nor its deletion');
+  assert.strictEqual(as(ADMIN, () => tryIt(() => run('k => deleteLogRow_(k)', 'U187-1|' + day(-3) + '|Full Day'))).ok, true, 'the Admin deletes it');
+  // the source: the rule in booksOpen_ (every entry, its change and deletion – 43 places), the request's day where it is saved later
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), page = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(code, /function booksOpen_\(dk, what\) \{\n  userDateRule_\(dk, what\);/);
+  assert.match(code, /REQ_DAY_ = r0\.at \? dkey_\(new Date\(r0\.at\)\) : '';      \/\/ \(update-187\) the user's date rule from the day it was sent\n          ACTOR_ = ru\.name \|\| ru\.email; ACTOR_ADMIN_ = !!ru\.admin; ACTOR_SUPER_ = false; VER_CTX_ = 'flow';/);
+  assert.match(code, /VER_CTX_ = 'resend'; REQ_DAY_ = r0\.at \? dkey_\(new Date\(r0\.at\)\) : '';/);
+  // the page: the same words before it is sent, a user's date box offers only today (the Log Book also yesterday), the help in 3 languages
+  assert.ok(page.includes("a user enters only the Log Book of today and yesterday' : 'a user enters only today\\'s entries'"), 'the page says it as the server');
+  assert.match(page, /function userDateBox\(el\)/);
+  assert.match(page, /document\.addEventListener\('focusin', e => userDateBox\(e\.target\), true\);/);
+  assert.match(page, /\{ re: \/a user enters only \(today's entries\|the Log Book of today and yesterday\)\/i,/);
+});

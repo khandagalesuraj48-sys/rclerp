@@ -13071,6 +13071,7 @@ function flowDecide_(u, x) {
         withLock_(() => {
           r0 = look(); f = r0.flow;
           DSRC_U_ = ru;      // (update-162) the sender's diesel sources count (not the approver's)
+          REQ_DAY_ = r0.at ? dkey_(new Date(r0.at)) : '';      // (update-187) the user's date rule from the day it was sent
           ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; VER_CTX_ = 'flow'; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = f.photos && typeof f.photos === 'object' ? f.photos : null;      // (update-120) its photos, as noted when it was sent
           APPROVER_ = u.name || u.email;      // (update-152) the Log Book rows it writes are marked approved by him
           FLOW_SENDER_ = ru.email;      // (update-153) the files it takes are the sender's
@@ -13088,7 +13089,7 @@ function flowDecide_(u, x) {
       } catch (e) {
         if (/^(This request (was not found|is already|is not waiting)|You cannot approve)/.test(String(e && e.message)) || faultKind_(e)) throw e;
         why = String((e && e.message) || e).slice(0, 1000);      // (update-129: room for the warnings' lines)
-      } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; VER_CTX_ = ''; DSRC_U_ = dsu0; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
+      } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; VER_CTX_ = ''; DSRC_U_ = dsu0; REQ_DAY_ = ''; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
     }
     if (why) {
       withLock_(() => {
@@ -13206,14 +13207,14 @@ function flowResendOne_(u, id, note) {
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
   let res = null;
-  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = held; VER_CTX_ = 'resend';
+  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = held; VER_CTX_ = 'resend'; REQ_DAY_ = r0.at ? dkey_(new Date(r0.at)) : '';      // (update-187)
   try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
   catch (e) {
     if (e !== FLOW_DRY_) {
       if (faultKind_(e)) throw e;
       throw flowRefused_(id, String((e && e.message) || e).replace(/^Error:\s*/, '').slice(0, 1500));
     }
-  } finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; VER_CTX_ = ''; }
+  } finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; VER_CTX_ = ''; REQ_DAY_ = ''; }
   TABLE_MEMO_ = {};
   const errs = res && typeof res === 'object' ? (res.errors || []) : [];
   if (res && typeof res === 'object' && (res.ok === false || errs.length)) throw flowRefused_(id, flowRefusal_(res, 100).text);
@@ -13510,10 +13511,31 @@ const memoGet_ = (k, make) => { if (TABLE_MEMO_ && k in TABLE_MEMO_) return TABL
 const memoDrop_ = k => { if (TABLE_MEMO_) delete TABLE_MEMO_[k]; };
 function booksClosed_() { return memoGet_('__closed', () => { let v = ''; try { v = str_(PropertiesService.getScriptProperties().getProperty('BOOKS_CLOSED_UPTO')); } catch (e) { v = ''; } return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; }); }
 let ACTOR_ADMIN_ = true;       // set for every call (apiRun_); code run without a signed-in user (tests, set-up) is not limited
-function booksOpen_(dk, what) {
-  // a rule of the site (Settings → Rules of this site): a user who is not Admin enters and changes only the last N days
+/* (update-187, 29-10-2026 – the MD, urgent: "admin ani super admin fkt back dated entry kru shakto baki konich nahi … jo entry user karayla
+ * jail tyala auto aajchi date select aasel tyala date change krta yenar nahi … modual wise"; his answer for the Log Book: "kal + aaj")
+ * BACK-DATED ENTRIES ONLY BY THE ADMIN AND THE SUPER ADMIN. A user who is not this site's Admin makes, changes and deletes only entries
+ * of TODAY – a Log Book entry also of YESTERDAY. Fixed for every site; the site's own rule (Settings → Rules of this site, "the last …
+ * days") can only make it stricter. An entry sent for verification is measured from the day it was SENT (approved, or sent again,
+ * days later it still saves); one sent before this rule (29-10-2026) is not held by it. The Super Admin's approval of a change is his. */
+const USER_TODAY_FROM_ = '2026-10-29';
+let REQ_DAY_ = '';      // the day a verification request was made – set while it is saved at its approval or sent again
+let USER_DATE_RULE_ON_ = true;      // (the unit tests of before keep their fixed dates with it off – the site's own rule then as before)
+const userDays_ = what => /^Log Book/.test(String(what || '')) ? 1 : 0;
+function userDateRule_(dk, what) {
+  if (ACTOR_ADMIN_ || !dk) return;
   const lim = siteRules_().backDays;
-  if (lim !== '' && !ACTOR_ADMIN_ && dk && dk < addDays_(today_(), -lim)) throw new Error((what || 'Entry') + ' of ' + dmy_(dk) + ': an entry older than ' + lim + ' day' + (lim === 1 ? '' : 's') + ' can be made or changed only by the Admin (rule of this site). Ask the Admin.');
+  if (!USER_DATE_RULE_ON_) {      // the site's own rule alone (before update-187)
+    if (lim !== '' && dk < addDays_(today_(), -lim)) throw new Error((what || 'Entry') + ' of ' + dmy_(dk) + ': an entry older than ' + lim + ' day' + (lim === 1 ? '' : 's') + ' can be made or changed only by the Admin (rule of this site). Ask the Admin.');
+    return;
+  }
+  if (ACTOR_SUPER_) return;
+  if (REQ_DAY_ && REQ_DAY_ < USER_TODAY_FROM_) return;
+  const own = userDays_(what), days = lim === '' ? own : Math.min(Number(lim), own), base = REQ_DAY_ || today_();
+  if (dk < addDays_(base, -days)) throw new Error((what || 'Entry') + ' of ' + dmy_(dk) + ': ' + (days ? 'a user enters only the Log Book of today and yesterday' : 'a user enters only today\'s entries') +
+    ' – an entry of an earlier day is made, changed or deleted only by the Admin or the Super Admin. Ask the Admin.');
+}
+function booksOpen_(dk, what) {
+  userDateRule_(dk, what);
   const upto = booksClosed_();
   if (upto && dk && dk <= upto) throw new Error((what || 'Entry') + ' of ' + dmy_(dk) + ': entries up to ' + dmy_(upto) + ' are closed (month closed by the Admin) – nothing of that period can be added, changed or deleted. Ask the Admin to reopen it.');
   return dk;

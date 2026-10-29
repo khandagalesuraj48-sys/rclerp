@@ -36,6 +36,7 @@ SbBook_.prototype.flush = function () {
       s.dirty.clear(); s.orig.clear(); s.goneRows = []; s.gone = []; s.appended = []; }); TABLE_MEMO_ = {}; throw e; }
   Object.keys(this.sheets).forEach(t => this.sheets[t].saved()); };
 sbDiscard_ = function () {};
+USER_DATE_RULE_ON_ = false;      // (update-187) the users' date rule is tested on its own (test "update-187"); the tests of before keep their fixed dates
 this.T = { saveMaster_, saveBoq_, getBoqs_, saveLogRowsInner_, saveLogRows_, getLogBookList_, logPrintExtra_, billMachineCalc_, verifyBills_, getLogRowPrefill_, getLogEntry_, updateLogRow_, getLogEditData_, saveLogBulk_, importLogBook_, findMachine_, getMaster_, boqRateFor_, itemQtyOf_, logItemWork_, boqItemsOn_, billInit_, getVendors_, saveVendor_, today_, logDashboard_, deleteBoq_,
   reset: () => { TABLE_MEMO_ = {}; ITEM_NOS_ = null; ITEM_ON_ = {}; /* (update-152) each call of a test is one request: what it wrote outside a save counts as saved, as before */ if (SB_BOOK_) Object.keys(SB_BOOK_.sheets).forEach(t => { if (SB_BOOK_.sheets[t].loaded) SB_BOOK_.sheets[t].saved(); }); }, SS: () => SS_(), setActor: a => { ACTOR_ = a; } };
 `, ctx);

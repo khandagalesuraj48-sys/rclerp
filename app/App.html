@@ -4225,7 +4225,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   <div class="panel set-p" id="set_admin" hidden>
       <div class="panel-head"><h2>Rules of this site</h2><span class="chart-note">Admin only – these apply to every user of this site.</span></div>
       <div class="rfilters">
-        <div class="field"><label for="rule_back">Users who are not Admin may enter / change entries of the last … days</label><input id="rule_back" inputmode="numeric" maxlength="3" placeholder="empty = no limit" autocomplete="off"></div>
+        <div class="field"><label for="rule_back">Users who are not Admin enter only today's entries, the Log Book also yesterday's (fixed) – 0 here: the Log Book too only today</label><input id="rule_back" inputmode="numeric" maxlength="3" placeholder="empty = as fixed" autocomplete="off"></div>
         <div class="field wide"><label for="rule_note">Notice shown to everybody at the top (empty = none)</label><input id="rule_note" maxlength="200" autocomplete="off"></div>
         <div class="field"><label for="rule_day">Day shift starts at</label><input id="rule_day" type="time" step="60"></div>
         <div class="field"><label for="rule_night">Night shift starts at</label><input id="rule_night" type="time" step="60"></div>
@@ -6164,6 +6164,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!canEdit(module)) return '';
     return '<button class="link" ' + editAttr + '="' + esc(id) + '">Edit</button><button class="link danger" ' + delAttr + '="' + esc(id) + '">Delete</button>';
   }
+  /* (update-187, 29-10-2026 – the MD: "admin ani super admin fkt back dated entry kru shakto baki konich nahi … jo entry user karayla jail
+   * tyala auto aajchi date select aasel tyala date change krta yenar nahi"; the Log Book "kal + aaj") A USER WHO IS NOT ADMIN: an entry's
+   * date box offers only today – a Log Book's today and yesterday (the site's own rule, Settings → Rules of this site, only stricter). The
+   * server refuses any other day (booksOpen_); the Admin and the Super Admin as before. */
+  const userDays = log => { const own = log ? 1 : 0, lim = S.rules && S.rules.backDays !== '' && S.rules.backDays !== undefined && S.rules.backDays !== null ? Number(S.rules.backDays) : ''; return lim === '' || !isFinite(lim) ? own : Math.min(lim, own); };
+  const userFloor = days => { const d = new Date(S.today + 'T00:00:00'); d.setDate(d.getDate() - days); return isoDate(d); };
+  const USER_DATE_IDS = ['d_date', 'bd_date', 'i_date', 't_date', 'tc_date', 'bk_date', 'lg_top_date'];
+  function userDateBox(el) {
+    if (!el || el.tagName !== 'INPUT' || el.type !== 'date' || !S.user || S.user.admin || !S.today) return;
+    const row = el.dataset && el.dataset.f === 'date' && el.closest('#lg_in, #bm_rows');
+    if (USER_DATE_IDS.indexOf(el.id) === -1 && !row) return;
+    const log = el.id === 'lg_top_date' || !!el.closest('#lg_in'), days = userDays(log);
+    el.min = userFloor(days); el.max = S.today;
+    el.title = days ? 'Today or yesterday – an earlier day only by the Admin.' : 'Today – an earlier day only by the Admin.';
+  }
+  document.addEventListener('focusin', e => userDateBox(e.target), true);
+  document.addEventListener('pointerdown', e => userDateBox(e.target), true);
   let toastTimer;
   /* ================= HELP FOR EVERY ERROR: what is wrong and what to do – English, मराठी, हिंदी =================
    * Asked 02-10-2026: whenever the app refuses something, the person must be told in their language what went wrong and
@@ -6844,6 +6861,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The assistant could not keep or open this: this site\'s database does not have the assistant\'s memory and chats yet, the note to remember was empty, the memory of you already has 60 notes, or the note or chat asked for is not yours or is not there any more.', 'Admin: run sql/supabase_step1zk_ai_memory.sql once in Supabase → SQL Editor (in every site). Say what it should remember in a few words; open Memory and take out notes you do not need; open History again and pick the chat from the list.'],
       mr: ['Assistant ला हे ठेवता / उघडता आले नाही: या site च्या database मध्ये assistant ची memory आणि chats अजून नाहीत, लक्षात ठेवायची गोष्ट रिकामी होती, तुमच्या memory मध्ये आधीच 60 नोंदी आहेत, किंवा मागितलेली नोंद / chat तुमची नाही किंवा आता नाही.', 'Admin: sql/supabase_step1zk_ai_memory.sql एकदा Supabase → SQL Editor मध्ये चालवा (प्रत्येक site मध्ये). काय लक्षात ठेवायचे ते थोडक्यात सांगा; Memory उघडून नको असलेल्या नोंदी काढा; History पुन्हा उघडून यादीतून chat निवडा.'],
       hi: ['Assistant इसे रख / खोल नहीं सका: इस site के database में assistant की memory और chats अभी नहीं हैं, याद रखने की बात खाली थी, आपकी memory में पहले से 60 बातें हैं, या माँगी गई बात / chat आपकी नहीं है या अब नहीं है।', 'Admin: sql/supabase_step1zk_ai_memory.sql एक बार Supabase → SQL Editor में चलाएँ (हर site में)। क्या याद रखना है वह थोड़े में बताएँ; Memory खोलकर बेकार बातें हटाएँ; History फिर खोलकर सूची से chat चुनें।'] },
+    // (update-187) a user's entry of an earlier day – only the Admin and the Super Admin
+    { re: /a user enters only (today's entries|the Log Book of today and yesterday)/i,
+      en: ['A user (not the Admin) makes, changes or deletes only entries of today – a Log Book entry also of yesterday. An entry of an earlier day is made only by the Admin or the Super Admin. Nothing was saved.', 'Check the date: it is today\'s by itself. If the entry really belongs to an earlier day, ask the Admin (or the Super Admin) to enter or change it.'],
+      mr: ['User (Admin नाही) फक्त आजच्या entries करतो, बदलतो किंवा delete करतो – Log Book ची entry कालची पण. मागच्या दिवसाची entry फक्त Admin किंवा Super Admin करतो. काहीही save झाले नाही.', 'तारीख तपासा: ती आपोआप आजची येते. Entry खरोखर मागच्या दिवसाची असेल तर Admin (किंवा Super Admin) ला ती भरायला / बदलायला सांगा.'],
+      hi: ['User (Admin नहीं) केवल आज की entries करता, बदलता या delete करता है – Log Book की entry कल की भी। पिछले दिन की entry केवल Admin या Super Admin करता है। कुछ भी save नहीं हुआ।', 'तारीख जाँचें: वह अपने आप आज की आती है। Entry सच में पिछले दिन की हो तो Admin (या Super Admin) से भरने / बदलने को कहें।'] },
   ];
   const FIX_ANY = { en: ['The app could not accept this. The line above says which field or value is the problem.', 'Correct that field and try again. If it is not clear, take a photo of this box and send it to the Admin.'],
     mr: ['App ला हे स्वीकारता आले नाही. वरच्या ओळीत कोणता field किंवा किंमत अडचणीची आहे ते दिले आहे.', 'तो field दुरुस्त करून पुन्हा प्रयत्न करा. समजले नाही तर या चौकटीचा फोटो काढून Admin ला पाठवा.'],
@@ -14454,10 +14476,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const ENTRY_DATES = ['d_date', 'bd_date', 'i_date', 'i_billdate', 't_date', 'tc_date', 'bk_date', 'py_date', 'dn_date', 'lg_top_date'];
     if (el.type === 'date' && v && S.today && v > S.today && (ENTRY_DATES.indexOf(el.id) > -1 || (f === 'date' && el.closest('#lg_in'))))
       return 'Date ' + showDate(v) + ' is after today (' + showDate(S.today) + '). Entries can be made only up to today.';
-    // … not older than the site allows a user who is not Admin (Settings → Rules of this site)
-    if (el.type === 'date' && v && S.today && S.rules && S.rules.backDays !== '' && S.user && !S.user.admin && ((ENTRY_DATES.indexOf(el.id) > -1 && ['i_billdate', 'py_date', 'dn_date'].indexOf(el.id) === -1) || (f === 'date' && el.closest('#lg_in')))) {
-      const lim = new Date(S.today + 'T00:00:00'); lim.setDate(lim.getDate() - Number(S.rules.backDays));
-      if (v < isoDate(lim)) return 'Entry of ' + showDate(v) + ': an entry older than ' + S.rules.backDays + ' day' + (Number(S.rules.backDays) === 1 ? '' : 's') + ' can be made or changed only by the Admin (rule of this site). Ask the Admin.';
+    // … (update-187) a user who is not Admin: only today's entries – the Log Book also yesterday's (the site's own rule only stricter)
+    if (el.type === 'date' && v && S.today && S.user && !S.user.admin && ((ENTRY_DATES.indexOf(el.id) > -1 && ['i_billdate', 'py_date', 'dn_date'].indexOf(el.id) === -1) || (f === 'date' && el.closest('#lg_in, #bm_rows')))) {
+      const log = el.id === 'lg_top_date' || !!el.closest('#lg_in'), days = userDays(log);
+      if (v < userFloor(days)) return (log ? 'Log Book entry' : 'Entry') + ' of ' + showDate(v) + ': ' + (days ? 'a user enters only the Log Book of today and yesterday' : 'a user enters only today\'s entries') + ' – an entry of an earlier day is made, changed or deleted only by the Admin or the Super Admin. Ask the Admin.';
     }
     // … and not inside a closed month (bill date, payment and debit note are not closed)
     if (el.type === 'date' && v && S.closedUpto && v <= S.closedUpto && ((ENTRY_DATES.indexOf(el.id) > -1 && ['i_billdate', 'py_date', 'dn_date'].indexOf(el.id) === -1) || (f === 'date' && el.closest('#lg_in'))))
