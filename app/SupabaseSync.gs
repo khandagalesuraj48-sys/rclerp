@@ -319,7 +319,7 @@ function sbBackup_() {
  * "items" (key: code) stopped the whole backup with 400 "column items.id does not exist" on 13-10-2026. */
 // (update-158 review) backup_drive (step 1zf) is the Drive copy's own index – where each file is in Drive; it only grows and has no
 // time of change, so the Sheet would write it whole every day. Drive keeps the same keys on each file (appProperties "rcl").
-const SB_SKIP_ = ['store_sessions', 'store_tickets', 'backup_drive', 'backup_drive_state'];
+const SB_SKIP_ = ['store_sessions', 'store_tickets', 'backup_drive', 'backup_drive_state', 'ai_memory', 'ai_chats'];      // (update-186) the assistant's memory and chats: only the person's – not in the Sheet
 let SB_CAT_MEMO_ = null;
 function sbCatalog_() {
   const cat = sbFetch_('POST', '/rest/v1/rpc/backup_catalog', {});

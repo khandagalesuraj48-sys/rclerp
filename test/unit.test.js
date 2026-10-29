@@ -661,13 +661,13 @@ test('the assistant: without a key it says so; the rules and the look-ups are th
   assert.throws(() => run('(u, x) => getAiReply_(u, x)', { name: 'A', email: 'a@x.test' }, { contents: [{ role: 'user', parts: [{ text: 'hello' }] }] }), /assistant is not set up yet/);
   const rules = run('u => aiRules_(u)', { name: 'Ramesh', email: 'r@x.test', role: 'User' });
   assert.match(rules, /The person asking is Ramesh \(User\)\./);
-  assert.match(rules, /Answer ONLY from this app/); assert.match(rules, /You never save, change or delete anything yourself/); assert.match(rules, /never say that it is saved/); assert.match(rules, /Devanagari/); assert.match(rules, /Today is \d{4}-\d{2}-\d{2}/);
+  assert.match(rules, /Answer ONLY from this app/); assert.match(rules, /You never save, change or delete anything of the app yourself \(your own memory notes – rule 10 – are the only thing you write\)/);      // (update-186) assert.match(rules, /never say that it is saved/); assert.match(rules, /Devanagari/); assert.match(rules, /Today is \d{4}-\d{2}-\d{2}/);
   const tools = run('() => AI_TOOLS_.map(t => t.name)');
   assert.deepStrictEqual(tools, ['diesel_issues', 'log_book', 'pending_log_book', 'diesel_stock', 'machinery', 'diesel_average', 'diesel_watch', 'activity', 'prepare_diesel_issue', 'prepare_log_entry',
     'maintenance_bills', 'maintenance_log_book', 'maintenance_status', 'vendor_bills', 'payments', 'vendor_ledger', 'vendor_outstanding', 'vendors', 'vendor_boq', 'compliance', 'breakdowns', 'fuel_cards', 'diesel_inward', 'diesel_transfers', 'machinery_cost',      // (update-185)
     'store_stock', 'store_statement', 'store_item_ledger', 'store_inward', 'store_outward', 'store_consumption', 'store_returnable', 'store_requirements', 'store_purchase_orders',      // (update-185: asked of the Store)
     'eng_my_work', 'eng_dashboard', 'eng_report', 'eng_performance', 'eng_progress',      // (update-185: asked of Engineering)
-    'app_guide']);
+    'app_guide', 'remember', 'forget']);      // (update-186: its own memory of this person – the only thing it writes)
   // nothing the AI can call saves, changes or deletes: they only read, two only PREPARE an entry for the person's own Save
   assert.ok(!/save|delete|update|add /i.test(tools.join(' ')));
   assert.ok(run('() => AI_TOOLS_.filter(t => /^prepare_/.test(t.name)).every(t => /It is NOT saved by this/.test(t.description))'));
@@ -2097,7 +2097,7 @@ test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the 
   assert.match(code, /rec\.no !== mId/); assert.match(code, /photosTaken_\(photos\.map\(x => x\.p\)\)/); assert.match(code, /pc\.remove\('PH_' \+ p\)/);      // (update-120: photosTaken_)
   // a photo being sent is tried again 3 times (a question), not for ever (a save) – the page's shell and the server agree
   const shell = fs.readFileSync(path.join(__dirname, '..', 'server', 'page.js'), 'utf8'), rt = fs.readFileSync(path.join(__dirname, '..', 'server', 'runtime.js'), 'utf8');
-  assert.match(shell, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel'\]/); assert.match(rt, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel'\]/);      // (update-120: and a bill copy; update-153: an attachment, and Scan with Mobile – they write no table; its QR's token is never kept with a save's answer)
+  assert.match(shell, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel', 'aiChats', 'aiChatGet', 'aiChatSave', 'aiMemory'\]/); assert.match(rt, /'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel', 'aiChats', 'aiChatGet', 'aiChatSave', 'aiMemory'\]/);      // (update-186: the assistant's chats and memory list)      // (update-120: and a bill copy; update-153: an attachment, and Scan with Mobile – they write no table; its QR's token is never kept with a save's answer)
   // the database step of this update: shown in the app's Read Me word for word; it only ADDS (a column, a private bucket)
   const sqlFile = fs.readFileSync(path.join(__dirname, '..', 'sql', 'supabase_step1x_diesel_photos.sql'), 'utf8');
   const listed = new Function(fs.readFileSync(path.join(__dirname, '..', 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1x_diesel_photos.sql');
@@ -6410,7 +6410,7 @@ test('update-167: Claude – with ANTHROPIC_API_KEY every AI question goes to Cl
     assert.deepStrictEqual(sent.map(x => x.method + ' ' + x.path), ['GET /v1/models?limit=1000', 'POST /v1/messages']);
     const b = sent[1].body;
     assert.strictEqual(b.model, 'claude-sonnet-5-5');
-    assert.ok(b.max_tokens >= 1024 && b.tools.length === 40 && b.messages.length === 1 && b.messages[0].role === 'user' && b.messages[0].content[0].text === 'How much diesel yesterday?');
+    assert.ok(b.max_tokens >= 1024 && b.tools.length === 42 && b.messages.length === 1 && b.messages[0].role === 'user' && b.messages[0].content[0].text === 'How much diesel yesterday?');
     assert.deepStrictEqual(b.system[0].cache_control, { type: 'ephemeral' });
     assert.match(b.system[0].text, /Answer ONLY from this app/); assert.match(b.system[0].text, /The person asking is Sujit \(Admin\)\./);
     assert.ok(!/SNAPSHOT/.test(b.system[0].text) && /^9\. SNAPSHOT/.test(b.system[1].text) && /"dieselStockNow":\{"litres":813\}/.test(b.system[1].text), 'the snapshot is after the kept part');
@@ -6486,7 +6486,7 @@ test('update-167: Claude – with ANTHROPIC_API_KEY every AI question goes to Cl
     r = run('(u, x) => getAiReply_(u, x)', u, { contents: [{ role: 'user', parts: [{ text: 'stock?' }] }], context: { page: { tab: 'dash' } } });
     assert.deepStrictEqual([r.parts[0].text, r.model], ['Gemini here.', 'gemini-9.5-flash']);
     assert.deepStrictEqual(sent.map(x => x.path), ['/v1beta/models?pageSize=1000', '/v1beta/models/gemini-9.5-flash:generateContent']);
-    assert.ok(sent[1].body.system_instruction && /\n9\. SNAPSHOT – /.test(sent[1].body.system_instruction.parts[0].text) && sent[1].body.tools[0].functionDeclarations.length === 40 && sent[1].body.contents[0].role === 'user');
+    assert.ok(sent[1].body.system_instruction && /\n9\. SNAPSHOT – /.test(sent[1].body.system_instruction.parts[0].text) && sent[1].body.tools[0].functionDeclarations.length === 42 && sent[1].body.contents[0].role === 'user');
     assert.strictEqual(run('() => PropertiesService.getScriptProperties().getProperty("AI_MODEL_C")'), null, 'Claude\'s order is kept apart from Gemini\'s');
   } finally {
     delete ctx.__ai; clean();
@@ -7447,4 +7447,165 @@ test('update-185: the assistant reads the rest of Mechanical (maintenance, bills
   assert.match(app, /\/\^store_\/\.test\(name\) \? await aiModLook\('store', 'work', name, args\) : \/\^eng_\/\.test\(name\) \? await aiModLook\('engineering', 'eng', name, args\)/);
   const mlk = app.slice(app.indexOf('async function aiModLook('), app.indexOf('const AI_NAMES = {'));
   assert.ok(/inHere\(m\)/.test(mlk) && /j\.site === cur/.test(mlk) && /action: 'aiLook'/.test(mlk) && /credentials: 'same-origin'/.test(mlk) && !/method: 'POST'[^\n]*action: '(?!aiLook)/.test(mlk), 'a module of this address, its sign-in of THIS site, only aiLook');
+});
+
+test('update-186: the assistant live – its answer word by word (api/ai.js, server/aistream.js), its own memory and its chats (step 1zk – only the person\'s, only this site\'s), what this site holds; the page, the bridge and the help', async () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const fails = (fn, ...a) => { try { run(fn, ...a); return ''; } catch (e) { T.reset(); return String(e.message || e); } };
+  // a small stand-in of the site's database for the two tables of step 1zk (PostgREST's words: eq filters, order, on_conflict)
+  const db = { ai_memory: [], ai_chats: [] }; let on = true, nextId = 1;
+  const q = p => { const [t, qs] = p.replace('/rest/v1/', '').split('?'), f = {}, le = {}; (qs || '').split('&').forEach(kv => { const [k, v] = kv.split('='); if (v && v.indexOf('eq.') === 0) f[k] = decodeURIComponent(v.slice(3)); if (v && v.indexOf('lte.') === 0) le[k] = Number(v.slice(4)); }); return { t: t, f: f, le: le, order: /order=([a-z_]+)\.(asc|desc)/.exec(qs || '') }; };
+  const hit = (rows, f, le) => rows.filter(r => Object.keys(f).every(k => String(r[k]) === f[k]) && Object.keys(le || {}).every(k => Number(r[k]) <= le[k]));
+  ctx.sbFetch_ = (method, p, body) => { const x = q(p);
+    if (!on && /^ai_/.test(x.t)) throw new Error('Supabase ' + method + ' /rest/v1/' + x.t + ' → 404: {"code":"PGRST205"}');
+    if (!db[x.t]) throw new Error('Supabase ' + method + ' /rest/v1/' + x.t + ' → 404: no table');
+    if (method === 'GET') { let r = hit(db[x.t], x.f); if (x.order) r = r.slice().sort((a, b) => String(a[x.order[1]]).localeCompare(String(b[x.order[1]]), 'en', { numeric: true }) * (x.order[2] === 'desc' ? -1 : 1)); return JSON.parse(JSON.stringify(r)); }
+    if (method === 'POST') { return body.map(row => { if (x.t === 'ai_memory') { const r = Object.assign({ id: nextId++, at: '2026-10-28T18:00:00Z' }, row); db.ai_memory.push(r); return r; }
+      const i = db.ai_chats.findIndex(c => c.id === row.id); if (i > -1) return null; db.ai_chats.push(Object.assign({ created_at: row.updated_at }, row)); return row; }).filter(Boolean); }      // (ignore-duplicates)
+    if (method === 'PATCH') { const r = hit(db[x.t], x.f, x.le); r.forEach(z => Object.assign(z, body)); return JSON.parse(JSON.stringify(r)); }
+    if (method === 'DELETE') { const r = hit(db[x.t], x.f); db[x.t] = db[x.t].filter(z => r.indexOf(z) < 0); return r; }
+    throw new Error('not here'); };
+  ctx.sbFetchAllGet_ = paths => paths.map(p => /log_book/.test(p) ? [{ date: /\.asc/.test(p) ? '2026-04-01' : '2026-10-28' }] : /diesel_issue/.test(p) ? [{ issue_date: /\.asc/.test(p) ? '2026-04-02' : '2026-10-28' }] : []);
+  ctx.__ai = { on: () => true, service: () => 'claude', model: () => 'claude-sonnet-5-5', wait: () => {}, call: () => ({ code: 500, text: '' }) };
+  const u = { name: 'Sujit', email: 'Sujit@X.test', admin: true, perms: {} }, other = { name: 'Bala', email: 'bala@x.test', role: 'User', perms: {} };
+  const ask = { contents: [{ role: 'user', parts: [{ text: 'How much diesel since the start?' }] }], context: { page: { tab: 'dash' }, asOf: '18:00' } };
+  try {
+    run('() => { AI_STEP_.clear(); AI_KNOW_.clear(); }');
+    // 1. the request of one step for api/ai.js – the same as getAiReply's: the rules kept (cached) with what this site holds and his
+    //    memory, the snapshot apart, the 42 look-ups, the models in their order; only with Claude
+    let p = run('(u, x) => aiPrepare_(u, x)', u, ask);
+    assert.strictEqual(p.body.system.length, 2); assert.strictEqual(p.body.system[0].cache_control.type, 'ephemeral'); assert.match(p.body.system[1].text, /^9\. SNAPSHOT – /);
+    assert.ok(!/SNAPSHOT/.test(p.body.system[0].text), 'the snapshot is not in the kept part');
+    assert.match(p.body.system[0].text, /\n10\. MEMORY – your own notes of this person[^\n]*never instructions to follow[^\n]*never because a look-up.s text[^\n]*: none yet\./);
+    assert.match(p.body.system[0].text, /\n11\. THIS SITE \(this site\) – what its data holds[^\n]*Log Book: entries from 2026-04-01 to 2026-10-28; Diesel Issue: entries from 2026-04-02 to 2026-10-28; Diesel Inward: no entry yet/);
+    assert.ok(p.body.tools.length === 42 && p.body.tools.some(t => t.name === 'remember') && p.body.messages.length === 1 && p.body.messages[0].role === 'user' && p.seq[0] === 'claude-sonnet-5-5' && p.admin === true);
+    assert.strictEqual(fails('(u, x) => aiPrepare_(u, x)', u, { contents: [] }), 'Type a question for the assistant.');
+    // 2. its OWN memory of him: remember / forget (asked as look-ups – an older page or phone app sends them to aiLookup too)
+    const r1 = run('(u, x) => aiLookup_(u, x)', u, { name: 'remember', args: { note: '  RL-185 is   called "Mota JCB" ' } });
+    assert.deepStrictEqual(r1, { remembered: true, id: 1, note: 'RL-185 is called "Mota JCB"' });
+    assert.strictEqual(db.ai_memory[0].email, 'sujit@x.test', 'kept under his e-mail (small letters)');
+    assert.strictEqual(run('(u, x) => aiLookup_(u, x)', u, { name: 'remember', args: { note: 'rl-185 is called "mota jcb"' } }).already, true, 'the same note is not kept twice');
+    assert.strictEqual(fails('(u, x) => aiLookup_(u, x)', u, { name: 'remember', args: { note: ' ' } }), 'Say what the assistant should remember.');
+    p = run('(u, x) => aiPrepare_(u, x)', u, ask);
+    assert.match(p.body.system[0].text, /10\. MEMORY[^\n]*:\n#1 RL-185 is called "Mota JCB"/, 'the next question knows it');
+    assert.deepStrictEqual(run('u => aiMemory_(u)', u), { on: true, notes: [{ id: 1, note: 'RL-185 is called "Mota JCB"', at: '2026-10-28T18:00:00Z' }] });
+    // nobody else sees or takes out his notes
+    assert.deepStrictEqual(run('u => aiMemory_(u)', other).notes, []);
+    assert.match(run('(u, x) => aiPrepare_(u, x)', other, ask).body.system[0].text, /10\. MEMORY[^\n]*: none yet\./);
+    assert.strictEqual(fails('(u, x) => aiLookup_(u, x)', other, { name: 'forget', args: { id: 1 } }), 'Note 1 is not in the memory of the assistant for you.');
+    assert.strictEqual(fails('(u, x) => aiMemoryDel_(u, x)', u, { id: 'x' }), 'Say which note to take out (its number).');
+    assert.deepStrictEqual(run('(u, x) => aiMemoryDel_(u, x)', u, { id: 1 }), { forgotten: true, id: 1 }); assert.strictEqual(db.ai_memory.length, 0);
+    for (let i = 0; i < 60; i++) db.ai_memory.push({ id: nextId++, email: 'sujit@x.test', note: 'note ' + i, at: 'x' });
+    assert.match(fails('(u, x) => aiLookup_(u, x)', u, { name: 'remember', args: { note: 'one more' } }), /^The memory of the assistant is full for you \(60 notes\)/);
+    db.ai_memory = [];
+    // 3. his chats: kept as he saw them (me / bot / src only, the newest first), opened again – only his
+    assert.deepStrictEqual(run('(u, x) => aiChatSave_(u, x)', u, { id: 'Cmh9x2abc', msgs: [{ r: 'me', t: 'How much diesel yesterday?' }, { r: 'src', t: 'Looked up: · Diesel issues' }, { r: 'bot', t: '120 L' }, { r: 'x', t: 'junk' }, { r: 'bot', t: '' }] }), { kept: true, id: 'Cmh9x2abc' });
+    assert.deepStrictEqual(db.ai_chats[0].msgs.map(m => m.r), ['me', 'src', 'bot']); assert.strictEqual(db.ai_chats[0].title, 'How much diesel yesterday?'); assert.strictEqual(db.ai_chats[0].n, 1);
+    run('(u, x) => aiChatSave_(u, x)', u, { id: 'Cmh9x2abc', msgs: db.ai_chats[0].msgs.concat([{ r: 'me', t: 'and today?' }, { r: 'bot', t: '80 L' }]) });
+    assert.strictEqual(db.ai_chats.length, 1, 'the same chat goes on'); assert.strictEqual(db.ai_chats[0].n, 2);
+    const list = run('u => aiChats_(u)', u); assert.ok(list.on && list.chats.length === 1 && list.chats[0].title === 'How much diesel yesterday?' && list.chats[0].n === 2);
+    assert.strictEqual(run('(u, x) => aiChatGet_(u, x)', u, { id: 'Cmh9x2abc' }).msgs.length, 5);
+    assert.deepStrictEqual(run('u => aiChats_(u)', other).chats, [], 'another person: not his');
+    assert.strictEqual(fails('(u, x) => aiChatGet_(u, x)', other, { id: 'Cmh9x2abc' }), 'This chat is not there.');
+    assert.strictEqual(fails('(u, x) => aiChatSave_(u, x)', other, { id: 'Cmh9x2abc', msgs: [{ r: 'me', t: 'mine now' }, { r: 'bot', t: 'x' }] }), 'This chat is not there.', 'never written over by another person');
+    assert.strictEqual(db.ai_chats[0].email, 'sujit@x.test');
+    // a copy sent late (fewer questions) never goes over the newer one
+    assert.deepStrictEqual(run('(u, x) => aiChatSave_(u, x)', u, { id: 'Cmh9x2abc', msgs: [{ r: 'me', t: 'How much diesel yesterday?' }, { r: 'bot', t: '120 L' }] }), { kept: false, id: 'Cmh9x2abc', newer: true });
+    assert.strictEqual(db.ai_chats[0].n, 2);
+    assert.strictEqual(fails('(u, x) => aiChatGet_(u, x)', u, { id: '../x' }), 'This chat is not there.');
+    // 4. a site without step 1zk: everything works as before, and says so
+    on = false; run('() => AI_STEP_.clear()');
+    assert.match(run('u => aiMemory_(u)', u).msg, /^The assistant.s memory and its chats need one database step first: the Admin runs sql\/supabase_step1zk_ai_memory\.sql/);
+    assert.strictEqual(run('(u, x) => aiChatSave_(u, x)', u, { id: 'Cmh9x2abd', msgs: [{ r: 'me', t: 'q' }, { r: 'bot', t: 'a' }] }).kept, false);
+    assert.match(fails('(u, x) => aiLookup_(u, x)', u, { name: 'remember', args: { note: 'x y' } }), /supabase_step1zk_ai_memory\.sql/);
+    assert.match(run('(u, x) => aiPrepare_(u, x)', u, ask).body.system[0].text, /10\. MEMORY[^\n]*: not available yet at this site/);
+    on = true; run('() => AI_STEP_.clear()');
+    // Gemini (no Claude key): no word-by-word answer – the page asks getAiReply as before
+    ctx.__ai.service = () => 'gemini';
+    assert.strictEqual(fails('(u, x) => aiPrepare_(u, x)', u, ask), 'AI_NO_STREAM');
+    ctx.__ai.service = () => 'claude';
+  } finally { delete ctx.__ai; delete ctx.sbFetch_; delete ctx.sbFetchAllGet_; try { run('() => { AI_STEP_.clear(); AI_KNOW_.clear(); }'); } catch (e) { /* the harness is made again by the next test */ } }
+
+  // 5. server/aistream.js: Claude's events in pieces of any size → the words in order, then the app's parts; busy / cut / key / credit
+  const A = require('../server/aistream.js'), http = require('http');
+  { const got = []; const feed = A.sse((t, j) => got.push(t + ':' + (j.delta ? j.delta.text || j.delta.partial_json || '' : '')));
+    const all = 'event: message_start\ndata: {"type":"message_start","message":{"usage":{"input_tokens":5}}}\n\nevent: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"नम"}}\r\n\r\n';
+    for (let i = 0; i < all.length; i += 7) feed(all.slice(i, i + 7));
+    assert.deepStrictEqual(got, ['message_start:', 'content_block_delta:नम'], 'split anywhere, \\r\\n too'); }
+  const plan = []; const srv = http.createServer((req, res) => { let b = ''; req.on('data', c => { b += c; }); req.on('end', () => { const j = JSON.parse(b), how = plan.shift() || 'ok'; srv.seen.push({ model: j.model, stream: j.stream, key: req.headers['x-api-key'] });
+    if (/^\d+$/.test(how)) { res.writeHead(Number(how), { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ type: 'error', error: { type: 'x', message: how === '400' ? 'Your credit balance is too low' : 'Overloaded' } })); }
+    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+    const ev = (t, d) => res.write('event: ' + t + '\ndata: ' + JSON.stringify(Object.assign({ type: t }, d)) + '\n\n');
+    ev('message_start', { message: { usage: { input_tokens: 10, cache_read_input_tokens: 100 } } }); ev('ping', {});
+    if (how === 'cutnow') { res.end(); return; }
+    ev('content_block_start', { index: 0, content_block: { type: 'text', text: '' } }); ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: '**120 L** ' } });
+    if (how === 'cut') { ev('error', { error: { type: 'overloaded_error', message: 'Overloaded' } }); return res.end(); }
+    if (how === 'cut0') { res.end(); return; }      // (closed cleanly – without message_stop)
+    ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'yesterday.' } }); ev('content_block_stop', { index: 0 });
+    if (how === 'halftool') { ev('content_block_start', { index: 1, content_block: { type: 'tool_use', id: 'toolu_1', name: 'forget', input: {} } }); ev('content_block_delta', { index: 1, delta: { type: 'input_json_delta', partial_json: '{"id": 1' } }); ev('message_delta', { delta: { stop_reason: 'tool_use' } }); ev('message_stop', {}); return res.end(); }
+    if (how === 'tool') { ev('content_block_start', { index: 1, content_block: { type: 'tool_use', id: 'toolu_1', name: 'diesel_issues', input: {} } }); ev('content_block_delta', { index: 1, delta: { type: 'input_json_delta', partial_json: '{"from":"2026-' } }); ev('content_block_delta', { index: 1, delta: { type: 'input_json_delta', partial_json: '10-27","to":"2026-10-27"}' } }); ev('content_block_stop', { index: 1 }); }
+    ev('message_delta', { delta: { stop_reason: how === 'tool' ? 'tool_use' : 'end_turn' }, usage: { output_tokens: 7 } }); ev('message_stop', {}); res.end(); }); });
+  srv.seen = [];
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const keep = { b: process.env.ANTHROPIC_API_BASE, k: process.env.ANTHROPIC_API_KEY };
+  process.env.ANTHROPIC_API_BASE = 'http://127.0.0.1:' + srv.address().port; process.env.ANTHROPIC_API_KEY = 'k-test';
+  const prep = { body: { max_tokens: 4096, messages: [{ role: 'user', content: [{ type: 'text', text: 'q' }] }] }, seq: ['m1', 'm1', 'm2'], admin: false };
+  const go = async how => { plan.length = 0; plan.push(...how); srv.seen.length = 0; const words = []; try { const r = await A.stream(prep, t => words.push(t), { pause: 0 }); return { words: words, r: r }; } catch (e) { return { words: words, err: e.message }; } };
+  try {
+    let x = await go(['ok']);
+    assert.deepStrictEqual(x.words, ['**120 L** ', 'yesterday.']); assert.deepStrictEqual(x.r.parts, [{ text: '**120 L** yesterday.' }]);
+    assert.ok(x.r.model === 'm1' && x.r.used === 117 && srv.seen[0].stream === true && srv.seen[0].key === 'k-test');
+    x = await go(['tool']);
+    assert.deepStrictEqual(x.r.parts, [{ text: '**120 L** yesterday.' }, { functionCall: { name: 'diesel_issues', args: { from: '2026-10-27', to: '2026-10-27' } } }], 'a look-up asked for, its input put together from its pieces');
+    x = await go(['529', '529', 'ok']);
+    assert.ok(x.r && x.r.model === 'm2' && srv.seen.map(s => s.model).join() === 'm1,m1,m2', 'busy: the same model again, then the next');
+    x = await go(['cut0', 'ok']);
+    assert.ok(!x.r && /^The AI service is busy right now/.test(x.err), 'a line that ends before the answer ended (words already sent): a cut, not an answer – said as busy');
+    x = await go(['cutnow', 'ok']);
+    assert.ok(x.r && x.r.model === 'm1' && srv.seen.length === 2, 'a line that ends before any word: asked again', x);
+    x = await go(['cut']);
+    assert.match(x.err, /^The AI service is busy right now \(529\) – that is on its side, not in the app\. It was asked 1 time\(s\)\./, 'words already sent and then cut: said, not asked again');
+    { let cutMark = null; try { plan.length = 0; plan.push('cut'); await A.stream(prep, () => {}, { pause: 0 }); } catch (e) { cutMark = e.cut; } assert.strictEqual(cutMark, true, 'marked as cut (the page asks again in one piece)'); }
+    { let e2 = null; try { plan.length = 0; plan.push('529', '529', '529'); await A.stream(prep, () => {}, { pause: 0 }); } catch (e) { e2 = e; } assert.ok(e2 && /busy/.test(e2.message) && !e2.cut, 'busy before any word: not a cut (the page does not ask again)'); }
+    x = await go(['halftool']); assert.ok(!x.r && /busy/.test(x.err), 'a look-up whose input cannot be read: not run with nothing – a cut', x);
+    x = await go(['401']); assert.match(x.err, /^The AI service did not accept its key \(401\)/);
+    x = await go(['400']); assert.match(x.err, /^The AI service has no credit left \(Claude\)/);
+    process.env.ANTHROPIC_API_KEY = '';
+    x = await go(['ok']); assert.match(x.err, /^The assistant is not set up yet/);
+  } finally { process.env.ANTHROPIC_API_BASE = keep.b || ''; if (keep.b === undefined) delete process.env.ANTHROPIC_API_BASE; if (keep.k === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = keep.k; srv.close(); }
+  // the same words as the app's own (its help rules know them)
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  const plain = code.replace(/\\'/g, "'");
+  assert.ok(plain.indexOf(A.MSG.off) > -1 && plain.indexOf(A.MSG.credit) > -1 && plain.indexOf(A.MSG.key(401).replace('401', "' + code + '")) > -1 && code.indexOf("'The AI service is busy right now' + (last && last.code ? ' (' + last.code + ')' : '') + ' – that is on its side, not in the app. It was asked ' + tried + ' time(s). Please ask again in a minute.'") > -1);
+
+  // 6. the endpoint and the page: /api/ai (Vercel, the local server), the bridge's aiStream, the page asks it first and falls back
+  const vj = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')); assert.ok(vj.functions['api/ai.js'] && vj.functions['api/ai.js'].maxDuration === 60);
+  assert.match(fs.readFileSync(path.join(root, 'dev.js'), 'utf8'), /'\/api\/ai'\) return require\('\.\/api\/ai'\)\(req, res\)/);
+  const apiAi = fs.readFileSync(path.join(root, 'api', 'ai.js'), 'utf8');
+  assert.match(apiAi, /pool\.call\('api', \[String\(body\.token \|\| ''\), 'aiPrepare', \[/, 'every check is the app\'s own (aiPrepare with his sign-in)'); assert.match(apiAi, /application\/x-ndjson/);
+  const shell = require('../server/page.js').shell();
+  assert.match(shell, /window\.google\.script\.aiStream = function \(token, x, onLine\)/); assert.match(shell, /fetch\(base \+ '\/api\/ai'/);
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /const r = await aiStep\(ctx, wait\);/); assert.match(app, /return rawCall\('getAiReply', x\);/, 'the answer in one piece stays the way back');
+  assert.ok(!/wait\.textContent = 'Thinking…'/.test(app), 'no "Thinking…"');
+  assert.match(app, /id="ai_hist"/); assert.match(app, /id="ai_mem"/); assert.match(app, /rawCall\('aiChatSave', \{ id: AI\.chatId, msgs: out \}\)/);
+  assert.match(app, /if \(AI\.live && AI\.saying\) \{ aiInterrupt\(\); return; \}/, 'while it speaks: the microphone stops it and listens');
+  // its sentences as they come: said once each, the start of the answer
+  const sq = app.slice(app.indexOf('  const AI_SQ = {'), app.indexOf('  function aiSayAfter('));
+  const said = []; const S2 = { prefs: {} }, speechSynthesis = { speaking: true, pending: false, cancel() {}, speak(u) { said.push(u.text); }, getVoices: () => [] };
+  const mk = new Function('S', 'AI', 'fixLang', 'speechSynthesis', 'SpeechSynthesisUtterance', 'aiCanSay', 'aiSpeakable', 'aiLiveShow', 'AI_SPEECH', sq + '; return { AI_SQ, aiSayStart, aiSayFeed };');
+  const W = mk(S2, { live: true, lastLang: 'en' }, 'en', speechSynthesis, function (t) { this.text = t; }, () => true, t => t, () => {}, { en: 'en-IN' });
+  W.aiSayStart(); W.aiSayFeed('The stock is 4,200.5 L. Most went', false); W.aiSayFeed('The stock is 4,200.5 L. Most went to RL-185.\n[[open:diesel|Op', false); W.aiSayFeed('The stock is 4,200.5 L. Most went to RL-185.\n[[open:diesel|Open]] Done', true);
+  assert.deepStrictEqual(said, ['The stock is 4,200.5 L.', 'Most went to RL-185.', 'Done'], 'each sentence once, a number\'s point is no end, a button is not said');
+
+  // 7. step 1zk: only ADDS two tables, only the server opens them, kept out of the Sheet, in Read Me word for word, in the set-up check
+  const sql = fs.readFileSync(path.join(root, 'sql', 'supabase_step1zk_ai_memory.sql'), 'utf8'), body = sql.split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
+  assert.ok(!/\bdrop\b/i.test(body) && !/truncate\s+(table\s+)?public/i.test(body) && !/alter\s+table\s+public\.(?!ai_)/i.test(body) && !/delete\s+from/i.test(body) && !/\bupdate\s+public\./i.test(body), 'nothing of the app is dropped or changed');
+  for (const t of ['ai_memory', 'ai_chats']) { assert.match(body, new RegExp('create table if not exists public\\.' + t + ' \\(')); assert.match(body, new RegExp('alter table public\\.' + t + ' enable row level security;')); assert.match(body, new RegExp('revoke all on public\\.' + t + ' from public, anon, authenticated;')); }
+  assert.match(body, /revoke delete, truncate on public\.ai_chats from service_role;/, 'a chat is never deleted by the app');
+  const listed = new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1zk_ai_memory.sql');
+  assert.ok(listed && listed.sql === sql && /[ऀ-ॿ]/.test(listed.about));
+  assert.match(code, /add\('The assistant\\'s own memory and its chats \(step 1zk\)', has\('ai_memory'\) && has\('ai_chats'\), 'supabase_step1zk_ai_memory\.sql'\);/);
+  assert.match(fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8'), /const SB_SKIP_ = \[[^\]]*'ai_memory', 'ai_chats'\]/, 'only the person\'s: not in the Google Sheet');
 });

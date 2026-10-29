@@ -13,6 +13,7 @@ const siteHeaders = (() => { try { const j = JSON.parse(fs.readFileSync(path.joi
 http.createServer((req, res) => {
   siteHeaders.forEach(h => res.setHeader(h.key, h.value));
   if (req.url.split('?')[0] === '/api/rpc') return rpc(req, res);
+  if (req.url.split('?')[0] === '/api/ai') return require('./api/ai')(req, res);      // (update-186) the assistant's answer word by word
   if (req.url.split('?')[0] === '/api/backup') return require('./api/backup')(req, res);
   if (req.url.split('?')[0] === '/api/drive') return require('./api/drive')(req, res);      // (update-158) Google's answer after "Allow"
   if (req.url.split('?')[0] === '/menu.json') { res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.setHeader('Cache-Control', 'no-cache'); return res.end(JSON.stringify(require('./server/page').menu())); }

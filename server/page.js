@@ -30,7 +30,7 @@ const BRIDGE = `
     //  update-120: inwardPhoto – a bill copy of a diesel inward – the same; update-153: uploadAttachment – an attachment, kept once
     //  under its fingerprint – and Scan with Mobile (capStart … capCancel; capPoll – the computer asking every 3 s what the phone
     //  sent): they write no table, so they are questions, never counted as a save – and the QR's token is never kept with a save's answer)
-    return /^(get|rpt|rtc)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel'].indexOf(f) > -1; }
+    return /^(get|rpt|rtc)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel', 'aiChats', 'aiChatGet', 'aiChatSave', 'aiMemory'].indexOf(f) > -1; }
   // calls on their way (for the freeze note: which answer the page was waiting for, and for how long) and the last answer
   var inFlight = {}, flightNo = 0, lastAnswer = '';
   window.__rclNet = function () { var now = Date.now(), w = Object.keys(inFlight).map(function (k) { return inFlight[k].fn + ' ' + ((now - inFlight[k].t0) / 1000).toFixed(1) + ' s'; });
@@ -189,6 +189,24 @@ const BRIDGE = `
     } });
   }
   window.google = { script: { run: runner(null, null), host: { close: function () {} } } };
+  /* (update-186) THE ASSISTANT'S ANSWER WORD BY WORD: POST /api/ai with the sign-in and this page's site; each line of the answer
+   * ({ t: 'd', x: words } as they come, then { t: 'end', … } or { t: 'err', e }) is handed to onLine; the promise gives the last one.
+   * A refusal before the first line (not signed in, the limits, no Claude key: "AI_NO_STREAM", an older server) fails with its words
+   * – the page then asks getAiReply as before. */
+  window.google.script.aiStream = function (token, x, onLine) {
+    var site = ''; try { site = localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site') || ''; } catch (e) { site = ''; }
+    var msg = { token: token, x: x }; if (site) msg.site = site;
+    return fetch(base + '/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(msg), cache: 'no-store' }).then(function (r) {
+      if ((r.headers.get('Content-Type') || '').indexOf('ndjson') < 0 || !r.body || !r.body.getReader) return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; } throw new Error(j && j.error ? j.error : 'AI_NO_STREAM'); });
+      var rd = r.body.getReader(), dec = new TextDecoder(), buf = '', last = null;
+      // (the review) the answer is there with its last line – what the server still does after it (or a line lost then) is not waited for
+      return new Promise(function (resolve, reject) {
+        var line = function (l) { if (!l || !l.trim() || last) return; var j = null; try { j = JSON.parse(l); } catch (e) { return; } try { onLine(j); } catch (e) { /* the page's own drawing */ } if (j.t === 'end' || j.t === 'err') { last = j; resolve(j); } };
+        var pump = function () { rd.read().then(function (c) { if (c.done) { line(buf); buf = ''; if (!last) resolve(null); return; } buf += dec.decode(c.value, { stream: true }); var i; while ((i = buf.indexOf('\\n')) > -1) { line(buf.slice(0, i)); buf = buf.slice(i + 1); } if (!last) pump(); else { try { rd.cancel(); } catch (e) {} } }, function (e) { if (!last) reject(e); }); };
+        pump();
+      });
+    });
+  };
   /* A small recorder for "the page stopped answering" (asked for after a freeze nobody could explain).
    * Only inside the app's own page, only in this browser: it keeps the last things that happened (which question went to
    * the server, how long the answer took, clicks, and every time the page could not answer for more than a second),

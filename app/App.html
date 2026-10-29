@@ -2586,7 +2586,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .ai-panel { position: fixed; right: 14px; bottom: 14px; top: 76px; width: min(430px, calc(100vw - 28px)); z-index: 60; display: flex; flex-direction: column; background: #fff; border: 1px solid #D5DCE6; border-radius: 16px; box-shadow: 0 24px 60px rgba(15, 23, 42, .28); overflow: hidden; }
   .ai-panel[hidden] { display: none; }
   .ai-panel header { display: flex; align-items: center; gap: 8px; padding: 11px 12px 11px 16px; background: #0F1F3D; color: #fff; }
-  .ai-panel header b { font: 800 15px var(--ui); } .ai-panel header small { flex: 1; color: #B8C4DA; font-size: 11.5px; }
+  .ai-panel header b { font: 800 15px var(--ui); } .ai-panel header small { flex: 1; min-width: 0; color: #B8C4DA; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }      /* (update-186: one line beside History / Memory / New chat) */
   .ai-panel header .btn { min-height: 28px; padding: 2px 10px; font-size: 12px; background: transparent; color: #fff; border-color: #5B6E93; }
   .ai-x { border: 0; background: transparent; color: #fff; font-size: 24px; line-height: 1; cursor: pointer; padding: 2px 8px; }
   .ai-msgs { flex: 1; overflow: auto; padding: 14px 14px 6px; display: flex; flex-direction: column; gap: 10px; background: #F6F8FB; }
@@ -2602,6 +2602,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .ai-src { align-self: flex-start; font-size: 11.5px; color: #475569; display: flex; gap: 5px; flex-wrap: wrap; max-width: 92%; }
   .ai-src span { background: #E8EEF7; border-radius: 999px; padding: 2px 9px; }
   .ai-wait { align-self: flex-start; font-size: 12.5px; color: #475569; font-style: italic; }
+  /* (update-186) the answer as it is being written; History and Memory */
+  .ai-m.ai-stream::after { content: '▍'; margin-left: 2px; color: #64748B; animation: aipulse 1s ease-in-out infinite; }
+  .ai-side[hidden] { display: none; } .ai-side h4 { margin: 2px 0 4px; font: 800 14px var(--ui); display: flex; align-items: center; gap: 8px; } .ai-side h4 span { flex: 1; }
+  .ai-side .ai-row { display: flex; align-items: flex-start; gap: 8px; width: 100%; text-align: left; background: #fff; border: 1px solid #DCE3EE; border-radius: 12px; padding: 8px 10px; font: 13px/1.4 var(--ui); color: inherit; }
+  .ai-side button.ai-row { cursor: pointer; } .ai-side button.ai-row:hover { border-color: #93A5C4; } .ai-side .ai-row b { display: block; font-weight: 700; } .ai-side .ai-row small { color: #64748B; }
+  .ai-side .ai-row .ai-rowx { margin-left: auto; flex: none; min-height: 26px; padding: 0 9px; border: 1px solid #F3B2AC; color: #B3261E; background: #fff; border-radius: 8px; cursor: pointer; }
+  .ai-side .ai-empty { color: #64748B; font-size: 13px; }
   .ai-sugg { display: flex; gap: 6px; flex-wrap: wrap; padding: 6px 14px 0; background: #F6F8FB; }
   .ai-sugg button { border: 1px solid #CBD5E1; background: #fff; border-radius: 999px; padding: 5px 11px; font: 600 12.5px var(--ui); color: #334155; cursor: pointer; text-align: left; }
   .ai-form { display: flex; gap: 8px; padding: 10px 12px 8px; background: #F6F8FB; align-items: flex-end; }
@@ -2621,6 +2628,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .ai-sugg { max-height: 132px; overflow: auto; }
   #fixbox .fx-ai { margin: 8px 0 0; border: 1px solid #0F1F3D; background: #0F1F3D; color: #fff; border-radius: 8px; padding: 6px 12px; font: 700 12.5px var(--ui); cursor: pointer; }
   @media (max-width: 760px) { .ai-panel { inset: 0; width: auto; border-radius: 0; top: 0; } .ai-fab span { display: none; } .ai-fab { padding: 13px; right: 12px; bottom: 78px; } }
+  @media (max-width: 420px) { .ai-panel header { gap: 6px; padding: 10px 8px 10px 12px; } .ai-panel header small { display: none; } .ai-panel header .btn { padding: 2px 7px; } }      /* (update-186) a phone: History, Memory, New chat side by side */
   @media print { .ai-fab, .ai-panel { display: none !important; } }
   /* Time / Trips cell: the time boxes took the whole width of the cell (the general "input { width: 100% }"), so To, Break and
      Challan ran out of the cell, over Total and the diesel columns (seen 07-10-2026). Each box has its own width now. */
@@ -4991,8 +4999,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 <!-- the assistant: ask the app in your own words -->
 <button type="button" id="ai_fab" class="ai-fab" hidden title="Ask the assistant – how to do something, how much diesel, who did what …"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Ask</span></button>
 <aside id="ai_panel" class="ai-panel" hidden role="dialog" aria-label="Assistant">
-  <header><b>Assistant</b><small id="ai_sub">answers from this app's data only</small><button type="button" id="ai_new" class="btn ghost small" title="Forget this conversation and start a new one">New chat</button><button type="button" id="ai_close" class="ai-x" aria-label="Close">×</button></header>
+  <header><b>Assistant</b><small id="ai_sub">answers from this app's data only</small><button type="button" id="ai_hist" class="btn ghost small" title="Your earlier chats with the assistant – only you see them">History</button><button type="button" id="ai_mem" class="btn ghost small" title="What the assistant remembers about you – only you see it">Memory</button><button type="button" id="ai_new" class="btn ghost small" title="Start a new conversation (this one stays in History)">New chat</button><button type="button" id="ai_close" class="ai-x" aria-label="Close">×</button></header>
   <div id="ai_msgs" class="ai-msgs" aria-live="polite"></div>
+  <div id="ai_side" class="ai-msgs ai-side" hidden></div>
   <div id="ai_sugg" class="ai-sugg"></div>
   <div id="ai_live" class="ai-live" hidden><span class="ai-dot"></span><b id="ai_live_t">Listening…</b><button type="button" id="ai_live_stop" class="btn ghost small">Stop</button></div>
   <form id="ai_form" class="ai-form" autocomplete="off"><button type="button" id="ai_mic" class="ai-mic" hidden title="Talk with the assistant: you speak, it answers aloud" aria-label="Talk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><textarea id="ai_in" rows="1" placeholder="Ask anything about this app…" maxlength="1500"></textarea><button type="submit" class="btn primary" id="ai_send">Ask</button></form>
@@ -5995,7 +6004,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('login_form').hidden = ptOn(); $('lg_portal').hidden = !ptOn();
     if (ptOn()) { $('lg_pt_err').textContent = msg || ''; $('lg_pt_go').href = PT.url + '/'; try { $('ai_panel').hidden = true; $('ai_fab').hidden = true; } catch (e) { /* not built yet */ } return; }
     $('lg_err').textContent = msg || ''; $('lg_pass').value = '';
-    try { $('ai_panel').hidden = true; $('ai_fab').hidden = true; AI.turns = []; $('ai_msgs').innerHTML = ''; } catch (e) { /* the assistant is not built yet at the first start */ }
+    try { $('ai_panel').hidden = true; $('ai_fab').hidden = true; AI.turns = []; AI.chatId = ''; $('ai_msgs').innerHTML = ''; aiSideOff(); } catch (e) { /* the assistant is not built yet at the first start */ }
     if ($('lg_cred')) $('lg_cred').hidden = true;
     setTimeout(() => $('lg_email').focus(), 50);
     setTimeout(() => credFill(), 150);            // the sign-in saved in the browser, if there is one
@@ -6830,6 +6839,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The assistant could not look this up: the machinery, vendor, item or fuel card named is not of this site, the words fit more than one, a month or date was not written as asked, or the Store / Engineering is not given to you or could not be opened here.', 'Ask again with the full number or name (one of those the answer lists); a month as 2026-10, a date as 2026-10-28. For the Store / Engineering: open it once from the menu (the Super Admin gives it in the Portal) and ask again.'],
       mr: ['Assistant ला हे शोधता आले नाही: सांगितलेली गाडी, vendor, item किंवा fuel card या site चे नाही, शब्द एकापेक्षा जास्त नावांना लागतात, महिना / तारीख सांगितल्याप्रमाणे लिहिलेली नाही, किंवा Store / Engineering तुम्हाला दिलेले नाही किंवा इथे उघडता आले नाही.', 'पूर्ण नंबर किंवा नाव (उत्तरात दिलेल्या यादीतले एक) सांगून पुन्हा विचारा; महिना 2026-10, तारीख 2026-10-28 असा. Store / Engineering साठी: menu मधून एकदा उघडा (Super Admin Portal मध्ये देतात) आणि पुन्हा विचारा.'],
       hi: ['Assistant यह नहीं खोज सका: बताई गई गाड़ी, vendor, item या fuel card इस site का नहीं है, शब्द एक से ज़्यादा नामों पर लागू होते हैं, महीना / तारीख बताए अनुसार नहीं लिखी है, या Store / Engineering आपको दिया नहीं है या यहाँ खुल नहीं सका.', 'पूरा नंबर या नाम (जवाब में दी गई सूची में से एक) बताकर फिर पूछें; महीना 2026-10, तारीख 2026-10-28 ऐसे. Store / Engineering के लिए: menu से एक बार खोलें (Super Admin Portal में देते हैं) और फिर पूछें.'] },
+    // (update-186) the assistant's own memory and its chats
+    { re: /assistant's memory and its chats need|supabase_step1zk_ai_memory|Say what the assistant should remember|memory of the assistant is full for you|Say which note to take out|is not in the memory of the assistant for you|This chat is not there|AI_NO_STREAM/i,
+      en: ['The assistant could not keep or open this: this site\'s database does not have the assistant\'s memory and chats yet, the note to remember was empty, the memory of you already has 60 notes, or the note or chat asked for is not yours or is not there any more.', 'Admin: run sql/supabase_step1zk_ai_memory.sql once in Supabase → SQL Editor (in every site). Say what it should remember in a few words; open Memory and take out notes you do not need; open History again and pick the chat from the list.'],
+      mr: ['Assistant ला हे ठेवता / उघडता आले नाही: या site च्या database मध्ये assistant ची memory आणि chats अजून नाहीत, लक्षात ठेवायची गोष्ट रिकामी होती, तुमच्या memory मध्ये आधीच 60 नोंदी आहेत, किंवा मागितलेली नोंद / chat तुमची नाही किंवा आता नाही.', 'Admin: sql/supabase_step1zk_ai_memory.sql एकदा Supabase → SQL Editor मध्ये चालवा (प्रत्येक site मध्ये). काय लक्षात ठेवायचे ते थोडक्यात सांगा; Memory उघडून नको असलेल्या नोंदी काढा; History पुन्हा उघडून यादीतून chat निवडा.'],
+      hi: ['Assistant इसे रख / खोल नहीं सका: इस site के database में assistant की memory और chats अभी नहीं हैं, याद रखने की बात खाली थी, आपकी memory में पहले से 60 बातें हैं, या माँगी गई बात / chat आपकी नहीं है या अब नहीं है।', 'Admin: sql/supabase_step1zk_ai_memory.sql एक बार Supabase → SQL Editor में चलाएँ (हर site में)। क्या याद रखना है वह थोड़े में बताएँ; Memory खोलकर बेकार बातें हटाएँ; History फिर खोलकर सूची से chat चुनें।'] },
   ];
   const FIX_ANY = { en: ['The app could not accept this. The line above says which field or value is the problem.', 'Correct that field and try again. If it is not clear, take a photo of this box and send it to the Admin.'],
     mr: ['App ला हे स्वीकारता आले नाही. वरच्या ओळीत कोणता field किंवा किंमत अडचणीची आहे ते दिले आहे.', 'तो field दुरुस्त करून पुन्हा प्रयत्न करा. समजले नाही तर या चौकटीचा फोटो काढून Admin ला पाठवा.'],
@@ -13522,7 +13536,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     diesel_transfers: 'Diesel Transfer', machinery_cost: 'Machinery Cost Sheet',
     store_stock: 'Store – stock', store_statement: 'Store – stock statement', store_item_ledger: 'Store – item ledger', store_inward: 'Store – Inward (GRN)', store_outward: 'Store – Issue (Outward)',
     store_consumption: 'Store – consumption', store_returnable: 'Store – returnable items', store_requirements: 'Store – requirements', store_purchase_orders: 'Store – purchase orders',
-    eng_my_work: 'Engineering – my work', eng_dashboard: 'Engineering – dashboard', eng_report: 'Engineering – report', eng_performance: 'Engineering – performance', eng_progress: 'Engineering – progress' };
+    eng_my_work: 'Engineering – my work', eng_dashboard: 'Engineering – dashboard', eng_report: 'Engineering – report', eng_performance: 'Engineering – performance', eng_progress: 'Engineering – progress',
+    remember: 'Memory – kept', forget: 'Memory – taken out' };      // (update-186) its own memory of this person
   const aiWhat = (name, a) => (AI_NAMES[name] || name) + (a && a.from ? ' ' + showDate(a.from) + (a.to && a.to !== a.from ? ' to ' + showDate(a.to) : '') : a && a.date ? ' ' + showDate(a.date) : '') + (a && (a.machinery || a.vendor || a.card || a.item || a.query || a.text) ? ' · ' + (a.machinery || a.vendor || a.card || a.item || a.query || a.text) : '');
   // the answer as it is shown: plain text, **bold**, and [[open:tab|Label]] as a button to that page
   function aiHtml(text) {
@@ -13585,7 +13600,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try { const t = await r.run(); wait.remove(); aiAdd('ai-src', '<span>⚡ ' + esc(aiL({ en: 'from the app itself, now', mr: 'app कडून थेट, आत्ता', hi: 'app से सीधे, अभी' })) + '</span>'); aiAdd('ai-m bot', aiHtml(t));
       AI.turns.push({ role: 'user', parts: [{ text: q }] }, { role: 'model', parts: [{ text: t }] }); }            // (so that a typed follow-up knows what was just said)
     catch (e) { wait.remove(); aiAdd('ai-m err', esc(errMsg(e))); }
-    finally { AI.busy = false; $('ai_send').disabled = false; aiSuggest(); }
+    finally { AI.busy = false; $('ai_send').disabled = false; aiSuggest(); aiKeep(); }
   }
   // the snapshot that goes with a typed question
   async function aiSnapBuild() {
@@ -13598,7 +13613,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function aiSnap() { if (AI.snap && Date.now() - AI.snapAt < 30000) return Promise.resolve(AI.snap); AI.snapJob = AI.snapJob || aiSnapBuild().catch(() => {}).then(() => { AI.snapJob = null; }); return AI.snapJob.then(() => AI.snap); }
   const aiPage = () => ({ tab: S.curTab || 'dash', title: $('page_title') ? $('page_title').textContent : '', machineryPicked: aiPicked(), datePicked: S.curTab === 'log' ? aiDay() : '' });
-  function aiReset() { AI.turns = []; $('ai_msgs').innerHTML = ''; aiAdd('ai-m bot', esc(aiL({ en: 'Ask me anything about this app. The questions with ⚡ are answered by the app itself, at once.', mr: 'या app बद्दल काहीही विचारा. ⚡ असलेल्या प्रश्नांची उत्तरे app स्वतः लगेच देते.', hi: 'इस app के बारे में कुछ भी पूछें। ⚡ वाले सवालों के जवाब app खुद तुरंत देता है।' }) + (AI.on ? '' : ' ' + aiL({ en: '(Typed questions need the AI key – not set up yet.)', mr: '(टाइप केलेल्या प्रश्नांसाठी AI key लागते; ती अजून दिलेली नाही.)', hi: '(टाइप किए सवालों के लिए AI key चाहिए; वह अभी नहीं दी गई।)' }))));
+  function aiReset() { AI.turns = []; AI.chatId = aiNewId(); aiSideOff(); aiSayCut(); $('ai_msgs').innerHTML = ''; aiAdd('ai-m bot', esc(aiL({ en: 'Ask me anything about this app. The questions with ⚡ are answered by the app itself, at once.', mr: 'या app बद्दल काहीही विचारा. ⚡ असलेल्या प्रश्नांची उत्तरे app स्वतः लगेच देते.', hi: 'इस app के बारे में कुछ भी पूछें। ⚡ वाले सवालों के जवाब app खुद तुरंत देता है।' }) + (AI.on ? '' : ' ' + aiL({ en: '(Typed questions need the AI key – not set up yet.)', mr: '(टाइप केलेल्या प्रश्नांसाठी AI key लागते; ती अजून दिलेली नाही.)', hi: '(टाइप किए सवालों के लिए AI key चाहिए; वह अभी नहीं दी गई।)' }))));
     aiSuggest(); $('ai_test').hidden = !(S.user && S.user.admin && AI.on); }
   function aiOpen(show) { $('ai_panel').hidden = !show; $('ai_fab').hidden = show || !S.token;
     if (!show) { if (AI.live) aiLiveStop(); try { if (aiCanSay()) speechSynthesis.cancel(); } catch (e) {} AI.saying = false; return; }
@@ -13606,6 +13621,116 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!$('ai_msgs').children.length) aiReset(); else aiSuggest(); if (AI.on) aiSnap(); setTimeout(() => $('ai_in').focus(), 50);
     if (AI.briefDue) { AI.briefDue = false; setTimeout(() => aiReady('brief'), 200); } }
   function aiBoot(info) { AI.on = !!(info && info.on); $('ai_fab').hidden = !$('ai_panel').hidden || !S.token; }
+  /* ---------- (update-186) LIVE, REMEMBERING, ITS CHATS KEPT (asked 28-10-2026: "ai khup powerfull … swatachi memory asel chat
+   * history asel … live jas 2 person boltat tas … fast response currect answer … site wise") ----------
+   * 1. THE ANSWER WORD BY WORD: each step asks api/ai.js (the same checks and request as getAiReply) – the words appear in the
+   *    waiting bubble as Claude writes them; in a talk each finished sentence is SAID while the rest is still being written.
+   *    An older server, Gemini, or a line lost on the way: the answer in one piece (getAiReply), as before.
+   * 2. INTERRUPT: while it speaks, the microphone button (or a tap on "Speaking…") stops it and listens at once; Stop ends the talk.
+   * 3. HISTORY: the chat is kept after every answer (aiChatSave – only his, only this site); History lists them, one opens again.
+   * 4. MEMORY: what the assistant was asked to remember (its look-ups remember / forget, server side); Memory lists them, × takes
+   *    one out. Both need the database step 1zk at the site; without it they say so. */
+  const aiNewId = () => 'C' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  async function aiStep(ctx, wait) {
+    const x = { contents: AI.turns, context: ctx }, run = typeof google === 'object' && google.script && google.script.aiStream;
+    if (AI.stream !== false && typeof run === 'function' && S.token) {
+      let text = ''; const t0 = Date.now(); let first = 0;
+      try {
+        const end = await run(S.token, x, j => { if (!j || j.t !== 'd' || !j.x) return;
+          if (!first) { first = Date.now() - t0; wait.className = 'ai-m bot ai-stream'; }
+          text += j.x; wait.innerHTML = aiHtml(text); aiSayFeed(text, false); const box = $('ai_msgs'); box.scrollTop = box.scrollHeight; });
+        if (end && end.t === 'end') return Object.assign({ first: first }, end);
+        if (end && end.t === 'err') { const e = new Error(end.e); e.aiSaid = true; e.cut = !!end.cut; throw e; }
+      } catch (e) {
+        // the AI service's own answer (busy before a word, no credit, a key it did not take …) – as getAiReply says it; a stream cut
+        // after words were already on the screen: asked once more in one piece
+        if (e.aiSaid && !e.cut) { aiStreamOff(wait); aiSayCut(); throw e; }
+        if (/AI_NO_STREAM/.test(errMsg(e))) AI.stream = false;                     // Gemini / an older server: the answer in one piece from now on
+      }
+      aiStreamOff(wait); aiSayCut();
+    }
+    return rawCall('getAiReply', x);
+  }
+  function aiStreamOff(wait) { if (wait && wait.classList.contains('ai-stream')) { wait.className = 'ai-wait'; wait.textContent = '…'; } }
+  // the answer said while it is written (a talk only): each finished sentence once, about the first 650 characters, then "the rest is on the screen"
+  const AI_SQ = { on: false, said: 0, n: 0, left: 0, cut: false, done: null, L: 'en' };
+  function aiSayStart() { aiSayCut(); AI_SQ.on = !!AI.live && !AI.hush && aiCanSay() && !(S.prefs && S.prefs.voiceOut === false); AI_SQ.said = 0; AI_SQ.n = 0; AI_SQ.cut = false; AI_SQ.L = AI.lastLang || fixLang; }
+  // (the review) what was waiting for the end of the speech (the talk listening again) is not lost when the speech is cut
+  function aiSayCut() { const had = AI_SQ.left, d = AI_SQ.done; AI_SQ.left = 0; AI_SQ.on = false; AI_SQ.done = null; AI.saying = false; if (had) { try { speechSynthesis.cancel(); } catch (e) { /* nothing was being said */ } }
+    if (d && AI.live) setTimeout(aiResume, 200); }
+  // a talk goes on: listening again when nothing is being asked or said
+  function aiResume() { if (AI.live && !AI.busy && !AI.saying && !AI.rec) { aiLiveShow('hear'); setTimeout(aiListen, 150); } }
+  function aiSayFeed(text, last) {
+    if (!AI_SQ.on) return;
+    const t = String(text || '').replace(/^\s+/, '').replace(/\[\[open:[^\]]*\]\]/g, '').replace(/\[\[[^\]]*$/, '');      // (the same text whether streamed or whole)
+    let upto = t.length;
+    if (!last) { const m = [...t.matchAll(/[.!?।](?=\s)|\n/g)].pop(); upto = m ? m.index + m[0].length : 0; }
+    if (upto <= AI_SQ.said) return;
+    const part = t.slice(AI_SQ.said, upto).trim(); AI_SQ.said = upto;
+    if (!part || AI_SQ.cut) return;
+    if (AI_SQ.n && AI_SQ.n + part.length > 650) { AI_SQ.cut = true; aiUtter({ en: 'The rest is on the screen.', mr: 'बाकी screen वर आहे.', hi: 'बाकी screen पर है।' }[AI_SQ.L] || 'The rest is on the screen.'); return; }
+    AI_SQ.n += part.length; aiUtter(aiSpeakable(part, AI_SQ.L));
+  }
+  function aiUtter(words) {
+    if (!words) return;
+    try { const L = AI_SQ.L, u = new SpeechSynthesisUtterance(words), code = AI_SPEECH[L] || 'en-IN', vs = speechSynthesis.getVoices() || [];
+      const v = vs.find(x => x.lang === code) || vs.find(x => String(x.lang).slice(0, 2) === code.slice(0, 2)) || (L === 'mr' ? vs.find(x => String(x.lang).slice(0, 2) === 'hi') : null);
+      if (v) u.voice = v; u.lang = v ? v.lang : (L === 'mr' ? 'hi-IN' : code); u.rate = 1.05;
+      AI_SQ.left++; AI.saying = true; if (AI.live) aiLiveShow('say'); let over = false;
+      const end = () => { if (over) return; over = true; AI_SQ.left = Math.max(0, AI_SQ.left - 1); if (!AI_SQ.left) { AI.saying = false; const d = AI_SQ.done; AI_SQ.done = null; if (d) d(); } };
+      u.onend = end; u.onerror = end; speechSynthesis.speak(u);
+      setTimeout(() => { if (!over && !speechSynthesis.speaking) end(); }, 2500);      // a device that says nothing must not leave the talk hanging
+    } catch (e) { /* this device says nothing: the answer is on the screen */ }
+  }
+  function aiSayAfter(done) { if (!AI_SQ.left) { AI.saying = false; done(); } else AI_SQ.done = done; }
+  // the person speaks while it speaks: it stops and listens at once (the talk goes on)
+  function aiInterrupt() { AI.hush = AI.busy; aiSayCut(); try { if (aiCanSay()) speechSynthesis.cancel(); } catch (e) { /* not speaking */ } if (!AI.busy) { aiLiveShow('hear'); setTimeout(aiListen, 150); } else aiLiveShow('think'); }
+  // the chat kept after every answer – as he saw it (only his; nothing is kept while the database step is not run)
+  function aiKeep() {
+    if (!S.token || !AI.chatId) return;
+    const out = []; let me = false;
+    [...$('ai_msgs').children].forEach(el => { const c = ' ' + el.className + ' ';
+      if (c.indexOf(' ai-note ') > -1) return;
+      if (c.indexOf(' me ') > -1) { me = true; out.push({ r: 'me', t: el.textContent }); return; }
+      if (!me) return;
+      if (c.indexOf(' bot ') > -1 && c.indexOf(' ai-stream ') < 0) out.push({ r: 'bot', t: String(el.innerText || el.textContent).trim() });
+      else if (c.indexOf(' ai-src ') > -1) out.push({ r: 'src', t: [...el.children].map(x => x.textContent).join(' · ') }); });
+    if (out.some(m => m.r === 'bot')) rawCall('aiChatSave', { id: AI.chatId, msgs: out }).catch(() => { /* kept with the next answer */ });
+  }
+  const aiWhen = t => { try { return new Date(t).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(/\//g, '-'); } catch (e) { return ''; } };
+  function aiSide(html) { const sd = $('ai_side'); sd.innerHTML = html; sd.hidden = false; $('ai_msgs').hidden = true; $('ai_sugg').hidden = true; }
+  function aiSideOff() { $('ai_side').hidden = true; $('ai_msgs').hidden = false; $('ai_sugg').hidden = false; }
+  const aiBackBtn = () => '<button type="button" class="btn ghost small" data-aiback="1">' + esc(aiL({ en: 'Back to the chat', mr: 'chat वर परत', hi: 'chat पर वापस' })) + '</button>';
+  const aiOnly = () => '<p class="ai-empty">' + esc(aiL({ en: 'Only you see this – and only at this site.', mr: 'हे फक्त तुम्हालाच दिसते – आणि फक्त या site चे.', hi: 'यह सिर्फ़ आपको दिखता है – और सिर्फ़ इस site का।' })) + '</p>';
+  async function aiHistory() {
+    if (AI.busy) return; aiSide('<p class="ai-empty">…</p>');
+    try { const r = await rawCall('aiChats'); if (AI.busy) { aiSideOff(); return; }
+      aiSide('<h4><span>' + esc(aiL({ en: 'Your chats', mr: 'तुमच्या chats', hi: 'आपकी chats' })) + '</span>' + aiBackBtn() + '</h4>' + aiOnly() +
+        (!r.on ? '<p class="ai-empty">' + esc(r.msg || '') + '</p>' : r.chats.length ? r.chats.map(c => '<button type="button" class="ai-row" data-aichat="' + esc(c.id) + '"><span><b>' + esc(c.title || '–') + '</b><small>' + esc(aiWhen(c.at)) + ' · ' + c.n + ' ' + esc(aiL({ en: 'question(s)', mr: 'प्रश्न', hi: 'सवाल' })) + '</small></span></button>').join('')
+          : '<p class="ai-empty">' + esc(aiL({ en: 'No chat kept yet.', mr: 'अजून कोणतीही chat नाही.', hi: 'अभी कोई chat नहीं।' })) + '</p>'));
+    } catch (e) { aiSide('<h4><span></span>' + aiBackBtn() + '</h4><p class="ai-empty">' + esc(errMsg(e)) + '</p>'); }
+  }
+  async function aiChatOpen(id) {
+    if (AI.busy) return;
+    try { const c = await rawCall('aiChatGet', { id: id }); if (AI.busy) return;      // (a question asked meanwhile: not mixed up)
+      aiSideOff(); aiSayCut(); AI.chatId = c.id; AI.turns = []; AI.pending = null; AI.partial = null; $('ai_msgs').innerHTML = '';
+      (c.msgs || []).forEach(m => { const t = String(m.t || '');
+        if (m.r === 'me') { aiAdd('ai-m me', esc(t)); AI.turns.push({ role: 'user', parts: [{ text: t }] }); }
+        else if (m.r === 'bot') { aiAdd('ai-m bot', aiHtml(t)); if (AI.turns.length) AI.turns.push({ role: 'model', parts: [{ text: t }] }); }
+        else if (m.r === 'src') aiAdd('ai-src', t.split(' · ').map(x => '<span>' + esc(x) + '</span>').join('')); });
+      aiAdd('ai-src ai-note', '<span>' + esc(aiL({ en: 'Opened from History (' + aiWhen(c.at) + ') – ask on; the figures are looked up again.', mr: 'History मधून उघडली (' + aiWhen(c.at) + ') – पुढे विचारा; आकडे पुन्हा पाहिले जातील.', hi: 'History से खोली (' + aiWhen(c.at) + ') – आगे पूछें; आँकड़े फिर से देखे जाएँगे।' })) + '</span>');
+      aiSuggest(); $('ai_in').focus();
+    } catch (e) { aiSide('<h4><span></span>' + aiBackBtn() + '</h4><p class="ai-empty">' + esc(errMsg(e)) + '</p>'); }
+  }
+  async function aiMemoryShow() {
+    if (AI.busy) return; aiSide('<p class="ai-empty">…</p>');
+    try { const r = await rawCall('aiMemory'); if (AI.busy) { aiSideOff(); return; }
+      aiSide('<h4><span>' + esc(aiL({ en: 'What the assistant remembers about you', mr: 'Assistant ला तुमच्याबद्दल काय लक्षात आहे', hi: 'Assistant को आपके बारे में क्या याद है' })) + '</span>' + aiBackBtn() + '</h4>' + aiOnly() +
+        '<p class="ai-empty">' + esc(aiL({ en: 'Tell it "remember …" to add a note; × takes one out.', mr: 'नवीन नोंदीसाठी "लक्षात ठेव …" असे सांगा; × ने काढा.', hi: 'नई बात के लिए "याद रखो …" कहें; × से हटाएँ।' })) + '</p>' +
+        (!r.on ? '<p class="ai-empty">' + esc(r.msg || '') + '</p>' : r.notes.length ? r.notes.map(n => '<div class="ai-row"><span>' + esc(n.note) + '</span><button type="button" class="ai-rowx" data-aiforget="' + Number(n.id) + '" title="Take this out" aria-label="Take this out">×</button></div>').join('')
+          : '<p class="ai-empty">' + esc(aiL({ en: 'Nothing yet.', mr: 'अजून काही नाही.', hi: 'अभी कुछ नहीं।' })) + '</p>'));
+    } catch (e) { aiSide('<h4><span></span>' + aiBackBtn() + '</h4><p class="ai-empty">' + esc(errMsg(e)) + '</p>'); }
+  }
   /* ---------- A TYPED QUESTION UNDERSTOOD BY THE APP ITSELF (asked 04-10-2026: "ultra fast, without errors, correct, any language") ----------
    * Most questions people type are the same few kinds: how much diesel (a machinery / everybody, a day / a month), what is
    * pending, the stock, the average of a machinery, how much it worked, its last reading. The app can understand these
@@ -13822,10 +13947,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function aiAsk(text, onlyAi) {
     text = String(text || '').replace(/[०-९]/g, d => '०१२३४५६७८९'.indexOf(d)).trim(); if (!text || AI.busy) return;      // (speech and Marathi keyboards write ८५११)
     AI.lastAnswer = ''; AI.lastLang = aiLangOf(text);
-    AI.busy = true; $('ai_send').disabled = true; $('ai_sugg').innerHTML = ''; AI.lang = aiLangOf(text);
+    AI.busy = true; $('ai_send').disabled = true; $('ai_sugg').innerHTML = ''; AI.lang = aiLangOf(text); aiSayCut(); aiSideOff();      // (update-186) a new question: what was being said stops
     const keep = AI.turns.length, t0 = Date.now(), byApp = aiL({ en: 'from the app itself, now', mr: 'app कडून थेट, आत्ता', hi: 'app से सीधे, अभी' });
     aiAdd('ai-m me', esc(text)); AI.turns.push({ role: 'user', parts: [{ text: text }] });
-    const wait = aiAdd('ai-wait', '…'), used = [];
+    const wait = aiAdd('ai-wait', '…'), used = [], kept = [];      // (update-186) kept: the notes it put in its memory in this question
     const said = t => { AI.turns.push({ role: 'model', parts: [{ text: t }] }); };
     try {
       // 0. an entry is waiting for its yes / no; or these words are a command (or complete one that was half said)
@@ -13843,21 +13968,27 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (sure) { const t = await sure.run(); wait.remove(); aiAdd('ai-src', '<span>⚡ ' + esc(byApp) + '</span>'); aiAdd('ai-m bot', aiHtml(t)); said(t); return; }
       // 2. the AI service
       if (!AI.on) throw new Error('The assistant is not set up yet: the Admin has to put the AI key (ANTHROPIC_API_KEY – Claude) in the server\'s settings.');
-      wait.textContent = 'Thinking…';
+      wait.textContent = '…';      // (update-186) no "Thinking…": its words come as they are written
       const [snap, about] = await Promise.all([aiSnap(), aiAbout(text)]), ctx = Object.assign({ page: aiPage() }, snap || {}, about ? { aboutTheMachineryInTheQuestion: about } : {});
       for (let step = 0; step < 7; step++) {
-        const r = await rawCall('getAiReply', { contents: AI.turns, context: ctx });
+        aiSayStart();
+        const r = await aiStep(ctx, wait);
         AI.turns.push({ role: 'model', parts: r.parts });                               // exactly as it came (the service wants its own parts back)
         const calls = (r.parts || []).filter(p => p.functionCall);
-        if (!calls.length) { const t = (r.parts || []).map(p => p.text || '').join('').trim(); wait.remove();
+        if (!calls.length) { const t = (r.parts || []).map(p => p.text || '').join('').trim(); wait.remove(); aiSayFeed(t, true);
           aiAdd('ai-src', '<span>' + (used.length ? 'Looked up:' : esc(aiL({ en: 'From the figures of ' + ((snap || {}).asOf || 'now'), mr: ((snap || {}).asOf || 'आत्ता') + ' च्या आकड्यांवरून', hi: ((snap || {}).asOf || 'अभी') + ' के आँकड़ों से' }))) + '</span>' + used.map(u => '<span>' + esc(u) + '</span>').join('') +
-            (S.user && S.user.admin ? '<span title="the AI model that answered, and how long it took">' + esc(r.model || '') + ' · ' + (Math.round((Date.now() - t0) / 100) / 10) + ' s</span>' : ''));
-          aiAdd('ai-m bot', aiHtml(t || '–')); return; }
-        // the look-ups it asks for run side by side
+            (S.user && S.user.admin ? '<span title="the AI model that answered, how long it took (and when its first words came)">' + esc(r.model || '') + ' · ' + (Math.round((Date.now() - t0) / 100) / 10) + ' s' + (r.first ? ' · first words ' + (Math.round(r.first / 100) / 10) + ' s' : '') + '</span>' : ''));
+          aiAdd('ai-m bot', aiHtml(t || '–'));
+          // (the review) what it just kept in its memory is shown, with "Take it out" – a note is never kept unseen
+          kept.forEach(k => aiAdd('ai-src ai-note', '<span>' + esc(aiL({ en: 'Kept in memory: ', mr: 'Memory मध्ये ठेवले: ', hi: 'Memory में रखा: ' }) + k.note) + '</span><button type="button" class="ai-go" data-aiunkeep="' + Number(k.id) + '">' + esc(aiL({ en: 'Take it out', mr: 'काढा', hi: 'हटाएँ' })) + '</button>'));
+          return; }
+        // the look-ups it asks for run side by side (what it wrote before asking for them is not the answer: taken away, not said)
+        aiSayCut(); aiStreamOff(wait);
         wait.textContent = 'Looking up: ' + calls.map(c => aiWhat(c.functionCall.name, c.functionCall.args || {})).join(', ') + '…';
         const outs = await Promise.all(calls.map(async c => { const name = c.functionCall.name, args = c.functionCall.args || {}; used.push(aiWhat(name, args));
           // (update-185) a look-up the page does not run itself: the server runs it (aiLookup) – with his own access to that page
           let res; try { res = AI_RUN[name] ? await AI_RUN[name](args) : /^store_/.test(name) ? await aiModLook('store', 'work', name, args) : /^eng_/.test(name) ? await aiModLook('engineering', 'eng', name, args) : await rawCall('aiLookup', { name: name, args: args }); } catch (e) { res = { error: errMsg(e) }; }
+          if (name === 'remember' && res && res.remembered && !res.already) kept.push(res);
           return { functionResponse: { name: name, response: res } }; }));
         AI.turns.push({ role: 'user', parts: outs }); wait.textContent = 'Writing the answer…';
       }
@@ -13877,7 +14008,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       else if (S.user && S.user.admin && !/not set up/i.test(why)) aiAdd('ai-src', '<span title="' + esc(why) + '">Admin: ' + esc(why.slice(0, 110)) + '</span>');
     }
     finally { AI.lang = ''; AI.busy = false; $('ai_send').disabled = false; if (!AI.live) $('ai_in').focus(); aiSuggest();
-      const b = [...document.querySelectorAll('#ai_msgs .ai-m.bot, #ai_msgs .ai-m.err')].pop(); AI.lastAnswer = b ? b.dataset.say || b.textContent : ''; }
+      const b = [...document.querySelectorAll('#ai_msgs .ai-m.bot, #ai_msgs .ai-m.err')].pop(); AI.lastAnswer = b ? b.dataset.say || b.textContent : ''; aiKeep();
+      if (AI.live && !AI.talkAsk) { AI.hush = false; aiSayAfter(() => setTimeout(aiResume, 100)); } }      // (a question typed during a talk: the talk goes on after it)
   }
   /* ---------- THE DAILY SUMMARY (asked 04-10-2026) ----------
    * One answer made by the app itself (server: getBrief – every part within the user's own permissions): yesterday's diesel and
@@ -13951,10 +14083,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     } catch (e) { AI.saying = false; if (done) done(); }
   }
   function aiLiveShow(state) { const b = $('ai_live'); b.hidden = !state; b.classList.toggle('say', state === 'say'); $('ai_mic').classList.toggle('on', !!state);
-    $('ai_live_t').textContent = state === 'say' ? aiL({ en: 'Speaking… (press Stop to end)', mr: 'बोलतो आहे… (थांबवायला Stop दाबा)', hi: 'बोल रहा हूँ… (रोकने के लिए Stop दबाएँ)' }) : state === 'think' ? aiL({ en: 'Finding the answer…', mr: 'उत्तर शोधतो आहे…', hi: 'जवाब ढूँढ रहा हूँ…' }) : aiL({ en: 'Listening… speak now', mr: 'ऐकतो आहे… बोला', hi: 'सुन रहा हूँ… बोलिए' }); }
-  function aiLiveStop(msg) { AI.live = false; try { if (AI.rec) AI.rec.abort(); } catch (e) {} AI.rec = null; try { if (aiCanSay()) speechSynthesis.cancel(); } catch (e) {} AI.saying = false; aiLiveShow(''); $('ai_in').placeholder = 'Ask anything about this app…'; if (msg) aiAdd('ai-m err', esc(msg)); }
+    $('ai_live_t').textContent = state === 'say' ? aiL({ en: 'Speaking… tap here or 🎙 to speak now · Stop ends the talk', mr: 'बोलतो आहे… आत्ता बोलायला इथे किंवा 🎙 दाबा · Stop ने बंद', hi: 'बोल रहा हूँ… अभी बोलने के लिए यहाँ या 🎙 दबाएँ · Stop से बंद' }) : state === 'think' ? aiL({ en: 'Finding the answer…', mr: 'उत्तर शोधतो आहे…', hi: 'जवाब ढूँढ रहा हूँ…' }) : aiL({ en: 'Listening… speak now', mr: 'ऐकतो आहे… बोला', hi: 'सुन रहा हूँ… बोलिए' }); }
+  function aiLiveStop(msg) { AI.live = false; AI.hush = false; aiSayCut(); try { if (AI.rec) AI.rec.abort(); } catch (e) {} AI.rec = null; try { if (aiCanSay()) speechSynthesis.cancel(); } catch (e) {} AI.saying = false; aiLiveShow(''); $('ai_in').placeholder = 'Ask anything about this app…'; if (msg) aiAdd('ai-m err', esc(msg)); }
   function aiListen() {
-    if (!AI.live || AI.busy || AI.saying) return;
+    if (!AI.live || AI.busy || AI.saying || AI.rec) return;
     const R = aiRecCtor(); if (!R) { aiLiveStop('This browser cannot listen. Use Chrome or Edge.'); return; }
     const rec = new R(); AI.rec = rec; rec.lang = AI_SPEECH[fixLang] || 'en-IN'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
     let final = '';
@@ -13970,9 +14102,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (!said) { AI.silent = (AI.silent || 0) + 1; if (AI.silent >= 3) { aiLiveStop(); return; } setTimeout(aiListen, 250); return; }
       AI.silent = 0;
       if (/^(stop|थांब|थांबा|बस|बंद कर|बंद करा|रुको|रुक जाओ|thamb|bas)[.!।\s]*$/i.test(said)) { aiLiveStop(); return; }
-      aiLiveShow('think'); await aiAsk(said);
+      aiLiveShow('think'); AI.talkAsk = true; try { await aiAsk(said); } finally { AI.talkAsk = false; }
       if (!AI.live) return;
+      if (AI.hush) { AI.hush = false; aiSayCut(); aiLiveShow('hear'); setTimeout(aiListen, 150); return; }      // (update-186) he spoke while it spoke: listening
       if (S.prefs && S.prefs.voiceOut === false) { aiLiveShow('hear'); setTimeout(aiListen, 300); return; }
+      if (AI_SQ.on || AI_SQ.left) { aiLiveShow('say'); aiSayAfter(() => { if (AI.live) { aiLiveShow('hear'); setTimeout(aiListen, 250); } }); return; }      // (update-186) said while it was written
       aiLiveShow('say'); aiSay(AI.lastAnswer, AI.lastLang || fixLang, () => { if (AI.live) { aiLiveShow('hear'); setTimeout(aiListen, 300); } }); };
     try { rec.start(); aiLiveShow('hear'); } catch (e) { aiLiveStop(); }
   }
@@ -13998,10 +14132,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('ai_in').addEventListener('input', () => { const t = $('ai_in'); t.style.height = 'auto'; t.style.height = Math.min(110, t.scrollHeight) + 'px'; });
   $('ai_sugg').addEventListener('click', e => { const b = e.target.closest('button'); if (b && b.dataset.aiready) aiReady(b.dataset.aiready); });
   $('ai_test').addEventListener('click', () => aiTest());
-  $('ai_mic').addEventListener('click', () => aiLiveStart());
+  $('ai_mic').addEventListener('click', () => { if (AI.live && AI.saying) { aiInterrupt(); return; } aiLiveStart(); });      // (update-186) while it speaks: he speaks
+  $('ai_live_t').addEventListener('click', () => { if (AI.live && AI.saying) aiInterrupt(); });
   $('ai_live_stop').addEventListener('click', () => aiLiveStop());
+  $('ai_hist').addEventListener('click', () => aiHistory());
+  $('ai_mem').addEventListener('click', () => aiMemoryShow());
+  $('ai_side').addEventListener('click', e => { if (e.target.closest('[data-aiback]')) { aiSideOff(); return; }
+    const c = e.target.closest('[data-aichat]'); if (c) { aiChatOpen(c.dataset.aichat); return; }
+    const f = e.target.closest('[data-aiforget]'); if (f) { f.disabled = true; rawCall('aiMemoryDel', { id: Number(f.dataset.aiforget) }).then(() => aiMemoryShow()).catch(er => { f.disabled = false; toast(errMsg(er), true); }); } });
   $('ai_msgs').addEventListener('click', e => { const doit = e.target.closest('[data-aido]'); if (doit) { const w = doit.dataset.aido; aiDo(w === 'force' ? 'save' : w, w === 'force'); return; }
     const sp = e.target.closest('[data-aisay]'); if (sp) { const m = sp.closest('.ai-m'), t = m.textContent; if (AI.saying) { speechSynthesis.cancel(); AI.saying = false; } else aiSay(t, /[\u0900-\u097F]/.test(t) ? (fixLang === 'hi' ? 'hi' : 'mr') : 'en'); return; }
+    const unk = e.target.closest('[data-aiunkeep]'); if (unk) { unk.disabled = true; rawCall('aiMemoryDel', { id: Number(unk.dataset.aiunkeep) }).then(() => { unk.parentNode.innerHTML = '<span>' + esc(aiL({ en: 'Taken out of the memory.', mr: 'Memory मधून काढले.', hi: 'Memory से हटाया।' })) + '</span>'; }).catch(er => { unk.disabled = false; toast(errMsg(er), true); }); return; }
     const again = e.target.closest('[data-airetry]'); if (again) { if (!AI.busy) { const q = again.dataset.airetry; again.closest('.ai-m').remove(); aiAsk(q); } return; }
     const b = e.target.closest('[data-aigo]'); if (b) { showTab(b.dataset.aigo); if (window.innerWidth < 900) aiOpen(false); } });
 
