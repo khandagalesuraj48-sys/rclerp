@@ -7664,7 +7664,7 @@ test('update-187: back-dated entries only by the Admin and the Super Admin – a
   // the source: the rule in booksOpen_ (every entry, its change and deletion – 43 places), the request's day where it is saved later
   const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), page = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   assert.match(code, /function booksOpen_\(dk, what\) \{\n  userDateRule_\(dk, what\);/);
-  assert.match(code, /REQ_DAY_ = reqDay_\(r0\.at\);      \/\/ \(update-187\) the user's date rule from the day it was sent\n          ACTOR_ = ru\.name \|\| ru\.email; ACTOR_ADMIN_ = !!ru\.admin; ACTOR_SUPER_ = false; VER_CTX_ = 'flow';/);      // (update-188: reqDay_)
+  assert.match(code, /REQ_DAY_ = reqDay_\(r0\.at\);      \/\/ \(update-187\) the user's date rule from the day it was sent\n          ACTOR_ = ru\.name \|\| ru\.email; ACTOR_ADMIN_ = !!ru\.admin; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pageAdminOf_\(ru\); VER_CTX_ = 'flow';/);      // (update-188: reqDay_; update-189: the page's Admin)
   assert.match(code, /VER_CTX_ = 'resend'; REQ_DAY_ = reqDay_\(r0\.at\);/);
   // the page: the same words before it is sent, a user's date box offers only today (the Log Book also yesterday), the help in 3 languages
   assert.ok(page.includes("a user enters only the Log Book of today and yesterday' : 'a user enters only today\\'s entries'"), 'the page says it as the server');
@@ -7697,6 +7697,48 @@ test('update-188: "Open & correct" of a sent entry measured from the day it was 
   // the page: his answers – the Maintenance bill's date and a card payment's only today for a user; the bill reader keeps today
   assert.match(page, /const USER_DATE_IDS = \['d_date', 'bd_date', 'i_date', 't_date', 'tc_date', 'mt_date', 'cp_date', 'lg_top_date'\];/);
   assert.ok(!/USER_DATE_IDS = \[[^\]]*'bk_date'/.test(page), 'the Daily machinery status shows an earlier day too');
-  assert.match(page, /S\.user && !S\.user\.admin && \(USER_DATE_IDS\.indexOf\(el\.id\) > -1 \|\| \(f === 'date' && el\.closest\('#lg_in, #bm_rows'\)\)\)\) \{/);
+  assert.match(page, /S\.user && !S\.user\.admin && !pageAdminHere\(el\) && \(USER_DATE_IDS\.indexOf\(el\.id\) > -1 \|\| \(f === 'date' && el\.closest\('#lg_in, #bm_rows'\)\)\)\) \{/);      // (update-189: a page's Admin)
   assert.match(page, /\(\(S\.user && S\.user\.admin\) \|\| r\.date >= S\.today\)\) \{ \$\('mt_date'\)\.value = r\.date;/);
+});
+
+test('update-189: a page\'s 4th access "Admin" (every page with a date) – Edit, and that page\'s entries of an earlier day; kept as Admin, read as Edit; the Portal and Users & Access offer it; the page\'s date boxes', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  assert.deepStrictEqual(run('() => [ACCESS_("Admin"), ACCESS_("admin"), permOf_("Diesel Issue", "Admin"), permOf_("Reports", "Admin"), permOf_("Log Book", "Edit")]'), ['Admin', 'Admin', 'Admin', 'Edit', 'Edit']);
+  assert.deepStrictEqual(run('() => DATE_PAGES_.slice().sort()'), ['Breakdown', 'Diesel Inward', 'Diesel Issue', 'Diesel Transfer', 'Fuel Cards', 'Log Book', 'Maintenance']);
+  // a user: Diesel Issue Admin, Log Book Edit; Admin on a page without a date is kept as Edit
+  run('() => { this.__mh189 = makeHash_; makeHash_ = () => "sha256$0123456789abcdef$" + "0".repeat(64); }');
+  try { run('x => saveUserAdmin_(x, null)', { isNew: true, email: 'clerk189@site.test', name: 'Clerk 189', active: true, admin: false, perms: { 'Diesel Issue': 'Admin', 'Log Book': 'Edit', 'Reports': 'Admin', 'Dashboard': 'View' }, newPassword: crypto.randomBytes(8).toString('hex') + 'Aa1' }); }
+  finally { run('() => { makeHash_ = this.__mh189; }'); }
+  const u = run('() => readUsersSheet_().find(u => u.email === "clerk189@site.test")');
+  assert.deepStrictEqual([u.perms['Diesel Issue'], u.perms['Log Book'], u.perms.Reports, u.pageAdmin], ['Edit', 'Edit', 'Edit', ['Diesel Issue']], 'read as Edit; the page in pageAdmin');
+  assert.strictEqual(run('() => { const t = table_("Users", []); const r = t.rows.find(x => String(x[t.c.Email]) === "clerk189@site.test"); return [r[t.c["Diesel Issue"]], r[t.c.Reports]].join("|"); }'), 'Admin|Edit', 'kept as Admin in its cell');
+  assert.strictEqual(run('() => canEdit_(readUsersSheet_().find(u => u.email === "clerk189@site.test"), "Diesel Issue")'), true, 'every check of Edit as before');
+  const ua = run('() => usersAdmin_()');
+  assert.strictEqual(ua.users.find(x => x.email === 'clerk189@site.test').perms['Diesel Issue'], 'Admin', 'Users & Access shows Admin');
+  assert.deepStrictEqual(ua.modules.filter(m => m.dateAdmin).map(m => m.key).sort(), run('() => DATE_PAGES_.filter(sitePage_).sort()'), 'the pages with a date offer it');
+  assert.deepStrictEqual(run('() => publicUser_(readUsersSheet_().find(u => u.email === "clerk189@site.test")).pageAdmin'), ['Diesel Issue'], 'the page and the phone are told');
+  assert.strictEqual(run('() => permsShown_(readUsersSheet_().find(u => u.email === "clerk189@site.test"))["Diesel Issue"]'), 'Admin', 'the Portal is shown Admin');
+  // the date rule: the page's Admin – any day for that page's entries; another page as a user
+  const today = run('() => today_()'), day = n => run('(d, n) => addDays_(d, n)', today, n);
+  const rule = (pa, d, what) => run('(pa, d, w) => { USER_DATE_RULE_ON_ = true; ACTOR_ADMIN_ = false; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pa; try { userDateRule_(d, w); return "ok"; } catch (e) { return e.message; } finally { USER_DATE_RULE_ON_ = false; ACTOR_ADMIN_ = true; ACTOR_PAGE_ADMIN_ = []; } }', pa, d, what);
+  run('x => saveSiteRules_(x)', { backDays: '', announce: '' });
+  assert.strictEqual(rule(['Diesel Issue'], day(-10), 'Diesel issue'), 'ok', 'Diesel Issue Admin: 10 days back');
+  assert.match(rule(['Diesel Issue'], day(-1), 'Diesel inward'), /a user enters only today's entries/, 'not Diesel Inward');
+  assert.match(rule(['Diesel Issue'], day(-2), 'Log Book entry'), /the Log Book of today and yesterday/);
+  assert.strictEqual(rule(['Log Book'], day(-9), 'Tank check'), 'ok', 'the tank check is the Log Book\'s page');
+  for (const [pg, w] of [['Diesel Inward', 'Diesel inward'], ['Diesel Transfer', 'Diesel transfer'], ['Breakdown', 'Breakdown report'], ['Maintenance', 'Maintenance bill'], ['Fuel Cards', 'Card payment'], ['Log Book', 'Log Book entry']]) assert.strictEqual(rule([pg], day(-6), w), 'ok', pg);
+  assert.match(rule([], day(-1), 'Diesel issue'), /a user enters only today's entries/, 'no page Admin: as update-187');
+  // every place the one acting is set takes his pages with Admin (a call, a verification at its approval, sent again, Open & correct)
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), sitesGs = fs.readFileSync(path.join(root, 'app', 'Sites.gs'), 'utf8'), page = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.strictEqual((code.match(/ACTOR_ADMIN_ = !!(u|ru)\.admin;/g) || []).length, (code.match(/ACTOR_PAGE_ADMIN_ = pageAdminOf_\((u|ru)\);/g) || []).length);
+  assert.match(code, /if \(ACTOR_PAGE_ADMIN_\.length && ACTOR_PAGE_ADMIN_\.indexOf\(WHAT_PAGE_\[what\] \|\| ''\) > -1\) return;/);
+  assert.ok(sitesGs.includes("(v === 'Admin' && DATE_PAGES_.indexOf(m) > -1)) perms[m] = v;"), 'the Portal\'s Admin taken');
+  assert.ok(sitesGs.includes('perms: permsShown_(u)'));
+  assert.match(fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8'), /ACCESS = \['Admin', 'Edit', 'View', 'None'\];/, 'the Portal\'s signed ticket may carry Admin');
+  // the page: a date box of a page he is Admin of – any day; Users & Access – Admin on a page with a date
+  assert.match(page, /if \(pageAdminHere\(el\)\) \{/);
+  assert.match(page, /S\.user && !S\.user\.admin && !pageAdminHere\(el\) && \(USER_DATE_IDS/);
+  assert.match(page, /uaSel\(m\.key, u\.admin \? 'Edit' : \(u\.perms \|\| \{\}\)\[m\.key\] \|\| 'None', u\.admin \|\| ro, !!m\.dateAdmin\)/);
+  assert.match(page, /JSON\.stringify\(u\.pageAdmin \|\| null\)/, 'a change of his Admin pages reaches an open page');
 });

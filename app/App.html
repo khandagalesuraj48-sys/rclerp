@@ -1360,10 +1360,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   @media (max-width: 700px) { .rm-adm { grid-template-columns: 1fr; } }
   .ua-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; } .ua-legend { margin-left: auto; display: flex; gap: 6px; font-size: 12px; }
   .ua-legend span { padding: 2px 8px; border-radius: 999px; font-weight: 700; }
-  .ua-e { background: #DCFCE7; color: #166534; } .ua-v { background: #E0F2FE; color: #075985; } .ua-n { background: #FEE2E2; color: #991B1B; }
+  .ua-e { background: #DCFCE7; color: #166534; } .ua-v { background: #E0F2FE; color: #075985; } .ua-n { background: #FEE2E2; color: #991B1B; } .ua-a { background: #EDE9FE; color: #5B21B6; }
   table.ua-t th.ua-mh { font-size: 11.5px; white-space: normal; min-width: 88px; line-height: 1.2; }
   table.ua-t td { vertical-align: middle; } table.ua-t select { min-height: 30px; font-size: 12.5px; font-weight: 700; border-radius: 8px; padding: 0 4px; }
-  table.ua-t select.ua-e { background: #DCFCE7; color: #166534; } table.ua-t select.ua-v { background: #E0F2FE; color: #075985; } table.ua-t select.ua-n { background: #FEE2E2; color: #991B1B; }
+  table.ua-t select.ua-e { background: #DCFCE7; color: #166534; } table.ua-t select.ua-v { background: #E0F2FE; color: #075985; } table.ua-t select.ua-n { background: #FEE2E2; color: #991B1B; } table.ua-t select.ua-a { background: #EDE9FE; color: #5B21B6; }
   table.ua-t select:disabled { opacity: .75; }
   .ua-who b { display: block; } .ua-who small { display: block; color: var(--muted); } .ua-who .st { margin-top: 3px; display: inline-block; }
   .ua-who input { display: block; min-height: 30px; margin-bottom: 4px; width: 190px; } .ua-pw { width: 150px; min-height: 30px; }
@@ -4144,7 +4144,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="panel-head"><h2>Users &amp; Access</h2><span class="chart-note">Who can open each page: <b>Edit</b> (add / change / delete), <b>View</b> (see and print) or <b>No access</b> (page hidden). Same list as the Users tab – a change works at once for that user.</span></div>
       <p class="empty-note" id="ua_sa_note" hidden>Users and their access are given by the <b>Super Admin</b> – this list shows them; ask the Super Admin for a change.</p>
       <div class="ua-bar"><button class="btn primary small" id="ua_new">+ Add user</button><button class="btn ghost small" id="ua_mksa" type="button" hidden title="Once: the Super Admin designs the system – sites, users and access, companies">Create Super Admin</button><button class="btn ghost small" id="ua_report" type="button" title="For every user and page: what is written in the Users table and the access it gives. Reads only – changes nothing.">Access report</button><span class="muted" id="ua_note"></span><span class="ua-site" id="ua_site"></span>
-        <span class="ua-legend"><span class="ua-e">Edit</span><span class="ua-v">View</span><span class="ua-n">No access</span></span></div>
+        <span class="ua-legend"><span class="ua-a" title="A page with a date: Edit, and its entries of an earlier day">Admin</span><span class="ua-e">Edit</span><span class="ua-v">View</span><span class="ua-n">No access</span></span></div>
       <div class="table-wrap"><table class="ua-t">
         <thead id="ua_head"></thead>
         <tbody id="ua_rows"></tbody>
@@ -4959,7 +4959,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="panel-head"><h2>Users &amp; Access</h2><span class="chart-note">Pick a site: who can open it and each page there – <b>Edit</b>, <b>View</b> or <b>No access</b>. Access is separate on every site. A person who is already on another site keeps his one password.</span></div>
       <div class="rfilters"><div class="field"><label for="sa_u_site">Site</label><select id="sa_u_site"></select></div></div>
       <div class="ua-bar"><button class="btn primary small" id="sa_ua_new" type="button">+ Add user</button><button class="btn ghost small" id="sa_ua_report" type="button" title="For every user and page of this site: what is written and the access it gives (a file for Excel). Reads only.">Access report</button><span class="muted" id="sa_ua_note"></span>
-        <span class="ua-legend"><span class="ua-e">Edit</span><span class="ua-v">View</span><span class="ua-n">No access</span></span></div>
+        <span class="ua-legend"><span class="ua-a" title="A page with a date: Edit, and its entries of an earlier day">Admin</span><span class="ua-e">Edit</span><span class="ua-v">View</span><span class="ua-n">No access</span></span></div>
       <datalist id="sa_known"></datalist>
       <div class="table-wrap"><table class="ua-t"><thead id="sa_ua_head"></thead><tbody id="sa_ua_rows"></tbody></table></div>
       <p class="empty-note">A brand-new person gets a <b>one-time password</b> – at his first sign-in he sets his own. A new one-time password typed for a person is his password on all his sites.</p>
@@ -6109,7 +6109,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // may open the page (View or Edit); "No access" or not given = no
   function canSee(module) { const p = S.user && (S.user.perms || {})[module]; return !!(S.user && (S.user.admin || p === 'Edit' || p === 'View')); }
   // Same access written the same way every time (the server may send the fields in a different order)
-  function accessKey(u) { if (!u) return ''; const p = u.perms || {}; return [u.email, u.name, u.admin ? 1 : 0].concat(Object.keys(p).sort().map(k => k + '=' + p[k])).concat([JSON.stringify(u.dsrc || null)]).join('|'); }      // (update-162: his diesel sources too)
+  function accessKey(u) { if (!u) return ''; const p = u.perms || {}; return [u.email, u.name, u.admin ? 1 : 0].concat(Object.keys(p).sort().map(k => k + '=' + p[k])).concat([JSON.stringify(u.dsrc || null), JSON.stringify(u.pageAdmin || null)]).join('|'); }      // (update-189: his pages with Admin)      // (update-162: his diesel sources too)
   function applyPerms() {
     const u = S.user; if (!u) return;
     $('u_name').textContent = u.name;
@@ -6173,10 +6173,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // (update-188) the Maintenance bill's date and a fuel card payment's too (his answer: "फक्त आजची तारीख"); not the Daily machinery
   // status' date – it also shows an earlier day (its Submit of an earlier day the server refuses with the words)
   const USER_DATE_IDS = ['d_date', 'bd_date', 'i_date', 't_date', 'tc_date', 'mt_date', 'cp_date', 'lg_top_date'];
+  /* (update-189) each date box's page – a person who is Admin of that page dates its entries any day (as the site's Admin) */
+  const DATE_PAGE = { d_date: 'Diesel Issue', bd_date: 'Diesel Issue', i_date: 'Diesel Inward', t_date: 'Diesel Transfer', tc_date: 'Log Book', mt_date: 'Maintenance', cp_date: 'Fuel Cards', lg_top_date: 'Log Book' };
+  const datePageOf = el => DATE_PAGE[el.id] || (el.closest && el.closest('#lg_in') ? 'Log Book' : el.closest && el.closest('#bm_rows') ? 'Diesel Issue' : '');
+  const pageAdminHere = el => !!(S.user && (S.user.pageAdmin || []).indexOf(datePageOf(el)) > -1);
   function userDateBox(el) {
     if (!el || el.tagName !== 'INPUT' || el.type !== 'date' || !S.user || S.user.admin || !S.today) return;
     const row = el.dataset && el.dataset.f === 'date' && el.closest('#lg_in, #bm_rows');
     if (USER_DATE_IDS.indexOf(el.id) === -1 && !row) return;
+    if (pageAdminHere(el)) { if (el.title && /only by the Admin/.test(el.title)) { el.min = ''; el.title = ''; } return; }      // (update-189) Admin of this page: any day
     const log = el.id === 'lg_top_date' || !!el.closest('#lg_in'), days = userDays(log);
     el.min = userFloor(days); el.max = S.today;
     el.title = days ? 'Today or yesterday – an earlier day only by the Admin.' : 'Today – an earlier day only by the Admin.';
@@ -14479,7 +14484,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (el.type === 'date' && v && S.today && v > S.today && (ENTRY_DATES.indexOf(el.id) > -1 || (f === 'date' && el.closest('#lg_in'))))
       return 'Date ' + showDate(v) + ' is after today (' + showDate(S.today) + '). Entries can be made only up to today.';
     // … (update-187) a user who is not Admin: only today's entries – the Log Book also yesterday's (the site's own rule only stricter)
-    if (el.type === 'date' && v && S.today && S.user && !S.user.admin && (USER_DATE_IDS.indexOf(el.id) > -1 || (f === 'date' && el.closest('#lg_in, #bm_rows')))) {
+    if (el.type === 'date' && v && S.today && S.user && !S.user.admin && !pageAdminHere(el) && (USER_DATE_IDS.indexOf(el.id) > -1 || (f === 'date' && el.closest('#lg_in, #bm_rows')))) {
       const log = el.id === 'lg_top_date' || !!el.closest('#lg_in'), days = userDays(log);
       if (v < userFloor(days)) return (log ? 'Log Book entry' : 'Entry') + ' of ' + showDate(v) + ': ' + (days ? 'a user enters only the Log Book of today and yesterday' : 'a user enters only today\'s entries') + ' – an entry of an earlier day is made, changed or deleted only by the Admin or the Super Admin. Ask the Admin.';
     }
@@ -15559,8 +15564,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function uaLoad() {
     try { const d = await call('usersAdmin'); S.ua = d; uaRender('ua', S.ua); uaSuperMarks(); } catch (e) { toast(errMsg(e), true); }
   }
-  const uaCls = v => 'ua-p ua-' + (v === 'Edit' ? 'e' : v === 'None' ? 'n' : 'v');
-  const uaSel = (m, v, dis) => '<select class="' + uaCls(v) + '" data-m="' + esc(m) + '"' + (dis ? ' disabled' : '') + '><option value="Edit"' + (v === 'Edit' ? ' selected' : '') + '>Edit</option><option value="View"' + (v === 'View' ? ' selected' : '') + '>View</option><option value="None"' + (v === 'None' ? ' selected' : '') + '>No access</option></select>';
+  const uaCls = v => 'ua-p ua-' + (v === 'Edit' ? 'e' : v === 'Admin' ? 'a' : v === 'None' ? 'n' : 'v');
+  // (update-189) a page with a date offers Admin too: Edit, and its entries of an earlier day
+  const uaSel = (m, v, dis, adm) => '<select class="' + uaCls(v) + '" data-m="' + esc(m) + '"' + (dis ? ' disabled' : '') + '>' + (adm ? '<option value="Admin"' + (v === 'Admin' ? ' selected' : '') + ' title="Edit, and its entries of an earlier day">Admin</option>' : '') + '<option value="Edit"' + (v === 'Edit' ? ' selected' : '') + '>Edit</option><option value="View"' + (v === 'View' ? ' selected' : '') + '>View</option><option value="None"' + (v === 'None' ? ' selected' : '') + '>No access</option></select>';
   /* one row of the table. o.ro = read only (an Admin, once the Super Admin gives users and access – update-90);
    * o.sa = the Super Admin's table (a person who is on another site keeps his password: no one-time password needed) */
   function uaRow(u, isNew, mods, o) {
@@ -15569,7 +15575,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<td class="ua-who">' + (isNew ? '<input class="ua-email" placeholder="email" type="email"' + (o.sa ? ' list="sa_known"' : '') + '><input class="ua-name" placeholder="name">' : '<b>' + esc(u.name) + '</b><small>' + esc(u.email) + '</small>' + (u.mustChange ? '<span class="st low">must set password</span>' : '')) + '</td>' +
       '<td class="c"><input type="checkbox" class="ua-active"' + (u.active !== false ? ' checked' : '') + dis + ' title="Active – can sign in"></td>' +
       '<td class="c"><input type="checkbox" class="ua-admin"' + (u.admin ? ' checked' : '') + dis + ' title="Admin – every page with Edit, plus Users and Activity Log"></td>' +
-      mods.map(m => '<td>' + uaSel(m.key, u.admin ? 'Edit' : (u.perms || {})[m.key] || 'None', u.admin || ro) + '</td>').join('') +
+      mods.map(m => '<td>' + uaSel(m.key, u.admin ? 'Edit' : (u.perms || {})[m.key] || 'None', u.admin || ro, !!m.dateAdmin) + '</td>').join('') +
       (ro ? '' : '<td><input class="ua-pw" placeholder="' + (isNew ? (o.sa ? 'one-time password (not needed if he is on another site)' : 'one-time password') : 'new one-time password') + '" autocomplete="new-password"></td>' +
       '<td class="nowrap"><button class="btn primary small ua-save">' + (isNew ? 'Add' : 'Save') + '</button>' + (isNew ? ' <button class="link ua-cancel">Cancel</button>' : '') + '</td>') + '</tr>';
   }
