@@ -301,12 +301,23 @@ const MODULE_LABEL_ = { 'Master': 'Asset Master' };
 // (update-164) a page added after the site was set up: its empty cell is No access (not View) – nobody sees it until it is given;
 // No access is kept as an empty cell, so a site whose database step for the page is not run yet saves its users as before
 const MODULE_BLANK_NONE_ = { 'Fuel Cards': true, 'Maintenance': true };      // (update-165: Maintenance too)
-const permOf_ = (m, raw) => MODULE_BLANK_NONE_[m] && str_(raw) === '' ? 'None' : ACCESS_(raw);
+const permOf_ = (m, raw) => { const v = MODULE_BLANK_NONE_[m] && str_(raw) === '' ? 'None' : ACCESS_(raw); return v === 'Admin' && DATE_PAGES_.indexOf(m) === -1 ? 'Edit' : v; };      // (update-189)
 // (update-164) the pages of THIS site: Fuel Cards only at a site on fuel cards; there no Diesel Inward / Transfer (no stock)
 const sitePage_ = m => cardSite_() ? m !== 'Diesel Inward' && m !== 'Diesel Transfer' : m !== 'Fuel Cards';      // (update-170) Maintenance at every site (update-165: only on fuel cards)
 // a column that is not in Users yet takes the access of the column it came out of
 const MODULE_FROM_ = { 'Vendor Master': 'Master', 'Vendor BOQ': 'Master', 'Machinery Billing': 'Master', 'Saved Bills': 'Reports' };
-const ACCESS_ = v => { const k = str_(v).toUpperCase().replace(/[^A-Z]/g, ''); return k === 'EDIT' ? 'Edit' : (k === 'NOACCESS' || k === 'NONE' || k === 'NO' || k === 'HIDE') ? 'None' : 'View'; };
+const ACCESS_ = v => { const k = str_(v).toUpperCase().replace(/[^A-Z]/g, ''); return k === 'EDIT' ? 'Edit' : k === 'ADMIN' ? 'Admin' : (k === 'NOACCESS' || k === 'NONE' || k === 'NO' || k === 'HIDE') ? 'None' : 'View'; };
+/* (update-189, asked 29-10-2026: "pratek kam madhe edit no access view ani admin ha acess haway … diesle inward issue transfer madhe je
+ * back dated entry karnar aahet tyanche sathi"; his answers: every page with a date; Admin = only that page's entries of an earlier
+ * day) A PAGE'S 4th ACCESS, "Admin": Edit, and that page's entries of an earlier day – made, changed, deleted (userDateRule_). The
+ * closed months, the billed and the approved entries as always. Kept as "Admin" in the page's cell of Users; read as Edit (every
+ * check of Edit as before) with the page in the user's pageAdmin. Another page: Admin is read as Edit. */
+const DATE_PAGES_ = ['Breakdown', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Fuel Cards', 'Maintenance', 'Log Book'];
+const WHAT_PAGE_ = { 'Diesel issue': 'Diesel Issue', 'Diesel inward': 'Diesel Inward', 'Diesel transfer': 'Diesel Transfer', 'Log Book entry': 'Log Book', 'Tank check': 'Log Book',
+  'Breakdown report': 'Breakdown', 'Maintenance bill': 'Maintenance', 'Card payment': 'Fuel Cards' };
+const pageAdminOf_ = u => Array.isArray(u && u.pageAdmin) ? u.pageAdmin : [];
+// the pages as the Users table has them: an Admin page shown as Admin (the user's perms read it as Edit)
+const permsShown_ = u => { const o = Object.assign({}, (u && u.perms) || {}); pageAdminOf_(u).forEach(m => { o[m] = 'Admin'; }); return o; };
 const SESSION_SECONDS = 21600; // 6 hours, renewed on every action
 /* ---------- A SIGN-IN LASTS 30 DAYS AT MOST (update-68, owner's decision D6) ----------
  * A session ended only after 6 hours WITHOUT use; an app left open (it asks the server every few seconds) stayed signed
@@ -338,12 +349,13 @@ function readUsersSheet_() {
   const hdr = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
   const col = h => hdr.indexOf(h);
   return sh.getRange(2, 1, lastRow - 1, lastCol).getValues().map(r => {
-    const perms = {};
+    const perms = {}, pageAdmin = [];
     const admin = col('Admin') > -1 && str_(r[col('Admin')]).toUpperCase() === 'YES';
-    MODULES.forEach(m => { let i = col(m); if (i === -1 && MODULE_FROM_[m]) i = col(MODULE_FROM_[m]); perms[m] = admin ? 'Edit' : i > -1 ? permOf_(m, r[i]) : 'None'; }); // a brand-new page stays hidden until Admin gives access
+    MODULES.forEach(m => { let i = col(m); if (i === -1 && MODULE_FROM_[m]) i = col(MODULE_FROM_[m]); let p = admin ? 'Edit' : i > -1 ? permOf_(m, r[i]) : 'None';      // a brand-new page stays hidden until Admin gives access
+      if (p === 'Admin') { pageAdmin.push(m); p = 'Edit'; } perms[m] = p; });      // (update-189) a page's Admin: Edit, and its entries of an earlier day
     return {
       email: str_(r[col('Email')]).toLowerCase(), password: String(r[col('Password')] === undefined ? '' : r[col('Password')]),
-      name: str_(r[col('Name')]) || str_(r[col('Email')]), active: str_(r[col('Active')]).toUpperCase() !== 'NO', admin: admin, perms: perms,
+      name: str_(r[col('Name')]) || str_(r[col('Email')]), active: str_(r[col('Active')]).toUpperCase() !== 'NO', admin: admin, perms: perms, pageAdmin: pageAdmin,
     };
   }).filter(u => u.email);
 }
@@ -374,7 +386,7 @@ function usersAdmin_() {
     email: str_(r[col('Email')]).toLowerCase(), name: str_(r[col('Name')]), active: str_(r[col('Active')]).toUpperCase() !== 'NO',
     admin: col('Admin') > -1 && str_(r[col('Admin')]).toUpperCase() === 'YES', mustChange: !isHashed_(r[col('Password')]),
     perms: MODULES.reduce((o, m) => { o[m] = col(m) > -1 ? permOf_(m, r[col(m)]) : 'None'; return o; }, {}) }));
-  return { users: users, modules: MODULES.filter(sitePage_).map(m => ({ key: m, label: MODULE_LABEL_[m] || m })),
+  return { users: users, modules: MODULES.filter(sitePage_).map(m => Object.assign({ key: m, label: MODULE_LABEL_[m] || m }, DATE_PAGES_.indexOf(m) > -1 ? { dateAdmin: true } : {})),      // (update-189) dateAdmin: the page offers Admin
     // (update-90) given by the Super Admin? may this Admin make the Super Admin (the first site, step-7 SQL run, none yet)?
     managedBySuper: superAdminOn_(), canCreateSuper: typeof __siteIsHome === 'function' && __siteIsHome() && typeof __sitesOn === 'function' && __sitesOn() && !superAdminOn_() };
 }
@@ -398,7 +410,7 @@ function saveUserAdmin_(x, me) {
   put('Active', x.active === false ? 'No' : 'Yes'); put('Admin', x.admin ? 'Yes' : 'No');
   // (update-84) a new user gets only the pages Admin gave: a page not sent is "No access" (not View)
   const noAcc = m => MODULE_BLANK_NONE_[m] ? '' : 'No access';      // (update-164)
-  MODULES.forEach(m => { const v = (x.perms || {})[m]; if (v) put(m, v === 'None' ? noAcc(m) : v === 'Edit' ? 'Edit' : 'View'); else if (adding) put(m, x.admin ? (MODULE_BLANK_NONE_[m] ? '' : 'Edit') : noAcc(m)); });
+  MODULES.forEach(m => { const v = (x.perms || {})[m]; if (v) put(m, v === 'None' ? noAcc(m) : v === 'Edit' ? 'Edit' : v === 'Admin' ? (DATE_PAGES_.indexOf(m) > -1 ? 'Admin' : 'Edit') : 'View'); else if (adding) put(m, x.admin ? (MODULE_BLANK_NONE_[m] ? '' : 'Edit') : noAcc(m)); });      // (update-189) Admin: a page with a date
   // Admin cannot lock himself out
   if (!adding && me && me.email === email && (x.active === false || !x.admin)) throw new Error('You cannot remove your own Admin access or deactivate yourself.');
   if (adding || x.newPassword) {
@@ -427,7 +439,7 @@ function accessReport_() {
   const hdr = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim()), col = h => hdr.indexOf(h);
   const data = lastRow > 1 ? sh.getRange(2, 1, lastRow - 1, lastCol).getValues() : [];
   const real = {}; readUsersSheet_().forEach(u => { real[u.email] = u; });
-  const word = v => { const k = str_(v).toUpperCase().replace(/[^A-Z]/g, ''); return k === 'EDIT' || k === 'VIEW' || k === 'NOACCESS' || k === 'NONE' || k === 'NO' || k === 'HIDE'; };
+  const word = v => { const k = str_(v).toUpperCase().replace(/[^A-Z]/g, ''); return k === 'EDIT' || k === 'ADMIN' || k === 'VIEW' || k === 'NOACCESS' || k === 'NONE' || k === 'NO' || k === 'HIDE'; };      // (update-189: Admin)
   const rows = [], count = { written: 0, empty: 0, unknown: 0, admin: 0, from: 0, nocolumn: 0 };
   data.forEach(r => {
     const email = str_(r[col('Email')]).toLowerCase(); if (!email) return;
@@ -438,12 +450,12 @@ function accessReport_() {
       const why = admin ? 'admin' : i === -1 ? 'no column' : from ? 'from ' + (MODULE_LABEL_[from] || from) : raw === '' ? 'empty' : word(raw) ? 'written' : 'unknown';
       count[admin ? 'admin' : i === -1 ? 'nocolumn' : from ? 'from' : raw === '' ? 'empty' : word(raw) ? 'written' : 'unknown']++;
       rows.push({ email: email, name: str_(r[col('Name')]) || email, active: str_(r[col('Active')]).toUpperCase() !== 'NO', admin: admin,
-        module: MODULE_LABEL_[m] || m, raw: raw, effective: u.perms[m] === 'None' ? 'No access' : (u.perms[m] || 'No access'), why: why });
+        module: MODULE_LABEL_[m] || m, raw: raw, effective: pageAdminOf_(u).indexOf(m) > -1 ? 'Admin' : u.perms[m] === 'None' ? 'No access' : (u.perms[m] || 'No access'), why: why });
     });
   });
   return { at: new Date().toISOString(), users: data.filter(r => str_(r[col('Email')])).length, modules: MODULES.length, rows: rows, count: count };
 }
-function publicUser_(u) { const o = { email: u.email, name: u.name, admin: u.admin, perms: u.perms, super: !!u.super }; const ds = dsrcMine_(u); if (ds) o.dsrc = ds; return o; }      // (update-162) dsrc: his diesel sources, when chosen
+function publicUser_(u) { const o = { email: u.email, name: u.name, admin: u.admin, perms: u.perms, super: !!u.super }; const ds = dsrcMine_(u); if (ds) o.dsrc = ds; if (!u.admin && pageAdminOf_(u).length) o.pageAdmin = pageAdminOf_(u); return o; }      // (update-189) pageAdmin: his pages with Admin (entries of an earlier day)      // (update-162) dsrc: his diesel sources, when chosen
 
 /* ================= SCREEN SHARE WITH VOICE (update-72, asked 10-10-2026) =================
  * "User A has a difficulty on a screen: he shares his screen with user B and they talk – live, picked from a list of users."
@@ -1120,7 +1132,7 @@ function apiRun_(u, spec, fn, args) {
   TABLE_MEMO_ = {}; // each tab read once per request (dropped automatically when written)
   if (sbDataOn_()) sbDiscard_(); // Supabase: every request starts with fresh data
   const before = spec.log ? logBefore_(spec, args) : null;
-  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = !!u.super;
+  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = !!u.super; ACTOR_PAGE_ADMIN_ = pageAdminOf_(u);      // (update-189)
   OUT_FOR_ = u;      // (the answer kept with a save – step 5 – is cut the same way: see withLock_)
   // (update-163) a report / the dashboard of one fuel (a site with more than one): only around an action that saves nothing
   const fv = !spec.edit && (spec.m === 'Reports' || spec.m === 'Dashboard') ? fuelViewOf_(args) : '';
@@ -12821,11 +12833,11 @@ function crDecide_(u, x) {
       if (spec.m && !canEdit_(ru, spec.m)) throw new Error(r0.by + ' has no Edit access to ' + (MODULE_LABEL_[spec.m] || spec.m) + ' any more – reject this request.');
       let args = []; try { args = JSON.parse(r0.args || '[]'); } catch (e) { args = []; }
       // the save runs as the user's change; the bill lock lets it through (as for the Super Admin). A refusal stops it all: nothing saved, the request waits
-      const actor0 = ACTOR_, admin0 = ACTOR_ADMIN_;
+      const actor0 = ACTOR_, admin0 = ACTOR_ADMIN_, pa0 = ACTOR_PAGE_ADMIN_;
       SA_REASON_ = ('Change request ' + r0.id + ' of ' + r0.by + ' approved: ' + r0.reason + (note ? ' – ' + note : '')).slice(0, 300);      // (update-152) the reason kept with a locked entry's history
       FLOW_SENDER_ = ru.email;      // (update-153) the files it takes are the user's
       { let d0 = {}; try { d0 = JSON.parse(r0.data || '{}') || {}; } catch (e) { d0 = {}; } CR_ATT_ = d0.att && typeof d0.att === 'object' ? d0.att : null; }      // (update-153 review) …the ones checked when he asked
-      ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = true; VER_CTX_ = 'approve';
+      ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = true; ACTOR_PAGE_ADMIN_ = pageAdminOf_(ru); VER_CTX_ = 'approve';
       const dsu0 = DSRC_U_; DSRC_U_ = ru;      // (update-162) the diesel sources of the one who asked count
       try {
         const before = spec.log ? logBefore_(spec, args) : null;
@@ -12834,7 +12846,7 @@ function crDecide_(u, x) {
         const errs = res && typeof res === 'object' ? (res.errors || []) : [];
         if (res && (res.ok === false || errs.length)) throw new Error('It could not be saved: ' + (errs.length ? errs.slice(0, 5).map(e => (e.row ? 'Line ' + e.row + ': ' : '') + (e.msg || e)).join(' | ') : (res.error || res.warning || 'refused')) + ' – nothing was saved; the request still waits.');
         if (spec.log) { try { logAfter_(ru, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ } }
-      } finally { ACTOR_ = actor0; ACTOR_ADMIN_ = admin0; VER_CTX_ = ''; CR_ATT_ = null; DSRC_U_ = dsu0; }
+      } finally { ACTOR_ = actor0; ACTOR_ADMIN_ = admin0; ACTOR_PAGE_ADMIN_ = pa0; VER_CTX_ = ''; CR_ATT_ = null; DSRC_U_ = dsu0; }
       bump_(SYNC_GROUPS_[spec.m] || []);
     }
     TABLE_MEMO_ = {};
@@ -12957,7 +12969,7 @@ function flowReserved_(loc) {
 // A SAVE HELD BACK: checked as a save (nothing written), then kept for the first level. Returns the save's own refusal, if any.
 function flowSend_(u, spec, fn, args, rule) {
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
-  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
+  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pageAdminOf_(u); OUT_FOR_ = u;
   let res = null, held = {};
   FLOW_DRY_ON_ = true; FLOW_PHOTOS_ = held;      // (update-120) the pictures this save takes are noted with the request
   try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
@@ -13066,13 +13078,13 @@ function flowDecide_(u, x) {
     else if (spec.m && !canEdit_(ru, spec.m)) why = r0.by + ' has no Edit access to ' + (MODULE_LABEL_[spec.m] || spec.m) + ' any more';
     if (!why) {
       let args = []; try { args = JSON.parse(r0.args || '[]'); } catch (e) { args = []; }
-      const a0 = ACTOR_, ad0 = ACTOR_ADMIN_, su0 = ACTOR_SUPER_, dsu0 = DSRC_U_;
+      const a0 = ACTOR_, ad0 = ACTOR_ADMIN_, su0 = ACTOR_SUPER_, dsu0 = DSRC_U_, pa0 = ACTOR_PAGE_ADMIN_;
       try {
         withLock_(() => {
           r0 = look(); f = r0.flow;
           DSRC_U_ = ru;      // (update-162) the sender's diesel sources count (not the approver's)
           REQ_DAY_ = reqDay_(r0.at);      // (update-187) the user's date rule from the day it was sent
-          ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; VER_CTX_ = 'flow'; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = f.photos && typeof f.photos === 'object' ? f.photos : null;      // (update-120) its photos, as noted when it was sent
+          ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pageAdminOf_(ru); VER_CTX_ = 'flow'; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = f.photos && typeof f.photos === 'object' ? f.photos : null;      // (update-120) its photos, as noted when it was sent
           APPROVER_ = u.name || u.email;      // (update-152) the Log Book rows it writes are marked approved by him
           FLOW_SENDER_ = ru.email;      // (update-153) the files it takes are the sender's
           const before = spec.log ? logBefore_(spec, args) : null;
@@ -13080,7 +13092,7 @@ function flowDecide_(u, x) {
           const errs = res && typeof res === 'object' ? (res.errors || []) : [];
           if (res && typeof res === 'object' && (res.ok === false || errs.length)) { throw new Error(flowRefusal_(res).text); }      // (update-129: the reason in words; update-131: no "anyway" – the sender corrects it)
           if (spec.log) { try { logAfter_(ru, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ } }
-          ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0;
+          ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; ACTOR_PAGE_ADMIN_ = pa0;
           f.history.push({ step: 'Approved', level: f.level + 1, by: u.name || u.email, email: me, at: new Date().toISOString(), note: note });
           write(r0, f, 'Approved', 'Saved');
         });
@@ -13089,7 +13101,7 @@ function flowDecide_(u, x) {
       } catch (e) {
         if (/^(This request (was not found|is already|is not waiting)|You cannot approve)/.test(String(e && e.message)) || faultKind_(e)) throw e;
         why = String((e && e.message) || e).slice(0, 1000);      // (update-129: room for the warnings' lines)
-      } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; VER_CTX_ = ''; DSRC_U_ = dsu0; REQ_DAY_ = ''; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
+      } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; ACTOR_PAGE_ADMIN_ = pa0; VER_CTX_ = ''; DSRC_U_ = dsu0; REQ_DAY_ = ''; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
     }
     if (why) {
       withLock_(() => {
@@ -13205,7 +13217,7 @@ function flowResendOne_(u, id, note) {
   // checked as a save, as the sender's own (nothing written) – with the photos noted with it when it was first sent
   const f0 = r0.flow || {}, held = f0.photos && typeof f0.photos === 'object' ? JSON.parse(JSON.stringify(f0.photos)) : {};
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
-  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
+  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pageAdminOf_(u); OUT_FOR_ = u;
   let res = null;
   FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = held; VER_CTX_ = 'resend'; REQ_DAY_ = reqDay_(r0.at);      // (update-187)
   try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
@@ -13272,7 +13284,7 @@ function flowFixOf_(u, id) {
 // the save run as his own, nothing written (as flowSend_): { res } – its answer – or { error } – what it said, as for a save
 function flowDry_(u, spec, args, id, held, at) {
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
-  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
+  ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pageAdminOf_(u); OUT_FOR_ = u;
   let res = null;
   FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = id; FLOW_PHOTOS_ = held; REQ_DAY_ = reqDay_(at);      // (update-188) Open & correct: the user's date rule from the day it was sent, as its approval
   try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
@@ -13511,6 +13523,7 @@ const memoGet_ = (k, make) => { if (TABLE_MEMO_ && k in TABLE_MEMO_) return TABL
 const memoDrop_ = k => { if (TABLE_MEMO_) delete TABLE_MEMO_[k]; };
 function booksClosed_() { return memoGet_('__closed', () => { let v = ''; try { v = str_(PropertiesService.getScriptProperties().getProperty('BOOKS_CLOSED_UPTO')); } catch (e) { v = ''; } return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; }); }
 let ACTOR_ADMIN_ = true;       // set for every call (apiRun_); code run without a signed-in user (tests, set-up) is not limited
+let ACTOR_PAGE_ADMIN_ = [];    // (update-189) the pages where the one acting is Admin (their entries of an earlier day)
 /* (update-187, 29-10-2026 – the MD, urgent: "admin ani super admin fkt back dated entry kru shakto baki konich nahi … jo entry user karayla
  * jail tyala auto aajchi date select aasel tyala date change krta yenar nahi … modual wise"; his answer for the Log Book: "kal + aaj")
  * BACK-DATED ENTRIES ONLY BY THE ADMIN AND THE SUPER ADMIN. A user who is not this site's Admin makes, changes and deletes only entries
@@ -13525,6 +13538,7 @@ let USER_DATE_RULE_ON_ = true;      // (the unit tests of before keep their fixe
 const userDays_ = what => /^Log Book/.test(String(what || '')) ? 1 : 0;
 function userDateRule_(dk, what) {
   if (ACTOR_ADMIN_ || !dk) return;
+  if (ACTOR_PAGE_ADMIN_.length && ACTOR_PAGE_ADMIN_.indexOf(WHAT_PAGE_[what] || '') > -1) return;      // (update-189) Admin of this page
   const lim = siteRules_().backDays;
   if (!USER_DATE_RULE_ON_) {      // the site's own rule alone (before update-187)
     if (lim !== '' && dk < addDays_(today_(), -lim)) throw new Error((what || 'Entry') + ' of ' + dmy_(dk) + ': an entry older than ' + lim + ' day' + (lim === 1 ? '' : 's') + ' can be made or changed only by the Admin (rule of this site). Ask the Admin.');

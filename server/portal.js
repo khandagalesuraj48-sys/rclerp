@@ -88,7 +88,7 @@ function verify(ticket, now) {
 /* (update-94) the Super Admin's ticket – the Portal's server asks for one site's users and their pages, or sets one person's
  * pages ("Users & Access" in the Portal). Made by the Portal's server only (its signature), for "mechanical-admin", 60 s, once.
  * The pages and their access travel INSIDE the signed ticket, so nothing can be changed on the way. */
-const ADMIN_AUD = 'mechanical-admin', ACCESS = ['Edit', 'View', 'None'];
+const ADMIN_AUD = 'mechanical-admin', ACCESS = ['Admin', 'Edit', 'View', 'None'];      // (update-189) Admin – kept only on a page with a date (sysPortalAdmin_)
 // (update-117) a site's diesel places in the ticket: [{ name, cap }] – Mechanical checks them again (Code.gs savePlaces_)
 // (update-163) and the fuel each one holds (Diesel / Petrol / CNG; none = Diesel, as a Portal before it sends)
 const FUELS = ['Diesel', 'Petrol', 'CNG'];

@@ -197,7 +197,7 @@ function sysPortalAdmin_(c) {
   c = c || {};
   portalOnce_(c.jti);
   // (update-162) with each person his diesel sources (Diesel Issue / Diesel Transfer – none = every source) and the site's places
-  const ds = dsrcAll_(), pub = u => Object.assign({ email: u.email, name: u.name, active: u.active, admin: u.admin, perms: u.perms }, ds[str_(u.email).toLowerCase()] ? { dsrc: ds[str_(u.email).toLowerCase()] } : {});
+  const ds = dsrcAll_(), pub = u => Object.assign({ email: u.email, name: u.name, active: u.active, admin: u.admin, perms: permsShown_(u) }, ds[str_(u.email).toLowerCase()] ? { dsrc: ds[str_(u.email).toLowerCase()] } : {});      // (update-189) a page's Admin shown
   if (c.act === 'users') { const d = usersAdmin_(); return { users: d.users.map(pub), pages: d.modules, places: cardSite_() ? [] : placeNames_() }; }      // (update-164) on fuel cards: no diesel sources
   if (c.act === 'places') return placesInfo_();      // (update-117) Sites → Diesel places
   if (c.act === 'placesSave') return sysPlacesSave_(c.places, c.by, c.mode);
@@ -212,7 +212,7 @@ function sysPortalAdmin_(c) {
   if (c.act === 'drvNow') return drvNow_();
   if (c.act !== 'pages') throw new Error('Unknown action.');
   const email = str_(c.email).toLowerCase(), perms = {};
-  MODULES.forEach(m => { const v = (c.perms || {})[m]; if (v === 'Edit' || v === 'View' || v === 'None') perms[m] = v; });
+  MODULES.forEach(m => { const v = (c.perms || {})[m]; if (v === 'Edit' || v === 'View' || v === 'None' || (v === 'Admin' && DATE_PAGES_.indexOf(m) > -1)) perms[m] = v; });      // (update-189) Admin: a page with a date
   if (!Object.keys(perms).length) throw new Error('No page was given.');
   const who = { email: str_(c.by), name: 'Super Admin (Portal)' };
   let u = readUsersSheet_().find(w => w.email === email), res;
