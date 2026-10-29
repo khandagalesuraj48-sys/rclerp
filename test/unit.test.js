@@ -7664,11 +7664,39 @@ test('update-187: back-dated entries only by the Admin and the Super Admin – a
   // the source: the rule in booksOpen_ (every entry, its change and deletion – 43 places), the request's day where it is saved later
   const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), page = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   assert.match(code, /function booksOpen_\(dk, what\) \{\n  userDateRule_\(dk, what\);/);
-  assert.match(code, /REQ_DAY_ = r0\.at \? dkey_\(new Date\(r0\.at\)\) : '';      \/\/ \(update-187\) the user's date rule from the day it was sent\n          ACTOR_ = ru\.name \|\| ru\.email; ACTOR_ADMIN_ = !!ru\.admin; ACTOR_SUPER_ = false; VER_CTX_ = 'flow';/);
-  assert.match(code, /VER_CTX_ = 'resend'; REQ_DAY_ = r0\.at \? dkey_\(new Date\(r0\.at\)\) : '';/);
+  assert.match(code, /REQ_DAY_ = reqDay_\(r0\.at\);      \/\/ \(update-187\) the user's date rule from the day it was sent\n          ACTOR_ = ru\.name \|\| ru\.email; ACTOR_ADMIN_ = !!ru\.admin; ACTOR_SUPER_ = false; VER_CTX_ = 'flow';/);      // (update-188: reqDay_)
+  assert.match(code, /VER_CTX_ = 'resend'; REQ_DAY_ = reqDay_\(r0\.at\);/);
   // the page: the same words before it is sent, a user's date box offers only today (the Log Book also yesterday), the help in 3 languages
   assert.ok(page.includes("a user enters only the Log Book of today and yesterday' : 'a user enters only today\\'s entries'"), 'the page says it as the server');
   assert.match(page, /function userDateBox\(el\)/);
   assert.match(page, /document\.addEventListener\('focusin', e => userDateBox\(e\.target\), true\);/);
   assert.match(page, /\{ re: \/a user enters only \(today's entries\|the Log Book of today and yesterday\)\/i,/);
+});
+
+test('update-188: "Open & correct" of a sent entry measured from the day it was sent (as its approval); an unreadable request time never a fault; a user\'s Maintenance bill and card payment dates only today on the page, the Daily machinery status free to look at an earlier day', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // the day of a request: from its time; blank or unreadable – '' (measured from today)
+  assert.strictEqual(run('() => reqDay_("2026-11-02T05:30:00.000Z")'), '2026-11-02');
+  assert.strictEqual(run('() => reqDay_("")'), '');
+  assert.strictEqual(run('() => reqDay_("not a time")'), '');
+  // the dry run of Open & correct: a user's diesel issue of the day it was sent, opened 3 days later – not refused for its date
+  run('() => { saveSiteRules_({ backDays: "", announce: "" }); globalThis.__today188 = today_; today_ = () => "2026-11-05"; }');
+  try {
+    const dry = (at, d) => run('(at, d) => { USER_DATE_RULE_ON_ = true; try { const r = flowDry_({ admin: false, email: "u188@rcl.test", name: "U188" }, { f: () => { booksOpen_(d, "Diesel issue"); return { ok: true }; } }, [], "VF-T188", {}, at); return { r: r, after: REQ_DAY_ }; } finally { USER_DATE_RULE_ON_ = false; ACTOR_ADMIN_ = true; ACTOR_SUPER_ = false; REQ_DAY_ = ""; } }', at, d);
+    const sent = '2026-11-02T04:00:00.000Z';
+    assert.deepStrictEqual(dry(sent, '2026-11-02'), { r: { res: { ok: true } }, after: '' }, 'the day it was sent: as its approval');
+    assert.match(dry(sent, '2026-11-01').r.error, /^Diesel issue of 01-11-2026: a user enters only today's entries/, 'a day before it was sent: refused');
+    assert.match(dry('', '2026-11-02').r.error, /a user enters only today's entries/, 'no time: from today');
+    assert.deepStrictEqual(dry('2026-10-20T04:00:00.000Z', '2026-10-01').r, { res: { ok: true } }, 'sent before the rule: not held by it');
+  } finally { run('() => { today_ = globalThis.__today188; delete globalThis.__today188; }'); }
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), page = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(code, /const dry = flowDry_\(u, fx\.spec, JSON\.parse\(JSON\.stringify\(fx\.args0\)\), r0\.id, flowHeld_\(r0\), r0\.at\);/, 'Open: the day it was sent');
+  assert.match(code, /dry = flowDry_\(u, spec, args, fx\.r0\.id, held, fx\.r0\.at\);/, 'Corrected and sent: the day it was sent');
+  assert.match(code, /finally \{ FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; REQ_DAY_ = ''; TABLE_MEMO_ = \{\}; \}/);
+  // the page: his answers – the Maintenance bill's date and a card payment's only today for a user; the bill reader keeps today
+  assert.match(page, /const USER_DATE_IDS = \['d_date', 'bd_date', 'i_date', 't_date', 'tc_date', 'mt_date', 'cp_date', 'lg_top_date'\];/);
+  assert.ok(!/USER_DATE_IDS = \[[^\]]*'bk_date'/.test(page), 'the Daily machinery status shows an earlier day too');
+  assert.match(page, /S\.user && !S\.user\.admin && \(USER_DATE_IDS\.indexOf\(el\.id\) > -1 \|\| \(f === 'date' && el\.closest\('#lg_in, #bm_rows'\)\)\)\) \{/);
+  assert.match(page, /\(\(S\.user && S\.user\.admin\) \|\| r\.date >= S\.today\)\) \{ \$\('mt_date'\)\.value = r\.date;/);
 });

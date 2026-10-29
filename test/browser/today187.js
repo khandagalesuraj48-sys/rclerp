@@ -1,4 +1,4 @@
-// LOCAL TEST RIG ONLY – update-187: back-dated entries only by the Admin and the Super Admin. A user (not Admin): only today's
+// LOCAL TEST RIG ONLY – update-187 (and update-188): back-dated entries only by the Admin and the Super Admin. A user (not Admin): only today's
 // entries, the Log Book also yesterday's – refused by the server (api) and offered so by the page's date boxes; the Admin any day.
 const chromium = require('@sparticuz/chromium').default || require('@sparticuz/chromium'); const puppeteer = require('puppeteer-core');
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -60,6 +60,13 @@ const said = r => JSON.stringify(r && (r.error || (r.result && (r.result.errors 
     ok('his Diesel Issue date: only today offered; yesterday refused there with the server\'s words', x.min === T0 && x.max === T0 && RULE.test(x.msg || '') && /today's entries/.test(x.msg), x);
     x = await box('i_date', Y1);
     ok('his Diesel Inward date: only today', x.min === T0 && x.max === T0 && RULE.test(x.msg || ''), x);
+    // (update-188) his answers: the Maintenance bill's date and a card payment's only today too; the Daily machinery status free to look back
+    x = await box('mt_date', Y1);
+    ok('(188) his Maintenance bill date: only today; yesterday said there', x.min === T0 && x.max === T0 && RULE.test(x.msg || ''), x);
+    x = await box('cp_date', Y1);
+    ok('(188) his card payment date: only today', x.min === T0 && x.max === T0 && RULE.test(x.msg || ''), x);
+    x = await box('bk_date', Y1);
+    ok('(188) the Daily machinery status date: an earlier day can be looked at (no limit, no refusal there)', !x.min && !(x.msg && RULE.test(x.msg)), x);
     await f.evaluate(() => showTab('log')); await wait(1800);
     await f.evaluate(() => { try { setLgMode('date'); } catch (e) {} }); await wait(600);
     x = await box('lg_top_date', Y2);
