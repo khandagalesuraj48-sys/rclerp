@@ -102,6 +102,7 @@ function portalAdmin(R, args) {
   if (c.act === 'bkGet' || c.act === 'bkSet' || c.act === 'bkNow') return backupAdmin(R, c);      // (update-157)
   if (c.act === 'stoGet') return storageAdmin(R, c);      // (update-158) Sites → Storage
   if (c.act === 'drvStart') return R.runIn('', 'sysPortalAdmin', [c]);      // (update-158) "Connect Google Drive" – kept at the first site
+  if (c.act === 'papers') return papersSet(c);      // (update-193) a company / a site's company saved in the Portal
   const reg = sites.registry();
   let at = '';
   if (reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
@@ -223,6 +224,25 @@ function siteSetup(R, c) {
   add('ready', true, '');
   let email = ''; try { email = JSON.parse(String(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}')).client_email || ''; } catch (e) { email = ''; }
   return out({ ready: true, backupEmail: email });
+}
+/* ---- (update-193, 29-10-2026 – his requirement printed with no logo, no company name, no address) THE PAPERS OF THE MODULES (the
+ * Store's PO and Purchase Requisition Form) take a site's company from the list here (the first site's rcl_sites / rcl_companies),
+ * which only "New site" wrote – with the company's name alone; the first site (S1) had none. The Portal is the one place a company
+ * and a site's company are given: when they are saved there, it tells them here. Nothing else of a site is changed. ---- */
+function papersSet(c) {
+  if (!sites.registry()) return { ok: false, note: 'The first site has no list of sites yet (step-7 SQL).' };
+  const co = c.company, enc = encodeURIComponent;
+  if (co) {
+    const row = { name: co.name, address: co.address, gstin: co.gstin, pan: co.pan, logo: co.logo };
+    if ((sites.homeRest('GET', 'rcl_companies?select=id&id=eq.' + enc(co.id)) || []).length) sites.homeRest('PATCH', 'rcl_companies?id=eq.' + enc(co.id), row, 'return=minimal');
+    else sites.homeRest('POST', 'rcl_companies', [Object.assign({ id: co.id }, row)], 'return=minimal');
+  }
+  let site = false;
+  if (c.link && (sites.registry() || []).some(x => x.code === c.site)) {
+    sites.homeRest('PATCH', 'rcl_sites?code=eq.' + enc(c.site), { company_id: co ? co.id : null }, 'return=minimal');
+    sites.forget(); site = true;
+  }
+  return { ok: true, company: !!co, site: site };
 }
 /* ---- (asked 13-10-2026) the Super Admin deleted a site in the Portal: here it is only set to "closed" – nobody opens it any
  * more (it is not "ready"), and NOTHING of its own database is touched. "New site" with the same link brings it back, with its

@@ -2254,6 +2254,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   their nos.; `importMaint_` `twice`); the AI's names only the items (`maintImportNames_`, `mliNamesOf`, `mliBills`). LOG BOOK STATUS:
   the Admin ticks log books (`#ml_stdel`, `S.mlsel`) → each deleted by `deleteMaintLog` (all, count), DELETE typed. No SQL. Tests: unit
   `update-192`; rig `mnt192.js`, mnt183 / 173 / mline180 / 182.
+- 29-10-2026 (update-193, with the Portal's "papers' company"). Report: `UPDATE_193.md`. THE PAPERS' COMPANY (his requirement printed with
+  no logo, no company name, no address): the Store's papers read a site's company from the first site's `rcl_sites` / `rcl_companies`,
+  which only "New site" wrote (the name alone; S1 none). The Portal now tells them on every Companies / Sites save: `portalAdmin` act
+  `papers` → `papersSet` (a company added or changed – name, address, GSTIN, PAN, logo; with `link`, that site's `company_id`; nothing
+  else, never a delete); the ticket's part `papersOf` (`server/portal.js`). No SQL. Tests: unit `update-193`; rig `test/papers193api.js`.
 - 29-10-2026 (update-191, with rcl-store #24, rcl-engineering #8, rcl-portal #28, rcl-mobile 3.67.0). Report: `UPDATE_191.md`. 🎙 SPEAK
   INTO A BOX: the block "SPEAK INTO A BOX" before `</body>` of `app/App.html` (the same code as the Store's / Engineering's `voice.js`, the
   Portal's block): a 🎙 in the box in use (text / number / phone / note; not a password, a date, shown-only, `data-novoice` – `#ai_form`);

@@ -7872,3 +7872,51 @@ test('update-192 (29-10-2026, "old log book … as it is sagle aahe as yeyla haw
   ['mr', 'hi'].forEach(l => { const d = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8'));
     ['Delete selected', 'Delete selected ({0})', 'Item names (Particulars) – spelling (AI)', 'Line {0}: no Particulars in the file – kept as "-" with its ₹{1}', 'Not deleted – type DELETE to confirm.', '{0} log book(s) deleted.'].forEach(k => assert.ok(d[k], l + ': ' + k)); });
 });
+
+test('update-193: a company and a site\'s company saved in the Portal are told here – the papers of the modules (the Store\'s PO and requirement) get the name, address, GSTIN, PAN, logo', () => {
+  const portal = require(path.join(root, 'server', 'portal.js')), sites = require(path.join(root, 'server', 'sites.js')), system = require(path.join(root, 'server', 'system.js'));
+  // the ticket's company: cut to size, a logo only as an https link, "link" only when true
+  assert.deepStrictEqual(portal.papersOf({ link: true, company: { id: 'RACHANA', name: '  Rachana   Construction Limited ', address: 'Plot 5,\n MIDC  Nashik', gstin: '27abcde1234f1z5', pan: 'abcde1234f', logo: 'https://x.example/l.png' } }),
+    { link: true, company: { id: 'RACHANA', name: 'Rachana Construction Limited', address: 'Plot 5, MIDC Nashik', gstin: '27ABCDE1234F1Z5', pan: 'ABCDE1234F', logo: 'https://x.example/l.png' } });
+  assert.strictEqual(portal.papersOf({ link: 'true', company: { id: 'A', name: 'Ab', logo: 'javascript:alert(1)' } }).link, false);
+  assert.strictEqual(portal.papersOf({ company: { id: 'A', name: 'Ab', logo: 'http://x.example/l.png' } }).company.logo, '', 'a logo not https: not kept');
+  assert.strictEqual(portal.papersOf({ company: { id: 'A', name: 'Ab', address: 'x'.repeat(400) } }).company.address.length, 300);
+  for (const co of [null, {}, { id: 'A' }, { id: '', name: 'Rachana' }, { id: 'A', name: 'R' }, 'RACHANA']) assert.strictEqual(portal.papersOf({ company: co }).company, null, JSON.stringify(co));
+  // the step here: only the first site's list of companies and the site's company – never anything else, never a delete
+  const was = { reg: sites.registry, rest: sites.homeRest, forget: sites.forget, verify: portal.verifyAdmin };
+  let calls = [], have = [], reg = [{ code: 'S1', home: true, status: 'ready' }, { code: 'T2', status: 'ready' }];
+  sites.registry = () => reg; sites.forget = () => calls.push('forget');
+  sites.homeRest = (m, p, b) => { calls.push(m + ' ' + p + (b ? ' ' + JSON.stringify(b) : '')); return m === 'GET' ? have : null; };
+  const ask = c => { portal.verifyAdmin = () => Object.assign({ by: 'sa@rcl.test', act: 'papers', site: c.site, jti: 'ab'.repeat(8) }, portal.papersOf(c)); calls = []; return system.portalAdmin({}, ['t']); };
+  const rach = { id: 'RACHANA', name: 'Rachana Construction Limited', address: 'Plot 5, MIDC', gstin: '27ABCDE1234F1Z5', pan: 'ABCDE1234F', logo: '' };
+  try {
+    // a company saved (alone – the site "PORTAL", no link): a new one is added with all it has
+    let r = ask({ site: 'PORTAL', company: rach });
+    assert.deepStrictEqual(r, { ok: true, company: true, site: false });
+    assert.deepStrictEqual(calls, ['GET rcl_companies?select=id&id=eq.RACHANA', 'POST rcl_companies [{"id":"RACHANA","name":"Rachana Construction Limited","address":"Plot 5, MIDC","gstin":"27ABCDE1234F1Z5","pan":"ABCDE1234F","logo":""}]']);
+    // one already in the list: changed (the same row)
+    have = [{ id: 'RACHANA' }];
+    r = ask({ site: 'PORTAL', company: Object.assign({}, rach, { address: 'Plot 7, MIDC Nashik' }) });
+    assert.deepStrictEqual(calls, ['GET rcl_companies?select=id&id=eq.RACHANA', 'PATCH rcl_companies?id=eq.RACHANA {"name":"Rachana Construction Limited","address":"Plot 7, MIDC Nashik","gstin":"27ABCDE1234F1Z5","pan":"ABCDE1234F","logo":""}']);
+    // a site's company saved: the company, then the site's company (the list of sites read again)
+    r = ask({ site: 'S1', link: true, company: rach });
+    assert.deepStrictEqual(r, { ok: true, company: true, site: true });
+    assert.deepStrictEqual(calls.slice(2), ['PATCH rcl_sites?code=eq.S1 {"company_id":"RACHANA"}', 'forget']);
+    // a site given no company: its company taken off (nothing else of it)
+    r = ask({ site: 'T2', link: true, company: null });
+    assert.deepStrictEqual(calls, ['PATCH rcl_sites?code=eq.T2 {"company_id":null}', 'forget']);
+    // a site of the Portal that is not set up here (not in the list): only the company
+    r = ask({ site: '18B', link: true, company: rach });
+    assert.deepStrictEqual([r.site, calls.length, calls.some(x => /rcl_sites/.test(x))], [false, 2, false]);
+    // no "link": the site "PORTAL" (or any other) is never changed
+    r = ask({ site: 'S1', company: rach });
+    assert.ok(!calls.some(x => /rcl_sites/.test(x)) && r.site === false);
+    assert.ok(!calls.some(x => /^DELETE/.test(x)));
+    // no list of sites yet (step-7 SQL): said, nothing written
+    reg = null; r = ask({ site: 'S1', link: true, company: rach });
+    assert.strictEqual(r.ok, false); assert.deepStrictEqual(calls, []);
+  } finally { sites.registry = was.reg; sites.homeRest = was.rest; sites.forget = was.forget; portal.verifyAdmin = was.verify; }
+  // the ticket says "papers" only after its signature, audience, time and number are checked (as every request of the Portal)
+  const src = fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8');
+  assert.ok(src.indexOf("if (c.act === 'papers') return Object.assign(out, papersOf(c));") > src.indexOf('const c = check(ticket, ADMIN_AUD, now)'));
+});
