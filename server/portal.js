@@ -108,6 +108,7 @@ function verifyAdmin(ticket, now) {
   if (c.act === 'bkSet') return Object.assign(out, { target: c.target === 'portal' ? 'portal' : '', mode: c.mode === 'add' ? 'add' : 'change', link: String(c.link || '').trim().slice(0, 300) });
   // (update-158) Sites → Storage: every site's storage and the Drive copy; "Connect Google Drive" (the first site); "Copy files now" (one site)
   if (c.act === 'stoGet' || c.act === 'drvStart' || c.act === 'drvNow') return out;
+  if (c.act === 'papers') return Object.assign(out, papersOf(c));      // (update-193) a company / a site's company saved in the Portal
   if (c.act !== 'pages') throw bad('not a known request');
   const email = String(c.email || '').trim().toLowerCase();
   if (!EMAIL.test(email) || email.length > 120) throw bad('no proper email of the user');
@@ -123,5 +124,14 @@ function verifyAdmin(ticket, now) {
   }
   return Object.assign(out, { email: email, name: String(c.name || email).slice(0, 80), admin: c.admin === true, perms: perms }, sources ? { sources: sources } : {});
 }
+/* (update-193, 29-10-2026) the papers of the modules (the Store's PO and Purchase Requisition Form): a company saved in the Portal – its
+ * name, address, GSTIN, PAN, logo (checked there as in its form; here only cut to size, a logo kept only as an https link) – and, with
+ * "link", that site's company (none: no company). A company alone comes with the site "PORTAL" (as Storage) and no "link". */
+function papersOf(c) {
+  const co = c.company && typeof c.company === 'object' ? c.company : {}, s = (v, n) => String(v === undefined || v === null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n);
+  const id = s(co.id, 40), name = s(co.name, 80), logo = s(co.logo, 300);
+  return { link: c.link === true, company: id && name.length >= 2 ? { id: id, name: name, address: s(co.address, 300), gstin: s(co.gstin, 15).toUpperCase(), pan: s(co.pan, 10).toUpperCase(),
+    logo: /^https:\/\/[^\s"'<>]{4,300}$/.test(logo) ? logo : '' } : null };
+}
 function forget() { KEYS = { at: 0, from: '', keys: [] }; }
-module.exports = { url, verify, verifyAdmin, forget, AUD, ADMIN_AUD };
+module.exports = { url, verify, verifyAdmin, papersOf, forget, AUD, ADMIN_AUD };
