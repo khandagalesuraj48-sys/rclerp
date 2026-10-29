@@ -6170,7 +6170,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * server refuses any other day (booksOpen_); the Admin and the Super Admin as before. */
   const userDays = log => { const own = log ? 1 : 0, lim = S.rules && S.rules.backDays !== '' && S.rules.backDays !== undefined && S.rules.backDays !== null ? Number(S.rules.backDays) : ''; return lim === '' || !isFinite(lim) ? own : Math.min(lim, own); };
   const userFloor = days => { const d = new Date(S.today + 'T00:00:00'); d.setDate(d.getDate() - days); return isoDate(d); };
-  const USER_DATE_IDS = ['d_date', 'bd_date', 'i_date', 't_date', 'tc_date', 'bk_date', 'lg_top_date'];
+  // (update-188) the Maintenance bill's date and a fuel card payment's too (his answer: "फक्त आजची तारीख"); not the Daily machinery
+  // status' date – it also shows an earlier day (its Submit of an earlier day the server refuses with the words)
+  const USER_DATE_IDS = ['d_date', 'bd_date', 'i_date', 't_date', 'tc_date', 'mt_date', 'cp_date', 'lg_top_date'];
   function userDateBox(el) {
     if (!el || el.tagName !== 'INPUT' || el.type !== 'date' || !S.user || S.user.admin || !S.today) return;
     const row = el.dataset && el.dataset.f === 'date' && el.closest('#lg_in, #bm_rows');
@@ -14477,7 +14479,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (el.type === 'date' && v && S.today && v > S.today && (ENTRY_DATES.indexOf(el.id) > -1 || (f === 'date' && el.closest('#lg_in'))))
       return 'Date ' + showDate(v) + ' is after today (' + showDate(S.today) + '). Entries can be made only up to today.';
     // … (update-187) a user who is not Admin: only today's entries – the Log Book also yesterday's (the site's own rule only stricter)
-    if (el.type === 'date' && v && S.today && S.user && !S.user.admin && ((ENTRY_DATES.indexOf(el.id) > -1 && ['i_billdate', 'py_date', 'dn_date'].indexOf(el.id) === -1) || (f === 'date' && el.closest('#lg_in, #bm_rows')))) {
+    if (el.type === 'date' && v && S.today && S.user && !S.user.admin && (USER_DATE_IDS.indexOf(el.id) > -1 || (f === 'date' && el.closest('#lg_in, #bm_rows')))) {
       const log = el.id === 'lg_top_date' || !!el.closest('#lg_in'), days = userDays(log);
       if (v < userFloor(days)) return (log ? 'Log Book entry' : 'Entry') + ' of ' + showDate(v) + ': ' + (days ? 'a user enters only the Log Book of today and yesterday' : 'a user enters only today\'s entries') + ' – an entry of an earlier day is made, changed or deleted only by the Admin or the Super Admin. Ask the Admin.';
     }
@@ -17734,7 +17736,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const put = (id, v) => { if (v === '' || v === null || v === undefined || $(id).value.trim() !== '') return 0; $(id).value = v; $(id).classList.add('ai-read'); return 1; };
     // the bill's date: put in while the date box still has the date it was opened with (today) – a date the person chose stays
     let n = 0;
-    if (r.date && (!S.mt.dateTyped || !$('mt_date').value)) { $('mt_date').value = r.date; $('mt_date').classList.add('ai-read'); n++; }
+    if (r.date && (!S.mt.dateTyped || !$('mt_date').value) && ((S.user && S.user.admin) || r.date >= S.today)) { $('mt_date').value = r.date; $('mt_date').classList.add('ai-read'); n++; }      // (update-188) a user's bill: today's date
     n += put('mt_billno', r.billNo) + put('mt_garage', r.garage) + put('mt_km', r.km);
     // (update-168) the car of the bill's number, when it is in the Asset Master and the box is still empty
     const vm = r.vehicle ? findMachine(r.vehicle) : null; if (vm && !val('mt_no')) { $('mt_no').value = vm.id; $('mt_no').classList.add('ai-read'); n++; }

@@ -2236,6 +2236,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (`REQ_DAY_` while it is saved at the last approval or sent again; one sent before 29-10-2026 not held); the Super Admin's approval
   of a change is his. The page: the same check (`liveMsg`), a user's date boxes `min` / `max` (`userDateBox`), the help, the Rules
   label. `USER_DATE_RULE_ON_` (off in the harness for the tests of before). No SQL. Tests: unit `update-187`; rig `today187.js`.
+- 29-10-2026 (update-188, with rcl-mobile 3.62.1, rcl-store and rcl-engineering). Report: `UPDATE_188.md`. THE DATE RULE PUT RIGHT: Open &
+  correct measured from the day the entry was sent (`flowDry_(…, at)`, `reqDay_`); his answers – a user's Maintenance bill date and card
+  payment date only today on the page too (`USER_DATE_IDS`), the bill reader keeps them today; the Daily machinery status date free to
+  look back. Billed / approved old entries, the Debit Statement's rates and the Night shift after midnight stay as update-187 (his answers).
+  No SQL. Tests: unit `update-188`; rig `today187.js`, `fix130.js`.
 - 28-10-2026 (update-178, with the Store's step 2 – rcl-store `store-work` – and rcl-mobile 3.55.0). Report: `UPDATE_178.md`. THE STORE'S
   OUTWARD IN THE MAINTENANCE LOG BOOK: `maintStoreLines_(m, from, to)` reads the site's `store_issue` / `store_issue_lines` (the same
   database; paged) – each issue a bill of the Party "RCL Store" (Outward <no>, the Store's average rate, the reading; on debit: "Debit",

@@ -39,6 +39,9 @@ no longer brings back its old date – the cause of the entries saved on the 28t
   Inward of yesterday refused with the words, of today not refused for its date; Log Book 2 days back refused, yesterday saved; the Admin's
   inward of 5 days back not refused for its date; his Diesel Issue and Inward date boxes: only today, yesterday said at once in the
   server's words; his Log Book date: yesterday or today; the Admin's date box: no limit; no page error.
+* The same rig with the Portal (the users sign in there): verification – `flow114` 11 / 12, `flow116` 17 / 18 (sent, sent back, sent
+  again, approved and saved; the one line of each is the page's "Database check: 4 thing(s) to do" note of this copy, where the newer
+  SQL steps are not run – not about this change); diesel sources per person – `dsrc162` 26 / 26; the Portal's own test 119 / 119.
 * `node --check` on `server/*.js`, `api/*.js`; the page's scripts parse; no secret in the change.
 
 ## Not verified

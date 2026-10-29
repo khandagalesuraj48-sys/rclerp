@@ -13071,7 +13071,7 @@ function flowDecide_(u, x) {
         withLock_(() => {
           r0 = look(); f = r0.flow;
           DSRC_U_ = ru;      // (update-162) the sender's diesel sources count (not the approver's)
-          REQ_DAY_ = r0.at ? dkey_(new Date(r0.at)) : '';      // (update-187) the user's date rule from the day it was sent
+          REQ_DAY_ = reqDay_(r0.at);      // (update-187) the user's date rule from the day it was sent
           ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; VER_CTX_ = 'flow'; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = f.photos && typeof f.photos === 'object' ? f.photos : null;      // (update-120) its photos, as noted when it was sent
           APPROVER_ = u.name || u.email;      // (update-152) the Log Book rows it writes are marked approved by him
           FLOW_SENDER_ = ru.email;      // (update-153) the files it takes are the sender's
@@ -13207,7 +13207,7 @@ function flowResendOne_(u, id, note) {
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
   let res = null;
-  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = held; VER_CTX_ = 'resend'; REQ_DAY_ = r0.at ? dkey_(new Date(r0.at)) : '';      // (update-187)
+  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = held; VER_CTX_ = 'resend'; REQ_DAY_ = reqDay_(r0.at);      // (update-187)
   try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
   catch (e) {
     if (e !== FLOW_DRY_) {
@@ -13270,14 +13270,14 @@ function flowFixOf_(u, id) {
   return { r0: r0, spec: spec, form: form, args0: args0, levels: levels };
 }
 // the save run as his own, nothing written (as flowSend_): { res } – its answer – or { error } – what it said, as for a save
-function flowDry_(u, spec, args, id, held) {
+function flowDry_(u, spec, args, id, held, at) {
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; OUT_FOR_ = u;
   let res = null;
-  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = id; FLOW_PHOTOS_ = held;
+  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = id; FLOW_PHOTOS_ = held; REQ_DAY_ = reqDay_(at);      // (update-188) Open & correct: the user's date rule from the day it was sent, as its approval
   try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
   catch (e) { if (e !== FLOW_DRY_) { if (faultKind_(e)) throw e; return { error: String((e && e.message) || e).replace(/^Error:\s*/, '') }; } }
-  finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; TABLE_MEMO_ = {}; }
+  finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; REQ_DAY_ = ''; TABLE_MEMO_ = {}; }
   return { res: res };
 }
 const flowHeld_ = r0 => { const f0 = r0.flow || {}; return f0.photos && typeof f0.photos === 'object' ? JSON.parse(JSON.stringify(f0.photos)) : {}; };
@@ -13304,7 +13304,7 @@ function flowChanges_(a0, a1) {
 // OPEN: the entry as it was sent, and what the save says of it now
 function flowOpen_(u, x) {
   const id = str_((x || {}).id), fx = flowFixOf_(u, id), r0 = fx.r0;
-  const dry = flowDry_(u, fx.spec, JSON.parse(JSON.stringify(fx.args0)), r0.id, flowHeld_(r0));
+  const dry = flowDry_(u, fx.spec, JSON.parse(JSON.stringify(fx.args0)), r0.id, flowHeld_(r0), r0.at);
   const check = dry.error ? { ok: false, error: dry.error } : flowRefusing_(dry.res)
     ? ['errors', 'warnings', 'warning', 'error', 'used', 'duplicates'].reduce((o, k) => { if (dry.res[k] !== undefined) o[k] = dry.res[k]; return o; }, { ok: false }) : { ok: true };
   return { ok: true, id: r0.id, fn: r0.fn, form: fx.form, args: fx.args0, status: r0.status, result: r0.result || '', decidedBy: r0.decidedBy || '', note: r0.note || '', check: check, summary: r0.summary };
@@ -13410,7 +13410,7 @@ function flowEdit_(u, x) {
     p0.concat(Array.isArray(args[0].photos) ? args[0].photos : []).forEach(x => { if (x && typeof x === 'object' && x.k) byK[x.k] = x; }); args[0].photos = Object.keys(byK).map(k => byK[k]).slice(0, 4); } }
   const json = JSON.stringify(args);
   if (json.length > 400000) throw new Error('This entry is too big to send for verification at once – send it in parts (fewer rows).');
-  const held = flowHeld_(fx.r0), dry = flowDry_(u, spec, args, fx.r0.id, held);
+  const held = flowHeld_(fx.r0), dry = flowDry_(u, spec, args, fx.r0.id, held, fx.r0.at);
   if (dry.error) throw new Error(dry.error);      // the save's own words (e.g. not enough diesel) – nothing changed
   if (flowRefusing_(dry.res)) return Object.assign({}, dry.res, { ok: false, id: id, notSent: true });      // its lines marked on the form; warnings: "anyway"
   const changes = flowChanges_(fx.args0, args), facts = flowFacts_(fn, args), d = flowDescribe_(fn, args);
@@ -13519,6 +13519,8 @@ let ACTOR_ADMIN_ = true;       // set for every call (apiRun_); code run without
  * days later it still saves); one sent before this rule (29-10-2026) is not held by it. The Super Admin's approval of a change is his. */
 const USER_TODAY_FROM_ = '2026-10-29';
 let REQ_DAY_ = '';      // the day a verification request was made – set while it is saved at its approval or sent again
+// (update-188) its day from its 'Requested At' – an unreadable time: '' (measured from today, never a fault)
+const reqDay_ = at => { const d = at ? new Date(at) : null; return d && !isNaN(d.getTime()) ? dkey_(d) : ''; };
 let USER_DATE_RULE_ON_ = true;      // (the unit tests of before keep their fixed dates with it off – the site's own rule then as before)
 const userDays_ = what => /^Log Book/.test(String(what || '')) ? 1 : 0;
 function userDateRule_(dk, what) {
