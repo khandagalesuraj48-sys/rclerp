@@ -2245,6 +2245,9 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   every page with a date; only that page's entries of an earlier day): `DATE_PAGES_`, kept as "Admin" in the page's cell, read as Edit
   with the page in `pageAdmin` (`ACTOR_PAGE_ADMIN_` → `userDateRule_`); the Portal and Users & Access offer it (`dateAdmin`). No SQL.
   Tests: unit `update-189`; rig `page189.js`.
+- 29-10-2026 (update-190, urgent). Report: `UPDATE_190.md`. VEHICLE COMPLIANCE DREW NO TABLE (since update-164): the card payments had
+  its names `S.cp` / `cpLoad` – now `S.cpay` / `cpayLoad`; the Dashboard's diesel-stock dates had the Log Book's `lg_note` – now
+  `lgd_note`. A unit test against names made twice. No SQL. Tests: unit `update-190`; rig `comp190.js` (before: the same fault).
 - 28-10-2026 (update-178, with the Store's step 2 – rcl-store `store-work` – and rcl-mobile 3.55.0). Report: `UPDATE_178.md`. THE STORE'S
   OUTWARD IN THE MAINTENANCE LOG BOOK: `maintStoreLines_(m, from, to)` reads the site's `store_issue` / `store_issue_lines` (the same
   database; paged) – each issue a bill of the Party "RCL Store" (Outward <no>, the Store's average rate, the reading; on debit: "Debit",
