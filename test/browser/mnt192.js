@@ -3,7 +3,8 @@
 // tyach ani heading ekde tikde astil tr heading match krel ok baki amount madhe jara pn changes hoyla nko" and "maintanace log bokk je aahet
 // status made multiple delet option pn de ek ek select krun ek sathi mi delet kru shaku") – on the local rig in claude mode (PORTAL=1,
 // RCLSTEPS=1): site S1 (database rcl, step 1zi run). Test data only (made here – not his data).
-//   1. an Excel in another column order, with what old files have: an amount typed "1,250/-", a GST kept 56.25 but shown 56, a Qty
+//   1. an Excel in another column order, with what old files have: an amount typed "1,250/-", a GST of 56.25 shown 56 (kept 56.25 – the cell's
+//      whole value, as his MH25AJ5506 sheet needs), a Qty
 //      "2 Nos", an oil named TOTAL QUARTZ, a Sub Total row, two bills of one day with their own bill no.s, a row of only its date and
 //      party, an amount without Particulars, a line without an Amount – every amount kept as the file shows it; File total = Total
 //   2. the AI's names: a party and an item given – only the item listed; ticked: only that item changed
@@ -45,15 +46,15 @@ const R = 'RL-192', J2 = 'JCB-192', K = 'TR-192';
     const head = ['Sr No', 'Date', 'Bill No', 'Party Name', 'Current Reading', 'Particulars', 'Qty', 'Uom', 'Basic Rate', 'Amount', 'GST Amount', 'Amount With GST', 'Total'];      // (another order: Bill No third)
     const roller = [['Rachana Construction Limited'], ['ROLLER NO-192'], head,
       [1, '05-01-2023', 'B-101', 'SURJ', 500, 'TOTAL QUARTZ 15W40', 5, 'Ltr', 250, '1,250/-', 225, '1,475/-', ''],      // row 4: an oil named Total; amounts typed with "/-"
-      [2, '', '', '', '', 'FILTER', '2 Nos', '', 156.25, 312.5, 56.25, 368.5, ''],                                     // row 5: its Qty with its unit; its GST kept 56.25, shown 56
-      ['', '', '', '', '', 'Sub Total', '', '', '', 1562.5, 281, 1843.5, ''],                                            // row 6: the bill's Sub Total
+      [2, '', '', '', '', 'FILTER', '2 Nos', '', 156.25, 312.5, 56.25, 368.75, ''],                                    // row 5: its Qty with its unit; its GST 56.25, shown 56
+      ['', '', '', '', '', 'Sub Total', '', '', '', 1562.5, 281.25, 1843.75, ''],                                        // row 6: the bill's Sub Total
       [3, '05-01-2023', 'B-102', 'SURJ', 500, 'GREASE', 1, 'Kg', 200, 200, 36, 236, ''],                                 // row 7: the same day and party – another bill no.
       ['', '10-02-2023', '', 'GANESH', 620, '', '', '', '', '', '', '', ''],                                              // row 8: only its date / party / reading
       ['', '', '', '', '', 'BRAKE PAD', 2, 'Nos', 800, 1600, 288, 1888, ''],                                              // row 9: its line
       ['', '', '', '', '', '', '', '', '', 100, 18, 118, ''],                                                             // row 10: an amount without Particulars
       ['', '', '', '', '', 'BULB', 2, 'Nos', 40, '', '', '', '']];                                                        // row 11: no Amount in the file
     const ws = XLSX.utils.aoa_to_sheet(roller);
-    ws['K5'].z = '0'; ws['L5'].z = '0.00'; ws['J5'].z = '0.00';      // (the GST shown as whole rupees: 56; the amount 312.50, with GST 368.50)
+    ws['K5'].z = '0'; ws['L5'].z = '0'; ws['J5'].z = '0.00';      // (the GST and its total shown as whole rupees: 56, 369 – the cells keep 56.25, 368.75)
     const bad = [['Rachana Construction Limited'], ['TRACTOR 192'], head, [1, '07-03-2023', '', 'Store', 10, 'TYRE', 1, 'Nos', 300, 'three hundred', '', '', '']];
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Roller 192'); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(bad), 'Tractor 192');
     const file = path.join(dir, 'Old log book 192.xlsx'); XLSX.writeFile(wb, file);
@@ -73,13 +74,13 @@ const R = 'RL-192', J2 = 'JCB-192', K = 'TR-192';
     for (let i = 0; i < 40 && !(await F.evaluate(() => !!(S.mli && S.mli.fix && !S.mli.fix.busy))); i++) await wait(500);
     const rd = await F.evaluate(() => { const x = S.mli.sheets.find(s => s.sheet === 'Roller 192'); return { no: x.no, bills: x.bills.map(b => [b.rows, b.date, b.garage, b.km, b.billNo, b.lines.map(l => [l.work, l.qty, l.uom, l.amount, l.gstAmt === undefined ? '' : l.gstAmt])]),
       total: x.total, file: x.fileTotal, warn: (x.warn || []).map(w => w.k + ':' + w.line), shown: [...document.querySelectorAll('#mti_out tr')].map(tr => [...tr.cells].map(c => c.textContent.trim())).find(r => r[0] === 'Roller 192') }; });
-    ok('1. read as it is: the oil named TOTAL kept, "1,250/-" = 1,250, the GST shown 56 is 56 (not its hidden 56.25), "2 Nos" = 2 Nos, the Sub Total left out, two bills of one day by their bill no., the date / party row given to its line, the amount without Particulars kept as "-", no Amount: ₹0',
+    ok('1. read as it is: the oil named TOTAL kept, "1,250/-" = 1,250, the GST shown 56 is the cell\'s 56.25 (its whole value), "2 Nos" = 2 Nos, the Sub Total left out, two bills of one day by their bill no., the date / party row given to its line, the amount without Particulars kept as "-", no Amount: ₹0',
       rd.no === R && JSON.stringify(rd.bills) === JSON.stringify([
-        ['Line 4–5', '2023-01-05', 'SURJ', 500, 'B-101', [['TOTAL QUARTZ 15W40', 5, 'Ltr', 1250, 225], ['FILTER', 2, 'Nos', 312.5, 56]]],
+        ['Line 4–5', '2023-01-05', 'SURJ', 500, 'B-101', [['TOTAL QUARTZ 15W40', 5, 'Ltr', 1250, 225], ['FILTER', 2, 'Nos', 312.5, 56.25]]],
         ['Line 7', '2023-01-05', 'SURJ', 500, 'B-102', [['GREASE', 1, 'Kg', 200, 36]]],
         ['Line 9–11', '2023-02-10', 'GANESH', 620, '', [['BRAKE PAD', 2, 'Nos', 1600, 288], ['-', '', '', 100, 18], ['BULB', 2, 'Nos', 0, '']]]]), rd);
-    ok('   File total = Total (₹4,085.50 – the amounts with their GST as the file shows them); each row not imported as a line, or to look at, listed',
-      rd.total === 4085.5 && rd.file === 4085.5 && rd.shown && rd.shown[5] === '4,085.50' && rd.shown[6] === '4,085.50' && JSON.stringify(rd.warn) === JSON.stringify(['tot:6', 'np:10', 'na:11']), rd);
+    ok('   File total = Total (₹4,085.75 – the amounts with their GST as the cells have them); each row not imported as a line, or to look at, listed',
+      rd.total === 4085.75 && rd.file === 4085.75 && rd.shown && rd.shown[5] === '4,085.75' && rd.shown[6] === '4,085.75' && JSON.stringify(rd.warn) === JSON.stringify(['tot:6', 'np:10', 'na:11']), rd);
     // ---- 2. the names: only the items ----
     const nm = await F.evaluate(() => ({ list: (S.mli.fix.list || []).map(z => z.f + ':' + z.from + '→' + z.to), head: (document.querySelector('#mti_out .mli-names h3') || {}).textContent, cols: [...document.querySelectorAll('#mti_out .mli-names thead th')].map(t => t.textContent) }));
     const asked = (await aiSay('/__log')).filter(x => x.names);
@@ -92,13 +93,13 @@ const R = 'RL-192', J2 = 'JCB-192', K = 'TR-192';
     for (let i = 0; i < 30 && !(await F.evaluate(() => !!(S.mli.sheets.find(s => s.sheet === 'Roller 192').res))); i++) await wait(400);
     const ck = await F.evaluate(() => ({ tr: S.mli.sheets.find(s => s.sheet === 'Tractor 192'), rl: S.mli.sheets.find(s => s.sheet === 'Roller 192').res, go: !$('mti_go').disabled,
       text: ([...document.querySelectorAll('#mti_out tr')].find(tr => tr.cells[0] && tr.cells[0].textContent.trim() === 'Tractor 192') || {}).textContent }));
-    ok('3. a sheet with an amount that is not a number: said ("Amount "three hundred" is not a number"), not checked; the roller checked – 3 new bills', ck.tr.nums.length === 1 && !ck.tr.res && /1 amount\(s\) are not a number – put them right in the file; nothing of this sheet is imported:/.test(ck.text) && /Line 4 \(TYRE\): Amount "three hundred" is not a number/.test(ck.text) && ck.rl.ok && ck.rl.fresh === 3 && ck.rl.total === 4085.5 && ck.go, [ck.tr.nums, ck.rl, ck.go, ck.text]);
+    ok('3. a sheet with an amount that is not a number: said ("Amount "three hundred" is not a number"), not checked; the roller checked – 3 new bills', ck.tr.nums.length === 1 && !ck.tr.res && /1 amount\(s\) are not a number – put them right in the file; nothing of this sheet is imported:/.test(ck.text) && /Line 4 \(TYRE\): Amount "three hundred" is not a number/.test(ck.text) && ck.rl.ok && ck.rl.fresh === 3 && ck.rl.total === 4085.75 && ck.go, [ck.tr.nums, ck.rl, ck.go, ck.text]);
     await F.evaluate(() => $('mti_go').click()); await wait(800);
     await F.evaluate(() => { const okb = document.getElementById('cf_ok'); if (okb) okb.click(); });
     for (let i = 0; i < 30 && bills(R) !== '3'; i++) await wait(500);
     const kept = sql('rcl', "select string_agg(coalesce(bill_no, '') || ' ' || garage || ' ' || amount || ' ' || lines, ' | ' order by date, bill_no) from maintenance where machinery = '" + R + "'");
-    ok('   imported – each bill with its bill no. and ₹ as the file shows them (1,843.50, 236, 2,006); the item ticked spelt so, the party as in the file (SURJ); "-" and the free BULB kept; the tractor nothing',
-      bills(R) === '3' && bills(K) === '0' && /^B-101 SURJ 1843\.5 /.test(kept) && /"work":"TOTAL QUARTZ 15W-40"[^}]*"amount":1250[^}]*"gstAmt":225/.test(kept) && /"work":"FILTER"[^}]*"amount":312\.5[^}]*"gstAmt":56\b/.test(kept) &&
+    ok('   imported – each bill with its bill no. and ₹ as the file has them (1,843.75, 236, 2,006); the item ticked spelt so, the party as in the file (SURJ); "-" and the free BULB kept; the tractor nothing',
+      bills(R) === '3' && bills(K) === '0' && /^B-101 SURJ 1843\.75 /.test(kept) && /"work":"TOTAL QUARTZ 15W-40"[^}]*"amount":1250[^}]*"gstAmt":225/.test(kept) && /"work":"FILTER"[^}]*"amount":312\.5[^}]*"gstAmt":56\.25/.test(kept) &&
       /B-102 SURJ 236 /.test(kept) && / GANESH 2006 /.test(kept) && /"work":"-"[^}]*"amount":100[^}]*"gstAmt":18/.test(kept) && /"work":"BULB","type":"FOC","amount":0/.test(kept) && !/SURAJ|"gst":/.test(kept), kept);
     await F.evaluate(() => $('mti_x').click()); await tidy();
     // ---- 4. the status: two log books deleted together ----
@@ -118,8 +119,8 @@ const R = 'RL-192', J2 = 'JCB-192', K = 'TR-192';
     await mp.screenshot({ path: path.join(SHOT, 'mnt192_confirm.png') });
     await F.evaluate(() => { $('mld_t').value = 'DEL'; $('cf_ok').click(); }); await wait(900);
     const t1 = await toastNow();
-    ok('   said first: each with its bills, dates and ₹ (the roller 3 bills ₹4,085.50, the JCB 2 bills ₹800); a wrong word – "Not deleted – type DELETE to confirm.", nothing deleted',
-      /The whole maintenance log book of these 2 machinery – 5 bill\(s\), ₹4,885\.50 – is deleted:/.test(dlg.text) && dlg.text.indexOf(R + ' – 3 bill(s), 05-01-2023 to 10-02-2023, ₹4,085.50') > -1 && dlg.text.indexOf(J2 + ' – 2 bill(s)') > -1 && dlg.ok === 'Delete 5 bill(s)' &&
+    ok('   said first: each with its bills, dates and ₹ (the roller 3 bills ₹4,085.75, the JCB 2 bills ₹800); a wrong word – "Not deleted – type DELETE to confirm.", nothing deleted',
+      /The whole maintenance log book of these 2 machinery – 5 bill\(s\), ₹4,885\.75 – is deleted:/.test(dlg.text) && dlg.text.indexOf(R + ' – 3 bill(s), 05-01-2023 to 10-02-2023, ₹4,085.75') > -1 && dlg.text.indexOf(J2 + ' – 2 bill(s)') > -1 && dlg.ok === 'Delete 5 bill(s)' &&
       /Not deleted – type DELETE to confirm\./.test(t1) && bills(R) === '3' && bills(J2) === '2', [dlg, t1]);
     await tidy();
     await F.evaluate(() => $('ml_stdel').click()); await wait(700);

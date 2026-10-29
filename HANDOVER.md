@@ -2252,8 +2252,11 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   total; a date / party row gives them to the lines under it); a row's own numbers only (`maintLogRows_` = `mliRows`: no Amount – With GST
   less GST; no GST ₹ – the difference when 0–28 %; no GST made from a %); the bill no. (`billNo`, the 13th column; two bills of a day by
   their nos.; `importMaint_` `twice`); the AI's names only the items (`maintImportNames_`, `mliNamesOf`, `mliBills`). LOG BOOK STATUS:
-  the Admin ticks log books (`#ml_stdel`, `S.mlsel`) → each deleted by `deleteMaintLog` (all, count), DELETE typed. No SQL. Tests: unit
-  `update-192`; rig `mnt192.js`, mnt183 / 173 / mline180 / 182.
+  the Admin ticks log books (`#ml_stdel`, `S.mlsel`) → each deleted by `deleteMaintLog` (all, count), DELETE typed. THEN, WITH HIS REAL
+  MH25AJ5506 SHEET (16:32): the cell's whole value kept (`mliShown` – only a % cell as shown; the live data had the shown, rounded numbers),
+  no line of the file left out for another like it (`importMaint_` `twice`: only a saved bill, once, its reading / bill no.; the page lists
+  `same`, `nw`; zero rows no line), `spellOnly_` (a word added / moved is no spelling), `rpExcel` dates `data-t="s"` (10-12-2023 was turned
+  around). No SQL. Tests: unit `update-192`; rig `mnt192.js`, mnt183 / 173 / mline180 / 182 / 170; his sheet on the rig 194 / 194 lines.
 - 29-10-2026 (update-191, with rcl-store #24, rcl-engineering #8, rcl-portal #28, rcl-mobile 3.67.0). Report: `UPDATE_191.md`. 🎙 SPEAK
   INTO A BOX: the block "SPEAK INTO A BOX" before `</body>` of `app/App.html` (the same code as the Store's / Engineering's `voice.js`, the
   Portal's block): a 🎙 in the box in use (text / number / phone / note; not a password, a date, shown-only, `data-novoice` – `#ai_form`);

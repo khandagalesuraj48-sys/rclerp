@@ -7182,5 +7182,7 @@
 "{0} deleted, {1} not deleted": "{0} delete झाले, {1} delete झाले नाहीत",
 "Not deleted:": "Delete झाले नाहीत:",
 "{0} – {1} bill(s)": "{0} – {1} bill",
-"{0} log book(s) deleted.": "{0} log book delete झाले."
+"{0} log book(s) deleted.": "{0} log book delete झाले.",
+"Line {0} ({1}): no Amount With GST in the file – Amount + GST ₹{2} kept": "ओळ {0} ({1}): file मध्ये Amount With GST नाही – Amount + GST ₹{2} ठेवले",
+"Line {0}: written the same as {1} – imported as the file has it": "ओळ {0}: {1} सारखीच लिहिलेली – file मध्ये आहे तशीच import केली"
 }

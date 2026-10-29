@@ -6796,7 +6796,7 @@ test('update-173: the old Maintenance Log Book of a machinery imported as it is 
   const near = run('b => importMaint_(b)', { no: R, check: true, bills: [{ rows: 'Line 5', date: '2022-12-02', garage: 'STORE', lines: [{ work: 'Ad Blue (Gulf)', qty: 20, uom: 'Ltr', rate: 59, amount: 1180.5, gst: 18 }] }] });
   assert.deepStrictEqual([near.fresh, near.same, near.sameList[0].id], [0, 1, got.find(r => r.date === '2022-12-02').id], 'the same date and party, ₹0.59 apart: already there');
   const dbl = run('b => importMaint_(b)', { no: R, check: true, bills: [{ rows: 'Line 30', date: '2023-12-30', garage: 'Store', lines: [{ work: 'AD Blue', amount: 1180, gst: 18 }] }, { rows: 'Line 31', date: '2023-12-30', garage: 'Store', lines: [{ work: 'AD Blue', amount: 1180, gst: 18 }] }] });
-  assert.deepStrictEqual([dbl.fresh, dbl.same], [1, 1], 'the same bill twice in the file: once');
+  assert.deepStrictEqual([dbl.fresh, dbl.same], [2, 0], '(update-192, his MH25AJ5506 sheet – two AdBlue fills of a day) two bills of the file alike: both, as the file has them (the page shows them)');
   // the checks: all or nothing; a rented machinery; no bill; a date after today; a line without its work
   const bad = run('b => importMaint_(b)', { no: R, bills: [{ rows: 'Line 40', date: '2023-02-02', garage: 'Store', lines: [{ work: 'Bulb', amount: 40 }] }, { rows: 'Line 41', date: '2099-01-01', garage: 'Store', lines: [{ work: 'Bulb', amount: 40 }] }, { rows: 'Line 42', date: '2023-02-03', garage: 'Store', lines: [{ work: '', qty: 1, amount: 50 }] }] });
   assert.deepStrictEqual([bad.ok, bad.added, bad.errorCount, bad.errors.map(e => e.rows)], [false, undefined, 2, ['Line 41', 'Line 42']]);
@@ -7819,8 +7819,18 @@ test('update-192 (29-10-2026, "old log book … as it is sagle aahe as yeyla haw
   assert.deepStrictEqual([i1.ok, i1.added, i1.same, i1.total], [true, 2, 0, 1180], 'two bills of one day, their own nos.: both, each ₹590 as in the file');
   const saved = run('() => getMaint_({ no: "' + M + '", from: "2024-03-05", to: "2024-03-05" }).rows').map(r => r.billNo + ':' + r.total + ':' + r.lines.map(l => l.work + '/' + l.amount + '/' + l.gstAmt).join(',')).sort();
   assert.deepStrictEqual(saved, ['B-11:590:ENGINE OIL/500/90', 'B-12:590:ENGINE OIL/500/90'], 'kept with their bill no.s and the ₹ as in the file');
-  const again = run('b => importMaint_(b)', { no: M, check: true, bills: two.concat([{ rows: 'Line 6', date: '2024-03-05', garage: 'SURAJ', lines: [{ work: 'ENGINE OIL', amount: 500, gstAmt: 90 }] }]) });
-  assert.deepStrictEqual([again.fresh, again.same], [0, 3], 'the same file again: never twice (a bill without its no. – as before)');
+  const again = run('b => importMaint_(b)', { no: M, check: true, bills: two });
+  assert.deepStrictEqual([again.fresh, again.same], [0, 2], 'the same file again: never twice');
+  const more = run('b => importMaint_(b)', { no: M, check: true, bills: two.concat([{ rows: 'Line 6', date: '2024-03-05', garage: 'SURAJ', lines: [{ work: 'ENGINE OIL', amount: 500, gstAmt: 90 }] }]) });
+  assert.deepStrictEqual([more.fresh, more.same], [1, 2], 'a saved bill stands for one bill of the file: a third like them is new');
+  run('b => importMaint_(b)', { no: M, bills: [{ rows: 'Line 9', date: '2024-04-01', garage: 'Store', km: 40118.7, lines: [{ work: 'AD BLUE', amount: 1040, gstAmt: 187.2 }] }] });
+  const km = run('b => importMaint_(b)', { no: M, check: true, bills: [{ rows: 'Line 9', date: '2024-04-01', garage: 'Store', km: 40118.7, lines: [{ work: 'AD BLUE', amount: 1040, gstAmt: 187.2 }] }, { rows: 'Line 10', date: '2024-04-01', garage: 'Store', km: 40123.1, lines: [{ work: 'AD BLUE', amount: 1040, gstAmt: 187.2 }] }] });
+  assert.deepStrictEqual([km.fresh, km.same, km.sameList[0].rows], [1, 1, 'Line 9'], 'another reading: another bill (his two AdBlue fills of 30-01-2026)');
+  // (his MH25AJ5506 sheet) the AI's names: only a spelling – a word added or moved is not offered
+  const SP = (a, b) => run('(a, b) => spellOnly_(a, b)', a, b);
+  assert.deepStrictEqual([['COOLENT', 'COOLANT'], ['HYDROULIC OIL 68 NO', 'HYDRAULIC OIL 68 NO'], ['ADBLUE MAHINDRA', 'AD BLUE MAHINDRA'], ['PATCH NO 45', 'PATCH NO.45'], ['BREAK OIL', 'BRAKE OIL'], ['DIPHAGRAM BUSTER RUBBER', 'DIAPHRAGM BUSTER RUBBER'],
+    ['DIESEL CAP', 'DIESEL TANK CAP'], ['MAHINDRA AD BLUE', 'AD BLUE MAHINDRA'], ['PLAIN WASHER', 'WASHER PLAIN'], ['HYDRAULIC OIL 68', 'HYDRAULIC OIL 68 NO'], ['ENGINE OIL', 'ENGINE OIL FILTER'], ['15W40 OIL', '20W50 OIL'], ['10 MM BOLT', '12 MM BOLT']].map(p => SP(p[0], p[1])),
+    [true, true, true, true, true, true, false, false, false, false, false, false, false]);
   // the page's reader
   const vm = require('vm'), L = app.split('\n');
   const take = re => { const i = L.findIndex(l => re.test(l)); assert.ok(i > -1, String(re)); for (let k = i; k < i + 90; k++) { const t = L.slice(i, k + 1).join('\n'); try { new vm.Script(t); return t; } catch (e) { /* more lines */ } } throw new Error(String(re)); };
@@ -7831,7 +7841,8 @@ test('update-192 (29-10-2026, "old log book … as it is sagle aahe as yeyla haw
   const P = pc.T, J = v => JSON.parse(JSON.stringify(v));
   assert.deepStrictEqual(J(['1,250/-', 'Rs. 500', '₹ 75.50', '(150)', '-', 'nil', '', 'abc', 12.5, '12.5.1'].map(P.mliNum)).map(v => v === null ? 'NaN' : v), [1250, 500, 75.5, -150, '', '', '', 'NaN', 12.5, 'NaN'], 'a number as written; not written: empty; not a number: NaN (never 0)');
   assert.deepStrictEqual(J(['2 Nos', '12,345 KM', '3'].map(P.mliLead)), [{ n: 2, u: 'Nos' }, { n: 12345, u: 'KM' }, { n: 3, u: '' }], 'a Qty / reading with its unit');
-  assert.deepStrictEqual(J(P.mliShown([[56.25, 0.18, 45230, 'x', 1234.5]], [['56', '18%', '10/31/23', 'x', '1,234.50']])), [['56', '18%', 45230, 'x', '1,234.50']], 'an Excel number as the sheet shows it; a date stays its date');
+  assert.deepStrictEqual(J(P.mliShown([[56.25, 0.18, 45230, 'x', 1185.59, 212.4]], [['56', '18%', '10/31/23', 'x', '1,186', '212']])), [[56.25, '18%', 45230, 'x', 1185.59, 212.4]],
+    '(his MH25AJ5506 sheet) an Excel number as it is in the cell – its whole value, not the rounded one shown (GST 212.40 shown "212", rate 1,185.59 shown "1,186"); only a per cent cell as shown; a date stays its date');
   assert.deepStrictEqual(['Total', 'SUB TOTAL', 'Grand Total :', 'Total Rs.', 'B/F', 'Total c/f', 'TOTAL QUARTZ 15W40', 'Total care oil', 'Totally'].map(t => P.MLI_TOT.test(t)), [true, true, true, true, true, true, false, false, false], 'a total row: its words alone ("TOTAL QUARTZ" is an oil)');
   const rows = [['ROLLER NO-03'], P.MLI_HEAD,
     [1, '2024-01-02', 'SURAJ', 500, 'TOTAL QUARTZ 15W40', 5, 'Ltr', 300, '1,500/-', 270, 1770, '', 'B-1'],      // line 3: an oil named Total
@@ -7842,7 +7853,8 @@ test('update-192 (29-10-2026, "old log book … as it is sagle aahe as yeyla haw
     ['', '2024-02-10', 'GANESH', 620, '', '', '', '', '', '', '', '', ''],                                         // line 8: a row of only its date / party / reading
     ['', '', '', '', 'BRAKE PAD', 2, 'Nos', 800, 1600, 288, 1888, '', ''],                                         // line 9: its line under it
     ['', '', '', '', '', '', '', '', 100, 18, 118, '', ''],                                                        // line 10: an amount without Particulars (not the bill's total)
-    ['', '', '', '', 'BULB', 2, 'Nos', 40, '', '', '', '', '']];                                                   // line 11: no Amount in the file
+    ['', '', '', '', 'BULB', 2, 'Nos', 40, '', '', '', '', ''],                                                    // line 11: no Amount in the file
+    [151, '', '', '', '', '', '', '', '', 0, 0, 0, 0]];                                                            // line 12: a numbered empty row (zeros) – no line
   const sh = J(P.mliSheet('ROLLER NO-03', rows, false));
   assert.deepStrictEqual(sh.bills.map(b => [b.rows, b.date, b.garage, b.km, b.billNo, b.lines.map(l => l.work + ':' + l.qty + ':' + l.uom + ':' + l.amount + ':' + (l.gstAmt || 0))]), [
     ['Line 3–4', '2024-01-02', 'SURAJ', 500, 'B-1', ['TOTAL QUARTZ 15W40:5:Ltr:1500:270', 'FILTER:2:Nos:500:90']],
@@ -7854,6 +7866,14 @@ test('update-192 (29-10-2026, "old log book … as it is sagle aahe as yeyla haw
   const nb = J(P.mliSheet('X', [['ROLLER NO-03'], P.MLI_HEAD, [1, '2024-01-02', 'SURAJ', '', 'OIL', 1, 'Ltr', 300, 'three hundred', '', '', '', ''], [2, '', '', '', 'FILTER', 'two', '', 50, 50, '', '', '', '']], false));
   assert.deepStrictEqual([nb.nums, nb.warn.map(w => w.k + ':' + w.h + ':' + w.t)], [['Line 3 (OIL): Amount "three hundred" is not a number'], ['nn:Qty:two']], 'an amount that is not a number stops the sheet (never ₹ 0); a Qty that is not – left empty, shown');
   assert.deepStrictEqual(J(P.mliNamesOf([sh])), { work: { 'TOTAL QUARTZ 15W40': 1, FILTER: 1, GREASE: 1, 'BRAKE PAD': 1, BULB: 1 } }, 'only the items go to the AI (not "-")');
+  // (his MH25AJ5506 sheet) two AdBlue fills of a day, the same reading – both kept, shown; a row without its Amount With GST (the sheet's Total
+  // left it out) – shown, its Amount + GST kept
+  const tw = J(P.mliSheet('X', [['ROLLER NO-03'], P.MLI_HEAD, [1, '2026-01-30', 'RCL', 40118.7, 'AD Blue Mahindra', 20, 'Ltr', 52, 1040, 187.2, 1227.2, '', ''], [2, '2026-01-30', 'RCL', 40123.1, 'AD Blue Mahindra', 20, 'Ltr', 52, 1040, 187.2, 1227.2, '', ''],
+    [3, '2026-07-21', 'Vandana Auto Centre', 49462.8, 'PTO Lever Cabin Valve', 1, 'Nos', 2585, 2585, 465.3, '', '', ''], [4, '2026-01-30', 'RCL', 40118.7, 'AD Blue Mahindra', 20, 'Ltr', 52, 1040, 187.2, 1227.2, '', '']], false));
+  assert.deepStrictEqual([tw.bills.length, tw.total, tw.warn.map(w => w.k + ':' + w.line + ':' + w.a)], [4, 6731.9, ['nw:5:3050.3', 'same:6:Line 3']], 'every bill as the file has it: another reading – another bill; written again further down – imported, shown');
+  assert.deepStrictEqual(tw.warn.map(P.mliWarnText), ['Line 5 (PTO Lever Cabin Valve): no Amount With GST in the file – Amount + GST ₹3050.3 kept', 'Line 6: written the same as Line 3 – imported as the file has it']);
+  // the Excel of a report: a date (dd-mm-yyyy) as it is shown – not a US month-day
+  assert.ok(app.includes("t.querySelectorAll('td, th').forEach(c => { if (/^\\s*\\d{2}-\\d{2}-\\d{4}\\s*$/.test(c.textContent)) c.setAttribute('data-t', 's'); });"), 'rpExcel: dates kept as shown');
   // the page: the sheet read as it shows; a sheet with an amount that is not a number – not checked, not imported; only the items' spelling
   assert.ok(app.includes("resolve(wb.SheetNames.map(n => mliSheet(n, mliShown(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }), XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' })))).filter(x => x && x.bills.length));"));
   assert.ok(app.includes("const ready = d.sheets.filter(x => x.no && !x.done && !(x.nums && x.nums.length))"));

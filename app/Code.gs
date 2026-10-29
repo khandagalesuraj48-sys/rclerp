@@ -6677,13 +6677,17 @@ function importMaint_(b) {
     if (!bills.length) throw new Error('The file has no bill for ' + m.id + '.');
     if (bills.length > MNT_IMPORT_MAX_) throw new Error(m.id + ': at most ' + MNT_IMPORT_MAX_ + ' bills in one import – split the file.');
     const K = noKey_(m.id), lsig = ls => ls.map(l => clean_(l.work).toUpperCase() + ':' + r2_(num0_(l.amount)) + ':' + (l.qty === undefined ? '' : r2_(l.qty))).sort().join(';');
-    const have = [];      // the bills of this machinery already saved: { date, garage, total, sig, id, billNo }
+    const have = [];      // the bills of this machinery already saved: { date, garage, total, sig, id, billNo, km }
     t.rows.forEach(r => { if (noKey_(r[t.c[H.NO]]) !== K) return; const x = maintOut_(t, r);
-      have.push({ date: x.date, garage: x.garage.toUpperCase(), total: x.billTotal, sig: lsig(x.lines), id: x.id, billNo: clean_(x.billNo).toUpperCase() }); });
+      have.push({ date: x.date, garage: x.garage.toUpperCase(), total: x.billTotal, sig: lsig(x.lines), id: x.id, billNo: clean_(x.billNo).toUpperCase(), km: x.km }); });
     // (update-173, "duplicate entry import nahi honar") already there = the same machinery and date, and the same lines or its total to ₹1
-    // (above ₹0) – whatever its party is called (SURJ / SURAJ, a name ticked or not); the same bill twice in the file: once.
-    // (update-192, "as it is") two bills with their own bill no.s, not the same no., are never the same bill
-    const twice = v => have.find(h => h.date === v.dk && !(v.billNo && h.billNo && v.billNo.toUpperCase() !== h.billNo) && (h.sig === v.sig || (v.billTotal > 0 && Math.abs(h.total - v.billTotal) <= 1)));
+    // (above ₹0) – whatever its party is called (SURJ / SURAJ, a name ticked or not).
+    // (update-192, "as it is … amount madhe jara pn changes hoyla nko"; his MH25AJ5506 sheet: two AdBlue fills of one day – another reading,
+    // another driver – the second was left out as "the same bill twice in the file") ONLY A BILL ALREADY SAVED is left out, never one of the
+    // file because another of the file is like it (the page shows those); a saved bill stands for one bill of the file only; two bills with
+    // their own readings or bill no.s, not the same, are never the same bill
+    const twice = v => have.find(h => !h.used && h.date === v.dk && !(v.billNo && h.billNo && v.billNo.toUpperCase() !== h.billNo) && !(v.km !== '' && h.km !== '' && h.km !== null && Number(h.km) !== Number(v.km)) &&
+      (h.sig === v.sig || (v.billTotal > 0 && Math.abs(h.total - v.billTotal) <= 1)));
     const errors = [], fresh = [], same = [];
     bills.forEach((x, n) => {
       const where = clean_(x && x.rows) || 'Bill ' + (n + 1);
@@ -6695,8 +6699,7 @@ function importMaint_(b) {
         if (total < 0) throw new Error('The total of the bill cannot be below 0 – check the amounts (a discount is a minus line).');
         const v = { dk: dk, m: m, garage: clean_(x.garage).slice(0, 80), billNo: clean_(x.billNo).slice(0, 80), km: km, lines: lines, billTotal: total, total: total, service: false, remark: clean_(x.remark).slice(0, 200), sig: lsig(lines) };
         const h = twice(v);
-        if (h) { same.push({ rows: where, date: dk, total: total, id: h.id }); return; }
-        have.push({ date: dk, garage: v.garage.toUpperCase(), total: total, sig: v.sig, id: '(' + where + ')', billNo: v.billNo.toUpperCase() });      // (the same bill twice in the file: once)
+        if (h) { h.used = true; same.push({ rows: where, date: dk, total: total, id: h.id }); return; }
         fresh.push(Object.assign(v, { rows: where }));
       } catch (e) { errors.push({ rows: where, msg: e.message }); }
     });
@@ -6894,10 +6897,23 @@ function maintImportNames_(x) {
   (Array.isArray(j.fixes) ? j.fixes : []).forEach(z => {
     const a = Array.isArray(z) ? z : z && typeof z === 'object' ? [z.list, z.from || z.nameInTheFile, z.to || z.rightSpelling] : [];
     const f = clean_(a[0]).toLowerCase() || 'work', from = clean_(a[1]), to = clean_(a[2]).slice(0, 120);
-    if (F.indexOf(f) < 0 || !has[f][from] || !to || to === from || done[f + '|' + from]) return;
+    if (F.indexOf(f) < 0 || !has[f][from] || !to || to === from || done[f + '|' + from] || !spellOnly_(from, to)) return;
     done[f + '|' + from] = true; out.push([f, from, to]);
   });
   return { fixes: out.slice(0, 3 * MLN_MAX_) };
+}
+/* (update-192, his MH25AJ5506 sheet: the AI gave "Diesel Cap" → "Diesel Tank Cap", "Mahindra Ad Blue" → "Ad Blue Mahindra") A NAME'S SPELLING
+ * ONLY: the same letters but for its spaces and signs ("ADBLUE" / "AD BLUE", "PATCH NO 45" / "PATCH NO.45"), or the same words in the same
+ * order, each spelt a little differently ("HYDROULIC" / "HYDRAULIC", "BREAK OIL" / "BRAKE OIL") – a word added, taken out or moved is no
+ * spelling and is not offered. */
+function spellOnly_(a, b) {
+  const up = v => clean_(v).toUpperCase(), cmp = v => up(v).replace(/[^A-Z0-9]/g, ''), words = v => up(v).split(/[^A-Z0-9]+/).filter(Boolean);
+  const lev = (x, y) => { let p = []; for (let j = 0; j <= y.length; j++) p.push(j);
+    for (let i = 1; i <= x.length; i++) { const q = [i]; for (let j = 1; j <= y.length; j++) q.push(Math.min(p[j] + 1, q[j - 1] + 1, p[j - 1] + (x[i - 1] === y[j - 1] ? 0 : 1))); p = q; } return p[y.length]; };
+  if (cmp(a) && cmp(a) === cmp(b)) return true;
+  const wa = words(a), wb = words(b), ca = cmp(a);
+  if (!wa.length || wa.length !== wb.length || lev(ca, cmp(b)) > Math.max(2, Math.floor(ca.length / 4))) return false;
+  return wa.every((w, i) => lev(w, wb[i]) <= Math.max(2, Math.floor(w.length * 0.45)) && (/\d/.test(w) ? w.replace(/\D/g, '') === wb[i].replace(/\D/g, '') : true));
 }
 function updateMaint_(id, x) {
   x = x || {};

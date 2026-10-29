@@ -7643,6 +7643,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       while (used[name]) name = name.slice(0, 25) + ' ' + (i + 1);
       used[name] = true;
       const ws = XLSX.utils.aoa_to_sheet([[d.company], [SITE_NAME], [d.title], [d.from ? showDate(d.from) + ' to ' + showDate(d.to) : ''], []]);
+      // (update-192, his export of MH-25-AJ-5506: 10-12-2023 came out as 12-10-2023) a date of the table (dd-mm-yyyy) goes as it is shown – the
+      // Excel maker read one whose day is 12 or less as a US month-day
+      t.querySelectorAll('td, th').forEach(c => { if (/^\s*\d{2}-\d{2}-\d{4}\s*$/.test(c.textContent)) c.setAttribute('data-t', 's'); });
       XLSX.utils.sheet_add_dom(ws, t, { origin: 'A6' });
       XLSX.utils.book_append_sheet(wb, ws, name);
     });
@@ -17894,10 +17897,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : NaN; };
   // (update-192) a Qty or a reading written with its unit ("2 Nos", "12,345 KM"): its number and its unit
   const mliLead = v => { const x = mliNum(v); if (x === '' || !isNaN(x)) return { n: x, u: '' }; const m = /^\s*([-+]?[\d,]*\.?\d+)\s*([A-Za-z][A-Za-z.]{0,9})\s*$/.exec(String(v)); return m ? { n: Number(m[1].replace(/,/g, '')), u: m[2].replace(/\.$/, '') } : { n: NaN, u: '' }; };
-  // (update-192) an Excel's number AS THE SHEET SHOWS IT – what is seen in the file (₹ 56.25 shown "56" is 56; a GST kept as 0.18 and shown
-  // "18%" is 18 %); a date stays the date it is
-  const mliShown = (raw, shown) => raw.map((r, i) => r.map((v, j) => { const w = (shown[i] || [])[j], t = typeof w === 'string' ? w.replace(/%\s*$/, '') : '';
-    return typeof v === 'number' && t.trim() && mliNum(t) !== '' && !isNaN(mliNum(t)) ? w : v; }));
+  // (update-192) an Excel's number AS IT IS IN THE CELL – its full value, not the rounded one a format shows (his MH25AJ5506 sheet, 29-10-2026:
+  // GST ₹212.40 shown "212", rate ₹1,185.59 shown "1,186" – the whole value is kept; the file's own totals add the whole values); only a
+  // per cent cell is taken as it shows (0.18 shown "18%" is 18 %). A date stays the date it is.
+  const mliShown = (raw, shown) => raw.map((r, i) => r.map((v, j) => { const w = (shown[i] || [])[j];
+    return typeof v === 'number' && typeof w === 'string' && /%\s*$/.test(w) && !isNaN(mliNum(w.replace(/%\s*$/, ''))) ? w : v; }));
   // (update-192) a total row: the words alone – Total, Sub Total, Grand Total, Total Rs., B/F, C/F, carried / brought forward ("TOTAL QUARTZ" is an oil)
   const MLI_TOT = /^\s*(?:(?:sub|grand|bill|net|page|g)\.?\s*-?\s*)?total\b[\s.:=\-]*(?:amount|amt|value|rs\.?|₹|inr)?[\s.:=\-/]*(?:\(?\s*[cb]\s*\/\s*f\s*\)?|carried forward|brought forward)?[\s.:=\-]*$|^\s*(?:[bc]\s*\/\s*f|brought forward|carried forward|bal(?:ance)?\.?\s*b\s*\/\s*f)\b/i;
   function mliMatch(label, sheet) {
@@ -17911,7 +17915,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (hi === -1) return null;
     const rows = mliRows(all[hi], all.slice(hi + 1)), idx = { date: 1, party: 2, km: 3, work: 4, qty: 5, uom: 6, rate: 7, amount: 8, gstAmt: 9, withGst: 10, total: 11, billNo: 12 };
     let label = ''; all.slice(0, hi).forEach(r => r.forEach(v => { const t = String(v).replace(/\s+/g, ' ').trim(); if (t && !/rachana|log\s*book|limited|maint[ae]n/i.test(t)) label = t; }));
-    const bills = [], bad = [], nums = [], warn = []; let cur = null, last = { date: '', party: '', km: '', billNo: '' }, ftotal = 0, nrows = 0;
+    const bills = [], bad = [], nums = [], warn = [], noW = []; let cur = null, last = { date: '', party: '', km: '', billNo: '' }, ftotal = 0, nrows = 0, anyW = false;
     const W = o => { if (warn.length < 300) warn.push(o); }, num = v => v === '' || isNaN(v) ? '' : v;
     /* (update-192, asked 29-10-2026: "as it is sagle aahe as yeyla haw app swtaat tewa kahich nahi akrnar … amount madhe jara pn changes
      * hoyla nko") EVERY ROW AS IT IS – nothing dropped unseen: a total row (its words alone) is left out and shown; a row of only its date /
@@ -17922,10 +17926,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const g = f => r[idx[f]] === undefined || r[idx[f]] === null ? '' : r[idx[f]], line = ai ? k + 1 : hi + k + 2;
       let work = String(g('work')).replace(/\s+/g, ' ').trim();
       const amount = mliNum(g('amount')), gstAmt = mliNum(g('gstAmt')), wt0 = mliNum(g('withGst')), q = mliLead(g('qty')), rt = mliNum(g('rate')), tot = mliNum(g('total'));
-      const money = [amount, gstAmt, wt0].some(v => v !== '' && !isNaN(v)), any = money || [amount, gstAmt, wt0, q.n, rt].some(v => v !== '');
+      // (an amount of 0 is not one – a row of only zeros, e.g. a numbered empty row of the sheet, is no line)
+      const nz = v => v !== '' && (isNaN(v) || Number(v) !== 0), hasMoney = [amount, gstAmt, wt0].some(v => v !== '' && !isNaN(v) && Number(v) !== 0), any = hasMoney || [amount, gstAmt, wt0, q.n, rt].some(nz);
       const words = r.filter((v, j) => j !== idx.work && typeof v === 'string').map(v => v.replace(/\s+/g, ' ').trim()).filter(Boolean), tw = words.find(v => MLI_TOT.test(v));
       const vOf = () => wt0 !== '' && !isNaN(wt0) ? wt0 : r2((Number(amount) || 0) + (Number(gstAmt) || 0));
-      if ((work && MLI_TOT.test(work) && q.n === '' && rt === '') || (!work && tw)) { if (money || (tot !== '' && !isNaN(tot))) W({ line: line, work: work || tw, k: 'tot', a: money ? vOf() : tot }); return; }
+      if ((work && MLI_TOT.test(work) && q.n === '' && rt === '') || (!work && tw)) { if (hasMoney || (tot !== '' && !isNaN(tot))) W({ line: line, work: work || tw, k: 'tot', a: hasMoney ? vOf() : tot }); return; }
       let date = xlDate(g('date')), party = String(g('party')).replace(/\s+/g, ' ').trim(), billNo = String(g('billNo')).replace(/\s+/g, ' ').trim().slice(0, 80);
       const k0 = mliLead(g('km')); let km = num(k0.n);
       if (!work && !any) {      // only its date / party / reading / bill no.: for the lines under it
@@ -17935,7 +17940,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }
       if (!work) {
         const v = vOf(), same = cur && (!date || date === cur.date) && cur.lines.length ? r2(cur.lines.reduce((s, l) => s + (Number(l.amount) || 0) + mtLineGst(l), 0)) : null;
-        if (money && same !== null && Math.abs(same - v) <= 1) { W({ line: line, work: '', k: 'tot', a: v }); return; }      // (the bill's total row)
+        if (hasMoney && same !== null && Math.abs(same - v) <= 1) { W({ line: line, work: '', k: 'tot', a: v }); return; }      // (the bill's total row)
         work = '-'; W({ line: line, work: '-', k: 'np', a: v });
       }
       if (!date) { date = last.date; if (!party) party = last.party; if (km === '') km = last.km; if (!billNo) billNo = last.billNo; }
@@ -17951,12 +17956,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (l.qty !== '' && l.rate !== '' && num(amount) !== '' && l.qty > 0 && l.rate > 0 && Math.abs(r2(l.qty * l.rate) - amount) > 1) W({ line: line, work: w, k: 'qr', a: r2(l.qty * l.rate), b: amount });
       if (num(amount) !== '' && ga !== '' && num(wt0) !== '' && Math.abs(r2(amount + ga) - wt0) > 1) W({ line: line, work: w, k: 'ag', a: r2(amount + ga), b: wt0 });
       if (amount === '' && l.qty > 0 && l.rate > 0) W({ line: line, work: w, k: 'na', a: r2(l.qty * l.rate) });      // (update-192: no Amount in the file – kept ₹ 0, free)
+      if (num(wt0) !== '') anyW = true; else if (num(amount) !== '' && Number(amount) !== 0) noW.push({ line: line, work: w, k: 'nw', a: r2(Number(amount) + (ga === '' ? 0 : Number(ga))) });      // (update-192: its Amount With GST not written)
       if (!(cur && cur.date === date && cur.garage.toUpperCase() === party.toUpperCase() && (km === '' || cur.km === '' || cur.km === km) && !(billNo && cur.billNo && billNo.toUpperCase() !== cur.billNo.toUpperCase()))) { cur = { date: date, garage: party, km: km, billNo: billNo, from: line, to: line, lines: [] }; bills.push(cur); }
       if (cur.km === '' && km !== '') cur.km = km;
       if (!cur.billNo && billNo) cur.billNo = billNo;
       cur.to = line; cur.lines.push(l); last = { date: date, party: party, km: km, billNo: billNo };
     });
     bills.forEach(b => { b.rows = 'Line ' + b.from + (b.to > b.from ? '–' + b.to : ''); delete b.from; delete b.to; });
+    // (update-192, his MH25AJ5506 sheet: 3 rows without their Amount With GST – the sheet's Total left them out) such a row, where the other rows
+    // have it, is listed: its Amount + GST is kept
+    if (anyW) noW.forEach(W);
+    // (update-192, his MH25AJ5506 sheet: two AdBlue fills of one day, another reading and driver, were left out as "the same bill twice") a bill
+    // of the file like another one of it (the same date, party, reading, bill no. and lines) is IMPORTED as the file has it – only shown
+    const sig = b => [b.date, b.garage.toUpperCase(), b.km, String(b.billNo || '').toUpperCase()].concat(b.lines.map(l => l.work.toUpperCase() + ':' + l.qty + ':' + l.amount + ':' + (l.gstAmt || 0))).join('|'), seen = {};
+    bills.forEach(b => { const k = sig(b); if (seen[k]) W({ line: b.rows.replace(/^Line /, ''), work: '', k: 'same', a: seen[k] }); else seen[k] = b.rows; });
     const total = r2(bills.reduce((s, b) => s + b.lines.reduce((a, l) => a + (Number(l.amount) || 0) + mtLineGst(l), 0), 0));
     return { sheet: name, label: label, no: mliMatch(label, name), bills: bills, rows: nrows, fileTotal: r2(ftotal), total: total, bad: bad, nums: nums, warn: warn, res: null, done: null };
   }
@@ -18120,7 +18133,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return '<details class="mli-more"><summary>' + r.same + ' bill(s) already there – left out</summary>' + listHtml(l) + (r.same > l.length ? '<small class="muted">… and ' + (r.same - l.length) + ' more</small>' : '') + '</details>';
   }
   // (update-192) also: a total row left out; a row without Particulars kept as "-"; no Amount in the file (₹ 0, free); a Qty / Rate / reading not a number
-  const mliWarnText = w => w.k === 'tot' ? 'Line ' + w.line + ': a total row' + (w.work ? ' (' + w.work + ')' : '') + ' ₹' + money(w.a) + ' – left out'
+  const mliWarnText = w => w.k === 'nw' ? 'Line ' + w.line + ' (' + w.work + '): no Amount With GST in the file – Amount + GST ₹' + money(w.a) + ' kept' : w.k === 'same' ? 'Line ' + w.line + ': written the same as ' + w.a + ' – imported as the file has it' : w.k === 'tot' ? 'Line ' + w.line + ': a total row' + (w.work ? ' (' + w.work + ')' : '') + ' ₹' + money(w.a) + ' – left out'
     : w.k === 'np' ? 'Line ' + w.line + ': no Particulars in the file – kept as "-" with its ₹' + money(w.a)
     : w.k === 'na' ? 'Line ' + w.line + ' (' + w.work + '): Qty × Rate = ₹' + money(w.a) + ' but no Amount in the file – kept as ₹0 (free)'
     : w.k === 'nn' ? 'Line ' + w.line + ' (' + w.work + '): ' + w.h + ' "' + w.t + '" is not a number – left empty'
