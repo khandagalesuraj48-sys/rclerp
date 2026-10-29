@@ -6831,8 +6831,8 @@ test('update-173: the old Maintenance Log Book of a machinery imported as it is 
     answers.push(say(JSON.stringify({ pages: 3, tables: [{ machinery: 'ROLLER NO-03', rows: [[1, '2022-12-02', 'Store', null, 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, null],
       [2, null, null, null, '', 1, 'Nos', 1, 1, 0, 1, null], ['null', null, 'SURJ', 500, 'FUEL  FILTER', '1', 'Nos', '650', '650', 117, 767]] }, { machinery: null, rows: [] }] })));
     const p1 = run('x => readMaintLog_(x)', { data: pdf, from: 1, n: 2 });
-    assert.deepStrictEqual(p1, { from: 1, to: 2, pages: 3, tables: [{ machinery: 'ROLLER NO-03', rows: [[1, '2022-12-02', 'Store', '', 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, ''], ['', '', 'SURJ', 500, 'FUEL FILTER', '1', 'Nos', '650', '650', 117, 767, '']] }] },
-      'every row in the 12 columns as printed ("null" = empty); a row without its particulars and an empty table left out');
+    assert.deepStrictEqual(p1, { from: 1, to: 2, pages: 3, tables: [{ machinery: 'ROLLER NO-03', rows: [[1, '2022-12-02', 'Store', '', 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, '', ''], [2, '', '', '', '', 1, 'Nos', 1, 1, 0, 1, '', ''], ['', '', 'SURJ', 500, 'FUEL FILTER', '1', 'Nos', '650', '650', 117, 767, '', '']] }] },
+      'every row in the columns as printed ("null" = empty; update-192: the bill no. the 13th); an empty table left out; (update-192) a row without its particulars but with its numbers kept – the page shows it');
     const q1 = sent[0].body;
     assert.deepStrictEqual([sent[0].path, q1.model, q1.max_tokens, q1.messages[0].content[0].type, q1.messages[0].content[0].cache_control, q1.messages[0].content[0].source.media_type], ['/v1/messages', 'claude-sonnet-5-5', 16000, 'document', { type: 'ephemeral' }, 'application/pdf'], 'the PDF as a document, kept (prompt caching), a long answer');
     assert.match(q1.messages[0].content[1].text, /Read ONLY pages 1 to 2 of this PDF/);
@@ -6850,17 +6850,20 @@ test('update-173: the old Maintenance Log Book of a machinery imported as it is 
     assert.ok(sent.length - n0 >= 2, 'busy: asked again');
     answers.length = 0;
     // the names: the file's (with their rows) and the ones saved here; only a real change of a name of the file is kept
-    answers.push(say(JSON.stringify({ fixes: [['party', 'SURJ', 'SURAJ'], ['party', 'SARAJ', 'SURAJ'], ['party', 'Suraaj', 'SURAJ'], ['work', 'ENGIN OIL', 'ENGINE OIL'], ['work', 'NOT IN THE FILE', 'X'], ['uom', 'LTR', 'LTR'], ['oil', 'A', 'B'], ['uom', 'Ltrs', 'Ltr'], ['party', 'SURJ', 'SURAJJ']] })));
+    // (update-192, "fkt spelling crrect krel te hi fkt iteam che") only the items' spelling: a party / Uom sent (an app of before) is not looked at
+    answers.push(say(JSON.stringify({ fixes: [['party', 'SURJ', 'SURAJ'], ['work', 'ENGIN OIL', 'ENGINE OIL'], ['work', 'NOT IN THE FILE', 'X'], ['work', 'ENGINE OIL', 'ENGINE OIL'], ['oil', 'A', 'B'], ['uom', 'Ltrs', 'Ltr'], ['work', 'ENGIN OIL', 'ENGINE OILL']] })));
     const nm = run('x => maintImportNames_(x)', { party: [['SURAJ', 4], ['SURJ', 2], ['SARAJ', 1], ['Suraaj', 1], ['Store', 9]], work: [['ENGINE OIL', 3], ['ENGIN OIL', 1]], uom: [['Ltr', 5], ['Ltrs', 2], ['LTR', 1]] });
-    assert.deepStrictEqual(nm, { fixes: [['party', 'SURJ', 'SURAJ'], ['party', 'SARAJ', 'SURAJ'], ['party', 'Suraaj', 'SURAJ'], ['work', 'ENGIN OIL', 'ENGINE OIL'], ['uom', 'Ltrs', 'Ltr']] }, 'only a name of the file, a real change, once, a known list');
+    assert.deepStrictEqual(nm, { fixes: [['work', 'ENGIN OIL', 'ENGINE OIL']] }, 'only an item of the file, a real change, once – never a party or a Uom');
     const q2 = sent[sent.length - 1].body.messages[0].content;
     assert.deepStrictEqual(q2.map(b => b.type), ['text'], 'the names alone – no file');
-    assert.match(q2[0].text, /^NAMES OF AN OLD MAINTENANCE LOG BOOK/);
-    assert.match(q2[0].text, /party – the Party Name \(the garage, shop or supplier\) – in the file, \[name, rows\]: \[\["SURAJ",4\],\["SURJ",2\],\["SARAJ",1\],\["Suraaj",1\],\["Store",9\]\]\n   already saved: \[[^\]]*"Store"/, 'with the names saved at this site');
-    assert.match(q2[0].text, /already saved: \[[^\]]*"HYDROLIC OIL L&T"/);
+    assert.match(q2[0].text, /^ITEM NAMES OF AN OLD MAINTENANCE LOG BOOK/);
+    assert.match(q2[0].text, /work – the Particulars \(the work, part or material\) – in the file, \[name, rows\]: \[\["ENGINE OIL",3\],\["ENGIN OIL",1\]\]\n   already saved: \[[^\]]*"HYDROLIC OIL L&T"/, 'with the items saved at this site');
+    assert.ok(!/SURJ|Party Name|Ltrs/.test(q2[0].text), 'no party, no Uom asked');
+    assert.match(q2[0].text, /Only the spelling – nothing else of the name is changed or added\./);
+    assert.deepStrictEqual(run('x => maintImportNames_(x)', { party: [['SURJ', 2]], uom: [['Ltrs', 1]] }), { fixes: [] }, 'only a party / a Uom: nothing asked');
     assert.deepStrictEqual(run('x => maintImportNames_(x)', {}), { fixes: [] }, 'no name: nothing asked');
     ctx.__ai.on = () => false;
-    assert.deepStrictEqual([run('x => readMaintLog_(x)', { data: pdf }), run('x => maintImportNames_(x)', { party: [['A', 1]] })], [{ off: true }, { off: true }], 'no AI: said so, nothing asked');
+    assert.deepStrictEqual([run('x => readMaintLog_(x)', { data: pdf }), run('x => maintImportNames_(x)', { work: [['A', 1]] })], [{ off: true }, { off: true }], 'no AI: said so, nothing asked');
   } finally { delete ctx.__ai; run('() => PropertiesService.getScriptProperties().deleteProperty("AI_MODEL_C")'); }
   // the page's own reader: the lines that do not add up (Qty × Rate, Amount + GST, an odd GST %); a sheet of the AI numbered by its rows;
   // the names ticked go with the bills, the rest as in the file
@@ -6868,7 +6871,7 @@ test('update-173: the old Maintenance Log Book of a machinery imported as it is 
   const take = re => { const i = L.findIndex(l => re.test(l)); assert.ok(i > -1, String(re)); for (let k = i; k < i + 80; k++) { const t = L.slice(i, k + 1).join('\n'); try { new vm.Script(t); return t; } catch (e) { /* more lines */ } } throw new Error(String(re)); };
   const pc = vm.createContext({ S: { master: [{ id: 'RL-173', name: 'Roller No.03', ownership: 'Own', status: 'Active' }], today: '2026-10-27' } }); pc.window = pc;
   vm.runInContext(['const isoDate = d => d.toISOString().slice(0, 10);', take(/^\s*const r2 = /), take(/^\s*const mtGst = /), take(/^\s*const mtHasGa = /), take(/^\s*const mtLineGst = /), take(/^\s*function xlDate\(/), take(/^\s*const mDay = |^\s*function mDay\(/), take(/^\s*function mPeriods\(|^\s*const mPeriods = /), take(/^\s*const onSiteOn = /),
-    take(/^\s*function mliField\(/), take(/^\s*function mliRows\(/), take(/^\s*const mliKey = /), take(/^\s*const mliOwn = /), take(/^\s*const mliNum = /), take(/^\s*function mliMatch\(/), take(/^\s*function mliSheet\(/),
+    take(/^\s*function mliField\(/), take(/^\s*function mliRows\(/), take(/^\s*const mliKey = /), take(/^\s*const mliOwn = /), take(/^\s*const mliNum = /), take(/^\s*const mliLead = /), take(/^\s*const MLI_TOT = /), take(/^\s*function mliMatch\(/), take(/^\s*function mliSheet\(/),
     take(/^\s*const MLI_HEAD = /), take(/^\s*function mliBills\(/), take(/^\s*function mliNamesOf\(/), 'globalThis.T = { mliSheet, mliBills, mliNamesOf, MLI_HEAD };'].join('\n'), pc);
   const sh = pc.T.mliSheet('ROLLER NO-03', [['ROLLER NO-03'], pc.T.MLI_HEAD, [1, '2022-12-02', 'SURJ', '', 'AD BLUE', 20, 'Ltr', 59, 1000, 212.4, 1392.4, ''], [2, '', '', '', 'GREASE', 2, 'Kg', 180, 360, 64.8, 430, ''], [3, '', '', '', 'BULB', 1, 'Nos', 40, 40, 2, 42, '']], true);
   assert.deepStrictEqual([sh.no, sh.bills.length, sh.bills[0].rows, JSON.parse(JSON.stringify(sh.warn))], ['RL-173', 1, 'Line 1–3', [{ line: 1, work: 'AD BLUE', k: 'qr', a: 1180, b: 1000 }, { line: 1, work: 'AD BLUE', k: 'ag', a: 1212.4, b: 1392.4 }, { line: 2, work: 'GREASE', k: 'ag', a: 424.8, b: 430 }]],
@@ -6876,11 +6879,11 @@ test('update-173: the old Maintenance Log Book of a machinery imported as it is 
   // (update-183, "old import tyat tr ajibat karu nko as it is rahude") each line its GST ₹ as in the file – no GST % made from it
   assert.deepStrictEqual(JSON.parse(JSON.stringify(sh.bills[0].lines.map(l => [l.work, l.amount, l.gst, l.gstAmt]))), [['AD BLUE', 1000, null, 212.4], ['GREASE', 360, null, 64.8], ['BULB', 40, null, 2]].map(x => x.map(v => v === null ? undefined : v)).map(x => JSON.parse(JSON.stringify(x))));
   assert.strictEqual(sh.total, 1679.2, 'the total: the amounts with their GST ₹ as in the file (1000 + 212.40 + 360 + 64.80 + 40 + 2)');
-  pc.S.mli = { fix: { list: [{ f: 'party', from: 'SURJ', to: 'SURAJ', on: true }, { f: 'work', from: 'GREASE', to: 'GREASE MP3', on: false }, { f: 'uom', from: 'Kg', to: '  ', on: true }] } };
+  pc.S.mli = { fix: { list: [{ f: 'party', from: 'SURJ', to: 'SURAJ', on: true }, { f: 'work', from: 'GREASE', to: 'GREASE MP3', on: true }, { f: 'work', from: 'BULB', to: 'BULB 24V', on: false }, { f: 'uom', from: 'Kg', to: 'KG', on: true }] } };
   const sent2 = JSON.parse(JSON.stringify(pc.T.mliBills(sh)));
-  assert.deepStrictEqual([sent2[0].garage, sent2[0].lines.map(l => l.work + ':' + l.uom)], ['SURAJ', ['AD BLUE:Ltr', 'GREASE:Kg', 'BULB:Nos']], 'only the ticked name (with a name) is changed');
-  assert.strictEqual(sh.bills[0].garage, 'SURJ', 'the file as it is stays');
-  assert.deepStrictEqual(JSON.parse(JSON.stringify(pc.T.mliNamesOf([sh]))), { party: { SURJ: 3 }, work: { 'AD BLUE': 1, GREASE: 1, BULB: 1 }, uom: { Ltr: 1, Kg: 1, Nos: 1 } });
+  assert.deepStrictEqual([sent2[0].garage, sent2[0].lines.map(l => l.work + ':' + l.uom + ':' + l.amount)], ['SURJ', ['AD BLUE:Ltr:1000', 'GREASE MP3:Kg:360', 'BULB:Nos:40']], '(update-192) only a ticked item is changed – never the party, the Uom or a number');
+  assert.strictEqual(sh.bills[0].lines[1].work, 'GREASE', 'the file as it is stays');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(pc.T.mliNamesOf([sh]))), { work: { 'AD BLUE': 1, GREASE: 1, BULB: 1 } }, '(update-192) only the items go to the AI');
 });
 
 test('update-174: the old log book\'s import for everyone with Maintenance Edit (not only the Admin) – the check and the AI\'s reading save nothing, Edit checked inside; View only is refused; a user whose Maintenance is verified: his import is sent, said as sent', () => {
@@ -7076,7 +7079,7 @@ test('update-180: the old log book\'s headings in any order (a PDF read by the A
   assert.strictEqual(body(app, 'mliField'), body(code, 'maintLogField_'), 'the page\'s heading rules = the server\'s');
   assert.strictEqual(body(app, 'mliRows').replace('.map(mliField)', '.map(maintLogField_)'), body(code, 'maintLogRows_'), 'the page\'s rows = the server\'s');
   const F = h => { const r = run('h => maintLogField_(h)', h); return r ? r.f + (r.p ? ':' + r.p : '') : null; };
-  const want = { 'Sr No': 'sr', 'S. No.': 'sr', 'Bill Date': 'date', 'Date': 'date', 'Bill No': '-', 'Invoice No.': '-', 'Party Name': 'party', 'Supplier': 'party', 'Workshop Name': 'party', 'Service Center': 'party',
+  const want = { 'Sr No': 'sr', 'S. No.': 'sr', 'Bill Date': 'date', 'Date': 'date', 'Bill No': 'billNo', 'Invoice No.': 'billNo', 'Party Name': 'party', 'Supplier': 'party', 'Workshop Name': 'party', 'Service Center': 'party',
     'Current Reading': 'reading', 'KM': 'reading', 'HMR': 'reading', 'Particulars': 'work', 'Item Description': 'work', 'Description of Work': 'work', 'Spare Parts': 'work', 'Part No': '-', 'HSN/SAC': '-',
     'Qty': 'qty', 'Quantity': 'qty', 'Nos': 'qty', 'Uom': 'uom', 'Unit': 'uom', 'U.O.M': 'uom', 'Basic Rate': 'rate', 'Unit Price': 'rate', 'Amount': 'amount', 'Amount (Rs.)': 'amount', 'Taxable Value': 'amount',
     'Sub Total': 'amount', 'GST Amount': 'gstAmt', 'GST': 'gstAmt', 'GST %': 'gstPct', 'Rate of GST': 'gstPct', 'CGST 9%': 'gstAmt:c', 'CGST %': 'gstPct:c', 'C.G.S.T': 'gstAmt:c', 'SGST Amt': 'gstAmt:s', 'IGST': 'gstAmt:i',
@@ -7085,10 +7088,10 @@ test('update-180: the old log book\'s headings in any order (a PDF read by the A
   const LOG = ['Sr No', 'Date', 'Party Name', 'Current Reading', 'Particulars', 'Qty', 'Uom', 'Basic Rate', 'Amount', 'GST Amount', 'Amount With GST', 'Total'];
   const R12 = (h, rows) => run('(h, r) => maintLogRows_(h, r)', h, rows);
   assert.deepStrictEqual(R12(LOG, [[1, '2022-12-02', 'Store', '', 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, ''], [2, '', '', '', 'BULB', 1, 'Nos', 40, '', '', '', '']]),
-    [[1, '2022-12-02', 'Store', '', 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, ''], [2, '', '', '', 'BULB', 1, 'Nos', 40, '', '', '', '']], 'his own format: as it is (an empty Amount stays empty – a free line)');
+    [[1, '2022-12-02', 'Store', '', 'AD BLUE', 20, 'Ltr', 59, 1180, 212.4, 1392.4, '', ''], [2, '', '', '', 'BULB', 1, 'Nos', 40, '', '', '', '', '']], 'his own format: as it is (an empty Amount stays empty – a free line); (update-192) the bill no. the 13th');
   assert.deepStrictEqual(R12(['Item Description', 'Bill Date', 'KM', 'Supplier', 'Qty', 'Rate', 'Taxable Value', 'CGST 9%', 'SGST 9%', 'Net Amount', 'Remarks'],
     [['ENGINE OIL', '2024-01-02', 12345, 'SURAJ', 10, '350', '3,500.00', 315, 315, 4130, 'ok'], ['FILTER', null, null, null, 1, 500, 500, 45, 45, 590, null]]),
-    [['', '2024-01-02', 'SURAJ', 12345, 'ENGINE OIL', 10, '', '350', '3,500.00', 630, 4130, ''], ['', '', '', '', 'FILTER', 1, '', 500, 500, 90, 590, '']], 'in another order: each in its column; CGST + SGST = the GST; the remark left out');
+    [['', '2024-01-02', 'SURAJ', 12345, 'ENGINE OIL', 10, '', '350', '3,500.00', 630, 4130, '', ''], ['', '', '', '', 'FILTER', 1, '', 500, 500, 90, 590, '', '']], 'in another order: each in its column; CGST + SGST = the GST; the remark left out');
   assert.deepStrictEqual(R12(['Date', 'Particulars', 'Qty', 'Rate', 'GST %', 'Net Amount'], [['2024-01-02', 'OIL', 2, 100, '18%', 236]])[0].slice(8, 11), [200, 36, 236], 'no Amount column: the net less its GST (from its %)');
   assert.deepStrictEqual(R12(['Date', 'Particulars', 'Qty', 'Rate', 'Total Amount', 'GST', 'Net Amount'], [['2024-01-02', 'OIL', 2, 100, 200, 36, 236]])[0].slice(8, 11), [200, 36, 236], 'Total Amount · GST · Net Amount: the first is the amount');
   assert.deepStrictEqual(R12(['Date', 'Particulars', 'Qty', 'Rate'], [['2024-01-02', 'OIL', 2, 100]])[0][8], 200, 'no amount at all: Qty × Rate');
@@ -7105,7 +7108,7 @@ test('update-180: the old log book\'s headings in any order (a PDF read by the A
       fields: ['date', 'party', 'reading', 'particulars', 'qty', 'rate', 'amount', 'gstAmount', 'gstAmount', 'withGst'],
       rows: [['2024-01-02', 'SURAJ', 500, 'ENGINE OIL', 10, 350, 3500, 315, 315, 4130], [null, null, null, 'FILTER', 1, 500, 500, 45, 45, 590]] }] })));
     const p1 = run('x => readMaintLog_(x)', { data: pdf, from: 1, n: 1, fast: 0 });
-    assert.deepStrictEqual(p1.tables[0].rows, [['', '2024-01-02', 'SURAJ', 500, 'ENGINE OIL', 10, '', 350, 3500, 630, 4130, ''], ['', '', '', '', 'FILTER', 1, '', 500, 500, 90, 590, '']], 'each column by its heading; "Kilometre" by the AI\'s word');
+    assert.deepStrictEqual(p1.tables[0].rows, [['', '2024-01-02', 'SURAJ', 500, 'ENGINE OIL', 10, '', 350, 3500, 630, 4130, '', ''], ['', '', '', '', 'FILTER', 1, '', 500, 500, 90, 590, '', '']], 'each column by its heading; "Kilometre" by the AI\'s word');
     assert.deepStrictEqual([p1.tables[0].head[2], p1.head[2], p1.head[3]], ['Kilometre', 'Current Reading', 'Item Description'], 'the page gets the headings back – an unknown one named by what it is');
     const ask1 = sent[0].messages[0].content[1].text;
     assert.match(ask1, /Its columns can be in ANY ORDER and named in many ways/);
@@ -7113,18 +7116,18 @@ test('update-180: the old log book\'s headings in any order (a PDF read by the A
     assert.match(ask1, /give it "head": null and its rows in the columns Sr No · Date · Party Name/, 'the first page: a table without a heading in the log book\'s own columns');
     answers.push(say(JSON.stringify({ pages: 2, tables: [{ machinery: null, head: null, rows: [['2024-02-10', 'GANESH', 620, 'BRAKE PAD', 2, 800, 1600, 144, 144, 1888]] }] })));
     const p2 = run('x => readMaintLog_(x)', { data: pdf, from: 2, n: 1, fast: 0, head: p1.head });
-    assert.deepStrictEqual(p2.tables[0].rows, [['', '2024-02-10', 'GANESH', 620, 'BRAKE PAD', 2, '', 800, 1600, 288, 1888, '']], 'a page going on without its heading: read in the headings of the page before');
+    assert.deepStrictEqual(p2.tables[0].rows, [['', '2024-02-10', 'GANESH', 620, 'BRAKE PAD', 2, '', 800, 1600, 288, 1888, '', '']], 'a page going on without its heading: read in the headings of the page before');
     assert.ok(sent[1].messages[0].content[1].text.indexOf('whose columns were ' + JSON.stringify(p1.head)) > -1, 'the AI is told those headings');
     assert.strictEqual(p2.tables[0].head, undefined);
     answers.push(say(JSON.stringify({ pages: 1, tables: [{ machinery: 'MH12XW0169', rows: [[1, '2026-02-10', 'Navnit Motors', 13153, 'Wiper blade', 1, 'Nos', 310, 310, 55.8, 365.8, 365.8]] }] })));
-    assert.deepStrictEqual(run('x => readMaintLog_(x)', { data: pdf, from: 1, n: 1, fast: 0 }).tables, [{ machinery: 'MH12XW0169', rows: [[1, '2026-02-10', 'Navnit Motors', 13153, 'Wiper blade', 1, 'Nos', 310, 310, 55.8, 365.8, 365.8]] }], 'an answer of before (no heading): as before');
+    assert.deepStrictEqual(run('x => readMaintLog_(x)', { data: pdf, from: 1, n: 1, fast: 0 }).tables, [{ machinery: 'MH12XW0169', rows: [[1, '2026-02-10', 'Navnit Motors', 13153, 'Wiper blade', 1, 'Nos', 310, 310, 55.8, 365.8, 365.8, '']] }], 'an answer of before (no heading): as before');
   } finally { delete ctx.__ai; run('() => PropertiesService.getScriptProperties().deleteProperty("AI_MODEL_C")'); }
   // the page: an Excel in another order read by the same rules; the PDF's headings sent with the next page
   const vm = require('vm'), L = app.split('\n');
   const take = re => { const i = L.findIndex(l => re.test(l)); assert.ok(i > -1, String(re)); for (let k = i; k < i + 80; k++) { const t = L.slice(i, k + 1).join('\n'); try { new vm.Script(t); return t; } catch (e) { /* more lines */ } } throw new Error(String(re)); };
   const pc = vm.createContext({ S: { master: [{ id: 'RL-180', name: 'Roller No.03', ownership: 'Own', status: 'Active' }], today: '2026-10-28' } }); pc.window = pc;
   vm.runInContext(['const isoDate = d => d.toISOString().slice(0, 10);', take(/^\s*const r2 = /), take(/^\s*const mtGst = /), take(/^\s*const mtHasGa = /), take(/^\s*const mtLineGst = /), take(/^\s*function xlDate\(/), take(/^\s*function mliField\(/), take(/^\s*function mliRows\(/),
-    take(/^\s*const mliKey = /), take(/^\s*const mliOwn = /), take(/^\s*const mliNum = /), take(/^\s*function mliMatch\(/), take(/^\s*function mliSheet\(/), 'globalThis.T = { mliSheet };'].join('\n'), pc);
+    take(/^\s*const mliKey = /), take(/^\s*const mliOwn = /), take(/^\s*const mliNum = /), take(/^\s*const mliLead = /), take(/^\s*const MLI_TOT = /), take(/^\s*function mliMatch\(/), take(/^\s*function mliSheet\(/), 'globalThis.T = { mliSheet };'].join('\n'), pc);
   const sh = JSON.parse(JSON.stringify(pc.T.mliSheet('Sheet1', [['RACHANA CONSTRUCTION LIMITED'], ['ROLLER NO-03'], ['Item Description', 'Bill Date', 'Supplier', 'Qty', 'Rate', 'Taxable Value', 'CGST 9%', 'SGST 9%', 'Net Amount'],
     ['ENGINE OIL', '2024-01-02', 'SURAJ', 10, 350, 3500, 315, 315, 4130], ['FILTER', '', '', 1, 500, 500, 45, 45, 590], ['AIR FILTER', '2024-03-05', 'GANESH', 1, 900, 900, 81, 81, 1062]], false)));
   assert.deepStrictEqual([sh.no, sh.bills.length, sh.bills[0].garage, sh.bills[0].lines.map(l => l.work + ':' + l.amount + ':' + l.gstAmt), sh.bills[0].rows, sh.bills[1].rows, sh.total, sh.fileTotal],
@@ -7286,7 +7289,7 @@ test('update-183: the old log book as it is – each line its GST ₹ as in the 
     assert.deepStrictEqual([p2.more, sent[1].messages[0].content[0].cache_control], [false, { type: 'ephemeral' }], 'the last part; the same page kept (a part costs about a tenth)');
     answers.push(say('{"pages": 1, "tables": []}')); const old = run('x => readMaintLog_(x)', { data: 'data:image/jpeg;base64,QUJD', from: 1, n: 1 });
     assert.ok(!('more' in old) && !/ONLY A PART/.test(sent[2].messages[0].content[1].text), 'an app of before: the whole page, as before');
-    answers.push(say('{"fixes": []}')); run('x => maintImportNames_(x)', { party: [['SURJ', 2], ['SURAJ', 5]] });
+    answers.push(say('{"fixes": []}')); run('x => maintImportNames_(x)', { work: [['ENGIN OIL', 2], ['ENGINE OIL', 5]] });      // (update-192: the items only)
     assert.strictEqual(sent[3].model, 'claude-haiku-5-5', 'the names: the quicker model first');
   } finally { delete ctx.__ai; run('() => PropertiesService.getScriptProperties().deleteProperty("AI_MODEL_C")'); }
   // the page
@@ -7772,4 +7775,100 @@ test('update-191 (29-10-2026, "jithe jithe type krun entry hotat … voice mick 
   assert.ok(html.includes("window.rclVoiceLang = () => { try { const l = localStorage.getItem('rcl_lang');"), 'its first language: the help language');
   const v = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8')), pp = (v.headers || []).flatMap(h => h.headers || []).find(h => h.key === 'Permissions-Policy').value;
   assert.match(pp, /microphone=\(self\)/);
+});
+
+test('update-192 (29-10-2026, "old log book … as it is sagle aahe as yeyla haw … fkt spelling crrect krel te hi fkt iteam che … heading match krel … amount madhe jara pn changes hoyla nko"; "status made multiple delet option"): the old log book as it is – each number as written / as the sheet shows it, nothing dropped unseen, the bill no. kept, only the items\' spelling; the log books ticked in the status deleted together', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const body = (src, name) => { const i = src.indexOf('function ' + name + '('); assert.ok(i > -1, name); let d = 0, k = src.indexOf('{', i); for (; k < src.length; k++) { if (src[k] === '{') d++; else if (src[k] === '}' && --d === 0) break; } return src.slice(src.indexOf('(', i), k + 1).replace(/\n\s+/g, '\n'); };
+  assert.strictEqual(body(app, 'mliField'), body(code, 'maintLogField_'), 'the page\'s heading rules = the server\'s');
+  assert.strictEqual(body(app, 'mliRows').replace('.map(mliField)', '.map(maintLogField_)'), body(code, 'maintLogRows_'), 'the page\'s rows = the server\'s');
+  const F = h => { const r = run('h => maintLogField_(h)', h); return r ? r.f : null; };
+  assert.deepStrictEqual(['Bill No', 'Bill No.', 'Invoice No', 'Inv. No.', 'Challan No', 'Part No', 'Job Card No', 'Item Code', 'Bill No & Date', 'Bill Date', 'Bill Amount'].map(F),
+    ['billNo', 'billNo', 'billNo', 'billNo', 'billNo', '-', '-', '-', '-', 'date', 'withGst'], 'the bill\'s no. by its words (not a part / job card / item no.)');
+  const R = (h, rows) => run('(h, r) => maintLogRows_(h, r)', h, rows);
+  const H = ['Date', 'Bill No', 'Particulars', 'Qty', 'Rate', 'Amount', 'GST Amount', 'Amount With GST'];
+  const at = (r, k) => r.map(x => x[k]);
+  // a number as written: kept as written (the page reads it); an Amount not written – the amount with GST less its GST
+  const rs = R(H, [['2024-01-02', 'B-1', 'OIL', 2, 100, '1,250/-', '', '1,475/-'], ['2024-01-02', 'B-1', 'FILTER', 1, 500, '', 90, 590], ['2024-01-02', 'B-1', 'LABOUR', '', '', '-', '-', 'Rs. 300'],
+    ['2024-01-02', 'B-1', 'DISCOUNT', '', '', '(150)', '', ''], ['2024-01-02', 'B-2', 'BOLT', 4, 10, 40, '', 47.2], ['2024-01-02', 'B-2', 'NUT', 4, 10, 40, '', 140]]);
+  assert.deepStrictEqual(at(rs, 8), ['1,250/-', 500, 300, '(150)', 40, 40], 'the amounts: as written; an empty one from the row\'s own Amount With GST less its GST (590 − 90)');
+  assert.deepStrictEqual(at(rs, 9), [225, 90, '-', '', 7.2, ''], 'its GST: written – as it is; not written – the row\'s own difference when it is a GST (1,475 − 1,250; 47.20 − 40) – not ₹100 on ₹40 (more than 28 %)');
+  assert.deepStrictEqual(at(rs, 12), ['B-1', 'B-1', 'B-1', 'B-1', 'B-2', 'B-2'], 'the bill no. the 13th column');
+  assert.deepStrictEqual(R(['Date', 'Particulars', 'Amount', 'GST %', 'Net Amount'], [['2024-01-02', 'OIL', 1234, '18%', 1456]])[0].slice(8, 11), [1234, 222, 1456], 'a GST % and its net: the GST the file\'s own (1,456 − 1,234), not 18 % made (222.12)');
+  // the AI: every row with a number kept (also without its Particulars); never rounded, never worked out
+  const sent = [], answers = [], say = t => ({ code: 200, text: JSON.stringify({ id: 'm', type: 'message', role: 'assistant', content: [{ type: 'text', text: t }], stop_reason: 'end_turn', usage: {} }) });
+  ctx.__ai = { on: () => true, service: () => 'claude', model: () => 'claude-sonnet-5-5', wait: () => {}, call: (m, p, b) => { sent.push(JSON.parse(JSON.stringify(b))); return answers.shift() || { code: 500, text: '{}' }; } };
+  try {
+    answers.push(say(JSON.stringify({ pages: 1, tables: [{ machinery: 'ROLLER NO-03', head: ['Date', 'Invoice No', 'Particulars', 'Amount', 'GST', 'Net Amount'], fields: ['date', 'billNo', 'particulars', 'amount', 'gstAmount', 'withGst'],
+      rows: [['2024-01-02', 'INV-9', 'ENGINE OIL', '3,500.50', '630.09', '4,130.59'], [null, null, null, 200, 36, 236], [null, null, null, null, null, null]] }] })));
+    const p = run('x => readMaintLog_(x)', { data: 'data:image/jpeg;base64,QUJD', from: 1, n: 1 });
+    assert.deepStrictEqual(p.tables[0].rows, [['', '2024-01-02', '', '', 'ENGINE OIL', '', '', '', '3,500.50', '630.09', '4,130.59', '', 'INV-9'], ['', '', '', '', '', '', '', '', 200, 36, 236, '', '']],
+      'every cell as the AI copied it, the bill no. kept; a row without Particulars but with its ₹ kept (the page shows it); an empty row left out');
+    const ask = sent[0].messages[0].content[1].text;
+    assert.match(ask, /"billNo" \(the bill \/ invoice no\.\)/);
+    assert.match(ask, /keep every other row, also a row of a bill without its Particulars\./);
+    assert.match(ask, /every number with all its digits and decimals as printed – never rounded, never worked out \(no sum, no GST made\)/);
+  } finally { delete ctx.__ai; }
+  // the import: two bills of one day with their own bill no.s are two; the same no. – already there
+  const M = 'RL-192';
+  run('(x, m) => saveMaster_(x, m)', { no: M, name: 'Roller 192', type: 'Soil Compactor', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 8, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2025-01-01' }, 'add');
+  const two = [{ rows: 'Line 4', date: '2024-03-05', garage: 'SURAJ', billNo: 'B-11', lines: [{ work: 'ENGINE OIL', amount: 500, gstAmt: 90 }] }, { rows: 'Line 5', date: '2024-03-05', garage: 'SURAJ', billNo: 'B-12', lines: [{ work: 'ENGINE OIL', amount: 500, gstAmt: 90 }] }];
+  const i1 = run('b => importMaint_(b)', { no: M, bills: two });
+  assert.deepStrictEqual([i1.ok, i1.added, i1.same, i1.total], [true, 2, 0, 1180], 'two bills of one day, their own nos.: both, each ₹590 as in the file');
+  const saved = run('() => getMaint_({ no: "' + M + '", from: "2024-03-05", to: "2024-03-05" }).rows').map(r => r.billNo + ':' + r.total + ':' + r.lines.map(l => l.work + '/' + l.amount + '/' + l.gstAmt).join(',')).sort();
+  assert.deepStrictEqual(saved, ['B-11:590:ENGINE OIL/500/90', 'B-12:590:ENGINE OIL/500/90'], 'kept with their bill no.s and the ₹ as in the file');
+  const again = run('b => importMaint_(b)', { no: M, check: true, bills: two.concat([{ rows: 'Line 6', date: '2024-03-05', garage: 'SURAJ', lines: [{ work: 'ENGINE OIL', amount: 500, gstAmt: 90 }] }]) });
+  assert.deepStrictEqual([again.fresh, again.same], [0, 3], 'the same file again: never twice (a bill without its no. – as before)');
+  // the page's reader
+  const vm = require('vm'), L = app.split('\n');
+  const take = re => { const i = L.findIndex(l => re.test(l)); assert.ok(i > -1, String(re)); for (let k = i; k < i + 90; k++) { const t = L.slice(i, k + 1).join('\n'); try { new vm.Script(t); return t; } catch (e) { /* more lines */ } } throw new Error(String(re)); };
+  const pc = vm.createContext({ S: { master: [{ id: M, name: 'Roller No.03', ownership: 'Own', status: 'Active' }], today: '2026-10-29' } }); pc.window = pc;
+  vm.runInContext(['const isoDate = d => d.toISOString().slice(0, 10);', take(/^\s*const r2 = /), take(/^\s*const mtGst = /), take(/^\s*const mtHasGa = /), take(/^\s*const mtLineGst = /), take(/^\s*function xlDate\(/), take(/^\s*function mliField\(/), take(/^\s*function mliRows\(/),
+    take(/^\s*const mliKey = /), take(/^\s*const mliOwn = /), take(/^\s*const mliNum = /), take(/^\s*const mliLead = /), take(/^\s*const mliShown = /), take(/^\s*const MLI_TOT = /), take(/^\s*function mliMatch\(/), take(/^\s*function mliSheet\(/), take(/^\s*const MLI_HEAD = /),
+    take(/^\s*function mliNamesOf\(/), take(/^\s*const mliWarnText = /), 'const money = v => String(v);', 'globalThis.T = { mliSheet, mliShown, mliNum, mliLead, MLI_TOT, MLI_HEAD, mliNamesOf, mliWarnText };'].join('\n'), pc);
+  const P = pc.T, J = v => JSON.parse(JSON.stringify(v));
+  assert.deepStrictEqual(J(['1,250/-', 'Rs. 500', '₹ 75.50', '(150)', '-', 'nil', '', 'abc', 12.5, '12.5.1'].map(P.mliNum)).map(v => v === null ? 'NaN' : v), [1250, 500, 75.5, -150, '', '', '', 'NaN', 12.5, 'NaN'], 'a number as written; not written: empty; not a number: NaN (never 0)');
+  assert.deepStrictEqual(J(['2 Nos', '12,345 KM', '3'].map(P.mliLead)), [{ n: 2, u: 'Nos' }, { n: 12345, u: 'KM' }, { n: 3, u: '' }], 'a Qty / reading with its unit');
+  assert.deepStrictEqual(J(P.mliShown([[56.25, 0.18, 45230, 'x', 1234.5]], [['56', '18%', '10/31/23', 'x', '1,234.50']])), [['56', '18%', 45230, 'x', '1,234.50']], 'an Excel number as the sheet shows it; a date stays its date');
+  assert.deepStrictEqual(['Total', 'SUB TOTAL', 'Grand Total :', 'Total Rs.', 'B/F', 'Total c/f', 'TOTAL QUARTZ 15W40', 'Total care oil', 'Totally'].map(t => P.MLI_TOT.test(t)), [true, true, true, true, true, true, false, false, false], 'a total row: its words alone ("TOTAL QUARTZ" is an oil)');
+  const rows = [['ROLLER NO-03'], P.MLI_HEAD,
+    [1, '2024-01-02', 'SURAJ', 500, 'TOTAL QUARTZ 15W40', 5, 'Ltr', 300, '1,500/-', 270, 1770, '', 'B-1'],      // line 3: an oil named Total
+    [2, '', '', '', 'FILTER', '2 Nos', '', 250, 500, 90, 590, '', ''],                                              // line 4: same bill (merged cells), its Qty with its unit
+    ['', '', '', '', '', '', '', '', '', '', 2360, 2360, ''],                                                     // line 5: the bill's total row (no words) – ₹ = its lines
+    ['', '', '', '', 'Sub Total', '', '', '', 2000, 360, 2360, '', ''],                                           // line 6: Sub Total
+    [3, '2024-01-02', 'SURAJ', 500, 'GREASE', 1, 'Kg', 200, 200, 36, 236, '', 'B-2'],                            // line 7: the same day and party, another bill no.
+    ['', '2024-02-10', 'GANESH', 620, '', '', '', '', '', '', '', '', ''],                                         // line 8: a row of only its date / party / reading
+    ['', '', '', '', 'BRAKE PAD', 2, 'Nos', 800, 1600, 288, 1888, '', ''],                                         // line 9: its line under it
+    ['', '', '', '', '', '', '', '', 100, 18, 118, '', ''],                                                        // line 10: an amount without Particulars (not the bill's total)
+    ['', '', '', '', 'BULB', 2, 'Nos', 40, '', '', '', '', '']];                                                   // line 11: no Amount in the file
+  const sh = J(P.mliSheet('ROLLER NO-03', rows, false));
+  assert.deepStrictEqual(sh.bills.map(b => [b.rows, b.date, b.garage, b.km, b.billNo, b.lines.map(l => l.work + ':' + l.qty + ':' + l.uom + ':' + l.amount + ':' + (l.gstAmt || 0))]), [
+    ['Line 3–4', '2024-01-02', 'SURAJ', 500, 'B-1', ['TOTAL QUARTZ 15W40:5:Ltr:1500:270', 'FILTER:2:Nos:500:90']],
+    ['Line 7', '2024-01-02', 'SURAJ', 500, 'B-2', ['GREASE:1:Kg:200:36']],
+    ['Line 9–11', '2024-02-10', 'GANESH', 620, '', ['BRAKE PAD:2:Nos:1600:288', '-:::100:18', 'BULB:2:Nos:0:0']]], 'every line as in the file: the oil named Total kept, the bill\'s total rows left out, a bill of its own no., the date / party row given to its lines, the amount without Particulars kept as "-", no Amount: ₹ 0');
+  assert.deepStrictEqual([sh.total, sh.fileTotal, sh.rows, sh.nums, sh.bad], [4602, 4602, 6, [], []], 'Total = File total (1,770 + 590 + 236 + 1,888 + 118 + 0)');
+  assert.deepStrictEqual(sh.warn.map(w => w.k + ':' + w.line), ['tot:5', 'tot:6', 'np:10', 'na:11'], 'each row not imported as a line, and each one to look at, shown');
+  assert.deepStrictEqual(sh.warn.map(P.mliWarnText), ['Line 5: a total row ₹2360 – left out', 'Line 6: a total row (Sub Total) ₹2360 – left out', 'Line 10: no Particulars in the file – kept as "-" with its ₹118', 'Line 11 (BULB): Qty × Rate = ₹80 but no Amount in the file – kept as ₹0 (free)']);
+  const nb = J(P.mliSheet('X', [['ROLLER NO-03'], P.MLI_HEAD, [1, '2024-01-02', 'SURAJ', '', 'OIL', 1, 'Ltr', 300, 'three hundred', '', '', '', ''], [2, '', '', '', 'FILTER', 'two', '', 50, 50, '', '', '', '']], false));
+  assert.deepStrictEqual([nb.nums, nb.warn.map(w => w.k + ':' + w.h + ':' + w.t)], [['Line 3 (OIL): Amount "three hundred" is not a number'], ['nn:Qty:two']], 'an amount that is not a number stops the sheet (never ₹ 0); a Qty that is not – left empty, shown');
+  assert.deepStrictEqual(J(P.mliNamesOf([sh])), { work: { 'TOTAL QUARTZ 15W40': 1, FILTER: 1, GREASE: 1, 'BRAKE PAD': 1, BULB: 1 } }, 'only the items go to the AI (not "-")');
+  // the page: the sheet read as it shows; a sheet with an amount that is not a number – not checked, not imported; only the items' spelling
+  assert.ok(app.includes("resolve(wb.SheetNames.map(n => mliSheet(n, mliShown(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }), XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' })))).filter(x => x && x.bills.length));"));
+  assert.ok(app.includes("const ready = d.sheets.filter(x => x.no && !x.done && !(x.nums && x.nums.length))"));
+  assert.ok(app.includes("if (!x.no || x.done || x.twice || (x.nums && x.nums.length)) continue;"));
+  assert.ok(app.includes("filter(z => z.f === 'work' && z.on && String(z.to).trim())"), 'only an item\'s name is ever changed');
+  assert.ok(app.includes("MLI_HEAD.slice(0, 12)]);"), 'the format of the old log book as before (no Bill No column added)');
+  // the log book status: the Admin / Super Admin ticks log books and deletes them together
+  assert.ok(app.includes('<button class="btn danger small" id="ml_stdel" type="button" hidden disabled>Delete selected</button>'));
+  assert.ok(app.includes('<th class="ml-stck" hidden><input type="checkbox" id="ml_stall" aria-label="Select every log book shown"></th>'));
+  assert.ok(app.includes("const mlStAdmin = () => !!(S.user && S.user.admin);"), 'only the Admin / Super Admin (as "Delete this log book"; the server: deleteMaintLog admin)');
+  assert.ok(app.includes("const x = await call('deleteMaintLog', { no: r.no, all: true, count: r.bills });"), 'each machinery\'s whole log book, its bills counted as shown');
+  assert.ok(app.includes("if (val('mld_t').trim().toUpperCase() !== 'DELETE') { toast('Not deleted – type DELETE to confirm.', true); return; }"));
+  const spec = run('() => ({ a: API_.deleteMaintLog.admin, l: API_.deleteMaintLog.log })');
+  assert.deepStrictEqual(spec, { a: true, l: 'maintLogDelete' }, 'the server: the Admin only, each bill in the Activity Log');
+  // the words in मराठी and हिंदी
+  ['mr', 'hi'].forEach(l => { const d = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8'));
+    ['Delete selected', 'Delete selected ({0})', 'Item names (Particulars) – spelling (AI)', 'Line {0}: no Particulars in the file – kept as "-" with its ₹{1}', 'Not deleted – type DELETE to confirm.', '{0} log book(s) deleted.'].forEach(k => assert.ok(d[k], l + ': ' + k)); });
 });

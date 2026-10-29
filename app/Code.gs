@@ -6677,12 +6677,13 @@ function importMaint_(b) {
     if (!bills.length) throw new Error('The file has no bill for ' + m.id + '.');
     if (bills.length > MNT_IMPORT_MAX_) throw new Error(m.id + ': at most ' + MNT_IMPORT_MAX_ + ' bills in one import – split the file.');
     const K = noKey_(m.id), lsig = ls => ls.map(l => clean_(l.work).toUpperCase() + ':' + r2_(num0_(l.amount)) + ':' + (l.qty === undefined ? '' : r2_(l.qty))).sort().join(';');
-    const have = [];      // the bills of this machinery already saved: { date, garage, total, sig, id }
+    const have = [];      // the bills of this machinery already saved: { date, garage, total, sig, id, billNo }
     t.rows.forEach(r => { if (noKey_(r[t.c[H.NO]]) !== K) return; const x = maintOut_(t, r);
-      have.push({ date: x.date, garage: x.garage.toUpperCase(), total: x.billTotal, sig: lsig(x.lines), id: x.id }); });
+      have.push({ date: x.date, garage: x.garage.toUpperCase(), total: x.billTotal, sig: lsig(x.lines), id: x.id, billNo: clean_(x.billNo).toUpperCase() }); });
     // (update-173, "duplicate entry import nahi honar") already there = the same machinery and date, and the same lines or its total to ₹1
-    // (above ₹0) – whatever its party is called (SURJ / SURAJ, a name ticked or not); the same bill twice in the file: once
-    const twice = v => have.find(h => h.date === v.dk && (h.sig === v.sig || (v.billTotal > 0 && Math.abs(h.total - v.billTotal) <= 1)));
+    // (above ₹0) – whatever its party is called (SURJ / SURAJ, a name ticked or not); the same bill twice in the file: once.
+    // (update-192, "as it is") two bills with their own bill no.s, not the same no., are never the same bill
+    const twice = v => have.find(h => h.date === v.dk && !(v.billNo && h.billNo && v.billNo.toUpperCase() !== h.billNo) && (h.sig === v.sig || (v.billTotal > 0 && Math.abs(h.total - v.billTotal) <= 1)));
     const errors = [], fresh = [], same = [];
     bills.forEach((x, n) => {
       const where = clean_(x && x.rows) || 'Bill ' + (n + 1);
@@ -6695,7 +6696,7 @@ function importMaint_(b) {
         const v = { dk: dk, m: m, garage: clean_(x.garage).slice(0, 80), billNo: clean_(x.billNo).slice(0, 80), km: km, lines: lines, billTotal: total, total: total, service: false, remark: clean_(x.remark).slice(0, 200), sig: lsig(lines) };
         const h = twice(v);
         if (h) { same.push({ rows: where, date: dk, total: total, id: h.id }); return; }
-        have.push({ date: dk, garage: v.garage.toUpperCase(), total: total, sig: v.sig, id: '(' + where + ')' });      // (the same bill twice in the file: once)
+        have.push({ date: dk, garage: v.garage.toUpperCase(), total: total, sig: v.sig, id: '(' + where + ')', billNo: v.billNo.toUpperCase() });      // (the same bill twice in the file: once)
         fresh.push(Object.assign(v, { rows: where }));
       } catch (e) { errors.push({ rows: where, msg: e.message }); }
     });
@@ -6723,7 +6724,7 @@ function importMaint_(b) {
 const MLR_PAGES_ = 500, MLN_MAX_ = 4000;
 // (update-180) what the AI may say a heading is → the log book's own heading for it
 const MLR_NAMES_ = { sr: 'Sr No', date: 'Date', party: 'Party Name', reading: 'Current Reading', particulars: 'Particulars', work: 'Particulars', qty: 'Qty', uom: 'Uom', rate: 'Basic Rate',
-  amount: 'Amount', gstpct: 'GST %', gstamount: 'GST Amount', gstamt: 'GST Amount', withgst: 'Amount With GST', total: 'Total' };
+  amount: 'Amount', gstpct: 'GST %', gstamount: 'GST Amount', gstamt: 'GST Amount', withgst: 'Amount With GST', total: 'Total', billno: 'Bill No' };      // (update-192: billNo)
 // (update-174) the import's check and the AI's reading: for those who may import (Maintenance Edit – the Admin has it)
 function maintEditOnly_(u) { if (!canEdit_(u, 'Maintenance')) throw new Error('You have View access only for Maintenance. Ask Admin for Edit access.'); }
 /* (update-180, asked 28-10-2026: "kahi pdf madhe heading maghe pudhe aahet tr aple systeam ni auto identify krun te sagla banwayla haw")
@@ -6739,6 +6740,8 @@ function maintLogField_(h) {
     .replace(/\b([a-z]) (?=[a-z]\b)/g, '$1').replace(/\s+/g, ' ').trim();      // ("C.G.S.T" = cgst, "S. No." = sno, "U.O.M" = uom)
   if (!s) return null;
   const skip = { f: '-', p: '' }, is = f => ({ f: f, p: '' });
+  // (update-192, "as it is sagle aahe as yeyla haw") the bill's own number kept – two bills of one day and party stay two
+  if (/\b(bill|invoice|inv|challan|voucher|receipt)\b/.test(s) && /\b(no|number|num)\b/.test(s) && !/\b(job ?card|order|grn|ref|part|item|date|dt)\b/.test(s)) return is('billNo');
   if (/\b(bill|invoice|inv|challan|voucher|job ?card|order|grn|ref|receipt|part|item)\b/.test(s) && /\b(no|nos|number|num|code)\b/.test(s)) return skip;
   if (/\b(remarks?|notes?|comments?|narration|sign|signature|discount|disc|hsn|sac)\b/.test(s)) return skip;
   const part = /\bcgst\b/.test(s) ? 'c' : /\b(sgst|utgst)\b/.test(s) ? 's' : /\bigst\b/.test(s) ? 'i' : '';
@@ -6761,13 +6764,21 @@ function maintLogField_(h) {
   if (/particular|descri|\bworks?\b|\bparts?\b|\bspares?\b|material|\bitems?\b|detail|repair|\bjobs?\b|nature|\bservices?\b|product|\bgoods\b/.test(s)) return is('work');
   return null;
 }
+/* (update-192, asked 29-10-2026: "as it is sagle aahe as yeyla haw … fkt spelling crrect krel … heading ekde tikde astil tr heading match
+ * krel … amount madhe jara pn changes hoyla nko") A ROW'S OWN NUMBERS ONLY: a number as written ("1,250/-", "Rs. 500", "(150)" = −150);
+ * an Amount not written in the row but its amount with GST is – that less its GST (the row's total stays the file's); its GST ₹ not
+ * written but its amount with GST is – the difference when it is a GST (0 to 28 % of the amount); "-" / "nil" = not written. The bill's
+ * no. is the 13th column. Nothing else is worked out. */
 function maintLogRows_(head, rows) {
   const fs = (Array.isArray(head) ? head : []).map(maintLogField_);
   const cols = f => fs.map((x, k) => x && x.f === f ? k : -1).filter(k => k > -1);
   if (!cols('amount').length && cols('withGst').length > 1) fs[cols('withGst')[0]] = { f: 'amount', p: '' };      // (Total Amount · GST · Net Amount: the first is before GST)
   const am = cols('amount').length > 0, wg = cols('withGst').length > 0, ga = cols('gstAmt'), gp = cols('gstPct');
   const has = v => !(v === null || v === undefined || String(v).trim() === '' || /^null$/i.test(String(v).trim()));
-  const n = v => { if (!has(v)) return null; if (typeof v === 'number') return isFinite(v) ? v : null; const t = String(v).replace(/[,₹\s%]|rs\.?/gi, ''); return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : null; };
+  const nil = v => !has(v) || /^\s*(-+|–|—|nil)\s*$/i.test(String(v));
+  const n = v => { if (nil(v)) return null; if (typeof v === 'number') return isFinite(v) ? v : null;
+    let t = String(v).replace(/₹|rs\.?|inr|[,\s%]/gi, '').replace(/(\/-+|-\/-?|\/)$/, ''); const neg = /^\((.+)\)$/.exec(t); if (neg) t = '-' + neg[1];
+    return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : null; };
   const r2 = v => Math.round(v * 100) / 100;
   return (Array.isArray(rows) ? rows : []).map(r => {
     r = Array.isArray(r) ? r : [];
@@ -6778,14 +6789,14 @@ function maintLogRows_(head, rows) {
       if (q.length) { const v = p.length ? sum(p.slice(0, 1)) : ''; return v !== '' ? v : sum(q); }
       return p.length > 1 ? sum(p) : p.length && has(r[p[0]]) ? r[p[0]] : ''; };
     let amount = one('amount'), gst = tax(ga);
-    const pct = n(tax(gp)), qty = one('qty'), rate = one('rate'), withGst = one('withGst');
-    if (!am) {      // a book without an Amount column
-      const w = n(withGst), g = n(gst);
-      if (wg && w !== null) { if (g !== null) amount = r2(w - g); else if (pct > 0) { amount = r2(w / (1 + pct / 100)); gst = r2(w - amount); } else amount = w; }
-      else if (!wg && n(qty) !== null && n(rate) !== null) amount = r2(n(qty) * n(rate));
-    }
-    if (gst === '' && pct > 0 && n(amount) !== null) gst = r2(n(amount) * pct / 100);
-    return [one('sr'), one('date'), one('party'), one('reading'), one('work'), qty, one('uom'), rate, amount, gst, withGst, one('total')];
+    const pct = n(tax(gp)), qty = one('qty'), rate = one('rate'), withGst = one('withGst'), w = n(withGst);
+    if (nil(amount)) {      // no Amount written in this row (or no Amount column)
+      const g = n(gst);
+      if (w !== null) { if (g !== null) amount = r2(w - g); else if (pct > 0) { amount = r2(w / (1 + pct / 100)); gst = r2(w - amount); } else amount = w; }
+      else if (!am && !wg && n(qty) !== null && n(rate) !== null) amount = r2(n(qty) * n(rate));
+    } else if (nil(gst) && w !== null && n(amount) !== null && w > n(amount) && w - n(amount) <= n(amount) * 0.28 + 1) gst = r2(w - n(amount));      // (its GST: the file's own two numbers)
+    if (nil(gst) && pct > 0 && n(amount) !== null) gst = r2(n(amount) * pct / 100);
+    return [one('sr'), one('date'), one('party'), one('reading'), one('work'), qty, one('uom'), rate, amount, gst, withGst, one('total'), one('billNo')];
   });
 }
 function readMaintLog_(x) {
@@ -6828,12 +6839,12 @@ function readMaintLog_(x) {
     '"tables": [{"machinery": the machinery / vehicle name or number written above this table (e.g. "ROLLER NO-03", "MH12AB1234") – null when the table goes on from the page before without one, ' +
     '"head": its column headings EXACTLY as printed, left to right, one for each column (a heading of two rows – e.g. GST over CGST and SGST – its words joined: "GST CGST"), ' +
     '"fields": for each heading what it is – "sr", "date", "party" (the garage, shop or supplier), "reading" (KM / Hrs), "particulars" (the work / part / material), "qty", "uom", "rate", "amount" (before GST), ' +
-    '"gstPct" (a GST %), "gstAmount" (GST, CGST, SGST or IGST in ₹), "withGst" (the amount with GST), "total", or null (anything else: a bill no., a remark …), ' +
+    '"gstPct" (a GST %), "gstAmount" (GST, CGST, SGST or IGST in ₹), "withGst" (the amount with GST), "total", "billNo" (the bill / invoice no.), or null (anything else: a remark …), ' +
     '"rows": [[its cells, left to right, ONE FOR EACH HEADING, in the same order], …]}, …] – a table for each machinery in the order printed, and ONE array for EVERY row of it, top to bottom. ' +
     (carry ? 'A table on this page without a heading row of its own goes on from the page before, whose columns were ' + JSON.stringify(carry) + ': give it "head": null and its rows in those columns. '
       : 'A table on this page without a heading row of its own (it goes on from the page before): give it "head": null and its rows in the columns ' + LOG12 + '. ') +
     'A date as "yyyy-mm-dd", null when the row has no date of its own (one date written for several rows); a cell written only once for several rows (a merged cell, e.g. the party) null in the rows under it; an empty cell null. ' +
-    'Leave out the heading rows, a total row of a page or of a table and a row brought forward. Copy every name and number EXACTLY as printed – do not correct a spelling, do not invent a value; what is not clearly printed is null.' +
+    'Leave out the heading rows, a total row of a page or of a table and a row brought forward; keep every other row, also a row of a bill without its Particulars. Copy every name and number EXACTLY as printed – do not correct a spelling, do not invent a value; every number with all its digits and decimals as printed – never rounded, never worked out (no sum, no GST made); what is not clearly printed is null.' +
     (max ? ' THIS ANSWER HOLDS ONLY A PART OF THE ROWS: at most ' + max + ' rows in all (counting the rows of every table of this page, top to bottom), ' +
       (after ? 'beginning with the row right AFTER this one, which was given before (its cells as you gave them): ' + JSON.stringify(after) + ' – leave out that row and every row above it. ' : 'beginning with the first row of the page. ') +
       'For a table whose rows go on in this part give its machinery and its head again as printed on this page. Add "more": true when this page has rows after the last row you give, else "more": false.' : '');
@@ -6848,38 +6859,41 @@ function readMaintLog_(x) {
     const own = (Array.isArray(t && t.head) ? t.head : []).slice(0, 40).map(h => clean_(cell(h)).slice(0, 80)), fl = Array.isArray(t && t.fields) ? t.fields : [];
     const mine = own.some(Boolean) ? own.map((h, k) => maintLogField_(h) || !MLR_NAMES_[key(fl[k])] ? h : MLR_NAMES_[key(fl[k])]) : null, hd = mine || last;
     const raw = (Array.isArray(t && t.rows) ? t.rows : []).filter(Array.isArray).slice(0, 800).map(r => r.slice(0, 40).map(cell));
-    const rows = (hd ? maintLogRows_(hd, raw) : raw).map(r => { const a = r.slice(0, 12).map(cell); while (a.length < 12) a.push(''); return a; });
+    const rows = (hd ? maintLogRows_(hd, raw) : raw).map(r => { const a = r.slice(0, 13).map(cell); while (a.length < 13) a.push(''); return a; });      // (update-192: its bill no. the 13th)
     if (mine) last = mine;
-    return Object.assign({ machinery: cell(t && t.machinery).toString().slice(0, 80), rows: rows.filter(r => r[4] !== '') }, mine ? { head: own } : {});
+    // (update-192, "amount madhe jara pn changes hoyla nko") a row with an amount but no Particulars is kept – the page shows it (never dropped unseen)
+    return Object.assign({ machinery: cell(t && t.machinery).toString().slice(0, 80), rows: rows.filter(r => r[4] !== '' || [5, 7, 8, 9, 10].some(k => r[k] !== '')) }, mine ? { head: own } : {});
   }).filter(t => t.rows.length || t.machinery);
   // (update-183) a part of the page: whether it has more, and its last row as the AI gave it (the next part goes on after it)
   const lastRow = (() => { const ts = j.tables.slice(0, 60).filter(t => Array.isArray(t && t.rows) && t.rows.some(Array.isArray)), t = ts[ts.length - 1]; if (!t) return null; const rs = t.rows.filter(Array.isArray); return rs[rs.length - 1].slice(0, 40).map(cell); })();
   return Object.assign({ from: from, to: pdf ? (pages ? Math.min(to, pages) : to) : 1, pages: pdf ? pages : 1, tables: tables }, last ? { head: last } : {},
     max ? { more: j.more === true && !!lastRow, last: lastRow } : {});
 }
+/* (update-192, asked 29-10-2026: "fkt spelling crrect krel te hi fkt iteam che je material issue zalel asel tyach") ONLY THE ITEMS – the
+ * Particulars (the work, part or material): a Party name or a Uom sent (a phone app of before) is not looked at, it stays as in the file. */
 function maintImportNames_(x) {
   x = x || {};
-  const F = ['party', 'work', 'uom'], got = {};
+  const F = ['work'], got = {};
   F.forEach(f => { const seen = {}; got[f] = (Array.isArray(x[f]) ? x[f] : []).map(a => Array.isArray(a) ? [clean_(a[0]).slice(0, 120), Math.max(1, Math.floor(num0_(a[1])) || 1)] : [clean_(a).slice(0, 120), 1])
     .filter(a => a[0] && !seen[a[0]] && (seen[a[0]] = true)).slice(0, MLN_MAX_); });
   if (!F.some(f => got[f].length)) return { fixes: [] };
   if (!aiInfo_().on) return { off: true };
   // the names already saved at this site, the most used first
-  const saved = { party: {}, work: {}, uom: {} }, add = (o, v) => { const k = clean_(v); if (k) o[k] = (o[k] || 0) + 1; }, t = maintTable_(false);
-  if (t) t.rows.forEach(r => { const v = maintOut_(t, r); add(saved.party, v.garage); v.lines.forEach(l => { add(saved.work, l.work); add(saved.uom, l.uom); }); });
+  const saved = { work: {} }, add = (o, v) => { const k = clean_(v); if (k) o[k] = (o[k] || 0) + 1; }, t = maintTable_(false);
+  if (t) t.rows.forEach(r => { const v = maintOut_(t, r); v.lines.forEach(l => { add(saved.work, l.work); }); });
   const top = o => Object.keys(o).sort((a, b) => o[b] - o[a]).slice(0, 1500);
-  const what = { party: 'party – the Party Name (the garage, shop or supplier)', work: 'work – the Particulars (the work, part or material)', uom: 'uom – the unit (Nos, Ltr, Kg …)' };
-  const ask = 'NAMES OF AN OLD MAINTENANCE LOG BOOK of the machinery of a construction company in India. The same name is often written in several ways: a letter missing or extra, another spelling, spaces or dots, a short form ' +
-    '(e.g. "SURJ", "SURAAJ", "SARAJ" for "SURAJ"; "ENGIN OIL" for "ENGINE OIL"; "LTR", "Ltrs", "Litre" for "Ltr"). In each list below find the names that are the SAME thing written differently, and give for each of them its right spelling: ' +
-    'the name already saved at this site when it is one of them, else the spelling most rows use, or the correct one. Different things stay apart – never put together two different parts, works, oils, grades or sizes (ENGINE OIL and ENGINE OIL FILTER, 15W40 and 20W50, FRONT and REAR, 10 MM and 12 MM) or two different parties. ' +
-    'A name already right is not given. Answer with JSON only: {"fixes": [[list, nameInTheFile, rightSpelling], …]} – list = "party", "work" or "uom"; nameInTheFile exactly as it is below.\n' +
+  const what = { work: 'work – the Particulars (the work, part or material)' };
+  const ask = 'ITEM NAMES OF AN OLD MAINTENANCE LOG BOOK of the machinery of a construction company in India – the Particulars (the work, part or material). The same item is often written in several ways: a letter missing or extra, another spelling, spaces or dots, a short form ' +
+    '(e.g. "ENGIN OIL", "ENGINE OIL." for "ENGINE OIL"; "HYDROLIC OIL" for "HYDRAULIC OIL"). In the list below find the names that are the SAME item written differently, and give for each of them its right spelling: ' +
+    'the name already saved at this site when it is one of them, else the spelling most rows use, or the correct one. Only the spelling – nothing else of the name is changed or added. Different things stay apart – never put together two different parts, works, oils, grades or sizes (ENGINE OIL and ENGINE OIL FILTER, 15W40 and 20W50, FRONT and REAR, 10 MM and 12 MM). ' +
+    'A name already right is not given. Answer with JSON only: {"fixes": [["work", nameInTheFile, rightSpelling], …]} – nameInTheFile exactly as it is below.\n' +
     F.filter(f => got[f].length).map(f => what[f] + ' – in the file, [name, rows]: ' + JSON.stringify(got[f]) + '\n   already saved: ' + JSON.stringify(top(saved[f]))).join('\n');
   const j = aiJson_(aiAskPhoto_('', ask, '', 'the names', { tokens: 12000, fast: x.fast !== false, fail: ' – the names stay as in the file; try again in a minute.' })) || {};      // (update-183) the quicker model first
   const has = {}; F.forEach(f => { has[f] = {}; got[f].forEach(a => { has[f][a[0]] = true; }); });
   const out = [], done = {};
   (Array.isArray(j.fixes) ? j.fixes : []).forEach(z => {
     const a = Array.isArray(z) ? z : z && typeof z === 'object' ? [z.list, z.from || z.nameInTheFile, z.to || z.rightSpelling] : [];
-    const f = clean_(a[0]).toLowerCase(), from = clean_(a[1]), to = clean_(a[2]).slice(0, f === 'uom' ? 12 : f === 'party' ? 80 : 120);
+    const f = clean_(a[0]).toLowerCase() || 'work', from = clean_(a[1]), to = clean_(a[2]).slice(0, 120);
     if (F.indexOf(f) < 0 || !has[f][from] || !to || to === from || done[f + '|' + from]) return;
     done[f + '|' + from] = true; out.push([f, from, to]);
   });

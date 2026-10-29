@@ -96,15 +96,17 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
       JSON.stringify(rd.bills) === JSON.stringify([['Line 5', '2022-12-02', 'Store', '', 'AD BLUE:1180:212.4'], ['Line 6–8', '2023-01-05', 'Store', 500, 'FUEL FILTER:650:117, FUEL WATER SEPRETOR:425:76.5, ENGINE OIL FILTER:930:167.4'],
         ['Line 9–10', '2024-01-29', 'Ganesh Motors', 1745, 'DRUM OIL:0:, HYDROLIC OIL L&T:10374:1867.32'], ['Line 11', '2023-12-30', 'GANESH MOTERS', '', 'Cotton West:15:3']]), rd.bills);
     // the names: the AI's list, nothing ticked; the file's names and the saved ones went to the AI
-    const nm = await F.evaluate(() => ({ head: (document.querySelector('#mti_out .mli-names h3') || {}).textContent, rows: [...document.querySelectorAll('#mti_out .mli-names tbody tr')].map(tr => [tr.cells[0].querySelector('input').checked, tr.cells[1].textContent, tr.cells[2].textContent, tr.cells[3].querySelector('input').value, tr.cells[4].textContent]),
+    // (update-192, "fkt spelling crrect krel te hi fkt iteam che") only the items: the party the AI gave is not listed
+    const nm = await F.evaluate(() => ({ head: (document.querySelector('#mti_out .mli-names h3') || {}).textContent, rows: [...document.querySelectorAll('#mti_out .mli-names tbody tr')].map(tr => [tr.cells[0].querySelector('input').checked, tr.cells[1].textContent, tr.cells[2].querySelector('input').value, tr.cells[3].textContent]),
       look: [...document.querySelectorAll('#mti_out details.mli-more')].map(d => d.querySelector('summary').textContent + ' | ' + d.querySelector('li').textContent) }));
     const lg1 = (await aiSay('/__log')).filter(x => x.names);
-    ok('   the names (AI): "Names written in more than one way" – Party Name GANESH MOTERS → Ganesh Motors (1 row), Particulars FUEL WATER SEPRETOR → FUEL WATER SEPARATOR (1 row), nothing ticked; the AI asked once with the file\'s names and rows (every sheet – the JCB\'s too)',
-      nm.head === 'Names written in more than one way (AI)' && JSON.stringify(nm.rows) === JSON.stringify([[false, 'Party Name', 'GANESH MOTERS', 'Ganesh Motors', '1'], [false, 'Particulars', 'FUEL WATER SEPRETOR', 'FUEL WATER SEPARATOR', '1']]) &&
-      lg1.length === 1 && /\["Store",5\],\["Ganesh Motors",2\],\["GANESH MOTERS",1\]\]/.test(lg1[0].ask) && /\["Cotton West",1\],\["Grease",1\]\]/.test(lg1[0].ask), [nm, lg1]);
-    ok('   the full check: "1 line(s) to look at – imported as they are": Line 11 (Cotton West): Qty × Rate = ₹16.50, Amount ₹15.00',
-      JSON.stringify(nm.look) === JSON.stringify(['1 line(s) to look at – imported as they are | Line 11 (Cotton West): Qty × Rate = ₹16.50, Amount ₹15.00']), nm.look);
-    await F.evaluate(() => { const c = document.querySelector('#mti_out [data-mlf="0"]'); c.click(); }); await wait(400);      // (the party ticked; the Particulars not)
+    ok('   the names (AI) – (update-192) only the items: "Item names (Particulars) – spelling (AI)" – FUEL WATER SEPRETOR → FUEL WATER SEPARATOR (1 row), nothing ticked; the party the AI gave not listed; the AI asked once with the file\'s items and rows (every sheet – the JCB\'s too), no party',
+      nm.head === 'Item names (Particulars) – spelling (AI)' && JSON.stringify(nm.rows) === JSON.stringify([[false, 'FUEL WATER SEPRETOR', 'FUEL WATER SEPARATOR', '1']]) &&
+      lg1.length === 1 && /^work – the Particulars/.test(lg1[0].ask) && !/GANESH MOTERS|"Store"/.test(lg1[0].ask) && /\["Cotton West",1\],\["Grease",1\]\]/.test(lg1[0].ask), [nm, lg1]);
+    ok('   the full check: "2 line(s) to look at": Line 11 (Cotton West): Qty × Rate = ₹16.50, Amount ₹15.00 – (update-192) and the total line, left out, listed too',
+      JSON.stringify(nm.look) === JSON.stringify(['2 line(s) to look at | Line 11 (Cotton West): Qty × Rate = ₹16.50, Amount ₹15.00']) &&
+      await F.evaluate(() => [...document.querySelectorAll('#mti_out details.mli-more li')].some(li => li.textContent === 'Line 12: a total row (Total) ₹16,017.62 – left out')), nm.look);
+    await F.evaluate(() => { const c = document.querySelector('#mti_out [data-mlf="0"]'); c.click(); }); await wait(400);      // (update-192: the item ticked)
     await F.evaluate(() => $('mti_check').click());
     for (let i = 0; i < 40 && !(await F.evaluate(() => S.mli.sheets[0].res)); i++) await wait(400);
     await wait(300);
@@ -121,9 +123,9 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
     const namesAfter = await F.evaluate(() => !!document.querySelector('#mti_out .mli-names'));
     ok('   (update-175) after the import: the names\' list is gone (nothing left to import)', namesAfter === false, namesAfter);
     const l3 = JSON.parse(sql('rcl', "select lines from maintenance where id = 'MT-000003'") || '[]'), l2 = JSON.parse(sql('rcl', "select lines from maintenance where id = 'MT-000002'") || '[]');
-    ok('   Import: 4 bills saved as they are – MT-000001 … MT-000004 (dates of 2022–2024, the party, the reading, ₹1,392.40 / ₹2,365.90 / ₹12,241.32 / ₹18.00 – the file\'s GST ₹); "Drum oil" kept as FOC; the ticked name: "Ganesh Motors"; the unticked one as in the file; "✓ 4 bill(s) imported"',
-      JSON.stringify(rows) === JSON.stringify(['MT-000001|2022-12-02|Store||1392.4', 'MT-000002|2023-01-05|Store|500|2365.9', 'MT-000003|2024-01-29|Ganesh Motors|1745|12241.32', 'MT-000004|2023-12-30|Ganesh Motors||18']) &&
-      l3.map(l => l.work + ':' + l.type + ':' + (l.gstAmt || 0)).join(', ') === 'DRUM OIL:FOC:0, HYDROLIC OIL L&T:Paid:1867.32' && l3.every(l => !('gst' in l)) && l2[1].work === 'FUEL WATER SEPRETOR' && /✓ 4 bill\(s\) imported \(MT-000001 – MT-000004\)/.test(st2), [rows, l3, l2, st2]);
+    ok('   Import: 4 bills saved as they are – MT-000001 … MT-000004 (dates of 2022–2024, the party as in the file, the reading, ₹1,392.40 / ₹2,365.90 / ₹12,241.32 / ₹18.00 – the file\'s GST ₹); "Drum oil" kept as FOC; (update-192) the ticked item: "FUEL WATER SEPARATOR"; "✓ 4 bill(s) imported"',
+      JSON.stringify(rows) === JSON.stringify(['MT-000001|2022-12-02|Store||1392.4', 'MT-000002|2023-01-05|Store|500|2365.9', 'MT-000003|2024-01-29|Ganesh Motors|1745|12241.32', 'MT-000004|2023-12-30|GANESH MOTERS||18']) &&
+      l3.map(l => l.work + ':' + l.type + ':' + (l.gstAmt || 0)).join(', ') === 'DRUM OIL:FOC:0, HYDROLIC OIL L&T:Paid:1867.32' && l3.every(l => !('gst' in l)) && l2[1].work === 'FUEL WATER SEPARATOR' && /✓ 4 bill\(s\) imported \(MT-000001 – MT-000004\)/.test(st2), [rows, l3, l2, st2]);
     // ---- 2. the same file again: nothing twice ----
     await F.evaluate(() => { $('mti_file').value = ''; }); await inp.uploadFile(file); await wait(1500);      // (as "Choose the file" does)
     for (let i = 0; i < 40 && !(await namesDone()); i++) await wait(400);
@@ -156,7 +158,7 @@ const R = 'RL-173', J2 = 'JCB-173', O3 = 'OLD-173';      // (the roller found by
       /Old log book\.pdf – 2 sheet\(s\)/.test(pr.name) && JSON.stringify(pr.sheets) === JSON.stringify([['ROLLER NO-03', 'ROLLER NO-03', R, 3, 'Line 1:2022-12-02:Store::AD BLUE | Line 2–3:2025-02-10:Store:620:GREASE+BULB'], ['MH12XW0169', 'MH12XW0169', '', 1, 'Line 1:2026-02-10:Navnit Motors:13153:Wiper blade']]) &&
       lg3.length === 4 && lg3.every(x => x.kept === 'ephemeral' && x.image === 'application/pdf' && x.jsonAsked && x.read === 'this page (one page of the log book)') && JSON.stringify(lg3.map(x => x.part)) === JSON.stringify([25, 25, 13, 25]) &&
       JSON.stringify(lg3.map(x => x.model)) === JSON.stringify(['claude-sonnet-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-sonnet-5-5']) &&
-      pr.names === '✓ The AI found no name written in more than one way.', [pr, lg3.map(x => [x.read, x.kept, x.model, x.maxTokens, x.part])]);
+      pr.names === '✓ The AI found no item written in more than one way.', [pr, lg3.map(x => [x.read, x.kept, x.model, x.maxTokens, x.part])]);
     await F.evaluate(() => $('mti_check').click());
     for (let i = 0; i < 40 && !(await F.evaluate(() => S.mli.sheets[0].res)); i++) await wait(400);
     await wait(300);
