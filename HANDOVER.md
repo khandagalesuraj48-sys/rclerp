@@ -2245,6 +2245,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   every page with a date; only that page's entries of an earlier day): `DATE_PAGES_`, kept as "Admin" in the page's cell, read as Edit
   with the page in `pageAdmin` (`ACTOR_PAGE_ADMIN_` → `userDateRule_`); the Portal and Users & Access offer it (`dateAdmin`). No SQL.
   Tests: unit `update-189`; rig `page189.js`.
+- 29-10-2026 (update-191, with rcl-store #24, rcl-engineering #8, rcl-portal #28, rcl-mobile 3.67.0). Report: `UPDATE_191.md`. 🎙 SPEAK
+  INTO A BOX: the block "SPEAK INTO A BOX" before `</body>` of `app/App.html` (the same code as the Store's / Engineering's `voice.js`, the
+  Portal's block): a 🎙 in the box in use (text / number / phone / note; not a password, a date, shown-only, `data-novoice` – `#ai_form`);
+  the browser's speech (the top window's, as the assistant's) in मराठी / हिंदी / English (chips; kept; first the help language –
+  `window.rclVoiceLang`); the words go in as typed (input + change); a number box the number (`RclVoice.toNumber`: "साडे तीन हजार" → 3500),
+  a phone box the digits. No SQL, no server change. Tests: unit `update-191`; `test/voice.browser.test.js`; rig set = main.
 - 29-10-2026 (update-190, urgent). Report: `UPDATE_190.md`. VEHICLE COMPLIANCE DREW NO TABLE (since update-164): the card payments had
   its names `S.cp` / `cpLoad` – now `S.cpay` / `cpayLoad`; the Dashboard's diesel-stock dates had the Log Book's `lg_note` – now
   `lgd_note`. A unit test against names made twice. No SQL. Tests: unit `update-190`; rig `comp190.js` (before: the same fault).
