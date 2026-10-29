@@ -7742,3 +7742,20 @@ test('update-189: a page\'s 4th access "Admin" (every page with a date) – Edit
   assert.match(page, /uaSel\(m\.key, u\.admin \? 'Edit' : \(u\.perms \|\| \{\}\)\[m\.key\] \|\| 'None', u\.admin \|\| ro, !!m\.dateAdmin\)/);
   assert.match(page, /JSON\.stringify\(u\.pageAdmin \|\| null\)/, 'a change of his Admin pages reaches an open page');
 });
+
+test('update-190: Vehicle Compliance and the fuel cards\' payments each keep their own names on the page (S.cp / cpLoad were both\'s – the compliance table and history were not drawn, "Cannot read properties of undefined (reading \'1\')")', () => {
+  const page = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const fns = (page.match(/^ {2}(?:async )?function ([A-Za-z0-9_$]+)\(/gm) || []).map(x => x.replace(/^ {2}(?:async )?function /, '').replace(/\($/, ''));
+  const twice = fns.filter((n, i) => fns.indexOf(n) !== i);
+  assert.deepStrictEqual(twice, [], 'no function of the page is made twice (the later one would replace the first)');
+  const sets = (page.match(/^ {2}S\.([A-Za-z0-9_]+) = /gm) || []).map(x => x.trim()), dup = sets.filter((n, i) => sets.indexOf(n) !== i);
+  assert.deepStrictEqual(dup, [], 'no part of S is started twice');
+  assert.match(page, /^ {2}S\.cp = \{ d: null, chip: 'attention' \};/m, 'S.cp is Vehicle Compliance\'s');
+  assert.match(page, /^ {2}S\.cpay = \{ items: \[\], tok: 0, edit: null \};/m, 'the card payments: S.cpay');
+  assert.match(page, /else if \(name === 'comp'\) cpLoad\(\);/);
+  assert.match(page, /async function cpayLoad\(\) \{\n {4}const seq = \+\+cpSeq;/);
+  // …and no box of the page's own HTML (outside its scripts) has another's name: the Dashboard's diesel-stock dates had the Log Book's
+  const html = page.replace(/<script[\s\S]*?<\/script>/g, ''), ids = (html.match(/\sid="([^"]+)"/g) || []).map(x => x.replace(/^\sid="|"$/g, ''));
+  assert.deepStrictEqual(ids.filter((n, i) => ids.indexOf(n) !== i), [], 'every box its own id');
+  assert.ok(page.includes("$('lgd_note').textContent = showDate(L.from) + ' to ' + showDate(L.to);"));
+});

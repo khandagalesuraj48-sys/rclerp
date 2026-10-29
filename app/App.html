@@ -3485,7 +3485,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="panel-head">
         <h2 class="fuel-word">Day-wise diesel stock</h2>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <span class="chart-note" id="lg_note"></span>
+          <span class="chart-note" id="lgd_note"></span>
           <select id="lg_loc" class="loc-select" data-all="All locations" data-fuel-by="k_fuel" style="width:auto"></select>
         </div>
       </div>
@@ -16021,7 +16021,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const L = await rawCall('getStockLedger', Object.assign({ from: $('k_from').value, to: $('k_to').value, location: loc }, fu ? { fuel: fu } : {}));
       if (seq !== lgSeq) return;
       const sig = JSON.stringify([loc, fu, L]); if (sig === S.ledgerSig) return; S.ledgerSig = sig;   // unchanged: nothing to redraw
-      $('lg_note').textContent = showDate(L.from) + ' to ' + showDate(L.to);
+      $('lgd_note').textContent = showDate(L.from) + ' to ' + showDate(L.to);      // (update-190) its own box – "lg_note" is the Log Book page's (the dates went there)
       // (update-159, asked 25-10-2026: "/ nko … jyach tyach seprate ale gel transfer") one "Received from" and one "Sent to" column
       // for EACH other stock point – a transfer with one of them is never shown under the others too
       const peers = loc ? (L.others || S.locations.filter(x => x !== loc)) : [];
@@ -17474,13 +17474,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     '<b>₹' + esc(money(c.balance)) + '</b><span><b style="font-size:13px;display:inline;color:var(--ink)">' + esc(c.name) + '</b>' + (c.lastFill ? ' · last fill ' + esc(showDate(c.lastFill)) : '') + '</span>' +
     (ex ? '<span class="' + ex.cls + '">' + esc(ex.text) + '</span>' : '') + '</div>'; };
   // ---------- the page Fuel Cards ----------
-  S.cp = { items: [], tok: 0, edit: null };
+  S.cpay = { items: [], tok: 0, edit: null };      // (update-190) its own name – S.cp is Vehicle Compliance's (the same name broke that page since update-164)
   function cdOpen(first) {
     if (first) {
       const t = S.today; $('cp_date').value = t; $('cp_date').max = t; $('cd_date').max = t;
       $('cpf_from').value = t.slice(0, 8) + '01'; $('cpf_to').value = t;
     }
-    cardsChanged(); cdRender(); cpLoad();
+    cardsChanged(); cdRender(); cpayLoad();
   }
   function cdRender() {
     const list = cardList(), ed = canEdit('Fuel Cards');
@@ -17519,48 +17519,48 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   });
   // ---------- a payment onto a card (with photos of its receipt) ----------
   function cpPaint() {
-    $('cp_ph').innerHTML = S.cp.items.map((it, i) => '<span>' + (it.url ? '<img src="' + esc(it.url) + '" alt="">' : '<span class="muted">sending…</span>') + ' <button type="button" class="link del" data-cpx="' + i + '" title="Take it out">×</button></span>').join('') +
+    $('cp_ph').innerHTML = S.cpay.items.map((it, i) => '<span>' + (it.url ? '<img src="' + esc(it.url) + '" alt="">' : '<span class="muted">sending…</span>') + ' <button type="button" class="link del" data-cpx="' + i + '" title="Take it out">×</button></span>').join('') +
       '<button type="button" class="btn ghost small" id="cp_ph_add">+ Add photo</button>';
   }
   function cpClear() {
-    S.cp.items.forEach(it => { if (it.blob) try { URL.revokeObjectURL(it.url); } catch (e) { /* gone */ } });
-    S.cp = { items: [], tok: S.cp.tok + 1, edit: null };
+    S.cpay.items.forEach(it => { if (it.blob) try { URL.revokeObjectURL(it.url); } catch (e) { /* gone */ } });
+    S.cpay = { items: [], tok: S.cpay.tok + 1, edit: null };
     ['cp_amount', 'cp_ref', 'cp_remark'].forEach(id => { $(id).value = ''; });
     $('cp_date').value = S.today; $('cp_title').textContent = 'Payment onto a card'; $('cp_save').textContent = 'Save payment'; $('cp_cancel').hidden = true;
     cpPaint();
   }
   $('cp_ph').addEventListener('click', e => {
     if (e.target.id === 'cp_ph_add') { const i = $('cp_ph_in'); i.value = ''; i.multiple = true; i.click(); return; }
-    const x = e.target.closest('[data-cpx]'); if (x) { S.cp.items.splice(Number(x.dataset.cpx), 1); cpPaint(); }
+    const x = e.target.closest('[data-cpx]'); if (x) { S.cpay.items.splice(Number(x.dataset.cpx), 1); cpPaint(); }
   });
   $('cp_ph_in').addEventListener('change', async () => {
-    const files = [...($('cp_ph_in').files || [])], tok = S.cp.tok;
+    const files = [...($('cp_ph_in').files || [])], tok = S.cpay.tok;
     for (const f of files) {
-      if (S.cp.items.length >= 5) { toast('Up to 5 receipt photos with one payment.'); break; }
-      const it = { p: '', url: '' }; S.cp.items.push(it); cpPaint();
+      if (S.cpay.items.length >= 5) { toast('Up to 5 receipt photos with one payment.'); break; }
+      const it = { p: '', url: '' }; S.cpay.items.push(it); cpPaint();
       try {
         if (f.type && !/^image\//.test(f.type)) throw new Error('This file is not a photo – pick a photo of the receipt.');
         const pic = await phMake(f, null, 2000), res = await call('cardPhoto', { data: pic.data });
-        if (tok !== S.cp.tok) { URL.revokeObjectURL(pic.url); return; }
+        if (tok !== S.cpay.tok) { URL.revokeObjectURL(pic.url); return; }
         it.p = res.path; it.url = pic.url; it.blob = true;
-      } catch (e) { const i = S.cp.items.indexOf(it); if (i > -1) S.cp.items.splice(i, 1); toast(errMsg(e), true); }
+      } catch (e) { const i = S.cpay.items.indexOf(it); if (i > -1) S.cpay.items.splice(i, 1); toast(errMsg(e), true); }
       cpPaint();
     }
   });
   async function cpSave() {
-    if (S.cp.items.some(it => !it.p)) { toast('A photo is still being sent – wait a moment, then save.', true); return; }
-    const x = { date: $('cp_date').value, card: $('cp_card').value, amount: numv('cp_amount'), ref: val('cp_ref'), remark: val('cp_remark'), photos: S.cp.items.map(it => it.p) };
-    const ed = S.cp.edit, res = ed ? await call('updateCardPayment', ed, x) : await call('saveCardPayment', x);
+    if (S.cpay.items.some(it => !it.p)) { toast('A photo is still being sent – wait a moment, then save.', true); return; }
+    const x = { date: $('cp_date').value, card: $('cp_card').value, amount: numv('cp_amount'), ref: val('cp_ref'), remark: val('cp_remark'), photos: S.cpay.items.map(it => it.p) };
+    const ed = S.cpay.edit, res = ed ? await call('updateCardPayment', ed, x) : await call('saveCardPayment', x);
     if (!res || !res.ok) return;
     S.cards = res.cards; cardsChanged();
     toast(ed ? 'Payment ' + res.id + ' saved.' : 'Payment ' + res.id + ' saved onto ' + x.card + '.');
-    cpClear(); cpLoad();
+    cpClear(); cpayLoad();
   }
   $('cp_save').addEventListener('click', e => busy(e.target, 'Saving…', cpSave));
   $('cp_clear').addEventListener('click', cpClear);
   $('cp_cancel').addEventListener('click', cpClear);
   let cpSeq = 0;
-  async function cpLoad() {
+  async function cpayLoad() {
     const seq = ++cpSeq;
     try {
       const d = await call('getCardPayments', { from: $('cpf_from').value, to: $('cpf_to').value, card: $('cpf_card').value });
@@ -17573,7 +17573,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         : '<tr><td colspan="8" class="none">No payment onto a card in these dates.</td></tr>';
     } catch (e) { toast(errMsg(e), true); }
   }
-  ['cpf_from', 'cpf_to', 'cpf_card'].forEach(id => $(id).addEventListener('change', cpLoad));
+  ['cpf_from', 'cpf_to', 'cpf_card'].forEach(id => $(id).addEventListener('change', cpayLoad));
   async function cpPhotos(id) {
     const d = await call('getCardPayPhotos', id);
     if (!d.photos || !d.photos.length) { toast('This payment has no photos.'); return []; }
@@ -17585,14 +17585,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       await askConfirm({ title: 'Receipt photos – ' + v.dataset.cpv, alertOnly: true, wide: true, ok: 'Close', html: '<div class="phv-grid">' + ph.map(x => '<figure>' + (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener"><img src="' + esc(x.url) + '" alt="" loading="lazy"></a>' : '<div class="none">The picture was not found.</div>') + '</figure>').join('') + '</div><p class="muted small">The links work for 15 minutes.</p>' }); }); return; }
     const ed = e.target.closest('[data-cpe]');
     if (ed) { busy(ed, '…', async () => { const r = (S.cpRows || []).find(x => x.id === ed.dataset.cpe); if (!r) return;
-      cpClear(); S.cp.edit = r.id; $('cp_date').value = r.date; $('cp_card').value = r.card; $('cp_amount').value = r.amount; $('cp_ref').value = r.ref; $('cp_remark').value = r.remark;
+      cpClear(); S.cpay.edit = r.id; $('cp_date').value = r.date; $('cp_card').value = r.card; $('cp_amount').value = r.amount; $('cp_ref').value = r.ref; $('cp_remark').value = r.remark;
       $('cp_title').textContent = 'Change payment ' + r.id; $('cp_save').textContent = 'Save changes'; $('cp_cancel').hidden = false;
-      if (r.photos) { const ph = await cpPhotos(r.id); S.cp.items = ph.map(x => ({ p: x.p, url: x.url })); }
+      if (r.photos) { const ph = await cpPhotos(r.id); S.cpay.items = ph.map(x => ({ p: x.p, url: x.url })); }
       cpPaint(); $('cp_title').scrollIntoView({ block: 'start', behavior: 'smooth' }); }); return; }
     const dl = e.target.closest('[data-cpd]');
     if (dl) busy(dl, 'Deleting…', async () => { const r = (S.cpRows || []).find(x => x.id === dl.dataset.cpd); if (!r) return;
       if (!(await askConfirm({ title: 'Delete ' + r.id + '?', danger: true, ok: 'Delete', html: listHtml([r.card + ' – ₹' + money(r.amount), showDate(r.date) + (r.ref ? ' · ' + r.ref : '')]) + '<p>The balance of ' + esc(r.card) + ' goes down by this amount.</p>' }))) return;
-      const res = await call('deleteCardPayment', r.id); S.cards = res.cards; cardsChanged(); toast(r.id + ' deleted.'); if (S.cp.edit === r.id) cpClear(); cpLoad(); });
+      const res = await call('deleteCardPayment', r.id); S.cards = res.cards; cardsChanged(); toast(r.id + ' deleted.'); if (S.cpay.edit === r.id) cpClear(); cpayLoad(); });
   });
   // ---------- the statement of a card ----------
   async function csShow() {
