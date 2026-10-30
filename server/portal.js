@@ -104,8 +104,10 @@ function verifyAdmin(ticket, now) {
   }
   if (c.act === 'placesSave') return Object.assign(out, { places: placesOf(c.places) }, c.mode === 'card' || c.mode === 'stock' ? { mode: c.mode } : {});      // (update-117) Sites → Diesel places; (update-164) on fuel cards or not
   // (update-157) Sites → Backup: a site's (or the Portal's) numbered backup Sheets – look, give a link (change / add), back up now
-  if (c.act === 'bkGet' || c.act === 'bkNow') return Object.assign(out, { target: c.target === 'portal' ? 'portal' : '' });
-  if (c.act === 'bkSet') return Object.assign(out, { target: c.target === 'portal' ? 'portal' : '', mode: c.mode === 'add' ? 'add' : 'change', link: String(c.link || '').trim().slice(0, 300) });
+  // (update-195) … or Purchase's ('purchase' – its own Sheets, kept at the first site like the Portal's)
+  const bkT = c.target === 'portal' || c.target === 'purchase' ? c.target : '';
+  if (c.act === 'bkGet' || c.act === 'bkNow') return Object.assign(out, { target: bkT });
+  if (c.act === 'bkSet') return Object.assign(out, { target: bkT, mode: c.mode === 'add' ? 'add' : 'change', link: String(c.link || '').trim().slice(0, 300) });
   // (update-158) Sites → Storage: every site's storage and the Drive copy; "Connect Google Drive" (the first site); "Copy files now" (one site)
   if (c.act === 'stoGet' || c.act === 'drvStart' || c.act === 'drvNow') return out;
   if (c.act === 'papers') return Object.assign(out, papersOf(c));      // (update-193) a company / a site's company saved in the Portal

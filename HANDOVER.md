@@ -2277,3 +2277,8 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `/purchase/` and `/purchase/:path*` → `https://rcl-purchase.vercel.app` (the Purchase Department – its own Vercel project and its
   own Supabase `rcl-purchase` for every site). Nothing else changes. Tests: unit `update-194` (99 and 127 pick their rules by address);
   rig `rcl-purchase/test/inmech.test.js` 7/7.
+- 30-10-2026 (update-195, with rcl-portal and rcl-purchase `purchase-backup`). Report: `UPDATE_195.md`. PURCHASE'S OWN BACKUP SHEETS:
+  `backup.vm.js` target `purchase` (BK_PUR_SHEETS / BK_PUR_STATE / SB_PUR_INFO, lock backup_purchase – at the first site, like the
+  Portal's; rows only through rcl-purchase's backup export, "Purchase – …" tabs); `bkexport.js` PURCHASE_URL or vercel.json /purchase;
+  portal.js / system.js / runtime.js / api/backup.js (nightly: + Purchase). Portal → Sites → Purchase backup. No SQL. Tests: unit
+  `update-195`; rig `test/backup195.js` 32/32, `test/backup157.js` 55/55.

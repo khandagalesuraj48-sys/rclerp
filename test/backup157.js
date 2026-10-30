@@ -57,7 +57,7 @@ const dump = id => g('/dump?id=' + id);
   try {
     for (let i = 0; i < 30; i++) { try { await g('/dump'); break; } catch (e) { await wait(200); } }
     await g('/reset?bare=1');
-    for (const db of ['rcl', 'rcl_s2']) sql(db, "delete from web.props where key in ('BK_STATE', 'SB_INFO', 'BK_SHEETS', 'BK_PORTAL_SHEETS', 'BK_PORTAL_STATE', 'SB_PORTAL_INFO', 'BK_BUDGET_MS', 'BK_GROUP_ROWS'); delete from web.locks where name like 'backup%';");
+    for (const db of ['rcl', 'rcl_s2']) sql(db, "delete from web.props where key in ('BK_STATE', 'SB_INFO', 'BK_SHEETS', 'BK_PORTAL_SHEETS', 'BK_PORTAL_STATE', 'SB_PORTAL_INFO', 'BK_PUR_SHEETS', 'BK_PUR_STATE', 'SB_PUR_INFO', 'BK_BUDGET_MS', 'BK_GROUP_ROWS'); delete from web.locks where name like 'backup%';");
     sql('rcl', "update rcl_sites set sheet = null where code = 'T2'");      // 18B on the live site: no Sheet given yet
     // test rows of the rig (machinery and Log Book rows of September) at both sites
     for (const db of ['rcl', 'rcl_s2']) sql(db, "delete from log_book where id like 'B157-%'; delete from master where id like 'B157-%';" +
@@ -95,7 +95,7 @@ const dump = id => g('/dump?id=' + id);
 
     // ---- 1. as before: the first site writes its Sheet of before (BACKUP_SHEET_ID) as its Sheet 1, now with Engineering; 18B none ----
     let n0 = await cronDone(3005);
-    ok('the nightly job: every ready site and the Portal – the first site writes, 18B (no Sheet) and the Portal (none) are left out', n0.status === 200 && n0.ok === true && n0.sites === 3, n0);
+    ok('the nightly job: every ready site, the Portal and Purchase (update-195) – the first site writes, 18B (no Sheet), the Portal and Purchase (none) are left out', n0.status === 200 && n0.ok === true && n0.sites === 4, n0);
     let d = await dump(LEGACY), titles = d.tabs.map(t => t.title);
     ok('   the first site\'s Sheet of before is its Sheet 1: its tables as always, and Engineering\'s of S1 ("Engineering – …")', titles.indexOf('Master') > -1 && titles.indexOf('Engineering – Masters') > -1 && titles.indexOf('Engineering – Plans and reports') > -1, titles.slice(0, 40));
     const em = await tab(LEGACY, 'Engineering – Masters'), siteCol = em ? em[0].indexOf('site') : -1;

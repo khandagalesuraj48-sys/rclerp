@@ -116,9 +116,11 @@ function portalAdmin(R, args) {
 function backupAdmin(R, c) {
   const reg = sites.registry();
   let at = '';
-  if (c.target !== 'portal' && reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
+  // (update-195) the Portal's and Purchase's own Sheets are kept at the first site
+  const own = c.target === 'portal' || c.target === 'purchase' ? c.target : '';
+  if (!own && reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
   if (c.act !== 'bkSet') return R.runIn(at, 'sysPortalAdmin', [c]);
-  return withBkLock(() => R.runIn(at, 'sysPortalAdmin', [Object.assign({}, c, { taken: bkTaken(R, c.target === 'portal' ? null : at) })]));
+  return withBkLock(() => R.runIn(at, 'sysPortalAdmin', [Object.assign({}, c, { taken: bkTaken(R, own ? null : at, own) })]));
 }
 // (review 25-10-2026) ONE change of a backup Sheet at a time, for every site (two tabs of the Portal pressing at the same moment
 // could otherwise give one Sheet to two sites): a lock in the first site's database while the Sheets are gathered and set
@@ -129,10 +131,11 @@ function withBkLock(fn) {
   try { return fn(); }
   finally { try { sites.homeRest('POST', 'rpc/web_unlock', { p_name: 'backup_admin', p_holder: holder }); } catch (e) { /* frees itself in 90 s */ } }
 }
-// every backup Sheet in use or used before – by every ready site (and the Portal's at the first site), and the Sheet each site of
-// the list was given at "New site" (a closed site too). me: the site that is being given a Sheet (it checks its own list itself);
-// null: the Portal's Sheets are being given (then every site's counts, and the Portal checks its own)
-function bkTaken(R, me) {
+// every backup Sheet in use or used before – by every ready site (and the Portal's and Purchase's at the first site), and the Sheet
+// each site of the list was given at "New site" (a closed site too). me: the site that is being given a Sheet (it checks its own list
+// itself); null: the Portal's or Purchase's Sheets are being given (own: which – then every site's counts and the other one's, and it
+// checks its own list itself)
+function bkTaken(R, me, own) {
   const reg = sites.registry(), taken = [];
   (reg || [{ code: sites.homeCode(), home: true, status: 'ready' }]).forEach(x => {
     const run = x.home ? '' : x.code;
@@ -141,7 +144,8 @@ function bkTaken(R, me) {
     let ids = null;
     try { ids = R.runIn(run, 'sysBkIds', []) || {}; } catch (e) { throw new Error('Site ' + x.code + ' could not be asked which backup Sheets it uses (' + String((e && e.message) || e).slice(0, 120) + ') – try again in a minute.'); }
     if (!(me !== null && run === me)) (ids.site || []).forEach(id => taken.push(id));      // another site's (the site itself checks its own)
-    if (me !== null) (ids.portal || []).forEach(id => taken.push(id));      // the Portal's
+    if (own !== 'portal') (ids.portal || []).forEach(id => taken.push(id));      // the Portal's
+    if (own !== 'purchase') (ids.purchase || []).forEach(id => taken.push(id));      // (update-195) Purchase's
   });
   return taken;
 }

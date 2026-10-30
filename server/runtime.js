@@ -25,9 +25,11 @@ const TAIL = `
     backup: o => { o = o || {}; const t0 = Date.now(); if (!o.cron && !sessionUser_(o.token)) throw new Error('SESSION_EXPIRED');
       // the nightly job also forgets old save numbers (step-5 SQL: web_ops_cleanup). Never in the way of the backup; nothing to do where step 5 is not installed.
       if (o.cron) { try { __opsCleanup(); } catch (e) { /* tried again with the next saves and the next night */ } }
-      const r = webBackup_({ auto: true, full: !!o.cron && !!o.full, target: o.cron && o.target === 'portal' ? 'portal' : '' });
-      // (update-158) then the copy of the files to Google Drive, in the time that is left (a site's backup only; the Portal has no files)
-      let d = null; if (!(o.cron && o.target === 'portal') && Date.now() - t0 < 30000) { try { d = driveBackup_({ budget: 42000 - (Date.now() - t0), nightly: !!o.cron, until: __until() }); } catch (e) { d = { ok: false, error: String((e && e.message) || e) }; } }
+      // (update-195) the nightly job also runs Purchase's own backup (target 'purchase'), as the Portal's
+      const own = o.cron && (o.target === 'portal' || o.target === 'purchase') ? o.target : '';
+      const r = webBackup_({ auto: true, full: !!o.cron && !!o.full, target: own });
+      // (update-158) then the copy of the files to Google Drive, in the time that is left (a site's backup only; the Portal and Purchase have no files here)
+      let d = null; if (!own && Date.now() - t0 < 30000) { try { d = driveBackup_({ budget: 42000 - (Date.now() - t0), nightly: !!o.cron, until: __until() }); } catch (e) { d = { ok: false, error: String((e && e.message) || e) }; } }
       return { ok: r.ok !== false, skipped: !!r.skipped, busy: !!r.busy, off: !!r.off, pending: (Number(r.pending) || 0) + (d && d.pending ? 1 : 0) }; },      // (a Drive problem is shown in Storage; the answer of the Sheet backup stays as it was)      // (update-141) pending: the page asks again a minute later
     // only from this server itself (runOnce): the entry is in, what follows a save was never finished
     saved: (token, fn, args, kept) => savedAfterAll_(token, fn, args, kept),
@@ -385,9 +387,9 @@ function runPlain(fn, args, meta) {
   // each call names the Sheet it writes (the numbered Sheet in use) – Google's answer is only ever about that Sheet
   g.__backupConfig = () => { const a = google.sa(), c = google.config(sheetOf()); return JSON.stringify({ ok: a.ok, email: a.email || '', error: a.ok ? '' : a.error, fallback: c.ok ? c.sheetId : '' }); };
   // (review 25-10-2026) a site writes only to ITS Sheets: the one named must be on this site's list (at the first site also the
-  // Portal's), or the Sheet it had before its list – checked here, outside the app's code
+  // Portal's and – update-195 – Purchase's), or the Sheet it had before its list – checked here, outside the app's code
   const bkAllowed = () => { const ids = new Set(), add = v => { try { (JSON.parse(v || '[]') || []).forEach(x => { if (x && x.id) ids.add(String(x.id)); }); } catch (e) { /* none */ } };
-    add(st.props.BK_SHEETS); if (gas.site() === '') add(st.props.BK_PORTAL_SHEETS); const f = google.config(sheetOf()); if (f.ok) ids.add(f.sheetId); return ids; };
+    add(st.props.BK_SHEETS); if (gas.site() === '') { add(st.props.BK_PORTAL_SHEETS); add(st.props.BK_PUR_SHEETS); } const f = google.config(sheetOf()); if (f.ok) ids.add(f.sheetId); return ids; };
   g.__g = (method, p2, body, ms, sheet) => { const id = sheet ? String(sheet) : '';
     if (id && !bkAllowed().has(id)) throw new Error('This Sheet is not the backup Sheet of this site.');
     return JSON.stringify(google.call(String(method), String(p2), body ? String(body) : '', ms, id || sheetOf())); };

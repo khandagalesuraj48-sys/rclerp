@@ -3,22 +3,25 @@
  * BACKUP_EXPORT_SECRET – the same value in Vercel for rclerp, rcl-portal and rcl-engineering; it is never in a file or the page.
  * They keep their own database keys: a password, a key or a sign-in never leaves them (the export leaves those out itself).
  * Where they are: the Portal at PORTAL_URL (as for the sign-in); Engineering at ENGINEERING_URL, else where this project's
- * vercel.json sends /engineering (https://rcl-engineering.vercel.app). */
+ * vercel.json sends /engineering (https://rcl-engineering.vercel.app).
+ * (update-195, asked 30-10-2026) Purchase (rcl-purchase – one department for every site) the same way, into its own Sheets: at
+ * PURCHASE_URL, else where vercel.json sends /purchase (https://rcl-purchase.vercel.app); the same secret in rcl-purchase too. */
 'use strict';
 const path = require('path');
 const { fetchAllSync } = require('./syncfetch');
 const secret = () => String(process.env.BACKUP_EXPORT_SECRET || '').trim();      // (a newline pasted with the value in Vercel is not part of it)
+const MODS = { eng: ['ENGINEERING_URL', '/engineering/:path*'], pur: ['PURCHASE_URL', '/purchase/:path*'] };      // (update-195) Purchase
 function base(source) {
   if (source === 'portal') return String(process.env.PORTAL_URL || '').trim().replace(/\/+$/, '');
-  if (source !== 'eng') return '';
-  const e = String(process.env.ENGINEERING_URL || '').trim(); if (e) return e.replace(/\/+$/, '');
-  try { const v = require(path.join(__dirname, '..', 'vercel.json')); const r = (v.rewrites || []).find(x => x && x.source === '/engineering/:path*');
+  const m = Object.prototype.hasOwnProperty.call(MODS, source) ? MODS[source] : null; if (!m) return '';
+  const e = String(process.env[m[0]] || '').trim(); if (e) return e.replace(/\/+$/, '');
+  try { const v = require(path.join(__dirname, '..', 'vercel.json')); const r = (v.rewrites || []).find(x => x && x.source === m[1]);
     if (r) return String(r.destination).replace(/\/:path\*$/, '').replace(/\/+$/, ''); } catch (e2) { /* not known */ }
   return '';
 }
-function on() { return { secret: secret().length >= 24, eng: !!base('eng'), portal: !!base('portal') }; }
+function on() { return { secret: secret().length >= 24, eng: !!base('eng'), portal: !!base('portal'), pur: !!base('pur') }; }
 function call(source, bodyJson, ms) {
-  if (secret().length < 24) return { code: 0, text: 'BACKUP_EXPORT_SECRET is not set (at least 24 letters and digits, the same in the three projects)' };
+  if (secret().length < 24) return { code: 0, text: 'BACKUP_EXPORT_SECRET is not set (at least 24 letters and digits, the same in rclerp, rcl-portal, rcl-engineering and rcl-purchase)' };
   const b = base(source); if (!b) return { code: 0, text: 'the address of ' + source + ' is not known' };
   const r = fetchAllSync([{ url: b + '/api/backup-export', method: 'POST', headers: { Authorization: 'Bearer ' + secret(), 'Content-Type': 'application/json', 'X-RCL': '1' }, body: String(bodyJson || '{}') }], Math.max(5000, Math.min(30000, Number(ms) || 25000)))[0];
   return r.error ? { code: 599, text: String(r.error).slice(0, 300) } : { code: r.code, text: r.text || '' };

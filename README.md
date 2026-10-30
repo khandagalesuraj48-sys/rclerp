@@ -37,7 +37,7 @@ App तेच आहे: तेच screens, तेच नियम, तेच pr
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Google ने दिलेल्या key file चा पूर्ण मजकूर (खाली पहा) |
 | `BACKUP_SHEET_ID` | Backup Google Sheet ची link |
 | `CRON_SECRET` | कोणताही लांब, गुप्त शब्द (उदा. 30 अक्षरे). रात्रीच्या backup साठी Vercel हा शब्द स्वतः पाठवते; त्याशिवाय रात्रीचा backup नाकारला जातो. |
-| `BACKUP_EXPORT_SECRET` | (update-157) कोणताही लांब, गुप्त शब्द (किमान 24 अक्षरे-अंक) – **हाच शब्द** rcl-portal आणि rcl-engineering मध्ये पण. रात्रीचा backup त्याने Engineering आणि Portal चा data घेतो (त्यांचे passwords / keys कधीच नाहीत). `ENGINEERING_URL` ऐच्छिक – नसेल तर `vercel.json` मधला /engineering चा पत्ता. |
+| `BACKUP_EXPORT_SECRET` | (update-157) कोणताही लांब, गुप्त शब्द (किमान 24 अक्षरे-अंक) – **हाच शब्द** rcl-portal, rcl-engineering आणि (update-195) rcl-purchase मध्ये पण. रात्रीचा backup त्याने Engineering, Portal आणि Purchase चा data घेतो (त्यांचे passwords / keys / sign-ins कधीच नाहीत). `ENGINEERING_URL` / `PURCHASE_URL` ऐच्छिक – नसेल तर `vercel.json` मधला /engineering / /purchase चा पत्ता. |
 | `ENGINEERING_URL` | (update-157) Engineering module चा पत्ता, उदा. `https://rcl-engineering.vercel.app` – backup त्यातून Engineering चा data घेतो. नसेल तर `vercel.json` मधला /engineering चा पत्ता वापरला जातो; तरी इथे लिहिणे सुरक्षित. |
 | `GOOGLE_OAUTH_CLIENT_ID` | (update-158) Photos / files ची Google Drive मध्ये copy: Google Cloud → APIs & Services → Credentials → **OAuth client ID** (Web application) चा Client ID. |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | (update-158) त्याच OAuth client चा Client secret (गुप्त – फक्त इथे). |
