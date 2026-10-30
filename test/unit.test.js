@@ -2545,12 +2545,12 @@ test('update-111: a copy of another site\'s vendor is not shown, picked or chang
 test('update-99: one address – the Store and the Portal under this address, the menu of this module for the others, other modules\' pages in the dark menu', () => {
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   // (live 13-10-2026: /store/menu.json came through, the bare /store/ and /portal/ gave 404 – the first page has its own rule)
-  // (update-127 adds Engineering after these – checked in its own test)
+  // (update-127 adds Engineering after these, update-194 Purchase – each checked in its own test)
   // (update-138) the staging copy's own rules come first and match ONLY the staging address; the live rules are as before
   // (update-160) /scan – the page itself (a Scan with Mobile QR code); checked in its own test
-  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/engineering/.test(r.source) && r.source !== '/scan'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
+  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/(engineering|purchase)/.test(r.source) && r.source !== '/scan'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
     { source: '/store/:path*', destination: 'https://rcl-store.vercel.app/:path*' }, { source: '/portal/:path*', destination: 'https://rcl-portal-flame.vercel.app/:path*' }]);
-  assert.deepStrictEqual(v.redirects.filter(r => !/^\/engineering/.test(r.source)).map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
+  assert.deepStrictEqual(v.redirects.filter(r => !/^\/(engineering|purchase)/.test(r.source)).map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
   assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
   // the menu: every page of Machinery, read from the page itself; every key a real page of the app
   const { menu } = require('../server/page.js'), m = menu(), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
@@ -2586,11 +2586,20 @@ test('update-160: a Scan with Mobile QR code opens in the RCL ERP app – /scan 
 });
 test('update-127: the Engineering module under this address (/engineering/ – its own Vercel project), like the Store', () => {
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
-  assert.deepStrictEqual(v.redirects.slice(-1), [{ source: '/engineering', destination: '/engineering/', permanent: false }]);
-  assert.deepStrictEqual(v.rewrites.slice(-2), [{ source: '/engineering/', destination: 'https://rcl-engineering.vercel.app/index.html' }, { source: '/engineering/:path*', destination: 'https://rcl-engineering.vercel.app/:path*' }]);
+  assert.deepStrictEqual(v.redirects.filter(r => /^\/engineering/.test(r.source)), [{ source: '/engineering', destination: '/engineering/', permanent: false }]);
+  assert.deepStrictEqual(v.rewrites.filter(r => /^\/engineering/.test(r.source)), [{ source: '/engineering/', destination: 'https://rcl-engineering.vercel.app/index.html' }, { source: '/engineering/:path*', destination: 'https://rcl-engineering.vercel.app/:path*' }]);
   // the first page has its own rule (as /store/ – live 13-10-2026 the bare folder gave 404 without it); the app's worker leaves it alone
   const sw = fs.readFileSync(path.join(root, 'app', 'sw.js'), 'utf8'), re = eval(/if \(!(\/.+\/)\.test\(u\.pathname\)\) return;/.exec(sw)[1]);
   for (const p of ['/engineering/', '/engineering/api/eng', '/engineering/menu.json']) assert.ok(!re.test(p), p);
+  assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
+});
+test('update-194: the Purchase module under this address (/purchase/ – its own Vercel project and its own Supabase for every site), like Engineering', () => {
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  assert.deepStrictEqual(v.redirects.slice(-1), [{ source: '/purchase', destination: '/purchase/', permanent: false }]);
+  assert.deepStrictEqual(v.rewrites.slice(-2), [{ source: '/purchase/', destination: 'https://rcl-purchase.vercel.app/index.html' }, { source: '/purchase/:path*', destination: 'https://rcl-purchase.vercel.app/:path*' }]);
+  assert.ok(!v.rewrites.some(r => r.has && /^\/purchase/.test(r.source)), 'like Engineering: no rule of its own for the staging address');
+  const sw = fs.readFileSync(path.join(root, 'app', 'sw.js'), 'utf8'), re = eval(/if \(!(\/.+\/)\.test\(u\.pathname\)\) return;/.exec(sw)[1]);
+  for (const p of ['/purchase/', '/purchase/api/me', '/purchase/menu.json']) assert.ok(!re.test(p), p);
   assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
 });
 test('update-100: the same view – another module of this address opens INSIDE this screen (only the middle changes)', () => {
