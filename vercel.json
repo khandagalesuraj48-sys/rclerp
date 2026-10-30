@@ -38,6 +38,11 @@
       "source": "/engineering",
       "destination": "/engineering/",
       "permanent": false
+    },
+    {
+      "source": "/purchase",
+      "destination": "/purchase/",
+      "permanent": false
     }
   ],
   "rewrites": [
@@ -108,6 +113,14 @@
     {
       "source": "/engineering/:path*",
       "destination": "https://rcl-engineering.vercel.app/:path*"
+    },
+    {
+      "source": "/purchase/",
+      "destination": "https://rcl-purchase.vercel.app/index.html"
+    },
+    {
+      "source": "/purchase/:path*",
+      "destination": "https://rcl-purchase.vercel.app/:path*"
     }
   ],
   "headers": [

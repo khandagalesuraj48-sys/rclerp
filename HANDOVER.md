@@ -2273,3 +2273,7 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   database; paged) – each issue a bill of the Party "RCL Store" (Outward <no>, the Store's average rate, the reading; on debit: "Debit",
   ₹ 0); `.on` false where the Store's step 2 is not run (PGRST205 …) or without the database key; `maintLog_` `store: { on, lines }`
   (MAINT_STORE_ON_ gone); page `ml_out` says how many. No SQL of Mechanical. Tests: unit `update-178`; rig mnt173 part 6, mnt170.
+- 30-10-2026 (update-194, with the new repo `rcl-purchase`). Report: `UPDATE_194.md`. `vercel.json`: `/purchase` → `/purchase/`,
+  `/purchase/` and `/purchase/:path*` → `https://rcl-purchase.vercel.app` (the Purchase Department – its own Vercel project and its
+  own Supabase `rcl-purchase` for every site). Nothing else changes. Tests: unit `update-194` (99 and 127 pick their rules by address);
+  rig `rcl-purchase/test/inmech.test.js` 7/7.
