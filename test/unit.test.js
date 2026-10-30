@@ -2593,6 +2593,39 @@ test('update-127: the Engineering module under this address (/engineering/ – i
   for (const p of ['/engineering/', '/engineering/api/eng', '/engineering/menu.json']) assert.ok(!re.test(p), p);
   assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
 });
+test('update-195: Purchase\'s own backup Sheets (kept at the first site, like the Portal\'s) – its export, the Portal\'s ticket, the nightly job, the help', () => {
+  // where Purchase's backup export is: PURCHASE_URL, else where vercel.json sends /purchase
+  const bx = require('../server/bkexport'), env = { PURCHASE_URL: process.env.PURCHASE_URL, BACKUP_EXPORT_SECRET: process.env.BACKUP_EXPORT_SECRET };
+  try {
+    delete process.env.PURCHASE_URL; process.env.BACKUP_EXPORT_SECRET = 'x'.repeat(30);
+    assert.strictEqual(bx.base('pur'), 'https://rcl-purchase.vercel.app'); assert.strictEqual(bx.base('eng'), 'https://rcl-engineering.vercel.app');
+    assert.strictEqual(bx.on().pur, true); assert.strictEqual(bx.base('nothing'), ''); assert.strictEqual(bx.base('__proto__'), '');
+    process.env.PURCHASE_URL = 'http://127.0.0.1:3050/'; assert.strictEqual(bx.base('pur'), 'http://127.0.0.1:3050');
+  } finally { Object.keys(env).forEach(k => { if (env[k] === undefined) delete process.env[k]; else process.env[k] = env[k]; }); }
+  // the backup's target: its own settings, lock and Sheets; its rows only through its export ("Purchase – …" tabs)
+  const bk = require('../server/backup.vm.js'), a = bk.indexOf('function bkTarget_('), b = bk.indexOf('const bkUrl_ = ');
+  const X = new Function(bk.slice(a, b) + '; return { bkTarget_, BK_OWN_ };')();
+  assert.deepStrictEqual(X.bkTarget_({ target: 'purchase' }), { kind: 'purchase', lock: 'backup_purchase', state: 'BK_PUR_STATE', info: 'SB_PUR_INFO', sheets: 'BK_PUR_SHEETS', name: 'Purchase' });
+  assert.strictEqual(X.bkTarget_({ target: 'portal' }).sheets, 'BK_PORTAL_SHEETS'); assert.strictEqual(X.bkTarget_({ target: 'x' }).kind, 'site'); assert.strictEqual(X.bkTarget_({}).sheets, 'BK_SHEETS');
+  assert.deepStrictEqual([X.BK_OWN_.purchase.src, X.BK_OWN_.purchase.prefix, X.BK_OWN_.portal.src], ['pur', 'Purchase – ', 'portal']);
+  assert.match(bk, /const portal = at\('portal'\), purchase = at\('purchase'\);/, 'its Sheets are never given to a site or to the Portal');
+  assert.match(bk, /if \(T\.kind === 'purchase' && !Object\.keys\(rem\)\.length\) throw new Error\('The Purchase backup needs the same BACKUP_EXPORT_SECRET/);
+  // the Portal's ticket names it; the first site keeps it; the other Sheets (sites', the Portal's) are taken
+  assert.match(fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8'), /const bkT = c\.target === 'portal' \|\| c\.target === 'purchase' \? c\.target : '';/);
+  const sy = fs.readFileSync(path.join(root, 'server', 'system.js'), 'utf8');
+  assert.match(sy, /taken: bkTaken\(R, own \? null : at, own\)/); assert.match(sy, /if \(own !== 'purchase'\) \(ids\.purchase \|\| \[\]\)\.forEach/); assert.match(sy, /if \(own !== 'portal'\) \(ids\.portal \|\| \[\]\)\.forEach/);
+  // the nightly job: every site, the Portal's and Purchase's; no Drive copy for them
+  assert.match(fs.readFileSync(path.join(root, 'api', 'backup.js'), 'utf8'), /\{ site: '', opt: Object\.assign\(\{\}, opt, \{ target: 'portal' \}\) \}, \{ site: '', opt: Object\.assign\(\{\}, opt, \{ target: 'purchase' \}\) \}/);
+  const rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8');
+  assert.match(rt, /if \(gas\.site\(\) === ''\) \{ add\(st\.props\.BK_PORTAL_SHEETS\); add\(st\.props\.BK_PUR_SHEETS\); \}/, 'the first site may write Purchase\'s Sheets (only those of its list)');
+  assert.match(rt, /const own = o\.cron && \(o\.target === 'portal' \|\| o\.target === 'purchase'\) \? o\.target : '';/); assert.match(rt, /let d = null; if \(!own && Date\.now\(\) - t0 < 30000\)/);
+  // the help (EN / MR / HI)
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  const full = H.fixRules('Sheet 2 of Purchase is full – Google allows 10 million cells in one Sheet.')[0], ex = H.fixRules('Purchase refused the backup (BACKUP_EXPORT_SECRET must be the same value).')[0];
+  assert.ok(full !== H.FIX_ANY && /10 million cells/.test(full.en.join(' ')) && full.mr && full.hi);
+  assert.ok(ex !== H.FIX_ANY && /rcl-purchase/.test(ex.en.join(' ')) && /rcl-purchase/.test(ex.mr.join(' ')) && /rcl-purchase/.test(ex.hi.join(' ')));
+});
 test('update-194: the Purchase module under this address (/purchase/ – its own Vercel project and its own Supabase for every site), like Engineering', () => {
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   assert.deepStrictEqual(v.redirects.slice(-1), [{ source: '/purchase', destination: '/purchase/', permanent: false }]);
