@@ -104,7 +104,7 @@ test('bill papers: amount in words, Tax Invoice = the Abstract\'s figures, Debit
   const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const env = { r2: n => Math.round(n * 100) / 100, esc, fmt: n => String(n), mbN2: n => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), mbDot: d => String(d || '').split('-').reverse().join('.'),
     DOC_CSS: '', billHtml: () => '<div class="bl">ABSTRACT</div>', showDate: d => String(d || '').split('-').reverse().join('-'),
-    billTank: () => '', billEst: () => '', billFinal: () => '',
+    billTank: () => '', billEst: () => '', billFinal: () => '', billTc: () => '',
     billNoEntry: b => [].concat(...((b && b.machines) || []).map(m => (m.noEntry || []).map(x => String(m.no) + ' ' + x.d + ' ' + x.q + ' L'))).join(', ') };
   const C = new Function(...Object.keys(env), grab('function rupeesWords(') + '\nconst docDash = v => (v === \'\' || v === null || v === undefined || Number(v) === 0) ? \'-\' : mbN2(v);\n' + grab('function taxInvoiceHtml(') + '\n' + grab('function debitNoteHtml(') + '\n' + grab('function gstDeclNeed(') + '\n' + grab('function gstDeclOn(') + '\n' + grab('function gstDeclHtml(') + '\n' + grab('function billSheets(') + '; return { rupeesWords, taxInvoiceHtml, debitNoteHtml, billSheets, gstDeclNeed, gstDeclOn, gstDeclHtml };')(...Object.values(env));
   for (const [n, w] of [[40000, 'Rupees Forty Thousand Only'], [0, 'Rupees Zero Only'], [15600, 'Rupees Fifteen Thousand Six Hundred Only'], [123456789.5, 'Rupees Twelve Crore Thirty Four Lakh Fifty Six Thousand Seven Hundred Eighty Nine and Fifty Paise Only'],
@@ -8038,4 +8038,119 @@ test('update-193: a company and a site\'s company saved in the Portal are told h
   // the ticket says "papers" only after its signature, audience, time and number are checked (as every request of the Portal)
   const src = fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8');
   assert.ok(src.indexOf("if (c.act === 'papers') return Object.assign(out, papersOf(c));") > src.indexOf('const c = check(ticket, ADMIN_AUD, now)'));
+});
+
+test('update-199: the MONTH-END TANK CHECK decides the diesel debit – opening (the check of the day before), system = opening + diesel − standard, the check of the last day: short → debited, more → nothing; tank capacity needed; a submitted bill locks its checks; older bills keep their rule; the page the same', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const M = o => Object.assign({ no: 'TCK-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, tankCap: 220, owner: 'Tank Rule Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01' }, o || {});
+  run('(x, m) => saveMaster_(x, m)', M(), 'add');
+  run('(x, m) => saveMaster_(x, m)', M({ no: 'TCK-2', tankCap: '' }), 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'Tank Rule Vendor', gstReg: 'No', pan: 'ABCPT1234R', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  run('(x, m) => saveBoq_(x, m)', { vendor: 'Tank Rule Vendor', from: '2026-09-01', tdsPct: 1, woNo: 'WO-TCK', lines: [{ no: 'TCK-1', basis: 'Monthly', rate: 31000, diesel: 'Company' }, { no: 'TCK-2', basis: 'Monthly', rate: 31000, diesel: 'Company' }] }, 'add');
+  run('x => saveInward_(x)', { date: '2026-09-01', location: 'Dispenser', pump: 'Pump', qty: 5000, rate: 100, billNo: 'TCK-IN', billDate: '2026-09-01' });
+  const log = (date, close, extra) => run('x => saveLogRowsInner_(x)', { rows: [Object.assign({ date: date, shift: 'Full Day', no: 'TCK-1', mode: 'KM', closingKm: close }, extra || {})] });
+  assert.ok(log('2026-09-30', 1040, { openingKm: 1000 }).ok); assert.ok(log('2026-10-01', 1440).ok); assert.ok(log('2026-10-31', 1640).ok); assert.ok(log('2026-11-01', 1740).ok);
+  for (const [d, q, km] of [['2026-10-01', 200, 1040], ['2026-10-31', 100, 1440], ['2026-11-01', 50, 1640]]) assert.ok(!run('x => saveDieselIssue_(x)', { date: d, shift: 'Day', source: 'Dispenser', no: 'TCK-1', qty: q, kmReading: km, force: true }).THROWN);
+  const calc = (from, to) => { const list = run('f => getLogBookList_(f)', { from: from, to: to, no: 'TCK-1', all: true }).rows, extra = run('f => logPrintExtra_(f)', { from: from, to: to, nos: ['TCK-1'] });
+    return { list: list, extra: extra, b: run('(l, e, f, t) => billMachineCalc_(findMachine_("TCK-1"), l, e, f, t, undefined, true)', list, extra, from, to) }; };
+
+  // a tank check needs the Tank Capacity of Asset Master; nothing more than the tank holds
+  assert.match(run('x => saveTankCheck_(x)', { date: '2026-10-31', no: 'TCK-2', method: 'measured', physical: 10, reason: 'r' }).THROWN, /^Set the Tank Capacity of TCK-2 in Asset Master first – a tank check is taken only when the tank capacity is known\.$/);
+  assert.match(run('x => saveTankCheck_(x)', { date: '2026-10-31', no: 'TCK-1', method: 'measured', physical: 221, reason: 'r' }).THROWN, /^Diesel found in the tank \(221 L\) is more than the tank capacity of TCK-1 \(220 L in Asset Master\)\.$/);
+  // a check of 30-09-2026 (before the rule) is NOT the opening of October: October starts at 0
+  assert.ok(run('x => saveTankCheck_(x)', { date: '2026-09-30', no: 'TCK-1', method: 'measured', physical: 77, reason: 'before' }).ok);
+  // a bill up to 30-10-2026: the last-fill rule as before (no "checks")
+  const old = calc('2026-10-01', '2026-10-30');
+  assert.strictEqual(old.extra.checks, undefined); assert.strictEqual(old.b.tc, null);
+  // ---------- October: 600 km ÷ 4 = 150 L standard, 300 L issued → 150 L should be in the tank; no check yet ----------
+  let x = calc('2026-10-01', '2026-10-31');
+  assert.deepStrictEqual(x.extra.checks, {}); assert.strictEqual(x.b.tank, null);
+  assert.deepStrictEqual([x.b.tc.open, x.b.tc.issued, x.b.tc.std, x.b.tc.system, x.b.tc.cap, x.b.tc.over, x.b.tc.expect, x.b.tc.need, x.b.tc.missing, x.b.excessQty, x.b.excessAmt], [0, 300, 150, 150, 220, 0, 150, true, true, 0, 0]);
+  // the bill cannot be verified without it
+  const co = run('() => billCompanies_()')[0];
+  const mkBill = (from, to) => run(`(co, from, to) => { const m = findMachine_('TCK-1');
+    const c = billMachineCalc_(m, getLogBookList_({ from: from, to: to, no: 'TCK-1', all: true }).rows, logPrintExtra_({ from: from, to: to, nos: ['TCK-1'] }), from, to, undefined, true);
+    const A = r2_(c.amount), B = r2_(c.excessAmt), D = r2_(A - B), H2 = D > 0 ? r2_(D * c.tdsPct / 100) : 0;
+    return { company: co, vendor: { name: 'Tank Rule Vendor' }, from: from, to: to, billDate: '2026-11-02', billNo: '41', picked: ['TCK-1'], partial: true, edited: false, idlePaid: true,
+      machines: [{ no: 'TCK-1', workDays: c.workDays, nights: c.nights, issued: c.issued, amount: c.amount, excessAmt: c.excessAmt, excessQty: c.excessQty, debitQty: c.debitQty, dieselRate: c.dieselRate, tc: c.tc, lines: [] }], A: A, B: B, C: 0, D: D, E: 0, F: 0, G: D, H: H2, I: r2_(D - H2), gstPct: c.gstPct, tdsPct: c.tdsPct }; }`, co, from, to);
+  const bad = v => [].concat(...v.bills.map(b => b.checks.filter(c => c.s === 'bad').map(c => c.t)));
+  let v = run('b => verifyBills_({ bills: [b] })', mkBill('2026-10-01', '2026-10-31'));
+  assert.ok(!v.ok); assert.deepStrictEqual(bad(v), ['TCK-1: tank check of 31-10-2026 is needed – as per the standard 150 L should be in the tank (opening 0 + diesel 300 − standard 150) – enter the diesel found in the tank (Machinery Billing → Tank check).']);
+  // ---------- the check from the bill: 110 L found → 40 L short, debited at ₹100 ----------
+  const bt = d => run('d => saveBillTankCheck_(d)', Object.assign({ no: 'TCK-1', from: '2026-10-01', to: '2026-10-31' }, d));
+  assert.match(bt({ physical: 300 }).THROWN, /is more than the tank capacity of TCK-1 \(220 L/);
+  let r = bt({ physical: 110 });
+  assert.deepStrictEqual([r.ok, r.date, r.system, r.physical, r.diff, r.expect, r.short, r.replaced], [true, '2026-10-31', 150, 110, -40, 150, 40, '']);
+  const chk = run('() => tankChecksOf_("TCK-1").filter(x => x.date === "2026-10-31")');
+  assert.deepStrictEqual([chk.length, chk[0].system, chk[0].physical, chk[0].method, chk[0].reason], [1, 150, 110, 'Measured in tank', 'Month-end check of the bill 01-10-2026 to 31-10-2026: 150 L as per the standard, 40 L short – debited in the bill']);
+  x = calc('2026-10-01', '2026-10-31');
+  assert.deepStrictEqual([x.b.tc.found, x.b.tc.foundDate, x.b.tc.short, x.b.tc.missing, x.b.excessQty, x.b.excessAmt], [110, '2026-10-31', 40, false, 40, 4000]);
+  // a second check of that day: refused; "Change" (replace) puts the new one in its place – 160 L found: nothing short, nothing given back
+  assert.match(bt({ physical: 120 }).THROWN, /^TCK-1 already has a tank check on 31-10-2026\. Delete it first to check again\.$/);
+  r = bt({ physical: 160, replace: true }); assert.deepStrictEqual([r.ok, r.short, r.replaced], [true, 0, chk[0].id]);
+  x = calc('2026-10-01', '2026-10-31');
+  assert.deepStrictEqual([x.b.tc.found, x.b.tc.short, x.b.excessQty, x.b.excessAmt], [160, 0, 0, 0]);
+  assert.strictEqual(run('() => tankChecksOf_("TCK-1").filter(x => x.date === "2026-10-31").length'), 1);
+  r = bt({ physical: 110, replace: true }); assert.strictEqual(r.short, 40);
+  // the bill verifies and is submitted – marked as a bill of the month-end rule
+  v = run('b => verifyBills_({ bills: [b] })', mkBill('2026-10-01', '2026-10-31'));
+  assert.ok(v.ok, JSON.stringify(bad(v)));
+  assert.ok(v.bills[0].checks.some(c => c.s === 'ok' && c.t === 'TCK-1: tank check of 31-10-2026: 150 L as per the standard, 110 L found – 40 L short, debited. Opening of the next bill: 110 L.'));
+  const ob = mkBill('2026-10-01', '2026-10-31');
+  const sub = run('(b, co) => submitBills_({ bills: [{ vendor: "Tank Rule Vendor", company: co, billNo: "41", from: b.from, to: b.to, billDate: b.billDate, net: b.I, data: b }] })', ob, co);
+  assert.ok(sub && sub.ok, JSON.stringify(sub).slice(0, 300));
+  const saved = run('() => billsAll_().find(b => b.billNo === "41" && b.vendor === "Tank Rule Vendor")');
+  assert.strictEqual(saved.data.tankRule, 1);
+  // ---------- November: the opening is the 110 L found on 31-10 ----------
+  x = calc('2026-11-01', '2026-11-02');
+  assert.deepStrictEqual([x.b.tc.open, x.b.tc.openDate, x.b.tc.issued, x.b.tc.std, x.b.tc.system, x.b.tc.missing], [110, '2026-10-31', 50, 25, 135, true]);
+  // above the tank: Tank Capacity 120 → 15 L debited at once (the check still needed for the rest)
+  run('(x, m, o) => saveMaster_(x, m, o)', M({ tankCap: 120 }), 'edit', 'TCK-1');
+  x = calc('2026-11-01', '2026-11-02');
+  assert.deepStrictEqual([x.b.tc.over, x.b.tc.expect, x.b.tc.missing, x.b.excessQty], [15, 120, true, 15]);
+  assert.ok(run('x => saveTankCheck_(x)', { date: '2026-11-02', no: 'TCK-1', method: 'measured', physical: 100, reason: 'measured' }).ok);
+  x = calc('2026-11-01', '2026-11-02');
+  assert.deepStrictEqual([x.b.tc.found, x.b.tc.short, x.b.tc.debit, x.b.excessQty, x.b.excessAmt], [100, 20, 35, 35, 3500]);
+  // FINAL BILL (left the site): all that should be in the tank is debited, no check needed
+  run('(x, m, o) => saveMaster_(x, m, o)', M({ tankCap: 120, status: 'Inactive', inactiveFrom: '2026-11-03' }), 'edit', 'TCK-1');
+  x = calc('2026-11-01', '2026-11-02'); assert.deepStrictEqual([x.b.tc.final, x.b.tc.need, x.b.excessQty], [true, false, 135]);
+  run('(x, m, o) => saveMaster_(x, m, o)', M(), 'edit', 'TCK-1');
+  // ---------- the submitted October bill locks its month-end check (31-10, the next bill's opening too) – not the 30-09 one ----------
+  const chk31 = run('() => tankChecksOf_("TCK-1").find(x => x.date === "2026-10-31")');
+  const LOCK = /^Tank check of TCK-1 on 31-10-2026: the submitted RA Bill 41 of Tank Rule Vendor \(.+, 01-10-2026 to 31-10-2026\) stands on this tank check \(its diesel debit\) – only the Super Admin can add, change or delete it\.$/;
+  assert.match(run('id => deleteTankCheck_(id)', chk31.id).THROWN, LOCK);
+  assert.match(bt({ physical: 150, replace: true }).THROWN, LOCK);
+  const chk30 = run('() => tankChecksOf_("TCK-1").find(x => x.date === "2026-09-30")');
+  assert.ok(run('id => deleteTankCheck_(id)', chk30.id).ok, 'the check of 30-09 is no bill\'s opening');
+  // the Super Admin may: the "before" of the bill is kept, the difference goes to the vendor's next bill
+  assert.deepStrictEqual(run('() => crDescribe_("deleteTankCheck", [tankChecksOf_("TCK-1").find(x => x.date === "2026-10-31").id]).pairs'), [{ no: 'TCK-1', dk: '2026-10-31' }]);
+  r = run('d => { ACTOR_SUPER_ = true; try { return saveBillTankCheck_(d); } finally { ACTOR_SUPER_ = false; } }', { no: 'TCK-1', from: '2026-10-01', to: '2026-10-31', physical: 130, replace: true });
+  assert.ok(r.ok && r.short === 20, JSON.stringify(r));
+  // the saved bill worked out again (corrections): the month-end rule – 20 L now; a bill without the mark keeps the last-fill rule
+  const fig = (tank) => run('(b, t) => { if (!t) delete b.data.tankRule; return billNowFig_(b, b.data.machines[0], {}); }', saved, tank);
+  assert.strictEqual(fig(true).dieselL, 20); assert.notStrictEqual(fig(false).dieselL, 20);
+  assert.ok(run('() => BL_FNS_').indexOf('saveBillTankCheck') > -1 && run('() => BL_FNS_').indexOf('deleteTankCheck') > -1);
+  // ---------- the page: the same rule, the same figures ----------
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const grab = m => { const i = app.indexOf(m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
+  const P = new Function('r2', grab('function tankMonthEnd(') + '; return tankMonthEnd;')(n => Math.round(n * 100) / 100);
+  for (const [ex, cq, sq, fin, cap] of [[{ checks: {} }, 300, 150, false, 220], [{ checks: { TCK1: { close: { id: 'TC-9', date: '2026-10-31', physical: 110 } } } }, 300, 150, false, 220],
+    [{ checks: { TCK1: { open: { id: 'TC-8', date: '2026-10-31', physical: 110 }, close: { id: 'TC-9', date: '2026-11-30', physical: 100 } } } }, 50, 25, false, 120], [{ checks: {} }, 10, 40, false, 220], [{ checks: {} }, 300, 150, true, 0]]) {
+    const srv = run('(e, c, s, f, cap) => tankMonthEnd_(Object.assign({}, findMachine_("TCK-1"), { tankCap: cap }), e, c, s, f)', ex, cq, sq, fin, cap);
+    assert.deepStrictEqual(P({ id: 'TCK-1', tankCap: cap }, 'TCK-1', ex, cq, sq, fin), srv);
+  }
+  assert.match(app, /const tc = extra\.checks && \(\(hasKm\(u\) && kmStd > 0\) \|\| \(hasHr\(u\) && hrStd > 0\)\) \? tankMonthEnd\(m, no, extra, companyQty, stdQty, final\) : null;/);
+  assert.match(app, /const excessQty = tc \? r2\(tc\.debit\) : r2\(rawExcess - \(tank \? tank\.applied : 0\)\);/);
+  assert.match(app, /call\('saveBillTankCheck', \{ no: no, from: b\.from, to: b\.to, physical: Number\(v\), replace: /);
+  assert.match(app, /const TCS = extra\.checks && /, 'the Log Book sheet: the same rule');
+  // (found on the way) the page's bill names the date a machinery left: "leftOn" was used without being made (since 23-10-2026 a final
+  // bill stopped the page with "leftOn is not defined")
+  const mbm = grab('function mbMachine(');
+  assert.ok(mbm.indexOf("const leftOn = m.status === 'Inactive' && m.inactiveFrom ? String(m.inactiveFrom).slice(0, 10) : '';") > -1 && mbm.indexOf('final: final ? leftOn') > mbm.indexOf('const leftOn ='));
+  // the help knows the new messages
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  for (const [msg, want] of [['TCK-1: tank check of 31-10-2026 is needed – as per the standard 150 L should be in the tank', /month-end tank check/], ['Set the Tank Capacity of TCK-2 in Asset Master first – a tank check is taken only when the tank capacity is known.', /size of the tank/],
+    ['Diesel found in the tank (221 L) is more than the tank capacity of TCK-1 (220 L in Asset Master).', /more diesel than the tank/], ['Tank check of TCK-1 on 31-10-2026: the submitted RA Bill 41 of X (Y, 01-10-2026 to 31-10-2026) stands on this tank check (its diesel debit) – only the Super Admin can add, change or delete it.', /locked/],
+    ['A bill up to 30-10-2026 does not use the month-end tank check (the last fill rule) – nothing to enter.', /does not use the month-end/]]) assert.match(H.fixRules(msg)[0].en.join(' '), want, msg);
 });

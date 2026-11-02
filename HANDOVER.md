@@ -2294,3 +2294,9 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 - 02-11-2026 (update-198). Report: `UPDATE_198.md`. THE MACHINERY BOXES ON A COMPUTER: the app's own list (`pkTake` – `PK_ALL`:
   dl_mach_on, dl_machines) instead of the browser's – narrows at once, ↓ / ↑ / Enter / Esc, opens on a click (not after a save);
   other boxes keep the browser's list on a computer; a phone as before. Page only; no SQL. Tests: unit `update-198`; the rig in Chromium.
+- 02-11-2026 (update-199). Report: `UPDATE_199.md`. THE MONTH-END TANK CHECK DECIDES THE DIESEL DEBIT (bills ending on / after
+  31-10-2026, `TANK_RULE_FROM_`): opening (the check of the day before) + company diesel − standard = system; above the tank debited;
+  the check of the last day – short debited, more nothing; no check → not verified; final bill all. `tankMonthEnd_` / `tankMonthEnd`,
+  `logPrintExtra_` "checks", `billMachineCalc_` `tc`, `data.tankRule`, `saveBillTankCheck`, `tankLock_`, `BL_FNS_`; every tank check
+  needs the Tank Capacity; the Log Book sheet's daily opening / closing; the page's missing `leftOn` (final bill) made. No SQL.
+  Tests: unit `update-199`; the rig in Chromium; rcl-mobile 3.72.2 (fixture made by the web in the page).
