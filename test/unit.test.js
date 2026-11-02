@@ -4422,6 +4422,7 @@ test('02-11-2026: the BETA copy – the branch "beta" with RCL_CHANNEL = beta wo
     set('preview', 'beta', 'beta');
     assert.strictEqual(sf.isBeta(), true); assert.strictEqual(sf.isPreview(), true);
     assert.ok(/BETA – the new version for testers · the data is LIVE/.test(page.shell()) && !/TEST copy/.test(page.shell()), 'the beta band');
+    assert.ok(page.shell().indexOf('<script>window.rclLive = "https://oneclicksolution-erp.vercel.app";</script>') > -1, 'a label printed in beta: the live address');
     assert.strictEqual(fcm.on(), true, 'the beta copy sends to the phones (live data)');
     assert.ok(/^This is a Preview/.test(google.config().error), 'no backup from the beta copy (the live one makes it)');
     assert.throws(() => sf.pipeSync([{ src: 'x' }]), /This is a Preview/, 'no Drive copy from the beta copy');
@@ -4429,8 +4430,11 @@ test('02-11-2026: the BETA copy – the branch "beta" with RCL_CHANNEL = beta wo
     for (const [e, r, c] of [['preview', 'beta', undefined], ['preview', 'staging', 'beta'], ['preview', 'feature-x', 'beta'], ['production', 'beta', 'beta']]) {
       set(e, r, c); assert.strictEqual(sf.isBeta(), false, [e, r, c].join('/'));
       if (e === 'preview') { assert.ok(/TEST copy/.test(page.shell()), 'TEST band ' + r); assert.strictEqual(fcm.on(), false, 'no phones ' + r); }
+      assert.ok(!/window\.rclLive = /.test(page.shell()), 'the label\'s address: as before ' + r);
     }
   } finally { set(was.e, was.r, was.c); if (was.f === undefined) delete process.env.FCM_SERVICE_ACCOUNT_JSON; else process.env.FCM_SERVICE_ACCOUNT_JSON = was.f; }
+  const appH = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.ok(appH.indexOf("base = window.top.rclLive ? window.top.rclLive + '/' : window.top.location.origin + window.top.location.pathname;") > -1, 'qrLink: the live address when the page gives it');
   // the guard: skipped only for the beta copy (the code: one line)
   const src = fs.readFileSync(path.join(root, 'server', 'syncfetch.js'), 'utf8');
   assert.ok(/function previewGuard\(reqs\) \{\n  if \(!isPreview\(\) \|\| isBeta\(\)\) return;/.test(src));

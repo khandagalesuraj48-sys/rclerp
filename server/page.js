@@ -328,6 +328,10 @@ function shell() {
     // (22 px high; the app's frame starts below it, so it hides nothing of the app)
     const band = '<style>#app{top:22px;height:calc(100% - 22px)}</style><div id="rcl_preview_band" style="position:fixed;z-index:6;left:0;right:0;top:0;height:22px;padding:0 8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;' + (beta ? 'background:#6D28D9;color:#fff;' : 'background:#F59E0B;color:#111;') + 'font:700 12px/22px system-ui,sans-serif;text-align:center">' + (beta ? 'BETA – the new version for testers · the data is LIVE' : 'TEST copy (Preview) – the staging database · nothing here is live') + '</div>';
     s = /<body[^>]*>/.test(s) ? s.replace(/<body[^>]*>/, m => m + band) : band + s;
+    // (02-11-2026) a label printed in the beta copy carries the LIVE address (it stays on the machine and everybody scans it):
+    // App.html qrLink reads it (RCL_LIVE_URL in Vercel only if the one address ever changes)
+    if (beta) { const live = String(process.env.RCL_LIVE_URL || 'https://oneclicksolution-erp.vercel.app').trim().replace(/\/+$/, '');
+      if (/^https:\/\/[a-z0-9.-]+$/i.test(live)) s = s.replace('<script>', () => '<script>window.rclLive = ' + JSON.stringify(live) + ';</script>\n<script>'); }
   }
   return s;
 }

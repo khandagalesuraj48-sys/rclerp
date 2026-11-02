@@ -14240,7 +14240,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * ledger. Nothing about the machinery is inside the code except its number – a label gives no access to somebody who
    * has no sign-in. Labels: Asset Master → "QR labels" – by owner, or the machinery ticked (one or many), 8 on an A4 sheet (2 × 4,
    * update-150). */
-  const qrLink = id => { let base = ''; try { base = window.top.location.origin + window.top.location.pathname; } catch (e) { base = location.origin + '/'; } return base + '?m=' + encodeURIComponent(id); };
+  // (02-11-2026) printed in the BETA copy: the LIVE address (window.rclLive – server/page.js) – the label is scanned by everybody, for years
+  const qrLink = id => { let base = ''; try { base = window.top.rclLive ? window.top.rclLive + '/' : window.top.location.origin + window.top.location.pathname; } catch (e) { base = location.origin + '/'; } return base + '?m=' + encodeURIComponent(id); };
   function qrSvg(text) { const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); }
   // (update-150) which labels: by owner (all its machinery), or the machinery ticked – one or many; 8 on an A4 page (2 × 4)
   const QR_PER_PAGE = 8;
