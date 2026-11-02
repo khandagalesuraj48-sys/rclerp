@@ -1003,6 +1003,7 @@ const API_ = {
   getTankSystem:     { m: 'Log Book', f: getTankSystem_ },
   getTankChecks:     { m: 'Log Book', f: getTankChecks_ },
   saveTankCheck:     { m: 'Log Book', edit: true, f: saveTankCheck_, log: 'tankAdd' },
+  saveBillTankCheck: { m: 'Machinery Billing', edit: true, f: saveBillTankCheck_, log: 'tankBill' },      // (update-199) the month-end check from the bill
   deleteTankCheck:   { m: 'Log Book', edit: true, f: deleteTankCheck_, log: 'tankDel' },
   rptTank:           { m: 'Reports', f: rptTank_ },
   saveLogBulk:       { m: 'Log Book', edit: true, f: saveLogBulk_, log: 'logBulk' },
@@ -1115,7 +1116,7 @@ function apiAccess_(u, spec, fn) {
   else if (spec.m && u.perms[spec.m] === 'None') throw new Error('You do not have access to ' + label(spec.m) + '. Ask Admin.');
   if (spec.edit && !canEdit_(u, spec.m)) throw new Error('You have View access only for ' + label(spec.m) + '. Ask Admin for Edit access.');
 }
-const ONCE_FNS_ = ['saveDebitNote', 'saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'saveInward', 'importInward', 'saveTransfer', 'saveTransferBulk', 'savePayment', 'saveTankCheck', 'submitBdReport'];
+const ONCE_FNS_ = ['saveDebitNote', 'saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'saveInward', 'importInward', 'saveTransfer', 'saveTransferBulk', 'savePayment', 'saveTankCheck', 'saveBillTankCheck', 'submitBdReport'];
 /* THE BACKUP SHEET'S LINK IS FOR THE ADMIN (07-10-2026). The backup Google Sheet holds every table – vendors' bank account,
  * PAN and Aadhaar numbers, the Activity Log. Its link used to be sent to EVERY signed-in user with every heartbeat (and shown
  * as "Open the backup Google Sheet"), also to a user with access to one page only. Everybody still sees whether the backup is
@@ -1138,7 +1139,7 @@ function apiRun_(u, spec, fn, args) {
   const fv = !spec.edit && (spec.m === 'Reports' || spec.m === 'Dashboard') ? fuelViewOf_(args) : '';
   const run = () => { FUEL_VIEW_ = fv; try { return spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); } finally { FUEL_VIEW_ = ''; } };
   // (update-108) the Super Admin's save of Log Book / diesel: first the "before" of every submitted bill it may change (billBaselines_) – both saved together, or neither
-  const res = leastOut_(u, u.super && CR_FNS_.indexOf(fn) > -1 ? withLock_(() => { billBaselines_(fn, args); return run(); }) : run());      // machinery details only for users with a page that uses them (D4)
+  const res = leastOut_(u, u.super && BL_FNS_.indexOf(fn) > -1 ? withLock_(() => { billBaselines_(fn, args); return run(); }) : run());      // machinery details only for users with a page that uses them (D4)
   if (fn === 'getInit' || fn === 'sync') { res.user = publicUser_(u); res.versions = getVersions_(); res.today = today_(); res.source = sbDataOn_() ? 'supabase' : 'sheet'; res.build = appBuild_();
     if (typeof sbBackupInfo_ === 'function') res.backup = backupInfoFor_(u, sbBackupInfo_());
     if (u.admin) res.faults = errStamp_();      // the Admin's page shows faults of today within seconds
@@ -1471,6 +1472,8 @@ function logAfter_(u, spec, args, res, before) {
       break;
     }
     case 'tankDel': writeLog_(u, 'Delete', m, res.id, 'Tank check deleted: ' + res.no + ' on ' + fmtVal_(toDate_(res.date)), ''); break;
+    case 'tankBill': writeLog_(u, res.replaced ? 'Edit' : 'Add', m, res.id, 'Tank check (month end, from the bill) ' + res.no + ' on ' + fmtVal_(toDate_(res.date)) + ': ' + res.expect + ' L as per the standard, found ' + res.physical + ' L' +
+      (res.short > 0 ? ' – ' + res.short + ' L short' : '') + (res.replaced ? ' (in place of ' + res.replaced + ')' : ''), ''); break;
     case 'logBulk': {
       const b = args[0] || {};
       if (res.changed || res.added || res.deleted) writeLog_(u, 'Edit', m, res.no, 'Edit Log Book ' + fmtVal_(toDate_(b.from)) + ' to ' + fmtVal_(toDate_(b.to)) + ': ' + res.changed + ' changed, ' + res.added + ' added, ' + res.deleted + ' deleted',
@@ -3272,6 +3275,37 @@ function tankLeft_(m, u, own, iss0, isDebit, raw) {
   return { date: d, qty: qty, km: K.by === 'reading' ? Number(fk) : '', hr: Hh.by === 'reading' ? Number(fh) : '', kmAfter: K.q, hrAfter: Hh.q, by: K.by === 'reading' || Hh.by === 'reading' ? 'reading' : 'days',
     used: used, left: left, applied: r2_(Math.max(0, Math.min(left, raw))) };
 }
+/* ---------- THE MONTH-END TANK CHECK DECIDES THE DIESEL DEBIT (update-199, rule set by the MD, 02-11-2026) ----------
+ * "month end la pratek vehicle balance diesel … opening ghe, tithun daily opening closing … bill close karte weli tank check
+ * mandatory … system show karel as per system standard etke balance asayla hawa … user quantity takel; same → next day opening;
+ * kami → jitki kami ti debit … tank capacity mandatory". For a bill period that ends on or after 31-10-2026 (TANK_RULE_FROM_), for
+ * each machinery with a Standard Average:
+ *   Opening = the diesel FOUND in its tank at the check of the day before the period (none → 0; the first one is 31-10-2026, so
+ *             October 2026 starts at 0)
+ *   System  = Opening + company diesel issued in the period − the standard for the work of the company days
+ *   System above the Tank Capacity → that part is debited at once (the tank cannot hold it)
+ *   the check of the LAST day of the period (Found):
+ *     Found the same or more → nothing is debited, nothing given back;  Found less → the shortage is debited;
+ *     either way Found is the Opening of the next period.
+ *   System 0 or less → no check is needed, nothing is debited.   System above 0 and no check → the bill cannot be verified.
+ *   FINAL BILL (the machinery left the site) → the whole System is debited (the diesel left with it); no check is needed.
+ * A bill submitted under this rule carries data.tankRule; a bill submitted before keeps its own rule ("the last fill still in the
+ * tank", tankLeft_). The rule is on when the period's data has "checks" (logPrintExtra_). The page and the phone app work the same. */
+const TANK_RULE_FROM_ = '2026-10-31';
+function tankMonthEnd_(m, extra, companyQty, stdQty, final) {
+  const ck = ((extra && extra.checks) || {})[noKey_(m.id)] || {}, open = ck.open ? r2_(num0_(ck.open.physical)) : 0;
+  const system = r2_(open + companyQty - stdQty), cap = num0_(m.tankCap) > 0 ? r2_(num0_(m.tankCap)) : 0;
+  const over = cap > 0 && system > cap ? r2_(system - cap) : 0, expect = r2_(system - over);
+  const tc = { open: open, openDate: ck.open ? ck.open.date : '', issued: r2_(companyQty), std: r2_(stdQty), system: system, cap: cap, over: over, expect: expect,
+    need: false, found: '', foundDate: '', checkId: '', short: 0, debit: 0, missing: false, final: !!final };
+  if (ck.close) { tc.found = r2_(num0_(ck.close.physical)); tc.foundDate = ck.close.date; tc.checkId = ck.close.id; }
+  if (final) { tc.debit = Math.max(0, system); return tc; }
+  if (!(expect > 0)) return tc;
+  tc.need = true;
+  if (!ck.close) { tc.missing = true; tc.debit = over; return tc; }
+  tc.short = Math.max(0, r2_(expect - tc.found)); tc.debit = r2_(over + tc.short);
+  return tc;
+}
 // one machinery's part of a bill – the same rules as the Machinery Billing page (BOQ day by day, excess diesel)
 function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid) {
   const u = m.unit || (list[0] || {}).unit || 'KM', key = noKey_(m.id);
@@ -3358,14 +3392,16 @@ function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid) {
   const leftOn = str_(m.status) === 'Inactive' && m.inactiveFrom ? dkey_(m.inactiveFrom) : '', dayAfter = addDays_(to, 1);
   // (update-119) it also left in this period when an earlier period on site ended in it (it came back later)
   const final = (!!leftOn && leftOn <= dayAfter) || (m.earlier || []).some(p => p.until > from && p.until <= dayAfter);
-  const tank = final ? null : tankLeft_(m, u, own, iss0, isDebit, rawExcess);      // what is left of the last fill is not excess of this period
-  const excessQty = r2_(rawExcess - (tank ? tank.applied : 0));
+  // (update-199) a period of the month-end tank check rule: the check decides (a machinery with a standard); before it – the last fill
+  const tc = extra.checks && ((hasKm_(u) && kmStd > 0) || (hasHr_(u) && hrStd > 0)) ? tankMonthEnd_(m, extra, companyQty, stdQty, final) : null;
+  const tank = final || extra.checks ? null : tankLeft_(m, u, own, iss0, isDebit, rawExcess);      // what is left of the last fill is not excess of this period
+  const excessQty = tc ? r2_(tc.debit) : r2_(rawExcess - (tank ? tank.applied : 0));
   /* the rate of the debited diesel: the higher of the period's average and the last purchase rate – or, when it was typed by hand
    * for this bill (asked 10-10-2026: "wherever diesel is debited I must be able to put the rate myself"), that rate. */
   const autoRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), manRate = Number(extra.manualRate) > 0 ? r2_(Number(extra.manualRate)) : 0;
   const dRate = manRate || autoRate, excessAmt = r2_((debitQty + excessQty) * dRate);
   return { segs: Object.keys(segs).map(k => ({ unit: segs[k].unit, rate: r2_(segs[k].rate), qty: r2_(segs[k].qty), amount: r2_(segs[k].amount) })),      // (update-108: the corrections of an earlier bill)
-    final: final ? leftOn : '', tank: tank && tank.applied > 0 ? tank : null, rawExcess: rawExcess, no: m.id, dieselRate: dRate, autoRate: autoRate, rateManual: !!manRate, workDays: workDays, nights: nights, holidays: holidays, breakdowns: breakdowns, idleDays: idleDays, itemOver: itemOver, itemUnknown: itemUnknown, itemLeft: itemLeft, amount: amount, issued: issued, excessAmt: excessAmt, debitQty: debitQty, excessQty: excessQty, noBoq: noBoq, legacy: legacy, zero: zero, days: Object.keys(units).length,
+    final: final ? leftOn : '', tank: tank && tank.applied > 0 ? tank : null, tc: tc, rawExcess: rawExcess, no: m.id, dieselRate: dRate, autoRate: autoRate, rateManual: !!manRate, workDays: workDays, nights: nights, holidays: holidays, breakdowns: breakdowns, idleDays: idleDays, itemOver: itemOver, itemUnknown: itemUnknown, itemLeft: itemLeft, amount: amount, issued: issued, excessAmt: excessAmt, debitQty: debitQty, excessQty: excessQty, noBoq: noBoq, legacy: legacy, zero: zero, days: Object.keys(units).length,
     gstPct: last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0,
     tdsPct: last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0), woNo: last ? last.woNo || '' : '' };
 }
@@ -3477,6 +3513,13 @@ function verifyBills_(p) {
       });
       const miss = pd.missing[k] || [];
       if (miss.length) bad(x.no + ': diesel issued but no Log Book entry on ' + miss.length + ' day(s) (' + miss.slice(0, 5).map(dmy_).join(', ') + (miss.length > 5 ? ' …' : '') + ') – fill the Log Book first.');
+      // (update-199) the month-end tank check decides the diesel debit
+      const tc = c.tc;
+      if (tc && tc.missing) bad(x.no + ': tank check of ' + dmy_(to) + ' is needed – as per the standard ' + tc.expect + ' L should be in the tank (opening ' + tc.open + ' + diesel ' + tc.issued + ' − standard ' + tc.std +
+        (tc.over ? ' = ' + tc.system + ' L, the tank holds ' + tc.cap : '') + ')' + (tc.cap > 0 ? '' : '; first set its Tank Capacity in Asset Master') + ' – enter the diesel found in the tank (Machinery Billing → Tank check).');
+      else if (tc && tc.final) ok(x.no + ': FINAL BILL – the diesel that should be in its tank (' + Math.max(0, tc.system) + ' L) is debited.');
+      else if (tc && tc.need) ok(x.no + ': tank check of ' + dmy_(to) + ': ' + tc.expect + ' L as per the standard, ' + tc.found + ' L found – ' + (tc.short > 0 ? tc.short + ' L short, debited.' : 'nothing short, nothing debited.') + ' Opening of the next bill: ' + tc.found + ' L.');
+      if (tc && tc.over > 0 && !tc.final) warn(x.no + ': as per the standard ' + tc.system + ' L, more than its tank holds (' + tc.cap + ' L) – the ' + tc.over + ' L above the tank is debited.');
     });
     if (mismatch.length) bad('Bill does not match the Log Book / Diesel / BOQ now (something changed after "Build bills") – build again. ' + mismatch.join(' · '));
     else if (inBill.length) ok('Log Book, diesel issued and BOQ rates match the bill for all ' + inBill.length + ' machinery.');
@@ -3613,6 +3656,7 @@ function submitBills_(b) {
       const id = 'BILL-' + String(++n).padStart(5, '0');
       x.data = x.data || {};
       x.data.gstDecl = gstDeclFor_(vRecs[vKey_(x.vendor)], x.data.gstPct);      // the party has no GST number: its declaration is saved as one of this bill's papers
+      if (dkey_(x.to) >= TANK_RULE_FROM_) x.data.tankRule = 1; else delete x.data.tankRule;      // (update-199) worked out with the month-end tank check – figured again the same way later
       if (num0_(x.data.B) > 0) {
         const kept = older.map(y => str_((y.data || {}).dnNo)).filter(Boolean)[0];
         if (kept) x.data.dnNo = kept;
@@ -3754,6 +3798,7 @@ function billEvidence_(d) {
   const rate = num0_(d.dieselRate) >= 0.01 && num0_(d.dieselRate) < 1000 ? r2_(num0_(d.dieselRate)) : 0;
   const extra = { debit: pick(ex.debit), boq: pick(ex.boq), issues: pick(ex.issues), avgRate: ex.avgRate || 0, lastRate: ex.lastRate || 0, lastDate: ex.lastDate || '',
     manualRate: rate, dieselRate: rate, idlePaid: d.idlePaid !== false };
+  if (ex.checks) extra.checks = pick(ex.checks);      // (update-199) the tank checks the bill's diesel debit stands on (its opening and its month end)
   const head = evHead_((d.vendor && d.vendor.name) || d.vendor, d.company, from, to, nos);
   const machinesText = canon_(machines), extraText = canon_(extra);
   return { head: head, machines: machines, machinesText: machinesText, extra: extra, extraText: extraText, rows: rows, hash: evHash_(head, machinesText, extraText, rows) };
@@ -8547,7 +8592,18 @@ function logPrintExtra_(f) {
     if (inDates.length) avgRate = r2_(inDates.reduce((s2, x) => s2 + x.q * x.rate, 0) / inDates.reduce((s2, x) => s2 + x.q, 0));
     else avgRate = lastRate;
   } catch (e) { /* no inward */ }
-  return { debit: out, boq: boq, issues: issues, avgRate: avgRate, lastRate: lastRate, lastDate: lastDate };
+  const res = { debit: out, boq: boq, issues: issues, avgRate: avgRate, lastRate: lastRate, lastDate: lastDate };
+  /* (update-199) dates under the month-end tank check rule: each machinery's check of the day before them (its Opening – from
+   * 31-10-2026 on) and of their last day (Found). The "checks" being there is what puts a bill of these dates on that rule. */
+  if (str_(f.to) >= TANK_RULE_FROM_ && (f.nos || []).length) {
+    const checks = {}, dOpen = /^\d{4}-\d{2}-\d{2}$/.test(str_(f.from)) ? addDays_(f.from, -1) : '';
+    try { const t = tankTable_(); if (t) t.rows.map(r => tankRowOut_(t, r)).forEach(x => { const k = noKey_(x.no); if (!want[k] || !x.date) return;
+      const o = { id: x.id, date: x.date, physical: x.physical, system: x.system, method: x.method };
+      if (x.date === dOpen && dOpen >= TANK_RULE_FROM_) (checks[k] = checks[k] || {}).open = o;
+      if (x.date === f.to) (checks[k] = checks[k] || {}).close = o; }); } catch (e) { /* no tank checks yet: every opening 0, every check missing */ }
+    res.checks = checks;
+  }
+  return res;
 }
 function rptDebit_(f) {
   f = f || {};
@@ -11168,22 +11224,38 @@ function getTankChecks_(f) {
   rows.forEach(x => { x.cap = caps[noKey_(x.no)] || ''; x.pct = x.system ? r2_(x.diff / x.system * 100) : ''; });
   return { rows: rows.slice(0, 500), count: rows.length };
 }
-function saveTankCheck_(d) {
-  return withLock_(() => {
-    d = d || {};
+/* (update-199) A TANK CHECK NEEDS THE TANK CAPACITY (asked 02-11-2026: "tank check qty takatana asset madhe tank capacity takne mandatory
+ * asel tya shiway nahi honar"): every check, measured or filled to full, is refused until Asset Master has the machinery's Tank Capacity,
+ * and nothing more than the tank holds can be found in it. A check that a submitted bill of the month-end rule stands on (the check of
+ * its last day, or of the day before it – its opening) is the Super Admin's only (tankLock_). */
+function tankCapNeed_(m) {
+  if (!(num0_(m.tankCap) > 0)) throw new Error('Set the Tank Capacity of ' + m.id + ' in Asset Master first – a tank check is taken only when the tank capacity is known.');
+  return num0_(m.tankCap);
+}
+function tankLock_(no, dk) {
+  if (ACTOR_SUPER_) return;
+  const nx = addDays_(dk, 1), b = billLocksOfNo_(no).find(x => x.tank && (x.to === dk || (x.from === nx && dk >= TANK_RULE_FROM_)));      // (the day before a bill is its opening from 31-10-2026 on)
+  if (b) throw new Error('Tank check of ' + clean_(no) + ' on ' + dmy_(dk) + ': the submitted RA Bill ' + b.billNo + (b.rev ? ' rev ' + b.rev : '') + ' of ' + b.vendor + ' (' + b.company + ', ' + dmy_(b.from) + ' to ' + dmy_(b.to) +
+    ') stands on this tank check (its diesel debit) – only the Super Admin can add, change or delete it.');
+}
+function saveTankCheck_(d) { return withLock_(() => tankCheckAdd_(d || {}, null)); }
+// bill = { system, reason } from a bill's month-end check (saveBillTankCheck_): the system figure of the bill, the reason not asked
+function tankCheckAdd_(d, bill) {
     const dk = entryOpen_(d.date, 'Tank check'), m = findMachine_(d.no);
+    const cap = tankCapNeed_(m);
+    tankLock_(m.id, dk);
     const method = d.method === 'full' ? 'Filled to full' : 'Measured in tank';
     let physical, toFill = '';
     if (method === 'Filled to full') {
-      if (!(m.tankCap > 0)) throw new Error('Set the Tank Capacity of ' + m.id + ' in Master to use "Filled to full".');
       toFill = reqReading_(d.toFill, 'Litres needed to fill');
-      if (toFill > m.tankCap) throw new Error('Litres to fill (' + toFill + ') is more than the tank capacity (' + m.tankCap + ').');
-      physical = r2_(m.tankCap - toFill);
+      if (toFill > cap) throw new Error('Litres to fill (' + toFill + ') is more than the tank capacity (' + cap + ').');
+      physical = r2_(cap - toFill);
     } else physical = reqReading_(d.physical, 'Diesel found in the tank');
+    if (physical > cap) throw new Error('Diesel found in the tank (' + physical + ' L) is more than the tank capacity of ' + m.id + ' (' + cap + ' L in Asset Master).');
     if (tankChecksOf_(m.id).some(x => x.date === dk)) throw new Error(m.id + ' already has a tank check on ' + dmy_(dk) + '. Delete it first to check again.');
-    const sys = systemTankAt_(m.id, dk).system, diff = r2_(physical - sys);
-    const reason = clean_(d.reason);
-    if (Math.abs(diff) > Math.max(5, Math.abs(sys) * 0.1) && !reason) throw new Error('Difference is ' + (diff > 0 ? '+' : '') + diff + ' L – write the reason.');
+    const sys = bill ? r2_(bill.system) : systemTankAt_(m.id, dk).system, diff = r2_(physical - sys);
+    const reason = clean_(d.reason) || (bill ? bill.reason : '');
+    if (!bill && Math.abs(diff) > Math.max(5, Math.abs(sys) * 0.1) && !reason) throw new Error('Difference is ' + (diff > 0 ? '+' : '') + diff + ' L – write the reason.');
     const sh = tankSheet_(), t = table_(APP.SHEET_TANK, TANK_COLS_);
     const n = t.rows.reduce((mx, r) => Math.max(mx, Number(String(r[t.c['Check ID']]).replace(/\D/g, '')) || 0), 0) + 1;
     const id = 'TC-' + String(n).padStart(5, '0');
@@ -11194,7 +11266,6 @@ function saveTankCheck_(d) {
     recalcStock_(m.id); // from the end of this day the system tank starts from the real figure
     bump_(['log']);
     return { ok: true, id: id, no: m.id, date: dk, system: sys, physical: physical, diff: diff };
-  });
 }
 function deleteTankCheck_(id) {
   return withLock_(() => {
@@ -11203,11 +11274,39 @@ function deleteTankCheck_(id) {
     if (i === -1) throw new Error('Tank check not found.');
     const x = tankRowOut_(t, t.rows[i]);
     booksOpen_(x.date, 'Tank check');
+    tankLock_(x.no, x.date);
     t.sh.deleteRow(i + 2);
     TABLE_MEMO_ = {};
     recalcStock_(x.no);
     bump_(['log']);
     return { ok: true, id: x.id, no: x.no, date: x.date };
+  });
+}
+/* (update-199) THE MONTH-END CHECK FROM THE BILL (Machinery Billing → Tank check): d = { no, from, to, physical, replace }. The server works
+ * out the machinery's bill of those dates again (billMachineCalc_, the same as Verify) and keeps the check of the last day with the
+ * system figure of the bill. The check of that day already there: refused, or – "replace" (Change) – that check is taken off and this
+ * one kept in its place (one save). Every rule of a tank check applies (the date rules, the tank capacity, a submitted bill's lock). */
+function saveBillTankCheck_(d) {
+  return withLock_(() => {
+    d = d || {};
+    const from = checkDate_(d.from), to = checkDate_(d.to), m = findMachine_(d.no);
+    if (to < from) throw new Error('Bill period is not proper.');
+    if (to < TANK_RULE_FROM_) throw new Error('A bill up to ' + dmy_(addDays_(TANK_RULE_FROM_, -1)) + ' does not use the month-end tank check (the last fill rule) – nothing to enter.');
+    const rows = (getLogBookList_({ from: from, to: to, no: m.id, all: true }).rows || []).filter(r => same_(r.no, m.id));
+    const c = billMachineCalc_(m, rows, logPrintExtra_({ from: from, to: to, nos: [m.id] }), from, to);
+    if (!c.tc) throw new Error(m.id + ' has no Standard Average in Asset Master – its diesel is not checked against a standard, so no tank check is needed for the bill.');
+    const old = tankChecksOf_(m.id).find(x => x.date === to);
+    if (old && !d.replace) throw new Error(m.id + ' already has a tank check on ' + dmy_(to) + '. Delete it first to check again.');
+    const phys = reqReading_(d.physical, 'Diesel found in the tank');
+    const short = Math.max(0, r2_(c.tc.expect - phys));
+    const why = 'Month-end check of the bill ' + dmy_(from) + ' to ' + dmy_(to) + ': ' + c.tc.expect + ' L as per the standard' + (short > 0 ? ', ' + short + ' L short – debited in the bill' : '');
+    if (old) {      // Change: the old check of that day goes (with the same checks as Delete), this one takes its place
+      booksOpen_(old.date, 'Tank check'); tankLock_(m.id, old.date);
+      const t = tankTable_(), i = t.rows.findIndex(r => str_(r[t.c['Check ID']]) === old.id);
+      if (i > -1) { t.sh.deleteRow(i + 2); TABLE_MEMO_ = {}; }
+    }
+    const res = tankCheckAdd_({ no: m.id, date: to, method: 'measured', physical: phys, reason: d.reason, by: d.by }, { system: c.tc.expect, reason: why });
+    return Object.assign(res, { replaced: old ? old.id : '', expect: c.tc.expect, short: short });
   });
 }
 /* Report: tank checks in the dates, and today's system tank of every active machinery
@@ -12502,7 +12601,7 @@ const BILL_ST_ORDER_ = { Active: 0, Superseded: 1, Deleted: 2 };
 function billLocks_() { return memoGet_('__billLocks', () => { let t = null; try { t = billTable_(); } catch (e) { t = null; } if (!t) return [];
   return t.rows.map(r => billOut_(t, r, true)).filter(b => b.id && b.from && b.to)
     .sort((a, b) => ((BILL_ST_ORDER_[a.status] === undefined ? 3 : BILL_ST_ORDER_[a.status]) - (BILL_ST_ORDER_[b.status] === undefined ? 3 : BILL_ST_ORDER_[b.status])))      // (the bill in force is named first)
-    .map(b => ({ id: b.id, billNo: b.billNo, rev: b.rev, vendor: b.vendor, company: b.company, from: b.from, to: b.to, status: b.status || 'Active', keys: billMachKeys_(b.data) })); }); }
+    .map(b => ({ id: b.id, billNo: b.billNo, rev: b.rev, vendor: b.vendor, company: b.company, from: b.from, to: b.to, status: b.status || 'Active', keys: billMachKeys_(b.data), tank: !!(b.data || {}).tankRule })); }); }      // (update-199: tank – its diesel debit stands on the month-end tank checks)
 // (looked up by machinery: a list of thousands of entries asks this for every row)
 function billLockIdx_() { return memoGet_('__billLockIdx', () => { const by = {}, loose = []; billLocks_().forEach(b => { if (b.keys.length) b.keys.forEach(k => { (by[k] = by[k] || []).push(b); }); else loose.push(b); });
   let owners = null; const ownerOf = k => { if (!owners) { owners = {}; getMaster_().forEach(m => { owners[noKey_(m.id)] = vKey_(m.owner || ''); }); } return owners[k] || ''; };
@@ -12609,6 +12708,8 @@ const CR_SHEET_ = 'Billed Changes';
 const CR_COLS_ = ['Request ID', 'Kind', 'Requested At', 'Requested By', 'Requester Email', 'Action', 'Args', 'Summary', 'Machinery', 'Dates', 'Reason', 'Status', 'Decided By', 'Decided At', 'Decision Note', 'Result', 'Bill ID', 'Data', 'Created At'];
 const CR_FNS_ = ['saveLogRows', 'saveLogBook', 'saveLogDay', 'updateLogRow', 'deleteLogRow', 'saveLogBulk', 'importLogBook', 'saveTankerTrips', 'deleteTankerTrip', 'updateTankerTrip',
   'saveTankerRange', 'importTankerTrips', 'saveDieselIssue', 'saveDieselBulk', 'importDiesel', 'updateDieselIssue', 'deleteDieselIssue'];
+// (update-199) the Super Admin's saves that may change a submitted bill: those, and the tank checks a bill of the month-end rule stands on
+const BL_FNS_ = CR_FNS_.concat(['saveTankCheck', 'deleteTankCheck', 'saveBillTankCheck']);
 const CR_SQL_MSG_ = 'This needs one database step first: run sql/supabase_step1z_billed_changes.sql in Supabase → SQL Editor, in every site (it only adds a table).';
 function crTable_(make) {
   try {
@@ -12644,6 +12745,8 @@ function crDescribe_(fn, args) {
     if (r && r.saved && lines.length) lines[lines.length - 1] += ' (' + r.saved + ')'; }
   else if (fn === 'linkLogAttachments') { const x0 = a[0] || {}, n = shasOf(x0.files).length;
     (Array.isArray(x0.keys) ? x0.keys : []).slice(0, 60).forEach(k => { const r = logRow(k), q = str_(k).split('|'); one(r ? r.no : q[0], r ? r.date : q[1], r ? r.shift : q[2], null, 'Attach ' + n + ' file' + (n === 1 ? '' : 's') + ' to'); }); }
+  else if (fn === 'deleteTankCheck') { const x = (() => { try { const t = tankTable_(), r = t && t.rows.find(y => str_(y[t.c['Check ID']]) === str_(a[0])); return r ? tankRowOut_(t, r) : null; } catch (e) { return null; } })();      // (update-199)
+    if (x) one(x.no, x.date, '', null, 'Delete tank check ' + x.id); }
   else if (fn === 'updateDieselIssue' || fn === 'deleteDieselIssue') { const r = diesel(a[0]); one(r ? r.no : str_(a[0]), r ? r.date : '', r ? r.shift : '', fn === 'updateDieselIssue' ? a[1] : null, (fn === 'deleteDieselIssue' ? 'Delete diesel issue ' : 'Change diesel issue ') + str_(a[0])); if (r && r.saved && lines.length) lines[lines.length - 1] += ' (' + r.saved + ')'; }
   else {
     const what = /^delete/.test(fn) ? 'Delete' : /^(update|saveTankerRange|saveLogBulk)/.test(fn) ? 'Change' : 'Add';
@@ -12731,7 +12834,8 @@ function billNowFig_(b, x, per) {
   const no = billMachNo_(x); let m; try { m = findMachine_(no); } catch (e) { return null; }
   const k = b.from + '|' + b.to + '|' + noKey_(m.id);
   if (!per[k]) per[k] = { rows: getLogBookList_({ from: b.from, to: b.to, no: m.id, all: true }).rows.filter(r => same_(r.no, m.id)), extra: logPrintExtra_({ from: b.from, to: b.to, nos: [m.id] }) };
-  const pd = per[k], xtra = num0_(x.dieselRate) > 0 ? Object.assign({}, pd.extra, { manualRate: num0_(x.dieselRate) }) : pd.extra;
+  const pd = per[k], xtra = Object.assign({}, pd.extra, num0_(x.dieselRate) > 0 ? { manualRate: num0_(x.dieselRate) } : {});
+  if (!(b.data || {}).tankRule) delete xtra.checks;      // (update-199) a bill submitted before the month-end tank check rule keeps its own rule
   const c = billMachineCalc_(m, pd.rows, xtra, b.from, b.to, undefined, (b.data || {}).idlePaid !== false);
   const units = {}; c.segs.forEach(sg => { const u = units[sg.unit] = units[sg.unit] || { qty: 0, amount: 0, rates: [] }; u.qty = r2_(u.qty + sg.qty); u.amount = r2_(u.amount + sg.amount); if (u.rates.indexOf(sg.rate) === -1) u.rates.push(sg.rate); });
   return { units: units, amount: c.amount, dieselL: r2_(c.debitQty + c.excessQty), issued: c.issued, rate: c.dieselRate, workDays: c.workDays, nights: c.nights };
