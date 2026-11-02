@@ -679,6 +679,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   table.lgt thead tr:nth-child(2) th { top: 31px; }
   table.lgt input[data-f=date] { min-width: 124px; } table.lgt select[data-f=shift] { min-height: 32px; padding: 4px 6px; font-size: 13px; min-width: 86px; }
   table.lgt input[data-f=openingDiesel] { width: 72px; text-align: right; }
+  .lg-tco { display: block; font-size: 11px; font-weight: 600; line-height: 1.2; color: var(--muted); white-space: normal; }      /* (update-200) the opening from a tank check */
   table.lgt input[data-f=chFrom], table.lgt input[data-f=chTo] { width: 76px; }
   table.lgt input[data-f=work] { min-width: 130px; }
   table.lgt td.o small { display: block; font-size: 10.5px; color: var(--muted); white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; margin-left: auto; }
@@ -10455,6 +10456,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function lxCalc() {
     const d = LX.d, m = d.machine, kmCol = meterKm(m) || LX.rows.some(r => hasKm(lxWay(r))), hrCol = meterHr(m) || LX.rows.some(r => hasHr(lxWay(r)));
     let open = d.prev ? d.prev.stock : (LX.odsl !== '' ? Number(LX.odsl) : (LX.rows[0] && LX.rows[0].odsl0 !== '' ? Number(LX.rows[0].odsl0) || 0 : 0));
+    const cks = d.checks || []; let ckAt = d.prev ? d.prev.date : '';      // (update-200) the tank checks: after one, the tank starts from what was found (as the server)
     let tk = 0, th = 0, ti = 0, tc = 0, bad = 0, chg = 0, slots = 0, pbad = 0;
     const trs = [...$('lx_rows').querySelectorAll('tr[data-i]')];
     LX.rows.forEach((r, i) => {
@@ -10464,6 +10466,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const wh = hr && lxN(r.ohr) !== '' && lxN(r.chr) !== '' ? r2(r.chr - r.ohr) : tm ? lgTimeHrs(r.tStart, r.tEnd, r.tBrk) : '';
       const need = r2((km && wk > 0 && m.kmStd > 0 ? wk / m.kmStd : 0) + ((hr || tm) && wh > 0 && m.hrStd > 0 ? wh * m.hrStd : 0));
       const first1 = /-01$/.test(r.date), typed = first1 && !lxLater(r) && lxN(r.odSet) !== '';
+      if (r.date) { const ck = cks.filter(x => x.date < r.date && (!ckAt || x.date >= ckAt)).pop(); if (ck) open = Number(ck.physical) || 0; ckAt = r.date; }
       if (typed) open = Number(r.odSet);                 // opening diesel of the month, typed on the 1st
       const iss = lxIssued(r), close = r2(open + iss - need);
       // Start must be the Close just before it (row above, or the entry before these dates)
@@ -19509,7 +19512,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const ho = hrsOnlyM(m);      // update-77: a machinery on hours – a later row may start ABOVE the Close of the row above it (the hours between are not counted)
       const num = f => { const v = lgf(tr, f).value; return v === '' ? '' : Number(v); };
       let openKm, openHr, odsl, locked;
-      if (before) { odsl = before._closing === undefined ? 0 : before._closing; locked = true; }
+      // (update-200) a tank check after the entry before (p.openingCheck – the server's, after the saved entries): the tank starts from what was found
+      const tcO = !add && p.openingCheck && (!before || p.openingCheck.date >= info.get(before).date) ? p.openingCheck : null;
+      if (tcO) { odsl = Number(tcO.physical) || 0; locked = true; }
+      else if (before) { odsl = before._closing === undefined ? 0 : before._closing; locked = true; }
       else if (add) { odsl = Number(add.stock) || 0; locked = true; }      // (update-143: the tank after the saved entry of this shift)
       else { odsl = p.first ? (tr._odsl === null || tr._odsl === undefined ? 0 : tr._odsl) : p.openingDiesel; locked = !p.first; }
       openKm = beforeK ? lgf(beforeK, 'closingKm').value : p.openingKm; openHr = beforeH ? lgf(beforeH, 'closingHr').value : p.openingHr;
@@ -19538,7 +19544,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (!lgf(tr, 'openingDiesel')) cell.innerHTML = '<input data-f="openingDiesel" type="number" step="0.01" min="0" title="Diesel already in the machinery" value="' + esc(odsl) + '">';
         cell._h = '';
         odsl = Number(lgf(tr, 'openingDiesel').value) || 0; tr._odsl = odsl;
-      } else { const h = '<span>' + fmt(odsl) + '</span>'; if (cell._h !== h) { cell.innerHTML = h; cell._h = h; } }
+      } else { const h = '<span>' + fmt(odsl) + '</span>' + (tcO ? '<small class="lg-tco">tank check ' + esc(showDate(tcO.date).slice(0, 5)) + '</small>' : ''); if (cell._h !== h) { cell.innerHTML = h; cell._h = h; } }
       const wkm = off ? num('estKm') : km && num('openingKm') !== '' && num('closingKm') !== '' ? r2(num('closingKm') - num('openingKm')) : '';
       const whr = off ? num('estHr') : hr && num('openingHr') !== '' && num('closingHr') !== '' ? r2(num('closingHr') - num('openingHr')) : tm ? slotsHrs(lgSlots(tr), lgf(tr, 'tBreak').value) : '';
       if (tm) lgSlotsShow(tr);

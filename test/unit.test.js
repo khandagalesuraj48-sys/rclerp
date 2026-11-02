@@ -8154,3 +8154,35 @@ test('update-199: the MONTH-END TANK CHECK decides the diesel debit – opening 
     ['Diesel found in the tank (221 L) is more than the tank capacity of TCK-1 (220 L in Asset Master).', /more diesel than the tank/], ['Tank check of TCK-1 on 31-10-2026: the submitted RA Bill 41 of X (Y, 01-10-2026 to 31-10-2026) stands on this tank check (its diesel debit) – only the Super Admin can add, change or delete it.', /locked/],
     ['A bill up to 30-10-2026 does not use the month-end tank check (the last fill rule) – nothing to enter.', /does not use the month-end/]]) assert.match(H.fixRules(msg)[0].en.join(' '), want, msg);
 });
+
+test('update-200: after a tank check the Log Book\'s tank starts from what was found – the new entry\'s Opening (the form), the saved entry and Edit Log Book alike', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  run('(x, m) => saveMaster_(x, m)', { no: 'OPC-1', name: 'Trailer', type: 'Trailer', unit: 'KM', worksOn: ['KM'], kmStd: 2, tankCap: 300, owner: 'Opening Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01' }, 'add');
+  run('x => saveInward_(x)', { date: '2026-09-01', location: 'Dispenser', pump: 'Pump', qty: 2000, rate: 100, billNo: 'OPC-IN', billDate: '2026-09-01' });
+  assert.ok(run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-10-30', shift: 'Full Day', no: 'OPC-1', mode: 'KM', openingKm: 1000, closingKm: 1100, openingDiesel: 20 }, { date: '2026-10-31', shift: 'Full Day', no: 'OPC-1', mode: 'KM', closingKm: 1200 }] }).ok);
+  assert.ok(!run('x => saveDieselIssue_(x)', { date: '2026-10-30', shift: 'Day', source: 'Dispenser', no: 'OPC-1', qty: 200, kmReading: 1000, force: true }).THROWN);
+  const stock = d => run('d => { const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c, r = lt.rows.find(x => same_(x[c[H.NO]], "OPC-1") && dkey_(x[c[H.DATE]]) === d); return r ? [num0_(r[c[H.ODSL]]), num0_(r[c[H.STOCK]])] : null; }', d);
+  // 30-10: 20 + 200 − 50 = 170; 31-10: 170 − 50 = 120 (the Log Book's own closing)
+  assert.deepStrictEqual([stock('2026-10-30'), stock('2026-10-31')], [[20, 170], [170, 120]]);
+  // no check: the new entry of 01-11 opens at 120, as before
+  let p = run('() => getLogRowPrefill_("OPC-1", "2026-11-01", "Full Day")');
+  assert.deepStrictEqual([p.openingDiesel, p.openingCheck, p.first], [120, null, false]);
+  // the month-end check of 31-10: 90 L found → the form of 01-11 opens at 90 (it said 120 until it was saved)
+  assert.ok(run('x => saveTankCheck_(x)', { date: '2026-10-31', no: 'OPC-1', method: 'measured', physical: 90, reason: 'month end' }).ok);
+  p = run('() => getLogRowPrefill_("OPC-1", "2026-11-01", "Full Day")');
+  assert.deepStrictEqual([p.openingDiesel, p.openingCheck.date, p.openingCheck.physical, p.first], [90, '2026-10-31', 90, false]);
+  assert.strictEqual(run('() => getLogRowPrefill_("OPC-1", "2026-10-31", "Night")').openingCheck, null, 'the check of a day is not the opening of that same day');
+  // saved: the same (and the same as the whole chain worked out again)
+  assert.ok(run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-11-01', shift: 'Full Day', no: 'OPC-1', mode: 'KM', closingKm: 1240 }] }).ok);
+  assert.deepStrictEqual(stock('2026-11-01'), [90, 70]);
+  // Edit Log Book: the checks from the entry before
+  const ed = run('() => getLogEditData_("OPC-1", "2026-11-01", "2026-11-30")');
+  assert.deepStrictEqual([ed.prev.date, ed.prev.stock, ed.checks.map(x => x.date + ':' + x.physical)], ['2026-10-31', 120, ['2026-10-31:90']]);
+  const ed2 = run('() => getLogEditData_("OPC-1", "2026-10-30", "2026-11-30")');
+  assert.deepStrictEqual([ed2.prev, ed2.checks.map(x => x.date)], [null, ['2026-10-31']]);
+  // the page: the form takes the check, Edit Log Book starts again after it
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /const tcO = !add && p\.openingCheck && \(!before \|\| p\.openingCheck\.date >= info\.get\(before\)\.date\) \? p\.openingCheck : null;/);
+  assert.match(app, /if \(r\.date\) \{ const ck = cks\.filter\(x => x\.date < r\.date && \(!ckAt \|\| x\.date >= ckAt\)\)\.pop\(\); if \(ck\) open = Number\(ck\.physical\) \|\| 0; ckAt = r\.date; \}\n      if \(typed\) open = Number\(r\.odSet\);/);
+});
