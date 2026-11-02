@@ -13,7 +13,7 @@
  *     a save. Only Google's two addresses are ever called (the test rig's stand-in only off the live site). */
 'use strict';
 const crypto = require('crypto');
-const { fetchAllSync } = require('./syncfetch');
+const { fetchAllSync, isBeta } = require('./syncfetch');
 const sites = require('./sites');
 
 const TOKEN_RE = /^[A-Za-z0-9_:-]{100,400}$/;      // a Firebase token (about 160 letters)
@@ -27,7 +27,7 @@ const tokenUrl = () => (testBase() ? testBase() + '/token' : 'https://oauth2.goo
 const sendUrl = p => (testBase() || 'https://fcm.googleapis.com') + '/v1/projects/' + encodeURIComponent(p) + '/messages:send';
 
 function conf() {
-  if (String(process.env.VERCEL_ENV || '') === 'preview') return null;      // a Preview (a test copy) never sends to real phones
+  if (String(process.env.VERCEL_ENV || '') === 'preview' && !isBeta()) return null;      // a Preview (a test copy) never sends to real phones (the beta copy – live data – does)
   const raw = String(process.env.FCM_SERVICE_ACCOUNT_JSON || '').trim();
   if (!raw) return null;
   let k = null; try { k = JSON.parse(raw); } catch (e) { return { error: 'FCM_SERVICE_ACCOUNT_JSON is not the complete key file – paste the whole .json file Firebase gave, from { to }.' }; }

@@ -146,11 +146,17 @@ function renew(w) {
  * setting of the Preview was left pointing there – is refused: nothing is read or saved, the page says why. Production does not
  * ask anything (VERCEL_ENV = 'production'); the local copy neither (none set). */
 const isPreview = () => String(process.env.VERCEL_ENV || '') === 'preview';
+/* (02-11-2026, asked: "ethun pudhe je kahi asel agodr testing hoil … mi kahi user la testing sathi deu shakel … je current chalu aahe
+ * te bighdnar nahi") THE BETA COPY – the testers' copy of the next version, on the LIVE data: the branch "beta" deployed as a Preview
+ * with RCL_CHANNEL = beta set in Vercel for that one branch only. All three must hold; any other Preview keeps the rule below (only a
+ * test database). It runs no timed job (Vercel runs those only on the live one) and makes no backup and no Drive copy (the live one
+ * does them – two at once would copy twice); its notifications go to the phones as the live one's do. */
+const isBeta = () => isPreview() && String(process.env.VERCEL_GIT_COMMIT_REF || '') === 'beta' && String(process.env.RCL_CHANNEL || '') === 'beta';
 const PREVIEW_NO = 'This is a Preview (a test copy of the app): it works only with the TEST database, and this database is not marked as one – nothing was read or saved. (STAGING_SETUP.md: the Preview\'s settings in Vercel must point to the staging database.)';
 const testDbs = new Map();      // the database's address → { ok, at }
 function dbBase(url) { const m = /^(https?:\/\/[^/]+)\/(rest|storage|auth|functions)\/v1\//.exec(String(url || '')); return m ? m[1] : ''; }
 function previewGuard(reqs) {
-  if (!isPreview()) return;
+  if (!isPreview() || isBeta()) return;
   for (const q of reqs) {
     const base = dbBase(q && q.url); if (!base) continue;      // (not a database: Google, the AI …)
     const h = (q && q.headers) || {}, key = String(h.apikey || h.Apikey || String(h.Authorization || h.authorization || '').replace(/^Bearer\s+/i, ''));
@@ -196,4 +202,4 @@ function pipeSync(jobs, timeoutMs) {
   const ms = Math.max(2000, Number(timeoutMs) || 45000);
   return rawFetch(jobs.map(j => ({ pipe: j, ms: ms })), ms + 3000);
 }
-module.exports = { fetchAllSync, pipeSync, pdfPartSync, sleepSync, helpersMade: () => made, renewals: () => renewed, isPreview, PREVIEW_NO, meter: () => ({ n: METER.n, b: METER.b }) };
+module.exports = { fetchAllSync, pipeSync, pdfPartSync, sleepSync, helpersMade: () => made, renewals: () => renewed, isPreview, isBeta, PREVIEW_NO, meter: () => ({ n: METER.n, b: METER.b }) };

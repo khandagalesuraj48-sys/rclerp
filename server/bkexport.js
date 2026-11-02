@@ -15,7 +15,7 @@ function base(source) {
   if (source === 'portal') return String(process.env.PORTAL_URL || '').trim().replace(/\/+$/, '');
   const m = Object.prototype.hasOwnProperty.call(MODS, source) ? MODS[source] : null; if (!m) return '';
   const e = String(process.env[m[0]] || '').trim(); if (e) return e.replace(/\/+$/, '');
-  try { const v = require(path.join(__dirname, '..', 'vercel.json')); const r = (v.rewrites || []).find(x => x && x.source === m[1]);
+  try { const v = require(path.join(__dirname, '..', 'vercel.json')); const r = (v.rewrites || []).find(x => x && !x.has && x.source === m[1]);      // (02-11-2026) the live rule – never a rule of the staging or beta address
     if (r) return String(r.destination).replace(/\/:path\*$/, '').replace(/\/+$/, ''); } catch (e2) { /* not known */ }
   return '';
 }

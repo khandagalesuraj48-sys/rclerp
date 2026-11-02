@@ -87,6 +87,66 @@
       "destination": "https://rcl-portal-git-staging-pk12356843.vercel.app/:path*"
     },
     {
+      "source": "/store/",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-beta-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-store-git-beta-pk12356843.vercel.app/index.html"
+    },
+    {
+      "source": "/store/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-beta-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-store-git-beta-pk12356843.vercel.app/:path*"
+    },
+    {
+      "source": "/purchase/",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-beta-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-purchase-git-beta-pk12356843.vercel.app/index.html"
+    },
+    {
+      "source": "/purchase/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-beta-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-purchase-git-beta-pk12356843.vercel.app/:path*"
+    },
+    {
+      "source": "/engineering/",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-beta-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-engineering-git-beta-pk12356843.vercel.app/index.html"
+    },
+    {
+      "source": "/engineering/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-beta-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-engineering-git-beta-pk12356843.vercel.app/:path*"
+    },
+    {
       "source": "/scan",
       "destination": "/index.html"
     },
