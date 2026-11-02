@@ -2308,3 +2308,7 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   the Super Admin's words – Settings, `saveVoiceWords`); a spoken word corrected by hand is learned when it sounds like what was heard
   (`saveVoiceFix`). Kept in `app_settings` (`VOICE_WORDS`, `VOICE_FIX`). No SQL. Tests: unit `update-201`; the rig in Chromium;
   rcl-mobile 3.74.0 (`sitewords.dart`, fixture made by the web's own engine).
+- 02-11-2026 (update-202). Report: `UPDATE_202.md`. BILLS IN WHOLE RUPEES – a bill built from now on (`data.round`): every line, the
+  diesel debit, C, GST and TDS rounded (half up – `r0` / `r0_`), the totals add up; the papers, the list and the bill's Log Book sheet in
+  rupees. The Abstract: "Checked By – Billing Dept" removed, a HEAD OFFICE row (Checked By, then Verified By – HO Accounts). A bill made
+  before keeps its figures and papers. No SQL. Tests: unit `update-202`; the rig in Chromium; rcl-mobile 3.75.0 (`web_round.json`).

@@ -3310,7 +3310,9 @@ function tankMonthEnd_(m, extra, companyQty, stdQty, final) {
   return tc;
 }
 // one machinery's part of a bill – the same rules as the Machinery Billing page (BOQ day by day, excess diesel)
-function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid) {
+// rnd (update-202): a bill made in whole rupees (data.round) – every line's amount and the diesel debited rounded to the rupee
+function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid, rnd) {
+  const RS = rnd ? r0_ : r2_;
   const u = m.unit || (list[0] || {}).unit || 'KM', key = noKey_(m.id);
   const bday = (extra.boq || {})[key] || {}, iss0 = (extra.issues || {})[key] || {};
   const dim = d => new Date(Number(d.slice(0, 4)), Number(d.slice(5, 7)), 0).getDate();
@@ -3380,7 +3382,7 @@ function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid) {
       } else { const s1 = seg(bk + '|H', { unit: 'Hrs', rate: b.rate }); s1.qty += hrs; s1.amount += b.rate * hrs; }
     }
   });
-  const amount = r2_(Object.values(segs).reduce((a, x) => a + r2_(x.amount), 0));
+  const amount = r2_(Object.values(segs).reduce((a, x) => a + RS(x.amount), 0));
   // diesel: on a debited day ALL of it is recovered; on a company day only what is above the standard average
   const vt = vtype || 'As per BOQ', isDebit = d => dieselDebitDay_(vt, bday[d], m);
   const issued = r2_(Object.values(iss0).reduce((a, x) => a + (Number(x.qty) || 0), 0));
@@ -3402,8 +3404,8 @@ function billMachineCalc_(m, list, extra, from, to, vtype, idlePaid) {
   /* the rate of the debited diesel: the higher of the period's average and the last purchase rate – or, when it was typed by hand
    * for this bill (asked 10-10-2026: "wherever diesel is debited I must be able to put the rate myself"), that rate. */
   const autoRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), manRate = Number(extra.manualRate) > 0 ? r2_(Number(extra.manualRate)) : 0;
-  const dRate = manRate || autoRate, excessAmt = r2_((debitQty + excessQty) * dRate);
-  return { segs: Object.keys(segs).map(k => ({ unit: segs[k].unit, rate: r2_(segs[k].rate), qty: r2_(segs[k].qty), amount: r2_(segs[k].amount) })),      // (update-108: the corrections of an earlier bill)
+  const dRate = manRate || autoRate, excessAmt = RS((debitQty + excessQty) * dRate);
+  return { segs: Object.keys(segs).map(k => ({ unit: segs[k].unit, rate: r2_(segs[k].rate), qty: r2_(segs[k].qty), amount: RS(segs[k].amount) })),      // (update-108: the corrections of an earlier bill)
     final: final ? leftOn : '', tank: tank && tank.applied > 0 ? tank : null, tc: tc, rawExcess: rawExcess, no: m.id, dieselRate: dRate, autoRate: autoRate, rateManual: !!manRate, workDays: workDays, nights: nights, holidays: holidays, breakdowns: breakdowns, idleDays: idleDays, itemOver: itemOver, itemUnknown: itemUnknown, itemLeft: itemLeft, amount: amount, issued: issued, excessAmt: excessAmt, debitQty: debitQty, excessQty: excessQty, noBoq: noBoq, legacy: legacy, zero: zero, days: Object.keys(units).length,
     gstPct: last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0,
     tdsPct: last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0), woNo: last ? last.woNo || '' : '' };
@@ -3493,7 +3495,7 @@ function verifyBills_(p) {
       const k = noKey_(x.no), m = mByKey[k];
       if (!m) { bad(x.no + ' is not in Asset Master.'); return; }
       if (vKey_(m.owner) !== vk) { bad(x.no + ' belongs to "' + (m.owner || 'no vendor') + '" in Asset Master, not to this vendor.'); return; }
-      const c = billMachineCalc_(m, pd.byNo[k] || [], xtra, from, to, undefined, b.idlePaid !== false);
+      const c = billMachineCalc_(m, pd.byNo[k] || [], xtra, from, to, undefined, b.idlePaid !== false, b.round === true);
       if (c.idleDays && b.idlePaid !== true && b.idlePaid !== false) bad(x.no + ': ' + c.idleDays + ' Idle day(s) in the Log Book – choose in the bill whether Idle days are Paid or Not paid.');
       else if (c.idleDays) ok(x.no + ': ' + c.idleDays + ' Idle day(s) – ' + (b.idlePaid ? 'PAID' : 'NOT paid') + ' as chosen in the bill.');
       if (c.itemOver.length) bad(x.no + ': items have more work than the Log Book entry (' + c.itemOver.slice(0, 4).join('; ') + (c.itemOver.length > 4 ? ' …' : '') + ') – correct the items in the Log Book.');
@@ -3541,7 +3543,8 @@ function verifyBills_(p) {
     // amounts
     A = r2_(A); B = r2_(B);
     // GST and TDS only on a plus amount (a full-debit or diesel-heavy bill comes to a minus: the vendor owes)
-    const C = r2_(num0_(b.C)), D = r2_(A - B - C), E = D > 0 ? r2_(D * gstPct / 200) : 0, F = E, G = r2_(D + E + F), Hh = D > 0 ? r2_(D * tdsPct / 100) : 0, I = r2_(G - Hh);
+    const R = b.round === true ? r0_ : r2_;      // (update-202) a bill made in whole rupees
+    const C = R(num0_(b.C)), D = r2_(A - B - C), E = D > 0 ? R(D * gstPct / 200) : 0, F = E, G = r2_(D + E + F), Hh = D > 0 ? R(D * tdsPct / 100) : 0, I = r2_(G - Hh);
     const near = (a, x) => Math.abs(a - num0_(x)) <= 1;
     if (!(near(A, b.A) && near(B, b.B) && near(D, b.D) && near(E + F, num0_(b.E) + num0_(b.F)) && near(Hh, b.H) && near(I, b.I)))
       bad('Totals do not match: A ' + A + ', B ' + B + ', D ' + D + ', GST ' + r2_(E + F) + ', TDS ' + Hh + ', Net ' + I + ' (bill: Net ' + num0_(b.I) + ').');
@@ -11623,6 +11626,9 @@ function formatNo_(v) {
   return m ? [m[1], m[2], m[3], m[4]].filter(Boolean).join('-') : s;
 }
 function r2_(n) { return Math.round(n * 100) / 100; }
+// (update-202, asked 02-11-2026: "amount mala decimal madhe nko … .5 che aat asel tr 1 … .5 che nantr asel tr next amount") a bill in
+// whole rupees: below 50 paise down, 50 paise and above up (12.3 → 12, 122.6 → 123); a minus amount the same way from 0
+function r0_(n) { const x = r2_(Number(n) || 0); return x < 0 ? -Math.round(-x) : Math.round(x); }
 function num0_(v) { const n = numOrBlank_(v); return n === '' ? 0 : n; }
 function numOrBlank_(v) {
   if (v === '' || v === null || v === undefined) return '';
@@ -12907,7 +12913,7 @@ function billNowFig_(b, x, per) {
   if (!per[k]) per[k] = { rows: getLogBookList_({ from: b.from, to: b.to, no: m.id, all: true }).rows.filter(r => same_(r.no, m.id)), extra: logPrintExtra_({ from: b.from, to: b.to, nos: [m.id] }) };
   const pd = per[k], xtra = Object.assign({}, pd.extra, num0_(x.dieselRate) > 0 ? { manualRate: num0_(x.dieselRate) } : {});
   if (!(b.data || {}).tankRule) delete xtra.checks;      // (update-199) a bill submitted before the month-end tank check rule keeps its own rule
-  const c = billMachineCalc_(m, pd.rows, xtra, b.from, b.to, undefined, (b.data || {}).idlePaid !== false);
+  const c = billMachineCalc_(m, pd.rows, xtra, b.from, b.to, undefined, (b.data || {}).idlePaid !== false, (b.data || {}).round === true);      // (update-202) as it was made
   const units = {}; c.segs.forEach(sg => { const u = units[sg.unit] = units[sg.unit] || { qty: 0, amount: 0, rates: [] }; u.qty = r2_(u.qty + sg.qty); u.amount = r2_(u.amount + sg.amount); if (u.rates.indexOf(sg.rate) === -1) u.rates.push(sg.rate); });
   return { units: units, amount: c.amount, dieselL: r2_(c.debitQty + c.excessQty), issued: c.issued, rate: c.dieselRate, workDays: c.workDays, nights: c.nights };
 }
@@ -12960,15 +12966,15 @@ function billCorrections_(f) {
     Object.keys(Object.assign({}, before.units, now.units)).forEach(u => {
       const a = before.units[u] || { qty: 0, amount: 0, rates: [] }, z = now.units[u] || { qty: 0, amount: 0, rates: [] }, oldR = (old.units[u] || a).rates || [];
       const dq = r2_(z.qty - a.qty); if (Math.abs(dq) < 0.005 && Math.abs(z.amount - a.amount) < 0.5) return;
-      if (oldR.length === 1) work.push({ unit: u, from: a.qty, to: z.qty, rate: oldR[0], amount: r2_(dq * oldR[0]) });
-      else work.push({ unit: u, from: a.qty, to: z.qty, rate: '', amount: r2_(z.amount - a.amount) });
+      if (oldR.length === 1) work.push({ unit: u, from: a.qty, to: z.qty, rate: oldR[0], amount: r0_(dq * oldR[0]) });      // (update-202) taken in a bill made now: whole rupees
+      else work.push({ unit: u, from: a.qty, to: z.qty, rate: '', amount: r0_(z.amount - a.amount) });
     });
     const rate = old.rate || before.rate || now.rate, dl = r2_(now.dieselL - before.dieselL);
-    const diesel = Math.abs(dl) >= 0.005 ? { from: before.dieselL, to: now.dieselL, issuedFrom: before.issued, issuedTo: now.issued, rate: rate, amount: r2_(dl * rate) } : null;
+    const diesel = Math.abs(dl) >= 0.005 ? { from: before.dieselL, to: now.dieselL, issuedFrom: before.issued, issuedTo: now.issued, rate: rate, amount: r0_(dl * rate) } : null;
     const workDiff = r2_(work.reduce((s, w) => s + w.amount, 0)), dieselDiff = diesel ? diesel.amount : 0, net = r2_(workDiff - dieselDiff);
     if (!work.length && !diesel) return;
     if (Math.abs(net) < 0.5) return;
-    const d = b.data || {}, gstPct = num0_(d.gstPct), tdsPct = num0_(d.tdsPct), amt = Math.abs(net), gst = r2_(amt * gstPct / 100), tds = r2_(amt * tdsPct / 100);
+    const d = b.data || {}, gstPct = num0_(d.gstPct), tdsPct = num0_(d.tdsPct), amt = Math.abs(net), gst = r0_(amt * gstPct / 100), tds = r0_(amt * tdsPct / 100);
     items.push({ key: key, billId: b.id, billNo: b.billNo, rev: b.rev, from: b.from, to: b.to, no: billMachNo_(x), work: work, diesel: diesel, workDiff: workDiff, dieselDiff: dieselDiff,
       net: net, kind: net > 0 ? 'Credit' : 'Debit', amount: r2_(amt), gstPct: gstPct, gst: gst, tdsPct: tdsPct, tds: tds, total: r2_(amt + gst - tds), now: now });
   }));
