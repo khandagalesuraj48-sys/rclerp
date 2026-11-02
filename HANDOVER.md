@@ -2312,3 +2312,8 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   diesel debit, C, GST and TDS rounded (half up – `r0` / `r0_`), the totals add up; the papers, the list and the bill's Log Book sheet in
   rupees. The Abstract: "Checked By – Billing Dept" removed, a HEAD OFFICE row (Checked By, then Verified By – HO Accounts). A bill made
   before keeps its figures and papers. No SQL. Tests: unit `update-202`; the rig in Chromium; rcl-mobile 3.75.0 (`web_round.json`).
+- 02-11-2026 (update-203). Report: `UPDATE_203.md`. A TANK CHECK EVERY N DAYS BEFORE DIESEL – the Super Admin's rule per site in the
+  Portal (Sites → Day & tank check: Own / Rental / Hired and machinery-wise; `TANK_EVERY`); due from the last check; typed in Diesel
+  Issue (one and Multiple entries), the fill not saved without it, kept as the check of the day before (`tankBeforeDiesel_`); not for
+  Inactive, Debit Basis, no Tank Capacity. THE ERP'S DAY STARTS AT 06:00 (`SITE_RULES.dayStart`, `today_` / `reqDay_`), set per site
+  in the same Portal panel. No SQL. Tests: unit `update-203`; rcl-portal unit; the rig in Chromium; rcl-mobile 3.76.0.
