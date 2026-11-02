@@ -2675,10 +2675,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .lg-half:has(input:checked) { color: #B45309; }
   @media (pointer: coarse) { .lg-half { font-size: 14px; padding: 6px 0; } .lg-half input[type=checkbox], main td .lg-half input[type=checkbox], main .lg-wrap .lg-half input[type=checkbox] { width: 22px !important; height: 22px !important; max-width: 22px; flex-basis: 22px !important; } }
   /* the app's own pick-list on touch screens (see pkDraw) */
-  #pk_list { position: fixed; z-index: 9400; background: #fff; border: 1px solid #94A3B8; border-radius: 12px; box-shadow: 0 18px 44px rgba(15, 23, 42, .28); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  #pk_list { position: fixed; z-index: 10001; background: #fff; border: 1px solid #94A3B8; border-radius: 12px; box-shadow: 0 18px 44px rgba(15, 23, 42, .28); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
   #pk_list[hidden] { display: none; }
   #pk_list .pk-row { padding: 12px 14px; min-height: 46px; box-sizing: border-box; font: 600 15.5px var(--ui); color: #0F172A; border-bottom: 1px solid #EEF2F6; cursor: pointer; display: flex; flex-direction: column; justify-content: center; }
   #pk_list .pk-row:last-child { border-bottom: 0; } #pk_list .pk-row:active { background: #E0EAFF; }
+  #pk_list .pk-row.on { background: #E0EAFF; } @media (hover: hover) { #pk_list .pk-row:hover { background: #F1F5FF; } #pk_list .pk-row.on:hover { background: #E0EAFF; } }      /* (update-198) ↓ / ↑ and the mouse on a computer */
   #pk_list .pk-row small { font: 400 12.5px var(--ui); color: #64748B; margin-top: 1px; }
   #pk_list .pk-more { padding: 9px 14px; font-size: 12.5px; color: #64748B; }
   /* a scanned QR label: what to do for that machinery (big buttons – it is opened on a phone) */
@@ -5565,7 +5566,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function pkDraw() { const inp = PK.el; if (!inp) return;
     if (!PK.box) { PK.box = document.createElement('div'); PK.box.id = 'pk_list'; PK.box.setAttribute('role', 'listbox'); document.body.appendChild(PK.box);
       // pointerdown (not click): the box must not lose the cursor before the pick is taken – that was one way a tap got lost
-      PK.box.addEventListener('pointerdown', e => { const row = e.target.closest('[data-pkv]'); if (!row) return; e.preventDefault(); pkPick(row.dataset.pkv); });
+      PK.box.addEventListener('pointerdown', e => { const row = e.target.closest('[data-pkv]'); if (!row) { if (!PK_TOUCH) e.preventDefault(); return; } e.preventDefault(); pkPick(row.dataset.pkv); });
       PK.box.addEventListener('touchmove', () => { PK.at = Date.now(); }, { passive: true }); }
     const q = pkKey(inp.value), ql = String(inp.value || '').trim().toLowerCase(), all = pkOptions(inp);
     const hit = all.filter(o => !q || pkKey(o.v).indexOf(q) > -1 || o.v.toLowerCase().indexOf(ql) > -1 || (o.l && o.l.toLowerCase().indexOf(ql) > -1));
@@ -5575,13 +5576,40 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     PK.box.hidden = false; PK.box.scrollTop = 0; pkPlace(); }
   function pkPick(v) { const inp = PK.el; if (!inp) return; inp.value = v; pkClose();
     inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
+    // (update-198) a computer: the cursor stays in the box (the next box is a Tab away); the browser's own "changed" when the box is
+    // left later is held back once, for the same name – the app has been told already
+    if (!PK_TOUCH) { const once1 = ev => { if (!ev.isTrusted) return; inp.removeEventListener('change', once1, true); if (inp.value === v) ev.stopImmediatePropagation(); };
+      inp.addEventListener('change', once1, true); return; }
     // the app has been told once. When letters were typed first, the browser sends its own "changed" as the box is left – that
     // second one is held back, or everything that follows a pick would run twice
     const once = ev => { if (ev.isTrusted) ev.stopImmediatePropagation(); }; inp.addEventListener('change', once, true); setTimeout(() => inp.removeEventListener('change', once, true), 600);
     try { inp.blur(); } catch (e) { /* the keyboard stays – no harm */ } }
-  function pkTake(inp) { if (!inp || inp.tagName !== 'INPUT') return false; if (inp.hasAttribute('list')) { inp.dataset.pk = inp.getAttribute('list'); inp.removeAttribute('list'); inp.setAttribute('autocomplete', 'off'); } return !!inp.dataset.pk; }
-  if (pkTouch()) {
-    document.addEventListener('focusin', e => { const inp = e.target; if (pkTake(inp) && !inp.readOnly && !inp.disabled) { PK.el = inp; pkDraw(); setTimeout(pkPlace, 350); } }, true);
+  /* (update-198, asked 02-11-2026 with two pictures of Diesel Issue: "eth mi search krtoy tr lage yet nahi") ON A COMPUTER TOO, the
+   * MACHINERY boxes (the machinery on site on the entry's date, and all machinery) use this list: the browser's own list there still
+   * showed the first names of the whole list (20 KVA DG 1, 400 KVA DG …) after "7533" or "SANY" was typed, and narrowed only later.
+   * This one narrows at once, in the page, with every letter (a number without its dashes too). On a computer it opens on a click in
+   * the box, on typing or on ↓ (not by itself when the box gets the cursor after a save); ↓ / ↑ choose, Enter takes the chosen one
+   * (or the only one left), Esc closes, a click takes; the cursor stays in the box. Every other box keeps the browser's list there. */
+  const PK_TOUCH = pkTouch(), PK_ALL = ['dl_mach_on', 'dl_machines'];
+  const pkWants = inp => PK_TOUCH || PK_ALL.indexOf(inp.getAttribute('list') || '') > -1;
+  function pkTake(inp) { if (!inp || inp.tagName !== 'INPUT') return false; if (inp.hasAttribute('list') && pkWants(inp)) { inp.dataset.pk = inp.getAttribute('list'); inp.removeAttribute('list'); inp.setAttribute('autocomplete', 'off'); } return !!inp.dataset.pk; }
+  {      // (update-198: on every device – on a computer only the machinery boxes take this list, see pkTake)
+    document.addEventListener('focusin', e => { const inp = e.target; if (pkTake(inp) && !inp.readOnly && !inp.disabled) { PK.el = inp; if (PK_TOUCH) { pkDraw(); setTimeout(pkPlace, 350); } } }, true);
+    // (update-198) a computer: a click in the box opens the list (a box that got the cursor by itself – after a save – stays quiet)
+    if (!PK_TOUCH) document.addEventListener('click', e => { const inp = e.target; if (inp && inp.tagName === 'INPUT' && inp === document.activeElement && pkTake(inp) && !inp.readOnly && !inp.disabled) { PK.el = inp; pkDraw(); } }, true);
+    // (update-198) the keys: ↓ / ↑ choose a name, Enter takes it (or the only one left), Esc closes the list, Tab leaves it closed
+    document.addEventListener('keydown', e => { const inp = e.target; if (!inp || inp !== document.activeElement || !inp.dataset || !inp.dataset.pk || inp.readOnly || inp.disabled) return;
+      PK.el = inp;      // (also after Esc closed it: ↓ opens it again)
+      const open = !!PK.box && !PK.box.hidden, rows = open ? [...PK.box.querySelectorAll('.pk-row')] : [];
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (!open) { if (e.key === 'ArrowDown') { e.preventDefault(); pkDraw(); } return; }
+        e.preventDefault(); let i = rows.findIndex(r => r.classList.contains('on'));
+        i = e.key === 'ArrowDown' ? Math.min(rows.length - 1, i + 1) : Math.max(0, i - 1);
+        rows.forEach((r, k) => r.classList.toggle('on', k === i)); if (rows[i]) rows[i].scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'Enter' && open) { const on = rows.find(r => r.classList.contains('on')) || (rows.length === 1 ? rows[0] : null); if (on) { e.preventDefault(); e.stopImmediatePropagation(); pkPick(on.dataset.pkv); } }
+      else if (e.key === 'Escape' && open) { e.preventDefault(); e.stopImmediatePropagation(); pkClose(); }
+      else if (e.key === 'Tab') pkClose();
+    }, true);
     document.addEventListener('input', e => { const inp = e.target; if (inp === PK.el || (pkTake(inp) && document.activeElement === inp && (PK.el = inp))) pkDraw(); }, true);
     document.addEventListener('pointerdown', e => { const inp = e.target; if (inp && inp.tagName === 'INPUT' && pkTake(inp) && document.activeElement === inp && PK.el !== inp) { PK.el = inp; pkDraw(); } else if (PK.box && !PK.box.hidden && !PK.box.contains(e.target) && e.target !== PK.el) pkClose(); }, true);
     document.addEventListener('focusout', e => { if (e.target === PK.el) setTimeout(() => { if (document.activeElement !== PK.el && Date.now() - PK.at > 400) pkClose(); }, 200); }, true);
@@ -10101,8 +10129,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         return;
       }
       // filter boxes with a pick-list: apply when a listed name is chosen, or when the box is emptied
-      if (t.list && t.closest('.filters, .toolbar, .rfilters, .lf-dates, .dsum')) {
-        const ok = !t.value || [...t.list.options].some(o => o.value === t.value);
+      const tl = t.list || (t.dataset && t.dataset.pk ? document.getElementById(t.dataset.pk) : null);      // (update-198: the app's own list too)
+      if (tl && t.closest('.filters, .toolbar, .rfilters, .lf-dates, .dsum')) {
+        const ok = !t.value || [...tl.options].some(o => o.value === t.value);
         if (!ok) return;
         clearTimeout(t._dt);
         t._dt = setTimeout(() => { if (t.value !== t._synthVal) fire(t); }, 250);
@@ -10115,7 +10144,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // half-typed dates (year still being typed, e.g. 0020 or 12026) are not used yet
       if (t.type === 'date' && t.value && !/^(19|20)\d{2}-\d{2}-\d{2}$/.test(t.value)) { e.stopImmediatePropagation(); return; }
       if (!e.isTrusted) return;
-      const ours = t.type === 'date' || (t.list && t.closest('.filters, .toolbar, .rfilters, .lf-dates, .dsum'));
+      const ours = t.type === 'date' || ((t.list || (t.dataset && t.dataset.pk)) && t.closest('.filters, .toolbar, .rfilters, .lf-dates, .dsum'));
       if (!ours) return;
       if (t._synthAt && t.value === t._synthVal && Date.now() - t._synthAt < 15000) e.stopImmediatePropagation();
       t._synthVal = t.value; t._synthAt = Date.now();
@@ -13280,9 +13309,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     function open(el) {
       if (!okEl(el)) return; target = el;
       back.querySelector('#bb_title').textContent = nameOf(el);
-      const num = (el.getAttribute('type') || '').toLowerCase() === 'number', list = el.getAttribute('list');
+      const num = (el.getAttribute('type') || '').toLowerCase() === 'number', list = el.getAttribute('list') || (el.dataset && el.dataset.pk) || null;      // (update-198: a box with the app's own list too)
       let ed;
-      if (num || list) { ed = document.createElement('input'); ed.type = num ? 'number' : 'text'; ['step', 'min', 'max', 'list', 'maxlength', 'placeholder'].forEach(a => { if (el.hasAttribute(a)) ed.setAttribute(a, el.getAttribute(a)); }); ed.autocomplete = 'off'; }
+      if (num || list) { ed = document.createElement('input'); ed.type = num ? 'number' : 'text'; ['step', 'min', 'max', 'list', 'maxlength', 'placeholder'].forEach(a => { if (el.hasAttribute(a)) ed.setAttribute(a, el.getAttribute(a)); }); if (list && !ed.hasAttribute('list')) ed.setAttribute('list', list); ed.autocomplete = 'off'; }
       else { ed = document.createElement('textarea'); ed.rows = 5; ['maxlength', 'placeholder'].forEach(a => { if (el.hasAttribute(a)) ed.setAttribute(a, el.getAttribute(a)); }); if (el.style.textTransform) ed.style.textTransform = el.style.textTransform; }
       ed.value = el.value; ed.className = 'bb-ed' + (num ? ' bb-num' : ''); fieldBox.innerHTML = ''; fieldBox.appendChild(ed);
       ed.addEventListener('input', showCount); showCount(); hideTip();
