@@ -880,6 +880,9 @@ const API_ = {
   aiChats:           { m: '', withUser: true, f: u => aiChats_(u) },
   aiChatGet:         { m: '', withUser: true, f: (u, x) => aiChatGet_(u, x) },
   aiChatSave:        { m: '', withUser: true, f: (u, x) => aiChatSave_(u, x) },
+  getVoiceWords:     { m: '', withUser: true, f: u => getVoiceWords_(u) },              // (update-201) the site's own words for voice typing
+  saveVoiceFix:      { m: '', withUser: true, f: (u, x) => saveVoiceFix_(u, x) },        // (update-201) a voice word corrected by hand – learned
+  saveVoiceWords:    { m: '', withUser: true, f: (u, x) => saveVoiceWords_(u, x) },      // (update-201) the Super Admin's words and the learned corrections
   getAiCheck:        { m: '', admin: true, f: getAiCheck_ },
   getBrief:          { m: '', withUser: true, f: u => getBrief_(u) },
   reportError:       { m: '', withUser: true, f: (u, x) => reportError_(u, x) },
@@ -12400,6 +12403,62 @@ function getBrief_(u) {
  * fault is told at once in plain words that it is the app, not the entry, and that the Admin knows.
  * The same fault from the same place is written once in 10 minutes (a failing heartbeat must not fill the list).
  * Kept like the users' settings: one row in app_settings (APP_ERRORS); the stamp with the app settings (ERR_STAMP). */
+/* ================= THE SITE'S OWN WORDS FOR VOICE TYPING (update-201, asked 02-11-2026) =================
+ * "jewa mi voice typing krtoy … language english select aahe but te typing je haw tas hot nahi … mi bolalo Arihant City tr apla
+ * system tyala Aaryan City tr kadhi Aryna Nagar as karte"; his choice: the site's word list. The phone's / browser's speech (Google's)
+ * does not know the site's names, so it writes the nearest word it knows. The page and the app correct what was heard with:
+ *   • the site's words already in the app – Asset Master (machinery name, type, make), Vendor Master, and the places / works of the
+ *     Log Book (Chainage From / To, Work done, Remark – split at "to", "/", "&", "," …; the last 180 days, the most used first);
+ *   • the words the Super Admin adds (VOICE_WORDS);
+ *   • what people corrected by hand after speaking (VOICE_FIX: "aaryan city" → "Arihant City") – the next time it is written right.
+ * Kept in app_settings (no database step). getVoiceWords_ is read by every signed-in person (cached 30 minutes). */
+const VOICE_WORDS_KV_ = 'VOICE_WORDS', VOICE_FIX_KV_ = 'VOICE_FIX', VOICE_CACHE_ = 'VOICE_WORDS_LIST_1';
+const voiceClean_ = v => clean_(v).replace(/\s+/g, ' ').slice(0, 60);
+function voiceAdmin_() { let w = []; try { w = JSON.parse(kvRead_(VOICE_WORDS_KV_) || '[]'); } catch (e) { w = []; } return Array.isArray(w) ? w.map(voiceClean_).filter(Boolean) : []; }
+function voiceFixes_() { let f = []; try { f = JSON.parse(kvRead_(VOICE_FIX_KV_) || '[]'); } catch (e) { f = []; } return Array.isArray(f) ? f.filter(x => x && str_(x.h) && str_(x.f)) : []; }
+// the phrases of a Log Book text: "RCL CAMP TO ARIHANT CITY / 559+210 LHS" → ["RCL CAMP", "ARIHANT CITY", "LHS"]
+function voicePhrases_(t) {
+  return str_(t).split(/\s+to\s+|[\/,;&()+|]|\s-\s|\.\s/i).map(x => x.replace(/\s+/g, ' ').trim())
+    .filter(x => x && x.split(' ').length <= 5 && (x.match(/[A-Za-z\u0900-\u097F]/g) || []).length >= 4 && !/\d{3,}/.test(x));
+}
+function getVoiceWords_(u) {
+  const cache = CacheService.getScriptCache(), hit = cache.get(VOICE_CACHE_);
+  let auto = null; try { auto = hit ? JSON.parse(hit) : null; } catch (e) { auto = null; }
+  if (!auto) {
+    const count = {}, form = {};
+    const add = (t, n) => { const k = voiceClean_(t).toLowerCase(); if (!k || k.length < 4 || /^\d/.test(k)) return; count[k] = (count[k] || 0) + (n || 1); if (!form[k]) form[k] = voiceClean_(t); };
+    try { getMaster_().forEach(m => { [m.name, m.type, m.make].forEach(t => voicePhrases_(t).forEach(p => add(p, 3))); }); } catch (e) { /* (no Asset Master) */ }
+    try { getVendors_().forEach(v => { if (v && v.name) add(v.name, 3); }); } catch (e) { /* (no Vendor Master) */ }
+    try { const lt = table_(APP.SHEET_LOG, logHeaders_()), c = lt.c, from = addDays_(today_(), -180);
+      lt.rows.forEach(r => { if (dkey_(r[c[H.DATE]]) < from) return; [H.CHFROM, H.CHTO, H.WORK, H.REMARK].forEach(h => { if (h in c) voicePhrases_(r[c[h]]).forEach(p => add(p, 1)); }); }); } catch (e) { /* (no Log Book) */ }
+    auto = Object.keys(count).sort((a, b) => count[b] - count[a] || (a < b ? -1 : 1)).slice(0, 800).map(k => form[k]);
+    try { cache.put(VOICE_CACHE_, JSON.stringify(auto), 1800); } catch (e) { /* (too big for the cache: worked out each time) */ }
+  }
+  const admin = voiceAdmin_(), seen = {}, words = [];
+  admin.concat(auto).forEach(w => { const k = w.toLowerCase(); if (!seen[k]) { seen[k] = true; words.push(w); } });
+  return { words: words, admin: admin, fixes: voiceFixes_().map(x => ({ h: str_(x.h), f: str_(x.f), n: Number(x.n) || 1, by: u && u.super ? str_(x.by) : undefined, at: u && u.super ? str_(x.at) : undefined })), super: !!(u && u.super) };
+}
+// a word heard and corrected by hand right after (the page / the app send it): learned for everybody of the site
+function saveVoiceFix_(u, x) {
+  x = x || {};
+  const h = voiceClean_(x.heard).toLowerCase(), f = voiceClean_(x.fixed);
+  if (!h || !f || h === f.toLowerCase() || h.split(' ').length > 5 || f.split(' ').length > 5) return { ok: false };
+  const list = voiceFixes_().filter(y => str_(y.h).toLowerCase() !== h);
+  const was = voiceFixes_().find(y => str_(y.h).toLowerCase() === h);
+  list.push({ h: h, f: f, n: was && was.f === f ? (Number(was.n) || 1) + 1 : 1, by: str_(u && (u.name || u.email)).slice(0, 60), at: new Date().toISOString() });
+  kvWrite_(VOICE_FIX_KV_, JSON.stringify(list.slice(-500)));
+  return { ok: true, h: h, f: f };
+}
+// the Super Admin's list: { words: [..], fixes: [{ h, f }] } – both replaced as sent (a correction taken off is forgotten)
+function saveVoiceWords_(u, x) {
+  if (!u || !u.super) throw new Error('Only the Super Admin sets the site\'s words for voice typing (signed in through the Portal).');
+  x = x || {};
+  const words = [...new Set((Array.isArray(x.words) ? x.words : []).map(voiceClean_).filter(w => w.length >= 2))].slice(0, 1000);
+  const old = voiceFixes_(), fixes = (Array.isArray(x.fixes) ? x.fixes : []).map(y => ({ h: voiceClean_(y && y.h).toLowerCase(), f: voiceClean_(y && y.f) })).filter(y => y.h && y.f && y.h !== y.f.toLowerCase())
+    .map(y => Object.assign({ n: 1, by: str_(u.name || u.email).slice(0, 60), at: new Date().toISOString() }, old.find(o => str_(o.h).toLowerCase() === y.h && str_(o.f) === y.f) || {}, y)).slice(-500);
+  kvWrite_(VOICE_WORDS_KV_, JSON.stringify(words)); kvWrite_(VOICE_FIX_KV_, JSON.stringify(fixes));
+  return { ok: true, words: words.length, fixes: fixes.length };
+}
 function kvRead_(id) {
   if (prefsInDb_()) { const r = sbFetch_('GET', '/rest/v1/app_settings?id=eq.' + encodeURIComponent(id) + '&select=value'); return r && r[0] ? str_(r[0].value) : ''; }
   return str_(PropertiesService.getScriptProperties().getProperty(id));

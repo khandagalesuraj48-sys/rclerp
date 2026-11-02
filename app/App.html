@@ -679,6 +679,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   table.lgt thead tr:nth-child(2) th { top: 31px; }
   table.lgt input[data-f=date] { min-width: 124px; } table.lgt select[data-f=shift] { min-height: 32px; padding: 4px 6px; font-size: 13px; min-width: 86px; }
   table.lgt input[data-f=openingDiesel] { width: 72px; text-align: right; }
+  .vw { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); } .vw-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }      /* (update-201) */
+  .vw textarea { width: 100%; min-height: 150px; } .vw-fixes { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; font-size: 13px; }
+  .vw-fix { display: flex; justify-content: space-between; gap: 8px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; } .vw-fix small { color: var(--muted); }
+  @media (max-width: 760px) { .vw-grid { grid-template-columns: 1fr; } }
   .lg-tco { display: block; font-size: 11px; font-weight: 600; line-height: 1.2; color: var(--muted); white-space: normal; }      /* (update-200) the opening from a tank check */
   table.lgt input[data-f=chFrom], table.lgt input[data-f=chTo] { width: 76px; }
   table.lgt input[data-f=work] { min-width: 130px; }
@@ -4238,6 +4242,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="rule_att">Attachments of one Log Book entry (photos / PDF), at most</label><input id="rule_att" inputmode="numeric" maxlength="2" placeholder="10" autocomplete="off" title="A whole number from 1 to 20 (10 unless the Admin sets another number)"></div>
         <div class="field" style="align-self:end"><button class="btn primary" type="button" id="rule_save">Save the rules</button></div>
       </div>
+      <div class="vw" id="set_voice" hidden>
+        <div class="panel-head"><h2>Voice typing – the site's own words</h2><span class="chart-note">Super Admin – names the speech does not know (Arihant City …): what is heard like them is written as here.</span></div>
+        <div class="vw-grid">
+          <div class="field"><label for="vw_words">Words of this site (one per line)</label><textarea id="vw_words" rows="7" placeholder="Arihant City&#10;Kaseli Bridge" data-novoice></textarea><small class="muted" id="vw_auto"></small></div>
+          <div class="field"><label>Corrected by hand after speaking (learned)</label><div class="vw-fixes" id="vw_fixes"></div></div>
+        </div>
+        <div class="actions"><button class="btn primary" type="button" id="vw_save">Save the words</button></div>
+      </div>
       <div class="set-links"><b>More settings of the site:</b> <button class="link" type="button" data-go="users">Company &amp; site, users</button> · <button class="link" type="button" data-go="bill">Month close, company details for bills</button> · <button class="link" type="button" id="set_db">Database check</button> · <button class="link" type="button" data-go="readme">Read Me</button></div>
     </div>
   </section>
@@ -6556,6 +6568,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         'असे नाव भरा जे दुसऱ्या कोणत्याही vendor चे नाही (वेगळे ओळखू येईल असे काही जोडा, उदा. गावाचे नाव किंवा "Pvt Ltd"). दोन्ही खरोखर एकच party असतील तर Admin ला सांगा; दोन vendors एकत्र करणे हे वेगळे काम आहे.'],
       hi: ['नया नाम पहले से किसी दूसरे vendor / मालिक का है। नाम बदलने से दो अलग parties के assets, bills और payments मिल जाएँगे।',
         'ऐसा नाम भरें जो किसी और vendor का न हो (पहचान के लिए कुछ जोड़ें, जैसे जगह का नाम या "Pvt Ltd")। दोनों सच में एक ही party हों तो Admin को बताएँ; दो vendors को मिलाना अलग काम है।'] },
+    // (update-201) the site's own words for voice typing
+    { re: /words for voice typing|Only the Super Admin sets the site/i,
+      en: ['The site\'s own words for voice typing (Settings) are set by the Super Admin only.', 'Ask the Super Admin to add the word. Meanwhile: speak, then correct the word by hand right after – it is learned and written right the next time.'],
+      mr: ['Voice typing साठी site चे स्वतःचे शब्द (Settings) फक्त Super Admin ठरवतो.', 'शब्द टाकायला Super Admin ला सांगा. तोपर्यंत: बोला, आणि लगेच तो शब्द हाताने दुरुस्त करा – तो लक्षात ठेवला जातो आणि पुढच्या वेळी बरोबर लिहिला जातो.'],
+      hi: ['Voice typing के लिए site के अपने शब्द (Settings) केवल Super Admin तय करता है।', 'शब्द डालने के लिए Super Admin से कहें। तब तक: बोलें, और तुरंत वह शब्द हाथ से ठीक करें – वह याद रखा जाता है और अगली बार सही लिखा जाता है।'] },
     // (update-199) the month-end tank check decides the diesel debit of a bill
     { re: /tank check of \d{2}-\d{2}-\d{4} (is )?needed|TANK CHECK OF \d{2}-\d{2}-\d{4} NOT ENTERED|the bill is not submitted without it/i,
       en: ['From the bill of 31-10-2026 on, the diesel debit is decided by the month-end tank check: opening (the diesel found at the last check) + company diesel issued − the standard for the work = what should be in the tank on the last day of the bill. Without the diesel found on that day the bill cannot be submitted.',
@@ -7079,10 +7096,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The record of who added, changed or deleted what, and when.', 'It is written by the app itself on every save and cannot be edited. Only Admin sees it. "Screen share calls" shows the screen share history: who showed a screen to whom and how long, and the calls that were declined (with the reply) or not answered.'],
       mr: ['कोणी, काय, कधी जोडले, बदलले किंवा delete केले याची नोंद.', 'प्रत्येक save वर app स्वतः ही नोंद लिहिते; ती बदलता येत नाही. ती फक्त Admin ला दिसते. "Screen share calls" दाबले की screen share चा इतिहास दिसतो: कोणी कोणाला किती वेळ screen दाखवला, आणि कोणते call नाकारले (उत्तरासह) किंवा उचलले नाहीत.'],
       hi: ['किसने, क्या, कब जोड़ा, बदला या delete किया इसका रिकॉर्ड।', 'हर save पर app खुद यह रिकॉर्ड लिखता है; इसे बदला नहीं जा सकता। यह केवल Admin को दिखता है। "Screen share calls" दबाने पर screen share का इतिहास दिखता है: किसने किसे कितनी देर screen दिखाई, और कौन-से call मना किए गए (जवाब के साथ) या उठाए नहीं गए।'] },
-    settings: { saves: ['saveMyPrefs', 'saveSiteRules', 'getErrors', 'clearErrors', 'getAiCheck', 'rtcUsers', 'rtcSend', 'getAppVersion'],
-      en: ['Your own settings: photo, theme (light / dark), text size, language of the help, the page that opens first, your usual Log Book entry type, shift and diesel location, and favourite pages. For the Admin also the rules of the site.', 'Your settings belong to your sign-in: they are the same on every computer and change nobody else\'s app. Each change is saved by itself. Rules of the site (Admin): how many days back a user who is not Admin may enter or change entries, and a notice for everybody. Screen share (the screen button at the top of every page, from a computer in Chrome or Edge): tick up to 3 users, choose this tab in the box of the browser – they see your screen live and you can talk to each other; anybody in the call can show his own screen too. A click on the picture shows a red ring at that place on the sharer\'s screen, and "Open this page here" opens the same page in the viewer\'s own app (nobody can click or type in another person\'s screen). A phone can receive a screen share and talk but cannot show its screen. When the two networks do not let the computers reach each other directly, the call goes through the relay of the site (if one is set in the hosting) – the bar of the call then says "through the relay" (otherwise "direct connection"). For the Admin, under "This app": the update that runs now (e.g. update-74) and whether the relay is set, with "Check the relay" (it asks the relay from this computer and says whether it works). What to show: my screen, my camera (a phone\'s back camera – Switch camera, Light) or only my page (no video: the others\' app opens the page you are on, with their own access). In the call: Chat (text and photos), Pen (lines on the sharer\'s screen for 10 s), Snapshot (saved on this device), More → Low data; the bar shows the network (good / weak / poor); a line that drops is made again by itself. A call reaches a user even when his app is closed – "Screen share calls when the app is closed" → Turn on (each device once); not answered after 15 s → "Ask on WhatsApp" (his My mobile number); Reply… sends a short answer instead of a plain Decline; missed calls show as a red number on the screen button, with Call back. A red message has "Show this to the Admin" (it rings the Admin with the message). Nothing is recorded; the Activity Log notes who shared with whom and for how long. My sites (only with more than one site): the site that opens when you sign in. The site you are on is shown at the top – press it to open another site without signing in again.'],
-      mr: ['तुमचे स्वतःचे settings: फोटो, theme (light / dark), अक्षरांचा आकार, मदतीची भाषा, आधी उघडणारे page, Log Book entry चा नेहमीचा प्रकार, shift आणि diesel चे ठिकाण, आणि आवडती pages. Admin साठी site चे नियमही.', 'तुमचे settings तुमच्या sign-in शी जोडलेले आहेत: प्रत्येक computer वर तेच राहतात आणि दुसऱ्या कोणाचे app बदलत नाही. प्रत्येक बदल आपोआप save होतो. Site चे नियम (Admin): Admin नसलेला user किती दिवस मागच्या entries भरू किंवा बदलू शकतो, आणि सगळ्यांसाठी सूचना. Screen share (प्रत्येक page च्या वर screen चे बटण; computer वर Chrome किंवा Edge मध्ये): जास्तीत जास्त 3 users निवडा, browser च्या box मध्ये हा tab निवडा – त्यांना तुमचा screen live दिसतो आणि तुम्ही एकमेकांशी बोलू शकता; call मधला कोणीही स्वतःचा screen दाखवू शकतो. चित्रावर click केले की दाखवणाऱ्याच्या screen वर त्या जागी लाल गोल दिसतो, आणि "Open this page here" ने तेच page पाहणाऱ्याच्या स्वतःच्या app मध्ये उघडते (दुसऱ्याच्या screen मध्ये कोणी click किंवा type करू शकत नाही). Phone वर screen share घेता येते आणि बोलता येते, पण phone स्वतःचा screen दाखवू शकत नाही. दोन networks मधून computers थेट एकमेकांपर्यंत पोहोचत नसतील तर call site च्या relay मधून जातो (hosting मध्ये relay लावलेला असेल तर) – तेव्हा call च्या bar मध्ये "through the relay" दिसते (नाहीतर "direct connection"). Admin साठी "This app" खाली: आत्ता कोणते update चालू आहे (उदा. update-74) आणि relay लावलेला आहे का, सोबत "Check the relay" (हा computer relay ला विचारतो आणि तो चालतो की नाही ते सांगतो). काय दाखवायचे: माझा screen, माझा camera (phone चा मागचा camera – Switch camera, Light) किंवा फक्त माझे page (video नाही: समोरच्याच्या app मध्ये तुम्ही असलेले page त्याच्या स्वतःच्या परवानगीने उघडते). Call मध्ये: Chat (मजकूर आणि photo), Pen (दाखवणाऱ्याच्या screen वर 10 सेकंद रेघा), Snapshot (या device मध्ये save), More → Low data; bar मध्ये network (good / weak / poor) दिसते; line तुटली तर आपोआप परत जोडली जाते. App बंद असले तरी call पोहोचतो – "Screen share calls when the app is closed" → Turn on (प्रत्येक device वर एकदा); 15 सेकंदात उत्तर नाही तर "Ask on WhatsApp" (त्याचा My mobile number); Reply… ने साध्या Decline ऐवजी छोटे उत्तर जाते; न उचललेले call screen बटणावर लाल आकड्याने दिसतात, Call back सोबत. लाल संदेशात "हे Admin ला दाखवा" बटण असते (संदेशासह Admin ला call जातो). काहीही record होत नाही; कोणी कोणाला किती वेळ दाखवले एवढेच Activity Log मध्ये नोंदले जाते. My sites (एकापेक्षा जास्त site असतील तरच): sign in केल्यावर कोणती site उघडायची. तुम्ही ज्या site वर आहात ती वर दिसते – ती दाबून दुसरी site पुन्हा sign in न करता उघडा.'],
-      hi: ['आपके अपने settings: फोटो, theme (light / dark), अक्षरों का आकार, मदद की भाषा, पहले खुलने वाला page, Log Book entry का सामान्य प्रकार, shift और diesel की जगह, और पसंदीदा pages। Admin के लिए site के नियम भी।', 'आपके settings आपके sign-in से जुड़े हैं: हर computer पर वही रहते हैं और किसी और का app नहीं बदलता। हर बदलाव अपने-आप save होता है। Site के नियम (Admin): Admin न होने वाला user कितने दिन पीछे की entries भर या बदल सकता है, और सबके लिए सूचना। Screen share (हर page के ऊपर screen वाला बटन; computer पर Chrome या Edge में): ज़्यादा से ज़्यादा 3 users चुनें, browser के box में यही tab चुनें – उन्हें आपका screen live दिखता है और आप आपस में बात कर सकते हैं; call में कोई भी अपना screen दिखा सकता है। तस्वीर पर click करने से दिखाने वाले के screen पर उसी जगह लाल घेरा दिखता है, और "Open this page here" से वही page देखने वाले के अपने app में खुलता है (दूसरे के screen में कोई click या type नहीं कर सकता)। Phone पर screen share लिया जा सकता है और बात हो सकती है, पर phone अपना screen नहीं दिखा सकता। दोनों networks से computers सीधे एक-दूसरे तक न पहुँच पाएँ तो call site के relay से होकर जाता है (hosting में relay लगा हो तो) – तब call के bar में "through the relay" दिखता है (वरना "direct connection")। Admin के लिए "This app" के नीचे: अभी कौन-सा update चल रहा है (जैसे update-74) और relay लगा है या नहीं, साथ में "Check the relay" (यह computer relay से पूछता है और बताता है कि वह चलता है या नहीं)। क्या दिखाना है: मेरी screen, मेरा camera (phone का पीछे का camera – Switch camera, Light) या केवल मेरा page (video नहीं: सामने वाले के app में आपका page उसकी अपनी अनुमति से खुलता है)। Call में: Chat (text और photo), Pen (दिखाने वाले की screen पर 10 सेकंड रेखाएँ), Snapshot (इसी device में save), More → Low data; bar में network (good / weak / poor) दिखता है; line टूटे तो अपने-आप फिर जुड़ती है। App बंद हो तब भी call पहुँचता है – "Screen share calls when the app is closed" → Turn on (हर device पर एक बार); 15 सेकंड में जवाब नहीं तो "Ask on WhatsApp" (उसका My mobile number); Reply… से सादे Decline की जगह छोटा जवाब जाता है; न उठाए call screen बटन पर लाल अंक से दिखते हैं, Call back के साथ। लाल संदेश में "यह Admin को दिखाएँ" बटन होता है (संदेश के साथ Admin को call जाता है)। कुछ भी record नहीं होता; किसने किसे कितनी देर दिखाया, इतना ही Activity Log में लिखा जाता है। My sites (एक से ज़्यादा site हों तभी): sign in करने पर कौन सी site खुले। आप जिस site पर हैं वह ऊपर दिखती है – उसे दबाकर दूसरी site बिना दोबारा sign in किए खोलें।'] },
+    settings: { saves: ['saveMyPrefs', 'saveSiteRules', 'getErrors', 'clearErrors', 'getAiCheck', 'rtcUsers', 'rtcSend', 'getAppVersion', 'saveVoiceWords', 'saveVoiceFix'],
+      en: ['Your own settings: photo, theme (light / dark), text size, language of the help, the page that opens first, your usual Log Book entry type, shift and diesel location, and favourite pages. For the Admin also the rules of the site.', 'Your settings belong to your sign-in: they are the same on every computer and change nobody else\'s app. Each change is saved by itself. Rules of the site (Admin): how many days back a user who is not Admin may enter or change entries, and a notice for everybody. Screen share (the screen button at the top of every page, from a computer in Chrome or Edge): tick up to 3 users, choose this tab in the box of the browser – they see your screen live and you can talk to each other; anybody in the call can show his own screen too. A click on the picture shows a red ring at that place on the sharer\'s screen, and "Open this page here" opens the same page in the viewer\'s own app (nobody can click or type in another person\'s screen). A phone can receive a screen share and talk but cannot show its screen. When the two networks do not let the computers reach each other directly, the call goes through the relay of the site (if one is set in the hosting) – the bar of the call then says "through the relay" (otherwise "direct connection"). For the Admin, under "This app": the update that runs now (e.g. update-74) and whether the relay is set, with "Check the relay" (it asks the relay from this computer and says whether it works). What to show: my screen, my camera (a phone\'s back camera – Switch camera, Light) or only my page (no video: the others\' app opens the page you are on, with their own access). In the call: Chat (text and photos), Pen (lines on the sharer\'s screen for 10 s), Snapshot (saved on this device), More → Low data; the bar shows the network (good / weak / poor); a line that drops is made again by itself. A call reaches a user even when his app is closed – "Screen share calls when the app is closed" → Turn on (each device once); not answered after 15 s → "Ask on WhatsApp" (his My mobile number); Reply… sends a short answer instead of a plain Decline; missed calls show as a red number on the screen button, with Call back. A red message has "Show this to the Admin" (it rings the Admin with the message). Nothing is recorded; the Activity Log notes who shared with whom and for how long. My sites (only with more than one site): the site that opens when you sign in. The site you are on is shown at the top – press it to open another site without signing in again. Voice typing writes the site\'s own names (Asset Master, Vendor Master, the places and works of the Log Book, the Super Admin\'s words here) as the site writes them; a spoken word corrected by hand right after is learned for the next time.'],
+      mr: ['तुमचे स्वतःचे settings: फोटो, theme (light / dark), अक्षरांचा आकार, मदतीची भाषा, आधी उघडणारे page, Log Book entry चा नेहमीचा प्रकार, shift आणि diesel चे ठिकाण, आणि आवडती pages. Admin साठी site चे नियमही.', 'तुमचे settings तुमच्या sign-in शी जोडलेले आहेत: प्रत्येक computer वर तेच राहतात आणि दुसऱ्या कोणाचे app बदलत नाही. प्रत्येक बदल आपोआप save होतो. Site चे नियम (Admin): Admin नसलेला user किती दिवस मागच्या entries भरू किंवा बदलू शकतो, आणि सगळ्यांसाठी सूचना. Screen share (प्रत्येक page च्या वर screen चे बटण; computer वर Chrome किंवा Edge मध्ये): जास्तीत जास्त 3 users निवडा, browser च्या box मध्ये हा tab निवडा – त्यांना तुमचा screen live दिसतो आणि तुम्ही एकमेकांशी बोलू शकता; call मधला कोणीही स्वतःचा screen दाखवू शकतो. चित्रावर click केले की दाखवणाऱ्याच्या screen वर त्या जागी लाल गोल दिसतो, आणि "Open this page here" ने तेच page पाहणाऱ्याच्या स्वतःच्या app मध्ये उघडते (दुसऱ्याच्या screen मध्ये कोणी click किंवा type करू शकत नाही). Phone वर screen share घेता येते आणि बोलता येते, पण phone स्वतःचा screen दाखवू शकत नाही. दोन networks मधून computers थेट एकमेकांपर्यंत पोहोचत नसतील तर call site च्या relay मधून जातो (hosting मध्ये relay लावलेला असेल तर) – तेव्हा call च्या bar मध्ये "through the relay" दिसते (नाहीतर "direct connection"). Admin साठी "This app" खाली: आत्ता कोणते update चालू आहे (उदा. update-74) आणि relay लावलेला आहे का, सोबत "Check the relay" (हा computer relay ला विचारतो आणि तो चालतो की नाही ते सांगतो). काय दाखवायचे: माझा screen, माझा camera (phone चा मागचा camera – Switch camera, Light) किंवा फक्त माझे page (video नाही: समोरच्याच्या app मध्ये तुम्ही असलेले page त्याच्या स्वतःच्या परवानगीने उघडते). Call मध्ये: Chat (मजकूर आणि photo), Pen (दाखवणाऱ्याच्या screen वर 10 सेकंद रेघा), Snapshot (या device मध्ये save), More → Low data; bar मध्ये network (good / weak / poor) दिसते; line तुटली तर आपोआप परत जोडली जाते. App बंद असले तरी call पोहोचतो – "Screen share calls when the app is closed" → Turn on (प्रत्येक device वर एकदा); 15 सेकंदात उत्तर नाही तर "Ask on WhatsApp" (त्याचा My mobile number); Reply… ने साध्या Decline ऐवजी छोटे उत्तर जाते; न उचललेले call screen बटणावर लाल आकड्याने दिसतात, Call back सोबत. लाल संदेशात "हे Admin ला दाखवा" बटण असते (संदेशासह Admin ला call जातो). काहीही record होत नाही; कोणी कोणाला किती वेळ दाखवले एवढेच Activity Log मध्ये नोंदले जाते. My sites (एकापेक्षा जास्त site असतील तरच): sign in केल्यावर कोणती site उघडायची. तुम्ही ज्या site वर आहात ती वर दिसते – ती दाबून दुसरी site पुन्हा sign in न करता उघडा. Voice typing आपल्या site ची नावे (Asset Master, Vendor Master, Log Book मधल्या जागा आणि कामे, इथे Super Admin ने टाकलेले शब्द) site लिहिते तशीच लिहिते; बोलल्यानंतर लगेच हाताने दुरुस्त केलेला शब्द पुढच्या वेळेसाठी लक्षात ठेवला जातो.'],
+      hi: ['आपके अपने settings: फोटो, theme (light / dark), अक्षरों का आकार, मदद की भाषा, पहले खुलने वाला page, Log Book entry का सामान्य प्रकार, shift और diesel की जगह, और पसंदीदा pages। Admin के लिए site के नियम भी।', 'आपके settings आपके sign-in से जुड़े हैं: हर computer पर वही रहते हैं और किसी और का app नहीं बदलता। हर बदलाव अपने-आप save होता है। Site के नियम (Admin): Admin न होने वाला user कितने दिन पीछे की entries भर या बदल सकता है, और सबके लिए सूचना। Screen share (हर page के ऊपर screen वाला बटन; computer पर Chrome या Edge में): ज़्यादा से ज़्यादा 3 users चुनें, browser के box में यही tab चुनें – उन्हें आपका screen live दिखता है और आप आपस में बात कर सकते हैं; call में कोई भी अपना screen दिखा सकता है। तस्वीर पर click करने से दिखाने वाले के screen पर उसी जगह लाल घेरा दिखता है, और "Open this page here" से वही page देखने वाले के अपने app में खुलता है (दूसरे के screen में कोई click या type नहीं कर सकता)। Phone पर screen share लिया जा सकता है और बात हो सकती है, पर phone अपना screen नहीं दिखा सकता। दोनों networks से computers सीधे एक-दूसरे तक न पहुँच पाएँ तो call site के relay से होकर जाता है (hosting में relay लगा हो तो) – तब call के bar में "through the relay" दिखता है (वरना "direct connection")। Admin के लिए "This app" के नीचे: अभी कौन-सा update चल रहा है (जैसे update-74) और relay लगा है या नहीं, साथ में "Check the relay" (यह computer relay से पूछता है और बताता है कि वह चलता है या नहीं)। क्या दिखाना है: मेरी screen, मेरा camera (phone का पीछे का camera – Switch camera, Light) या केवल मेरा page (video नहीं: सामने वाले के app में आपका page उसकी अपनी अनुमति से खुलता है)। Call में: Chat (text और photo), Pen (दिखाने वाले की screen पर 10 सेकंड रेखाएँ), Snapshot (इसी device में save), More → Low data; bar में network (good / weak / poor) दिखता है; line टूटे तो अपने-आप फिर जुड़ती है। App बंद हो तब भी call पहुँचता है – "Screen share calls when the app is closed" → Turn on (हर device पर एक बार); 15 सेकंड में जवाब नहीं तो "Ask on WhatsApp" (उसका My mobile number); Reply… से सादे Decline की जगह छोटा जवाब जाता है; न उठाए call screen बटन पर लाल अंक से दिखते हैं, Call back के साथ। लाल संदेश में "यह Admin को दिखाएँ" बटन होता है (संदेश के साथ Admin को call जाता है)। कुछ भी record नहीं होता; किसने किसे कितनी देर दिखाया, इतना ही Activity Log में लिखा जाता है। My sites (एक से ज़्यादा site हों तभी): sign in करने पर कौन सी site खुले। आप जिस site पर हैं वह ऊपर दिखती है – उसे दबाकर दूसरी site बिना दोबारा sign in किए खोलें। Voice typing अपनी site के नाम (Asset Master, Vendor Master, Log Book की जगहें और काम, यहाँ Super Admin के डाले शब्द) site जैसे लिखती है वैसे लिखता है; बोलने के बाद तुरंत हाथ से ठीक किया शब्द अगली बार के लिए याद रखा जाता है।'] },
     readme: { saves: ['readme', 'dbHealth', 'backupNow'],
       en: ['The set-up notes of the app for the Admin: where the data is kept, the SQL steps and the backup.', 'Nothing is entered here.'],
       mr: ['Admin साठी app च्या set-up ची माहिती: data कुठे आहे, SQL चे टप्पे आणि backup.', 'इथे काहीही भरले जात नाही.'],
@@ -14580,10 +14597,33 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('set_photo_del').addEventListener('click', () => prefSet({ photo: '' }));
   $('set_pw').addEventListener('click', () => $('u_pw').click());
   $('u_ava').addEventListener('click', () => $('tab-settings').click());
-  $('tab-settings').addEventListener('click', () => { setDraw(); setLoad(); avLoad(); });
+  $('tab-settings').addEventListener('click', () => { setDraw(); setLoad(); avLoad(); voiceWordsLoad(true); });
   $('set_db').addEventListener('click', () => $('db_pill').click());
   $('set_reset').addEventListener('click', async () => { if (!(await askConfirm({ title: 'Back to the usual settings?', ok: 'Reset', message: 'Theme, text size, language, first page, usual shift / location and favourites go back to how the app comes. Your photo and mobile number stay.' }))) return;
     const keep = { photo: S.prefs.photo, mobile: S.prefs.mobile }; prefSet(Object.assign({}, PREF_DEFAULT, keep)); });
+  /* (update-201) THE SITE'S OWN WORDS FOR VOICE TYPING: given to the voice typing (RclVoice) after sign-in and every 30 minutes; what a
+   * person corrects by hand after speaking is kept for the site (saveVoiceFix). The Super Admin's list on this page (Settings). */
+  const VW = { d: null, at: 0, edit: false, fixes: [] };
+  async function voiceWordsLoad(force) {
+    const V = window.RclVoice; if (!V || !V.setWords || !S.token) return;
+    if (!V.onLearn) V.onLearn = (h, f) => { rawCall('saveVoiceFix', { heard: h, fixed: f }).catch(() => { /* only for the next time */ }); };
+    if (!force && VW.d && Date.now() - VW.at < 30 * 60000) return;
+    try { const d = await rawCall('getVoiceWords'); VW.d = d; VW.at = Date.now(); V.setWords(d); vwDraw(); } catch (e) { /* voice typing as before */ }
+  }
+  setInterval(() => { if (S.token && !document.hidden) voiceWordsLoad(); }, 5 * 60000);
+  function vwDraw() {
+    const d = VW.d, p = $('set_voice'); if (!p) return; p.hidden = !(d && d.super); if (p.hidden) return;
+    if (!VW.edit) { $('vw_words').value = (d.admin || []).join('\n'); VW.fixes = (d.fixes || []).map(x => ({ h: x.h, f: x.f, n: x.n, by: x.by })); }
+    $('vw_auto').textContent = 'Also known by themselves: ' + Math.max(0, (d.words || []).length - (d.admin || []).length) + ' names and places from Asset Master, Vendor Master and the Log Book.';
+    $('vw_fixes').innerHTML = VW.fixes.length ? VW.fixes.map((x, i) => '<div class="vw-fix"><span>“' + esc(x.h) + '” → <b>' + esc(x.f) + '</b>' + (x.n > 1 ? ' <small>×' + x.n + '</small>' : '') + (x.by ? ' <small>' + esc(x.by) + '</small>' : '') + '</span><button class="link" type="button" data-vwdel="' + i + '">Remove</button></div>').join('')
+      : '<span class="muted">Nothing yet – a spoken word corrected by hand right after speaking is shown here.</span>';
+  }
+  $('vw_fixes').addEventListener('click', e => { const b = e.target.closest('[data-vwdel]'); if (!b) return; VW.edit = true; VW.fixes.splice(Number(b.dataset.vwdel), 1); vwDraw(); });
+  $('vw_words').addEventListener('input', () => { VW.edit = true; });
+  $('vw_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
+    const r = await call('saveVoiceWords', { words: $('vw_words').value.split('\n').map(x => x.trim()).filter(Boolean), fixes: VW.fixes.map(x => ({ h: x.h, f: x.f })) });
+    VW.edit = false; toast('Voice typing: ' + r.words + ' word(s) of the site and ' + r.fixes + ' correction(s) saved.'); await voiceWordsLoad(true);
+  }).catch(er => toast(errMsg(er), true)));
   $('rule_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
     const r = await call('saveSiteRules', { backDays: $('rule_back').value.trim(), announce: $('rule_note').value.trim(), dayFrom: $('rule_day').value, nightFrom: $('rule_night').value, attachMax: $('rule_att').value.trim() }); setRules(r.rules); toast('Rules of the site saved.');
   }).catch(er => toast(errMsg(er), true)));
@@ -16571,6 +16611,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       resumeTab();      // just updated to a new version: back on the page the user was going to
       S.locations = d.locations || []; if (d.rules) setRules(d.rules);
       prefsBoot(S.curTab === tab0);      // the user's own settings (look, first page, usual entry type …)
+      voiceWordsLoad(true);      // (update-201) the site's own words for voice typing
       wantTabGo();      // (13-10-2026) opened from another module's menu on one page: that page
       if (d.faults) setFaults(d.faults);
       aiBoot(d.ai);
@@ -21727,7 +21768,70 @@ window.rclVoiceLang = () => { try { const l = localStorage.getItem('rcl_lang'); 
     }
     return { toNumber };
   })();
-  if (typeof window === 'undefined' || typeof document === 'undefined') { if (typeof module === 'object' && module.exports) module.exports = { toNumber: NUM.toNumber }; return; }      // (node: the unit test)
+  /* ---------- THE SITE'S OWN WORDS (update-201, asked 02-11-2026: "mi bolalo Arihant City tr apla system tyala Aaryan City tr kadhi
+   * Aryna Nagar as karte") – the speech (Google's) does not know the site's names and writes the nearest word it knows. What it heard
+   * is put right with the site's words (the server's getVoiceWords: Asset Master, Vendor Master, the places and works of the Log Book,
+   * the Super Admin's words) and the corrections people made by hand after speaking:
+   *   1. a correction learned ("aaryan city" → "Arihant City") – that text is replaced;
+   *   2. a site word said the same – kept; said nearly so (sounding alike: the same first sound, 80 % alike – one word 85 %, at least
+   *      5 letters; never a word with digits) – written as the site writes it;
+   *   3. of Google's guesses (up to 5) the one that fits the site's words best is taken (the first when none does). */
+  const SW = (function () {
+    const lev = (a, b) => { if (a === b) return 0; let p = Array.from({ length: b.length + 1 }, (x, j) => j);
+      for (let i = 1; i <= a.length; i++) { const q = [i]; for (let j = 1; j <= b.length; j++) q[j] = Math.min(p[j] + 1, q[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = q; } return p[b.length]; };
+    // how a word sounds (Indian names in English letters): aspiration and doubled letters dropped, y = i, w = v, z = j, c = k / s …
+    const phon = w => { let x = String(w || '').toLowerCase(); if (/[\u0900-\u097F]/.test(x)) return x.replace(/[^\u0900-\u097F]/g, '');
+      return x.replace(/[^a-z0-9]/g, '').replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/q/g, 'k').replace(/x/g, 'ks').replace(/c(?=[eiy])/g, 's').replace(/c/g, 'k')
+        .replace(/z/g, 'j').replace(/w/g, 'v').replace(/y/g, 'i').replace(/h/g, '').replace(/ee|ea/g, 'i').replace(/oo|ou/g, 'u').replace(/(.)\1+/g, '$1'); };
+    const toks = t => String(t || '').split(/\s+/).filter(Boolean);
+    const bare = w => String(w || '').toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/g, '');
+    let list = [], fixes = [];
+    function set(d) {
+      d = d || {};
+      list = (d.words || []).map(w => { const k = toks(w).map(bare).filter(Boolean); return { w: String(w).trim(), k: k, p: k.map(phon).join('') }; })
+        .filter(x => x.k.length && x.k.length <= 5 && !/\d/.test(x.k.join('')) && x.p.length >= 4);
+      fixes = [];
+      (d.fixes || []).forEach(x => learn(x && x.h, x && x.f));
+    }
+    function learn(h, f) { const k = toks(h).map(bare).filter(Boolean), t = String(f || '').trim(); if (!k.length || !t) return;
+      fixes = fixes.filter(x => x.h.join(' ') !== k.join(' ')).concat([{ h: k, f: t }]).sort((a, b) => b.h.length - a.h.length); }
+    // one text heard → { text, score, changes: [{ from, to, at }] } (at: where "to" stands in the text)
+    function fix1(text) {
+      const w = toks(text), out = w.slice(), lock = w.map(() => false), changes = []; let score = 0;
+      if (!w.length) return { text: '', score: 0, changes: [] };
+      fixes.forEach(fx => { const n = fx.h.length; for (let i = 0; i + n <= w.length; i++) { if (lock.slice(i, i + n).some(Boolean) || !fx.h.every((h, j) => bare(w[i + j]) === h)) continue;
+        changes.push({ from: w.slice(i, i + n).join(' '), to: fx.f, at: i }); out[i] = fx.f; for (let j = 0; j < n; j++) { lock[i + j] = true; if (j) out[i + j] = null; } score += n; } });
+      const cand = [];
+      list.forEach(x => { const n = x.k.length;
+        for (let m = Math.max(1, n - 1); m <= n + 1; m++) for (let i = 0; i + m <= w.length; i++) {
+          const seg = w.slice(i, i + m).map(bare); if (seg.some(t => !t)) continue;
+          const sj = seg.join(' '), kj = x.k.join(' ');      // said as the site writes it (its plural too: "excavators") – kept
+          if (m === n && (sj === kj || sj === kj + 's' || sj === kj + 'es')) { cand.push({ i: i, m: m, x: x, s: 1.01 }); continue; }
+          if (/\d/.test(seg.join(''))) continue;
+          const p = seg.map(phon).join(''); if (!p || p[0] !== x.p[0]) continue;
+          const sc = 1 - lev(p, x.p) / Math.max(p.length, x.p.length);
+          if (n > 1 ? sc >= 0.8 : sc >= 0.85 && x.p.length >= 5) cand.push({ i: i, m: m, x: x, s: sc });
+        } });
+      cand.sort((a, b) => b.s - a.s || b.x.k.length - a.x.k.length || a.i - b.i);
+      cand.forEach(c => { for (let j = c.i; j < c.i + c.m; j++) if (lock[j]) return;
+        for (let j = c.i; j < c.i + c.m; j++) lock[j] = true;
+        score += c.m * Math.min(1, c.s);
+        if (c.s > 1) return;      // said as the site writes it: kept
+        changes.push({ from: w.slice(c.i, c.i + c.m).join(' '), to: c.x.w, at: c.i }); out[c.i] = c.x.w; for (let j = c.i + 1; j < c.i + c.m; j++) out[j] = null; });
+      const pos = []; let n = 0; out.forEach((t, k) => { pos[k] = n; if (t !== null) n += t.length + 1; });
+      changes.forEach(c => { c.at = pos[c.at]; });
+      return { text: out.filter(t => t !== null).join(' '), score: score, changes: changes };
+    }
+    // a correction by hand is learned only when it sounds like what was heard (the same first sound, 40 % alike): "Aryna Nagar" →
+    // "Arihant City" is; "two" → "three", "city" → "Nagar", "loading" → "unloading" are a change of what was meant – not learned
+    function alike(h, f) { const a = toks(h).map(phon).join(''), b = toks(f).map(phon).join('');
+      return !!a && !!b && a[0] === b[0] && 1 - lev(a, b) / Math.max(a.length, b.length) >= 0.4; }
+    // Google's guesses → the one that fits the site best (the first when none does better)
+    function fix(alts) { let best = null; (alts || []).map(t => String(t || '').trim()).filter(Boolean).forEach((t, i) => { const r = fix1(t); if (!best || r.score > best.score + 1e-6) best = Object.assign(r, { alt: i, raw: t }); });
+      return best || { text: '', score: 0, changes: [], alt: 0, raw: '' }; }
+    return { set: set, learn: learn, fix: fix, fix1: fix1, phon: phon, alike: alike, size: () => ({ words: list.length, fixes: fixes.length }) };
+  })();
+  if (typeof window === 'undefined' || typeof document === 'undefined') { if (typeof module === 'object' && module.exports) module.exports = { toNumber: NUM.toNumber, SW: SW }; return; }      // (node: the unit test)
 
   /* ---------- the microphone ---------- */
   const LANGS = [['mr', 'मराठी', 'mr-IN'], ['hi', 'हिंदी', 'hi-IN'], ['en', 'English', 'en-IN']];
@@ -21740,6 +21844,7 @@ window.rclVoiceLang = () => { try { const l = localStorage.getItem('rcl_lang'); 
     net: { mr: 'बोललेले समजण्यासाठी internet लागते – connection बघा.', hi: 'बोले हुए को समझने के लिए internet चाहिए – connection देखें।', en: 'Speech needs the internet – check the connection.' },
     cant: { mr: 'हा browser ऐकू शकत नाही – Chrome किंवा Edge वापरा.', hi: 'यह browser सुन नहीं सकता – Chrome या Edge इस्तेमाल करें।', en: 'This browser cannot listen – use Chrome or Edge.' },
     tip: { mr: 'बोलून लिहा (मराठी / हिंदी / English)', hi: 'बोलकर लिखें (मराठी / हिंदी / English)', en: 'Speak to type (मराठी / हिंदी / English)' },
+    site: { mr: 'Site चा शब्द लिहिला', hi: 'Site का शब्द लिखा', en: 'Written as the site writes it' },
   };
   const keyOf = 'rcl-voice-lang';
   const kept = () => { try { return localStorage.getItem(keyOf) || ''; } catch (e) { return ''; } };
@@ -21794,23 +21899,53 @@ window.rclVoiceLang = () => { try { const l = localStorage.getItem('rcl_lang'); 
   }
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   // what was heard → the box, as typed
-  function put(text) {
+  let last = null;      // (update-201) what was spoken into a box last: a change of it by hand right after is learned
+  function put(text, alts) {
     const el = box; if (!el || !el.isConnected) return;
-    const k = kindOf(el), t = String(text || '').trim(); if (!t) { show(say('none'), true); return; }
-    let v;
+    const k = kindOf(el); let t = String(text || '').trim(); if (!t) { show(say('none'), true); return; }
+    let v, fx = null;
     if (k === 'text') {
+      fx = SW.fix([t].concat((alts || []).filter(a => a && a.trim() !== t))); if (fx.text) t = fx.text;      // the site's own words (update-201)
       const s = el.selectionStart === null || el.selectionStart === undefined ? el.value.length : el.selectionStart, e = el.selectionEnd === null || el.selectionEnd === undefined ? s : el.selectionEnd;
       const before = el.value.slice(0, s), ins = (before && !/\s$/.test(before) ? ' ' : '') + t;
       const max = el.maxLength > 0 ? el.maxLength : Infinity, out = (before + ins + el.value.slice(e)).slice(0, max);
       el.value = out; try { const c = Math.min(out.length, before.length + ins.length); el.setSelectionRange(c, c); } catch (x) { /* a box without a cursor */ }
+      last = { el: el, start: before.length + (ins.length - t.length), text: t, changes: fx.changes, at: Date.now(), value: null };
     } else {
       v = NUM.toNumber(t, k === 'digits' ? 'digits' : '');
       if (!v) { heard = t; show(say('nonum') + ' – ' + say('none'), true); return; }
       el.value = v;
     }
     el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+    if (last && last.el === el) last.value = el.value;      // (as the box has it after its own reaction)
     tip.style.display = 'none'; heard = '';
+    if (fx && fx.changes.length) { heard = fx.changes.map(c => c.from + ' → ' + c.to).join(', '); show(say('site')); heard = ''; clearTimeout(put.t); put.t = setTimeout(() => { if (!live) tip.style.display = 'none'; }, 3500); }
   }
+  /* (update-201) a spoken text changed by hand right after (within 3 minutes, the words of what was spoken only): "heard → typed" is
+   * learned – kept for the site (RclVoice.onLearn → the server's saveVoiceFix) and used at once. Where a site word had been put (even
+   * changed in part: "Arihant City" → "Arihant Nagar"), what was heard there is learned (it is what the speech will write again).
+   * Only what sounds like what was heard (SW.alike) – a change of what was meant is not learned. */
+  function learnFrom(el) {
+    const L = last; if (!L || L.el !== el || L.value === null) return;
+    if (Date.now() - L.at > 180000) { last = null; return; }
+    const now = el.value, was0 = L.value; if (now === was0) return;
+    let a = 0; while (a < now.length && a < was0.length && now[a] === was0[a]) a++;
+    let b = 0; while (b < now.length - a && b < was0.length - a && now[now.length - 1 - b] === was0[was0.length - 1 - b]) b++;
+    const ws = (x, i) => { while (i > 0 && /\S/.test(x[i - 1])) i--; return i; }, we = (x, i) => { while (i < x.length && /\S/.test(x[i])) i++; return i; };
+    let oa = ws(was0, a), ob = we(was0, was0.length - b);
+    last = null;
+    if (oa < L.start || ob > L.start + L.text.length) return;      // not in what was spoken
+    const parts = (L.changes || []).map(c => ({ s: L.start + c.at, e: L.start + c.at + c.to.length, c: c })).filter(p => was0.slice(p.s, p.e) === p.c.to);
+    parts.forEach(p => { if (p.s < ob && p.e > oa) { oa = Math.min(oa, p.s); ob = Math.max(ob, p.e); } });      // a site word put in: the whole of it
+    let w0 = was0.slice(oa, ob); const is = now.slice(oa, now.length - (was0.length - ob)).trim();      // (the text before / after is the same)
+    parts.filter(p => p.s >= oa && p.e <= ob).sort((x, y) => y.s - x.s).forEach(p => { w0 = w0.slice(0, p.s - oa) + p.c.from + w0.slice(p.e - oa); });
+    const h = w0.trim();
+    if (!h || !is || h.split(/\s+/).length > 5 || is.split(/\s+/).length > 5 || !/[A-Za-z\u0900-\u097F]/.test(is)) return;
+    if (h.toLowerCase() === is.toLowerCase() || !SW.alike(h, is)) return;
+    SW.learn(h, is); if (typeof api.onLearn === 'function') { try { api.onLearn(h, is); } catch (e) { /* only for the next time */ } }
+  }
+  document.addEventListener('change', e => { if (last && e.target === last.el) learnFrom(e.target); }, true);
+  document.addEventListener('focusout', e => { if (last && e.target === last.el) learnFrom(e.target); }, true);
   function fail(code) {
     live = false; btn.classList.remove('on'); rec = null;
     show(code === 'not-allowed' || code === 'service-not-allowed' ? say('mic') : code === 'audio-capture' ? say('nomic') : code === 'network' ? say('net') : code === 'cant' ? say('cant') : say('none'), true);
@@ -21821,11 +21956,11 @@ window.rclVoiceLang = () => { try { const l = localStorage.getItem('rcl_lang'); 
     heard = ''; live = true; btn.classList.add('on'); show(say('hear'));
     const R = Ctor();
     if (R) {
-      const r = new R(); rec = r; r.lang = (LANGS.find(l => l[0] === lang) || LANGS[2])[2]; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
-      let fin = '';
-      r.onresult = e => { let t = ''; for (let i = 0; i < e.results.length; i++) { t += e.results[i][0].transcript; if (e.results[i].isFinal) fin = t; } heard = t; show(say('hear')); };
+      const r = new R(); rec = r; r.lang = (LANGS.find(l => l[0] === lang) || LANGS[2])[2]; r.interimResults = true; r.continuous = false; r.maxAlternatives = box && kindOf(box) === 'text' ? 5 : 1;      // (update-201: Google's guesses, for the site's words)
+      let fin = '', alts = [];
+      r.onresult = e => { let t = ''; const al = []; for (let i = 0; i < e.results.length; i++) { const x = e.results[i]; t += x[0].transcript; for (let k = 0; k < Math.min(5, x.length || 1); k++) al[k] = (al[k] || '') + ((x[k] || x[0]).transcript); if (x.isFinal) { fin = t; alts = al.slice(); } } heard = t; show(say('hear')); };
       r.onerror = e => { if (rec !== r) return; const c = e && e.error; if (c === 'no-speech' || c === 'aborted') return; fail(c); };
-      r.onend = () => { if (rec !== r) return; rec = null; const was = live; live = false; btn.classList.remove('on'); if (!was) return; const t = (fin || heard).trim(); if (!t) { show(say('none'), true); return; } put(t); };
+      r.onend = () => { if (rec !== r) return; rec = null; const was = live; live = false; btn.classList.remove('on'); if (!was) return; const t = (fin || heard).trim(); if (!t) { show(say('none'), true); return; } put(t, alts); };
       try { r.start(); } catch (e) { fail('cant'); }
       return;
     }
@@ -21840,7 +21975,7 @@ window.rclVoiceLang = () => { try { const l = localStorage.getItem('rcl_lang'); 
   document.addEventListener('focusout', () => setTimeout(() => { const a = document.activeElement; if (live) return; if (!fits(a)) { box = null; hide(); } }, 150), true);
   addEventListener('scroll', () => { if (box) place(); }, true); addEventListener('resize', () => { if (box) place(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && live) { stop(); tip.style.display = 'none'; } });
-  window.RclVoice = { toNumber: NUM.toNumber, lang: () => lang };
+  const api = window.RclVoice = { toNumber: NUM.toNumber, lang: () => lang, setWords: SW.set, fix: SW.fix, words: SW.size, onLearn: null };      // (update-201: the page gives the site's words and keeps what is learned)
 })();
 /* (end of SPEAK INTO A BOX) */
 </script>
