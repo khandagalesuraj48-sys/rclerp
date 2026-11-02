@@ -2587,7 +2587,7 @@ test('update-160: a Scan with Mobile QR code opens in the RCL ERP app – /scan 
 test('update-127: the Engineering module under this address (/engineering/ – its own Vercel project), like the Store', () => {
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   assert.deepStrictEqual(v.redirects.filter(r => /^\/engineering/.test(r.source)), [{ source: '/engineering', destination: '/engineering/', permanent: false }]);
-  assert.deepStrictEqual(v.rewrites.filter(r => /^\/engineering/.test(r.source)), [{ source: '/engineering/', destination: 'https://rcl-engineering.vercel.app/index.html' }, { source: '/engineering/:path*', destination: 'https://rcl-engineering.vercel.app/:path*' }]);
+  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && /^\/engineering/.test(r.source)), [{ source: '/engineering/', destination: 'https://rcl-engineering.vercel.app/index.html' }, { source: '/engineering/:path*', destination: 'https://rcl-engineering.vercel.app/:path*' }]);
   // the first page has its own rule (as /store/ – live 13-10-2026 the bare folder gave 404 without it); the app's worker leaves it alone
   const sw = fs.readFileSync(path.join(root, 'app', 'sw.js'), 'utf8'), re = eval(/if \(!(\/.+\/)\.test\(u\.pathname\)\) return;/.exec(sw)[1]);
   for (const p of ['/engineering/', '/engineering/api/eng', '/engineering/menu.json']) assert.ok(!re.test(p), p);
@@ -2630,7 +2630,7 @@ test('update-194: the Purchase module under this address (/purchase/ – its own
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   assert.deepStrictEqual(v.redirects.slice(-1), [{ source: '/purchase', destination: '/purchase/', permanent: false }]);
   assert.deepStrictEqual(v.rewrites.slice(-2), [{ source: '/purchase/', destination: 'https://rcl-purchase.vercel.app/index.html' }, { source: '/purchase/:path*', destination: 'https://rcl-purchase.vercel.app/:path*' }]);
-  assert.ok(!v.rewrites.some(r => r.has && /^\/purchase/.test(r.source)), 'like Engineering: no rule of its own for the staging address');
+  assert.ok(!v.rewrites.some(r => r.has && r.has[0].value !== 'rclerp-git-beta-pk12356843.vercel.app' && /^\/purchase/.test(r.source)), 'like Engineering: no rule of its own for the staging address (the beta address: its own test)');
   const sw = fs.readFileSync(path.join(root, 'app', 'sw.js'), 'utf8'), re = eval(/if \(!(\/.+\/)\.test\(u\.pathname\)\) return;/.exec(sw)[1]);
   for (const p of ['/purchase/', '/purchase/api/me', '/purchase/menu.json']) assert.ok(!re.test(p), p);
   assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
@@ -4405,10 +4405,48 @@ test('update-138: the staging (test) database – a Preview works only with a da
   assert.ok(!/rcl-portal-flame|rcl-store\.vercel\.app|oneclicksolution-erp|rclerp\.vercel\.app/.test(sql), 'no live address in the staging SQL');
   assert.ok(sql.indexOf("'" + mk.MECH + "'") > -1 && sql.indexOf("'" + mk.MECH + "/store'") > -1);
   // vercel.json: the staging rules match ONLY the staging address and send to the staging Portal / Store
-  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')), st = v.rewrites.filter(x => x.has);
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')), st = v.rewrites.filter(x => x.has && x.has[0].value === mk.HOST);      // (the beta copy's rules: next test)
   assert.strictEqual(st.length, 4);
   st.forEach(x => { assert.deepStrictEqual(x.has, [{ type: 'host', value: mk.HOST }]); assert.ok(/^https:\/\/rcl-(store|portal)-git-staging-pk12356843\.vercel\.app\//.test(x.destination), x.destination); });
   assert.ok(v.rewrites.indexOf(st[3]) < v.rewrites.findIndex(x => !x.has), 'the staging rules come before the live ones');
+});
+
+test('02-11-2026: the BETA copy – the branch "beta" with RCL_CHANNEL = beta works on the live data, shows its own band, sends notifications; no backup, no Drive; any other Preview as before', () => {
+  const sf = require('../server/syncfetch.js'), was = { e: process.env.VERCEL_ENV, r: process.env.VERCEL_GIT_COMMIT_REF, c: process.env.RCL_CHANNEL, f: process.env.FCM_SERVICE_ACCOUNT_JSON };
+  const set = (e, r, c) => { [['VERCEL_ENV', e], ['VERCEL_GIT_COMMIT_REF', r], ['RCL_CHANNEL', c]].forEach(([k, x]) => { if (x === undefined) delete process.env[k]; else process.env[k] = x; }); };
+  const fcmKey = JSON.stringify({ client_email: 'x@y.iam.gserviceaccount.com', private_key: 'k', project_id: 'p' });
+  try {
+    process.env.FCM_SERVICE_ACCOUNT_JSON = fcmKey;
+    const fcm = require('../server/fcm.js'), page = require('../server/page.js'), google = require('../server/google.js');
+    // all three: the beta copy
+    set('preview', 'beta', 'beta');
+    assert.strictEqual(sf.isBeta(), true); assert.strictEqual(sf.isPreview(), true);
+    assert.ok(/BETA – the new version for testers · the data is LIVE/.test(page.shell()) && !/TEST copy/.test(page.shell()), 'the beta band');
+    assert.ok(page.shell().indexOf('<script>window.rclLive = "https://oneclicksolution-erp.vercel.app";</script>') > -1, 'a label printed in beta: the live address');
+    assert.strictEqual(fcm.on(), true, 'the beta copy sends to the phones (live data)');
+    assert.ok(/^This is a Preview/.test(google.config().error), 'no backup from the beta copy (the live one makes it)');
+    assert.throws(() => sf.pipeSync([{ src: 'x' }]), /This is a Preview/, 'no Drive copy from the beta copy');
+    // one of the three missing: a Preview as before (the TEST band, no phones)
+    for (const [e, r, c] of [['preview', 'beta', undefined], ['preview', 'staging', 'beta'], ['preview', 'feature-x', 'beta'], ['production', 'beta', 'beta']]) {
+      set(e, r, c); assert.strictEqual(sf.isBeta(), false, [e, r, c].join('/'));
+      if (e === 'preview') { assert.ok(/TEST copy/.test(page.shell()), 'TEST band ' + r); assert.strictEqual(fcm.on(), false, 'no phones ' + r); }
+      assert.ok(!/window\.rclLive = /.test(page.shell()), 'the label\'s address: as before ' + r);
+    }
+  } finally { set(was.e, was.r, was.c); if (was.f === undefined) delete process.env.FCM_SERVICE_ACCOUNT_JSON; else process.env.FCM_SERVICE_ACCOUNT_JSON = was.f; }
+  const appH = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.ok(appH.indexOf("base = window.top.rclLive ? window.top.rclLive + '/' : window.top.location.origin + window.top.location.pathname;") > -1, 'qrLink: the live address when the page gives it');
+  // the guard: skipped only for the beta copy (the code: one line)
+  const src = fs.readFileSync(path.join(root, 'server', 'syncfetch.js'), 'utf8');
+  assert.ok(/function previewGuard\(reqs\) \{\n  if \(!isPreview\(\) \|\| isBeta\(\)\) return;/.test(src));
+  assert.ok(/const isBeta = \(\) => isPreview\(\) && String\(process\.env\.VERCEL_GIT_COMMIT_REF \|\| ''\) === 'beta' && String\(process\.env\.RCL_CHANNEL \|\| ''\) === 'beta';/.test(src));
+  // vercel.json: the beta address sends /store, /purchase, /engineering to their beta copies; the Portal stays the live one
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')), HOST = 'rclerp-git-beta-pk12356843.vercel.app';
+  const b = v.rewrites.filter(x => x.has && x.has[0].value === HOST);
+  assert.strictEqual(b.length, 6);
+  b.forEach(x => { const m = x.source.split('/')[1]; assert.ok(['store', 'purchase', 'engineering'].indexOf(m) > -1, x.source); assert.ok(x.destination.indexOf('https://rcl-' + m + '-git-beta-pk12356843.vercel.app/') === 0, x.destination); });
+  assert.ok(!b.some(x => /portal/.test(x.source)), 'the Portal: the one live sign-in for everybody');
+  const firstLive = v.rewrites.findIndex(x => !x.has); assert.ok(b.every(x => v.rewrites.indexOf(x) < firstLive), 'the beta rules come before the live ones');
+  assert.strictEqual(v.rewrites.filter(x => !x.has && /^https:\/\/rcl-(store|purchase|engineering)\.vercel\.app\//.test(x.destination)).length, 6, 'the live rules unchanged');
 });
 
 test('update-143: a new entry for a shift that is already saved is added to that entry as its next row – the same work twice is refused; diesel, tank and bill as if entered together', () => {

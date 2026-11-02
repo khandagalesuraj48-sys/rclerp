@@ -2282,3 +2282,9 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Portal's; rows only through rcl-purchase's backup export, "Purchase – …" tabs); `bkexport.js` PURCHASE_URL or vercel.json /purchase;
   portal.js / system.js / runtime.js / api/backup.js (nightly: + Purchase). Portal → Sites → Purchase backup. No SQL. Tests: unit
   `update-195`; rig `test/backup195.js` 32/32, `test/backup157.js` 55/55.
+- 02-11-2026 (update-196, with rcl-portal step 7, rcl-store, rcl-purchase, rcl-engineering, rcl-mobile 3.73.0 – branch `beta-setup`).
+  Report: `UPDATE_196.md`; the owner's set-up: `BETA_SETUP.md`. THE BETA CHANNEL: `syncfetch.js` `isBeta()` (Preview of branch `beta`
+  + `RCL_CHANNEL = beta`) works on the live data; its purple band and the live label address (`page.js` `rclLive`, `App.html` qrLink);
+  its notifications go out, no backup / Drive copy; `vercel.json` beta host → the modules' beta copies; `bkexport.js` takes only the
+  live rule. Testers, beta links, Versions / New beta version / Give to everybody: the Portal. No SQL here. Tests: unit `the BETA
+  copy`; rig rcl-portal `test/beta.rig.test.js`, `test/beta.e2e.rig.test.js`.
