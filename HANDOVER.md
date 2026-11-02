@@ -2288,3 +2288,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   its notifications go out, no backup / Drive copy; `vercel.json` beta host → the modules' beta copies; `bkexport.js` takes only the
   live rule. Testers, beta links, Versions / New beta version / Give to everybody: the Portal. No SQL here. Tests: unit `the BETA
   copy`; rig rcl-portal `test/beta.rig.test.js`, `test/beta.e2e.rig.test.js`.
+- 02-11-2026 (update-197, with rcl-mobile 3.72.1). Report: `UPDATE_197.md`. ASSET MASTER EDIT: the "Nothing changed." check compares
+  every box of the form (Tank Capacity, Engine / Chassis Number, Engine Make and the papers were left out – a change of only them was
+  never sent). Page only; no SQL. Tests: unit `update-197`; the rig in Chromium.

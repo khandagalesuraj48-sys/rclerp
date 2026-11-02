@@ -16788,9 +16788,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (mode === 'edit') {
       const before = Object.assign({}, findMachine(S.editNo) || {}); before.worksOn = worksOf(before).join(', ');
       before.fuel = machFuel(before);
+      // (update-197, 02-11-2026: "tank capacity takli ani save krtoy tr nothing change as yetey") every box of the form is compared –
+      // Tank Capacity, Engine / Chassis Number, Engine Make and the papers' dates were left out, so a change of only those said
+      // "Nothing changed." and was not saved. A paper as the form shows it: N/A, Lifetime, a date or nothing.
+      DOCS.forEach(d => { const v = String(before[d[2]] || ''); before[d[2]] = v === 'NA' || v === 'LIFETIME' || /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; });
       const changes = diff([['no', 'Machinery Number'], ['name', 'Machinery Name'], ['type', 'Type of Machinery'], ['make', 'Make'], ['fuel', 'Fuel'], ['worksOn', 'Works on'],
-        ['kmStd', 'Standard Average (KM/Ltr)'], ['hrStd', 'Standard Average (Ltr/Hr)'], ['owner', 'Owner Name'], ['ownership', 'Ownership'],
-        ['supply', 'Diesel Supply'], ['status', 'Status'], ['activeFrom', 'Active From'], ['inactiveFrom', 'Inactive From']], before, m);
+        ['kmStd', 'Standard Average (KM/Ltr)'], ['hrStd', 'Standard Average (Ltr/Hr)'], ['tankCap', 'Tank Capacity (Ltr)'], ['owner', 'Owner Name'], ['ownership', 'Ownership'],
+        ['supply', 'Diesel Supply'], ['status', 'Status'], ['activeFrom', 'Active From'], ['inactiveFrom', 'Inactive From'],
+        ['engineNo', 'Engine Number'], ['chassisNo', 'Chassis Number'], ['engineMake', 'Engine Make'],
+        ['taxUpto', 'Tax'], ['pucUpto', 'PUC'], ['permitUpto', 'Permit'], ['fitnessUpto', 'Fitness'], ['insuranceUpto', 'Insurance']], before, m);
       { const pt = l => (l || []).map(p => mPerText({ from: p.from, until: p.until || p.from })).join('; ') || 'none', a0 = pt(before.earlier), a1 = pt(m.earlier);      // (update-119)
         if (a0 !== a1) changes.push(['Earlier periods on site', a0, a1]);
         if (before.status === 'Inactive' && before.inactiveFrom && m.status === 'Active') changes.push(String(m.activeFrom || '') !== String(before.activeFrom || '') ? ['It came back', 'left on ' + showDate(mDay(before.inactiveFrom)), 'back on ' + showDate(m.activeFrom) + ' (until then kept as an earlier period)'] : ['It never left', 'Inactive from ' + showDate(mDay(before.inactiveFrom)), 'on site every day']); }
