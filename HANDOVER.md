@@ -2303,3 +2303,8 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 - 02-11-2026 (update-200). Report: `UPDATE_200.md`. AFTER A TANK CHECK THE LOG BOOK'S OPENING IS THE DIESEL FOUND – in the form of a new
   entry (`getLogRowPrefill_` `openingDiesel` / `openingCheck`, "tank check dd-mm" under it) and Edit Log Book's grid (`getLogEditData_`
   `checks`), as `recalcStockOnly_` already saved it (`tankResetFor_`). No SQL. Tests: unit `update-200`; the rig in Chromium.
+- 02-11-2026 (update-201). Report: `UPDATE_201.md`. VOICE TYPING WRITES THE SITE'S OWN WORDS – the 🎙 of a text box takes Google's 5
+  guesses and puts them right with the site's names (`getVoiceWords`: Asset Master, Vendor Master, the Log Book's places and works,
+  the Super Admin's words – Settings, `saveVoiceWords`); a spoken word corrected by hand is learned when it sounds like what was heard
+  (`saveVoiceFix`). Kept in `app_settings` (`VOICE_WORDS`, `VOICE_FIX`). No SQL. Tests: unit `update-201`; the rig in Chromium;
+  rcl-mobile 3.74.0 (`sitewords.dart`, fixture made by the web's own engine).

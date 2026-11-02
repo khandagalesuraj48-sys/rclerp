@@ -8186,3 +8186,52 @@ test('update-200: after a tank check the Log Book\'s tank starts from what was f
   assert.match(app, /const tcO = !add && p\.openingCheck && \(!before \|\| p\.openingCheck\.date >= info\.get\(before\)\.date\) \? p\.openingCheck : null;/);
   assert.match(app, /if \(r\.date\) \{ const ck = cks\.filter\(x => x\.date < r\.date && \(!ckAt \|\| x\.date >= ckAt\)\)\.pop\(\); if \(ck\) open = Number\(ck\.physical\) \|\| 0; ckAt = r\.date; \}\n      if \(typed\) open = Number\(r\.odSet\);/);
 });
+
+test('update-201: voice typing writes the site\'s own words – Google\'s guesses corrected with the names of Asset Master, Vendor Master, the Log Book and the Super Admin, and with what people corrected by hand', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  run('(x, m) => saveMaster_(x, m)', { no: 'VW-1', name: 'Kobelco SK220', type: 'Excavator', unit: 'Hrs', worksOn: ['Hrs'], hrStd: 12, owner: 'Siddhappa Bhimu Basbire', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01' }, 'add');
+  run('(x, m) => saveVendor_(x, m)', { name: 'Siddhappa Bhimu Basbire', gstReg: 'No', pan: 'ABCPV1201A', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  const today = run('() => today_()'), day = n => run('(d, n) => addDays_(d, n)', today, n);
+  assert.ok(run('x => saveLogRowsInner_(x)', { rows: [{ date: day(-2), shift: 'Full Day', no: 'VW-1', mode: 'Hrs', openingHr: 100, closingHr: 108, chFrom: 'RCL CAMP', chTo: 'ARIHANT CITY / 559+210 LHS', work: 'Barricades shifting & Kobelco machine shifting' }] }).ok);
+  run('() => CacheService.getScriptCache().remove(VOICE_CACHE_)');
+  let d = run('() => getVoiceWords_({ name: "Clerk" })');
+  for (const w of ['ARIHANT CITY', 'RCL CAMP', 'Barricades shifting', 'Kobelco machine shifting', 'Excavator', 'Siddhappa Bhimu Basbire']) assert.ok(d.words.indexOf(w) > -1, w + ' in ' + JSON.stringify(d.words.slice(0, 30)));
+  assert.ok(!d.words.some(w => /559/.test(w)), 'a chainage is no word');
+  assert.deepStrictEqual([d.admin, d.fixes, d.super], [[], [], false]);
+  // a correction by hand – learned for everybody; the same again counts; nonsense refused
+  assert.deepStrictEqual(run('(u, x) => saveVoiceFix_(u, x)', { name: 'Clerk' }, { heard: 'Aryna Nagar', fixed: 'Arihant City' }), { ok: true, h: 'aryna nagar', f: 'Arihant City' });
+  run('(u, x) => saveVoiceFix_(u, x)', { name: 'Clerk' }, { heard: 'aryna nagar', fixed: 'Arihant City' });
+  assert.strictEqual(run('(u, x) => saveVoiceFix_(u, x)', { name: 'Clerk' }, { heard: 'same', fixed: 'Same' }).ok, false);
+  d = run('() => getVoiceWords_({ name: "Clerk" })');
+  assert.deepStrictEqual(d.fixes, [{ h: 'aryna nagar', f: 'Arihant City', n: 2 }]);
+  // the Super Admin's list: only his; his words first; a correction taken off is forgotten
+  assert.match(run('(u, x) => saveVoiceWords_(u, x)', { name: 'Admin', admin: true }, { words: ['Yewai Naka'] }).THROWN, /^Only the Super Admin sets the site's words for voice typing/);
+  assert.deepStrictEqual(run('(u, x) => saveVoiceWords_(u, x)', { name: 'SA', admin: true, super: true }, { words: ['Yewai Naka', ' Yewai Naka ', 'Kaseli Bridge'], fixes: [] }), { ok: true, words: 2, fixes: 0 });
+  d = run('() => getVoiceWords_({ name: "SA", super: true })');
+  assert.deepStrictEqual([d.admin, d.words.slice(0, 2), d.fixes, d.super], [['Yewai Naka', 'Kaseli Bridge'], ['Yewai Naka', 'Kaseli Bridge'], [], true]);
+  // the page's correction (the same code as Store / Engineering may take): the cases he met, nothing else touched
+  const html = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const i = html.indexOf('/* RCL ERP – SPEAK INTO A BOX'), j = html.indexOf('/* (end of SPEAK INTO A BOX) */');
+  const box = { module: { exports: {} } }; require('vm').runInNewContext(html.slice(i, j), box); const SW = box.module.exports.SW;
+  SW.set({ words: ['Arihant City', 'RCL CAMP', 'Mahalaxmi Bridge', 'Barricades Shifting', 'Sonale', 'Siddhappa Bhimu Basbire', 'Vadape'], fixes: [] });
+  const fx = a => SW.fix(a).text;
+  assert.strictEqual(fx(['go to Aaryan City']), 'go to Arihant City');
+  assert.strictEqual(fx(['shifting at Mahalakshmi bridge']), 'shifting at Mahalaxmi Bridge');
+  assert.strictEqual(fx(['siddappa bimu basbire']), 'Siddhappa Bhimu Basbire');
+  assert.strictEqual(fx(['aryan city', 'arihant city']), 'arihant city', 'of Google\'s guesses the one that is the site\'s word');
+  assert.deepStrictEqual(['sale', 'vada pav', 'the plaza is open', 'kaseli bridge 559 plus 250', 'Aryna Nagar', 'two barricades shiftings'].map(t => fx([t])), ['sale', 'vada pav', 'the plaza is open', 'kaseli bridge 559 plus 250', 'Aryna Nagar', 'two barricades shiftings'], 'nothing else is changed (a plural is the same word)');
+  SW.learn('aryna nagar', 'Arihant City');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(SW.fix(['Aryna Nagar se camp tak']).changes)), [{ from: 'Aryna Nagar', to: 'Arihant City', at: 0 }], 'a correction learned');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(SW.fix(['RCL camp to Aaryan City']).changes)), [{ from: 'Aaryan City', to: 'Arihant City', at: 12 }], 'where the site word stands');
+  // only a correction that sounds like what was heard is learned – not a change of what was meant
+  assert.deepStrictEqual([['Aryna Nagar', 'Arihant City'], ['Aaryan City', 'Arihant Nagar'], ['kasheli', 'Kaseli'], ['two', 'three'], ['city', 'Nagar'], ['loading', 'unloading'], ['morning', 'evening'], ['excavator', 'JCB']].map(x => SW.alike(x[0], x[1])),
+    [true, true, true, false, false, false, false, false]);
+  // the page: Google's 5 guesses for a text box, the words given after sign-in, a hand correction sent to the server, the Super Admin's list
+  assert.match(html, /r\.maxAlternatives = box && kindOf\(box\) === 'text' \? 5 : 1;/);
+  assert.match(html, /fx = SW\.fix\(\[t\]\.concat\(\(alts \|\| \[\]\)\.filter\(a => a && a\.trim\(\) !== t\)\)\); if \(fx\.text\) t = fx\.text;/);
+  assert.match(html, /V\.onLearn = \(h, f\) => \{ rawCall\('saveVoiceFix', \{ heard: h, fixed: f \}\)/);
+  assert.match(html, /voiceWordsLoad\(true\);      \/\/ \(update-201\)/);
+  assert.match(html, /call\('saveVoiceWords', \{ words: /);
+  assert.match(html, /if \(h\.toLowerCase\(\) === is\.toLowerCase\(\) \|\| !SW\.alike\(h, is\)\) return;/);
+});
