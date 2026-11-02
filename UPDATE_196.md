@@ -40,7 +40,7 @@ permission changes.
 * Unit: rclerp **149 / 149** (new: "the BETA copy" – the band, the phones, no backup / Drive, every other Preview as before, the
   rules of `vercel.json`, the live label address; update-127 / 194 / 195 now look at the live rules only); rcl-store 50 / 50,
   rcl-purchase 7 / 7, rcl-engineering 22 / 22 (the beta copy: the live data without the mark, its band; branch or channel missing →
-  refused); rcl-portal 19 / 19.
+  refused); rcl-portal 19 / 19; the Portal's rig `test/api.test.js` **130 / 130** with these changes.
 * Rig, rcl-portal `test/beta.rig.test.js` **2 / 2** (tester routing; Versions; Give to everybody: refused as a whole when a `main`
   cannot move forward, else the tested commits, the web first and the app last; a version of the web only never becomes the app's
   "latest"; one press at a time; New beta version) – a stand-in for GitHub, nothing reaches it.
