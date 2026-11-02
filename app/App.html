@@ -1427,6 +1427,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .bl-sum tr.rI td { font-weight: 700; font-style: normal; background: #FFF4C8; } .bl-sum tr.rI td.t { font-style: normal; } .bl-sum td.net { font-size: 21px; } .bl-t td small.bl-pm { display: block; font-size: 11px; font-weight: 700; color: #333; white-space: nowrap; } .bl-wc .rpm { font-weight: 800; padding-left: 28px; border-left: 1.4px solid #111; }
   .bl-sign { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 44px; text-align: center; font-size: 15px; }
   .bl-sign span { display: block; border-top: 1px solid #111; margin-bottom: 3px; } .bl-sign b { display: block; } .bl-sign small { color: #222; font-weight: 700; }
+  .bl-sign.six { grid-template-columns: repeat(6, 1fr); }
+  .bl-ho { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 14px; padding-top: 6px; border-top: 1px dashed #111; text-align: center; font-size: 15px; align-items: end; }
+  .bl-ho-t { grid-column: 1 / span 4; text-align: right; padding-right: 14px; font-weight: 800; letter-spacing: .1em; font-size: 13px; align-self: center; }
+  .bl-ho > div:not(.bl-ho-t) { padding-top: 38px; } .bl-ho span { display: block; border-top: 1px solid #111; margin-bottom: 3px; } .bl-ho b { display: block; } .bl-ho small { color: #222; font-weight: 700; }
   .dhist { margin: 10px 0 2px; padding: 10px 12px; border: 1px solid #FED7AA; background: #FFF7ED; border-radius: 12px; font-size: 13px; }
   .dhist .dh-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-bottom: 6px; } .dhist .dh-head b:first-child { font-size: 13.5px; }
   .dhist .dh-head span { color: #7C2D12; } .dhist small { color: #9A3412; }
@@ -9111,6 +9115,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     .bl-sum tr.rI td { font-weight: 700; font-style: normal; background: #FFF4C8; } .bl-sum tr.rI td.t { font-style: normal; } .bl-sum td.net { font-size: 21px; } .bl-t td small.bl-pm { display: block; font-size: 11px; font-weight: 700; color: #333; white-space: nowrap; } .bl-wc .rpm { font-weight: 800; padding-left: 28px; border-left: 1.4px solid #111; }
     .bl-sign { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 44px; text-align: center; font-size: 15px; }
     .bl-sign span { display: block; border-top: 1px solid #111; margin-bottom: 3px; } .bl-sign b { display: block; } .bl-sign small { color: #222; font-weight: 700; }
+  .bl-sign.six { grid-template-columns: repeat(6, 1fr); }
+  .bl-ho { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 14px; padding-top: 6px; border-top: 1px dashed #111; text-align: center; font-size: 15px; align-items: end; }
+  .bl-ho-t { grid-column: 1 / span 4; text-align: right; padding-right: 14px; font-weight: 800; letter-spacing: .1em; font-size: 13px; align-self: center; }
+  .bl-ho > div:not(.bl-ho-t) { padding-top: 38px; } .bl-ho span { display: block; border-top: 1px solid #111; margin-bottom: 3px; } .bl-ho b { display: block; } .bl-ho small { color: #222; font-weight: 700; }
     body.rep-bill .billsheet + .billsheet { break-before: page; }
     body.rep-vl td.vl-p small { display: block; font-size: 8pt; color: #444; } body.rep-vl .vl-cards { display: flex; gap: 4mm; margin: 0 0 3mm; } body.rep-vl .vl-cards div { border: 1px solid #999; padding: 1.5mm 3mm; flex: 1; } body.rep-vl .vl-cards span { display: block; font-size: 8pt; } body.rep-vl tr.vl-payment td { background: #F0FDF4; }
     body.rep-breg table td, body.rep-breg table th { font-size: 9pt; } body.rep-breg td.n, body.rep-breg th.n { text-align: right; white-space: nowrap; } body.rep-breg tr.br-vh td { background: #EEF1F4; font-weight: 700; } body.rep-breg tr.br-sub td { font-weight: 700; background: #FFF7E0; } body.rep-breg .br-p { margin: 0 0 3mm; font-size: 10pt; }
@@ -9127,6 +9135,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     body.rep-bill .bl-t th { font-size: 13.5pt; } body.rep-bill .bl-t td { font-size: 13.5pt; padding-top: 1.1mm; padding-bottom: 1.1mm; }
     body.rep-bill .bl-sum td { padding-top: .8mm; padding-bottom: .8mm; font-size: 14pt; } body.rep-bill .bl-sum td.net { font-size: 17pt; }
     body.rep-bill .bl-sign { margin-top: auto; padding-top: 9mm; font-size: 11.5pt; gap: 3mm; break-inside: avoid; } body.rep-bill .bl-sign small { font-size: 10.5pt; }
+    body.rep-bill .bl-ho { font-size: 11.5pt; gap: 3mm; margin-top: 3mm; break-inside: avoid; } body.rep-bill .bl-ho small { font-size: 10.5pt; } body.rep-bill .bl-ho > div:not(.bl-ho-t) { padding-top: 9mm; }
     body.rep-bill * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body.rep-bill .billsheet.draft::before, body.rep-bill .billsheet.superseded::before { content: 'PREVIEW – NOT SUBMITTED'; position: absolute; top: 38%; left: 0; right: 0; text-align: center; transform: rotate(-24deg);
       font: 800 44pt Arial, sans-serif; color: rgba(179, 38, 30, .13); pointer-events: none; }
@@ -12477,6 +12486,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* ================= MACHINERY BILLING ================= */
   S.mb = { init: null, bills: [] };
   const mbN2 = v => (Number(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // (update-202) a bill in whole rupees: below 50 paise down, 50 paise and above up (12.3 → 12, 122.6 → 123, 102,712.50 → 102,713)
+  const r0 = n => { const x = r2(Number(n) || 0); return x < 0 ? -Math.round(-x) : Math.round(x); };
+  const mbA = (b, v) => b && b.round && Number.isInteger(r2(Number(v) || 0)) ? (Number(v) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : mbN2(v);
   // (escaped: a saved bill's dates come from its stored data – until 07-10-2026 they went into the page as they were, so HTML
   // put there by somebody who may save bills ran in the print window of whoever opened that bill)
   const mbDot = d => d ? esc(String(d).split('-').reverse().join('.')) : '';
@@ -12593,7 +12605,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return any;
   }
   // idlePaid: Idle days of the Log Book are paid (true, as before) or not (false) – chosen in the bill
-  function mbMachine(no, list, extra, from, to, vt, idlePaid) {
+  function mbMachine(no, list, extra, from, to, vt, idlePaid, rnd) {
     const m = findMachine(no) || { id: no }, u = m.unit || (list[0] || {}).unit || 'KM';
     const key = String(no).toUpperCase().replace(/[^A-Z0-9]/g, '');
     const bday = (extra.boq || {})[key] || {}, iss0 = (extra.issues || {})[key] || {};
@@ -12638,7 +12650,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         } else { const s1 = seg(bk + '|H', { unit: 'Hrs', rate: b.rate }); s1.qty += hrs; s1.amount += b.rate * hrs; }
       }
     });
-    const lines = Object.keys(segs).map(k => { const x = segs[k]; return { unit: x.unit, qty: r2(x.qty), rate: r2(x.rate), amount: r2(x.amount), monthly: x.monthly || '', note: x.note || '', item: x.item || '' }; }).filter(x => x.qty || x.amount);
+    const lines = Object.keys(segs).map(k => { const x = segs[k]; return { unit: x.unit, qty: r2(x.qty), rate: r2(x.rate), amount: rnd ? r0(x.amount) : r2(x.amount), monthly: x.monthly || '', note: x.note || '', item: x.item || '' }; }).filter(x => x.qty || x.amount);
     const zeroWork = Object.keys(zero).map(k => ({ basis: k, days: zero[k] }));
     const amount = r2(lines.reduce((s2, x) => s2 + x.amount, 0));
     // diesel: on a debited day ALL of it is recovered; on a company day only what is above the standard average.
@@ -12661,7 +12673,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const excessQty = tc ? r2(tc.debit) : r2(rawExcess - (tank ? tank.applied : 0));
     // the rate: typed by hand for this bill (extra.manualRate), else the higher of the period's average and the last purchase rate
     const autoRate = Math.max(Number(extra.avgRate) || 0, Number(extra.lastRate) || 0), manRate = Number(extra.manualRate) > 0 ? r2(Number(extra.manualRate)) : 0;
-    const dRate = manRate || autoRate, excessAmt = r2((debitQty + excessQty) * dRate);
+    const dRate = manRate || autoRate, excessAmt = (rnd ? r0 : r2)((debitQty + excessQty) * dRate);
     // diesel issued on a day that has no WORKING Log Book entry (no entry at all, or only Idle / Holiday / Breakdown): the bill
     // counts it (as before) and now says so, so that whoever reads the bill knows why it differs from the Log Book rows
     const worked = {}; list.forEach(r => { if (DAY_STATUS.indexOf(r.mode || r.unit) === -1) worked[r.date] = true; });
@@ -12679,7 +12691,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function mbFill(b) {
     const L = S.mb.logs, byNo = {}; (L.rows || []).forEach(r => { (byNo[String(r.no).toUpperCase()] = byNo[String(r.no).toUpperCase()] || []).push(r); });
     const ex = Number(b.dieselRate) > 0 ? Object.assign({}, L.extra, { manualRate: Number(b.dieselRate) }) : L.extra;      // the diesel rate typed for this bill (empty = automatic)
-    const machines = b.picked.map(id => mbMachine(id, byNo[String(id).toUpperCase()] || [], ex, b.from, b.to, undefined, b.idlePaid !== false)).filter(x => x.days || x.issued || x.amount || x.idleDays);
+    b.round = true;      // (update-202) a bill made from now on: every amount in whole rupees
+    const machines = b.picked.map(id => mbMachine(id, byNo[String(id).toUpperCase()] || [], ex, b.from, b.to, undefined, b.idlePaid !== false, true)).filter(x => x.days || x.issued || x.amount || x.idleDays);
     const wo = machines.find(x => x.woNo) || {};
     b.machines = machines; b.woNo = wo.woNo || ''; b.woDate = wo.woDate || '';
     b.txNet = true;      // (update-124) a bill made from now on: its Tax Invoice is of the value after the diesel debit (taxInvoiceHtml)
@@ -12703,12 +12716,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function mbTotals(b) {
     b.A = r2(b.machines.reduce((s2, x) => s2 + x.amount, 0));
     b.B = r2(b.machines.reduce((s2, x) => s2 + x.excessAmt, 0));
-    b.C = r2(Number(b.C) || 0);
+    const R = b.round ? r0 : r2;
+    b.C = R(Number(b.C) || 0);
     b.D = r2(b.A - b.B - b.C);
     b.gstPct = Math.max(0, ...b.machines.map(x => x.gstPct)); b.tdsPct = Math.max(0, ...b.machines.map(x => x.tdsPct));
     const plus = b.D > 0; // a full-debit or diesel-heavy bill comes to a minus: no GST / TDS on it (the vendor owes)
-    b.E = plus ? r2(b.D * b.gstPct / 200) : 0; b.F = b.E;
-    b.G = r2(b.D + b.E + b.F); b.H = plus ? r2(b.D * b.tdsPct / 100) : 0; b.I = r2(b.G - b.H);
+    b.E = plus ? R(b.D * b.gstPct / 200) : 0; b.F = b.E;
+    b.G = r2(b.D + b.E + b.F); b.H = plus ? R(b.D * b.tdsPct / 100) : 0; b.I = r2(b.G - b.H);
     // debit notes ticked for this bill: taken off AFTER the net payable (lines A–I and the tax are not touched)
     // (update-108) and the differences of earlier bills: a Debit Note comes off, a Credit Note is added
     b.J = r2((b.dns || []).reduce((a, n) => a + (Number(n.total) || 0), 0) + (b.corr || []).reduce((a, z) => a + (z.kind === 'Credit' ? -(Number(z.total) || 0) : (Number(z.total) || 0)), 0)); b.K = r2(b.I - b.J);
@@ -12817,10 +12831,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         ' → ' + (z.kind === 'Credit' ? 'Credit Note' : 'Debit Note') + ' ' + corrSgn(z.kind === 'Credit' ? z.total : -z.total) + (z.gst || z.tds ? ' <small>(incl. GST ' + fmt(z.gstPct) + '%, TDS ' + fmt(z.tdsPct) + '%)</small>' : '') + '</span></label>').join('') + '</div>' : '') +
       mbTcHtml(b) +
       ((b.dnOpen || []).length ? '<div class="mb-dns"><span>Debit notes to deduct:</span>' + b.dnOpen.map(n => '<label><input type="checkbox" class="mb-dnck" data-id="' + esc(n.id) + '"' + ((b.dns || []).some(z => z.id === n.id) ? ' checked' : '') + '> ' + esc(n.no) + ' · ₹' + mbN2(n.total) + '</label>').join('') + '</div>' : '') +
-      '</td><td class="n">' + b.machines.length + '</td><td>' + (b.idleDays ? '<b>' + b.idleDays + '</b> <select class="mb-idle" title="Idle days of the Log Book: pay them in this bill or not"><option value=""' + (b.idlePaid === undefined ? ' selected' : '') + '>choose…</option><option value="paid"' + (b.idlePaid === true ? ' selected' : '') + '>Paid</option><option value="no"' + (b.idlePaid === false ? ' selected' : '') + '>Not paid</option></select>' : '–') + '</td><td class="n">' + mbN2(b.A) + '</td><td class="n">' + mbN2(b.B) +
+      '</td><td class="n">' + b.machines.length + '</td><td>' + (b.idleDays ? '<b>' + b.idleDays + '</b> <select class="mb-idle" title="Idle days of the Log Book: pay them in this bill or not"><option value=""' + (b.idlePaid === undefined ? ' selected' : '') + '>choose…</option><option value="paid"' + (b.idlePaid === true ? ' selected' : '') + '>Paid</option><option value="no"' + (b.idlePaid === false ? ' selected' : '') + '>Not paid</option></select>' : '–') + '</td><td class="n">' + mbA(b, b.A) + '</td><td class="n">' + mbA(b, b.B) +
       (b.machines.some(x => (x.debitQty || 0) + (x.excessQty || 0) > 0) ? '<label class="mb-drl" title="Diesel debit rate of this bill, ₹ per litre. Empty = automatic: the higher of the average rate of the period and the last purchase rate (₹' + mbN2((b.machines[0] || {}).autoRate) + '). Type a rate to debit the diesel of this bill at that rate – the Abstract, the Debit Note and the Log Book of the bill follow it.">₹/L <input class="mb-dr" type="number" step="0.01" min="0" value="' + (Number(b.dieselRate) > 0 ? b.dieselRate : '') + '" placeholder="' + mbN2((b.machines[0] || {}).autoRate) + ' auto"></label>' : '') +
       '</td><td class="n"><input class="mb-c" type="number" step="0.01" min="0" value="' + (b.C || '') + '" placeholder="0"></td><td><input class="mb-cr" value="' + esc(b.cReason) + '" placeholder="reason"></td>' +
-      '<td class="n">' + (b.gstPct ? mbN2(b.E + b.F) : '–') + '</td><td class="n">' + mbN2(b.H) + '</td><td class="n"><b>' + mbN2(b.I) + '</b>' + (b.J ? '<small class="mb-part">' + (b.J > 0 ? 'less' : 'add') + ' notes ' + mbN2(Math.abs(b.J)) + '<br>balance <b>' + mbN2(b.K) + '</b></small>' : '') + '</td>' +
+      '<td class="n">' + (b.gstPct ? mbA(b, b.E + b.F) : '–') + '</td><td class="n">' + mbA(b, b.H) + '</td><td class="n"><b>' + mbA(b, b.I) + '</b>' + (b.J ? '<small class="mb-part">' + (b.J > 0 ? 'less' : 'add') + ' notes ' + mbA(b, Math.abs(b.J)) + '<br>balance <b>' + mbA(b, b.K) + '</b></small>' : '') + '</td>' +
       '<td><input class="mb-no" value="' + esc(b.billNo) + '" placeholder="' + (b.firstBill ? 'first bill – type no.' : '') + '"' + (b.firstBill ? ' title="First bill of this vendor under this name – type its RA bill number; after this the next number comes by itself"' : '') + '></td>' +
       '<td>' + (b.edited ? '<span class="st bad">Changed by hand</span> ' : '') + (b.warnings.length ? '<span class="st low" title="' + esc(b.warnings.join(' · ')) + '">' + b.warnings.length + ' to check</span>' : '<span class="st ok">OK</span>') +
       ' <button class="link" data-mblog="' + i + '" title="Log Book of this vendor\'s machinery for these dates">Log Book</button></td></tr>').join('');
@@ -12873,12 +12887,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * bill's machinery stands under its papers (the same sheets as "Print Log Book", from the entries the bill was built from, the
    * bill's own Paid / Not paid for Idle days, under the bill's company name); "Print Preview" and the print after "Verify & Submit"
    * carry it after each bill's papers. Order of a bill: Abstract, Tax Invoice, GST Declaration, Debit Note, Log Book. */
+  // (update-202) a bill made in whole rupees: its Log Book shows the bill's own amount and diesel debit of each machinery
+  const lbFig = bills => { const out = { round: false, figBy: {} }; bills.forEach(b => { if (!b || !b.round) return; out.round = true;
+    (b.machines || []).forEach(m => { out.figBy[String(m.noNow || m.no).toUpperCase().replace(/[^A-Z0-9]/g, '')] = { amount: Number(m.amount) || 0, excessAmt: Number(m.excessAmt) || 0 }; }); }); return out; };
   function mbLogSheets(b) {
     const L = S.mb.logs; if (!L || !b) return '';
     const nos = new Set((b.machines || []).map(m => String(m.noNow || m.no).toUpperCase()));
     const rows = (L.rows || []).filter(r => nos.has(String(r.no).toUpperCase())); if (!rows.length) return '';
     const idle = {}; nos.forEach(n => { idle[n.replace(/[^A-Z0-9]/g, '')] = b.idlePaid !== false; });
-    try { return logSheetsBuild({ rows: rows, f: { from: L.from, to: L.to }, summary: [], idle: idle, dieselRate: Number(b.dieselRate) > 0 ? b.dieselRate : '' }, b.company, L.extra).sheets; } catch (e) { return ''; }
+    try { return logSheetsBuild(Object.assign({ rows: rows, f: { from: L.from, to: L.to }, summary: [], idle: idle, dieselRate: Number(b.dieselRate) > 0 ? b.dieselRate : '' }, lbFig([b])), b.company, L.extra).sheets; } catch (e) { return ''; }
   }
   // the Log Book sheets shown on the bill page exactly as they print (in a frame of their own, with the print's styles)
   function mbLogFrames() {
@@ -12902,7 +12919,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!rows.length) { toast('No Log Book entries for these machinery in these dates.', true); return; }
     const idle = {}; bills.forEach(b => b.machines.forEach(m => { idle[String(m.no).toUpperCase().replace(/[^A-Z0-9]/g, '')] = b.idlePaid !== false; }));
     const rateBy = {}; bills.forEach(b => { if (Number(b.dieselRate) > 0) b.machines.forEach(m => { rateBy[String(m.no).toUpperCase().replace(/[^A-Z0-9]/g, '')] = Number(b.dieselRate); }); });      // each bill's own diesel rate, where one was typed
-    printLogRows({ rows: rows, f: { from: L.from, to: L.to }, summary: [], idle: idle, rateBy: rateBy, dieselRate: bills.length === 1 && Number(bills[0].dieselRate) > 0 ? bills[0].dieselRate : '' });
+    printLogRows(Object.assign({ rows: rows, f: { from: L.from, to: L.to }, summary: [], idle: idle, rateBy: rateBy, dieselRate: bills.length === 1 && Number(bills[0].dieselRate) > 0 ? bills[0].dieselRate : '' }, lbFig(bills)));
   }
   $('mb_logbook').addEventListener('click', () => mbLogPrint(S.mb.bills));
   $('mb_rows').addEventListener('click', e => { const b = e.target.closest('[data-mblog]'); if (b) mbLogPrint([S.mb.bills[Number(b.dataset.mblog)]]); });
@@ -13024,7 +13041,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const monthly = [...new Set(b.machines.map(m => (m.lines.find(l => l.monthly) || {}).monthly).filter(Boolean))];
     const pmCol = monthly.length > 1;
     const rows = [].concat(...b.machines.map(m => m.lines.length ? m.lines.map((l, k) => '<tr><td>' + (k ? '' : esc((m.type || '').toUpperCase())) + '</td><td>' + (k ? '' : '<b>' + esc(String(m.no).replace(/-/g, '')) + '</b>') + '</td><td>' + (k ? '' : esc((m.name || m.type || '').toUpperCase())) +
-      (pmCol ? '</td><td class="n"><b>' + (l.monthly ? mbN2(l.monthly) : '–') + '</b>' : '') + '</td><td class="c">' + (l.item ? '<b>' + esc(l.item.toUpperCase()) + '</b>' + (l.unit === 'Days' || l.note ? ' – ' : '') : '') + (l.unit === 'Days' ? (l.item ? 'DAY' : (m.nights ? 'DAY + ' + esc(m.nights) + ' NIGHT' : 'DAY')) : esc(l.item ? (l.note || '') : (l.note || l.unit.toUpperCase()))) + '</td><td class="c">' + fmt(l.qty) + (l.unit !== 'Days' ? ' ' + esc(l.unit) : '') + '</td><td class="n">' + mbN2(l.rate) + '</td><td class="n">' + mbN2(l.amount) + '</td></tr>')
+      (pmCol ? '</td><td class="n"><b>' + (l.monthly ? mbN2(l.monthly) : '–') + '</b>' : '') + '</td><td class="c">' + (l.item ? '<b>' + esc(l.item.toUpperCase()) + '</b>' + (l.unit === 'Days' || l.note ? ' – ' : '') : '') + (l.unit === 'Days' ? (l.item ? 'DAY' : (m.nights ? 'DAY + ' + esc(m.nights) + ' NIGHT' : 'DAY')) : esc(l.item ? (l.note || '') : (l.note || l.unit.toUpperCase()))) + '</td><td class="c">' + fmt(l.qty) + (l.unit !== 'Days' ? ' ' + esc(l.unit) : '') + '</td><td class="n">' + mbN2(l.rate) + '</td><td class="n">' + mbA(b, l.amount) + '</td></tr>')
       : ['<tr><td>' + esc((m.type || '').toUpperCase()) + '</td><td><b>' + esc(String(m.no).replace(/-/g, '')) + '</b></td><td>' + esc((m.name || m.type || '').toUpperCase()) + '</td>' + (pmCol ? '<td class="n">–</td>' : '') + '<td class="c">–</td><td class="c">0</td><td class="n">–</td><td class="n">0.00</td></tr>']));
     const dq = (b.machines || []).reduce((a, x) => a + (Number(x.debitQty) || 0), 0), eq = (b.machines || []).reduce((a, x) => a + (x.tc ? 0 : Number(x.excessQty) || 0), 0), tq = (b.machines || []).reduce((a, x) => a + (x.tc ? Number(x.excessQty) || 0 : 0), 0);
     const bNote = [dq ? 'diesel debit ' + fmt(r2(dq)) + ' L' : '', eq ? 'excess diesel over standard ' + fmt(r2(eq)) + ' L' : '', tq ? 'diesel debited by the month-end tank check ' + fmt(r2(tq)) + ' L' : ''].filter(Boolean).join(' + ');
@@ -13035,9 +13052,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ['G', 'Total Amount (G=D+E+F)', b.G], ['H', 'Less TDS >>>', b.H ? -b.H : '', b.tdsPct ? fmt(b.tdsPct) + '%' : ''], ['I', 'Net Payable Amt I = (G-H) >>>>', b.I]]
       .concat(b.J || (b.corr || []).length ? [['J', ((b.corr || []).length ? 'Less – Debit Note(s) / Add – Credit Note(s) >>>' : 'Less – Debit Note(s) >>>') + '<small>' + esc((b.dns || []).map(n => n.no).concat((b.corr || []).map(z => (z.kind === 'Credit' ? 'CN ' : 'DN ') + (z.noteNo || '(number on submit)'))).join(', ')) + '</small>', -b.J], ['K', 'Balance Payable K = (I-J) >>>>', b.K]] : []);
     // (update-108) the differences of earlier bills taken in this one: the calculation of each, at the earlier bill's rates
+    const cS = v => (v < 0 ? '− ' : '+ ') + '₹' + mbA(b, Math.abs(v));      // (update-202) whole rupees on a bill made in whole rupees
     const corrT = (b.corr || []).length ? '<table class="bl-t bl-corr"><thead><tr><th colspan="7">Corrections of earlier bills taken in this bill (at the earlier bill\'s rates)</th></tr><tr><th>Earlier RA Bill</th><th>Vehicle No</th><th>What changed</th><th class="n">Difference</th><th class="n">GST</th><th class="n">TDS</th><th class="n">Note</th></tr></thead><tbody>' +
-      b.corr.map(z => '<tr><td>' + esc(z.billNo) + (z.rev ? ' (Rev ' + esc(z.rev) + ')' : '') + '<br><small>' + mbDot(z.from) + ' To ' + mbDot(z.to) + '</small></td><td><b>' + esc(String(z.no).replace(/-/g, '')) + '</b></td><td>' + corrCalc(z) + '</td><td class="n">' + corrSgn(z.net) + '</td><td class="n">' + (z.gst ? mbN2(z.gst) + '<small>' + fmt(z.gstPct) + '%</small>' : '–') + '</td><td class="n">' + (z.tds ? '− ' + mbN2(z.tds) + '<small>' + fmt(z.tdsPct) + '%</small>' : '–') + '</td>' +
-        '<td class="n"><b>' + (z.kind === 'Credit' ? 'Credit Note' : 'Debit Note') + '</b><br>' + esc(z.noteNo || 'on submit') + '<br><b>' + corrSgn(z.kind === 'Credit' ? z.total : -z.total) + '</b></td></tr>').join('') + '</tbody></table>' : '';
+      b.corr.map(z => '<tr><td>' + esc(z.billNo) + (z.rev ? ' (Rev ' + esc(z.rev) + ')' : '') + '<br><small>' + mbDot(z.from) + ' To ' + mbDot(z.to) + '</small></td><td><b>' + esc(String(z.no).replace(/-/g, '')) + '</b></td><td>' + corrCalc(z) + '</td><td class="n">' + cS(z.net) + '</td><td class="n">' + (z.gst ? mbA(b, z.gst) + '<small>' + fmt(z.gstPct) + '%</small>' : '–') + '</td><td class="n">' + (z.tds ? '− ' + mbA(b, z.tds) + '<small>' + fmt(z.tdsPct) + '%</small>' : '–') + '</td>' +
+        '<td class="n"><b>' + (z.kind === 'Credit' ? 'Credit Note' : 'Debit Note') + '</b><br>' + esc(z.noteNo || 'on submit') + '<br><b>' + cS(z.kind === 'Credit' ? z.total : -z.total) + '</b></td></tr>').join('') + '</tbody></table>' : '';
     return '<div class="bl"><div class="bl-frame">' +
       '<div class="bl-top">' + logo + '<div class="bl-co">' + esc(co.toUpperCase()) + '</div></div>' +
       '<div class="bl-proj"><b>Project Name :-</b> ' + esc(b.project || '') + '</div>' +
@@ -13056,9 +13074,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<div class="bl-wc"><span>Work Contract: Rent On Vehicle</span>' + (monthly.length === 1 ? '<span class="rpm">Rent Per Month : ₹ ' + mbN2(monthly[0]) + '</span>' : monthly.length > 1 ? '<span class="rpm">Rent Per Month : as per vehicle</span>' : '') + '</div>' +
       '<table class="bl-t"><thead>' +
       '<tr><th>Machine type</th><th>Vehicle No</th><th>Vehicle Type</th>' + (pmCol ? '<th class="n">Rent / Month</th>' : '') + '<th>Shift</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>' +
-      '<table class="bl-sum"><tbody>' + sum.map(x => '<tr class="r' + x[0] + '"><td class="c l">' + x[0] + '</td><td class="t">' + x[1] + '</td><td class="p">' + (x[3] || '') + '</td><td class="n' + (x[0] === (b.J ? 'K' : 'I') ? ' net' : '') + '">' + (x[2] === '' ? '–' : (x[2] < 0 ? '− ' : x[0] === 'J' ? '+ ' : '') + mbN2(Math.abs(x[2]))) + '</td></tr>').join('') + '</tbody></table>' + corrT + '</div>' +
-      '<div class="bl-sign">' + [['Accepted By', 'Sub Contractor'], ['Prepared & Checked By', 'Mechanical Dept'], ['Checked By', 'Site Incharge'], ['Checked By', 'Billing Dept'], ['Checked & Verified By', 'Acc. Dept'], ['Verified By', 'Project Manager'], ['Approved By', 'General Manager']]
+      '<table class="bl-sum"><tbody>' + sum.map(x => '<tr class="r' + x[0] + '"><td class="c l">' + x[0] + '</td><td class="t">' + x[1] + '</td><td class="p">' + (x[3] || '') + '</td><td class="n' + (x[0] === (b.J ? 'K' : 'I') ? ' net' : '') + '">' + (x[2] === '' ? '–' : (x[2] < 0 ? '− ' : x[0] === 'J' ? '+ ' : '') + mbA(b, Math.abs(x[2]))) + '</td></tr>').join('') + '</tbody></table>' + corrT + '</div>' +
+      // (update-202) a bill made in whole rupees: "Checked By – Billing Dept" no more; after the General Manager the bill goes to the
+      // Head Office – its two signatures (Checked By, then Verified By – HO Accounts). A bill before keeps the signatures it had.
+      '<div class="bl-sign' + (b.round ? ' six' : '') + '">' + [['Accepted By', 'Sub Contractor'], ['Prepared & Checked By', 'Mechanical Dept'], ['Checked By', 'Site Incharge']].concat(b.round ? [] : [['Checked By', 'Billing Dept']]).concat([['Checked & Verified By', 'Acc. Dept'], ['Verified By', 'Project Manager'], ['Approved By', 'General Manager']])
         .map(x => '<div><span></span><b>' + x[0] + '</b><small>' + x[1] + '</small></div>').join('') + '</div>' +
+      (b.round ? '<div class="bl-ho"><div class="bl-ho-t">HEAD OFFICE</div>' + [['Checked By', 'HO Accounts'], ['Verified By', 'HO Accounts']]
+        .map(x => '<div><span></span><b>' + x[0] + '</b><small>' + x[1] + '</small></div>').join('') + '</div>' : '') +
       '</div>';
   }
   /* ================= THE THREE PAPERS OF A BILL =================
@@ -13113,19 +13135,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const co = b.company || '', ci = b.companyInfo || {}, v = b.vendor || {}, gst = Number(b.gstPct) || 0, half = gst / 2;
     const net = !!b.txNet;      // a new bill: each vehicle's amount after its diesel debit, the month only
     const amt = m => net ? r2((Number(m.amount) || 0) - (Number(m.excessAmt) || 0)) : m.amount, before = net ? r2(b.A - b.B) : b.A;
+    const N = v => mbA(b, v);      // (update-202) whole rupees on a bill made in whole rupees
     const less = (net ? 0 : Number(b.B) || 0) + (Number(b.C) || 0), rowTax = gst > 0 && !less && b.D > 0;      // tax per row only when the value taxed is the rows themselves
     const rows = (b.machines || []).map((m, i) => {
       const lines = net ? [] : (m.lines || []).filter(l => !(l.monthly && m.lines.length === 1));
       const detail = net ? [txPeriod(b)] : lines.map(l => (l.item ? String(l.item).toUpperCase() + (l.note ? ' – ' + l.note : '') + ': ' : (l.note ? l.note + ': ' : '')) + fmt(l.qty) + ' ' + (l.unit || '') + ' × ' + mbN2(l.rate) + ' = ' + mbN2(l.amount));
-      const a = amt(m), tax = rowTax ? r2(a * half / 100) : 0;
+      const a = amt(m), tax = rowTax ? (b.round ? r0 : r2)(a * half / 100) : 0;
       return '<tr><td class="c">' + (i + 1) + '</td><td><b>RENT ON VEHICLE ' + esc(String(m.no).replace(/-/g, '').toUpperCase()) + '</b>' + (m.type ? ' <span>(' + esc(String(m.type).toUpperCase()) + ')</span>' : '') +
-        (detail.length ? '<small>' + detail.map(esc).join('<br>') + '</small>' : '') + '</td><td class="n">' + mbN2(a) + '</td><td class="n">' + (rowTax ? mbN2(tax) : '-') + '</td><td class="n">' + (rowTax ? mbN2(tax) : '-') + '</td><td class="n">' + mbN2(r2(a + 2 * tax)) + '</td></tr>'; });
+        (detail.length ? '<small>' + detail.map(esc).join('<br>') + '</small>' : '') + '</td><td class="n">' + N(a) + '</td><td class="n">' + (rowTax ? N(tax) : '-') + '</td><td class="n">' + (rowTax ? N(tax) : '-') + '</td><td class="n">' + N(r2(a + 2 * tax)) + '</td></tr>'; });
     const pct = gst ? fmt(half) + '%' : '';
-    const sum = [['Total Amount Before Tax', mbN2(before)]]
-      .concat(b.B && !net ? [['Less: Diesel deduction' + (b.dnNo ? ' (Debit Note ' + esc(b.dnNo) + ')' : ''), '− ' + mbN2(b.B)]] : [])
-      .concat(b.C ? [['Less: Other deduction' + (b.cReason ? ' (' + esc(b.cReason) + ')' : ''), '− ' + mbN2(b.C)]] : [])
-      .concat([['Basic Value', mbN2(b.D)], ['SGST ' + pct, docDash(b.F)], ['CGST ' + pct, docDash(b.E)], ['Total Billing Amt', mbN2(b.G)]])
-      .concat([['Net Cheque Amount', mbN2(b.G)]]);      // the party bills value + GST; TDS is the company's deduction when it pays (line H of the Abstract), never on the party's invoice
+    const dd = v => docDash(v) === '-' ? '-' : N(v);
+    const sum = [['Total Amount Before Tax', N(before)]]
+      .concat(b.B && !net ? [['Less: Diesel deduction' + (b.dnNo ? ' (Debit Note ' + esc(b.dnNo) + ')' : ''), '− ' + N(b.B)]] : [])
+      .concat(b.C ? [['Less: Other deduction' + (b.cReason ? ' (' + esc(b.cReason) + ')' : ''), '− ' + N(b.C)]] : [])
+      .concat([['Basic Value', N(b.D)], ['SGST ' + pct, dd(b.F)], ['CGST ' + pct, dd(b.E)], ['Total Billing Amt', N(b.G)]])
+      .concat([['Net Cheque Amount', N(b.G)]]);      // the party bills value + GST; TDS is the company's deduction when it pays (line H of the Abstract), never on the party's invoice
     const party = '<b>' + esc(co.toUpperCase()) + '</b>';
     return DOC_CSS + '<div class="tx"><div class="tx-name">' + esc(v.name || '') + '</div><div class="tx-title">TAX INVOICE</div>' +
       '<table><colgroup><col style="width:23%"><col style="width:27%"><col style="width:50%"></colgroup><tbody>' +
@@ -13137,7 +13161,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<tr><td>To,<br>' + party + (ci.address ? '<br>Address : ' + esc(ci.address) : '') + '<br><b>GST : ' + esc(ci.gstin || '–') + '</b></td>' +
       '<td>To,<br>' + party + (b.siteAddress ? '<br>Address : ' + esc(b.siteAddress) : '') + '<br><b>GST : ' + esc(ci.gstin || '–') + '</b></td></tr></tbody></table>' +
       '<table><colgroup><col style="width:7%"><col style="width:43%"><col style="width:14%"><col style="width:11%"><col style="width:11%"><col style="width:14%"></colgroup><thead><tr><th class="c">Sr.No</th><th class="c">Description of Work</th><th class="c">Amount</th><th class="c">Add CGST ' + pct + '</th><th class="c">Add SGST ' + pct + '</th><th class="c">Total Amount</th></tr></thead><tbody>' +
-      rows.join('') + '<tr class="sum"><td colspan="2" class="c">Total Billing Amount</td><td class="n">' + mbN2(before) + '</td><td class="n">-</td><td class="n">-</td><td class="n">' + mbN2(before) + '</td></tr></tbody></table>' +
+      rows.join('') + '<tr class="sum"><td colspan="2" class="c">Total Billing Amount</td><td class="n">' + N(before) + '</td><td class="n">-</td><td class="n">-</td><td class="n">' + N(before) + '</td></tr></tbody></table>' +
       '<table class="foot"><colgroup><col style="width:50%"><col style="width:36%"><col style="width:14%"></colgroup><tbody>' +
       sum.map((x, i) => '<tr>' + (i === 0 ? '<td rowspan="' + sum.length + '"><b>In Word : ' + esc(rupeesWords(b.G)) + ' /-</b></td>' : '') + '<td class="k">' + x[0] + '</td><td class="n"><b>' + x[1] + '</b></td></tr>').join('') +
       '<tr><td>' + esc(v.name || '') + (v.address ? '<br>' + esc(v.address) : '') + (v.account ? '<br>AC.NO : - ' + esc(v.account) : '') + (v.ifsc ? '<br>IFSC CODE :' + esc(v.ifsc) : '') + (v.bank ? '<br>BANK : ' + esc(v.bank) + (v.branch ? ', ' + esc(v.branch) : '') : '') +
@@ -13148,12 +13172,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!(Number(b.B) > 0)) return '';
     const co = b.company || '', ci = b.companyInfo || {}, v = b.vendor || {}; let sr = 0; const rows = [];
     (b.machines || []).forEach(m => { const amt = Number(m.excessAmt) || 0; if (!(amt > 0)) return;
-      const rate = Number(m.dieselRate) || 0, dq = Number(m.debitQty) || 0, eq = Number(m.excessQty) || 0, first = dq && eq ? r2(dq * rate) : amt;
-      const add = (what, q, a) => rows.push('<tr><td class="c">' + (++sr) + '</td><td><b>' + esc(String(m.no).replace(/-/g, '').toUpperCase()) + '</b>' + (m.type ? ' ' + esc(String(m.type).toUpperCase()) : '') + '</td><td>' + what + '</td><td class="n">' + fmt(r2(q)) + '</td><td class="n">' + (rate ? mbN2(rate) : '-') + '</td><td class="n">' + mbN2(a) + '</td></tr>');
+      const RR = b.round ? r0 : r2;      // (update-202) whole rupees
+      const rate = Number(m.dieselRate) || 0, dq = Number(m.debitQty) || 0, eq = Number(m.excessQty) || 0, first = dq && eq ? RR(dq * rate) : amt;
+      const add = (what, q, a) => rows.push('<tr><td class="c">' + (++sr) + '</td><td><b>' + esc(String(m.no).replace(/-/g, '').toUpperCase()) + '</b>' + (m.type ? ' ' + esc(String(m.type).toUpperCase()) : '') + '</td><td>' + what + '</td><td class="n">' + fmt(r2(q)) + '</td><td class="n">' + (rate ? mbN2(rate) : '-') + '</td><td class="n">' + mbA(b, a) + '</td></tr>');
       if (dq) add('Diesel issued – debit basis', dq, first);
       const t = m.tc, eAmt = dq ? r2(amt - first) : amt;
       if (eq && t && t.final) add('Diesel in its tank as per the standard – the machinery left the site (final bill)', eq, eAmt);
-      else if (eq && t) { const oAmt = t.over > 0 && t.short > 0 ? r2(t.over * rate) : t.over > 0 ? eAmt : 0;      // (update-199) the month-end tank check
+      else if (eq && t) { const oAmt = t.over > 0 && t.short > 0 ? RR(t.over * rate) : t.over > 0 ? eAmt : 0;      // (update-199) the month-end tank check
         if (t.over > 0) add('Diesel above the tank capacity (' + fmt(t.cap) + ' L) as per the standard', t.over, oAmt);
         if (t.short > 0) add('Diesel short in the tank at the check of ' + mbDot(t.foundDate), t.short, r2(eAmt - oAmt)); }
       else if (eq) add('Diesel used over the standard average', eq, eAmt);
@@ -13166,7 +13191,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<tr><td><b>Work Period</b></td><td>' + mbDot(b.from) + ' To ' + mbDot(b.to) + '</td></tr>' +
       '<tr><td colspan="3"><b>' + esc(co.toUpperCase()) + '</b>' + (ci.address ? ', ' + esc(ci.address) : '') + ' &nbsp; <b>GSTIN :</b> ' + esc(ci.gstin || '–') + (b.woNo ? ' &nbsp; <b>Work Order :</b> ' + esc(b.woNo) : '') + '</td></tr></tbody></table>' +
       '<table><colgroup><col style="width:7%"><col style="width:25%"><col style="width:32%"><col style="width:11%"><col style="width:11%"><col style="width:14%"></colgroup><thead><tr><th class="c">Sr.No</th><th>Machinery</th><th>Particular</th><th class="c">Qty (Ltr)</th><th class="c">Rate (₹/Ltr)</th><th class="c">Amount</th></tr></thead><tbody>' +
-      rows.join('') + '<tr><td colspan="5" class="n"><b>Total debit</b></td><td class="n"><b>' + mbN2(b.B) + '</b></td></tr>' +
+      rows.join('') + '<tr><td colspan="5" class="n"><b>Total debit</b></td><td class="n"><b>' + mbA(b, b.B) + '</b></td></tr>' +
       '<tr><td colspan="6"><b>In Word : ' + esc(rupeesWords(b.B)) + ' /-</b></td></tr></tbody></table>' +
       '<div class="dnp-note">This amount is deducted in RA Bill No <b>' + esc(b.billNo || '') + '</b> (line B of the Abstract of Bill, "Less – Diesel Deduction").' + (billNoEntry(b) ? '<br>It includes diesel issued on days with no Log Book entry: ' + esc(billNoEntry(b)) + '.' : '') + (billTank(b) ? '<br>Left out: ' + esc(billTank(b)) + '.' : '') + (billTc(b) ? '<br>Tank check: ' + esc(billTc(b)) + '.' : '') + '</div>' +
       '<div class="dnp-sign"><span>Accepted by – ' + esc(v.name || '') + '</span><span>For ' + esc(co) + '</span></div></div>';
@@ -13236,7 +13261,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         (when ? ' on ' + esc(when) : '') + (ev.submittedBy ? ' by ' + esc(ev.submittedBy) : '') + ' – kept with the bill, never changed afterwards. ' +
         (c.ok ? 'Evidence check ✔ (' + ev.count + ' entr' + (ev.count === 1 ? 'y' : 'ies') + ', SHA-256 ' + esc(String(ev.hash || '').slice(0, 16)) + '…).'
           : 'EVIDENCE CHECK FAILED – ' + ((c.bad || []).length ? (c.bad || []).length + ' entr' + ((c.bad || []).length === 1 ? 'y does not match its record' : 'ies do not match their records') : 'the record does not match its fingerprint') + '. Tell the Super Admin.') + '</div>';
-      return { kind: 'submission', note: note, L: { rows: ev.rows || [], f: { from: ev.from, to: ev.to }, summary: [], idle: idle, dieselRate: Number((ev.extra || {}).dieselRate) > 0 ? ev.extra.dieselRate : '', machines: ms, extra: ev.extra || { debit: {} }, note: note } };
+      return { kind: 'submission', note: note, L: Object.assign({ rows: ev.rows || [], f: { from: ev.from, to: ev.to }, summary: [], idle: idle, dieselRate: Number((ev.extra || {}).dieselRate) > 0 ? ev.extra.dieselRate : '', machines: ms, extra: ev.extra || { debit: {} }, note: note }, lbFig([b.data])) };
     }
     const nos = new Set(((b.data || {}).machines || []).map(m => String(m.noNow || m.no).toUpperCase()));      // (noNow: the number it has today, if it was changed after the bill)
     const logs = await call('getLogBookList', { from: b.from, to: b.to, all: true });
@@ -13245,7 +13270,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const ch = ev && ev.changes, now = new Date(), stamp = showDate(isoDate(now)) + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
     const note = '<div class="ev-note legacy">This bill was submitted before the Log Book was kept with bills. The Log Book below is TODAY\'S Log Book (' + esc(stamp) + '), not a record of the time of submission.' +
       (ch ? ' Since the bill was saved: ' + (ch.changed || ch.added || ch.deleted ? ch.changed + ' entr' + (ch.changed === 1 ? 'y' : 'ies') + ' changed, ' + ch.added + ' added, ' + ch.deleted + ' deleted' : 'no entry of its machinery and dates was changed, added or deleted') + ' (by the database\'s own times).' : '') + '</div>';
-    return { kind: ev ? ev.kind : 'off', note: note, L: { rows: rows, f: { from: b.from, to: b.to }, summary: [], idle: idle, dieselRate: Number((b.data || {}).dieselRate) > 0 ? b.data.dieselRate : '', note: note } };
+    return { kind: ev ? ev.kind : 'off', note: note, L: Object.assign({ rows: rows, f: { from: b.from, to: b.to }, summary: [], idle: idle, dieselRate: Number((b.data || {}).dieselRate) > 0 ? b.data.dieselRate : '', note: note }, lbFig([b.data])) };
   }
   async function viewSavedBillIn(id, w0) {
     const r = await call('getBills', { id: id }); const b = r.bills[0]; if (!b) { try { if (w0) w0.close(); } catch (x) {} return; }
@@ -20406,6 +20431,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const LBOPT = { fmt: L && L.fmt, sample: L && L.sample }; // "View format": a format to show, and a SAMPLE mark
     const IDLE_BY = (L && L.idle) || null; // from a bill: { machinery: Idle days paid? } – as chosen in that bill
     const MACH_THEN = (L && L.machines) || null; // (update-151) a saved bill's evidence: { machinery key: its Asset Master as it was when submitted }
+    // (update-202) the Log Book of a bill made in whole rupees: its money in rupees – the bill's own amount and diesel debit (L.figBy)
+    const RND = !!(L && L.round), FIG = (L && L.figBy) || {};
+    const nA = v => RND && Number.isInteger(r2(Number(v) || 0)) ? (Number(v) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : (Number(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const ord = { 'Day': 0, 'Full Day': 0, 'Night': 1 };
     const nc = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true });
     const rows = L.rows.slice().sort((a, b) => nc(a.no, b.no) || (a.date < b.date ? -1 : a.date > b.date ? 1 : (ord[a.shift] || 0) - (ord[b.shift] || 0)));
@@ -20540,11 +20568,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           const use = (hasKm(u) && kmStd ? (Number(r.wkm) || 0) / kmStd : 0) + (hasHr(u) && hrStd ? (Number(r.whr) || 0) * hrStd : 0);
           bal = bal + iss - use; x.used = r2(use); x.close = r2(bal); }); }
       // debit rate = the HIGHER of the average diesel rate of the dates and the last diesel purchase rate
-      const avgR = Number(extra.avgRate) || 0, lastR = Number(extra.lastRate) || 0, avgRate = MAN_RATE || Math.max(avgR, lastR), excessAmt = r2((debitQty + excessQty) * avgRate);
+      const FG = RND ? FIG[String(no).toUpperCase().replace(/[^A-Z0-9]/g, '')] : null;
+      if (RND) payable = FG ? Number(FG.amount) || 0 : r0(payable);
+      const avgR = Number(extra.avgRate) || 0, lastR = Number(extra.lastRate) || 0, avgRate = MAN_RATE || Math.max(avgR, lastR), excessAmt = FG ? Number(FG.excessAmt) || 0 : (RND ? r0 : r2)((debitQty + excessQty) * avgRate);
       const basic = r2(payable - excessAmt);
       const tdsP = last && last.tdsPct !== '' && last.tdsPct !== undefined ? Number(last.tdsPct) : (Number(m.tdsRate) || 0);
       const gstP = last && last.gstPct !== '' && last.gstPct !== undefined ? Number(last.gstPct) : 0;
-      const gst = basic > 0 ? r2(basic * gstP / 100) : 0, tds = basic > 0 ? r2(basic * tdsP / 100) : 0, netPay = r2(basic + gst - tds);
+      const gst = basic > 0 ? (RND ? r0 : r2)(basic * gstP / 100) : 0, tds = basic > 0 ? (RND ? r0 : r2)(basic * tdsP / 100) : 0, netPay = r2(basic + gst - tds);
       const rate = payable;
       const std = [m.kmStd ? m.kmStd + ' KM/L' : '', m.hrStd ? m.hrStd + ' L/HR' : ''].filter(Boolean).join(' + ') || '–';
       const uWord = isHr ? 'HRS' : dual ? 'KM / HRS' : 'KM';
@@ -20568,7 +20598,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           '<td class="n">' + n2(x.total) + '</td><td class="n">' + n2(x.used) + '</td><td class="n">' + n2(x.close) + '</td>' +
           '<td class="n">' + (x.avg || '') + '</td><td class="lb-ch" style="white-space:normal;word-break:break-word;font-size:0.9em;line-height:1.15">' + esc(up([r.chFrom, r.chTo].filter(Boolean).join(' – '))) + '</td><td>' + (st ? '<b>' + esc(up(w)) + '</b>' + (r.work || r.remark ? ' – ' : '') : '') + lbMarks(r) + (!st && itemQtyText(r) ? '<b>' + esc(up(itemQtyText(r))) + '</b>' + (r.work || r.remark ? ' – ' : '') : '') + esc(up(r.work || r.remark)) + '</td></tr>'; }).join('') +
         '</tbody><tfoot><tr><td colspan="6" class="c">TOTAL</td><td class="n">' + ([tKm ? fmt(tKm) + ' KM' : '', tHr ? fmt(tHr) + ' HR' : '', tTrips ? fmt(tTrips) + ' TRIPS' : ''].filter(Boolean).join('<br>') || '0') + '</td><td></td><td class="n">' + fmt(issued) + '</td><td></td><td class="n">' + (TCS ? '' : fmt(sum('total'))) + '</td><td class="n">' + fmt(TCS ? sum('used') : used) + '</td><td></td><td></td><td></td><td></td></tr></tfoot></table>';
-      const money = v => v ? '₹ ' + n2(v) : '–';
+      const money = v => v ? '₹ ' + nA(v) : '–';
       const allDebit = issued > 0 ? debitQty >= issued : (m.supply === 'Debit Basis');
       // KM + Hrs (two engines, one tank): the drum at its standard, the rest of the diesel is the vehicle engine's – and the sheet shows the working
       const dA = dual ? dualAvg(issued, tKm, tHr, kmStd, hrStd) : null;
@@ -20590,9 +20620,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           TCS.final ? fmt(Math.max(0, TCS.system)) + ' L<br><small>LEFT THE SITE</small>' : !TCS.need ? 'NOT NEEDED' : TCS.missing ? '<b>NOT ENTERED</b>' : 'FOUND ' + fmt(TCS.found) + ' L<br><small>' + (TCS.short > 0 ? fmt(TCS.short) + ' L SHORT' : 'NOTHING SHORT') + '</small>']] : []));
       const L = Lon.concat(Lz);
       const Rr = [[monthly.length ? 'MONTHLY RATE' : 'RATE', rateCell]].concat(kinds.day ? [['DAILY RATE', dailyCell]] : []).concat([['PAYABLE AMOUNT', money(payable)],
-        [(debitQty ? 'DIESEL DEBIT' : TCS ? 'DIESEL SHORT – DEBIT AMT' : 'EXCESS DIESEL – DEBIT AMT') + '<small>' + (MAN_RATE ? 'rate = ₹' + n2(MAN_RATE) + ' (fixed by hand)' : 'rate = higher of avg ₹' + n2(avgR) + ' / last ₹' + n2(lastR)) + '</small>', excessAmt ? '<small>' + [debitQty ? fmt(debitQty) + ' L debit' : '', excessQty ? fmt(excessQty) + (TCS ? (TCS.final ? ' L in its tank' : TCS.over > 0 ? (TCS.short > 0 ? ' L above the tank and short' : ' L above the tank') : ' L short') : ' L extra') : ''].filter(Boolean).join(' + ') + ' × ₹' + n2(avgRate) + '</small> − ₹ ' + n2(excessAmt) + (tank && tank.applied > 0 ? '<br><small>' + esc(tankText(tank).toUpperCase()) + '</small>' : '') : '<small>' + (tank && tank.applied > 0 ? esc(tankText(tank).toUpperCase()) : TCS ? (TCS.missing ? 'tank check not entered' : 'nothing short') : stdQty ? 'no extra diesel' : 'no standard') + '</small> –'],
-        ['TDS ' + (tdsP ? fmt(tdsP) + '% (on basic)' : ''), tds ? '− ₹ ' + n2(tds) : '–'],
-        ['GST ' + (gstP ? fmt(gstP) + '% (on basic)' : '– not applicable'), gst ? '+ ₹ ' + n2(gst) : '–']]);
+        [(debitQty ? 'DIESEL DEBIT' : TCS ? 'DIESEL SHORT – DEBIT AMT' : 'EXCESS DIESEL – DEBIT AMT') + '<small>' + (MAN_RATE ? 'rate = ₹' + n2(MAN_RATE) + ' (fixed by hand)' : 'rate = higher of avg ₹' + n2(avgR) + ' / last ₹' + n2(lastR)) + '</small>', excessAmt ? '<small>' + [debitQty ? fmt(debitQty) + ' L debit' : '', excessQty ? fmt(excessQty) + (TCS ? (TCS.final ? ' L in its tank' : TCS.over > 0 ? (TCS.short > 0 ? ' L above the tank and short' : ' L above the tank') : ' L short') : ' L extra') : ''].filter(Boolean).join(' + ') + ' × ₹' + n2(avgRate) + '</small> − ₹ ' + nA(excessAmt) + (tank && tank.applied > 0 ? '<br><small>' + esc(tankText(tank).toUpperCase()) + '</small>' : '') : '<small>' + (tank && tank.applied > 0 ? esc(tankText(tank).toUpperCase()) : TCS ? (TCS.missing ? 'tank check not entered' : 'nothing short') : stdQty ? 'no extra diesel' : 'no standard') + '</small> –'],
+        ['TDS ' + (tdsP ? fmt(tdsP) + '% (on basic)' : ''), tds ? '− ₹ ' + nA(tds) : '–'],
+        ['GST ' + (gstP ? fmt(gstP) + '% (on basic)' : '– not applicable'), gst ? '+ ₹ ' + nA(gst) : '–']]);
       /* ---------- the format set for this machinery (Master → Log Book Format). A = the table above. ---------- */
       const FM = LBOPT.fmt || m.lbFormat || 'A';
       let tableF = table, LF = L;
@@ -20684,7 +20714,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const nB = Math.max(LF.length, Rr.length), padR = k => Rr[k] || ['', ''], padL = k => LF[k] || ['', ''];
       const bill =
         '<table class="lb-bill"><tbody>' + Array.from({ length: nB }, (_, k) => '<tr><th>' + padL(k)[0] + '</th><td>' + padL(k)[1] + '</td><th>' + padR(k)[0] + '</th><td>' + padR(k)[1] + '</td></tr>').join('') +
-        '<tr class="net"><th colspan="3">NET PAYABLE AMOUNT <small>(basic ₹ ' + n2(basic) + ' = payable − excess diesel; + GST − TDS)</small></th><td>' + (rate ? '₹ ' + n2(netPay) : '–') + '</td></tr>' +
+        '<tr class="net"><th colspan="3">NET PAYABLE AMOUNT <small>(basic ₹ ' + nA(basic) + ' = payable − excess diesel; + GST − TDS)</small></th><td>' + (rate ? '₹ ' + nA(netPay) : '–') + '</td></tr>' +
         '</tbody></table>' + (rate ? '' : '<p class="lb-note">No BOQ for this machinery in these dates – the amounts are left blank (make its BOQ in Vendor BOQ).</p>');
       const sign = '<div class="lb-sign">' + [['CONTRACTOR', 'SUBCONTRACTOR'], ['PREPARED & CHECKED BY', 'MECHANICAL DEPT'], ['CHECKED BY', 'BILLING DEPT'], ['VERIFIED BY', 'PROJECT MANAGER'], ['APPROVED BY', 'GENERAL MANAGER']]
         .map(x => '<div><span></span><b>' + x[0] + '</b><small>' + x[1] + '</small></div>').join('') + '</div>';

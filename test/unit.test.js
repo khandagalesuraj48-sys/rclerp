@@ -106,7 +106,9 @@ test('bill papers: amount in words, Tax Invoice = the Abstract\'s figures, Debit
     DOC_CSS: '', billHtml: () => '<div class="bl">ABSTRACT</div>', showDate: d => String(d || '').split('-').reverse().join('-'),
     billTank: () => '', billEst: () => '', billFinal: () => '', billTc: () => '',
     billNoEntry: b => [].concat(...((b && b.machines) || []).map(m => (m.noEntry || []).map(x => String(m.no) + ' ' + x.d + ' ' + x.q + ' L'))).join(', ') };
-  const C = new Function(...Object.keys(env), grab('function rupeesWords(') + '\nconst docDash = v => (v === \'\' || v === null || v === undefined || Number(v) === 0) ? \'-\' : mbN2(v);\n' + grab('function taxInvoiceHtml(') + '\n' + grab('function debitNoteHtml(') + '\n' + grab('function gstDeclNeed(') + '\n' + grab('function gstDeclOn(') + '\n' + grab('function gstDeclHtml(') + '\n' + grab('function billSheets(') + '; return { rupeesWords, taxInvoiceHtml, debitNoteHtml, billSheets, gstDeclNeed, gstDeclOn, gstDeclHtml };')(...Object.values(env));
+  const RA = (app.match(/\n  const r0 = n => [^\n]+\n/) || [''])[0] + (app.match(/\n  const mbA = [^\n]+\n/) || [''])[0];      // (update-202) the page's whole-rupee formats
+  assert.ok(/const r0 = /.test(RA) && /const mbA = /.test(RA), 'the page\'s r0 / mbA');
+  const C = new Function(...Object.keys(env), RA + grab('function rupeesWords(') + '\nconst docDash = v => (v === \'\' || v === null || v === undefined || Number(v) === 0) ? \'-\' : mbN2(v);\n' + grab('function taxInvoiceHtml(') + '\n' + grab('function debitNoteHtml(') + '\n' + grab('function gstDeclNeed(') + '\n' + grab('function gstDeclOn(') + '\n' + grab('function gstDeclHtml(') + '\n' + grab('function billSheets(') + '; return { rupeesWords, taxInvoiceHtml, debitNoteHtml, billSheets, gstDeclNeed, gstDeclOn, gstDeclHtml };')(...Object.values(env));
   for (const [n, w] of [[40000, 'Rupees Forty Thousand Only'], [0, 'Rupees Zero Only'], [15600, 'Rupees Fifteen Thousand Six Hundred Only'], [123456789.5, 'Rupees Twelve Crore Thirty Four Lakh Fifty Six Thousand Seven Hundred Eighty Nine and Fifty Paise Only'],
     [100000, 'Rupees One Lakh Only'], [1000019.99, 'Rupees Ten Lakh Nineteen and Ninety Nine Paise Only'], [99.995, 'Rupees One Hundred Only'], [-250, 'Minus Rupees Two Hundred Fifty Only']]) assert.strictEqual(C.rupeesWords(n), w);
   const text = h => h.replace(/<style>[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
@@ -3719,7 +3721,9 @@ test('update-124: a bill made from now on – its Tax Invoice shows each vehicle
   const grab = m => { const i = app.indexOf(m); assert.ok(i > -1, m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
   const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const env = { r2: n => Math.round(n * 100) / 100, esc, fmt: n => String(n), DOC_CSS: '', mbN2: n => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), mbDot: d => String(d || '').split('-').reverse().join('.') };
-  const C = new Function(...Object.keys(env), grab('function rupeesWords(') + '\nconst docDash = v => (v === \'\' || v === null || v === undefined || Number(v) === 0) ? \'-\' : mbN2(v);\n' + grab('function txPeriod(') + '\n' + grab('function taxInvoiceHtml(') + '; return { taxInvoiceHtml, txPeriod };')(...Object.values(env));
+  const RA = (app.match(/\n  const r0 = n => [^\n]+\n/) || [''])[0] + (app.match(/\n  const mbA = [^\n]+\n/) || [''])[0];      // (update-202) the page's whole-rupee formats
+  assert.ok(/const r0 = /.test(RA) && /const mbA = /.test(RA), 'the page\'s r0 / mbA');
+  const C = new Function(...Object.keys(env), RA + grab('function rupeesWords(') + '\nconst docDash = v => (v === \'\' || v === null || v === undefined || Number(v) === 0) ? \'-\' : mbN2(v);\n' + grab('function txPeriod(') + '\n' + grab('function taxInvoiceHtml(') + '; return { taxInvoiceHtml, txPeriod };')(...Object.values(env));
   const text = h => h.replace(/<style>[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
   // the bill he was shown (18-10-2026): JCB with excess diesel, a tipper on debit basis, a Bolero without diesel – GST 18 %, TDS 1 %
   const base = { company: 'Rachana Construction Limited', companyInfo: { gstin: '27BBBBB0000B1Z0', invPrefix: 'RCL/TST/RA-' }, vendor: { name: 'Shree Earthmovers' }, billNo: '12', billDate: '2026-10-18', from: '2026-09-01', to: '2026-09-30', dnNo: 'RCL/TST/DN-7',
@@ -8234,4 +8238,78 @@ test('update-201: voice typing writes the site\'s own words – Google\'s guesse
   assert.match(html, /voiceWordsLoad\(true\);      \/\/ \(update-201\)/);
   assert.match(html, /call\('saveVoiceWords', \{ words: /);
   assert.match(html, /if \(h\.toLowerCase\(\) === is\.toLowerCase\(\) \|\| !SW\.alike\(h, is\)\) return;/);
+});
+
+test('update-202: a bill in WHOLE RUPEES – every line, the diesel debit, GST and TDS rounded (below 50 paise down, 50 paise and above up), the totals add up; the Abstract without "Checked By – Billing Dept" and with the Head Office (Checked By, then Verified By – HO Accounts); a bill made before keeps its figures and its papers', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // the rule: 12.3 → 12, 122.6 → 123, .5 up, a minus amount the same way from 0
+  assert.deepStrictEqual([12.3, 122.6, 122.5, 102712.5, 0.49, 1140.7695, -12.5, -12.4, 15557.58].map(n => run('n => r0_(n)', n)), [12, 123, 123, 102713, 0, 1141, -13, -12, 15558]);
+  const M = o => Object.assign({ no: 'RW-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, tankCap: 220, owner: 'Round Rule Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01' }, o || {});
+  assert.ok(!run('(x, m) => saveMaster_(x, m)', M(), 'add').THROWN);
+  assert.ok(!run('(x, m) => saveMaster_(x, m)', M({ no: 'RW-2', name: 'Excavator', type: 'Excavator', unit: 'Hrs', worksOn: ['Hrs'], kmStd: '', hrStd: 10, tankCap: 300 }), 'add').THROWN);
+  const vs = run('(x, m) => saveVendor_(x, m)', { name: 'Round Rule Vendor', gstReg: 'Yes', gst: '27RWRDX1001B1Z1', pan: 'RWRDX1001B', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  assert.ok(!vs.THROWN, vs.THROWN);
+  assert.ok(!run('(x, m) => saveBoq_(x, m)', { vendor: 'Round Rule Vendor', from: '2026-09-01', gstPct: 18, tdsPct: 1, woNo: 'WO-RW', lines: [{ no: 'RW-1', basis: 'Monthly', rate: 85000, diesel: 'Company' }, { no: 'RW-2', basis: 'Per Hour', rate: 1237.5, diesel: 'Company' }] }, 'add').THROWN);
+  run('x => saveInward_(x)', { date: '2026-09-01', location: 'Dispenser', pump: 'Pump', qty: 5000, rate: 92.37, billNo: 'RW-IN', billDate: '2026-09-01' });
+  const rows = []; let km = 2000, hr = 700;
+  for (let d = 1; d <= 26; d++) { const o = { date: '2026-10-' + String(d).padStart(2, '0'), shift: 'Full Day', no: 'RW-1', mode: 'KM', closingKm: Math.round((km + 37.3) * 10) / 10 }; if (d === 1) o.openingKm = km; km = o.closingKm; rows.push(o); }
+  for (let d = 1; d <= 10; d++) { const o = { date: '2026-10-' + String(d * 3).padStart(2, '0'), shift: 'Full Day', no: 'RW-2', mode: 'Hrs', closingHr: Math.round((hr + 8.3) * 10) / 10 }; if (d === 1) o.openingHr = hr; hr = o.closingHr; rows.push(o); }
+  assert.ok(run('x => saveLogRowsInner_(x)', { rows: rows }).ok);
+  for (const [d, q, k] of [['2026-10-01', 160, 2000], ['2026-10-15', 100, 2522.2]]) assert.ok(!run('x => saveDieselIssue_(x)', { date: d, shift: 'Day', source: 'Dispenser', no: 'RW-1', qty: q, kmReading: k, force: true }).THROWN);
+  for (const [d, h] of [['2026-10-03', 700], ['2026-10-12', 724.9], ['2026-10-21', 749.8]]) assert.ok(!run('x => saveDieselIssue_(x)', { date: d, shift: 'Day', source: 'Dispenser', no: 'RW-2', qty: 300, hrReading: h, force: true }).THROWN);
+  assert.ok(run('d => saveBillTankCheck_(d)', { no: 'RW-1', from: '2026-10-01', to: '2026-10-31', physical: 5.2 }).ok);      // 17.55 L as per the standard → 12.35 L short
+  assert.ok(run('d => saveBillTankCheck_(d)', { no: 'RW-2', from: '2026-10-01', to: '2026-10-31', physical: 52.4 }).ok);     // 70 L → 17.6 L short
+  const calc = (no, rnd) => run(`(no, rnd) => { const c = billMachineCalc_(findMachine_(no), getLogBookList_({ from: '2026-10-01', to: '2026-10-31', no: no, all: true }).rows, logPrintExtra_({ from: '2026-10-01', to: '2026-10-31', nos: [no] }), '2026-10-01', '2026-10-31', undefined, true, rnd);
+    return { no: no, workDays: c.workDays, nights: c.nights, issued: c.issued, amount: c.amount, excessAmt: c.excessAmt, excessQty: c.excessQty, debitQty: c.debitQty, dieselRate: c.dieselRate, tc: c.tc, segs: c.segs, gstPct: c.gstPct, tdsPct: c.tdsPct }; }`, no, rnd);
+  // a bill made before: paise as before; a bill made now: every line and the diesel debit in rupees
+  assert.deepStrictEqual([calc('RW-1').amount, calc('RW-1').excessAmt, calc('RW-2').amount, calc('RW-2').excessAmt], [71290.32, 1140.77, 102712.5, 1625.71]);
+  assert.deepStrictEqual([calc('RW-1', true).amount, calc('RW-1', true).excessAmt, calc('RW-2', true).amount, calc('RW-2', true).excessAmt, calc('RW-2', true).segs[0].amount], [71290, 1141, 102713, 1626, 102713]);
+  // the bill as the page makes it, verified by the server
+  const co = run('() => billCompanies_()')[0], r0 = n => { const x = Math.round(n * 100) / 100; return x < 0 ? -Math.round(-x) : Math.round(x); }, r2 = n => Math.round(n * 100) / 100;
+  const mk = rnd => { const ms = [calc('RW-1', rnd), calc('RW-2', rnd)], R = rnd ? r0 : r2;
+    const A = r2(ms[0].amount + ms[1].amount), B = r2(ms[0].excessAmt + ms[1].excessAmt), D = r2(A - B), E = R(D * 18 / 200), H2 = R(D / 100), G = r2(D + 2 * E);
+    return Object.assign({ company: co, vendor: { name: 'Round Rule Vendor' }, from: '2026-10-01', to: '2026-10-31', billDate: '2026-11-02', billNo: '7', picked: ['RW-1', 'RW-2'], partial: false, edited: false, idlePaid: true,
+      machines: ms.map(m => Object.assign({}, m, { lines: [] })), A: A, B: B, C: 0, D: D, E: E, F: E, G: G, H: H2, I: r2(G - H2), gstPct: 18, tdsPct: 1 }, rnd ? { round: true } : {}); };
+  const nb = mk(true);
+  assert.deepStrictEqual([nb.A, nb.B, nb.D, nb.E, nb.G, nb.H, nb.I], [174003, 2767, 171236, 15411, 202058, 1712, 200346]);      // the bill he was shown (02-11-2026)
+  const bad = v => [].concat(...v.bills.map(b => b.checks.filter(c => c.s === 'bad').map(c => c.t)));
+  let v = run('b => verifyBills_({ bills: [b] })', nb);
+  assert.ok(v.ok, JSON.stringify(bad(v)));
+  assert.ok(v.bills[0].checks.some(c => c.s === 'ok' && c.t === 'Totals are correct: A − B − C = D, GST 18%, TDS 1%, Net Payable ₹200346.'));
+  const ob = mk(false);
+  assert.ok(run('b => verifyBills_({ bills: [b] })', ob).ok, 'a bill in paise (made by a page before this update) still verifies the old way');
+  const sub = run('(b, co) => submitBills_({ bills: [{ vendor: "Round Rule Vendor", company: co, billNo: "7", from: b.from, to: b.to, billDate: b.billDate, net: b.I, data: b }] })', nb, co);
+  assert.ok(sub && sub.ok, JSON.stringify(sub).slice(0, 300));
+  const saved = run('() => billsAll_().find(b => b.billNo === "7" && b.vendor === "Round Rule Vendor")');
+  assert.deepStrictEqual([saved.data.round, saved.data.I], [true, 200346]);
+  // worked out again later (the corrections of update-108) with the rule it was made with – no difference of paise
+  assert.deepStrictEqual(run('() => { const b = billsAll_().find(b => b.billNo === "7" && b.vendor === "Round Rule Vendor"); return b.data.machines.map(x => billNowFig_(b, x, {}).amount); }'), [71290, 102713]);
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  assert.match(code, /work\.push\(\{ unit: u, from: a\.qty, to: z\.qty, rate: oldR\[0\], amount: r0_\(dq \* oldR\[0\]\) \}\)/);
+  assert.match(code, /amt = Math\.abs\(net\), gst = r0_\(amt \* gstPct \/ 100\), tds = r0_\(amt \* tdsPct \/ 100\);/);
+  // ---------- the page ----------
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const grab = m => { const i = app.indexOf(m); assert.ok(i > -1, m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
+  const RA = (app.match(/\n  const r0 = n => [^\n]+\n/) || [''])[0] + (app.match(/\n  const mbA = [^\n]+\n/) || [''])[0];
+  const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const env = { r2: r2, esc, fmt: n => String(n), mbN2: n => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), mbDot: d => String(d || '').split('-').reverse().join('.'),
+    gstDeclNeed: () => false, LOGO_URL: '', SKETCHLINE_LOGO: '', billEst: () => '', billFinal: () => '', billTank: () => '', billTc: () => '', billNoEntry: () => '', corrCalc: () => '' };
+  const P = new Function(...Object.keys(env), RA + grab('function mbTotals(b)') + '\n' + grab('function billHtml(b, saved)') + '; return { r0, mbA, mbTotals, billHtml };')(...Object.values(env));
+  assert.deepStrictEqual([12.3, 122.6, 122.5, -12.5].map(P.r0), [12, 123, 123, -13]);
+  const pb = rnd => P.mbTotals(Object.assign({ company: 'Test Co', companyInfo: {}, vendor: { name: 'Round Rule Vendor' }, from: '2026-10-01', to: '2026-10-31', billDate: '2026-11-02', billNo: '7', C: 0,
+    machines: mk(rnd).machines.map(m => Object.assign({}, m, { type: 'Tipper', name: 'Tipper', lines: [{ unit: 'Days', qty: 26, rate: 2741.94, amount: m.amount }], gstPct: 18, tdsPct: 1 })) }, rnd ? { round: true } : {}));
+  const pn = pb(true), po = pb(false);
+  assert.deepStrictEqual([pn.A, pn.B, pn.D, pn.E, pn.G, pn.H, pn.I], [nb.A, nb.B, nb.D, nb.E, nb.G, nb.H, nb.I], 'the page = the server');
+  assert.deepStrictEqual([po.E, po.H, po.I], [ob.E, ob.H, ob.I]);
+  const text = h => h.replace(/<style>[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const tn = text(P.billHtml(pn)), to = text(P.billHtml(po));
+  assert.ok(/ 71,290 /.test(tn) && / 1,02,713 /.test(tn) && / 1,74,003 /.test(tn) && /− 2,767 /.test(tn) && / 15,411 /.test(tn) && / 2,00,346 /.test(tn) && !/\.00 /.test(tn), tn.slice(-900));
+  assert.ok(!/Billing Dept/.test(tn) && /Approved By General Manager HEAD OFFICE Checked By HO Accounts Verified By HO Accounts/.test(tn), tn.slice(-400));
+  assert.ok(/Checked By Billing Dept/.test(to) && !/HEAD OFFICE/.test(to) && / 1,74,002\.82 /.test(to), 'a bill made before: its papers as they were');
+  // the Log Book sheet of a bill made in rupees: the bill's own amount and diesel debit; the Tax Invoice / Debit Note in rupees
+  assert.match(app, /if \(RND\) payable = FG \? Number\(FG\.amount\) \|\| 0 : r0\(payable\);/);
+  assert.match(app, /logSheetsBuild\(Object\.assign\(\{ rows: rows, f: \{ from: L\.from, to: L\.to \}, summary: \[\], idle: idle, dieselRate: Number\(b\.dieselRate\) > 0 \? b\.dieselRate : '' \}, lbFig\(\[b\]\)\)/);
+  assert.match(app, /const a = amt\(m\), tax = rowTax \? \(b\.round \? r0 : r2\)\(a \* half \/ 100\) : 0;/);
+  assert.match(app, /b\.round = true;      \/\/ \(update-202\)/);
 });
