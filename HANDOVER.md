@@ -2300,3 +2300,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `logPrintExtra_` "checks", `billMachineCalc_` `tc`, `data.tankRule`, `saveBillTankCheck`, `tankLock_`, `BL_FNS_`; every tank check
   needs the Tank Capacity; the Log Book sheet's daily opening / closing; the page's missing `leftOn` (final bill) made. No SQL.
   Tests: unit `update-199`; the rig in Chromium; rcl-mobile 3.72.2 (fixture made by the web in the page).
+- 02-11-2026 (update-200). Report: `UPDATE_200.md`. AFTER A TANK CHECK THE LOG BOOK'S OPENING IS THE DIESEL FOUND – in the form of a new
+  entry (`getLogRowPrefill_` `openingDiesel` / `openingCheck`, "tank check dd-mm" under it) and Edit Log Book's grid (`getLogEditData_`
+  `checks`), as `recalcStockOnly_` already saved it (`tankResetFor_`). No SQL. Tests: unit `update-200`; the rig in Chromium.

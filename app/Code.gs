@@ -9646,12 +9646,14 @@ function getLogRowPrefill_(no, dateStr, shiftIn, opt) {
     }
   }
   const cy = cycleFor_(lt, m, dk);
+  const ckR = addTo ? null : tankResetFor_(m.id, dk, prev ? prev.dk : '');      // (update-200)
   return {
-    machine: m, problem: problem || slotSay, first: !prev && !addTo,
+    machine: m, problem: problem || slotSay, first: !prev && !addTo && !ckR,
     openingKm: addTo && addTo.closeKm !== '' ? addTo.closeKm : prevKm ? prevKm.ckm : (m.meterKm || hasKm_(m.unit) ? 0 : ''), openingHr: addTo && addTo.closeHr !== '' ? addTo.closeHr : prevHr ? prevHr.chr : (m.meterHr || hasHr_(m.unit) ? 0 : ''),
     firstKm: !prevKm && !(addTo && addTo.closeKm !== ''), firstHr: !prevHr && !(addTo && addTo.closeHr !== ''), lastMode: addTo && (m.modes || []).indexOf(addTo.mode) > -1 ? addTo.mode : prev && (m.modes || []).indexOf(prev.mode) > -1 && (m.modesX || []).indexOf(prev.mode) < 0 ? prev.mode : '',      // (after a Time day of an hours machinery the next day is on hours again)
     addTo: addTo,      // update-143: { rows, kind, mode, closeKm, closeHr, stock, lastWork, sameOk } – this entry is added to the saved entry of its shift as row rows + 1
-    openingDiesel: addTo ? addTo.stock : prev ? prev.stock : 0, prevDate: prev ? prev.dk : '', prevShift: prev ? prev.shift : '',
+    openingDiesel: addTo ? addTo.stock : ckR ? ckR.physical : prev ? prev.stock : 0, prevDate: prev ? prev.dk : '', prevShift: prev ? prev.shift : '',
+    openingCheck: !addTo && ckR ? { id: ckR.id, date: ckR.date, physical: ckR.physical } : null,      // (update-200) the opening is the diesel found at this tank check
     lastDate: list.length ? list[list.length - 1].dk : '', lastShift: list.length ? list[list.length - 1].shift : '',
     diesel: ds.qty, dieselText: ds.text, reads: ds.reads, driver: ds.driver, cycle: cy.cycle, prevClosed: cy.prevClosed,
     boqItems: itemBrief_(boqItemsOn_(m, dk)), // Item-wise BOQ on this date ([] = none)
@@ -10190,7 +10192,8 @@ function saveLogRowsInner_(b) {
           chr = reqReading_(l.closingHr, 'Close Hrs');
           if (chr < ohr) throw new Error(m.id + ' (' + dmy_(dk) + '): Close Hrs ' + chr + ' is less than Start Hrs ' + ohr + '.');
         }
-        const odsl = prev ? prev.stock : (blank_(l.openingDiesel) ? 0 : Math.max(0, num0_(l.openingDiesel)));
+        const ckR = tankResetFor_(m.id, dk, prev ? prev.dk : '');      // (update-200) a tank check after the entry before: the tank starts from what was found (as recalcStock_)
+        const odsl = ckR ? ckR.physical : prev ? prev.stock : (blank_(l.openingDiesel) ? 0 : Math.max(0, num0_(l.openingDiesel)));
         const ds = dieselFor_(m.id, dk, shift);
         if (hrsOnly_(m) && hasHr_(mode) && chr !== '') {      // update-77: an entry put in between: its Close must not pass the Start of the entry after it (that entry is not changed)
           const after = list.filter(e => logKeyCmp_(e, { dk: dk, shift: shift }) > 0 && hasHr_(e.mode) && e.ohr !== '')[0];
@@ -10935,6 +10938,8 @@ function getLogEditData_(no, fromStr, toStr) {
   const partsOut = o => { const it = boqItems[o.date] ? boqItemsOn_(m, o.date) : [], ps = itemPartsOf_(it, o.itemWork, { hr: o.whr, km: o.wkm, trip: o.trip }); if (ps) o.itemParts = ps; return o; };
   return { machine: m, from: from, to: to, boqItems: boqItems, rows: rows.map(i => partsOut(Object.assign(logRowOut_(lt, lt.rows[i]), { key: logKeyOf_(lt, lt.rows[i]), ver: rowVer_(lt, lt.rows[i], LOG_VER_H_()) }))),
     prev: brief(before[before.length - 1]), next: brief(after[0]), diesel: diesel, prevKm: lastRead(H.CKM), prevHr: lastRead(H.CHR), locks: locks,
+    // (update-200) the tank checks from the entry before up to these dates: the grid's tank starts again from what was found (as recalcStock_)
+    checks: (p => tankChecksOf_(m.id).filter(x => x.date <= to && (!p || x.date >= p)).map(x => ({ id: x.id, date: x.date, physical: x.physical })))(before.length ? dkey_(lt.rows[before[before.length - 1]][c[H.DATE]]) : ''),
     // update-77: a machinery on hours – the next entry that reads the hour meter (its Start is never changed from here: a Close above it is refused)
     nextHr: hrsOnly_(m) ? (j => j === undefined || meterNew_(lt.rows[j], c) ? null : brief(j))(after.find(i => hasHr_(str_(lt.rows[i][c[H.UNIT]])) && numOrBlank_(lt.rows[i][c[H.OHR]]) !== '')) : null, hrsOnly: hrsOnly_(m) };
 }
@@ -11191,6 +11196,13 @@ function tankRowOut_(t, r) {
   return { id: str_(g('Check ID')), date: dkey_(g('Date')), no: str_(g('Machinery Number')), system: num0_(g('System Diesel (Ltr)')), physical: num0_(g('Physical Diesel (Ltr)')),
     diff: num0_(g('Difference (Ltr)')), method: str_(g('Method')), toFill: numOrBlank_(g('Litres To Fill')), reason: str_(g('Reason')), by: str_(g('Checked By')),
     enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '' };
+}
+/* (update-200, asked 02-11-2026 with a picture of the Log Book of 01-11: "01-11-26 ch opening bagh asa ka ala") the tank check after the
+ * entry before (dated before this one): the tank starts again from what was found – exactly as recalcStockOnly_ works it out when the
+ * entry is saved. A new entry's Opening (the form, Edit Log Book) showed the Log Book's closing before the check (105.8 L) instead of
+ * the diesel found on 31-10 – it became right only once saved. → the check { id, date, physical } or null. */
+function tankResetFor_(no, dk, prevDk) {
+  return tankChecksOf_(no).filter(x => x.date < dk && (!prevDk || x.date >= prevDk)).pop() || null;
 }
 function tankChecksOf_(no) {
   const t = tankTable_(); if (!t) return [];
