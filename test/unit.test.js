@@ -4468,6 +4468,26 @@ test('update-197: an edit in Asset Master compares EVERY box of the form – a c
   assert.ok(/DOCS\.forEach\(d => \{ const v = String\(before\[d\[2\]\] \|\| ''\); before\[d\[2\]\] = v === 'NA' \|\| v === 'LIFETIME' \|\| \/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$\/\.test\(v\) \? v : ''; \}\);/.test(blk));
 });
 
+test('update-198: the MACHINERY boxes use the app\'s own quick list on a computer too (narrows at once, a number without dashes; keys); other boxes keep the browser\'s list there; a phone as before', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.ok(app.indexOf("const PK_TOUCH = pkTouch(), PK_ALL = ['dl_mach_on', 'dl_machines'];") > -1);
+  assert.ok(app.indexOf("const pkWants = inp => PK_TOUCH || PK_ALL.indexOf(inp.getAttribute('list') || '') > -1;") > -1);
+  assert.ok(app.indexOf("if (inp.hasAttribute('list') && pkWants(inp)) {") > -1, 'only those boxes are taken on a computer');
+  assert.ok(app.indexOf('  if (pkTouch()) {\n    document.addEventListener(') === -1, 'the listeners are on every device');
+  // a computer: opens on a click (not by itself), keys, the cursor stays after a pick
+  assert.ok(/if \(!PK_TOUCH\) document\.addEventListener\('click'/.test(app));
+  ['ArrowDown', 'ArrowUp', "e.key === 'Enter' && open", "e.key === 'Escape' && open"].forEach(k => assert.ok(app.indexOf(k) > -1, k));
+  assert.ok(/if \(!PK_TOUCH\) \{ const once1 = ev =>/.test(app), 'a computer keeps the cursor in the box');
+  // the narrowing itself: the page's own key – "mh09bc7533" finds MH-09-BC-7533, "7533" both, "SANY" the SANY ones, not the DGs
+  const pkKey = new Function('return ' + app.slice(app.indexOf('const pkKey = ') + 'const pkKey = '.length, app.indexOf(';', app.indexOf('const pkKey = '))))();
+  const opts = ['20 KVA DG 1', '400 KVA DG', 'MH-09-BC-7533', 'MH-12-XY-7533', 'SANY-EX-01'], hit = t => opts.filter(o => pkKey(o).indexOf(pkKey(t)) > -1);
+  assert.deepStrictEqual(hit('7533'), ['MH-09-BC-7533', 'MH-12-XY-7533']); assert.deepStrictEqual(hit('mh09bc7533'), ['MH-09-BC-7533']); assert.deepStrictEqual(hit('SANY'), ['SANY-EX-01']);
+  // a filter box with the app's own list is still a filter box; the big box gets the same list; the list is above the big box
+  assert.ok(app.indexOf("const tl = t.list || (t.dataset && t.dataset.pk ? document.getElementById(t.dataset.pk) : null);") > -1);
+  assert.ok(app.indexOf("if (list && !ed.hasAttribute('list')) ed.setAttribute('list', list);") > -1);
+  assert.ok(/#pk_list \{ position: fixed; z-index: 10001;/.test(app) && /#bigbox \{ position: fixed; inset: 0; z-index: 10000;/.test(app));
+});
+
 test('update-143: a new entry for a shift that is already saved is added to that entry as its next row – the same work twice is refused; diesel, tank and bill as if entered together', () => {
   const { T, ctx } = require('./harness.js');
   const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };

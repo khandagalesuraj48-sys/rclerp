@@ -2291,3 +2291,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 - 02-11-2026 (update-197, with rcl-mobile 3.72.1). Report: `UPDATE_197.md`. ASSET MASTER EDIT: the "Nothing changed." check compares
   every box of the form (Tank Capacity, Engine / Chassis Number, Engine Make and the papers were left out – a change of only them was
   never sent). Page only; no SQL. Tests: unit `update-197`; the rig in Chromium.
+- 02-11-2026 (update-198). Report: `UPDATE_198.md`. THE MACHINERY BOXES ON A COMPUTER: the app's own list (`pkTake` – `PK_ALL`:
+  dl_mach_on, dl_machines) instead of the browser's – narrows at once, ↓ / ↑ / Enter / Esc, opens on a click (not after a save);
+  other boxes keep the browser's list on a computer; a phone as before. Page only; no SQL. Tests: unit `update-198`; the rig in Chromium.
