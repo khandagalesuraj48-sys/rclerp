@@ -4449,6 +4449,25 @@ test('02-11-2026: the BETA copy – the branch "beta" with RCL_CHANNEL = beta wo
   assert.strictEqual(v.rewrites.filter(x => !x.has && /^https:\/\/rcl-(store|purchase|engineering)\.vercel\.app\//.test(x.destination)).length, 6, 'the live rules unchanged');
 });
 
+test('update-197: an edit in Asset Master compares EVERY box of the form – a change of only the Tank Capacity (or Engine / Chassis Number, Engine Make, a paper) is saved, not "Nothing changed."', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const a = app.indexOf("$('m_save').addEventListener('click'"), b = app.indexOf("const res = await call('saveMaster', m, mode, S.editNo);", a);
+  assert.ok(a > 0 && b > a); const blk = app.slice(a, b);
+  // what the form sends (the object m) – every key but the unit (made from Works on) and the earlier periods (compared by themselves)
+  const sent = blk.slice(blk.indexOf('const m = {'), blk.indexOf('};', blk.indexOf('const m = {'))).match(/[{,]\s*([a-zA-Z]+):/g).map(x => x.replace(/[{,:\s]/g, '')).filter(k => k !== 'unit');
+  const compared = [...blk.slice(blk.indexOf('const changes = diff(['), blk.indexOf('], before, m);')).matchAll(/\['([a-zA-Z]+)', '/g)].map(x => x[1]);
+  assert.ok(sent.length >= 20, sent.join(','));
+  sent.forEach(k => assert.ok(compared.indexOf(k) > -1, 'not compared: ' + k));
+  // the compare itself (the page's diff) with his case: Tank Capacity typed, nothing else
+  const diff = new Function(app.slice(app.indexOf('  function diff(fields, before, after) {'), app.indexOf('  const listHtml = ')) + '; return diff;')();
+  const F = [...blk.slice(blk.indexOf('const changes = diff(['), blk.indexOf('], before, m);')).matchAll(/\['([a-zA-Z]+)', '([^']+)'\]/g)].map(x => [x[1], x[2]]);
+  const before = { no: 'MH-09-BC-2570', kmStd: 2, tankCap: undefined, engineNo: undefined, taxUpto: '' }, after = Object.assign({}, before, { tankCap: 220, engineNo: '', taxUpto: '' });
+  assert.deepStrictEqual(diff(F, before, after), [['Tank Capacity (Ltr)', '', '220']]);
+  assert.deepStrictEqual(diff(F, Object.assign({}, before, { tankCap: 220 }), after), [], 'the same again: nothing changed');
+  // a paper is compared as the form shows it (N/A, Lifetime, a date or nothing)
+  assert.ok(/DOCS\.forEach\(d => \{ const v = String\(before\[d\[2\]\] \|\| ''\); before\[d\[2\]\] = v === 'NA' \|\| v === 'LIFETIME' \|\| \/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$\/\.test\(v\) \? v : ''; \}\);/.test(blk));
+});
+
 test('update-143: a new entry for a shift that is already saved is added to that entry as its next row – the same work twice is refused; diesel, tank and bill as if entered together', () => {
   const { T, ctx } = require('./harness.js');
   const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
