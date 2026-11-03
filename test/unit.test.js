@@ -8310,6 +8310,58 @@ test('update-202: a bill in WHOLE RUPEES – every line, the diesel debit, GST a
   // the Log Book sheet of a bill made in rupees: the bill's own amount and diesel debit; the Tax Invoice / Debit Note in rupees
   assert.match(app, /if \(RND\) payable = FG \? Number\(FG\.amount\) \|\| 0 : r0\(payable\);/);
   assert.match(app, /logSheetsBuild\(Object\.assign\(\{ rows: rows, f: \{ from: L\.from, to: L\.to \}, summary: \[\], idle: idle, dieselRate: Number\(b\.dieselRate\) > 0 \? b\.dieselRate : '' \}, lbFig\(\[b\]\)\)/);
-  assert.match(app, /const a = amt\(m\), tax = rowTax \? \(b\.round \? r0 : r2\)\(a \* half \/ 100\) : 0;/);
+  assert.match(app, /const a = amt\(m, i\), tax = rowTax \? \(b\.round \? r0 : r2\)\(a \* half \/ 100\) : 0;/);      // (update-204: amt by the row)
   assert.match(app, /b\.round = true;      \/\/ \(update-202\)/);
+});
+
+test('update-204: a bill made from now on – its Tax Invoice is of the Net Work Done Amount (D), no deduction on it (the other deduction taken off the vehicles in proportion); RCL Drive – a deleted bill is not in Saved Bills but in Deleted Bills, month by month', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const grab = m => { const i = app.indexOf(m); assert.ok(i > -1, m); let j = app.indexOf('{', i), d = 0; for (let k = j; k < app.length; k++) { if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); } } };
+  const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const env = { r2: n => Math.round(n * 100) / 100, esc, fmt: n => String(n), DOC_CSS: '', mbN2: n => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), mbDot: d => String(d || '').split('-').reverse().join('.') };
+  const RA = (app.match(/\n  const r0 = n => [^\n]+\n/) || [''])[0] + (app.match(/\n  const mbA = [^\n]+\n/) || [''])[0];
+  const C = new Function(...Object.keys(env), RA + grab('function rupeesWords(') + '\nconst docDash = v => (v === \'\' || v === null || v === undefined || Number(v) === 0) ? \'-\' : mbN2(v);\n' + grab('function txPeriod(') + '\n' + grab('function txShares(') + '\n' + grab('function taxInvoiceHtml(') + '; return { taxInvoiceHtml, txShares };')(...Object.values(env));
+  const text = h => h.replace(/<style>[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+  // his bill (RA 19, 03-11-2026): a Bolero, the substitute driver's charges as the other deduction – the invoice is of D
+  const his = { company: 'Sketchline Industries', companyInfo: { invPrefix: 'SLI/VTR/RA-' }, vendor: { name: 'TEST VENDOR' }, billNo: '19', billDate: '2026-11-03', from: '2026-10-01', to: '2026-10-31', round: true, txNet: true, txD: true,
+    machines: [{ no: 'MH12SY6216', type: 'BOLERO', amount: 41290, excessAmt: 0, lines: [] }], A: 41290, B: 0, C: 1800, cReason: 'Substitute driver charges', D: 39490, gstPct: 0, E: 0, F: 0, G: 39490, H: 790, I: 38700 };
+  const t1 = text(C.taxInvoiceHtml(his));
+  for (const want of ['1 RENT ON VEHICLE MH12SY6216 (BOLERO) FOR THE MONTH OF OCTOBER 2026 39,490 - - 39,490', 'Total Billing Amount 39,490 - - 39,490',
+    'Total Amount Before Tax 39,490 Basic Value 39,490', 'Total Billing Amt 39,490 Net Cheque Amount 39,490', 'Rupees Thirty Nine Thousand Four Hundred Ninety Only']) assert.ok(t1.indexOf(want) > -1, 'the invoice should say: ' + want + '\n' + t1);
+  for (const gone of ['Less', 'deduction', 'Substitute', '41,290', '1,800', 'Diesel', 'TDS', '790', '38,700']) assert.ok(t1.indexOf(gone) === -1, 'not on the invoice: ' + gone);
+  // three vehicles, diesel debits and C 1,000: the rows (after the diesel) carry C in proportion and add up to D; GST on each row
+  const three = { company: 'Rachana Construction Limited', companyInfo: {}, vendor: { name: 'Shree Earthmovers' }, billNo: '12', billDate: '2026-10-18', from: '2026-09-01', to: '2026-09-30', txNet: true, txD: true,
+    machines: [{ no: 'MH-12-AB-1234', type: 'JCB', amount: 134000, excessAmt: 9200 }, { no: 'MH-12-CD-5678', type: 'Tipper', amount: 60000, excessAmt: 27600 }, { no: 'MH-12-EF-9012', type: 'Bolero', amount: 40000, excessAmt: 0 }],
+    A: 234000, B: 36800, C: 1000, cReason: 'tyre', D: 196200, gstPct: 18, E: 17658, F: 17658, G: 231516 };
+  assert.deepStrictEqual(C.txShares(three, [124800, 32400, 40000]), [632.86, 164.3, 202.84]);
+  assert.deepStrictEqual(C.txShares(Object.assign({}, three, { round: true }), [124800, 32400, 40000]), [633, 164, 203]);
+  assert.deepStrictEqual(C.txShares(Object.assign({}, three, { C: 0 }), [124800, 32400, 40000]), [0, 0, 0]);
+  const t3 = text(C.taxInvoiceHtml(three));
+  for (const want of ['RENT ON VEHICLE MH12AB1234 (JCB) FOR THE MONTH OF SEPTEMBER 2026 1,24,167.14', 'RENT ON VEHICLE MH12CD5678 (TIPPER) FOR THE MONTH OF SEPTEMBER 2026 32,235.70', 'RENT ON VEHICLE MH12EF9012 (BOLERO) FOR THE MONTH OF SEPTEMBER 2026 39,797.16',
+    'Total Billing Amount 1,96,200.00', 'Total Amount Before Tax 1,96,200.00 Basic Value 1,96,200.00 SGST 9% 17,658.00 CGST 9% 17,658.00 Total Billing Amt 2,31,516.00']) assert.ok(t3.indexOf(want) > -1, 'three vehicles: ' + want + '\n' + t3);
+  assert.ok(t3.indexOf('Less') === -1 && t3.indexOf('tyre') === -1 && t3.indexOf('Diesel') === -1);
+  assert.ok(t3.indexOf('1,24,167.14 11,175.04 11,175.04') > -1, 'GST on the row');
+  // a bill made before (txNet only – RCL Drive): its invoice as it was, the other deduction a line of its own
+  const before = text(C.taxInvoiceHtml(Object.assign({}, three, { txD: undefined })));
+  assert.ok(before.indexOf('Total Amount Before Tax 1,97,200.00 Less: Other deduction (tyre) − 1,000.00 Basic Value 1,96,200.00') > -1, before);
+  // marked when a bill is BUILT
+  assert.match(grab('function mbFill('), /b\.txD = true;/);
+  assert.doesNotMatch(grab('function mbTotals('), /txD/);
+  // RCL Drive: the tab, its table and its buttons; Saved Bills without the deleted ones
+  assert.match(app, /<button type="button" data-drv="del" aria-selected="false">Deleted Bills<\/button>/);
+  assert.match(app, /<div class="table-wrap" id="drv_del" hidden><table>[\s\S]{0,400}<tbody id="sbx_rows"><\/tbody>/);
+  const load = grab('async function sbLoad(');
+  assert.match(load, /const live = d\.bills\.filter\(b => b\.status !== 'Deleted'\), gone = d\.bills\.filter\(b => b\.status === 'Deleted'\);/);
+  assert.match(load, /\$\('sb_rows'\)\.innerHTML = live\.length \? live\.map\(/);
+  assert.match(app, /\$\('sb_rows'\)\.addEventListener\('click', sbClick\); \$\('sbx_rows'\)\.addEventListener\('click', sbClick\);/);
+  const box = { innerHTML: '' };
+  const D = new Function('$', 'esc', 'showDate', 'mbN2', (app.match(/\n  const MONTHS_ = [^\n]+\n/) || [''])[0] + grab('function sbDeleted(') + '; return sbDeleted;')(() => box, esc, d => String(d || '').split('-').reverse().join('-'), env.mbN2);
+  D([{ id: 'b1', billNo: '19', vendor: 'V1', company: 'Sketchline Industries', from: '2026-10-01', to: '2026-10-31', billDate: '2026-11-03', net: 38700, status: 'Deleted', deletedBy: 'Super Admin', deletedAt: '2026-11-03T04:00:00Z', deleteReason: 's' },
+    { id: 'b2', billNo: '7', vendor: 'V2', company: 'Sketchline Industries', from: '2026-09-01', to: '2026-09-30', billDate: '2026-10-02', net: 1000, status: 'Deleted', deleteReason: 'wrong rate' },
+    { id: 'b3', billNo: '19', rev: 1, vendor: 'V1', company: 'Sketchline Industries', from: '2026-10-01', to: '2026-10-31', billDate: '2026-11-03', net: 40464, status: 'Deleted', deleteReason: 'debit missed' }]);
+  const h = text(box.innerHTML);
+  assert.ok(h.indexOf('October 2026 – 2 deleted bills') > -1 && h.indexOf('September 2026 – 1 deleted bill ') > -1 && h.indexOf('October 2026') < h.indexOf('September 2026'), h);
+  assert.ok(h.indexOf('Super Admin · 03-11-2026') > -1 && h.indexOf('debit missed') > -1 && h.indexOf('wrong rate') > -1, h);
+  assert.ok(box.innerHTML.indexOf('data-sbv="b1"') > -1 && box.innerHTML.indexOf('data-sbz="b3"') > -1 && box.innerHTML.indexOf('data-sbd') === -1, 'view, Log Book, files – no Delete');
+  D([]); assert.ok(text(box.innerHTML).indexOf('No deleted bills for these filters.') > -1);
 });

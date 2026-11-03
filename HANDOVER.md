@@ -2312,3 +2312,7 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   diesel debit, C, GST and TDS rounded (half up – `r0` / `r0_`), the totals add up; the papers, the list and the bill's Log Book sheet in
   rupees. The Abstract: "Checked By – Billing Dept" removed, a HEAD OFFICE row (Checked By, then Verified By – HO Accounts). A bill made
   before keeps its figures and papers. No SQL. Tests: unit `update-202`; the rig in Chromium; rcl-mobile 3.75.0 (`web_round.json`).
+- 03-11-2026 (update-204). Report: `UPDATE_204.md`. THE TAX INVOICE OF THE NET WORK DONE AMOUNT – a bill made from now on (`data.txD`):
+  each vehicle after its diesel and its share of the other deduction (`txShares`), no "Less" line, the invoice adds up to D; a bill
+  before keeps its invoice. RCL DRIVE – a deleted bill is not in Saved Bills but in the Deleted Bills tab, month by month (`sbDeleted`).
+  No SQL. Tests: unit `update-204`; the rig in Chromium; rcl-mobile 3.77.0 (`web_round.json` made again).
