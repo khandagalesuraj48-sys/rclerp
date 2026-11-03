@@ -8515,7 +8515,7 @@ test('update-205: Vehicle Compliance – the documents of a machinery: every ren
     assert.ok(H.some(r => r.re.test(msg) && /supabase_step1zl/.test(r.en.join(' ')) && r.mr && r.hi), 'help in 3 languages: ' + msg);
 });
 
-test('update-206: the Log Book print shows the reading given at every diesel fill – KM, Hrs or both, whatever the fill has, each fill of the day, a fill on a day without an entry; Format B and E with the refilling reading, Format H when a fill has one', () => {
+test('update-206: the Log Book print shows the reading given at every diesel fill – KM, Hrs or both, whatever the fill has, each fill of the day, a fill on a day without an entry; Format B and E with the refilling reading; every format shows the diesel given and its reading (F, G, I, H when diesel was given)', () => {
   const { T, ctx } = require('./harness.js');
   const step = fn => { const r = fn(); T.reset(); return r; };
   const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
@@ -8535,6 +8535,11 @@ test('update-206: the Log Book print shows the reading given at every diesel fil
   assert.match(app, /B: \['sr', 'date', 'shift', 'kmS', 'kmC', 'kmT', 'hrS', 'hrC', 'hrT', 'dO', 'dI', 'dR', 'dT', 'dU', 'dC', 'trip', 'ch', 'work'\],/);
   assert.match(app, /E: \['sr', 'date', 'particular', 'challan', 'rS', 'rC', 'rT', 'dO', 'dI', 'dR', 'dT', 'dU', 'dC', 'avg', 'ch', 'work'\],/);
   assert.match(app, /H: \['sr', 'date', 'shift', 'vehno', 'challan', 'dQ', 'dRh', 'inT', 'outT', 'trip', 'ch', 'work'\],/);
-  assert.match(app, /const cols = LB_FMT_COLS\[FM\]\.filter\(k => k !== 'dRh' \|\| lines\.some\(x => x\.refill\)\)/, 'Format H: the column only when a fill has a reading');
+  // every format: the diesel given and its reading – F, G, I get them when the machinery had diesel in the dates (none – not shown); H the same
+  assert.match(app, /const DQ_AT = \{ F: 'ch', G: 'ch', I: 'chno' \}, gave = issued > 0;/);
+  assert.match(app, /const keys = LB_FMT_COLS\[FM\]\.slice\(\); if \(DQ_AT\[FM\] && gave\) keys\.splice\(keys\.indexOf\(DQ_AT\[FM\]\), 0, 'dQ', 'dRh'\);/);
+  assert.match(app, /const cols = keys\.filter\(k => k !== 'dRh' \|\| gave\)/);
+  assert.match(app, /const has = k => keys\.indexOf\(k\) > -1, hasDiesel = keys\.some\(k => \/\^d\[OITUCR\]\$\/\.test\(k\)\);/, 'the summary: its diesel issue with them');
+  assert.match(app, /tr\.forEach\(\(t, j\) => o\.push\(Object\.assign\(\{\}, x, \{ i: o\.length, t: t \}, j \? \{ iss: 0, refill: '' \} : \{\}\)\)\)/, 'Format I: an entry\'s diesel on its first trip only');
   assert.match(app, /return showDate\(x\.d\) \+ ' ' \+ fmt\(x\.q\) \+ ' L' \+ \(rd \? ' \(READING ' \+ rd \+ '\)' : ''\);/);
 });
