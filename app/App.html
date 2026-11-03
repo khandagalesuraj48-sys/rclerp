@@ -3178,7 +3178,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     </div>
     <script>
       // (update-91) linked to the Portal: the old sign-in form is not shown even for the moment before the app has started
-      try { if (localStorage.getItem('rcl_portal') && !/[?&]local=1(&|$)/.test(window.top.location.search || '') && sessionStorage.getItem('rcl_local') !== '1') {
+      try { if (localStorage.getItem(/^\/ho\/?$/i.test(window.top.location.pathname || '') ? 'rcl_portal_ho' : 'rcl_portal') && !/[?&]local=1(&|$)/.test(window.top.location.search || '') && sessionStorage.getItem('rcl_local') !== '1') {
         document.getElementById('login_form').hidden = true; document.getElementById('lg_portal').hidden = false; document.getElementById('lg_pt_err').textContent = 'Opening…'; } } catch (e) { /* the form stays */ }
     </script>
   </div>
@@ -5185,6 +5185,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   })();
   let SITE_NAME = 'VTR Site – NH 848'; // shown on every report (screen, print and Excel) – from the setting "Company & site" (applyOrg)
   const S = { master: [], drivers: [], today: '', editNo: null, prefill: null };
+  /* (update-208, asked 03-11-2026: "head office sathi … mechanical department te purn wegle karaych aahe tya sathi seprate link asel
+   * tya link madhe kontich site yenar nahi"; his answers: this same Vercel project, a new address; Head Office taken off the main
+   * link; signing in through the Portal, which opens Head Office directly) HEAD OFFICE AT ITS OWN ADDRESS – <main address>/ho/:
+   *   /ho/ opens only the site HO (no "Change site"); the main address never opens HO (its "Change site" has no HO). A link or a
+   *   ticket for the other address goes there by itself (the ticket unused). The sign-in and the site of /ho/ are kept under their
+   *   own names ("_ho"), so both addresses can be open side by side, each on its own site (the bridge in server/page.js: the same).
+   *   Only with the Portal; the reserve sign-in (?local=1) is as before. */
+  const HO_SITE = 'HO';
+  const AT_HO = (() => { try { const p = String(window.top.location.pathname || '').toLowerCase(); return p === '/ho/' || p === '/ho'; } catch (e) { return false; } })();
+  const KK = k => AT_HO ? k + '_ho' : k;
+  const siteHere = c => !c || (AT_HO ? String(c).toUpperCase() === HO_SITE : String(c).toUpperCase() !== HO_SITE);
+  const siteHome = c => String(c || '').toUpperCase() === HO_SITE ? '/ho/' : '/';
   /* ================= THE APP'S LANGUAGE (update-110, asked 14-10-2026) =================
    * "app madhe app language cha option haway marathi hindi englis ji language selet asel app tyach language madhe sagle kahi dakhwel mg
    * kam aso ki errors aso suggestions aso … he user vise asel". Settings → Language of the app – each user his own (kept with his
@@ -5810,10 +5822,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * never asked; anybody else with several sites and no default site is asked (sitePick). The pill at the top shows the site
    * and opens another one without signing in again. */
   function siteKeep(code) {
-    try { localStorage.removeItem('rcl_site'); sessionStorage.removeItem('rcl_site'); if (!code) return;
-      (localStorage.getItem('rcl_token') ? localStorage : sessionStorage).setItem('rcl_site', code); localStorage.setItem('rcl_last_site', code); } catch (e) { /* storage blocked: the first site */ }
+    try { localStorage.removeItem(KK('rcl_site')); sessionStorage.removeItem(KK('rcl_site')); if (!code) return;
+      (localStorage.getItem(KK('rcl_token')) ? localStorage : sessionStorage).setItem(KK('rcl_site'), code); localStorage.setItem(KK('rcl_last_site'), code); } catch (e) { /* storage blocked: the first site */ }
   }
-  function tokenKeep(t) { try { if (localStorage.getItem('rcl_token')) localStorage.setItem('rcl_token', t); else sessionStorage.setItem('rcl_token', t); } catch (e) { /* storage blocked */ } }
+  function tokenKeep(t) { try { if (localStorage.getItem(KK('rcl_token'))) localStorage.setItem(KK('rcl_token'), t); else sessionStorage.setItem(KK('rcl_token'), t); } catch (e) { /* storage blocked */ } }
   async function sitePick(list, cur) {
     let chosen = '';
     const curName = (list.find(x => x.code === cur) || {}).name || cur;
@@ -5834,10 +5846,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function siteBoot(si) {
     S.siteInfo = si || null;
     const many = !ptOn() && !!(si && si.sites && si.sites.length > 1);
-    if (si && si.site) { try { if (!(localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site'))) siteKeep(si.site); } catch (e) { /* storage blocked */ } }
+    if (si && si.site) { try { if (!(localStorage.getItem(KK('rcl_site')) || sessionStorage.getItem(KK('rcl_site')))) siteKeep(si.site); } catch (e) { /* storage blocked */ } }
     sideSite(); sideMods();      // (asked 13-10-2026) "Change site" and his other modules of this site – in the dark menu
-    $('set_sites').hidden = !many;
-    if (!many) return;
+    $('set_sites').hidden = !many || AT_HO;
+    if (!many || AT_HO) return;
     const def = (si.sites.find(x => x.default) || {}).code || '';
     $('set_site_def').innerHTML = '<option value="">' + (S.user && S.user.admin ? 'The site I used last' : 'Ask me every time') + '</option>' + si.sites.map(x => '<option value="' + esc(x.code) + '"' + (x.code === def ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('');
   }
@@ -5848,7 +5860,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const si = S.siteInfo, cur = (si && si.site) || ptSite(), pt = ptOn();
     const many = !pt && !!(si && si.sites && si.sites.length > 1);
     const name = (pt && ((PT.sites.find(x => x.code === cur) || {}).name)) || (si && si.name) || cur || '';
-    $('site_box').hidden = !(pt || many) || !name;
+    $('site_box').hidden = !(pt || many) || !name || AT_HO;      // (update-208) Head Office's own address: no other site
     $('site_chg_name').textContent = name; $('site_chg_code').textContent = cur || '';
   }
   $('site_chg').addEventListener('click', async () => {
@@ -5856,7 +5868,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // dark menu is a drawer over the page: it closes first, as after a page of the menu, so the box with the sites is on top
     try { setDrawer(false); } catch (er) { /* a computer: the menu is part of the page */ }
     const si = S.siteInfo, cur = (si && si.site) || ptSite(), pt = ptOn();
-    const list = pt ? PT.sites.map(x => ({ code: x.code, name: x.name, current: x.code === cur })) : ((si && si.sites) || []);
+    const list = pt ? PT.sites.filter(x => siteHere(x.code)).map(x => ({ code: x.code, name: x.name, current: x.code === cur })) : ((si && si.sites) || []);      // (update-208) the main address: no Head Office
     if (pt && cur && !list.some(x => x.current)) list.unshift({ code: cur, name: $('site_chg_name').textContent || cur, current: true });
     let chosen = '';
     const onClick = e => { const b = e.target.closest('.sp-btn'); if (!b || b.disabled) return; chosen = b.dataset.code; closeConfirm(true); };
@@ -5885,15 +5897,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * The app's own sign-in stays as the reserve: the link with ?local=1 (this tab only). Not linked → everything as before.
    * Going round in circles is stopped: at most 3 automatic trips to the Portal in 2 minutes, then a message. */
   const PT = { url: '', mods: [], sites: [], local: false };
-  try { const o = JSON.parse(localStorage.getItem('rcl_portal') || 'null'); if (o && o.url) Object.assign(PT, { url: String(o.url), mods: o.mods || [], sites: o.sites || [] }); } catch (e) { /* not linked as far as this browser knows */ }
+  try { const o = JSON.parse(localStorage.getItem(KK('rcl_portal')) || 'null'); if (o && o.url) Object.assign(PT, { url: String(o.url), mods: o.mods || [], sites: o.sites || [] }); } catch (e) { /* not linked as far as this browser knows */ }
   try { PT.local = sessionStorage.getItem('rcl_local') === '1'; } catch (e) { /* no reserve */ }
   const ptOn = () => !!PT.url && !PT.local;
   function ptKeep(p) { if (!p || !p.url) return; PT.url = String(p.url); PT.mods = p.mods || []; PT.sites = p.sites || [];
-    try { localStorage.setItem('rcl_portal', JSON.stringify({ url: PT.url, mods: PT.mods, sites: PT.sites })); } catch (e) { /* kept for this page only */ } }
-  function ptForget() { PT.url = ''; PT.mods = []; PT.sites = []; try { localStorage.removeItem('rcl_portal'); } catch (e) { /* nothing kept */ } }
+    try { localStorage.setItem(KK('rcl_portal'), JSON.stringify({ url: PT.url, mods: PT.mods, sites: PT.sites })); } catch (e) { /* kept for this page only */ } }
+  function ptForget() { PT.url = ''; PT.mods = []; PT.sites = []; try { localStorage.removeItem(KK('rcl_portal')); } catch (e) { /* nothing kept */ } }
   // what the server says (orgInfo): linked to a Portal, or no longer (the setting taken out – the app's own sign-in again)
   function ptSeen(o) { if (!o || typeof o !== 'object') return; if (o.portal) { if (PT.url !== o.portal) ptKeep({ url: o.portal, mods: PT.mods, sites: PT.sites }); } else if (o.customer && PT.url) ptForget(); }
-  const ptSite = () => { try { return localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site') || localStorage.getItem('rcl_last_site') || ''; } catch (e) { return ''; } };
+  const ptSite = () => { try { return localStorage.getItem(KK('rcl_site')) || sessionStorage.getItem(KK('rcl_site')) || localStorage.getItem(KK('rcl_last_site')) || ''; } catch (e) { return ''; } };
+  // (update-208) the site to open at this address: /ho/ – Head Office; the main address – the one asked, or (it was Head Office)
+  // his first other site; none – '' (the Portal's own page, where Head Office opens at its own address)
+  const siteFor = c => AT_HO ? HO_SITE : siteHere(c) ? (c || '') : ((PT.sites.find(x => siteHere(x.code)) || {}).code || '');
   const ptOpen = (mod, site, page) => '/api/go?module=' + encodeURIComponent(mod) + '&site=' + encodeURIComponent(site) + (page ? '&page=' + encodeURIComponent(page) : '');
   function ptNav(path) { try { window.top.location.href = PT.url + path; } catch (e) { location.href = PT.url + path; } }
   // an automatic trip to the Portal (not a click): refused after 3 in 2 minutes
@@ -5910,7 +5925,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('lg_pt_err').textContent = 'Signing in…'; $('lg_pt_go').href = PT.url ? PT.url + '/' : '#';
     try {
       const r = await gsRun('ssoLogin', ticket);
-      S.token = r.token; try { sessionStorage.removeItem('rcl_token'); localStorage.setItem('rcl_token', r.token); } catch (e) { /* this page only */ }
+      S.token = r.token; try { sessionStorage.removeItem(KK('rcl_token')); localStorage.setItem(KK('rcl_token'), r.token); } catch (e) { /* this page only */ }
       ptKeep(r.portal); siteKeep(r.site || '');
       try { sessionStorage.removeItem('rcl_pt_hops'); } catch (e) { /* fine */ }
       $('lg_pt_err').textContent = 'Loading…';
@@ -6070,13 +6085,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function showLogin(msg, opt) {
     try { rtcRingClose(); rtcEnd('', true); } catch (e) { /* no screen share */ }
     try { saHide(); $('site_box').hidden = true; $('grp_mods').hidden = true; S.siteInfo = null; } catch (e) { /* the site parts are not built yet at the first start */ }
-    S.token = ''; try { localStorage.removeItem('rcl_token'); sessionStorage.removeItem('rcl_token'); } catch (e) {}
+    S.token = ''; try { localStorage.removeItem(KK('rcl_token')); sessionStorage.removeItem(KK('rcl_token')); } catch (e) {}
     try { const de = document.documentElement; de.dataset.theme = 'light'; de.dataset.text = 'normal'; de.dataset.density = 'normal'; if ($('grp_fav')) $('grp_fav').hidden = true; if ($('announce')) $('announce').hidden = true; } catch (e) { /* the sign-in screen is always the plain one */ }
     document.body.classList.add('locked');
     $('login_screen').hidden = false;
     // (update-91) linked to the Portal: sign-in happens there (the reserve ?local=1, a message from here, or "Logout" stay here)
     if (!PT.local && !(opt && opt.here)) {
-      if (ptOn()) { const st = S.wantSite || ptSite(); if (ptGo(st ? ptOpen('mechanical', st, S.wantTab) : '/')) { $('login_form').hidden = true; $('lg_portal').hidden = false; $('lg_pt_err').textContent = 'Opening the Portal…'; return; } msg = PT_STUCK; }
+      if (ptOn()) { const st = siteFor(S.wantSite || ptSite()); if (ptGo(st ? ptOpen('mechanical', st, S.wantTab) : '/')) { $('login_form').hidden = true; $('lg_portal').hidden = false; $('lg_pt_err').textContent = 'Opening the Portal…'; return; } msg = PT_STUCK; }
       else ORG_P.then(o => { if (o && o.portal && !S.token && !PT.local && $('login_screen').hidden === false) { ptSeen(o); showLogin(msg); } }).catch(() => { /* the app's own sign-in */ });
     }
     $('login_form').hidden = ptOn(); $('lg_portal').hidden = !ptOn();
@@ -6091,21 +6106,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const btn = $('lg_btn'); btn.disabled = true; btn.textContent = 'Signing in…'; $('lg_err').textContent = '';
     try {
       const typed = $('lg_pass').value, mail = $('lg_email').value.trim();
-      let last = ''; try { last = localStorage.getItem('rcl_last_site') || ''; } catch (e) { last = ''; }
+      let last = ''; try { last = localStorage.getItem(KK('rcl_last_site')) || ''; } catch (e) { last = ''; }
       const r = await gsRun('login', mail, typed, { last: last });
       S.token = r.token;
       // (update-90) the Super Admin: his own screen – no site, no entries, no reports
-      if (r.superAdmin) { try { ($('lg_remember').checked ? localStorage : sessionStorage).setItem('rcl_token', r.token); } catch (e) { /* storage blocked */ } credSave(mail, typed); await saStart(r); return; }
+      if (r.superAdmin) { try { ($('lg_remember').checked ? localStorage : sessionStorage).setItem(KK('rcl_token'), r.token); } catch (e) { /* storage blocked */ } credSave(mail, typed); await saStart(r); return; }
       if (!r.mustChange) credSave(mail, typed);      // the browser asks "Save password?" (a password that must be changed first is not offered)
       // Remember me: stay signed in on this device; otherwise only until the browser tab is closed
       let store = null; // browser storage can be blocked (private mode): the app still works without it
-      try { store = $('lg_remember').checked ? localStorage : sessionStorage; store.setItem('rcl_token', r.token); } catch (e) { store = null; }
+      try { store = $('lg_remember').checked ? localStorage : sessionStorage; store.setItem(KK('rcl_token'), r.token); } catch (e) { store = null; }
       siteKeep(r.site || '');      // (update-90) the site this sign-in is for
       // a password set by Admin (or a weak one) must be replaced before the app opens
       if (r.mustChange) {
         $('lg_err').textContent = '';
         const t = await pwDialog(true, typed);
-        if (!t) { S.token = ''; try { if (store) store.removeItem('rcl_token'); } catch (e) {} showLogin('Set your own password to continue.'); return; }
+        if (!t) { S.token = ''; try { if (store) store.removeItem(KK('rcl_token')); } catch (e) {} showLogin('Set your own password to continue.'); return; }
       }
       // (update-90) a one-time password was set on his first site: now the site meant
       if (r.mustChange && r.want && r.want !== r.site && !r.choose) { const sw = await gsRun('switchSite', S.token, r.want); S.token = sw.token; tokenKeep(sw.token); siteKeep(sw.site); }
@@ -6158,7 +6173,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const r = await gsRun('changePassword', S.token, $('pw_old').value, newPw);
       S.token = r.token;
       credSave((S.user && S.user.email) || $('lg_email').value.trim(), newPw);      // the browser offers to save / update the new one
-      try { if (localStorage.getItem('rcl_token')) localStorage.setItem('rcl_token', r.token); else sessionStorage.setItem('rcl_token', r.token); } catch (e) {}
+      try { if (localStorage.getItem(KK('rcl_token'))) localStorage.setItem(KK('rcl_token'), r.token); else sessionStorage.setItem(KK('rcl_token'), r.token); } catch (e) {}
       pwClose(r.token);
       toast('Password changed. Other devices are signed out.');
       if (r.pwFailed && r.pwFailed.length) setTimeout(() => toast('Your new password could not be written on your other site(s) now (' + r.pwFailed.join(', ') + ') – there the old one still works. Change it again later, or ask the Super Admin.', true), 2500);
@@ -14483,7 +14498,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * has no sign-in. Labels: Asset Master → "QR labels" – by owner, or the machinery ticked (one or many), 8 on an A4 sheet (2 × 4,
    * update-150). */
   // (02-11-2026) printed in the BETA copy: the LIVE address (window.rclLive – server/page.js) – the label is scanned by everybody, for years
-  const qrLink = id => { let base = ''; try { base = window.top.rclLive ? window.top.rclLive + '/' : window.top.location.origin + window.top.location.pathname; } catch (e) { base = location.origin + '/'; } return base + '?m=' + encodeURIComponent(id); };
+  // (update-208) printed at Head Office's own address: that address (/ho/?m=…) – also from the beta copy
+  const qrLink = id => { let base = ''; try { base = window.top.rclLive ? window.top.rclLive + (AT_HO ? '/ho/' : '/') : window.top.location.origin + window.top.location.pathname; } catch (e) { base = location.origin + '/'; } return base + '?m=' + encodeURIComponent(id); };
   function qrSvg(text) { const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); }
   // (update-150) which labels: by owner (all its machinery), or the machinery ticked – one or many; 8 on an A4 page (2 × 4)
   const QR_PER_PAGE = 8;
@@ -20990,21 +21006,31 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
 
   // start: use the saved sign-in if it is still valid, otherwise show the sign-in screen
-  try { S.token = localStorage.getItem('rcl_token') || sessionStorage.getItem('rcl_token') || ''; } catch (e) { S.token = ''; }
+  try { S.token = localStorage.getItem(KK('rcl_token')) || sessionStorage.getItem(KK('rcl_token')) || ''; } catch (e) { S.token = ''; }
   locCheck();      // (update-85) the app opens only with the location on
   // (update-91) a ticket from the Portal (#sso=… in the link – taken out of the address at once), or the reserve (?local=1)
   // (13-10-2026, one address) a link from another module's menu: #site=…&page=… (and after the Portal: #sso=…&page=…) – this app
   // opens on that page; another site than the one signed in here goes through the Portal first (no sign-in typed)
-  let ssoTicket = '', wantSite = '';
+  let ssoTicket = '', wantSite = '', moved = false;
+  // (update-208) the site a ticket is for (read only to choose the address – the server checks the ticket itself)
+  const ticketSite = t => { try { const b = String(t).split('.')[1].replace(/-/g, '+').replace(/_/g, '/'); return String(JSON.parse(atob(b + '==='.slice((b.length + 3) % 4))).site || '').toUpperCase(); } catch (e) { return ''; } };
   try { const top = window.top, h = top.location.hash || '', arg = k => { const x = new RegExp('[#&]' + k + '=([^&]*)').exec(h); try { return x ? decodeURIComponent(x[1]) : ''; } catch (e) { return ''; } };
     const m = /^#sso=([A-Za-z0-9_.-]{20,8000})(&|$)/.exec(h);
     if (/[?&]local=1(&|$)/.test(top.location.search || '')) { try { sessionStorage.setItem('rcl_local', '1'); } catch (e) { /* this page only */ } PT.local = true; }
     if (/^[a-z0-9_-]{1,64}$/.test(arg('page'))) S.wantTab = arg('page');
     if (/^[A-Z0-9]{1,12}$/.test(arg('site').toUpperCase())) S.wantSite = wantSite = arg('site').toUpperCase();
-    if (/^#(sso|site|page)=/.test(h)) { ssoTicket = m ? m[1] : ''; top.history.replaceState(null, '', top.location.pathname + top.location.search); } }
+    // (update-208) a ticket or a link of the OTHER address (Head Office ↔ the main one) goes there – the ticket unused
+    const forSite = m ? ticketSite(m[1]) : wantSite;
+    if (!PT.local && forSite && !siteHere(forSite)) { moved = true; top.location.replace(siteHome(forSite) + (top.location.search || '') + h); }
+    else if (/^#(sso|site|page)=/.test(h)) { ssoTicket = m ? m[1] : ''; top.history.replaceState(null, '', top.location.pathname + top.location.search); } }
   catch (e) { /* another origin: no ticket */ }
-  if (ssoTicket && !PT.local) ssoStart(ssoTicket);
+  if (AT_HO && !wantSite) S.wantSite = wantSite = HO_SITE;      // (update-208) /ho/ is always Head Office
+  if (moved) { /* the other address opens */ }
+  else if (ssoTicket && !PT.local) ssoStart(ssoTicket);
   else if (wantSite && ptOn() && !/^sa/.test(S.token) && wantSite !== ptSite() && ptGo(ptOpen('mechanical', wantSite, S.wantTab))) { /* the other site: through the Portal */ }
+  // (update-208) a sign-in kept here for the site of the other address (Head Office at the main address, from before): it is let go,
+  // and the Portal opens this address's site (showLogin → siteFor)
+  else if (ptOn() && S.token && !/^sa/.test(S.token) && !siteHere(ptSite())) showLogin('');
   else if (/^sa/.test(S.token)) saStart(null); else if (S.token) init(); else showLogin('');      // (update-90) "sa…" = the Super Admin's sign-in
   /* ================= SCREEN SHARE WITH VOICE (update-72, asked 10-10-2026) =================
    * "A has a difficulty on a screen: he shares his screen with B, shows it and they talk – live. He picks whom from a list."

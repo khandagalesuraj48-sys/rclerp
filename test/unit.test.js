@@ -2550,9 +2550,9 @@ test('update-99: one address – the Store and the Portal under this address, th
   // (update-127 adds Engineering after these, update-194 Purchase – each checked in its own test)
   // (update-138) the staging copy's own rules come first and match ONLY the staging address; the live rules are as before
   // (update-160) /scan – the page itself (a Scan with Mobile QR code); checked in its own test
-  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/(engineering|purchase)/.test(r.source) && r.source !== '/scan'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
+  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/(engineering|purchase)/.test(r.source) && r.source !== '/scan' && r.source !== '/ho/'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
     { source: '/store/:path*', destination: 'https://rcl-store.vercel.app/:path*' }, { source: '/portal/:path*', destination: 'https://rcl-portal-flame.vercel.app/:path*' }]);
-  assert.deepStrictEqual(v.redirects.filter(r => !/^\/(engineering|purchase)/.test(r.source)).map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
+  assert.deepStrictEqual(v.redirects.filter(r => !/^\/(engineering|purchase|ho$)/.test(r.source)).map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
   assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
   // the menu: every page of Machinery, read from the page itself; every key a real page of the app
   const { menu } = require('../server/page.js'), m = menu(), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
@@ -2581,7 +2581,7 @@ test('update-160: a Scan with Mobile QR code opens in the RCL ERP app – /scan 
   assert.match(al[0].target.sha256_cert_fingerprints[0], /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/, 'the PUBLIC fingerprint of the signing key (never the key)');
   assert.match(fs.readFileSync(path.join(root, 'build.js'), 'utf8'), /'\.well-known', 'assetlinks\.json'/);
   const dev = fs.readFileSync(path.join(root, 'dev.js'), 'utf8');
-  assert.match(dev, /'\/\.well-known\/assetlinks\.json'/); assert.match(dev, /=== '\/scan'\)/);
+  assert.match(dev, /'\/\.well-known\/assetlinks\.json'/); assert.match(dev, /=== '\/scan'(\)| \|\|)/);
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   assert.match(app, /qrSvg\(base \+ '\/scan\?cap=' \+ r\.code \+ \(r\.site \? '&site=' \+ encodeURIComponent\(r\.site\) : ''\)\)/);
   assert.match(app, /call\('capClaim', \{ code: c\.code, phone: phone, site: String\(c\.site \|\| ''\) \}\)/);
@@ -2630,7 +2630,7 @@ test('update-195: Purchase\'s own backup Sheets (kept at the first site, like th
 });
 test('update-194: the Purchase module under this address (/purchase/ – its own Vercel project and its own Supabase for every site), like Engineering', () => {
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
-  assert.deepStrictEqual(v.redirects.slice(-1), [{ source: '/purchase', destination: '/purchase/', permanent: false }]);
+  assert.deepStrictEqual(v.redirects.filter(r => /^\/purchase/.test(r.source)), [{ source: '/purchase', destination: '/purchase/', permanent: false }]);      // (update-208: /ho after it)
   assert.deepStrictEqual(v.rewrites.slice(-2), [{ source: '/purchase/', destination: 'https://rcl-purchase.vercel.app/index.html' }, { source: '/purchase/:path*', destination: 'https://rcl-purchase.vercel.app/:path*' }]);
   assert.ok(!v.rewrites.some(r => r.has && r.has[0].value !== 'rclerp-git-beta-pk12356843.vercel.app' && /^\/purchase/.test(r.source)), 'like Engineering: no rule of its own for the staging address (the beta address: its own test)');
   const sw = fs.readFileSync(path.join(root, 'app', 'sw.js'), 'utf8'), re = eval(/if \(!(\/.+\/)\.test\(u\.pathname\)\) return;/.exec(sw)[1]);
@@ -4438,7 +4438,7 @@ test('02-11-2026: the BETA copy – the branch "beta" with RCL_CHANNEL = beta wo
     }
   } finally { set(was.e, was.r, was.c); if (was.f === undefined) delete process.env.FCM_SERVICE_ACCOUNT_JSON; else process.env.FCM_SERVICE_ACCOUNT_JSON = was.f; }
   const appH = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
-  assert.ok(appH.indexOf("base = window.top.rclLive ? window.top.rclLive + '/' : window.top.location.origin + window.top.location.pathname;") > -1, 'qrLink: the live address when the page gives it');
+  assert.ok(appH.indexOf("base = window.top.rclLive ? window.top.rclLive + (AT_HO ? '/ho/' : '/') : window.top.location.origin + window.top.location.pathname;") > -1, 'qrLink: the live address when the page gives it');
   // the guard: skipped only for the beta copy (the code: one line)
   const src = fs.readFileSync(path.join(root, 'server', 'syncfetch.js'), 'utf8');
   assert.ok(/function previewGuard\(reqs\) \{\n  if \(!isPreview\(\) \|\| isBeta\(\)\) return;/.test(src));
@@ -8558,4 +8558,53 @@ test('update-207: the Log Book print – a day with diesel and no Log Book entry
   assert.match(b, /const units = \{\}; paidList\.forEach/);
   assert.match(b, /const paidList = list\.filter\(/);
   assert.doesNotMatch(b, /list\.push\(x\)|list\.splice\(/, 'the entries themselves are never added to');
+});
+
+test('update-208: Head Office at its own address (/ho/) – only the site HO there (no Change site), never HO at the main address; links and tickets go to their address; the sign-in of /ho/ kept apart; the Portal only (the reserve as before)', () => {
+  const vm = require('vm');
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), vj = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  // the address: /ho → /ho/, which is the same page (live: vercel.json; here: dev.js; offline: the service worker)
+  assert.ok(vj.redirects.some(r => r.source === '/ho' && r.destination === '/ho/' && r.permanent === false));
+  assert.ok(vj.rewrites.some(r => r.source === '/ho/' && r.destination === '/index.html'));
+  assert.ok(vj.headers.some(h => h.source === '/ho/' && h.headers.some(x => x.key === 'Cache-Control' && x.value === 'no-cache')));
+  assert.match(fs.readFileSync(path.join(root, 'dev.js'), 'utf8'), /=== '\/ho\/'\) \{/);
+  const sw = fs.readFileSync(path.join(root, 'app', 'sw.js'), 'utf8');
+  assert.match(sw, /\^\\\/\(index\\\.html\|ho\\\/\|/); assert.match(sw, /const isPage = u\.pathname === '\/' \|\| u\.pathname === '\/index\.html' \|\| u\.pathname === '\/ho\/';/);
+  // the page's rules, run: at /ho/ and at the main address
+  const pick = re => { const m = re.exec(app); assert.ok(m, String(re)); return m[0]; };
+  const defs = [/const HO_SITE = 'HO';/, /const AT_HO = \(\(\) => \{[^\n]+/, /const KK = k => [^\n]+/, /const siteHere = c => [^\n]+/, /const siteHome = c => [^\n]+/, /const siteFor = c => [^\n]+/, /const ticketSite = t => [^\n]+/].map(pick).join('\n');
+  const at = (p, sites) => vm.runInNewContext(defs + '\n({ AT_HO, KK, siteHere, siteHome, siteFor, ticketSite })', { window: { top: { location: { pathname: p } } }, PT: { sites: sites || [] }, atob: s => Buffer.from(s, 'base64').toString('latin1'), String, JSON });
+  const M = at('/', [{ code: 'HO' }, { code: 'S1' }, { code: '18B' }]), H = at('/ho/', [{ code: 'HO' }, { code: 'S1' }]);
+  assert.deepStrictEqual(['/ho/', '/ho', '/HO/', '/', '/hoe', '/ho/x', '/store/'].map(p => at(p).AT_HO), [true, true, true, false, false, false, false]);
+  assert.deepStrictEqual([M.KK('rcl_token'), H.KK('rcl_token'), H.KK('rcl_site'), H.KK('rcl_portal')], ['rcl_token', 'rcl_token_ho', 'rcl_site_ho', 'rcl_portal_ho']);
+  assert.deepStrictEqual(['S1', 'HO', 'ho', ''].map(c => M.siteHere(c)), [true, false, false, true], 'the main address: never Head Office');
+  assert.deepStrictEqual(['S1', 'HO', ''].map(c => H.siteHere(c)), [false, true, true], '/ho/: Head Office only');
+  assert.deepStrictEqual([M.siteHome('HO'), M.siteHome('S1')], ['/ho/', '/']);
+  assert.deepStrictEqual([M.siteFor('HO'), M.siteFor('18B'), M.siteFor(''), at('/', [{ code: 'HO' }]).siteFor('HO')], ['S1', '18B', '', ''], 'HO at the main address → his first other site, or the Portal\'s page');
+  assert.deepStrictEqual([H.siteFor('S1'), H.siteFor('')], ['HO', 'HO']);
+  const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
+  assert.strictEqual(M.ticketSite(b64({ alg: 'ES256' }) + '.' + b64({ site: 'ho', name: 'सुजित मुळे', aud: 'mechanical' }) + '.sig'), 'HO', 'the ticket\'s site (any length, Marathi names)');
+  assert.strictEqual(M.ticketSite(b64({}) + '.' + b64({ site: 'S1', n: 'ab' }) + '.x'), 'S1'); assert.strictEqual(M.ticketSite('nonsense'), '');
+  // the sign-in, the site and the Portal's list are kept under the address's own names – everywhere (the page and the bridge)
+  const main = app.slice(app.indexOf('const S = { master: [], drivers: [], today: \'\''));
+  assert.doesNotMatch(main, /Storage\.(?:get|set|remove)Item\('rcl_(?:token|site|last_site|portal)'/, 'every use goes through KK');
+  assert.doesNotMatch(main, /store\.(?:set|remove)Item\('rcl_token'/);
+  assert.match(app, /localStorage\.getItem\(\/\^\\\/ho\\\/\?\$\/i\.test\(window\.top\.location\.pathname \|\| ''\) \? 'rcl_portal_ho' : 'rcl_portal'\)/, 'the sign-in screen before the app starts');
+  const { page, shell } = require('../server/page.js'), html = page().html, sh = shell();
+  assert.ok(html.indexOf("var hoKey = function (k) { var ho = false; try { var pth = String(window.top.location.pathname || '').toLowerCase(); ho = pth === '/ho/' || pth === '/ho'; }") > -1 && sh.indexOf('var hoKey') > -1);
+  assert.strictEqual((html.match(/getItem\(hoKey\('rcl_site'\)\)/g) || []).length, 6, 'the bridge: every call carries the site of this address');
+  assert.strictEqual((html.match(/getItem\(hoKey\('rcl_token'\)\)/g) || []).length, 2);
+  assert.doesNotMatch(html, /getItem\('rcl_(?:site|token)'\)/);
+  // the start: a ticket / a link of the other address goes there unused; /ho/ always asks for HO; a kept HO sign-in at the main address is let go
+  assert.match(app, /const forSite = m \? ticketSite\(m\[1\]\) : wantSite;\n    if \(!PT\.local && forSite && !siteHere\(forSite\)\) \{ moved = true; top\.location\.replace\(siteHome\(forSite\) \+ \(top\.location\.search \|\| ''\) \+ h\); \}\n    else if \(\/\^#\(sso\|site\|page\)=\/\.test\(h\)\)/);
+  assert.match(app, /if \(AT_HO && !wantSite\) S\.wantSite = wantSite = HO_SITE;/);
+  assert.match(app, /if \(moved\) \{ \/\* the other address opens \*\/ \}\n  else if \(ssoTicket && !PT\.local\) ssoStart\(ssoTicket\);/);
+  assert.match(app, /else if \(ptOn\(\) && S\.token && !\/\^sa\/\.test\(S\.token\) && !siteHere\(ptSite\(\)\)\) showLogin\(''\);/);
+  assert.match(app, /if \(ptOn\(\)\) \{ const st = siteFor\(S\.wantSite \|\| ptSite\(\)\);/, 'not signed in: the Portal opens this address\'s site');
+  // Change site: none at /ho/; the main address's list without HO
+  assert.match(app, /\$\('site_box'\)\.hidden = !\(pt \|\| many\) \|\| !name \|\| AT_HO;/);
+  assert.match(app, /const list = pt \? PT\.sites\.filter\(x => siteHere\(x\.code\)\)\.map\(/);
+  assert.match(app, /\$\('set_sites'\)\.hidden = !many \|\| AT_HO;/);
+  // a QR label printed at /ho/ carries /ho/ (also from the beta copy, which prints the live address)
+  assert.match(app, /base = window\.top\.rclLive \? window\.top\.rclLive \+ \(AT_HO \? '\/ho\/' : '\/'\) : window\.top\.location\.origin \+ window\.top\.location\.pathname;/);
 });
