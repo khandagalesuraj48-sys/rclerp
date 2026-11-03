@@ -111,6 +111,14 @@ function verifyAdmin(ticket, now) {
   // (update-158) Sites → Storage: every site's storage and the Drive copy; "Connect Google Drive" (the first site); "Copy files now" (one site)
   if (c.act === 'stoGet' || c.act === 'drvStart' || c.act === 'drvNow') return out;
   if (c.act === 'papers') return Object.assign(out, papersOf(c));      // (update-193) a company / a site's company saved in the Portal
+  // (update-203) Sites → Day & tank check: the hour the site's day starts; the tank check every N days (groups Own / Rental / Hired,
+  // machinery lines) – Mechanical checks them again (Code.gs sysSiteRulesSave_)
+  if (c.act === 'siteRules') return out;
+  if (c.act === 'siteRulesSave') {
+    const t = c.tank && typeof c.tank === 'object' ? c.tank : {}, g = t.groups && typeof t.groups === 'object' ? t.groups : {}, d = v => String(v === undefined || v === null ? '' : v).trim().slice(0, 3);
+    return Object.assign(out, { dayStart: String(c.dayStart || '').trim().slice(0, 5), tank: { groups: { Own: d(g.Own), Rental: d(g.Rental), Hired: d(g.Hired) },
+      machines: (Array.isArray(t.machines) ? t.machines : []).slice(0, 500).filter(x => x && typeof x === 'object').map(x => ({ no: String(x.no || '').replace(/\s+/g, ' ').trim().slice(0, 60), on: x.on !== false, days: d(x.days) })) } });
+  }
   if (c.act !== 'pages') throw bad('not a known request');
   const email = String(c.email || '').trim().toLowerCase();
   if (!EMAIL.test(email) || email.length > 120) throw bad('no proper email of the user');

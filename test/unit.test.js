@@ -540,8 +540,8 @@ test('settings: every user has own settings (checked, kept apart); the site rule
   const today = run('() => today_()'), day = n => run('(d, n) => addDays_(d, n)', today, n), closed = /older than 3 days can be made or changed only by the Admin/;
   run('(x, m) => saveMaster_(x, m)', { no: 'RL-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Rule Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: day(-40) }, 'add');
   assert.match(tryIt(() => run('x => saveSiteRules_(x)', { backDays: 'many' })).err, /whole number/);
-  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '3', announce: '  Fill every entry by the 30th  ' }).rules, { backDays: 3, announce: 'Fill every entry by the 30th', dayFrom: '08:00', nightFrom: '20:00', attachMax: 10 });
-  assert.deepStrictEqual(run('() => getInit_().rules'), { backDays: 3, announce: 'Fill every entry by the 30th', dayFrom: '08:00', nightFrom: '20:00', attachMax: 10 });
+  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '3', announce: '  Fill every entry by the 30th  ' }).rules, { backDays: 3, announce: 'Fill every entry by the 30th', dayFrom: '08:00', nightFrom: '20:00', attachMax: 10, dayStart: '06:00' });      // (update-203: the day starts at 6 AM unless the Super Admin sets other)
+  assert.deepStrictEqual(run('() => getInit_().rules'), { backDays: 3, announce: 'Fill every entry by the 30th', dayFrom: '08:00', nightFrom: '20:00', attachMax: 10, dayStart: '06:00' });
   const asUser = (admin, f) => { run('a => { ACTOR_ADMIN_ = a; }', admin); try { return f(); } finally { run('() => { ACTOR_ADMIN_ = true; }'); } };
   const entry = d => ({ rows: [{ date: d, shift: 'Full Day', no: 'RL-1', mode: 'KM', openingKm: 100, closingKm: 150 }] });
   assert.match(asUser(false, () => tryIt(() => run('x => saveLogRowsInner_(x)', entry(day(-10))))).err, closed);          // 10 days back: refused for a user
@@ -549,7 +549,7 @@ test('settings: every user has own settings (checked, kept apart); the site rule
   assert.match(asUser(false, () => tryIt(() => run('k => deleteLogRow_(k)', 'RL-1|' + day(-10) + '|Full Day'))).err, closed);   // … and the user cannot delete it either
   assert.strictEqual(asUser(false, () => tryIt(() => run('x => saveLogRowsInner_(x)', { rows: [{ date: day(-3), shift: 'Full Day', no: 'RL-1', mode: 'KM', closingKm: 200 }] }))).ok, true);   // 3 days back: inside the rule
   // no limit again
-  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '', announce: '' }).rules, { backDays: '', announce: '', dayFrom: '08:00', nightFrom: '20:00', attachMax: 10 });      // (update-153: 10 attachments unless set; update-109: the shift times, 8 AM / 8 PM unless set)
+  assert.deepStrictEqual(run('x => saveSiteRules_(x)', { backDays: '', announce: '' }).rules, { backDays: '', announce: '', dayFrom: '08:00', nightFrom: '20:00', attachMax: 10, dayStart: '06:00' });      // (update-153: 10 attachments unless set; update-109: the shift times, 8 AM / 8 PM unless set)
   assert.strictEqual(asUser(false, () => tryIt(() => run('k => deleteLogRow_(k)', 'RL-1|' + day(-10) + '|Full Day'))).ok, true);
 });
 
@@ -2809,10 +2809,10 @@ test('update-109: a request notifies the Super Admin\'s devices, a decision the 
 test('update-109: Day / Night by the time – the site\'s hours (8 AM / 8 PM unless set), checked when saved; the page picks the shift of a new entry', () => {
   const { T, ctx } = require('./harness.js');
   const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
-  assert.deepStrictEqual(run('x => saveSiteRules_(x).rules', { backDays: '', announce: '', dayFrom: '7:30', nightFrom: '19:30' }), { backDays: '', announce: '', dayFrom: '07:30', nightFrom: '19:30', attachMax: 10 });
+  assert.deepStrictEqual(run('x => saveSiteRules_(x).rules', { backDays: '', announce: '', dayFrom: '7:30', nightFrom: '19:30' }), { backDays: '', announce: '', dayFrom: '07:30', nightFrom: '19:30', attachMax: 10, dayStart: '06:00' });
   assert.match(run('x => saveSiteRules_(x)', { backDays: '', dayFrom: '25:00', nightFrom: '19:30' }).THROWN, /^Shift times: type the hour as HH:MM/);
   assert.match(run('x => saveSiteRules_(x)', { backDays: '', dayFrom: '08:00', nightFrom: '08:00' }).THROWN, /cannot start at the same time/);
-  assert.deepStrictEqual(run('x => saveSiteRules_(x).rules', { backDays: '2', announce: 'x' }), { backDays: 2, announce: 'x', dayFrom: '07:30', nightFrom: '19:30', attachMax: 10 }, 'not sent = kept');
+  assert.deepStrictEqual(run('x => saveSiteRules_(x).rules', { backDays: '2', announce: 'x' }), { backDays: 2, announce: 'x', dayFrom: '07:30', nightFrom: '19:30', attachMax: 10, dayStart: '06:00' }, 'not sent = kept');
   assert.strictEqual(run('x => saveSiteRules_(x).rules.attachMax', { backDays: '', attachMax: 6 }), 6, '(update-153) attachments of an entry: set by the Admin');
   assert.match(run('x => saveSiteRules_(x)', { backDays: '', attachMax: 30 }).THROWN, /^Attachments of a Log Book entry: a whole number from 1 to 20\.$/);
   assert.strictEqual(run('x => saveSiteRules_(x).rules.attachMax', { backDays: '', attachMax: 10 }), 10);
@@ -8312,6 +8312,77 @@ test('update-202: a bill in WHOLE RUPEES – every line, the diesel debit, GST a
   assert.match(app, /logSheetsBuild\(Object\.assign\(\{ rows: rows, f: \{ from: L\.from, to: L\.to \}, summary: \[\], idle: idle, dieselRate: Number\(b\.dieselRate\) > 0 \? b\.dieselRate : '' \}, lbFig\(\[b\]\)\)/);
   assert.match(app, /const a = amt\(m, i\), tax = rowTax \? \(b\.round \? r0 : r2\)\(a \* half \/ 100\) : 0;/);      // (update-204: amt by the row)
   assert.match(app, /b\.round = true;      \/\/ \(update-202\)/);
+});
+
+test('update-203: the ERP\'s day starts at 06:00 (the site\'s hour, set in the Portal); a TANK CHECK EVERY N DAYS before diesel – counted from the last check, typed with the fill (one entry, multiple entries), an import refused; Own / Rental / Hired and machinery-wise, not for Inactive, Debit Basis or no Tank Capacity; the Portal\'s Day & tank check', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { let r; try { r = require('vm').runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // ---------- the day start ----------
+  const ist = mins => new Date(Date.now() + 330 * 60000 - mins * 60000).toISOString().slice(0, 10);
+  const setDay = v => run('v => { const o = JSON.parse(PropertiesService.getScriptProperties().getProperty("SITE_RULES") || "{}"); o.dayStart = v; PropertiesService.getScriptProperties().setProperty("SITE_RULES", JSON.stringify(o)); memoDrop_("__rules"); }', v);
+  assert.strictEqual(run('() => siteRules_().dayStart'), '06:00', 'unless the Super Admin sets other');
+  assert.strictEqual(run('() => today_()'), ist(360));
+  for (const [v, mins] of [['00:00', 0], ['23:59', 1439], ['06:00', 360]]) { setDay(v); assert.strictEqual(run('() => today_()'), ist(mins), v); }
+  assert.deepStrictEqual([run('() => reqDay_("2026-11-03T00:29:00Z")'), run('() => reqDay_("2026-11-03T00:30:00Z")')], ['2026-11-02', '2026-11-03'], '05:59 IST on the 3rd is still the 2nd; 06:00 starts the 3rd');
+  // ---------- the rule, set as the Portal sets it ----------
+  const M = o => Object.assign({ no: 'TE-1', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, tankCap: 220, owner: 'Tank Every Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, o || {});
+  for (const x of [M(), M({ no: 'TE-2', ownership: 'Own', owner: 'Rachana Construction Limited', tankCap: '' }), M({ no: 'TE-3', supply: 'Debit Basis' }), M({ no: 'TE-4', ownership: 'Hired' }), M({ no: 'TE-5', ownership: 'Hired' })])
+    assert.ok(!run('(x, m) => saveMaster_(x, m)', x, 'add').THROWN, x.no);
+  run('(x, m) => saveVendor_(x, m)', { name: 'Tank Every Vendor', gstReg: 'No', pan: 'ABCPT1234Q', bank: 'SBI', account: '12345678', ifsc: 'SBIN0000001' }, 'add');
+  run('x => saveInward_(x)', { date: '2026-01-02', location: 'Dispenser', pump: 'Pump', qty: 20000, rate: 90, billNo: 'TE-IN', billDate: '2026-01-02' });
+  for (const [c, re] of [[{ dayStart: '25:00' }, /^Day starts at: type the hour as HH:MM/], [{ dayStart: '06:00', tank: { groups: { Own: '0' } } }, /^Tank check of Own: the days must be a whole number from 1 to 90/],
+    [{ dayStart: '06:00', tank: { machines: [{ no: 'NOPE-9' }] } }, /^Tank check: "NOPE-9" is not a machinery of this site\./], [{ dayStart: '06:00', tank: { machines: [{ no: 'TE-4' }, { no: 'te 4' }] } }, /^Tank check: TE-4 is in the list twice\./]])
+    assert.match(run('c => sysSiteRulesSave_(c)', Object.assign({ by: 'sa@rcl.test' }, c)).THROWN, re);
+  let r = run('c => sysSiteRulesSave_(c)', { by: 'sa@rcl.test', dayStart: '06:00', tank: { groups: { Own: '7', Rental: '7', Hired: '' }, machines: [{ no: 'TE-4', on: true, days: '3' }] } });
+  assert.ok(r.ok, JSON.stringify(r));
+  const today = run('() => today_()'), day = n => run('(d, n) => addDays_(d, n)', today, n);
+  assert.deepStrictEqual([r.dayStart, r.tank.since, r.tank.groups, r.tank.machines], ['06:00', today, { Own: 7, Rental: 7, Hired: '' }, [{ no: 'TE-4', on: true, days: 3 }]]);
+  const not = n => r.machines.find(x => x.no === n);
+  assert.deepStrictEqual(['TE-1', 'TE-2', 'TE-3', 'TE-4', 'TE-5'].map(n => [not(n).not, not(n).days]), [['', 7], ['no Tank Capacity', 0], ['Debit Basis', 0], ['', 3], ['', 0]], 'Hired off, TE-4 on its own line');
+  // the rule began 20 days ago (for the dates of the test)
+  run('d => { const o = JSON.parse(PropertiesService.getScriptProperties().getProperty("TANK_EVERY")); o.since = d; PropertiesService.getScriptProperties().setProperty("TANK_EVERY", JSON.stringify(o)); memoDrop_("__tankEvery"); }', day(-20));
+  let km = 1000;
+  const fill = (no, n, tc, more) => { km += 40; return run('d => saveDieselIssue_(d, { email: "t@rcl.test" })', Object.assign({ date: day(n), shift: 'Day', source: 'Dispenser', no: no, qty: 20, kmReading: km, force: true }, tc ? { tc: tc } : {}, more || {})); };
+  const due = (no, n) => run('(no, d) => tankDueInfo_({ no: no, date: d })', no, day(n));
+  assert.ok(fill('TE-1', -20).ok, 'the first diesel since the rule – no check');
+  assert.deepStrictEqual([due('TE-1', -14).due, due('TE-1', -13).due, due('TE-1', -13).start, due('TE-1', -13).days], [false, true, day(-20), 7], '7 full days: -20 → -13');
+  assert.ok(fill('TE-1', -15).ok, '5 days: no check');
+  assert.match(fill('TE-1', -13).THROWN, /^TE-1: tank check due – the last one never \(diesel since \d\d-\d\d-\d{4}\), a check every 7 days\. Type the diesel found in the tank before filling \(Tank check\), then save\./);
+  assert.match(fill('TE-1', -13, { physical: 300 }).THROWN, /^TE-1: diesel found in the tank \(300 L\) is more than its tank capacity \(220 L/);
+  assert.match(fill('TE-1', -13, { physical: 60 }).THROWN, /^TE-1: tank check – the system says [-\d.]+ L, found 60 L \(difference [+-][\d.]+ L\) – write the reason\./);
+  r = fill('TE-1', -13, { physical: 60, reason: 'measured with the dip stick' });
+  assert.ok(r.ok && r.tankCheck && r.tankCheck.date === day(-14), JSON.stringify(r));
+  const tc1 = run('() => tankChecksOf_("TE-1")').pop();
+  assert.deepStrictEqual([tc1.date, tc1.physical, /^Before the diesel of \d\d-\d\d-\d{4} \(a check every 7 days\) – measured with the dip stick$/.test(tc1.reason)], [day(-14), 60, true], 'kept as the tank at the end of the day before the fill');
+  assert.deepStrictEqual([due('TE-1', -7).due, due('TE-1', -6).due], [false, true], 'counted again from the check: -13 → -6');
+  // not for: no Tank Capacity, Debit Basis, Hired (off), an Inactive one; its own line (3 days)
+  assert.ok(fill('TE-2', -20).ok && fill('TE-2', -1).ok && fill('TE-3', -20).ok && fill('TE-3', -1).ok && fill('TE-5', -20).ok && fill('TE-5', -1).ok);
+  assert.ok(fill('TE-4', -20).ok); assert.match(fill('TE-4', -17).THROWN, /a check every 3 days/);
+  // multiple entries: the first row of a machinery carries the check, the next row of it does not need one
+  const bulk = rows => run('b => saveDieselBulk_(b)', { date: day(-17), shift: 'Day', source: 'Dispenser', force: true, rows: rows });
+  r = bulk([{ no: 'TE-4', qty: 10, kmReading: (km += 40) }, { no: 'TE-1', qty: 10, kmReading: (km += 40) }]);
+  assert.deepStrictEqual(r.errors, [{ row: 1, msg: r.errors[0].msg }]); assert.match(r.errors[0].msg, /^TE-4: tank check due/);
+  r = bulk([{ no: 'TE-4', qty: 10, kmReading: (km += 40), tc: { physical: '2' } }, { no: 'TE-4', qty: 10, kmReading: (km += 40) }]);
+  assert.deepStrictEqual(r.errors.map(e => e.row), [1], 'only its own row: the system says 20 L, 2 L found – the reason'); assert.match(r.errors[0].msg, /^TE-4: tank check – the system says 20 L, found 2 L \(difference -18 L\) – write the reason\./);
+  r = bulk([{ no: 'TE-4', qty: 10, kmReading: (km += 40), tc: { physical: '18' } }, { no: 'TE-4', qty: 10, kmReading: (km += 40) }]);
+  assert.ok(r.ok && r.count === 2 && r.tankChecks.length === 1 && r.tankChecks[0].date === day(-18), JSON.stringify(r));
+  // an import (Excel / one machinery – many dates): a fill that needs its check is refused
+  r = run('x => importDiesel_(x)', [{ line: 1, date: day(-6), shift: 'Day', source: 'Dispenser', no: 'TE-1', qty: 5, kmReading: (km += 40) }]);
+  assert.ok(!r.ok); assert.match(r.errors[0].msg, /^TE-1: tank check due on \d\d-\d\d-\d{4} \(a check every 7 days\) – enter this fill in Diesel Issue with its tank check/);
+  // a change of an entry does not ask it; off for the site: nothing asked
+  run('c => sysSiteRulesSave_(c)', { by: 'sa@rcl.test', dayStart: '06:00', tank: { groups: {}, machines: [] } });
+  assert.deepStrictEqual([run('() => tankEvery_().since'), due('TE-1', -6).due, due('TE-1', -6).rule], ['', false, false]);
+  // the Activity Log says who set it
+  assert.ok(run('() => { const t = table_(APP.SHEET_ACTIVITY || "Activity Log"); return true; }'));
+  // ---------- the doors ----------
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), sites = fs.readFileSync(path.join(root, 'app', 'Sites.gs'), 'utf8'), pj = fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8');
+  assert.match(code, /tankDue:\s+\{ m: 'Diesel Issue', f: tankDueInfo_ \}/);
+  assert.match(sites, /if \(c\.act === 'siteRules'\) return siteRulesInfo_\(\);[^\n]*\n  if \(c\.act === 'siteRulesSave'\) return sysSiteRulesSave_\(c\);/);
+  assert.match(pj, /if \(c\.act === 'siteRules'\) return out;/); assert.match(pj, /if \(c\.act === 'siteRulesSave'\) \{/);
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /r = await rawCall\('tankDue', \{ no: m\.id, date: date \}\)/);
+  assert.match(app, /d\.tc = \{ physical: numv\('d_tcf'\), reason: val\('d_tcr'\) \};/);
+  assert.match(app, /if \(tcb && !tcb\.hidden\) o\.tc = \{ physical: /);
 });
 
 test('update-204: a bill made from now on – its Tax Invoice is of the Net Work Done Amount (D), no deduction on it (the other deduction taken off the vehicles in proportion); RCL Drive – a deleted bill is not in Saved Bills but in Deleted Bills, month by month', () => {

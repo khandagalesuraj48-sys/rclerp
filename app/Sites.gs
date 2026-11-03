@@ -201,6 +201,8 @@ function sysPortalAdmin_(c) {
   if (c.act === 'users') { const d = usersAdmin_(); return { users: d.users.map(pub), pages: d.modules, places: cardSite_() ? [] : placeNames_() }; }      // (update-164) on fuel cards: no diesel sources
   if (c.act === 'places') return placesInfo_();      // (update-117) Sites → Diesel places
   if (c.act === 'placesSave') return sysPlacesSave_(c.places, c.by, c.mode);
+  if (c.act === 'siteRules') return siteRulesInfo_();      // (update-203) Sites → Day & tank check: the hour the day starts, the tank check every N days
+  if (c.act === 'siteRulesSave') return sysSiteRulesSave_(c);
   // (update-157) Sites → Backup: the site's (or the Portal's) numbered Google Sheets – see backup.vm.js
   if (c.act === 'bkGet') return bkSheetsInfo_(c);
   if (c.act === 'bkSet') return bkSheetSet_(c);

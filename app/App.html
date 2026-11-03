@@ -1465,6 +1465,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .dph-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
   .d-ainote { margin: 0; align-self: start; padding: 8px 12px; border-radius: 10px; background: #EFF6FF; border: 1px solid #BFDBFE; font-size: 13px; color: #1E3A8A; }
   .d-ainote.warn { background: #FFFBEB; border-color: #FDE68A; color: #78350F; }
+  /* (update-203) a tank check every N days: typed with the fill */
+  .d-tc { margin: 10px 0 0; padding: 10px 14px; border-radius: 10px; background: #FFF7ED; border: 1px solid #FDBA74; }
+  .d-tc-h { color: #9A3412; margin-bottom: 6px; } .d-tc-h span { color: #7C2D12; font-size: .92em; }
+  .row-tc { margin-top: 4px; padding: 5px 6px; border-radius: 8px; background: #FFF7ED; border: 1px solid #FDBA74; display: grid; gap: 4px; }
+  .row-tc small { color: #9A3412; font-weight: 700; } .row-tc input { width: 100%; }
   input.ai-read { outline: 2px solid #60A5FA; outline-offset: 1px; background: #EFF6FF; }
   .d-phbtn { white-space: nowrap; font-size: 12.5px; }
   /* (update-120) the bill copies of a diesel inward: the same tiles as the diesel photos; a copy has its ✕ to take it out */
@@ -4557,6 +4562,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="d_balance" id="d_bal_lbl">Balance (Ltr)</label><input id="d_balance" class="balbox" readonly tabindex="-1"></div>
         <div class="field wide"><label for="d_remark">Remark</label><input id="d_remark" autocomplete="off"></div>
       </div>
+      <div class="d-tc" id="d_tc" hidden>
+        <div class="d-tc-h"><b>Tank check due</b> <span id="d_tc_why"></span></div>
+        <div class="grid">
+          <div class="field"><label for="d_tcf">Diesel found in the tank before filling (Ltr) <span class="req">*</span></label><input id="d_tcf" type="number" step="0.01" min="0"></div>
+          <div class="field wide"><label for="d_tcr">Reason (if it differs from the system)</label><input id="d_tcr" autocomplete="off"></div>
+        </div>
+      </div>
       <p class="stockline" id="d_after"></p>
       <div class="notice" id="d_inactive" hidden></div>
       <div class="actions">
@@ -6905,6 +6917,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['Opening stock or extra diesel is entered in its own way, once, and before the other entries of that location.', 'Use the "Opening stock" / "Extra diesel" option on the Diesel Inward page. If opening stock is already there, edit that entry instead of adding another.'],
       mr: ['Opening stock किंवा extra diesel त्याच्या स्वतःच्या पद्धतीने, एकदाच, आणि त्या location च्या इतर entries च्या आधी भरले जाते.', 'Diesel Inward page वरचा "Opening stock" / "Extra diesel" पर्याय वापरा. Opening stock आधीच असेल तर नवीन न जोडता तीच entry Edit करा.'],
       hi: ['Opening stock या extra diesel अपने अलग तरीके से, एक ही बार, और उस location की बाकी entries से पहले भरा जाता है।', 'Diesel Inward page का "Opening stock" / "Extra diesel" विकल्प इस्तेमाल करें। Opening stock पहले से हो तो नई न जोड़कर वही entry Edit करें।'] },
+    // (update-203) a tank check every N days before diesel; the Super Admin's Day & tank check in the Portal
+    { re: /tank check due|tank check – the system says|tank check before this diesel cannot be kept|is not a machinery of this site|is in the list twice|Tank check of [^:]+: the days must|Day starts at: type the hour/i,
+      en: ['A tank check is due with this fill (the Super Admin\'s rule: a check every few days), or the Day & tank check setting is not proper.', 'In Diesel Issue measure the diesel in the tank BEFORE filling and type it in the "Tank check due" box (a reason when it differs from the system), then save – the check is kept with the fill. An Excel import: enter that fill in Diesel Issue. The Super Admin: the hour as HH:MM, days 1 to 90, each machinery once.'],
+      mr: ['या fill सोबत tank check due आहे (Super Admin चा नियम: ठराविक दिवसांनी check), किंवा Day & tank check ची setting बरोबर नाही.', 'Diesel Issue मध्ये diesel भरण्याआधी tank मधील diesel मोजा आणि "Tank check due" box मध्ये टाका (system पेक्षा फरक असेल तर कारण), मग save करा – check fill सोबत save होतो. Excel import: ती fill Diesel Issue मध्ये करा. Super Admin: वेळ HH:MM, दिवस 1 ते 90, प्रत्येक machinery एकदाच.'],
+      hi: ['इस fill के साथ tank check due है (Super Admin का नियम: तय दिनों में check), या Day & tank check की setting सही नहीं है।', 'Diesel Issue में diesel भरने से पहले tank का diesel नापें और "Tank check due" box में डालें (system से फर्क हो तो कारण), फिर save करें – check fill के साथ save होता है। Excel import: वह fill Diesel Issue में करें। Super Admin: समय HH:MM, दिन 1 से 90, हर machinery एक बार।'] },
     { re: /Difference is|write the reason|already has a tank check|Working or Breakdown|reason of the breakdown/i,      // (update-199: "already has a tank check" – not every message naming a tank check)
       en: ['A reason or a choice is missing (tank check with a difference, or a breakdown without its reason).', 'Write the reason in the Remark / Reason field, or pick Working / Breakdown, then save. A machinery can have one tank check per date – delete the old one to check again.'],
       mr: ['कारण किंवा निवड भरलेली नाही (फरक असलेला tank check, किंवा कारण नसलेला breakdown).', 'Remark / Reason मध्ये कारण लिहा, किंवा Working / Breakdown निवडा, मग save करा. एका machinery चा एका तारखेला एकच tank check असतो; पुन्हा तपासायचे असेल तर जुना delete करा.'],
@@ -17282,6 +17299,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('d_inactive').hidden = !prob; $('d_inactive').textContent = prob;
     dhShow('d_hist', val('d_no'), $('d_date').value);
     phShow();      // (update-85) the photos of this fill
+    dieselTcCheck(m);      // (update-203)
+  }
+  /* (update-203) A TANK CHECK EVERY N DAYS (the Super Admin's rule in the Portal): due with this fill → the box; the check is saved with
+   * the fill (the tank before filling = the end of the day before). A change of the entry does not ask it. */
+  let dtcSeq = 0;
+  async function dieselTcCheck(m) {
+    const my = ++dtcSeq, date = $('d_date').value, box = $('d_tc');
+    if (!m || !date || S.editDieselId || machFuel(m) !== 'Diesel') { box.hidden = true; return; }
+    let r = null; try { r = await rawCall('tankDue', { no: m.id, date: date }); } catch (e) { r = null; }
+    if (my !== dtcSeq) return;
+    box.hidden = !(r && r.due);
+    if (r && r.due) $('d_tc_why').textContent = '– ' + (r.last ? 'the last one on ' + showDate(r.last) : 'no check yet (diesel since ' + showDate(r.start) + ')') + ', a check every ' + r.days + ' days. The tank of ' + (r.cap ? fmt(r.cap) + ' L' : '') + ' – measure before filling.';
   }
   // the reading box(es) of the way picked: KM, Hrs, both, or none (Time / Trip / Day)
   function dieselWayShow(way, debit) {
@@ -17492,7 +17521,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       html: '<p>' + esc(apText(a, no, dk, shift)) + '</p><p><b>You can make the change:</b> when you save it, it goes to the <b>Super Admin</b> for approval and is saved only when he approves.</p>' })); };
   function clearDiesel() {
     flowFixEnd('one');      // (update-130) correcting a returned entry: stopped
-    ['d_no', 'd_qty', 'd_km', 'd_hr', 'd_driver', 'd_remark', 'd_amt', 'd_rate'].forEach(id => $(id).value = '');      // (update-164: the ₹ too)
+    ['d_no', 'd_qty', 'd_km', 'd_hr', 'd_driver', 'd_remark', 'd_amt', 'd_rate', 'd_tcf', 'd_tcr'].forEach(id => $(id).value = '');      // (update-164: the ₹ too; update-203: the tank check)
     delete $('d_amt').dataset.auto;
     S.editDieselId = null; phClear();
     $('d_title').textContent = 'Issue diesel'; $('d_save').textContent = 'Save diesel issue'; $('d_cancel').hidden = true;
@@ -17672,6 +17701,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const d = { date: $('d_date').value, shift: $('d_shift').value, no: m.id, qty: numv('d_qty'),
       kmReading: numv('d_km'), hrReading: numv('d_hr'), driver: val('d_driver'), remark: val('d_remark'), source: $('d_src').value, force: !!force, mode: wayOf($('d_way')) };
     if (cardMode()) { d.amount = numv('d_amt'); d.rate = numv('d_rate'); if (d.amount === '') throw new Error('Enter the Amount (₹) of this fill.'); }      // (update-164) its card or Cash, its ₹
+    if (!S.editDieselId && !$('d_tc').hidden) { if (numv('d_tcf') === '') throw new Error('Tank check due: type the diesel found in the tank before filling.'); d.tc = { physical: numv('d_tcf'), reason: val('d_tcr') }; }      // (update-203)
     if (!S.editDieselId) { const ph = phList(m.id); if (ph.length) d.photos = ph; }      // (update-85) the photos taken for this fill
     if (!(await confirmReadings([{ m: m, way: d.mode, km: d.kmReading, hr: d.hrReading, source: d.source }]))) return;
     if (S.bal && !cardMode() && d.qty !== '' && d.qty > dieselAvailable()) {
@@ -18887,7 +18917,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const BD_FIELDS = ['no', 'qty', 'kmReading', 'hrReading', 'driver', 'remark'];
   function dieselRowHtml() {
     return '<td class="idx"></td>' +
-      '<td><input data-f="no" list="dl_mach_on" data-on="bd_date" autocomplete="off"><div class="lastfill"></div></td>' +
+      '<td><input data-f="no" list="dl_mach_on" data-on="bd_date" autocomplete="off"><div class="lastfill"></div>' +
+        '<div class="row-tc" hidden><small>Tank check due – found in the tank before filling (Ltr)</small><input data-tc="ph" type="number" step="0.01" min="0"><input data-tc="rs" placeholder="Reason (if it differs)" autocomplete="off"></div></td>' +      // (update-203)
       '<td class="unitcell"></td>' +
       '<td class="unitcell ownercell"></td>' +
       '<td><input data-f="qty" type="number" step="0.01" min="0"></td>' +
@@ -18929,6 +18960,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     none.textContent = !m ? 'Pick machinery' : debit ? 'Debit Basis – no reading' : !way ? '' : 'no reading';
     tr.querySelectorAll('.rdg small').forEach(x => { x.hidden = !(useKm && useHr); });
     dhRowLine(tr); if (m) dhShow('bd_hist', m.id, $('bd_date').value);
+    rowTcCheck(tr, m);      // (update-203)
+  }
+  // (update-203) a row's tank check: due with its fill (only the first row of a machinery asks it)
+  async function rowTcCheck(tr, m) {
+    const box = tr.querySelector('.row-tc'), my = (tr.tcSeq = (tr.tcSeq || 0) + 1), date = $('bd_date').value;
+    if (!box) return;
+    const first = m && [...$('bd_rows').children].find(x => { const mm = findMachine(x.querySelector('[data-f=no]').value); return mm && mm.id === m.id; }) === tr;
+    if (!m || !date || !first || machFuel(m) !== 'Diesel') { box.hidden = true; return; }
+    let r = null; try { r = await rawCall('tankDue', { no: m.id, date: date }); } catch (e) { r = null; }
+    if (my !== tr.tcSeq) return;
+    box.hidden = !(r && r.due);
+    if (r && r.due) box.title = (r.last ? 'Last tank check ' + showDate(r.last) : 'No tank check yet') + ' – a check every ' + r.days + ' days';
   }
   function dieselBulkSum() {
     updateDieselPill();
@@ -18987,7 +19030,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const trs = [...$('bd_rows').children];
     trs.forEach(tr => tr.classList.remove('err', 'warn'));
     $('bd_errors').hidden = true;
-    const rows = trs.map(tr => { const o = {}; BD_FIELDS.forEach(f => { const el = tr.querySelector('[data-f=' + f + ']'); o[f] = el ? el.value.trim() : ''; }); o.mode = wayOf(tr.querySelector('.waybox')); return o; });
+    const rows = trs.map(tr => { const o = {}; BD_FIELDS.forEach(f => { const el = tr.querySelector('[data-f=' + f + ']'); o[f] = el ? el.value.trim() : ''; }); o.mode = wayOf(tr.querySelector('.waybox'));
+      const tcb = tr.querySelector('.row-tc'); if (tcb && !tcb.hidden) o.tc = { physical: tcb.querySelector('[data-tc=ph]').value.trim(), reason: tcb.querySelector('[data-tc=rs]').value.trim() };      // (update-203)
+      return o; });
     const onDisp = $('bd_src').value === (S.locations || ['Dispenser'])[0];
     const b = { date: $('bd_date').value, shift: $('bd_shift').value, source: $('bd_src').value, rows: rows, force: !!force };
     if (!(await confirmReadings(rows.map((r, i) => r.no && findMachine(r.no) ? { i: i + 1, m: findMachine(r.no), way: r.mode, km: r.kmReading, hr: r.hrReading, source: b.source } : null).filter(Boolean)))) return;
