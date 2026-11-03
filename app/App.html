@@ -3074,6 +3074,46 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #wt_form .wt-rule { font-size: 12.5px; color: var(--muted); }
   #wt_form .wt-sh { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 20px; font-size: 12px; font-weight: 700; background: #FEF3C7; color: #92400E; }
   #wt_form .wt-sh.n { background: #E0E7FF; color: #3730A3; }
+  /* ================= (update-209, asked 03-11-2026 – the preview he OK'd) TWO MOTIONS =================
+   * PUSH BACK MENU (a phone / tablet, ≤ 760 px – where the menu came over the page; a computer: the menu stays open on the left):
+   * "the page shrink back and side right revealing the menu behind it" – the page (its bar and all) shrinks back and moves to the
+   * right; the menu is BEHIND it on the left. A tap on the page (#nav_back, where the page now is), Back, a swipe to the left or a
+   * page of the menu closes it. While open the page does not scroll. The visible part of the page is clipped to the screen with
+   * rounded corners (--pb-t / --pb-b: what is above / below the screen; --pb-o: the screen's middle – set by setDrawer). */
+  @media (max-width: 760px) {
+    .app { --pb-x: min(72vw, 300px); --pb-s: .82; }
+    .app .side { width: 100vw !important; padding-right: calc(100vw - var(--pb-x)); z-index: 1; box-shadow: none; transform: translateX(-24px) scale(.96); transform-origin: 0 50%; opacity: .2;
+      transition: transform .52s cubic-bezier(.22, .9, .24, 1), opacity .4s ease; }
+    .app.nav-open .side { transform: none; opacity: 1; }
+    .app:not(.pb-clip) .side { visibility: hidden; }      /* closed: not there at all (the page is not lifted over it then) */
+    .app.pb-clip .mainwrap { z-index: 2; }
+    .app .mainwrap { transform-origin: 0 var(--pb-o, 50vh); transition: transform .52s cubic-bezier(.22, .9, .24, 1), clip-path .52s cubic-bezier(.22, .9, .24, 1); }
+    .app.pb-clip .mainwrap { clip-path: inset(var(--pb-t, 0px) 0 var(--pb-b, 0px) 0 round 0); }
+    .app.nav-open .mainwrap { transform: translateX(var(--pb-x)) scale(var(--pb-s)); clip-path: inset(var(--pb-t, 0px) 0 var(--pb-b, 0px) 0 round 28px); }
+    #nav_back { z-index: 3; inset: auto; left: var(--pb-x); top: calc(var(--pb-vh, 100vh) * (1 - var(--pb-s)) / 2); width: calc(100vw * var(--pb-s)); height: calc(var(--pb-vh, 100vh) * var(--pb-s));
+      border-radius: 28px; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: -22px 0 60px rgba(0, 0, 0, .42); opacity: 0; pointer-events: none;
+      transform: translateX(calc(100vw - var(--pb-x))); transition: opacity .4s ease, transform .52s cubic-bezier(.22, .9, .24, 1); }
+    .app.nav-open #nav_back { opacity: 1; pointer-events: auto; transform: none; }
+  }
+  html.pb-lock, html.pb-lock body { overflow: hidden; }
+  html.pb-lock #ai_fab { opacity: 0; pointer-events: none; transition: opacity .2s ease; }      /* the assistant's button belongs to the page: not over the menu */
+  /* GOOEY DROP MESSAGE: "a gooey drop falls from the top then melts and spread into a toast" – the message is at the top; its colour
+   * is a drop (#toast .goo, behind the words, through the SVG filter #rcl_goo) that falls, melts and spreads into it; after a while
+   * it gathers back into a drop and goes up. The words and the ✓ / ! come in when it has spread (.tx-on). The colours as before. */
+  #toast, body.rtc-on #toast, body.rtc-on.rtc-mini #toast { top: calc(12px + env(safe-area-inset-top)); bottom: auto; min-height: 46px; box-sizing: border-box; display: flex; align-items: center;
+    border-radius: 23px; padding: 11px 20px 11px 46px; background: transparent; box-shadow: none; animation: none; max-width: min(92vw, 560px); width: max-content; line-height: 1.35; }
+  #toast.bad { background: transparent; }
+  #toast[hidden] { display: none; }
+  #toast { --tc: #1F2B34; } #toast.bad { --tc: var(--bad); }
+  #toast .goo { position: absolute; z-index: -1; left: -40px; right: -40px; top: -90px; bottom: -40px; filter: url(#rcl_goo); pointer-events: none; }
+  #toast .goo i { position: absolute; display: block; background: var(--tc); opacity: 0; }
+  #toast .goo .g-drop { left: calc(50% - 17px); top: 0; width: 34px; height: 34px; border-radius: 50%; }
+  #toast .goo .g-pool { left: 40px; right: 40px; top: 90px; bottom: 40px; border-radius: 23px; }
+  #toast .goo .g-bead { left: calc(50% - 8px); top: calc(90px + (100% - 130px) / 2 - 8px); width: 16px; height: 16px; border-radius: 50%; }
+  #toast .tx, #toast::before { opacity: 0; transition: opacity .22s ease; }
+  #toast.tx-on .tx, #toast.tx-on::before { opacity: 1; }
+  #toast.still .goo .g-pool { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .app .side, .app .mainwrap, #nav_back { transition-duration: .01s !important; } }
 </style>
 </head>
 <body class="locked">
@@ -4984,6 +5024,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 <datalist id="dl_drivers"></datalist>
 <datalist id="dl_pumps"></datalist><datalist id="dl_vendors"></datalist><datalist id="dl_types"></datalist><datalist id="dl_owners"></datalist>
 <div id="toast" role="status" aria-live="polite" hidden></div>
+<!-- (update-209) the gooey drop of the message: blurred, then its edge made sharp again – shapes that touch flow into one -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><filter id="rcl_goo" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -8" result="g"/><feComposite in="SourceGraphic" in2="g" operator="atop"/></filter></defs></svg>
 <!-- screen share with voice (update-72): a notice, the incoming ring, the bar of the call, the picture of a screen shown to me -->
 <div id="rtc_note" role="status" title="Click to close" hidden></div>
 <div id="rtc_in" role="alertdialog" aria-labelledby="rtc_in_t" hidden><span class="rtc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="rtc-inx"><b id="rtc_in_t"></b><small id="rtc_in_s">Screen share with voice · nothing is recorded</small></span><button type="button" id="rtc_yes">Accept</button><button type="button" id="rtc_no">Decline</button><button type="button" id="rtc_rep" aria-haspopup="true">Reply…</button><span id="rtc_rep_m" hidden><button type="button" data-reply="1">I will call you back in 5 minutes</button><button type="button" data-reply="2">In a meeting – later, please</button><button type="button" data-reply="3">Please call me on the phone</button></span></div>
@@ -7200,8 +7242,43 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!bad) { S.formDirty = false; S.dhCache = {}; if (S.newBuild) setTimeout(() => { if (!window.rclBusy()) swapNow(); }, 2500); } // saved → now take the new version
     const t = $('toast');
     try { prefSound(!!bad); } catch (e) { /* the message matters, not the sound */ }
-    t.textContent = msg; t.className = bad ? 'bad' : ''; t.style.whiteSpace = 'pre-line'; t.hidden = false;
+    // (update-209) the words in their own line (the message's text is the same – $('toast').textContent), the drop behind them
+    t.textContent = ''; const tx = document.createElement('span'); tx.className = 'tx'; tx.textContent = msg; t.appendChild(tx); t.appendChild(gooEl());
+    t.className = bad ? 'bad' : ''; t.style.whiteSpace = 'pre-line'; t.hidden = false;
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, bad ? 6000 : 3500);
+    gooRun(t, bad ? 6000 : 3500);
+  }
+  /* (update-209, asked 03-11-2026: "notification gooey drop madhe a gooey drop falls from the top then melts and spread into a toast")
+   * THE MESSAGE AS A GOOEY DROP: a drop falls from the top (stretched, squashed when it lands), melts and spreads into the message –
+   * two beads run to its ends –, the words come in; at the end it gathers back into a drop that goes up. The message is shown for
+   * as long as before (3.5 s, a red one 6 s). Without the browser's animations, or with "reduce motion": the message as it is. */
+  let gooNo = 0;
+  function gooEl() { const g = document.createElement('div'); g.className = 'goo'; g.setAttribute('aria-hidden', 'true'); g.innerHTML = '<i class="g-drop"></i><i class="g-pool"></i><i class="g-bead"></i><i class="g-bead"></i>'; return g; }
+  function gooRun(t, life) {
+    const my = ++gooNo, g = t.querySelector('.goo'), d = g.querySelector('.g-drop'), p = g.querySelector('.g-pool'), [b1, b2] = g.querySelectorAll('.g-bead');
+    let still = !d.animate; try { still = still || matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* move */ }
+    if (still) { t.classList.add('still', 'tx-on'); return; }
+    const W = t.offsetWidth, H = t.offsetHeight, land = 90 + H / 2 - 17, a = (el, kf, o) => el.animate(kf, Object.assign({ fill: 'forwards' }, o)), later = (ms, f) => setTimeout(() => { if (my === gooNo && !t.hidden) f(); }, ms);
+    const inset = (w, h) => ({ left: (40 + (W - w) / 2) + 'px', right: (40 + (W - w) / 2) + 'px', top: (90 + (H - h) / 2) + 'px', bottom: (40 + (H - h) / 2) + 'px' });
+    // 1. it falls and lands
+    a(d, [{ transform: 'translateY(-50px) scale(.8, 1.25)', opacity: 1 }, { transform: 'translateY(' + land + 'px) scale(.82, 1.22)', opacity: 1, offset: .78 }, { transform: 'translateY(' + (land + 4) + 'px) scale(1.35, .72)', opacity: 1 }],
+      { duration: 420, easing: 'cubic-bezier(.55, 0, .85, .45)' });
+    // 2. it melts and spreads into the message
+    later(400, () => {
+      a(p, [Object.assign(inset(34, 30), { opacity: 1 }), Object.assign(inset(W * 1.05, H - 4), { opacity: 1, offset: .7 }), Object.assign(inset(W, H), { opacity: 1 })], { duration: 460, easing: 'cubic-bezier(.25, .9, .3, 1)' });
+      a(d, [{ transform: 'translateY(' + (land + 4) + 'px) scale(1.35, .72)', opacity: 1 }, { transform: 'translateY(' + (land + 6) + 'px) scale(.5, .4)', opacity: 0 }], { duration: 300, easing: 'ease-out' });
+      [[b1, -1], [b2, 1]].forEach(([b, k]) => a(b, [{ transform: 'translateX(0) scale(1)', opacity: 1 }, { transform: 'translateX(' + (k * (W / 2 - 10)) + 'px) scale(1.1)', opacity: 1, offset: .75 }, { transform: 'translateX(' + (k * (W / 2 - 14)) + 'px) scale(.6)', opacity: 0 }], { duration: 520, easing: 'cubic-bezier(.2, .8, .3, 1)' }));
+    });
+    later(680, () => t.classList.add('tx-on'));
+    // 3. it gathers back into a drop and goes up
+    later(life - 560, () => {
+      t.classList.remove('tx-on');
+      a(p, [Object.assign(inset(W, H), { opacity: 1 }), Object.assign(inset(30, 30), { opacity: 1 })], { duration: 320, easing: 'cubic-bezier(.6, 0, .8, .4)' });
+    });
+    later(life - 280, () => {
+      a(p, [{ opacity: 1 }, { opacity: 0 }], { duration: 100 });
+      a(d, [{ transform: 'translateY(' + (land + 2) + 'px) scale(.95, 1)', opacity: 1 }, { transform: 'translateY(-60px) scale(.75, 1.3)', opacity: 1 }], { duration: 270, easing: 'cubic-bezier(.55, 0, .9, .4)' });
+    });
   }
   /* ---------- confirmation box: used for every edit and delete in the app ---------- */
   let cfResolve = null;
@@ -10319,9 +10396,28 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     clearTimeout(sec._rvT); sec._rvT = setTimeout(() => { ps.forEach(p => { if (!p.classList.contains('in')) { p.classList.add('in'); try { rvObs.unobserve(p); } catch (e) {} } }); }, 600);
   }
   // phone drawer
-  function setDrawer(open) { document.querySelector('.app').classList.toggle('nav-open', open); }
+  /* (update-209) PUSH BACK on a phone / tablet (≤ 760 px – the CSS of update-209): before the page moves, the part of it on the screen
+   * is clipped (what is above and below the screen), its middle is where it shrinks to, and the page stops scrolling; after it is
+   * back, all of that is let go. A computer: the class only, as before. */
+  let pbT = 0;
+  function setDrawer(open) {
+    const app = document.querySelector('.app'), mw = app.querySelector('.mainwrap');
+    let phone = false; try { phone = matchMedia('(max-width: 760px)').matches; } catch (e) { phone = false; }
+    clearTimeout(pbT);
+    if (open && phone && mw && !app.classList.contains('nav-open')) {
+      const se = document.scrollingElement || document.documentElement, y = se.scrollTop || 0, h = window.innerHeight, top = mw.getBoundingClientRect().top + y, mh = mw.offsetHeight;
+      app.style.setProperty('--pb-t', Math.max(0, y - top) + 'px'); app.style.setProperty('--pb-b', Math.max(0, top + mh - y - h) + 'px');
+      app.style.setProperty('--pb-o', (y - top + h / 2) + 'px'); app.style.setProperty('--pb-vh', h + 'px');
+      app.classList.add('pb-clip'); document.documentElement.classList.add('pb-lock');
+      void mw.offsetWidth;      // the clip is in place before the page starts to move
+    }
+    app.classList.toggle('nav-open', open);
+    if (!open) pbT = setTimeout(() => { app.classList.remove('pb-clip'); document.documentElement.classList.remove('pb-lock'); }, 560);
+  }
   $('nav_menu').addEventListener('click', () => setDrawer(!document.querySelector('.app').classList.contains('nav-open')));
   $('nav_back').addEventListener('click', () => setDrawer(false));
+  // (update-209) turned to a wide screen while open (no push back there): closed, the page scrolls again
+  window.addEventListener('resize', () => { if (document.querySelector('.app').classList.contains('nav-open') && !matchMedia('(max-width: 760px)').matches) setDrawer(false); });
   document.querySelectorAll('.navbtn').forEach(b => b.addEventListener('click', () => setDrawer(false)));
   // swipe the drawer closed
   (function () {
