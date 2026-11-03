@@ -8712,6 +8712,8 @@ function logPrintExtra_(f) {
       if (numOrBlank_(r[c[H.HRR]]) !== '') x.hr = numOrBlank_(r[c[H.HRR]]);
       // the LAST fill of the day by itself (litres and its own readings) – for "how much of the last fill is still in the tank"
       x.lastQty = r2_(num0_(r[c[H.QTY]])); x.lastKm = numOrBlank_(r[c[H.KMR]]); x.lastHr = numOrBlank_(r[c[H.HRR]]);
+      // (update-206) every fill of the day with its own readings – the Log Book prints each reading given at a fill
+      (x.fills = x.fills || []).push({ q: r2_(num0_(r[c[H.QTY]])), km: numOrBlank_(r[c[H.KMR]]), hr: numOrBlank_(r[c[H.HRR]]) });
     });
   } catch (e) { /* no diesel issues */ }
   // average diesel rate of the dates (bought diesel, weighted by litres); none bought → the last rate before
