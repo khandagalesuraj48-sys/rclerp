@@ -907,6 +907,9 @@ const API_ = {
   submitBdReport:    { m: 'Breakdown', edit: true, f: submitBdReport_, log: 'bdReport' },
   deleteBdReport:    { m: 'Breakdown', edit: true, f: deleteBdReport_, log: 'bdReport' },
   renewDoc:          { m: 'Vehicle Compliance', edit: true, f: renewDoc_, log: 'renew' },
+  cmpDoc:            { m: 'Vehicle Compliance', withUser: true, f: (u, x) => uploadAttachment_(u, x, 'Vehicle Compliance') },      // (update-205) one file of a paper / the RC Book / the Tax Invoice, kept once in the private store
+  cmpFiles:          { m: 'Vehicle Compliance', edit: true, f: cmpFiles_, log: 'cmpFiles' },      // (update-205) files kept with a renewal, the RC Book, the Tax Invoice
+  getCmpFiles:       { m: 'Vehicle Compliance', f: getCmpFiles_ },      // (update-205) a machinery's documents, every renewal, with links (15 minutes)
   saveCmpRules:      { m: 'Vehicle Compliance', edit: true, f: saveCmpRules_, log: 'cmpRules' },
   importCompliance:  { m: 'Vehicle Compliance', edit: true, f: importCompliance_, log: 'cmpImport' },
   deletePayment:     { m: 'Machinery Payments', edit: true, f: deletePayment_, log: 'paymentDel' },
@@ -1403,7 +1406,10 @@ function logAfter_(u, spec, args, res, before) {
       if (res.ok) writeLog_(u, 'Edit', 'Vehicle Compliance', 'Papers per type', 'Papers needed per machinery type changed', res.changes || '');
       break;
     case 'renew':
-      if (res.ok) writeLog_(u, 'Edit', 'Vehicle Compliance', res.no, res.doc + ' renewed: ' + res.no + ' – valid upto ' + docShow_(res.to), res.doc + ' Valid Upto: ' + docShow_(res.from) + ' → ' + docShow_(res.to));
+      if (res.ok) writeLog_(u, 'Edit', 'Vehicle Compliance', res.no, res.doc + ' renewed: ' + res.no + ' – valid upto ' + docShow_(res.to) + (res.files ? ' (' + res.files + ' file' + (res.files === 1 ? '' : 's') + ')' : ''), res.doc + ' Valid Upto: ' + docShow_(res.from) + ' → ' + docShow_(res.to));
+      break;
+    case 'cmpFiles':      // (update-205)
+      if (res.ok) writeLog_(u, 'Add', 'Vehicle Compliance', res.no, res.doc + ' of ' + res.no + ': ' + res.n + ' file' + (res.n === 1 ? '' : 's') + ' added' + (res.added ? ' (a new line ' + res.id + ')' : ' to ' + res.id), '');
       break;
     case 'debitNote':
       if (res.ok) writeLog_(u, 'Add', 'Debit Notes', res.id, 'Debit note ' + res.no + ' made: ' + res.vendor + ' – ' + r2_(res.total) + ' (' + res.company + ')', res.lines + ' line(s)');
@@ -2521,19 +2527,23 @@ function cmpState_(v, today) {
   return { s: v < today ? 'expired' : n <= CMP_SOON_ ? 'due' : 'ok', days: v < today ? -daysBetween_(v, today) : n };
 }
 function cmpHistAdd_(rows) {
-  if (!rows.length) return;
+  if (!rows.length) return [];
   vbSheet_(APP.SHEET_COMPLIANCE, CMP_COLS_);
-  addColIfMissing_(APP.SHEET_COMPLIANCE, CMP_COLS_, H.EBY); TABLE_MEMO_ = {};
-  const t = table_(APP.SHEET_COMPLIANCE, CMP_COLS_);
+  addColIfMissing_(APP.SHEET_COMPLIANCE, CMP_COLS_, H.EBY);
+  if (rows.some(x => x.files && x.files.length)) addColIfMissing_(APP.SHEET_COMPLIANCE, CMP_COLS_, 'Attachments');      // (update-205) the paper's files
+  TABLE_MEMO_ = {};
+  const t = table_(APP.SHEET_COMPLIANCE, CMP_COLS_), ids = [];
   let n = t.rows.reduce((mx, r) => Math.max(mx, Number(str_(r[t.c['History ID']]).replace(/\D/g, '')) || 0), 0);
   rows.forEach(x => {
     const row = newRow_(t);
-    set_(row, t, 'History ID', 'CMP-' + String(++n).padStart(6, '0')); set_(row, t, 'Machinery No', x.no); set_(row, t, 'Document', x.doc);
+    set_(row, t, 'History ID', 'CMP-' + String(++n).padStart(6, '0')); ids.push('CMP-' + String(n).padStart(6, '0')); set_(row, t, 'Machinery No', x.no); set_(row, t, 'Document', x.doc);
     set_(row, t, 'Old Valid Upto', x.from || ''); set_(row, t, 'New Valid Upto', x.to || ''); set_(row, t, 'Renewed On', x.on ? toDate_(x.on) : '');
     set_(row, t, 'Document No', clean_(x.docNo)); set_(row, t, 'Amount', numOrBlank_(x.amount)); set_(row, t, 'Remark', clean_(x.remark)); set_(row, t, 'Source', x.source || 'Renewal');
     set_(row, t, 'Created At', new Date());
+    if (x.files && x.files.length) set_(row, t, 'Attachments', JSON.stringify(x.files));
     t.sh.appendRow(row);
   });
+  return ids;
 }
 /* Import papers from Excel (the Export format). rows: [{ line, no, docs: { Tax: 'yyyy-mm-dd' | 'NA' | '' | 'NOT NEEDED' | text } }]
  * A blank cell changes nothing. apply = false only checks; nothing is saved if any row has a problem.
@@ -2622,9 +2632,13 @@ function getCompliance_() {
   const t = table_(APP.SHEET_COMPLIANCE, CMP_COLS_), c = t.c;
   const hist = t.rows.filter(r => str_(r[c['History ID']])).map(r => ({ id: str_(r[c['History ID']]), no: str_(r[c['Machinery No']]), doc: str_(r[c['Document']]),
     from: docVal_(r[c['Old Valid Upto']]), to: docVal_(r[c['New Valid Upto']]), on: dkey_(r[c['Renewed On']]), docNo: str_(r[c['Document No']]), amount: numOrBlank_(r[c['Amount']]),
-    remark: str_(r[c['Remark']]), source: str_(r[c['Source']]), by: H.EBY in c ? str_(r[c[H.EBY]]) : '', at: r[c['Created At']] instanceof Date ? dkey_(r[c['Created At']]) : dkey_(r[c['Created At']]) }))
+    remark: str_(r[c['Remark']]), source: str_(r[c['Source']]), by: H.EBY in c ? str_(r[c[H.EBY]]) : '', at: r[c['Created At']] instanceof Date ? dkey_(r[c['Created At']]) : dkey_(r[c['Created At']]),
+    files: 'Attachments' in c ? attList_(r[c['Attachments']]).length : 0 }))      // (update-205) how many files the line keeps
     .sort((a, b) => (b.id > a.id ? 1 : -1));
-  return { today: today, soonDays: CMP_SOON_, docs: docs.map(x => x.name), machines: machines, history: hist, types: types, noPapers: noPapers };
+  const nf = {}; hist.forEach(h => { if (h.files) nf[noKey_(h.no)] = (nf[noKey_(h.no)] || 0) + h.files; });
+  machines.forEach(m => { m.files = nf[noKey_(m.no)] || 0; });      // (update-205) a machinery's files – its 📎 Documents
+  let filesOn = false; try { filesOn = cmpFilesOn_(); } catch (e) { filesOn = false; }
+  return { today: today, soonDays: CMP_SOON_, docs: docs.map(x => x.name), machines: machines, history: hist, types: types, noPapers: noPapers, filesOn: filesOn, keep: CMP_KEEP_DOCS_ };
 }
 // x: { no, doc: 'Tax' | 'PUC' | 'Permit' | 'Fitness' | 'Insurance', to: 'yyyy-mm-dd' | 'NA', on, docNo, amount, remark }
 function renewDoc_(x) {
@@ -2638,16 +2652,124 @@ function renewDoc_(x) {
     const from = m[d.key] || '';
     if (/^\d{4}-/.test(to) && /^\d{4}-/.test(from) && to <= from) throw new Error('The new "valid upto" (' + dmy_(to) + ') must be after the old one (' + dmy_(from) + ').');
     if (num0_(x.amount) < 0) throw new Error('Amount cannot be below 0.');
+    // (update-205) the renewed paper's PDF / photos (optional) – checked before anything is written
+    const files = x.files && x.files.length ? (cmpFilesReady_(), cmpFilesOf_(x.files, [])) : [];
     addColIfMissing_(APP.SHEET_MASTER, MASTER_COLS_, d.col); TABLE_MEMO_ = {};
     const t = table_(APP.SHEET_MASTER, MASTER_COLS_);
     const i = t.rows.findIndex(r => same_(rowId_(r, t), m.id)); if (i === -1) throw new Error(m.id + ' was not found in Asset Master.');
     const row = t.rows[i].slice();
     set_(row, t, d.col, to === 'NA' || to === 'LIFETIME' ? to : toDate_(to)); stampEdit_(row, t);
     t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
-    cmpHistAdd_([{ no: m.id, doc: d.name, from: from, to: to, on: on, docNo: x.docNo, amount: x.amount, remark: x.remark, source: 'Renewal' }]);
+    const ids = cmpHistAdd_([{ no: m.id, doc: d.name, from: from, to: to, on: on, docNo: x.docNo, amount: x.amount, remark: x.remark, source: 'Renewal', files: files }]);
     bump_(['master']);
-    return { ok: true, no: m.id, doc: d.name, from: from, to: to };
+    return { ok: true, no: m.id, doc: d.name, from: from, to: to, id: ids[0], files: files.length };
   });
+}
+
+/* ================= (update-205) THE DOCUMENTS OF A MACHINERY IN VEHICLE COMPLIANCE =================
+ * Asked 03-11-2026: "mala vehicle compliance madhe pratek vehicle ch document upload krta yaw asa haway rc book pn ok ani tya gadich
+ * tax invoice pn ok ani ha je kahi renewal hote te renewal wise asaw mhanje maghche document pn mala bghta yeil" – "Tax Invoice" =
+ * the invoice of buying the vehicle (his answer); the database step approved (sql/supabase_step1zl_compliance_files.sql).
+ *   – A FILE (PDF, JPG, PNG – at most 3 MB) is sent the moment it is added (cmpDoc → uploadAttachment_, the Log Book's private
+ *     store erp-files: kept once under its SHA-256, never overwritten or deleted).
+ *   – A PAPER (Tax, PUC, Permit, Fitness, Insurance): its files are kept with its renewal in the history (Compliance History,
+ *     column Attachments) – given with the renewal (renewDoc), or added later (cmpFiles) to any renewal of the history; a paper
+ *     whose date has no renewal in the history (entered in Asset Master / an Excel import of before) gets a line of its own
+ *     (Source "Document", the same date before and after). So every renewal keeps ITS papers – the earlier ones stay to be seen.
+ *   – RC BOOK and TAX INVOICE (the vehicle's own documents, no validity): each one added is a line of the history (Source
+ *     "Document"); a new one does not take the place of the earlier – both stay.
+ *   – Files are only ADDED (never taken out – evidence). At most the site's number of files a line (Site rules, 10 unless set).
+ *   – Who: Vehicle Compliance Edit adds; View sees (getCmpFiles – links that open a file for 15 minutes). Only Own machinery (the
+ *     papers of Rental / Hired / Debit ones are not kept – update-184). */
+const CMP_KEEP_DOCS_ = ['RC Book', 'Tax Invoice'];
+const CMP_FILES_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1zl_compliance_files.sql once in Supabase → SQL Editor, in every site.';
+// the history's column for the files: there or not (kept 15 minutes; a site without the step – 1 minute)
+function cmpFilesOn_() {
+  if (!sbDataOn_()) return true;      // (the Google Sheet: the column is added with the first file)
+  let sh = null, cols = null; try { table_(APP.SHEET_COMPLIANCE, CMP_COLS_); sh = SS_().getSheetByName(APP.SHEET_COMPLIANCE); cols = sh && sh.dbCols; } catch (e) { cols = null; }
+  if (cols && cols.indexOf('attachments') > -1) return true;
+  const c = CacheService.getScriptCache(), was = c.get('SBCOL_compliance_history.attachments');
+  if (was === '0') return false;
+  let there = was === '1';
+  if (!there) { try { sbFetch_('GET', '/rest/v1/compliance_history?select=attachments&limit=1'); there = true; } catch (e) { there = false; } c.put('SBCOL_compliance_history.attachments', there ? '1' : '0', there ? 900 : 60); }
+  if (there && cols) cols.push('attachments');
+  return there;
+}
+function cmpFilesReady_() {
+  if (!sbDataOn_()) throw new Error('The documents of Vehicle Compliance are kept in Supabase only – this copy of the app runs on the Google Sheet.');
+  if (!cmpFilesOn_()) throw new Error('The documents of Vehicle Compliance cannot be kept yet. ' + CMP_FILES_SQL_MSG_);
+}
+// the files a save gives: [{ sha }] – each one this person sent in the last 6 hours (or one the line has already)
+function cmpFilesOf_(list, had) {
+  if (!Array.isArray(list)) throw new Error('The files of the paper were not sent right – add them again.');
+  const shas = list.map(x => str_(x && typeof x === 'object' ? x.sha : x).toLowerCase()), max = siteRules_().attachMax || ATT_MAX_DEFAULT_;
+  const old = {}; (had || []).forEach(x => { old[x.sha] = x; });
+  const run = VER_CTX_ === 'flow' || VER_CTX_ === 'approve';      // (a save run at its last approval: the files are the sender's – as maintFilesOf_)
+  const me = run ? str_(FLOW_SENDER_).toLowerCase() : str_(OUT_FOR_ && OUT_FOR_.email).toLowerCase(), recs = attRecs_(shas), seen = {};
+  const out = shas.map((h, i) => {
+    if (!/^[0-9a-f]{64}$/.test(h)) throw new Error('A file of the paper was not sent right – add it again.');
+    if (seen[h]) throw new Error('The same file is given twice – remove one.');
+    seen[h] = true;
+    if (old[h]) return attOut_(old[h]);
+    const rec = recs[i];
+    if (attMine_(rec, me) && ATT_TYPES_[rec.mime]) return { sha: h, p: attPathOf_(h, rec.mime), mime: rec.mime, size: num0_(rec.size), name: clean_(rec.name).slice(0, 120), at: str_(rec.at), by: str_((rec.n && rec.n[me]) || rec.by) };
+    throw new Error('A file of the paper was not added by you in the last 6 hours – add it again.');
+  });
+  if (out.length + (had || []).filter(x => !seen[x.sha]).length > max) throw new Error('A paper keeps at most ' + max + ' files a renewal – add the rest to another line (the Admin can change the number in Site rules).');
+  if (FLOW_DRY_ON_ && FLOW_PHOTOS_) shas.forEach((h, i) => { if (!old[h] && recs[i]) FLOW_PHOTOS_['AT_' + h] = recs[i]; });      // (sent for verification: the files noted with the request)
+  return out;
+}
+const cmpRowOut_ = (t, r) => { const c = t.c; return { id: str_(r[c['History ID']]), no: str_(r[c['Machinery No']]), doc: str_(r[c['Document']]), from: docVal_(r[c['Old Valid Upto']]), to: docVal_(r[c['New Valid Upto']]),
+  on: dkey_(r[c['Renewed On']]), docNo: str_(r[c['Document No']]), amount: numOrBlank_(r[c['Amount']]), remark: str_(r[c['Remark']]), source: str_(r[c['Source']]), by: H.EBY in c ? str_(r[c[H.EBY]]) : '',
+  files: 'Attachments' in c ? attList_(r[c['Attachments']]).map(attOut_) : [] }; };
+/* x: { no, doc: a paper | 'RC Book' | 'Tax Invoice', files: [{ sha }], id: a line of the history (to add to it), docNo, on, remark }
+ * – no id: a paper's files go with the renewal of its date now (a line of its own when its date has none); RC Book / Tax Invoice: a
+ *   new line (a new document – the earlier stay). */
+function cmpFiles_(x) {
+  return withLock_(() => {
+    x = x || {};
+    cmpFilesReady_();
+    const doc = str_(x.doc), paper = cmpDocs_().find(y => y.name === doc);
+    if (!paper && CMP_KEEP_DOCS_.indexOf(doc) === -1) throw new Error('Pick the document: ' + cmpDocs_().map(y => y.name).concat(CMP_KEEP_DOCS_).join(', ') + '.');
+    const m = findMachine_(x.no);
+    if (normOwnership_(m.ownership) !== 'Own') throw new Error(m.id + ' is not Own machinery – the papers are kept only for Own machinery.');
+    vbSheet_(APP.SHEET_COMPLIANCE, CMP_COLS_); addColIfMissing_(APP.SHEET_COMPLIANCE, CMP_COLS_, 'Attachments'); TABLE_MEMO_ = {};
+    const t = table_(APP.SHEET_COMPLIANCE, CMP_COLS_), c = t.c, mine = r => noKey_(r[c['Machinery No']]) === noKey_(m.id) && str_(r[c['Document']]) === doc;
+    let i = -1;
+    if (str_(x.id)) {
+      i = t.rows.findIndex(r => str_(r[c['History ID']]) === str_(x.id));
+      if (i === -1 || !mine(t.rows[i])) throw new Error('This line of the history (' + clean_(x.id) + ') is not the ' + doc + ' of ' + m.id + ' – open the page again.');
+    } else if (paper) {
+      const cur = m[paper.key] || '';
+      t.rows.forEach((r, k) => { if (str_(r[c['History ID']]) && mine(r) && docVal_(r[c['New Valid Upto']]) === cur && (i === -1 || str_(r[c['History ID']]) > str_(t.rows[i][c['History ID']]))) i = k; });
+    }
+    if (i > -1) {
+      const had = attList_(t.rows[i][c['Attachments']]).map(attOut_), add = cmpFilesOf_(x.files, had).filter(f => !had.some(y => y.sha === f.sha));
+      if (!add.length) throw new Error('Add the PDF / photo first.');
+      const row = t.rows[i].slice();
+      set_(row, t, 'Attachments', JSON.stringify(had.concat(add))); stampEdit_(row, t);
+      t.sh.getRange(i + 2, 1, 1, row.length).setValues([row]);
+      bump_(['master']);
+      return { ok: true, no: m.id, doc: doc, id: str_(row[c['History ID']]), n: add.length, line: cmpRowOut_(t, row) };
+    }
+    const files = cmpFilesOf_(x.files, []);
+    if (!files.length) throw new Error('Add the PDF / photo first.');
+    const cur = paper ? m[paper.key] || '' : '', on = str_(x.on) ? entryDate_(x.on) : today_();
+    const ids = cmpHistAdd_([{ no: m.id, doc: doc, from: cur, to: cur, on: on, docNo: x.docNo, remark: x.remark, source: 'Document', files: files }]);
+    bump_(['master']);
+    return { ok: true, no: m.id, doc: doc, id: ids[0], n: files.length, added: true };
+  });
+}
+// a machinery's documents: every line of its history (the newest first) with its files and their links (15 minutes)
+function getCmpFiles_(f) {
+  const m = findMachine_(f && f.no);
+  const t = table_(APP.SHEET_COMPLIANCE, CMP_COLS_);
+  const rows = t.rows.filter(r => str_(r[t.c['History ID']]) && noKey_(r[t.c['Machinery No']]) === noKey_(m.id)).map(r => cmpRowOut_(t, r)).sort((a, b) => (b.id > a.id ? 1 : -1));
+  const paths = [].concat(...rows.map(r => r.files.map(x => x.p))), urlOf = paths.length ? attLinks_(paths) : {};
+  rows.forEach(r => r.files.forEach(x => { x.url = urlOf[x.p] || ''; }));
+  const need = cmpNeeds_(m.type, cmpRules_());
+  return { no: m.id, type: str_(m.type), owner: str_(m.owner), ownership: str_(m.ownership), papers: cmpDocs_().filter(d => need.indexOf(d.name) > -1).map(d => ({ name: d.name, v: m[d.key] || '' })),
+    keep: CMP_KEEP_DOCS_, rows: rows, on: cmpFilesOn_(), max: siteRules_().attachMax || ATT_MAX_DEFAULT_ };
 }
 
 /* ================= LOG BOOK DASHBOARD =================
@@ -5544,7 +5666,7 @@ function attSniff_(bytes) {
 // one file, as it is added: its fingerprint, kept once in the private store
 function uploadAttachment_(u, x, mod) {      // (update-165) mod 'Maintenance': a file of a maintenance bill – the same store, its own access
   x = x || {};
-  const pg = mod === 'Maintenance' ? 'Maintenance' : mod === 'Vendor Master' ? 'Vendor Master' : 'Log Book';      // (update-184) a vendor's document
+  const pg = mod === 'Maintenance' ? 'Maintenance' : mod === 'Vendor Master' ? 'Vendor Master' : mod === 'Vehicle Compliance' ? 'Vehicle Compliance' : 'Log Book';      // (update-184) a vendor's document; (update-205) a paper of a machinery
   if (!canEdit_(u, pg)) throw new Error('You have View access only for ' + pg + '. Ask Admin for Edit access.');
   const mt = /^data:(image\/jpeg|image\/png|application\/pdf);base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
   if (!mt) throw new Error('An attachment must be a photo (JPG or PNG) or a PDF.');
@@ -5555,6 +5677,7 @@ function uploadAttachment_(u, x, mod) {      // (update-165) mod 'Maintenance': 
   if (real !== mt[1]) throw new Error('This file is not what its name says (' + mt[1] + ') – only real photos (JPG, PNG) and PDFs can be attached.');
   if (pg === 'Maintenance') { if (!sbDataOn_()) throw new Error('Attachments are kept in Supabase only – this copy of the app runs on the Google Sheet.'); maintTable_(true); }
   else if (pg === 'Vendor Master') { if (!sbDataOn_()) throw new Error('Attachments are kept in Supabase only – this copy of the app runs on the Google Sheet.'); if (!vendorColOn_('documents')) throw new Error('The documents of the vendor cannot be kept yet. ' + VENDOR_SQL_MSG_); }
+  else if (pg === 'Vehicle Compliance') cmpFilesReady_();      // (update-205)
   else attReady_();
   const cch = CacheService.getScriptCache(), me = str_(u.email).toLowerCase(), myName = u.name || u.email;
   const kB = 'ATB_' + today_() + '_' + me, nNow = typeof __count === 'function' ? __count('ATN_' + today_() + '_' + me, 90000) : -1, bNow = Number(cch.get(kB)) || 0;
@@ -12637,9 +12760,10 @@ function dbHealth_() {
     add('Maintenance Log Book – the bills of the cars, their files, a car\'s log book (step 1zi)', has('maintenance') && has('app_users', 'perm_maintenance'), 'supabase_step1zi_maintenance.sql');      // (update-165)
     add('Vendor Master – the Owner Name and the vendor\'s documents (step 1zj)', has('vendors', 'owner_name') && has('vendors', 'documents'), 'supabase_step1zj_vendor_papers.sql');      // (update-184)
     add('The assistant\'s own memory and its chats (step 1zk)', has('ai_memory') && has('ai_chats'), 'supabase_step1zk_ai_memory.sql');      // (update-186)
+    add('Vehicle Compliance – the documents of every renewal, the RC Book and the Tax Invoice (step 1zl)', has('compliance_history', 'attachments'), 'supabase_step1zl_compliance_files.sql');      // (update-205)
     // (update-90) the list of sites, the Super Admin and who has which site – in the FIRST site's database only
     if (typeof __siteIsHome === 'function' && __siteIsHome()) add('Several sites and the Super Admin (step 7 – the first site only)', typeof __sitesOn === 'function' && __sitesOn(), 'supabase_step7_sites.sql');
-    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason)|master\.fuel|diesel_issue\.(rate|amount)|card_payments|app_users\.perm_fuel_cards|maintenance|app_users\.perm_maintenance|vendors\.(owner_name|documents))/.test(x));
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason)|master\.fuel|diesel_issue\.(rate|amount)|card_payments|app_users\.perm_fuel_cards|maintenance|app_users\.perm_maintenance|vendors\.(owner_name|documents)|compliance_history\.attachments)/.test(x));
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }
   let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }

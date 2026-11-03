@@ -7468,7 +7468,7 @@ test('update-184: the vendor – its Company Name and Owner Name, its documents 
   assert.strictEqual(tryRun('n => getVendorDocs_(n)', 'Nobody Traders').thrown, 'Vendor Nobody Traders is not saved in the Vendor Master yet – save its details first.');
   const spec = run('() => ({ u: Object.assign({}, API_.vendorDoc, { f: typeof API_.vendorDoc.f }), g: Object.assign({}, API_.getVendorDocs, { f: typeof API_.getVendorDocs.f }) })');
   assert.deepStrictEqual(spec, { u: { m: 'Vendor Master', withUser: true, f: 'function' }, g: { m: 'Vendor Master', f: 'function' } }, 'its documents: only with the Vendor Master page (not with the billing pages)');
-  assert.ok(code.indexOf("const pg = mod === 'Maintenance' ? 'Maintenance' : mod === 'Vendor Master' ? 'Vendor Master' : 'Log Book';") > -1, 'a document sent with Vendor Master Edit');
+  assert.ok(code.indexOf("const pg = mod === 'Maintenance' ? 'Maintenance' : mod === 'Vendor Master' ? 'Vendor Master' : mod === 'Vehicle Compliance' ? 'Vehicle Compliance' : 'Log Book';") > -1, 'a document sent with Vendor Master Edit (update-205: a paper of a machinery with Vehicle Compliance Edit)');
   // the database step: it only adds two columns; Read Me lists it word for word; the test database has it; the database check knows it
   const sql = fs.readFileSync(path.join(root, 'sql', 'supabase_step1zj_vendor_papers.sql'), 'utf8'), sqlCode = sql.replace(/--.*$/gm, '');
   assert.ok(!/\b(delete\s+from|truncate|update\s+public\.)/i.test(sqlCode) && !/drop (table|column)/i.test(sqlCode), 'nothing removed or changed');
@@ -8364,4 +8364,82 @@ test('update-204: a bill made from now on – its Tax Invoice is of the Net Work
   assert.ok(h.indexOf('Super Admin · 03-11-2026') > -1 && h.indexOf('debit missed') > -1 && h.indexOf('wrong rate') > -1, h);
   assert.ok(box.innerHTML.indexOf('data-sbv="b1"') > -1 && box.innerHTML.indexOf('data-sbz="b3"') > -1 && box.innerHTML.indexOf('data-sbd') === -1, 'view, Log Book, files – no Delete');
   D([]); assert.ok(text(box.innerHTML).indexOf('No deleted bills for these filters.') > -1);
+});
+
+test('update-205: Vehicle Compliance – the documents of a machinery: every renewal keeps its own PDF / photos (with the renewal or added later), the RC Book and the Tax Invoice (each one added kept, the earlier stay); only Own; files only added; step 1zl', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const tryRun = (fn, ...a) => { try { return run(fn, ...a); } catch (e) { return { thrown: String(e.message) }; } };
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  const me = { name: 'Sujit Test', email: 'sujit@x.test', admin: true, perms: { 'Vehicle Compliance': 'Edit' } };
+  const sha = c => c.repeat(64), put = (h, name, mime, who) => run('(h, r) => CacheService.getScriptCache().put("AT_" + h, JSON.stringify(r), 21600)', h, { e: who || me.email, es: [who || me.email], n: { [who || me.email]: me.name }, by: me.name, mime: mime || 'application/pdf', size: 1500, name: name, at: '2026-11-03T05:00:00Z' });
+  put(sha('a'), 'insurance 2026.pdf'); put(sha('b'), 'rc front.jpg', 'image/jpeg'); put(sha('c'), 'rc new.pdf'); put(sha('d'), 'insurance page 2.jpg', 'image/jpeg'); put(sha('e'), 'rc back.jpg', 'image/jpeg'); put(sha('f'), 'other person.pdf', 'application/pdf', 'other@x.test');
+  const as = (fn, x) => tryRun('(x, u) => { OUT_FOR_ = u; try { return ' + fn + '(x); } finally { OUT_FOR_ = null; } }', x, me);
+  for (const [no, own] of [['OWN-205', 'Own'], ['RENT-205', 'Rental']]) run('(x, m) => saveMaster_(x, m)', { no: no, name: no, type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: own === 'Own' ? 'Rachana Construction Limited' : 'Patil Travels', ownership: own, supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add');
+  const col = on => run('o => { CacheService.getScriptCache().put("SBCOL_compliance_history.attachments", o ? "1" : "0"); return true; }', on);
+  // a site before step 1zl: a file is refused with what to run; a renewal without a file – as before
+  col(false);
+  const STEP = 'The documents of Vehicle Compliance cannot be kept yet. This needs one database step first: the Admin runs sql/supabase_step1zl_compliance_files.sql once in Supabase → SQL Editor, in every site.';
+  assert.strictEqual(as('cmpFiles_', { no: 'OWN-205', doc: 'RC Book', files: [{ sha: sha('b') }] }).thrown, STEP);
+  assert.strictEqual(as('renewDoc_', { no: 'OWN-205', doc: 'Insurance', to: '2027-03-31', files: [{ sha: sha('a') }] }).thrown, STEP);
+  assert.strictEqual(run('() => getCompliance_().filesOn'), false, 'the page is told');
+  assert.strictEqual(as('renewDoc_', { no: 'OWN-205', doc: 'PUC', to: '2027-01-31' }).ok, true, 'a renewal without files: as before');
+  assert.match(code, /else if \(pg === 'Vehicle Compliance'\) cmpFilesReady_\(\);/, 'nothing sent to the store before the step (uploadAttachment_ – not run here: no Utilities.base64Decode)');
+  col(true);
+  // a renewal with its file: the line keeps it
+  const r1 = as('renewDoc_', { no: 'OWN-205', doc: 'Insurance', to: '2027-03-31', docNo: 'POL-1', files: [{ sha: sha('a') }] });
+  assert.deepStrictEqual([r1.ok, r1.files, /^CMP-\d{6}$/.test(r1.id)], [true, 1, true], JSON.stringify(r1));
+  // the RC Book twice: two lines (the earlier stays); the Tax Invoice once
+  const rc1 = as('cmpFiles_', { no: 'OWN-205', doc: 'RC Book', files: [{ sha: sha('b') }], docNo: 'MH12AB1234', on: '2026-10-01' });
+  const rc2 = as('cmpFiles_', { no: 'OWN-205', doc: 'RC Book', files: [{ sha: sha('c') }], remark: 'transfer' });
+  assert.deepStrictEqual([rc1.added, rc2.added, rc1.id !== rc2.id, rc1.n], [true, true, true, 1]);
+  // a file added later to the paper of its date now: onto its renewal (not a new line)
+  const ins2 = as('cmpFiles_', { no: 'OWN-205', doc: 'Insurance', files: [{ sha: sha('d') }] });
+  assert.deepStrictEqual([ins2.id, ins2.added, ins2.n], [r1.id, undefined, 1]);
+  // to a line of the history by its id (the first RC Book)
+  assert.strictEqual(as('cmpFiles_', { no: 'OWN-205', doc: 'RC Book', id: rc1.id, files: [{ sha: sha('e') }] }).id, rc1.id);
+  // a paper whose date has no line (never renewed here): a line of its own, Source "Document"
+  const fit = as('cmpFiles_', { no: 'OWN-205', doc: 'Fitness', files: [{ sha: sha('a') }] });
+  assert.strictEqual(fit.added, true);
+  // refused – nothing changed
+  assert.strictEqual(as('cmpFiles_', { no: 'OWN-205', doc: 'RC Book', files: [{ sha: sha('f') }] }).thrown, 'A file of the paper was not added by you in the last 6 hours – add it again.');
+  assert.strictEqual(as('cmpFiles_', { no: 'OWN-205', doc: 'RC Book', files: [{ sha: sha('b') }, { sha: sha('b') }] }).thrown, 'The same file is given twice – remove one.');
+  assert.strictEqual(as('cmpFiles_', { no: 'OWN-205', doc: 'RC Book', id: rc1.id, files: [{ sha: sha('b') }] }).thrown, 'Add the PDF / photo first.', 'already with the line');
+  assert.strictEqual(as('cmpFiles_', { no: 'OWN-205', doc: 'Tax Invoice', files: [] }).thrown, 'Add the PDF / photo first.');
+  assert.strictEqual(as('cmpFiles_', { no: 'OWN-205', doc: 'Bill', files: [{ sha: sha('b') }] }).thrown, 'Pick the document: Tax, PUC, Permit, Fitness, Insurance, RC Book, Tax Invoice.');
+  assert.strictEqual(as('cmpFiles_', { no: 'RENT-205', doc: 'RC Book', files: [{ sha: sha('b') }] }).thrown, 'RENT-205 is not Own machinery – the papers are kept only for Own machinery.');
+  assert.strictEqual(as('cmpFiles_', { no: 'OWN-205', doc: 'Insurance', id: rc1.id, files: [{ sha: sha('d') }] }).thrown, 'This line of the history (' + rc1.id + ') is not the Insurance of OWN-205 – open the page again.');
+  const eleven = Array.from({ length: 11 }, (x, i) => { const h = String(i % 10).repeat(63) + (i < 10 ? '0' : '1'); put(h, 'p' + i + '.pdf'); return { sha: h }; });
+  assert.match(as('cmpFiles_', { no: 'OWN-205', doc: 'Tax Invoice', files: eleven }).thrown, /^A paper keeps at most 10 files a renewal – add the rest to another line/);
+  assert.strictEqual(as('cmpFiles_', { no: 'OWN-205', doc: 'Tax Invoice', files: eleven.slice(0, 2), docNo: 'INV-77' }).n, 2, 'the Tax Invoice (2 pages)');
+  // its documents, the newest line first, each with its files and links
+  run('() => { globalThis.__al = attLinks_; attLinks_ = ps => { const o = {}; ps.forEach(x => { o[x] = "https://store.test/" + x + "?token=t"; }); return o; }; return true; }');
+  let d; try { d = run('n => getCmpFiles_({ no: n })', 'own-205'); } finally { run('() => { attLinks_ = globalThis.__al; return true; }'); }
+  const lines = d.rows.map(r => r.doc + ':' + r.source + ':' + r.files.map(f => f.name).join('+'));
+  assert.deepStrictEqual(lines, ['Tax Invoice:Document:p0.pdf+p1.pdf', 'Fitness:Document:insurance 2026.pdf', 'RC Book:Document:rc new.pdf', 'RC Book:Document:rc front.jpg+rc back.jpg', 'Insurance:Renewal:insurance 2026.pdf+insurance page 2.jpg', 'PUC:Renewal:'], JSON.stringify(lines));
+  assert.deepStrictEqual([d.no, d.keep, d.on, d.max, d.rows[3].docNo, d.rows[3].on, d.rows[4].docNo, d.rows[4].to, /^https:\/\/store\.test\/log\/aa\/a{64}\.pdf\?token=t$/.test(d.rows[4].files[0].url), d.rows[4].files[0].by],
+    ['OWN-205', ['RC Book', 'Tax Invoice'], true, 10, 'MH12AB1234', '2026-10-01', 'POL-1', '2027-03-31', true, 'Sujit Test']);
+  assert.deepStrictEqual(d.papers.map(p => p.name + ':' + p.v), ['Tax:', 'PUC:2027-01-31', 'Permit:', 'Fitness:', 'Insurance:2027-03-31'].filter(x => d.papers.some(p => x.startsWith(p.name + ':'))));
+  // the page's list: the files of each line and of each machinery
+  const g = run('() => { const c = getCompliance_(); return { m: c.machines.filter(x => x.no === "OWN-205").map(x => x.files)[0], h: c.history.filter(x => x.no === "OWN-205").map(x => x.doc + ":" + x.files), on: c.filesOn, keep: c.keep }; }');
+  assert.deepStrictEqual(g, { m: 8, h: ['Tax Invoice:2', 'Fitness:1', 'RC Book:1', 'RC Book:2', 'Insurance:2', 'PUC:0'], on: true, keep: ['RC Book', 'Tax Invoice'] });
+  // the actions and their access
+  const spec = run('() => ["cmpDoc", "cmpFiles", "getCmpFiles"].map(k => Object.assign({}, API_[k], { f: typeof API_[k].f }))');
+  assert.deepStrictEqual(spec, [{ m: 'Vehicle Compliance', withUser: true, f: 'function' }, { m: 'Vehicle Compliance', edit: true, f: 'function', log: 'cmpFiles' }, { m: 'Vehicle Compliance', f: 'function' }]);
+  assert.match(code, /const pg = mod === 'Maintenance' \? 'Maintenance' : mod === 'Vendor Master' \? 'Vendor Master' : mod === 'Vehicle Compliance' \? 'Vehicle Compliance' : 'Log Book';/, 'a file sent with Vehicle Compliance Edit');
+  // step 1zl: one empty column added, shown in Read Me word for word, checked by the database check; a site without it saves as before
+  const sqlF = fs.readFileSync(path.join(root, 'sql', 'supabase_step1zl_compliance_files.sql'), 'utf8'), body = sqlF.split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
+  assert.ok(/alter table public\.compliance_history add column if not exists attachments text;/.test(body) && !/\b(drop|truncate|delete|update)\b/i.test(body), 'only adds');
+  assert.strictEqual(new Function(fs.readFileSync(path.join(root, 'app', 'ReadMe.gs'), 'utf8') + '; return README_SQL_;')().find(x => x.name === 'supabase_step1zl_compliance_files.sql').sql, sqlF);
+  assert.match(fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8'), /\['Attachments', 'attachments', 'text', 'opt'\]\] \},      \/\/ \(update-205, step 1zl\)/);
+  assert.match(code, /add\('Vehicle Compliance – the documents of every renewal, the RC Book and the Tax Invoice \(step 1zl\)', has\('compliance_history', 'attachments'\), 'supabase_step1zl_compliance_files\.sql'\);/);
+  // the page: 📎 Documents of each machinery, the files of a renewal, the history's files; the guide; the help
+  assert.match(app, /<div class="panel" id="cp_dpanel" hidden><\/div>/);
+  assert.match(app, /data-cpd="' \+ esc\(m\.no\) \+ '"[^>]*>📎 Documents' \+ \(m\.files \? ' \(' \+ m\.files \+ '\)' : ''\)/);
+  assert.match(app, /const got = await atOpen\(\{ title: doc \+ ' – ' \+ no, sub: 'The renewed paper \(PDF \/ photo\) – optional: press Done with no file to save the date only\.', files: \[\], up: 'cmpDoc', noQr: true \}\);\n      if \(!got\) \{ toast\('Not saved\.'\); return; \}/);
+  assert.match(app, /const r = await call\('cmpFiles', x\);/);
+  assert.match(app, /comp: \{ saves: \['renewDoc', 'saveCmpRules', 'importCompliance', 'cmpDoc', 'cmpFiles'\],/);
+  const H = new Function(app.match(/const FIX_RULES = [\s\S]*?\n  \];\n/)[0] + '; return FIX_RULES;')();
+  for (const msg of [STEP, 'A file of the paper was not added by you in the last 6 hours – add it again.', 'RENT-205 is not Own machinery – the papers are kept only for Own machinery.', 'Add the PDF / photo first.'])
+    assert.ok(H.some(r => r.re.test(msg) && /supabase_step1zl/.test(r.en.join(' ')) && r.mr && r.hi), 'help in 3 languages: ' + msg);
 });
