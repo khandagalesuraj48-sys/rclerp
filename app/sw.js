@@ -48,11 +48,12 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || u.origin !== self.location.origin || u.pathname.indexOf('/api/') === 0) return;      // the server's calls: untouched
   // (13-10-2026, one address) other modules are served under this address too (/store/, the Portal /portal/, any module added
   // later): only this app's own page and files are this worker's – any other address is left untouched
-  if (!/^\/(index\.html|manifest\.webmanifest|menu\.json|sw\.js|icons\/.*|vendor\/.*)?$/.test(u.pathname)) return;
-  if (e.request.mode === 'navigate' || u.pathname === '/' || u.pathname === '/index.html') {
+  // (update-208) /ho/ – Head Office's own address – is the same page
+  if (!/^\/(index\.html|ho\/|manifest\.webmanifest|menu\.json|sw\.js|icons\/.*|vendor\/.*)?$/.test(u.pathname)) return;
+  if (e.request.mode === 'navigate' || u.pathname === '/' || u.pathname === '/index.html' || u.pathname === '/ho/') {
     // only the page itself (/ or /index.html) is kept as the offline copy. (Any address opened in a tab – an icon, the manifest –
     // used to be stored AS the page, so the offline copy could become a picture. 07-10-2026)
-    const isPage = u.pathname === '/' || u.pathname === '/index.html';
+    const isPage = u.pathname === '/' || u.pathname === '/index.html' || u.pathname === '/ho/';
     e.respondWith(fetch(e.request).then(r => { if (r && r.ok && isPage) { const copy = r.clone(); caches.open(KEEP).then(c => c.put('/', copy)); } return r; }).catch(() => caches.match('/').then(r => r || new Response('<meta charset="utf-8"><p style="font:16px sans-serif;padding:24px">No network, and this device has no saved copy of the app yet. Connect once and open the app again.</p>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } }))));
     return;
   }

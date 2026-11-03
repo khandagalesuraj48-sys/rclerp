@@ -43,6 +43,11 @@
       "source": "/purchase",
       "destination": "/purchase/",
       "permanent": false
+    },
+    {
+      "source": "/ho",
+      "destination": "/ho/",
+      "permanent": false
     }
   ],
   "rewrites": [
@@ -148,6 +153,10 @@
     },
     {
       "source": "/scan",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/ho/",
       "destination": "/index.html"
     },
     {
@@ -295,6 +304,15 @@
     },
     {
       "source": "/scan",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/ho/",
       "headers": [
         {
           "key": "Cache-Control",

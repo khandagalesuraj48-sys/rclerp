@@ -9,6 +9,9 @@ const read = f => fs.readFileSync(path.join(APP_DIR, f), 'utf8');
 const DELTA_CLIENT = require('./delta').CLIENT;      // (update-155) the same two functions as the server's
 const BRIDGE = `
 (function () {
+  /* (update-208, asked 03-11-2026) HEAD OFFICE AT ITS OWN ADDRESS (/ho/): its sign-in and its site are kept apart from the main
+   * address's (the same names with "_ho"), so both can be open side by side, each on its own site. App.html: the same rule (KK). */
+  var hoKey = function (k) { var ho = false; try { var pth = String(window.top.location.pathname || '').toLowerCase(); ho = pth === '/ho/' || pth === '/ho'; } catch (e) { ho = false; } return ho ? k + '_ho' : k; };
   var base = '';
   try { base = window.parent.location.origin; } catch (e) { base = ''; }
   if (!base || base === 'null') { try { base = window.location.origin; } catch (e) { base = ''; } }
@@ -80,7 +83,7 @@ const BRIDGE = `
      * A question (a list, a report) is asked again 3 times, then it says so as before. */
     var rid = (name === 'api' && !isQ) ? ('s' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12)) : '';
     // (update-90) the site this page is on goes with every call (kept next to the sign-in; none = the first site, as before)
-    var site = ''; try { site = localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site') || ''; } catch (e) { site = ''; }
+    var site = ''; try { site = localStorage.getItem(hoKey('rcl_site')) || sessionStorage.getItem(hoKey('rcl_site')) || ''; } catch (e) { site = ''; }
     var msg = rid ? { fn: name, args: args, rid: rid } : { fn: name, args: args }; if (site) msg.site = site;
     var body = JSON.stringify(msg), tries = 0;
     /* (update-155) THE LAST ANSWER OF A QUESTION IS KEPT IN THIS PAGE'S MEMORY (never in the browser's storage) with its
@@ -194,7 +197,7 @@ const BRIDGE = `
    * A refusal before the first line (not signed in, the limits, no Claude key: "AI_NO_STREAM", an older server) fails with its words
    * – the page then asks getAiReply as before. */
   window.google.script.aiStream = function (token, x, onLine) {
-    var site = ''; try { site = localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site') || ''; } catch (e) { site = ''; }
+    var site = ''; try { site = localStorage.getItem(hoKey('rcl_site')) || sessionStorage.getItem(hoKey('rcl_site')) || ''; } catch (e) { site = ''; }
     var msg = { token: token, x: x }; if (site) msg.site = site;
     return fetch(base + '/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(msg), cache: 'no-store' }).then(function (r) {
       if ((r.headers.get('Content-Type') || '').indexOf('ndjson') < 0 || !r.body || !r.body.getReader) return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; } throw new Error(j && j.error ? j.error : 'AI_NO_STREAM'); });
@@ -287,9 +290,9 @@ const BRIDGE = `
   // (update-141: the backup runs ONCE A DAY – at night by itself; the first open page of the day starts it if the night's
   // did not run. The server does nothing when today's is done. Every 30 minutes; a minute later while a backup is unfinished.)
   if (window.parent !== window) {
-    var tick = function () { try { var tk = ''; try { tk = sessionStorage.getItem('rcl_token') || localStorage.getItem('rcl_token') || ''; } catch (e) { tk = ''; }
+    var tick = function () { try { var tk = ''; try { tk = sessionStorage.getItem(hoKey('rcl_token')) || localStorage.getItem(hoKey('rcl_token')) || ''; } catch (e) { tk = ''; }
       if (!tk) return;      // nobody signed in: nothing to ask
-      var st = ''; try { st = localStorage.getItem('rcl_site') || sessionStorage.getItem('rcl_site') || ''; } catch (e) { st = ''; }
+      var st = ''; try { st = localStorage.getItem(hoKey('rcl_site')) || sessionStorage.getItem(hoKey('rcl_site')) || ''; } catch (e) { st = ''; }
       if (/^sa/.test(tk)) return;      // (update-90) the Super Admin has no site of his own: nothing to back up
       fetch(base + '/api/backup', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tk, site: st }) })
         .then(function (r) { return r.json(); }).then(function (j) { if (j && j.pending > 0) { clearTimeout(soon); soon = setTimeout(tick, 60000); } }).catch(function () {}); } catch (e) {} };

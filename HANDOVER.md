@@ -2334,3 +2334,7 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 - 03-11-2026 (update-207). Report: `UPDATE_207.md`. THE LOG BOOK PRINT – A DAY WITH DIESEL AND NO LOG BOOK ENTRY IS A ROW OF ITS OWN, in
   its date's place, in every format: its diesel and the reading at it, no work ("NO LOG BOOK ENTRY – DIESEL ISSUED"); only printed – the
   days, hours, trips and amounts count the entries only. No SQL. Tests: unit `update-207`; the rig in Chromium; rcl-mobile 3.82.0.
+- 03-11-2026 (update-208). Report: `UPDATE_208.md`. HEAD OFFICE'S MECHANICAL AT ITS OWN ADDRESS `/ho/` (the same Vercel project): only the
+  site HO there (no Change site); the main address never opens HO; links and Portal tickets go to their address by themselves; the
+  sign-in of `/ho/` kept apart in the browser (`KK`, the bridge's `hoKey`). With the Portal's `api/go.js`. No SQL. Tests: unit `update-208`;
+  the rig in Chromium (Portal apart and one address).
