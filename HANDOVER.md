@@ -2331,3 +2331,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   note); Format B and E with the refilling reading; every format shows the diesel given – F, G, I get "Diesel qty" and "Reading at
   diesel" (and H its reading) when the machinery had diesel in the dates. No SQL. Tests: unit `update-206`; the rig in Chromium
   (the page's print on rcl-mobile's fixture); rcl-mobile 3.80.0.
+- 03-11-2026 (update-207). Report: `UPDATE_207.md`. THE LOG BOOK PRINT – A DAY WITH DIESEL AND NO LOG BOOK ENTRY IS A ROW OF ITS OWN, in
+  its date's place, in every format: its diesel and the reading at it, no work ("NO LOG BOOK ENTRY – DIESEL ISSUED"); only printed – the
+  days, hours, trips and amounts count the entries only. No SQL. Tests: unit `update-207`; the rig in Chromium; rcl-mobile 3.82.0.
