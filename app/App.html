@@ -1292,6 +1292,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .bk-status { flex: 1; min-width: 220px; font-size: 13.5px; } .bk-ok { color: #166534; font-weight: 600; } .bk-no { color: #B45309; font-weight: 700; } .bk-long { color: #B91C1C; }
   .bk-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 14px; align-items: end; } .bk-act { display: flex; gap: 8px; }
   .cp-note { margin: -2px 0 10px; color: #475569; font-size: 13px; } .cp-note:empty { display: none; }
+  /* (update-205) the documents of a machinery */
+  .cp-dbtn { display: inline-block; margin-top: 4px; font-size: 12.5px; font-weight: 600; }
+  .cpd-secs { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  .cpd-sec { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: #fff; }
+  .cpd-sec > h3 { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin: 0 0 6px; font-size: 15px; } .cpd-sec > h3 small { display: block; font-weight: 500; color: #64748B; font-size: 12.5px; }
+  .cpd-line .vdv-grid button.link { background: none; border: 0; padding: 0; width: 100%; cursor: zoom-in; }
+  .cpd-line { border-top: 1px dashed #E2E8F0; padding: 8px 0 4px; } .cpd-line:first-of-type { border-top: 0; }
+  .cpd-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; } .cpd-meta small { display: block; color: #64748B; }
+  .cpd-line .vdv-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 6px; } .cpd-line .vdv-grid .at-pdf { height: 80px; } .cpd-line .vdv-grid img { max-height: 90px; }
   .cp-p.notreq { background: none; border: 0; cursor: default; } .cp-p.notreq b { color: #CBD5E1; } .cp-p.notreq small { color: #94A3B8 !important; }
   .cp-rw { max-height: 55vh; } table.cp-rt { width: 100%; font-size: 13px; text-align: left; } table.cp-rt td small { display: block; color: #64748B; font-size: 11.5px; } table.cp-rt input { width: 17px; height: 17px; min-height: 0; }
   .cp-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
@@ -4277,7 +4286,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   <!-- ================= VEHICLE COMPLIANCE ================= -->
   <section id="sec-comp" role="tabpanel" aria-labelledby="tab-comp" hidden>
     <div class="panel">
-      <div class="panel-head"><h2>Vehicle Compliance</h2><span class="chart-note">Tax, PUC, Permit, Fitness and Insurance of every active Own / Rental / Hired machinery. Tap a paper to renew it – the new date goes into Asset Master and the old one is kept in the history.</span></div>
+      <div class="panel-head"><h2>Vehicle Compliance</h2><span class="chart-note">Tax, PUC, Permit, Fitness and Insurance of every active Own / Rental / Hired machinery. Tap a paper to renew it – the new date goes into Asset Master and the old one is kept in the history. 📎 Documents: the PDF / photos of every renewal, the RC Book and the Tax Invoice.</span></div>
       <div class="cp-cards" id="cp_cards"></div>
       <div class="cp-bar">
         <div class="lbd-chips" id="cp_chips"></div>
@@ -4290,6 +4299,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <p class="cp-note" id="cp_note"></p>
       <div class="table-wrap cp-wrap"><table class="cp-t" id="cp_table"></table></div>
     </div>
+    <div class="panel" id="cp_dpanel" hidden></div>      <!-- (update-205) the documents of one machinery -->
     <div class="panel">
       <div class="panel-head"><h2>Renewal history</h2><span class="chart-note" id="cp_hnote"></span></div>
       <div class="table-wrap"><table class="cp-h" id="cp_hist"></table></div>
@@ -6956,6 +6966,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['जुन्या log book ची ओळ तिचा GST (₹) फाइलमध्ये होता तसाच ठेवते – जुने page किंवा app तो GST न गमावता ती बदलू शकत नाही; किंवा टाइप केलेला GST (₹) नंबर नाही; किंवा AI ला जुन्या log book चे एक page आत्ता पूर्ण वाचता आले नाही (पुन्हा विचारूनही ते slow / busy होते). काहीही save झाले नाही.', 'App update करा (किंवा page reload करा) आणि ओळ पुन्हा बदला; GST ₹ मध्ये टाइप करा. जुन्या log book साठी: "Continue reading" दाबा – वाचलेली pages राहतात आणि जिथे थांबले तिथून पुढे वाचते.'],
       hi: ['पुरानी log book की पंक्ति अपना GST (₹) फ़ाइल में जैसा था वैसा ही रखती है – पुराना page या app उस GST को खोए बिना उसे नहीं बदल सकता; या टाइप किया GST (₹) नंबर नहीं है; या AI पुरानी log book का एक page अभी पूरा नहीं पढ़ सका (फिर से पूछने पर भी वह slow / busy था). कुछ भी save नहीं हुआ.', 'App update करें (या page reload करें) और पंक्ति फिर से बदलें; GST ₹ में टाइप करें. पुरानी log book के लिए: "Continue reading" दबाएँ – पढ़े हुए pages रहते हैं और जहाँ रुका वहीं से आगे पढ़ता है.'] },
     // (update-184) the vendor's Company Name, Owner Name and documents
+    // (update-205) the documents of Vehicle Compliance
+    { re: /documents of Vehicle Compliance (are kept in Supabase only|cannot be kept yet)|files of the paper were not sent right|A file of the paper was not|A paper keeps at most \d+ files|Pick the document: Tax|is not Own machinery – the papers are kept only|This line of the history \(|Add the PDF \/ photo first|supabase_step1zl_compliance_files/i,
+      en: ['The document was not kept: this site\'s database cannot keep the files of Vehicle Compliance yet, a file was not sent right (or not added by you in the last 6 hours), the line has its most files already, the machinery is not Own, the line of the history changed, or no file was added. Nothing was saved.', 'Add the file again (+ Add file) and save; put more files on another line (the Admin can change the number in Site rules); papers are kept only for Own machinery; open the page again. The Admin runs sql/supabase_step1zl_compliance_files.sql once in Supabase → SQL Editor (in every site) to keep the documents.'],
+      mr: ['Document ठेवले गेले नाही: या site चा database अजून Vehicle Compliance च्या files ठेवू शकत नाही, एखादी file नीट पाठवली गेली नाही (किंवा गेल्या 6 तासांत तुम्ही जोडली नाही), त्या ओळीला आधीच जास्तीत जास्त files आहेत, गाडी Own नाही, history ची ओळ बदलली, किंवा एकही file जोडली नाही. काहीही save झाले नाही.', 'File पुन्हा जोडा (+ Add file) आणि save करा; जास्त files दुसऱ्या ओळीला लावा (संख्या Admin Site rules मध्ये बदलू शकतो); papers फक्त Own गाड्यांचे ठेवले जातात; page पुन्हा उघडा. Documents ठेवण्यासाठी Admin ने sql/supabase_step1zl_compliance_files.sql एकदा Supabase → SQL Editor मध्ये चालवावे (प्रत्येक site मध्ये).'],
+      hi: ['Document नहीं रखा गया: इस site का database अभी Vehicle Compliance की files नहीं रख सकता, कोई file ठीक से नहीं भेजी गई (या पिछले 6 घंटों में आपने नहीं जोड़ी), उस line में पहले से सबसे ज़्यादा files हैं, गाड़ी Own नहीं है, history की line बदल गई, या कोई file नहीं जोड़ी. कुछ भी save नहीं हुआ.', 'File फिर से जोड़ें (+ Add file) और save करें; ज़्यादा files दूसरी line पर लगाएँ (संख्या Admin Site rules में बदल सकता है); papers केवल Own गाड़ियों के रखे जाते हैं; page फिर से खोलें. Documents रखने के लिए Admin sql/supabase_step1zl_compliance_files.sql एक बार Supabase → SQL Editor में चलाए (हर site में).'] },
     { re: /Enter the Company Name|documents of the vendor (were not sent right|cannot be kept yet)|The Owner Name cannot be kept yet|A vendor document was not|A vendor keeps at most|is not saved in the Vendor Master yet – save its details first|supabase_step1zj_vendor_papers/i,
       en: ['The vendor was not saved: its Company Name is empty, a document was not sent right (or not added by you in the last 6 hours), it has more than 30 documents, the vendor is not saved yet, or this site\'s database cannot keep the Owner Name and documents yet. Nothing was saved.', 'Type the Company Name; add the document again (Add / change) and press Save vendor; take out some documents; save the vendor\'s details first. The Admin runs sql/supabase_step1zj_vendor_papers.sql once in Supabase → SQL Editor (in every site) to keep the Owner Name and the documents.'],
       mr: ['Vendor save झाला नाही: Company Name रिकामे आहे, एखादे document नीट पाठवले गेले नाही (किंवा गेल्या 6 तासांत तुम्ही जोडले नाही), 30 पेक्षा जास्त documents आहेत, vendor अजून save नाही, किंवा या site चा database अजून Owner Name आणि documents ठेवू शकत नाही. काहीही save झाले नाही.', 'Company Name टाइप करा; document पुन्हा जोडा (Add / change) आणि Save vendor दाबा; काही documents काढा; आधी vendor चे तपशील save करा. Owner Name आणि documents ठेवण्यासाठी Admin ने sql/supabase_step1zj_vendor_papers.sql एकदा Supabase → SQL Editor मध्ये चालवावा (प्रत्येक site मध्ये).'],
@@ -7031,10 +7046,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The rate agreement with each vendor: which machinery, on what basis (monthly, per day, per hour, per KM, per trip, slabs or item-wise), at what rate, and who pays the diesel.', 'A machinery can be in one BOQ for a date; a change of rate is an "Amend" with its own start date. Bills take the rate of the BOQ that is valid on each day. GST % is needed when the vendor is GST registered.'],
       mr: ['प्रत्येक vendor सोबतचा दराचा करार: कोणती machinery, कोणत्या basis वर (monthly, per day, per hour, per KM, per trip, slabs किंवा item-wise), कोणत्या दराने, आणि diesel कोण देणार.', 'एका तारखेला एक machinery एकाच BOQ मध्ये असते; दर बदलायचा असेल तर स्वतःच्या सुरुवातीच्या तारखेसह "Amend". Bill प्रत्येक दिवशी लागू असलेल्या BOQ चा दर घेते. Vendor GST registered असेल तर GST % लागतो.'],
       hi: ['हर vendor के साथ दर का करार: कौन सी machinery, किस basis पर (monthly, per day, per hour, per KM, per trip, slabs या item-wise), किस दर पर, और diesel कौन देगा।', 'एक तारीख को एक machinery एक ही BOQ में होती है; दर बदलनी हो तो अपनी शुरू की तारीख के साथ "Amend"। Bill हर दिन लागू BOQ की दर लेता है। Vendor GST registered हो तो GST % ज़रूरी है।'] },
-    comp: { saves: ['renewDoc', 'saveCmpRules', 'importCompliance'],
-      en: ['The papers of every vehicle: insurance, fitness, PUC, permit, tax – with their validity dates.', 'The app shows what has expired and what is due in 30 days. "Valid upto" must be a date, NA or Lifetime (only for tax); a renewal must be later than the old date. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed.'],
-      mr: ['प्रत्येक गाडीचे कागद: insurance, fitness, PUC, permit, tax, त्यांच्या वैधतेच्या तारखांसह.', 'काय संपले आणि काय 30 दिवसांत संपणार ते app दाखवते. "Valid upto" ही तारीख, NA किंवा Lifetime (फक्त tax साठी) असावी; नूतनीकरणाची तारीख जुन्यापेक्षा नंतरची असावी. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते.'],
-      hi: ['हर गाड़ी के काग़ज़: insurance, fitness, PUC, permit, tax, उनकी वैधता की तारीखों के साथ।', 'क्या खत्म हुआ और क्या 30 दिन में खत्म होगा यह app दिखाता है। "Valid upto" तारीख, NA या Lifetime (केवल tax के लिए) हो; नवीकरण की तारीख पुरानी से बाद की हो। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है।'] },
+    comp: { saves: ['renewDoc', 'saveCmpRules', 'importCompliance', 'cmpDoc', 'cmpFiles'],
+      en: ['The papers of every vehicle: insurance, fitness, PUC, permit, tax – with their validity dates.', 'The app shows what has expired and what is due in 30 days. "Valid upto" must be a date, NA or Lifetime (only for tax); a renewal must be later than the old date. The list of entries under the form is closed (a bar): press it to open the list, press again to close it; the app opened again starts with it closed. 📎 Documents of a machinery: its RC Book and Tax Invoice (the invoice of buying it – each one added is kept, the earlier ones stay) and, for each paper, every renewal with its own PDF / photos (added with the renewal, or later with "+ Add file"); files are only added, never taken out; Edit access adds, View access sees.'],
+      mr: ['प्रत्येक गाडीचे कागद: insurance, fitness, PUC, permit, tax, त्यांच्या वैधतेच्या तारखांसह.', 'काय संपले आणि काय 30 दिवसांत संपणार ते app दाखवते. "Valid upto" ही तारीख, NA किंवा Lifetime (फक्त tax साठी) असावी; नूतनीकरणाची तारीख जुन्यापेक्षा नंतरची असावी. Form खालची entries ची यादी बंद असते (एक पट्टी): ती दाबली की यादी उघडते, पुन्हा दाबली की बंद होते; app पुन्हा उघडल्यावर ती बंदच असते. 📎 Documents: गाडीचे RC Book आणि Tax Invoice (खरेदीचे invoice – प्रत्येक नवीन जोडलेले ठेवले जाते, जुने राहतात) आणि प्रत्येक paper चे प्रत्येक renewal त्याच्या PDF / photo सह (renew करताना किंवा नंतर "+ Add file"); files फक्त जोडल्या जातात, कधी काढल्या जात नाहीत; Edit access जोडतो, View access बघतो.'],
+      hi: ['हर गाड़ी के काग़ज़: insurance, fitness, PUC, permit, tax, उनकी वैधता की तारीखों के साथ।', 'क्या खत्म हुआ और क्या 30 दिन में खत्म होगा यह app दिखाता है। "Valid upto" तारीख, NA या Lifetime (केवल tax के लिए) हो; नवीकरण की तारीख पुरानी से बाद की हो। Form के नीचे entries की सूची बंद रहती है (एक पट्टी): उसे दबाने पर सूची खुलती है, फिर दबाने पर बंद होती है; app फिर से खोलने पर वह बंद ही रहती है। 📎 Documents: गाड़ी का RC Book और Tax Invoice (खरीद का invoice – हर नया जोड़ा हुआ रखा जाता है, पुराने रहते हैं) और हर paper का हर renewal उसकी PDF / photo के साथ (renew करते समय या बाद में "+ Add file"); files केवल जोड़ी जाती हैं, कभी हटाई नहीं जातीं; Edit access जोड़ता है, View access देखता है।'] },
     lbf: { saves: ['saveLbFormats', 'saveLbFormatName'],
       en: ['Which Log Book format (A to H) each machinery uses: it decides the fields asked in the entry and the layout of the printed Log Book.', 'The format does not change the bill – the bill follows the BOQ. A format can be renamed; "View format" shows a sample print.'],
       mr: ['प्रत्येक machinery कोणता Log Book format (A ते H) वापरते: त्यावरून entry मध्ये कोणते fields विचारले जातात आणि छापलेल्या Log Book ची मांडणी ठरते.', 'Format मुळे bill बदलत नाही; bill BOQ प्रमाणे चालते. Format चे नाव बदलता येते; "View format" नमुना print दाखवते.'],
@@ -15236,16 +15251,82 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const sub = x.s === 'expired' ? 'expired ' + -x.days + ' day' + (x.days === -1 ? '' : 's') + ' ago' : x.s === 'due' ? (x.days === 0 ? 'expires today' : 'in ' + x.days + ' day' + (x.days === 1 ? '' : 's')) : x.s === 'ok' ? 'valid' : x.s === 'life' ? 'tax paid for life' : x.s === 'missing' ? 'enter the date' : 'not applicable';
       return '<td>' + (can ? '<button class="cp-p ' + x.s + '" data-cpr="' + esc(m.no) + '|' + k + '" title="Renew / update ' + esc(k) + '">' : '<span class="cp-p ' + x.s + '">') + '<b>' + esc(lab) + '</b><small>' + sub + '</small>' + (can ? '</button>' : '</span>') + '</td>'; };
     $('cp_table').innerHTML = '<thead><tr><th>Machinery</th>' + d.docs.map(k => '<th>' + esc(k) + '</th>').join('') + '</tr></thead><tbody>' +
-      (L.length ? L.map(m => '<tr><td><b>' + esc(m.no) + '</b><small>' + esc([m.type, m.ownership, m.owner].filter(Boolean).join(' · ')) + '</small></td>' + d.docs.map(k => cell(m, k)).join('') + '</tr>').join('')
+      (L.length ? L.map(m => '<tr><td><b>' + esc(m.no) + '</b><small>' + esc([m.type, m.ownership, m.owner].filter(Boolean).join(' · ')) + '</small><button type="button" class="link cp-dbtn" data-cpd="' + esc(m.no) + '" title="The PDF / photos of its papers (every renewal), its RC Book and Tax Invoice">📎 Documents' + (m.files ? ' (' + m.files + ')' : '') + '</button></td>' + d.docs.map(k => cell(m, k)).join('') + '</tr>').join('')
         : '<tr><td colspan="6" class="lbd-empty">✔ Nothing here – all papers are fine for these filters.</td></tr>') + '</tbody>';
     // history (the search above filters it too)
     const H2 = d.history.filter(h => !q || (h.no + ' ' + h.doc).toUpperCase().indexOf(q) > -1);
     $('cp_hnote').textContent = H2.length + ' entr' + (H2.length === 1 ? 'y' : 'ies') + (q ? ' for "' + $('cp_q').value.trim() + '"' : '');
     const dv = v => v === 'NA' ? 'N/A' : v === 'LIFETIME' ? 'Lifetime' : v ? showDate(v) : '–';
-    $('cp_hist').innerHTML = '<thead><tr><th>Renewed on</th><th>Machinery</th><th>Paper</th><th>Old valid upto</th><th>New valid upto</th><th>Doc / Policy No</th><th class="n">Amount</th><th>Remark</th><th>By</th></tr></thead><tbody>' +
-      (H2.length ? H2.slice(0, 300).map(h => '<tr><td>' + esc(dv(h.on)) + '</td><td><b>' + esc(h.no) + '</b></td><td>' + esc(h.doc) + '</td><td>' + esc(dv(h.from)) + '</td><td><b>' + esc(dv(h.to)) + '</b></td><td>' + esc(h.docNo || '–') + '</td><td class="n">' + (h.amount !== '' ? '₹' + fmt(h.amount) : '–') + '</td><td>' + esc(h.remark || '') + (h.source === 'Asset Master' ? '<small>changed in Asset Master</small>' : '') + '</td><td>' + esc(h.by || '') + '</td></tr>').join('')
-        : '<tr><td colspan="9" class="none">No renewals yet.</td></tr>') + '</tbody>';
+    $('cp_hist').innerHTML = '<thead><tr><th>Renewed on</th><th>Machinery</th><th>Paper</th><th>Old valid upto</th><th>New valid upto</th><th>Doc / Policy No</th><th class="n">Amount</th><th>Remark</th><th>By</th><th>Files</th></tr></thead><tbody>' +
+      (H2.length ? H2.slice(0, 300).map(h => '<tr><td>' + esc(dv(h.on)) + '</td><td><b>' + esc(h.no) + '</b></td><td>' + esc(h.doc) + '</td><td>' + esc(dv(h.from)) + '</td><td><b>' + esc(dv(h.to)) + '</b></td><td>' + esc(h.docNo || '–') + '</td><td class="n">' + (h.amount !== '' ? '₹' + fmt(h.amount) : '–') + '</td><td>' + esc(h.remark || '') + (h.source === 'Asset Master' ? '<small>changed in Asset Master</small>' : '') + '</td><td>' + esc(h.by || '') + '</td>' +
+        '<td>' + (h.files ? '<button type="button" class="link" data-cphf="' + esc(h.no) + '|' + esc(h.id) + '" title="Its PDF / photos">📎 ' + h.files + '</button>' : '–') + '</td></tr>').join('')
+        : '<tr><td colspan="10" class="none">No renewals yet.</td></tr>') + '</tbody>';
   }
+  /* (update-205, asked 03-11-2026: "vehicle compliance madhe pratek vehicle ch document upload krta yaw … rc book pn ok ani tya gadich tax
+   * invoice pn ok ani … renewal wise asaw mhanje maghche document pn mala bghta yeil") 📎 DOCUMENTS of a machinery: its RC Book and Tax
+   * Invoice (the invoice of buying it) – each one added kept, the earlier ones stay; each paper with every renewal of the history and
+   * ITS files. "+ Add" (Vehicle Compliance Edit): the attachments' box (upload, camera, paste, a photo corrected), kept once in the
+   * private store (cmpDoc), then with the line (cmpFiles). Files are only added – never taken out. The links last 15 minutes. */
+  S.cpd = null;
+  const cpDv = v => v === 'NA' ? 'N/A' : v === 'LIFETIME' ? 'Lifetime' : v ? showDate(v) : '–';
+  function cpdFiles(fs) {
+    const dl = x => x.url + (x.url.indexOf('?') > -1 ? '&' : '?') + 'download=' + encodeURIComponent(x.name || (x.mime === 'application/pdf' ? 'document.pdf' : 'photo.jpg'));
+    return '<div class="vdv-grid">' + fs.map((x, i) => '<figure>' + (x.url ? '<button type="button" class="link" data-cpdv="' + i + '" title="Look at it">' + (x.mime === 'application/pdf' ? '<span class="at-pdf">PDF</span>' : '<img src="' + esc(x.url) + '" alt="" loading="lazy">') + '</button>' : '<span class="at-pdf">…</span>') +
+      '<figcaption>' + esc(x.name || '') + (x.by ? '<br><small class="muted">' + esc(x.by) + (x.at ? ' · ' + esc(showDate(String(x.at).slice(0, 10))) : '') + '</small>' : '') + '</figcaption>' +
+      (x.url ? '<div class="vdv-act"><a href="' + esc(x.url) + '" target="_blank" rel="noopener">Open</a><button type="button" class="link" data-vdp="' + esc(x.url) + '" data-vdm="' + esc(x.mime) + '">Print</button><a href="' + esc(dl(x)) + '">Download</a></div>' : '') + '</figure>').join('') + '</div>';
+  }
+  function cpdPaint() {
+    const d = S.cpd; if (!d) return;
+    const can = canEdit('Vehicle Compliance') && d.on, add = (doc, id, label) => can ? '<button type="button" class="btn ghost small" data-cpda="' + esc(doc) + '|' + esc(id || '') + '">+ ' + esc(label) + '</button>' : '';
+    const m = (S.cp.d && S.cp.d.machines || []).find(x => x.no === d.no), line = (r, head) => '<div class="cpd-line" data-cpdl="' + esc(r.id) + '"><div class="cpd-meta"><div>' + head +
+      '<small>' + esc([r.docNo ? 'No ' + r.docNo : '', r.amount !== '' ? '₹' + fmt(r.amount) : '', r.remark, r.by ? 'by ' + r.by : '', r.id].filter(Boolean).join(' · ')) + '</small></div>' + add(r.doc, r.id, 'Add file') + '</div>' +
+      (r.files.length ? cpdFiles(r.files) : '<p class="muted" style="margin:4px 0">No file with this line.</p>') + '</div>';
+    const keep = d.keep.map(k => { const L = d.rows.filter(r => r.doc === k);
+      return '<section class="cpd-sec"><h3><span>' + esc(k) + (k === 'Tax Invoice' ? '<small>the invoice of buying the vehicle</small>' : '') + '</span>' + add(k, '', 'Add ' + k) + '</h3>' +
+        (L.length ? L.map((r, i) => line(r, '<b>' + (i === 0 ? 'Latest' : 'Earlier') + ' – added ' + esc(cpDv(r.on)) + '</b>')).join('') : '<p class="muted">Not added yet.</p>') + '</section>'; });
+    const papers = d.papers.map(pp => { const L = d.rows.filter(r => r.doc === pp.name), st = m && m.docs[pp.name], now = pp.v;
+      const hasNow = !now || L.some(r => r.to === now);
+      return '<section class="cpd-sec"><h3><span>' + esc(pp.name) + '<small>' + (now ? 'now: valid upto ' + esc(cpDv(now)) + (st && st.s === 'expired' ? ' (expired)' : '') : 'not entered') + '</small></span></h3>' +
+        (!hasNow ? '<div class="cpd-line"><div class="cpd-meta"><div><b>Valid upto ' + esc(cpDv(now)) + '</b><small>the date now – no renewal of it in the history</small></div>' + add(pp.name, '', 'Add file') + '</div></div>' : '') +
+        (L.length ? L.map(r => line(r, '<b>Valid upto ' + esc(cpDv(r.to)) + '</b>' + (r.source === 'Document' ? '' : ' <span class="muted">(was ' + esc(cpDv(r.from)) + ')</span>') + '<small>' + (r.source === 'Document' ? 'files added ' : r.source === 'Renewal' ? 'renewed on ' : esc(r.source || '') + ' ') + esc(cpDv(r.on)) + '</small>')).join('')
+          : hasNow ? '<p class="muted">No renewal in the history yet.</p>' : '') + '</section>'; });
+    $('cp_dpanel').innerHTML = '<div class="panel-head"><h2>📎 Documents – ' + esc(d.no) + '</h2><span class="chart-note">' + esc([d.type, d.ownership, d.owner].filter(Boolean).join(' · ')) + ' · the links work for 15 minutes</span>' +
+      '<button type="button" class="btn ghost small" id="cp_dclose">Close</button></div>' +
+      (d.on ? '' : '<p class="cp-note">The documents cannot be kept yet at this site – the Admin runs sql/supabase_step1zl_compliance_files.sql once in Supabase → SQL Editor (in every site).</p>') +
+      '<div class="cpd-secs">' + keep.concat(papers).join('') + '</div>';
+    $('cp_dpanel').hidden = false;
+  }
+  async function cpdOpen(no, line) {
+    S.cpd = Object.assign(await call('getCmpFiles', { no: no }), { at: Date.now() }); cpdPaint();
+    const el = line ? $('cp_dpanel').querySelector('[data-cpdl="' + line + '"]') : $('cp_dpanel'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: line ? 'center' : 'start' });
+  }
+  // a file added to a line (id), to the paper of its date now, or a new RC Book / Tax Invoice
+  async function cpdAdd(no, doc, id) {
+    const keep = (S.cpd && S.cpd.keep || ['RC Book', 'Tax Invoice']).indexOf(doc) > -1;
+    const got = await atOpen({ title: doc + ' – ' + no, sub: id ? 'Added to ' + id + ' (its files stay)' : keep ? 'A new ' + doc + ' – the earlier ones stay' : 'With the ' + doc + ' of its date now', files: [], up: 'cmpDoc', noQr: true });
+    if (!got || !got.length) return;
+    const x = { no: no, doc: doc, id: id || '', files: got.map(f => ({ sha: f.sha })) };
+    if (keep && !id) {
+      const ok = await askConfirm({ title: 'Save the ' + doc + ' of ' + no, ok: 'Save', html: '<p>' + got.length + ' file' + (got.length === 1 ? '' : 's') + '. The rest is optional.</p><div class="cp-form">' +
+        '<label>' + (doc === 'RC Book' ? 'RC No' : 'Invoice No') + ' <small>(optional)</small><input id="cpd_no" maxlength="60"></label><label>Date <small>(optional)</small><input id="cpd_on" type="date" max="' + esc(S.today) + '"></label>' +
+        '<label>Remark <small>(optional)</small><input id="cpd_rem" maxlength="200"></label></div>' });
+      if (!ok) { toast('Not saved.'); return; }
+      Object.assign(x, { docNo: val('cpd_no'), on: $('cpd_on').value, remark: val('cpd_rem') });
+    }
+    const r = await call('cmpFiles', x);
+    toast(r.n + ' file' + (r.n === 1 ? '' : 's') + ' kept with the ' + doc + ' of ' + no + '.');
+    await cpdOpen(no, r.id); cpLoad();
+  }
+  $('cp_dpanel').addEventListener('click', async e => {
+    if (e.target.closest('#cp_dclose')) { $('cp_dpanel').hidden = true; S.cpd = null; return; }
+    const v = e.target.closest('[data-cpdv]'); if (v) { const ln = v.closest('[data-cpdl]'), r = S.cpd && S.cpd.rows.find(x => x.id === (ln && ln.dataset.cpdl)); if (r) atView(r.files, Number(v.dataset.cpdv)); return; }
+    const a = e.target.closest('[data-cpda]'); if (!a || !S.cpd) return;
+    const [doc, id] = a.dataset.cpda.split('|');
+    try { await cpdAdd(S.cpd.no, doc, id); } catch (err) { toast(errMsg(err), true); }
+  });
+  $('cp_table').addEventListener('click', e => { const b = e.target.closest('[data-cpd]'); if (!b) return; cpdOpen(b.dataset.cpd).catch(err => toast(errMsg(err), true)); });
+  $('cp_hist').addEventListener('click', async e => { const b = e.target.closest('[data-cphf]'); if (!b) return; const [no, id] = b.dataset.cphf.split('|');
+    try { const d = await call('getCmpFiles', { no: no }), r = d.rows.find(x => x.id === id); if (r && r.files.length) atView(r.files, 0); else toast('No file with this line.', true); } catch (err) { toast(errMsg(err), true); } });
   $('cp_rules').addEventListener('click', async () => {
     const d = S.cp.d; if (!d) return;
     const docs = ['Tax', 'PUC', 'Permit', 'Fitness', 'Insurance'];
@@ -15322,7 +15403,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!ok) return;
     const x = { no: no, doc: doc, to: $('cp_na').checked ? 'NA' : $('cp_lt') && $('cp_lt').checked ? 'LIFETIME' : $('cp_to').value, on: $('cp_on').value, docNo: $('cp_no').value, amount: $('cp_amt').value, remark: $('cp_rem').value };
     if (!x.to) { toast('Enter the new valid-upto date.', true); return; }
-    try { await call('renewDoc', x); toast(doc + ' of ' + no + ' saved – ' + (x.to === 'NA' ? 'N/A' : x.to === 'LIFETIME' ? 'lifetime tax paid' : 'valid upto ' + showDate(x.to)) + '.'); await cpLoad(); } catch (err) { toast(errMsg(err), true); }
+    // (update-205) the renewed paper's PDF / photos – optional ("Done" with none: the date only); Cancel: nothing is saved
+    if (S.cp.d.filesOn && x.to !== 'NA') {
+      const got = await atOpen({ title: doc + ' – ' + no, sub: 'The renewed paper (PDF / photo) – optional: press Done with no file to save the date only.', files: [], up: 'cmpDoc', noQr: true });
+      if (!got) { toast('Not saved.'); return; }
+      if (got.length) x.files = got.map(f => ({ sha: f.sha }));
+    }
+    try { await call('renewDoc', x); toast(doc + ' of ' + no + ' saved – ' + (x.to === 'NA' ? 'N/A' : x.to === 'LIFETIME' ? 'lifetime tax paid' : 'valid upto ' + showDate(x.to)) + (x.files ? ', with ' + x.files.length + ' file' + (x.files.length === 1 ? '' : 's') : '') + '.'); await cpLoad();
+      if (S.cpd && S.cpd.no === no) cpdOpen(no).catch(() => {}); } catch (err) { toast(errMsg(err), true); }
   });
 
   /* ---------- Dashboard: Own vehicle compliance (only expired and expiring within 30 days) ---------- */

@@ -2321,3 +2321,8 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   each vehicle after its diesel and its share of the other deduction (`txShares`), no "Less" line, the invoice adds up to D; a bill
   before keeps its invoice. RCL DRIVE – a deleted bill is not in Saved Bills but in the Deleted Bills tab, month by month (`sbDeleted`).
   No SQL. Tests: unit `update-204`; the rig in Chromium; rcl-mobile 3.77.0 (`web_round.json` made again).
+- 03-11-2026 (update-205). Report: `UPDATE_205.md`. VEHICLE COMPLIANCE – 📎 DOCUMENTS of each machinery: the RC Book and the Tax Invoice
+  (the invoice of buying it – each one added a line of its own, the earlier stay) and every renewal of each paper with ITS files
+  (`cmpFiles`, `getCmpFiles`, `cmpDoc`; `renewDoc` with files); files only added, never taken out; Edit adds, View sees; only Own.
+  SQL step 1zl (`compliance_history.attachments` – one empty column, every site; approved 03-11-2026). Tests: unit `update-205`; the rig
+  in Chromium; rcl-mobile 3.78.0.

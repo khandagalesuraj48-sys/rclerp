@@ -122,7 +122,8 @@ const SB_TABLES_ = [
   { table: 'compliance_history', tab: 'Compliance History', title: 'Compliance History', pk: 'id', key: r => sbStr_(r['History ID']), cols: [
     ['Machinery No', 'machinery_no', 'text'], ['Document', 'document', 'text'], ['Old Valid Upto', 'old_valid_upto', 'text'], ['New Valid Upto', 'new_valid_upto', 'text'],
     ['Renewed On', 'renewed_on', 'date'], ['Document No', 'document_no', 'text'], ['Amount', 'amount', 'numeric'], ['Remark', 'remark', 'text'], ['Source', 'source', 'text'],
-    ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text']] },
+    ['Created At', 'entered_at', 'timestamptz'], ['Entered By', 'entered_by', 'text'],
+    ['Attachments', 'attachments', 'text', 'opt']] },      // (update-205, step 1zl) the paper's files: [{ sha, p, mime, size, name, at, by }]
   { table: 'app_users', tab: 'Users', title: 'Users', pk: 'id', key: r => sbStr_(r['Email']).toLowerCase(), cols: [
     ['Email', 'email', 'text'], ['Password', 'password_hash', 'text'], ['Name', 'name', 'text'], ['Active', 'active', 'text'], ['Admin', 'admin', 'text'],
     ['Dashboard', 'perm_dashboard', 'text'], ['Master', 'perm_master', 'text'], ['Diesel Inward', 'perm_diesel_inward', 'text'], ['Diesel Transfer', 'perm_diesel_transfer', 'text'],
