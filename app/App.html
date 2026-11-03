@@ -20591,6 +20591,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return logSheetsBuild(L, headName, extra);
   }
   // (the same, when the diesel / BOQ data of the dates – "extra" – is already in hand: nothing is asked from the server)
+  const LB_DSL = 'No Log Book entry – diesel issued';      // (update-207) a printed row of a day with diesel and no entry
   function logSheetsBuild(L, headName, extra0) {
     const LBOPT = { fmt: L && L.fmt, sample: L && L.sample }; // "View format": a format to show, and a SAMPLE mark
     const IDLE_BY = (L && L.idle) || null; // from a bill: { machinery: Idle days paid? } – as chosen in that bill
@@ -20647,6 +20648,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         // an entry with two or more works: a row for each (lbWorkRows) – its diesel stays on its first row
         const ws = LBOPT.sample ? null : lbWorkRows(r);
         if (!ws) lines.push(x); else ws.forEach((y, j) => lines.push(Object.assign({}, x, { r: y }, j ? { iss: 0, refill: '', total: 0, used: 0 } : {})));
+      });
+      /* (update-207, asked 03-11-2026: "jya diwshi diesel ghetley but tya day chi entry nahi mhanun dakhwat nahi tr as nko diesel ghetley ani
+       * kam nasel tr te entry disayla hawi kam nasel tr 0 0 sagle rahu de all format sathi") A DAY WITH DIESEL AND NO LOG BOOK ENTRY is a
+       * row of its own, in its date's place, in every format: its diesel and the reading at it; no work ("–", "NO LOG BOOK ENTRY – DIESEL
+       * ISSUED"). Only printed: the days, hours, trips and amounts still count the entries only (as before). */
+      if (!LBOPT.sample) Object.keys(iss0).filter(d0 => !seenDay[d0] && d0 >= from && d0 <= to && Number(iss0[d0].qty) > 0).sort().forEach(d0 => {
+        const d = iss0[d0], f0 = Array.isArray(d.fills) && d.fills[0] ? d.fills[0] : {}, q = Number(d.qty) || 0;
+        const r = { no: no, date: d0, shift: f0.s === 'Night' ? 'Night' : 'Day', mode: LB_DSL, unit: u, _dsl: true, work: '', remark: '', chFrom: '', chTo: '', challan: '', trip: '', okm: '', ckm: '', wkm: '', ohr: '', chr: '', whr: '' };
+        const x = { r: r, i: 0, open: 0, iss: q, refill: fillReads(d), total: q, used: q, close: 0, avg: '' };
+        const at = lines.findIndex(y => y.r && y.r.date > d0); if (at === -1) lines.push(x); else lines.splice(at, 0, x);
       });
       lines.forEach((x, i) => { x.i = i; });      // the serial number of the printed row
       const sum = k => r2(lines.reduce((s, x) => s + (Number(x[k]) || 0), 0));
@@ -20762,7 +20773,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         '<tr><th rowspan="2">SR.<br>NO.</th><th rowspan="2">DATE</th><th rowspan="2">SHIFT</th><th rowspan="2">UNIT</th><th colspan="3">READING / WORK</th>' +
         '<th colspan="6">DIESEL (LTR)</th><th rowspan="2">AVG<br><small>LTR / ' + (isHr ? 'HR' : 'KM') + '</small></th><th rowspan="2">CHAINAGE<br><small>FROM – TO</small></th><th rowspan="2">WORK DESCRIPTION</th></tr>' +
         '<tr><th>START</th><th>CLOSED</th><th>TOTAL</th><th>OPENING<br>BALANCE</th><th>ISSUED<br>QTY</th><th>CURRENT DIESEL<br>REFILLING READING</th><th>TOTAL<br>DIESEL</th><th>CONSUMED<br>DIESEL</th><th>CLOSING<br>BALANCE</th></tr></thead><tbody>' +
-        lines.map(x => { const r = x.r, w = r.mode || r.unit || u, st = DAY_STATUS.indexOf(w) > -1; // Idle / Holiday / Breakdown: written only in Work description
+        lines.map(x => { const r = x.r, w = r.mode || r.unit || u, st = DAY_STATUS.indexOf(w) > -1 || !!r._dsl; // Idle / Holiday / Breakdown (update-207: a day with diesel and no entry): written only in Work description
           return '<tr' + (st ? ' class="lb-st"' : '') + '><td class="c">' + (x.i + 1) + '</td><td class="c">' + esc(showDate(r.date)) + '</td><td class="c">' + esc(shiftText(r)) + '</td><td class="c">' + (st ? '–' : esc(up(w))) + '</td>' +
           (st ? '<td class="n">–</td><td class="n">–</td><td class="n">–</td>' : w === METER_OFF ? '<td class="n">–</td><td class="n">–</td><td class="n"><b>' + [r.wkm !== '' && r.wkm !== undefined ? fmt(r.wkm) + ' KM' : '', r.whr !== '' && r.whr !== undefined ? fmt(r.whr) + ' HR' : ''].filter(Boolean).join(' / ') + '</b> <small>EST.</small></td>' : lbPrintWork(r, w, plain)) +
           '<td class="n">' + n2(x.open) + '</td><td class="n">' + (x.iss ? '<b>' + fmt(x.iss) + '</b>' : '') + '</td><td class="n">' + (x.refill !== '' && x.refill !== undefined ? (typeof x.refill === 'string' ? x.refill : plain(x.refill)) : '') + '</td>' +
@@ -20798,7 +20809,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const FM = LBOPT.fmt || m.lbFormat || 'A';
       let tableF = table, LF = L;
       if (FM !== 'A' && LB_FMT_COLS[FM]) {
-        const stOf = r => DAY_STATUS.indexOf(r.mode || r.unit) > -1, wOf = r => r.mode || r.unit || u;
+        const stOf = r => DAY_STATUS.indexOf(r.mode || r.unit) > -1 || !!r._dsl, wOf = r => r.mode || r.unit || u;      // (update-207: _dsl)
         const mins = t => { const q = /^(\d{1,2}):(\d{2})/.exec(t || ''); return q ? Number(q[1]) * 60 + Number(q[2]) : null; };
         const gross = r => { if (r._gross !== undefined) return r._gross;      // (a later row of an entry printed as a row for each work)
           const a = mins(r.tStart), b = mins(r.tEnd); if (a === null || b === null) return Number(r.whr) || 0; if (slotsParse(r.tSlots).length > 1) return r2((slotsHrs(slotsParse(r.tSlots), 0) || 0) - (r._grossLess || 0));      // split timing: the hours of its times added up
@@ -20814,7 +20825,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           shift: { h: 'SHIFT', w: 5, c: 'c', v: x => esc(shiftText(x.r)) },
           regno: { h: 'REG NO', w: 10, c: 'c', wrap: 1, v: x => esc(up(no)) },
           vehno: { h: 'VEHICLE NO', w: 10, c: 'c', wrap: 1, v: x => esc(up(no)) },
-          particular: { h: 'PARTICULAR', w: 9, v: x => esc(up(x.r._part ? (x.r._prt || x.r._part) : (x.r.remark || m.type || ''))) },      // (a row printed for ONE work of an entry: that work – or what was typed for that row)
+          particular: { h: 'PARTICULAR', w: 9, v: x => x.r._dsl ? '–' : esc(up(x.r._part ? (x.r._prt || x.r._part) : (x.r.remark || m.type || ''))) },      // (a row printed for ONE work of an entry: that work – or what was typed for that row)
           challan: { h: 'CHALLAN NO', w: 8, c: 'c', wrap: 1, v: x => esc(x.t ? x.t.c || '' : x.r.challan || '') },
           kmS: { h: 'START<br>KM', g: 'KM READING', w: 6.2, c: 'n', v: x => km(x.r) ? plain(x.r.okm) : dash },
           kmC: { h: 'CLOSED<br>KM', g: 'KM READING', w: 6.2, c: 'n', v: x => km(x.r) ? plain(x.r.ckm) : dash },

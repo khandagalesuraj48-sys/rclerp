@@ -8524,8 +8524,8 @@ test('update-206: the Log Book print shows the reading given at every diesel fil
   for (const [date, shift, qty, hr] of [['2026-09-02', 'Day', 20, 505], ['2026-09-02', 'Night', 15, 509.5], ['2026-09-03', 'Day', 10, 512]])
     run('x => saveDieselIssue_(x)', { date: date, shift: shift, source: 'Dispenser', no: 'TP-206', qty: qty, hrReading: hr, force: true });
   const x = run('f => logPrintExtra_(f)', { from: '2026-09-01', to: '2026-09-30', nos: ['TP-206'] }).issues.TP206;
-  assert.deepStrictEqual(x['2026-09-02'].fills, [{ q: 20, km: '', hr: 505 }, { q: 15, km: '', hr: 509.5 }], 'every fill of the day with its own reading');
-  assert.deepStrictEqual([x['2026-09-02'].qty, x['2026-09-02'].hr, x['2026-09-03'].fills], [35, 509.5, [{ q: 10, km: '', hr: 512 }]], 'the day\'s litres and last reading as before');
+  assert.deepStrictEqual(x['2026-09-02'].fills, [{ q: 20, km: '', hr: 505, s: 'Day' }, { q: 15, km: '', hr: 509.5, s: 'Night' }], 'every fill of the day with its own reading (update-207: and its shift)');
+  assert.deepStrictEqual([x['2026-09-02'].qty, x['2026-09-02'].hr, x['2026-09-03'].fills], [35, 509.5, [{ q: 10, km: '', hr: 512, s: 'Day' }]], 'the day\'s litres and last reading as before');
   // the page: the reading whatever the fill has; the formats; the note of a fill without an entry (the sheets themselves: rcl-mobile's
   // fixture lbprint/web_sheets.json "fill_reads_206", made by this page's own logSheetsBuild on the rig)
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
@@ -8542,4 +8542,20 @@ test('update-206: the Log Book print shows the reading given at every diesel fil
   assert.match(app, /const has = k => keys\.indexOf\(k\) > -1, hasDiesel = keys\.some\(k => \/\^d\[OITUCR\]\$\/\.test\(k\)\);/, 'the summary: its diesel issue with them');
   assert.match(app, /tr\.forEach\(\(t, j\) => o\.push\(Object\.assign\(\{\}, x, \{ i: o\.length, t: t \}, j \? \{ iss: 0, refill: '' \} : \{\}\)\)\)/, 'Format I: an entry\'s diesel on its first trip only');
   assert.match(app, /return showDate\(x\.d\) \+ ' ' \+ fmt\(x\.q\) \+ ' L' \+ \(rd \? ' \(READING ' \+ rd \+ '\)' : ''\);/);
+});
+
+test('update-207: the Log Book print – a day with diesel and no Log Book entry is a row of its own in its date\'s place, in every format (its diesel and the reading at it, no work); the days and amounts count the entries only', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  assert.match(code, /\(x\.fills = x\.fills \|\| \[\]\)\.push\(\{ q: r2_\(num0_\(r\[c\[H\.QTY\]\]\)\), km: numOrBlank_\(r\[c\[H\.KMR\]\]\), hr: numOrBlank_\(r\[c\[H\.HRR\]\]\), s: str_\(r\[c\[H\.SHIFT\]\]\) \}\);/, 'each fill with its shift');
+  assert.match(app, /const LB_DSL = 'No Log Book entry – diesel issued';/);
+  assert.match(app, /if \(!LBOPT\.sample\) Object\.keys\(iss0\)\.filter\(d0 => !seenDay\[d0\] && d0 >= from && d0 <= to && Number\(iss0\[d0\]\.qty\) > 0\)\.sort\(\)\.forEach\(d0 => \{/, 'every day with diesel and no entry (not on a format\'s sample)');
+  assert.match(app, /const at = lines\.findIndex\(y => y\.r && y\.r\.date > d0\); if \(at === -1\) lines\.push\(x\); else lines\.splice\(at, 0, x\);/, 'in its date\'s place');
+  assert.match(app, /const x = \{ r: r, i: 0, open: 0, iss: q, refill: fillReads\(d\), total: q, used: q, close: 0, avg: '' \};/, 'its diesel and the reading at it');
+  assert.match(app, /st = DAY_STATUS\.indexOf\(w\) > -1 \|\| !!r\._dsl;/, 'Format A: no work – as a day status');
+  assert.match(app, /const stOf = r => DAY_STATUS\.indexOf\(r\.mode \|\| r\.unit\) > -1 \|\| !!r\._dsl/, 'the other formats the same');
+  // only printed: the rows of the sheet are added to `lines` – the days, hours and trips are worked out from the entries (list / paidList)
+  const b = app.slice(app.indexOf('function logSheetsBuild('), app.indexOf('function logSheetsBuild(') + 60000);
+  assert.match(b, /const units = \{\}; paidList\.forEach/);
+  assert.match(b, /const paidList = list\.filter\(/);
+  assert.doesNotMatch(b, /list\.push\(x\)|list\.splice\(/, 'the entries themselves are never added to');
 });
