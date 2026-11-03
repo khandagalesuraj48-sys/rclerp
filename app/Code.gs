@@ -959,6 +959,7 @@ const API_ = {
   getMeterReading:   { m: 'Diesel Issue', withUser: true, f: (u, x) => meterReading_(u, x) },           // update-85: the AI reads the meter on the dashboard photo (a question: nothing is saved)
   getDieselPhotos:   { m: 'Diesel Issue', f: dieselPhotos_ },                                            // update-85: the photos of an entry, to look at
   saveDieselBulk:    { m: 'Diesel Issue', edit: true, f: saveDieselBulk_, log: 'dieselBulk' },
+  tankDue:           { m: 'Diesel Issue', f: tankDueInfo_ },      // (update-203) is a tank check due with this fill?
   importDiesel:      { m: 'Diesel Issue', edit: true, f: importDiesel_, log: 'diImport' },
   updateDieselIssue: { m: 'Diesel Issue', edit: true, f: updateDieselIssue_, log: 'edit', sheet: 'SHEET_DIESEL', idh: 'ID' },
   deleteDieselIssue: { m: 'Diesel Issue', edit: true, f: deleteDieselIssue_, log: 'delete', sheet: 'SHEET_DIESEL', idh: 'ID' },
@@ -4875,6 +4876,7 @@ function saveDieselIssue_(d, u) {
     const v = validateDiesel_(d, m);
     const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_);
     requireStockAt_(v.source, dk, shift, '', v.qty);
+    const tc = tankBeforeDiesel_(m, dk, d.tc);      // (update-203) a tank check due: typed with this fill, or nothing is saved
 
     if (!d.force || flowStrict_()) {      // (update-131) by its date – the fills before and after it; for approval: a mistake
       const warn = fitWarnings_(dieselPts_(t, dieselIdxs_(t, m.id), -1), [dk, shiftOrder_(shift), Date.now()], v);
@@ -4890,8 +4892,9 @@ function saveDieselIssue_(d, u) {
     if (photos) photosTaken_(photos.map(x => x.p));      // a photo goes with ONE entry (update-120: an entry sent for verification keeps them for its approval)
     markDieselNo_(n);
     syncLogFromDiesel_(m.id, dk, shift);
+    const tco = tc ? tankCheckAdd_(tc, null, true) : null;      // (update-203) the check of the day before the fill
     recalcBalances_();
-    return { ok: true, id: id, stock: getStock_() };
+    return Object.assign({ ok: true, id: id, stock: getStock_() }, tco ? { tankCheck: tco } : {});
   });
 }
 
@@ -4927,6 +4930,8 @@ function importDiesel_(rows) {
           (seen[k] = seen[k] || []).push({ key: me, km: v.km, hr: v.hr, at: 'row ' + line + ' of this entry' });
           if (warn.length) throw new Error(m.id + ': ' + warn.join(' '));
         }
+        const td = tankDue_(m, dk);      // (update-203) a fill that needs its tank check is entered in Diesel Issue, with the check
+        if (td && td.due) throw new Error(m.id + ': tank check due on ' + dmy_(dk) + ' (a check every ' + td.days + ' days) – enter this fill in Diesel Issue with its tank check, or the check on the Tank Check page first.');
         items.push({ line: line, dk: dk, shift: shift, m: m, v: v });
       } catch (e) { errors.push({ row: line, msg: e.message }); }
     });
@@ -4973,7 +4978,7 @@ function saveDieselBulk_(b) {
     // and the rows above it in this entry); for an entry going to approval a reading that does not fit is a mistake
     const idxOf = dieselIdxsAll_(t), now = Date.now(), strict = flowStrict_();
 
-    const errors = [], warnings = [], items = [], seen = {};
+    const errors = [], warnings = [], items = [], seen = {}, tcMade = {};      // (update-203) a machinery's check made by a row above
     (b.rows || []).forEach((d, i) => {
       const blank = ['no', 'qty', 'kmReading', 'hrReading', 'driver', 'remark'].every(f => str_(d[f]) === '');
       if (blank) return;
@@ -4991,7 +4996,7 @@ function saveDieselBulk_(b) {
         const pts = dieselPts_(t, idxOf[k] || [], -1).concat(seen[k] || []);
         fitWarnings_(pts, [dk, shiftOrder_(shift), now + i], v).forEach(msg => (strict ? errors : warnings).push({ row: i + 1, msg: m.id + ': ' + msg }));
         (seen[k] = seen[k] || []).push({ key: [dk, shiftOrder_(shift), now + i], km: v.km, hr: v.hr, at: 'row ' + (i + 1) + ' of this entry' });
-        items.push({ m: m, v: v });
+        items.push({ m: m, v: v, tc: tankBeforeDiesel_(m, dk, d.tc, tcMade) });      // (update-203) a tank check due: typed in its row
       } catch (e) { errors.push({ row: i + 1, msg: e.message }); }
     });
     if (errors.length) return { ok: false, errors: errors };
@@ -5021,8 +5026,9 @@ function saveDieselBulk_(b) {
       const k = noKey_(it.m.id);
       if (hasLog[k] && !done[k]) { done[k] = true; syncLogFromDiesel_(it.m.id, dk, shift); }
     });
+    const tcs = items.filter(it => it.tc).map(it => tankCheckAdd_(it.tc, null, true));      // (update-203) the checks of the day before the fill
     recalcBalances_();
-    return { ok: true, count: rows.length, firstId: ids[0], lastId: ids[ids.length - 1], stock: getStock_() };
+    return Object.assign({ ok: true, count: rows.length, firstId: ids[0], lastId: ids[ids.length - 1], stock: getStock_() }, tcs.length ? { tankChecks: tcs } : {});
   });
 }
 
@@ -11258,8 +11264,10 @@ function tankLock_(no, dk) {
 }
 function saveTankCheck_(d) { return withLock_(() => tankCheckAdd_(d || {}, null)); }
 // bill = { system, reason } from a bill's month-end check (saveBillTankCheck_): the system figure of the bill, the reason not asked
-function tankCheckAdd_(d, bill) {
-    const dk = entryOpen_(d.date, 'Tank check'), m = findMachine_(d.no);
+// fromDiesel (update-203): the check typed with a diesel issue – the day before the fill, under the issue's own date rule (the month
+// close still applies)
+function tankCheckAdd_(d, bill, fromDiesel) {
+    const dk = fromDiesel ? tankDayOpen_(d.date) : entryOpen_(d.date, 'Tank check'), m = findMachine_(d.no);
     const cap = tankCapNeed_(m);
     tankLock_(m.id, dk);
     const method = d.method === 'full' ? 'Filled to full' : 'Measured in tank';
@@ -11284,6 +11292,112 @@ function tankCheckAdd_(d, bill) {
     recalcStock_(m.id); // from the end of this day the system tank starts from the real figure
     bump_(['log']);
     return { ok: true, id: id, no: m.id, date: dk, system: sys, physical: physical, diff: diff };
+}
+/* ================= (update-203) A TANK CHECK EVERY N DAYS BEFORE DIESEL =================
+ * Asked 02-11-2026: "jya gadyana diesel dile jatey tya pratek gadich tank check compulsory karaych aahe every 7 days … 7th day la gadi
+ * ali diesel la tya weli system agodr tank check fill kra bolel tya nantarch entry save karel jr tank check fill nahi kel entry save
+ * nahi honar … super admin … konte site la … own rental hired and machine wise … kiti disani … edit delete … je active aahet tyanche
+ * sathi fkt … debit basis war aahe tyana he lagu nasel". His answers: counted from the last tank check; typed in the diesel entry
+ * itself; set in the Portal; a machinery without its Tank Capacity – not.
+ * The site's rule (TANK_EVERY, saved by the Super Admin in the Portal – sysSiteRulesSave_): { since, groups: { Own, Rental, Hired:
+ * days }, machines: [{ no, on, days }] } – a machinery's own line wins over its group (on with no days: its group's, else 7).
+ * Not for a machinery that is Inactive, on Debit Basis (or Debit), without its Tank Capacity, or on a fuel other than Diesel.
+ * DUE on a date when the days from the day after its last tank check (none: from its first diesel on or after "since") reach N
+ * (2 → 9 for 7 days). The check typed with the diesel is the tank BEFORE the fill = the tank at the end of the day before: it is kept
+ * with that date, as every calculation reads a check (the Log Book's tank, the opening, the bill's month-end check). */
+const TANK_EVERY_KEY_ = 'TANK_EVERY', TANK_GROUPS_ = ['Own', 'Rental', 'Hired'];
+const tankDays_ = v => { const n = Number(v); return str_(v) !== '' && n >= 1 && n <= 90 && Math.floor(n) === n ? n : ''; };
+function tankEvery_() {
+  return memoGet_('__tankEvery', () => { let s = {}; try { s = JSON.parse(PropertiesService.getScriptProperties().getProperty(TANK_EVERY_KEY_) || '{}') || {}; } catch (e) { s = {}; }
+    const g = s.groups && typeof s.groups === 'object' ? s.groups : {}, groups = {};
+    TANK_GROUPS_.forEach(k => { groups[k] = tankDays_(g[k]); });
+    return { since: /^\d{4}-\d{2}-\d{2}$/.test(str_(s.since)) ? str_(s.since) : '', groups: groups,
+      machines: (Array.isArray(s.machines) ? s.machines : []).filter(x => x && str_(x.no)).map(x => ({ no: str_(x.no), on: x.on !== false, days: tankDays_(x.days) })) }; });
+}
+// the days of a machinery's check (0 = the rule is not for it)
+function tankEveryDays_(m) {
+  if (!m || str_(m.status) === 'Inactive' || m.supply === 'Debit Basis' || m.ownership === 'Debit' || !(num0_(m.tankCap) > 0) || (m.fuel && m.fuel !== 'Diesel')) return 0;
+  const r = tankEvery_(); if (!r.since) return 0;
+  const own = r.machines.find(x => noKey_(x.no) === noKey_(m.id));
+  if (own) return own.on ? (own.days || r.groups[m.ownership] || 7) : 0;
+  return r.groups[m.ownership] || 0;
+}
+// is a check due for a diesel issue of [dk]? null = the rule is not for it; else { due, days, last (date), start, gone }
+function tankDue_(m, dk) {
+  const days = tankEveryDays_(m); if (!days) return null;
+  const last = tankChecksOf_(m.id).filter(x => x.date <= dk).pop() || null;
+  let start = last ? addDays_(last.date, 1) : '';
+  if (!start) {      // never checked: from its first diesel on or after the day the rule began
+    const since = tankEvery_().since, t = table_(APP.SHEET_DIESEL, DIESEL_COLS_);
+    dieselIdxs_(t, m.id).forEach(i => { const d = dkey_(t.rows[i][t.c[H.IDATE]]); if (d >= since && d <= dk && (!start || d < start)) start = d; });
+  }
+  if (!start || start > dk) return { due: false, days: days, last: last ? last.date : '', start: dk, gone: 0 };
+  const gone = daysBetween_(start, dk);
+  return { due: gone >= days, days: days, last: last ? last.date : '', start: start, gone: gone };
+}
+// the Diesel Issue form asks before saving: { no, date } → is a tank check due with this fill?
+function tankDueInfo_(f) {
+  f = f || {};
+  const m = findMachine_(f.no), dk = checkDate_(f.date), d = tankDue_(m, dk);
+  return d ? Object.assign({ no: m.id, date: dk, cap: num0_(m.tankCap), day: addDays_(dk, -1) }, d) : { no: m.id, date: dk, due: false, rule: false };
+}
+// the day of the check (the day before the fill): the month close applies, not the user's date rule (the issue had its own)
+function tankDayOpen_(s) {
+  const dk = checkDate_(s), upto = booksClosed_();
+  if (upto && dk <= upto) throw new Error('Tank check of ' + dmy_(dk) + ': entries up to ' + dmy_(upto) + ' are closed (month closed by the Admin) – the tank check before this diesel cannot be kept. Ask the Admin.');
+  return dk;
+}
+/* the check typed with a diesel issue (tc = { physical, reason }) – everything checked BEFORE the issue is saved: null when no check is
+ * due (or one of the rows above in the same entry made it); else what tankCheckAdd_ keeps after the issue */
+function tankBeforeDiesel_(m, dk, tc, made) {
+  const due = tankDue_(m, dk);
+  if (!due || !due.due || (made && made[noKey_(m.id)])) return null;
+  const has = tc && typeof tc === 'object' && str_(tc.physical) !== '';
+  if (has && made) made[noKey_(m.id)] = true;      // (the rows of it below do not ask it again, even when this one has a mistake)
+  if (!has) throw new Error(m.id + ': tank check due – the last one ' + (due.last ? 'on ' + dmy_(due.last) : 'never (diesel since ' + dmy_(due.start) + ')') + ', a check every ' + due.days + ' days. Type the diesel found in the tank before filling (Tank check), then save.');
+  const ph = reqReading_(tc.physical, 'Diesel found in the tank'), cap = num0_(m.tankCap), day = tankDayOpen_(addDays_(dk, -1));
+  if (ph > cap) throw new Error(m.id + ': diesel found in the tank (' + ph + ' L) is more than its tank capacity (' + cap + ' L in Asset Master).');
+  tankLock_(m.id, day);
+  const sys = systemTankAt_(m.id, day).system, diff = r2_(ph - sys), reason = clean_(tc.reason);
+  if (Math.abs(diff) > Math.max(5, Math.abs(sys) * 0.1) && !reason) throw new Error(m.id + ': tank check – the system says ' + sys + ' L, found ' + ph + ' L (difference ' + (diff > 0 ? '+' : '') + diff + ' L) – write the reason.');
+  return { no: m.id, date: day, physical: ph, reason: 'Before the diesel of ' + dmy_(dk) + ' (a check every ' + due.days + ' days)' + (reason ? ' – ' + reason : '') };
+}
+/* (update-203) Sites → Day & tank check in the Portal (the Super Admin): the hour the site's day starts and the tank check every N days –
+ * with the site's machinery (ownership, Active, Debit Basis, its Tank Capacity, fuel: why the rule is not for it) */
+function tankNotFor_(m) {
+  return str_(m.status) === 'Inactive' ? 'Inactive' : m.supply === 'Debit Basis' || m.ownership === 'Debit' ? 'Debit Basis' : !(num0_(m.tankCap) > 0) ? 'no Tank Capacity' : m.fuel && m.fuel !== 'Diesel' ? m.fuel : '';
+}
+function siteRulesInfo_() {
+  const te = tankEvery_();
+  return { dayStart: siteRules_().dayStart, tank: te, machines: getMaster_().map(m => ({ no: m.id, name: str_(m.name), type: str_(m.type), ownership: str_(m.ownership), cap: num0_(m.tankCap) || '', not: tankNotFor_(m), days: tankEveryDays_(m) })) };
+}
+function sysSiteRulesSave_(c) {
+  c = c || {};
+  const ds = /^([01][0-9]|2[0-3]):([0-5][0-9])$/.exec(str_(c.dayStart));
+  if (!ds) throw new Error('Day starts at: type the hour as HH:MM (for example 06:00).');
+  const cur = tankEvery_(), t = c.tank && typeof c.tank === 'object' ? c.tank : {}, g = t.groups && typeof t.groups === 'object' ? t.groups : {}, groups = {};
+  TANK_GROUPS_.forEach(k => { const v = str_(g[k]).trim(); if (v !== '' && tankDays_(v) === '') throw new Error('Tank check of ' + k + ': the days must be a whole number from 1 to 90 (empty = not for ' + k + ').'); groups[k] = tankDays_(v); });
+  const byKey = {}; getMaster_().forEach(m => { byKey[noKey_(m.id)] = m; });
+  const seen = {}, machines = [];
+  (Array.isArray(t.machines) ? t.machines : []).slice(0, 500).forEach(x => {
+    const m = byKey[noKey_(x && x.no)]; if (!m) throw new Error('Tank check: "' + clean_(x && x.no) + '" is not a machinery of this site.');
+    if (seen[noKey_(m.id)]) throw new Error('Tank check: ' + m.id + ' is in the list twice.');
+    const v = str_(x.days).trim(); if (v !== '' && tankDays_(v) === '') throw new Error('Tank check of ' + m.id + ': the days must be a whole number from 1 to 90 (empty = its group\'s).');
+    seen[noKey_(m.id)] = true; machines.push({ no: m.id, on: x.on !== false, days: tankDays_(v) });
+  });
+  const anyOn = TANK_GROUPS_.some(k => groups[k]) || machines.some(x => x.on);
+  const te = { since: anyOn ? (cur.since || today_()) : '', groups: groups, machines: machines };
+  const words = x => (TANK_GROUPS_.filter(k => x.groups[k]).map(k => k + ' ' + x.groups[k] + ' days').concat(x.machines.map(y => y.no + (y.on ? ' ' + (y.days || 'its group\'s') + ' days' : ' not'))).join(', ') || 'off');
+  const r0 = siteRules_(), before = 'day starts at ' + r0.dayStart + '; tank check every N days: ' + words(cur);
+  const sr = (() => { let o = {}; try { o = JSON.parse(PropertiesService.getScriptProperties().getProperty('SITE_RULES') || '{}') || {}; } catch (e) { o = {}; } return o; })();
+  sr.dayStart = ds[0];
+  PropertiesService.getScriptProperties().setProperty('SITE_RULES', JSON.stringify(sr)); memoDrop_('__rules');
+  PropertiesService.getScriptProperties().setProperty(TANK_EVERY_KEY_, JSON.stringify(te)); memoDrop_('__tankEvery');
+  const after = 'day starts at ' + ds[0] + '; tank check every N days: ' + words(te);
+  writeLog_({ email: str_(c.by), name: 'Super Admin (Portal)' }, 'Edit', 'Settings', 'Day & tank check', 'Set by the Super Admin in the Portal: ' + after, before === after ? '' : 'Before: ' + before);
+  bump_(['master']);
+  sbFlush_();
+  return Object.assign({ ok: true }, siteRulesInfo_());
 }
 function deleteTankCheck_(id) {
   return withLock_(() => {
@@ -12585,7 +12699,8 @@ function siteRules_() {
     const hm = v => /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(str_(v)) ? str_(v) : '';
     const am = Number(s.attachMax);      // (update-153) attachments a Log Book entry may have: 10 unless the Admin sets 1 to 20
     return { backDays: n === '' || !isFinite(n) || n < 0 ? '' : Math.min(365, Math.floor(n)), announce: clean_(s.announce).slice(0, 200), dayFrom: hm(s.dayFrom) || '08:00', nightFrom: hm(s.nightFrom) || '20:00',
-      attachMax: am >= 1 && am <= 20 ? Math.floor(am) : ATT_MAX_DEFAULT_ }; });
+      attachMax: am >= 1 && am <= 20 ? Math.floor(am) : ATT_MAX_DEFAULT_,
+      dayStart: hm(s.dayStart) || DAY_START_DEFAULT_ }; });      // (update-203) the hour the ERP's next day starts – set by the Super Admin in the Portal
 }
 function saveSiteRules_(x) {
   x = x || {};
@@ -12597,7 +12712,7 @@ function saveSiteRules_(x) {
   if (dayFrom === nightFrom) throw new Error('Shift times: the Day shift and the Night shift cannot start at the same time.');
   const am = x.attachMax === undefined || x.attachMax === '' ? cur.attachMax : Number(x.attachMax);      // (update-153)
   if (!(am >= 1 && am <= 20 && Math.floor(am) === am)) throw new Error('Attachments of a Log Book entry: a whole number from 1 to 20.');
-  const o = { backDays: raw === '' ? '' : Math.min(365, Number(raw)), announce: clean_(x.announce).slice(0, 200), dayFrom: dayFrom, nightFrom: nightFrom, attachMax: am };
+  const o = { backDays: raw === '' ? '' : Math.min(365, Number(raw)), announce: clean_(x.announce).slice(0, 200), dayFrom: dayFrom, nightFrom: nightFrom, attachMax: am, dayStart: cur.dayStart };      // (update-203) the day start is the Super Admin's (the Portal)
   PropertiesService.getScriptProperties().setProperty('SITE_RULES', JSON.stringify(o)); memoDrop_('__rules');
   return { ok: true, rules: siteRules_() };
 }
@@ -13728,7 +13843,7 @@ let ACTOR_PAGE_ADMIN_ = [];    // (update-189) the pages where the one acting is
 const USER_TODAY_FROM_ = '2026-10-29';
 let REQ_DAY_ = '';      // the day a verification request was made – set while it is saved at its approval or sent again
 // (update-188) its day from its 'Requested At' – an unreadable time: '' (measured from today, never a fault)
-const reqDay_ = at => { const d = at ? new Date(at) : null; return d && !isNaN(d.getTime()) ? dkey_(d) : ''; };
+const reqDay_ = at => { const d = at ? new Date(at) : null; return d && !isNaN(d.getTime()) ? dkey_(new Date(d.getTime() - dayStartMin_() * 60000)) : ''; };      // (update-203) the ERP's day of that time
 let USER_DATE_RULE_ON_ = true;      // (the unit tests of before keep their fixed dates with it off – the site's own rule then as before)
 const userDays_ = what => /^Log Book/.test(String(what || '')) ? 1 : 0;
 function userDateRule_(dk, what) {
@@ -13771,7 +13886,13 @@ function checkDate_(s) {
   return v;
 }
 function tz_() { return SS_().getSpreadsheetTimeZone(); }
-function today_() { return Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'); }
+/* (update-203, asked 02-11-2026: "ata aple app madhe ratri 12 nantr next day chalu hotoy ata 12 nko tr sakali 6 am nantr next day chalu
+ * hoil … super admin … portal madhun site wise change kru shakel") THE ERP'S DAY STARTS AT 06:00 (the site's dayStart, set by the
+ * Super Admin in the Portal): before it, today is still the day before – the date of a new entry, the users' date rule ("only today's
+ * entries"), "after today", the reports of today. Times of saving (Activity Log, photos) stay the clock's. */
+const DAY_START_DEFAULT_ = '06:00';
+function dayStartMin_() { let v = DAY_START_DEFAULT_; try { v = siteRules_().dayStart || DAY_START_DEFAULT_; } catch (e) { v = DAY_START_DEFAULT_; } const q = /^(\d{2}):(\d{2})$/.exec(v); return q ? Number(q[1]) * 60 + Number(q[2]) : 360; }
+function today_() { return Utilities.formatDate(new Date(Date.now() - dayStartMin_() * 60000), tz_(), 'yyyy-MM-dd'); }
 function toDate_(dk) { const p = dk.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2], 12, 0, 0); }
 function dkey_(v) {
   if (v instanceof Date) return Utilities.formatDate(v, tz_(), 'yyyy-MM-dd');
