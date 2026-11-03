@@ -2317,3 +2317,7 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Issue (one and Multiple entries), the fill not saved without it, kept as the check of the day before (`tankBeforeDiesel_`); not for
   Inactive, Debit Basis, no Tank Capacity. THE ERP'S DAY STARTS AT 06:00 (`SITE_RULES.dayStart`, `today_` / `reqDay_`), set per site
   in the same Portal panel. No SQL. Tests: unit `update-203`; rcl-portal unit; the rig in Chromium; rcl-mobile 3.76.0.
+- 03-11-2026 (update-204). Report: `UPDATE_204.md`. THE TAX INVOICE OF THE NET WORK DONE AMOUNT – a bill made from now on (`data.txD`):
+  each vehicle after its diesel and its share of the other deduction (`txShares`), no "Less" line, the invoice adds up to D; a bill
+  before keeps its invoice. RCL DRIVE – a deleted bill is not in Saved Bills but in the Deleted Bills tab, month by month (`sbDeleted`).
+  No SQL. Tests: unit `update-204`; the rig in Chromium; rcl-mobile 3.77.0 (`web_round.json` made again).

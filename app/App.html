@@ -1399,7 +1399,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   table.mb-sum input { min-height: 30px; width: 110px; } table.mb-sum input.mb-cr { width: 150px; } table.mb-sum input.mb-no { width: 120px; }
   .mb-page { margin: 14px 0; } .mb-paper { background: #fff; border: 1px solid #D9DEE2; border-radius: 10px; padding: 18px 20px; max-width: 900px; margin: 0 auto; box-shadow: 0 4px 16px rgba(15,23,42,.06); outline: none; }
   .mb-paper:focus-within { border-color: #F59E0B; }
-  #sb_rows tr.old td { color: #94A3B8; } .bad-note { color: #B3261E; font-weight: 600; }
+  #sb_rows tr.old td, #sbx_rows tr.old td { color: #94A3B8; } #sbx_rows tr.sbx-m td { background: #F1F5F9; color: #0F172A; font-weight: 700; letter-spacing: .02em; } .bad-note { color: #B3261E; font-weight: 600; }
   /* the bill (screen and print share these) */
   .bl { font-family: Calibri, Carlito, 'Segoe UI', Arial, sans-serif; color: #111; font-size: 18px; font-variant-numeric: tabular-nums; }
   .bl-frame { border: 1.6px solid #111; }
@@ -4022,7 +4022,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   <section id="sec-bills" role="tabpanel" aria-labelledby="tab-bills" hidden>
     <div class="panel">
       <div class="panel-head"><h2>RCL Drive</h2><span class="chart-note">Everything that was submitted – shown exactly as it was saved: the Abstract, the Tax Invoice and the Debit Note of every bill.</span></div>
-      <div class="subtabs" id="drv_tabs" role="tablist" style="margin:0 0 12px"><button type="button" data-drv="bills" aria-selected="true">Saved Bills</button><button type="button" data-drv="dn" aria-selected="false">Saved Debit Notes</button></div>
+      <div class="subtabs" id="drv_tabs" role="tablist" style="margin:0 0 12px"><button type="button" data-drv="bills" aria-selected="true">Saved Bills</button><button type="button" data-drv="dn" aria-selected="false">Saved Debit Notes</button><button type="button" data-drv="del" aria-selected="false">Deleted Bills</button></div>
       <div class="rfilters">
         <div class="field"><label for="sb_from">Period from</label><input id="sb_from" type="date"></div>
         <div class="field"><label for="sb_to">Period to</label><input id="sb_to" type="date"></div>
@@ -4060,6 +4060,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       <div class="table-wrap" id="drv_dn" hidden><table>
         <thead><tr><th>Debit Note No</th><th>Date</th><th>Vendor</th><th>Name on note</th><th>For</th><th>Against RA Bill</th><th>Period</th><th class="n">Amount</th><th>Status</th><th></th></tr></thead>
         <tbody id="dn_rows"></tbody>
+      </table></div>
+      <div class="table-wrap" id="drv_del" hidden><table>
+        <thead><tr><th>RA Bill No</th><th>Vendor</th><th>Name on bill</th><th>Period</th><th>Bill Date</th><th class="n">Net Payable</th><th>Deleted by</th><th>Reason</th><th>Submitted by</th><th></th></tr></thead>
+        <tbody id="sbx_rows"></tbody>
       </table></div>
     </div>
   </section>
@@ -7077,9 +7081,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['Log Book, diesel issues आणि BOQ वरून एका कालावधीची vendor bills बनवते: Abstract, party चा Tax Invoice आणि diesel ची Debit Note. Submit करताना bill चे Log Book verify झाले तसेच bill सोबत पक्के ठेवले जाते; Verify नंतर काही बदलले तर पुन्हा verify करावे लागते.', 'A = BOQ दराने झालेले काम; B = कापलेले diesel (debit basis असेल तर पूर्ण, नाहीतर फक्त standard average पेक्षा जास्तीचे; दर = सरासरी आणि शेवटच्या diesel दरातला मोठा). 31-10-2026 च्या bill पासून MONTH-END TANK CHECK ठरवतो: opening (कालावधीच्या आदल्या दिवशीच्या check ला सापडलेले diesel, ऑक्टोबर 2026 = 0) + दिलेले company diesel − कामाचे standard = tank मध्ये असायला हवे ते; tank च्या क्षमतेपेक्षा जास्त debit; शेवटच्या दिवशीच्या check ला सापडलेले diesel (bill वरचा "Tank check" box, किंवा Log Book → Tank Check) – कमी → जितके कमी तितके debit, तितकेच किंवा जास्त → काहीच नाही; सापडलेले diesel पुढच्या bill चे opening; check शिवाय bill submit होत नाही; final bill मध्ये सगळे debit. (त्याआधीचे bill: शेवटच्या भरण्यातले उरलेले diesel tank मध्ये धरले जाते.) D = A − B − C; GST आणि TDS D वर; I = निव्वळ देय; tick केलेल्या debit notes I नंतर वजा होतात. Submit आधी server प्रत्येक bill पुन्हा बनवून तुलना करतो. Log Book entry नसलेल्या दिवशी दिलेले diesel मोजले जाते आणि दाखवले जाते. एखाद्या bill चा diesel rate त्याच्या diesel कपातीखालील "₹/L" box मध्ये हाताने टाकता येतो (रिकामा = आपोआप rate): त्या bill चे Abstract, Debit Note आणि Log Book त्याच rate ने होतात, आणि save झालेले bill तो rate ठेवते.'],
       hi: ['Log Book, diesel issues और BOQ से एक अवधि के vendor bills बनाता है: Abstract, party का Tax Invoice और diesel की Debit Note। Submit पर bill की Log Book जैसी verify हुई वैसी ही bill के साथ पक्की रखी जाती है; Verify के बाद कुछ बदला तो फिर से verify करना होता है।', 'A = BOQ दर से हुआ काम; B = काटा गया diesel (debit basis हो तो पूरा, वरना केवल standard average से ऊपर का; दर = औसत और आख़िरी diesel दर में से बड़ी)। 31-10-2026 के bill से MONTH-END TANK CHECK तय करता है: opening (अवधि से पहले दिन के check में मिला diesel, अक्टूबर 2026 = 0) + दिया गया company diesel − काम का standard = tank में होना चाहिए वह; tank की क्षमता से ऊपर debit; आख़िरी दिन के check में मिला diesel (bill पर "Tank check" box, या Log Book → Tank Check) – कम → जितना कम उतना debit, उतना या ज़्यादा → कुछ नहीं; मिला diesel अगले bill का opening; check के बिना bill submit नहीं होता; final bill में सब debit। (उससे पहले का bill: आख़िरी भराई का बचा diesel tank में माना जाता है।) D = A − B − C; GST और TDS D पर; I = शुद्ध देय; tick की गई debit notes I के बाद घटती हैं। Submit से पहले server हर bill फिर बनाकर मिलाता है। बिना Log Book entry वाले दिन दिया गया diesel गिना और दिखाया जाता है। किसी bill का diesel rate उसकी diesel कटौती के नीचे "₹/L" box में हाथ से डाला जा सकता है (खाली = अपने आप rate): उस bill का Abstract, Debit Note और Log Book उसी rate से बनते हैं, और save हुआ bill वह rate रखता है।'] },
     bills: { saves: ['deleteBill', 'saveDebitNote', 'cancelDebitNote'],
-      en: ['RCL Drive: every submitted bill with its three papers and its Log Book as submitted (kept with the bill, never changed afterwards; a bill from before that shows today\'s Log Book and says so), and every debit note – exactly as saved.', 'A saved bill cannot be changed; only the Super Admin can revise it (the same vendor and period again – the old one stays as "Superseded") or delete it (it is kept, marked "Deleted", with the reason; its Log Book entries stay locked). A debit note is made from the Log Book entries marked "Debit to"; one entry goes into one note only; a note lowers the party\'s balance in the Vendor Ledger. Only Admin can cancel a note.'],
-      mr: ['RCL Drive: submit झालेले प्रत्येक bill त्याच्या तीन कागदांसह आणि submit वेळच्या Log Book सह (bill सोबत पक्के ठेवलेले, नंतर कधीच बदलत नाही; त्याआधीचे bill आजचे Log Book दाखवते आणि तसे लिहिते), आणि प्रत्येक debit note; जसे save झाले तसेच.', 'Save झालेले bill बदलता येत नाही; फक्त Super Admin ते revise करू शकतो (तोच vendor आणि कालावधी पुन्हा – जुने "Superseded" म्हणून राहते) किंवा delete करू शकतो (ते कारणासह "Deleted" म्हणून ठेवले जाते; त्याच्या Log Book entries locked राहतात). Debit note "Debit to" लावलेल्या Log Book entries वरून बनते; एक entry एकाच note मध्ये जाते; note मुळे Vendor Ledger मधली party ची बाकी कमी होते. Note रद्द करणे फक्त Admin करू शकतो.'],
-      hi: ['RCL Drive: submit हुआ हर bill उसके तीन काग़ज़ों और submit के समय की Log Book के साथ (bill के साथ पक्की रखी, बाद में कभी नहीं बदलती; उससे पहले का bill आज की Log Book दिखाता है और ऐसा लिखता है), और हर debit note; जैसा save हुआ वैसा ही।', 'Save हुआ bill बदला नहीं जा सकता; केवल Super Admin उसे revise कर सकता है (वही vendor और अवधि फिर से – पुराना "Superseded" रहता है) या delete कर सकता है (वह कारण के साथ "Deleted" के रूप में रखा जाता है; उसकी Log Book entries locked रहती हैं)। Debit note "Debit to" लगी Log Book entries से बनती है; एक entry एक ही note में जाती है; note से Vendor Ledger में party की बाकी घटती है। Note रद्द केवल Admin कर सकता है।'] },
+      en: ['RCL Drive: every submitted bill with its three papers and its Log Book as submitted (kept with the bill, never changed afterwards; a bill from before that shows today\'s Log Book and says so), and every debit note – exactly as saved.', 'A saved bill cannot be changed; only the Super Admin can revise it (the same vendor and period again – the old one stays as "Superseded") or delete it (it is kept, marked "Deleted", with the reason, in the Deleted Bills tab month by month; its Log Book entries stay locked). A debit note is made from the Log Book entries marked "Debit to"; one entry goes into one note only; a note lowers the party\'s balance in the Vendor Ledger. Only Admin can cancel a note.'],
+      mr: ['RCL Drive: submit झालेले प्रत्येक bill त्याच्या तीन कागदांसह आणि submit वेळच्या Log Book सह (bill सोबत पक्के ठेवलेले, नंतर कधीच बदलत नाही; त्याआधीचे bill आजचे Log Book दाखवते आणि तसे लिहिते), आणि प्रत्येक debit note; जसे save झाले तसेच.', 'Save झालेले bill बदलता येत नाही; फक्त Super Admin ते revise करू शकतो (तोच vendor आणि कालावधी पुन्हा – जुने "Superseded" म्हणून राहते) किंवा delete करू शकतो (ते कारणासह "Deleted" म्हणून Deleted Bills tab मध्ये महिन्यानुसार ठेवले जाते; त्याच्या Log Book entries locked राहतात). Debit note "Debit to" लावलेल्या Log Book entries वरून बनते; एक entry एकाच note मध्ये जाते; note मुळे Vendor Ledger मधली party ची बाकी कमी होते. Note रद्द करणे फक्त Admin करू शकतो.'],
+      hi: ['RCL Drive: submit हुआ हर bill उसके तीन काग़ज़ों और submit के समय की Log Book के साथ (bill के साथ पक्की रखी, बाद में कभी नहीं बदलती; उससे पहले का bill आज की Log Book दिखाता है और ऐसा लिखता है), और हर debit note; जैसा save हुआ वैसा ही।', 'Save हुआ bill बदला नहीं जा सकता; केवल Super Admin उसे revise कर सकता है (वही vendor और अवधि फिर से – पुराना "Superseded" रहता है) या delete कर सकता है (वह कारण के साथ "Deleted" के रूप में Deleted Bills tab में महीने के हिसाब से रखा जाता है; उसकी Log Book entries locked रहती हैं)। Debit note "Debit to" लगी Log Book entries से बनती है; एक entry एक ही note में जाती है; note से Vendor Ledger में party की बाकी घटती है। Note रद्द केवल Admin कर सकता है।'] },
     breg: { saves: [],
       en: ['Bill Summary: all submitted bills month by month and vendor by vendor – basic, diesel, GST, TDS and net.', 'Nothing is entered here; the figures are those of the saved bills. A superseded or deleted bill is not counted.'],
       mr: ['Bill Summary: submit झालेली सगळी bills महिन्यानुसार आणि vendor नुसार: basic, diesel, GST, TDS आणि निव्वळ.', 'इथे काहीही भरले जात नाही; आकडे save झालेल्या bills चे आहेत. Superseded किंवा delete झालेले bill मोजले जात नाही.'],
@@ -12713,6 +12717,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const wo = machines.find(x => x.woNo) || {};
     b.machines = machines; b.woNo = wo.woNo || ''; b.woDate = wo.woDate || '';
     b.txNet = true;      // (update-124) a bill made from now on: its Tax Invoice is of the value after the diesel debit (taxInvoiceHtml)
+    b.txD = true;      // (update-204) … and after the other deduction (C): the Net Work Done Amount (D), no deduction on the invoice
     b.idleDays = machines.reduce((a, x) => a + (x.idleDays || 0), 0);
     b.warnings = [];
     if (!machines.length) b.warnings.push('no Log Book / diesel in these dates' + (b.picked.length === 1 ? ' for ' + b.picked[0] : ''));
@@ -13148,23 +13153,34 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (/^\d{4}-\d{2}-01$/.test(f) && t === f.slice(0, 8) + String(last).padStart(2, '0')) return 'FOR THE MONTH OF ' + M[mo - 1] + ' ' + y;
     return 'FOR THE PERIOD ' + mbDot(f) + ' TO ' + mbDot(t);
   }
+  /* (update-204, asked 03-11-2026: "je party tax invoice ahe tya war debit amount nko dakhau tith direct ji abstract warti Net Work Done
+   * Amount ji amount asel debit nantr chi tich tax invoice part dakhwel … debit kiti kay tax invoice warti nay yenar") A bill made from
+   * now on (b.txD): the invoice is of the Net Work Done Amount (D = A − B − C) – no "Less" line at all. The other deduction (C) is taken
+   * off the vehicles' amounts in proportion to them (whole rupees on a bill in whole rupees, the rest on the last vehicle), so the rows
+   * add up to D. The Abstract still shows B and C. A bill made before keeps its invoice as it was. */
+  function txShares(b, base) {
+    const C = Number(b.C) || 0, R = b.round ? r0 : r2, tot = base.reduce((a, x) => a + x, 0);
+    if (!(C > 0) || !base.length) return base.map(() => 0);
+    let left = C; return base.map((x, i) => { if (i === base.length - 1) return R(left); const s = tot > 0 ? R(C * x / tot) : 0; left = r2(left - s); return s; });
+  }
   function taxInvoiceHtml(b) {
     const co = b.company || '', ci = b.companyInfo || {}, v = b.vendor || {}, gst = Number(b.gstPct) || 0, half = gst / 2;
-    const net = !!b.txNet;      // a new bill: each vehicle's amount after its diesel debit, the month only
-    const amt = m => net ? r2((Number(m.amount) || 0) - (Number(m.excessAmt) || 0)) : m.amount, before = net ? r2(b.A - b.B) : b.A;
+    const dNet = !!b.txD, net = !!b.txNet || dNet;      // a new bill: each vehicle's amount after its diesel debit (and, update-204, the other deduction), the month only
+    const ms = b.machines || [], base = ms.map(m => net ? r2((Number(m.amount) || 0) - (Number(m.excessAmt) || 0)) : m.amount), cs = dNet ? txShares(b, base) : base.map(() => 0);
+    const amt = (m, i) => r2(base[i] - cs[i]), before = dNet ? b.D : net ? r2(b.A - b.B) : b.A;
     const N = v => mbA(b, v);      // (update-202) whole rupees on a bill made in whole rupees
-    const less = (net ? 0 : Number(b.B) || 0) + (Number(b.C) || 0), rowTax = gst > 0 && !less && b.D > 0;      // tax per row only when the value taxed is the rows themselves
-    const rows = (b.machines || []).map((m, i) => {
+    const less = dNet ? 0 : (net ? 0 : Number(b.B) || 0) + (Number(b.C) || 0), rowTax = gst > 0 && !less && b.D > 0;      // tax per row only when the value taxed is the rows themselves
+    const rows = ms.map((m, i) => {
       const lines = net ? [] : (m.lines || []).filter(l => !(l.monthly && m.lines.length === 1));
       const detail = net ? [txPeriod(b)] : lines.map(l => (l.item ? String(l.item).toUpperCase() + (l.note ? ' – ' + l.note : '') + ': ' : (l.note ? l.note + ': ' : '')) + fmt(l.qty) + ' ' + (l.unit || '') + ' × ' + mbN2(l.rate) + ' = ' + mbN2(l.amount));
-      const a = amt(m), tax = rowTax ? (b.round ? r0 : r2)(a * half / 100) : 0;
+      const a = amt(m, i), tax = rowTax ? (b.round ? r0 : r2)(a * half / 100) : 0;
       return '<tr><td class="c">' + (i + 1) + '</td><td><b>RENT ON VEHICLE ' + esc(String(m.no).replace(/-/g, '').toUpperCase()) + '</b>' + (m.type ? ' <span>(' + esc(String(m.type).toUpperCase()) + ')</span>' : '') +
         (detail.length ? '<small>' + detail.map(esc).join('<br>') + '</small>' : '') + '</td><td class="n">' + N(a) + '</td><td class="n">' + (rowTax ? N(tax) : '-') + '</td><td class="n">' + (rowTax ? N(tax) : '-') + '</td><td class="n">' + N(r2(a + 2 * tax)) + '</td></tr>'; });
     const pct = gst ? fmt(half) + '%' : '';
     const dd = v => docDash(v) === '-' ? '-' : N(v);
     const sum = [['Total Amount Before Tax', N(before)]]
       .concat(b.B && !net ? [['Less: Diesel deduction' + (b.dnNo ? ' (Debit Note ' + esc(b.dnNo) + ')' : ''), '− ' + N(b.B)]] : [])
-      .concat(b.C ? [['Less: Other deduction' + (b.cReason ? ' (' + esc(b.cReason) + ')' : ''), '− ' + N(b.C)]] : [])
+      .concat(b.C && !dNet ? [['Less: Other deduction' + (b.cReason ? ' (' + esc(b.cReason) + ')' : ''), '− ' + N(b.C)]] : [])
       .concat([['Basic Value', N(b.D)], ['SGST ' + pct, dd(b.F)], ['CGST ' + pct, dd(b.E)], ['Total Billing Amt', N(b.G)]])
       .concat([['Net Cheque Amount', N(b.G)]]);      // the party bills value + GST; TDS is the company's deduction when it pays (line H of the Abstract), never on the party's invoice
     const party = '<b>' + esc(co.toUpperCase()) + '</b>';
@@ -13346,7 +13362,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try {
       const d = await call('getBills', { from: $('sb_from').value, to: $('sb_to').value, vendor: $('sb_vendor').value, company: $('sb_co').value });
       S.mb.saved = d.bills; const admin = S.user && S.user.admin, sup = S.user && S.user.super;      // (update-152) only the Super Admin deletes a submitted bill (kept, marked Deleted)
-      $('sb_rows').innerHTML = d.bills.length ? d.bills.map(b => '<tr' + (b.status === 'Superseded' || b.status === 'Deleted' ? ' class="old"' : '') + '><td><b>' + esc(b.billNo) + (b.rev ? ' <small>rev ' + esc(b.rev) + '</small>' : '') + '</b></td><td>' + esc(b.vendor) + '</td><td>' + esc(b.company) + '</td><td>' + esc(showDate(b.from)) + ' – ' + esc(showDate(b.to)) +
+      /* (update-204, asked 03-11-2026: "delet kelel bill eth nko show karu seprate thew month wise") Saved Bills: the bills in force and
+       * the superseded ones; a deleted bill is in "Deleted Bills", under the month its work period starts (as the Bill Summary) */
+      const live = d.bills.filter(b => b.status !== 'Deleted'), gone = d.bills.filter(b => b.status === 'Deleted');
+      sbDeleted(gone);
+      $('sb_rows').innerHTML = live.length ? live.map(b => '<tr' + (b.status === 'Superseded' || b.status === 'Deleted' ? ' class="old"' : '') + '><td><b>' + esc(b.billNo) + (b.rev ? ' <small>rev ' + esc(b.rev) + '</small>' : '') + '</b></td><td>' + esc(b.vendor) + '</td><td>' + esc(b.company) + '</td><td>' + esc(showDate(b.from)) + ' – ' + esc(showDate(b.to)) +
         '</td><td>' + esc(showDate(b.billDate)) + '</td><td class="n"><b>' + mbN2(b.net) + '</b></td><td>' + (b.status === 'Superseded' ? '<span class="st low">Superseded</span>' : b.status === 'Deleted' ? '<span class="st bad" title="' + esc('Deleted by ' + (b.deletedBy || '–') + (b.deletedAt ? ' on ' + showDate(String(b.deletedAt).slice(0, 10)) : '') + ' – ' + (b.deleteReason || '')) + '">Deleted</span><br><small>' + esc(b.deleteReason || '') + '</small>' : '<span class="st ok">Active</span>') + '</td><td>' + esc(b.enteredBy || '–') +
         '</td><td class="nowrap"><button class="link" data-sbv="' + esc(b.id) + '">View / Print</button> <button class="link" data-sbl="' + esc(b.id) + '" title="Log Book of this vendor\'s machinery for the bill period (as the Log Book is now)">Log Book</button> <button class="link" data-sbz="' + esc(b.id) + '" title="The photos / PDF of this bill\'s Log Book as submitted – one ZIP, each file checked against its fingerprint">📎 Files</button>' + (sup && b.status !== 'Deleted' ? ' <button class="link danger" data-sbd="' + esc(b.id) + '">Delete</button>' : '') + '</td></tr>').join('')
         : '<tr><td colspan="9" class="none">No submitted bills for these filters.</td></tr>';
@@ -13362,9 +13382,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         : (noteRows ? '' : '<tr><td colspan="10" class="none">No debit notes for these filters.</td></tr>'));
     } catch (e) { toast(errMsg(e), true); }
   }
-  $('drv_tabs').addEventListener('click', e => { const b = e.target.closest('[data-drv]'); if (!b) return; const dn = b.dataset.drv === 'dn';
+  const MONTHS_ = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function sbDeleted(gone) {      // (update-204) RCL Drive → Deleted Bills: month by month (the newest first), each kept with who deleted it and why
+    const by = {}; gone.forEach(b => { const k = /^\d{4}-\d{2}/.test(String(b.from || '')) ? String(b.from).slice(0, 7) : ''; (by[k] = by[k] || []).push(b); });
+    const keys = Object.keys(by).sort().reverse();
+    $('sbx_rows').innerHTML = gone.length ? keys.map(k => '<tr class="sbx-m"><td colspan="10">' + (k ? MONTHS_[Number(k.slice(5, 7)) - 1] + ' ' + k.slice(0, 4) : 'No period') + ' – ' + by[k].length + ' deleted bill' + (by[k].length === 1 ? '' : 's') + '</td></tr>' +
+      by[k].map(b => '<tr class="old"><td><b>' + esc(b.billNo) + (b.rev ? ' <small>rev ' + esc(b.rev) + '</small>' : '') + '</b></td><td>' + esc(b.vendor) + '</td><td>' + esc(b.company) + '</td><td>' + esc(showDate(b.from)) + ' – ' + esc(showDate(b.to)) +
+        '</td><td>' + esc(showDate(b.billDate)) + '</td><td class="n"><b>' + mbN2(b.net) + '</b></td><td><span class="st bad">Deleted</span><br><small>' + esc(b.deletedBy || '–') + (b.deletedAt ? ' · ' + esc(showDate(String(b.deletedAt).slice(0, 10))) : '') + '</small></td><td>' + esc(b.deleteReason || '–') + '</td><td>' + esc(b.enteredBy || '–') +
+        '</td><td class="nowrap"><button class="link" data-sbv="' + esc(b.id) + '">View / Print</button> <button class="link" data-sbl="' + esc(b.id) + '" title="Log Book of this vendor\'s machinery for the bill period (as the Log Book is now)">Log Book</button> <button class="link" data-sbz="' + esc(b.id) + '" title="The photos / PDF of this bill\'s Log Book as submitted – one ZIP, each file checked against its fingerprint">📎 Files</button></td></tr>').join('')).join('')
+      : '<tr><td colspan="10" class="none">No deleted bills for these filters.</td></tr>';
+  }
+  $('drv_tabs').addEventListener('click', e => { const b = e.target.closest('[data-drv]'); if (!b) return; const w = b.dataset.drv, dn = w === 'dn';
     $('drv_tabs').querySelectorAll('button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
-    $('drv_dn').hidden = !dn; $('drv_dnbar').hidden = !dn; if (!dn) $('dn_new').hidden = true; $('sb_rows').closest('.table-wrap').hidden = dn; const bar = $('sb_rows').closest('.table-wrap').nextElementSibling; if (bar && bar.classList.contains('more-bar')) bar.style.display = dn ? 'none' : ''; });
+    $('drv_dn').hidden = !dn; $('drv_dnbar').hidden = !dn; if (!dn) $('dn_new').hidden = true; $('drv_del').hidden = w !== 'del'; $('sb_rows').closest('.table-wrap').hidden = w !== 'bills'; const bar = $('sb_rows').closest('.table-wrap').nextElementSibling; if (bar && bar.classList.contains('more-bar')) bar.style.display = w !== 'bills' ? 'none' : ''; });
   $('dn_rows').addEventListener('click', async e => {
     const nn = e.target.closest('[data-dnn]'), nc = e.target.closest('[data-dnc]');
     if (nn) { try { const n = (await call('getDebitNotes', { id: nn.dataset.dnn })).notes[0]; if (n) printDoc('Debit Note – ' + n.vendor + ' – ' + n.no, '<section class="billsheet' + (n.status === 'Cancelled' ? ' superseded' : '') + '">' + debitNoteDocHtml(n) + '</section>', 'rep rep-bill', true, n.company); } catch (err) { toast(errMsg(err), true); } return; }
@@ -14748,7 +14778,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     sbLoad();
   }));
   $('sb_clear').addEventListener('click', () => { ['sb_from', 'sb_to'].forEach(id => { $(id).value = ''; }); $('sb_vendor').value = ''; $('sb_co').value = ''; sbLoad(); });
-  $('sb_rows').addEventListener('click', async e => {
+  const sbClick = async e => {
     const v = e.target.closest('[data-sbv]'), d = e.target.closest('[data-sbd]'), lb = e.target.closest('[data-sbl]'), z = e.target.closest('[data-sbz]');
     if (z) { busy(z, 'Making the ZIP…', () => billFilesZip(z.dataset.sbz)).catch(err => toast(errMsg(err), true)); return; }      // (update-153)
     if (lb) {
@@ -14764,9 +14794,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (d) {
       const reason = await askConfirm({ title: 'Delete this bill?', ok: 'Delete', danger: true, html: '<p>Only the Super Admin deletes a submitted bill. It is <b>not removed</b>: it is kept, marked <b>Deleted</b>, with your reason – its Log Book stays locked, its debit notes are open again. Write the reason:</p><input id="sb_reason" style="width:100%" placeholder="Reason">' });
       if (!reason) return; const why = ($('sb_reason') || {}).value || '';
-      try { await call('deleteBill', d.dataset.sbd, why); toast('Bill marked Deleted (kept, with the reason).'); sbLoad(); } catch (err) { toast(errMsg(err), true); }
+      try { await call('deleteBill', d.dataset.sbd, why); toast('Bill marked Deleted (kept, with the reason) – it is now in Deleted Bills.'); sbLoad(); } catch (err) { toast(errMsg(err), true); }
     }
-  });
+  };
+  $('sb_rows').addEventListener('click', sbClick); $('sbx_rows').addEventListener('click', sbClick);      // (update-204) the same buttons in Deleted Bills
 
   /* ================= LOG BOOK DASHBOARD (simple) ================= */
   S.lb = { d: null, chip: 'all', pchip: 'all', seq: 0, pend: null };
