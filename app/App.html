@@ -15490,22 +15490,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // the formats there are – a new one is added here (and in the print)
   const LB_FORMATS = [
     { id: 'A', name: 'Format A – Standard Log Book (Monthly)', about: 'Unit, reading / work (KM, Hrs, Time, Trip), diesel with refilling reading, average, chainage, work.' },
-    { id: 'B', name: 'Format B – KM + Hrs + Trip', about: 'KM reading, Hrs reading, diesel, trip, chainage, work.' },
+    { id: 'B', name: 'Format B – KM + Hrs + Trip', about: 'KM reading, Hrs reading, diesel with refilling reading, trip, chainage, work.' },
     { id: 'C', name: 'Format C – KM', about: 'KM reading, diesel with refilling reading, average, work.' },
     { id: 'D', name: 'Format D – Hrs', about: 'Hrs reading, diesel with refilling reading, average, chainage, work.' },
-    { id: 'E', name: 'Format E – Particular / Challan (reading)', about: 'Particular, challan no, start / closed reading, total hrs, diesel, average, chainage, work – no shift.' },
+    { id: 'E', name: 'Format E – Particular / Challan (reading)', about: 'Particular, challan no, start / closed reading, total hrs, diesel with refilling reading, average, chainage, work – no shift.' },
     { id: 'F', name: 'Format F – Time sheet', about: 'Reg no, particular, challan no, start / closed time, total hrs, chainage, work – no diesel.' },
     { id: 'G', name: 'Format G – Time sheet, 1st hr / 2nd hrs', about: 'Reg no, particular, challan no, start / closed time, total hrs, 1st hr, 2nd hrs (BOQ slab), chainage, work.' },
-    { id: 'H', name: 'Format H – Trip register (vehicle / challan)', about: 'Shift, vehicle no, challan no, diesel qty, in time, out time, trip, chainage, work.' },
+    { id: 'H', name: 'Format H – Trip register (vehicle / challan)', about: 'Shift, vehicle no, challan no, diesel qty (and the reading given at the fill, when there is one), in time, out time, trip, chainage, work.' },
     { id: 'I', name: 'Format I – Water tanker (trip by trip)', about: 'Water Tanker Report: date, shift, agency, tanker no, challan no, dispatch / unload time, trip, chainage, use for – one line per trip; total, day and night trips. Entered on Log Book → "Water tanker – trip by trip".' }];
   const LB_FMT_COLS = {
-    B: ['sr', 'date', 'shift', 'kmS', 'kmC', 'kmT', 'hrS', 'hrC', 'hrT', 'dO', 'dI', 'dT', 'dU', 'dC', 'trip', 'ch', 'work'],
+    B: ['sr', 'date', 'shift', 'kmS', 'kmC', 'kmT', 'hrS', 'hrC', 'hrT', 'dO', 'dI', 'dR', 'dT', 'dU', 'dC', 'trip', 'ch', 'work'],      // (update-206) dR – the reading given at the fill
     C: ['sr', 'date', 'shift', 'kmS', 'kmC', 'kmT', 'dO', 'dI', 'dR', 'dT', 'dU', 'dC', 'avg', 'work'],
     D: ['sr', 'date', 'shift', 'hrS', 'hrC', 'hrT', 'dO', 'dI', 'dR', 'dT', 'dU', 'dC', 'avg', 'ch', 'work'],
-    E: ['sr', 'date', 'particular', 'challan', 'rS', 'rC', 'rT', 'dO', 'dI', 'dT', 'dU', 'dC', 'avg', 'ch', 'work'],
+    E: ['sr', 'date', 'particular', 'challan', 'rS', 'rC', 'rT', 'dO', 'dI', 'dR', 'dT', 'dU', 'dC', 'avg', 'ch', 'work'],
     F: ['sr', 'date', 'regno', 'particular', 'challan', 'tS', 'tE', 'tG', 'tN', 'ch', 'work'],
     G: ['sr', 'date', 'regno', 'particular', 'challan', 'tS', 'tE', 'tG', 'hr1', 'hr2', 'ch', 'work'],
-    H: ['sr', 'date', 'shift', 'vehno', 'challan', 'dQ', 'inT', 'outT', 'trip', 'ch', 'work'],
+    H: ['sr', 'date', 'shift', 'vehno', 'challan', 'dQ', 'dRh', 'inT', 'outT', 'trip', 'ch', 'work'],      // (update-206) dRh – only when a fill of the sheet has a reading
     I: ['sr', 'date', 'shift', 'agency', 'vehno', 'challan', 'dspT', 'unlT', 'trip', 'chno', 'usefor'] };      // (update-97) one line per trip
   S.lf = { ch: {}, sel: new Set(), names: null };
   const lfName = f => (S.lf.names && S.lf.names[f.id]) || f.name; // the name given in the app, else the default
@@ -20629,13 +20629,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // diesel of each day straight from Diesel Issue: litres added up, reading of the last issue of that day.
       // Opening and closing are 0; total diesel = consumed = issued; the day's average is left blank.
       const iss0 = ((extra.issues || {})[String(no).toUpperCase().replace(/[^A-Z0-9]/g, '')]) || {};
+      /* (update-206, asked 03-11-2026: "jith diesel issue diesel tith jr tya machine chi reading dilei asel tr ti dislich pahije") THE
+       * READING GIVEN AT A FILL – whatever the fill has: KM, Hrs or both (not only the reading of the machinery's unit), each fill of the
+       * day (two fills: both). The reading of the machinery's own unit as a plain number (as on its meter); another one says KM / HRS. */
+      const hasV = v => v !== '' && v !== null && v !== undefined;
+      const rdOne = (km, hr, lab) => { const k = hasV(km), h = hasV(hr);
+        return k && h ? plain(km) + ' KM / ' + plain(hr) + ' HRS' : k ? plain(km) + (lab || isHr || dual ? ' KM' : '') : h ? plain(hr) + (lab || !isHr ? ' HRS' : '') : ''; };
+      const fillReads = (d, lab) => (d && Array.isArray(d.fills) && d.fills.length ? d.fills : d ? [{ km: d.km, hr: d.hr }] : []).map(f => rdOne(f.km, f.hr, lab)).filter(Boolean).join(lab ? ', ' : '<br>');
       const MAN_RATE = RATE_ALL || (Number(RATE_BY[String(no).toUpperCase().replace(/[^A-Z0-9]/g, '')]) > 0 ? r2(Number(RATE_BY[String(no).toUpperCase().replace(/[^A-Z0-9]/g, '')])) : 0) || RATE_X;
       const seenDay = {};
       const lines = [];
       list.forEach((r, i) => {
         const d = iss0[r.date], first = !seenDay[r.date]; seenDay[r.date] = true;
         const iss = first && d ? Number(d.qty) || 0 : 0;                        // a day's diesel goes on its first line (Day before Night)
-        const refill = first && d ? (isHr ? d.hr : dual ? [d.km, d.hr].filter(x => x !== '' && x !== undefined).join(' / ') : d.km) : '';
+        const refill = first && d ? fillReads(d) : '';      // (update-206)
         const x = { r: r, i: i, open: 0, iss: iss, refill: refill === undefined ? '' : refill, total: iss, used: iss, close: 0, avg: '' };
         // an entry with two or more works: a row for each (lbWorkRows) – its diesel stays on its first row
         const ws = LBOPT.sample ? null : lbWorkRows(r);
@@ -20652,7 +20659,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const issAll = r2(Object.values(iss0).reduce((s2, x) => s2 + (Number(x.qty) || 0), 0)), issued = Math.max(issuedRows, issAll);
       const inRows = {}; lines.forEach(x => { const d0 = x.r && x.r.date; if (d0) inRows[d0] = r2((inRows[d0] || 0) + (Number(x.iss) || 0)); });
       const noEntry = Object.keys(iss0).sort().map(d0 => ({ d: d0, q: r2((Number(iss0[d0].qty) || 0) - (inRows[d0] || 0)) })).filter(x => x.q > 0.005);
-      const noEntryNote = noEntry.length ? '<small>' + n2(issuedRows) + ' IN THE ENTRIES ABOVE + NOT IN AN ENTRY: ' + noEntry.map(x => showDate(x.d) + ' ' + fmt(x.q) + ' L').join(', ') + '</small>' : '';
+      const noEntryNote = noEntry.length ? '<small>' + n2(issuedRows) + ' IN THE ENTRIES ABOVE + NOT IN AN ENTRY: ' + noEntry.map(x => { const rd = fillReads(iss0[x.d], true); return showDate(x.d) + ' ' + fmt(x.q) + ' L' + (rd ? ' (READING ' + rd + ')' : ''); }).join(', ') + '</small>' : '';      // (update-206) with the reading given at the fill
       // days: a date with a Day / Full Day entry is a working day; a Night entry is a working night; net = both
       const holDays = [...new Set(list.filter(r => (r.mode || r.unit) === 'Holiday').map(r => r.date))].length, bdDaysP = [...new Set(list.filter(r => (r.mode || r.unit) === 'Breakdown').map(r => r.date))].length,
         idleDays = [...new Set(list.filter(r => (r.mode || r.unit) === 'Idle').map(r => r.date))].length;
@@ -20833,6 +20840,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           dU: { h: 'CONSUMED<br>DIESEL', g: 'DIESEL (LTR)', w: 6, c: 'n', v: x => n2(x.used), t: () => fmt(TCS ? sum('used') : used) },
           dC: { h: 'CLOSING<br>BALANCE', g: 'DIESEL (LTR)', w: 6, c: 'n', v: x => n2(x.close) },
           dQ: { h: 'DIESEL<br>QTY', w: 6, c: 'n', v: x => x.iss ? '<b>' + fmt(x.iss) + '</b>' : '', t: () => fmt(issued) },
+          dRh: { h: 'READING AT<br>DIESEL', w: 7, c: 'n', v: x => x.refill !== '' && x.refill !== undefined ? (typeof x.refill === 'string' ? x.refill : plain(x.refill)) : '' },      // (update-206) Format H
           avg: { h: 'AVG', w: 4.5, c: 'n', v: x => x.avg || '' },
           trip: { h: 'TRIP', w: 4.5, c: 'n', v: x => x.t ? '<b>1</b>' : !stOf(x.r) && Number(x.r.trip) > 0 ? '<b>' + num(x.r.trip) + '</b>' : '', t: () => fmt(tTrips) },
           ch: { h: 'CHAINAGE', w: 11, wrap: 1, c: 'lb-sm', v: x => esc(up([x.r.chFrom, x.r.chTo].filter(Boolean).join(' – '))) },
@@ -20844,7 +20852,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           usefor: { h: 'USE FOR', w: 0, wrap: 1, v: x => x.t ? esc(up(x.t.u || '')) : stOf(x.r) ? '<b>' + esc(up(wOf(x.r))) + '</b>' : esc(up(x.r.work || '')) },
           work: { h: 'WORK DESCRIPTION', w: 0, wrap: 1, v: x => (stOf(x.r) ? '<b>' + esc(up(wOf(x.r))) + '</b>' + (x.r.work || x.r.remark ? ' – ' : '') : '') + lbMarks(x.r) + (!stOf(x.r) && itemQtyText(x.r) ? '<b>' + esc(up(itemQtyText(x.r))) + '</b> ' : '') + esc(up(x.r.work || (FM === 'E' || FM === 'F' || FM === 'G' ? '' : x.r.remark))) }
         };
-        const cols = LB_FMT_COLS[FM].map(k => (FM === 'C' || FM === 'D') && /^(km|hr)[SCT]$/.test(k) ? Object.assign({}, C[k], { g: 'READING' }) : C[k]);
+        const cols = LB_FMT_COLS[FM].filter(k => k !== 'dRh' || lines.some(x => x.refill)).map(k => (FM === 'C' || FM === 'D') && /^(km|hr)[SCT]$/.test(k) ? Object.assign({}, C[k], { g: 'READING' }) : C[k]);      // (update-206: Format H's reading only when a fill has one)
         // (update-97) Format I: every trip of an entry is a line of its own, numbered 1, 2, 3 … through the sheet
         const linesF = FM !== 'I' ? lines : (() => { const o = []; lines.forEach(x => { const tr = x.r.itemWork && Array.isArray(x.r.itemWork._trips) ? x.r.itemWork._trips : null;
           if (tr && tr.length) tr.forEach(t => o.push(Object.assign({}, x, { i: o.length, t: t }))); else o.push(Object.assign({}, x, { i: o.length, t: null })); }); return o; })();

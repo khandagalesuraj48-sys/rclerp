@@ -8514,3 +8514,27 @@ test('update-205: Vehicle Compliance – the documents of a machinery: every ren
   for (const msg of [STEP, 'A file of the paper was not added by you in the last 6 hours – add it again.', 'RENT-205 is not Own machinery – the papers are kept only for Own machinery.', 'Add the PDF / photo first.'])
     assert.ok(H.some(r => r.re.test(msg) && /supabase_step1zl/.test(r.en.join(' ')) && r.mr && r.hi), 'help in 3 languages: ' + msg);
 });
+
+test('update-206: the Log Book print shows the reading given at every diesel fill – KM, Hrs or both, whatever the fill has, each fill of the day, a fill on a day without an entry; Format B and E with the refilling reading, Format H when a fill has one', () => {
+  const { T, ctx } = require('./harness.js');
+  const step = fn => { const r = fn(); T.reset(); return r; };
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  step(() => T.saveMaster_({ no: 'TP-206', name: 'Tipper', type: 'Tipper', unit: 'Trip', worksOn: ['Trip', 'Hrs'], hrStd: 4, owner: 'Reading Vendor', ownership: 'Rental', supply: 'Company', status: 'Active', activeFrom: '2026-09-01' }, 'add'));
+  run('x => saveInward_(x)', { date: '2026-09-01', location: 'Dispenser', pump: 'Pump', qty: 5000, rate: 92.5, billNo: 'IN-206', billDate: '2026-09-01' });
+  for (const [date, shift, qty, hr] of [['2026-09-02', 'Day', 20, 505], ['2026-09-02', 'Night', 15, 509.5], ['2026-09-03', 'Day', 10, 512]])
+    run('x => saveDieselIssue_(x)', { date: date, shift: shift, source: 'Dispenser', no: 'TP-206', qty: qty, hrReading: hr, force: true });
+  const x = run('f => logPrintExtra_(f)', { from: '2026-09-01', to: '2026-09-30', nos: ['TP-206'] }).issues.TP206;
+  assert.deepStrictEqual(x['2026-09-02'].fills, [{ q: 20, km: '', hr: 505 }, { q: 15, km: '', hr: 509.5 }], 'every fill of the day with its own reading');
+  assert.deepStrictEqual([x['2026-09-02'].qty, x['2026-09-02'].hr, x['2026-09-03'].fills], [35, 509.5, [{ q: 10, km: '', hr: 512 }]], 'the day\'s litres and last reading as before');
+  // the page: the reading whatever the fill has; the formats; the note of a fill without an entry (the sheets themselves: rcl-mobile's
+  // fixture lbprint/web_sheets.json "fill_reads_206", made by this page's own logSheetsBuild on the rig)
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /const refill = first && d \? fillReads\(d\) : '';      \/\/ \(update-206\)/);
+  assert.doesNotMatch(app, /isHr \? d\.hr : dual \? \[d\.km, d\.hr\]/, 'not only the reading of the machinery\'s unit');
+  assert.match(app, /return k && h \? plain\(km\) \+ ' KM \/ ' \+ plain\(hr\) \+ ' HRS' : k \? plain\(km\) \+ \(lab \|\| isHr \|\| dual \? ' KM' : ''\) : h \? plain\(hr\) \+ \(lab \|\| !isHr \? ' HRS' : ''\) : ''; \};/);
+  assert.match(app, /B: \['sr', 'date', 'shift', 'kmS', 'kmC', 'kmT', 'hrS', 'hrC', 'hrT', 'dO', 'dI', 'dR', 'dT', 'dU', 'dC', 'trip', 'ch', 'work'\],/);
+  assert.match(app, /E: \['sr', 'date', 'particular', 'challan', 'rS', 'rC', 'rT', 'dO', 'dI', 'dR', 'dT', 'dU', 'dC', 'avg', 'ch', 'work'\],/);
+  assert.match(app, /H: \['sr', 'date', 'shift', 'vehno', 'challan', 'dQ', 'dRh', 'inT', 'outT', 'trip', 'ch', 'work'\],/);
+  assert.match(app, /const cols = LB_FMT_COLS\[FM\]\.filter\(k => k !== 'dRh' \|\| lines\.some\(x => x\.refill\)\)/, 'Format H: the column only when a fill has a reading');
+  assert.match(app, /return showDate\(x\.d\) \+ ' ' \+ fmt\(x\.q\) \+ ' L' \+ \(rd \? ' \(READING ' \+ rd \+ '\)' : ''\);/);
+});

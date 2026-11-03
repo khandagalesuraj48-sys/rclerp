@@ -2326,3 +2326,7 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (`cmpFiles`, `getCmpFiles`, `cmpDoc`; `renewDoc` with files); files only added, never taken out; Edit adds, View sees; only Own.
   SQL step 1zl (`compliance_history.attachments` – one empty column, every site; approved 03-11-2026). Tests: unit `update-205`; the rig
   in Chromium; rcl-mobile 3.78.0.
+- 03-11-2026 (update-206). Report: `UPDATE_206.md`. THE LOG BOOK PRINT SHOWS THE READING GIVEN AT EVERY DIESEL FILL – KM, Hrs or both,
+  whatever the fill has (not only the unit's), each fill of the day (`logPrintExtra_` `fills`), a fill on a day without an entry (the
+  note); Format B and E with the refilling reading, Format H when a fill has one. No SQL. Tests: unit `update-206`; the rig in Chromium
+  (the page's print on rcl-mobile's fixture); rcl-mobile 3.80.0.
