@@ -3764,7 +3764,7 @@ test('update-125: "Change site" in the dark menu closes the phone / tablet drawe
   const close = h.indexOf('setDrawer(false)'), box = h.indexOf('askConfirm(');
   assert.ok(close > -1 && box > -1 && close < box, 'the drawer must close before the "Change site" box opens');
   // setDrawer(false) takes the drawer away (the class that slides it in), and the drawer and its shade are above the box
-  assert.match(app, /function setDrawer\(open\) \{ document\.querySelector\('\.app'\)\.classList\.toggle\('nav-open', open\); \}/);
+  assert.match(app, /function setDrawer\(open\) \{[\s\S]{0,1400}?app\.classList\.toggle\('nav-open', open\);/);      // (update-209: with the push back's clip before it)
   const z = re => Number((app.match(re) || [])[1]);
   const side = z(/\.side \{ position: fixed;[^}]*z-index: (\d+);/), shade = z(/#nav_back \{ display: block;[^}]*z-index: (\d+);/), cf = z(/#cf_back \{[^}]*z-index: (\d+);/);
   assert.ok(side > cf && shade > cf, 'on a phone the drawer (' + side + ') and its shade (' + shade + ') are above the box (' + cf + ') – that is why it must close first');
@@ -8607,4 +8607,45 @@ test('update-208: Head Office at its own address (/ho/) – only the site HO the
   assert.match(app, /\$\('set_sites'\)\.hidden = !many \|\| AT_HO;/);
   // a QR label printed at /ho/ carries /ho/ (also from the beta copy, which prints the live address)
   assert.match(app, /base = window\.top\.rclLive \? window\.top\.rclLive \+ \(AT_HO \? '\/ho\/' : '\/'\) : window\.top\.location\.origin \+ window\.top\.location\.pathname;/);
+});
+
+test('update-209: two motions of the web – the menu behind the page on a phone / tablet (push back) and the message as a gooey drop at the top; the message\'s text as before', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const css = app.slice(app.indexOf('(update-209, asked 03-11-2026 – the preview he OK\'d) TWO MOTIONS'), app.indexOf('</style>', app.indexOf('TWO MOTIONS')));
+  // push back: only up to 760 px (a computer: the menu stays open on the left, as before)
+  const pb = css.slice(css.indexOf('@media (max-width: 760px) {'), css.indexOf('html.pb-lock'));
+  assert.ok(pb.length > 200);
+  assert.match(pb, /\.app\.nav-open \.mainwrap \{ transform: translateX\(var\(--pb-x\)\) scale\(var\(--pb-s\)\); clip-path: inset\(var\(--pb-t, 0px\) 0 var\(--pb-b, 0px\) 0 round 28px\); \}/, 'the page shrinks back and moves right');
+  assert.match(pb, /\.app \.side \{ width: 100vw !important; padding-right: calc\(100vw - var\(--pb-x\)\); z-index: 1;/, 'the menu behind it');
+  assert.match(pb, /\.app:not\(\.pb-clip\) \.side \{ visibility: hidden; \}/, 'closed: as before');
+  assert.match(pb, /\.app\.pb-clip \.mainwrap \{ z-index: 2; \}/, 'the page is lifted over the menu only while it is open or moving');
+  assert.match(pb, /\.app\.nav-open #nav_back \{ opacity: 1; pointer-events: auto; transform: none; \}/, 'a tap on the page closes');
+  assert.match(css, /html\.pb-lock, html\.pb-lock body \{ overflow: hidden; \}/);
+  const sd = app.slice(app.indexOf('function setDrawer(open) {'), app.indexOf('function setDrawer(open) {') + 1400);
+  assert.match(sd, /phone = matchMedia\('\(max-width: 760px\)'\)\.matches/);
+  assert.match(sd, /app\.classList\.add\('pb-clip'\); document\.documentElement\.classList\.add\('pb-lock'\);/);
+  assert.match(sd, /if \(!open\) pbT = setTimeout\(\(\) => \{ app\.classList\.remove\('pb-clip'\); document\.documentElement\.classList\.remove\('pb-lock'\); \}, 560\);/);
+  assert.match(app, /window\.addEventListener\('resize', \(\) => \{ if \(document\.querySelector\('\.app'\)\.classList\.contains\('nav-open'\) && !matchMedia\('\(max-width: 760px\)'\)\.matches\) setDrawer\(false\); \}\);/);
+  // the closing ways stay: a page of the menu, Back, the swipe, a tap on the page
+  assert.match(app, /document\.querySelectorAll\('\.navbtn'\)\.forEach\(b => b\.addEventListener\('click', \(\) => setDrawer\(false\)\)\);/);
+  assert.match(app, /if \(document\.querySelector\('\.app'\)\.classList\.contains\('nav-open'\)\) \{ setDrawer\(false\); return true; \}/);
+  // the gooey drop: the SVG filter, the shapes behind the words, at the top, the colours as before
+  assert.match(app, /<filter id="rcl_goo"[^>]*><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b"\/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -8" result="g"\/>/);
+  assert.match(css, /#toast, body\.rtc-on #toast, body\.rtc-on\.rtc-mini #toast \{ top: calc\(12px \+ env\(safe-area-inset-top\)\); bottom: auto;/);
+  assert.match(css, /#toast \{ --tc: #1F2B34; \} #toast\.bad \{ --tc: var\(--bad\); \}/, 'the colours of before');
+  assert.match(css, /#toast \.goo \{ position: absolute; z-index: -1;[^}]*filter: url\(#rcl_goo\); pointer-events: none; \}/);
+  const tf = app.slice(app.indexOf('  function toast(msg, bad) {'), app.indexOf('  function gooRun(t, life) {') + 4000);
+  assert.match(tf, /t\.textContent = ''; const tx = document\.createElement\('span'\); tx\.className = 'tx'; tx\.textContent = msg; t\.appendChild\(tx\); t\.appendChild\(gooEl\(\)\);/, 'the text of the message is the same ($(\'toast\').textContent)');
+  assert.match(tf, /toastTimer = setTimeout\(\(\) => \{ t\.hidden = true; \}, bad \? 6000 : 3500\);\n    gooRun\(t, bad \? 6000 : 3500\);/, 'as long as before');
+  assert.match(tf, /if \(still\) \{ t\.classList\.add\('still', 'tx-on'\); return; \}/, 'reduce motion / no animations: the message as it is');
+  // run: the message's text, its parts, its colour class
+  const { JSDOM } = (() => { try { return require('jsdom'); } catch (e) { return {}; } })();
+  if (JSDOM) {
+    const dom = new JSDOM('<div id="toast" hidden></div>');
+    const w = dom.window, el = w.document.getElementById('toast');
+    const fns = app.slice(app.indexOf('  let gooNo = 0;'), app.indexOf('  function gooRun(t, life) {'));
+    const mk = new w.Function('document', fns + '; return gooEl;')(w.document);
+    el.textContent = ''; const tx = w.document.createElement('span'); tx.textContent = 'Saved.'; el.appendChild(tx); el.appendChild(mk());
+    assert.strictEqual(el.textContent, 'Saved.'); assert.strictEqual(el.querySelectorAll('.goo i').length, 4);
+  }
 });

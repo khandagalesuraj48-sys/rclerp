@@ -2338,3 +2338,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   site HO there (no Change site); the main address never opens HO; links and Portal tickets go to their address by themselves; the
   sign-in of `/ho/` kept apart in the browser (`KK`, the bridge's `hoKey`). With the Portal's `api/go.js`. No SQL. Tests: unit `update-208`;
   the rig in Chromium (Portal apart and one address).
+- 03-11-2026 (update-209). Report: `UPDATE_209.md`. TWO MOTIONS (the preview he OK'd): PUSH BACK MENU on a phone / tablet (≤ 760 px) – the
+  page shrinks back and moves right, the menu behind it (a computer as before); the MESSAGE AS A GOOEY DROP at the top (`toast()`, `gooRun`,
+  the SVG filter `#rcl_goo`) – colours, times and text as before. No SQL. Tests: unit `update-209`; the rig in Chromium. With rcl-mobile 3.83.0.
