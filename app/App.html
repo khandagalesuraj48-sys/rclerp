@@ -5466,7 +5466,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   // (update-114) a save of a task under verification comes back "Sent for verification …": nothing is saved yet – the form is
   // emptied as after a save (the entry waits on Approvals), the list of requests is refreshed
-  const FLOW_SENT_RE = /^Sent for verification /;
+  const FLOW_SENT_RE = /^(Sent for verification |Kept as stock short )/;      // (update-211) kept as stock short: told the same way – nothing saved yet, the form emptied
   /* (update-116) "SEND TO VERIFICATION" INSTEAD OF "SAVE": a save button of a work the Super Admin put under verification for this
    * person says so (and its "only when" – days back, litres – is looked at from the form as it is filled). A work without anyone to
    * approve it keeps its own "Save …". The server decides in the end (its answer says "Sent for verification" or saves). */
@@ -5503,7 +5503,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   let flowLblT = 0;
   ['input', 'change'].forEach(ev => document.addEventListener(ev, () => { clearTimeout(flowLblT); flowLblT = setTimeout(flowLabels, 250); }, true));
-  const FLOW_CLEAR = { saveDieselIssue: 'clearDiesel', saveDieselBulk: 'clearDieselBulk', saveInward: 'clearInward', saveTransfer: 'clearTransfer', saveLogRows: 'clearLogGrid' };
+  const FLOW_CLEAR = { saveDieselIssue: 'clearDiesel', saveDieselBulk: 'clearDieselBulk', saveInward: 'clearInward', saveTransfer: 'clearTransfer', saveTransferBulk: 'clearTransferBulk', saveLogRows: 'clearLogGrid' };
   function flowSent(fn) {
     S.formDirty = false;
     try { const c = FLOW_CLEAR[fn]; if (c && typeof window[c] === 'function') window[c](); } catch (e) { /* the form stays as it is */ }
@@ -5521,9 +5521,24 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       toast('Write the reason – it is kept with the entry\'s history.', true);
     }
   }
+  /* (update-211, asked 04-11-2026) STOCK SHORT: a diesel issue or transfer the stock cannot cover now (its Inward / Transfer is not in
+   * yet, or waits for verification) – the person is asked; "Keep as stock short" sends the same entry again with { short: true }: the
+   * server checks everything but its stock and keeps it in Approvals ("Stock short", its diesel held back) – it is saved by itself
+   * when the stock comes. Cancel: nothing kept, he corrects it. */
+  const SHORT_FNS = ['saveDieselIssue', 'saveDieselBulk', 'saveTransfer', 'saveTransferBulk'], SHORT_RE = /^Not enough [^\n]*? at /;
+  const shortOf = r => { const l = r && r.ok === false && !r.warning && !(r.warnings || []).length ? (r.errors || []).map(e => String((e && e.msg) || e || '')) : []; return l.length && l.every(m => SHORT_RE.test(m)) ? l.join(' | ') : ''; };
+  const shortT = o => o[fixLang] || o.en;      // the person's language (the help's: English / मराठी / हिंदी)
+  async function askShort(msg) {
+    return askConfirm({ title: shortT({ en: 'Stock short – keep this entry?', mr: 'Stock कमी – ही entry ठेवायची?', hi: 'Stock कम – यह entry रखें?' }), ok: shortT({ en: 'Keep as stock short', mr: 'Stock कमी म्हणून ठेवा', hi: 'Stock कम के रूप में रखें' }), wide: true,
+      html: '<p>' + esc(String(msg).replace(/^Error:\s*/, '')) + '</p><p>' + esc(shortT({ en: 'If this diesel was really given and its Inward / Transfer is not entered yet (or waits for verification): keep it as stock short. It waits in Approvals and is saved by itself when the stock comes – nothing is saved until then. Otherwise press Cancel and correct the quantity.',
+        mr: 'हे diesel खरंच दिले असेल आणि त्याचा Inward / Transfer अजून भरलेला नसेल (किंवा verification मध्ये असेल): ही entry stock कमी म्हणून ठेवा. ती Approvals मध्ये थांबेल आणि stock आल्यावर आपोआप save होईल – तोपर्यंत काहीही save होत नाही. नाहीतर Cancel दाबा आणि quantity दुरुस्त करा.',
+        hi: 'यह diesel सच में दिया है और उसका Inward / Transfer अभी नहीं भरा (या verification में है): इसे stock कम के रूप में रखें। यह Approvals में रुकेगी और stock आने पर अपने आप save होगी – तब तक कुछ भी save नहीं होता। नहीं तो Cancel दबाएँ और quantity ठीक करें।' })) + '</p>' });
+  }
   function call(fn, ...args) {
     let p0 = rawCall(fn, ...args);
     p0 = p0.catch(async e => { if (SA_REASON_RE.test(errMsg(e)) && S.user && S.user.super) { const why = await askSaReason(errMsg(e)); if (why) return rawCallM(fn, { reason: why }, args); throw new Error('Not saved – no reason was given.'); } throw e; });
+    if (SHORT_FNS.indexOf(fn) > -1) p0 = p0.then(async r => { const w = shortOf(r); if (w && await askShort(w)) return rawCallM(fn, { short: true }, args); return r; },      // (update-211)
+      async e => { if (SHORT_RE.test(errMsg(e)) && await askShort(errMsg(e))) return rawCallM(fn, { short: true }, args); throw e; });
     p0 = p0.catch(e => { if (FLOW_SENT_RE.test(errMsg(e))) flowSent(fn); throw e; });
     if (CR_FNS.indexOf(fn) > -1) p0 = p0.then(async r => { const lk = (r && r.ok === false ? (r.errors || []) : []).map(e => (e && e.msg) || e).find(crLocked); if (lk && await crOffer(fn, args, lk)) throw new Error(CR_SENT); return r; },
       async e => { if (crLocked(errMsg(e)) && await crOffer(fn, args, errMsg(e))) throw new Error(CR_SENT); throw e; });
@@ -6467,6 +6482,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['A row of the water tanker\'s trips cannot be taken as it is.', 'Nothing was saved. Every row needs its date (within the From – To dates that are open; for another date open those dates), the shift Day or Night, the challan no and the Dispatch / Unload time. An Excel file needs at least one trip under its headings (Export Excel gives the right layout). Save up to 3000 trips at a time.'],
       mr: ['Water tanker च्या trips मधली एक row जशी आहे तशी घेता येत नाही.', 'काहीही save झाले नाही. प्रत्येक row ला तारीख (उघडलेल्या From – To तारखांच्या आत; दुसऱ्या तारखेसाठी त्या तारखा उघडा), shift Day किंवा Night, challan no आणि Dispatch / Unload वेळ हवी. Excel file मध्ये headings खाली किमान एक trip हवी (Export Excel ने बरोबर layout मिळतो). एका वेळी जास्तीत जास्त 3000 trips save करा.'],
       hi: ['Water tanker की trips की एक row जैसी है वैसी नहीं ली जा सकती।', 'कुछ भी save नहीं हुआ। हर row में तारीख (खुली From – To तारीखों के अंदर; दूसरी तारीख के लिए वे तारीखें खोलें), shift Day या Night, challan no और Dispatch / Unload समय चाहिए। Excel file में headings के नीचे कम से कम एक trip चाहिए (Export Excel से सही layout मिलता है)। एक बार में ज़्यादा से ज़्यादा 3000 trips save करें।'] },
+    { re: /^Kept as stock short|already kept as stock short|This entry can be saved now – save it again|waits for the stock – it is saved by itself|\(or the Super Admin\) takes it back/i,      // (update-211) an entry kept as stock short
+      en: ['Stock short: the entry waits on the server – nothing is saved yet.', 'The stock could not cover it when it was sent. It waits in Approvals ("Stock short", its diesel already taken out of the stock shown) and is saved BY ITSELF, as your own entry, as soon as a Diesel Inward or Transfer brings the stock – the oldest first; you get a notification. Enter the Inward / Transfer with the date the diesel really came (on or before this entry). The same entry is not kept twice. Only the person who sent it, or the Super Admin, can take it back (nothing is saved then). If the stock is there now, simply save it again.'],
+      mr: ['Stock कमी: entry server वर थांबली आहे – अजून काहीही save झाले नाही.', 'पाठवताना stock पुरेसा नव्हता. ती Approvals मध्ये थांबते ("Stock short", तिचे diesel दाखवलेल्या stock मधून आधीच वजा) आणि Diesel Inward किंवा Transfer ने stock आला की ती तुमची entry म्हणून आपोआप save होते – सर्वात जुनी आधी; तुम्हाला notification येते. Inward / Transfer खरंच diesel आले त्या तारखेने भरा (या entry च्या तारखेला किंवा आधीची). तीच entry दोनदा ठेवली जात नाही. पाठवणारा किंवा Super Admin च ती परत घेऊ शकतात (मग काहीही save होत नाही). आता stock असेल तर ती पुन्हा save करा.'],
+      hi: ['Stock कम: entry server पर रुकी है – अभी कुछ भी save नहीं हुआ।', 'भेजते समय stock पूरा नहीं था। वह Approvals में रुकती है ("Stock short", उसका diesel दिखाए गए stock में से पहले ही घटा) और Diesel Inward या Transfer से stock आते ही वह आपकी entry के रूप में अपने आप save होती है – सबसे पुरानी पहले; आपको notification आती है। Inward / Transfer उस तारीख से भरें जब diesel सच में आया (इस entry की तारीख पर या पहले)। वही entry दो बार नहीं रखी जाती। भेजने वाला या Super Admin ही उसे वापस ले सकते हैं (तब कुछ भी save नहीं होता)। अभी stock हो तो उसे दोबारा save करें।'] },
     { re: /^Sent for verification|already waiting for verification|^Verification rules|Write the remark or question|Write your answer|Only the person who sent this entry answers it|This request is not sent back to you|Write why it is sent again|sends it again|^Not sent again|opens and corrects it|opened to correct|cannot be corrected|Write what you corrected|cannot be sent like this|only a rejected or returned entry is sent again|cannot be sent again|Pick the entries to send again|already waiting for verification as|cannot approve your own entry|This request is not waiting for you|sets the verification rules|too big to send for verification|Tick the requests first|Write why it is rejected/i,      // (update-114) verification
       en: ['Verification: this work goes to the people the Super Admin chose before it is saved.', 'A "Sent for verification" entry is NOT saved yet – it is saved when the last person approves it (Approvals shows where it waits). The same entry is not sent twice. You cannot approve your own entry; another person of that level (or the Super Admin) does. The rules – which work, which people, how many levels – are set by the Super Admin in Approvals → Verification rules. A rejected or returned entry is not typed again: press "Send again" and write why – it goes as it was (the same lines and photos) to level 1. If the save finds anything wrong ("Line 3: …", e.g. a reading that does not fit), it is said and the entry stays as it is – it is corrected first: a Diesel Issue entry with "Open & correct" (it opens in its form with the wrong rows in red; correct them and press "Send again"). Nothing wrong goes for approval.'],
       mr: ['पडताळणी: हे काम सेव्ह होण्याआधी Super Admin ने निवडलेल्या लोकांकडे जाते.', '"पडताळणीसाठी पाठवले" म्हणजे अजून सेव्ह झाले नाही – शेवटच्या व्यक्तीने मंजूर केल्यावर सेव्ह होईल (Approvals मध्ये कुठे थांबले ते दिसते). तीच एन्ट्री दोनदा जात नाही. स्वतःची एन्ट्री स्वतः मंजूर करता येत नाही; त्या level चा दुसरा माणूस (किंवा Super Admin) करतो. कोणते काम, कोणते लोक, किती levels – हे नियम Super Admin Approvals → Verification rules मध्ये ठरवतो. Rejected किंवा Returned झालेली एन्ट्री पुन्हा टाइप करायची नाही: "Send again" दाबा आणि कारण लिहा – ती जशीच्या तशी (त्याच ओळी, तेच फोटो) पुन्हा level 1 ला जाते. सेव्हला काही चुकीचे सापडले ("Line 3: …", उदा. जुळत नसलेली reading) तर ते सांगितले जाते आणि एन्ट्री आहे तशीच राहते – आधी ती दुरुस्त करायची: Diesel Issue एन्ट्री "Open & correct" ने (ती तिच्या फॉर्ममध्ये उघडते, चुकीच्या ओळी लाल; दुरुस्त करून "Send again" दाबा). चुकीचे काहीही approval ला जात नाही.'],
@@ -6891,9 +6910,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       mr: ['तीच entry (तीच machinery, तारीख आणि shift, किंवा तेच नाव / नंबर) आधीच आहे.', 'ती पुन्हा जोडू नका. यादीत शोधून Edit ने बदला; किंवा ही खरोखर वेगळी entry असेल तर तारीख, shift किंवा नंबर दुरुस्त करा.'],
       hi: ['वही entry (वही machinery, तारीख और shift, या वही नाम / नंबर) पहले से है।', 'उसे दोबारा न जोड़ें। सूची में ढूँढकर Edit से बदलें; या यह सच में अलग entry हो तो तारीख, shift या नंबर ठीक करें।'] },
     { re: /Not enough (diesel|petrol|cng)|^Not enough\s/i,      // (update-163) also a Petrol / CNG place
-      en: ['The diesel source does not have this much diesel on that date (stock would go below zero).', '1) Check the quantity and the date. 2) If diesel was received but not entered: enter the Diesel Inward (or Transfer) of that date first. 3) Then save this issue again.'],
-      mr: ['त्या तारखेला त्या diesel source मध्ये एवढे diesel नाही (stock शून्याखाली जाईल).', '1) Quantity आणि तारीख तपासा. 2) Diesel आले आहे पण नोंदवले नसेल: आधी त्या तारखेचा Diesel Inward (किंवा Transfer) भरा. 3) मग हा issue पुन्हा save करा.'],
-      hi: ['उस तारीख को उस diesel source में इतना diesel नहीं है (stock शून्य से नीचे चला जाएगा)।', '1) Quantity और तारीख जाँचें। 2) Diesel आया है पर दर्ज नहीं हुआ: पहले उस तारीख का Diesel Inward (या Transfer) भरें। 3) फिर यह issue दोबारा save करें।'] },
+      en: ['The diesel source does not have this much diesel on that date (stock would go below zero).', '1) Check the quantity and the date. 2) If diesel was received but not entered: enter the Diesel Inward (or Transfer) of that date first. 3) Then save this issue again. 4) The diesel was really given and its Inward / Transfer comes later: answer "Keep as stock short" – it waits in Approvals and is saved by itself when the stock comes. (Diesel of entries waiting for verification or for stock is already taken out of the stock shown.)'],
+      mr: ['त्या तारखेला त्या diesel source मध्ये एवढे diesel नाही (stock शून्याखाली जाईल).', '1) Quantity आणि तारीख तपासा. 2) Diesel आले आहे पण नोंदवले नसेल: आधी त्या तारखेचा Diesel Inward (किंवा Transfer) भरा. 3) मग हा issue पुन्हा save करा. 4) Diesel खरंच दिले आहे आणि त्याचा Inward / Transfer नंतर येणार आहे: "Stock कमी म्हणून ठेवा" निवडा – ती Approvals मध्ये थांबते आणि stock आल्यावर आपोआप save होते. (Verification किंवा stock साठी थांबलेल्या entries चे diesel दाखवलेल्या stock मधून आधीच वजा केलेले असते.)'],
+      hi: ['उस तारीख को उस diesel source में इतना diesel नहीं है (stock शून्य से नीचे चला जाएगा)।', '1) Quantity और तारीख जाँचें। 2) Diesel आया है पर दर्ज नहीं हुआ: पहले उस तारीख का Diesel Inward (या Transfer) भरें। 3) फिर यह issue दोबारा save करें। 4) Diesel सच में दिया है और उसका Inward / Transfer बाद में आएगा: "Stock कम के रूप में रखें" चुनें – वह Approvals में रुकती है और stock आने पर अपने आप save होती है। (Verification या stock के लिए रुकी entries का diesel दिखाए गए stock में से पहले ही घटा हुआ है।)'] },
     { re: /Cannot (delete|reduce) this inward|already issued from this inward/i,
       en: ['Diesel of this inward has already been issued, so it cannot be deleted or reduced below what was issued.', 'First correct or delete the Diesel Issues / Transfers that used it, then change the inward.'],
       mr: ['या inward मधले diesel आधीच दिले गेले आहे, म्हणून ते delete करता येत नाही किंवा दिलेल्यापेक्षा कमी करता येत नाही.', 'आधी ते diesel वापरणारे Diesel Issue / Transfer दुरुस्त किंवा delete करा, मग inward बदला.'],
@@ -7943,14 +7962,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   })();
 
   /* ================= STOCK (live) ================= */
+  /* (update-211) the stock shown is the books less the diesel of entries that WAIT – for verification, or kept as stock short (that
+   * diesel was given): beside a figure, what waits there ({ wait, short } of the server) */
+  function heldWords(h, u) {
+    const w = Number((h || {}).wait) || 0, k = Number((h || {}).short) || 0; u = u || 'L';
+    return w || k ? [w ? fmt(w) + ' ' + u + ' waiting for verification' : '', k ? fmt(k) + ' ' + u + ' stock short' : ''].filter(Boolean).join(', ') + ' – already taken out' : '';
+  }
+  const heldHtml = (h, u) => { const t = heldWords(h, u); return t ? ' <small class="held">(' + esc(t) + ')</small>' : ''; };
   function setStock(st) {
     if (!st) return;
     S.stock = st;
     if (Array.isArray(st.cards)) { S.cards = st.cards; if (typeof cardsChanged === 'function') cardsChanged(); }      // (update-164) a site on fuel cards: the cards' balances
-    const by = st.byLoc || {};
+    const by = st.byLoc || {}, hd = st.held || {};
     document.querySelectorAll('.stock_multi').forEach(el => {
-      el.innerHTML = (S.locations || Object.keys(by)).map(l => '<span class="locpill' + ((by[l] || 0) <= 0 ? ' low' : '') + '" title="Current stock">' +
-        esc(l) + ' <b>' + fmt(by[l] || 0) + '</b> ' + placeUnit(l) + '</span>').join('');      // (update-163) kg for CNG
+      el.innerHTML = (S.locations || Object.keys(by)).map(l => '<span class="locpill' + ((by[l] || 0) <= 0 ? ' low' : '') + '" title="' + esc('Current stock' + (heldWords(hd[l], placeUnit(l)) ? ' – ' + heldWords(hd[l], placeUnit(l)) : '')) + '">' +
+        esc(l) + ' <b>' + fmt(by[l] || 0) + '</b> ' + placeUnit(l) + (hd[l] ? ' <small>⏳ ' + fmt((Number(hd[l].wait) || 0) + (Number(hd[l].short) || 0)) + '</small>' : '') + '</span>').join('');      // (update-163) kg for CNG; (update-211) ⏳ what waits
     });
     dieselAfterLine(); dieselBulkSum(); inwardAfterLine();
     stockSoon();
@@ -8465,9 +8491,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const short = q > b.from.available;
     $('t_live').innerHTML =
       '<div class="side-box' + (short ? ' bad' : '') + '"><span>' + esc(from) + ' – opening ' + esc(showDate($('t_date').value)) + ' ' + esc($('t_shift').value) + '</span>' +
-        '<b>' + fmt(b.from.balance) + '</b><em>→ after ' + fmt(fAfter) + ' ' + U + '</em>' + (short ? '<span>Can transfer up to ' + fmt(b.from.available) + ' ' + U + '</span>' : '') + '</div>' +
+        '<b>' + fmt(b.from.balance) + '</b><em>→ after ' + fmt(fAfter) + ' ' + U + '</em>' + (short ? '<span>Can transfer up to ' + fmt(b.from.available) + ' ' + U + '</span>' : '') + heldHtml(b.from.held, U) + '</div>' +
       '<div class="arrow" aria-hidden="true">→</div>' +
-      '<div class="side-box"><span>' + esc(to) + ' – opening</span><b>' + fmt(b.to.balance) + '</b><em>→ after ' + fmt(tAfter) + ' ' + U + '</em></div>';
+      '<div class="side-box"><span>' + esc(to) + ' – opening</span><b>' + fmt(b.to.balance) + '</b><em>→ after ' + fmt(tAfter) + ' ' + U + '</em>' + heldHtml(b.to.held, U) + '</div>';      // (update-211) what waits
   }
   ['t_date', 't_shift', 't_from', 't_to'].forEach(id => $(id).addEventListener('change', () => { S.tbal = null; transferLive(); refreshTransferBal(); }));
   $('t_qty').addEventListener('input', transferLive);
@@ -8489,10 +8515,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   async function saveTransferEntry() {
     const x = { date: $('t_date').value, shift: $('t_shift').value, from: $('t_from').value, to: $('t_to').value, qty: numv('t_qty'), remark: val('t_remark') };
-    if (S.tbal && x.qty !== '' && x.qty > S.tbal.from.available) {
-      await showAlert('Not enough diesel in stock', 'At ' + x.from + ' for ' + showDate(x.date) + ' (' + x.shift + ') you can transfer up to ' + fmt(S.tbal.from.available) + ' Ltr.');
-      return;
-    }
+    // (update-211) more than the stock: the server says so and the page asks "keep it as stock short?" (call) – no stop here
     const editing = S.editTransferId;
     if (editing) {
       const r = (S.transferRows || []).find(z => z.id === editing) || {};
@@ -8560,15 +8583,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function crDraw() {
     const d = S.cr || { requests: [] }, sup = !!(S.user && S.user.super), all = $('cr_all').checked, me = d.requests || [];
-    const L = me.filter(r => all || r.status === 'Pending' || r.mine);      // (a person sees all he sent – waiting, approved, rejected – and what waits; "show … too": also what was decided at his level)
-    const lab = $('tab-approvals').querySelector('.label'); lab.textContent = 'Approvals' + (d.pending ? ' (' + d.pending + ')' : '');      // (as before: what is waiting in his list)
-    $('cr_intro').textContent = 'Entries sent for verification (the Super Admin\'s rules) and changes of a submitted bill. Waiting = not saved yet; Approved = saved; Sent back = a remark or question for the sender, he answers and sends it again; Rejected, Returned or Taken back = not saved – your own rejected or returned entry: "Send again" (write why) and it goes again as it was, nothing typed again – or "Open & correct" (Diesel Issue): it opens in its form with what is wrong marked; correct it and send it again. Tick several to approve them at once. You get a notification when something waits for you, and when your entry is decided.';
+    const L = me.filter(r => all || r.status === 'Pending' || r.status === 'Short' || r.mine);      // (a person sees all he sent – waiting, approved, rejected – and what waits; "show … too": also what was decided at his level)
+    const lab = $('tab-approvals').querySelector('.label'), nW = (d.pending || 0) + (d.short || 0); lab.textContent = 'Approvals' + (nW ? ' (' + nW + ')' : '');      // (as before: what is waiting in his list; update-211: and kept as stock short)
+    $('cr_intro').textContent = 'Entries sent for verification (the Super Admin\'s rules) and changes of a submitted bill. Waiting = not saved yet; Stock short = the stock could not cover it – it waits and is saved by itself when the stock comes (the sender or the Super Admin can take it back); Approved = saved; Sent back = a remark or question for the sender, he answers and sends it again; Rejected, Returned or Taken back = not saved – your own rejected or returned entry: "Send again" (write why) and it goes again as it was, nothing typed again – or "Open & correct" (Diesel Issue): it opens in its form with what is wrong marked; correct it and send it again. Tick several to approve them at once. You get a notification when something waits for you, and when your entry is decided.';
     const wait = me.filter(r => r.status === 'Pending'), old = wait.reduce((mx, r) => Math.max(mx, (Date.now() - Date.parse(r.waitSince || r.at)) / 3600000), 0);
-    $('cr_dash').innerHTML = '<div>Waiting for you<b>' + (d.forMe || 0) + '</b></div>' + (d.backToMe ? '<div class="cr-back">Sent back to you<b>' + d.backToMe + '</b></div>' : '') + '<div>Waiting in all<b>' + wait.length + '</b></div><div>Your entries waiting<b>' + wait.filter(r => r.mine).length + '</b></div>' + (wait.length ? '<div>Oldest waiting<b>' + (old >= 24 ? Math.floor(old / 24) + ' d' : Math.floor(old) + ' h') + '</b></div>' : '');
+    $('cr_dash').innerHTML = '<div>Waiting for you<b>' + (d.forMe || 0) + '</b></div>' + (d.backToMe ? '<div class="cr-back">Sent back to you<b>' + d.backToMe + '</b></div>' : '') + '<div>Waiting in all<b>' + wait.length + '</b></div><div>Your entries waiting<b>' + wait.filter(r => r.mine).length + '</b></div>' + (d.short ? '<div class="cr-back">Stock short<b>' + d.short + '</b></div>' : '') + (wait.length ? '<div>Oldest waiting<b>' + (old >= 24 ? Math.floor(old / 24) + ' d' : Math.floor(old) + ' h') + '</b></div>' : '');
     $('cr_sum').textContent = d.missing ? d.missing : '';
     const can = L.some(r => r.canDecide), canBack = L.some(r => r.canDecide && r.kind === 'Flow'); $('cr_bulk_ok').hidden = !can; $('cr_bulk_no').hidden = !can; $('cr_bulk_back').hidden = !canBack; $('cr_tickall').disabled = !can; $('cr_tickall').checked = false;
     const st = r => r.status === 'Reverted' ? '<span class="st low">Sent back</span><br><small>' + esc((r.reverted || {}).by) + ' · ' + esc(crWhen((r.reverted || {}).at)) + '<br><b>' + esc((r.reverted || {}).note) + '</b></small>'
       : r.status === 'Withdrawn' ? '<span class="st">Taken back</span>'
+      : r.status === 'Short' ? '<span class="st low">Stock short</span><br><small>Saved by itself when the stock comes' + (r.decidedBy ? ' · approved by ' + esc(r.decidedBy) : '') +
+        (r.need || []).filter(n => n.more > 0).map(n => '<br><b>Needs ' + fmt(n.more) + ' L more at ' + esc(n.loc) + '</b> (free there now ' + fmt(n.free) + ' L)').join('') + (r.short ? '<br>' + esc(r.short) : '') + '</small>'      // (update-211) what it needs now
+      : r.status === 'Saved' ? '<span class="st ok">Saved</span><br><small>the stock came · ' + esc(crWhen(r.decidedAt)) + (r.result ? '<br>' + esc(r.result) : '') + '</small>'
       : r.status === 'Pending' ? '<span class="st low">Waiting</span>' + (r.levels ? '<br><small>level ' + r.level + ' of ' + r.levels + (r.waitingFor && r.waitingFor.length ? ': ' + esc(r.waitingFor.join(', ')) : '') + '</small>' : '<br><small>Super Admin</small>') +
         (r.reminds ? '<br><small class="cr-rem">Reminded ' + r.reminds + '× by ' + esc(r.by) + ' · ' + esc(crWhen(r.remindedAt)) + '</small>' : '')
       : '<span class="st ' + (r.status === 'Approved' ? 'ok' : 'bad') + '">' + esc(r.status) + '</span><br><small>' + esc(r.decidedBy) + ' · ' + esc(crWhen(r.decidedAt)) + (r.note ? '<br>' + esc(r.note) : '') + (r.status === 'Returned' && r.result ? '<br>' + esc(r.result) : '') + '</small>';
@@ -8580,6 +8606,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<td>' + esc(r.kind === 'Flow' ? r.task : 'Change of a billed period') + (r.qty ? '<br><small>' + esc(fmt(r.qty)) + ' L</small>' : '') + '</td><td>' + (r.summary || []).map(esc).join('<br>') + (r.kind !== 'Flow' && r.reason ? '<br><small>Reason: ' + esc(r.reason) + '</small>' : '') + fixd(r) + hist(r) + crDetBtn(r) + '</td>' +
       '<td>' + st(r) + '</td><td class="nowrap">' + (r.canDecide ? '<button class="btn small" type="button" data-crok="' + esc(r.id) + '">Approve</button> ' + (r.kind === 'Flow' ? '<button class="btn ghost small" type="button" data-crback="' + esc(r.id) + '">Send back</button> ' : '') + '<button class="btn ghost small" type="button" data-crno="' + esc(r.id) + '">Reject</button>' : '') +
         (r.canAnswer ? '<button class="btn small" type="button" data-cranswer="' + esc(r.id) + '">Answer and send again</button> <button class="btn ghost small" type="button" data-crwithdraw="' + esc(r.id) + '">Take back</button>' : '') +
+        (r.canTakeBack ? '<button class="btn ghost small" type="button" data-crwithdraw="' + esc(r.id) + '">Take back</button>' : '') +      // (update-211) kept as stock short
         (r.canFix ? '<button class="btn small" type="button" data-crfix="' + esc(r.id) + '">Open &amp; correct</button> ' : '') +      // (update-130)
         (r.canResend ? '<button class="btn small" type="button" data-cragain="' + esc(r.id) + '">Send again</button>' + (r.resent ? '<br><small>sent again ' + r.resent + '× before</small>' : '') : '') + '</td></tr>' + crDetRow(r)).join('')
       : '<tr><td colspan="7" class="none">' + (all ? 'Nothing yet.' : 'Nothing is waiting.') + '</td></tr>';
@@ -8599,22 +8626,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const FV_DAYS = 7;
   function fvMine(m, days) {
     const since = Date.now() - (days || FV_DAYS) * 86400000;
-    return ((S.cr || {}).requests || []).filter(r => r.kind === 'Flow' && r.mine && (!m || r.m === m) && (r.status === 'Pending' || r.status === 'Reverted' || Date.parse(r.decidedAt || r.at) >= since));
+    return ((S.cr || {}).requests || []).filter(r => r.kind === 'Flow' && r.mine && (!m || r.m === m) && (r.status === 'Pending' || r.status === 'Reverted' || r.status === 'Short' || Date.parse(r.decidedAt || r.at) >= since));      // (update-211: Short – always)
   }
   function fvAgo(v) { const ms = Date.now() - Date.parse(v); if (!(ms >= 0)) return ''; const n = Math.floor(ms / 60000); return n < 60 ? n + ' min' : n < 1440 ? Math.floor(n / 60) + ' h ' + (n % 60) + ' min' : Math.floor(n / 1440) + ' day(s)'; }
   function fvHtml(list, m, onDash) {
-    const n = l => list.filter(r => l.indexOf(r.status) > -1).length, wait = n(['Pending']), back = n(['Reverted']), ok = n(['Approved']), no = n(['Rejected', 'Returned', 'Withdrawn']);
+    const n = l => list.filter(r => l.indexOf(r.status) > -1).length, wait = n(['Pending']), back = n(['Reverted']), ok = n(['Approved', 'Saved']), no = n(['Rejected', 'Returned', 'Withdrawn']), sh = n(['Short']);
     const st = r => r.status === 'Pending' ? '<span class="st low">Waiting</span> <small>' + (r.waitingFor && r.waitingFor.length ? 'at ' + esc(r.waitingFor.join(', ')) : 'at the Super Admin') + (r.levels > 1 ? ' · level ' + r.level + ' of ' + r.levels : '') + ' · since ' + esc(fvAgo(r.waitSince || r.at)) + '</small>'
       : r.status === 'Reverted' ? '<span class="st bad">Sent back to you</span> <small>' + esc((r.reverted || {}).by) + ': ' + esc((r.reverted || {}).note) + '</small>'
       : r.status === 'Approved' ? '<span class="st ok">Approved – saved</span> <small>' + esc(r.decidedBy) + ' · ' + esc(crWhen(r.decidedAt)) + '</small>'
+      : r.status === 'Short' ? '<span class="st low">Stock short – saved by itself when the stock comes</span>' + (r.short ? ' <small>' + esc(r.short) + '</small>' : '')      // (update-211)
+      : r.status === 'Saved' ? '<span class="st ok">Saved – the stock came</span> <small>' + esc(crWhen(r.decidedAt)) + '</small>'
       : '<span class="st bad">' + (r.status === 'Withdrawn' ? 'Taken back' : esc(r.status)) + ' – not saved</span> <small>' + esc(r.decidedBy) + (r.note ? ': ' + esc(r.note) : '') + '</small>' +
         (r.status === 'Returned' && r.result ? '<br><small class="fv-why">' + esc(r.result) + '</small>' : '');      // (update-128) why the save refused it
-    const act = r => r.canRemind ? '<button class="btn small" type="button" data-fvr="' + esc(r.id) + '">Remind</button>' + (r.reminds ? '<br><small>reminded ' + r.reminds + '× · ' + esc(crWhen(r.remindedAt)) + '</small>' : '')
+    const act = r => r.canTakeBack ? '<button class="btn ghost small" type="button" data-fvopen="1">Open Approvals</button>'      // (update-211) take it back there
+      : r.canRemind ? '<button class="btn small" type="button" data-fvr="' + esc(r.id) + '">Remind</button>' + (r.reminds ? '<br><small>reminded ' + r.reminds + '× · ' + esc(crWhen(r.remindedAt)) + '</small>' : '')
       : r.canAnswer ? '<button class="btn small" type="button" data-fvopen="1">Answer</button>'
       : r.canResend ? (r.canFix ? '<button class="btn small" type="button" data-fvfix="' + esc(r.id) + '">Open &amp; correct</button> ' : '') + '<button class="btn small" type="button" data-fvagain="' + esc(r.id) + '">Send again</button>' + (r.resent ? '<br><small>sent again ' + r.resent + '× before</small>' : '') : '';      // (update-128; update-130: Open & correct)
     const rows = list.slice(0, onDash ? 8 : 12).map(r => '<tr data-id="' + esc(r.id) + '"><td class="nowrap"><b>' + esc(r.id) + '</b><br><small>' + esc(crWhen(r.at)) + '</small></td>' + (onDash ? '<td>' + esc(r.task) + '</td>' : '') +
       '<td>' + esc((r.summary || [])[0] || '') + ((r.summary || []).length > 1 ? ' <small>(+' + (r.summary.length - 1) + ')</small>' : '') + '</td><td>' + st(r) + '</td><td class="nowrap">' + act(r) + '</td></tr>').join('');
-    return '<div class="fv-head"><h3>My entries in verification</h3><span class="fv-chips"><span>Waiting<b>' + wait + '</b></span>' + (back ? '<span class="bk">Sent back<b>' + back + '</b></span>' : '') +
+    return '<div class="fv-head"><h3>My entries in verification</h3><span class="fv-chips"><span>Waiting<b>' + wait + '</b></span>' + (back ? '<span class="bk">Sent back<b>' + back + '</b></span>' : '') + (sh ? '<span class="bk">Stock short<b>' + sh + '</b></span>' : '') +
       '<span>Approved<b>' + ok + '</b></span>' + (no ? '<span>Not saved<b>' + no + '</b></span>' : '') + '</span><span class="fv-acts">' +
       (wait ? '<button class="btn small" type="button" data-fvall="' + esc(m || '') + '">Remind all waiting (' + wait + ')</button>' : '') +
       (list.filter(r => r.canResend).length > 1 ? '<button class="btn small" type="button" data-fvagainall="' + esc(m || '') + '">Send all again (' + list.filter(r => r.canResend).length + ')</button>' : '') +
@@ -9139,7 +9169,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (has('stock')) {
       refreshStock();
       fresh('diesel', loadDiesel); fresh('inward', loadInward); fresh('transfer', loadTransfers);
-    }
+    } else if (has('flow')) refreshStock();      // (update-211) an entry sent for verification / kept as stock short / decided: the stock shown is less what waits
     if (has('log')) fresh('log', loadLog);
     if (has('log')) fresh('mnt', mtLoad);      // (update-165) a maintenance bill saved by someone else: the open Maintenance page (update-170: every site)
     if (has('stock') || has('log') || has('master')) { if (visible('log')) whenCalm(lgRefreshAll); else if (loaded('log')) S.stale.log = true; } // new diesel shows in the open Log Book at once
@@ -11196,7 +11226,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     trSum();
   });
   $('tb_rows').addEventListener('click', e => { const b = e.target.closest('.del'); if (!b) return; b.closest('tr').remove(); if (!$('tb_rows').children.length) trAddRow(); trSum(); });
-  $('tb_clear').addEventListener('click', () => { $('tb_rows').innerHTML = ''; trAddRow(); trAddRow(); $('tb_errors').hidden = true; });
+  function clearTransferBulk() { $('tb_rows').innerHTML = ''; trAddRow(); trAddRow(); $('tb_errors').hidden = true; trSum(); }      // (update-211: also when kept as stock short)
+  $('tb_clear').addEventListener('click', clearTransferBulk);
   async function trSaveMany(rows, fromFile) {
     const res = await call('saveTransferBulk', rows.map(r => ({ line: r.line, date: r.date, shift: r.shift, from: r.from, to: r.to, qty: r.qty, remark: r.remark })));
     if (!res.ok) {
@@ -16304,6 +16335,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   /* Live diesel tanks: level = stock now ÷ tank size. Turns red below the low-stock level (default 1,000 Ltr). */
   let TANKS = null;
+  // (update-211) the tank's figure is less the diesel that waits there: said under it
+  function tankHeld(card, h) { const p = card && card.querySelector('.t-pct'); if (!p) return; const t = heldWords(h); if (t) p.textContent += ' · ' + t; }
   function renderTanks(stock, tanks) {
     TANKS = tanks || TANKS || { caps: {}, low: 1000 };
     if (!stock) return;
@@ -16328,6 +16361,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         card.querySelector('.liq-g').style.transform = 'translateY(' + (p <= 0 ? BH + 8 : BH * (1 - p)).toFixed(1) + 'px)';
         card.querySelector('.brl').classList.toggle('empty', p <= 0);
         card.title = l + ': ' + fmt(qty) + ' Ltr of ' + fmt(cap) + ' Ltr';
+        tankHeld(card, (stock.held || {})[l]);      // (update-211)
       });
       $('tank_set').hidden = !canEdit('Master');
       return;
@@ -16343,9 +16377,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const TH = 78; // inner height of the tank drawing
     pk.querySelector('.liq-g').style.transform = 'translateY(' + (pd <= 0 ? TH + 10 : TH * (1 - pd)).toFixed(1) + 'px)';
     pk.title = dName + ': ' + fmt(d.qty) + ' Ltr of ' + fmt(d.cap) + ' Ltr';
+    tankHeld(pk, (stock.held || {})[dName]);      // (update-211)
     // VTR Store: barrels, filled one after another
     const bw = box.querySelector('.tk-barrels');
     head(bw, v.qty, v.cap, v.qty < low);
+    tankHeld(bw, (stock.held || {})[vName]);      // (update-211)
     const n = bw.querySelectorAll('.brl').length, per = v.cap / n, BH = 66;
     bw.querySelectorAll('.brl').forEach((b, i) => {
       const f = Math.max(0, Math.min(1, (v.qty - i * per) / per));
@@ -17774,11 +17810,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('d_balance').value = fmt(bal);
     $('d_balance').classList.toggle('neg', bal < 0);
     const when = $('d_src').value + ', ' + showDate($('d_date').value) + ' (' + $('d_shift').value + ')', U = placeUnit($('d_src').value);
-    if (q === '') { el.className = 'stockline'; el.innerHTML = 'Stock on ' + esc(when) + ': <b>' + fmt(start) + ' ' + U + '</b>'; return; }
+    const hh = heldHtml(S.bal.held, U);      // (update-211) what waits there – already taken out of the figures
+    if (q === '') { el.className = 'stockline'; el.innerHTML = 'Stock on ' + esc(when) + ': <b>' + fmt(start) + ' ' + U + '</b>' + hh; return; }
     const short = q > a;
     el.className = 'stockline' + (short ? ' bad' : '');
-    el.innerHTML = short ? 'Not enough stock for ' + esc(when) + ': you can issue up to <b>' + fmt(a) + ' ' + U + '</b>'
-      : 'Stock on ' + esc(when) + ': <b>' + fmt(start) + ' ' + U + '</b> → after this issue <b>' + fmt(bal) + ' ' + U + '</b>';
+    el.innerHTML = (short ? 'Not enough stock for ' + esc(when) + ': you can issue up to <b>' + fmt(a) + ' ' + U + '</b> – saving asks to keep it as stock short'
+      : 'Stock on ' + esc(when) + ': <b>' + fmt(start) + ' ' + U + '</b> → after this issue <b>' + fmt(bal) + ' ' + U + '</b>') + hh;
   }
   $('d_qty').addEventListener('input', dieselAfterLine);
   /* (update-164) a fill at a site on fuel cards: the card's balance before it (the fill being changed added back) and after it – red
@@ -17816,10 +17853,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!S.editDieselId && !$('d_tc').hidden) { if (numv('d_tcf') === '') throw new Error('Tank check due: type the diesel found in the tank before filling.'); d.tc = { physical: numv('d_tcf'), reason: val('d_tcr') }; }      // (update-203)
     if (!S.editDieselId) { const ph = phList(m.id); if (ph.length) d.photos = ph; }      // (update-85) the photos taken for this fill
     if (!(await confirmReadings([{ m: m, way: d.mode, km: d.kmReading, hr: d.hrReading, source: d.source }]))) return;
-    if (S.bal && !cardMode() && d.qty !== '' && d.qty > dieselAvailable()) {
-      await showAlert('Not enough diesel in stock', 'At ' + d.source + ' for ' + showDate(d.date) + ' (' + d.shift + ') you can issue up to ' + fmt(dieselAvailable()) + ' Ltr, and you are issuing ' + fmt(d.qty) + ' Ltr. Add a Diesel Inward entry first or reduce the quantity.');
-      return;
-    }
+    // (update-211) more than the stock: the server says so and the page asks "keep it as stock short?" (call) – no stop here
     const editing = S.editDieselId, fixing = !!(S.flowFix && S.flowFix.form === 'one');      // (update-130) correcting a returned entry
     if (editing && !force) {
       const r = (S.dieselRows || []).find(x => x.id === editing) || {};
@@ -19105,7 +19139,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const U = placeUnit($('bd_src').value);      // (update-163) kg for CNG
     if (!S.bbal) { $('bd_sum').innerHTML = 'Loading ' + esc($('bd_src').value) + ' stock… &nbsp; Rows: <b>' + filled.length + '</b> &nbsp; Total: <b>' + fmt(total) + ' ' + U + '</b>'; return; }
     $('bd_sum').innerHTML = esc($('bd_src').value) + ' stock on this date: <b>' + fmt(start) + ' ' + U + '</b> &nbsp; Rows: <b>' + filled.length + '</b> &nbsp; Total: <b>' + fmt(total) +
-      ' ' + U + '</b> &nbsp; Closing: <b>' + fmt(r2(start - total)) + ' ' + U + '</b>' + (short ? ' &nbsp; (can issue up to ' + fmt(avail) + ' ' + U + ')' : '');
+      ' ' + U + '</b> &nbsp; Closing: <b>' + fmt(r2(start - total)) + ' ' + U + '</b>' + (short ? ' &nbsp; (can issue up to ' + fmt(avail) + ' ' + U + ')' : '') + heldHtml(S.bbal.held, U);      // (update-211)
   }
   $('bd_rows').addEventListener('change', e => { if (e.target.dataset.f === 'no') dieselRowMachine(e.target.closest('tr')); dieselBulkSum(); });
   $('bd_src').addEventListener('change', () => { fuelForms(); [...$('bd_rows').children].forEach(tr => { if (tr.querySelector('[data-f=no]').value.trim()) dieselRowMachine(tr); }); });      // (update-163) its fuel
@@ -19155,11 +19189,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       await askConfirm({ title: 'Machinery is not active', alertOnly: true, danger: true, ok: 'OK', html: listHtml(inactive.map(x => 'Row ' + x.i + ': ' + x.p)) });
       return;
     }
-    const availB = S.bbal ? S.bbal.available : Infinity;
-    if (total > availB) {
-      await showAlert('Not enough diesel in stock', 'At ' + b.source + ' for ' + showDate(b.date) + ' (' + b.shift + ') you can issue up to ' + fmt(availB) + ' Ltr, and these rows total ' + fmt(total) + ' Ltr. Add a Diesel Inward entry first or reduce the quantities.');
-      return;
-    }
+    // (update-211) more than the stock: the server says so and the page asks "keep it as stock short?" (call) – no stop here
     const fixing = !!(S.flowFix && S.flowFix.form === 'date');      // (update-130) correcting a returned entry
     const res = fixing ? await flowFixCall([b]) : await call('saveDieselBulk', b);
     if (!res) return;

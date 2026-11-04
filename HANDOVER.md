@@ -2344,3 +2344,8 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 - 04-11-2026 (update-210). Report: `UPDATE_210.md`. THE APP'S OWN PAGE `<main address>/app` (`app/download.html` → `public/app.html`): the
   latest stable version of the phone app to download (GitHub Release of rcl-mobile), the 3 steps in 3 languages, then sign in – what the
   app's ≡ → Share app sends (rcl-mobile 3.84.0). No SQL. Tests: unit `update-210`; the rig in Chromium.
+- 04-11-2026 (update-211). Report: `UPDATE_211.md`. THE STOCK SHOWN LESS WHAT WAITS (verification, stock short) everywhere it is shown;
+  what waits held back from new issues AND transfers, oldest first, a change never made worse; "STOCK SHORT" – an issue / transfer more than
+  the stock kept in Approvals and saved by itself when the stock came (heartbeat, SHORT_DUE); at the last approval Short, not Returned; the
+  phone's entries made with no network measured from the server's signed stamp (3 days). No SQL. With rcl-mobile 3.85.0. Tests: unit
+  `update-211`; the rig in Chromium; flow114api, places117api.

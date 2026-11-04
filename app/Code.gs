@@ -1096,11 +1096,21 @@ function api(token, fn, args, meta) {
     if (n > 1) throw new Error('This entry was just sent twice – it is saved once. Check the list before entering it again.');
     if (n === 1) onceKey = k;
   }
+  // (update-211) an entry made on the phone with NO NETWORK and sent later: the user's date rule from the day the phone last heard
+  // the server before it was made (the server's own signed stamp) – an entry of last night sent this morning is still his
+  REQ_DAY_ = offlineDay_(u, meta);
+  // (update-211) "keep it as stock short": a diesel issue / transfer the stock cannot cover now waits on the server (Approvals)
+  const short = !!(meta && typeof meta === 'object' && meta.short === true) && SHORT_FNS_.indexOf(fn) > -1;
   try {
     // (update-114) a save of a task the Super Admin put under verification: checked, then sent – not saved now
     const rule = flowRuleFor_(u, spec, fn, args);
-    if (rule) return flowSend_(u, spec, fn, args, rule);
-    return apiRun_(u, spec, fn, args);
+    if (rule) return flowSend_(u, spec, fn, args, rule, short);
+    if (!short) return apiRun_(u, spec, fn, args);
+    let res = null;
+    try { res = apiRun_(u, spec, fn, args); }
+    catch (e) { const why = shortWhy_(e); if (!why) throw e; return flowSend_(u, spec, fn, args, null, why); }      // only the stock refused it: kept, nothing saved
+    const why = shortWhy_(res);
+    return why ? flowSend_(u, spec, fn, args, null, why) : res;
   }
   catch (err) {
     if (onceKey && !SAVED_) { try { __uncount(onceKey); } catch (e2) { /* it frees itself in a few seconds */ } }      // a failed entry may be sent again at once; one that IS saved keeps its place
@@ -1113,6 +1123,7 @@ function api(token, fn, args, meta) {
     }
     throw err;
   }
+  finally { REQ_DAY_ = ''; }
 }
 // the person's access to an action – the same words everywhere it is checked (api; the assistant's look-ups – update-185)
 function apiAccess_(u, spec, fn) {
@@ -1148,10 +1159,12 @@ function apiRun_(u, spec, fn, args) {
   // (update-108) the Super Admin's save of Log Book / diesel: first the "before" of every submitted bill it may change (billBaselines_) – both saved together, or neither
   const res = leastOut_(u, u.super && BL_FNS_.indexOf(fn) > -1 ? withLock_(() => { billBaselines_(fn, args); return run(); }) : run());      // machinery details only for users with a page that uses them (D4)
   if (fn === 'getInit' || fn === 'sync') { res.user = publicUser_(u); res.versions = getVersions_(); res.today = today_(); res.source = sbDataOn_() ? 'supabase' : 'sheet'; res.build = appBuild_();
+    res.stamp = stamp_(u);      // (update-211) the server's signed time: kept by the phone, sent with an entry it makes with no network
     if (typeof sbBackupInfo_ === 'function') res.backup = backupInfoFor_(u, sbBackupInfo_());
     if (u.admin) res.faults = errStamp_();      // the Admin's page shows faults of today within seconds
     if (fn === 'sync') { try { const rb = rtcBeat_(u, args[0]); if (rb) res.rtc = rb; } catch (e) { /* a screen-share note must never stop the heartbeat */ }
-      try { flowRemind_(); } catch (e) { /* (update-114) a reminder never stops the heartbeat */ } } }
+      try { flowRemind_(); } catch (e) { /* (update-114) a reminder never stops the heartbeat */ }
+      try { shortTick_(); } catch (e) { /* (update-211) entries kept as stock short: saved when the stock came – never stops the heartbeat */ } } }
   if (fn === 'backupNow' && res && res.info) res.info = backupInfoFor_(u, res.info);
   // (update-158) the Admin's Backup window also shows how full this site's storage is (database, files, backup Sheet, Drive copy)
   if (fn === 'backupNow' && res && typeof res === 'object' && u.admin && typeof storageOf_ === 'function') { try { res.storage = storageOf_(); } catch (e) { res.storage = { error: String((e && e.message) || e).slice(0, 200) }; } }
@@ -1198,6 +1211,8 @@ function bump_(groups) {
   groups.forEach(g => { o['V_' + g] = v; });
   CacheService.getScriptCache().putAll(o, 21600);
   PropertiesService.getScriptProperties().setProperties(o);
+  // (update-211) the stock or the requests changed: an entry kept as stock short is tried at the next heartbeat (shortTick_)
+  if (groups.indexOf('stock') > -1 || groups.indexOf('flow') > -1) { try { CacheService.getScriptCache().put('SHORT_DUE', '1', 21600); } catch (e) { /* every 10 minutes anyway */ } }
 }
 function getVersions_() {
   const cache = CacheService.getScriptCache();
@@ -5175,7 +5190,7 @@ function updateDieselIssue_(id, d) {
     billLock_(m.id, dk, 'Diesel issue');
     assertActive_(m, dk);
     const v = validateDiesel_(d, m);
-    requireStockAt_(v.source, dk, shift, str_(id), v.qty); // the entry being edited is left out first
+    requireStockAt_(v.source, dk, shift, str_(id), v.qty, loc_(old[t.c[H.SOURCE]]) === v.source ? num0_(old[t.c[H.QTY]]) : 0); // the entry being edited is left out first (update-211: what it took before)
 
     if (!d.force || flowStrict_()) {      // (update-131) for approval: a mistake
       const warn = neighbourWarnings_(t, i, m.id, dk, shift, created, v);
@@ -5242,7 +5257,7 @@ function sdelRange_(f) {
   if (from > to) throw new Error('From date is after To date.');
   return { from: from, to: to };
 }
-const sdelStatus_ = s => s === 'Pending' ? 'Waiting for verification' : s;
+const sdelStatus_ = s => s === 'Pending' ? 'Waiting for verification' : s === 'Short' ? 'Waiting for stock (stock short)' : s;      // (update-211)
 function sdelDeleted_(t) { return t ? t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.id && r.kind === 'Deleted') : []; }
 function sdelList_(u, f) {
   sdelSuper_(u); f = f || {};
@@ -5261,7 +5276,8 @@ function sdelList_(u, f) {
       hrReading: numOrBlank_(r[c[H.HRR]]), source: loc_(r[c[H.SOURCE]]), by: eby, bill: bid ? (LK.locks[bid] || {}).billNo || bid : '', closed: !!(closed && dk <= closed) });
   });
   saved.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || (shiftOrder_(a.shift) - shiftOrder_(b.shift)) || a.id.localeCompare(b.id));
-  const waiting = flowAll_().filter(r => sdelIsFlow_(r) && r.status !== 'Approved').map(r => Object.assign(r, { ds: sdelFlowDates_(r) })).filter(r => {
+  // (update-211) Saved – its entry is in, as Approved
+  const waiting = flowAll_().filter(r => sdelIsFlow_(r) && r.status !== 'Approved' && r.status !== 'Saved').map(r => Object.assign(r, { ds: sdelFlowDates_(r) })).filter(r => {
     if (r.by) users[r.by] = true;
     return inR(r.ds) && (!noK || noKey_(r.nos).indexOf(noK) > -1) && (!by || str_(r.by).toUpperCase() === by);
   }).map(r => ({ id: r.id, status: r.status, label: sdelStatus_(r.status), what: flowLabel_(r.fn), dates: r.ds, nos: r.nos, qty: (r.flow || {}).qty || '', by: r.by, at: r.at,
@@ -5298,7 +5314,7 @@ function sdelDelete_(u, x) {
     flows.forEach(id => {
       const f = all.find(r => r.id === id);
       if (!f || !sdelIsFlow_(f)) { bad.push(id + ': not found – deleted or decided meanwhile. Show the list again.'); return; }
-      if (f.status === 'Approved') { bad.push(id + ': approved – its entries are saved; delete those.'); return; }
+      if (f.status === 'Approved' || f.status === 'Saved') { bad.push(id + ': ' + (f.status === 'Saved' ? 'saved when the stock came' : 'approved') + ' – its entries are saved; delete those.'); return; }
       fl.push(f);
     });
     if (bad.length) return { ok: false, errors: bad };      // nothing is deleted
@@ -6221,7 +6237,8 @@ function placesUsed_(T) {
   T.it.rows.forEach(r => see(r[T.it.c[H.LOC]]));
   T.tt.rows.forEach(r => { see(r[T.tt.c[H.FROM]]); see(r[T.tt.c[H.TO]]); });
   T.dt.rows.forEach(r => see(r[T.dt.c[H.SOURCE]]));
-  try { flowAll_().filter(r => r.status === 'Pending' || r.status === 'Reverted').forEach(r => { Object.keys((r.flow || {}).byLoc || {}).forEach(l => { const s = clean_(l); if (s) at[s.toUpperCase()] = true; }); }); }
+  // (update-211) …and the ones kept as stock short
+  try { flowAll_().filter(r => FLOW_WAIT_.indexOf(r.status) > -1 || r.status === 'Reverted').forEach(r => { Object.keys((r.flow || {}).byLoc || {}).forEach(l => { const s = clean_(l); if (s) at[s.toUpperCase()] = true; }); }); }
   catch (e) { /* no verification table at this site */ }
   return { at: at, blank: blank, any: any };
 }
@@ -7514,6 +7531,7 @@ function availableAt_(ev, loc, point) {
 }
 // A change must not push any balance below zero (balances that were already negative may not get worse).
 function assertNoNegative_(T, T2) {
+  if (STOCK_OFF_) return;      // (update-211) a "stock short" entry being checked: everything but its stock
   const before = {};
   events_(T).forEach(e => { before[e.key] = e.bal; });
   const bad = events_(T2).find(e => e.bal < -0.005 && (before[e.key] === undefined || e.bal < before[e.key] - 0.005));
@@ -7538,12 +7556,12 @@ function stockFrom_(T, ev) {
   const byFuel = {}; Object.keys(ev.run).forEach(k => { const f = placeFuel_(k); byFuel[f] = r2_((byFuel[f] || 0) + ev.run[k]); });      // (update-163) never added together on the page
   return { stock: total, byLoc: byLoc, byFuel: byFuel, inward: r2_(inward), issued: r2_(issued) };
 }
-function getStock_() { const s = stockFrom_(stockTables_()); if (cardSite_()) s.cards = cardBalances_(); return s; }      // (update-164) a site on fuel cards: the cards' balances (no stock)
+function getStock_() { const s = stockNet_(stockFrom_(stockTables_())); if (cardSite_()) s.cards = cardBalances_(); return s; }      // (update-211) less the diesel that waits      // (update-164) a site on fuel cards: the cards' balances (no stock)
 
 function issuePoint_(dk, shift, ct) { return { dk: dk, ord: 2 + 2 * shiftOrder_(shift), ct: ct, kind: 'issue', idx: Number.MAX_SAFE_INTEGER }; }
 
-// Stock at one source for a diesel issue on this date and shift (excludeId = the issue being edited)
-function getIssueBalance_(dateStr, shiftIn, excludeId, source) {
+// Stock at one source for a diesel issue on this date and shift (excludeId = the issue being edited) – the books' own
+function issueBalance_(dateStr, shiftIn, excludeId, source) {
   const dk = checkDate_(dateStr), shift = checkShift_(shiftIn), loc = checkLoc_(source || mainPlace_(), 'Diesel Source');
   const T = stockTables_();
   const ex = str_(excludeId);
@@ -7560,6 +7578,12 @@ function getIssueBalance_(dateStr, shiftIn, excludeId, source) {
   b.stock = stockFrom_(T);
   return b;
 }
+// …as the page and the phone show it (update-211): less the diesel that waits at that place (held: { wait, short }; raw: the books)
+function getIssueBalance_(dateStr, shiftIn, excludeId, source) {
+  const b = issueBalance_(dateStr, shiftIn, excludeId, source);
+  b.stock = stockNet_(b.stock);
+  return balNet_(b, b.loc);
+}
 
 // stock of a location just before several date + shift points (one call for a whole grid)
 function getStockPoints_(points) {
@@ -7567,20 +7591,22 @@ function getStockPoints_(points) {
   return (points || []).slice(0, 400).map(p => {
     try {
       const dk = checkDate_(p.date), shift = checkShift_(p.shift || 'Day'), loc = checkLoc_(p.source || mainPlace_(), 'Diesel Source');
-      const b = availableAt_(ev, loc, issuePoint_(dk, shift, Number.MAX_SAFE_INTEGER));
-      return { balance: b.balance, available: b.available };
+      const b = balNet_(availableAt_(ev, loc, issuePoint_(dk, shift, Number.MAX_SAFE_INTEGER)), loc);      // (update-211) less what waits there
+      return { balance: b.balance, available: b.available, held: b.held };
     } catch (e) { return null; }
   });
 }
-function requireStockAt_(loc, dk, shift, excludeId, qty) {
+// was: the litres the entry being changed took at this place before (update-211: a change never made worse by what waits – see flowWaitBy_)
+function requireStockAt_(loc, dk, shift, excludeId, qty, was) {
   if (cardSite_()) return;      // (update-164) no stock: a card fill is never refused for its balance
-  const b = getIssueBalance_(dk, shift, excludeId, loc);
-  const held = flowReserved_(loc);      // (update-114) diesel of entries waiting for verification is held back
-  if (qty > r2_(b.available - held)) {
+  if (STOCK_OFF_) return;      // (update-211) a "stock short" entry being checked: everything but its stock
+  const b = issueBalance_(dk, shift, excludeId, loc);
+  const held = flowReserved_(loc);      // (update-114) diesel of entries waiting for verification is held back (update-211: and kept as stock short)
+  if (qty > b.available || (qty > (Number(was) || 0) && qty > r2_(b.available - held))) {
     const p = dk.split('-');
     const u = placeUnit_(loc);      // (update-163) kg for CNG
     throw new Error('Not enough ' + fuelWord_(placeFuel_(loc)) + ' at ' + loc + ' for ' + p[2] + '-' + p[1] + '-' + p[0] + ' (' + shift + '). Available: ' +
-      r2_(Math.max(0, b.available - held)) + ' ' + u + (held ? ' (' + held + ' ' + u + ' more waits for verification)' : '') + ', you are issuing: ' + r2_(qty) + ' ' + u + '.');
+      r2_(Math.max(0, b.available - held)) + ' ' + u + (held ? ' (' + held + ' ' + u + ' more waits for verification or for stock)' : '') + ', you are issuing: ' + r2_(qty) + ' ' + u + '.');
   }
 }
 
@@ -7831,13 +7857,17 @@ function buildTransferRow_(t, id, v, created, base) {
   return row;
 }
 function transferMessage_(T, v, excludeIdx) {
+  if (STOCK_OFF_) return;      // (update-211) a "stock short" entry being checked: everything but its stock
   const T2 = excludeIdx === undefined ? T : withRows_(T, 'tt', T.tt.rows.filter((r, k) => k !== excludeIdx));
   const b = availableAt_(events_(T2), v.from, { dk: v.dk, ord: 2 + 2 * shiftOrder_(v.shift), ct: Number.MAX_SAFE_INTEGER, kind: 'tout', idx: Number.MAX_SAFE_INTEGER });
-  if (v.qty > b.available) {
+  // (update-211) the diesel that waits at From is held back here too (before, a transfer could take it); a change: never made worse
+  const old = excludeIdx === undefined ? null : T.tt.rows[excludeIdx], was = old && loc_(old[T.tt.c[H.FROM]]) === v.from ? num0_(old[T.tt.c[H.IN_QTY]]) : 0;
+  const held = flowReserved_(v.from);
+  if (v.qty > b.available || (v.qty > was && v.qty > r2_(b.available - held))) {
     const p = v.dk.split('-');
     const u = placeUnit_(v.from);
     throw new Error('Not enough ' + fuelWord_(placeFuel_(v.from)) + ' at ' + v.from + ' for ' + p[2] + '-' + p[1] + '-' + p[0] + ' (' + v.shift + '). Available: ' +
-      b.available + ' ' + u + ', you are transferring: ' + v.qty + ' ' + u + '.');
+      r2_(Math.max(0, b.available - held)) + ' ' + u + (held ? ' (' + held + ' ' + u + ' more waits for verification or for stock)' : '') + ', you are transferring: ' + v.qty + ' ' + u + '.');
   }
 }
 /* Many transfers at once – the "Multiple entries" grid and Import from Excel.
@@ -7870,6 +7900,14 @@ function saveTransferBulk_(rows) {
         try { assertNoNegative_(T, withRows_(T, 'tt', acc)); } catch (e2) { return { ok: false, errors: [{ row: x.o.line, msg: e2.message }] }; }
       }
       return { ok: false, errors: [{ row: 0, msg: e.message }] };
+    }
+    // (update-211) the diesel that waits at a From is held back: these transfers may not take it (a From's balance after them, less
+    // what waits there – never made worse than it is)
+    if (!STOCK_OFF_) {
+      const after = events_(withRows_(T, 'tt', T.tt.rows.concat(out))).run, before = events_(T).run;
+      const bad = [...new Set(ok.map(o => o.v.from))].find(l => { const h = flowReserved_(l), a = r2_(after[l] || 0); return h > 0 && a - h < -0.005 && a < r2_(before[l] || 0) - 0.005; });
+      if (bad) { const h = flowReserved_(bad), un = placeUnit_(bad);
+        return { ok: false, errors: [{ row: 0, msg: 'Not enough ' + fuelWord_(placeFuel_(bad)) + ' at ' + bad + ': ' + h + ' ' + un + ' of entries that wait (for verification or for stock) is already given from it – after these transfers only ' + r2_(after[bad] || 0) + ' ' + un + ' would be left there.' }] }; }
     }
     T.tt.sh.getRange(T.tt.sh.getLastRow() + 1, 1, out.length, T.tt.headers.length).setValues(out);
     markNo_('TRANSFER_LAST_NO', n - 1);
@@ -7936,7 +7974,7 @@ function getTransferBalance_(dateStr, shiftIn, from, to, excludeId) {
   const T2 = i > -1 ? withRows_(T, 'tt', T.tt.rows.filter((r, k) => k !== i)) : T;
   const ev = events_(T2);
   const pt = kind => ({ dk: dk, ord: 2 + 2 * shiftOrder_(shift), ct: Number.MAX_SAFE_INTEGER, kind: kind, idx: Number.MAX_SAFE_INTEGER });
-  return { from: availableAt_(ev, f, pt('tout')), to: availableAt_(ev, tLoc, pt('tin')), stock: stockFrom_(T) };
+  return { from: balNet_(availableAt_(ev, f, pt('tout')), f), to: balNet_(availableAt_(ev, tLoc, pt('tin')), tLoc), stock: stockNet_(stockFrom_(T)) };      // (update-211) less what waits at each
 }
 // f: { from, to, location, q } – blank = all
 function getTransfers_(f) {
@@ -8098,7 +8136,7 @@ function getDashboard_(f) {
     today: today,
     total: { qty: r2_(totalQty), entries: totalEntries, machines: Object.keys(machines).length, todayQty: r2_(todayQty) },
     inward: { qty: r2_(inQty), amount: r2_(inAmount), entries: inEntries },
-    stock: stockFrom_(T, ev),
+    stock: stockNet_(stockFrom_(T, ev)),      // (update-211) less the diesel that waits (the period's figures below: the books)
     locations: stockSummary_(ev, from, to),
     byOwnership: byOwnership,
     daily: Object.keys(daily).sort().map(d => {
@@ -13238,18 +13276,22 @@ function crList_(u, f) {
   rows.forEach(r => { if (r.kind !== 'Flow') return; let d = {}; try { d = JSON.parse(r.data || '{}') || {}; } catch (e) { d = {}; } r.flow = d; });
   const mine = r => r.email === me || (r.kind === 'Flow' && ((r.flow || {}).levels || []).some(l => l.indexOf(me) > -1));
   const list = rows.filter(r => u.super || mine(r)).filter(r => !f.status || r.status === f.status)
-    .sort((a, b) => (a.status === 'Pending' ? 0 : 1) - (b.status === 'Pending' ? 0 : 1) || (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)).slice(0, 500)
+    .sort((a, b) => (FLOW_WAIT_.indexOf(a.status) > -1 ? 0 : 1) - (FLOW_WAIT_.indexOf(b.status) > -1 ? 0 : 1) || (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)).slice(0, 500)
     .map(r => { const o = Object.assign({}, r); delete o.args; delete o.i; delete o.data; delete o.billId; delete o.flow;
       if (r.kind === 'Flow') { const fl = r.flow || {}, lv = (fl.levels || [])[fl.level || 0] || [];
         o.task = MODULE_LABEL_[fl.m] || fl.m || ''; o.level = (fl.level || 0) + 1; o.levels = (fl.levels || []).length; o.waitingFor = r.status === 'Pending' ? lv.map(e => names[e] || e) : [];
         o.waitSince = fl.waitSince || r.at; o.history = (fl.history || []).slice(-20); o.canDecide = flowCan_(u, r); o.qty = fl.qty || 0;
         if (r.status === 'Reverted') { o.reverted = { by: (fl.reverted || {}).by || '', note: (fl.reverted || {}).note || '', at: (fl.reverted || {}).at || '' }; o.canAnswer = r.email === me; }
         o.m = fl.m || ''; o.remindedAt = fl.remindedAt || ''; o.reminds = Number(fl.reminds) || 0; o.canRemind = r.email === me && r.status === 'Pending';      // (update-118) the sender's reminders
-        o.canResend = r.email === me && FLOW_AGAIN_.indexOf(r.status) > -1; o.resent = Number(fl.resent) || 0;      // (update-128) his rejected / returned entry: Send again
+        o.canResend = r.email === me && FLOW_AGAIN_.indexOf(r.status) > -1 && (fl.levels || []).length > 0; o.resent = Number(fl.resent) || 0;      // (update-128) his rejected / returned entry: Send again (update-211: one kept as stock short without verification – entered again)
+        if (fl.short) o.short = str_(fl.short.why).slice(0, 600);      // (update-211) the stock was short: why (its save's own words, the last time it was tried)
+        if (r.status === 'Short') o.need = shortNeed_(r);      // …and what it needs NOW at each place (live)
+        o.canTakeBack = r.status === 'Short' && (r.email === me || !!u.super);
         if (o.canResend && FLOW_FIX_.indexOf(r.fn) > -1) { let a = []; try { a = JSON.parse(r.args || '[]'); } catch (e) { a = []; } o.canFix = !!flowFixForm_(r.fn, a); } }      // (update-130) …or open it and correct it
       else o.canDecide = !!u.super && r.status === 'Pending';
       o.mine = r.email === me; return o; });
-  return { mine: flowMine_(u), requests: list, pending: list.filter(r => r.status === 'Pending' || r.canAnswer).length, forMe: list.filter(r => r.canDecide || r.canAnswer).length, backToMe: list.filter(r => r.canAnswer).length, superAdmin: !!u.super };
+  return { mine: flowMine_(u), requests: list, pending: list.filter(r => r.status === 'Pending' || r.canAnswer).length, forMe: list.filter(r => r.canDecide || r.canAnswer).length, backToMe: list.filter(r => r.canAnswer).length, superAdmin: !!u.super,
+    short: list.filter(r => r.status === 'Short').length };      // (update-211) kept as stock short
 }
 function crDecide_(u, x) {
   x = x || {};
@@ -13371,15 +13413,17 @@ function flowMine_(u) {
 // what a save names: its dates, and the diesel litres it takes out at each place
 function flowFacts_(fn, args) {
   const dates = {}, byLoc = {}, spec = API_[fn] || {}, takes = (spec.m === 'Diesel Issue' || spec.m === 'Diesel Transfer') && !/^delete/.test(fn);
-  const walk = (v, d) => {
+  // (update-211) a row without a place of its own is of its batch's place ("Multiple entries": the source is the batch's) – before, the main place
+  const walk = (v, d, up) => {
     if (d > 6 || v === null || v === undefined) return;
-    if (Array.isArray(v)) { v.slice(0, 3000).forEach(x => walk(x, d + 1)); return; }
+    if (Array.isArray(v)) { v.slice(0, 3000).forEach(x => walk(x, d + 1, up)); return; }
     if (typeof v !== 'object') return;
     ['date', 'idate', 'from'].forEach(k => { const s = str_(v[k]); if (/^\d{4}-\d{2}-\d{2}$/.test(s)) dates[s] = true; });
-    if (takes) { const q = Number(v.qty !== undefined ? v.qty : v.litres); if (q > 0 && isFinite(q)) { const loc = str_(v.source || (spec.m === 'Diesel Transfer' ? v.from : '')) || mainPlace_(); byLoc[loc] = r2_((byLoc[loc] || 0) + q); } }
-    Object.keys(v).forEach(k => { if (v[k] && typeof v[k] === 'object') walk(v[k], d + 1); });
+    const here = str_(v.source || (spec.m === 'Diesel Transfer' ? v.from : '')) || up;
+    if (takes) { const q = Number(v.qty !== undefined ? v.qty : v.litres); if (q > 0 && isFinite(q)) { const loc = here || mainPlace_(); byLoc[loc] = r2_((byLoc[loc] || 0) + q); } }
+    Object.keys(v).forEach(k => { if (v[k] && typeof v[k] === 'object') walk(v[k], d + 1, here); });
   };
-  walk(args, 0);
+  walk(args, 0, '');
   return { dates: Object.keys(dates).sort(), byLoc: byLoc, qty: r2_(Object.keys(byLoc).reduce((s, k) => s + byLoc[k], 0)) };
 }
 // the rule that holds this save back (null = it is saved now, as before)
@@ -13397,32 +13441,131 @@ function flowAll_() {
   return t ? t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.id && r.kind === 'Flow').map(r => { let d = {}; try { d = JSON.parse(r.data || '{}') || {}; } catch (e) { d = {}; } r.flow = d; return r; }) : [];
 }
 const flowNames_ = emails => { const by = {}; readUsers_().forEach(w => { by[w.email] = w.name || w.email; }); return emails.map(e => by[e] || e); };
-// diesel held back for requests waiting at a place (not the one being saved now)
+/* (update-211, asked 04-11-2026: "stock aahe 200 … ekala diesel dile 100 rahayla pahije 100 but user la diste 200 karan verification
+ * madhli entry approval zali nahi … approval natr stock nasto te save hot nahi"; "network aso naso entry kru shakel stock nit rahil
+ * accurate rahil"; his answers: waiting incoming diesel is NOT counted until approved; an entry short of stock is kept on the server
+ * as "Stock short" and saved by itself when an Inward / Transfer brings the stock – the stock never below zero)
+ * DIESEL THAT WAITS IS ALREADY GIVEN. An entry waiting for verification (Pending) or kept as stock short (Short) is diesel that went
+ * into a machinery (or out to another place) – it is held back at its place:
+ *   – the stock SHOWN everywhere (the Diesel pages, the phone, the Dashboard, the answer of every save) is the books' stock less what
+ *     waits there, with "X L waiting" beside it; the reports and the Stock Ledger stay the books (only saved entries);
+ *   – a new entry (a save, or one sent for verification) can take only what is left after them;
+ *   – the requests are saved OLDEST FIRST: one being saved (its approval, or the stock arriving) is held only against the waiting
+ *     requests sent before it – so the oldest can always go in, and two entries can never block each other;
+ *   – a change of an entry that is already in may not make things worse: it is never refused because of what waits unless it takes
+ *     more than before (a remark changed is never refused).
+ * Diesel coming IN (an Inward, the To of a transfer) that waits for verification is not stock until it is approved. */
+const vfNo_ = id => Number((/^VF-(\d+)$/.exec(str_(id)) || [])[1]) || 0;
+const FLOW_WAIT_ = ['Pending', 'Short'];      // the requests whose diesel is held back
+// the waiting requests' diesel by place: { place: [{ id, n, q, short }] } (read once per request)
+function flowWaitBy_() {
+  return memoGet_('__flowRes', () => { const o = {}; flowAll_().filter(r => FLOW_WAIT_.indexOf(r.status) > -1).forEach(r => { const b = (r.flow || {}).byLoc || {};
+    Object.keys(b).forEach(l => { (o[l] = o[l] || []).push({ id: r.id, n: vfNo_(r.id), q: Number(b[l]) || 0, short: r.status === 'Short' }); }); }); return o; });
+}
+// diesel held back at a place against the save running now: every waiting request – or, while a request is being saved, the ones sent before it
 function flowReserved_(loc) {
-  const all = memoGet_('__flowRes', () => { const o = {}; flowAll_().filter(r => r.status === 'Pending').forEach(r => { const b = (r.flow || {}).byLoc || {}; Object.keys(b).forEach(l => { (o[l] = o[l] || []).push({ id: r.id, q: Number(b[l]) || 0 }); }); }); return o; });
-  return r2_((all[loc] || []).filter(x => x.id !== FLOW_RUN_ID_).reduce((s, x) => s + x.q, 0));
+  const n = FLOW_RUN_ID_ ? vfNo_(FLOW_RUN_ID_) : 0;
+  return r2_((flowWaitBy_()[loc] || []).filter(x => x.id !== FLOW_RUN_ID_ && (!n || !x.n || x.n < n)).reduce((s, x) => s + x.q, 0));
+}
+// what waits at each place, for the figures shown: { place: { wait: for verification, short: for stock } }
+function flowHeldBy_() {
+  const H = flowWaitBy_(), o = {};
+  Object.keys(H).forEach(l => H[l].forEach(x => { if (x.id === FLOW_RUN_ID_ || !x.q) return; const h = o[l] = o[l] || { wait: 0, short: 0 }, k = x.short ? 'short' : 'wait'; h[k] = r2_(h[k] + x.q); }));
+  return o;
+}
+const heldQ_ = h => h ? r2_((Number(h.wait) || 0) + (Number(h.short) || 0)) : 0;
+// the stock shown: the books less what waits (byLoc, the total and each fuel); held = { place: { wait, short } }
+function stockNet_(s) {
+  if (!s || typeof s !== 'object' || cardSite_()) return s;
+  const H = flowHeldBy_(), held = {};
+  Object.keys(H).forEach(l => { const q = heldQ_(H[l]), f = placeFuel_(l); if (!q || (FUEL_VIEW_ && f !== FUEL_VIEW_)) return;
+    held[l] = H[l]; s.byLoc = s.byLoc || {}; s.byLoc[l] = r2_((Number(s.byLoc[l]) || 0) - q); s.stock = r2_((Number(s.stock) || 0) - q);
+    if (s.byFuel) s.byFuel[f] = r2_((Number(s.byFuel[f]) || 0) - q); });
+  s.held = held;
+  return s;
+}
+// one balance as shown: { balance, available } less what waits at the place (raw: the books' own)
+function balNet_(b, loc) {
+  if (!b || cardSite_()) return b;
+  const h = flowHeldBy_()[loc] || { wait: 0, short: 0 }, q = heldQ_(h);
+  b.raw = { balance: b.balance, available: b.available }; b.held = h;
+  if (q) { b.balance = r2_(b.balance - q); b.available = r2_(Math.max(0, b.available - q)); }
+  return b;
+}
+/* ---------- STOCK SHORT (update-211) ----------
+ * A diesel issue or transfer the stock cannot cover NOW (the diesel was given; its Inward / Transfer is not in yet, or waits for
+ * verification) – on the page / phone the person is asked "keep it as stock short?" (an entry kept on the phone with no network
+ * is sent so by itself). It is then checked as a save WITHOUT its stock (every other rule – machinery, readings, photos, the date
+ * rule …: a wrong entry is refused at once, as a save) and kept on the server as a request of status "Short" (Approvals, the same
+ * table – no new SQL): nothing is saved, its diesel is held back (above). It is saved BY ITSELF – as the sender's own entry, with
+ * every check of a save – as soon as the stock is there (after an Inward, a Transfer, an approval …: the next heartbeat of any open
+ * page or phone; and every 10 minutes); the oldest first. A save that then refuses it for another reason (the machinery left the
+ * site, books closed …) goes back to the sender as "Returned" with the reason. The sender or the Super Admin may take it back.
+ * Under verification: it is sent for verification as usual (the stock not checked); at its last approval a stock that is still short
+ * keeps it as "Short" (approved, waiting for the stock) – before, it was "Returned" and had to be sent again. */
+const SHORT_FNS_ = ['saveDieselIssue', 'saveDieselBulk', 'saveTransfer', 'saveTransferBulk'];
+const STOCK_SHORT_RE_ = /^Not enough [^\n]*? at /;
+let STOCK_OFF_ = false;      // a "stock short" entry being checked: its stock is not checked (everything else is)
+// the words of a refusal that is ONLY the stock ('' = another refusal, or none)
+function shortWhy_(x) {
+  if (x instanceof Error || (x && typeof x.message === 'string' && !('ok' in x))) { const m = String(x.message).replace(/^Error:\s*/, ''); return STOCK_SHORT_RE_.test(m) && !faultKind_(x) ? m : ''; }
+  if (!x || typeof x !== 'object' || x.ok !== false || x.warning || (x.warnings || []).length) return '';
+  const errs = (x.errors || []).map(e => String((e && e.msg) || e || ''));
+  return errs.length && errs.every(m => STOCK_SHORT_RE_.test(m)) ? errs.join(' | ').slice(0, 1000) : '';
+}
+// the day a request's date rule is measured from: the day it was sent – or, made on the phone with no network, the phone's day then
+const flowDay_ = r => (r && r.flow && /^\d{4}-\d{2}-\d{2}$/.test(str_(r.flow.reqDay))) ? r.flow.reqDay : reqDay_(r && r.at);
+/* (update-211) THE PHONE WITH NO NETWORK. Every getInit / heartbeat gives the phone the server's time, signed with the site's own
+ * secret (stamp_). An entry the phone keeps with no network carries the last stamp it had; when it is sent – maybe the next day –
+ * the server reads its own signature back and measures the user's date rule ("a user enters only today's entries") from the day
+ * of that stamp: an entry of last night sent this morning is his. A stamp is good for 3 days; one that is not the server's own, or
+ * of another person, counts for nothing (the entry is measured from today, as before). The phone's own clock is never trusted. */
+const STAMP_DAYS_ = 3;      // (a phone with no network for longer: its entries are measured from today – the Admin enters older ones)
+const stampSig_ = (email, ms) => { const k = str_(PropertiesService.getScriptProperties().getProperty('SUPABASE_SECRET_KEY')); return k ? hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, k + '|stamp|' + str_(email).toLowerCase() + '|' + ms + '|' + k, Utilities.Charset.UTF_8)).slice(0, 32) : ''; };
+function stamp_(u) { const ms = Date.now(), s = stampSig_(u && u.email, ms); return s ? ms + '.' + s : ''; }
+function offlineDay_(u, meta) {
+  const v = meta && typeof meta === 'object' ? str_(meta.made) : '', m = /^(\d{13})\.([0-9a-f]{32})$/.exec(v);
+  if (!m || !u) return '';
+  const ms = Number(m[1]), now = Date.now();
+  if (ms > now + 60000 || now - ms > STAMP_DAYS_ * 86400000 || stampSig_(u.email, m[1]) !== m[2]) return '';
+  return reqDay_(new Date(ms).toISOString());
 }
 // A SAVE HELD BACK: checked as a save (nothing written), then kept for the first level. Returns the save's own refusal, if any.
-function flowSend_(u, spec, fn, args, rule) {
+// (update-211) short: true = the person said "keep it as stock short" if the stock cannot cover it (rule: checked with the stock
+// first – short only when the stock alone refuses it); the words of the stock's refusal = it is short (no rule: kept as "Short")
+function flowSend_(u, spec, fn, args, rule, short) {
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pageAdminOf_(u); OUT_FOR_ = u;
-  let res = null, held = {};
-  FLOW_DRY_ON_ = true; FLOW_PHOTOS_ = held;      // (update-120) the pictures this save takes are noted with the request
-  try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
-  catch (e) { if (e !== FLOW_DRY_) throw e; }
-  finally { FLOW_DRY_ON_ = false; FLOW_PHOTOS_ = null; }
+  let res = null, held = {}, lack = typeof short === 'string' ? short : '';
+  const dry = off => {      // checked as a save; off: without its stock
+    res = null; held = {};
+    FLOW_DRY_ON_ = true; FLOW_PHOTOS_ = held; STOCK_OFF_ = !!off;      // (update-120) the pictures this save takes are noted with the request
+    try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
+    catch (e) { if (e !== FLOW_DRY_) throw e; }
+    finally { FLOW_DRY_ON_ = false; FLOW_PHOTOS_ = null; STOCK_OFF_ = false; TABLE_MEMO_ = {}; }
+  };
+  if (lack) dry(true);
+  else {
+    try { dry(false); } catch (e) { const w = short === true ? shortWhy_(e) : ''; if (!w) throw e; lack = w; }
+    if (!lack && short === true) lack = shortWhy_(res);
+    if (lack) dry(true);
+  }
+  if (!rule && !lack) throw new Error('This entry can be saved now – save it again.');      // (the stock came meanwhile: nothing kept)
   TABLE_MEMO_ = {};
   const errs = res && typeof res === 'object' ? (res.errors || []) : [];
   if (res && typeof res === 'object' && (res.ok === false || errs.length)) return res;      // the save itself refuses it: said as for a save, nothing is sent
   const json = JSON.stringify(args || []);
   if (json.length > 400000) throw new Error('This entry is too big to send for verification at once – send it in parts (fewer rows).');
   const me = str_(u.email).toLowerCase(), facts = flowFacts_(fn, args), d = flowDescribe_(fn, args);
-  const levels = rule.levels.map(l => l.slice());
+  const levels = rule ? rule.levels.map(l => l.slice()) : [];
   const out = withLock_(() => {
     const t = crTable_(true), all = flowAll_();
-    if (all.some(r => r.status === 'Pending' && r.email === me && r.fn === fn && r.args === json)) throw new Error('This same entry is already waiting for verification – it is saved when it is approved.');
+    const same = all.find(r => FLOW_WAIT_.indexOf(r.status) > -1 && r.email === me && r.fn === fn && r.args === json);
+    if (same) throw new Error(same.status === 'Short' ? 'This same entry is already kept as stock short (' + same.id + ') – it is saved by itself when the stock comes.' : 'This same entry is already waiting for verification – it is saved when it is approved.');
     const id = 'VF-' + String(t.rows.reduce((mx, r) => { const m = str_(r[t.c['Request ID']]).match(/^VF-(\d+)$/); return m ? Math.max(mx, Number(m[1])) : mx; }, 0) + 1).padStart(5, '0');      // (update-134) every request ever made counts – a deleted one ("Flow Deleted") keeps its number
-    const now = new Date(), data = { m: spec.m, levels: levels, level: 0, history: [{ step: 'Sent', by: u.name || u.email, email: me, at: now.toISOString() }], byLoc: facts.byLoc, qty: facts.qty, waitSince: now.toISOString(), reminded: {} };
+    const now = new Date(), data = { m: spec.m, levels: levels, level: 0, history: [{ step: rule ? 'Sent' : 'Kept as stock short', by: u.name || u.email, email: me, at: now.toISOString(), note: lack ? lack.slice(0, 300) : undefined }], byLoc: facts.byLoc, qty: facts.qty, waitSince: now.toISOString(), reminded: {} };
+    if (lack) data.short = { why: lack.slice(0, 1000), at: now.toISOString() };      // (update-211) the stock was short when it was sent
+    if (REQ_DAY_) data.reqDay = REQ_DAY_;      // (update-211) made on the phone with no network: its date rule from that day (approval, saved later)
     if (Object.keys(held).length) {      // (update-120) its photos: kept for the approval; no other entry takes them meanwhile
       data.photos = held;
       const pc = CacheService.getScriptCache(); Object.keys(held).filter(p => !/^AT_/.test(p)).forEach(p => { try { pc.put('PH_' + p, JSON.stringify(Object.assign({}, held[p], { held: id })), 21600); } catch (e) { /* the request keeps them */ } });      // (update-153 review: an attachment is not held – one file may be with several entries; the request keeps its record)
@@ -13430,16 +13573,18 @@ function flowSend_(u, spec, fn, args, rule) {
     const row = newRow_(t);
     set_(row, t, 'Request ID', id); set_(row, t, 'Kind', 'Flow'); set_(row, t, 'Requested At', now); set_(row, t, 'Requested By', u.name || u.email); set_(row, t, 'Requester Email', me);
     set_(row, t, 'Action', fn); set_(row, t, 'Args', json); set_(row, t, 'Summary', JSON.stringify(d.lines)); set_(row, t, 'Machinery', d.nos.slice(0, 300)); set_(row, t, 'Dates', d.dates.slice(0, 300));
-    set_(row, t, 'Reason', (MODULE_LABEL_[spec.m] || spec.m) + ' – ' + flowLabel_(fn)); set_(row, t, 'Status', 'Pending'); set_(row, t, 'Data', JSON.stringify(data)); set_(row, t, 'Created At', now);
+    set_(row, t, 'Reason', (MODULE_LABEL_[spec.m] || spec.m) + ' – ' + flowLabel_(fn)); set_(row, t, 'Status', rule ? 'Pending' : 'Short'); set_(row, t, 'Data', JSON.stringify(data)); set_(row, t, 'Created At', now);
     t.sh.appendRow(row); TABLE_MEMO_ = {};
-    writeLog_(u, 'Add', 'Approvals', id, 'Sent for verification: ' + (MODULE_LABEL_[spec.m] || spec.m) + ' – ' + flowLabel_(fn), d.lines.join('; ').slice(0, 900));
-    const names = flowNames_(levels[0].filter(e => e !== me));
+    writeLog_(u, 'Add', 'Approvals', id, (rule ? 'Sent for verification: ' : 'Kept as stock short: ') + (MODULE_LABEL_[spec.m] || spec.m) + ' – ' + flowLabel_(fn), d.lines.join('; ').slice(0, 900));
     // the answer kept with this write (update-68 "saved once"): a copy sent again is told the same words, not "saved" (server/runtime.js)
-    return { id: id, lines: d.lines, __refused: 'Sent for verification to ' + (names.length ? names.join(', ') : 'the Super Admin') + (levels.length > 1 ? ' (level 1 of ' + levels.length + ')' : '') + ' – ' + id + '. It is saved when it is approved; nothing is saved until then.' };
+    if (!rule) return { id: id, lines: d.lines, __refused: 'Kept as stock short – ' + id + '. ' + lack.split(' | ')[0] + ' It is saved by itself when the stock comes (a Diesel Inward or Transfer); nothing is saved until then. See Approvals.' };
+    const names = flowNames_(levels[0].filter(e => e !== me));
+    return { id: id, lines: d.lines, __refused: 'Sent for verification to ' + (names.length ? names.join(', ') : 'the Super Admin') + (levels.length > 1 ? ' (level 1 of ' + levels.length + ')' : '') + ' – ' + id + '. It is saved when it is approved; nothing is saved until then.' +
+      (lack ? ' The stock is short now – after the approval it waits for the stock and is saved by itself when the stock comes.' : '') };
   });
   bump_(['flow']);
-  const to = levels[0].filter(e => e !== me);
-  crNotify_(to.length ? to : crSupers_(), { id: out.id, title: 'Verification – ' + (MODULE_LABEL_[spec.m] || spec.m) + ' by ' + (u.name || u.email), body: out.lines[0] + (out.lines.length > 1 ? ' (+' + (out.lines.length - 1) + ')' : '') });
+  if (rule) { const to = levels[0].filter(e => e !== me);
+    crNotify_(to.length ? to : crSupers_(), { id: out.id, title: 'Verification – ' + (MODULE_LABEL_[spec.m] || spec.m) + ' by ' + (u.name || u.email), body: out.lines[0] + (out.lines.length > 1 ? ' (+' + (out.lines.length - 1) + ')' : '') }); }
   throw new Error(out.__refused);
 }
 // in words: as the billed changes (machinery, date, readings); other pages – the main fields of what was sent
@@ -13508,7 +13653,7 @@ function flowDecide_(u, x) {
   } else {
     // the last level: the save runs now, as the sender's own, with every check of a save – saved together with "Approved", or not at all
     const spec = API_[r0.fn], ru = readUsers_().find(w => w.email === r0.email);
-    let why = '';
+    let why = '', lack = '';
     if (!spec) why = 'the action ' + r0.fn + ' is not in the app any more';
     else if (!ru || !ru.active) why = r0.by + ' is not an active user of this site any more';
     else if (spec.m && !canEdit_(ru, spec.m)) why = r0.by + ' has no Edit access to ' + (MODULE_LABEL_[spec.m] || spec.m) + ' any more';
@@ -13519,14 +13664,14 @@ function flowDecide_(u, x) {
         withLock_(() => {
           r0 = look(); f = r0.flow;
           DSRC_U_ = ru;      // (update-162) the sender's diesel sources count (not the approver's)
-          REQ_DAY_ = reqDay_(r0.at);      // (update-187) the user's date rule from the day it was sent
+          REQ_DAY_ = flowDay_(r0);      // (update-187) the user's date rule from the day it was sent (update-211: made with no network – that day)
           ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pageAdminOf_(ru); VER_CTX_ = 'flow'; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = f.photos && typeof f.photos === 'object' ? f.photos : null;      // (update-120) its photos, as noted when it was sent
           APPROVER_ = u.name || u.email;      // (update-152) the Log Book rows it writes are marked approved by him
           FLOW_SENDER_ = ru.email;      // (update-153) the files it takes are the sender's
           const before = spec.log ? logBefore_(spec, args) : null;
           const res = spec.withUser ? spec.f.apply(null, [ru].concat(args)) : spec.f.apply(null, args);
           const errs = res && typeof res === 'object' ? (res.errors || []) : [];
-          if (res && typeof res === 'object' && (res.ok === false || errs.length)) { throw new Error(flowRefusal_(res).text); }      // (update-129: the reason in words; update-131: no "anyway" – the sender corrects it)
+          if (res && typeof res === 'object' && (res.ok === false || errs.length)) { throw new Error(shortWhy_(res) || flowRefusal_(res).text); }      // (update-129: the reason in words; update-131: no "anyway" – the sender corrects it; update-211: only the stock – its words)
           if (spec.log) { try { logAfter_(ru, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ } }
           ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; ACTOR_PAGE_ADMIN_ = pa0;
           f.history.push({ step: 'Approved', level: f.level + 1, by: u.name || u.email, email: me, at: new Date().toISOString(), note: note });
@@ -13537,9 +13682,21 @@ function flowDecide_(u, x) {
       } catch (e) {
         if (/^(This request (was not found|is already|is not waiting)|You cannot approve)/.test(String(e && e.message)) || faultKind_(e)) throw e;
         why = String((e && e.message) || e).slice(0, 1000);      // (update-129: room for the warnings' lines)
+        lack = shortWhy_(e);      // (update-211) only the stock: approved – it waits for the stock
       } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; ACTOR_PAGE_ADMIN_ = pa0; VER_CTX_ = ''; DSRC_U_ = dsu0; REQ_DAY_ = ''; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; }
     }
-    if (why) {
+    if (why && lack) {
+      // (update-211) APPROVED, BUT THE STOCK IS SHORT: kept as "Short" (its diesel still held back) and saved by itself when the stock
+      // comes – before, it was "Returned" and the sender had to send it again
+      withLock_(() => {
+        r0 = look(); f = r0.flow;
+        f.history.push({ step: 'Approved', level: f.level + 1, by: u.name || u.email, email: me, at: new Date().toISOString(), note: note });
+        f.history.push({ step: 'Stock short – waits for the stock', by: 'the app', at: new Date().toISOString(), note: lack.slice(0, 300) });
+        f.short = { why: lack, at: new Date().toISOString() }; f.approvedBy = u.name || u.email;
+        write(r0, f, 'Short', 'Waiting for the stock: ' + lack);
+      });
+      status = 'Short'; result = 'Waiting for the stock: ' + lack;
+    } else if (why) {
       withLock_(() => {
         r0 = look(); f = r0.flow;
         f.history.push({ step: 'Approved', level: f.level + 1, by: u.name || u.email, email: me, at: new Date().toISOString(), note: note });
@@ -13552,8 +13709,110 @@ function flowDecide_(u, x) {
   bump_(['flow']);
   const what = (r0.summary[0] || r0.id).slice(0, 80), lvN = r0.flow.levels.length;
   if (next) crNotify_(next.filter(e => e !== r0.email), { id: r0.id, title: 'Verification – level ' + (r0.flow.level + 1) + ' of ' + lvN + ' (' + r0.by + ')', body: what });
-  else crNotify_([r0.email], { id: r0.id, title: (status === 'Approved' ? 'Approved – saved: ' : status === 'Rejected' ? 'Rejected – not saved: ' : 'Not saved: ') + what, body: 'By ' + (u.name || u.email) + (note ? ': ' + note : result ? ': ' + result : '') });
+  else crNotify_([r0.email], { id: r0.id, title: (status === 'Approved' ? 'Approved – saved: ' : status === 'Rejected' ? 'Rejected – not saved: ' : status === 'Short' ? 'Approved – waits for the stock: ' : 'Not saved: ') + what, body: 'By ' + (u.name || u.email) + (note ? ': ' + note : result ? ': ' + result : '') });
   return { ok: true, id: r0.id, status: status, result: result, level: r0.flow.level + 1, levels: lvN, by: r0.by, summary: r0.summary };
+}
+/* (update-211) AN ENTRY KEPT AS STOCK SHORT IS SAVED WHEN THE STOCK CAME – as the sender's own, every check of a save, the oldest
+ * first (see "STOCK SHORT"). Run by the heartbeat (shortTick_): at once after any change of the stock or of the requests (bump_ –
+ * "SHORT_DUE"), else every 10 minutes. Answers 'saved', 'returned' (refused for another reason – back to the sender), 'short'. */
+const SHORT_GONE_ = { shortGone: true };
+function shortWrite_(id, f, status, result, by) {
+  TABLE_MEMO_ = {};
+  const t2 = crTable_(false), r1 = t2.rows.map((r, i) => crOut_(t2, r, i)).find(r => r.id === id); if (!r1) return;
+  const row = t2.rows[r1.i].slice();
+  set_(row, t2, 'Status', status); set_(row, t2, 'Data', JSON.stringify(f));
+  if (by !== undefined) { set_(row, t2, 'Decided By', by); set_(row, t2, 'Decided At', new Date()); }
+  if (result !== undefined) set_(row, t2, 'Result', result);
+  stampEdit_(row, t2); t2.sh.getRange(r1.i + 2, 1, 1, row.length).setValues([row]); TABLE_MEMO_ = {};
+}
+function shortRun_(id) {
+  let r0 = flowAll_().find(r => r.id === id); if (!r0 || r0.status !== 'Short') return '';
+  const spec = API_[r0.fn], ru = readUsers_().find(w => w.email === r0.email), what = (r0.summary[0] || r0.id).slice(0, 80);
+  let why = '', still = '', res = null;
+  if (!spec) why = 'the action ' + r0.fn + ' is not in the app any more';
+  else if (!ru || !ru.active) why = r0.by + ' is not an active user of this site any more';
+  else if (spec.m && !canEdit_(ru, spec.m)) why = r0.by + ' has no Edit access to ' + (MODULE_LABEL_[spec.m] || spec.m) + ' any more';
+  if (!why) {
+    let args = []; try { args = JSON.parse(r0.args || '[]'); } catch (e) { args = []; }
+    const a0 = ACTOR_, ad0 = ACTOR_ADMIN_, su0 = ACTOR_SUPER_, dsu0 = DSRC_U_, pa0 = ACTOR_PAGE_ADMIN_, of0 = OUT_FOR_;
+    try {
+      withLock_(() => {
+        r0 = flowAll_().find(r => r.id === id); if (!r0 || r0.status !== 'Short') throw SHORT_GONE_;
+        const f = r0.flow;
+        DSRC_U_ = ru; REQ_DAY_ = flowDay_(r0); OUT_FOR_ = ru;
+        ACTOR_ = ru.name || ru.email; ACTOR_ADMIN_ = !!ru.admin; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pageAdminOf_(ru); VER_CTX_ = 'flow'; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = f.photos && typeof f.photos === 'object' ? f.photos : null;
+        APPROVER_ = f.approvedBy || ''; FLOW_SENDER_ = ru.email;
+        const before = spec.log ? logBefore_(spec, args) : null;
+        res = spec.withUser ? spec.f.apply(null, [ru].concat(args)) : spec.f.apply(null, args);
+        const errs = res && typeof res === 'object' ? (res.errors || []) : [];
+        if (res && typeof res === 'object' && (res.ok === false || errs.length)) throw new Error(shortWhy_(res) || flowRefusal_(res).text);
+        if (spec.log) { try { logAfter_(ru, spec, args, res, before); } catch (e) { /* the entry is saved; a log problem must not undo it */ } }
+        ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; ACTOR_PAGE_ADMIN_ = pa0;
+        f.history.push({ step: 'Saved – the stock came', by: 'the app', at: new Date().toISOString(), note: res && res.id ? String(res.id) : '' });
+        shortWrite_(r0.id, f, (f.levels || []).length ? 'Approved' : 'Saved', 'Saved' + (res && res.id ? ': ' + res.id : '') + ' (the stock came)', f.approvedBy || 'the app');
+      });
+    } catch (e) {
+      if (e === SHORT_GONE_) return '';
+      if (faultKind_(e)) throw e;      // a fault, not a refusal: it stays, tried again later
+      const m = String((e && e.message) || e).replace(/^Error:\s*/, '');
+      if (shortWhy_(e)) still = m; else why = m.slice(0, 1000);
+    } finally { ACTOR_ = a0; ACTOR_ADMIN_ = ad0; ACTOR_SUPER_ = su0; ACTOR_PAGE_ADMIN_ = pa0; VER_CTX_ = ''; DSRC_U_ = dsu0; REQ_DAY_ = ''; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; APPROVER_ = ''; FLOW_SENDER_ = ''; OUT_FOR_ = of0; }
+    if (!why && !still) {
+      bump_(SYNC_GROUPS_[spec.m] || []); bump_(['flow']);
+      crNotify_([r0.email], { id: r0.id, title: 'Saved – the stock came: ' + what, body: (res && res.id ? res.id + ' – ' : '') + 'kept as stock short, saved now by itself.' });
+      return 'saved';
+    }
+  }
+  if (why) {
+    withLock_(() => {
+      r0 = flowAll_().find(r => r.id === id); if (!r0 || r0.status !== 'Short') return;
+      const f = r0.flow; f.history.push({ step: 'Returned', by: 'the app', at: new Date().toISOString(), note: why });
+      shortWrite_(r0.id, f, 'Returned', 'Not saved: ' + why, 'the app');
+    });
+    bump_(['flow']);
+    crNotify_([r0.email], { id: r0.id, title: 'Not saved: ' + what, body: 'Kept as stock short; now: ' + why.slice(0, 160) });
+    return 'returned';
+  }
+  // still short: what it waits for now is noted when it changed (no write when nothing changed)
+  const f = r0.flow || {};
+  if (still && still !== (f.short || {}).why) {
+    try { withLock_(() => { const r1 = flowAll_().find(r => r.id === id); if (!r1 || r1.status !== 'Short') return; const f1 = r1.flow; f1.short = { why: still.slice(0, 1000), at: new Date().toISOString() }; shortWrite_(id, f1, 'Short'); }); } catch (e) { /* noted the next time */ }
+  }
+  return 'short';
+}
+// every entry kept as stock short, the oldest first; at most [ms] of work (the rest the next time)
+function shortRetry_(ms) {
+  const t0 = Date.now(), list = flowAll_().filter(r => r.status === 'Short').sort((a, b) => vfNo_(a.id) - vfNo_(b.id)), out = { saved: [], returned: [], short: [] };
+  if (!list.length) return out;
+  let books = null;
+  for (const r of list) {
+    if (Date.now() - t0 > (ms || 8000)) { try { CacheService.getScriptCache().put('SHORT_DUE', '1', 21600); } catch (e) { /* every 10 minutes */ } break; }
+    // a quick look first: the most that can ever be taken at a place is its balance at the end of the books, less what waits before it
+    TABLE_MEMO_ = {}; if (!books) { try { books = events_(stockTables_()).run; } catch (e) { books = {}; } }
+    const b = (r.flow || {}).byLoc || {}, n = vfNo_(r.id);
+    const cannot = !cardSite_() && Object.keys(b).some(l => { const older = (flowWaitBy_()[l] || []).filter(x => x.id !== r.id && x.n && x.n < n).reduce((s, x) => s + x.q, 0); return (Number(b[l]) || 0) > r2_((Number(books[l]) || 0) - older) + 0.005; });
+    if (cannot) { out.short.push(r.id); continue; }
+    let k = ''; try { k = shortRun_(r.id); } catch (e) { k = ''; }
+    if (k === 'saved' || k === 'returned') books = null;      // the books changed: read again for the next one
+    (out[k] || out.short).push(r.id);
+  }
+  return out;
+}
+// what a Short request needs now at each place: [{ loc, q: its litres, free: the books' balance there less what waits before it, more }]
+function shortNeed_(r) {
+  if (cardSite_()) return [];
+  const books = memoGet_('__shortBooks', () => { try { return events_(stockTables_()).run; } catch (e) { return {}; } }), b = (r.flow || {}).byLoc || {}, n = vfNo_(r.id);
+  return Object.keys(b).map(l => { const older = (flowWaitBy_()[l] || []).filter(x => x.id !== r.id && x.n && x.n < n).reduce((s, x) => s + x.q, 0), free = r2_((Number(books[l]) || 0) - older), q = Number(b[l]) || 0;
+    return { loc: l, q: q, free: free, more: r2_(Math.max(0, q - Math.max(0, free))) }; });
+}
+let SHORT_LOOK_ = 0;      // this server looks at most every 5 seconds (one read of the shared cache – the heartbeats come every second)
+function shortTick_() {
+  if (Date.now() - SHORT_LOOK_ < 5000) return;
+  SHORT_LOOK_ = Date.now();
+  const c = CacheService.getScriptCache(), g = c.getAll(['SHORT_DUE', 'SHORT_TRY']) || {};
+  if (!g.SHORT_DUE && g.SHORT_TRY) return;
+  c.remove('SHORT_DUE'); c.put('SHORT_TRY', '1', 600);
+  shortRetry_();
 }
 // several at once (each its own save: one that cannot be saved does not stop the others)
 function flowDecideMany_(u, x) {
@@ -13574,8 +13833,13 @@ function flowAnswer_(u, x) {
   withLock_(() => {
     r0 = flowAll_().find(r => r.id === str_(x.id));
     if (!r0) throw new Error('This request was not found – refresh the list.');
-    if (r0.email !== me) throw new Error('Only the person who sent this entry answers it.');
-    if (r0.status !== 'Reverted') throw new Error('This request is not sent back to you (it is ' + r0.status.toLowerCase() + ').');
+    if (r0.status === 'Short') {      // (update-211) kept as stock short: only taken back – by the sender or the Super Admin (nothing saved)
+      if (!back) throw new Error('This entry waits for the stock – it is saved by itself when the stock comes; it can only be taken back.');
+      if (r0.email !== me && !u.super) throw new Error('Only the person who sent this entry (or the Super Admin) takes it back.');
+    } else {
+      if (r0.email !== me) throw new Error('Only the person who sent this entry answers it.');
+      if (r0.status !== 'Reverted') throw new Error('This request is not sent back to you (it is ' + r0.status.toLowerCase() + ').');
+    }
     const f = r0.flow;
     f.history.push({ step: back ? 'Withdrawn' : 'Answered', by: u.name || u.email, email: me, at: new Date().toISOString(), note: back ? (note || 'taken back') : note });
     if (!back) { f.waitSince = new Date().toISOString(); f.reminded = {}; to = (f.levels[f.level] || []).filter(e => e !== me); }
@@ -13587,6 +13851,7 @@ function flowAnswer_(u, x) {
   });
   bump_(['flow']);
   if (!back) crNotify_(to.length ? to : crSupers_(), { id: r0.id, title: 'Answered – verification of ' + r0.by, body: note });
+  else if (r0.email !== me) crNotify_([r0.email], { id: r0.id, title: 'Taken back – not saved: ' + (r0.summary[0] || r0.id).slice(0, 70), body: 'By ' + (u.name || u.email) + (note ? ': ' + note : '') });      // (update-211)
   return { ok: true, id: r0.id, status: back ? 'Withdrawn' : 'Pending', list: crList_(u, {}) };
 }
 /* (update-128, asked 19-10-2026: "ata user prt tya entry krt basnar nahi ata je return reject zal tech reason deun return krta
@@ -13655,7 +13920,7 @@ function flowResendOne_(u, id, note) {
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pageAdminOf_(u); OUT_FOR_ = u;
   let res = null;
-  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = held; VER_CTX_ = 'resend'; REQ_DAY_ = reqDay_(r0.at);      // (update-187)
+  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = r0.id; FLOW_PHOTOS_ = held; VER_CTX_ = 'resend'; REQ_DAY_ = flowDay_(r0);      // (update-187; update-211: made with no network – that day)
   try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
   catch (e) {
     if (e !== FLOW_DRY_) {
@@ -13722,7 +13987,7 @@ function flowDry_(u, spec, args, id, held, at) {
   TABLE_MEMO_ = {}; if (sbDataOn_()) sbDiscard_();
   ACTOR_ = u.name || u.email || ''; ACTOR_ADMIN_ = !!u.admin; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pageAdminOf_(u); OUT_FOR_ = u;
   let res = null;
-  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = id; FLOW_PHOTOS_ = held; REQ_DAY_ = reqDay_(at);      // (update-188) Open & correct: the user's date rule from the day it was sent, as its approval
+  FLOW_DRY_ON_ = true; FLOW_RUN_ID_ = id; FLOW_PHOTOS_ = held; REQ_DAY_ = /^\d{4}-\d{2}-\d{2}$/.test(str_(at)) ? at : reqDay_(at);      // (update-188) Open & correct: the user's date rule from the day it was sent, as its approval
   try { withLock_(() => { res = spec.withUser ? spec.f.apply(null, [u].concat(args)) : spec.f.apply(null, args); if (sbDataOn_() && SB_BOOK_) entryGuard_(SB_BOOK_); throw FLOW_DRY_; }); }      // (update-152: an approved / billed entry is refused already when it is sent)
   catch (e) { if (e !== FLOW_DRY_) { if (faultKind_(e)) throw e; return { error: String((e && e.message) || e).replace(/^Error:\s*/, '') }; } }
   finally { FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; REQ_DAY_ = ''; TABLE_MEMO_ = {}; }
@@ -13752,7 +14017,7 @@ function flowChanges_(a0, a1) {
 // OPEN: the entry as it was sent, and what the save says of it now
 function flowOpen_(u, x) {
   const id = str_((x || {}).id), fx = flowFixOf_(u, id), r0 = fx.r0;
-  const dry = flowDry_(u, fx.spec, JSON.parse(JSON.stringify(fx.args0)), r0.id, flowHeld_(r0), r0.at);
+  const dry = flowDry_(u, fx.spec, JSON.parse(JSON.stringify(fx.args0)), r0.id, flowHeld_(r0), flowDay_(r0));
   const check = dry.error ? { ok: false, error: dry.error } : flowRefusing_(dry.res)
     ? ['errors', 'warnings', 'warning', 'error', 'used', 'duplicates'].reduce((o, k) => { if (dry.res[k] !== undefined) o[k] = dry.res[k]; return o; }, { ok: false }) : { ok: true };
   return { ok: true, id: r0.id, fn: r0.fn, form: fx.form, args: fx.args0, status: r0.status, result: r0.result || '', decidedBy: r0.decidedBy || '', note: r0.note || '', check: check, summary: r0.summary };
@@ -13858,7 +14123,7 @@ function flowEdit_(u, x) {
     p0.concat(Array.isArray(args[0].photos) ? args[0].photos : []).forEach(x => { if (x && typeof x === 'object' && x.k) byK[x.k] = x; }); args[0].photos = Object.keys(byK).map(k => byK[k]).slice(0, 4); } }
   const json = JSON.stringify(args);
   if (json.length > 400000) throw new Error('This entry is too big to send for verification at once – send it in parts (fewer rows).');
-  const held = flowHeld_(fx.r0), dry = flowDry_(u, spec, args, fx.r0.id, held, fx.r0.at);
+  const held = flowHeld_(fx.r0), dry = flowDry_(u, spec, args, fx.r0.id, held, flowDay_(fx.r0));
   if (dry.error) throw new Error(dry.error);      // the save's own words (e.g. not enough diesel) – nothing changed
   if (flowRefusing_(dry.res)) return Object.assign({}, dry.res, { ok: false, id: id, notSent: true });      // its lines marked on the form; warnings: "anyway"
   const changes = flowChanges_(fx.args0, args), facts = flowFacts_(fn, args), d = flowDescribe_(fn, args);
