@@ -5257,7 +5257,7 @@ function sdelRange_(f) {
   if (from > to) throw new Error('From date is after To date.');
   return { from: from, to: to };
 }
-const sdelStatus_ = s => s === 'Pending' ? 'Waiting for verification' : s;
+const sdelStatus_ = s => s === 'Pending' ? 'Waiting for verification' : s === 'Short' ? 'Waiting for stock (stock short)' : s;      // (update-211)
 function sdelDeleted_(t) { return t ? t.rows.map((r, i) => crOut_(t, r, i)).filter(r => r.id && r.kind === 'Deleted') : []; }
 function sdelList_(u, f) {
   sdelSuper_(u); f = f || {};
@@ -5276,7 +5276,8 @@ function sdelList_(u, f) {
       hrReading: numOrBlank_(r[c[H.HRR]]), source: loc_(r[c[H.SOURCE]]), by: eby, bill: bid ? (LK.locks[bid] || {}).billNo || bid : '', closed: !!(closed && dk <= closed) });
   });
   saved.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || (shiftOrder_(a.shift) - shiftOrder_(b.shift)) || a.id.localeCompare(b.id));
-  const waiting = flowAll_().filter(r => sdelIsFlow_(r) && r.status !== 'Approved').map(r => Object.assign(r, { ds: sdelFlowDates_(r) })).filter(r => {
+  // (update-211) Saved – its entry is in, as Approved
+  const waiting = flowAll_().filter(r => sdelIsFlow_(r) && r.status !== 'Approved' && r.status !== 'Saved').map(r => Object.assign(r, { ds: sdelFlowDates_(r) })).filter(r => {
     if (r.by) users[r.by] = true;
     return inR(r.ds) && (!noK || noKey_(r.nos).indexOf(noK) > -1) && (!by || str_(r.by).toUpperCase() === by);
   }).map(r => ({ id: r.id, status: r.status, label: sdelStatus_(r.status), what: flowLabel_(r.fn), dates: r.ds, nos: r.nos, qty: (r.flow || {}).qty || '', by: r.by, at: r.at,
@@ -5313,7 +5314,7 @@ function sdelDelete_(u, x) {
     flows.forEach(id => {
       const f = all.find(r => r.id === id);
       if (!f || !sdelIsFlow_(f)) { bad.push(id + ': not found – deleted or decided meanwhile. Show the list again.'); return; }
-      if (f.status === 'Approved') { bad.push(id + ': approved – its entries are saved; delete those.'); return; }
+      if (f.status === 'Approved' || f.status === 'Saved') { bad.push(id + ': ' + (f.status === 'Saved' ? 'saved when the stock came' : 'approved') + ' – its entries are saved; delete those.'); return; }
       fl.push(f);
     });
     if (bad.length) return { ok: false, errors: bad };      // nothing is deleted
@@ -6236,7 +6237,8 @@ function placesUsed_(T) {
   T.it.rows.forEach(r => see(r[T.it.c[H.LOC]]));
   T.tt.rows.forEach(r => { see(r[T.tt.c[H.FROM]]); see(r[T.tt.c[H.TO]]); });
   T.dt.rows.forEach(r => see(r[T.dt.c[H.SOURCE]]));
-  try { flowAll_().filter(r => r.status === 'Pending' || r.status === 'Reverted').forEach(r => { Object.keys((r.flow || {}).byLoc || {}).forEach(l => { const s = clean_(l); if (s) at[s.toUpperCase()] = true; }); }); }
+  // (update-211) …and the ones kept as stock short
+  try { flowAll_().filter(r => FLOW_WAIT_.indexOf(r.status) > -1 || r.status === 'Reverted').forEach(r => { Object.keys((r.flow || {}).byLoc || {}).forEach(l => { const s = clean_(l); if (s) at[s.toUpperCase()] = true; }); }); }
   catch (e) { /* no verification table at this site */ }
   return { at: at, blank: blank, any: any };
 }
