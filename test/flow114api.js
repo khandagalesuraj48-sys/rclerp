@@ -111,7 +111,7 @@ let n = 0; const rid = () => 'vf114' + Date.now().toString(36) + (n++);
     ok('300 L: sent for verification; nothing more in the diesel issues', /^Sent for verification to Checker 114 – VF-/.test(r.ERROR || '') && sql("select count(*) from diesel_issue") === String(Number(cnt0) + 1), r);
     r = await M('saveDieselIssue', issue(999999));
     const avail2 = Number(((r.ERROR || '').match(/Available: ([\d.]+) Ltr/) || [])[1]);
-    ok('   the 300 L are held back: available is 300 less, and it says so', /\(300 Ltr more waits for verification\)/.test(r.ERROR || '') && Math.abs(avail - 40 - 300 - avail2) < 0.01, { avail, avail2, e: r.ERROR });
+    ok('   the 300 L are held back: available is 300 less, and it says so', /\(300 Ltr more waits for verification or for stock\)/.test(r.ERROR || '') && Math.abs(avail - 40 - 300 - avail2) < 0.01, { avail, avail2, e: r.ERROR });
     r = await C('decideChangeRequest', { id: vfd, approve: true });
     ok('the checker approves → the 300 L issue is saved (as the maker\'s)', r.status === 'Approved' && sql("select count(*) from diesel_issue where machinery = 'VF114-1'") === '2' && sql("select entered_by from diesel_issue where machinery = 'VF114-1' and qty = 300") === 'Maker 114', [r, sql("select qty, entered_by from diesel_issue where machinery = 'VF114-1'")]);
     r = await M('saveDieselIssue', issue(999999));

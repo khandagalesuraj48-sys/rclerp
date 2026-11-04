@@ -3050,8 +3050,9 @@ test('update-114: verification of every work – the Super Admin\'s rules, level
     run('() => { const t = crTable_(true), row = newRow_(t); set_(row, t, "Request ID", "VF-00099"); set_(row, t, "Kind", "Flow"); set_(row, t, "Status", "Pending"); set_(row, t, "Requester Email", "m114@rcl.test"); set_(row, t, "Requested At", new Date()); set_(row, t, "Data", JSON.stringify({ m: "Diesel Issue", levels: [["c1@rcl.test"]], level: 0, history: [], byLoc: { Dispenser: 150 }, qty: 150, waitSince: new Date(Date.now() - 7 * 3600000).toISOString(), reminded: {} })); t.sh.appendRow(row); sbFlush_(); }');
     assert.strictEqual(run('() => flowReserved_("Dispenser")'), 150);
     assert.strictEqual(run('() => { FLOW_RUN_ID_ = "VF-00099"; try { return flowReserved_("Dispenser"); } finally { FLOW_RUN_ID_ = ""; } }'), 0, 'its own litres are not held against itself');
-    const avail = run('d => getIssueBalance_(d, "Day", "", "Dispenser").available', today);
-    assert.match(run('(d, q) => requireStockAt_("Dispenser", d, "Day", "", q)', today, avail - 100).THROWN || '', /\(150 Ltr more waits for verification\)/);
+    const avail = run('d => issueBalance_(d, "Day", "", "Dispenser").available', today);      // (update-211: the books' own; getIssueBalance_ shows it less what waits)
+    assert.match(run('(d, q) => requireStockAt_("Dispenser", d, "Day", "", q)', today, avail - 100).THROWN || '', /\(150 Ltr more waits for verification or for stock\)/);
+    assert.strictEqual(run('d => getIssueBalance_(d, "Day", "", "Dispenser").available', today), Math.max(0, avail - 150), '(update-211) shown less the 150 that wait');
     // ---- reminders: older than the hours → the level; twice as long → the Super Admin too; once each ----
     run('() => { crSuperSeen_("sa114@rcl.test"); CacheService.getScriptCache().remove("FLOW_REMIND"); __sent.length = 0; flowRemind_(); }');
     pushes = run('() => __sent');
@@ -3061,7 +3062,7 @@ test('update-114: verification of every work – the Super Admin\'s rules, level
     assert.strictEqual(run('() => __sent.filter(p => p.msg.id === "VF-00099").length'), 0, 'not again');
     // ---- the page and the server know the same things ----
     const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8');
-    assert.match(app, /const FLOW_SENT_RE = \/\^Sent for verification \//);
+    assert.match(app, /const FLOW_SENT_RE = \/\^\(Sent for verification \|Kept as stock short \)\//);      // (update-211: kept as stock short is told the same way)
     assert.match(app, /if \(has\('flow'\)\) crLoad\(true\);/);
     assert.match(app, /call\('decideChangeRequests', \{ ids: ids, approve: approve && !back, revert: !!back, note: note \}\)/);
     assert.match(app, /call\('saveFlowRules', \{ tasks: tasks, remindHours: \$\('fr_hours'\)\.value \}\)/);
@@ -3594,7 +3595,7 @@ test('update-120: the bill copies of a diesel inward – several, from the camer
   } finally { vm.runInContext('billsReady_ = __k120.ready; FLOW_DRY_ON_ = false; FLOW_PHOTOS_ = null; FLOW_RUN_ID_ = "";', ctx); }
   // the request keeps them; the approval uses them; both cleared after
   assert.match(code, /FLOW_DRY_ON_ = true; FLOW_PHOTOS_ = held;/);
-  assert.match(code, /finally \{ FLOW_DRY_ON_ = false; FLOW_PHOTOS_ = null; \}/);
+  assert.match(code, /finally \{ FLOW_DRY_ON_ = false; FLOW_PHOTOS_ = null; STOCK_OFF_ = false; TABLE_MEMO_ = \{\}; \}/);      // (update-211: also "without its stock")
   assert.match(code, /if \(Object\.keys\(held\)\.length\) \{[^\n]*\n\s+data\.photos = held;/);
   assert.match(code, /FLOW_RUN_ID_ = r0\.id; FLOW_PHOTOS_ = f\.photos && typeof f\.photos === 'object' \? f\.photos : null;/);
   assert.match(code, /FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; \}/);
@@ -5998,7 +5999,7 @@ test('update-162: diesel sources per person – Issue and the From of a Transfer
     assert.strictEqual(run('u => dsrcMine_(u)', BALA), null, 'back to every source');
     // ---- an approval runs the change with the REQUESTER's sources (both places a change is run on approval); every request: its person
     const codeGs = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
-    assert.strictEqual((codeGs.match(/DSRC_U_ = ru;/g) || []).length, 2, 'the change-request approval and the flow approval');
+    assert.strictEqual((codeGs.match(/DSRC_U_ = ru;/g) || []).length, 3, 'the change-request approval, the flow approval and (update-211) an entry kept as stock short saved when the stock came');
     assert.ok(codeGs.indexOf('  DSRC_U_ = u;') > -1, 'api(): the person of the request');
     // ---- the Portal's door (Sites.gs): the users with their sources and the site's places; pages saves them
     const sitesGs = fs.readFileSync(path.join(root, 'app', 'Sites.gs'), 'utf8');
@@ -7790,8 +7791,9 @@ test('update-187: back-dated entries only by the Admin and the Super Admin – a
   // the source: the rule in booksOpen_ (every entry, its change and deletion – 43 places), the request's day where it is saved later
   const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), page = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   assert.match(code, /function booksOpen_\(dk, what\) \{\n  userDateRule_\(dk, what\);/);
-  assert.match(code, /REQ_DAY_ = reqDay_\(r0\.at\);      \/\/ \(update-187\) the user's date rule from the day it was sent\n          ACTOR_ = ru\.name \|\| ru\.email; ACTOR_ADMIN_ = !!ru\.admin; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pageAdminOf_\(ru\); VER_CTX_ = 'flow';/);      // (update-188: reqDay_; update-189: the page's Admin)
-  assert.match(code, /VER_CTX_ = 'resend'; REQ_DAY_ = reqDay_\(r0\.at\);/);
+  assert.match(code, /REQ_DAY_ = flowDay_\(r0\);      \/\/ \(update-187\) the user's date rule from the day it was sent \(update-211: made with no network – that day\)\n          ACTOR_ = ru\.name \|\| ru\.email; ACTOR_ADMIN_ = !!ru\.admin; ACTOR_SUPER_ = false; ACTOR_PAGE_ADMIN_ = pageAdminOf_\(ru\); VER_CTX_ = 'flow';/);      // (update-188: reqDay_; update-189: the page's Admin)
+  assert.match(code, /VER_CTX_ = 'resend'; REQ_DAY_ = flowDay_\(r0\);/);
+  assert.match(code, /const flowDay_ = r => \(r && r\.flow && \/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$\/\.test\(str_\(r\.flow\.reqDay\)\)\) \? r\.flow\.reqDay : reqDay_\(r && r\.at\);/, '(update-211) its day: as sent, or the phone\'s day with no network');
   // the page: the same words before it is sent, a user's date box offers only today (the Log Book also yesterday), the help in 3 languages
   assert.ok(page.includes("a user enters only the Log Book of today and yesterday' : 'a user enters only today\\'s entries'"), 'the page says it as the server');
   assert.match(page, /function userDateBox\(el\)/);
@@ -7817,8 +7819,8 @@ test('update-188: "Open & correct" of a sent entry measured from the day it was 
     assert.deepStrictEqual(dry('2026-10-20T04:00:00.000Z', '2026-10-01').r, { res: { ok: true } }, 'sent before the rule: not held by it');
   } finally { run('() => { today_ = globalThis.__today188; delete globalThis.__today188; }'); }
   const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), page = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
-  assert.match(code, /const dry = flowDry_\(u, fx\.spec, JSON\.parse\(JSON\.stringify\(fx\.args0\)\), r0\.id, flowHeld_\(r0\), r0\.at\);/, 'Open: the day it was sent');
-  assert.match(code, /dry = flowDry_\(u, spec, args, fx\.r0\.id, held, fx\.r0\.at\);/, 'Corrected and sent: the day it was sent');
+  assert.match(code, /const dry = flowDry_\(u, fx\.spec, JSON\.parse\(JSON\.stringify\(fx\.args0\)\), r0\.id, flowHeld_\(r0\), flowDay_\(r0\)\);/, 'Open: the day it was sent');      // (update-211: flowDay_)
+  assert.match(code, /dry = flowDry_\(u, spec, args, fx\.r0\.id, held, flowDay_\(fx\.r0\)\);/, 'Corrected and sent: the day it was sent');
   assert.match(code, /finally \{ FLOW_DRY_ON_ = false; FLOW_RUN_ID_ = ''; FLOW_PHOTOS_ = null; REQ_DAY_ = ''; TABLE_MEMO_ = \{\}; \}/);
   // the page: his answers – the Maintenance bill's date and a card payment's only today for a user; the bill reader keeps today
   assert.match(page, /const USER_DATE_IDS = \['d_date', 'bd_date', 'i_date', 't_date', 'tc_date', 'mt_date', 'cp_date', 'lg_top_date'\];/);
@@ -8673,4 +8675,156 @@ test('update-210: the app\'s own page <main address>/app – always the latest s
   assert.strictEqual(pick(null), null);
   assert.match(page, /R = pick\(j\) \|\| false;/, 'no release / an odd one: "the version could not be read" – the button opens the releases page');
   assert.match(page, /<a class="dl" id="dl" href="https:\/\/github\.com\/khandagalesuraj48-sys\/rcl-mobile\/releases\/latest"/);
+});
+
+test('update-211: stock net of what waits (verification, stock short) everywhere it is shown; an entry short of stock kept on the server as "Stock short" and saved by itself when the stock came, oldest first; at the last approval Short, not Returned; the phone\'s entry made with no network measured from its day', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  // a database for this test (as update-114's): what a save writes stays; a save that is refused – or only checked – leaves nothing
+  vm.runInContext(`globalThis.__k211 = { flush: SbBook_.prototype.flush, loadMany: SbBook_.prototype.loadMany, load_: SbSheet_.prototype.load_, discard: sbDiscard_, push: rtcPush_ };
+    globalThis.DB211 = {};
+    globalThis.__fill211 = s => { const d = DB211[s.def.table]; s.data = d ? d.data.map(r => r.slice()) : []; s.ids = d ? d.ids.slice() : []; s.appended.forEach(r => { s.data.push(r); s.ids.push(null); }); s.appended = []; s.loaded = true; };
+    globalThis.__keep211 = b => Object.keys(b.sheets).forEach(t => { const s = b.sheets[t]; if (!s.loaded && s.appended.length) __fill211(s); if (s.loaded) DB211[t] = { data: s.data.map(r => r.slice()), ids: s.ids.slice() }; });
+    if (SB_BOOK_) __keep211(SB_BOOK_);
+    SbBook_.prototype.flush = function () { __keep211(this); __k211.flush.call(this); };
+    SbBook_.prototype.loadMany = function (tables) { tables.forEach(t => { const s = this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t))); if (!s.loaded) __fill211(s); }); };
+    SbSheet_.prototype.load_ = function () { if (!this.loaded) __fill211(this); };
+    sbDiscard_ = function () { SB_BOOK_ = null; };
+    globalThis.__sent = []; rtcPush_ = function (ids, msg) { __sent.push({ ids: ids, msg: msg }); };`, ctx);
+  const TK = 'P211 TANK', DP = 'P211 DISP';
+  run('p => { PropertiesService.getScriptProperties().setProperty("DIESEL_PLACES", p); PropertiesService.getScriptProperties().deleteProperty("DIESEL_SOURCES"); DSRC_U_ = null; kvWrite_("FLOW_RULES", "{}"); }', JSON.stringify([{ name: TK }, { name: DP }]));
+  try {
+    const PW = 'sha256$0123456789abcdef$' + 'b'.repeat(64);
+    const users = run(`pw => { const p = a => { const o = {}; MODULES.forEach(m => { o[m] = a ? 'Edit' : 'None'; }); return o; };
+      const mk = (email, name, admin, extra) => ({ email: email, name: name, password: pw, active: true, admin: admin, perms: Object.assign(p(admin), extra || {}) });
+      return [mk('m211@rcl.test', 'Maker 211', false, { 'Diesel Inward': 'Edit', 'Diesel Issue': 'Edit', 'Diesel Transfer': 'Edit', Master: 'View' }), mk('c211@rcl.test', 'Checker 211', false, { 'Diesel Issue': 'View' }), mk('sa211@rcl.test', 'Super 211', true)]; }`, PW);
+    run('l => { CacheService.getScriptCache().put("USERS_LIST", JSON.stringify(l), 3600); }', users);
+    const tok = {}; users.forEach((u, i) => { tok[u.email] = 'tok211_' + i; run('(t, e, pw, s) => CacheService.getScriptCache().put("S_" + t, sessionMake_(e, pw, 3600000, s), 3600)', tok[u.email], u.email, PW, u.email === 'sa211@rcl.test'); });
+    const apiM = (who, meta, fn, ...a) => { const t0 = Date.now(); while (Date.now() === t0) { /* the next millisecond (update-117's note) */ } return run('(t, f, a, m) => api(t, f, a, m)', tok[who], fn, a, meta); };
+    const api = (who, fn, ...a) => apiM(who, null, fn, ...a);
+    const today = run('() => today_()');
+    assert.ok(api('sa211@rcl.test', 'saveMaster', { no: 'TP-211', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Rachana Construction Limited', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add').ok);
+    let km = 1000;
+    const iss = (q, src) => ({ date: today, shift: 'Day', no: 'TP-211', qty: q, kmReading: (km += 10), source: src || TK, mode: 'KM', force: true });
+    const inw = (q, b) => api('m211@rcl.test', 'saveInward', { date: today, location: TK, pump: 'HP', qty: q, rate: 92, billNo: b, billDate: today });
+    const flow = id => run('id => { const r = flowAll_().find(x => x.id === id); return r ? { status: r.status, byLoc: r.flow.byLoc, short: r.flow.short, result: r.result, history: r.flow.history.map(h => h.step) } : null; }', id);
+    const diN = () => run('() => table_(APP.SHEET_DIESEL, DIESEL_COLS_).rows.length');
+    assert.ok(inw(100, 'B211-1').ok);
+    assert.ok(api('m211@rcl.test', 'saveDieselIssue', iss(70)).ok);
+    const tr0 = api('m211@rcl.test', 'saveTransfer', { date: today, shift: 'Day', from: TK, to: DP, qty: 10, remark: 'first' });
+    assert.ok(tr0.ok, JSON.stringify(tr0));      // TK: 20 left
+    // ---- more than the stock: refused as before; asked "keep it as stock short?" – yes: kept, nothing saved ----
+    assert.match(api('m211@rcl.test', 'saveDieselIssue', iss(50)).THROWN, /^Not enough diesel at P211 TANK .*Available: 20 Ltr, you are issuing: 50 Ltr\.$/);
+    const n0 = diN();
+    const e1 = iss(50);
+    let r = apiM('m211@rcl.test', { short: true }, 'saveDieselIssue', e1);
+    const m1 = /^Kept as stock short – (VF-\d{5})\. Not enough diesel at P211 TANK .* It is saved by itself when the stock comes \(a Diesel Inward or Transfer\); nothing is saved until then\. See Approvals\.$/.exec(r.THROWN || '');
+    assert.ok(m1, JSON.stringify(r)); const S1 = m1[1];
+    assert.strictEqual(diN(), n0, 'nothing saved');
+    assert.deepStrictEqual([flow(S1).status, flow(S1).byLoc, flow(S1).history], ['Short', { [TK]: 50 }, ['Kept as stock short']]);
+    assert.match(apiM('m211@rcl.test', { short: true }, 'saveDieselIssue', e1).THROWN, /already kept as stock short|just sent twice/, 'the same entry is not kept twice');
+    assert.match(apiM('m211@rcl.test', { short: true }, 'saveDieselIssue', Object.assign(iss(5), { no: 'NO-SUCH-211' })).THROWN, /is not in Master/, 'a wrong entry is refused as a save – never kept');
+    assert.match(apiM('m211@rcl.test', { short: true }, 'saveInward', { date: today, location: TK, pump: 'HP', qty: 0, rate: 1, billNo: 'X', billDate: today }).THROWN || '', /Qty|qty|litres/i, 'only diesel issue and transfer saves are ever kept short');
+    // ---- the stock SHOWN: less what waits (the books stay the books) ----
+    const st = run('() => getStock_()');
+    assert.deepStrictEqual([st.byLoc[TK], st.held[TK]], [-30, { wait: 0, short: 50 }], 'the books 20, 50 given and waiting: shown −30 ' + JSON.stringify(st));
+    const b = run('d => getIssueBalance_(d, "Day", "", "P211 TANK")', today);
+    assert.deepStrictEqual([b.balance, b.available, b.held, b.raw], [-30, 0, { wait: 0, short: 50 }, { balance: 20, available: 20 }]);
+    assert.deepStrictEqual(run('d => getStockPoints_([{ date: d, shift: "Day", source: "P211 TANK" }])', today)[0], { balance: -30, available: 0, held: { wait: 0, short: 50 } });
+    const tb = run('d => getTransferBalance_(d, "Day", "P211 TANK", "P211 DISP")', today);
+    assert.deepStrictEqual([tb.from.available, tb.from.held.short, tb.to.balance, tb.stock.byLoc[TK]], [0, 50, 10, -30]);
+    // ---- what waits is held back: a new issue or transfer cannot take it; a change of an entry already in is never made worse ----
+    assert.match(api('m211@rcl.test', 'saveDieselIssue', iss(5)).THROWN, /^Not enough diesel at P211 TANK .*Available: 0 Ltr \(50 Ltr more waits for verification or for stock\), you are issuing: 5 Ltr\.$/);
+    assert.match(api('m211@rcl.test', 'saveTransfer', { date: today, shift: 'Day', from: TK, to: DP, qty: 5 }).THROWN, /^Not enough diesel at P211 TANK .*Available: 0 Ltr \(50 Ltr more waits for verification or for stock\), you are transferring: 5 Ltr\.$/, '(before, a transfer could take the diesel that waits)');
+    const bulkT = api('m211@rcl.test', 'saveTransferBulk', [{ line: 1, date: today, shift: 'Day', from: TK, to: DP, qty: 5 }]);
+    assert.ok(bulkT.ok === false && /^Not enough diesel at P211 TANK: 50 Ltr of entries that wait/.test(bulkT.errors[0].msg), JSON.stringify(bulkT));
+    const ver0 = run('id => { const T0 = stockTables_(); const i = T0.tt.rows.findIndex(x => String(x[T0.tt.c[H.TR_ID]]) === id); return rowVer_(T0.tt, T0.tt.rows[i], TRANSFER_VER_H_()); }', tr0.id);
+    const up = api('sa211@rcl.test', 'updateTransfer', tr0.id, { date: today, shift: 'Day', from: TK, to: DP, qty: 10, remark: 'remark changed', ver: ver0 });
+    assert.ok(up.ok, 'a remark changed is never refused because of what waits ' + JSON.stringify(up));
+    assert.match(api('sa211@rcl.test', 'updateTransfer', tr0.id, { date: today, shift: 'Day', from: TK, to: DP, qty: 15, remark: 'more' }).THROWN, /^Not enough diesel at P211 TANK/, '…taking more is');
+    // ---- a second one kept short; then the stock comes: the oldest first, each once ----
+    r = apiM('m211@rcl.test', { short: true }, 'saveDieselIssue', iss(50)); const S2 = (/(VF-\d{5})/.exec(r.THROWN || '') || [])[1];
+    assert.ok(S2 && flow(S2).status === 'Short', JSON.stringify(r));
+    assert.ok(inw(60, 'B211-2').ok, 'an inward');      // books: 80
+    assert.strictEqual(run('() => CacheService.getScriptCache().get("SHORT_DUE")'), '1', 'the stock changed: tried at the next heartbeat');
+    run('() => { __sent.length = 0; }');
+    api('c211@rcl.test', 'sync', {});      // anybody's heartbeat
+    assert.deepStrictEqual([flow(S1).status, flow(S2).status], ['Saved', 'Short'], 'the oldest went in (80 − 50); the second waits (30 left, needs 50)');
+    assert.match(flow(S1).result, /^Saved: DI-\d{6} \(the stock came\)$/); assert.ok(flow(S1).history.includes('Saved – the stock came'));
+    assert.strictEqual(diN(), n0 + 1);
+    const ps = run('() => __sent').filter(p => p.msg.id === S1);
+    assert.ok(ps.length === 1 && /^Saved – the stock came: /.test(ps[0].msg.title) && ps[0].ids.includes(run('() => rtcUid_("m211@rcl.test")')), JSON.stringify(ps));
+    assert.match(flow(S2).short.why, /^Not enough diesel at P211 TANK /, 'why it waits (its save\'s words)');
+    assert.deepStrictEqual(run('() => getStock_().byLoc')[TK], -20, 'the books 30, 50 waiting');
+    // ---- taken back: by the sender or the Super Admin only ----
+    assert.match(api('c211@rcl.test', 'answerFlow', { id: S2, withdraw: true }).THROWN, /Only the person who sent this entry \(or the Super Admin\) takes it back/);
+    assert.match(api('m211@rcl.test', 'answerFlow', { id: S2, note: 'x' }).THROWN, /it can only be taken back/);
+    const L = api('m211@rcl.test', 'getChangeRequests', {}), q2 = L.requests.find(x => x.id === S2);
+    assert.ok(q2 && q2.canTakeBack && !q2.canDecide && !q2.canResend && /^Not enough diesel/.test(q2.short) && L.short === 1 && L.requests[0].status === 'Short', JSON.stringify(q2));
+    assert.deepStrictEqual(q2.need, [{ loc: TK, q: 50, free: 30, more: 20 }], 'what it needs now: 20 L more at the tank');
+    r = api('m211@rcl.test', 'answerFlow', { id: S2, withdraw: true, note: 'given to another machinery' });
+    assert.ok(r.ok && r.status === 'Withdrawn', JSON.stringify(r).slice(0, 200));
+    assert.deepStrictEqual(run('() => getStock_().byLoc')[TK], 30, 'nothing waits: the books');
+    // ---- under verification: sent with its stock short; approved – the stock still short: "Short" (before: Returned); saved when it came ----
+    run('() => { const r = flowRules_(); r.tasks["Diesel Issue"] = { on: true, levels: [["c211@rcl.test"]], daysBack: "", qtyAbove: "" }; kvWrite_("FLOW_RULES", JSON.stringify(r)); memoDrop_("__flowRules"); }');
+    assert.match(api('m211@rcl.test', 'saveDieselIssue', iss(40)).THROWN, /^Not enough diesel at P211 TANK/, 'without "keep": refused, nothing sent');
+    r = apiM('m211@rcl.test', { short: true }, 'saveDieselIssue', iss(40));
+    const m3 = /^Sent for verification to Checker 211 – (VF-\d{5})\. It is saved when it is approved; nothing is saved until then\. The stock is short now – after the approval it waits for the stock and is saved by itself when the stock comes\.$/.exec(r.THROWN || '');
+    assert.ok(m3, JSON.stringify(r)); const P3 = m3[1];
+    assert.deepStrictEqual([flow(P3).status, !!flow(P3).short], ['Pending', true]);
+    r = api('c211@rcl.test', 'decideChangeRequest', { id: P3, approve: true, note: 'ok' });
+    assert.ok(r.status === 'Short' && /^Waiting for the stock: Not enough diesel/.test(r.result), JSON.stringify(r).slice(0, 300));
+    assert.deepStrictEqual(flow(P3).history, ['Sent', 'Approved', 'Stock short – waits for the stock']);
+    assert.ok(inw(100, 'B211-3').ok);
+    api('m211@rcl.test', 'sync', {});
+    assert.deepStrictEqual([flow(P3).status, /^Saved: DI-/.test(flow(P3).result)], ['Approved', true], 'approved, saved when the stock came ' + JSON.stringify(flow(P3)));
+    run('() => { kvWrite_("FLOW_RULES", "{}"); memoDrop_("__flowRules"); }');
+    // ---- the phone with no network: its entry measured from the day the phone last heard the server (the server's own stamp) ----
+    const init = api('m211@rcl.test', 'getInit');
+    assert.match(init.stamp, /^\d{13}\.[0-9a-f]{32}$/);
+    assert.match(api('m211@rcl.test', 'sync', {}).stamp, /^\d{13}\.[0-9a-f]{32}$/);
+    const y = run('d => addDays_(d, -1)', today);
+    const stampAt = (email, ms) => run('(e, ms) => ms + "." + stampSig_(e, ms)', email, ms);
+    const yMs = Date.now() - 86400000, good = stampAt('m211@rcl.test', yMs);
+    assert.strictEqual(run('(u, m) => offlineDay_(u, m)', { email: 'm211@rcl.test' }, { made: good }), run('ms => reqDay_(new Date(ms).toISOString())', yMs));
+    assert.strictEqual(run('(u, m) => offlineDay_(u, m)', { email: 'm211@rcl.test' }, { made: good.slice(0, -1) + (good.slice(-1) === '0' ? '1' : '0') }), '', 'not the server\'s own: nothing');
+    assert.strictEqual(run('(u, m) => offlineDay_(u, m)', { email: 'c211@rcl.test' }, { made: good }), '', 'another person\'s: nothing');
+    assert.strictEqual(run('(u, m) => offlineDay_(u, m)', { email: 'm211@rcl.test' }, { made: stampAt('m211@rcl.test', Date.now() - 4 * 86400000) }), '', 'older than 3 days: nothing');
+    assert.strictEqual(run('(u, m) => offlineDay_(u, m)', { email: 'm211@rcl.test' }, { made: stampAt('m211@rcl.test', Date.now() + 3600000) }), '', 'from the future: nothing');
+    const yIn = api('sa211@rcl.test', 'saveInward', { date: y, location: TK, pump: 'HP', qty: 50, rate: 92, billNo: 'B211-Y', billDate: y });
+    assert.ok(yIn.ok, 'diesel there yesterday ' + JSON.stringify(yIn));
+    run('() => { USER_DATE_RULE_ON_ = true; }');
+    try {
+      const yIss = Object.assign(iss(5), { date: y });
+      assert.match(api('m211@rcl.test', 'saveDieselIssue', yIss).THROWN, /a user enters only today's entries/, 'yesterday, as before: refused');
+      r = apiM('m211@rcl.test', { made: good }, 'saveDieselIssue', yIss);
+      assert.ok(r.ok, 'made yesterday on the phone with no network, sent today: saved ' + JSON.stringify(r).slice(0, 300));
+      assert.match(apiM('m211@rcl.test', { made: good }, 'saveDieselIssue', Object.assign(iss(5), { date: run('d => addDays_(d, -2)', today) })).THROWN, /a user enters only today's entries/, 'a day before the stamp: refused');
+      assert.strictEqual(run('() => REQ_DAY_'), '', 'the day is only for that request');
+    } finally { run('() => { USER_DATE_RULE_ON_ = false; }'); }
+    // ---- "Multiple entries": a row without its own source is of the batch's place ----
+    assert.deepStrictEqual(run('() => flowFacts_("saveDieselBulk", [{ date: "2026-11-04", source: "P211 DISP", rows: [{ no: "A", qty: 5 }, { no: "B", qty: 7, source: "P211 TANK" }] }]).byLoc'), { [DP]: 5, [TK]: 7 });
+    // ---- the page and the help ----
+    const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+    assert.match(app, /const SHORT_FNS = \['saveDieselIssue', 'saveDieselBulk', 'saveTransfer', 'saveTransferBulk'\], SHORT_RE = \/\^Not enough \[\^\\n\]\*\? at \/;/);
+    assert.match(app, /if \(SHORT_RE\.test\(errMsg\(e\)\) && await askShort\(errMsg\(e\)\)\) return rawCallM\(fn, \{ short: true \}, args\);/);
+    assert.ok(!/await showAlert\('Not enough diesel in stock'/.test(app), 'no stop on the page before the server: it asks "keep as stock short?"');
+    assert.match(app, /r\.status === 'Short' \? '<span class="st low">Stock short<\/span>/);
+    assert.match(app, /r\.canTakeBack \? '<button class="btn ghost small" type="button" data-crwithdraw="/);
+    assert.match(app, /tankHeld\(card, \(stock\.held \|\| \{\}\)\[l\]\);/);
+    const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules };')();
+    assert.match(H.fixRules('Kept as stock short – VF-00012. Not enough diesel at Dispenser for 04-11-2026 (Day). Available: 0 Ltr, you are issuing: 50 Ltr.')[0].en[0], /^Stock short/);
+    assert.match(H.fixRules('Not enough diesel at Dispenser for 04-11-2026 (Day). Available: 0 Ltr, you are issuing: 50 Ltr.')[0].en[1], /Keep as stock short/);
+    // the photos of a short entry: noted with it when it was kept (as for verification – update-120), used when the stock came
+    const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+    assert.match(code, /const dry = off => \{[^\n]*\n\s+res = null; held = \{\};\n\s+FLOW_DRY_ON_ = true; FLOW_PHOTOS_ = held; STOCK_OFF_ = !!off;/, 'kept short: its photos noted with the request');
+    assert.match(code, /VER_CTX_ = 'flow'; FLOW_RUN_ID_ = r0\.id; FLOW_PHOTOS_ = f\.photos && typeof f\.photos === 'object' \? f\.photos : null;\n\s+APPROVER_ = f\.approvedBy \|\| ''; FLOW_SENDER_ = ru\.email;/, '…and used when it is saved (the server forgets a photo after 6 hours)');
+    assert.match(code, /try \{ shortTick_\(\); \} catch \(e\)/, 'the heartbeat tries the short entries');
+    assert.match(code, /if \(groups\.indexOf\('stock'\) > -1 \|\| groups\.indexOf\('flow'\) > -1\) \{ try \{ CacheService\.getScriptCache\(\)\.put\('SHORT_DUE', '1', 21600\);/, 'at once after a change of the stock or of the requests');
+  } finally {
+    vm.runInContext(`SbBook_.prototype.flush = __k211.flush; SbBook_.prototype.loadMany = __k211.loadMany; SbSheet_.prototype.load_ = __k211.load_; sbDiscard_ = __k211.discard; rtcPush_ = __k211.push;
+      CacheService.getScriptCache().remove("USERS_LIST"); kvWrite_("FLOW_RULES", "{}"); TABLE_MEMO_ = {}; USER_DATE_RULE_ON_ = false; REQ_DAY_ = "";
+      PropertiesService.getScriptProperties().deleteProperty("DIESEL_PLACES"); PropertiesService.getScriptProperties().deleteProperty("DIESEL_SOURCES"); DSRC_U_ = null;`, ctx);
+  }
 });
