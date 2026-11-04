@@ -8749,6 +8749,7 @@ test('update-211: stock net of what waits (verification, stock short) everywhere
     assert.ok(inw(60, 'B211-2').ok, 'an inward');      // books: 80
     assert.strictEqual(run('() => CacheService.getScriptCache().get("SHORT_DUE")'), '1', 'the stock changed: tried at the next heartbeat');
     run('() => { __sent.length = 0; }');
+    run('() => { SHORT_LOOK_ = 0; }');      // (this server looks at most every 5 seconds)
     api('c211@rcl.test', 'sync', {});      // anybody's heartbeat
     assert.deepStrictEqual([flow(S1).status, flow(S2).status], ['Saved', 'Short'], 'the oldest went in (80 − 50); the second waits (30 left, needs 50)');
     assert.match(flow(S1).result, /^Saved: DI-\d{6} \(the stock came\)$/); assert.ok(flow(S1).history.includes('Saved – the stock came'));
@@ -8777,6 +8778,7 @@ test('update-211: stock net of what waits (verification, stock short) everywhere
     assert.ok(r.status === 'Short' && /^Waiting for the stock: Not enough diesel/.test(r.result), JSON.stringify(r).slice(0, 300));
     assert.deepStrictEqual(flow(P3).history, ['Sent', 'Approved', 'Stock short – waits for the stock']);
     assert.ok(inw(100, 'B211-3').ok);
+    run('() => { SHORT_LOOK_ = 0; }');      // (this server looks at most every 5 seconds)
     api('m211@rcl.test', 'sync', {});
     assert.deepStrictEqual([flow(P3).status, /^Saved: DI-/.test(flow(P3).result)], ['Approved', true], 'approved, saved when the stock came ' + JSON.stringify(flow(P3)));
     run('() => { kvWrite_("FLOW_RULES", "{}"); memoDrop_("__flowRules"); }');
@@ -8821,6 +8823,7 @@ test('update-211: stock net of what waits (verification, stock short) everywhere
     assert.match(code, /const dry = off => \{[^\n]*\n\s+res = null; held = \{\};\n\s+FLOW_DRY_ON_ = true; FLOW_PHOTOS_ = held; STOCK_OFF_ = !!off;/, 'kept short: its photos noted with the request');
     assert.match(code, /VER_CTX_ = 'flow'; FLOW_RUN_ID_ = r0\.id; FLOW_PHOTOS_ = f\.photos && typeof f\.photos === 'object' \? f\.photos : null;\n\s+APPROVER_ = f\.approvedBy \|\| ''; FLOW_SENDER_ = ru\.email;/, '…and used when it is saved (the server forgets a photo after 6 hours)');
     assert.match(code, /try \{ shortTick_\(\); \} catch \(e\)/, 'the heartbeat tries the short entries');
+    assert.match(code, /if \(Date\.now\(\) - SHORT_LOOK_ < 5000\) return;/, 'one read of the shared cache in 5 seconds per server');
     assert.match(code, /if \(groups\.indexOf\('stock'\) > -1 \|\| groups\.indexOf\('flow'\) > -1\) \{ try \{ CacheService\.getScriptCache\(\)\.put\('SHORT_DUE', '1', 21600\);/, 'at once after a change of the stock or of the requests');
   } finally {
     vm.runInContext(`SbBook_.prototype.flush = __k211.flush; SbBook_.prototype.loadMany = __k211.loadMany; SbSheet_.prototype.load_ = __k211.load_; sbDiscard_ = __k211.discard; rtcPush_ = __k211.push;

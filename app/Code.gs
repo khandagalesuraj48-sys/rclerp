@@ -13805,9 +13805,12 @@ function shortNeed_(r) {
   return Object.keys(b).map(l => { const older = (flowWaitBy_()[l] || []).filter(x => x.id !== r.id && x.n && x.n < n).reduce((s, x) => s + x.q, 0), free = r2_((Number(books[l]) || 0) - older), q = Number(b[l]) || 0;
     return { loc: l, q: q, free: free, more: r2_(Math.max(0, q - Math.max(0, free))) }; });
 }
+let SHORT_LOOK_ = 0;      // this server looks at most every 5 seconds (one read of the shared cache – the heartbeats come every second)
 function shortTick_() {
-  const c = CacheService.getScriptCache();
-  if (!c.get('SHORT_DUE') && c.get('SHORT_TRY')) return;
+  if (Date.now() - SHORT_LOOK_ < 5000) return;
+  SHORT_LOOK_ = Date.now();
+  const c = CacheService.getScriptCache(), g = c.getAll(['SHORT_DUE', 'SHORT_TRY']) || {};
+  if (!g.SHORT_DUE && g.SHORT_TRY) return;
   c.remove('SHORT_DUE'); c.put('SHORT_TRY', '1', 600);
   shortRetry_();
 }
