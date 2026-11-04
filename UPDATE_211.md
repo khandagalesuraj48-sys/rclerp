@@ -41,7 +41,8 @@ With rcl-mobile **3.85.0** (the phone's part).
 `balNet_`, `getStock_`, `getIssueBalance_` (the books' own: `issueBalance_`), `getStockPoints_`, `getTransferBalance_`, `getDashboard_`,
 `requireStockAt_` and `transferMessage_` (what waits, never worse), `saveTransferBulk_`, `assertNoNegative_` (off only while a short entry is
 checked), `flowSend_` (Short), `flowDecide_` (Short at the last approval), `shortRun_` / `shortRetry_` / `shortTick_` / `shortNeed_`,
-`flowAnswer_` (take back a Short), `crList_` (short, need, canTakeBack), `bump_` (SHORT_DUE), `stamp_` / `offlineDay_` / `flowDay_`, `flowFacts_`.
+`flowAnswer_` (take back a Short), `crList_` (short, need, canTakeBack), `bump_` (SHORT_DUE), `stamp_` / `offlineDay_` / `flowDay_`, `flowFacts_`,
+`sdelList_` / Delete entries (Saved = in, as Approved; Short = "Waiting for stock"), `placesUsed_` (a place used by a short entry stays).
 `app/App.html` – `call()` asks "keep as stock short?" (`SHORT_FNS`, `askShort`), no stop on the page before the server, `FLOW_SENT_RE`,
 `heldWords` / `heldHtml` (pills, the issue line, the transfer boxes, Multiple entries, the tanks), the stock follows a "flow" change,
 Approvals (Stock short / Saved, what it needs, Take back, the count), "My entries in verification", the help (`FIX_RULES`, 3 languages).
