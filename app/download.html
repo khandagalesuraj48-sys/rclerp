@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="mr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RCL ERP – App</title>
+<meta name="description" content="RCL ERP app for Android – download the latest version, install it and sign in.">
+<meta property="og:title" content="RCL ERP – App (Android)">
+<meta property="og:description" content="नवीन version download करा, install करा आणि sign in करा. Download the latest version, install it and sign in.">
+<meta property="og:image" content="https://oneclicksolution-erp.vercel.app/icons/rcl-app-512.png">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#1E5A40">
+<link rel="icon" type="image/png" href="/icons/rcl-app-192.png">
+<!-- (update-210, asked 04-11-2026: "app madhech share application asa option de user jewa he dabel to other la whats app aso ki link madhe
+     to share ku shakel dusryala latest version app che … nantr dusra login krel") THE APP'S OWN PAGE – <main address>/app: what the app's
+     "Share app" (≡ menu) sends. It always offers the LATEST version (the newest stable GitHub Release of rcl-mobile – the same file the app
+     updates itself from), the three steps (download, install, sign in) in मराठी / English / हिंदी. Nothing is signed in here; signing in
+     is in the app, with the email and password the Admin gave. iPhone: not yet (the web in the browser). -->
+<style>
+  :root { --bg: #F6F4EC; --card: #FFFFFF; --ink: #18221C; --muted: #5A675F; --line: #E6E0D2; --green: #277E55; --green-d: #1E5A40; --gold: #D99E39; --gold-l: #ECBF62; --warn: #FDEFD5; --warn-ink: #8A5A00; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Devanagari", "Nirmala UI", sans-serif; }
+  .top { background: linear-gradient(160deg, #26744F, #184833); color: #fff; padding: calc(28px + env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 64px max(18px, env(safe-area-inset-left)); }
+  .wrap { max-width: 520px; margin: 0 auto; }
+  .brand { display: flex; gap: 14px; align-items: center; }
+  .brand img { width: 64px; height: 64px; border-radius: 18px; background: #fff; box-shadow: 0 8px 20px rgba(0, 0, 0, .25); flex: none; }
+  .brand h1 { margin: 0; font-size: 26px; line-height: 1.15; letter-spacing: -.01em; }
+  .brand p { margin: 2px 0 0; font-size: 14px; opacity: .85; }
+  .langs { display: flex; gap: 6px; margin-top: 18px; }
+  .langs button { font-weight: 600; font-size: 14px; font-family: inherit; color: #fff; background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .25); border-radius: 999px; padding: 5px 14px; cursor: pointer; }
+  .langs button[aria-pressed="true"] { background: #fff; color: var(--green-d); border-color: #fff; }
+  main { padding: 0 max(16px, env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); margin-top: -44px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 20px; box-shadow: 0 14px 30px -18px rgba(24, 72, 51, .45); }
+  .ver { font-size: 14px; color: var(--muted); margin: 0 0 12px; min-height: 21px; }
+  .ver b { color: var(--ink); }
+  .dl { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 56px; border-radius: 16px; border: 0; text-decoration: none; font-weight: 800; font-size: 18px; color: #fff;
+    background: linear-gradient(135deg, var(--gold-l), var(--gold)); box-shadow: 0 8px 18px -6px rgba(217, 158, 57, .7); }
+  .dl svg { width: 24px; height: 24px; }
+  .dl[aria-disabled="true"] { opacity: .6; pointer-events: none; }
+  .small { display: block; text-align: center; margin-top: 10px; font-size: 14px; color: var(--green-d); }
+  .steps { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 14px; }
+  .steps li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
+  .steps .n { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; color: var(--green-d); background: #DCF2E4; }
+  .steps b { display: block; }
+  .steps span { color: var(--muted); font-size: 14.5px; }
+  .note { margin-top: 16px; padding: 12px 14px; border-radius: 14px; background: var(--warn); color: var(--warn-ink); font-size: 14.5px; }
+  .note[hidden] { display: none; }
+  .foot { text-align: center; color: var(--muted); font-size: 13px; margin-top: 18px; }
+  .foot a { color: var(--green-d); }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <img src="/icons/rcl-app-192.png" alt="" width="64" height="64">
+      <div><h1>RCL ERP</h1><p>Rachana Construction Limited · Fleet &amp; Diesel</p></div>
+    </div>
+    <div class="langs" role="group" aria-label="Language">
+      <button type="button" data-l="mr" aria-pressed="true">मराठी</button>
+      <button type="button" data-l="en" aria-pressed="false">English</button>
+      <button type="button" data-l="hi" aria-pressed="false">हिंदी</button>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="wrap">
+    <div class="card">
+      <p class="ver" id="ver" aria-live="polite"></p>
+      <a class="dl" id="dl" href="https://github.com/khandagalesuraj48-sys/rcl-mobile/releases/latest" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+        <span data-t="dl"></span>
+      </a>
+      <a class="small" id="dl_small" href="#" hidden></a>
+      <ol class="steps">
+        <li><i class="n">1</i><div><b data-t="s1"></b><span data-t="s1d"></span></div></li>
+        <li><i class="n">2</i><div><b data-t="s2"></b><span data-t="s2d"></span></div></li>
+        <li><i class="n">3</i><div><b data-t="s3"></b><span data-t="s3d"></span></div></li>
+      </ol>
+      <p class="note" id="ios" hidden></p>
+    </div>
+    <p class="foot"><span data-t="later"></span><br><a href="/" data-t="web"></a></p>
+  </div>
+</main>
+<script>
+(function () {
+  'use strict';
+  var REPO = 'khandagalesuraj48-sys/rcl-mobile', FILES = 'https://github.com/' + REPO + '/releases/download/';
+  var W = {
+    dl: { mr: 'App download करा (Android)', en: 'Download the app (Android)', hi: 'App download करें (Android)' },
+    ver: { mr: 'नवीन version', en: 'Latest version', hi: 'नया version' },
+    small: { mr: 'लहान file – बहुतेक नवीन phones साठी', en: 'Smaller file – for most new phones', hi: 'छोटी file – ज़्यादातर नए phones के लिए' },
+    s1: { mr: 'Download करा', en: 'Download', hi: 'Download करें' },
+    s1d: { mr: 'वरचे बटण दाबा आणि file पूर्ण download होऊ द्या.', en: 'Press the button above and let the file download completely.', hi: 'ऊपर का बटन दबाएँ और file पूरी download होने दें.' },
+    s2: { mr: 'Install करा', en: 'Install', hi: 'Install करें' },
+    s2d: { mr: 'Download झालेली file उघडा → Install. Phone ने "या source मधून install करायला परवानगी" विचारली तर Settings मध्ये Allow करा.', en: 'Open the downloaded file → Install. If the phone asks to allow installing from this source, allow it in Settings.', hi: 'Download हुई file खोलें → Install. Phone "इस source से install करने की अनुमति" माँगे तो Settings में Allow करें.' },
+    s3: { mr: 'Sign in करा', en: 'Sign in', hi: 'Sign in करें' },
+    s3d: { mr: 'RCL ERP उघडा आणि Admin ने दिलेला email व password टाका.', en: 'Open RCL ERP and enter the email and password the Admin gave you.', hi: 'RCL ERP खोलें और Admin का दिया email और password डालें.' },
+    later: { mr: 'पुढचे updates app मध्येच येतात.', en: 'Later updates come inside the app.', hi: 'आगे के updates app में ही आते हैं.' },
+    web: { mr: 'Computer वर: web उघडा', en: 'On a computer: open the web', hi: 'Computer पर: web खोलें' },
+    ios: { mr: 'iPhone साठी app अजून उपलब्ध नाही – Safari मध्ये oneclicksolution-erp.vercel.app उघडा आणि तिथे sign in करा.', en: 'The app is not yet available for iPhone – open oneclicksolution-erp.vercel.app in Safari and sign in there.', hi: 'iPhone के लिए app अभी उपलब्ध नहीं – Safari में oneclicksolution-erp.vercel.app खोलें और वहाँ sign in करें.' },
+    wait: { mr: 'नवीन version पाहत आहे…', en: 'Looking for the latest version…', hi: 'नया version देख रहे हैं…' },
+    none: { mr: 'Version दिसले नाही – बटण दाबा, GitHub वर नवीन file निवडा.', en: 'The version could not be read – press the button and pick the newest file on GitHub.', hi: 'Version नहीं दिखा – बटन दबाएँ, GitHub पर नई file चुनें.' }
+  };
+  var L = 'mr', R = null;
+  try { var q = /[?&]l=(mr|en|hi)/.exec(location.search); if (q) L = q[1]; } catch (e) { /* Marathi */ }
+  var $ = function (id) { return document.getElementById(id); };
+  var mb = function (n) { return Math.round(n / 1048576) + ' MB'; };
+  var ios = /iPhone|iPad|iPod/.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  /* the newest stable release's files – only ours: the file for every phone (rcl-erp-<v>-<b>.apk) and the 64-bit one */
+  function pick(rel) {
+    var a = (rel && rel.assets) || [], ok = function (x) { return x && typeof x.browser_download_url === 'string' && x.browser_download_url.indexOf(FILES) === 0; };
+    var all = a.filter(function (x) { return ok(x) && /^rcl-erp-[0-9.]+-[0-9]+\.apk$/.test(x.name); })[0] || null;
+    var a64 = a.filter(function (x) { return ok(x) && /^rcl-erp-[0-9.]+-[0-9]+\.arm64-v8a\.apk$/.test(x.name); })[0] || null;
+    var m = /^v?([0-9]+(?:\.[0-9]+){1,3})-([0-9]+)$/.exec(String((rel && rel.tag_name) || ''));
+    return all ? { version: m ? m[1] : '', build: m ? m[2] : '', all: all, a64: a64 } : null;
+  }
+  function paint() {
+    document.documentElement.lang = L;
+    document.querySelectorAll('[data-t]').forEach(function (el) { el.textContent = W[el.dataset.t][L]; });
+    document.querySelectorAll('[data-l]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.l === L)); });
+    var v = $('ver');
+    if (R === null) v.textContent = W.wait[L];
+    else if (!R) v.textContent = W.none[L];
+    else { v.innerHTML = ''; v.appendChild(document.createTextNode(W.ver[L] + ' ')); var b = document.createElement('b'); b.textContent = R.version; v.appendChild(b); v.appendChild(document.createTextNode(' · ' + mb(R.all.size))); }
+    if (R && R.a64) { $('dl_small').hidden = false; $('dl_small').textContent = W.small[L] + ' (' + mb(R.a64.size) + ')'; } else $('dl_small').hidden = true;
+    $('ios').hidden = !ios; $('ios').textContent = W.ios[L];
+  }
+  document.querySelectorAll('[data-l]').forEach(function (b) { b.addEventListener('click', function () { L = b.dataset.l; paint(); }); });
+  window.rclAppPick = pick;      // (for the tests)
+  paint();
+  fetch('https://api.github.com/repos/' + REPO + '/releases/latest', { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) { R = pick(j) || false; if (R) { $('dl').href = R.all.browser_download_url; if (R.a64) $('dl_small').href = R.a64.browser_download_url; } paint(); })
+    .catch(function () { R = false; paint(); });
+})();
+</script>
+</body>
+</html>

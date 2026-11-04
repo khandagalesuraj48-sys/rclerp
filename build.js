@@ -30,5 +30,7 @@ fs.writeFileSync(path.join(out, 'menu.json'), JSON.stringify(menu()));
 // app's name and the PUBLIC fingerprint of its signing key – not a secret) – /.well-known/assetlinks.json
 fs.mkdirSync(path.join(out, '.well-known'), { recursive: true });
 fs.copyFileSync(path.join(__dirname, 'app', 'well-known', 'assetlinks.json'), path.join(out, '.well-known', 'assetlinks.json'));
+// (update-210) the app's own page – <main address>/app: the latest version of the phone app to download (what "Share app" sends)
+fs.copyFileSync(path.join(__dirname, 'app', 'download.html'), path.join(out, 'app.html'));
 fs.writeFileSync(path.join(out, 'sw.js'), fs.readFileSync(path.join(__dirname, 'app', 'sw.js'), 'utf8').replace('/*BUILD*/', build));
 console.log('Built public/index.html – app version ' + build);

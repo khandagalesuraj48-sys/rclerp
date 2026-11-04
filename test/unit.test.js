@@ -2550,9 +2550,9 @@ test('update-99: one address – the Store and the Portal under this address, th
   // (update-127 adds Engineering after these, update-194 Purchase – each checked in its own test)
   // (update-138) the staging copy's own rules come first and match ONLY the staging address; the live rules are as before
   // (update-160) /scan – the page itself (a Scan with Mobile QR code); checked in its own test
-  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/(engineering|purchase)/.test(r.source) && r.source !== '/scan' && r.source !== '/ho/'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
+  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/(engineering|purchase)/.test(r.source) && r.source !== '/scan' && r.source !== '/ho/' && r.source !== '/app'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
     { source: '/store/:path*', destination: 'https://rcl-store.vercel.app/:path*' }, { source: '/portal/:path*', destination: 'https://rcl-portal-flame.vercel.app/:path*' }]);
-  assert.deepStrictEqual(v.redirects.filter(r => !/^\/(engineering|purchase|ho$)/.test(r.source)).map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
+  assert.deepStrictEqual(v.redirects.filter(r => !/^\/(engineering|purchase|ho$|app\/$)/.test(r.source)).map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
   assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
   // the menu: every page of Machinery, read from the page itself; every key a real page of the app
   const { menu } = require('../server/page.js'), m = menu(), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
@@ -8648,4 +8648,29 @@ test('update-209: two motions of the web – the menu behind the page on a phone
     el.textContent = ''; const tx = w.document.createElement('span'); tx.textContent = 'Saved.'; el.appendChild(tx); el.appendChild(mk());
     assert.strictEqual(el.textContent, 'Saved.'); assert.strictEqual(el.querySelectorAll('.goo i').length, 4);
   }
+});
+
+test('update-210: the app\'s own page <main address>/app – always the latest stable version (the newest GitHub Release of rcl-mobile), its 3 steps in 3 languages; only our files offered', () => {
+  const vm = require('vm');
+  const page = fs.readFileSync(path.join(root, 'app', 'download.html'), 'utf8'), vj = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  assert.ok(vj.rewrites.some(r => r.source === '/app' && r.destination === '/app.html') && vj.redirects.some(r => r.source === '/app/' && r.destination === '/app'));
+  assert.ok(vj.headers.some(h => h.source === '/app' && h.headers.some(x => x.key === 'Cache-Control' && x.value === 'no-cache')));
+  assert.match(fs.readFileSync(path.join(root, 'build.js'), 'utf8'), /fs\.copyFileSync\(path\.join\(__dirname, 'app', 'download\.html'\), path\.join\(out, 'app\.html'\)\);/);
+  assert.match(fs.readFileSync(path.join(root, 'dev.js'), 'utf8'), /=== '\/app'\) \{ res\.setHeader\('Content-Type', 'text\/html; charset=utf-8'\);/);
+  assert.match(page, /<meta property="og:title" content="RCL ERP – App \(Android\)">/, 'a WhatsApp link shows its name');
+  assert.match(page, /fetch\('https:\/\/api\.github\.com\/repos\/' \+ REPO \+ '\/releases\/latest'/, 'the newest STABLE release (a beta one is a pre-release – not "latest")');
+  // the words: every key in all three languages
+  const W = vm.runInNewContext('(' + /var W = (\{[\s\S]*?\n  \});/.exec(page)[1] + ')');
+  Object.keys(W).forEach(k => ['mr', 'en', 'hi'].forEach(l => assert.ok(W[k][l] && W[k][l].length > 1, k + ' ' + l)));
+  page.match(/data-t="(\w+)"/g).forEach(x => assert.ok(W[x.slice(8, -1)], x));
+  // the pick, run: the file for every phone and the 64-bit one – only from our releases
+  const pick = vm.runInNewContext('(function () { var REPO = "khandagalesuraj48-sys/rcl-mobile", FILES = "https://github.com/" + REPO + "/releases/download/"; ' + /  function pick\(rel\) \{[\s\S]*?\n  \}/.exec(page)[0] + ' return pick; })()');
+  const F = 'https://github.com/khandagalesuraj48-sys/rcl-mobile/releases/download/v3.83.0-174/';
+  const rel = { tag_name: 'v3.83.0-174', assets: [{ name: 'rcl-erp-3.83.0-174.arm64-v8a.apk', size: 63343390, browser_download_url: F + 'rcl-erp-3.83.0-174.arm64-v8a.apk' }, { name: 'rcl-erp-3.83.0-174.apk', size: 105220213, browser_download_url: F + 'rcl-erp-3.83.0-174.apk' }, { name: 'rcl-erp-3.83.0-174.armeabi-v7a.apk', size: 50185620, browser_download_url: F + 'rcl-erp-3.83.0-174.armeabi-v7a.apk' }] };
+  const r = pick(rel);
+  assert.deepStrictEqual([r.version, r.build, r.all.name, r.a64.name], ['3.83.0', '174', 'rcl-erp-3.83.0-174.apk', 'rcl-erp-3.83.0-174.arm64-v8a.apk']);
+  assert.strictEqual(pick({ tag_name: 'v1-1', assets: [{ name: 'rcl-erp-1.0.0-1.apk', size: 1, browser_download_url: 'https://evil.example/rcl-erp-1.0.0-1.apk' }] }), null, 'a file from anywhere else is never offered');
+  assert.strictEqual(pick(null), null);
+  assert.match(page, /R = pick\(j\) \|\| false;/, 'no release / an odd one: "the version could not be read" – the button opens the releases page');
+  assert.match(page, /<a class="dl" id="dl" href="https:\/\/github\.com\/khandagalesuraj48-sys\/rcl-mobile\/releases\/latest"/);
 });

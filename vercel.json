@@ -48,6 +48,11 @@
       "source": "/ho",
       "destination": "/ho/",
       "permanent": false
+    },
+    {
+      "source": "/app/",
+      "destination": "/app",
+      "permanent": false
     }
   ],
   "rewrites": [
@@ -158,6 +163,10 @@
     {
       "source": "/ho/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/app",
+      "destination": "/app.html"
     },
     {
       "source": "/store/",
@@ -313,6 +322,15 @@
     },
     {
       "source": "/ho/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/app",
       "headers": [
         {
           "key": "Cache-Control",
