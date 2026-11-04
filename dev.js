@@ -18,6 +18,8 @@ http.createServer((req, res) => {
   if (req.url.split('?')[0] === '/api/drive') return require('./api/drive')(req, res);      // (update-158) Google's answer after "Allow"
   if (req.url.split('?')[0] === '/menu.json') { res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.setHeader('Cache-Control', 'no-cache'); return res.end(JSON.stringify(require('./server/page').menu())); }
   if (req.url.split('?')[0] === '/.well-known/assetlinks.json') { res.setHeader('Content-Type', 'application/json'); return res.end(require('fs').readFileSync(require('path').join(__dirname, 'app', 'well-known', 'assetlinks.json'))); }      // (update-160)
+  // (update-210) the app's own page (vercel.json: /app → /app.html)
+  if (req.url.split('?')[0] === '/app') { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.setHeader('Cache-Control', 'no-cache'); return res.end(fs.readFileSync(path.join(__dirname, 'app', 'download.html'))); }
   // (update-208) Head Office at its own address, as vercel.json: /ho → /ho/, which is the same page
   if (req.url.split('?')[0] === '/ho') { res.statusCode = 302; res.setHeader('Location', '/ho/' + (req.url.indexOf('?') > -1 ? req.url.slice(req.url.indexOf('?')) : '')); return res.end(); }
   if (req.url.split('?')[0] === '/' || req.url.split('?')[0] === '/index.html' || req.url.split('?')[0] === '/scan' || req.url.split('?')[0] === '/ho/') {      /* (update-160) /scan: a Scan with Mobile QR opened in a browser */ res.setHeader('Content-Type', 'text/html; charset=utf-8'); return res.end(shell()); }
