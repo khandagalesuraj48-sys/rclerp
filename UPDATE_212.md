@@ -44,6 +44,12 @@ HO's photos and their list are in HO's own database and file store – another s
      setting into the save's one database transaction (`web_write`, app_settings like any table): written only if the rename is written.
      A line left under the new number (a machinery no longer in Asset Master) is taken off it, never given to this car.
    * A list of photos that cannot be read stops a change (never taken as "no photos" and written back); showing them, it only hides them.
+   * (an independent review, 08-11-2026) the car is looked up again **inside** the save (a number changed by someone else meanwhile is never
+     written under its old number); the two files and their links are made **before** the save (the site's other saves never wait for a
+     file on its way); each link says how long it has left (a computer / phone whose clock is wrong still renews in time); after a picture
+     that did not open the page / phone ask for **fresh** links (never the kept one); every open page / phone is told (it reads the
+     Dashboard again); **a machinery deleted from Asset Master takes its photo's line with it** in the same save (its files stay) – a
+     machinery added later with that number never shows the old photo.
 4. **The Portal (Super Admin)** – Sites → a site's row → **Vehicle photos**: every machinery of its Asset Master by number with its photo,
    search, Upload / Change / Remove, the same making-smaller and preview. The Portal signs a ticket naming the two files' **SHA-256**; the
    files go **beside** the ticket (`server/system.js`); Mechanical keeps them only if they are exactly those files (`carPhotoSet_` with
@@ -82,6 +88,9 @@ HO's photos and their list are in HO's own database and file store – another s
   Vehicle photos (list, upload, preview, search) and the HO page showing the Portal's photo. No page error.
 * Also run: `places117api.js` 33 / 33, `portal94api.js` 17 / 17, rcl-portal `test/api.test.js` 130 / 130, rcl-portal unit 22 / 22.
 * `node --check` on `server/*.js`, `api/*.js`; the page's 7 script blocks parse; no secret in the change.
+
+* An independent review of the three repositories (security, the photo list's safety, the save's transaction, XSS, the app's Dart) found
+  nothing that blocks; its one "must fix" (the rename race) and its suggestions are done above and tested.
 
 ## Not verified
 * Not on the live HO site or its real Supabase Storage (the rig's stand-in of the store); not with HO's real cars and photos.
