@@ -2363,3 +2363,9 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Average: More / Bad), a fuel card below its "Alert below ₹" (lowAt, with the card). Shown on the Dashboard (⚠ Vehicle alerts) and on
   HO's cars; the morning message once a day after 08:00 to the site's Admins and the Super Admin (vehAlertDaily_ in the heartbeat,
   crNotify_). No SQL. With rcl-mobile 3.88.0. Tests: unit `update-213`; the rig in Chromium (`hod/web213.js`, 15 / 15).
+- 08-11-2026 (update-214, step B of "the HO features – HO and every site"). Report: `UPDATE_214.md`. THE DRIVER-WISE REPORT (rptDriver_,
+  Reports): each driver (one name in any case) – days, KM / Hrs / trips from the Log Book, fills and litres (a site on fuel cards: their
+  ₹), machinery by machinery his average against the standard (dieselVerdict_); "(no driver written)" last. MACHINERY COST SHEET:
+  Maintenance = the bills of the dates (amount – what RCL paid) + the RCL Store's outward (storeOutAll_: one read of store_issue, not a
+  debit issue) – maintCostAll_; at a site on fuel cards the fuel cost = the fills' ₹. No SQL. With rcl-mobile 3.89.0. Tests: unit
+  `update-214`; the rig in Chromium (`hod/web214.js`, 21 / 21).
