@@ -8925,7 +8925,7 @@ test('update-212: HO\'s cars – a gallery with their photos (private store, 15-
     const F1 = ctx.UrlFetchApp; ctx.UrlFetchApp = { fetch: (u, o) => /\/sign\//.test(u) ? resp(503, 'down') : F1.fetch(u, o) };
     run('() => { const c = CacheService.getScriptCache(); Object.keys(carPhotos_()).length; ["' + pathOf(jpg(1)) + '", "' + pathOf(jpg('1t')) + '"].forEach(p => c.remove("CARL_" + p)); }');
     const d2 = run('() => cardDash_({ from: "2026-07-01", to: "2026-07-31" })');
-    assert.deepStrictEqual(d2.cars.find(x => x.no === 'HO-A-212').photo, { t: '', f: '', exp: 0, v: shaOf(jpg('1t')).slice(-16), err: true });
+    assert.deepStrictEqual(d2.cars.find(x => x.no === 'HO-A-212').photo, { t: '', f: '', exp: 0, left: 0, v: shaOf(jpg('1t')).slice(-16), err: true });
     ctx.UrlFetchApp = F1;
     // ---- changed: new files; the earlier ones stay in the store (nothing is ever deleted); a screen opened before the change is refused
     assert.strictEqual(set(ADM, 'HO-A-212', jpg(2), jpg('2t'), { was: '' }).THROWN, 'The photo of HO-A-212 was changed by someone else after you opened it – open it again, nothing was saved.');
@@ -8971,7 +8971,7 @@ test('update-212: HO\'s cars – a gallery with their photos (private store, 15-
     assert.match(code, /if \(kf !== kt\) \{ const ph = carPhotos_\(!cardSite_\(\)\);[^\n]*\n\s+if \(ph\[kf\] \|\| ph\[kt\]\) \{ if \(ph\[kf\]\) \{ ph\[kt\] = ph\[kf\]; n\['car photo'\] = 1; \} else delete ph\[kt\]; delete ph\[kf\]; kvInSave_\(CAR_KV_, JSON\.stringify\(ph\)\); \} \}\n\s+TABLE_MEMO_ = \{\}; ITEM_NOS_ = null; ITEM_ON_ = \{\};/, 'in renameMachine_, before its end');
     // ---- the Portal: the Super Admin's signed request names the files; others are refused
     const portal = require('../server/portal.js');
-    assert.match(fs.readFileSync(path.join(root, 'app', 'Sites.gs'), 'utf8'), /if \(c\.act === 'carPhotos'\) return sysCarPhotos_\(\);\n\s+if \(c\.act === 'carPhotoSet' \|\| c\.act === 'carPhotoRemove'\) return sysCarPhoto_\(c\);/);
+    assert.match(fs.readFileSync(path.join(root, 'app', 'Sites.gs'), 'utf8'), /if \(c\.act === 'carPhotos'\) return sysCarPhotos_\(c\);\n\s+if \(c\.act === 'carPhotoSet' \|\| c\.act === 'carPhotoRemove'\) return sysCarPhoto_\(c\);/);
     const sysJs = fs.readFileSync(path.join(root, 'server', 'system.js'), 'utf8'), portalJs = fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8');
     assert.match(sysJs, /if \(c\.act === 'carPhotoSet'\) \{ const f = args\[1\] && typeof args\[1\] === 'object' \? args\[1\] : \{\}; c\.files = \{ full: String\(f\.full \|\| ''\)\.slice\(0, 3e6\), thumb: String\(f\.thumb \|\| ''\)\.slice\(0, 6e5\) \}; \}\n\s+const r = R\.runIn\(at, 'sysPortalAdmin', \[c\]\);/);
     assert.match(portalJs, /if \(!hex\(sh\.full\) \|\| !hex\(sh\.thumb\)\) throw bad\('no fingerprints of the photo'\);/);
@@ -8985,13 +8985,32 @@ test('update-212: HO\'s cars – a gallery with their photos (private store, 15-
     assert.deepStrictEqual(list.cars.map(x => [x.no, !!x.photo]), [['HO-A2-212', true], ['HO-B-212', true], ['HO-Z-212', false]]);
     assert.deepStrictEqual([list.cars[1].make, list.cars[1].name, list.cars[1].fuel], ['Maruti Suzuki', 'Dzire VXi', 'Petrol']);
     assert.ok(run('c => sysCarPhoto_(c)', { act: 'carPhotoRemove', by: 'sa@rcl.test', no: 'HO-B-212', was: sp.photo.v }).ok);
+    // ---- (the review, 08-11-2026) the car looked up again inside the save; the files sent before it (the site's saves never wait for a file);
+    // the links say how long they have left; "fresh" (a picture did not open) never gives a kept link; every open page told (master);
+    // a machinery deleted from Asset Master takes its photo's line with it (its files stay)
+    assert.match(code, /const out = withLock_\(\(\) => \{\n\s+const m = carOf_\(x\.no\);      \/\/ \(again, inside the save/);
+    assert.match(code, /const p = carPut_\(u, full\), t = carPut_\(u, thumb\), e0 = \{ p: p\.path, t: t\.path \};/);
+    assert.ok(code.indexOf('const p = carPut_(u, full)') < code.indexOf('const m = carOf_(x.no);      // (again, inside the save'), 'the files before the save');
+    const lk = run('() => carPhotoLinksOut_({ nos: ["HO-A2-212"] })').photos['HO-A2-212'];
+    assert.ok(lk.left > 5 * 60000 && lk.left <= 15 * 60000 && Math.abs(lk.exp - Date.now() - lk.left) < 5000, JSON.stringify(lk));
+    const nS = calls.filter(c => /\/sign\//.test(c.url)).length;
+    assert.strictEqual(run('() => carPhotoLinksOut_({ nos: ["HO-A2-212"] })').photos['HO-A2-212'].t, lk.t, 'kept'); assert.strictEqual(calls.filter(c => /\/sign\//.test(c.url)).length, nS);
+    assert.notStrictEqual(run('() => carPhotoLinksOut_({ nos: ["HO-A2-212"], fresh: true })').photos['HO-A2-212'].t, lk.t, 'fresh: a new link'); assert.strictEqual(calls.filter(c => /\/sign\//.test(c.url)).length, nS + 1);
+    const mv0 = run('() => getVersions_().master');
+    assert.ok(set(ADM, 'HO-B-212', jpg(5), jpg('5t')).ok);
+    assert.notStrictEqual(run('() => getVersions_().master'), mv0, 'every open page / phone reads the Dashboard again');
+    assert.ok(run('() => !!carPhotos_().HOB212'));
+    run('(id) => deleteMaster_(id, true)', 'HO-B-212');
+    assert.deepStrictEqual([run('() => !!carPhotos_().HOB212'), Object.keys(store).length >= 6], [false, true], 'deleted machinery: its line gone, its files kept');
+    run('(x, m) => saveMaster_(x, m)', car('HO-B-212', 'Petrol', { make: 'Maruti Suzuki', name: 'Dzire VXi' }), 'add');
+    assert.strictEqual(run('() => carPhotoLinksOut_({ nos: ["HO-B-212"] })').photos['HO-B-212'], undefined, 'a machinery added again with that number: no old photo');
     // ---- back to diesel stock (another site): refused again, HO's photos never shown there
     run('() => { PropertiesService.getScriptProperties().setProperty("FUEL_MODE", "stock"); }');
     assert.strictEqual(run('() => sysCarPhotos_()').THROWN, NOT);
     assert.strictEqual(run('(u) => carPhotoSet_(u, { no: "HO-B-212" })', ADM).THROWN, NOT);
     // ---- the page: the gallery / table, the search, the links renewed, the photo seen first; the help; the guide
     ['id="hg_q" type="search" placeholder="Search number, make or model"', 'id="hg_vgal" aria-pressed="true"', 'id="hg_vtbl" aria-pressed="false"', '<tbody id="hd_rows"></tbody>', 'id="hg_file" accept="image/jpeg,image/png,image/webp"',
-      "call('getCarPhotoLinks', { nos: nos })", "call('getCarDetail', { no: no, from: HG.from, to: HG.to })", "await call('carPhotoSet', { no: m.no, full: await hgData(m.full.blob), thumb: await hgData(m.thumb.blob), was: m.was })",
+      "call('getCarPhotoLinks', { nos: nos, fresh: !!force })", 'const hgLocal = p => { if (p && typeof p.left === \'number\') p.exp = Date.now() + p.left; return p; };', "call('getCarDetail', { no: no, from: HG.from, to: HG.to })", "await call('carPhotoSet', { no: m.no, full: await hgData(m.full.blob), thumb: await hgData(m.thumb.blob), was: m.was })",
       "call('carPhotoRemove', { no: no, was: hgSeen(no) })", 'x.photo.exp - now < 90000', "im.dataset.tried = '1'; hgFresh(true);", "Nothing is saved until you press Save photo."].forEach(k => assert.ok(app.indexOf(k) > -1, k));
     assert.match(app, /dash: \{ saves: \['saveTankSettings', 'carPhotoSet', 'carPhotoRemove'\],/);
     const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();

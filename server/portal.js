@@ -121,7 +121,7 @@ function verifyAdmin(ticket, now) {
   }
   // (update-212) Sites → Vehicle photos (a site on fuel cards – HO): the list; a car's photo set (the request names the two files by their
   // fingerprints – the files come beside the ticket and must be exactly those) or removed; `was` = the photo seen when the screen opened
-  if (c.act === 'carPhotos') return out;
+  if (c.act === 'carPhotos') return Object.assign(out, c.fresh === true ? { fresh: true } : {});      // (fresh: a picture did not open – new links)
   if (c.act === 'carPhotoSet' || c.act === 'carPhotoRemove') {
     const no = String(c.no || '').replace(/\s+/g, ' ').trim().slice(0, 60), was = c.was === undefined || c.was === null ? null : String(c.was).slice(0, 40);
     if (!no) throw bad('no machinery number');

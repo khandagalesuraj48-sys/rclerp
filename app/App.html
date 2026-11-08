@@ -19166,7 +19166,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('hd_cards').innerHTML = d.cards.map(cardTile).join('') || '<p class="muted">No fuel card yet – add them in Fuel Cards.</p>';
       const T = d.total || {}, fu = Object.keys(T.byFuel || {});
       $('hd_tot').innerHTML = 'In these dates: fuel <b>' + (fu.length ? fu.map(f => esc(f) + ' ' + fmt(T.byFuel[f]) + ' ' + fuelUnit(f)).join(' · ') : '0') + '</b> · <b>₹' + money(T.amount) + '</b> (by card ₹' + money(T.card) + ', cash ₹' + money(T.cash) + ') · ' + fmt(T.fills) + ' fills · ' + fmt(T.cars) + ' cars · ' + fmt(T.km) + ' km';
-      HG.cars = d.cars; HG.from = d.from; HG.to = d.to;      // (update-212) the gallery and the table: the same cars, the same search
+      HG.cars = d.cars; HG.cars.forEach(x => hgLocal(x.photo)); HG.from = d.from; HG.to = d.to;      // (update-212) the gallery and the table: the same cars, the same search
       hgShow();
       if (HG.open) hgOpen(HG.open, true);      // (the dates changed with a car open: its details for the new dates)
     } catch (e) { toast(errMsg(e), true); }
@@ -19184,6 +19184,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const hgU = u => String(u || 'Ltr').replace('Ltr', 'L');
   const hgCar = no => HG.cars.find(x => x.no === no) || (HG.d && HG.d.car.no === no ? HG.d.car : null);
   const hgPh = x => x && x.photo && x.photo.t && !x.photo.err ? x.photo : null;
+  // when a link ends – counted from this computer's own clock (the server says how long it has left: a clock that is wrong does not matter)
+  const hgLocal = p => { if (p && typeof p.left === 'number') p.exp = Date.now() + p.left; return p; };
   // a picture for a car without a photo: a car, a truck / tipper or a machine (by its type)
   function hgIcon(type) {
     const t = String(type || '');
@@ -19238,7 +19240,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const nos = HG.cars.filter(x => x.photo).map(x => x.no); if (HG.d && HG.d.car.photo && nos.indexOf(HG.d.car.no) < 0) nos.push(HG.d.car.no);
     if (!nos.length) return Promise.resolve();
     HG.freshAt = Date.now();
-    HG.fresh = call('getCarPhotoLinks', { nos: nos }).then(d => { const P = (d && d.photos) || {};
+    HG.fresh = call('getCarPhotoLinks', { nos: nos, fresh: !!force }).then(d => { const P = (d && d.photos) || {}; Object.keys(P).forEach(k => hgLocal(P[k]));      // (a picture did not open: new links, never the kept ones)
       const waited = HG.cars.some(x => x.photo && x.photo.err) || !!(HG.d && HG.d.car.photo && HG.d.car.photo.err);
       HG.cars.forEach(x => { if (P[x.no]) x.photo = P[x.no]; }); if (HG.d && P[HG.d.car.no]) HG.d.car.photo = P[HG.d.car.no];
       if (waited) { hgShow(); if (HG.d) hgDraw(); } else hgSwap(); }).catch(() => { /* tried again at the next check */ }).finally(() => { HG.fresh = null; });
@@ -19266,7 +19268,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try {
       const d = await call('getCarDetail', { no: no, from: HG.from, to: HG.to });
       if (HG.open !== no) return;
-      HG.d = d; hgDraw();
+      hgLocal(d.car.photo); HG.d = d; hgDraw();
     } catch (e) { if (HG.open !== no) return; const b = dr.querySelector('.hg-db'); if (b) b.innerHTML = '<h2 class="hg-dno">' + esc(no) + '</h2><p class="hg-note">' + esc(errMsg(e)) + '</p>'; }
   }
   function hgClose() {
@@ -19345,6 +19347,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('hg_pback').addEventListener('click', e => { if (e.target === $('hg_pback') && $('hg_pprog').hidden) hgPhotoClose(); });
   const hgData = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).replace(/^data:image\/jpe?g;base64,/, 'data:image/jpeg;base64,')); r.onerror = () => no(new Error('This photo cannot be read – pick it again.')); r.readAsDataURL(blob); });
   function hgPut(no, photo) {      // the car's photo as the server has it now: the gallery, the table and an open car
+    hgLocal(photo);
     HG.cars.forEach(x => { if (x.no === no) x.photo = photo; });
     if (HG.d && HG.d.car.no === no) { HG.d.car.photo = photo; hgDraw(); }
     hgShow();

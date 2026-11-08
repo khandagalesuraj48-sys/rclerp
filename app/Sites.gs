@@ -213,7 +213,7 @@ function sysPortalAdmin_(c) {
   if (c.act === 'drvStart') return drvStart_({ by: c.by });
   if (c.act === 'drvNow') return drvNow_();
   // (update-212) Sites → Vehicle photos – a site on fuel cards (HO): its cars with their photos; one set / changed / removed
-  if (c.act === 'carPhotos') return sysCarPhotos_();
+  if (c.act === 'carPhotos') return sysCarPhotos_(c);
   if (c.act === 'carPhotoSet' || c.act === 'carPhotoRemove') return sysCarPhoto_(c);
   if (c.act !== 'pages') throw new Error('Unknown action.');
   const email = str_(c.email).toLowerCase(), perms = {};

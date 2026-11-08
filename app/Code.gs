@@ -1994,6 +1994,7 @@ function deleteMasterMany_(ids, force, vers) {      // vers (update-156): { id: 
     if (used.length && !force) return { ok: false, used: used };
     const idsOut = found.map(x => rowId_(t.rows[x.i], t));
     found.map(x => x.i).sort((a, b) => b - a).forEach(i => t.sh.deleteRow(i + 2)); // bottom first
+    carPhotoDrop_(idsOut);      // (update-212)
     return { ok: true, count: idsOut.length, ids: idsOut, master: getMaster_() };
   });
 }
@@ -4698,6 +4699,7 @@ function deleteMaster_(id, force, ver) {
       }
     }
     t.sh.deleteRow(i + 2);
+    carPhotoDrop_([realId]);      // (update-212)
     return { ok: true, master: getMaster_() };
   });
 }
@@ -6692,24 +6694,26 @@ function carPhotos_(soft) {
 function carPhotoOf_(map, no) { const e = map[noKey_(no)]; return e && CAR_PATH_.test(str_(e.p)) && CAR_PATH_.test(str_(e.t)) ? e : null; }
 const carVer_ = e => e ? str_(e.t).slice(-20, -4) : '';      // a photo's own mark (its small file's fingerprint): the phone keeps its copy by it
 function carStoreReady_() { if (!sbDataOn_()) throw new Error('Car photos are kept in Supabase only – this copy of the app runs on the Google Sheet.'); }
-// the links of these files (path → { u, exp }): one call to the store for those not kept; a link is used for 10 of its 15 minutes
-function carLinks_(paths) {
+// the links of these files (path → { u, exp }): one call to the store for those not kept; a link is used for 10 of its 15 minutes.
+// `fresh` (a picture did not open with its link): new links, never the kept ones
+function carLinks_(paths, fresh) {
   const want = [...new Set(paths.filter(Boolean))]; if (!want.length) return {};
-  const cch = CacheService.getScriptCache(), now = Date.now(), keys = want.map(p => 'CARL_' + p), got = cch.getAll(keys) || {}, out = {}, miss = [];
+  const cch = CacheService.getScriptCache(), now = Date.now(), keys = want.map(p => 'CARL_' + p), got = fresh ? {} : cch.getAll(keys) || {}, out = {}, miss = [];
   want.forEach((p, i) => { let x = null; try { x = JSON.parse(got[keys[i]] || 'null'); } catch (e) { x = null; } if (x && x.u && x.exp - now > 5 * 60000) out[p] = x; else miss.push(p); });
   if (miss.length) { const urls = attLinks_(miss), exp = now + 900000;
     miss.forEach(p => { if (!urls[p]) return; out[p] = { u: urls[p], exp: exp }; cch.put('CARL_' + p, JSON.stringify(out[p]), 600); }); }
   return out;
 }
-// the photo of each car given: { number: { t, f, exp, v } } (no photo: not there; the store cannot make links now: { err: true } – asked again)
-function carPhotoLinks_(nos, map) {
+// the photo of each car given: { number: { t, f, exp, left, v } } (no photo: not there; the store cannot make links now: { err: true } – asked
+// again). left = the milliseconds the links still have: the page / the phone count from their own clock (a clock that is wrong does not matter)
+function carPhotoLinks_(nos, map, fresh) {
   map = map || carPhotos_(true);
   const es = {}; (nos || []).forEach(no => { const e = carPhotoOf_(map, no); if (e) es[str_(no)] = e; });
   const ks = Object.keys(es); if (!ks.length) return {};
-  let L = null; try { L = carLinks_([].concat(...ks.map(k => [es[k].t, es[k].p]))); } catch (e) { L = null; }
-  const out = {};
-  ks.forEach(k => { const e = es[k], t = L && L[e.t], f = L && L[e.p];
-    out[k] = t && f ? { t: t.u, f: f.u, exp: Math.min(t.exp, f.exp), v: carVer_(e) } : { t: '', f: '', exp: 0, v: carVer_(e), err: true }; });
+  let L = null; try { L = carLinks_([].concat(...ks.map(k => [es[k].t, es[k].p])), fresh); } catch (e) { L = null; }
+  const out = {}, now = Date.now();
+  ks.forEach(k => { const e = es[k], t = L && L[e.t], f = L && L[e.p], exp = t && f ? Math.min(t.exp, f.exp) : 0;
+    out[k] = t && f ? { t: t.u, f: f.u, exp: exp, left: Math.max(0, exp - now), v: carVer_(e) } : { t: '', f: '', exp: 0, left: 0, v: carVer_(e), err: true }; });
   return out;
 }
 // (getCarPhotoLinks) new links – of the cars asked for, or of every car with a photo
@@ -6717,7 +6721,7 @@ function carPhotoLinksOut_(x) {
   cardSiteOnly_();
   const map = carPhotos_(true), asked = x && Array.isArray(x.nos) ? x.nos.slice(0, 500).map(str_).filter(Boolean) : null;
   const nos = asked || getMaster_().map(m => m.id).filter(no => carPhotoOf_(map, no));
-  return { photos: carPhotoLinks_(nos, map) };
+  return { photos: carPhotoLinks_(nos, map, !!(x && x.fresh)) };
 }
 // a photo as sent (data:image/jpeg;base64,…): its bytes – a real JPEG, not bigger than `max`
 function carJpeg_(d, max, what) {
@@ -6751,7 +6755,7 @@ function carPhotoSet_(u, x) {
   cardSiteOnly_();
   if (!u || !u.admin) throw new Error(CAR_NOT_ADMIN_);
   carStoreReady_();
-  const m = carOf_(x.no);
+  carOf_(x.no);      // (the car must be in Asset Master before its files are kept)
   const full = carJpeg_(x.full, CAR_FULL_MAX_, 'photo'), thumb = carJpeg_(x.thumb, CAR_THUMB_MAX_, 'small photo');
   if (x.sha && typeof x.sha === 'object') {      // (the Portal) the files are the ones its signed request names
     const sh = b => hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, b));
@@ -6759,24 +6763,35 @@ function carPhotoSet_(u, x) {
   }
   const me = str_(u.email).toLowerCase(), nNow = typeof __count === 'function' ? __count('CARN_' + today_() + '_' + me, 90000) : -1;
   if (nNow > CAR_DAY_N_) throw new Error('Too many car photos were set today by you (at most ' + CAR_DAY_N_ + ' a day) – set the rest tomorrow. If you did not set them, tell the Admin at once.');
+  // the two files and their links BEFORE the save: the site's saves wait only for the list, never for a file on its way (a file is kept by
+  // its fingerprint – never overwritten; one kept for a photo that is then refused stays unused, nothing points to it)
+  const p = carPut_(u, full), t = carPut_(u, thumb), e0 = { p: p.path, t: t.path };
+  let L = null; try { L = carLinks_([t.path, p.path]); } catch (e) { L = null; }
+  const lt = L && L[t.path], lf = L && L[p.path], exp = lt && lf ? Math.min(lt.exp, lf.exp) : 0;
+  const photo = lt && lf ? { t: lt.u, f: lf.u, exp: exp, left: Math.max(0, exp - Date.now()), v: carVer_(e0) } : { t: '', f: '', exp: 0, left: 0, v: carVer_(e0), err: true };
   // (the answer is made inside the save: a copy of the same request sent again after a lost connection gets this same answer)
-  return withLock_(() => {
+  const out = withLock_(() => {
+    const m = carOf_(x.no);      // (again, inside the save: a number changed meanwhile is not written under its old number)
     const map = carPhotos_(), had = carPhotoOf_(map, m.id);
     if (x.was !== undefined && x.was !== null && str_(x.was) !== carVer_(had)) throw new Error('The photo of ' + m.id + ' was changed by someone else after you opened it – open it again, nothing was saved.');
-    const p = carPut_(u, full), t = carPut_(u, thumb);
     map[noKey_(m.id)] = { p: p.path, t: t.path, at: new Date().toISOString(), by: str_(u.name || u.email).slice(0, 60) };
     kvInSave_(CAR_KV_, JSON.stringify(map));
     writeLog_(u, 'Edit', 'Master', m.id, (had ? 'Car photo changed: ' : 'Car photo added: ') + m.id, had ? 'Before: ' + had.p : '');
-    return { ok: true, no: m.id, photo: carPhotoLinks_([m.id], map)[m.id] || null };
+    return { ok: true, no: m.id, photo: photo };
   });
+  carTell_();
+  return out;
 }
+// every open page / phone: the cars' photos changed (they read the Dashboard again – as after a change of Asset Master)
+function carTell_() { try { bump_(['master']); } catch (e) { /* the change is saved; the others see it at their next opening */ } }
 // a car's photo removed: { no, was } – only the car's line goes; its files stay in the store (nothing is deleted there)
 function carPhotoRemove_(u, x) {
   x = x || {};
   cardSiteOnly_();
   if (!u || !u.admin) throw new Error(CAR_NOT_ADMIN_);
-  const m = carOf_(x.no);
-  return withLock_(() => {
+  carOf_(x.no);
+  const out = withLock_(() => {
+    const m = carOf_(x.no);      // (inside the save: the number as it is now)
     const map = carPhotos_(), had = carPhotoOf_(map, m.id);
     if (x.was !== undefined && x.was !== null && str_(x.was) !== carVer_(had)) throw new Error('The photo of ' + m.id + ' was changed by someone else after you opened it – open it again, nothing was saved.');
     if (!had) throw new Error(m.id + ' has no photo to remove.');
@@ -6785,12 +6800,21 @@ function carPhotoRemove_(u, x) {
     writeLog_(u, 'Delete', 'Master', m.id, 'Car photo removed: ' + m.id + ' (its file stays in the store)', 'Before: ' + had.p);
     return { ok: true, no: m.id, photo: null };
   });
+  carTell_();
+  return out;
+}
+/* a machinery taken out of Asset Master: its photo's line goes with it IN THE SAME SAVE (its files stay in the store) – a machinery added
+ * later with that number never shows this one's photo. A site not on fuel cards has none (a list it cannot read: nothing done). */
+function carPhotoDrop_(ids) {
+  const ph = carPhotos_(!cardSite_()); let hit = false;
+  (ids || []).forEach(id => { const k = noKey_(id); if (k && ph[k]) { delete ph[k]; hit = true; } });
+  if (hit) kvInSave_(CAR_KV_, JSON.stringify(ph));
 }
 // (the Portal: Sites → Vehicle photos) every machinery of Asset Master with its photo – the Active ones first
-function sysCarPhotos_() {
+function sysCarPhotos_(c) {
   cardSiteOnly_();
   const map = carPhotos_(true), list = getMaster_().map(m => ({ no: m.id, name: str_(m.name), make: str_(m.make), type: str_(m.type), fuel: machineFuel_(m), status: str_(m.status) || 'Active' }));
-  const ph = carPhotoLinks_(list.map(x => x.no), map);
+  const ph = carPhotoLinks_(list.map(x => x.no), map, !!(c && c.fresh));      // (fresh: a picture did not open – new links)
   list.forEach(x => { x.photo = ph[x.no] || null; });
   list.sort((a, b) => (a.status === 'Active' ? 0 : 1) - (b.status === 'Active' ? 0 : 1) || a.no.localeCompare(b.no));
   return { cars: list };
