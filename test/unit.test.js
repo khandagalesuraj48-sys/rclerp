@@ -9112,3 +9112,81 @@ test('update-213: vehicle alerts – papers expired / due, the service (Asset Ma
     run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); P.deleteProperty("VA_SENT"); }');
   }
 });
+
+test('update-214: the Driver-wise Report (each driver – the same name in any case one driver – his days, KM / Hrs / trips, fills; machinery by machinery his average against the standard; a site on fuel cards: the fills\' ₹) and the Machinery Cost Sheet with Maintenance (its bills + the RCL Store\'s outward, an issue on debit not counted; a site on fuel cards: the fuel as its fills cost)', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  vm.runInContext(`globalThis.__k214 = { fetch: sbFetch_ }; globalThis.__ST214 = [
+      { no: 501, date: '2026-05-12', machinery: 'DW-1', debit: false, store_issue_lines: [{ amount: 300 }, { amount: 200 }] },
+      { no: 502, date: '2026-05-13', machinery: 'DW-1', debit: true, store_issue_lines: [{ amount: 999 }] },
+      { no: 503, date: '2026-05-14', machinery: 'DW-2', debit: false, store_issue_lines: [{ amount: 700 }] },
+      { no: 504, date: '2026-06-02', machinery: 'DW-2', debit: false, store_issue_lines: [{ amount: 5000 }] }]; globalThis.__asked214 = [];
+    sbFetch_ = function (m, u, body, h) { const s = decodeURIComponent(String(u)), g = /^\\/rest\\/v1\\/store_issue\\?select=no,machinery,debit,store_issue_lines\\(amount\\)&date=gte\\.(\\d{4}-\\d\\d-\\d\\d)&date=lte\\.(\\d{4}-\\d\\d-\\d\\d)&order=no\\.asc$/.exec(s);
+      if (g && m === 'GET') { __asked214.push(s); return __ST214.filter(r => r.date >= g[1] && r.date <= g[2]); }
+      return __k214.fetch(m, u, body, h); };`, ctx);
+  const mach = (no, x) => Object.assign({ no: no, name: 'M ' + no, type: 'Tipper', make: 'Tata', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, x || {});
+  const R = 'Ramesh Dw214', S = 'Suresh Dw214', F = { from: '2026-05-01', to: '2026-05-31' };
+  try {
+    run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); }');
+    assert.ok(run('(x, k) => saveMaster_(x, k)', mach('DW-1'), 'add').ok);
+    assert.ok(run('(x, k) => saveMaster_(x, k)', mach('DW-2', { type: 'Excavator', unit: 'Hrs', worksOn: ['Hrs'], kmStd: '', hrStd: 10 }), 'add').ok);
+    assert.ok(run('(x, k) => saveMaster_(x, k)', mach('DW-3'), 'add').ok);
+    // ---- the Log Book (the same name in another case / spacing; a day with no driver written) and the fills
+    run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-05-04', shift: 'Full Day', no: 'DW-1', mode: 'KM', openingKm: 1000, closingKm: 1200, driver: R },
+      { date: '2026-05-05', shift: 'Full Day', no: 'DW-1', mode: 'KM', closingKm: 1300, driver: 'RAMESH  dw214' },
+      { date: '2026-05-06', shift: 'Full Day', no: 'DW-1', mode: 'KM', closingKm: 1350, driver: S },
+      { date: '2026-05-04', shift: 'Full Day', no: 'DW-2', mode: 'Hrs', openingHr: 100, closingHr: 108, driver: S },
+      { date: '2026-05-07', shift: 'Full Day', no: 'DW-2', mode: 'Hrs', closingHr: 110 }] });
+    assert.ok(run('x => saveInward_(x)', { date: '2026-05-01', location: 'Dispenser', pump: 'Pump', qty: 500, rate: 95, billNo: 'DW214', billDate: '2026-05-01' }).ok);
+    const fill = (date, no, qty, x) => { const r = run('x => saveDieselIssue_(x)', Object.assign({ date: date, shift: 'Day', source: 'Dispenser', no: no, qty: qty, force: true }, x)); assert.ok(r && !r.THROWN, JSON.stringify(r)); return r; };
+    fill('2026-05-04', 'DW-1', 50, { kmReading: 1000, driver: R }); fill('2026-05-05', 'DW-1', 30, { kmReading: 1200, driver: R });
+    fill('2026-05-06', 'DW-1', 15, { kmReading: 1300, driver: S }); fill('2026-05-04', 'DW-2', 84, { hrReading: 100, driver: S });
+    const d = run('f => rptDriver_(f)', F), by = n => d.drivers.find(x => x.name === n);
+    assert.strictEqual(d.title, 'Driver-wise Report'); assert.strictEqual(d.card, false);
+    const r = by(R), s = by(S), none = d.drivers[d.drivers.length - 1];
+    assert.ok(r && s, 'both drivers: ' + d.drivers.map(x => x.name).join(', '));
+    assert.ok(!d.drivers.some(x => /^ramesh\s+dw214$/i.test(x.name) && x !== r), '"RAMESH  dw214" is the same driver');
+    assert.deepStrictEqual([r.days, r.machines, r.km, r.hrs, r.fills, r.qty, r.amount, r.more], [2, 1, 300, 0, 2, 80, '', 0]);
+    assert.deepStrictEqual(r.rows.map(x => [x.no, x.days, x.km, x.qty, x.actual, x.std, x.status, x.statusCode]), [['DW-1', 2, 300, 80, '3.75 km/L', '4 km/L', 'Good', 'ok']], 'his KM ÷ his litres; 75 L needed – 6.67 % over: Good');
+    assert.deepStrictEqual([s.days, s.machines, s.km, s.hrs, s.qty, s.more], [2, 2, 50, 8, 99, 1]);
+    assert.deepStrictEqual(s.rows.map(x => [x.no, x.km, x.hrs, x.actual, x.status, x.statusCode]), [['DW-1', 50, '', '3.33 km/L', 'More diesel – 20% over', 'more'], ['DW-2', '', 8, '10.5 L/hr', 'Good', 'ok']]);
+    assert.strictEqual(none.name, '(no driver written)', 'no driver written: at the end'); assert.strictEqual(none.none, true);
+    assert.deepStrictEqual(none.rows.filter(x => x.no === 'DW-2').map(x => [x.days, x.hrs, x.fills, x.status]), [[1, 2, 0, 'No fill by him']]);
+    assert.strictEqual(d.total.drivers, d.drivers.length - 1, 'the drivers counted without "(no driver written)"');
+    assert.strictEqual(run('f => rptDriver_(f)', { from: '2026-05-31', to: '2026-05-01' }).THROWN, 'From date is after To date.');
+    // ---- the Machinery Cost Sheet: maintenance = the bills (what RCL paid) + the Store's outward (not an issue on debit)
+    assert.ok(run('x => saveMaint_(x)', { date: '2026-05-10', no: 'DW-1', garage: 'Tata Service', billNo: 'TS-214', km: '', service: false, remark: '', lines: [{ work: 'Engine oil', amount: 2000 }] }).ok);
+    assert.ok(run('x => saveMaint_(x)', { date: '2026-05-11', no: 'DW-3', garage: 'Tyre House', billNo: 'TH-214', km: '', service: false, remark: '', lines: [{ work: 'Tyre', amount: 6000 }] }).ok);
+    const c = run('f => rptMachineCost_(f)', Object.assign({ ownerships: [] }, F)), row = no => [].concat(...c.groups.map(g => g.rows)).find(x => x.no === no);
+    assert.deepStrictEqual([c.card, c.storeOn], [false, true]);
+    const a1 = row('DW-1'), a2 = row('DW-2'), a3 = row('DW-3');
+    assert.deepStrictEqual([a1.maint, a1.maintBills, a1.maintN, a1.maintStore, a1.maintSn], [2500, 2000, 1, 500, 1], 'the bill 2,000 + the outward 500 (the debit issue 999 not ours)');
+    assert.strictEqual(a1.net, Math.round((a1.rent + a1.dieselCost + a1.maint - a1.recover) * 100) / 100, 'net = rent + diesel + maintenance − recovered');
+    assert.strictEqual(a1.perKm, Math.round(a1.net / 350 * 100) / 100);
+    assert.deepStrictEqual([a2.maint, a2.maintStore], [700, 700], 'June\'s outward not in May');
+    assert.deepStrictEqual([a3.workDays, a3.issued, a3.maint, a3.net], [0, 0, 6000, 6000], 'a machinery with only a bill in the dates is shown');
+    assert.ok(c.total.maint >= 9200 && c.groups.find(g => g.ownership === 'Own').maint >= 9200);
+    assert.ok(vm.runInContext('__asked214.length', ctx) >= 1 && vm.runInContext('__asked214.every(u => /date=gte\\.2026-05-01&date=lte\\.2026-05-31/.test(u))', ctx), 'one read of the Store for the dates');
+    // ---- a site on fuel cards (HO): the fuel cost = what the fills cost; the driver's ₹
+    const places = run('() => places_().map(p => ({ name: p.name, cap: tankSettings_().caps[p.name] || 100, fuel: p.fuel }))');
+    run('(l, m) => savePlaces_(l, m)', places, 'card');
+    fill('2026-05-20', 'DW-1', 10, { source: 'Cash', kmReading: 1400, amount: 1050, driver: R });
+    const c2 = run('f => rptMachineCost_(f)', Object.assign({ ownerships: [] }, F)), b1 = [].concat(...c2.groups.map(g => g.rows)).find(x => x.no === 'DW-1');
+    assert.deepStrictEqual([c2.card, b1.dieselCost, b1.maint, b1.net], [true, 1050, 2500, 3550], 'the fills\' ₹ (no diesel rate at HO) + maintenance');
+    const d2 = run('f => rptDriver_(f)', F);
+    assert.deepStrictEqual([d2.card, d2.drivers.find(x => x.name === R).amount, d2.drivers.find(x => x.name === R).qty], [true, 1050, 90]);
+    // ---- the access, the page and the phone's words
+    const api = vm.runInContext('API_', ctx);
+    assert.deepStrictEqual([api.rptDriver.m, !!api.rptDriver.edit], ['Reports', false]);
+    assert.match(app, /\{ key: 'driver', label: 'Driver-wise Report', fn: 'rptDriver', portrait: false, filters: \['range'\],/);
+    assert.match(app, /\['Maintenance', rs\(d\.total\.maint\)\]/);
+    assert.match(app, /<th class="n">Maintenance \(₹\)<\/th>/);
+    assert.match(app, /    driver: \{ en: \['Every driver in the dates/, 'its help in 3 languages');
+    assert.match(code, /maintenance: g\.maint, recovered: g\.recover/, 'the assistant reads the maintenance too');
+  } finally {
+    vm.runInContext('sbFetch_ = __k214.fetch;', ctx);
+    run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); }');
+  }
+});
