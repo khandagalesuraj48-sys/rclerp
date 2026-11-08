@@ -9077,6 +9077,9 @@ test('update-213: vehicle alerts – papers expired / due, the service (Asset Ma
     // ---- a changed number: its rule follows (with the form's boxes, and without them); a deleted machinery: its rule goes
     assert.ok(run('(x, k, o) => saveMaster_(x, k, o)', mach('VA-1X', { svcKm: '10000', svcMon: '6' }), 'edit', 'VA-1').ok);
     assert.deepStrictEqual(Object.keys(run('() => svcRules_()')).sort(), ['VA1X', 'VA2']);
+    // the machinery as read (with its own svc) sent back with the boxes typed: the boxes win
+    assert.ok(run('(x, k, o) => saveMaster_(x, k, o)', mach('VA-1X', { svc: { km: 10000, hrs: '', months: 6 }, svcKm: '12000', svcMon: '' }), 'edit', 'VA-1X').ok);
+    assert.deepStrictEqual(run('() => svcRules_()').VA1X, { km: 12000, hrs: '', months: '' }, 'what was typed');
     assert.ok(run('(x, k, o) => saveMaster_(x, k, o)', mach('VA-1Y'), 'edit', 'VA-1X').ok);
     assert.deepStrictEqual(Object.keys(run('() => svcRules_()')).sort(), ['VA1Y', 'VA2'], 'an older page / app sends no boxes: the rule moves with the number');
     assert.ok(run('() => deleteMaster_("VA-2", false, "")').ok);

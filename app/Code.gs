@@ -1876,7 +1876,9 @@ function saveMaster_(m, mode, origId) {
   return withLock_(() => {
     const v = validateMaster_(m);
     // (update-213) "Service every" as the form sent it – checked before anything is written
-    const svcIn = m && (m.svc || 'svcKm' in m || 'svcHrs' in m || 'svcMon' in m) ? { r: svcRuleOf_(m.svc && typeof m.svc === 'object' ? m.svc : { km: m.svcKm, hrs: m.svcHrs, months: m.svcMon }, v) } : null;
+    // (the boxes svcKm / svcHrs / svcMon win: a machinery's own `svc`, sent back as it was read, never overrides what was typed)
+    const svcFlat = m && ('svcKm' in m || 'svcHrs' in m || 'svcMon' in m);
+    const svcIn = svcFlat ? { r: svcRuleOf_({ km: m.svcKm, hrs: m.svcHrs, months: m.svcMon }, v) } : m && m.svc && typeof m.svc === 'object' ? { r: svcRuleOf_(m.svc, v) } : null;
     // (update-119) its earlier periods on site (it came back: the period that ended is kept); entries already made stay on site
     const old = mode === 'add' ? null : getMaster_().find(x => same_(x.id, origId)) || null;
     v.earlier = sitePeriodsSave_(old, v, m.earlier);
