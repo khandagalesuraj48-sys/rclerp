@@ -977,6 +977,12 @@ const API_ = {
   getCardPayPhotos:  { m: 'Fuel Cards', f: cardPayPhotos_ },
   cardStatement:     { m: 'Fuel Cards', f: cardStatement_ },
   getCardDash:       { m: 'Dashboard', f: cardDash_ },
+  // (update-212) HO's cars: one car's details (its fuel, Log Book, maintenance – each as the person may see it), new links of the photos,
+  // a car's photo set / changed / removed – the Admin and the Super Admin only (checked here and inside)
+  getCarDetail:      { m: 'Dashboard', withUser: true, f: (u, x) => carDetail_(u, x) },
+  getCarPhotoLinks:  { m: 'Dashboard', f: carPhotoLinksOut_ },
+  carPhotoSet:       { m: 'Dashboard', admin: true, withUser: true, f: (u, x) => carPhotoSet_(u, x) },
+  carPhotoRemove:    { m: 'Dashboard', admin: true, withUser: true, f: (u, x) => carPhotoRemove_(u, x) },
   // (update-165) the Maintenance Log Book of a site on fuel cards (HO): the bills of the cars, their files, the AI reading a bill, a car's log book
   getMaint:          { m: 'Maintenance', f: getMaint_ },
   saveMaint:         { m: 'Maintenance', edit: true, f: saveMaint_, log: 'add', sheet: 'SHEET_MAINT', idh: 'MT_ID' },
@@ -1851,6 +1857,10 @@ function renameMachine_(oldId, newId) {
       if (noKey_(x.no) === kt) { if (x.noNow !== undefined) { delete x.noNow; hit = true; } }            // back to the number printed on the bill
       else if (x.noNow !== to) { x.noNow = to; hit = true; } });
     if (hit) { const row = r.slice(); row[billT.c['Data']] = JSON.stringify(d); put(billT, i, row, 'saved bills (link only)'); } });
+  // (update-212) the car's photo (a site on fuel cards) follows its number – written with this save, never without it. A photo left under
+  // the new number (of a machinery no longer in Asset Master) is not this car's: it is taken off the number (its files stay in the store).
+  if (kf !== kt) { const ph = carPhotos_(!cardSite_());      // (a site not on fuel cards has none: a list it cannot read moves nothing)
+    if (ph[kf] || ph[kt]) { if (ph[kf]) { ph[kt] = ph[kf]; n['car photo'] = 1; } else delete ph[kt]; delete ph[kf]; kvInSave_(CAR_KV_, JSON.stringify(ph)); } }
   TABLE_MEMO_ = {}; ITEM_NOS_ = null; ITEM_ON_ = {};
   return { from: from, to: to, moved: n, text: Object.keys(n).map(k => n[k] + ' ' + k).join(', ') };
 }
@@ -1984,6 +1994,7 @@ function deleteMasterMany_(ids, force, vers) {      // vers (update-156): { id: 
     if (used.length && !force) return { ok: false, used: used };
     const idsOut = found.map(x => rowId_(t.rows[x.i], t));
     found.map(x => x.i).sort((a, b) => b - a).forEach(i => t.sh.deleteRow(i + 2)); // bottom first
+    carPhotoDrop_(idsOut);      // (update-212)
     return { ok: true, count: idsOut.length, ids: idsOut, master: getMaster_() };
   });
 }
@@ -4688,6 +4699,7 @@ function deleteMaster_(id, force, ver) {
       }
     }
     t.sh.deleteRow(i + 2);
+    carPhotoDrop_([realId]);      // (update-212)
     return { ok: true, master: getMaster_() };
   });
 }
@@ -6626,8 +6638,15 @@ function cardDash_(f) {
   });
   const lt = table_(APP.SHEET_LOG, logHeaders_()), lc = lt.c;
   if (H.WKM in lc) lt.rows.forEach(r => { const x = byNo[noKey_(r[lc[H.NO]])], dk = dkey_(r[lc[H.DATE]]); if (x && dk && dk >= from && dk <= to) x.km = r2_(x.km + num0_(r[lc[H.WKM]])); });
+  // (update-212) the gallery: each car's make and status (Asset Master), its KM now – the reading of its latest Log Book day or fill up to
+  // "to" (the later; on one day the larger) – and its photo. The figures above are not touched.
+  const kmAt = {}, seeKm = (k, dk, v) => { if (v === '' || v === null || v === undefined || !(Number(v) > 0)) return; const o = kmAt[k]; if (!o || dk > o.dk || (dk === o.dk && Number(v) > o.v)) kmAt[k] = { dk: dk, v: Number(v) }; };
+  if (H.CKM in lc) lt.rows.forEach(r => { const k = noKey_(r[lc[H.NO]]), dk = dkey_(r[lc[H.DATE]]); if (byNo[k] && dk && dk <= to) seeKm(k, dk, numOrBlank_(r[lc[H.CKM]])); });
+  master.forEach(m => { const k = noKey_(m.id), x = byNo[k]; if (!x) return; if (x.last) seeKm(k, x.last.date, x.last.km);
+    x.make = str_(m.make); x.status = str_(m.status) || 'Active'; x.kmNow = kmAt[k] ? kmAt[k].v : null; });
   const cars = Object.keys(byNo).map(k => byNo[k]).filter(x => x.show).map(x => { if (x.last) delete x.last.ct; delete x.show; x.avg = x.km > 0 && x.qty > 0 ? r2_(x.km / x.qty) : null; return x; })
     .sort((a, b) => b.amount - a.amount || a.no.localeCompare(b.no));
+  const ph = carPhotoLinks_(cars.map(x => x.no)); cars.forEach(x => { x.photo = ph[x.no] || null; });
   const byFuel = {}; cars.forEach(x => { if (x.qty) byFuel[x.fuel] = r2_((byFuel[x.fuel] || 0) + x.qty); });
   const sum = k => r2_(cars.reduce((s, x) => s + x[k], 0));
   return { from: from, to: to, today: today, cards: cardBalances_(), cars: cars,
@@ -6639,6 +6658,226 @@ function cardEntries_() {
   cards_().forEach(x => { names[x.name.toUpperCase()] = true; });
   const p = cardPayTable_(false);
   return t.rows.some(r => { const s = clean_(r[c[H.SOURCE]]).toUpperCase(); return s === 'CASH' || names[s]; }) || !!(p && p.rows.length);
+}
+
+/* ================= THE CARS' PHOTOS AND ONE CAR'S DETAILS – a site on fuel cards (HO) (update-212, asked 08-11-2026) =================
+ * "HEAD OFFICE VEHICLE GALLERY & INTERACTIVE VEHICLE MANAGEMENT … HEAD OFFICE ONLY". His answers: the Super Admin sets / changes a
+ * car's photo from the Portal, by its Machinery Number; the Admin and the Super Admin from HO's Dashboard (web, app) too. And
+ * (08-11-2026): the 15-minute links renew by themselves; a changed Machinery Number keeps its photo; access is checked here, not
+ * only on the screen; replacing / removing a photo never deletes another file; no database step.
+ *   – A PHOTO = two JPEG files made by the page / the phone / the Portal from the picture taken or picked (turned upright, at most
+ *     1600 px, and a small one of at most 480 px for the gallery). Each is checked here (a real JPEG, its size) and kept in the
+ *     site's PRIVATE file store (bucket erp-files, like the Log Book's attachments) under its fingerprint: car/<2>/<sha256>.jpg.
+ *   – WHICH CAR HAS WHICH PHOTO: one setting of the site (app_settings CAR_PHOTOS – no column, no database step):
+ *     { <the car's number as a key (noKey_)>: { p: the photo, t: the small one, at, by } }. In the site's own database only.
+ *   – CHANGED / REMOVED: only that car's line changes. NO FILE IS EVER DELETED from the store (as every file there – bills,
+ *     attachments): a maintenance bill or another car's photo can never go with it.
+ *   – THE MACHINERY NUMBER CHANGED in Asset Master (renameMachine_): its line moves to the new number in the same save.
+ *   – WHO: the Admin and the Super Admin set / change / remove; whoever may open the Dashboard sees them. Only at a site on fuel
+ *     cards (HO): at every other site each of these is refused.
+ *   – LINKS: a photo opens by a link of 15 minutes. The server uses a link for 10 of them (the same link again = the browser's own
+ *     copy, nothing downloaded twice) and says when it ends (exp): the page / the phone ask for new links (getCarPhotoLinks) before
+ *     that, or when a picture does not open. */
+const CAR_KV_ = 'CAR_PHOTOS', CAR_PATH_ = /^car\/[0-9a-f]{2}\/[0-9a-f]{64}\.jpg$/;
+const CAR_FULL_MAX_ = 2 * 1024 * 1024, CAR_THUMB_MAX_ = 400 * 1024, CAR_DAY_N_ = 60;
+const CAR_NOT_ADMIN_ = 'Only the Admin or the Super Admin sets or removes the photo of a car.';
+// the cars' photos. `soft` (only to show them): a list that cannot be read = none shown. Otherwise (a change) such a list stops the
+// change – it is never taken as "no photos" and written back (the other cars would lose theirs).
+function carPhotos_(soft) {
+  let raw = '';
+  try { raw = kvRead_(CAR_KV_); } catch (e) { if (soft) return {}; throw new Error('The list of car photos cannot be read now – nothing was saved. Try again in a moment.'); }
+  let o = null; try { o = JSON.parse(raw || '{}'); } catch (e) { o = null; }
+  if (o && typeof o === 'object' && !Array.isArray(o)) return o;
+  if (soft) return {};
+  throw new Error('The list of car photos is damaged – nothing was saved. Tell the Admin.');
+}
+function carPhotoOf_(map, no) { const e = map[noKey_(no)]; return e && CAR_PATH_.test(str_(e.p)) && CAR_PATH_.test(str_(e.t)) ? e : null; }
+const carVer_ = e => e ? str_(e.t).slice(-20, -4) : '';      // a photo's own mark (its small file's fingerprint): the phone keeps its copy by it
+function carStoreReady_() { if (!sbDataOn_()) throw new Error('Car photos are kept in Supabase only – this copy of the app runs on the Google Sheet.'); }
+// the links of these files (path → { u, exp }): one call to the store for those not kept; a link is used for 10 of its 15 minutes.
+// `fresh` (a picture did not open with its link): new links, never the kept ones
+function carLinks_(paths, fresh) {
+  const want = [...new Set(paths.filter(Boolean))]; if (!want.length) return {};
+  const cch = CacheService.getScriptCache(), now = Date.now(), keys = want.map(p => 'CARL_' + p), got = fresh ? {} : cch.getAll(keys) || {}, out = {}, miss = [];
+  want.forEach((p, i) => { let x = null; try { x = JSON.parse(got[keys[i]] || 'null'); } catch (e) { x = null; } if (x && x.u && x.exp - now > 5 * 60000) out[p] = x; else miss.push(p); });
+  if (miss.length) { const urls = attLinks_(miss), exp = now + 900000;
+    miss.forEach(p => { if (!urls[p]) return; out[p] = { u: urls[p], exp: exp }; cch.put('CARL_' + p, JSON.stringify(out[p]), 600); }); }
+  return out;
+}
+// the photo of each car given: { number: { t, f, exp, left, v } } (no photo: not there; the store cannot make links now: { err: true } – asked
+// again). left = the milliseconds the links still have: the page / the phone count from their own clock (a clock that is wrong does not matter)
+function carPhotoLinks_(nos, map, fresh) {
+  map = map || carPhotos_(true);
+  const es = {}; (nos || []).forEach(no => { const e = carPhotoOf_(map, no); if (e) es[str_(no)] = e; });
+  const ks = Object.keys(es); if (!ks.length) return {};
+  let L = null; try { L = carLinks_([].concat(...ks.map(k => [es[k].t, es[k].p])), fresh); } catch (e) { L = null; }
+  const out = {}, now = Date.now();
+  ks.forEach(k => { const e = es[k], t = L && L[e.t], f = L && L[e.p], exp = t && f ? Math.min(t.exp, f.exp) : 0;
+    out[k] = t && f ? { t: t.u, f: f.u, exp: exp, left: Math.max(0, exp - now), v: carVer_(e) } : { t: '', f: '', exp: 0, left: 0, v: carVer_(e), err: true }; });
+  return out;
+}
+// (getCarPhotoLinks) new links – of the cars asked for, or of every car with a photo
+function carPhotoLinksOut_(x) {
+  cardSiteOnly_();
+  const map = carPhotos_(true), asked = x && Array.isArray(x.nos) ? x.nos.slice(0, 500).map(str_).filter(Boolean) : null;
+  const nos = asked || getMaster_().map(m => m.id).filter(no => carPhotoOf_(map, no));
+  return { photos: carPhotoLinks_(nos, map, !!(x && x.fresh)) };
+}
+// a photo as sent (data:image/jpeg;base64,…): its bytes – a real JPEG, not bigger than `max`
+function carJpeg_(d, max, what) {
+  const mt = /^data:image\/jpeg;base64,([A-Za-z0-9+\/=]+)$/.exec(String(d || ''));
+  if (!mt) throw new Error('The photo of a car must be a picture (JPG, PNG or WebP) – pick or take it again.');
+  if (mt[1].length > Math.ceil(max * 4 / 3) + 4) throw new Error('This car photo is too big (the ' + what + ' is more than ' + Math.round(max / 1024) + ' KB) – the page makes a photo smaller by itself: pick or take it again.');
+  const bytes = Utilities.base64Decode(mt[1]);
+  if (!bytes.length) throw new Error('This car photo is empty – pick or take it again.');
+  if (attSniff_(bytes) !== 'image/jpeg') throw new Error('This file is not a real photo – only a picture (JPG, PNG or WebP) can be the photo of a car.');
+  return bytes;
+}
+// one file into the private store under its fingerprint (the same file again = the same object: never written twice, never overwritten)
+function carPut_(u, bytes) {
+  const sha = hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes)), path = 'car/' + sha.slice(0, 2) + '/' + sha + '.jpg', c = sbConf_();
+  const res = UrlFetchApp.fetch(c.url + '/storage/v1/object/' + ATT_BUCKET_ + '/' + path, { method: 'post', headers: { apikey: c.key, 'x-upsert': 'false' }, contentType: 'image/jpeg',
+    payload: Utilities.newBlob(bytes, 'image/jpeg', sha + '.jpg'), muteHttpExceptions: true });
+  const code = res.getResponseCode(), text = res.getContentText();
+  if (/bucket not found/i.test(text)) throw new Error('Car photos cannot be kept yet – the place for files is missing. ' + ATT_SQL_MSG_);
+  if (!/Duplicate|already exists|"409"/i.test(text) && (code < 200 || code >= 300)) throw new Error('The file store did not keep the car photo (' + code + ') – save it again.' + (u && u.admin ? ' It said: ' + str_(text).slice(0, 160) : ''));
+  return { sha: sha, path: path };
+}
+function carOf_(no) {
+  const m = getMaster_().find(x => same_(x.id, no));
+  if (!m) throw new Error('"' + clean_(no) + '" is not in Master.');
+  return m;
+}
+/* a car's photo set or changed: { no, full, thumb (data:image/jpeg…), was (the photo's mark when the screen was opened: '' = none) }.
+ * From the Portal also `sha`: { full, thumb } – the fingerprints the Super Admin's signed request names (the files must be those). */
+function carPhotoSet_(u, x) {
+  x = x || {};
+  cardSiteOnly_();
+  if (!u || !u.admin) throw new Error(CAR_NOT_ADMIN_);
+  carStoreReady_();
+  carOf_(x.no);      // (the car must be in Asset Master before its files are kept)
+  const full = carJpeg_(x.full, CAR_FULL_MAX_, 'photo'), thumb = carJpeg_(x.thumb, CAR_THUMB_MAX_, 'small photo');
+  if (x.sha && typeof x.sha === 'object') {      // (the Portal) the files are the ones its signed request names
+    const sh = b => hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, b));
+    if (sh(full) !== str_(x.sha.full).toLowerCase() || sh(thumb) !== str_(x.sha.thumb).toLowerCase()) throw new Error('The photo that arrived is not the one the Portal sent – nothing was saved. Pick it again.');
+  }
+  const me = str_(u.email).toLowerCase(), nNow = typeof __count === 'function' ? __count('CARN_' + today_() + '_' + me, 90000) : -1;
+  if (nNow > CAR_DAY_N_) throw new Error('Too many car photos were set today by you (at most ' + CAR_DAY_N_ + ' a day) – set the rest tomorrow. If you did not set them, tell the Admin at once.');
+  // the two files and their links BEFORE the save: the site's saves wait only for the list, never for a file on its way (a file is kept by
+  // its fingerprint – never overwritten; one kept for a photo that is then refused stays unused, nothing points to it)
+  const p = carPut_(u, full), t = carPut_(u, thumb), e0 = { p: p.path, t: t.path };
+  let L = null; try { L = carLinks_([t.path, p.path]); } catch (e) { L = null; }
+  const lt = L && L[t.path], lf = L && L[p.path], exp = lt && lf ? Math.min(lt.exp, lf.exp) : 0;
+  const photo = lt && lf ? { t: lt.u, f: lf.u, exp: exp, left: Math.max(0, exp - Date.now()), v: carVer_(e0) } : { t: '', f: '', exp: 0, left: 0, v: carVer_(e0), err: true };
+  // (the answer is made inside the save: a copy of the same request sent again after a lost connection gets this same answer)
+  const out = withLock_(() => {
+    const m = carOf_(x.no);      // (again, inside the save: a number changed meanwhile is not written under its old number)
+    const map = carPhotos_(), had = carPhotoOf_(map, m.id);
+    if (x.was !== undefined && x.was !== null && str_(x.was) !== carVer_(had)) throw new Error('The photo of ' + m.id + ' was changed by someone else after you opened it – open it again, nothing was saved.');
+    map[noKey_(m.id)] = { p: p.path, t: t.path, at: new Date().toISOString(), by: str_(u.name || u.email).slice(0, 60) };
+    kvInSave_(CAR_KV_, JSON.stringify(map));
+    writeLog_(u, 'Edit', 'Master', m.id, (had ? 'Car photo changed: ' : 'Car photo added: ') + m.id, had ? 'Before: ' + had.p : '');
+    return { ok: true, no: m.id, photo: photo };
+  });
+  carTell_();
+  return out;
+}
+// every open page / phone: the cars' photos changed (they read the Dashboard again – as after a change of Asset Master)
+function carTell_() { try { bump_(['master']); } catch (e) { /* the change is saved; the others see it at their next opening */ } }
+// a car's photo removed: { no, was } – only the car's line goes; its files stay in the store (nothing is deleted there)
+function carPhotoRemove_(u, x) {
+  x = x || {};
+  cardSiteOnly_();
+  if (!u || !u.admin) throw new Error(CAR_NOT_ADMIN_);
+  carOf_(x.no);
+  const out = withLock_(() => {
+    const m = carOf_(x.no);      // (inside the save: the number as it is now)
+    const map = carPhotos_(), had = carPhotoOf_(map, m.id);
+    if (x.was !== undefined && x.was !== null && str_(x.was) !== carVer_(had)) throw new Error('The photo of ' + m.id + ' was changed by someone else after you opened it – open it again, nothing was saved.');
+    if (!had) throw new Error(m.id + ' has no photo to remove.');
+    delete map[noKey_(m.id)];
+    kvInSave_(CAR_KV_, JSON.stringify(map));
+    writeLog_(u, 'Delete', 'Master', m.id, 'Car photo removed: ' + m.id + ' (its file stays in the store)', 'Before: ' + had.p);
+    return { ok: true, no: m.id, photo: null };
+  });
+  carTell_();
+  return out;
+}
+/* a machinery taken out of Asset Master: its photo's line goes with it IN THE SAME SAVE (its files stay in the store) – a machinery added
+ * later with that number never shows this one's photo. A site not on fuel cards has none (a list it cannot read: nothing done). */
+function carPhotoDrop_(ids) {
+  const ph = carPhotos_(!cardSite_()); let hit = false;
+  (ids || []).forEach(id => { const k = noKey_(id); if (k && ph[k]) { delete ph[k]; hit = true; } });
+  if (hit) kvInSave_(CAR_KV_, JSON.stringify(ph));
+}
+// (the Portal: Sites → Vehicle photos) every machinery of Asset Master with its photo – the Active ones first
+function sysCarPhotos_(c) {
+  cardSiteOnly_();
+  const map = carPhotos_(true), list = getMaster_().map(m => ({ no: m.id, name: str_(m.name), make: str_(m.make), type: str_(m.type), fuel: machineFuel_(m), status: str_(m.status) || 'Active' }));
+  const ph = carPhotoLinks_(list.map(x => x.no), map, !!(c && c.fresh));      // (fresh: a picture did not open – new links)
+  list.forEach(x => { x.photo = ph[x.no] || null; });
+  list.sort((a, b) => (a.status === 'Active' ? 0 : 1) - (b.status === 'Active' ? 0 : 1) || a.no.localeCompare(b.no));
+  return { cars: list };
+}
+// the Super Admin from the Portal: a car's photo set / changed / removed – the same checks as on the page (his signed request)
+function sysCarPhoto_(c) {
+  const who = { email: str_(c.by), name: 'Super Admin (Portal)', admin: true, super: true, perms: {} }, fl = c.files && typeof c.files === 'object' ? c.files : {};
+  return c.act === 'carPhotoSet' ? carPhotoSet_(who, { no: c.no, was: c.was, sha: c.sha || {}, full: fl.full, thumb: fl.thumb }) : carPhotoRemove_(who, { no: c.no, was: c.was });
+}
+/* ONE CAR'S DETAILS (getCarDetail) for the dates: the car as Asset Master has it (make, model, kind, fuel, status), its KM now, its
+ * photo; the fills (Diesel Issue: date, fuel, qty, ₹, card / Cash, KM) and their totals; its Log Book days – for a person who may see
+ * the Log Book; its maintenance bills – for one who may see Maintenance (or Reports, as the car's maintenance log book). Nothing new
+ * is worked out: the same figures as the Dashboard, the Diesel Issue list, the Log Book and the Maintenance Log Book. */
+function carDetail_(u, f) {
+  f = f || {};
+  cardSiteOnly_();
+  const m = carOf_(f.no), today = today_(), to = str_(f.to) ? checkDate_(f.to) : today, from = str_(f.from) ? checkDate_(f.from) : to.slice(0, 8) + '01';
+  if (from > to) throw new Error('From date is after To date.');
+  const K = noKey_(m.id), fuel = machineFuel_(m), unit = fuelUnit_(fuel), ct = v => v instanceof Date ? v.getTime() : 0;
+  const mayLog = seesAny_(u, ['Log Book']), mayMaint = seesAny_(u, ['Maintenance', 'Reports']);
+  let now = null; const seeKm = (dk, v) => { if (v === '' || v === null || v === undefined || !(Number(v) > 0)) return; if (!now || dk > now.dk || (dk === now.dk && Number(v) > now.v)) now = { dk: dk, v: Number(v) }; };
+  const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, amt = H.AMOUNT in c, fills = [], sum = { qty: 0, amount: 0, card: 0, cash: 0, fills: 0, km: 0, avg: null };
+  t.rows.forEach(r => {
+    if (noKey_(r[c[H.NO]]) !== K) return;
+    const dk = dkey_(r[c[H.IDATE]]); if (!dk || dk > to) return;
+    const km = numOrBlank_(r[c[H.KMR]]); seeKm(dk, km); if (dk < from) return;
+    const src = clean_(r[c[H.SOURCE]]), a = amt ? num0_(r[c[H.AMOUNT]]) : 0, q = num0_(r[c[H.QTY]]), cash = isCash_(src);
+    sum.qty = r2_(sum.qty + q); sum.amount = r2_(sum.amount + a); sum.fills++; if (cash) sum.cash = r2_(sum.cash + a); else sum.card = r2_(sum.card + a);
+    fills.push({ date: dk, fuel: fuel, qty: q, unit: unit, amount: a, paidBy: cash ? CASH_ : src, cash: cash, km: km, ord: ct(r[c[H.CREATED]]) });
+  });
+  fills.sort((a, b) => b.date.localeCompare(a.date) || b.ord - a.ord); fills.forEach(x => { delete x.ord; });
+  const lt = table_(APP.SHEET_LOG, logHeaders_()), lc = lt.c, log = [], g = (r, h) => h in lc ? r[lc[h]] : '';
+  lt.rows.forEach(r => {
+    if (noKey_(r[lc[H.NO]]) !== K) return;
+    const dk = dkey_(r[lc[H.DATE]]); if (!dk || dk > to) return;
+    seeKm(dk, numOrBlank_(g(r, H.CKM))); if (dk < from) return;
+    sum.km = r2_(sum.km + num0_(g(r, H.WKM)));
+    if (mayLog) log.push({ date: dk, shift: str_(g(r, H.SHIFT)) || 'Full Day', okm: numOrBlank_(g(r, H.OKM)), ckm: numOrBlank_(g(r, H.CKM)), km: numOrBlank_(g(r, H.WKM)), driver: str_(g(r, H.DRIVER)), work: str_(g(r, H.WORK)) });
+  });
+  log.sort((a, b) => b.date.localeCompare(a.date) || a.shift.localeCompare(b.shift));
+  sum.avg = sum.km > 0 && sum.qty > 0 ? r2_(sum.km / sum.qty) : null;      // (as the Dashboard: the Log Book's KM ÷ the fuel filled)
+  let maint = null;
+  if (mayMaint) { maint = []; const mt = maintTable_(false);
+    if (mt) mt.rows.forEach(r => { if (noKey_(r[mt.c[H.NO]]) !== K) return; const x = maintOut_(mt, r); if (!x.date || x.date < from || x.date > to) return;
+      maint.push({ id: x.id, date: x.date, garage: x.garage, billNo: x.billNo, km: x.km, amount: x.total, service: x.service, works: x.lines.map(l => str_(l.work)).filter(Boolean).slice(0, 12), files: x.files.length }); });
+    maint.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)); }
+  const map = carPhotos_(true), ph = carPhotoOf_(map, m.id) ? carPhotoLinks_([m.id], map)[m.id] || null : null;
+  return { from: from, to: to,
+    car: { no: m.id, name: str_(m.name), make: str_(m.make), type: str_(m.type), fuel: fuel, unit: unit, status: str_(m.status) || 'Active', std: m.kmStd === '' || m.kmStd === undefined ? null : num0_(m.kmStd) || null, kmNow: now ? now.v : null, kmAt: now ? now.dk : '', photo: ph },
+    sum: sum, fills: fills, log: mayLog ? log : null, maint: maint, may: { photo: !!(u && u.admin), log: mayLog, maint: mayMaint } };
+}
+/* (update-212) a setting written WITH the save it belongs to – one database transaction (web_write takes app_settings like any table
+ * of the app): written only if the save is written, never without it. Only inside withLock_ (its end writes the save). Without the
+ * database (Apps Script / the Google Sheet): at once. */
+function kvInSave_(id, v) {
+  if (FLOW_DRY_ON_) return;
+  if (prefsInDb_()) {
+    const book = SS_();
+    const s = book.sheets.app_settings || (book.sheets.app_settings = { kv: {},
+      pending() { return { upserts: Object.keys(this.kv).map(k => ({ id: k, value: this.kv[k] })), deletes: [] }; }, saved() { this.kv = {}; } });
+    s.kv[id] = v; return;
+  }
+  kvWrite_(id, v);
 }
 
 /* ================= MAINTENANCE LOG BOOK – a site on fuel cards (HO) (update-165, asked 27-10-2026) ================= *

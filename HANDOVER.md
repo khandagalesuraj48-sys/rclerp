@@ -2349,3 +2349,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   the stock kept in Approvals and saved by itself when the stock came (heartbeat, SHORT_DUE); at the last approval Short, not Returned; the
   phone's entries made with no network measured from the server's signed stamp (3 days). No SQL. With rcl-mobile 3.85.0. Tests: unit
   `update-211`; the rig in Chromium; flow114api, places117api.
+- 08-11-2026 (update-212). Report: `UPDATE_212.md`. HO'S CARS AS A GALLERY (a site on fuel cards): each car's photo, make, status, KM now
+  on the Dashboard; search; Gallery / Table (the table as before); a car's details (getCarDetail – fills, Log Book, maintenance as the person
+  may see them); a photo set / changed / removed by the Admin or the Super Admin only (carPhotoSet / carPhotoRemove; the Portal's Sites →
+  Vehicle photos – sysCarPhotos_ / sysCarPhoto_, its files bound to the signed ticket by SHA-256); kept in the private store car/<2>/<sha>.jpg,
+  the map in app_settings CAR_PHOTOS; never a file deleted; a renamed number keeps its photo in the same save (kvInSave_); links renewed
+  by the page (getCarPhotoLinks). No SQL. With rcl-portal (Vehicle photos) and rcl-mobile 3.86.0. Tests: unit `update-212`;
+  test/cars212api.js; the rig in Chromium (web, phone width, Portal); places117api, portal94api; the Portal's api.test.js.

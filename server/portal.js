@@ -119,6 +119,17 @@ function verifyAdmin(ticket, now) {
     return Object.assign(out, { dayStart: String(c.dayStart || '').trim().slice(0, 5), tank: { groups: { Own: d(g.Own), Rental: d(g.Rental), Hired: d(g.Hired) },
       machines: (Array.isArray(t.machines) ? t.machines : []).slice(0, 500).filter(x => x && typeof x === 'object').map(x => ({ no: String(x.no || '').replace(/\s+/g, ' ').trim().slice(0, 60), on: x.on !== false, days: d(x.days) })) } });
   }
+  // (update-212) Sites → Vehicle photos (a site on fuel cards – HO): the list; a car's photo set (the request names the two files by their
+  // fingerprints – the files come beside the ticket and must be exactly those) or removed; `was` = the photo seen when the screen opened
+  if (c.act === 'carPhotos') return Object.assign(out, c.fresh === true ? { fresh: true } : {});      // (fresh: a picture did not open – new links)
+  if (c.act === 'carPhotoSet' || c.act === 'carPhotoRemove') {
+    const no = String(c.no || '').replace(/\s+/g, ' ').trim().slice(0, 60), was = c.was === undefined || c.was === null ? null : String(c.was).slice(0, 40);
+    if (!no) throw bad('no machinery number');
+    if (c.act === 'carPhotoRemove') return Object.assign(out, { no: no, was: was });
+    const sh = c.sha && typeof c.sha === 'object' ? c.sha : {}, hex = v => /^[0-9a-f]{64}$/.test(String(v || '')) ? String(v) : '';
+    if (!hex(sh.full) || !hex(sh.thumb)) throw bad('no fingerprints of the photo');
+    return Object.assign(out, { no: no, was: was, sha: { full: hex(sh.full), thumb: hex(sh.thumb) } });
+  }
   if (c.act !== 'pages') throw bad('not a known request');
   const email = String(c.email || '').trim().toLowerCase();
   if (!EMAIL.test(email) || email.length > 120) throw bad('no proper email of the user');

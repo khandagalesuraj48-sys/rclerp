@@ -106,6 +106,9 @@ function portalAdmin(R, args) {
   const reg = sites.registry();
   let at = '';
   if (reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
+  // (update-212) a car's photo: its two files come beside the ticket (a ticket is small); the site keeps them only if they are the files
+  // the signed ticket names (their SHA-256 – Code.gs carPhotoSet_)
+  if (c.act === 'carPhotoSet') { const f = args[1] && typeof args[1] === 'object' ? args[1] : {}; c.files = { full: String(f.full || '').slice(0, 3e6), thumb: String(f.thumb || '').slice(0, 6e5) }; }
   const r = R.runIn(at, 'sysPortalAdmin', [c]);
   if (c.act === 'pages' && reg) { try { keepMembership(c.email, c.site, true, r.admin); } catch (e) { console.error('[portal pages: site list] ' + String((e && e.message) || e)); } }
   return r;

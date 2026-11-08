@@ -3114,6 +3114,104 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #toast.tx-on .tx, #toast.tx-on::before { opacity: 1; }
   #toast.still .goo .g-pool { opacity: 1; }
   @media (prefers-reduced-motion: reduce) { .app .side, .app .mainwrap, #nav_back { transition-duration: .01s !important; } }
+
+  /* ---------- (update-212) HO: the cars as a gallery, one car's details, its photo ---------- */
+  .hg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; margin-bottom: 12px; }
+  .hg-head h2 { margin: 0; display: flex; align-items: baseline; gap: 8px; }
+  .hg-head h2 small { font: 500 13px var(--ui); color: var(--muted); }
+  .hg-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1 1 320px; justify-content: flex-end; min-width: 0; }
+  .hg-search { position: relative; flex: 1 1 240px; max-width: 360px; min-width: 0; }
+  .hg-search svg { position: absolute; left: 11px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+  .hg-search input { width: 100%; padding: 8px 10px 8px 34px; border: 1px solid var(--line); border-radius: 10px; font: 400 14px var(--ui); background: #fff; color: var(--ink); min-height: 38px; }
+  .hg-search input:focus { outline: 2px solid color-mix(in srgb, var(--hivis) 70%, transparent); border-color: var(--hivis); }
+  .hg-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; flex: none; }
+  .hg-seg button { appearance: none; border: 0; background: transparent; padding: 8px 13px; font: 600 13px var(--ui); color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 38px; }
+  .hg-seg button[aria-pressed="true"] { background: var(--steel); color: #fff; }
+  .hg-seg svg { width: 15px; height: 15px; }
+  .hg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .hg-card { appearance: none; text-align: left; font: inherit; color: inherit; padding: 0; background: #fff; border: 1px solid rgba(20,30,38,.08); border-radius: 14px; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; min-width: 0;
+    box-shadow: 0 1px 2px rgba(20,30,38,.05), 0 4px 14px rgba(20,30,38,.05); transition: transform .2s ease, box-shadow .2s ease; }
+  .hg-card:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(20,30,38,.06), 0 12px 28px rgba(20,30,38,.12); }
+  .hg-card:focus-visible { outline: 3px solid var(--hivis); outline-offset: 2px; }
+  .hg-pic { position: relative; aspect-ratio: 16 / 10; background: linear-gradient(160deg, #EEF2F5, #DCE3E8); overflow: hidden; }
+  .hg-pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .hg-none { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #8A99A4; font-size: 12.5px; }
+  .hg-none svg { width: 64px; height: 40px; color: #B7C3CB; }
+  .hg-badges { position: absolute; left: 10px; right: 10px; top: 10px; display: flex; justify-content: space-between; gap: 6px; pointer-events: none; }
+  .hg-badge { background: rgba(255,255,255,.94); border-radius: 999px; padding: 3px 9px; font: 600 12px var(--ui); color: var(--ink); white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .hg-badge.off { color: var(--bad); }
+  .hg-badge.on::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--good); margin-right: 5px; vertical-align: 1px; }
+  .hg-add { position: absolute; right: 10px; bottom: 10px; background: rgba(28,37,44,.86); color: #fff; border-radius: 999px; padding: 5px 11px; font: 600 12.5px var(--ui); }
+  .hg-b { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .hg-no { font: 700 21px/1.15 var(--display); letter-spacing: .02em; color: var(--ink); overflow-wrap: anywhere; }
+  .hg-mm { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hg-money { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 8px; }
+  .hg-money .q { font: 700 19px var(--display); color: var(--steel-2); } .hg-money .q small { font: 500 12px var(--ui); color: var(--muted); }
+  .hg-money .a { font: 700 20px var(--display); color: var(--ink); }
+  .hg-bar { height: 6px; border-radius: 999px; background: #E6EAED; overflow: hidden; display: flex; margin-top: 6px; }
+  .hg-bar i { display: block; height: 100%; } .hg-bar .c { background: var(--steel); } .hg-bar .k { background: var(--hivis); }
+  .hg-split { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .hg-split span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: 0; background: var(--steel); }
+  .hg-split span.k::before { background: var(--hivis); }
+  .hg-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #EEF1F3; }
+  .hg-stats small { display: block; color: var(--muted); font-size: 11.5px; } .hg-stats b { font-size: 14px; white-space: nowrap; }
+  .hg-last { font-size: 12.5px; color: var(--muted); margin-top: 8px; } .hg-last b { color: var(--ink); }
+  .hg-empty { padding: 28px 10px; text-align: center; color: var(--muted); }
+  #hd_rows tr[data-no] { cursor: pointer; } #hd_rows tr[data-no]:hover td { background: #F6F8F9; }
+  /* one car's details: a panel from the right (the whole screen on a phone) */
+  .hg-back { position: fixed; inset: 0; background: rgba(20,30,38,.45); z-index: 19; opacity: 0; transition: opacity .25s ease; }
+  .hg-back.on { opacity: 1; }
+  .hg-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(580px, 100vw); background: #F3F5F8; z-index: 19; overflow-y: auto; overscroll-behavior: contain; box-shadow: -18px 0 40px rgba(0,0,0,.18);
+    transform: translateX(104%); transition: transform .3s cubic-bezier(.2,.8,.2,1); padding-bottom: env(safe-area-inset-bottom); }
+  .hg-drawer.on { transform: none; }
+  html.hg-lock, html.hg-lock body { overflow: hidden; }
+  .hg-dpic { position: relative; aspect-ratio: 16 / 10; background: linear-gradient(160deg, #3A4A56, #1F2A33); }
+  .hg-dpic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .hg-dpic .hg-none { color: #C8D1D7; } .hg-dpic .hg-none svg { color: #8494A0; width: 96px; height: 60px; }
+  .hg-x { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(255,255,255,.95); color: var(--ink); font: 600 20px/1 var(--ui); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+  .hg-pbtns { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 8px; }
+  .hg-pbtns button { border: 0; border-radius: 999px; padding: 7px 13px; font: 600 13px var(--ui); cursor: pointer; background: rgba(255,255,255,.95); color: var(--ink); box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+  .hg-pbtns button.rm { color: var(--bad); }
+  .hg-db { padding: 16px 18px 24px; }
+  .hg-dno { font: 700 30px/1.1 var(--display); letter-spacing: .02em; margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+  .hg-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+  .hg-chips span { background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 12.5px; font-weight: 600; }
+  .hg-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+  .hg-kpis div { background: #fff; border: 1px solid rgba(20,30,38,.07); border-radius: 12px; padding: 9px 11px; min-width: 0; }
+  .hg-kpis small { display: block; color: var(--muted); font-size: 12px; } .hg-kpis b { font: 700 19px var(--display); white-space: nowrap; }
+  .hg-tabs { display: flex; gap: 4px; margin: 18px 0 10px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .hg-tabs button { appearance: none; border: 0; background: none; padding: 9px 12px; font: 600 14px var(--ui); color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+  .hg-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--hivis); }
+  .hg-list { background: #fff; border: 1px solid rgba(20,30,38,.07); border-radius: 12px; overflow-x: auto; }
+  .hg-list table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .hg-list th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; padding: 8px 10px; background: #F7F9FA; white-space: nowrap; }
+  .hg-list td { padding: 8px 10px; border-top: 1px solid #EEF1F3; vertical-align: top; }
+  .hg-list .n { text-align: right; white-space: nowrap; }
+  .hg-pay { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 600; background: #E5EDF7; color: #1D4F91; white-space: nowrap; }
+  .hg-pay.cash { background: #FDF0D5; color: #8A5300; }
+  .hg-note { color: var(--muted); padding: 14px 4px; }
+  /* the photo, seen before it is saved */
+  .hg-pback { position: fixed; inset: 0; background: rgba(20,30,38,.55); z-index: 19; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .hg-pbox { background: #fff; border-radius: 16px; width: min(520px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 18px; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+  .hg-pbox h3 { margin: 0 0 12px; font: 700 20px var(--display); }
+  .hg-pv { border-radius: 12px; overflow: hidden; background: #E9EDF0; aspect-ratio: 16 / 10; display: flex; align-items: center; justify-content: center; }
+  .hg-pv img { width: 100%; height: 100%; object-fit: cover; }
+  .hg-pinfo { margin: 10px 0 0; font-size: 13px; color: var(--good); font-weight: 600; }
+  .hg-pbar { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .hg-prog { height: 4px; border-radius: 999px; background: #E6EAED; overflow: hidden; margin-top: 10px; }
+  .hg-prog i { display: block; height: 100%; width: 40%; background: var(--hivis); animation: hgprog 1.1s ease-in-out infinite; }
+  @keyframes hgprog { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+  @media (max-width: 700px) {
+    .hg-tools { justify-content: stretch; } .hg-search { max-width: none; }
+    .hg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .hg-b { padding: 9px 10px 11px; } .hg-no { font-size: 17px; } .hg-money .q { font-size: 15px; } .hg-money .a { font-size: 16px; }
+    .hg-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .hg-stats div:nth-child(3) { display: none; }
+    .hg-badges .hg-badge.on, .hg-badges .hg-badge.off { display: none; }
+    .hg-drawer { width: 100vw; } .hg-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .hg-dno { font-size: 26px; }
+    .hg-list .hg-wide { display: none; } .hg-list th, .hg-list td { padding: 7px 7px; } .hg-pay { white-space: normal; word-break: break-word; }
+  }
+  @media (max-width: 380px) { .hg-grid { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) { .hg-card, .hg-drawer, .hg-back { transition: none; } .hg-prog i { animation: none; } }
 </style>
 </head>
 <body class="locked">
@@ -3459,12 +3557,38 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="cd-tot" id="hd_tot"></div>
       </div>
       <div class="panel">
-        <h2>Cars</h2>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Car</th><th>Fuel</th><th class="n">KM (Log Book)</th><th class="n">Fuel filled</th><th class="n">Amount (₹)</th><th class="n">By card (₹)</th><th class="n">Cash (₹)</th><th class="n">Fills</th><th class="n">Average</th><th>Last fill</th></tr></thead>
-          <tbody id="hd_rows"></tbody>
-        </table></div>
+        <!-- (update-212) the cars as a gallery (their photos) or the table as before; search; a car opens its details -->
+        <div class="hg-head">
+          <h2>Cars <small id="hg_count"></small></h2>
+          <div class="hg-tools">
+            <label class="hg-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              <input id="hg_q" type="search" placeholder="Search number, make or model" aria-label="Search number, make or model" autocomplete="off"></label>
+            <div class="hg-seg" role="group" aria-label="View">
+              <button type="button" id="hg_vgal" aria-pressed="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>Gallery</button>
+              <button type="button" id="hg_vtbl" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Table</button>
+            </div>
+          </div>
+        </div>
+        <div id="hg_grid" class="hg-grid"></div>
+        <div id="hg_tbl" hidden>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Car</th><th>Fuel</th><th class="n">KM (Log Book)</th><th class="n">Fuel filled</th><th class="n">Amount (₹)</th><th class="n">By card (₹)</th><th class="n">Cash (₹)</th><th class="n">Fills</th><th class="n">Average</th><th>Last fill</th></tr></thead>
+            <tbody id="hd_rows"></tbody>
+          </table></div>
+        </div>
       </div>
+      <div id="hg_back" class="hg-back" hidden></div>
+      <aside id="hg_drawer" class="hg-drawer" role="dialog" aria-modal="true" aria-label="Car details" hidden></aside>
+      <div id="hg_pback" class="hg-pback" hidden>
+        <div class="hg-pbox" role="dialog" aria-modal="true" aria-labelledby="hg_ptitle">
+          <h3 id="hg_ptitle">Photo</h3>
+          <div class="hg-pv"><img id="hg_pimg" alt="The new photo"></div>
+          <p class="hg-pinfo" id="hg_pinfo"></p>
+          <div class="hg-prog" id="hg_pprog" hidden><i></i></div>
+          <div class="hg-pbar"><button type="button" class="btn ghost" id="hg_pother">Pick another</button><button type="button" class="btn ghost" id="hg_pcancel">Cancel</button><button type="button" class="btn primary" id="hg_psave">Save photo</button></div>
+        </div>
+      </div>
+      <input type="file" id="hg_file" accept="image/jpeg,image/png,image/webp" hidden>
     </div>
     <div id="dash_diesel" role="tabpanel" aria-labelledby="dtab-diesel">
     <!-- ================= Diesel summary (cards) ================= -->
@@ -6347,6 +6471,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Shown: under every red message (a card at the bottom right), inside every "Nothing saved / Not submitted" box, and next
    * to warnings on the billing page. The language is remembered on this device (rcl_lang). To cover a new message: add a rule. */
   const FIX_RULES = [
+    // (update-212) HO: a car's photo
+    { re: /photo of a car|car photo|Car photos (are kept|cannot be kept)|The photo of .{1,60} was changed by someone else|has no photo to remove|is not the one the Portal sent/i,
+      en: ['The car\'s photo was not saved: only a real picture (JPG, PNG or WebP) can be a car\'s photo, the page makes it smaller by itself, and only the Admin or the Super Admin sets, changes or removes it. Nothing else was changed.', 'Pick or take the photo again and press Save photo. If someone changed the photo meanwhile, close the car and open it again. If it still fails, tell the Admin the exact message.'],
+      mr: ['गाडीचा photo save झाला नाही: फक्त खरा photo (JPG, PNG किंवा WebP) चालतो, page तो आपोआप लहान करते, आणि photo फक्त Admin किंवा Super Admin लावू, बदलू किंवा काढू शकतो. बाकी काहीही बदलले नाही.', 'Photo पुन्हा निवडा किंवा काढा आणि Save photo दाबा. मध्येच दुसऱ्या कोणी photo बदलला असेल तर गाडी बंद करून पुन्हा उघडा. तरीही चालले नाही तर Admin ला हा message जसाच्या तसा सांगा.'],
+      hi: ['गाड़ी का photo save नहीं हुआ: सिर्फ असली photo (JPG, PNG या WebP) चलता है, page उसे अपने आप छोटा करता है, और photo सिर्फ Admin या Super Admin लगा, बदल या हटा सकता है। बाकी कुछ नहीं बदला।', 'Photo फिर से चुनें या खींचें और Save photo दबाएँ। अगर बीच में किसी और ने photo बदला हो तो गाड़ी बंद करके फिर खोलें। फिर भी न चले तो Admin को यह message जैसा है वैसा बताएँ।'] },
     // (update-164) a site on fuel cards (HO)
     { re: /is not a fuel card of this site|pick how the fuel was paid|is not for this car \(Fuel Cards|card [^:]+ is Inactive \(Fuel Cards\)|starts on [^(]{0,24}\(its opening balance\)|enter the Amount \(₹\) of this fill|the Rate \(₹ per|Pick the card the payment was made onto|Enter the amount paid onto card|Pick a fuel card\./i,
       en: ['The fill (or the payment) does not fit the fuel cards of this site: each fill is paid by a card of that car or in Cash, with its Amount (₹), on or after the card\'s opening date. Nothing was saved.', 'Pick the car\'s own card (Fuel Cards shows which cars each card is for, and whether it is Active) or Cash, and type the Amount (₹). For a date before the card\'s opening balance, that amount is already in the opening – change the opening date in Fuel Cards if it is wrong.'],
@@ -7106,7 +7235,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * entry here, when a language is missing, or when a saving action of the server is not listed under any page.
    * So: adding a page, a report or a save action without describing it here cannot go live unnoticed. */
   const PAGE_GUIDE = {
-    dash: { saves: ['saveTankSettings'],
+    dash: { saves: ['saveTankSettings', 'carPhotoSet', 'carPhotoRemove'],      // (update-212) HO: a car's photo (the Admin / Super Admin)
       en: ['The day at a glance: diesel stock, diesel received and issued, the tanks, and the Log Book of the day.', 'Nothing is entered here. Every figure comes from the entries of the other pages for the dates chosen at the top; "Stock now" is always the live stock. Only the tank size can be set here. A click on a number (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) opens a big box with its entries – only shown. The search at the top (Ctrl + K) finds anything in the app – machinery, names, drivers, a reading (also one that lies between the Start and Close of a Log Book entry), challan or bill number, vendor, date, page – even with a spelling mistake (it then asks "did you mean …"); a result opens its page. With one stock point chosen, "Day-wise diesel stock" and its card show "Received from" and "Sent to" for EACH other stock point on its own. A site with more than one fuel: pick the Fuel at the top – every number, tank and list is of that fuel only (never added together).'],
       mr: ['एका नजरेत दिवस: diesel stock, आलेले आणि दिलेले diesel, tanks, आणि दिवसाची Log Book.', 'इथे काहीही भरले जात नाही. प्रत्येक आकडा वर निवडलेल्या तारखांसाठी इतर pages च्या entries वरून येतो; "Stock now" नेहमी सध्याचा stock असतो. इथे फक्त tank चा आकार सेट करता येतो. कोणत्याही आकड्यावर (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) click केले की त्याच्या entries एका मोठ्या box मध्ये दिसतात – फक्त पाहण्यासाठी. वरचा search (Ctrl + K) app मधले काहीही शोधतो – machinery, नावे, driver, reading (Log Book entry च्या Start आणि Close च्या मधले reading सुद्धा), challan किंवा bill नंबर, vendor, तारीख, page – स्पेलिंग चुकले तरी (मग तो "did you mean …" विचारतो); result वर क्लिक केले की त्याचे page उघडते. एक stock point निवडला की "Day-wise diesel stock" आणि त्याच्या card मध्ये प्रत्येक दुसऱ्या stock point चे "Received from" आणि "Sent to" वेगवेगळे दिसते. एकापेक्षा जास्त fuel असलेली site: वर Fuel निवडा – सगळे आकडे, tank आणि यादी फक्त त्या fuel ची (कधीही एकत्र बेरीज नाही).'],
       hi: ['एक नज़र में दिन: diesel stock, आया और दिया गया diesel, tanks, और दिन की Log Book।', 'यहाँ कुछ भरा नहीं जाता। हर आँकड़ा ऊपर चुनी तारीखों के लिए दूसरे pages की entries से आता है; "Stock now" हमेशा अभी का stock है। यहाँ केवल tank का आकार सेट होता है। किसी भी आँकड़े पर (Opening stock, Received, Issued, Closing stock, Stock now, Issued today, Machines fuelled, Issue entries, Average) click करने पर उसकी entries एक बड़े box में दिखती हैं – केवल देखने के लिए। ऊपर का search (Ctrl + K) app में कुछ भी ढूँढता है – machinery, नाम, driver, reading (Log Book entry के Start और Close के बीच की reading भी), challan या bill नंबर, vendor, तारीख, page – spelling गलत हो तब भी (तब वह "did you mean …" पूछता है); result पर क्लिक करने से उसका page खुलता है। एक stock point चुनने पर "Day-wise diesel stock" और उसके card में हर दूसरे stock point का "Received from" और "Sent to" अलग-अलग दिखता है। एक से ज़्यादा fuel वाली site: ऊपर Fuel चुनें – सभी आंकड़े, tank और सूची सिर्फ उस fuel की (कभी एक साथ नहीं जोड़े जाते)।'] },
@@ -19037,12 +19166,206 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('hd_cards').innerHTML = d.cards.map(cardTile).join('') || '<p class="muted">No fuel card yet – add them in Fuel Cards.</p>';
       const T = d.total || {}, fu = Object.keys(T.byFuel || {});
       $('hd_tot').innerHTML = 'In these dates: fuel <b>' + (fu.length ? fu.map(f => esc(f) + ' ' + fmt(T.byFuel[f]) + ' ' + fuelUnit(f)).join(' · ') : '0') + '</b> · <b>₹' + money(T.amount) + '</b> (by card ₹' + money(T.card) + ', cash ₹' + money(T.cash) + ') · ' + fmt(T.fills) + ' fills · ' + fmt(T.cars) + ' cars · ' + fmt(T.km) + ' km';
-      $('hd_rows').innerHTML = d.cars.length ? d.cars.map(x => '<tr><td><b>' + esc(x.no) + '</b><br><small class="muted">' + esc(x.name || x.type || '') + '</small></td><td>' + esc(x.fuel) + '</td><td class="n">' + fmt(x.km) + '</td><td class="n">' + (x.qty ? fmt(x.qty) + ' ' + x.unit : '–') + '</td>' +
-        '<td class="n"><b>' + (x.amount ? money(x.amount) : '–') + '</b></td><td class="n">' + (x.card ? money(x.card) : '') + '</td><td class="n">' + (x.cash ? money(x.cash) : '') + '</td><td class="n">' + fmt(x.fills) + '</td>' +
-        '<td class="n">' + (x.avg !== null ? fmt(x.avg) + ' km/' + x.unit.replace('Ltr', 'L') + (x.std ? '<br><small class="muted">standard ' + fmt(x.std) + '</small>' : '') : '–') + '</td>' +
-        '<td class="nowrap">' + (x.last ? esc(showDate(x.last.date)) + ' · ' + fmt(x.last.qty) + ' ' + x.unit + ' · ₹' + money(x.last.amount) + '<br><small class="muted">' + esc(x.last.paidBy) + (x.last.km !== '' ? ' · ' + fmt(x.last.km) + ' km' : '') + '</small>' : '–') + '</td></tr>').join('')
-        : '<tr><td colspan="10" class="none">No car on this site in these dates.</td></tr>';
+      HG.cars = d.cars; HG.cars.forEach(x => hgLocal(x.photo)); HG.from = d.from; HG.to = d.to;      // (update-212) the gallery and the table: the same cars, the same search
+      hgShow();
+      if (HG.open) hgOpen(HG.open, true);      // (the dates changed with a car open: its details for the new dates)
     } catch (e) { toast(errMsg(e), true); }
+  }
+  /* ---------- (update-212, asked 08-11-2026) HO'S CARS: a gallery with their photos (the table as before, one press away), a search by
+   * number / make / model, a car's details (its fuel, Log Book, maintenance) and its photo – the Admin and the Super Admin set, change
+   * or remove it (the server checks that too). A photo opens by a link of 15 minutes: before it ends, or when a picture does not open,
+   * the page asks for new links by itself (getCarPhotoLinks) – no reload. ---------- */
+  const HG = { cars: [], from: '', to: '', view: 'gal', q: '', open: null, d: null, tab: 'fuel', fresh: null, freshAt: 0, pick: null, made: null };
+  try { const v = localStorage.getItem('hg_view'); if (v === 'tbl' || v === 'gal') HG.view = v; } catch (e) { /* the gallery */ }
+  ['hg_back', 'hg_drawer', 'hg_pback'].forEach(id => document.body.appendChild($(id)));      // (fixed to the window, over the page)
+  const hgMay = () => !!(S.user && S.user.admin);
+  const hgKey = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const hgRs = v => '₹' + Math.round(Number(v) || 0).toLocaleString('en-IN');
+  const hgU = u => String(u || 'Ltr').replace('Ltr', 'L');
+  const hgCar = no => HG.cars.find(x => x.no === no) || (HG.d && HG.d.car.no === no ? HG.d.car : null);
+  const hgPh = x => x && x.photo && x.photo.t && !x.photo.err ? x.photo : null;
+  // when a link ends – counted from this computer's own clock (the server says how long it has left: a clock that is wrong does not matter)
+  const hgLocal = p => { if (p && typeof p.left === 'number') p.exp = Date.now() + p.left; return p; };
+  // a picture for a car without a photo: a car, a truck / tipper or a machine (by its type)
+  function hgIcon(type) {
+    const t = String(type || '');
+    if (/truck|tipper|dumper|tanker|trailer|bus|hywa|hyva|tractor/i.test(t)) return '<svg viewBox="0 0 64 40" aria-hidden="true"><path fill="currentColor" d="M4 10h30v18H4zM36 16h12l8 8v4H36z"/><circle cx="14" cy="31" r="5" fill="#8A99A4"/><circle cx="46" cy="31" r="5" fill="#8A99A4"/></svg>';
+    if (/jcb|excavat|loader|roller|grader|paver|crane|dozer|machine|poclain|hydra|compactor|mixer/i.test(t)) return '<svg viewBox="0 0 64 40" aria-hidden="true"><path fill="currentColor" d="M8 18h22v10H8zM14 10h10v8H14zM30 20l14-12 6 3-12 11zM48 10l8 10-6 2z"/><rect x="6" y="28" width="28" height="6" rx="3" fill="#8A99A4"/></svg>';
+    return '<svg viewBox="0 0 64 40" aria-hidden="true"><path fill="currentColor" d="M6 28 L10 18 Q12 14 17 13.5 L44 13 Q49 13 52 16.5 L58 22 Q61 23 61 27 L61 30 L6 30 Z"/><circle cx="18" cy="31" r="5" fill="#8A99A4"/><circle cx="48" cy="31" r="5" fill="#8A99A4"/></svg>';
+  }
+  const hgNone = (x, words) => '<div class="hg-none">' + hgIcon(x && x.type) + (words === null ? '' : '<span>' + esc(words || 'No photo yet') + '</span>') + '</div>';      // (null: the icon only – "Add photo" says it)
+  function hgList() {
+    const q = hgKey(HG.q), w = String(HG.q || '').trim().toLowerCase();
+    return !w ? HG.cars : HG.cars.filter(x => (q && hgKey(x.no).indexOf(q) > -1) || [x.make, x.name, x.type].some(v => String(v || '').toLowerCase().indexOf(w) > -1));
+  }
+  function hgCard(x) {
+    const ph = hgPh(x), pct = x.amount > 0 ? Math.round(x.card / x.amount * 100) : 0, mm = [x.make, x.name].filter(Boolean).join(' · ') || x.type || '';
+    return '<div class="hg-card" role="button" tabindex="0" data-no="' + esc(x.no) + '" aria-label="' + esc(x.no + (mm ? ', ' + mm : '') + ' – open its details') + '">' +
+      '<div class="hg-pic">' + (ph ? '<img src="' + esc(ph.t) + '" alt="' + esc(x.no) + '" loading="lazy" decoding="async" data-hgno="' + esc(x.no) + '">' : hgNone(x, x.photo && x.photo.err ? 'Photo opens in a moment' : !x.photo && hgMay() ? null : '')) +
+        '<div class="hg-badges"><span class="hg-badge">' + esc(x.fuel || '') + '</span><span class="hg-badge ' + (x.status === 'Inactive' ? 'off' : 'on') + '">' + esc(x.status || 'Active') + '</span></div>' +
+        (!x.photo && hgMay() ? '<span class="hg-add" data-hgadd="' + esc(x.no) + '">📷 Add photo</span>' : '') + '</div>' +
+      '<div class="hg-b"><div class="hg-no">' + esc(x.no) + '</div><div class="hg-mm">' + esc(mm) + '</div>' +
+        '<div class="hg-money"><span class="q">' + (x.qty ? fmt(x.qty) + ' <small>' + esc(hgU(x.unit)) + ' filled</small>' : '<small>No fill in these dates</small>') + '</span><span class="a">' + (x.amount ? hgRs(x.amount) : '–') + '</span></div>' +
+        (x.amount ? '<div class="hg-bar" aria-hidden="true"><i class="c" style="width:' + pct + '%"></i><i class="k" style="width:' + (100 - pct) + '%"></i></div><div class="hg-split"><span>Card ' + hgRs(x.card) + '</span><span class="k">Cash ' + hgRs(x.cash) + '</span></div>' : '') +
+        '<div class="hg-stats"><div><small>Fills</small><b>' + fmt(x.fills) + '</b></div><div><small>Average</small><b>' + (x.avg !== null && x.avg !== undefined ? fmt(x.avg) + ' km/' + esc(hgU(x.unit)) : '–') + '</b></div><div><small>KM now</small><b>' + (x.kmNow ? fmt(x.kmNow) : '–') + '</b></div></div>' +
+        '<div class="hg-last">Last fill: <b>' + (x.last ? esc(showDate(x.last.date)) : '–') + '</b></div></div></div>';
+  }
+  function hgRow(x) {      // the table – as before (update-164), a row opens the car too
+    return '<tr data-no="' + esc(x.no) + '"><td><b>' + esc(x.no) + '</b><br><small class="muted">' + esc(x.name || x.type || '') + '</small></td><td>' + esc(x.fuel) + '</td><td class="n">' + fmt(x.km) + '</td><td class="n">' + (x.qty ? fmt(x.qty) + ' ' + x.unit : '–') + '</td>' +
+      '<td class="n"><b>' + (x.amount ? money(x.amount) : '–') + '</b></td><td class="n">' + (x.card ? money(x.card) : '') + '</td><td class="n">' + (x.cash ? money(x.cash) : '') + '</td><td class="n">' + fmt(x.fills) + '</td>' +
+      '<td class="n">' + (x.avg !== null ? fmt(x.avg) + ' km/' + x.unit.replace('Ltr', 'L') + (x.std ? '<br><small class="muted">standard ' + fmt(x.std) + '</small>' : '') : '–') + '</td>' +
+      '<td class="nowrap">' + (x.last ? esc(showDate(x.last.date)) + ' · ' + fmt(x.last.qty) + ' ' + x.unit + ' · ₹' + money(x.last.amount) + '<br><small class="muted">' + esc(x.last.paidBy) + (x.last.km !== '' ? ' · ' + fmt(x.last.km) + ' km' : '') + '</small>' : '–') + '</td></tr>';
+  }
+  function hgShow() {
+    const list = hgList(), gal = HG.view === 'gal', none = HG.cars.length ? 'No car matches "' + HG.q.trim() + '".' : 'No car on this site in these dates.';
+    $('hg_vgal').setAttribute('aria-pressed', String(gal)); $('hg_vtbl').setAttribute('aria-pressed', String(!gal));
+    $('hg_grid').hidden = !gal; $('hg_tbl').hidden = gal;
+    $('hg_count').textContent = HG.cars.length ? (list.length === HG.cars.length ? HG.cars.length + ' car' + (HG.cars.length === 1 ? '' : 's') : list.length + ' of ' + HG.cars.length + ' cars') : '';
+    if (gal) $('hg_grid').innerHTML = list.length ? list.map(hgCard).join('') : '<p class="hg-empty">' + esc(none) + '</p>';
+    else $('hd_rows').innerHTML = list.length ? list.map(hgRow).join('') : '<tr><td colspan="10" class="none">' + esc(none) + '</td></tr>';
+    hgSoon();
+  }
+  function hgView(v) { HG.view = v; try { localStorage.setItem('hg_view', v); } catch (e) { /* this time only */ } hgShow(); }
+  $('hg_vgal').addEventListener('click', () => hgView('gal'));
+  $('hg_vtbl').addEventListener('click', () => hgView('tbl'));
+  $('hg_q').addEventListener('input', () => { HG.q = $('hg_q').value; hgShow(); });
+  const hgFromCard = e => { const add = e.target.closest('[data-hgadd]'); if (add) { e.stopPropagation(); hgPick(add.dataset.hgadd); return; } const c = e.target.closest('[data-no]'); if (c) hgOpen(c.dataset.no); };
+  $('hg_grid').addEventListener('click', hgFromCard);
+  $('hg_grid').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('hg-card')) { e.preventDefault(); hgOpen(e.target.dataset.no); } });
+  $('hd_rows').addEventListener('click', hgFromCard);
+  // ---- the links of the photos: new ones before they end (a minute and a half), or when a picture does not open; one ask at a time
+  function hgFresh(force) {
+    if (HG.fresh) return HG.fresh;
+    if (!force && Date.now() - HG.freshAt < 20000) return Promise.resolve();
+    const nos = HG.cars.filter(x => x.photo).map(x => x.no); if (HG.d && HG.d.car.photo && nos.indexOf(HG.d.car.no) < 0) nos.push(HG.d.car.no);
+    if (!nos.length) return Promise.resolve();
+    HG.freshAt = Date.now();
+    HG.fresh = call('getCarPhotoLinks', { nos: nos, fresh: !!force }).then(d => { const P = (d && d.photos) || {}; Object.keys(P).forEach(k => hgLocal(P[k]));      // (a picture did not open: new links, never the kept ones)
+      const waited = HG.cars.some(x => x.photo && x.photo.err) || !!(HG.d && HG.d.car.photo && HG.d.car.photo.err);
+      HG.cars.forEach(x => { if (P[x.no]) x.photo = P[x.no]; }); if (HG.d && P[HG.d.car.no]) HG.d.car.photo = P[HG.d.car.no];
+      if (waited) { hgShow(); if (HG.d) hgDraw(); } else hgSwap(); }).catch(() => { /* tried again at the next check */ }).finally(() => { HG.fresh = null; });
+    return HG.fresh;
+  }
+  function hgSwap() {      // the pictures shown take their new links (a picture already open stays as it is)
+    document.querySelectorAll('img[data-hgno]').forEach(im => { const ph = hgPh(hgCar(im.dataset.hgno)); if (!ph) return; const want = im.dataset.full ? ph.f : ph.t; if (want && im.getAttribute('src') !== want) { im.dataset.tried = ''; im.setAttribute('src', want); } });
+  }
+  function hgSoon() { const now = Date.now(), all = HG.cars.concat(HG.d ? [HG.d.car] : []); if (all.some(x => x.photo && (x.photo.err || (x.photo.exp && x.photo.exp - now < 90000)))) hgFresh(); }
+  document.addEventListener('error', e => {      // a picture that does not open (its link ended): new links once, then the car's icon
+    const im = e.target; if (!im || im.tagName !== 'IMG' || !im.dataset || !im.dataset.hgno) return;
+    if (im.dataset.tried) { const box = im.parentNode; im.remove(); if (box && !box.querySelector('.hg-none')) box.insertAdjacentHTML('afterbegin', hgNone(hgCar(im.dataset.hgno), 'Photo could not open')); return; }
+    im.dataset.tried = '1'; hgFresh(true);
+  }, true);
+  setInterval(() => { if (document.hidden || $('dash_card').hidden) return; hgSoon(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('dash_card').hidden) hgSoon(); });
+  // ---- one car's details: from the right (the whole screen on a phone)
+  async function hgOpen(no, again) {
+    const dr = $('hg_drawer'), x = hgCar(no) || { no: no };
+    if (!again) { HG.open = no; HG.d = null; HG.back = document.activeElement;
+      dr.innerHTML = hgDHead(x) + '<div class="hg-db"><h2 class="hg-dno">' + esc(no) + '</h2><p class="hg-note">Opening…</p></div>';
+      $('hg_back').hidden = false; dr.hidden = false; document.documentElement.classList.add('hg-lock');
+      requestAnimationFrame(() => { $('hg_back').classList.add('on'); dr.classList.add('on'); });
+      setTimeout(() => { const b = dr.querySelector('.hg-x'); if (b) b.focus(); }, 60); }
+    try {
+      const d = await call('getCarDetail', { no: no, from: HG.from, to: HG.to });
+      if (HG.open !== no) return;
+      hgLocal(d.car.photo); HG.d = d; hgDraw();
+    } catch (e) { if (HG.open !== no) return; const b = dr.querySelector('.hg-db'); if (b) b.innerHTML = '<h2 class="hg-dno">' + esc(no) + '</h2><p class="hg-note">' + esc(errMsg(e)) + '</p>'; }
+  }
+  function hgClose() {
+    if (!HG.open) return;
+    HG.open = null; HG.d = null;
+    const dr = $('hg_drawer'); dr.classList.remove('on'); $('hg_back').classList.remove('on'); document.documentElement.classList.remove('hg-lock');
+    setTimeout(() => { if (!HG.open) { dr.hidden = true; $('hg_back').hidden = true; dr.innerHTML = ''; } }, 320);
+    try { if (HG.back && HG.back.focus) HG.back.focus(); } catch (e) { /* nothing to go back to */ }
+  }
+  function hgDHead(x) {
+    const ph = hgPh(x), may = hgMay();
+    return '<div class="hg-dpic">' + (ph ? '<img src="' + esc(ph.f) + '" alt="' + esc(x.no) + '" decoding="async" data-hgno="' + esc(x.no) + '" data-full="1">' : hgNone(x, x.photo && x.photo.err ? 'Photo opens in a moment' : 'No photo yet')) +
+      '<button type="button" class="hg-x" aria-label="Close">✕</button>' +
+      (may && HG.d ? '<div class="hg-pbtns">' + (x.photo ? '<button type="button" class="rm" data-hgrm="1">Remove</button>' : '') + '<button type="button" data-hgset="1">📷 ' + (x.photo ? 'Change photo' : 'Add photo') + '</button></div>' : '') + '</div>';
+  }
+  function hgDraw() {
+    const d = HG.d; if (!d) return;
+    const x = d.car, s = d.sum, u = hgU(x.unit), mm = [x.make, x.name].filter(Boolean).join(' · ');
+    const tabs = [['fuel', 'Fuel history'], ['log', 'Log Book'], ['maint', 'Maintenance']];
+    const kpi = (l, v) => '<div><small>' + esc(l) + '</small><b>' + v + '</b></div>';
+    let list = '';
+    if (HG.tab === 'fuel') list = d.fills.length ? '<div class="hg-list"><table><thead><tr><th>Date</th><th class="hg-wide">Fuel</th><th class="n">Qty</th><th class="n">₹</th><th>Paid by</th><th class="n">KM</th></tr></thead><tbody>' +
+        d.fills.map(f => '<tr><td class="nowrap">' + esc(showDate(f.date)) + '</td><td class="hg-wide">' + esc(f.fuel) + '</td><td class="n">' + fmt(f.qty) + ' ' + esc(hgU(f.unit)) + '</td><td class="n">' + money(f.amount) + '</td><td><span class="hg-pay' + (f.cash ? ' cash' : '') + '">' + esc(f.paidBy) + '</span></td><td class="n">' + (f.km !== '' ? fmt(f.km) : '–') + '</td></tr>').join('') + '</tbody></table></div>'
+      : '<p class="hg-note">No fill of this car in these dates.</p>';
+    else if (HG.tab === 'log') list = d.log === null ? '<p class="hg-note">You have no access to the Log Book – ask the Admin.</p>' : d.log.length ? '<div class="hg-list"><table><thead><tr><th>Date</th><th>Shift</th><th class="n">Start KM</th><th class="n">Close KM</th><th class="n">KM</th><th>Driver</th></tr></thead><tbody>' +
+        d.log.map(l => '<tr><td class="nowrap">' + esc(showDate(l.date)) + '</td><td>' + esc(l.shift) + '</td><td class="n">' + (l.okm !== '' ? fmt(l.okm) : '–') + '</td><td class="n">' + (l.ckm !== '' ? fmt(l.ckm) : '–') + '</td><td class="n">' + (l.km !== '' ? fmt(l.km) : '–') + '</td><td>' + esc(l.driver || '') + '</td></tr>').join('') + '</tbody></table></div>'
+      : '<p class="hg-note">No Log Book day of this car in these dates.</p>';
+    else list = d.maint === null ? '<p class="hg-note">You have no access to Maintenance – ask the Admin.</p>' : d.maint.length ? '<div class="hg-list"><table><thead><tr><th>Date</th><th>Garage · bill</th><th>Work</th><th class="n">KM</th><th class="n">₹</th></tr></thead><tbody>' +
+        d.maint.map(m => '<tr><td class="nowrap">' + esc(showDate(m.date)) + '</td><td>' + esc(m.garage || '–') + (m.billNo ? '<br><small class="muted">' + esc(m.billNo) + '</small>' : '') + (m.service ? ' <span class="hg-pay">Service</span>' : '') + '</td><td>' + esc(m.works.join(', ')) + '</td><td class="n">' + (m.km !== '' ? fmt(m.km) : '–') + '</td><td class="n">' + money(m.amount) + '</td></tr>').join('') + '</tbody></table></div>'
+      : '<p class="hg-note">No maintenance bill of this car in these dates.</p>';
+    $('hg_drawer').innerHTML = hgDHead(x) + '<div class="hg-db"><h2 class="hg-dno">' + esc(x.no) + '</h2>' + (mm ? '<div class="hg-mm" style="font-size:14px">' + esc(mm) + '</div>' : '') +
+      '<div class="hg-chips"><span>' + esc(x.fuel) + '</span>' + (x.type ? '<span>' + esc(x.type) + '</span>' : '') + '<span style="color:' + (x.status === 'Inactive' ? 'var(--bad)' : 'var(--good)') + '">● ' + esc(x.status) + '</span><span>KM now ' + (x.kmNow ? fmt(x.kmNow) : '–') + '</span></div>' +
+      '<p class="muted" style="margin:12px 0 0;font-size:13px">' + esc(rangeText(d.from, d.to)) + '</p>' +
+      '<div class="hg-kpis">' + kpi('Fuel filled', s.qty ? fmt(s.qty) + ' ' + esc(u) : '–') + kpi('Fuel expense', s.amount ? hgRs(s.amount) : '–') + kpi('Average', s.avg !== null ? fmt(s.avg) + ' km/' + esc(u) : '–') +
+        kpi('By card', hgRs(s.card)) + kpi('Cash', hgRs(s.cash)) + kpi('Fills', fmt(s.fills)) + '</div>' +
+      '<div class="hg-tabs" role="tablist">' + tabs.map(t => '<button type="button" role="tab" data-hgtab="' + t[0] + '" aria-selected="' + (HG.tab === t[0]) + '">' + esc(t[1]) + '</button>').join('') + '</div>' + list + '</div>';
+  }
+  $('hg_drawer').addEventListener('click', e => {
+    if (e.target.closest('.hg-x')) { hgClose(); return; }
+    const t = e.target.closest('[data-hgtab]'); if (t) { HG.tab = t.dataset.hgtab; hgDraw(); return; }
+    if (e.target.closest('[data-hgset]') && HG.d) { hgPick(HG.d.car.no); return; }
+    if (e.target.closest('[data-hgrm]') && HG.d) hgRemove(HG.d.car.no);
+  });
+  $('hg_back').addEventListener('click', hgClose);
+  document.addEventListener('keydown', e => { if (e.key !== 'Escape' || !HG.open || !$('cf_back').hidden) return; if (!$('hg_pback').hidden) { hgPhotoClose(); return; } hgClose(); });
+  // ---- a car's photo: picked (a phone offers its camera too), turned upright, made smaller – seen first, saved only by "Save photo"
+  const hgSeen = no => { const x = hgCar(no); return x && x.photo ? x.photo.v || '' : ''; };
+  function hgPick(no) { if (!hgMay()) return; HG.pick = { no: no, was: hgSeen(no) }; $('hg_file').value = ''; $('hg_file').click(); }
+  async function hgJpeg(im, lim, q, max) {      // the photo at most `lim` px, a JPEG under `max` bytes (a little smaller each try)
+    const W = atW(im), Hh = atH(im), sc = Math.min(1, lim / Math.max(W, Hh)), cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(W * sc)); cv.height = Math.max(1, Math.round(Hh * sc));
+    const g = cv.getContext('2d'); g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, cv.width, cv.height); g.imageSmoothingQuality = 'high'; g.drawImage(im, 0, 0, cv.width, cv.height);
+    let blob = null; for (let i = 0; i < 6; i++) { blob = await new Promise(ok => cv.toBlob(ok, 'image/jpeg', q)); if (blob && blob.size <= max) break; q = Math.max(0.4, q - 0.1); }
+    if (!blob || blob.size > max) throw new Error('This photo could not be made small enough – pick another.');
+    return { blob: blob, w: cv.width, h: cv.height };
+  }
+  $('hg_file').addEventListener('change', async () => {
+    const f = $('hg_file').files && $('hg_file').files[0], p = HG.pick; if (!f || !p) return;
+    const okType = /^image\/(jpeg|png|webp)$/.test(f.type) || (!f.type && /\.(jpe?g|png|webp)$/i.test(f.name || ''));
+    if (!okType) { toast('A car\'s photo must be a JPG, PNG or WebP picture.', true); return; }
+    if (f.size > 25 * 1048576) { toast('This picture is too big (more than 25 MB) – pick a smaller one.', true); return; }
+    try {
+      const im = await atPic(f), full = await hgJpeg(im, 1600, 0.82, 2 * 1048576 - 1024), thumb = await hgJpeg(im, 480, 0.78, 400 * 1024 - 1024);
+      if (im.close) { try { im.close(); } catch (e) { /* freed anyway */ } }
+      if (HG.made && HG.made.url) URL.revokeObjectURL(HG.made.url);
+      HG.made = { no: p.no, was: p.was, full: full, thumb: thumb, url: URL.createObjectURL(full.blob) };
+      $('hg_ptitle').textContent = (hgSeen(p.no) ? 'Change photo – ' : 'Photo – ') + p.no;
+      $('hg_pimg').src = HG.made.url;
+      $('hg_pinfo').textContent = 'New photo – ' + full.w + ' × ' + full.h + ', ' + atSize(full.blob.size) + (f.size > full.blob.size ? ' (made smaller here from ' + atSize(f.size) + ')' : '') + '. Nothing is saved until you press Save photo.';
+      $('hg_pprog').hidden = true; $('hg_pback').hidden = false; setTimeout(() => $('hg_psave').focus(), 30);
+    } catch (e) { toast(errMsg(e) || 'This picture cannot be read – pick another.', true); }
+  });
+  function hgPhotoClose() { $('hg_pback').hidden = true; if (HG.made && HG.made.url) URL.revokeObjectURL(HG.made.url); HG.made = null; $('hg_pimg').removeAttribute('src'); }
+  $('hg_pcancel').addEventListener('click', hgPhotoClose);
+  $('hg_pother').addEventListener('click', () => { const m = HG.made; if (!m) return; hgPhotoClose(); hgPick(m.no); });
+  $('hg_pback').addEventListener('click', e => { if (e.target === $('hg_pback') && $('hg_pprog').hidden) hgPhotoClose(); });
+  const hgData = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).replace(/^data:image\/jpe?g;base64,/, 'data:image/jpeg;base64,')); r.onerror = () => no(new Error('This photo cannot be read – pick it again.')); r.readAsDataURL(blob); });
+  function hgPut(no, photo) {      // the car's photo as the server has it now: the gallery, the table and an open car
+    hgLocal(photo);
+    HG.cars.forEach(x => { if (x.no === no) x.photo = photo; });
+    if (HG.d && HG.d.car.no === no) { HG.d.car.photo = photo; hgDraw(); }
+    hgShow();
+  }
+  $('hg_psave').addEventListener('click', e => { const m = HG.made; if (!m) return;
+    busy(e.target, 'Saving…', async () => {
+      $('hg_pprog').hidden = false;
+      try {
+        const r = await call('carPhotoSet', { no: m.no, full: await hgData(m.full.blob), thumb: await hgData(m.thumb.blob), was: m.was });
+        hgPhotoClose(); hgPut(m.no, r.photo); toast('Photo saved – ' + m.no + '.');
+      } finally { $('hg_pprog').hidden = true; }
+    }); });
+  async function hgRemove(no) {
+    if (!hgMay()) return;
+    const ok = await askConfirm({ title: 'Remove the photo of ' + no + '?', message: 'The car shows its picture icon again. The photo file itself stays kept in the site\'s private store (nothing there is deleted).', ok: 'Remove photo', danger: true });
+    if (!ok) return;
+    try { const r = await call('carPhotoRemove', { no: no, was: hgSeen(no) }); hgPut(no, r.photo); toast('Photo removed – ' + no + '.'); }
+    catch (e) { toast(errMsg(e), true); }
   }
 
 
