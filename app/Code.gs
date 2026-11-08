@@ -981,6 +981,7 @@ const API_ = {
   // a car's photo set / changed / removed – the Admin and the Super Admin only (checked here and inside)
   getCarDetail:      { m: 'Dashboard', withUser: true, f: (u, x) => carDetail_(u, x) },
   getCarPhotoLinks:  { m: 'Dashboard', f: carPhotoLinksOut_ },
+  getVehAlerts:      { m: '', withUser: true, f: (u) => vehAlerts_(u) },      // (update-213) the alerts of the machinery – each part by the person's pages
   carPhotoSet:       { m: 'Dashboard', admin: true, withUser: true, f: (u, x) => carPhotoSet_(u, x) },
   carPhotoRemove:    { m: 'Dashboard', admin: true, withUser: true, f: (u, x) => carPhotoRemove_(u, x) },
   // (update-165) the Maintenance Log Book of a site on fuel cards (HO): the bills of the cars, their files, the AI reading a bill, a car's log book
@@ -1170,6 +1171,7 @@ function apiRun_(u, spec, fn, args) {
     if (u.admin) res.faults = errStamp_();      // the Admin's page shows faults of today within seconds
     if (fn === 'sync') { try { const rb = rtcBeat_(u, args[0]); if (rb) res.rtc = rb; } catch (e) { /* a screen-share note must never stop the heartbeat */ }
       try { flowRemind_(); } catch (e) { /* (update-114) a reminder never stops the heartbeat */ }
+      try { vehAlertDaily_(); } catch (e) { /* (update-213) the morning message of the vehicle alerts – never stops the heartbeat */ }
       try { shortTick_(); } catch (e) { /* (update-211) entries kept as stock short: saved when the stock came – never stops the heartbeat */ } } }
   if (fn === 'backupNow' && res && res.info) res.info = backupInfoFor_(u, res.info);
   // (update-158) the Admin's Backup window also shows how full this site's storage is (database, files, backup Sheet, Drive copy)
@@ -1635,6 +1637,7 @@ function buildMaster_() {
       tdsRate: H.TDS in t.c ? numOrBlank_(r[t.c[H.TDS]]) : '',
       enteredBy: H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '', updatedBy: H.UBY in t.c ? str_(r[t.c[H.UBY]]) : '',
       ver: rowVer_(t, r, MASTER_VER_H_()),      // (update-156) sent back with a change / a delete
+      svc: svcOf_(rowId_(r, t)),      // (update-213) Service every { km, hrs, months } or null
     }));
 }
 
@@ -1857,6 +1860,9 @@ function renameMachine_(oldId, newId) {
       if (noKey_(x.no) === kt) { if (x.noNow !== undefined) { delete x.noNow; hit = true; } }            // back to the number printed on the bill
       else if (x.noNow !== to) { x.noNow = to; hit = true; } });
     if (hit) { const row = r.slice(); row[billT.c['Data']] = JSON.stringify(d); put(billT, i, row, 'saved bills (link only)'); } });
+  // (update-213) its "Service every" follows its number – in the same save; a rule left under the new number is not this machinery's
+  if (kf !== kt) { const sv = svcRules_(false);
+    if (sv[kf] || sv[kt]) { if (sv[kf]) { sv[kt] = sv[kf]; n['service rule'] = 1; } else delete sv[kt]; delete sv[kf]; kvInSave_(SVC_KV_, JSON.stringify(sv)); } }
   // (update-212) the car's photo (a site on fuel cards) follows its number – written with this save, never without it. A photo left under
   // the new number (of a machinery no longer in Asset Master) is not this car's: it is taken off the number (its files stay in the store).
   if (kf !== kt) { const ph = carPhotos_(!cardSite_());      // (a site not on fuel cards has none: a list it cannot read moves nothing)
@@ -1869,6 +1875,8 @@ function renameMachine_(oldId, newId) {
 function saveMaster_(m, mode, origId) {
   return withLock_(() => {
     const v = validateMaster_(m);
+    // (update-213) "Service every" as the form sent it – checked before anything is written
+    const svcIn = m && (m.svc || 'svcKm' in m || 'svcHrs' in m || 'svcMon' in m) ? { r: svcRuleOf_(m.svc && typeof m.svc === 'object' ? m.svc : { km: m.svcKm, hrs: m.svcHrs, months: m.svcMon }, v) } : null;
     // (update-119) its earlier periods on site (it came back: the period that ended is kept); entries already made stay on site
     const old = mode === 'add' ? null : getMaster_().find(x => same_(x.id, origId)) || null;
     v.earlier = sitePeriodsSave_(old, v, m.earlier);
@@ -1902,6 +1910,7 @@ function saveMaster_(m, mode, origId) {
       const chg = cmpDocs_().filter(d => d.col in t.c && docVal_(row[t.c[d.col]]) !== was[d.name]).map(d => ({ no: v.id, doc: d.name, from: was[d.name], to: docVal_(row[t.c[d.col]]), on: today_(), source: 'Asset Master' }));
       try { cmpHistAdd_(chg); } catch (e) { /* history is extra – the Master change stands */ }
     }
+    if (svcIn) { svcSave_(v, svcIn.r); TABLE_MEMO_ = {}; }      // (update-213) Service every – in the same save
     return { ok: true, master: getMaster_(), renamed: renamed };
   });
 }
@@ -1995,6 +2004,7 @@ function deleteMasterMany_(ids, force, vers) {      // vers (update-156): { id: 
     const idsOut = found.map(x => rowId_(t.rows[x.i], t));
     found.map(x => x.i).sort((a, b) => b - a).forEach(i => t.sh.deleteRow(i + 2)); // bottom first
     carPhotoDrop_(idsOut);      // (update-212)
+    svcDrop_(idsOut);      // (update-213)
     return { ok: true, count: idsOut.length, ids: idsOut, master: getMaster_() };
   });
 }
@@ -4700,6 +4710,7 @@ function deleteMaster_(id, force, ver) {
     }
     t.sh.deleteRow(i + 2);
     carPhotoDrop_([realId]);      // (update-212)
+    svcDrop_([realId]);      // (update-213)
     return { ok: true, master: getMaster_() };
   });
 }
@@ -6333,7 +6344,8 @@ function cards_() {
   try { const j = raw ? JSON.parse(raw) : []; if (Array.isArray(j)) list = j.filter(x => x && clean_(x.name)).map(x => ({ name: clean_(x.name), last4: /^\d{4}$/.test(str_(x.last4)) ? str_(x.last4) : '',
     type: CARD_TYPES_.indexOf(x.type) > -1 ? x.type : CARD_TYPES_[0], cars: Array.isArray(x.cars) ? x.cars.map(str_).filter(Boolean) : [], opening: num0_(x.opening),
     openDate: /^\d{4}-\d{2}-\d{2}$/.test(str_(x.openDate)) ? str_(x.openDate) : '', active: x.active !== false,
-    issuer: clean_(x.issuer).slice(0, 60), holder: clean_(x.holder).slice(0, 60), expiry: /^\d{4}-(0[1-9]|1[0-2])$/.test(str_(x.expiry)) ? str_(x.expiry) : '', custId: clean_(x.custId).slice(0, 40) })); }      // (update-166) its details
+    issuer: clean_(x.issuer).slice(0, 60), holder: clean_(x.holder).slice(0, 60), expiry: /^\d{4}-(0[1-9]|1[0-2])$/.test(str_(x.expiry)) ? str_(x.expiry) : '', custId: clean_(x.custId).slice(0, 40),      // (update-166) its details
+    lowAt: numOrBlank_(x.lowAt) !== '' && numOrBlank_(x.lowAt) > 0 ? r2_(numOrBlank_(x.lowAt)) : '' })); }      // (update-213) "Alert below ₹"
   catch (e) { list = []; }
   CARDS_MEMO_ = { raw: raw, list: list };
   return list;
@@ -6413,6 +6425,7 @@ function cardBalances_(upto) {
   return cards_().map(c => { const x = mv[c.name.toUpperCase()];
     return { name: c.name, last4: c.last4, type: c.type, cars: c.cars.slice(), opening: c.opening, openDate: c.openDate, active: c.active,
       issuer: c.issuer, holder: c.holder, expiry: c.expiry, custId: c.custId, expDays: cardExpDays_(c.expiry),      // (update-166)
+      lowAt: c.lowAt,      // (update-213)
       paid: x.paid, spent: x.spent, balance: r2_(c.opening + x.paid - x.spent), fills: x.fills, payments: x.payments, lastFill: x.lastFill, used: !!x.first }; });
 }
 // Fuel Cards: the cards, their balances and the kinds
@@ -6449,9 +6462,12 @@ function saveCard_(x) {
       if (used.first && k !== list[i].name.toUpperCase()) throw new Error('Card ' + list[i].name + ' has entries – its name stays (it can be made Inactive).');
       if (used.first && openDate > used.first) throw new Error('Card ' + name + ' has entries from ' + dmy_(used.first) + ' – its opening date can be at most that day.');
     }
-    const card = { name: name, last4: last4, type: type, cars: cars, opening: r2_(opening), openDate: openDate, active: x.active !== false, issuer: issuer, holder: holder, expiry: expiry, custId: custId };
+    // (update-213) "Alert below ₹": its balance under it – the card is in the vehicle alerts (empty = no alert)
+    const lowAt = numOrBlank_(x.lowAt);
+    if (lowAt !== '' && !(lowAt > 0 && lowAt <= 100000000)) throw new Error('Card ' + name + ': "Alert below ₹" must be an amount above 0 (or empty – no alert).');
+    const card = { name: name, last4: last4, type: type, cars: cars, opening: r2_(opening), openDate: openDate, active: x.active !== false, issuer: issuer, holder: holder, expiry: expiry, custId: custId, lowAt: lowAt === '' ? '' : r2_(lowAt) };
     const show = c => [c.type, c.last4 ? '…' + c.last4 : '', c.issuer || '', c.holder ? 'in the name of ' + c.holder : '', c.expiry ? 'expiry ' + c.expiry.slice(5) + '/' + c.expiry.slice(0, 4) : '', c.custId ? 'customer ID ' + c.custId : '',
-      'opening ₹' + c.opening + ' on ' + dmy_(c.openDate), c.cars.length ? 'cars ' + c.cars.join(', ') : 'every car', c.active ? 'Active' : 'Inactive'].filter(Boolean).join(', ');
+      'opening ₹' + c.opening + ' on ' + dmy_(c.openDate), c.cars.length ? 'cars ' + c.cars.join(', ') : 'every car', c.lowAt ? 'alert below ₹' + c.lowAt : '', c.active ? 'Active' : 'Inactive'].filter(Boolean).join(', ');
     const before = i > -1 ? list[i] : null;
     if (i > -1) list[i] = card; else list.push(card);
     PropertiesService.getScriptProperties().setProperty(CARDS_KEY_, JSON.stringify(list));
@@ -6878,6 +6894,111 @@ function kvInSave_(id, v) {
     s.kv[id] = v; return;
   }
   kvWrite_(id, v);
+}
+
+/* ================= VEHICLE ALERTS (update-213) =================
+ * Asked 08-11-2026 (the features for HO: "ata he sagle ek sath bana ani ha ho sathi pn ani other site sathi pn he hawe aahet"); his
+ * answer: the alerts go to the site's Admin and the Super Admin. AT EVERY SITE, for every machinery on site today:
+ *   – PAPERS: Tax, PUC, Permit, Fitness, Insurance of an Own machinery (Vehicle Compliance) – expired, or due within 30 days;
+ *   – SERVICE: Asset Master → "Service every" KM / Hrs / months (a setting of the site – app_settings SVC_RULES, written WITH the
+ *     Asset Master save: kvInSave_); from the newest maintenance bill marked Service (its date and reading) and the machinery's last
+ *     reading: over, or within 10 % of the interval / 15 days; "no service recorded yet" when a rule is set and no bill is marked;
+ *   – AVERAGE: this month's Actual vs Standard Average – More diesel (over 10 %) or Bad (over 30 %), as the report;
+ *   – a FUEL CARD (a site on fuel cards) whose balance is below the amount set on the card ("Alert below ₹").
+ * Each part only for a person who may see that page (the server cuts it). getVehAlerts: the list; the heartbeat (any open page /
+ * phone) sends it ONCE A DAY after 08:00 to the site's Admins and the Super Admin's phones (crNotify_). No database step. */
+const SVC_KV_ = 'SVC_RULES', SVC_SOON_PCT_ = 0.1, SVC_SOON_DAYS_ = 15, VA_HOUR_ = 8;
+function svcRules_(soft) {
+  try { const b = prefsInDb_() ? SS_().sheets.app_settings : null; if (b && b.kv && SVC_KV_ in b.kv) { const o = JSON.parse(b.kv[SVC_KV_]); if (o && typeof o === 'object') return o; } } catch (e) { /* read below */ }      // (a change of this save)
+  let raw = '';
+  try { raw = kvRead_(SVC_KV_); } catch (e) { if (soft) return {}; throw new Error('The service rules of the machinery cannot be read now – nothing was saved. Try again in a moment.'); }
+  let o = null; try { o = JSON.parse(raw || '{}'); } catch (e) { o = null; }
+  if (o && typeof o === 'object' && !Array.isArray(o)) return o;
+  if (soft) return {};
+  throw new Error('The service rules of the machinery are damaged – nothing was saved. Tell the Admin.');
+}
+const svcOf_ = id => { const r = memoGet_('__svc', () => svcRules_(true))[noKey_(id)]; return r && typeof r === 'object' ? r : null; };
+// "Service every" as typed for a machinery (v: its Asset Master values): { km, hrs, months } – nothing typed = null
+function svcRuleOf_(x, v) {
+  x = x || {};
+  const n = (k, lo, hi, what) => { const t = str_(x[k]); if (t === '') return ''; const a = Number(t.replace(/[, ]/g, ''));
+    if (!(a >= lo && a <= hi) || Math.round(a) !== a) throw new Error(v.id + ': Service every ' + what + ' must be a whole number from ' + lo + ' to ' + hi + ' (or empty).'); return a; };
+  const r = { km: n('km', 100, 200000, 'KM'), hrs: n('hrs', 10, 20000, 'Hrs'), months: n('months', 1, 36, 'months') };
+  if (r.km !== '' && !hasKm_(v.unit)) throw new Error(v.id + ': Service every KM is for a machinery that runs on KM – it runs on ' + (v.unit || 'no meter') + '.');
+  if (r.hrs !== '' && !hasHr_(v.unit)) throw new Error(v.id + ': Service every Hrs is for a machinery that runs on Hrs – it runs on ' + (v.unit || 'no meter') + '.');
+  return r.km === '' && r.hrs === '' && r.months === '' ? null : r;
+}
+// written WITH the Asset Master save (only when the form sent it; r: its rule as checked before anything was written)
+function svcSave_(v, r) {
+  const all = svcRules_(false), k = noKey_(v.id), was = JSON.stringify(all[k] || null);
+  if (r) all[k] = r; else delete all[k];
+  if (JSON.stringify(all[k] || null) !== was) kvInSave_(SVC_KV_, JSON.stringify(all));
+}
+// a machinery taken out of Asset Master: its rule goes with it in the same save
+function svcDrop_(ids) {
+  const all = svcRules_(true); let hit = false;
+  (ids || []).forEach(id => { const k = noKey_(id); if (k && all[k]) { delete all[k]; hit = true; } });
+  if (hit) kvInSave_(SVC_KV_, JSON.stringify(all));
+}
+// the last reading of every machinery (its diesel issues and Log Book Close – the newer): { key: { km: { v, d }, hr: { v, d } } }
+function machLastReadings_() {
+  const out = {}, put = (k, w, v, d) => { const n = numOrBlank_(v); if (n === '' || !(n > 0) || !d) return; const o = out[k] = out[k] || {}; if (!o[w] || d > o[w].d || (d === o[w].d && n > o[w].v)) o[w] = { v: n, d: d }; };
+  try { const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c; t.rows.forEach(r => { const k = noKey_(r[c[H.NO]]), d = dkey_(r[c[H.IDATE]]); if (!k) return; put(k, 'km', r[c[H.KMR]], d); put(k, 'hr', r[c[H.HRR]], d); }); } catch (e) { /* no diesel yet */ }
+  try { const t = table_(APP.SHEET_LOG, logHeaders_()), c = t.c; t.rows.forEach(r => { const k = noKey_(r[c[H.NO]]), d = dkey_(r[c[H.DATE]]); if (!k) return; if (H.CKM in c) put(k, 'km', r[c[H.CKM]], d); if (H.CHR in c) put(k, 'hr', r[c[H.CHR]], d); }); } catch (e) { /* no Log Book yet */ }
+  return out;
+}
+const addMonthsDk_ = (dk, m) => { const y = Number(dk.slice(0, 4)), mo = Number(dk.slice(5, 7)) - 1 + m, d = Number(dk.slice(8, 10)), last = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+  const t = new Date(Date.UTC(y, mo, Math.min(d, last))); return t.toISOString().slice(0, 10); };
+// the service of every machinery with a rule: [{ no, k: 'svc', s: 'over' | 'soon' | 'none', … }] (only those that need a look)
+function svcAlerts_(today, ms) {
+  const rules = svcRules_(true), keys = Object.keys(rules); if (!keys.length) return [];
+  const last = {}, mt = maintTable_(false);
+  if (mt) mt.rows.forEach(r => { if (!/^yes$/i.test(str_(r[mt.c[H.SERVICE]]))) return; const k = noKey_(r[mt.c[H.NO]]), d = dkey_(r[mt.c[H.DATE]]); if (!k || !d || d > today) return;
+    const rd = numOrBlank_(r[mt.c[H.KMR]]); if (!last[k] || d > last[k].d || (d === last[k].d && rd !== '' && rd > num0_(last[k].r))) last[k] = { d: d, r: rd }; });
+  const now = machLastReadings_(), out = [];
+  ms.forEach(m => {
+    const k = noKey_(m.id), rule = rules[k]; if (!rule) return;
+    const L = last[k];
+    if (!L) { out.push({ no: m.id, k: 'svc', s: 'none', rule: rule }); return; }
+    const parts = [], wHr = !hasKm_(m.unit) && hasHr_(m.unit);
+    const meter = (w, every) => { if (!(every > 0) || L.r === '' || !now[k] || !now[k][w]) return; const run = r2_(now[k][w].v - L.r), left = r2_(every - run);
+      if (left <= every * SVC_SOON_PCT_) parts.push({ by: w === 'km' ? 'KM' : 'Hrs', every: every, run: run, left: left, s: left <= 0 ? 'over' : 'soon' }); };
+    if (hasKm_(m.unit)) meter('km', num0_(rule.km)); if (hasHr_(m.unit)) meter('hr', num0_(rule.hrs));
+    if (num0_(rule.months) > 0) { const due = addMonthsDk_(L.d, num0_(rule.months)), left = daysBetween_(today, due); if (left <= SVC_SOON_DAYS_) parts.push({ by: 'months', every: num0_(rule.months), due: due, left: left, s: left < 0 ? 'over' : 'soon' }); }
+    if (parts.length) out.push({ no: m.id, k: 'svc', s: parts.some(x => x.s === 'over') ? 'over' : 'soon', last: L.d, lastReading: L.r, unit: wHr ? 'Hrs' : 'KM', parts: parts, rule: rule });
+  });
+  return out;
+}
+/* THE ALERTS of the machinery on site today: { today, cars: { number: [alert] }, cards: [low card], n } – each part only for a person who
+ * may see it (u null: everything – the morning message). */
+function vehAlerts_(u) {
+  const all = !u, today = today_(), see = mods => all || seesAny_(u, mods), ms = getMaster_().filter(m => onSiteOn_(m, today)), on = {}, cars = {}, add = (no, a) => { (cars[no] = cars[no] || []).push(a); };
+  ms.forEach(m => { on[noKey_(m.id)] = m.id; });
+  if (see(['Vehicle Compliance', 'Master'])) {
+    try { getCompliance_().machines.forEach(m => { if (!on[noKey_(m.no)]) return; Object.keys(m.docs || {}).forEach(d => { const x = m.docs[d]; if (x && (x.s === 'expired' || x.s === 'due')) add(m.no, { k: 'paper', doc: d, s: x.s, upto: x.v, days: x.days }); }); }); } catch (e) { /* the papers' list could not be read – the rest still shows */ }
+  }
+  if (see(['Maintenance', 'Master'])) { try { svcAlerts_(today, ms).forEach(x => add(x.no, x)); } catch (e) { /* the rest still shows */ } }
+  if (see(['Reports', 'Dashboard'])) {
+    try { const rp = rptAverage_({ from: today.slice(0, 8) + '01', to: today });
+      (rp.groups || []).forEach(g => (g.rows || []).forEach(r => { if ((r.statusCode === 'bad' || r.statusCode === 'more') && on[noKey_(r.no)]) add(on[noKey_(r.no)], { k: 'avg', s: r.statusCode, actual: r.actual, std: r.std, pct: r.pct, used: r.used }); })); } catch (e) { /* the rest still shows */ }
+  }
+  const cards = cardSite_() && see(['Fuel Cards']) ? cardBalances_().filter(c => c.active && num0_(c.lowAt) > 0 && c.balance < num0_(c.lowAt)).map(c => ({ name: c.name, last4: c.last4, balance: c.balance, lowAt: c.lowAt })) : [];
+  const order = { paper: 0, svc: 1, avg: 2 }, rank = a => (a.s === 'expired' || a.s === 'over' || a.s === 'bad' ? 0 : 1);
+  Object.keys(cars).forEach(no => cars[no].sort((a, b) => rank(a) - rank(b) || order[a.k] - order[b.k]));
+  const n = Object.keys(cars).reduce((s, no) => s + cars[no].length, 0) + cards.length;
+  const count = { paper: 0, svc: 0, avg: 0, card: cards.length }; Object.keys(cars).forEach(no => cars[no].forEach(a => { count[a.k]++; }));
+  return { today: today, cars: cars, cards: cards, n: n, count: count };
+}
+// the morning message: once a day after 08:00, to the site's Admins and the Super Admin (any open page's / phone's heartbeat)
+function vehAlertDaily_() {
+  const c = CacheService.getScriptCache(); if (c.get('VA_TICK')) return; c.put('VA_TICK', '1', 900);
+  if (Number(Utilities.formatDate(new Date(), tz_(), 'H')) < VA_HOUR_) return;
+  const p = PropertiesService.getScriptProperties(), today = today_(); if (str_(p.getProperty('VA_SENT')) === today) return;
+  p.setProperty('VA_SENT', today);      // (written at once: another server's heartbeat does not send it again)
+  const a = vehAlerts_(null); if (!a.n) return;
+  const parts = [[a.count.paper, 'paper(s) expired / due'], [a.count.svc, 'service(s) due'], [a.count.avg, 'machinery with more diesel'], [a.count.card, 'fuel card(s) low']].filter(x => x[0]).map(x => x[0] + ' ' + x[1]);
+  const to = readUsers_().filter(w => w.active && w.admin).map(w => w.email).concat(crSupers_());
+  if (to.length) crNotify_(to, { id: 'veh-alerts', title: 'Vehicle alerts – ' + Object.keys(a.cars).length + ' machinery' + (a.count.card ? ', ' + a.count.card + ' card(s)' : ''), body: parts.join(' · ') });
 }
 
 /* ================= MAINTENANCE LOG BOOK – a site on fuel cards (HO) (update-165, asked 27-10-2026) ================= *

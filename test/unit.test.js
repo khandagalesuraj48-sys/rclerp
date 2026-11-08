@@ -9021,3 +9021,91 @@ test('update-212: HO\'s cars – a gallery with their photos (private store, 15-
     vm.runInContext('sbConf_ = __k212.conf; sbFetch_ = __k212.fetch; writeLog_ = __k212.log; SbBook_.prototype.flush = __k212.flush; (() => { const P = PropertiesService.getScriptProperties(); ["FUEL_MODE", "FUEL_CARDS", "CAR_PHOTOS"].forEach(k => P.deleteProperty(k)); })();', ctx);
   }
 });
+
+test('update-213: vehicle alerts – papers expired / due, the service (Asset Master → Service every, kept in the same save, following a changed number, going with a deleted machinery), more diesel, a fuel card below its amount; each part only for a person who may see it; the morning message once a day after 08:00', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm'), gas = require('../server/gas.js');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const U0 = ctx.Utilities;
+  ctx.Utilities = Object.assign({}, gas.Utilities, { formatDate: (d, tz, f) => f === 'H' ? String(globalThis.__H213 === undefined ? 9 : globalThis.__H213) : gas.Utilities.formatDate(d, tz, f) });
+  vm.runInContext('globalThis.__k213 = { conf: sbConf_ }; sbConf_ = function () { return { url: "https://db.test", key: "unit-test" }; };', ctx);
+  vm.runInContext(`globalThis.__KV213 = {}; __k213.fetch = sbFetch_; __k213.flush = SbBook_.prototype.flush;
+    sbFetch_ = function (m, u, body, h) { const s = decodeURIComponent(String(u)), g = /^\\/rest\\/v1\\/app_settings\\?id=eq\\.([^&]+)&select=value$/.exec(s);
+      if (g && m === 'GET') return __KV213[g[1]] !== undefined ? [{ value: __KV213[g[1]] }] : [];
+      if (/^\\/rest\\/v1\\/app_settings\\?on_conflict=id$/.test(s) && m === 'POST') { body.forEach(r => { __KV213[r.id] = r.value; }); return null; }
+      return __k213.fetch(m, u, body, h); };
+    SbBook_.prototype.flush = function () { const s = this.sheets.app_settings; if (s) s.pending().upserts.forEach(r => { __KV213[r.id] = r.value; }); return __k213.flush.call(this); };
+    globalThis.__sent213 = []; __k213.push = rtcPush_; rtcPush_ = function (ids, msg) { __sent213.push({ ids: ids, msg: msg }); };
+    __k213.avg = rptAverage_;`, ctx);
+  const today = run('() => today_()'), day = n => run('(d, n) => addDays_(d, n)', today, n);
+  const mach = (no, x) => Object.assign({ no: no, name: 'M ' + no, type: 'Tipper', make: 'Tata', unit: 'KM', worksOn: ['KM'], kmStd: 3, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, x || {});
+  const ADM = { email: 'adm213@rcl.test', name: 'Site Admin', admin: true, perms: {} };
+  const DSH = { email: 'd213@rcl.test', name: 'Dash only', admin: false, perms: { Dashboard: 'View' } };
+  const MST = { email: 'm213@rcl.test', name: 'Master only', admin: false, perms: { Master: 'View' } };
+  try {
+    run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); P.deleteProperty("VA_SENT"); }');
+    // ---- "Service every": checked as typed, for the meter the machinery runs on
+    assert.strictEqual(run('(x, k) => saveMaster_(x, k)', mach('VA-1', { svcKm: '50' }), 'add').THROWN, 'VA-1: Service every KM must be a whole number from 100 to 200000 (or empty).');
+    assert.strictEqual(run('(x, k) => saveMaster_(x, k)', mach('VA-1', { svcMon: '40' }), 'add').THROWN, 'VA-1: Service every months must be a whole number from 1 to 36 (or empty).');
+    assert.strictEqual(run('(x, k) => saveMaster_(x, k)', mach('VA-1', { svcHrs: '250' }), 'add').THROWN, 'VA-1: Service every Hrs is for a machinery that runs on Hrs – it runs on KM.');
+    assert.strictEqual(run('() => getMaster_().some(m => m.id === "VA-1")'), false, 'refused: nothing saved');
+    // ---- kept with the machinery, in the same save (the site's settings – no database step)
+    assert.ok(run('(x, k) => saveMaster_(x, k)', mach('VA-1', { svcKm: '10,000', svcMon: '6' }), 'add').ok);
+    assert.ok(run('(x, k) => saveMaster_(x, k)', mach('VA-2', { type: 'Excavator', unit: 'Hrs', worksOn: ['Hrs'], kmStd: '', hrStd: 12, svcHrs: '250' }), 'add').ok);
+    assert.ok(run('(x, k) => saveMaster_(x, k)', mach('VA-3', { insuranceUpto: day(-3), pucUpto: day(10) }), 'add').ok);
+    assert.deepStrictEqual(run('() => svcRules_()'), { VA1: { km: 10000, hrs: '', months: 6 }, VA2: { km: '', hrs: 250, months: '' } });
+    assert.deepStrictEqual(run('() => getMaster_().filter(m => /^VA-/.test(m.id)).map(m => [m.id, m.svc])'), [['VA-1', { km: 10000, hrs: '', months: 6 }], ['VA-2', { km: '', hrs: 250, months: '' }], ['VA-3', null]]);
+    // ---- the service: the last bill marked Service (its reading) and the last reading (Log Book Close / a fill)
+    assert.ok(run('x => saveMaint_(x)', { date: day(-100), no: 'VA-1', garage: 'Tata Service', billNo: 'TS-213', km: 20000, service: true, remark: '', lines: [{ work: 'Service', amount: 5000 }] }).ok);
+    assert.ok(run('x => saveLogRowsInner_(x)', { rows: [{ date: day(-2), shift: 'Full Day', no: 'VA-1', mode: 'KM', openingKm: 29000, closingKm: 29500 }] }).ok !== false);
+    vm.runInContext('rptAverage_ = function () { return { groups: [{ rows: [{ no: "VA-3", statusCode: "more", actual: "2.5 km/L", std: "3 km/L", pct: 20, used: 100 }, { no: "VA-1", statusCode: "ok" }] }] }; };', ctx);
+    const a = run('u => vehAlerts_(u)', ADM);
+    assert.deepStrictEqual(a.cars['VA-1'], [{ no: 'VA-1', k: 'svc', s: 'soon', last: day(-100), lastReading: 20000, unit: 'KM', parts: [{ by: 'KM', every: 10000, run: 9500, left: 500, s: 'soon' }], rule: { km: 10000, hrs: '', months: 6 } }], '500 KM left of 10,000 (within 10 %)');
+    assert.deepStrictEqual(a.cars['VA-2'], [{ no: 'VA-2', k: 'svc', s: 'none', rule: { km: '', hrs: 250, months: '' } }], 'a rule, no bill marked Service yet');
+    assert.deepStrictEqual(a.cars['VA-3'].map(x => [x.k, x.doc || '', x.s]), [['paper', 'Insurance', 'expired'], ['paper', 'PUC', 'due'], ['avg', '', 'more']], 'the worst first');
+    assert.deepStrictEqual([a.n, a.count, a.cards], [5, { paper: 2, svc: 2, avg: 1, card: 0 }, []]);
+    // months: the service 7 months ago – over by date even with KM left
+    assert.ok(run('x => saveMaint_(x)', { date: day(-1), no: 'VA-1', garage: 'Tata Service', billNo: 'TS-214', km: 29400, service: true, remark: '', lines: [{ work: 'Service', amount: 5000 }] }).ok);
+    assert.strictEqual(run('u => vehAlerts_(u)', ADM).cars['VA-1'], undefined, 'serviced again: nothing to say');
+    // ---- each part only for a person who may see it
+    const d = run('u => vehAlerts_(u)', DSH), m = run('u => vehAlerts_(u)', MST);
+    assert.deepStrictEqual(Object.keys(d.cars).map(no => [no, d.cars[no].map(x => x.k)]), [['VA-3', ['avg']]], 'the Dashboard: more diesel only');
+    assert.deepStrictEqual(Object.keys(m.cars).sort().map(no => [no, m.cars[no].map(x => x.k)]), [['VA-2', ['svc']], ['VA-3', ['paper', 'paper']]], 'Asset Master: papers and service, no average');
+    const api = vm.runInContext('API_', ctx);
+    assert.deepStrictEqual([api.getVehAlerts.m, !!api.getVehAlerts.withUser, !!api.getVehAlerts.edit], ['', true, false]);
+    // ---- a changed number: its rule follows (with the form's boxes, and without them); a deleted machinery: its rule goes
+    assert.ok(run('(x, k, o) => saveMaster_(x, k, o)', mach('VA-1X', { svcKm: '10000', svcMon: '6' }), 'edit', 'VA-1').ok);
+    assert.deepStrictEqual(Object.keys(run('() => svcRules_()')).sort(), ['VA1X', 'VA2']);
+    assert.ok(run('(x, k, o) => saveMaster_(x, k, o)', mach('VA-1Y'), 'edit', 'VA-1X').ok);
+    assert.deepStrictEqual(Object.keys(run('() => svcRules_()')).sort(), ['VA1Y', 'VA2'], 'an older page / app sends no boxes: the rule moves with the number');
+    assert.ok(run('() => deleteMaster_("VA-2", false, "")').ok);
+    assert.deepStrictEqual(Object.keys(run('() => svcRules_()')), ['VA1Y']);
+    // ---- the morning message: after 08:00, once a day, to the Admins and the Super Admin
+    vm.runInContext('__KV213.CR_SUPERS = JSON.stringify(["sa213@rcl.test"]); __sent213.length = 0; CacheService.getScriptCache().remove("VA_TICK");', ctx); globalThis.__H213 = 7;
+    run('() => vehAlertDaily_()'); assert.strictEqual(vm.runInContext('__sent213.length', ctx), 0, 'not before 08:00');
+    vm.runInContext('CacheService.getScriptCache().remove("VA_TICK");', ctx); globalThis.__H213 = 9;
+    run('() => vehAlertDaily_()');
+    const sent = vm.runInContext('JSON.parse(JSON.stringify(__sent213))', ctx);
+    assert.strictEqual(sent.length, 1); assert.match(sent[0].msg.title, /^Vehicle alerts – \d+ machinery$/); assert.match(sent[0].msg.body, /paper\(s\) expired \/ due/);
+    assert.deepStrictEqual(sent[0].ids, [run('e => rtcUid_(e)', 'sa213@rcl.test')], 'the Super Admin (and the site\'s Admins)');
+    assert.strictEqual(run('() => PropertiesService.getScriptProperties().getProperty("VA_SENT")'), today);
+    vm.runInContext('CacheService.getScriptCache().remove("VA_TICK");', ctx);
+    run('() => vehAlertDaily_()'); assert.strictEqual(vm.runInContext('__sent213.length', ctx), 1, 'once a day');
+    assert.match(code, /try \{ vehAlertDaily_\(\); \} catch \(e\)/, 'in the heartbeat, never stopping it');
+    // ---- a fuel card below its amount (a site on fuel cards)
+    const places = run('() => places_().map(p => ({ name: p.name, cap: tankSettings_().caps[p.name] || 100, fuel: p.fuel }))');
+    run('(l, m) => savePlaces_(l, m)', places, 'card');
+    assert.strictEqual(run('x => saveCard_(x)', { name: 'HDFC 213', last4: '4321', type: 'Fuel card', cars: [], opening: 5000, openDate: '2026-07-01', lowAt: '-5' }).THROWN, 'Card HDFC 213: "Alert below ₹" must be an amount above 0 (or empty – no alert).');
+    assert.ok(run('x => saveCard_(x)', { name: 'HDFC 213', last4: '4321', type: 'Fuel card', cars: [], opening: 5000, openDate: '2026-07-01', lowAt: '6000' }).ok);
+    assert.ok(run('x => saveCard_(x)', { name: 'SBI 213', last4: '9876', type: 'Credit card', cars: [], opening: 9000, openDate: '2026-07-01', lowAt: '6000' }).ok);
+    assert.deepStrictEqual(run('u => vehAlerts_(u)', ADM).cards, [{ name: 'HDFC 213', last4: '4321', balance: 5000, lowAt: 6000 }]);
+    assert.deepStrictEqual(run('u => vehAlerts_(u)', DSH).cards, [], 'Fuel Cards not given: no card');
+    // ---- the page: the boxes, the alerts' box, the help in 3 languages
+    assert.match(app, /id="m_svc_km"[^>]*>/); assert.match(app, /id="cd_low"/); assert.match(app, /id="va_box"/); assert.match(app, /call\('getVehAlerts'\)/);
+  } finally {
+    vm.runInContext('sbConf_ = __k213.conf; sbFetch_ = __k213.fetch; SbBook_.prototype.flush = __k213.flush; rtcPush_ = __k213.push; rptAverage_ = __k213.avg;', ctx);
+    ctx.Utilities = U0;
+    run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); P.deleteProperty("VA_SENT"); }');
+  }
+});
