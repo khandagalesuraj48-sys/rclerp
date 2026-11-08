@@ -2356,3 +2356,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   the map in app_settings CAR_PHOTOS; never a file deleted; a renamed number keeps its photo in the same save (kvInSave_); links renewed
   by the page (getCarPhotoLinks). No SQL. With rcl-portal (Vehicle photos) and rcl-mobile 3.86.0. Tests: unit `update-212`;
   test/cars212api.js; the rig in Chromium (web, phone width, Portal); places117api, portal94api; the Portal's api.test.js.
+- 08-11-2026 (update-213, step A of "the HO features – HO and every site"). Report: `UPDATE_213.md`. VEHICLE ALERTS at every site
+  (vehAlerts_ / getVehAlerts, each part by the person's pages): papers expired / due within 30 days (Vehicle Compliance), the service
+  (Asset Master → Service every KM / Hrs / months – app_settings SVC_RULES written with the Asset Master save by kvInSave_, following a
+  renamed number, dropped with a deleted machinery; from the last maintenance bill marked Service), more diesel (Actual vs Standard
+  Average: More / Bad), a fuel card below its "Alert below ₹" (lowAt, with the card). Shown on the Dashboard (⚠ Vehicle alerts) and on
+  HO's cars; the morning message once a day after 08:00 to the site's Admins and the Super Admin (vehAlertDaily_ in the heartbeat,
+  crNotify_). No SQL. With rcl-mobile 3.88.0. Tests: unit `update-213`; the rig in Chromium (`hod/web213.js`, 15 / 15).
