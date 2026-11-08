@@ -1,0 +1,2365 @@
+# RCL Fleet ERP – handover for the next chat (state on 30-09-2026, after item-wise BOQ)
+
+The app is LIVE with real data. Every change must keep existing data, bills and behaviour working.
+Reply to the user in Marathi (he writes Marathi in English letters). Deliver only what he asks.
+
+## Setup
+- Google Apps Script web app (server file **Code.gs** = this pack's Code.gs; UI **App.html** inside **Index.html**), plus
+  **SupabaseSync.gs**, **SupabaseData.gs**, **ReadMe.gs**.
+- Main database: Supabase (https://mydhljgncdszrglqppsv.supabase.co). A Google Sheet is an automatic exact backup.
+- Deploy: run new SQL first (Supabase → SQL Editor) → paste changed files → Save → Deploy → Manage deployments → ✏️ → New version.
+- SQL files (all idempotent), run in order: step1, 1b, 1c, 1d, 1e, 1f, 1g, 1h, 1i, 1j, 1k, 1l, 1m, 1n, 1o, 1p, 1q, 1r, 1s (folder `sql/`).
+  A new module = new SQL file + mapping in SupabaseSync.gs (SB tables) / SupabaseData.gs (SB_ID_HEADER_) + README_SQL_ in ReadMe.gs.
+- Every page appears in Users & Access through MODULES in Code.gs (new module = new `perm_<name>` column in app_users).
+
+## Modules (menu)
+Dashboard · Master: Vendor Master, Asset Master, Vendor BOQ, Vehicle Compliance, **Log Book Format** · Diesel Inward / Transfer / Issue · Log Book (entry, list, print, Excel) · Edit Log Book · **Breakdown** · Tank Check · Machinery Billing, Saved Bills, Bill Summary, Machinery Payments, Vendor Ledger, Vendor Outstanding · Reports · Users & Access · Read Me · Activity log.
+
+## Key rules already built
+- Ownership: Own (Rachana Construction Limited) / Rental (default for others) / Hired / Other. No "Debit" ownership.
+- Vendor BOQ line: rent type Monthly / Per Day / Per Hour (slabs) / Per KM / Per Trip / **No rent – diesel only**;
+  Diesel: "Company diesel – only extra over standard debited" or "Debit – ALL diesel given is debited". Diesel debit is per machinery.
+  Debit rate = higher of period average and last purchase rate. A machinery cannot be in two BOQs of one vendor for the same dates
+  (new BOQ form leaves such machinery out).
+- Asset Master "Works on" ticks: Day, Trip, KM, Hrs, KM + Hrs, Time (Format A machinery follow these ticks).
+- **Log Book formats A–H** (Master → Log Book Format; per machinery, renamable, "View format" sample print):
+  A standard; B KM+Hrs+Trip; C KM; D Hrs; E Particular/Challan (hour reading); F Time sheet; G Time sheet 1st hr / 2nd hrs (BOQ first slab, else 1 hr); H Trip register (challan, diesel qty, in/out time, trips).
+  For B–H the format decides the entry ways (LB_FMT_MODES in App.html and LB_FMT_MODES_ in Code.gs) and the fields
+  (LB_FMT_NEEDS: challan, particular = remark, no chainage for C, in/out time with trips for H, trips with readings for B).
+  Entry grid, Edit Log Book, Diesel Issue ways, Excel and print all follow the machinery's format; mixed formats on one date work row by row.
+- Day status in Log Book for every machinery: **Idle** (no work; paid or not is chosen in the bill), **Holiday** and **Breakdown** (not paid). Print shows them only in Work description.
+- Log Book Excel export: every date of the filter for every machinery (missing dates as blank rows), drop-downs (Shift, Measured by, Status) via ExcelJS, falls back to plain Excel; import skips blank rows; Status column.
+- Breakdown page = daily machinery status (date + Own/Rental…, Working/Breakdown + reason), submit / save changes / delete a day, saved-days list, period report (machinery-wise / owner-wise / owner → machinery), print & Excel. Separate from the Log Book "Breakdown" status.
+- Asset list print (Asset Master): date / month / period; optional columns only when ticked; type-wise summary by ownership.
+- Pending Log Book = active machinery with no entry that day (from 01-09-2026); Debit-basis / diesel-only machinery excluded.
+- Prints ask Rachana Construction Limited or Sketchline Industries (logo follows the name).
+- Every edit/delete asks for confirmation; everything is written to the Activity log.
+
+## Also done after the first pack (App.html in this pack has it)
+- Every print: tables are fitted to the paper (smaller letters step by step, then scaled; fixed tables that cut text switch to content widths).
+- Every print window (not bills) has "Page: Portrait | Landscape"; the choice is remembered per kind of print on that device.
+
+## Item-wise BOQ + Idle choice (built 30-09-2026, in this pack)
+He answered: **no minimum hours**; **Idle paid or not is decided by him while billing**.
+- SQL: `sql/supabase_step1s_boq_items.sql` (adds `log_book.item_work`). Run BEFORE pasting SupabaseSync.gs. Changed files: Code.gs, App.html, SupabaseSync.gs, ReadMe.gs.
+- Vendor BOQ: new rent type **Item-wise** on a line. `line.items = [{ name, basis (Per Hour / Per Day / Monthly / Per KM / Per Trip), rate, slabs, slabOn, qty }]`
+  kept inside the BOQ `Lines` JSON (no new table). `qty`: `rest` = takes what is left of the entry's total of that kind (one per kind),
+  `typed` = quantity typed in the Log Book. Diesel rule stays per machinery. Old lines are untouched.
+- Log Book: still ONE entry per machinery + date + shift (the key, diesel and tank depend on it – two entries a day were NOT built).
+  Typed items are kept in "Item Work" as JSON `{ "Breaker": 3, "_day": "item" }`; the rest item is worked out when read
+  (`itemQtyOf_`, `logItemsOut_` in Code.gs → rows of getLogBookList carry `itemQty`, `itemOver`, `itemUnknown`, `itemLeft`, `boqItems`).
+  Item boxes: entry grid, edit window, Edit Log Book (`itemBoxHtml / itemBoxRead / itemBoxCalc` in App.html). Typed items may not be more than the entry's total.
+  Several Per Day / Monthly items in one line: the entry picks one ("Day item"); one such item: every paid day.
+- Excel: column "Item work" (`Breaker=3; Rock=1`, a picked Day item by its name alone) in export, template and import.
+- Bill: each item on its own quantity and rate (slabs per item), item name on the bill lines and in the Log Book print (rate box and Work description).
+  The same calculation is in three places and must stay the same: `itemDaySegs` + `mbMachine` (App.html), the Log Book print (App.html), `billMachineCalc_` (Code.gs).
+- Idle: Machinery Billing list has an "Idle days" column per bill – Paid / Not paid (`bill.idlePaid`); shown as paid until chosen;
+  Verify & Submit (client and server) refuses a bill with Idle days and no choice. Log Book print from a bill follows the choice; from the Log Book page Idle counts as paid.
+- Verify: ✖ items typed above the entry total / item not in the BOQ; ⚠ work given to no item (only when the line has no Per Day / Monthly item).
+- Tested in Node (server on an in-memory database + the page in jsdom): BOQ form, entry, edit, Edit Log Book, import, bills, verify, prints. Not yet tried by him on the live app.
+
+## Moving the app out of Apps Script to Vercel (pack built 30-09-2026 – NOT yet deployed by him)
+He finds the Apps Script app slow. Decision: same app, same Supabase, same Google Sheet backup; only the app leaves Apps Script.
+Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deploys on push):
+- `app/` = the SAME files as Apps Script (App.html, Index.html, Code.gs, SupabaseSync.gs, SupabaseData.gs, ReadMe.gs). All future changes go here;
+  they run UNCHANGED on Vercel. Never fork the logic into server/.
+- `server/runtime.js` loads the .gs files into a fresh `vm` context per request (fresh globals, like Apps Script).
+  `server/gas.js` = stand-ins: PropertiesService → `web.props`, CacheService → `web.cache` (sessions, USERS_LIST, counters; `SBG_*` table
+  snapshots stay in server memory, valid only while `web_boot().stamp` is unchanged; `V_*` versions live in props), LockService → `web.locks`
+  (re-entrant, 75 s TTL, fresh props on acquire), UrlFetchApp → `server/syncfetch.js` (worker thread + Atomics.wait = synchronous HTTP),
+  Utilities (formatDate, computeDigest incl. byte arrays, newBlob, getUuid, sleep). `process.env.TZ = 'Asia/Kolkata'`.
+- `server/page.js` + `build.js`: public/index.html = Index.html shell with the app inlined; a bridge script gives the page `google.script.run`
+  → `POST /api/rpc { fn, args }` (`api/rpc.js`; fns: api, login, changePassword, logout, getAppHtml, getAppBuild).
+- SQL `sql/supabase_step2_web.sql`: schema `web` (props, cache, locks – not in `public`, so the backup does not copy them) and functions
+  `web_boot, web_props_set, web_cache_get, web_cache_set, web_flush, web_lock, web_unlock` (service_role only).
+- Env vars on Vercel: SUPABASE_URL, SUPABASE_SECRET_KEY; optional GAS_BACKUP_URL + GAS_BACKUP_KEY ("Backup now" → Apps Script doPost in
+  `apps-script/VercelBridge.gs`; untested against Google). `vercel.json` region `bom1` – must be near the Supabase region.
+- Apps Script side: `VercelBridge.gs` (`exportSettingsToWeb()` copies Script Properties to web.props; `webMirror_` sends backup status SB_INFO;
+  `doPost`). Code.gs got `movedTo_()`: script property `APP_MOVED_TO` = new link closes the old app (doGet, login, api) – delete it to roll back.
+  The Apps Script project stays for the backup triggers only.
+- Tested here on real PostgreSQL 16 + PostgREST (all SQL files run in order) with two server processes: login, password change (hash checked
+  independently), sessions across servers, 8 simultaneous saves (lock: unique numbers, stock right), item-wise entries, billing through the
+  real page (jsdom) and the shell. NOT tested: real Vercel, real Supabase gateway, real Google (backup now), his existing password hashes.
+- Steps for him are in README.md (Marathi): A setup, B check alone, C switch day, D roll back, E later changes, F backup-now.
+- LIVE on Vercel since 01-10-2026 for his own checking: https://rclerp.vercel.app (GitHub: khandagalesuraj48-sys/rclerp, he pushes from VS Code;
+  the PC's git is signed in as `milestoneconsultancy`, added as collaborator). Staff still use the Apps Script app; `APP_MOVED_TO` not set yet.
+- Speed fixes after his first try (he said it hung / stuttered): (1) `Utilities.formatDate` stand-in made a new Intl formatter per call – it is
+  called for every date cell, so list pages took 5 s; now plain arithmetic for India time. (2) `server/pool.js`: every request runs in its own
+  helper thread (up to 6), so a slow call never blocks the every-second sync or other calls. (3) `makeFetch` in gas.js keeps the whole-table
+  GETs of the tables listed by `web_stamp()` in memory while the stamp is unchanged; `web_lock` returns the stamp too, so saves also use the
+  copy when nothing changed. Any speed work must keep this rule: never serve a table that is not in `web_stamp().tables`.
+- "Backup now": Vercel env `GAS_BACKUP_URL` = old app's /exec link; the call is signed with sha256(SUPABASE_SECRET_KEY + '|rcl-backup')
+  (VercelBridge.gs doPost checks it). Tested only against a local stand-in, not against Google.
+- Local test rig used here (not in the repo): PostgreSQL 16 + PostgREST + a /rest/v1 proxy, `node dev.js` ×2, jsdom and headless Chromium
+  (@sparticuz/chromium + puppeteer-core) for the page.
+- Supabase region is ap-south-1 (Mumbai) = Vercel `bom1` (checked 01-10-2026). Speed update is pushed (commit "faster server").
+- LOOK 2026-10 (asked 01-10-2026; one CSS block at the very end of the `<style>` in App.html, headed "LOOK 2026-10", plus 6 lines in `autoSide`):
+  he chose Rachana red for the menu and "same page, but the form bigger and wider" for entry screens.
+  * Menu: red gradient (#C0171F → #8C0F15), white lettering, active item = white tab with the module colour on its icon, amber counts.
+  * Menu stayed open after a click inside it (focus stayed on the clicked heading) → `close()` now blurs a mouse-focused element.
+  * Menu opening: children get a fixed width (272 / 74 px) so text does not re-flow per frame; shorter transition; top bar no backdrop blur.
+  * Motion: `.rv` reveal and `section.enter` are short fades (no bounce, no stagger); menu items do not move / rotate on hover.
+  * Entry panels (`.panel[data-perm]`, `#v_form`, `#b_form`) on ≥761 px: bigger fields (46 px, 15.5 px), `.grid` = auto-fit so fields use the
+    full width, bigger buttons. Tabs (`.subtabs`, `.switch`) active = brand red.
+  * Log Book entry (`.lg-wrap table.lgt`) on ≥761 px: each `tr.lrow` is a 24-column CSS grid of two lines with labels from
+    `td:nth-of-type(n)::before` (nth-of-type, NOT nth-child: lgFill inserts a `<small class="lg-fmt">` between the cells). Before this the
+    grid scrolled sideways at 1366–1536 px windows. If a column is ever added to lgRowHtml, update these nth-of-type rules.
+  * Phones (≤760 px) keep the old table layout for the Log Book entry (only colours changed) – not asked yet.
+  * Not measurable here: how smooth the menu animation is on his laptop (headless Chromium frame timing is unreliable).
+- 01-10-2026: he REJECTED the red menu ("looks very bad"). Menu colours are now CSS variables at the top of the LOOK 2026-10 block
+  (`--sb-1/2/3`, `--sb-ink`, `--sb-on-bg`, `--brand` …); default = deep navy. Options shown to him as pictures: navy, charcoal, light, teal – waiting for his pick.
+- 01-10-2026: he decided NO Apps Script at all (never open it again). So:
+  * Google Sheet backup now runs from Vercel: `server/google.js` (service-account JWT → Sheets API v4, no libraries), `server/backup.vm.js`
+    (`webBackup_` – runs inside the app's vm, reuses sbCatalog_/sbHeader_/sbTabName_/sbAllRows_; a table whose row count or newest updated_at
+    changed gets its whole tab rewritten with the grid resized to fit; all tabs once a day; state in web.props `BK_STATE`, status in `SB_INFO`;
+    lock name "backup"), `api/backup.js` (no sign-in, returns only ok; the bridge in page.js calls it every 5 min while the app is open;
+    Vercel cron nightly `?full=1`), `sbBackupNow_` = `webBackup_({manual:true})`.
+  * Env on Vercel: `GOOGLE_SERVICE_ACCOUNT_JSON` (whole key file), `BACKUP_SHEET_ID` (id or link). He wants the backup to CONTINUE in the
+    existing backup Sheet (id 14B_uvMm…Clro – never put it in the repo: the old script made it "anyone with the link can view").
+    So the layout is kept identical: same tab names / headings, values via `sbCell_` with valueInputOption USER_ENTERED (as setValues did).
+    The old script protected every tab for its owner and removes other editors → he must (once) stop the old triggers, share the Sheet with the
+    service account as Editor and remove the tab protections; `webBackup_` checks `protectedRanges.requestingUserCanEdit` first and says which
+    tabs are still protected, without writing anything. Google calls per run: 1 get + 1–2 batchUpdate + a few values:batchUpdate (quota-safe).
+    No weekly dated copy (needs Drive; not built – Sheets has version history).
+  * `apps-script/VercelBridge.gs`, GAS_BACKUP_URL and the doPost path are removed. `movedTo_()` in Code.gs is harmless leftover.
+  * Tested only against a local stand-in for Google (token signature verified, grid limits enforced) – NOT against real Google.
+  * Old Apps Script app: to be archived + triggers deleted by him once staff have the new link (README).
+- 01-10-2026: backup to his EXISTING Sheet works on the real setup (he pressed Backup: full backup written, 16 tables; Log Book 203 rows,
+  Diesel Issue 309, Master 57 – the real data is small). Service account: rcl-backup@rcl-erp-510303.iam.gserviceaccount.com.
+  Old Apps Script triggers are deleted; archiving the old deployment + giving staff the new link was the last step given to him.
+- Menu "hangs open" on Vercel (reproduced): after a click the old code closed the menu 350 ms later with a width transition; on Vercel the
+  page data arrives within that time and drawing it blocks the main thread, so the menu stayed open / half-way until the drawing ended
+  (on Apps Script the data came seconds later, so it never collided). `autoSide` is rewritten: the menu opens / closes AT ONCE (no width
+  transition; only the lettering fades in), a click on a page shuts it in the same task, and it also shuts on mousemove over the page,
+  mouse leaving the window and window blur; keyboard users (`:focus-visible` inside) keep it open. Do not bring back a width transition.
+- 01-10-2026 (later): even the instant hover menu was not good enough for him ("still hangs sometimes / sometimes does not open") and he asked
+  for a different way. Now `deskSide` (replaces autoSide): on a computer the slim icon strip is always there; the full menu opens ONLY by a
+  click (arrow button under the logo, the logo, or a group icon) and closes on choosing a page, a click outside, the button or Esc. No hover,
+  no timers, no focus logic. Do not bring hover-opening back.
+- He rejected the two-line "box per entry" Log Book layout: wants ONE line per machinery. `.lg-wrap tr.lrow` is now a 14-column CSS grid with
+  explicit `grid-column` per `td:nth-of-type(n)` (diesel = 2×2 block with inline words Open / Issued / Used / Close; Standard over Average;
+  headings once via `tr:first-child > td::after`; disabled "Measured by" ways hidden). `.lg-wrap` is a size container: under 1290 px of room
+  chainage + work drop to a second line. Fits without sideways scroll at his 1536 px window (slim menu).
+- Diesel Issue: he wants only the last issue of a machinery, not the history table → `.dhist table.dh-t` and its note are hidden (the head
+  line with last fill / last reading stays; the "Last: …" line under the machinery was already there).
+- Other: top bar fully opaque; buttons get a pressed state; Read Me page no longer scrolls sideways; `$schema` removed from vercel.json
+  (VS Code warned "untrusted"); two worker threads are started at boot; resting the mouse on "Live" shows the last server time and the
+  slowest recent call (bridge, `took()` in server/page.js) – ask him for these numbers if he says the app is slow.
+- A sweep of all 35 pages in headless Chromium (local data) shows no JS errors, no failed calls, no sideways spill.
+- 01-10-2026: he pasted a long English "complete audit" brief. Done on the local rig; report in `AUDIT.md` (read it before any security /
+  integrity work). Fixed: public `/api/backup` (now session token for POST, `CRON_SECRET` bearer for the nightly GET), non-atomic saves
+  (`web_write` – one transaction per save, `SbBook_.flush` falls back to per-table calls when the function is missing), double submission
+  (`ONCE_FNS_` + `web_count`, 8 s window, released on failure), exact sign-in attempt counter, Backup button verifies tabs, headers.
+  New SQL `sql/supabase_step3_safety.sql` (he must run it; the app works without it) and read-only `sql/check_security.sql`.
+  Tests now live in the repo: `npm test` (offline, 7 tests) and `test/audit.js`, `reg.js`, `bkg.js` (need the local rig).
+  Open, waiting for him: repo still PUBLIC, backup Sheet link-readable, add `CRON_SECRET` in Vercel, blank access = View (decision),
+  weak password hash (decision), 1-second polling (cost), no restore tool.
+- 01-10-2026: second English brief ("Phase 2 – complete UI/UX redesign + performance"). Done and written up in `UI_PERFORMANCE_AUDIT.md`:
+  polling is now adaptive (`syncGap()` in App.html: 2 s working / 5 s untouched / 15 s after 5 min / 30 s hidden; first touch after a quiet
+  spell syncs at once) – measured 19→11 calls per 20 s working, 29→6 per 30 s idle; the bridge merges identical in-flight QUESTIONS only
+  (`isQuestion` in server/page.js – never saves); top-bar pills redrawn only on change; phone: three pages no longer spill sideways and
+  the Log Book entry is a block per entry (≤760 px); one consistency block for tables / fields / focus rings.
+  Tried and REMOVED: drawing long lists in pieces – no measurable gain (the cost is the browser's layout of a 500-row table, 18,000 boxes;
+  script is only ~20 ms). The real cure is fewer rows at first – waiting for his decision. Not a ground-up redesign (two were rejected).
+- 01-10-2026: third English brief ("Phase 3 – final readiness"). His decisions: long lists show the first 100 rows + "Show all";
+  polling 2 s while active; Log Book blocks on phone / table on desktop; production only after checks and a verified backup.
+  Built: `listsFirst100` in App.html – an `innerHTML` setter on eleven list tbodies (l_rows, d_rows, i_rows, t_rows, m_rows, a_rows, v_rows,
+  sb_rows, py_rows, tc_rows, boq_rows) that draws 100 rows and keeps the rest for a `.more-bar` button; list code, totals, exports untouched.
+  Note for him: the lists already held only the latest 500 (server limit) – "Show all" shows those, not beyond.
+  Report: `PHASE3_READINESS_REPORT.md` (Go for preview, No-Go for production until backup looked at, step-2 + step-3 SQL and
+  check_security run on live, CRON_SECRET set, preview looked at). Browser tests are in `test/browser/` (need puppeteer-core + Chromium).
+  IMPORTANT STATE: GitHub / the live site were still at update-6 ("click menu…") when this was written – none of Phase 1–3 was live.
+- 01-10-2026 15:34: Phase 1–3 (update-9) IS LIVE (GitHub main = "phase 1-3: audit fixes…"). Right after saving 11 diesel issues from the
+  multiple-entries grid (toast "11 diesel issues saved (DI-000355 to DI-000365)") Chrome showed "Page Unresponsive" on the live site.
+  NOT reproduced here (4 rows; 11 rows; 11 rows with 40 Log Book rows typed and Dashboard / Log Book loaded: longest freeze 0.6 s) and no
+  endless loop found by reading (no MutationObserver, no DOM-dependent while loops, polling cannot spin). CAUSE UNKNOWN.
+  Added a recorder in the bridge (`recorder()` in server/page.js): crumbs of server calls / clicks / long tasks + a 1 s heartbeat in
+  localStorage `rcl_trace`; if a run ends without `pagehide`, the next start shows a box with the last lines – ask him for a photo of it.
+  `npm test` now also checks that every script of the generated page parses (a typo in the bridge would stop the whole app).
+  What happens after a save on the page (for the next investigation): `onDataChanged` → getLookups + setMaster, refreshStock, loadDiesel,
+  loadInward / loadTransfers / loadLog if loaded, lgRefreshAll (one call per typed Log Book row), loadDash.
+- 01-10-2026 (evening): the freeze did not come back; a user saw the recorder's box once (content not captured – ask for a photo next time).
+- BILL PAPERS, step 1 of 2 (asked with a sample "Tax Invoice" PDF of Mr. Suresh Sarjerav Patil, RA-27, Sketchline):
+  * Every bill now has three papers made from the SAME saved figures: Abstract (`billHtml`), Tax Invoice (`taxInvoiceHtml` – the party's
+    invoice to the company in the fixed format; number = `companyInfo.invPrefix` + RA bill no), Debit Note – diesel (`debitNoteHtml`, only when
+    B > 0). `billSheets(b, cls)` = the print pages; used on the billing page (under each Abstract) and in every "View / Print" of a saved bill.
+  * Tax Invoice figures = the Abstract's: Total before tax A, less diesel B / other C (lines shown only when not zero), Basic Value D,
+    SGST F, CGST E, Total Billing G, less TDS H (only when not zero), Net Cheque I, words of I. MY ASSUMPTION, told to him: deductions and TDS
+    are shown on the invoice so that it ties to the Abstract – he must confirm.
+  * Debit Note numbers: assigned in `submitBills_` (kept in `bills.data.dnNo`, no schema change), one run per company, prefix from
+    Bill Settings (`dnPrefix`, default RCL/VTR/DN- and SLI/VTR/DN-), a bill saved again for the same vendor + period keeps its number.
+    `billOut_` now returns `dnNo` and `dnAmt` in lists. Bills saved before this have no number (shown as "–").
+  * "Saved Bills" page is now "RCL Drive" (module / permission name is still 'Saved Bills'): tabs Saved Bills | Saved Debit Notes.
+  * Tests: unit test "bill papers" (words, figures, hostile text) and `d5.js` in the audit rig (11 checks: numbers per company, revision,
+    three papers, Drive). NOT built yet = step 2: Log Book "Debit to" (vendor + rate typed by hand), a Debit Note page for those
+    (lines Sr / particular / qty / rate / amount, GST, TDS, own number run per company), choosing which notes to deduct in a bill, ledger.
+    His answers for step 2: rate typed by hand; separate numbering for RCL and Sketchline; a note is deducted once, by tick, when the
+    party's bill is made; a party without a bill keeps the note as receivable in the ledger; nothing is stored as PDF.
+- 01-10-2026 (night): update-11 (bill papers, RCL Drive) is live. He dropped the speed ideas (per-page live, browser cache, server result
+  cache – all explained with their risks, all declined: "leave it as it is"). Then asked for three things:
+  * Machinery Cost Sheet – BUILT: report `mcost` (`rptMachineCost_` in Code.gs, entry in `reportDefs()`), from `logDashboard_` (now also
+    returns `recover` per machinery and takes `withDebit`). Net cost = Rent (bill calculation, Idle paid) + diesel issued × period diesel rate
+    − diesel recovered in the bill; per hr / per km; a line under each machinery shows the working; rented machinery without a BOQ rate is
+    flagged. Own machinery has no rent (salary / repairs / EMI are not in the app). Unit test with hand-worked figures.
+  * RULE he gave: the party's Tax Invoice never carries TDS – the party bills value + GST; the company deducts TDS when paying (Abstract
+    only). `taxInvoiceHtml`: "Less: TDS" removed, Net Cheque Amount and the words = G.
+  * Sending reports by WhatsApp / e-mail from inside the app (auto to set numbers, or on "Send") – only IDEAS given, nothing built:
+    e-mail needs a mail service key in Vercel; WhatsApp needs the WhatsApp Business Platform (own number, Meta business verification,
+    approved templates, per-message charge ~₹0.115 utility in India per public rate cards, plus a provider fee) – waiting for his choice.
+- 02-10-2026: he reported the live app hangs a lot (clicks on tabs not taken, scrolling stuck). CAUSE FOUND AND REPRODUCED
+  (`test/browser/storm.js`): after EVERY save by ANY user, `onDataChanged` on every open page reloaded and redrew every page ever opened
+  in that tab (lookups + vehicle-papers badge, stock, diesel, inward, transfer, Log Book list, one call per typed Log Book row, Dashboard).
+  On Apps Script the answers trickled in over seconds; on Vercel they arrive together, and with several people entering it never stops.
+  Measured (12 saves by another user in 30 s, the page just open): 93 calls, page blocked 5.0 s, longest freeze 793 ms
+  → after the fix 28 calls, 1.4 s, 185 ms.
+  THE FIX (App.html, `onDataChanged`, `whenCalm`, `openTabData`, `stockSoon`, `setMaster`, list setter):
+  * only the page ON SCREEN is refreshed, at most once in 5 s, and never between mouse-down and mouse-up (`whenCalm`);
+  * pages not on screen are marked `S.stale[tab]` and refreshed when opened (`openTabData`); the Dashboard loads itself on open;
+  * form lists (getLookups) at once only when the Asset Master changed, else at most once in 15 s and without the papers badge;
+  * balances only for the page on screen; a list that comes back identical is not redrawn (`lastHtml` in `listsFirst100`).
+  `test/browser/stale.js` (10 checks) proves nothing stays old: hidden pages refresh on open, typed Log Book rows survive and get the
+  other user's diesel, own saves show at once. DO NOT bring back background reloading of hidden pages.
+  (This is the per-page "live" idea he had proposed and then dropped – done in the safe form: no browser copy of old data is shown.)
+  The earlier "Page Unresponsive" after saving 11 diesel issues was very likely the same storm; not proven.
+- 02-10-2026: update-13 (refresh only the page on screen) is live. He then said "build the Debit to function" (step 2 of the bill papers).
+  BUILT (needs `sql/supabase_step1t_debit_notes.sql` – he must run it; without it the app works, "Debit to" and saving a note are refused
+  with a message that names the SQL file):
+  * Log Book entry: a "Debit" button in each row opens two fields – party (Vendor Master names, datalist `dl_dnparty` from getLookups.vendors)
+    and rate typed by hand. Columns `log_book.debit_to`, `debit_rate` (H.DEBITTO / H.DEBITRATE; `logDebit_`, `debitReady_`). Also in the
+    edit window. Shown in the list ("Debit to X @ rate"). NOT yet in: Edit Log Book grid, Excel import / export, Log Book print.
+  * Debit Notes: table `debit_notes` (sheet 'Debit Notes', DN_COLS_). `debitPending_` (entries of a party + period not in a note; qty =
+    hours / KM / trips / 1 day as the entry is measured), `saveDebitNote_` (lines from entries + lines by hand; GST % and TDS % typed;
+    total = amount + GST − TDS; amounts worked out again on the server), `getDebitNotes_`, `cancelDebitNote_` (Admin). One entry in one note
+    only; an entry in a note has its "Debit to" locked. Number = next of the company's run (`nextDnNo_`, shared with the diesel notes of
+    the bills). Page: RCL Drive → Saved Debit Notes → "+ New Debit Note"; print = `debitNoteDocHtml`.
+  * Money: `ledgerLines_` adds every note that is not cancelled as kind 'dn' (paid = total) → Vendor Ledger and Vendor Outstanding go down.
+  * Step 2b BUILT (02-10-2026, he said "Continue"): debit notes are ticked in the party's bill. `billInit_` returns `pendingDn`; each
+    built bill gets `dnOpen` (same party + same name) and `dns` (ticked); `mbTotals` adds J = sum of ticked notes and K = I − J (A–I and the
+    tax untouched); the Abstract prints lines J and K; the Tax Invoice is not affected. `submitBills_` validates the notes on the server
+    (found, not cancelled, same party and name, in one bill only – a bill saved again may keep the notes of the bill it replaces), takes
+    the amounts from the saved notes, stores `dns`, `J`, `K` in `bills.data`, and sets the notes to Status 'Deducted' + Bill ID; notes of a
+    replaced bill that are no longer ticked, and notes of a deleted bill (`deleteBill_`), go back to 'Open'. A deducted note cannot be
+    cancelled. MONEY: the bill stays I in `bills.net` and in the ledger; the note is its own ledger line – so it is counted exactly once
+    whether it is ticked in a bill or not (ticking only shows it on the Abstract and locks the note). Test: jsdom `d6.js` in the audit
+    rig, 18 checks (K = 14,112 − 2,360 = 11,752; ledger 10,752).
+  * Data layer: `SbSheet_.toRecord_` leaves out columns the database does not have (`dbCols` from the loaded rows) – so code can go live
+    before its SQL. `web_stamp()` has a fixed table list without debit_notes → that table is simply read fresh each time.
+  * Bridge fix found on the way: the "same question sent once" merge could hand a list asked BEFORE a save to an asker AFTER it; the key
+    now carries a save counter (`saveNo` in server/page.js).
+  * Tests: unit "Debit to and Debit Notes" (hand-worked 19,256), `test/dn.js` (6 checks without the SQL, 14 with it, two servers),
+    `test/browser/dnui.js` (8 checks through the page).
+- 02-10-2026: he sent a collage of a "clean UI" as a reference and asked for something more premium, pictures first. I made six mock-up
+  pictures (HTML rendered to PNG, not in the repo). He answered: "keep ONLY the Dashboard as it is, change the UI of everything else".
+  BUILT = block "LOOK 2026-10 B" at the end of the stylesheet in App.html (tokens `--c-*`, font Archivo for titles and figures, added to the
+  Google Fonts link):
+  * Menu pinned open with the names on a computer (238 px; `PINNED_MENU = true` switches `deskSide` off – the old click-open strip code
+    is still there). Its button slims it to icons; the choice is remembered. Navy #0C1A2E, plain icons, active item blue with an amber bar.
+  * Top bar white, one line (company name and the Supabase pill hide below 1450 px), title in Archivo.
+  * Panels, buttons (amber = save / primary, blue for Build bills / New debit note / Get entries), fields, segmented tabs, tables, pills:
+    all restyled with `section:not(#sec-dash) …` so the DASHBOARD CONTENT IS UNTOUCHED. Bill papers (.mb-paper) and the Log Book entry
+    grid are excluded from the table rules.
+  * Log Book entry with the pinned menu: one line per machinery from 1,150 px of room (tight columns, 1150–1290), comfortable columns
+    above 1290, the two-line layout below 1150 (fits a 1366 px laptop). Measured: 1536 px screen → room 1206, one line; 1366 → two lines,
+    no sideways scroll; 1920 → one line.
+  * NOT done from the mock-ups (would change behaviour, not asked): the "Working / Idle" picker instead of the status buttons, the KPI
+    band, the road-style tank bar, new page layouts. Only the look of what exists was changed.
+  * Checked: 36 pages on a computer and at phone width without error or sideways spill; all flows' tests pass. Not checked: real fonts
+    (Google Fonts cannot load in the test rig – fallback fonts were seen), real phones.
+- 02-10-2026 (after the merge of the Claude Code branch "performance pass 2", which is now main): he asked five things.
+  * Log Book LIST opens with yesterday + today only (`lfTwoDays`; quick button "Last 2 days"; "Clear filters" returns to it; an emptied
+    From date still means "from the start").
+  * "Not 15 seconds – other people's entries within 2 seconds": the check stays at 2 s while the tab is on screen for 5 minutes after the
+    last touch (`SYNC_IDLE_MS = 2000`), lists on screen refresh within 2 s (`fresh`: 2000, Dashboard 5000), and the open entry rows are
+    refreshed by ONE call for all rows – new API `getLogRowPrefills` (`getLogRowPrefills_`, loops `getLogRowPrefill_`), `lgFill(tr, pre)`,
+    `lgRefreshAll` at most once in 2 s (falls back to row-by-row if the server does not know the call). Measured cost of the 2-second
+    rhythm with another user saving every 2.5 s: 40 calls / 30 s from one open Diesel page (28–31 at the 5-second rhythm).
+  * Readings fully visible: Start / Close columns widened (tight layout now 1150–1379 px of room, fields show 10 characters at 1536 and
+    1366 px screens); slim padding on those inputs.
+  * WHY THE BILL AND THE LOG BOOK PRINT DISAGREED (his PDFs: print 150 L / 1.7 L extra, Abstract 43.7 L extra): the bill counts every
+    Diesel Issue of the period (192 L = 148.3 allowed + 43.7); the print added up only the "Issued" of its rows (150 L), so an issue on a
+    date / shift with no Log Book entry (or on a Breakdown / Holiday row) was missing from the print. 192 − 150 = 42 L: one issue.
+    FIX: the print now uses the bill's total and names the issues that are in no entry (`issAll`, `noEntry` in the print code). The bill's
+    logic was not changed. Test: jsdom `d7.js` (bill 15 L extra = print 15 L extra, note "04-09-2026 25 L").
+  * "Debit to": explained to him where it is kept (log_book.debit_to / debit_rate, shown in the list, in the backup Sheet) and where to see
+    it (RCL Drive → Saved Debit Notes → New Debit Note → Get Log Book entries; then the note, the Vendor Ledger). A plain register of all
+    "Debit to" entries does not exist yet – offered.
+- 02-10-2026 (update-17 is live). He asked: (1) diesel given on a day without a Log Book entry must stay in the bill BUT the bill must
+  say so, with what to do; (2) the whole app must explain every error – what is wrong and what to do, in Marathi, Hindi and English;
+  the user corrects, the app never changes data by itself.
+  * (1) `mbMachine` returns `noEntry` (issue dates with no WORKING Log Book row – none, or only Idle / Holiday / Breakdown);
+    `billNoEntry(b)`; shown as a ⚠ block under the vendor in the bill list (with the help), on line B of the Abstract and on the diesel
+    Debit Note. The bill's figures are unchanged. Saved in the bill's data, so old bills show it too once saved with this version.
+  * (2) HELP FOR ERRORS = `FIX_RULES` in App.html (just above `toast`): about 37 rules, each a pattern on the app's own English message +
+    [what is wrong, what to do] in en / mr / hi; `FIX_ANY` = general advice when nothing matches. Shown by `fixCard` (a card at the
+    bottom right under every red message; closes with × or on the next successful save), inside alert boxes ("Nothing saved", "Not
+    submitted", stock / machinery alerts – `askConfirm` with `alertOnly`), under the sign-in error, and next to bill warnings (`fixHtml`).
+    Language buttons English / मराठी / हिंदी, remembered in localStorage `rcl_lang` (default mr). The Log Book "Nothing saved" message now
+    carries the rows' own errors so the right rule is found. TO COVER A NEW MESSAGE: add a rule; the unit test "help for errors" checks
+    that every rule has the three languages (Devanagari for mr / hi) and that at most 3 % of the server's messages get only the general
+    advice. The app's own messages are still English – only the explanation is translated.
+- 02-10-2026 (update-18 is live). He confirmed what he wants: the app polices itself, explains everything on the spot in three
+  languages, the user corrects; NO AI in the app; and "self-training" = the app knows what is in it. Agreed way: a build check that
+  refuses anything undescribed. BUILT:
+  * `PAGE_GUIDE` (25 pages) and `REPORT_GUIDE` (11 reports) in App.html: what the page is + what the app checks / how the figures come,
+    en / mr / hi, and `saves` = the server actions that write from that page. "?" button in the top bar (`#pg_help`, `guideShow`).
+  * THE GUARANTEE = unit test "the app knows itself": fails when a page of TABS or a report of reportDefs has no guide entry or lacks a
+    language, when a server action with `edit: true` / `admin: true` is not in any page's `saves`, or when `saves` names an action that
+    does not exist. With the earlier test "help for errors" this is what keeps new features from going live unexplained.
+    WHEN ADDING A PAGE / REPORT / SAVE ACTION: add its guide entry, its FIX_RULES for new messages, and (if useful) a line in `liveMsg`.
+  * On-the-spot checks (`liveMsg`, a `change` listener): future date, machinery not in Master, negative number, Close below Start in a
+    Log Book row, "Debit to" party not in the Vendor Master / rate missing, Diesel Issue larger than the stock (balance box below 0).
+    They show the help card at once and mark the field (`.live-bad`); the server still checks everything on Save.
+  * The bill's "to check" notes are written out under the vendor with what to do (rules for: no BOQ, no hours / KM on some days, Idle
+    not chosen, PAN / bank missing, nothing to bill). Confirm boxes for "… anyway" warnings also carry the help.
+  * The red line: in Marathi / Hindi the rule's "what is wrong" comes first, then the app's own English line with names and numbers.
+  * NOT done: translating the app's labels, buttons and the original messages themselves; live checks on every single field of every
+    form (only the common ones above); explanations per column of each report (one explanation per report).
+- 02-10-2026 (update-19 is live). METER NOT WORKING. His problem: when a vehicle's meter stops, no reading can be entered, the month's KM
+  come out low and the bill debits "excess diesel" wrongly. He left the decisions to me ("most correct logic, do not disturb the flow").
+  DECIDED AND BUILT (needs `sql/supabase_step1u_meter.sql` – one column `log_book.meter_note`; without it "No reading" / "New meter"
+  are refused with a message naming the file, everything else works):
+  * A way of measuring "No reading" (`METER_OFF_` / `METER_OFF`), offered for every machinery that has a KM / Hrs way – in the Log Book
+    entry row and in Diesel Issue (a fill without a reading). Such an entry has NO readings; its work (WKM / WHR) is an ESTIMATE and a
+    reason is compulsory (Meter Note = "No reading – reason"). The app proposes the machinery's own average of its last 7 entries with
+    readings (`meterAvg_`, sent as `avgWork` by getLogRowPrefill_); the person may change it; more than 1.5 × the average gives an
+    on-the-spot warning (not a block). Anyone with Log Book Edit can use it (site staff enter daily).
+  * Money: nothing special-cased. The entry is a working day with work = the estimate, so the BOQ pays it (monthly / per day: the day;
+    per KM / hour: the estimated quantity) and the diesel standard counts it → no false "excess diesel". The bill SAYS it: a "to check"
+    line per machinery, a note on line A of the Abstract (`billEst`), help rule in 3 languages. List and print (format A) mark the entry.
+  * Readings chain: untouched design – a meter follows its own last reading, so the first entry with a reading after the gap starts at the
+    last reading before it (stuck meter resumes). NEW METER: tick "new meter" on its first entry (payload `meter: 'new'` + reason) → the
+    typed Start is kept (Meter Note "New meter – reason"); `meterNew_` guards every place that links a Start to the previous Close
+    (recalcChain_, linkAfterInsert_, saveLogBulk_, deleteLogRow_, importLogBook_).
+  * recalcChain_ keeps the saved estimate of a "No reading" row; the edit window can correct the estimate and the reason
+    (`updateLogRow_` with estKm / estHr / meterNote). The Edit Log Book grid cannot CREATE a no-reading day (message → use the Log Book page).
+  * Known limits: one flag for both meters of a KM + Hrs machinery; formats B–H of the printed Log Book show such a row without the
+    "EST." mark (format A has it); a new day does not default to "No reading" – it is chosen each day on purpose.
+  * Tests: unit test "meter not working" (hand-worked: 490 km → 49 L allowed, 55 issued → 6 L × 100 = 600; re-link after an edit; delete),
+    `test/browser/meter.js` (8 checks through the page and the database), checked without the SQL as well.
+- 02-10-2026 (update-20 live): he asked what to do when the meter is not working on the machinery's FIRST day (no history, the estimate
+  field stayed empty). `meterAvg_` now falls back to the average of OTHER machinery of the same type (entries with readings in the 30 days
+  before, at least 3) and returns `src` ('own' | 'type' | ''); a visible line under the estimate (`.nrhint`) says where the figure comes
+  from, or – with no history at all – what to type. The first entry WITH a reading of such a machinery types its Start (firstKm).
+  Also that day: Chrome "Page Unresponsive" on the loading screen one minute after his push; not reproduced (reload here: 1–5 s). His
+  console showed only an error of the BetterBugs extension (content.bundle.js, Sentry) – a page-recording extension is my main suspect for
+  the freezes on his machine; asked him to try an Incognito window. NOT PROVEN.
+- 02-10-2026: MY MISTAKE in the on-the-spot checks: `liveMsg` called every future date in an entry form wrong, so BOQ "Valid To"
+  01-01-2027 was flagged. Fixed: the check applies only to real entry dates (`ENTRY_DATES` in liveMsg + the Log Book row date) – the
+  same dates the server limits with `entryDate_`. `test/browser/dates.js` sets every date field of every page to a future date and lists
+  which complain (only payment, inward date + bill date, transfer, diesel issue). Validity dates must never be checked for "after today".
+- 02-10-2026: he asked that every typing box can be opened large (boxes are small, long text cannot be read): "a button next to the
+  box, or double-click – your call". BUILT = `bigBox()` in App.html (one generic piece, no code per field): double-click in a box, F2, or
+  the small round ⤢ that sits on the top-right corner of the box that has the keyboard → a large box (`#bigbox`) with the field's name,
+  the text, a character count, and Save (Ctrl + Enter) / Cancel (Esc) / Clear. Save writes the value back and fires `input` + `change`
+  on the small box, so all page logic runs as if typed there. A pick-list box keeps its list, a number box stays a number box; dates,
+  times, drop-downs, tick boxes, passwords, the sign-in screen and locked boxes are left out. While it is open the keyboard belongs to it
+  (focus is pulled back, Esc does not close a dialog underneath). A box whose text is cut shows the whole text on hover (title).
+  Names of grid boxes come from `GRID_NAMES` (data-f → name) – add a line there for a new grid field. Test: `test/browser/big.js` (18).
+- 02-10-2026: he reported: "the tab is left open 5–10 minutes without a touch → the app looks frozen → when I press the tab it loads a bit
+  and then works; I want it smooth always". NOT REPRODUCED here (a page left alone answers at once in the rig). Two things can produce
+  exactly this and neither is in the app's own code: (a) Chrome's Memory Saver puts an unused tab to sleep and LOADS IT AGAIN when the tab
+  is clicked; (b) the first call after a pause waits for a server that has gone cold / a connection that was dropped. Built for both:
+  * `#rcl_wait` (bridge, server/page.js `waitBar`): a thin moving bar at the top when a call (not the 2-second check) takes longer than
+    0.5 s, and "Waiting for the server… N s" after 2.5 s – a slow answer no longer looks like a frozen app; the page stays usable.
+  * A tab that was discarded (`document.wasDiscarded`) opens the page the person was on (`rcl_last`, written by showTab) instead of the
+    Dashboard, and once a day shows a blue information card (FIX rule "put this tab to sleep", 3 languages) with the Chrome setting:
+    Settings → Performance → "Always keep these sites active" → rclerp.vercel.app. `fixCard(text, 'info')` = blue card that a success
+    toast does not close.
+  * The tab holds a shared Web Lock (`rcl-fleet-erp-open`) – Chrome does not FREEZE a tab that holds a lock (it may still discard it);
+    the `resume` event asks the server at once.
+  ASKED HIM to add the site to Chrome's "always keep active" list and to tell me what the bar shows (seconds) the next time it happens.
+  If the seconds are high after pauses, the cause is the server side (Vercel plan / cold start) and needs a keep-warm or a paid plan.
+- 02-10-2026: "every form must have a Clear". Most entry forms already had one. `clearEverywhere()` in App.html adds the missing ones in
+  one place (button inserted after the form's Save): Vendor Master (`v_clear` → a blank new vendor), Vendor BOQ (`boq_clear`), New Debit
+  Note (`dn_clear`), Edit Log Book (`lx_clear`), Machinery Billing (`mb_clear` – unticks vendors, drops the bills built on the page),
+  Breakdown sheet (`bk_clear` – back to the saved day), and "Clear filters" on Bill Summary, Vendor Ledger, Vendor Outstanding and the
+  breakdown list. Meaning everywhere: an empty NEW form (leaves edit mode), asks first when typed data would be lost, never touches saved
+  data. NOT given a Clear on purpose: small windows that edit one saved record (they have Cancel), "Save company details" and Log Book
+  Format (settings). `test/browser/clear.js` walks every page and fails if a Save / Submit / Build / Generate button has no Clear beside it.
+- 02-10-2026: ITEM-WISE WORK IS PICKED. He has a rental excavator used with Bucket and Breaker (BOQ "Item-wise", each item its own rate)
+  and asked that the Log Book entry makes him SELECT the work, and that the bill follows. The item-wise chain already existed (BOQ items →
+  item quantities in the entry → `itemDaySegs` in the bill); what changed is the entry: `itemBoxHtml` now draws, for a kind (hours / KM /
+  trips) with two or more items, a button per item + "Split" (`.itm-pick`, `.itm-chip`); `itemBoxCalc` applies the pick (one item gets
+  the whole entry and follows the reading; Split shows the quantity boxes, the "rest" item takes what is left). In a NEW entry nothing is
+  picked and the row is red until it is ("Pick the work of this entry: …", help rule in 3 languages) – before, an untouched entry went
+  silently to the "rest" item (Bucket). Saved entries, the edit window and the Edit Log Book grid open with what was saved (no forced
+  pick there). The pick lives on the box (`data-pickhr` …). WHAT IS SAVED AND BILLED IS UNCHANGED ({ item: qty }; server untouched).
+  Test `test/browser/item2.js` (13, with the database): Breaker 8 hr, Bucket 8 hr, split 5 + 3 → bill Bucket 13 × 1,200 = 15,600 and
+  Breaker 11 × 1,500 = 16,500, A = 32,100.
+- 02-10-2026: VENDOR BOQ – which machinery, and one rule for many. He asked: a party has many assets → choose which vehicles a BOQ is
+  for; and a BOQ that is made should be applied to others on the same criteria instead of making a new one. BUILT (page only, server and
+  data model unchanged – still one line per machinery):
+  * `#b_pick` / `bPickDraw()`: every machinery of the vendor with a tick; tick = a line, untick = the line goes; "Tick all" / "None";
+    machinery already in another BOQ for the dates is locked and says which. A NEW BOQ (and a change of vendor) now starts with NOTHING
+    ticked (it used to add every free machinery).
+  * "same terms → other machinery" on each line (`bSameTerms`): a box with the other free machinery of the vendor; the ticked ones get a
+    line with the same rent type, rate, slabs / items and diesel (an existing line is replaced). Works in Edit of a saved BOQ too – that
+    is how a made BOQ takes more machinery. `bReadLine(tr)` = one line of the form as data (Save uses it too).
+  * Test `test/browser/boq.js` (8, with the database): tick 1 → terms → same terms to 2 more → saved with 3; a second BOQ shows them
+    locked; Edit → same terms to the 4th → saved with 4.
+- 02-10-2026: THE START READING CAN BE TYPED HIGHER. His case: machinery on diesel-debit basis take diesel, work a while, then work
+  elsewhere, so the meter has moved on when they come back. Rule he gave: Start comes from the last Close automatically, the person may
+  change it, but never below the last Close of the same machinery. BUILT (no SQL):
+  * Server, one rule everywhere – Start >= the Close before it: `startFrom_` (entry page; `lenientStart` for imports = a lower Start in a
+    file is ignored as before, a higher one is kept), `updateLogRow_` (now also REFUSES a Start below the Close before it – it did not
+    check this), `saveLogBulk_` (grid: "must be equal" became "not less"), `recalcChain_` / `linkAfterInsert_` / import re-link (only LIFT
+    a Start that is below the Close before it; never lower one, never touch a "New meter" row).
+  * "Linked" = a Start equal to the Close before it. When that Close is corrected, a linked Start follows; a Start typed higher stays,
+    unless the Close passes it (then it is lifted to the Close). On delete, a next Start that was linked to the deleted entry takes that
+    entry's own Start (so a gap typed before the deleted entry is not absorbed).
+  * The distance between the last Close and a higher Start is in no entry: not paid, not counted for the diesel standard.
+  * Page: the Start box of an entry row is open (was read-only); untouched it keeps following the last Close; typed lower → row red + help
+    card; typed higher → blue note "N km ran elsewhere – not counted". The grid shows the same note instead of "Start should be …".
+  * Tests: unit "Start reading …" (hand-worked chain: gap, correction that passes the gap, linked follow, edit window, delete),
+    `test/browser/start.js` (8, with the database).
+- 02-10-2026 (16:02, live): his screenshot – Log Book Format page BLANK and the bar "Waiting for the server… 22 s". Two separate faults,
+  neither reproduced in the rig; both now guarded:
+  * A CALL THAT WAITS TENS OF SECONDS. Most likely cause (not proven on the live site): a dead database connection. `server/syncfetch.js`
+    keeps connections open between calls; Vercel freezes the process between requests, and `server/pool.js` gives a request to the FIRST
+    free thread, so threads 2–6 are used only when requests overlap and their helper can sit unused for minutes; the other side closes
+    the connection, the frozen process never notices, the next call on it waits up to the 55-second limit. Guards in syncfetch.js:
+    (1) a helper unused for 5 s is replaced (fresh connections), (2) each call has its own limit (reads 15 s, writes 30 s),
+    (3) a failed / timed-out READ is asked once more; a WRITE is never repeated. `test/net.test.js` plays a dead connection (now part of
+    `npm test`). This also fits his earlier "after 5–10 minutes it freezes, then works".
+  * A PAGE THAT STAYS INVISIBLE. Panels wait at opacity 0 (`.rv`) until an IntersectionObserver reports them (`armReveal`); if the report
+    never comes the page is blank although it is there (his scrollbar showed a tall page). Now every panel of the page is shown after
+    0.6 s at the latest (timer per section). `test/browser/blank.js`: with an observer that never reports, 56 panels on 36 pages visible.
+  * The waiting bar now names the call after 6 s ("… 22 s (getLookups)") – ASK HIM FOR THAT NAME if it happens again.
+- 02-10-2026: RENAMING A VENDOR. The name of a saved vendor was read-only ("it links the vendor to its assets"). He wants to change it and
+  keep the assets with the vendor. BUILT (no SQL, no new API): the name box is open; `saveVendor` takes `oldName`; when it differs,
+  `renameVendor_` moves the name everywhere in the same save (one web_write transaction): Asset Master owner, BOQ, bills, payments,
+  debit notes (their Vendor Name column), Log Book owner and "Debit to", Diesel Issue owner, and the vendor's own row (its key is the
+  name: old row deleted, new one added with the same details). NOT changed: the saved papers (data JSON) of submitted bills / notes –
+  they keep the name they were issued with. REFUSED: a new name that another vendor or owner already has (that would join two parties).
+  The page asks before renaming and says what follows; the Activity Log gets "Vendor renamed: A → B (moved with it: …)".
+  Tests: unit "renaming a vendor" and `test/browser/rename.js` (11, with the database, renames back at the end).
+- 02-10-2026: THE LOG BOOK EXCEL OF A MACHINERY. He typed a vehicle number, exported, and got a general sheet (the template even used an
+  example Bolero). Wanted: the Excel of exactly that machinery, for the period chosen, with only the columns / tab that machinery needs,
+  and the same file must go back through Import at once. BUILT (page only):
+  * `lbPicked()` = the machinery of the list's filter, else the one typed in the entry form (`lg_top_no`). `lbExport` reads the filter
+    from the screen at that moment (it used the filter of the list loaded last), and refuses a number that is not in the Master.
+  * `lbHeadFor(machinery, rows)` = the columns of LB_HEAD that those machinery use: KM / hour readings by their ways of working, time,
+    trips, challan by way or Log Book format (`LB_FMT_NEEDS`), "Item work" by an item-wise BOQ, chainage unless the format has none.
+    Each machinery tab has its own columns; the date-wise sheet has the union of its machinery. Full rows are built as before (`lbLine`,
+    `lbSum`) and cut to those columns, so figures cannot differ.
+  * With a machinery picked, the two Template buttons give that machinery's own sheet (its dates of the period, empty dates to fill).
+  * Import was already heading-based (`readExcelRows` + `LB_COLS`, all tabs, missing columns = untouched), so the cut file imports as is.
+  * Test `test/browser/xls.js` (11): KM machinery, hour machinery with items, date-wise, machinery from the entry form, template, unknown
+    number, and the round trip – exported file → one empty date filled → the page's own Import → "1 added, 7 skipped" in the database.
+- 02-10-2026 (17:44, his screenshots of the exported sheet of MH-43-4090, a JCB with Bucket / Breaker): three remarks – no diesel in the
+  sheet (the app takes it by itself), look at the "Measured by" drop-down, and look at the last column ("Fill Measured by with one of:
+  Hrs / Idle / … | Item work: Breaker=hr (Bucket takes the rest)" repeated on every row). REBUILT the machinery sheet:
+  * `lbColsFor(machinery, rows)` = column descriptors { h, w, v, list, f, sum }; `lbSheet(...)` builds the sheet from them. (This replaces
+    the "cut the 28-column row" approach of the morning; `lbLine` / `lbSum` / `lbLists` / `LB_HEAD` are no longer used by the export.)
+  * GONE: the four diesel columns, "Status" (Idle / Holiday / Breakdown are in the "Measured by" drop-down), the hint column, the free-text
+    "Item work" on a single machinery's sheet. Summary tab: no diesel, + "Empty dates".
+  * "Measured by" comes filled on the empty dates of a machinery with one way of working; the import no longer treats the way alone as an
+    entry (`filled`), so untouched dates are skipped.
+  * Total KM / Hrs are formulas (ExcelJS `{ formula, result }`; the plain-Excel fallback converts them).
+  * Item-wise machinery: "Work type" drop-down (item names + Split) and a column per typed item ("Breaker (hr)"). Import: LB_COLS knows
+    "Work type"; `readExcelRows` also returns `_has` (which known columns exist) and `_more` (other columns by heading); `lbItemsOf` makes
+    `{ _all: 'Breaker' }` or the split quantities; a working row of such a sheet without a Work type is a problem ("Work type").
+    SERVER: `logItemWork_` understands `_all` (the picked item takes the entry's total; needs totals – the import's compare step now
+    passes them for such rows).
+  * Tests: `test/browser/xls.js` (14, with the database: columns, drop-downs, formula, import of a KM day, Breaker / Split / Bucket days,
+    refusal without Work type) and `xls2.js` (reads back the real ExcelJS file: formulas, drop-downs, yellow empty Work type).
+- 02-10-2026: EXCESS DIESEL – THE LAST FILL IS PARTLY STILL IN THE TANK. His problem: diesel filled on the last day is in the tank at
+  month end but was debited as excess. I proposed a carry-forward to the next bill; HE DECIDED OTHERWISE, in his words: take the last
+  fill and its reading, the run from that reading to the period's last Close, the diesel that run needs by the standard; what is left of
+  the fill is "in the tank" and must not be debited – FOR THAT MONTH ONLY, the balance is NOT given to the next month as an opening; it
+  is an assumption so that the debit does not apply. He confirmed four details: last fill = the last company-diesel issue of the period
+  (any date); a fill without a reading → the work of the Log Book days AFTER the fill date; no entry on / after the fill → the whole fill
+  is in the tank; hour machinery the same with hours and L/hr.
+  * `tankLeft_` (Code.gs) and its twin `tankLeft` (App.html) – same code; `billMachineCalc_`, the page's `mbMachine` and the Log Book
+    print all use it: excess = raw excess − min(left, raw). `left` is also capped by Asset Master → Tank Capacity when set. A Close below
+    the fill reading (new meter) falls back to the days after the fill.
+  * `logPrintExtra_` issues now carry `lastQty / lastKm / lastHr` (the last fill of a day by itself). The dashboard rows given to
+    `billMachineCalc_` (cost sheet) now carry `ckm / chr`.
+  * Shown: Abstract line B and the diesel Debit Note ("last fill 30 L on … at 1,234 km; run after it 46 km = 10 L by standard; 20 L taken
+    as still in the tank – not debited"), the Log Book print, and a "to check" line when Tank Capacity is not set. Help rule in 3 languages.
+  * CONSEQUENCE I TOLD HIM: the diesel of the last fill is judged only for the run after it, so a machinery with ONE fill in the period
+    never shows excess, and the left-over is never judged in any month. Tank Capacity in Asset Master is the only limit.
+  * Tests: unit "the last fill …" (his figures: 29.13 L over, 20 L left, 9.13 L = ₹913; page = server; tank cap; no reading; no entry),
+    the cost-sheet and meter tests re-worked by hand, `test/browser/tank.js` (7, with the database, incl. Verify & Submit).
+- 02-10-2026 (evening): after my review of the whole app he chose six things. (Vendor rename: "old stays old" – saved papers keep the old
+  name; nothing to build.) BUILT:
+  * MONTH CLOSE. Property `BOOKS_CLOSED_UPTO` (yyyy-mm-dd, '' = nothing closed; kept in web.props). `booksClosed_()`, `booksOpen_(dk, what)`,
+    `entryOpen_` (= entryDate_ + the lock), `saveBooksLock_` (API `saveBooksLock`, admin, Activity Log "Month close"). Guarded: Diesel
+    Issue (add / bulk / import / change – old AND new date – / delete), Inward (entry date only, not the pump bill date; change, delete),
+    Transfer, Log Book (entry, old paths, grid incl. deleted rows, import, edit window, delete), Tank Check, Breakdown report. NOT
+    closed: bills, debit notes, payments, vehicle papers. Page: `setClosed` → pill "Closed up to …" for everyone, Admin panel "Month
+    close" on the Billing page (`#lk_panel`), on-the-spot check on entry dates, help rule in 3 languages. `getInit` / `getLookups` carry
+    `closedUpto`.
+  * FINAL BILL. A machinery that is Inactive with "Inactive From" on or before the day after the bill's period has left the site: its bill
+    gives no "still in the tank" allowance (`final` in billMachineCalc_ / mbMachine / the Log Book print), says so on line B and in
+    "to check" (deduct every open debit note). Automatic – nothing to tick.
+  * "DEBIT TO" in the Log Book print (every format – `lbMarks`, which also puts the meter note into formats B–H) and in the Excel sheet
+    ("Debit to", "Debit rate" when the sheet has any; they come back through the import for new dates).
+  * DAILY REPORT: Dashboard → "Daily report" (`dailyReport`): the Dashboard's day (From = To) or today; five parts – diesel stock per
+    location, received, issued, Log Book, to look at (diesel without entry, active machinery without entry, breakdowns). Print / PDF.
+  * THE APP CHECKS ITS DATABASE (Admin only): `dbHealth_` (API `dbHealth`, admin) – columns of every step via `backup_catalog`, functions
+    of step 2 / 3 via the API's own list, security findings via `web_health()` = NEW `sql/supabase_step4_health.sql`. Page: pill
+    "Database ✓" / "Database: N to do" (`#db_pill`), once a day per Admin (localStorage `rcl_dbcheck`), box with the file to run,
+    "Check again now". Until step 4 is run the check says so (one item "to do").
+  * Tests: unit "month close …" and the final bill inside the tank test; `test/browser/batch.js` (14, with the database).
+- 03-10-2026: THE APP BECOMES A PRODUCT OF "ONE CLICK SOLUTION". He: One Click Solution is the platform; Rachana is its first customer
+  (VTR NH 848, monthly fee); Rachana's other sites and other companies will get the same app with no data of another. AGREED MODEL
+  (explained to him, he went ahead): one COPY per customer site – same repository, own Vercel project, own Supabase database, own users.
+  So a user of one site cannot open another (the other copy does not know the user) and no customer's data is ever in another copy.
+  NEW_SITE_SETUP.md = the steps for a new copy. BUILT in this copy (Rachana stays exactly as it was – the defaults are its values):
+  * `BRAND_` (One Click Solution / Fleet ERP) and ONE setting `ORG_SETTINGS` (`orgSettings_`, `orgPublic_`, `saveOrgSettings_` – API
+    `saveOrgSettings`, admin, Activity Log): customer, site, logo link, the names bills are made in (`billCompanies_()` replaces the
+    constant BILL_COMPANIES_; a name carried by saved bills / notes cannot be removed), opening on / off, film link.
+  * `orgInfo` – the only call besides login that works without a sign-in (api/rpc.js ALLOWED, runtime.js): brand, customer, site, logo.
+  * Page: `applyOrg` fills what was written in the code (company in the top bar, SITE_NAME on reports / Excel, PRINT_NAMES, logos, the
+    bill-name drop-downs, the browser title); panel "Company & site" on the Users page; note "All users of this page belong to …".
+  * Sign-in screen: One Click Solution brand on top, the customer's logo and site under it. THE OPENING (`#oc_intro`, `ocIntro`): a
+    4-second film built into the page (letterbox bars, mark, word, light sweep), once per browser session, skippable, off by the tick
+    or for reduced motion; a film link (.mp4) plays instead when set. While it fades it lets presses through.
+  * `memoGet_` / `memoDrop_`: per-request memory that tolerates TABLE_MEMO_ being null (outside api()).
+  * NOT DONE: licence / monthly fee control, a One Click super-admin, a central sign-in that sends a user to his site, the print footer
+    and a few help texts that still say Rachana / Sketchline, diesel locations still in the code (APP.LOCATIONS). Repo is still PUBLIC.
+  * Test: `test/browser/brand.js` (13, with the database).
+- 03-10-2026: VENDOR FORM – GST NUMBER AND IFSC FILL IN WHAT THEY CAN. He asked: type the GST number → the vendor's data comes; type
+  the IFSC → bank and branch come. Checked on the web first (03-10-2026):
+  * IFSC: Razorpay's public IFSC list `https://ifsc.razorpay.com/<IFSC>` – free, no key, CORS, 404 for an unknown code, fields BANK /
+    BRANCH / CITY / STATE. BUILT in the page (`vIfscAuto`): bank and branch filled, note under the box; 404 and "no connection" said;
+    only the IFSC code is sent; one request per code.
+  * GST: the legal name and address of a GSTIN are NOT available free – every service found needs an account and a key (paid, small free
+    trial). NOT connected; TOLD HIM. BUILT without any service (`gstRead`, `vGstAuto`): the 15th character is a check letter (rule verified
+    on 7 real numbers) → a mistyped number is caught; PAN (characters 3–12) filled in; State (first two digits) and kind of party (4th
+    letter of the PAN) shown; a PAN typed by hand that differs is pointed out. The old half-fill of the PAN at 12 characters is removed.
+  * If he takes a GST look-up service: add a server function (key in a Vercel environment variable, never in the page) and call it from
+    `vGstAuto` to fill name and address.
+  * ALSO FIXED: the top bar had become too full (pills "Closed up to", "Database") and covered the page title on a 1366–1536 px screen.
+    Rules at the END of the style sheet: one line; the search box gives way to its icon first, then company / date, then the pills'
+    texts; below 1300 px the right group may go to a second line. `test/browser/topbar.js` measures all 36 pages at 1536 / 1366 / 1280.
+  * Tests: `test/browser/vauto.js` (12; the bank list is played by the test because the rig cannot reach it).
+- 03-10-2026: (1) A SAVE THAT DOES NOT GET THROUGH IS SENT AGAIN BY ITSELF; (2) SETTINGS – every user's own app. He: "do not show me
+  a box that it was not saved – the system must retry by itself; what the user saved must be saved", "a user can put his own photo",
+  "settings are user-wise, everybody customises his own app", no OTP.
+  * RE-SENDING (bridge in server/page.js): every save (`api`, not a question) gets a number `rid`; on a network failure, a non-JSON
+    answer (504 …) or a "not now" answer (TRANSIENT: lock busy, database slow, RETRY_LATER) the SAME body is sent again – 1.2 s, ×1.6,
+    at most 10 s – for as long as the page is open. Line `#rcl_retry` ("kept, being sent again", 3 languages by `rcl_lang`), then
+    "Saved ✔". `beforeunload` asks while a save is waiting. Questions: 3 tries. login / changePassword / sync: not re-sent.
+  * SAVED ONCE (server/runtime.js `run`): for a save with a rid – first copy claims the number (`web_count OPC_<rid>`, exact with the
+    step-3 SQL; a plain cache look without it), notes its start (`OPT_`), runs, keeps its answer for an hour (`OPR_`). A later copy
+    returns the kept answer, or waits up to ~24 s for it, or – when the first copy cannot be alive any more (75 s) and left nothing –
+    runs. A REFUSAL is kept too (`__refused`); a "not now" error frees the number. api/rpc.js passes `rid` in meta.
+    Residual risk: a first copy that dies after the data was written but before its answer was kept (milliseconds) → a later copy
+    would save again (Log Book rows cannot double – same key; a diesel issue could).
+  * NOT BUILT: sending again after the page was closed (an outbox kept in the browser). Entries the server refuses are still shown.
+  * SETTINGS. Server: `prefsClean_` (only known keys / values), `prefsRead_` / `prefsWrite_` (one row per user in `app_settings`,
+    id `USER_PREFS|<email>`, by REST – no SQL needed; script properties when not on Supabase), API `getMyPrefs`, `saveMyPrefs` (every
+    signed-in user), `saveSiteRules` (admin; property SITE_RULES = { backDays, announce }), `siteRules_()` in getInit / getLookups.
+    `booksOpen_` now also enforces "days back" for users who are not Admin (`ACTOR_ADMIN_`, set in apiRun_).
+  * Page: menu group "My account → Settings" (tab `settings`, section `sec-settings`, guide in 3 languages); photo in the top bar
+    (`#u_ava`, opens Settings; hidden on a phone). `applyPrefs` → html[data-theme|text|density|motion], help language, favourites
+    (`#grp_fav`), usual shift / diesel location; `prefSet` applies at once, keeps a copy per e-mail on the device (`oc_prefs_<email>`)
+    and saves 0.45 s later; `prefsBoot` after getInit (first page, usual Log Book entry type). Photo: cut square, 128 px JPEG.
+  * DARK THEME = the whole page turned (`filter: invert(1) hue-rotate(180deg)` on html) with pictures, the menu and the opening film
+    turned back; never on paper (`@media print`). Not a second colour scheme – some coloured drawings look darker.
+  * Top bar: with the photo it was full again – the short pills are never cut; a second line only below 1340 px.
+  * NOT BUILT from the list he saw: rows per page, choice of Dashboard cards, keeping a half-typed entry, required fields,
+    defaults for new users, sign out of all devices. "Menu open / closed" dropped (on a computer the menu is slim by itself).
+  * Tests: unit "settings …" (21 unit tests now), `test/browser/retry.js` (10), `settings.js` (10), `set2.js` (4, photo file and Enter).
+- 03-10-2026 (his screenshot: Asset Master → Edit "Pradeep Engineers", Ownership list = Own / Rental / Hired / Other): "bring the Debit
+  option here, I will set the ones I want in debit – those I gave diesel on debit basis are not visible any more, the debit ones show
+  in Rental." CAUSE: an earlier change had removed Debit as an ownership (`normOwnership_` read "Debit" as Rental, the form's list had
+  no Debit – "diesel debit is decided in the BOQ"), so reports that group by the machinery's CURRENT ownership (`issueList_`,
+  `rptOwner_` …) put those parties under Rental. RESTORED: `normOwnership_` keeps Debit; the form offers Debit (with a line saying what
+  it means); `validateMaster_` forces Diesel Supply = Debit Basis for ownership Debit (the hidden supply box used to send "Company");
+  taken out of Debit → Company. Rows that still say "Debit" in the database read as Debit by themselves; rows re-saved meanwhile say
+  Rental – he sets them. Asset report: Debit in its ownership filter and summary. Daily report: debit parties are not "without an
+  entry" (the filter compared ownership with "Debit Basis" – wrong value, fixed). A Rental machinery whose BOQ says diesel on debit is
+  unchanged. Tests: unit "ownership Debit …", `test/browser/debit.js` (5).
+- 03-10-2026: TRANSIT MIXER AVERAGE – TWO ENGINES, ONE TANK. His September "Monthly Diesel & Average" showed "–" for six TMs and
+  0.11 km/L + 42.07 L/hr for MH-04-KU-3332. EXPLAINED (no code fault): the TMs had no Log Book readings in September (one had a single
+  day against a month of diesel); with readings (his October example, MH-25-AJ-2169: 60 L, 102.4 km, 1.8 hr) the figure came.
+  He then SET THE RULE for transit mixers and every later two-engine / one-tank machinery (unit "KM + Hrs"): the hour engine is taken
+  at its standard (diesel = Hrs × L/hr), the rest of the diesel is the vehicle engine's (km/L = KM ÷ the rest). Before, the diesel
+  was shared in the ratio of the two standard needs. CHANGED in the ONE function `dualAvg_` (Code.gs) – every report and the Log Book
+  use it; text now "1.88 km/L + 3 L/hr (std)". Hours alone need ≥ the diesel given → no average, "hours need X L, Y L given – check
+  readings". No hours / no hour standard → km ÷ diesel; only hours → diesel ÷ hours. UNCHANGED: High / Low consumption and a bill's
+  excess diesel (they compare the diesel with the total need). Tests: unit "two engines, one tank …" (his figures: 5.4 L, 54.6 L,
+  1.88 km/L), `test/browser/tm.js` (4, the real reports with the database).
+- 03-10-2026 (evening): he asked for five things at once – faults known by themselves (Admin AND user, live), speed for a growing
+  database, entries without a network (and what when two people do the same work, one online, one not), diesel theft shown in special
+  reports, a QR code for every machinery. BUILT NOW: three. NOT BUILT: two (told him why; they need his decision / a design).
+  * FAULTS. Server: `faultKind_` (an error whose name is not "Error" = fault of the code; DB_FAULT_ = database) – caught in `api()`,
+    half-done writes dropped, written by `errLog_` (list APP_ERRORS in app_settings, last 200; the same fault once in 10 minutes;
+    stamp ERR_STAMP = today's count + last line), the user gets "The app hit a fault … not your entry … reported to the Admin".
+    `reportError` (any user) for faults of the page; `getErrors` / `clearErrors` (admin). getInit / sync give `faults` to Admins.
+    Page: `reportErr` (window error + unhandledrejection whose reason is not a plain Error), info card for the user in 3 languages,
+    pill `#err_pill` "Faults: N" for the Admin within seconds + a note, list on a press ("seen" kept per device in rcl_errseen).
+  * DIESEL WATCH (report key `watch`, `rptWatch_`): per machinery that keeps a Log Book – closed fill-to-fill cycles over the standard by
+    more than 15% and 5 L; fills with no work until the next fill; a fill over the tank capacity; a fill reading that went back or did
+    not move; tank checks that found 5 L or more less. Apart: machinery with diesel but no Log Book work in the period ("cannot be
+    checked"). A fill with two signs counts once in the totals. Debit-basis parties left out. Words: "signs", "to look at, not proof".
+  * QR LABELS: library qrcode-generator 1.4.4 (MIT, Kazuhiko Arase) minified in its own script block; Asset Master → "QR labels" (all
+    active or one; 12 per A4); the code = `<site>/?m=<id>`; `qrArrive` after getInit shows its own sheet `#qr_sheet` (Diesel Issue /
+    Log Book entry / ledger) and cleans the link. A label holds only the number; a sign-in is still needed.
+  * NOT BUILT – SPEED FOR GROWTH: measured only the present size on the rig (about 0.2 s a call at 3,600 Log Book rows). A growth test
+    by rows inserted straight into the database is NOT valid (the app serves cached table snapshots keyed by its versions) – it has to
+    be done through the app. Then: read by date window instead of whole tables. (My test's "server crashed" was my own stale socket.)
+  * NOT BUILT – ENTRIES WITHOUT A NETWORK: needs the page to open offline (service worker), start-up data kept on the device, an outbox
+    kept on the device (the rid of update-37 makes re-sending safe), and a rule for two people entering the same thing. PROPOSED RULE
+    (awaiting his yes): first to reach the server wins; the later one is kept on the device as "not accepted" with the reason and who
+    entered it, to change or discard – never overwritten silently. Diesel issues have no natural key: same machinery + date + shift +
+    litres from another user asks "already entered by X – save anyway?".
+  * FOUND WHILE TESTING: the very first error handler of the page (start of the main script) put the SIGN-IN SCREEN over the page on
+    ANY script error, also for a signed-in user at work. It now acts only until somebody is signed in; after that `reportErr` reports
+    the fault and the user stays where he is.
+  * Tests: unit "faults …" (24 unit tests), `test/browser/new3.js` (16, with the database).
+- 04-10-2026: SPEED FOR MANY USERS. He: "even with 3,000 users everything must run smoothly" → clarified: 3,000 over ALL sites, each
+  site (its own copy) at least 100 users, "no load, no hang". WHAT WAS WRONG: a table was read whole (and parsed) whenever ANYTHING had
+  changed anywhere (one stamp for all tables); every save read all main tables again; every heartbeat asked the database.
+  * TABLES IN MEMORY, UPDATED BY CHANGES (server/gas.js `makeWarm`, exposed to the app code as `__warm`; used in SupabaseData.gs
+    `loadMany` / `load_`): per server instance each table is kept as rows in id order (JS string order – the same on every instance);
+    stamp unchanged → nothing asked; else rows with `updated_at` > (time of the last answer on the database's clock – its HTTP Date
+    header – less 15 s, less the duration of a first read) + ids from `deleted_rows` (paged to the end); a table not yet held is
+    read whole by id (keyset pages); ≥ 1,000 changed rows → whole; whole again every 15 minutes; > 250,000 rows not kept;
+    activity_log not kept. Only the table that is asked for is filled; the main tables are brought up to date in one round trip.
+    The rows are SHARED between requests – `fill` copies (JSON cells too) and never changes them. `fill` rewritten as plain loops.
+    Kill switch: environment variable RCL_WARM=off (old way: whole tables, heartbeat from the database).
+  * HEARTBEAT FROM MEMORY (`gas.boot(st, keys, light)`, `BEAT`): `sync` is answered from this server's memory when the shared part
+    (settings / versions / users list / stamp) is ≤ 1 s old and the session ≤ 20 s (its remaining time counted down); a save on this
+    server resets it; an ended session is forgotten at once. 40 heartbeats: 0 database calls (was 40).
+  * A bug found by profiling the first version: a long list of deletions (≥ 1,000 in the overlap window) forced a whole-table read on
+    EVERY request – fixed (the deletion list is paged; the window is time-based).
+  * MEASURED on the rig (ONE processor core for app servers, database, gateway and the load generator – absolute times are
+    pessimistic): single calls at 25,221 Log Book rows, old → new: list 618 → 89 ms, start-up 661 → 113 ms, diesel save 1,395 → 247 ms.
+    20 people hammering (25k rows): 2 → 11 calls/s, read 10.6 s → 1.2 s. Realistic use (heartbeat 2 s, list 15 s, save 90 s per
+    person): 30 people – list half under 0.2 s, save 0.5 s; 50 people – 0.2 s / 0.5 s (95% of saves under 2.6 s); 100 people – the
+    one core is saturated (heartbeats ~3 s), nothing fails. NOT measured on Vercel + Supabase.
+  * STILL TRUE: saves go one at a time over the whole site (web_lock 'script', ~0.25 s each here → 3–4 a second); per request ~70–90 ms
+    of the server's own work at 3,600–25,000 Log Book rows (turning rows into the app's tables + the logic); memory per instance
+    grows with the data (6 pool workers each hold the tables).
+  * `test/load-site.js <link> <e-mail> <password> [people] [seconds]` – the realistic test against any TEST copy (never the live
+    site); makes LD-00…39, a diesel receipt and diesel issues, deletes the issues and the receipt at the end.
+  * Tests: `test/browser/warm.js` (12: two servers with separate memories agree with the database after changes through either, edits
+    straight in the database, delete + re-enter, 2,500 rows at once); all earlier suites pass on the new path (audit 40, reg 11, …).
+- 04-10-2026 (photo of a laptop, user Amzad, Log Book entry with 10 rows: "+ Add row / Save Log Book / Clear" lay over row 8 and
+  the list panel over rows 8–10): "the buttons must stay properly visible even with 30 rows" + "Ctrl + S must save on every page,
+  with a pop-up 'save?' – yes → save".
+  * CAUSE of the overlap: on a computer `.lg-wrap` is `overflow: visible` (the one-line entry rows), but it is also a `.table-wrap`,
+    and every `.table-wrap` has `max-height: calc(100vh − 140px)` (tables scroll in their own box). A box with a height limit that
+    does not scroll: with more rows than fit that height (5 on a laptop) the rows ran out of the box, over what follows. FIX:
+    `max-height: none` for `.lg-wrap` on computers. All 38 pages scanned for the same combination: none other.
+  * The button row of the Log Book entry (`.actions.lg-actions`) is `position: sticky; bottom: 0` – in sight at the bottom of the
+    window while the rows are on the screen, in its normal place under the last row.
+  * Ctrl + S (`ctrlSave`, in the global keydown): never the browser's "save page"; finds the visible, enabled main button whose
+    words begin with Save / Update / Add – first in the panel that has the cursor, else the first on the page –, leaves the box
+    being typed in (so its value counts), asks "Save?" naming the button (help language; the cursor on "Yes, save", so Enter = yes,
+    Esc = no) and presses that button. Nothing to save → a line says so; a box already open → nothing. `askConfirm` got `cancel`
+    (label) and `focusOk`.
+  * Test: `test/browser/lgrows.js` (12: 10 and 30 rows at 1280 × 640, Ctrl + S on Log Book, Asset Master, Dashboard).
+- 04-10-2026 (later): three things, agreed first in words, then built.
+  * THE WORDS FOR A MACHINERY'S DIESEL. "High consumption / Low consumption / Balanced" were not understood by a new person (km/L is
+    better when higher, L/hr when lower). Now ONE function `dieselVerdict_(pct)` (Code.gs), pct = % more / less diesel than the
+    standard says the work needed (the same comparison as before, for KM, Hrs and KM + Hrs): within 10% "Good"; 10–30% less
+    "Very good – N% less diesel"; over 30% less "Check reading – too good (N% less diesel)"; 10–30% more "More diesel – N% over";
+    over 30% more "Bad – N% more diesel". Codes ok / less / check / more / bad (colours `.mst.*`, `.st.*`; counts on the report).
+    Used by Monthly Diesel & Average (`addReadings_`) and Actual vs Standard Average (`rptAverage_`, order: bad, more, check, ok, less).
+  * MONTHLY DIESEL & AVERAGE: each reading shows the date of the Log Book entry it comes from (`row.oDate`, `row.cDate`; a small
+    dd-mm under the reading on the page and in print; two date columns in the Excel) – "the period says 01 to 30, which date is the
+    closing reading of?".
+  * PENDING LOG BOOK ON THE ENTRY PAGE (`#lg_pend`, `lgPendLoad / lgPendList / lgPendDraw / lgPendAdd`; API `logPending`, module
+    Log Book, = `pendingLogs_()` as [machinery, date] pairs): by date → the machinery without an entry for the date on top; by
+    machinery → its dates without an entry. A press puts it into the rows (an empty row first; for one machinery at its place by
+    date, WITHOUT the "date changed" signal, which would re-date every row below day by day); "Add all / the next 30"; ticks for
+    what is in the rows; read on opening, after every save, at most once a minute otherwise. The Dashboard's list is unchanged.
+  * Tests: unit "the words for a machinery's diesel …" (25 unit tests), `test/browser/pend.js` (11, with the database).
+- 04-10-2026 (screenshot: pending dates of MH-25-AJ-8511, 34 dates of September and October in one list): "I want a filter – when I
+  look at October I do not want the other months; all at first, then what I pick." MONTH FILTER on the pending strip of the
+  one-machinery entry (`lgPendMonth`, `.lp-months`, buttons All / Sep 2026 / Oct 2026 with counts; shown when the dates are in more
+  than one month; back to All for another machinery; "Add all" follows the filter). Seen in the same screenshot and fixed: the
+  Standard of a two-meter machinery ("2.5 km/L + 3 L/hr") ran under the From / To boxes – the Standard and Average cells now wrap
+  (rule placed AFTER `td:nth-of-type(n+9):nth-of-type(-n+14)`, which keeps the diesel figures on one line and used to win).
+  Test: `test/browser/pendm.js` (6).
+- 04-10-2026: "vehicles and machinery under OTHER do not need a Log Book entry." ONE RULE `needsLogBook_(m)` (Code.gs) / `needsLogBook(m)`
+  (page): not Diesel Supply "Debit Basis", not Ownership "Debit", not Ownership "Other". Used by `pendingLogs_` (so: the Dashboard's
+  Pending Log Book, the strip on the entry page, the menu count), the daily report's "no entry" list and the Excel template's list of
+  machinery. An entry for an "Other" vehicle is still ACCEPTED – it is only never asked for. NOT changed (told him): Diesel Watch still
+  lists the diesel of "Other" vehicles under "cannot be checked" (it is a fact about the diesel, not a reminder), the meter reading
+  asked at a diesel issue, the monthly report (their status stays "–"). Test: unit 'Log Book is not asked of Ownership "Other" …'
+  (26 unit tests); through the server: an Other vehicle adds 0 to the pending count, the same vehicle as Rental adds its 34 days.
+- 04-10-2026: "SAVE PASSWORD?" AND AUTO-FILL AT SIGN-IN. He: "the app asks the password at every sign-in; after a sign-in it should
+  ask 'save the password?' – every time until the user saves; once saved the sign-in fills itself." The sign-in form already was a
+  real form with the right autocomplete names; the browser still never offered to save because the app's page is an iframe made
+  from text (srcdoc, no address of its own) and browsers do not run their password manager there. NOW the app hands the sign-in to
+  the browser through the top page (Credential Management API, `window.top.PasswordCredential` – Chromium browsers):
+  `credSave(email, password)` after a correct sign-in (not when the password must be changed first) and after a password change;
+  `credFill()` when the sign-in screen is shown (`credentials.get({ password: true, mediation: 'optional' })` → fills the two boxes,
+  note `#lg_cred`, cursor on Sign In – it does NOT sign in by itself); `credForget()` on sign-out (`preventSilentAccess`).
+  The app stores the password nowhere. Whether / how often the bubble shows is the browser's rule ("Never for this site", the
+  setting "Offer to save passwords", incognito). Firefox / Safari: nothing changes. The 6-hour session and "Remember me" are as before.
+  Test: `test/browser/cred.js` (8; the browser's store is played by the test – headless Chromium has no password manager, the real
+  call answers NotSupportedError and the sign-in still works). NOT seen by me: the real Chrome bubble – to be checked on the live site.
+- 04-10-2026: THE ASSISTANT (chat), STAGE 1. He: "a chat bot in the app – ask it anything about the app: how, where, why, who did what,
+  how much diesel, who took it …". Agreed: Gemini (his own API key), the app's data may go to it, read-only, each user within his
+  own permissions, only from this app's data.
+  * SERVER: `server/gas.js makeAi` → `__ai` for the app code (key GEMINI_API_KEY from the server's settings, never sent to a page;
+    GEMINI_MODEL fixes the model, GEMINI_API_BASE is for tests). Code.gs: `AI_TOOLS_` (9 look-ups, declarations only), `aiRules_`
+    (the fixed instruction: only this app, look up before any figure, read-only, answer in the person's language, [[open:TAB|Label]]),
+    `aiModel_` (from the service's own list: "gemini-flash-latest" if offered, else the highest gemini-N flash that is not lite /
+    preview …; kept a day in AI_MODEL; a 404 forgets it), `getAiReply_` (one step: signed-in user, 150 steps / hour / user and
+    5,000 / day / site, at most 40 turns / 250 kB, only user / model turns are taken from the page; errors in plain words, the
+    service's own text for the Admin). getInit gives `ai: { on }`.
+  * PAGE: `#ai_fab` / `#ai_panel`; `AI_RUN` runs the look-ups through the app's normal calls with the user's sign-in (getDieselIssues,
+    getLogBookList, logPending, getStock, S.master, rptAverage, rptWatch, getActivity, the guides PAGE_GUIDE / REPORT_GUIDE /
+    FIX_RULES) and hands back totals + the split + the first rows; `aiAsk` loops up to 7 steps, sends the model's parts back
+    untouched (thought signatures), shows "Looked up: …" under an answer and turns [[open:…]] into a button. Nothing is stored.
+  * NOT DONE / NOT PROVEN: no call to the REAL Gemini was possible from the build machine (no network to it) – the request and answer
+    shapes follow Google's documented REST form (v1beta generateContent, x-goog-api-key, system_instruction, tools.functionDeclarations,
+    functionCall / functionResponse parts) and are tested against `test/gemini-standin.js`; the first real conversation is his.
+    Stage 2 ("why" for bills and rejected entries, vendor ledger look-ups) and stage 3 (actions with a yes) are not built.
+  * SET-UP for a site: Vercel → Settings → Environment Variables → GEMINI_API_KEY = the key from Google AI Studio → Redeploy.
+  * Tests: unit "the assistant …" (27 unit tests), `test/browser/ai.js` (13; needs `node test/gemini-standin.js` and
+    GEMINI_API_KEY=test-key, GEMINI_API_BASE=http://127.0.0.1:3998 in .env.local).
+- 04-10-2026 (night): THE FIRST REAL QUESTION TO GEMINI on the live site (his screenshot): the key works, the request was accepted –
+  the service answered 503 "This model is currently experiencing high demand … UNAVAILABLE", and the app showed that raw JSON.
+  NOW `getAiReply_` deals with a busy service itself: busy = 503 / 500 / 429 / no connection; the first model is asked up to 3 times
+  (waits 1.5 s, 3 s; `__ai.wait`), then the next two models of `aiModels_()` once each (the order: gemini-flash-latest, flash by
+  version, previews, flash-lite – kept a day as AI_MODEL { list }), all within ~35 s; a 429 moves on to the next model at once; the
+  model that answered is put first. 400 / 401 / 403 are not repeated. All busy → "The AI service is busy right now (503) – that is
+  on its side, not in the app … ask again in a minute" (+ for the Admin the model and the service's own sentence, read out of its
+  JSON by `aiSaid_`), and the chat shows an "Ask again" button; the failed question is taken out of the conversation.
+  Tests: `test/browser/aibusy.js` (6; the stand-in can be told to be busy: /__busy?model=…&n=…). Still to be seen on live: a full
+  answer from the real Gemini (a function call, the look-up, the final text).
+- 04-10-2026 (late): "IT STILL DOES NOT ANSWER – make it very fast; Gemini should not have to go to the server every time, keep the
+  database cache with the AI, updated within a second; on the Log Book the related questions must show first; on an error 'ask AI'
+  must give the solution; the AI is the main brain of the app." Update-48 was live; what the service answered he did not send.
+  Told him: a model cannot keep the app's data (it starts every question empty), and figures must come from the app's own
+  calculation – so the cache is kept by the APP and sent with the question. BUILT:
+  * READY QUESTIONS (`AI_READY`, `aiReady`, `aiReadyFor`) – answered by the app itself, at once, WITHOUT the AI service, in three
+    languages, chosen for the page (Log Book: pending for the date picked / the dates of the machinery picked; Diesel Issue:
+    yesterday, today, stock; Dashboard / reports: machinery over the standard; every page: "what is this page for"). Marked ⚡;
+    they work when the service is busy or there is no key (the Ask button is now shown to everyone signed in).
+  * SNAPSHOT (`aiSnapBuild`, `aiSnap`, `aiPage`; server: rule 9 + "SNAPSHOT = …", ≤ 7,000 characters): today / yesterday's diesel
+    (totals, split), pending today, stock, the page and what is picked on it – rebuilt on `onDataChanged` (own and others' saves,
+    as the page learns of them) and at most 30 s old; sent with every typed question so the model can answer in ONE step.
+  * AN ERROR → the help card has "Ask the assistant about this" (`data-fixai`): opens the window and asks about that message on
+    that page (the model uses app_guide → FIX_RULES, and may look up data).
+  * ORDER OF ASKING (`aiTries_`): first model, first model again after 1.5 s, second model, first LITE model, third, second lite.
+  * ADMIN "Test the AI service" (`getAiCheck_`, link in the window's foot): the models offered to the key, and for the first five a
+    tiny question – answered or not, seconds, the service's own words. Under an AI answer the Admin sees the model and the seconds.
+  * Tests: `test/browser/ai2.js` (9), `ai.js` (13), `aibusy.js` (6) – all with the stand-in; the real Gemini has still not been
+    seen answering. NEXT: his screenshot of "Test the AI service".
+- 04-10-2026 (his screenshot of "Test the AI service" on the live site): gemini-flash-latest → 503 "high demand"; gemini-3.8-flash
+  answered in 2.1 s, 3.7 in 3.8 s, 3.6 in 1.5 s, 3.5 in 1.2 s. So the KEY AND THE REQUEST ARE RIGHT; the cause of "it does not
+  answer" was the "-latest" name, which the app asked first (twice, with a wait) for every step. NOW `aiModels_` puts the numbered
+  flash models first (highest version first), then "-latest" names, previews, lite; what is kept carries `v: 2` (an order kept by
+  the old rule is dropped); `getAiCheck_` stores the models that answered first, those that did not last. Checked against the
+  stand-in in his situation: a question goes straight to the newest numbered model, one call. If he wants the fastest instead of
+  the newest: GEMINI_MODEL = gemini-3.5-flash in Vercel (1.2 s in his test). Still to be seen: a full typed answer on live.
+- 04-10-2026 (night): "MAKE ASK MORE POWERFUL – an answer every time, no errors, ultra fast, correct, whatever the language."
+  * THE APP UNDERSTANDS THE COMMON TYPED QUESTIONS ITSELF (`aiLocal`, `aiFindMach`, `aiPeriod`, `aiLangOf`, `AI_KIND`, `AI_HARD`):
+    kinds diesel / pending / stock / average / work / last reading; the machinery from its number (with or without dashes), its name,
+    or four digits only one machinery ends with; the dates from written dates, today / yesterday / this-last week / this-last month,
+    month names – in English, Marathi, Hindi and Marathi / Hindi in English letters; the answer in the question's language
+    (`AI.lang`). Sure only when ONE kind is found and no "why / how (not how much) / compare / explain …" word; average / work /
+    reading need a machinery; a vehicle number that is not in the Master is never guessed at. Then the look-up runs and the app
+    writes the answer – no AI call (0.2–0.5 s on the rig).
+  * ORDER FOR A TYPED QUESTION (`aiAsk`): 1. the app is sure → ⚡; 2. the AI service, with the snapshot AND the figures of the
+    machinery named in the question attached (`aiAbout`: its master data, this month's diesel and average) so that one step is
+    enough; the look-ups it asks for run side by side; 3. the AI service fails / no key → the app's best reading (`aiLocal(text,
+    true)`) or the guide of the page that fits best, with a note saying so (the Admin also sees the service's reason); an error
+    with "Ask again" only when nothing can be said. A question about an error message (`aiAsk(text, true)`) always goes to the AI.
+  * SERVER: the model is asked with `thinkingConfig.thinkingLevel: 'low'` (faster); a model that answers 400 naming "thinking" is
+    asked again at once without it and remembered in AI_PLAIN. The Admin's test puts the FASTEST answering model first.
+  * NOT PROVEN ON LIVE: whether his Gemini models accept "thinkingLevel" (if not, the first question to each costs one refused call),
+    and a full typed AI answer. Tests: `test/browser/ai3.js` (13), ai.js (13), ai2.js (9), aibusy.js (6) – stand-in service.
+- 04-10-2026 (late night): two things for Ask – "talk with it: I speak, it answers aloud, like two people" and "the morning
+  summary by itself, the logic exactly right".
+  * DAILY SUMMARY. Server `getBrief_(u)` (API getBrief, one request): yesterday's diesel (litres, entries, top 3, today so far),
+    receipts, stock, Log Book (entries of yesterday, machinery pending for yesterday – first 8 names –, pending today / in all),
+    Diesel Watch of the last 7 days, this month against the standard (bad / more / check + worst 3), vehicle papers (expired / due),
+    breakdowns, and for the Admin the app's faults – EACH PART ONLY IF THE USER MAY SEE THAT PAGE (`u.perms[m] !== 'None'`), a part
+    that fails is left out. Page `aiBriefText` writes it in 3 languages (a "to look at" line only when there is something);
+    `aiBriefAuto` opens the assistant with it the first time the app is opened on a day (per user and device: localStorage
+    oc_brief_<email>; it waits up to a minute for a start-up notice to be closed; on a phone a red dot on the Ask button instead);
+    setting `brief` (Settings → Look) switches it off; it is always a ⚡ question and the word "summary / सारांश" is understood.
+  * TALKING (`aiLiveStart / aiListen / aiSay / aiSpeakable / aiLiveStop`): the browser's own speech – SpeechRecognition (from the top
+    window; Chrome / Edge) in the help language (mr-IN / hi-IN / en-IN), interim words shown in the box; the final words are asked
+    with `aiAsk`; the answer's START is spoken (≤ 4 lines / 420 characters; dates and units as words; "the rest is on the screen")
+    with speechSynthesis in a voice of that language (no Marathi voice → the Hindi one); then it listens again; ends on Stop, on the
+    said words stop / थांब / बस / रुको, on three silences, or when the window is closed. Setting `voiceOut` (speak or not). A 🔊
+    (drawn by CSS, not text) on every answer. Words the browser writes in Devanagari (स्टॉक, पेंडिंग, ॲव्हरेज, लॉग बुक, ८५११) are
+    understood. Microphone refused → a line says how to allow it.
+  * NOT HEARD BY ME: real listening and a real voice – the test plays both (headless browsers have neither). How well Chrome hears
+    Marathi and whether his device has a Marathi voice is to be tried on live. Speech recognition in Chrome sends the audio to Google.
+  * Tests: unit "the daily summary …" (28 unit tests), `test/browser/voice.js` (13); ai / ai2 / ai3 / aibusy unchanged in result.
+- 04-10-2026 (his screenshot, the first try of the voice on live): Chrome's site box says "Microphone: allowed", the assistant says
+  three times "the microphone is not allowed for this site". CAUSE – MY OWN: vercel.json sends `Permissions-Policy: camera=(),
+  microphone=(), geolocation=()` (the hardening of an earlier step): the site forbade the microphone to everybody, itself included, and
+  that overrules the person's permission. The rig did not send vercel.json's headers, so no test could see it. FIXED: the header is now
+  `microphone=(self)` (camera and geolocation stay forbidden); the app's frame in Index.html has `allow="… microphone"`; dev.js sends
+  the headers of vercel.json like the live site; on "not-allowed" the app first asks the page's own policy (`aiMicBySite`) and says
+  "switched off by this site's own security setting … Admin: update" instead of blaming the person's browser. Proved in a real
+  browser: with the old header `allowsFeature('microphone')` is false for the page and its frame, with the new one true for both.
+  Guard: unit test "talking with the assistant needs the microphone …" (29 unit tests). NOTE: a header change needs the push /
+  redeploy to take effect. Still not heard by me: Chrome's real listening.
+- 05-10-2026: he confirmed on live that the voice and the typed AI answers work ("I saw it, it works properly") and asked to make
+  Ask "the most powerful". BUILT: THE ASSISTANT MAKES AN ENTRY – AFTER THE PERSON'S YES (stage 3, first part).
+  * WHAT: a NEW Diesel Issue ("8511 la 60 litre diesel de, km 148200") and a NEW Log Book entry by closing reading(s) or by status
+    ("8511 chi aajchi log book entry, close 148260", "EX-200 aaj idle") – typed or spoken, Marathi / Hindi / English.
+  * THE RULE: nothing is saved by the assistant. `aiCommand` (the app's own reading of a plain command) or the AI (tools
+    prepare_diesel_issue / prepare_log_entry, declared in AI_TOOLS_, run by the page) → `aiDraft` builds the entry (machinery from
+    the Master, date ≤ today, shift, location; for the Log Book the Start from `getLogRowPrefill`, the work = Close − Start,
+    refusals for a day that already has its entry / a Close under the Start; notes: more than the stock, more than the tank, no
+    reading, first entry, an unlikely amount of work) → `aiPrepare` SHOWS a card with Save / Open in the form / Cancel →
+    `aiDo('save')` calls the app's normal save (`saveDieselIssue` / `saveLogRows` through `call`), so the user's permission and
+    every server check apply; the server's "… Save anyway?" is asked in the chat ("Save anyway" → force). "हो / yes / save" and
+    "नाही / cancel" typed or said answer a waiting card. Something missing → it asks and the next words complete it (`AI.partial`).
+  * Server rule 4 rewritten ("you never save … call prepare_… … never say that it is saved"). A value that was not given is never
+    turned into 0 (`aiN`; found by the test: a missing reading had become 0).
+  * NOT in this step: edits, deletes, diesel receipts, trips / time / item-work entries, bills – the form (the card's "Open in the
+    form" fills what it can). Tests: `test/browser/aido.js` (15, with the database), unit test updated (11 tools: 9 read, 2 prepare).
+- 05-10-2026 (his screenshot: the Log Book print of MH-04-KU-3332, a transit mixer, 01 to 05-10: 209.9 km, 21.1 hr, 180 L,
+  standard 2.5 km/L + 3 L/hr – "DIESEL MONTHLY AVERAGE 1.17 KM/LTR, 8.53 LTR/HR"): "the rule I gave for the TM average is not applied
+  when billing and in the Log Book – maybe only in the Monthly report; think it through yourself, tell me how you solved it".
+  * FOUND, by reading every place that states an average: the rule (`dualAvg_`, 03-10) was in all the SERVER's reports; THREE places
+    still worked the average out on their own, each dividing ALL the diesel by each meter: (1) the Log Book print – the sheet that
+    goes with the bill (`avgWord`, App.html); (2) an unused twin of it (`monthlyAvg`, removed); (3) the server's `logDashboard_`
+    (Log Book dashboard + Machinery Cost Sheet): for a two-meter machinery `issued ÷ hours` against the HOUR standard (8.53 against 3).
+  * FIXED: the page has the rule too – `dualAvg(diesel, km, hr, kmStd, hrStd)` = the server's `dualAvg_` (unit test: equal in nine
+    cases). The print now says "1.80 KM / LTR · 3 LTR / HR (STD)" AND the working ("DRUM 21.1 HR × 3 = 63.3 L AT STANDARD · VEHICLE
+    180 − 63.3 = 116.7 L → 209.9 KM ÷ 116.7 L"); hours alone needing the diesel given → no average, "check the readings".
+    `logDashboard_`: actualAvg = the vehicle engine's km/L, stdAvg = the km/L standard, avgUnit "km/L (drum at 3 L/hr std)".
+  * THE MONEY WAS ALREADY BY THE RULE and is unchanged: excess = diesel − (KM ÷ km/L + Hrs × L/hr) = vehicle diesel − its need
+    (116.7 − 83.96 = 32.74 L = 180 − 147.26); the last fill's tank allowance uses the same need. His sheet: 22.66 L debited – the same.
+  * Tests: unit "two engines, one tank – ONE rule everywhere …" (30 unit tests), `test/browser/tmbill.js` (6: his sheet rebuilt –
+    monthly report, dashboard / cost sheet and the print all say 1.8 km/L; 147.26 L allowed, 22.66 L extra, 10.08 L in the tank).
+- 05-10-2026: "MAKE IT A PROPER APP – on Supabase, with updates that come to the app and that the user applies from inside the app;
+  perfect on every phone; dashboard cards like in this reel" (an Instagram link – it could NOT be opened: Instagram refuses automated
+  access, and a reel is a video). Built what does not depend on the reel's look; the look waits for his screenshots.
+  * INSTALLABLE APP (PWA): `build.js` now also writes public/manifest.webmanifest, public/icons/* (from app/icons – a diesel drop with
+    a gauge, 192 / 512 / maskable 512 / apple 180, drawn here) and public/sw.js (from app/sw.js, the build number put in). The shell's
+    head (server/page.js) links the manifest, theme colour, apple tags. `app/sw.js`: the page (/) network-first and kept, so the app
+    OPENS without a network (what needs the server then says "no connection"); /api/ never touched; skipWaiting. vercel.json: no-cache
+    for /sw.js and the manifest. dev.js serves these files too.
+  * INSTALL: the shell catches `beforeinstallprompt` → `window.rclApp.install()`; "Install this app" on the sign-in screen and in
+    Settings → "This app" (version, installed or not, "Check for an update"; for an iPhone the two steps are written out).
+  * UPDATE SEEN AND APPLIED BY THE PERSON: the app (checkBuild) and the shell (every minute, `rclApp.check`) no longer swap a new
+    version in silently – the shell shows a bar "A new version is ready – Update now / Later" (3 languages); Update → `rclSwap`
+    (asks first if an entry is half typed); not pressed → by itself after 3 minutes when nothing is half typed (10 after "Later"),
+    so nobody stays on an old page for long.
+  * THE PHONE TOP BAR was broken at real phone widths (measured at 412 px: Back under "?", the title 4 px wide, bar 181 px high –
+    the earlier phone test only looked for sideways spill): rewritten for ≤ 760 px (row 1 ☰ ‹ title; row 2 one sideways-scrolling
+    strip). At 360 px two pages were 8–16 px too wide: rows of buttons / filters wrap, the page itself no longer scrolls sideways.
+  * NOT DONE: a Play Store / App Store package (needs his developer accounts and a signing key; a TWA can wrap this same app later),
+    the dashboard-card redesign (needs the reference), offline ENTRY (the app opens offline, but saving needs the server).
+  * Tests: `test/browser/pwa.js` (9: manifest + icons, service worker, opens offline, install, update bar → update), `hdrall.js`
+    (the top bar on all pages at 360 and 412 px: 76 views, 0 to check).
+- 05-10-2026: "ON THE MOBILE A VEHICLE NUMBER I SELECT DOES NOT GET SELECTED – fix all such; and BACK must go one step back, not out of
+  the whole app."
+  * PICK-LISTS: 42 boxes (and the ones in rows) used the browser's <datalist>; on Android – in the app's frame / installed – its list
+    does not open reliably, or a tap is only reported when the box is left. On a TOUCH screen the app now shows its own list
+    (`pkDraw / pkPick / pkTake`, #pk_list): opens on focus, narrows as typed (numbers found without dashes), rows ≥ 46 px, a tap
+    (pointerdown) sets the value and fires input + change AT ONCE; the browser's own second "change" on leaving the box is held back
+    (everything ran twice otherwise); above the box when there is no room below; closed by a tap elsewhere / Back / leaving the box.
+    Generic (focusin on any input[list] → data-pk), so rows made later and lists filled later work. A computer keeps <datalist>.
+  * BACK: the shell keeps one step of history in front of the app (`rclArm`, put in place at the person's first touch – a step added
+    without one is skipped by Chrome's Back) and on `popstate` asks the app for ONE step (`window.rclBack`): an open pick-list → a
+    dialog (confirm, password, others) → QR sheet → help / guide card → search → the assistant → the menu → the previous page
+    (`goBack`). On the first page: "press Back again to leave" – a second Back within 3 s leaves; on the sign-in screen Back leaves.
+    "Open" = really on the screen (`getClientRects`) – a box that is in the page but not shown had swallowed the first Back.
+  * Also: forms on ≤ 480 px are one column (the right-hand boxes were too narrow to read).
+  * Tests (real touches, phone-size browser): `test/browser/mob.js` (11), `mob2.js` (4: the menu, a whole Diesel Issue by touch into
+    the database, another list). NOT tried on a real Android / iPhone by me.
+- 05-10-2026: "WHILE FILLING THE LOG BOOK LET ME MARK A HALF DAY – and it must carry through to the bill."
+  * WHAT: a tick "½ day" under the Shift of a Log Book entry (entry page and Edit Log Book; a tag in the list). It is one more fact
+    of the entry – NOT a new shift (the shift is in the entry's key, the reading chain and the diesel-per-shift logic in ~40 places;
+    a fourth shift value would have touched them all). Shift, readings, diesel, averages are unchanged.
+  * STORED: new column log_book.day_part (numeric; 0.5 = half, empty = whole) – `sql/supabase_step1v_half_day.sql` (also in Read Me;
+    health check line "(step 1v)"). SupabaseSync column 'Day Part'. Until the step is run the app works as before; a ticked entry is
+    refused with a message naming the file (`halfReady_`). H.DAYPART; `halfOf_`.
+  * ONE RULE: `dayPart_(r)` (server) = `dayPart(r)` (page): 0.5 for a half entry, else 1.
+  * THE BILL: `billMachineCalc_` (server), `mbMachine` (bill page) and the Log Book print count each date's day part and night part as
+    1 or 0.5 → working days 2.5 / nights 0.5 → Monthly (rate ÷ days of the month × n) and Per Day (rate × n). Per Hour / KM / Trip are
+    not changed. Idle half day (when idle is paid) 0.5. Holiday / Breakdown: refused (`halfCheck_`). Item-wise BOQ: the Per Day /
+    Monthly item of the entry counts `dayPart_` (itemQtyOf_). The print says "N HALF DAY(S) COUNTED AS ½" and "Day ½" in the row.
+  * SAVED BY: saveLogRowsInner_ (entry page), saveLogBulk_ (Edit grid: existing and new rows), updateLogRow_. The Edit page counts
+    the tick as a change (lxChanged, lxCalc → Save switches on).
+  * NOT IN: the Excel import of the Log Book, the assistant's "prepare an entry", the utilisation % of the dashboard (a half day is
+    still a day worked there).
+  * Tests: unit "half day …" and "half day with an Item-wise BOQ …" (32 unit tests); `test/browser/half.js` (11: refused before the
+    step, the step twice, entry page → database, Holiday refused, list, bill 2.5 d + 0.5 n = ₹3,000, Verify & Submit agrees, print,
+    Edit page takes it off).
+- 06-10-2026: "IN ASSET MASTER THE MACHINERY NUMBER MUST BE EDITABLE" (his screenshot: Edit DDIPL, the number box locked).
+  * BEFORE: the Number (or the Name of a machinery without a number) is the machinery's identity – the Master row's key, part of every
+    Log Book entry's key ("number|date|shift"), and the text in every other table – so `saveMaster_` refused a change and the page
+    locked the box.
+  * NOW: `renameMachine_(old, new)` (Code.gs, called by `saveMaster_` when the id text changes) makes the SAME change everywhere in the
+    one save (one web_write transaction – all or nothing): Diesel Issue, Log Book (rows move to their new keys: the data layer deletes
+    the old key and writes the new one; the delete trigger notes the old keys for the Sheet backup), Tank Check, Breakdowns, Breakdown
+    Reports (Details JSON), Compliance History, BOQ lines (JSON). PAPERS ALREADY ISSUED KEEP THEIR NUMBER – the same decision he took
+    for a vendor's rename (02-10): in a saved bill `machines[].no` stays as printed and `noNow` carries today's number (`billMachNo_`;
+    used by `billMachKeys_`, the dashboard's last bill and the page's "Log Book of a saved bill"); in a debit note the lines' `machinery`
+    text stays and only `Log IDs` / `lines[].logId` move. Changing back removes `noNow` again. No figure is touched.
+  * REFUSED (nothing changes): a number another machinery has; a number under which records of a machinery NO LONGER IN MASTER are still
+    kept (deleteMaster_ leaves entries) – that would join two machinery, and Log Book keys could collide.
+  * Same permission as any Asset Master edit (as the vendor rename). Closed months are not a bar (no figure changes). Activity Log:
+    "Machinery number changed: A → B (moved with it: …)". Page: the Number / Name boxes are no longer read-only on Edit; the confirm box
+    says what a number change does (incl. "a QR label printed with the old number will not open this machinery – print it again";
+    old QR links answer "not in the Master"); the toast says what moved. Guide text of Asset Master corrected (3 languages); the advice
+    rule for the old "cannot be changed" message removed, one added for the two refusals.
+  * KNOWN: a moved row is a new database row, so the database's own created_at of Master / Log Book rows of that machinery becomes the
+    time of the change (the app never reads it; Entered By / Updated By are kept).
+  * FOUND, NOT FIXED (not asked): in the Edit form an edit of ONLY Tank Capacity / Engine No / Chassis No / Engine Make / papers says
+    "Nothing changed." and is not saved – the page's `diff` list in `m_save` does not include those fields (seen on the rig, same code
+    on live). Told him; fix = add the fields to that list.
+  * Tests: unit "Asset Master: the Machinery Number can be changed …" (33 unit tests); `test/browser/machno.js` (19: real database –
+    every table before / after, refusals, moved row = same content, deleted_rows, second server, debit note still linked, Activity Log,
+    the page's form / confirm / toast, changed back = database identical).
+  * THE RIG WAS REBUILT on 06-10 (the workspace had been reset; nothing of it was in the repo): PostgreSQL 16 → database rcl, roles anon /
+    authenticated / service_role (bypassrls) / authenticator; ALL sql/supabase_step*.sql in order, then check_security.sql; PostgREST
+    12.2.3 on 3101 (db-schemas public, jwt-secret); a 20-line Node gateway on 3100 that maps /rest/v1/* to it and turns the apikey into a
+    service_role JWT; .env.local with SUPABASE_URL=http://127.0.0.1:3100 and a key starting sb_secret_; `node dev.js` on 3000 and 3001;
+    first Admin: a row in app_users with a plain start password, then changePassword through the app. Browser: puppeteer-core with the
+    headless Chromium of the workspace (a 3-line stand-in for @sparticuz/chromium). The earlier SEED DATA (MH-15-AB-…, Multi Vendor, 3,600
+    Log Book rows) is gone: tests that lean on it (e.g. test/browser/rename.js = the vendor rename, 8 of 11 fail for lack of that data)
+    were NOT re-run meaningfully; test/audit.js runs without its "backup" section (the Google stand-in is not in the repo): 34 / 34.
+- 06-10-2026 (update-60): "A MONTH IS ENTERED ON DAY, THE NIGHTS WERE FORGOTTEN – IN EDIT LOG BOOK LET ME ADD THE 22nd AGAIN AS A NIGHT,
+  FULL OR HALF BY THE TICK; I MUST BE ABLE TO EDIT IN EVERY WAY" (his screenshot: Edit Log Book, 21–30 Sep all "Day"). He was told what
+  was understood and three readings; he answered "ho".
+  * The server already took a later Night for a date that has its Day entry (proved on the rig first). What stopped him was the PAGE:
+    "+ Add row" only made rows for dates WITHOUT an entry, and the Shift of a saved row was plain text.
+  * Page (App.html, Edit Log Book grid `LX`): the Shift is a list on EVERY row (saved rows too; `'shift'` is in `lxChanged`). Rows
+    ticked + "+ Add row" → `lxAddShift(date)`: a Night row under a Day entry / a Day row above a Night entry; a Full Day entry becomes
+    Day (`lxFullToDay`, also when a list is changed to Night). The new row starts AND closes at the Close before it (0 km / hr) – to
+    share the work he lowers the Day's Close and the Night's Start follows (the existing Close → next Start link). "½ night" label on
+    Night rows. The rule of a date is shown live (`lxCalc`: note `.lx-slot` in the Shift cell, rows red, Save off): one entry per shift,
+    a Full Day entry stands alone. Nothing ticked and no date missing → a toast says how to add a Night. Hint line + page guide (3
+    languages, still two lines each – the unit test wants exactly two).
+  * Server (`saveLogBulk_`): a saved row whose shift changed takes the diesel of ITS shift again (`dieselFor_`: the Full Day entry
+    held day + night; after the split each holds its own – nothing lost, nothing twice), its key moves (number|date|shift) and
+    `dnRelink_(moved)` moves the entry's link in debit notes (`Log IDs`, `lines[].logId`; line text untouched). Answer has `shifted`.
+    The refusals are the old ones (`clash`: "… is entered more than once", readings below the Close before).
+  * DATA LAYER – A REAL DEFECT FOUND AND FIXED (`SbSheet_.pending`, SupabaseData.gs): the database writes the upserts and then the
+    deletes, so a key that was BOTH written and deleted in one save was lost. Reachable on the live code without this update: in Edit
+    Log Book delete a row and add the same date + shift again, Save → "saved", the row is gone. Now a key that is written is never in
+    the delete list. Proved before / after on the rig (live code on :3002 lost the 22nd; this code keeps it).
+  * No database step. Tests: unit test (nights added later full / half, Full Day → Day, diesel by shift, bill 3 → 4.5 days, debit
+    note link, shared km, refusals) → 34; `test/browser/nightrow.js` on the rig 22 / 22 (grid → database → bill, debit note, phone
+    width, the before / after above); half.js 11, machno.js 19, sweep 38 pages, audit 34 (without "backup").
+  * RIG NOTE: the app learns a table's real columns from its ROWS (`dbCols`, SupabaseData.gs). With an EMPTY log_book and step 1v
+    (or 1r / 1u) not run, an ordinary entry is refused by web_write ("column(s) day_part are not in table") – half.js needs one row in
+    log_book before it starts (`/home/claude/test/seedlog.js` style). Live has thousands of rows and the steps run; a new empty
+    database must simply have every step run. Not changed.
+  * NOT built / not asked: Excel import and Ask still know nothing of "½"; the Log Book ENTRY page is unchanged.
+- 06-10-2026 (update-61): "THE LOG BOOK PRINT COMES ON 2 PAGES – EVERY LOG BOOK PRINT ON 1 PAGE ONLY, PROPERLY FITTED, THE SIGNATURES
+  RIGHT; USE LOGIC" (his screenshot: MH-09-BC-2570, 30 entries, sheet 2 holds only the five signatures).
+  * Cause: `.lbsheet` had a fixed min-height (263 mm) and nothing measured the sheet; 30 entries with 2–3 lines of Chainage / Work text
+    are taller than the page, so the signature block (break-inside: avoid) went to page 2 – with more text the bill box was cut too.
+  * `fitLogPages(doc)` (App.html, next to `fitBillPages`): every `.lbsheet` = ONE page of the turn chosen in the print window
+    (Portrait 272 mm, Landscape 186 mm = the printed height less 3 mm). A sheet that is too tall gets CSS `zoom`, searched in 14 halving
+    steps between 30 % and 100 % and MEASURED each time (a zoomed sheet is laid out wider, so fewer lines wrap – that is why it is
+    measured, not calculated). The room to sign stays 12 mm ON PAPER (`padding-top = 12 mm ÷ zoom`); `min-height = page ÷ zoom` puts
+    the signatures at the foot. A sheet that fits is not touched (100 %). `data-fit` on the sheet = the size used.
+  * Called in `printDoc` after `fitWideTables`, again in `go()` just before `print()` (the logo may have come in), and from `setOrient`
+    inside the print window (the function is written into that window with `fitLogPages.toString()`).
+  * The screen copy of the Log Book print is now exactly as wide as the paper (`body.rep-lb .sheet` in `ORIENT_CSS`: 192 mm / 281 mm
+    content box) – before it was 178 mm on screen and 192 mm on paper, so what was measured was not what was printed.
+  * Measured with the browser's own print engine (PDF of the real print window, pages counted, `test/browser/lbpage.js`, 13 checks;
+    run it with 3002 for the code before): 30 entries long text 2 → 1 page (87 %, letters 7.2 pt); Day + Night 60 entries 2 → 1
+    (65 %, 5.4 pt; Landscape 3 → 1 at 51 %, 4.3 pt); four machinery in one print 6 → 4 pages; 8 entries stays 100 %. Another print
+    (Asset Master list) gives the same PDF text and pages before / after. Unit test → 35.
+  * NOT covered: the fall-back when pop-ups are blocked (prints from the main page, no print window) is not fitted; below 30 % a
+    sheet would still break (hundreds of entries in one print). Not run on a real printer / Edge – same engine as the test browser.
+- 06-10-2026 (update-62): "DECLARATION OF GST NON-ENROLMENT – WHEN THE PARTY OF THE BILL HAS NO GST NUMBER I NEED THIS WITH THE BILL,
+  MADE IN THAT PARTY'S NAME, WITH PROPER LOGIC, SAVED WITH THE BILL" (his photo of the paper form, filled by hand for Siddhappa Bhimu
+  Basbire, "Rent on vehicle MH09BC2570").
+  * RULE (one place each side: page `gstDeclNeed` / server `gstDeclFor_`): Vendor Master says GST Registered ≠ Yes AND no GST number
+    AND the bill has no GST % → the declaration is one of the bill's papers. Order of the papers: Abstract, Tax Invoice, Declaration,
+    Debit Note.
+  * The paper (`gstDeclHtml(b)`, App.html, styles `.gdn` in DOC_CSS): the words of his form, filled in: the party's name; "Rent on
+    vehicle(s) <machinery of THIS bill, numbers without hyphens>" (the wording of the Tax Invoice); in "I/We hereby also confirm ___
+    that shall not be liable" the COMPANY the bill is made to (on his hand-filled form the party's own name stood there – taken as a
+    slip, TOLD TO HIM); Name of the Authorised Signatory = the party's name, Name of Business left to write – unless the PAN's 4th
+    letter is C/F/H/A/T/B/L/J/G (not a person): then Name of Business = the party's name and the signatory is left to write;
+    Date = the bill date; signature and stamp room.
+  * Where it shows: the bill page under the Tax Invoice (so "Preview" and the print take it – every `.mb-paper`), `billSheets()` (the
+    print after submitting, Saved Bills → View / Print, the bill prints from the ledger / summary). Each paper is one page (bill fit).
+  * SAVED WITH THE BILL: `submitBills_` writes `data.gstDecl` (true / false) from Vendor Master as it is at that moment; the paper is
+    written from the bill's own saved name / machinery / company / date, so a later rename or GST registration of the vendor does not
+    change a saved bill. A bill saved BEFORE this update (no mark) gets the declaration when its saved vendor has no GST number and
+    the bill has no GST (`gstDeclOn`). `verifyBills_` adds a ✔ line naming the declaration. No database step (the mark is inside the
+    bill's JSON).
+  * Tests: unit "bill papers" extended (text of the paper, the rule, firm PAN, hostile name) → 35; `test/browser/gstdecl.js` on the
+    rig 11 / 11 (page → Verify & Submit → database mark → PDFs of the print after submit and of Saved Bills, pages counted; vendor
+    renamed + made GST registered afterwards → saved bill unchanged; bills without the mark); half.js 11, sweep 38, audit money +
+    diesel 24.
+  * NOT built: the declaration cannot be switched off for one bill, and its words cannot be edited on the page (not asked).
+- 06-10-2026 (update-63): "WHEN I SUBMIT A BILL AND THEN OPEN IT IN THE DRIVE (VIEW BILL) THE LOG BOOK IS NOT IN IT – IT MUST SHOW; AND
+  IN VIEW BILL I MUST BE ABLE TO TAKE THE BILL'S EXCEL – FOR EVERY PDF THE APP MAKES, ITS EXCEL TOO."
+  * A SAVED BILL OPENED = `viewSavedBill(id)` (App.html), ONE function for the four places that did it each on their own (RCL Drive
+    Saved Bills "View / Print", the "Bill" button of the debit-note list, Bill Summary, Vendor Ledger): the papers as saved
+    (`billSheets`) and after them the Log Book sheets of the bill's machinery (`noNow` if renumbered) for the bill's dates, the bill's
+    own Idle Paid / Not paid, under the bill's company name (no "which name" question). The Log Book is read AS IT IS NOW (same as the
+    "Log Book" button there, which stays) – it is not a copy frozen at submit; TOLD TO HIM. No entries / cannot be read → the papers
+    alone and a toast says so. The print right after "Verify & Submit" is unchanged (papers only) – not asked.
+  * For this `printLogRows` was split: `logSheetsOf(L, headName)` builds { title, sheets }; `printLogRows` asks the name and prints.
+    Body class of the joined print: `rep rep-bill rep-lb` (bill fitting for the papers, `fitLogPages` for the Log Book sheets – every
+    page still one page); CSS: a page break between `.billsheet` and `.lbsheet`.
+  * The window is opened AT THE CLICK (`window.open` before the first await, a line "Reading the bill and its Log Book…") and handed
+    to `printDoc(…, win)` – three server calls before `window.open` could outlast the browser's 5 s allowance and be blocked.
+  * EXCEL FOR EVERY PRINT: `printDoc` puts a button "Excel" (`#xl_btn`) in the bar of every print window; its click runs
+    `printExcel(doc, title)` in the app page (where the Excel tool is; `rclLoadXlsx()` is called when a print opens). It reads the
+    print window itself: every `section.billsheet` / `section.lbsheet` = a tab (Abstract, Tax Invoice, GST Declaration, Debit Note,
+    LB <number>; same names get (2), (3)); a print without sections = one tab named by its title. Inside a tab, in reading order:
+    text lines one under the other, grid / flex-row groups side by side (heading + right note, signatures), tables cell for cell
+    with colspan / rowspan as merges. Table cells that are figures become numbers (`num`: 1,23,456.00, ₹ 50,000.00, − 2,300.00 → with
+    a number format); a zero in front, more than 9 plain digits, dates, codes stay text. No cell styles (the Excel tool in use writes
+    none: no bold, borders, colours) – TOLD TO HIM. The reports' own "Export to Excel" buttons are untouched.
+  * Tests: unit (button in the bar, the number rule tried on 23 values, one way to open a saved bill) → 36; `test/browser/viewbill.js`
+    on the rig 13 / 13 with the real .xlsx read back by openpyxl (6 tabs; amounts numeric; account 000123456789 and dates text; 30
+    date rows in the Log Book tab; merges; signatures side by side) and the PDF of the saved bill = 6 pages; before (live code on
+    :3002): papers only, no button. gstdecl.js adjusted (saved bill = papers + Log Book pages) 11, lbpage 13, half 11, sweep 38,
+    Asset Master print same before / after. Test folder: `npm i xlsx@0.18.5` there REMOVES the hand-made @sparticuz/chromium stand-in
+    (it is not in package.json) – put it back after any install.
+  * NOT covered: pop-ups blocked (the print falls back to the main page: no Excel button there); Excel from a phone not tried.
+- 06-10-2026 (update-64): four things asked in one message – "ONCE A BILL IS SUBMITTED THE LOG BOOK OF THAT VEHICLE CANNOT BE EDITED; WHEN
+  THE BILL IS DELETED IT CAN. LOG BOOK OR DIESEL – WHOEVER GOES TO EDIT GETS A WARNING AND THE WAY OUT. THE EXCEL MUST COME MADE UP,
+  BORDERS AND ALL, THE SAME AS THE PRINT. THE PRINT AFTER SUBMIT: TAX INVOICE, ABSTRACT, LOG BOOK, DEBIT NOTE, DECLARATION TOGETHER –
+  WHEN I BUILD THE BILL TOO, AND IN THE SAVED BILL. EVERY REPORT WE TAKE AS PDF: ITS EXCEL COPY."
+  * A SUBMITTED BILL LOCKS ITS ENTRIES (Code.gs, comment "A SUBMITTED BILL LOCKS ITS ENTRIES"): `billLocks_()` = the bills in force
+    (Active; Superseded / deleted do not lock) with their machinery keys (`billMachKeys_`, i.e. `noNow` after a renumbering; a very
+    old bill without a machinery list locks all machinery of its vendor); `billLockOf_(no, date)`; `billLock_(no, date, what)` throws
+    the refusal, which always carries the way out ("the Admin deletes that bill (RCL Drive → Saved Bills → Delete), then the
+    correction is made, and the bill is built and submitted again"). Applies to EVERYONE incl. the Admin. Called at every write of
+    Log Book and Diesel Issue, next to the existing `booksOpen_` (month close): saveLogBook_, saveLogDay_, saveLogRows (new and
+    changed rows; an identical row re-sent is not refused), the import, updateLogRow_, deleteLogRow_, saveLogBulk_ (deleted, new,
+    changed), saveDieselIssue_, saveDieselBulk_, importDiesel, updateDieselIssue_ (old and new machinery / date), deleteDieselIssue_.
+    Also refused: a change OUTSIDE the bill that would move the Start of an entry inside it (updateLogRow_'s next / moved rows,
+    deleteLogRow_'s next row, saveLogBulk_'s "entry after the grid" – that one is now worked out BEFORE anything is written).
+    Tank Check is NOT locked (not asked). No database step.
+  * saveLogBulk_ and locked rows: the grid sends every row; an existing row of a locked date is kept OUT of the save (its saved
+    readings feed the chain check). The page sends `same: true` for rows it did not change; a locked row sent WITHOUT `same` (an old
+    page) is compared on shift / way / readings / half-day and refused only when one differs (text fields are not compared: the
+    page rewrites `work` from `remark` on untouched rows – comparing them would refuse rows nobody touched).
+  * What the page is told: rows of getLogBookList / getDieselIssues carry `lk` (the bill's id) and the answer `locks` { id: { billNo,
+    rev, vendor, company, from, to } }; getLogEntry has `lock`; getLogEditData has `locks` (the bills over that machinery in the
+    range). Page: `lockText` (the server's own words, so the same FIX_RULES advice shows in 3 languages), `lockStop`, `lockTag`
+    ("RA Bill 61" tag in the Log Book list, the Diesel Issue list, the Edit Log Book grid). Edit / Delete on a locked row of a list
+    → the warning at once (no edit window, no "Delete?"). Edit Log Book: a red note above the grid, locked rows read-only (inputs
+    disabled, no ×, not selectable), no new row on a locked date (`lxMissing`, `lxAddShift`, the date box of a new row), a locked
+    next row does not follow a changed Close. The server is the judge; the page only spares the typing.
+  * COST (measured on the rig, 400 bills = 1.4 MB): the bills table is read where it was not before (Log Book / Diesel lists and
+    saves): +35–45 ms for the read when the tables' memory copy is cold, ~+12 ms per call warm. It grows with the number of bills
+    (the `data` JSON comes with it). If it ever hurts: a narrow lock index (a small table / column kept on submit and delete) –
+    that is a schema change and needs his approval.
+  * EXCEL THAT LOOKS LIKE THE PRINT: `printExcelStyled(doc, title)` (App.html) with ExcelJS 4.4.0 (loaded when a print window opens:
+    jsDelivr, then cdnjs – `rclLoadExcelJs`). Made from the print window by MEASURING: every table cell / text line / ruled line is
+    an item with its rectangle; the sheet's columns and rows are cut along all left / right and top / bottom edges (snapped 2.5 /
+    1.5 px), each item is merged over the cells it covers; column widths and row heights from the edges (× 1.12 / 1.1), a page
+    zoomed to fit its paper is taken unzoomed; each cell gets the print's own look from getComputedStyle (borders thin / medium
+    with colour, fill, bold / italic / size / colour, alignment, wrap); table figures are numbers (`xlNum`) with a number format;
+    rows grow when Excel will need more lines than the paper (`wide()` estimate); boxes / rules of containers (`frames`) go on the
+    edge cells; logos are re-read with CORS and put in when the host allows it (NOT VERIFIED against i.ibb.co – the rig has no
+    internet; without leave the Excel simply has no logo); page set-up A4, the print's turn, fit to 1 page wide (papers: 1 × 1),
+    Excel's grid lines off. One tab per `section.billsheet` / `section.lbsheet`, else one tab. The plain SheetJS export of
+    update-63 is kept as `printExcelPlain` – used (with a message) when ExcelJS cannot be loaded or the styled export throws.
+    `saveXlsxBuffer` does the download (tests replace it). The reports' own "Export to Excel" buttons are untouched.
+  * THE LOG BOOK IS ONE OF A BILL'S PAPERS everywhere: `logSheetsBuild(L, headName, extra)` (sync; `logSheetsOf` fetches `extra`
+    and calls it), `mbLogSheets(bill)` from the bill page's own period data (`S.mb.logs`). Bill page after "Build bills": under each
+    bill's papers an iframe (`mbLogFrames`, the print's own CSS in `srcdoc`, fitted) shows its Log Book sheets; "Print Preview"
+    (`mbPrint`) and the print after "Verify & Submit" carry them after each bill's papers; the saved bill already did (update-63).
+    Order: Abstract, Tax Invoice, GST Declaration, Debit Note, Log Book. The saved bill's Log Book is still read as it is now – with
+    the lock that is the Log Book the bill was made from (until the bill is deleted).
+  * Tests: unit 37 (lock: 12 ways refused + what stays open + open again after the bill is deleted; Excel names / number rule);
+    rig: `billlock.js` 17 (lists, warning + advice in Marathi, grid, 10 direct server tries with the database compared before /
+    after, bill deleted → edit saved), `viewbill.js` 21 (Log Book on the bill page, 6-page prints after submit / preview / saved,
+    the .xlsx read back with openpyxl: borders, fills, bold, merges, widths, page set-up; fall-back), gstdecl 11, half 12, lbpage
+    13, nightrow 22, machno 19, sweep 38, audit 34, Asset Master print same before / after. The Excel was also opened with
+    LibreOffice and looked at page by page next to the print.
+  * NOT verified: the ExcelJS load from the CDN on the live site (the rig injects the same file locally); the logo in the Excel;
+    Microsoft Excel itself (LibreOffice and openpyxl were used); a phone.
+- 07-10-2026 (update-65): "SOME MACHINES WORK LIKE THIS: 11 TO 1 IN THE MORNING = 2 HOURS, THEN 2 TO 5 = 3, TOTAL OF THE DAY 5 HOURS.
+  I WILL ENTER IT MY WAY. GIVE THE TIME PROPERLY AS TIME, AND AS A NUMBER (2 PM TO 3.30 PM = 1.5). A DAY OR A NIGHT CAN BOTH HAVE
+  SPLIT TIMING." → SPLIT TIMING OF A TIME ENTRY (Code.gs, comment "SPLIT TIMING OF A TIME ENTRY").
+  * NEEDS ONE DATABASE STEP, RUN BY THE ADMIN: `sql/supabase_step1w_time_slots.sql` (adds the empty text column `log_book.time_slots`;
+    listed in Read Me and in the health check as "Split timing of a Time entry (step 1w)"). Until it is run everything works as
+    before and only an entry with MORE THAN ONE From – To is refused (`slotsReady_`, the message names the file). Why a column: the
+    hours could be kept in the existing columns, but HOW the day was split (to show, edit and print it again) has no place there.
+  * What is saved (invariant, so bills / reports / prints / old pages stay right without knowing about the split): Start Time =
+    first From, End Time = last To, Break (min) = the gaps between the times + the break typed, Time Hrs = Σ(each From – To) − break
+    typed = (End − Start) − Break. `time_slots` = "11:00-13:00,14:00-17:00", EMPTY for one From – To (every old entry).
+  * Rules (`timeSlots_`): times in the order worked; a time may run past midnight (20:00–23:00, 01:00–04:30 on a Night); a time
+    that starts before the one above ends is refused ("time 2 (…) starts before time 1 ends (…)"), so is a total span over 24 h,
+    and a line with only From or only To. Shift does not matter (Day, Night, Full Day; ½ day too).
+  * Page → server: the entry page and the edit window send `tSlots: [[from, to], …]` and `tBreak` = the break TYPED (not the
+    gaps). A caller that does not send `tSlots` (Edit Log Book grid, an old page still open) keeps the saved split only while
+    From, To and Break are as saved (`slotsCell_`), else the split is cleared and the hours follow From / To / Break as before.
+  * Page: Log Book entry row measured by Time – "+ time" adds a From – To line, "− time" removes the last one; with more than one
+    time the hours of each are written in the Total column on its own line and the total on the Break line (computer; classes
+    `w-time`, `w-split`, labels `.tm-h` / `.tm-t`, placed with the CSS variables `--tm-gap` / `--tm-tot` that every row layout
+    sets), on a phone under each To box. The time boxes of a Time row got slimmer side padding so "11:00 AM" is seen whole (it was
+    cut on a laptop). Edit window (Log Book list → Edit): "More times of this entry" with + time / ×. Log Book list, Log Book
+    print (`lbPrintWork`) and the format prints (`logSheetsBuild`: tFrom / tTo, gross = Σ) show every time. Edit Log Book grid
+    shows "split: …" under the row but does not edit the split itself (edit it in the Log Book list).
+  * Hours are decimal numbers everywhere, as before: 14:00–15:30 = 1.5 (two decimals: 20 min = 0.33).
+  * Tested (rig): `test/browser/splittime.js` 18/18 – before the database step, the step run twice, entry page (Day 11–13 + 14–17
+    = 5; Night 20–23 + 01–04:30 with 30 min break = 6; 14–15:30 = 1.5; wrong order refused; − time), look at 1920 / 1536 / 1366 /
+    1280, Log Book list, edit window (third time added), Edit Log Book (split kept when another row is saved), print, hours used
+    by the bill. Unit test "split timing of a Time entry" (38/38). Regression: lbpage 13, viewbill 21, billlock 17, half 12,
+    nightrow 22, gstdecl 11, sweep 38 pages.
+  * Known / not done: at a window 1280 px wide the entry row is 50 px wider than its box – the same in the code before this update
+    (measured, `rowwidth.js`), not touched. Excel import of the Log Book and "Ask" do not know split timing (one From – To).
+    Not run: the live site, a real phone, Microsoft Edge / Windows fonts (the time boxes were measured in Chromium on Linux).
+- 07-10-2026 (update-66): "THIS ONE IS ON HOURS AND BELOW IT SAYS DAYS – NOT LIKE THAT. CHECK THE WHOLE APP, FIX IT PROPERLY: SOME ARE
+  ON DAY, SOME ON HOURS, SOME MIXED. AND LOOK HOW THE VIEW SHOWS – FIX IT." (two screenshots: a Log Book print of an Hrs / Time
+  machinery with "TOTAL WORKING DAYS / NIGHT / NET WORKING DAYS / DAILY RATE"; Edit Log Book with a Time row whose boxes run over
+  the next columns.)
+  * THE SUMMARY UNDER A LOG BOOK FOLLOWS WHAT THE MACHINERY IS ON (`logSheetsBuild`, comment "WHAT THE MACHINERY IS ON"; one place –
+    used by Print Log Book, the Log Book under a bill / in a saved bill, the format samples, and so the Excel of each):
+    the BOQ in force on the dates decides – Monthly / Per Day = days (the three lines as before + DAILY RATE), Per Hour = one line
+    TOTAL HOURS (with "DAY x HRS · NIGHT y HRS" when there are night hours), Per KM = TOTAL KM, Per Trip = TOTAL TRIPS, an
+    item-wise BOQ = the basis of each of its items, more than one = each of them. NO BOQ in the dates: "Works on" of Asset Master –
+    Hrs / Time = hours, Trip = trips, Day / KM / KM + Hrs = days (as before), more than one = each. "DAILY RATE" is shown only
+    where there is a day basis. A machinery on days and a KM machinery print exactly as before. NO amount is touched (rate,
+    payable, diesel debit, TDS, GST, net are the same code as before – `test/browser/lbbasis.js` compares them with the version
+    before). The Holiday / Breakdown / Idle notes stand on the NET WORKING DAYS line, so a sheet without days does not carry them
+    (those days are rows of the table). Bill papers (Abstract) were already per unit (Days / Hrs / KM / Trips) – not changed.
+  * EDIT LOG BOOK, THE LOOK: (1) time boxes had no width of their own in `table.lx-t`, so the general `input { width: 100% }` made
+    From as wide as the cell and To / Break / Challan ran over Total and the next columns – there since the Time way exists
+    (measured the same on update-64 and update-65), now `table.lx-t input[type=time] { width: 112px }`, the cell does not wrap,
+    and the break box says "break … min". (2) The total line built its own list of columns ("Measured by" only for a machinery
+    with more than one way; the header always has it), so for a machinery with ONE way – most of them – every total stood one
+    column to the left (hours under "Close Hrs" / "Time / Trips", Issued under "Opening diesel", Consumed under "Issued", Closing
+    under "Consumed"). It now uses the columns the header drew (`LX.cols`). Numbers were right, only their place was wrong.
+  * Diesel Inward list: the total line had 11 cells against 12 headings (the last empty cell was missing; the totals stood right).
+  * Tests: `test/browser/lbbasis.js` 11/11 (with `compare`: before / after of 7 machinery), `test/browser/lxlook.js` 10/10 (7 of them
+    fail on the version before), `test/browser/colsweep.js` (every page: total rows with a wrong number of cells, boxes out of their
+    cell – only 4 tables have rows in the test database, so this sweep is thin). Regression: unit 38, splittime 18, lbpage 13,
+    viewbill 21, billlock 17, half 12, nightrow 22, gstdecl 11, sweep 38 pages. Not run: the live site, Edge / Windows, a phone.
+- 07-10-2026 (update-67): THE AUDIT AND HARDENING the MD asked for with a written brief (attached text, 16 phases). The report is
+  `AUDIT_2026-10-07.md` (findings with before / after evidence, what is open and why) – read it first; `AUDIT.md` of 01-10 is untouched.
+  NO database step. One zip carries update-66 too. What changed, by place:
+  * `server/runtime.js`: `NOT_INSTALLED` (only a 404 switches the exact counters off – before, any error text with "web_count" did, for
+    the life of the server); "AFTER THE SAVE": `g.__saved` / `st.saved`, a failure of the final `gas.flush` after a save is logged, not
+    thrown; an error with `rclSaved` + a NOT_NOW text keeps the rid ("Your entry is SAVED, but …") instead of freeing it;
+    `__oldWrites` (env `RCL_OLD_WRITES=on`), `__propFresh`, `__g(…, ms)`.
+  * `app/Code.gs`: `SAVED_` (set in `withLock_` after the outer flush; reset in `api`), `afterSaveFault_`, `sbPendingTables_` (the trailing
+    flush is "housekeeping" only when nothing but `activity_log` waits), `withLock_` swallows a failed `releaseLock` (gas.js puts the
+    lock count back so `forceUnlock` retries); `api`: own-property look-up of the action, a one-time password opens nothing
+    (`!isHashed_(u.password)` → SESSION_EXPIRED), the DUP key is kept when the entry is saved; `isTempHash_` / `checkPw_` /
+    `saveUserAdmin_` (one-time password = `tmp$` + hash); `login` (a locked e-mail is refused before it is counted); `writeLog_` (key
+    `LOG-0001234-ab12`); `billNoHtml_` in `submitBills_`; `deleteBill_` (only a missing debit-notes table is passed over);
+    `getAiReply_` (exact counters, the cut chat starts at a typed question); `backupInfoFor_` (link + error detail Admin only).
+  * `app/SupabaseData.gs`: `flush` refuses when `web_write` is missing (`SB_NO_WRITE_FN_`); `toRecord_` refuses a VALUE for a column the
+    database lacks (empty values are still left out – so a new column still needs no outage, only its own feature waits for the SQL).
+  * `server/pool.js`: `QUEUE_MAX` (env `RCL_QUEUE`, 120), the 58 s count from arrival, "busy … (RETRY_LATER)". `api/rpc.js`: `statusOf`
+    (the body is unchanged – the page reads only the body). `api/backup.js`: the cron answers 500 on failure.
+  * `server/backup.vm.js` REWRITTEN in the same shape: groups (smallest table first, `BK_GROUP_ROWS` 6000 rows), `keep()` writes
+    `BK_STATE` at once after every group (`sig`, `fullRun {at, done}`, `todo`, `running`, `died`, `lastTry`), stops after `BK_BUDGET_MS`
+    (36 s), `info.pending`; every text cell is sent with a leading apostrophe (stays text), ISO dates bare. `server/google.js`
+    `call(…, ms)` never runs past the caller's time.
+  * `app/SupabaseSync.gs` `sbShareViewOnly_`: PRIVATE instead of ANYONE_WITH_LINK (old Apps Script path only).
+  * Page: `mbDot` / `showDate` escape; `rclVendor()` + `app/vendor/*.js` (SheetJS 0.18.5, ExcelJS 4.4.0 – build.js copies them to
+    `public/vendor/`, dev.js serves them); the redraw limiter's `clearTimeout`; sign-out clears `oc_prefs_*`, `rcl_dbcheck`, `rcl_trace`;
+    backup pill / dialog say "n table(s) still being copied"; 4 new FIX rules. `server/page.js` recorder: writes only when dirty, per-tab
+    mark + BroadcastChannel `rcl_trace`, clean on hidden. `app/Index.html`: no version check while hidden. `app/sw.js`: only "/" is
+    kept as the page. `vercel.json`: CSP (4 safe directives enforced; `script-src` report-only), `/vendor/*` cached for a year.
+  * Tests added: `test/harden.js` (needs the fault switch of `test/gateway-standin.js`), `test/backup.js` + `test/sheets-standin.js`,
+    `test/browser/hardenpage.js`, unit test 39; `test/browser/viewbill.js` now waits for the page's OWN Excel tools and has step 2b
+    (hostile bill data). Rig note: a machinery put straight into the test database needs `machinery_number` = `id` and a fresh
+    `updated_at`, or the app does not see it (cost an hour).
+  * OPEN (section D of the audit): the backup Sheet's sharing must be "Restricted" (Google – cannot be seen from code); password hash
+    → scrypt (separate update, roll-back caveat); empty access = View; lists for no-access users; who may press Backup; maximum age of
+    a sign-in; the rid inside `web_write` (SQL change) for the "no answer in 30 s" case; database constraints; public repository; strict
+    CSP; last-writer-wins; no restore tool. NOT run: live site, real Google Sheet, real phone, Windows / Edge.
+- 07-10-2026 (update-68): THE OWNER'S DECISIONS D1 – D12 ON THE AUDIT (attached brief: "controlled security and data-integrity
+  release, not a refactor; do not touch the live database"). Full report with before / after figures: `UPDATE_68.md` (read it first).
+  * D7 SAVE ONCE, IN THE DATABASE – NEW `sql/supabase_step5_save_once.sql` (HE MUST RUN IT; until then the old way is used and nothing
+    changes): `web.ops (rid pk, hash, holder, state started|done|refused, result, started_at, done_at, closed_at)`, `web_op_begin`
+    (mine / done / refused / wait / "old" = a number that has an old-style note in web.cache; take-over of a started row after 75 s),
+    `web_op_mark` (inside the write; raises `OP_NOT_MINE`), `web_write2` = mark + `web_write` in one transaction, `web_op_end`
+    (done / refused / free / close). `server/runtime.js` `runOnce` (tried for every save with a rid – NOT remembered when missing, so
+    the change-over needs no restart; `rclNoOps` → the old OPR_/OPT_/OPC_ way), `__op()`, door `saved` → `savedAfterAll_` (Code.gs:
+    version bump + Activity Log line + Admin note for a save whose housekeeping never ran; `web_op_end('close')` lets one request do it).
+    `SupabaseData.gs` `flush`: first write of a request with an op goes through `web_write2` with `OP_RESULT_` (set in `withLock_` /
+    `apiRun_`). The database has the last word: any error path asks `web_op_end`; "done" → the kept answer is returned.
+    Health check line "A save is saved once – decided in the database (step 5)".
+  * D2 PASSWORDS: `scrypt$N$r$p$salt32$hash64$stamp12` (`SCRYPT_` N 32768, r 8, p 3; host function `__scrypt` = `gas.scryptHex`,
+    allowed N list, maxmem 160 MB), one-time = `tmp$` + that. `checkPw_` reads scrypt, old `sha256$…`, plain; `rehash_` + `storePw_`
+    at a good sign-in (stamp carried over → other sessions stay); `pwStamp_` = the embedded stamp for scrypt; `pwDummy_` for unknown
+    e-mails; `isHashed_` = scrypt OR old hash. GOING BACK below update-68: old code takes the kept text as a plain password – run the
+    SQL of UPDATE_68.md §3 D2 first. Side effect: >5 sign-ins of one e-mail in the same instant → the rest "try again".
+  * D6 SESSIONS: value `email|stamp|madeMs` (`sessionMake_`, `sessionRead_`), `SESSION_MAX_DAYS` 30 checked in `sessionUser_` and
+    `changePassword`; a value without a time gets "now".
+  * D5 `backupNow` `admin: true` (page: pill click for non-Admin asks nothing). `/api/backup` (cron secret; token = automatic check)
+    untouched. D3 `accessReport_` (Admin, reads only; page button `ua_report` → summary + CSV). D4 `leastOut_` (cuts `monthlyRate`,
+    `tdsRate` / engine, chassis, papers, entered-by from any machinery item in any answer, on copies), `seesAny_`, `FOR_*_` lists,
+    `getInit_(u)`, `getLookups_(u)`, `getStock` `any: FOR_STOCK_`, brief; page `seesStock()`.
+  * D10: CSP headers unchanged; page listener `securitypolicyviolation` → quiet `reportError` (where "policy"). D1: unit test pins
+    "Sheets scope only, no anyone-sharing". D8: `sql/proposed/preflight_readonly.sql` (SELECT only, 20 rules + grants) and
+    `sql/proposed/constraints_after_preflight.sql` (PROPOSAL – blocks A, B, C, E, F proved on the rig; D and rules 12 – 14 NOT proposed:
+    `web_write` puts before it deletes). D11: design only (content fingerprint `ver`, no schema change) + `test/stale.js` measures
+    today's overwrite. D12: `test/restore-drill.js` (pg_dump route and Sheet route into scratch databases; Sheet = 16 of 17 tables
+    byte for byte, passwords / `web.props` missing).
+  * Tests: `test/saveonce.js` (31), `test/secure68.js` (51; section rollback needs the old code on 3002), `test/backup.js manual`,
+    `test/restore-drill.js` (7), `test/browser/least68.js` (9), unit 44. `test/gateway-standin.js`: fault options `delay`, `drop`.
+    Rig notes: after any sign-in on the new code the rig Admin's hash is scrypt → the OLD code on 3002 cannot sign him in (set the old
+    hash back by SQL for "before" runs; `nightrow.js` then needs both sides on the new code). `saveonce.js compat` restarts the rig.
+  * WAITING FOR HIM: run step 5; Sheet sharing = Restricted; preflight result; Supabase plan / backups; decision on empty access
+    cells; GitHub private (Vercel Hobby + collaborator pusher may stop deployments – check first).
+- 08-10-2026 (update-68, RELEASE-SAFETY ROUND – asked: rollback safety for scrypt, update-65 + step 5, Vercel Preview, SQL review,
+  GO / NO-GO; "no unrelated ERP changes"). Report: `RELEASE_68.md` (read it before any deploy). NOTHING IS DEPLOYED: live = update-65.
+  * `update-65s` (`rcl-update-65s.zip`, 3 files on top of the exact update-65 `2e4e3cc`): `app/Code.gs` `SCRYPT_RE_`, `isOldHash_`,
+    `isHashed_` (scrypt OR old), `checkPw_` reads scrypt through `__scrypt` and NEVER compares a text that looks like a kept
+    password, `pwStamp_` (embedded stamp), `pwDummy_`; `server/gas.js` `scryptHex` + `__scrypt`; one unit test. `makeHash_` untouched
+    (a password changed there is kept as `sha256$…`). Page byte-identical to update-65 → same version mark → no "Update" prompt.
+    IT IS THE ONLY VERSION PRODUCTION MAY GO BACK TO once update-68 was live (plain update-65: real password refused, the kept
+    text accepted as the password – measured). Deploy order: backup → step-5 SQL → check update-65 → update-65s → update-68 → smoke.
+    Rollback: Vercel Instant Rollback to update-65s / `git revert HEAD` / `rcl-rollback-to-65s.zip`. Step 5 stays installed.
+  * STEP-5 SQL HARDENED (same file name; `app/ReadMe.gs` copy synced; 6 functions now): one transaction; `search_path = ''` on all,
+    schema-qualified names; rights on `web.ops` revoked from service_role too (only the functions work); constraints `ops_rid_shape`,
+    `ops_state_known`; `web_op_begin` withholds the kept answer when the fingerprint differs; `web_ops_cleanup(keep days 3, answer
+    hours 24, max rows 200000)` – called ~every 50th `web_op_begin` and by the nightly cron (`runtime.js` door `backup`, `o.cron`
+    → `__opsCleanup`); `web_op_note` (inside only, granted to nobody) writes the OLD-style notes `OPC_<rid>` / `OPR_<rid>` into
+    `web.cache` in the same transaction as the write, so a copy of a save that reaches OLDER code (65 / 65s) after a rollback is
+    answered and not saved again. Health check needs 5 names (incl. `web_ops_cleanup`); `gas.rpc` 404 text covers it.
+  * update-65 + step 5: update-65 never mentions a step-5 object; its API suites and 60 browser tests give the same results with
+    and without step 5 (`RELEASE_68.md` §2). 12 of the old browser tests have failing lines on update-65 itself (old fixtures) –
+    not investigated. `topbar.js` is racy by itself (the "Closed up to" pill it switches on is removed by the page's refresh).
+  * VERCEL PREVIEW: NOT RUN (no network to Vercel / Supabase from the workspace; needs HIS test Supabase project). Kit:
+    `test/preview-smoke.js` (guards: production host, `.env.local` database, marker row `app_settings.THIS_IS_A_TEST_DATABASE`,
+    random word through `orgInfo`; holds the `backup` lock so no real backup runs; cleans up; writes `preview-smoke-result.txt`),
+    `preview_test_database.sql` (all 27 SQL files in set-up order + the marker; `README_SQL_` in the app misses step 1p – known,
+    not changed). HE MUST FIRST set the live env vars to "Production only" in Vercel, else a Preview works on the LIVE database.
+  * New tests: `test/rollback68.js` (20; needs update-65s on 3003, exact update-65 on 3002), `test/rollback68-backup.js` (4;
+    `SAFE_DIR=<update-65s folder>`), `saveonce.js` section `sql` (11), unit 44.
+  * RIG NOTES: every command with `timeout`; never leave a wait longer than a few minutes without reporting (he stopped a run
+    after 1 h 45 m). `half.js` / `splittime.js` / `pwa.js` restart the rig through `/tmp/up3.sh` (they bring back whatever that
+    script starts – point it at the code under test) and re-apply SQL with `psql -f` as the postgres user (the folder must be
+    readable by it). The same suite twice within 8 s trips the double-click guard. `pkill -f "node dev.js"` kills any shell whose
+    command line contains that text – run rig scripts as files, alone. After a sign-in on update-68 the rig users are scrypt:
+    reset them to `sha256$…` before running the exact update-65.
+  * WAITING FOR HIM: the Preview test result; Vercel env-var scopes; then his "go" for production in the order above.
+- 10-10-2026 (update-68, FINAL RE-CHECK – he: "no tests, I want everything ready to use … check everything again deeply and tell me
+  finally what to do"). He decided to release WITHOUT the Vercel Preview test. Report: `RELEASE_68.md` §10. STILL NOTHING DEPLOYED.
+  * Two independent review agents (SQL + save-once; passwords / sessions): no blocker. Three small hardenings made, each with a test
+    and a before / after figure: (1) sign-in (`login`, update-68 AND update-65s): `known` / `good`, `pwScrypt_`; every refusal that
+    did not already cost a scrypt runs `pwDummy_` (before: wrong password for an old-hash user 34 ms vs unknown e-mail 282 ms);
+    (2) `runtime.js` `runOnce`: when the write threw and `web_op_end` could not be reached (`asked = false`) → `RETRY_LATER` (the page
+    resends the SAME rid; before: "Could not save to Supabase: 503" although the entry was in); (3) step-5 SQL: the clean-up call in
+    `web_op_begin` is inside `begin … exception when others then null; end`. Tests: `saveonce.js` B5 + "housekeeping cannot fail a
+    save" (44 lines now), `secure68.js` [review] line (52), `rollback68.js` (21), unit 44 / 39.
+  * NOT changed, known (see §10.1): scrypt throwing at a check counts as a wrong try; one-time users / Admin reset need scrypt on
+    update-68; a save in flight at the second of a rollback; hand-damaged kept passwords are compared as text (as update-65);
+    answers kept twice for a short time; Supabase editor may warn "destructive" (words delete / drop in the file).
+  * Dress rehearsal script: `dr_stage.sh 0..6` + `dr_smoke.js` (scratchpad; folders built ONLY from the live clone + the delivered
+    zips): production today → step-5 SQL under load → update-65s → update-68 → rollback → forward → rollback zip.
+    RESULT 10-10-2026: 7 stages, 65 lines passed, 0 failed (he interrupted the run once after 43 min – it was continued from
+    the last finished stage after reading the session log; keep answers short and report progress, he does not like long waits).
+  * RIG TRAP MET AGAIN: a shell command that contains the text of the server start line is killed when a test restarts the rig, and
+    its child test goes on as an orphan – a second run of the same test then collides with it (false FAILs). Start servers from
+    script files only; after such a kill wait until the orphan is gone.
+  * WAITING FOR HIM: to do the four steps of `RELEASE_68.md` §5 (backup, step-5 SQL, update-65s, update-68) and look at step 6.
+- 10-10-2026 10:04 IST – DEPLOYED BY HIM, step by step with screenshots: backup now (ok) → step-5 SQL in the live project (225 lines,
+  "Success. No rows returned") → update-65s pushed (`f397af6`, Vercel Ready, sign-in ok) → update-68 pushed (`0c18421`, Vercel Ready,
+  Production). Both commits read back from GitHub: byte-identical to the tested trees. Seen on live update-68: Admin signs in, Database
+  check 10 lines "in place" incl. step 5, Admin's backup works ("Users: 4 rows" copied right after the sign-in). Vercel plan = Hobby.
+  LIVE = update-68. Previous production deployment = update-65s (Instant Rollback lands there). CONFIRMED on live at 10:07 – 10:09:
+  `web.ops` state `done` = 9 (saves go through step 5), the Admin's password is kept as `scrypt` (scrypt works on Vercel; the
+  three users who have not signed in yet are still `sha256` – they move at their next sign-in), sign-in from a second browser ok.
+  So the Vercel runtime, which could not be tested beforehand, is now seen working. Not looked at: Vercel logs / memory figures.
+  (This note is in the working copy only – the pushed HANDOVER.md ends before it; carry it into the next update's zip.)
+- 10-10-2026 (update-69, asked after update-68 went live; screenshots: Edit Log Book "two entries on Day" for a JCB with Bucket + Breaker,
+  and a bill's Log Book "rate = higher of avg / last"). Report: `UPDATE_69.md`. NO SQL, NO schema change. NOT deployed by me.
+  * A ROW FOR EACH WORK OF ONE SHIFT. The Log Book is STILL one stored entry per machinery + date + shift (key `no|date|shift`,
+    `SupabaseSync.gs`; diesel, tank, bill lock, debit notes hang on it – do not try two stored rows a shift). The rows of a shift live
+    INSIDE the entry, in `item_work`: `{"Breaker":1,"_parts":[{n,q,c,p,f,t,w}, …]}` – n = item, q = hours / KM of that work, c challan,
+    p particular, f / t chainage, w description; in the order done; all one kind (hr or km), each q > 0, neighbours differ, Σq = the
+    entry's total. Readings of a row are DERIVED (entry Start + Σ earlier q). `itemPartsOf_(items, work, tot)` validates (null = not
+    usable → the entry is shown by its quantities); `logItemWork_(m, dk, mode, l, tot, prev)` takes `l.items._parts`, derives the typed
+    quantities from them, and with `prev = { json, tot }` keeps saved parts only while they still fit; `itemPartsStrip_`.
+    `updateLogRow_` keeps them only if readings, items AND the texts (work, chainage, challan, remark) are unchanged; `importLogBook_`
+    strips them when the file changes anything but the driver. `logItemsOut_` / `getLogEditData_` → `r.itemParts`.
+    Page, Edit Log Book (`LX`): `lxLoad` turns an entry with `itemParts` into grid rows (same `key`, `LX.pc[key]` = count);
+    `lxPartKind(r)` ('hr' / 'km' / '' = this machinery cannot have rows per work → OLD rule and OLD drawing, see `lxLater`);
+    `lxPickOf`, `lxSig` (item text + picked work), `lxPartsProblem` (messages on the row), `lxAddWork` + button `.lx-more`
+    ("+ work in this shift"), `LX.cut[key]` (a row of an entry was removed), `r._pick` (the pick survives a redraw). SAVE groups the
+    rows by date + shift: one payload row per group; the group's key = the entry that was saved on that slot, else an entry whose rows
+    all moved there, else ''; a key left with no group is added to `deleted`; `same` only if every row is untouched and the count is
+    `LX.pc[key]`. Entry-level challan / work / remark = the rows' texts joined with " / ".
+  * PRINT: `lbWorkRows(r)` (page) → copies of the entry, one per work (`_ent`, `_sub`, `_part`, `_prt`, `_gross`, `_grossLess`): kept parts
+    as entered, a Split entry in BOQ order with derived readings; null = one row. `logSheetsBuild` expands `lines` only – every total,
+    the summary and the money still come from `list` (entries). Format G `hr1` / `hr2` and gross time stand on the first row.
+    The page list, the Daily report and the Excel for filling stay one line per entry (the import matches by entry).
+  * DIESEL RATE BY HAND: `extra.manualRate` in `billMachineCalc_` (server) and `mbMachine` (page) – same signature as before, the
+    unit test calls both; `b.dieselRate` on a bill (box `.mb-dr` in the bills table, `change` → `mbFill` + `mbRender`), sent with the
+    bill, `verifyBills_` uses `Object.assign({}, pd.extra, { manualRate })` (pd.extra is shared between bills – never write into it).
+    Log Book print: `L.dieselRate` (one rate) or `L.rateBy` ({ machinery: rate } – each bill's own) → `MAN_RATE` per machinery;
+    `askPrintName(what, { rate: true, value })` adds the box `pn_rate` and returns `opt.typed` / `opt.bad`. A saved bill passes
+    `data.dieselRate` to its Log Book. Debit Recovery Statement already had Fixed + per-entry rates (untouched). Dashboard / cost
+    sheets stay automatic (estimates).
+  * Advice rules (EN / MR / HI) for both kinds of message; page descriptions of log / logedit / bill extended.
+  * Tests: `test/browser/works69.js` (33), `rate69.js` (19 – it TYPES into `.mb-dr`; setting `.value` hides a redraw fault), `compare69.js
+    <live port> <new port>` (print of every machinery, before / after), unit 47. Rig: `item2.js` / `xls.js` need EX-200 of "Item Vendor" with an Item-wise BOQ (Bucket 1200, Breaker 1500 per
+    hour) – create it through `saveMaster` / `saveBoq` if missing. `nightrow.js` needs an older server on 3002 that can read scrypt
+    (update-65s). `colsweep.js` says Diesel Issue's total row has 16 columns against 15 – already so on update-68, not touched.
+  * AFTER AN INDEPENDENT REVIEW (same day, all in the zip): the `input` listener of `#mb_rows` returns early for `.mb-dr` (its debounce
+    redrew the table under the cursor – the rate is taken on `change`); `lxOtherItems(g, kind)` – typed items of the OTHER kind stay on
+    the first row of a shift and are sent next to `_parts`; SAVE builds its groups BEFORE the question (it counts and names an entry
+    that goes because its row moved into another entry's shift) and checks `lxPartsProblem` once more; trips of a group are summed;
+    server: Σq within 0.005, `r2_(q) > 0`, at most 12 parts, texts cut at 300, keys matched without regard to case, `partsTxtSame_`
+    (kept rows survive only if work / chainage / challan / remark are unchanged), rate 0.01 – 999.99 (booleans refused), the rate is
+    part of `billVerifyKey_`; print box: a prefilled rate that is emptied = automatic (`rateBy` cleared), `validity.badInput` refused.
+    Known and left: KM + Hrs machinery with two KM items as well – hour works get rows, the KM items stand together on the first row.
+  * ROLLBACK to update-68 with `_parts` in the data: read and billed correctly, printed as one row; its Edit Log Book cannot save a
+    change to such an entry ('"_parts" is not an item of its BOQ'); its small edit window saves and drops the parts. No data harm.
+  * OPEN / ASK HIM: rows per work on the daily entry page (today: one line per shift, with a hint to Edit Log Book); rows for
+    clock-Time / Trip works; whether the automatic rate should be the last purchase rate alone (his words were not clear on that);
+    the order of a Split entry's printed rows is the BOQ order (an assumption).
+- 10-10-2026 (update-70, asked right after update-69 went live – `fc3187e`). Report: `UPDATE_70.md`. NO SQL. NOT deployed by me.
+  "Log Book shows the data, Edit Log Book is blank": a JCB that works on Hrs + Time, entries made by clock Time, Log Book format LATER
+  set to E (`LB_FMT_MODES.E = ['Hrs']`). `lxLoad` mapped a way the format does not list to the format's first way → empty red rows.
+  Same on update-68 (reproduced) – not from update-69. Now: `lxLoad` keeps a saved way that is in `WAYS_ALL`; `lxRender` offers
+  `r.orig.mode` beside the format's ways; `saveLogBulk_` takes the stored way of an EXISTING entry (`cur`) without `logModeFor_`
+  (a new entry / another way is checked as before). The small edit window already worked from the stored unit. RULE: the format
+  decides the way of NEW entries; a saved entry is always shown and saved in the way it has. Test: `test/browser/timefmt70.js
+  [port] [look]`, unit 48. Not looked at (not asked): how the print in an hour-meter format shows entries made by Time.
+- 10-10-2026 (update-71, asked after update-70 went live – `06f2e72`). Report: `UPDATE_71.md`. NO SQL. NOT deployed by me.
+  "In Edit Log Book it can be entered, on the entry page it gives an error – use the same logic": the ENTRY PAGE now takes a row for
+  each work of one shift. SERVER does the joining: `saveLogRowsInner_` groups its prepared rows by machinery + date + shift;
+  `logRowsKind_(g)` ('hr' / 'km' when the BOQ of that date has 2+ works of the kind the rows are measured in, else '' → nothing is
+  joined, the old "already saved" refusal stays); `logRowsJoin_(g, kind)` builds ONE row `l` with `items._parts` (n from `_all`, the
+  single typed item that takes the whole row, or the "rest" item; q = Close − Close above; a later row's Start must be blank or the
+  Close above; ½ / new meter / Debit to only on the first row; other-kind typed items, `_day`, trips carried over; texts joined with
+  " / "). The first row's q is set in the main loop once the entry's Start is known (`p.join`). Errors carry `e.rowI` so the page
+  marks the row that is wrong. Answer has `joined`. `importLogBook_` adds its fresh lines through the same function → same rule.
+  PAGE: `lgPartKind(tr)`; in `lgCalcAll` the rows of one slot get `x.grp / x.j / x.kind` and an order key `date|shift|jj` (so the
+  existing "Start = last Close of the row before" chain does the rest); `later` rows: Start must equal the Close above, issued
+  diesel 0, `.lg-half` hidden, label `.lg-partn`; item rule after `itemBoxCalc` (one work, not Split, not the same as the row above).
+  NOT built: adding a work from the entry page to a shift that is ALREADY saved (message points to Edit Log Book → "+ work in this
+  shift"); the small edit window. Test: `test/browser/entry71.js`, unit 49.
+  RULE FOR NEXT TIME (his words: "why did you fix it in one place only"): a rule about Log Book entries is built in EVERY place an
+  entry is made or changed – entry page, Edit Log Book, small edit window, Excel import – or the note says at the top which are left.
+- 10-10-2026 (update-72, asked after update-71 went live – `d735e05`). Report: `UPDATE_72.md`. NO SQL. NOT deployed by me.
+  SCREEN SHARE WITH VOICE between users (WebRTC, browser to browser; nothing through Vercel but the set-up notes).
+  * SERVER (`Code.gs`, block "SCREEN SHARE WITH VOICE"): a note = cache entry `RTCM_<n>` (150 s), n from the atomic counter `RTCN`
+    (`__count` → web_count; fallback: last + 1). `rtcSend_(u, { t, to, call, d })` – kinds `who here ring answer decline cancel busy
+    bye`, plus `end` (Activity Log only). A ring writes `RTCC_<call>_<guest> = host|time`; every other call note is taken only from a
+    guest rung in that call (to its host) or from its host; an answer writes `RTCA_<call>_<guest>`; `end` is logged once (`RTCE_`).
+    Per-minute limit `RTCR_<uid>_<minute>`. `rtcBeat_(u, { r, skip })` → `{ r, top, m }` or null: notes after r for this user; a missing
+    number is waited for (r stays before it) unless a later note is > 10 s old or the page says skip. Users are named by `rtcUid_`
+    (16 hex of a hash), never by e-mail. `apiRun_` puts `res.rtc` into the `sync` answer. `server/runtime.js` `bootKeys` loads `RTCN`
+    with every api request – DO NOT take it out (a heartbeat would then ask the database every time); `IS_QUESTION` and
+    `server/page.js` `isQuestion` treat `rtc…` as questions (no rid, no save-once, no "being sent again").
+  * PAGE (`App.html`, block "SCREEN SHARE WITH VOICE", state `RTC`): `syncNow` sends `rtcBeatArg()` and feeds `rtcInbox`; `rtcOnNote`
+    handles the notes (every page has `RTC.dev`; notes carry `dev`, `todev`, `butdev` – one user, several tabs / devices).
+    `rtcStart` (host): list (`askConfirm`) → `getDisplayMedia` FIRST (needs the click), then the microphone → one `RTCPeerConnection`
+    per guest, offer with all ICE candidates in it (`rtcIceDone`, 3 s) → `ring`. `rtcAccept` (guest) → `answer`. After that everything
+    goes over the data channel `rcl`: `sdp` / `ice` (renegotiation, perfect-negotiation style: guest polite), `share`, `page`, `ptr`,
+    `roster`, `bye`. `onnegotiationneeded` is ignored until the channel is open (`P.dirty`). Host = star: `rtcForward` passes every
+    track of a guest on to the other guests; `rtcHello` gives a late joiner what is already on. `rtcViewPick` shows the newest live
+    screen; `rtcPointer` draws in the TOP document and only when `C.selfTab` (capture handle = `RTC.handle`, set on window.top).
+    `rtcSay` is the notice of the call – NEVER `toast(msg)` without `bad` there (it marks the open form as saved). Layers: picture 12,
+    bar 13 (under the app's dialogs 15 +), ring 58, notice 57; `body.rtc-on` lifts `#toast`. `rclBusy()` is true during a call.
+  * Tests: `test/browser/screen72.js` (23), `group72.js` (13) – Chromium flags `--use-fake-ui-for-media-stream
+    --use-fake-device-for-media-stream --auto-accept-this-tab-capture`; they delete `RTC%` from web.cache when they start (the
+    counter starts again – pages cope). Unit 50. Heartbeat cost measured: 3 database calls per 40 heartbeats, before and after.
+  * NOT VERIFIED: real networks (if "could not connect … networks" shows: add a TURN relay – `rtcUsers_` returns `ice`; put the relay
+    there, with its key from the environment). NOT BUILT: a right per user (needs a column in app_users → ask first), recording,
+    chat, more than 3 guests. Tried and taken back: a memory of read notes in `server/gas.js` (stale notes after a counter restart).
+- 10-10-2026 (update-73, asked after update-72 went live – `4ab3ab7`). Report: `UPDATE_73.md`. NO SQL. NOT deployed by me.
+  SCREEN SHARE THROUGH A RELAY (TURN). His call to a friend on another network rang, was accepted and stayed at "connecting": no
+  direct way between the two networks. He wanted a relay without a card → ExpressTURN free plan (his account; address
+  `free.expressturn.com:3478`). THE NAME AND PASSWORD ARE HIS – never in a file (the repo is public), never in a chat.
+  * SETTINGS OF THE HOSTING (Vercel → Environment Variables; used from the next deployment on): `RTC_TURN_URL` (host:port, with or
+    without `turn:`, several with commas, `turns:` allowed), `RTC_TURN_USER`, `RTC_TURN_PASS`. All three = a relay; else none.
+  * `server/runtime.js` `g.__rtcRelay()` reads them → `Code.gs` `rtcRelay_()` makes `{ urls: [turn:…?transport=udp, …tcp], username,
+    credential }` → `rtcUsers_` appends it to `ice` and returns `relay: true / false`. The page of every SIGNED-IN user gets the name
+    and password (a browser cannot use a relay otherwise) – said in the report; if misused: new password at the relay + in Vercel.
+  * PAGE: `RTC.relay`; `rtcIceDone` – with a relay it waits until the browser has the relay's way (500 ms after the first
+    ` typ relay` candidate, at most 6 s; without a relay 3 s as before) because the ring carries all ways in it; `rtcWay(P)` after
+    "connected" reads the chosen pair from `getStats` → `P.via` 'relay' / 'direct' → the bar adds "· through the relay"; the 'nc'
+    words name the relay when one is set (both pages show them – each finds it out by its own 25 s watch). `RTC.policy = 'relay'`
+    exists for tests only (forces `iceTransportPolicy: 'relay'`); nothing in the app sets it.
+  * Tests: `test/browser/relay73.js <port with the relay set> [port with a wrong relay password]` (7) with `turn-standin.js`
+    (node-turn on 127.0.0.1:3478, name `rig`; start the app's server with the three variables pointing to it). node-turn is NOT in
+    package.json: `npm install node-turn` in the rig's test folder – and that install REMOVES the hand-made stand-in
+    `node_modules/@sparticuz/chromium` (3 lines: `args: []`, `executablePath` = the workspace's headless shell). PUT IT BACK after any
+    npm install there; do NOT install the real @sparticuz/chromium (its `--single-process` breaks browser contexts, and its
+    Chromium gave almost no capture frames). Unit: 50 (the note of update-72 said 50 – it was 49, miscounted).
+  * NOT VERIFIED: the real ExpressTURN (address, his name / password, UDP / TCP, the free amount), his and his friend's networks
+    (a network that blocks port 3478 still fails – the free plan has no other port), the live site. If he reports "… networks do
+    not let …" after this update: the variables are not seen (missing, misspelt, or pushed before saving → redeploy). If "… the
+    relay could not be reached …": name / password, or port 3478 blocked.
+  * ASKED ABOUT, NOT BUILT (wait for his yes): a notice when the app is closed (push) + a WhatsApp button with the users' "My
+    mobile number"; then phone camera, reconnect, missed calls, a right per user (needs a column → ask), pen marks.
+- 10-10-2026 (update-74, asked after update-73 went live – `8cb92cd`). Report: `UPDATE_74.md`. NO SQL, nothing to set in Vercel.
+  "The Admin must understand which version runs" + "I cannot make out whether the relay is connected".
+  * `server/runtime.js` `__deployInfo()` = Vercel's system variables VERCEL_GIT_COMMIT_SHA / _MESSAGE / VERCEL_ENV (runtime);
+    `Code.gs` `appVersion_()` → { update ('update-NN' from the commit message – KEEP commit messages starting "update-NN:"), msg,
+    sha (7), env, build, relay: [host:port …] – NEVER the relay's name / password (unit test) }; Admin-only question `getAppVersion`
+    (listed under PAGE_GUIDE.settings.saves – the self-knowledge unit test demands it).
+  * PAGE: Settings → "This app" → `#av_box` (Admin only): `avLoad` (on opening Settings), `avRelayCheck` / `avRelayTry` – the
+    browser gathers with `iceTransportPolicy: 'relay'` for ≤ 8 s: a ` typ relay` candidate = Working (+ relayProtocol); an
+    `icecandidateerror` 401 = wrong name / password; else "did not answer". The call bar says "· direct connection" or
+    "· through the relay" (`P.via` from `rtcWay`).
+  * Tests: `test/browser/version74.js <relay+commit port> <wrong-password port> <plain port>` (9) – start script on the rig:
+    3009 with RTC_TURN_* + VERCEL_GIT_COMMIT_* set, 3010 with a wrong RTC_TURN_PASS, turn-standin.js running. Unit 51.
+  * His "Waiting for the server … (getInit)" after sign-in: the app's own slow-answer notice (names the call after 6 s). getInit
+    is unchanged since update-71; expected once after each deploy (fresh server). Not measured live – if at EVERY sign-in, get the
+    seconds from him and measure getInit.
+- 10-10-2026 (update-75, asked after update-74 went live – `45020f9`). Report: `UPDATE_75.md`. NO SQL, nothing to set in Vercel.
+  SCREEN SHARE "MASTER LEVEL" – 13 features at once ("build all of it, perfectly, think of security").
+  * DATA (no new table): app_settings rows `PUSH|<uid>` (devices, ≤ 6: {e endpoint, k p256dh, a auth, at}), `PUSHE|<hash>` (device →
+    user, so a device moves to whoever signs in on it), `RTCMISS|<uid>` ({seen, list ≤ 20, 3 days; st r ringing / a answered /
+    d declined / m missed}), `RTC_OFF` (uids switched off; cached as RTC_OFF_C 60 s). Cache: `RTCP_<uid>` rings waiting for a page that
+    opens now (rtcBeat_ with no r returns them – rtcPending_), `RTCD_`/`RTCL_` declined / logged-as-missed, `RTCG_`/`RTCRG_`/`RTCRH_`
+    ring limits (8 / min, 40 / h per caller), `RTCPU_<caller>_<callee>` one notification per 20 s, `RTCW_` WhatsApp 10 / h, `RTCS_`
+    device saves 20 / h. Notes: new kind `re` (ICE restart offer / answer, host ↔ guest only); decline carries `reply` 1-3; answer /
+    decline carry `ep` (this device's endpoint – the user's OTHER devices get a "done" push).
+  * WEB PUSH (`server/runtime.js` block "WEB PUSH"): VAPID key = HMAC-SHA256(RCL_PUSH_SEED || SUPABASE_SECRET_KEY, 'rcl-webpush-vapid-v1')
+    (P-256; NEVER stored; changing the secret changes the key – pages re-subscribe at the next sign-in: rtcPushOn compares the
+    applicationServerKey). pushEncrypt = RFC 8291 aes128gcm (checked with http_ece), pushAuth = RFC 8292 ES256 JWT (aud = endpoint
+    origin, 12 h, sub = https://VERCEL_PROJECT_PRODUCTION_URL). pushOk = https, no port, host in PUSH_HOSTS (FCM, Mozilla,
+    *.notify.windows.com, web.push.apple.com); RCL_PUSH_TEST_HOST (rig stand-in, http) is refused when VERCEL_ENV = production.
+    Requests with redirect 'error' (server/syncfetch.js q.redirect), 5 s, sent INSIDE the ring request (a slow push service makes
+    the ring answer up to 5 s late; on time-out the fetch helper is restarted). TTL ring 75 s, missed 3600, done 120.
+  * SERVICE WORKER (`app/sw.js`): push → ring (requireInteraction, vibrate) / missed / done (closes the ring, a quiet note closed
+    after 4 s); notificationclick → focus the app window + postMessage {rtcOpen} (the app: window.top.rclRtcOpen → syncNow) or
+    openWindow('/'). The page asks permission ~20 s after sign-in (max 3 times, "Not now" remembered: localStorage rcl_np_*), or
+    Settings → This app → Turn on (npTurnOn). rtcAfterLogin re-saves the device each sign-in; rtcPushLeave on Sign out.
+  * PAGE (App.html, block "SCREEN SHARE – MASTER LEVEL" + changes in the update-72 block): list = modes (screen / cam / page),
+    missed calls (Call back = tick), help box; C.kind 'screen' | 'cam' (rtcGetCam, rtcFlip replaceTrack, rtcTorch), C.pageMode +
+    follow (rtcFollowSeen / rtcFollowApply – only rtcTabOk pages; C.noFollow), rtcRestart / rtcAwait / rtcOnRe / rtcReCheck (a
+    restart on a line that stayed "connected" fires no event – rtcReCheck looks again), rtcNetCheck (every 3 s; poor twice →
+    low data by itself), rtcLow / rtcLowApply (setParameters on the video senders TO a person who asked, 150 kbit/s, 5 fps), pen
+    (viewer canvas #rtc_pen, sharer's canvas #rtc_pen_top in window.top, 10 s), chat (#rtc_chat; text = textContent, img must be
+    data:image/jpeg ≤ 220 KB; 15 / 10 s per peer), snapshot (PNG via <a download>), rtcWaOffer (15 s / no answer), rtcSayAct
+    (notice with a button or link – text only). fixCard: "Show this to the Admin" (not for Admin, not when switched off, not on
+    "Screen share…" messages) → rtcHelp → ring d.help {title, msg ≤ 300, tab}. Users & Access panel #rr_panel (rrLoad / rrDraw),
+    Activity Log button #af_rtc. Help texts EN / MR / HI in PAGE_GUIDE settings / users / activity and the "Screen share" advice.
+  * TESTS: unit 52 (new: the server rules + the review points); browser `master75.js` (13), `media75.js` (21), `push75.js <port
+    with RCL_PUSH_TEST_HOST=127.0.0.1:3555>` (9 – needs the FULL Chromium /opt/pw-browsers/chromium-1194/chrome-linux/chrome: the
+    headless shell refuses every notification). A test must not open the "Share my screen" list and look for a name inside <b>
+    with extra text (the Admin label is a separate <small class="rtc-adm">).
+  * NOT VERIFIED: real push services / phones (rig has no internet to FCM / WNS / Apple), a real camera / torch, a real line drop,
+    WhatsApp on a phone, iPhone. Known and accepted: the missed list is read-change-write without a lock (two rings to the same
+    user at the same instant can lose one line); the caller's help page name goes through the push service (≤ 40 letters).
+- 11-10-2026 (update-76, asked after update-75 went live – `93a3597`). Report: `UPDATE_76.md`. NO SQL.
+  AN HOURS MACHINERY MAY HAVE A DAY ON TIME ("JCB / excavators on hours sometimes give no hour reading – they give the timing").
+  * RULE (server `timeX_` / `withTime_`, page `timeX` / `modesOf` / `modesX` / `modesMain`): ways with an hour meter (Hrs, KM + Hrs) →
+    'Time' added as an EXTRA way (`m.modesX`). Formats D / E were ['Hrs'] only and the format overrides the ticks – that was the block.
+    The usual way = modesMain (wayAuto, Excel blank row, Edit Log Book new row, getLogRowPrefill_ lastMode ignores modesX).
+  * Everything after saving already summed whr for every way (bill per hour, diesel need, tank, print TOTAL HOURS, reports) – unchanged.
+  * Fixed past a Time day: getLogBookList_ summary (first / last entry WITH a reading; unit from the first entry that has a meter),
+    addReadings_ (oHr / cHr and their dates), getLogEntry_ next = next entry reading the same meter, deleteLogRow_ and saveLogBulk_
+    (the next READER follows a lowered Close / a deleted entry – before, only the very next entry, and recalcChain_ only raises).
+  * The update-70 unit test said "a NEW Time entry of a format-E machinery is refused" – changed on purpose (now accepted; KM still refused).
+  * Tests: unit 53; browser `time76.js` (entry page buttons and save, next Start 105, Edit Log Book ways, Excel columns / list, print D).
+- 11-10-2026 (update-77, asked after update-76 went live – `919c917`). Report: `UPDATE_77.md`. NO SQL.
+  A MACHINERY ON HOURS ONLY (hour meter, no KM meter – server `hrsOnly_`, page `hrsOnlyM`): SEVERAL ROWS IN ONE SHIFT WITH HOURS NOT
+  WORKED BETWEEN THEM, AND AN EDIT NEVER CHANGES ANOTHER DATE ("Breaker two times the same day; editing the 3rd must not change the 2nd or 4th").
+  * item_work `_parts[i].g` = hours not worked before row i (only when > 0; never on row 1). Entry ohr = row 1 Start, chr = last Close,
+    whr = chr − ohr − Σg (`logCalc_` gap param, `recalcChain_` via `gapOfJson_`). Rows `n: ''` = plain rows (BOQ with < 2 hour items).
+    Same work twice allowed. KM vehicles: old rules (contiguous, different works, ≥ 2 items).
+  * No automatic Start change of another entry for such a machinery: `recalcChain_` (no raise; blank still filled), `linkAfterInsert_`,
+    `deleteLogRow_`, `saveLogBulk_` (nextWrite / nextWrites off → refused when last Close > next hours Start), `updateLogRow_`, import
+    step 3. Checked instead: "Close … is more than the Start Hrs … of the entry of … – that entry is not changed by itself". A "new
+    meter" entry is a new chain (not checked against). Edit Log Book: the next row of the SAME shift still follows while linked.
+  * An entry with a gap: edit window locks readings / texts (Edit Log Book only); Excel import refuses a change to it; saveLogBulk_
+    keeps its rows when they are not sent (page sends `joinRows: true` when the rows were joined on purpose).
+  * Tests changed on purpose: unit update-69 / 71 / 76, browser entry71 / works69 (see UPDATE_77.md). New: unit (55), browser `gap77.js`.
+- 11-10-2026 (update-78, asked after update-77 went live – `73b503a`; his screen: Bucket on Time + Breaker on Hrs, same Day). Report: `UPDATE_78.md`. NO SQL.
+  ROWS BY TIME AMONG THE ROWS BY HRS OF ONE SHIFT (machinery on hours only). Part `{ m: 'T', ts: '09:00-11:00[,…]', tb: break min, q }`;
+  the entry stays on Hrs, Start / Close from its rows by Hrs (≥ 1 required), hours = Close − Start − Σg + Σ q(Time). Done by `partsGap_`
+  = Σg − Σ Time hours (may be < 0) everywhere the gap was used; Time hours always recomputed on the server (`partTime_` / `partTimeQ_`).
+  Locks (edit window, Excel, saveLogBulk_ rows not sent) by `partsSpecial_` (any g > 0 or any Time row). Entry page join: first row may be
+  Time (`join.firstIdx`). Tests: unit 56; browser `time78.js`.
+- 11-10-2026 (update-79, shipped together with update-78). Report: `UPDATE_79.md`. NO SQL.
+  ONE CLICK SOLUTION LOGO before the sign-in only: favicon / app icons (`app/icons/oc-*.png`, new names – the service worker keeps
+  icons cache-first under one cache name, so overwriting `icon-192.png` would never reach a phone), the opening (`img.oc-logo`,
+  `oc-logo-glow.webp`), the sign-in screen (his picture `oc-login.webp`, dark-blue card; CSS only under `#login_screen`). The logo
+  in the form shows on phones only (a wide screen has it in the picture). Inside the app nothing changed. `dev.js` serves `.webp`.
+- 11-10-2026 (update-80, after update-79 went live – `11d9119`). Report: `UPDATE_80.md`. NO SQL. The sign-in screen BACK as it was
+  (left picture of before, white form) – his answer; only the form's brand is his round logo (`oc-logo.webp`, every screen size).
+  `oc-login.webp` removed. Icons and the opening stay as in update-79.
+- 11-10-2026 (update-81, after update-80 went live – `904c0c3`). Report: `UPDATE_81.md`. NO SQL. Sign-in screen: Rachana's logo and the
+  site line (`lp-brand`, `#lp_site`) removed – One Click Solution only. Tab title and the opening's customer line not changed.
+- 11-10-2026 (update-82, after update-81 went live – `70ce8e6`). Report: `UPDATE_82.md`. NO SQL. App / tab / iPhone / notification
+  icon = his mark on light #F7F7F7 (`app/icons/oc2-*.png`, new names because the service worker keeps icons cache-first).
+- 12-10-2026 (update-83, after update-82 went live – `716626a`). Report: `UPDATE_83.md`. NO SQL. UNIVERSAL SEARCH (Ctrl + K):
+  `globalSearch_` (server) and `gsRecordP` (page) are the same matcher – every word in some field; whole word > start > inside >
+  without dashes; numbers equal / start / inside IDs; Log Book readings also Start ≤ n ≤ Close. Spelling mistakes (Damerau, 1 /
+  2 from 7 letters, also prefix of a longer word) ONLY in a second pass when the exact pass found nothing → `fixes` → "Did you mean".
+  Kinds by page access: issues, logs, inwards, transfers, tanks (Log Book), breakdowns, vendors, bills + debit notes (Saved Bills),
+  payments, BOQ, vehicle papers. Each result: `why` (field: value), `counts`. Unit test checks page = server matcher.
+- 12-10-2026 (update-84, after update-83 went live – `ba388b1`). Report: `UPDATE_84.md`. NO SQL. "A user sees only what he was
+  given, not even View of the rest": a NEW user starts with No access on every page (Users page row default `None`;
+  `saveUserAdmin_` writes "No access" for a page not sent when adding). Search: Machinery result and each button only for a page
+  he may open (`canSee`: Diesel Issue / Log Book / Reports-ledger / Master); Owners only with Master; Debit statement only with
+  Reports. `applyPerms`: the page on screen (also the Dashboard shown at sign-in) not allowed → his first page (Machinery group
+  first, else any) – before, a Diesel-Issue-only user got "no access to Dashboard" at sign-in.
+  Existing users and an EMPTY cell (= View, see Access report) NOT changed – Admin sets them in the Users page.
+- 12-10-2026 (update-85, after update-84 went live – `c867b22`). Report: `UPDATE_85.md`. SQL step 1x (column diesel_issue.photos +
+  private Storage bucket diesel-photos). LOCATION compulsory to open the app (every user; `locCheck` / `locNow`; an app opened
+  before reloads its page once – `locDenied`); `geolocation=(self)` + frame allow. DIESEL ISSUE PHOTOS (One entry, not compulsory
+  yet): dash / veh / pump / reg, camera only (older than 3 min refused), 1600 px + band (time, kind, machinery, lat / long),
+  `dieselPhoto` → Storage, cache `PH_<path>` {user, kind, machinery, time, place} 6 h; save takes them (`photosOf_`: same user,
+  same machinery, each kind once, one entry); `getDieselPhotos` 15-min signed links; list 📷. AI: `getMeterReading` after the
+  upload → KM / Hrs box (blue), typed value wins. dbCols: a column missing in the first row is looked for in the other rows.
+  Browser tests need `test/browser/geo-shim.js`. Open: approval of no-reading entries, WhatsApp / e-mail alerts, photos compulsory.
+- 12-10-2026 (update-86, after update-85 went live – `94a00a5`, redeployed as `78a2eb9` after a GitHub rate limit). Report:
+  `UPDATE_86.md`. SQL step 6 (pg_cron + pg_net: every 3 min GET /api/rpc?warm=1 – `api/rpc.js` runs orgInfo, answers { ok, ms }).
+  Waiting bar without words (`server/page.js`). PHONE (`(hover: none) and (pointer: coarse)`): `HTMLElement.prototype.focus` does
+  not put the cursor in a typing box while none is focused (except gs_in / ai_in) – scrolls it into view instead; `savedPop`
+  after a diesel issue save (3 s, ×, tap outside). Open: Kolhapur 18B site (his choice A / B pending), approvals, alerts.
+- 12-10-2026 (update-87, after update-86 went live – `6bbe390`). Report: `UPDATE_87.md`. NO SQL. `locCheck`: permission granted →
+  no "checking" screen. AI: `getMeterReading` kind dash | pump, asked at once with a 1280 px copy (`phAsk`, tokens per kind);
+  dash: `lastKnownReading_` (last diesel reading / Log Book Close) in the question + "numbers"; `pickReading_` (fits / ÷10 / ÷100
+  / another number / check). pump: litres, amount, rate (`pumpAnswer_`). `phApplyRead` fills d_km / d_hr / d_qty (ai '1' blue,
+  '0' typed over = silent). `dhDriver`: last fill's driver into an empty / auto Driver box.
+- 12-10-2026 (update-88, after update-87 went live – `a5f8950`). Report: `UPDATE_88.md`. NO SQL. The list under a form is a closed
+  bar (`FOLDS`: diesel, inward, transfer, log, tankcheck, pay, brk, comp – matched by the h2 text): `.panel.fold`, `.fold-head`
+  (role=button), `foldSet` / `foldOpen`; closed at every app start, kept open during the session; the search openers open it.
+  Lists still load when the page opens. Tests reading a folded list call `foldOpen` first (splittime).
+- 13-10-2026 (update-89, after update-88 went live – `0cb1e58`). Report: `UPDATE_89.md`. NO SQL. NEW SITES stage 1 (plan agreed
+  12-10-2026: one app, every site its own Supabase + Sheet; Super Admin = system only (sites, users, per-site access, companies
+  Rachana / Sketchline), no entry, no reports; "Create site" button runs the SQL itself; bill numbers stay as now). Stage 1:
+  `meta.site` (api/rpc.js body.site) → `runtime.useSite` → `gas.useSite`: conf / LOCAL / BEAT / WARM / COUNTER / WRITE per site;
+  '' = first site from the Vercel env as before. `server/sites.js` – other sites only from RCL_SITES (test setting) until stage 2.
+  google.config(sheetOf) / call(…, sheetOf): a site writes only its own Sheet. Rig: second DB rcl_s2, PostgREST :3103, door
+  :3102 (rig/proxy2.js, rig/postgrest2.conf); test/site89.js with srv89.sh-style servers (RCL_SITES={"T2":…}).
+  NEXT: stage 2 (Super Admin, sites list, user ↔ sites, per-site access, site choice at sign-in, default site, switcher –
+  needs new tables in the first site's DB: show the SQL first), stage 3 (New site form + Create site), stage 4 (rehearsal).
+- 13-10-2026 (update-90, after update-89 went live – `1f3a85e`). Report: `UPDATE_90.md`. SQL: `sql/supabase_step7_sites.sql`
+  (FIRST site only; 4 new tables rcl_super_admin (one row – unique index on (true)), rcl_companies, rcl_sites (S1 = home),
+  rcl_user_sites; owner approved the 4 tables 13-10-2026). Stage 2: Super Admin (Sites.gs sa*: own session SA_…, recovery
+  code), per-site users kept in each site's app_users (server copies the kept password), server/system.js (login choice:
+  default → Admin last/first → else ask; switchSite mints a session on the target site (Sites.gs sysSession_) and logs the
+  old one out; setDefaultSite; passwordToOthers after changePassword / SA reset; superDo), runtime OUTSIDE list + R.runIn,
+  sites.js registry from rcl_sites (15 s; other sites' keys sealed with RCL_SITES_KEY – AES-256-GCM), page.js sends `site`
+  with every call (rcl_site next to rcl_token; rcl_last_site for Admins), App.html siteBoot / site pill / Settings My sites /
+  #sa_screen / uaRender(p, d) + uaBind(p, data, save). Admin's saveUserAdmin refused once a Super Admin exists.
+  Rig: RCL_SITES_KEY='rig-sites-key-0123456789-abcdefghij' (scratchpad srv90.sh); T2 row inserted by test/site90api.js.
+  Tests: site90api.js (74), browser/site90.js (24), site89.js (36, updated to the list). NEXT: stage 3 – "Create site"
+  (form, run the SQL steps on the new DB through its connection string, Sheet tabs, Ready), then stage 4 rehearsal.
+- 13-10-2026 (update-91, after update-90). Report: `UPDATE_91.md`. No SQL. Switched on by the Vercel setting PORTAL_URL
+  (Portal repo rcl-portal). server/portal.js (verify: ES256 via <PORTAL_URL>/api/jwks, 10 min memory, unknown kid asked again
+  at most every 30 s; iss = PORTAL_URL, aud 'mechanical', exp−iat ≤ 120 s), system.js ssoLogin (site from the ticket →
+  Sites.gs sysSso_: jti once (SSO_ in the site's cache, 5 min), new user written with no pages / switched on / Admin as the
+  Portal says / a tmp$ password replaced by an unknown one; session value email|stamp|made|43200000 – sessionRead_ 4th part),
+  runtime OUTSIDE + 'ssoLogin', orgInfo carries `portal`. App.html: PT (rcl_portal in localStorage), ssoStart (#sso= taken
+  out of top's address), showLogin → Portal /api/go (≤ 3 trips / 2 min), #mod_pill "Modules", u_pw → Portal ?pw=1, Logout →
+  Portal ?signout=1, ?local=1 = reserve (sessionStorage rcl_local), early script hides the form. Rig: all.sh (PORTAL=1 →
+  :3000 linked, :3001 not), Portal :3010 (portal_srv.sh). Tests: portal91api.js (40), browser/portal91.js (18), unit 61.
+- 13-10-2026 (update-92). Report: `UPDATE_92.md`. The Sheet backup stopped after the step-7 SQL: it read every table
+  `order=id.asc`, and rcl_sites / rcl_user_sites / rcl_super_admin have no id (400 42703). Fix: SupabaseSync.gs SB_KEYS_ /
+  sbOrder_ (deleted_rows seq, rcl_sites code, rcl_super_admin email, rcl_user_sites email,site) used by sbAllRows_ and the old
+  full/changes copies; SB_HIDDEN_ (sbSafe_) also hides rcl_super_admin password_hash/recovery_hash, rcl_sites
+  db_key_enc/db_conn_enc. test/backup.js 30 (before: 4 failed). Run test/backup.js after any SQL step that adds a table.
+- 13-10-2026 (update-93). Report: `UPDATE_93.md`. Top-bar module shortcuts (Portal mode): #mod_chips filled by modChips()
+  from PT.mods (≥ 2 modules on this site; Mechanical .on), a click → ptNav(ptOpen(key, site)); #mod_pill gets .compact (only
+  ▦). browser/portal91.js 20 (a "store" module on :3001 in the rig Portal). Portal: OneClickSolution sign-in look, "My start"
+  (users.start_item – Portal sql/portal_step2_start.sql), ?signout clears ?menu.
+- 13-10-2026 (update-94). Report: `UPDATE_94.md`. Page access set from the Portal: fn portalAdmin (rpc ALLOWED, runtime
+  OUTSIDE) → system.portalAdmin → portal.verifyAdmin (aud 'mechanical-admin', act users|pages, perms inside the ticket) →
+  Sites.gs sysPortalAdmin_ (portalOnce_ jti shared with sysSso_; users: usersAdmin_ without passwords; pages: saveUserAdmin_
+  perms only, a new person written with them and portalUnknownPw_). Portal api/admin.js mechPages / mechPagesSave (mechAsk
+  signs and POSTs to the Mechanical module's url). Test: portal94api.js 17.
+- 13-10-2026 (update-95). Report: `UPDATE_95.md`. "New site" from the Portal: portalAdmin acts siteSql (Sites.gs
+  sysNewSiteSql_: README_SQL_ without step6/7) and siteSetup (system.js siteSetup: link → env key SITE_<CODE>_KEY → REST
+  answers → sysSiteHealth_ = dbHealth_ in the new site (sites.setupWith) → sysOrgSet_ (home org, own name; not on a ready site)
+  → rcl_sites upsert ready, db_key_enc null). sites.conf: key from db_key_enc OR env. api/backup.js nightly: every ready site
+  with a sheet, in parallel. portal.js unknown kid asked again at most every 5 s. Rig: rcl_s3 behind :3104 (all.sh; NSKEY=1 →
+  SITE_N3_KEY on :3000). Test: newsite95.js 27.
+- 13-10-2026 (update-96). Report: `UPDATE_96.md`. Dark menu: `#site_box/#site_chg` "Change site" (sideSite: Portal → PT.sites +
+  "All my modules", reserve sign-in → siteSwitch) and `#grp_mods` his other modules of this site (sideMods); the top-bar
+  mod_pill / mod_chips / site_pill are gone. ds_pill, bk_btn and lock_pill are for the Admin only. portalAdmin act `siteOff`
+  (system.js siteOff: rcl_sites status 'closed', never the site's database, refuses the home site). siteSetup keeps the
+  settings of a closed site brought back with the same db_url.
+- 13-10-2026 (update-97). Report: `UPDATE_97.md`. Water tanker – trip by trip: Log Book Format I (LB_FORMATS_/LB_FMT_MODES_ I:
+  ['Trip']). Code.gs getTankerTrips_ / saveTankerTrips_ / deleteTankerTrip_. One entry per tanker+date+shift; the trips are in
+  Item Work `_trips: [{c,a,b,ch,u}]`; trip = count. Duplicates: the challan per agency (owner) on any date, and the time
+  overlap per tanker+date (tripSpan_: Night before 12:00 = +24 h). TANKER_HERE_ guards saveLogRowsInner_ (unless b.tanker),
+  import, saveLogBook_, saveLogDay_, updateLogRow_, and saveLogBulk_ (deletes only). BOQ Per Trip `nightRate` (optional) in
+  billMachineCalc_, mbMachine and the print. Page: lg mode 'tanker' (#wt_form), print columns agency/dspT/unlT/chno/usefor,
+  DAY / NIGHT TRIPS. Tests: unit "update-97", browser tanker97.js 16.
+- 13-10-2026 (update-98). Report: `UPDATE_98.md`. Backup fix: the site database also holds the Store's tables (items/code,
+  store_sessions, store_tickets, store_activity). SupabaseSync.gs: SB_SKIP_ (store_sessions, store_tickets – never copied),
+  sbKeyOf_ (SB_KEYS_ → id → the first column; SB_CAT_MEMO_ from sbCatalog_), sbSyncChanges reads a table without
+  updated_at whole and matches rows by their key. test/backup.js 31.
+- 13-10-2026 (update-99). Report: `UPDATE_99.md`. ONE ADDRESS (with rcl-store PR and rcl-portal PR "one-address"):
+  vercel.json rewrites /store/:path* → rcl-store, /portal/:path* → rcl-portal (+ redirects to the trailing slash);
+  public/menu.json (server/page.js menu(), from the Machinery menu of App.html); sw.js touches only this app's own
+  addresses; server/portal.js PORTAL_URL may carry one path part, ticket mods carry url (modUrl); App.html: #grp_mods =
+  one .modgrp group per other module with its pages (modMenu → <url>/menu.json; else "Open …" through the Portal),
+  links #site=…&page=… (S.wantTab / S.wantSite → wantTabGo after init; another site → the Portal with &page=).
+  Rig: GATEWAY=1 (rig/gateway.js :3030). Tests: unit "update-99", browser oneaddress99.js 12, portal91 22.
+  Fix after merge (PR #11): /store/ and /portal/ first pages have their own rewrite (to index.html).
+- 13-10-2026 (update-100). Report: `UPDATE_100.md`. THE SAME VIEW: a module under this address (Store) opens INSIDE
+  Mechanical's screen – #sec-ext with one frame per module (<url>/?embed=1#site&page&u); extOpen/extHide (showTab)/extGo
+  (#page=store__items)/extSize; Back from it; Logout ends module sign-ins; modsFresh (Portal "me" once for old sign-ins).
+  Store ?embed=1 (no own menu/top bar, ticket via Portal /api/go json=1, frame SAMEORIGIN), Store alone beside Mechanical →
+  Mechanical's screen. Tests: unit "update-100", browser inframe100.js 11 (oneaddress99.js retired).
+- 13-10-2026 (update-101). Report: `UPDATE_101.md`. Computer menu: sticky, 100vh, nav scrolls by itself (overscroll contain) –
+  replaces the 02-10 "part of the page" rule. Ctrl K: gsModPages (module pages from MOD_MENU), gsModAsk/gsModGroups (each
+  module page's window.rclModule.search(q); open(page, find) via extFind; extFrame/extReady load it out of sight). Store gives
+  rclModule (Item Master search, Damerau spelling allowance). Tests: unit "update-101", browser search101.js 10.
+- 13-10-2026 (update-102). Report: `UPDATE_102.md`. extKeys: Ctrl K / "/" / Alt+B heard inside every module page of the screen
+  (attached on each frame load). search101.js 13.
+- 14-10-2026 (update-103). Report: `UPDATE_103.md`. Water tanker: an entry made before trip by trip (or a Full Day one) no longer
+  stops new trips – `legacyTrips_` reads it as its trips (Trip count, challans, its time when 1 trip, `old: 1`); new trips join it
+  (`mineTrips`), Day trips join a Full Day entry, Night trips turn a Full Day entry into the Day (`full`); `tankerSum_` (time order,
+  untimed last); Idle / Holiday / Breakdown entry still refused ("a day without trips", FIX_RULES). deleteTankerTrip_ takes an old
+  entry's trip too. Edit Log Book: no "+ Add row" / "Add all missing dates" for Format I, a note instead. Unit "update-103",
+  browser tanker103.js 11.
+- 14-10-2026 (update-104). Report: `UPDATE_104.md`. Edit Log Book of a water tanker = its trips, one row each (`lt_panel`,
+  `ltLoad` / `ltSave`, getTankerRange_ / saveTankerRange_): + Add row, change, take out; Export Excel (Water Tanker Report
+  layout + 100 empty lines) / Import Excel (importTankerTrips_, checked first, all or none, an already-saved challan skipped).
+  One rule for many dates: `tankerPlan_` (Full Day + Night → Day, `dnRelink_`). AI call that ran out of time = "the AI service was
+  too slow" (gas.js makeAi), no longer a database fault. `window.rclGo(page)` for the phone app (no eval). Unit "update-104",
+  browser tanker104.js 12, tanker103.js 11, tanker97.js 16; rcl-mobile real_erp.js 18.
+- 14-10-2026 (update-105). Report: `UPDATE_105.md`. Water tanker: the Log Book list shows a line per trip (`tripsOfRow`,
+  `S.logView`, data-tedit / data-tdel – the entry's diesel on its first line); a saved trip can be changed (also its shift):
+  updateTankerTrip_ (→ tankerPlan_), "Edit" on the trip form's saved trips (`wtEditStart` / `wtEditEnd`, `S.wtEdit`), and from
+  the list. Storage unchanged (one entry a tanker, date and shift; trips inside). Unit "update-105", browser tanker105.js 7.
+- 14-10-2026 (update-106). Report: `UPDATE_106.md`. Vendor Master common to every site: every site keeps a copy of every vendor
+  (billing reads it as before) with `vendors.owner_site` (SQL step 1y, every site). Save / rename / delete only at the owner
+  site (`vendorGuard_`), copied to the others (`vendorSpread_` → runtime `__runOthers` → `sysVendorCopy_`, rename cascades
+  there too); delete refused if any site uses it (`sysVendorUsed_`). "Vendors of all sites" (Admin, `vendorsTogether_`):
+  same name = one vendor, owner = marked site else first made; check shows differences first. Runtime: `__siteCode`,
+  `__siteNames`, `__runOthers` (only OTHERS_ = sysVendorList/Used/Copy). API test vendors106api.js 17, browser vendors106.js 5.
+- 14-10-2026 (update-107). Report: `UPDATE_107.md`. Log Book → "Import from Excel" (`lg_file`) takes a water tanker's lines
+  as trips (one line = one trip: Challan, From/To time = Dispatch/Unload, Chainage, Work Done = use for) through
+  `checkTankerImport` / `importTankerTrips` (no server change; `importLogBook_` still refuses tanker rows). A line with more
+  trips = "one line per trip"; a tanker Idle/Holiday/Breakdown line is not imported (said). The Log Book Excel (`lbExport`)
+  writes a tanker's entry one line per trip (`tripsOfRow`). Unit "update-107", browser tanker107.js 8.
+- 14-10-2026 (update-108). Report: `UPDATE_108.md`. A billed period: the Portal's Super Admin (ticket `super`, session part "S",
+  `ACTOR_SUPER_`) passes the bill lock; others "Send for approval" (`sendChangeRequest` → `billed_changes` kind Request, SQL step
+  1z); Approvals page (`getChangeRequests` / `decideChangeRequest`: runs the same save as the user). Before the first change the
+  bill's figures are kept (`billBaselines_`, kind Baseline); the next bill shows the difference at the old rates
+  (`billCorrections_`), must be ticked (verify), submit makes Correction CN / DN (`DN_CN_` / `DN_CD_`) taken in J / K,
+  `data.corr`; delete / revision cancels them. Unit "update-108", browser billed108.js 22, billlock.js updated.
+- 14-10-2026 (update-109). Report: `UPDATE_109.md`. Approvals under My account for the Super Admin and every Log Book / Diesel
+  editor (a user: his own requests, read only); web push `t: 'cr'` (`crNotify_` → `rtcPush_`): request → the Super Admin (CR_SUPERS,
+  remembered at his Portal sign-in), decision → the sender; sw.js opens `/#page=approvals`. Day / Night by the time: site rules
+  `dayFrom` / `nightFrom` (08:00 / 20:00), `autoShift` / `myShift` / `shiftAuto` on the new-entry shift boxes and Log Book rows; a
+  hand choice kept (`data-hand`). Unit "update-109" ×2, browser shift109.js 7, billed108.js 24.
+- 14-10-2026 (update-110). Report: `UPDATE_110.md`. The language of the app (Marathi / Hindi / English, each user his own:
+  Settings → "Language of the app", pref `appLang`, the help `lang` follows it). The page stays English in the code; the I18N
+  runtime in App.html (after `const S`) turns what is SHOWN – text nodes, placeholder / title / aria-label – through
+  `app/i18n/mr.json` / `hi.json` (exact texts + patterns with {0}; an English ending glued to a word is dropped), with a
+  MutationObserver. Not touched: `I18N_SKIP` (papers, prints, typing boxes, data-noi18n), drop-down values (an option without
+  value gets its English value first). Code that compares shown words uses `i18nSame`; browser boxes `i18nAs`. Files served at
+  /i18n/ (build.js, dev.js, vercel.json), cached in localStorage per build. New texts: `node tools/i18n/extract.js` → keys.json,
+  then translate the missing ones. Unit "update-110", browser lang110.js 17.
+- 15-10-2026 (update-111). Report: `UPDATE_111.md`. Every site its own vendors (replaces update-106's one Vendor Master): nothing
+  is copied to another site (`vendorSpread_`, `sysVendor*`, `vendorsTogether_` and the runtime's `OTHERS_` entries removed); a
+  copy written by update-106 (`owner_site` = another site) is hidden by `vendorHidden_()` unless this site uses it (asset owner,
+  BOQ, bill, payment, debit note, Log Book Debit To – the database asked with `in.(…)`; when it cannot be asked nothing is
+  hidden); a save here sets `owner_site` = this site. Unit "update-106 → update-111", "update-111"; rig `test/vendors111api.js` 12.
+- 15-10-2026 (update-112). Report: `UPDATE_112.md`. The language of the app is the person's: `saveMyPrefs_` writes a changed
+  `appLang` / `lang` to his other sites (`langSpread_` → `__runOthers('sysPrefLang')`, OTHERS_ = ['sysPrefLang']; written only
+  where he is a user). `appLang` 'en' = English chosen (the phone app then shows English only; '' = not chosen). Unit
+  "update-112"; rig `test/lang112api.js` 5; lang110.js 17.
+- 15-10-2026 (update-114). Report: `UPDATE_114.md`. Verification of every work: the Super Admin's rules per site (`FLOW_RULES`
+  in app_settings: per page on/off, levels of named users, "only when" days back / litres, remind hours); a save under a rule is
+  checked (`flowSend_`, thrown away – `FLOW_DRY_ON_` keeps counters / settings unwritten), kept in `billed_changes` (Kind "Flow",
+  VF-00001) and saved only at the last level as the sender's own (`flowDecide_`, Returned if it fails then). Diesel waiting is held
+  back (`flowReserved_` in `requireStockAt_`). Live sync part "flow"; runtime.js answers a resent save with the same words. Approvals
+  page for everybody (summary, bulk, steps) + rules panel. Unit "update-114"; rig `test/flow114api.js` 30; browser flow114.js 12.
+- 15-10-2026 (update-115). Report: `UPDATE_115.md`. A machinery that left the site, by its date everywhere: one rule (page
+  `onSiteOn` / `onSiteIn`, server `onSiteOn_` = assertActive_'s days). Entry pickers use `dl_mach_on` (filled on focus for the
+  entry's date: `data-on` = its date box or "row"); filters keep `dl_machines`. Asset Master "On site from / to" (opens with
+  today). Compliance, BOQ missing, tank report, templates, QR labels by the date. Unit "update-115"; browser inactive115.js 11.
+- 15-10-2026 (update-116). Report: `UPDATE_116.md`. "Send to verification" on the save buttons of works under a rule
+  (`flowMine_` → getInit.flow / Approvals.mine; page `FLOW_BTNS`, `flowWill`, `flowLabels`). Send back (`flowDecide_` revert → status
+  Reverted, single + bulk), the sender answers / takes back (`answerFlow` → `flowAnswer_`), reminded every 30 min (`flowRemind_`).
+  Diesel Issue reading way by itself (`dieselWay` / `dieselWayMount`; "Meter not working" only). Unit "update-116"; browser flow116.js 18.
+- 16-10-2026 (update-117). Report: `UPDATE_117.md`. Every site its own diesel places (18B: Camp Pump 18,000 + dispensers
+  MH12ZE1739 / MH12WJ1381 2,650), set by the Super Admin in the Portal (New site step 6, Sites → Diesel places). Site setting
+  `DIESEL_PLACES` + `TANK_CAP_<name>`; `places_` / `placeNames_` / `mainPlace_` / `meterPlaces_` replace `APP.LOCATIONS` / `MAIN_LOC`;
+  `savePlaces_` (a place with entries keeps its name; first place fixed while old entries have no place); Sites.gs acts `places` /
+  `placesSave`, `sysPlacesSetup_`. No setting = Dispenser + VTR Store (VTR as before). Dashboard: one tank per place (`tankOwnHtml`).
+  Unit "update-117"; rig places117api.js 33, newsite95.js 37; browser places117.js 13.
+- 16-10-2026 (update-118). Report: `UPDATE_118.md`. The sender's own entries in verification on the page where he made them and
+  on the Dashboard (page `FV_TABS` / `fvDraw` / `fvHtml`, from the Approvals list – live); "Remind" one / "Remind all waiting":
+  `remindFlow` → `flowRemindMine_` (own Pending only, the same entry once in 5 min, step "Reminded", notification to the level, else
+  the Super Admin); `crList_` gives `m`, `remindedAt`, `reminds`, `canRemind`; the approver's open page says a reminder
+  (`fvRemindSeen`). Rules panel: people picked but not ticked → asked before saving. Unit "update-118"; browser remind118.js 13.
+- 16-10-2026 (update-119). Report: `UPDATE_119.md`. A machinery on a site several times: earlier periods in `master.site_periods`
+  (**SQL step 1za**, every site) as [{ from, until }]; the current one stays Active From / Status / Inactive From. `periodsOf_` /
+  `onSiteOn_` / `assertActive_` (words for the days away), `sitePeriodsSave_` (Inactive → Active with a new Active From = came
+  back: the ended period kept; same Active From = never left), `assertEntriesStay_` (no date change that puts entries off site);
+  saveMaster_ / editMasterMany_ / importMaster_; pending Log Book, Log Book dashboard, final-bill rule. Page `mPeriods`,
+  `siteSpan`, form "Earlier periods on site" + "Did it come back?". App 3.1.12. Unit "update-119"; browser periods119.js 13.
+- 16-10-2026 (update-120). Report: `UPDATE_120.md`. Bill copies of a diesel inward: up to 10 photos in `diesel_inward.photos`
+  (**SQL step 1zb**, every site) as [{ p: 'inward/yyyy-MM/<uuid>.jpg', at }], the pictures in the private bucket diesel-photos
+  (step 1x). `inwardPhoto` (`uploadInwardPhoto_`, Edit, PH_ cache 6 h, kind 'bill'), `billsOf_` (own copies or the inward's own;
+  not given = kept), `getInwardPhotos` (`inwardPhotos_`, `photoLinks_`); saveInward / updateInward withUser; list `ph`. FIX: an
+  entry with photos sent for verification was always "Returned – not saved" at the approval (the check removed the photos the
+  server remembered): `FLOW_PHOTOS_` – noted with the request (Data.photos, held), used by the approval (`photoRecs_`,
+  `photosTaken_`). Page: "Bill copy" box (`IB`, `ibAdd`, `ibLoad`, `ibForSave`, `ibView`; `phMake(file, null, 2000)`).
+  App 3.1.13. Unit "update-120"; API inward120api.js 44; browser bills120.js 17.
+- 17-10-2026 (update-121). Report: `UPDATE_121.md`. The water tanker Excel (Edit Log Book → a tanker → Export / Import Excel) is
+  of every water tanker of every agency: `lt_export` reads the dates with one `getLogBookList` { all } and `tripsOfRow` (Format I
+  tankers only), 100 empty lines with no tanker in them (VEHICLE NO drop-down from the hidden tab "Lists" = every Format I tanker,
+  NAME OF AGENCY a VLOOKUP formula on it, Shift on every line); `lt_file` no longer gives a line without its VEHICLE NO to the
+  tanker open ("Fix the file first"). Page only, no server change. App 3.18.1. Unit "update-121".
+- 17-10-2026 (update-122). Report: `UPDATE_122.md`. FIX (live since update-115): on a phone / tablet the machinery box of an entry
+  (Diesel Issue, Log Book, Tank Check, Breakdown – `dl_mach_on`) showed no number: `pkTake` moves `list` to `data-pk`, and
+  `machOnFill`'s listeners looked only at `list`. Now `machOnBox` (list or data-pk) and `pkOptions` → `machOnFill` first; `pkApple`:
+  every iPad / iPhone gets the app's own list. Page only. Browser `test/browser/picklist122.js` 13 (no rig needed).
+- 17-10-2026 (update-123). Report: `UPDATE_123.md`. No opening film: `#oc_intro`, its styles and `ocIntro` are gone; the link opens
+  the sign-in at once. "Company & site" without the film link / tick / "Play the opening now", My settings without "Play the
+  opening"; `org_save` sends back the kept `video` / `intro` unchanged (no data change, no server change). App 3.19.1 (its
+  "Company & site" too). Unit "update-123"; browser `test/browser/nofilm123.js` 6 (no rig needed).
+- 18-10-2026 (update-124). Report: `UPDATE_124.md`. The party's Tax Invoice of a bill made from now on (`b.txNet`, set in `mbFill`,
+  saved with the bill): each vehicle "FOR THE MONTH OF …" (`txPeriod`; dates when not a whole month) and its amount after its
+  diesel debit (`m.amount − m.excessAmt`) – no hours / days / rate, no diesel line; GST on it; no TDS. Abstract, Debit Note and the
+  figures unchanged; a bill without the mark (RCL Drive) is drawn as before (29 / 29 papers identical to main). App 3.20.0.
+  Unit "update-124".
+- 18-10-2026 (update-125). Report: `UPDATE_125.md`. Phone / tablet (≤ 760 px): "Change site" at the top of the dark menu opened its
+  box behind the drawer (`.side` 30 / `#nav_back` 29 over `#cf_back` 20) – the sites could not be pressed. The click now closes the
+  drawer first (`setDrawer(false)`, as a page of the menu does). Computer unchanged. Unit "update-125"; browser
+  `test/browser/sitechg125.js` 18 (no rig needed; 12 / 18 on main).
+- 19-10-2026 (update-126). Report: `UPDATE_126.md`. The Diesel dashboard's nine numbers (`data-kd` on `.kc` / `.km`) open one big box
+  (`#kd_back`, `kdOpen` / `kdBuild`) with the entries behind each – only shown: the places from `S.dashD` (getDashboard), the
+  Diesel Inward entries (getInwards – an opening stock on or before the start date left out, as getDashboard) and the Diesel
+  Issue entries (getDieselIssues; today's; `share` machine by machine). Same access as those pages; no new server action, no SQL.
+  A phone shows each entry as a card (`kdLabels`). App 3.21.0 (`numDetail`). Unit "update-126"; rig `test/browser/dashkd126.js` 72.
+- 19-10-2026 (update-127). Report: `UPDATE_127.md`. `vercel.json`: `/engineering` → `/engineering/`, `/engineering/` and
+  `/engineering/:path*` → `https://rcl-engineering.vercel.app` (the Engineering module – repo `rcl-engineering`, its own Supabase
+  for every site – opens inside this screen like the Store). Unit "update-127"; rig `rcl-engineering/test/inmech.test.js` 7.
+- 19-10-2026 (update-128). Report: `UPDATE_128.md`. SEND AGAIN: the sender's Rejected / Returned verification entry goes again
+  exactly as it was sent (same args and photos), with his remark (needed), from level 1 – the same request (`flowResend_` /
+  `flowResendOne_`, action `resendFlow` { id | ids, note }); checked as a save first (`FLOW_DRY_ON_`, `FLOW_RUN_ID_`, its photos):
+  refused again → "Not sent again: …", nothing changed. `canResend` / `resent` in the list; the box shows a returned entry's
+  reason; "Send again" / "Send all again (n)" (`flowAgain`), Approvals too. Unit "update-128"; rig `test/browser/again128.js` 11.
+- 19-10-2026 (update-129). Report: `UPDATE_129.md`. Live fix of update-128: a save's WARNINGS ("Multiple entries" `warnings`, `warning`,
+  `used`, `duplicates`) were said as "refused". `flowRefusal_` gives the reason in words (warning or mistake) at the approval and
+  on Send again; `resendFlow` { …, force: true } = "Send again anyway" (`flowForce_`: `force` on the entry / `confirm` for
+  `submitBills` / the 2nd value of the master deletes), stored in Args; one refused entry comes back in `failed` (`warn`). Page:
+  "Please check – warnings, not mistakes" box. Unit "update-129"; rig `test/browser/again129.js` 9.
+- 19-10-2026 (update-130). Report: `UPDATE_130.md`. OPEN & CORRECT: the sender's Rejected / Returned Diesel Issue entry
+  (`saveDieselIssue`, `saveDieselBulk`, `importDiesel` of one machinery – `FLOW_FIX_`, `flowFixForm_`) opens in its form as sent
+  (`openFlow` → args + the save's check now, `flowDry_`); the page (`flowFix`, `S.flowFix`, `#d_fixbar`, `FIX_BTN`) marks the rows;
+  the form's button "Send again (VF-…)" → `editFlow` { id, note, args } (`flowFixCall`): refused → the save's own answer; else the
+  same request at level 1 with the new Args / Summary and a step "Corrected and sent again" with `changes` (`flowChanges_`);
+  Approvals shows "Corrected by …" (`fixd`). `canFix` in the list. Unit "update-130"; rig `test/browser/fix130.js` 12.
+- 19-10-2026 (update-131). Report: `UPDATE_131.md`. NOTHING WRONG GOES FOR APPROVAL: a diesel reading is checked BY ITS DATE (the
+  nearest fill before and after – `fitWarnings_`, `dieselPts_`; was: against the newest fill) in One entry, Multiple entries, Edit
+  and, for approval, `importDiesel_`; for an entry going to approval (`flowStrict_`: FLOW_DRY_ON_ or FLOW_RUN_ID_) it is a mistake
+  (errors / thrown, force not read). "Send again anyway" (update-129 `flowForce_`, `resendFlow` force) removed. Unit "update-131";
+  rig `test/browser/fit131.js` 8 (replaces again129.js).
+- 19-10-2026 (update-132). Report: `UPDATE_132.md`. BOQ: an amendment from any date on or after its BOQ's start (also after the
+  BOQ ends – only its machinery go on at the new rate); `getBoqs` gives `history` (`boqHistory_`: per vendor + machinery, the
+  periods from – to with the BOQ / amendment that gave the rate, the same order as the bills – `boqNewer_`, also in `boqRateFor_`);
+  page: "Rate history – machinery-wise" under the BOQ list for the picked vendor (`renderBoqHistory`, `#bh_box`). Unit "update-132";
+  rig `test/browser/boqhist132.js` 4.
+- 19-10-2026 (update-133). Report: `UPDATE_133.md`. BOQ print (`boqPrint`): the work order number and date on top of every BOQ;
+  an amendment prints as an amendment letter (To / Subject / Reference – the work order, of its BOQ when it has none of its own /
+  "with effect from" / Annexure-I with the earlier rate from `S.boqHist` and the new rate / vendor's details / all versions / "For and
+  on behalf of" / ACCEPTED BY VENDOR); print styles `.bl-to`, `.bl-p`, `.bl-for`. No server change. Rig `test/browser/boqprint133.js` 4.
+- 19-10-2026 (update-134). Report: `UPDATE_134.md`. The Super Admin deletes Diesel Issue entries (saved / waiting / returned /
+  rejected) of a date or a period and brings them back: `superDelList` / `superDelete` / `superRestore` (`sdelList_`, `sdelDelete_`,
+  `sdelRestore_`, `sdelSuper_`); a deleted entry kept in `billed_changes` kind "Deleted" (DEL-…, every column of the row), a deleted
+  request keeps its row as kind "Flow Deleted"; all ticked together or none; not one of a submitted bill or a closed month; a new
+  VF- number counts every request ever made. Page: Diesel Issue → `#sx_panel` (`sxLoad`, `sxRender`). Unit "update-134"; rig
+  `test/browser/sdel134.js` 6.
+- 19-10-2026 (update-135). Report: `UPDATE_135.md`. The call as in Google Meet (page only): `#rtc_bar` round buttons (`.rtc-b`, icons
+  `.rtc-i` by CSS mask, the word in `.lb` – set with `rtcLab`), the camera in the bar, `#rtc_hide` → `C.mini` (the pill; body
+  `rtc-mini`), my bar hides itself while my screen is shown (`C.autoMini`, in `rtcUseScreen`; back in `rtcStopMine`); a screen shown
+  to me starts big (`size: 'l'`). Camera of a computer: `rtcCamRank` (own camera → other real → camera app, by name), `rtcGetCam`
+  asks the front camera / the best by id, `rtcFlip` goes to the next camera. Rig `test/browser/call135.js` 9.
+- 19-10-2026 (update-136). Report: `UPDATE_136.md`. Screen share: `C.screen` (sender `P.scr`) and `C.cam` (sender `P.camS`) each on
+  its own (`rtcShowMine` / `rtcStopMine(…, kind)`); a share has `face` (a camera of a face – `rtcMyFace`); faces at the side
+  (`#rtc_faces`, `rtcFaces`, mine "You"), the big picture a screen or a phone's back camera (`rtcViewPick0`; a tapped face `C.pin`);
+  quality in `rtcLowApply` (screen 2.5 Mbit/s maintain-resolution, camera 1.2 Mbit/s 24/s, voice 64 kbit/s high), capture up to
+  1080p / camera 24–30/s / microphone speech 48 kHz. Rig `test/browser/both136.js` 12.
+- 19-10-2026 (update-137, with App 3.26.0). Report: `UPDATE_137.md`. Calls between the phone app and the web: the app speaks the same
+  screen-share notes / heartbeat / data-channel messages (rcl-mobile `lib/core/rtc.dart`); the web's ring and the notification say a
+  call of mode `voice` / `video` as a call (`rtcIncoming`, `rtcSend_` → `rtcPush_` mode, `app/sw.js`). Rig `test/browser/app137.js` 16
+  (a page that speaks as the app).
+- 20-10-2026 (update-138, with rcl-portal and rcl-store PRs "staging-guard"). Report: `UPDATE_138.md`. THE STAGING (TEST) DATABASE:
+  a Vercel Preview (VERCEL_ENV=preview) works only with a database that has the row app_settings THIS_IS_A_TEST_DATABASE = yes
+  (server/syncfetch.js `previewGuard` before every fetch – 503 "This is a Preview …", FIX_RULES; the Portal lib/preview.js in
+  lib/db.js `call`; the Store lib/preview.js in lib/sites.js `rest`); no Google Sheet backup on a Preview (server/google.js); the
+  orange TEST band on every page (server/page.js shell, Portal and Store pages, not inside Mechanical's frame). One SQL file for a
+  new Supabase project "rcl-staging" with Mechanical + Store + Portal: `staging/rcl_staging_all.sql` (made by
+  `staging/make_staging_sql.js` – Read Me's steps without step 6, the mark, TEST entries, him as Super Admin typed at the top; it
+  refuses a database that has the ERP's tables without the mark). vercel.json: /portal and /store of the staging address only
+  (`has` host) go to the staging Portal / Store. Guide: `staging/STAGING_SETUP.md`. Rig: `rig/stg_up.sh`, `test/browser/staging138.js` 30.
+- 20-10-2026 (update-139, with App 3.29.0). Report: `UPDATE_139.md`. The Hour meter photo: PHOTO_KINDS_ hrs ('Hour meter'),
+  PHOTO_ORDER_ / PHOTO_NAMES_, at most 5 photos; meterReading_ kind hrs → aiReadMeter_(…, 'hr') (the hours only). App.html PH_KINDS
+  + hrs, phKindsOf (only a KM + Hrs machinery, not Debit Basis), phApplyRead R.hrs fills d_hr (wins over the dashboard's hours),
+  .dph-grid.five. Rig `test/browser/photo139.js` 11.
+- 21-10-2026 (update-141). Report: `UPDATE_141.md`. THE GOOGLE SHEET BACKUP ONCE A DAY (egress): webBackup_ auto (an open page)
+  only when no backup ended today (India date, `doneToday`) – the nightly cron (vercel.json 30 20 * * *, full) as before; 4 min
+  after a failed try; the button at once. Logs only their new rows (`APPEND_` activity_log / store_activity by id; `BK_STATE.app`
+  { n, last, whole }; whole when the tab rows ≠ n, the count up to the last key ≠ n + new, or 30 days). page.js tick every 30 min,
+  60 s while `pending` (runtime backup answer). App.html `bkWhen` (time today, else date). test/backup.js: sections daily, logs;
+  fixtures fixed (user via SQL, one Super Admin, "Billed Changes"); RIG_DB / RIG_DOOR. Measured run: 9.16 MB → 0.08 MB.
+- 21-10-2026 (update-140, SQL step 2b). Report: `UPDATE_140.md`. LESS DATA FROM THE DATABASE PER REQUEST (egress): gas.js
+  `bootAsk` → `web_boot2(p_keys, p_ver, p_have, p_stamp)` (sql/supabase_step2b_light_boot.sql): settings by md5 "ver", cache
+  entries by md5 (`same` = names only), the stamp by md5 "sh"; BEAT.pver/pall/kept/st/sh; without step 2b → web_boot (asked again
+  after 10 min, BEAT.boot2 = time). makeWarm `check`: 15-min light check (id,updated_at; rows by id via `inList`; > 300 diffs or
+  every 6 h (`wholeAt`, RCL_WARM_WHOLE_MS) whole). pool.js SNAP + gas.seed/onTable: one copy per server, given to every thread.
+  bootKeys + FLOW_REMIND; flush updates BEAT.shared. load-site sends {r}. Tests: unit, browser/egress140.js 8, boot140.js 4.
+  Measured (20 min, 15 people): 49.12 → 23.44 MiB. A two-step "what changed" read was measured (no better) and taken out.
+- 22-10-2026 (update-142). Report: `UPDATE_142.md`. LESS CPU ON VERCEL (Hobby's 4 h of Fluid Active CPU in 30 days were used up,
+  94 % rclerp): syncfetch.js – a helper unused for IDLE_MS is no longer terminated and restarted; `renew` asks it to replace
+  Node's connection pool (`Symbol.for('undici.globalDispatcher.1')`, new pool of the same kind, old one destroyed) and answers
+  true / false; false or no answer in 2 s → replaced as before. `renewals()` next to `helpersMade()`. test/net.test.js updated
+  (4 pauses → 4 renewals, 1 helper, no retry), unit check update-142. Measured per heartbeat of an idle page 156 → 13 ms CPU,
+  of a background tab 162 → 20 ms; 15 people 10 min 89.6 → 78.9 s.
+- 23-10-2026 (update-143, with App 3.31.2). Report: `UPDATE_143.md`. A SECOND ENTRY FOR A SAVED SHIFT IS ADDED TO IT: saveLogRowsInner_ –
+  a slot already in the sheet (`logSavedIdx_`, not a tanker) → `logEntryRows_` (the saved entry as entry-page rows: its `_parts` with
+  Start / Close from the entry's Start as Edit Log Book does, else itself; `{ why }` for Idle / Holiday / Breakdown, No reading, new
+  meter, tanker, a typed split, parts that no longer fit) + the new rows → `logRowsKind_` / `logRowsJoin_` → `p.replace` = its row:
+  written in place (`logRowAgain_`: own row, optional cells emptied, `stampEdit_`), then `recalcChain_`; duplicates `logSameWork_`
+  (same Start + Close of its meter, or the same times). Answer `added` / `into` (count as before). getLogRowPrefill_ `addTo` { rows,
+  kind, mode, closeKm, closeHr, stock, lastWork, sameOk }, no problem, Start = saved Close. App.html lgCalcAll: `add` = a later work
+  (work N, diesel 0, odsl = add.stock, no ½, one work per row, upPick = lastWork), row note, toast; assistant note; FIX_RULES ×2.
+  Only rows marked `add` (getLogRowPrefill_(…, { add: 1 }), the page / assistant / App 3.31.2) are added – an older app is refused
+  as before. Adding a work never moves another entry (its Close above the next entry's Start → refused, every machinery); the
+  saved entry keeps its opening diesel (`base.openingDiesel`) and its standard average (`mS`); plain rows keep their typed hours;
+  overlapping From – To = the same work; the Activity Log `logrows` keeps the saved entry as it was (`was`). A saved Time-only day
+  of an hrsOnly machinery takes a row by Hrs (prefill kind 'hr').
+  Tests: unit update-143 (+ update-71 changed to the new rule), browser/add143.js 18, entry71.js 20 (the old-rule check changed).
+- 23-10-2026 (update-144, with App 3.31.2). Report: `UPDATE_144.md`. THE ROWS OF A SHIFT MAY ALL BE BY TIME (a machinery on hours –
+  his JCB: Bucket 14:00 – 18:00 + Breaker 09:00 – 13:00): logRowsKind_ ('hr' for any shift of such a machinery by Time), logRowsJoin_
+  `allT` (fh = −1) → ONE entry by Time: tSlots = the rows' times in the order of the shift (`timeSpans_`, a Night's after-midnight
+  times last), tBreak = Σ row tb, `_parts` in that order, join.allT (no first-row reading fix in saveLogRowsInner_); two rows at the
+  same time → "… is at the same time as … – a machinery does one work at a time". logItemWork_ `tOnly` (hrsOnly_ + mode Time): Time
+  rows only (else "measured the same way (Time)"), `timesOk` = the parts' slots = the entry's slots (`slotsSorted_`), no seenHr.
+  saveLogRowsInner_ logSlotCol_ for Time rows that join. updateLogRow_ sp0 also for unit Time (From – To changed → refused; gap check
+  only on Hrs); import guard also for unit Time. App.html: `timeSpansP` / `spansMeet` / `slotsSay`; lxPartsProblem (overlap instead of
+  "all by Time"); Edit Log Book payload `allT` (mode Time, tSlots list, tBreak, rows sorted); entry page grouping and overlap note;
+  edit window locks le_ts / le_te / le_tb / "+ time"; FIX_RULES +1, help texts; i18n keys + mr / hi (also update-143's). Review:
+  `partsTol_` (rows all by Time: the rounding of each row, also in itemPartsOf_), the entry's slots = every slot of every row sorted
+  by `timeSpans_` (server, page, phone), texts in the order of the day (`gT` / `G` / `gg`), the rows' breaks = the entry's (timesOk).
+  Then (his Hydra on Time only, "sagle machinery la ha rule ghe"): for EVERY machinery – logRowsKind_ (all Time → 'hr'), join
+  `tAll` (isT / plainRows), logItemWork_ tOnly = mode Time, prefill sameOk also for a saved Time entry; page lxPartKind / lgPartKind
+  'hr' for a Time row, lxPlain / plain with Time, no "same work" on Time rows, allT payload without lxHO; phone partKind / plain.
+  Tests: unit update-144 (+ update-78 changed to the new rule), browser/time144.js.
+- 23-10-2026 (update-145, with App 3.31.2). Report: `UPDATE_145.md`. TWO PEOPLE CHANGING THE SAME ENTRY (Log Book + Diesel Issue
+  first, his choice): `rowVer_` (FNV-1a of `verVal_` of LOG_VER_H_ / DIESEL_VER_H_ – what a person can change; dates by dkey_, times
+  tStr_, numbers numOrBlank_, JSON with sorted keys), `verCheck_` → "<what> was changed by <UBY|EBY> after you opened it – open it
+  again and make your change there. Nothing was saved." Out: getLogEntry_.ver, getLogEditData_ rows[].ver, getDieselIssues_
+  rows[].ver. In: updateLogRow_ l.ver, deleteLogRow_(key, ver), saveLogBulk_ b.vers {key: ver} (before anything; ok:false),
+  updateDieselIssue_ d.ver, deleteDieselIssue_(id, ver); no ver = as before. App.html: x.ver (edit window), deleteLogRow e.ver,
+  lx save vers, S.editDieselVer (kept at editDiesel – the list refreshes), deleteDiesel ver; FIX_RULES +1; mr / hi. Unit
+  update-145 (update-130's line check follows), browser/same145.js 10. Review: a moved Start is stamped (stampEdit_) with who moved
+  it; VER_CTX_ 'approve' / 'flow' / 'resend' (crDecide_, flowDecide_, flowResendOne_) words for a request replayed later (+1
+  FIX_RULE); saveLogBulk_ skips the check of a billed row for a user (it is kept out); updateDieselIssue_ returns ver, deleteDiesel
+  uses the row's ver.
+- 23-10-2026 (update-146, with App 3.31.2). Report: `UPDATE_146.md`. EVERY MACHINERY – A ROW FOR EACH WORK OF A SHIFT ("sagle machinery
+  la ha rule ghe … same data asel tr duplicate"): `logRowsKind_` → 'km' / 'hr' / 'trip' / 'day' for any machinery (ways must agree,
+  else `logRowsWhyNot_`: a day status / No reading beside a work, different ways); `logRowsJoin_` plainRows = fewer than 2 BOQ works of
+  the kind, non-hours-only rows follow each other exactly (a gap refused with the way out), KM + Hrs rows keep `o` (the other meter;
+  first row's o set on save from join.firstCloseO), a duplicate (logSameWork_) refused; `logRowsJoinCount_` (trips added, `ti` in / out,
+  overlap refused; the day once); parts: `k` 'km'|'trip'|'day' (no k = hours), `o`, `ti` (partKindOf_, partExtra_, partsOtherOk_);
+  partsGap_ only hours rows; `logItemWork_` plain path for every measure; `itemPartsOf_` every measure (callers pass trip);
+  `logEntryRows_` rebuilds them (add path); `updateLogRow_` / `saveLogBulk_` drop `_parts` that no longer add up; "two rows one after
+  the other are both" removed; logSameWork_ Trip / Day. App.html: lxPartKind / lxPlain / lxRowQty / lxSameRow / lxPartsProblem (reasons),
+  lxMoreSay, "+ work" under KM / time-trip-day cells, lxLoad (trip / day rows, o), lx_save (k, o, ti, trips Σ, items {} when the rows
+  go), lgPartKind / lgWhyNot / lgSame, edit-window note, lbWorkRows (day, o, ti), partsGapP; FIX_RULES +1 (+2 changed); guides log /
+  logedit; mr / hi. Unit update-146 (update-71 / 143 checks follow the new rule); browser/rows146.js; entry71 / works69 / nightrow
+  / add143 checks follow the new rule. Review: plain rows keep `x` (typed items of the row; rowTyped_, `a` = Excel Work type resolved
+  on save), `tr` (Format B trips); lxLoad / phone share old entries' typed items over the rows (dist); itemized trip rows (≥2 trip
+  works, logItemWork_ / itemPartsOf_ allow 'trip'); logSameWork_ 'B' = KM + Hrs both meters, saved rows not compared; LX.pk (o / x /
+  tr sent only for a changed entry); tmCol for Day; FLOW_RUN_ID_ counts as "add"; logSlotHint_ / fallback / help words.
+- 23-10-2026 (update-147, with App 3.31.5). Report: `UPDATE_147.md`. APPROVALS – AN ENTRY IN FULL ("approval detna details madhe sagle
+  bghta yaw … bulk approval asel tri"): `approvalDetails` (`approvalDetails_`: the Super Admin, the sender, the people of its levels –
+  else "not found"; fields with `DET_LABEL_` names, arrays of objects as tables (≤ 300 rows), machinery + name · type from
+  getMaster_, photos counted, crDescribe_'s "saved now", `DET_ACT_` / detAct_ plain words; only reads). App.html: "Details" per row
+  (crDetBtn / crDetRow – a row only while open), "Details of all" (#cr_det_all), crDetHtml, crDetLoad (once per id|status|history
+  length), crDetFill (an open entry that moved on), crBulk shows each ticked entry in full; guide approvals; FIX_RULES +1; mr / hi
+  (+42). test/details147api.js, browser/details147.js. Step 1 of 3 asked that day (2: an approved entry – only the Super Admin or its
+  approvers change / delete it; 3: the Portal – edit, delete, change a user's email).
+- 24-10-2026 (update-148, with App 3.31.6). Report: `UPDATE_148.md`. APPROVALS → DETAILS: THE PHOTOS THEMSELVES ("details mdhe attachment
+  disayla haw"; update-147 showed them as a table of file names): approvalDetails_ `addPics` (DET_PHOTO_ keys first, rows' photos
+  "Row n – …"), `pics [{label, at, url}]` with one photoLinks_ for all, `picErr`; crDetHtml `.phv-grid.cr-pics`; guide approvals.
+  details147api 24, browser/details147 10.
+- 24-10-2026 (update-149, with App 3.31.7). Report: `UPDATE_149.md`. REPORTS → LOG BOOK DEBIT STATEMENT ("log book mdhun ekadi entry
+  debit to keli jate tr tyach wegle record rahaw … filter import export print rate change"): `rptLogDebit_` (party by party, each
+  entry: quantity as measured × rate, its Debit Note; filters party / one machinery) and `saveLogDebits_` (rows `{logId | no+date+
+  shift ; to? ; rate ; line?}`, from 'report' / 'import'; all or nothing under withLock_; each row checked as a Log Book change –
+  logDebit_, booksOpen_, billLock_, not in a Debit Note, two entries on a day need the shift, a line given twice; a blank "Debit to"
+  keeps the party; stampEdit_; Activity 'logDebits'); page report def `ldebit` (rate boxes `input.ldrate`, Put on all shown, Import
+  party + rate, Excel layout with the entries shown, print without boxes + "Party acceptance"); REPORT_GUIDE.ldebit, 5 FIX_RULES.
+  Under a Log Book verification rule the change is sent and saved when approved. ldebit149api 26, browser/ldebit149 14.
+- 24-10-2026 (update-150, with App 3.31.8). Report: `UPDATE_150.md`. QR LABELS BY OWNER / TICKED, 8 ON AN A4 PAGE ("qr mi owner wise
+  machine wise sigle or bulk … a4 page war … 6 to 8"; his answer 8, 2 × 4): `qrLabels` – the box with Owner (choosing one ticks all
+  its machinery), Find, the ticked list (`#qr_list [data-qr]`, Tick / Untick all shown), "n ticked – p pages", Make off when nothing
+  is ticked; `qrLabelsHtml` (pages of `QR_PER_PAGE` = 8, `.qrs` grid 2 columns × 62 mm rows, the code 50 mm left of the text),
+  `qrSub`. Page only. Browser qr150 12 (PDF pages counted), new3 changed to the ticks.
+- 24-10-2026 (update-151, with App 3.32.0). Report: `UPDATE_151.md`. A SUBMITTED BILL KEEPS ITS LOG BOOK AS EVIDENCE ("bill final
+  zalyawar nantar kuni logbook photo badalla tari june bill badalta kama naye"; Phase A of the final attachments / bill security
+  update): `billEvidence_` (the bill's Log Book rows as getLogBookList_ gives them, the Asset Master of its machinery, logPrintExtra_
+  input, idle / diesel rate – canonical JSON `canon_`, SHA-256 `sha_` per entry and `evHash_` for all); verifyBills_ keeps 'S:<hash>'
+  as the verified mark; submitBills_ builds it again inside its lock – another hash → "changed after it was verified", nothing saved;
+  the same → `evSave_` appends tabs Bill Snapshots + Bill Log Rows (step 1zc tables bill_snapshots, bill_log_rows) in the SAME write
+  as the bill. The database refuses UPDATE / DELETE / TRUNCATE (trigger rcl_evidence_fixed, no delete right). `getBillEvidence_`
+  (kind submission + evCheck_ | legacy + evLegacyChanges_ by updated_at / created_at / deleted_rows | off before 1zc); page
+  `billLogOf` – every saved-bill view / print / after-submit print from it (`.ev-note` above the Log Book). evReady_ false → as
+  before. Unit 106 (new: update-151), browser ev151 11.
+- 24-10-2026 (update-152, with App 3.33.0). Report: `UPDATE_152.md`. AN APPROVED OR BILLED LOG BOOK ENTRY IS LOCKED – ONLY THE
+  SUPER ADMIN CHANGES IT, WITH HIS REASON (Phase B of the final attachments / bill security update). The last approval of a
+  verification marks the rows it writes (approved_by / approved_at / approval_ref – `entryGuard_`, VER_CTX_ 'flow', APPROVER_).
+  `billLocks_` counts Active, Superseded AND Deleted bills. `entryGuard_` runs in SbBook_.flush before EVERY database write: each
+  log_book row against `orig` (as loaded) / `goneRows`, the entered columns `LB_GUARD_`; locked (approval / bill) and not the
+  Super Admin → refused (apprLockMsg_ / billLockMsg_ – the page offers it to him as a request); the Super Admin without a reason →
+  'SA_REASON: …' (the page asks, sends again with meta.reason → SA_REASON_). The write goes as `web_write3(p, p_ctx …)`: the
+  context (actor, super, reason, fn, flow) is set for the transaction; the database guard (step 1zd trigger rcl_entry_guard,
+  invoker) writes every change of a locked entry to log_book_history (never changed – rcl_history_fixed) and, with ENTRY_GUARD =
+  enforce, refuses one not by the Super Admin (RCL_ENTRY_LOCKED); "warn" first, Database health counts them. `deleteBill_`: Super
+  Admin only, logical (status Deleted, deleted_by / at / delete_reason), its entries stay locked; the app's key has no DELETE on
+  bills; bill_machines (trigger) keeps every bill's machinery and dates. Only the Super Admin revises a submitted bill's dates.
+  Step 1zd's helpers revoked from the public roles (found by the rig's Database health). Unit 107, browser lock152 17; the
+  regression set the same as main (billed108 / ev151 changed for the new rules).
+- 24-10-2026 (update-153, with App 3.34.0). Report: `UPDATE_153.md`. ATTACHMENTS OF A LOG BOOK ENTRY, SCAN WITH MOBILE, PHOTO
+  CORRECTION, A BILL'S FILES AS SUBMITTED (Phases C, D, E). Server: `uploadAttachment_` (data URL, ≤ 3 MB, real type by its bytes
+  `attSniff_`, SHA-256 → private bucket erp-files `log/<2>/<sha>.<ext>`, x-upsert false – "Duplicate" = the same file, reused; the
+  sender noted 6 h in AT_<sha>, several senders `es`), `attOf_` (the list a save gives: the entry's own, the saver's – or at an
+  approval the sender's FLOW_SENDER_ –, or a file already with another entry; at most siteRules_().attachMax, default 10),
+  `attSet_` ('add' for saveLogRows rows, 'set' + `attWas` for updateLogRow), wrappers `saveLogRowsA_` / `updateLogRowA_` (one lock,
+  one write), `linkLogAttachments_`, `getLogAttachments_` / `attLinks_` (signed 15 min), Scan with Mobile `capStart_` (id + 256-bit
+  token, only sha_(token) kept in CAP_<id>), `capClaim_` (same email, same site __siteCode, 5 min, one phone id), `capAdd_` (list,
+  own files only), `capPoll_` (owner only, a question), `capCancel_`; `getBillAttachments_` (from the bill's evidence rows' `att`,
+  deduped). Column log_book.attachments (step 1ze), `logRowOut_` att, LB_GUARD_ has Attachments (update-152's guard covers it).
+  Page: `atOpen` (the box: paste / drop / upload / camera `atCamera` / `atQr` / `atOther`, sent on Done), `atMake` / `atBase` /
+  `atWarp` (perspective by homography) / `atSuggest` (Otsu + largest bright part), `atEdit` (the correction), `atView`, the row's
+  📎 (`lgAttOpen`, paste and drop on a row), the edit window (`leAttDraw`), the list and Edit Log Book chips, "Attach to selected",
+  `capArrive` (the phone: ?cap= kept in sessionStorage through the sign-in, `capPhone` id in localStorage), Site rules `rule_att`,
+  `billAttHtml` (the annex in viewSavedBillIn), `billFilesZip` (`zipMake`, CRC-32, each file checked by SHA-256, FINGERPRINTS.txt).
+  After the independent security review: `crAtts_` (a change request's files checked when asked, their records in its Data) and
+  `CR_ATT_` at its approval (attOf_'s "in the store" fallback only for VER_CTX_ 'flow'); `crDescribe_` says "Attachments n → m"
+  and "Attach n files to"; Scan with Mobile records CAP_ (session) / CAPX_ (end) / CAPF_ (the phone's files) + the claim counted
+  by `__count('CAPC_'…)`; capStart / capClaim / capAdd / capCancel are questions (page.js, runtime.js); uploads at most
+  ATT_DAY_N_ 300 / ATT_DAY_MB_ 150 a person a day (ATN_ counter, ATB_ bytes); AT_ notes no longer "held"; getBillAttachments
+  withUser (a legacy bill's files only with Log Book / Machinery Billing / Saved Bills); step 1ze `do update set public = false`.
+  Unit 108, browser att153 39; the regression set the same as main. Storage measured: about 0.33 – 0.45 MB a photo by default.
+- 24-10-2026 (update-154, web only – no app change). Report: `UPDATE_154.md`. THE LOG BOOK ENTRY'S NEW LOOK FOR ITS THREE WAYS
+  (only the look – no server, database or rule change). Page: the head `.lg-head` (`.lg-mt[data-mt]` shown by the panel's
+  `data-lgmode`, set in `setLgMode`), the ways as cards with icons (`.lg-opts`); `lgRowHtml` – ONE CARD PER ROW: the row is one cell
+  `td.lcard` (colspan 20) with `.l-head` (c-date / c-m with `.lminfo` (type · name · owner, set in `lgFill`, cleared in `lgBlank`) /
+  c-shift / lg-half / `.c-act` 📎 Debit ×), `.c-unit` (`tr.dataset.way` set in `lgShowUnit`, '?' before it is picked) and
+  `.l-secs` – `.l-read` (`.l-rg`: `.c-start` / `.c-end` (was `c-close`: the KPI tile's class clashed) / `.c-tot`), `.l-dsl`
+  (`.l-dg`), `.l-work` (`.l-wg`, `.l-wd`, `.c-debit`); every data-f / data-o / class the code reads kept. "One machinery": the
+  machinery's facts in `#lg_top_info` (`.lg-mid`, `.lg-fact`: Owner, Works on, Standard, Last Log Book entry). Water tanker:
+  `.wt-top` (`#wt_tot` tiles beside the tanker), `.wt-box` New / Saved trips, `.wt-rule`, `.wt-sh` chip. Styles: one block
+  "(update-154 …)" before the first `</style>`, all under `.lg-panel` / `.lg-wrap.lgc` / `#wt_form` (container queries ≤ 1080 two
+  parts side by side, ≤ 640 the phone). Labels are real text (the page's i18n reads text, not CSS). 9 new texts (mr / hi).
+  Tests: half / mob / dnui / splittime / att153 read the card instead of the old cells.
+- 24-10-2026 (update-155, with App 3.35.0 and the Store / Engineering / Portal changes of the same day). Report: `UPDATE_155.md`.
+  SMART CACHE AND SYNC AT A LOWER COST (no database step, no action's own code changed). `server/delta.js` (new – the same file in
+  the Store and Engineering as `lib/delta.js`): a page that keeps its answers sends `m: 1` and, asked again, `have` (the fingerprint
+  – SHA-256, 32 hex – of the answer it has); `api/rpc.js` answers `{ h, same: 1 }`, `{ h, base, delta }` (copies of runs of the old
+  pieces – cut after `},` / `],` – and new text) or `{ h, result }`; never for a save (a rid); everyone else gets `{ result }`. Kept
+  per site and whole question (with the token) on both sides; server memory ≤ 32 M chars (an answer > 2 M not kept), page ≤ 12 M.
+  The bridge (`server/page.js`, `delta.CLIENT` put in word for word) rebuilds, checks with `crypto.subtle`, asks whole on any doubt;
+  only `sync`, `get…` / `rpt…` and the other reads (`memoable`); emptied at login / logout / ssoLogin / switchSite /
+  setDefaultSite / changePassword / super / portalAdmin, at another site, and for a question that was refused; `window.__rclMemo()`.
+  Heartbeat (`App.html` `syncGap`): `LIVE_TABS` (dash, log, diesel, inward, transfer, approvals, master, activity) 2 s, other pages
+  5 s (`SYNC_OTHER_MS`), 15 s after 5 idle minutes, background 60 s (was 30); `window.rclSyncAt`. Shell (`Index.html` `beating()`):
+  no own `getAppBuild` while the heartbeat answers; `checkBuild` asks the shell once a minute at most. Counters
+  (`server/usage.js`; `syncfetch.meter`, the worker's `threadCpuUsage` in `pool.js` → `meta.use`): `[usage]` log line every 10 min,
+  `GET /api/rpc?usage=1` only with `RCL_USAGE=on`. Tests: unit (delta, the bridge in a vm, rpc with a stub pool), browser `sync155`,
+  `poll` (5 s / 60 s), `test/traffic155.js` (one page phase by phase, main vs branch).
+- 24-10-2026 (update-156, with App 3.36.0). Report: `UPDATE_156.md`. VERSION CHECKS ON EVERY EDIT SCREEN (no database step, no
+  calculation changed). As update-145 did for Log Book and Diesel Issue: `rowVer_` over the fields each screen can change –
+  `INWARD_VER_H_`, `TRANSFER_VER_H_`, `PAY_VER_H_`, `VENDOR_VER_H_` (not "Ownership"), `BOQ_VER_H_`, `MASTER_VER_H_` (not the Log
+  Book format or a reading) – goes out as `ver` with each row (`getInwards_`, `getTransfers_`, `payOut_`, `vendorOut_`, `boqOut_`,
+  `buildMaster_`; `updateInward_` / `updateTransfer_` answer the new one) and is checked under the lock with `verCheck_` in
+  `updateInward_`, `deleteInward_`, `updateTransfer_`, `deleteTransfer_`, `savePayment_` (edit), `deletePayment_`, `saveVendor_` (before
+  a rename), `deleteVendor_`, `saveBoq_` (edit), `deleteBoq_`, `saveMaster_` (before a rename), `deleteMaster_`, `editMasterMany_`
+  and `deleteMasterMany_` (`vers` – one per machinery). `verVal_` compares these dates and amounts as values (`VER_DATE2_`,
+  `VER_NUM2_` – none of them is a Log Book or Diesel Issue field, so their versions are unchanged). `leastOut_` drops a
+  machinery's `ver` for a person who may not see every field. The page keeps the version an entry had when it was OPENED
+  (`S.editInwardVer`, `S.editTransferVer`, `S.py.editVer`, `S.editMasterVer`, `S.vEdit.ver`, `S.bRec.ver`) and the list's for a delete.
+  Not compulsory: no version = accepted as before (older pages, the app before 3.36.0). Tests: unit (update-156), browser `ver156`.
+- 24-10-2026 (update-157, with rcl-portal and rcl-engineering "backup export"). Report: `UPDATE_157.md`. NUMBERED BACKUP SHEETS
+  (no database step). `server/backup.vm.js`: `bkTarget_` (the site: lock "backup", `BK_STATE`, `SB_INFO`, `BK_SHEETS`; the Portal at
+  the first site: "backup_portal", `BK_PORTAL_STATE`, `SB_PORTAL_INFO`, `BK_PORTAL_SHEETS`), `bkSheets_` (the list; none → the Sheet
+  of before as Sheet 1, `legacy`), the last = in use; Sheet 2+ (`from`): tables of entries filtered `updated_at|created_at|at|
+  deleted_at >= from`, masters whole (`BK_REF_`), the logs' append notes with the same filter; cells read after each copy
+  (`bkCellsKeep_`, `info.cells / cellsPct`); a full Sheet said plainly. `bkSheetSet_` (change / add – each table from an hour before its last
+  copy, `state.copied` → `vol.cuts`; a used Sheet in `was`; the Sheet must have no "Backup Status" tab but our mark, and be writable –
+  `__gNew` look / peek / claim; not another site's: `system.js backupAdmin` asks every site `sysBkIds`, under the lock "backup_admin"
+  of the first site), `bkSheetsInfo_`, `bkNow_`
+  (a short run for the Portal's 25 s). Engineering / Portal rows: `server/bkexport.js` → their `api/backup-export.js` with
+  `BACKUP_EXPORT_SECRET` (`bkRemoteCatalog_`, `bkRemoteRows_`; tabs "Engineering – …" of this site, "Portal – …"). The nightly job:
+  every ready site + the Portal. Portal: Sites → Backup, Portal backup. Tests: `test/backup157.js` (stand-in with several
+  spreadsheets, `/deny`, `/cap`), `test/backup.js` as before.
+- 25-10-2026 (update-158, with rcl-portal "Sites → Storage" + step 4 and rcl-engineering step 2). Report: `UPDATE_158.md`. STORAGE
+  AND THE DRIVE COPY. SQL step 1zf (every site): `web_usage()`, `web_files(after, id, n)` (read only), table `backup_drive` (root,
+  src, kind file|folder|link, drive_id, parent, md5 – insert only), table `backup_drive_state` (id 'drive', value: the copy's notes);
+  both in `SB_SKIP_` (not in the backup Sheet). `server/drive.vm.js`: `storageOf_` (database of 8 GB, files of 100 GB, the Sheet in
+  use, `drvInfo_`) → the Admin's backupNow answer (`res.storage`) and the Portal (`system.js storageAdmin`: every ready site
+  `sysStorage`, the first site's `stoHome` with `drvQuota_`, the Portal's / Engineering's `usage` through their backup export).
+  Google Drive: `drvStart_` (DRIVE_STATE, hashed, 15 min) → Google → `api/drive.js` → `drvOauth_` (lock "drive_oauth", DRIVE_ACCOUNT
+  checked, `server/drive.js exchange`, the refresh token `sites.seal`ed into DRIVE_AUTH with the root folder "RCL ERP – Files
+  (backup)"; scope drive.file). `driveBackup_` (opt budget / until (the pool's deadline, `__until`) / manual / nightly; cache gate
+  DRV_NEXT (3 min while pending, 30 min idle) and DRV_OFF; lock "drive"; notes in `backup_drive_state` via `drvStateRead_/Write_`,
+  saved after a page and at the end: cursors per kind by (updated_at, id) of rows older than a minute, storage objects by
+  (created_at, id), `bad` (try-again list: 1 h / 6 h / daily, `up` ≥ 3 → only "Copy files now"), `dead` / `moved` / `gen` / `tag`
+  (folders deleted by hand: `drvRepair_` – the entry's folder made again under `folder:<path>#n`; a bigger one → `gen` + 1, root key
+  `<root>#g<gen>`, the whole copy again in "<site> – made again <date>"), `drvCheck_` daily); `drvEntries_` issue / inward / log,
+  `drvBills_`, `drvLoose_` (a day old); `drvFolder_`, shortcuts for a file on a second entry and for a bill; `drvCopy_` (≥ 12 s
+  left) → `__drvPipe` → `syncfetch pipe` in the helper thread: read with the site's key (no redirect), MD5 + SHA-256, multipart
+  ≤ 5 MB else resumable (the MD5 asked after the last piece); noted only when Drive's MD5 = the file's; a file's own fault → the
+  try-again list, an entry refused 3 runs → `drvStuck_`, anything else stops the run). Runs in the backup door after the Sheet
+  backup (42 s in all), "Copy files now" (`drvNow_`, 17 s). Tests: `test/storage158.js` (with `test/drive-standin.js` – `/gone`,
+  `/trash`; the rig's door keeps storage.objects rows and serves files to the key).
+- 25-10-2026 (update-159, with rcl-mobile 3.38.0). Report: `UPDATE_159.md`. A COLUMN FOR EACH STOCK POINT (asked at 18B: "/ nko …
+  jyach tyach seprate ale gel transfer"; the Transfer list "jo stock point asel tithun"). No SQL. `events_`: a transfer's events
+  carry `peer`; `addPeer_`, `peersOf_`; `stockSummary_` / `getStockLedger_` / `getDailyInwardIssueReport_` also give `tinBy`,
+  `toutBy` (Ltr by the other stock point) and `others` / `otherLocations` (`tin` / `tout` stay the totals). The page: Day-wise
+  diesel stock (`loadLedger`: columns `tin:<p>` / `tout:<p>`), the stock cards (`renderLocations`), the daily report (`rdTableHtml`,
+  its Excel) – a "Received from" and a "Sent to" column for each other stock point, always. `getTransfers_`: the location = From
+  only; the filter is labelled "From (stock point)". Test: `test/browser/transfer159.js` (T2 with the 18B names; S1 as before).
+- 25-10-2026 (update-160, with rcl-mobile 3.41.0). Report: `UPDATE_160.md`. THE "SCAN WITH MOBILE" QR OPENS IN THE APP (asked:
+  "google scanner mobile scanner madhun jari scann kel adhi app kade jaw app nasel tr browser kade … madhech cut hou naye"; the
+  "not valid" was a phone at another site – the session is in the computer's site database). No SQL. The QR is
+  `<origin>/scan?cap=<code>&site=<site>` (atQr); `/scan` = the page (`vercel.json` rewrite after the staging rules, `dev.js`); the
+  page's cap reader keeps `site` and sends it with `capClaim`. `capStart_` answers `site`; `capOpen_`: a `site` not this one → "This
+  QR code is for another site (…)" (none sent: as before). `app/well-known/assetlinks.json` → `public/.well-known/` (`build.js`):
+  Android App Links for `in.rachana.rcl.rcl_mobile` (public signing fingerprint) – live BEFORE the app 3.41.0 is installed. Test:
+  `test/browser/att153.js` (the site, the other-site message, assetlinks, the phone through `/scan`).
+- 26-10-2026 (update-161, with rcl-mobile 3.42.0). Report: `UPDATE_161.md`. THE PHONE APP'S NOTIFICATIONS THROUGH FIREBASE (asked:
+  "app war pratek gostich realtime notification jayla haw app band aso ki chalu app updet pasun te sagle kahi"). No SQL. Actions
+  `fcmSave` / `fcmOff` (`m: ''`, his own phone); `server/fcm.js`: kept at the FIRST site's `app_settings` (`FCM|<rtcUid>` – at most 6,
+  `FCMT|<sha of the token, 24>` – whose phone; one phone = one person), `send` = FCM HTTP v1 data messages (`site`, HIGH, ttl, one
+  per call), gone phones (404 / UNREGISTERED) forgotten, never throws; Google's permission: RS256 JWT of `FCM_SERVICE_ACCOUNT_JSON`
+  (scope firebase.messaging, cached an hour). `rtcPush_` calls `__fcmSend` (runtime.js) for every notification of the web – before
+  the web push, also without it; the ring carries `from`. Off in a Preview; `FCM_TEST_URL` (the rig's stand-in
+  `test/fcm-standin.js`) refused on production. Tests: unit `update-161`, rig `test/fcm161api.js` (two sites, one phone).
+- 26-10-2026 (update-162, with the Portal and rcl-mobile 3.43.0). Report: `UPDATE_162.md`. DIESEL SOURCES PER PERSON (asked: "user wise
+  konala konte source cha access deycha … jya user la jyacha access asel to tyach madhun issue kru shakel same transfer la pn … inward
+  la nko"). No SQL. `DIESEL_SOURCES` in the site's `web.props` (`{email: {'Diesel Issue': [...], 'Diesel Transfer': [...]}}`; a page
+  not there = every source; Admin / Super Admin always every source). `dsrcMay_(page, place)` with `DSRC_U_` (set in `api()`; the
+  requester at both approval places) in `validateDiesel_` / `validateTransfer_` (From only) and the update / delete of both; Inward
+  free. `publicUser_` → `user.dsrc`. The Portal: `sysPortalAdmin_` `users` (+ `dsrc`, `places`), `pages` + `sources` → `dsrcSet_`
+  (the script lock only – `withLock_` there dropped the pages saved before it); `server/portal.js` `verifyAdmin` passes `sources`.
+  Page: `mySources(page)`, `data-own` on `d_src` / `bd_src` / `bm_src` / `t_from`, the rows (`trRowHtml`, `bmRowHtml`), the Excel
+  checks, `aiOwnSource_`. Tests: unit `update-162`, rig `test/browser/dsrc162.js` (the Portal's screen → Mechanical, T2 as 18B).
+- 26-10-2026 (update-163, with the Portal and rcl-mobile 3.44.0). Report: `UPDATE_163.md`. FUEL – Diesel / Petrol / CNG / Electric (asked:
+  "prtrol cng he field banaw ani ha electric ha pn thew future madhe ya gadya pn yenar aahet"; HO has one fuel card each). SQL step
+  `sql/supabase_step1zg_fuel.sql` (`master.fuel`, empty = Diesel) – EVERY site. Machinery: `H.FUEL`, `fuelOf_`, `machineFuel_`
+  (`buildMaster_` `fuel`, `validateMaster_` – Electric: no standard average, CNG: KM/kg). Places: `DIESEL_PLACES` `[{name, meter,
+  fuel?}]` (fuel only when not Diesel), `placeFuel_`, `placeFuels_()` (to the page in getInit / getLookups), `savePlaces_` (a place
+  with entries keeps its fuel). Checks: `fuelMay_` in `validateDiesel_` (also "many at once": the rows are now checked with the
+  batch's source – before, with the first place, so a person's own sources (update-162) were checked wrong there), the transfer
+  only within one fuel, "Not enough CNG … kg". Views: `FUEL_VIEW_` (`apiRun_`, only Reports / Dashboard, never in a save;
+  `table_` → `fuelView_` filters Diesel Issue / Inward / Transfer by the place, Master / Log Book by the machinery; `getMaster_` memo
+  per view; `fuelViewOff_` for the pending Log Book). Lists: `fuelFilter_` (`{fuel}`), `fuelTotals_` (`byFuel` only on a site with more
+  than one). Page: `S.placeFuels`, `placeFuel` / `machFuel` / `fuelText` / `fuelNodes` / `fuelHtml` / `fuelLabel`, `data-fuel-by` on the
+  place boxes (`fillLoc`, `fuelFollow`), `.fuel-select` (hidden with one fuel) on the dashboard (`k_fuel`), every diesel report
+  (not the Log Book Debit Statement) and rd / rm / ra; `fuelForms`; the daily report per fuel; Asset Master `m_fuel`, the grid's
+  Fuel (last column), import `fuel`. Portal: `server/portal.js` `placesOf` passes `fuel`; `Sites.gs` logs it. Tests: unit
+  `update-163`, rig `test/browser/fuel163.js` (T2 as HO with step 1zg, S1 as VTR without it).
+- 27-10-2026 (update-164, with the Portal and rcl-mobile 3.45.0). Report: `UPDATE_164.md`. FUEL CARDS – a site without diesel
+  stock (HO; asked: "ho madhe diesel stock hot nahi ek card dilelel aahet … card cha opening balance takel nantr apli system auto
+  amount debit dakhwel"; step 1 of 3 – the Maintenance Log Book and the service schedule later). SQL step
+  `sql/supabase_step1zh_fuel_cards.sql` (`diesel_issue.rate` / `amount`, table `card_payments`, `app_users.perm_fuel_cards`) – EVERY
+  site. The mode: settings `FUEL_MODE` (`MODE_KEY_`; `cardSite_()`), set by the Super Admin in the Portal (`savePlaces_(list, mode)`,
+  `sysPlacesSave_(…, mode)`, `placesInfo_` `mode` / `cardEntries`; back to stock refused once `cardEntries_()`). Cards: settings
+  `FUEL_CARDS` (`cards_`, `saveCard_` – last 4 digits only), payments `card_payments` (`saveCardPayment_` / `updateCardPayment_` /
+  `deleteCardPayment_`, receipt photos `uploadCardPhoto_` / `cardPayPhotos_`), `cardMoves_` / `cardBalances_` (opening + payments −
+  fills from the opening date; in `getStock_().cards` at a card site), `cardStatement_`, `cardDash_` (`getCardDash`). A fill:
+  `validateDiesel_` card branch (`cardPick_`: a card of the car or `Cash` in `source`; `amount` required, `rate` = amount ÷ qty when
+  empty; Electric refused); `noStockHere_` refuses Inward / Transfer / many / imports; `getDieselIssues_` `byPay` / `totalAmount`;
+  `sitePage_` (Fuel Cards only at a card site, no Inward / Transfer there), `dsrcMine_` none. Page: `cardMode()`, `applyFuelMode`,
+  `cardsChanged`, `cardFill` (Paid by), `cardAfterLine`, page `cards` (`cdOpen` / `cdRender`, payments `cp_*`, statement `cs_*`),
+  the dashboard `hdLoad` (`dash_card`), no Register photo (`phKindsOf`), the menu hides inward / transfer / rdaily / rp-stock /
+  rp-purchase; the assistant (`aiDraft` sends a fill to the form, `diesel_stock` gives the cards). Portal: `server/portal.js`
+  `placesSave` passes `mode`. Tests: unit `update-164`, rig `test/browser/cards164.js` (T2 as HO with steps 1zg + 1zh, S1 as VTR).
+- 27-10-2026 (update-164 fix). The page's sign-in line had the update-164 note in its middle, which commented out `startSync()`,
+  `setClosed`, `dbCheckDaily()` and `rtcAfterLogin()` – the live page stayed "Connecting…". Line restored; unit `update-164 fix`
+  (no `//` before those calls), rig `test/browser/sync164.js`. Lesson: never put a `//` note in the middle of a line of code – a
+  call count before / after (acorn) catches it.
+- 27-10-2026 (update-165, with rcl-mobile 3.46.0). Report: `UPDATE_165.md`. MAINTENANCE LOG BOOK of a site on fuel cards (HO; step 2
+  of 3 – the service schedule next). SQL step `sql/supabase_step1zi_maintenance.sql` (table `maintenance`, `app_users.perm_maintenance`)
+  – EVERY site. Page `Maintenance` (`MODULES`, `MODULE_BLANK_NONE_`, `sitePage_` – only at a card site; `cardSiteOnly_()` in every
+  action): `getMaint_` (rows, total, works / garages by use, `missing`), `saveMaint_` / `updateMaint_` / `deleteMaint_` (`maintVals_`,
+  `maintLines_` – lines JSON in `lines`, total in `amount`, `service` Yes, KM required for a service; `maintTwice_` – the same bill no.
+  of the same garage for the car asks first, `force`; ids `MT-000001`, `MNT_LAST_NO`), files `maintFilesOf_` (the Log Book's
+  attachment rules: kept or sent by this person in 6 h; flow-aware) uploaded by `maintFile` → `uploadAttachment_(u, x, 'Maintenance')`,
+  `getMaintFiles_` (15-minute links), the AI `maintRead_` (`aiAskPhoto_(b64, ask, mime, what)` – a PDF as `application/pdf`) and
+  `maintAnswer_`, the car's log book `maintLog_` (fills by card / Cash + bills by date, totals, Log Book KM, ₹ per KM, last service).
+  Page: `sec-mnt` (`mtOpen` / `mtLoad` / `mtSave` / `mtRead` – the AI fills empty boxes and the date while not chosen,
+  `S.mt.dateTyped`; `mlogRender` / `mlogShow`, print / Excel `rpPrint` / `rpExcel` key `mlog`); `atOpen` takes `up` / `max` / `noQr`.
+  Tests: unit `update-165`, rig `test/browser/mnt165.js` (T2 as HO with steps 1zg + 1zh + 1zi, S1 as VTR without 1zi).
+- 27-10-2026 (update-166, with rcl-mobile 3.47.0). Report: `UPDATE_166.md`. A FUEL CARD'S DETAILS – `issuer`, `holder`, `expiry`
+  (yyyy-MM; `cardExpiry_` reads 2029-08 / 08/2029 / 8/29 …), `custId` in `FUEL_CARDS` (`cards_`, `saveCard_`); `cardBalances_` gives
+  them and `expDays` (`cardExpDays_` – days to the end of the expiry month); `looksCardNo_` (Luhn, 13–19 digits) refuses a whole card
+  number in any box – the number stays only its last 4 digits. Page: `cd_issuer` / `cd_holder` / `cd_exp` (month) / `cd_cust`,
+  `cardExpNote` / `cardExpEnd` / `cardDetails`, the Expiry column, the tile's mark. No SQL. Tests: unit `update-166`, rig
+  `test/browser/card166.js`.
+- Known limits: sync is one call every 2–30 s per open tab (see above); ~4.5 MB answer limit (guarded with a message); whole main tables still read per request.
+
+## Open after this
+- Intermediate reading between two items on one day (e.g. Bucket 100–105, Breaker 105–108) is not recorded – only the hours per item. Ask if he needs it.
+- Log Book "Breakdown" status is still not linked to the Breakdown page. Party-wise work rules page, full-debit party ledger note: later.
+- 02-10-2026 (performance pass 2, see PERFORMANCE_PASS2.md): menu on a computer is no longer fixed / sticky (normal page flow,
+  CSS block "menu on a computer: part of the page" at the end of the stylesheet). Speed: Log Book entry refresh (`lgRefreshAll`,
+  ≤ 1 per 15 s, 3 at a time) and calculation (`lgCalcSoon` / `lgCalcFlush`), Dashboard refresh (≤ 1 per 5 s, only on screen,
+  `S.dashStale`), `setMaster` skips an unchanged list (`S.masterSig`), "Show all" 50 rows per frame, Excel tool loads in the
+  background (`rclLoadXlsx`). Bug fixed: `openTabData` – Tank Check / report pages did not load after the first data change.
+  Freeze recorder (server/page.js): page, last action, waited call, memory; `rclDiag()` in the console.
+- 27-10-2026 (update-167, with rcl-mobile 3.48.0). Report: `UPDATE_167.md`. CLAUDE FOR EVERY AI OF THE APP – `ANTHROPIC_API_KEY`
+  in Vercel → server/gas.js `makeAi` asks Claude (`AI_BASE_C`, `x-api-key`, `anthropic-version`), else Gemini as before; Code.gs
+  Claude block after `aiInfo_`: `aiClaude_`, `aiModelsC_` (newest Sonnet, then Haiku; `AI_MODEL_C`), `aiToolsC_` / `aiSchemaC_`,
+  `aiToClaude_` / `aiFromClaude_` (the page's Gemini-shaped conversation unchanged), `aiReplyC_` (rules with `cache_control`),
+  `aiAskPhotoC_` (image / PDF document), `aiCheckC_`, `aiBusyMsg_`; `AI_NO_CREDIT_`, `aiKeyMsgC_`. FIX_RULES +1 (no credit / key),
+  two rules name Claude Console. No SQL. Tests: unit `update-167`; rig `test/claude-standin.js` + `test/browser/claude167.js` 14;
+  photo85 / photo139 / mnt165 / aido with Claude and with Gemini (main the same).
+- 27-10-2026 (update-168, with rcl-mobile 3.49.0). Report: `UPDATE_168.md`. A MAINTENANCE BILL AS THE GARAGE'S BILL – a line
+  `{ work, type, qty, rate, disc, amount }` (`MNT_TYPES_` Paid / Warranty / FOC / Service Plan; free = ₹ 0, worth Qty × Rate –
+  `maintWorth_`); an insurance claim = a line of type `Insurance` with a minus ₹ (`maintIns_`, `maintInsOf_`), so the Amount
+  column = what we paid; `maintAllLinesOf_` / `maintLinesOf_`; answers carry `billTotal`, `insurance`, `free`; `maintLog_` totals
+  too, "by work" only Paid; old-app guard in `updateMaint_`; `MNT_LINES_MAX_` 150; the AI asks short array lines, several invoices
+  as one bill, the insurer / customer part (`maintAnswer_`); Claude 50 s for a bill. Page: `MT_KINDS`, `mtLineRow`, `mtRowCalc`,
+  `mtTotal`, `mtInsPut`, `mtBillNote`, `mtLinesText`, list `.mt-wl` / `.mt-clamp`, log book footers. No SQL. Tests: unit
+  `update-168`; rig `test/browser/mnt168.js` 29 (Claude and Gemini), mnt165 32.
+- 27-10-2026 (update-169). Report: `UPDATE_169.md`. His bill 04590 (vehicle detail "Insurance Co : Others") was read as an
+  insurance claim with no amount – the save asked for the insurance's ₹. `maintAnswer_`: an insurance part only with what the
+  insurance paid (> 0, ≤ the bill); the question says the vehicle's "Insurance Co" alone is not a claim. No SQL; the app unchanged.
+- 27-10-2026 (update-170, with rcl-mobile 3.50.0). Report: `UPDATE_170.md`. MAINTENANCE AT EVERY SITE, the log book in his
+  format (Roller No-03): `sitePage_` lists Maintenance at every site; `cardSiteOnly_` out of the Maintenance actions; a line's `uom`;
+  the reading KM / Hrs (`m.id + ' Reading'`, the service message); the AI's 7-value lines; `maintLog_` – fills only on fuel cards
+  (`card`), `party`, `machine.meter`, `maintStoreLines_` (the Store's provision, empty). Page: the menu at every site, Machinery /
+  Party name / Current reading, the Uom column (`dl_muom`), `mlogRender` in his 12 columns (`MT_TAX` – the tax lines in GST Amount,
+  rowspan per bill), the fills apart. No SQL. Tests: unit `update-170`; rig `test/browser/mnt170.js` 16 (S1, RCLSTEPS=1), mnt165 32,
+  mnt168 29.
+- 27-10-2026 (update-171, with rcl-mobile 3.51.0). Report: `UPDATE_171.md`. EACH ITEM ITS GST, THE RATES IN THE HEADING, WHO PAID
+  IT: a line's `gst` (one %, CGST and SGST half each, `maintGstOf_` – each rounded), the kind "By Insurance" (`MNT_TYPES_`,
+  `MNT_CHARGED_`, `MNT_PAIDBY_` – shown RCL / Insurance), `maintLineTotal_` (the bill with GST), `maintIns_(…, byIns)` (the
+  insurance's ₹ from its lines), the old-app guard in `updateMaint_`, the AI's 8-value lines. Page: Paid by · GST % · GST ₹ · With
+  GST (`mtGst`, `mtRowShow`, the claim ticked by the lines), `mlogRender` – a CGST / SGST pair per rate in the heading, "GST 18%" /
+  GST Amount, Paid by · Insurance claim · Service on every line (the tax lines of before into their columns). No SQL. Tests: unit
+  `update-171`; rig mnt170 18 (S1, RCLSTEPS=1), mnt168 29, mnt165 32.
+- 27-10-2026 (update-172, with rcl-mobile 3.52.0). Report: `UPDATE_172.md`. THE MAINTENANCE BILL AS HIS PICTURE, NO GST ROW IN THE LOG
+  BOOK: page `mlogSpread` / server `maintSpread_` – a bill of before with CGST / SGST / GST / IGST lines of one rate: each tax on its items
+  (by its %, else in proportion, the paisa on the biggest), no tax row and no tax "work" in "by work"; a line's name without its kind.
+  The form (`#sec-mnt .mt-form`, scoped CSS): head with the service switch, cards, boxes with icons, the lines one compact row each
+  (table-layout fixed, the note out of the table's foot), the files as chips (× takes one out), the totals' box (`mt_sub`, `mt_gstl`,
+  `mt_gstt`, `mt_total`), the foot. A double-click opens a box big: the app's own bigBox (02-10-2026). No SQL. Tests: unit `update-172`;
+  rig mnt170 21 (S1, RCLSTEPS=1), mnt168 30, mnt165 32.
+- 28-10-2026 (update-173, with rcl-mobile 3.53.0). Report: `UPDATE_173.md`. THE OLD MAINTENANCE LOG BOOK IMPORTED AS IT IS (the Admin):
+  page panel `mti_panel` (Maintenance): Excel (`mliRead`), a PDF / photo read by the AI (`mliReadAi` → server `readMaintLog_`, 2 pages
+  a call, `again` → 1, the file kept – cache_control; `mliAiSheets` – each machinery's table a sheet), the format (`mliFormat` – a sheet a
+  Own machinery); the reader `mliSheet` (heading by its words, a bill = rows of one date and party, GST % from the GST Amount to ₹1, the
+  lines to look at – `warn`); the names (`mliNames` → `maintImportNames_`, the list ticked by him, `mliBills` sends the ticked); server
+  `importMaint_` (`checkMaintImport` = nothing saved): Own + on the site now, ≤ 3000 bills, entryOpen_ per bill (closed months stay
+  closed), maintLines_, a ₹0 untyped line FOC, already there = same machinery + date and same lines or total to ₹1 above ₹0 (the party
+  ignored), all or nothing per machinery, `sameList` ≤ 500. `aiAskPhoto_(…, opt)`: keep / tokens / text alone / fail words. The stand-in
+  `test/claude-standin.js`: `/__next`, `/__names`. No SQL. Tests: unit `update-173`; rig mnt173 15 (S1, RCLSTEPS=1, claude), mnt170 21,
+  mnt168 30, mnt165 32. His real files not seen yet.
+- 28-10-2026 (update-174, with rcl-mobile 3.53.0). Report: `UPDATE_174.md`. THE OLD LOG BOOK'S IMPORT FOR EVERYONE WITH MAINTENANCE EDIT
+  ("he admin la fkt nahi user la pn disu de"): `API_` importMaint – Maintenance Edit (no `admin`); checkMaintImport / readMaintLog /
+  maintImportNames – `withUser`, not saves, `maintEditOnly_(u)` inside; page `mti_panel` by `canEdit('Maintenance')`; an import sent
+  for verification (FLOW_SENT_RE) kept as `done.sent` and said in green. No SQL. Tests: unit `update-174`; rig mnt173 (part 5).
+- 28-10-2026 (update-175, with rcl-mobile 3.53.0). Report: `UPDATE_175.md`. THE MAINTENANCE LOG BOOK START TO END, ITS BILLS CHANGED AND
+  DELETED, EVERY OWN MACHINERY IMPORTED, FETCH OUTWARD: `maintLog_` – `f.all` (`maintLogSpan_`: its first fill / bill to today), no days
+  limit (100,000), `store: { on: MAINT_STORE_ON_, lines }`; page `ml_all`, `mtf_all`, `ml_out`, each bill's Change / Delete (`data-mlb`,
+  `.no-print mlog-act` – screen only; `mtEdit`, `mtDelete`, `mtBillById`); `maintVals_(x, keepNo)` – a change on the same machinery not
+  checked against its Active dates; `importMaint_` – Own only (`mliOwn` the same); the names' list hidden once all is imported. No SQL.
+  Tests: unit `update-175`; rig mnt173 part 6, mnt170 / mnt168 read the log book as printed.
+- 28-10-2026 (update-176). Report: `UPDATE_176.md`. THE OLD LOG BOOK'S PDF READ A PAGE AT A TIME – ONLY THAT PAGE TO THE AI (his picture:
+  "the AI service was too slow to answer" at page 1): `app/vendor/pdf-lib-1.17.1.min.js` (pdf-lib, MIT – also served at /vendor/);
+  server `syncfetch.js` helper job `pdf` (`pdfPartSync` → `__pdf.part` in `gas.js`); `readMaintLog_` takes the page out of the PDF and
+  sends it alone (not kept – `keep: !part`), the file's own page count, `fast` (the quicker model first – `aiAskPhotoC_ opt.fast`; an app
+  of before: its second try n 1 without "fast"); page `mliReadAi` takes each page out itself (`mliPdfLib`, `mliB64`) and asks again
+  "fast" after a failure. No SQL. Tests: unit `update-176`; rig mnt173 part 3 (a real PDF of 3 pages), stand-in `read` "this page (…)".
+- 28-10-2026 (update-177). Report: `UPDATE_177.md`. THE OLD LOG BOOK – NO LIMIT OF THE FILE'S SIZE (asked: "pdf size cha issue yeu naye ani
+  eka pdf madhe multiple pages pn ashu shaktat"): page `mliReadAi` – no 3 MB check of the whole file; a PDF is taken apart first (a page
+  alone up to 3 MB – `BIG`), only a PDF that cannot be taken apart is sent whole (`whole()` – 3 MB or less); a photo over 3 MB made
+  smaller on the page (`mliPhoto`: JPEG, long side 2,600 px, then smaller). Server unchanged (3 MB a call). No SQL. Tests: unit
+  `update-177`; rig mnt173 part 7 (a PDF of 4.4 MB, a photo of 21.7 MB). The phone app 3.53.0 still sends the whole file (3 MB) – its
+  next version takes the pages apart too.
+- 28-10-2026 (update-179, with rcl-mobile 3.54.0). Report: `UPDATE_179.md`. THE PENDING LOG BOOK PRINTED FOR A PERIOD (asked: "pending log
+  book je aahet te mala period wise print krta yawet dashboard warun pn ani log book netry madhun jith diste pending tithun pn"): page
+  `pendPrint(o)` (one date / a month / a period; Ownership, Owner / Vendor, one machinery; `askPrintName` → `printDoc` 'rep-pend'),
+  `lb_pprint` on the Dashboard's list, `data-lpprint` in the entry page's list (`lg_pend`); server `logPending_(f)` takes `{ from, to }`
+  (none: as before) and gives `to`. No SQL. Tests: unit `update-179`; rig `pendprint179.js` (its own test machinery, taken out).
+- 28-10-2026 (update-180, with rcl-mobile 3.56.0 – not released). Report: `UPDATE_180.md`. THE OLD LOG BOOK'S HEADINGS IN ANY ORDER; EACH
+  LINE OF THE MAINTENANCE LOG BOOK ITS OWN EDIT / DELETE (asked: "kahi pdf madhe heading maghe pudhe aahet tr … auto identify krun … ek ek
+  entry mala edit or delet krta yawi"; his answer: each line on its own): server `maintLogField_` / `maintLogRows_` (a heading by its
+  words → the 12 columns; CGST + SGST added; no Amount column: with GST less GST), `readMaintLog_` asks the AI for `head` / `fields` /
+  `rows` as printed, `x.head` = the page before's headings (`MLR_NAMES_` for a heading only the AI knew); page `mliField` / `mliRows` the
+  same word for word (`mliSheet`: any order), `mliReadAi` sends `head`; `maintLineSave_(id, x, del)` – `updateMaintLine` /
+  `deleteMaintLine` (`{ i, date, was, line }`, the rest of the bill as it is, `maintVals_` keepNo, files kept; the only line refused);
+  page `mlogRender` `_i` / `data-mll`, `mlLineEdit` / `mlLineDelete`. No SQL. Tests: unit `update-180`; rig `mline180.js`, again mnt173,
+  mnt170, mnt168, mnt165, pendprint179.
+- 28-10-2026 (update-181, with the Store's import of the old inward register – rcl-store `grn-import-register` – and rcl-mobile 3.57.0,
+  not released). Report: `UPDATE_181.md`. A MATERIAL SUPPLIER IN THE VENDOR MASTER: `vendors.vendor_type` ('Vendor Type', `'opt'` – an
+  empty one not sent while the columns are not known; the column comes with the Store's step 3); `vendorOut_` / `validateVendor_` `type`;
+  `saveVendor_` only when sent and `vendorTypeOn_()`; `vendorMatOnly_()` – `vendorNames_()` without them; page `matOnly` / `billVendors`
+  (owner, BOQ, payments, ledger lists), Vendor Master tag, `vf_ty`, form `v_type`. No SQL of Mechanical. Tests: unit `update-181`; rig
+  `vtype181.js`.
+- 28-10-2026 (update-182, with rcl-mobile 3.58.0 – not released). Report: `UPDATE_182.md`. THE MAINTENANCE PAGE TIDIED; THE ADMIN
+  DELETES A MACHINERY'S LOG BOOK: the "Maintenance bills" list out (`mtLoad` reads only the boxes' names); the bill's head slim; the old
+  log book's import a small button of the log book's card (`#ml_imp` → `#mti_panel`); the log book's Action column at the end (Edit ·
+  Delete, 📎; screen only, sticky); `deleteMaintLog` (`admin: true`) → `deleteMaintLog_` (the count shown checked, closed months refused,
+  only maintenance bills) + `logAfter_` 'maintLogDelete' (a line a bill); page `#ml_delall` (the machinery number typed). No SQL. Tests:
+  unit `update-182`; rig `mnt182.js`; mnt165 / 168 / 170 / 173 and mline180 moved to the new page.
+- 28-10-2026 (update-183, with rcl-mobile 3.59.0). Report: `UPDATE_183.md`. THE OLD LOG BOOK AS IT IS: a line's GST ₹ kept as read
+  (`gstAmt`; `maintHasGa_` / `maintGstOf_` – no GST % made; `maintSpread_` leaves it out; `updateMaint_` / `maintLineSave_` keep it);
+  `mlogRender` `asIs` ("GST Amount"); `readMaintLog_` `max` / `after` – a page in parts, page `mliReadAi` asks again by itself, stops with
+  "Continue reading" (`mliResume`); the names by the quicker model; `maintStatus` (Maintenance or Reports) → "Log book status"; "Hide log
+  book". No SQL. Tests: unit `update-183`; rig `mnt183.js`; mnt170 / 173 / 182 and mline180 moved to "as it is".
+- 28-10-2026 (update-184, with rcl-mobile 3.59.0). Report: `UPDATE_184.md`. THE VENDOR'S COMPANY NAME, OWNER NAME AND DOCUMENTS; THE
+  PAPERS ONLY FOR OWN: SQL step 1zj (`vendors.owner_name`, `vendors.documents`, both `'opt'`); `VENDOR_DOC_KINDS_`, `vendorColOn_`,
+  `vendorDocsOf_` (via `maintFilesOf_`), `saveVendor_` only when sent and the columns are there; `vendorDoc` (upload, Vendor Master Edit) /
+  `getVendorDocs` (links); page `v_owner`, `#v_docs_box`, the list's Documents (`vDocsView`: Open / Print / Download); `#m_docs_box` only
+  for Own; `getCompliance_` / `importCompliance_` Own only (`skipped`). Tests: unit `update-184`; rig `mnt184.js`, vtype181, att153.
+- 28-10-2026 (update-185, with rcl-store `store-ask`, rcl-engineering `eng-ask` and rcl-mobile 3.59.0). Report: `UPDATE_185.md`. THE
+  ASSISTANT READS THE REST OF THE ERP: `AI_TOOLS_` +29; 15 of Mechanical run by the server – `aiLookup` → `aiLookup_` / `AI_LOOK_` (each
+  through `apiAccess_` – the access check of `api()` now in one function; `aiMachine_` / `aiVendor_` – his own words; `aiFit_`; the
+  vendors without Aadhaar / PAN / account numbers); 9 `store_*` and 5 `eng_*` asked of the module itself (page `aiModLook` → its
+  `aiLook`, its sign-in of this site, its page opened unseen when it has none). No SQL. Tests: unit `update-185`; rig `ai185.js`,
+  `ai185gw.js` (gateway), claude167 / ai with 40 look-ups.
+- 28-10-2026 (update-186, with rcl-mobile 3.61.0). Report: `UPDATE_186.md`. THE ASSISTANT LIVE: its answer word by word – `api/ai.js`
+  (lines of JSON) asks the app's own `aiPrepare` (= `getAiReply`'s checks, limits and request: `aiReq_`) with his sign-in, then Claude
+  with `"stream": true` (`server/aistream.js`); the page's `aiStep` (bridge `google.script.aiStream`) shows the words as they come and,
+  in a talk, says each finished sentence at once (`AI_SQ`, `aiSayFeed`, `aiUtter`); the 🎙 while it speaks interrupts (`aiInterrupt`);
+  `getAiReply` stays the way back (older page / app, Gemini → `AI_NO_STREAM`, a lost line, a stream cut half-way). ITS OWN MEMORY and
+  HIS CHATS (step 1zk: `ai_memory`, `ai_chats` – only the person's, in the site's own database, not in the Sheet): look-ups `remember` /
+  `forget` (run in `aiLookup_`), rule 10 MEMORY and rule 11 THIS SITE (`aiKnows_` – the first / last dates of the registers, the
+  machinery) in the kept part of the rules; actions `aiMemory`, `aiMemoryDel`, `aiChats`, `aiChatGet`, `aiChatSave`, `aiModelFirst`;
+  the page's History / Memory (`aiHistory`, `aiChatOpen`, `aiMemoryShow`, `aiKeep` after every answer). SQL step 1zk. Tests: unit
+  `update-186`; rig `ai186.js` (claude mode), claude167 / ai (Gemini) with 42 look-ups.
+- 29-10-2026 (update-187, urgent, with rcl-mobile 3.62.1). Report: `UPDATE_187.md`. BACK-DATED ENTRIES ONLY BY THE ADMIN AND THE SUPER
+  ADMIN: `userDateRule_` (first in `booksOpen_` – every entry, its change and deletion): a user who is not the site's Admin – only today,
+  a Log Book entry also yesterday; the site's own rule (`backDays`) only stricter; a verification request from the day it was sent
+  (`REQ_DAY_` while it is saved at the last approval or sent again; one sent before 29-10-2026 not held); the Super Admin's approval
+  of a change is his. The page: the same check (`liveMsg`), a user's date boxes `min` / `max` (`userDateBox`), the help, the Rules
+  label. `USER_DATE_RULE_ON_` (off in the harness for the tests of before). No SQL. Tests: unit `update-187`; rig `today187.js`.
+- 29-10-2026 (update-188, with rcl-mobile 3.62.1, rcl-store and rcl-engineering). Report: `UPDATE_188.md`. THE DATE RULE PUT RIGHT: Open &
+  correct measured from the day the entry was sent (`flowDry_(…, at)`, `reqDay_`); his answers – a user's Maintenance bill date and card
+  payment date only today on the page too (`USER_DATE_IDS`), the bill reader keeps them today; the Daily machinery status date free to
+  look back. Billed / approved old entries, the Debit Statement's rates and the Night shift after midnight stay as update-187 (his answers).
+  No SQL. Tests: unit `update-188`; rig `today187.js`, `fix130.js`.
+- 29-10-2026 (update-189, with the Portal and rcl-mobile 3.64.0). Report: `UPDATE_189.md`. A PAGE'S 4th ACCESS "ADMIN" (his answers:
+  every page with a date; only that page's entries of an earlier day): `DATE_PAGES_`, kept as "Admin" in the page's cell, read as Edit
+  with the page in `pageAdmin` (`ACTOR_PAGE_ADMIN_` → `userDateRule_`); the Portal and Users & Access offer it (`dateAdmin`). No SQL.
+  Tests: unit `update-189`; rig `page189.js`.
+- 29-10-2026 (update-192, the web only – the app later, his word). Report: `UPDATE_192.md`. THE OLD LOG BOOK EXACTLY AS IT IS ("amount
+  madhe jara pn changes hoyla nko … fkt spelling … fkt iteam che"): an Excel's number as the sheet shows it (`mliShown`); numbers as
+  written ("1,250/-", "Rs. 500", "(150)" – `mliNum`, the rows' `n`; not a number: the sheet stops – `nums`); nothing dropped unseen (a
+  total row only by its words alone – `MLI_TOT`, "TOTAL QUARTZ" kept; a row with ₹ and no Particulars kept as "-" unless it is the bill's
+  total; a date / party row gives them to the lines under it); a row's own numbers only (`maintLogRows_` = `mliRows`: no Amount – With GST
+  less GST; no GST ₹ – the difference when 0–28 %; no GST made from a %); the bill no. (`billNo`, the 13th column; two bills of a day by
+  their nos.; `importMaint_` `twice`); the AI's names only the items (`maintImportNames_`, `mliNamesOf`, `mliBills`). LOG BOOK STATUS:
+  the Admin ticks log books (`#ml_stdel`, `S.mlsel`) → each deleted by `deleteMaintLog` (all, count), DELETE typed. No SQL. Tests: unit
+  `update-192`; rig `mnt192.js`, mnt183 / 173 / mline180 / 182.
+- 29-10-2026 (update-193, with the Portal's "papers' company"). Report: `UPDATE_193.md`. THE PAPERS' COMPANY (his requirement printed with
+  no logo, no company name, no address): the Store's papers read a site's company from the first site's `rcl_sites` / `rcl_companies`,
+  which only "New site" wrote (the name alone; S1 none). The Portal now tells them on every Companies / Sites save: `portalAdmin` act
+  `papers` → `papersSet` (a company added or changed – name, address, GSTIN, PAN, logo; with `link`, that site's `company_id`; nothing
+  else, never a delete); the ticket's part `papersOf` (`server/portal.js`). No SQL. Tests: unit `update-193`; rig `test/papers193api.js`.
+- 29-10-2026 (update-191, with rcl-store #24, rcl-engineering #8, rcl-portal #28, rcl-mobile 3.67.0). Report: `UPDATE_191.md`. 🎙 SPEAK
+  INTO A BOX: the block "SPEAK INTO A BOX" before `</body>` of `app/App.html` (the same code as the Store's / Engineering's `voice.js`, the
+  Portal's block): a 🎙 in the box in use (text / number / phone / note; not a password, a date, shown-only, `data-novoice` – `#ai_form`);
+  the browser's speech (the top window's, as the assistant's) in मराठी / हिंदी / English (chips; kept; first the help language –
+  `window.rclVoiceLang`); the words go in as typed (input + change); a number box the number (`RclVoice.toNumber`: "साडे तीन हजार" → 3500),
+  a phone box the digits. No SQL, no server change. Tests: unit `update-191`; `test/voice.browser.test.js`; rig set = main.
+- 29-10-2026 (update-190, urgent). Report: `UPDATE_190.md`. VEHICLE COMPLIANCE DREW NO TABLE (since update-164): the card payments had
+  its names `S.cp` / `cpLoad` – now `S.cpay` / `cpayLoad`; the Dashboard's diesel-stock dates had the Log Book's `lg_note` – now
+  `lgd_note`. A unit test against names made twice. No SQL. Tests: unit `update-190`; rig `comp190.js` (before: the same fault).
+- 28-10-2026 (update-178, with the Store's step 2 – rcl-store `store-work` – and rcl-mobile 3.55.0). Report: `UPDATE_178.md`. THE STORE'S
+  OUTWARD IN THE MAINTENANCE LOG BOOK: `maintStoreLines_(m, from, to)` reads the site's `store_issue` / `store_issue_lines` (the same
+  database; paged) – each issue a bill of the Party "RCL Store" (Outward <no>, the Store's average rate, the reading; on debit: "Debit",
+  ₹ 0); `.on` false where the Store's step 2 is not run (PGRST205 …) or without the database key; `maintLog_` `store: { on, lines }`
+  (MAINT_STORE_ON_ gone); page `ml_out` says how many. No SQL of Mechanical. Tests: unit `update-178`; rig mnt173 part 6, mnt170.
+- 30-10-2026 (update-194, with the new repo `rcl-purchase`). Report: `UPDATE_194.md`. `vercel.json`: `/purchase` → `/purchase/`,
+  `/purchase/` and `/purchase/:path*` → `https://rcl-purchase.vercel.app` (the Purchase Department – its own Vercel project and its
+  own Supabase `rcl-purchase` for every site). Nothing else changes. Tests: unit `update-194` (99 and 127 pick their rules by address);
+  rig `rcl-purchase/test/inmech.test.js` 7/7.
+- 30-10-2026 (update-195, with rcl-portal and rcl-purchase `purchase-backup`). Report: `UPDATE_195.md`. PURCHASE'S OWN BACKUP SHEETS:
+  `backup.vm.js` target `purchase` (BK_PUR_SHEETS / BK_PUR_STATE / SB_PUR_INFO, lock backup_purchase – at the first site, like the
+  Portal's; rows only through rcl-purchase's backup export, "Purchase – …" tabs); `bkexport.js` PURCHASE_URL or vercel.json /purchase;
+  portal.js / system.js / runtime.js / api/backup.js (nightly: + Purchase). Portal → Sites → Purchase backup. No SQL. Tests: unit
+  `update-195`; rig `test/backup195.js` 32/32, `test/backup157.js` 55/55.
+- 02-11-2026 (update-196, with rcl-portal step 7, rcl-store, rcl-purchase, rcl-engineering, rcl-mobile 3.73.0 – branch `beta-setup`).
+  Report: `UPDATE_196.md`; the owner's set-up: `BETA_SETUP.md`. THE BETA CHANNEL: `syncfetch.js` `isBeta()` (Preview of branch `beta`
+  + `RCL_CHANNEL = beta`) works on the live data; its purple band and the live label address (`page.js` `rclLive`, `App.html` qrLink);
+  its notifications go out, no backup / Drive copy; `vercel.json` beta host → the modules' beta copies; `bkexport.js` takes only the
+  live rule. Testers, beta links, Versions / New beta version / Give to everybody: the Portal. No SQL here. Tests: unit `the BETA
+  copy`; rig rcl-portal `test/beta.rig.test.js`, `test/beta.e2e.rig.test.js`.
+- 02-11-2026 (update-197, with rcl-mobile 3.72.1). Report: `UPDATE_197.md`. ASSET MASTER EDIT: the "Nothing changed." check compares
+  every box of the form (Tank Capacity, Engine / Chassis Number, Engine Make and the papers were left out – a change of only them was
+  never sent). Page only; no SQL. Tests: unit `update-197`; the rig in Chromium.
+- 02-11-2026 (update-198). Report: `UPDATE_198.md`. THE MACHINERY BOXES ON A COMPUTER: the app's own list (`pkTake` – `PK_ALL`:
+  dl_mach_on, dl_machines) instead of the browser's – narrows at once, ↓ / ↑ / Enter / Esc, opens on a click (not after a save);
+  other boxes keep the browser's list on a computer; a phone as before. Page only; no SQL. Tests: unit `update-198`; the rig in Chromium.
+- 02-11-2026 (update-199). Report: `UPDATE_199.md`. THE MONTH-END TANK CHECK DECIDES THE DIESEL DEBIT (bills ending on / after
+  31-10-2026, `TANK_RULE_FROM_`): opening (the check of the day before) + company diesel − standard = system; above the tank debited;
+  the check of the last day – short debited, more nothing; no check → not verified; final bill all. `tankMonthEnd_` / `tankMonthEnd`,
+  `logPrintExtra_` "checks", `billMachineCalc_` `tc`, `data.tankRule`, `saveBillTankCheck`, `tankLock_`, `BL_FNS_`; every tank check
+  needs the Tank Capacity; the Log Book sheet's daily opening / closing; the page's missing `leftOn` (final bill) made. No SQL.
+  Tests: unit `update-199`; the rig in Chromium; rcl-mobile 3.72.2 (fixture made by the web in the page).
+- 02-11-2026 (update-200). Report: `UPDATE_200.md`. AFTER A TANK CHECK THE LOG BOOK'S OPENING IS THE DIESEL FOUND – in the form of a new
+  entry (`getLogRowPrefill_` `openingDiesel` / `openingCheck`, "tank check dd-mm" under it) and Edit Log Book's grid (`getLogEditData_`
+  `checks`), as `recalcStockOnly_` already saved it (`tankResetFor_`). No SQL. Tests: unit `update-200`; the rig in Chromium.
+- 02-11-2026 (update-201). Report: `UPDATE_201.md`. VOICE TYPING WRITES THE SITE'S OWN WORDS – the 🎙 of a text box takes Google's 5
+  guesses and puts them right with the site's names (`getVoiceWords`: Asset Master, Vendor Master, the Log Book's places and works,
+  the Super Admin's words – Settings, `saveVoiceWords`); a spoken word corrected by hand is learned when it sounds like what was heard
+  (`saveVoiceFix`). Kept in `app_settings` (`VOICE_WORDS`, `VOICE_FIX`). No SQL. Tests: unit `update-201`; the rig in Chromium;
+  rcl-mobile 3.74.0 (`sitewords.dart`, fixture made by the web's own engine).
+- 02-11-2026 (update-202). Report: `UPDATE_202.md`. BILLS IN WHOLE RUPEES – a bill built from now on (`data.round`): every line, the
+  diesel debit, C, GST and TDS rounded (half up – `r0` / `r0_`), the totals add up; the papers, the list and the bill's Log Book sheet in
+  rupees. The Abstract: "Checked By – Billing Dept" removed, a HEAD OFFICE row (Checked By, then Verified By – HO Accounts). A bill made
+  before keeps its figures and papers. No SQL. Tests: unit `update-202`; the rig in Chromium; rcl-mobile 3.75.0 (`web_round.json`).
+- 02-11-2026 (update-203). Report: `UPDATE_203.md`. A TANK CHECK EVERY N DAYS BEFORE DIESEL – the Super Admin's rule per site in the
+  Portal (Sites → Day & tank check: Own / Rental / Hired and machinery-wise; `TANK_EVERY`); due from the last check; typed in Diesel
+  Issue (one and Multiple entries), the fill not saved without it, kept as the check of the day before (`tankBeforeDiesel_`); not for
+  Inactive, Debit Basis, no Tank Capacity. THE ERP'S DAY STARTS AT 06:00 (`SITE_RULES.dayStart`, `today_` / `reqDay_`), set per site
+  in the same Portal panel. No SQL. Tests: unit `update-203`; rcl-portal unit; the rig in Chromium; rcl-mobile 3.76.0.
+- 03-11-2026 (update-204). Report: `UPDATE_204.md`. THE TAX INVOICE OF THE NET WORK DONE AMOUNT – a bill made from now on (`data.txD`):
+  each vehicle after its diesel and its share of the other deduction (`txShares`), no "Less" line, the invoice adds up to D; a bill
+  before keeps its invoice. RCL DRIVE – a deleted bill is not in Saved Bills but in the Deleted Bills tab, month by month (`sbDeleted`).
+  No SQL. Tests: unit `update-204`; the rig in Chromium; rcl-mobile 3.77.0 (`web_round.json` made again).
+- 03-11-2026 (update-205). Report: `UPDATE_205.md`. VEHICLE COMPLIANCE – 📎 DOCUMENTS of each machinery: the RC Book and the Tax Invoice
+  (the invoice of buying it – each one added a line of its own, the earlier stay) and every renewal of each paper with ITS files
+  (`cmpFiles`, `getCmpFiles`, `cmpDoc`; `renewDoc` with files); files only added, never taken out; Edit adds, View sees; only Own.
+  SQL step 1zl (`compliance_history.attachments` – one empty column, every site; approved 03-11-2026). Tests: unit `update-205`; the rig
+  in Chromium; rcl-mobile 3.78.0.
+- 03-11-2026 (update-206). Report: `UPDATE_206.md`. THE LOG BOOK PRINT SHOWS THE READING GIVEN AT EVERY DIESEL FILL – KM, Hrs or both,
+  whatever the fill has (not only the unit's), each fill of the day (`logPrintExtra_` `fills`), a fill on a day without an entry (the
+  note); Format B and E with the refilling reading; every format shows the diesel given – F, G, I get "Diesel qty" and "Reading at
+  diesel" (and H its reading) when the machinery had diesel in the dates. No SQL. Tests: unit `update-206`; the rig in Chromium
+  (the page's print on rcl-mobile's fixture); rcl-mobile 3.80.0.
+- 03-11-2026 (update-207). Report: `UPDATE_207.md`. THE LOG BOOK PRINT – A DAY WITH DIESEL AND NO LOG BOOK ENTRY IS A ROW OF ITS OWN, in
+  its date's place, in every format: its diesel and the reading at it, no work ("NO LOG BOOK ENTRY – DIESEL ISSUED"); only printed – the
+  days, hours, trips and amounts count the entries only. No SQL. Tests: unit `update-207`; the rig in Chromium; rcl-mobile 3.82.0.
+- 03-11-2026 (update-208). Report: `UPDATE_208.md`. HEAD OFFICE'S MECHANICAL AT ITS OWN ADDRESS `/ho/` (the same Vercel project): only the
+  site HO there (no Change site); the main address never opens HO; links and Portal tickets go to their address by themselves; the
+  sign-in of `/ho/` kept apart in the browser (`KK`, the bridge's `hoKey`). With the Portal's `api/go.js`. No SQL. Tests: unit `update-208`;
+  the rig in Chromium (Portal apart and one address).
+- 03-11-2026 (update-209). Report: `UPDATE_209.md`. TWO MOTIONS (the preview he OK'd): PUSH BACK MENU on a phone / tablet (≤ 760 px) – the
+  page shrinks back and moves right, the menu behind it (a computer as before); the MESSAGE AS A GOOEY DROP at the top (`toast()`, `gooRun`,
+  the SVG filter `#rcl_goo`) – colours, times and text as before. No SQL. Tests: unit `update-209`; the rig in Chromium. With rcl-mobile 3.83.0.
+- 04-11-2026 (update-210). Report: `UPDATE_210.md`. THE APP'S OWN PAGE `<main address>/app` (`app/download.html` → `public/app.html`): the
+  latest stable version of the phone app to download (GitHub Release of rcl-mobile), the 3 steps in 3 languages, then sign in – what the
+  app's ≡ → Share app sends (rcl-mobile 3.84.0). No SQL. Tests: unit `update-210`; the rig in Chromium.
+- 04-11-2026 (update-211). Report: `UPDATE_211.md`. THE STOCK SHOWN LESS WHAT WAITS (verification, stock short) everywhere it is shown;
+  what waits held back from new issues AND transfers, oldest first, a change never made worse; "STOCK SHORT" – an issue / transfer more than
+  the stock kept in Approvals and saved by itself when the stock came (heartbeat, SHORT_DUE); at the last approval Short, not Returned; the
+  phone's entries made with no network measured from the server's signed stamp (3 days). No SQL. With rcl-mobile 3.85.0. Tests: unit
+  `update-211`; the rig in Chromium; flow114api, places117api.
+- 08-11-2026 (update-212). Report: `UPDATE_212.md`. HO'S CARS AS A GALLERY (a site on fuel cards): each car's photo, make, status, KM now
+  on the Dashboard; search; Gallery / Table (the table as before); a car's details (getCarDetail – fills, Log Book, maintenance as the person
+  may see them); a photo set / changed / removed by the Admin or the Super Admin only (carPhotoSet / carPhotoRemove; the Portal's Sites →
+  Vehicle photos – sysCarPhotos_ / sysCarPhoto_, its files bound to the signed ticket by SHA-256); kept in the private store car/<2>/<sha>.jpg,
+  the map in app_settings CAR_PHOTOS; never a file deleted; a renamed number keeps its photo in the same save (kvInSave_); links renewed
+  by the page (getCarPhotoLinks). No SQL. With rcl-portal (Vehicle photos) and rcl-mobile 3.86.0. Tests: unit `update-212`;
+  test/cars212api.js; the rig in Chromium (web, phone width, Portal); places117api, portal94api; the Portal's api.test.js.
+- 08-11-2026 (update-213, step A of "the HO features – HO and every site"). Report: `UPDATE_213.md`. VEHICLE ALERTS at every site
+  (vehAlerts_ / getVehAlerts, each part by the person's pages): papers expired / due within 30 days (Vehicle Compliance), the service
+  (Asset Master → Service every KM / Hrs / months – app_settings SVC_RULES written with the Asset Master save by kvInSave_, following a
+  renamed number, dropped with a deleted machinery; from the last maintenance bill marked Service), more diesel (Actual vs Standard
+  Average: More / Bad), a fuel card below its "Alert below ₹" (lowAt, with the card). Shown on the Dashboard (⚠ Vehicle alerts) and on
+  HO's cars; the morning message once a day after 08:00 to the site's Admins and the Super Admin (vehAlertDaily_ in the heartbeat,
+  crNotify_). No SQL. With rcl-mobile 3.88.0. Tests: unit `update-213`; the rig in Chromium (`hod/web213.js`, 15 / 15).

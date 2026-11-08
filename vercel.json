@@ -1,0 +1,348 @@
+{
+  "buildCommand": "node build.js",
+  "outputDirectory": "public",
+  "framework": null,
+  "regions": [
+    "bom1"
+  ],
+  "functions": {
+    "api/rpc.js": {
+      "maxDuration": 60,
+      "includeFiles": "app/**"
+    },
+    "api/ai.js": {
+      "maxDuration": 60,
+      "includeFiles": "app/**"
+    },
+    "api/backup.js": {
+      "maxDuration": 60,
+      "includeFiles": "app/**"
+    },
+    "api/drive.js": {
+      "maxDuration": 60,
+      "includeFiles": "app/**"
+    }
+  },
+  "redirects": [
+    {
+      "source": "/store",
+      "destination": "/store/",
+      "permanent": false
+    },
+    {
+      "source": "/portal",
+      "destination": "/portal/",
+      "permanent": false
+    },
+    {
+      "source": "/engineering",
+      "destination": "/engineering/",
+      "permanent": false
+    },
+    {
+      "source": "/purchase",
+      "destination": "/purchase/",
+      "permanent": false
+    },
+    {
+      "source": "/ho",
+      "destination": "/ho/",
+      "permanent": false
+    },
+    {
+      "source": "/app/",
+      "destination": "/app",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/store/",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-staging-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-store-git-staging-pk12356843.vercel.app/index.html"
+    },
+    {
+      "source": "/portal/",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-staging-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-portal-git-staging-pk12356843.vercel.app/index.html"
+    },
+    {
+      "source": "/store/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-staging-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-store-git-staging-pk12356843.vercel.app/:path*"
+    },
+    {
+      "source": "/portal/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-staging-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-portal-git-staging-pk12356843.vercel.app/:path*"
+    },
+    {
+      "source": "/store/",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-beta-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-store-git-beta-pk12356843.vercel.app/index.html"
+    },
+    {
+      "source": "/store/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-beta-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-store-git-beta-pk12356843.vercel.app/:path*"
+    },
+    {
+      "source": "/purchase/",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-beta-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-purchase-git-beta-pk12356843.vercel.app/index.html"
+    },
+    {
+      "source": "/purchase/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-beta-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-purchase-git-beta-pk12356843.vercel.app/:path*"
+    },
+    {
+      "source": "/engineering/",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-beta-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-engineering-git-beta-pk12356843.vercel.app/index.html"
+    },
+    {
+      "source": "/engineering/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "rclerp-git-beta-pk12356843.vercel.app"
+        }
+      ],
+      "destination": "https://rcl-engineering-git-beta-pk12356843.vercel.app/:path*"
+    },
+    {
+      "source": "/scan",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/ho/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/app",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/store/",
+      "destination": "https://rcl-store.vercel.app/index.html"
+    },
+    {
+      "source": "/portal/",
+      "destination": "https://rcl-portal-flame.vercel.app/index.html"
+    },
+    {
+      "source": "/store/:path*",
+      "destination": "https://rcl-store.vercel.app/:path*"
+    },
+    {
+      "source": "/portal/:path*",
+      "destination": "https://rcl-portal-flame.vercel.app/:path*"
+    },
+    {
+      "source": "/engineering/",
+      "destination": "https://rcl-engineering.vercel.app/index.html"
+    },
+    {
+      "source": "/engineering/:path*",
+      "destination": "https://rcl-engineering.vercel.app/:path*"
+    },
+    {
+      "source": "/purchase/",
+      "destination": "https://rcl-purchase.vercel.app/index.html"
+    },
+    {
+      "source": "/purchase/:path*",
+      "destination": "https://rcl-purchase.vercel.app/:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(self), microphone=(self), geolocation=(self)"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+        },
+        {
+          "key": "Content-Security-Policy-Report-Only",
+          "value": "script-src 'self' 'unsafe-inline'; worker-src 'self'"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/vendor/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/i18n/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/menu.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    },
+    {
+      "source": "/scan",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/ho/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/app",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/backup?full=1",
+      "schedule": "30 20 * * *"
+    }
+  ]
+}

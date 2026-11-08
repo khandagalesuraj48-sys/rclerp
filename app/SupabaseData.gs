@@ -1,0 +1,331 @@
+/* =====================================================================
+ * RCL FLEET ERP – RUN THE APP ON SUPABASE
+ * Script property DATA_SOURCE = supabase  → the app reads and writes Supabase (main database).
+ * Script property DATA_SOURCE = sheet (or empty) → the app works on this Google Sheet as before.
+ *
+ * How: every tab the app uses is given to the app as a "sheet" that lives in Supabase. The app's own logic
+ * (stock, balances, Log Book, reports) stays exactly the same. Within one save everything is kept in memory and
+ * written to Supabase together at the end – if the save fails, nothing is written (all or nothing).
+ * The backup Google Sheet (SupabaseSync.gs) keeps a copy of Supabase automatically.
+ * ===================================================================== */
+// switch, SS_(), sbFlush_(), sbDiscard_() live in WebApp.gs (they work without this file when the app runs on the Sheet)
+const SB_ID_HEADER_ = { diesel_inward: 'Inward ID', diesel_transfer: 'Transfer ID', diesel_issue: 'Issue ID', card_payments: 'Card Payment ID', maintenance: 'Maintenance ID', tank_check: 'Check ID', activity_log: 'Log ID', boq: 'BOQ ID', bills: 'Bill ID', payments: 'Payment ID', debit_notes: 'Note ID', billed_changes: 'Request ID', compliance_history: 'History ID', breakdowns: 'Breakdown ID', breakdown_reports: 'Report ID' , bill_snapshots: 'Bill ID', bill_log_rows: 'Row ID'};
+// tables read together in one go (they are nearly always needed together)
+const SB_GROUP_ = ['master', 'diesel_inward', 'diesel_transfer', 'diesel_issue', 'log_book', 'tank_check'];
+
+function SbBook_() { this.sheets = {}; }
+SbBook_.prototype.def_ = function (name) { return SB_TABLES_.find(d => d.tab === name) || null; };
+SbBook_.prototype.getSheetByName = function (name) {
+  const d = this.def_(name); if (!d) return null;
+  return this.sheets[d.table] = this.sheets[d.table] || new SbSheet_(this, d);
+};
+SbBook_.prototype.insertSheet = function (name) { return this.getSheetByName(name); };
+SbBook_.prototype.getSheets = function () { return SB_TABLES_.map(d => this.getSheetByName(d.tab)); };
+SbBook_.prototype.getSpreadsheetTimeZone = function () { return 'Asia/Kolkata'; };
+SbBook_.prototype.getId = function () { return 'supabase'; };
+SbBook_.prototype.toast = function () {};
+// read several tables at once (parallel calls)
+SbBook_.prototype.loadMany = function (tables) {
+  let need = tables.map(t => this.sheets[t] || (this.sheets[t] = new SbSheet_(this, SB_TABLES_.find(d => d.table === t)))).filter(s => !s.loaded);
+  if (!need.length) return;
+  /* On the web server the tables live in the server's memory and are only brought up to date with what changed
+   * (server/gas.js → makeWarm): no whole table is read or parsed for a request. The rows handed over are SHARED with
+   * later requests – fill() copies what it needs and never changes them. A table the memory does not keep
+   * (the Activity Log) goes the old way below. */
+  if (typeof __warm === 'object' && __warm) {
+    const names = need.map(s => s.def.table);
+    const got = __warm.load(names, names.some(t => SB_GROUP_.indexOf(t) > -1) ? SB_GROUP_ : []) || {};
+    need.forEach(s => { if (got[s.def.table]) s.fill(got[s.def.table]); });
+    need = need.filter(s => !s.loaded);
+    if (!need.length) return;
+  }
+  // fast path: the same tables were read a moment ago and nothing has changed since (same data version) –
+  // take them from the script cache instead of asking Supabase. Saves never use this: they always read fresh.
+  const useCache = SB_DEPTH_ === 0 && tables === SB_GROUP_;
+  const ck = useCache ? sbGroupKey_() : '';
+  if (useCache) {
+    const snap = sbCacheGet_(ck);
+    if (snap) { need.forEach(s => s.fill(snap[s.def.table] || [])); return; }
+  }
+  const c = sbConf_();
+  const req = t => ({ url: c.url + '/rest/v1/' + t + '?select=*&order=id.asc', method: 'get', muteHttpExceptions: true, headers: { apikey: c.key, Range: '0-999', 'Range-Unit': 'items' } });
+  const res = UrlFetchApp.fetchAll(need.map(s => req(s.def.table)));
+  const keep = {};
+  need.forEach((s, i) => {
+    const r = res[i];
+    if (r.getResponseCode() >= 300) throw new Error('Supabase read ' + s.def.table + ' → ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 200));
+    let rows = JSON.parse(r.getContentText() || '[]');
+    if (rows.length === 1000) rows = rows.concat(sbAllRows_(s.def.table).slice(1000)); // more than 1000: read the rest page by page
+    s.fill(rows);
+    if (useCache) keep[s.def.table] = rows;
+  });
+  if (useCache && need.length === SB_GROUP_.length) sbCachePut_(ck, keep);
+};
+/* ---------- fast cache of the main tables, tagged with the data version ----------
+ * Every save changes the version (bump_), so a cached copy is used only while nothing has changed. */
+function sbGroupKey_() { const v = getVersions_(); return 'SBG_' + v.master + '_' + v.stock + '_' + v.log; }
+function sbCacheGet_(key) {
+  try {
+    const cache = CacheService.getScriptCache();
+    const n = Number(cache.get(key) || 0); if (!n) return null;
+    const keys = []; for (let i = 0; i < n; i++) keys.push(key + '_' + i);
+    const got = cache.getAll(keys);
+    if (keys.some(k => !(k in got))) return null;
+    return JSON.parse(keys.map(k => got[k]).join(''));
+  } catch (e) { return null; }
+}
+function sbCachePut_(key, obj) {
+  try {
+    const text = JSON.stringify(obj), size = 40000; // characters per piece (the cache takes up to 100 KB a piece)
+    if (text.length > 4000000) return;               // very large data: read from Supabase each time
+    const o = {}, n = Math.ceil(text.length / size);
+    for (let i = 0; i < n; i++) o[key + '_' + i] = text.slice(i * size, (i + 1) * size);
+    const cache = CacheService.getScriptCache();
+    cache.putAll(o, 21600);
+    cache.put(key, String(n), 21600);                // written last: a copy is used only when complete
+  } catch (e) { /* no cache – still correct, only slower */ }
+}
+let OP_SENT_ = false, OP_RESULT_ = null;      // this request's save number has gone in with a write / the answer known so far (JSON text)
+function opResult_(v) { try { const s = JSON.stringify(v === undefined ? null : v); return s.length <= 200000 ? s : JSON.stringify({ ok: true, _resent: true }); } catch (e) { return null; } }
+const SB_NO_WRITE_FN_ = 'Saving is switched off – nothing was saved. The database is missing its "all or nothing" save function (web_write), so an entry could be written only in part. The Admin must run sql/supabase_step3_safety.sql in Supabase → SQL Editor; saving works again at once after that.';
+SbBook_.prototype.flush = function () {
+  if (typeof entryGuard_ === 'function') entryGuard_(this);      // (update-152) an approved / billed Log Book entry: only the Super Admin changes it (and says why)
+  const c = sbConf_(), calls = [], after = [];
+  Object.keys(this.sheets).forEach(t => {
+    const s = this.sheets[t], w = s.pending();
+    if (w.upserts.length) for (let i = 0; i < w.upserts.length; i += 500) calls.push({ url: c.url + '/rest/v1/' + t + '?on_conflict=id', method: 'post', muteHttpExceptions: true,
+      headers: { apikey: c.key, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' }, payload: JSON.stringify(w.upserts.slice(i, i + 500)) });
+    if (w.deletes.length) for (let i = 0; i < w.deletes.length; i += 100) calls.push({ url: c.url + '/rest/v1/' + t + '?id=in.(' + w.deletes.slice(i, i + 100).map(id => '"' + String(id).replace(/"/g, '\\"') + '"').map(encodeURIComponent).join(',') + ')',
+      method: 'delete', muteHttpExceptions: true, headers: { apikey: c.key, Prefer: 'return=minimal' } });
+    after.push(s);
+  });
+  if (!calls.length) return;
+  /* One save = ONE database transaction (function web_write, step-3 SQL): everything of this save is written, or nothing.
+   * WHERE THAT FUNCTION IS MISSING THE SAVE IS REFUSED (07-10-2026). Until then such a save was quietly written "the old
+   * way" – one call per table, and if one of them failed the others stayed written (a Diesel Issue without its Log Book
+   * line), for as long as the server lived. A save that cannot be all-or-nothing is not made: the message names the SQL
+   * file, and saving works again the moment it is run. The old way remains only where the server's owner switches it on
+   * on purpose (RCL_OLD_WRITES=on in the server's settings – e.g. a new site before its step 3), and in Apps Script. */
+  let done = false;
+  if (!(typeof __writeMode === 'function' && __writeMode() === 'old')) {
+    const p = [];
+    Object.keys(this.sheets).forEach(t => { const w = this.sheets[t].pending(); if (w.upserts.length || w.deletes.length) p.push({ table: t, upserts: w.upserts, deletes: w.deletes.map(String) }); });
+    /* THE SAVE'S NUMBER GOES IN WITH IT (update-68, step-5 SQL). Where the server gave this request a save number
+     * (__op: { rid, holder }), the FIRST write of the request carries it: web_write2 marks the number "done" (with the
+     * answer known so far) and writes the rows in ONE transaction. A copy of the same save can then never write again –
+     * see runOnce in server/runtime.js. Later writes of the same request (the Activity Log line) go the plain way. */
+    const op = !OP_SENT_ && typeof __op === 'function' ? __op() : null;
+    /* (update-152, step 1zd) WHO IS SAVING AND WHY goes in with the save: web_write3 sets it for this one database transaction, and the
+     * database's guard of the Log Book reads it (the Super Admin's change of a locked entry and his reason; everybody else's is
+     * written down – or refused once the guard is switched to "enforce"). Without step 1zd: web_write / web_write2 as before. */
+    const ctx = typeof saveCtx_ === 'function' ? saveCtx_() : null, cache = CacheService.getScriptCache();
+    let w3 = !!ctx && cache.get('SBFN_web_write3') !== '0';
+    const send = () => UrlFetchApp.fetch(c.url + '/rest/v1/rpc/' + (w3 ? 'web_write3' : op ? 'web_write2' : 'web_write'), { method: 'post', muteHttpExceptions: true, headers: { apikey: c.key, 'Content-Type': 'application/json' },
+      payload: JSON.stringify(w3 ? { p: p, p_ctx: ctx, p_rid: op ? op.rid : null, p_holder: op ? op.holder : null, p_result: op ? OP_RESULT_ : null } : op ? { p: p, p_rid: op.rid, p_holder: op.holder, p_result: OP_RESULT_ } : { p: p }) });
+    let r = send();
+    if (w3 && r.getResponseCode() === 404 && /web_write3|PGRST202/.test(r.getContentText())) { cache.put('SBFN_web_write3', '0', 600); w3 = false; r = send(); }      // (step 1zd not run: nothing was written – the same save the old way)
+    else if (w3 && r.getResponseCode() < 300) cache.put('SBFN_web_write3', '1', 3600);
+    const code = r.getResponseCode();
+    if (code >= 200 && code < 300) { done = true; if (op) OP_SENT_ = true; }
+    else if (op && /OP_NOT_MINE/.test(r.getContentText())) { SB_BOOK_ = null; throw new Error('OP_NOT_MINE: this save is already being finished by another copy of it – nothing was written twice.'); }
+    else if (code === 404 && /web_write|PGRST202/.test(r.getContentText())) {
+      if (typeof __oldWrites === 'function' && !__oldWrites()) { SB_BOOK_ = null; throw new Error(SB_NO_WRITE_FN_); }
+      if (typeof __writeMode === 'function') __writeMode('old');      // switched on on purpose (or Apps Script): the old way
+    }
+    else { SB_BOOK_ = null; throw new Error('Could not save to Supabase: ' + code + ' ' + r.getContentText().slice(0, 200)); }
+  }
+  if (!done) {
+    const res = UrlFetchApp.fetchAll(calls);
+    const bad = res.map((r, i) => ({ r: r, i: i })).filter(x => x.r.getResponseCode() >= 300);
+    if (bad.length) { SB_BOOK_ = null; throw new Error('Could not save to Supabase: ' + bad[0].r.getResponseCode() + ' ' + bad[0].r.getContentText().slice(0, 200)); }
+  }
+  after.forEach(s => s.saved());
+  // anything written makes the fast cache out of date at once (also for writes that do not come through the app screens)
+  const g = { master: 'master', diesel_inward: 'stock', diesel_transfer: 'stock', diesel_issue: 'stock', log_book: 'log', tank_check: 'log' };
+  const groups = [...new Set(calls.map(q => g[q.url.split('/rest/v1/')[1].split('?')[0]]).filter(Boolean))];
+  if (groups.length && typeof bump_ === 'function') bump_(groups);
+};
+
+function SbSheet_(book, def) {
+  this.book = book; this.def = def; this.loaded = false;
+  this.idh = SB_ID_HEADER_[def.table] || null;
+  this.hdr = (this.idh ? [this.idh] : []).concat(def.cols.map(x => x[0]));
+  this.type = {}; def.cols.forEach(x => { this.type[x[0]] = x[2]; });
+  this.data = []; this.ids = []; this.dirty = new Set(); this.gone = []; this.appended = [];
+  this.orig = new Map(); this.goneRows = [];      // (update-152) a saved row as it was before this save changed it / the rows it deletes – for the entry guard (entryGuard_)
+}
+SbSheet_.prototype.load_ = function () {
+  if (this.loaded) return;
+  // with the tables in the server's memory there is nothing to gain from reading the six main ones together: only the one that is asked for
+  if (typeof __warm === 'object' && __warm) { this.book.loadMany([this.def.table]); if (this.loaded) return; }
+  if (SB_GROUP_.indexOf(this.def.table) > -1) this.book.loadMany(SB_GROUP_); else this.fill(sbAllRows_(this.def.table));
+};
+// Supabase rows → sheet rows (dates as Date, numbers as numbers, empty as '')
+SbSheet_.prototype.fill = function (rows) {
+  /* Every request turns the rows it needs into the app's table form, so this loop is the busiest piece of the server
+   * (measured 04-10-2026). It is written plainly for speed: the column of every heading and its kind are looked up once for
+   * the table, then one pass over the rows. What a cell becomes is unchanged: empty → '', a date → Date (00:00 India time),
+   * a time stamp → Date, a number → Number, text as it is; a cell that holds an object (a JSON column) is COPIED, because
+   * the rows may be the server's shared copy and must never be changed from here. */
+  const n = this.hdr.length, keys = new Array(n), kinds = new Array(n);
+  for (let i = 0; i < n; i++) { const h = this.hdr[i];
+    if (h === this.idh) { keys[i] = null; kinds[i] = 0; continue; }
+    keys[i] = (this.def.cols.find(x => x[0] === h) || [])[1]; const t = this.type[h];
+    kinds[i] = t === 'date' ? 1 : t === 'timestamptz' ? 2 : t === 'numeric' ? 3 : 4; }
+  const len = rows.length, data = new Array(len), ids = new Array(len);
+  for (let k = 0; k < len; k++) {
+    const r = rows[k], row = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const kind = kinds[i]; if (kind === 0) { row[i] = r.id; continue; }
+      const v = r[keys[i]];
+      if (v === null || v === undefined) row[i] = '';
+      else if (kind === 4) row[i] = typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v;
+      else if (kind === 3) row[i] = Number(v);
+      else if (kind === 1) row[i] = new Date(String(v).slice(0, 10) + 'T00:00:00+05:30');
+      else { const dt = new Date(v); row[i] = isNaN(dt) ? '' : dt; }
+    }
+    data[k] = row; ids[k] = r.id;
+  }
+  this.data = data; this.ids = ids;
+  // the columns the database really has (from the rows it sent). A column the app knows but the database does not have yet –
+  // its SQL step was not run – is left out of a save ONLY while it is empty; a value for it is never dropped (see toRecord_).
+  // (update-85) a column of the app that the FIRST row does not show is looked for in the other rows too: this server's copy of a
+  // table (server/gas.js) keeps the rows read before a new column was added without it, and the rows changed since with it – the
+  // database has every column that any row shows. (Nearly always nothing is missing in the first row, and nothing more is done.)
+  if (rows.length) { const f = rows[0], cols = Object.keys(f); this.def.cols.forEach(x => { if (!(x[1] in f) && rows.some(r => x[1] in r)) cols.push(x[1]); }); this.dbCols = cols; }
+  // rows added before the table was read (e.g. an Activity Log line) stay
+  this.appended.forEach(row => { this.data.push(row); this.ids.push(null); });
+  this.appended = [];
+  this.loaded = true;
+};
+SbSheet_.prototype.rowId_ = function (row) {
+  if (this.idh) return String(row[0] === undefined ? '' : row[0]).trim();
+  const o = {}; this.hdr.forEach((h, i) => { o[h] = row[i]; });
+  return this.def.key(o);
+};
+SbSheet_.prototype.toRecord_ = function (row) {
+  const o = { id: this.rowId_(row) };
+  this.def.cols.forEach(x => {
+    const i = this.hdr.indexOf(x[0]);
+    // (update-181) a column only some sites have ('opt' in SupabaseSync – vendors.vendor_type): while the table's columns are not known
+    // yet (nothing read – an empty table), it is sent only with a value – an empty one would be refused where the column is missing
+    if (!this.dbCols && x[3] === 'opt') { const v0 = i > -1 ? sbVal_(row[i], x[2]) : null; if (v0 === null || v0 === '') return; }
+    if (this.dbCols && this.dbCols.indexOf(x[1]) === -1) {
+      /* NOTHING TYPED IS EVER DROPPED SILENTLY (07-10-2026). The database does not have this column (its SQL step was not
+       * run). Empty: left out, nothing is lost. A VALUE: until now it was left out too and the save said "saved" – the
+       * value was gone. Now the save is refused and says which column is missing; nothing of it is written. */
+      const v = i > -1 ? sbVal_(row[i], x[2]) : null;
+      if (v !== null && v !== '') throw new Error('System update incomplete – nothing was saved. The database does not have the column "' + this.def.table + '.' + x[1] + '" yet, so "' + x[0] + '" cannot be kept. The Admin must run the pending SQL step (Admin → the "Database" check names the file; Read Me lists the steps), then save again.');
+      return;
+    }
+    o[x[1]] = sbVal_(row[i], x[2]);
+  });
+  return o;
+};
+SbSheet_.prototype.pending = function () {
+  const up = [], del = this.gone.slice();
+  const rows = this.loaded ? [...this.dirty] : this.appended;
+  rows.forEach(row => {
+    const rec = this.toRecord_(row);
+    if (!rec.id) return;
+    const k = this.loaded ? this.data.indexOf(row) : -1, old = k > -1 ? this.ids[k] : null;
+    if (old && old !== rec.id) del.push(old); // the row's key changed (e.g. Machinery Number in Master)
+    up.push(rec);
+  });
+  /* A key that is WRITTEN in this save is never also deleted in it (06-10-2026). The database writes first and deletes after,
+   * so a key in both lists ended up deleted – the row was lost. It happens when a key is freed and taken again in one save:
+   * an entry deleted and entered again on the same date and shift (Edit Log Book: delete a row, "+ Add row" for that date),
+   * or two entries of a date changing places (Day ↔ Night). What is written is what the table holds – it stays. */
+  const written = new Set(up.map(r => r.id));
+  return { upserts: up, deletes: [...new Set(del)].filter(id => !written.has(id)) };
+};
+SbSheet_.prototype.saved = function () {
+  if (this.loaded) this.data.forEach((row, i) => { if (this.dirty.has(row)) this.ids[i] = this.rowId_(row); });
+  this.dirty.clear(); this.gone = []; if (!this.loaded) this.appended = [];
+  this.orig.clear(); this.goneRows = [];
+};
+SbSheet_.prototype.getName = function () { return this.def.tab; };
+SbSheet_.prototype.getLastRow = function () { this.load_(); return this.data.length + 1; };
+SbSheet_.prototype.getLastColumn = function () { return this.hdr.length; };
+SbSheet_.prototype.getMaxColumns = function () { return this.hdr.length; };
+SbSheet_.prototype.appendRow = function (row) {
+  const r = this.hdr.map((h, i) => (row[i] === undefined ? '' : row[i]));
+  if (this.loaded) { this.data.push(r); this.ids.push(null); this.dirty.add(r); } else this.appended.push(r);
+};
+SbSheet_.prototype.deleteRow = function (n) {
+  this.load_();
+  const k = n - 2; if (k < 0 || k >= this.data.length) return;
+  const row = this.data[k], id = this.ids[k] || this.rowId_(row);
+  if (id) this.gone.push(id);
+  if (this.ids[k]) this.goneRows.push(this.orig.get(row) || row.slice());
+  this.dirty.delete(row); this.data.splice(k, 1); this.ids.splice(k, 1);
+};
+SbSheet_.prototype.getRange = function (r, c, nr, nc) {
+  const s = this; nr = nr || 1; nc = nc || 1;
+  const same = (a, b) => (a instanceof Date && b instanceof Date) ? a.getTime() === b.getTime() : String(a === undefined ? '' : a) === String(b === undefined ? '' : b);
+  const range = {
+    getValues() { s.load_(); const o = []; for (let i = 0; i < nr; i++) { const row = r + i === 1 ? s.hdr : (s.data[r + i - 2] || []); const v = []; for (let j = 0; j < nc; j++) v.push(row[c - 1 + j] === undefined ? '' : row[c - 1 + j]); o.push(v); } return o; },
+    setValues(v) {
+      s.load_();
+      v.forEach((vals, i) => {
+        const rr = r + i; if (rr === 1) return;          // header row: the columns already exist in Supabase
+        while (s.data.length < rr - 1) { const blank = s.hdr.map(() => ''); s.data.push(blank); s.ids.push(null); }
+        const row = s.data[rr - 2];
+        if (s.ids[rr - 2] && !s.orig.has(row) && vals.some((x, j) => { const ci = c - 1 + j; return ci < s.hdr.length && !same(row[ci], x); })) s.orig.set(row, row.slice());      // (update-152) as it was saved
+        vals.forEach((x, j) => { const ci = c - 1 + j; if (ci < s.hdr.length && !same(row[ci], x)) { row[ci] = x; s.dirty.add(row); } });
+      });
+      return range;
+    },
+    setValue(x) { return range.setValues([[x]]); },
+    setNumberFormat() { return range; }, setFontWeight() { return range; }, setBackground() { return range; }, setDataValidation() { return range; }, setFontColor() { return range; },
+  };
+  return range;
+};
+SbSheet_.prototype.setFrozenRows = function () {};
+SbSheet_.prototype.protect = function () { return { setDescription() {}, addEditor() {}, removeEditors() {}, getEditors() { return []; }, canDomainEdit() { return false; } }; };
+
+/* ---------- switch the app to Supabase (run from the editor) ---------- */
+function useSupabase() {
+  sbOwnerOnly_();
+  if (sbDataOn_()) { Logger.log('The app already runs on Supabase – nothing to do (running this again is not needed).'); return; }
+  testSupabaseConnection();
+  migrateToSupabase();                       // last copy of the Google Sheet into Supabase
+  PropertiesService.getScriptProperties().setProperty('DATA_SOURCE', 'supabase');
+  CacheService.getScriptCache().remove('USERS_LIST');
+  Logger.log('The app now runs on Supabase. The Google Sheet is no longer changed by the app; the backup Sheet copies Supabase.');
+}
+/* ---------- go back to the Google Sheet (only right after switching – later entries are only in Supabase) ---------- */
+function useGoogleSheet() {
+  sbOwnerOnly_();
+  PropertiesService.getScriptProperties().setProperty('DATA_SOURCE', 'sheet');
+  CacheService.getScriptCache().remove('USERS_LIST');
+  Logger.log('The app runs on the Google Sheet again.');
+}
+
+/* ---------- machines typed in the OLD Google Sheet after the switch ----------
+ * The app reads Supabase, so a machine added in the old Sheet's Master tab does not show in the app.
+ * Run this once to bring such machines into Supabase. It only ADDS machines that Supabase does not have yet –
+ * it never changes or removes a machine that is already there. */
+function copyNewMachinesFromSheet() {
+  sbOwnerOnly_();
+  const def = SB_TABLES_.find(d => d.table === 'master');
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(def.tab);
+  if (!sh || sh.getLastRow() < 2) { Logger.log('The Master tab of the Google Sheet is empty.'); return; }
+  const all = sh.getRange(1, 1, sh.getLastRow(), sh.getLastColumn()).getValues();
+  const hdr = all[0].map(h => sbStr_(h));
+  const have = {}; sbAllRows_('master').forEach(r => { have[String(r.id).toUpperCase().replace(/\s+/g, '')] = true; });
+  const add = [];
+  all.slice(1).forEach(line => {
+    const r = {}; hdr.forEach((h, i) => { r[h] = line[i]; });
+    const id = def.key(r); if (!id) return;
+    const k = id.toUpperCase().replace(/\s+/g, '');
+    if (have[k]) return; have[k] = true;
+    const o = { id: id }; def.cols.forEach(c => { const i = hdr.indexOf(c[0]); o[c[1]] = i > -1 ? sbVal_(line[i], c[2]) : null; });
+    if (!o.status) o.status = 'Active';
+    add.push(o);
+  });
+  if (!add.length) { Logger.log('Nothing to copy – every machine of the Sheet is already in Supabase.'); return; }
+  sbFetch_('POST', '/rest/v1/master?on_conflict=id', add, { Prefer: 'resolution=ignore-duplicates,return=minimal' });
+  if (typeof bump_ === 'function') bump_(['master']);   // open apps refresh their machine lists
+  Logger.log('Added to Supabase: ' + add.map(x => x.id).join(', '));
+}

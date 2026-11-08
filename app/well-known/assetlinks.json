@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "in.rachana.rcl.rcl_mobile",
+      "sha256_cert_fingerprints": ["2D:13:23:36:B1:08:33:C9:EF:A6:D8:05:1F:54:A9:18:5E:20:62:2D:06:99:78:D7:22:2C:45:F9:35:E2:B7:5C"]
+    }
+  }
+]

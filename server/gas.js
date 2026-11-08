@@ -1,0 +1,556 @@
+/* What Apps Script gave the server code for free, given again here – so Code.gs, SupabaseData.gs, SupabaseSync.gs
+ * and ReadMe.gs run UNCHANGED:
+ *   PropertiesService → settings and counters, kept in Supabase (web.props)
+ *   CacheService      → sign-in sessions, users list, attempt counters in Supabase (web.cache);
+ *                       the big copy of the main tables stays in this server's memory
+ *   LockService       → one save at a time, across all servers (web.locks)
+ *   UrlFetchApp       → network calls that wait for their answer
+ *   Utilities, Session, ScriptApp, HtmlService, Logger → the few things the code uses from them
+ * One "state" is made for every request (st) and thrown away after it, as in Apps Script. */
+'use strict';
+const crypto = require('crypto');
+const { fetchAllSync, sleepSync, pdfPartSync } = require('./syncfetch');
+const sites = require('./sites');
+
+const TZ = 'Asia/Kolkata';
+const LOCK_TTL = 75;               // seconds: a lock left by a request that died frees itself
+const ENV_KEYS = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'DATA_SOURCE'];
+
+/* the database of the site this request is for (see sites.js and useSite below; no site = the first site, as before).
+ * The first site's settings are read afresh every time, as before. */
+function conf() {
+  if (!CUR || CUR.site === '') { const c = sites.conf(''); return { url: c.url, key: c.key }; }
+  return { url: CUR.url, key: CUR.key };
+}
+// one database function (Supabase RPC); a network hiccup or a busy database is tried again
+function rpc(name, body) {
+  const c = conf();
+  let last = '';
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const r = fetchAllSync([{ url: c.url + '/rest/v1/rpc/' + name, method: 'POST', headers: { apikey: c.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }])[0];
+    if (r.error) { last = r.error; sleepSync(300 * (attempt + 1)); continue; }
+    if (r.code >= 200 && r.code < 300) return r.text ? JSON.parse(r.text) : null;
+    last = r.code + ' ' + String(r.text || '').slice(0, 300);
+    if (r.code >= 500 || r.code === 429) { sleepSync(400 * (attempt + 1)); continue; }
+    if (r.code === 404 && /^web_(count|uncount|write)$/.test(name)) throw new Error('404 ' + name + ' is not installed (sql/supabase_step3_safety.sql)');
+    if (r.code === 404 && /^web_(op_begin|op_end|op_mark|write2|ops_cleanup)$/.test(name)) throw new Error('404 ' + name + ' is not installed (sql/supabase_step5_save_once.sql)');
+    if (r.code === 404 && name === 'web_boot2') throw new Error('404 web_boot2 is not installed (sql/supabase_step2b_light_boot.sql)');      // (update-140) → web_boot, as before
+    if (r.code === 404 && /web_/.test(name)) throw new Error('The database is not ready for this app: run sql/supabase_step2_web.sql in Supabase → SQL Editor (' + name + ' is missing).');
+    throw new Error('Database (' + name + '): ' + last);
+  }
+  throw new Error('Could not reach the database (' + name + '): ' + last);
+}
+
+/* ---------- memory of this server (lives while the server stays warm) ---------- */
+let LOCAL = { stamp: null, map: new Map() };           // the big copy of the main tables (SBG_…), valid for one "stamp"
+const isLocalKey = k => /^SBG_/.test(k) || k === 'APP_BUILD';
+const isVersionKey = k => /^V_/.test(k);                    // data versions: kept with the settings (one place, not two)
+
+function newState(meta) {
+  return { props: {}, cache: {}, left: {}, puts: new Map(), dels: new Set(), propQueue: {}, lockDepth: 0, fresh: false, tables: [],
+    holder: crypto.randomUUID(), stamp: '', meta: meta || {}, calls: 0 };
+}
+// start of a request: settings + the cache keys this request will surely ask for, in one call
+/* THE HEARTBEAT WITHOUT THE DATABASE (04-10-2026: "100 users on every site, no load, no hang").
+ * Every open page asks "anything new?" every 2 seconds. Until now each of these asked the database (settings, session,
+ * stamp) – 100 open pages = 50 questions a second to the database, all day, for nothing most of the time.
+ * Now the answer to the heartbeat is taken from this server's memory when it is fresh enough:
+ *   - the shared part (settings with the data versions, the users list, the stamp): at most 1 second old;
+ *   - the session of the asking sign-in: at most 20 seconds old (its remaining time is counted down, so it is still
+ *     renewed in time; a user switched off by the Admin is stopped by the users list, i.e. within a second).
+ * So a change is seen by the others at most one second later than before, and the database is asked about once a second
+ * per server instead of once per page. Only the heartbeat ("light") uses this; every real action reads the database. */
+let BEAT = { at: 0, props: null, stamp: '', tables: null, shared: {}, sess: new Map(), pver: '', pall: null, kept: new Map(), boot2: true, st: null, sh: '' };
+/* (update-140) THE SETTINGS AND THE USERS LIST ONLY WHEN THEY CHANGED. Every request began by reading ALL the settings (web.props)
+ * and the users list (cache USERS_LIST) – several KB, more than twice a second on a busy site: the largest part of what the live
+ * database sent. With step 2b (web_boot2) the server says which versions it already has – the settings' fingerprint (pver) and
+ * each kept cache entry's (BEAT.kept: key → { h, v }) – and the database sends only what differs; everything else of the start of
+ * a request is exactly as before. Sign-in sessions (S_…) are not kept here (one per person, small): they always come. The same
+ * for the stamp (the time of the last change of each main table, ~400 bytes): the server sends the fingerprint of the stamp it
+ * has (BEAT.sh) and gets the stamp only when it differs. Without step 2b (the function is not there – 404) the server goes on
+ * with web_boot, as before (remembered per site for 10 minutes: boot2 = the time it was missing). */
+const BOOT_NOT_THERE = e => /^404 /.test(String((e && e.message) || e).replace(/^Error:\s*/, ''));
+const keepable = k => !/^S_/.test(k);
+function bootAsk(keys) {
+  if (BEAT.boot2 === true || Date.now() - Number(BEAT.boot2) > 600000) {      // (without step 2b: asked again every 10 minutes – it may have been run since)
+    const have = {}; keys.forEach(k => { const m = keepable(k) && BEAT.kept.get(k); if (m) have[k] = m.h; });
+    let b = null;
+    try { b = rpc('web_boot2', { p_keys: keys, p_ver: BEAT.pall ? BEAT.pver : '', p_have: have, p_stamp: BEAT.st ? BEAT.sh : '' }) || {}; }
+    catch (e) { if (!BOOT_NOT_THERE(e)) throw e; BEAT.boot2 = Date.now(); }
+    if (b) {
+      const cache = b.cache || {}, hash = b.hash || {}, same = Array.isArray(b.same) ? b.same.map(String) : [];
+      // every entry the database has: sent (new or changed, with its fingerprint) → kept; named in "same" → this server's copy
+      const whole = !(b.props && typeof b.props === 'object') && !(BEAT.pall && String(b.ver || '') === BEAT.pver);
+      const lost = same.some(k => !(BEAT.kept.has(k) && have[k] === BEAT.kept.get(k).h)) || Object.keys(cache).some(k => keepable(k) && !(k in hash));
+      // the stamp: sent, or – its fingerprint (sh) the same as the one this server sent – the stamp this server has
+      const stampLost = !(typeof b.stamp === 'string') && !(BEAT.st && b.sh && String(b.sh) === BEAT.sh);
+      if (whole || lost || stampLost) { BEAT.pall = null; BEAT.kept.clear(); BEAT.st = null; BEAT.sh = ''; return bootAsk(keys); }       // (cannot happen – if it does: everything again)
+      if (b.props && typeof b.props === 'object') { BEAT.pall = b.props; BEAT.pver = String(b.ver || ''); }
+      if (typeof b.stamp === 'string') { BEAT.st = { stamp: b.stamp, tables: b.tables }; BEAT.sh = String(b.sh || ''); }
+      else { b.stamp = BEAT.st.stamp; b.tables = BEAT.st.tables; }
+      const out = {};
+      Object.keys(cache).forEach(k => { out[k] = cache[k]; if (keepable(k)) BEAT.kept.set(k, { h: hash[k], v: cache[k] }); });
+      same.forEach(k => { out[k] = BEAT.kept.get(k).v; });
+      keys.forEach(k => { if (!(k in out)) BEAT.kept.delete(k); });          // gone or run out in the database: not kept either
+      if (BEAT.kept.size > 500) BEAT.kept.clear();
+      b.cache = out;
+      b.props = Object.assign({}, BEAT.pall);      // (a copy: the request may change its settings – the kept ones stay as the database has them)
+      return b;
+    }
+  }
+  return rpc('web_boot', { p_keys: keys }) || {};
+}
+function boot(st, keys, light) {
+  const now = Date.now(); keys = keys || [];
+  if (light && process.env.RCL_WARM !== 'off' && BEAT.props && now - BEAT.at < 1000) {
+    const rec = k => /^S_/.test(k) ? BEAT.sess.get(k) : BEAT.shared[k], maxAge = k => /^S_/.test(k) ? 20000 : 1000;
+    if (keys.every(k => { const m = rec(k); return m && now - m.at <= maxAge(k); })) {
+      st.props = Object.assign({}, BEAT.props); st.left = {}; st.cache = {};
+      keys.forEach(k => { const m = rec(k); st.cache[k] = m.value; if (m.left !== undefined && m.left !== null) st.left[k] = Math.max(0, Number(m.left) - (now - m.at) / 1000); });
+      st.stamp = BEAT.stamp; st.tables = BEAT.tables || OLD_TABLES; st.light = true;      // (no table is read by a heartbeat; the tables' memory is left alone)
+      return;
+    }
+  }
+  const b = bootAsk(keys);
+  st.props = b.props || {}; st.left = b.left || {};
+  st.cache = {}; keys.forEach(k => { st.cache[k] = null; });
+  Object.keys(b.cache || {}).forEach(k => { st.cache[k] = b.cache[k]; });
+  useStamp(st, b);
+  // remembered for the heartbeats of the next second (and this sign-in's session for the next 20 seconds)
+  BEAT.at = now; BEAT.props = Object.assign({}, st.props); BEAT.stamp = st.stamp; BEAT.tables = st.tables;
+  keys.forEach(k => { const m = { value: st.cache[k], left: st.left[k], at: now }; if (/^S_/.test(k)) BEAT.sess.set(k, m); else BEAT.shared[k] = m; });
+  if (BEAT.sess.size > 4000) BEAT.sess.forEach((m, k) => { if (now - m.at > 60000) BEAT.sess.delete(k); });
+}
+// the stamp of the data as the database has it now, and the tables it covers; a different stamp empties the memory copy
+function useStamp(st, b) {
+  st.stamp = String((b && b.stamp) || '');
+  st.tables = b && Array.isArray(b.tables) ? b.tables : OLD_TABLES;     // an older step-2 SQL covers the six main tables
+  // no stamp (nothing could be read about the last change) → the copy in memory is not trusted at all
+  if (!st.stamp || LOCAL.stamp !== st.stamp) { LOCAL.map.clear(); LOCAL.stamp = st.stamp; }
+}
+const OLD_TABLES = ['master', 'diesel_inward', 'diesel_transfer', 'diesel_issue', 'log_book', 'tank_check'];
+// end of a request: what is still waiting (cache entries, data versions) is written in one call
+function flush(st) {
+  const put = [...st.puts.entries()].map(([k, x]) => ({ key: k, value: x.value, ttl: x.ttl })), del = [...st.dels];
+  const props = Object.keys(st.propQueue).length ? st.propQueue : null;
+  if (props) BEAT.at = 0;      // this server has just changed the settings / data versions: its heartbeats must not answer from before that
+  if (!put.length && !del.length && !props) return;
+  st.puts = new Map(); st.dels = new Set(); st.propQueue = {};
+  rpc('web_flush', { p_props: props, p_put: put, p_del: del });
+  // (update-140) the heartbeat's memory follows this server's own writes at once (e.g. FLOW_REMIND, USERS_LIST – they now come from
+  // there): a second heartbeat in the same second does not see the value from before this write
+  const now = Date.now();
+  put.forEach(x => { if (x.key in BEAT.shared) BEAT.shared[x.key] = { value: x.value, left: x.ttl, at: now }; });
+  del.forEach(k => { if (k in BEAT.shared) BEAT.shared[k] = { value: null, left: null, at: now }; });
+}
+function forceUnlock(st) { if (st.lockDepth > 0) { st.lockDepth = 0; rpc('web_unlock', { p_name: 'script', p_holder: st.holder }); } }
+
+function makeProperties(st) {
+  const env = k => k === 'DATA_SOURCE' ? 'supabase' : k === 'SUPABASE_URL' ? conf().url : conf().key;
+  const p = {
+    getProperty: k => { k = String(k); return ENV_KEYS.indexOf(k) > -1 ? env(k) : (k in st.props ? st.props[k] : null); },
+    getProperties: () => Object.assign({}, st.props, { DATA_SOURCE: 'supabase' }),
+    getKeys: () => Object.keys(st.props),
+    setProperty: (k, v) => { p.setProperties({ [k]: v }); return p; },
+    setProperties: (o) => {
+      const now = {};
+      Object.keys(o || {}).forEach(k => { if (ENV_KEYS.indexOf(k) > -1) return; const v = String(o[k]); st.props[k] = v;
+        if (isVersionKey(k)) st.propQueue[k] = v; else now[k] = v; });       // versions wait for the end of the request
+      if (Object.keys(now).length) { rpc('web_props_set', { p: now }); BEAT.at = 0; }          // settings and counters are written at once (and this server's heartbeats do not answer from before that)
+      return p;
+    },
+    deleteProperty: k => { k = String(k); if (ENV_KEYS.indexOf(k) > -1) return p; delete st.props[k]; delete st.propQueue[k]; rpc('web_props_set', { p: { [k]: null } }); return p; },
+    deleteAllProperties: () => { throw new Error('Not allowed here.'); },
+  };
+  return p;
+}
+
+function makeCache(st) {
+  const localGet = k => { const x = LOCAL.map.get(k); if (!x) return null; if (x.exp < Date.now()) { LOCAL.map.delete(k); return null; } return x.value; };
+  const need = keys => {   // keys not known yet → asked from the database in one call
+    const ask = keys.filter(k => !(k in st.cache) && !st.dels.has(k));
+    if (!ask.length) return;
+    const got = rpc('web_cache_get', { p_keys: ask }) || {};
+    ask.forEach(k => { st.cache[k] = k in got ? got[k] : null; });
+  };
+  const get = k => {
+    k = String(k);
+    if (isVersionKey(k)) return k in st.props ? st.props[k] : null;
+    if (k === 'SB_INFO') return null;                       // backup status: read from the settings (Apps Script writes it there)
+    if (isLocalKey(k)) return localGet(k);
+    if (st.dels.has(k)) return null;
+    need([k]);
+    return st.cache[k] === undefined ? null : st.cache[k];
+  };
+  const put = (k, v, ttl) => {
+    k = String(k); v = String(v); ttl = Math.max(1, Math.min(21600, Number(ttl) || 600));
+    if (isVersionKey(k)) { st.props[k] = v; st.propQueue[k] = v; return; }
+    if (k === 'SB_INFO') return;
+    if (isLocalKey(k)) { if (st.stamp || k === 'APP_BUILD') LOCAL.map.set(k, { value: v, exp: Date.now() + ttl * 1000 }); return; }
+    // a session is renewed on every action: it is written again only when a good part of its time has gone
+    if (st.cache[k] === v && !st.puts.has(k) && Number(st.left[k]) > ttl * 0.9) return;
+    st.cache[k] = v; st.dels.delete(k); st.puts.set(k, { value: v, ttl: ttl });
+  };
+  const remove = k => { k = String(k); if (/^S_/.test(k)) BEAT.sess.delete(k);      // a session that is ended is forgotten by the heartbeat's memory at once
+    if (isVersionKey(k) || k === 'SB_INFO') return; if (isLocalKey(k)) { LOCAL.map.delete(k); return; } st.cache[k] = null; st.puts.delete(k); st.dels.add(k); };
+  return {
+    get: get, put: put, remove: remove,
+    getAll: keys => { keys = [...keys].map(String); need(keys.filter(k => !isVersionKey(k) && !isLocalKey(k) && k !== 'SB_INFO')); const o = {}; keys.forEach(k => { const v = get(k); if (v !== null && v !== undefined) o[k] = v; }); return o; },
+    putAll: (o, ttl) => { Object.keys(o || {}).forEach(k => put(k, o[k], ttl)); },
+    removeAll: keys => { [...keys].forEach(remove); },
+  };
+}
+
+function makeLock(st) {
+  const lock = {
+    waitLock: ms => {
+      if (st.lockDepth > 0) { st.lockDepth++; return; }     // already ours (a save inside a save)
+      const end = Date.now() + Math.max(1000, Math.min(Number(ms) || 30000, 40000));
+      for (;;) {
+        const r = rpc('web_lock', { p_name: 'script', p_holder: st.holder, p_ttl: LOCK_TTL });
+        if (r && r.ok) {
+          st.lockDepth = 1; st.props = Object.assign({}, r.props || {}, st.propQueue);      // settings as they are NOW
+          // the stamp as it is NOW, with the lock held: the memory copy is used only if nothing changed; an older SQL
+          // (no stamp with the lock) → a save reads everything fresh, as before
+          if (r.stamp !== undefined) useStamp(st, r); else st.fresh = true;
+          return;
+        }
+        if (Date.now() >= end) throw new Error('Another save is still running. Please try again in a moment.');
+        sleepSync(120 + Math.floor(Math.random() * 160));
+      }
+    },
+    tryLock: ms => { try { lock.waitLock(ms); return true; } catch (e) { return false; } },
+    hasLock: () => st.lockDepth > 0,
+    // (if the database cannot be told now, the lock is still ours: the count is put back, so the end of the request tries once more – forceUnlock)
+    releaseLock: () => { if (st.lockDepth <= 0) return; st.lockDepth--; if (st.lockDepth === 0) { try { rpc('web_unlock', { p_name: 'script', p_holder: st.holder }); } catch (e) { st.lockDepth = 1; throw e; } } },
+  };
+  return lock;
+}
+
+/* ---------- Utilities ---------- */
+const isDate = d => d && typeof d.getTime === 'function';
+// India has one fixed time (+5:30, no summer time), so its dates are worked out by plain arithmetic – this is called
+// for every date cell of every row, so it has to be quick. Any other time zone: one formatter per zone, kept.
+const FIXED_OFFSET = { 'Asia/Kolkata': 330, 'Asia/Calcutta': 330, 'IST': 330, 'UTC': 0, 'GMT': 0, 'Etc/UTC': 0, 'Etc/GMT': 0 };
+const ZONE_FMT = new Map();
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const p2 = n => (n < 10 ? '0' : '') + n;
+function dateParts(ms, tz) {
+  const off = FIXED_OFFSET[tz];
+  if (off !== undefined) { const t = new Date(ms + off * 60000); return [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes(), t.getUTCSeconds(), t.getUTCDay()]; }
+  let f = ZONE_FMT.get(tz);
+  if (!f) { f = new Intl.DateTimeFormat('en-GB', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', weekday: 'short' }); ZONE_FMT.set(tz, f); }
+  const o = {}; f.formatToParts(new Date(ms)).forEach(x => { o[x.type] = x.value; });
+  return [Number(o.year), Number(o.month), Number(o.day), Number(o.hour) % 24, Number(o.minute), Number(o.second), DAY.indexOf(o.weekday)];
+}
+function formatDate(date, tz, fmt) {
+  if (!isDate(date)) throw new Error('formatDate: not a date');
+  const ms = date.getTime(); if (isNaN(ms)) throw new Error('formatDate: not a date');
+  const [Y, M, D, h, mi, s, wd] = dateParts(ms, tz || TZ);
+  if (fmt === 'yyyy-MM-dd') return Y + '-' + p2(M) + '-' + p2(D);                 // by far the most used
+  if (fmt === 'HH:mm') return p2(h) + ':' + p2(mi);
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const map = { yyyy: String(Y), yy: String(Y).slice(2), MMM: MON[M - 1], MM: p2(M), M: String(M), dd: p2(D), d: String(D),
+    HH: p2(h), H: String(h), hh: p2(h12), h: String(h12), mm: p2(mi), ss: p2(s), a: h < 12 ? 'AM' : 'PM', EEE: DAY[wd] };
+  return String(fmt).replace(/'([^']*)'|yyyy|yy|MMM|MM|M|dd|d|HH|H|hh|h|mm|ss|a|EEE/g, (m, quoted) => quoted !== undefined ? quoted : map[m]);
+}
+const signed = buf => [...buf].map(b => b > 127 ? b - 256 : b);
+function toBytes(value, charset) {
+  if (typeof value === 'string') {
+    if (charset === 'utf8') return Buffer.from(value, 'utf8');
+    return Buffer.from([...value].map(ch => { const c = ch.codePointAt(0); return c < 128 ? c : 63; }));   // US-ASCII, as Apps Script does without a charset
+  }
+  return Buffer.from([...value].map(b => ((Number(b) % 256) + 256) % 256));                              // a list of (signed) bytes
+}
+const Utilities = {
+  DigestAlgorithm: { MD2: 'md2', MD5: 'md5', SHA_1: 'sha1', SHA_256: 'sha256', SHA_384: 'sha384', SHA_512: 'sha512' },
+  Charset: { UTF_8: 'utf8', US_ASCII: 'ascii' },
+  formatDate: formatDate,
+  getUuid: () => crypto.randomUUID(),
+  sleep: ms => sleepSync(Number(ms) || 0),
+  computeDigest: (alg, value, charset) => signed(crypto.createHash(alg).update(toBytes(value, charset)).digest()),
+  // a blob of text, or (update-85) of bytes – a picture sent as the body of a request (UrlFetchApp payload)
+  newBlob: (data, type, name) => {
+    if (typeof data === 'string') return { getBytes: () => signed(Buffer.from(data, 'utf8')), getDataAsString: () => data, getContentType: () => type || 'text/plain', getName: () => name || '' };
+    const buf = Buffer.isBuffer(data) ? data : data && data.__bytes ? data.__bytes : toBytes(data || []);
+    return { getBytes: () => signed(buf), getDataAsString: () => buf.toString('utf8'), getContentType: () => type || 'application/octet-stream', getName: () => name || '', __bytes: buf };
+  },
+  base64Encode: v => (typeof v === 'string' ? Buffer.from(v, 'utf8') : toBytes(v)).toString('base64'),
+  base64Decode: v => { const buf = Buffer.from(String(v), 'base64'), a = signed(buf); Object.defineProperty(a, '__bytes', { value: buf }); return a; },      // (the bytes kept with the list: a blob made of it uses them as they are)
+};
+
+/* ---------- UrlFetchApp ---------- */
+function toReq(url, o) {
+  o = o || {};
+  const headers = Object.assign({}, o.headers || {});
+  if (o.contentType && !headers['Content-Type']) headers['Content-Type'] = o.contentType;
+  let body = o.payload;
+  if (body && typeof body === 'object' && typeof body.getBytes === 'function') body = body.__bytes || toBytes(body.getBytes());      // a blob: its bytes as they are (a picture)
+  else if (body !== undefined && body !== null && typeof body !== 'string') body = JSON.stringify(body);
+  return { url: String(url), method: String(o.method || (body !== undefined && body !== null ? 'POST' : 'GET')).toUpperCase(), headers: headers, body: body, mute: !!o.muteHttpExceptions };
+}
+function toRes(q, r) {
+  if (r.error) throw new Error('Network: ' + r.error);
+  if (!q.mute && r.code >= 400) throw new Error('Request failed for ' + q.url.split('?')[0] + ' returned code ' + r.code + '. ' + String(r.text || '').slice(0, 200));
+  return { getResponseCode: () => r.code, getContentText: () => r.text || '', getHeaders: () => r.headers || {}, getAllHeaders: () => r.headers || {} };
+}
+/* The app's tables are read whole by nearly every request. Their answers from the database are kept in this server's
+ * memory and used again ONLY while the "stamp" (newest change in exactly the tables it covers – see web_stamp in the
+ * step-2 SQL) is the same as when they were kept. The stamp is read from the database at the start of every request,
+ * and again with the lock when a request saves – so a save never works on old data. */
+const TABLE_GET = /\/rest\/v1\/([a-z_]+)\?select=\*&order=id\.asc$/;
+function makeFetch(st) {
+  const keyOf = q => { if (q.method !== 'GET') return ''; const m = TABLE_GET.exec(q.url); return m && st.tables.indexOf(m[1]) > -1 ? 'GET|' + q.url + '|' + String((q.headers || {}).Range || '') : ''; };
+  const all = qs => {
+    const out = new Array(qs.length), ask = [], at = [];
+    qs.forEach((q, i) => {
+      const k = st.stamp && !st.fresh ? keyOf(q) : '';
+      const hit = k ? LOCAL.map.get(k) : null;
+      if (hit) out[i] = hit.value; else { ask.push(q); at.push(i); }
+    });
+    if (ask.length) fetchAllSync(ask).forEach((r, n) => {
+      out[at[n]] = r;
+      const k = st.stamp && !st.fresh ? keyOf(ask[n]) : '';
+      if (k && !r.error && r.code >= 200 && r.code < 300) LOCAL.map.set(k, { value: r, exp: Date.now() + 6 * 3600 * 1000 });
+    });
+    return out;
+  };
+  return {
+    fetch: (url, o) => { const q = toReq(url, o); return toRes(q, all([q])[0]); },
+    fetchAll: reqs => { const qs = [...reqs].map(x => toReq(x.url, x)); const rs = all(qs); return qs.map((q, i) => toRes(q, rs[i])); },
+  };
+}
+
+/* ---------- THE TABLES IN THIS SERVER'S MEMORY, KEPT UP TO DATE BY THE CHANGES ONLY (04-10-2026: "3,000 users") ----------
+ * Until now a table was read WHOLE from the database whenever anything in any table had changed (the stamp), and its
+ * text was parsed again for every request. With many people saving, the stamp changes all the time, so every request of
+ * every user read every table – the app would slow down with the number of users AND with the size of the data.
+ * Now each table is kept here as rows, in the order of its ids, and a request brings it up to date with the CHANGES only:
+ *   - the stamp is the same as when the table was last brought up to date → nothing is asked at all;
+ *   - otherwise: the rows changed since then (updated_at) and the ids deleted since then (deleted_rows) – small answers;
+ *   - a table this server does not have yet: read whole once, page by page by id (no row can be skipped or doubled).
+ * Safe-guards: changes are asked from 15 s (after a first read: its duration + 15 s) BEFORE the newest change seen, so a
+ * save that was still being written is not missed; every table is read whole again after 15 minutes; a change list that
+ * is too long (1,000) reads the table whole. Every server has its own copy and each brings itself up to date this way,
+ * so two servers agree. RCL_WARM=off switches all of this off (the old way). The Activity Log is not kept (it only grows).
+ * (update-140, 21-10-2026: "ETK LAGECH NAY ZAL PAHIJE ANI APP PN PROPER CHALAYLA HAWI" – the live database sent 5 GB in 13 days)
+ * THE 15-MINUTE CHECK IS LIGHT: every 15 minutes a table is no longer read whole; only every row's id and time of change are read
+ * (about a twentieth of the table). A row that is new, changed or missing in this server's copy is then read by its id and a row
+ * that is gone from the database is dropped – the copy ends exactly as a whole read would leave it. More than 300 rows differ → the
+ * table is read whole, as before. Once in 6 hours the table is still read whole (the last net: a change made with the database's
+ * own triggers switched off). RCL_WARM_REFRESH_MS / RCL_WARM_WHOLE_MS change the two times (tests only). */
+let WARM = { tables: new Map(), skip: new Set(['activity_log', 'deleted_rows', 'bill_snapshots', 'bill_log_rows']), stats: { whole: 0, changes: 0, kept: 0, checks: 0, fixed: 0 } };
+const WARM_OVERLAP = 15000, WARM_MAX = 250000, WARM_DIFF_MAX = 300;
+const WARM_REFRESH = Number(process.env.RCL_WARM_REFRESH_MS) || 15 * 60 * 1000, WARM_WHOLE = Number(process.env.RCL_WARM_WHOLE_MS) || 6 * 3600 * 1000;
+const warmPos = (ids, id) => { let lo = 0, hi = ids.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ids[m] < id) lo = m + 1; else hi = m; } return lo; };
+const isoBack = (iso, ms) => new Date((Date.parse(iso) || 0) - ms).toISOString();
+function makeWarm(st) {
+  if (process.env.RCL_WARM === 'off') return null;
+  const get = (path, range) => { const c = conf(); return { url: c.url + path, method: 'GET', headers: Object.assign({ apikey: c.key }, range ? { Range: range, 'Range-Unit': 'items' } : {}) }; };
+  // the time on the database's side when it answered (its "Date" header) – "what changed since" is asked from that time, less the overlap
+  let answered = 0;
+  const ask = reqs => fetchAllSync(reqs).map((r, i) => {
+    const hd = r.headers && (r.headers.date || r.headers.Date), ht = hd ? Date.parse(hd) : 0; if (ht > answered) answered = ht;
+    const what = (/\/rest\/v1\/([a-z_]+)/.exec(reqs[i].url) || [])[1] || 'table';
+    if (r.error) throw new Error('Could not reach the database (' + what + '): ' + r.error);
+    if (r.code >= 300) throw new Error('Supabase read ' + what + ' → ' + r.code + ': ' + String(r.text || '').slice(0, 200));
+    return r.text ? JSON.parse(r.text) : [];
+  });
+  const newest = (rows, key, from) => { let best = from || '', bt = Date.parse(best) || 0; rows.forEach(r => { const t = Date.parse(r[key]); if (t > bt) { bt = t; best = r[key]; } }); return best; };
+  // every row of these tables, each read page by page in the order of its ids
+  const whole = tables => {
+    const t0 = Date.now();
+    const first = ask([get('/rest/v1/deleted_rows?select=deleted_at&order=seq.desc', '0-0')].concat(tables.map(t => get('/rest/v1/' + t + '?select=*&order=id.asc', '0-999'))));
+    const delSeen = (first[0][0] && first[0][0].deleted_at) || '';
+    tables.forEach((t, i) => {
+      let rows = first[i + 1], page = rows;
+      while (page.length === 1000 && rows.length < WARM_MAX) { page = ask([get('/rest/v1/' + t + '?select=*&order=id.asc&id=gt.' + encodeURIComponent(page[999].id), '0-999')])[0]; rows = rows.concat(page); }
+      const byId = new Map(); rows.forEach(r => byId.set(String(r.id), r));              // (one row per id, whatever the pages said)
+      const ids = [...byId.keys()].sort();
+      WARM.stats.whole++;
+      // "at" = when this copy was true, on the database's clock (its answer's time, to the second; without it: the newest change seen)
+      WARM.tables.set(t, { ids: ids, list: ids.map(id => byId.get(id)), at: answered ? answered - 1000 : 0, seen: newest(rows, 'updated_at', '') || new Date(t0 - 600000).toISOString(), delSeen: delSeen || new Date(t0 - 600000).toISOString(),
+        sync: st.stamp, loadedAt: Date.now(), wholeAt: Date.now(), slack: Date.now() - t0, big: rows.length >= WARM_MAX });
+      // (update-140) the other threads of this server take this copy – not a very big table (read whole every time anyway, so a
+      // copy of it would only be copied between threads for nothing; review of 21-10-2026)
+      if (ON_TABLE && rows.length < WARM_MAX) ON_TABLE(site(), t, WARM.tables.get(t));
+    });
+  };
+  // (update-140) a value for PostgREST's in.(…) list: quoted, so an id with a comma, a dot or a bracket is still one value
+  const inList = ids => encodeURIComponent(ids.map(id => '"' + String(id).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"').join(','));
+  // (update-140) the light 15-minute check of tables this server already has – see the note above WARM
+  const check = tables => {
+    const t0 = Date.now(), again = [];
+    answered = 0;
+    const first = ask([get('/rest/v1/deleted_rows?select=deleted_at&order=seq.desc', '0-0')].concat(tables.map(t => get('/rest/v1/' + t + '?select=id,updated_at&order=id.asc', '0-999'))));
+    const listedAt = answered, delSeen = (first[0][0] && first[0][0].deleted_at) || '';
+    tables.forEach((t, i) => {
+      let rows = first[i + 1], page = rows;
+      while (page.length === 1000 && rows.length < WARM_MAX) { page = ask([get('/rest/v1/' + t + '?select=id,updated_at&order=id.asc&id=gt.' + encodeURIComponent(page[999].id), '0-999')])[0]; rows = rows.concat(page); }
+      const s = WARM.tables.get(t), mine = new Map(), there = new Set(), want = [];
+      s.ids.forEach((id, k) => mine.set(id, s.list[k]));
+      rows.forEach(r => { const id = String(r.id); there.add(id); const m = mine.get(id); if (!m || String(m.updated_at) !== String(r.updated_at)) want.push(id); });
+      const gone = s.ids.filter(id => !there.has(id));
+      if (rows.length >= WARM_MAX || want.length + gone.length > WARM_DIFF_MAX) { again.push(t); return; }
+      let got = [];
+      for (let k = 0; k < want.length; k += 100) got = got.concat(ask([get('/rest/v1/' + t + '?select=*&order=id.asc&id=in.(' + inList(want.slice(k, k + 100)) + ')')])[0]);
+      const back = new Set(got.map(r => String(r.id)));
+      // gone from the database, or deleted between the list and the read by id: out of this server's copy
+      gone.concat(want.filter(id => !back.has(id))).forEach(id => { const p = warmPos(s.ids, id); if (s.ids[p] === id) { s.ids.splice(p, 1); s.list.splice(p, 1); } });
+      got.forEach(r => { const id = String(r.id), p = warmPos(s.ids, id); if (s.ids[p] === id) s.list[p] = r; else { s.ids.splice(p, 0, id); s.list.splice(p, 0, r); } });
+      // true as of the list (the database's clock); later changes come with the next "what changed since"
+      s.at = listedAt ? listedAt - 1000 : 0; s.seen = newest(got, 'updated_at', s.seen); if (delSeen) s.delSeen = delSeen;
+      s.sync = st.stamp; s.loadedAt = Date.now(); s.slack = Date.now() - t0;
+      WARM.stats.checks++; if (want.length || gone.length) WARM.stats.fixed++;
+      if (ON_TABLE) ON_TABLE(site(), t, s);
+    });
+    if (again.length) whole(again);
+  };
+  const covered = t => st.tables.indexOf(t) > -1;
+  return {
+    stats: () => WARM.stats,
+    load: (tables, together) => {
+      const out = {}, cold = [], hot = [], due = [];
+      // "together": tables that should be brought up to date in the same round trip IF this server already has them (never read whole for it)
+      const want = tables.concat((together || []).filter(t => tables.indexOf(t) === -1 && WARM.tables.has(t)));
+      want.forEach(t => {
+        if (WARM.skip.has(t)) return;
+        const s = WARM.tables.get(t);
+        if (!s || s.big || Date.now() - (s.wholeAt || 0) > WARM_WHOLE) cold.push(t);
+        else if (Date.now() - s.loadedAt > WARM_REFRESH) due.push(t);      // (update-140) the light check, not a whole read
+        else if (st.stamp && !st.fresh && covered(t) && s.sync === st.stamp) WARM.stats.kept++;
+        else hot.push(t);
+      });
+      if (cold.length) whole(cold);
+      if (due.length) check(due);
+      if (hot.length) {
+        // since when: the time the copy was last true (database clock) less the overlap; the newest change seen is the fall-back
+        const back = s => WARM_OVERLAP + s.slack;
+        const since = t => { const s = WARM.tables.get(t); return s.at ? new Date(s.at - back(s)).toISOString() : isoBack(s.seen, back(s)); };
+        const delSince = hot.map(t => { const s = WARM.tables.get(t); return s.at ? new Date(s.at - back(s)).toISOString() : isoBack(s.delSeen, back(s)); }).sort()[0];
+        const delReq = after => get('/rest/v1/deleted_rows?select=seq,table_name,row_id,deleted_at&order=seq.asc&deleted_at=gt.' + encodeURIComponent(delSince) + '&table_name=in.(' + hot.join(',') + ')' + (after ? '&seq=gt.' + after : ''), '0-999');
+        answered = 0;
+        const res = ask(hot.map(t => get('/rest/v1/' + t + '?select=*&order=id.asc&updated_at=gt.' + encodeURIComponent(since(t)), '0-999')).concat([delReq(0)]));
+        const now = answered ? answered - 1000 : 0;
+        // the list of deleted ids can be long (a clean-up): it is read to its end, page by page – it never forces a whole table to be read
+        let gone = res[hot.length], page = gone;
+        while (page.length === 1000 && gone.length < 200000) { page = ask([delReq(page[999].seq)])[0]; gone = gone.concat(page); }
+        const again = [];
+        hot.forEach((t, i) => {
+          const s = WARM.tables.get(t), rows = res[i];
+          if (rows.length >= 1000) { again.push(t); return; }            // a thousand rows changed: the whole table is read instead
+          gone.forEach(d => { if (d.table_name !== t) return; const id = String(d.row_id), p = warmPos(s.ids, id); if (s.ids[p] === id) { s.ids.splice(p, 1); s.list.splice(p, 1); } });
+          rows.forEach(r => { const id = String(r.id), p = warmPos(s.ids, id); if (s.ids[p] === id) s.list[p] = r; else { s.ids.splice(p, 0, id); s.list.splice(p, 0, r); } });
+          s.seen = newest(rows, 'updated_at', s.seen); s.delSeen = newest(gone, 'deleted_at', s.delSeen); s.at = now; s.sync = st.stamp; s.slack = 0;
+          WARM.stats.changes++;
+        });
+        if (again.length) whole(again);
+      }
+      tables.forEach(t => { const s = WARM.tables.get(t); if (s && !WARM.skip.has(t)) out[t] = s.list; });
+      return out;
+    },
+  };
+}
+
+/* ---------- THE ASSISTANT'S LINE TO THE AI SERVICE (Gemini) – 04-10-2026 ----------
+ * The key never leaves the server: it is read here from the server's settings (GEMINI_API_KEY in Vercel) and put on the
+ * request; the app's code only says what to ask. GEMINI_API_BASE is for tests (a stand-in service); GEMINI_MODEL fixes the
+ * model, otherwise the app picks one from the service's own list. One call may take a while: 50 seconds are allowed.
+ * (update-167, asked 27-10-2026: "Claude API lawaychi aahe … all app madhla AI perfect chalayla hawa") CLAUDE (Anthropic): with
+ * ANTHROPIC_API_KEY in the server's settings every AI question of the app goes to Claude – the assistant, the meter / pump
+ * photos, the maintenance bills (app/Code.gs says it in Claude's own words); without it, Gemini as before. ANTHROPIC_MODEL
+ * fixes the model; ANTHROPIC_API_BASE is for tests (test/claude-standin.js). A key is used without the spaces / new line a
+ * copy-paste can bring. */
+const AI_BASE = () => String(process.env.GEMINI_API_BASE || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+const AI_BASE_C = () => String(process.env.ANTHROPIC_API_BASE || 'https://api.anthropic.com').replace(/\/+$/, '');
+const AI_KEY_C = () => String(process.env.ANTHROPIC_API_KEY || '').trim();
+function makeAi() {
+  return {
+    on: () => !!AI_KEY_C() || !!process.env.GEMINI_API_KEY,
+    service: () => AI_KEY_C() ? 'claude' : process.env.GEMINI_API_KEY ? 'gemini' : '',
+    model: () => String((AI_KEY_C() ? process.env.ANTHROPIC_MODEL : process.env.GEMINI_MODEL) || '').trim(),
+    wait: ms => sleepSync(Math.max(0, Math.min(5000, Number(ms) || 0))),      // a short pause before asking a busy service again
+    call: (method, path, body, ms) => {
+      const c = AI_KEY_C(), key = c || String(process.env.GEMINI_API_KEY || '').trim(); if (!key) return { code: 0, text: '', error: 'no key' };
+      const headers = c ? { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' } : { 'x-goog-api-key': key, 'Content-Type': 'application/json' };
+      const r = fetchAllSync([{ url: (c ? AI_BASE_C() : AI_BASE()) + path, method: method, headers: headers, body: body === undefined || body === null ? undefined : JSON.stringify(body) }], Math.max(3000, Math.min(50000, Number(ms) || 50000)))[0] || {};
+      // (update-104) the line to the AI is not the database: a call that ran out of time is said as the AI's slowness – before it read
+      // "The database did not answer in time", so the page asked again (a database pause is asked again by itself) and the Admin's
+      // fault list took it as a fault of the database. A slow AI is no fault of the app: the person types the reading.
+      const err = r.error ? String(r.error) : '';
+      return { code: r.code || 0, text: String(r.text || ''), error: /did not answer in time/i.test(err) ? 'the AI service was too slow to answer' : err };
+    },
+  };
+}
+
+const notHere = what => new Proxy(function () {}, { get: (t, p) => p === 'then' ? undefined : notHere(what), apply: () => { throw new Error(what + ' works only in Apps Script (the Google Sheet backup runs there).'); } });
+
+/* scrypt for the stored passwords (update-68). The app's code runs without Node's modules, so it gets this one function.
+ * Only cost settings from the short list are worked on: a damaged or planted value in the Users table (a huge N) must not
+ * be able to hold a server for minutes or eat its memory. The answer is 32 bytes as hex. */
+const SCRYPT_N = [16384, 32768, 65536, 131072];
+function scryptHex(pw, saltHex, N, r, p) {
+  N = Number(N); r = Number(r); p = Number(p);
+  if (SCRYPT_N.indexOf(N) === -1 || r !== 8 || !(p >= 1 && p <= 5) || !/^[0-9a-f]{32}$/.test(String(saltHex))) throw new Error('scrypt: settings not allowed');
+  return require('crypto').scryptSync(Buffer.from(String(pw), 'utf8'), Buffer.from(String(saltHex), 'hex'), 32, { N: N, r: r, p: p, maxmem: 160 * 1024 * 1024 }).toString('hex');
+}
+
+/* ---------- ONE MEMORY PER SITE (stage 1 of "new site") ----------
+ * What this server keeps between requests – the copy of the tables (LOCAL, WARM) and the heartbeat's memory (BEAT) – is kept
+ * for each site on its own. A request first says its site (useSite – runtime.js, before anything else); a helper thread
+ * runs one request at a time, so the memory in use is that site's for the whole request. The first site ('') keeps the
+ * memory it always had. */
+let CUR = null;
+const MEM = new Map([['', { LOCAL: LOCAL, BEAT: BEAT, WARM: WARM }]]);
+const newMem = () => ({ LOCAL: { stamp: null, map: new Map() }, BEAT: { at: 0, props: null, stamp: '', tables: null, shared: {}, sess: new Map(), pver: '', pall: null, kept: new Map(), boot2: true, st: null, sh: '' },
+  WARM: { tables: new Map(), skip: new Set(['activity_log', 'deleted_rows', 'bill_snapshots', 'bill_log_rows']), stats: { whole: 0, changes: 0, kept: 0, checks: 0, fixed: 0, seeded: 0 } } });
+function useSite(code) {
+  const c = sites.conf(code);            // throws "This site is not set up" for a site that does not exist
+  let m = MEM.get(c.site);
+  if (!m) { m = newMem(); MEM.set(c.site, m); }
+  CUR = c; LOCAL = m.LOCAL; BEAT = m.BEAT; WARM = m.WARM;
+  return c;
+}
+/* (update-140) ONE READ OF A TABLE FOR THE WHOLE SERVER. A server runs requests in up to six helper threads (pool.js), and each
+ * thread had its own copy of the tables: every thread that got its first request read every table whole – six whole reads where
+ * one is enough. Now a thread that has just read a table whole, or checked it (above), hands its copy to the server (onTable),
+ * and the server gives it to its other threads and to every thread it starts later (seed). A thread takes a copy only when it has
+ * none of that table or its own is older (the database's clock); from then on it brings it up to date with the changes, exactly
+ * as if it had read it itself. Only the threads of ONE server share: two servers still each read the database. */
+let ON_TABLE = null;
+function onTable(fn) { ON_TABLE = typeof fn === 'function' ? fn : null; }
+function seed(code, t, state) {
+  if (!state || typeof t !== 'string' || !Array.isArray(state.ids) || !Array.isArray(state.list) || state.ids.length !== state.list.length) return false;
+  let m = MEM.get(String(code || '')); if (!m) { m = newMem(); MEM.set(String(code || ''), m); }
+  if (m.WARM.skip.has(t)) return false;
+  const mine = m.WARM.tables.get(t);
+  if (mine && !(Number(state.at) > Number(mine.at))) return false;
+  m.WARM.tables.set(t, state); m.WARM.stats.seeded = (m.WARM.stats.seeded || 0) + 1;
+  return true;
+}
+const site = () => (CUR ? CUR.site : '');
+// the site in use, and putting it back exactly as it was (no new look at the list of sites – that cannot fail)
+const current = () => CUR;
+function restore(c) { const m = MEM.get(c ? c.site : '') || MEM.get(''); CUR = c; LOCAL = m.LOCAL; BEAT = m.BEAT; WARM = m.WARM; }
+// everything the server code sees as "global" for one request
+function makeGlobals(st, page) {
+  const props = makeProperties(st), cache = makeCache(st), lock = makeLock(st);
+  return {
+    PropertiesService: { getScriptProperties: () => props, getUserProperties: () => props, getDocumentProperties: () => props },
+    CacheService: { getScriptCache: () => cache, getUserCache: () => cache, getDocumentCache: () => cache },
+    LockService: { getScriptLock: () => lock, getDocumentLock: () => lock, getUserLock: () => lock },
+    Utilities: Utilities, UrlFetchApp: makeFetch(st),
+    Session: { getScriptTimeZone: () => TZ, getActiveUser: () => ({ getEmail: () => '' }), getEffectiveUser: () => ({ getEmail: () => '' }) },
+    ScriptApp: { getService: () => ({ getUrl: () => st.meta.url || '' }), getProjectTriggers: () => [], AuthMode: {}, WeekDay: {},
+      newTrigger: notHere('A trigger'), deleteTrigger: notHere('A trigger') },
+    HtmlService: { createHtmlOutputFromFile: name => ({ getContent: () => String(name) === 'App' ? page.bridged : '' }), createHtmlOutput: notHere('HtmlService') },
+    SpreadsheetApp: notHere('A Google Sheet'), DriveApp: notHere('Google Drive'), MailApp: notHere('Mail'), ContentService: notHere('ContentService'),
+    Logger: { log: () => {} },
+    console: console,
+    __warm: makeWarm(st),       // the tables kept in this server's memory (see makeWarm)
+    __ai: makeAi(),             // the assistant's line to the AI service (see makeAi)
+    __scrypt: scryptHex,        // passwords are kept with scrypt (see "PASSWORDS" in Code.gs)
+    __pdf: { part: (b64, from, n) => pdfPartSync(String(b64 || ''), from, n) },      // (update-176) pages of a PDF as a PDF of their own
+  };
+}
+module.exports = { newState, boot, flush, forceUnlock, makeGlobals, rpc, conf, useSite, site, current, restore, Utilities, TZ, scryptHex, onTable, seed, warmStats: () => WARM.stats };

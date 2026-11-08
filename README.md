@@ -1,0 +1,167 @@
+# RCL Fleet ERP
+
+App तेच आहे: तेच screens, तेच नियम, तेच prints. Apps Script कुठेही लागत नाही.
+
+| भाग | कुठे |
+|---|---|
+| Code | GitHub (`khandagalesuraj48-sys/rclerp`), VS Code मधून push |
+| App (page + नियम) | Vercel – push केल्यावर आपोआप deploy |
+| Data | Supabase |
+| Backup (copy) | Google Sheet – Vercel मधूनच लिहिली जाते |
+
+`app/` मधल्या `.gs` files हा app चा server code आहे (नियम, हिशोब). नाव `.gs` असले तरी त्या आता Vercel वरच चालतात, Google वर नाही.
+
+## SQL चालवण्याचा क्रम
+
+`sql/` मधल्या files क्रमाने: step1 … step1s, `supabase_step1t_debit_notes.sql`, `supabase_step1u_meter.sql`, मग `supabase_step2_web.sql`, मग `supabase_step3_safety.sql`. शेवटी `supabase_step4_health.sql` (app स्वतः database तपासते; Admin ला वरच्या पट्टीत "Database"). त्यानंतर `supabase_step5_save_once.sql` (update-68: एक save database मध्ये एकदाच – उत्तर हरवलं तरी तीच entry पुन्हा save होत नाही). `sql/proposed/` मधल्या files या क्रमाचा भाग नाहीत – त्या फक्त तपासणी (preflight, फक्त वाचते) आणि प्रस्ताव आहेत; `UPDATE_68.md` पहा.
+`check_security.sql` काहीही बदलत नाही; database ची सुरक्षा पाहण्यासाठी आहे (प्रत्येक ओळ "ok" ने सुरू झाली पाहिजे).
+
+## तपासणी (tests)
+
+- `npm test` – database शिवाय चालणाऱ्या चाचण्या (तारखा, password hash, page मध्ये key नाही, bill चा हिशोब, ledger).
+- `node test/audit.js`, `node test/reg.js`, `node test/bkg.js` – स्वतःच्या computer वरच्या PostgreSQL + PostgREST वर चालतात; live database वर कधीही चालवू नका.
+- तपासणीचे अहवाल: `AUDIT.md` (सुरक्षा आणि data), `UI_PERFORMANCE_AUDIT.md` (screens आणि वेग).
+
+## Folder
+
+- `app/` – app च्या files. पुढचे सगळे बदल इथेच होतील.
+- `server/`, `api/`, `build.js`, `vercel.json` – Vercel वर चालवण्यासाठी. यात बदल करायची गरज नसते.
+- `sql/` – सगळ्या SQL files (Supabase → SQL Editor मध्ये चालवायच्या).
+
+## Vercel मधले Environment Variables
+
+| नाव | काय |
+|---|---|
+| `SUPABASE_URL` | `https://mydhljgncdszrglqppsv.supabase.co` |
+| `SUPABASE_SECRET_KEY` | `sb_secret_…` |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Google ने दिलेल्या key file चा पूर्ण मजकूर (खाली पहा) |
+| `BACKUP_SHEET_ID` | Backup Google Sheet ची link |
+| `CRON_SECRET` | कोणताही लांब, गुप्त शब्द (उदा. 30 अक्षरे). रात्रीच्या backup साठी Vercel हा शब्द स्वतः पाठवते; त्याशिवाय रात्रीचा backup नाकारला जातो. |
+| `BACKUP_EXPORT_SECRET` | (update-157) कोणताही लांब, गुप्त शब्द (किमान 24 अक्षरे-अंक) – **हाच शब्द** rcl-portal, rcl-engineering आणि (update-195) rcl-purchase मध्ये पण. रात्रीचा backup त्याने Engineering, Portal आणि Purchase चा data घेतो (त्यांचे passwords / keys / sign-ins कधीच नाहीत). `ENGINEERING_URL` / `PURCHASE_URL` ऐच्छिक – नसेल तर `vercel.json` मधला /engineering / /purchase चा पत्ता. |
+| `ENGINEERING_URL` | (update-157) Engineering module चा पत्ता, उदा. `https://rcl-engineering.vercel.app` – backup त्यातून Engineering चा data घेतो. नसेल तर `vercel.json` मधला /engineering चा पत्ता वापरला जातो; तरी इथे लिहिणे सुरक्षित. |
+| `GOOGLE_OAUTH_CLIENT_ID` | (update-158) Photos / files ची Google Drive मध्ये copy: Google Cloud → APIs & Services → Credentials → **OAuth client ID** (Web application) चा Client ID. |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | (update-158) त्याच OAuth client चा Client secret (गुप्त – फक्त इथे). |
+| `DRIVE_REDIRECT_URL` | (update-158, ऐच्छिक) Google "Allow" नंतर परत येण्याचा पत्ता = या app चा पत्ता + `/api/drive` (उदा. `https://rclerp.vercel.app/api/drive`). नसेल तर Vercel चा production पत्ता वापरला जातो. हाच पत्ता OAuth client च्या "Authorized redirect URIs" मध्ये टाका (Portal → Sites → Storage मध्ये दिसतो). |
+| `DRIVE_ACCOUNT` | (update-158, ऐच्छिक – सुचवलेले) फक्त हे Google account जोडता येईल, (backup साठी निवडलेले कंपनीचे account) – दुसऱ्या account ने "Allow" केले तरी जोडले जात नाही. |
+| `FCM_SERVICE_ACCOUNT_JSON` | (update-161) Phone app चे notifications (app बंद असले तरी): Firebase → Project settings → **Service accounts** → **Generate new private key** ने मिळालेल्या `.json` file चा पूर्ण मजकूर (`{` पासून `}` पर्यंत). नसेल तर phone ला काही पाठवले जात नाही (आधीसारखे). Preview कधीच पाठवत नाही. |
+
+Keys कधीही code मध्ये किंवा git मध्ये टाकू नका.
+
+**गरज नसल्यास हात लावू नका (ऐच्छिक settings, 07-10-2026 च्या audit नंतर):**
+
+| नाव | काय |
+|---|---|
+| `RCL_OLD_WRITES` | ठेवू नका. Database मध्ये "सगळे किंवा काहीच नाही" save function (`web_write`, `sql/supabase_step3_safety.sql`) नसेल तर app आता save **नाकारते** (अर्धवट save होऊ नये म्हणून). फक्त नवीन site वर step 3 चालवण्याआधी तात्पुरते `on` ठेवता येते – मग जुन्या पद्धतीने (table-by-table) save होते. |
+| `RCL_QUEUE` | Server वर एका वेळी किती requests रांगेत थांबू शकतात (default 120). त्यापेक्षा जास्त आल्या तर "server busy" (503) लगेच मिळते आणि page स्वतः पुन्हा पाठवते. |
+
+**Backup Google Sheet चे sharing:** Sheet → Share → General access = **Restricted** ठेवा (फक्त तुम्ही आणि backup चा service account). Sheet मध्ये पूर्ण database आहे (vendors चे bank / PAN / Aadhaar, Activity Log). App आता Sheet ची link फक्त Admin ला दाखवते.
+
+---
+
+## Google Sheet backup (एकदाच करायची जोडणी)
+
+Backup लिहिण्यासाठी Google चे एक "service account" (फक्त या कामासाठीचे robot खाते) लागते.
+
+**1. Google Cloud project**
+- `console.cloud.google.com` उघडा (ज्या Google account मध्ये backup Sheet ठेवायची त्याने sign in).
+- वर project निवडण्याच्या जागी **New Project** → नाव `rcl-erp` → Create. तो project निवडा.
+
+**2. Sheets API चालू करा**
+- डावीकडे **APIs & Services → Library** → `Google Sheets API` शोधा → **Enable**.
+
+**3. Service account बनवा**
+- **APIs & Services → Credentials → Create credentials → Service account**.
+- नाव `rcl-backup` → Create and continue → Done.
+
+**4. Key file**
+- यादीतल्या `rcl-backup@…iam.gserviceaccount.com` वर click करा → **Keys** → **Add key → Create new key → JSON** → Create.
+- एक `.json` file download होईल. ती कोणालाही पाठवू नका.
+- त्या खात्याचा email (`rcl-backup@….iam.gserviceaccount.com`) copy करून ठेवा.
+
+**5. Backup Sheet (आधीचीच Sheet पुढे चालू राहते)**
+- आधीची backup Sheet उघडा → **Share** → service account चा email paste करा → **Editor** → Send.
+- जुन्या backup ने प्रत्येक tab ला कुलूप (protection) लावलेले आहे. ते एकदा काढा: **Data → Protect sheets and ranges** → उजवीकडे यादी येईल → प्रत्येक नोंदीवर click → कचरापेटी → Remove.
+- जुना Apps Script backup आधी थांबवा (खाली "जुने Apps Script app बंद करणे" मधली पायरी 2), नाहीतर तो पुन्हा कुलूप लावेल आणि service account ला Sheet मधून काढून टाकेल.
+- Sheet ची link copy करा.
+
+**6. Vercel**
+- Settings → Environment Variables:
+  - `GOOGLE_SERVICE_ACCOUNT_JSON` = `.json` file Notepad मध्ये उघडून पूर्ण मजकूर (`{` पासून `}` पर्यंत) paste करा.
+  - `BACKUP_SHEET_ID` = Sheet ची link.
+- Deployments → सर्वात वरच्या deployment वर **Redeploy**.
+
+**7. तपासा**
+- App मध्ये वरचे **Backup** बटण दाबा. "Full backup done" असे आले पाहिजे, आणि Sheet मध्ये प्रत्येक table चा tab दिसला पाहिजे.
+- संदेशात "protected" आले तर पायरी 5 मधले कुलूप काढायचे राहिले आहे; 403 आले तर पायरी 2 किंवा 5 मधले Share राहिले आहे; 404 आले तर Sheet ची link चुकली आहे.
+
+### Backup कधी होतो
+
+- App कोणाकडेही उघडे असताना: बदल झाल्यावर साधारण 5 मिनिटांत, फक्त बदललेले tables.
+- रोज रात्री 2 वाजता: सगळे tables पुन्हा (Vercel cron).
+- **Backup** बटण दाबल्यावर: लगेच.
+- Users चे passwords Sheet मध्ये कधीही जात नाहीत.
+- Sheet फक्त वाचण्यासाठीची copy आहे; त्यात केलेला बदल पुढच्या backup मध्ये पुसला जातो.
+- Tabs ची नावे, मथळे आणि मांडणी जुन्या backup सारखीच आहे.
+- जुन्या backup ने Sheet "link असलेला कोणीही पाहू शकतो" अशी ठेवली आहे. ती फक्त तुमच्यापुरती ठेवायची असेल तर Share → General access → Restricted करा.
+
+---
+
+## जुने Apps Script app बंद करणे (शेवटचे एकदाच)
+
+सगळ्यांना नवीन link (`https://rclerp.vercel.app`) दिल्यावर, दोन्ही app एकाच वेळी वापरले जाऊ नयेत म्हणून:
+
+1. Apps Script → **Deploy → Manage deployments** → जुने deployment **Archive** करा. जुनी link बंद होते.
+2. Apps Script → डावीकडे **Triggers** (घड्याळ) → सगळे triggers delete करा. जुना backup थांबतो.
+
+यानंतर Apps Script project उघडायची गरज नाही. Email आणि password तेच राहतात; सगळ्यांना नवीन link वर एकदा sign in करावे लागेल.
+
+---
+
+## पुढचे बदल कसे जातील
+
+1. बदललेली file `app/` मध्ये (किंवा नवीन SQL `sql/` मध्ये) ठेवा.
+2. नवीन SQL असेल तर आधी Supabase मध्ये चालवा.
+3. VS Code terminal:
+   ```
+   git add -A
+   git commit -m "काय बदलले"
+   git push
+   ```
+4. Vercel आपोआप deploy करते; उघड्या app ला नवीन version आपोआप मिळते.
+
+चूक झाली तर Vercel → Deployments मध्ये आधीचे deployment निवडून परत आणता येते.
+
+## माहितीसाठी
+
+- App server ला "काही बदलले का" असे काम चालू असताना दर 2 सेकंदांनी, page नुसते उघडे असताना दर 5–15 सेकंदांनी विचारते. Vercel वर हे calls मोजले जातात; users वाढले की Usage page वर लक्ष ठेवा.
+- एका उत्तरात साधारण 4.5 MB पेक्षा जास्त data Vercel पाठवत नाही; खूप मोठ्या कालावधीची यादी मागितली तर "pick a shorter period" असा संदेश येतो.
+- Sidebar चे रंग `app/App.html` मध्ये "LOOK 2026-10" या भागाच्या सुरुवातीला एका ठिकाणी आहेत (`--sb-…`).
+
+
+## वेग (04-10-2026)
+
+Server आता tables memory मध्ये ठेवतो आणि फक्त बदललेल्या ओळी आणतो; दर 2 सेकंदांचा "काही नवीन?" प्रश्न memory मधून उत्तरतो. अडचण आल्यास Vercel → Settings → Environment Variables मध्ये `RCL_WARM` = `off` ठेवून Redeploy करा: जुनी पद्धत परत येते.
+
+एका site वर किती लोक सुरळीत चालतात ते TEST प्रतीवर मोजण्यासाठी: `node test/load-site.js <link> <e-mail> <password> 100 120` (live site वर चालवू नका).
+
+
+## AI – Claude (27-10-2026, update-167)
+
+App मधले सगळे AI (Assistant, meter / pump चे photo, maintenance bill वाचणे) **Claude** वर चालते, जेव्हा server वर Claude ची key असते:
+
+1. Claude Console (platform.claude.com) → **API keys** → Create key (नाव उदा. `rcl-erp`). Key फक्त एकदाच दिसते – ती chat मध्ये, email मध्ये किंवा कुठल्याही file मध्ये ठेवू नका.
+2. Vercel → Mechanical चा project → Settings → Environment Variables → नवीन: नाव `ANTHROPIC_API_KEY`, किंमत = ती key, Environment = **Production** → Save.
+3. Vercel → Deployments → शेवटच्या deployment वर **Redeploy**.
+4. App उघडा → Ask → (Admin) **Test the AI service**: "Service: Claude" आणि ✓ claude-sonnet… / ✓ claude-haiku… दिसले की झाले.
+
+Model आपोआप: Claude ची सगळ्यात नवी **Sonnet** आधी, ती व्यस्त असेल तर **Haiku**. ठराविक model हवा असेल तर `ANTHROPIC_MODEL` ठेवा. Claude Console → Billing मध्ये credit संपले तर app तसे सांगते ("no credit left"); बाकी app चालूच राहते.
+परत Gemini वर जायचे असेल तर Vercel मधून `ANTHROPIC_API_KEY` काढा (किंवा नाव बदला) आणि Redeploy – `GEMINI_API_KEY` असेल तर Gemini परत चालते.
+
+## Assistant (chat) सुरू करणे (04-10-2026)
+
+1. Google AI Studio मध्ये Gemini ची API key बनवा.
+2. Vercel → project → Settings → Environment Variables → नवीन: नाव `GEMINI_API_KEY`, किंमत = ती key → Save.
+3. Vercel → Deployments → शेवटच्या deployment वर Redeploy.
+4. App उघडा (Ctrl + R): खाली उजवीकडे **Ask** बटण दिसेल.
+
+Key नसेल तर Ask बटण फक्त Admin ला दिसते आणि "अजून सुरू केलेले नाही" असे सांगते. Model आपोआप निवडला जातो; ठराविक model हवा असेल तर `GEMINI_MODEL` ठेवा. Assistant फक्त वाचतो; काहीही बदलत नाही.

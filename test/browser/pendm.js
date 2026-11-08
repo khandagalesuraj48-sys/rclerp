@@ -1,0 +1,43 @@
+// the month filter of the pending dates (one machinery), and the long "Standard" of a two-meter machinery staying in its column
+const chromium = require('@sparticuz/chromium').default || require('@sparticuz/chromium'); const puppeteer = require('puppeteer-core');
+const fs = require('fs'); const { execSync } = require('child_process');
+const wait = ms => new Promise(r => setTimeout(r, ms)); const sql = q => execSync('su postgres -c "psql -d rcl -tA"', { input: q }).toString().trim();
+const out = []; let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : fail++; out.push((c ? 'PASS ' : 'FAIL ') + n + (x !== undefined ? '  → ' + String(typeof x === 'string' ? x : JSON.stringify(x)).slice(0, 400) : '')); };
+const clean = () => sql("delete from log_book where machinery = 'TMF-1'; delete from master where id = 'TMF-1';");
+(async () => {
+  clean();
+  const post = async body => (await fetch('http://127.0.0.1:3001/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+  const tk = (await post({ fn: 'login', args: ['sujit@rcl.test', 'Nashik#Road848!'] })).result.token;
+  const mk = await post({ fn: 'api', args: [tk, 'saveMaster', [{ no: 'TMF-1', name: 'Transit Mixer', type: 'TM', unit: 'KM + Hrs', worksOn: ['KM + Hrs'], kmStd: 2.5, hrStd: 3, owner: 'Rachana Construction Limited', ownership: 'Own', status: 'Active', activeFrom: '2026-09-01' }, 'add']] });
+  if (mk.error) out.push('setup: ' + mk.error);
+  const b = await puppeteer.launch({ executablePath: await chromium.executablePath(), args: [...chromium.args, '--no-sandbox'], headless: 'shell', protocolTimeout: 120000 });
+  const p = await b.newPage(); await p.setViewport({ width: 1536, height: 760 });
+  const errs = []; p.on('pageerror', e => errs.push(String(e.message).slice(0, 200)));
+  await p.goto('http://127.0.0.1:3000/', { waitUntil: 'load' }); await wait(800);
+  const f = p.frames().find(x => x !== p.mainFrame());
+  await f.type('#lg_email', 'sujit@rcl.test'); await f.type('#lg_pass', 'Nashik#Road848!'); await f.click('#lg_btn'); await wait(6000);
+  await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} showTab('log'); }); await wait(2500);
+  await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} setLgMode('mach'); const el = document.getElementById('lg_top_no'); el.value = 'TMF-1'; el.dispatchEvent(new Event('change', { bubbles: true })); }); await wait(3000);
+  const today = await f.evaluate(() => S.today), octDays = Number(today.slice(8, 10)), total = 30 + octDays;
+  const strip = () => f.evaluate(() => { const bx = document.getElementById('lg_pend'); return { months: [...bx.querySelectorAll('.lp-months button')].map(x => x.textContent.replace(/\s+/g, ' ').trim() + (x.classList.contains('on') ? '*' : '')), head: (bx.querySelector('.lp-head span') || bx).textContent.replace(/\s+/g, ' ').trim().slice(0, 120), chips: [...bx.querySelectorAll('.lp-chips button')].map(x => x.dataset.lp), add: (bx.querySelector('[data-lpall]') || {}).textContent || '' }; });
+  let s = await strip();
+  ok('at first every pending date is shown, with a month filter above: All, Sep 2026, Oct 2026 (with their counts)', s.months.join(' | ') === 'All ' + total + '* | Sep 2026 30 | Oct 2026 ' + octDays && s.chips.length === total, { months: s.months, dates: s.chips.length });
+  await f.evaluate(() => document.querySelector('#lg_pend [data-lpm="2026-10"]').click()); await wait(300);
+  s = await strip();
+  ok('Oct 2026 picked: only October\'s dates are listed, the heading says so', s.chips.length === octDays && s.chips.every(d => d.slice(0, 7) === '2026-10') && /in Oct 2026: \d+ dates/.test(s.head) && /Oct 2026 \d+\*/.test(s.months.join(' ')), { head: s.head, dates: s.chips });
+  await f.evaluate(() => document.querySelector('#lg_pend [data-lpall]').click()); await wait(2500);
+  const rows = await f.evaluate(() => lgRows().map(tr => lgf(tr, 'date').value));
+  ok('"Add all" then adds only October\'s dates to the rows', rows.length === octDays && rows.every(d => d.slice(0, 7) === '2026-10') && rows.join() === rows.slice().sort().join(), rows);
+  await f.evaluate(() => document.querySelector('#lg_pend [data-lpm=""]').click()); await wait(300);
+  s = await strip();
+  ok('"All" shows every month again', s.chips.length === total && /^All \d+\*/.test(s.months[0]), { months: s.months, dates: s.chips.length });
+  // the Standard of a two-meter machinery stays inside its column (it used to run under the From / To boxes)
+  const g = await f.evaluate(() => { const tr = lgRows()[0], std = tr.querySelector('[data-o="std"]'), r = std.getBoundingClientRect(), range = document.createRange(); range.selectNodeContents(std); const t = range.getBoundingClientRect();
+    const next = [...tr.querySelectorAll('input')].map(i => i.getBoundingClientRect()).filter(x => x.width > 0 && x.left >= r.right - 2 && x.top < t.bottom && x.bottom > t.top).sort((a, b) => a.left - b.left)[0];
+    return { text: std.textContent, cellRight: Math.round(r.right), textRight: Math.round(t.right), nextBoxLeft: next ? Math.round(next.left) : null, lines: Math.round(t.height / 14) }; });
+  ok('the Standard "2.5 km/L + 3 L/hr" stays inside its own column (two lines), not under the next boxes', g.text === '2.5 km/L + 3 L/hr' && g.textRight <= g.cellRight + 1 && (g.nextBoxLeft === null || g.textRight <= g.nextBoxLeft), g);
+  await p.screenshot({ path: 'shots/pend_month.png' });
+  ok('no script error', errs.length === 0, errs.join(' | '));
+  clean();
+  out.push(pass + ' passed, ' + fail + ' failed'); fs.writeFileSync('/tmp/pendm.out', out.join('\n')); await b.close();
+})().catch(e => { fs.writeFileSync('/tmp/pendm.out', out.join('\n') + '\nCRASH ' + String(e.stack || e).slice(0, 600)); try { clean(); } catch (e2) {} process.exit(1); });

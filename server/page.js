@@ -1,0 +1,355 @@
+/* The page the browser gets: the SAME App.html and Index.html as in Apps Script, plus a small "bridge".
+ * In Apps Script the page talks to the server with google.script.run; here the bridge gives the page the same
+ * google.script.run, which sends the call to /api/rpc. Nothing else in the page changes. */
+'use strict';
+const fs = require('fs'), path = require('path'), crypto = require('crypto');
+const APP_DIR = path.join(__dirname, '..', 'app');
+const read = f => fs.readFileSync(path.join(APP_DIR, f), 'utf8');
+
+const DELTA_CLIENT = require('./delta').CLIENT;      // (update-155) the same two functions as the server's
+const BRIDGE = `
+(function () {
+  /* (update-208, asked 03-11-2026) HEAD OFFICE AT ITS OWN ADDRESS (/ho/): its sign-in and its site are kept apart from the main
+   * address's (the same names with "_ho"), so both can be open side by side, each on its own site. App.html: the same rule (KK). */
+  var hoKey = function (k) { var ho = false; try { var pth = String(window.top.location.pathname || '').toLowerCase(); ho = pth === '/ho/' || pth === '/ho'; } catch (e) { ho = false; } return ho ? k + '_ho' : k; };
+  var base = '';
+  try { base = window.parent.location.origin; } catch (e) { base = ''; }
+  if (!base || base === 'null') { try { base = window.location.origin; } catch (e) { base = ''; } }
+  if (!base || base === 'null') base = '';
+  // how long the server took: shown when the mouse rests on "Live" (the last check, and the slowest of the recent calls)
+  var recent = [];
+  function took(name, args, ms) {
+    var fn = name === 'api' ? String(args[1]) : name;
+    if (fn !== 'sync') { recent.push({ fn: fn, ms: ms }); if (recent.length > 25) recent.shift(); }
+    else setTimeout(function () { var el = document.getElementById('live_dot'); if (!el) return;
+      var worst = recent.slice().sort(function (a, b) { return b.ms - a.ms; })[0];
+      el.title = String(el.title || '').split(' · server')[0] + ' · server answered in ' + ms + ' ms' + (worst ? ' · slowest recent: ' + worst.fn + ' ' + worst.ms + ' ms' : ''); }, 80);
+  }
+  // a question (never a save) that is already on its way is not sent a second time: both askers get the one answer
+  var flying = {}, saveNo = 0;      // saveNo goes up whenever anything that is not a question is sent or answered
+  function isQuestion(name, args) { if (name !== 'api') return false; var f = String(args[1]);
+    // (update-85: dieselPhoto – a photo being sent – is tried again 3 times like a question, not for ever like a save: on a weak
+    //  connection the person must be able to take it again or save without it. A copy that arrived twice is only a spare file.
+    //  update-120: inwardPhoto – a bill copy of a diesel inward – the same; update-153: uploadAttachment – an attachment, kept once
+    //  under its fingerprint – and Scan with Mobile (capStart … capCancel; capPoll – the computer asking every 3 s what the phone
+    //  sent): they write no table, so they are questions, never counted as a save – and the QR's token is never kept with a save's answer)
+    return /^(get|rpt|rtc)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel', 'aiChats', 'aiChatGet', 'aiChatSave', 'aiMemory'].indexOf(f) > -1; }
+  // calls on their way (for the freeze note: which answer the page was waiting for, and for how long) and the last answer
+  var inFlight = {}, flightNo = 0, lastAnswer = '';
+  window.__rclNet = function () { var now = Date.now(), w = Object.keys(inFlight).map(function (k) { return inFlight[k].fn + ' ' + ((now - inFlight[k].t0) / 1000).toFixed(1) + ' s'; });
+    return { waiting: w.slice(0, 4).join(', '), last: lastAnswer }; };
+  /* (update-155) the page's memory of answers (see send): per site and whole question (with the sign-in), at most about 12 million
+   * characters, the oldest dropped first; emptied at sign-in, sign-out, a change of site or password and the Super Admin's work */
+  var MEMO_ON = true, memo = new Map(), memoChars = 0, memoSite = null, memoN = { same: 0, delta: 0, full: 0, mismatch: 0, bytes: 0 };
+  var CAN_PATCH = false; try { CAN_PATCH = !!(window.crypto && window.crypto.subtle && window.TextEncoder); } catch (e) { CAN_PATCH = false; }
+  ${DELTA_CLIENT}
+  function sha(t) { return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)).then(function (b) { var a = new Uint8Array(b), s = ''; for (var i = 0; i < 16; i++) s += ('0' + a[i].toString(16)).slice(-2); return s; }); }
+  function memoable(f) { return f === 'sync' || /^(get|rpt)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra'].indexOf(f) > -1; }
+  function memoClear() { memo.clear(); memoChars = 0; }
+  function memoKeep(k, h, text) { var had = memo.get(k); if (had) { memo.delete(k); memoChars -= had.text.length; }
+    if (text.length > 4000000) return; memo.set(k, { h: h, text: text }); memoChars += text.length;
+    memo.forEach(function (v, kk) { if (memoChars > 12000000 && kk !== k) { memo.delete(kk); memoChars -= v.text.length; } }); }
+  function memoTouch(k, v) { memo.delete(k); memo.set(k, v); }
+  function memoCount(kind, bytes) { memoN[kind] = (memoN[kind] || 0) + 1; memoN.bytes += bytes; }
+  window.__rclMemo = function () { return { answers: memo.size, chars: memoChars, same: memoN.same, delta: memoN.delta, full: memoN.full, mismatch: memoN.mismatch, bytes: memoN.bytes }; };
+  function send(name, args, ok, fail) {
+    try { if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('→ ' + (name === 'api' ? args[1] : name)); } catch (e) {}
+    if (isQuestion(name, args)) {
+      // a question asked BEFORE a save must never answer one asked AFTER it (the list would miss what was just saved):
+      // the save number is part of the key, so after any save the same question goes to the server again
+      var key = saveNo + '|' + JSON.stringify(args);
+      if (flying[key]) { flying[key].push({ ok: ok, fail: fail }); return; }
+      flying[key] = [];
+      var ok0 = ok, fail0 = fail;
+      ok = function (v) { var others = flying[key] || []; delete flying[key];
+        var txt = others.length ? JSON.stringify(v === undefined ? null : v) : '';        // every asker gets its own copy
+        try { if (ok0) ok0(v); } finally { others.forEach(function (w) { try { if (w.ok) w.ok(JSON.parse(txt)); } catch (e) {} }); } };
+      fail = function (e) { var others = flying[key] || []; delete flying[key];
+        try { if (fail0) fail0(e); } finally { others.forEach(function (w) { try { if (w.fail) w.fail(e); } catch (x) {} }); } };
+    }
+    var isQ = isQuestion(name, args) || (name === 'api' && args[1] === 'sync') || name === 'getAppBuild' || name === 'getAppHtml';
+    if (['login', 'logout', 'ssoLogin', 'switchSite', 'setDefaultSite', 'changePassword', 'super', 'portalAdmin'].indexOf(name) > -1) memoClear();      // (update-155) another person, site or access: nothing kept
+    if (!isQ) saveNo++;
+    var t0 = Date.now(), fid = ++flightNo, fnName = name === 'api' ? String(args[1]) : name;
+    inFlight[fid] = { fn: fnName, t0: t0 };
+    var landed = function (err) { delete inFlight[fid]; lastAnswer = fnName + ' ' + (Date.now() - t0) + ' ms' + (err ? ' (failed)' : ''); };
+    /* A SAVE THAT DID NOT GET THROUGH IS SENT AGAIN BY ITSELF (asked 03-10-2026: "do not tell me it was not saved – save it").
+     * Every save carries its own number (rid). When the connection drops, the server is busy or it does not answer, the
+     * same save is sent again with the SAME number – after 1.2 s, then a little longer each time, at most every 10 s –
+     * for as long as this page is open. The server keeps the answer of every number for an hour, so a save that had
+     * arrived the first time is NOT saved twice: the second copy just gets the first answer. The person sees a small
+     * line "being sent again"; the Save button stays "Saving…"; closing the page asks first.
+     * Not sent again: an entry the server REFUSES (a wrong reading, a closed month …) – that needs the person, and is shown.
+     * A question (a list, a report) is asked again 3 times, then it says so as before. */
+    var rid = (name === 'api' && !isQ) ? ('s' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12)) : '';
+    // (update-90) the site this page is on goes with every call (kept next to the sign-in; none = the first site, as before)
+    var site = ''; try { site = localStorage.getItem(hoKey('rcl_site')) || sessionStorage.getItem(hoKey('rcl_site')) || ''; } catch (e) { site = ''; }
+    var msg = rid ? { fn: name, args: args, rid: rid } : { fn: name, args: args }; if (site) msg.site = site;
+    var body = JSON.stringify(msg), tries = 0;
+    /* (update-155) THE LAST ANSWER OF A QUESTION IS KEPT IN THIS PAGE'S MEMORY (never in the browser's storage) with its
+     * fingerprint. Asked again, the page says which one it has; the server works the answer out as always (with the person's
+     * access) and says "the same" (a few bytes), sends only what changed, or sends it whole (server/delta.js). What is rebuilt
+     * here is checked against the server's fingerprint; anything that does not match asks again for the whole answer. */
+    var mkey = '', noHave = false, rawText = '';
+    if (name === 'api' && isQ && MEMO_ON && memoable(fnName)) { mkey = site + '|' + JSON.stringify(args); if (mkey.length > 20000) mkey = ''; }
+    if (mkey && memoSite !== site) { memoClear(); memoSite = site; }
+    var bodyNow = function () {
+      if (!mkey) return body;
+      var m2 = { fn: name, args: args, m: 1 }; if (site) m2.site = site;
+      var b = noHave ? null : memo.get(mkey); if (b) { m2.have = b.h; if (CAN_PATCH) m2.dx = 1; }
+      return JSON.stringify(m2);
+    };
+    var again = function (why) {
+      if (/Too much data/.test(why)) return false;
+      if (name !== 'api' || fnName === 'sync') return false;
+      if (isQ) { if (tries >= 3) return false; setTimeout(attempt, 600 * tries); return true; }
+      waiting[fid] = { fn: fnName, n: tries }; retryNote();
+      setTimeout(attempt, Math.min(10000, Math.round(1200 * Math.pow(1.6, tries - 1)))); return true;
+    };
+    // the answer as the page always had it: { result } or { error }
+    var finish = function (j, value) {
+      if (j.error !== undefined && j.error !== null && TRANSIENT.test(String(j.error)) && again(String(j.error))) return;       // the server could not do it NOW: again
+      if (mkey && j.error !== undefined && j.error !== null) memo.delete(mkey);      // a refusal (no access any more …): nothing of it is kept
+      var was = waiting[fid]; if (was) { delete waiting[fid]; retryNote(true); }
+      landed(false); if (!isQ) saveNo++; try { took(name, args, Date.now() - t0); if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('← ' + (name === 'api' ? args[1] : name) + ' ' + (Date.now() - t0) + ' ms' + (tries > 1 ? ' (try ' + tries + ')' : '') + (j && j.error ? ' ERROR' : '')); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(value); };
+    var whole = function () { noHave = true; tries--; attempt(); };      // ask once more, for the whole answer
+    var attempt = function () {
+      tries++;
+      fetch(base + '/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: bodyNow(), cache: 'no-store' })
+        .then(function (r) { return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; }
+          if (!j) throw new Error(r.status === 413 ? 'Too much data in one go – pick a shorter period.' : 'The server did not answer properly (' + r.status + '). Try again.');
+          rawText = mkey ? t : ''; return j; }); })
+        .then(function (j) {
+          if (mkey && (j.error === undefined || j.error === null) && typeof j.h === 'string') {
+            var have = memo.get(mkey); memoCount(j.same ? 'same' : j.delta ? 'delta' : 'full', rawText.length);
+            if (j.same) { if (have && have.h === j.h) { memoTouch(mkey, have); finish(j, JSON.parse(have.text)); return; } if (!noHave) { whole(); return; } }
+            else if (j.delta) {
+              if (have && have.h === j.base && !noHave) {
+                var txt = null; try { txt = rclPatch(have.text, j.delta); } catch (e) { txt = null; }
+                if (txt === null) { memo.delete(mkey); whole(); return; }
+                sha(txt).then(function (h2) { if (h2 !== j.h) { memo.delete(mkey); memoCount('mismatch', 0); whole(); return; }
+                  var v; try { v = JSON.parse(txt); } catch (e) { memo.delete(mkey); whole(); return; }
+                  memoKeep(mkey, j.h, txt); finish(j, v); }, function () { memo.delete(mkey); whole(); });
+                return;
+              }
+              if (!noHave) { whole(); return; }
+            }
+            else if ('result' in j) { var p = rawText.indexOf('"result":'); if (rawText.slice(0, 6) === '{"h":"' && p > 0) memoKeep(mkey, j.h, rawText.slice(p + 9, rawText.length - 1)); }
+          }
+          finish(j, j.result); },
+              function (e) {
+                if (again(String((e && e.message) || e))) return;
+                landed(true); if (fail) fail(new Error(e && /did not answer|Too much data/.test(e.message) ? e.message : 'No connection to the server – check the internet and try again.')); });
+    };
+    attempt();
+  }
+  // what the server says when it could not do it NOW (busy, database slow) – worth sending again; anything else is an answer
+  var TRANSIENT = /Another save is still running|Could not reach the database|did not answer in time|^Database [(][a-z_]+[)]: 5[0-9][0-9]|RETRY_LATER/;
+  var waiting = {};      // saves that are being sent again: { flight number: { fn, n } }
+  window.__rclSaving = function () { return Object.keys(waiting).length; };
+  var RT = { en: ['No connection – your entry is kept and is being sent again by itself', 'try', 'Do not close this page.', 'Saved ✔'],
+    mr: ['Connection नाही – तुमची entry जपली आहे आणि आपोआप पुन्हा पाठवली जात आहे', 'प्रयत्न', 'हे page बंद करू नका.', 'Save झाले ✔'],
+    hi: ['Connection नहीं – आपकी entry सुरक्षित है और अपने-आप दोबारा भेजी जा रही है', 'प्रयास', 'यह page बंद न करें।', 'Save हो गया ✔'] };
+  var rtBox = null, rtHide = null;
+  function retryNote(done) {
+    var ks = Object.keys(waiting), lang = 'mr'; try { lang = localStorage.getItem('rcl_lang') || 'mr'; } catch (e) {}
+    var T = RT[lang] || RT.mr;
+    if (!rtBox) { if (!document.body) return; rtBox = document.createElement('div'); rtBox.id = 'rcl_retry'; rtBox.setAttribute('role', 'status');
+      rtBox.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99998;max-width:min(680px,92vw);padding:10px 16px;border-radius:12px;font:600 13.5px/1.4 system-ui,Arial,sans-serif;box-shadow:0 10px 28px rgba(0,0,0,.28);text-align:center';
+      document.body.appendChild(rtBox); }
+    clearTimeout(rtHide);
+    if (ks.length) { var n = 0; ks.forEach(function (k) { if (waiting[k].n > n) n = waiting[k].n; });
+      rtBox.hidden = false; rtBox.style.background = '#FFF4D6'; rtBox.style.color = '#6B4500'; rtBox.style.border = '1px solid #F0C36D';
+      rtBox.textContent = T[0] + (ks.length > 1 ? ' (' + ks.length + ')' : '') + ' · ' + T[1] + ' ' + n + ' · ' + T[2]; }
+    else if (done) { rtBox.hidden = false; rtBox.style.background = '#E8F7EF'; rtBox.style.color = '#0B6B3A'; rtBox.style.border = '1px solid #A7DFC0'; rtBox.textContent = T[3]; rtHide = setTimeout(function () { rtBox.hidden = true; }, 2600); }
+    else rtBox.hidden = true;
+  }
+  // closing the page while an entry is still being sent: the browser asks first
+  window.addEventListener('beforeunload', function (e) { if (Object.keys(waiting).length) { e.preventDefault(); e.returnValue = ''; return ''; } });
+
+  /* A thin bar at the top of the app while it waits for the server longer than half a second, and the seconds once it is
+   * more than 2.5 s. A slow answer (a server that had gone to sleep, a weak connection) must never look like a frozen app:
+   * the page itself stays usable, and the person sees that it is waiting and for how long. The 2-second check is not shown. */
+  if (window.parent !== window) (function waitBar() {
+    var bar = null;
+    setInterval(function () {
+      var now = Date.now(), oldest = 0, what = '';
+      for (var k in inFlight) { var x = inFlight[k]; if (x.fn === 'sync' || x.fn === 'getAppBuild') continue; if (now - x.t0 > oldest) { oldest = now - x.t0; what = x.fn; } }
+      if (oldest > 500) {
+        if (!bar) { if (!document.body) return; bar = document.createElement('div'); bar.id = 'rcl_wait'; bar.innerHTML = '<i></i><span></span>'; document.body.appendChild(bar); }
+        // (update-86, asked 12-10-2026: no "Waiting for the server…" words – only the thin moving bar; what it waits for and how
+        //  long is still noted for the freeze note: window.__rclNet)
+        bar.hidden = false; var s = bar.lastChild; if (s.textContent) s.textContent = ''; s.hidden = true;
+      } else if (bar && !bar.hidden) bar.hidden = true;
+    }, 250);
+  })();
+  function runner(ok, fail) {
+    return new Proxy({}, { get: function (t, name) {
+      if (name === 'withSuccessHandler') return function (f) { return runner(f, fail); };
+      if (name === 'withFailureHandler') return function (f) { return runner(ok, f); };
+      if (name === 'withUserObject') return function () { return runner(ok, fail); };
+      return function () { send(String(name), Array.prototype.slice.call(arguments), ok, fail); };
+    } });
+  }
+  window.google = { script: { run: runner(null, null), host: { close: function () {} } } };
+  /* (update-186) THE ASSISTANT'S ANSWER WORD BY WORD: POST /api/ai with the sign-in and this page's site; each line of the answer
+   * ({ t: 'd', x: words } as they come, then { t: 'end', … } or { t: 'err', e }) is handed to onLine; the promise gives the last one.
+   * A refusal before the first line (not signed in, the limits, no Claude key: "AI_NO_STREAM", an older server) fails with its words
+   * – the page then asks getAiReply as before. */
+  window.google.script.aiStream = function (token, x, onLine) {
+    var site = ''; try { site = localStorage.getItem(hoKey('rcl_site')) || sessionStorage.getItem(hoKey('rcl_site')) || ''; } catch (e) { site = ''; }
+    var msg = { token: token, x: x }; if (site) msg.site = site;
+    return fetch(base + '/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(msg), cache: 'no-store' }).then(function (r) {
+      if ((r.headers.get('Content-Type') || '').indexOf('ndjson') < 0 || !r.body || !r.body.getReader) return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { j = null; } throw new Error(j && j.error ? j.error : 'AI_NO_STREAM'); });
+      var rd = r.body.getReader(), dec = new TextDecoder(), buf = '', last = null;
+      // (the review) the answer is there with its last line – what the server still does after it (or a line lost then) is not waited for
+      return new Promise(function (resolve, reject) {
+        var line = function (l) { if (!l || !l.trim() || last) return; var j = null; try { j = JSON.parse(l); } catch (e) { return; } try { onLine(j); } catch (e) { /* the page's own drawing */ } if (j.t === 'end' || j.t === 'err') { last = j; resolve(j); } };
+        var pump = function () { rd.read().then(function (c) { if (c.done) { line(buf); buf = ''; if (!last) resolve(null); return; } buf += dec.decode(c.value, { stream: true }); var i; while ((i = buf.indexOf('\\n')) > -1) { line(buf.slice(0, i)); buf = buf.slice(i + 1); } if (!last) pump(); else { try { rd.cancel(); } catch (e) {} } }, function (e) { if (!last) reject(e); }); };
+        pump();
+      });
+    });
+  };
+  /* A small recorder for "the page stopped answering" (asked for after a freeze nobody could explain).
+   * Only inside the app's own page, only in this browser: it keeps the last things that happened (which question went to
+   * the server, how long the answer took, clicks, and every time the page could not answer for more than a second),
+   * and a heartbeat once a second. If the page ends without saying goodbye – it froze and was closed or reloaded –
+   * the next start shows a short note with those lines, so they can be sent on. Nothing is sent anywhere by itself. */
+  if (window.parent !== window) (function recorder() {
+    var KEY = 'rcl_trace', crumbs = [], t = function () { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2); };
+    var add = function (what, long) { crumbs.push(t() + ' ' + String(what).slice(0, long ? 400 : 90)); if (crumbs.length > 30) crumbs.shift(); };
+    /* what the page was doing when it stopped answering: page on screen, the person's last action, the answer it was
+     * waiting for (and how long), the last answer, the longest recent blocking task and the memory in use (Chrome) */
+    var lastAct = '', lastLong = '';
+    var context = function () { var out = [], pt = document.getElementById('page_title');
+      out.push('page: ' + (pt ? String(pt.textContent || '').trim() : '?'));
+      if (lastAct) out.push('last action: ' + lastAct);
+      try { var n = window.__rclNet ? window.__rclNet() : null; if (n && n.waiting) out.push('waiting for: ' + n.waiting); if (n && n.last) out.push('last answer: ' + n.last); } catch (e) {}
+      if (lastLong) out.push('blocking task: ' + lastLong);
+      try { var m = performance.memory; if (m) out.push('memory: ' + Math.round(m.usedJSHeapSize / 1048576) + ' of ' + Math.round(m.jsHeapSizeLimit / 1048576) + ' MB'); } catch (e) {}
+      try { out.push('page size: ' + document.getElementsByTagName('*').length + ' elements'); } catch (e) {}
+      return out.join(' · '); };
+    window.rclDiag = function () { return crumbs.concat([t() + ' now: ' + context()]).join(String.fromCharCode(10)); };
+    var prev = null; try { prev = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { prev = null; }
+    /* WRITTEN ONLY WHEN THERE IS SOMETHING NEW (07-10-2026). The note used to be written to the browser's storage EVERY SECOND,
+     * for as long as the page was open (also in the background) – a blocking write of up to 12 KB, 86,000 times a day per open
+     * page. Now: only when a line was added since the last write (looked at once a second), and when the page goes to the
+     * background or is closed. The once-a-second look that notices "the page did not answer" stays.
+     * "clean" (= no note next time) is now also set when the page goes to the background: a phone that ends a background app
+     * no longer shows "stopped without closing properly" at the next start. Each open page has its own mark (me), and a note
+     * left by ANOTHER page that is still open and answering is not shown (see showLast). */
+    var me = Math.random().toString(36).slice(2, 10), dirty = false, add0 = add;
+    add = function (what, long) { add0(what, long); dirty = true; }; window.__rclCrumb = add;
+    var save = function (clean) { dirty = false; try { localStorage.setItem(KEY, JSON.stringify({ beat: Date.now(), clean: !!clean, tab: me, crumbs: crumbs })); } catch (e) {} };
+    var last = Date.now();
+    var wasHidden = document.hidden;
+    document.addEventListener('visibilitychange', function () { if (document.hidden) { wasHidden = true; save(true); } else save(false); });
+    setInterval(function () { var now = Date.now(), gap = now - last; last = now;
+      // more than about 2 seconds without a heartbeat while the page was on screen = the page did not answer
+      if (gap > 300000) add('page paused for ' + Math.round(gap / 60000) + ' min (computer asleep?)');
+      else if (gap > 2100 && !document.hidden && !wasHidden) add('PAGE DID NOT ANSWER for ' + (gap / 1000).toFixed(1) + ' s – ' + context(), true);
+      wasHidden = document.hidden; if (dirty) save(document.hidden); }, 1000);
+    // other open pages of the app answer "I am still here" (so their note is not shown as a crash by a page that starts)
+    var chan = null; try { chan = new BroadcastChannel('rcl_trace'); chan.onmessage = function (e) { var d = e && e.data; if (d && d.ask === me) { try { chan.postMessage({ alive: me }); } catch (x) {} } }; } catch (e) { chan = null; }
+    try { new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { if (e.duration >= 200) lastLong = Math.round(e.duration) + ' ms at ' + t(); if (e.duration >= 1000) add('long task ' + Math.round(e.duration) + ' ms'); }); }).observe({ entryTypes: ['longtask'] }); } catch (e) {}
+    // Chrome 123+: a slow screen frame says WHICH code held it (function name and what started it)
+    try { new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { if (e.duration < 1000) return;
+      var sc = (e.scripts || []).slice().sort(function (a, b) { return b.duration - a.duration; }).slice(0, 2).map(function (x) { return (x.sourceFunctionName || x.invoker || '?') + ' (' + (x.invokerType || '') + ') ' + Math.round(x.duration) + ' ms'; }).join('; ');
+      lastLong = Math.round(e.duration) + ' ms at ' + t() + (sc ? ' – ' + sc : '');
+      add('slow frame ' + Math.round(e.duration) + ' ms' + (sc ? ': ' + sc : '') + (e.blockingDuration ? ' (blocked ' + Math.round(e.blockingDuration) + ' ms)' : ''), true); }); })
+      .observe({ type: 'long-animation-frame', buffered: false }); } catch (e) {}
+    document.addEventListener('click', function (e) { var b = e.target && e.target.closest ? e.target.closest('button, a, [role=tab], .navbtn') : null; if (b) { lastAct = 'click ' + (b.id || '') + ' "' + String(b.textContent || '').trim().slice(0, 30) + '" at ' + t(); add('click: ' + (b.id || '') + ' "' + String(b.textContent || '').trim().slice(0, 30) + '"'); } }, true);
+    document.addEventListener('change', function (e) { var x = e.target; if (x && (x.id || (x.dataset && x.dataset.f))) lastAct = 'changed ' + (x.id || x.dataset.f) + ' at ' + t(); }, true);
+    window.addEventListener('pagehide', function () { save(true); });
+    window.addEventListener('error', function (e) { add('script error: ' + String(e.message).slice(0, 70)); });
+    // the last run ended without a goodbye and its heartbeat had stopped: show what it was doing
+    var showLast = function () {
+      if (!prev || prev.clean || !prev.crumbs || !prev.crumbs.length) return;
+      var when = new Date(prev.beat), box = document.createElement('div');
+      box.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;max-width:760px;margin:auto;background:#fff;border:2px solid #B45309;border-radius:12px;padding:12px 14px;box-shadow:0 12px 30px rgba(0,0,0,.25);font:13px/1.45 system-ui,Arial,sans-serif;color:#1F2937';
+      var esc = function (x) { return String(x).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+      box.innerHTML = '<b>Last time this page stopped at ' + esc(when.toLocaleTimeString()) + ' without closing properly.</b> If it had frozen, please send a photo of this box:' +
+        '<pre style="margin:8px 0;max-height:190px;overflow:auto;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px;font:12px/1.4 Consolas,monospace;white-space:pre-wrap">' + esc(prev.crumbs.join(String.fromCharCode(10))) + '</pre>' +
+        '<button type="button" style="padding:6px 14px;border:1px solid #334155;border-radius:8px;background:#fff;cursor:pointer;font:600 13px system-ui">Close</button>';
+      box.querySelector('button').onclick = function () { box.remove(); };
+      (document.body || document.documentElement).appendChild(box);
+    };
+    // a note of a page that is still open and answering is nobody's crash: it is asked first (half a second), then shown
+    var showIfGone = function () {
+      if (!prev || prev.clean || !prev.crumbs || !prev.crumbs.length) return;
+      if (!chan || !prev.tab) { showLast(); return; }
+      var alive = false, on = function (e) { if (e && e.data && e.data.alive === prev.tab) alive = true; };
+      try { chan.addEventListener('message', on); chan.postMessage({ ask: prev.tab }); } catch (e) { showLast(); return; }
+      setTimeout(function () { try { chan.removeEventListener('message', on); } catch (e) {} if (!alive) showLast(); }, 500);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showIfGone); else showIfGone();
+    save(false);
+  })();
+
+  // the Google Sheet backup: while the app is open it asks the server now and then whether the day's backup is done
+  // (update-141: the backup runs ONCE A DAY – at night by itself; the first open page of the day starts it if the night's
+  // did not run. The server does nothing when today's is done. Every 30 minutes; a minute later while a backup is unfinished.)
+  if (window.parent !== window) {
+    var tick = function () { try { var tk = ''; try { tk = sessionStorage.getItem(hoKey('rcl_token')) || localStorage.getItem(hoKey('rcl_token')) || ''; } catch (e) { tk = ''; }
+      if (!tk) return;      // nobody signed in: nothing to ask
+      var st = ''; try { st = localStorage.getItem(hoKey('rcl_site')) || sessionStorage.getItem(hoKey('rcl_site')) || ''; } catch (e) { st = ''; }
+      if (/^sa/.test(tk)) return;      // (update-90) the Super Admin has no site of his own: nothing to back up
+      fetch(base + '/api/backup', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tk, site: st }) })
+        .then(function (r) { return r.json(); }).then(function (j) { if (j && j.pending > 0) { clearTimeout(soon); soon = setTimeout(tick, 60000); } }).catch(function () {}); } catch (e) {} };
+    var soon = 0; setTimeout(tick, 40000); setInterval(tick, 1800000);
+  }
+})();`;
+
+let memo = null;
+function page() {
+  if (memo) return memo;
+  // the app with the bridge in front of its version line (the version is a fingerprint of this text, as in Apps Script)
+  const app = read('App.html').replace('<script>/*APP_BUILD*/</script>', () => '<script>' + BRIDGE + '</script><script>/*APP_BUILD*/</script>');
+  const build = crypto.createHash('md5').update(app, 'utf8').digest('hex').slice(0, 12);
+  const put = "window.APP_BUILD = '" + build + "'; window.APP_URL = (function () { try { return window.parent.location.origin + '/'; } catch (e) { return ''; } })();";
+  const html = app.replace('/*APP_BUILD*/', () => put);
+  memo = { build: build, html: html, bridged: app };
+  return memo;
+}
+// the shell page (Index.html) with the app put in, as doGet did
+function shell() {
+  const a = page();
+  const json = JSON.stringify({ build: a.build, html: a.html }).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  // (manifest, colours and icons: what a phone needs to install the page as an app – see build.js)
+  const head = '<title>Fleet ERP – One Click Solution</title>\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<link rel="icon" type="image/png" href="/icons/oc2-favicon-64.png">\n' +
+    '<link rel="manifest" href="/manifest.webmanifest">\n<meta name="theme-color" content="#0F1F3D">\n<meta name="mobile-web-app-capable" content="yes">\n<meta name="apple-mobile-web-app-capable" content="yes">\n' +
+    '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n<meta name="apple-mobile-web-app-title" content="Fleet ERP">\n<link rel="apple-touch-icon" href="/icons/oc2-apple-180.png">\n';
+  let s = read('Index.html');
+  if (s.indexOf('/*APP_JSON*/null') === -1 || s.indexOf('<script>') === -1) throw new Error('Index.html is not the shell page this build expects.');
+  s = s.replace('<meta charset="utf-8">', () => '<meta charset="utf-8">\n' + head);
+  s = s.replace('<script>', () => '<script>' + BRIDGE + '</script>\n<script>');
+  s = s.replace('/*APP_JSON*/null', () => json);
+  // (update-138) a Preview (a test copy on the staging database): a band on top of every page, so nobody takes it for the live app
+  // (02-11-2026) the BETA copy (the testers' copy of the next version, on the live data – syncfetch.js isBeta) has its own band
+  if (String(process.env.VERCEL_ENV || '') === 'preview') {
+    const beta = require('./syncfetch').isBeta();
+    // (22 px high; the app's frame starts below it, so it hides nothing of the app)
+    const band = '<style>#app{top:22px;height:calc(100% - 22px)}</style><div id="rcl_preview_band" style="position:fixed;z-index:6;left:0;right:0;top:0;height:22px;padding:0 8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;' + (beta ? 'background:#6D28D9;color:#fff;' : 'background:#F59E0B;color:#111;') + 'font:700 12px/22px system-ui,sans-serif;text-align:center">' + (beta ? 'BETA – the new version for testers · the data is LIVE' : 'TEST copy (Preview) – the staging database · nothing here is live') + '</div>';
+    s = /<body[^>]*>/.test(s) ? s.replace(/<body[^>]*>/, m => m + band) : band + s;
+    // (02-11-2026) a label printed in the beta copy carries the LIVE address (it stays on the machine and everybody scans it):
+    // App.html qrLink reads it (RCL_LIVE_URL in Vercel only if the one address ever changes)
+    if (beta) { const live = String(process.env.RCL_LIVE_URL || 'https://oneclicksolution-erp.vercel.app').trim().replace(/\/+$/, '');
+      if (/^https:\/\/[a-z0-9.-]+$/i.test(live)) s = s.replace('<script>', () => '<script>window.rclLive = ' + JSON.stringify(live) + ';</script>\n<script>'); }
+  }
+  return s;
+}
+module.exports = { page, shell, read, APP_DIR };
+
+/* (13-10-2026, one address) THE MENU OF THIS MODULE for the other modules: /menu.json lists the pages of Machinery – each with
+ * its key (the page's tab name), its name and its section – read from the page itself (App.html), so it is never out of date.
+ * The Store (and every module added later) shows these pages under "Mechanical" in its own dark menu; a click opens this app
+ * on that page (<address>/#site=…&page=…), in the same window. Which pages a person may open is decided here, as always. */
+function menu() {
+  const h = read('App.html'), a = h.indexOf('id="grp_mach"'), b = h.indexOf('id="grp_mods"');
+  const part = a > -1 && b > a ? h.slice(a, b) : '', pages = [];
+  let group = '';
+  const re = /<button class="sghead"[\s\S]*?<span class="label">([^<]+)<\/span>|<button class="navbtn" role="tab" id="tab-([a-z0-9-]+)"[\s\S]*?<span class="label">([^<]+)<\/span>/g;
+  let m; while ((m = re.exec(part))) { if (m[1]) group = m[1].trim(); else pages.push(Object.assign({ key: m[2], name: m[3].replace(/&amp;/g, '&').trim() }, group && m[2] !== 'dash' ? { group: group.replace(/&amp;/g, '&') } : {})); }
+  return { module: 'mechanical', name: 'Mechanical', pages: pages };
+}
+module.exports.menu = menu;
