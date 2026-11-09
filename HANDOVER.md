@@ -2374,3 +2374,9 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Log Book (maintLog_ → tyres: tyreBattList_ – a bill line or a Store issue line naming a tyre / battery, not a repair of one (TB_NOT_);
   the reading then, run since from machLastReadings_, the days). No SQL. With rcl-mobile 3.90.0. Tests: unit `update-215`; the rig in
   Chromium (`hod/web215.js`, 14 / 14).
+- 09-11-2026 (update-216, part 2 of "the HO features – HO and every site"; DATABASE STEP 1zm – he runs it in every site). Report:
+  `UPDATE_216.md`. VEHICLE BOOKING (vehicle_booking; getBookings / saveBooking / decideBooking / cancelBooking – the new right "Booking
+  Approve" labelled "Vehicle Booking – approve"; never one vehicle twice at a time; messages by crNotify_) and VEHICLE EXPENSES
+  (vehicle_expense; typed, or the FASTag statement read by the AI – readVexpStatement / importVexp, never twice: txn unique). Read and
+  written straight by REST (vbFetch_ – not in SB_TABLES_, so not in the Sheet backup yet). Pages `vbook`, `vexp`; three app_users columns
+  ('opt'). With rcl-mobile 3.91.0. Tests: unit `update-216`; the rig in Chromium (`hod/web216.js`, 15 / 15).
