@@ -7833,7 +7833,7 @@ test('update-189: a page\'s 4th access "Admin" (every page with a date) – Edit
   const { T, ctx } = require('./harness.js');
   const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
   assert.deepStrictEqual(run('() => [ACCESS_("Admin"), ACCESS_("admin"), permOf_("Diesel Issue", "Admin"), permOf_("Reports", "Admin"), permOf_("Log Book", "Edit")]'), ['Admin', 'Admin', 'Admin', 'Edit', 'Edit']);
-  assert.deepStrictEqual(run('() => DATE_PAGES_.slice().sort()'), ['Breakdown', 'Diesel Inward', 'Diesel Issue', 'Diesel Transfer', 'Fuel Cards', 'Log Book', 'Maintenance']);
+  assert.deepStrictEqual(run('() => DATE_PAGES_.slice().sort()'), ['Breakdown', 'Diesel Inward', 'Diesel Issue', 'Diesel Transfer', 'Fuel Cards', 'Log Book', 'Maintenance', 'Vehicle Expenses']);      // (update-216: Vehicle Expenses)
   // a user: Diesel Issue Admin, Log Book Edit; Admin on a page without a date is kept as Edit
   run('() => { this.__mh189 = makeHash_; makeHash_ = () => "sha256$0123456789abcdef$" + "0".repeat(64); }');
   try { run('x => saveUserAdmin_(x, null)', { isNew: true, email: 'clerk189@site.test', name: 'Clerk 189', active: true, admin: false, perms: { 'Diesel Issue': 'Admin', 'Log Book': 'Edit', 'Reports': 'Admin', 'Dashboard': 'View' }, newPassword: crypto.randomBytes(8).toString('hex') + 'Aa1' }); }
@@ -9233,5 +9233,127 @@ test('update-215: the Pump bill photo of a fill (only at a site on fuel cards) a
   } finally {
     vm.runInContext('sbFetch_ = __k215.fetch;', ctx);
     run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); }');
+  }
+});
+
+test('update-216: Vehicle Booking (asked, decided by "Vehicle Booking – approve" with the vehicle and driver – never one vehicle twice at a time, cancelled, messages) and Vehicle Expenses (toll / parking typed; the FASTag statement read by the AI, put on each vehicle, never saved twice); step 1zm – its tables only', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), sql = fs.readFileSync(path.join(root, 'sql', 'supabase_step1zm_booking_expenses.sql'), 'utf8');
+  // the two tables of step 1zm, as PostgREST answers (in memory); __DB216.off = the step not run
+  vm.runInContext(`globalThis.__k216 = { fetch: sbFetch_, push: rtcPush_, ai: aiAskPhoto_, info: aiInfo_ }; globalThis.__DB216 = { vehicle_booking: [], vehicle_expense: [], off: false }; globalThis.__sent216 = []; globalThis.__AI216 = '';
+    rtcPush_ = function (ids, msg) { __sent216.push({ ids: ids, msg: msg }); };
+    aiInfo_ = function () { return { on: true }; }; aiAskPhoto_ = function (b64, ask) { __AI216 = ask; return globalThis.__AIANS216 || '{"rows": []}'; };
+    sbFetch_ = function (m, u, body, h) {
+      const s = String(u), g = /^\\/rest\\/v1\\/(vehicle_booking|vehicle_expense)(\\?(.*))?$/.exec(s); if (!g) return __k216.fetch(m, u, body, h);
+      if (__DB216.off) throw new Error('Supabase ' + m + ' /rest/v1/' + g[1] + ' → 404: {"code":"PGRST205","message":"Could not find the table"}');
+      const tb = __DB216[g[1]], q = (g[3] || '').split('&').filter(Boolean).map(x => { const i = x.indexOf('='); return [x.slice(0, i), decodeURIComponent(x.slice(i + 1))]; });
+      const ok = r => q.every(([k, v]) => { if (['select', 'order', 'limit'].indexOf(k) > -1) return true; const j = v.indexOf('.'), op = v.slice(0, j), w = v.slice(j + 1), x = r[k] === null || r[k] === undefined ? '' : String(r[k]);
+        return op === 'eq' ? x === w : op === 'neq' ? x !== w : op === 'like' ? x.indexOf(w.replace('*', '')) === 0 : op === 'lt' ? x < w : op === 'gt' ? x > w : op === 'lte' ? x <= w : op === 'gte' ? x >= w : false; });
+      if (m === 'GET') { const o = (q.find(x => x[0] === 'order') || [])[1] || ''; let rows = tb.filter(ok).map(r => Object.assign({}, r)); if (/^id\\.desc/.test(o)) rows.sort((a, b) => a.id < b.id ? 1 : -1); if (/^need_from\\.asc/.test(o)) rows.sort((a, b) => a.need_from < b.need_from ? -1 : 1);
+        const l = (q.find(x => x[0] === 'limit') || [])[1]; return l ? rows.slice(0, Number(l)) : rows; }
+      if (m === 'POST') { body.forEach(r => { if (tb.some(x => x.id === r.id)) throw new Error('Supabase POST → 409: duplicate key'); if (r.txn_id && tb.some(x => x.txn_id === r.txn_id)) throw new Error('Supabase POST → 409: duplicate txn'); });
+        body.forEach(r => tb.push(Object.assign({ created_at: new Date().toISOString() }, r))); return null; }
+      if (m === 'PATCH') { tb.filter(ok).forEach(r => Object.assign(r, body)); return null; }
+      if (m === 'DELETE') { __DB216[g[1]] = tb.filter(r => !ok(r)); return null; }
+    };`, ctx);
+  const mach = (no, x) => Object.assign({ no: no, name: 'Car ' + no, type: 'Car', make: 'Toyota', unit: 'KM', worksOn: ['KM'], kmStd: 12, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, x || {});
+  const P = (o) => Object.assign({ Dashboard: 'View', 'Vehicle Booking': 'None', 'Booking Approve': 'None', 'Vehicle Expenses': 'None' }, o);
+  const RAM = { email: 'ram216@rcl.test', name: 'Ram', admin: false, perms: P({ 'Vehicle Booking': 'Edit' }) };
+  const SHY = { email: 'shyam216@rcl.test', name: 'Shyam', admin: false, perms: P({ 'Vehicle Booking': 'Edit' }) };
+  const VIEW = { email: 'v216@rcl.test', name: 'Viewer', admin: false, perms: P({ 'Vehicle Booking': 'View', 'Vehicle Expenses': 'View' }) };
+  const APR = { email: 'apr216@rcl.test', name: 'Approver', admin: false, perms: P({ 'Booking Approve': 'Edit' }) };
+  const ACC = { email: 'acc216@rcl.test', name: 'Accounts', admin: false, perms: P({ 'Vehicle Expenses': 'Edit' }) };
+  try {
+    assert.ok(run('(x, k) => saveMaster_(x, k)', mach('VB-CAR1'), 'add').ok); assert.ok(run('(x, k) => saveMaster_(x, k)', mach('VB-CAR2'), 'add').ok);
+    const tom = run('() => Utilities.formatDate(new Date(Date.now() + 86400000), tz_(), "yyyy-MM-dd")'), day2 = run('() => Utilities.formatDate(new Date(Date.now() + 2 * 86400000), tz_(), "yyyy-MM-dd")');
+    const ask = x => Object.assign({ from: tom + 'T09:00', to: tom + 'T13:00', placeFrom: 'Head Office', placeTo: 'Pune site', purpose: 'Site visit', people: '3', no: '', remark: '' }, x);
+    // ---- asked: checked as typed
+    assert.strictEqual(run('(u, x) => saveBooking_(u, x)', VIEW, ask({})).THROWN, 'Vehicle booking: you have View access only. Ask Admin for Edit access.');
+    assert.strictEqual(run('(u, x) => saveBooking_(u, x)', RAM, ask({ to: '' })).THROWN, 'Vehicle booking: enter until when it is needed (date and time).');
+    assert.strictEqual(run('(u, x) => saveBooking_(u, x)', RAM, ask({ to: tom + 'T08:00' })).THROWN, 'Vehicle booking: "until" must be after "from".');
+    assert.strictEqual(run('(u, x) => saveBooking_(u, x)', RAM, ask({ from: '2026-01-01T09:00', to: '2026-01-01T10:00' })).THROWN, 'Vehicle booking: the time asked for is already past.');
+    assert.strictEqual(run('(u, x) => saveBooking_(u, x)', RAM, ask({ purpose: ' ' })).THROWN, 'Vehicle booking: type the purpose (why the vehicle is needed).');
+    assert.strictEqual(run('(u, x) => saveBooking_(u, x)', RAM, ask({ people: '0' })).THROWN, 'Vehicle booking: the people are a whole number from 1 to 60 (or empty).');
+    assert.strictEqual(vm.runInContext('__DB216.vehicle_booking.length', ctx), 0, 'refused: nothing kept');
+    vm.runInContext('__sent216.length = 0; CacheService.getScriptCache().remove("USERS_LIST"); readUsers_ = (f => function () { return [{ email: "apr216@rcl.test", name: "Approver", active: true, admin: false, perms: { "Booking Approve": "Edit" } }, { email: "ram216@rcl.test", name: "Ram", active: true, admin: false, perms: { "Vehicle Booking": "Edit" } }]; })(readUsers_);', ctx);
+    const b1 = run('(u, x) => saveBooking_(u, x)', RAM, ask({}));
+    assert.deepStrictEqual([b1.ok, b1.id, b1.booking.status, b1.booking.from, b1.booking.to, b1.booking.people, b1.booking.byName], [true, 'VB-000001', 'Requested', tom + 'T09:00', tom + 'T13:00', 3, 'Ram']);
+    const sent = vm.runInContext('JSON.parse(JSON.stringify(__sent216))', ctx);
+    assert.ok(sent.length === 1 && sent[0].ids.indexOf(run('e => rtcUid_(e)', 'apr216@rcl.test')) > -1 && sent[0].ids.indexOf(run('e => rtcUid_(e)', 'ram216@rcl.test')) === -1 && /VB-000001 – asked/.test(sent[0].msg.title), 'those who approve get the message (not the one who asked)');
+    const b2 = run('(u, x) => saveBooking_(u, x)', SHY, ask({ from: tom + 'T11:00', to: tom + 'T15:00', placeTo: 'Mumbai' }));
+    assert.strictEqual(b2.id, 'VB-000002');
+    // ---- who sees what
+    assert.deepStrictEqual(run('(u, f) => getBookings_(u, f)', RAM, {}).rows.map(b => b.id), ['VB-000001'], 'a person: his own');
+    const all = run('(u, f) => getBookings_(u, f)', APR, {});
+    assert.deepStrictEqual([all.canDecide, all.rows.map(b => b.id), all.count.Requested], [true, ['VB-000001', 'VB-000002'], 2], 'one who approves: all');
+    // ---- decided: only by one given the right; the vehicle and its driver; never one vehicle twice at a time
+    assert.strictEqual(run('(u, id, x) => decideBooking_(u, id, x)', RAM, 'VB-000001', { approve: true, no: 'VB-CAR1' }).THROWN, 'Vehicle booking: only a person given "Vehicle Booking – approve" decides a booking.');
+    assert.strictEqual(run('(u, id, x) => decideBooking_(u, id, x)', APR, 'VB-000001', { approve: true }).THROWN, 'Vehicle booking: pick the vehicle that goes.');
+    vm.runInContext('__sent216.length = 0;', ctx);
+    const d1 = run('(u, id, x) => decideBooking_(u, id, x)', APR, 'VB-000001', { approve: true, no: 'vb car1', driver: 'Ganesh', reply: 'OK' });
+    assert.deepStrictEqual([d1.ok, d1.booking.status, d1.booking.no, d1.booking.driver, d1.booking.decidedBy], [true, 'Approved', 'VB-CAR1', 'Ganesh', 'Approver']);
+    const s2 = vm.runInContext('JSON.parse(JSON.stringify(__sent216))', ctx);
+    assert.ok(s2.length === 1 && s2[0].ids[0] === run('e => rtcUid_(e)', 'ram216@rcl.test') && /Approved/.test(s2[0].msg.title) && /VB-CAR1 · driver Ganesh/.test(s2[0].msg.body), 'the person who asked gets the message');
+    assert.strictEqual(run('(u, id, x) => decideBooking_(u, id, x)', APR, 'VB-000002', { approve: true, no: 'VB-CAR1' }).THROWN, 'Vehicle booking: VB-CAR1 is already booked ' + tom.split('-').reverse().join('-') + ' 09:00 – 13:00 (VB-000001, Ram) – pick another vehicle.');
+    assert.strictEqual(run('(u, id, x) => decideBooking_(u, id, x)', APR, 'VB-000002', { approve: false }).THROWN, 'Vehicle booking: type why it is not given (the reply).');
+    assert.strictEqual(run('(u, id, x) => decideBooking_(u, id, x)', APR, 'VB-000002', { approve: true, no: 'VB-CAR2' }).booking.status, 'Approved', 'another vehicle at the same time: given');
+    const b3 = run('(u, x) => saveBooking_(u, x)', SHY, ask({ from: day2 + 'T09:00', to: day2 + 'T10:00' }));
+    assert.strictEqual(run('(u, id, x) => decideBooking_(u, id, x)', APR, b3.id, { approve: false, reply: 'No vehicle free' }).booking.status, 'Rejected');
+    assert.strictEqual(run('(u, id, x) => decideBooking_(u, id, x)', APR, b3.id, { approve: true, no: 'VB-CAR1' }).THROWN, 'Vehicle booking ' + b3.id + ' is Rejected – it cannot be decided now.');
+    // ---- cancelled: by the person who asked (or one who approves)
+    assert.strictEqual(run('(u, id) => cancelBooking_(u, id)', SHY, 'VB-000001').THROWN, 'Vehicle booking: only the person who asked (or one who approves) cancels it.');
+    assert.ok(run('(u, id) => cancelBooking_(u, id)', RAM, 'VB-000001').ok);
+    assert.strictEqual(run('(u, id) => cancelBooking_(u, id)', RAM, 'VB-000001').THROWN, 'Vehicle booking VB-000001 is Cancelled – it cannot be cancelled.');
+    assert.strictEqual(run('(u, id, x) => decideBooking_(u, id, x)', APR, 'VB-000002', { approve: true, no: 'VB-CAR1' }).booking.no, 'VB-CAR1', 'a cancelled booking frees its vehicle');
+    // ---- VEHICLE EXPENSES: typed
+    const vx = x => Object.assign({ date: run('() => today_()'), no: 'VB-CAR1', kind: 'Toll', place: 'Khalapur toll', amount: '320', paidBy: 'FASTag', ref: '', remark: '' }, x);
+    assert.strictEqual(run('(u, x) => saveVexp_(u, x)', ACC, vx({ kind: 'Fuel' })).THROWN, 'Vehicle expense: pick what it is – Toll / Parking / Other.');
+    assert.strictEqual(run('(u, x) => saveVexp_(u, x)', ACC, vx({ paidBy: 'Cheque' })).THROWN, 'Vehicle expense: pick how it was paid – FASTag / Cash / Card / UPI / Other.');
+    assert.strictEqual(run('(u, x) => saveVexp_(u, x)', ACC, vx({ amount: '0' })).THROWN, 'Vehicle expense: enter the amount (₹, above 0 and up to 1,00,000).');
+    assert.match(run('(u, x) => saveVexp_(u, x)', ACC, vx({ no: 'NO-SUCH-CAR' })).THROWN, /not in Master/);
+    const e1 = run('(u, x) => saveVexp_(u, x)', ACC, vx({}));
+    assert.deepStrictEqual([e1.ok, e1.id], [true, 'VX-000001']);
+    assert.ok(run('(u, x) => saveVexp_(u, x)', ACC, vx({ kind: 'Parking', place: 'Mall', amount: '60', paidBy: 'Cash' })).ok);
+    assert.ok(run('(u, id, x) => updateVexp_(u, id, x)', ACC, 'VX-000002', vx({ kind: 'Parking', place: 'Phoenix Mall', amount: '80', paidBy: 'Cash' })).ok);
+    let g = run('f => getVexp_(f)', {});
+    assert.deepStrictEqual([g.total, g.cars.map(c => [c.no, c.n, c.toll, c.parking, c.amount])], [400, [['VB-CAR1', 2, 320, 80, 400]]]);
+    assert.ok(run('(u, id) => deleteVexp_(u, id)', ACC, 'VX-000002').ok);
+    // ---- the FASTag statement: read by the AI, put on each vehicle by its number; a line already saved is marked; saved together, never twice
+    vm.runInContext(`globalThis.__AIANS216 = JSON.stringify({ rows: [["${run('() => today_()')}", "10:15", "VB CAR 1", "Khalapur toll", 320, null], ["${run('() => today_()')}", "11:40", "VB-CAR2", "Talegaon toll", "₹ 1,045.00", "TX-9001"], ["${run('() => today_()')}", "12:00", "MH12ZZ0000", "Urse toll", 190, "TX-9002"], ["", null, "VB-CAR2", "x", 5, null]] });`, ctx);
+    assert.strictEqual(run('(u, x) => readVexpStatement_(u, x)', VIEW, { text: 'a | b' }).THROWN, 'Vehicle expense: you have View access only. Ask Admin for Edit access.');
+    assert.strictEqual(run('(u, x) => readVexpStatement_(u, x)', ACC, {}).THROWN, 'FASTag statement: give the statement – a PDF, a photo, or an Excel file.');
+    const st = run('(u, x) => readVexpStatement_(u, x)', ACC, { text: 'Date | Vehicle | Plaza | Amount\n09-11-2026 | VB CAR 1 | Khalapur | 320' });
+    assert.ok(/THE ROWS:\nDate \| Vehicle/.test(vm.runInContext('__AI216', ctx)), 'an Excel: its rows sent as text');
+    assert.deepStrictEqual(st.rows.map(r => [r.no, r.amount, r.txn, !!r.saved]), [['VB-CAR1', 320, '', true], ['VB-CAR2', 1045, 'TX-9001', false], ['', 190, 'TX-9002', false]], 'by its number; the typed 320 of VB-CAR1 at Khalapur – already saved; a line with no date left out');
+    assert.deepStrictEqual([st.read, st.matched, st.saved], [4, 2, 1]);
+    const bad = run('(u, x) => importVexp_(u, x)', ACC, { rows: [st.rows[1], st.rows[2]] });
+    assert.ok(bad.ok === false && /^Line 2: /.test(bad.errors[0]), 'a line with no vehicle: nothing saved – ' + JSON.stringify(bad));
+    const im = run('(u, x) => importVexp_(u, x)', ACC, { rows: [st.rows[0], st.rows[1], Object.assign({}, st.rows[2], { no: 'VB-CAR2' })] });
+    assert.deepStrictEqual([im.ok, im.added, im.skipped], [true, 2, 1]);
+    const again = run('(u, x) => importVexp_(u, x)', ACC, { rows: [st.rows[1]] });
+    assert.deepStrictEqual([again.added, again.skipped], [0, 1], 'the same statement again: nothing added');
+    g = run('f => getVexp_(f)', {});
+    assert.deepStrictEqual(g.rows.filter(r => r.source === 'Statement').map(r => [r.no, r.kind, r.paidBy, r.amount, r.txn, r.remark]).sort(), [['VB-CAR2', 'Toll', 'FASTag', 1045, 'TX-9001', ''], ['VB-CAR2', 'Toll', 'FASTag', 190, 'TX-9002', 'statement: MH12ZZ0000']]);
+    // ---- step 1zm not run: the pages say so; a save refused, nothing written
+    vm.runInContext('__DB216.off = true;', ctx);
+    assert.strictEqual(run('(u, f) => getBookings_(u, f)', RAM, {}).missing, 'This needs one database step first: the Admin runs sql/supabase_step1zm_booking_expenses.sql once in Supabase → SQL Editor.');
+    assert.strictEqual(run('(u, x) => saveVexp_(u, x)', ACC, vx({})).THROWN, 'Vehicle booking and vehicle expenses cannot be kept yet. This needs one database step first: the Admin runs sql/supabase_step1zm_booking_expenses.sql once in Supabase → SQL Editor.');
+    vm.runInContext('__DB216.off = false;', ctx);
+    // ---- access: the three new pages, empty = No access; the approve right's own name; each action checked on the server
+    assert.deepStrictEqual(run('() => ["Vehicle Booking", "Booking Approve", "Vehicle Expenses"].map(m => [MODULES.indexOf(m) > -1, permOf_(m, ""), MODULE_LABEL_[m] || m])'), [[true, 'None', 'Vehicle Booking'], [true, 'None', 'Vehicle Booking – approve'], [true, 'None', 'Vehicle Expenses']]);
+    const api = vm.runInContext('API_', ctx);
+    assert.deepStrictEqual(['getBookings', 'saveBooking', 'cancelBooking', 'decideBooking', 'getVexp', 'saveVexp', 'updateVexp', 'deleteVexp', 'readVexpStatement', 'importVexp'].map(k => [k, api[k].m, !!api[k].edit]),
+      [['getBookings', 'Vehicle Booking', false], ['saveBooking', 'Vehicle Booking', true], ['cancelBooking', 'Vehicle Booking', false], ['decideBooking', 'Booking Approve', true], ['getVexp', 'Vehicle Expenses', false],
+        ['saveVexp', 'Vehicle Expenses', true], ['updateVexp', 'Vehicle Expenses', true], ['deleteVexp', 'Vehicle Expenses', true], ['readVexpStatement', 'Vehicle Expenses', true], ['importVexp', 'Vehicle Expenses', true]]);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(api.getBookings.any)), ['Vehicle Booking', 'Booking Approve'], 'one who only approves sees the bookings');
+    // ---- the SQL only adds; the page
+    assert.ok(!/\b(drop table|delete from|truncate|update public)\b/i.test(sql.replace(/^--.*$/gm, '')), 'step 1zm deletes and changes nothing');
+    assert.match(sql, /create unique index if not exists vehicle_expense_txn on public\.vehicle_expense \(txn_id\) where txn_id is not null and txn_id <> ''/);
+    assert.match(app, /id="sec-vbook"/); assert.match(app, /id="sec-vexp"/); assert.match(app, /vbook: 'Vehicle Booking', vexp: 'Vehicle Expenses'/);
+    assert.match(app, /call\('readVexpStatement', x\)/); assert.match(app, /call\('decideBooking', S\.vbCur/);
+  } finally {
+    vm.runInContext('sbFetch_ = __k216.fetch; rtcPush_ = __k216.push; aiAskPhoto_ = __k216.ai; aiInfo_ = __k216.info;', ctx);
   }
 });
