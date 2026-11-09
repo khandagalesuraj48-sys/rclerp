@@ -296,11 +296,11 @@ const USERS_SHEET = 'Users';
 const LOG_SHEET = 'Activity Log';
 /* Every page of the app has its own access, one column each in Users: Edit / View / No access.
  * A new page is added HERE (and gets its column in Users by itself); "Master" is the Asset Master. */
-const MODULES = ['Dashboard', 'Vendor Master', 'Master', 'Vendor BOQ', 'Vehicle Compliance', 'Breakdown', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Fuel Cards', 'Maintenance', 'Log Book', 'Machinery Billing', 'Saved Bills', 'Bill Summary', 'Machinery Payments', 'Vendor Ledger', 'Vendor Outstanding', 'Reports'];
-const MODULE_LABEL_ = { 'Master': 'Asset Master' };
+const MODULES = ['Dashboard', 'Vendor Master', 'Master', 'Vendor BOQ', 'Vehicle Compliance', 'Breakdown', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Fuel Cards', 'Maintenance', 'Vehicle Booking', 'Booking Approve', 'Vehicle Expenses', 'Log Book', 'Machinery Billing', 'Saved Bills', 'Bill Summary', 'Machinery Payments', 'Vendor Ledger', 'Vendor Outstanding', 'Reports'];
+const MODULE_LABEL_ = { 'Master': 'Asset Master', 'Booking Approve': 'Vehicle Booking – approve' };      // (update-216) the right to decide a booking
 // (update-164) a page added after the site was set up: its empty cell is No access (not View) – nobody sees it until it is given;
 // No access is kept as an empty cell, so a site whose database step for the page is not run yet saves its users as before
-const MODULE_BLANK_NONE_ = { 'Fuel Cards': true, 'Maintenance': true };      // (update-165: Maintenance too)
+const MODULE_BLANK_NONE_ = { 'Fuel Cards': true, 'Maintenance': true, 'Vehicle Booking': true, 'Booking Approve': true, 'Vehicle Expenses': true };      // (update-216: the three of step 1zm)      // (update-165: Maintenance too)
 const permOf_ = (m, raw) => { const v = MODULE_BLANK_NONE_[m] && str_(raw) === '' ? 'None' : ACCESS_(raw); return v === 'Admin' && DATE_PAGES_.indexOf(m) === -1 ? 'Edit' : v; };      // (update-189)
 // (update-164) the pages of THIS site: Fuel Cards only at a site on fuel cards; there no Diesel Inward / Transfer (no stock)
 const sitePage_ = m => cardSite_() ? m !== 'Diesel Inward' && m !== 'Diesel Transfer' : m !== 'Fuel Cards';      // (update-170) Maintenance at every site (update-165: only on fuel cards)
@@ -312,7 +312,7 @@ const ACCESS_ = v => { const k = str_(v).toUpperCase().replace(/[^A-Z]/g, ''); r
  * day) A PAGE'S 4th ACCESS, "Admin": Edit, and that page's entries of an earlier day – made, changed, deleted (userDateRule_). The
  * closed months, the billed and the approved entries as always. Kept as "Admin" in the page's cell of Users; read as Edit (every
  * check of Edit as before) with the page in the user's pageAdmin. Another page: Admin is read as Edit. */
-const DATE_PAGES_ = ['Breakdown', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Fuel Cards', 'Maintenance', 'Log Book'];
+const DATE_PAGES_ = ['Breakdown', 'Diesel Inward', 'Diesel Transfer', 'Diesel Issue', 'Fuel Cards', 'Maintenance', 'Vehicle Expenses', 'Log Book'];
 const WHAT_PAGE_ = { 'Diesel issue': 'Diesel Issue', 'Diesel inward': 'Diesel Inward', 'Diesel transfer': 'Diesel Transfer', 'Log Book entry': 'Log Book', 'Tank check': 'Log Book',
   'Breakdown report': 'Breakdown', 'Maintenance bill': 'Maintenance', 'Card payment': 'Fuel Cards' };
 const pageAdminOf_ = u => Array.isArray(u && u.pageAdmin) ? u.pageAdmin : [];
@@ -1065,6 +1065,18 @@ const API_ = {
   rptCost:           { m: 'Reports', f: rptCost_ },
   rptMachineCost:    { m: 'Reports', f: rptMachineCost_ },
   rptDriver:         { m: 'Reports', f: rptDriver_ },      // (update-214) the Driver-wise Report
+  // (update-216, step 1zm) VEHICLE BOOKING – asked by a person with the page, decided by those given "Vehicle Booking – approve"
+  getBookings:       { m: 'Vehicle Booking', any: ['Vehicle Booking', 'Booking Approve'], withUser: true, f: (u, f) => getBookings_(u, f) },
+  saveBooking:       { m: 'Vehicle Booking', edit: true, withUser: true, f: (u, x) => saveBooking_(u, x), log: 'note' },
+  cancelBooking:     { m: 'Vehicle Booking', any: ['Vehicle Booking', 'Booking Approve'], withUser: true, f: (u, id) => cancelBooking_(u, id), log: 'note' },
+  decideBooking:     { m: 'Booking Approve', edit: true, withUser: true, f: (u, id, x) => decideBooking_(u, id, x), log: 'note' },
+  // (update-216, step 1zm) VEHICLE EXPENSES – toll / parking … typed, or from the FASTag statement (read by the AI)
+  getVexp:           { m: 'Vehicle Expenses', f: getVexp_ },
+  saveVexp:          { m: 'Vehicle Expenses', edit: true, withUser: true, f: (u, x) => saveVexp_(u, x), log: 'note' },
+  updateVexp:        { m: 'Vehicle Expenses', edit: true, withUser: true, f: (u, id, x) => updateVexp_(u, id, x), log: 'note' },
+  deleteVexp:        { m: 'Vehicle Expenses', edit: true, withUser: true, f: (u, id) => deleteVexp_(u, id), log: 'note' },
+  readVexpStatement: { m: 'Vehicle Expenses', edit: true, withUser: true, f: (u, x) => readVexpStatement_(u, x) },
+  importVexp:        { m: 'Vehicle Expenses', edit: true, withUser: true, f: (u, x) => importVexp_(u, x), log: 'note' },
   rptPurchase:       { m: 'Reports', f: rptPurchase_ },
   rptLedger:         { m: 'Reports', f: rptLedger_ },
   rptOwner:          { m: 'Reports', f: rptOwner_ },
@@ -1339,6 +1351,9 @@ function logAfter_(u, spec, args, res, before) {
       break;
     case 'maintLogDelete':      // (update-182) a machinery's whole Maintenance Log Book: each bill its own line, with its values
       (res.deleted || []).forEach(g => writeLog_(u, 'Delete', m, g.id, 'Deleted ' + g.id + ' – the Maintenance Log Book of ' + res.no + ' deleted (' + res.n + ' bill(s), ' + (res.all ? 'start to end' : res.from + ' to ' + res.to) + ')', 'Deleted values – ' + describe_(g.values)));
+      break;
+    case 'note':      // (update-216) a booking / an expense: the save says what it did
+      writeLog_(u, res.act || 'Edit', m, str_(res.id), str_(res.summary), str_(res.changes));
       break;
     case 'cardSave':      // (update-164) a fuel card added / changed
       writeLog_(u, res.added ? 'Add' : 'Edit', 'Fuel Cards', res.name, res.summary, res.changes || '');
@@ -7781,6 +7796,223 @@ function maintLog_(f) {
     lastService: last });
 }
 
+/* ================= VEHICLE BOOKING and VEHICLE EXPENSES (update-216, asked 08-11-2026 – the HO features, part 2; step 1zm) =================
+ * His answers: a booking is approved by those given the new right "Vehicle Booking – approve" (the Super Admin gives it site-wise in the
+ * Portal → Users & Access → Pages); toll / FASTag / parking: typed by hand + the FASTag statement uploaded (read by the AI, put on each
+ * vehicle by its number, seen before it is saved); every site.
+ * Kept in the site's own database: vehicle_booking and vehicle_expense (step 1zm – two new tables; nothing else is changed). Read and
+ * written straight (REST): they are not part of any other page's save. A site whose step 1zm is not run yet: the pages say so. */
+const VB_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1zm_booking_expenses.sql once in Supabase → SQL Editor.';
+const VB_STATUS_ = ['Requested', 'Approved', 'Rejected', 'Cancelled'];
+const VX_KINDS_ = ['Toll', 'Parking', 'Other'], VX_PAID_ = ['FASTag', 'Cash', 'Card', 'UPI', 'Other'], VX_MAX_ = 1000;
+// the table is there? (a site whose step 1zm is not run: one clear message, nothing written)
+function vbFetch_(method, path, body, hdr) {
+  if (!sbDataOn_()) throw new Error('Vehicle booking and vehicle expenses are kept in Supabase only – this copy of the app runs on the Google Sheet.');
+  try { return sbFetch_(method, path, body, hdr); }
+  catch (e) { if (/PGRST205|42P01|Could not find the table/.test(String(e && e.message))) throw new Error('Vehicle booking and vehicle expenses cannot be kept yet. ' + VB_SQL_MSG_); throw e; }
+}
+const vbLocal_ = v => { if (!v) return ''; const d = new Date(v); return isNaN(d) ? '' : Utilities.formatDate(d, tz_(), 'yyyy-MM-dd') + 'T' + Utilities.formatDate(d, tz_(), 'HH:mm'); };
+// "yyyy-mm-ddThh:mm" as the person typed it (the site's time) → the moment
+function vbTime_(s, label) {
+  const t = clean_(s).replace(' ', 'T');
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(t)) throw new Error('Vehicle booking: enter ' + label + ' (date and time).');
+  const d = new Date(t + ':00+05:30'); if (isNaN(d)) throw new Error('Vehicle booking: ' + label + ' is not a real date and time.');
+  return d;
+}
+const vbNext_ = (table, pre) => { const r = vbFetch_('GET', '/rest/v1/' + table + '?select=id&id=like.' + pre + '-*&order=id.desc&limit=1') || []; const n = r[0] ? Number(String(r[0].id).replace(/\D/g, '')) || 0 : 0; return pre + '-' + String(n + 1).padStart(6, '0'); };
+const vbApprover_ = u => !!u && (u.super || u.admin || canEdit_(u, 'Booking Approve'));
+function vbOut_(r) {
+  return { id: str_(r.id), from: vbLocal_(r.need_from), to: vbLocal_(r.need_to), placeFrom: str_(r.place_from), placeTo: str_(r.place_to), purpose: str_(r.purpose), people: r.people === null || r.people === undefined ? '' : num0_(r.people),
+    no: str_(r.machinery), driver: str_(r.driver), status: str_(r.status) || 'Requested', by: str_(r.asked_by), byName: str_(r.asked_name), decidedBy: str_(r.decided_by), decidedAt: vbLocal_(r.decided_at), reply: str_(r.reply), remark: str_(r.remark), at: vbLocal_(r.created_at) };
+}
+function vbGet_(id) { const r = (vbFetch_('GET', '/rest/v1/vehicle_booking?id=eq.' + encodeURIComponent(str_(id)) + '&select=*') || [])[0]; if (!r) throw new Error('Vehicle booking ' + str_(id) + ' was not found.'); return r; }
+const vbWhen_ = b => dmy_(b.from.slice(0, 10)) + ' ' + b.from.slice(11) + ' – ' + (b.to.slice(0, 10) === b.from.slice(0, 10) ? '' : dmy_(b.to.slice(0, 10)) + ' ') + b.to.slice(11);
+// those who decide: the users with "Vehicle Booking – approve", the site's Admins and the Super Admin
+const vbDeciders_ = () => readUsers_().filter(w => w.active && (w.admin || w.perms['Booking Approve'] === 'Edit')).map(w => w.email).concat(crSupers_());
+// a person asks for a vehicle
+function saveBooking_(u, x) {
+  x = x || {};
+  if (!canEdit_(u, 'Vehicle Booking')) throw new Error('Vehicle booking: you have View access only. Ask Admin for Edit access.');
+  const from = vbTime_(x.from, 'when the vehicle is needed from'), to = vbTime_(x.to, 'until when it is needed');
+  if (to <= from) throw new Error('Vehicle booking: "until" must be after "from".');
+  if (from.getTime() < Date.now() - 6 * 3600000) throw new Error('Vehicle booking: the time asked for is already past.');
+  if (to.getTime() - from.getTime() > 31 * 86400000) throw new Error('Vehicle booking: a booking is for at most 31 days.');
+  const placeTo = clean_(x.placeTo).slice(0, 80), purpose = clean_(x.purpose).slice(0, 200);
+  if (!placeTo) throw new Error('Vehicle booking: type where the vehicle is to go.');
+  if (!purpose) throw new Error('Vehicle booking: type the purpose (why the vehicle is needed).');
+  const people = blank_(x.people) ? null : Number(x.people);
+  if (people !== null && !(Number.isInteger(people) && people >= 1 && people <= 60)) throw new Error('Vehicle booking: the people are a whole number from 1 to 60 (or empty).');
+  let no = ''; if (clean_(x.no)) no = findMachine_(x.no).id;
+  return withLock_(() => {
+    const id = vbNext_('vehicle_booking', 'VB');
+    vbFetch_('POST', '/rest/v1/vehicle_booking', [{ id: id, need_from: from.toISOString(), need_to: to.toISOString(), place_from: clean_(x.placeFrom).slice(0, 80), place_to: placeTo, purpose: purpose, people: people,
+      machinery: no, driver: '', status: 'Requested', asked_by: str_(u.email).toLowerCase(), asked_name: str_(u.name), remark: clean_(x.remark).slice(0, 200) }]);
+    const b = vbOut_(vbGet_(id));
+    crNotify_(vbDeciders_().filter(e => e !== str_(u.email).toLowerCase()), { id: 'vb-' + id, title: 'Vehicle booking ' + id + ' – asked', body: (u.name || u.email) + ': ' + vbWhen_(b) + ' · to ' + b.placeTo + ' · ' + b.purpose });
+    return { ok: true, id: id, act: 'Add', summary: 'Vehicle booking ' + id + ' asked: ' + vbWhen_(b) + ', to ' + b.placeTo + ', ' + b.purpose + (no ? ', vehicle ' + no : ''), booking: b };
+  });
+}
+// the bookings he may see: those who decide – every booking of the dates; a person – his own
+function getBookings_(u, f) {
+  f = f || {};
+  const dec = vbApprover_(u), today = today_(), from = str_(f.from) ? checkDate_(f.from) : addDays_(today, -7), to = str_(f.to) ? checkDate_(f.to) : addDays_(today, 60);
+  if (from > to) throw new Error('From date is after To date.');
+  let q = '/rest/v1/vehicle_booking?select=*&need_from=lt.' + encodeURIComponent(new Date(addDays_(to, 1) + 'T00:00:00+05:30').toISOString()) + '&need_to=gt.' + encodeURIComponent(new Date(from + 'T00:00:00+05:30').toISOString()) + '&order=need_from.asc&limit=2000';
+  if (!dec) q += '&asked_by=eq.' + encodeURIComponent(str_(u.email).toLowerCase());
+  let rows;
+  try { rows = vbFetch_('GET', q) || []; } catch (e) { if (/cannot be kept yet/.test(String(e.message))) return { rows: [], missing: VB_SQL_MSG_, canDecide: dec }; throw e; }
+  const list = rows.map(vbOut_), n = s => list.filter(b => b.status === s).length;
+  return { from: from, to: to, canDecide: dec, me: str_(u.email).toLowerCase(), rows: list, count: { Requested: n('Requested'), Approved: n('Approved'), Rejected: n('Rejected'), Cancelled: n('Cancelled') } };
+}
+// a decision: Approved (with the vehicle and its driver – never two bookings of one vehicle at the same time) or Rejected (with why)
+function decideBooking_(u, id, x) {
+  x = x || {};
+  if (!vbApprover_(u)) throw new Error('Vehicle booking: only a person given "Vehicle Booking – approve" decides a booking.');
+  return withLock_(() => {
+    const b = vbOut_(vbGet_(id)), ok = x.approve === true, reply = clean_(x.reply).slice(0, 200);
+    if (b.status !== 'Requested' && !(ok && b.status === 'Approved')) throw new Error('Vehicle booking ' + b.id + ' is ' + b.status + ' – it cannot be decided now.');
+    const set = { status: ok ? 'Approved' : 'Rejected', decided_by: str_(u.name || u.email), decided_at: new Date().toISOString(), reply: reply };
+    if (ok) {
+      if (!clean_(x.no) && !b.no) throw new Error('Vehicle booking: pick the vehicle that goes.');
+      const m = findMachine_(clean_(x.no) || b.no);
+      assertActive_(m, b.from.slice(0, 10));
+      const nf = new Date(b.from + ':00+05:30').toISOString(), nt = new Date(b.to + ':00+05:30').toISOString();
+      const clash = (vbFetch_('GET', '/rest/v1/vehicle_booking?select=*&status=eq.Approved&machinery=eq.' + encodeURIComponent(m.id) + '&need_from=lt.' + encodeURIComponent(nt) + '&need_to=gt.' + encodeURIComponent(nf) + '&id=neq.' + encodeURIComponent(b.id)) || []).map(vbOut_)[0];
+      if (clash) throw new Error('Vehicle booking: ' + m.id + ' is already booked ' + vbWhen_(clash) + ' (' + clash.id + ', ' + clash.byName + ') – pick another vehicle.');
+      Object.assign(set, { machinery: m.id, driver: clean_(x.driver).slice(0, 60) });
+    } else if (!reply) throw new Error('Vehicle booking: type why it is not given (the reply).');
+    vbFetch_('PATCH', '/rest/v1/vehicle_booking?id=eq.' + encodeURIComponent(b.id), set);
+    const n = vbOut_(vbGet_(b.id));
+    crNotify_([b.by], { id: 'vb-' + b.id, title: 'Vehicle booking ' + b.id + ' – ' + n.status, body: vbWhen_(n) + (ok ? ' · ' + n.no + (n.driver ? ' · driver ' + n.driver : '') : '') + (reply ? ' · ' + reply : '') });
+    return { ok: true, id: b.id, act: 'Edit', summary: 'Vehicle booking ' + b.id + ' ' + n.status + (ok ? ': ' + n.no + (n.driver ? ', driver ' + n.driver : '') : '') + (reply ? ' – ' + reply : ''), booking: n };
+  });
+}
+// cancelled – by the person who asked (or one who decides), before it is over
+function cancelBooking_(u, id) {
+  return withLock_(() => {
+    const b = vbOut_(vbGet_(id)), mine = b.by === str_(u.email).toLowerCase();
+    if (!mine && !vbApprover_(u)) throw new Error('Vehicle booking: only the person who asked (or one who approves) cancels it.');
+    if (mine && !canEdit_(u, 'Vehicle Booking') && !vbApprover_(u)) throw new Error('Vehicle booking: you have View access only. Ask Admin for Edit access.');
+    if (b.status !== 'Requested' && b.status !== 'Approved') throw new Error('Vehicle booking ' + b.id + ' is ' + b.status + ' – it cannot be cancelled.');
+    if (new Date(b.to + ':00+05:30').getTime() < Date.now()) throw new Error('Vehicle booking ' + b.id + ' is already over – it cannot be cancelled.');
+    vbFetch_('PATCH', '/rest/v1/vehicle_booking?id=eq.' + encodeURIComponent(b.id), { status: 'Cancelled', decided_by: str_(u.name || u.email), decided_at: new Date().toISOString() });
+    if (!mine) crNotify_([b.by], { id: 'vb-' + b.id, title: 'Vehicle booking ' + b.id + ' – Cancelled', body: vbWhen_(b) });
+    else if (b.status === 'Approved') crNotify_(vbDeciders_().filter(e => e !== b.by), { id: 'vb-' + b.id, title: 'Vehicle booking ' + b.id + ' – Cancelled', body: (b.byName || b.by) + ': ' + vbWhen_(b) });
+    return { ok: true, id: b.id, act: 'Edit', summary: 'Vehicle booking ' + b.id + ' cancelled' };
+  });
+}
+
+// ---------- VEHICLE EXPENSES: toll, parking … of a vehicle (typed, or from the FASTag statement) ----------
+function vxOut_(r) {
+  return { id: str_(r.id), date: str_(r.date).slice(0, 10), no: str_(r.machinery), kind: str_(r.kind), place: str_(r.place), amount: r2_(num0_(r.amount)), paidBy: str_(r.paid_by), ref: str_(r.ref), txn: str_(r.txn_id),
+    source: str_(r.source) || 'Hand', remark: str_(r.remark), by: str_(r.entered_by), updatedBy: str_(r.updated_by) };
+}
+function vxVals_(x) {
+  const dk = entryOpen_(x.date, 'Vehicle expense'), m = findMachine_(x.no);
+  assertActive_(m, dk);
+  const kind = VX_KINDS_.find(k => k.toUpperCase() === clean_(x.kind).toUpperCase());
+  if (!kind) throw new Error('Vehicle expense: pick what it is – ' + VX_KINDS_.join(' / ') + '.');
+  const paid = VX_PAID_.find(k => k.toUpperCase() === clean_(x.paidBy).toUpperCase());
+  if (!paid) throw new Error('Vehicle expense: pick how it was paid – ' + VX_PAID_.join(' / ') + '.');
+  const amount = numOrBlank_(x.amount);
+  if (!(amount > 0) || amount > 100000) throw new Error('Vehicle expense: enter the amount (₹, above 0 and up to 1,00,000).');
+  return { date: dk, machinery: m.id, kind: kind, place: clean_(x.place).slice(0, 80), amount: r2_(amount), paid_by: paid, ref: clean_(x.ref).slice(0, 80), remark: clean_(x.remark).slice(0, 200) };
+}
+const vxGet_ = id => { const r = (vbFetch_('GET', '/rest/v1/vehicle_expense?id=eq.' + encodeURIComponent(str_(id)) + '&select=*') || [])[0]; if (!r) throw new Error('Vehicle expense ' + str_(id) + ' was not found.'); return r; };
+const vxShow_ = v => dmy_(v.date) + ' ' + v.machinery + ' ' + v.kind + (v.place ? ' ' + v.place : '') + ' ₹' + v.amount + ' (' + v.paid_by + (v.ref ? ', ' + v.ref : '') + ')';
+function saveVexp_(u, x) {
+  const v = vxVals_(x || {});
+  return withLock_(() => {
+    const id = vbNext_('vehicle_expense', 'VX');
+    vbFetch_('POST', '/rest/v1/vehicle_expense', [Object.assign({ id: id, source: 'Hand', entered_at: new Date().toISOString(), entered_by: str_(u.name || u.email) }, v)]);
+    return { ok: true, id: id, act: 'Add', summary: 'Vehicle expense ' + id + ': ' + vxShow_(v) };
+  });
+}
+function updateVexp_(u, id, x) {
+  const v = vxVals_(x || {});
+  return withLock_(() => {
+    const was = vxOut_(vxGet_(id));
+    if (was.txn) { v.machinery = was.no; v.amount = was.amount; v.date = was.date; }      // a FASTag line: its vehicle, date and ₹ are the statement's
+    vbFetch_('PATCH', '/rest/v1/vehicle_expense?id=eq.' + encodeURIComponent(was.id), Object.assign({ updated_by: str_(u.name || u.email) }, v));
+    return { ok: true, id: was.id, act: 'Edit', summary: 'Vehicle expense ' + was.id + ' changed: ' + vxShow_(v), changes: 'Before: ' + dmy_(was.date) + ' ' + was.no + ' ' + was.kind + ' ₹' + was.amount };
+  });
+}
+function deleteVexp_(u, id) {
+  return withLock_(() => {
+    const was = vxOut_(vxGet_(id));
+    vbFetch_('DELETE', '/rest/v1/vehicle_expense?id=eq.' + encodeURIComponent(was.id));
+    return { ok: true, id: was.id, act: 'Delete', summary: 'Vehicle expense ' + was.id + ' deleted', changes: 'Deleted values – ' + dmy_(was.date) + ' ' + was.no + ' ' + was.kind + ' ' + was.place + ' ₹' + was.amount + ' ' + was.paidBy + (was.txn ? ' txn ' + was.txn : '') };
+  });
+}
+// the expenses of the dates (one vehicle or all): the newest first, and each vehicle's total
+function getVexp_(f) {
+  f = f || {};
+  const today = today_(), to = str_(f.to) ? checkDate_(f.to) : today, from = str_(f.from) ? checkDate_(f.from) : to.slice(0, 8) + '01';
+  if (from > to) throw new Error('From date is after To date.');
+  let q = '/rest/v1/vehicle_expense?select=*&date=gte.' + from + '&date=lte.' + to + '&order=date.desc,id.desc&limit=5000';
+  if (clean_(f.no)) q += '&machinery=eq.' + encodeURIComponent(findMachine_(f.no).id);
+  let rows;
+  try { rows = (vbFetch_('GET', q) || []).map(vxOut_); } catch (e) { if (/cannot be kept yet/.test(String(e.message))) return { rows: [], cars: [], total: 0, missing: VB_SQL_MSG_ }; throw e; }
+  const by = {}; rows.forEach(r => { const o = by[r.no] = by[r.no] || { no: r.no, n: 0, amount: 0, toll: 0, parking: 0, other: 0 }; o.n++; o.amount = r2_(o.amount + r.amount); o[r.kind === 'Toll' ? 'toll' : r.kind === 'Parking' ? 'parking' : 'other'] = r2_(o[r.kind === 'Toll' ? 'toll' : r.kind === 'Parking' ? 'parking' : 'other'] + r.amount); });
+  return { from: from, to: to, rows: rows, cars: Object.keys(by).map(k => by[k]).sort((a, b) => b.amount - a.amount || natCmp_(a.no, b.no)), total: r2_(rows.reduce((s, r) => s + r.amount, 0)) };
+}
+/* THE FASTag STATEMENT: the file (a PDF or a photo – read by the AI; an Excel – its sheet sent as text by the page) → its toll lines,
+ * each put on the vehicle of its number (Asset Master); a line already saved (its transaction ID, or the same vehicle, date, ₹ and plaza)
+ * is marked. Nothing saved here – the page shows them; "Save" keeps the lines ticked (importVexp). */
+function readVexpStatement_(u, x) {
+  x = x || {};
+  if (!canEdit_(u, 'Vehicle Expenses')) throw new Error('Vehicle expense: you have View access only. Ask Admin for Edit access.');
+  const text = typeof x.text === 'string' ? x.text.slice(0, 120000) : '', mt = /^data:(image\/jpeg|image\/png|application\/pdf);base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
+  if (!mt && !text.trim()) throw new Error('FASTag statement: give the statement – a PDF, a photo, or an Excel file.');
+  if (mt && mt[2].length > Math.ceil(ATT_RAW_MAX_ * 4 / 3) + 4) throw new Error('FASTag statement: the file is too big (more than 3 MB) – make the PDF smaller or send a part of it.');
+  if (!aiInfo_().on) return { off: true };
+  const ask = 'This is a FASTag statement of a bank / wallet in India (₹)' + (text ? ' – its rows are given below as text (one line a row, the cells separated by " | ")' : '') + '. Read EVERY toll / parking charge in it (a debit – money taken for a vehicle). ' +
+    'Leave out recharges, top-ups, refunds, reversals, cashback and opening / closing balances. Answer with JSON only: {"rows": [[date, time, vehicle, place, amount, txn], …]} – ONE array for every charge: ' +
+    'date = "yyyy-mm-dd"; time = "hh:mm" (24 h) or null; vehicle = the vehicle registration number of the charge as printed (e.g. MH12AB1234) or null; place = the toll plaza / parking name in a few words or null; ' +
+    'amount = the ₹ charged (a positive number); txn = its transaction / reference ID as printed or null. Copy exactly as printed; never invent a value.' + (text ? '\n\nTHE ROWS:\n' + text : '');
+  const j = aiJson_(aiAskPhoto_(mt ? mt[2] : '', ask, mt ? mt[1] : '', 'the statement', { tokens: 16000 })) || {};
+  const raw = Array.isArray(j.rows) ? j.rows.slice(0, VX_MAX_) : [], keys = {};
+  getMaster_().forEach(m => { keys[noKey_(m.id)] = m.id; });
+  const out = raw.map(a => {
+    const r = Array.isArray(a) ? { date: a[0], time: a[1], vehicle: a[2], place: a[3], amount: a[4], txn: a[5] } : a || {};
+    const amt = Number(String(r.amount === null || r.amount === undefined ? '' : r.amount).replace(/[, ₹]/g, ''));
+    const dk = /^\d{4}-\d{2}-\d{2}$/.test(str_(r.date)) ? str_(r.date) : '';
+    return { date: dk, time: /^\d{1,2}:\d{2}$/.test(str_(r.time)) ? str_(r.time) : '', vehicle: clean_(r.vehicle).slice(0, 30), no: keys[noKey_(r.vehicle)] || '', place: clean_(r.place).slice(0, 80),
+      amount: isFinite(amt) && amt > 0 ? r2_(amt) : null, txn: clean_(r.txn).slice(0, 80) };
+  }).filter(r => r.date && r.amount);
+  // already saved? (its txn, or the same vehicle, date, ₹ and plaza)
+  if (out.length) {
+    const ds = out.map(r => r.date).sort(), have = (vbFetch_('GET', '/rest/v1/vehicle_expense?select=*&date=gte.' + ds[0] + '&date=lte.' + ds[ds.length - 1] + '&limit=20000') || []).map(vxOut_);
+    const txn = {}, sig = {}; have.forEach(h => { if (h.txn) txn[h.txn.toUpperCase()] = h.id; sig[[h.no, h.date, h.amount, h.place.toUpperCase()].join('|')] = h.id; });
+    out.forEach(r => { r.saved = (r.txn && txn[r.txn.toUpperCase()]) || (r.no && sig[[r.no, r.date, r.amount, r.place.toUpperCase()].join('|')]) || ''; });
+  }
+  return { rows: out, read: raw.length, matched: out.filter(r => r.no).length, saved: out.filter(r => r.saved).length };
+}
+// the lines of a statement ticked on the page → saved together (all or nothing); one already saved is left out and said
+function importVexp_(u, x) {
+  x = x || {};
+  if (!canEdit_(u, 'Vehicle Expenses')) throw new Error('Vehicle expense: you have View access only. Ask Admin for Edit access.');
+  const list = Array.isArray(x.rows) ? x.rows : [];
+  if (!list.length) throw new Error('FASTag statement: tick the lines to save.');
+  if (list.length > VX_MAX_) throw new Error('FASTag statement: at most ' + VX_MAX_ + ' lines at once – save the rest after.');
+  const errors = [], vals = [];
+  list.forEach((r, i) => { try { const v = vxVals_({ date: r.date, no: r.no, kind: 'Toll', paidBy: 'FASTag', amount: r.amount, place: r.place, ref: r.time ? 'at ' + r.time : '', remark: r.vehicle && noKey_(r.vehicle) !== noKey_(r.no) ? 'statement: ' + r.vehicle : '' });
+    v.txn_id = clean_(r.txn).slice(0, 80) || null; vals.push(v); } catch (e) { errors.push('Line ' + (i + 1) + ': ' + e.message); } });
+  if (errors.length) return { ok: false, errors: errors };
+  return withLock_(() => {
+    const ds = vals.map(v => v.date).sort(), have = (vbFetch_('GET', '/rest/v1/vehicle_expense?select=*&date=gte.' + ds[0] + '&date=lte.' + ds[ds.length - 1] + '&limit=20000') || []).map(vxOut_);
+    const txn = {}, sig = {}; have.forEach(h => { if (h.txn) txn[h.txn.toUpperCase()] = 1; sig[[h.no, h.date, h.amount, h.place.toUpperCase()].join('|')] = 1; });
+    const fresh = [], skipped = [];
+    vals.forEach(v => { const s = [v.machinery, v.date, v.amount, v.place.toUpperCase()].join('|'); if ((v.txn_id && txn[v.txn_id.toUpperCase()]) || sig[s]) { skipped.push(vxShow_(v)); return; }
+      fresh.push(v); if (v.txn_id) txn[v.txn_id.toUpperCase()] = 1; sig[s] = 1; });
+    if (fresh.length) {
+      const first = Number(vbNext_('vehicle_expense', 'VX').replace(/\D/g, '')), at = new Date().toISOString(), by = str_(u.name || u.email);
+      vbFetch_('POST', '/rest/v1/vehicle_expense', fresh.map((v, i) => Object.assign({ id: 'VX-' + String(first + i).padStart(6, '0'), source: 'Statement', entered_at: at, entered_by: by }, v)));
+    }
+    return { ok: true, id: fresh.length ? 'VX (' + fresh.length + ')' : '', act: 'Add', added: fresh.length, skipped: skipped.length, summary: 'FASTag statement: ' + fresh.length + ' line(s) saved' + (skipped.length ? ', ' + skipped.length + ' already there' : ''), changes: fresh.map(vxShow_).join('; ').slice(0, 900) };
+  });
+}
+
 /* ================= DIESEL STOCK: locations, inward, transfer ================= *
  * Stock points: the site's diesel places (above; at the first site Dispenser and VTR Store).
  *   Inward (pump)        : + at its Location (default the first place)
@@ -13406,9 +13638,10 @@ function dbHealth_() {
     add('Vendor Master – the Owner Name and the vendor\'s documents (step 1zj)', has('vendors', 'owner_name') && has('vendors', 'documents'), 'supabase_step1zj_vendor_papers.sql');      // (update-184)
     add('The assistant\'s own memory and its chats (step 1zk)', has('ai_memory') && has('ai_chats'), 'supabase_step1zk_ai_memory.sql');      // (update-186)
     add('Vehicle Compliance – the documents of every renewal, the RC Book and the Tax Invoice (step 1zl)', has('compliance_history', 'attachments'), 'supabase_step1zl_compliance_files.sql');      // (update-205)
+    add('Vehicle Booking and Vehicle Expenses – toll / FASTag / parking (step 1zm)', has('vehicle_booking') && has('vehicle_expense') && has('app_users', 'perm_vehicle_booking') && has('app_users', 'perm_booking_approve') && has('app_users', 'perm_vehicle_expenses'), 'supabase_step1zm_booking_expenses.sql');      // (update-216)
     // (update-90) the list of sites, the Super Admin and who has which site – in the FIRST site's database only
     if (typeof __siteIsHome === 'function' && __siteIsHome()) add('Several sites and the Super Admin (step 7 – the first site only)', typeof __sitesOn === 'function' && __sitesOn(), 'supabase_step7_sites.sql');
-    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason)|master\.fuel|diesel_issue\.(rate|amount)|card_payments|app_users\.perm_fuel_cards|maintenance|app_users\.perm_maintenance|vendors\.(owner_name|documents)|compliance_history\.attachments)/.test(x));
+    const other = miss.filter(x => !/^(log_book\.(debit_to|debit_rate|meter_note|day_part|time_slots)|debit_notes|diesel_issue\.photos|billed_changes|bill_snapshots|bill_log_rows|log_book\.(approved_by|approved_at|approval_ref)|bills\.(deleted_by|deleted_at|delete_reason)|master\.fuel|diesel_issue\.(rate|amount)|card_payments|app_users\.perm_fuel_cards|maintenance|app_users\.perm_maintenance|vendors\.(owner_name|documents)|compliance_history\.attachments|app_users\.perm_(vehicle_booking|booking_approve|vehicle_expenses))/.test(x));      // (update-216: step 1zm says it)
     add('Every other column the app uses (steps 1 to 1s)', !other.length, 'the step-1 files in Read Me – the newest first', other.slice(0, 10).join(', ') + (other.length > 10 ? ' … +' + (other.length - 10) : ''));
   }
   let api = null; try { api = sbFetch_('GET', '/rest/v1/'); } catch (e) { api = null; }

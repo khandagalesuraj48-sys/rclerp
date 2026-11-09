@@ -3370,6 +3370,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           <button class="navbtn" role="tab" id="tab-diesel" aria-controls="sec-diesel" aria-selected="false" title="Diesel Issue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/></svg><span class="label">Diesel Issue</span></button>
           <button class="navbtn" role="tab" id="tab-cards" aria-controls="sec-cards" aria-selected="false" title="Fuel Cards" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/><line x1="6" x2="10" y1="15" y2="15"/></svg><span class="label">Fuel Cards</span></button>
           <button class="navbtn" role="tab" id="tab-mnt" aria-controls="sec-mnt" aria-selected="false" title="Maintenance" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span class="label">Maintenance</span></button>
+          <button class="navbtn" role="tab" id="tab-vbook" aria-controls="sec-vbook" aria-selected="false" title="Vehicle Booking" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 15l2 2 4-4"/></svg><span class="label">Vehicle Booking</span></button>
+          <button class="navbtn" role="tab" id="tab-vexp" aria-controls="sec-vexp" aria-selected="false" title="Vehicle Expenses" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h16v18l-3-2-3 2-2-2-2 2-3-2-3 2z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span class="label">Vehicle Expenses</span></button>
           </div>
         </div>
         <div class="subgrp" data-sg="log">
@@ -5023,6 +5025,81 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="table-wrap rtable-wrap rp-body" id="rpmlog_body"></div></div>
     </div>
   </section>
+  <!-- (update-216, step 1zm) VEHICLE BOOKING: a person asks for a vehicle; those given "Vehicle Booking – approve" give it (vehicle + driver) or say no -->
+  <section id="sec-vbook" role="tabpanel" aria-labelledby="tab-vbook" hidden>
+    <div class="panel" id="vb_ask" data-perm="Vehicle Booking">
+      <div class="panel-head"><h2>Ask for a vehicle</h2><span class="chart-note">Sent to those who approve bookings (and the Admin); you get a message when it is decided.</span></div>
+      <div class="grid">
+        <div class="field"><label for="vb_from">Needed from <span class="req">*</span></label><input id="vb_from" type="datetime-local"></div>
+        <div class="field"><label for="vb_to">Until <span class="req">*</span></label><input id="vb_to" type="datetime-local"></div>
+        <div class="field"><label for="vb_pfrom">From (place)</label><input id="vb_pfrom" maxlength="80" autocomplete="off" placeholder="Head Office"></div>
+        <div class="field"><label for="vb_pto">To (place) <span class="req">*</span></label><input id="vb_pto" maxlength="80" autocomplete="off"></div>
+        <div class="field wide"><label for="vb_purpose">Purpose <span class="req">*</span></label><input id="vb_purpose" maxlength="200" autocomplete="off"></div>
+        <div class="field"><label for="vb_people">People</label><input id="vb_people" type="number" min="1" max="60" step="1"></div>
+        <div class="field"><label for="vb_no">Vehicle wanted</label><input id="vb_no" list="dl_machines" placeholder="Any" autocomplete="off"></div>
+        <div class="field wide"><label for="vb_remark">Remark</label><input id="vb_remark" maxlength="200" autocomplete="off"></div>
+      </div>
+      <div class="actions"><button class="btn primary" id="vb_send" type="button">Send request</button></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2 id="vb_list_t">Bookings</h2><span class="chart-note" id="vb_note"></span></div>
+      <div class="filters">
+        <div class="field"><label for="vb_f_from">From</label><input id="vb_f_from" type="date"></div>
+        <div class="field"><label for="vb_f_to">To</label><input id="vb_f_to" type="date"></div>
+        <div class="field"><label for="vb_f_st">Status</label><select id="vb_f_st"><option value="">All</option><option>Requested</option><option>Approved</option><option>Rejected</option><option>Cancelled</option></select></div>
+        <div class="field"><label>&nbsp;</label><button class="btn ghost" id="vb_show" type="button">Show</button></div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Booking</th><th>When</th><th>From → To</th><th>Purpose</th><th class="n">People</th><th>Asked by</th><th>Status</th><th>Vehicle · driver</th><th>Reply</th><th></th></tr></thead>
+        <tbody id="vb_rows"></tbody>
+      </table></div>
+      <div class="vb-dec" id="vb_dec" hidden>
+        <h3 class="rsub" id="vb_dec_t"></h3>
+        <div class="grid">
+          <div class="field"><label for="vb_d_no">Vehicle <span class="req">*</span></label><input id="vb_d_no" list="dl_machines" autocomplete="off"></div>
+          <div class="field"><label for="vb_d_drv">Driver</label><input id="vb_d_drv" list="dl_drivers" maxlength="60" autocomplete="off"></div>
+          <div class="field wide"><label for="vb_d_reply">Reply</label><input id="vb_d_reply" maxlength="200" autocomplete="off"></div>
+        </div>
+        <div class="actions"><button class="btn primary" id="vb_d_ok" type="button">Approve</button><button class="btn danger" id="vb_d_no_btn" type="button">Not given</button><button class="btn ghost" id="vb_d_x" type="button">Close</button></div>
+      </div>
+    </div>
+  </section>
+  <!-- (update-216, step 1zm) VEHICLE EXPENSES: toll / parking of a vehicle – typed, or the FASTag statement read by the AI -->
+  <section id="sec-vexp" role="tabpanel" aria-labelledby="tab-vexp" hidden>
+    <div class="viewonly" data-viewonly="Vehicle Expenses" hidden>View only – you can see the expenses here, but you cannot add or change them. Ask Admin for Edit access.</div>
+    <div class="panel" data-perm="Vehicle Expenses">
+      <div class="panel-head"><h2 id="vx_form_t">New expense</h2><span class="chart-note">Toll, parking … of one vehicle. A FASTag statement: below.</span></div>
+      <div class="grid">
+        <div class="field"><label for="vx_date">Date <span class="req">*</span></label><input id="vx_date" type="date"></div>
+        <div class="field"><label for="vx_no">Vehicle <span class="req">*</span></label><input id="vx_no" list="dl_machines" autocomplete="off"></div>
+        <div class="field"><label for="vx_kind">What</label><select id="vx_kind"><option>Toll</option><option>Parking</option><option>Other</option></select></div>
+        <div class="field"><label for="vx_place">Place / toll plaza</label><input id="vx_place" maxlength="80" autocomplete="off"></div>
+        <div class="field"><label for="vx_amt">Amount (₹) <span class="req">*</span></label><input id="vx_amt" type="number" min="0" step="0.01"></div>
+        <div class="field"><label for="vx_paid">Paid by</label><select id="vx_paid"><option>FASTag</option><option>Cash</option><option>Card</option><option>UPI</option><option>Other</option></select></div>
+        <div class="field"><label for="vx_ref">Reference</label><input id="vx_ref" maxlength="80" autocomplete="off"></div>
+        <div class="field wide"><label for="vx_remark">Remark</label><input id="vx_remark" maxlength="200" autocomplete="off"></div>
+      </div>
+      <div class="actions"><button class="btn primary" id="vx_save" type="button">Save</button><button class="btn ghost" id="vx_clear" type="button">Clear</button></div>
+      <h3 class="rsub">FASTag statement</h3>
+      <p class="chart-note" style="margin:0 0 8px">The bank's statement – a PDF, a photo or the Excel file. The AI reads each toll; each goes on the vehicle of its number. You see them first; only the lines ticked are saved, a line already saved is left out.</p>
+      <div class="actions"><button class="btn ghost" id="vx_st_pick" type="button">Choose the statement</button><input type="file" id="vx_st_file" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.csv" hidden><span class="chart-note" id="vx_st_msg"></span></div>
+      <div id="vx_st_out" hidden>
+        <div class="table-wrap"><table><thead><tr><th><input type="checkbox" id="vx_st_all" checked aria-label="Tick all"></th><th>Date</th><th>Time</th><th>Vehicle (statement)</th><th>Vehicle (Asset Master)</th><th>Toll plaza</th><th class="n">₹</th><th>Transaction</th><th></th></tr></thead><tbody id="vx_st_rows"></tbody></table></div>
+        <div class="actions"><button class="btn primary" id="vx_st_save" type="button">Save the ticked lines</button><button class="btn ghost" id="vx_st_x" type="button">Close</button></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Expenses</h2><span class="chart-note" id="vx_total"></span></div>
+      <div class="filters">
+        <div class="field"><label for="vx_f_from">From</label><input id="vx_f_from" type="date"></div>
+        <div class="field"><label for="vx_f_to">To</label><input id="vx_f_to" type="date"></div>
+        <div class="field"><label for="vx_f_no">Vehicle</label><input id="vx_f_no" list="dl_machines" placeholder="All" autocomplete="off"></div>
+        <div class="field"><label>&nbsp;</label><button class="btn ghost" id="vx_show" type="button">Show</button></div>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Vehicle</th><th class="n">Entries</th><th class="n">Toll (₹)</th><th class="n">Parking (₹)</th><th class="n">Other (₹)</th><th class="n">Total (₹)</th></tr></thead><tbody id="vx_cars"></tbody></table></div>
+      <div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>ID</th><th>Date</th><th>Vehicle</th><th>What</th><th>Place</th><th class="n">₹</th><th>Paid by</th><th>Reference</th><th>From</th><th></th></tr></thead><tbody id="vx_rows"></tbody></table></div>
+    </div>
+  </section>
 
   <!-- ================= LOG BOOK ================= -->
   <section id="sec-log" role="tabpanel" aria-labelledby="tab-log" hidden>
@@ -6423,6 +6500,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const cm = cardMode();
     ['inward', 'transfer', 'rdaily', 'rp-stock', 'rp-purchase'].forEach(t => { const b = $('tab-' + t); if (b && cm) b.hidden = true; });
     if ($('tab-cards') && !cm) $('tab-cards').hidden = true;
+    if ($('tab-vbook') && ((u.perms || {})['Booking Approve'] || 'None') !== 'None') $('tab-vbook').hidden = false;      // (update-216) one who approves bookings sees them
     // (update-170) the Maintenance Log Book at every site (update-165: only at a site on fuel cards) – shown when he has the page
     document.querySelectorAll('.subgrp').forEach(g => { g.hidden = ![...g.querySelectorAll('.navbtn')].some(b => !b.hidden); });
     // the page on screen is one he may not open (also the Dashboard shown at sign-in): to his first page – a Machinery page if he
@@ -6435,7 +6513,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
   }
   // which access column each page follows
-  const TAB_MODULE = { dash: 'Dashboard', vendors: 'Vendor Master', master: 'Master', boq: 'Vendor BOQ', comp: 'Vehicle Compliance', lbf: 'Master', brk: 'Breakdown', inward: 'Diesel Inward', transfer: 'Diesel Transfer', diesel: 'Diesel Issue', cards: 'Fuel Cards', mnt: 'Maintenance',
+  const TAB_MODULE = { dash: 'Dashboard', vendors: 'Vendor Master', master: 'Master', boq: 'Vendor BOQ', comp: 'Vehicle Compliance', lbf: 'Master', brk: 'Breakdown', inward: 'Diesel Inward', transfer: 'Diesel Transfer', diesel: 'Diesel Issue', cards: 'Fuel Cards', mnt: 'Maintenance', vbook: 'Vehicle Booking', vexp: 'Vehicle Expenses',
     log: 'Log Book', tankcheck: 'Log Book', logedit: 'Log Book', bill: 'Machinery Billing', bills: 'Saved Bills', breg: 'Bill Summary', pay: 'Machinery Payments', vled: 'Vendor Ledger', vout: 'Vendor Outstanding', rmonthly: 'Reports', ravg: 'Reports', rdaily: 'Reports' };
   // Edit / Delete links for a list row, only when the user may edit that module
   // who entered an entry (and who changed it last) – shown in the lists only
@@ -6698,6 +6776,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The bill copy could not be used.', 'Add it again with "Take photo" or "Choose photos" and wait for the ✓ on its tile before saving. A copy goes with the inward only if you added it within the last 6 hours; at most 10 with one inward. If it says a database step is needed, tell the Admin.'],
       mr: ['ही bill copy वापरता आली नाही.', '"Take photo" किंवा "Choose photos" ने ती पुन्हा जोडा, आणि save करण्यापूर्वी तिच्या tile वर ✓ येईपर्यंत थांबा. तुम्ही गेल्या 6 तासांत जोडलेली copy च inward सोबत जाते; एका inward सोबत जास्तीत जास्त 10. Database step लागेल असे सांगितले तर Admin ला सांगा.'],
       hi: ['यह bill copy इस्तेमाल नहीं हो सकी।', '"Take photo" या "Choose photos" से उसे फिर से जोड़ें, और save करने से पहले उसकी tile पर ✓ आने तक रुकें। आपकी पिछले 6 घंटों में जोड़ी गई copy ही inward के साथ जाती है; एक inward के साथ ज़्यादा से ज़्यादा 10। Database step चाहिए ऐसा कहे तो Admin को बताएँ।'] },
+    { re: /^Vehicle booking|Vehicle booking and vehicle expenses|Vehicle booking [A-Z]{2}-/i,      // (update-216) a booking
+      en: ['The vehicle booking could not be saved as it is.', 'Read the message: give the date and time from and until (until after from, not past, at most 31 days), where the vehicle goes and why. Only one given "Vehicle Booking – approve" decides; a vehicle already booked at that time cannot be given – pick another. If it says a database step is needed, tell the Admin.'],
+      mr: ['गाडीचे booking असे save होऊ शकले नाही.', 'संदेश वाचा: कधीपासून आणि कधीपर्यंत (तारीख व वेळ – "until" नंतरची, आधीची नाही, जास्तीत जास्त 31 दिवस), गाडी कुठे जाणार आणि कशासाठी ते भरा. फक्त "Vehicle Booking – approve" दिलेलाच निर्णय घेतो; त्या वेळी आधीच booked असलेली गाडी देता येत नाही – दुसरी निवडा. Database step लागेल असे लिहिले असेल तर Admin ला सांगा.'],
+      hi: ['गाड़ी की booking ऐसे save नहीं हो सकी।', 'संदेश पढ़ें: कब से और कब तक (तारीख व समय – "until" बाद का, पिछला नहीं, ज़्यादा से ज़्यादा 31 दिन), गाड़ी कहाँ जाएगी और किसलिए भरें। सिर्फ "Vehicle Booking – approve" वाला ही निर्णय लेता है; उस समय पहले से booked गाड़ी नहीं दी जा सकती – दूसरी चुनें। Database step चाहिए लिखा हो तो Admin को बताएँ।'] },
+    { re: /^Vehicle expense|^FASTag statement/i,      // (update-216) a toll / parking expense, the FASTag statement
+      en: ['The vehicle expense (or the FASTag statement) could not be saved as it is.', 'Read the message: the date, the vehicle (in the Asset Master and on the site that day), what it is, how it was paid and the ₹ (above 0). A statement: a PDF, a photo or the Excel file, up to 3 MB; tick the lines to save and pick the vehicle of a line that has none.'],
+      mr: ['गाडीचा खर्च (किंवा FASTag statement) असा save होऊ शकला नाही.', 'संदेश वाचा: तारीख, गाडी (Asset Master मध्ये आणि त्या दिवशी site वर), काय आहे, कसे दिले आणि ₹ (0 पेक्षा जास्त). Statement: PDF, photo किंवा Excel, 3 MB पर्यंत; save करायच्या ओळी ✓ करा आणि गाडी नसलेल्या ओळीची गाडी निवडा.'],
+      hi: ['गाड़ी का खर्च (या FASTag statement) ऐसे save नहीं हो सका।', 'संदेश पढ़ें: तारीख, गाड़ी (Asset Master में और उस दिन site पर), क्या है, कैसे दिया और ₹ (0 से ज़्यादा)। Statement: PDF, photo या Excel, 3 MB तक; save करने वाली पंक्तियाँ ✓ करें और जिस पंक्ति की गाड़ी नहीं है उसकी गाड़ी चुनें।'] },
     { re: /photo is only for a site on fuel cards/i,      // (update-215) the Pump bill photo
       en: ['The pump bill photo is only for a site on fuel cards.', 'A site with its own diesel stock fills from its dispenser – there is no pump bill. Take the other photos of the fill.'],
       mr: ['Pump bill चा photo फक्त fuel card वाल्या site साठी आहे.', 'ज्या site चा स्वतःचा diesel stock आहे ती dispenser मधून भरते – तिथे pump bill नसते. भरण्याचे बाकीचे photo काढा.'],
@@ -7304,6 +7390,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The fuel cards of a site without diesel stock (HO): each card with its kind, the last 4 digits, its bank / company, the name on it, its expiry (a red / amber mark when it has expired or ends within 30 days), the customer ID, the cars that use it, its opening balance – and the payments / recharges onto it, and the statement of a card.', 'Balance = opening + payments onto the card − the fills paid by it (Diesel Issue, from its opening date). A fill is saved even when the balance is short – it shows red. A card that has entries keeps its name (it can be made Inactive). Only the last 4 digits are kept, never the whole number. The Super Admin puts the site on fuel cards (Portal → Sites → Diesel places).'],
       mr: ['Diesel stock नसलेल्या site (HO) चे fuel cards: प्रत्येक card – त्याचा प्रकार, शेवटचे 4 अंक, bank / कंपनी, card वरचे नाव, expiry (संपले किंवा 30 दिवसांत संपणार असेल तर लाल / पिवळी खूण), customer ID, कोणत्या गाड्या वापरतात, opening balance – आणि card वर भरलेले पैसे / recharge, आणि card चे statement.', 'Balance = opening + card वर भरलेले पैसे − त्या card ने भरलेले fuel (Diesel Issue, opening तारखेपासून). Balance कमी असला तरी fill save होतो – तो लाल दिसतो. ज्या card च्या entries आहेत त्याचे नाव बदलत नाही (Inactive करता येते). फक्त शेवटचे 4 अंक ठेवले जातात, पूर्ण नंबर कधीच नाही. Site fuel cards वर Super Admin ठेवतो (Portal → Sites → Diesel places).'],
       hi: ['Diesel stock न रखने वाली site (HO) के fuel cards: हर card – उसका प्रकार, आखिरी 4 अंक, bank / कंपनी, card पर नाम, expiry (खत्म हो गया हो या 30 दिनों में खत्म होगा तो लाल / पीला निशान), customer ID, कौन सी गाड़ियाँ उसे इस्तेमाल करती हैं, opening balance – और card पर भरे गए पैसे / recharge, और card का statement।', 'Balance = opening + card पर भरे पैसे − उस card से भरा गया fuel (Diesel Issue, opening तारीख से)। Balance कम हो तब भी fill save होता है – वह लाल दिखता है। जिस card की entries हैं उसका नाम नहीं बदलता (Inactive किया जा सकता है)। केवल आखिरी 4 अंक रखे जाते हैं, पूरा नंबर कभी नहीं। Site को fuel cards पर Super Admin रखता है (Portal → Sites → Diesel places)।'] },
+    vbook: { saves: ['saveBooking', 'cancelBooking', 'decideBooking'],      // (update-216, step 1zm)
+      en: ['Vehicle Booking: a person with the page asks for a vehicle – from when until when, from where to where, why, how many people (and the vehicle he wants). Those given "Vehicle Booking – approve" (and the Admin) get a message, see every booking and give it – with the vehicle and its driver – or say no with why; the person gets a message.', 'A vehicle is never given to two bookings at the same time. A booking is cancelled by the person who asked (or one who approves) before it is over. A person sees his own bookings; one who approves sees all.'],
+      mr: ['Vehicle Booking: ज्याला हे page दिले आहे तो गाडी मागतो – कधीपासून कधीपर्यंत, कुठून कुठे, कशासाठी, किती माणसे (आणि हवी असलेली गाडी). ज्यांना "Vehicle Booking – approve" दिले आहे (आणि Admin) त्यांना सूचना येते, ते सर्व bookings पाहतात आणि गाडी व ड्रायव्हर देऊन मंजूर करतात – किंवा कारण लिहून नाही म्हणतात; मागणाऱ्याला सूचना जाते.', 'एकच गाडी एकाच वेळी दोन bookings ला कधीच दिली जात नाही. मागणारा (किंवा मंजूर करणारा) booking संपण्यापूर्वी cancel करू शकतो. प्रत्येकाला स्वतःचे bookings दिसतात; मंजूर करणाऱ्याला सर्व.'],
+      hi: ['Vehicle Booking: जिसे यह page दिया है वह गाड़ी माँगता है – कब से कब तक, कहाँ से कहाँ, किसलिए, कितने लोग (और चाही गई गाड़ी)। जिन्हें "Vehicle Booking – approve" दिया है (और Admin) उन्हें सूचना आती है, वे सभी bookings देखते हैं और गाड़ी व ड्राइवर देकर मंजूर करते हैं – या कारण लिखकर मना करते हैं; माँगने वाले को सूचना जाती है।', 'एक गाड़ी एक समय पर दो bookings को कभी नहीं दी जाती। माँगने वाला (या मंजूर करने वाला) booking खत्म होने से पहले cancel कर सकता है। हर किसी को अपनी bookings दिखती हैं; मंजूर करने वाले को सभी।'] },
+    vexp: { saves: ['saveVexp', 'updateVexp', 'deleteVexp', 'readVexpStatement', 'importVexp'],      // (update-216, step 1zm)
+      en: ['Vehicle Expenses: toll, parking and other costs of a vehicle – date, vehicle, what, place, ₹, paid by (FASTag, Cash, Card, UPI). Typed by hand, or the FASTag statement of the bank (PDF, photo or Excel) read by the AI: each toll on the vehicle of its number, seen first, only the lines ticked saved.', 'A statement line already saved (its transaction ID, or the same vehicle, date, ₹ and plaza) is never saved twice. Each vehicle\'s total of the dates is shown.'],
+      mr: ['Vehicle Expenses: गाडीचा toll, parking आणि इतर खर्च – तारीख, गाडी, काय, ठिकाण, ₹, कसे दिले (FASTag, Cash, Card, UPI). हाताने भरा, किंवा bank चे FASTag statement (PDF, photo किंवा Excel) – AI वाचतो: प्रत्येक toll त्याच्या नंबरच्या गाडीवर, आधी दिसते, फक्त ✓ केलेल्या ओळी save होतात.', 'आधीच save झालेली statement ची ओळ (तिचा transaction ID, किंवा तीच गाडी, तारीख, ₹ आणि plaza) दोनदा कधीच save होत नाही. तारखांमधील प्रत्येक गाडीची बेरीज दिसते.'],
+      hi: ['Vehicle Expenses: गाड़ी का toll, parking और अन्य खर्च – तारीख, गाड़ी, क्या, जगह, ₹, कैसे दिया (FASTag, Cash, Card, UPI)। हाथ से भरें, या bank का FASTag statement (PDF, photo या Excel) – AI पढ़ता है: हर toll उसके नंबर की गाड़ी पर, पहले दिखता है, सिर्फ ✓ की गई पंक्तियाँ save होती हैं।', 'पहले से save हुई statement की पंक्ति (उसका transaction ID, या वही गाड़ी, तारीख, ₹ और plaza) दो बार कभी save नहीं होती। तारीखों में हर गाड़ी का जोड़ दिखता है।'] },
     mnt: { saves: ['saveMaint', 'updateMaint', 'deleteMaint', 'maintFile', 'readMaintBill', 'importMaint', 'checkMaintImport', 'readMaintLog', 'maintImportNames', 'updateMaintLine', 'deleteMaintLine', 'deleteMaintLog'],
       en: ['The Maintenance Log Book of every machinery, at every site: each bill – date, party (the garage / shop of a direct bill), bill number, its current reading (KM / Hrs), every work / part with who paid it (RCL, Insurance, Warranty, FOC, Service Plan), Qty, Uom, Rate, Discount %, its ₹ and its GST %, a Service mark, an insurance claim (the company, what it paid) – with its PDF / photos; the AI can read a bill for you, all its lines.', 'Only what WE paid is the cost: free lines (warranty, FOC, service plan) are ₹ 0 with their worth shown, the insurance\'s part is taken out. The log book of a machinery shows every line of its bills by date – Party Name, Current Reading, Particulars, Qty, Uom, Basic Rate, Amount, the CGST and SGST of each GST rate (in the heading – 9 % · 9 % · 18 %), Amount With GST, Paid by, Insurance claim, Service, Total – on the screen, printed or in Excel – for chosen dates or "Start to end" (from its first bill); on the screen each entry has Edit · Delete at its end (Edit: that line, or "Change the whole bill" – its date, party, reading, files) and 📎 its bill files; the Admin / Super Admin can delete the whole log book of a machinery (the dates shown – typed to confirm, each bill kept in the Activity Log); at a site on fuel cards also its fills, all costs and ₹ per KM. What the RCL Store issues to the machinery comes in by itself – Party "RCL Store", each item at the Store\'s average basic rate, the reading written on the issue (an issue on debit to its owner is shown at ₹ 0 – not our cost); "Fetch outward (Store)" shows the log book with it. Whoever has Maintenance Edit can import the old log book as it is – its Excel (a sheet a machinery; "Download the format (Excel)" gives one for each Own machinery) or its PDF / a photo, read row by row by the AI: the AI lists the names written in more than one way (tick what is to be changed), the lines that do not add up are shown, Check first, a bill already there is left out and listed. (update-215) Tyres & batteries: every bill line that names a tyre or a battery (not a repair of one) is listed by itself under the log book – when, which, what was paid, the reading then and how far it has run since.'],
       mr: ['प्रत्येक site वरच्या प्रत्येक मशिनरीची Maintenance Log Book: प्रत्येक bill – तारीख, party (direct bill चे garage / दुकान), bill नंबर, त्याचे current reading (KM / Hrs), प्रत्येक काम / part कोणी भरले (RCL, Insurance, Warranty, FOC, Service Plan), Qty, Uom, Rate, Discount %, त्याचे ₹ आणि GST %, Service ची खूण, insurance claim (company, तिने भरलेले) – त्याच्या PDF / photos सह; AI तुमच्यासाठी bill च्या सगळ्या ओळी वाचू शकतो.', 'खर्चात फक्त आपण भरलेले: मोफत ओळी (warranty, FOC, service plan) ₹ 0, त्यांची किंमत दिसते; insurance चा भाग वजा होतो. मशिनरीच्या log book मध्ये तिच्या bills ची प्रत्येक ओळ तारखेनुसार – Party Name, Current Reading, Particulars, Qty, Uom, Basic Rate, Amount, प्रत्येक GST दराचे CGST आणि SGST (heading मध्ये – 9 % · 9 % · 18 %), Amount With GST, Paid by, Insurance claim, Service, Total – screen वर, print किंवा Excel मध्ये; निवडलेल्या तारखांची किंवा "Start to end" (पहिल्या bill पासून); screen वर प्रत्येक entry च्या शेवटी Edit · Delete (Edit: ती ओळ, किंवा "Change the whole bill" – तारीख, party, reading, files) आणि 📎 bill च्या files; Admin / Super Admin एका मशिनरीची पूर्ण log book delete करू शकतो (दाखवलेल्या तारखांची – नंबर टाइप करून, प्रत्येक bill Activity Log मध्ये राहते); fuel cards वरच्या site वर त्याचे fuel, सगळा खर्च आणि ₹ प्रति KM पण. RCL Store मशिनरीला जे देते (Issue) ते आपोआप येते – Party "RCL Store", प्रत्येक item Store च्या सरासरी basic rate ने, issue वर लिहिलेले reading (मालकाला debit ने दिलेले ₹ 0 ने दिसते – आपला खर्च नाही); "Fetch outward (Store)" ते घेऊन log book दाखवते. Maintenance चा Edit access असलेला कोणीही जुनी log book जशीच्या तशी import करू शकतो – तिची Excel (प्रत्येक मशिनरीची एक sheet; "Download the format (Excel)" प्रत्येक Own मशिनरीची sheet देते) किंवा तिची PDF / पानाचा photo, AI ओळ-न-ओळ वाचतो: एकापेक्षा जास्त प्रकारे लिहिलेली नावे AI दाखवतो (बदलायचे ते ✓ करा), न जुळणाऱ्या ओळी दिसतात, आधी Check, आधीच असलेले bill सोडले जाते आणि त्याची यादी दिसते. (update-215) Tyres & batteries: bill मधली tyre किंवा battery ची प्रत्येक ओळ (तिची दुरुस्ती नाही) log book खाली आपोआप दिसते – कधी, कोणती, किती पैसे, तेव्हाचे reading आणि तेव्हापासून किती चालली.'],
@@ -8056,7 +8150,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     XLSX.writeFile(wb, 'RCL_' + d.title.replace(/[^A-Za-z0-9]+/g, '_') + (d.from ? '_' + d.from + '_to_' + d.to : '') + '.xlsx');
   }
 
-  const TABS = ['dash', 'vendors', 'master', 'boq', 'comp', 'lbf', 'brk', 'bill', 'bills', 'breg', 'pay', 'vled', 'vout', 'users', 'readme', 'settings', 'inward', 'transfer', 'diesel', 'cards', 'mnt', 'log', 'activity', 'approvals', 'rmonthly', 'ravg', 'rdaily', 'logedit', 'tankcheck'].concat(buildReports());
+  const TABS = ['dash', 'vendors', 'master', 'boq', 'comp', 'lbf', 'brk', 'bill', 'bills', 'breg', 'pay', 'vled', 'vout', 'users', 'readme', 'settings', 'inward', 'transfer', 'diesel', 'cards', 'mnt', 'vbook', 'vexp', 'log', 'activity', 'approvals', 'rmonthly', 'ravg', 'rdaily', 'logedit', 'tankcheck'].concat(buildReports());
   document.querySelectorAll('.navbtn').forEach(b => { const l = b.querySelector('.label'); if (l) b.title = l.textContent.trim(); });
   document.querySelectorAll('.rhead h2').forEach(h => { h.dataset.site = SITE_NAME; });
   // Reports menu: a second section "Head Office Reports" with the Owner / Vendor-wise Summary and Monthly Diesel & Average
@@ -8191,6 +8285,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     else if (name === 'diesel') { if (first) loadDiesel(); refreshStock(); refreshLookups(); }
     else if (name === 'cards') { cdOpen(first); refreshStock(); }      // (update-164) Fuel Cards
     else if (name === 'mnt') mtOpen(first);      // (update-165) the Maintenance Log Book
+    else if (name === 'vbook') vbOpen(first);      // (update-216) Vehicle Booking
+    else if (name === 'vexp') vxOpen(first);      // (update-216) Vehicle Expenses
     else if (name === 'inward') { if (first) loadInward(); refreshStock(); }
     else if (name === 'transfer') { if (first) loadTransfers(); refreshStock(); }
     else if (name === 'log') { if (first) { lfTwoDays(); loadLog(); } else lgRefreshAll();  refreshLookups(); }
@@ -18174,6 +18270,108 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     (c.active && c.lowAt && c.balance < c.lowAt ? '<span class="cd-exp bad">Low – below ₹' + esc(money(c.lowAt)) + '</span>' : '') + '</div>'; };      // (update-213)
   // ---------- the page Fuel Cards ----------
   S.cpay = { items: [], tok: 0, edit: null };      // (update-190) its own name – S.cp is Vehicle Compliance's (the same name broke that page since update-164)
+  /* ---------- (update-216, step 1zm) VEHICLE BOOKING ---------- */
+  const vbWhen = b => showDate(b.from.slice(0, 10)) + ' ' + b.from.slice(11) + ' – ' + (b.to.slice(0, 10) === b.from.slice(0, 10) ? '' : showDate(b.to.slice(0, 10)) + ' ') + b.to.slice(11);
+  const vbTone = s => s === 'Approved' ? 'color:#0F7B3F' : s === 'Rejected' ? 'color:#C8102E' : s === 'Cancelled' ? 'color:#64748B' : 'color:#B45309';
+  function vbOpen(first) {
+    if (first || !$('vb_f_from').value) { $('vb_f_from').value = isoDate(new Date(new Date(S.today + 'T00:00:00').getTime() - 7 * 86400000)); $('vb_f_to').value = isoDate(new Date(new Date(S.today + 'T00:00:00').getTime() + 60 * 86400000)); }
+    vbLoad().catch(e => toast(e.message, true));
+  }
+  async function vbLoad() {
+    const d = await call('getBookings', { from: $('vb_f_from').value, to: $('vb_f_to').value }), st = $('vb_f_st').value;
+    S.vb = d;
+    $('vb_note').textContent = d.missing ? d.missing : (d.canDecide ? 'Every booking of the dates – you decide them.' : 'Your bookings.') + ' Waiting: ' + (d.count ? d.count.Requested : 0) + ' · Approved: ' + (d.count ? d.count.Approved : 0);
+    const rows = (d.rows || []).filter(b => !st || b.status === st);
+    $('vb_rows').innerHTML = rows.length ? rows.map(b => {
+      const mine = b.by === d.me, live = (b.status === 'Requested' || b.status === 'Approved') && new Date(b.to + ':00+05:30').getTime() > Date.now();
+      const acts = [d.canDecide && b.status === 'Requested' ? '<button type="button" class="link" data-vbd="' + esc(b.id) + '">Decide</button>' : '', d.canDecide && b.status === 'Approved' && live ? '<button type="button" class="link" data-vbd="' + esc(b.id) + '">Change vehicle</button>' : '',
+        live && (mine || d.canDecide) ? '<button type="button" class="link" data-vbc="' + esc(b.id) + '">Cancel</button>' : ''].filter(Boolean).join(' · ');
+      return '<tr><td><b>' + esc(b.id) + '</b></td><td class="nowrap">' + esc(vbWhen(b)) + '</td><td>' + esc((b.placeFrom ? b.placeFrom + ' → ' : '') + b.placeTo) + '</td><td>' + esc(b.purpose) + (b.remark ? '<br><small class="muted">' + esc(b.remark) + '</small>' : '') + '</td><td class="n">' + esc(b.people) + '</td>' +
+        '<td>' + esc(b.byName || b.by) + '</td><td><b style="' + vbTone(b.status) + '">' + esc(b.status) + '</b>' + (b.decidedBy ? '<br><small class="muted">' + esc(b.decidedBy) + '</small>' : '') + '</td><td>' + esc(b.no ? b.no + (b.driver ? ' · ' + b.driver : '') : '–') + '</td><td>' + esc(b.reply) + '</td><td class="nowrap">' + acts + '</td></tr>';
+    }).join('') : '<tr><td colspan="10" class="none">' + esc(d.missing || 'No booking in these dates.') + '</td></tr>';
+  }
+  $('vb_show').addEventListener('click', e => busy(e.target, 'Showing…', vbLoad));
+  $('vb_f_st').addEventListener('change', () => vbLoad().catch(e => toast(e.message, true)));
+  $('vb_send').addEventListener('click', e => busy(e.target, 'Sending…', async () => {
+    const x = { from: $('vb_from').value, to: $('vb_to').value, placeFrom: val('vb_pfrom'), placeTo: val('vb_pto'), purpose: val('vb_purpose'), people: $('vb_people').value, no: val('vb_no'), remark: val('vb_remark') };
+    const r = await call('saveBooking', x);
+    ['vb_from', 'vb_to', 'vb_pto', 'vb_purpose', 'vb_people', 'vb_no', 'vb_remark'].forEach(id => { $(id).value = ''; });
+    toast('Booking ' + r.id + ' sent – you get a message when it is decided.'); await vbLoad();
+  }));
+  document.addEventListener('click', e => {
+    const d = e.target.closest && e.target.closest('[data-vbd]'), c = e.target.closest && e.target.closest('[data-vbc]');
+    if (d) { const b = (S.vb.rows || []).find(x => x.id === d.dataset.vbd); if (!b) return; S.vbCur = b.id; $('vb_dec_t').textContent = 'Booking ' + b.id + ' – ' + vbWhen(b) + ' – ' + (b.byName || b.by);
+      $('vb_d_no').value = b.no || ''; $('vb_d_drv').value = b.driver || ''; $('vb_d_reply').value = ''; $('vb_dec').hidden = false; $('vb_d_no').focus(); }
+    if (c) { const b = (S.vb.rows || []).find(x => x.id === c.dataset.vbc); if (!b) return;
+      askConfirm({ title: 'Cancel booking ' + b.id + '?', message: vbWhen(b) + ' – ' + b.placeTo, ok: 'Cancel the booking', cancel: 'Keep it', danger: true }).then(async ok => { if (!ok) return;
+        try { await call('cancelBooking', b.id); toast('Booking ' + b.id + ' cancelled.'); await vbLoad(); } catch (er) { showAlert('Nothing changed', er.message); } }); }
+  });
+  const vbDecide = approve => async () => { await call('decideBooking', S.vbCur, { approve: approve, no: val('vb_d_no'), driver: val('vb_d_drv'), reply: val('vb_d_reply') }); $('vb_dec').hidden = true; toast('Booking ' + S.vbCur + (approve ? ' approved.' : ' not given.')); await vbLoad(); };
+  $('vb_d_ok').addEventListener('click', e => busy(e.target, 'Saving…', vbDecide(true)));
+  $('vb_d_no_btn').addEventListener('click', e => busy(e.target, 'Saving…', vbDecide(false)));
+  $('vb_d_x').addEventListener('click', () => { $('vb_dec').hidden = true; });
+
+  /* ---------- (update-216, step 1zm) VEHICLE EXPENSES: toll / parking – typed, or the FASTag statement read by the AI ---------- */
+  function vxOpen(first) {
+    if (first || !$('vx_f_from').value) { $('vx_date').value = S.today; $('vx_date').max = S.today; $('vx_f_from').value = S.today.slice(0, 8) + '01'; $('vx_f_to').value = S.today; }
+    vxLoad().catch(e => toast(e.message, true));
+  }
+  async function vxLoad() {
+    const d = await call('getVexp', { from: $('vx_f_from').value, to: $('vx_f_to').value, no: val('vx_f_no') }), ed = canEdit('Vehicle Expenses');
+    S.vx = d;
+    $('vx_total').textContent = d.missing ? d.missing : (d.rows.length + ' entr' + (d.rows.length === 1 ? 'y' : 'ies') + ' · ₹' + money(d.total));
+    $('vx_cars').innerHTML = (d.cars || []).length ? d.cars.map(c => '<tr><td><b>' + esc(c.no) + '</b></td><td class="n">' + c.n + '</td><td class="n">' + money(c.toll) + '</td><td class="n">' + money(c.parking) + '</td><td class="n">' + money(c.other) + '</td><td class="n"><b>' + money(c.amount) + '</b></td></tr>').join('')
+      : '<tr><td colspan="6" class="none">' + esc(d.missing || 'No expense in these dates.') + '</td></tr>';
+    $('vx_rows').innerHTML = (d.rows || []).map(r => '<tr><td>' + esc(r.id) + '</td><td class="nowrap">' + esc(showDate(r.date)) + '</td><td><b>' + esc(r.no) + '</b></td><td>' + esc(r.kind) + '</td><td>' + esc(r.place) + '</td><td class="n">' + money(r.amount) + '</td><td>' + esc(r.paidBy) + '</td><td>' + esc(r.ref || r.txn) + '</td><td>' + esc(r.source) + '</td>' +
+      '<td class="nowrap">' + (ed ? '<button type="button" class="link" data-vxe="' + esc(r.id) + '">Edit</button> · <button type="button" class="link" data-vxx="' + esc(r.id) + '">Delete</button>' : '') + '</td></tr>').join('');
+  }
+  $('vx_show').addEventListener('click', e => busy(e.target, 'Showing…', vxLoad));
+  const vxClear = () => { S.vxEdit = ''; $('vx_form_t').textContent = 'New expense'; ['vx_no', 'vx_place', 'vx_amt', 'vx_ref', 'vx_remark'].forEach(id => { $(id).value = ''; }); $('vx_date').value = S.today; $('vx_kind').value = 'Toll'; $('vx_paid').value = 'FASTag'; $('vx_save').textContent = 'Save'; };
+  $('vx_clear').addEventListener('click', vxClear);
+  $('vx_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
+    const x = { date: $('vx_date').value, no: val('vx_no'), kind: $('vx_kind').value, place: val('vx_place'), amount: $('vx_amt').value, paidBy: $('vx_paid').value, ref: val('vx_ref'), remark: val('vx_remark') };
+    const r = S.vxEdit ? await call('updateVexp', S.vxEdit, x) : await call('saveVexp', x);
+    toast((S.vxEdit ? 'Changed ' : 'Saved ') + r.id + '.'); vxClear(); await vxLoad();
+  }));
+  document.addEventListener('click', e => {
+    const ed = e.target.closest && e.target.closest('[data-vxe]'), dl = e.target.closest && e.target.closest('[data-vxx]');
+    if (ed) { const r = (S.vx.rows || []).find(x => x.id === ed.dataset.vxe); if (!r) return; S.vxEdit = r.id; $('vx_form_t').textContent = 'Change ' + r.id + (r.txn ? ' (from the statement – its vehicle, date and ₹ stay)' : '');
+      $('vx_date').value = r.date; $('vx_no').value = r.no; $('vx_kind').value = r.kind; $('vx_place').value = r.place; $('vx_amt').value = r.amount; $('vx_paid').value = r.paidBy; $('vx_ref').value = r.ref; $('vx_remark').value = r.remark; $('vx_save').textContent = 'Save change'; $('vx_date').scrollIntoView({ block: 'center' }); }
+    if (dl) { const r = (S.vx.rows || []).find(x => x.id === dl.dataset.vxx); if (!r) return;
+      askConfirm({ title: 'Delete ' + r.id + '?', message: showDate(r.date) + ' · ' + r.no + ' · ' + r.kind + ' ' + r.place + ' · ₹' + money(r.amount), ok: 'Delete', danger: true }).then(async ok => { if (!ok) return;
+        try { await call('deleteVexp', r.id); toast('Deleted ' + r.id + '.'); await vxLoad(); } catch (er) { showAlert('Nothing deleted', er.message); } }); }
+  });
+  $('vx_st_pick').addEventListener('click', () => { $('vx_st_file').value = ''; $('vx_st_file').click(); });
+  $('vx_st_file').addEventListener('change', async () => {
+    const f = $('vx_st_file').files && $('vx_st_file').files[0]; if (!f) return;
+    $('vx_st_msg').textContent = 'Reading ' + f.name + ' – the AI reads each toll (up to a minute)…';
+    try {
+      let x;
+      if (/\.(xlsx|xls|csv)$/i.test(f.name)) {
+        const buf = await f.arrayBuffer(), wb = XLSX.read(buf, { type: 'array', cellDates: true });
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' }).filter(r => r.some(c => String(c).trim()));
+        x = { text: rows.map(r => r.map(c => String(c).trim()).join(' | ')).join('\n') };
+      } else {
+        const data = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => no(new Error('The file could not be read.')); r.readAsDataURL(f); });
+        x = { data: String(data).replace(/^data:image\/jpg;/, 'data:image/jpeg;') };
+      }
+      const d = await call('readVexpStatement', x);
+      if (d.off) { $('vx_st_msg').textContent = 'The AI is not set up for this site – type the expenses by hand.'; return; }
+      S.vxSt = d.rows || [];
+      $('vx_st_msg').textContent = d.rows.length + ' toll line(s) read · ' + d.matched + ' put on a vehicle · ' + d.saved + ' already saved';
+      $('vx_st_rows').innerHTML = S.vxSt.map((r, i) => '<tr><td><input type="checkbox" data-vxi="' + i + '"' + (r.saved || !r.no ? '' : ' checked') + (r.saved ? ' disabled' : '') + '></td><td class="nowrap">' + esc(showDate(r.date)) + '</td><td>' + esc(r.time) + '</td><td>' + esc(r.vehicle) + '</td>' +
+        '<td><input data-vxn="' + i + '" list="dl_machines" value="' + esc(r.no) + '" placeholder="Pick the vehicle" style="min-width:140px"' + (r.saved ? ' disabled' : '') + '></td><td>' + esc(r.place) + '</td><td class="n">' + money(r.amount) + '</td><td>' + esc(r.txn) + '</td><td>' + (r.saved ? '<small class="muted">already saved (' + esc(r.saved) + ')</small>' : r.no ? '' : '<small style="color:#B45309">no such vehicle – pick it</small>') + '</td></tr>').join('');
+      $('vx_st_out').hidden = !S.vxSt.length;
+    } catch (er) { $('vx_st_msg').textContent = ''; showAlert('The statement could not be read', er.message); }
+  });
+  $('vx_st_all').addEventListener('change', () => document.querySelectorAll('#vx_st_rows input[data-vxi]:not(:disabled)').forEach(c => { c.checked = $('vx_st_all').checked; }));
+  $('vx_st_x').addEventListener('click', () => { $('vx_st_out').hidden = true; });
+  $('vx_st_save').addEventListener('click', e => busy(e.target, 'Saving…', async () => {
+    const rows = [...document.querySelectorAll('#vx_st_rows input[data-vxi]:checked')].map(c => { const i = Number(c.dataset.vxi), r = S.vxSt[i]; return Object.assign({}, r, { no: (document.querySelector('[data-vxn="' + i + '"]') || {}).value || r.no }); });
+    const r = await call('importVexp', { rows: rows });
+    if (r.ok === false) { showAlert('Nothing saved', (r.errors || []).join('\n')); return; }
+    toast(r.added + ' line(s) saved' + (r.skipped ? ', ' + r.skipped + ' already there' : '') + '.'); $('vx_st_out').hidden = true; $('vx_st_msg').textContent = ''; await vxLoad();
+  }));
   function cdOpen(first) {
     if (first) {
       const t = S.today; $('cp_date').value = t; $('cp_date').max = t; $('cd_date').max = t;

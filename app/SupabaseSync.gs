@@ -132,7 +132,8 @@ const SB_TABLES_ = [
     ['Bill Summary', 'perm_bill_summary', 'text'], ['Machinery Payments', 'perm_machinery_payments', 'text'], ['Vendor Ledger', 'perm_vendor_ledger', 'text'],
     ['Vendor Outstanding', 'perm_vendor_outstanding', 'text'], ['Vehicle Compliance', 'perm_vehicle_compliance', 'text'], ['Breakdown', 'perm_breakdown', 'text'],
     ['Fuel Cards', 'perm_fuel_cards', 'text'],      // (update-164, step 1zh) empty = No access
-    ['Maintenance', 'perm_maintenance', 'text']] },      // (update-165, step 1zi) empty = No access
+    ['Maintenance', 'perm_maintenance', 'text'],      // (update-165, step 1zi) empty = No access
+    ['Vehicle Booking', 'perm_vehicle_booking', 'text', 'opt'], ['Booking Approve', 'perm_booking_approve', 'text', 'opt'], ['Vehicle Expenses', 'perm_vehicle_expenses', 'text', 'opt']] },      // (update-216, step 1zm) empty = No access
   { table: 'activity_log', tab: 'Activity Log', title: 'Activity Log', pk: 'id', key: r => sbStr_(r['Log ID']), cols: [
     ['Date & Time', 'at', 'timestamptz'], ['User Email', 'email', 'text'], ['User Name', 'name', 'text'], ['Action', 'action', 'text'], ['Module', 'module', 'text'],
     ['Record ID', 'record_id', 'text'], ['Summary', 'summary', 'text'], ['Changes', 'changes', 'text']] },
