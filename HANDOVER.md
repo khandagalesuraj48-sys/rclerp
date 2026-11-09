@@ -2369,3 +2369,8 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Maintenance = the bills of the dates (amount – what RCL paid) + the RCL Store's outward (storeOutAll_: one read of store_issue, not a
   debit issue) – maintCostAll_; at a site on fuel cards the fuel cost = the fills' ₹. No SQL. With rcl-mobile 3.89.0. Tests: unit
   `update-214`; the rig in Chromium (`hod/web214.js`, 21 / 21).
+- 08-11-2026 (update-215, step C of "the HO features – HO and every site"). Report: `UPDATE_215.md`. The PUMP BILL photo of a fill
+  (PHOTO_KINDS_.bill, PHOTO_CARD_ONLY_ – only at a site on fuel cards; the page's 5th tile there). TYRES & BATTERIES in the Maintenance
+  Log Book (maintLog_ → tyres: tyreBattList_ – a bill line or a Store issue line naming a tyre / battery, not a repair of one (TB_NOT_);
+  the reading then, run since from machLastReadings_, the days). No SQL. With rcl-mobile 3.90.0. Tests: unit `update-215`; the rig in
+  Chromium (`hod/web215.js`, 14 / 14).

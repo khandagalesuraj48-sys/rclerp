@@ -5558,11 +5558,14 @@ function getDieselIssues_(f) {
  * The dashboard photo is also read by the AI (the same service as the assistant): the KM / hour-meter reading it shows is put in
  * the form, where the person checks it and may change it – ONE reading is saved. */
 const PHOTO_BUCKET_ = 'diesel-photos';
-const PHOTO_KINDS_ = { dash: 'Dashboard', hrs: 'Hour meter', veh: 'Vehicle and driver', pump: 'Dispenser litres', reg: 'Register' };
+const PHOTO_KINDS_ = { dash: 'Dashboard', hrs: 'Hour meter', veh: 'Vehicle and driver', pump: 'Dispenser litres', reg: 'Register', bill: 'Pump bill' };
 // (update-139, asked 20-10-2026: "jya gadich 2 engine yet tith 2 reading takayla lahtat ek km ani ek hrs tr ase 2 photo weg wegle
 // gheta yawet") the Hour meter photo: for a machinery measured by KM and Hrs, whose hour meter is not on the dashboard
-const PHOTO_ORDER_ = ['dash', 'hrs', 'veh', 'pump', 'reg'];
-const PHOTO_NAMES_ = 'Dashboard, Hour meter, Vehicle and driver, Dispenser litres, Register';
+const PHOTO_ORDER_ = ['dash', 'hrs', 'veh', 'pump', 'reg', 'bill'];
+const PHOTO_NAMES_ = 'Dashboard, Hour meter, Vehicle and driver, Dispenser litres, Register, Pump bill';
+/* (update-215, asked 08-11-2026 – the HO features, step C: "HO fill – odometer + bill photo") the Pump bill photo: the receipt of a fill at a
+ * petrol pump – only at a site on fuel cards (HO; a site with stock fills from its own dispenser, no pump bill). Kept as the other photos. */
+const PHOTO_CARD_ONLY_ = { bill: true };
 const PHOTO_SQL_MSG_ = 'This needs one database step first: the Admin runs sql/supabase_step1x_diesel_photos.sql once in Supabase → SQL Editor.';
 const PHOTO_PATH_ = /^\d{4}-\d{2}\/[0-9a-f-]{36}\.jpg$/;
 function photosReady_() { photoColReady_(APP.SHEET_DIESEL, DIESEL_COLS_, 'diesel_issue', 'Photos of a diesel issue cannot be kept yet. ' + PHOTO_SQL_MSG_); }
@@ -5592,6 +5595,7 @@ function uploadDieselPhoto_(u, x) {
   if (!canEdit_(u, 'Diesel Issue')) throw new Error('You have View access only for Diesel Issue. Ask Admin for Edit access.');
   const k = str_(x.kind);
   if (!PHOTO_KINDS_[k]) throw new Error('This is not one of the photos of a diesel issue (' + PHOTO_NAMES_ + ').');
+  if (PHOTO_CARD_ONLY_[k] && !cardSite_()) throw new Error('The ' + PHOTO_KINDS_[k] + ' photo is only for a site on fuel cards (a fill at a pump).');      // (update-215)
   const lat = photoNum_(x.lat, -90, 90), lng = photoNum_(x.lng, -180, 180), acc = photoNum_(x.acc, 0, 1e6);
   if (lat === null || lng === null) throw new Error('The photo has no location – turn on the location of the phone and take the photo again.');
   const mt = /^data:image\/jpeg;base64,([A-Za-z0-9+\/=]+)$/.exec(String(x.data || ''));
@@ -7699,6 +7703,29 @@ function maintStoreLines_(m, from, to) {
   } catch (e) { if (!/PGRST205|PGRST200|42P01|Could not find (the|a) (table|relationship)|→ 404|SUPABASE_SECRET_KEY/.test(String(e && e.message))) throw e; }      // (no Store's step 2 here: none; a database that does not answer: said)
   return out;
 }
+/* (update-215, asked 08-11-2026 – the HO features, step C: "tyre & battery records") THE TYRES AND BATTERIES of a machinery, from its
+ * Maintenance Log Book – nothing new to fill in: every line of a bill (or of the RCL Store's outward to it) whose work / part names a tyre
+ * or a battery ("Tyre 10.00-20 MRF FL", "Battery Exide 12V 150AH") and is not a repair of one (puncture, repair, alignment, balancing,
+ * rotation, charging, water, check, cleaning, fitting, labour, air …). Each with its date, party, bill, Qty, what was paid (with its GST; a
+ * Warranty / FOC line ₹ 0 with its kind; a Store issue on debit ₹ 0), the machinery's reading on that bill, how far it has run since (its
+ * last reading – a fill or a Log Book Close) and how many days ago. */
+const TB_TYRE_ = /\b(tyres?|tires?)\b/i, TB_BATT_ = /\bbatter(y|ies)\b/i;
+const TB_NOT_ = /\b(punctures?|punchure|repair(s|ing)?|alignment|balanc(e|ing)|rotation|charg(e|es|ing)|water|check(ing)?|clean(ing)?|terminals?|fitting|labou?r|pressure|air|inflat\w*|vulcani\w*|patch\w*)\b/i;
+function tyreBattOf_(work) { const w = str_(work); if (!w || TB_NOT_.test(w)) return ''; return TB_TYRE_.test(w) ? 'Tyre' : TB_BATT_.test(w) ? 'Battery' : ''; }
+function tyreBattList_(m, lines) {
+  const lr = machLastReadings_()[noKey_(m.id)] || {}, now = lr[!hasKm_(m.unit) && hasHr_(m.unit) ? 'hr' : 'km'] || null, today = today_(), out = [];
+  (lines || []).forEach(x => {
+    if (x.kind !== 'Maintenance' && x.kind !== 'Store') return;
+    (x.kind === 'Maintenance' ? maintSpread_(x.lines) : x.lines || []).forEach(l => {
+      const kind = tyreBattOf_(l.work); if (!kind) return;
+      const paid = x.kind === 'Store' ? (l.type === 'Paid' ? r2_(num0_(l.amount)) : 0) : r2_(maintLineTotal_(l) + num0_(l.taxAdd));
+      const at = numOrBlank_(x.km), run = at !== '' && now && now.d >= x.date ? r2_(now.v - at) : '';
+      out.push({ kind: kind, date: x.date, party: str_(x.party || x.garage), billNo: str_(x.billNo), id: str_(x.id), work: str_(l.work), qty: l.qty === undefined ? '' : l.qty, uom: str_(l.uom), type: str_(l.type),
+        amount: paid, reading: at, run: run !== '' && run >= 0 ? run : '', days: x.date && x.date <= today ? daysBetween_(x.date, today) : '' });
+    });
+  });
+  return out;
+}
 /* (update-175, asked 28-10-2026: "maintenance log book madhe date filter aahe but ajun ek banaw start to end … long period asa nko error")
  * f.all: the whole log book – from its first fill / bill to today; no limit of days any more (update-170: 1,100 days). */
 function maintLogSpan_(m) {
@@ -7746,8 +7773,9 @@ function maintLog_(f) {
   const lt = table_(APP.SHEET_LOG, logHeaders_()), lc = lt.c;
   if (H.WKM in lc) lt.rows.forEach(r => { const dk = dkey_(r[lc[H.DATE]]); if (noKey_(r[lc[H.NO]]) === K && dk && dk >= from && dk <= to) km = r2_(km + num0_(r[lc[H.WKM]])); });
   const all = r2_(fu.amount + mn.amount);
+  const tyres = tyreBattList_(m, lines);      // (update-215) its tyres and batteries
   return Object.assign(rptBase_('Maintenance Log Book – ' + m.id, { from: from, to: to }), {
-    all: f.all === true, store: { on: sto.on, lines: sto.length },      // (update-175) start to end; (update-178) the Store's outward: its issues to this machinery
+    all: f.all === true, store: { on: sto.on, lines: sto.length }, tyres: tyres,      // (update-175) start to end; (update-178) the Store's outward: its issues to this machinery
     machine: { id: m.id, name: m.name, type: m.type, fuel: fuel, unit: unit, meter: str_(m.unit) }, card: card, lines: lines,
     total: { fuel: fu, maint: mn, byWork: Object.keys(byWork).map(k => byWork[k]).sort((a, b) => b.amount - a.amount || a.work.localeCompare(b.work)), all: all, km: km, perKm: km > 0 ? r2_(all / km) : null },
     lastService: last });

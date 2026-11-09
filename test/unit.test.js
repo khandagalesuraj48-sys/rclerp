@@ -2082,7 +2082,7 @@ test('update-85 photos of a diesel issue: the AI\'s answer → the reading; the 
   // the same 4 photos on the page and in the server, in the same order
   const app = fs.readFileSync(path.join(__dirname, '..', 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(__dirname, '..', 'app', 'Code.gs'), 'utf8');
   const pageKinds = [...(/const PH_KINDS = \[(.*)\];/.exec(app) || ['', ''])[1].matchAll(/\['(\w+)'/g)].map(m => m[1]);
-  assert.deepStrictEqual(pageKinds, ['dash', 'hrs', 'veh', 'pump', 'reg']);      // (update-139: the Hour meter photo)
+  assert.deepStrictEqual(pageKinds, ['dash', 'hrs', 'veh', 'pump', 'reg', 'bill']);      // (update-139: the Hour meter photo; update-215: the Pump bill – at a site on fuel cards)
   assert.deepStrictEqual(run('() => Object.keys(PHOTO_KINDS_)'), pageKinds);
   // a photo that this user did not send (or a copy where photos cannot be kept): the save is refused, nothing is saved; without photos as before
   run('() => saveMaster_({ no: "PH-1", name: "Tipper", type: "Tipper", unit: "KM", worksOn: ["KM"], kmStd: 3, owner: "RCL", ownership: "Own", status: "Active", activeFrom: "2026-01-01" }, "add")');
@@ -9187,6 +9187,51 @@ test('update-214: the Driver-wise Report (each driver – the same name in any c
     assert.match(code, /maintenance: g\.maint, recovered: g\.recover/, 'the assistant reads the maintenance too');
   } finally {
     vm.runInContext('sbFetch_ = __k214.fetch;', ctx);
+    run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); }');
+  }
+});
+
+test('update-215: the Pump bill photo of a fill (only at a site on fuel cards) and the tyres & batteries of a machinery in its Maintenance Log Book (a bill line or a Store issue that names one, not a repair of one; the reading then, the run since, the age)', () => {
+  const { T, ctx } = require('./harness.js');
+  const vm = require('vm');
+  const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  vm.runInContext(`globalThis.__k215 = { fetch: sbFetch_ };
+    sbFetch_ = function (m, u, body, h) { const s = decodeURIComponent(String(u));
+      const g = /^\\/rest\\/v1\\/store_issue\\?select=no,date,reading,party,debit,use_for,store_issue_lines.*&machinery=eq\\.([^&]+)&date=gte\\.(\\d{4}-\\d\\d-\\d\\d)&date=lte\\.(\\d{4}-\\d\\d-\\d\\d)/.exec(s);
+      if (m === 'GET' && g) return g[1] === 'TB-1' && g[2] <= '2026-04-12' && g[3] >= '2026-04-12' ? [
+        { no: 77, date: '2026-04-12', reading: 15200, party: 'Rachana Construction Limited', debit: false, use_for: '', store_issue_lines: [{ line: 1, name: 'Battery Amaron 12V 100AH', qty: 1, unit: 'Nos', rate: 7000, amount: 7000, gst_pct: null }, { line: 2, name: 'Battery water', qty: 1, unit: 'Ltr', rate: 50, amount: 50, gst_pct: null }] }] : [];
+      return __k215.fetch(m, u, body, h); };`, ctx);
+  try {
+    run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); }');
+    // ---- which line is a tyre / a battery
+    assert.deepStrictEqual(['Tyre 10.00-20 MRF (FL)', 'Tyres 4 nos', 'TYRE TUBE', 'Tyre puncture', 'tyre repair', 'Wheel alignment', 'Battery Exide 12V 150AH', 'Battery charging', 'battery water', 'Engine oil', 'Tyre fitting labour', ''].map(w => run('w => tyreBattOf_(w)', w)),
+      ['Tyre', 'Tyre', 'Tyre', '', '', '', 'Battery', '', '', '', '', '']);
+    // ---- a machinery, a bill with tyres (GST 18 %), a puncture, a battery; the Store's battery; its reading now (Log Book Close)
+    assert.ok(run('(x, k) => saveMaster_(x, k)', { no: 'TB-1', name: 'Tipper', type: 'Tipper', make: 'Tata', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'RCL', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add').ok);
+    assert.ok(run('x => saveMaint_(x)', { date: '2026-04-05', no: 'TB-1', garage: 'MRF Tyres', billNo: 'MT-215', km: 15000, service: false, remark: '',
+      lines: [{ work: 'Tyre 10.00-20 MRF (FL, FR)', qty: 2, uom: 'Nos', rate: 15000, amount: 30000, gst: 18 }, { work: 'Tyre puncture', amount: 200 }, { work: 'Battery Exide 12V', amount: 8000, type: 'Warranty', qty: 1, rate: 8000 }] }).ok);
+    run('x => saveLogRowsInner_(x)', { rows: [{ date: '2026-04-20', shift: 'Full Day', no: 'TB-1', mode: 'KM', openingKm: 15900, closingKm: 16250 }] });
+    const d = run('x => maintLog_(x)', { no: 'TB-1', from: '2026-04-01', to: '2026-04-30' });
+    assert.deepStrictEqual(d.tyres.map(x => [x.kind, x.date, x.work, x.qty, x.amount, x.type, x.reading, x.run, x.party, x.billNo]), [
+      ['Tyre', '2026-04-05', 'Tyre 10.00-20 MRF (FL, FR)', 2, 35400, 'Paid', 15000, 1250, 'MRF Tyres', 'MT-215'],
+      ['Battery', '2026-04-05', 'Battery Exide 12V', 1, 0, 'Warranty', 15000, 1250, 'MRF Tyres', 'MT-215'],
+      ['Battery', '2026-04-12', 'Battery Amaron 12V 100AH', 1, 7000, 'Paid', 15200, 1050, 'RCL Store', 'Outward 77']], 'with its GST; a warranty ₹ 0; the Store\'s; not the puncture, not the battery water');
+    assert.ok(d.tyres.every(x => typeof x.days === 'number' && x.days > 0), 'how many days ago');
+    assert.deepStrictEqual(run('x => maintLog_(x)', { no: 'TB-1', from: '2026-05-01', to: '2026-05-31' }).tyres, [], 'only in the dates');
+    // ---- the Pump bill photo: refused at a site with stock; at a site on fuel cards it goes on to the usual checks
+    const P = { no: 'TB-1', kind: 'bill', data: 'data:image/jpeg;base64,/9j/', at: '' }, U = { email: 'tb@rcl.test', admin: true, perms: { 'Diesel Issue': 'Edit' } };
+    assert.strictEqual(run('(u, x) => uploadDieselPhoto_(u, x)', U, P).THROWN, 'The Pump bill photo is only for a site on fuel cards (a fill at a pump).');
+    const places = run('() => places_().map(p => ({ name: p.name, cap: tankSettings_().caps[p.name] || 100, fuel: p.fuel }))');
+    run('(l, m) => savePlaces_(l, m)', places, 'card');
+    assert.strictEqual(run('(u, x) => uploadDieselPhoto_(u, x)', U, P).THROWN, 'The photo has no location – turn on the location of the phone and take the photo again.', 'at HO: the usual checks');
+    assert.strictEqual(run('() => PHOTO_KINDS_.bill'), 'Pump bill');
+    assert.match(app, /\['bill', 'Pump bill', '🧾'\]\];/);
+    assert.match(app, /&& !\(x\[0\] === 'bill' && !cardMode\(\)\)\);/, 'the page shows the tile only at a site on fuel cards');
+    assert.match(app, /<h3 class="rsub">Tyres &amp; batteries<\/h3>/);
+    assert.match(app, /re: \/photo is only for a site on fuel cards\/i/);
+  } finally {
+    vm.runInContext('sbFetch_ = __k215.fetch;', ctx);
     run('() => { const P = PropertiesService.getScriptProperties(); P.deleteProperty("FUEL_MODE"); P.deleteProperty("FUEL_CARDS"); }');
   }
 });
