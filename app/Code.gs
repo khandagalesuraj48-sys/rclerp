@@ -485,11 +485,69 @@ function rtcOff_() { return memoGet_('__rtcoff', () => {      // (kept in the ca
   const c = CacheService.getScriptCache(); let raw = c.get('RTC_OFF_C'); if (raw === null || raw === undefined) { raw = kvRead_('RTC_OFF') || '[]'; c.put('RTC_OFF_C', raw, 60); }
   let j = []; try { j = JSON.parse(raw || '[]'); } catch (e) { j = []; } return Array.isArray(j) ? j.map(str_).filter(x => /^[0-9a-f]{16}$/.test(x)) : []; }); }
 const rtcMay_ = u => !!u.admin || rtcOff_().indexOf(rtcUid_(u.email)) < 0;
+/* CALLS BETWEEN SITES (update-217, asked 09-11-2026: "both user same site war asayla lagtat tr as nko user online asla ki bas zal
+ * call lawta yeil mgg to kuthe pn aso mhanje a user vtr ani b user 18 or ho kuthe ka asena call lawata ala pahije").
+ *   - Every note of a call, its counter and what is remembered of a call (rung, answered, the rings still waiting) are kept in
+ *     ONE store for every site: the first site's (server/gas.js makeHome, reached through __rtcX). A page of any site reads its
+ *     notes there – so a user of VTR rings a user of 18B or HO as he rings one of his own site. At the first site: its own store,
+ *     exactly as before. Nothing new in any database: no SQL.
+ *   - The list to pick from: this site's people as before, and the people of the other sites (their own users and their own
+ *     "Screen share" rights – rtcFarPeople_), each with his site's name; the pages show another site's user while he is at the app.
+ *   - A user's missed calls and his browsers' notifications are kept at the first site too (so a call of any site reaches them);
+ *     a browser's notifications saved at a site before this update are still used there. */
+const rtcFar_ = () => typeof __rtcX === 'function' && !!__rtcX('on');
+// the store of the notes: this site's own (the first site, or one site only) – or the first site's (quick: the heartbeat's reads try once)
+function rtcC_(quick) {
+  if (!rtcFar_()) return CacheService.getScriptCache();
+  return { get: k => { const v = __rtcX('get', String(k), !!quick); return v === null || v === undefined ? null : String(v); },
+    getAll: ks => { let o = {}; try { o = JSON.parse(__rtcX('getAll', JSON.stringify([...ks].map(String)), !!quick) || '{}'); } catch (e) { o = {}; } return o && typeof o === 'object' ? o : {}; },
+    put: (k, v, ttl) => { __rtcX('put', String(k), String(v), Number(ttl) || 600); },
+    remove: k => { __rtcX('del', String(k)); } };
+}
+// the exact counter of that store (-1 = not there: counted the plain way)
+function rtcCount_(k, ttl) { if (rtcFar_()) return Number(__rtcX('count', String(k), Number(ttl) || 60)); return typeof __count === 'function' ? Number(__count(k, ttl)) : -1; }
+// a setting kept for every site (missed calls, a browser's notifications): at the first site
+const rtcKvRead_ = id => rtcFar_() ? str_(__rtcX('kvGet', String(id))) : kvRead_(id);
+function rtcKvWrite_(id, v) { if (FLOW_DRY_ON_) return; if (rtcFar_()) __rtcX('kvPut', String(id), String(v)); else kvWrite_(id, v); }
+// this site's code and name ('' when there is one site only)
+function rtcSite_() { return memoGet_('__rtcsite', () => {
+  let code = '', names = {}; try { code = typeof __siteCode === 'function' ? str_(__siteCode()) : ''; names = typeof __siteNames === 'function' ? JSON.parse(__siteNames() || '{}') : {}; } catch (e) { names = {}; }
+  return { code: code, name: code && Object.keys(names).length > 1 ? str_(names[code] || code) : '' }; }); }
+/* The people of the OTHER sites: [{ uid, name: "Name (Site)", admin, site, off }] – asked from those sites (sysRtcPeople_: each
+ * site's own users and its own rights) and kept in the store of the notes for a minute (RTCPPL – every site of the moment); a
+ * person who is also a user of THIS site is this site's (rtcPeople_). off: "Screen share" is switched off for him at every site
+ * of his. Never throws (no other site, or one that cannot be reached now: those people are not on the list now). */
+function rtcFarPeople_() { return memoGet_('__rtcfar', () => {
+  try {
+    if (typeof __runOthers !== 'function' || typeof __siteCode !== 'function') return [];
+    const c = rtcC_(), here = str_(__siteCode()); let all = null;
+    try { all = JSON.parse(c.get('RTCPPL') || 'null'); } catch (e) { all = null; }
+    if (!Array.isArray(all) || !all.some(x => x && x.s === here)) {
+      let names = {}; try { names = JSON.parse(__siteNames() || '{}'); } catch (e) { names = {}; }
+      all = [{ s: here, n: str_(names[here] || here), p: sysRtcPeople_() }];
+      let got = []; try { got = JSON.parse(__runOthers('sysRtcPeople', '[]') || '[]'); } catch (e) { got = []; }
+      (Array.isArray(got) ? got : []).forEach(x => { if (x && x.ok && Array.isArray(x.r)) all.push({ s: str_(x.site), n: str_(x.name || x.site), p: x.r }); });
+      c.put('RTCPPL', JSON.stringify(all), (Array.isArray(got) ? got : []).every(x => x && x.ok) ? 60 : 15);      // (a site that could not be asked: asked again sooner)
+    }
+    const mine = rtcPeople_(true).map(p => p.uid), o = {};
+    all.forEach(x => { if (!x || x.s === here || !Array.isArray(x.p)) return;
+      x.p.forEach(p => { const id = str_(p && p.uid); if (!/^[0-9a-f]{16}$/.test(id) || mine.indexOf(id) > -1) return;
+        const w = o[id] || (o[id] = { uid: id, name: clean_(p.name).slice(0, 60) || 'User', admin: false, sites: [], off: true });
+        if (w.sites.indexOf(x.n) < 0) w.sites.push(x.n); if (p.admin) w.admin = true; if (p.admin || !p.off) w.off = false; }); });
+    return Object.keys(o).map(id => { const w = o[id]; return { uid: id, name: w.name + ' (' + w.sites.slice(0, 3).join(', ') + ')', admin: w.admin, site: w.sites.slice(0, 3).join(', '), off: w.off }; });
+  } catch (e) { return []; }
+}); }
+// asked by another site (server/runtime.js OTHERS_): this site's people and who has "Screen share" switched off – no e-mail address
+function sysRtcPeople_() { const off = rtcOff_(); return rtcPeople_(true).map(p => ({ uid: p.uid, name: p.name, admin: p.admin, off: !p.admin && off.indexOf(p.uid) > -1 })); }
+// a name as a note shows it to its receiver: with the site it comes from when that is another site
+const rtcNoteName_ = m => str_(m.name) + (m.sn && m.s !== rtcSite_().code ? ' (' + str_(m.sn) + ')' : '');
 // the list a user picks from (everybody who may use it, except himself) and how the browsers find each other
 function rtcUsers_(u) {
   const me = rtcUid_(u.email), relay = rtcRelay_(), ice = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }].concat(relay ? [relay] : []);
   if (!rtcMay_(u)) return { off: true, me: me, name: rtcName_(u), users: [], ice: [], relay: false, max: 3 };      // (switched off: not even the relay's keys)
-  return { me: me, name: rtcName_(u), users: rtcPeople_().filter(p => p.uid !== me).map(p => ({ uid: p.uid, name: p.name, admin: p.admin })).sort((a, b) => a.name.localeCompare(b.name)),
+  // (update-217) then the people of the other sites, each with his site's name (far: the page shows him while he is at the app)
+  const far = rtcFarPeople_().filter(p => !p.off && p.uid !== me).map(p => ({ uid: p.uid, name: p.name, admin: p.admin, far: true, site: p.site })).sort((a, b) => a.name.localeCompare(b.name));
+  return { me: me, name: rtcName_(u), users: rtcPeople_().filter(p => p.uid !== me).map(p => ({ uid: p.uid, name: p.name, admin: p.admin })).sort((a, b) => a.name.localeCompare(b.name)).concat(far),
     ice: ice, relay: !!relay, max: 3 };
 }
 /* WHICH VERSION RUNS – for the Admin (update-74, asked 10-10-2026: "the Admin must be able to understand which version the app
@@ -526,9 +584,12 @@ function rtcRelay_() {
  * a call that never was, and the lines of the Activity Log ("joined", "ended") say only what the server itself has seen. */
 function rtcSend_(u, x) {
   x = x && typeof x === 'object' ? x : {};
-  const t = str_(x.t), me = rtcUid_(u.email), people = rtcPeople_(), nameOf = id => (people.find(p => p.uid === id) || {}).name || '?', myName = rtcName_(u);
-  const call = str_(x.call).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40), cache = CacheService.getScriptCache();
-  if (typeof __count === 'function') { const k = __count('RTCR_' + me + '_' + Math.floor(Date.now() / 60000), 90); if (k > 150) throw new Error('Screen share: too many requests in a minute – wait a little and try again.'); }
+  const t = str_(x.t), me = rtcUid_(u.email), people = rtcPeople_(), myName = rtcName_(u);
+  const near = id => people.some(p => p.uid === id) || rtcPeople_(true).some(p => p.uid === id);      // (update-217) a user of this site – or of another (far)
+  const nameOf = id => (people.find(p => p.uid === id) || (near(id) ? null : rtcFarPeople_().find(p => p.uid === id)) || {}).name || '?';
+  const site = rtcSite_(), nameFor = id => site.name && !near(id) ? myName + ' (' + site.name + ')' : myName;      // my name as he sees it: with my site when he is of another site
+  const call = str_(x.call).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40), cache = rtcC_();
+  { const k = rtcCount_('RTCR_' + me + '_' + Math.floor(Date.now() / 60000), 90); if (k > 150) throw new Error('Screen share: too many requests in a minute – wait a little and try again.'); }
   if (!rtcMay_(u) && ['here', 'busy', 'decline', 'cancel', 'bye', 'end'].indexOf(t) < 0) throw new Error('Screen share is switched off for you – the Admin can switch it on in Users & Access.');
   if (call) cache.getAll(['RTCE_' + call, 'RTCC_' + call + '_' + me, 'RTCA_' + call + '_' + me, 'RTCD_' + call + '_' + me].concat([...new Set((Array.isArray(x.to) ? x.to : [x.to]).map(str_).filter(Boolean))].slice(0, 6).reduce((k, id) => k.concat(['RTCC_' + call + '_' + id, 'RTCA_' + call + '_' + id, 'RTCD_' + call + '_' + id, 'RTCL_' + call + '_' + id]), [])));      // what is remembered of this call, read in one go
   const rung = id => { const v = str_(cache.get('RTCC_' + call + '_' + id)).split('|'); return v[0] ? { host: v[0], at: Number(v[1]) || 0 } : null; };
@@ -545,11 +606,13 @@ function rtcSend_(u, x) {
   if (t !== 'who') {
     if (!to.length) throw new Error('Screen share: pick the user to share with.');
     if (to.length > 3) throw new Error('Screen share: at most 3 users at a time.');
-    const among = ['cancel', 'bye', 'busy', 'decline', 'here'].indexOf(t) > -1 ? rtcPeople_(true) : people;      // (ending a call works also with a user switched off meanwhile)
-    if (to.some(id => !among.some(p => p.uid === id))) throw new Error('Screen share: that user is not in the list any more (or may not use screen share) – open the list again.');
+    const anyway = ['cancel', 'bye', 'busy', 'decline', 'here'].indexOf(t) > -1, among = anyway ? rtcPeople_(true) : people;      // (ending a call works also with a user switched off meanwhile)
+    // (update-217) a user of another site: on the list of the other sites; "I am at the app" goes to whoever asked (any user's code)
+    const far = to.filter(id => !among.some(p => p.uid === id));
+    if (far.length && !(t === 'here' && far.every(id => /^[0-9a-f]{16}$/.test(id))) && far.some(id => near(id) || !rtcFarPeople_().some(p => p.uid === id && (anyway || !p.off)))) throw new Error('Screen share: that user is not in the list any more (or may not use screen share) – open the list again.');
   }
   if (t === 'ring' && to.some(id => !rung(id))) {      // a NEW ring: at most 8 calls a minute and 40 an hour from one user (a loop of rings cannot flood the others' phones)
-    const mn = Math.floor(Date.now() / 60000), hr = Math.floor(Date.now() / 3600000), cnt = (k, ttl) => { if (typeof __count === 'function') { const v = __count(k, ttl); if (v !== -1) return v; } const v = (Number(cache.get(k)) || 0) + 1; cache.put(k, String(v), ttl); return v; };
+    const mn = Math.floor(Date.now() / 60000), hr = Math.floor(Date.now() / 3600000), cnt = (k, ttl) => { const v0 = rtcCount_(k, ttl); if (v0 !== -1) return v0; const v = (Number(cache.get(k)) || 0) + 1; cache.put(k, String(v), ttl); return v; };
     const fresh = !cache.get('RTCG_' + call + '_' + me) && (cache.put('RTCG_' + call + '_' + me, '1', 21600), true);
     if (fresh && (cnt('RTCRG_' + me + '_' + mn, 90) > 8 || cnt('RTCRH_' + me + '_' + hr, 3700) > 40)) throw new Error('Screen share: too many calls started in a short time – wait a few minutes and try again.');
   }
@@ -562,18 +625,18 @@ function rtcSend_(u, x) {
   }
   const d = x.d === undefined || x.d === null ? '' : (typeof x.d === 'string' ? x.d : JSON.stringify(x.d));
   if (d.length > 60000) throw new Error('Screen share: the connection details are too long to send – stop the share and start it again.');
-  let n = typeof __count === 'function' ? Number(__count(RTC_COUNT_, 2592000)) : -1;
+  let n = rtcCount_(RTC_COUNT_, 2592000);
   if (!(n > 0)) { n = (Number(cache.get(RTC_COUNT_)) || 0) + 1; cache.put(RTC_COUNT_, String(n), 21600); }      // (no counter in the database: the next number after the last one read)
-  cache.put(RTC_MSG_ + n, JSON.stringify({ id: Utilities.getUuid(), n: n, to: to, from: me, name: myName, t: t, call: call, d: d, at: Date.now() }), RTC_STORE_);
+  cache.put(RTC_MSG_ + n, JSON.stringify(Object.assign({ id: Utilities.getUuid(), n: n, to: to, from: me, name: myName, t: t, call: call, d: d, at: Date.now() }, site.name ? { s: site.code, sn: site.name } : {})), RTC_STORE_);      // (update-217) s / sn: the site it comes from
   let dj = {}; try { dj = d ? JSON.parse(d) : {}; } catch (e) { dj = {}; } if (!dj || typeof dj !== 'object') dj = {};
   if (t === 'ring') {
     const fresh = to.filter(id => !rung(id));
     fresh.forEach(id => { cache.put('RTCC_' + call + '_' + id, me + '|' + Date.now(), 21600); rtcPendAdd_(id, n, call); });
     // the ones rung: on their list of calls (missed until they answer), and a notification to their devices (the app may be closed)
     const help = dj.help && typeof dj.help === 'object' ? clean_(dj.help.title || '').slice(0, 40) : '';
-    fresh.forEach(id => { try { rtcMissEdit_(id, l => { l.unshift({ call: call, from: me, name: myName, at: Date.now(), st: 'r' }); return l; }); } catch (e) { /* the list is a help, never in the way of the ring */ } });
+    fresh.forEach(id => { try { rtcMissEdit_(id, l => { l.unshift({ call: call, from: me, name: nameFor(id), at: Date.now(), st: 'r' }); return l; }); } catch (e) { /* the list is a help, never in the way of the ring */ } });
     const mode = dj.mode === 'voice' || dj.mode === 'video' ? dj.mode : '';      // (update-137) a call of the phone app: "is calling you" on the notification
-    rtcPush_(fresh.filter(id => !cache.get('RTCPU_' + me + '_' + id) && (cache.put('RTCPU_' + me + '_' + id, '1', 20), true)), { t: 'ring', call: call, name: myName, from: me, help: help ? 1 : 0, page: help, mode: mode });      // (one notification per caller and person in 20 s; update-161: from = who rings – the phone app's "Decline" on the notification answers him)
+    rtcPushBy_(fresh.filter(id => !cache.get('RTCPU_' + me + '_' + id) && (cache.put('RTCPU_' + me + '_' + id, '1', 20), true)), nameFor, { t: 'ring', call: call, from: me, help: help ? 1 : 0, page: help, mode: mode });      // (one notification per caller and person in 20 s; update-161: from = who rings – the phone app's "Decline" on the notification answers him)
   }
   if ((t === 'answer' || t === 'decline') && !cache.get('RTCA_' + call + '_' + me) && !cache.get('RTCD_' + call + '_' + me)) rtcPush_([me], { t: 'done', call: call, name: nameOf(to[0]) }, str_(dj.ep));      // his other devices: "answered on another device"
   if (t === 'answer' && !cache.get('RTCA_' + call + '_' + me)) { cache.put('RTCA_' + call + '_' + me, '1', 21600); rtcPendDrop_(me, call); try { rtcMissEdit_(me, l => rtcMissMark_(l, call, 'a')); } catch (e) { /* see above */ } writeLog_(u, 'Screen share', 'Screen Share', call, myName + ' joined the screen share of ' + to.map(nameOf).join(', '), ''); }
@@ -583,7 +646,7 @@ function rtcSend_(u, x) {
   if ((t === 'cancel' || t === 'bye') && to.length && to.every(id => { const r = rung(id); return !!r && r.host === me; })) {
     const gaveUp = !dj.why && !dj.butdev ? to.filter(id => !cache.get('RTCA_' + call + '_' + id) && !cache.get('RTCD_' + call + '_' + id) && !cache.get('RTCL_' + call + '_' + id)) : [];
     to.forEach(id => rtcPendDrop_(id, call));
-    if (gaveUp.length) { gaveUp.forEach(id => { cache.put('RTCL_' + call + '_' + id, '1', 21600); try { rtcMissEdit_(id, l => rtcMissMark_(l, call, 'm')); } catch (e) { /* see above */ } }); rtcPush_(gaveUp, { t: 'missed', call: call, name: myName });
+    if (gaveUp.length) { gaveUp.forEach(id => { cache.put('RTCL_' + call + '_' + id, '1', 21600); try { rtcMissEdit_(id, l => rtcMissMark_(l, call, 'm')); } catch (e) { /* see above */ } }); rtcPushBy_(gaveUp, nameFor, { t: 'missed', call: call });
       writeLog_(u, 'Screen share', 'Screen Share', call, gaveUp.map(nameOf).join(', ') + ' did not answer the screen share of ' + myName, ''); }
   }
   return { ok: true, n: n };
@@ -595,7 +658,7 @@ function rtcSend_(u, x) {
  * old (a note is written within a second of taking its number – that one is gone or never came), or when the page says
  * "skip" after waiting a few seconds. */
 function rtcBeat_(u, a) {
-  const cache = CacheService.getScriptCache(), top = Math.max(0, Math.floor(Number(cache.get(RTC_COUNT_)) || 0));
+  const cache = rtcC_(true), top = Math.max(0, Math.floor(Number(cache.get(RTC_COUNT_)) || 0));
   if (!a || typeof a !== 'object' || a.r === undefined || a.r === null || !isFinite(Number(a.r))) return { r: top, top: top, m: rtcPending_(u) };      // a page that has just opened: from now on – and a ring that is still waiting for this user (the app was opened from its notification)
   const since = Math.max(0, Math.floor(Number(a.r)));
   if (since > top) return { r: top, top: top, m: [] };      // the counter started again
@@ -611,62 +674,70 @@ function rtcBeat_(u, a) {
     if (!m) { if (!a.skip && i > lastOld) { r = lo + i - 1; break; } continue; }
     if (!Array.isArray(m.to) || m.from === me || !(m.to.indexOf(me) > -1 || m.to[0] === '*')) continue;
     if (now - Number(m.at) > ((RTC_KEEP_[m.t] || 20) + 5) * 1000) continue;
-    out.push({ id: m.id, n: m.n, from: m.from, name: m.name, t: m.t, call: m.call, d: m.d, age: Math.max(0, now - Number(m.at)) });
+    out.push({ id: m.id, n: m.n, from: m.from, name: rtcNoteName_(m), t: m.t, call: m.call, d: m.d, age: Math.max(0, now - Number(m.at)) });
   }
   return { r: r, top: top, m: out };
 }
 /* ---------- update-75: calls that reach the user, missed calls, replies, WhatsApp, notifications, rights ---------- */
 const RTC_REPLY_ = { 1: 'I will call you back in 5 minutes.', 2: 'I am in a meeting – later, please.', 3: 'Please call me on the phone.' };
 // rings that are still waiting for a user (for a page that opens now): RTCP_<user> = [{ n, call, at }] – a few, for two minutes
-function rtcPendAdd_(id, n, call) { const c = CacheService.getScriptCache(); let l = []; try { l = JSON.parse(c.get('RTCP_' + id) || '[]'); } catch (e) { l = []; }
+function rtcPendAdd_(id, n, call) { const c = rtcC_(); let l = []; try { l = JSON.parse(c.get('RTCP_' + id) || '[]'); } catch (e) { l = []; }
   l = (Array.isArray(l) ? l : []).filter(x => x && Date.now() - Number(x.at) < 80000 && x.call !== call); l.unshift({ n: n, call: call, at: Date.now() }); c.put('RTCP_' + id, JSON.stringify(l.slice(0, 5)), 120); }
-function rtcPendDrop_(id, call) { const c = CacheService.getScriptCache(), raw = c.get('RTCP_' + id); if (!raw) return; let l = []; try { l = JSON.parse(raw); } catch (e) { l = []; }
+function rtcPendDrop_(id, call) { const c = rtcC_(), raw = c.get('RTCP_' + id); if (!raw) return; let l = []; try { l = JSON.parse(raw); } catch (e) { l = []; }
   const k = (Array.isArray(l) ? l : []).filter(x => x && x.call !== call); if (k.length !== l.length) { if (k.length) c.put('RTCP_' + id, JSON.stringify(k), 120); else c.remove('RTCP_' + id); } }
 function rtcPending_(u) {
-  const c = CacheService.getScriptCache(), me = rtcUid_(u.email); let l = []; try { l = JSON.parse(c.get('RTCP_' + me) || '[]'); } catch (e) { l = []; }
+  const c = rtcC_(true), me = rtcUid_(u.email); let l = []; try { l = JSON.parse(c.get('RTCP_' + me) || '[]'); } catch (e) { l = []; }
   l = (Array.isArray(l) ? l : []).filter(x => x && Number(x.n) > 0 && Date.now() - Number(x.at) < 75000); if (!l.length) return [];
   const got = c.getAll([].concat(...l.map(x => [RTC_MSG_ + x.n, 'RTCA_' + x.call + '_' + me, 'RTCD_' + x.call + '_' + me, 'RTCL_' + x.call + '_' + me]))) || {}, out = [];
   l.forEach(x => { if (got['RTCA_' + x.call + '_' + me] || got['RTCD_' + x.call + '_' + me] || got['RTCL_' + x.call + '_' + me]) return;
     let m = null; try { m = JSON.parse(got[RTC_MSG_ + x.n] || 'null'); } catch (e) { m = null; }
-    if (m && m.t === 'ring' && m.call === x.call && Array.isArray(m.to) && m.to.indexOf(me) > -1) out.push({ id: m.id, n: m.n, from: m.from, name: m.name, t: m.t, call: m.call, d: m.d, age: Math.max(0, Date.now() - Number(m.at)) }); });
+    if (m && m.t === 'ring' && m.call === x.call && Array.isArray(m.to) && m.to.indexOf(me) > -1) out.push({ id: m.id, n: m.n, from: m.from, name: rtcNoteName_(m), t: m.t, call: m.call, d: m.d, age: Math.max(0, Date.now() - Number(m.at)) }); });
   return out;
 }
 // the calls a user was rung in (app_settings RTCMISS|<user>): the last 20, 3 days; st r = ringing, a = answered, d = declined, m = missed (the caller gave up)
 const rtcMissKey_ = id => 'RTCMISS|' + id;
-function rtcMissRead_(id) { let j = null; try { j = JSON.parse(kvRead_(rtcMissKey_(id)) || 'null'); } catch (e) { j = null; } j = j && typeof j === 'object' ? j : {}; return { seen: Number(j.seen) || 0, list: Array.isArray(j.list) ? j.list : [] }; }
-function rtcMissEdit_(id, f) { const o = rtcMissRead_(id); o.list = (f(o.list.slice()) || []).filter(x => x && Date.now() - Number(x.at) < 3 * 86400000).slice(0, 20); kvWrite_(rtcMissKey_(id), JSON.stringify(o)); return o; }
+function rtcMissRead_(id) { let j = null; try { j = JSON.parse(rtcKvRead_(rtcMissKey_(id)) || 'null'); } catch (e) { j = null; } j = j && typeof j === 'object' ? j : {}; return { seen: Number(j.seen) || 0, list: Array.isArray(j.list) ? j.list : [] }; }
+function rtcMissEdit_(id, f) { const o = rtcMissRead_(id); o.list = (f(o.list.slice()) || []).filter(x => x && Date.now() - Number(x.at) < 3 * 86400000).slice(0, 20); rtcKvWrite_(rtcMissKey_(id), JSON.stringify(o)); return o; }
 const rtcMissMark_ = (l, call, st) => l.map(x => x.call === call && x.st === 'r' ? Object.assign({}, x, { st: st }) : x);
 function rtcMissed_(u, x) {
   const me = rtcUid_(u.email); let o = rtcMissRead_(me);
-  if (x && x.seen) { o.seen = Date.now(); kvWrite_(rtcMissKey_(me), JSON.stringify(o)); }
-  if (x && x.clear) { o = { seen: Date.now(), list: o.list.filter(m => m.st !== 'r' && m.st !== 'm') }; kvWrite_(rtcMissKey_(me), JSON.stringify(o)); }
+  if (x && x.seen) { o.seen = Date.now(); rtcKvWrite_(rtcMissKey_(me), JSON.stringify(o)); }
+  if (x && x.clear) { o = { seen: Date.now(), list: o.list.filter(m => m.st !== 'r' && m.st !== 'm') }; rtcKvWrite_(rtcMissKey_(me), JSON.stringify(o)); }
   const people = rtcPeople_(), missed = o.list.filter(m => m.st === 'm' || (m.st === 'r' && Date.now() - Number(m.at) > 80000));      // the caller gave up, or it rang out (still ringing = not missed yet)
-  return { list: missed.map(m => ({ call: str_(m.call), from: str_(m.from), name: clean_(m.name).slice(0, 60), at: Number(m.at) || 0, can: people.some(p => p.uid === m.from) })), unseen: missed.filter(m => Number(m.at) > o.seen).length };
+  const can = id => people.some(p => p.uid === id) || (!rtcPeople_(true).some(p => p.uid === id) && rtcFarPeople_().some(p => p.uid === id && !p.off));      // (update-217) also one of another site
+  return { list: missed.map(m => ({ call: str_(m.call), from: str_(m.from), name: clean_(m.name).slice(0, 80), at: Number(m.at) || 0, can: can(str_(m.from)) })), unseen: missed.filter(m => Number(m.at) > o.seen).length };
 }
 /* WhatsApp (update-75): "Ask on WhatsApp" for a user who does not answer – his own "My mobile number" (Settings). Given only for a
  * user THIS user has just rung in this call (so the numbers cannot be collected), and only when he has set a number. */
 function rtcWa_(u, x) {
   x = x || {}; const me = rtcUid_(u.email), id = str_(x.uid), call = str_(x.call).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
-  const c = CacheService.getScriptCache(), v = call ? str_(c.get('RTCC_' + call + '_' + id)).split('|') : [];
+  const c = rtcC_(), v = call ? str_(c.get('RTCC_' + call + '_' + id)).split('|') : [];
   if (!call || v[0] !== me || !(Date.now() - Number(v[1]) < 180000) || c.get('RTCA_' + call + '_' + id) || c.get('RTCD_' + call + '_' + id)) throw new Error('Screen share: WhatsApp can be used for a user you have just rung.');
   if (typeof __count === 'function' && __count('RTCW_' + me + '_' + Math.floor(Date.now() / 3600000), 3700) > 10) throw new Error('Screen share: WhatsApp was asked for too often – wait a while.');
   const p = readUsers_().find(w => w.active && rtcUid_(w.email) === id); if (!p) return { none: true };
   const mob = prefsRead_(p.email).mobile; return mob ? { mobile: '91' + mob, name: rtcName_(p) } : { none: true, name: rtcName_(p) };
 }
 /* NOTIFICATIONS (update-75): a browser that allowed them gives a subscription (server/runtime.js WEB PUSH); kept per user in
- * app_settings PUSH|<user> (at most 6 devices). One device belongs to one user: when another user signs in on it, it moves. */
+ * app_settings PUSH|<user> (at most 6 devices). One device belongs to one user: when another user signs in on it, it moves.
+ * (update-217) Kept at the first site (rtcKvRead_), so a call or an approval of any site reaches his browsers; one saved at another
+ * site before this update is still used there, and moves to the first site the next time that browser signs in. */
 const rtcSubKey_ = id => 'PUSH|' + id, rtcSubIdx_ = e => 'PUSHE|' + hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, str_(e), Utilities.Charset.UTF_8)).slice(0, 24);
-function rtcSubs_(id) { let j = []; try { j = JSON.parse(kvRead_(rtcSubKey_(id)) || '[]'); } catch (e) { j = []; } return (Array.isArray(j) ? j : []).filter(s => s && s.e && s.k && s.a); }
+const rtcSubsOf_ = raw => { let j = []; try { j = JSON.parse(raw || '[]'); } catch (e) { j = []; } return (Array.isArray(j) ? j : []).filter(s => s && s.e && s.k && s.a); };
+const rtcSubsHome_ = id => rtcSubsOf_(rtcKvRead_(rtcSubKey_(id))), rtcSubsLocal_ = id => rtcSubsOf_(kvRead_(rtcSubKey_(id)));
+function rtcSubs_(id) { const l = rtcSubsHome_(id); if (rtcFar_()) rtcSubsLocal_(id).forEach(s => { if (!l.some(v => v.e === s.e)) l.push(s); }); return l; }
+// a device's subscription off this site's own list (it is kept at the first site now)
+function rtcSubsLocalDrop_(e) { const idx = rtcSubIdx_(e), lw = str_(kvRead_(idx)); if (!lw) return; const l = rtcSubsLocal_(lw), k = l.filter(s => s.e !== e); if (k.length !== l.length) kvWrite_(rtcSubKey_(lw), JSON.stringify(k)); kvWrite_(idx, ''); }
 function rtcPushKey_() { return { key: typeof __pushKey === 'function' ? __pushKey() : '' }; }
 function rtcPushSave_(u, x) {
   x = x || {}; const e = str_(x.endpoint), k = str_(x.p256dh), a = str_(x.auth), me = rtcUid_(u.email);
   if (typeof __count === 'function' && __count('RTCS_' + me + '_' + Math.floor(Date.now() / 3600000), 3700) > 20) throw new Error('Screen share: notifications were turned on too often in the last hour – try again later.');
   if (!(typeof __pushOk === 'function' && __pushOk(e))) throw new Error('Screen share: this browser\'s notifications cannot be used (not a known push service).');
   if (!/^[A-Za-z0-9_-]{86,88}$/.test(k) || !/^[A-Za-z0-9_-]{21,24}$/.test(a)) throw new Error('Screen share: this browser\'s notification keys are not valid – turn notifications off and on again.');
-  const idx = rtcSubIdx_(e), was = str_(kvRead_(idx));
-  if (was && was !== me) { const l = rtcSubs_(was).filter(s => s.e !== e); kvWrite_(rtcSubKey_(was), JSON.stringify(l)); }      // this device was another user's: not his any more
-  const l = [{ e: e, k: k, a: a, at: Date.now() }].concat(rtcSubs_(me).filter(s => s.e !== e)).slice(0, 6);
-  kvWrite_(rtcSubKey_(me), JSON.stringify(l)); if (was !== me) kvWrite_(idx, me);
+  const idx = rtcSubIdx_(e), was = str_(rtcKvRead_(idx));
+  if (was && was !== me) { const l = rtcSubsHome_(was).filter(s => s.e !== e); rtcKvWrite_(rtcSubKey_(was), JSON.stringify(l)); }      // this device was another user's: not his any more
+  const l = [{ e: e, k: k, a: a, at: Date.now() }].concat(rtcSubsHome_(me).filter(s => s.e !== e)).slice(0, 6);
+  rtcKvWrite_(rtcSubKey_(me), JSON.stringify(l)); if (was !== me) rtcKvWrite_(idx, me);
+  if (rtcFar_()) rtcSubsLocalDrop_(e);      // (update-217) kept at the first site now – not on this site's own list any more
   return { ok: true, devices: l.length };
 }
 /* (update-161, asked 26-10-2026: "app war pratek gostich realtime notification jayla haw app band aso ki chalu") THE PHONE APP:
@@ -685,11 +756,14 @@ function fcmOff_(u, x) {
   if (!FCM_TOKEN_RE_.test(t) || typeof __fcmKeep !== 'function') return { ok: true };
   return JSON.parse(__fcmKeep(rtcUid_(u.email), t, false));
 }
-function rtcPushOff_(u, x) { const e = str_(x && x.endpoint), me = rtcUid_(u.email), l = rtcSubs_(me), k = l.filter(s => s.e !== e); if (k.length !== l.length) kvWrite_(rtcSubKey_(me), JSON.stringify(k)); return { ok: true }; }
+function rtcPushOff_(u, x) { const e = str_(x && x.endpoint), me = rtcUid_(u.email), l = rtcSubsHome_(me), k = l.filter(s => s.e !== e); if (k.length !== l.length) rtcKvWrite_(rtcSubKey_(me), JSON.stringify(k));
+  if (rtcFar_()) { const l2 = rtcSubsLocal_(me), k2 = l2.filter(s => s.e !== e); if (k2.length !== l2.length) kvWrite_(rtcSubKey_(me), JSON.stringify(k2)); }      // (update-217) and one kept here before
+  return { ok: true }; }
 // a notification to every device of these users; a device the push service says is gone (404 / 410) is forgotten. Never throws.
 // (update-161) and to their phones with the app (Firebase – server/fcm.js), also when no browser of theirs has notifications on
 function rtcPush_(ids, msg, but) {
-  try { if (ids.length && typeof __fcmSend === 'function') __fcmSend(JSON.stringify(ids), JSON.stringify(msg), msg.t === 'ring' ? 60 : msg.t === 'done' ? 120 : 86400); }
+  // (update-217) x: a call can be answered from ANY site – the phone app answers it where it is (it does not open the caller's site)
+  try { if (ids.length && typeof __fcmSend === 'function') __fcmSend(JSON.stringify(ids), JSON.stringify(['ring', 'done', 'missed'].indexOf(msg.t) > -1 ? Object.assign({}, msg, { x: 1 }) : msg), msg.t === 'ring' ? 60 : msg.t === 'done' ? 120 : 86400); }
   catch (e) { if (typeof console !== 'undefined') console.warn('phone notification: ' + String(e && e.message || e).slice(0, 120)); }
   try {
     if (!ids.length || typeof __pushSend !== 'function' || !(typeof __pushKey === 'function' && __pushKey())) return;
@@ -697,15 +771,19 @@ function rtcPush_(ids, msg, but) {
     if (!all.length) return;
     const res = JSON.parse(__pushSend(JSON.stringify(all.map(x => x.s)), JSON.stringify(msg), msg.t === 'ring' ? 75 : msg.t === 'done' ? 120 : 3600)), dead = {};
     res.forEach((r, i) => { if (r && (r.code === 404 || r.code === 410)) (dead[all[i].id] = dead[all[i].id] || []).push(all[i].s.e); });
-    Object.keys(dead).forEach(id => kvWrite_(rtcSubKey_(id), JSON.stringify(rtcSubs_(id).filter(s => dead[id].indexOf(s.e) < 0))));
+    Object.keys(dead).forEach(id => { const h = rtcSubsHome_(id), hk = h.filter(s => dead[id].indexOf(s.e) < 0); if (hk.length !== h.length) rtcKvWrite_(rtcSubKey_(id), JSON.stringify(hk));
+      if (rtcFar_()) { const l = rtcSubsLocal_(id), lk = l.filter(s => dead[id].indexOf(s.e) < 0); if (lk.length !== l.length) kvWrite_(rtcSubKey_(id), JSON.stringify(lk)); } });
   } catch (e) { if (typeof console !== 'undefined') console.warn('screen share notification: ' + String(e && e.message || e).slice(0, 120)); }
 }
+// (update-217) a call's notification to these people – my name as each of them sees it (with my site, for one of another site)
+function rtcPushBy_(ids, nameFor, msg) { const by = {}; ids.forEach(id => { const n = nameFor(id); (by[n] = by[n] || []).push(id); }); Object.keys(by).forEach(n => rtcPush_(by[n], Object.assign({}, msg, { name: n }))); }
 // Users & Access → Screen share: who may use it (Admin)
 function rtcRights_() { const off = rtcOff_(); return { users: readUsers_().filter(x => x.active).map(x => ({ uid: rtcUid_(x.email), name: rtcName_(x), admin: !!x.admin, on: !!x.admin || off.indexOf(rtcUid_(x.email)) < 0 })).sort((a, b) => a.name.localeCompare(b.name)) }; }
 function rtcRightsSave_(x, u) {
   const users = readUsers_(), all = users.filter(w => w.active && !w.admin).map(w => rtcUid_(w.email)), asleep = users.filter(w => !w.active && !w.admin).map(w => rtcUid_(w.email));
   const before = rtcOff_(), want = (Array.isArray(x && x.off) ? x.off : []).map(str_).filter((id, i, l) => all.indexOf(id) > -1 && l.indexOf(id) === i).concat(before.filter(id => asleep.indexOf(id) > -1));      // (a user who is not active keeps what he had)
   kvWrite_('RTC_OFF', JSON.stringify(want)); CacheService.getScriptCache().put('RTC_OFF_C', JSON.stringify(want), 60); if (TABLE_MEMO_) delete TABLE_MEMO_.__rtcoff;
+  try { rtcC_().remove('RTCPPL'); } catch (e) { /* (update-217) the other sites' list follows within a minute */ }
   const nm = id => { const w = readUsers_().find(v => rtcUid_(v.email) === id); return w ? rtcName_(w) : id; }, offNow = want.filter(id => before.indexOf(id) < 0), onNow = before.filter(id => want.indexOf(id) < 0);
   if (offNow.length || onNow.length) writeLog_(u, 'Edit', 'Users', 'Screen share', 'Screen share ' + [offNow.length ? 'switched off for ' + offNow.map(nm).join(', ') : '', onNow.length ? 'switched on for ' + onNow.map(nm).join(', ') : ''].filter(Boolean).join('; '), '');
   return rtcRights_();

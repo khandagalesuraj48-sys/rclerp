@@ -2498,7 +2498,7 @@ test('update-106 → update-111: every site its own vendors – step 1y stays li
   assert.ok(listed && listed.sql === sqlFile && /owner_site/.test(listed.about));
   assert.ok(/\['Owner Site', 'owner_site', 'text'\]/.test(fs.readFileSync(path.join(root, 'app', 'SupabaseSync.gs'), 'utf8')));
   // (update-111) one site asks the others nothing any more; nothing is copied; no "Vendors of all sites"
-  assert.ok(/const OTHERS_ = new Set\(\['sysPrefLang'\]\);/.test(rt) && !/sysVendor/.test(rt) && !/sysVendor|vendorSpread_|vendorsTogether|othersAsk_|vendorGuard_/.test(code));
+  assert.ok(/const OTHERS_ = new Set\(\['sysPrefLang', 'sysRtcPeople'\]\);/.test(rt) && !/sysVendor/.test(rt) && !/sysVendor|vendorSpread_|vendorsTogether|othersAsk_|vendorGuard_/.test(code));
   assert.ok(!/vOtherSite|vendorsTogether|id="v_all"|id="v_share"|\.mine ===/.test(app));
   const guide = app.slice(app.indexOf('    vendors: { saves: ['), app.indexOf(']', app.indexOf('    vendors: { saves: [')));
   assert.ok(guide.indexOf("'vendorsTogether'") === -1 && guide.indexOf("'saveVendor'") > -1);
@@ -2897,8 +2897,8 @@ test('update-112: the language is the person\'s – chosen at one site (web or p
   const vm = require('vm');
   const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
   const rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8');
-  assert.match(rt, /const OTHERS_ = new Set\(\['sysPrefLang'\]\);/);
-  assert.match(rt, /sysPrefLang: sysPrefLang_ \}\[fn\];/);
+  assert.match(rt, /const OTHERS_ = new Set\(\['sysPrefLang', 'sysRtcPeople'\]\);/);      // (update-217: and the people for a call)
+  assert.match(rt, /sysPrefLang: sysPrefLang_,\n[^\n]*\n\s*sysRtcPeople: sysRtcPeople_ \}\[fn\];/);      // (update-217: and the people for a call)
   assert.ok(!/sysPrefLang/.test((rt.match(/const OUTSIDE = new Set\(\[([^\]]+)\]\)/) || [])[1]), 'the page cannot call it');
   vm.runInContext('var __asked = []; __runOthers = function (fn, a) { __asked.push([fn, JSON.parse(a)]); return "[]"; };', ctx);
   try {
@@ -9242,7 +9242,7 @@ test('update-216: Vehicle Booking (asked, decided by "Vehicle Booking – approv
   const run = (fn, ...a) => { let r; try { r = vm.runInContext('(' + fn + ')', ctx)(...a); } catch (e) { T.reset(); return { THROWN: String(e && e.message) }; } T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), sql = fs.readFileSync(path.join(root, 'sql', 'supabase_step1zm_booking_expenses.sql'), 'utf8');
   // the two tables of step 1zm, as PostgREST answers (in memory); __DB216.off = the step not run
-  vm.runInContext(`globalThis.__k216 = { fetch: sbFetch_, push: rtcPush_, ai: aiAskPhoto_, info: aiInfo_ }; globalThis.__DB216 = { vehicle_booking: [], vehicle_expense: [], off: false }; globalThis.__sent216 = []; globalThis.__AI216 = '';
+  vm.runInContext(`globalThis.__k216 = { fetch: sbFetch_, push: rtcPush_, ai: aiAskPhoto_, info: aiInfo_, users: readUsers_ }; globalThis.__DB216 = { vehicle_booking: [], vehicle_expense: [], off: false }; globalThis.__sent216 = []; globalThis.__AI216 = '';
     rtcPush_ = function (ids, msg) { __sent216.push({ ids: ids, msg: msg }); };
     aiInfo_ = function () { return { on: true }; }; aiAskPhoto_ = function (b64, ask) { __AI216 = ask; return globalThis.__AIANS216 || '{"rows": []}'; };
     sbFetch_ = function (m, u, body, h) {
@@ -9354,6 +9354,114 @@ test('update-216: Vehicle Booking (asked, decided by "Vehicle Booking – approv
     assert.match(app, /id="sec-vbook"/); assert.match(app, /id="sec-vexp"/); assert.match(app, /vbook: 'Vehicle Booking', vexp: 'Vehicle Expenses'/);
     assert.match(app, /call\('readVexpStatement', x\)/); assert.match(app, /call\('decideBooking', S\.vbCur/);
   } finally {
-    vm.runInContext('sbFetch_ = __k216.fetch; rtcPush_ = __k216.push; aiAskPhoto_ = __k216.ai; aiInfo_ = __k216.info;', ctx);
+    vm.runInContext('sbFetch_ = __k216.fetch; rtcPush_ = __k216.push; aiAskPhoto_ = __k216.ai; aiInfo_ = __k216.info; readUsers_ = __k216.users;', ctx);      // (update-217: the list of users put back too)
+  }
+});
+
+// update-217 (asked 09-11-2026: "both user same site war asayla lagtat tr as nko user online asla ki bas zal call lawta yeil mgg to
+// kuthe pn aso"): a call from any site to anyone of any site. The notes of a call, its counter, what is remembered of it, missed calls
+// and a browser's notifications are kept at the first site (__rtcX – here a stand-in); each site's own people and rights.
+test('update-217: calls between sites – one store of the notes at the first site, the other sites\' people with their site, each site\'s rights, missed calls and notifications at the first site; the first site as before', () => {
+  const { T, ctx } = require('./harness.js'), vm = require('vm');
+  const run = (fn, ...a) => { const r = vm.runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), p0 = code.indexOf('function rtcPush_(ids, msg, but) {');
+  vm.runInContext(`this.__k217 = { kvRead_, kvWrite_, writeLog_, rtcPush_, pk: this.__pushKey, ps: this.__pushSend, po: this.__pushOk, sc: this.__siteCode };
+    ${code.slice(p0, code.indexOf('\n}\n', p0) + 3)}
+    this.S217 = { site: 'VTR', home: {}, homeKv: {}, kv: { VTR: {}, '18B': {} }, people: {}, fcm: [], web: [], log: [] };
+    const kvOf = () => S217.site === 'S1' ? S217.homeKv : S217.kv[S217.site];
+    kvRead_ = id => kvOf()[id] || ''; kvWrite_ = (id, v) => { kvOf()[id] = String(v); };
+    writeLog_ = (u, a, m, r, s) => { S217.log.push(S217.site + ': ' + s); };
+    __siteCode = () => S217.site; __siteNames = () => JSON.stringify({ S1: 'HO', VTR: 'VTR', '18B': '18B' });
+    __runOthers = (fn, a) => { if (fn !== 'sysRtcPeople') throw new Error('Unknown action.'); return JSON.stringify(Object.keys(S217.people).filter(s => s !== S217.site).map(s => ({ site: s, name: s === 'S1' ? 'HO' : s, ok: true, r: S217.people[s] }))); };
+    __rtcX = (op, a, b, c) => { const H = S217.home; if (op === 'on') return S217.site !== 'S1';
+      if (op === 'get') return a in H ? H[a] : null;
+      if (op === 'getAll') { const o = {}; JSON.parse(a).forEach(k => { if (k in H) o[k] = H[k]; }); return JSON.stringify(o); }
+      if (op === 'put') { H[a] = String(b); return null; } if (op === 'del') { delete H[a]; return null; }
+      if (op === 'count') { H[a] = String((Number(H[a]) || 0) + 1); return Number(H[a]); }
+      if (op === 'kvGet') return S217.homeKv[a] || ''; if (op === 'kvPut') { S217.homeKv[a] = String(b); return null; } throw new Error('Unknown action.'); };
+    __fcmSend = (ids, msg) => { S217.fcm.push({ ids: JSON.parse(ids), msg: JSON.parse(msg) }); return '{"sent":1}'; };
+    __pushKey = () => 'BPUBLICKEY'; __pushOk = url => /^https:\\/\\/fcm\\.googleapis\\.com\\//.test(String(url));
+    __pushSend = (subs, text) => { const l = JSON.parse(subs); S217.web.push({ to: l.map(s => s.e), msg: JSON.parse(text) }); return JSON.stringify(l.map(() => ({ code: 201 }))); };`, ctx);
+  const U = (n, admin) => ({ email: n.toLowerCase() + '217@site.test', name: n, active: true, admin: !!admin, perms: {}, password: 'scrypt$x' });
+  const Asha = U('Asha', true), Bala = U('Bala'), Hari = U('Hari', true), Kiran = U('Kiran'), Dev = U('Dev');
+  const SITES = { VTR: [Asha, Bala], '18B': [Kiran, Dev], S1: [Hari, Bala] };
+  const id = u => run('e => rtcUid_(e)', u.email);
+  const at = s => run('(s, l) => { S217.site = s; const c = CacheService.getScriptCache(); c.put("USERS_LIST", JSON.stringify(l), 600); c.remove("RTC_OFF_C"); }', s, SITES[s]);
+  const send = (u, x) => run('(u, x) => { try { return rtcSend_(u, x); } catch (e) { return { thrown: String(e.message) }; } }', u, x);
+  const beat = (u, a) => run('(u, a) => rtcBeat_(u, a)', u, a), S = () => run('() => S217');
+  try {
+    // ---- each site's own people and rights (Dev: Screen share switched off at 18B), as another site asks them – no e-mail address
+    at('18B'); run('k => { kvWrite_("RTC_OFF", JSON.stringify([k])); }', id(Dev));
+    for (const s of ['S1', '18B', 'VTR']) { at(s); run('s => { S217.people[s] = sysRtcPeople_(); }', s); }
+    assert.ok(!/@/.test(JSON.stringify(S().people)), 'no e-mail address goes to another site');
+    assert.deepStrictEqual(S().people['18B'].map(p => p.name + ':' + p.off), ['Kiran:false', 'Dev:true']);
+    // ---- the list at VTR: his site's people as before, then the other sites' – with the site's name; nobody switched off; not himself
+    at('VTR');
+    let l = run('u => rtcUsers_(u)', Bala);
+    assert.deepStrictEqual(l.users.map(u => [u.name, !!u.far, !!u.admin]), [['Asha', false, true], ['Hari (HO)', true, true], ['Kiran (18B)', true, false]]);
+    assert.ok(!/@/.test(JSON.stringify(l)) && l.users.every(u => /^[0-9a-f]{16}$/.test(u.uid)));
+    assert.ok(S().home.RTCPPL, 'the other sites\' people are kept a minute in the store of the notes');
+    // ---- Bala (VTR) rings Kiran (18B): the note is in the FIRST site's store, with the site it comes from; the phone and the missed list say "Bala (VTR)"
+    let r = send(Bala, { t: 'ring', to: [id(Kiran)], call: 'x217', d: { sdp: 'v=0 offer', mode: 'voice' } });
+    assert.ok(r.ok && r.n > 0, JSON.stringify(r));
+    const n = r.n, note = JSON.parse(S().home['RTCM_' + n]);
+    assert.deepStrictEqual([note.t, note.from, note.to, note.s, note.sn, note.name], ['ring', id(Bala), [id(Kiran)], 'VTR', 'VTR', 'Bala']);
+    assert.strictEqual(S().home.RTCN, String(n), 'the counter of the first site');
+    assert.ok(S().home['RTCC_x217_' + id(Kiran)] && S().home['RTCP_' + id(Kiran)], 'the ring and the waiting ring are remembered there');
+    const ph = S().fcm.find(x => x.msg.t === 'ring');
+    assert.deepStrictEqual([ph.ids, ph.msg.name, ph.msg.x, ph.msg.mode], [[id(Kiran)], 'Bala (VTR)', 1, 'voice'], 'his phone: who calls, from which site; answered from any site');
+    assert.strictEqual(JSON.parse(S().homeKv['RTCMISS|' + id(Kiran)]).list[0].name, 'Bala (VTR)');
+    assert.ok(!Object.keys(S().kv.VTR).some(k => /^RTCMISS/.test(k)), 'nothing of it in VTR\'s own settings');
+    // ---- at 18B Kiran's heartbeat gets it (from the first site's store); he answers Bala – who is not a user of 18B
+    at('18B');
+    let b = beat(Kiran, { r: n - 1 });
+    assert.deepStrictEqual(b.m.map(m => [m.t, m.name, m.call]), [['ring', 'Bala (VTR)', 'x217']]);
+    assert.deepStrictEqual(beat(Kiran, {}).m.map(m => [m.t, m.name]), [['ring', 'Bala (VTR)']], 'an app opened from the notification: the ring that waits');
+    r = send(Kiran, { t: 'answer', to: id(Bala), call: 'x217', d: { sdp: 'v=0 answer' } });
+    assert.ok(r.ok && r.n === n + 1, JSON.stringify(r));
+    assert.ok(S().log.includes('18B: Kiran joined the screen share of Bala (VTR, HO)'), JSON.stringify(S().log));      // (Bala is a user of VTR and of HO)
+    assert.strictEqual(JSON.parse(S().homeKv['RTCMISS|' + id(Kiran)]).list[0].st, 'a');
+    // ---- back at VTR: Bala gets the answer, named with Kiran's site
+    at('VTR');
+    b = beat(Bala, { r: n });
+    assert.deepStrictEqual(b.m.map(m => [m.t, m.name, JSON.parse(m.d).sdp]), [['answer', 'Kiran (18B)', 'v=0 answer']]);
+    // ---- "who is at the app?" reaches every site; "I am" goes back to whoever asked; refused: a user switched off at his site, an unknown code
+    r = send(Bala, { t: 'who' }); at('18B');
+    assert.deepStrictEqual(beat(Kiran, { r: n + 1 }).m.map(m => [m.t, m.name]), [['who', 'Bala (VTR)']]);
+    assert.ok(send(Kiran, { t: 'here', to: [id(Bala)], d: { busy: false } }).ok);
+    at('VTR');
+    assert.match(send(Bala, { t: 'ring', to: [id(Dev)], call: 'x217b', d: {} }).thrown, /^Screen share: that user is not in the list any more/);
+    assert.match(send(Bala, { t: 'ring', to: ['0123456789abcdef'], call: 'x217c', d: {} }).thrown, /^Screen share: that user is not in the list any more/);
+    assert.ok(send(Bala, { t: 'here', to: ['0123456789abcdef'], d: {} }).ok, '"I am at the app" to whoever asked');
+    // ---- Bala rings Hari (HO) and gives up: Hari's missed call is kept at the first site – his list at HO shows it, with "Call back"
+    assert.ok(send(Bala, { t: 'ring', to: [id(Hari)], call: 'y217', d: { sdp: 'o' } }).ok);
+    assert.ok(send(Bala, { t: 'cancel', to: [id(Hari)], call: 'y217', d: {} }).ok);
+    assert.ok(S().fcm.some(x => x.msg.t === 'missed' && x.msg.name === 'Bala (VTR)' && x.ids[0] === id(Hari)));
+    at('S1');
+    const ms = run('u => rtcMissed_(u)', Hari);
+    assert.deepStrictEqual(ms.list.map(m => [m.name, m.can]), [['Bala (VTR)', true]]);
+    // ---- the first site itself: its own store, exactly as before (nothing through __rtcX)
+    const keys0 = Object.keys(S().home).length;
+    r = send(Hari, { t: 'ring', to: [id(Bala)], call: 'z217', d: { sdp: 'o' } });
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.strictEqual(Object.keys(S().home).length, keys0, 'nothing written through the stand-in at the first site');
+    assert.ok(run('n => !!CacheService.getScriptCache().get("RTCM_" + n)', r.n), 'its own store');
+    // ---- a browser's notifications: kept at the first site; one kept at VTR before this update is used, then moves
+    at('VTR');
+    const ep = 'https://fcm.googleapis.com/fcm/send/dev217', sub = { endpoint: ep, p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) };
+    run('(k, i, v) => { S217.kv.VTR[k] = v; S217.kv.VTR[i] = k.slice(5); }', 'PUSH|' + id(Asha), run('e => rtcSubIdx_(e)', ep), JSON.stringify([{ e: ep, k: sub.p256dh, a: sub.auth, at: 1 }]));
+    run('(i) => rtcPush_([i], { t: "cr", id: "VF-1", title: "x", body: "y" })', id(Asha));
+    assert.deepStrictEqual(S().web.pop().to, [ep], 'one saved at VTR before: still used');
+    assert.deepStrictEqual(run('(u, x) => rtcPushSave_(u, x)', Asha, sub), { ok: true, devices: 1 });
+    assert.strictEqual(JSON.parse(S().homeKv['PUSH|' + id(Asha)])[0].e, ep);
+    assert.deepStrictEqual(JSON.parse(S().kv.VTR['PUSH|' + id(Asha)]), [], 'moved off VTR\'s own list');
+    run('(i) => rtcPush_([i], { t: "cr", id: "VF-2", title: "x", body: "y" })', id(Asha));
+    assert.deepStrictEqual(S().web.pop().to, [ep], 'once – from the first site');
+    // ---- the Admin changes the rights at VTR: the other sites see it at once (the kept list is dropped)
+    run('(x, u) => rtcRightsSave_(x, u)', { off: [] }, Asha);
+    assert.ok(!S().home.RTCPPL);
+  } finally {
+    vm.runInContext(`kvRead_ = __k217.kvRead_; kvWrite_ = __k217.kvWrite_; writeLog_ = __k217.writeLog_; rtcPush_ = __k217.rtcPush_; __pushKey = __k217.pk; __pushSend = __k217.ps; __pushOk = __k217.po;
+      __siteCode = __k217.sc; delete this.__siteNames; delete this.__runOthers; delete this.__rtcX; delete this.__fcmSend; const c = CacheService.getScriptCache(); ["USERS_LIST", "RTC_OFF_C"].forEach(k => c.remove(k));`, ctx);
   }
 });

@@ -91,7 +91,7 @@ function keep(id, token, put) {
 /* ---------- sending ----------
  * ids: the people (rtcUid_); msg: what the web is told ({ t: 'ring' | 'done' | 'missed' | 'cr', … }); ttl: seconds it is worth
  * delivering (a ring: 60). site: the code of the site it is from. Answer: { sent, gone } – never throws. */
-const DATA_KEYS = ['t', 'call', 'name', 'from', 'mode', 'help', 'page', 'id', 'title', 'body'];
+const DATA_KEYS = ['t', 'call', 'name', 'from', 'mode', 'help', 'page', 'id', 'title', 'body', 'x'];      // (update-217) x: a call answered from any site
 function send(ids, msg, ttl, site) {
   const out = { sent: 0, gone: 0 };
   try {

@@ -2900,7 +2900,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   body.rtc-faces #rtc_view, body.rtc-faces #rtc_view[data-size=l] { right: 244px; } body.rtc-mini #rtc_faces { bottom: 66px; }
   @media (max-width: 700px) { #rtc_faces { top: 8px; left: 6px; right: 6px; bottom: auto; width: auto; height: 92px; flex-direction: row; } .rtc-face { height: 92px; } body.rtc-faces #rtc_view, body.rtc-faces #rtc_view[data-size=l], body.rtc-faces #rtc_view[data-size=m] { right: 6px; top: 108px; } }
   .rtc-list { display: grid; gap: 6px; max-height: 46vh; overflow: auto; margin: 10px 0; }
-  .rtc-u { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 10px; cursor: pointer; } .rtc-u:has(input:checked) { border-color: #F2A900; background: #FFFBEB; }
+  .rtc-u { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 10px; cursor: pointer; } .rtc-u:has(input:checked) { border-color: #F2A900; background: #FFFBEB; } .rtc-u[hidden] { display: none; }
   .rtc-u input { width: 18px; height: 18px; flex: 0 0 18px; } .rtc-u b { font: 700 14px var(--ui); margin-right: auto; } .rtc-u .rtc-adm { font: 700 11px var(--ui); color: #1543B8; background: #EEF3FF; border-radius: 6px; padding: 2px 6px; }
   .rtc-st { font: 600 12px var(--ui); color: #94A3B8; } .rtc-st.on { color: #15803D; } .rtc-st.on::before { content: '● '; } .rtc-st.busy { color: #B45309; }
   @media (max-width: 700px) { #rtc_view, #rtc_view[data-size=m] { left: 6px; right: 6px; width: auto; } #rtc_bar:not(.mini) { left: 6px; right: 6px; width: auto; margin: 0; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 8px 8px 6px; } #rtc_bar:not(.mini) .rtc-left { flex: 1 1 100%; } #rtc_bar .rtc-txt { max-width: none; } #rtc_bar:not(.mini) .rtc-btns { flex: 1 1 auto; justify-content: space-between; gap: 0; } #rtc_bar:not(.mini) .rtc-b { min-width: 0; flex: 1 1 0; } #rtc_bar .rtc-b .lb { max-width: 62px; font-size: 10.5px; } #rtc_bar .rtc-b .rtc-i { width: 42px; height: 42px; } #rtc_bar #rtc_end .rtc-i { width: 50px; } #rtc_bar:not(.mini) .rtc-hide { position: absolute; top: 6px; right: 8px; } #rtc_bar:not(.mini) .rtc-hide .lb { display: none; } #rtc_bar:not(.mini) .rtc-hide .rtc-i { width: 32px; height: 32px; margin: 0; } }
@@ -21868,8 +21868,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const missed = miss && (miss.list || []).length ? '<div class="rtc-miss">Missed calls' + miss.list.slice(0, 5).map(m => '<div><span>' + esc(m.name) + ' · ' + esc(new Date(m.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })) + '</span>' + (m.can ? '<button type="button" data-callback="' + esc(m.from) + '">Call back</button>' : '') + '</div>').join('') + '<div><span></span><button type="button" data-missclear="1">Clear</button></div></div>' : '';
     const help = pick.help ? '<p><b>The Admin sees what you show and you can talk.</b> This message goes with the call:</p><div class="rtc-help">' + esc((pick.help.title ? pick.help.title + ': ' : '') + pick.help.msg) + '</div>' : '';
     return help + missed + '<p>' + (pick.help ? 'Admins are ticked – change if needed.' : 'Pick who should see it – you can talk to each other.') + ' At most ' + RTC.max + ' at a time.</p><div class="rtc-list" id="rtc_list">' +
-      RTC.users.map(u => '<label class="rtc-u"><input type="checkbox" data-uid="' + esc(u.uid) + '"' + (pick.sel.has(u.uid) ? ' checked' : '') + '><b>' + esc(u.name) + '</b>' + (u.admin ? '<small class="rtc-adm">Admin</small>' : '') + '<span class="rtc-st" data-st="' + esc(u.uid) + '">checking…</span></label>').join('') +
-      '</div><p style="margin:10px 0 0"><b>What to show</b></p><div class="rtc-mode">' + modes.map(x => '<label><input type="radio" name="rtc_mode" value="' + x[0] + '"' + (x[0] === pick.mode ? ' checked' : '') + '> ' + x[1] + '</label>').join('') + '</div>' +
+      RTC.users.map(u => '<label class="rtc-u"' + (u.far ? ' data-far="' + esc(u.uid) + '"' + (pick.sel.has(u.uid) ? '' : ' hidden') : '') + '><input type="checkbox" data-uid="' + esc(u.uid) + '"' + (pick.sel.has(u.uid) ? ' checked' : '') + '><b>' + esc(u.name) + '</b>' + (u.admin ? '<small class="rtc-adm">Admin</small>' : '') + '<span class="rtc-st" data-st="' + esc(u.uid) + '">checking…</span></label>').join('') +
+      '</div>' + (RTC.users.some(u => u.far) ? '<p class="muted" style="margin:6px 0 0">Users of the other sites are shown here while they are at the app.</p>' : '') + '<p style="margin:10px 0 0"><b>What to show</b></p><div class="rtc-mode">' + modes.map(x => '<label><input type="radio" name="rtc_mode" value="' + x[0] + '"' + (x[0] === pick.mode ? ' checked' : '') + '> ' + x[1] + '</label>').join('') + '</div>' +
       '<p class="muted">' + (rtcCanShare() ? 'For "My screen" the browser asks next what to show – choose <b>this tab</b>, so that only the app is seen. ' : '') + '"Only my page": the others\' app opens the page you are on, as you move – with voice, almost no data. Nothing is recorded.</p>';
   }
   function rtcPickDraw() {
@@ -21877,6 +21877,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     document.querySelectorAll('#rtc_list [data-st]').forEach(sp => { const h = RTC.here[sp.dataset.st], fresh = h && Date.now() - h.at < 30000;
       sp.textContent = fresh ? (h.d && h.d.busy ? 'in another screen share' : 'at the app now') : Date.now() - RTC.pick.at > 4500 ? 'not at the app now – the ring waits a minute' : 'checking…';
       sp.className = 'rtc-st' + (fresh ? (h.d && h.d.busy ? ' busy' : ' on') : ''); });
+    // (update-217) a user of another site: shown while he is at the app (or ticked)
+    document.querySelectorAll('#rtc_list [data-far]').forEach(row => { const h = RTC.here[row.dataset.far]; row.hidden = !(h && Date.now() - h.at < 30000) && !RTC.pick.sel.has(row.dataset.far); });
   }
   document.addEventListener('change', e => { if (e.target && e.target.name === 'rtc_mode' && RTC.pick) { RTC.pick.mode = e.target.value; return; }
     const c = e.target && e.target.closest ? e.target.closest('#rtc_list input[data-uid]') : null; if (!c || !RTC.pick) return;
@@ -22076,7 +22078,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!RTC.users.length) { toast('Screen share: there is no other user to share with yet – the Admin adds users in Users & Access.', true); return; }
     let miss = null; try { miss = await rawCall('rtcMissed', { seen: true }); RTC.missN = 0; rtcMissBadge(); } catch (e) { miss = null; }
     const pick = RTC.pick = { sel: new Set(), at: Date.now(), asked: Date.now(), n: 1, help: opts.help || null, mode: rtcCanShare() ? 'screen' : 'page' }; RTC.here = {};
-    if (opts.help) RTC.users.filter(u => u.admin).slice(0, RTC.max).forEach(u => pick.sel.add(u.uid));
+    if (opts.help) RTC.users.filter(u => u.admin && !u.far).slice(0, RTC.max).forEach(u => pick.sel.add(u.uid));      // (update-217) this site's Admins
     (opts.to || []).forEach(uid => { if (pick.sel.size < RTC.max && RTC.users.some(u => u.uid === uid)) pick.sel.add(uid); });
     rtcNote('who').catch(rtcWarn);
     // "who is at the app?" is asked three times (now, after 9 s, after 18 s) – a list left open does not keep asking

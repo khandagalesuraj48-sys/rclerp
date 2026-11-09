@@ -2380,3 +2380,9 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (vehicle_expense; typed, or the FASTag statement read by the AI – readVexpStatement / importVexp, never twice: txn unique). Read and
   written straight by REST (vbFetch_ – not in SB_TABLES_, so not in the Sheet backup yet). Pages `vbook`, `vexp`; three app_users columns
   ('opt'). With rcl-mobile 3.91.0. Tests: unit `update-216`; the rig in Chromium (`hod/web216.js`, 15 / 15).
+- 09-11-2026 (update-217, "call from any site to anyone online"). Report: `UPDATE_217.md`. ONE EXCHANGE OF CALL NOTES for every site: the
+  first site's store (gas.js makeHome / flushHome, runtime.js __rtcX; Code.gs rtcC_, rtcCount_, rtcKvRead_ / rtcKvWrite_) – notes,
+  counter (kept 1 s per server), rung / answered / waiting rings, missed calls, browser push subscriptions. The other sites' people
+  (rtcFarPeople_ ← sysRtcPeople_ via __runOthers, OTHERS_; kept 1 min as RTCPPL) with their site's name ("far" – shown while online);
+  names with the site (rtcNoteName_, rtcPushBy_); FCM x:1 = answer from any site. No SQL. With rcl-mobile 3.92.0. Tests: unit
+  `update-217`; the rig with two sites (`test/browser/call217.js`, 19 / 19).

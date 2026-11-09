@@ -23,15 +23,17 @@ function conf() {
   return { url: CUR.url, key: CUR.key };
 }
 // one database function (Supabase RPC); a network hiccup or a busy database is tried again
-function rpc(name, body) {
-  const c = conf();
+function rpc(name, body) { return rpcAt(conf(), name, body, 4); }
+// (update-217) the same at a given database: tries = how often (1 = once, no waiting), ms = how long one try may take
+function rpcAt(c, name, body, tries, ms) {
   let last = '';
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const r = fetchAllSync([{ url: c.url + '/rest/v1/rpc/' + name, method: 'POST', headers: { apikey: c.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }])[0];
+  for (let attempt = 0; attempt < tries; attempt++) {
+    const r = fetchAllSync([{ url: c.url + '/rest/v1/rpc/' + name, method: 'POST', headers: { apikey: c.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }], ms)[0];
+    if (r.error && attempt + 1 >= tries) { last = r.error; break; }
     if (r.error) { last = r.error; sleepSync(300 * (attempt + 1)); continue; }
     if (r.code >= 200 && r.code < 300) return r.text ? JSON.parse(r.text) : null;
     last = r.code + ' ' + String(r.text || '').slice(0, 300);
-    if (r.code >= 500 || r.code === 429) { sleepSync(400 * (attempt + 1)); continue; }
+    if (r.code >= 500 || r.code === 429) { if (attempt + 1 >= tries) break; sleepSync(400 * (attempt + 1)); continue; }
     if (r.code === 404 && /^web_(count|uncount|write)$/.test(name)) throw new Error('404 ' + name + ' is not installed (sql/supabase_step3_safety.sql)');
     if (r.code === 404 && /^web_(op_begin|op_end|op_mark|write2|ops_cleanup)$/.test(name)) throw new Error('404 ' + name + ' is not installed (sql/supabase_step5_save_once.sql)');
     if (r.code === 404 && name === 'web_boot2') throw new Error('404 web_boot2 is not installed (sql/supabase_step2b_light_boot.sql)');      // (update-140) → web_boot, as before
@@ -142,6 +144,70 @@ function flush(st) {
   const now = Date.now();
   put.forEach(x => { if (x.key in BEAT.shared) BEAT.shared[x.key] = { value: x.value, left: x.ttl, at: now }; });
   del.forEach(k => { if (k in BEAT.shared) BEAT.shared[k] = { value: null, left: null, at: now }; });
+}
+/* ---------- (update-217) CALLS BETWEEN SITES: THE FIRST SITE'S STORE FOR THE NOTES OF A CALL ----------
+ * (asked 09-11-2026: "both user same site war asayla lagtat tr as nko user online asla ki bas zal call lawta yeil mgg to kuthe pn aso")
+ * Every note of a call, its counter and what is remembered of a call are kept in ONE place for every site: the first site's store
+ * (web.cache, its counter web_count, its app_settings). A request of another site reaches it here (runtime.js __rtcX, Code.gs rtcC_):
+ *   - read when asked (several keys in one call); written at the end of the request in one call (as the site's own store is);
+ *   - the counter of the notes (RTCN) is kept in this server's memory for one second – every open page asks for it every 2 s, so a
+ *     server asks the first site about once a second (as it asks its own site for the heartbeat);
+ *   - a note once read is kept in memory until it runs out (a note never changes once written);
+ *   - the heartbeat's reads try once, for 2.5 s at most: a slow first site never holds a heartbeat up.
+ * At the first site itself none of this is used: its own store, as before. */
+const HOME = { n: null, nAt: 0, notes: new Map(), countOff: false };
+const homeDb = () => { const c = sites.conf(''); return { url: c.url, key: c.key }; };
+const HOME_NOTE = k => /^RTCM_\d+$/.test(k);
+// the counter as the first site has it now; when it is LOWER than before (it started again: its numbers are used again), the notes
+// kept in memory are forgotten – a number never brings back a note of before
+function homeTop(v, now) { if ((Number(v) || 0) < (Number(HOME.n) || 0)) HOME.notes.clear(); HOME.n = v; HOME.nAt = now; }
+function makeHome(st) {
+  const h = st.home || (st.home = { cache: {}, puts: new Map(), dels: new Set() });
+  const call = (name, body, quick) => rpcAt(homeDb(), name, body, quick ? 1 : 4, quick ? 2500 : undefined);
+  function getAll(keys, quick) {
+    const now = Date.now(), out = {}, ask = [];
+    keys.map(String).forEach(k => {
+      if (k in h.cache) { if (h.cache[k] !== null) out[k] = h.cache[k]; return; }
+      if (k === 'RTCN' && now - HOME.nAt < 1000) { if (HOME.n !== null) out[k] = HOME.n; return; }
+      const m = HOME_NOTE(k) && HOME.notes.get(k); if (m && m.exp > now) { out[k] = m.v; return; }
+      if (ask.indexOf(k) < 0) ask.push(k);
+    });
+    if (!ask.length) return out;
+    const got = call('web_cache_get', { p_keys: ask }, quick) || {};
+    ask.forEach(k => {
+      const v = got[k] === null || got[k] === undefined ? null : String(got[k]);
+      h.cache[k] = v; if (v !== null) out[k] = v;
+      if (k === 'RTCN') homeTop(v, now);
+      if (v !== null && HOME_NOTE(k)) HOME.notes.set(k, { v: v, exp: now + 150000 });
+    });
+    if (HOME.notes.size > 3000) HOME.notes.forEach((m, k) => { if (m.exp <= now) HOME.notes.delete(k); });
+    if (HOME.notes.size > 3000) HOME.notes.clear();
+    return out;
+  }
+  return {
+    getAll: getAll,
+    put(k, v, ttl) { k = String(k); v = String(v); h.cache[k] = v; h.dels.delete(k); h.puts.set(k, { value: v, ttl: Math.max(1, Math.min(21600, Number(ttl) || 600)) });
+      if (k === 'RTCN') homeTop(v, Date.now()); },
+    remove(k) { k = String(k); h.cache[k] = null; h.puts.delete(k); h.dels.add(k); HOME.notes.delete(k); if (k === 'RTCN') HOME.nAt = 0; },
+    // the first site's exact counter; -1 = not there (step 3 not run at the first site) – the caller counts the plain way
+    count(k, ttl) {
+      if (HOME.countOff) return -1;
+      let n; try { n = Number(call('web_count', { p_key: String(k), p_ttl: Number(ttl) || 60 })) || 0; }
+      catch (e) { if (/^404 /.test(String((e && e.message) || e).replace(/^Error:\s*/, ''))) { HOME.countOff = true; return -1; } throw e; }
+      if (String(k) === 'RTCN') { h.cache.RTCN = String(n); homeTop(String(n), Date.now()); }
+      return n;
+    },
+    // one setting of the first site (app_settings) – read and written at once, as a site's own (Code.gs kvRead_ / kvWrite_)
+    kvGet(id) { const r = sites.homeRest('GET', 'app_settings?id=eq.' + encodeURIComponent(String(id)) + '&select=value'); return r && r[0] ? String(r[0].value === null || r[0].value === undefined ? '' : r[0].value) : ''; },
+    kvPut(id, v) { sites.homeRest('POST', 'app_settings?on_conflict=id', [{ id: String(id), value: String(v) }], 'resolution=merge-duplicates,return=minimal'); },
+  };
+}
+// end of a request of another site: what it wrote to the first site's store, in one call
+function flushHome(st) {
+  const h = st.home; if (!h || (!h.puts.size && !h.dels.size)) return;
+  const put = [...h.puts.entries()].map(([k, x]) => ({ key: k, value: x.value, ttl: x.ttl })), del = [...h.dels];
+  h.puts = new Map(); h.dels = new Set();
+  rpcAt(homeDb(), 'web_flush', { p_props: null, p_put: put, p_del: del }, 4);
 }
 function forceUnlock(st) { if (st.lockDepth > 0) { st.lockDepth = 0; rpc('web_unlock', { p_name: 'script', p_holder: st.holder }); } }
 
@@ -553,4 +619,4 @@ function makeGlobals(st, page) {
     __pdf: { part: (b64, from, n) => pdfPartSync(String(b64 || ''), from, n) },      // (update-176) pages of a PDF as a PDF of their own
   };
 }
-module.exports = { newState, boot, flush, forceUnlock, makeGlobals, rpc, conf, useSite, site, current, restore, Utilities, TZ, scryptHex, onTable, seed, warmStats: () => WARM.stats };
+module.exports = { newState, boot, flush, forceUnlock, makeGlobals, rpc, conf, makeHome, flushHome, useSite, site, current, restore, Utilities, TZ, scryptHex, onTable, seed, warmStats: () => WARM.stats };

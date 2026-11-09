@@ -43,7 +43,9 @@ const TAIL = `
     sysStorage: () => storageOf_(), sysDrvAuth: () => drvJ_(PropertiesService.getScriptProperties().getProperty('DRIVE_AUTH'), null), sysDrvQuota: () => drvQuota_(),
     driveOauth: x => drvOauth_(x),
     // (update-112) the person's language at his other sites (only from __runOthers below)
-    sysPrefLang: sysPrefLang_ }[fn];
+    sysPrefLang: sysPrefLang_,
+    // (update-217) this site's people for a call of another site (only from __runOthers below)
+    sysRtcPeople: sysRtcPeople_ }[fn];
   if (!f) throw new Error('Unknown action.');
   const r = f.apply(null, JSON.parse(argsJson));
   return JSON.stringify(r === undefined ? null : r);
@@ -181,7 +183,7 @@ function runOnce(fn, args, meta, rid) {
  * only from here (system.js) – a name that is not on this list is refused before anything runs. */
 const OUTSIDE = new Set(['api', 'login', 'changePassword', 'logout', 'orgInfo', 'backup', 'switchSite', 'setDefaultSite', 'super', 'ssoLogin', 'portalAdmin', 'driveOauth']);      // ssoLogin: a ticket of the Portal (update-91)
 // one of the app's own functions run inside another site (its database, its memory), its answer parsed; the site of this request is set back after it
-const OTHERS_ = new Set(['sysPrefLang']);      // what one site may ask the others: the person's language (update-112) – nothing else (update-111: every site its own vendors)
+const OTHERS_ = new Set(['sysPrefLang', 'sysRtcPeople']);      // what one site may ask the others: the person's language (update-112); (update-217) its people for a call (names and rights – no e-mail address) – nothing else (update-111: every site its own vendors)
 const R = { runIn(site, fn, args) {
   const prev = gas.current();
   useSite(site);
@@ -372,6 +374,23 @@ function runPlain(fn, args, meta) {
     if (val === undefined) { const x = AI_KEEP.get(k); if (!x) return null; if (Date.now() > x.until) { AI_KEEP.delete(k); return null; } return x.v; }
     if (AI_KEEP.size > 500) AI_KEEP.clear(); AI_KEEP.set(k, { v: String(val), until: Date.now() + Math.max(0, Math.min(3600000, Number(ms) || 0)) }); return null; };
   g.__siteNames = () => { let reg = null; try { reg = sites.registry(); } catch (e) { reg = null; } const o = {}; (reg || []).forEach(x => { o[x.code] = String(x.name || '').trim() || x.code; }); return JSON.stringify(o); };
+  /* (update-217) CALLS BETWEEN SITES: the first site's store for the notes of a call (gas.js makeHome) – used by a request of another
+   * site only ("on" = this request is not at the first site; at the first site: its own store, as before) */
+  let home = null;
+  g.__rtcX = (op, a, b, c) => {
+    op = String(op);
+    if (op === 'on') return gas.site() !== '';
+    if (gas.site() === '') throw new Error('Unknown action.');
+    home = home || gas.makeHome(st);
+    if (op === 'get') { const o = home.getAll([String(a)], !!b); return String(a) in o ? o[String(a)] : null; }
+    if (op === 'getAll') { let ks = []; try { ks = JSON.parse(String(a)); } catch (e) { ks = []; } return JSON.stringify(home.getAll((Array.isArray(ks) ? ks : []).slice(0, 400).map(String), !!b)); }
+    if (op === 'put') { home.put(String(a), String(b), Number(c)); return null; }
+    if (op === 'del') { home.remove(String(a)); return null; }
+    if (op === 'count') return home.count(String(a), Number(b));
+    if (op === 'kvGet') return home.kvGet(String(a));
+    if (op === 'kvPut') { home.kvPut(String(a), String(b)); return null; }
+    throw new Error('Unknown action.');
+  };
   g.__runOthers = (fn, argsJson) => {
     if (!OTHERS_.has(String(fn))) throw new Error('Unknown action.');
     let reg = null; try { reg = sites.registry(); } catch (e) { reg = null; }
@@ -431,6 +450,7 @@ function runPlain(fn, args, meta) {
    * is still the answer. Before, such a failure was reported as "could not reach the database", the page sent the same
    * save again, and it was saved a SECOND time (a second Diesel Issue number, stock counted twice). */
   try { gas.flush(st); } catch (e) { if (!err && !st.saved) err = e; else console.error('[after a save] ' + String((e && e.message) || e)); }
+  try { gas.flushHome(st); } catch (e) { if (!err && !st.saved) err = e; else console.error('[after a save] ' + String((e && e.message) || e)); }      // (update-217) the notes of a call, at the first site
   if (err) { try { err.rclSaved = !!st.saved; } catch (e) { /* a frozen error object: treated as not saved */ } throw err; }
   return out;          // JSON text
 }
