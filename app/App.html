@@ -1577,6 +1577,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .vdv-grid .at-pdf, .phv-grid .at-pdf { height: 120px; border-radius: 6px; }      /* (update-184) a PDF's sign its own height – not the whole box (its name and buttons stay inside) */
   .vdv-grid img { max-width: 100%; max-height: 150px; } .vdv-grid figcaption { font-size: 12.5px; margin-top: 4px; } .vdv-grid .vdv-act { display: flex; gap: 10px; justify-content: center; margin-top: 4px; font-size: 13px; }
   .docs-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 6px; }
+  .m-svc-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }      /* (update-213) Service every KM / Hrs / months */
+  /* (update-213) the vehicle alerts */
+  .va-box { margin: 0 0 12px; }
+  .va { background: #fff8e6; border: 1px solid #f0d58a; border-radius: 12px; padding: 8px 12px; }
+  .va summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 14px; }
+  .va-n { background: #fff; border: 1px solid #f0d58a; border-radius: 20px; padding: 1px 9px; font-size: 12.5px; font-weight: 600; }
+  .va-list { margin-top: 8px; display: grid; gap: 6px; }
+  .va-row { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; padding: 6px 0; border-top: 1px dashed #efdca4; }
+  .va-row > b { min-width: 130px; }
+  .va-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 2px; }
+  .va-chip { display: inline-block; border-radius: 8px; padding: 2px 8px; font-size: 12px; font-weight: 600; margin: 0 4px 2px 0; }
+  .va-chip.bad { background: #fde3e1; color: #b3261e; }
+  .va-chip.warn { background: #fff1d1; color: #8a5a00; }
   .doc-row { display: flex; align-items: center; gap: 8px; } .doc-row input[type=date] { flex: 1; min-width: 0; }
   .doc-row .na { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; white-space: nowrap; font-weight: 600; }
   .doc-row .na input { width: 15px; height: 15px; min-height: 0; margin: 0; }
@@ -3535,6 +3548,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   <!-- ================= DASHBOARD ================= -->
   <section id="sec-dash" role="tabpanel" aria-labelledby="tab-dash">
+    <!-- (update-213) the vehicle alerts of this site: papers, service, more diesel, a fuel card low -->
+    <div id="va_box" class="va-box" hidden></div>
     <!-- (update-164) a site on fuel cards (HO): every card's balance; each car – KM, fuel and its ₹, average, the last fill -->
     <div id="dash_card" role="tabpanel" aria-labelledby="dtab-diesel" hidden>
       <div class="dsum">
@@ -3963,6 +3978,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="field"><label for="m_engno">Engine Number</label><input id="m_engno" autocomplete="off" style="text-transform:uppercase"></div>
         <div class="field"><label for="m_chassis">Chassis Number</label><input id="m_chassis" autocomplete="off" style="text-transform:uppercase"></div>
         <div class="field"><label for="m_engmake">Engine Make (company)</label><input id="m_engmake" list="dl_engmake" autocomplete="off" placeholder="e.g. Cummins, Tata"></div>
+        <!-- (update-213) Service every – the service reminder (from the last maintenance bill marked Service) -->
+        <div class="field m-svc" id="m_svc_wrap"><label>Service every <span style="font-weight:400">(empty = no reminder)</span></label>
+          <div class="m-svc-row"><input id="m_svc_km" type="number" min="100" step="1" inputmode="numeric" placeholder="KM" aria-label="Service every KM"><input id="m_svc_hrs" type="number" min="10" step="1" inputmode="numeric" placeholder="Hrs" aria-label="Service every Hrs"><input id="m_svc_mon" type="number" min="1" max="36" step="1" inputmode="numeric" placeholder="Months" aria-label="Service every months"></div></div>
       </div>
       <div class="docs-box" id="m_docs_box">      <!-- (update-184, "asset master madhe papers fkt own mhanje rachana che ghenar") only for Own machinery -->
         <div class="flabel">Papers – valid upto <span class="muted">(tick N/A where it does not apply to this asset)</span></div>
@@ -4866,6 +4884,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           <div class="field"><label for="cd_holder">Name on the card</label><input id="cd_holder" maxlength="60" autocomplete="off" placeholder="person or company"></div>
           <div class="field"><label for="cd_exp">Expiry (month / year)</label><input id="cd_exp" type="month"></div>
           <div class="field"><label for="cd_cust">Customer / Account ID</label><input id="cd_cust" maxlength="40" autocomplete="off" placeholder="of the card programme – not the card number"></div>
+          <div class="field"><label for="cd_low">Alert below ₹ <span style="font-weight:400">(empty = no alert)</span></label><input id="cd_low" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 5000"></div>
           <div class="field"><label for="cd_open">Opening balance (₹) <span class="req">*</span></label><input id="cd_open" type="number" step="0.01" min="0"></div>
           <div class="field"><label for="cd_date">Opening balance on <span class="req">*</span></label><input id="cd_date" type="date"></div>
           <div class="field"><label><input type="checkbox" id="cd_active" checked> Active</label></div>
@@ -6476,6 +6495,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The car\'s photo was not saved: only a real picture (JPG, PNG or WebP) can be a car\'s photo, the page makes it smaller by itself, and only the Admin or the Super Admin sets, changes or removes it. Nothing else was changed.', 'Pick or take the photo again and press Save photo. If someone changed the photo meanwhile, close the car and open it again. If it still fails, tell the Admin the exact message.'],
       mr: ['गाडीचा photo save झाला नाही: फक्त खरा photo (JPG, PNG किंवा WebP) चालतो, page तो आपोआप लहान करते, आणि photo फक्त Admin किंवा Super Admin लावू, बदलू किंवा काढू शकतो. बाकी काहीही बदलले नाही.', 'Photo पुन्हा निवडा किंवा काढा आणि Save photo दाबा. मध्येच दुसऱ्या कोणी photo बदलला असेल तर गाडी बंद करून पुन्हा उघडा. तरीही चालले नाही तर Admin ला हा message जसाच्या तसा सांगा.'],
       hi: ['गाड़ी का photo save नहीं हुआ: सिर्फ असली photo (JPG, PNG या WebP) चलता है, page उसे अपने आप छोटा करता है, और photo सिर्फ Admin या Super Admin लगा, बदल या हटा सकता है। बाकी कुछ नहीं बदला।', 'Photo फिर से चुनें या खींचें और Save photo दबाएँ। अगर बीच में किसी और ने photo बदला हो तो गाड़ी बंद करके फिर खोलें। फिर भी न चले तो Admin को यह message जैसा है वैसा बताएँ।'] },
+    // (update-213) the service rules of the machinery (Asset Master → Service every) and a fuel card's "Alert below ₹"
+    { re: /Service every .{0,12}(must be a whole number|is for a machinery)|service rules of the machinery|"Alert below ₹" must be/i,
+      en: ['Not saved: "Service every" takes whole numbers only (KM from 100, Hrs from 10, months from 1 to 36) and only the meter the machinery runs on; a card\'s "Alert below ₹" must be an amount above 0. Nothing was changed.', 'Correct the box the message names (leave it empty for no reminder / no alert) and save again. If it says the rules cannot be read, wait a moment and try again.'],
+      mr: ['Save झाले नाही: "Service every" मध्ये फक्त पूर्ण आकडे (KM 100 पासून, Hrs 10 पासून, महिने 1 ते 36) आणि गाडी ज्या meter वर चालते तेच; card चे "Alert below ₹" 0 पेक्षा जास्त रक्कम हवी. काहीही बदलले नाही.', 'संदेशात सांगितलेला box दुरुस्त करा (reminder / alert नको असेल तर रिकामा ठेवा) आणि पुन्हा save करा. Rules वाचता येत नाहीत असे आले तर थोड्या वेळाने पुन्हा प्रयत्न करा.'],
+      hi: ['Save नहीं हुआ: "Service every" में सिर्फ पूरे अंक (KM 100 से, Hrs 10 से, महीने 1 से 36) और गाड़ी जिस meter पर चलती है वही; card का "Alert below ₹" 0 से ज़्यादा रकम होनी चाहिए. कुछ नहीं बदला.', 'संदेश में बताया box ठीक करें (reminder / alert नहीं चाहिए तो खाली छोड़ें) और फिर से save करें. Rules पढ़े नहीं जा सकते ऐसा आए तो थोड़ी देर बाद फिर कोशिश करें.'] },
     // (update-164) a site on fuel cards (HO)
     { re: /is not a fuel card of this site|pick how the fuel was paid|is not for this car \(Fuel Cards|card [^:]+ is Inactive \(Fuel Cards\)|starts on [^(]{0,24}\(its opening balance\)|enter the Amount \(₹\) of this fill|the Rate \(₹ per|Pick the card the payment was made onto|Enter the amount paid onto card|Pick a fuel card\./i,
       en: ['The fill (or the payment) does not fit the fuel cards of this site: each fill is paid by a card of that car or in Cash, with its Amount (₹), on or after the card\'s opening date. Nothing was saved.', 'Pick the car\'s own card (Fuel Cards shows which cars each card is for, and whether it is Active) or Cash, and type the Amount (₹). For a date before the card\'s opening balance, that amount is already in the opening – change the opening date in Fuel Cards if it is wrong.'],
@@ -16378,6 +16402,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return from ? 'From ' + showDate(from) : 'Up to ' + showDate(to);
   }
   async function loadDash() {
+    vaLoad();      // (update-213) the vehicle alerts (at most once a minute unless something changed)
     if (cardMode()) return hdLoad();      // (update-164) a site on fuel cards: its cards and cars
     const seq = ++dashSeq;
     S.dashStale = false;
@@ -17165,7 +17190,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('m_fuel').addEventListener('change', masterFuelChanged);
   function clearMaster() {
     S.editNo = null;
-    ['m_no', 'm_name', 'm_type', 'm_make', 'm_kmstd', 'm_hrstd', 'm_tcap', 'm_mrate', 'm_tds', 'm_owner', 'm_afrom', 'm_ifrom', 'm_engno', 'm_chassis', 'm_engmake'].forEach(id => $(id).value = '');
+    ['m_no', 'm_name', 'm_type', 'm_make', 'm_kmstd', 'm_hrstd', 'm_tcap', 'm_mrate', 'm_tds', 'm_owner', 'm_afrom', 'm_ifrom', 'm_engno', 'm_chassis', 'm_engmake', 'm_svc_km', 'm_svc_hrs', 'm_svc_mon'].forEach(id => $(id).value = '');
     docFill({}); $('m_fuel').value = 'Diesel';
     $('m_supply').value = 'Company'; $('m_supply').dataset.touched = ''; $('m_status').value = 'Active'; masterStatusChanged();
     $('m_unit').value = ''; document.querySelectorAll('#m_works input').forEach(x => { x.checked = false; }); $('m_ownership').value = ''; $('m_no').readOnly = false; $('m_name').readOnly = false;
@@ -17182,6 +17207,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('m_name').value = m.name; $('m_type').value = m.type; $('m_make').value = m.make; $('m_fuel').value = machFuel(m);
     const wk = worksOf(m); document.querySelectorAll('#m_works input').forEach(x => { x.checked = wk.indexOf(x.value) > -1; }); masterUnitChanged();
     $('m_engno').value = m.engineNo || ''; $('m_chassis').value = m.chassisNo || ''; $('m_engmake').value = m.engineMake || ''; docFill(m);
+    { const sv = m.svc || {}; $('m_svc_km').value = sv.km || ''; $('m_svc_hrs').value = sv.hrs || ''; $('m_svc_mon').value = sv.months || ''; }      // (update-213)
     $('m_kmstd').value = m.kmStd; $('m_hrstd').value = m.hrStd; $('m_tcap').value = m.tankCap === undefined ? '' : m.tankCap; $('m_mrate').value = m.monthlyRate === undefined ? '' : m.monthlyRate; $('m_tds').value = m.tdsRate === undefined ? '' : m.tdsRate; $('m_owner').value = m.owner;
     $('m_ownership').value = ['Own', 'Rental', 'Hired', 'Debit', 'Other'].indexOf(m.ownership) > -1 ? m.ownership : ''; $('m_ownership').dataset.was = $('m_ownership').value;
     masterOwnershipChanged();
@@ -17393,6 +17419,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const m = { no: val('m_no'), name: val('m_name'), type: val('m_type'), make: val('m_make'), unit: unitFromWorks(worksTicked()), worksOn: worksTicked().join(', '),
       kmStd: numv('m_kmstd'), hrStd: numv('m_hrstd'), tankCap: numv('m_tcap'), owner: val('m_owner'), ownership: $('m_ownership').value,
       engineNo: val('m_engno'), chassisNo: val('m_chassis'), engineMake: val('m_engmake'), fuel: $('m_fuel').value,
+      svcKm: val('m_svc_km'), svcHrs: val('m_svc_hrs'), svcMon: val('m_svc_mon'),      // (update-213) Service every
       taxUpto: $('m_na_tax').checked ? 'NA' : $('m_lt_tax').checked ? 'LIFETIME' : $('m_doc_tax').value,
       pucUpto: $('m_na_puc').checked ? 'NA' : $('m_doc_puc').value,
       permitUpto: $('m_na_permit').checked ? 'NA' : $('m_doc_permit').value,
@@ -17409,11 +17436,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // Tank Capacity, Engine / Chassis Number, Engine Make and the papers' dates were left out, so a change of only those said
       // "Nothing changed." and was not saved. A paper as the form shows it: N/A, Lifetime, a date or nothing.
       DOCS.forEach(d => { const v = String(before[d[2]] || ''); before[d[2]] = v === 'NA' || v === 'LIFETIME' || /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''; });
+      { const sv = before.svc || {}; before.svcKm = String(sv.km || ''); before.svcHrs = String(sv.hrs || ''); before.svcMon = String(sv.months || ''); }      // (update-213)
       const changes = diff([['no', 'Machinery Number'], ['name', 'Machinery Name'], ['type', 'Type of Machinery'], ['make', 'Make'], ['fuel', 'Fuel'], ['worksOn', 'Works on'],
         ['kmStd', 'Standard Average (KM/Ltr)'], ['hrStd', 'Standard Average (Ltr/Hr)'], ['tankCap', 'Tank Capacity (Ltr)'], ['owner', 'Owner Name'], ['ownership', 'Ownership'],
         ['supply', 'Diesel Supply'], ['status', 'Status'], ['activeFrom', 'Active From'], ['inactiveFrom', 'Inactive From'],
         ['engineNo', 'Engine Number'], ['chassisNo', 'Chassis Number'], ['engineMake', 'Engine Make'],
-        ['taxUpto', 'Tax'], ['pucUpto', 'PUC'], ['permitUpto', 'Permit'], ['fitnessUpto', 'Fitness'], ['insuranceUpto', 'Insurance']], before, m);
+        ['taxUpto', 'Tax'], ['pucUpto', 'PUC'], ['permitUpto', 'Permit'], ['fitnessUpto', 'Fitness'], ['insuranceUpto', 'Insurance'],
+        ['svcKm', 'Service every KM'], ['svcHrs', 'Service every Hrs'], ['svcMon', 'Service every months']], before, m);
       { const pt = l => (l || []).map(p => mPerText({ from: p.from, until: p.until || p.from })).join('; ') || 'none', a0 = pt(before.earlier), a1 = pt(m.earlier);      // (update-119)
         if (a0 !== a1) changes.push(['Earlier periods on site', a0, a1]);
         if (before.status === 'Inactive' && before.inactiveFrom && m.status === 'Active') changes.push(String(m.activeFrom || '') !== String(before.activeFrom || '') ? ['It came back', 'left on ' + showDate(mDay(before.inactiveFrom)), 'back on ' + showDate(m.activeFrom) + ' (until then kept as an earlier period)'] : ['It never left', 'Inactive from ' + showDate(mDay(before.inactiveFrom)), 'on site every day']); }
@@ -18111,7 +18140,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const cardTile = c => { const ex = cardExpNote(c);
     return '<div class="cd-card' + (c.balance < 0 ? ' neg' : '') + (c.active ? '' : ' off') + '"><span>' + esc(c.type) + (c.last4 ? ' ···· ' + esc(c.last4) : '') + (c.issuer ? ' · ' + esc(c.issuer) : '') + (c.active ? '' : ' · Inactive') + '</span>' +
     '<b>₹' + esc(money(c.balance)) + '</b><span><b style="font-size:13px;display:inline;color:var(--ink)">' + esc(c.name) + '</b>' + (c.lastFill ? ' · last fill ' + esc(showDate(c.lastFill)) : '') + '</span>' +
-    (ex ? '<span class="' + ex.cls + '">' + esc(ex.text) + '</span>' : '') + '</div>'; };
+    (ex ? '<span class="' + ex.cls + '">' + esc(ex.text) + '</span>' : '') +
+    (c.active && c.lowAt && c.balance < c.lowAt ? '<span class="cd-exp bad">Low – below ₹' + esc(money(c.lowAt)) + '</span>' : '') + '</div>'; };      // (update-213)
   // ---------- the page Fuel Cards ----------
   S.cpay = { items: [], tok: 0, edit: null };      // (update-190) its own name – S.cp is Vehicle Compliance's (the same name broke that page since update-164)
   function cdOpen(first) {
@@ -18136,6 +18166,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('cd_name').value = c ? c.name : ''; $('cd_type').value = c ? c.type : 'Fuel card'; $('cd_last4').value = c ? c.last4 : '';
     $('cd_open').value = c ? c.opening : ''; $('cd_date').value = c ? c.openDate : S.today; $('cd_active').checked = c ? c.active : true;
     $('cd_issuer').value = c ? c.issuer || '' : ''; $('cd_holder').value = c ? c.holder || '' : ''; $('cd_exp').value = c ? c.expiry || '' : ''; $('cd_cust').value = c ? c.custId || '' : '';      // (update-166)
+    $('cd_low').value = c && c.lowAt ? c.lowAt : '';      // (update-213)
     const cars = (S.master || []).filter(m => machFuel(m) !== 'Electric').map(m => m.id).sort(), on = c ? c.cars.map(noKey) : [];
     $('cd_cars').innerHTML = cars.map(n => '<label><input type="checkbox" class="cd-car" value="' + esc(n) + '"' + (on.indexOf(noKey(n)) > -1 ? ' checked' : '') + '> ' + esc(n) + '</label>').join('') || '<span class="muted">No machinery in the Asset Master yet.</span>';
     $('cd_form').hidden = false; $('cd_name').focus();
@@ -18143,6 +18174,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function cdSave() {
     const x = { was: S.cdWas || '', name: val('cd_name'), type: $('cd_type').value, last4: val('cd_last4'), opening: numv('cd_open'), openDate: $('cd_date').value, active: $('cd_active').checked,
       issuer: val('cd_issuer'), holder: val('cd_holder'), expiry: $('cd_exp').value, custId: val('cd_cust'),      // (update-166) its details
+      lowAt: val('cd_low'),      // (update-213) Alert below ₹
       cars: [...document.querySelectorAll('#cd_cars .cd-car:checked')].map(i => i.value) };
     const res = await call('saveCard', x);
     if (!res || !res.ok) return;
@@ -19198,6 +19230,35 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const q = hgKey(HG.q), w = String(HG.q || '').trim().toLowerCase();
     return !w ? HG.cars : HG.cars.filter(x => (q && hgKey(x.no).indexOf(q) > -1) || [x.make, x.name, x.type].some(v => String(v || '').toLowerCase().indexOf(w) > -1));
   }
+  /* ---------- (update-213) VEHICLE ALERTS: the Dashboard's box (every site) and the marks on HO's cars ---------- */
+  S.va = { d: null, at: 0, tok: 0 };
+  const vaDays = n => n + ' day' + (n === 1 ? '' : 's');
+  const vaWord = a => a.k === 'paper' ? a.doc + (a.s === 'expired' ? ' expired ' + showDate(a.upto) : ' due ' + showDate(a.upto) + ' (' + vaDays(a.days) + ')')
+    : a.k === 'svc' ? (a.s === 'none' ? 'Service – no bill marked Service yet' : 'Service ' + (a.s === 'over' ? 'overdue' : 'due') + ': ' + (a.parts || []).map(p => p.by === 'months' ? (p.left < 0 ? 'since ' : 'by ') + showDate(p.due) : p.left <= 0 ? fmt(-p.left) + ' ' + p.by + ' over' : fmt(p.left) + ' ' + p.by + ' left').join(', '))
+    : a.k === 'avg' ? (a.s === 'bad' ? 'Bad average' : 'More diesel') + ': ' + a.actual + ' (standard ' + a.std + ')' + (a.pct !== '' && a.pct !== undefined ? ', +' + Math.round(a.pct) + '%' : '') : '';
+  const vaBad = a => a.s === 'expired' || a.s === 'over' || a.s === 'bad';
+  const vaChip = a => '<span class="va-chip ' + (vaBad(a) ? 'bad' : 'warn') + '">' + esc(vaWord(a)) + '</span>';
+  const vaOf = no => (S.va.d && S.va.d.cars && (S.va.d.cars[no] || S.va.d.cars[Object.keys(S.va.d.cars).find(k => noKey(k) === noKey(no))])) || [];
+  async function vaLoad(force) {
+    const ver = JSON.stringify(S.ver || '');      // (the data changed – a save here or by someone else: read again at once)
+    if (!force && S.va.d && S.va.ver === ver && Date.now() - S.va.at < 60000) { vaShow(); return; }
+    const tok = ++S.va.tok;
+    let d = null; try { d = await call('getVehAlerts'); } catch (e) { return; }      // (an alert that cannot be read stops nothing)
+    if (tok !== S.va.tok) return;
+    S.va = { d: d, at: Date.now(), tok: tok, ver: ver };
+    vaShow();
+    if (cardMode() && HG.cars && HG.cars.length) hgShow();
+  }
+  function vaShow() {
+    const d = S.va.d, box = $('va_box'); if (!box) return;
+    if (!d || !d.n) { box.hidden = true; box.innerHTML = ''; return; }
+    const c = d.count || {}, nos = Object.keys(d.cars || {}).sort();
+    box.innerHTML = '<details class="va"' + (S.vaOpen ? ' open' : '') + '><summary><b>⚠ Vehicle alerts</b>' + [[c.paper, 'papers'], [c.svc, 'service'], [c.avg, 'more diesel'], [c.card, 'fuel card low']].filter(x => x[0]).map(x => '<span class="va-n">' + x[0] + ' ' + x[1] + '</span>').join('') + '</summary>' +
+      '<div class="va-list">' + nos.map(no => '<div class="va-row"><b>' + esc(no) + '</b><span>' + d.cars[no].map(vaChip).join('') + '</span></div>').join('') +
+      (d.cards || []).map(k => '<div class="va-row"><b>Card ' + esc(k.name) + '</b><span><span class="va-chip warn">₹' + esc(money(k.balance)) + ' – below ₹' + esc(money(k.lowAt)) + '</span></span></div>').join('') + '</div></details>';
+    box.querySelector('details').addEventListener('toggle', e => { S.vaOpen = e.target.open; });
+    box.hidden = false;
+  }
   function hgCard(x) {
     const ph = hgPh(x), pct = x.amount > 0 ? Math.round(x.card / x.amount * 100) : 0, mm = [x.make, x.name].filter(Boolean).join(' · ') || x.type || '';
     return '<div class="hg-card" role="button" tabindex="0" data-no="' + esc(x.no) + '" aria-label="' + esc(x.no + (mm ? ', ' + mm : '') + ' – open its details') + '">' +
@@ -19205,6 +19266,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         '<div class="hg-badges"><span class="hg-badge">' + esc(x.fuel || '') + '</span><span class="hg-badge ' + (x.status === 'Inactive' ? 'off' : 'on') + '">' + esc(x.status || 'Active') + '</span></div>' +
         (!x.photo && hgMay() ? '<span class="hg-add" data-hgadd="' + esc(x.no) + '">📷 Add photo</span>' : '') + '</div>' +
       '<div class="hg-b"><div class="hg-no">' + esc(x.no) + '</div><div class="hg-mm">' + esc(mm) + '</div>' +
+        (vaOf(x.no).length ? '<div class="va-chips">' + vaOf(x.no).map(vaChip).join('') + '</div>' : '') +      // (update-213)
         '<div class="hg-money"><span class="q">' + (x.qty ? fmt(x.qty) + ' <small>' + esc(hgU(x.unit)) + ' filled</small>' : '<small>No fill in these dates</small>') + '</span><span class="a">' + (x.amount ? hgRs(x.amount) : '–') + '</span></div>' +
         (x.amount ? '<div class="hg-bar" aria-hidden="true"><i class="c" style="width:' + pct + '%"></i><i class="k" style="width:' + (100 - pct) + '%"></i></div><div class="hg-split"><span>Card ' + hgRs(x.card) + '</span><span class="k">Cash ' + hgRs(x.cash) + '</span></div>' : '') +
         '<div class="hg-stats"><div><small>Fills</small><b>' + fmt(x.fills) + '</b></div><div><small>Average</small><b>' + (x.avg !== null && x.avg !== undefined ? fmt(x.avg) + ' km/' + esc(hgU(x.unit)) : '–') + '</b></div><div><small>KM now</small><b>' + (x.kmNow ? fmt(x.kmNow) : '–') + '</b></div></div>' +
