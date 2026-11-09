@@ -1064,6 +1064,7 @@ const API_ = {
   saveDebitRates:    { m: 'Diesel Issue', edit: true, f: saveDebitRates_, log: 'debitRates' },
   rptCost:           { m: 'Reports', f: rptCost_ },
   rptMachineCost:    { m: 'Reports', f: rptMachineCost_ },
+  rptDriver:         { m: 'Reports', f: rptDriver_ },      // (update-214) the Driver-wise Report
   rptPurchase:       { m: 'Reports', f: rptPurchase_ },
   rptLedger:         { m: 'Reports', f: rptLedger_ },
   rptOwner:          { m: 'Reports', f: rptOwner_ },
@@ -9208,27 +9209,126 @@ function saveDebitRates_Inner_(rows) {
  *                   bought rate – the rate the bills use).
  *   Recovered     = the diesel the bill takes back from the party for this machinery (debit basis / over the standard).
  *   Net cost      = Rent + Diesel cost − Recovered.   Per hour / per KM = Net cost ÷ the hours / KM of the Log Book.
- * Nothing is saved; it is worked out from the Log Book, the diesel issues and the BOQ each time. */
+ * Nothing is saved; it is worked out from the Log Book, the diesel issues and the BOQ each time.
+ * (update-214, asked 08-11-2026 – the HO features, step B: "Machinery Cost Sheet madhe maintenance cha kharch")
+ *   Maintenance   = its maintenance bills of the dates (what RCL paid – the insurance's part and a free line not counted, as the
+ *                   Maintenance Log Book) + the RCL Store's outward to it (an issue on debit to its owner is not our cost).
+ *   A site on fuel cards (HO): the fuel cost is what its fills cost (card + cash ₹ as entered) – there is no diesel rate there.
+ *   Net cost      = Rent + Diesel / fuel cost + Maintenance − Recovered. */
+// (update-214) the RCL Store's outward to every machinery in the dates (the same site's database – store_issue / store_issue_lines;
+// one read for all, as maintStoreLines_ does for one): { by: { <noKey_>: { amount, n } }, on }. An issue on debit: not counted.
+// A site with no Store's step 2 (or its data in a Google Sheet): none, on = false.
+function storeOutAll_(from, to) {
+  const by = {}; let on = false;
+  if (!sbDataOn_()) return { by: by, on: on };
+  try {
+    for (let page = 0; page < 200; page++) {
+      const rows = sbFetch_('GET', '/rest/v1/store_issue?select=no,machinery,debit,store_issue_lines(amount)&date=gte.' + from + '&date=lte.' + to + '&order=no.asc', undefined,
+        { Range: (page * 1000) + '-' + (page * 1000 + 999), 'Range-Unit': 'items' }) || [];
+      rows.forEach(r => {
+        const k = noKey_(r.machinery); if (!k || r.debit === true) return;
+        const o = by[k] = by[k] || { amount: 0, n: 0 };
+        o.amount = r2_(o.amount + (r.store_issue_lines || []).reduce((a, l) => a + num0_(l.amount), 0)); o.n++;
+      });
+      if (rows.length < 1000) break;
+    }
+    on = true;
+  } catch (e) { if (!/PGRST205|PGRST200|42P01|Could not find (the|a) (table|relationship)|→ 404|SUPABASE_SECRET_KEY/.test(String(e && e.message))) throw e; }
+  return { by: by, on: on };
+}
+// (update-214) what each machinery's maintenance cost in the dates: { by: { <noKey_>: { bills: ₹, n, store: ₹, sn } }, storeOn }
+function maintCostAll_(from, to) {
+  const by = {}, at = k => (by[k] = by[k] || { bills: 0, n: 0, store: 0, sn: 0 });
+  const mt = maintTable_(false);
+  if (mt) mt.rows.forEach(r => { const dk = dkey_(r[mt.c[H.DATE]]), k = noKey_(r[mt.c[H.NO]]); if (!k || !dk || dk < from || dk > to) return;
+    const o = at(k); o.bills = r2_(o.bills + num0_(r[mt.c[H.AMOUNT]])); o.n++; });
+  const st = storeOutAll_(from, to);
+  Object.keys(st.by).forEach(k => { const o = at(k); o.store = r2_(o.store + st.by[k].amount); o.sn += st.by[k].n; });
+  return { by: by, storeOn: st.on };
+}
 function rptMachineCost_(f) {
   f = f || {};
   const rg = rptRange_(f);
   const d = logDashboard_({ from: rg.from, to: rg.to, ownerships: f.ownerships || [], withDebit: true });
-  const rate = num0_(d.dieselRate), groups = {};
+  const rate = num0_(d.dieselRate), groups = {}, card = cardSite_(), mc = maintCostAll_(rg.from, rg.to), paid = {};
+  if (card) { const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c;      // (update-214) the fills' ₹ (card + cash)
+    if (H.AMOUNT in c) t.rows.forEach(r => { const dk = dkey_(r[c[H.IDATE]]), k = noKey_(r[c[H.NO]]); if (k && dk && dk >= rg.from && dk <= rg.to) paid[k] = r2_((paid[k] || 0) + num0_(r[c[H.AMOUNT]])); }); }
   (d.machines || []).forEach(m => {
-    if (!(m.workDays || m.issued || m.rent)) return;          // nothing happened with it in the period
-    const rent = r2_(num0_(m.rent)), diesel = r2_(num0_(m.issued) * rate), rec = r2_(num0_(m.recover)), net = r2_(rent + diesel - rec);
+    const x = mc.by[noKey_(m.no)] || { bills: 0, n: 0, store: 0, sn: 0 }, maint = r2_(x.bills + x.store);
+    if (!(m.workDays || m.issued || m.rent || maint)) return;          // nothing happened with it in the period
+    const rent = r2_(num0_(m.rent)), diesel = card ? r2_(num0_(paid[noKey_(m.no)])) : r2_(num0_(m.issued) * rate), rec = r2_(num0_(m.recover)), net = r2_(rent + diesel + maint - rec);
     const row = { no: m.no, type: m.type, owner: m.owner, ownership: m.ownership, unit: m.unit, basis: m.basis || '', workDays: m.workDays, avail: m.avail,
-      hrs: m.hrs, km: m.km, trips: m.trips, rent: rent, issued: m.issued, dieselCost: diesel, recover: rec, net: net,
+      hrs: m.hrs, km: m.km, trips: m.trips, rent: rent, issued: m.issued, dieselCost: diesel, maint: maint, maintBills: x.bills, maintN: x.n, maintStore: x.store, maintSn: x.sn, recover: rec, net: net,
       perHr: m.hrs ? r2_(net / m.hrs) : '', perKm: m.km ? r2_(net / m.km) : '', perDay: m.workDays ? r2_(net / m.workDays) : '',
       actualAvg: m.actualAvg, stdAvg: m.stdAvg, avgUnit: m.avgUnit };
     (groups[m.ownership] = groups[m.ownership] || []).push(row);
   });
   const sum = (list, k) => r2_(list.reduce((s, r) => s + num0_(r[k]), 0));
   const out = Object.keys(groups).sort(byGroupOrder_).map(g => { const list = groups[g].sort((a, b) => natCmp_(a.no, b.no));
-    return { ownership: g, rows: list, rent: sum(list, 'rent'), issued: sum(list, 'issued'), dieselCost: sum(list, 'dieselCost'), recover: sum(list, 'recover'), net: sum(list, 'net'), hrs: sum(list, 'hrs'), km: sum(list, 'km') }; });
+    return { ownership: g, rows: list, rent: sum(list, 'rent'), issued: sum(list, 'issued'), dieselCost: sum(list, 'dieselCost'), maint: sum(list, 'maint'), recover: sum(list, 'recover'), net: sum(list, 'net'), hrs: sum(list, 'hrs'), km: sum(list, 'km') }; });
   const all = [].concat(...out.map(g => g.rows));
-  return Object.assign(rptBase_('Machinery Cost Sheet', rg), { rate: rate, groups: out,
-    total: { machines: all.length, rent: sum(all, 'rent'), issued: sum(all, 'issued'), dieselCost: sum(all, 'dieselCost'), recover: sum(all, 'recover'), net: sum(all, 'net'), hrs: sum(all, 'hrs'), km: sum(all, 'km') } });
+  return Object.assign(rptBase_('Machinery Cost Sheet', rg), { rate: rate, card: card, storeOn: mc.storeOn, groups: out,
+    total: { machines: all.length, rent: sum(all, 'rent'), issued: sum(all, 'issued'), dieselCost: sum(all, 'dieselCost'), maint: sum(all, 'maint'), recover: sum(all, 'recover'), net: sum(all, 'net'), hrs: sum(all, 'hrs'), km: sum(all, 'km') } });
+}
+
+/* (update-214, asked 08-11-2026 – the HO features, step B: "Driver nusar report") THE DRIVER-WISE REPORT, for every site: each driver
+ * (the name written in the Log Book and on the fills – the same name in any case / spacing is one driver) in the dates:
+ *   – the days he drove, his KM / Hrs / trips (the Log Book – not a Holiday / Idle / Breakdown day);
+ *   – his fills: litres; at a site on fuel cards (HO) also their ₹ (card + cash, as entered);
+ *   – machinery by machinery: his average (his work ÷ his fills on it) against its standard, judged as Actual vs Standard Average
+ *     (More diesel over 10 %, Bad over 30 %). A Debit Basis machinery keeps no average.
+ * A Log Book day or a fill with no driver written: "(no driver written)", at the end. Nothing saved. Reports access. */
+const DRV_NONE_ = '(no driver written)';
+function rptDriver_(f) {
+  f = f || {};
+  const rg = rptRange_(f), card = cardSite_(), master = {};
+  getMaster_().forEach(m => { master[noKey_(m.id)] = m; });
+  const drv = {}, keyOf = n => clean_(n).toUpperCase().replace(/\s+/g, ' ');
+  const D = name => { const k = keyOf(name) || '~'; const o = drv[k] = drv[k] || { key: k, names: {}, days: {}, by: {} }; if (clean_(name)) o.names[clean_(name)] = (o.names[clean_(name)] || 0) + 1; return o; };
+  const M = (o, raw) => { const k = noKey_(raw), m = master[k];
+    return o.by[k] = o.by[k] || { key: k, no: m ? m.id : str_(raw), type: m ? m.type || '' : '', unit: m ? m.unit || '' : '', days: {}, km: 0, hrs: 0, trips: 0, fills: 0, qty: 0, amount: 0 }; };
+  const lt = table_(APP.SHEET_LOG, logHeaders_()), lc = lt.c;
+  lt.rows.forEach(r => {
+    const dk = dkey_(r[lc[H.DATE]]); if (!dk || dk < rg.from || dk > rg.to || !noKey_(r[lc[H.NO]])) return;
+    if (['Holiday', 'Idle', 'Breakdown'].indexOf(str_(r[lc[H.UNIT]])) > -1) return;
+    const o = D(H.DRIVER in lc ? r[lc[H.DRIVER]] : ''), x = M(o, r[lc[H.NO]]);
+    o.days[dk] = true; x.days[dk] = true;
+    x.km = r2_(x.km + Math.max(0, num0_(r[lc[H.WKM]]))); x.hrs = r2_(x.hrs + Math.max(0, num0_(r[lc[H.WHR]]))); x.trips = r2_(x.trips + (H.TRIP in lc ? num0_(r[lc[H.TRIP]]) : 0));
+  });
+  const t = table_(APP.SHEET_DIESEL, DIESEL_COLS_), c = t.c, amt = card && H.AMOUNT in c;
+  t.rows.forEach(r => {
+    const dk = dkey_(r[c[H.IDATE]]); if (!dk || dk < rg.from || dk > rg.to || !noKey_(r[c[H.NO]])) return;
+    const x = M(D(r[c[H.DRIVER]]), r[c[H.NO]]);
+    x.fills++; x.qty = r2_(x.qty + num0_(r[c[H.QTY]])); if (amt) x.amount = r2_(x.amount + num0_(r[c[H.AMOUNT]]));
+  });
+  const fuelOf = k => { const m = master[k]; return m ? fuelUnit_(machineFuel_(m)) : 'Ltr'; };
+  const list = Object.keys(drv).map(k => {
+    const o = drv[k], names = Object.keys(o.names).sort((a, b) => o.names[b] - o.names[a] || a.localeCompare(b));
+    const rows = Object.keys(o.by).map(mk => {
+      const x = o.by[mk], m = master[mk] || {}, km = hasKm_(x.unit), hr = hasHr_(x.unit);
+      const out = { no: x.no, type: x.type, unit: x.unit, days: Object.keys(x.days).length, km: km ? x.km : '', hrs: hr ? x.hrs : '', trips: x.trips, fills: x.fills, qty: x.qty, fuelUnit: fuelOf(mk), amount: card ? x.amount : '',
+        actual: '', std: '', pct: '', status: '', statusCode: '' };
+      out.std = [km && m.kmStd ? m.kmStd + ' km/L' : '', hr && m.hrStd ? m.hrStd + ' L/hr' : ''].filter(Boolean).join(' + ');
+      const work = (km ? x.km : 0) + (hr ? x.hrs : 0);
+      if (m.supply === 'Debit Basis') out.status = 'Debit Basis – no average';
+      else if (!(x.qty > 0) || !(work > 0)) out.status = !(x.qty > 0) ? (work > 0 ? 'No fill by him' : '') : 'No work by him in the Log Book';
+      else {
+        if (x.unit === 'KM') out.actual = r2_(x.km / x.qty) + ' km/L';
+        else if (x.unit === 'Hrs') out.actual = r2_(x.qty / x.hrs) + ' L/hr';
+        else if (x.unit === 'KM + Hrs') out.actual = dualAvg_(x.qty, x.km, x.hrs, m.kmStd, m.hrStd).text;
+        const need = r2_((km && m.kmStd > 0 ? x.km / m.kmStd : 0) + (hr && m.hrStd > 0 ? x.hrs * m.hrStd : 0)), stdSet = (!km || m.kmStd > 0) && (!hr || m.hrStd > 0);
+        if (!stdSet || !(need > 0)) out.status = 'Standard not set in Master';
+        else { out.pct = r2_((x.qty - need) / need * 100); const v = dieselVerdict_(out.pct); out.status = v.text; out.statusCode = v.code; }
+      }
+      return out;
+    }).sort((a, b) => b.days - a.days || natCmp_(a.no, b.no));
+    const s = key => r2_(rows.reduce((a, x) => a + num0_(x[key]), 0));
+    return { name: k === '~' ? DRV_NONE_ : names[0] || k, none: k === '~', days: Object.keys(o.days).length, machines: rows.length, km: s('km'), hrs: s('hrs'), trips: s('trips'), fills: s('fills'), qty: s('qty'), amount: card ? s('amount') : '',
+      more: rows.filter(x => x.statusCode === 'bad' || x.statusCode === 'more').length, rows: rows };
+  }).sort((a, b) => (a.none - b.none) || b.days - a.days || b.km + b.hrs - a.km - a.hrs || a.name.localeCompare(b.name));
+  const s = key => r2_(list.reduce((a, x) => a + num0_(x[key]), 0));
+  return Object.assign(rptBase_('Driver-wise Report', rg), { card: card, drivers: list,
+    total: { drivers: list.filter(x => !x.none).length, days: s('days'), km: s('km'), hrs: s('hrs'), trips: s('trips'), fills: s('fills'), qty: s('qty'), amount: card ? s('amount') : '', more: s('more') } });
 }
 
 /* 2. Diesel Cost Report – machinery-wise ₹, grouped Own → … → Debit */
@@ -12355,7 +12455,7 @@ const AI_TOOLS_ = [
     parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, location: { type: 'STRING', description: 'stock place; leave out for all' } }, required: ['from', 'to'] } },
   { name: 'diesel_transfers', description: 'Diesel moved from one place to another (Diesel Transfer) between two dates: each transfer (date, shift, from, to, litres, remark), the totals by route.',
     parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, location: { type: 'STRING', description: 'the place it was sent from; leave out for all' } }, required: ['from', 'to'] } },
-  { name: 'machinery_cost', description: 'The Machinery Cost Sheet between two dates: for each machinery its rent (as the bills work it out) + diesel issued × the diesel rate − diesel recovered from the party = net cost, with days worked, hours, KM, cost per hour / per KM; totals by ownership. Use for "cost of a machinery", "which machinery cost the most".',
+  { name: 'machinery_cost', description: 'The Machinery Cost Sheet between two dates: for each machinery its rent (as the bills work it out) + diesel issued × the diesel rate (at a site on fuel cards: what its fills cost) + its maintenance (bills + the RCL Store outward) − diesel recovered from the party = net cost, with days worked, hours, KM, cost per hour / per KM; totals by ownership. Use for "cost of a machinery", "which machinery cost the most".',
     parameters: { type: 'OBJECT', properties: { from: { type: 'STRING', description: 'yyyy-mm-dd' }, to: { type: 'STRING', description: 'yyyy-mm-dd' }, machinery: { type: 'STRING', description: 'machinery number or name; leave out for all' } }, required: ['from', 'to'] } },
   /* (update-185) THE STORE AND ENGINEERING OF THIS SITE – asked of those modules themselves (their action aiLook), with the person's
    * own access THERE (the Store's pages; Engineering's Admin / User): the page – or the phone app – passes them on. */
@@ -12525,9 +12625,9 @@ const AI_LOOK_ = {
     const to = aiDay_(a.to, today_()), from = aiDay_(a.from, to.slice(0, 8) + '01'), m = aiMachine_(a.machinery), d = run('rptMachineCost', { from: from, to: to, ownerships: [] });
     let rows = [].concat(...(d.groups || []).map(g => g.rows || [])); if (m) rows = rows.filter(r => noKey_(r.no) === noKey_(m.id));
     rows.sort((p, q) => num0_(q.net) - num0_(p.net));
-    return { from: d.from || from, to: d.to || to, dieselRate: d.rate, machinery: m ? m.id : 'all', total: m ? undefined : d.total, byOwnership: m ? undefined : (d.groups || []).map(g => ({ ownership: g.ownership, machinery: (g.rows || []).length, rent: g.rent, dieselCost: g.dieselCost, recovered: g.recover, net: g.net })),
-      rows: aiPick_(rows, ['no', 'type', 'owner', 'ownership', 'workDays', 'hrs', 'km', 'rent', 'basis', 'issued', 'dieselCost', 'recover', 'net', 'perHr', 'perKm', 'actualAvg', 'stdAvg', 'avgUnit'], m ? 5 : 40),
-      meaning: 'net = rent + diesel issued × rate − diesel recovered; issued in litres; perHr / perKm = net ÷ hours / KM', page: 'rp-mcost' }; } },
+    return { from: d.from || from, to: d.to || to, dieselRate: d.rate, machinery: m ? m.id : 'all', total: m ? undefined : d.total, byOwnership: m ? undefined : (d.groups || []).map(g => ({ ownership: g.ownership, machinery: (g.rows || []).length, rent: g.rent, dieselCost: g.dieselCost, maintenance: g.maint, recovered: g.recover, net: g.net })),
+      rows: aiPick_(rows, ['no', 'type', 'owner', 'ownership', 'workDays', 'hrs', 'km', 'rent', 'basis', 'issued', 'dieselCost', 'maint', 'recover', 'net', 'perHr', 'perKm', 'actualAvg', 'stdAvg', 'avgUnit'], m ? 5 : 40),
+      meaning: 'net = rent + diesel issued × rate (at a site on fuel cards: what the fills cost) + maint (maintenance bills RCL paid + the RCL Store\'s outward to it) − diesel recovered; issued in litres; perHr / perKm = net ÷ hours / KM', page: 'rp-mcost' }; } },
 };
 // the action: the look-up's name and what the AI asked for → the answer (or the reason it cannot be given, as any refusal of the app)
 function aiLookup_(u, x) {
