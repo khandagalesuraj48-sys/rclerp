@@ -2399,3 +2399,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `__act`, `__beatLight`, `__portalPw`, `__lockIdleMs` (RCL_RIG_LOCK_MS only without VERCEL); api/rpc.js meta.act / meta.origin, 423;
   gas.js: a locked session is never answered from memory, own S_ writes update BEAT.sess. The phone app (no `act`) is not watched.
   Tests: unit `update-218`; rig `test/browser/lock218.js` (Chrome's virtual authenticator, RCL_RIG_LOCK_MS=20000, localhost).
+* **update-220 – Speed (no SQL, 10-11-2026):** the Dashboard asks `getDashboard` with `lite: 1` → `pending` = `{ asOf, from, to, total,
+  age }` only (Code.gs `pendLite_`; without `lite` – an older page, the phone app – the whole answer as before); the Log Book view's
+  pending list of the usual period comes from `pendingLog` only while that view is on screen (App.html `lbPendAll`, `S.lb.pall` / `ask`,
+  asked again after a new Dashboard answer); `pendingLogs_` works out the days once and each machinery's periods once (`onSiteFn_` – the
+  rule of `onSiteOn_`, which now uses it); `wlSetDraw` asks `passkeyList` only when My settings is on screen; `rawCallM` waits on
+  SCREEN_LOCKED only while the lock is shown. Test copy: Dashboard answer 2.0 MB → 3 KB, opening calls (warm, 1 CPU) ~0.6–0.8 s →
+  ~0.4–0.5 s. A "ready threads first" change in server/pool.js measured no better on a cold server and is NOT in. Tests: unit `update-220`.
