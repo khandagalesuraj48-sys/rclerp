@@ -1957,7 +1957,9 @@ function periodsOf_(m) {
   return (Array.isArray(m.earlier) ? m.earlier : []).concat([cur]);
 }
 // on this site on a date (the same rule as assertActive_ – used by every list, check and report)
-const onSiteOn_ = (m, dk) => !!m && periodsOf_(m).some(p => (!p.from || p.from <= dk) && (!p.until || dk < p.until));
+const onSiteOn_ = (m, dk) => onSiteFn_(m)(dk);
+// (update-220, speed) the same rule for many dates of one machinery: its periods are read once
+function onSiteFn_(m) { if (!m) return () => false; const per = periodsOf_(m); return dk => per.some(p => (!p.from || p.from <= dk) && (!p.until || dk < p.until)); }
 // Machinery must be on site on the entry date: inside one of its periods
 function assertActive_(m, dk) {
   if (onSiteOn_(m, dk)) return;
@@ -9033,9 +9035,18 @@ function getDashboard_(f) {
       return { date: d, qty: r2_(daily[d]), inQty: r2_(inDay[d] || 0), closing: carry };
     }),
     top: top,
-    pending: fuelViewOff_(pendingLogs_),      // (update-163) the Log Book still pending: every machinery, whatever the fuel shown
+    pending: pendLite_(fuelViewOff_(pendingLogs_), f.lite),      // (update-163) the Log Book still pending: every machinery, whatever the fuel shown
     tanks: tankSettings_(),
   };
+}
+/* (update-220, speed) THE DASHBOARD'S "LOG BOOK PENDING" WITHOUT ITS WHOLE LIST. The Dashboard shows only the number (the badges,
+ * the Log Book card), but every answer carried the whole list – one line for every machinery and every day without a Log Book
+ * since 01-09-2026: it grows every day (on the test copy 19,500 lines, 2 MB in every Dashboard answer). A page that says lite: 1
+ * (the web page and the phone app of this update) gets the number, the ages and the dates; the list itself comes from pendingLog –
+ * only when the Log Book list is opened. An older page or app (no lite) gets the whole answer, exactly as before. */
+function pendLite_(p, lite) {
+  if (!lite || !p) return p;
+  return { asOf: p.asOf, from: p.from, to: p.to, total: p.total, age: p.age };
 }
 /* Diesel tank picture on the Dashboard: size of each tank (Ltr) and the low-stock level (red below it) */
 const TANK_DEFAULT_ = 10000, TANK_LOW_ = 1000;
@@ -9114,10 +9125,13 @@ function pendingLogs_(f) {
   const done = {};
   lt.rows.forEach(r => { const dk = dkey_(r[lt.c[H.DATE]]); if (dk >= from && dk <= to) done[noKey_(r[lt.c[H.NO]]) + '|' + dk] = true; }); // any entry on that day counts
   const items = [], byMachine = {};
+  // (update-220, speed) the days of the period are worked out once (not once for every machinery), and each machinery's periods on
+  // site once (onSiteFn_ – the same rule as onSiteOn_, read once per machinery instead of once per day): the same list, less work
+  const days = []; for (let d = from; d <= to; d = addDays_(d, 1)) days.push(d);
   getMaster_().filter(needsLogBook_).forEach(m => {
-    const k = noKey_(m.id);
-    for (let d = from; d <= to; d = addDays_(d, 1)) {
-      if (!onSiteOn_(m, d)) continue;      // (update-119) only the days of its periods on site
+    const k = noKey_(m.id), on = onSiteFn_(m);
+    for (const d of days) {
+      if (!on(d)) continue;      // (update-119) only the days of its periods on site
       if (done[k + '|' + d]) continue;
       items.push({ no: m.id, type: m.type || '', owner: m.owner || '', date: d });
       const x = byMachine[k] = byMachine[k] || { no: m.id, type: m.type || '', owner: m.owner || '', today: false, older: [] };
@@ -9130,7 +9144,8 @@ function pendingLogs_(f) {
     if (x.today) todayRows.push({ no: x.no, type: x.type, owner: x.owner, shifts: 'Full Day' });
     if (x.older.length) olderRows.push({ no: x.no, type: x.type, owner: x.owner, since: x.older[0], sinceShift: 'Full Day', days: daysBetween_(x.older[0], today), entries: x.older.length, latest: x.older[x.older.length - 1] });
   });
-  items.forEach(x => { const n = daysBetween_(x.date, today); if (n <= 0) age.d0++; else if (n === 1) age.d1++; else if (n <= 3) age.d2_3++; else if (n <= 7) age.d4_7++; else age.d8++; });
+  const ago = {}; days.forEach(d => { ago[d] = daysBetween_(d, today); });      // (update-220) each day's age once
+  items.forEach(x => { const n = ago[x.date]; if (n <= 0) age.d0++; else if (n === 1) age.d1++; else if (n <= 3) age.d2_3++; else if (n <= 7) age.d4_7++; else age.d8++; });
   todayRows.sort((a, b) => a.no.localeCompare(b.no)); olderRows.sort((a, b) => b.days - a.days || a.no.localeCompare(b.no));
   return { today: todayRows, older: olderRows, age: age, items: items, asOf: today, from: from, to: to, total: items.length };
 }
