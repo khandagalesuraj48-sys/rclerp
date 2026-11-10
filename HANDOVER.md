@@ -2422,3 +2422,7 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 * **update-222 – The pages panel's logo (no SQL, 10-11-2026):** update-221's `.sm-brand … img { width: 100% }` resized the logo's image,
   so the `.rlogo` crop showed only its white part ("rachana bgh nit nahi disat"); the rule is gone – the panel's logo is cut out by `.rlogo`
   exactly as on the sign-in page and the old menu. Unit `update-221` checks no `.sm-brand … img` rule comes back.
+* **update-223 – Smooth (no SQL, 10-11-2026):** desktop `#smenu` width transitions are `0s` (jump at open / after the slide on close, never
+  sliding – one layout instead of one per frame); `extCalm()` before each background module (not touched for 2 s, ≤ 20 s, then
+  requestIdleCallback), `extWarm` 5 s after init, 4 s apart; `lbPending` draws 30 cards then 60 a frame (`S.lb.drawJob`), `ages` per date,
+  `.lbd-pc { content-visibility: auto }`. Measured with CPU 4×: menu open lost time 916 → ~300 ms, Log Book view longest frame 1,067 → 500 ms.
