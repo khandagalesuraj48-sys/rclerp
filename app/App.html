@@ -3387,6 +3387,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   section [role="tabpanel"]:not([hidden]), #dash_diesel:not([hidden]), #dash_log:not([hidden]), #dash_card:not([hidden]) { animation: moZoomIn .22s var(--mo-ease) both; }
   .ext-frame.mo-zoom { animation: moZoomIn .24s var(--mo-ease) both; }
   .rv { opacity: 0; transform: scale(.97); } .rv.in { opacity: 1; transform: none; transition: opacity .22s ease, transform .26s var(--mo-ease); }      /* a page part appearing as it is scrolled to: zooms in too */
+  /* (update-223, asked 10-11-2026: "modual or submenu madhe shift hotana screen atkte hang zale sarke watat") SMOOTH: the pages panel's
+   * WIDTH no longer slides – a width that changes every frame made the whole page lay itself out again 13 times in 0.22 s (measured: up to
+   * 83 ms frames). Now the page adjusts ONCE (opening: at once; closing: when the slide-out has ended) and only the panel's content moves
+   * (transform / opacity – drawn by the graphics card). A computer only (a phone's sheet already only moves). */
+  /* (update-223) the long list of pending cards: a card out of sight is not laid out or drawn until it is scrolled to (the same cards) */
+  .lbd-pc { content-visibility: auto; contain-intrinsic-size: auto 132px; }
+  @media (min-width: 761px) {
+    #smenu { transition: width 0s linear var(--sm-t), visibility 0s linear var(--sm-t) !important; }
+    .app.nav-open #smenu { transition: width 0s, visibility 0s !important; }
+  }
   @media (max-width: 760px) { .sm-in { transform: translateY(10px) scale(.98); transform-origin: 50% 100%; } .sm-brand { display: none; } }
   @media (prefers-reduced-motion: reduce) { .sm-in, .sm-in.mo-switch, section [role="tabpanel"], #dash_diesel, #dash_log, #dash_card, .ext-frame.mo-zoom, section.enter > * { animation: none !important; transform: none !important; } .mr-btn:active { transform: none; } }
 </style>
@@ -6553,10 +6563,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try { if (navigator.connection && navigator.connection.saveData) return; } catch (e) { /* as usual */ }
     try { if (await modsFresh()) sideMods(); } catch (e) { /* the list as it is */ }
     for (const m of PT.mods.filter(x => x.key !== 'mechanical' && inHere(x))) {
+      await extCalm();      // (update-223) only when this screen is not being used and the browser has nothing else to do
       if (!S.user || document.getElementById('ext_' + m.key)) continue;
       try { extFrame(m); } catch (e) { /* that one is loaded when opened, as before */ }
-      await new Promise(ok => setTimeout(ok, 1500));      // (one at a time: this screen and the network stay free)
+      await new Promise(ok => setTimeout(ok, 4000));      // (one at a time: this screen and the network stay free)
     }
+  }
+  /* (update-223: "screen atkte") a module's page loads on this same screen's processor: it is started only when nobody touched the screen
+   * for 2 s (or after 20 s at the latest) and the browser says it is idle – never in the middle of his clicks */
+  async function extCalm() {
+    const t0 = Date.now();
+    while (Date.now() - t0 < 20000 && Date.now() - (WL.last || 0) < 2000) await new Promise(ok => setTimeout(ok, 700));
+    await new Promise(ok => { try { if (window.requestIdleCallback) { requestIdleCallback(() => ok(), { timeout: 4000 }); return; } } catch (e) { /* older browser */ } setTimeout(ok, 300); });
   }
   // the module's page, loaded and answering (window.rclModule) – made out of sight when not there yet; null after 12 s
   async function extReady(m) {
@@ -15984,7 +16002,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function lbPendAll() {
     if (S.lb.ask || !$('dash_log') || $('dash_log').hidden || !$('sec-dash') || $('sec-dash').hidden) return;
     const mine = S.lb.ask = call('pendingLog', {}).then(r => { if (S.lb.ask !== mine) return; S.lb.ask = null; S.lb.pall = r; lbPending(); },
-      e => { if (S.lb.ask !== mine) return; S.lb.ask = null; $('lb_plist').innerHTML = '<p class="muted" style="padding:10px">' + esc(errMsg(e)) + '</p>'; });
+      e => { if (S.lb.ask !== mine) return; S.lb.ask = null; S.lb.drawJob = (S.lb.drawJob || 0) + 1; $('lb_plist').innerHTML = '<p class="muted" style="padding:10px">' + esc(errMsg(e)) + '</p>'; });
   }
   // pending Log Book, new style: one card per machinery with its dates (tap a date to fill it)
   function lbPending() {
@@ -15993,8 +16011,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // (update-220, speed) the usual period (01-09-2026 → today): its list is asked of the server (pendingLog) only when it is on screen –
     // the Dashboard's own answer carries only the number now. An older answer that still has the whole list (items) is used as it is.
     const p = S.lb.pend || S.lb.pall || (S.pending && S.pending.items ? S.pending : null);
-    if (!p) { $('lb_plist').innerHTML = '<p class="muted" style="padding:10px">Loading…</p>'; lbPendAll(); return; }
-    const today = p.asOf || S.today, age = d => Math.round((new Date(today + 'T00:00:00') - new Date(d + 'T00:00:00')) / 86400000);
+    if (!p) { S.lb.drawJob = (S.lb.drawJob || 0) + 1; $('lb_plist').innerHTML = '<p class="muted" style="padding:10px">Loading…</p>'; lbPendAll(); return; }
+    const today = p.asOf || S.today, ages = {}, age = d => d in ages ? ages[d] : (ages[d] = Math.round((new Date(today + 'T00:00:00') - new Date(d + 'T00:00:00')) / 86400000));      // (update-223) each date's age worked out once (it was 100,000 times on a long list)
     const own = $('lb_own').value, ven = $('lb_vendor').value.toUpperCase(), q = ($('lb_psearch').value || '').trim().toUpperCase();
     const ownOf = no => { const m = findMachine(no); return m ? m.ownership : ''; };
     const items = (p.items || []).filter(x => (!own || own.split(',').indexOf(ownOf(x.no)) > -1) && (!ven || String(x.owner || '').toUpperCase() === ven) && (!q || (x.no + ' ' + (x.owner || '') + ' ' + (x.type || '')).toUpperCase().indexOf(q) > -1));
@@ -16006,11 +16024,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     items.filter(x => S.lb.pchip === 'all' || band(age(x.date)) === S.lb.pchip).forEach(x => { (by[x.no] = by[x.no] || { no: x.no, type: x.type, owner: x.owner, dates: [] }).dates.push(x.date); });
     const L = Object.values(by).map(x => { x.dates.sort(); x.oldest = age(x.dates[0]); return x; }).sort((a, b) => b.oldest - a.oldest || b.dates.length - a.dates.length);
     const can = canEdit('Log Book');
-    $('lb_plist').innerHTML = L.length ? L.map(x => '<div class="lbd-pc ' + band(x.oldest) + '"><div class="lbd-pm"><b>' + esc(x.no) + '</b><small>' + esc([x.type, x.owner].filter(Boolean).join(' · ')) + '</small></div>' +
+    // (update-223, "screen atkte") the cards are drawn a part at a time: the first 30 at once, the rest 60 a frame – the same cards in the
+    // same order; the screen answers while the long list is being drawn (a new list stops the drawing of the old one)
+    const card = x => '<div class="lbd-pc ' + band(x.oldest) + '"><div class="lbd-pm"><b>' + esc(x.no) + '</b><small>' + esc([x.type, x.owner].filter(Boolean).join(' · ')) + '</small></div>' +
       '<div class="lbd-pn"><b>' + x.dates.length + '</b><span>day' + (x.dates.length === 1 ? '' : 's') + '</span></div>' +
       '<div class="lbd-pd">' + x.dates.slice(0, 12).map(d => (can ? '<button data-fill="' + esc(x.no) + '|' + esc(d) + '|Full Day" title="Fill the Log Book of ' + esc(showDate(d)) + '">' : '<span>') + esc(showDate(d).slice(0, 5)) + (can ? '</button>' : '</span>')).join('') + (x.dates.length > 12 ? '<span class="more">+' + (x.dates.length - 12) + ' more</span>' : '') + '</div>' +
-      '<div class="lbd-pa">' + (x.oldest > 0 ? 'oldest <b>' + x.oldest + ' day' + (x.oldest === 1 ? '' : 's') + '</b> ago' : 'today') + (can ? '<button class="btn primary small" data-fill="' + esc(x.no) + '|' + esc(x.dates[0]) + '|Full Day">Fill oldest</button>' : '') + '</div></div>').join('')
-      : '<p class="lbd-empty">✔ Nothing pending' + (S.lb.pchip !== 'all' || q || own || ven ? ' for these filters' : '') + '.</p>';
+      '<div class="lbd-pa">' + (x.oldest > 0 ? 'oldest <b>' + x.oldest + ' day' + (x.oldest === 1 ? '' : 's') + '</b> ago' : 'today') + (can ? '<button class="btn primary small" data-fill="' + esc(x.no) + '|' + esc(x.dates[0]) + '|Full Day">Fill oldest</button>' : '') + '</div></div>', job = S.lb.drawJob = (S.lb.drawJob || 0) + 1, box = $('lb_plist');
+    if (!L.length) { box.innerHTML = '<p class="lbd-empty">✔ Nothing pending' + (S.lb.pchip !== 'all' || q || own || ven ? ' for these filters' : '') + '.</p>'; return; }
+    box.innerHTML = L.slice(0, 30).map(card).join('');
+    let at = 30; const more = () => { if (S.lb.drawJob !== job || at >= L.length) return; box.insertAdjacentHTML('beforeend', L.slice(at, at + 60).map(card).join('')); at += 60; requestAnimationFrame(more); };
+    if (L.length > 30) requestAnimationFrame(more);
   }
   ['lb_from', 'lb_to'].forEach(id => $(id).addEventListener('change', () => { document.querySelectorAll('#lb_q button').forEach(b => b.classList.remove('on')); lbLoad(); }));
   ['lb_own', 'lb_vendor'].forEach(id => $(id).addEventListener('change', lbLoad));
@@ -17897,7 +17920,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       setTimeout(aiBriefAuto, 3500);      // the daily summary, once a day (after the start-up notices have had their turn)
       qrArrive().catch(() => { /* a label that cannot be opened must not stop the app */ });
       capArrive().catch(() => { /* (update-153) a QR code of Scan with Mobile that cannot be opened must not stop the app */ });
-      setTimeout(() => { try { extWarm(); } catch (e) { /* (update-221) a module is then loaded when it is opened, as before */ } }, 2500);
+      setTimeout(() => { try { extWarm(); } catch (e) { /* (update-221) a module is then loaded when it is opened, as before */ } }, 5000);      // (update-223: 5 s – after the screen's own first work)
     } catch (e) {
       showBoot(false);
       const m = errMsg(e);

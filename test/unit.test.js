@@ -9818,13 +9818,30 @@ test('update-221: motion (his brief of 10-11-2026) – Scale Pop / Wobble boxes,
   const ew = app.slice(app.indexOf('  async function extWarm() {'), app.indexOf('  // the module\'s page, loaded and answering'));
   assert.match(ew, /if \(extWarmOn \|\| !ptOn\(\) \|\| !S\.user\) return;/);
   assert.match(ew, /navigator\.connection && navigator\.connection\.saveData/);
-  assert.match(ew, /for \(const m of PT\.mods\.filter\(x => x\.key !== 'mechanical' && inHere\(x\)\)\) \{\n      if \(!S\.user \|\| document\.getElementById\('ext_' \+ m\.key\)\) continue;\n      try \{ extFrame\(m\); \}/);
-  assert.match(ew, /await new Promise\(ok => setTimeout\(ok, 1500\)\);/);
-  assert.match(app, /setTimeout\(\(\) => \{ try \{ extWarm\(\); \} catch \(e\) \{[^}]*\} \}, 2500\);/);
+  assert.match(ew, /for \(const m of PT\.mods\.filter\(x => x\.key !== 'mechanical' && inHere\(x\)\)\) \{\n      await extCalm\(\);[^\n]*\n      if \(!S\.user \|\| document\.getElementById\('ext_' \+ m\.key\)\) continue;\n      try \{ extFrame\(m\); \}/);
+  assert.match(ew, /await new Promise\(ok => setTimeout\(ok, 4000\)\);/, '(update-223) 4 s apart');
+  assert.match(app, /setTimeout\(\(\) => \{ try \{ extWarm\(\); \} catch \(e\) \{[^}]*\} \}, 5000\);/, '(update-223) 5 s after the screen has its data');
   // reduced motion / "Less motion"
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ #cf_back #cf_box, \.btn\.mo-shake \{ animation: none !important; \}/);
   assert.match(css, /html\[data-motion=less\] \.mo-ghost \{ display: none !important; \}/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ \.sm-in, \.sm-in\.mo-switch, section \[role="tabpanel"\], #dash_diesel, #dash_log, #dash_card, \.ext-frame\.mo-zoom, section\.enter > \* \{ animation: none !important; transform: none !important; \}/);
   assert.match(app, /html\[data-motion=less\] \*, html\[data-motion=less\] \*::before, html\[data-motion=less\] \*::after \{ animation-duration: \.01ms !important;/, 'his own "Less motion" stops every duration (as before)');
   function vmFn(src, head) { const i = src.indexOf(head); assert.ok(i > -1, head); const line = src.slice(i, src.indexOf('\n', i)); return require('vm').runInNewContext('(' + line.replace(/^const \w+ = /, '').replace(/;\s*$/, '') + ')'); }
+});
+
+test('update-223: smooth – the pages panel adjusts the page ONCE (its width no longer slides; only its content moves), his modules load in the background only when the screen is idle and untouched, the long pending list is drawn a part at a time with each date\'s age once and cards out of sight not drawn', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const css = app.slice(app.indexOf('(update-223, asked 10-11-2026'), app.indexOf('</style>', app.indexOf('(update-223, asked 10-11-2026')));
+  assert.match(css, /@media \(min-width: 761px\) \{\n    #smenu \{ transition: width 0s linear var\(--sm-t\), visibility 0s linear var\(--sm-t\) !important; \}\n    \.app\.nav-open #smenu \{ transition: width 0s, visibility 0s !important; \}/, 'the width jumps once (opening at once, closing after the slide) – never slides');
+  assert.match(app, /\.app\.nav-open \.sm-in \{ opacity: 1; transform: none; transition: opacity \.2s ease \.05s, transform var\(--sm-t\) var\(--sm-ease\); \}/, 'only the content moves (transform / opacity)');
+  assert.match(app, /\.lbd-pc \{ content-visibility: auto; contain-intrinsic-size: auto 132px; \}/);
+  const ec = app.slice(app.indexOf('  async function extCalm() {'), app.indexOf('  // the module\'s page, loaded and answering'));
+  assert.match(ec, /while \(Date\.now\(\) - t0 < 20000 && Date\.now\(\) - \(WL\.last \|\| 0\) < 2000\) await new Promise\(ok => setTimeout\(ok, 700\)\);/, 'not while he is using the screen (20 s at most)');
+  assert.match(ec, /requestIdleCallback\(\(\) => ok\(\), \{ timeout: 4000 \}\)/, 'when the browser is idle');
+  const lp = app.slice(app.indexOf('  function lbPending() {'), app.indexOf("  ['lb_from', 'lb_to'].forEach"));
+  assert.match(lp, /ages = \{\}, age = d => d in ages \? ages\[d\] : \(ages\[d\] = /, 'each date\'s age once');
+  assert.match(lp, /box\.innerHTML = L\.slice\(0, 30\)\.map\(card\)\.join\(''\);/);
+  assert.match(lp, /const more = \(\) => \{ if \(S\.lb\.drawJob !== job \|\| at >= L\.length\) return; box\.insertAdjacentHTML\('beforeend', L\.slice\(at, at \+ 60\)\.map\(card\)\.join\(''\)\); at \+= 60; requestAnimationFrame\(more\); \};/, 'the rest 60 a frame, stopped by a newer list');
+  assert.match(lp, /if \(!p\) \{ S\.lb\.drawJob = \(S\.lb\.drawJob \|\| 0\) \+ 1; \$\('lb_plist'\)\.innerHTML = /, '"Loading…" stops a drawing too');
+  assert.match(app, /S\.lb\.ask = null; S\.lb\.drawJob = \(S\.lb\.drawJob \|\| 0\) \+ 1; \$\('lb_plist'\)\.innerHTML =/, 'as does an error');
 });
