@@ -3225,6 +3225,37 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   @media (max-width: 380px) { .hg-grid { grid-template-columns: 1fr; } }
   @media (prefers-reduced-motion: reduce) { .hg-card, .hg-drawer, .hg-back { transition: none; } .hg-prog i { animation: none; } }
+  /* (update-218) THE WEB LOCK – after 10 minutes without use the locked screen covers everything (a module's page shown inside too);
+   * what is behind stays exactly as it was (only hidden: forms, scroll, the open page) – App.html wl…, the server: Code.gs wlGate_ */
+  #wl_lock { position: fixed; inset: 0; z-index: 2147483000; display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto;
+    background: radial-gradient(1200px 640px at 50% 0%, #E9F0FA 0%, #F4F6F8 58%, #EEF1F4 100%); font-family: var(--ui); }
+  #wl_lock[hidden] { display: none; }
+  body.wl-on > *:not(#wl_lock):not(script) { visibility: hidden !important; }
+  .wl-card { width: 100%; max-width: 400px; margin: auto; background: #fff; border: 1px solid #E2E8F0; border-radius: 20px; box-shadow: 0 24px 60px rgba(15,31,61,.14); padding: 24px 26px 18px; text-align: center; box-sizing: border-box; }
+  .wl-card .oc-logo { width: 132px; height: auto; display: block; margin: 0 auto; }
+  .wl-ic { width: 60px; height: 60px; margin: 14px auto 6px; border-radius: 50%; background: #0F1F3D; color: #fff; display: flex; align-items: center; justify-content: center; }
+  .wl-ic svg { width: 28px; height: 28px; }
+  .wl-card h1 { font: 700 21px/1.25 var(--ui); margin: 6px 0 4px; color: #0F172A; }
+  .wl-sub { margin: 0 0 14px; color: #64748B; font-size: 13.5px; line-height: 1.45; }
+  .wl-who { margin: 0 0 16px; padding: 10px 12px; border-radius: 12px; background: #F8FAFC; border: 1px solid #EEF2F6; }
+  .wl-who b { display: block; font-size: 16px; color: #0F172A; overflow-wrap: anywhere; } .wl-who span { display: block; font-size: 13px; color: #475569; margin-top: 2px; }
+  .wl-btn { width: 100%; border: 0; border-radius: 12px; padding: 13px 16px; font: 600 15px var(--ui); cursor: pointer; display: flex; gap: 10px; align-items: center; justify-content: center; box-sizing: border-box; }
+  .wl-btn svg { width: 22px; height: 22px; flex: none; }
+  .wl-btn.pri { background: linear-gradient(135deg, #1F2B34, #3B4C59); color: #fff; box-shadow: 0 8px 22px rgba(20,30,38,.25); }
+  .wl-btn.sec { background: #fff; color: #0F172A; border: 1px solid #CBD5E1; }
+  .wl-btn[disabled] { opacity: .6; cursor: progress; }
+  .wl-or { display: flex; align-items: center; gap: 10px; color: #94A3B8; font-size: 12px; margin: 14px 0; } .wl-or::before, .wl-or::after { content: ''; flex: 1; height: 1px; background: #E2E8F0; } .wl-or[hidden] { display: none; }
+  .wl-pw { display: flex; flex-direction: column; gap: 8px; text-align: left; margin: 0; }
+  .wl-pw label { font-size: 13px; color: #334155; font-weight: 600; }
+  .wl-pw input[type=password] { width: 100%; box-sizing: border-box; padding: 12px 14px; border: 1px solid #CBD5E1; border-radius: 12px; font: 400 15px var(--ui); color: #111827; background: #fff; }
+  .wl-pw input[type=password]:focus { outline: none; box-shadow: 0 0 0 2px #3b82f6; }
+  .wl-msg { min-height: 20px; margin: 10px 0 0; font-size: 13.5px; line-height: 1.4; color: #B91C1C; font-weight: 600; } .wl-msg.ok { color: #0B6B3A; }
+  .wl-out { margin-top: 12px; background: none; border: 0; color: #475569; font: 600 13.5px var(--ui); text-decoration: underline; cursor: pointer; padding: 6px 10px; }
+  @media (max-width: 420px) { .wl-card { padding: 18px 16px 12px; border-radius: 16px; } .wl-ic { margin-top: 10px; } }
+  /* My settings → Screen lock: his devices */
+  .wl-devs { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .wl-dev { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+  .wl-dev > div { flex: 1; min-width: 0; } .wl-dev b { overflow-wrap: anywhere; } .wl-dev small { display: block; color: var(--muted); } .wl-dev .wl-here { color: var(--good); font-weight: 700; margin-left: 6px; white-space: nowrap; }
 </style>
 </head>
 <body class="locked">
@@ -3332,6 +3363,27 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       try { if (localStorage.getItem(/^\/ho\/?$/i.test(window.top.location.pathname || '') ? 'rcl_portal_ho' : 'rcl_portal') && !/[?&]local=1(&|$)/.test(window.top.location.search || '') && sessionStorage.getItem('rcl_local') !== '1') {
         document.getElementById('login_form').hidden = true; document.getElementById('lg_portal').hidden = false; document.getElementById('lg_pt_err').textContent = 'Opening…'; } } catch (e) { /* the form stays */ }
     </script>
+  </div>
+</div>
+<!-- (update-218) THE WEB LOCK: over everything after 10 minutes without use – his name, the site, when it locked; the fingerprint / face / PIN
+     of this device or his password opens it; Sign out. The words are put in by the page in his language (wlDraw). -->
+<div id="wl_lock" hidden role="dialog" aria-modal="true" aria-labelledby="wl_t" data-noi18n>
+  <div class="wl-card">
+    <img class="oc-logo" src="/icons/oc-logo.webp" alt="One Click Solution" width="640" height="462" decoding="async">
+    <div class="wl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+    <h1 id="wl_t">Screen locked</h1>
+    <p class="wl-sub" id="wl_sub"></p>
+    <div class="wl-who"><b id="wl_name"></b><span id="wl_site"></span><span id="wl_when"></span></div>
+    <button type="button" class="wl-btn pri" id="wl_pk" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg><span id="wl_pk_t"></span></button>
+    <div class="wl-or" id="wl_or" hidden><span id="wl_or_t"></span></div>
+    <form class="wl-pw" id="wl_form" autocomplete="on" onsubmit="return false">
+      <input type="text" id="wl_user" name="username" autocomplete="username" hidden>
+      <label for="wl_pw" id="wl_pw_l"></label>
+      <input id="wl_pw" type="password" name="password" autocomplete="current-password" maxlength="200">
+      <button type="submit" class="wl-btn sec" id="wl_go"><span id="wl_go_t"></span></button>
+    </form>
+    <p class="wl-msg" id="wl_msg" role="alert"></p>
+    <button type="button" class="wl-out" id="wl_out"></button>
   </div>
 </div>
 <div class="app">
@@ -4388,6 +4440,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           <button class="btn ghost small" type="button" id="set_pw">Change my password</button></div>
         <div class="set-logins"><b>My last sign-ins</b><div id="set_logins" class="muted">–</div><small class="muted">A sign-in that was not yours? Change your password at once – that signs every other device out.</small></div>
       </div>
+    </div>
+    <!-- (update-218) the web lock: this device's fingerprint / face / PIN (the words are put in by the page in his language – wlSetDraw) -->
+    <div class="panel set-p" id="set_lock" data-noi18n>
+      <div class="panel-head"><h2 id="wl_set_h">Screen lock</h2><span class="chart-note" id="wl_set_note"></span></div>
+      <div class="set-ver" style="margin-top:0;padding-top:0;border-top:0"><div><span id="wl_set_l"></span><b id="wl_set_state">–</b><small id="wl_set_msg"></small></div>
+        <button type="button" class="btn primary" id="wl_set_add" hidden></button></div>
+      <div class="wl-devs" id="wl_devs"></div>
     </div>
     <div class="panel set-p" id="set_sites" hidden>
       <div class="panel-head"><h2>My sites</h2><span class="chart-note">You have more than one site. The site you are on is shown at the top – press it to open another one.</span></div>
@@ -5833,7 +5892,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return new Promise((resolve, reject) => {
       google.script.run
         .withSuccessHandler(r => { loadEnd(fn, box); resolve(r); })
-        .withFailureHandler(e => { loadEnd(fn, box); if (/SESSION_EXPIRED/.test(errMsg(e))) { showLogin('Your session ended. Please sign in again.'); } reject(e); })
+        .withFailureHandler(e => { loadEnd(fn, box); if (/SESSION_EXPIRED/.test(errMsg(e))) { showLogin('Your session ended. Please sign in again.'); }
+          // (update-218) the screen of this sign-in is locked: the lock is shown; this call waits and is asked again once it is unlocked
+          else if (/^SCREEN_LOCKED/.test(errMsg(e)) && !WL.out) { wlLock('server'); WL.waiters.push(() => rawCallM(fn, meta, args).then(resolve, reject)); return; }
+          reject(e); })
         .api(S.token || '', fn, JSON.parse(JSON.stringify(args, (k, v) => v === undefined ? null : v)), ...(meta ? [meta] : []));
     });
   }
@@ -6299,6 +6361,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function extFrame(m, hash) {
     const fr = document.createElement('iframe'); fr.id = 'ext_' + m.key; fr.className = 'ext-frame'; fr.title = m.name; fr.hidden = true;
     fr.addEventListener('load', () => extKeys(fr));      // (each time its page loads: the keys of this screen work inside it too)
+    fr.addEventListener('load', () => { try { wlWatch(fr.contentWindow); } catch (e) { /* another address */ } });      // (update-218) a touch inside its page counts for the screen lock
     fr.src = modBase(m) + '/?embed=1' + (hash || '#site=' + encodeURIComponent((S.siteInfo && S.siteInfo.site) || ptSite()) + '&u=' + encodeURIComponent(String((S.user && S.user.email) || '').toLowerCase()));
     $('ext_frames').appendChild(fr); return fr;
   }
@@ -6360,6 +6423,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     showTab(t);
   }
   function showLogin(msg, opt) {
+    try { wlReset(); } catch (e) { /* (update-218) the lock is not built yet at the first start */ }
     try { rtcRingClose(); rtcEnd('', true); } catch (e) { /* no screen share */ }
     try { saHide(); $('site_box').hidden = true; $('grp_mods').hidden = true; S.siteInfo = null; } catch (e) { /* the site parts are not built yet at the first start */ }
     S.token = ''; try { localStorage.removeItem(KK('rcl_token')); sessionStorage.removeItem(KK('rcl_token')); } catch (e) {}
@@ -6385,7 +6449,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const typed = $('lg_pass').value, mail = $('lg_email').value.trim();
       let last = ''; try { last = localStorage.getItem(KK('rcl_last_site')) || ''; } catch (e) { last = ''; }
       const r = await gsRun('login', mail, typed, { last: last });
-      S.token = r.token;
+      S.token = r.token; wlFresh();      // (update-218) his password was just typed: the screen starts unlocked
       // (update-90) the Super Admin: his own screen – no site, no entries, no reports
       if (r.superAdmin) { try { ($('lg_remember').checked ? localStorage : sessionStorage).setItem(KK('rcl_token'), r.token); } catch (e) { /* storage blocked */ } credSave(mail, typed); await saStart(r); return; }
       if (!r.mustChange) credSave(mail, typed);      // the browser asks "Save password?" (a password that must be changed first is not offered)
@@ -6464,6 +6528,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('lg_forgot').addEventListener('click', () => { lgNote('Please ask your Admin to reset your password.'); $('lg_sarec').hidden = false; });
   $('u_logout').addEventListener('click', async () => {
     if (!(await askConfirm({ title: 'Sign out?', message: ptOn() ? 'You will be signed out of the Portal and every module.' : 'You will need your email and password to sign in again.', ok: 'Sign out' }))) return;
+    await signOutNow();
+  });
+  // (update-218) signing out – from the button above, and from the locked screen (wlOut) without the question
+  async function signOutNow() {
+    wlForget();      // the lock's marks of this browser go with the sign-in (the next sign-in starts unlocked)
     try { await rtcPushLeave(); } catch (e) { /* this device then simply stops getting this user's calls at the next sign-in of someone else */ }
     const t = S.token, viaPortal = ptOn(); credForget(); showLogin('', { here: true }); try { await gsRun('logout', t); } catch (e) {}
     // a shared computer: the next person must not find the last one's settings (mobile number, photo) or the Admin's database check here.
@@ -6473,6 +6542,253 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try { await Promise.all(PT.mods.filter(m => m.key !== 'mechanical' && inHere(m)).map(m => fetch(modBase(m) + '/api/logout', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: '{}' }).catch(() => null))); } catch (e) { /* they end by themselves */ }
     if (viaPortal) { ptNav('/?signout=1'); return; }      // (update-91) signed out of the Portal too (its page does it)
     location.reload();
+  }
+  /* ================= THE WEB LOCK (update-218) =================
+   * Asked for web security; he chose "अ – Web lock (शिफारस)", and on 10-11-2026 the time: 10 minutes.
+   * 10 minutes with no mouse / keyboard / touch / scroll anywhere on this screen (a module's page shown inside it counts too; other
+   * tabs of this browser count – their last touch is shared, rcl_wl_act) → the screen locks: #wl_lock covers everything, what is
+   * behind is only hidden (inert) – the open page, the forms and what is typed in them, the scroll stay exactly as they were.
+   * Also when the computer wakes up after longer: the first touch locks before it counts. The locked screen shows his name, the
+   * site and when it locked; it opens with this device's fingerprint / face / PIN (when it was set up here – My settings → Screen
+   * lock) or with his password; Sign out stays possible. 5 wrong passwords in a row sign him out (the server decides).
+   * THE SERVER KEEPS THE LOCK (Code.gs wlGate_): every call says how long ago the page was touched (the bridge: __rclActAge); a
+   * locked sign-in gets nothing but its lock. A call the server refused because of the lock waits here and is asked again by itself
+   * once unlocked (rawCallM) – a save waits in the bridge with its own number. Unlocking in one tab unlocks the others of this
+   * browser (rcl_wl, the "storage" event); a page opened while the screen is locked (a new tab, the Portal's ticket) starts locked. */
+  const WL = { on: false, at: 0, sat: 0, ms: 600000, last: Date.now(), wrote: 0, waiters: [], focus: null, keys: [], name: '', site: '', portal: false, out: false, poll: 0, busy: false, tab: Math.random().toString(36).slice(2, 10) };
+  try { const m = Number(localStorage.getItem(KK('rcl_wl_ms'))); if (m >= 5000 && m <= 600000) WL.ms = m; } catch (e) { /* 10 minutes */ }
+  try { const a = Number(localStorage.getItem(KK('rcl_wl_act'))) || 0; if (a > 0 && a <= Date.now()) WL.last = a; } catch (e) { /* from now */ }      // (a new version swapped in by itself is not a touch: the real last one counts)
+  const wlT = o => (o && (o[fixLang] || o.en)) || '';
+  const wlOn = () => !!S.token && !/^sa/.test(S.token) && !WL.out;      // a person's sign-in (the Super Admin's own console: not locked here)
+  const wlShared = () => { try { return Number(localStorage.getItem(KK('rcl_wl_act'))) || 0; } catch (e) { return 0; } };
+  const wlLast = () => Math.max(WL.last, wlShared());
+  // how many ms ago he last touched the ERP – sent with every call (the bridge); -1 = nobody signed in here
+  window.__rclActAge = () => wlOn() ? Math.max(0, Date.now() - (WL.on ? WL.last : wlLast())) : -1;
+  window.__rclLocked = () => WL.on;
+  window.__rclLockSeen = () => { if (!WL.on && wlOn()) wlLock('server'); };
+  function wlMs(v) { v = Number(v); if (!(v >= 5000 && v <= 600000) || v === WL.ms) return; WL.ms = v; try { localStorage.setItem(KK('rcl_wl_ms'), String(v)); } catch (e) { /* 10 minutes next time */ } }
+  function wlShare(now) { WL.wrote = now; try { localStorage.setItem(KK('rcl_wl_act'), String(now)); } catch (e) { /* this tab only */ } }
+  // a touch, a key, a scroll … anywhere on this screen (and in a module's page inside it)
+  function wlTouch() {
+    if (WL.on) return;      // (the lock itself is not "using the ERP")
+    const now = Date.now();
+    if (wlOn() && now - WL.last > WL.ms && now - wlLast() > WL.ms) { wlLock('idle'); return; }      // a computer that wakes up after longer: locked first
+    WL.last = now;
+    if (now - WL.wrote > 5000) wlShare(now);
+  }
+  const WL_EV = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll', 'input'];
+  function wlWatch(win) { try { WL_EV.forEach(ev => win.addEventListener(ev, wlTouch, { capture: true, passive: true })); } catch (e) { /* another address: not ours to watch */ } }
+  wlWatch(window);
+  window.addEventListener('pagehide', () => { if (!WL.on && !WL.out && WL.last > WL.wrote) wlShare(WL.last); });      // (the next page of this browser knows the real last touch)
+  // every few seconds (and when the page is looked at again): 10 minutes untouched → locked
+  function wlCheck() { if (WL.on || !wlOn() || !S.user && !WL.pre) return; if (Date.now() - wlLast() > WL.ms) wlLock('idle'); }
+  setInterval(wlCheck, 5000);
+  ['visibilitychange', 'focus', 'pageshow'].forEach(ev => (ev === 'visibilitychange' ? document : window).addEventListener(ev, () => { if (!document.hidden) wlCheck(); }));
+  // the other tabs of this browser: a lock or an unlock there
+  window.addEventListener('storage', e => {
+    if (e.key === KK('rcl_wl_act')) { const v = Number(e.newValue) || 0; if (!WL.on && v > WL.last) WL.last = v; return; }
+    if (e.key !== KK('rcl_wl') || !wlOn()) return;
+    let v = null; try { v = JSON.parse(e.newValue || 'null'); } catch (er) { v = null; }
+    if (v && v.at && !WL.on && (S.user || WL.pre)) wlLock('tab');
+    else if (v && v.open && WL.on) wlAsk('lockState').then(r => { if (r && !r.locked) wlOpen(true); }).catch(() => { /* asked again by the next look */ });
+  });
+  function wlAsk(fn, x) { return new Promise((ok, no) => { google.script.run.withSuccessHandler(ok).withFailureHandler(no).api(S.token || '', fn, x === undefined ? [] : [x]); }); }
+  // the fingerprint / face / PIN's numbers and answers travel as base64url
+  const wlBuf = s => { s = String(s || '').replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; };
+  const wlStr = buf => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+  // the passkeys made in THIS browser (their numbers, per person) – "this device has a fingerprint / face / PIN"
+  function wlLocal(add, email) {
+    const e = String(email || (S.user && S.user.email) || '').toLowerCase(); let o = {};
+    try { o = JSON.parse(localStorage.getItem('rcl_wl_pk') || '{}') || {}; } catch (er) { o = {}; }
+    if (add) { o[e] = [...new Set((o[e] || []).concat(add))].slice(-10); try { localStorage.setItem('rcl_wl_pk', JSON.stringify(o)); } catch (er) { /* this page only */ } }
+    return Array.isArray(o[e]) ? o[e] : [];
+  }
+  const wlCan = () => !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create);
+  const wlMine = () => wlCan() && WL.keys.some(id => wlLocal().indexOf(id) > -1);
+  const WL_TX = {
+    title: { en: 'Screen locked', mr: 'स्क्रीन लॉक झाली आहे', hi: 'स्क्रीन लॉक हो गई है' },
+    sub: { en: 'Nobody used the ERP for {0}. Your work is kept as it was – unlock to go on.', mr: '{0} ERP वापरले गेले नाही. तुमचे काम जसेच्या तसे जपले आहे – पुढे काम करण्यासाठी unlock करा.', hi: '{0} ERP इस्तेमाल नहीं हुआ। आपका काम वैसा ही सुरक्षित है – आगे काम करने के लिए unlock करें।' },
+    min: { en: '{0} minutes', mr: '{0} मिनिटे', hi: '{0} मिनट' }, sec: { en: '{0} seconds', mr: '{0} सेकंद', hi: '{0} सेकंड' },
+    when: { en: 'Locked at {0}', mr: '{0} ला लॉक झाली', hi: '{0} पर लॉक हुई' },
+    pk: { en: 'Unlock with fingerprint / face / PIN', mr: 'Fingerprint / face / PIN ने unlock करा', hi: 'Fingerprint / face / PIN से unlock करें' },
+    or: { en: 'or', mr: 'किंवा', hi: 'या' },
+    pwl: { en: 'Your password', mr: 'तुमचा password', hi: 'आपका password' },
+    go: { en: 'Unlock with password', mr: 'Password ने unlock करा', hi: 'Password से unlock करें' },
+    out: { en: 'Sign out', mr: 'Sign out करा', hi: 'Sign out करें' },
+    wait: { en: 'Checking…', mr: 'तपासत आहे…', hi: 'जाँच हो रही है…' },
+    nopw: { en: 'Type your password.', mr: 'तुमचा password टाइप करा.', hi: 'अपना password टाइप करें।' },
+    wrong: { en: 'Wrong password – tries left: {0}, then you are signed out.', mr: 'Password चुकीचा – अजून {0} प्रयत्न बाकी, नंतर sign out होईल.', hi: 'Password गलत – {0} प्रयास बाकी, फिर sign out हो जाएगा।' },
+    gone: { en: 'You are signed out (5 wrong passwords). Sign in again.', mr: 'तुम्ही sign out झाला आहात (5 वेळा चुकीचा password). पुन्हा sign in करा.', hi: 'आप sign out हो गए (5 बार गलत password)। फिर से sign in करें।' },
+    stop: { en: 'Not done – try again, or unlock with your password.', mr: 'झाले नाही – पुन्हा करा, किंवा password ने unlock करा.', hi: 'नहीं हुआ – फिर से करें, या password से unlock करें।' },
+  };
+  const wlFill = (t, ...a) => String(t).replace(/\{(\d)\}/g, (m, i) => a[Number(i)] === undefined ? '' : a[Number(i)]);
+  const wlTime = ms => { const d = new Date(ms || Date.now()); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); };
+  const wlSpan = () => WL.ms >= 60000 ? wlFill(wlT(WL_TX.min), Math.round(WL.ms / 60000)) : wlFill(wlT(WL_TX.sec), Math.round(WL.ms / 1000));
+  // a message of the server, in his language: the help's first line for it (FIX_RULES – English, मराठी, हिंदी)
+  function wlHelp(m) { try { const r = fixRules(m)[0]; if (r && r !== FIX_ANY && r[fixLang]) return r[fixLang][0] + ' ' + r[fixLang][1]; } catch (er) { /* as it came */ } return m; }
+  function wlSay(e, ok) {
+    const m = typeof e === 'string' ? e : errMsg(e), n = /^Wrong password – (\d) tr/.exec(m);
+    $('wl_msg').textContent = n ? wlFill(wlT(WL_TX.wrong), n[1]) : typeof e === 'string' ? m : wlHelp(m); $('wl_msg').classList.toggle('ok', !!ok);
+  }
+  function wlDraw() {
+    $('wl_t').textContent = wlT(WL_TX.title); $('wl_sub').textContent = wlFill(wlT(WL_TX.sub), wlSpan());
+    $('wl_name').textContent = WL.name || (S.user && (S.user.name || S.user.email)) || '';
+    $('wl_site').textContent = WL.site || (S.siteInfo && S.siteInfo.name) || (S.org && S.org.site) || '';
+    $('wl_when').textContent = wlFill(wlT(WL_TX.when), wlTime(WL.at));
+    $('wl_pk_t').textContent = wlT(WL_TX.pk); $('wl_or_t').textContent = wlT(WL_TX.or); $('wl_pw_l').textContent = wlT(WL_TX.pwl);
+    $('wl_go_t').textContent = wlT(WL_TX.go); $('wl_out').textContent = wlT(WL_TX.out);
+    $('wl_user').value = (S.user && S.user.email) || '';
+    const mine = wlMine(); $('wl_pk').hidden = !mine; $('wl_or').hidden = !mine;
+  }
+  // what the server says of this sign-in's lock: his name, the site, his passkeys (asked also while locked)
+  function wlState() {
+    return wlAsk('lockState').then(r => {
+      if (!r) return r;
+      WL.name = r.name || ''; WL.site = r.site || ''; WL.keys = Array.isArray(r.keys) ? r.keys : []; WL.portal = !!r.portal;
+      if (Number(r.idle) >= 5000) { WL.ms = Number(r.idle); try { localStorage.setItem(KK('rcl_wl_ms'), String(WL.ms)); } catch (e) { /* 10 minutes next time */ } }
+      if (WL.on) wlDraw();
+      return r;
+    }, e => { if (/SESSION_EXPIRED/.test(errMsg(e))) { wlReset(); showLogin('Your session ended. Please sign in again.'); } throw e; });
+  }
+  // LOCK: everything hidden behind the panel, the server told (every tab of this sign-in is locked at once)
+  function wlLock(why, at) {
+    if (WL.on || !wlOn()) return;
+    WL.on = true; WL.at = at || Date.now(); WL.sat = 0;
+    WL.focus = document.activeElement;
+    [...document.body.children].forEach(el => { if (el.id === 'wl_lock' || el.tagName === 'SCRIPT') return; el.dataset.wlInert = el.inert ? '1' : '0'; el.inert = true; });
+    document.body.classList.add('wl-on');
+    $('wl_pw').value = ''; $('wl_msg').textContent = '';
+    wlDraw(); $('wl_lock').hidden = false;
+    setTimeout(() => { try { (wlMine() ? $('wl_pk') : $('wl_pw')).focus({ preventScroll: true }); } catch (e) { /* no focus */ } }, 60);
+    try { localStorage.setItem(KK('rcl_wl'), JSON.stringify({ at: WL.at, by: WL.tab })); } catch (e) { /* this tab only */ }
+    if (why !== 'boot') wlAsk('lockNow').then(r => { if (r && r.at) WL.sat = r.at; }).catch(() => { /* the server locks it by its own clock as well */ });
+    wlState().then(() => { if (WL.on && wlMine()) wlPrefetch('get'); }).catch(() => { /* the panel shows what this page knows */ });
+    clearInterval(WL.poll);
+    WL.poll = setInterval(() => { if (!WL.on) { clearInterval(WL.poll); return; } if (document.hidden) return;
+      wlAsk('lockState').then(r => { if (r && !r.locked && WL.sat && Number(r.act) >= WL.sat) wlOpen(true); }).catch(e => { if (/SESSION_EXPIRED/.test(errMsg(e))) { wlReset(); showLogin('Your session ended. Please sign in again.'); } }); }, 30000);
+  }
+  // UNLOCKED (here or in another tab): everything back as it was; the calls that waited go on
+  function wlOpen(fromOther) {
+    if (!WL.on) return;
+    wlReset();
+    WL.last = Date.now(); wlShare(WL.last);
+    if (!fromOther) { try { localStorage.setItem(KK('rcl_wl'), JSON.stringify({ open: Date.now(), by: WL.tab })); } catch (e) { /* the other tabs follow at their next call */ } }
+    try { const f = WL.focus; if (f && document.contains(f) && f.focus) f.focus({ preventScroll: true }); } catch (e) { /* no focus */ }
+    const w = WL.waiters; WL.waiters = []; w.forEach(f => { try { f(); } catch (e) { /* that call says so itself */ } });
+  }
+  // the panel off, without going on (signing out, the sign-in screen)
+  function wlReset() {
+    WL.on = false; WL.pre = false; clearInterval(WL.poll); WL.busy = false;
+    document.body.classList.remove('wl-on'); $('wl_lock').hidden = true; $('wl_pw').value = ''; $('wl_msg').textContent = '';
+    [...document.body.children].forEach(el => { if (el.dataset && el.dataset.wlInert !== undefined) { el.inert = el.dataset.wlInert === '1'; delete el.dataset.wlInert; } });
+  }
+  // signed out, or a new sign-in with the password: this browser's marks of the lock go
+  function wlForget() { WL.out = true; WL.waiters = []; wlReset(); try { localStorage.removeItem(KK('rcl_wl')); localStorage.removeItem(KK('rcl_wl_act')); } catch (e) { /* nothing kept */ } }
+  function wlFresh() { WL.out = false; WL.last = Date.now(); wlShare(WL.last); try { localStorage.removeItem(KK('rcl_wl')); } catch (e) { /* nothing kept */ } }
+  // a page that opens (a new tab, a reload, the Portal's ticket) while this browser's screen is locked, or left untouched longer: locked first
+  async function wlBoot() {
+    if (!wlOn()) return;
+    let f = null; try { f = JSON.parse(localStorage.getItem(KK('rcl_wl')) || 'null'); } catch (e) { f = null; }
+    const act = wlShared(); if (act > WL.last) WL.last = act;
+    if (!((f && f.at) || (act && Date.now() - act > WL.ms))) return;
+    WL.pre = true;      // (before the app has its data: nothing is asked of the server but the lock)
+    let r = null; try { r = await wlAsk('lockNow'); } catch (e) { if (/SESSION_EXPIRED/.test(errMsg(e))) { WL.pre = false; return; } }
+    wlLock('boot', f && f.at ? f.at : Date.now()); if (r && r.at) WL.sat = r.at;
+  }
+  /* (Safari on an iPhone / iPad / Mac asks the device only straight from a press – no waiting for the server between the press and the
+   * question): the request is fetched beforehand – when the lock shows, when My settings opens – and used for 90 s (the server keeps it 2) */
+  function wlPrefetch(kind) { WL.pf = null; return wlAsk(kind === 'new' ? 'passkeyStart' : 'unlockPasskeyStart').then(o => { WL.pf = { k: kind, o: o, t: Date.now() }; return o; }, () => null); }
+  async function wlOpts(kind) { const p = WL.pf; WL.pf = null; if (p && p.k === kind && Date.now() - p.t < 90000) return p.o; return wlAsk(kind === 'new' ? 'passkeyStart' : 'unlockPasskeyStart'); }
+  async function wlUnlockPw() {
+    if (WL.busy) return;
+    const pw = $('wl_pw').value; if (!pw) { wlSay(wlT(WL_TX.nopw)); $('wl_pw').focus(); return; }
+    WL.busy = true; $('wl_go').disabled = true; wlSay(wlT(WL_TX.wait), true);
+    try { const r = await wlAsk('unlockPassword', { password: pw }); if (r && r.ok) wlOpen(); }
+    catch (e) { const m = errMsg(e);
+      if (/signed out after 5 wrong passwords|SESSION_EXPIRED/.test(m)) { wlSay(wlT(WL_TX.gone)); WL.busy = false; setTimeout(() => signOutNow(), 1500); return; }
+      $('wl_pw').value = ''; wlSay(e); $('wl_pw').focus(); }
+    finally { WL.busy = false; $('wl_go').disabled = false; }
+  }
+  async function wlUnlockPk() {
+    if (WL.busy) return;
+    WL.busy = true; $('wl_pk').disabled = true; wlSay(wlT(WL_TX.wait), true);
+    try {
+      const o = await wlOpts('get');
+      let c = null;
+      try { c = await navigator.credentials.get({ publicKey: { challenge: wlBuf(o.challenge), rpId: o.rpId, allowCredentials: (o.allowCredentials || []).map(x => ({ type: 'public-key', id: wlBuf(x.id) })), userVerification: 'required', timeout: o.timeout || 60000 } }); }
+      catch (e) { wlSay(wlT(WL_TX.stop)); return; }      // (cancelled, no fingerprint, another device …)
+      const r = await wlAsk('unlockPasskey', { id: c.id, clientDataJSON: wlStr(c.response.clientDataJSON), authenticatorData: wlStr(c.response.authenticatorData), signature: wlStr(c.response.signature) });
+      if (r && r.ok) wlOpen();
+    } catch (e) { if (/SESSION_EXPIRED/.test(errMsg(e))) { wlReset(); showLogin('Your session ended. Please sign in again.'); return; } wlSay(e); }
+    finally { WL.busy = false; $('wl_pk').disabled = false; if (WL.on && wlMine()) wlPrefetch('get'); }      // (ready for the next press)
+  }
+  $('wl_form').addEventListener('submit', wlUnlockPw);
+  $('wl_pk').addEventListener('click', wlUnlockPk);
+  $('wl_out').addEventListener('click', () => signOutNow());
+  /* My settings → Screen lock: set up this device's fingerprint / face / PIN, his devices (date added), remove one */
+  const WL_SX = {
+    h: { en: 'Screen lock', mr: 'स्क्रीन लॉक', hi: 'स्क्रीन लॉक' },
+    note: { en: 'The screen locks by itself after {0} without use. It opens with this device\'s fingerprint / face / PIN, or with your password.', mr: '{0} वापर नसेल तर स्क्रीन आपोआप लॉक होते. ती या device च्या fingerprint / face / PIN ने किंवा तुमच्या password ने उघडते.', hi: '{0} इस्तेमाल न हो तो स्क्रीन अपने आप लॉक हो जाती है। वह इस device के fingerprint / face / PIN से या आपके password से खुलती है।' },
+    l: { en: 'Unlock with fingerprint / face / PIN on this device', mr: 'या device वर fingerprint / face / PIN ने unlock', hi: 'इस device पर fingerprint / face / PIN से unlock' },
+    on: { en: 'Set up on this device ✔', mr: 'या device वर चालू आहे ✔', hi: 'इस device पर चालू है ✔' },
+    off: { en: 'Not set up on this device', mr: 'या device वर चालू नाही', hi: 'इस device पर चालू नहीं' },
+    cant: { en: 'This device / browser has no fingerprint / face / PIN lock – the screen opens with your password.', mr: 'या device / browser मध्ये fingerprint / face / PIN lock नाही – स्क्रीन तुमच्या password ने उघडेल.', hi: 'इस device / browser में fingerprint / face / PIN lock नहीं है – स्क्रीन आपके password से खुलेगी।' },
+    add: { en: 'Set up on this device', mr: 'या device वर चालू करा', hi: 'इस device पर चालू करें' },
+    added: { en: 'Added {0}', mr: '{0} ला जोडले', hi: '{0} को जोड़ा' }, used: { en: 'last used {0}', mr: 'शेवटचा वापर {0}', hi: 'आखिरी इस्तेमाल {0}' },
+    here: { en: 'This device', mr: 'हे device', hi: 'यह device' }, rm: { en: 'Remove', mr: 'काढा', hi: 'हटाएँ' },
+    none: { en: 'No device is set up yet.', mr: 'अजून कोणतेही device चालू केलेले नाही.', hi: 'अभी कोई device चालू नहीं किया गया।' },
+    ask: { en: 'Remove the fingerprint / face / PIN of "{0}"? That device then unlocks only with the password.', mr: '"{0}" चा fingerprint / face / PIN काढायचा? मग ते device फक्त password ने unlock होईल.', hi: '"{0}" का fingerprint / face / PIN हटाएँ? फिर वह device सिर्फ password से unlock होगा।' },
+    done: { en: 'Done ✔ – this device now unlocks the screen with its fingerprint / face / PIN.', mr: 'झाले ✔ – आता हे device fingerprint / face / PIN ने स्क्रीन unlock करेल.', hi: 'हो गया ✔ – अब यह device fingerprint / face / PIN से स्क्रीन unlock करेगा।' },
+    twice: { en: 'This device is set up already – the locked screen offers it.', mr: 'हे device आधीच चालू आहे – लॉक स्क्रीनवर ते दिसेल.', hi: 'यह device पहले से चालू है – लॉक स्क्रीन पर यह दिखेगा।' },
+    stop: { en: 'Not done (cancelled, or the device did not allow it). Nothing was changed.', mr: 'झाले नाही (रद्द केले, किंवा device ने परवानगी दिली नाही). काहीही बदलले नाही.', hi: 'नहीं हुआ (रद्द किया, या device ने अनुमति नहीं दी)। कुछ नहीं बदला।' },
+  };
+  const wlDmy = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); if (!m) return ''; const d = new Date(iso); return isNaN(d) ? m[3] + '-' + m[2] + '-' + m[1] : ('0' + d.getDate()).slice(-2) + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + d.getFullYear(); };
+  // this device's name for his list (from the browser: "Windows · Chrome", "Android · Chrome", "iPhone · Safari" …)
+  function wlDevName() {
+    const u = navigator.userAgent || '';
+    const os = /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints > 1) ? 'iPad' : /Android/.test(u) ? 'Android' : /Windows/.test(u) ? 'Windows' : /Mac OS X|Macintosh/.test(u) ? 'Mac' : /CrOS/.test(u) ? 'Chromebook' : /Linux/.test(u) ? 'Linux' : 'Device';
+    const br = /Edg\//.test(u) ? 'Edge' : /SamsungBrowser/.test(u) ? 'Samsung Internet' : /OPR\//.test(u) ? 'Opera' : /Firefox\//.test(u) ? 'Firefox' : /Chrome\//.test(u) ? 'Chrome' : /Safari\//.test(u) ? 'Safari' : 'browser';
+    return os + ' · ' + br;
+  }
+  let wlSetList = null;
+  async function wlSetDraw(reload) {
+    if (!$('set_lock')) return;
+    $('wl_set_h').textContent = wlT(WL_SX.h); $('wl_set_note').textContent = wlFill(wlT(WL_SX.note), wlSpan()); $('wl_set_l').textContent = wlT(WL_SX.l); $('wl_set_add').textContent = wlT(WL_SX.add);
+    if (reload || !wlSetList) { try { const r = await wlAsk('passkeyList'); wlSetList = r; wlMs(r.idle); } catch (e) { $('wl_set_msg').textContent = wlHelp(errMsg(e)); return; } }
+    const r = wlSetList || { list: [] }, local = wlLocal(), list = r.list || [], here = list.some(c => local.indexOf(c.id) > -1);
+    WL.keys = list.map(c => c.id);
+    const can = wlCan() && r.can !== false;
+    $('wl_set_state').textContent = !can ? wlT(WL_SX.cant) : here ? wlT(WL_SX.on) : wlT(WL_SX.off);
+    $('wl_set_add').hidden = !can || here;
+    if (reload && can && !here) wlPrefetch('new');      // (the request for the device, ready for the press)
+    $('wl_devs').innerHTML = list.length ? list.map(c => '<div class="wl-dev"><div><b>' + esc(c.name) + '</b>' + (local.indexOf(c.id) > -1 ? '<span class="wl-here">· ' + esc(wlT(WL_SX.here)) + '</span>' : '') +
+      '<small>' + esc(wlFill(wlT(WL_SX.added), wlDmy(c.at))) + (c.used ? ' · ' + esc(wlFill(wlT(WL_SX.used), wlDmy(c.used))) : '') + '</small></div>' +
+      '<button type="button" class="btn ghost small" data-wlrm="' + esc(c.id) + '" data-name="' + esc(c.name) + '">' + esc(wlT(WL_SX.rm)) + '</button></div>').join('')
+      : '<small class="muted">' + esc(wlT(WL_SX.none)) + '</small>';
+  }
+  $('wl_set_add').addEventListener('click', async () => {
+    const b = $('wl_set_add'); if (b.disabled) return; b.disabled = true; $('wl_set_msg').textContent = ''; $('wl_set_msg').className = '';
+    try {
+      const o = await wlOpts('new');
+      let c = null;
+      try { c = await navigator.credentials.create({ publicKey: { challenge: wlBuf(o.challenge), rp: o.rp, user: { id: wlBuf(o.user.id), name: o.user.name, displayName: o.user.displayName }, pubKeyCredParams: o.pubKeyCredParams,
+        timeout: o.timeout || 60000, attestation: 'none', authenticatorSelection: o.authenticatorSelection, excludeCredentials: (o.excludeCredentials || []).map(x => ({ type: 'public-key', id: wlBuf(x.id) })) } }); }
+      catch (e) {
+        if (e && e.name === 'InvalidStateError') { wlLocal((o.excludeCredentials || []).map(x => x.id)); $('wl_set_msg').textContent = wlT(WL_SX.twice); $('wl_set_msg').className = 'ok'; wlSetDraw(); return; }      // (one of his passkeys is on this device already)
+        $('wl_set_msg').textContent = wlT(WL_SX.stop); $('wl_set_msg').className = 'bad'; return;
+      }
+      const r = await call('passkeySave', { id: c.id, clientDataJSON: wlStr(c.response.clientDataJSON), attestationObject: wlStr(c.response.attestationObject), name: wlDevName() });
+      wlLocal([r.id]); wlSetList = { list: r.list, idle: WL.ms, can: true };
+      $('wl_set_msg').textContent = wlT(WL_SX.done); $('wl_set_msg').className = 'ok';
+      wlSetDraw();
+    } catch (e) { $('wl_set_msg').textContent = wlHelp(errMsg(e)); $('wl_set_msg').className = 'bad'; }
+    finally { b.disabled = false; }
+  });
+  $('wl_devs').addEventListener('click', async e => {
+    const b = e.target.closest('[data-wlrm]'); if (!b) return;
+    if (!(await askConfirm({ title: wlT(WL_SX.rm), message: wlFill(wlT(WL_SX.ask), b.dataset.name), ok: wlT(WL_SX.rm) }))) return;
+    try { const r = await call('passkeyRemove', { id: b.dataset.wlrm }); wlSetList = { list: r.list, idle: WL.ms, can: wlSetList ? wlSetList.can : true }; wlSetDraw(); }
+    catch (er) { toast(wlHelp(errMsg(er)), true); }
   });
   /* ---------- access: show edit parts only where the user has Edit ---------- */
   function canEdit(module) { return !!(S.user && (S.user.perms || {})[module] === 'Edit'); }
@@ -6568,6 +6884,31 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Shown: under every red message (a card at the bottom right), inside every "Nothing saved / Not submitted" box, and next
    * to warnings on the billing page. The language is remembered on this device (rcl_lang). To cover a new message: add a rule. */
   const FIX_RULES = [
+    // (update-218) the web lock: the locked screen, its password and the fingerprint / face / PIN (passkey) of a device
+    { re: /^SCREEN_LOCKED|screen is locked \(nobody used it/i,
+      en: ['The screen was locked because nobody used the ERP for 10 minutes. Nothing was shown or saved while it was locked; your work is kept as it was.', 'Unlock it on the locked screen with this device\'s fingerprint / face / PIN or with your password – the page then goes on where you were, and what was waiting is done by itself.'],
+      mr: ['10 मिनिटे कोणी ERP वापरले नाही म्हणून स्क्रीन लॉक झाली. लॉक असताना काहीही दाखवले किंवा save केले गेले नाही; तुमचे काम जसेच्या तसे आहे.', 'लॉक स्क्रीनवर या device च्या fingerprint / face / PIN ने किंवा तुमच्या password ने unlock करा – page तिथूनच पुढे चालू होईल, आणि थांबलेले काम आपोआप होईल.'],
+      hi: ['10 मिनट किसी ने ERP इस्तेमाल नहीं किया इसलिए स्क्रीन लॉक हो गई। लॉक रहते कुछ भी दिखाया या save नहीं किया गया; आपका काम वैसा ही है।', 'लॉक स्क्रीन पर इस device के fingerprint / face / PIN से या अपने password से unlock करें – page वहीं से आगे चलेगा, और रुका हुआ काम अपने आप होगा।'] },
+    { re: /^Wrong password – |Type your password to unlock/i,
+      en: ['The password typed on the locked screen is not right (or nothing was typed).', 'Type your own password – the one you sign in with (on the Portal, if you sign in there). After 5 wrong passwords in a row you are signed out; the fingerprint / face / PIN of this device works too.'],
+      mr: ['लॉक स्क्रीनवर टाइप केलेला password बरोबर नाही (किंवा काहीच टाइप केले नाही).', 'तुमचा स्वतःचा password टाइप करा – ज्याने तुम्ही sign in करता तो (Portal वर sign in करत असाल तर तोच). सलग 5 वेळा चुकीचा password दिला तर sign out होईल; या device चा fingerprint / face / PIN पण चालतो.'],
+      hi: ['लॉक स्क्रीन पर टाइप किया password सही नहीं है (या कुछ टाइप नहीं किया)।', 'अपना password टाइप करें – जिससे आप sign in करते हैं (Portal पर sign in करते हों तो वही)। लगातार 5 बार गलत password देने पर sign out हो जाएगा; इस device का fingerprint / face / PIN भी चलता है।'] },
+    { re: /signed out after 5 wrong passwords/i,
+      en: ['You were signed out: 5 wrong passwords in a row were typed on the locked screen.', 'Sign in again with your password. If it was not you who typed them, change your password at once (My settings → Change my password).'],
+      mr: ['तुम्ही sign out झाला आहात: लॉक स्क्रीनवर सलग 5 वेळा चुकीचा password टाइप झाला.', 'तुमच्या password ने पुन्हा sign in करा. ते password तुम्ही टाइप केले नसतील तर लगेच password बदला (My settings → Change my password).'],
+      hi: ['आप sign out हो गए: लॉक स्क्रीन पर लगातार 5 बार गलत password टाइप हुआ।', 'अपने password से फिर से sign in करें। अगर वे password आपने टाइप नहीं किए थे तो तुरंत password बदलें (My settings → Change my password)।'] },
+    { re: /password could not be checked just now/i,
+      en: ['The password could not be checked just now – the Portal (where your password is kept) did not answer.', 'Wait a moment and press Unlock again, or unlock with this device\'s fingerprint / face / PIN. Nothing was counted as a wrong password.'],
+      mr: ['आत्ता password तपासता आला नाही – Portal (जिथे तुमचा password ठेवलेला आहे) ने उत्तर दिले नाही.', 'थोडे थांबा आणि पुन्हा Unlock दाबा, किंवा या device च्या fingerprint / face / PIN ने unlock करा. हा चुकीचा password म्हणून मोजला गेला नाही.'],
+      hi: ['अभी password जाँचा नहीं जा सका – Portal (जहाँ आपका password रखा है) ने जवाब नहीं दिया।', 'थोड़ा रुकें और फिर से Unlock दबाएँ, या इस device के fingerprint / face / PIN से unlock करें। इसे गलत password नहीं गिना गया।'] },
+    { re: /fingerprint \/ face \/ PIN (was not accepted|is not set up for you|request ran out|cannot be used on this server|works only on)|No fingerprint \/ face \/ PIN is set up/i,
+      en: ['The fingerprint / face / PIN of this device did not unlock the screen (it is not set up for you here, the request ran out, or the device\'s answer did not match).', 'Press "Unlock with fingerprint / face / PIN" again, or unlock with your password. If it keeps failing: My settings → Screen lock → remove this device and set it up again.'],
+      mr: ['या device च्या fingerprint / face / PIN ने स्क्रीन unlock झाली नाही (ते इथे तुमच्यासाठी चालू नाही, वेळ संपली, किंवा device चे उत्तर जुळले नाही).', '"Fingerprint / face / PIN ने unlock करा" पुन्हा दाबा, किंवा password ने unlock करा. सतत असे झाले तर: My settings → Screen lock → हे device काढा आणि पुन्हा चालू करा.'],
+      hi: ['इस device के fingerprint / face / PIN से स्क्रीन unlock नहीं हुई (यह यहाँ आपके लिए चालू नहीं है, समय खत्म हुआ, या device का जवाब मेल नहीं खाया)।', '"Fingerprint / face / PIN से unlock करें" फिर से दबाएँ, या password से unlock करें। बार-बार ऐसा हो तो: My settings → Screen lock → यह device हटाएँ और फिर से चालू करें।'] },
+    { re: /devices with fingerprint \/ face \/ PIN already|fingerprint \/ face \/ PIN could not be set up/i,
+      en: ['The fingerprint / face / PIN could not be set up on this device (at most 10 devices per person, and the device must agree).', 'Remove a device you do not use any more in My settings → Screen lock, then press "Set up on this device" again and confirm with the fingerprint / face / PIN.'],
+      mr: ['या device वर fingerprint / face / PIN चालू करता आले नाही (एका व्यक्तीसाठी जास्तीत जास्त 10 devices, आणि device ने परवानगी द्यायला हवी).', 'वापरात नसलेले device My settings → Screen lock मधून काढा, मग "या device वर चालू करा" पुन्हा दाबा आणि fingerprint / face / PIN ने पक्के करा.'],
+      hi: ['इस device पर fingerprint / face / PIN चालू नहीं हो सका (एक व्यक्ति के लिए ज़्यादा से ज़्यादा 10 devices, और device की अनुमति ज़रूरी है)।', 'जो device अब इस्तेमाल नहीं होता उसे My settings → Screen lock से हटाएँ, फिर "इस device पर चालू करें" दोबारा दबाएँ और fingerprint / face / PIN से पक्का करें।'] },
     // (update-212) HO: a car's photo
     { re: /photo of a car|car photo|Car photos (are kept|cannot be kept)|The photo of .{1,60} was changed by someone else|has no photo to remove|is not the one the Portal sent/i,
       en: ['The car\'s photo was not saved: only a real picture (JPG, PNG or WebP) can be a car\'s photo, the page makes it smaller by itself, and only the Admin or the Super Admin sets, changes or removes it. Nothing else was changed.', 'Pick or take the photo again and press Save photo. If someone changed the photo meanwhile, close the car and open it again. If it still fails, tell the Admin the exact message.'],
@@ -7463,10 +7804,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       en: ['The record of who added, changed or deleted what, and when.', 'It is written by the app itself on every save and cannot be edited. Only Admin sees it. "Screen share calls" shows the screen share history: who showed a screen to whom and how long, and the calls that were declined (with the reply) or not answered.'],
       mr: ['कोणी, काय, कधी जोडले, बदलले किंवा delete केले याची नोंद.', 'प्रत्येक save वर app स्वतः ही नोंद लिहिते; ती बदलता येत नाही. ती फक्त Admin ला दिसते. "Screen share calls" दाबले की screen share चा इतिहास दिसतो: कोणी कोणाला किती वेळ screen दाखवला, आणि कोणते call नाकारले (उत्तरासह) किंवा उचलले नाहीत.'],
       hi: ['किसने, क्या, कब जोड़ा, बदला या delete किया इसका रिकॉर्ड।', 'हर save पर app खुद यह रिकॉर्ड लिखता है; इसे बदला नहीं जा सकता। यह केवल Admin को दिखता है। "Screen share calls" दबाने पर screen share का इतिहास दिखता है: किसने किसे कितनी देर screen दिखाई, और कौन-से call मना किए गए (जवाब के साथ) या उठाए नहीं गए।'] },
-    settings: { saves: ['saveMyPrefs', 'saveSiteRules', 'getErrors', 'clearErrors', 'getAiCheck', 'rtcUsers', 'rtcSend', 'getAppVersion', 'saveVoiceWords', 'saveVoiceFix'],
-      en: ['Your own settings: photo, theme (light / dark), text size, language of the help, the page that opens first, your usual Log Book entry type, shift and diesel location, and favourite pages. For the Admin also the rules of the site.', 'Your settings belong to your sign-in: they are the same on every computer and change nobody else\'s app. Each change is saved by itself. Rules of the site (Admin): how many days back a user who is not Admin may enter or change entries, and a notice for everybody. Screen share (the screen button at the top of every page, from a computer in Chrome or Edge): tick up to 3 users, choose this tab in the box of the browser – they see your screen live and you can talk to each other; anybody in the call can show his own screen too. A click on the picture shows a red ring at that place on the sharer\'s screen, and "Open this page here" opens the same page in the viewer\'s own app (nobody can click or type in another person\'s screen). A phone can receive a screen share and talk but cannot show its screen. When the two networks do not let the computers reach each other directly, the call goes through the relay of the site (if one is set in the hosting) – the bar of the call then says "through the relay" (otherwise "direct connection"). For the Admin, under "This app": the update that runs now (e.g. update-74) and whether the relay is set, with "Check the relay" (it asks the relay from this computer and says whether it works). What to show: my screen, my camera (a phone\'s back camera – Switch camera, Light) or only my page (no video: the others\' app opens the page you are on, with their own access). In the call: Chat (text and photos), Pen (lines on the sharer\'s screen for 10 s), Snapshot (saved on this device), More → Low data; the bar shows the network (good / weak / poor); a line that drops is made again by itself. A call reaches a user even when his app is closed – "Screen share calls when the app is closed" → Turn on (each device once); not answered after 15 s → "Ask on WhatsApp" (his My mobile number); Reply… sends a short answer instead of a plain Decline; missed calls show as a red number on the screen button, with Call back. A red message has "Show this to the Admin" (it rings the Admin with the message). Nothing is recorded; the Activity Log notes who shared with whom and for how long. My sites (only with more than one site): the site that opens when you sign in. The site you are on is shown at the top – press it to open another site without signing in again. Voice typing writes the site\'s own names (Asset Master, Vendor Master, the places and works of the Log Book, the Super Admin\'s words here) as the site writes them; a spoken word corrected by hand right after is learned for the next time.'],
-      mr: ['तुमचे स्वतःचे settings: फोटो, theme (light / dark), अक्षरांचा आकार, मदतीची भाषा, आधी उघडणारे page, Log Book entry चा नेहमीचा प्रकार, shift आणि diesel चे ठिकाण, आणि आवडती pages. Admin साठी site चे नियमही.', 'तुमचे settings तुमच्या sign-in शी जोडलेले आहेत: प्रत्येक computer वर तेच राहतात आणि दुसऱ्या कोणाचे app बदलत नाही. प्रत्येक बदल आपोआप save होतो. Site चे नियम (Admin): Admin नसलेला user किती दिवस मागच्या entries भरू किंवा बदलू शकतो, आणि सगळ्यांसाठी सूचना. Screen share (प्रत्येक page च्या वर screen चे बटण; computer वर Chrome किंवा Edge मध्ये): जास्तीत जास्त 3 users निवडा, browser च्या box मध्ये हा tab निवडा – त्यांना तुमचा screen live दिसतो आणि तुम्ही एकमेकांशी बोलू शकता; call मधला कोणीही स्वतःचा screen दाखवू शकतो. चित्रावर click केले की दाखवणाऱ्याच्या screen वर त्या जागी लाल गोल दिसतो, आणि "Open this page here" ने तेच page पाहणाऱ्याच्या स्वतःच्या app मध्ये उघडते (दुसऱ्याच्या screen मध्ये कोणी click किंवा type करू शकत नाही). Phone वर screen share घेता येते आणि बोलता येते, पण phone स्वतःचा screen दाखवू शकत नाही. दोन networks मधून computers थेट एकमेकांपर्यंत पोहोचत नसतील तर call site च्या relay मधून जातो (hosting मध्ये relay लावलेला असेल तर) – तेव्हा call च्या bar मध्ये "through the relay" दिसते (नाहीतर "direct connection"). Admin साठी "This app" खाली: आत्ता कोणते update चालू आहे (उदा. update-74) आणि relay लावलेला आहे का, सोबत "Check the relay" (हा computer relay ला विचारतो आणि तो चालतो की नाही ते सांगतो). काय दाखवायचे: माझा screen, माझा camera (phone चा मागचा camera – Switch camera, Light) किंवा फक्त माझे page (video नाही: समोरच्याच्या app मध्ये तुम्ही असलेले page त्याच्या स्वतःच्या परवानगीने उघडते). Call मध्ये: Chat (मजकूर आणि photo), Pen (दाखवणाऱ्याच्या screen वर 10 सेकंद रेघा), Snapshot (या device मध्ये save), More → Low data; bar मध्ये network (good / weak / poor) दिसते; line तुटली तर आपोआप परत जोडली जाते. App बंद असले तरी call पोहोचतो – "Screen share calls when the app is closed" → Turn on (प्रत्येक device वर एकदा); 15 सेकंदात उत्तर नाही तर "Ask on WhatsApp" (त्याचा My mobile number); Reply… ने साध्या Decline ऐवजी छोटे उत्तर जाते; न उचललेले call screen बटणावर लाल आकड्याने दिसतात, Call back सोबत. लाल संदेशात "हे Admin ला दाखवा" बटण असते (संदेशासह Admin ला call जातो). काहीही record होत नाही; कोणी कोणाला किती वेळ दाखवले एवढेच Activity Log मध्ये नोंदले जाते. My sites (एकापेक्षा जास्त site असतील तरच): sign in केल्यावर कोणती site उघडायची. तुम्ही ज्या site वर आहात ती वर दिसते – ती दाबून दुसरी site पुन्हा sign in न करता उघडा. Voice typing आपल्या site ची नावे (Asset Master, Vendor Master, Log Book मधल्या जागा आणि कामे, इथे Super Admin ने टाकलेले शब्द) site लिहिते तशीच लिहिते; बोलल्यानंतर लगेच हाताने दुरुस्त केलेला शब्द पुढच्या वेळेसाठी लक्षात ठेवला जातो.'],
-      hi: ['आपके अपने settings: फोटो, theme (light / dark), अक्षरों का आकार, मदद की भाषा, पहले खुलने वाला page, Log Book entry का सामान्य प्रकार, shift और diesel की जगह, और पसंदीदा pages। Admin के लिए site के नियम भी।', 'आपके settings आपके sign-in से जुड़े हैं: हर computer पर वही रहते हैं और किसी और का app नहीं बदलता। हर बदलाव अपने-आप save होता है। Site के नियम (Admin): Admin न होने वाला user कितने दिन पीछे की entries भर या बदल सकता है, और सबके लिए सूचना। Screen share (हर page के ऊपर screen वाला बटन; computer पर Chrome या Edge में): ज़्यादा से ज़्यादा 3 users चुनें, browser के box में यही tab चुनें – उन्हें आपका screen live दिखता है और आप आपस में बात कर सकते हैं; call में कोई भी अपना screen दिखा सकता है। तस्वीर पर click करने से दिखाने वाले के screen पर उसी जगह लाल घेरा दिखता है, और "Open this page here" से वही page देखने वाले के अपने app में खुलता है (दूसरे के screen में कोई click या type नहीं कर सकता)। Phone पर screen share लिया जा सकता है और बात हो सकती है, पर phone अपना screen नहीं दिखा सकता। दोनों networks से computers सीधे एक-दूसरे तक न पहुँच पाएँ तो call site के relay से होकर जाता है (hosting में relay लगा हो तो) – तब call के bar में "through the relay" दिखता है (वरना "direct connection")। Admin के लिए "This app" के नीचे: अभी कौन-सा update चल रहा है (जैसे update-74) और relay लगा है या नहीं, साथ में "Check the relay" (यह computer relay से पूछता है और बताता है कि वह चलता है या नहीं)। क्या दिखाना है: मेरी screen, मेरा camera (phone का पीछे का camera – Switch camera, Light) या केवल मेरा page (video नहीं: सामने वाले के app में आपका page उसकी अपनी अनुमति से खुलता है)। Call में: Chat (text और photo), Pen (दिखाने वाले की screen पर 10 सेकंड रेखाएँ), Snapshot (इसी device में save), More → Low data; bar में network (good / weak / poor) दिखता है; line टूटे तो अपने-आप फिर जुड़ती है। App बंद हो तब भी call पहुँचता है – "Screen share calls when the app is closed" → Turn on (हर device पर एक बार); 15 सेकंड में जवाब नहीं तो "Ask on WhatsApp" (उसका My mobile number); Reply… से सादे Decline की जगह छोटा जवाब जाता है; न उठाए call screen बटन पर लाल अंक से दिखते हैं, Call back के साथ। लाल संदेश में "यह Admin को दिखाएँ" बटन होता है (संदेश के साथ Admin को call जाता है)। कुछ भी record नहीं होता; किसने किसे कितनी देर दिखाया, इतना ही Activity Log में लिखा जाता है। My sites (एक से ज़्यादा site हों तभी): sign in करने पर कौन सी site खुले। आप जिस site पर हैं वह ऊपर दिखती है – उसे दबाकर दूसरी site बिना दोबारा sign in किए खोलें। Voice typing अपनी site के नाम (Asset Master, Vendor Master, Log Book की जगहें और काम, यहाँ Super Admin के डाले शब्द) site जैसे लिखती है वैसे लिखता है; बोलने के बाद तुरंत हाथ से ठीक किया शब्द अगली बार के लिए याद रखा जाता है।'] },
+    settings: { saves: ['saveMyPrefs', 'saveSiteRules', 'getErrors', 'clearErrors', 'getAiCheck', 'rtcUsers', 'rtcSend', 'getAppVersion', 'saveVoiceWords', 'saveVoiceFix', 'passkeyList', 'passkeyStart', 'passkeySave', 'passkeyRemove', 'lockState', 'lockNow', 'unlockPassword', 'unlockPasskeyStart', 'unlockPasskey'],
+      en: ['Your own settings: photo, theme (light / dark), text size, language of the help, the page that opens first, your usual Log Book entry type, shift and diesel location, and favourite pages. For the Admin also the rules of the site.', 'Your settings belong to your sign-in: they are the same on every computer and change nobody else\'s app. Each change is saved by itself. Rules of the site (Admin): how many days back a user who is not Admin may enter or change entries, and a notice for everybody. Screen share (the screen button at the top of every page, from a computer in Chrome or Edge): tick up to 3 users, choose this tab in the box of the browser – they see your screen live and you can talk to each other; anybody in the call can show his own screen too. A click on the picture shows a red ring at that place on the sharer\'s screen, and "Open this page here" opens the same page in the viewer\'s own app (nobody can click or type in another person\'s screen). A phone can receive a screen share and talk but cannot show its screen. When the two networks do not let the computers reach each other directly, the call goes through the relay of the site (if one is set in the hosting) – the bar of the call then says "through the relay" (otherwise "direct connection"). For the Admin, under "This app": the update that runs now (e.g. update-74) and whether the relay is set, with "Check the relay" (it asks the relay from this computer and says whether it works). What to show: my screen, my camera (a phone\'s back camera – Switch camera, Light) or only my page (no video: the others\' app opens the page you are on, with their own access). In the call: Chat (text and photos), Pen (lines on the sharer\'s screen for 10 s), Snapshot (saved on this device), More → Low data; the bar shows the network (good / weak / poor); a line that drops is made again by itself. A call reaches a user even when his app is closed – "Screen share calls when the app is closed" → Turn on (each device once); not answered after 15 s → "Ask on WhatsApp" (his My mobile number); Reply… sends a short answer instead of a plain Decline; missed calls show as a red number on the screen button, with Call back. A red message has "Show this to the Admin" (it rings the Admin with the message). Nothing is recorded; the Activity Log notes who shared with whom and for how long. My sites (only with more than one site): the site that opens when you sign in. The site you are on is shown at the top – press it to open another site without signing in again. Voice typing writes the site\'s own names (Asset Master, Vendor Master, the places and works of the Log Book, the Super Admin\'s words here) as the site writes them; a spoken word corrected by hand right after is learned for the next time. Screen lock: after 10 minutes without use the screen locks (also a module\'s page shown inside it); it opens with this device\'s fingerprint / face / PIN – set it up here under Screen lock, see your devices with the date each was added, remove one – or with your password.'],
+      mr: ['तुमचे स्वतःचे settings: फोटो, theme (light / dark), अक्षरांचा आकार, मदतीची भाषा, आधी उघडणारे page, Log Book entry चा नेहमीचा प्रकार, shift आणि diesel चे ठिकाण, आणि आवडती pages. Admin साठी site चे नियमही.', 'तुमचे settings तुमच्या sign-in शी जोडलेले आहेत: प्रत्येक computer वर तेच राहतात आणि दुसऱ्या कोणाचे app बदलत नाही. प्रत्येक बदल आपोआप save होतो. Site चे नियम (Admin): Admin नसलेला user किती दिवस मागच्या entries भरू किंवा बदलू शकतो, आणि सगळ्यांसाठी सूचना. Screen share (प्रत्येक page च्या वर screen चे बटण; computer वर Chrome किंवा Edge मध्ये): जास्तीत जास्त 3 users निवडा, browser च्या box मध्ये हा tab निवडा – त्यांना तुमचा screen live दिसतो आणि तुम्ही एकमेकांशी बोलू शकता; call मधला कोणीही स्वतःचा screen दाखवू शकतो. चित्रावर click केले की दाखवणाऱ्याच्या screen वर त्या जागी लाल गोल दिसतो, आणि "Open this page here" ने तेच page पाहणाऱ्याच्या स्वतःच्या app मध्ये उघडते (दुसऱ्याच्या screen मध्ये कोणी click किंवा type करू शकत नाही). Phone वर screen share घेता येते आणि बोलता येते, पण phone स्वतःचा screen दाखवू शकत नाही. दोन networks मधून computers थेट एकमेकांपर्यंत पोहोचत नसतील तर call site च्या relay मधून जातो (hosting मध्ये relay लावलेला असेल तर) – तेव्हा call च्या bar मध्ये "through the relay" दिसते (नाहीतर "direct connection"). Admin साठी "This app" खाली: आत्ता कोणते update चालू आहे (उदा. update-74) आणि relay लावलेला आहे का, सोबत "Check the relay" (हा computer relay ला विचारतो आणि तो चालतो की नाही ते सांगतो). काय दाखवायचे: माझा screen, माझा camera (phone चा मागचा camera – Switch camera, Light) किंवा फक्त माझे page (video नाही: समोरच्याच्या app मध्ये तुम्ही असलेले page त्याच्या स्वतःच्या परवानगीने उघडते). Call मध्ये: Chat (मजकूर आणि photo), Pen (दाखवणाऱ्याच्या screen वर 10 सेकंद रेघा), Snapshot (या device मध्ये save), More → Low data; bar मध्ये network (good / weak / poor) दिसते; line तुटली तर आपोआप परत जोडली जाते. App बंद असले तरी call पोहोचतो – "Screen share calls when the app is closed" → Turn on (प्रत्येक device वर एकदा); 15 सेकंदात उत्तर नाही तर "Ask on WhatsApp" (त्याचा My mobile number); Reply… ने साध्या Decline ऐवजी छोटे उत्तर जाते; न उचललेले call screen बटणावर लाल आकड्याने दिसतात, Call back सोबत. लाल संदेशात "हे Admin ला दाखवा" बटण असते (संदेशासह Admin ला call जातो). काहीही record होत नाही; कोणी कोणाला किती वेळ दाखवले एवढेच Activity Log मध्ये नोंदले जाते. My sites (एकापेक्षा जास्त site असतील तरच): sign in केल्यावर कोणती site उघडायची. तुम्ही ज्या site वर आहात ती वर दिसते – ती दाबून दुसरी site पुन्हा sign in न करता उघडा. Voice typing आपल्या site ची नावे (Asset Master, Vendor Master, Log Book मधल्या जागा आणि कामे, इथे Super Admin ने टाकलेले शब्द) site लिहिते तशीच लिहिते; बोलल्यानंतर लगेच हाताने दुरुस्त केलेला शब्द पुढच्या वेळेसाठी लक्षात ठेवला जातो. Screen lock: 10 मिनिटे वापर नसेल तर स्क्रीन लॉक होते (आत दिसणारे दुसऱ्या module चे page सुद्धा); ती या device च्या fingerprint / face / PIN ने उघडते – ते इथे Screen lock मध्ये चालू करा, तुमचे devices आणि ते कधी जोडले ते पहा, एखादे काढा – किंवा तुमच्या password ने.'],
+      hi: ['आपके अपने settings: फोटो, theme (light / dark), अक्षरों का आकार, मदद की भाषा, पहले खुलने वाला page, Log Book entry का सामान्य प्रकार, shift और diesel की जगह, और पसंदीदा pages। Admin के लिए site के नियम भी।', 'आपके settings आपके sign-in से जुड़े हैं: हर computer पर वही रहते हैं और किसी और का app नहीं बदलता। हर बदलाव अपने-आप save होता है। Site के नियम (Admin): Admin न होने वाला user कितने दिन पीछे की entries भर या बदल सकता है, और सबके लिए सूचना। Screen share (हर page के ऊपर screen वाला बटन; computer पर Chrome या Edge में): ज़्यादा से ज़्यादा 3 users चुनें, browser के box में यही tab चुनें – उन्हें आपका screen live दिखता है और आप आपस में बात कर सकते हैं; call में कोई भी अपना screen दिखा सकता है। तस्वीर पर click करने से दिखाने वाले के screen पर उसी जगह लाल घेरा दिखता है, और "Open this page here" से वही page देखने वाले के अपने app में खुलता है (दूसरे के screen में कोई click या type नहीं कर सकता)। Phone पर screen share लिया जा सकता है और बात हो सकती है, पर phone अपना screen नहीं दिखा सकता। दोनों networks से computers सीधे एक-दूसरे तक न पहुँच पाएँ तो call site के relay से होकर जाता है (hosting में relay लगा हो तो) – तब call के bar में "through the relay" दिखता है (वरना "direct connection")। Admin के लिए "This app" के नीचे: अभी कौन-सा update चल रहा है (जैसे update-74) और relay लगा है या नहीं, साथ में "Check the relay" (यह computer relay से पूछता है और बताता है कि वह चलता है या नहीं)। क्या दिखाना है: मेरी screen, मेरा camera (phone का पीछे का camera – Switch camera, Light) या केवल मेरा page (video नहीं: सामने वाले के app में आपका page उसकी अपनी अनुमति से खुलता है)। Call में: Chat (text और photo), Pen (दिखाने वाले की screen पर 10 सेकंड रेखाएँ), Snapshot (इसी device में save), More → Low data; bar में network (good / weak / poor) दिखता है; line टूटे तो अपने-आप फिर जुड़ती है। App बंद हो तब भी call पहुँचता है – "Screen share calls when the app is closed" → Turn on (हर device पर एक बार); 15 सेकंड में जवाब नहीं तो "Ask on WhatsApp" (उसका My mobile number); Reply… से सादे Decline की जगह छोटा जवाब जाता है; न उठाए call screen बटन पर लाल अंक से दिखते हैं, Call back के साथ। लाल संदेश में "यह Admin को दिखाएँ" बटन होता है (संदेश के साथ Admin को call जाता है)। कुछ भी record नहीं होता; किसने किसे कितनी देर दिखाया, इतना ही Activity Log में लिखा जाता है। My sites (एक से ज़्यादा site हों तभी): sign in करने पर कौन सी site खुले। आप जिस site पर हैं वह ऊपर दिखती है – उसे दबाकर दूसरी site बिना दोबारा sign in किए खोलें। Voice typing अपनी site के नाम (Asset Master, Vendor Master, Log Book की जगहें और काम, यहाँ Super Admin के डाले शब्द) site जैसे लिखती है वैसे लिखता है; बोलने के बाद तुरंत हाथ से ठीक किया शब्द अगली बार के लिए याद रखा जाता है। Screen lock: 10 मिनट इस्तेमाल न हो तो स्क्रीन लॉक हो जाती है (अंदर दिखने वाला दूसरे module का page भी); वह इस device के fingerprint / face / PIN से खुलती है – उसे यहाँ Screen lock में चालू करें, अपने devices और वे कब जोड़े गए देखें, कोई हटाएँ – या अपने password से।'] },
     readme: { saves: ['readme', 'dbHealth', 'backupNow'],
       en: ['The set-up notes of the app for the Admin: where the data is kept, the SQL steps and the backup.', 'Nothing is entered here.'],
       mr: ['Admin साठी app च्या set-up ची माहिती: data कुठे आहे, SQL चे टप्पे आणि backup.', 'इथे काहीही भरले जात नाही.'],
@@ -9317,6 +9658,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const r = await rawCall('sync', beat);
       try { if (r && r.rtc) rtcInbox(r.rtc); } catch (e) { /* a screen-share note must never stop the heartbeat */ }
       if (r && r.build) checkBuild(r.build);
+      if (r && r.lock) wlMs(r.lock.ms);      // (update-218) the screen lock's time
       if (r && r.source) setDataSource(r.source);
       if (r && 'backup' in r) setBackupInfo(r.backup);
       if (r && r.faults) setFaults(r.faults);
@@ -10490,7 +10832,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function formDirty() { return !!S.formDirty || (typeof LX !== 'undefined' && LX && LX.d && typeof lxDirty === 'function' && lxDirty()) || !!(S.lt && S.lt.d && ltDirty()) ||
     (typeof PH !== 'undefined' && !!PH && (Object.keys(PH.items).length > 0 || phSending())); }      // (update-85: photos taken and not saved yet)
   // the shell asks these before it swaps in a new version
-  window.rclBusy = () => formDirty() || !$('cf_back').hidden || rtcOn();
+  window.rclBusy = () => formDirty() || !$('cf_back').hidden || rtcOn() || WL.on;      // (update-218: not while the screen is locked – it opens where he was)
   window.rclBusyWhy = () => { try { return !formDirty() && $('cf_back').hidden && rtcOn() ? 'call' : ''; } catch (e) { return ''; } };      // (a screen share that is on is not cut off by a new version of the app)
   window.rclSaveState = () => { try { localStorage.setItem('rcl_resume', JSON.stringify({ tab: S.curTab || 'dash', at: Date.now() })); } catch (e) {} };
   function swapNow() {
@@ -15038,6 +15380,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     document.querySelectorAll('#sec-settings .set-seg').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === (g.dataset.pref === 'appLang' && !p.appLang ? 'en' : String(p[g.dataset.pref])))));      // (update-112: the app's language not chosen = English)
     document.querySelectorAll('#sec-settings input[type=checkbox][data-pref]').forEach(c => { c.checked = !!p[c.dataset.pref]; });
     $('set_name').textContent = u.name || ''; $('set_email').textContent = u.email || ''; $('set_role').textContent = u.admin ? 'Admin' : 'User';
+    try { wlSetDraw(false); } catch (e) { /* (update-218) the screen lock's part */ }
     if (document.activeElement !== $('set_mobile')) $('set_mobile').value = p.mobile || '';
     // pages this user can open (for "first page" and the favourites)
     const pages = TABS.filter(t => t !== 'settings' && $('tab-' + t) && !$('tab-' + t).hidden && !(($('tab-' + t).closest('.navgroup') || {}).hidden)).map(t => ({ t: t, n: $('tab-' + t).querySelector('.label').textContent.trim() }));
@@ -15106,7 +15449,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('set_photo_del').addEventListener('click', () => prefSet({ photo: '' }));
   $('set_pw').addEventListener('click', () => $('u_pw').click());
   $('u_ava').addEventListener('click', () => $('tab-settings').click());
-  $('tab-settings').addEventListener('click', () => { setDraw(); setLoad(); avLoad(); voiceWordsLoad(true); });
+  $('tab-settings').addEventListener('click', () => { setDraw(); setLoad(); avLoad(); voiceWordsLoad(true); wlSetDraw(true); });
   $('set_db').addEventListener('click', () => $('db_pill').click());
   $('set_reset').addEventListener('click', async () => { if (!(await askConfirm({ title: 'Back to the usual settings?', ok: 'Reset', message: 'Theme, text size, language, first page, usual shift / location and favourites go back to how the app comes. Your photo and mobile number stay.' }))) return;
     const keep = { photo: S.prefs.photo, mobile: S.prefs.mobile }; prefSet(Object.assign({}, PREF_DEFAULT, keep)); });
@@ -17165,9 +17508,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   })();
   /* ---------- init ---------- */
   async function init() {
+    await wlBoot();      // (update-218) a page opened while this browser's screen is locked (or left untouched longer) starts locked
     showBoot(true, 'Filling up your data');
     try {
       const d = await call('getInit');
+      if (d.lock) wlMs(d.lock.ms);
       if (d.source) setDataSource(d.source);
       S.closedUpto = d.closedUpto || '';      // shown once the user is known (setClosed below)
       if ('backup' in d) setBackupInfo(d.backup);

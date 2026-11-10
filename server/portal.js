@@ -154,5 +154,27 @@ function papersOf(c) {
   return { link: c.link === true, company: id && name.length >= 2 ? { id: id, name: name, address: s(co.address, 300), gstin: s(co.gstin, 15).toUpperCase(), pan: s(co.pan, 10).toUpperCase(),
     logo: /^https:\/\/[^\s"'<>]{4,300}$/.test(logo) ? logo : '' } : null };
 }
+/* (update-218) THE WEB LOCK – "is this his password?" for a sign-in that came from the Portal. The Portal keeps the person's password
+ * (one password for every module); this app's copy of it is not kept in step (a password changed in the Portal is not written here,
+ * and a person made by the Portal has one nobody knows – Sites.gs sysSso_). So the Portal is asked, through its own sign-in
+ * (POST <PORTAL_URL>/api/auth – the same check and the same limits as a sign-in there: 5 wrong in 15 minutes → refused), and the
+ * sign-in it makes for that answer is ended at once (logout with its cookie, which never leaves this server). No change in the
+ * Portal is needed. Its Activity shows a "Login" and a "Logout" for such an unlock.
+ * → { ok: true } · { ok: false } (wrong) · { ok: false, many: true } (too many wrong tries there) · { error } (not reached) */
+function checkPassword(email, password) {
+  const from = url();
+  if (!from) return { error: 'this app is not linked to the Portal' };
+  const at = from + '/api/auth', head = { 'Content-Type': 'application/json', 'X-RCL': '1', Accept: 'application/json' };
+  const r = fetchAllSync([{ url: at, method: 'POST', headers: head, body: JSON.stringify({ action: 'login', email: String(email || ''), password: String(password || '') }), redirect: 'error' }], 20000)[0];
+  if (!r || r.error) return { error: 'the Portal did not answer' + (r && r.error ? ' (' + String(r.error).slice(0, 80) + ')' : '') };
+  if (r.code === 200) {
+    const m = /(?:^|[;,]\s*)rcl_portal=([^;,\s]+)/.exec(String((r.headers && r.headers['set-cookie']) || ''));
+    if (m) { try { fetchAllSync([{ url: at, method: 'POST', headers: Object.assign({ Cookie: 'rcl_portal=' + m[1] }, head), body: '{"action":"logout"}', redirect: 'error' }], 10000); } catch (e) { /* that sign-in has no cookie anywhere: nobody can use it */ } }
+    return { ok: true };
+  }
+  if (r.code === 401 || r.code === 400) return { ok: false };
+  if (r.code === 429) return { ok: false, many: true };
+  return { error: 'the Portal answered ' + r.code };
+}
 function forget() { KEYS = { at: 0, from: '', keys: [] }; }
-module.exports = { url, verify, verifyAdmin, papersOf, forget, AUD, ADMIN_AUD };
+module.exports = { url, verify, verifyAdmin, papersOf, checkPassword, forget, AUD, ADMIN_AUD };
