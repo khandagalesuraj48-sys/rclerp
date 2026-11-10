@@ -2419,3 +2419,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `.sm-in.mo-switch`; the rail: `[aria-expanded=true]` yellow, `.on` a thin line while open; `.sm-brand` (full logo); `modName` (Title Case);
   `extWarm()` (2.5 s after init: each of his modules of this address – `PT.mods` + `inHere` – loaded hidden one by one, 1.5 s apart, not
   on saveData). Reduced motion / `data-motion=less` stop it all. Tests: unit `update-221`; rig `test/browser/motion221.js` (GATEWAY=1).
+* **update-222 – The pages panel's logo (no SQL, 10-11-2026):** update-221's `.sm-brand … img { width: 100% }` resized the logo's image,
+  so the `.rlogo` crop showed only its white part ("rachana bgh nit nahi disat"); the rule is gone – the panel's logo is cut out by `.rlogo`
+  exactly as on the sign-in page and the old menu. Unit `update-221` checks no `.sm-brand … img` rule comes back.
