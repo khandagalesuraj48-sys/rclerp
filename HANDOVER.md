@@ -2386,3 +2386,16 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   (rtcFarPeople_ ← sysRtcPeople_ via __runOthers, OTHERS_; kept 1 min as RTCPPL) with their site's name ("far" – shown while online);
   names with the site (rtcNoteName_, rtcPushBy_); FCM x:1 = answer from any site. No SQL. With rcl-mobile 3.92.0. Tests: unit
   `update-217`; the rig with two sites (`test/browser/call217.js`, 19 / 19).
+- 10-11-2026 (update-218, web security – he chose "अ – Web lock (शिफारस)", 10 minutes). Report: `UPDATE_218.md`. No SQL. THE WEB LOCK:
+  10 minutes untouched (mouse / keys / touch / scroll; a module's page inside counts; tabs share `rcl_wl_act`; waking up after longer
+  locks first) → `#wl_lock` covers everything, the rest `inert` + hidden (nothing reloaded or lost); his name, site, time; unlock with
+  the device's passkey (WebAuthn) or the password; Sign out. Page: App.html `WL` / `wl…` (wlLock, wlOpen, wlBoot in `init`, rawCallM waits
+  on SCREEN_LOCKED, signOutNow), My settings → Screen lock (`wlSetDraw`). Bridge (page.js): `act` with every call, `WL_FNS` as
+  questions, a save that met the lock waits with its number. Server: Code.gs `wlGate_` (api, Sites.gs sysWho_, changePassword) – the
+  sign-in's value `S_` gets a 6th part `W<act>[L<at>]`, activity noted ≤ every 30 s, server's own clock 10 min + 1; WL_OPEN_FNS_;
+  `wlUnlockPw_` (Portal sign-in → server/portal.js `checkPassword` = the Portal's /api/auth login + logout; own sign-in → checkPw_;
+  WLF_ counter, 5 → signed out); passkeys `wlPk…` at the first site's app_settings `WL_PK|<email>` (rtcKvRead_/Write_), challenge
+  WLC_ 2 min once; server/webauthn.js (own CBOR, ES256/RS256, origin, RP ID hash, UP+UV, counter) via runtime `__webauthn`; runtime
+  `__act`, `__beatLight`, `__portalPw`, `__lockIdleMs` (RCL_RIG_LOCK_MS only without VERCEL); api/rpc.js meta.act / meta.origin, 423;
+  gas.js: a locked session is never answered from memory, own S_ writes update BEAT.sess. The phone app (no `act`) is not watched.
+  Tests: unit `update-218`; rig `test/browser/lock218.js` (Chrome's virtual authenticator, RCL_RIG_LOCK_MS=20000, localhost).
