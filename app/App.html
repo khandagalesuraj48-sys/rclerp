@@ -3333,7 +3333,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     #smenu { position: fixed; z-index: 9; left: 0; right: 0; top: auto; bottom: calc(var(--bar-h) + var(--bar-b)); width: auto !important; height: min(74vh, 640px); border-radius: 20px 20px 0 0;
       transform: translateY(105%); box-shadow: none; transition: transform .26s var(--sm-ease), visibility 0s linear .26s; }
     .app.nav-open #smenu { transform: none; box-shadow: 0 -16px 40px rgba(0,0,0,.35); transition: transform .26s var(--sm-ease), visibility 0s; }
-    .sm-in { width: 100%; transform: translateY(10px); }
+    .sm-in { width: 100%; }
     #sm_close svg { transform: rotate(-90deg); }      /* the sheet closes downwards */
     .app.nav-open .sm-in { transform: none; }
     #nav_back { display: block; position: fixed; inset: 0; z-index: 8; background: rgba(15,23,30,.45); backdrop-filter: none; -webkit-backdrop-filter: none; border-radius: 0; box-shadow: none;
@@ -3343,6 +3343,52 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   @media (prefers-reduced-motion: reduce) { #smenu, .app.nav-open #smenu, #nav_back, .sm-in, .app.nav-open .sm-in { transition-duration: 0s !important; transition-delay: 0s !important; } }
   html[data-motion=less] #smenu, html[data-motion=less] .app.nav-open #smenu { transition-delay: 0s !important; }
+  /* ================= (update-221, his brief of 10-11-2026 "Enterprise UI Animation & Micro-Interaction Upgrade") MOTION =================
+   * Visual only: nothing here changes what a button does, when a call is sent or what it answers. transform / opacity only. Off with the
+   * system's reduced motion and with My settings → "Less motion" (html[data-motion=less] – the rule above stops every duration).
+   *  - a question / Delete box (askConfirm): SCALE POP – from 72 %, a small overshoot; a refused / warning box: a short controlled WOBBLE;
+   *  - every box closes with a short fade and scale-down (a picture of it – the box itself is closed at once, exactly as before: mo-ghost);
+   *  - a button whose work is waiting for the server (busy): a small turning ring for exactly that time; a refusal: a short shake. */
+  :root { --mo-in: 260ms; --mo-out: 160ms; --mo-pop: cubic-bezier(.34, 1.45, .64, 1); --mo-ease: cubic-bezier(.2, .7, .3, 1); }
+  @keyframes moPop { from { opacity: 0; transform: scale(.72); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
+  @keyframes moWobble { 0% { opacity: 0; transform: scale(.9); } 35% { opacity: 1; transform: scale(1.02) rotate(-1deg); } 55% { transform: rotate(.8deg); } 75% { transform: rotate(-.4deg); } 100% { opacity: 1; transform: none; } }
+  @keyframes moOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(.94); } }
+  @keyframes moFade { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes moShake { 0%, 100% { transform: none; } 20% { transform: translateX(-5px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+  @keyframes moSpin { to { transform: rotate(360deg); } }
+  #cf_back:not([hidden]) #cf_box { animation: moPop var(--mo-in) var(--mo-pop) both; }
+  #cf_back:not([hidden]) #cf_box.alert.danger { animation: moWobble .38s var(--mo-ease) both; }
+  #cf_back:not([hidden]) #cf_box.danger #cf_ok { box-shadow: 0 6px 16px rgba(200, 16, 46, .28); }
+  .mo-ghost { position: fixed !important; inset: 0; z-index: 70; pointer-events: none !important; animation: moFade var(--mo-out) ease forwards !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  .mo-ghost > * { animation: moOut var(--mo-out) var(--mo-ease) forwards !important; }
+  .btn.mo-busy { position: relative; }
+  .btn.mo-busy::after { content: ""; width: 13px; height: 13px; margin-left: 2px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; opacity: .75; animation: moSpin .7s linear infinite; flex: 0 0 13px; }
+  .btn.mo-shake { animation: moShake .34s var(--mo-ease); }
+  @media (prefers-reduced-motion: reduce) { #cf_back #cf_box, .btn.mo-shake { animation: none !important; } .btn.mo-busy::after { animation-duration: 2.4s; } .mo-ghost { display: none !important; } }
+  html[data-motion=less] .mo-ghost { display: none !important; }
+  /* (update-221, asked 10-11-2026: "jya modual war click krel to colour tith jail … modual click madhe animations ahwet zoom in out che")
+   *  - the module clicked on the rail is the yellow one while its pages are open (the module of the open page keeps a thin yellow line);
+   *  - ZOOM: the pages panel zooms in as it opens and out as it closes, another module's pages zoom in, a page / a tab / a module's page
+   *    zooms in when it is shown (from 96.5 %, 0.22 s) – the old "rise" of the page parts is replaced by it; a rail button is pressed in. */
+  @keyframes moZoomIn { from { opacity: 0; transform: scale(.965); } to { opacity: 1; transform: none; } }
+  .mr-btn { transition: background .16s ease, color .16s ease, transform .12s ease, box-shadow .16s ease; }
+  .mr-btn:active { transform: scale(.93); }
+  .mr-btn[aria-expanded="true"] { background: #F2B705; color: #0C1A2E; }
+  .app.nav-open .mr-btn.on:not([aria-expanded="true"]) { background: transparent; color: #E8EEF7; box-shadow: inset 3px 0 0 #F2B705; }
+  .mr-btn[aria-expanded="true"] .mr-dot { box-shadow: 0 0 0 2px #F2B705; }
+  .sm-in { transform: translateX(-12px) scale(.97); transform-origin: 0 0; }
+  .sm-in.mo-switch { animation: moZoomIn .22s var(--mo-ease) both; }
+  .sm-brand { flex-shrink: 0; padding: 14px 14px 4px; display: flex; flex-direction: column; gap: 6px; }
+  .sm-brand .brandtile { padding: 10px 14px; border-radius: 10px; }
+  .sm-brand .brandtile .big { display: block; } .sm-brand .brandtile .big img { display: block; width: 100%; max-height: 54px; object-fit: contain; }
+  .sm-brand .brandsub { display: block; font-size: 10.5px; }
+  .sm-brand + .sm-head { padding-top: 8px; }
+  section.enter > .panel, section.enter > .ledger, section.enter > .dash-row, section.enter > div > .panel, section.enter > .viewonly { animation: moZoomIn .24s var(--mo-ease) both; animation-delay: 0s !important; }
+  section [role="tabpanel"]:not([hidden]), #dash_diesel:not([hidden]), #dash_log:not([hidden]), #dash_card:not([hidden]) { animation: moZoomIn .22s var(--mo-ease) both; }
+  .ext-frame.mo-zoom { animation: moZoomIn .24s var(--mo-ease) both; }
+  .rv { opacity: 0; transform: scale(.97); } .rv.in { opacity: 1; transform: none; transition: opacity .22s ease, transform .26s var(--mo-ease); }      /* a page part appearing as it is scrolled to: zooms in too */
+  @media (max-width: 760px) { .sm-in { transform: translateY(10px) scale(.98); transform-origin: 50% 100%; } .sm-brand { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .sm-in, .sm-in.mo-switch, section [role="tabpanel"], #dash_diesel, #dash_log, #dash_card, .ext-frame.mo-zoom, section.enter > * { animation: none !important; transform: none !important; } .mr-btn:active { transform: none; } }
 </style>
 </head>
 <body class="locked">
@@ -3502,6 +3548,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
        beside the rail and close by themselves when a page is picked (App.js: setDrawer / navShow / railSync) -->
   <div class="smenu" id="smenu">
   <div class="sm-in">
+  <!-- (update-221, asked 10-11-2026: "rachana name khup small zal te proper disaw") the full logo at the top of the pages, as the old menu had it -->
+  <div class="sm-brand"><div class="brandtile"><span class="rlogo big"><img src="https://i.ibb.co/CpSfBqXX/RCL-LOGO-PDF.png" alt="Rachana Construction Limited" onerror="this.parentNode.classList.add('noimg')"><span class="fb">Rachana</span></span></div><div class="brandsub">Fleet ERP<small class="by-oc">by One Click Solution</small></div></div>
   <div class="sm-head"><b id="sm_title">Machinery</b><button type="button" id="sm_close" title="Close the pages" aria-label="Close the pages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg></button></div>
   <label class="sm-find"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="sm_find" type="search" placeholder="Find a page…" aria-label="Find a page…" autocomplete="off" spellcheck="false" maxlength="60"></label>
   <nav aria-label="Pages">
@@ -6394,6 +6442,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   const PG_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>';
   const CHEV_IC = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
   const modBase = m => String(m.url || '').replace(/\/+$/, '');
+  // (update-221) a module's name as it is shown – "engineering" from the Portal's list is shown "Engineering" (a name with a capital is kept)
+  const modName = m => { const n = String((m && (m.name || m.key)) || '').trim(); return /[A-Z]/.test(n) ? n : n.replace(/(^|\s)\S/g, c => c.toUpperCase()); };
   const modLink = (m, site, page) => modBase(m) ? modBase(m) + '/#site=' + encodeURIComponent(site) + (page ? '&page=' + encodeURIComponent(page) : '') : PT.url + ptOpen(m.key, site, page);
   const MOD_MENU = {};      // a module's pages, read once per page load
   /* IN THE SAME VIEW (asked 13-10-2026: "Store open kel tri Mechanical sarkha view – sagle fix, fkt tab change … sign in
@@ -6422,7 +6472,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function sideMods() {
     const box = $('grp_mods'), cur = (S.siteInfo && S.siteInfo.site) || ptSite(), mods = ptOn() ? PT.mods.filter(m => m.key !== 'mechanical') : [];
     box.hidden = !mods.length;
-    box.innerHTML = mods.map(m => '<div class="navgroup modgrp" data-mod="' + esc(m.key) + '"><button type="button" class="grphead" aria-expanded="false" title="' + esc(m.name) + ' – its pages">' + MOD_IC + '<span class="label">' + esc(m.name) + '</span>' + CHEV_IC + '</button>' +
+    box.innerHTML = mods.map(m => '<div class="navgroup modgrp" data-mod="' + esc(m.key) + '"><button type="button" class="grphead" aria-expanded="false" title="' + esc(modName(m)) + ' – its pages">' + MOD_IC + '<span class="label">' + esc(modName(m)) + '</span>' + CHEV_IC + '</button>' +
       '<div class="grpitems"><div class="mp-wait">…</div></div></div>').join('');
     mods.forEach(m => modMenu(m, cur));
     modsFresh().then(ch => { if (ch) sideMods(); });
@@ -6437,11 +6487,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     const here = pages.length && inHere(m);
     let grp = '';
-    box.innerHTML = (pages.length ? pages : [{ key: '', name: 'Open ' + m.name }]).map(p => {
+    box.innerHTML = (pages.length ? pages : [{ key: '', name: 'Open ' + modName(m) }]).map(p => {
       const cap = p.group && p.group !== grp ? '<div class="mp-cap">' + esc(p.group) + '</div>' : ''; if (p.group) grp = p.group;
       const act = here ? 'data-mod="' + esc(m.key) + '" data-page="' + esc(p.key) + '" aria-selected="' + String(!!(EXT.on && EXT.on.key === m.key && EXT.on.page === p.key)) + '"'
         : 'data-go="' + esc(pages.length ? modLink(m, cur, p.key) : PT.url + ptOpen(m.key, cur)) + '"';
-      return cap + '<button type="button" class="navbtn" ' + act + ' title="' + esc(m.name + ' – ' + p.name) + '">' + PG_IC + '<span class="label">' + esc(String(p.name).slice(0, 60)) + '</span></button>';
+      return cap + '<button type="button" class="navbtn" ' + act + ' title="' + esc(modName(m) + ' – ' + p.name) + '">' + PG_IC + '<span class="label">' + esc(String(p.name).slice(0, 60)) + '</span></button>';
     }).join('');
   }
   // a page of a module of this address, inside this screen (only the middle changes)
@@ -6455,8 +6505,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     else { try { fr.contentWindow.location.hash = hash; } catch (e) { fr.src = modBase(m) + '/?embed=1' + hash; } }
     window.scrollTo(0, 0);
     TABS.forEach(t => { $('tab-' + t).setAttribute('aria-selected', 'false'); $('sec-' + t).hidden = true; });
+    const wasOut = fr.hidden || $('sec-ext').hidden;
     $('sec-ext').hidden = false; [...$('ext_frames').children].forEach(f => { f.hidden = f !== fr; });
-    $('page_title').textContent = pg.name; $('crumb_mod').textContent = m.name;
+    $('page_title').textContent = pg.name; $('crumb_mod').textContent = modName(m);
+    if (wasOut) { fr.classList.remove('mo-zoom'); void fr.offsetWidth; fr.classList.add('mo-zoom'); }      // (update-221) its page zooms in when it comes on screen
     if ($('dash_tabs')) $('dash_tabs').hidden = true;
     document.body.dataset.mod = 'dash';      // (the colours of the Dashboard)
     EXT.on = { key: key, page: pg.key };
@@ -6488,6 +6540,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey && $('gs_back').hidden) { e.preventDefault(); gsOpen(); return; }
       if (e.altKey && !e.ctrlKey && (e.key === 'b' || e.key === 'B' || e.code === 'KeyB')) { e.preventDefault(); goBack(); }
     }, true);
+  }
+  /* (update-221, asked 10-11-2026: "machinery madhun store war click kel ki sign in he as yeteyhe alech nahi pahije … user erp chalu kel ki
+   * auto sign in houn jatil jyala je access ahe tech") HIS MODULES ARE MADE READY IN THE BACKGROUND: a few seconds after this screen has
+   * its data, the page of each of his other modules of this site (the Portal's list – only what he has access to; only those of this
+   * address) is loaded out of sight, one after the other, and signs in by itself exactly as it does when it is opened (its own ticket
+   * from the Portal – nothing else). A click on Store / Engineering / Purchase then shows it at once – no "Signing in…". Not on a
+   * connection that asks to save data; not for a module already loaded. */
+  let extWarmOn = false;
+  async function extWarm() {
+    if (extWarmOn || !ptOn() || !S.user) return; extWarmOn = true;
+    try { if (navigator.connection && navigator.connection.saveData) return; } catch (e) { /* as usual */ }
+    try { if (await modsFresh()) sideMods(); } catch (e) { /* the list as it is */ }
+    for (const m of PT.mods.filter(x => x.key !== 'mechanical' && inHere(x))) {
+      if (!S.user || document.getElementById('ext_' + m.key)) continue;
+      try { extFrame(m); } catch (e) { /* that one is loaded when opened, as before */ }
+      await new Promise(ok => setTimeout(ok, 1500));      // (one at a time: this screen and the network stay free)
+    }
   }
   // the module's page, loaded and answering (window.rclModule) – made out of sight when not there yet; null after 12 s
   async function extReady(m) {
@@ -8022,6 +8091,26 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function showAlert(title, message) { return askConfirm({ title: title, message: message, ok: 'OK', danger: true, alertOnly: true }); }
   function closeConfirm(v) { $('cf_back').hidden = true; if (cfResolve) { const r = cfResolve; cfResolve = null; r(v); } }
+  /* (update-221) A BOX CLOSES WITH A SHORT FADE AND SCALE-DOWN. The box itself is closed at once, exactly as before (its "hidden", the
+   * answer, the focus – nothing waits); only a PICTURE of it (a copy at the end of the page, not reachable, not read aloud) fades out over 160 ms and is
+   * taken away. Opened again meanwhile: the picture goes at once. Not with reduced motion / "Less motion". Small boxes only (a copy of a
+   * big one – the numbers' box – would cost more than it shows). */
+  const MO_BOXES = ['cf_back', 'dlg_back', 'pw_back', 'le_back', 'gs_back'];
+  const moStill = () => { try { return document.documentElement.dataset.motion === 'less' || matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return true; } };
+  function moGhost(el) {
+    if (moStill() || !el || !el.firstElementChild) return;
+    const g = el.cloneNode(true);
+    g.removeAttribute('hidden');      // (its ids are kept for its looks – it comes AFTER the box in the page, so the box is the one found by its id)
+    g.setAttribute('aria-hidden', 'true'); g.inert = true; g.classList.add('mo-ghost'); g.dataset.of = el.id;
+    document.body.appendChild(g);
+    const end = () => { try { g.remove(); } catch (e) { /* gone */ } };
+    g.addEventListener('animationend', e => { if (e.target === g) end(); }); setTimeout(end, 400);
+  }
+  MO_BOXES.forEach(id => { const el = $(id); if (!el) return;
+    let open = !el.hidden;
+    new MutationObserver(() => { const now = !el.hidden; if (now === open) return; open = now;
+      if (now) document.querySelectorAll('.mo-ghost[data-of="' + id + '"]').forEach(g => g.remove()); else moGhost(el); }).observe(el, { attributes: true, attributeFilter: ['hidden'] });
+  });
   $('cf_ok').addEventListener('click', () => closeConfirm(true));
   $('cf_cancel').addEventListener('click', () => closeConfirm(false));
   $('cf_back').addEventListener('click', e => { if (e.target === $('cf_back')) closeConfirm(false); });
@@ -8040,8 +8129,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function errMsg(e) { return (e && e.message) ? e.message.replace(/^Error:\s*/, '') : String(e); }
   async function busy(btn, label, fn) {
     const old = btn.textContent; btn.disabled = true; btn.textContent = label;
-    try { await fn(); } catch (e) {
+    btn.classList.add('mo-busy');      // (update-221) the turning ring – exactly while this work waits for the server
+    try { await fn(); btn.classList.remove('mo-busy'); } catch (e) {
+      btn.classList.remove('mo-busy');
       const m = errMsg(e);
+      try { if (m !== CR_SENT && !FLOW_SENT_RE.test(m)) { btn.classList.remove('mo-shake'); void btn.offsetWidth; btn.classList.add('mo-shake'); setTimeout(() => btn.classList.remove('mo-shake'), 400); } } catch (er) { /* only a look */ }      // (update-221) refused: a short shake (not for "sent for approval / verification" – that is no refusal)
       if (/^(Not enough diesel|Cannot (delete|reduce) this inward)/.test(m)) { showAlert('Diesel stock', m); refreshStock(); }
       else if (/ is (inactive|active only from)/.test(m)) showAlert('Machinery is not active', m.replace(/^Row \d+: /, ''));
       else toast(m, m !== CR_SENT);
@@ -11235,7 +11327,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function setDrawer(open) {
     const app = document.querySelector('.app'), k = open ? (NAV.want || NAV.key || navKeyNow() || 'mach') : NAV.key;
     NAV.want = '';
+    const sw = open && NAV.open && k !== NAV.key;      // (update-221) another module while the pages are open: its pages zoom in
     if (open && (!NAV.open || k !== NAV.key)) navShow(k);
+    if (sw) { const si = document.querySelector('#smenu .sm-in'); if (si) { si.classList.remove('mo-switch'); void si.offsetWidth; si.classList.add('mo-switch'); } }
     NAV.open = !!open;
     app.classList.toggle('nav-open', open);
     document.documentElement.classList.toggle('nav-on', !!open);
@@ -17803,6 +17897,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       setTimeout(aiBriefAuto, 3500);      // the daily summary, once a day (after the start-up notices have had their turn)
       qrArrive().catch(() => { /* a label that cannot be opened must not stop the app */ });
       capArrive().catch(() => { /* (update-153) a QR code of Scan with Mobile that cannot be opened must not stop the app */ });
+      setTimeout(() => { try { extWarm(); } catch (e) { /* (update-221) a module is then loaded when it is opened, as before */ } }, 2500);
     } catch (e) {
       showBoot(false);
       const m = errMsg(e);
