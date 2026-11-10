@@ -3088,28 +3088,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #wt_form .wt-sh { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 20px; font-size: 12px; font-weight: 700; background: #FEF3C7; color: #92400E; }
   #wt_form .wt-sh.n { background: #E0E7FF; color: #3730A3; }
   /* ================= (update-209, asked 03-11-2026 – the preview he OK'd) TWO MOTIONS =================
-   * PUSH BACK MENU (a phone / tablet, ≤ 760 px – where the menu came over the page; a computer: the menu stays open on the left):
-   * "the page shrink back and side right revealing the menu behind it" – the page (its bar and all) shrinks back and moves to the
-   * right; the menu is BEHIND it on the left. A tap on the page (#nav_back, where the page now is), Back, a swipe to the left or a
-   * page of the menu closes it. While open the page does not scroll. The visible part of the page is clipped to the screen with
-   * rounded corners (--pb-t / --pb-b: what is above / below the screen; --pb-o: the screen's middle – set by setDrawer). */
-  @media (max-width: 760px) {
-    .app { --pb-x: min(72vw, 300px); --pb-s: .82; }
-    .app .side { width: 100vw !important; padding-right: calc(100vw - var(--pb-x)); z-index: 1; box-shadow: none; transform: translateX(-24px) scale(.96); transform-origin: 0 50%; opacity: .2;
-      transition: transform .52s cubic-bezier(.22, .9, .24, 1), opacity .4s ease; }
-    .app.nav-open .side { transform: none; opacity: 1; }
-    .app:not(.pb-clip) .side { visibility: hidden; }      /* closed: not there at all (the page is not lifted over it then) */
-    .app.pb-clip .mainwrap { z-index: 2; }
-    .app .mainwrap { transform-origin: 0 var(--pb-o, 50vh); transition: transform .52s cubic-bezier(.22, .9, .24, 1), clip-path .52s cubic-bezier(.22, .9, .24, 1); }
-    .app.pb-clip .mainwrap { clip-path: inset(var(--pb-t, 0px) 0 var(--pb-b, 0px) 0 round 0); }
-    .app.nav-open .mainwrap { transform: translateX(var(--pb-x)) scale(var(--pb-s)); clip-path: inset(var(--pb-t, 0px) 0 var(--pb-b, 0px) 0 round 28px); }
-    #nav_back { z-index: 3; inset: auto; left: var(--pb-x); top: calc(var(--pb-vh, 100vh) * (1 - var(--pb-s)) / 2); width: calc(100vw * var(--pb-s)); height: calc(var(--pb-vh, 100vh) * var(--pb-s));
-      border-radius: 28px; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: -22px 0 60px rgba(0, 0, 0, .42); opacity: 0; pointer-events: none;
-      transform: translateX(calc(100vw - var(--pb-x))); transition: opacity .4s ease, transform .52s cubic-bezier(.22, .9, .24, 1); }
-    .app.nav-open #nav_back { opacity: 1; pointer-events: auto; transform: none; }
-  }
-  html.pb-lock, html.pb-lock body { overflow: hidden; }
-  html.pb-lock #ai_fab { opacity: 0; pointer-events: none; transition: opacity .2s ease; }      /* the assistant's button belongs to the page: not over the menu */
+   * PUSH BACK MENU – replaced by update-219 (his "Option A", 10-11-2026): on a phone / tablet the module rail stays and the chosen
+   * module's pages slide over the page (see NAVIGATION at the end of this stylesheet); the page is no longer pushed back. */
   /* GOOEY DROP MESSAGE: "a gooey drop falls from the top then melts and spread into a toast" – the message is at the top; its colour
    * is a drop (#toast .goo, behind the words, through the SVG filter #rcl_goo) that falls, melts and spreads into it; after a while
    * it gathers back into a drop and goes up. The words and the ✓ / ! come in when it has spread (.tx-on). The colours as before. */
@@ -3256,6 +3236,113 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   .wl-devs { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
   .wl-dev { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
   .wl-dev > div { flex: 1; min-width: 0; } .wl-dev b { overflow-wrap: anywhere; } .wl-dev small { display: block; color: var(--muted); } .wl-dev .wl-here { color: var(--good); font-weight: 700; margin-left: 6px; white-space: nowrap; }
+  /* ================= (update-219, his choice of 10-11-2026: "Option A") NAVIGATION – the module rail + the chosen module's pages =================
+   * "mi option a choose kre … mechanical war click kel ki lagech sagle open hoil submenu eka khali ek, war search pn asel, ctrl k pn aahech …
+   *  submenu madhe kashya war click kel ki submenu close hoyla hawa, jasa aahe tas motha rahu naye … sub menu open zal ki screen adjust auto
+   *  hoyla hawi, close zali adjust auto … jewa submenu open hoto tewa ek effect haway open and close cha"
+   * #side is the whole menu: the RAIL (#mrail – always there: the logo, Change site, one button per module of his on this site, Admin for an
+   * Admin, My account at the bottom) and the PAGES of the chosen module (#smenu – every page one below another, a search box on top).
+   * A computer: the pages slide open beside the rail and the page next to them narrows (nothing is covered); closed, it has the full width
+   * again – one smooth slide (.22 s) each way. A phone / tablet (≤ 760 px): the rail stays (narrow) and the pages slide OVER the page (no room
+   * to push it), with a shade behind them. A page picked, the module's button again, a click outside or Esc closes them.
+   * Last in the stylesheet on purpose: it wins over the older menu blocks above (wide / slim menu, the phone drawer). */
+  .app { --rail-w: 84px; --sm-w: 276px; --sm-t: .22s; --sm-ease: cubic-bezier(.2, .7, .3, 1); }
+  #side { flex: 0 0 auto !important; width: auto !important; display: flex; flex-direction: row; align-items: stretch; position: sticky; top: 0; bottom: auto; left: auto; height: 100vh;
+    overflow: visible; padding: 0; background: none; box-shadow: none; border: 0; transform: none; opacity: 1; visibility: visible; transition: none; z-index: 7; }
+  #mrail { position: relative; z-index: 2; flex: 0 0 var(--rail-w); width: var(--rail-w); height: 100%; display: flex; flex-direction: column; gap: 4px; padding: 10px 6px;
+    background: var(--c-ink, #0C1A2E); box-shadow: inset -1px 0 0 rgba(255,255,255,.07); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: none; }
+  #mrail::-webkit-scrollbar { display: none; }
+  #mrail > * { flex-shrink: 0; }
+  #mrail .brandbox { padding: 2px 4px 6px; border: 0; gap: 0; }
+  #mrail .brandtile { padding: 5px; border-radius: 10px; }
+  #mrail .brandtile .big, #mrail .brandsub { display: none !important; }
+  #mrail .brandtile .small { display: block !important; width: 34px; }
+  #mrail .sitebox { padding: 0 0 6px; }
+  #mrail .site-chg { flex-direction: column; justify-content: center; gap: 2px; padding: 6px 2px; }
+  #mrail .site-chg .label, #mrail .site-chg .chev { display: none !important; }
+  #mrail .site-chg .sc-code { display: block; font-size: 10.5px; font-weight: 700; color: #F2C94C; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mr-mods { display: flex; flex-direction: column; gap: 4px; }
+  .mr-end { margin-top: auto; padding-top: 8px; }
+  .mr-btn { appearance: none; border: 0; background: transparent; color: #C4D0E0; cursor: pointer; position: relative; width: 100%; min-height: 60px; padding: 9px 2px 8px; border-radius: 12px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; font: 600 11px/1.15 var(--ui); text-align: center; transition: background .16s ease, color .16s ease; }
+  .mr-btn[hidden] { display: none; }
+  .mr-btn svg { width: 22px; height: 22px; flex: 0 0 22px; }
+  .mr-btn .mr-l { max-width: 100%; overflow-wrap: normal; word-break: normal; }      /* a word is never broken in two ("Engineerin-g") */
+  .mr-btn:hover { background: rgba(255,255,255,.08); color: #fff; }
+  .mr-btn[aria-expanded="true"] { background: rgba(255,255,255,.14); color: #fff; }
+  .mr-btn.on { background: #F2B705; color: #0C1A2E; }                    /* the module of the page that is open */
+  .mr-btn:focus-visible { outline: 2px solid #FFD66B; outline-offset: 1px; }
+  .mr-dot { position: absolute; top: 7px; right: calc(50% - 19px); width: 9px; height: 9px; border-radius: 50%; background: #E5484D; box-shadow: 0 0 0 2px var(--c-ink, #0C1A2E); }
+  .mr-dot[hidden] { display: none; }
+  .mr-btn.on .mr-dot { box-shadow: 0 0 0 2px #F2B705; }
+  /* the pages of the chosen module: closed = no width (the page has it all); open = the slide */
+  #smenu { position: relative; z-index: 1; flex: 0 0 auto; width: 0; height: 100%; overflow: hidden; visibility: hidden; background: #13233D; box-shadow: inset -1px 0 0 rgba(255,255,255,.06);
+    transition: width var(--sm-t) var(--sm-ease), visibility 0s linear var(--sm-t); }
+  .app.nav-open #smenu { width: var(--sm-w); visibility: visible; transition: width var(--sm-t) var(--sm-ease), visibility 0s; }
+  /* the open / close effect: the pages slide open (the width above) and their content comes in from the left as they open, fading */
+  .sm-in { width: var(--sm-w); height: 100%; display: flex; flex-direction: column; opacity: 0; transform: translateX(-12px); transition: opacity .16s ease, transform var(--sm-t) var(--sm-ease); }
+  .app.nav-open .sm-in { opacity: 1; transform: none; transition: opacity .2s ease .05s, transform var(--sm-t) var(--sm-ease); }
+  .sm-head, .sm-find, .sm-none { flex-shrink: 0; }      /* a long list scrolls inside; the search box keeps its height */
+  #smenu nav { flex: 1 1 auto; min-height: 0; }
+  .sm-head { display: flex; align-items: center; gap: 8px; padding: 14px 10px 8px 16px; }
+  .sm-head b { flex: 1; min-width: 0; font: 800 17px/1.2 var(--ui); color: #fff; overflow-wrap: anywhere; }
+  #sm_close { appearance: none; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 9px; border: 1px solid #2D426B; background: transparent; color: #fff; cursor: pointer; display: grid; place-items: center; padding: 0; }
+  #sm_close svg { width: 16px; height: 16px; }
+  #sm_close:hover { background: rgba(255,255,255,.08); }
+  #sm_close:focus-visible { outline: 2px solid #FFD66B; outline-offset: 1px; }
+  .sm-find { margin: 0 12px 4px; height: 38px; border-radius: 10px; background: #0C1A2E; border: 1px solid #2D426B; display: flex; align-items: center; gap: 8px; padding: 0 10px; color: #AFC0DC; cursor: text; }
+  .sm-find svg { width: 15px; height: 15px; flex: 0 0 15px; }
+  .sm-find:focus-within { border-color: #F2B705; }
+  .app #sm_find { flex: 1; min-width: 0; height: 100%; min-height: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: #fff; font: 500 14px var(--ui); outline: none; padding: 0; margin: 0; }
+  #sm_find::placeholder { color: #8FA3C4; opacity: 1; }
+  #sm_find::-webkit-search-cancel-button { filter: invert(1); opacity: .7; }
+  .sm-none { margin: 8px 18px; color: #AFC0DC; font-size: 13px; }
+  /* only the chosen module's pages – all of them, one below another (no group to open first) */
+  #smenu nav > :not(.sm-on), #grp_mods > .modgrp:not(.sm-on) { display: none !important; }
+  #smenu .grphead { display: none !important; }
+  #smenu .grpitems:not([hidden]), #smenu .sgitems:not([hidden]) { display: flex !important; margin: 0; padding: 0; border: 0; }
+  #smenu .navgroup + .navgroup { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.09); }
+  #smenu .subgrp + .subgrp, #smenu .navbtn + .subgrp { border-top: 0; margin-top: 0; padding-top: 0; }
+  #smenu .sghead { display: flex; pointer-events: none; height: auto; min-height: 0; margin: 0; padding: 12px 10px 4px; background: none; border-radius: 0;
+    font: 700 11px/1.2 var(--ui); letter-spacing: .06em; text-transform: uppercase; color: #8FA3C4; }
+  #smenu .sghead svg, #smenu .sghead .sg-badge, #smenu .navbtn .dot { display: none !important; }
+  #smenu .subcap { height: auto !important; margin: 0 !important; padding: 8px 10px 2px 12px !important; background: none !important; font: 600 11px var(--ui); letter-spacing: 0; text-transform: none; color: #7F92AB; }
+  #smenu .subcap::after { display: none !important; }
+  #smenu .favcap { padding: 4px 10px 4px; font: 700 11px/1.2 var(--ui); letter-spacing: .06em; color: #F2B705; opacity: 1; }
+  #smenu .favcap::before { content: "★ "; }
+  #smenu .modgrp .mp-cap { padding: 12px 10px 4px; font: 700 11px/1.2 var(--ui); letter-spacing: .06em; color: #8FA3C4; opacity: 1; }
+  #smenu .sm-x { display: none !important; }      /* not found by the search box */
+  #smenu nav { padding-top: 6px; }
+  /* a phone / tablet (≤ 760 px – the design he chose, "A on a phone browser"): the modules are a BAR at the bottom (the page keeps the whole
+   * width of the screen), the chosen module's pages slide UP over the page as a sheet, a shade behind them (a tap on it closes) */
+  .nav-menu, #nav_menu { display: none !important; }      /* the rail is the menu now */
+  @media (max-width: 760px) {
+    .app { --bar-h: 62px; --bar-b: env(safe-area-inset-bottom, 0px); }
+    #side { position: static; flex: 0 0 0 !important; width: 0 !important; height: 0; overflow: visible; z-index: auto; }
+    #mrail { position: fixed; z-index: 10; left: 0; right: 0; bottom: 0; top: auto; width: auto; height: calc(var(--bar-h) + var(--bar-b)); flex: none; flex-direction: row; align-items: stretch;
+      gap: 2px; padding: 4px 6px var(--bar-b); overflow-x: auto; overflow-y: hidden; box-shadow: 0 -1px 0 rgba(255,255,255,.07), 0 -8px 24px rgba(0,0,0,.18); }
+    #mrail .brandbox { display: none; }
+    #mrail .sitebox { padding: 0; display: flex; } #mrail .sitebox[hidden] { display: none; }
+    #mrail .site-chg { height: 100%; min-width: 54px; padding: 4px 2px; border-radius: 10px; }
+    .mr-mods { flex: 1 1 auto; flex-direction: row; gap: 2px; } .mr-mods > .mr-btn { flex: 1 1 0; }
+    .mr-end { margin: 0; padding: 0; display: flex; }
+    .mr-btn { min-height: 0; height: 100%; min-width: 58px; padding: 6px 2px 4px; gap: 3px; border-radius: 10px; font-size: 10px; letter-spacing: -.02em; }
+    .mr-btn svg { width: 20px; height: 20px; flex-basis: 20px; }
+    .mr-dot { top: 4px; right: calc(50% - 17px); }
+    .mainwrap { padding-bottom: calc(var(--bar-h) + var(--bar-b)); }
+    #smenu { position: fixed; z-index: 9; left: 0; right: 0; top: auto; bottom: calc(var(--bar-h) + var(--bar-b)); width: auto !important; height: min(74vh, 640px); border-radius: 20px 20px 0 0;
+      transform: translateY(105%); box-shadow: none; transition: transform .26s var(--sm-ease), visibility 0s linear .26s; }
+    .app.nav-open #smenu { transform: none; box-shadow: 0 -16px 40px rgba(0,0,0,.35); transition: transform .26s var(--sm-ease), visibility 0s; }
+    .sm-in { width: 100%; transform: translateY(10px); }
+    #sm_close svg { transform: rotate(-90deg); }      /* the sheet closes downwards */
+    .app.nav-open .sm-in { transform: none; }
+    #nav_back { display: block; position: fixed; inset: 0; z-index: 8; background: rgba(15,23,30,.45); backdrop-filter: none; -webkit-backdrop-filter: none; border-radius: 0; box-shadow: none;
+      transform: none; opacity: 0; pointer-events: none; touch-action: none; transition: opacity .24s ease; }
+    .app.nav-open #nav_back { opacity: 1; pointer-events: auto; }
+    html.nav-on #ai_fab { opacity: 0; pointer-events: none; }      /* the assistant's button belongs to the page: not over the pages */
+  }
+  @media (prefers-reduced-motion: reduce) { #smenu, .app.nav-open #smenu, #nav_back, .sm-in, .app.nav-open .sm-in { transition-duration: 0s !important; transition-delay: 0s !important; } }
+  html[data-motion=less] #smenu, html[data-motion=less] .app.nav-open #smenu { transition-delay: 0s !important; }
 </style>
 </head>
 <body class="locked">
@@ -3389,6 +3476,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 <div class="app">
 <div id="nav_back"></div>
 <aside class="side" id="side">
+  <!-- (update-219, his "Option A") the RAIL – always on the left: one button per module of his on this site; a click opens that module's
+       pages (#smenu) beside it. The logo and "Change site" moved here from the top of the old menu. -->
+  <div class="mrail" id="mrail" role="navigation" aria-label="Modules">
   <div class="brandbox">
     <div class="brandtile">
       <span class="rlogo big"><img src="https://i.ibb.co/CpSfBqXX/RCL-LOGO-PDF.png" alt="Rachana Construction Limited" onerror="this.parentNode.classList.add('noimg')"><span class="fb">Rachana</span></span>
@@ -3399,7 +3489,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   <div class="sitebox" id="site_box" hidden>
     <button type="button" class="site-chg" id="site_chg" title="Change site – open another of your sites" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg><span class="label"><small>Change site</small><b id="site_chg_name"></b></span><span class="sc-code" id="site_chg_code" aria-hidden="true"></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
   </div>
-  <nav aria-label="Modules">
+  <div class="mr-mods" id="mr_mods">
+    <button type="button" class="mr-btn" data-k="mach" aria-expanded="false" aria-controls="smenu" title="Machinery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg><span class="mr-l">Machinery</span><i class="mr-dot" hidden></i></button>
+    <!-- his other modules on this site (Store, Engineering, Purchase …): made by railSync from the module groups (#grp_mods) -->
+    <button type="button" class="mr-btn" data-k="admin" id="mr_admin" aria-expanded="false" aria-controls="smenu" title="Admin" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg><span class="mr-l">Admin</span><i class="mr-dot" hidden></i></button>
+  </div>
+  <div class="mr-end">
+    <button type="button" class="mr-btn" data-k="me" aria-expanded="false" aria-controls="smenu" title="My account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span class="mr-l">My account</span><i class="mr-dot" hidden></i></button>
+  </div>
+  </div>
+  <!-- (update-219) the PAGES of the module chosen on the rail – every page one below another, a search box at the top; they slide open
+       beside the rail and close by themselves when a page is picked (App.js: setDrawer / navShow / railSync) -->
+  <div class="smenu" id="smenu">
+  <div class="sm-in">
+  <div class="sm-head"><b id="sm_title">Machinery</b><button type="button" id="sm_close" title="Close the pages" aria-label="Close the pages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg></button></div>
+  <label class="sm-find"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="sm_find" type="search" placeholder="Find a page…" aria-label="Find a page…" autocomplete="off" spellcheck="false" maxlength="60"></label>
+  <nav aria-label="Pages">
     <div class="navgroup open" id="grp_mach">
       <button class="grphead" aria-expanded="true" aria-controls="grp_mach_items" title="Machinery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg><span class="label">Machinery</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
       <div class="grpitems" id="grp_mach_items" role="tablist" aria-orientation="vertical">
@@ -3474,7 +3579,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       </div>
     </div>
   </nav>
-  <button class="side-toggle" id="side_toggle" aria-label="Collapse menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg><span class="label">Close menu</span></button>
+  <p class="sm-none" id="sm_none" hidden>No page found</p>
+  </div>
+  </div>
+  <!-- (update-219) the old "slim / wide menu" button: no longer shown – the rail is always slim, the pages open with a click -->
+  <button class="side-toggle" id="side_toggle" aria-label="Collapse menu" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg><span class="label">Close menu</span></button>
 </aside>
 <div class="mainwrap">
 <header class="topbar">
@@ -6362,6 +6471,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const fr = document.createElement('iframe'); fr.id = 'ext_' + m.key; fr.className = 'ext-frame'; fr.title = m.name; fr.hidden = true;
     fr.addEventListener('load', () => extKeys(fr));      // (each time its page loads: the keys of this screen work inside it too)
     fr.addEventListener('load', () => { try { wlWatch(fr.contentWindow); } catch (e) { /* another address */ } });      // (update-218) a touch inside its page counts for the screen lock
+    fr.addEventListener('load', () => { try { fr.contentWindow.addEventListener('click', () => { if (NAV.open) setDrawer(false); }, true); } catch (e) { /* another address */ } });      // (update-219) a click inside its page closes the module's pages, as a click on a page of Mechanical
     fr.src = modBase(m) + '/?embed=1' + (hash || '#site=' + encodeURIComponent((S.siteInfo && S.siteInfo.site) || ptSite()) + '&u=' + encodeURIComponent(String((S.user && S.user.email) || '').toLowerCase()));
     $('ext_frames').appendChild(fr); return fr;
   }
@@ -6426,6 +6536,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try { wlReset(); } catch (e) { /* (update-218) the lock is not built yet at the first start */ }
     try { rtcRingClose(); rtcEnd('', true); } catch (e) { /* no screen share */ }
     try { saHide(); $('site_box').hidden = true; $('grp_mods').hidden = true; S.siteInfo = null; } catch (e) { /* the site parts are not built yet at the first start */ }
+    try { if (NAV && NAV.open) setDrawer(false); } catch (e) { /* (update-219) the module's pages: closed for the next sign-in (not built yet at the first start) */ }
     S.token = ''; try { localStorage.removeItem(KK('rcl_token')); sessionStorage.removeItem(KK('rcl_token')); } catch (e) {}
     try { const de = document.documentElement; de.dataset.theme = 'light'; de.dataset.text = 'normal'; de.dataset.density = 'normal'; if ($('grp_fav')) $('grp_fav').hidden = true; if ($('announce')) $('announce').hidden = true; } catch (e) { /* the sign-in screen is always the plain one */ }
     document.body.classList.add('locked');
@@ -8571,7 +8682,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const g = h.closest('.navgroup'); const open = !g.classList.contains('open');
     g.classList.toggle('open', open); h.setAttribute('aria-expanded', String(open));
   }));
-  try { if (localStorage.getItem('rcl_side_mini') === '1') setSide(true); } catch (e) {}
+  // (update-219) the menu is the module rail now – always slim, the pages open with a click: a "slim menu" kept on this device from
+  // before is not put back (it would hide the names of the pages)
   // sections inside MACHINERY: click to open / close; which are open is remembered on this device
   function sgSave() { try { const o = {}; document.querySelectorAll('.subgrp').forEach(g => { o[g.dataset.sg] = g.classList.contains('open'); }); localStorage.setItem('rcl_sg', JSON.stringify(o)); } catch (e) {} }
   function sgSet(g, open) { g.classList.toggle('open', open); g.querySelector('.sghead').setAttribute('aria-expanded', String(open)); sgSave(); }
@@ -11048,30 +11160,155 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
      * of the page is shown after 0.6 s at the latest. The soft appearing is only decoration – the content is what matters. */
     clearTimeout(sec._rvT); sec._rvT = setTimeout(() => { ps.forEach(p => { if (!p.classList.contains('in')) { p.classList.add('in'); try { rvObs.unobserve(p); } catch (e) {} } }); }, 600);
   }
-  // phone drawer
-  /* (update-209) PUSH BACK on a phone / tablet (≤ 760 px – the CSS of update-209): before the page moves, the part of it on the screen
-   * is clipped (what is above and below the screen), its middle is where it shrinks to, and the page stops scrolling; after it is
-   * back, all of that is let go. A computer: the class only, as before. */
-  let pbT = 0;
-  function setDrawer(open) {
-    const app = document.querySelector('.app'), mw = app.querySelector('.mainwrap');
-    let phone = false; try { phone = matchMedia('(max-width: 760px)').matches; } catch (e) { phone = false; }
-    clearTimeout(pbT);
-    if (open && phone && mw && !app.classList.contains('nav-open')) {
-      const se = document.scrollingElement || document.documentElement, y = se.scrollTop || 0, h = window.innerHeight, top = mw.getBoundingClientRect().top + y, mh = mw.offsetHeight;
-      app.style.setProperty('--pb-t', Math.max(0, y - top) + 'px'); app.style.setProperty('--pb-b', Math.max(0, top + mh - y - h) + 'px');
-      app.style.setProperty('--pb-o', (y - top + h / 2) + 'px'); app.style.setProperty('--pb-vh', h + 'px');
-      app.classList.add('pb-clip'); document.documentElement.classList.add('pb-lock');
-      void mw.offsetWidth;      // the clip is in place before the page starts to move
-    }
-    app.classList.toggle('nav-open', open);
-    if (!open) pbT = setTimeout(() => { app.classList.remove('pb-clip'); document.documentElement.classList.remove('pb-lock'); }, 560);
+  /* ================= (update-219, his choice of 10-11-2026: "Option A") NAVIGATION – the module rail + the chosen module's pages =================
+   * "mechanical war click kel ki lagech sagle open hoil submenu eka khali ek, war search pn asel, ctrl k pn aahech … submenu madhe kashya war
+   *  click kel ki submenu close hoyla hawa … sub menu open zal ki screen adjust auto hoyla hawi, close zali adjust auto"
+   * The RAIL (#mrail) is always there: Machinery; each module of #grp_mods (the Portal's list of HIS modules on this site – Store,
+   * Engineering, Purchase …); Admin when the Admin group is shown (an Admin, as before); My account at the bottom.
+   * A click on a module → its PAGES open at once (#smenu): every page one below another (the sections of the old menu are headings now,
+   * nothing to open first), a search box on top that filters them as he types (Enter opens the first one found). Picking a page, the
+   * module's button again, the « button, a click outside, Esc, or on a phone a tap on the shade / a swipe to the left close them.
+   * The pages are the SAME buttons as before (the same ids, handlers, access rules, badges) – only the way to reach them changed.
+   * The rail follows the menu by itself (a MutationObserver on #smenu): the module of the open page is marked, a module with a page that
+   * has a badge / dot gets a dot, a module added / taken away (the Portal's list, Admin) gets / loses its button. Ctrl + K is unchanged.
+   * (Before: update-209's push back on a phone; a pinned wide menu – or slim, with its button – on a computer.) */
+  var NAV = { key: '', want: '', open: false, sel: undefined, sig: null, raf: 0, obs: null };      // (var: showLogin may look at it before this line)
+  const NAV_IC = {      // the rail's icon of a module of the Portal (any other: the general one)
+    store: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></svg>',
+    engineering: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 18h20"/><path d="M4 18v-2a8 8 0 0 1 16 0v2"/><path d="M10 9V5h4v4"/></svg>',
+    purchase: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h3l2.5 11h10L21 7H7"/><circle cx="10" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>' };
+  // the module a page's button belongs to: 'mach' (its Favourites too), 'admin', 'me', 'mod:<key>'
+  function navKeyOf(el) {
+    if (!el) return '';
+    const mg = el.closest('#grp_mods .modgrp'); if (mg) return 'mod:' + mg.dataset.mod;
+    const g = el.closest('.navgroup'), id = g ? g.id : '';
+    return id === 'grp_mach' || id === 'grp_fav' ? 'mach' : id === 'grp_admin' ? 'admin' : id === 'grp_me' ? 'me' : '';
   }
-  $('nav_menu').addEventListener('click', () => setDrawer(!document.querySelector('.app').classList.contains('nav-open')));
+  // the groups of the menu that hold module k's pages
+  function navBoxes(k) {
+    if (k === 'mach') return [$('grp_fav'), $('grp_mach')].filter(Boolean);
+    if (k === 'admin') return [$('grp_admin')];
+    if (k === 'me') return [$('grp_me')];
+    const g = String(k).indexOf('mod:') === 0 ? [...$('grp_mods').children].find(x => x.dataset && x.dataset.mod === k.slice(4)) : null;
+    return g ? [g] : [];
+  }
+  const navRailBtn = k => [...document.querySelectorAll('#mrail .mr-btn')].find(b => b.dataset.k === k) || null;
+  const navSelBtn = () => document.querySelector('#smenu .navbtn[aria-selected="true"]');
+  const navKeyNow = () => navKeyOf(navSelBtn());
+  const navShown = box => [...box.querySelectorAll('.navbtn')].some(b => !b.hidden && !b.classList.contains('sm-x') && !b.closest('[hidden]'));
+  // only the chosen module's groups are shown in the panel (also a group made later: Favourites, a module's pages)
+  function navMark() {
+    const on = navBoxes(NAV.key); if (String(NAV.key).indexOf('mod:') === 0 && on.length) on.push($('grp_mods'));
+    document.querySelectorAll('#smenu .sm-on').forEach(g => { if (on.indexOf(g) < 0) g.classList.remove('sm-on'); });
+    on.forEach(g => g.classList.add('sm-on'));
+  }
+  // the search box: a page stays when every word typed is in its name; a heading with nothing left under it goes too
+  function navFilter() {
+    const words = String($('sm_find').value || '').toLowerCase().split(/\s+/).filter(Boolean), on = words.length > 0;
+    let n = 0;
+    navBoxes(NAV.key).forEach(g => {
+      g.querySelectorAll('.navbtn').forEach(b => {
+        const hay = (b.textContent + ' ' + (b.getAttribute('title') || '') + ' ' + (b.dataset.en || '')).toLowerCase(), hit = !on || words.every(w => hay.indexOf(w) > -1);
+        b.classList.toggle('sm-x', !hit); if (hit && !b.hidden && !b.closest('[hidden]')) n++;
+      });
+      g.querySelectorAll('.grpitems, .sgitems').forEach(box => {
+        let cap = null, c = 0; const end = () => { if (cap) cap.classList.toggle('sm-x', on && !c); };
+        [...box.children].forEach(el => { if (el.matches('.subcap, .mp-cap')) { end(); cap = el; c = 0; } else if (el.matches('.navbtn') && !el.hidden && !el.classList.contains('sm-x')) c++; });
+        end();
+      });
+      g.querySelectorAll('.subgrp').forEach(sg => sg.classList.toggle('sm-x', on && !navShown(sg)));
+      if (g.id === 'grp_fav') g.classList.toggle('sm-x', on && !navShown(g));
+    });
+    $('sm_none').hidden = !on || n > 0;
+  }
+  // module k's pages into the panel: its name on top, the search empty, the open page in sight
+  function navShow(k) {
+    NAV.key = k; navMark();
+    const b = navRailBtn(k); $('sm_title').textContent = b ? b.querySelector('.mr-l').textContent : '';
+    $('sm_find').value = ''; navFilter();
+    const nav = $('smenu').querySelector('nav'), sel = navSelBtn();
+    if (!nav) return; nav.scrollTop = 0;
+    if (sel && navKeyOf(sel) === k) nav.scrollTop = Math.max(0, sel.getBoundingClientRect().top - nav.getBoundingClientRect().top - nav.clientHeight / 3);
+  }
+  /* open (the module asked for: NAV.want, else the one shown last / of the open page) or close the pages. The same function as the old
+   * drawer, so everything that closed the menu before (a page, Change site, the phone's Back, the shade, the swipe) closes the pages. */
+  function setDrawer(open) {
+    const app = document.querySelector('.app'), k = open ? (NAV.want || NAV.key || navKeyNow() || 'mach') : NAV.key;
+    NAV.want = '';
+    if (open && (!NAV.open || k !== NAV.key)) navShow(k);
+    NAV.open = !!open;
+    app.classList.toggle('nav-open', open);
+    document.documentElement.classList.toggle('nav-on', !!open);
+    document.querySelectorAll('#mrail .mr-btn').forEach(b => b.setAttribute('aria-expanded', String(!!open && b.dataset.k === k)));
+  }
+  const navFocusRail = k => { const b = navRailBtn(k); if (b) try { b.focus({ preventScroll: true }); } catch (e) { /* fine */ } };
+  /* the rail follows the menu: its modules (and Admin), the module of the open page, the dots; another page opened while the pages
+   * are open (Ctrl + K, Back, a link) closes them as a pick does */
+  function railSync() {
+    NAV.raf = 0;
+    const adm = $('mr_admin'), mods = $('grp_mods').hidden ? [] : [...$('grp_mods').children].filter(g => g.classList.contains('modgrp') && g.dataset.mod);
+    const nameOf = g => String(((g.querySelector('.grphead .label') || {}).textContent) || g.dataset.mod).trim();
+    const sig = mods.map(g => g.dataset.mod + '=' + nameOf(g)).join('|');
+    if (sig !== NAV.sig) {
+      NAV.sig = sig;
+      document.querySelectorAll('#mrail .mr-btn[data-mod]').forEach(b => b.remove());
+      mods.forEach(g => adm.insertAdjacentHTML('beforebegin', '<button type="button" class="mr-btn" data-k="mod:' + esc(g.dataset.mod) + '" data-mod="' + esc(g.dataset.mod) + '" aria-expanded="false" aria-controls="smenu" title="' + esc(nameOf(g)) + '">' +
+        (NAV_IC[g.dataset.mod] || MOD_IC) + '<span class="mr-l">' + esc(nameOf(g)) + '</span><i class="mr-dot" hidden></i></button>'));
+    }
+    adm.hidden = !!$('grp_admin').hidden;
+    const sel = navSelBtn(), sk = navKeyOf(sel), selId = sk + '|' + (sel ? sel.id || sel.dataset.page || '' : '');
+    document.querySelectorAll('#mrail .mr-btn').forEach(b => {
+      const k = b.dataset.k, on = !!sk && k === sk;
+      b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+      b.setAttribute('aria-expanded', String(NAV.open && k === NAV.key));
+      const dot = b.querySelector('.mr-dot');
+      if (dot) dot.hidden = !navBoxes(k).some(g => [...g.querySelectorAll('.badge, .dot')].some(x => !x.hidden && !x.closest('[hidden]') && (x.classList.contains('dot') || !!x.textContent.trim())));
+    });
+    const kb = NAV.open ? navRailBtn(NAV.key) : null;
+    if (NAV.open && (!kb || kb.hidden)) setDrawer(false);      // the module of the open pages is gone (no Admin any more, a module taken away)
+    else if (NAV.open) { navMark(); if ($('sm_find').value) navFilter(); }
+    if (NAV.sel !== undefined && selId !== NAV.sel && NAV.open) setDrawer(false);
+    NAV.sel = selId;
+  }
+  // a module's button: its pages (again: closed)
+  $('mrail').addEventListener('click', e => {
+    const b = e.target.closest('.mr-btn'); if (!b || b.hidden) return;
+    if (NAV.open && NAV.key === b.dataset.k) { setDrawer(false); return; }
+    NAV.want = b.dataset.k; setDrawer(true);
+  });
+  $('sm_close').addEventListener('click', () => { const k = NAV.key; setDrawer(false); navFocusRail(k); });
+  // a page picked in the panel (a page of Mechanical, a favourite, a module's page): it opens (its own handler) and the panel closes
+  $('smenu').addEventListener('click', e => { if (e.target.closest('.navbtn')) setDrawer(false); });
+  $('sm_find').addEventListener('input', navFilter);
+  $('sm_find').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.isComposing) {
+      e.preventDefault();
+      const b = navBoxes(NAV.key).flatMap(g => [...g.querySelectorAll('.navbtn')]).find(x => !x.hidden && !x.disabled && !x.closest('[hidden]') && !x.closest('.sm-x'));
+      if (b) b.click();
+    } else if (e.key === 'Escape') {
+      e.preventDefault(); e.stopPropagation();
+      if ($('sm_find').value) { $('sm_find').value = ''; navFilter(); } else { const k = NAV.key; setDrawer(false); navFocusRail(k); }
+    }
+  });
+  // a click outside the menu closes the pages (what was clicked still does its own work); not while the typing stays in the search
+  // box (the voice mic / large-box buttons beside it keep it there)
+  document.addEventListener('click', e => { if (NAV.open && !$('side').contains(e.target) && !$('side').contains(document.activeElement)) setDrawer(false); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || !NAV.open || e.defaultPrevented) return;
+    const a = document.activeElement; if (a && a !== document.body && !$('side').contains(a)) return;      // Esc of a box / dialog of the page: theirs
+    const k = NAV.key; setDrawer(false); navFocusRail(k);
+  });
+  $('nav_menu').addEventListener('click', e => { e.stopPropagation(); setDrawer(!document.querySelector('.app').classList.contains('nav-open')); });      // (hidden: the rail is the menu)
   $('nav_back').addEventListener('click', () => setDrawer(false));
-  // (update-209) turned to a wide screen while open (no push back there): closed, the page scrolls again
-  window.addEventListener('resize', () => { if (document.querySelector('.app').classList.contains('nav-open') && !matchMedia('(max-width: 760px)').matches) setDrawer(false); });
+  // the screen turned from a phone's width to a computer's or back (the pages over the page ↔ beside it): closed
+  try { matchMedia('(max-width: 760px)').addEventListener('change', () => { if (NAV.open) setDrawer(false); }); } catch (e) { /* an older browser: as it is */ }
   document.querySelectorAll('.navbtn').forEach(b => b.addEventListener('click', () => setDrawer(false)));
+  // the sections of Machinery are headings in the panel now (all pages shown) – not a stop of the Tab key; the English names kept for the search
+  document.querySelectorAll('#smenu .sghead').forEach(h => h.setAttribute('tabindex', '-1'));
+  document.querySelectorAll('#smenu .navbtn').forEach(b => { const l = b.querySelector('.label'); if (l && !b.dataset.en) b.dataset.en = l.textContent.trim(); });
+  NAV.obs = new MutationObserver(() => { if (!NAV.raf) NAV.raf = requestAnimationFrame(railSync); });
+  NAV.obs.observe($('smenu'), { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-selected', 'hidden'] });
+  railSync();
   // swipe the drawer closed
   (function () {
     let x0 = null;

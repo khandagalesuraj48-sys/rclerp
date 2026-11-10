@@ -2399,6 +2399,12 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `__act`, `__beatLight`, `__portalPw`, `__lockIdleMs` (RCL_RIG_LOCK_MS only without VERCEL); api/rpc.js meta.act / meta.origin, 423;
   gas.js: a locked session is never answered from memory, own S_ writes update BEAT.sess. The phone app (no `act`) is not watched.
   Tests: unit `update-218`; rig `test/browser/lock218.js` (Chrome's virtual authenticator, RCL_RIG_LOCK_MS=20000, localhost).
+* **update-219 – The new menu, his "Option A" (no SQL, 10-11-2026):** App.html `#side` = the RAIL `#mrail` (logo, Change site, Machinery,
+  one `.mr-btn` per module of `#grp_mods` – made by `railSync`, Admin = `#grp_admin`, My account) + the PAGES panel `#smenu` (the same
+  `.navbtn`s as before, all shown – sections are headings; `#sm_find` filters by a class `.sm-x`, never `hidden`). `setDrawer(open)` is
+  the one open / close (NAV.want / NAV.key; a pick, the button again, «, a click outside, Esc, another page – railSync – close it);
+  computer: the panel's width slides 0 → 276 px and the page narrows; ≤ 760 px: the rail is a bar at the bottom, the panel a sheet from
+  below with `#nav_back` as shade (update-209's push back removed). Tests: unit `update-219`; rig `test/browser/nav219.js` (PORTAL=1).
 * **update-220 – Speed (no SQL, 10-11-2026):** the Dashboard asks `getDashboard` with `lite: 1` → `pending` = `{ asOf, from, to, total,
   age }` only (Code.gs `pendLite_`; without `lite` – an older page, the phone app – the whole answer as before); the Log Book view's
   pending list of the usual period comes from `pendingLog` only while that view is on screen (App.html `lbPendAll`, `S.lb.pall` / `ask`,

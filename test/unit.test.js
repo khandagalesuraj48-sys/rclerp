@@ -8614,20 +8614,12 @@ test('update-208: Head Office at its own address (/ho/) – only the site HO the
 test('update-209: two motions of the web – the menu behind the page on a phone / tablet (push back) and the message as a gooey drop at the top; the message\'s text as before', () => {
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   const css = app.slice(app.indexOf('(update-209, asked 03-11-2026 – the preview he OK\'d) TWO MOTIONS'), app.indexOf('</style>', app.indexOf('TWO MOTIONS')));
-  // push back: only up to 760 px (a computer: the menu stays open on the left, as before)
-  const pb = css.slice(css.indexOf('@media (max-width: 760px) {'), css.indexOf('html.pb-lock'));
-  assert.ok(pb.length > 200);
-  assert.match(pb, /\.app\.nav-open \.mainwrap \{ transform: translateX\(var\(--pb-x\)\) scale\(var\(--pb-s\)\); clip-path: inset\(var\(--pb-t, 0px\) 0 var\(--pb-b, 0px\) 0 round 28px\); \}/, 'the page shrinks back and moves right');
-  assert.match(pb, /\.app \.side \{ width: 100vw !important; padding-right: calc\(100vw - var\(--pb-x\)\); z-index: 1;/, 'the menu behind it');
-  assert.match(pb, /\.app:not\(\.pb-clip\) \.side \{ visibility: hidden; \}/, 'closed: as before');
-  assert.match(pb, /\.app\.pb-clip \.mainwrap \{ z-index: 2; \}/, 'the page is lifted over the menu only while it is open or moving');
-  assert.match(pb, /\.app\.nav-open #nav_back \{ opacity: 1; pointer-events: auto; transform: none; \}/, 'a tap on the page closes');
-  assert.match(css, /html\.pb-lock, html\.pb-lock body \{ overflow: hidden; \}/);
-  const sd = app.slice(app.indexOf('function setDrawer(open) {'), app.indexOf('function setDrawer(open) {') + 1400);
-  assert.match(sd, /phone = matchMedia\('\(max-width: 760px\)'\)\.matches/);
-  assert.match(sd, /app\.classList\.add\('pb-clip'\); document\.documentElement\.classList\.add\('pb-lock'\);/);
-  assert.match(sd, /if \(!open\) pbT = setTimeout\(\(\) => \{ app\.classList\.remove\('pb-clip'\); document\.documentElement\.classList\.remove\('pb-lock'\); \}, 560\);/);
-  assert.match(app, /window\.addEventListener\('resize', \(\) => \{ if \(document\.querySelector\('\.app'\)\.classList\.contains\('nav-open'\) && !matchMedia\('\(max-width: 760px\)'\)\.matches\) setDrawer\(false\); \}\);/);
+  // (update-219, his "Option A" of 10-11-2026) the push back of the menu is REPLACED by the module rail: on a phone / tablet the rail
+  // stays and the chosen module's pages slide over the page (update-219 checks that) – the push back's rules and the page's clip are gone
+  assert.match(css, /PUSH BACK MENU – replaced by update-219/);
+  assert.ok(!/pb-clip|pb-lock|--pb-x/.test(app), 'nothing of the push back is left in the page');
+  // (update-219) the width of the screen crossing 760 px (pages over the page ↔ beside it) closes them – not every resize (a tablet's keyboard)
+  assert.match(app, /matchMedia\('\(max-width: 760px\)'\)\.addEventListener\('change', \(\) => \{ if \(NAV\.open\) setDrawer\(false\); \}\);/);
   // the closing ways stay: a page of the menu, Back, the swipe, a tap on the page
   assert.match(app, /document\.querySelectorAll\('\.navbtn'\)\.forEach\(b => b\.addEventListener\('click', \(\) => setDrawer\(false\)\)\);/);
   assert.match(app, /if \(document\.querySelector\('\.app'\)\.classList\.contains\('nav-open'\)\) \{ setDrawer\(false\); return true; \}/);
@@ -9669,6 +9661,71 @@ test('update-218: the web lock – WebAuthn checked on the server (CBOR, authent
   assert.match(app, /else if \(\/\^SCREEN_LOCKED\/\.test\(errMsg\(e\)\) && !WL\.out\) \{ wlLock\('server'\); if \(WL\.on\) \{ WL\.waiters\.push\(\(\) => rawCallM\(fn, meta, args\)\.then\(resolve, reject\)\); return; \} \}/);
   assert.match(pg, /if \(!mkey\) return a < 0 \? body : '\{"act":' \+ a \+ ',' \+ body\.slice\(1\);/);
   assert.match(app, /fr\.addEventListener\('load', \(\) => \{ try \{ wlWatch\(fr\.contentWindow\); \}/, 'a touch in a module\'s page counts');
+});
+
+test('update-219: the navigation – a module rail (his modules on this site) and the chosen module\'s pages beside it (all of them, a search box on top), closed by a pick; the same page buttons as before', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  // the menu: #side = the rail + the pages; every page button of before is still there ONCE, inside the pages' panel
+  const side = app.slice(app.indexOf('<aside class="side" id="side">'), app.indexOf('</aside>', app.indexOf('<aside class="side" id="side">')));
+  const rail = side.slice(side.indexOf('<div class="mrail" id="mrail" role="navigation" aria-label="Modules">'), side.indexOf('<div class="smenu" id="smenu">'));
+  const pages = side.slice(side.indexOf('<div class="smenu" id="smenu">'));
+  assert.ok(rail.length > 500 && pages.length > 5000, 'the rail first, then the pages');
+  assert.match(rail, /id="site_chg"/, 'Change site is on the rail');
+  assert.match(rail, /class="rmark small"/, 'the logo too');
+  assert.match(rail, /<button type="button" class="mr-btn" data-k="mach" aria-expanded="false" aria-controls="smenu" title="Machinery">/);
+  assert.match(rail, /<button type="button" class="mr-btn" data-k="admin" id="mr_admin" aria-expanded="false" aria-controls="smenu" title="Admin" hidden>/, 'Admin: only when the Admin group is shown');
+  assert.match(rail, /<div class="mr-end">\s*<button type="button" class="mr-btn" data-k="me"/, 'My account at the bottom');
+  assert.match(pages, /<input id="sm_find" type="search" placeholder="Find a page…"/);
+  const tabs = (/const TABS = \[([^\]]+)\]/.exec(app) || [])[1].split(',').map(x => x.trim().replace(/'/g, ''));
+  const inPage = tabs.filter(t => app.indexOf('id="tab-' + t + '"') > -1);
+  assert.ok(inPage.length > 30, 'the pages written in the page (' + inPage.length + ')');
+  inPage.forEach(t => { assert.strictEqual(app.split('id="tab-' + t + '"').length, 2, t + ': once'); assert.ok(pages.indexOf('id="tab-' + t + '"') > -1, t + ': in the pages\' panel'); });
+  ['grp_mach', 'grp_mods', 'grp_admin', 'grp_me'].forEach(g => assert.ok(pages.indexOf('id="' + g + '"') > -1, g + ' in the pages\' panel'));
+  assert.match(side, /<button class="side-toggle" id="side_toggle" aria-label="Collapse menu" hidden>/, 'the old slim / wide button: not shown');
+  assert.doesNotMatch(app, /localStorage\.getItem\('rcl_side_mini'\) === '1'\) setSide\(true\)/, 'a slim menu kept from before does not hide the names');
+  // the looks: only the chosen module's groups, every page shown (no section to open), the slide each way, a phone over the page
+  const css = app.slice(app.indexOf('(update-219, his choice of 10-11-2026: "Option A") NAVIGATION'), app.indexOf('</style>', app.indexOf('"Option A") NAVIGATION')));
+  assert.match(css, /\.app \{ --rail-w: 84px; --sm-w: 276px; --sm-t: \.22s;/);
+  assert.match(css, /#smenu \{ position: relative; z-index: 1; flex: 0 0 auto; width: 0; height: 100%; overflow: hidden; visibility: hidden;/, 'closed: no width – the page has it all');
+  assert.match(css, /\.app\.nav-open #smenu \{ width: var\(--sm-w\); visibility: visible; transition: width var\(--sm-t\) var\(--sm-ease\), visibility 0s; \}/, 'open: the page beside it narrows, with the slide');
+  assert.match(css, /#smenu nav > :not\(\.sm-on\), #grp_mods > \.modgrp:not\(\.sm-on\) \{ display: none !important; \}/);
+  assert.match(css, /#smenu \.grpitems:not\(\[hidden\]\), #smenu \.sgitems:not\(\[hidden\]\) \{ display: flex !important;/, 'all pages, one below another');
+  assert.match(css, /#smenu \.sghead \{ display: flex; pointer-events: none;/, 'a section is a heading');
+  // a phone / tablet: the modules a bar at the bottom (the page keeps the whole width), the pages a sheet sliding up over the page, the shade
+  const ph = css.slice(css.indexOf('@media (max-width: 760px) {'), css.indexOf('@media (prefers-reduced-motion'));
+  assert.match(ph, /#side \{ position: static; flex: 0 0 0 !important; width: 0 !important;/, 'the page has the whole width');
+  assert.match(ph, /#mrail \{ position: fixed; z-index: 10; left: 0; right: 0; bottom: 0;[^}]*flex-direction: row;/, 'the modules: a bar at the bottom');
+  assert.match(ph, /\.mainwrap \{ padding-bottom: calc\(var\(--bar-h\) \+ var\(--bar-b\)\); \}/, 'nothing of the page under the bar');
+  assert.match(ph, /#smenu \{ position: fixed; z-index: 9; left: 0; right: 0; top: auto; bottom: calc\(var\(--bar-h\) \+ var\(--bar-b\)\);[^}]*transform: translateY\(105%\);/, 'the pages: a sheet from below');
+  assert.match(ph, /\.app\.nav-open #smenu \{ transform: none;/);
+  assert.match(ph, /\.app\.nav-open #nav_back \{ opacity: 1; pointer-events: auto; \}/, 'the shade (a tap closes)');
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ #smenu, \.app\.nav-open #smenu, #nav_back, \.sm-in, \.app\.nav-open \.sm-in \{ transition-duration: 0s !important; transition-delay: 0s !important; \} \}/);
+  assert.match(css, /\.app\.nav-open \.sm-in \{ opacity: 1; transform: none;/, 'the open / close effect: the content comes in as the pages open');
+  assert.match(css, /\.sm-head, \.sm-find, \.sm-none \{ flex-shrink: 0; \}/, 'the search box keeps its height with a long list');
+  assert.match(css, /\.nav-menu, #nav_menu \{ display: none !important; \}/, 'the rail is the menu');
+  assert.ok(app.lastIndexOf('"Option A") NAVIGATION') > app.lastIndexOf('TWO MOTIONS'), 'after the older menu rules');
+  // what it does: one function opens / closes (the same as the old drawer – everything that closed it closes the pages)
+  const sd = app.slice(app.indexOf('  function setDrawer(open) {'), app.indexOf('  const navFocusRail'));
+  assert.match(sd, /k = open \? \(NAV\.want \|\| NAV\.key \|\| navKeyNow\(\) \|\| 'mach'\) : NAV\.key;/);
+  assert.match(sd, /app\.classList\.toggle\('nav-open', open\);/);
+  assert.match(app, /if \(NAV\.open && NAV\.key === b\.dataset\.k\) \{ setDrawer\(false\); return; \}\n    NAV\.want = b\.dataset\.k; setDrawer\(true\);/, 'the module\'s button again: closed');
+  assert.match(app, /\$\('smenu'\)\.addEventListener\('click', e => \{ if \(e\.target\.closest\('\.navbtn'\)\) setDrawer\(false\); \}\);/, 'a page picked: closed');
+  assert.match(app, /document\.addEventListener\('click', e => \{ if \(NAV\.open && !\$\('side'\)\.contains\(e\.target\) && !\$\('side'\)\.contains\(document\.activeElement\)\) setDrawer\(false\); \}\);/, 'a click outside');
+  assert.match(app, /fr\.contentWindow\.addEventListener\('click', \(\) => \{ if \(NAV\.open\) setDrawer\(false\); \}, true\);/, '… also inside a module\'s page');
+  assert.match(app, /if \(e\.key !== 'Escape' \|\| !NAV\.open \|\| e\.defaultPrevented\) return;/, 'Esc');
+  assert.match(app, /try \{ if \(NAV && NAV\.open\) setDrawer\(false\); \} catch \(e\)/, 'closed at sign-out');
+  // the rail follows the menu: modules from #grp_mods (the Portal's list of his modules here), Admin with its group, the open page's module, dots
+  const rs = app.slice(app.indexOf('  function railSync() {'), app.indexOf('  // a module\'s button: its pages'));
+  assert.match(rs, /mods = \$\('grp_mods'\)\.hidden \? \[\] : \[\.\.\.\$\('grp_mods'\)\.children\]\.filter\(g => g\.classList\.contains\('modgrp'\) && g\.dataset\.mod\);/);
+  assert.match(rs, /adm\.hidden = !!\$\('grp_admin'\)\.hidden;/);
+  assert.match(rs, /if \(NAV\.sel !== undefined && selId !== NAV\.sel && NAV\.open\) setDrawer\(false\);/, 'another page opened (Ctrl + K, Back): closed');
+  assert.match(app, /NAV\.obs\.observe\(\$\('smenu'\), \{ subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: \['aria-selected', 'hidden'\] \}\);/);
+  // Ctrl + K still finds every page (it reads the same buttons; the panel hides by a class, never by "hidden")
+  assert.match(app, /const pages = \[\.\.\.document\.querySelectorAll\('\.navbtn'\)\]\.filter\(b => !b\.closest\('\.navgroup\[hidden\]'\) && !b\.hidden && b\.id\.indexOf\('tab-'\) === 0\)/);
+  assert.deepStrictEqual(app.slice(app.indexOf('  function navFilter() {'), app.indexOf('  function navShow(k) {')).match(/[\w$'()]+\.hidden = /g), ["$('sm_none').hidden = "], 'the search box never sets "hidden" of a page (that is the access rule) – only its "No page found" line');
+  // the new words in Marathi and Hindi
+  ['mr', 'hi'].forEach(l => { const d = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8'));
+    ['Find a page…', 'Close the pages', 'No page found'].forEach(k => assert.ok(/[ऀ-ॿ]/.test(d[k] || ''), l + ': ' + k)); });
 });
 
 test('update-220: speed – the Dashboard says the Log Book pending as a number (lite: the list itself only from pendingLog, when it is opened; an older page still gets the whole answer); the pending list worked out with each machinery\'s periods and each day read once – the same list; his devices asked only when My settings is shown; a call never waits for a lock the page cannot show', () => {
