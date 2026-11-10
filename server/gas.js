@@ -106,7 +106,9 @@ function boot(st, keys, light) {
   const now = Date.now(); keys = keys || [];
   if (light && process.env.RCL_WARM !== 'off' && BEAT.props && now - BEAT.at < 1000) {
     const rec = k => /^S_/.test(k) ? BEAT.sess.get(k) : BEAT.shared[k], maxAge = k => /^S_/.test(k) ? 20000 : 1000;
-    if (keys.every(k => { const m = rec(k); return m && now - m.at <= maxAge(k); })) {
+    // (update-218) a sign-in whose screen is LOCKED (the web lock – Code.gs wlGate_, "W…L…" in its value) is always read afresh:
+    // unlocked in another request (perhaps on another helper thread), the next heartbeat must not see the lock of before
+    if (keys.every(k => { const m = rec(k); return m && now - m.at <= maxAge(k) && !(/^S_/.test(k) && /\|W\d+L\d+$/.test(String(m.value || ''))); })) {
       st.props = Object.assign({}, BEAT.props); st.left = {}; st.cache = {};
       keys.forEach(k => { const m = rec(k); st.cache[k] = m.value; if (m.left !== undefined && m.left !== null) st.left[k] = Math.max(0, Number(m.left) - (now - m.at) / 1000); });
       st.stamp = BEAT.stamp; st.tables = BEAT.tables || OLD_TABLES; st.light = true;      // (no table is read by a heartbeat; the tables' memory is left alone)
@@ -143,6 +145,7 @@ function flush(st) {
   // there): a second heartbeat in the same second does not see the value from before this write
   const now = Date.now();
   put.forEach(x => { if (x.key in BEAT.shared) BEAT.shared[x.key] = { value: x.value, left: x.ttl, at: now }; });
+  put.forEach(x => { if (/^S_/.test(x.key) && BEAT.sess.has(x.key)) BEAT.sess.set(x.key, { value: x.value, left: x.ttl, at: now }); });      // (update-218) a sign-in this server just wrote (locked / unlocked / its last activity): its next heartbeat sees it
   del.forEach(k => { if (k in BEAT.shared) BEAT.shared[k] = { value: null, left: null, at: now }; });
 }
 /* ---------- (update-217) CALLS BETWEEN SITES: THE FIRST SITE'S STORE FOR THE NOTES OF A CALL ----------

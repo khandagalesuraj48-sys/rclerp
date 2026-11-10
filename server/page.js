@@ -27,13 +27,17 @@ const BRIDGE = `
   }
   // a question (never a save) that is already on its way is not sent a second time: both askers get the one answer
   var flying = {}, saveNo = 0;      // saveNo goes up whenever anything that is not a question is sent or answered
+  // (update-218) the web lock's own actions are asked like questions (never "a save sent again" – as runtime.js WL_FNS)
+  var WL_FNS = ['lockState', 'lockNow', 'unlockPassword', 'unlockPasskeyStart', 'unlockPasskey', 'passkeyList', 'passkeyStart', 'passkeySave', 'passkeyRemove'];
+  // (update-218) how many ms ago the person last touched the ERP's page (App.html wlAge) – it goes with every call; -1 = not known
+  var actOf = function () { try { var a = window.__rclActAge ? Number(window.__rclActAge()) : -1; return a >= 0 && isFinite(a) ? Math.floor(a) : -1; } catch (e) { return -1; } };
   function isQuestion(name, args) { if (name !== 'api') return false; var f = String(args[1]);
     // (update-85: dieselPhoto – a photo being sent – is tried again 3 times like a question, not for ever like a save: on a weak
     //  connection the person must be able to take it again or save without it. A copy that arrived twice is only a spare file.
     //  update-120: inwardPhoto – a bill copy of a diesel inward – the same; update-153: uploadAttachment – an attachment, kept once
     //  under its fingerprint – and Scan with Mobile (capStart … capCancel; capPoll – the computer asking every 3 s what the phone
     //  sent): they write no table, so they are questions, never counted as a save – and the QR's token is never kept with a save's answer)
-    return /^(get|rpt|rtc)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel', 'aiChats', 'aiChatGet', 'aiChatSave', 'aiMemory'].indexOf(f) > -1; }
+    return /^(get|rpt|rtc)[A-Z]/.test(f) || ['logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel', 'aiChats', 'aiChatGet', 'aiChatSave', 'aiMemory'].concat(WL_FNS).indexOf(f) > -1; }
   // calls on their way (for the freeze note: which answer the page was waiting for, and for how long) and the last answer
   var inFlight = {}, flightNo = 0, lastAnswer = '';
   window.__rclNet = function () { var now = Date.now(), w = Object.keys(inFlight).map(function (k) { return inFlight[k].fn + ' ' + ((now - inFlight[k].t0) / 1000).toFixed(1) + ' s'; });
@@ -94,8 +98,9 @@ const BRIDGE = `
     if (name === 'api' && isQ && MEMO_ON && memoable(fnName)) { mkey = site + '|' + JSON.stringify(args); if (mkey.length > 20000) mkey = ''; }
     if (mkey && memoSite !== site) { memoClear(); memoSite = site; }
     var bodyNow = function () {
-      if (!mkey) return body;
-      var m2 = { fn: name, args: args, m: 1 }; if (site) m2.site = site;
+      var a = actOf();
+      if (!mkey) return a < 0 ? body : '{"act":' + a + ',' + body.slice(1);
+      var m2 = { fn: name, args: args, m: 1 }; if (site) m2.site = site; if (a >= 0) m2.act = a;
       var b = noHave ? null : memo.get(mkey); if (b) { m2.have = b.h; if (CAN_PATCH) m2.dx = 1; }
       return JSON.stringify(m2);
     };
@@ -109,6 +114,15 @@ const BRIDGE = `
     // the answer as the page always had it: { result } or { error }
     var finish = function (j, value) {
       if (j.error !== undefined && j.error !== null && TRANSIENT.test(String(j.error)) && again(String(j.error))) return;       // the server could not do it NOW: again
+      /* (update-218) A SAVE THAT MET THE LOCKED SCREEN (sent while the screen locked – e.g. sent again after the connection came back):
+       * nothing of it ran on the server. It waits here, with its own number, and goes again by itself once the screen is unlocked
+       * (a save that had already arrived is then answered from its number – never saved twice). Questions: the page asks again. */
+      if (j.error !== undefined && j.error !== null && /^SCREEN_LOCKED/.test(String(j.error)) && name === 'api' && !isQ) {
+        try { if (window.__rclLockSeen) window.__rclLockSeen(); } catch (e) { /* the page shows its lock itself */ }
+        waiting[fid] = { fn: fnName, n: tries };
+        var hold = function () { var on = true; try { on = !!(window.__rclLocked && window.__rclLocked()); } catch (e) { on = false; } if (on) { setTimeout(hold, 1000); return; } attempt(); };
+        setTimeout(hold, 1000); return;
+      }
       if (mkey && j.error !== undefined && j.error !== null) memo.delete(mkey);      // a refusal (no access any more …): nothing of it is kept
       var was = waiting[fid]; if (was) { delete waiting[fid]; retryNote(true); }
       landed(false); if (!isQ) saveNo++; try { took(name, args, Date.now() - t0); if (window.__rclCrumb && !(name === 'api' && args[1] === 'sync')) window.__rclCrumb('← ' + (name === 'api' ? args[1] : name) + ' ' + (Date.now() - t0) + ' ms' + (tries > 1 ? ' (try ' + tries + ')' : '') + (j && j.error ? ' ERROR' : '')); } catch (e) {} if (j.error !== undefined && j.error !== null) { if (fail) fail(new Error(j.error)); } else if (ok) ok(value); };

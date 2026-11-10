@@ -9465,3 +9465,207 @@ test('update-217: calls between sites – one store of the notes at the first si
       __siteCode = __k217.sc; delete this.__siteNames; delete this.__runOthers; delete this.__rtcX; delete this.__fcmSend; const c = CacheService.getScriptCache(); ["USERS_LIST", "RTC_OFF_C"].forEach(k => c.remove(k));`, ctx);
   }
 });
+
+test('update-218: the web lock – WebAuthn checked on the server (CBOR, authenticatorData, ES256 / RS256, counter), the lock rules of a sign-in (idle, the server\'s own clock, the phone app untouched, 5 wrong passwords, the Portal\'s password), the passkeys of a person, help and guide', () => {
+  const W = require('../server/webauthn.js');
+  // ---- a small CBOR writer and a stand-in for a device's authenticator (keys made here; the server never sees the private key) ----
+  const head = (mj, n) => n < 24 ? Buffer.from([mj << 5 | n]) : n < 256 ? Buffer.from([mj << 5 | 24, n]) : n < 65536 ? Buffer.from([mj << 5 | 25, n >> 8, n & 255]) : (() => { const b = Buffer.alloc(5); b[0] = mj << 5 | 26; b.writeUInt32BE(n, 1); return b; })();
+  const cb = v => typeof v === 'number' ? (v >= 0 ? head(0, v) : head(1, -1 - v)) : typeof v === 'string' ? Buffer.concat([head(3, Buffer.byteLength(v)), Buffer.from(v)]) : Buffer.isBuffer(v) ? Buffer.concat([head(2, v.length), v])
+    : Array.isArray(v) ? Buffer.concat([head(4, v.length), ...v.map(cb)]) : v instanceof Map ? Buffer.concat([head(5, v.size), ...[...v].flatMap(([k, x]) => [cb(k), cb(x)])]) : Buffer.from([v === true ? 0xf5 : v === false ? 0xf4 : 0xf6]);
+  const RP = 'erp.example.test', ORIGIN = 'https://' + RP, sha = b => crypto.createHash('sha256').update(b).digest();
+  function device(kind, rpId) {
+    rpId = rpId || RP;
+    const kp = kind === 'rs' ? crypto.generateKeyPairSync('rsa', { modulusLength: 2048 }) : crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    const j = kp.publicKey.export({ format: 'jwk' }), id = crypto.randomBytes(32), B = s => Buffer.from(s, 'base64url');
+    const cose = kind === 'rs' ? new Map([[1, 3], [3, -257], [-1, B(j.n)], [-2, B(j.e)]]) : new Map([[1, 2], [3, -7], [-1, 1], [-2, B(j.x)], [-3, B(j.y)]]);
+    let count = 0;
+    const ad = (flags, key, n) => { const c = Buffer.alloc(4); c.writeUInt32BE(n); const p = [sha(rpId), Buffer.from([flags]), c]; if (key) { const l = Buffer.alloc(2); l.writeUInt16BE(id.length); p.push(Buffer.alloc(16), l, id, cb(key)); } return Buffer.concat(p); };
+    const cd = (type, ch, o) => Buffer.from(JSON.stringify({ type: o.type || type, challenge: o.challenge || ch, origin: o.origin || ORIGIN, crossOrigin: !!o.cross }));
+    return { id: id.toString('base64url'), kp,
+      create(ch, o = {}) { return { id: id.toString('base64url'), clientDataJSON: cd('webauthn.create', ch, o).toString('base64url'),
+        attestationObject: cb(new Map([['fmt', 'none'], ['attStmt', new Map()], ['authData', ad(o.flags === undefined ? 0x45 : o.flags, o.cose || cose, count)]])).toString('base64url') }; },
+      get(ch, o = {}) { count = o.count === undefined ? count + 1 : o.count; const c = cd('webauthn.get', ch, o), a = ad(o.flags === undefined ? 0x05 : o.flags, null, count), data = Buffer.concat([a, sha(c)]);
+        const sig = crypto.sign('sha256', data, kind === 'rs' ? { key: o.key || kp.privateKey, padding: crypto.constants.RSA_PKCS1_PADDING } : { key: o.key || kp.privateKey, dsaEncoding: 'der' });
+        return { id: id.toString('base64url'), clientDataJSON: c.toString('base64url'), authenticatorData: a.toString('base64url'), signature: sig.toString('base64url') }; } };
+  }
+  // ---- CBOR: known values (RFC 8949, appendix A) and refusals ----
+  const dec = h => W.cbor(Buffer.from(h, 'hex')).value;
+  assert.deepStrictEqual([dec('1903e8'), dec('3903e7'), dec('6449455446'), dec('f5'), dec('f6'), dec('820102')], [1000, -1000, 'IETF', true, null, [1, 2]]);
+  assert.deepStrictEqual([...dec('a201020304')], [[1, 2], [3, 4]]);
+  assert.strictEqual(dec('f93c00'), 1); assert.strictEqual(dec('c11a514b67b0'), 1363896240);
+  for (const bad of ['5f42010243030405ff', '1a0000', 'a2010201', 'ff', 'a201020103']) assert.throws(() => W.cbor(Buffer.from(bad, 'hex')), /CBOR/, bad);
+  // ---- the address a passkey is made for ----
+  assert.deepStrictEqual(W.rpOf('https://oneclicksolution-erp.vercel.app'), { origin: 'https://oneclicksolution-erp.vercel.app', id: 'oneclicksolution-erp.vercel.app' });
+  assert.deepStrictEqual(W.rpOf('http://localhost:3061'), { origin: 'http://localhost:3061', id: 'localhost' });
+  for (const o of ['http://127.0.0.1:3001', 'https://127.0.0.1', 'http://erp.example.test', '', 'https://a.b/c', 'javascript:x']) assert.strictEqual(W.rpOf(o), null, o);
+  assert.match(W.run('rp', {}, 'http://erp.example.test').error, /https/);
+  // ---- setting a passkey up: ES256 and RS256 accepted; every check refuses its own fault ----
+  const ch = W.run('challenge', {}, ORIGIN).challenge; assert.match(ch, /^[A-Za-z0-9_-]{43}$/);
+  const es = device('es'), rs = device('rs');
+  const ce = W.run('create', Object.assign({ challenge: ch }, es.create(ch)), ORIGIN), cr = W.run('create', Object.assign({ challenge: ch }, rs.create(ch)), ORIGIN);
+  assert.deepStrictEqual([ce.id, ce.alg, ce.jwk.kty, ce.jwk.crv, ce.count, cr.alg, cr.jwk.kty], [es.id, -7, 'EC', 'P-256', 0, -257, 'RSA']);
+  const refusedCreate = [
+    ['another challenge', es.create(ch, { challenge: W.run('challenge', {}, ORIGIN).challenge }), /not for this request/],
+    ['another address', es.create(ch, { origin: 'https://evil.example' }), /another address/],
+    ['made inside another site', es.create(ch, { cross: true }), /inside another web site/],
+    ['an unlock answer', es.create(ch, { type: 'webauthn.get' }), /right kind/],
+    ['no fingerprint / face / PIN checked (UV)', es.create(ch, { flags: 0x41 }), /did not check/],
+    ['nobody there (UP)', es.create(ch, { flags: 0x44 }), /did not see/],
+    ['no key in it (AT)', es.create(ch, { flags: 0x05 }), /no public key/],
+    ['an EdDSA key', es.create(ch, { cose: new Map([[1, 1], [3, -8], [-1, 6], [-2, crypto.randomBytes(32)]]) }), /only ES256 \/ RS256/],
+    ['a point not on the curve', es.create(ch, { cose: new Map([[1, 2], [3, -7], [-1, 1], [-2, Buffer.alloc(32, 1)], [-3, Buffer.alloc(32, 2)]]) }), /./],
+  ];
+  refusedCreate.forEach(([what, x, re]) => { const r = W.run('create', Object.assign({ challenge: ch }, x), ORIGIN); assert.ok(r.error && re.test(r.error), what + ': ' + JSON.stringify(r)); });
+  assert.match(W.run('create', Object.assign({ challenge: ch }, device('es', 'evil.example').create(ch)), ORIGIN).error, /another address/, 'made for another RP ID');
+  assert.match(W.run('create', Object.assign({ challenge: ch }, es.create(ch), { id: rs.id }), ORIGIN).error, /does not match/, 'the number the browser gave is not the one in the answer');
+  { const x = es.create(ch), a = Buffer.from(x.attestationObject, 'base64url'); assert.match(W.run('create', Object.assign({ challenge: ch }, x, { attestationObject: Buffer.concat([a, Buffer.from([0])]).toString('base64url') }), ORIGIN).error, /not readable/, 'bytes after the answer'); }
+  // ---- unlocking: the signature with the kept key, the counter ----
+  const kept = { alg: ce.alg, jwk: ce.jwk, count: 0 }, keptR = { alg: cr.alg, jwk: cr.jwk, count: 0 };
+  let g = W.run('get', Object.assign({ challenge: ch }, es.get(ch), kept), ORIGIN); assert.deepStrictEqual(g, { count: 1 });
+  g = W.run('get', Object.assign({ challenge: ch }, rs.get(ch), keptR), ORIGIN); assert.deepStrictEqual(g, { count: 1 });
+  const other = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  const refusedGet = [
+    ['signed by another key', es.get(ch, { key: other.privateKey }), kept, /signature does not match/],
+    ['another device\'s answer with his number', Object.assign(device('es').get(ch), { id: es.id }), kept, /signature does not match/],
+    ['the counter went back', es.get(ch, { count: 3 }), Object.assign({}, kept, { count: 7 }), /counter went back/],
+    ['the counter did not move', es.get(ch, { count: 7 }), Object.assign({}, kept, { count: 7 }), /counter went back/],
+    ['another challenge', es.get(ch, { challenge: 'x' + ch.slice(1) }), kept, /not for this request/],
+    ['another address', es.get(ch, { origin: 'https://evil.example' }), kept, /another address/],
+    ['no UV', es.get(ch, { flags: 0x01 }), kept, /did not check/],
+    ['a setting-up answer', es.get(ch, { type: 'webauthn.create' }), kept, /right kind/],
+  ];
+  refusedGet.forEach(([what, x, k, re]) => { const r = W.run('get', Object.assign({ challenge: ch }, x, k), ORIGIN); assert.ok(r.error && re.test(r.error), what + ': ' + JSON.stringify(r)); });
+  { const x = es.get(ch), a = Buffer.from(x.authenticatorData, 'base64url'); a[32] |= 0x40; assert.ok(W.run('get', Object.assign({ challenge: ch }, x, { authenticatorData: a.toString('base64url') }, kept), ORIGIN).error, 'a changed authenticatorData'); }
+  assert.deepStrictEqual(W.run('get', Object.assign({ challenge: ch }, es.get(ch, { count: 0 }), kept), ORIGIN), { count: 0 }, 'a device without a counter (0 and 0) is accepted');
+
+  // ---- the lock rules of a sign-in (Code.gs, in the harness) ----
+  const { ctx } = require('./harness.js'), vm = require('vm');
+  const ev = (fn, ...a) => { const r = vm.runInContext('(' + fn + ')', ctx)(...a); return r === undefined ? null : JSON.parse(JSON.stringify(r)); };
+  vm.runInContext(`this.__k218 = { kvRead_, kvWrite_, writeLog_ };
+    this.S218 = { kv: {}, log: [], portal: [], act: -1, light: false, idle: 20000, origin: ${JSON.stringify(ORIGIN)} };
+    kvRead_ = id => S218.kv[id] || ''; kvWrite_ = (id, v) => { S218.kv[id] = String(v); }; writeLog_ = (u, a, m, r, s) => { S218.log.push(a + ': ' + s); };
+    __act = () => S218.act; __beatLight = () => S218.light; __lockIdleMs = () => S218.idle;
+    __portalPw = (e, p) => { S218.portal.push(e); return JSON.stringify(S218.pw(p)); };`, ctx);
+  ctx.__webauthn = (op, json) => JSON.stringify(W.run(op, JSON.parse(json), vm.runInContext('S218.origin', ctx)));
+  const U = { email: 'lock218@site.test', name: 'Lata Lock', active: true, admin: false, perms: {}, password: 'Plain#Pass218' };
+  const cache = () => vm.runInContext('CacheService.getScriptCache()', ctx);
+  const sess = (portal) => { const t = 'tok' + crypto.randomBytes(6).toString('hex'); cache().put('S_' + t, ev('(e, p, m) => sessionMake_(e, p, m)', U.email, U.password, portal ? 43200000 : 0), 21600); return t; };
+  const val = t => cache().get('S_' + t), w = t => ev('v => wlOf_(v)', val(t));
+  const gate = (t, fn, act) => { vm.runInContext('S218.act = ' + (act === undefined ? -1 : act), ctx); return ev('(t, f) => { WL_TOKEN_ = t; try { return { w: wlGate_(t, f) }; } catch (e) { return { thrown: String(e.message) }; } }', t, fn); };
+  const as = (t, fn, x) => ev('(t, f, u, x) => { WL_TOKEN_ = t; try { return API_[f].f(u, x); } catch (e) { return { thrown: String(e.message) }; } }', t, fn, U, x);
+  try {
+    // the phone app and a page of before (no "act"): not watched, nothing written
+    let t = sess(false); const v0 = val(t);
+    assert.deepStrictEqual(gate(t, 'getInit'), { w: null }); assert.strictEqual(val(t), v0, 'nothing written for a sign-in the lock does not watch');
+    // the web page says "touched 0 ms ago": watched from now on (a 6th part W…); the session reads exactly as before (going back to an older update is safe)
+    assert.deepStrictEqual(gate(t, 'getInit', 0).w.at, 0);
+    assert.match(val(t), /\|W\d{13}$/);
+    assert.deepStrictEqual(ev('(a, b) => [sessionRead_(a), sessionRead_(b)].map(x => [x.email, x.stamp, x.made, x.sup, Math.round(x.left / 1000)])', v0, val(t)).reduce((a, b) => JSON.stringify(a) === JSON.stringify(b)), true);
+    { const ps = sess(true), pv = val(ps); gate(ps, 'sync', 0); assert.deepStrictEqual(ev('(a, b) => [sessionRead_(a).left > 43000000, sessionRead_(b).left > 43000000, String(b).split("|")[3]]', pv, val(ps)), [true, true, '43200000'], 'a Portal sign-in keeps its 12 hours'); }
+    // the activity is noted at most every 30 s (no write for every heartbeat)
+    const a0 = w(t).act; gate(t, 'sync', 0); assert.strictEqual(w(t).act, a0, 'a report within 30 s: nothing written');
+    cache().put('S_' + t, ev('(v, a) => wlWith_(v, { act: a, at: 0 })', val(t), Date.now() - 45000), 21600);
+    gate(t, 'sync', 1000); assert.ok(Date.now() - w(t).act < 5000, 'a report 44 s newer is noted');
+    // a heartbeat answered from memory writes no activity (its copy may be old) – a lock it does write
+    vm.runInContext('S218.light = true', ctx); cache().put('S_' + t, ev('(v, a) => wlWith_(v, { act: a, at: 0 })', val(t), Date.now() - 45000), 21600);
+    gate(t, 'sync', 0); assert.ok(Date.now() - w(t).act > 40000, 'not written from memory');
+    let r = gate(t, 'sync', 25000); assert.match(r.thrown, /^SCREEN_LOCKED/); assert.ok(w(t).at > 0, 'a lock is written even from memory');
+    vm.runInContext('S218.light = false', ctx);
+    // locked: every action refused – the lock's own allowed; the data never given
+    for (const f of ['getInit', 'sync', 'whoami', 'getLogBookList', 'saveDieselIssue', 'aiPrepare', 'passkeyList', 'passkeyStart']) assert.match(gate(t, f, 0).thrown || '', /^SCREEN_LOCKED/, f);
+    for (const f of ['lockState', 'lockNow', 'unlockPassword', 'unlockPasskeyStart', 'unlockPasskey']) assert.ok(!gate(t, f, 0).thrown, f + ' is allowed while locked');
+    assert.ok(w(t).at > 0, 'a touch reported while locked does not open it');
+    // the 10 minutes: the page says it was untouched longer → locked
+    t = sess(false); gate(t, 'sync', 0); assert.match(gate(t, 'sync', 20001).thrown, /^SCREEN_LOCKED/);
+    // the server's own clock: nothing heard of the page for longer than the time + 1 minute → locked, also a call that says nothing (devtools, a page stopped)
+    t = sess(false); gate(t, 'sync', 0); cache().put('S_' + t, ev('(v, a) => wlWith_(v, { act: a, at: 0 })', val(t), Date.now() - 20000 - 59000), 21600);
+    assert.ok(!gate(t, 'whoami').thrown, 'within the minute for the noting: still open');
+    cache().put('S_' + t, ev('(v, a) => wlWith_(v, { act: a, at: 0 })', val(t), Date.now() - 20000 - 61000), 21600);
+    assert.match(gate(t, 'whoami').thrown, /^SCREEN_LOCKED/); assert.match(gate(t, 'whoami', 0).thrown, /^SCREEN_LOCKED/, 'a forged "just touched" does not open it');
+    // the page locks itself: lockNow
+    t = sess(false); gate(t, 'sync', 0); r = as(t, 'lockNow'); assert.ok(r.ok && r.locked && w(t).at > 0);
+    // the password (this site's own sign-in): wrong → tries left; right → open, the activity now; nothing typed → asked
+    assert.match(as(t, 'unlockPassword', {}).thrown, /Type your password/);
+    assert.match(as(t, 'unlockPassword', { password: 'wrong' }).thrown, /^Wrong password – 4 tries left/);
+    r = as(t, 'unlockPassword', { password: U.password }); assert.deepStrictEqual([r.ok, r.locked, w(t).at], [true, false, 0]);
+    assert.ok(Date.now() - w(t).act < 5000 && !gate(t, 'getInit', 0).thrown, 'open again');
+    assert.ok(vm.runInContext('S218.log', ctx).includes('Unlock: Screen unlocked with the password'));
+    // 5 wrong in a row → signed out (the right one before resets the count)
+    as(t, 'lockNow'); for (let i = 1; i <= 4; i++) assert.match(as(t, 'unlockPassword', { password: 'nope' + i }).thrown, new RegExp('^Wrong password – ' + (5 - i) + ' tr'));
+    assert.match(as(t, 'unlockPassword', { password: 'nope5' }).thrown, /signed out after 5 wrong passwords/);
+    assert.strictEqual(val(t), null, 'the sign-in is ended'); assert.ok(vm.runInContext('S218.log', ctx).some(l => /^Logout: Signed out: 5 wrong passwords/.test(l)));
+    // a Portal sign-in: the Portal checks the password; not reached → not counted
+    t = sess(true); gate(t, 'sync', 0); as(t, 'lockNow');
+    vm.runInContext('S218.pw = p => ({ error: "down" })', ctx); assert.match(as(t, 'unlockPassword', { password: 'x' }).thrown, /could not be checked just now/);
+    vm.runInContext('S218.pw = p => p === "Portal#Pass1" ? { ok: true } : { ok: false }', ctx);
+    assert.match(as(t, 'unlockPassword', { password: U.password }).thrown, /^Wrong password – 4 tries left/, 'this site\'s own (old) password does not open a Portal sign-in');
+    vm.runInContext('S218.pw = p => ({ ok: false, many: true })', ctx); assert.match(as(t, 'unlockPassword', { password: 'y' }).thrown, /3 tries left \(the Portal also holds/);
+    vm.runInContext('S218.pw = p => p === "Portal#Pass1" ? { ok: true } : { ok: false }', ctx);
+    r = as(t, 'unlockPassword', { password: 'Portal#Pass1' }); assert.ok(r.ok && w(t).at === 0); assert.ok(vm.runInContext('S218.portal', ctx).every(e => e === U.email));
+    // the state the panel asks for
+    as(t, 'lockNow'); r = as(t, 'lockState'); assert.deepStrictEqual([r.locked, r.name, r.portal, r.idle, r.keys], [true, 'Lata Lock', true, 20000, []]); assert.ok(r.at > 0 && r.act > 0);
+    as(t, 'unlockPassword', { password: 'Portal#Pass1' });
+    // ---- the passkeys: set up (My settings), unlock, refusals, remove ----
+    t = sess(false); gate(t, 'sync', 0);
+    const dev = device('es');
+    let o = as(t, 'passkeyStart');
+    assert.deepStrictEqual([o.rp.id, o.user.name, o.authenticatorSelection.userVerification, o.authenticatorSelection.authenticatorAttachment, o.attestation, o.pubKeyCredParams.map(p => p.alg)], [RP, U.email, 'required', 'platform', 'none', [-7, -257]]);
+    assert.strictEqual(Buffer.from(o.user.id, 'base64url').length, 16, 'the person\'s handle: 16 bytes, not his e-mail');
+    r = as(t, 'passkeySave', Object.assign(dev.create(o.challenge), { name: 'Windows · Chrome' }));
+    assert.ok(r.ok && r.id === dev.id && r.list.length === 1 && r.list[0].name === 'Windows · Chrome' && !r.list[0].k, JSON.stringify(r));
+    const stored = vm.runInContext('S218.kv["WL_PK|lock218@site.test"]', ctx);
+    assert.ok(stored && stored.length < 400, 'kept at the first site\'s app_settings, about 250 bytes a device: ' + (stored || '').length);
+    assert.match(as(t, 'passkeySave', dev.create(o.challenge)).thrown, /ran out/, 'the challenge is used once');
+    o = as(t, 'passkeyStart'); assert.deepStrictEqual(o.excludeCredentials.map(c => c.id), [dev.id], 'this device is not set up twice');
+    const rsd = device('rs'); r = as(t, 'passkeySave', Object.assign(rsd.create(o.challenge), { name: '<b>Mac</b> · Safari' })); assert.ok(r.ok && r.list.length === 2 && r.list[1].name === 'bMac/b · Safari', 'no < > " in a name');
+    // unlock with it
+    as(t, 'lockNow'); o = as(t, 'unlockPasskeyStart'); assert.deepStrictEqual([o.rpId, o.userVerification, o.allowCredentials.map(c => c.id)], [RP, 'required', [dev.id, rsd.id]]);
+    let ans = dev.get(o.challenge); r = as(t, 'unlockPasskey', ans); assert.ok(r.ok && w(t).at === 0, JSON.stringify(r));
+    assert.ok(vm.runInContext('S218.log', ctx).some(l => /^Unlock: Screen unlocked with the fingerprint \/ face \/ PIN \(Windows · Chrome\)/.test(l)));
+    let list = JSON.parse(vm.runInContext('S218.kv["WL_PK|lock218@site.test"]', ctx)); assert.ok(list[0].n === 1 && list[0].used, 'its counter and last use kept');
+    as(t, 'lockNow'); assert.match(as(t, 'unlockPasskey', ans).thrown, /ran out/, 'the same answer again: refused');
+    o = as(t, 'unlockPasskeyStart'); assert.match(as(t, 'unlockPasskey', device('es').get(o.challenge)).thrown, /not set up for you/, 'a passkey that is not his');
+    o = as(t, 'unlockPasskeyStart'); assert.match(as(t, 'unlockPasskey', Object.assign(device('es').get(o.challenge), { id: dev.id })).thrown, /not accepted \(the signature does not match/, 'another key with his number');
+    o = as(t, 'unlockPasskeyStart'); assert.match(as(t, 'unlockPasskey', dev.get(o.challenge, { count: 1 })).thrown, /counter went back/, 'a copied key');
+    o = as(t, 'unlockPasskeyStart'); assert.match(as(t, 'unlockPasskey', dev.get(o.challenge, { origin: 'https://evil.example' })).thrown, /not accepted \(the answer was made on another address/, 'made on another address');
+    o = as(t, 'unlockPasskeyStart'); cache().put('WLC_' + t, JSON.stringify(Object.assign(JSON.parse(cache().get('WLC_' + t)), { t: Date.now() - 121000 })), 120);
+    assert.match(as(t, 'unlockPasskey', dev.get(o.challenge)).thrown, /ran out \(2 minutes\)/, 'a challenge older than 2 minutes');
+    assert.ok(w(t).at > 0, 'still locked after every refusal');
+    o = as(t, 'unlockPasskeyStart'); r = as(t, 'unlockPasskey', rsd.get(o.challenge)); assert.ok(r.ok && w(t).at === 0, 'the RS256 device opens it');
+    // the list and removing one; nothing of a key goes to the page
+    r = as(t, 'passkeyList'); assert.ok(r.can && r.list.length === 2 && !JSON.stringify(r).includes('"k"') && !JSON.stringify(r).includes('jwk'));
+    r = as(t, 'passkeyRemove', { id: dev.id }); assert.deepStrictEqual(r.list.map(c => c.id), [rsd.id]);
+    assert.ok(vm.runInContext('S218.log', ctx).some(l => /^Delete: Unlock with fingerprint \/ face \/ PIN removed from Windows · Chrome/.test(l)));
+    as(t, 'lockNow'); o = as(t, 'unlockPasskeyStart'); assert.match(as(t, 'unlockPasskey', dev.get(o.challenge)).thrown, /not set up for you/, 'a removed device opens nothing');
+    // at most 10 devices
+    vm.runInContext('S218.kv["WL_PK|lock218@site.test"] = JSON.stringify(Array.from({ length: 10 }, (x, i) => ({ id: "id" + i + "AAAAAAAAAAAAAAAAAAAAAA", k: { kty: "EC" }, alg: -7, n: 0, name: "d" + i })))', ctx);
+    as(t, 'unlockPassword', { password: U.password }); assert.match(as(t, 'passkeyStart').thrown, /10 devices with fingerprint/);
+    // an address that is not https (a rig at 127.0.0.1): said clearly
+    vm.runInContext('S218.origin = "http://127.0.0.1:3001"', ctx); vm.runInContext('S218.kv = {}', ctx); assert.match(as(t, 'passkeyStart').thrown, /only on the ERP's own https address/);
+    assert.strictEqual(as(t, 'passkeyList').can, false);
+  } finally {
+    vm.runInContext('kvRead_ = __k218.kvRead_; kvWrite_ = __k218.kvWrite_; writeLog_ = __k218.writeLog_; delete this.__act; delete this.__beatLight; delete this.__lockIdleMs; delete this.__portalPw; delete this.__webauthn; WL_TOKEN_ = "";', ctx);
+  }
+  // ---- the page, the bridge, the server's door: one list of the lock's actions; the help in 3 languages; the guide ----
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8'), pg = fs.readFileSync(path.join(root, 'server', 'page.js'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  const listOf = (src, re) => JSON.parse((re.exec(src) || [])[1].replace(/'/g, '"'));
+  const fns = listOf(rt, /const WL_FNS = (\[[^\]]+\])/);
+  assert.deepStrictEqual(listOf(pg, /var WL_FNS = (\[[^\]]+\])/), fns, 'the bridge and the server: the same list');
+  fns.forEach(f => assert.ok(new RegExp('^  ' + f + ':\\s*\\{ m: \'\', withUser: true', 'm').test(code), f + ' in API_'));
+  listOf(code, /const WL_OPEN_FNS_ = (\[[^\]]+\])/).forEach(f => assert.ok(fns.includes(f)));
+  assert.match(rt, /g\.__lockIdleMs = \(\) => \{ const v = Number\(process\.env\.RCL_RIG_LOCK_MS\); return !process\.env\.VERCEL && v >= 5000 && v <= 600000 \? v : 0; \};/, 'the shorter time only on the rig, never on Vercel');
+  const F = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  for (const [m, re] of [['SCREEN_LOCKED: the screen is locked (nobody used it for 10 minutes) – unlock it with your fingerprint / face / PIN or your password.', /locked because nobody used/],
+    ['Wrong password – 3 tries left, then you are signed out.', /typed on the locked screen/], ['You were signed out after 5 wrong passwords in a row on the locked screen – sign in again.', /5 wrong passwords in a row were typed/],
+    ['The password could not be checked just now (the Portal did not answer) – try again in a moment, or unlock with the fingerprint / face / PIN.', /Portal \(where your password/],
+    ['The fingerprint / face / PIN was not accepted (the signature does not match this passkey) – try again, or unlock with your password.', /did not unlock the screen/],
+    ['The fingerprint / face / PIN request ran out (2 minutes) – press the button again.', /did not unlock the screen/],
+    ['You have 10 devices with fingerprint / face / PIN already – remove one in My settings → Screen lock first.', /could not be set up on this device/]])
+    assert.match(F.fixRules(m)[0].en.join(' '), re, m);
+  // the page: the lock covers everything above the app; a call refused because of the lock waits; the bridge says how long ago he touched the page
+  assert.match(app, /<div id="wl_lock" hidden role="dialog" aria-modal="true"[^>]*data-noi18n>/);
+  assert.match(app, /#wl_lock \{ position: fixed; inset: 0; z-index: 2147483000;/);
+  assert.match(app, /else if \(\/\^SCREEN_LOCKED\/\.test\(errMsg\(e\)\) && !WL\.out\) \{ wlLock\('server'\); WL\.waiters\.push\(\(\) => rawCallM\(fn, meta, args\)\.then\(resolve, reject\)\); return; \}/);
+  assert.match(pg, /if \(!mkey\) return a < 0 \? body : '\{"act":' \+ a \+ ',' \+ body\.slice\(1\);/);
+  assert.match(app, /fr\.addEventListener\('load', \(\) => \{ try \{ wlWatch\(fr\.contentWindow\); \}/, 'a touch in a module\'s page counts');
+});

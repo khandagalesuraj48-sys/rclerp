@@ -21,6 +21,7 @@ function readBody(req) {
  * A REFUSAL of an entry (a wrong reading, a closed month, a locked bill …) is an ANSWER for the person and stays 200. */
 function statusOf(msg) {
   if (/SESSION_EXPIRED|^Wrong email or password|^The Portal sign-in could not be accepted/.test(msg)) return 401;
+  if (/^SCREEN_LOCKED/.test(msg)) return 423;      // (update-218) the screen of this sign-in is locked: unlock first (the page shows its lock)
   if (/^You do not have access|^You have View access only|^Only Admin /.test(msg)) return 403;
   if (/^Unknown action/.test(msg)) return 404;
   if (/^Too many (sign-in|wrong) attempts/.test(msg)) return 429;
@@ -56,7 +57,10 @@ module.exports = async (req, res) => {
   if (!body || typeof body !== 'object') body = {};
   const fn = String((body && body.fn) || ''), args = Array.isArray(body && body.args) ? body.args : [];
   const t0 = Date.now(), site = typeof body.site === 'string' ? body.site.slice(0, 20) : '', action = fn === 'api' ? String(args[1] || '') : fn;
-  const meta = { url: '', rid: typeof body.rid === 'string' ? body.rid.slice(0, 64) : '', site: site };
+  /* (update-218) THE WEB LOCK: act = how many ms ago the person last touched the page (the ERP's web page sends it; -1 = not sent);
+   * origin = the address the browser is on (a passkey is made for it – Code.gs / server/webauthn.js check the browser's answer against it) */
+  const act = typeof body.act === 'number' && isFinite(body.act) && body.act >= 0 ? Math.min(Math.floor(body.act), 1e11) : -1;
+  const meta = { url: '', rid: typeof body.rid === 'string' ? body.rid.slice(0, 64) : '', site: site, act: act, origin: '' };
   const counted = (text, x) => { try { usage.add(site, action, Object.assign({ ms: Date.now() - t0, out: text.length }, meta.use || {}, x || {})); } catch (e) { /* only a count */ } return text; };
   try {
     if (fn === 'getAppBuild') return send(200, counted(JSON.stringify({ result: page().build })));
@@ -65,6 +69,7 @@ module.exports = async (req, res) => {
     const host = req.headers['x-forwarded-host'] || req.headers.host || '';
     // site: which site's database (stage 1 of "new site" – not sent = the first site, as before; a site that is not set up is refused)
     meta.url = host ? 'https://' + host + '/' : '';
+    { const pr = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase(); meta.origin = host ? (pr === 'https' || pr === 'http' ? pr : req.socket && req.socket.encrypted ? 'https' : 'http') + '://' + String(host).split(',')[0].trim() : ''; }
     const out = await pool.call(fn, args, meta);   // rid: the number of a save (a save sent again is saved once – runtime.js)
     // Vercel does not send an answer bigger than about 4.5 MB
     if (Buffer.byteLength(out, 'utf8') > 4200000) return send(200, counted(JSON.stringify({ error: 'Too much data in one go – pick a shorter period (or fewer machinery) and try again.' }), { err: 1 }));
@@ -75,7 +80,7 @@ module.exports = async (req, res) => {
   } catch (e) {
     const msg = String((e && e.message) || e).replace(/^Error:\s*/, '');
     try { usage.add(site, action, Object.assign({ ms: Date.now() - t0, out: msg.length + 12, err: 1 }, meta.use || {})); } catch (x) { /* only a count */ }
-    if (!/SESSION_EXPIRED|Wrong email|View access|do not have access|Only Admin|^The Portal sign-in could not be accepted \((it ran out|this ticket was already used)/.test(msg)) console.error('[' + fn + (fn === 'api' ? ':' + args[1] : '') + '] ' + msg);
+    if (!/SESSION_EXPIRED|SCREEN_LOCKED|^Wrong password – |signed out after 5 wrong passwords|Wrong email|View access|do not have access|Only Admin|^The Portal sign-in could not be accepted \((it ran out|this ticket was already used)/.test(msg)) console.error('[' + fn + (fn === 'api' ? ':' + args[1] : '') + '] ' + msg);
     return send(statusOf(msg), JSON.stringify({ error: msg }));
   }
 };

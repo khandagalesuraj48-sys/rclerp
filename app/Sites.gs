@@ -116,6 +116,7 @@ function saRecover_(email, code, newPw) {
 function sysWho_(token) {
   const u = sessionUser_(str_(token));
   if (!u || !isHashed_(u.password)) throw new Error('SESSION_EXPIRED');
+  wlGate_(token, 'sysWho');      // (update-218) a locked screen opens no other site (and sets no default site)
   return { email: u.email, name: u.name, admin: !!u.admin };
 }
 // a session on THIS site for a person the server has already proved (signed in on another of his sites)

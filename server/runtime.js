@@ -10,6 +10,7 @@ const sites = require('./sites');
 const fcm = require('./fcm');      // (update-161) the phone app's notifications through Firebase
 const system = require('./system');
 const portal = require('./portal');
+const webauthn = require('./webauthn');      // (update-218) the web lock's fingerprint / face / PIN – only its checks reach the app's code
 const google = require('./google');
 const bkexport = require('./bkexport');      // (update-157) the Engineering and Portal rows for the backup
 const drive = require('./drive');      // (update-158) the copy of the files to Google Drive
@@ -94,7 +95,10 @@ function bootKeys(fn, args) {
  * is NOT kept: the number is given back, so the next copy tries afresh.
  * web_count (step-3 SQL) makes "who is first" exact; without it a plain look is used. */
 const NOT_NOW = /Another save is still running|Could not reach the database|did not answer in time|^Database \([a-z_]+\): 5\d\d|RETRY_LATER/;
-const IS_QUESTION = f => /^(get|rpt|rtc)[A-Z]/.test(f) || ['sync', 'logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel', 'aiChats', 'aiChatGet', 'aiChatSave', 'aiMemory'].indexOf(f) > -1;      // (update-186: the assistant's chats and memory list – as page.js)      // (dieselPhoto – update-85, inwardPhoto – update-120, uploadAttachment and Scan with Mobile's cap… – update-153: as page.js; they write no table, and the QR's token is never kept with a save's answer)
+/* (update-218) the web lock's own actions (Code.gs WL_…): never run as "a save sent again" – an unlock or a passkey is answered at once,
+ * and a copy sent again is checked afresh (never answered with an answer kept for its number). As page.js. */
+const WL_FNS = ['lockState', 'lockNow', 'unlockPassword', 'unlockPasskeyStart', 'unlockPasskey', 'passkeyList', 'passkeyStart', 'passkeySave', 'passkeyRemove'];
+const IS_QUESTION = f => /^(get|rpt|rtc)[A-Z]/.test(f) || ['sync', 'logDashboard', 'pendingLog', 'billInit', 'vendorLedger', 'vendorOutstanding', 'billSummary', 'dieselHistory', 'boqRateCheck', 'boqMissing', 'logPrintExtra', 'dieselPhoto', 'inwardPhoto', 'uploadAttachment', 'maintFile', 'readMaintBill', 'maintLog', 'capStart', 'capClaim', 'capAdd', 'capPoll', 'capCancel', 'aiChats', 'aiChatGet', 'aiChatSave', 'aiMemory'].concat(WL_FNS).indexOf(f) > -1;      // (update-186: the assistant's chats and memory list – as page.js)      // (dieselPhoto – update-85, inwardPhoto – update-120, uploadAttachment and Scan with Mobile's cap… – update-153: as page.js; they write no table, and the QR's token is never kept with a save's answer)
 const { sleepSync, fetchAllSync } = require('./syncfetch');
 const crypto = require('crypto');
 /* ---------- SAVED ONCE, DECIDED INSIDE THE DATABASE (update-68, step-5 SQL: web.ops) ----------
@@ -161,7 +165,7 @@ function runOnce(fn, args, meta, rid) {
   try { out = runPlain(fn, args, Object.assign({}, meta, { op: { rid: rid, holder: holder } })); }
   catch (e) {
     const msg = String((e && e.message) || e).replace(/^Error:\s*/, '');
-    const notNow = NOT_NOW.test(msg) || /SESSION_EXPIRED|OP_NOT_MINE/.test(msg);
+    const notNow = NOT_NOW.test(msg) || /SESSION_EXPIRED|OP_NOT_MINE|^SCREEN_LOCKED/.test(msg);      // (update-218) refused because the screen is locked: nothing ran – the number is given back (sent again after unlocking)
     let st = null, asked = true;
     try { st = end(notNow ? 'free' : 'refused', notNow ? null : msg); } catch (e2) { st = null; asked = false; }      // (cannot be told now: the number stays "started" and is taken over or found done later)
     if (st && st.state === 'done') {      // the write DID go through (the database has the last word): answered "saved", and what follows a save is done now
@@ -328,6 +332,17 @@ function runPlain(fn, args, meta) {
   const g = gas.makeGlobals(st, page());
   g.__BUILD = page().build;
   g.__until = () => Number(meta && meta.until) || 0;      // (update-158) the last moment this request may still answer (the pool's 58 s, from when it arrived)
+  /* (update-218) THE WEB LOCK (Code.gs wlGate_): how long ago the person last touched the ERP's web page (the page says it with each
+   * call – api/rpc.js body.act; -1 = not said: the phone app, an older page, the server's own calls); whether this heartbeat was
+   * answered from this server's memory (gas.boot – then nothing of the lock is written from it); the fingerprint / face / PIN checks
+   * (server/webauthn.js) for the address the browser is on (meta.origin – api/rpc.js); "is this his password?" asked of the Portal for
+   * a sign-in that came from it (portal.js). A shorter lock time only on this computer's test rig (RCL_RIG_LOCK_MS – never on Vercel,
+   * which always sets VERCEL; 5 s to 10 minutes). */
+  g.__act = () => (meta && typeof meta.act === 'number' && meta.act >= 0 ? meta.act : -1);
+  g.__beatLight = () => !!st.light;
+  g.__webauthn = (op, json) => { let x = {}; try { x = JSON.parse(String(json || '{}')); } catch (e) { x = {}; } return JSON.stringify(webauthn.run(String(op), x, String((meta && meta.origin) || ''))); };
+  g.__portalPw = (email, pw) => JSON.stringify(portal.checkPassword(String(email), String(pw)));
+  g.__lockIdleMs = () => { const v = Number(process.env.RCL_RIG_LOCK_MS); return !process.env.VERCEL && v >= 5000 && v <= 600000 ? v : 0; };
   // an exact counter (step-3 SQL). -1 = not installed → the app's code falls back to its old way of counting
   g.__count = (key, ttl) => { if (COUNTER.off) return -1;
     if (!key) { if (COUNTER.ok) return 0; try { gas.rpc('web_uncount', { p_key: '__probe' }); COUNTER.ok = true; return 0; } catch (e) { if (NOT_INSTALLED(e)) { COUNTER.off = true; return -1; } throw e; } }

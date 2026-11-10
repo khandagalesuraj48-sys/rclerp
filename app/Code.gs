@@ -847,6 +847,7 @@ function changePassword(token, oldPw, newPw) {
   if (!val) throw new Error('SESSION_EXPIRED');
   const sv = sessionRead_(val), email = sv.email;
   if (sv.left <= 0) { cache.remove('S_' + str_(token)); throw new Error('SESSION_EXPIRED'); }      // the 30 days of this sign-in are over
+  wlGate_(token, 'changePassword');      // (update-218) not while the screen is locked
   const u = readUsers_().find(x => x.email === email);
   if (!u || !u.active) throw new Error('SESSION_EXPIRED');
   const fk = 'CPF_' + email, fails = Number(cache.get(fk) || 0);
@@ -897,6 +898,181 @@ function sessionUser_(token) {
   cache.put('S_' + token, sv.made ? val : email + '|' + stamp + '|' + Date.now(), Math.max(1, Math.min(SESSION_SECONDS, Math.ceil(sv.left / 1000))));
   return sv.sup && u.admin ? Object.assign({}, u, { super: true }) : u;      // (14-10-2026) the Super Admin (his session from the Portal)
 }
+
+/* ================= THE WEB LOCK (update-218) =================
+ * Asked for web security; he chose "अ – Web lock (शिफारस)", and on 10-11-2026 the time: 10 minutes.
+ * After 10 minutes with no mouse / keyboard / touch / scroll anywhere on the ERP's web screen (a module's page shown inside it
+ * too), the screen locks: everything on it is hidden behind the lock (his name, the site, when it locked). It opens with this
+ * device's own fingerprint / face / PIN (a passkey – WebAuthn, checked here: server/webauthn.js) or with his password. Signing
+ * out stays possible. Unlocking goes on where he was: nothing is reloaded, nothing typed is lost (the page – App.html wl…).
+ * THE SERVER KEEPS THE LOCK. The page says with every call how long ago it was last touched (__act). The sign-in's own value
+ * (S_<token>) keeps, as a 6th part "W<last activity>[L<locked at>]", the last activity – noted at most every 30 s – and the moment
+ * it locked. While it is locked, or nothing was heard of its page for longer than the 10 minutes (+ 1 minute, for the noting),
+ * every action of that sign-in is refused with SCREEN_LOCKED – except the lock's own (WL_OPEN_FNS_) and Sign out; also "another
+ * site", the password change and the assistant (they ask the same). Taking the panel away in the browser's tools gives no data.
+ * Only a sign-in whose page says how long ago it was touched is watched: the phone app (it has its own app lock) and a page of
+ * before this update are not touched. Several tabs of one browser are one sign-in: unlocking in one unlocks it.
+ * A wrong password: "N tries left"; the 5th wrong one in a row signs the sign-in out (the same 5 as a sign-in).
+ * THE PASSWORD: a sign-in that came from the Portal is checked by the Portal (its password is the one he knows – this site's copy
+ * is not kept in step: portal.js checkPassword); the app's own sign-in (?local=1, or no Portal) by this site's kept password.
+ * NOTHING NEW IN ANY DATABASE: the sign-in's value (web.cache), the exact counter of wrong passwords (WLF_<token>), the challenge
+ * of a passkey (WLC_<token>, 2 minutes, used once) and the person's passkeys – app_settings "WL_PK|<email>" at the FIRST site, one
+ * list for all his sites (the same address = the same passkey): about 250 bytes a device (RS256 ~ 560), at most 10 devices. */
+const WL_IDLE_MS_ = 600000;      // the owner's 10 minutes (10-11-2026)
+const wlIdle_ = () => { const v = typeof __lockIdleMs === 'function' ? Number(__lockIdleMs()) : 0; return v > 0 ? v : WL_IDLE_MS_; };      // (shorter only on the test rig)
+const WL_STEP_MS_ = 30000, WL_SLACK_MS_ = 60000, WL_TRIES_ = 5, WL_PK_MAX_ = 10;
+const WL_OPEN_FNS_ = ['lockState', 'lockNow', 'unlockPassword', 'unlockPasskeyStart', 'unlockPasskey'];
+const WL_LOCKED_ = 'SCREEN_LOCKED: the screen is locked (nobody used it for 10 minutes) – unlock it with your fingerprint / face / PIN or your password.';
+let WL_TOKEN_ = '';      // the sign-in of this request (api)
+// the lock's part of a sign-in's value: { on: watched, act: last activity (ms), at: locked at (ms, 0 = open) }
+function wlOf_(val) { const m = /^W(\d{1,15})(?:L(\d{1,15}))?$/.exec(String(String(val || '').split('|')[5] || '')); return m ? { on: true, act: Number(m[1]), at: Number(m[2]) || 0 } : { on: false, act: 0, at: 0 }; }
+function wlWith_(val, w) { const p = String(val || '').split('|'); while (p.length < 6) p.push(''); p[5] = 'W' + Math.max(0, Math.round(w.act)) + (w.at ? 'L' + Math.round(w.at) : ''); return p.slice(0, 6).join('|'); }
+const wlTtl_ = val => Math.max(1, Math.min(SESSION_SECONDS, Math.ceil(sessionRead_(val).left / 1000)));
+const wlLight_ = () => typeof __beatLight === 'function' && !!__beatLight();
+// a sign-in made through the Portal (its 12 hours – Sites.gs sysSso_): its password is the Portal's
+const wlPortalPw_ = val => Number(String(val || '').split('|')[3]) === (typeof SSO_SESSION_MS_ !== 'undefined' ? SSO_SESSION_MS_ : 43200000) && typeof __portalPw === 'function';
+/* THE GATE (api, sysWho_, changePassword): notes the activity the page reports, locks by the server's own clock, refuses a locked
+ * sign-in. Returns its lock part (null = a sign-in the lock does not watch). */
+function wlGate_(token, fn) {
+  const cache = CacheService.getScriptCache(), k = 'S_' + str_(token), val = str_(token) ? cache.get(k) : null;
+  if (!val) return null;
+  const age = typeof __act === 'function' ? Number(__act()) : -1, now = Date.now(), idle = wlIdle_();
+  let w = wlOf_(val);
+  const was = w.on + '|' + w.act + '|' + w.at;
+  if (!w.on) { if (!(age >= 0)) return null; w = { on: true, act: now - Math.min(age, now), at: 0 }; }      // its page says so for the first time: watched from now on
+  else if (!w.at && now - w.act > idle + WL_SLACK_MS_) w.at = now;      // the server's own clock: nothing heard of its page for longer than the 10 minutes
+  if (!w.at && age >= 0) { const a = now - Math.min(age, now); if (now - a > idle) w.at = now; else if (a - w.act >= WL_STEP_MS_) w.act = a; }      // the page: last touched … ago
+  // written when it changed – a lock always; the activity not from a heartbeat answered from memory (its copy may be seconds old)
+  if (w.on + '|' + w.act + '|' + w.at !== was && (w.at || !wlLight_())) cache.put(k, wlWith_(val, w), wlTtl_(val));
+  if (w.at && WL_OPEN_FNS_.indexOf(String(fn)) < 0) throw new Error(WL_LOCKED_);
+  return w;
+}
+// opened: the lock off, the activity now, the wrong tries forgotten
+function wlOpen_(u, how) {
+  const cache = CacheService.getScriptCache(), k = 'S_' + WL_TOKEN_, val = cache.get(k); if (!val) throw new Error('SESSION_EXPIRED');
+  cache.put(k, wlWith_(val, { act: Date.now(), at: 0 }), wlTtl_(val));
+  wlTries_().ok();
+  writeLog_(u, 'Unlock', 'Screen lock', '', 'Screen unlocked with ' + how, '');
+  return { ok: true, locked: false };
+}
+// the wrong passwords of this sign-in in a row – counted BEFORE the password is looked at (many tries sent at once cannot slip past)
+function wlTries_() {
+  const k = 'WLF_' + WL_TOKEN_, c = CacheService.getScriptCache();
+  if (typeof __count === 'function' && __count('', 0) !== -1) return { add: () => __count(k, 3600), ok: () => { try { __uncount(k); } catch (e) { /* runs out in an hour */ } } };
+  return { add: () => { const n = Number(c.get(k) || 0) + 1; c.put(k, String(n), 3600); return n; }, ok: () => c.remove(k) };
+}
+// the site's name for the lock panel
+function wlSiteName_() { let n = ''; try { n = rtcSite_().name; } catch (e) { n = ''; } if (!n) { try { n = orgSettings_().site || ''; } catch (e) { n = ''; } } return str_(n); }
+// the lock panel's question (also asked while locked): locked or not, since when, his name, the site, his passkeys, which password
+function wlState_(u) {
+  const val = CacheService.getScriptCache().get('S_' + WL_TOKEN_), w = wlOf_(val);
+  let keys = []; try { keys = wlPkRead_(u.email).map(c => c.id); } catch (e) { keys = []; }
+  return { locked: !!w.at, at: w.at || 0, act: w.act || 0, idle: wlIdle_(), name: u.name || u.email, site: wlSiteName_(), keys: keys, portal: wlPortalPw_(val) };
+}
+// the page locked itself (10 minutes untouched, or it woke up after longer): locked at once for every tab of this sign-in
+function wlLockNow_() {
+  const cache = CacheService.getScriptCache(), k = 'S_' + WL_TOKEN_, val = cache.get(k); if (!val) throw new Error('SESSION_EXPIRED');
+  const w = wlOf_(val);
+  if (!w.at) cache.put(k, wlWith_(val, { act: w.act || Date.now(), at: Date.now() }), wlTtl_(val));
+  return { ok: true, locked: true, at: w.at || Date.now() };
+}
+// signed out after the 5th wrong password in a row (the page then signs out of the Portal too)
+function wlSignOut_(u) {
+  const cache = CacheService.getScriptCache(); cache.remove('S_' + WL_TOKEN_); wlTries_().ok();
+  writeLog_(u, 'Logout', 'Screen lock', '', 'Signed out: ' + WL_TRIES_ + ' wrong passwords in a row on the locked screen', '');
+}
+function wlUnlockPw_(u, x) {
+  const cache = CacheService.getScriptCache(), val = cache.get('S_' + WL_TOKEN_), w = wlOf_(val);
+  if (!w.at) return { ok: true, locked: false };      // opened already (another tab)
+  const pw = String((x && x.password) || '');
+  if (!pw) throw new Error('Type your password to unlock the screen.');
+  if (pw.length > 200) throw new Error('Wrong password – type your own password (the one you sign in with).');
+  const t = wlTries_(), portal = wlPortalPw_(val);
+  let n = 0, good = false, many = false;
+  if (portal) {      // the Portal's password (counted there too: 5 wrong in 15 minutes)
+    let r = null; try { r = JSON.parse(__portalPw(u.email, pw)); } catch (e) { r = { error: String((e && e.message) || e) }; }
+    if (!r || r.error) throw new Error('The password could not be checked just now (the Portal did not answer) – try again in a moment, or unlock with the fingerprint / face / PIN.');
+    good = r.ok === true; many = r.many === true;
+    if (!good) n = t.add();
+  } else {
+    n = t.add();
+    good = n <= WL_TRIES_ && checkPw_(pw, u.password);
+    if (!good) pwDummy_(pw);
+  }
+  if (good) return wlOpen_(u, 'the password');
+  if (n >= WL_TRIES_) { wlSignOut_(u); throw new Error('You were signed out after 5 wrong passwords in a row on the locked screen – sign in again.'); }
+  if (many) throw new Error('Wrong password – ' + (WL_TRIES_ - n) + (WL_TRIES_ - n === 1 ? ' try' : ' tries') + ' left (the Portal also holds your password for 15 minutes after 5 wrong ones – use the fingerprint / face / PIN).');
+  throw new Error('Wrong password – ' + (WL_TRIES_ - n) + (WL_TRIES_ - n === 1 ? ' try' : ' tries') + ' left, then you are signed out.');
+}
+
+/* ---- the fingerprint / face / PIN (passkeys): his list at the first site (one list for all his sites) ---- */
+const wlPkKey_ = email => 'WL_PK|' + str_(email).toLowerCase();
+function wlPkRead_(email) { let l = []; try { l = JSON.parse(rtcKvRead_(wlPkKey_(email)) || '[]'); } catch (e) { l = []; } return Array.isArray(l) ? l.filter(c => c && typeof c.id === 'string' && c.k && typeof c.k === 'object') : []; }
+function wlPkWrite_(email, list) { rtcKvWrite_(wlPkKey_(email), JSON.stringify(list.slice(-WL_PK_MAX_))); }
+const wlPkOut_ = list => list.map(c => ({ id: c.id, name: c.name || 'A device', at: c.at || '', used: c.used || '' }));
+function wlWa_(op, x) {
+  if (typeof __webauthn !== 'function') throw new Error('The fingerprint / face / PIN cannot be used on this server – unlock with your password.');
+  const r = JSON.parse(__webauthn(op, JSON.stringify(x || {})));
+  if (r && r.error && op === 'rp') throw new Error('The fingerprint / face / PIN works only on the ERP\'s own https address – open the ERP from its link (' + r.error + ').');
+  return r || {};
+}
+// a challenge for the device: kept here 2 minutes, used once
+function wlChallenge_(kind) { const c = wlWa_('challenge').challenge; CacheService.getScriptCache().put('WLC_' + WL_TOKEN_, JSON.stringify({ c: c, k: kind, t: Date.now() }), 120); return c; }
+function wlChallengeTake_(kind) {
+  const cache = CacheService.getScriptCache(), key = 'WLC_' + WL_TOKEN_, v = cache.get(key); cache.remove(key);
+  let j = null; try { j = JSON.parse(v || 'null'); } catch (e) { j = null; }
+  if (!j || j.k !== kind || !j.c || Date.now() - Number(j.t) > 120000) throw new Error('The fingerprint / face / PIN request ran out (2 minutes) – press the button again.');
+  if (typeof __count === 'function' && __count('', 0) !== -1 && __count('WLCU_' + j.c, 300) > 1) throw new Error('The fingerprint / face / PIN request ran out (2 minutes) – press the button again.');      // (used once, also by two answers at the same moment)
+  return j.c;
+}
+function wlPkList_(u) { const rp = typeof __webauthn === 'function' ? JSON.parse(__webauthn('rp', '{}')) : { error: 'no' }; return { list: wlPkOut_(wlPkRead_(u.email)), idle: wlIdle_(), can: !rp.error }; }
+// setting it up on this device (My settings): what the browser needs to make the passkey
+function wlPkNewStart_(u) {
+  const list = wlPkRead_(u.email);
+  if (list.length >= WL_PK_MAX_) throw new Error('You have ' + WL_PK_MAX_ + ' devices with fingerprint / face / PIN already – remove one in My settings → Screen lock first.');
+  const rp = wlWa_('rp', { email: u.email });
+  return { challenge: wlChallenge_('new'), rp: { id: rp.id, name: 'RCL ERP' }, user: { id: rp.handle, name: u.email, displayName: u.name || u.email },
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }], timeout: 60000, attestation: 'none',
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged', requireResidentKey: false },
+    excludeCredentials: list.map(c => ({ type: 'public-key', id: c.id })) };
+}
+function wlPkNew_(u, x) {
+  x = x || {};
+  const ch = wlChallengeTake_('new');
+  const r = wlWa_('create', { id: str_(x.id), clientDataJSON: str_(x.clientDataJSON), attestationObject: str_(x.attestationObject), challenge: ch });
+  if (r.error) throw new Error('This device\'s fingerprint / face / PIN could not be set up (' + String(r.error).slice(0, 120) + ') – try again.');
+  const list = wlPkRead_(u.email).filter(c => c.id !== r.id);
+  if (list.length >= WL_PK_MAX_) throw new Error('You have ' + WL_PK_MAX_ + ' devices with fingerprint / face / PIN already – remove one in My settings → Screen lock first.');
+  const name = clean_(x.name).replace(/[<>"]/g, '').slice(0, 40) || 'A device';
+  list.push({ id: r.id, alg: r.alg, k: r.jwk, n: r.count, name: name, at: new Date().toISOString(), used: '' });
+  wlPkWrite_(u.email, list);
+  writeLog_(u, 'Add', 'Screen lock', name, 'Unlock with fingerprint / face / PIN set up on ' + name, '');
+  return { ok: true, id: r.id, list: wlPkOut_(list) };
+}
+function wlPkRemove_(u, x) {
+  const id = str_(x && x.id), list = wlPkRead_(u.email), c = list.find(y => y.id === id);
+  if (!c) return { ok: true, list: wlPkOut_(list) };      // (removed already)
+  const rest = list.filter(y => y.id !== id); wlPkWrite_(u.email, rest);
+  writeLog_(u, 'Delete', 'Screen lock', c.name || '', 'Unlock with fingerprint / face / PIN removed from ' + (c.name || 'a device'), '');
+  return { ok: true, list: wlPkOut_(rest) };
+}
+// unlocking with it: what the browser needs to ask the device
+function wlPkGetStart_(u) {
+  const list = wlPkRead_(u.email);
+  if (!list.length) throw new Error('No fingerprint / face / PIN is set up for you – unlock with your password (set it up in My settings → Screen lock).');
+  const rp = wlWa_('rp', { email: u.email });
+  return { challenge: wlChallenge_('get'), rpId: rp.id, allowCredentials: list.map(c => ({ type: 'public-key', id: c.id })), userVerification: 'required', timeout: 60000 };
+}
+function wlPkGet_(u, x) {
+  x = x || {};
+  const ch = wlChallengeTake_('get'), list = wlPkRead_(u.email), c = list.find(y => y.id === str_(x.id));
+  if (!c) throw new Error('This fingerprint / face / PIN is not set up for you – unlock with your password.');
+  const r = wlWa_('get', { clientDataJSON: str_(x.clientDataJSON), authenticatorData: str_(x.authenticatorData), signature: str_(x.signature), challenge: ch, alg: c.alg, jwk: c.k, count: c.n });
+  if (r.error) throw new Error('The fingerprint / face / PIN was not accepted (' + String(r.error).slice(0, 120) + ') – try again, or unlock with your password.');
+  c.n = Number(r.count) || 0; c.used = new Date().toISOString(); wlPkWrite_(u.email, list);
+  const w = wlOf_(CacheService.getScriptCache().get('S_' + WL_TOKEN_));
+  return w.at ? wlOpen_(u, 'the fingerprint / face / PIN (' + (c.name || 'a device') + ')') : { ok: true, locked: false };
+}
 // Edit where the user's access says Edit (an Admin's access is Edit everywhere – readUsersSheet_).
 function canEdit_(u, module) { return u.perms[module] === 'Edit'; }
 
@@ -904,6 +1080,16 @@ function canEdit_(u, module) { return u.perms[module] === 'Edit'; }
  * m = module, edit = needs Edit access, admin = Admin only, log = how to write it in the Activity Log */
 const API_ = {
   whoami:            { m: '', f: () => true },
+  // (update-218) the web lock: its own actions (also while locked – WL_OPEN_FNS_) and the passkeys of My settings → Screen lock
+  lockState:         { m: '', withUser: true, f: u => wlState_(u) },
+  lockNow:           { m: '', withUser: true, f: () => wlLockNow_() },
+  unlockPassword:    { m: '', withUser: true, f: (u, x) => wlUnlockPw_(u, x) },
+  unlockPasskeyStart:{ m: '', withUser: true, f: u => wlPkGetStart_(u) },
+  unlockPasskey:     { m: '', withUser: true, f: (u, x) => wlPkGet_(u, x) },
+  passkeyList:       { m: '', withUser: true, f: u => wlPkList_(u) },
+  passkeyStart:      { m: '', withUser: true, f: u => wlPkNewStart_(u) },
+  passkeySave:       { m: '', withUser: true, f: (u, x) => wlPkNew_(u, x) },
+  passkeyRemove:     { m: '', withUser: true, f: (u, x) => wlPkRemove_(u, x) },
   sync:              { m: '', f: () => ({}) },          // heartbeat: fresh access + what changed (filled in api)
   rtcUsers:          { m: '', withUser: true, f: u => rtcUsers_(u) },             // screen share: the users to pick from
   rtcSend:           { m: '', withUser: true, f: (u, x) => rtcSend_(u, x) },      // screen share: a note to another user (ring / answer / …)
@@ -1181,6 +1367,7 @@ function api(token, fn, args, meta) {
   if (!isHashed_(u.password)) throw new Error('SESSION_EXPIRED');
   const spec = Object.prototype.hasOwnProperty.call(API_, String(fn)) ? API_[fn] : null;      // only the app's own list ("constructor", "__proto__" … are not actions)
   if (!spec) throw new Error('Unknown action: ' + String(fn).slice(0, 60));
+  WL_TOKEN_ = str_(token); wlGate_(token, fn);      // (update-218) the web lock: a locked screen's sign-in gets nothing but its lock
   DSRC_U_ = u;      // (update-162) whose diesel sources count in this request (verification's dry run too)
   apiAccess_(u, spec, fn);
   args = args || [];
@@ -1257,6 +1444,7 @@ function apiRun_(u, spec, fn, args) {
   // (update-108) the Super Admin's save of Log Book / diesel: first the "before" of every submitted bill it may change (billBaselines_) – both saved together, or neither
   const res = leastOut_(u, u.super && BL_FNS_.indexOf(fn) > -1 ? withLock_(() => { billBaselines_(fn, args); return run(); }) : run());      // machinery details only for users with a page that uses them (D4)
   if (fn === 'getInit' || fn === 'sync') { res.user = publicUser_(u); res.versions = getVersions_(); res.today = today_(); res.source = sbDataOn_() ? 'supabase' : 'sheet'; res.build = appBuild_();
+    res.lock = { ms: wlIdle_() };      // (update-218) the web lock's time (10 minutes)
     res.stamp = stamp_(u);      // (update-211) the server's signed time: kept by the phone, sent with an entry it makes with no network
     if (typeof sbBackupInfo_ === 'function') res.backup = backupInfoFor_(u, sbBackupInfo_());
     if (u.admin) res.faults = errStamp_();      // the Admin's page shows faults of today within seconds
