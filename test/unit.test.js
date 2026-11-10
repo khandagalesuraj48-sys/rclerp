@@ -9690,8 +9690,17 @@ test('update-219: the navigation – a module rail (his modules on this site) an
   assert.match(css, /#smenu nav > :not\(\.sm-on\), #grp_mods > \.modgrp:not\(\.sm-on\) \{ display: none !important; \}/);
   assert.match(css, /#smenu \.grpitems:not\(\[hidden\]\), #smenu \.sgitems:not\(\[hidden\]\) \{ display: flex !important;/, 'all pages, one below another');
   assert.match(css, /#smenu \.sghead \{ display: flex; pointer-events: none;/, 'a section is a heading');
-  assert.match(css, /@media \(max-width: 760px\) \{[\s\S]*#smenu \{ position: absolute; left: 100%;[\s\S]*transform: translateX\(-100%\);[\s\S]*\.app\.nav-open #nav_back \{ opacity: 1; pointer-events: auto; \}/, 'a phone: over the page, with the shade');
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ #smenu, \.app\.nav-open #smenu, #nav_back \{ transition-duration: 0s !important; transition-delay: 0s !important; \} \}/);
+  // a phone / tablet: the modules a bar at the bottom (the page keeps the whole width), the pages a sheet sliding up over the page, the shade
+  const ph = css.slice(css.indexOf('@media (max-width: 760px) {'), css.indexOf('@media (prefers-reduced-motion'));
+  assert.match(ph, /#side \{ position: static; flex: 0 0 0 !important; width: 0 !important;/, 'the page has the whole width');
+  assert.match(ph, /#mrail \{ position: fixed; z-index: 10; left: 0; right: 0; bottom: 0;[^}]*flex-direction: row;/, 'the modules: a bar at the bottom');
+  assert.match(ph, /\.mainwrap \{ padding-bottom: calc\(var\(--bar-h\) \+ var\(--bar-b\)\); \}/, 'nothing of the page under the bar');
+  assert.match(ph, /#smenu \{ position: fixed; z-index: 9; left: 0; right: 0; top: auto; bottom: calc\(var\(--bar-h\) \+ var\(--bar-b\)\);[^}]*transform: translateY\(105%\);/, 'the pages: a sheet from below');
+  assert.match(ph, /\.app\.nav-open #smenu \{ transform: none;/);
+  assert.match(ph, /\.app\.nav-open #nav_back \{ opacity: 1; pointer-events: auto; \}/, 'the shade (a tap closes)');
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ #smenu, \.app\.nav-open #smenu, #nav_back, \.sm-in, \.app\.nav-open \.sm-in \{ transition-duration: 0s !important; transition-delay: 0s !important; \} \}/);
+  assert.match(css, /\.app\.nav-open \.sm-in \{ opacity: 1; transform: none;/, 'the open / close effect: the content comes in as the pages open');
+  assert.match(css, /\.sm-head, \.sm-find, \.sm-none \{ flex-shrink: 0; \}/, 'the search box keeps its height with a long list');
   assert.match(css, /\.nav-menu, #nav_menu \{ display: none !important; \}/, 'the rail is the menu');
   assert.ok(app.lastIndexOf('"Option A") NAVIGATION') > app.lastIndexOf('TWO MOTIONS'), 'after the older menu rules');
   // what it does: one function opens / closes (the same as the old drawer – everything that closed it closes the pages)
