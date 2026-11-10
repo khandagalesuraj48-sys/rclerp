@@ -7182,5 +7182,8 @@
 "{0} deleted, {1} not deleted": "{0} delete झाले, {1} delete झाले नाहीत",
 "Not deleted:": "Delete झाले नाहीत:",
 "{0} – {1} bill(s)": "{0} – {1} bill",
-"{0} log book(s) deleted.": "{0} log book delete झाले."
+"{0} log book(s) deleted.": "{0} log book delete झाले.",
+"Find a page…": "पेज शोधा…",
+"Close the pages": "पेजेस बंद करा",
+"No page found": "पेज सापडले नाही"
 }

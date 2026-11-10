@@ -7182,5 +7182,8 @@
 "{0} deleted, {1} not deleted": "{0} delete हुए, {1} delete नहीं हुए",
 "Not deleted:": "Delete नहीं हुए:",
 "{0} – {1} bill(s)": "{0} – {1} bill",
-"{0} log book(s) deleted.": "{0} log book delete हुईं."
+"{0} log book(s) deleted.": "{0} log book delete हुईं.",
+"Find a page…": "पेज खोजें…",
+"Close the pages": "पेज बंद करें",
+"No page found": "कोई पेज नहीं मिला"
 }

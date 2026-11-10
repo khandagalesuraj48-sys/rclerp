@@ -9674,4 +9674,7 @@
 "The whole maintenance log book of these",
 "The whole maintenance log book of these {0} machinery – {1} bill(s), ₹{2} – is deleted:",
 "This cannot be undone – \"Show\" a log book, then \"Export to Excel\" first to keep a copy.",
-"What the RCL Store issued and the fuel stay. Each bill is written in the Activity Log."]
+"What the RCL Store issued and the fuel stay. Each bill is written in the Activity Log.",
+"Find a page…",
+"Close the pages",
+"No page found"]
