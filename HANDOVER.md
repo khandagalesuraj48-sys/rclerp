@@ -2412,3 +2412,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   rule of `onSiteOn_`, which now uses it); `wlSetDraw` asks `passkeyList` only when My settings is on screen; `rawCallM` waits on
   SCREEN_LOCKED only while the lock is shown. Test copy: Dashboard answer 2.0 MB → 3 KB, opening calls (warm, 1 CPU) ~0.6–0.8 s →
   ~0.4–0.5 s. A "ready threads first" change in server/pool.js measured no better on a cold server and is NOT in. Tests: unit `update-220`.
+* **update-221 – Motion + menu polish + modules ready (no SQL, 10-11-2026):** App.html MOTION block (last in the stylesheet): `moPop` on
+  `#cf_box` (Scale Pop from .72), `moWobble` for alert+danger; `MO_BOXES` + `moGhost` – a closing PICTURE (`.mo-ghost`, inert, after the
+  box) fades while the box itself is hidden and answered at once as before; `busy()` adds `mo-busy` (ring) while waiting and `mo-shake` on
+  a refusal (not CR_SENT / FLOW_SENT_RE); `moZoomIn` for `section.enter` parts, `.rv`, the Dashboard tabs, `.ext-frame.mo-zoom`,
+  `.sm-in.mo-switch`; the rail: `[aria-expanded=true]` yellow, `.on` a thin line while open; `.sm-brand` (full logo); `modName` (Title Case);
+  `extWarm()` (2.5 s after init: each of his modules of this address – `PT.mods` + `inHere` – loaded hidden one by one, 1.5 s apart, not
+  on saveData). Reduced motion / `data-motion=less` stop it all. Tests: unit `update-221`; rig `test/browser/motion221.js` (GATEWAY=1).

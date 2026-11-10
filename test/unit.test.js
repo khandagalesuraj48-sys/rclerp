@@ -9773,3 +9773,57 @@ test('update-220: speed – the Dashboard says the Log Book pending as a number 
   assert.match(app, /wlLock\('server'\); if \(WL\.on\) \{ WL\.waiters\.push/);
   // the phone app reads only the number (no list) – nothing of it depends on the list going away
 });
+
+test('update-221: motion (his brief of 10-11-2026) – Scale Pop / Wobble boxes, a closing picture (the box itself closed at once), the busy ring and the refusal shake, zoom of pages / tabs / modules, the clicked module yellow, the full logo on the pages, proper module names, his modules made ready in the background; all off with reduced motion / "Less motion"', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const css = app.slice(app.indexOf('(update-221, his brief of 10-11-2026'), app.indexOf('</style>', app.indexOf('(update-221, his brief of 10-11-2026')));
+  assert.ok(css.length > 2000 && app.indexOf('(update-221, his brief of 10-11-2026') > app.indexOf('"Option A") NAVIGATION') && app.indexOf('(update-221, his brief of 10-11-2026') < app.indexOf('</style>\n</head>'), 'the motion block comes last (it wins over the older rules)');
+  // boxes: Scale Pop from 72 %, a refused box wobbles, the Delete button lifted
+  assert.match(css, /@keyframes moPop \{ from \{ opacity: 0; transform: scale\(\.72\); \}/);
+  assert.match(css, /#cf_back:not\(\[hidden\]\) #cf_box \{ animation: moPop var\(--mo-in\) var\(--mo-pop\) both; \}/);
+  assert.match(css, /#cf_back:not\(\[hidden\]\) #cf_box\.alert\.danger \{ animation: moWobble/);
+  // only transform / opacity move (no width / height / top animations)
+  [...css.matchAll(/@keyframes (\w+) \{([^@]*?)\}\s*\n/g)].forEach(k => assert.doesNotMatch(k[2], /\b(width|height|top|left|margin|padding)\s*:/, k[1] + ' moves only transform / opacity'));
+  // the closing picture: the box is closed at once as before; a copy after it fades out and goes; not with reduced motion / Less motion
+  assert.match(app, /function closeConfirm\(v\) \{ \$\('cf_back'\)\.hidden = true; if \(cfResolve\) \{ const r = cfResolve; cfResolve = null; r\(v\); \} \}/, 'closed and answered at once (unchanged)');
+  assert.match(app, /const MO_BOXES = \['cf_back', 'dlg_back', 'pw_back', 'le_back', 'gs_back'\];/);
+  assert.match(app, /const moStill = \(\) => \{ try \{ return document\.documentElement\.dataset\.motion === 'less' \|\| matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches; \}/);
+  assert.match(app, /if \(moStill\(\) \|\| !el \|\| !el\.firstElementChild\) return;/);
+  assert.match(app, /g\.setAttribute\('aria-hidden', 'true'\); g\.inert = true; g\.classList\.add\('mo-ghost'\);/, 'the picture can be neither used nor read aloud');
+  assert.match(app, /if \(now\) document\.querySelectorAll\('\.mo-ghost\[data-of="' \+ id \+ '"\]'\)\.forEach\(g => g\.remove\(\)\); else moGhost\(el\);/, 'opened again: the picture goes at once');
+  assert.match(css, /\.mo-ghost \{ position: fixed !important; inset: 0; z-index: 70; pointer-events: none !important;/);
+  // busy: the ring exactly while the work waits (taken away on the answer, either way); a shake only for a refusal (not "sent for approval")
+  const bz = app.slice(app.indexOf('  async function busy(btn, label, fn) {'), app.indexOf('  const noKey = v =>'));
+  assert.match(bz, /btn\.classList\.add\('mo-busy'\);[^\n]*\n    try \{ await fn\(\); btn\.classList\.remove\('mo-busy'\); \} catch \(e\) \{\n      btn\.classList\.remove\('mo-busy'\);/);
+  assert.match(bz, /if \(m !== CR_SENT && !FLOW_SENT_RE\.test\(m\)\) \{ btn\.classList\.remove\('mo-shake'\);/);
+  assert.match(bz, /finally \{ btn\.disabled = false; if \(i18nSame\(btn\.textContent, label\)\) btn\.textContent = old; \}/, 'the button as before');
+  // zoom: pages, the Dashboard's tabs, a module's page, the pages panel (another module zooms in)
+  assert.match(css, /@keyframes moZoomIn \{ from \{ opacity: 0; transform: scale\(\.965\); \} to \{ opacity: 1; transform: none; \} \}/);
+  assert.match(css, /section\.enter > \.panel, section\.enter > \.ledger, section\.enter > \.dash-row, section\.enter > div > \.panel, section\.enter > \.viewonly \{ animation: moZoomIn/);
+  assert.match(css, /#dash_diesel:not\(\[hidden\]\), #dash_log:not\(\[hidden\]\), #dash_card:not\(\[hidden\]\) \{ animation: moZoomIn/);
+  assert.match(app, /const sw = open && NAV\.open && k !== NAV\.key;/);
+  assert.match(css, /\.rv \{ opacity: 0; transform: scale\(\.97\); \} \.rv\.in \{ opacity: 1; transform: none;/, 'a page part appearing as it is scrolled to zooms in');
+  assert.match(app, /@media \(prefers-reduced-motion: reduce\) \{ \.rv \{ opacity: 1 !important; transform: none !important; \} \}/, '… not with reduced motion (as before)');
+  assert.match(app, /if \(wasOut\) \{ fr\.classList\.remove\('mo-zoom'\); void fr\.offsetWidth; fr\.classList\.add\('mo-zoom'\); \}/);
+  // the module clicked is the yellow one while its pages are open; the module of the open page keeps a thin line
+  assert.match(css, /\.mr-btn\[aria-expanded="true"\] \{ background: #F2B705; color: #0C1A2E; \}/);
+  assert.match(css, /\.app\.nav-open \.mr-btn\.on:not\(\[aria-expanded="true"\]\) \{ background: transparent; color: #E8EEF7; box-shadow: inset 3px 0 0 #F2B705; \}/);
+  // the full logo at the top of the pages (a computer); proper module names
+  assert.match(app, /<div class="sm-brand"><div class="brandtile"><span class="rlogo big"><img src="https:\/\/i\.ibb\.co\/CpSfBqXX\/RCL-LOGO-PDF\.png" alt="Rachana Construction Limited"/);
+  const mn = vmFn(app, 'const modName = m => ');
+  assert.deepStrictEqual(['engineering', 'purchase', 'Store', 'site work', 'HO Store'].map(n => mn({ name: n })), ['Engineering', 'Purchase', 'Store', 'Site Work', 'HO Store']);
+  assert.strictEqual(mn({ key: 'store' }), 'Store');
+  // his modules made ready in the background: only the Portal's list of his modules of this address, one at a time, after the screen has its data
+  const ew = app.slice(app.indexOf('  async function extWarm() {'), app.indexOf('  // the module\'s page, loaded and answering'));
+  assert.match(ew, /if \(extWarmOn \|\| !ptOn\(\) \|\| !S\.user\) return;/);
+  assert.match(ew, /navigator\.connection && navigator\.connection\.saveData/);
+  assert.match(ew, /for \(const m of PT\.mods\.filter\(x => x\.key !== 'mechanical' && inHere\(x\)\)\) \{\n      if \(!S\.user \|\| document\.getElementById\('ext_' \+ m\.key\)\) continue;\n      try \{ extFrame\(m\); \}/);
+  assert.match(ew, /await new Promise\(ok => setTimeout\(ok, 1500\)\);/);
+  assert.match(app, /setTimeout\(\(\) => \{ try \{ extWarm\(\); \} catch \(e\) \{[^}]*\} \}, 2500\);/);
+  // reduced motion / "Less motion"
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ #cf_back #cf_box, \.btn\.mo-shake \{ animation: none !important; \}/);
+  assert.match(css, /html\[data-motion=less\] \.mo-ghost \{ display: none !important; \}/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ \.sm-in, \.sm-in\.mo-switch, section \[role="tabpanel"\], #dash_diesel, #dash_log, #dash_card, \.ext-frame\.mo-zoom, section\.enter > \* \{ animation: none !important; transform: none !important; \}/);
+  assert.match(app, /html\[data-motion=less\] \*, html\[data-motion=less\] \*::before, html\[data-motion=less\] \*::after \{ animation-duration: \.01ms !important;/, 'his own "Less motion" stops every duration (as before)');
+  function vmFn(src, head) { const i = src.indexOf(head); assert.ok(i > -1, head); const line = src.slice(i, src.indexOf('\n', i)); return require('vm').runInNewContext('(' + line.replace(/^const \w+ = /, '').replace(/;\s*$/, '') + ')'); }
+});
