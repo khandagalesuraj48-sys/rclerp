@@ -9809,6 +9809,7 @@ test('update-221: motion (his brief of 10-11-2026) – Scale Pop / Wobble boxes,
   assert.match(css, /\.mr-btn\[aria-expanded="true"\] \{ background: #F2B705; color: #0C1A2E; \}/);
   assert.match(css, /\.app\.nav-open \.mr-btn\.on:not\(\[aria-expanded="true"\]\) \{ background: transparent; color: #E8EEF7; box-shadow: inset 3px 0 0 #F2B705; \}/);
   // the full logo at the top of the pages (a computer); proper module names
+  assert.doesNotMatch(app, /\.sm-brand [^{]*img \{/, '(update-222) the logo\'s image is cut out by .rlogo as everywhere – never resized for the panel (that showed only white)');
   assert.match(app, /<div class="sm-brand"><div class="brandtile"><span class="rlogo big"><img src="https:\/\/i\.ibb\.co\/CpSfBqXX\/RCL-LOGO-PDF\.png" alt="Rachana Construction Limited"/);
   const mn = vmFn(app, 'const modName = m => ');
   assert.deepStrictEqual(['engineering', 'purchase', 'Store', 'site work', 'HO Store'].map(n => mn({ name: n })), ['Engineering', 'Purchase', 'Store', 'Site Work', 'HO Store']);
