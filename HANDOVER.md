@@ -2405,3 +2405,10 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   the one open / close (NAV.want / NAV.key; a pick, the button again, «, a click outside, Esc, another page – railSync – close it);
   computer: the panel's width slides 0 → 276 px and the page narrows; ≤ 760 px: the rail is a bar at the bottom, the panel a sheet from
   below with `#nav_back` as shade (update-209's push back removed). Tests: unit `update-219`; rig `test/browser/nav219.js` (PORTAL=1).
+* **update-220 – Speed (no SQL, 10-11-2026):** the Dashboard asks `getDashboard` with `lite: 1` → `pending` = `{ asOf, from, to, total,
+  age }` only (Code.gs `pendLite_`; without `lite` – an older page, the phone app – the whole answer as before); the Log Book view's
+  pending list of the usual period comes from `pendingLog` only while that view is on screen (App.html `lbPendAll`, `S.lb.pall` / `ask`,
+  asked again after a new Dashboard answer); `pendingLogs_` works out the days once and each machinery's periods once (`onSiteFn_` – the
+  rule of `onSiteOn_`, which now uses it); `wlSetDraw` asks `passkeyList` only when My settings is on screen; `rawCallM` waits on
+  SCREEN_LOCKED only while the lock is shown. Test copy: Dashboard answer 2.0 MB → 3 KB, opening calls (warm, 1 CPU) ~0.6–0.8 s →
+  ~0.4–0.5 s. A "ready threads first" change in server/pool.js measured no better on a cold server and is NOT in. Tests: unit `update-220`.

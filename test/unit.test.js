@@ -9657,7 +9657,8 @@ test('update-218: the web lock – WebAuthn checked on the server (CBOR, authent
   // the page: the lock covers everything above the app; a call refused because of the lock waits; the bridge says how long ago he touched the page
   assert.match(app, /<div id="wl_lock" hidden role="dialog" aria-modal="true"[^>]*data-noi18n>/);
   assert.match(app, /#wl_lock \{ position: fixed; inset: 0; z-index: 2147483000;/);
-  assert.match(app, /else if \(\/\^SCREEN_LOCKED\/\.test\(errMsg\(e\)\) && !WL\.out\) \{ wlLock\('server'\); WL\.waiters\.push\(\(\) => rawCallM\(fn, meta, args\)\.then\(resolve, reject\)\); return; \}/);
+  // (update-220) the call waits only while the lock is really shown – otherwise it is answered ("the screen is locked"), never left waiting
+  assert.match(app, /else if \(\/\^SCREEN_LOCKED\/\.test\(errMsg\(e\)\) && !WL\.out\) \{ wlLock\('server'\); if \(WL\.on\) \{ WL\.waiters\.push\(\(\) => rawCallM\(fn, meta, args\)\.then\(resolve, reject\)\); return; \} \}/);
   assert.match(pg, /if \(!mkey\) return a < 0 \? body : '\{"act":' \+ a \+ ',' \+ body\.slice\(1\);/);
   assert.match(app, /fr\.addEventListener\('load', \(\) => \{ try \{ wlWatch\(fr\.contentWindow\); \}/, 'a touch in a module\'s page counts');
 });
@@ -9725,4 +9726,50 @@ test('update-219: the navigation – a module rail (his modules on this site) an
   // the new words in Marathi and Hindi
   ['mr', 'hi'].forEach(l => { const d = JSON.parse(fs.readFileSync(path.join(root, 'app', 'i18n', l + '.json'), 'utf8'));
     ['Find a page…', 'Close the pages', 'No page found'].forEach(k => assert.ok(/[ऀ-ॿ]/.test(d[k] || ''), l + ': ' + k)); });
+});
+
+test('update-220: speed – the Dashboard says the Log Book pending as a number (lite: the list itself only from pendingLog, when it is opened; an older page still gets the whole answer); the pending list worked out with each machinery\'s periods and each day read once – the same list; his devices asked only when My settings is shown; a call never waits for a lock the page cannot show', () => {
+  const { T, ctx } = require('./harness.js'), vm = require('vm');
+  const run = (fn, ...a) => { const r = vm.runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const today = run('() => today_()'), d = n => run('n => addDays_(today_(), n)', n);
+  // machinery on site in several periods (it left and came back), one that left, one that came only yesterday, an Other (no Log Book)
+  const mk = (no, extra) => run('(x, m) => saveMaster_(x, m)', Object.assign({ no: no, name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 3, owner: 'Rachana Construction Limited', ownership: 'Own', status: 'Active', activeFrom: d(-20) }, extra || {}), 'add');
+  mk('SP-A220'); mk('SP-B220', { activeFrom: d(-1) }); mk('SP-C220', { status: 'Inactive', inactiveFrom: d(-5) }); mk('SP-O220', { ownership: 'Other' });
+  // the list as it was worked out before (onSiteOn_ for every machinery and every day) – the new one must be exactly this. SP-A220 also
+  // has an earlier period on site (it left and came back: m.earlier), put in for this check only
+  const both = run(`f => { const gm = getMaster_; getMaster_ = () => gm().map(m => m.id === 'SP-A220' ? Object.assign({}, m, { earlier: [{ from: addDays_(today_(), -40), until: addDays_(today_(), -30) }] }) : m);
+    try { const today = today_(), from = f.from, to = f.to, lt = table_(APP.SHEET_LOG, [H.DATE, H.NO, H.SHIFT]), done = {};
+      lt.rows.forEach(r => { const dk = dkey_(r[lt.c[H.DATE]]); if (dk >= from && dk <= to) done[noKey_(r[lt.c[H.NO]]) + '|' + dk] = true; });
+      const items = []; getMaster_().filter(needsLogBook_).forEach(m => { const k = noKey_(m.id);
+        for (let dd = from; dd <= to; dd = addDays_(dd, 1)) { if (!onSiteOn_(m, dd)) continue; if (done[k + '|' + dd]) continue; items.push({ no: m.id, type: m.type || '', owner: m.owner || '', date: dd }); } });
+      const age = { d0: 0, d1: 0, d2_3: 0, d4_7: 0, d8: 0 }; items.forEach(x => { const n = daysBetween_(x.date, today); if (n <= 0) age.d0++; else if (n === 1) age.d1++; else if (n <= 3) age.d2_3++; else if (n <= 7) age.d4_7++; else age.d8++; });
+      return { ref: { items, age }, now: pendingLogs_(f) }; } finally { getMaster_ = gm; } }`, { from: d(-45), to: today });
+  const ref = both.ref, now = both.now;
+  assert.deepStrictEqual(now.items, ref.items, 'the same pending list, line for line');
+  assert.deepStrictEqual(now.age, ref.age); assert.strictEqual(now.total, ref.items.length);
+  const sp = no => now.items.filter(x => x.no === no).length;
+  assert.deepStrictEqual([sp('SP-A220'), sp('SP-B220'), sp('SP-C220'), sp('SP-O220')], [10 + 21, 2, 15, 0], 'both periods of A; B from yesterday; C until it left; Other never');
+  assert.strictEqual(run('() => onSiteOn_(getMaster_().find(x => x.id === "SP-C220"), addDays_(today_(), -5))'), false, 'the day it left is off site (the same rule)');
+  assert.strictEqual(run('() => onSiteFn_(null)("2026-01-01")'), false);
+  // the Dashboard: lite = the number, the ages and the dates only; without lite = the whole answer, exactly as before
+  const full = run('() => getDashboard_({ from: addDays_(today_(), -2), to: today_() })'), lite = run('() => getDashboard_({ from: addDays_(today_(), -2), to: today_(), lite: 1 })');
+  assert.deepStrictEqual(Object.keys(lite.pending), ['asOf', 'from', 'to', 'total', 'age']);
+  assert.deepStrictEqual(lite.pending, { asOf: full.pending.asOf, from: full.pending.from, to: full.pending.to, total: full.pending.total, age: full.pending.age });
+  assert.ok(Array.isArray(full.pending.items) && full.pending.items.length === full.pending.total && Array.isArray(full.pending.today) && Array.isArray(full.pending.older), 'an older page / app: the whole list as before');
+  const rest = o => { const c = Object.assign({}, o); delete c.pending; return c; };
+  assert.deepStrictEqual(rest(lite), rest(full), 'everything else of the Dashboard is the same');
+  assert.deepStrictEqual(run('() => getDashboard_({ lite: 1 }).pending.total'), run('() => pendingLogs_().total'));
+  // the page: the Dashboard asks lite; the list of the usual period from pendingLog only while the Log Book view is on screen
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /const d = await call\('getDashboard', Object\.assign\(\{ lite: 1 \}, f\)\);/);
+  assert.match(app, /call\('getDashboard', Object\.assign\(\{ from: day, to: day, lite: 1 \}, fu \? \{ fuel: fu \} : \{\}\)\)/, 'the Daily report too');
+  assert.match(app, /const p = S\.lb\.pend \|\| S\.lb\.pall \|\| \(S\.pending && S\.pending\.items \? S\.pending : null\);/);
+  assert.match(app, /if \(S\.lb\.ask \|\| !\$\('dash_log'\) \|\| \$\('dash_log'\)\.hidden \|\| !\$\('sec-dash'\) \|\| \$\('sec-dash'\)\.hidden\) return;\n    const mine = S\.lb\.ask = call\('pendingLog', \{\}\)/);
+  assert.match(app, /if \(S\.lb\) \{ S\.lb\.pall = null; S\.lb\.ask = null; \}/, 'a new Dashboard answer: the list is asked again when shown');
+  assert.match(app, /else if \(t === 'log' && S\.lb\) setTimeout\(lbPending, 0\);/);
+  assert.match(app, /if \(S\.lb && \$\('dash_log'\) && !\$\('dash_log'\)\.hidden\) setTimeout\(lbPending, 0\);/);
+  // his devices (passkeys): not asked with every opening of the page
+  assert.match(app, /if \(!reload && !wlSetList && \$\('sec-settings'\) && \$\('sec-settings'\)\.hidden\) return;\n    if \(reload \|\| !wlSetList\) \{ try \{ const r = await wlAsk\('passkeyList'\);/);
+  assert.match(app, /wlLock\('server'\); if \(WL\.on\) \{ WL\.waiters\.push/);
+  // the phone app reads only the number (no list) – nothing of it depends on the list going away
 });

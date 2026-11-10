@@ -6003,7 +6003,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         .withSuccessHandler(r => { loadEnd(fn, box); resolve(r); })
         .withFailureHandler(e => { loadEnd(fn, box); if (/SESSION_EXPIRED/.test(errMsg(e))) { showLogin('Your session ended. Please sign in again.'); }
           // (update-218) the screen of this sign-in is locked: the lock is shown; this call waits and is asked again once it is unlocked
-          else if (/^SCREEN_LOCKED/.test(errMsg(e)) && !WL.out) { wlLock('server'); WL.waiters.push(() => rawCallM(fn, meta, args).then(resolve, reject)); return; }
+          else if (/^SCREEN_LOCKED/.test(errMsg(e)) && !WL.out) { wlLock('server'); if (WL.on) { WL.waiters.push(() => rawCallM(fn, meta, args).then(resolve, reject)); return; } }      // (update-220) never a call that waits for a lock this page cannot show (it is answered: "the screen is locked")
           reject(e); })
         .api(S.token || '', fn, JSON.parse(JSON.stringify(args, (k, v) => v === undefined ? null : v)), ...(meta ? [meta] : []));
     });
@@ -6865,6 +6865,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   async function wlSetDraw(reload) {
     if (!$('set_lock')) return;
     $('wl_set_h').textContent = wlT(WL_SX.h); $('wl_set_note').textContent = wlFill(wlT(WL_SX.note), wlSpan()); $('wl_set_l').textContent = wlT(WL_SX.l); $('wl_set_add').textContent = wlT(WL_SX.add);
+    // (update-220, speed) his devices are asked only when My settings is on screen – no longer with every opening of the page
+    if (!reload && !wlSetList && $('sec-settings') && $('sec-settings').hidden) return;
     if (reload || !wlSetList) { try { const r = await wlAsk('passkeyList'); wlSetList = r; wlMs(r.idle); } catch (e) { $('wl_set_msg').textContent = wlHelp(errMsg(e)); return; } }
     const r = wlSetList || { list: [] }, local = wlLocal(), list = r.list || [], here = list.some(c => local.indexOf(c.id) > -1);
     WL.keys = list.map(c => c.id);
@@ -14651,7 +14653,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const f0 = dashFilter(), day = f0.from && f0.to && f0.from === f0.to ? f0.to : S.today;
       // (update-163) a site with more than one fuel: the stock, received and issued of EACH fuel on its own (never added together)
       const fuels = multiFuel() ? siteFuels() : [''];
-      const [dss, di, inw, lg, bk] = await Promise.all([Promise.all(fuels.map(fu => call('getDashboard', Object.assign({ from: day, to: day }, fu ? { fuel: fu } : {})))), call('getDieselIssues', { from: day, to: day, all: true }), call('getInwards', { from: day, to: day, all: true }),
+      const [dss, di, inw, lg, bk] = await Promise.all([Promise.all(fuels.map(fu => call('getDashboard', Object.assign({ from: day, to: day, lite: 1 }, fu ? { fuel: fu } : {})))), call('getDieselIssues', { from: day, to: day, all: true }), call('getInwards', { from: day, to: day, all: true }),
         call('getLogBookList', { from: day, to: day, all: true }), call('getBreakdowns', { date: day }).catch(() => ({}))]);
       const n = v => v === '' || v === undefined || v === null ? '' : fmt(v), sum = (a, k) => r2(a.reduce((t, x) => t + (Number(x[k]) || 0), 0));
       const issues = (di.rows || []).slice().sort((a, b) => String(a.no).localeCompare(String(b.no))), logs = (lg.rows || []).slice().sort((a, b) => String(a.no).localeCompare(String(b.no)));
@@ -15817,7 +15819,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('sb_rows').addEventListener('click', sbClick); $('sbx_rows').addEventListener('click', sbClick);      // (update-204) the same buttons in Deleted Bills
 
   /* ================= LOG BOOK DASHBOARD (simple) ================= */
-  S.lb = { d: null, chip: 'all', pchip: 'all', seq: 0, pend: null };
+  S.lb = { d: null, chip: 'all', pchip: 'all', seq: 0, pend: null, pall: null, ask: null };      // (update-220) pall: the usual period's pending list (pendingLog), ask: that question on its way
   const LB_PFROM = '2026-09-01';
   const lbN = (x, dp) => (Number(x) || 0).toLocaleString('en-IN', { maximumFractionDigits: dp === undefined ? 0 : dp });
   function lbRange(k) {
@@ -15884,11 +15886,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         '<td>' + work(m) + '</td><td>' + per(m) + '</td><td>' + diesel(m) + '</td><td><span class="lbd-tag ' + st.c + '">' + st.t + '</span>' + (m.lastLog ? '<small>last work ' + esc(showDate(m.lastLog)) + '</small>' : '') + '</td></tr>'; }).join('')
         : '<tr><td colspan="6" class="none">Nothing here for these filters.</td></tr>') + '</tbody>';
   }
+  // (update-220) the list of the usual period, asked once while it is on screen (again after the next new Dashboard answer)
+  function lbPendAll() {
+    if (S.lb.ask || !$('dash_log') || $('dash_log').hidden || !$('sec-dash') || $('sec-dash').hidden) return;
+    const mine = S.lb.ask = call('pendingLog', {}).then(r => { if (S.lb.ask !== mine) return; S.lb.ask = null; S.lb.pall = r; lbPending(); },
+      e => { if (S.lb.ask !== mine) return; S.lb.ask = null; $('lb_plist').innerHTML = '<p class="muted" style="padding:10px">' + esc(errMsg(e)) + '</p>'; });
+  }
   // pending Log Book, new style: one card per machinery with its dates (tap a date to fill it)
   function lbPending() {
     if (!$('lb_plist')) return;
     if (!$('lb_pfrom').value) { $('lb_pfrom').value = LB_PFROM; $('lb_pto').value = S.today || ''; }
-    const p = S.lb.pend || S.pending; if (!p) { $('lb_plist').innerHTML = '<p class="muted" style="padding:10px">Loading…</p>'; return; }
+    // (update-220, speed) the usual period (01-09-2026 → today): its list is asked of the server (pendingLog) only when it is on screen –
+    // the Dashboard's own answer carries only the number now. An older answer that still has the whole list (items) is used as it is.
+    const p = S.lb.pend || S.lb.pall || (S.pending && S.pending.items ? S.pending : null);
+    if (!p) { $('lb_plist').innerHTML = '<p class="muted" style="padding:10px">Loading…</p>'; lbPendAll(); return; }
     const today = p.asOf || S.today, age = d => Math.round((new Date(today + 'T00:00:00') - new Date(d + 'T00:00:00')) / 86400000);
     const own = $('lb_own').value, ven = $('lb_vendor').value.toUpperCase(), q = ($('lb_psearch').value || '').trim().toUpperCase();
     const ownOf = no => { const m = findMachine(no); return m ? m.ownership : ''; };
@@ -17092,6 +17103,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (cardMode()) { $('dash_diesel').hidden = true; $('dash_card').hidden = t !== 'diesel'; } else $('dash_card').hidden = true;
     try { localStorage.setItem('rcl_dash_tab', t); } catch (e) {}
     if (t === 'log' && S.lb && !S.lb.d) setTimeout(lbLoad, 0);
+    else if (t === 'log' && S.lb) setTimeout(lbPending, 0);      // (update-220) its pending list is asked when it is shown
   }
   $('dtab-diesel').addEventListener('click', () => setDashTab('diesel'));
   $('dtab-log').addEventListener('click', () => setDashTab('log'));
@@ -17114,7 +17126,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     S.dashStale = false;
     try {
       const f = dashFilter();
-      const d = await call('getDashboard', f);
+      const d = await call('getDashboard', Object.assign({ lite: 1 }, f));      // (update-220, speed) lite: the Log Book pending as a number – its list only when it is opened (lbPending)
       if (seq !== dashSeq) return;
       // exactly the same answer as the one on screen (a background refresh): leave the page alone
       const sig = JSON.stringify([f, d]);
@@ -17402,6 +17414,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const changed = $('k_from').value !== S.today || $('k_to').value !== S.today;
     $('k_from').value = S.today; $('k_to').value = S.today;
     if (changed || !S.loaded.dash || S.dashStale) loadDash();
+    if (S.lb && $('dash_log') && !$('dash_log').hidden) setTimeout(lbPending, 0);      // (update-220) its Log Book view on screen: the pending list (asked when it is not here)
   }
   function markQuick(f) {
     const t = S.today, dt = new Date(t + 'T00:00:00');
@@ -17432,6 +17445,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // pending Log Book: the menu badges here; the list itself is drawn by the Log Book dashboard
   function renderPending(p0) {
     S.pending = p0;
+    if (S.lb) { S.lb.pall = null; S.lb.ask = null; }      // (update-220) a new Dashboard answer: the list of the usual period is asked again when it is on screen
     const total = p0.total || 0;
     $('nav_pending').textContent = total; $('nav_pending').hidden = !total;
     if ($('sg_log_badge')) { $('sg_log_badge').textContent = total; $('sg_log_badge').hidden = !total; } $('nav_pending_dot').hidden = !total;
