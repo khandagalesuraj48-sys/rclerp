@@ -2551,7 +2551,7 @@ test('update-99: one address – the Store and the Portal under this address, th
   // (update-138) the staging copy's own rules come first and match ONLY the staging address; the live rules are as before
   // (update-160) /scan – the page itself (a Scan with Mobile QR code); checked in its own test
   // (update-228) /about – the public page; checked in its own test
-  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/(engineering|purchase)/.test(r.source) && r.source !== '/scan' && r.source !== '/ho/' && r.source !== '/app' && r.source !== '/about'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
+  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/(engineering|purchase)/.test(r.source) && r.source !== '/scan' && r.source !== '/ho/' && r.source !== '/app' && r.source !== '/about' && r.source !== '/company'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
     { source: '/store/:path*', destination: 'https://rcl-store.vercel.app/:path*' }, { source: '/portal/:path*', destination: 'https://rcl-portal-flame.vercel.app/:path*' }]);
   assert.deepStrictEqual(v.redirects.filter(r => !/^\/(engineering|purchase|ho$|app\/$)/.test(r.source)).map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
   assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
@@ -9961,4 +9961,33 @@ test('update-231: the public page, the sitemap and robots.txt name the owner\'s 
     assert.ok(!/dpdns\.org|vercel\.app/.test(t), f + ': no older address');
     assert.ok(t.includes('https://oneclicksolution.online/'), f);
   }
+});
+
+test('update-232: ONE CLICK SOLUTION\'s first page – the company\'s code opens that company\'s own sign-in; no list is given out', () => {
+  const api = require(path.join(root, 'api', 'company.js'));
+  const old = process.env.OCS_COMPANIES; delete process.env.OCS_COMPANIES;
+  try {
+    assert.deepStrictEqual(api.list(), { RCL: '/portal/' }, 'not set: only RCL, at this address\'s own Portal');
+    assert.deepStrictEqual(api.find(' rcl '), { code: 'RCL', url: '/portal/' });
+    for (const bad of ['', 'ABCD', 'R', '../x', 'RCL;DROP', '__proto__', 'constructor', 'toString']) assert.strictEqual(api.find(bad), null, bad);
+    process.env.OCS_COMPANIES = 'RCL=/portal/, milestone=https://m.example.com/portal/; BAD=javascript:alert(1), X2=http://a.b/, Y2=//evil.example/';
+    assert.deepStrictEqual(api.list(), { RCL: '/portal/', MILESTONE: 'https://m.example.com/portal/' }, 'only this address\'s own path or an https address');
+    const ask = (method, url) => { const r = { h: {}, setHeader(k, v) { this.h[k] = v; }, end(b) { this.body = b; } }; api({ method, url }, r); return r; };
+    let r = ask('GET', '/api/company?code=milestone'); assert.deepStrictEqual(JSON.parse(r.body), { ok: true, code: 'MILESTONE', url: 'https://m.example.com/portal/' }); assert.strictEqual(r.h['Cache-Control'], 'no-store');
+    r = ask('GET', '/api/company?code=nobody'); assert.deepStrictEqual(JSON.parse(r.body), { ok: false }, 'a wrong code says nothing else');
+    r = ask('GET', '/api/company'); assert.deepStrictEqual(JSON.parse(r.body), { ok: false }, 'no code: never the list');
+    r = ask('POST', '/api/company?code=RCL'); assert.strictEqual(r.statusCode, 405);
+  } finally { if (old === undefined) delete process.env.OCS_COMPANIES; else process.env.OCS_COMPANIES = old; }
+  const page = fs.readFileSync(path.join(root, 'app', 'company.html'), 'utf8'), v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')), build = fs.readFileSync(path.join(root, 'build.js'), 'utf8');
+  assert.ok(v.rewrites.some(x => x.source === '/company' && x.destination === '/company.html'));
+  assert.match(build, /copyFileSync\(path\.join\(__dirname, 'app', 'company\.html'\), path\.join\(out, 'company\.html'\)\)/);
+  assert.match(page, /<meta name="robots" content="noindex, nofollow">/);
+  assert.match(page, /<img class="logo" src="\/icons\/oc-logo\.webp"[^>]*alt="One Click Solution">/);
+  assert.ok(!/Rachana|RCL\b/.test(page.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '')), 'One Click Solution\'s own page: no company is named on it');
+  for (const f of ['tractor', 'fuel_pump', 'notebook', 'package', 'building_construction', 'bar_chart']) { assert.ok(page.includes('/icons/co-' + f + '.png'), f); assert.ok(fs.existsSync(path.join(root, 'app', 'icons', 'co-' + f + '.png')), f + ' file'); }
+  assert.ok(fs.existsSync(path.join(root, 'app', 'icons', 'LICENSE-fluentui-emoji.txt')), 'the pictures\' licence travels with them');
+  // every message in English, Marathi and Hindi
+  const msg = new Function(page.slice(page.indexOf('var MSG = {'), page.indexOf('function say(k)')) + '; return MSG;')();
+  for (const k of ['none', 'not', 'net']) { assert.strictEqual(msg[k].length, 3, k); assert.match(msg[k][1], /[ऀ-ॿ]/); assert.match(msg[k][2], /[ऀ-ॿ]/); }
+  for (const m of page.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)) new Function(m[1]);
 });

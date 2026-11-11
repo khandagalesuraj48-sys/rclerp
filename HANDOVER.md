@@ -2447,3 +2447,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   limits in `app/App.html`, the help in three languages. See `UPDATE_230.md`.
 * **update-231 (12-11-2026)** – the owner's own domain `oneclicksolution.online` in `app/about.html`, `app/sitemap.xml`,
   `app/robots.txt` (was `erp.oneclicksolution.dpdns.org`). See `UPDATE_231.md`.
+* **update-232 (12-11-2026)** – One Click Solution's first page `/company` (`app/company.html`, `api/company.js`, `OCS_COMPANIES`):
+  the company's code opens that company's own sign-in (each company: its own Portal and databases). The Portal's `coGate` sends a
+  device without a company there. See `UPDATE_232.md`.
