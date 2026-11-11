@@ -9885,7 +9885,7 @@ test('update-225: the Advertise Corner on the Dashboard – asked from the Porta
   assert.match(a, /old\.removeAttribute\('src'\)[\s\S]{0,80}old\.remove\(\)/, 'the one before is emptied and taken out');
   assert.match(a, /catch \(e\) \{ \/\* no posts this time – the Dashboard is as before \*\/ \}/, 'a failed ask never shows an error');
   assert.match(app, /try \{ advSeen\(name === 'dash' && !!S\.user\); \} catch \(e\)/, 'another page stops it');
-  assert.match(app, /@media \(prefers-reduced-motion: reduce\) \{ \.adv, \.adv \.adv-m \{ transition: none; \} \}/);
+  assert.match(app, /@media \(prefers-reduced-motion: reduce\) \{ \.adv \.adv-m \{ transition: none; \} \}/);
   assert.doesNotMatch(a, /google\.script|api\('|call\('/, 'no server action of Mechanical');
 });
 
@@ -9897,5 +9897,16 @@ test('update-226: the posts start on the first Dashboard too (it is shown withou
   assert.match(a, /if \(!ptOn\(\) \|\| !ADV\.seen\) \{ ADV\.at = 0; return; \}/, 'not linked yet: asked as soon as it can be');
   assert.match(a, /if \(!ok\) ADV\.at = Date\.now\(\) - 570000;/, 'no answer: again in half a minute');
   assert.match(a, /on = !!on; if \(on === ADV\.seen && on\) return;/, 'seen twice is one start');
+});
+
+test('update-227: one size – the strip, its shape fixed (12.8 : 1; a narrow screen 3.42 : 1); a post sits as the Super Admin fitted it (web / app), not fitted = its middle', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /\.adv \{[^}]*aspect-ratio: 12\.8;[^}]*\}/); assert.match(app, /@media \(max-width: 700px\) \{ \.adv \{ aspect-ratio: 3\.42; \} \}/);
+  assert.doesNotMatch(app, /\.adv\[data-size=/, 'no other size');
+  const a = app.slice(app.indexOf('const ADV = {'), app.indexOf('  function showTab(name, fromBack) {'));
+  assert.match(a, /p\.fit\[advNarrow\(\) \? 'app' : 'web'\]/);
+  assert.match(a, /m\.style\.objectPosition = x \+ '% ' \+ y \+ '%'; m\.style\.transformOrigin = x \+ '% ' \+ y \+ '%'; m\.style\.transform = z === 1 \? '' : 'scale\(' \+ z \+ '\)';/);
+  assert.match(a, /const x = n\(o\.x, 50, 0, 100\), y = n\(o\.y, 50, 0, 100\), z = n\(o\.z, 1, 1, 4\);/, 'a wrong value = the middle, no zoom');
+  assert.match(a, /advFit\(m, p\);/);
 });
 

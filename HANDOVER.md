@@ -2435,3 +2435,5 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   time, a video muted and only while the Dashboard is seen. No server action, no SQL. See `UPDATE_225.md`.
 * **update-226 (11-11-2026)** – the Advertise Corner starts on the first Dashboard too: the first page is shown without `showTab`, so
   `advOn` (signed in, `#sec-dash` on the screen) is looked at every 2 s; a failed ask is made again in half a minute. See `UPDATE_226.md`.
+* **update-227 (12-11-2026)** – the Advertise Corner is one strip of a fixed shape (`.adv { aspect-ratio: 12.8 }`, 3.42 up to 700 px);
+  `advFit` puts a post as the Portal's "Fit to strip" kept it (`fit.web` / `fit.app`: object-position, scale). See `UPDATE_227.md`.
