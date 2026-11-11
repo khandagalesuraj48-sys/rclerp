@@ -34,5 +34,7 @@ fs.copyFileSync(path.join(__dirname, 'app', 'well-known', 'assetlinks.json'), pa
 fs.copyFileSync(path.join(__dirname, 'app', 'download.html'), path.join(out, 'app.html'));
 // (update-228) the public page (/about – the only page a search engine may list, with /app), robots.txt and the sitemap of the public pages
 ['about.html', 'robots.txt', 'sitemap.xml'].forEach(f => fs.copyFileSync(path.join(__dirname, 'app', f), path.join(out, f)));
+// (update-229) Google Search Console's ownership file of erp.oneclicksolution.dpdns.org – Google reads it at the address's root
+fs.copyFileSync(path.join(__dirname, 'app', 'google7a73bb83a881ba3b.html'), path.join(out, 'google7a73bb83a881ba3b.html'));
 fs.writeFileSync(path.join(out, 'sw.js'), fs.readFileSync(path.join(__dirname, 'app', 'sw.js'), 'utf8').replace('/*BUILD*/', build));
 console.log('Built public/index.html – app version ' + build);
