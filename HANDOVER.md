@@ -2426,3 +2426,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   sliding – one layout instead of one per frame); `extCalm()` before each background module (not touched for 2 s, ≤ 20 s, then
   requestIdleCallback), `extWarm` 5 s after init, 4 s apart; `lbPending` draws 30 cards then 60 a frame (`S.lb.drawJob`), `ages` per date,
   `.lbd-pc { content-visibility: auto }`. Measured with CPU 4×: menu open lost time 916 → ~300 ms, Log Book view longest frame 1,067 → 500 ms.
+* **update-224 (11-11-2026)** – the way in without the old sign-in picture and the fuel gauge: an early mark (`data-boot`, set before the
+  markup) keeps `#login_screen` undrawn for a signed-in / Portal person; `#boot` is the orbit look on white; `showBoot(false)` plays
+  `bootOpen` / `bootIn` (0.5 s, a picture over the usable app; none with reduced motion); `bootMark`. See `UPDATE_224.md`.

@@ -9845,3 +9845,28 @@ test('update-223: smooth – the pages panel adjusts the page ONCE (its width no
   assert.match(lp, /if \(!p\) \{ S\.lb\.drawJob = \(S\.lb\.drawJob \|\| 0\) \+ 1; \$\('lb_plist'\)\.innerHTML = /, '"Loading…" stops a drawing too');
   assert.match(app, /S\.lb\.ask = null; S\.lb\.drawJob = \(S\.lb\.drawJob \|\| 0\) \+ 1; \$\('lb_plist'\)\.innerHTML =/, 'as does an error');
 });
+
+test('update-224: start-up without the old sign-in picture and the fuel gauge – the orbit look, the mark set before anything is drawn, the way out; sign-in itself untouched', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.doesNotMatch(app, /class="gauge"|\.gauge \.needle|Filling up your data/, 'the fuel gauge is gone');
+  // the mark comes before the sign-in screen's markup – nothing of it is drawn for someone signed in / from the Portal
+  const mark = app.indexOf("document.documentElement.setAttribute('data-boot', '1');"), boot = app.indexOf('<div id="boot" hidden'), login = app.indexOf('<div id="login_screen">');
+  assert.ok(mark > -1 && mark < boot && boot < login);
+  const early = app.slice(app.lastIndexOf('<script>', mark), mark);
+  assert.ok(early.includes("local = /[?&]local=1(&|$)/.test(top.location.search || '') || g(sessionStorage, 'rcl_local') === '1';"), 'not for the reserve sign-in');
+  assert.ok(early.includes("if (!local && !/^sa/.test(tok) && (/^#sso=/.test(top.location.hash || '') || tok || g(localStorage, 'rcl_portal')))"), 'not for the Super Admin');
+  assert.match(app, /html\[data-boot\] #boot \{ display: grid; \} html\[data-boot\] #login_screen \{ display: none !important; \}/);
+  // the look goes when this page's own sign-in is needed, and when the app is open
+  const sl = app.slice(app.indexOf('function showLogin(msg, opt) {'), app.indexOf("$('login_form').addEventListener('submit'"));
+  assert.match(sl, /\$\('lg_pt_err'\)\.textContent = 'Opening the Portal…'; bootMark\(true\); showBoot\(true, 'Signing in'\); return; \}/, 'on the way to the Portal: the look stays');
+  assert.match(sl, /showBoot\(false, '', true\);      \/\/ \(update-224\)[^\n]*\n    \$\('login_form'\)\.hidden = ptOn\(\);/);
+  const sb = app.slice(app.indexOf('function showBoot(on, msg, plain) {'), app.indexOf('function showBoot(on, msg, plain) {') + 1200);
+  assert.match(sb, /b\.hidden = true; bootMark\(false\);/, 'gone at once – the animation is a picture over a usable app');
+  assert.match(sb, /document\.documentElement\.dataset\.motion === 'less' \|\| matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches/);
+  assert.match(app, /#boot\.bye \{ display: grid; pointer-events: none;/);
+  for (const k of ['bootOpen', 'bootFade', 'bootIn', 'bootTurn']) { const m = new RegExp('@keyframes ' + k + ' \\{([^@]*?)\\} \\}').exec(app); assert.ok(m, k); assert.doesNotMatch(m[1], /\b(width|height|top|left|margin|padding)\s*:/, k + ': transform / opacity only'); }
+  // the ticket's sign-in and init as before
+  assert.match(app, /const r = await gsRun\('ssoLogin', ticket\);/);
+  assert.match(app, /showBoot\(false\);\n      \$\('login_screen'\)\.hidden = true; document\.body\.classList\.remove\('locked'\);/);
+  assert.match(fs.readFileSync(path.join(root, 'app', 'Index.html'), 'utf8'), /html, body \{ margin: 0; height: 100%; overflow: hidden; background: #fff; \}/);
+});
