@@ -2429,3 +2429,7 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 * **update-224 (11-11-2026)** – the way in without the old sign-in picture and the fuel gauge: an early mark (`data-boot`, set before the
   markup) keeps `#login_screen` undrawn for a signed-in / Portal person; `#boot` is the orbit look on white; `showBoot(false)` plays
   `bootOpen` / `bootIn` (0.5 s, a picture over the usable app; none with reduced motion); `bootMark`. See `UPDATE_224.md`.
+* **update-225 (11-11-2026)** – the Advertise Corner on the Dashboard: `#adv` at the top of `#sec-dash` shows the Portal's posts for this
+  site (`<portal>/api/ads` `live`, platform `web`; set in the Portal's console – rcl-portal step 8): `ADV`, `advSeen` (from `showTab`),
+  `advLoad` (1.5 s after the Dashboard, then every 10 min), `advDraw` / `advShow` / `advPlay` / `advPause`. One media element at a
+  time, a video muted and only while the Dashboard is seen. No server action, no SQL. See `UPDATE_225.md`.

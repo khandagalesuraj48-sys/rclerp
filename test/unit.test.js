@@ -9870,3 +9870,21 @@ test('update-224: start-up without the old sign-in picture and the fuel gauge �
   assert.match(app, /showBoot\(false\);\n      \$\('login_screen'\)\.hidden = true; document\.body\.classList\.remove\('locked'\);/);
   assert.match(fs.readFileSync(path.join(root, 'app', 'Index.html'), 'utf8'), /html, body \{ margin: 0; height: 100%; overflow: hidden; background: #fff; \}/);
 });
+
+test('update-225: the Advertise Corner on the Dashboard – asked from the Portal after the page is up, one media at a time, a video muted and only while the Dashboard is seen', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /<section id="sec-dash"[^>]*>\s*<!--[^>]*update-225[\s\S]{0,400}?<div id="adv" class="adv" hidden/, 'its place is the first thing of the Dashboard, hidden until there is a post');
+  const a = app.slice(app.indexOf('const ADV = {'), app.indexOf('  function showTab(name, fromBack) {'));
+  assert.ok(a.length > 2000, 'the module is there');
+  assert.match(a, /if \(new URL\(PT\.url\)\.origin !== hereOrigin\(\)\) return;/, 'only on the one address');
+  assert.match(a, /fetch\(PT\.url \+ '\/api\/ads', \{ method: 'POST', credentials: 'same-origin', headers: \{ 'Content-Type': 'application\/json', 'X-RCL': '1' \}, body: JSON\.stringify\(\{ action: 'live', platform: 'web', site: site \}\) \}\)/);
+  assert.match(a, /setTimeout\(advLoad, 1500\)/, 'asked after the Dashboard is up, not with its figures');
+  assert.match(a, /m\.muted = ADV\.muted;/); assert.match(a, /muted: true/, 'a video starts muted');
+  assert.match(a, /if \(!ADV\.seen \|\| document\.hidden\) return;/, 'nothing plays while the Dashboard is not seen');
+  assert.match(a, /if \(ADV\.el === m\) advShow\(ADV\.i \+ 1\)/, 'only the video shown now moves the slides on');
+  assert.match(a, /old\.removeAttribute\('src'\)[\s\S]{0,80}old\.remove\(\)/, 'the one before is emptied and taken out');
+  assert.match(a, /catch \(e\) \{ \/\* no posts this time – the Dashboard is as before \*\/ \}/, 'a failed ask never shows an error');
+  assert.match(app, /try \{ advSeen\(name === 'dash'\); \} catch \(e\)/, 'another page stops it');
+  assert.match(app, /@media \(prefers-reduced-motion: reduce\) \{ \.adv, \.adv \.adv-m \{ transition: none; \} \}/);
+  assert.doesNotMatch(a, /google\.script|api\('|call\('/, 'no server action of Mechanical');
+});
