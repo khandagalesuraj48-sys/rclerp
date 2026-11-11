@@ -1,0 +1,87 @@
+<!doctype html>
+<!-- (update-232, asked 12-11-2026) ONE CLICK SOLUTION – the first page. A white screen, the big logo, a short word on the ERP in
+     pictures, and one box: the company's code. The right code opens THAT company's own sign-in (its own Portal and databases –
+     nobody of another company can sign in there). No list of companies is shown or sent. Nothing of the ERP's data is here. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#ffffff">
+<title>One Click Solution – ERP</title>
+<link rel="icon" href="/icons/oc2-favicon-64.png">
+<style>
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:#fff;color:#0A1B44;font-family:"Inter Display",Inter,"Segoe UI",system-ui,-apple-system,Roboto,"Noto Sans Devanagari",Arial,sans-serif}
+.p{max-width:1180px;margin:0 auto;padding:34px 40px 26px;text-align:center}
+.logo{width:300px;max-width:70%;height:auto;display:block;margin:0 auto}
+h1{font-size:34px;line-height:1.15;letter-spacing:-1px;margin:14px 0 6px;font-weight:700}h1 b{color:#1570EF}
+.s{font-size:17px;color:#566589;margin:0 0 24px}
+form{display:flex;gap:12px;justify-content:center;align-items:stretch;max-width:600px;margin:0 auto}
+input{flex:1;min-width:0;height:68px;border-radius:18px;border:2px solid #C9D6EE;background:#fff;padding:0 22px;font:inherit;font-size:28px;font-weight:700;letter-spacing:8px;color:#0A1B44;text-transform:uppercase;outline:0}
+input::placeholder{font-size:18px;font-weight:500;letter-spacing:.2px;color:#93A0BD;text-transform:none}
+input:focus{border-color:#1570EF;box-shadow:0 0 0 5px rgba(21,112,239,.10)}
+button{height:68px;padding:0 30px;border:0;border-radius:18px;background:linear-gradient(90deg,#0B4FD8,#16B9EA);color:#fff;font:inherit;font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 30px rgba(21,112,239,.30);white-space:nowrap;cursor:pointer}
+button:disabled{opacity:.65;cursor:default}button:focus-visible{outline:3px solid #0A1B44;outline-offset:3px}
+.h{font-size:13.5px;color:#7885A3;margin:12px 0 0}
+.err{max-width:600px;margin:14px auto 0;background:#FDECEC;color:#B42318;border-radius:14px;padding:11px 14px;font-size:14.5px;line-height:1.5;text-align:left}
+.t{font-size:12.5px;letter-spacing:4px;color:#1570EF;font-weight:700;margin:34px 0 16px}
+.g{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+.c{border-radius:22px;padding:18px 12px 16px;border:1px solid #E7EDF8;background:#fff;box-shadow:0 10px 26px rgba(16,56,140,.07)}
+.c i{display:grid;place-items:center;width:84px;height:84px;border-radius:24px;margin:0 auto 12px}.c img{width:58px;height:58px}
+.c b{display:block;font-size:16px;margin-bottom:5px}.c span{display:block;font-size:13px;line-height:1.4;color:#5C6A8C}
+.f{margin-top:26px;font-size:12.5px;color:#8A96B2}
+@media(max-width:980px){.g{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:640px){.p{padding:26px 18px 20px}.logo{width:210px}h1{font-size:25px;letter-spacing:-.5px}.s{font-size:15px;margin-bottom:18px}form{flex-direction:column}input{height:64px;flex:none;width:100%}button{height:62px}.g{grid-template-columns:repeat(2,1fr);gap:12px}.t{margin:26px 0 14px}.c i{width:72px;height:72px}.c img{width:50px;height:50px}}
+</style>
+</head>
+<body>
+<main class="p">
+  <img class="logo" src="/icons/oc-logo.webp" width="640" height="462" alt="One Click Solution">
+  <h1>The whole company's work, in <b>one click</b>.</h1>
+  <p class="s">ERP for construction companies · बांधकाम कंपन्यांसाठी ERP</p>
+  <form id="f" autocomplete="off" novalidate>
+    <input id="code" name="company" type="text" inputmode="text" maxlength="20" placeholder="Company code" aria-label="Company code" autocapitalize="characters" autocorrect="off" spellcheck="false" autofocus>
+    <button id="go" type="submit">Continue <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </form>
+  <p class="h">Enter your company code – your company's sign-in opens. · कंपनीचा code टाका.</p>
+  <p class="err" id="err" role="alert" hidden></p>
+  <div class="t">WHAT IS INSIDE</div>
+  <div class="g">
+    <div class="c"><i style="background:#EAF7EE"><img src="/icons/co-tractor.png" alt="" width="58" height="58"></i><b>Machinery</b><span>Every machine and vehicle, its papers</span></div>
+    <div class="c"><i style="background:#FFECEC"><img src="/icons/co-fuel_pump.png" alt="" width="58" height="58"></i><b>Diesel</b><span>Stock, issue and average, live</span></div>
+    <div class="c"><i style="background:#F1ECFF"><img src="/icons/co-notebook.png" alt="" width="58" height="58"></i><b>Log Book</b><span>Daily hours, KM and work done</span></div>
+    <div class="c"><i style="background:#FFF3E3"><img src="/icons/co-package.png" alt="" width="58" height="58"></i><b>Store</b><span>Items, GRN, issue and stock value</span></div>
+    <div class="c"><i style="background:#E9F2FF"><img src="/icons/co-building_construction.png" alt="" width="58" height="58"></i><b>Engineering</b><span>Daily plan and report of the site</span></div>
+    <div class="c"><i style="background:#E8FAF8"><img src="/icons/co-bar_chart.png" alt="" width="58" height="58"></i><b>Reports &amp; Bills</b><span>Vendor bills, ledgers, reports</span></div>
+  </div>
+  <div class="f">© One Click Solution · each company's data is separate and private</div>
+</main>
+<script>
+(function () {
+  'use strict';
+  var KEY = 'ocs_company', f = document.getElementById('f'), inp = document.getElementById('code'), go = document.getElementById('go'), err = document.getElementById('err');
+  var MSG = {
+    none: ['Enter your company code.', 'कंपनीचा code टाका.', 'कंपनी का code डालें।'],
+    not: ['This company was not found. Check the code and try again.', 'ही कंपनी सापडली नाही. Code तपासून पुन्हा टाका.', 'यह कंपनी नहीं मिली। Code जाँचकर फिर डालें।'],
+    net: ['Could not check the code just now – check the internet and try again.', 'आत्ता code तपासता आला नाही – internet तपासून पुन्हा प्रयत्न करा.', 'अभी code जाँचा नहीं जा सका – internet जाँचकर फिर कोशिश करें।']
+  };
+  function say(k) { err.textContent = ''; MSG[k].forEach(function (t, i) { if (i) err.appendChild(document.createElement('br')); err.appendChild(document.createTextNode(t)); }); err.hidden = false; }
+  // "Change company" of a sign-in page comes here with ?change: the remembered company is forgotten, the box is shown
+  var change = /[?&]change\b/.test(location.search);
+  if (change) { try { localStorage.removeItem(KEY); } catch (e) { /* asked again next time anyway */ } }
+  function open(c) { var u = String(c.url); location.replace(u + (u.indexOf('#') < 0 ? '#co=' + encodeURIComponent(c.code) : '')); }
+  function ask(code, quiet) {
+    go.disabled = true; err.hidden = true;
+    fetch('/api/company?code=' + encodeURIComponent(code), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (r) {
+      if (r && r.ok && r.url) { try { localStorage.setItem(KEY, r.code); } catch (e) { /* asked again next time */ } open(r); return; }
+      go.disabled = false; try { localStorage.removeItem(KEY); } catch (e) { /* – */ } if (!quiet) { say('not'); inp.select(); }
+    }).catch(function () { go.disabled = false; if (!quiet) say('net'); });
+  }
+  f.addEventListener('submit', function (e) { e.preventDefault(); var code = inp.value.replace(/\s+/g, '').toUpperCase(); inp.value = code; if (!code) { say('none'); inp.focus(); return; } ask(code, false); });
+  // the company chosen on this device before: its sign-in opens by itself
+  if (!change) { var had = ''; try { had = localStorage.getItem(KEY) || ''; } catch (e) { had = ''; } if (/^[A-Z0-9]{2,20}$/.test(had)) { inp.value = had; ask(had, true); } }
+})();
+</script>
+</body>
+</html>

@@ -169,6 +169,10 @@
       "destination": "/about.html"
     },
     {
+      "source": "/company",
+      "destination": "/company.html"
+    },
+    {
       "source": "/app",
       "destination": "/app.html"
     },
