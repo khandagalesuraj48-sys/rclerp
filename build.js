@@ -32,5 +32,7 @@ fs.mkdirSync(path.join(out, '.well-known'), { recursive: true });
 fs.copyFileSync(path.join(__dirname, 'app', 'well-known', 'assetlinks.json'), path.join(out, '.well-known', 'assetlinks.json'));
 // (update-210) the app's own page – <main address>/app: the latest version of the phone app to download (what "Share app" sends)
 fs.copyFileSync(path.join(__dirname, 'app', 'download.html'), path.join(out, 'app.html'));
+// (update-228) the public page (/about – the only page a search engine may list, with /app), robots.txt and the sitemap of the public pages
+['about.html', 'robots.txt', 'sitemap.xml'].forEach(f => fs.copyFileSync(path.join(__dirname, 'app', f), path.join(out, f)));
 fs.writeFileSync(path.join(out, 'sw.js'), fs.readFileSync(path.join(__dirname, 'app', 'sw.js'), 'utf8').replace('/*BUILD*/', build));
 console.log('Built public/index.html – app version ' + build);
