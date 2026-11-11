@@ -2551,9 +2551,9 @@ test('update-99: one address – the Store and the Portal under this address, th
   // (update-138) the staging copy's own rules come first and match ONLY the staging address; the live rules are as before
   // (update-160) /scan – the page itself (a Scan with Mobile QR code); checked in its own test
   // (update-228) /about – the public page; checked in its own test
-  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/(engineering|purchase)/.test(r.source) && r.source !== '/scan' && r.source !== '/ho/' && r.source !== '/app' && r.source !== '/about' && r.source !== '/company'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
+  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/(engineering|purchase|hr\/)/.test(r.source) && r.source !== '/scan' && r.source !== '/ho/' && r.source !== '/app' && r.source !== '/about' && r.source !== '/company'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
     { source: '/store/:path*', destination: 'https://rcl-store.vercel.app/:path*' }, { source: '/portal/:path*', destination: 'https://rcl-portal-flame.vercel.app/:path*' }]);
-  assert.deepStrictEqual(v.redirects.filter(r => !/^\/(engineering|purchase|ho$|app\/$)/.test(r.source)).map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
+  assert.deepStrictEqual(v.redirects.filter(r => !/^\/(engineering|purchase|hr$|ho$|app\/$)/.test(r.source)).map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
   assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
   // the menu: every page of Machinery, read from the page itself; every key a real page of the app
   const { menu } = require('../server/page.js'), m = menu(), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
@@ -2632,7 +2632,7 @@ test('update-195: Purchase\'s own backup Sheets (kept at the first site, like th
 test('update-194: the Purchase module under this address (/purchase/ – its own Vercel project and its own Supabase for every site), like Engineering', () => {
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   assert.deepStrictEqual(v.redirects.filter(r => /^\/purchase/.test(r.source)), [{ source: '/purchase', destination: '/purchase/', permanent: false }]);      // (update-208: /ho after it)
-  assert.deepStrictEqual(v.rewrites.slice(-2), [{ source: '/purchase/', destination: 'https://rcl-purchase.vercel.app/index.html' }, { source: '/purchase/:path*', destination: 'https://rcl-purchase.vercel.app/:path*' }]);
+  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && /^\/purchase\//.test(r.source)), [{ source: '/purchase/', destination: 'https://rcl-purchase.vercel.app/index.html' }, { source: '/purchase/:path*', destination: 'https://rcl-purchase.vercel.app/:path*' }]);
   assert.ok(!v.rewrites.some(r => r.has && r.has[0].value !== 'rclerp-git-beta-pk12356843.vercel.app' && /^\/purchase/.test(r.source)), 'like Engineering: no rule of its own for the staging address (the beta address: its own test)');
   const sw = fs.readFileSync(path.join(root, 'app', 'sw.js'), 'utf8'), re = eval(/if \(!(\/.+\/)\.test\(u\.pathname\)\) return;/.exec(sw)[1]);
   for (const p of ['/purchase/', '/purchase/api/me', '/purchase/menu.json']) assert.ok(!re.test(p), p);
@@ -9990,4 +9990,20 @@ test('update-232: ONE CLICK SOLUTION\'s first page – the company\'s code opens
   const msg = new Function(page.slice(page.indexOf('var MSG = {'), page.indexOf('function say(k)')) + '; return MSG;')();
   for (const k of ['none', 'not', 'net']) { assert.strictEqual(msg[k].length, 3, k); assert.match(msg[k][1], /[ऀ-ॿ]/); assert.match(msg[k][2], /[ऀ-ॿ]/); }
   for (const m of page.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)) new Function(m[1]);
+});
+
+test('update-233: the HR module under the one address – /hr goes to its own project; its icon in the rail; nothing of HR is in this app', () => {
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.deepStrictEqual(v.redirects.find(r => r.source === '/hr'), { source: '/hr', destination: '/hr/', permanent: false });
+  assert.deepStrictEqual(v.rewrites.filter(r => /^\/hr\//.test(r.source)), [{ source: '/hr/', destination: 'https://rcl-hr.vercel.app/index.html' }, { source: '/hr/:path*', destination: 'https://rcl-hr.vercel.app/:path*' }]);
+  // the other addresses keep their own rule: /ho/ (the Head Office site) and /hr/ are different, the order of the older rules is as before
+  const src = v.rewrites.map(r => r.source);
+  assert.ok(src.indexOf('/ho/') > -1 && src.indexOf('/hr/') > src.indexOf('/purchase/:path*'), 'added after the older rules');
+  // never listed by a search engine (the rule of update-228 covers it)
+  const h = v.headers.find(x => x.headers.some(k => k.key === 'X-Robots-Tag' && k.value === 'noindex, nofollow')), re = new RegExp('^' + h.source.replace(/^\//, '\\/') + '$');
+  ['/hr/', '/hr/api/sso', '/hr/menu.json'].forEach(u => assert.ok(re.test(u), u));
+  assert.match(app, /const NAV_IC = \{[^\n]*\n    hr: '<svg /);
+  // the worker leaves /hr/ alone (update-99's rule)
+  const sw = fs.readFileSync(path.join(root, 'app', 'sw.js'), 'utf8'), own = /if \(!(\/.+\/)\.test\(u\.pathname\)\) return;/.exec(sw);
+  assert.ok(!eval(own[1]).test('/hr/'));
 });

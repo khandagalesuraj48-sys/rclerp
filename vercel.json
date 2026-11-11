@@ -45,6 +45,11 @@
       "permanent": false
     },
     {
+      "source": "/hr",
+      "destination": "/hr/",
+      "permanent": false
+    },
+    {
       "source": "/ho",
       "destination": "/ho/",
       "permanent": false
@@ -207,6 +212,14 @@
     {
       "source": "/purchase/:path*",
       "destination": "https://rcl-purchase.vercel.app/:path*"
+    },
+    {
+      "source": "/hr/",
+      "destination": "https://rcl-hr.vercel.app/index.html"
+    },
+    {
+      "source": "/hr/:path*",
+      "destination": "https://rcl-hr.vercel.app/:path*"
     }
   ],
   "headers": [

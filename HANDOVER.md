@@ -2450,3 +2450,5 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 * **update-232 (12-11-2026)** – One Click Solution's first page `/company` (`app/company.html`, `api/company.js`, `OCS_COMPANIES`):
   the company's code opens that company's own sign-in (each company: its own Portal and databases). The Portal's `coGate` sends a
   device without a company there. See `UPDATE_232.md`.
+* **update-233 (12-11-2026)** – the HR module (`rcl-hr`, its own Supabase and Vercel projects) under the one address: `/hr` in
+  `vercel.json`, its icon in the rail. Nothing of HR in this app. See `UPDATE_233.md`.
