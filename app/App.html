@@ -8772,21 +8772,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    *    only while the Dashboard is seen and the tab is in front; it stops when he goes to another page;
    *  – asked again every 10 minutes (a post's hours begin and end; its link works one hour). */
   const ADV = { posts: [], i: 0, t: 0, at: 0, seen: false, muted: true, busy: false, sig: '', el: null };
-  function advSeen(on) { ADV.seen = !!on; if (!on) return advPause(); if (Date.now() - ADV.at > 600000) { ADV.at = Date.now(); setTimeout(advLoad, 1500); } else advPlay(); }      // (asked after the page is up – never with its own figures)
+  function advSeen(on) { on = !!on; if (on === ADV.seen && on) return; ADV.seen = on; if (!on) return advPause(); if (Date.now() - ADV.at > 600000) { ADV.at = Date.now(); setTimeout(advLoad, 1500); } else advPlay(); }      // (asked after the page is up – never with its own figures)
   async function advLoad() {
-    if (ADV.busy || !ptOn()) return; ADV.busy = true; ADV.at = Date.now();
-    if (!ADV.seen) { ADV.busy = false; ADV.at = 0; return; }      // he left the Dashboard meanwhile: asked when he is back
+    if (ADV.busy) return;
+    if (!ptOn() || !ADV.seen) { ADV.at = 0; return; }      // not linked to the Portal yet, or he left the Dashboard meanwhile: asked when it can be
+    ADV.busy = true; ADV.at = Date.now(); let ok = false;
     try {
-      if (new URL(PT.url).origin !== hereOrigin()) return;
+      if (new URL(PT.url).origin !== hereOrigin()) { ok = true; return; }      // (another address: never asked)
       const site = (S.siteInfo && S.siteInfo.site) || ptSite(); if (!site) return;
       const r = await fetch(PT.url + '/api/ads', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: JSON.stringify({ action: 'live', platform: 'web', site: site }) });
       if (!r.ok) return;
+      ok = true;
       const j = await r.json(), posts = (Array.isArray(j.posts) ? j.posts : []).filter(p => p && /^https:\/\/|^http:\/\/127\.0\.0\.1/.test(String(p.url || '')));
       const sig = posts.map(p => p.id + p.size + p.seconds).join('|');
       if (sig === ADV.sig) { posts.forEach((p, k) => { if (ADV.posts[k]) { ADV.posts[k].url = p.url; ADV.posts[k].poster = p.poster; } }); return; }      // the same posts: only their new links
       ADV.sig = sig; ADV.posts = posts; ADV.i = 0; advDraw();
     } catch (e) { /* no posts this time – the Dashboard is as before */ }
-    finally { ADV.busy = false; }
+    finally { ADV.busy = false; if (!ok) ADV.at = Date.now() - 570000; }      // (update-226) no answer: asked again in half a minute, not in 10
   }
   function advDraw() {
     const box = $('adv'); advPause(); box.innerHTML = ''; ADV.el = null;
@@ -8830,7 +8832,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     else if (b.classList.contains('adv-mute')) { ADV.muted = !ADV.muted; const v = ADV.el && ADV.el.play ? ADV.el : null; if (v) { v.muted = ADV.muted; if (ADV.seen && v.paused) advPlay(); } b.textContent = ADV.muted ? '🔇' : '🔊'; b.setAttribute('aria-label', ADV.muted ? 'Sound on' : 'Sound off'); b.title = ADV.muted ? 'Sound on' : 'Sound off'; }
   });
   document.addEventListener('visibilitychange', () => { if (document.hidden) advPause(); else if (ADV.seen) advPlay(); });
-  setInterval(() => { if (ADV.seen && !document.hidden && Date.now() - ADV.at > 600000) advLoad(); }, 60000);
+  /* (update-226, 11-11-2026: "ek vedio mi set kela aahe active ahe tri dakhwet nahiye") The Dashboard is the page a person starts
+   * on, and it is shown then WITHOUT showTab – so the posts were asked only after he had gone to another page and come back.
+   * Now the page itself is looked at every 2 seconds: signed in and the Dashboard on the screen = seen. */
+  const advOn = () => { try { const d = $('sec-dash'); return !!S.user && !!d && !d.hidden && d.offsetParent !== null; } catch (e) { return false; } };
+  setInterval(() => { const on = advOn(); if (on !== ADV.seen) advSeen(on); else if (on && !document.hidden && Date.now() - ADV.at > 600000) { ADV.at = Date.now(); advLoad(); } }, 2000);
 
   function showTab(name, fromBack) {
     extHide();      // (13-10-2026) a page of another module shown in the middle goes
@@ -8840,7 +8846,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // page history for the Back button (Alt + B / Backspace)
     if (!fromBack && S.curTab && S.curTab !== name) { S.hist = S.hist || []; S.hist.push(S.curTab); if (S.hist.length > 50) S.hist.shift(); }
     S.curTab = name;
-    try { advSeen(name === 'dash'); } catch (e) { /* (update-225) the posts never stop a page */ }
+    try { advSeen(name === 'dash' && !!S.user); } catch (e) { /* (update-225) the posts never stop a page */ }
     setTimeout(() => { try { rtcPageChanged(); } catch (e) { /* the page is still loading */ } }, 0);
     if ($('pg_back')) $('pg_back').disabled = !(S.hist && S.hist.length);
     TABS.forEach(t => {
