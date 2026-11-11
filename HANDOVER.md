@@ -2433,3 +2433,5 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   site (`<portal>/api/ads` `live`, platform `web`; set in the Portal's console – rcl-portal step 8): `ADV`, `advSeen` (from `showTab`),
   `advLoad` (1.5 s after the Dashboard, then every 10 min), `advDraw` / `advShow` / `advPlay` / `advPause`. One media element at a
   time, a video muted and only while the Dashboard is seen. No server action, no SQL. See `UPDATE_225.md`.
+* **update-226 (11-11-2026)** – the Advertise Corner starts on the first Dashboard too: the first page is shown without `showTab`, so
+  `advOn` (signed in, `#sec-dash` on the screen) is looked at every 2 s; a failed ask is made again in half a minute. See `UPDATE_226.md`.

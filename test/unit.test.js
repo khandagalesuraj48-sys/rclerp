@@ -9876,7 +9876,7 @@ test('update-225: the Advertise Corner on the Dashboard – asked from the Porta
   assert.match(app, /<section id="sec-dash"[^>]*>\s*<!--[^>]*update-225[\s\S]{0,400}?<div id="adv" class="adv" hidden/, 'its place is the first thing of the Dashboard, hidden until there is a post');
   const a = app.slice(app.indexOf('const ADV = {'), app.indexOf('  function showTab(name, fromBack) {'));
   assert.ok(a.length > 2000, 'the module is there');
-  assert.match(a, /if \(new URL\(PT\.url\)\.origin !== hereOrigin\(\)\) return;/, 'only on the one address');
+  assert.match(a, /if \(new URL\(PT\.url\)\.origin !== hereOrigin\(\)\) \{ ok = true; return; \}/, 'only on the one address');
   assert.match(a, /fetch\(PT\.url \+ '\/api\/ads', \{ method: 'POST', credentials: 'same-origin', headers: \{ 'Content-Type': 'application\/json', 'X-RCL': '1' \}, body: JSON\.stringify\(\{ action: 'live', platform: 'web', site: site \}\) \}\)/);
   assert.match(a, /setTimeout\(advLoad, 1500\)/, 'asked after the Dashboard is up, not with its figures');
   assert.match(a, /m\.muted = ADV\.muted;/); assert.match(a, /muted: true/, 'a video starts muted');
@@ -9884,7 +9884,18 @@ test('update-225: the Advertise Corner on the Dashboard – asked from the Porta
   assert.match(a, /if \(ADV\.el === m\) advShow\(ADV\.i \+ 1\)/, 'only the video shown now moves the slides on');
   assert.match(a, /old\.removeAttribute\('src'\)[\s\S]{0,80}old\.remove\(\)/, 'the one before is emptied and taken out');
   assert.match(a, /catch \(e\) \{ \/\* no posts this time – the Dashboard is as before \*\/ \}/, 'a failed ask never shows an error');
-  assert.match(app, /try \{ advSeen\(name === 'dash'\); \} catch \(e\)/, 'another page stops it');
+  assert.match(app, /try \{ advSeen\(name === 'dash' && !!S\.user\); \} catch \(e\)/, 'another page stops it');
   assert.match(app, /@media \(prefers-reduced-motion: reduce\) \{ \.adv, \.adv \.adv-m \{ transition: none; \} \}/);
   assert.doesNotMatch(a, /google\.script|api\('|call\('/, 'no server action of Mechanical');
 });
+
+test('update-226: the posts start on the first Dashboard too (it is shown without showTab) – the page is looked at every 2 s; an ask that failed is made again in half a minute', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const a = app.slice(app.indexOf('const ADV = {'), app.indexOf('  function showTab(name, fromBack) {'));
+  assert.match(a, /const advOn = \(\) => \{ try \{ const d = \$\('sec-dash'\); return !!S\.user && !!d && !d\.hidden && d\.offsetParent !== null; \}/, 'signed in and the Dashboard on the screen');
+  assert.match(a, /setInterval\(\(\) => \{ const on = advOn\(\); if \(on !== ADV\.seen\) advSeen\(on\);[^\n]*\}, 2000\);/);
+  assert.match(a, /if \(!ptOn\(\) \|\| !ADV\.seen\) \{ ADV\.at = 0; return; \}/, 'not linked yet: asked as soon as it can be');
+  assert.match(a, /if \(!ok\) ADV\.at = Date\.now\(\) - 570000;/, 'no answer: again in half a minute');
+  assert.match(a, /on = !!on; if \(on === ADV\.seen && on\) return;/, 'seen twice is one start');
+});
+
