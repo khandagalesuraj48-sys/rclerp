@@ -2437,3 +2437,7 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `advOn` (signed in, `#sec-dash` on the screen) is looked at every 2 s; a failed ask is made again in half a minute. See `UPDATE_226.md`.
 * **update-227 (12-11-2026)** – the Advertise Corner is one strip of a fixed shape (`.adv { aspect-ratio: 12.8 }`, 3.42 up to 700 px);
   `advFit` puts a post as the Portal's "Fit to strip" kept it (`fit.web` / `fit.app`: object-position, scale). See `UPDATE_227.md`.
+* **update-228 (12-11-2026)** – the public page for search engines: `app/about.html` → `/about` (title, description, canonical to
+  `erp.oneclicksolution.dpdns.org`, Organization + WebSite data, no script, nothing of the inside), `app/robots.txt`,
+  `app/sitemap.xml` (`build.js` copies them); vercel.json: `X-Robots-Tag: noindex, nofollow` on every page but `/about`, `/app`,
+  `/robots.txt`, `/sitemap.xml`, `/icons/`. See `UPDATE_228.md`.

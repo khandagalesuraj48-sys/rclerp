@@ -2550,7 +2550,8 @@ test('update-99: one address – the Store and the Portal under this address, th
   // (update-127 adds Engineering after these, update-194 Purchase – each checked in its own test)
   // (update-138) the staging copy's own rules come first and match ONLY the staging address; the live rules are as before
   // (update-160) /scan – the page itself (a Scan with Mobile QR code); checked in its own test
-  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/(engineering|purchase)/.test(r.source) && r.source !== '/scan' && r.source !== '/ho/' && r.source !== '/app'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
+  // (update-228) /about – the public page; checked in its own test
+  assert.deepStrictEqual(v.rewrites.filter(r => !r.has && !/^\/(engineering|purchase)/.test(r.source) && r.source !== '/scan' && r.source !== '/ho/' && r.source !== '/app' && r.source !== '/about'), [{ source: '/store/', destination: 'https://rcl-store.vercel.app/index.html' }, { source: '/portal/', destination: 'https://rcl-portal-flame.vercel.app/index.html' },
     { source: '/store/:path*', destination: 'https://rcl-store.vercel.app/:path*' }, { source: '/portal/:path*', destination: 'https://rcl-portal-flame.vercel.app/:path*' }]);
   assert.deepStrictEqual(v.redirects.filter(r => !/^\/(engineering|purchase|ho$|app\/$)/.test(r.source)).map(r => r.source + '→' + r.destination + ':' + r.permanent), ['/store→/store/:false', '/portal→/portal/:false']);
   assert.ok(v.functions['api/rpc.js'] && v.crons.length === 1, 'the rest of vercel.json as before');
@@ -9910,3 +9911,26 @@ test('update-227: one size – the strip, its shape fixed (12.8 : 1; a narrow sc
   assert.match(a, /advFit\(m, p\);/);
 });
 
+
+test('update-228: the public page (/about) – the only page a search engine may list (with /app); nothing of the inside on it; every other page answers noindex', () => {
+  const page = fs.readFileSync(path.join(root, 'app', 'about.html'), 'utf8'), robots = fs.readFileSync(path.join(root, 'app', 'robots.txt'), 'utf8'), map = fs.readFileSync(path.join(root, 'app', 'sitemap.xml'), 'utf8');
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')), build = fs.readFileSync(path.join(root, 'build.js'), 'utf8');
+  assert.match(page, /<title>Rachana ERP – Construction ERP by One Click Solution<\/title>/); assert.match(page, /<meta name="description" content="[^"]{80,200}">/);
+  assert.match(page, /<link rel="canonical" href="https:\/\/erp\.oneclicksolution\.dpdns\.org\/about">/);
+  const ld = JSON.parse(page.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+  assert.deepStrictEqual(ld['@graph'].map(x => x['@type']), ['Organization', 'WebSite']);
+  assert.ok(!JSON.stringify(ld).match(/telephone|email|address|contactPoint/i), 'no contact detail in the structured data');
+  // nothing of the inside: no e-mail, no phone number, no rupee figure, no site or person
+  assert.doesNotMatch(page, /@[a-z0-9-]+\.[a-z]{2,}|\+91|\b\d{10}\b|₹|VTR|18B|Kolhapur|NH 848|Mule|khandagale/i);
+  assert.ok((page.match(/href="\/portal\/"/g) || []).length >= 2, 'Sign In goes to the Portal');
+  assert.doesNotMatch(page, /<script(?! type="application\/ld\+json")/, 'no script on the public page');
+  assert.match(robots, /Disallow: \/api\/\n/); assert.match(robots, /Sitemap: https:\/\/erp\.oneclicksolution\.dpdns\.org\/sitemap\.xml/);
+  assert.deepStrictEqual(map.match(/<loc>[^<]+<\/loc>/g), ['<loc>https://erp.oneclicksolution.dpdns.org/about</loc>', '<loc>https://erp.oneclicksolution.dpdns.org/app</loc>'], 'the public pages only');
+  assert.ok(v.rewrites.some(r => r.source === '/about' && r.destination === '/about.html'));
+  const h = v.headers.find(x => x.headers.some(k => k.key === 'X-Robots-Tag' && k.value === 'noindex, nofollow'));
+  assert.ok(h, 'the private pages answer noindex');
+  const re = new RegExp('^' + h.source.replace(/^\//, '\\/') + '$');
+  ['/', '/index.html', '/ho/', '/portal/', '/store/', '/engineering/', '/purchase/', '/api/rpc', '/scan', '/menu.json', '/about.html', '/aboutx'].forEach(u => assert.ok(re.test(u), u + ' is never listed'));
+  ['/about', '/app', '/robots.txt', '/sitemap.xml', '/icons/oc2-icon-512.png'].forEach(u => assert.ok(!re.test(u), u + ' may be read by a search engine'));
+  assert.match(build, /\['about\.html', 'robots\.txt', 'sitemap\.xml'\]\.forEach/);
+});

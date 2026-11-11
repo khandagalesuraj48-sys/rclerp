@@ -1,0 +1,12 @@
+# (update-228) Rachana ERP – One Click Solution. Only the public page (/about) and the app's page (/app) are for search engines.
+# Every other page answers "X-Robots-Tag: noindex" (so it is never listed, even when another site links to it); the servers'
+# own addresses are not to be fetched at all.
+User-agent: *
+Disallow: /api/
+Disallow: /portal/api/
+Disallow: /store/api/
+Disallow: /engineering/api/
+Disallow: /purchase/api/
+Allow: /
+
+Sitemap: https://erp.oneclicksolution.dpdns.org/sitemap.xml
