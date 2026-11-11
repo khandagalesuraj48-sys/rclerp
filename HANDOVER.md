@@ -2441,3 +2441,5 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `erp.oneclicksolution.dpdns.org`, Organization + WebSite data, no script, nothing of the inside), `app/robots.txt`,
   `app/sitemap.xml` (`build.js` copies them); vercel.json: `X-Robots-Tag: noindex, nofollow` on every page but `/about`, `/app`,
   `/robots.txt`, `/sitemap.xml`, `/icons/`. See `UPDATE_228.md`.
+* **update-229 (12-11-2026)** – Google Search Console's ownership file `app/google7a73bb83a881ba3b.html` (the owner's, for
+  `erp.oneclicksolution.dpdns.org`), copied to the root by `build.js`. See `UPDATE_229.md`.

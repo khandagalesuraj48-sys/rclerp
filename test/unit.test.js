@@ -9934,3 +9934,9 @@ test('update-228: the public page (/about) – the only page a search engine may
   ['/about', '/app', '/robots.txt', '/sitemap.xml', '/icons/oc2-icon-512.png'].forEach(u => assert.ok(!re.test(u), u + ' may be read by a search engine'));
   assert.match(build, /\['about\.html', 'robots\.txt', 'sitemap\.xml'\]\.forEach/);
 });
+
+test('update-229: Google Search Console\'s ownership file is served at the root, word for word as Google gave it', () => {
+  assert.strictEqual(fs.readFileSync(path.join(root, 'app', 'google7a73bb83a881ba3b.html'), 'utf8').trim(), 'google-site-verification: google7a73bb83a881ba3b.html');
+  assert.match(fs.readFileSync(path.join(root, 'build.js'), 'utf8'), /copyFileSync\(path\.join\(__dirname, 'app', 'google7a73bb83a881ba3b\.html'\), path\.join\(out, 'google7a73bb83a881ba3b\.html'\)\)/);
+});
+
