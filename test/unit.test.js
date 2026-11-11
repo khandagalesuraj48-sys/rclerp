@@ -9916,7 +9916,7 @@ test('update-228: the public page (/about) – the only page a search engine may
   const page = fs.readFileSync(path.join(root, 'app', 'about.html'), 'utf8'), robots = fs.readFileSync(path.join(root, 'app', 'robots.txt'), 'utf8'), map = fs.readFileSync(path.join(root, 'app', 'sitemap.xml'), 'utf8');
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')), build = fs.readFileSync(path.join(root, 'build.js'), 'utf8');
   assert.match(page, /<title>Rachana ERP – Construction ERP by One Click Solution<\/title>/); assert.match(page, /<meta name="description" content="[^"]{80,200}">/);
-  assert.match(page, /<link rel="canonical" href="https:\/\/erp\.oneclicksolution\.dpdns\.org\/about">/);
+  assert.match(page, /<link rel="canonical" href="https:\/\/oneclicksolution\.online\/about">/);
   const ld = JSON.parse(page.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
   assert.deepStrictEqual(ld['@graph'].map(x => x['@type']), ['Organization', 'WebSite']);
   assert.ok(!JSON.stringify(ld).match(/telephone|email|address|contactPoint/i), 'no contact detail in the structured data');
@@ -9924,8 +9924,8 @@ test('update-228: the public page (/about) – the only page a search engine may
   assert.doesNotMatch(page, /@[a-z0-9-]+\.[a-z]{2,}|\+91|\b\d{10}\b|₹|VTR|18B|Kolhapur|NH 848|Mule|khandagale/i);
   assert.ok((page.match(/href="\/portal\/"/g) || []).length >= 2, 'Sign In goes to the Portal');
   assert.doesNotMatch(page, /<script(?! type="application\/ld\+json")/, 'no script on the public page');
-  assert.match(robots, /Disallow: \/api\/\n/); assert.match(robots, /Sitemap: https:\/\/erp\.oneclicksolution\.dpdns\.org\/sitemap\.xml/);
-  assert.deepStrictEqual(map.match(/<loc>[^<]+<\/loc>/g), ['<loc>https://erp.oneclicksolution.dpdns.org/about</loc>', '<loc>https://erp.oneclicksolution.dpdns.org/app</loc>'], 'the public pages only');
+  assert.match(robots, /Disallow: \/api\/\n/); assert.match(robots, /Sitemap: https:\/\/oneclicksolution\.online\/sitemap\.xml/);
+  assert.deepStrictEqual(map.match(/<loc>[^<]+<\/loc>/g), ['<loc>https://oneclicksolution.online/about</loc>', '<loc>https://oneclicksolution.online/app</loc>'], 'the public pages only');
   assert.ok(v.rewrites.some(r => r.source === '/about' && r.destination === '/about.html'));
   const h = v.headers.find(x => x.headers.some(k => k.key === 'X-Robots-Tag' && k.value === 'noindex, nofollow'));
   assert.ok(h, 'the private pages answer noindex');
@@ -9953,4 +9953,12 @@ test('update-230: the web lock waits 30 minutes (asked 12-11-2026; before: 10) �
   ['nobody used the ERP for 30 minutes', '30 मिनिटे कोणी ERP वापरले नाही', '30 मिनट किसी ने ERP इस्तेमाल नहीं किया', 'Screen lock: after 30 minutes without use', 'Screen lock: 30 मिनिटे वापर नसेल', 'Screen lock: 30 मिनट इस्तेमाल न हो']
     .forEach(t => assert.ok(app.includes(t), t));
   assert.ok(!/(for|after) 10 minutes without use|ERP for 10 minutes|10 मिनिटे (कोणी|वापर)|10 मिनट (किसी|इस्तेमाल)/.test(app), 'no "10 minutes" of the lock is left');
+});
+
+test('update-231: the public page, the sitemap and robots.txt name the owner\'s own domain oneclicksolution.online (asked 12-11-2026)', () => {
+  for (const f of ['about.html', 'sitemap.xml', 'robots.txt']) {
+    const t = fs.readFileSync(path.join(root, 'app', f), 'utf8');
+    assert.ok(!/dpdns\.org|vercel\.app/.test(t), f + ': no older address');
+    assert.ok(t.includes('https://oneclicksolution.online/'), f);
+  }
 });

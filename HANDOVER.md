@@ -2445,3 +2445,5 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `erp.oneclicksolution.dpdns.org`), copied to the root by `build.js`. See `UPDATE_229.md`.
 * **update-230 (12-11-2026)** – the web lock waits 30 minutes (was 10): `WL_IDLE_MS_` in `app/Code.gs`, `WL.ms` and its
   limits in `app/App.html`, the help in three languages. See `UPDATE_230.md`.
+* **update-231 (12-11-2026)** – the owner's own domain `oneclicksolution.online` in `app/about.html`, `app/sitemap.xml`,
+  `app/robots.txt` (was `erp.oneclicksolution.dpdns.org`). See `UPDATE_231.md`.

@@ -9,4 +9,4 @@ Disallow: /engineering/api/
 Disallow: /purchase/api/
 Allow: /
 
-Sitemap: https://erp.oneclicksolution.dpdns.org/sitemap.xml
+Sitemap: https://oneclicksolution.online/sitemap.xml
