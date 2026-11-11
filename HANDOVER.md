@@ -2443,3 +2443,5 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `/robots.txt`, `/sitemap.xml`, `/icons/`. See `UPDATE_228.md`.
 * **update-229 (12-11-2026)** – Google Search Console's ownership file `app/google7a73bb83a881ba3b.html` (the owner's, for
   `erp.oneclicksolution.dpdns.org`), copied to the root by `build.js`. See `UPDATE_229.md`.
+* **update-230 (12-11-2026)** – the web lock waits 30 minutes (was 10): `WL_IDLE_MS_` in `app/Code.gs`, `WL.ms` and its
+  limits in `app/App.html`, the help in three languages. See `UPDATE_230.md`.

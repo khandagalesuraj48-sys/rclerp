@@ -9568,7 +9568,7 @@ test('update-218: the web lock – WebAuthn checked on the server (CBOR, authent
     for (const f of ['getInit', 'sync', 'whoami', 'getLogBookList', 'saveDieselIssue', 'aiPrepare', 'passkeyList', 'passkeyStart']) assert.match(gate(t, f, 0).thrown || '', /^SCREEN_LOCKED/, f);
     for (const f of ['lockState', 'lockNow', 'unlockPassword', 'unlockPasskeyStart', 'unlockPasskey']) assert.ok(!gate(t, f, 0).thrown, f + ' is allowed while locked');
     assert.ok(w(t).at > 0, 'a touch reported while locked does not open it');
-    // the 10 minutes: the page says it was untouched longer → locked
+    // the time (30 minutes; 20 s in this test): the page says it was untouched longer → locked
     t = sess(false); gate(t, 'sync', 0); assert.match(gate(t, 'sync', 20001).thrown, /^SCREEN_LOCKED/);
     // the server's own clock: nothing heard of the page for longer than the time + 1 minute → locked, also a call that says nothing (devtools, a page stopped)
     t = sess(false); gate(t, 'sync', 0); cache().put('S_' + t, ev('(v, a) => wlWith_(v, { act: a, at: 0 })', val(t), Date.now() - 20000 - 59000), 21600);
@@ -9648,7 +9648,7 @@ test('update-218: the web lock – WebAuthn checked on the server (CBOR, authent
   listOf(code, /const WL_OPEN_FNS_ = (\[[^\]]+\])/).forEach(f => assert.ok(fns.includes(f)));
   assert.match(rt, /g\.__lockIdleMs = \(\) => \{ const v = Number\(process\.env\.RCL_RIG_LOCK_MS\); return !process\.env\.VERCEL && v >= 5000 && v <= 600000 \? v : 0; \};/, 'the shorter time only on the rig, never on Vercel');
   const F = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
-  for (const [m, re] of [['SCREEN_LOCKED: the screen is locked (nobody used it for 10 minutes) – unlock it with your fingerprint / face / PIN or your password.', /locked because nobody used/],
+  for (const [m, re] of [['SCREEN_LOCKED: the screen is locked (nobody used it for 30 minutes) – unlock it with your fingerprint / face / PIN or your password.', /locked because nobody used/],
     ['Wrong password – 3 tries left, then you are signed out.', /typed on the locked screen/], ['You were signed out after 5 wrong passwords in a row on the locked screen – sign in again.', /5 wrong passwords in a row were typed/],
     ['The password could not be checked just now (the Portal did not answer) – try again in a moment, or unlock with the fingerprint / face / PIN.', /Portal \(where your password/],
     ['The fingerprint / face / PIN was not accepted (the signature does not match this passkey) – try again, or unlock with your password.', /did not unlock the screen/],
@@ -9940,3 +9940,17 @@ test('update-229: Google Search Console\'s ownership file is served at the root,
   assert.match(fs.readFileSync(path.join(root, 'build.js'), 'utf8'), /copyFileSync\(path\.join\(__dirname, 'app', 'google7a73bb83a881ba3b\.html'\), path\.join\(out, 'google7a73bb83a881ba3b\.html'\)\)/);
 });
 
+
+test('update-230: the web lock waits 30 minutes (asked 12-11-2026; before: 10) – server, page and the help in three languages', () => {
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8'), app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(code, /const WL_IDLE_MS_ = 1800000;/);
+  assert.match(code, /SCREEN_LOCKED: the screen is locked \(nobody used it for 30 minutes\)/);
+  assert.match(app, /const WL = \{ on: false, at: 0, sat: 0, ms: 1800000,/);
+  // the time the server gives (30 minutes) is kept by the page – it was refused above 10 minutes before
+  assert.match(app, /if \(m >= 5000 && m <= 1800000\) WL\.ms = m;/);
+  assert.match(app, /if \(!\(v >= 5000 && v <= 1800000\) \|\| v === WL\.ms\) return;/);
+  assert.ok(!/<= 600000\) (WL\.ms|\|\| v === WL\.ms)/.test(app));
+  ['nobody used the ERP for 30 minutes', '30 मिनिटे कोणी ERP वापरले नाही', '30 मिनट किसी ने ERP इस्तेमाल नहीं किया', 'Screen lock: after 30 minutes without use', 'Screen lock: 30 मिनिटे वापर नसेल', 'Screen lock: 30 मिनट इस्तेमाल न हो']
+    .forEach(t => assert.ok(app.includes(t), t));
+  assert.ok(!/(for|after) 10 minutes without use|ERP for 10 minutes|10 मिनिटे (कोणी|वापर)|10 मिनट (किसी|इस्तेमाल)/.test(app), 'no "10 minutes" of the lock is left');
+});

@@ -900,14 +900,14 @@ function sessionUser_(token) {
 }
 
 /* ================= THE WEB LOCK (update-218) =================
- * Asked for web security; he chose "अ – Web lock (शिफारस)", and on 10-11-2026 the time: 10 minutes.
- * After 10 minutes with no mouse / keyboard / touch / scroll anywhere on the ERP's web screen (a module's page shown inside it
+ * Asked for web security; he chose "अ – Web lock (शिफारस)", and on 10-11-2026 the time: 10 minutes; on 12-11-2026: 30 minutes (update-230).
+ * After 30 minutes with no mouse / keyboard / touch / scroll anywhere on the ERP's web screen (a module's page shown inside it
  * too), the screen locks: everything on it is hidden behind the lock (his name, the site, when it locked). It opens with this
  * device's own fingerprint / face / PIN (a passkey – WebAuthn, checked here: server/webauthn.js) or with his password. Signing
  * out stays possible. Unlocking goes on where he was: nothing is reloaded, nothing typed is lost (the page – App.html wl…).
  * THE SERVER KEEPS THE LOCK. The page says with every call how long ago it was last touched (__act). The sign-in's own value
  * (S_<token>) keeps, as a 6th part "W<last activity>[L<locked at>]", the last activity – noted at most every 30 s – and the moment
- * it locked. While it is locked, or nothing was heard of its page for longer than the 10 minutes (+ 1 minute, for the noting),
+ * it locked. While it is locked, or nothing was heard of its page for longer than the 30 minutes (+ 1 minute, for the noting),
  * every action of that sign-in is refused with SCREEN_LOCKED – except the lock's own (WL_OPEN_FNS_) and Sign out; also "another
  * site", the password change and the assistant (they ask the same). Taking the panel away in the browser's tools gives no data.
  * Only a sign-in whose page says how long ago it was touched is watched: the phone app (it has its own app lock) and a page of
@@ -918,11 +918,11 @@ function sessionUser_(token) {
  * NOTHING NEW IN ANY DATABASE: the sign-in's value (web.cache), the exact counter of wrong passwords (WLF_<token>), the challenge
  * of a passkey (WLC_<token>, 2 minutes, used once) and the person's passkeys – app_settings "WL_PK|<email>" at the FIRST site, one
  * list for all his sites (the same address = the same passkey): about 250 bytes a device (RS256 ~ 560), at most 10 devices. */
-const WL_IDLE_MS_ = 600000;      // the owner's 10 minutes (10-11-2026)
+const WL_IDLE_MS_ = 1800000;      // the owner's 30 minutes (12-11-2026, update-230; before: 10 minutes)
 const wlIdle_ = () => { const v = typeof __lockIdleMs === 'function' ? Number(__lockIdleMs()) : 0; return v > 0 ? v : WL_IDLE_MS_; };      // (shorter only on the test rig)
 const WL_STEP_MS_ = 30000, WL_SLACK_MS_ = 60000, WL_TRIES_ = 5, WL_PK_MAX_ = 10;
 const WL_OPEN_FNS_ = ['lockState', 'lockNow', 'unlockPassword', 'unlockPasskeyStart', 'unlockPasskey'];
-const WL_LOCKED_ = 'SCREEN_LOCKED: the screen is locked (nobody used it for 10 minutes) – unlock it with your fingerprint / face / PIN or your password.';
+const WL_LOCKED_ = 'SCREEN_LOCKED: the screen is locked (nobody used it for 30 minutes) – unlock it with your fingerprint / face / PIN or your password.';
 let WL_TOKEN_ = '';      // the sign-in of this request (api)
 // the lock's part of a sign-in's value: { on: watched, act: last activity (ms), at: locked at (ms, 0 = open) }
 function wlOf_(val) { const m = /^W(\d{1,15})(?:L(\d{1,15}))?$/.exec(String(String(val || '').split('|')[5] || '')); return m ? { on: true, act: Number(m[1]), at: Number(m[2]) || 0 } : { on: false, act: 0, at: 0 }; }
@@ -940,7 +940,7 @@ function wlGate_(token, fn) {
   let w = wlOf_(val);
   const was = w.on + '|' + w.act + '|' + w.at;
   if (!w.on) { if (!(age >= 0)) return null; w = { on: true, act: now - Math.min(age, now), at: 0 }; }      // its page says so for the first time: watched from now on
-  else if (!w.at && now - w.act > idle + WL_SLACK_MS_) w.at = now;      // the server's own clock: nothing heard of its page for longer than the 10 minutes
+  else if (!w.at && now - w.act > idle + WL_SLACK_MS_) w.at = now;      // the server's own clock: nothing heard of its page for longer than the 30 minutes
   if (!w.at && age >= 0) { const a = now - Math.min(age, now); if (now - a > idle) w.at = now; else if (a - w.act >= WL_STEP_MS_) w.act = a; }      // the page: last touched … ago
   // written when it changed – a lock always; the activity not from a heartbeat answered from memory (its copy may be seconds old)
   if (w.on + '|' + w.act + '|' + w.at !== was && (w.at || !wlLight_())) cache.put(k, wlWith_(val, w), wlTtl_(val));
@@ -969,7 +969,7 @@ function wlState_(u) {
   let keys = []; try { keys = wlPkRead_(u.email).map(c => c.id); } catch (e) { keys = []; }
   return { locked: !!w.at, at: w.at || 0, act: w.act || 0, idle: wlIdle_(), name: u.name || u.email, site: wlSiteName_(), keys: keys, portal: wlPortalPw_(val) };
 }
-// the page locked itself (10 minutes untouched, or it woke up after longer): locked at once for every tab of this sign-in
+// the page locked itself (30 minutes untouched, or it woke up after longer): locked at once for every tab of this sign-in
 function wlLockNow_() {
   const cache = CacheService.getScriptCache(), k = 'S_' + WL_TOKEN_, val = cache.get(k); if (!val) throw new Error('SESSION_EXPIRED');
   const w = wlOf_(val);
@@ -1444,7 +1444,7 @@ function apiRun_(u, spec, fn, args) {
   // (update-108) the Super Admin's save of Log Book / diesel: first the "before" of every submitted bill it may change (billBaselines_) – both saved together, or neither
   const res = leastOut_(u, u.super && BL_FNS_.indexOf(fn) > -1 ? withLock_(() => { billBaselines_(fn, args); return run(); }) : run());      // machinery details only for users with a page that uses them (D4)
   if (fn === 'getInit' || fn === 'sync') { res.user = publicUser_(u); res.versions = getVersions_(); res.today = today_(); res.source = sbDataOn_() ? 'supabase' : 'sheet'; res.build = appBuild_();
-    res.lock = { ms: wlIdle_() };      // (update-218) the web lock's time (10 minutes)
+    res.lock = { ms: wlIdle_() };      // (update-218) the web lock's time (30 minutes)
     res.stamp = stamp_(u);      // (update-211) the server's signed time: kept by the phone, sent with an entry it makes with no network
     if (typeof sbBackupInfo_ === 'function') res.backup = backupInfoFor_(u, sbBackupInfo_());
     if (u.admin) res.faults = errStamp_();      // the Admin's page shows faults of today within seconds
