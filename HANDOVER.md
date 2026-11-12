@@ -2456,3 +2456,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Portal every hour; nothing kept here) and the screen lock's password asked of the Portal by the user ID (`server/portal.js`
   `checkPassword` → the Portal's `checkPassword`; an older Portal: as before). The Portal's steps 10 / 11: password or a code by
   e-mail; a user's first e-mail is his user ID for ever, the e-mail he verifies is the one he signs in with. No SQL here.
+* **update-235 (12-11-2026)** – update-234's "Verify my e-mail" did not appear where the app is open at another address than the
+  Portal's link: the Portal is asked at the address the person is at (`/portal` under it); no answer → the button is shown, the
+  Portal's page decides. `app/App.html` only. No SQL.
