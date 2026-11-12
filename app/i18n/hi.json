@@ -7185,5 +7185,9 @@
 "{0} log book(s) deleted.": "{0} log book delete हुईं.",
 "Find a page…": "पेज खोजें…",
 "Close the pages": "पेज बंद करें",
-"No page found": "कोई पेज नहीं मिला"
+"No page found": "कोई पेज नहीं मिला",
+"Verify your e-mail – then you can also sign in with a code sent to your e-mail.": "अपना email verify करें – फिर email पर आए code से भी sign in कर सकेंगे।",
+"Verify now": "अभी verify करें",
+"Verify my e-mail": "मेरा email verify करें",
+"E-mail verified ✓ – you sign in with:": "Email verify हो गया ✓ – sign in के लिए यह email इस्तेमाल करें:"
 }
