@@ -2452,3 +2452,7 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   device without a company there. See `UPDATE_232.md`.
 * **update-233 (12-11-2026)** – the HR module (`rcl-hr`, its own Supabase and Vercel projects) under the one address: `/hr` in
   `vercel.json`, its icon in the rail. Nothing of HR in this app. See `UPDATE_233.md`.
+* **update-234 (12-11-2026)** – "Verify my e-mail" from this app (My profile + a strip on top that hides nothing, asked of the
+  Portal every hour; nothing kept here) and the screen lock's password asked of the Portal by the user ID (`server/portal.js`
+  `checkPassword` → the Portal's `checkPassword`; an older Portal: as before). The Portal's steps 10 / 11: password or a code by
+  e-mail; a user's first e-mail is his user ID for ever, the e-mail he verifies is the one he signs in with. No SQL here.

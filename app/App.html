@@ -3693,6 +3693,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   </div>
 </header>
 <div id="announce" hidden role="status"></div>
+<!-- (update-234) the Portal's reminder "verify your e-mail": a small strip that hides nothing; nothing is ever closed for it -->
+<div id="ev_strip" hidden role="status" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:8px 12px 0;padding:6px 12px;border-radius:10px;background:#FEF3C7;color:#713F12;font-size:13px"><span>Verify your e-mail – then you can also sign in with a code sent to your e-mail.</span><button class="btn ghost small" type="button" id="ev_go">Verify now</button></div>
 <main>
   <!-- ================= TANK CHECK (system vs physical) ================= -->
   <section id="sec-tankcheck" role="tabpanel" aria-labelledby="tab-tankcheck" hidden>
@@ -4626,7 +4628,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           <div><button class="btn ghost small" type="button" id="set_photo_pick">Choose a photo</button> <button class="btn ghost small" type="button" id="set_photo_del">Remove</button><input type="file" id="set_photo_file" accept="image/*" hidden><small class="muted">A square picture works best. It is made small (128 px) before it is saved.</small></div></div>
         <div class="set-who"><b id="set_name"></b><span id="set_email" class="muted"></span><span id="set_role" class="muted"></span>
           <div class="field"><label for="set_mobile">My mobile number</label><input id="set_mobile" inputmode="numeric" maxlength="10" placeholder="10 digits" autocomplete="off"></div>
-          <button class="btn ghost small" type="button" id="set_pw">Change my password</button></div>
+          <button class="btn ghost small" type="button" id="set_pw">Change my password</button>
+          <button class="btn ghost small" type="button" id="set_ver" hidden>Verify my e-mail</button>
+          <small class="muted" id="set_ver_ok" hidden><span>E-mail verified ✓ – you sign in with:</span> <b id="set_ver_mail"></b></small></div>
         <div class="set-logins"><b>My last sign-ins</b><div id="set_logins" class="muted">–</div><small class="muted">A sign-in that was not yours? Change your password at once – that signs every other device out.</small></div>
       </div>
     </div>
@@ -15924,8 +15928,29 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   });
   $('set_photo_del').addEventListener('click', () => prefSet({ photo: '' }));
   $('set_pw').addEventListener('click', () => $('u_pw').click());
+  /* (update-234; his words of 12-11-2026: "user la email cha option disat nahi") THE PORTAL'S "VERIFY MY E-MAIL", reachable from
+   * here. The Portal keeps it all (who is verified, the code, the count of reminders) – this page only ASKS the Portal with the
+   * person's own Portal sign-in and sends him there: nothing is kept or changed in this app. Under the one address only (the
+   * Portal at the same address); anywhere else, or the Portal not reached: nothing is shown, everything as before.
+   *   My profile: "Verify my e-mail" while it is not verified; afterwards the e-mail he signs in with.
+   *   The strip on top: while not verified and the Portal's reminder is switched on – asked again every hour. It hides nothing. */
+  const evAsk = action => { let same = false; try { same = new URL(PT.url, location.href).origin === location.origin; } catch (e) { same = false; }
+    if (!ptOn() || !same) return Promise.resolve(null);
+    return fetch(PT.url + '/api/auth', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: JSON.stringify({ action: action }) }).then(r => r.ok ? r.json() : null).catch(() => null); };
+  let evT = 0;
+  function evDraw() {
+    evAsk('me').then(m => { const e = m && m.signedIn && !m.mustChange ? m.email : null;
+      $('set_ver').hidden = !(e && !e.verified && e.canVerify); $('set_ver_ok').hidden = !(e && e.verified); $('set_ver_mail').textContent = e && e.verified ? String(e.login || '') : '';
+      clearInterval(evT); $('ev_strip').hidden = true;
+      if (!e || e.verified || !e.remind) return;
+      const ask = () => evAsk('emailAlert').then(r => { $('ev_strip').hidden = !(r && r.show); $('ev_go').hidden = !(r && r.canVerify); });
+      ask(); evT = setInterval(ask, 3600000); });
+  }
+  $('set_ver').addEventListener('click', () => ptNav('/?verify=1'));
+  $('ev_go').addEventListener('click', () => ptNav('/?verify=1'));
+  setTimeout(evDraw, 4000);      // (after the page has opened – it waits for nothing)
   $('u_ava').addEventListener('click', () => $('tab-settings').click());
-  $('tab-settings').addEventListener('click', () => { setDraw(); setLoad(); avLoad(); voiceWordsLoad(true); wlSetDraw(true); });
+  $('tab-settings').addEventListener('click', () => { setDraw(); setLoad(); avLoad(); voiceWordsLoad(true); wlSetDraw(true); evDraw(); });
   $('set_db').addEventListener('click', () => $('db_pill').click());
   $('set_reset').addEventListener('click', async () => { if (!(await askConfirm({ title: 'Back to the usual settings?', ok: 'Reset', message: 'Theme, text size, language, first page, usual shift / location and favourites go back to how the app comes. Your photo and mobile number stay.' }))) return;
     const keep = { photo: S.prefs.photo, mobile: S.prefs.mobile }; prefSet(Object.assign({}, PREF_DEFAULT, keep)); });

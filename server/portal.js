@@ -165,6 +165,17 @@ function checkPassword(email, password) {
   const from = url();
   if (!from) return { error: 'this app is not linked to the Portal' };
   const at = from + '/api/auth', head = { 'Content-Type': 'application/json', 'X-RCL': '1', Accept: 'application/json' };
+  /* (update-234) the Portal's own "is this his password?" (its step 11): asked by the person's USER ID – the e-mail this app knows
+   * him by – which is right also when he signs in at the Portal with another, verified e-mail; no sign-in is made there. A Portal
+   * that does not have it yet (404) is asked as before, through its sign-in. */
+  const body = JSON.stringify({ action: 'checkPassword', email: String(email || ''), password: String(password || '') });
+  const c = fetchAllSync([{ url: at, method: 'POST', headers: head, body: body, redirect: 'error' }], 20000)[0];
+  if (c && !c.error && c.code !== 404) {
+    if (c.code === 200) return { ok: true };
+    if (c.code === 401 || c.code === 400) return { ok: false };
+    if (c.code === 429) return { ok: false, many: true };
+    return { error: 'the Portal answered ' + c.code };
+  }
   const r = fetchAllSync([{ url: at, method: 'POST', headers: head, body: JSON.stringify({ action: 'login', email: String(email || ''), password: String(password || '') }), redirect: 'error' }], 20000)[0];
   if (!r || r.error) return { error: 'the Portal did not answer' + (r && r.error ? ' (' + String(r.error).slice(0, 80) + ')' : '') };
   if (r.code === 200) {
