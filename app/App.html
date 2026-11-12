@@ -15934,13 +15934,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * Portal at the same address); anywhere else, or the Portal not reached: nothing is shown, everything as before.
    *   My profile: "Verify my e-mail" while it is not verified; afterwards the e-mail he signs in with.
    *   The strip on top: while not verified and the Portal's reminder is switched on – asked again every hour. It hides nothing. */
-  const evAsk = action => { let same = false; try { same = new URL(PT.url, location.href).origin === location.origin; } catch (e) { same = false; }
-    if (!ptOn() || !same) return Promise.resolve(null);
-    return fetch(PT.url + '/api/auth', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: JSON.stringify({ action: action }) }).then(r => r.ok ? r.json() : null).catch(() => null); };
+  /* (update-235) the Portal is asked at THIS address (its path – "/portal" – under the address the person is at): the app is
+   * open at more than one address (oneclicksolution.online, the older oneclicksolution-erp.vercel.app) while the Portal's link is
+   * one fixed address, and a page may only ask its own address. No answer (not under the one address, not signed in to the Portal
+   * at this address) → null. */
+  const evAsk = action => { let at = ''; try { at = new URL(PT.url, location.href).pathname.replace(/\/+$/, ''); } catch (e) { at = ''; }
+    if (!ptOn() || !at) return Promise.resolve(null);
+    return fetch(at + '/api/auth', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: JSON.stringify({ action: action }) }).then(r => r.ok ? r.json() : null).catch(() => null); };
   let evT = 0;
   function evDraw() {
-    evAsk('me').then(m => { const e = m && m.signedIn && !m.mustChange ? m.email : null;
-      $('set_ver').hidden = !(e && !e.verified && e.canVerify); $('set_ver_ok').hidden = !(e && e.verified); $('set_ver_mail').textContent = e && e.verified ? String(e.login || '') : '';
+    evAsk('me').then(m => { const known = !!(m && m.signedIn), e = known && !m.mustChange ? m.email : null;
+      // (update-235) the Portal gave no answer here: the button is there all the same – the Portal's own page decides (it asks his sign-in if needed)
+      $('set_ver').hidden = known ? !(e && !e.verified && e.canVerify) : !ptOn(); $('set_ver_ok').hidden = !(e && e.verified); $('set_ver_mail').textContent = e && e.verified ? String(e.login || '') : '';
       clearInterval(evT); $('ev_strip').hidden = true;
       if (!e || e.verified || !e.remind) return;
       const ask = () => evAsk('emailAlert').then(r => { $('ev_strip').hidden = !(r && r.show); $('ev_go').hidden = !(r && r.canVerify); });
