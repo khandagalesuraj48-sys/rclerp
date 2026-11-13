@@ -2470,3 +2470,5 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   No SQL. See `UPDATE_238.md`.
 * **update-239 (13-11-2026)** – Diesel Day Book: its headings (the sources and their five columns) come under EVERY date.
   `app/App.html` only. No SQL. See `UPDATE_239.md`.
+* **update-240 (13-11-2026)** – RCL HR's button on the rail opens HR at once (HR has its own menu and takes the whole window);
+  the list of its pages is not shown here first. `app/App.html` only. No SQL. See `UPDATE_240.md`.
