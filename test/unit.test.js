@@ -10042,5 +10042,9 @@ test('(update-237) Diesel Day Book: every entry of every place in one sheet – 
   // the page: its report, its guide, no place filter, Today / Yesterday
   const app = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'App.html'), 'utf8');
   assert.match(app, /\{ key: 'daybook', label: 'Diesel Day Book', fn: 'rptDayBook', portrait: false, filters: \['days'\],/);
-  assert.match(app, /data-tday="' \+ k \+ '">Today<\/button><button class="btn ghost small" data-yday=/);
+  assert.match(app, /data-tday="' \+ k \+ '">Today<\/button><button class="btn ghost small" data-yday=/);  // (update-238) each diesel source has its own block of columns – Opening · Received · Transfer · Issued · Balance; no "All places"
+  assert.match(app, /<th colspan="5" class="db-src bs">' \+ esc\(p\) \+ '<\/th>/);
+  assert.match(app, /<th class="n bs">Opening<\/th><th class="n">Received<\/th><th class="n">Transfer<\/th><th class="n">Issued<\/th><th class="n be">Balance<\/th>/);
+  const def = app.slice(app.indexOf("{ key: 'daybook'"), app.indexOf("{ key: 'compare'"));
+  assert.ok(def.indexOf('All places') === -1, 'no "All places" column in the Day Book');
 });
