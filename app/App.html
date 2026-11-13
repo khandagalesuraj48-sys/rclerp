@@ -11045,7 +11045,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ['Log Book', 'Log Book entry', 'log', null], ['Master', 'Add machinery', 'master', 'm_no'],
     ].filter(a => canEdit(a[0])).map(a => ({ kind: 'action', title: a[1], sub: a[0], run: () => { showTab(a[2]); if (a[3]) setTimeout(() => $(a[3]) && $(a[3]).focus(), 60); } }));
     if (!words.length) return [['Pages', pages.slice(0, 8)], ['Quick actions', actions]];
-    out.push(['Pages', gsRank(words, pages, p => [['Page', p.title], ['Group', p.sub]], fixes, fz).slice(0, 6)]);
+    // (update-238: "ctrl k kel ki … search madhe to report yet nahi") a word many pages share ("diesel", "report") – every such page is listed (up to 40), not only 6
+    out.push(['Pages', gsRank(words, pages, p => [['Page', p.title], ['Group', p.sub]], fixes, fz).slice(0, 40)]);
     out.push(['Quick actions', gsRank(words, actions, a => [['Action', a.title], ['Page', a.sub]], fixes, fz)]);
     // (update-84) a machinery / owner result and each of its buttons only for a page the user may open
     const mChips = m => [['Diesel issued', 'Diesel Issue', () => gsOpenIssues({ no: m.id })], ['Log Book', 'Log Book', () => gsOpenLog(m.id)], ['Ledger', 'Reports', () => gsLedger(m.id)], ['Master', 'Master', () => gsMaster(m.id)]]
