@@ -2462,3 +2462,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 * **update-236 (13-11-2026)** – the web app opens WITHOUT the location (asked urgently: "web madhun location garaj nahiye"): the
   screen "Location चालू करा" of update-85 is taken out; only a photo of a Diesel Issue still asks for its place, with a message (no
   screen over the app). `app/App.html` only; no SQL. See `UPDATE_236.md`.
+* **update-237 (13-11-2026)** – report **Diesel Day Book** (`rptDayBook_`): no place filter – every diesel place a column, and
+  for each date every Inward / Transfer / Issue on its own line between the opening and the closing stock of each place. Web
+  only for now (the phone app's screen: after its release – his word). No SQL. See `UPDATE_237.md`.
