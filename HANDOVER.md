@@ -2468,3 +2468,5 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 * **update-238 (13-11-2026)** – Diesel Day Book: each diesel source its own columns side by side (Opening · Received · Transfer ·
   Issued · Balance), no "All places"; the search (Ctrl K) lists every page a word matches (up to 40, was 6). `app/App.html` only.
   No SQL. See `UPDATE_238.md`.
+* **update-239 (13-11-2026)** – Diesel Day Book: its headings (the sources and their five columns) come under EVERY date.
+  `app/App.html` only. No SQL. See `UPDATE_239.md`.
