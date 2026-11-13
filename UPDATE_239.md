@@ -7,7 +7,8 @@ The two heading rows of the Day Book (Type · ID · Who / what · Detail · each
 Issued · Balance · Entered by) now come **under every date**, before that day's entries – not once at the top of the sheet.
 
 ## Evidence
-See the pull request: the unit tests and the report generated on the local rig (picture given to him).
+`timeout 300 node --test test/unit.test.js` – 186 pass. On the local rig (test data) the report was generated: the headings stand
+under each of its three dates (picture given to him).
 
 ## NOT run / NOT verified
 Print and Excel were not opened; the other browser / API tests were not run; the live site.
