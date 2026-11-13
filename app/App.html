@@ -896,6 +896,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   table.gtable tr.grand td, table.gtable tfoot td { background: #FFF3D6; font-weight: 700; border-top: 2px solid var(--hivis); }
   table.gtable td.up { color: var(--bad); font-weight: 700; } table.gtable td.down { color: #1F6B52; font-weight: 700; }
   table.daybook tr > :first-child { width: auto; min-width: 0; max-width: none; text-align: left; } table.daybook tr > :first-child:not([colspan]) { width: 72px; min-width: 72px; } table.daybook tr.grp > td { text-align: center; } table.daybook tbody tr.grp:hover > td { background: var(--steel) !important; }      /* the date stays readable under the pointer */
+  /* (update-238) a block of five columns for each diesel source: its name over them, a strong line where a block starts */
+  table.daybook th { white-space: nowrap; } table.daybook th.db-src { background: var(--steel); color: #fff; text-align: center; }
+  table.daybook thead tr + tr > th { top: 27px; } table.daybook thead tr + tr > th:first-child { width: auto; min-width: 0; text-align: right; }
+  table.daybook .bs { border-left: 2px solid var(--steel); } table.daybook td.be { background: #F6F8FA; }
+  table.daybook th.db-src { background: var(--steel) !important; color: #fff !important; } table.daybook td.up { color: var(--bad) !important; } table.daybook td.down { color: #1F6B52 !important; }
   .db-inward { color: #166534; } .db-transfer { color: #1D4ED8; } .db-issue { color: #B45309; }      /* (update-237) the Day Book: the kind of an entry */
   .st { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
   .st.bad { background: #FDECEA; color: var(--bad); } .st.ok { background: #E3F4EE; color: #1F6B52; } .st.low { background: #E8EEFA; color: #2F4F8F; } .st.na { background: #EEF1F3; color: var(--muted); }
@@ -8058,7 +8063,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     owner: { en: ['Diesel and work, added up owner / vendor by owner.', 'Totals of the machinery of each owner for the period.'], mr: ['Diesel आणि काम, मालक / vendor नुसार बेरीज.', 'कालावधीसाठी प्रत्येक मालकाच्या machinery ची बेरीज.'], hi: ['Diesel और काम, मालिक / vendor के अनुसार जोड़।', 'अवधि के लिए हर मालिक की machinery का जोड़।'] },
     type: { en: ['Diesel and work, added up by type of machinery.', 'Totals of all machinery of each type for the period.'], mr: ['Diesel आणि काम, machinery च्या प्रकारानुसार बेरीज.', 'कालावधीसाठी प्रत्येक प्रकारच्या सगळ्या machinery ची बेरीज.'], hi: ['Diesel और काम, machinery के प्रकार के अनुसार जोड़।', 'अवधि के लिए हर प्रकार की सभी machinery का जोड़।'] },
     stock: { en: ['The diesel stock register of each location, day by day.', 'Closing = opening + received + transferred in − issued − transferred out.'], mr: ['प्रत्येक location चे diesel stock register, दिवसानुसार.', 'Closing = opening + आलेले + transfer ने आलेले − दिलेले − transfer ने गेलेले.'], hi: ['हर location का diesel stock register, दिन के अनुसार।', 'Closing = opening + आया + transfer से आया − दिया − transfer से गया।'] },
-    daybook: { en: ['Every diesel entry of every place in one sheet, day by day: inward, transfers and issues.', 'For each place: opening + inward + transferred in − transferred out − issued = closing; a transfer is − in one place and + in the other.'], mr: ['सगळ्या ठिकाणांची प्रत्येक diesel entry एकाच तक्त्यात, दिवसानुसार: आलेले, transfer आणि दिलेले.', 'प्रत्येक ठिकाणासाठी: opening + आलेले + transfer ने आलेले − transfer ने गेलेले − दिलेले = closing; transfer एका ठिकाणी − आणि दुसऱ्या ठिकाणी +.'], hi: ['सभी जगहों की हर diesel entry एक ही तालिका में, दिन के अनुसार: आया, transfer और दिया गया।', 'हर जगह के लिए: opening + आया + transfer से आया − transfer से गया − दिया = closing; transfer एक जगह − और दूसरी जगह +।'] },
+    daybook: { en: ['Every diesel entry in one sheet, day by day; each diesel source has its own columns: Opening, Received, Transfer, Issued, Balance.', 'For each source: opening + received + transfer (+ in / − out) − issued = balance; a transfer is − in one source and + in the other.'], mr: ['सगळ्या ठिकाणांची प्रत्येक diesel entry एकाच तक्त्यात, दिवसानुसार: आलेले, transfer आणि दिलेले.', 'प्रत्येक ठिकाणासाठी: opening + आलेले + transfer ने आलेले − transfer ने गेलेले − दिलेले = closing; transfer एका ठिकाणी − आणि दुसऱ्या ठिकाणी +.'], hi: ['सभी जगहों की हर diesel entry एक ही तालिका में, दिन के अनुसार: आया, transfer और दिया गया।', 'हर जगह के लिए: opening + आया + transfer से आया − transfer से गया − दिया = closing; transfer एक जगह − और दूसरी जगह +।'] },
     compare: { en: ['Two months side by side for every machinery.', 'Diesel, work and average of the two months, and the difference.'], mr: ['प्रत्येक machinery साठी दोन महिने शेजारी शेजारी.', 'दोन्ही महिन्यांचे diesel, काम आणि average, आणि फरक.'], hi: ['हर machinery के लिए दो महीने साथ-साथ।', 'दोनों महीनों का diesel, काम और average, और फर्क।'] },
     tank: { en: ['The tank checks: diesel by the app against diesel found in the tank.', 'Difference = physical − system; each row is a saved Tank Check.'], mr: ['Tank checks: app प्रमाणे diesel आणि tank मध्ये सापडलेले diesel.', 'फरक = प्रत्यक्ष − system; प्रत्येक ओळ म्हणजे save झालेला Tank Check.'], hi: ['Tank checks: app के अनुसार diesel और tank में मिला diesel।', 'फर्क = असली − system; हर पंक्ति एक save हुआ Tank Check है।'] },
     average: { en: ['The actual average of every machinery against its standard average.', 'Actual = KM ÷ litres (or litres ÷ hours) from the Log Book and diesel issues; worse than standard means extra diesel.'], mr: ['प्रत्येक machinery चा प्रत्यक्ष average आणि तिचा standard average.', 'प्रत्यक्ष = KM ÷ लिटर (किंवा लिटर ÷ तास), Log Book आणि diesel issues वरून; standard पेक्षा वाईट म्हणजे जास्तीचे diesel.'], hi: ['हर machinery का असली average और उसका standard average।', 'असली = KM ÷ लीटर (या लीटर ÷ घंटे), Log Book और diesel issues से; standard से खराब यानी अतिरिक्त diesel।'] },
@@ -8474,24 +8479,37 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             '</tbody><tfoot><tr class="grand"><td colspan="5">Total  |  Closing balance on ' + esc(showDate(d.to)) + '</td><td class="n">' + fmt(d.total.inQ) + '</td><td class="n">' + fmt(d.total.outQ) + '</td><td class="n">' + fmt(d.total.closing) + '</td></tr></tfoot></table>',
         }) },
       // (update-237) every diesel entry of every place, day by day – no place is chosen
+      // (update-238, asked 13-11-2026: "date wise opening received issued balance … eka source sathi … lagech tyach bajula dusrya
+      //  source sathi … all nko … transfer cha pn colum de") each diesel source has its OWN block of columns, side by side:
+      //  Opening · Received · Transfer · Issued · Balance. No "All places". An entry fills only the block(s) of its source(s).
       { key: 'daybook', label: 'Diesel Day Book', fn: 'rptDayBook', portrait: false, filters: ['days'],
-        note: 'Every diesel entry of every place in one sheet, day by day: what came (from whom, where), every transfer (from → to) and every issue (which machinery) – with the opening and closing stock of each place.',
+        note: 'Every diesel entry in one sheet, day by day. Each diesel source has its own columns side by side – Opening, Received, Transfer, Issued, Balance – so the stock of every source is seen entry by entry.',
         render: d => {
-          const P = d.places, n = 5 + P.length + 2, sum = o => r2(P.reduce((s, p) => s + (Number(o[p]) || 0), 0));
-          const sgn = v => !v ? '' : (v > 0 ? '+' : '−') + fmt(Math.abs(v)), cls = v => v > 0 ? ' down' : v < 0 ? ' up' : '';
-          const stock = (label, o, c) => '<tr class="' + c + '"><td colspan="5">' + label + '</td>' + P.map(p => '<td class="n' + (o[p] < 0 ? ' up' : '') + '">' + fmt(o[p]) + '</td>').join('') + '<td class="n' + (sum(o) < 0 ? ' up' : '') + '">' + fmt(sum(o)) + '</td><td></td></tr>';
-          const line = r => { const all = r.kind === 'Transfer' ? 0 : sum(r.d);
-            return '<tr><td><b class="db-' + r.kind.toLowerCase() + '">' + r.kind + '</b></td><td>' + esc(r.ref) + '</td><td>' + esc(r.who) + '</td><td>' + esc(r.detail) + '</td><td class="n">' + fmt(r.qty) + '</td>' +
-              P.map(p => '<td class="n' + cls(r.d[p]) + '">' + sgn(r.d[p]) + '</td>').join('') + '<td class="n' + cls(all) + '">' + (r.kind === 'Transfer' ? '0' : sgn(all)) + '</td><td>' + esc([r.by, r.at].filter(Boolean).join(' · ')) + '</td></tr>'; };
-          const moved = x => 'Inward ' + fmt(x.inward) + ' · Transfer ' + fmt(x.transfer) + ' · Issued ' + fmt(x.issued);
+          const P = d.places, n = 4 + 5 * P.length + 1;
+          const num = v => v ? fmt(v) : '', sgn = v => !v ? '' : (v > 0 ? '+' : '−') + fmt(Math.abs(v));
+          // one source's five cells: the stock before, what came from a pump, a transfer (+ in / − out), what was issued, the stock after
+          const block = (o, rec, tr, iss, bal) => '<td class="n bs">' + fmt(o) + '</td><td class="n' + (rec ? ' down' : '') + '">' + num(rec) + '</td><td class="n' + (tr > 0 ? ' down' : tr < 0 ? ' up' : '') + '">' + sgn(tr) + '</td><td class="n' + (iss ? ' up' : '') + '">' + num(iss) + '</td><td class="n be' + (bal < 0 ? ' up' : '') + '"><b>' + fmt(bal) + '</b></td>';
+          const empty = '<td class="n bs"></td><td class="n"></td><td class="n"></td><td class="n"></td><td class="n be"></td>';
+          const zero = () => { const o = {}; P.forEach(p => { o[p] = { rec: 0, tr: 0, iss: 0 }; }); return o; };
+          const add = (t, p, kind, v) => { if (kind === 'Inward') t[p].rec = r2(t[p].rec + v); else if (kind === 'Transfer') t[p].tr = r2(t[p].tr + v); else t[p].iss = r2(t[p].iss - v); };
+          const totalRow = (label, open, t, close, c) => '<tr class="' + c + '"><td colspan="4">' + label + '</td>' + P.map(p => block(open[p] || 0, t[p].rec, t[p].tr, t[p].iss, close[p] || 0)).join('') + '<td></td></tr>';
+          const all = zero();
+          const day = x => {
+            const bal = Object.assign({}, x.open), t = zero();
+            const lines = x.rows.map(r => '<tr><td><b class="db-' + r.kind.toLowerCase() + '">' + r.kind + '</b></td><td>' + esc(r.ref) + '</td><td>' + esc(r.who) + '</td><td>' + esc(r.detail) + '</td>' +
+              P.map(p => { const v = Number(r.d[p]) || 0; if (!v) return empty; const o = Number(bal[p]) || 0; bal[p] = r2(o + v); add(t, p, r.kind, v); add(all, p, r.kind, v);
+                return block(o, r.kind === 'Inward' ? v : 0, r.kind === 'Transfer' ? v : 0, r.kind === 'Issue' ? -v : 0, bal[p]); }).join('') +
+              '<td>' + esc([r.by, r.at].filter(Boolean).join(' · ')) + '</td></tr>').join('');
+            return grpRow(showDate(x.date) + ' · ' + ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(x.date + 'T00:00:00').getDay()], n) + lines + totalRow('Total of ' + esc(showDate(x.date)), x.open, t, x.close, 'sub');
+          };
+          const body = d.days.map(day).join('');
           return {
-            meta: d.total.entries + ' entries on ' + d.days.length + ' day' + (d.days.length === 1 ? '' : 's') + '  |  ' + P.length + ' places',
-            kpis: [['Opening', fmt(sum(d.opening))], ['Inward', fmt(d.total.inward)], ['Transfer', fmt(d.total.transfer)], ['Issued', fmt(d.total.issued)], ['Closing', fmt(sum(d.closing))]],
-            html: '<table class="rtable gtable daybook" data-sheet="Diesel day book"><thead><tr><th>Type</th><th>ID</th><th>Who / what</th><th>Detail</th><th class="n">Litres</th>' + P.map(p => '<th class="n">' + esc(p) + '</th>').join('') + '<th class="n">All places</th><th>Entered by</th></tr></thead><tbody>' +
-              (d.days.length ? d.days.map(x => grpRow(showDate(x.date) + ' · ' + ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(x.date + 'T00:00:00').getDay()], n) +
-                stock('Opening stock', x.open, 'sub') + x.rows.map(line).join('') + stock('Closing stock  ·  ' + esc(moved(x)), x.close, 'sub')).join('')
-                : '<tr><td colspan="' + n + '" class="none">No diesel entry in this period.</td></tr>' + stock('Stock', d.closing, 'sub')) +
-              '</tbody><tfoot>' + stock('Whole period – closing stock on ' + esc(showDate(d.to)) + '  ·  ' + esc(moved(d.total)), d.closing, 'grand') + '</tfoot></table>',
+            meta: d.total.entries + ' entries on ' + d.days.length + ' day' + (d.days.length === 1 ? '' : 's') + '  |  ' + P.length + ' diesel sources',
+            kpis: [['Inward', fmt(d.total.inward)], ['Transfer', fmt(d.total.transfer)], ['Issued', fmt(d.total.issued)]],
+            html: '<table class="rtable gtable daybook" data-sheet="Diesel day book"><thead><tr><th rowspan="2">Type</th><th rowspan="2">ID</th><th rowspan="2">Who / what</th><th rowspan="2">Detail</th>' + P.map(p => '<th colspan="5" class="db-src bs">' + esc(p) + '</th>').join('') + '<th rowspan="2">Entered by</th></tr>' +
+              '<tr>' + P.map(() => '<th class="n bs">Opening</th><th class="n">Received</th><th class="n">Transfer</th><th class="n">Issued</th><th class="n be">Balance</th>').join('') + '</tr></thead><tbody>' +
+              (body || '<tr><td colspan="' + n + '" class="none">No diesel entry in this period.</td></tr>') +
+              '</tbody><tfoot>' + totalRow('Whole period ' + esc(showDate(d.from)) + ' to ' + esc(showDate(d.to)), d.opening, all, d.closing, 'grand') + '</tfoot></table>',
           };
         } },
       { key: 'compare', label: 'Month vs Month', fn: 'rptCompare', portrait: true, filters: ['months', 'owns'],
@@ -11028,7 +11046,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ['Log Book', 'Log Book entry', 'log', null], ['Master', 'Add machinery', 'master', 'm_no'],
     ].filter(a => canEdit(a[0])).map(a => ({ kind: 'action', title: a[1], sub: a[0], run: () => { showTab(a[2]); if (a[3]) setTimeout(() => $(a[3]) && $(a[3]).focus(), 60); } }));
     if (!words.length) return [['Pages', pages.slice(0, 8)], ['Quick actions', actions]];
-    out.push(['Pages', gsRank(words, pages, p => [['Page', p.title], ['Group', p.sub]], fixes, fz).slice(0, 6)]);
+    // (update-238: "ctrl k kel ki … search madhe to report yet nahi") a word many pages share ("diesel", "report") – every such page is listed (up to 40), not only 6
+    out.push(['Pages', gsRank(words, pages, p => [['Page', p.title], ['Group', p.sub]], fixes, fz).slice(0, 40)]);
     out.push(['Quick actions', gsRank(words, actions, a => [['Action', a.title], ['Page', a.sub]], fixes, fz)]);
     // (update-84) a machinery / owner result and each of its buttons only for a page the user may open
     const mChips = m => [['Diesel issued', 'Diesel Issue', () => gsOpenIssues({ no: m.id })], ['Log Book', 'Log Book', () => gsOpenLog(m.id)], ['Ledger', 'Reports', () => gsLedger(m.id)], ['Master', 'Master', () => gsMaster(m.id)]]
