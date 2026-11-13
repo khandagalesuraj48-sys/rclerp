@@ -10007,3 +10007,40 @@ test('update-233: the HR module under the one address – /hr goes to its own pr
   const sw = fs.readFileSync(path.join(root, 'app', 'sw.js'), 'utf8'), own = /if \(!(\/.+\/)\.test\(u\.pathname\)\) return;/.exec(sw);
   assert.ok(!eval(own[1]).test('/hr/'));
 });
+
+test('(update-237) Diesel Day Book: every entry of every place in one sheet – opening, inward, transfer (− / +), issue, closing; no place is chosen', () => {
+  const { T, ctx } = require('./harness.js');
+  const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return r; };
+  run('(x, m) => saveMaster_(x, m)', { no: 'DB-TIP', name: 'Tipper', type: 'Tipper', unit: 'KM', worksOn: ['KM'], kmStd: 4, owner: 'Rachana Construction Limited', ownership: 'Own', supply: 'Company', status: 'Active', activeFrom: '2026-01-01' }, 'add');
+  const before = JSON.parse(JSON.stringify(run('f => rptDayBook_(f)', { from: '2026-02-09', to: '2026-02-09' })));
+  const P = before.places, A = P[0], B = P[1];
+  assert.ok(P.length >= 2, 'the test site has two diesel places');
+  const a0 = before.closing[A], b0 = before.closing[B];
+  run('x => saveInward_(x)', { date: '2026-02-10', location: A, pump: 'Pump', qty: 1000, rate: 90, billNo: 'DB1', billDate: '2026-02-10' });
+  run('x => saveTransfer_(x)', { date: '2026-02-10', shift: 'Day', from: A, to: B, qty: 300 });
+  run('x => saveDieselIssue_(x)', { date: '2026-02-10', shift: 'Day', source: B, no: 'DB-TIP', qty: 120, kmReading: 500, driver: 'Driver One', force: true });
+  run('x => saveDieselIssue_(x)', { date: '2026-02-12', shift: 'Day', source: A, no: 'DB-TIP', qty: 80, kmReading: 900, force: true });
+  const d = JSON.parse(JSON.stringify(run('f => rptDayBook_(f)', { from: '2026-02-10', to: '2026-02-12' })));
+  assert.deepStrictEqual(d.days.map(x => x.date), ['2026-02-10', '2026-02-12'], 'only the days with an entry');
+  const d1 = d.days[0], d2 = d.days[1];
+  assert.deepStrictEqual([d1.open[A], d1.open[B]], [a0, b0]);
+  assert.deepStrictEqual(d1.rows.map(r => r.kind), ['Inward', 'Transfer', 'Issue'], 'a transfer is ONE line');
+  assert.deepStrictEqual(d1.rows[0].d, { [A]: 1000 });
+  assert.strictEqual(d1.rows[0].who, 'Pump → ' + A); assert.match(d1.rows[0].detail, /Bill DB1 · Rate 90/);
+  assert.deepStrictEqual(d1.rows[1].d, { [A]: -300, [B]: 300 }); assert.strictEqual(d1.rows[1].who, A + ' → ' + B);
+  assert.deepStrictEqual(d1.rows[2].d, { [B]: -120 }); assert.match(d1.rows[2].who, /^DB-TIP – Tipper \(Own\)$/); assert.match(d1.rows[2].detail, /500 km · Driver One/);
+  assert.deepStrictEqual([d1.close[A], d1.close[B]], [a0 + 700, b0 + 180]);
+  assert.deepStrictEqual([d1.inward, d1.transfer, d1.issued], [1000, 300, 120]);
+  assert.deepStrictEqual([d2.open[A], d2.open[B], d2.close[A], d2.close[B]], [a0 + 700, b0 + 180, a0 + 620, b0 + 180], 'the next day opens with the closing of the day before');
+  assert.deepStrictEqual(d.total, { inward: 1000, transfer: 300, issued: 200, entries: 4 });
+  assert.deepStrictEqual([d.closing[A], d.closing[B]], [a0 + 620, b0 + 180]);
+  // the same closing as the Stock Register of each place (the report the stock is already read from)
+  [A, B].forEach(p => assert.strictEqual(JSON.parse(JSON.stringify(run('f => rptStock_(f)', { from: '2026-02-10', to: '2026-02-12', location: p }))).total.closing, d.closing[p], p));
+  // a period with no entry: no day, the stock as it stands
+  const none = JSON.parse(JSON.stringify(run('f => rptDayBook_(f)', { from: '2026-02-11', to: '2026-02-11' })));
+  assert.deepStrictEqual([none.days.length, none.closing[A], none.opening[A]], [0, a0 + 700, a0 + 700]);
+  // the page: its report, its guide, no place filter, Today / Yesterday
+  const app = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'App.html'), 'utf8');
+  assert.match(app, /\{ key: 'daybook', label: 'Diesel Day Book', fn: 'rptDayBook', portrait: false, filters: \['days'\],/);
+  assert.match(app, /data-tday="' \+ k \+ '">Today<\/button><button class="btn ghost small" data-yday=/);
+});

@@ -895,6 +895,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   table.gtable tr.sub td { background: #EEF1F3; font-weight: 700; }
   table.gtable tr.grand td, table.gtable tfoot td { background: #FFF3D6; font-weight: 700; border-top: 2px solid var(--hivis); }
   table.gtable td.up { color: var(--bad); font-weight: 700; } table.gtable td.down { color: #1F6B52; font-weight: 700; }
+  table.daybook tr > :first-child { width: auto; min-width: 0; max-width: none; text-align: left; } table.daybook tr > :first-child:not([colspan]) { width: 72px; min-width: 72px; } table.daybook tr.grp > td { text-align: center; }
+  .db-inward { color: #166534; } .db-transfer { color: #1D4ED8; } .db-issue { color: #B45309; }      /* (update-237) the Day Book: the kind of an entry */
   .st { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
   .st.bad { background: #FDECEA; color: var(--bad); } .st.ok { background: #E3F4EE; color: #1F6B52; } .st.low { background: #E8EEFA; color: #2F4F8F; } .st.na { background: #EEF1F3; color: var(--muted); }
   .rhead h2::before { content: attr(data-site); display: block; width: max-content; margin-bottom: 4px; padding: 1px 8px; border: 1px solid #DC2626; border-radius: 4px;
@@ -7040,7 +7042,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     document.querySelectorAll('.navbtn[id^="tab-rp-"]').forEach(b => { b.hidden = (u.perms || {}).Reports === 'None'; });
     // (update-164) a site on fuel cards: no stock pages (Inward, Transfer, the stock reports); the page Fuel Cards only there
     const cm = cardMode();
-    ['inward', 'transfer', 'rdaily', 'rp-stock', 'rp-purchase'].forEach(t => { const b = $('tab-' + t); if (b && cm) b.hidden = true; });
+    ['inward', 'transfer', 'rdaily', 'rp-stock', 'rp-daybook', 'rp-purchase'].forEach(t => { const b = $('tab-' + t); if (b && cm) b.hidden = true; });
     if ($('tab-cards') && !cm) $('tab-cards').hidden = true;
     if ($('tab-vbook') && ((u.perms || {})['Booking Approve'] || 'None') !== 'None') $('tab-vbook').hidden = false;      // (update-216) one who approves bookings sees them
     // (update-170) the Maintenance Log Book at every site (update-165: only at a site on fuel cards) – shown when he has the page
@@ -8056,6 +8058,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     owner: { en: ['Diesel and work, added up owner / vendor by owner.', 'Totals of the machinery of each owner for the period.'], mr: ['Diesel आणि काम, मालक / vendor नुसार बेरीज.', 'कालावधीसाठी प्रत्येक मालकाच्या machinery ची बेरीज.'], hi: ['Diesel और काम, मालिक / vendor के अनुसार जोड़।', 'अवधि के लिए हर मालिक की machinery का जोड़।'] },
     type: { en: ['Diesel and work, added up by type of machinery.', 'Totals of all machinery of each type for the period.'], mr: ['Diesel आणि काम, machinery च्या प्रकारानुसार बेरीज.', 'कालावधीसाठी प्रत्येक प्रकारच्या सगळ्या machinery ची बेरीज.'], hi: ['Diesel और काम, machinery के प्रकार के अनुसार जोड़।', 'अवधि के लिए हर प्रकार की सभी machinery का जोड़।'] },
     stock: { en: ['The diesel stock register of each location, day by day.', 'Closing = opening + received + transferred in − issued − transferred out.'], mr: ['प्रत्येक location चे diesel stock register, दिवसानुसार.', 'Closing = opening + आलेले + transfer ने आलेले − दिलेले − transfer ने गेलेले.'], hi: ['हर location का diesel stock register, दिन के अनुसार।', 'Closing = opening + आया + transfer से आया − दिया − transfer से गया।'] },
+    daybook: { en: ['Every diesel entry of every place in one sheet, day by day: inward, transfers and issues.', 'For each place: opening + inward + transferred in − transferred out − issued = closing; a transfer is − in one place and + in the other.'], mr: ['सगळ्या ठिकाणांची प्रत्येक diesel entry एकाच तक्त्यात, दिवसानुसार: आलेले, transfer आणि दिलेले.', 'प्रत्येक ठिकाणासाठी: opening + आलेले + transfer ने आलेले − transfer ने गेलेले − दिलेले = closing; transfer एका ठिकाणी − आणि दुसऱ्या ठिकाणी +.'], hi: ['सभी जगहों की हर diesel entry एक ही तालिका में, दिन के अनुसार: आया, transfer और दिया गया।', 'हर जगह के लिए: opening + आया + transfer से आया − transfer से गया − दिया = closing; transfer एक जगह − और दूसरी जगह +।'] },
     compare: { en: ['Two months side by side for every machinery.', 'Diesel, work and average of the two months, and the difference.'], mr: ['प्रत्येक machinery साठी दोन महिने शेजारी शेजारी.', 'दोन्ही महिन्यांचे diesel, काम आणि average, आणि फरक.'], hi: ['हर machinery के लिए दो महीने साथ-साथ।', 'दोनों महीनों का diesel, काम और average, और फर्क।'] },
     tank: { en: ['The tank checks: diesel by the app against diesel found in the tank.', 'Difference = physical − system; each row is a saved Tank Check.'], mr: ['Tank checks: app प्रमाणे diesel आणि tank मध्ये सापडलेले diesel.', 'फरक = प्रत्यक्ष − system; प्रत्येक ओळ म्हणजे save झालेला Tank Check.'], hi: ['Tank checks: app के अनुसार diesel और tank में मिला diesel।', 'फर्क = असली − system; हर पंक्ति एक save हुआ Tank Check है।'] },
     average: { en: ['The actual average of every machinery against its standard average.', 'Actual = KM ÷ litres (or litres ÷ hours) from the Log Book and diesel issues; worse than standard means extra diesel.'], mr: ['प्रत्येक machinery चा प्रत्यक्ष average आणि तिचा standard average.', 'प्रत्यक्ष = KM ÷ लिटर (किंवा लिटर ÷ तास), Log Book आणि diesel issues वरून; standard पेक्षा वाईट म्हणजे जास्तीचे diesel.'], hi: ['हर machinery का असली average और उसका standard average।', 'असली = KM ÷ लीटर (या लीटर ÷ घंटे), Log Book और diesel issues से; standard से खराब यानी अतिरिक्त diesel।'] },
@@ -8470,6 +8473,27 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
               '</td><td class="n">' + (r.outQ ? fmt(r.outQ) : '') + '</td><td class="n"><b>' + fmt(r.bal) + '</b></td></tr>').join('') +
             '</tbody><tfoot><tr class="grand"><td colspan="5">Total  |  Closing balance on ' + esc(showDate(d.to)) + '</td><td class="n">' + fmt(d.total.inQ) + '</td><td class="n">' + fmt(d.total.outQ) + '</td><td class="n">' + fmt(d.total.closing) + '</td></tr></tfoot></table>',
         }) },
+      // (update-237) every diesel entry of every place, day by day – no place is chosen
+      { key: 'daybook', label: 'Diesel Day Book', fn: 'rptDayBook', portrait: false, filters: ['days'],
+        note: 'Every diesel entry of every place in one sheet, day by day: what came (from whom, where), every transfer (from → to) and every issue (which machinery) – with the opening and closing stock of each place.',
+        render: d => {
+          const P = d.places, n = 5 + P.length + 2, sum = o => r2(P.reduce((s, p) => s + (Number(o[p]) || 0), 0));
+          const sgn = v => !v ? '' : (v > 0 ? '+' : '−') + fmt(Math.abs(v)), cls = v => v > 0 ? ' down' : v < 0 ? ' up' : '';
+          const stock = (label, o, c) => '<tr class="' + c + '"><td colspan="5">' + label + '</td>' + P.map(p => '<td class="n' + (o[p] < 0 ? ' up' : '') + '">' + fmt(o[p]) + '</td>').join('') + '<td class="n' + (sum(o) < 0 ? ' up' : '') + '">' + fmt(sum(o)) + '</td><td></td></tr>';
+          const line = r => { const all = r.kind === 'Transfer' ? 0 : sum(r.d);
+            return '<tr><td><b class="db-' + r.kind.toLowerCase() + '">' + r.kind + '</b></td><td>' + esc(r.ref) + '</td><td>' + esc(r.who) + '</td><td>' + esc(r.detail) + '</td><td class="n">' + fmt(r.qty) + '</td>' +
+              P.map(p => '<td class="n' + cls(r.d[p]) + '">' + sgn(r.d[p]) + '</td>').join('') + '<td class="n' + cls(all) + '">' + (r.kind === 'Transfer' ? '0' : sgn(all)) + '</td><td>' + esc([r.by, r.at].filter(Boolean).join(' · ')) + '</td></tr>'; };
+          const moved = x => 'Inward ' + fmt(x.inward) + ' · Transfer ' + fmt(x.transfer) + ' · Issued ' + fmt(x.issued);
+          return {
+            meta: d.total.entries + ' entries on ' + d.days.length + ' day' + (d.days.length === 1 ? '' : 's') + '  |  ' + P.length + ' places',
+            kpis: [['Opening', fmt(sum(d.opening))], ['Inward', fmt(d.total.inward)], ['Transfer', fmt(d.total.transfer)], ['Issued', fmt(d.total.issued)], ['Closing', fmt(sum(d.closing))]],
+            html: '<table class="rtable gtable daybook" data-sheet="Diesel day book"><thead><tr><th>Type</th><th>ID</th><th>Who / what</th><th>Detail</th><th class="n">Litres</th>' + P.map(p => '<th class="n">' + esc(p) + '</th>').join('') + '<th class="n">All places</th><th>Entered by</th></tr></thead><tbody>' +
+              (d.days.length ? d.days.map(x => grpRow(showDate(x.date) + ' · ' + ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(x.date + 'T00:00:00').getDay()], n) +
+                stock('Opening stock', x.open, 'sub') + x.rows.map(line).join('') + stock('Closing stock  ·  ' + esc(moved(x)), x.close, 'sub')).join('')
+                : '<tr><td colspan="' + n + '" class="none">No diesel entry in this period.</td></tr>' + stock('Stock', d.closing, 'sub')) +
+              '</tbody><tfoot>' + stock('Whole period – closing stock on ' + esc(showDate(d.to)) + '  ·  ' + esc(moved(d.total)), d.closing, 'grand') + '</tfoot></table>',
+          };
+        } },
       { key: 'compare', label: 'Month vs Month', fn: 'rptCompare', portrait: true, filters: ['months', 'owns'],
         note: 'Diesel of every machinery in two months side by side – where it went up or down.',
         render: d => ({
@@ -8516,6 +8540,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const F = {
       range: k => '<div class="field"><label for="' + k + '_from">From</label><input id="' + k + '_from" type="date"></div><div class="field"><label for="' + k + '_to">To</label><input id="' + k + '_to" type="date"></div>' +
         '<div class="rquick" style="align-self:end;margin:0"><button class="btn ghost small" data-yday="' + k + '_from|' + k + '_to|">Yesterday</button><button class="btn ghost small" data-rng="' + k + '|this">This month</button><button class="btn ghost small" data-rng="' + k + '|last">Last month</button></div>',
+      // (update-237) the Day Book: a day or a period – Today, Yesterday, or From / To
+      days: k => '<div class="field"><label for="' + k + '_from">From</label><input id="' + k + '_from" type="date"></div><div class="field"><label for="' + k + '_to">To</label><input id="' + k + '_to" type="date"></div>' +
+        '<div class="rquick" style="align-self:end;margin:0"><button class="btn ghost small" data-tday="' + k + '">Today</button><button class="btn ghost small" data-yday="' + k + '_from|' + k + '_to|">Yesterday</button><button class="btn ghost small" data-rng="' + k + '|this">This month</button></div>',
       vendor: k => '<div class="field"><label for="' + k + '_owner">Vendor (Owner Name)</label><input id="' + k + '_owner" list="dl_vendors" placeholder="Blank = all vendors" autocomplete="off"></div>',
       party: k => '<div class="field"><label for="' + k + '_party">Party (Debit to)</label><input id="' + k + '_party" list="dl_dnparty" placeholder="Blank = all parties" autocomplete="off"></div>',      // (update-149)
       machine0: k => '<div class="field"><label for="' + k + '_mno">Machinery</label><input id="' + k + '_mno" list="dl_machines" placeholder="Blank = all machinery" autocomplete="off"></div>',
@@ -8555,6 +8582,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
       $(k + '_xlsx').addEventListener('click', e => busy(e.target, 'Exporting…', async () => rpExcel(r)));
     });
+    document.querySelectorAll('[data-tday]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.tday; $(k + '_from').value = S.today; $(k + '_to').value = S.today; }));      // (update-237)
     document.querySelectorAll('[data-rng]').forEach(b => b.addEventListener('click', () => {
       const [k, w] = b.dataset.rng.split('|'); const t = new Date(S.today + 'T00:00:00');
       if (w === 'this') { $(k + '_from').value = S.today.slice(0, 8) + '01'; $(k + '_to').value = S.today; }
@@ -8566,14 +8594,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // first time a report page opens: sensible default dates
   function rpDefaults(key) {
     const k = 'rp' + key, t = new Date(S.today + 'T00:00:00');
-    if ($(k + '_from') && !$(k + '_from').value) { $(k + '_from').value = S.today.slice(0, 8) + '01'; $(k + '_to').value = S.today; }
+    if ($(k + '_from') && !$(k + '_from').value) { $(k + '_from').value = key === 'daybook' ? S.today : S.today.slice(0, 8) + '01'; $(k + '_to').value = S.today; }      // (update-237) the Day Book starts on today
     if ($(k + '_ma') && !$(k + '_ma').value) { $(k + '_ma').value = isoDate(new Date(t.getFullYear(), t.getMonth() - 1, 1)).slice(0, 7); $(k + '_mb').value = S.today.slice(0, 7); }
   }
   function rpFilters(r) {
     const k = 'rp' + r.key, v = id => $(k + id) ? $(k + id).value : '';
     const f = { from: v('_from'), to: v('_to'), owner: v('_owner').trim(), party: v('_party').trim(), rateMode: v('_rm') || 'last', fixedRate: v('_fx'), pump: v('_pump').trim(), location: v('_loc'), no: v('_no').trim(), monthA: v('_ma'), monthB: v('_mb') };
     if ($(k + '_owns')) f.ownerships = [...document.querySelectorAll('#' + k + '_owns input:checked')].map(i => i.value);
-    if (r.filters.indexOf('range') > -1 && (!f.from || !f.to)) throw new Error('Select From and To dates.');
+    if ((r.filters.indexOf('range') > -1 || r.filters.indexOf('days') > -1) && (!f.from || !f.to)) throw new Error('Select From and To dates.');
     if (f.ownerships && !f.ownerships.length) throw new Error('Tick at least one Ownership.');
     if (r.filters.indexOf('machine') > -1) { const m = findMachine(f.no); if (!m) throw new Error('Pick a machinery from Master.'); f.no = m.id; }
     if (r.filters.indexOf('machine0') > -1) { const t = v('_mno').trim(); if (t) { const m = findMachine(t); if (!m) throw new Error('"' + t + '" is not in the Master.'); f.no = m.id; } else f.no = ''; }      // (update-149) blank = all

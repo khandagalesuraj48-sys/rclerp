@@ -1346,6 +1346,7 @@ const API_ = {
   rptOwner:          { m: 'Reports', f: rptOwner_ },
   rptType:           { m: 'Reports', f: rptType_ },
   rptStock:          { m: 'Reports', f: rptStock_ },
+  rptDayBook:        { m: 'Reports', f: rptDayBook_ },      // (update-237) every diesel entry of every place, day by day
   rptCompare:        { m: 'Reports', f: rptCompare_ },
   rptAverage:        { m: 'Reports', f: rptAverage_ },
   rptWatch:          { m: 'Reports', f: rptWatch_ },
@@ -10145,6 +10146,61 @@ function rptStock_(f) {
   const inTot = r2_(rows.reduce((s, r) => s + r.inQ, 0)), outTot = r2_(rows.reduce((s, r) => s + r.outQ, 0));
   return Object.assign(rptBase_('Diesel Stock Register – ' + loc, rg), { location: loc, opening: opening, rows: rows,
     total: { inQ: inTot, outQ: outTot, closing: r2_(opening + inTot - outTot), tin: r2_(tin), tout: r2_(tout), entries: rows.length } });
+}
+
+/* (update-237, asked 13-11-2026: "Day-wise diesel stock … fkt total diste vehicle wise entry disat nahi ani eth filter aahe tr mala jo
+ * report haway tyat filter nasel to purn data ekach report madhe detail show krel") DIESEL DAY BOOK – no place is chosen: every
+ * diesel place of the site side by side, and for each date EVERY entry on a line of its own in the order the stock counts them:
+ * an inward (from whom, into which place), a transfer (from → to: − in one column, + in the other), an issue (which machinery,
+ * its reading and driver, from which place). Each day: the opening stock of each place, its entries, the closing stock.
+ * Only days with an entry are listed. It reads; it changes nothing. */
+function rptDayBook_(f) {
+  f = f || {};
+  const rg = rptRange_(f);
+  const T = stockTables_();
+  const ev = events_(T);
+  const ic = T.it.c, tc = T.tt.c, dc = T.dt.c;
+  const issue = {}; issueList_(T).forEach(x => { issue[x.idx] = x; });
+  const places = placeNames_().slice();
+  ev.forEach(e => { if (e.loc && places.indexOf(e.loc) === -1) places.push(e.loc); });      // a place of older entries that is no longer in the list
+  const by = (t, r) => (H.EBY in t.c ? str_(r[t.c[H.EBY]]) : '');
+  const at = (t, r) => { const v = r[t.c[H.CREATED]]; return v instanceof Date ? Utilities.formatDate(v, tz_(), 'dd-MM HH:mm') : ''; };
+  const bal = {}; places.forEach(p => { bal[p] = 0; });
+  const snap = () => { const o = {}; places.forEach(p => { o[p] = r2_(bal[p] || 0); }); return o; };
+  const days = [], total = { inward: 0, transfer: 0, issued: 0, entries: 0 };
+  let opening = null, day = null;
+  ev.forEach(e => {
+    if (e.dk > rg.to) return;
+    if (e.dk < rg.from || isOpenBefore_(e, rg.from)) { bal[e.loc] = e.bal; return; }
+    if (!opening) opening = snap();
+    if (!day || day.date !== e.dk) { day = { date: e.dk, open: snap(), rows: [], inward: 0, transfer: 0, issued: 0 }; days.push(day); }
+    bal[e.loc] = e.bal;
+    day.close = snap();
+    if (e.kind === 'tin') return;      // a transfer is ONE line (made at its "sent" half): − in one place, + in the other
+    const d = {}; let row;
+    if (e.kind === 'inward') {
+      const r = T.it.rows[e.idx], pump = str_(r[ic[H.PUMP]]), rate = numOrBlank_(r[ic[H.RATE]]);
+      d[e.loc] = e.q;
+      row = { kind: 'Inward', ref: str_(r[ic[H.IN_ID]]), who: pump + ' → ' + e.loc, detail: [str_(r[ic[H.BILLNO]]) ? 'Bill ' + str_(r[ic[H.BILLNO]]) : '', rate !== '' && rate ? 'Rate ' + rate : ''].filter(Boolean).join(' · '),
+        qty: r2_(e.q), by: by(T.it, r), at: at(T.it, r) };
+      if (!e.open) { day.inward = r2_(day.inward + e.q); total.inward = r2_(total.inward + e.q); }
+    } else if (e.kind === 'tout') {
+      const r = T.tt.rows[e.idx], q = -e.q;
+      d[e.loc] = e.q; d[e.peer] = r2_((d[e.peer] || 0) + q);
+      row = { kind: 'Transfer', ref: str_(r[tc[H.TR_ID]]), who: e.loc + ' → ' + e.peer, detail: [str_(r[tc[H.SHIFT]]), str_(r[tc[H.REMARK]])].filter(Boolean).join(' · '), qty: r2_(q), by: by(T.tt, r), at: at(T.tt, r) };
+      day.transfer = r2_(day.transfer + q); total.transfer = r2_(total.transfer + q);
+    } else {
+      const r = T.dt.rows[e.idx], x = issue[e.idx] || {}, q = -e.q;
+      d[e.loc] = e.q;
+      row = { kind: 'Issue', ref: str_(r[dc[H.ID]]), who: (x.no || str_(r[dc[H.NO]])) + (x.type ? ' – ' + x.type : '') + (x.ownership ? ' (' + x.ownership + (x.owner && x.ownership !== 'Own' ? ' – ' + x.owner : '') + ')' : ''),
+        detail: [x.km !== '' && x.km !== undefined ? x.km + ' km' : '', x.hr !== '' && x.hr !== undefined ? x.hr + ' hr' : '', x.driver || '', str_(r[dc[H.SHIFT]])].filter(Boolean).join(' · '),
+        qty: r2_(q), by: by(T.dt, r), at: at(T.dt, r) };
+      day.issued = r2_(day.issued + q); total.issued = r2_(total.issued + q);
+    }
+    row.d = d; day.rows.push(row); total.entries++;
+  });
+  const closing = snap();
+  return Object.assign(rptBase_('Diesel Day Book', rg), { places: places, opening: opening || closing, closing: closing, days: days, total: total });
 }
 
 /* 13. Month vs Month – machinery-wise diesel in two months */
