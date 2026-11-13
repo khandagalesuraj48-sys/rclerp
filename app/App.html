@@ -1577,12 +1577,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #savedpop .sp-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: #DCFCE7; }
   #savedpop .sp-bar i { display: block; height: 100%; width: 100%; background: #16A34A; transform-origin: left; animation: spBar 3s linear forwards; }
   @keyframes spBar { to { transform: scaleX(0); } } @keyframes spIn { from { opacity: 0; } } @keyframes spPop { from { transform: scale(.4); } }
-  #loc_block { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; padding: 16px; background: rgba(15,23,42,.94); }
-  #loc_block[hidden] { display: none; }
-  .loc-box { max-width: 460px; width: 100%; background: #fff; border-radius: 16px; padding: 22px 20px; text-align: center; color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,.4); }
-  .loc-box .loc-ic { font-size: 44px; line-height: 1.1; } .loc-box h2 { margin: 6px 0 10px; font: 700 22px var(--ui); }
-  .loc-box p { margin: 8px 0; font-size: 14.5px; line-height: 1.45; } .loc-box p.loc-en { color: var(--muted); font-size: 13px; }
-  .loc-box .btn { margin-top: 12px; min-width: 210px; min-height: 46px; font-size: 16px; }
 
   .dhist table.dh-t { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
   .dhist table.dh-t th, .dhist table.dh-t td { padding: 5px 8px; border-bottom: 1px solid #FDE7D3; font-size: 12.5px; text-align: left; } .dhist table.dh-t .n { text-align: right; }
@@ -3456,16 +3450,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     <h3 id="sp_t">Saved</h3>
     <div class="sp-rows" id="sp_rows"></div>
     <div class="sp-bar" aria-hidden="true"><i></i></div>
-  </div>
-</div>
-<div id="loc_block" hidden role="alertdialog" aria-modal="true" aria-labelledby="loc_t">
-  <div class="loc-box">
-    <div class="loc-ic" aria-hidden="true">📍</div>
-    <h2 id="loc_t">Location चालू करा</h2>
-    <p id="loc_mr"></p>
-    <p id="loc_hi"></p>
-    <p id="loc_en" class="loc-en"></p>
-    <button class="btn primary" id="loc_again" type="button">पुन्हा तपासा / Check again</button>
   </div>
 </div>
 <div id="login_screen">
@@ -17931,75 +17915,39 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $('sp_x').addEventListener('click', spClose);
   $('savedpop').addEventListener('click', e => { if (e.target === $('savedpop')) spClose(); });
   const LOC = { pos: null, at: 0 };
-  const LOC_TEXT = {
-    checking: ['Location शोधत आहे…', 'Location ढूँढ रहे हैं…', 'Finding your location…'],
-    1: ['हे app फक्त location सोबत उघडते. Browser मध्ये या site ला Location ची परवानगी द्या (address शेजारच्या कुलूपावर दाबा → Location → Allow), मग "पुन्हा तपासा" दाबा.',
-      'यह app केवल location के साथ खुलता है। Browser में इस site को Location की अनुमति दें (address के पास ताले पर दबाएँ → Location → Allow), फिर "पुन्हा तपासा" दबाएँ।',
-      'This app opens only with the location. Allow Location for this site in the browser (the lock next to the address → Location → Allow), then press Check again.'],
-    2: ['Phone / computer चे Location (GPS) बंद आहे. ते चालू करा, मग "पुन्हा तपासा" दाबा.',
-      'Phone / computer का Location (GPS) बंद है। उसे चालू करें, फिर "पुन्हा तपासा" दबाएँ।',
-      'The location (GPS) of the phone / computer is off. Turn it on, then press Check again.'],
-    3: ['Location वेळेत मिळाले नाही. Location चालू आहे ते तपासा, मोकळ्या जागी जा, मग "पुन्हा तपासा" दाबा.',
-      'Location समय पर नहीं मिला। Location चालू है यह जाँचें, खुली जगह पर जाएँ, फिर "पुन्हा तपासा" दबाएँ।',
-      'The location could not be found in time. Check that it is on, go to an open place, then press Check again.'],
-    none: ['हा browser location देत नाही – app Chrome मध्ये उघडा.', 'यह browser location नहीं देता – app Chrome में खोलें।', 'This browser cannot give the location – open the app in Chrome.'],
+  // (update-236) what a photo of a diesel issue needs, said as a message (the app itself opens without the location)
+  const LOC_PHOTO = {
+    1: ['या photo सोबत त्याचे ठिकाण जाते. Browser मध्ये या site ला Location ची परवानगी द्या (address शेजारच्या कुलूपावर दाबा → Location → Allow), मग photo पुन्हा घ्या.',
+      'इस photo के साथ उसकी जगह जाती है। Browser में इस site को Location की अनुमति दें (address के पास ताले पर दबाएँ → Location → Allow), फिर photo दोबारा लें।',
+      'This photo carries its place. Allow Location for this site in the browser (the lock next to the address → Location → Allow), then take the photo again.'],
+    2: ['Phone / computer चे Location (GPS) बंद आहे. ते चालू करा, मग photo पुन्हा घ्या.',
+      'Phone / computer का Location (GPS) बंद है। उसे चालू करें, फिर photo दोबारा लें।',
+      'The location (GPS) of the phone / computer is off. Turn it on, then take the photo again.'],
+    none: ['हा browser location देत नाही – photo साठी app Chrome मध्ये उघडा.', 'यह browser location नहीं देता – photo के लिए app Chrome में खोलें।', 'This browser cannot give the location – for the photo open the app in Chrome.'],
   };
-  let locTimer = null;
-  function locShow(code) {
-    const t = LOC_TEXT[code] || LOC_TEXT[2];
-    $('loc_mr').textContent = t[0]; $('loc_hi').textContent = t[1]; $('loc_en').textContent = t[2];
-    $('loc_again').hidden = code === 'checking';
-    $('loc_block').hidden = false;
-    clearTimeout(locTimer);
-    if (code === 'checking') locTimer = setTimeout(() => { if (!$('loc_block').hidden) $('loc_again').hidden = false; }, 25000);      // the browser never answered: "Check again" comes back
-  }
-  /* A "no" that is not the person's: an app that was open BEFORE this update keeps its outer page from then – that page did not
-   * let the app ask for the location, and a new version only renews the app inside it. The whole page is then loaded once more
-   * (at most once in 5 minutes), which brings the outer page that allows it. */
-  function locFrameBlocked() { try { const fp = document.permissionsPolicy || document.featurePolicy; return !!(fp && typeof fp.allowsFeature === 'function' && !fp.allowsFeature('geolocation')); } catch (e) { return false; } }
-  function locReloadOnce() { try { const k = 'oc_loc_reload', last = Number(sessionStorage.getItem(k) || 0); if (Date.now() - last < 300000) return false; sessionStorage.setItem(k, String(Date.now())); window.top.location.reload(); return true; } catch (e) { return false; } }
-  async function locDenied() {
-    let st = ''; try { st = (await navigator.permissions.query({ name: 'geolocation' })).state; } catch (e) { st = ''; }
-    if ((locFrameBlocked() || st === 'granted') && locReloadOnce()) return;
-    locShow(1);
-  }
-  function locKeep(p) { LOC.pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }; LOC.at = Date.now(); $('loc_block').hidden = true; }
+  function locKeep(p) { LOC.pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }; LOC.at = Date.now(); }
   function locAsk(o) { return new Promise((ok, no) => { if (!navigator.geolocation) { no({ code: 'none' }); return; } navigator.geolocation.getCurrentPosition(ok, no, o); }); }
-  let locBusy = null;
-  /* (update-87: "location is on, still it says Finding your location") – the location ALLOWED already: the app opens at once and
-   * the place is found behind it; only a "no" (location off / not allowed) brings the screen. Not allowed yet: the screen while
-   * the browser asks. */
-  function locCheck() {
-    if (locBusy) return locBusy;
-    locBusy = (async () => {
-      let st = ''; try { st = (await navigator.permissions.query({ name: 'geolocation' })).state; } catch (e) { st = ''; }
-      if (!LOC.pos && st !== 'granted') locShow('checking');
-      try { locKeep(await locAsk({ enableHighAccuracy: false, maximumAge: 600000, timeout: 20000 })); return true; }
-      catch (e) { LOC.pos = null; if (e && e.code === 1) locDenied(); else locShow(e && e.code ? e.code : 2); return false; }
-    })().finally(() => { locBusy = null; });
-    return locBusy;
-  }
   /* the place of THIS moment (a photo): the GPS fix (of the last 30 seconds or a fresh one). The GPS slow (in a shed, under a
-   * roof): the phone's quicker place, or the one of the last 2 minutes. Location off / not allowed → the location screen; only
-   * slow → a message, the app stays open. null = no place: the photo is not taken. */
+   * roof): the phone's quicker place, or the one of the last 2 minutes. Location off / not allowed or only slow → a message
+   * (update-236: no screen over the app), the app stays open. null = no place: the photo is not taken. */
   async function locNow() {
     const fresh = () => Object.assign({}, LOC.pos);
+    // (update-236) no screen over the app: a message says what the photo needs, the app stays open
+    const say = code => { LOC.pos = null; const t = LOC_PHOTO[code] || LOC_PHOTO[2]; askConfirm({ title: 'Photo – Location', html: t.map(x => '<p style="margin:6px 0">' + esc(x) + '</p>').join(''), ok: 'OK', danger: true, alertOnly: true }); return null; };
     try { const p = await locAsk({ enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 }); locKeep(p); return fresh(); }
     catch (e) {
-      if (e && e.code === 1) { LOC.pos = null; locDenied(); return null; }
-      if (e && e.code === 'none') { LOC.pos = null; locShow('none'); return null; }
+      if (e && e.code === 1) return say(1);
+      if (e && e.code === 'none') return say('none');
       try { const p = await locAsk({ enableHighAccuracy: false, maximumAge: 120000, timeout: 10000 }); locKeep(p); return fresh(); }
       catch (e2) {
-        if (e2 && e2.code === 1) { LOC.pos = null; locDenied(); return null; }
+        if (e2 && e2.code === 1) return say(1);
         if (LOC.pos && Date.now() - LOC.at < 120000) return fresh();
-        if (e2 && e2.code === 2) { LOC.pos = null; locShow(2); return null; }
+        if (e2 && e2.code === 2) return say(2);
         toast('The location could not be found just now – go to an open place and take the photo again.', true); return null;
       }
     }
   }
-  $('loc_again').addEventListener('click', () => locCheck());
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') locCheck(); });
-  try { navigator.permissions.query({ name: 'geolocation' }).then(st => { st.onchange = () => { if (st.state === 'denied') { LOC.pos = null; locShow(1); } else locCheck(); }; }).catch(() => { /* checked on open and on return */ }); } catch (e) { /* an older browser: checked on open and on return */ }
+  // (update-236) nothing looks for the location by itself any more (on open, on coming back, when the permission changes).
 
   /* ---------- LISTS UNDER A FORM ARE FOLDED (update-88, asked 12-10-2026) ----------
    * On a page with an entry form and the list of its entries under it, the list is a bar ("▸ Diesel issued – Show"): pressed, the
@@ -22622,7 +22570,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   // start: use the saved sign-in if it is still valid, otherwise show the sign-in screen
   try { S.token = localStorage.getItem(KK('rcl_token')) || sessionStorage.getItem(KK('rcl_token')) || ''; } catch (e) { S.token = ''; }
-  locCheck();      // (update-85) the app opens only with the location on
+  // (update-236, asked 13-11-2026: "web madhun location garaj nahiye web user la") the web app opens WITHOUT the location – it is
+  // asked only at the moment a photo of a diesel issue is taken (locNow), because that photo carries its place.
   // (update-91) a ticket from the Portal (#sso=… in the link – taken out of the address at once), or the reserve (?local=1)
   // (13-10-2026, one address) a link from another module's menu: #site=…&page=… (and after the Portal: #sso=…&page=…) – this app
   // opens on that page; another site than the one signed in here goes through the Portal first (no sign-in typed)
