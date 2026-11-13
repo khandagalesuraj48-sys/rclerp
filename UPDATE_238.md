@@ -14,7 +14,7 @@ sathi … lagech tyach bajula dusrya source sathi … all nko" – the picture a
   every page that matches is listed (up to 40). ("day book" found it already.)
 
 ## Evidence
-* `timeout 300 node --test test/unit.test.js` – see the pull request (the Day Book's test now also checks the five columns of a
+* `timeout 300 node --test test/unit.test.js` – 186 pass (the Day Book's test now also checks the five columns of a
   source and that there is no "All places").
 * On the local rig (test data): the report generated – the picture given to him; the search asked for "diesel", "report",
   "day book" – before: the report only for "day book".
