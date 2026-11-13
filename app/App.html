@@ -11546,6 +11546,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     NAV.sel = selId;
   }
   const RAIL_DIRECT = { hr: true };      // (update-240) the modules whose button opens the module itself – they bring their own menu
+  /* (update-241, asked 13-11-2026 with his picture: "kadhi kadhi hi screen diste … jewa back kel jate jar purn back zal tr erp
+   * madhe yeude pn hi screen nkoy") BACK FROM HR SHOWS THE ERP, never HR inside this screen. HR takes the whole window; the
+   * browser's Back then brings THIS page back as it was left – with HR's frame still in the middle, and that HR had already
+   * given the window away, so it stayed there small with its old row of pages. Now, when this page comes back that way, the
+   * page he was on before HR is shown again and HR's frame is taken out (the next press on RCL HR makes a new one). */
+  const railHome = () => { if (!EXT || !EXT.on || !RAIL_DIRECT[EXT.on.key]) return; const fr = document.getElementById('ext_' + EXT.on.key); showTab(S.curTab || 'dash', true); if (fr) fr.remove(); };
+  window.addEventListener('pageshow', e => { if (e.persisted) { try { railHome(); } catch (x) { /* the page stays as it is */ } } });
   // a module's button: its pages (again: closed)
   $('mrail').addEventListener('click', e => {
     const b = e.target.closest('.mr-btn'); if (!b || b.hidden) return;

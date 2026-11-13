@@ -10052,6 +10052,11 @@ test('(update-237) Diesel Day Book: every entry of every place in one sheet – 
   assert.ok(def.indexOf('<thead>') === -1);
 });
 
+test('update-241: the browser\'s Back from HR shows the ERP page of before – HR\'s frame is taken out, only for a module that opens at once', () => {
+  const app = fs.readFileSync(path.join(__dirname, '..', 'app', 'App.html'), 'utf8');
+  assert.match(app, /const railHome = \(\) => \{ if \(!EXT \|\| !EXT\.on \|\| !RAIL_DIRECT\[EXT\.on\.key\]\) return; const fr = document\.getElementById\('ext_' \+ EXT\.on\.key\); showTab\(S\.curTab \|\| 'dash', true\); if \(fr\) fr\.remove\(\); \};/);
+  assert.match(app, /window\.addEventListener\('pageshow', e => \{ if \(e\.persisted\) \{ try \{ railHome\(\); \}/);
+});
 test('update-240: RCL HR\'s button on the rail opens HR at once (its pages are HR\'s own menu); every other module opens its pages as before', () => {
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   assert.match(app, /const RAIL_DIRECT = \{ hr: true \};/);
