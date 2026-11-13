@@ -2472,3 +2472,5 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   `app/App.html` only. No SQL. See `UPDATE_239.md`.
 * **update-240 (13-11-2026)** – RCL HR's button on the rail opens HR at once (HR has its own menu and takes the whole window);
   the list of its pages is not shown here first. `app/App.html` only. No SQL. See `UPDATE_240.md`.
+* **update-241 (13-11-2026)** – the browser's Back from HR shows the ERP page of before; HR's frame is taken out (it stayed
+  there small, inside the screen). `app/App.html` only. No SQL. See `UPDATE_241.md`.
