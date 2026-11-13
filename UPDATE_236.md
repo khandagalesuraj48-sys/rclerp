@@ -16,10 +16,10 @@ Since update-85 the web app opened only with the location on: without it a scree
 ## Tests
 * `timeout 300 node --test test/unit.test.js` – 185 pass (every script block of the page parses).
 * `test/browser/photo85.js` changed to the new behaviour (the app is open without the location; a photo without the location
-  gives the message). `test/browser/shell85.js` is removed: it tested the location screen of an app left open over update-85.
+  gives the message) – run on the local rig: **32 passed, 0 failed**. `test/browser/shell85.js` is removed: it tested the location screen of an app left open over update-85.
 
 ## NOT run / NOT verified
-See the pull request for the browser test's result on the rig. Not seen on the live site – his look after the deploy.
+Not seen on the live site – his look after the deploy. The other browser tests and the API tests were not run.
 
 ## Going back
 Vercel → Instant Rollback to update-235.
