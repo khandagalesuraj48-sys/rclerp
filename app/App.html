@@ -11545,9 +11545,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (NAV.sel !== undefined && selId !== NAV.sel && NAV.open) setDrawer(false);
     NAV.sel = selId;
   }
+  const RAIL_DIRECT = { hr: true };      // (update-240) the modules whose button opens the module itself – they bring their own menu
   // a module's button: its pages (again: closed)
   $('mrail').addEventListener('click', e => {
     const b = e.target.closest('.mr-btn'); if (!b || b.hidden) return;
+    /* (update-240, asked 13-11-2026 with his picture: "ethun hr war click kel ki direct open houde te side menu yene band kar")
+     * RCL HR opens AT ONCE: HR has its own menu (it takes the whole window – its own pages down its left side), so the list of its
+     * pages is not shown here first. Not served under this address / not loaded: the pages as before. */
+    if (RAIL_DIRECT[b.dataset.mod] && extOpen(b.dataset.mod, '')) { if (NAV.open) setDrawer(false); return; }
     if (NAV.open && NAV.key === b.dataset.k) { setDrawer(false); return; }
     NAV.want = b.dataset.k; setDrawer(true);
   });

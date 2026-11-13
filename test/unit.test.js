@@ -10051,3 +10051,11 @@ test('(update-237) Diesel Day Book: every entry of every place in one sheet – 
   assert.match(def, /getDay\(\)\], n\) \+ heads \+ lines \+ totalRow\('Total of '/);
   assert.ok(def.indexOf('<thead>') === -1);
 });
+
+test('update-240: RCL HR\'s button on the rail opens HR at once (its pages are HR\'s own menu); every other module opens its pages as before', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  assert.match(app, /const RAIL_DIRECT = \{ hr: true \};/);
+  assert.match(app, /if \(RAIL_DIRECT\[b\.dataset\.mod\] && extOpen\(b\.dataset\.mod, ''\)\) \{ if \(NAV\.open\) setDrawer\(false\); return; \}\n    if \(NAV\.open && NAV\.key === b\.dataset\.k\) \{ setDrawer\(false\); return; \}\n    NAV\.want = b\.dataset\.k; setDrawer\(true\);/);
+  // extOpen says false for a module that is not served under this address: then the pages are shown as before
+  assert.match(app, /function extOpen\(key, page\) \{\n    const m = PT\.mods\.find\(x => x\.key === key\); if \(!m \|\| !inHere\(m\)\) return false;/);
+});
