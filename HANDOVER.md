@@ -2465,3 +2465,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 * **update-237 (13-11-2026)** – report **Diesel Day Book** (`rptDayBook_`): no place filter – every diesel place a column, and
   for each date every Inward / Transfer / Issue on its own line between the opening and the closing stock of each place. Web
   only for now (the phone app's screen: after its release – his word). No SQL. See `UPDATE_237.md`.
+* **update-238 (13-11-2026)** – Diesel Day Book: each diesel source its own columns side by side (Opening · Received · Transfer ·
+  Issued · Balance), no "All places"; the search (Ctrl K) lists every page a word matches (up to 40, was 6). `app/App.html` only.
+  No SQL. See `UPDATE_238.md`.
