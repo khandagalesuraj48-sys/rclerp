@@ -10064,3 +10064,11 @@ test('update-240: RCL HR\'s button on the rail opens HR at once (its pages are H
   // extOpen says false for a module that is not served under this address: then the pages are shown as before
   assert.match(app, /function extOpen\(key, page\) \{\n    const m = PT\.mods\.find\(x => x\.key === key\); if \(!m \|\| !inHere\(m\)\) return false;/);
 });
+
+test('update-242: a sideways scroll bar at the bottom of the screen for a wide table – drawn by the page, changes nothing of a table', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app', 'App.html'), 'utf8'), i = page.indexOf("if (window.HSB) return; window.HSB = true;"); assert.ok(i > 0 && page.indexOf("if (window.HSB) return;", i + 10) < 0, 'the script is in the page once');
+  const js = page.slice(page.lastIndexOf('<script>', i) + 8, page.indexOf('</script>', i)); new Function(js);      // it parses
+  assert.match(js, /r\.top < h - 80 && r\.bottom > h \+ 2/, 'only while the table\'s own end is below the screen'); assert.match(js, /cur\.scrollLeft = Math\.round\(/, 'it only moves the table sideways');
+  assert.ok(!/innerHTML|fetch\(|google\.script|\.remove\(\)|textContent = [^c]/.test(js.replace("css.textContent = ", '')), 'nothing of the page\'s content or data is read or changed'); assert.match(js, /@media print\{#hsb\{display:none!important\}\}/, 'never printed');
+  assert.match(page, /^ {2}html, body \{ overscroll-behavior-x: none; \}$/m, 'two fingers sideways: no page back'); assert.match(fs.readFileSync(path.join(__dirname, '..', 'app', 'Index.html'), 'utf8'), /overscroll-behavior-x: none/, 'in the outer frame too');
+});

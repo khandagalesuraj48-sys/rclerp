@@ -2474,3 +2474,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   the list of its pages is not shown here first. `app/App.html` only. No SQL. See `UPDATE_240.md`.
 * **update-241 (13-11-2026)** – the browser's Back from HR shows the ERP page of before; HR's frame is taken out (it stayed
   there small, inside the screen). `app/App.html` only. No SQL. See `UPDATE_241.md`.
+* **update-242 (14-11-2026)** – a sideways scroll bar at the bottom of the screen for a wide table (shown while the table's own
+  bar is below the screen; the handle is slid or the track pressed); two fingers slid sideways no longer take the browser a
+  page back or forward. `app/App.html`, `app/Index.html`. No SQL. See `UPDATE_242.md`.
