@@ -49,19 +49,15 @@ const kids = [];
   p.on('pageerror', e => errs.push(String(e.message).slice(0, 200)));
   await p.setUserAgent('Mozilla/5.0 (Linux; Android 14; SM-A146B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36');
   await p.setViewport({ width: 412, height: 915, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
-  // 1. no location: the app does not open
+  // 1. (update-236) no location: the web app opens all the same – no screen over it, the sign-in can be pressed
   await p.goto(BASE + '/', { waitUntil: 'load' }); await wait(2500);
   let f = p.frames().find(x => x !== p.mainFrame());
   await f.evaluate(() => { try { localStorage.setItem('oc_brief_sujit@rcl.test', new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })); localStorage.setItem('rcl_lang', 'en'); sessionStorage.setItem('oc_intro', '1'); } catch (e) {} });
-  let lb = await f.evaluate(() => ({ shown: !$('loc_block').hidden, mr: $('loc_mr').textContent, en: $('loc_en').textContent, cover: getComputedStyle($('loc_block')).position + ' ' + getComputedStyle($('loc_block')).zIndex }));
-  ok('location not allowed: the whole app is covered by "Location चालू करा" with what to do (Marathi, Hindi, English)', lb.shown && /परवानगी/.test(lb.mr) && /Allow Location for this site/.test(lb.en) && /^fixed 2147483000$/.test(lb.cover), lb);
-  const blocked = await f.evaluate(() => { const r = $('lg_btn').getBoundingClientRect(), el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!(el && el.closest('#loc_block')); });
-  ok('   the sign-in button cannot be pressed under it', blocked);
+  const open0 = await f.evaluate(() => { const r = $('lg_btn').getBoundingClientRect(), el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { noScreen: !document.getElementById('loc_block'), btn: !!(el && el.closest('#lg_btn')), pos: !!LOC.pos }; });
+  ok('(update-236) location not allowed: the app is open – no location screen, the sign-in button can be pressed, no place was asked', open0.noScreen && open0.btn && !open0.pos, open0);
   await p.screenshot({ path: SHOTS + '/photo85_noloc.png' });
-  // 2. location allowed → "Check again" opens the app
+  // 2. the location allowed (the photos of a diesel issue carry their place)
   await ctx.overridePermissions(BASE, ['geolocation']); await p.setGeolocation(NASHIK);
-  await f.evaluate(() => $('loc_again').click()); await wait(1500);
-  ok('location allowed + "Check again": the app opens', await f.evaluate(() => $('loc_block').hidden && !!LOC.pos && LOC.pos.lat === 19.997453));
   await f.type('#lg_email', 'sujit@rcl.test'); await f.type('#lg_pass', 'Nashik#Road848!'); await f.click('#lg_btn'); await wait(6000);
   await f.evaluate(() => { try { closeConfirm(false); } catch (e) {} showTab('diesel'); setDieselMode('one'); }); await wait(2500);
   ok('   signed in on the phone, Diesel Issue open; no machinery picked → no photo tiles yet', await f.evaluate(() => S.curTab === 'diesel' && $('d_ph').hidden));
@@ -147,18 +143,8 @@ const kids = [];
   await pick('P85-TIP'); await ctx.clearPermissionOverrides();
   const [ch3] = await Promise.all([p.waitForFileChooser({ timeout: 10000 }), f.evaluate(() => document.querySelector('#d_ph_grid [data-phk="veh"]').click())]);
   await ch3.accept([path.join(IMG, 'veh_now.jpg')]); await wait(3000);
-  ok('location switched off before a photo: the photo is not sent, the location screen comes back', await f.evaluate(() => !PH.items.veh && !$('loc_block').hidden));
+  ok('(update-236) location switched off before a photo: the photo is not sent, a message says what the photo needs (three languages) – the app stays open', await f.evaluate(() => !PH.items.veh && !document.getElementById('loc_block') && !$('cf_back').hidden && /Allow Location for this site/.test($('cf_msg').textContent) && /परवानगी/.test($('cf_msg').textContent)));
   ok('no script error on the page', !errs.length, errs);
-  // (update-87) the location allowed already: the app opens at once – no "Finding your location…" – even when the GPS is slow (3 s)
-  { const c2 = await b.createBrowserContext(), p2 = await c2.newPage(); await c2.overridePermissions(BASE, ['geolocation']); await p2.setGeolocation(NASHIK);
-    await p2.evaluateOnNewDocument(() => { const g = navigator.geolocation, own = g.getCurrentPosition.bind(g); g.getCurrentPosition = (ok, no, o) => setTimeout(() => own(ok, no, o), 3000); });
-    await p2.goto(BASE + '/', { waitUntil: 'load' }); await wait(1200);
-    const f2 = p2.frames().find(x => x !== p2.mainFrame());
-    const early = await f2.evaluate(() => ({ block: !$('loc_block').hidden, pos: !!LOC.pos }));
-    await wait(3000);
-    const later = await f2.evaluate(() => ({ block: !$('loc_block').hidden, pos: !!LOC.pos }));
-    ok('(update-87) location allowed already + a slow GPS: the app is open at once (no location screen), the place comes behind it', !early.block && !later.block && later.pos, { early, later });
-    await c2.close(); }
   await b.close();
   try { await api('deleteDieselIssue', id); } catch (e) {} clean();
   kids.forEach(c => { try { process.kill(-c.pid); } catch (e) {} });

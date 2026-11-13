@@ -2459,3 +2459,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 * **update-235 (12-11-2026)** – update-234's "Verify my e-mail" did not appear where the app is open at another address than the
   Portal's link: the Portal is asked at the address the person is at (`/portal` under it); no answer → the button is shown, the
   Portal's page decides. `app/App.html` only. No SQL.
+* **update-236 (13-11-2026)** – the web app opens WITHOUT the location (asked urgently: "web madhun location garaj nahiye"): the
+  screen "Location चालू करा" of update-85 is taken out; only a photo of a Diesel Issue still asks for its place, with a message (no
+  screen over the app). `app/App.html` only; no SQL. See `UPDATE_236.md`.
