@@ -898,7 +898,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   table.daybook tr > :first-child { width: auto; min-width: 0; max-width: none; text-align: left; } table.daybook tr > :first-child:not([colspan]) { width: 72px; min-width: 72px; } table.daybook tr.grp > td { text-align: center; } table.daybook tbody tr.grp:hover > td { background: var(--steel) !important; }      /* the date stays readable under the pointer */
   /* (update-238) a block of five columns for each diesel source: its name over them, a strong line where a block starts */
   table.daybook th { white-space: nowrap; } table.daybook th.db-src { background: var(--steel); color: #fff; text-align: center; }
-  table.daybook thead tr + tr > th { top: 27px; } table.daybook thead tr + tr > th:first-child { width: auto; min-width: 0; text-align: right; }
+  table.daybook tr.db-head > th { position: static; } table.daybook tr.db-head + tr.db-head > th:first-child { width: auto; min-width: 0; text-align: right; }      /* (update-239) the headings are rows under each date – they do not stick */
+  table.daybook tbody tr.db-head:hover > th { background: #F4F6F7; }
   table.daybook .bs { border-left: 2px solid var(--steel); } table.daybook td.be { background: #F6F8FA; }
   table.daybook th.db-src { background: var(--steel) !important; color: #fff !important; } table.daybook td.up { color: var(--bad) !important; } table.daybook td.down { color: #1F6B52 !important; }
   .db-inward { color: #166534; } .db-transfer { color: #1D4ED8; } .db-issue { color: #B45309; }      /* (update-237) the Day Book: the kind of an entry */
@@ -8493,6 +8494,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           const zero = () => { const o = {}; P.forEach(p => { o[p] = { rec: 0, tr: 0, iss: 0 }; }); return o; };
           const add = (t, p, kind, v) => { if (kind === 'Inward') t[p].rec = r2(t[p].rec + v); else if (kind === 'Transfer') t[p].tr = r2(t[p].tr + v); else t[p].iss = r2(t[p].iss - v); };
           const totalRow = (label, open, t, close, c) => '<tr class="' + c + '"><td colspan="4">' + label + '</td>' + P.map(p => block(open[p] || 0, t[p].rec, t[p].tr, t[p].iss, close[p] || 0)).join('') + '<td></td></tr>';
+          // (update-239, asked 13-11-2026: "pratek date la he headings thew jene karun samjel") the headings are under EVERY date
+          const heads = '<tr class="db-head"><th rowspan="2">Type</th><th rowspan="2">ID</th><th rowspan="2">Who / what</th><th rowspan="2">Detail</th>' + P.map(p => '<th colspan="5" class="db-src bs">' + esc(p) + '</th>').join('') + '<th rowspan="2">Entered by</th></tr>' +
+            '<tr class="db-head">' + P.map(() => '<th class="n bs">Opening</th><th class="n">Received</th><th class="n">Transfer</th><th class="n">Issued</th><th class="n be">Balance</th>').join('') + '</tr>';
           const all = zero();
           const day = x => {
             const bal = Object.assign({}, x.open), t = zero();
@@ -8500,15 +8504,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
               P.map(p => { const v = Number(r.d[p]) || 0; if (!v) return empty; const o = Number(bal[p]) || 0; bal[p] = r2(o + v); add(t, p, r.kind, v); add(all, p, r.kind, v);
                 return block(o, r.kind === 'Inward' ? v : 0, r.kind === 'Transfer' ? v : 0, r.kind === 'Issue' ? -v : 0, bal[p]); }).join('') +
               '<td>' + esc([r.by, r.at].filter(Boolean).join(' · ')) + '</td></tr>').join('');
-            return grpRow(showDate(x.date) + ' · ' + ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(x.date + 'T00:00:00').getDay()], n) + lines + totalRow('Total of ' + esc(showDate(x.date)), x.open, t, x.close, 'sub');
+            return grpRow(showDate(x.date) + ' · ' + ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(x.date + 'T00:00:00').getDay()], n) + heads + lines + totalRow('Total of ' + esc(showDate(x.date)), x.open, t, x.close, 'sub');
           };
           const body = d.days.map(day).join('');
           return {
             meta: d.total.entries + ' entries on ' + d.days.length + ' day' + (d.days.length === 1 ? '' : 's') + '  |  ' + P.length + ' diesel sources',
             kpis: [['Inward', fmt(d.total.inward)], ['Transfer', fmt(d.total.transfer)], ['Issued', fmt(d.total.issued)]],
-            html: '<table class="rtable gtable daybook" data-sheet="Diesel day book"><thead><tr><th rowspan="2">Type</th><th rowspan="2">ID</th><th rowspan="2">Who / what</th><th rowspan="2">Detail</th>' + P.map(p => '<th colspan="5" class="db-src bs">' + esc(p) + '</th>').join('') + '<th rowspan="2">Entered by</th></tr>' +
-              '<tr>' + P.map(() => '<th class="n bs">Opening</th><th class="n">Received</th><th class="n">Transfer</th><th class="n">Issued</th><th class="n be">Balance</th>').join('') + '</tr></thead><tbody>' +
-              (body || '<tr><td colspan="' + n + '" class="none">No diesel entry in this period.</td></tr>') +
+            html: '<table class="rtable gtable daybook" data-sheet="Diesel day book"><tbody>' +
+              (body || heads + '<tr><td colspan="' + n + '" class="none">No diesel entry in this period.</td></tr>') +
               '</tbody><tfoot>' + totalRow('Whole period ' + esc(showDate(d.from)) + ' to ' + esc(showDate(d.to)), d.opening, all, d.closing, 'grand') + '</tfoot></table>',
           };
         } },

@@ -10047,4 +10047,7 @@ test('(update-237) Diesel Day Book: every entry of every place in one sheet – 
   assert.match(app, /<th class="n bs">Opening<\/th><th class="n">Received<\/th><th class="n">Transfer<\/th><th class="n">Issued<\/th><th class="n be">Balance<\/th>/);
   const def = app.slice(app.indexOf("{ key: 'daybook'"), app.indexOf("{ key: 'compare'"));
   assert.ok(def.indexOf('All places') === -1, 'no "All places" column in the Day Book');
+  // (update-239) the headings come under every date (not once at the top)
+  assert.match(def, /getDay\(\)\], n\) \+ heads \+ lines \+ totalRow\('Total of '/);
+  assert.ok(def.indexOf('<thead>') === -1);
 });
