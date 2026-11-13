@@ -58,6 +58,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   /* ---------- App shell: collapsible sidebar + top bar ---------- */
   body { overflow-x: hidden; }
+  /* (update-242, asked: "2 finger ni swipe kel ki browser back page la nete … he block kraych aahe back button dable trch back hoil")
+     two fingers slid sideways on a laptop's pad no longer take the browser a page back or forward – only its Back button does */
+  html, body { overscroll-behavior-x: none; }
   .app { display: flex; min-height: 100vh; }
   .side {
     position: sticky; top: 0; height: 100vh; flex: 0 0 232px; width: 232px; background: var(--steel); color: #C9D3D9;
@@ -23852,6 +23855,53 @@ window.rclVoiceLang = () => { try { const l = localStorage.getItem('rcl_lang'); 
   const api = window.RclVoice = { toNumber: NUM.toNumber, lang: () => lang, setWords: SW.set, fix: SW.fix, words: SW.size, onLearn: null };      // (update-201: the page gives the site's words and keeps what is learned)
 })();
 /* (end of SPEAK INTO A BOX) */
+</script>
+<script>
+/* THE SIDEWAYS SCROLL BAR AT THE BOTTOM OF THE SCREEN (update-242, asked 14-11-2026: "web madhe … khali slider de roller patti ji slide krta
+ * yeil" – for the wide tables). A wide table (the muster, the pay sheet, a list) has its own scroll bar at its END – far below
+ * the screen when the table is long. While that end is below the screen, a bar is shown at the bottom of the screen: its handle
+ * is slid (or the track pressed) and the table moves; when the table's own bar comes into sight this one goes. Drawn by the page
+ * itself, so it looks the same in every browser. Nothing of the table is changed; no data is read. */
+(function () {
+  'use strict';
+  if (window.HSB) return; window.HSB = true;
+  var bar = document.createElement('div'), knob = document.createElement('div'), cur = null, due = 0, drag = null;
+  bar.id = 'hsb'; bar.hidden = true; bar.setAttribute('aria-hidden', 'true'); bar.appendChild(knob); knob.id = 'hsb_knob';
+  var css = document.createElement('style');
+  css.textContent = '#hsb{position:fixed;bottom:0;z-index:40;height:20px;background:rgba(238,242,249,.97);border-top:1px solid #D7E0EF;box-shadow:0 -4px 12px rgba(20,30,60,.10);cursor:pointer;touch-action:none}#hsb[hidden]{display:none}' +
+    '#hsb_knob{position:absolute;top:4px;height:12px;min-width:44px;border-radius:6px;background:#7F95BF;cursor:grab}#hsb_knob:hover,#hsb.on #hsb_knob{background:#4F6BA6}#hsb.on #hsb_knob{cursor:grabbing}@media print{#hsb{display:none!important}}';
+  // the box a table scrolls sideways in (the table's parent, or one above it)
+  function hsbBox(t) { for (var e = t.parentElement, i = 0; e && i < 3 && e !== document.body; e = e.parentElement, i++) { if (e.scrollWidth > e.clientWidth + 2) { var o = getComputedStyle(e).overflowX; if (o === 'auto' || o === 'scroll') return e; } } return null; }
+  function hsbPick() {
+    var h = window.innerHeight, list = document.querySelectorAll('table'), seen = [];
+    for (var i = 0; i < list.length; i++) { var b = hsbBox(list[i]); if (!b || seen.indexOf(b) > -1 || !b.offsetParent || b.closest('[hidden]')) continue; seen.push(b); var r = b.getBoundingClientRect(); if (r.top < h - 80 && r.bottom > h + 2 && r.width > 200) return b; }
+    return null;
+  }
+  // the track's width, the handle's width and how far the handle can go, for the table in hand
+  function hsbSize() { var w = bar.clientWidth, k = Math.max(44, Math.round(w * cur.clientWidth / cur.scrollWidth)); return { w: w, k: k, run: Math.max(1, w - k), far: Math.max(1, cur.scrollWidth - cur.clientWidth) }; }
+  function hsbSync() {
+    due = 0; var b = drag ? cur : hsbPick(); cur = b; if (!b) { bar.hidden = true; return; }
+    var r = b.getBoundingClientRect(), left = Math.max(0, r.left); bar.style.left = left + 'px'; bar.style.width = Math.min(r.width, window.innerWidth - left) + 'px'; bar.hidden = false;
+    var z = hsbSize(); knob.style.width = z.k + 'px'; knob.style.left = Math.round(z.run * Math.min(1, b.scrollLeft / z.far)) + 'px';
+  }
+  function hsbSoon() { if (!due) due = window.requestAnimationFrame ? requestAnimationFrame(hsbSync) : setTimeout(hsbSync, 30); }
+  function hsbTo(x) { if (!cur) return; var z = hsbSize(); cur.scrollLeft = Math.round(Math.max(0, Math.min(1, x / z.run)) * z.far); hsbSoon(); }
+  bar.addEventListener('pointerdown', function (e) {
+    if (!cur) return; e.preventDefault(); var k = knob.getBoundingClientRect(), onKnob = e.clientX >= k.left && e.clientX <= k.right;
+    drag = { off: onKnob ? e.clientX - k.left : k.width / 2 }; bar.classList.add('on'); try { bar.setPointerCapture(e.pointerId); } catch (x) { /* it still slides */ }
+    hsbTo(e.clientX - bar.getBoundingClientRect().left - drag.off);
+  });
+  bar.addEventListener('pointermove', function (e) { if (drag) hsbTo(e.clientX - bar.getBoundingClientRect().left - drag.off); });
+  function hsbEnd() { drag = null; bar.classList.remove('on'); hsbSoon(); }
+  bar.addEventListener('pointerup', hsbEnd); bar.addEventListener('pointercancel', hsbEnd);
+  function hsbStart() {
+    document.head.appendChild(css); document.body.appendChild(bar);
+    window.addEventListener('scroll', hsbSoon, true); window.addEventListener('resize', hsbSoon);
+    if (window.MutationObserver) new MutationObserver(function (m) { for (var i = 0; i < m.length; i++) if (m[i].target !== bar && m[i].target !== knob) return hsbSoon(); }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'class'] });
+    hsbSoon();
+  }
+  if (document.body) hsbStart(); else document.addEventListener('DOMContentLoaded', hsbStart);
+})();
 </script>
 </body>
 </html>
