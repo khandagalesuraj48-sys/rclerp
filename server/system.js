@@ -120,7 +120,7 @@ function backupAdmin(R, c) {
   const reg = sites.registry();
   let at = '';
   // (update-195) the Portal's and Purchase's own Sheets are kept at the first site
-  const own = c.target === 'portal' || c.target === 'purchase' ? c.target : '';
+  const own = c.target === 'portal' || c.target === 'purchase' || c.target === 'hr' ? c.target : '';      // (update-243) HR's too
   if (!own && reg) { const s = reg.find(x => x.code === c.site); if (!s || s.status !== 'ready') throw new Error('This site is not set up (' + c.site + ').'); at = s.home ? '' : s.code; }
   if (c.act !== 'bkSet') return R.runIn(at, 'sysPortalAdmin', [c]);
   return withBkLock(() => R.runIn(at, 'sysPortalAdmin', [Object.assign({}, c, { taken: bkTaken(R, own ? null : at, own) })]));
@@ -149,6 +149,7 @@ function bkTaken(R, me, own) {
     if (!(me !== null && run === me)) (ids.site || []).forEach(id => taken.push(id));      // another site's (the site itself checks its own)
     if (own !== 'portal') (ids.portal || []).forEach(id => taken.push(id));      // the Portal's
     if (own !== 'purchase') (ids.purchase || []).forEach(id => taken.push(id));      // (update-195) Purchase's
+    if (own !== 'hr') (ids.hr || []).forEach(id => taken.push(id));      // (update-243) HR's
   });
   return taken;
 }

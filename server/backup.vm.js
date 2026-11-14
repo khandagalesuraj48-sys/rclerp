@@ -47,11 +47,15 @@ const BK_SINCE_COLS_ = ['updated_at', 'created_at', 'at', 'deleted_at'];      //
 function bkTarget_(o) {
   if (o && o.target === 'portal') return { kind: 'portal', lock: 'backup_portal', state: 'BK_PORTAL_STATE', info: 'SB_PORTAL_INFO', sheets: 'BK_PORTAL_SHEETS', name: 'the Portal' };
   if (o && o.target === 'purchase') return { kind: 'purchase', lock: 'backup_purchase', state: 'BK_PUR_STATE', info: 'SB_PUR_INFO', sheets: 'BK_PUR_SHEETS', name: 'Purchase' };
+  // (update-243, asked 14-11-2026: "hr sathi google sheet jodleli nahiye"; "sheet madhe saglach data jayla pahije"; "fkt rcl hr") HR (rcl-hr –
+  // one database for every site) the same way: its own numbered Sheets, kept at the first site (BK_HR_SHEETS); Portal → Sites → HR backup
+  if (o && o.target === 'hr') return { kind: 'hr', lock: 'backup_hr', state: 'BK_HR_STATE', info: 'SB_HR_INFO', sheets: 'BK_HR_SHEETS', name: 'HR' };
   return { kind: 'site', lock: 'backup', state: 'BK_STATE', info: 'SB_INFO', sheets: 'BK_SHEETS', name: 'this site' };
 }
 // the backups of another module's database (the Portal, Purchase): their own Sheets, their rows only through their export
 const BK_OWN_ = { portal: { src: 'portal', prefix: 'Portal – ', where: 'Portal → Sites → Portal backup', what: 'the Portal (users, access, sites, companies, modules, the Super Admin\'s record)', head: 'RCL ERP Portal – copy of the Portal database (made by the app, do not edit)' },
-  purchase: { src: 'pur', prefix: 'Purchase – ', where: 'Portal → Sites → Purchase backup', what: 'Purchase – every site (its people, settings, numbers and activity record; each row with its site)', head: 'RCL ERP Purchase – copy of the Purchase database (made by the app, do not edit)' } };
+  purchase: { src: 'pur', prefix: 'Purchase – ', where: 'Portal → Sites → Purchase backup', what: 'Purchase – every site (its people, settings, numbers and activity record; each row with its site)', head: 'RCL ERP Purchase – copy of the Purchase database (made by the app, do not edit)' },
+  hr: { src: 'hr', prefix: 'HR – ', where: 'Portal → Sites → HR backup', what: 'HR – every site (employees and their details, attendance, leave, the Rule Book, work places, salary and pay; each row with its site)', head: 'RCL ERP HR – copy of the HR database (made by the app, do not edit) – PRIVATE: employees\' personal details' } };
 const bkUrl_ = id => 'https://docs.google.com/spreadsheets/d/' + id;
 const bkJson_ = (v, d) => { try { const x = JSON.parse(v || 'null'); return x === null ? d : x; } catch (e) { return d; } };
 const bkFresh_ = k => { const P = PropertiesService.getScriptProperties(); try { return typeof __propFresh === 'function' ? __propFresh(k) : P.getProperty(k); } catch (e) { return P.getProperty(k); } };
@@ -73,8 +77,8 @@ function bkCellsKeep_(T, vol, cells, at) {
  * value in the three Vercel projects). They keep their own database keys; a password, a key or a sign-in never leaves them.
  * Engineering's rows of THIS site only go into this site's Sheet ("Engineering – …" tabs); the Portal's into the Portal's own. */
 function bkRemote_(source, body, ms) {
-  const r = JSON.parse(__bkRemote(source, JSON.stringify(body), Math.max(3000, Math.min(25000, Number(ms) || 25000)))), who = source === 'eng' ? 'Engineering' : source === 'pur' ? 'Purchase' : 'The Portal';
-  if (r.code === 401 || r.code === 403) throw new Error(who + ' refused the backup (BACKUP_EXPORT_SECRET must be the same value in Vercel for rclerp, rcl-portal, rcl-engineering and rcl-purchase).');
+  const r = JSON.parse(__bkRemote(source, JSON.stringify(body), Math.max(3000, Math.min(25000, Number(ms) || 25000)))), who = source === 'eng' ? 'Engineering' : source === 'pur' ? 'Purchase' : source === 'hr' ? 'HR' : 'The Portal';
+  if (r.code === 401 || r.code === 403) throw new Error(who + ' refused the backup (BACKUP_EXPORT_SECRET must be the same value in Vercel for rclerp, rcl-portal, rcl-engineering, rcl-purchase and rcl-hr).');
   if (r.code >= 300 || !r.code) throw new Error(who + ' did not give its data for the backup (' + r.code + '): ' + String(r.text || '').slice(0, 200));
   return bkJson_(r.text, {});
 }
@@ -123,8 +127,8 @@ function bkIds_() {
   // (review 25-10-2026) also the Sheets used before (a link changed) and the Sheet this site had before its list – never given to another
   const own = [].concat(...bkSheets_(bkTarget_({}), cfg.fallback).map(ids)).concat(cfg.fallback ? [cfg.fallback] : []);
   const home = typeof __siteIsHome === 'function' && __siteIsHome(), at = k => (home ? [].concat(...bkSheets_(bkTarget_({ target: k }), '').map(ids)) : []);
-  const portal = at('portal'), purchase = at('purchase');      // (update-195) Purchase's too
-  return { site: [...new Set(own.filter(Boolean))], portal: [...new Set(portal.filter(Boolean))], purchase: [...new Set(purchase.filter(Boolean))] };
+  const portal = at('portal'), purchase = at('purchase'), hr = at('hr');      // (update-195) Purchase's too, (update-243) HR's
+  return { site: [...new Set(own.filter(Boolean))], portal: [...new Set(portal.filter(Boolean))], purchase: [...new Set(purchase.filter(Boolean))], hr: [...new Set(hr.filter(Boolean))] };
 }
 function bkSheetSet_(c) {
   const T = bkTarget_(c), cfg = bkJson_(__backupConfig(), {}), P = PropertiesService.getScriptProperties();
@@ -132,7 +136,7 @@ function bkSheetSet_(c) {
   const link = String(c.link || '').trim(), m = /\/spreadsheets\/(?:u\/\d+\/)?d\/([A-Za-z0-9_-]{20,})/.exec(link) || /^([A-Za-z0-9_-]{20,})$/.exec(link);
   if (!m) throw new Error('The Google Sheet link: open the Sheet and copy the address from the browser (…/spreadsheets/d/…).');
   const id = m[1], mode = c.mode === 'add' ? 'add' : 'change';
-  if ((c.taken || []).map(String).indexOf(id) > -1) throw new Error('This Sheet is already the backup Sheet of another site (or of the Portal, or of Purchase) – every site needs its own Sheet.');
+  if ((c.taken || []).map(String).indexOf(id) > -1) throw new Error('This Sheet is already the backup Sheet of another site (or of the Portal, of Purchase or of HR) – every site needs its own Sheet.');
   if (!__lockNamed(T.lock, 60)) throw new Error('A backup is being copied right now – try again in a minute.');
   try {
     let vols = bkJson_(bkFresh_(T.sheets), null);
@@ -150,7 +154,7 @@ function bkSheetSet_(c) {
     if (r.code === 403 || r.code === 404) throw new Error('The backup cannot open this Sheet: share it with ' + cfg.email + ' as Editor (Share → add that address → Editor), then give the link again.');
     if (!(r.code < 300)) throw new Error('Google did not answer about this Sheet (' + r.code + ') – try again in a minute.');
     const tabs = ((bkJson_(r.text, {}).sheets) || []).map(x => String((x.properties || {}).title || ''));
-    const mark = 'RCL ERP backup – given to ' + (T.kind === 'portal' ? 'the Portal' : T.kind === 'purchase' ? 'Purchase' : 'site ' + (typeof __siteCode === 'function' ? __siteCode() : '')) + ', waiting for its first copy';
+    const mark = 'RCL ERP backup – given to ' + (T.kind === 'portal' ? 'the Portal' : T.kind === 'purchase' ? 'Purchase' : T.kind === 'hr' ? 'HR' : 'site ' + (typeof __siteCode === 'function' ? __siteCode() : '')) + ', waiting for its first copy';
     if (tabs.indexOf('Backup Status') > -1) {
       // a status tab with only this site's mark: a try of before that did not finish – the same Sheet is taken now; anything else: refused
       const pk = bkJson_(__gNew('peek', id), {}), a1 = String((((bkJson_(pk.text, {}).values) || [])[0] || [])[0] || '');
@@ -183,14 +187,14 @@ function bkSheetSet_(c) {
     P.setProperty(T.sheets, JSON.stringify(vols));
     P.setProperty(T.state, JSON.stringify({}));      // the Sheet in use is new: its whole copy goes there at the next backup
     P.setProperty(T.info, JSON.stringify({ ok: true, pending: 1, url: bkUrl_(id), sheetN: Number(top.n) || 1, sheets: vols.length, cells: 0, note: 'New Sheet ' + top.n + ' – its first copy is made by the next backup.' }));
-    try { writeLog_({ email: by, name: 'Super Admin (Portal)' }, 'Edit', 'Backup', 'Sheet ' + top.n, (mode === 'add' ? 'Backup Sheet ' + top.n + ' added' : 'Backup Sheet ' + top.n + ' link changed') + (T.kind === 'portal' ? ' (the Portal)' : T.kind === 'purchase' ? ' (Purchase)' : ''), bkUrl_(id)); if (typeof sbFlush_ === 'function') sbFlush_(); } catch (e) { /* the change itself is saved */ }
+    try { writeLog_({ email: by, name: 'Super Admin (Portal)' }, 'Edit', 'Backup', 'Sheet ' + top.n, (mode === 'add' ? 'Backup Sheet ' + top.n + ' added' : 'Backup Sheet ' + top.n + ' link changed') + (T.kind === 'portal' ? ' (the Portal)' : T.kind === 'purchase' ? ' (Purchase)' : T.kind === 'hr' ? ' (HR)' : ''), bkUrl_(id)); if (typeof sbFlush_ === 'function') sbFlush_(); } catch (e) { /* the change itself is saved */ }
     return bkSheetsInfo_(c);
   } finally { __unlockNamed(T.lock); }
 }
 // "Backup now" from the Portal: a short run (the Portal waits 25 s); what is left goes on by itself
 function bkNow_(c) {
   let r = null, err = '';
-  try { r = webBackup_({ manual: true, target: c && (c.target === 'portal' || c.target === 'purchase') ? c.target : '', budget: 14000, hard: 20000 }); } catch (e) { err = String((e && e.message) || e); }
+  try { r = webBackup_({ manual: true, target: c && (c.target === 'portal' || c.target === 'purchase' || c.target === 'hr') ? c.target : '', budget: 14000, hard: 20000 }); } catch (e) { err = String((e && e.message) || e); }
   return Object.assign(bkSheetsInfo_(c), { ran: r ? { busy: !!r.busy, pending: Number(r.pending) || 0, upToDate: !!r.upToDate, timedOut: !!r.timedOut } : null, runError: err });
 }
 function webBackup_(opt) {
@@ -201,7 +205,7 @@ function webBackup_(opt) {
   // (update-157) whose backup (this site's, or the Portal's) and which of its numbered Sheets is in use – the last one
   const T = bkTarget_(opt), vols = bkSheets_(T, cfg.fallback), vol = vols.length ? vols[vols.length - 1] : null;
   if (!vol) { if (opt.auto) return { off: true };
-    throw new Error(T.kind === 'portal' ? 'The Google Sheet backup of the Portal is not set up yet – the Super Admin gives its Sheet link (Portal → Sites → Portal backup).' : T.kind === 'purchase' ? 'The Google Sheet backup of Purchase is not set up yet – the Super Admin gives its Sheet link (Portal → Sites → Purchase backup).' : 'The Google Sheet backup of this site is not set up yet – the Super Admin gives its Sheet link (Portal → Sites → Backup).'); }
+    throw new Error(T.kind === 'portal' ? 'The Google Sheet backup of the Portal is not set up yet – the Super Admin gives its Sheet link (Portal → Sites → Portal backup).' : T.kind === 'purchase' ? 'The Google Sheet backup of Purchase is not set up yet – the Super Admin gives its Sheet link (Portal → Sites → Purchase backup).' : T.kind === 'hr' ? 'The Google Sheet backup of HR is not set up yet – the Super Admin gives its Sheet link (Portal → Sites → HR backup).' : 'The Google Sheet backup of this site is not set up yet – the Super Admin gives its Sheet link (Portal → Sites → Backup).'); }
   const sheetId = String(vol.id), later = Number(vol.n) > 1, from = later ? String(vol.from || '') : '';      // from: Sheet 2 and after hold what is new or changed since then
   // (review 25-10-2026) … table by table: since an hour before that table's last copy into the Sheet before (vol.cuts)
   const cuts = later && vol.cuts && typeof vol.cuts === 'object' ? vol.cuts : {}, fromOf = t => (later ? String(cuts[t] !== undefined ? cuts[t] : from) : '');
@@ -256,6 +260,7 @@ function webBackup_(opt) {
     try { const rc = bkRemoteCatalog_(T, siteCode); rem = rc.out; remNote = rc.note; } catch (e) { if (T.kind !== 'site') throw e; remNote = String((e && e.message) || e).slice(0, 300); rem = {}; }
     if (T.kind === 'portal' && !Object.keys(rem).length) throw new Error('The Portal backup needs the same BACKUP_EXPORT_SECRET in Vercel for the Mechanical (rclerp) and the Portal (rcl-portal) projects, and PORTAL_URL in rclerp.');
     if (T.kind === 'purchase' && !Object.keys(rem).length) throw new Error('The Purchase backup needs the same BACKUP_EXPORT_SECRET in Vercel for the Mechanical (rclerp) and the Purchase (rcl-purchase) projects (and Purchase\'s database step 1).');
+    if (T.kind === 'hr' && !Object.keys(rem).length) throw new Error('The HR backup needs the same BACKUP_EXPORT_SECRET in Vercel for the Mechanical (rclerp) and the HR (rcl-hr) projects.');
     const local = Object.keys(cat).sort(), tables = local.concat(Object.keys(rem).sort());
     const tabOf = t => rem[t] ? rem[t].title : sbTabName_(t);
     // (update-157) Sheet 2 and after: a table of entries holds only its rows new or changed since "from" (a master stays whole)

@@ -81,7 +81,7 @@ const dump = id => g('/dump?id=' + id);
 
     // ---- the nightly job before any Sheet: every site, the Portal and Purchase – Purchase (no Sheet) is left out ----
     let n0 = await cron(3005);
-    ok('the nightly job: every ready site, the Portal and Purchase (4 backups) – Purchase without a Sheet is "off", nothing fails', n0.status === 200 && n0.ok === true && n0.sites === 4, n0);
+    ok('the nightly job: every ready site, the Portal and Purchase (and – update-243 – HR: 5 backups) – Purchase without a Sheet is "off", nothing fails', n0.status === 200 && n0.ok === true && n0.sites === 5, n0);
     ok('   nothing written for Purchase', !(await g('/books')).some(b => /PURCHASE/.test(b.id)));
 
     // ---- the Super Admin in the Portal: Sites → Purchase backup ----

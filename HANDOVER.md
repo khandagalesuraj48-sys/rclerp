@@ -2477,3 +2477,7 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 * **update-242 (14-11-2026)** – a sideways scroll bar at the bottom of the screen for a wide table (shown while the table's own
   bar is below the screen; the handle is slid or the track pressed); two fingers slid sideways no longer take the browser a
   page back or forward. `app/App.html`, `app/Index.html`. No SQL. See `UPDATE_242.md`.
+* **update-243 (14-11-2026)** – HR's own backup Google Sheets (`target: 'hr'`, kept at the first site like the Portal's and
+  Purchase's; every site's HR rows in "HR – …" tabs; Portal → Sites → HR backup; rcl-hr `api/backup-export.js`). The nightly job
+  runs it too. `server/backup.vm.js`, `bkexport.js`, `portal.js`, `system.js`, `runtime.js`, `api/backup.js`, help. No SQL. See
+  `UPDATE_243.md`.

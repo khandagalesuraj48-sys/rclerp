@@ -10,7 +10,9 @@
 const path = require('path');
 const { fetchAllSync } = require('./syncfetch');
 const secret = () => String(process.env.BACKUP_EXPORT_SECRET || '').trim();      // (a newline pasted with the value in Vercel is not part of it)
-const MODS = { eng: ['ENGINEERING_URL', '/engineering/:path*'], pur: ['PURCHASE_URL', '/purchase/:path*'] };      // (update-195) Purchase
+// (update-243, asked 14-11-2026) HR (rcl-hr – one database for every site) the same way, into its own Sheets: at HR_URL, else where
+// vercel.json sends /hr; the same secret in rcl-hr too
+const MODS = { eng: ['ENGINEERING_URL', '/engineering/:path*'], pur: ['PURCHASE_URL', '/purchase/:path*'], hr: ['HR_URL', '/hr/:path*'] };      // (update-195) Purchase
 function base(source) {
   if (source === 'portal') return String(process.env.PORTAL_URL || '').trim().replace(/\/+$/, '');
   const m = Object.prototype.hasOwnProperty.call(MODS, source) ? MODS[source] : null; if (!m) return '';
@@ -19,9 +21,9 @@ function base(source) {
     if (r) return String(r.destination).replace(/\/:path\*$/, '').replace(/\/+$/, ''); } catch (e2) { /* not known */ }
   return '';
 }
-function on() { return { secret: secret().length >= 24, eng: !!base('eng'), portal: !!base('portal'), pur: !!base('pur') }; }
+function on() { return { secret: secret().length >= 24, eng: !!base('eng'), portal: !!base('portal'), pur: !!base('pur'), hr: !!base('hr') }; }
 function call(source, bodyJson, ms) {
-  if (secret().length < 24) return { code: 0, text: 'BACKUP_EXPORT_SECRET is not set (at least 24 letters and digits, the same in rclerp, rcl-portal, rcl-engineering and rcl-purchase)' };
+  if (secret().length < 24) return { code: 0, text: 'BACKUP_EXPORT_SECRET is not set (at least 24 letters and digits, the same in rclerp, rcl-portal, rcl-engineering, rcl-purchase and rcl-hr)' };
   const b = base(source); if (!b) return { code: 0, text: 'the address of ' + source + ' is not known' };
   const r = fetchAllSync([{ url: b + '/api/backup-export', method: 'POST', headers: { Authorization: 'Bearer ' + secret(), 'Content-Type': 'application/json', 'X-RCL': '1' }, body: String(bodyJson || '{}') }], Math.max(5000, Math.min(30000, Number(ms) || 25000)))[0];
   return r.error ? { code: 599, text: String(r.error).slice(0, 300) } : { code: r.code, text: r.text || '' };
