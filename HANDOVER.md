@@ -2484,3 +2484,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 * **update-244 (14-11-2026)** – the web has its own language (`webLang`): English until the person chooses; a picker on top of
   every page and in Settings ("Language of the web"). The phone app's language no longer turns the web, nor the web's the app.
   `app/App.html`, `app/Code.gs`, `app/i18n/`. No SQL. See `UPDATE_244.md`.
+* **update-245 (14-11-2026)** – a number spoken into a box: the full stop the speech recognition puts after it ("1934.") no
+  longer makes it "no number understood". The same line in the Store's / Engineering's / Purchase's `voice.js`, the Portal's page
+  and the phone app's `numwords.dart`. `app/App.html`. No SQL. See `UPDATE_245.md`.
