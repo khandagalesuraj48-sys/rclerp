@@ -10113,3 +10113,23 @@ test('update-244: the web has its own language (webLang) – English until the p
   assert.match(code, /JSON\.stringify\(\[str_\(email\)\.toLowerCase\(\), o\.appLang, o\.lang, o\.webLang\]\)/);
   assert.match(code, /if \(webLang !== undefined && webLang !== null\) p\.webLang = webLang;/);
 });
+
+test('update-246: the lists of Diesel Issue, Inward and Transfer show WHEN each entry was saved – a "Time" column beside the date', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  // the server: the moment of the first save, on the site's clock – in each of the three lists
+  assert.strictEqual((code.match(/at: H\.CREATED in c \? savedAt_\(r\[c\[H\.CREATED\]\]\) : '',/g) || []).length, 3);
+  const { T, ctx } = require('./harness.js'), run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  assert.deepStrictEqual(run('() => [savedAt_(new Date("2026-11-14T04:12:00Z")), savedAt_(new Date("2026-11-14T20:05:00Z")), savedAt_(""), savedAt_("x"), savedAt_(new Date("no"))]'), ['2026-11-14 09:42', '2026-11-15 01:35', '', '', ''], 'India time; nothing for an entry without it');
+  // the page: a heading and a cell in each list; the empty line and the totals as wide as the heading
+  assert.strictEqual((app.match(/<th>Date<\/th><th class="at" title="When the entry was saved">Time<\/th>/g) || []).length, 3);
+  assert.strictEqual((app.match(/esc\(showDate\(r\.date\)\) \+ '<\/td>' \+ atCell\(r\) \+ '<td>'/g) || []).length, 3);
+  const body = app.slice(app.indexOf('  function atCell(r) {'), app.indexOf('  function byCell(r) {'));
+  const atCell = new Function('showDate', body + '; return atCell;')(dk => { const p = String(dk).split('-'); return p[2] + '-' + p[1] + '-' + p[0]; });
+  assert.strictEqual(atCell({ date: '2026-11-14', at: '2026-11-14 09:42' }), '<td class="at"><b>09:42 AM</b></td>');
+  assert.strictEqual(atCell({ date: '2026-11-14', at: '2026-11-14 13:05' }), '<td class="at"><b>01:05 PM</b></td>');
+  assert.strictEqual(atCell({ date: '2026-11-14', at: '2026-11-14 00:07' }), '<td class="at"><b>12:07 AM</b></td>');
+  assert.strictEqual(atCell({ date: '2026-11-14', at: '2026-11-14 12:00' }), '<td class="at"><b>12:00 PM</b></td>');
+  assert.strictEqual(atCell({ date: '2026-11-12', at: '2026-11-14 18:30' }), '<td class="at"><b>06:30 PM</b><small>14-11-2026</small></td>', 'saved on another day: that day is shown too');
+  ['', undefined, 'x', '<img src=x>'].forEach(v => assert.strictEqual(atCell({ date: '2026-11-14', at: v }), '<td class="at"><span class="muted">–</span></td>'));
+  assert.match(app, /colspan="16" class="none">No diesel issues/); assert.match(app, /colspan="13" class="none">No inward entries/); assert.match(app, /colspan="11" class="none">No transfers/);
+});

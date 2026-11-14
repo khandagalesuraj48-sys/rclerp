@@ -2487,3 +2487,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 * **update-245 (14-11-2026)** – a number spoken into a box: the full stop the speech recognition puts after it ("1934.") no
   longer makes it "no number understood". The same line in the Store's / Engineering's / Purchase's `voice.js`, the Portal's page
   and the phone app's `numwords.dart`. `app/App.html`. No SQL. See `UPDATE_245.md`.
+* **update-246 (14-11-2026)** – the lists of Diesel Issue, Diesel Inward and Diesel Transfer show when each entry was saved: the
+  rows carry `at` (`savedAt_`, the first save on the site's clock) and the page a "Time" column beside the date (`atCell`). The Log
+  Book: not done (it keeps no time of saving the app reads). `app/Code.gs`, `app/App.html`. No SQL. See `UPDATE_246.md`.
