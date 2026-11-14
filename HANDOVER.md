@@ -2481,3 +2481,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
   Purchase's; every site's HR rows in "HR – …" tabs; Portal → Sites → HR backup; rcl-hr `api/backup-export.js`). The nightly job
   runs it too. `server/backup.vm.js`, `bkexport.js`, `portal.js`, `system.js`, `runtime.js`, `api/backup.js`, help. No SQL. See
   `UPDATE_243.md`.
+* **update-244 (14-11-2026)** – the web has its own language (`webLang`): English until the person chooses; a picker on top of
+  every page and in Settings ("Language of the web"). The phone app's language no longer turns the web, nor the web's the app.
+  `app/App.html`, `app/Code.gs`, `app/i18n/`. No SQL. See `UPDATE_244.md`.

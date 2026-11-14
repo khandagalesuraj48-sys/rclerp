@@ -2278,6 +2278,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   #guidebox .fx-msg { font: 700 15px/1.3 var(--disp2, var(--ui)); color: #0F1B2D; padding-right: 26px; margin-bottom: 8px; }
   .app #page_title { white-space: nowrap; }
   #pg_help { min-width: 34px; padding: 0 10px; font-weight: 700; border-radius: 9px; }
+  /* (update-244) the language of the web, on top */
+  .web-lang { height: 32px; padding: 0 6px; border: 1px solid var(--line); border-radius: 9px; background: var(--card, #fff); color: var(--steel); font: 600 13px/1 inherit; cursor: pointer; max-width: 104px; }
+  .web-lang:focus-visible { outline: 2px solid var(--focus, #2563eb); outline-offset: 1px; }
   .live-bad { border-color: #C8102E !important; box-shadow: 0 0 0 3px rgba(200,16,46,.14) !important; }
   .mb-warn ul { margin: 4px 0 0 18px; padding: 0; } .mb-warn li { margin: 1px 0; }
   #fixbox .fx-x { position: absolute; right: 8px; top: 6px; border: 0; background: transparent; font-size: 20px; line-height: 1; cursor: pointer; color: #5B6B80; padding: 4px 8px; }
@@ -3673,6 +3676,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   </div>
   <div class="tb-right">
     <button class="btn ghost small" id="pg_help" type="button" title="About this page: what it is and what the app checks – English / मराठी / हिंदी" aria-label="About this page">?</button>
+    <select class="web-lang" id="web_lang" data-noi18n hidden title="Language of the web – for you only (the phone app has its own)" aria-label="Language of the web"><option value="en">English</option><option value="mr">मराठी</option><option value="hi">हिंदी</option></select>
     <button class="gs-btn" id="gs_open" title="Search the whole app (Ctrl + K)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span>Search</span><kbd>Ctrl K</kbd></button>
     <span class="ds-pill" id="ds_pill" hidden title="Where the app's data is saved"></span>
     <button class="bk-pill" id="bk_btn" hidden type="button" title="Backup to Google Sheet">Backup</button>
@@ -4646,7 +4650,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="set-item"><b>Theme</b><div class="set-seg" data-pref="theme"><button type="button" data-v="light">Light</button><button type="button" data-v="dark">Dark</button><button type="button" data-v="auto">As the device</button></div><small class="muted">Prints and PDFs are always on white.</small></div>
         <div class="set-item"><b>Size of the text</b><div class="set-seg" data-pref="text"><button type="button" data-v="normal">Normal</button><button type="button" data-v="large">Large</button><button type="button" data-v="xlarge">Larger</button></div></div>
         <div class="set-item"><b>Rows in lists</b><div class="set-seg" data-pref="density"><button type="button" data-v="normal">Roomy</button><button type="button" data-v="compact">Tight (more rows)</button></div></div>
-        <div class="set-item"><b>Language of the app</b><div class="set-seg" data-pref="appLang" data-noi18n><button type="button" data-v="mr">मराठी</button><button type="button" data-v="hi">हिंदी</button><button type="button" data-v="en">English</button></div><small class="muted">Everything on the screens, the messages, errors and help – for you only, at all your sites and in the phone app. Bills, notes and prints stay in English.</small></div>
+        <div class="set-item"><b>Language of the web</b><div class="set-seg" data-pref="webLang" data-noi18n><button type="button" data-v="mr">मराठी</button><button type="button" data-v="hi">हिंदी</button><button type="button" data-v="en">English</button></div><small class="muted">Everything on the screens of the web, the messages, errors and help – for you only, at all your sites; also chosen on top of every page. English until you choose. The phone app has its own language (its Settings). Bills, notes and prints stay in English.</small></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="lessMotion"> Less movement (no gliding)</label></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="brief"> Show me the daily summary when I open the app (once a day)</label><label class="ck"><input type="checkbox" data-pref="voiceOut"> Speak the answer aloud when I ask by voice</label></div>
         <div class="set-item"><label class="ck"><input type="checkbox" data-pref="sound"> A short sound when something is saved or goes wrong</label><label class="ck"><input type="checkbox" data-pref="enterNext"> Enter moves to the next box (like Tab)</label></div>
@@ -7892,7 +7896,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     mr: ['App ला हे स्वीकारता आले नाही. वरच्या ओळीत कोणता field किंवा किंमत अडचणीची आहे ते दिले आहे.', 'तो field दुरुस्त करून पुन्हा प्रयत्न करा. समजले नाही तर या चौकटीचा फोटो काढून Admin ला पाठवा.'],
     hi: ['App इसे स्वीकार नहीं कर सका। ऊपर की पंक्ति में लिखा है कि कौन सा field या value समस्या है।', 'वह field ठीक करके फिर कोशिश करें। समझ न आए तो इस box की फोटो लेकर Admin को भेजें।'] };
   const FIX_W = { what: { en: 'What is wrong', mr: 'काय चुकले', hi: 'क्या गलत है' }, todo: { en: 'What to do', mr: 'काय करायचे', hi: 'क्या करना है' }, head: { en: 'Help', mr: 'मदत', hi: 'मदद' } };
-  let fixLang = 'mr'; try { const l = localStorage.getItem('rcl_lang'); if (l === 'en' || l === 'mr' || l === 'hi') fixLang = l; } catch (e) {}
+  let fixLang = 'en'; try { const l = localStorage.getItem('rcl_lang'); if (l === 'en' || l === 'mr' || l === 'hi') fixLang = l; } catch (e) {}
   function fixRules(text) { const t = String(text || ''); const hit = FIX_RULES.filter(r => r.re.test(t)).slice(0, 3); return hit.length ? hit : [FIX_ANY]; }
   function fixInner(text) {
     return '<div class="fx-top"><b>' + FIX_W.head[fixLang] + '</b><span class="fx-lang">' + [['en', 'English'], ['mr', 'मराठी'], ['hi', 'हिंदी']].map(l => '<button type="button" data-fixlang="' + l[0] + '"' + (l[0] === fixLang ? ' class="on"' : '') + '>' + l[1] + '</button>').join('') + '</span></div>' +
@@ -15852,7 +15856,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * S.prefs = the signed-in user's own settings (server: getMyPrefs / saveMyPrefs, kept with the account). A copy is kept on
    * this device per e-mail (oc_prefs_<email>) so the look is right at once after sign-in; the server's copy then replaces it.
    * applyPrefs puts them to work; every change on the Settings page is applied at once and saved by itself. */
-  const PREF_DEFAULT = { theme: 'light', text: 'normal', density: 'normal', lang: 'mr', appLang: '', lbMode: '', lbDays: '2', shift: '', menu: 'open', enterNext: false, sound: false, lessMotion: false, intro: true, brief: true, voiceOut: true, start: '', loc: '', fav: [], mobile: '', photo: '' };
+  const PREF_DEFAULT = { theme: 'light', text: 'normal', density: 'normal', lang: 'mr', appLang: '', webLang: '', lbMode: '', lbDays: '2', shift: '', menu: 'open', enterNext: false, sound: false, lessMotion: false, intro: true, brief: true, voiceOut: true, start: '', loc: '', fav: [], mobile: '', photo: '' };
   S.prefs = Object.assign({}, PREF_DEFAULT); S.rules = { backDays: '', announce: '', dayFrom: '08:00', nightFrom: '20:00', attachMax: 10 };
   const prefKey = () => 'oc_prefs_' + String((S.user && S.user.email) || '').toLowerCase();
   const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
@@ -15885,8 +15889,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const root = document.documentElement, q = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
     root.dataset.theme = S.prefs.theme === 'dark' || (S.prefs.theme === 'auto' && q && q.matches) ? 'dark' : 'light';
     root.dataset.density = S.prefs.density; root.dataset.motion = S.prefs.lessMotion ? 'less' : ''; root.dataset.text = S.prefs.text;
-    if (S.prefs.lang !== fixLang) { fixLang = S.prefs.lang; try { localStorage.setItem('rcl_lang', fixLang); } catch (e) {} }
-    if (S.user && p && Object.prototype.hasOwnProperty.call(p, 'appLang')) i18nSet(S.prefs.appLang);      // (update-110) the user's language (a copy without it – first time on this device – waits for the account's)
+    /* (update-244, asked 14-11-2026: "web warti language fix english hawey ani user wise … web sathi fkt") THE WEB HAS ITS OWN LANGUAGE
+     * (webLang): English until the person chooses another one on top of the page or in Settings – what he chose in the phone app
+     * (appLang, lang) no longer turns the web, and the web's choice does not turn the phone app. The help follows it. */
+    if (S.user && p && Object.prototype.hasOwnProperty.call(p, 'webLang')) {      // (a copy without it – first time on this device – waits for the account's)
+      const wl = S.prefs.webLang === 'mr' || S.prefs.webLang === 'hi' ? S.prefs.webLang : 'en';
+      if (wl !== fixLang) { fixLang = wl; try { localStorage.setItem('rcl_lang', fixLang); } catch (e) {} }
+      i18nSet(S.prefs.webLang);
+    }
     avaDraw(); favDraw(); setDraw();
     // the usual diesel location and shift of this user, where a form is still untouched
     const src = $('d_src'); if (src && S.prefs.loc && [...src.options].some(o => o.value === S.prefs.loc) && !S.formDirty) src.value = S.prefs.loc;
@@ -15906,7 +15916,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function setDraw() {
     try { appDraw(); } catch (e) { /* the shell is not there (opened outside it) */ }
     if (!$('sec-settings')) return; const p = S.prefs, u = S.user || {};
-    document.querySelectorAll('#sec-settings .set-seg').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === (g.dataset.pref === 'appLang' && !p.appLang ? 'en' : String(p[g.dataset.pref])))));      // (update-112: the app's language not chosen = English)
+    document.querySelectorAll('#sec-settings .set-seg').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === (g.dataset.pref === 'webLang' && !p.webLang ? 'en' : String(p[g.dataset.pref])))));      // (update-112: the language not chosen = English)
+    const wlp = $('web_lang'); if (wlp) { wlp.hidden = !S.user; wlp.value = p.webLang === 'mr' || p.webLang === 'hi' ? p.webLang : 'en'; }      // (update-244) the same choice, on top
     document.querySelectorAll('#sec-settings input[type=checkbox][data-pref]').forEach(c => { c.checked = !!p[c.dataset.pref]; });
     $('set_name').textContent = u.name || ''; $('set_email').textContent = u.email || ''; $('set_role').textContent = u.admin ? 'Admin' : 'User';
     try { wlSetDraw(false); } catch (e) { /* (update-218) the screen lock's part */ }
@@ -15953,9 +15964,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   $('sec-settings').addEventListener('click', e => {
     const b = e.target.closest('.set-seg button'); if (b) { const k = b.parentNode.dataset.pref;
-      prefSet(k === 'appLang' ? { appLang: b.dataset.v, lang: b.dataset.v === 'mr' || b.dataset.v === 'hi' ? b.dataset.v : 'en' } : { [k]: b.dataset.v }); return; }      // (update-110) the help follows the app's language
+      prefSet({ [k]: b.dataset.v }); return; }      // (update-244) the web's language is webLang only – the phone app's (appLang, lang) is not touched
     const go = e.target.closest('[data-go]'); if (go) { showTab(go.dataset.go); return; }
   });
+  // (update-244) the language of the web, chosen on top of the page: the person's own, kept with his account
+  $('web_lang').addEventListener('change', e => { const v = e.target.value; if (S.user && (v === 'en' || v === 'mr' || v === 'hi')) prefSet({ webLang: v }); });
   $('sec-settings').addEventListener('change', e => {
     const t = e.target;
     if (t.dataset.favpick) { let f = (S.prefs.fav || []).filter(x => x !== t.dataset.favpick); if (t.checked) f.push(t.dataset.favpick);
@@ -23568,7 +23581,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 </script>
 <script>
 /* (update-191) the microphone's first language here: the help language of this browser (Settings – मराठी / हिंदी / English) */
-window.rclVoiceLang = () => { try { const l = localStorage.getItem('rcl_lang'); return l === 'en' || l === 'hi' || l === 'mr' ? l : 'mr'; } catch (e) { return 'mr'; } };
+window.rclVoiceLang = () => { try { const l = localStorage.getItem('rcl_lang'); return l === 'en' || l === 'hi' || l === 'mr' ? l : 'en'; } catch (e) { return 'en'; } };
 /* RCL ERP – SPEAK INTO A BOX (29-10-2026: "jithe jithe type krun entry hotat … tithe voice mick banaw user apla voice madhe bolel AI
  * samjle user kay boltoy perfect samjel ani text madhe add krel ok hindi english marathi ya sagle language support astil"; his
  * answers: the app AND the website; words and numbers). The same file in every module's page (Store, Engineering, the Portal; inline
