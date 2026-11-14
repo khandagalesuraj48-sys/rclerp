@@ -2881,9 +2881,9 @@ test('update-110: the language of the app – the Marathi / Hindi words keep eve
   assert.match(app, /finally \{ btn\.disabled = false; if \(i18nSame\(btn\.textContent, label\)\) btn\.textContent = old; \}/, 'busy() gives the button its words back in any language');
   assert.ok(!/x\.textContent (===|!==) 'Both'/.test(app), 'the bill-name drop-downs');
   // each user his own: Settings → Language of the app (the help follows it); kept with the account
-  assert.match(app, /<b>Language of the app<\/b><div class="set-seg" data-pref="appLang" data-noi18n><button type="button" data-v="mr">मराठी<\/button><button type="button" data-v="hi">हिंदी<\/button><button type="button" data-v="en">English<\/button><\/div>/);
-  assert.match(app, /prefSet\(k === 'appLang' \? \{ appLang: b\.dataset\.v, lang: b\.dataset\.v === 'mr' \|\| b\.dataset\.v === 'hi' \? b\.dataset\.v : 'en' \} : \{ \[k\]: b\.dataset\.v \}\)/);
-  assert.match(app, /if \(S\.user && p && Object\.prototype\.hasOwnProperty\.call\(p, 'appLang'\)\) i18nSet\(S\.prefs\.appLang\);/);
+  assert.match(app, /<b>Language of the web<\/b><div class="set-seg" data-pref="webLang" data-noi18n><button type="button" data-v="mr">मराठी<\/button><button type="button" data-v="hi">हिंदी<\/button><button type="button" data-v="en">English<\/button><\/div>/);
+  assert.match(app, /prefSet\(\{ \[k\]: b\.dataset\.v \}\); return; \}      \/\/ \(update-244\)/);
+  assert.match(app, /if \(S\.user && p && Object\.prototype\.hasOwnProperty\.call\(p, 'webLang'\)\) \{/); assert.match(app, /i18nSet\(S\.prefs\.webLang\);/);
   const { T, ctx } = require('./harness.js');
   const run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
   assert.deepStrictEqual(['mr', 'hi', '', 'en', 'xx', undefined].map(v => run('v => prefsClean_({ appLang: v }).appLang', v)), ['mr', 'hi', '', 'en', '', '']);
@@ -2907,11 +2907,11 @@ test('update-112: the language is the person\'s – chosen at one site (web or p
     run('u => saveMyPrefs_(u, { theme: "dark" })', u);
     assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(__asked)', ctx)), [], 'another setting: nothing asked of the other sites');
     run('u => saveMyPrefs_(u, { appLang: "hi", lang: "hi" })', u);
-    assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(__asked)', ctx)), [['sysPrefLang', ['lang112@rcl.test', 'hi', 'hi']]]);
+    assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(__asked)', ctx)), [['sysPrefLang', ['lang112@rcl.test', 'hi', 'hi', '']]]);      // (update-244) with the web's own language
     run('u => saveMyPrefs_(u, { appLang: "hi", lang: "hi" })', u);
     assert.strictEqual(vm.runInContext('__asked.length', ctx), 1, 'the same again: not sent again');
     run('u => saveMyPrefs_(u, { appLang: "en", lang: "en" })', u);
-    assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(__asked[1])', ctx)), ['sysPrefLang', ['lang112@rcl.test', 'en', 'en']]);
+    assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(__asked[1])', ctx)), ['sysPrefLang', ['lang112@rcl.test', 'en', 'en', '']]);
     // AT THE OTHER SITE: written for a user of that site only
     assert.deepStrictEqual(run('() => sysPrefLang_("nobody112@rcl.test", "mr", "mr")'), { ok: false });
     const someone = run('() => (readUsersSheet_()[0] || {}).email || ""');
@@ -2922,7 +2922,7 @@ test('update-112: the language is the person\'s – chosen at one site (web or p
   } finally { vm.runInContext('__runOthers = undefined;', ctx); }
   // the web: English chosen = "en"; not chosen marks English too
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
-  assert.match(app, /g\.dataset\.pref === 'appLang' && !p\.appLang \? 'en'/);
+  assert.match(app, /g\.dataset\.pref === 'webLang' && !p\.webLang \? 'en'/);
 });
 
 test('update-114: verification of every work – the Super Admin\'s rules, levels of named people, checked then sent, saved only at the last approval', () => {
@@ -10096,4 +10096,20 @@ test('update-243: HR\'s own backup Sheets (kept at the first site, like the Port
   const full = H.fixRules('Sheet 2 of HR is full – Google allows 10 million cells in one Sheet.')[0], ex = H.fixRules('HR refused the backup (BACKUP_EXPORT_SECRET must be the same value).')[0];
   assert.ok(full !== H.FIX_ANY && /10 million cells/.test(full.en.join(' ')) && full.mr && full.hi);
   assert.ok(ex !== H.FIX_ANY && /rcl-hr/.test(ex.en.join(' ')) && /rcl-hr/.test(ex.mr.join(' ')) && /rcl-hr/.test(ex.hi.join(' ')));
+});
+
+test('update-244: the web has its own language (webLang) – English until the person chooses; a picker on top; the phone app\'s language no longer turns the web, nor the web\'s the app', () => {
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  assert.match(app, /<select class="web-lang" id="web_lang" data-noi18n hidden [^>]*><option value="en">English<\/option><option value="mr">मराठी<\/option><option value="hi">हिंदी<\/option><\/select>/);
+  assert.match(app, /\$\('web_lang'\)\.addEventListener\('change', e => \{ const v = e\.target\.value; if \(S\.user && \(v === 'en' \|\| v === 'mr' \|\| v === 'hi'\)\) prefSet\(\{ webLang: v \}\); \}\);/);
+  assert.match(app, /wlp\.hidden = !S\.user; wlp\.value = p\.webLang === 'mr' \|\| p\.webLang === 'hi' \? p\.webLang : 'en';/);
+  assert.ok(!/i18nSet\(S\.prefs\.appLang\)/.test(app) && !/fixLang = S\.prefs\.lang/.test(app), 'the phone app\'s choice does not turn the web');
+  assert.ok(!/prefSet\([^)]*appLang/.test(app), 'the web never writes the phone app\'s language');
+  assert.match(app, /let fixLang = 'en';/); assert.match(app, /webLang: '', lbMode/);
+  const { T, ctx } = require('./harness.js'), run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  assert.deepStrictEqual(['mr', 'hi', '', 'en', 'xx', undefined].map(v => run('v => prefsClean_({ webLang: v }).webLang', v)), ['mr', 'hi', '', 'en', '', '']);
+  assert.deepStrictEqual(run('() => { const p = prefsClean_({ appLang: "mr", lang: "mr" }); return [p.appLang, p.lang, p.webLang]; }'), ['mr', 'mr', ''], 'Marathi in the phone app: the web stays English');
+  assert.match(code, /o\.appLang !== was\.appLang \|\| o\.lang !== was\.lang \|\| o\.webLang !== was\.webLang\) langSpread_/);
+  assert.match(code, /JSON\.stringify\(\[str_\(email\)\.toLowerCase\(\), o\.appLang, o\.lang, o\.webLang\]\)/);
+  assert.match(code, /if \(webLang !== undefined && webLang !== null\) p\.webLang = webLang;/);
 });
