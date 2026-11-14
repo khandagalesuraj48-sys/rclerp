@@ -10117,7 +10117,7 @@ test('update-244: the web has its own language (webLang) – English until the p
 test('update-246: the lists of Diesel Issue, Inward and Transfer show WHEN each entry was saved – a "Time" column beside the date', () => {
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8'), code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
   // the server: the moment of the first save, on the site's clock – in each of the three lists
-  assert.strictEqual((code.match(/at: H\.CREATED in c \? savedAt_\(r\[c\[H\.CREATED\]\]\) : '',/g) || []).length, 3);
+  assert.strictEqual((code.match(/at: H\.CREATED in c \? savedAt_\(sentAt\(r\[c\[H\.CREATED\]\], [^)]*\)\) : '',/g) || []).length, 3);      // (update-247: the moment it was sent)
   const { T, ctx } = require('./harness.js'), run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
   assert.deepStrictEqual(run('() => [savedAt_(new Date("2026-11-14T04:12:00Z")), savedAt_(new Date("2026-11-14T20:05:00Z")), savedAt_(""), savedAt_("x"), savedAt_(new Date("no"))]'), ['2026-11-14 09:42', '2026-11-15 01:35', '', '', ''], 'India time; nothing for an entry without it');
   // the page: a heading and a cell in each list; the empty line and the totals as wide as the heading
@@ -10132,4 +10132,24 @@ test('update-246: the lists of Diesel Issue, Inward and Transfer show WHEN each 
   assert.strictEqual(atCell({ date: '2026-11-12', at: '2026-11-14 18:30' }), '<td class="at"><b>06:30 PM</b><small>14-11-2026</small></td>', 'saved on another day: that day is shown too');
   ['', undefined, 'x', '<img src=x>'].forEach(v => assert.strictEqual(atCell({ date: '2026-11-14', at: v }), '<td class="at"><span class="muted">–</span></td>'));
   assert.match(app, /colspan="16" class="none">No diesel issues/); assert.match(app, /colspan="13" class="none">No inward entries/); assert.match(app, /colspan="11" class="none">No transfers/);
+});
+
+test('update-247: the time in the lists is the moment the USER SENT the entry – not the later moment it was approved and written', () => {
+  const code = fs.readFileSync(path.join(root, 'app', 'Code.gs'), 'utf8');
+  assert.strictEqual((code.match(/const sentAt = sentAtOf_\('Diesel (Issue|Inward|Transfer)'\);/g) || []).length, 3);
+  assert.strictEqual((code.match(/savedAt_\(sentAt\(r\[c\[H\.CREATED\]\], /g) || []).length, 3);
+  assert.ok(!/H\.CREATED, (new Date|req)/.test(code.slice(code.indexOf('function sentAtPick_'), code.indexOf('function tStr_'))), 'nothing is written: "Created At" stays – the order of the stock follows it');
+  const { T, ctx } = require('./harness.js'), run = (fn, ...a) => { const r = require('vm').runInContext('(' + fn + ')', ctx)(...a); T.reset(); return JSON.parse(JSON.stringify(r === undefined ? null : r)); };
+  const pick = (reqs, made, no) => run(`(reqs, made, no) => { const l = reqs.map(x => ({ req: new Date(x[0]), dec: new Date(x[1]).getTime(), nos: x[2] })), r = sentAtPick_(l, new Date(made).getTime(), no); return r ? savedAt_(r) : ''; }`, reqs, made, no);
+  // his case: sent 14:31, approved (= written) 17:02 – three entries approved one after the other
+  const reqs = [['2026-11-14T09:01:10Z', '2026-11-14T11:32:05Z', 'MH25AJ5741'], ['2026-11-14T09:05:40Z', '2026-11-14T11:32:20Z', 'MH25AJ2169'], ['2026-11-14T09:20:00Z', '2026-11-14T11:32:41Z', 'MH04LE7533,MH12AB1234']];
+  assert.strictEqual(pick(reqs, '2026-11-14T11:32:03Z', 'MH-25-AJ-5741'), '2026-11-14 14:31');
+  assert.strictEqual(pick(reqs, '2026-11-14T11:32:18Z', 'MH-25-AJ-2169'), '2026-11-14 14:35', 'the request of ITS machinery, though another was approved 15 s before');
+  assert.strictEqual(pick(reqs, '2026-11-14T11:32:40Z', 'mh-12-ab-1234'), '2026-11-14 14:50', 'several entries in one request');
+  assert.strictEqual(pick(reqs, '2026-11-14T11:32:18Z', ''), '2026-11-14 14:35', 'no machinery (inward, transfer): the nearest save');
+  assert.strictEqual(pick(reqs, '2026-11-14T06:00:00Z', 'MH-25-AJ-5741'), '', 'saved without verification: no request of that moment');
+  assert.strictEqual(pick(reqs, '2026-11-14T11:35:00Z', 'MH-25-AJ-5741'), '', 'a later entry of the same machinery is not this request\'s');
+  assert.strictEqual(pick([], '2026-11-14T11:32:03Z', 'X'), '');
+  // without the requests' table the lists work as before (the entry's own time)
+  assert.deepStrictEqual(run('() => { const f = sentAtOf_("Diesel Issue"), d = new Date("2026-11-14T04:12:00Z"); return [savedAt_(f(d, "X")), f("", "X")]; }'), ['2026-11-14 09:42', '']);
 });

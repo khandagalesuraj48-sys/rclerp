@@ -5809,6 +5809,7 @@ function getDieselIssues_(f) {
     x.qty = r2_(x.qty + num0_(r[c[H.QTY]])); x.entries++;
   });
   const LK = lockMarker_();
+  const sentAt = sentAtOf_('Diesel Issue');      // (update-247) the time the user sent it
   return ft.put(Object.assign(card ? { totalAmount: r2_(totalAmt), byPay: byPay } : {}, {
     count: hits.length,
     totalQty: r2_(totalQty),
@@ -5821,7 +5822,7 @@ function getDieselIssues_(f) {
       kmReading: numOrBlank_(r[c[H.KMR]]), hrReading: numOrBlank_(r[c[H.HRR]]), remark: str_(r[c[H.REMARK]]),
       driver: str_(r[c[H.DRIVER]]), balance: H.BAL in c ? numOrBlank_(r[c[H.BAL]]) : '', source: loc_(r[c[H.SOURCE]]), supply: str_(r[c[H.SUPPLY]]),
       meter: H.DMETER in c ? numOrBlank_(r[c[H.DMETER]]) : '', meterCheck: checks[str_(r[c[H.ID]])] || null,
-      at: H.CREATED in c ? savedAt_(r[c[H.CREATED]]) : '',      // (update-246) when it was saved
+      at: H.CREATED in c ? savedAt_(sentAt(r[c[H.CREATED]], r[c[H.NO]])) : '',      // (update-246, 247) when the user sent it (saved without verification: when it was saved)
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
       ph: H.PHOTOS in c ? photoList_(r[c[H.PHOTOS]]).length : 0,      // how many photos it has (update-85)
       ver: rowVer_(t, r, DIESEL_VER_H_()),      // (update-145) sent back with a change / a delete
@@ -8704,6 +8705,7 @@ function getInwards_(f) {
     const da = dkey_(a[c[H.DATE]]), db = dkey_(b[c[H.DATE]]);
     return da !== db ? (da < db ? 1 : -1) : str_(b[c[H.IN_ID]]).localeCompare(str_(a[c[H.IN_ID]]));
   });
+  const sentAt = sentAtOf_('Diesel Inward');      // (update-247) the time the user sent it
   return ft.put({
     count: hits.length, qty: r2_(qty), amount: r2_(amount), stock: getStock_(),
     rows: (f.all ? hits : hits.slice(0, 500)).map(r => ({
@@ -8711,7 +8713,7 @@ function getInwards_(f) {
       rate: numOrBlank_(r[c[H.RATE]]), amount: numOrBlank_(r[c[H.AMOUNT]]), billNo: str_(r[c[H.BILLNO]]),
       billDate: r[c[H.BILLDATE]] === '' ? '' : dkey_(r[c[H.BILLDATE]]), location: loc_(r[c[H.LOC]]),
       balance: H.BAL in c ? numOrBlank_(r[c[H.BAL]]) : '', open: isOpeningPump_(r[c[H.PUMP]]), extra: isExtraPump_(r[c[H.PUMP]]),
-      at: H.CREATED in c ? savedAt_(r[c[H.CREATED]]) : '',      // (update-246) when it was saved
+      at: H.CREATED in c ? savedAt_(sentAt(r[c[H.CREATED]], '')) : '',      // (update-246, 247) when the user sent it
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
       ph: H.PHOTOS in c ? billList_(r[c[H.PHOTOS]]).length : 0,      // (update-120) how many bill copies
       ver: rowVer_(t, r, INWARD_VER_H_()),      // (update-156) sent back with a change / a delete
@@ -8896,13 +8898,14 @@ function getTransfers_(f) {
     if (da !== db) return da < db ? 1 : -1;
     return shiftOrder_(str_(b[c[H.SHIFT]])) - shiftOrder_(str_(a[c[H.SHIFT]])) || str_(b[c[H.TR_ID]]).localeCompare(str_(a[c[H.TR_ID]]));
   });
+  const sentAt = sentAtOf_('Diesel Transfer');      // (update-247) the time the user sent it
   return ft.put({
     count: hits.length, qty: r2_(qty), stock: getStock_(),
     rows: (f.all ? hits : hits.slice(0, 500)).map(r => ({
       id: str_(r[c[H.TR_ID]]), date: dkey_(r[c[H.DATE]]), shift: str_(r[c[H.SHIFT]]), from: loc_(r[c[H.FROM]]), to: loc_(r[c[H.TO]]),
       qty: numOrBlank_(r[c[H.IN_QTY]]), remark: str_(r[c[H.REMARK]]),
       fromBal: H.FROMBAL in c ? numOrBlank_(r[c[H.FROMBAL]]) : '', toBal: H.TOBAL in c ? numOrBlank_(r[c[H.TOBAL]]) : '',
-      at: H.CREATED in c ? savedAt_(r[c[H.CREATED]]) : '',      // (update-246) when it was saved
+      at: H.CREATED in c ? savedAt_(sentAt(r[c[H.CREATED]], '')) : '',      // (update-246, 247) when the user sent it
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
       ver: rowVer_(t, r, TRANSFER_VER_H_()),      // (update-156) sent back with a change / a delete
     })),
@@ -10412,6 +10415,29 @@ function apprOut_(t, r) { const v = r[t.c['Approved At']], d = v instanceof Date
  * moment of the first save ("Created At", never changed by an edit), as the site's clock shows it: 'yyyy-MM-dd HH:mm'. The lists of Diesel
  * Issue, Diesel Inward and Diesel Transfer show it beside the date – on the web and in the app. An entry without it: ''. */
 function savedAt_(v) { return v instanceof Date && !isNaN(v) ? Utilities.formatDate(v, tz_(), 'yyyy-MM-dd HH:mm') : ''; }
+/* (update-247, 14-11-2026 – his picture: the list said 05:02 PM, the entry's photos 02:30 PM. "mi sangitlel mala realtime hawa ahe jewa user
+ * diesel issue krto ani approval sathi entry jate to time") THE TIME IS THE MOMENT THE USER SENT IT, not the moment it was approved. An entry
+ * that went through verification is written into its table only when the last person approves – its "Created At" is that later moment (and
+ * stays so: the order of the stock follows it). The request keeps both moments: "Requested At" (sent) and "Decided At" (approved = saved,
+ * the same save). So the request of an entry is the one of its page that was saved in the same moment (Decided At from 5 s before to 120 s
+ * after the entry's Created At), with the entry's machinery among its own when there are several – and the list shows its "Requested At".
+ * An entry saved without verification has no such request: its own time of saving is shown, as before. Nothing is stored for this. */
+function sentAtPick_(list, madeMs, no) {
+  let best = null, bd = Infinity; const k = String(no || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  for (let i = 0; i < list.length; i++) { const x = list[i], d = x.dec - madeMs; if (d < -5000 || d > 120000) continue;
+    const mine = k && x.nos.indexOf(k) > -1 ? 0 : 1, score = mine * 1000000 + Math.abs(d); if (score < bd) { bd = score; best = x; } }
+  return best ? best.req : null;
+}
+function sentAtOf_(mod) {
+  let list = [];
+  try {
+    const t = vbTable_(CR_SHEET_, CR_COLS_), c = t ? t.c : null;
+    if (t) t.rows.forEach(r => { if (str_(r[c['Kind']]) !== 'Flow' || str_(r[c['Result']]) !== 'Saved') return; const sp = API_[str_(r[c['Action']])];
+      const req = r[c['Requested At']], dec = r[c['Decided At']]; if (!sp || sp.m !== mod || !(req instanceof Date) || !(dec instanceof Date) || isNaN(req) || isNaN(dec)) return;
+      list.push({ req: req, dec: dec.getTime(), nos: str_(r[c['Machinery']]).toUpperCase().replace(/[^A-Z0-9,]/g, '') }); });
+  } catch (e) { list = []; }      // the list of entries never fails for this: without the requests, the entry's own time
+  return (made, no) => made instanceof Date && list.length ? (sentAtPick_(list, made.getTime(), no) || made) : made;
+}
 function tStr_(v) { if (v instanceof Date) return Utilities.formatDate(v, tz_(), 'HH:mm'); const s = str_(v); const x = hhmm_(s); return x === null ? s : String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0'); }
 function getLogBook_(dateStr) {
   const dk = checkDate_(dateStr);

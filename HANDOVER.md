@@ -2490,3 +2490,6 @@ Repo folder `rcl-fleet-erp` (he works from VS Code, git → GitHub, Vercel deplo
 * **update-246 (14-11-2026)** – the lists of Diesel Issue, Diesel Inward and Diesel Transfer show when each entry was saved: the
   rows carry `at` (`savedAt_`, the first save on the site's clock) and the page a "Time" column beside the date (`atCell`). The Log
   Book: not done (it keeps no time of saving the app reads). `app/Code.gs`, `app/App.html`. No SQL. See `UPDATE_246.md`.
+* **update-247 (14-11-2026)** – the time in the lists of Diesel Issue / Inward / Transfer is the moment the user SENT the entry (the
+  request's "Requested At"), not the later moment it was approved and written (`sentAtOf_`, `sentAtPick_`). "Created At" untouched.
+  `app/Code.gs`. No SQL. See `UPDATE_247.md`.
