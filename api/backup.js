@@ -31,10 +31,10 @@ module.exports = async (req, res) => {
       // (update-157) every ready site – its numbered Sheets are in its own settings (a site with none answers "off") – and the Portal's backup
       // (update-195) and Purchase's own backup (its Sheets at the first site; none given yet = "off")
       let codes = ['']; try { const reg = require('../server/sites').registry() || []; codes = codes.concat(reg.filter(x => x.status === 'ready' && !x.home).map(x => x.code)); } catch (e) { /* the first site at least */ }
-      const jobs = codes.map(c => ({ site: c, opt: opt })).concat([{ site: '', opt: Object.assign({}, opt, { target: 'portal' }) }, { site: '', opt: Object.assign({}, opt, { target: 'purchase' }) }]);
+      const jobs = codes.map(c => ({ site: c, opt: opt })).concat([{ site: '', opt: Object.assign({}, opt, { target: 'portal' }) }, { site: '', opt: Object.assign({}, opt, { target: 'purchase' }) }, { site: '', opt: Object.assign({}, opt, { target: 'hr' }) }]);      // (update-243) and HR's
       const all = await Promise.all(jobs.map(j => pool.call('backup', [j.opt], { site: j.site }).then(t => JSON.parse(t)).catch(e => ({ ok: false, site: j.site, error: String((e && e.message) || e).slice(0, 200) }))));
       const bad = all.filter(x => x && x.ok === false);
-      if (bad.length) console.error('[backup] nightly: ' + bad.length + ' of ' + all.length + ' backups failed (the sites, the Portal and Purchase)');
+      if (bad.length) console.error('[backup] nightly: ' + bad.length + ' of ' + all.length + ' backups failed (the sites, the Portal, Purchase and HR)');
       return send(bad.length ? 500 : 200, { ok: !bad.length, sites: all.length, failed: bad.length, busy: all.some(x => x && x.busy), skipped: all.every(x => x && x.skipped), off: all.every(x => x && x.off) });
     }
     const out = JSON.parse(await pool.call('backup', [opt], { site: opt.site || '' }));

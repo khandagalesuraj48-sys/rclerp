@@ -2611,17 +2611,17 @@ test('update-195: Purchase\'s own backup Sheets (kept at the first site, like th
   assert.deepStrictEqual(X.bkTarget_({ target: 'purchase' }), { kind: 'purchase', lock: 'backup_purchase', state: 'BK_PUR_STATE', info: 'SB_PUR_INFO', sheets: 'BK_PUR_SHEETS', name: 'Purchase' });
   assert.strictEqual(X.bkTarget_({ target: 'portal' }).sheets, 'BK_PORTAL_SHEETS'); assert.strictEqual(X.bkTarget_({ target: 'x' }).kind, 'site'); assert.strictEqual(X.bkTarget_({}).sheets, 'BK_SHEETS');
   assert.deepStrictEqual([X.BK_OWN_.purchase.src, X.BK_OWN_.purchase.prefix, X.BK_OWN_.portal.src], ['pur', 'Purchase – ', 'portal']);
-  assert.match(bk, /const portal = at\('portal'\), purchase = at\('purchase'\);/, 'its Sheets are never given to a site or to the Portal');
+  assert.match(bk, /const portal = at\('portal'\), purchase = at\('purchase'\), hr = at\('hr'\);/, 'its Sheets are never given to a site or to the Portal');
   assert.match(bk, /if \(T\.kind === 'purchase' && !Object\.keys\(rem\)\.length\) throw new Error\('The Purchase backup needs the same BACKUP_EXPORT_SECRET/);
   // the Portal's ticket names it; the first site keeps it; the other Sheets (sites', the Portal's) are taken
-  assert.match(fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8'), /const bkT = c\.target === 'portal' \|\| c\.target === 'purchase' \? c\.target : '';/);
+  assert.match(fs.readFileSync(path.join(root, 'server', 'portal.js'), 'utf8'), /const bkT = c\.target === 'portal' \|\| c\.target === 'purchase' \|\| c\.target === 'hr' \? c\.target : '';/);
   const sy = fs.readFileSync(path.join(root, 'server', 'system.js'), 'utf8');
   assert.match(sy, /taken: bkTaken\(R, own \? null : at, own\)/); assert.match(sy, /if \(own !== 'purchase'\) \(ids\.purchase \|\| \[\]\)\.forEach/); assert.match(sy, /if \(own !== 'portal'\) \(ids\.portal \|\| \[\]\)\.forEach/);
   // the nightly job: every site, the Portal's and Purchase's; no Drive copy for them
   assert.match(fs.readFileSync(path.join(root, 'api', 'backup.js'), 'utf8'), /\{ site: '', opt: Object\.assign\(\{\}, opt, \{ target: 'portal' \}\) \}, \{ site: '', opt: Object\.assign\(\{\}, opt, \{ target: 'purchase' \}\) \}/);
   const rt = fs.readFileSync(path.join(root, 'server', 'runtime.js'), 'utf8');
-  assert.match(rt, /if \(gas\.site\(\) === ''\) \{ add\(st\.props\.BK_PORTAL_SHEETS\); add\(st\.props\.BK_PUR_SHEETS\); \}/, 'the first site may write Purchase\'s Sheets (only those of its list)');
-  assert.match(rt, /const own = o\.cron && \(o\.target === 'portal' \|\| o\.target === 'purchase'\) \? o\.target : '';/); assert.match(rt, /let d = null; if \(!own && Date\.now\(\) - t0 < 30000\)/);
+  assert.match(rt, /if \(gas\.site\(\) === ''\) \{ add\(st\.props\.BK_PORTAL_SHEETS\); add\(st\.props\.BK_PUR_SHEETS\); add\(st\.props\.BK_HR_SHEETS\); \}/, 'the first site may write Purchase\'s Sheets (only those of its list)');
+  assert.match(rt, /const own = o\.cron && \(o\.target === 'portal' \|\| o\.target === 'purchase' \|\| o\.target === 'hr'\) \? o\.target : '';/); assert.match(rt, /let d = null; if \(!own && Date\.now\(\) - t0 < 30000\)/);
   // the help (EN / MR / HI)
   const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
   const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
@@ -10071,4 +10071,29 @@ test('update-242: a sideways scroll bar at the bottom of the screen for a wide t
   assert.match(js, /r\.top < h - 80 && r\.bottom > h \+ 2/, 'only while the table\'s own end is below the screen'); assert.match(js, /cur\.scrollLeft = Math\.round\(/, 'it only moves the table sideways');
   assert.ok(!/innerHTML|fetch\(|google\.script|\.remove\(\)|textContent = [^c]/.test(js.replace("css.textContent = ", '')), 'nothing of the page\'s content or data is read or changed'); assert.match(js, /@media print\{#hsb\{display:none!important\}\}/, 'never printed');
   assert.match(page, /^ {2}html, body \{ overscroll-behavior-x: none; \}$/m, 'two fingers sideways: no page back'); assert.match(fs.readFileSync(path.join(__dirname, '..', 'app', 'Index.html'), 'utf8'), /overscroll-behavior-x: none/, 'in the outer frame too');
+});
+
+test('update-243: HR\'s own backup Sheets (kept at the first site, like the Portal\'s and Purchase\'s) – its export, the Portal\'s ticket, the nightly job, the help', () => {
+  const bx = require('../server/bkexport'), env = { HR_URL: process.env.HR_URL, BACKUP_EXPORT_SECRET: process.env.BACKUP_EXPORT_SECRET };
+  try {
+    delete process.env.HR_URL; process.env.BACKUP_EXPORT_SECRET = 'x'.repeat(30);
+    assert.strictEqual(bx.base('hr'), 'https://rcl-hr.vercel.app'); assert.strictEqual(bx.on().hr, true); assert.strictEqual(bx.base('pur'), 'https://rcl-purchase.vercel.app');
+    process.env.HR_URL = 'http://127.0.0.1:3060/'; assert.strictEqual(bx.base('hr'), 'http://127.0.0.1:3060');
+  } finally { Object.keys(env).forEach(k => { if (env[k] === undefined) delete process.env[k]; else process.env[k] = env[k]; }); }
+  const bk = require('../server/backup.vm.js'), a = bk.indexOf('function bkTarget_('), b = bk.indexOf('const bkUrl_ = ');
+  const X = new Function(bk.slice(a, b) + '; return { bkTarget_, BK_OWN_ };')();
+  assert.deepStrictEqual(X.bkTarget_({ target: 'hr' }), { kind: 'hr', lock: 'backup_hr', state: 'BK_HR_STATE', info: 'SB_HR_INFO', sheets: 'BK_HR_SHEETS', name: 'HR' });
+  assert.strictEqual(X.bkTarget_({ target: 'purchase' }).sheets, 'BK_PUR_SHEETS'); assert.strictEqual(X.bkTarget_({ target: 'portal' }).sheets, 'BK_PORTAL_SHEETS'); assert.strictEqual(X.bkTarget_({ target: 'hrme' }).kind, 'site');
+  assert.deepStrictEqual([X.BK_OWN_.hr.src, X.BK_OWN_.hr.prefix, X.BK_OWN_.hr.where], ['hr', 'HR – ', 'Portal → Sites → HR backup']);
+  assert.match(bk, /hr: \[\.\.\.new Set\(hr\.filter\(Boolean\)\)\]/, 'its Sheets are never given to a site, the Portal or Purchase');
+  assert.match(bk, /if \(T\.kind === 'hr' && !Object\.keys\(rem\)\.length\) throw new Error\('The HR backup needs the same BACKUP_EXPORT_SECRET/);
+  assert.match(bk, /c\.target === 'portal' \|\| c\.target === 'purchase' \|\| c\.target === 'hr'\) \? c\.target : '', budget/, 'Backup now');
+  const sy = fs.readFileSync(path.join(root, 'server', 'system.js'), 'utf8');
+  assert.match(sy, /const own = c\.target === 'portal' \|\| c\.target === 'purchase' \|\| c\.target === 'hr' \? c\.target : '';/); assert.match(sy, /if \(own !== 'hr'\) \(ids\.hr \|\| \[\]\)\.forEach/);
+  assert.match(fs.readFileSync(path.join(root, 'api', 'backup.js'), 'utf8'), /\{ site: '', opt: Object\.assign\(\{\}, opt, \{ target: 'purchase' \}\) \}, \{ site: '', opt: Object\.assign\(\{\}, opt, \{ target: 'hr' \}\) \}\]\);/);
+  const app = fs.readFileSync(path.join(root, 'app', 'App.html'), 'utf8');
+  const H = new Function(app.slice(app.indexOf('const FIX_RULES = ['), app.indexOf('function fixInner(')) + '; return { fixRules, FIX_ANY };')();
+  const full = H.fixRules('Sheet 2 of HR is full – Google allows 10 million cells in one Sheet.')[0], ex = H.fixRules('HR refused the backup (BACKUP_EXPORT_SECRET must be the same value).')[0];
+  assert.ok(full !== H.FIX_ANY && /10 million cells/.test(full.en.join(' ')) && full.mr && full.hi);
+  assert.ok(ex !== H.FIX_ANY && /rcl-hr/.test(ex.en.join(' ')) && /rcl-hr/.test(ex.mr.join(' ')) && /rcl-hr/.test(ex.hi.join(' ')));
 });
