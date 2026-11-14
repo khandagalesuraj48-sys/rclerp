@@ -5821,6 +5821,7 @@ function getDieselIssues_(f) {
       kmReading: numOrBlank_(r[c[H.KMR]]), hrReading: numOrBlank_(r[c[H.HRR]]), remark: str_(r[c[H.REMARK]]),
       driver: str_(r[c[H.DRIVER]]), balance: H.BAL in c ? numOrBlank_(r[c[H.BAL]]) : '', source: loc_(r[c[H.SOURCE]]), supply: str_(r[c[H.SUPPLY]]),
       meter: H.DMETER in c ? numOrBlank_(r[c[H.DMETER]]) : '', meterCheck: checks[str_(r[c[H.ID]])] || null,
+      at: H.CREATED in c ? savedAt_(r[c[H.CREATED]]) : '',      // (update-246) when it was saved
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
       ph: H.PHOTOS in c ? photoList_(r[c[H.PHOTOS]]).length : 0,      // how many photos it has (update-85)
       ver: rowVer_(t, r, DIESEL_VER_H_()),      // (update-145) sent back with a change / a delete
@@ -8710,6 +8711,7 @@ function getInwards_(f) {
       rate: numOrBlank_(r[c[H.RATE]]), amount: numOrBlank_(r[c[H.AMOUNT]]), billNo: str_(r[c[H.BILLNO]]),
       billDate: r[c[H.BILLDATE]] === '' ? '' : dkey_(r[c[H.BILLDATE]]), location: loc_(r[c[H.LOC]]),
       balance: H.BAL in c ? numOrBlank_(r[c[H.BAL]]) : '', open: isOpeningPump_(r[c[H.PUMP]]), extra: isExtraPump_(r[c[H.PUMP]]),
+      at: H.CREATED in c ? savedAt_(r[c[H.CREATED]]) : '',      // (update-246) when it was saved
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
       ph: H.PHOTOS in c ? billList_(r[c[H.PHOTOS]]).length : 0,      // (update-120) how many bill copies
       ver: rowVer_(t, r, INWARD_VER_H_()),      // (update-156) sent back with a change / a delete
@@ -8900,6 +8902,7 @@ function getTransfers_(f) {
       id: str_(r[c[H.TR_ID]]), date: dkey_(r[c[H.DATE]]), shift: str_(r[c[H.SHIFT]]), from: loc_(r[c[H.FROM]]), to: loc_(r[c[H.TO]]),
       qty: numOrBlank_(r[c[H.IN_QTY]]), remark: str_(r[c[H.REMARK]]),
       fromBal: H.FROMBAL in c ? numOrBlank_(r[c[H.FROMBAL]]) : '', toBal: H.TOBAL in c ? numOrBlank_(r[c[H.TOBAL]]) : '',
+      at: H.CREATED in c ? savedAt_(r[c[H.CREATED]]) : '',      // (update-246) when it was saved
       enteredBy: H.EBY in c ? str_(r[c[H.EBY]]) : '', updatedBy: H.UBY in c ? str_(r[c[H.UBY]]) : '',
       ver: rowVer_(t, r, TRANSFER_VER_H_()),      // (update-156) sent back with a change / a delete
     })),
@@ -10405,6 +10408,10 @@ const apprRow_ = (t, r) => 'Approved At' in t.c && lbCell_(r[t.c['Approved At']]
 function apprLock_(t, r) { if (ACTOR_SUPER_) return; const a = apprRow_(t, r); if (a) throw new Error(apprLockMsg_({ no: str_(r[t.c[H.NO]]), dk: dkey_(r[t.c[H.DATE]]), shift: str_(r[t.c[H.SHIFT]]) || 'Full Day' }, a)); }
 function apprOut_(t, r) { const v = r[t.c['Approved At']], d = v instanceof Date ? v : new Date(v); return { by: str_(r[t.c['Approved By']]), at: isNaN(d) ? '' : d.toISOString(), ref: str_(r[t.c['Approval Ref']]) }; }
 // a time cell back to "HH:MM" (the sheet may hand back a Date for a time)
+/* (update-246, asked 14-11-2026: "user jewa diesel issue krto … kiti wajta issue zalel aahe … entry wise") WHEN AN ENTRY WAS SAVED – the
+ * moment of the first save ("Created At", never changed by an edit), as the site's clock shows it: 'yyyy-MM-dd HH:mm'. The lists of Diesel
+ * Issue, Diesel Inward and Diesel Transfer show it beside the date – on the web and in the app. An entry without it: ''. */
+function savedAt_(v) { return v instanceof Date && !isNaN(v) ? Utilities.formatDate(v, tz_(), 'yyyy-MM-dd HH:mm') : ''; }
 function tStr_(v) { if (v instanceof Date) return Utilities.formatDate(v, tz_(), 'HH:mm'); const s = str_(v); const x = hhmm_(s); return x === null ? s : String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0'); }
 function getLogBook_(dateStr) {
   const dk = checkDate_(dateStr);

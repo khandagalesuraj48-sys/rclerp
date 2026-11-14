@@ -1946,6 +1946,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   table.lx-t input.moved { border-color: #F59E0B; box-shadow: 0 0 0 2px rgba(245,158,11,.25); }
   .dshare-head { display: flex; gap: 10px; align-items: center; margin: 10px 0 6px; }
   .pbar { height: 8px; border-radius: 6px; background: #EEF2F6; overflow: hidden; } .pbar i { display: block; height: 100%; background: linear-gradient(90deg, #F59E0B, #FBBF24); border-radius: 6px; }
+  td.at, th.at { white-space: nowrap; } td.at small { display: block; font-size: 11px; color: var(--muted); }
   td.by { font-size: 12.5px; white-space: nowrap; } td.by small { display: block; font-size: 11px; color: var(--muted); } th.by { white-space: nowrap; }
   .selbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; margin: 8px 0; border-radius: 10px; background: #FEF2F2; border: 1px solid #FECACA; }
   .selbar b { font-size: 13.5px; margin-right: 6px; }
@@ -4867,7 +4868,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="sum" id="i_sum"></div>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Inward ID</th><th>Date</th><th>Received at</th><th>Pump Name</th><th class="n">Qty (Ltr)</th><th class="n">Rate (₹)</th><th class="n">Amount (₹)</th><th>Bill Number</th><th>Bill Date</th><th class="n">Balance (Ltr)</th><th class="by">Entered by</th><th></th></tr></thead>
+        <thead><tr><th>Inward ID</th><th>Date</th><th class="at" title="When the entry was saved">Time</th><th>Received at</th><th>Pump Name</th><th class="n">Qty (Ltr)</th><th class="n">Rate (₹)</th><th class="n">Amount (₹)</th><th>Bill Number</th><th>Bill Date</th><th class="n">Balance (Ltr)</th><th class="by">Entered by</th><th></th></tr></thead>
         <tbody id="i_rows"></tbody>
         <tfoot id="i_foot"></tfoot>
       </table></div>
@@ -4942,7 +4943,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="sum" id="t_sum"></div>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Transfer ID</th><th>Date</th><th>Shift</th><th>From</th><th>To</th><th class="n">Qty (Ltr)</th><th class="n">From balance</th><th class="n">To balance</th><th>Remark</th><th class="by">Entered by</th><th></th></tr></thead>
+        <thead><tr><th>Transfer ID</th><th>Date</th><th class="at" title="When the entry was saved">Time</th><th>Shift</th><th>From</th><th>To</th><th class="n">Qty (Ltr)</th><th class="n">From balance</th><th class="n">To balance</th><th>Remark</th><th class="by">Entered by</th><th></th></tr></thead>
         <tbody id="t_rows"></tbody>
         <tfoot id="t_foot"></tfoot>
       </table></div>
@@ -5092,7 +5093,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         <div class="sum" id="d_sum"></div>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Issue ID</th><th>Date</th><th>Shift</th><th id="d_th_src">Source</th><th>Machinery Number</th><th>Type of Machinery</th><th>Owner Name</th><th>Driver Name</th><th class="n">Diesel Qty (Ltr)</th><th class="n">Reading</th><th class="n" id="d_th_bal">Balance (Ltr)</th><th>Remark</th><th class="n" title="Share of the diesel of these dates / filters">% of total</th><th class="by">Entered by</th><th></th></tr></thead>
+        <thead><tr><th>Issue ID</th><th>Date</th><th class="at" title="When the entry was saved">Time</th><th>Shift</th><th id="d_th_src">Source</th><th>Machinery Number</th><th>Type of Machinery</th><th>Owner Name</th><th>Driver Name</th><th class="n">Diesel Qty (Ltr)</th><th class="n">Reading</th><th class="n" id="d_th_bal">Balance (Ltr)</th><th>Remark</th><th class="n" title="Share of the diesel of these dates / filters">% of total</th><th class="by">Entered by</th><th></th></tr></thead>
         <tbody id="d_rows"></tbody>
         <tfoot id="d_foot"></tfoot>
       </table></div>
@@ -7074,6 +7075,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     log: 'Log Book', tankcheck: 'Log Book', logedit: 'Log Book', bill: 'Machinery Billing', bills: 'Saved Bills', breg: 'Bill Summary', pay: 'Machinery Payments', vled: 'Vendor Ledger', vout: 'Vendor Outstanding', rmonthly: 'Reports', ravg: 'Reports', rdaily: 'Reports' };
   // Edit / Delete links for a list row, only when the user may edit that module
   // who entered an entry (and who changed it last) – shown in the lists only
+  /* (update-246) WHEN THE ENTRY WAS SAVED – "09:42 AM" beside the date in the lists of Diesel Issue, Inward and Transfer (r.at =
+   * 'yyyy-MM-dd HH:mm', the site's clock). Saved on another day than the entry's own date (an entry of an earlier day): that day under it. */
+  function atCell(r) {
+    const a = String(r.at || ''); if (!/^\d{4}-\d\d-\d\d \d\d:\d\d$/.test(a)) return '<td class="at"><span class="muted">–</span></td>';
+    const d = a.slice(0, 10), h = Number(a.slice(11, 13));
+    return '<td class="at"><b>' + String(h % 12 || 12).padStart(2, '0') + ':' + a.slice(14, 16) + ' ' + (h < 12 ? 'AM' : 'PM') + '</b>' + (d !== r.date ? '<small>' + showDate(d) + '</small>' : '') + '</td>';
+  }
   function byCell(r) {
     const e = r.enteredBy || '', u = r.updatedBy || '';
     return '<td class="by">' + (e ? esc(e) : '<span class="muted">–</span>') + (u && u !== e ? '<small>edited: ' + esc(u) + '</small>' : '') + '</td>';
@@ -9370,11 +9378,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('i_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Qty: <b>' + fuelTotal(res.qty, res.byFuel) + '</b> &nbsp; Amount: <b>₹' + money(res.amount) + '</b>' +
         (res.count > res.rows.length ? ' &nbsp; (showing latest ' + res.rows.length + ')' : '');
       $('i_rows').innerHTML = res.rows.length ? res.rows.map(r =>
-        '<tr' + (r.open ? ' class="open-row"' : '') + '><td>' + esc(r.id) + (r.ph ? ' <button type="button" class="link d-phbtn" data-iph="' + esc(r.id) + '" title="Bill copies of this inward">📷 ' + r.ph + '</button>' : '') + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.location) + '</td><td>' + (r.open ? '<span class="open-chip">Opening stock</span>' : r.extra ? '<span class="open-chip extra">Extra diesel</span>' : esc(r.pump)) + '</td><td class="n">' + fmt(r.qty) +
+        '<tr' + (r.open ? ' class="open-row"' : '') + '><td>' + esc(r.id) + (r.ph ? ' <button type="button" class="link d-phbtn" data-iph="' + esc(r.id) + '" title="Bill copies of this inward">📷 ' + r.ph + '</button>' : '') + '</td><td>' + esc(showDate(r.date)) + '</td>' + atCell(r) + '<td>' + esc(r.location) + '</td><td>' + (r.open ? '<span class="open-chip">Opening stock</span>' : r.extra ? '<span class="open-chip extra">Extra diesel</span>' : esc(r.pump)) + '</td><td class="n">' + fmt(r.qty) +
         '</td><td class="n">' + money(r.rate) + '</td><td class="n">' + money(r.amount) + '</td><td>' + esc(r.billNo) + '</td><td>' + esc(showDate(r.billDate)) +
         '</td><td class="n"><b>' + fmt(r.balance) + '</b></td>' + byCell(r) + '<td>' + rowActions('Diesel Inward', 'data-iedit', 'data-idel', r.id) + '</td></tr>').join('')
-        : '<tr><td colspan="12" class="none">No inward entries match this filter.</td></tr>';
-      $('i_foot').innerHTML = res.count ? '<tr><td colspan="4">Total – ' + res.count + ' entries</td><td class="n">' + fuelTotal(res.qty, res.byFuel) + '</td><td></td><td class="n">₹' + money(res.amount) + '</td><td colspan="5"></td></tr>' : '';      // 12 columns, as the heading (was 11: the line stopped one cell short)
+        : '<tr><td colspan="13" class="none">No inward entries match this filter.</td></tr>';
+      $('i_foot').innerHTML = res.count ? '<tr><td colspan="5">Total – ' + res.count + ' entries</td><td class="n">' + fuelTotal(res.qty, res.byFuel) + '</td><td></td><td class="n">₹' + money(res.amount) + '</td><td colspan="5"></td></tr>' : '';      // 13 columns (update-246: + Time), as the heading – earlier 12 columns, as the heading (was 11: the line stopped one cell short)
     } catch (e) { toast(errMsg(e), true); }
   }
   $('i_save').addEventListener('click', e => busy(e.target, 'Saving…', saveInwardEntry));
@@ -9559,11 +9567,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       S.transferRows = res.rows;
       $('t_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Qty: <b>' + fuelTotal(res.qty, res.byFuel) + '</b>' + (res.count > res.rows.length ? ' &nbsp; (showing latest ' + res.rows.length + ')' : '');
       $('t_rows').innerHTML = res.rows.length ? res.rows.map(r =>
-        '<tr><td>' + esc(r.id) + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + '</td><td>' + esc(r.from) + '</td><td>' + esc(r.to) +
+        '<tr><td>' + esc(r.id) + '</td><td>' + esc(showDate(r.date)) + '</td>' + atCell(r) + '<td>' + esc(r.shift) + '</td><td>' + esc(r.from) + '</td><td>' + esc(r.to) +
         '</td><td class="n">' + fmt(r.qty) + '</td><td class="n"><b>' + fmt(r.fromBal) + '</b></td><td class="n"><b>' + fmt(r.toBal) + '</b></td><td>' + esc(r.remark) +
         '</td>' + byCell(r) + '<td>' + rowActions('Diesel Transfer', 'data-tedit', 'data-tdel', r.id) + '</td></tr>').join('')
-        : '<tr><td colspan="10" class="none">No transfers match this filter.</td></tr>';
-      $('t_foot').innerHTML = res.count ? '<tr><td colspan="5">Total – ' + res.count + ' transfers</td><td class="n">' + fuelTotal(res.qty, res.byFuel) + '</td><td colspan="4"></td></tr>' : '';
+        : '<tr><td colspan="11" class="none">No transfers match this filter.</td></tr>';
+      $('t_foot').innerHTML = res.count ? '<tr><td colspan="6">Total – ' + res.count + ' transfers</td><td class="n">' + fuelTotal(res.qty, res.byFuel) + '</td><td colspan="4"></td></tr>' : '';
     } catch (e) { toast(errMsg(e), true); }
   }
   $('t_save').addEventListener('click', e => busy(e.target, 'Saving…', saveTransferEntry));
@@ -19077,14 +19085,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('d_sum').innerHTML = 'Entries: <b>' + res.count + '</b> &nbsp; Total ' + (res.byFuel ? 'fuel' : 'diesel') + ': <b>' + fuelTotal(res.totalQty, res.byFuel) + '</b>' +      // (update-163) each fuel on its own
         (res.count > rows.length ? ' &nbsp; (showing latest ' + rows.length + ' – narrow the filter to see the rest)' : '');
       $('d_rows').innerHTML = rows.length ? rows.map(r =>
-        '<tr><td>' + esc(r.id) + (r.lk ? lockTag(S.dieselLocks[r.lk]) : '') + (r.ph ? ' <button type="button" class="link d-phbtn" data-dph="' + esc(r.id) + '" title="Photos of this fill">📷 ' + r.ph + '</button>' : '') + '</td><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.shift) + '</td><td>' + esc(r.source) + '</td><td>' + esc(r.no) + '</td><td>' + esc(r.type) + '</td><td>' + esc(r.owner) + '</td><td>' + esc(r.driver) +
+        '<tr><td>' + esc(r.id) + (r.lk ? lockTag(S.dieselLocks[r.lk]) : '') + (r.ph ? ' <button type="button" class="link d-phbtn" data-dph="' + esc(r.id) + '" title="Photos of this fill">📷 ' + r.ph + '</button>' : '') + '</td><td>' + esc(showDate(r.date)) + '</td>' + atCell(r) + '<td>' + esc(r.shift) + '</td><td>' + esc(r.source) + '</td><td>' + esc(r.no) + '</td><td>' + esc(r.type) + '</td><td>' + esc(r.owner) + '</td><td>' + esc(r.driver) +
         '</td><td class="n">' + fmt(r.qty) + (cardMode() ? (rowFuel(r) === 'CNG' && multiFuel() ? ' kg' : '') : kgOf(r.source)) + '</td><td class="n">' + [r.kmReading !== '' ? fmt(r.kmReading) + ' km' : '', r.hrReading !== '' ? fmt(r.hrReading) + ' hr' : ''].filter(Boolean).join('<br>') +
         (cardMode() ? '</td><td class="n">' + (r.amount !== '' && r.amount !== undefined ? money(r.amount) : '') + '</td><td>' + esc(r.remark) :      // (update-164) the ₹ of the fill, no stock balance
         '</td><td class="n' + (r.balance !== '' && r.balance < 0 ? ' neg' : '') + '"><b>' + fmt(r.balance) + '</b></td><td>' + esc(r.remark)) +
         '</td><td class="n">' + (S.dTotal > 0 ? fmt(r2((Number(r.qty) || 0) / S.dTotal * 100)) + '%' : '–') + '</td>' + byCell(r) + '<td>' + rowActions('Diesel Issue', 'data-dedit', 'data-ddel', r.id) + '</td></tr>').join('')
-        : '<tr><td colspan="15" class="none">No diesel issues match this filter.</td></tr>';
+        : '<tr><td colspan="16" class="none">No diesel issues match this filter.</td></tr>';
       // Total of every entry that matches the filter (also those beyond the 500 shown)
-      $('d_foot').innerHTML = res.count ? '<tr><td colspan="8">Total – ' + res.count + ' entries</td><td class="n">' + fuelTotal(res.totalQty, res.byFuel) +
+      $('d_foot').innerHTML = res.count ? '<tr><td colspan="9">Total – ' + res.count + ' entries</td><td class="n">' + fuelTotal(res.totalQty, res.byFuel) +
         (cardMode() ? '</td><td></td><td class="n">₹' + money(res.totalAmount) + '</td><td colspan="5">' + esc(Object.keys(res.byPay || {}).map(k => k + ' ₹' + money(res.byPay[k])).join(' · ')) + '</td></tr>' : '</td><td colspan="7"></td></tr>') : '';      // (update-164) the ₹ of each card / Cash
       renderDieselShare();
     } catch (e) { toast(errMsg(e), true); }
